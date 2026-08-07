@@ -919,9 +919,31 @@ xảy ra. Cập nhật chính sách theo giá mới luôn là lập một CSBH m
 <tr><td>Xóa hồ sơ <em>Từ chối</em></td><td><span class="chip p0">không</span></td><td><span class="chip p0">không</span></td><td><span class="chip p0">không</span></td><td><span class="chip p0">không</span></td><td><span class="chip p0">không</span></td><td><span class="chip p0">không</span></td></tr>
 </tbody></table></div>
 
+<h3>Vòng đời tài khoản <span class="chip ac">mới 07/08</span></h3>
+<p>Không có màn hình đăng ký. Tài khoản chỉ ra đời từ Quản trị hệ thống, và không dùng được cho
+nghiệp vụ cho tới khi chủ tài khoản tự đặt lại mật khẩu — YCNV §2.8, nhóm test <code>ONB</code>.</p>
+<div class="tw"><table>
+<thead><tr><th>Trạng thái</th><th>Vào bằng cách nào</th><th>Làm được gì</th></tr></thead>
+<tbody>
+<tr><td><strong>Chờ kích hoạt</strong></td><td>Quản trị tạo tài khoản, tự đặt mật khẩu mặc định</td><td>Đăng nhập được, nhưng token mang cờ <code>pwd_reset</code> — mọi route nghiệp vụ trả 403 <code>PASSWORD_CHANGE_REQUIRED</code></td></tr>
+<tr><td><strong>Đang hoạt động</strong></td><td>Đổi mật khẩu, qua liên kết email <em>hoặc</em> qua màn hình đổi mật khẩu</td><td>Đầy đủ theo vai trò</td></tr>
+<tr><td><strong>Ngừng hoạt động</strong></td><td>Quản trị vô hiệu hóa</td><td>Không gì — chậm nhất 60 giây sau là mọi token còn hạn cũng bị chặn (AUTH-07)</td></tr>
+</tbody></table></div>
+<ul>
+<li><strong>Hai đường kích hoạt, chỉ một đường xác nhận được email.</strong> Liên kết trong email chứng
+minh hộp thư có thật; đăng nhập bằng mật khẩu mặc định thì không. Hệ thống ghi hai cột riêng
+(<code>activated_at</code>, <code>email_verified_at</code>) thay vì gộp một, để danh sách quản trị chỉ
+ra được tài khoản nào chưa từng mở email — trường hợp gõ nhầm địa chỉ.</li>
+<li>Token kích hoạt <strong>chỉ lưu bản băm SHA-256</strong>, hạn 72 giờ, dùng một lần; gửi lại thì
+thu hồi mọi token cũ của người đó. Chuỗi thô chỉ tồn tại trong đúng một email.</li>
+<li>Email mời <strong>không bao giờ chứa mật khẩu mặc định</strong> — quản trị tự bàn giao bằng kênh
+khác. Email bị chuyển tiếp hay lộ hộp thư thì cũng không lộ mật khẩu.</li>
+<li>Đổi mật khẩu thành công <strong>thu hồi toàn bộ họ refresh token</strong> của người đó.</li>
+</ul>
+
 <h3>Khác</h3>
 <ul>
-<li>Mật khẩu băm bằng <strong>Argon2id</strong>; khóa tài khoản 15 phút sau 5 lần sai.</li>
+<li>Mật khẩu băm bằng <strong>scrypt</strong> của thư viện chuẩn Node <span class="chip ac">sửa 07/08</span>; khóa tài khoản 15 phút sau 5 lần sai. <em>Đổi từ Argon2id:</em> Argon2 trên Node cần module biên dịch gốc, kéo theo toolchain C vào ảnh Docker của mọi service. scrypt nằm sẵn trong <code>node:crypto</code>, cũng là hàm dẫn xuất khóa chống ASIC được RFC 7914 chuẩn hóa và OWASP chấp nhận. Bản băm lưu kèm tiền tố thuật toán nên đổi sang Argon2id sau này không phải reset mật khẩu ai.</li>
 <li>Access token 15 phút, refresh token 8 giờ có xoay vòng và phát hiện dùng lại — dùng lại thì thu hồi cả họ token.</li>
 <li>Cache phạm vi dữ liệu trong Redis TTL 60 giây; đổi cây tổ chức thì xóa cache ngay, nên độ trễ tối đa là 60 giây và có test cho điều đó.</li>
 <li>File chỉ truy cập qua <code>document</code> với link có hạn 5 phút gắn với người dùng — không có URL công khai trên MinIO.</li>
@@ -1360,6 +1382,27 @@ mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không 
 <tr data-tc="AUTH"><td class="id">AUTH-21</td><td>Gọi API nội bộ giữa hai service không kèm token dịch vụ</td><td>401 — service không tin nhau vô điều kiện dù cùng mạng nội bộ</td><td>§10</td><td><span class="chip p1">P1</span></td></tr>
 </tbody></table></div>
 
+<div class="grpttl"><h3>ONB — Tạo tài khoản và kích hoạt</h3><span class="c" data-grp="ONB"></span></div>
+<div class="tw"><table class="tc">
+<thead><tr><th class="id">Mã</th><th>Kịch bản</th><th>Kết quả mong đợi</th><th>YCNV</th><th>Mức</th></tr></thead>
+<tbody>
+<tr data-tc="ONB"><td class="id">ONB-01</td><td>Quản trị hệ thống tạo tài khoản kèm mật khẩu mặc định tự đặt</td><td>201, tài khoản ở trạng thái <em>Chờ kích hoạt</em>, sinh liên kết kích hoạt dùng một lần</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-02</td><td>Vai trò khác Quản trị hệ thống gọi tạo tài khoản</td><td>403 — không có màn hình đăng ký công khai, chỉ quản trị tạo được</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-03</td><td>Tạo tài khoản với email đã tồn tại</td><td>409 <code>EMAIL_DUPLICATE</code>, không tạo tài khoản thứ hai, không gửi email nào</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-04</td><td>Kiểm hộp thư Mailpit ngay sau khi tạo tài khoản</td><td>Đúng một email tới đúng địa chỉ, có liên kết kích hoạt; <b>không</b> chứa mật khẩu mặc định</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-05</td><td>Đăng nhập bằng mật khẩu mặc định khi chưa kích hoạt</td><td>200 kèm cờ <code>mustChangePassword</code>; token chỉ mở được đúng màn hình đổi mật khẩu</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-06</td><td>Dùng token hạn chế đó gọi một API nghiệp vụ bất kỳ</td><td>403 <code>PASSWORD_CHANGE_REQUIRED</code> — không lách được bước đổi mật khẩu</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-07</td><td>Mở liên kết kích hoạt và đặt mật khẩu mới</td><td>Tài khoản <em>Đang hoạt động</em>, email được đánh dấu đã xác nhận, đăng nhập đầy đủ được ngay</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-08</td><td>Dùng lại liên kết kích hoạt đã dùng</td><td>400 <code>TOKEN_USED</code> — dùng một lần, không đặt lại mật khẩu lần hai được</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-09</td><td>Dùng liên kết kích hoạt quá 72 giờ</td><td>400 <code>TOKEN_EXPIRED</code>, hướng dẫn liên hệ quản trị gửi lại</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-10</td><td>Quản trị gửi lại lời mời khi liên kết cũ chưa dùng</td><td>Liên kết cũ mất hiệu lực ngay, chỉ liên kết mới nhất dùng được</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-11</td><td>Đặt mật khẩu mới trùng đúng mật khẩu mặc định</td><td>400 — bắt buộc phải khác, nếu không thì bước đổi mật khẩu vô nghĩa</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-12</td><td>Đặt mật khẩu mới ngắn hơn 10 ký tự hoặc chỉ có chữ</td><td>400 kèm thông báo cụ thể thiếu điều kiện nào</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-13</td><td>Đổi mật khẩu thành công khi đang có phiên khác mở</td><td>Toàn bộ refresh token của người đó bị thu hồi — mọi phiên cũ đăng xuất</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-14</td><td>Kích hoạt bằng cách đăng nhập rồi đổi mật khẩu, không mở email</td><td>Tài khoản hoạt động nhưng cột <em>đã xác nhận email</em> vẫn trống trong danh sách quản trị</td><td>§2.8</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="ONB"><td class="id">ONB-15</td><td>Soi bảng người dùng và nhật ký sau toàn bộ luồng trên</td><td>Không có mật khẩu thô hay chuỗi token kích hoạt ở bất kỳ đâu — chỉ lưu bản băm</td><td>§2.8</td><td><span class="chip p0">P0</span></td></tr>
+</tbody></table></div>
+
 <div class="grpttl"><h3>CUST — Khách hàng</h3><span class="c" data-grp="CUST"></span></div>
 <div class="tw"><table class="tc">
 <thead><tr><th class="id">Mã</th><th>Kịch bản</th><th>Kết quả mong đợi</th><th>YCNV</th><th>Mức</th></tr></thead>
@@ -1624,7 +1667,7 @@ mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không 
 <tr data-tc="SEC"><td class="id">SEC-05</td><td>Tải lên file thực thi đổi đuôi thành <code>.pdf</code></td><td>Bị chặn nhờ kiểm tra magic bytes, không chỉ dựa vào phần mở rộng</td><td>§10</td><td><span class="chip p1">P1</span></td></tr>
 <tr data-tc="SEC"><td class="id">SEC-06</td><td>Tên file chứa chuỗi vượt thư mục</td><td>Lưu bằng UUID, tên gốc chỉ là siêu dữ liệu</td><td>§10</td><td><span class="chip p1">P1</span></td></tr>
 <tr data-tc="SEC"><td class="id">SEC-07</td><td>Gọi liên tục endpoint đăng nhập và endpoint xuất file</td><td>Bị giới hạn tần suất, trả 429</td><td>§10</td><td><span class="chip p1">P1</span></td></tr>
-<tr data-tc="SEC"><td class="id">SEC-08</td><td>Kiểm bảng người dùng và toàn bộ log</td><td>Mật khẩu băm Argon2id; không có mật khẩu, token hay chuỗi kết nối nào trong log</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="SEC"><td class="id">SEC-08</td><td>Kiểm bảng người dùng và toàn bộ log</td><td>Mật khẩu băm scrypt kèm tiền tố thuật toán; không có mật khẩu, token hay chuỗi kết nối nào trong log</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
 <tr data-tc="SEC"><td class="id">SEC-09</td><td>Kiểm header phản hồi qua Caddy</td><td>Có HSTS, <code>X-Content-Type-Options</code>, CSP, <code>Referrer-Policy</code></td><td>§10</td><td><span class="chip p1">P1</span></td></tr>
 <tr data-tc="SEC"><td class="id">SEC-10</td><td>Quét cổng máy chủ từ bên ngoài</td><td>Chỉ 80 và 443 mở; Postgres, Rabbit, MinIO, Redis không truy cập được</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
 <tr data-tc="SEC"><td class="id">SEC-11</td><td>Quét ảnh Docker và mã nguồn tìm bí mật</td><td>Không có mật khẩu hay khóa nào nằm trong image; tất cả đến từ file secret</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>

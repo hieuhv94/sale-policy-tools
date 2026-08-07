@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
-| **Phiên bản** | 4.1 — hợp nhất sau ba phiên rà soát, cập nhật quyền xuất hợp đồng ngày 06/08 |
-| **Ngày** | 06/08/2026 |
-| **Nguồn** | `01.08. QUY TRÌNH CSBH.docx` (QT) · `01.08. Yêu cầu nghiệp vụ.docx` (v3.0) · `05.08. Yêu cầu nghiệp vụ.docx` (v3.1) · 41 quyết định chốt trong các phiên 04/08, 05/08 và 06/08 |
+| **Phiên bản** | 4.2 — hợp nhất sau ba phiên rà soát, bổ sung quy trình tạo tài khoản ngày 07/08 |
+| **Ngày** | 07/08/2026 |
+| **Nguồn** | `01.08. QUY TRÌNH CSBH.docx` (QT) · `01.08. Yêu cầu nghiệp vụ.docx` (v3.0) · `05.08. Yêu cầu nghiệp vụ.docx` (v3.1) · 42 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08 |
 | **Trạng thái** | Đủ điều kiện khởi công. Không còn câu hỏi nghiệp vụ chờ trả lời; hai hạng mục đã thống nhất hoãn sang giai đoạn 2. |
 
 Tài liệu này là bản hợp nhất, thay thế cho việc đọc song song ba tài liệu trên. Khi có mâu thuẫn,
@@ -133,10 +133,37 @@ Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ
 
 - Nhập và duy trì danh mục sản phẩm và giá, chiết khấu quy định, thông tin người ký, mẫu bản CSBH
   và biểu mẫu scan. **Mẫu hợp đồng không thuộc vai trò này** — xem mục 2.5.
-- Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1.
+- Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1 — quy trình tạo tài khoản ở mục 2.8.
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
 - Không tham gia luồng duyệt. Mọi thay đổi danh mục vào nhật ký kèm giá trị trước và sau.
+
+### 2.8. Tạo tài khoản và kích hoạt `mới 07/08`
+
+**Người dùng không tự đăng ký.** Không có màn hình đăng ký công khai; tài khoản chỉ ra đời từ thao
+tác của Quản trị hệ thống.
+
+| Bước | Người thực hiện | Việc |
+|---|---|---|
+| A1 | Quản trị hệ thống | Nhập email, họ tên, vai trò, bộ phận, cấp trên, và **tự đặt mật khẩu mặc định** |
+| A2 | Hệ thống | Tạo tài khoản ở trạng thái **Chờ kích hoạt**, sinh liên kết kích hoạt dùng một lần |
+| A3 | Hệ thống | Gửi email tới địa chỉ vừa nhập: lời mời, liên kết kích hoạt, hạn dùng |
+| A4 | Người dùng | Mở liên kết, đặt mật khẩu mới → tài khoản **Đang hoạt động**, email được xác nhận |
+
+- **Email là định danh đăng nhập** và là duy nhất trên toàn hệ thống. Trùng email thì báo lỗi, không
+  tạo tài khoản thứ hai.
+- Mật khẩu mặc định do Quản trị hệ thống đặt **dùng được để đăng nhập ngay**, nhưng phiên đăng nhập
+  đó bị giới hạn: chỉ đổi được mật khẩu, không gọi được nghiệp vụ nào khác. Đây là đường dự phòng cho
+  trường hợp email chưa tới.
+- Đổi mật khẩu bằng đường nào cũng kích hoạt tài khoản. Nhưng **chỉ đi qua liên kết trong email mới
+  được tính là đã xác nhận email** — danh sách tài khoản của Quản trị hệ thống hiện rõ cột này, để
+  biết địa chỉ nào chưa từng chứng minh là có thật.
+- Liên kết kích hoạt **hạn 72 giờ, dùng một lần**. Hết hạn thì Quản trị hệ thống gửi lại; lần gửi lại
+  huỷ hiệu lực mọi liên kết cũ của người đó.
+- Mật khẩu mới tối thiểu 10 ký tự, có chữ và số, và **không được trùng mật khẩu mặc định**.
+- Đổi mật khẩu thành công thì **thu hồi toàn bộ phiên đăng nhập đang mở** của người đó.
+- Mọi bước ở trên vào nhật ký. Nhật ký ghi ai tạo, tạo lúc nào, gửi lại mấy lần — **không bao giờ ghi
+  mật khẩu hay nội dung liên kết kích hoạt**.
 
 ---
 
@@ -459,11 +486,14 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
    riêng**, và người quản lý mẫu là **Sale Admin**, không phải Quản trị hệ thống (cập nhật 06/08).
 8. Mục 8 yêu cầu hợp đồng có **trạng thái riêng và bản scan** — bỏ. Hợp đồng không được lưu trong hệ
    thống; bấm xuất là sinh PDF trả về ngay (cập nhật 06/08).
+9. YCNV **không mô tả tài khoản ra đời bằng cách nào** — chỉ nói Quản trị hệ thống “quản lý tài
+   khoản”. Bổ sung mục 2.8: tạo tài khoản bằng email, mật khẩu mặc định do quản trị đặt, người dùng
+   phải xác nhận qua email và đổi mật khẩu (mới 07/08).
 
 ## Phụ lục B — Nhật ký quyết định
 
-41 quyết định chốt trong các phiên 04/08, 05/08 và 06/08/2026, nhóm theo chủ đề. Sáu quyết định của
-phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
+42 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
 phân quyền Sale Admin → kế toán → TDV · khách hàng do TDV tự tạo · danh mục sản phẩm, giá và chiết
@@ -493,5 +523,10 @@ do kế toán và Sale Admin cùng thực hiện** (06/08, mở rộng quyết �
 hồ sơ CSBH · **mẫu hợp đồng do Sale Admin soạn sẵn và tự ánh xạ trường dữ liệu**, chuyển khỏi Quản
 trị hệ thống · **xuất hợp đồng là thao tác tức thời sinh ra PDF, hệ thống không lưu lại hợp đồng** —
 không bảng, không trạng thái, không bản scan, không phiên bản.
+
+**Tài khoản** (07/08) — **không có đăng ký công khai**, tài khoản chỉ do Quản trị hệ thống tạo bằng
+email · quản trị tự đặt mật khẩu mặc định · hệ thống gửi email mời kèm liên kết kích hoạt hạn 72 giờ,
+dùng một lần · người dùng phải đổi mật khẩu mới dùng được hệ thống · đăng nhập bằng mật khẩu mặc định
+chỉ mở được đúng màn hình đổi mật khẩu · chỉ đi qua liên kết trong email mới tính là đã xác nhận email.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

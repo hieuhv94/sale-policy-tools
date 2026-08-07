@@ -12,12 +12,12 @@
 > Sửa HTML rồi chạy lại script, đừng sửa tay file này.
 
 Bản thiết kế triển khai cho YCNV v4.1: phân rã microservice chạy bằng Docker Compose, techstack kèm
-lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 308 test case
+lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 323 test case
 cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên production.
 
 | | | | |
 |---|---|---|---|
-| **10** service ứng dụng | **308** test case | **11** trạng thái hồ sơ | **6** vai trò |
+| **10** service ứng dụng | **323** test case | **11** trạng thái hồ sơ | **6** vai trò |
 | **10** tài khoản mẫu | **3** khung nhìn được test | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
@@ -456,9 +456,24 @@ của một lần phê duyệt đã xảy ra.
 | Sửa danh mục, giá, ngưỡng CK | — | — | — | — | — | `có` |
 | Xóa hồ sơ *Từ chối* | `không` | `không` | `không` | `không` | `không` | `không` |
 
+### Vòng đời tài khoản `mới 07/08`
+
+Không có màn hình đăng ký. Tài khoản chỉ ra đời từ Quản trị hệ thống, và không dùng được cho nghiệp vụ cho tới khi chủ tài khoản tự đặt lại mật khẩu — YCNV §2.8, nhóm test `ONB`.
+
+| Trạng thái | Vào bằng cách nào | Làm được gì |
+|---|---|---|
+| **Chờ kích hoạt** | Quản trị tạo tài khoản, tự đặt mật khẩu mặc định | Đăng nhập được, nhưng token mang cờ `pwd_reset` — mọi route nghiệp vụ trả 403 `PASSWORD_CHANGE_REQUIRED` |
+| **Đang hoạt động** | Đổi mật khẩu, qua liên kết email *hoặc* qua màn hình đổi mật khẩu | Đầy đủ theo vai trò |
+| **Ngừng hoạt động** | Quản trị vô hiệu hóa | Không gì — chậm nhất 60 giây sau là mọi token còn hạn cũng bị chặn (AUTH-07) |
+
+- **Hai đường kích hoạt, chỉ một đường xác nhận được email.** Liên kết trong email chứng minh hộp thư có thật; đăng nhập bằng mật khẩu mặc định thì không. Hệ thống ghi hai cột riêng (`activated_at`, `email_verified_at`) thay vì gộp một, để danh sách quản trị chỉ ra được tài khoản nào chưa từng mở email — trường hợp gõ nhầm địa chỉ.
+- Token kích hoạt **chỉ lưu bản băm SHA-256**, hạn 72 giờ, dùng một lần; gửi lại thì thu hồi mọi token cũ của người đó. Chuỗi thô chỉ tồn tại trong đúng một email.
+- Email mời **không bao giờ chứa mật khẩu mặc định** — quản trị tự bàn giao bằng kênh khác. Email bị chuyển tiếp hay lộ hộp thư thì cũng không lộ mật khẩu.
+- Đổi mật khẩu thành công **thu hồi toàn bộ họ refresh token** của người đó.
+
 ### Khác
 
-- Mật khẩu băm bằng **Argon2id**; khóa tài khoản 15 phút sau 5 lần sai.
+- Mật khẩu băm bằng **scrypt** của thư viện chuẩn Node `sửa 07/08`; khóa tài khoản 15 phút sau 5 lần sai. *Đổi từ Argon2id:* Argon2 trên Node cần module biên dịch gốc, kéo theo toolchain C vào ảnh Docker của mọi service. scrypt nằm sẵn trong `node:crypto`, cũng là hàm dẫn xuất khóa chống ASIC được RFC 7914 chuẩn hóa và OWASP chấp nhận. Bản băm lưu kèm tiền tố thuật toán nên đổi sang Argon2id sau này không phải reset mật khẩu ai.
 - Access token 15 phút, refresh token 8 giờ có xoay vòng và phát hiện dùng lại — dùng lại thì thu hồi cả họ token.
 - Cache phạm vi dữ liệu trong Redis TTL 60 giây; đổi cây tổ chức thì xóa cache ngay, nên độ trễ tối đa là 60 giây và có test cho điều đó.
 - File chỉ truy cập qua `document` với link có hạn 5 phút gắn với người dùng — không có URL công khai trên MinIO.
@@ -806,6 +821,26 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | AUTH-20 | Đổi người giữ chức Trưởng bộ phận trong khi có hồ sơ đang *Chờ TBP duyệt* | Người mới duyệt được ngay, không phải sửa hồ sơ; vai trò gán theo bộ phận chứ không gán cứng cá nhân | §2.3 | `P0` |
 | AUTH-21 | Gọi API nội bộ giữa hai service không kèm token dịch vụ | 401 — service không tin nhau vô điều kiện dù cùng mạng nội bộ | §10 | `P1` |
 
+### ONB — Tạo tài khoản và kích hoạt
+
+| Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
+|---|---|---|---|---|
+| ONB-01 | Quản trị hệ thống tạo tài khoản kèm mật khẩu mặc định tự đặt | 201, tài khoản ở trạng thái *Chờ kích hoạt*, sinh liên kết kích hoạt dùng một lần | §2.8 | `P0` |
+| ONB-02 | Vai trò khác Quản trị hệ thống gọi tạo tài khoản | 403 — không có màn hình đăng ký công khai, chỉ quản trị tạo được | §2.8 | `P0` |
+| ONB-03 | Tạo tài khoản với email đã tồn tại | 409 `EMAIL_DUPLICATE`, không tạo tài khoản thứ hai, không gửi email nào | §2.8 | `P0` |
+| ONB-04 | Kiểm hộp thư Mailpit ngay sau khi tạo tài khoản | Đúng một email tới đúng địa chỉ, có liên kết kích hoạt; **không** chứa mật khẩu mặc định | §2.8 | `P0` |
+| ONB-05 | Đăng nhập bằng mật khẩu mặc định khi chưa kích hoạt | 200 kèm cờ `mustChangePassword`; token chỉ mở được đúng màn hình đổi mật khẩu | §2.8 | `P0` |
+| ONB-06 | Dùng token hạn chế đó gọi một API nghiệp vụ bất kỳ | 403 `PASSWORD_CHANGE_REQUIRED` — không lách được bước đổi mật khẩu | §2.8 | `P0` |
+| ONB-07 | Mở liên kết kích hoạt và đặt mật khẩu mới | Tài khoản *Đang hoạt động*, email được đánh dấu đã xác nhận, đăng nhập đầy đủ được ngay | §2.8 | `P0` |
+| ONB-08 | Dùng lại liên kết kích hoạt đã dùng | 400 `TOKEN_USED` — dùng một lần, không đặt lại mật khẩu lần hai được | §2.8 | `P1` |
+| ONB-09 | Dùng liên kết kích hoạt quá 72 giờ | 400 `TOKEN_EXPIRED`, hướng dẫn liên hệ quản trị gửi lại | §2.8 | `P1` |
+| ONB-10 | Quản trị gửi lại lời mời khi liên kết cũ chưa dùng | Liên kết cũ mất hiệu lực ngay, chỉ liên kết mới nhất dùng được | §2.8 | `P1` |
+| ONB-11 | Đặt mật khẩu mới trùng đúng mật khẩu mặc định | 400 — bắt buộc phải khác, nếu không thì bước đổi mật khẩu vô nghĩa | §2.8 | `P1` |
+| ONB-12 | Đặt mật khẩu mới ngắn hơn 10 ký tự hoặc chỉ có chữ | 400 kèm thông báo cụ thể thiếu điều kiện nào | §2.8 | `P1` |
+| ONB-13 | Đổi mật khẩu thành công khi đang có phiên khác mở | Toàn bộ refresh token của người đó bị thu hồi — mọi phiên cũ đăng xuất | §2.8 | `P0` |
+| ONB-14 | Kích hoạt bằng cách đăng nhập rồi đổi mật khẩu, không mở email | Tài khoản hoạt động nhưng cột *đã xác nhận email* vẫn trống trong danh sách quản trị | §2.8 | `P1` |
+| ONB-15 | Soi bảng người dùng và nhật ký sau toàn bộ luồng trên | Không có mật khẩu thô hay chuỗi token kích hoạt ở bất kỳ đâu — chỉ lưu bản băm | §2.8 | `P0` |
+
 ### CUST — Khách hàng
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
@@ -1060,7 +1095,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | SEC-05 | Tải lên file thực thi đổi đuôi thành `.pdf` | Bị chặn nhờ kiểm tra magic bytes, không chỉ dựa vào phần mở rộng | §10 | `P1` |
 | SEC-06 | Tên file chứa chuỗi vượt thư mục | Lưu bằng UUID, tên gốc chỉ là siêu dữ liệu | §10 | `P1` |
 | SEC-07 | Gọi liên tục endpoint đăng nhập và endpoint xuất file | Bị giới hạn tần suất, trả 429 | §10 | `P1` |
-| SEC-08 | Kiểm bảng người dùng và toàn bộ log | Mật khẩu băm Argon2id; không có mật khẩu, token hay chuỗi kết nối nào trong log | §10 | `P0` |
+| SEC-08 | Kiểm bảng người dùng và toàn bộ log | Mật khẩu băm scrypt kèm tiền tố thuật toán; không có mật khẩu, token hay chuỗi kết nối nào trong log | §10 | `P0` |
 | SEC-09 | Kiểm header phản hồi qua Caddy | Có HSTS, `X-Content-Type-Options`, CSP, `Referrer-Policy` | §10 | `P1` |
 | SEC-10 | Quét cổng máy chủ từ bên ngoài | Chỉ 80 và 443 mở; Postgres, Rabbit, MinIO, Redis không truy cập được | §10 | `P0` |
 | SEC-11 | Quét ảnh Docker và mã nguồn tìm bí mật | Không có mật khẩu hay khóa nào nằm trong image; tất cả đến từ file secret | §10 | `P0` |

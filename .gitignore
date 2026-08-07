@@ -20,3 +20,6 @@ impl/deploy/secrets/*
 !impl/deploy/secrets/.gitkeep
 .env
 .env.local
+
+# file tạm của Claude Code
+.claude/settings.local.json.tmp.*

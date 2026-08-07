@@ -7,6 +7,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
+      mailpit:  { condition: service_healthy }
       migrate:  { condition: service_completed_successfully }
     environment:
       PGHOST: postgres
@@ -16,13 +17,30 @@ services:
       PG_PASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
       ROLE_PASSWORD: csbh_dev_pw
       REDIS_URL: redis://redis:6379
+      MAILPIT_URL: http://mailpit:8025
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
     volumes:
       - ..:/app
       - ../../workspace:/workspace
       - pnpm_store:/pnpm-store
+      # Mỗi package pnpm sinh ra một node_modules riêng. Không che bằng volume
+      # thì chúng bị ghi thẳng ra máy thật qua bind-mount ở trên, do root sở hữu,
+      # và người dùng có phụ thuộc Node nằm trong workspace dù đã yêu cầu mọi thứ
+      # chỉ chạy trong Docker. Thêm một dòng cho mỗi package mới.
       - node_modules:/app/node_modules
+      - nm_identity:/app/services/identity/node_modules
+      - nm_domain_policy:/app/packages/domain-policy/node_modules
+      - nm_identity_core:/app/packages/identity-core/node_modules
+      - nm_contracts:/app/packages/contracts/node_modules
     working_dir: /app
     networks: [ internal ]
 
-volumes: { pnpm_store: {}, node_modules: {} }
+volumes:
+  pnpm_store: {}
+  node_modules: {}
+  nm_identity: {}
+  nm_domain_policy: {}
+  nm_identity_core: {}
+  nm_contracts: {}

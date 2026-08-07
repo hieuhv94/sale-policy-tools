@@ -1,6 +1,21 @@
 import { defineConfig } from 'vitest/config';
+import swc from 'unplugin-swc';
 
 export default defineConfig({
+  // esbuild — trình biên dịch mặc định của Vite — KHÔNG sinh được
+  // emitDecoratorMetadata, mà tiêm phụ thuộc của NestJS lại đọc đúng metadata
+  // đó để biết constructor cần gì. Thiếu nó thì mọi provider vào là undefined.
+  // swc sinh được, nên dùng swc cho toàn bộ mã TypeScript.
+  plugins: [
+    swc.vite({
+      module: { type: 'es6' },
+      jsc: {
+        target: 'es2022',
+        parser: { syntax: 'typescript', decorators: true },
+        transform: { legacyDecorator: true, decoratorMetadata: true },
+      },
+    }),
+  ],
   test: {
     include: ['tests/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
     // Test ràng buộc CSDL dùng chung một Postgres thật nên chạy tuần tự,

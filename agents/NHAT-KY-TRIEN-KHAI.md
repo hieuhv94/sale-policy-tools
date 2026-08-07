@@ -24,7 +24,7 @@ sẽ không tự suy ra được.
 | **P1** | Monorepo `impl/`, hạ tầng Docker, migration 9 schema + 9 DB role, bốn bất biến ở tầng CSDL, `VERSION`, khung test | **xong** — 27/27 xanh |
 | **P2** | `domain-policy` thuần: công thức chiết khấu, làm tròn, máy trạng thái | **xong** — 71/71 xanh |
 | **P3a** | `identity` phần dữ liệu: 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | **xong** — 89/89 xanh |
-| **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản | chưa |
+| **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản, **vòng đời tài khoản** | **xong** — 125/125 xanh |
 | **P4** | `catalog` + `customer` | chưa |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | chưa |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
@@ -298,3 +298,107 @@ Node, so sánh theo thời gian hằng định.
 ### Commit
 
 `P3a: identity — cay phan quyen va 10 tai khoan mau`
+
+---
+
+## P3b — `identity`: tầng HTTP và vòng đời tài khoản
+
+### Yêu cầu nghiệp vụ phát sinh trong chặng này
+
+Người dùng bổ sung: *tài khoản do quản trị tạo bằng email, quản trị tự đặt mật khẩu mặc định, hệ
+thống gửi mail yêu cầu xác nhận và đổi mật khẩu.* Rà lại thì **yêu cầu này chưa có ở đâu cả** — YCNV
+chỉ nói Quản trị hệ thống "quản lý tài khoản" mà không mô tả tài khoản ra đời bằng cách nào, và
+trong 308 test case không có case nào chạm tới. Đã bổ sung trước khi viết mã:
+
+- YCNV lên **v4.2**: thêm mục 2.8, thêm mục 9 vào Phụ lục A, thêm nhóm *Tài khoản* vào Phụ lục B
+  (quyết định thứ 42).
+- Artifact kiến trúc: thêm mục *Vòng đời tài khoản* trong §9, thêm **nhóm test `ONB` gồm 15 case**.
+  Tổng test case trong tài liệu: 308 → **323**.
+
+### Chỗ yêu cầu chưa nói rõ, và cách đã chọn
+
+Mật khẩu mặc định *dùng được để đăng nhập* hay chỉ là chỗ giữ chỗ cho tới khi mở email? Hai cách đọc
+đều hợp lý, nên đã làm **cả hai đường và tách hai cột**:
+
+| Cột | Trả lời câu hỏi |
+|---|---|
+| `activated_at` | Đã tự đặt mật khẩu chưa — đường nào cũng tính |
+| `email_verified_at` | Đã **chứng minh hộp thư có thật** chưa — chỉ liên kết trong email mới tính |
+
+Gộp một cột thì mất khả năng phát hiện quản trị gõ nhầm địa chỉ email: tài khoản vẫn chạy, thư mời
+thì bay vào hư không, và không ai biết. Tách ra thì danh sách quản trị chỉ thẳng ra được (ONB-14).
+
+Đăng nhập bằng mật khẩu mặc định vào được nhưng token mang cờ `pwd_reset`: chỉ `GET /auth/me` và
+`POST /auth/change-password` chạy, mọi route khác trả 403 `PASSWORD_CHANGE_REQUIRED` (ONB-05, ONB-06).
+
+### Quyết định kỹ thuật
+
+**JWT tự viết trên `node:crypto`** thay vì kéo thư viện. 60 dòng, đổi lại là đóng dứt điểm được lỗ
+hổng *alg confusion*: `verifyJwt` xác minh chữ ký **trước** khi đọc payload, và thuật toán đọc từ
+hằng số trong mã chứ không đọc từ header — thư viện nào chọn khóa theo `header.alg` đều dính
+`alg:none` hoặc trò đổi RS256 sang HS256 rồi ký bằng chính public key.
+
+**RS256 chứ không HS256.** Chín service kia chỉ cần *xác minh* nên chỉ nhận public key; đọc được mã
+nguồn hay ảnh Docker của chúng cũng không phát hành được token. Với HS256 thì mọi service đều tự cấp
+token cho mình được.
+
+**Audience tách đôi** (`csbh-app` cho người dùng, `csbh-internal` cho service). Không tách thì access
+token của một TDV gọi thẳng được `/internal/*` (AUTH-21).
+
+**Guard đăng ký ở phạm vi toàn cục** — mặc định chặn, mở ra phải khai báo `@Public()` ngay tại route.
+Chiều ngược lại (mặc định mở, nhớ thì mới chặn) là cách quên một route rồi hở cả hệ thống.
+
+### Đi chệch bản thiết kế
+
+| Bản thiết kế | Đã làm | Lý do |
+|---|---|---|
+| Băm mật khẩu **Argon2id** | **scrypt** của `node:crypto` | Argon2 trên Node cần module biên dịch gốc, kéo toolchain C vào ảnh Docker của cả 10 service. scrypt nằm sẵn trong thư viện chuẩn, được RFC 7914 chuẩn hoá và OWASP chấp nhận. Bản băm lưu kèm tiền tố thuật toán nên sau này đổi sang Argon2id không phải reset mật khẩu ai. **Đã sửa lại tài liệu kiến trúc cho khớp**, không để tài liệu nói một đằng mã chạy một nẻo |
+| `class-validator` cho DTO | Hàm kiểm tự viết trong `infra/validate.ts` | `class-validator` đọc metadata của decorator, tức là buộc mọi service giữ đồng bộ trình biên dịch của runtime với của test. Ở kích thước dữ liệu vào của identity thì cái giá đó không đáng |
+
+### Ba lỗi đã sửa
+
+**1. esbuild không sinh được `emitDecoratorMetadata`.** Tiêm phụ thuộc của NestJS đọc đúng metadata
+đó để biết constructor cần gì; thiếu là mọi provider vào `undefined`. Vite dùng esbuild mặc định nên
+phải cắm `unplugin-swc` vào `vitest.config.ts`.
+
+**2. `node_modules` bị ghi ra máy thật.** pnpm sinh một `node_modules` cho **mỗi** package, mà volume
+cũ chỉ che `/app/node_modules`. Kết quả: `services/identity/node_modules` nằm trên máy người dùng, do
+`root` sở hữu — đúng thứ mà yêu cầu "mọi thứ chạy trong Docker" muốn tránh. Đã thêm một named volume
+cho mỗi package trong `compose.test.yml`; **mỗi package mới phải thêm một dòng**.
+
+**3. Thu hồi họ token bị `ROLLBACK` nuốt mất — lỗi nghiêm trọng nhất chặng này.** Nhánh phát hiện
+dùng lại refresh token vừa phải *ghi* (thu hồi cả họ) vừa phải *báo lỗi*. Ném exception từ bên trong
+`db.tx` kích hoạt ROLLBACK, nên việc thu hồi bị hoàn tác **trong im lặng**: người gọi vẫn nhận 401
+nên nhìn từ ngoài tưởng đã chặn, thực tế toàn bộ token của họ đó vẫn sống. Sửa bằng cách cho kết quả
+đi *ra* khỏi transaction dưới dạng union rồi mới ném lỗi. Test `AUTH-04` bắt được vì nó kiểm thêm
+một bước: token *vừa xoay vòng ra* có chết theo không.
+
+### Một test lúc xanh lúc đỏ, và nó đúng
+
+`ONB-13` xanh lần đầu, đỏ lần chạy thứ hai. Không phải test hỏng: mốc `password_changed_at` đưa vào
+access token đang tính bằng **giây**. Đăng nhập rồi đổi mật khẩu trong cùng một giây cho hai giá trị
+bằng nhau, phép so `<` không thành, token của phiên cũ sống sót. Đổi sang mili giây. Bài học giữ lại
+từ P3a vẫn đúng: **chạy `make test` ít nhất hai lần liên tiếp mới được coi là xanh** — lần này đã
+chạy bốn lần.
+
+### Kết quả
+
+| Nhóm | Số test | Nội dung |
+|---|---|---|
+| `AUTH-01` | 3 | Đăng nhập bằng tên hoặc email; hạn token 15 phút và 8 giờ |
+| `AUTH-02` | 2 | Khoá 15 phút sau 5 lần sai; tài khoản không tồn tại trả lời **giống hệt** tài khoản sai mật khẩu |
+| `AUTH-03` | 2 | Token hết hạn; refresh đổi được token mới |
+| `AUTH-04` | 1 | Dùng lại token đã xoay vòng → thu hồi cả họ |
+| `AUTH-05` | 2 | Sửa chữ ký; sửa payload giữ nguyên chữ ký cũ |
+| `AUTH-06` | 1 | Đăng xuất thu hồi cả họ |
+| `AUTH-07` | 2 | Vô hiệu hoá qua API chặn ngay; đi vòng ngoài API thì cửa sổ trễ ≤ 60 giây |
+| `AUTH-14` | 2 | Chỉ `QUAN_TRI` vào được nhóm route quản trị |
+| `AUTH-21` | 3 | Thiếu token dịch vụ; token người dùng không thay thế được; đúng audience thì trả đúng phạm vi |
+| `ONB-01…15` | 18 | Toàn bộ vòng đời tài khoản, gồm cả ràng buộc CSDL từ chối lưu token thô |
+
+**125/125 xanh**, chạy bốn lần liên tiếp cùng kết quả. Kiểm `AUTH-07` không ngồi chờ 60 giây mà đọc
+thẳng TTL còn lại của khoá Redis — kiểm đúng thứ cần kiểm, và test chạy trong một phần giây.
+
+### Commit
+
+`P3b: identity HTTP — JWT RS256, vong doi tai khoan, 15 test ONB moi`
