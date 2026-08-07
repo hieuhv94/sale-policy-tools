@@ -102,7 +102,7 @@ export class Clients implements OnModuleDestroy {
 
   /** Người ký đang hiệu lực — dùng cho khối chữ ký ở cuối bản CSBH A4. */
   async signer(): Promise<{ fullName: string; title: string; unit: string } | undefined> {
-    const r = await fetch(`${catalogUrl()}/internal/catalog/lookups?kind=signer`, {
+    const r = await fetch(`${catalogUrl()}/internal/catalog/signers`, {
       headers: svc(),
     }).catch(() => undefined);
     if (!r?.ok) return undefined;

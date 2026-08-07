@@ -10,6 +10,13 @@ import { FilesController } from './files/files.controller.js';
 import { RenderService } from './render/render.service.js';
 import { RenderController } from './render/render.controller.js';
 import { ScanDiscardConsumer } from './consumers/scan-discard.consumer.js';
+import { TemplatesService } from './contracts/templates.service.js';
+import { ContractsService } from './contracts/contracts.service.js';
+import {
+  ContractsController,
+  ContractTemplatesController,
+} from './contracts/contracts.controller.js';
+import { TemplateBootstrap } from './contracts/bootstrap.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -32,7 +39,13 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, FilesController, RenderController],
+  controllers: [
+    HealthController,
+    FilesController,
+    RenderController,
+    ContractTemplatesController,
+    ContractsController,
+  ],
   providers: [
     Db,
     Storage,
@@ -40,6 +53,9 @@ class HealthController {
     Gotenberg,
     FilesService,
     RenderService,
+    TemplatesService,
+    ContractsService,
+    TemplateBootstrap,
     ScanDiscardConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },

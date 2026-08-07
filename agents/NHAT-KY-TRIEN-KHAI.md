@@ -31,7 +31,7 @@ sẽ không tự suy ra được.
 | **P5.6** | Vòng hai phi chức năng: PITR thật, múi giờ, bí mật, tắt máy êm | **xong** — 285/285 xanh |
 | **P6a** | `notification` + đường truyền outbox → RabbitMQ | **xong** — 305/305 xanh |
 | **P6b** | `document`: file, ký số nội bộ, bản CSBH A4 | **xong** — 322/322 xanh |
-| **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | chưa |
+| **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | **xong** — 348/348 xanh |
 | **P6d** | `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -959,3 +959,123 @@ hạn 2 tiến trình Chromium như thiết kế — hiện dựa vào giới h�
 ### Commit
 
 `P6b: document — file, ky so noi bo, ban CSBH A4 qua Gotenberg`
+
+---
+
+## P6c — Mẫu hợp đồng và xuất hợp đồng
+
+Chặng khó nhất của P6, và cái khó nằm ở chỗ không ai đoán trước: `.docx`. **348/348 xanh**, ba lần
+liên tiếp.
+
+### Một mâu thuẫn trong danh mục test, đã xử lý dứt điểm
+
+`DOC-16` ghi *"Hợp đồng có trạng thái riêng và tải được bản scan"*. Điều đó **mâu thuẫn trực tiếp**
+với `DOC-28` và muc 8.3, vốn nói không có bảng hợp đồng, không mã, không trạng thái, không bản scan.
+
+`DOC-16` là mức `P1` và có từ trước quyết định "hợp đồng là một phép biến đổi"; `DOC-28` là `P0` và
+viện dẫn thẳng muc 8.3 của bản hợp nhất. **Bản hợp nhất thắng, `DOC-16` nghỉ.** Quyết định đó không
+nằm trong một dòng ghi chú mà nằm trong một test chạy được: nó quét `information_schema` để khẳng
+định không có cột `status`, `scan_file_id` hay `contract_code` ở đâu cả — nếu sáu tháng sau ai đó
+thêm lại, test đỏ ngay.
+
+Phần **duy nhất** của `DOC-16` còn giá trị — liên kết ngược về hồ sơ nguồn — được giữ, nhưng ở trên
+chính hồ sơ (`contract_issued_at/by`) chứ không ở một bản ghi hợp đồng.
+
+> **Phải nói rõ với khách hàng:** hệ thống **không trả lời được** câu hỏi *"hợp đồng nào đã ký, hợp
+> đồng nào chưa"*. Muốn theo dõi việc ký hợp đồng thì phải bổ sung lưu trữ, và khi đó nên thêm cả ảnh
+> chụp dữ liệu tại thời điểm xuất chứ không chỉ thêm cột trạng thái.
+
+### `DOC-28` là test giữ kiến trúc, không phải test chức năng
+
+Nó quét ba nơi và cả ba đều phải sạch: lược đồ CSDL (không bảng `contract`), bảng định tuyến của
+Express (không route `/contracts/:id`), và kho MinIO (số object **trước và sau** khi xuất bằng nhau).
+PDF trả thẳng về người bấm và không bao giờ đi qua kho.
+
+### Cái khó thật sự: Word cắt ô trống thành nhiều mảnh
+
+Word cắt một đoạn văn thành nhiều `<w:r>` bất cứ lúc nào nó muốn — sửa một chữ, bật kiểm tra chính
+tả, đổi phông giữa chừng. Nên `{{customer.name}}` gõ liền mạch trên màn hình rất thường nằm rải trong
+XML thành `{{cus`, `tomer.`, `name}}`.
+
+Tìm chuỗi trên từng `<w:t>` sẽ **không thấy gì cả**, và đó là kiểu hỏng im lặng tệ nhất: file vẫn
+sinh ra, chỉ là ô trống không được điền. Cách xử lý là gộp toàn bộ `<w:t>` trong **cùng một `<w:p>`**
+rồi mới tìm và thay. Có một test riêng dựng đúng cấu trúc XML bị cắt rời đó.
+
+Cái giá: định dạng khác nhau giữa các đoạn chữ **trong cùng một đoạn văn** bị san phẳng theo đoạn chữ
+đầu tiên. Chấp nhận được với mẫu hợp đồng — định dạng ở đó theo đoạn văn, không theo từng chữ.
+
+### Không dùng thư viện trộn mẫu
+
+`docxtemplater` và tương tự làm được nhiều hơn nhu cầu ở đây nhiều lần, đổi lại là một cú pháp mẫu
+riêng mà Sale Admin phải học và một phụ thuộc lớn phải theo dõi vá lỗi. Việc cần làm chỉ có ba: liệt
+kê ô trống, thay giá trị, nhân bản dòng bảng. `fflate` mở zip, phần còn lại là xử lý chuỗi.
+
+### Hai lỗi `.docx` mất nhiều thời gian nhất
+
+Cả hai đều cho ra **đúng một dòng** `uno exception` từ LibreOffice, không nói gì thêm.
+
+**1. File `.docx` tối thiểu của tôi quá tối thiểu.** Ba file — bảng kiểu nội dung, quan hệ gốc, thân
+tài liệu — đủ để `placeholdersOf` đọc hoàn toàn bình thường, nên nó *trông như đã xong*. Thiếu
+`word/_rels/document.xml.rels` (kể cả rỗng) và `<w:tblGrid>` trong bảng. Word tự suy ra được cả hai;
+LibreOffice thì không. Nói cách khác: **đọc được không có nghĩa là mở được.**
+
+**2. Thuộc tính XML trùng lặp.** Hàm ghi chữ vào đoạn văn nối thêm `xml:space="preserve"` vào thẻ
+`<w:t>` sẵn có, mà thẻ đó **đã có** thuộc tính ấy → `<w:t xml:space="preserve" xml:space="preserve">`.
+XML thuộc tính trùng là XML không hợp lệ. Đã đổi sang dựng lại thẻ mở từ đầu.
+
+Cách gỡ cả hai: **ghi file ra rồi tự chuyển bằng `curl`**, tách hẳn khỏi đường ứng dụng. File chưa
+trộn chuyển được (200) mà file đã trộn thì không → biết ngay lỗi nằm ở bước trộn, không phải ở bước
+dựng. Đọc log Gotenberg thì không bao giờ ra.
+
+### Ba lỗi của chính test, mỗi lỗi chỉ ra một điều thật
+
+**`DOC-12` — sản phẩm của hồ sơ A có mặt trong hợp đồng của hồ sơ B, và đó là ĐÚNG.** B là bản chỉnh
+sửa của A, mà *"phiên bản mới phải chứa lại toàn bộ sản phẩm cũ"* (muc 5.1). Khẳng định ngược lại sẽ
+ép hệ thống vi phạm luật đó. Thứ phân biệt hai bản hợp đồng là **mã hồ sơ**, không phải danh sách sản phẩm.
+
+**`DOC-24` — đường trả về phải đúng máy trạng thái.** Sau khi tiếp nhận L1, hồ sơ đã ở bước Sale Admin
+xử lý nên `KT_RETURN_L1` không còn hợp lệ. Kịch bản thật là kế toán từ chối ở **lần hai**.
+
+**LibreOffice ngắt dòng trong ô bảng hẹp,** nên `ZZHD-SP-16-21919` ra khỏi trình trích chữ thành
+`ZZHD- SP-16- 21919`. Chuyện trình bày, không phải dữ liệu thiếu — phép so mã sản phẩm bỏ hết khoảng
+trắng trước khi đối chiếu.
+
+### Ba chỗ chặn sớm thay vì chặn muộn
+
+- **Ánh xạ tới trường nguồn không tồn tại → 400 ngay lúc LƯU** (`DOC-29`), không đợi tới lúc kế toán
+  bấm xuất hai tuần sau. Một danh sách trường nguồn dùng cho cả hai việc — kiểm và trộn — là cách duy
+  nhất bảo đảm "lưu được thì xuất được".
+- **Phát hành mẫu còn ô trống chưa ánh xạ → 409 kèm danh sách ô thiếu** (`DOC-30`). Không chặn thì
+  hợp đồng in ra mang nguyên chuỗi `{{...}}` gửi cho khách hàng.
+- **File mẫu hỏng → 400, mẫu đang dùng không bị ảnh hưởng** (`DOC-33`). Đọc ô trống **trước** khi ghi
+  bất cứ thứ gì. Test kiểm cả hai đường hỏng: không phải zip, và zip hợp lệ nhưng không có
+  `word/document.xml`.
+
+### Đúng một mẫu đang dùng — cưỡng chế ở CSDL
+
+`CREATE UNIQUE INDEX ... ON doc.contract_template ((true)) WHERE is_active`. Kiểm bằng `SELECT` rồi
+`UPDATE` thì hai lần bấm phát hành gần như đồng thời cho qua cả hai. Thứ tự hạ-mẫu-cũ-trước cũng
+giống hệt bài học ở `EFF-01` của policy: partial unique index kiểm ngay sau từng câu lệnh, không hoãn
+tới `COMMIT`.
+
+### Ghi dấu vết SAU khi đã có PDF trong tay
+
+Gotenberg chết mà đã ghi `contract_issued_at` trước là hồ sơ mang dấu "đã xuất hợp đồng" cho một lần
+xuất **không hề xảy ra**. `DOC-34` tắt Gotenberg giữa chừng và khẳng định cột đó vẫn `NULL`.
+
+### Một lỗi phụ dọn luôn
+
+`document` hỏi người ký qua `/internal/catalog/lookups?kind=signer`, mà endpoint đó dựng tên bảng từ
+tham số `kind` → truy vấn `cat.undefined` → 500. Lời gọi có `.catch()` bọc ngoài nên **chạy được
+suốt**, chỉ để lại một núi lỗi trong log mà không ai đọc. Đã thêm endpoint `/internal/catalog/signers`
+riêng.
+
+### Còn nợ của chặng này
+
+`DOC-20` vẫn chưa có hàng đợi BullMQ giới hạn 2 tiến trình Chromium — hiện dựa vào giới hạn nội tại
+của Gotenberg. Mẫu mặc định seed sẵn là bản tối giản, đủ để hệ thống chạy được ngay sau khi triển
+khai; mẫu thật do Sale Admin tải lên.
+
+### Commit
+
+`P6c: mau hop dong va xuat hop dong — mot phep bien doi, khong phai ban ghi`

@@ -15,3 +15,8 @@ export { FilesService, sniff, MAX_BYTES } from './files/files.service.js';
 export { ScanDiscardConsumer } from './consumers/scan-discard.consumer.js';
 export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
 export { sheetHtml, money, pct, dmy } from './render/sheet.js';
+export { TemplatesService } from './contracts/templates.service.js';
+export { ContractsService } from './contracts/contracts.service.js';
+export { KNOWN_SOURCES, LINE_PREFIX } from './contracts/sources.js';
+export { makeDocx, para, table, tableRow, placeholdersOf, documentXml } from './contracts/docx.js';
+export { SYSTEM_USER_ID } from './contracts/bootstrap.js';

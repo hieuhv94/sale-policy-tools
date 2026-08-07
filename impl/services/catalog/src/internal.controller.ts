@@ -95,6 +95,20 @@ export class CatalogInternalController {
     return out;
   }
 
+  /**
+   * Người ký đang hiệu lực hôm nay. `document` cần cho khối chữ ký ở cuối bản
+   * CSBH A4 và cho ô trống `{{signer.name}}` trên mẫu hợp đồng.
+   *
+   * Endpoint riêng chứ không nhét vào `/lookups`: `lookups` dựng tên bảng từ
+   * tham số `kind`, nên gọi nó với `kind=signer` sinh ra truy vấn `cat.undefined`
+   * và 500 — chạy được suốt vì lời gọi có `.catch()` bọc ngoài, chỉ để lại một
+   * núi lỗi trong log mà không ai đọc.
+   */
+  @Get('signers')
+  signers(@Query('on') on?: string) {
+    return this.lookups.listSigners(on ?? new Date().toISOString().slice(0, 10));
+  }
+
   @Get('lookups')
   list(@Query('kind') kind?: string) {
     const b = validate({ kind }, { kind: str(1, 20) });
