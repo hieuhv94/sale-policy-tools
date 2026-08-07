@@ -64,3 +64,41 @@ export async function inRollback(c: Client, fn: () => Promise<void>): Promise<vo
     await c.query('ROLLBACK');
   }
 }
+
+/**
+ * Bắt lỗi SQL BÊN TRONG một transaction đang mở.
+ *
+ * Postgres đưa cả transaction vào trạng thái abort ngay khi một câu lệnh lỗi, nên
+ * `expectSqlError` thường sẽ làm mọi câu lệnh sau đó hỏng theo với mã 25P02.
+ * SAVEPOINT khoanh riêng câu lệnh dự kiến lỗi, để test còn kiểm được hiện trạng
+ * sau đó — ví dụ "hồ sơ Từ chối vẫn còn nguyên sau khi DELETE bị chặn".
+ */
+export async function expectSqlErrorInTx(
+  c: Client,
+  fn: () => Promise<unknown>,
+): Promise<{ code: string | undefined; message: string }> {
+  await c.query('SAVEPOINT sp_expect');
+  try {
+    await fn();
+  } catch (e) {
+    await c.query('ROLLBACK TO SAVEPOINT sp_expect');
+    const err = e as { code?: string; message: string };
+    return { code: err.code, message: err.message };
+  }
+  await c.query('RELEASE SAVEPOINT sp_expect');
+  throw new Error('Câu lệnh đáng lẽ phải lỗi nhưng lại chạy thành công');
+}
+
+/** Một khách hàng thật để hồ sơ CSBH trỏ vào — khoá ngoại pol.policy -> cus.customer. */
+export async function mkCustomer(c: Client, tag = 'T'): Promise<string> {
+  const r = await c.query<{ id: string }>(
+    `INSERT INTO cus.customer
+       (code, name, customer_type, registered_address, owner_name, tdv_user_id, created_by)
+     VALUES ($1, 'Khach hang test', 1, 'Ha Noi', 'Chu ho',
+             (SELECT id FROM idn.app_user WHERE username = 'tdv01'),
+             (SELECT id FROM idn.app_user WHERE username = 'tdv01'))
+     RETURNING id`,
+    [`ZZ-${tag}-${crypto.randomUUID().slice(0, 8)}`],
+  );
+  return r.rows[0]!.id;
+}

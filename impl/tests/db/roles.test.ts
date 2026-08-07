@@ -4,7 +4,7 @@
  * lúc chạy chứ không lọt qua review.
  */
 import { describe, expect, it } from 'vitest';
-import { asRole, expectSqlError, withClient } from './helpers';
+import { admin, asRole, expectSqlError, mkCustomer, withClient } from './helpers';
 
 const SCHEMAS = ['idn', 'cat', 'cus', 'pol', 'doc', 'ntf', 'rpt', 'aud', 'sys'];
 
@@ -42,12 +42,25 @@ describe('AD-02 · không đọc chéo được schema của service khác', () 
   });
 
   it('csbh_pol đọc và ghi được schema của chính mình', async () => {
-    await withClient(asRole('csbh_pol'), async (c) => {
-      const r = await c.query(
-        `INSERT INTO pol.policy (code, customer_id) VALUES ($1,$2) RETURNING id`,
-        [`ROLE-${Date.now()}`, crypto.randomUUID()]);
-      expect(r.rows[0].id).toBeDefined();
-    });
+    // Khách hàng phải có thật vì pol.policy có khoá ngoại sang cus.customer, và
+    // phải COMMIT vì csbh_pol là một kết nối khác. Chính csbh_pol không tạo được
+    // khách hàng — nó không có quyền trên schema cus — nên dựng bằng quản trị.
+    const cust = await withClient(admin(), (a) => mkCustomer(a, 'ROLE'));
+    try {
+      await withClient(asRole('csbh_pol'), async (c) => {
+        const r = await c.query(
+          `INSERT INTO pol.policy (code, customer_id) VALUES ($1,$2) RETURNING id`,
+          [`ROLE-${Date.now()}`, cust]);
+        expect(r.rows[0].id).toBeDefined();
+      });
+    } finally {
+      // Dọn tay: hồ sơ NHAP xoá được, khác với TU_CHOI. Không dọn thì mỗi lần
+      // chạy lại bồi thêm một dòng không bao giờ mất.
+      await withClient(admin(), async (a) => {
+        await a.query('DELETE FROM pol.policy WHERE customer_id = $1', [cust]);
+        await a.query('DELETE FROM cus.customer WHERE id = $1', [cust]);
+      });
+    }
   });
 });
 

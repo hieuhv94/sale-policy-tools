@@ -146,3 +146,32 @@ export async function clearAccountCache(): Promise<void> {
   if (keys.length > 0) await r.del(...keys);
   await r.quit();
 }
+
+/** Dựng catalog nghe thật và trỏ `CATALOG_URL` vào đó — customer gọi nó bằng HTTP. */
+export async function bootCatalogListening(): Promise<{
+  app: INestApplication;
+  restore: () => void;
+}> {
+  const { createTestApp } = await import('@csbh/catalog/testing');
+  const app = await createTestApp();
+  await app.listen(0, '127.0.0.1');
+  const addr = (app.getHttpServer() as { address(): { port: number } }).address();
+  const previous = process.env.CATALOG_URL;
+  process.env.CATALOG_URL = `http://127.0.0.1:${addr.port}`;
+  return {
+    app,
+    restore: () => {
+      if (previous === undefined) delete process.env.CATALOG_URL;
+      else process.env.CATALOG_URL = previous;
+    },
+  };
+}
+
+/** Xoá cache phạm vi dữ liệu — dùng sau khi đổi cây tổ chức trong test. */
+export async function clearScopeCache(): Promise<void> {
+  const { default: Redis } = await import('ioredis');
+  const r = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
+  const keys = await r.keys('idn:scope:*');
+  if (keys.length > 0) await r.del(...keys);
+  await r.quit();
+}

@@ -25,7 +25,7 @@ sẽ không tự suy ra được.
 | **P2** | `domain-policy` thuần: công thức chiết khấu, làm tròn, máy trạng thái | **xong** — 71/71 xanh |
 | **P3a** | `identity` phần dữ liệu: 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | **xong** — 89/89 xanh |
 | **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản, **vòng đời tài khoản** | **xong** — 125/125 xanh |
-| **P4** | `catalog` + `customer` | chưa |
+| **P4** | `catalog` + `customer` | **xong** — 188/188 xanh, hoãn 2 case chờ `document` |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | chưa |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
@@ -402,3 +402,106 @@ thẳng TTL còn lại của khoá Redis — kiểm đúng thứ cần kiểm, v
 ### Commit
 
 `P3b: identity HTTP — JWT RS256, vong doi tai khoan, 15 test ONB moi`
+
+---
+
+## P4 — `catalog` và `customer`
+
+### Tách `@csbh/http-kit` trước khi viết service thứ hai
+
+Guard, JWT, kiểm dữ liệu vào, nạp khoá, `DbPool` — nếu để nguyên trong `identity` thì ba service
+thành ba bản chép, và chúng lệch nhau lúc nào không ai biết. Đã chuyển sang một package dùng chung
+ngay đầu chặng, chạy lại toàn bộ test cũ để chắc refactor không làm vỡ gì (125/125 giữ nguyên).
+
+**`AccountSource` có hai bản cài đặt.** `identity` đọc thẳng CSDL vì nó sở hữu lược đồ `idn`; chín
+service kia không có quyền trên schema đó nên phải hỏi `identity` qua API nội bộ. Cả hai ghi vào
+**cùng một khoá Redis**, nên cam kết *"vô hiệu hoá tài khoản có hiệu lực chậm nhất sau 60 giây"*
+đúng trên toàn hệ chứ không riêng `identity`. Nếu mỗi service tự cache theo cách riêng thì `identity`
+xoá cache của nó cũng vô nghĩa với các service khác.
+
+Khi `identity` không trả lời được, `RemoteAccountSource` **từ chối** chứ không cho qua — cho qua là
+biến sự cố của một service thành lỗ hổng xác thực của cả hệ.
+
+### `catalog`
+
+Điểm cụ thể (`specificity`) là **cột sinh sẵn trong CSDL**, trọng số 4/2/1 cho nhóm SP / loại KH /
+kênh. Hai dòng chiết khấu cùng khớp một tình huống là chuyện bình thường chứ không phải lỗi cấu
+hình, nên phải chọn được dòng cụ thể hơn một cách **tất định** — nếu không thì cùng một hồ sơ lúc
+vượt ngưỡng lúc không, tuỳ thứ tự Postgres trả về. Thứ tự sắp xếp có ba tầng để không bao giờ hoà:
+điểm cụ thể → ngày hiệu lực → id.
+
+**Nhật ký giá trị trước/sau đi qua outbox, không INSERT chéo schema.** Role `csbh_cat` không có
+quyền ghi vào `aud`, nên ranh giới AD-02 ép ra đúng kiến trúc: một transaction, một nguồn sự thật.
+`CAT-13` (nhật ký) và `CAT-18` (rà soát khi đổi giá) dùng chung đường này.
+
+Nhập Excel tách đôi: `excel.ts` chỉ **phân tích**, không chạm CSDL; toàn bộ lô ghi trong một
+transaction. Dòng hợp lệ đứng trước dòng lỗi cũng không được ghi, và thông báo kèm **số dòng trong
+file** — người dùng sửa file Excel chứ không đọc mã nguồn.
+
+### `customer`
+
+`customer` gọi `catalog` để kiểm mã danh mục và gọi `identity` để giải phạm vi dữ liệu. Test dựng
+**cả ba service chạy thật**, `identity` và `catalog` nghe trên cổng ngẫu nhiên — không có bản giả
+nào, nên đường token dịch vụ giữa các service được chạy qua trong mọi test.
+
+Mã khách hàng là **khoá định danh, chặn sửa bằng trigger** chứ không chỉ bằng việc không lộ trường
+đó ra API: sửa được nó là mọi hồ sơ CSBH cũ trỏ sang một khách hàng khác trong im lặng, và đó là loại
+lỗi không sửa lại được sau khi đã xảy ra.
+
+Trùng CCCD/MST thì **vẫn lưu, chỉ kèm cảnh báo** — một chủ hộ mở nhiều điểm bán là nghiệp vụ có
+thật, chặn cứng là chặn nhầm.
+
+### Đi chệch bản thiết kế: khoá ngoại `pol.policy` → `cus.customer`
+
+Bản thiết kế nói không ràng buộc chéo schema. Ở đây đã đặt khoá ngoại, có chủ ý.
+
+*"Không xoá được khách hàng đã có hồ sơ CSBH"* (`CUST-16`) là ràng buộc toàn vẹn cứng. Cách thuần
+microservice — `customer` giữ một cờ do sự kiện `policy.*` cập nhật — chỉ **nhất quán cuối cùng**:
+hồ sơ lập trước lệnh xoá vài mili giây vẫn lọt. Khoá ngoại thì không bao giờ lọt.
+
+Cái giá: hai schema buộc phải ở chung một instance Postgres. Bản thiết kế đã chốt đúng mô hình đó
+(một Postgres, nhiều schema) nên cái giá bằng không ở hiện tại; muốn tách CSDL sau này thì phải gỡ
+ràng buộc này trước. Về quyền thì không mất gì: Postgres kiểm khoá ngoại bằng quyền của chủ bảng,
+nên `csbh_pol` **không** cần quyền đọc `cus.customer` — ranh giới AD-02 nguyên vẹn.
+
+### Lỗi nghiêm trọng nhất chặng này — test tự tạo rác không xoá nổi
+
+Thêm khoá ngoại làm migration `0006` **thất bại**: `pol.policy` đang có **135 dòng** với
+`customer_id` bịa ra. Truy ngược thì `constraints.test.ts` từ P1 chèn dữ liệu mà **không bọc
+transaction**, mỗi lần chạy lại bồi thêm. Tệ hơn: trong đó có hồ sơ `TU_CHOI`, mà chính trigger do
+bộ test ấy chứng minh lại **cấm xoá hồ sơ Từ chối**. Rác test biến thành rác vĩnh viễn.
+
+Ba việc đã làm:
+
+1. Bọc **mọi** test có ghi trong `inRollback`, gồm cả các test `aud` và `pol`.
+2. Thêm `expectSqlErrorInTx` dùng `SAVEPOINT`: Postgres đưa cả transaction vào trạng thái abort ngay
+   khi một câu lệnh lỗi, nên `expectSqlError` cũ làm mọi câu lệnh sau đó hỏng theo với mã `25P02`.
+   Có savepoint thì test còn kiểm được hiện trạng sau đó — ví dụ *"hồ sơ Từ chối vẫn còn nguyên sau
+   khi DELETE bị chặn"*.
+3. Dựng lại CSDL từ đầu và **kiểm cả 6 migration chạy sạch trên CSDL trống**.
+
+Khoá ngoại cũng buộc `constraints.test.ts` phải trỏ vào khách hàng **có thật** thay vì UUID bịa —
+test trung thực hơn hẳn bản cũ. Sau khi sửa, chạy ba lần liên tiếp thì `pol.policy` còn **0 dòng**.
+
+### Hai test case hoãn sang P6
+
+`CUST-11` và `CUST-12` — tải hồ sơ pháp lý PDF và chặn file sai định dạng, không để lại object rác
+trên MinIO. File do service `document` giữ; bảng `cus.customer_document` và endpoint đọc danh sách đã
+có sẵn, chỉ thiếu đường tải lên. **Đây là hai case duy nhất trong nhóm CAT và CUST chưa phủ.**
+
+### Kết quả
+
+| Nhóm | Số test | Ghi chú |
+|---|---|---|
+| `CAT-01…18` | 24 | Đủ 18 mã, có mã tách nhiều test |
+| `CUST-01…17` | 26 | Thiếu `CUST-11`, `CUST-12` |
+| `AD-02` bổ sung | 2 | `csbh_cat` và `csbh_cus` không đọc chéo được |
+| Test cũ sửa lại | 5 | `constraints` và `roles` theo khoá ngoại mới |
+
+**188/188 xanh**, chạy ba lần liên tiếp cùng kết quả. Máy thật vẫn không có một file phụ thuộc nào —
+tám thư mục `node_modules` đều là điểm gắn rỗng.
+
+### Commit
+
+`P4a: catalog — danh muc, gia, chiet khau quy dinh, nguoi ky`
+`P4b: customer — khach hang, pham vi du lieu, khoa ngoai sang policy`

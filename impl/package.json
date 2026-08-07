@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@csbh/catalog": "workspace:*",
+    "@csbh/customer": "workspace:*",
     "@csbh/domain-policy": "workspace:*",
     "@csbh/http-kit": "workspace:*",
     "@csbh/identity": "workspace:*",
