@@ -23,7 +23,8 @@ sẽ không tự suy ra được.
 |---|---|---|
 | **P1** | Monorepo `impl/`, hạ tầng Docker, migration 9 schema + 9 DB role, bốn bất biến ở tầng CSDL, `VERSION`, khung test | **xong** — 27/27 xanh |
 | **P2** | `domain-policy` thuần: công thức chiết khấu, làm tròn, máy trạng thái | **xong** — 71/71 xanh |
-| **P3** | `identity`: JWT, 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | chưa |
+| **P3a** | `identity` phần dữ liệu: 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | **xong** — 89/89 xanh |
+| **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản | chưa |
 | **P4** | `catalog` + `customer` | chưa |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | chưa |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
@@ -232,3 +233,68 @@ kia cho "gọn", test `WF-18/19` sẽ đỏ ngay.
 ### Commit
 
 `P2: domain-policy — cong thuc chiet khau va may trang thai`
+
+
+---
+
+## P3a — `identity`: cây phân quyền và tài khoản mẫu
+
+### Phạm vi dữ liệu là một hàm trong CSDL, không phải logic rải rác
+
+`idn.scope_user_ids(user_id)` trả về tập người dùng mà một người được xem hồ sơ. Đây là **một nơi
+định nghĩa duy nhất** cho câu hỏi "ai thấy được gì"; mọi service gọi hàm này chứ không tự suy diễn.
+
+Cây tổ chức có **hai cấu trúc độc lập**, đúng như YCNV §2.1 mô tả và đây là chỗ dễ cài sai nhất:
+
+- `idn.user_node` — chuỗi Sale Admin → kế toán → TDV, truy vấn bằng CTE đệ quy.
+- `idn.department_approver` — nhánh duyệt của Trưởng bộ phận, **không liên quan gì** tới chuỗi trên.
+
+Test `AUTH-12` khoá đúng tính độc lập đó: `tbp01` thấy `tdv01` mà không hề thấy `kt01`, dù `tdv01`
+nằm dưới `kt01` trong nhánh kế toán.
+
+Vai trò Trưởng bộ phận gán **theo bộ phận**, nên đổi người giữ chức chỉ là đổi một dòng trong
+`department_approver` — không đụng tới hồ sơ nào. Người duyệt thay chỉ là thêm một dòng nữa.
+
+### Chặn vòng lặp trong cây tổ chức phải dùng trigger
+
+Không ràng buộc khai báo nào của Postgres diễn đạt được "đồ thị không chu trình". Thiếu nó thì một
+lần gán cấp trên sai sẽ làm CTE đệ quy chạy vô tận và treo mọi truy vấn phạm vi. Trigger
+`idn.forbid_cycle` đi ngược lên cây trước khi cho ghi, kèm chặn độ sâu 50 để bản thân phép kiểm cũng
+không treo.
+
+### Vướng mắc đã gỡ: test làm bẩn dữ liệu dùng chung
+
+Hai test kiểm việc chuyển TDV sang kế toán khác và đổi người giữ chức TBP đều **sửa dữ liệu mẫu rồi
+sửa trả lại ở cuối**. Lần chạy đầu, một assertion sai ném lỗi giữa chừng nên dòng hoàn tác không bao
+giờ chạy — dữ liệu mẫu bị hỏng, và **lần chạy sau đỏ ở ba test hoàn toàn khác**. Đây là kiểu lỗi tốn
+nhiều thời gian nhất để tìm, vì chỗ đỏ nằm xa chỗ gây ra.
+
+Cách chữa tận gốc: thêm `inRollback(db, fn)` bọc mọi test có sửa dữ liệu trong một transaction rồi
+`ROLLBACK` trong khối `finally`. Hoàn tác xảy ra kể cả khi assertion ném lỗi. Kiểm chứng bằng cách
+chạy `make test` **hai lần liên tiếp** và đối chiếu kết quả — đây thành quy tắc cho mọi test sau.
+
+Bản thân assertion sai cũng là một bài học: tôi kỳ vọng phạm vi của `tbp02` sau khi nhận BP01 sẽ
+*bằng* phạm vi cũ của `tbp01`, nhưng `tbp02` vốn đã phụ trách BP02 nên phải là hợp của hai bộ phận.
+
+### Chốt an toàn cho script seed
+
+`scripts/seed.ts` tự thoát nếu `NODE_ENV=production` (test `SEC-14`). Mật khẩu băm bằng scrypt của
+Node, so sánh theo thời gian hằng định.
+
+### Kết quả test
+
+**89/89 xanh** (71 trước đó + 18 mới), chạy hai lần liên tiếp cùng kết quả.
+
+| Nhóm | Số case | Nội dung |
+|---|---|---|
+| `AUTH-08` | 2 | Đúng 6 vai trò; 10 tài khoản mẫu phủ đủ |
+| `AUTH-09/10/11/19` | 5 | TDV chỉ thấy mình; kế toán thấy đúng nhánh; Sale Admin thấy cây sâu 3 cấp |
+| `AUTH-12` | 3 | Nhánh TBP độc lập hoàn toàn với nhánh kế toán |
+| `AUTH-13/14` | 2 | Ban lãnh đạo thấy toàn bộ; Quản trị không có phạm vi hồ sơ |
+| `AUTH-15` | 1 | Chuyển TDV sang kế toán khác, phạm vi đổi theo |
+| `AUTH-17` | 3 | Chặn vòng lặp và tự làm cấp trên của chính mình |
+| `AUTH-18/20` | 2 | Người duyệt thay; đổi người giữ chức không đụng hồ sơ |
+
+### Commit
+
+`P3a: identity — cay phan quyen va 10 tai khoan mau`

@@ -48,3 +48,19 @@ export async function expectSqlError(
 
 export const uuid = () =>
   '10000000-0000-4000-8000-' + String(Date.now() % 1e12).padStart(12, '0');
+
+/**
+ * Chạy một đoạn test có thay đổi dữ liệu rồi HOÀN TÁC, kể cả khi assertion ném lỗi.
+ *
+ * Không có nó thì một test đỏ sẽ để lại dữ liệu bẩn và làm hỏng lây các lần chạy
+ * sau — kiểu lỗi tốn nhiều thời gian nhất để tìm ra, vì test đỏ ở chỗ khác hẳn
+ * nơi gây ra vấn đề.
+ */
+export async function inRollback(c: Client, fn: () => Promise<void>): Promise<void> {
+  await c.query('BEGIN');
+  try {
+    await fn();
+  } finally {
+    await c.query('ROLLBACK');
+  }
+}

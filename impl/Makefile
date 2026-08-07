@@ -8,7 +8,7 @@ COMPOSE  := docker compose -f deploy/compose.yml -f deploy/compose.test.yml
 RUN      := $(COMPOSE) run --rm -T test
 WORKSPACE := ../workspace
 
-.PHONY: help up down migrate install typecheck test test-db report clean ps logs psql version
+.PHONY: help up down migrate install typecheck test seed clean ps logs psql version
 
 help:
 	@echo "up        dựng hạ tầng (postgres, redis, rabbitmq, minio, mailpit) + migration"
@@ -30,6 +30,9 @@ install:
 
 typecheck:
 	$(RUN) pnpm typecheck
+
+seed:
+	$(RUN) pnpm seed
 
 test:
 	@mkdir -p $(WORKSPACE)/reports
