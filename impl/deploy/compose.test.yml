@@ -1,0 +1,28 @@
+# Trình chạy test. Mã nguồn bind-mount vào, thư mục workspace để ghi log và báo cáo.
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      migrate:  { condition: service_completed_successfully }
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: csbh
+      PG_SUPERUSER: postgres
+      PG_PASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
+      ROLE_PASSWORD: csbh_dev_pw
+      REDIS_URL: redis://redis:6379
+      APP_VERSION: ${APP_VERSION:-0.0.0-dev}
+    volumes:
+      - ..:/app
+      - ../../workspace:/workspace
+      - pnpm_store:/pnpm-store
+      - node_modules:/app/node_modules
+    working_dir: /app
+    networks: [ internal ]
+
+volumes: { pnpm_store: {}, node_modules: {} }

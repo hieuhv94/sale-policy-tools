@@ -1,0 +1,6 @@
+# Ảnh dùng chung cho mọi việc phát triển và kiểm thử. KHÔNG chạy Node native trên máy.
+FROM node:22.9-alpine
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+RUN apk add --no-cache git postgresql16-client curl
+WORKDIR /app
+ENV CI=1

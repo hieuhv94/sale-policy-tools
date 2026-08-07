@@ -3,3 +3,20 @@
 ~$*.docx
 venv/
 __pycache__/
+
+# Thư mục chạy thử: log, dump, báo cáo test, file sinh ra khi chạy.
+# Không phải mã nguồn — không bao giờ commit.
+workspace/
+
+# Phụ thuộc và sản phẩm build
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Bí mật môi trường
+impl/deploy/secrets/*
+!impl/deploy/secrets/.gitkeep
+.env
+.env.local
