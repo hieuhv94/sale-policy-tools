@@ -9,6 +9,8 @@ import { WorkflowService } from './policies/workflow.service.js';
 import { PoliciesController } from './policies/policies.controller.js';
 import { PolicyOutbox } from './infra/outbox.relay.js';
 import { PolicyInternalController } from './internal.controller.js';
+import { SlaConfigService } from './policies/sla-config.service.js';
+import { SlaConfigController } from './policies/sla-config.controller.js';
 import { PriceChangedConsumer } from './consumers/price-changed.consumer.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
@@ -38,13 +40,19 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, PoliciesController, PolicyInternalController],
+  controllers: [
+    HealthController,
+    PoliciesController,
+    SlaConfigController,
+    PolicyInternalController,
+  ],
   providers: [
     Db,
     Clients,
     ScopeClient,
     PoliciesService,
     WorkflowService,
+    SlaConfigService,
     PolicyOutbox,
     PriceChangedConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },

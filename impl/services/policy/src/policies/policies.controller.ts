@@ -74,6 +74,16 @@ export class PoliciesController {
     const q = validate({ customerId }, { customerId: str(1, 60) });
     return this.policies.current(q.customerId, me);
   }
+  /** Trang chủ: chỉ hồ sơ đang chờ CHÍNH người đăng nhập xử lý (NTF-07). */
+  @Get('inbox')
+  inbox(
+    @CurrentUser() me: AuthUser,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.policies.inbox(me, pageOf({ limit, offset }));
+  }
+
 
   @Get(':id')
   byId(@CurrentUser() me: AuthUser, @Param('id') id: string) {

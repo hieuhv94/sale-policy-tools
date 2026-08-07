@@ -32,7 +32,7 @@ sẽ không tự suy ra được.
 | **P6a** | `notification` + đường truyền outbox → RabbitMQ | **xong** — 305/305 xanh |
 | **P6b** | `document`: file, ký số nội bộ, bản CSBH A4 | **xong** — 322/322 xanh |
 | **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | **xong** — 348/348 xanh |
-| **P6d** | `sla-worker` | chưa |
+| **P6d** | `sla-worker` | **xong** — 363/363 xanh |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
@@ -1079,3 +1079,101 @@ khai; mẫu thật do Sale Admin tải lên.
 ### Commit
 
 `P6c: mau hop dong va xuat hop dong — mot phep bien doi, khong phai ban ghi`
+
+---
+
+## P6d — `sla-worker`: hạn xử lý, nhắc trước một ngày, quá hạn
+
+Service cuối của P6, và là service đầu tiên **không có controller nào** — tiến trình nền thuần.
+**363/363 xanh**, ba lần liên tiếp. P6 hoàn tất.
+
+### Đồng hồ là một ĐẦU VÀO, không phải một lời gọi
+
+SLA là 14 ngày và nhắc trước một ngày. Không có cách nào kiểm hai con số đó bằng cách chờ, nên đồng
+hồ phải tiêm được. Kèm theo một ràng buộc dễ quên: **mọi phép so hạn phải làm trong JavaScript hoặc
+truyền mốc thời gian vào SQL làm tham số.** Viết `WHERE sla_due_at < now()` là bỏ qua đồng hồ tiêm,
+và hai con số 13/14 ngày vĩnh viễn không kiểm được — câu lệnh vẫn chạy, test vẫn xanh, chỉ là nó
+không kiểm điều nó nói.
+
+### *Quá hạn duyệt* là một cái NHÃN, không phải một chặng mới
+
+Đây là quyết định thiết kế đáng nhớ nhất của chặng. Máy trạng thái **không có luật nào đi ra từ**
+`QUA_HAN_DUYET`. Thêm luật cho nó sẽ nhân đôi mọi luật hiện có — mỗi luật một bản "bình thường" và
+một bản "quá hạn", và hai bản đó sẽ lệch nhau vào ngày ai đó sửa một bên.
+
+Thay vào đó: `effectiveStatus(status, pendingStep)` gỡ nhãn ra và trả về trạng thái thật bên dưới.
+Một hàm bốn dòng thay cho mười hai luật trùng lặp. Hệ quả kiểm được: hồ sơ quá hạn ở bước Trưởng bộ
+phận thì **kế toán vẫn bị chặn**, và thông báo lỗi trả về trạng thái thật (`CHO_TBP_DUYET`) chứ không
+phải cái nhãn — nhãn quá hạn không nới quyền cho ai.
+
+### Ba chốt chống trùng, mỗi cái chặn một kiểu hỏng khác nhau
+
+| Chốt | Chặn được gì | Không chặn được gì |
+|---|---|---|
+| Khoá Redis `SET NX PX` | Hai bản worker cùng quét một lượt | Lượt quét chạy quá TTL 60 giây |
+| Khoá chính `(hồ sơ, loại, ngày)` | Nhắc trùng, kể cả sau restart | — |
+| `row_version` trong `WHERE` | Đánh dấu quá hạn đè lên việc vừa duyệt xong | — |
+
+Chốt thứ hai là chốt cuối cùng và là chốt duy nhất không có lỗ: khoá Redis hết TTL giữa chừng thì hai
+bản chạy song song, và lúc đó chỉ ràng buộc CSDL cứu được. `NTF-14` dựng hẳn một bản worker **mới**
+để mô phỏng container restart — bộ nhớ tiến trình mất sạch, chốt phải nằm ở CSDL thì mới còn.
+
+Chi tiết ở khoá Redis: **chỉ bản giữ khoá mới được xoá nó** — so token trước khi `DEL`. Không so thì
+một lượt quét chạy quá TTL sẽ xoá khoá mà bản sau vừa lấy được, và hai bản chạy song song đúng vào
+lúc dữ liệu nhiều nhất.
+
+### Đổi SLA: tính từ lúc BẮT ĐẦU CHỜ, không phải từ hạn cũ
+
+`NTF-12` đổi 14 ngày sang 7. Hạn mới = `sla_started_at + N ngày`, **không phải** "hạn cũ trừ 7 ngày".
+Hai cách chỉ trùng nhau khi SLA đổi đúng một lần; đổi lần thứ hai thì cách sau làm hạn phụ thuộc vào
+lịch sử thay đổi cấu hình, và không ai giải thích nổi cho kế toán vì sao hai hồ sơ vào cùng ngày lại
+có hai hạn khác nhau. Đã thêm cột `sla_started_at` cho đúng phép tính đó.
+
+Số ngày đọc từ `pol.sla_config` **ngay trong câu lệnh SQL**, không phải hằng số trong mã: hồ sơ
+chuyển bước sau khi đổi cấu hình dùng số mới ngay, không chờ triển khai lại.
+
+### Sửa lại hai quyết định sai của chính mình
+
+**1. `ntf.reminder` nằm ở schema không ai ghi vào được.** Migration 0010 dựng bảng đó với lý lẽ "để
+sla-worker ở chặng sau không phải kèm migration riêng". Lý lẽ đó bỏ qua AD-02: `sla-worker` chạy dưới
+role `csbh_pol` (nó đọc `pol.policy`), mà `csbh_pol` không có quyền ghi vào schema `ntf`. Đã chuyển
+sang `pol.sla_reminder` và bỏ bảng cũ — nó chưa từng có một dòng nào.
+
+> **"Để sẵn cho chặng sau" là lúc dễ đặt bảng nhầm schema nhất**, vì lúc đó chưa có mã nào chạm vào
+> nó để mà lộ ra.
+
+**2. `GRANT EXECUTE` không đủ để gọi một hàm.** 0013 cấp `EXECUTE` trên `sys.run_retention()` cho
+`csbh_pol` và đặt `SECURITY DEFINER` — đúng, nhưng lời gọi vẫn dừng ở `permission denied for schema
+sys`. Gọi hàm còn cần `USAGE` trên **schema** chứa nó. Hai lớp quyền cho một lời gọi, và `GRANT
+EXECUTE` thành công không hề cảnh báo rằng nó chưa đủ.
+
+Không có `SECURITY DEFINER` thì câu "sla-worker gọi `run_retention` mỗi ngày" ở bản thiết kế là câu
+**không thực hiện được**: hàm xoá ở bốn schema mà role đó chỉ có quyền trên một. Kèm `SET search_path`
+cố định — bắt buộc với mọi hàm `SECURITY DEFINER`, nếu không người gọi trỏ tên bảng sang bảng của họ
+và hàm xoá nhầm dưới quyền chủ sở hữu.
+
+### Trang chủ: hai điều kiện, thiếu một là sai theo hai kiểu
+
+`NTF-07` — danh sách việc đang chờ **chính người đăng nhập**: đúng bước (trạng thái chờ ứng với vai
+trò) **và** đúng phạm vi (hồ sơ trong cây tổ chức của người đó). Kế toán không thấy hồ sơ đang chờ
+Trưởng bộ phận; Trưởng bộ phận BP01 không thấy hồ sơ của TDV thuộc BP02. Ban lãnh đạo và Quản trị
+nhận danh sách **rỗng** — một bên chỉ đọc, một bên nằm ngoài luồng duyệt.
+
+Hồ sơ quá hạn **vẫn hiện**, ở đúng ô của người đang phải xử lý. Đó là lý do `pending_step` phải lưu.
+
+### Một lỗi của test đáng ghi
+
+Vòng quét là **toàn cục** — nó không biết test nào đang chạy. Hồ sơ do test trước để lại vẫn đang chờ
+với hạn 14 ngày, nên lượt quét sau khi đẩy đồng hồ 13 ngày nhắc cả chúng và mọi phép đếm lệch. Không
+phải chuyện riêng của test: nó phản ánh đúng việc worker chạy trên toàn bộ CSDL. Đã đẩy hạn của mọi
+hồ sơ đang chờ ra xa trước mỗi test.
+
+### Còn nợ của chặng này
+
+`PERF-07` (quét 20.000 hồ sơ dưới 60 giây) chưa chạy — cần bộ dữ liệu lớn, để cùng nhóm `PERF` ở P7.
+Bộ hẹn giờ dùng `setInterval` chứ chưa phải cron thật; đủ cho một tiến trình luôn chạy, nhưng lịch
+sao lưu và dọn dẹp ở mức hệ điều hành vẫn nằm trong danh sách nợ từ P5.6.
+
+### Commit
+
+`P6d: sla-worker — han xu ly, nhac truoc mot ngay, qua han`

@@ -16,7 +16,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { computeLine, InvalidLineError } from '@csbh/domain-policy';
+import { computeLine, InvalidLineError, STEP_OF_STATUS, type Status } from '@csbh/domain-policy';
 import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
@@ -327,6 +327,50 @@ export class PoliciesService {
         ORDER BY created_at DESC
         LIMIT $4 OFFSET $5`,
       [ids, filter.customerId ?? null, filter.status ?? null, page.limit, page.offset],
+    );
+    return paged(rows, page);
+  }
+
+  /**
+   * Việc đang chờ CHÍNH NGƯỜI ĐĂNG NHẬP xử lý — nội dung trang chủ (NTF-07).
+   *
+   * Hai điều kiện phải cùng đúng, và thiếu một trong hai là sai theo hai kiểu
+   * khác nhau:
+   *   - **Đúng bước:** trạng thái chờ của hồ sơ ứng với vai trò người đang xem.
+   *     Kế toán không thấy hồ sơ đang chờ Trưởng bộ phận duyệt.
+   *   - **Đúng phạm vi:** hồ sơ nằm trong cây tổ chức của người đó. Kế toán này
+   *     không thấy hồ sơ của TDV thuộc kế toán khác.
+   *
+   * Hồ sơ QUÁ HẠN vẫn hiện, và hiện ở đúng ô của người đang chờ xử lý — đó là
+   * lý do `pending_step` phải lưu lại chứ không chỉ đổi trạng thái (§4).
+   */
+  async inbox(me: AuthUser, page: Page) {
+    const ids = await this.scope.userIdsFor(me);
+
+    // Ban lãnh đạo và Quản trị không có việc trong luồng duyệt: một bên chỉ đọc,
+    // một bên nằm ngoài luồng. Trả rỗng chứ không trả "tất cả".
+    const waitingFor: Record<string, string[]> = {
+      TDV: ['YEU_CAU_CHINH_SUA'],
+      TBP: ['CHO_TBP_DUYET'],
+      KE_TOAN: ['CHO_KT_L1', 'CHO_KT_L2'],
+      SALE_ADMIN: ['SA_DANG_XU_LY'],
+    };
+    const mine = waitingFor[me.role] ?? [];
+    if (mine.length === 0) return paged([], page);
+
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
+      `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
+              status::text AS status, pending_step::text AS "pendingStep",
+              sla_due_at AS "slaDueAt",
+              (status = 'QUA_HAN_DUYET') AS overdue,
+              count(*) OVER() AS total_count
+         FROM pol.policy
+        WHERE tdv_user_id = ANY($1::uuid[])
+          AND (status::text = ANY($2::text[])
+               OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($3::text[])))
+        ORDER BY sla_due_at NULLS LAST, created_at
+        LIMIT $4 OFFSET $5`,
+      [ids, mine, mine.map((st) => STEP_OF_STATUS[st as Status] ?? ''), page.limit, page.offset],
     );
     return paged(rows, page);
   }

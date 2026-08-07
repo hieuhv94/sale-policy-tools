@@ -16,6 +16,7 @@ import {
 import type { PoolClient } from 'pg';
 import {
   allowedActions,
+  effectiveStatus,
   ForbiddenRoleError,
   InvalidTransitionError,
   ReasonRequiredError,
@@ -23,6 +24,7 @@ import {
   type Action,
   type Role,
   type Status,
+  type Step,
 } from '@csbh/domain-policy';
 import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
@@ -44,8 +46,11 @@ const RECIPIENTS: Partial<Record<Action, string[]>> = {
   RESUBMIT_AFTER_EDIT: ['TBP'],
 };
 
-/** SLA 14 ngày cho mọi trạng thái chờ, tính cả cuối tuần (muc 9.1). */
-const SLA_DAYS = 14;
+/**
+ * SLA đọc từ `pol.sla_config` ngay trong câu lệnh SQL, không phải hằng số trong
+ * mã: Quản trị đổi được số ngày và hồ sơ chuyển bước sau đó phải dùng số mới
+ * ngay, không chờ triển khai lại (muc 2.7, NTF-12).
+ */
 
 @Injectable()
 export class WorkflowService {
@@ -70,6 +75,7 @@ export class WorkflowService {
       customer_id: string;
       supersedes_id: string | null;
       tbp_signed_at: Date | null;
+      pending_step: Step | null;
     }>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!before) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.policies.assertInScope(before.tdv_user_id ?? '', me);
@@ -85,16 +91,20 @@ export class WorkflowService {
       });
     }
 
+    // Hồ sơ QUÁ HẠN vẫn đi tiếp đúng nhánh cũ: gỡ nhãn quá hạn ra, xét trạng
+    // thái thật nằm dưới nó theo `pending_step` (NTF-11).
+    const current = effectiveStatus(before.status, before.pending_step);
+
     let step;
     try {
       step = transition({
-        current: before.status,
+        current,
         action,
         role: me.role as Role,
         reason: opts.reason,
       });
     } catch (e) {
-      throw mapDomainError(e, before.status);
+      throw mapDomainError(e, current);
     }
 
     // Điều kiện riêng của từng hành động, không thuộc máy trạng thái thuần.
@@ -191,7 +201,10 @@ export class WorkflowService {
             ${stampSql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
-            sla_due_at = CASE WHEN $${slaIdx} THEN now() + interval '${SLA_DAYS} days' ELSE NULL END,
+            sla_due_at = CASE WHEN $${slaIdx}
+                              THEN now() + ((SELECT days FROM pol.sla_config) || ' days')::interval
+                              ELSE NULL END,
+            sla_started_at = CASE WHEN $${slaIdx} THEN now() ELSE NULL END,
             pending_step = NULL,
             row_version = row_version + 1
           WHERE id = $1 AND row_version = $3
@@ -277,7 +290,8 @@ export class WorkflowService {
         await c.query(
           `UPDATE pol.policy
               SET status = 'CHO_KT_L1',
-                  sla_due_at = now() + interval '${SLA_DAYS} days',
+                  sla_due_at = now() + ((SELECT days FROM pol.sla_config) || ' days')::interval,
+                  sla_started_at = now(),
                   row_version = row_version + 1
             WHERE id = $1`,
           [policyId],

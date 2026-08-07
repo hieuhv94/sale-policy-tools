@@ -79,6 +79,42 @@ export const WAITING: readonly Status[] = [
   'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2',
 ];
 
+export const STEPS = [
+  'B3_GUI_DUYET', 'B4_TBP_DUYET', 'B6_KT_L1', 'B8_SA_XU_LY', 'B10_KT_L2',
+] as const;
+export type Step = (typeof STEPS)[number];
+
+/** Trạng thái chờ ↔ tên bước trong bảng mười bước (§3). */
+export const STEP_OF_STATUS: Partial<Record<Status, Step>> = {
+  CHO_TBP_DUYET: 'B4_TBP_DUYET',
+  CHO_KT_L1:     'B6_KT_L1',
+  SA_DANG_XU_LY: 'B8_SA_XU_LY',
+  CHO_KT_L2:     'B10_KT_L2',
+};
+
+export const STATUS_OF_STEP: Record<Step, Status> = {
+  B3_GUI_DUYET:  'YEU_CAU_CHINH_SUA',
+  B4_TBP_DUYET:  'CHO_TBP_DUYET',
+  B6_KT_L1:      'CHO_KT_L1',
+  B8_SA_XU_LY:   'SA_DANG_XU_LY',
+  B10_KT_L2:     'CHO_KT_L2',
+};
+
+/**
+ * Trạng thái DÙNG ĐỂ XÉT chuyển bước.
+ *
+ * `QUA_HAN_DUYET` là một cái NHÃN chồng lên hồ sơ, không phải một chặng mới
+ * trong luồng: nó nói "đã quá 14 ngày", không nói "đang chờ ai". Bước đang chờ
+ * nằm ở `pending_step`, và người phụ trách xử lý sau khi quá hạn thì hồ sơ đi
+ * tiếp ĐÚNG NHÁNH CŨ chứ không quay về đầu (§4, NTF-11).
+ *
+ * Vì vậy máy trạng thái không có luật nào đi ra từ `QUA_HAN_DUYET` — thêm luật
+ * cho nó sẽ nhân đôi mọi luật hiện có, mỗi luật một bản "bình thường" và một bản
+ * "quá hạn". Thay vào đó, gỡ nhãn ra rồi xét trạng thái thật bên dưới.
+ */
+export const effectiveStatus = (status: Status, pendingStep: Step | null | undefined): Status =>
+  status === 'QUA_HAN_DUYET' && pendingStep ? STATUS_OF_STEP[pendingStep] : status;
+
 export class InvalidTransitionError extends Error {
   readonly code = 'INVALID_TRANSITION';
   constructor(readonly current: Status, readonly action: Action, readonly allowed: Action[]) {

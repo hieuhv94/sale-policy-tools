@@ -29,6 +29,7 @@ services:
       # Test tự gọi pumpOnce() ở đúng chỗ cần. Bơm nền theo đồng hồ làm mỗi
       # khẳng định phụ thuộc vào việc bộ đếm 1 giây có kịp nổ hay chưa.
       OUTBOX_AUTO_PUMP: "0"
+      SLA_AUTO_SCAN: "0"
       MAIL_RETRY_BACKOFF_MS: "5,5,5"
       MINIO_HOST: minio
       MINIO_PORT: "9000"
@@ -60,6 +61,7 @@ services:
       - nm_bus:/app/packages/bus/node_modules
       - nm_notification:/app/services/notification/node_modules
       - nm_document:/app/services/document/node_modules
+      - nm_sla:/app/services/sla-worker/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -80,3 +82,4 @@ volumes:
   nm_bus: {}
   nm_notification: {}
   nm_document: {}
+  nm_sla: {}
