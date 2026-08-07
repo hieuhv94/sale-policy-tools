@@ -40,6 +40,7 @@
     "@csbh/domain-policy": "workspace:*",
     "@csbh/http-kit": "workspace:*",
     "@csbh/identity": "workspace:*",
-    "@csbh/identity-core": "workspace:*"
+    "@csbh/identity-core": "workspace:*",
+    "@csbh/policy": "workspace:*"
   }
 }

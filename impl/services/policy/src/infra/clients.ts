@@ -1,0 +1,60 @@
+/**
+ * Lời gọi ra hai service khác. policy không đọc được schema `cat` lẫn `cus`.
+ */
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { mintServiceToken } from '@csbh/http-kit';
+
+const catalogUrl = () => process.env.CATALOG_URL ?? 'http://catalog:3002';
+const customerUrl = () => process.env.CUSTOMER_URL ?? 'http://customer:3003';
+
+export type CustomerInfo = {
+  id: string;
+  code: string;
+  name: string;
+  customerType: number;
+  channelCode: string | null;
+  tdvUserId: string;
+};
+
+export type ProductSnapshot = {
+  productId: string;
+  productCode: string;
+  productName: string;
+  status: string;
+  companyPrice: string;
+  thresholdRate2: number;
+  thresholdSource: string;
+};
+
+const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });
+
+@Injectable()
+export class Clients {
+  async customer(id: string): Promise<CustomerInfo> {
+    const res = await fetch(`${customerUrl()}/internal/customers/${encodeURIComponent(id)}`, {
+      headers: svc(),
+    });
+    if (res.status === 404) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
+    if (!res.ok) throw new Error(`customer trả ${res.status}`);
+    return (await res.json()) as CustomerInfo;
+  }
+
+  async productSnapshot(
+    productId: string,
+    customerType: number,
+    channelCode: string | null,
+  ): Promise<ProductSnapshot> {
+    const qs = new URLSearchParams({ customerType: String(customerType) });
+    if (channelCode) qs.set('channelCode', channelCode);
+    const res = await fetch(
+      `${catalogUrl()}/internal/catalog/product-snapshot/${encodeURIComponent(productId)}?${qs}`,
+      { headers: svc() },
+    );
+    if (res.status === 404) {
+      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      throw new NotFoundException({ code: body.code ?? 'PRODUCT_NOT_FOUND' });
+    }
+    if (!res.ok) throw new Error(`catalog trả ${res.status}`);
+    return (await res.json()) as ProductSnapshot;
+  }
+}

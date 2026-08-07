@@ -175,3 +175,23 @@ export async function clearScopeCache(): Promise<void> {
   if (keys.length > 0) await r.del(...keys);
   await r.quit();
 }
+
+/** Dựng customer nghe thật và trỏ `CUSTOMER_URL` vào đó. */
+export async function bootCustomerListening(): Promise<{
+  app: INestApplication;
+  restore: () => void;
+}> {
+  const { createTestApp } = await import('@csbh/customer/testing');
+  const app = await createTestApp();
+  await app.listen(0, '127.0.0.1');
+  const addr = (app.getHttpServer() as { address(): { port: number } }).address();
+  const previous = process.env.CUSTOMER_URL;
+  process.env.CUSTOMER_URL = `http://127.0.0.1:${addr.port}`;
+  return {
+    app,
+    restore: () => {
+      if (previous === undefined) delete process.env.CUSTOMER_URL;
+      else process.env.CUSTOMER_URL = previous;
+    },
+  };
+}

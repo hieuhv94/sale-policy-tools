@@ -26,7 +26,7 @@ sẽ không tự suy ra được.
 | **P3a** | `identity` phần dữ liệu: 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | **xong** — 89/89 xanh |
 | **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản, **vòng đời tài khoản** | **xong** — 125/125 xanh |
 | **P4** | `catalog` + `customer` | **xong** — 188/188 xanh, hoãn 2 case chờ `document` |
-| **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | chưa |
+| **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | **xong** — 256/256 xanh |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -505,3 +505,78 @@ tám thư mục `node_modules` đều là điểm gắn rỗng.
 
 `P4a: catalog — danh muc, gia, chiet khau quy dinh, nguoi ky`
 `P4b: customer — khach hang, pham vi du lieu, khoa ngoai sang policy`
+
+---
+
+## P5 — `policy`: hồ sơ, luồng duyệt, hiệu lực
+
+Chặng lớn nhất: **60 test case** (POL 19 · WF 28 · EFF 13). Bốn service chạy thật trong test —
+`identity`, `catalog`, `customer` nghe trên cổng ngẫu nhiên, `policy` gọi cả ba bằng HTTP kèm token
+dịch vụ.
+
+Máy trạng thái viết từ P2 dùng lại **nguyên vẹn**, không sửa một dòng. `WorkflowService` chỉ lo bốn
+việc mà logic thuần không làm được: kiểm phạm vi, ghi mốc thời gian, khoá lạc quan, và transaction.
+Đây là lần đầu thấy rõ giá trị của việc tách domain thuần ra từ đầu.
+
+### Hai lỗi đáng giá, cả hai đều do tầng CSDL bắt được
+
+**1. Tham số SQL biến mất khi hành động không có mốc thời gian.** Câu lệnh `UPDATE` ghép chuỗi
+`${stamp}_by = $4`; ba hành động không có mốc (từ chối, yêu cầu in lại, phát hành liên kết) làm `$4`
+biến mất khỏi câu lệnh nhưng vẫn nằm trong mảng tham số, và Postgres trả `could not determine data
+type of parameter $4`. Lỗi **chỉ lộ ra ở đúng ba hành động đó** — thử luồng thuận thì không bao giờ
+gặp. Sửa bằng cách dựng mảng tham số động và đánh số theo `params.length`.
+
+**2. Thứ tự vô hiệu / kích hoạt.** Bản đầu kích hoạt bản mới trước rồi mới vô hiệu bản cũ. Partial
+unique index `uq_policy_active_per_customer` kiểm **ngay sau từng câu lệnh** chứ không hoãn tới
+`COMMIT`, nên có một khoảnh khắc hai bản cùng `DANG_CO_HIEU_LUC` và CSDL từ chối. Phải đảo lại: vô
+hiệu bản cũ trước, kích hoạt bản mới sau, **vẫn trong một transaction**.
+
+Đây đúng là lý do đặt bất biến ở tầng CSDL từ P1. Nếu chỉ kiểm ở tầng ứng dụng thì thứ tự sai này
+lọt qua êm, và lỗi chỉ hiện ra dưới dạng dữ liệu hỏng nhiều tháng sau.
+
+Nhân đó cũng dịch luôn lỗi bất biến sang `409 ALREADY_ACTIVE_POLICY` kèm hướng dẫn, thay vì để rơi
+xuống `500` — người dùng cần biết phải lập bản BỔ SUNG hoặc CHỈNH SỬA.
+
+### Quyết định thiết kế
+
+**Hỏi lại thay vì đoán.** Khách đã có CSBH mà lập hồ sơ mới thì trả `409` kèm đúng một trong hai câu
+hỏi của YCNV, **đúng từng chữ**. Chỉ khi người dùng gửi lại kèm `mode` thì mới dựng hồ sơ. Tự đoán ý
+định là cách chắc chắn tạo ra phiên bản sai.
+
+**Chép trước, đè sau.** Phiên bản mới chép nguyên toàn bộ dòng của bản đang hiệu lực rồi mới áp các
+dòng người dùng gửi lên đè. Nhờ vậy *"phiên bản mới phải chứa lại toàn bộ sản phẩm cũ"* đúng theo
+mặc định, không phụ thuộc người dùng nhớ liệt kê đủ.
+
+**Kiểm thiếu sản phẩm thừa kế lúc GỬI DUYỆT, không phải lúc lập.** Người dùng cần được phép xoá nhầm
+rồi thêm lại trong lúc còn nháp.
+
+**TDV gửi kèm `companyPrice` hay `thresholdRate2` thì 400, không im lặng bỏ qua.** YCNV cho phép cả
+hai cách; chọn báo lỗi vì im lặng thì người dùng tưởng con số mình gửi đã được dùng.
+
+**Ký số lần hai trả `ALREADY_SIGNED` chứ không rơi vào `INVALID_TRANSITION` chung** — nguyên nhân
+khác hẳn: không phải sai bước mà là bấm lặp, và người dùng cần biết chữ ký cũ vẫn còn nguyên.
+
+### Phần chưa phủ, và lý do
+
+| Phần | Hoãn sang | Ghi chú |
+|---|---|---|
+| Số email trong Mailpit (`WF-01`, `WF-04`, `WF-28`) | P6 `notification` | `policy` đã phát **đủ 6 sự kiện đúng danh sách người nhận** qua outbox; test khẳng định tới đó. Việc gửi thư là của `notification` |
+| Object trên MinIO (`WF-13`, `WF-18`, `WF-21`) | P6 `document` | `policy` giữ **con trỏ file** và luật nghiệp vụ quanh nó — không có scan thì không bàn giao được, yêu cầu in lại thì xoá con trỏ và phát `policy.scan_discarded`. Việc xoá object thật là của `document` |
+
+Cách chia này theo đúng ranh giới sở hữu dữ liệu: mỗi service chỉ được kiểm tới lớp nó thật sự chịu
+trách nhiệm, phần còn lại kiểm ở chặng của service sở hữu nó.
+
+### Kết quả
+
+| Nhóm | Số test |
+|---|---|
+| `POL-01…19` | 24 |
+| `WF-01…28` | 25 |
+| `EFF-01…13` | 14 |
+| `AD-02` bổ sung | 1 |
+
+**256/256 xanh**, chạy ba lần liên tiếp cùng kết quả, `pol.policy` còn 0 dòng sau khi chạy.
+
+### Commit
+
+`P5: policy — ho so, luong duyet 10 buoc, hieu luc va phien ban`

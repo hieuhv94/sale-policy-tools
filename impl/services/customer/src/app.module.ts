@@ -6,6 +6,7 @@ import { CatalogClient } from './infra/catalog.client.js';
 import { ScopeClient } from './infra/scope.client.js';
 import { CustomersService } from './customers/customers.service.js';
 import { CustomersController } from './customers/customers.controller.js';
+import { CustomerInternalController } from './internal.controller.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -25,7 +26,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, CustomersController],
+  controllers: [HealthController, CustomersController, CustomerInternalController],
   providers: [
     Db,
     CatalogClient,

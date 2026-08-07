@@ -2,14 +2,58 @@
  * API nội bộ của catalog. `customer` gọi để kiểm mã danh mục, `policy` gọi để
  * tra giá và ngưỡng — không service nào đọc thẳng schema cat (AD-02).
  */
-import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
-import { opt, ServiceOnly, str, validate } from '@csbh/http-kit';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { int, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { LookupsService } from './lookups/lookups.service.js';
+import { ProductsService } from './products/products.service.js';
+import { RulesService } from './rules/rules.service.js';
 
 @ServiceOnly()
 @Controller('internal/catalog')
 export class CatalogInternalController {
-  constructor(private readonly lookups: LookupsService) {}
+  constructor(
+    private readonly lookups: LookupsService,
+    private readonly products: ProductsService,
+    private readonly rules: RulesService,
+  ) {}
+
+  /**
+   * Ảnh chụp một sản phẩm tại thời điểm lập hồ sơ: mã, tên, Giá bán Công ty và
+   * ngưỡng chiết khấu áp dụng.
+   *
+   * `policy` gọi đúng một lần rồi ĐÓNG BĂNG kết quả vào dòng hồ sơ. Nếu để nó
+   * tra lại mỗi lần hiển thị thì hồ sơ đã gửi duyệt sẽ đổi số khi danh mục đổi
+   * giá — chính là thứ việc đóng băng giá theo phiên bản sinh ra để tránh.
+   */
+  @Get('product-snapshot/:productId')
+  async snapshot(
+    @Param('productId') productId: string,
+    @Query('customerType') customerType: string,
+    @Query('channelCode') channelCode?: string,
+    @Query('on') on?: string,
+  ) {
+    const q = validate(
+      { customerType, channelCode, on },
+      { customerType: int(1, 3), channelCode: opt(str(1, 40)), on: opt(str(10, 10)) },
+    );
+    const product = (await this.products.byId(productId)) as {
+      id: string;
+      code: string;
+      name: string;
+      status: string;
+    };
+    const price = await this.products.currentPrice(productId, 'GIA_BAN_CONG_TY', q.on);
+    const threshold = await this.rules.resolve({ productId, ...q });
+    return {
+      productId: product.id,
+      productCode: product.code,
+      productName: product.name,
+      status: product.status,
+      companyPrice: price.amount,
+      thresholdRate2: threshold.thresholdRate2,
+      thresholdSource: threshold.source,
+    };
+  }
 
   @Post('validate-codes')
   @HttpCode(200)

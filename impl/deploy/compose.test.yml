@@ -37,6 +37,7 @@ services:
       - nm_http_kit:/app/packages/http-kit/node_modules
       - nm_catalog:/app/services/catalog/node_modules
       - nm_customer:/app/services/customer/node_modules
+      - nm_policy:/app/services/policy/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -50,3 +51,4 @@ volumes:
   nm_http_kit: {}
   nm_catalog: {}
   nm_customer: {}
+  nm_policy: {}
