@@ -293,3 +293,121 @@ describe('OPS-06 · sao lưu và phục hồi', () => {
     expect(await q("SELECT relkind::text FROM pg_class WHERE oid='aud.audit_log'::regclass")).toBe('p');
   }, 60_000);
 });
+
+describe('OPS-08 · sao lưu vật lý ghép được với WAL', () => {
+  it('có bản sao lưu VẬT LÝ, không chỉ bản dump logic', async () => {
+    // pg_dump + archive_mode KHÔNG tự ghép thành phục hồi theo thời điểm: PITR
+    // cần một bản sao lưu vật lý làm điểm xuất phát. Thiếu nó thì WAL chất đống
+    // mà không dùng được vào việc gì.
+    const { stdout } = await run('/bin/sh', ['-c', 'ls -1d /backup/base/*/ 2>/dev/null | wc -l']);
+    expect(Number(stdout.trim())).toBeGreaterThan(0);
+  });
+
+  it('thư mục lưu trữ WAL được dọn, không phình vô hạn', async () => {
+    const { stdout } = await run('/bin/sh', ['-c', 'du -sm /archive | cut -f1']);
+    // Trước khi có pg_archivecleanup, thư mục này đã 208MB chỉ sau vài giờ chạy
+    // test. Ổ đầy thì Postgres DỪNG GHI — cơ chế bảo vệ dữ liệu tự giết hệ thống.
+    expect(Number(stdout.trim())).toBeLessThan(500);
+  });
+});
+
+describe('OPS-09 · múi giờ nghiệp vụ là giờ Việt Nam', () => {
+  it('Postgres dùng Asia/Ho_Chi_Minh cho mọi phép so sánh theo NGÀY', async () => {
+    expect(await psql("SELECT current_setting('TimeZone')")).toBe('Asia/Ho_Chi_Minh');
+  });
+
+  it('dấu thời gian vẫn lưu tuyệt đối, chỉ cách ĐỌC theo ngày là đổi', async () => {
+    // 23:00 UTC ngày 7 chính là 06:00 sáng ngày 8 giờ Việt Nam. Máy chủ chạy GMT
+    // sẽ ghi hồ sơ đó vào ngày 7 — lệch một ngày ở ngày áp dụng, ở hiệu lực giá
+    // và ở SLA, mà chỉ sai vào sáng sớm nên rất lâu mới lộ.
+    const d = await psql("SELECT (timestamptz '2026-08-07 23:00:00+00')::date::text");
+    expect(d).toBe('2026-08-08');
+  });
+});
+
+describe('OPS-10 · bí mật đọc từ file, không từ biến môi trường', () => {
+  it('readSecret ưu tiên FILE hơn biến môi trường', async () => {
+    const { readSecret } = await import('@csbh/http-kit');
+    const { writeFileSync, mkdtempSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+
+    const dir = mkdtempSync(join(tmpdir(), 'sec-'));
+    const f = join(dir, 's.txt');
+    writeFileSync(f, 'tu-file\n');
+
+    process.env.ZZ_SECRET = 'tu-bien-moi-truong';
+    process.env.ZZ_SECRET_FILE = f;
+    try {
+      // Biến môi trường lộ ra ở `docker inspect` và ở /proc/<pid>/environ.
+      expect(readSecret('ZZ_SECRET')).toBe('tu-file');
+      delete process.env.ZZ_SECRET_FILE;
+      expect(readSecret('ZZ_SECRET')).toBe('tu-bien-moi-truong');
+    } finally {
+      delete process.env.ZZ_SECRET;
+      delete process.env.ZZ_SECRET_FILE;
+    }
+  });
+
+  it('production không có giá trị mặc định — thiếu bí mật thì DỪNG', async () => {
+    const { readSecret } = await import('@csbh/http-kit');
+    const before = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => readSecret('ZZ_KHONG_TON_TAI', 'mat-khau-doan-duoc')).toThrow(/Thiếu bí mật/);
+    } finally {
+      if (before === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = before;
+    }
+  });
+});
+
+describe('OPS-11 · khoá JWT dùng chung giữa các service', () => {
+  it('token ký bằng khoá nạp từ file xác minh được ở tiến trình khác', async () => {
+    const { getKeyPair, resetKeyPairForTest, JWT } = await import('@csbh/http-kit');
+    const { signJwt, verifyJwt } = await import('@csbh/identity-core');
+    const { generateKeyPairSync } = await import('node:crypto');
+    const { writeFileSync, mkdtempSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const f = join(mkdtempSync(join(tmpdir(), 'jwt-')), 'k.pem');
+    writeFileSync(f, privateKey.export({ type: 'pkcs8', format: 'pem' }) as string);
+
+    const before = process.env.JWT_PRIVATE_KEY_FILE;
+    try {
+      // "service A" nạp khoá từ file và ký.
+      process.env.JWT_PRIVATE_KEY_FILE = f;
+      resetKeyPairForTest();
+      const token = signJwt({ sub: 'u1' }, getKeyPair().privateKey, {
+        issuer: JWT.issuer,
+        audience: JWT.audUser,
+        expiresInSec: 60,
+      });
+
+      // "service B" nạp LẠI từ đầu, cùng file, và xác minh được.
+      resetKeyPairForTest();
+      const payload = verifyJwt(token, getKeyPair().publicKey, {
+        issuer: JWT.issuer,
+        audience: JWT.audUser,
+      });
+      expect(payload.sub).toBe('u1');
+
+      // Không có file thì mỗi lần nạp là một khoá khác — token của service này
+      // service kia không xác minh nổi.
+      delete process.env.JWT_PRIVATE_KEY_FILE;
+      resetKeyPairForTest();
+      expect(() =>
+        verifyJwt(token, getKeyPair().publicKey, {
+          issuer: JWT.issuer,
+          audience: JWT.audUser,
+        }),
+      ).toThrow();
+    } finally {
+      if (before === undefined) delete process.env.JWT_PRIVATE_KEY_FILE;
+      else process.env.JWT_PRIVATE_KEY_FILE = before;
+      resetKeyPairForTest();
+    }
+  });
+});

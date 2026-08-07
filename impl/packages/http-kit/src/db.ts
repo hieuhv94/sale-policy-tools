@@ -4,6 +4,7 @@
  * bị giới hạn quyền.
  */
 import { Pool, type PoolClient, type QueryResultRow } from 'pg';
+import { readSecret } from './secrets.js';
 
 export class DbPool {
   private readonly pool: Pool;
@@ -14,7 +15,7 @@ export class DbPool {
       port: Number(process.env.PGPORT ?? 5432),
       database: process.env.PGDATABASE ?? 'csbh',
       user: dbUser,
-      password: process.env.ROLE_PASSWORD ?? 'csbh_dev_pw',
+      password: readSecret('ROLE_PASSWORD', 'csbh_dev_pw'),
       max: 8,
     });
   }

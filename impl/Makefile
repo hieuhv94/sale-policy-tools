@@ -9,7 +9,7 @@ RUN      := $(COMPOSE) run --rm -T test
 WORKSPACE := ../workspace
 
 .PHONY: help up down migrate install typecheck test seed clean ps logs psql version \
-        backup restore restore-drill retention
+        backup restore restore-drill retention secrets
 
 help:
 	@echo "up        dựng hạ tầng (postgres, redis, rabbitmq, minio, mailpit) + migration"
@@ -43,8 +43,13 @@ test:
 	@mkdir -p $(WORKSPACE)/reports
 	$(RUN) pnpm test
 
+secrets:
+	sh scripts/gen-secrets.sh deploy/secrets
+
 backup:
+	@mkdir -p $(WORKSPACE)/backup-mirror
 	$(COMPOSE) run --rm -T --entrypoint /bin/sh migrate /backup.sh
+	$(COMPOSE) run --rm -T --entrypoint /bin/sh migrate /basebackup.sh
 
 # Phục hồi vào CSDL NHÁP rồi đối chiếu — không đụng CSDL đang chạy.
 restore-drill:

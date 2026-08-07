@@ -28,6 +28,7 @@ sẽ không tự suy ra được.
 | **P4** | `catalog` + `customer` | **xong** — 188/188 xanh, hoãn 2 case chờ `document` |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | **xong** — 256/256 xanh |
 | **P5.5** | Yêu cầu phi chức năng: sao lưu, phân trang, chống phình CSDL | **xong** — nhóm test `OPS` mới |
+| **P5.6** | Vòng hai phi chức năng: PITR thật, múi giờ, bí mật, tắt máy êm | **xong** — 285/285 xanh |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -659,3 +660,73 @@ kiến trúc, không phải phát hiện mới.
 ### Commit
 
 `P5.5: yeu cau phi chuc nang — sao luu, phan trang, chong phinh CSDL`
+
+---
+
+## P5.6 — Vòng hai phi chức năng
+
+Rà lại lần hai theo yêu cầu. Bảy điểm còn lại, trong đó **bốn cái làm chết hệ thống** chứ không chỉ
+làm chậm. Nhóm `OPS` mở rộng lên 11 mã; tài liệu **334 test case**.
+
+### Sai lầm của chính P5.5 phải sửa lại
+
+**`pg_dump` + lưu trữ WAL KHÔNG tự ghép thành PITR.** Phục hồi theo thời điểm cần một bản sao lưu
+**vật lý** làm điểm xuất phát; bản dump logic không đóng vai đó được. P5.5 bật `archive_mode=on` rồi
+chỉ chạy `pg_dump` — kết quả là WAL chất đống mà **không dùng được vào việc gì**.
+
+Đã bổ sung `pg_basebackup`, và giữ cả hai kiểu vì chúng phục vụ hai việc khác nhau:
+
+| | Dùng để | Điểm phục hồi sớm nhất |
+|---|---|---|
+| `pg_dump -Fc` | Phục hồi từng bảng, mang sang máy chủ Postgres phiên bản khác | Lúc chạy dump — mất tối đa 24 giờ |
+| `pg_basebackup` + WAL | Phục hồi theo thời điểm | ~5 phút (`archive_timeout = 300`) |
+
+### Bốn thứ làm chết hệ thống
+
+**1. `/archive` đã 208 MB sau vài giờ chạy test, không có gì dọn.** Nghịch lý: cơ chế thêm vào để
+*bảo vệ* dữ liệu lại là thứ làm đầy ổ, và ổ đầy thì Postgres **dừng ghi**. Đã thêm
+`pg_archivecleanup` chạy sau mỗi bản sao lưu vật lý, cắt WAL cũ hơn bản còn giữ sớm nhất — thư mục
+xuống còn **16 MB**.
+
+**2. Bản sao lưu nằm cùng ổ với dữ liệu.** `pgdata`, `pgarchive`, `pgbackup` đều là Docker volume
+trên một VM: hỏng ổ mất cả ba. Sao lưu chưa rời khỏi máy thì mới chống được lỗi người dùng, chưa
+chống được lỗi phần cứng — đúng rủi ro đã nêu ở P5.5 mà chưa đóng hết. Đã thêm `BACKUP_MIRROR_DIR`;
+ở production thiếu biến này thì job sao lưu **báo lỗi và dừng** thay vì im lặng chạy tiếp.
+
+**3. Máy chủ chạy giờ GMT.** Hồ sơ tiếp nhận lúc 06:00 sáng ngày 8 giờ Việt Nam (= 23:00 GMT ngày 7)
+bị ghi thành **ngày 7** — lệch một ngày ở *ngày áp dụng*, ở hiệu lực giá và ở SLA. Loại lỗi chỉ xảy
+ra vào sáng sớm nên rất lâu mới lộ. Đặt `timezone = 'Asia/Ho_Chi_Minh'`; dấu thời gian vẫn lưu UTC,
+chỉ cách đọc **theo ngày** là đổi.
+
+**4. Log Docker không giới hạn dung lượng.** Cùng hậu quả với mục 1. Đã đặt `max-size 10m`, giữ 5 file.
+
+### Ba thứ về an toàn và vận hành
+
+**Bí mật là biến môi trường** — lộ ra ở `docker inspect` và `/proc/<pid>/environ`. Thêm
+`readSecret()` ưu tiên `*_FILE`, và `make secrets` sinh file ngẫu nhiên vào thư mục đã bị gitignore.
+Ở production thiếu bí mật thì **dừng**, không chạy tiếp với mật khẩu đoán được.
+
+**Khoá JWT sinh tạm khi không có file** — mười service mỗi cái một khoá riêng thì không cái nào xác
+minh nổi token của cái khác. `OPS-11` chứng minh trực tiếp: ký ở "service A", xác minh ở "service B"
+cùng file khoá thì được; bỏ file đi thì không.
+
+**Không tắt máy êm, `healthz` không chạm CSDL.** Mỗi lần deploy là cắt ngang request đang chạy; và
+healthcheck trả `ok` kể cả khi Postgres đã chết thì không phát hiện được gì. Đã thêm
+`enableShutdownHooks()` và `SELECT 1` trong healthz.
+
+### Một lỗi phụ
+
+`pg_basebackup` cần kết nối **nhân bản**, mà `pg_hba.conf` của ảnh gốc chỉ mở nhân bản qua socket cục
+bộ. Job sao lưu chạy ở container khác nên bị từ chối. Đã thêm file `pg_hba.conf` riêng, vẫn bắt buộc
+`scram-sha-256` cho mạng nội bộ — cùng mạng không phải căn cứ để tin nhau.
+
+### Còn nợ, đã ghi nhận
+
+Không giới hạn tốc độ đăng nhập (mới khoá theo tài khoản, rải 1 lần/tài khoản không bị chặn) · chưa
+có lịch tự động cho sao lưu và dọn dẹp · `trace_id` có cột nhưng không ai điền · **chưa có cảnh báo**
+— chính lỗi `archive_command` hỏng lặng lẽ là ví dụ sống · chưa có migration lùi · một VM, chưa ghi
+cam kết RPO/RTO. Xử lý cùng P7 khi dựng gateway và Caddy.
+
+### Commit
+
+`P5.6: PITR that, mui gio ICT, bi mat tu file, tat may em`

@@ -13,9 +13,18 @@ import { ACCOUNT_SOURCE, AuthGuard, Public } from '@csbh/http-kit';
 
 @Controller()
 class HealthController {
+  constructor(private readonly db: Db) {}
+
+  /**
+   * Healthcheck phải CHẠM tới phụ thuộc thật.
+   *
+   * Trả `ok: true` vô điều kiện là healthcheck không phát hiện được gì: Postgres
+   * chết mà container vẫn "khoẻ", bộ cân bằng tải vẫn dồn request vào.
+   */
   @Public()
   @Get('healthz')
-  health() {
+  async health() {
+    await this.db.q('SELECT 1');
     return { ok: true, service: 'identity', version: CONFIG.appVersion };
   }
 

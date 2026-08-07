@@ -1,5 +1,15 @@
 name: csbh
 
+# Log Docker mặc định KHÔNG giới hạn dung lượng. Mười service cộng Postgres ghi
+# cả truy vấn chậm sẽ làm đầy ổ sau vài tháng — cùng hậu quả với việc WAL không
+# được dọn: ổ đầy thì Postgres dừng ghi và hệ thống chết.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+
 services:
   # Volume của Docker sinh ra thuộc root, mà Postgres chạy dưới uid 70. Không có
   # bước này thì archive_command lặng lẽ hỏng: CSDL vẫn chạy, healthcheck vẫn
@@ -15,6 +25,7 @@ services:
     restart: "no"
 
   postgres:
+    logging: *logging
     depends_on:
       pg-init: { condition: service_completed_successfully }
     image: postgres:16-alpine
@@ -30,6 +41,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
       - pgarchive:/archive
       - pgbackup:/backup
     shm_size: 256mb
@@ -44,6 +56,7 @@ services:
     networks: [ internal ]
 
   redis:
+    logging: *logging
     deploy:
       resources:
         limits: { memory: 384m }
@@ -59,6 +72,7 @@ services:
     networks: [ internal ]
 
   rabbitmq:
+    logging: *logging
     deploy:
       resources:
         limits: { memory: 512m }
@@ -73,6 +87,7 @@ services:
     networks: [ internal ]
 
   minio:
+    logging: *logging
     deploy:
       resources:
         limits: { memory: 512m }
@@ -91,6 +106,7 @@ services:
     networks: [ internal ]
 
   mailpit:
+    logging: *logging
     deploy:
       resources:
         limits: { memory: 128m }
@@ -105,6 +121,7 @@ services:
 
   # Chạy một lần rồi thoát. Mọi service khác chờ nó xong.
   migrate:
+    logging: *logging
     image: postgres:16-alpine
     depends_on:
       postgres: { condition: service_healthy }
@@ -113,11 +130,15 @@ services:
       PGUSER: postgres
       PGPASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
       PGDATABASE: csbh
+      BACKUP_MIRROR_DIR: /mirror
     volumes:
       - ../db/migrations:/migrations:ro
       - ../scripts/migrate.sh:/migrate.sh:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
+      - ../scripts/basebackup.sh:/basebackup.sh:ro
+      - pgarchive:/archive
+      - ../../workspace/backup-mirror:/mirror
       - pgbackup:/backup
     entrypoint: ["/bin/sh","/migrate.sh"]
     restart: "no"

@@ -956,6 +956,15 @@ sót này không lộ ra khi chạy thử — chúng chỉ lộ ra sau vài năm
 <tr><td>Tìm khách hàng quét toàn bảng</td><td>Index GIN trigram trên biểu thức ghép — biểu thức phải khớp <b>từng ký tự</b> với truy vấn, lệch là index không bao giờ được chọn</td><td><code>OPS-05</code></td></tr>
 <tr><td>10 service × 8 kết nối vượt trần 100 của Postgres</td><td><code>max_connections = 200</code>, kèm tinh chỉnh bộ đệm và <code>work_mem</code> cho VM 8GB</td><td><code>OPS-01</code></td></tr>
 <tr><td>Một service rò rỉ bộ nhớ kéo sập cả VM</td><td><code>deploy.resources.limits</code> cho từng container hạ tầng</td><td>—</td></tr>
+<tr><td><b>WAL chất đống làm đầy ổ</b> — và ổ đầy thì Postgres dừng ghi</td><td><code>pg_archivecleanup</code> chạy sau mỗi bản sao lưu vật lý, cắt WAL cũ hơn bản còn giữ sớm nhất</td><td><code>OPS-08</code></td></tr>
+<tr><td><code>pg_dump</code> + WAL <b>không tự ghép thành PITR</b> — PITR cần bản sao lưu vật lý làm điểm xuất phát</td><td>Chạy cả hai kiểu: <code>pg_dump</code> cho phục hồi từng bảng và chuyển máy chủ, <code>pg_basebackup</code> cho phục hồi theo thời điểm</td><td><code>OPS-08</code></td></tr>
+<tr><td>Bản sao lưu nằm <b>cùng ổ</b> với dữ liệu — chỉ chống được lỗi người dùng, không chống được hỏng ổ</td><td><code>BACKUP_MIRROR_DIR</code> nhân bản ra ngoài; production thiếu biến này thì job sao lưu <b>báo lỗi và dừng</b></td><td><code>OPS-08</code></td></tr>
+<tr><td>Múi giờ máy chủ là GMT, lệch một ngày ở nghiệp vụ</td><td><code>timezone = 'Asia/Ho_Chi_Minh'</code>; dấu thời gian vẫn lưu UTC, chỉ cách đọc theo ngày là đổi</td><td><code>OPS-09</code></td></tr>
+<tr><td>Log Docker không giới hạn dung lượng</td><td><code>json-file</code> với <code>max-size 10m</code>, giữ 5 file, áp cho mọi container</td><td>—</td></tr>
+<tr><td>Bí mật là biến môi trường, lộ ở <code>docker inspect</code></td><td><code>readSecret()</code> ưu tiên <code>*_FILE</code>; <code>make secrets</code> sinh file, thư mục bị gitignore</td><td><code>OPS-10</code></td></tr>
+<tr><td>Mỗi service sinh khoá JWT riêng, không xác minh nổi token của nhau</td><td>Một file khoá dùng chung, mount read-only vào mọi service</td><td><code>OPS-11</code></td></tr>
+<tr><td>Deploy cắt ngang request đang chạy</td><td><code>enableShutdownHooks()</code>: đóng máy chủ HTTP trước, đóng pool CSDL sau</td><td>—</td></tr>
+<tr><td><code>healthz</code> trả <code>ok</code> kể cả khi Postgres chết</td><td>Healthcheck chạm phụ thuộc thật bằng <code>SELECT 1</code></td><td>—</td></tr>
 </tbody></table></div>
 <p><b>Về việc thêm người dùng:</b> 50 → 200 người không phải vấn đề CPU — tải nghiệp vụ này rất nhẹ.
 Nút thắt thật là phân trang và số kết nối. Cần nói thẳng: kiến trúc microservice <em>không giúp gì</em>
@@ -1791,6 +1800,10 @@ mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không 
 <tr data-tc="OPS"><td class="id">OPS-04</td><td>Chạy <code>sys.run_retention()</code></td><td>Xoá token hết hạn, giữ token còn hạn; chỉ xoá outbox <b>đã gửi</b>; <b>không đụng</b> nhật ký; ghi lại đã xoá những gì</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
 <tr data-tc="OPS"><td class="id">OPS-05</td><td>Kiểm index tìm kiếm và index dọn dẹp</td><td>Tìm khách hàng có index GIN trigram; có index theo hạn cho token và SLA; nhật ký có index thời gian và đối tượng</td><td>§9.2</td><td><span class="chip p1">P1</span></td></tr>
 <tr data-tc="OPS"><td class="id">OPS-06</td><td>Chạy sao lưu rồi phục hồi vào CSDL nháp</td><td>File đọc được mục lục; phục hồi ra đúng dữ liệu; <b>bản phục hồi giữ nguyên cả bốn bất biến</b> ở tầng CSDL</td><td>§11</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-08</td><td>Kiểm bản sao lưu vật lý và kích thước thư mục WAL</td><td>Có <code>pg_basebackup</code>, không chỉ bản dump logic; thư mục lưu trữ được <code>pg_archivecleanup</code> dọn — <b>ổ đầy thì Postgres dừng ghi</b></td><td>§11</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-09</td><td>Đọc múi giờ và ép so sánh theo ngày ở ranh giới nửa đêm</td><td><code>Asia/Ho_Chi_Minh</code>; 23:00 UTC ngày 7 phải đọc ra ngày <b>8</b> — máy chủ GMT làm lệch một ngày ở ngày áp dụng, hiệu lực giá và SLA</td><td>§7 §9.1</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-10</td><td>Đọc bí mật khi có cả <code>FOO</code> lẫn <code>FOO_FILE</code></td><td>File thắng biến môi trường; ở production thiếu bí mật thì <b>dừng</b> chứ không chạy tiếp với mật khẩu đoán được</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-11</td><td>Ký token ở "service A", xác minh ở "service B" cùng file khoá</td><td>Xác minh được; không có file khoá thì mỗi lần nạp ra một khoá khác và <b>không service nào xác minh nổi token của service khác</b></td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
 <tr data-tc="OPS"><td class="id">OPS-07</td><td>Gọi endpoint danh sách không kèm tham số</td><td>Trả tối đa 50 dòng kèm tổng số thật; <code>limit</code> vượt trần 200 thì 400 — <b>không có đường lấy cả bảng</b></td><td>§9.2</td><td><span class="chip p0">P0</span></td></tr>
 </tbody></table></div>
 

@@ -24,8 +24,11 @@ export function getKeyPair(): KeyPair {
   }
 
   // Không có file khoá thì sinh khoá tạm cho lần chạy này. Chấp nhận được ở dev
-  // và trong test; ở production thì mọi service phải trỏ vào cùng một file
-  // secret, nếu không khởi động lại là toàn bộ token đang lưu hành chết hết.
+  // và trong test.
+  //
+  // Ở production thì KHÔNG: mười service mỗi cái sinh một khoá riêng nghĩa là
+  // không cái nào xác minh nổi token của cái khác, và khởi động lại một service
+  // là mọi token nó đã phát chết theo. Tất cả phải trỏ vào CÙNG một file.
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_PRIVATE_KEY_FILE bắt buộc phải có ở môi trường production');
   }
