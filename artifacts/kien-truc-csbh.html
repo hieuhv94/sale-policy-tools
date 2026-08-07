@@ -177,7 +177,7 @@ figcaption b{color:var(--ink-2)}
 
 <div class="topbar">
   <span class="tb-t">CSBH Nutricare — Kiến trúc &amp; Kiểm thử</span>
-  <span class="tb-s">v1.0 · 06/08/2026 · dựa trên YCNV v4.0</span>
+  <span class="tb-s">phần mềm v1.0.0 · 06/08/2026 · dựa trên YCNV v4.1</span>
 </div>
 
 <div class="shell">
@@ -198,7 +198,8 @@ figcaption b{color:var(--ink-2)}
     <li><a href="#s12"><span class="n">13</span><span>Chiến lược kiểm thử</span></a></li>
     <li><a href="#s13"><span class="n">14</span><span>Chạy test local</span></a></li>
     <li><a href="#s14"><span class="n">15</span><span>Vận hành &amp; CI/CD</span></a></li>
-    <li><a href="#s15"><span class="n">16</span><span>Lộ trình &amp; rủi ro</span></a></li>
+    <li><a href="#s17"><span class="n">16</span><span>Phiên bản &amp; phát hành</span></a></li>
+    <li><a href="#s15"><span class="n">17</span><span>Lộ trình &amp; rủi ro</span></a></li>
   </ol>
 </nav>
 
@@ -224,6 +225,7 @@ figcaption b{color:var(--ink-2)}
   <div class="tile"><div class="v" id="tc-total">—</div><div class="k">test case</div></div>
   <div class="tile"><div class="v">11</div><div class="k">trạng thái hồ sơ</div></div>
   <div class="tile"><div class="v">10</div><div class="k">tài khoản mẫu</div></div>
+  <div class="tile"><div class="v">1.0.0</div><div class="k">phiên bản đầu tiên</div></div>
   <div class="tile"><div class="v">3</div><div class="k">khung nhìn được test</div></div>
   <div class="tile"><div class="v">8&nbsp;GB</div><div class="k">RAM một VM là đủ</div></div>
 </div>
@@ -1695,6 +1697,26 @@ mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không 
 <tr data-tc="FE"><td class="id">FE-38</td><td>Mở màn hình danh sách hồ sơ trên điện thoại tầm trung qua mạng 4G mô phỏng</td><td>Dùng được trong dưới 3 giây; gói dùng chung ≤ 250KB nén</td><td>—</td><td><span class="chip p1">P1</span></td></tr>
 </tbody></table></div>
 
+<div class="grpttl"><h3>VER — Đánh số phiên bản và phát hành</h3><span class="c" data-grp="VER"></span></div>
+<div class="tw"><table class="tc">
+<thead><tr><th class="id">Mã</th><th>Kịch bản</th><th>Kết quả mong đợi</th><th>YCNV</th><th>Mức</th></tr></thead>
+<tbody>
+<tr data-tc="VER"><td class="id">VER-01</td><td>Sửa <code>VERSION</code> thành <code>1.1.0</code> rồi build lại toàn bộ</td><td>Cả 10 service và SPA đều báo <code>1.1.0</code>; không nơi nào còn <code>1.0.0</code></td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-02</td><td>Quét <code>/health</code> của 10 service sau khi deploy</td><td>Tất cả trả <strong>cùng một</strong> <code>app_version</code> và cùng <code>git_sha</code></td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-03</td><td>Cố tình không tạo lại một container rồi chạy phép quét</td><td>Phát hiện container chạy bản cũ và <strong>chặn</strong>, không tính là phát hành thành công</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-04</td><td>Quét mã nguồn tìm số phiên bản viết thẳng</td><td>Chỉ file <code>VERSION</code> chứa số này; mọi <code>package.json</code> đều là <code>0.0.0</code></td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-05</td><td>Mở bất kỳ màn hình nào của web</td><td>Chân trang hiện <code>v1.0.0</code>; màn hình Thông tin hệ thống hiện thêm git SHA và thời điểm build</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-06</td><td>Gọi bất kỳ API nào</td><td>Phản hồi có header <code>X-App-Version</code> đúng bằng số đang chạy</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-07</td><td>SPA đang mở bản <code>1.0.0</code>, máy chủ deploy lên <code>1.0.1</code></td><td>Hiện dải thông báo mời tải lại; <strong>không tự động tải lại</strong>; dữ liệu đang nhập còn nguyên</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-08</td><td>SPA đang mở bản <code>1.x</code>, máy chủ deploy lên <code>2.0.0</code></td><td>Buộc tải lại, nhưng <strong>lưu nháp cục bộ biểu mẫu đang dở trước</strong> và khôi phục sau khi tải xong</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-09</td><td>Thực hiện một thao tác nghiệp vụ bất kỳ</td><td>Bản ghi nhật ký có cột <code>app_version</code> ghi đúng bản đang chạy</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-10</td><td>Tải PDF bản CSBH và PDF hợp đồng</td><td>Chân trang cả hai file có số phiên bản phần mềm</td><td>§11.1</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-11</td><td>Đặt git tag lệch với nội dung <code>VERSION</code> rồi chạy CI</td><td>CI <strong>từ chối build</strong> bản phát hành</td><td>—</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-12</td><td>Quay lui về ảnh của bản trước rồi chạy lại toàn bộ test tích hợp</td><td>Hệ thống chạy được với lược đồ CSDL hiện tại — migration tương thích ngược một bản</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-13</td><td>Kiểm tên cột trong lược đồ</td><td>Phiên bản phần mềm là <code>app_version</code>, phiên bản hồ sơ CSBH là <code>version_no</code> — không dùng lẫn tên</td><td>§5.6</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="VER"><td class="id">VER-14</td><td>Đọc bảng <code>sys.app_release</code> sau vài lần phát hành</td><td>Ghi đủ phiên bản, thời điểm, người bấm và kết quả phép quét của từng lần</td><td>—</td><td><span class="chip p2">P2</span></td></tr>
+</tbody></table></div>
+
 <div class="grpttl"><h3>PERF — Hiệu năng ở quy mô 50 người dùng</h3><span class="c" data-grp="PERF"></span></div>
 <div class="tw"><table class="tc">
 <thead><tr><th class="id">Mã</th><th>Kịch bản</th><th>Kết quả mong đợi</th><th>YCNV</th><th>Mức</th></tr></thead>
@@ -2078,8 +2100,195 @@ deploy production (bấm tay)
 </ul>
 </section>
 
+<section id="s17">
+<h2><span class="no">§ 16</span>Phiên bản &amp; phát hành</h2>
+
+<p class="lede">Một file <code>VERSION</code> ở gốc kho mã là <strong>nguồn duy nhất</strong>. Sửa nó
+rồi build, số phiên bản tự lan tới 10 service, tới SPA, tới tag ảnh Docker, tới nhật ký và tới chân
+trang PDF. Không có chỗ thứ hai nào được phép khai báo số này.</p>
+
+<h3>Bốn thứ đều gọi là “phiên bản” — đừng lẫn</h3>
+<div class="tw"><table>
+<thead><tr><th>Loại</th><th>Ví dụ</th><th>Ai quan tâm</th><th>Quy tắc</th></tr></thead>
+<tbody>
+<tr><td><strong>Phiên bản hồ sơ CSBH</strong></td><td><code>v3</code> của khách hàng KH-000123</td><td>Người dùng nghiệp vụ</td><td>Tự tăng theo số lần cập nhật CSBH của khách hàng đó (§5.6). <strong>Không liên quan gì</strong> tới ba loại dưới.</td></tr>
+<tr><td><strong>Phiên bản phần mềm</strong></td><td><code>1.0.0</code></td><td>Người dùng và đội vận hành</td><td>Mục này. Một số duy nhất cho toàn hệ.</td></tr>
+<tr><td>Phiên bản lược đồ CSDL</td><td><code>20260806143012_add_contract_template</code></td><td>Đội lập trình</td><td>Prisma Migrate tự quản, tăng theo thời gian.</td></tr>
+<tr><td>Phiên bản API</td><td><code>/api/v1/…</code></td><td>Trình duyệt</td><td>Chỉ đổi khi phá vỡ hợp đồng — tức là khi phần MAJOR tăng.</td></tr>
+</tbody></table></div>
+
+<div class="note stamp">
+  <span class="lbl">Đặt tên cho rõ trong mã nguồn</span>
+  <p>Trong CSDL đã có cột <code>version_no</code> của hồ sơ CSBH. Số phiên bản phần mềm <strong>không
+  bao giờ</strong> được dùng lại tên đó — luôn là <code>app_version</code>. Đây là loại nhầm lẫn chỉ
+  lộ ra sau vài tháng, khi ai đó lọc báo cáo theo nhầm cột.</p>
+</div>
+
+<h3>Cơ chế lan truyền</h3>
+
+<figure>
+<div class="figwrap">
+<svg viewBox="0 0 1060 420" role="img" aria-label="Sơ đồ lan truyền phiên bản: file VERSION ở gốc kho mã được make và CI đọc, rồi truyền vào build ảnh Docker cho mười service, vào bản build SPA, vào git tag và tag ảnh, và được kiểm lại sau khi deploy bằng cách quét mười một endpoint health">
+<defs>
+  <marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+  </marker>
+</defs>
+<g font-family="system-ui, sans-serif" fill="currentColor">
+<rect x="16" y="170" width="152" height="80" rx="5" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.8"/>
+<text x="92" y="196" font-size="13" font-weight="700" text-anchor="middle" fill="var(--accent)">VERSION</text>
+<text x="92" y="216" font-size="15" font-weight="700" text-anchor="middle" fill="var(--accent)">1.0.0</text>
+<text x="92" y="236" font-size="9.5" text-anchor="middle" fill="var(--accent)">một nguồn duy nhất</text>
+<line x1="168" y1="210" x2="196" y2="210" stroke="currentColor" stroke-width="1.4" marker-end="url(#ar6)"/>
+<rect x="198" y="180" width="140" height="60" rx="5" fill="var(--surface)" stroke="currentColor"/>
+<text x="268" y="204" font-size="11" font-weight="650" text-anchor="middle" fill="var(--ink)">make · CI</text>
+<text x="268" y="221" font-size="9.5" text-anchor="middle" fill="var(--ink-3)">đọc file, export biến</text>
+<polyline points="338,210 360,210 360,46 378,46" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<polyline points="338,210 360,210 360,146 378,146" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<polyline points="338,210 360,210 360,258 378,258" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<polyline points="338,210 360,210 360,358 378,358" fill="none" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<rect x="380" y="16" width="290" height="60" rx="4" fill="var(--surface)" stroke="currentColor"/>
+<text x="392" y="36" font-size="10.5" font-weight="650" fill="var(--ink)">docker compose build</text>
+<text x="392" y="52" font-size="9.5" fill="var(--ink-3)">--build-arg APP_VERSION=1.0.0</text>
+<text x="392" y="66" font-size="9.5" fill="var(--ink-3)">cho cả 10 service</text>
+<line x1="670" y1="46" x2="698" y2="46" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<rect x="700" y="16" width="344" height="60" rx="4" fill="var(--surface-2)" stroke="currentColor"/>
+<text x="712" y="36" font-size="10.5" font-weight="650" fill="var(--ink)">Biến môi trường lúc chạy</text>
+<text x="712" y="52" font-size="9.5" fill="var(--ink-3)">→ GET /health trả app_version + git SHA</text>
+<text x="712" y="66" font-size="9.5" fill="var(--ink-3)">→ mọi phản hồi có header X-App-Version</text>
+<rect x="380" y="116" width="290" height="60" rx="4" fill="var(--surface)" stroke="currentColor"/>
+<text x="392" y="136" font-size="10.5" font-weight="650" fill="var(--ink)">vite build · define</text>
+<text x="392" y="152" font-size="9.5" fill="var(--ink-3)">VITE_APP_VERSION đọc từ VERSION</text>
+<text x="392" y="166" font-size="9.5" fill="var(--ink-3)">nhúng cứng vào gói SPA</text>
+<line x1="670" y1="146" x2="698" y2="146" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<rect x="700" y="116" width="344" height="60" rx="4" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+<text x="712" y="136" font-size="10.5" font-weight="700" fill="var(--accent)">Frontend hiện số phiên bản</text>
+<text x="712" y="152" font-size="9.5" fill="var(--accent)">→ chân trang + màn hình Thông tin hệ thống</text>
+<text x="712" y="166" font-size="9.5" fill="var(--accent)">→ so với X-App-Version để biết mình đã cũ</text>
+<rect x="380" y="228" width="290" height="60" rx="4" fill="var(--surface)" stroke="currentColor"/>
+<text x="392" y="248" font-size="10.5" font-weight="650" fill="var(--ink)">git tag v1.0.0</text>
+<text x="392" y="264" font-size="9.5" fill="var(--ink-3)">CI từ chối build nếu tag</text>
+<text x="392" y="278" font-size="9.5" fill="var(--ink-3)">không khớp nội dung VERSION</text>
+<line x1="670" y1="258" x2="698" y2="258" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<rect x="700" y="228" width="344" height="60" rx="4" fill="var(--surface-2)" stroke="currentColor"/>
+<text x="712" y="248" font-size="10.5" font-weight="650" fill="var(--ink)">Tag ảnh Docker</text>
+<text x="712" y="264" font-size="9.5" fill="var(--ink-3)">csbh/policy:1.0.0 và :sha-abc1234</text>
+<text x="712" y="278" font-size="9.5" fill="var(--ink-3)">giữ 3 bản gần nhất để quay lui</text>
+<rect x="380" y="328" width="290" height="60" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="1.3"/>
+<text x="392" y="348" font-size="10.5" font-weight="700" fill="var(--warn)">Sau khi deploy</text>
+<text x="392" y="364" font-size="9.5" fill="var(--warn)">quét 11 endpoint /health</text>
+<text x="392" y="378" font-size="9.5" fill="var(--warn)">(10 service + SPA)</text>
+<line x1="670" y1="358" x2="698" y2="358" stroke="currentColor" stroke-width="1.3" marker-end="url(#ar6)"/>
+<rect x="700" y="328" width="344" height="60" rx="4" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="1.3"/>
+<text x="712" y="348" font-size="10.5" font-weight="700" fill="var(--warn)">Tất cả phải trả CÙNG một số</text>
+<text x="712" y="364" font-size="9.5" fill="var(--warn)">lệch một nơi = deploy hụt một container</text>
+<text x="712" y="378" font-size="9.5" fill="var(--warn)">→ chặn, không tính là phát hành thành công</text>
+</g>
+</svg>
+</div>
+<figcaption><b>Hình 6 — Một file, năm đích đến.</b> Điểm đáng giá nhất không phải việc lan truyền mà
+là <em>hàng cuối</em>: sau mỗi lần deploy, quét toàn bộ <code>/health</code> và bắt buộc mọi nơi trả
+cùng một số. Với 10 container triển khai bằng Docker Compose, kiểu hỏng phổ biến nhất là một
+container không được tạo lại và lặng lẽ chạy bản cũ — chỉ có phép quét này mới bắt được, còn nhìn
+giao diện thì không.</figcaption>
+</figure>
+
+<h3>Cài đặt cụ thể</h3>
+<pre><span class="c"># VERSION — ở gốc kho mã, nội dung đúng một dòng</span>
+1.0.0</pre>
+
+<pre><span class="c"># Makefile — mọi lệnh đều lấy số từ đây, không ai gõ tay</span>
+APP_VERSION := $(shell cat VERSION)
+GIT_SHA     := $(shell git rev-parse --short HEAD)
+export APP_VERSION GIT_SHA
+
+build:   ; docker compose build --build-arg APP_VERSION=$(APP_VERSION) --build-arg GIT_SHA=$(GIT_SHA)
+release: ; git tag v$(APP_VERSION) &amp;&amp; git push origin v$(APP_VERSION)
+verify:  ; ./scripts/verify-version.sh $(APP_VERSION)   <span class="c"># quét 11 nơi sau khi deploy</span></pre>
+
+<pre><span class="c">// apps/web/vite.config.ts — SPA đọc CÙNG file đó lúc build</span>
+import { readFileSync } from 'node:fs';
+const version = readFileSync('../../VERSION', 'utf8').trim();
+
+export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    'import.meta.env.VITE_GIT_SHA':     JSON.stringify(process.env.GIT_SHA ?? 'dev'),
+  },
+});</pre>
+
+<pre><span class="c">// packages/contracts/version.ts — service Node dùng chung một chỗ đọc</span>
+export const APP_VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
+
+<span class="c">// interceptor ở gateway: gắn vào MỌI phản hồi</span>
+res.setHeader('X-App-Version', APP_VERSION);
+
+<span class="c">// GET /health của từng service</span>
+{ "status": "ok", "service": "policy", "app_version": "1.0.0", "git_sha": "abc1234",
+  "built_at": "2026-08-06T14:30:12Z", "db_schema": "20260806143012_add_contract_template" }</pre>
+
+<div class="note">
+  <span class="lbl">Một nguồn nghĩa là <em>một</em></span>
+  <p>Trường <code>version</code> trong mọi <code>package.json</code> đặt cố định <code>0.0.0</code> và
+  không bao giờ dùng tới. Cám dỗ lớn nhất là để pnpm tự quản số phiên bản ở đó — nhưng như vậy là có
+  <strong>12 nguồn sự thật</strong> và chúng sẽ lệch nhau trong vòng một tháng. Ai cần biết phiên bản
+  thì đọc <code>APP_VERSION</code>, chấm hết.</p>
+</div>
+
+<h3>Quy tắc tăng số</h3>
+<div class="tw"><table>
+<thead><tr><th>Phần</th><th>Tăng khi</th><th>Ví dụ trong hệ này</th><th>Hệ quả</th></tr></thead>
+<tbody>
+<tr><td><strong>MAJOR</strong> <code>2.0.0</code></td><td>Phá vỡ hợp đồng API hoặc đổi quy trình nghiệp vụ</td><td>Bỏ một trạng thái khỏi danh sách 11; đổi công thức tỷ lệ chiết khấu; tách vai trò Kế toán L1 và L2</td><td>Đổi tiền tố <code>/api/v2</code>; trình duyệt đang mở bản cũ bị <strong>buộc tải lại</strong>; cần báo trước cho người dùng</td></tr>
+<tr><td><strong>MINOR</strong> <code>1.1.0</code></td><td>Thêm chức năng, tương thích ngược</td><td>Thêm tiêu chí lọc; thêm màn hình báo cáo; giai đoạn 2 nhập Excel</td><td>Trình duyệt bản cũ vẫn chạy được; chỉ hiện dải thông báo mời tải lại</td></tr>
+<tr><td><strong>PATCH</strong> <code>1.0.1</code></td><td>Sửa lỗi, không đổi hành vi đã công bố</td><td>Sửa làm tròn sai ở biên; sửa vỡ bố cục ở màn hình 360px</td><td>Như trên</td></tr>
+</tbody></table></div>
+
+<h3>Trình duyệt đang mở bản cũ — vấn đề riêng của web</h3>
+<p>SPA được nhúng số phiên bản lúc build, nên một người mở tab từ sáng vẫn đang chạy bản cũ sau khi
+deploy lúc trưa. Mỗi phản hồi API đều mang <code>X-App-Version</code>; client so với số của chính
+mình và xử lý theo mức chênh lệch:</p>
+<ul>
+<li><strong>Chênh PATCH hoặc MINOR</strong> → hiện một dải thông báo “Đã có bản mới, tải lại khi bạn
+xong việc”. <strong>Không tự động tải lại.</strong> Người dùng có thể đang nhập dở một hồ sơ 20 dòng
+sản phẩm; cướp mất dữ liệu đó tệ hơn nhiều so với việc chạy bản cũ thêm mười phút.</li>
+<li><strong>Chênh MAJOR</strong> → buộc tải lại, vì hợp đồng API đã đổi và mọi thao tác tiếp theo đều
+có thể lỗi. Trước khi tải lại phải <strong>lưu nháp cục bộ</strong> nội dung biểu mẫu đang dở và khôi
+phục sau khi tải xong — cùng cơ chế đã dùng cho <code>FE-33</code> khi token hết hạn.</li>
+</ul>
+
+<h3>Số phiên bản hiện ở đâu</h3>
+<div class="tw"><table>
+<thead><tr><th>Nơi</th><th>Dạng</th><th>Vì sao cần</th></tr></thead>
+<tbody>
+<tr><td>Chân trang mọi màn hình</td><td><code>v1.0.0</code></td><td>Người dùng báo lỗi thì đọc luôn được, không phải hỏi</td></tr>
+<tr><td>Màn hình <em>Thông tin hệ thống</em></td><td><code>1.0.0 · abc1234 · 06/08/2026</code></td><td>Đội vận hành cần cả git SHA và thời điểm build</td></tr>
+<tr><td>Header <code>X-App-Version</code></td><td>Mọi phản hồi API</td><td>Để SPA phát hiện mình đã cũ</td></tr>
+<tr><td><code>GET /health</code> của 10 service</td><td>JSON đầy đủ</td><td>Phép quét sau deploy; giám sát</td></tr>
+<tr><td>Mỗi dòng nhật ký</td><td>Cột <code>app_version</code></td><td>Truy vết “lỗi này xảy ra ở bản nào” — không có nó thì điều tra sự cố phải đoán</td></tr>
+<tr><td>Chân trang PDF (bản CSBH và hợp đồng)</td><td><code>v1.0.0</code> chữ nhỏ</td><td>Khách hàng gửi lại một file sai thì biết ngay file đó sinh ra từ bản nào</td></tr>
+<tr><td>Tag ảnh Docker và git tag</td><td><code>1.0.0</code></td><td>Quay lui và tra cứu</td></tr>
+</tbody></table></div>
+
+<h3>Quay lui</h3>
+<ul>
+<li>Giữ <strong>3 bản ảnh gần nhất</strong> trong registry. Quay lui = đổi tag trong <code>.env</code> rồi <code>up -d</code>, mất khoảng một phút.</li>
+<li><strong>Migration phải tương thích ngược một bản.</strong> Thêm cột thì để nullable trước, đổ dữ liệu, rồi mới bắt buộc ở bản sau. Nhờ vậy quay lui mã nguồn <em>không</em> cần quay lui lược đồ — thứ nguy hiểm hơn nhiều.</li>
+<li>Bảng <code>sys.app_release</code> ghi lịch sử: phiên bản, thời điểm, người bấm, kết quả phép quét sau deploy.</li>
+<li><code>CHANGELOG.md</code> viết cho người dùng nghiệp vụ đọc, không phải liệt kê commit.</li>
+</ul>
+
+<div class="note">
+  <span class="lbl">Phạm vi bản 1.0.0</span>
+  <p>Bản đầu tiên gồm trọn giai đoạn 1: 10 bước duyệt, 6 vai trò, tính chiết khấu và đóng băng giá,
+  ký số nội bộ, xuất hợp đồng, thông báo và SLA, bộ lọc và báo cáo, nhật ký chỉ ghi thêm. Hai hạng
+  mục hoãn sang giai đoạn 2 (nhập CSBH cũ từ Excel) sẽ là <strong>1.1.0</strong> — thêm chức năng,
+  tương thích ngược, nên không phải <code>2.0.0</code>.</p>
+</div>
+</section>
+
 <section id="s15">
-<h2><span class="no">§ 16</span>Lộ trình &amp; rủi ro</h2>
+<h2><span class="no">§ 17</span>Lộ trình &amp; rủi ro</h2>
 
 <h3>Sáu chặng, khoảng 16 tuần với đội 3–4 người</h3>
 <div class="tw"><table>

@@ -3,32 +3,36 @@
 | | |
 |---|---|
 | **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
-| **Phiên bản** | 1.0 — bản thiết kế triển khai |
-| **Ngày** | 06/08/2026 |
+| **Phiên bản phần mềm** | **1.0.0** — bản đầu tiên, xem mục 16 |
+| **Phiên bản tài liệu** | 1.1 · 06/08/2026 |
 | **Nguồn nghiệp vụ** | `YEU-CAU-NGHIEP-VU-CSBH.md` v4.1 — khi mâu thuẫn, **tài liệu nghiệp vụ có hiệu lực cao hơn** |
 | **Bản web** | `../artifacts/kien-truc-csbh.html` · https://claude.ai/code/artifact/d9e72525-6df5-475d-8b76-52f8a3202aea |
 
+> Bản `.md` này **sinh tự động** từ file HTML bằng `python3 tools/html2md.py`.
+> Sửa HTML rồi chạy lại script, đừng sửa tay file này.
+
 Bản thiết kế triển khai cho YCNV v4.1: phân rã microservice chạy bằng Docker Compose, techstack kèm
-lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 294 test case
+lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 308 test case
 cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên production.
 
 | | | | |
 |---|---|---|---|
-| **10** service ứng dụng | **294** test case | **11** trạng thái hồ sơ | **6** vai trò |
+| **10** service ứng dụng | **308** test case | **11** trạng thái hồ sơ | **6** vai trò |
 | **10** tài khoản mẫu | **3** khung nhìn được test | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
 | # | Mục | # | Mục |
 |---|---|---|---|
-| 01 | [Tóm tắt & quyết định nền](#01-tóm-tắt--quyết-định-nền) | 09 | [Bảo mật & phân quyền](#09-bảo-mật--phân-quyền) |
-| 02 | [Nghiệp vụ ràng buộc kiến trúc](#02-nghiệp-vụ-ràng-buộc-kiến-trúc-như-thế-nào) | 10 | [Docker Compose](#10-docker-compose) |
-| 03 | [Kiến trúc tổng thể](#03-kiến-trúc-tổng-thể) | 11 | [Frontend: responsive, thương hiệu](#11-frontend-responsive-thương-hiệu-hiệu-năng) |
-| 04 | [Phân rã service](#04-phân-rã-service) | 12 | [Danh mục test case](#12-danh-mục-test-case) |
-| 05 | [Techstack & lý do chọn](#05-techstack--lý-do-chọn) | 13 | [Chiến lược kiểm thử](#13-chiến-lược-kiểm-thử) |
-| 06 | [Mô hình dữ liệu](#06-mô-hình-dữ-liệu) | 14 | [Chạy test local](#14-chạy-test-local-trước-khi-lên-production) |
-| 07 | [Máy trạng thái hồ sơ](#07-máy-trạng-thái-hồ-sơ) | 15 | [Vận hành & CI/CD](#15-vận-hành--cicd) |
-| 08 | [Giao tiếp giữa service & sự kiện](#08-giao-tiếp-giữa-service--sự-kiện) | 16 | [Lộ trình & rủi ro](#16-lộ-trình--rủi-ro) |
+| 01 | [Tóm tắt & quyết định nền](#01-tóm-tắt--quyết-định-nền) | 10 | [Docker Compose](#10-docker-compose) |
+| 02 | [Nghiệp vụ ràng buộc kiến trúc như thế nào](#02-nghiệp-vụ-ràng-buộc-kiến-trúc-như-thế-nào) | 11 | [Frontend: responsive, thương hiệu, hiệu năng](#11-frontend-responsive-thương-hiệu-hiệu-năng) |
+| 03 | [Kiến trúc tổng thể](#03-kiến-trúc-tổng-thể) | 12 | [Danh mục test case](#12-danh-mục-test-case) |
+| 04 | [Phân rã service](#04-phân-rã-service) | 13 | [Chiến lược kiểm thử](#13-chiến-lược-kiểm-thử) |
+| 05 | [Techstack & lý do chọn](#05-techstack--lý-do-chọn) | 14 | [Chạy test local trước khi lên production](#14-chạy-test-local-trước-khi-lên-production) |
+| 06 | [Mô hình dữ liệu](#06-mô-hình-dữ-liệu) | 15 | [Vận hành & CI/CD](#15-vận-hành--cicd) |
+| 07 | [Máy trạng thái hồ sơ](#07-máy-trạng-thái-hồ-sơ) | 16 | [Phiên bản & phát hành](#16-phiên-bản--phát-hành) |
+| 08 | [Giao tiếp giữa service & sự kiện](#08-giao-tiếp-giữa-service--sự-kiện) | 17 | [Lộ trình & rủi ro](#17-lộ-trình--rủi-ro) |
+| 09 | [Bảo mật & phân quyền](#09-bảo-mật--phân-quyền) | | |
 
 ---
 
@@ -765,7 +769,7 @@ apps/web/src/
 
 ## 12. Danh mục test case
 
-Mỗi dòng là một test case tự động ở tầng backend, có mã cố định để tham chiếu trong mã nguồn (`describe('WF-18 …')`) và trong biên bản nghiệm thu. Cột *YCNV* trỏ về mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không truy được về một điều khoản.
+Mỗi dòng là một test case tự động, có mã cố định để tham chiếu trong mã nguồn (`describe('WF-18 …')`) và trong biên bản nghiệm thu. Cột *YCNV* trỏ về mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không truy được về một điều khoản.
 
 | Mức | Nghĩa | Hệ quả |
 |---|---|---|
@@ -1126,6 +1130,25 @@ Mỗi dòng là một test case tự động ở tầng backend, có mã cố đ
 | FE-37 | Ảnh chụp màn hình đối chiếu ở 3 điểm gãy cho 8 màn hình chính | Khác biệt so với ảnh chuẩn dưới 0,1% điểm ảnh; lệch nhiều hơn thì CI báo đỏ để người xem lại | — | `P1` |
 | FE-38 | Mở màn hình danh sách hồ sơ trên điện thoại tầm trung qua mạng 4G mô phỏng | Dùng được trong dưới 3 giây; gói dùng chung ≤ 250KB nén | — | `P1` |
 
+### VER — Đánh số phiên bản và phát hành
+
+| Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
+|---|---|---|---|---|
+| VER-01 | Sửa `VERSION` thành `1.1.0` rồi build lại toàn bộ | Cả 10 service và SPA đều báo `1.1.0`; không nơi nào còn `1.0.0` | — | `P0` |
+| VER-02 | Quét `/health` của 10 service sau khi deploy | Tất cả trả **cùng một** `app_version` và cùng `git_sha` | — | `P0` |
+| VER-03 | Cố tình không tạo lại một container rồi chạy phép quét | Phát hiện container chạy bản cũ và **chặn**, không tính là phát hành thành công | — | `P0` |
+| VER-04 | Quét mã nguồn tìm số phiên bản viết thẳng | Chỉ file `VERSION` chứa số này; mọi `package.json` đều là `0.0.0` | — | `P0` |
+| VER-05 | Mở bất kỳ màn hình nào của web | Chân trang hiện `v1.0.0`; màn hình Thông tin hệ thống hiện thêm git SHA và thời điểm build | — | `P0` |
+| VER-06 | Gọi bất kỳ API nào | Phản hồi có header `X-App-Version` đúng bằng số đang chạy | — | `P0` |
+| VER-07 | SPA đang mở bản `1.0.0`, máy chủ deploy lên `1.0.1` | Hiện dải thông báo mời tải lại; **không tự động tải lại**; dữ liệu đang nhập còn nguyên | — | `P0` |
+| VER-08 | SPA đang mở bản `1.x`, máy chủ deploy lên `2.0.0` | Buộc tải lại, nhưng **lưu nháp cục bộ biểu mẫu đang dở trước** và khôi phục sau khi tải xong | — | `P0` |
+| VER-09 | Thực hiện một thao tác nghiệp vụ bất kỳ | Bản ghi nhật ký có cột `app_version` ghi đúng bản đang chạy | §10 | `P0` |
+| VER-10 | Tải PDF bản CSBH và PDF hợp đồng | Chân trang cả hai file có số phiên bản phần mềm | §11.1 | `P1` |
+| VER-11 | Đặt git tag lệch với nội dung `VERSION` rồi chạy CI | CI **từ chối build** bản phát hành | — | `P1` |
+| VER-12 | Quay lui về ảnh của bản trước rồi chạy lại toàn bộ test tích hợp | Hệ thống chạy được với lược đồ CSDL hiện tại — migration tương thích ngược một bản | — | `P0` |
+| VER-13 | Kiểm tên cột trong lược đồ | Phiên bản phần mềm là `app_version`, phiên bản hồ sơ CSBH là `version_no` — không dùng lẫn tên | §5.6 | `P1` |
+| VER-14 | Đọc bảng `sys.app_release` sau vài lần phát hành | Ghi đủ phiên bản, thời điểm, người bấm và kết quả phép quét của từng lần | — | `P2` |
+
 ### PERF — Hiệu năng ở quy mô 50 người dùng
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
@@ -1467,7 +1490,141 @@ deploy production (bấm tay)
 
 ---
 
-## 16. Lộ trình & rủi ro
+## 16. Phiên bản & phát hành
+
+Một file `VERSION` ở gốc kho mã là **nguồn duy nhất**. Sửa nó rồi build, số phiên bản tự lan tới 10 service, tới SPA, tới tag ảnh Docker, tới nhật ký và tới chân trang PDF. Không có chỗ thứ hai nào được phép khai báo số này.
+
+### Bốn thứ đều gọi là “phiên bản” — đừng lẫn
+
+| Loại | Ví dụ | Ai quan tâm | Quy tắc |
+|---|---|---|---|
+| **Phiên bản hồ sơ CSBH** | `v3` của khách hàng KH-000123 | Người dùng nghiệp vụ | Tự tăng theo số lần cập nhật CSBH của khách hàng đó (§5.6). **Không liên quan gì** tới ba loại dưới. |
+| **Phiên bản phần mềm** | `1.0.0` | Người dùng và đội vận hành | Mục này. Một số duy nhất cho toàn hệ. |
+| Phiên bản lược đồ CSDL | `20260806143012_add_contract_template` | Đội lập trình | Prisma Migrate tự quản, tăng theo thời gian. |
+| Phiên bản API | `/api/v1/…` | Trình duyệt | Chỉ đổi khi phá vỡ hợp đồng — tức là khi phần MAJOR tăng. |
+
+> **Đặt tên cho rõ trong mã nguồn**
+>
+> Trong CSDL đã có cột `version_no` của hồ sơ CSBH. Số phiên bản phần mềm **không bao giờ** được dùng lại tên đó — luôn là `app_version`. Đây là loại nhầm lẫn chỉ lộ ra sau vài tháng, khi ai đó lọc báo cáo theo nhầm cột.
+
+### Cơ chế lan truyền
+
+```mermaid
+flowchart LR
+  V["VERSION<br/><b>1.0.0</b><br/>một nguồn duy nhất"]
+  MK["make · CI<br/>đọc file, export biến"]
+  D1["docker compose build<br/>--build-arg APP_VERSION"]
+  D2["Biến môi trường lúc chạy<br/>/health trả app_version + git SHA<br/>mọi phản hồi có X-App-Version"]
+  W1["vite build · define<br/>VITE_APP_VERSION đọc từ VERSION"]
+  W2["Frontend hiện số phiên bản<br/>chân trang + Thông tin hệ thống<br/>so với X-App-Version để biết mình đã cũ"]
+  G1["git tag v1.0.0<br/>CI từ chối nếu tag lệch VERSION"]
+  G2["Tag ảnh Docker<br/>:1.0.0 và :sha-abc1234<br/>giữ 3 bản gần nhất"]
+  C1["Sau khi deploy<br/>quét 11 endpoint /health"]
+  C2["Tất cả phải trả CÙNG một số<br/>lệch một nơi = deploy hụt container"]
+  V --> MK
+  MK --> D1
+  D1 --> D2
+  MK --> W1
+  W1 --> W2
+  MK --> G1
+  G1 --> G2
+  MK --> C1
+  C1 --> C2
+```
+
+**Hình 6 — Một file, năm đích đến.** Điểm đáng giá nhất không phải việc lan truyền mà là *hàng
+cuối*: sau mỗi lần deploy, quét toàn bộ `/health` và bắt buộc mọi nơi trả cùng một số. Với 10
+container triển khai bằng Docker Compose, kiểu hỏng phổ biến nhất là một container không được tạo
+lại và lặng lẽ chạy bản cũ — chỉ có phép quét này mới bắt được, còn nhìn giao diện thì không.
+
+### Cài đặt cụ thể
+
+```
+# VERSION — ở gốc kho mã, nội dung đúng một dòng
+1.0.0
+```
+
+```
+# Makefile — mọi lệnh đều lấy số từ đây, không ai gõ tay
+APP_VERSION := $(shell cat VERSION)
+GIT_SHA     := $(shell git rev-parse --short HEAD)
+export APP_VERSION GIT_SHA
+
+build:   ; docker compose build --build-arg APP_VERSION=$(APP_VERSION) --build-arg GIT_SHA=$(GIT_SHA)
+release: ; git tag v$(APP_VERSION) && git push origin v$(APP_VERSION)
+verify:  ; ./scripts/verify-version.sh $(APP_VERSION)   # quét 11 nơi sau khi deploy
+```
+
+```
+// apps/web/vite.config.ts — SPA đọc CÙNG file đó lúc build
+import { readFileSync } from 'node:fs';
+const version = readFileSync('../../VERSION', 'utf8').trim();
+
+export default defineConfig({
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+    'import.meta.env.VITE_GIT_SHA':     JSON.stringify(process.env.GIT_SHA ?? 'dev'),
+  },
+});
+```
+
+```
+// packages/contracts/version.ts — service Node dùng chung một chỗ đọc
+export const APP_VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
+
+// interceptor ở gateway: gắn vào MỌI phản hồi
+res.setHeader('X-App-Version', APP_VERSION);
+
+// GET /health của từng service
+{ "status": "ok", "service": "policy", "app_version": "1.0.0", "git_sha": "abc1234",
+  "built_at": "2026-08-06T14:30:12Z", "db_schema": "20260806143012_add_contract_template" }
+```
+
+> **Một nguồn nghĩa là *một***
+>
+> Trường `version` trong mọi `package.json` đặt cố định `0.0.0` và không bao giờ dùng tới. Cám dỗ lớn nhất là để pnpm tự quản số phiên bản ở đó — nhưng như vậy là có **12 nguồn sự thật** và chúng sẽ lệch nhau trong vòng một tháng. Ai cần biết phiên bản thì đọc `APP_VERSION`, chấm hết.
+
+### Quy tắc tăng số
+
+| Phần | Tăng khi | Ví dụ trong hệ này | Hệ quả |
+|---|---|---|---|
+| **MAJOR** `2.0.0` | Phá vỡ hợp đồng API hoặc đổi quy trình nghiệp vụ | Bỏ một trạng thái khỏi danh sách 11; đổi công thức tỷ lệ chiết khấu; tách vai trò Kế toán L1 và L2 | Đổi tiền tố `/api/v2`; trình duyệt đang mở bản cũ bị **buộc tải lại**; cần báo trước cho người dùng |
+| **MINOR** `1.1.0` | Thêm chức năng, tương thích ngược | Thêm tiêu chí lọc; thêm màn hình báo cáo; giai đoạn 2 nhập Excel | Trình duyệt bản cũ vẫn chạy được; chỉ hiện dải thông báo mời tải lại |
+| **PATCH** `1.0.1` | Sửa lỗi, không đổi hành vi đã công bố | Sửa làm tròn sai ở biên; sửa vỡ bố cục ở màn hình 360px | Như trên |
+
+### Trình duyệt đang mở bản cũ — vấn đề riêng của web
+
+SPA được nhúng số phiên bản lúc build, nên một người mở tab từ sáng vẫn đang chạy bản cũ sau khi deploy lúc trưa. Mỗi phản hồi API đều mang `X-App-Version`; client so với số của chính mình và xử lý theo mức chênh lệch:
+
+- **Chênh PATCH hoặc MINOR** → hiện một dải thông báo “Đã có bản mới, tải lại khi bạn xong việc”. **Không tự động tải lại.** Người dùng có thể đang nhập dở một hồ sơ 20 dòng sản phẩm; cướp mất dữ liệu đó tệ hơn nhiều so với việc chạy bản cũ thêm mười phút.
+- **Chênh MAJOR** → buộc tải lại, vì hợp đồng API đã đổi và mọi thao tác tiếp theo đều có thể lỗi. Trước khi tải lại phải **lưu nháp cục bộ** nội dung biểu mẫu đang dở và khôi phục sau khi tải xong — cùng cơ chế đã dùng cho `FE-33` khi token hết hạn.
+
+### Số phiên bản hiện ở đâu
+
+| Nơi | Dạng | Vì sao cần |
+|---|---|---|
+| Chân trang mọi màn hình | `v1.0.0` | Người dùng báo lỗi thì đọc luôn được, không phải hỏi |
+| Màn hình *Thông tin hệ thống* | `1.0.0 · abc1234 · 06/08/2026` | Đội vận hành cần cả git SHA và thời điểm build |
+| Header `X-App-Version` | Mọi phản hồi API | Để SPA phát hiện mình đã cũ |
+| `GET /health` của 10 service | JSON đầy đủ | Phép quét sau deploy; giám sát |
+| Mỗi dòng nhật ký | Cột `app_version` | Truy vết “lỗi này xảy ra ở bản nào” — không có nó thì điều tra sự cố phải đoán |
+| Chân trang PDF (bản CSBH và hợp đồng) | `v1.0.0` chữ nhỏ | Khách hàng gửi lại một file sai thì biết ngay file đó sinh ra từ bản nào |
+| Tag ảnh Docker và git tag | `1.0.0` | Quay lui và tra cứu |
+
+### Quay lui
+
+- Giữ **3 bản ảnh gần nhất** trong registry. Quay lui = đổi tag trong `.env` rồi `up -d`, mất khoảng một phút.
+- **Migration phải tương thích ngược một bản.** Thêm cột thì để nullable trước, đổ dữ liệu, rồi mới bắt buộc ở bản sau. Nhờ vậy quay lui mã nguồn *không* cần quay lui lược đồ — thứ nguy hiểm hơn nhiều.
+- Bảng `sys.app_release` ghi lịch sử: phiên bản, thời điểm, người bấm, kết quả phép quét sau deploy.
+- `CHANGELOG.md` viết cho người dùng nghiệp vụ đọc, không phải liệt kê commit.
+
+> **Phạm vi bản 1.0.0**
+>
+> Bản đầu tiên gồm trọn giai đoạn 1: 10 bước duyệt, 6 vai trò, tính chiết khấu và đóng băng giá, ký số nội bộ, xuất hợp đồng, thông báo và SLA, bộ lọc và báo cáo, nhật ký chỉ ghi thêm. Hai hạng mục hoãn sang giai đoạn 2 (nhập CSBH cũ từ Excel) sẽ là **1.1.0** — thêm chức năng, tương thích ngược, nên không phải `2.0.0`.
+
+---
+
+## 17. Lộ trình & rủi ro
 
 ### Sáu chặng, khoảng 16 tuần với đội 3–4 người
 
