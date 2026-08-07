@@ -1,0 +1,5 @@
+# Word documents
+*.docx
+~$*.docx
+venv/
+__pycache__/

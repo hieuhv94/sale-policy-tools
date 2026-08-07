@@ -1,0 +1,681 @@
+<title>Rà soát yêu cầu — Phần mềm CSBH Nutricare</title>
+<style>
+:root{
+  --sans:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --serif:"Noto Serif","Times New Roman",Times,serif;
+  --mono:ui-monospace,"Cascadia Mono","SFMono-Regular",Consolas,monospace;
+  --ground:#F5F8F7; --surface:#FFFFFF; --surface-2:#EEF3F1;
+  --ink:#121A18; --muted:#576763; --line:#D6E0DC;
+  --accent:#0D6E63; --accent-soft:#DFEFEB;
+  --stamp:#A83229; --stamp-soft:#F6E3E0;
+  --warn:#8A6212; --ok:#2F6E4A;
+  --node:#FFFFFF; --node-2:#EDF3F1; --lane:#EDF2F0; --lane-2:#E5EDEA;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0D1413; --surface:#151E1C; --surface-2:#1B2624;
+    --ink:#E4EDEA; --muted:#93A5A0; --line:#2A3937;
+    --accent:#54B7A8; --accent-soft:#16302C;
+    --stamp:#EE8A7C; --stamp-soft:#33201D;
+    --warn:#D9AC53; --ok:#6FBF8E;
+    --node:#182322; --node-2:#131C1B; --lane:#131D1C; --lane-2:#172221;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1413; --surface:#151E1C; --surface-2:#1B2624;
+  --ink:#E4EDEA; --muted:#93A5A0; --line:#2A3937;
+  --accent:#54B7A8; --accent-soft:#16302C;
+  --stamp:#EE8A7C; --stamp-soft:#33201D;
+  --warn:#D9AC53; --ok:#6FBF8E;
+  --node:#182322; --node-2:#131C1B; --lane:#131D1C; --lane-2:#172221;
+}
+:root[data-theme="light"]{
+  --ground:#F5F8F7; --surface:#FFFFFF; --surface-2:#EEF3F1;
+  --ink:#121A18; --muted:#576763; --line:#D6E0DC;
+  --accent:#0D6E63; --accent-soft:#DFEFEB;
+  --stamp:#A83229; --stamp-soft:#F6E3E0;
+  --warn:#8A6212; --ok:#2F6E4A;
+  --node:#FFFFFF; --node-2:#EDF3F1; --lane:#EDF2F0; --lane-2:#E5EDEA;
+}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.62;
+  -webkit-font-smoothing:antialiased;font-size:16px}
+.wrap{max-width:1180px;margin:0 auto;padding:56px 24px 96px;display:flex;flex-direction:column;gap:52px}
+.prose{max-width:74ch}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;line-height:1.22;margin:0}
+h1{font-size:clamp(30px,4.4vw,44px);letter-spacing:-.01em}
+h2{font-size:26px}
+h3{font-size:16.5px;font-family:var(--sans);font-weight:650;letter-spacing:-.005em}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+header.top{display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--line);padding-bottom:32px}
+.lede{font-size:18px;color:var(--muted);max-width:70ch}
+.srcs{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.src{display:flex;gap:9px;align-items:baseline;background:var(--surface);border:1px solid var(--line);
+  border-radius:7px;padding:8px 13px;font-size:13.5px}
+.src b{font-family:var(--mono);color:var(--accent);font-size:12px;font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:16px 18px;
+  display:flex;flex-direction:column;gap:3px}
+.tile .n{font-family:var(--serif);font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.tile .k{font-size:12.5px;color:var(--muted)}
+.tile.hi .n{color:var(--stamp)}
+section{display:flex;flex-direction:column;gap:22px}
+.shead{display:flex;flex-direction:column;gap:8px;border-top:2px solid var(--ink);padding-top:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:17px 19px 19px;
+  display:flex;flex-direction:column;gap:11px}
+.item>hgroup{display:flex;flex-direction:column;gap:8px}
+.meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.id{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent);
+  background:var(--accent-soft);border-radius:5px;padding:2px 7px;letter-spacing:.03em}
+.sev{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border-radius:20px;padding:2px 9px;border:1px solid}
+.s1{color:var(--stamp);border-color:var(--stamp);background:var(--stamp-soft)}
+.s2{color:var(--warn);border-color:var(--warn)}
+.s3{color:var(--muted);border-color:var(--line)}
+.s4{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.dg .sla{font-size:10px;fill:var(--accent);font-weight:600}
+dl{margin:0;display:flex;flex-direction:column;gap:8px;font-size:14.2px}
+dt{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:1px}
+dd{margin:0}
+dd code,p code,li code{font-family:var(--mono);font-size:12.4px;background:var(--surface-2);
+  border-radius:4px;padding:1px 5px}
+figure{margin:0;display:flex;flex-direction:column;gap:14px}
+.figbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 10px;overflow-x:auto}
+figcaption{font-size:14px;color:var(--muted);max-width:82ch}
+figcaption b{color:var(--ink);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12.5px;color:var(--muted);align-items:center}
+.legend span{display:flex;align-items:center;gap:7px}
+.sw{width:26px;height:0;border-top:2px solid currentColor;display:inline-block}
+.sw.d{border-top-style:dashed}
+.sw.r{border-color:var(--stamp)}
+.sw.b{width:14px;height:14px;border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:4px}
+ol.check{margin:0;padding-left:0;list-style:none;counter-reset:c;display:flex;flex-direction:column;gap:11px}
+ol.check li{counter-increment:c;display:grid;grid-template-columns:30px 1fr;gap:12px;font-size:14.6px;
+  border-bottom:1px dashed var(--line);padding-bottom:11px}
+ol.check li::before{content:counter(c,decimal-leading-zero);font-family:var(--mono);font-size:12px;
+  color:var(--accent);padding-top:3px}
+ol.check b{font-weight:650}
+.ref{font-family:var(--mono);font-size:11.8px;color:var(--muted)}
+svg.dg{width:100%;height:auto;color:var(--ink);display:block;min-width:760px}
+svg.dg text{font-family:var(--sans);fill:currentColor}
+.dg .node{fill:var(--node);stroke:currentColor;stroke-opacity:.34;stroke-width:1.2}
+.dg .auto{fill:var(--node-2);stroke-dasharray:5 4}
+.dg .acc{fill:var(--accent-soft);stroke:var(--accent);stroke-opacity:.9}
+.dg .lane{fill:var(--lane)}
+.dg .lane2{fill:var(--lane-2)}
+.dg .t{font-size:12.5px}
+.dg .s{font-size:10.4px;fill:var(--muted)}
+.dg .lab{font-size:10.4px;fill:var(--muted)}
+.dg .hd{font-size:11.5px;letter-spacing:.09em;fill:var(--muted)}
+.dg .edge{fill:none;stroke:currentColor;stroke-opacity:.58;stroke-width:1.5}
+.dg .dash{stroke-dasharray:6 5}
+.dg .ret{stroke:var(--stamp);stroke-opacity:.8;stroke-dasharray:6 5;fill:none;stroke-width:1.5}
+.dg .mkA{fill:currentColor;fill-opacity:.58}
+.dg .mkR{fill:var(--stamp);fill-opacity:.8}
+.dg .bdg{fill:var(--stamp)}
+.dg .bdgt{font-size:9.4px;font-family:var(--mono);fill:#fff;letter-spacing:.02em}
+@media (max-width:640px){.wrap{padding:36px 16px 64px;gap:40px}}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Rà soát yêu cầu · 04/08/2026</p>
+  <h1>Chính sách bán hàng: những chỗ hai tài liệu chưa khớp nhau</h1>
+  <p class="lede">Đối chiếu tài liệu quy trình với hai bản yêu cầu nghiệp vụ v3.0 và v3.1 của phần mềm CSBH. Sau phiên làm việc ngày 05/08, <b>không còn điểm nào chặn lập trình</b>: 41 quyết định đã chốt, bổ sung bốn điểm ngày 06/08 về quyền xuất hợp đồng và về mẫu hợp đồng. Hai điểm còn lại đều là hạng mục đã thống nhất hoãn sang giai đoạn 2 — không còn câu hỏi nghiệp vụ nào chờ trả lời.</p>
+  <div class="srcs">
+    <div class="src"><b>QT</b><span>01.08. QUY TRÌNH CSBH.docx — mục I → 3.6</span></div>
+    <div class="src"><b>YCNV</b><span>01.08. Yêu cầu nghiệp vụ.docx — v3.0, 31/07/2026</span></div>
+    <div class="src"><b>YCNV 3.1</b><span>05.08. Yêu cầu nghiệp vụ.docx — v3.1, 05/08/2026, bản đang có hiệu lực</span></div>
+  </div>
+</header>
+
+<div class="tiles">
+  <div class="tile hi"><span class="n">2</span><span class="k">Điểm còn mở</span></div>
+  <div class="tile"><span class="n">41</span><span class="k">Đã chốt với đơn vị yêu cầu</span></div>
+  <div class="tile"><span class="n">2</span><span class="k">Hoãn sang giai đoạn 2</span></div>
+  <div class="tile"><span class="n">0</span><span class="k">Việc chặn lập trình</span></div>
+</div>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Nhật ký quyết định · 04/08 và 05/08/2026</p>
+    <h2>Đã chốt với đơn vị yêu cầu</h2>
+    <p class="prose">Các mục đã đóng được gỡ khỏi bảng rà soát bên dưới và ghi lại ở đây. Sáu quyết định của phiên 04/08 đã bị phiên 05/08 thay thế nên cũng đã gỡ khỏi nhật ký, chỉ giữ bản mới nhất.</p>
+  </div>
+  <ol class="check">
+    <li><span><b>Vai trò · Kế toán L1 và L2 là một.</b> Cùng một người xử lý cả hai bước: lần 1 nhận file mềm, lần 2 nhận bản cứng đã ký để đối chiếu. Hai màn hình vẫn giữ vì là hai bước, nhưng chỉ một dòng vai trò và một phạm vi dữ liệu. <span class="ref">R-11</span></span></li>
+    <li><span><b>Vai trò · Ban lãnh đạo là một người.</b> BLĐ ký bản cứng do Sale Admin trình lên, và được xem toàn bộ nội dung CSBH trong cơ sở dữ liệu. Phải bổ sung vào bảng vai trò của YCNV mục 3, hiện chưa có. <span class="ref">C-08</span></span></li>
+    <li><span><b>Luồng · tuần tự, không song song.</b> Kế toán tiếp nhận lần 1 xong hồ sơ mới sang Sale Admin, trạng thái đổi thành <em>Sale Admin đang xử lý</em>. Bỏ yêu cầu “phát hành đồng thời cho Kế toán và Sale Admin” ở YCNV mục 7 B6 và tiêu chí nghiệm thu số 7. <span class="ref">C-01</span></span></li>
+    <li><span><b>Trạng thái · dùng bộ đã hợp nhất ở Hình 2.</b> Bỏ “Đang duyệt” và “Đã chuyển bước sau” vì trùng nghĩa; “Nháp hợp lệ / Không hợp lệ” là kết quả kiểm tra chứ không phải trạng thái; không dùng chữ “Bản Demo”. <span class="ref">C-04</span> · <span class="ref">R-06</span></span></li>
+    <li><span><b>Trạng thái · Từ chối là trạng thái kết thúc.</b> Do Trưởng bộ phận từ chối, hồ sơ bị bỏ; TDV được xóa hồ sơ ở trạng thái này. Cách xóa còn phải chốt — xem <span class="ref">R-13</span>. <span class="ref">R-07</span></span></li>
+    <li><span><b>Tính toán · sửa công thức tỷ lệ chiết khấu.</b> Dùng <code>1 − Giá thu về / Giá bán Công ty</code>, bỏ phép chia thừa trong YCNV 5.2. <span class="ref">R-01</span></span></li>
+    <li><span><b>Tính toán · giá bán lẻ niêm yết chính là Giá bán Công ty.</b> Hệ thống chỉ còn hai loại giá: Giá bán Công ty (niêm yết, gốc tính chiết khấu) và Giá bán buôn (gốc tính giá thu về). <span class="ref">R-02</span></span></li>
+    <li><span><b>Tính toán · CPBH là số tiền, đơn vị Việt Nam đồng.</b> Bỏ phương án nhập theo tỷ lệ. <span class="ref">D-07</span></span></li>
+    <li><span><b>Tính toán · ngưỡng chiết khấu lấy từ bảng “Chiết khấu quy định”.</b> Đây là nguồn kiểm soát duy nhất vì có đủ chiều phân loại và có thời gian hiệu lực. Cột “CSBH loại 1/2/3” trong danh mục sản phẩm chỉ còn là giá trị mặc định khi không có dòng cấu hình nào khớp. <span class="ref">R-10</span></span></li>
+    <li><span><b>Trạng thái · “Quá hạn duyệt” là một trạng thái riêng.</b> Mọi trạng thái chờ duyệt khi quá 14 ngày đều chuyển về trạng thái này; không vẽ trên biểu đồ vì áp dụng chung cho tất cả các bước chờ. Khi lập trình cần lưu kèm bước đang chờ để người phụ trách xử lý xong thì hồ sơ đi tiếp đúng nhánh cũ. <span class="ref">R-16</span></span></li>
+    <li><span><b>Tính toán · tỷ lệ chiết khấu tính theo phần trăm, làm tròn hai chữ số thập phân.</b> Con số hiển thị và con số dùng để so ngưỡng phải là một — so sánh sau khi đã làm tròn, để người dùng không gặp cảnh màn hình hiện đúng ngưỡng mà hệ thống vẫn chặn. <span class="ref">D-07</span></span></li>
+    <li><span><b>Dữ liệu · mốc thời gian là cột riêng theo từng trạng thái.</b> Báo cáo quản trị và SLA tính trực tiếp từ các cột này, nhật ký chỉ dùng để truy vết. <span class="ref">D-11</span></span></li>
+    <li><span><b>Phạm vi · công nợ không tích hợp, nhưng vẫn là trường dữ liệu.</b> Công nợ giữ nguyên trong danh mục khách hàng (YCNV 4.1) và vẫn hiện khi lập CSBH. Riêng màn hình kế toán bước L1 <em>không</em> cần cột công nợ — kế toán tự kiểm tra trong hệ thống kế toán của mình; thay vào đó màn hình có nút mở xem thông tin khách hàng của hồ sơ đang xét. <span class="ref">R-09</span></span></li>
+    <li><span><b>Trạng thái · không cho xóa hồ sơ bị từ chối.</b> Hồ sơ ở trạng thái Từ chối nằm lại trong lịch sử, không ai xóa được — kể cả người tạo. Bảo toàn được bằng chứng của lần từ chối và số liệu báo cáo tỷ lệ hồ sơ bị trả lại. <span class="ref">R-13</span></span></li>
+    <li><span><b>Trả lại · bản scan cũ bị xóa khi kế toán yêu cầu in lại.</b> Xóa hẳn dữ liệu ảnh, không giữ bản sao. Nhật ký vẫn ghi lại việc đã có một bản scan bị hủy — ai hủy, lúc nào và lý do — nên vẫn giải thích được vì sao hồ sơ phải in lại. <span class="ref">R-19</span></span></li>
+    <li><span><b>Trả lại · bắt buộc nhập lý do.</b> Mỗi lần trả lại hoặc từ chối phải có một dòng lý do ngắn dạng text để đưa vào báo cáo; diễn giải dài thì viết ở phần chi tiết hồ sơ. Lưu ý khi lập trình: báo cáo sẽ nhóm theo chuỗi ký tự, nên cần giới hạn độ dài và gợi ý lại các lý do đã dùng để tránh mỗi người viết một kiểu. <span class="ref">R-14</span></span></li>
+    <li><span><b>Ký · chữ ký điện tử nội bộ.</b> YCNV v3.1 mục 12 chốt hẳn: cơ chế ký là chữ ký điện tử nội bộ, không dùng chứng thư số pháp lý. Ban lãnh đạo ký bản cứng hoàn toàn ngoài phần mềm — quy trình v3.1 không có bước nào của BLĐ. <span class="ref">C-03</span></span></li>
+    <li><span><b>Nghiệp vụ · quy tắc bổ sung và chỉnh sửa CSBH.</b> YCNV v3.1 mục 5.4 đã đưa đủ: kiểm tra trùng sản phẩm, hai tình huống bổ sung và chỉnh sửa, tạo phiên bản mới giữ liên kết với bản gốc, quay lại duyệt từ Bước 3. Quan trọng nhất: <b>CSBH cũ vẫn giữ hiệu lực trong lúc chờ duyệt</b>, chỉ bị vô hiệu hóa sau khi bản mới đủ điều kiện có hiệu lực. <span class="ref">C-07</span></span></li>
+    <li><span><b>Dữ liệu · đóng băng giá khi gửi duyệt, tính lại chỉ khi đang lập.</b> YCNV v3.1 mục 5.4: giá đổi thì hệ thống tự tính lại và hiển thị phần thay đổi để người dùng kiểm tra <em>trước khi gửi duyệt</em>; hồ sơ đã ký không bị ghi đè, mọi thay đổi tạo phiên bản mới. Mâu thuẫn giữa hai tài liệu được gỡ. <span class="ref">C-06</span> · <span class="ref">D-02</span></span></li>
+    <li><span><b>Vai trò · TDV và QL là một, cây phân quyền đã rõ.</b> Một Sale Admin phụ trách nhiều kế toán, mỗi kế toán phụ trách nhiều TDV; Trưởng bộ phận quản lý nhiều TDV theo nhánh riêng. Ban lãnh đạo chỉ theo dõi toàn bộ dữ liệu, không có bước nào trong quy trình phần mềm. <span class="ref">D-04</span></span></li>
+    <li><span><b>Vai trò · khách hàng do TDV tự tạo.</b> Khóa định danh là Mã khách hàng; mã do kế toán cấp cho TDV bên ngoài phần mềm. Phần mềm chỉ chặn tạo khách hàng mới trùng mã đã có. Rút lại quyết định 04/08 về việc lấy khách hàng từ hệ thống sẵn có. <span class="ref">R-08</span></span></li>
+    <li><span><b>Vai trò · danh mục sản phẩm, giá và chiết khấu do Quản trị hệ thống nhập.</b> Người lập CSBH không sửa được các danh mục này. <span class="ref">R-15</span></span></li>
+    <li><span><b>Luồng · kế toán từ chối lần 2 có hai lựa chọn.</b> Mặc định trả về Bước 3 cho người đề nghị. Ngoài ra có thêm một thao tác <em>yêu cầu in lại bản cứng</em> — hồ sơ về Sale Admin và bản scan trước đó bị hủy. Xem <span class="ref">R-19</span> về cách hủy. <span class="ref">C-02</span></span></li>
+    <li><span><b>Hợp đồng · đưa trở lại giai đoạn 1.</b> Xuất được sau khi kế toán tiếp nhận lần 1, và <b>người xuất là kế toán</b> — không phải Trưởng bộ phận như YCNV mục 8 đang ghi. Một hợp đồng gắn với đúng một CSBH và một khách hàng của chính sách đó. <span class="ref">C-05</span> · <span class="ref">D-09</span></span></li>
+    <li><span><b>Hợp đồng · Sale Admin cũng xuất được</b> <i>(chốt 06/08, mở rộng quyết định ngay trên)</i>. Kế toán và Sale Admin dùng chung một nút xuất hợp đồng, cùng điều kiện là sau tiếp nhận lần 1; Trưởng bộ phận vẫn không xuất được. Cả hai đều xuất được và xuất được nhiều lần, không có xung đột vì không có gì bị ghi đè. Nhật ký ghi người xuất và thời điểm để truy vết. <span class="ref">C-05</span></span></li>
+    <li><span><b>Hợp đồng · là văn bản riêng, không phải một cách in khác của hồ sơ</b> <i>(chốt 06/08)</i>. Hợp đồng có mẫu riêng, bố cục riêng và bộ trạng thái riêng; nó <b>lấy trường dữ liệu</b> từ hồ sơ CSBH và hồ sơ khách hàng để điền vào ô trống trên mẫu. Nó không phải một cách in khác của hồ sơ, dù cả hai đều sinh ra file để in. <span class="ref">C-05</span></span></li>
+    <li><span><b>Hợp đồng · mẫu do Sale Admin tạo sẵn</b> <i>(chốt 06/08)</i>. Sale Admin soạn văn bản mẫu, tải lên hệ thống và tự đặt ánh xạ từng ô trống với một trường dữ liệu — tên và mã khách hàng, người đại diện, địa chỉ, mã số thuế, công nợ, danh sách sản phẩm và giá, mã và phiên bản CSBH, ngày duyệt. Hệ thống cảnh báo trường thiếu và cho xem trước khi xuất. Việc này <b>chuyển khỏi Quản trị hệ thống</b>, khác với YCNV mục 8 đang ghi. <span class="ref">C-05</span></span></li>
+    <li><span><b>Hợp đồng · không lưu lại trong hệ thống</b> <i>(chốt 06/08)</i>. Bấm nút xuất thì hệ thống lấy dữ liệu của hồ sơ CSBH đang mở, trộn vào mẫu đang dùng và đẩy ra một file PDF trả về cho người bấm — <b>không có bảng hợp đồng, không mã hợp đồng, không trạng thái, không bản scan, không phiên bản</b>. Bản giấy in ra mới là bản lưu. Xuất được nhiều lần; dấu vết duy nhất giữ lại là nhật ký ghi ai xuất lúc nào cho hồ sơ nào. Hai hệ quả đã chấp nhận: hai lần xuất cách xa nhau có thể ra nội dung khác nhau nếu dữ liệu nguồn đã đổi, và hệ thống không trả lời được câu hỏi “hợp đồng nào đã ký”. Yêu cầu “hợp đồng có trạng thái riêng và bản scan” trong YCNV mục 8 bị bỏ theo quyết định này. <span class="ref">C-05</span></span></li>
+    <li><span><b>Giá · khi bảng giá đổi thì báo cho TDV, không tự sửa.</b> Hệ thống rà các CSBH đang có hiệu lực, xác định hồ sơ bị ảnh hưởng và gửi email cho TDV phụ trách yêu cầu cập nhật. Việc cập nhật là lập CSBH mới theo đúng luồng duyệt. <span class="ref">C-06</span></span></li>
+    <li><span><b>Hiệu lực · CSBH có hiệu lực ngay khi kế toán duyệt lần 2</b>, đó cũng là ngày duyệt. <em>Ngày áp dụng</em> ghi trên CSBH chỉ là thông tin, không chi phối trạng thái. Nếu ngày áp dụng rơi vào trước lúc duyệt xong thì không cần xử lý gì vì CSBH cũ vẫn còn hiệu lực cho tới thời điểm đó. <span class="ref">R-04</span></span></li>
+    <li><span><b>Hiệu lực · mọi CSBH đều vô thời hạn.</b> Chỉ hết hiệu lực khi một CSBH mới của cùng khách hàng được duyệt. Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực tại một thời điểm. Kéo theo: bỏ trường Ngày hết hiệu lực và mọi cảnh báo sắp hết hiệu lực đã chốt ngày 04/08. <span class="ref">R-04</span> · <span class="ref">D-05</span></span></li>
+    <li><span><b>Hiệu lực · không có nghiệp vụ thu hồi.</b> Muốn thay đổi thì lập CSBH mới; CSBH cũ tự hết hiệu lực khi bản mới được duyệt. Bỏ chữ “thu hồi” khỏi điều kiện mở sửa hồ sơ ở YCNV mục 6. <span class="ref">R-05</span></span></li>
+    <li><span><b>Dữ liệu · phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.</b> Bổ sung hay chỉnh sửa đều tạo một CSBH mới đầy đủ, ký duyệt lại từ đầu; khi bản mới được duyệt thì bản cũ vô hiệu lực toàn bộ. Hiệu lực quản lý ở cấp hồ sơ, không cần mô hình cấp dòng. <span class="ref">D-01</span> · <span class="ref">D-05</span></span></li>
+    <li><span><b>Dữ liệu · bỏ khái niệm “Tên mã khách”.</b> Thay bằng ba trường riêng trong bộ lọc: Tên khách hàng, Địa chỉ đăng ký và Mã số thuế. Không cần chuỗi ghép làm tên hiển thị nữa. Lưu ý khi dựng: địa chỉ đăng ký là text tự do nên chỉ lọc được kiểu “có chứa”; muốn lọc theo địa bàn thì dùng trường Tỉnh/thành. <span class="ref">R-18</span></span></li>
+    <li><span><b>Dữ liệu · bổ sung các trường phân loại.</b> Tỉnh/thành, bệnh viện hoặc điểm bán, kênh, TDV phụ trách vào danh mục khách hàng; nhóm sản phẩm vào danh mục sản phẩm. Tất cả là danh mục có mã, không nhập tự do. <span class="ref">D-03</span></span></li>
+    <li><span><b>Dữ liệu · nhật ký chỉ ghi thêm.</b> Chặn sửa và xóa ở tầng cơ sở dữ liệu, lưu giá trị trước và sau của dữ liệu quan trọng. <span class="ref">D-06</span></span></li>
+    <li><span><b>Phạm vi · kiểm tra hồ sơ pháp lý nằm ngoài hệ thống.</b> Không làm cấu hình giấy tờ bắt buộc theo loại khách hàng, không cảnh báo giấy phép hết hạn; người dùng tự kiểm tra. Điều kiện gửi duyệt ở YCNV mục 6 về file pháp lý bắt buộc cần sửa lại cho khớp. <span class="ref">D-08</span></span></li>
+    <li><span><b>Thông báo · một luồng email cho mỗi khách hàng.</b> Vì mỗi khách hàng chỉ có một CSBH còn hiệu lực nên gộp theo khách hàng hay theo CSBH là như nhau. Trang chủ vẫn hiển thị các CSBH đang chờ chính người đang đăng nhập xử lý. <span class="ref">C-10</span></span></li>
+    <li><span><b>SLA · 14 ngày cho mọi trạng thái chờ, tính cả cuối tuần.</b> Email nhắc trước một ngày; quá hạn thì hồ sơ mang dấu hiệu <em>Quá hạn duyệt</em>. Thay cho phương án 2 + 1 + 3 + 1 ngày làm việc chốt ngày 04/08. <span class="ref">R-16</span></span></li>
+    <li><span><b>Trạng thái · đổi tên “Đang áp dụng” thành “Đang có hiệu lực”</b>, và đưa bộ trạng thái ở Hình 2 vào tài liệu đặc tả thành một mục riêng, mỗi trạng thái một mã kỹ thuật và một nhãn hiển thị. <span class="ref">R-17</span></span></li>
+    <li><span><b>Phạm vi · hai hạng mục hoãn sang giai đoạn 2.</b> Nhập dữ liệu cũ từ Excel, và chỉ Quản trị hệ thống được thực hiện (<span class="ref">C-09</span> · <span class="ref">D-10</span>). Chức năng hợp đồng đã được đưa trở lại giai đoạn 1. Cấu trúc dữ liệu giai đoạn 1 vẫn phải chừa chỗ cho phần nhập dữ liệu cũ.</span></li>
+  </ol>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Nhóm C</p>
+    <h2>Mâu thuẫn giữa hai tài liệu — phần còn lại</h2>
+    <p class="prose">Những chỗ hai tài liệu mô tả cùng một việc theo hai cách loại trừ nhau và chưa chọn được phương án. Các mục đã chốt đã chuyển lên nhật ký quyết định.</p>
+  </div>
+  <div class="grid">
+
+
+
+
+
+
+
+
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">C-09</span><span class="sev s4">Giai đoạn 2</span></div>
+        <h3>Nhập dữ liệu cũ từ Excel không có trong YCNV</h3>
+      </hgroup>
+      <dl>
+        <dt>Bằng chứng</dt><dd>QT 3.6 yêu cầu đọc file Excel CSBH đang áp dụng để tạo dữ liệu theo cấu trúc phần mềm. YCNV không đề cập.</dd>
+        <dt>Đã chốt 04/08/2026</dt><dd><b>Hoãn sang giai đoạn 2, và chỉ Quản trị hệ thống được thực hiện.</b> Nội dung yêu cầu giữ lại trong tài liệu.</dd>
+        <dt>Vẫn phải tính trước</dt><dd>Dữ liệu cũ không có file ký, không có người duyệt, không có mốc thời gian. Cấu trúc dữ liệu của giai đoạn 1 phải chấp nhận được các bản ghi thiếu những thứ đó — cờ nguồn <code>legacy</code>, các mốc thời gian để trống hợp lệ, và báo cáo SLA loại trừ nhóm này. Nếu không chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ. Xem <span class="ref">D-10</span>.</dd>
+      </dl>
+    </article>
+
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Nhóm R</p>
+    <h2>Điểm chưa hợp lý — phần còn lại</h2>
+    <p class="prose">Những chỗ nội dung tự nó đã sai, thiếu, hoặc mâu thuẫn với mục khác trong cùng tài liệu. Ba mục cuối phát sinh từ bản v3.1: hai phần nội dung bị xóa và một nhóm khái niệm chưa định nghĩa.</p>
+  </div>
+  <div class="grid">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Nhóm D</p>
+    <h2>Cơ sở dữ liệu — những chỗ mô hình hiện tại không đỡ được yêu cầu</h2>
+    <p class="prose">Hai tài liệu mô tả màn hình và thao tác khá kỹ nhưng chưa mô tả dữ liệu. Đây là những quyết định mô hình phải chốt trước, vì sửa sau sẽ phải chuyển đổi dữ liệu đã phát sinh.</p>
+  </div>
+  <div class="grid">
+
+
+
+
+
+
+
+
+
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">D-10</span><span class="sev s4">Giai đoạn 2</span></div>
+        <h3>Dữ liệu cũ cần cờ nguồn và đường đi riêng</h3>
+      </hgroup>
+      <dl>
+        <dt>Vì sao</dt><dd>Hệ quả của <span class="ref">C-09</span>: dữ liệu nhập từ Excel không đi qua luồng duyệt nên thiếu người ký, thời gian duyệt, file đã ký.</dd>
+        <dt>Hệ quả mô hình</dt><dd>Cột nguồn dữ liệu và mã lô nhập; các trường của luồng duyệt để trống hợp lệ; báo cáo SLA loại trừ nhóm này; vẫn phải ghi vào cấu trúc hiệu lực cấp dòng để ràng buộc trùng lặp còn hiệu lực.</dd>
+      </dl>
+    </article>
+
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Hình 1</p>
+    <h2>Quy trình nghiệp vụ chính sách bán hàng</h2>
+  </div>
+  <figure>
+    <div class="figbox">
+      <svg class="dg" viewBox="0 0 1024 980" role="img" aria-label="Biểu đồ khối quy trình chính sách bán hàng theo bốn vai trò: người đề nghị tạo và gửi duyệt, trưởng bộ phận duyệt và ký số, kế toán tiếp nhận file mềm rồi sau đó tiếp nhận bản cứng, sale admin in và trình ban lãnh đạo ký rồi scan bản cứng ở giữa hai lần tiếp nhận đó, kèm kênh trả lại và các điểm mâu thuẫn giữa hai tài liệu.">
+        <defs>
+          <marker id="ar1" viewBox="0 0 8 6" refX="7.5" refY="3" markerWidth="7" markerHeight="5.5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" class="mkA"/></marker>
+          <marker id="ar1r" viewBox="0 0 8 6" refX="7.5" refY="3" markerWidth="7" markerHeight="5.5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" class="mkR"/></marker>
+        </defs>
+
+        <rect class="lane" x="36" y="48" width="216" height="864" rx="8"/>
+        <rect class="lane2" x="278" y="48" width="216" height="864" rx="8"/>
+        <rect class="lane" x="520" y="48" width="216" height="864" rx="8"/>
+        <rect class="lane2" x="762" y="48" width="216" height="864" rx="8"/>
+
+        <text class="hd" x="144" y="34" text-anchor="middle">NGƯỜI ĐỀ NGHỊ · TDV</text>
+        <text class="hd" x="386" y="34" text-anchor="middle">TRƯỞNG BỘ PHẬN</text>
+        <text class="hd" x="628" y="34" text-anchor="middle">KẾ TOÁN · CẢ L1 VÀ L2</text>
+        <text class="hd" x="870" y="34" text-anchor="middle">SALE ADMIN</text>
+
+        <rect class="node" x="54" y="53" width="180" height="54" rx="7"/>
+        <text class="t" x="144" y="74" text-anchor="middle">B1 · Tạo hồ sơ</text>
+        <text class="s" x="144" y="91" text-anchor="middle">khách hàng · sản phẩm · CPBH</text>
+
+        <rect class="node auto" x="54" y="137" width="180" height="54" rx="7"/>
+        <text class="t" x="144" y="158" text-anchor="middle">B2 · Kiểm tra &amp; tính</text>
+        <text class="s" x="144" y="175" text-anchor="middle">tự động · hợp lệ hay lỗi</text>
+
+        <rect class="node" x="54" y="221" width="180" height="54" rx="7"/>
+        <text class="t" x="144" y="242" text-anchor="middle">B3 · Gửi duyệt</text>
+        <text class="s" x="144" y="259" text-anchor="middle">hồ sơ bị khóa sửa</text>
+
+        <rect class="node" x="296" y="305" width="180" height="54" rx="7"/>
+        <text class="t" x="386" y="326" text-anchor="middle">B4 · Xem hồ sơ</text>
+        <text class="s" x="386" y="343" text-anchor="middle">bản CSBH + tài liệu</text>
+
+        <rect class="node" x="296" y="389" width="180" height="54" rx="7"/>
+        <text class="t" x="386" y="410" text-anchor="middle">B5 · Duyệt &amp; ký số</text>
+        <text class="s" x="386" y="427" text-anchor="middle">ghi thời gian duyệt</text>
+
+        <rect class="node auto" x="296" y="473" width="180" height="54" rx="7"/>
+        <text class="t" x="386" y="494" text-anchor="middle">B6 · Phát hành file ký</text>
+        <text class="s" x="386" y="511" text-anchor="middle">tự động</text>
+
+        <rect class="node acc" x="538" y="645" width="180" height="54" rx="7"/>
+        <text class="t" x="628" y="666" text-anchor="middle">Xuất hợp đồng</text>
+        <text class="s" x="628" y="683" text-anchor="middle">kế toán hoặc Sale Admin, sau L1</text>
+
+        <rect class="node" x="538" y="557" width="180" height="54" rx="7"/>
+        <text class="t" x="628" y="578" text-anchor="middle">B8 · Nhận file mềm (L1)</text>
+        <text class="s" x="628" y="595" text-anchor="middle">kiểm tra công nợ</text>
+
+        <rect class="node" x="780" y="593" width="180" height="54" rx="7"/>
+        <text class="t" x="870" y="614" text-anchor="middle">B9 · In · trình BLĐ ký</text>
+        <text class="s" x="870" y="631" text-anchor="middle">bản cứng rời hệ thống</text>
+
+        <rect class="node" x="780" y="677" width="180" height="54" rx="7"/>
+        <text class="t" x="870" y="698" text-anchor="middle">B10 · Nhận lại · scan</text>
+        <text class="s" x="870" y="715" text-anchor="middle">tải file · bàn giao kế toán</text>
+
+        <rect class="node" x="538" y="773" width="180" height="54" rx="7"/>
+        <text class="t" x="628" y="794" text-anchor="middle">B11 · Nhận bản cứng (L2)</text>
+        <text class="s" x="628" y="811" text-anchor="middle">đối chiếu với lần 1</text>
+
+        <rect class="node acc" x="538" y="853" width="180" height="54" rx="27"/>
+        <text class="t" x="628" y="874" text-anchor="middle">ĐANG CÓ HIỆU LỰC</text>
+        <text class="s" x="628" y="891" text-anchor="middle">vô thời hạn tới khi có CSBH mới</text>
+
+        <path class="edge" d="M144,107 V137" marker-end="url(#ar1)"/>
+        <path class="edge" d="M144,191 V221" marker-end="url(#ar1)"/>
+        <path class="edge" d="M234,248 H265 V332 H296" marker-end="url(#ar1)"/>
+        <path class="edge" d="M386,359 V389" marker-end="url(#ar1)"/>
+        <path class="edge" d="M386,443 V473" marker-end="url(#ar1)"/>
+        <path class="edge" d="M628,611 V645" marker-end="url(#ar1)"/>
+        <path class="edge" d="M476,500 H507 V584 H538" marker-end="url(#ar1)"/>
+        <path class="edge" d="M718,584 H749 V620 H780" marker-end="url(#ar1)"/>
+        <path class="edge" d="M870,647 V677" marker-end="url(#ar1)"/>
+        <path class="edge dash" d="M960,608 H994 V704 H960" marker-end="url(#ar1)"/>
+        <path class="edge" d="M780,704 H749 V794 H718" marker-end="url(#ar1)"/>
+        <path class="edge" d="M628,827 V853" marker-end="url(#ar1)"/>
+
+        <path class="ret" d="M296,410 H265 V944 H16 V88 H54" marker-end="url(#ar1r)"/>
+        <path class="ret" d="M538,578 H507 V944 H16"/>
+        <path class="ret" d="M718,806 H760 V756 H870 V745" marker-end="url(#ar1r)"/>
+        <path class="ret" d="M538,812 H496 V944 H16"/>
+
+        <text class="lab" transform="rotate(-90 12 520)" x="12" y="520" text-anchor="middle">kênh trả lại · tạo phiên bản mới</text>
+        <text class="lab" x="500" y="938" text-anchor="middle">mọi lần trả lại đều về Bước 3 · tạo phiên bản mới · duyệt và ký lại</text>
+        <text class="lab" x="259" y="404" text-anchor="end">không duyệt</text>
+        <text class="lab" x="501" y="572" text-anchor="end">không tiếp nhận</text>
+        <text class="lab" x="756" y="750" text-anchor="start">yêu cầu in lại → SA</text>
+        <text class="lab" x="492" y="806" text-anchor="end">trả về Bước 3</text>
+        <text class="lab" transform="rotate(-90 1008 656)" x="1008" y="656" text-anchor="middle">BLĐ ký bản cứng</text>
+
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw"></i>luồng chính đã thống nhất</span>
+      <span><i class="sw d"></i>bước tự động hoặc nhánh đang tranh chấp</span>
+      <span><i class="sw r d"></i>trả lại · yêu cầu sửa</span>
+      <span><i class="sw b"></i>kết quả cuối / nhánh hợp đồng</span>
+    </div>
+    <figcaption><b>Đọc theo cột là vai trò, đọc từ trên xuống là thời gian.</b> Kế toán chỉ có một làn vì L1 và L2 là cùng một vai trò (<span class="ref">R-11</span>) — hồ sơ rẽ sang Sale Admin rồi quay lại đúng làn đó, đó là lý do hai bước tiếp nhận nằm trên cùng một cột. Ô nét đứt là bước hệ thống tự làm; vòng nét đứt bên phải là quãng bản cứng rời khỏi hệ thống để Ban lãnh đạo ký rồi quay về Sale Admin scan. Luồng tuần tự đã chốt: Sale Admin chỉ nhận hồ sơ sau khi kế toán tiếp nhận lần 1. Trả lại ở lần 1 thì về Bước 3 và phải duyệt, ký lại — v3.1 đã chốt. Riêng <span class="ref">C-02</span> ở lần 2 có <b>hai mũi tên</b> vì tài liệu v3.1 đảo ngược quyết định ngày 04/08: một về Sale Admin, một về tận Bước 3. <span class="ref">C-05</span> ở nhánh hợp đồng — đã chốt hoãn nhưng v3.1 lại làm dày yêu cầu, phạm vi cần xác nhận lại. Chữ ký nay đã rõ: Trưởng bộ phận ký điện tử nội bộ, Ban lãnh đạo ký bản cứng ngoài phần mềm.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Hình 2</p>
+    <h2>Các trạng thái của chính sách bán hàng</h2>
+  </div>
+  <figure>
+    <div class="figbox">
+      <svg class="dg" viewBox="0 0 1024 530" role="img" aria-label="Biểu đồ trạng thái chính sách bán hàng sau phiên chốt ngày 05/08: nháp, chờ trưởng bộ phận duyệt, trưởng bộ phận đã ký số, chờ kế toán nhận file mềm, sale admin xử lý, chờ kế toán nhận bản cứng, đang có hiệu lực; mọi trạng thái chờ có hạn 14 ngày, quá hạn thì mang dấu quá hạn duyệt; các nhánh yêu cầu chỉnh sửa, không tiếp nhận lần 1, không tiếp nhận lần 2 với hai lối ra, và hết hiệu lực khi có chính sách mới.">
+        <defs>
+          <marker id="ar2" viewBox="0 0 8 6" refX="7.5" refY="3" markerWidth="7" markerHeight="5.5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" class="mkA"/></marker>
+          <marker id="ar2r" viewBox="0 0 8 6" refX="7.5" refY="3" markerWidth="7" markerHeight="5.5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" class="mkR"/></marker>
+        </defs>
+
+        <rect class="node" x="180" y="60" width="126" height="50" rx="7"/>
+        <text class="t" x="243" y="83" text-anchor="middle">Từ chối</text>
+        <text class="s" x="243" y="99" text-anchor="middle">kết thúc</text>
+
+        <circle cx="20" cy="213" r="7" fill="currentColor"/>
+        <text class="lab" x="12" y="188" text-anchor="start">bắt đầu</text>
+
+        <rect class="node acc" x="40" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="103" y="200" text-anchor="middle">NHÁP</text>
+        <text class="s" x="103" y="218" text-anchor="middle">trạng thái đầu tiên</text>
+        <text class="s" x="103" y="236" text-anchor="middle">sửa tự do</text>
+
+        <rect class="node" x="180" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="243" y="200" text-anchor="middle">Chờ TBP duyệt</text>
+        <text class="s" x="243" y="218" text-anchor="middle">hồ sơ khóa sửa</text>
+        <text class="sla" x="243" y="236" text-anchor="middle">SLA 14 ngày</text>
+
+        <rect class="node" x="320" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="383" y="200" text-anchor="middle">TBP đã ký số</text>
+        <text class="s" x="383" y="218" text-anchor="middle">chữ ký điện tử</text>
+        <text class="s" x="383" y="236" text-anchor="middle">nội bộ</text>
+
+        <rect class="node" x="460" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="523" y="200" text-anchor="middle">Chờ KT nhận</text>
+        <text class="s" x="523" y="218" text-anchor="middle">L1 · file mềm</text>
+        <text class="sla" x="523" y="236" text-anchor="middle">SLA 14 ngày</text>
+
+        <rect class="node" x="600" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="663" y="200" text-anchor="middle">Sale Admin</text>
+        <text class="s" x="663" y="218" text-anchor="middle">in · trình ký · scan</text>
+        <text class="sla" x="663" y="236" text-anchor="middle">SLA 14 ngày</text>
+
+        <rect class="node" x="740" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="803" y="200" text-anchor="middle">Chờ KT nhận</text>
+        <text class="s" x="803" y="218" text-anchor="middle">L2 · bản cứng</text>
+        <text class="sla" x="803" y="236" text-anchor="middle">SLA 14 ngày</text>
+
+        <rect class="node acc" x="880" y="170" width="126" height="86" rx="7"/>
+        <text class="t" x="943" y="200" text-anchor="middle">ĐANG CÓ</text>
+        <text class="t" x="943" y="217" text-anchor="middle">HIỆU LỰC</text>
+        <text class="s" x="943" y="236" text-anchor="middle">vô thời hạn</text>
+
+        <rect class="node" x="180" y="310" width="126" height="56" rx="7"/>
+        <text class="t" x="243" y="343" text-anchor="middle">Yêu cầu sửa</text>
+        <rect class="node" x="460" y="310" width="126" height="56" rx="7"/>
+        <text class="t" x="523" y="335" text-anchor="middle">L1 không</text>
+        <text class="t" x="523" y="352" text-anchor="middle">tiếp nhận</text>
+        <rect class="node" x="740" y="310" width="126" height="56" rx="7"/>
+        <text class="t" x="803" y="335" text-anchor="middle">L2 không</text>
+        <text class="t" x="803" y="352" text-anchor="middle">tiếp nhận</text>
+        <rect class="node" x="880" y="440" width="126" height="56" rx="7"/>
+        <text class="t" x="943" y="473" text-anchor="middle">Hết hiệu lực</text>
+
+        <path class="edge" d="M27,213 H40" marker-end="url(#ar2)"/>
+        <path class="edge" d="M166,213 H180" marker-end="url(#ar2)"/>
+        <path class="edge" d="M306,213 H320" marker-end="url(#ar2)"/>
+        <path class="edge" d="M446,213 H460" marker-end="url(#ar2)"/>
+        <path class="edge" d="M586,213 H600" marker-end="url(#ar2)"/>
+        <path class="edge" d="M726,213 H740" marker-end="url(#ar2)"/>
+        <path class="edge" d="M866,213 H880" marker-end="url(#ar2)"/>
+        <path class="edge" d="M943,256 V440" marker-end="url(#ar2)"/>
+
+
+        <path class="ret" d="M280,170 V110" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M243,256 V310" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M523,256 V310" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M803,256 V310" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M180,338 H103 V256" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M460,366 V400 H80 V256" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M740,366 V430 H60 V256" marker-end="url(#ar2r)"/>
+        <path class="ret" d="M740,324 H663 V256" marker-end="url(#ar2r)"/>
+
+        <text class="lab" x="173" y="163" text-anchor="middle">gửi duyệt</text>
+        <text class="lab" x="313" y="163" text-anchor="middle">duyệt &amp; ký số</text>
+        <text class="lab" x="453" y="163" text-anchor="middle">phát hành file</text>
+        <text class="lab" x="593" y="163" text-anchor="middle">KT nhận L1</text>
+        <text class="lab" x="733" y="163" text-anchor="middle">bàn giao bản cứng</text>
+        <text class="lab" x="873" y="163" text-anchor="middle">KT nhận L2</text>
+        <text class="lab" x="290" y="128" text-anchor="start">TBP từ chối</text>
+        <text class="lab" x="243" y="290" text-anchor="middle">không duyệt</text>
+        <text class="lab" x="523" y="290" text-anchor="middle">không tiếp nhận</text>
+        <text class="lab" x="803" y="290" text-anchor="middle">không tiếp nhận</text>
+        <text class="lab" x="120" y="392" text-anchor="start">về Bước 3 · phiên bản mới · duyệt và ký lại</text>
+        <text class="lab" x="120" y="424" text-anchor="start">trả về Bước 3</text>
+        <text class="lab" x="672" y="308" text-anchor="start">yêu cầu in lại</text>
+        <text class="lab" x="935" y="300" text-anchor="end">khi CSBH mới của cùng khách hàng được duyệt</text>
+
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw"></i>chuyển tiếp thuận</span>
+      <span><i class="sw r d"></i>trả lại · từ chối · thu hồi</span>
+      <span><i class="sw d"></i>chuyển tiếp chưa được định nghĩa</span>
+      <span><i class="sw b"></i>trạng thái đầu và trạng thái đích</span>
+      <span>SLA tính bằng ngày làm việc hành chính</span>
+    </div>
+    <figcaption><b>Bộ trạng thái đã chốt sau phiên 05/08.</b> Hồ sơ vào đời ở <em>Nháp</em> và ra đời ở <em>Hết hiệu lực</em> — nhưng chỉ khi một CSBH mới của cùng khách hàng được duyệt, vì mọi chính sách đều vô thời hạn và mỗi khách hàng chỉ có một chính sách còn hiệu lực. Không có nghiệp vụ thu hồi. Riêng nhánh <em>L2 không tiếp nhận</em> có hai lối ra: mặc định về Bước 3, hoặc <em>yêu cầu in lại</em> để hồ sơ về Sale Admin làm lại bản cứng. <b>Không vẽ trên hình:</b> bốn trạng thái chờ đều có hạn 14 ngày tính cả cuối tuần, nhắc email trước một ngày; quá hạn thì hồ sơ chuyển sang trạng thái <em>Quá hạn duyệt</em> — áp dụng chung cho mọi bước chờ nên không vẽ thành ô riêng.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Hình 3</p>
+    <h2>Quan hệ giữa các loại người dùng</h2>
+  </div>
+  <figure>
+    <div class="figbox">
+      <svg class="dg" viewBox="0 0 1024 540" role="img" aria-label="Biểu đồ quan hệ người dùng sau phiên chốt 05/08: một sale admin phụ trách nhiều kế toán, mỗi kế toán phụ trách nhiều trình dược viên, trưởng bộ phận quản lý nhiều trình dược viên theo nhánh riêng; hồ sơ CSBH ở giữa với ràng buộc mỗi khách hàng chỉ một chính sách còn hiệu lực; ban lãnh đạo chỉ đọc, quản trị hệ thống chỉ nhập danh mục.">
+        <defs>
+          <marker id="ar3" viewBox="0 0 8 6" refX="7.5" refY="3" markerWidth="7" markerHeight="5.5" orient="auto"><path d="M0,0 L8,3 L0,6 Z" class="mkA"/></marker>
+        </defs>
+
+        <rect class="node" x="60" y="70" width="200" height="56" rx="7"/>
+        <text class="t" x="160" y="94" text-anchor="middle">Sale Admin</text>
+        <text class="s" x="160" y="112" text-anchor="middle">xử lý bản cứng</text>
+
+        <rect class="node" x="60" y="190" width="200" height="56" rx="7"/>
+        <text class="t" x="160" y="214" text-anchor="middle">Kế toán</text>
+        <text class="s" x="160" y="232" text-anchor="middle">nhận L1 rồi nhận L2</text>
+
+        <rect class="node" x="60" y="310" width="200" height="56" rx="7"/>
+        <text class="t" x="160" y="334" text-anchor="middle">TDV · người đề nghị</text>
+        <text class="s" x="160" y="352" text-anchor="middle">gồm cả QL — một vai trò</text>
+
+        <rect class="node" x="60" y="430" width="200" height="56" rx="7"/>
+        <text class="t" x="160" y="454" text-anchor="middle">Trưởng bộ phận</text>
+        <text class="s" x="160" y="472" text-anchor="middle">duyệt &amp; ký số</text>
+
+        <rect class="node acc" x="420" y="230" width="240" height="90" rx="9"/>
+        <text class="t" x="540" y="262" text-anchor="middle">HỒ SƠ CSBH</text>
+        <text class="s" x="540" y="282" text-anchor="middle">mỗi khách hàng chỉ có</text>
+        <text class="s" x="540" y="299" text-anchor="middle">một CSBH còn hiệu lực</text>
+
+        <rect class="node auto" x="690" y="280" width="210" height="56" rx="7"/>
+        <text class="t" x="795" y="304" text-anchor="middle">Danh mục</text>
+        <text class="s" x="795" y="322" text-anchor="middle">sản phẩm · giá · ngưỡng CK</text>
+
+        <rect class="node acc" x="760" y="110" width="220" height="56" rx="7"/>
+        <text class="t" x="870" y="134" text-anchor="middle">Ban lãnh đạo</text>
+        <text class="s" x="870" y="152" text-anchor="middle">chỉ đọc · ngoài quy trình</text>
+
+        <rect class="node auto" x="690" y="430" width="210" height="56" rx="7"/>
+        <text class="t" x="795" y="454" text-anchor="middle">Quản trị hệ thống</text>
+        <text class="s" x="795" y="472" text-anchor="middle">không tham gia duyệt</text>
+
+        <path class="edge" d="M160,126 V190" marker-end="url(#ar3)"/>
+        <path class="edge" d="M160,246 V310" marker-end="url(#ar3)"/>
+        <path class="edge" d="M160,430 V366" marker-end="url(#ar3)"/>
+        <path class="edge" d="M260,98 H400 V240 H420" marker-end="url(#ar3)"/>
+        <path class="edge" d="M260,218 H380 V262 H420" marker-end="url(#ar3)"/>
+        <path class="edge" d="M260,338 H360 V284 H420" marker-end="url(#ar3)"/>
+        <path class="edge" d="M260,458 H410 V306 H420" marker-end="url(#ar3)"/>
+        <path class="edge" d="M690,308 H660" marker-end="url(#ar3)"/>
+        <path class="edge" d="M660,245 H730 V166" marker-end="url(#ar3)"/>
+        <path class="edge dash" d="M795,430 V336" marker-end="url(#ar3)"/>
+
+        <text class="lab" x="170" y="150" text-anchor="start">phụ trách nhiều kế toán</text>
+        <text class="lab" x="170" y="270" text-anchor="start">phụ trách nhiều TDV</text>
+        <text class="lab" x="170" y="394" text-anchor="start">quản lý nhiều TDV</text>
+        <text class="lab" x="330" y="90" text-anchor="middle">in · trình ký · scan · bàn giao · xuất hợp đồng</text>
+        <text class="lab" x="318" y="210" text-anchor="middle">tiếp nhận L1, L2 · xuất hợp đồng</text>
+        <text class="lab" x="306" y="330" text-anchor="middle">tạo khách hàng · lập CSBH</text>
+        <text class="lab" x="330" y="450" text-anchor="middle">duyệt &amp; ký số</text>
+        <text class="lab" x="795" y="272" text-anchor="middle">lấy giá và ngưỡng khi lập CSBH</text>
+        <text class="lab" x="740" y="218" text-anchor="start">xem toàn bộ · xuất báo cáo</text>
+        <text class="lab" x="805" y="390" text-anchor="start">nhập và cấu hình</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span><i class="sw"></i>quan hệ đã có trong tài liệu</span>
+      <span><i class="sw d"></i>bảng ánh xạ cần bổ sung vào cơ sở dữ liệu</span>
+      <span><i class="sw b"></i>đối tượng dữ liệu trung tâm</span>
+    </div>
+    <figcaption><b>Cột trái là cây phân quyền dữ liệu đã chốt: một Sale Admin phụ trách nhiều kế toán, mỗi kế toán phụ trách nhiều TDV.</b> Phạm vi hồ sơ mỗi người nhìn thấy suy ra từ cây này chứ không cấu hình tay từng người. Trưởng bộ phận nằm ở một nhánh riêng, quản lý nhiều TDV theo bộ phận. Ban lãnh đạo chỉ đọc toàn bộ dữ liệu và không có bước nào trong quy trình phần mềm — việc BLĐ ký bản cứng là thao tác giấy do Sale Admin trình lên. Quản trị hệ thống cũng đứng ngoài luồng duyệt, chỉ nhập danh mục sản phẩm, giá và ngưỡng chiết khấu — nguồn mà hồ sơ CSBH lấy số liệu về.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Hình 3 · chi tiết</p>
+    <h2>Chức năng của từng loại người dùng</h2>
+    <p class="prose">Sáu vai trò, phạm vi dữ liệu và việc được làm — tổng hợp từ toàn bộ quyết định đã chốt. Đây là bản để đối chiếu khi dựng màn hình và phân quyền.</p>
+  </div>
+  <div class="grid">
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">1</span><span class="sev s4">Trong luồng</span></div>
+        <h3>TDV · người đề nghị</h3>
+      </hgroup>
+      <dl>
+        <dt>Phạm vi dữ liệu</dt><dd>Chỉ khách hàng và hồ sơ của chính mình. QL đã gộp vào vai trò này, không còn là vai trò riêng.</dd>
+        <dt>Được làm</dt><dd>Tạo khách hàng và nhập hồ sơ pháp lý — mã khách hàng do kế toán cấp bên ngoài phần mềm, hệ thống chỉ chặn trùng mã. Lập CSBH: chọn khách hàng, chọn sản phẩm từ danh mục, nhập giá bán buôn và CPBH1–4 bằng tiền đồng; hệ thống tự tính CPBH tổng, giá thu về và tỷ lệ CK. Xem bản CSBH trước khi gửi duyệt. Sửa và gửi lại khi bị trả về. Khi bổ sung hay chỉnh sửa chính sách, phải đưa lại <b>toàn bộ</b> sản phẩm cũ vào hồ sơ mới.</dd>
+        <dt>Nhận thông báo</dt><dd>Email khi hồ sơ chuyển bước, bị trả lại, và khi giá sản phẩm thay đổi làm ảnh hưởng CSBH mình phụ trách.</dd>
+        <dt>Không được làm</dt><dd>Sửa danh mục sản phẩm, giá bán Công ty, ngưỡng chiết khấu. Sửa hồ sơ sau khi đã gửi duyệt. Xóa hồ sơ đã bị từ chối.</dd>
+      </dl>
+    </article>
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">2</span><span class="sev s4">Trong luồng</span></div>
+        <h3>Trưởng bộ phận</h3>
+      </hgroup>
+      <dl>
+        <dt>Phạm vi dữ liệu</dt><dd>Hồ sơ của các TDV thuộc quyền quản lý. Một TBP quản lý nhiều TDV.</dd>
+        <dt>Được làm</dt><dd>Mở hồ sơ, xem bản CSBH và tài liệu đính kèm. Duyệt và ký số bằng chữ ký điện tử nội bộ — nút đổi trạng thái sau khi ký, không cho ký lặp; ô chữ ký hiện họ tên và ngày giờ. Không duyệt thì bắt buộc nhập lý do, hồ sơ về Bước 3.</dd>
+        <dt>Không được làm</dt><dd>Sửa nội dung hồ sơ. Tham gia các bước sau khi đã ký. Xuất hợp đồng — việc này đã chuyển cho kế toán và Sale Admin.</dd>
+        <dt>Lưu ý tài liệu</dt><dd>YCNV v3.1 mục 3 đang gán cứng tên một cá nhân cho vai trò này; phải chuyển thành cấu hình theo bộ phận và có người duyệt thay.</dd>
+      </dl>
+    </article>
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">3</span><span class="sev s4">Trong luồng</span></div>
+        <h3>Kế toán</h3>
+      </hgroup>
+      <dl>
+        <dt>Phạm vi dữ liệu</dt><dd>Hồ sơ của các TDV mình phụ trách. Một kế toán phụ trách nhiều TDV; L1 và L2 là hai lần tiếp nhận của cùng người này.</dd>
+        <dt>Tiếp nhận lần 1</dt><dd>Xem CSBH đã ký số, mở thông tin khách hàng của hồ sơ để đối chiếu. Công nợ tự kiểm tra bên ngoài phần mềm. Tiếp nhận thì hồ sơ sang Sale Admin; không tiếp nhận thì bắt buộc nhập lý do và hồ sơ về Bước 3.</dd>
+        <dt>Xuất hợp đồng</dt><dd>Sau khi tiếp nhận lần 1. Quyền này <b>dùng chung với Sale Admin</b> (chốt 06/08): cả hai đều xuất được, xuất được nhiều lần. Hệ thống trộn dữ liệu của hồ sơ đang mở vào mẫu rồi đẩy ra PDF, không lưu lại hợp đồng.</dd>
+        <dt>Tiếp nhận lần 2</dt><dd>Nhận bản cứng Sale Admin bàn giao, đối chiếu với những gì đã duyệt ở lần 1. Tiếp nhận thì CSBH chuyển <b>Đang có hiệu lực</b> ngay lúc đó. Không tiếp nhận thì có hai lựa chọn: trả về Bước 3, hoặc yêu cầu in lại bản cứng để hồ sơ về Sale Admin.</dd>
+        <dt>Ngoài phần mềm</dt><dd>Cấp mã khách hàng cho TDV.</dd>
+      </dl>
+    </article>
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">4</span><span class="sev s4">Trong luồng</span></div>
+        <h3>Sale Admin</h3>
+      </hgroup>
+      <dl>
+        <dt>Phạm vi dữ liệu</dt><dd>Toàn bộ hồ sơ của các kế toán mình phụ trách, tức tất cả TDV nằm dưới nhánh đó. Đây là vai trò đứng cao nhất trong cây phân quyền nghiệp vụ.</dd>
+        <dt>Mẫu hợp đồng</dt><dd><b>Sale Admin là người tạo và duy trì mẫu hợp đồng</b> (chốt 06/08). Soạn sẵn văn bản mẫu, tải lên, rồi tự đặt ánh xạ giữa ô trống trên mẫu với trường dữ liệu trong hồ sơ CSBH và hồ sơ khách hàng. Tại một thời điểm chỉ có một mẫu đang dùng; file mẫu cũ giữ lại để quay lui. Khi triển khai có sẵn một mẫu mặc định để chạy thử ngay. Việc này trước đây nằm ở Quản trị hệ thống.</dd>
+        <dt>Được làm</dt><dd>Nhận hồ sơ sau khi kế toán tiếp nhận lần 1. <b>Xuất hợp đồng</b> — quyền dùng chung với kế toán, cùng điều kiện là sau tiếp nhận lần 1 (chốt 06/08). In bản cứng, trình Ban lãnh đạo ký, nhận lại, scan và tải file lên hệ thống. Bấm bàn giao bản cứng để chuyển sang kế toán lần 2. Khi kế toán yêu cầu in lại, nhận lại hồ sơ và làm lại bản cứng.</dd>
+        <dt>Không được làm</dt><dd>Sửa nội dung CSBH. Bỏ qua bước tiếp nhận lần 1 của kế toán.</dd>
+      </dl>
+    </article>
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">5</span><span class="sev s3">Ngoài luồng</span></div>
+        <h3>Ban lãnh đạo</h3>
+      </hgroup>
+      <dl>
+        <dt>Phạm vi dữ liệu</dt><dd>Toàn bộ, không giới hạn theo nhánh nào.</dd>
+        <dt>Được làm</dt><dd>Xem mọi CSBH ở mọi trạng thái, lịch sử duyệt, file đã ký và nhật ký. Lọc và xuất Excel theo thời gian áp dụng, thời gian duyệt, mã khách hàng, sản phẩm, người đề nghị, trạng thái, TDV, tỉnh thành và kênh. Xem báo cáo tiến độ.</dd>
+        <dt>Không được làm</dt><dd>Không có thao tác nào trên hồ sơ: không tạo, không duyệt, không tiếp nhận. Việc ký bản cứng là thao tác giấy do Sale Admin trình lên, phần mềm không có bước nào cho việc này.</dd>
+      </dl>
+    </article>
+
+    <article class="item">
+      <hgroup>
+        <div class="meta"><span class="id">6</span><span class="sev s3">Ngoài luồng</span></div>
+        <h3>Quản trị hệ thống</h3>
+      </hgroup>
+      <dl>
+        <dt>Được làm</dt><dd>Nhập và duy trì danh mục sản phẩm và giá, chiết khấu quy định, thông tin người ký, mẫu bản CSBH và biểu mẫu scan — <b>không gồm mẫu hợp đồng</b>, mẫu đó do Sale Admin tạo (chốt 06/08). Quản lý tài khoản, vai trò và cây phân quyền — quan hệ Sale Admin ↔ kế toán ↔ TDV, và quan hệ Trưởng bộ phận ↔ TDV. Cấu hình SLA, mẫu email và xem nhật ký hệ thống.</dd>
+        <dt>Giai đoạn 2</dt><dd>Nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.</dd>
+        <dt>Không được làm</dt><dd>Không tham gia luồng duyệt, không lập và không tiếp nhận hồ sơ. Mọi thay đổi danh mục phải vào nhật ký kèm giá trị trước và sau.</dd>
+      </dl>
+    </article>
+
+  </div>
+</section>
+
+<section>
+  <div class="shead">
+    <p class="eyebrow">Kết luận</p>
+    <h2>Đã đủ điều kiện khởi công</h2>
+    <p class="prose">Toàn bộ câu hỏi nghiệp vụ đã được trả lời. Còn lại một hạng mục hoãn sang giai đoạn 2 và một việc biên tập tài liệu.</p>
+  </div>
+  <ol class="check">
+    <li><span><b>Nhập dữ liệu cũ từ Excel — giai đoạn 2.</b> Cấu trúc dữ liệu giai đoạn 1 vẫn phải chấp nhận bản ghi thiếu file ký và mốc thời gian, nếu không giai đoạn 2 sẽ phải đổi lược đồ. <span class="ref">C-09</span> · <span class="ref">D-10</span></span></li>
+    <li><span><b>Sáu chỗ cần sửa trong YCNV v3.1.</b> Nút xuất hợp đồng đang đặt ở màn hình Trưởng bộ phận, phải chuyển sang Kế toán và Sale Admin; mục 6 vẫn nhắc “thu hồi” và “file pháp lý bắt buộc”; mục 3 vẫn gán cứng tên Trưởng bộ phận; bộ trạng thái vẫn chưa có mục riêng; bỏ cách diễn đạt “chuyển file sang trang 2”; và bỏ khái niệm “Tên mã khách” ở mục 4.1, 8 và 13.</span></li>
+  </ol>
+</section>
+</div>
