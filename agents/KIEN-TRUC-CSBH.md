@@ -12,12 +12,12 @@
 > Sửa HTML rồi chạy lại script, đừng sửa tay file này.
 
 Bản thiết kế triển khai cho YCNV v4.1: phân rã microservice chạy bằng Docker Compose, techstack kèm
-lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 323 test case
+lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 330 test case
 cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên production.
 
 | | | | |
 |---|---|---|---|
-| **10** service ứng dụng | **323** test case | **11** trạng thái hồ sơ | **6** vai trò |
+| **10** service ứng dụng | **330** test case | **11** trạng thái hồ sơ | **6** vai trò |
 | **10** tài khoản mẫu | **3** khung nhìn được test | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
@@ -470,6 +470,23 @@ Không có màn hình đăng ký. Tài khoản chỉ ra đời từ Quản trị
 - Token kích hoạt **chỉ lưu bản băm SHA-256**, hạn 72 giờ, dùng một lần; gửi lại thì thu hồi mọi token cũ của người đó. Chuỗi thô chỉ tồn tại trong đúng một email.
 - Email mời **không bao giờ chứa mật khẩu mặc định** — quản trị tự bàn giao bằng kênh khác. Email bị chuyển tiếp hay lộ hộp thư thì cũng không lộ mật khẩu.
 - Đổi mật khẩu thành công **thu hồi toàn bộ họ refresh token** của người đó.
+
+### Vận hành và tuổi thọ dữ liệu `mới 07/08`
+
+Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo *hiệu năng* (nhóm PERF) nhưng không nói gì về *vận hành*: không có sao lưu, không có phân trang, không có vòng đời dữ liệu. Ba thiếu sót này không lộ ra khi chạy thử — chúng chỉ lộ ra sau vài năm dùng thật, lúc sửa đã đắt.
+
+| Rủi ro | Biện pháp | Kiểm bằng |
+|---|---|---|
+| **Mất toàn bộ dữ liệu** khi hỏng ổ hoặc gõ nhầm lệnh | `pg_dump -Fc` hằng ngày, giữ 14 bản, tự kiểm mục lục ngay sau khi ghi; cộng lưu trữ WAL liên tục cho phục hồi theo thời điểm | `OPS-02`, `OPS-06` |
+| Sao lưu **chưa từng phục hồi thử** | `make restore-drill` phục hồi vào CSDL nháp rồi đối chiếu số dòng và kiểm lại bốn bất biến. Mặc định **không** đè lên CSDL đang chạy | `OPS-06` |
+| Bảng nhật ký phình vô hạn, **không xoá được** vì chính bất biến chỉ-ghi-thêm | Phân vùng theo tháng; vùng cũ đem `DETACH` ra lưu trữ, dữ liệu vẫn còn nhưng rời bảng nóng | `OPS-03` |
+| Token và outbox chỉ tăng | `sys.run_retention()` xoá token hết hạn và sự kiện **đã gửi**; sla-worker gọi mỗi ngày | `OPS-04` |
+| Danh sách trả về cả bảng — chậm dần đều, không có cảnh báo | Phân trang bắt buộc ở mọi endpoint danh sách: mặc định 50, trần 200, kèm tổng số thật | `OPS-07` |
+| Tìm khách hàng quét toàn bảng | Index GIN trigram trên biểu thức ghép — biểu thức phải khớp **từng ký tự** với truy vấn, lệch là index không bao giờ được chọn | `OPS-05` |
+| 10 service × 8 kết nối vượt trần 100 của Postgres | `max_connections = 200`, kèm tinh chỉnh bộ đệm và `work_mem` cho VM 8GB | `OPS-01` |
+| Một service rò rỉ bộ nhớ kéo sập cả VM | `deploy.resources.limits` cho từng container hạ tầng | — |
+
+**Về việc thêm người dùng:** 50 → 200 người không phải vấn đề CPU — tải nghiệp vụ này rất nhẹ. Nút thắt thật là phân trang và số kết nối. Cần nói thẳng: kiến trúc microservice *không giúp gì* cho việc này — 10 service ăn 10× kết nối và 10× RAM nền trong khi tải vẫn thế. Đó là cái giá đã biết trước khi chốt kiến trúc, không phải phát hiện mới.
 
 ### Khác
 
@@ -1183,6 +1200,18 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | VER-12 | Quay lui về ảnh của bản trước rồi chạy lại toàn bộ test tích hợp | Hệ thống chạy được với lược đồ CSDL hiện tại — migration tương thích ngược một bản | — | `P0` |
 | VER-13 | Kiểm tên cột trong lược đồ | Phiên bản phần mềm là `app_version`, phiên bản hồ sơ CSBH là `version_no` — không dùng lẫn tên | §5.6 | `P1` |
 | VER-14 | Đọc bảng `sys.app_release` sau vài lần phát hành | Ghi đủ phiên bản, thời điểm, người bấm và kết quả phép quét của từng lần | — | `P2` |
+
+### OPS — Vận hành: sao lưu, phục hồi, chống phình CSDL `mới 07/08`
+
+| Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
+|---|---|---|---|---|
+| OPS-01 | Đọc `max_connections` và bộ nhớ Postgres | Đủ cho 10 service × 8 kết nối cộng biên quản trị; bộ đệm và `work_mem` đã rời mặc định của ảnh Docker | §11 | `P0` |
+| OPS-02 | Ép cắt WAL rồi đọc `pg_stat_archiver` | `archive_mode=on`, `failed_count = 0` — lưu trữ hỏng lặng lẽ là mất khả năng phục hồi theo thời điểm mà không ai biết | §11 | `P0` |
+| OPS-03 | Kiểm bảng nhật ký | Là bảng **phân vùng theo tháng**, có sẵn vùng cho 3 tháng tới, vùng mặc định **rỗng**, bất biến chỉ-ghi-thêm vẫn giữ | §10 | `P0` |
+| OPS-04 | Chạy `sys.run_retention()` | Xoá token hết hạn, giữ token còn hạn; chỉ xoá outbox **đã gửi**; **không đụng** nhật ký; ghi lại đã xoá những gì | §10 | `P0` |
+| OPS-05 | Kiểm index tìm kiếm và index dọn dẹp | Tìm khách hàng có index GIN trigram; có index theo hạn cho token và SLA; nhật ký có index thời gian và đối tượng | §9.2 | `P1` |
+| OPS-06 | Chạy sao lưu rồi phục hồi vào CSDL nháp | File đọc được mục lục; phục hồi ra đúng dữ liệu; **bản phục hồi giữ nguyên cả bốn bất biến** ở tầng CSDL | §11 | `P0` |
+| OPS-07 | Gọi endpoint danh sách không kèm tham số | Trả tối đa 50 dòng kèm tổng số thật; `limit` vượt trần 200 thì 400 — **không có đường lấy cả bảng** | §9.2 | `P0` |
 
 ### PERF — Hiệu năng ở quy mô 50 người dùng
 

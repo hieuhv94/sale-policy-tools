@@ -18,6 +18,7 @@ import {
   money,
   oneOf,
   opt,
+  pageOf,
   Roles,
   str,
   validate,
@@ -66,8 +67,15 @@ export class CatalogController {
   // --- Sản phẩm -------------------------------------------------------------
 
   @Get('products')
-  list(@Query('forNewPolicy') forNewPolicy?: string) {
-    return this.products.list({ forNewPolicy: forNewPolicy === 'true' });
+  list(
+    @Query('forNewPolicy') forNewPolicy?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.products.list(
+      { forNewPolicy: forNewPolicy === 'true' },
+      pageOf({ limit, offset }),
+    );
   }
 
   @Get('products/:id')
@@ -142,8 +150,8 @@ export class CatalogController {
   // --- Chiết khấu quy định --------------------------------------------------
 
   @Get('discount-rules')
-  listRules() {
-    return this.rules.list();
+  listRules(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.rules.list(pageOf({ limit, offset }));
   }
 
   @Roles('QUAN_TRI')

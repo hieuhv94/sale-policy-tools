@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { computeLine, InvalidLineError } from '@csbh/domain-policy';
-import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
+import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
 import { ScopeClient } from '../infra/scope.client.js';
@@ -139,8 +139,15 @@ export class PoliciesService {
         );
       }
 
+      // Tra ảnh chụp cả lô TRƯỚC vòng lặp: gọi từng dòng thì hồ sơ 30 sản phẩm
+      // là 30 vòng mạng nối tiếp sang catalog.
+      const snaps = await this.clients.productSnapshots(
+        input.lines.map((l) => l.productId),
+        customer.customerType,
+        customer.channelCode,
+      );
       for (const line of input.lines) {
-        await this.upsertLine(c, policy.id, line, customer);
+        await this.upsertLine(c, policy.id, line, customer, snaps.get(line.productId));
       }
 
       await this.recordEvent(c, policy.id, null, 'NHAP', 'CREATE', me, undefined);
@@ -154,12 +161,15 @@ export class PoliciesService {
     policyId: string,
     line: LineInput,
     customer: { customerType: number; channelCode: string | null },
+    preloaded?: import('../infra/clients.js').ProductSnapshot | undefined,
   ): Promise<void> {
-    const snap = await this.clients.productSnapshot(
-      line.productId,
-      customer.customerType,
-      customer.channelCode,
-    );
+    const snap =
+      preloaded ??
+      (await this.clients.productSnapshot(
+        line.productId,
+        customer.customerType,
+        customer.channelCode,
+      ));
     if (snap.status !== 'DANG_AP_DUNG') {
       throw new BadRequestException({
         code: 'PRODUCT_DISABLED',
@@ -299,19 +309,26 @@ export class PoliciesService {
     return p;
   }
 
-  async list(me: AuthUser, filter: { customerId?: string | undefined; status?: string | undefined }) {
+  async list(
+    me: AuthUser,
+    filter: { customerId?: string | undefined; status?: string | undefined },
+    page: Page,
+  ) {
     const ids = await this.scope.userIdsFor(me);
-    return this.db.q(
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
               status::text AS status, applied_date AS "appliedDate",
-              effective_from AS "effectiveFrom", row_version AS "rowVersion"
+              effective_from AS "effectiveFrom", row_version AS "rowVersion",
+              count(*) OVER() AS total_count
          FROM pol.policy
         WHERE tdv_user_id = ANY($1::uuid[])
           AND ($2::uuid IS NULL OR customer_id = $2::uuid)
           AND ($3::text IS NULL OR status::text = $3)
-        ORDER BY created_at DESC`,
-      [ids, filter.customerId ?? null, filter.status ?? null],
+        ORDER BY created_at DESC
+        LIMIT $4 OFFSET $5`,
+      [ids, filter.customerId ?? null, filter.status ?? null, page.limit, page.offset],
     );
+    return paged(rows, page);
   }
 
   /** CSBH hiện hành của một khách hàng — đúng một bản ghi (EFF-08). */

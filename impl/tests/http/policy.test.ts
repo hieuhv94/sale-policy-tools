@@ -130,8 +130,11 @@ const runToActive = async (d: { id: string }) => {
 const outboxFor = (policyId: string) =>
   withAdminDb(async (c) => {
     const r = await c.query<{ routing_key: string; payload: Record<string, unknown> }>(
+      // ORDER BY seq chứ không phải created_at: sự kiện phát trong cùng một
+      // transaction có created_at giống hệt nhau (now() = thời điểm bắt đầu
+      // transaction), nên thứ tự theo thời gian là tuỳ ý.
       `SELECT routing_key, payload FROM pol.outbox
-        WHERE payload->>'policyId' = $1 ORDER BY created_at`,
+        WHERE payload->>'policyId' = $1 ORDER BY seq`,
       [policyId],
     );
     return r.rows;
@@ -1101,7 +1104,7 @@ describe('EFF-08 CSBH hiện hành của một khách hàng', () => {
     expect(cur.status).toBe(200);
     expect(cur.body.versionNo).toBe(3);
 
-    const all = (await get(`/policies?customerId=${d.customerId}`)).body as { status: string }[];
+    const all = (await get(`/policies?customerId=${d.customerId}&limit=200`)).body.items as { status: string }[];
     expect(all.filter((p) => p.status === 'DANG_CO_HIEU_LUC')).toHaveLength(1);
   });
 });

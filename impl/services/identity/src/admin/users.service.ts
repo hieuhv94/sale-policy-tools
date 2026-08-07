@@ -4,6 +4,7 @@
  */
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
+import { paged, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { CONFIG } from '../infra/config.js';
 import { Mailer } from '../infra/mailer.js';
@@ -158,13 +159,17 @@ export class UsersService {
     return { ok: true, isActive };
   }
 
-  async list() {
-    return this.db.q(
+  async list(page: Page) {
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT id, username, email, full_name AS "fullName", role::text AS role,
               is_active AS "isActive", must_change_password AS "mustChangePassword",
-              activated_at AS "activatedAt", email_verified_at AS "emailVerifiedAt"
-         FROM idn.app_user ORDER BY username`,
+              activated_at AS "activatedAt", email_verified_at AS "emailVerifiedAt",
+              count(*) OVER() AS total_count
+         FROM idn.app_user ORDER BY username
+        LIMIT $1 OFFSET $2`,
+      [page.limit, page.offset],
     );
+    return paged(rows, page);
   }
 
   private activationUrl = (raw: string) =>

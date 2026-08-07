@@ -1,14 +1,41 @@
 name: csbh
 
 services:
+  # Volume của Docker sinh ra thuộc root, mà Postgres chạy dưới uid 70. Không có
+  # bước này thì archive_command lặng lẽ hỏng: CSDL vẫn chạy, healthcheck vẫn
+  # xanh, chỉ có WAL không được lưu — tức là mất khả năng phục hồi theo thời
+  # điểm mà không ai biết cho tới lúc cần dùng. Kiểm bằng pg_stat_archiver.
+  pg-init:
+    image: postgres:16-alpine
+    user: root
+    volumes:
+      - pgarchive:/archive
+      - pgbackup:/backup
+    entrypoint: ["sh","-c","mkdir -p /archive /backup && chown -R 70:70 /archive /backup"]
+    restart: "no"
+
   postgres:
+    depends_on:
+      pg-init: { condition: service_completed_successfully }
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: csbh
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
-    volumes: [ pgdata:/var/lib/postgresql/data ]
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - pgarchive:/archive
+      - pgbackup:/backup
+    shm_size: 256mb
+    deploy:
+      resources:
+        limits: { memory: 3g }
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d csbh"]
       interval: 3s
@@ -17,6 +44,9 @@ services:
     networks: [ internal ]
 
   redis:
+    deploy:
+      resources:
+        limits: { memory: 384m }
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server","--appendonly","yes","--maxmemory","256mb","--maxmemory-policy","noeviction"]
@@ -29,6 +59,9 @@ services:
     networks: [ internal ]
 
   rabbitmq:
+    deploy:
+      resources:
+        limits: { memory: 512m }
     image: rabbitmq:3.13-management-alpine
     restart: unless-stopped
     healthcheck:
@@ -40,6 +73,9 @@ services:
     networks: [ internal ]
 
   minio:
+    deploy:
+      resources:
+        limits: { memory: 512m }
     image: minio/minio:RELEASE.2024-09-22T00-33-43Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -55,6 +91,9 @@ services:
     networks: [ internal ]
 
   mailpit:
+    deploy:
+      resources:
+        limits: { memory: 128m }
     image: axllent/mailpit:v1.20
     restart: unless-stopped
     healthcheck:
@@ -77,6 +116,9 @@ services:
     volumes:
       - ../db/migrations:/migrations:ro
       - ../scripts/migrate.sh:/migrate.sh:ro
+      - ../scripts/backup.sh:/backup.sh:ro
+      - ../scripts/restore.sh:/restore.sh:ro
+      - pgbackup:/backup
     entrypoint: ["/bin/sh","/migrate.sh"]
     restart: "no"
     networks: [ internal ]
@@ -84,4 +126,10 @@ services:
 networks:
   internal: {}
 
-volumes: { pgdata: {}, redisdata: {}, mqdata: {}, miniodata: {} }
+volumes:
+  pgdata: {}
+  pgarchive: {}
+  pgbackup: {}
+  redisdata: {}
+  mqdata: {}
+  miniodata: {}

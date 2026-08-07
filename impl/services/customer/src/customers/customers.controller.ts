@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { CurrentUser, int, money, opt, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, int, money, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
 import { CustomersService } from './customers.service.js';
 import { taxId } from './tax-id.js';
 
@@ -11,8 +11,13 @@ export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
   @Get()
-  search(@CurrentUser() me: AuthUser, @Query('q') q?: string) {
-    return this.customers.search(q, me);
+  search(
+    @CurrentUser() me: AuthUser,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.customers.search(q, me, pageOf({ limit, offset }));
   }
 
   @Get(':id')

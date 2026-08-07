@@ -31,9 +31,14 @@ for f in /migrations/*.sql; do
     skipped=$((skipped+1)); continue
   fi
   echo "migrate: áp dụng $name"
-  psql -v ON_ERROR_STOP=1 -q -f "$f"
-  psql -v ON_ERROR_STOP=1 -q -c \
-    "INSERT INTO sys.schema_migration(filename, checksum) VALUES ('$name', '$sum')"
+  # --single-transaction: cả file và dòng ghi nhận PHẢI cùng một transaction.
+  #
+  # Thiếu nó thì migration hỏng giữa chừng để lại CSDL nửa vời và KHÔNG được ghi
+  # nhận, nên lần chạy sau áp dụng lại từ đầu lên một lược đồ đã đổi một nửa —
+  # rất khó gỡ vì không nhìn ra được đã tới đâu. Đã dính đúng lỗi này ở 0008.
+  psql -v ON_ERROR_STOP=1 -q --single-transaction \
+    -f "$f" \
+    -c "INSERT INTO sys.schema_migration(filename, checksum) VALUES ('$name', '$sum')"
   applied=$((applied+1))
 done
 echo "migrate: xong — áp dụng $applied, bỏ qua $skipped (đã có)"

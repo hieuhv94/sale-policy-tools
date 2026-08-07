@@ -289,8 +289,8 @@ describe('CUST-14 phạm vi dữ liệu', () => {
 
   it('danh sách chỉ trả khách trong phạm vi', async () => {
     await post('/customers', base());
-    const mine = (await get('/customers')).body as { tdvUserId: string }[];
-    const theirs = (await get('/customers', 'tdv02')).body as { id: string }[];
+    const mine = (await get('/customers?limit=200')).body.items as { tdvUserId: string }[];
+    const theirs = (await get('/customers?limit=200', 'tdv02')).body.items as { id: string }[];
     expect(mine.length).toBeGreaterThan(0);
     const mineIds = new Set(mine.map((x) => (x as unknown as { id: string }).id));
     expect(theirs.every((t) => !mineIds.has(t.id))).toBe(true);
@@ -369,7 +369,7 @@ describe('CUST-17 tìm khách hàng', () => {
     for (const q of ['Kim Lien', 'Ngo 12', mst]) {
       const r = await get(`/customers?q=${encodeURIComponent(q)}`);
       expect(r.status).toBe(200);
-      expect((r.body as unknown[]).length, `tìm "${q}" phải ra kết quả`).toBeGreaterThan(0);
+      expect((r.body.items as unknown[]).length, `tìm "${q}" phải ra kết quả`).toBeGreaterThan(0);
     }
   });
 
@@ -406,5 +406,43 @@ describe('AD-02 customer không đọc chéo schema khác', () => {
       });
       expect(err?.code, `csbh_cus đáng lẽ không đọc được ${table}`).toBe('42501');
     }
+  });
+});
+
+describe('OPS-07 phân trang', () => {
+  it('mặc định trả tối đa 50 dòng kèm tổng số', async () => {
+    for (let i = 0; i < 3; i++) await post('/customers', base());
+    const r = await get('/customers');
+    expect(r.status).toBe(200);
+    expect(r.body.limit).toBe(50);
+    expect(r.body.offset).toBe(0);
+    expect(Array.isArray(r.body.items)).toBe(true);
+    expect(r.body.items.length).toBeLessThanOrEqual(50);
+    // Tổng phải là tổng THẬT của cả tập, không phải số dòng trang này.
+    expect(r.body.total).toBeGreaterThanOrEqual(r.body.items.length);
+  });
+
+  it('limit và offset cắt đúng, không trùng không sót', async () => {
+    for (let i = 0; i < 5; i++) await post('/customers', base());
+    const p1 = (await get('/customers?limit=2&offset=0')).body;
+    const p2 = (await get('/customers?limit=2&offset=2')).body;
+    expect(p1.items).toHaveLength(2);
+    expect(p2.items).toHaveLength(2);
+    const ids1 = (p1.items as { id: string }[]).map((x) => x.id);
+    const ids2 = (p2.items as { id: string }[]).map((x) => x.id);
+    expect(ids1.some((id) => ids2.includes(id))).toBe(false);
+    expect(p1.total).toBe(p2.total);
+  });
+
+  it('limit vượt trần bị từ chối — không có đường lấy cả bảng', async () => {
+    const r = await get('/customers?limit=100000');
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('limit');
+  });
+
+  it('limit và offset không hợp lệ đều bị chặn', async () => {
+    expect((await get('/customers?limit=0')).status).toBe(400);
+    expect((await get('/customers?limit=abc')).status).toBe(400);
+    expect((await get('/customers?offset=-1')).status).toBe(400);
   });
 });

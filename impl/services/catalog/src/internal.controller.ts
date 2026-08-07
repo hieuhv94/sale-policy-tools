@@ -2,7 +2,7 @@
  * API nội bộ của catalog. `customer` gọi để kiểm mã danh mục, `policy` gọi để
  * tra giá và ngưỡng — không service nào đọc thẳng schema cat (AD-02).
  */
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { int, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { LookupsService } from './lookups/lookups.service.js';
 import { ProductsService } from './products/products.service.js';
@@ -64,6 +64,35 @@ export class CatalogInternalController {
       channelCode: opt(str(1, 40)),
     });
     return this.lookups.validateCodes(b);
+  }
+
+  /**
+   * Ảnh chụp NHIỀU sản phẩm trong một lời gọi.
+   *
+   * Hồ sơ 30 sản phẩm mà gọi từng cái là 30 vòng mạng nối tiếp — thời gian lập
+   * hồ sơ tăng tuyến tính theo số dòng, và đó là màn hình người dùng ngồi chờ.
+   */
+  @Post('product-snapshots')
+  @HttpCode(200)
+  async snapshots(@Body() body: unknown) {
+    const b = validate(body, {
+      customerType: int(1, 3),
+      channelCode: opt(str(1, 40)),
+      on: opt(str(10, 10)),
+    });
+    const ids = (body as { productIds?: unknown }).productIds;
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'productIds',
+        message: 'productIds phải là mảng 1..200 phần tử',
+      });
+    }
+    const out = [];
+    for (const id of ids as string[]) {
+      out.push(await this.snapshot(id, String(b.customerType), b.channelCode, b.on));
+    }
+    return out;
   }
 
   @Get('lookups')

@@ -11,7 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ACTIONS, type Action } from '@csbh/domain-policy';
-import { CurrentUser, int, money, oneOf, opt, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, int, money, oneOf, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
 import { PoliciesService, type LineInput } from './policies.service.js';
 import { WorkflowService } from './workflow.service.js';
 
@@ -63,8 +63,10 @@ export class PoliciesController {
     @CurrentUser() me: AuthUser,
     @Query('customerId') customerId?: string,
     @Query('status') status?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
-    return this.policies.list(me, { customerId, status });
+    return this.policies.list(me, { customerId, status }, pageOf({ limit, offset }));
   }
 
   @Get('current')

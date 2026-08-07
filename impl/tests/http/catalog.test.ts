@@ -226,11 +226,11 @@ describe('CAT-07 · CAT-08 sản phẩm đã vô hiệu hoá', () => {
     const { id } = await makeProduct();
     await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
 
-    const forNew = await get('/catalog/products?forNewPolicy=true');
-    expect((forNew.body as { id: string }[]).some((p) => p.id === id)).toBe(false);
+    const forNew = await get(`/catalog/products?forNewPolicy=true&limit=200`);
+    expect((forNew.body.items as { id: string }[]).some((p) => p.id === id)).toBe(false);
 
-    const all = await get('/catalog/products');
-    expect((all.body as { id: string }[]).some((p) => p.id === id)).toBe(true);
+    const all = await get('/catalog/products?limit=200');
+    expect((all.body.items as { id: string }[]).some((p) => p.id === id)).toBe(true);
   });
 
   it('hồ sơ cũ vẫn mở xem được, hiện đúng mã và tên', async () => {
@@ -420,7 +420,7 @@ describe('CAT-15 nhập danh mục từ Excel', () => {
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom nhap 2' });
     const okCode = code('I');
-    const before = (await get('/catalog/products')).body.length as number;
+    const before = (await get('/catalog/products?limit=200')).body.total as number;
 
     const r = await upload(
       await sheet([
@@ -434,7 +434,7 @@ describe('CAT-15 nhập danh mục từ Excel', () => {
     expect(r.body.message).toContain('Không dòng nào được ghi');
 
     // Dòng hợp lệ đứng TRƯỚC dòng lỗi cũng không được ghi.
-    const after = (await get('/catalog/products')).body as { code: string }[];
+    const after = (await get('/catalog/products?limit=200')).body.items as { code: string }[];
     expect(after).toHaveLength(before);
     expect(after.some((p) => p.code === okCode)).toBe(false);
   });

@@ -1,6 +1,6 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ROLE_VALUES, UsersService } from './users.service.js';
-import { CurrentUser, email, oneOf, opt, Roles, secret, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, email, oneOf, opt, pageOf, Roles, secret, str, validate, type AuthUser } from '@csbh/http-kit';
 
 /** Toàn bộ nhóm route này chỉ dành cho Quản trị hệ thống (ONB-02). */
 @Roles('QUAN_TRI')
@@ -9,8 +9,8 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
-  list() {
-    return this.users.list();
+  list(@Query('limit') limit?: string, @Query('offset') offset?: string) {
+    return this.users.list(pageOf({ limit, offset }));
   }
 
   @Post()

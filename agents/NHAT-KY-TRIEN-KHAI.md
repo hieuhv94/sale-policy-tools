@@ -27,6 +27,7 @@ sẽ không tự suy ra được.
 | **P3b** | `identity` phần HTTP: JWT RS256, đăng nhập, xoay vòng refresh token, khoá tài khoản, **vòng đời tài khoản** | **xong** — 125/125 xanh |
 | **P4** | `catalog` + `customer` | **xong** — 188/188 xanh, hoãn 2 case chờ `document` |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | **xong** — 256/256 xanh |
+| **P5.5** | Yêu cầu phi chức năng: sao lưu, phân trang, chống phình CSDL | **xong** — nhóm test `OPS` mới |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -580,3 +581,81 @@ trách nhiệm, phần còn lại kiểm ở chặng của service sở hữu n�
 ### Commit
 
 `P5: policy — ho so, luong duyet 10 buoc, hieu luc va phien ban`
+
+---
+
+## P5.5 — Yêu cầu phi chức năng
+
+Người dùng yêu cầu rà lại kiến trúc trước khi sang P6, tập trung vào khả năng mở rộng, phình CSDL và
+sao lưu. Rà soát cho kết quả **chưa đạt**, với ba lỗ hổng thuộc loại chặn vận hành.
+
+### Điều bản thiết kế bỏ sót
+
+Danh mục 323 test case có nhóm `PERF` đo **hiệu năng**, nhưng không có nhóm nào kiểm **vận hành**.
+Đó là hai thứ khác nhau: PERF trả lời "có nhanh không", còn câu hỏi chưa ai đặt là "chạy ba năm thì
+sao, và mất ổ cứng thì làm gì". Bổ sung nhóm **`OPS` gồm 7 mã**, tổng test case trong tài liệu:
+323 → **330**.
+
+### Ba lỗ hổng chặn
+
+| | Hiện trạng khi rà | Đã làm |
+|---|---|---|
+| **Sao lưu** | Không một dòng nào. `archive_mode=off`. Toàn bộ dữ liệu nằm trong một Docker volume | `pg_dump -Fc` tự kiểm mục lục ngay sau khi ghi, giữ 14 bản; lưu trữ WAL liên tục; `make restore-drill` phục hồi vào CSDL **nháp** rồi đối chiếu và kiểm lại bốn bất biến |
+| **Phân trang** | Không có ở bất kỳ endpoint danh sách nào — trả về cả bảng | Bắt buộc mọi endpoint: mặc định 50, trần 200, kèm tổng số thật qua `count(*) OVER()` |
+| **Kết nối** | 10 service × 8 = 80, `max_connections` mặc định 100 | 200, kèm tinh chỉnh bộ đệm và `work_mem` cho VM 8GB |
+
+`restore.sh` **mặc định phục hồi vào CSDL nháp**, muốn đè lên CSDL sống phải truyền `RESTORE_DB=csbh`
+một cách có ý thức — phục hồi nhầm lên CSDL đang chạy là cách mất dữ liệu nhanh nhất trong lúc đang
+hoảng.
+
+### Chống phình CSDL
+
+Bảng nhật ký là ca khó nhất: chính bất biến *chỉ ghi thêm* khiến nó **không dọn được bằng DELETE**.
+Cách duy nhất còn lại là **phân vùng theo tháng**, rồi `DETACH` vùng cũ đem lưu trữ — dữ liệu vẫn
+còn, chỉ rời khỏi bảng nóng. Việc này **phải làm trước khi có dữ liệu thật**: chuyển một bảng vài
+trăm nghìn dòng đang chạy sang bảng phân vùng thì phải dừng hệ thống.
+
+Bốn bảng còn lại (`refresh_token`, `activation_token`, ba bảng `outbox`) dọn bằng
+`sys.run_retention()`. Hàm này **chỉ xoá sự kiện outbox đã gửi** — bản chưa gửi là việc còn nợ — và
+**không bao giờ đụng tới nhật ký**.
+
+### Bốn lỗi phát hiện trong lúc sửa
+
+**1. `migrate.sh` không bọc transaction.** Migration `0008` hỏng giữa chừng để lại CSDL nửa vời và
+**không được ghi nhận**, nên lần chạy sau áp dụng lại từ đầu lên một lược đồ đã đổi một nửa. Đã thêm
+`--single-transaction` để file migration và dòng ghi nhận cùng một transaction. Đây là khiếm khuyết
+có từ P1, chỉ lộ ra khi có migration đủ phức tạp để hỏng.
+
+**2. Thay nguyên `postgresql.conf` là mất `listen_addresses` của ảnh gốc.** Postgres quay về mặc
+định `localhost`: container khoẻ mạnh, healthcheck **vẫn xanh** (vì `pg_isready` đi qua socket Unix),
+mà không service nào kết nối được.
+
+**3. `archive_command` hỏng lặng lẽ.** Volume Docker sinh ra thuộc `root`, Postgres chạy dưới uid 70
+nên không ghi được — 5 lần lưu trữ hỏng liên tiếp mà CSDL vẫn chạy bình thường. Đây đúng là kịch bản
+tệ nhất: **mất khả năng phục hồi theo thời điểm mà không ai biết cho tới lúc cần dùng**. Đã thêm
+service `pg-init` chỉnh quyền, và `OPS-02` kiểm `failed_count = 0`.
+
+**4. `now()` là thời điểm bắt đầu TRANSACTION, không phải thời điểm chạy câu lệnh.** Mọi sự kiện phát
+trong cùng một transaction mang dấu thời gian giống hệt nhau, nên `ORDER BY created_at` trả về thứ tự
+tuỳ ý — test `WF-28` lúc xanh lúc đỏ. Với publisher ở P6 thì đây không phải chuyện nhỏ: gửi
+`policy.publish_signed` trước `policy.tbp_sign` là email tới kế toán trước email báo đã ký. Đã thêm
+cột `seq` tự tăng cho cả ba bảng outbox.
+
+### Chống quét toàn bảng
+
+Tìm khách hàng dùng `ILIKE '%…%'` — không index B-tree nào dùng được. Đã thêm index **GIN trigram
+trên biểu thức ghép**, và sửa truy vấn dùng đúng biểu thức đó: lệch một ký tự là Postgres không bao
+giờ chọn index, kể cả khi bảng đã lớn.
+
+Lập hồ sơ *n* dòng trước đây là *n* vòng mạng nối tiếp sang catalog. Đã thêm endpoint tra **theo lô**.
+
+### Nói thẳng về "scale khi thêm người dùng"
+
+50 → 200 người dùng **không phải vấn đề CPU** — tải nghiệp vụ này rất nhẹ. Nút thắt thật là phân
+trang và số kết nối, cả hai đã xử lý. Và kiến trúc microservice **không giúp gì** cho việc này: 10
+service ăn 10× kết nối và 10× RAM nền trong khi tải vẫn thế. Đó là cái giá đã biết trước khi chốt
+kiến trúc, không phải phát hiện mới.
+
+### Commit
+
+`P5.5: yeu cau phi chuc nang — sao luu, phan trang, chong phinh CSDL`

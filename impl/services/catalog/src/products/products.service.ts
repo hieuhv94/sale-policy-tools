@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PG, pgCode } from '@csbh/http-kit';
+import { paged, PG, pgCode, type Page } from '@csbh/http-kit';
 import type { PoolClient } from 'pg';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
@@ -157,17 +157,21 @@ export class ProductsService {
    * tra theo id thì vẫn trả về sản phẩm vô hiệu hoá, vì hồ sơ cũ còn tham chiếu
    * tới nó và phải mở xem được (CAT-08).
    */
-  list(opts: { forNewPolicy?: boolean | undefined }) {
+  async list(opts: { forNewPolicy?: boolean | undefined }, page: Page) {
     const where = opts.forNewPolicy ? `WHERE p.status = 'DANG_AP_DUNG'` : '';
-    return this.db.q(
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status,
               p.default_rate2_type1 AS "defaultRate2Type1",
               p.default_rate2_type2 AS "defaultRate2Type2",
-              p.default_rate2_type3 AS "defaultRate2Type3"
+              p.default_rate2_type3 AS "defaultRate2Type3",
+              count(*) OVER() AS total_count
          FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
          ${where}
-        ORDER BY p.code`,
+        ORDER BY p.code
+        LIMIT $1 OFFSET $2`,
+      [page.limit, page.offset],
     );
+    return paged(rows, page);
   }
 
   async byId(id: string) {

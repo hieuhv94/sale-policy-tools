@@ -39,6 +39,28 @@ export class Clients {
     return (await res.json()) as CustomerInfo;
   }
 
+  /** Tra nhiều sản phẩm trong MỘT vòng mạng (chống N+1 khi hồ sơ nhiều dòng). */
+  async productSnapshots(
+    productIds: string[],
+    customerType: number,
+    channelCode: string | null,
+  ): Promise<Map<string, ProductSnapshot>> {
+    if (productIds.length === 0) return new Map();
+    const res = await fetch(`${catalogUrl()}/internal/catalog/product-snapshots`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...svc() },
+      body: JSON.stringify({
+        productIds,
+        customerType,
+        ...(channelCode ? { channelCode } : {}),
+      }),
+    });
+    if (res.status === 404) throw new NotFoundException({ code: 'PRODUCT_NOT_FOUND' });
+    if (!res.ok) throw new Error(`catalog trả ${res.status}`);
+    const list = (await res.json()) as ProductSnapshot[];
+    return new Map(list.map((s) => [s.productId, s]));
+  }
+
   async productSnapshot(
     productId: string,
     customerType: number,

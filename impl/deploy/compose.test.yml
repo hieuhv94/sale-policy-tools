@@ -24,6 +24,9 @@ services:
     volumes:
       - ..:/app
       - ../../workspace:/workspace
+      - ../scripts/backup.sh:/backup.sh:ro
+      - ../scripts/restore.sh:/restore.sh:ro
+      - pgbackup:/backup
       - pnpm_store:/pnpm-store
       # Mỗi package pnpm sinh ra một node_modules riêng. Không che bằng volume
       # thì chúng bị ghi thẳng ra máy thật qua bind-mount ở trên, do root sở hữu,
@@ -42,6 +45,9 @@ services:
     networks: [ internal ]
 
 volumes:
+  pgbackup:
+    external: true
+    name: csbh_pgbackup
   pnpm_store: {}
   node_modules: {}
   nm_identity: {}

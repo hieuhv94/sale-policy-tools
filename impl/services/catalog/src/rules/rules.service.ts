@@ -2,6 +2,7 @@
  * Chiết khấu quy định — NGUỒN DUY NHẤT kiểm vượt ngưỡng (YCNV muc 6.3).
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { paged, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
 
@@ -59,15 +60,18 @@ export class RulesService {
     });
   }
 
-  list() {
-    return this.db.q(
+  async list(page: Page) {
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT r.id, g.code AS "productGroupCode", r.customer_type AS "customerType",
               r.channel_code AS "channelCode", r.effective_from AS "effectiveFrom",
               r.effective_to AS "effectiveTo", r.threshold_rate2 AS "thresholdRate2",
-              r.specificity
+              r.specificity, count(*) OVER() AS total_count
          FROM cat.discount_rule r LEFT JOIN cat.product_group g ON g.id = r.product_group_id
-        ORDER BY r.specificity DESC, r.effective_from DESC`,
+        ORDER BY r.specificity DESC, r.effective_from DESC
+        LIMIT $1 OFFSET $2`,
+      [page.limit, page.offset],
     );
+    return paged(rows, page);
   }
 
   /**

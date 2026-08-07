@@ -941,6 +941,27 @@ khác. Email bị chuyển tiếp hay lộ hộp thư thì cũng không lộ m�
 <li>Đổi mật khẩu thành công <strong>thu hồi toàn bộ họ refresh token</strong> của người đó.</li>
 </ul>
 
+<h3>Vận hành và tuổi thọ dữ liệu <span class="chip ac">mới 07/08</span></h3>
+<p>Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo <em>hiệu năng</em> (nhóm PERF) nhưng không nói
+gì về <em>vận hành</em>: không có sao lưu, không có phân trang, không có vòng đời dữ liệu. Ba thiếu
+sót này không lộ ra khi chạy thử — chúng chỉ lộ ra sau vài năm dùng thật, lúc sửa đã đắt.</p>
+<div class="tw"><table>
+<thead><tr><th>Rủi ro</th><th>Biện pháp</th><th>Kiểm bằng</th></tr></thead>
+<tbody>
+<tr><td><b>Mất toàn bộ dữ liệu</b> khi hỏng ổ hoặc gõ nhầm lệnh</td><td><code>pg_dump -Fc</code> hằng ngày, giữ 14 bản, tự kiểm mục lục ngay sau khi ghi; cộng lưu trữ WAL liên tục cho phục hồi theo thời điểm</td><td><code>OPS-02</code>, <code>OPS-06</code></td></tr>
+<tr><td>Sao lưu <b>chưa từng phục hồi thử</b></td><td><code>make restore-drill</code> phục hồi vào CSDL nháp rồi đối chiếu số dòng và kiểm lại bốn bất biến. Mặc định <b>không</b> đè lên CSDL đang chạy</td><td><code>OPS-06</code></td></tr>
+<tr><td>Bảng nhật ký phình vô hạn, <b>không xoá được</b> vì chính bất biến chỉ-ghi-thêm</td><td>Phân vùng theo tháng; vùng cũ đem <code>DETACH</code> ra lưu trữ, dữ liệu vẫn còn nhưng rời bảng nóng</td><td><code>OPS-03</code></td></tr>
+<tr><td>Token và outbox chỉ tăng</td><td><code>sys.run_retention()</code> xoá token hết hạn và sự kiện <b>đã gửi</b>; sla-worker gọi mỗi ngày</td><td><code>OPS-04</code></td></tr>
+<tr><td>Danh sách trả về cả bảng — chậm dần đều, không có cảnh báo</td><td>Phân trang bắt buộc ở mọi endpoint danh sách: mặc định 50, trần 200, kèm tổng số thật</td><td><code>OPS-07</code></td></tr>
+<tr><td>Tìm khách hàng quét toàn bảng</td><td>Index GIN trigram trên biểu thức ghép — biểu thức phải khớp <b>từng ký tự</b> với truy vấn, lệch là index không bao giờ được chọn</td><td><code>OPS-05</code></td></tr>
+<tr><td>10 service × 8 kết nối vượt trần 100 của Postgres</td><td><code>max_connections = 200</code>, kèm tinh chỉnh bộ đệm và <code>work_mem</code> cho VM 8GB</td><td><code>OPS-01</code></td></tr>
+<tr><td>Một service rò rỉ bộ nhớ kéo sập cả VM</td><td><code>deploy.resources.limits</code> cho từng container hạ tầng</td><td>—</td></tr>
+</tbody></table></div>
+<p><b>Về việc thêm người dùng:</b> 50 → 200 người không phải vấn đề CPU — tải nghiệp vụ này rất nhẹ.
+Nút thắt thật là phân trang và số kết nối. Cần nói thẳng: kiến trúc microservice <em>không giúp gì</em>
+cho việc này — 10 service ăn 10× kết nối và 10× RAM nền trong khi tải vẫn thế. Đó là cái giá đã biết
+trước khi chốt kiến trúc, không phải phát hiện mới.</p>
+
 <h3>Khác</h3>
 <ul>
 <li>Mật khẩu băm bằng <strong>scrypt</strong> của thư viện chuẩn Node <span class="chip ac">sửa 07/08</span>; khóa tài khoản 15 phút sau 5 lần sai. <em>Đổi từ Argon2id:</em> Argon2 trên Node cần module biên dịch gốc, kéo theo toolchain C vào ảnh Docker của mọi service. scrypt nằm sẵn trong <code>node:crypto</code>, cũng là hàm dẫn xuất khóa chống ASIC được RFC 7914 chuẩn hóa và OWASP chấp nhận. Bản băm lưu kèm tiền tố thuật toán nên đổi sang Argon2id sau này không phải reset mật khẩu ai.</li>
@@ -1758,6 +1779,19 @@ mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không 
 <tr data-tc="VER"><td class="id">VER-12</td><td>Quay lui về ảnh của bản trước rồi chạy lại toàn bộ test tích hợp</td><td>Hệ thống chạy được với lược đồ CSDL hiện tại — migration tương thích ngược một bản</td><td>—</td><td><span class="chip p0">P0</span></td></tr>
 <tr data-tc="VER"><td class="id">VER-13</td><td>Kiểm tên cột trong lược đồ</td><td>Phiên bản phần mềm là <code>app_version</code>, phiên bản hồ sơ CSBH là <code>version_no</code> — không dùng lẫn tên</td><td>§5.6</td><td><span class="chip p1">P1</span></td></tr>
 <tr data-tc="VER"><td class="id">VER-14</td><td>Đọc bảng <code>sys.app_release</code> sau vài lần phát hành</td><td>Ghi đủ phiên bản, thời điểm, người bấm và kết quả phép quét của từng lần</td><td>—</td><td><span class="chip p2">P2</span></td></tr>
+</tbody></table></div>
+
+<div class="grpttl"><h3>OPS — Vận hành: sao lưu, phục hồi, chống phình CSDL <span class="chip ac">mới 07/08</span></h3><span class="c" data-grp="OPS"></span></div>
+<div class="tw"><table class="tc">
+<thead><tr><th class="id">Mã</th><th>Kịch bản</th><th>Kết quả mong đợi</th><th>YCNV</th><th>Mức</th></tr></thead>
+<tbody>
+<tr data-tc="OPS"><td class="id">OPS-01</td><td>Đọc <code>max_connections</code> và bộ nhớ Postgres</td><td>Đủ cho 10 service × 8 kết nối cộng biên quản trị; bộ đệm và <code>work_mem</code> đã rời mặc định của ảnh Docker</td><td>§11</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-02</td><td>Ép cắt WAL rồi đọc <code>pg_stat_archiver</code></td><td><code>archive_mode=on</code>, <code>failed_count = 0</code> — lưu trữ hỏng lặng lẽ là mất khả năng phục hồi theo thời điểm mà không ai biết</td><td>§11</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-03</td><td>Kiểm bảng nhật ký</td><td>Là bảng <b>phân vùng theo tháng</b>, có sẵn vùng cho 3 tháng tới, vùng mặc định <b>rỗng</b>, bất biến chỉ-ghi-thêm vẫn giữ</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-04</td><td>Chạy <code>sys.run_retention()</code></td><td>Xoá token hết hạn, giữ token còn hạn; chỉ xoá outbox <b>đã gửi</b>; <b>không đụng</b> nhật ký; ghi lại đã xoá những gì</td><td>§10</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-05</td><td>Kiểm index tìm kiếm và index dọn dẹp</td><td>Tìm khách hàng có index GIN trigram; có index theo hạn cho token và SLA; nhật ký có index thời gian và đối tượng</td><td>§9.2</td><td><span class="chip p1">P1</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-06</td><td>Chạy sao lưu rồi phục hồi vào CSDL nháp</td><td>File đọc được mục lục; phục hồi ra đúng dữ liệu; <b>bản phục hồi giữ nguyên cả bốn bất biến</b> ở tầng CSDL</td><td>§11</td><td><span class="chip p0">P0</span></td></tr>
+<tr data-tc="OPS"><td class="id">OPS-07</td><td>Gọi endpoint danh sách không kèm tham số</td><td>Trả tối đa 50 dòng kèm tổng số thật; <code>limit</code> vượt trần 200 thì 400 — <b>không có đường lấy cả bảng</b></td><td>§9.2</td><td><span class="chip p0">P0</span></td></tr>
 </tbody></table></div>
 
 <div class="grpttl"><h3>PERF — Hiệu năng ở quy mô 50 người dùng</h3><span class="c" data-grp="PERF"></span></div>

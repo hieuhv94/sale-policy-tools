@@ -336,7 +336,7 @@ describe('ONB-14 kích hoạt không qua email', () => {
     expect(full.body.mustChangePassword).toBe(false);
 
     const listed = await agent.get('/admin/users').set('Authorization', `Bearer ${adminToken}`);
-    const row = (listed.body as { id: string; activatedAt: string | null; emailVerifiedAt: string | null }[])
+    const row = (listed.body.items as { id: string; activatedAt: string | null; emailVerifiedAt: string | null }[])
       .find((r) => r.id === res.body.id);
     expect(row!.activatedAt).not.toBeNull();
     // Đây là điểm khác nhau giữa hai cột: chưa ai chứng minh hộp thư có thật.

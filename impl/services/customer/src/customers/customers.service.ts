@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
+import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { CatalogClient } from '../infra/catalog.client.js';
 import { ScopeClient } from '../infra/scope.client.js';
@@ -112,18 +112,23 @@ export class CustomersService {
    * KHÔNG có trường "Tên mã khách" — khái niệm đó đã bỏ khỏi yêu cầu; ai muốn
    * tra thì dùng đúng ba tiêu chí trên.
    */
-  async search(q: string | undefined, me: AuthUser) {
+  async search(q: string | undefined, me: AuthUser, page: Page) {
     const ids = await this.scope.userIdsFor(me);
     const like = q ? `%${q}%` : null;
-    const rows = await this.db.q<Row>(
-      `SELECT * FROM cus.customer
+    // Chuỗi ghép giống hệt biểu thức của index GIN trigram ix_customer_search —
+    // lệch một ký tự là Postgres không dùng index và quay về quét toàn bảng.
+    const rows = await this.db.q<Row & { total_count: string }>(
+      `SELECT *, count(*) OVER() AS total_count FROM cus.customer
         WHERE tdv_user_id = ANY($1::uuid[])
           AND ($2::text IS NULL
-               OR name ILIKE $2 OR registered_address ILIKE $2 OR id_number ILIKE $2)
-        ORDER BY name`,
-      [ids, like],
+               OR (name || ' ' || registered_address || ' ' || coalesce(id_number, ''))
+                  ILIKE $2)
+        ORDER BY name
+        LIMIT $3 OFFSET $4`,
+      [ids, like, page.limit, page.offset],
     );
-    return rows.map(toDto);
+    const out = paged(rows, page);
+    return { ...out, items: out.items.map((r) => toDto(r as unknown as Row)) };
   }
 
   async update(
