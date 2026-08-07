@@ -16,6 +16,8 @@ export const BUS = {
     documentDlq: 'doc.events.dlq',
     policy: 'pol.events',
     policyDlq: 'pol.events.dlq',
+    audit: 'aud.events',
+    auditDlq: 'aud.events.dlq',
   },
   /**
    * notification nghe mọi thứ; document chỉ quan tâm vòng đời file; policy nghe
@@ -29,6 +31,12 @@ export const BUS = {
     notification: ['policy.#', 'catalog.#', 'customer.#', 'sla.#'],
     document: ['policy.scan_discarded', 'policy.rejected'],
     policy: ['catalog.price_changed'],
+    /**
+     * Nhật ký nghe TẤT CẢ. Khác với ba queue trên vốn lọc theo nhu cầu, ở đây
+     * bất kỳ sự kiện nào không tới được đều là một khoảng trống trong vết —
+     * và khoảng trống đó chỉ lộ ra lúc cần điều tra, tức là quá muộn.
+     */
+    audit: ['#'],
   },
 } as const;
 

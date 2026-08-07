@@ -26,7 +26,7 @@ import {
   type Status,
   type Step,
 } from '@csbh/domain-policy';
-import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
+import { currentContext, PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
 import { PoliciesService } from './policies.service.js';
@@ -384,14 +384,23 @@ export class WorkflowService {
 const WAITING_STATES = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'];
 const isWaiting = (s: string) => WAITING_STATES.includes(s);
 
+/**
+ * Mọi sự kiện đều mang `traceId` và `actorIp` lấy từ ngữ cảnh request.
+ *
+ * Nhật ký cần cả hai (AUD-06), mà nơi phát sự kiện nằm sâu trong service còn hai
+ * thứ đó chỉ có ở tầng HTTP. Lấy ở đây, một chỗ, thay vì truyền tay xuống từng
+ * lời gọi — bỏ sót một chỗ thì dòng nhật ký đó thiếu vết, và thiếu vết là thứ
+ * không ai phát hiện ra cho tới lúc cần điều tra.
+ */
 async function emit(
   c: PoolClient,
   routingKey: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
+  const ctx = currentContext();
   await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
     routingKey,
-    JSON.stringify(payload),
+    JSON.stringify({ ...payload, traceId: ctx?.traceId ?? null, actorIp: ctx?.ip ?? null }),
   ]);
 }
 

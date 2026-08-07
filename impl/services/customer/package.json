@@ -8,6 +8,7 @@
     "./testing": "./src/testing.ts"
   },
   "dependencies": {
+    "@csbh/bus": "workspace:*",
     "@csbh/http-kit": "workspace:*",
     "@csbh/identity-core": "workspace:*",
     "@nestjs/common": "10.4.6",

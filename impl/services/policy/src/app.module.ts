@@ -1,6 +1,6 @@
-import { Controller, Get, Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource } from '@csbh/http-kit';
+import { Controller, Get, Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { Clients } from './infra/clients.js';
 import { ScopeClient } from './infra/scope.client.js';
@@ -8,6 +8,7 @@ import { PoliciesService } from './policies/policies.service.js';
 import { WorkflowService } from './policies/workflow.service.js';
 import { PoliciesController } from './policies/policies.controller.js';
 import { PolicyOutbox } from './infra/outbox.relay.js';
+import { DeniedAuditFilter } from './infra/denied.filter.js';
 import { PolicyInternalController } from './internal.controller.js';
 import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
@@ -57,6 +58,15 @@ class HealthController {
     PriceChangedConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_FILTER, useClass: DeniedAuditFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Ngữ cảnh request mở ở ĐÂY, trước mọi guard và mọi controller: một lời gọi bị
+   * guard chặn cũng cần `trace_id` để tra lại (AUD-08).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(TraceMiddleware).forRoutes('*');
+  }
+}

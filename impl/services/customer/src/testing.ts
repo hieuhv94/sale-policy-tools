@@ -9,3 +9,4 @@ export async function createTestApp(): Promise<INestApplication> {
   await app.init();
   return app;
 }
+export { CustomerOutbox } from './infra/outbox.relay.js';

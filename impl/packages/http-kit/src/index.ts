@@ -9,3 +9,5 @@ export * from './service-token.js';
 export * from './db.js';
 export * from './paging.js';
 export * from './secrets.js';
+export * from './request-context.js';
+export * from './trace.middleware.js';

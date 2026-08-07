@@ -38,6 +38,7 @@ export class Scheduler implements OnModuleInit, OnModuleDestroy {
       BUS.queues.notificationDlq,
       BUS.bindings.notification,
     );
+    await this.bus.declareConsumer(BUS.queues.audit, BUS.queues.auditDlq, BUS.bindings.audit);
     if (process.env.SLA_AUTO_SCAN === '0') return;
 
     this.timers.push(

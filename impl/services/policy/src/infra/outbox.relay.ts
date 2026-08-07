@@ -33,6 +33,7 @@ export class PolicyOutbox implements OnModuleInit, OnModuleDestroy {
       BUS.queues.documentDlq,
       BUS.bindings.document,
     );
+    await this.bus.declareConsumer(BUS.queues.audit, BUS.queues.auditDlq, BUS.bindings.audit);
     if (process.env.OUTBOX_AUTO_PUMP !== '0') this.relay.start(1000);
   }
 

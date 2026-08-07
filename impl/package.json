@@ -42,6 +42,7 @@
     "vitest": "2.1.3"
   },
   "dependencies": {
+    "@csbh/audit": "workspace:*",
     "@csbh/bus": "workspace:*",
     "@csbh/catalog": "workspace:*",
     "@csbh/customer": "workspace:*",

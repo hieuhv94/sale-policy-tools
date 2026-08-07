@@ -1,7 +1,8 @@
-import { Controller, Get, Module } from '@nestjs/common';
+import { Controller, Get, Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource } from '@csbh/http-kit';
+import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
+import { DocumentOutbox } from './infra/outbox.relay.js';
 import { Storage } from './infra/storage.js';
 import { Clients } from './infra/clients.js';
 import { Gotenberg } from './infra/gotenberg.js';
@@ -48,6 +49,7 @@ class HealthController {
   ],
   providers: [
     Db,
+    DocumentOutbox,
     Storage,
     Clients,
     Gotenberg,
@@ -61,4 +63,12 @@ class HealthController {
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Ngữ cảnh request mở ở ĐÂY, trước mọi guard và mọi controller: một lời gọi bị
+   * guard chặn cũng cần `trace_id` để tra lại (AUD-08).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(TraceMiddleware).forRoutes('*');
+  }
+}

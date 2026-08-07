@@ -33,7 +33,10 @@ sẽ không tự suy ra được.
 | **P6b** | `document`: file, ký số nội bộ, bản CSBH A4 | **xong** — 322/322 xanh |
 | **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | **xong** — 348/348 xanh |
 | **P6d** | `sla-worker` | **xong** — 363/363 xanh |
-| **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
+| **P7a** | `audit` + `trace_id` xuyên suốt | **xong** — 373/373 xanh |
+| **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | chưa |
+| **P7c** | `gateway`: Caddy, giới hạn tần suất, header an toàn | chưa |
+| **P7d** | `web`: giao diện React | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
 ---
@@ -1177,3 +1180,98 @@ sao lưu và dọn dẹp ở mức hệ điều hành vẫn nằm trong danh sá
 ### Commit
 
 `P6d: sla-worker — han xu ly, nhac truoc mot ngay, qua han`
+
+---
+
+## P7a — `audit`: nhật ký chỉ ghi thêm, và `trace_id` cuối cùng có người điền
+
+**373/373 xanh**, ba lần liên tiếp. Chặng này đóng luôn một món nợ ghi từ P5.6.
+
+### Đã dựng
+
+```
+services/audit/                     consumer nghe '#', API chỉ đọc, báo cáo hoạt động
+packages/http-kit/request-context   AsyncLocalStorage: trace_id + IP
+packages/http-kit/trace.middleware  mở ngữ cảnh trước mọi guard
+services/policy/infra/denied.filter ghi lại nỗ lực vượt quyền
+migration 0015                      event_id + ba index
+services/{customer,document}/infra/outbox.relay.ts
+```
+
+### `occurred_at` và chống ghi trùng phải đi cùng nhau
+
+Đây là chỗ dễ làm sai nhất của chặng, và nó không lộ ra khi thử tay.
+
+Bảng nhật ký đã phân vùng theo `occurred_at` từ P5.5. Index duy nhất trên bảng phân vùng **bắt buộc
+phải chứa khoá phân vùng**, nên khoá chống trùng là `(occurred_at, event_id)` chứ không thể là
+`(event_id)`. Mà khoá đó **chỉ chặn được trùng khi `occurred_at` giống nhau giữa hai lần giao**.
+
+Suy ra: `occurred_at` phải lấy từ payload — thời điểm việc xảy ra trong nghiệp vụ — chứ không phải
+`now()` lúc ghi dòng. Lấy `now()` thì hai lần giao ra hai giá trị, rơi vào hai vùng, và khoá duy nhất
+không chặn được gì. Ràng buộc kỹ thuật ở đây trùng khớp với nghĩa đúng của cột: nhật ký nói *"việc
+này xảy ra lúc nào"*, không nói *"tôi ghi nó lúc nào"*.
+
+Chuyện này không phải sự gọn gàng: `AUD-09` đếm theo **dòng**, nên một sự kiện ghi hai lần là một con
+số sai gửi lên Ban lãnh đạo.
+
+### `trace_id` — món nợ từ P5.6, đóng bằng `AsyncLocalStorage`
+
+P5.6 ghi: *"`trace_id` có cột nhưng không ai điền"*. Vấn đề thật là IP và `trace_id` chỉ có ở tầng
+HTTP, còn nơi phát sự kiện nằm sâu trong service. Truyền tay xuống từng lời gọi nghĩa là đổi chữ ký
+của gần như mọi hàm — và **bỏ sót một chỗ thì dòng nhật ký đó thiếu vết, mà thiếu vết là thứ không ai
+phát hiện ra cho tới lúc cần điều tra**.
+
+`AsyncLocalStorage` giữ ngữ cảnh đúng theo từng request kể cả khi nhiều request chạy xen kẽ — khác
+hẳn một biến toàn cục, vốn sẽ trộn IP của người này vào nhật ký của người kia dưới tải.
+
+Middleware đặt ở **trước mọi guard**: một lời gọi bị guard chặn cũng cần `trace_id`. Và `trace_id`
+**nhận từ đầu vào** nếu header có sẵn, chỉ sinh mới khi chưa có — sinh mới ở mỗi chặng thì mỗi chặng
+một mã và không nối lại được. `INT-11` chạy một request phát ba sự kiện rồi dựng lại cả chuỗi bằng
+một truy vấn.
+
+Header do client gửi nên chỉ nhận mã đúng dạng `[A-Za-z0-9_-]{8,64}`: chuỗi tuỳ ý sẽ lọt thẳng vào
+truy vấn tra log lẫn vào bản ghi nhật ký.
+
+### Đảo lại một quyết định của chính mình, trong cùng một chặng
+
+Bộ lọc ghi "nỗ lực vượt quyền" ban đầu ghi kiểu **bắn đi rồi quên** (`void`), với lý lẽ "ghi là việc
+phụ, không được làm chậm phản hồi". Lý lẽ đó sai ở đây:
+
+- Tiến trình tắt đúng lúc đó thì bản ghi mất hẳn, và **mất trong im lặng**.
+- Một bản ghi an ninh *thường* được ghi thì không phải bản ghi an ninh.
+
+Nó cũng làm test đỏ ngẫu nhiên — nhưng đó chỉ là **triệu chứng**, không phải lý do sửa. Cái giá của
+việc chờ: một câu `INSERT`, cỡ một mili-giây, trên đúng nhánh mà người dùng vừa bị từ chối. Ghi hỏng
+thì vẫn trả 403: không ghi được nhật ký là lỗi vận hành, không phải lý do cho qua thao tác vượt quyền.
+
+> Đáng ghi lại vì cách tìm ra: bản đầu **chạy đúng** ở lần chạy đơn lẻ và chỉ đỏ một trong ba lần
+> chạy toàn bộ. Nới thời gian chờ lên 30 giây làm nó xanh thêm được một lượt rồi lại đỏ. Chỗ sai
+> không nằm ở con số nào cả.
+
+### `audit` nghe TẤT CẢ, và không có đường ghi nào
+
+Ba queue kia lọc theo nhu cầu; queue nhật ký bind `#`. Bất kỳ sự kiện nào không tới được đều là một
+khoảng trống trong vết, và khoảng trống đó chỉ lộ ra lúc cần điều tra — tức là quá muộn.
+
+API chỉ có `GET`. `AUD-05` quét bảng định tuyến Express và đỏ ngay nếu một route ghi xuất hiện — cùng
+kiểu test giữ kiến trúc như `DOC-28`.
+
+Role `csbh_aud` là role duy nhất chỉ có `SELECT` và `INSERT`; `UPDATE`/`DELETE` bị thu hồi từ
+migration 0002 và trigger chặn thêm một lớp. Ngay cả khi service này có lỗ hổng thì nó cũng không sửa
+được một dòng nhật ký nào.
+
+### `AUD-10` — báo cáo vẫn đúng khi nhật ký chết
+
+Tắt hẳn audit rồi chạy ba bước duyệt: mọi cột mốc thời gian trên `pol.policy` vẫn đủ. Đó là toàn bộ ý
+nghĩa của quyết định §10 *"mốc thời gian là cột riêng trên hồ sơ"* — nhật ký chỉ dùng truy vết, sập
+nó không làm sai một báo cáo nào. Bật lại thì vết được ghi bù từ queue bền (`AUD-11`).
+
+### Còn nợ của chặng này
+
+`AUD-08` mới ghi ở `policy`; các service khác chưa có bộ lọc tương tự — sẽ gom về một chỗ ở gateway
+(P7c) thay vì nhân bản filter ra sáu service. Nửa "báo cáo tiến độ và SLA" của `AUD-10` chờ
+`reporting` ở P7b.
+
+### Commit
+
+`P7a: audit — nhat ky chi ghi them, trace_id xuyen suot`

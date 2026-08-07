@@ -20,3 +20,4 @@ export { ContractsService } from './contracts/contracts.service.js';
 export { KNOWN_SOURCES, LINE_PREFIX } from './contracts/sources.js';
 export { makeDocx, para, table, tableRow, placeholdersOf, documentXml } from './contracts/docx.js';
 export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
+export { DocumentOutbox } from './infra/outbox.relay.js';

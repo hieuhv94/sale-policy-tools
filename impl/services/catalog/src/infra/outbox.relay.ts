@@ -22,6 +22,7 @@ export class CatalogOutbox implements OnModuleInit, OnModuleDestroy {
       BUS.bindings.notification,
     );
     await this.bus.declareConsumer(BUS.queues.policy, BUS.queues.policyDlq, BUS.bindings.policy);
+    await this.bus.declareConsumer(BUS.queues.audit, BUS.queues.auditDlq, BUS.bindings.audit);
     if (process.env.OUTBOX_AUTO_PUMP !== '0') this.relay.start(1000);
   }
 
