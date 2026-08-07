@@ -752,14 +752,40 @@ describe('DOC-28 quét lược đồ, bảng định tuyến và kho lưu trữ'
   });
 
   it('không object hợp đồng nào nằm lại trên MinIO sau khi xuất', async () => {
+    // Quét theo TỪNG mục đích chứ không quét cả bucket bằng tiền tố rỗng.
+    //
+    // Không phải để chạy nhanh hơn: bucket dùng chung của môi trường test tích
+    // luỹ qua từng lượt chạy, và quá khoảng một nghìn object thì trình phân tích
+    // XML trong thư viện minio ném lỗi TỪ BÊN TRONG luồng — không bắt được,
+    // vòng lặp chỉ treo tới lúc hết giờ. Xem chú thích ở `Storage.listKeys`.
+    //
+    // Quét theo mục đích cũng nói đúng điều cần nói hơn: bất biến ở đây là
+    // "hợp đồng KHÔNG CÓ mục đích nào trong danh sách", vì nó không được lưu.
+    const PURPOSES = ['ho_so', 'scan', 'phap_ly', 'ban_csbh', 'ban_da_ky', 'mau_hd'];
+    const scan = async () => {
+      const keys: string[] = [];
+      for (const p of PURPOSES) keys.push(...(await storage.listKeys(`${p}/`)));
+      return keys;
+    };
+
     const d = await toReceivedL1();
-    const before = await storage.listKeys('');
+    const before = await scan();
     expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
-    const after = await storage.listKeys('');
+    const after = await scan();
 
     // PDF trả thẳng về người bấm và không đi qua kho. Chỉ có thể bằng nhau.
     expect(after.length).toBe(before.length);
     expect(after.some((k) => k.includes('hop-dong') || k.includes('contract'))).toBe(false);
+
+    // Và danh sách mục đích ở trên phải PHỦ HẾT enum trong CSDL — thiếu một giá
+    // trị là quét sót đúng chỗ hợp đồng có thể lọt vào mà không ai thấy.
+    const known = await withAdminDb(async (c) => {
+      const r = await c.query<{ v: string }>(
+        `SELECT unnest(enum_range(NULL::doc.file_purpose))::text AS v`,
+      );
+      return r.rows.map((x) => x.v.toLowerCase());
+    });
+    expect(PURPOSES.sort()).toEqual(known.sort());
   }, 120_000);
 });
 

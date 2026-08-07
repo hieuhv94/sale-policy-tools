@@ -47,6 +47,7 @@
     "@csbh/catalog": "workspace:*",
     "@csbh/customer": "workspace:*",
     "@csbh/document": "workspace:*",
+    "@csbh/gateway": "workspace:*",
     "@csbh/domain-policy": "workspace:*",
     "@csbh/http-kit": "workspace:*",
     "@csbh/identity": "workspace:*",

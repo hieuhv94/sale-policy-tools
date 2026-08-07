@@ -1,0 +1,78 @@
+#	=============================================================================
+#	Caddy — biên mạng. Là container DUY NHẤT mở cổng ra ngoài (SEC-10).
+#
+#	Ba việc, không hơn: kết thúc TLS, phục vụ SPA tĩnh, và chuyển /api/* vào
+#	gateway. Giới hạn tần suất KHÔNG nằm ở đây — xem lý do ở
+#	services/gateway/src/proxy/rate-limit.ts: bộ đếm phải theo người dùng, mà
+#	Caddy không đọc được JWT.
+#	=============================================================================
+
+{
+	# Cổng dành cho kiểm tra sức khoẻ nội bộ, không phát ra ngoài.
+	admin off
+	email {$ACME_EMAIL:admin@nutricare.local}
+}
+
+# Tập header an toàn dùng chung cho mọi phản hồi (SEC-09).
+(security_headers) {
+	header {
+		# HSTS: 2 năm, gồm cả tên miền con, và có preload. Đặt ở đây chứ không ở
+		# ứng dụng vì nó phải có mặt cả trên phản hồi lỗi và trên file tĩnh.
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+		# Chặn trình duyệt tự đoán kiểu nội dung. Không có dòng này thì một file
+		# tải lên có nội dung HTML nhưng khai là .txt vẫn chạy được script.
+		X-Content-Type-Options "nosniff"
+
+		# Chặn nhúng vào iframe của trang khác — chống clickjacking.
+		X-Frame-Options "DENY"
+
+		# Chỉ gửi origin khi sang trang khác, không gửi đường dẫn đầy đủ. Đường
+		# dẫn của hệ này chứa id hồ sơ; gửi kèm là rò rỉ định danh sang bên thứ ba.
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# Tắt hẳn ba quyền thiết bị mà ứng dụng không dùng tới.
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+		# CSP: chỉ tải tài nguyên từ chính mình. `frame-ancestors 'none'` lặp lại
+		# ý của X-Frame-Options theo chuẩn mới — giữ cả hai vì trình duyệt cũ chỉ
+		# hiểu cái trước.
+		#
+		# `style-src` phải có 'unsafe-inline': Ant Design tiêm CSS lúc chạy. Đây
+		# là nới lỏng CÓ Ý THỨC và hẹp nhất có thể — script vẫn bị khoá chặt, mà
+		# script mới là thứ chạy được mã.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+		# Không tiết lộ máy chủ nào đang chạy.
+		-Server
+	}
+}
+
+{$SITE_ADDRESS:localhost} {
+	import security_headers
+
+	# API vào gateway. `handle_path` cắt bỏ tiền tố /api trước khi chuyển tiếp,
+	# nên bảng định tuyến trong gateway viết theo đường dẫn thật của service
+	# (/policies, /auth…) chứ không phải /api/policies.
+	handle_path /api/* {
+		reverse_proxy gateway:3000 {
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# SPA: mọi đường dẫn không phải file tĩnh đều trả index.html để React Router
+	# tự định tuyến. Thiếu dòng này thì tải lại trang ở /policies/abc ra 404.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	encode gzip zstd
+
+	log {
+		output stdout
+		format json
+	}
+}

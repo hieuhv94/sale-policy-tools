@@ -1,5 +1,5 @@
 import { Controller, Get, Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { Clients } from './infra/clients.js';
@@ -8,7 +8,6 @@ import { PoliciesService } from './policies/policies.service.js';
 import { WorkflowService } from './policies/workflow.service.js';
 import { PoliciesController } from './policies/policies.controller.js';
 import { PolicyOutbox } from './infra/outbox.relay.js';
-import { DeniedAuditFilter } from './infra/denied.filter.js';
 import { PolicyInternalController } from './internal.controller.js';
 import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
@@ -58,7 +57,6 @@ class HealthController {
     PriceChangedConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
-    { provide: APP_FILTER, useClass: DeniedAuditFilter },
   ],
 })
 export class AppModule implements NestModule {

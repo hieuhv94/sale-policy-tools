@@ -71,7 +71,22 @@ export class Storage implements OnModuleInit {
     }
   }
 
-  /** Dùng trong test để chứng minh object thật sự biến mất, không chỉ bị đánh dấu. */
+  /**
+   * Liệt kê khoá. Dùng trong test để chứng minh object thật sự biến mất, không
+   * chỉ bị đánh dấu.
+   *
+   * CÓ TRẦN, và trần đó nằm ở thư viện chứ không ở đây. Trình phân tích XML bên
+   * trong `minio` 8.0.1 (`fast-xml-parser`) ném *"Entity expansion limit
+   * exceeded"* khi một trang kết quả vượt khoảng một nghìn phần tử — và nó ném
+   * từ bên trong `Transform._flush`, tức là thành **ngoại lệ không ai bắt
+   * được**: bọc `try/catch` quanh `for await` không hề nhận được lỗi, vòng lặp
+   * chỉ treo cho tới lúc test hết giờ. Tôi đã thử và đó là kết quả.
+   *
+   * Nên **luôn truyền tiền tố hẹp**, đừng bao giờ gọi với chuỗi rỗng: bucket
+   * dùng chung của môi trường test tích luỹ qua từng lượt chạy và đã vượt mốc
+   * đó. Mã sản phẩm không liệt kê bucket ở bất kỳ đâu, nên trần này chỉ chạm
+   * tới test.
+   */
   async listKeys(prefix: string): Promise<string[]> {
     const out: string[] = [];
     const stream = this.client.listObjectsV2(BUCKET, prefix, true);

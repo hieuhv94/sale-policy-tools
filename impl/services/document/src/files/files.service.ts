@@ -268,6 +268,22 @@ export class FilesService {
     return { row, body };
   }
 
+  /**
+   * Object của một file còn nằm trên kho lưu trữ hay không.
+   *
+   * Không kiểm quyền và không đọc nội dung: đây là câu hỏi VẬN HÀNH — "siêu dữ
+   * liệu trong CSDL còn khớp với kho lưu trữ không" — chứ không phải một lượt
+   * tải file. Hai kho ghi riêng nên chúng lệch nhau được, và lệch trong im lặng.
+   */
+  async objectExists(id: string): Promise<boolean> {
+    const row = await this.db.one<{ object_key: string }>(
+      `SELECT object_key FROM doc.stored_file WHERE id = $1 AND deleted_at IS NULL`,
+      [id],
+    );
+    if (!row) return false;
+    return this.storage.exists(row.object_key);
+  }
+
   async verify(id: string, me: AuthUser): Promise<{ ok: boolean; expected: string; actual: string }> {
     const row = await this.row(id);
     await this.assertCanAccess(row.owner_kind, row.owner_id, me);

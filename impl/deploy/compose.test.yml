@@ -1,5 +1,23 @@
 # Trình chạy test. Mã nguồn bind-mount vào, thư mục workspace để ghi log và báo cáo.
 services:
+  # Caddy thật, để SEC-09 kiểm header trên phản hồi thật chứ không đọc file cấu
+  # hình bằng mắt. `SITE_ADDRESS=:80` cho nó phục vụ HTTP thuần trong mạng nội
+  # bộ — không có tên miền nào để xin chứng chỉ, và test gọi qua tên container.
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ":80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/placeholder:/srv:ro
+    healthcheck:
+      test: ["CMD","wget","-q","-O-","http://localhost/"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [ internal ]
+
   test:
     build:
       context: ..
@@ -11,6 +29,7 @@ services:
       rabbitmq: { condition: service_healthy }
       minio:    { condition: service_healthy }
       gotenberg: { condition: service_healthy }
+      caddy:    { condition: service_healthy }
       migrate:  { condition: service_completed_successfully }
     environment:
       PGHOST: postgres
@@ -37,6 +56,8 @@ services:
       MINIO_PASSWORD: ${MINIO_PASSWORD:-csbh_dev_pw}
       MINIO_BUCKET: csbh-test
       GOTENBERG_URL: http://gotenberg:3000
+      CADDY_URL: http://caddy
+      CORS_ORIGINS: https://csbh.nutricare.local,http://localhost:5173
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
     volumes:
       - ..:/app
@@ -64,6 +85,7 @@ services:
       - nm_sla:/app/services/sla-worker/node_modules
       - nm_audit:/app/services/audit/node_modules
       - nm_reporting:/app/services/reporting/node_modules
+      - nm_gateway:/app/services/gateway/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -87,3 +109,4 @@ volumes:
   nm_sla: {}
   nm_audit: {}
   nm_reporting: {}
+  nm_gateway: {}

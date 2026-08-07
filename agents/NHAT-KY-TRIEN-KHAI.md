@@ -35,7 +35,7 @@ sẽ không tự suy ra được.
 | **P6d** | `sla-worker` | **xong** — 363/363 xanh |
 | **P7a** | `audit` + `trace_id` xuyên suốt | **xong** — 373/373 xanh |
 | **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 414/414 xanh |
-| **P7c** | `gateway`: Caddy, giới hạn tần suất, header an toàn | chưa |
+| **P7c** | `gateway` + Caddy: giới hạn tần suất, header an toàn, CORS | **xong** — 446/446 xanh |
 | **P7d** | `web`: giao diện React | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
@@ -1443,3 +1443,173 @@ giờ thì không phải test.
 ### Commit
 
 `P7b: reporting — 14 tieu chi loc, ba bao cao, xuat Excel chay nen`
+
+---
+
+## P7c — `gateway` + Caddy: biên mạng, và gom việc ghi vượt quyền về một chỗ
+
+### Đã dựng
+
+- Service `gateway`: chuyển tiếp theo **danh sách trắng** tiền tố, giới hạn tần suất bằng Redis,
+  CORS theo danh sách trắng origin, nối `trace_id`, gắn `X-App-Version`, và `/readyz` gom trạng thái
+  cả hệ.
+- `deploy/caddy/Caddyfile`: TLS, phục vụ SPA, và bộ header an toàn.
+- `deploy/RPO-RTO.md`: cam kết phục hồi, trả món nợ ghi ở P5.6.
+- `tests/http/security.test.ts` — 32 test cho `SEC-01, 03, 04, 07, 09, 10, 12, 14, 15` và `AUD-08`.
+- Gỡ `DeniedAuditFilter` khỏi `policy`.
+
+### Vì sao giới hạn tần suất KHÔNG nằm ở Caddy
+
+Lý do hiển nhiên là Caddy 2 không có sẵn tính năng đó — phải dựng lại ảnh bằng `xcaddy`. Nhưng lý do
+thật nằm ở chỗ khác: **bộ đếm ở đường xuất file phải theo NGƯỜI**, mà Caddy không đọc được JWT. Nó
+chỉ thấy địa chỉ IP, và cả phòng kinh doanh ngồi sau một địa chỉ NAT duy nhất — một người bấm xuất
+file mười lần sẽ chặn cả phòng.
+
+Nên hai đường đếm theo hai khoá khác nhau, và sự khác nhau đó là nội dung của quyết định:
+
+- **Đăng nhập đếm theo IP.** Chưa có danh tính nào để đếm, và danh tính chính là thứ đang bị dò.
+  Điều này cũng đóng đúng lỗ hổng ghi ở P5.6: khoá tài khoản sau 5 lần sai (`AUTH-09`) chỉ thấy được
+  kiểu dò **một** tài khoản; rải một lần trên mỗi tài khoản thì không lớp nào chặn. Đếm theo IP thấy.
+- **Xuất file đếm theo người dùng**, vì lúc đó đã xác thực xong.
+
+### Ghi nỗ lực vượt quyền: một chỗ, không phải bảy
+
+`AUD-08` ở P7a là một `ExceptionFilter` trong `policy`. Nhân bản nó ra sáu service còn lại là cách
+chắc chắn nhất để có ngày một service quên mất — và **cái thiếu đó không ai phát hiện được**, vì
+nhật ký vẫn đầy dòng, chỉ là không có dòng nào của đúng service bị quên.
+
+Gateway thấy 403 của mọi service nên nó là chỗ đúng. Điều kiện để đúng: **không có đường nào đi vòng
+qua gateway từ bên ngoài**, và đó chính là thứ `SEC-10` giữ — chỉ Caddy mở cổng, mà Caddy chỉ trỏ
+vào gateway.
+
+Phải **gỡ** filter cũ chứ không giữ cả hai. Hai bộ ghi cho một lần bị từ chối là hai dòng nhật ký,
+mà `AUD-09` đếm theo **dòng** — con số sai gửi lên Ban lãnh đạo. Có một test riêng khẳng định đúng
+một dòng.
+
+Phát thẳng lên bus, không qua outbox: outbox tồn tại để việc ghi nghiệp vụ và việc phát sự kiện cùng
+thành công hoặc cùng thất bại, mà ở đây **không có việc ghi nghiệp vụ nào** — thao tác vừa bị từ
+chối. Vẫn **chờ** phát xong rồi mới trả 403, giữ nguyên lý lẽ đã chốt ở P7a.
+
+### `bodyParser: false` — dòng dễ mất nhất trong cả chặng
+
+Trình phân tích thân request của Nest đọc cạn luồng dữ liệu **trước** khi tới middleware chuyển tiếp.
+Bật nó lên thì mọi request `POST` đi tiếp với thân **rỗng**, và triệu chứng là lỗi "thiếu trường" ở
+service phía sau — trông y hệt lỗi kiểm dữ liệu vào, không ai nghĩ tới gateway. Có một test riêng
+canh đúng dòng này, ở cả `main.ts` lẫn `testing.ts`.
+
+### So khớp theo ĐOẠN đường dẫn, không theo chuỗi con
+
+`path.startsWith('/auth')` cũng khớp `/authorize-me` và sẽ chuyển tiếp một đường dẫn lạ sang
+identity. Danh sách trắng chỉ có nghĩa khi phép so khớp cũng chặt: `path === prefix` hoặc
+`path.startsWith(prefix + '/')`.
+
+Cùng lý do đó, `internal/**` **không có mặt** trong bảng định tuyến. Token dịch vụ đã chặn ở tầng
+service (`AUTH-21`), nhưng đó là lớp thứ hai; lớp thứ nhất là gateway không có đường nào dẫn tới.
+
+### `SEC-04` — hoá ra không cần chống, nhưng cần chứng minh
+
+Yêu cầu nói "chặn cả công thức bắt đầu bằng `=`" khi xuất Excel. Cách chống quen thuộc là chèn dấu
+nháy đơn vào đầu ô. Trước khi làm, tôi dựng thử một file và **đọc XML thô** bên trong:
+
+```
+<si><t>=HYPERLINK(&quot;http://evil.test&quot;,&quot;x&quot;)</t></si>
+```
+
+Ô mang kiểu `t="s"` — chuỗi dùng chung — và **không có phần tử `<f>` nào**. Định dạng `.xlsx` phân
+biệt tường minh giữa ô văn bản và ô công thức, nên một chuỗi bắt đầu bằng `=` vẫn là văn bản. Rủi ro
+chèn công thức là chuyện của **CSV**, nơi không có kiểu dữ liệu; hệ này không xuất CSV.
+
+Nên **không** thêm dấu nháy đơn: nó sẽ bóp méo tên khách hàng hoặc địa chỉ thật bắt đầu bằng dấu trừ
+hay dấu cộng, để đổi lấy việc chống một rủi ro mà định dạng đã chống sẵn. Thay vào đó test khẳng
+định đúng bất biến cần giữ — không ô nào là công thức — và khẳng định **trên XML thô**, vì đọc lại
+bằng chính `exceljs` chỉ chứng minh nó tự hiểu được file của nó.
+
+### `/readyz` — biến sự cố im lặng thành sự cố ồn ào
+
+Bài học `archive_command` ở P5.6: thứ giết hệ thống không phải sự cố ồn ào mà là sự cố **im lặng**.
+Một service chết trong khi chín service kia vẫn xanh thì không ai biết cho tới lúc có người bấm đúng
+chức năng đó.
+
+`/readyz` hỏi song song `/healthz` của mọi service và trả **503** khi có bất kỳ service nào không
+trả lời. 503 chứ không phải 200-kèm-cảnh-báo-trong-thân: công cụ giám sát đọc **mã trạng thái**, và
+một sự cố chỉ nằm trong thân phản hồi là một sự cố không ai thấy.
+
+Tách bạch với `/healthz`, và khác biệt này là quyết định vận hành: `/healthz` nói "tiến trình gateway
+còn sống" và Docker dùng nó để quyết định khởi động lại; `/readyz` nói "cả hệ phục vụ được". **Không**
+dùng `/readyz` làm healthcheck của Docker — một service phụ thuộc chết sẽ làm gateway bị khởi động
+lại liên tục, mà khởi động lại gateway thì không chữa được service kia.
+
+### Ba lỗi của chính test, mỗi lỗi chỉ ra một điều thật
+
+1. **Test tự khoá tài khoản mình cần dùng.** Bài dò mật khẩu gõ sai 20 lần vào `tdv01` — và
+   `AUTH-09` khoá tài khoản sau 5 lần sai. Các test sau nhận 401 vì lý do hoàn toàn khác, rồi lượt
+   chạy kế tiếp chết ngay ở `beforeAll` vì khoá còn nằm lại trong CSDL. Sửa: dò vào một tên **không
+   tồn tại** (bộ đếm theo IP vẫn chạy như thường), và gỡ khoá **trước** khi đăng nhập chứ không chỉ
+   ở `beforeEach`.
+2. **So một con số toàn cục với một con số đã lọc.** Đếm tổng số dòng `ACCESS_DENIED` rồi chờ
+   "nhiều hơn một" — trong khi CSDL dùng chung còn giữ 17 dòng của các lượt chạy trước. Sửa: chờ
+   dòng của **đúng đường dẫn** vừa sinh ra.
+3. **Quên bật service đang được kiểm.** `security.denied` chỉ thành dòng nhật ký khi có người tiêu
+   thụ, mà file test không dựng `audit`. Thông báo lỗi lại trông như gateway không phát gì.
+
+### Một sự cố hạ tầng test, và một quyết định tôi đã đảo lại
+
+Ba lượt chạy toàn bộ liên tiếp làm lộ một lỗi không thuộc P7c: `DOC-28` treo cho tới lúc hết giờ,
+kèm một **ngoại lệ không ai bắt** từ trong thư viện `minio`:
+
+```
+Error: Entity expansion limit exceeded: 1002 > 1000
+  ❯ Transform._flush  minio/dist/esm/transformers.js:55
+```
+
+Bucket test dùng chung tích luỹ qua từng lượt chạy và đã vượt một nghìn object. Trình phân tích XML
+trong `minio` 8.0.1 từ chối một trang kết quả lớn hơn thế — và nó ném từ bên trong `Transform._flush`,
+nên `try/catch` quanh `for await` **không hề nhận được lỗi**: vòng lặp chỉ treo. Tôi đã viết bản vá
+tự chia nhỏ tiền tố khi gặp lỗi, chạy thử, và nó không chạy vì đúng lý do đó. Ghi lại vì bản vá ấy
+trông rất hợp lý trên giấy.
+
+Sau đó tôi thử cho **mỗi lượt chạy một bucket riêng**. Bản vá đó tệ hơn hẳn và tôi đã gỡ bỏ: Postgres
+sống qua các lượt chạy còn bucket thì không, nên mọi dòng `doc.contract_template` trỏ vào object của
+bucket cũ — 14 test hợp đồng đỏ với 409 *"chưa có mẫu nào"*. **Hai kho dữ liệu phải được đặt lại
+cùng nhau hoặc không cái nào cả.**
+
+Cách sửa cuối cùng đơn giản hơn cả hai: `DOC-28` quét theo **từng mục đích** thay vì quét cả bucket
+bằng tiền tố rỗng. Vừa bị chặn dưới ngưỡng, vừa nói đúng điều cần nói hơn — bất biến là "hợp đồng
+không mang mục đích nào trong danh sách", vì nó không được lưu. Kèm một khẳng định rằng danh sách
+mục đích trong test **phủ hết** enum trong CSDL, nếu không thì thêm một mục đích mới là quét sót
+đúng chỗ hợp đồng có thể lọt vào.
+
+### Một lỗi sản phẩm thật, tìm ra nhờ sự cố trên
+
+Khi bucket bị thay, `ensureDefault` vẫn thoát sớm vì **có dòng mẫu trong CSDL** — mà file thì không
+còn. Kết quả: mọi lần xuất hợp đồng trả 409 *"chưa có mẫu nào"*, trong khi màn hình quản trị hiển
+thị rõ ràng là có.
+
+Đây không phải chuyện riêng của test. CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được:
+phục hồi CSDL từ bản sao lưu cũ hơn MinIO, dựng lại MinIO, hoặc xoá nhầm một object. Đã sửa để
+**tự chữa, nhưng chỉ cho mẫu mặc định** — nó do hệ thống sinh ra và dựng lại được y hệt. Mẫu do Sale
+Admin tải lên thì không: thay thầm nội dung hợp đồng bằng một mẫu khác tệ hơn nhiều so với báo lỗi.
+
+### Test giả định "cả bảng vừa một trang"
+
+`CAT-07` đỏ ở lượt chạy thứ ba: nó lấy `/catalog/products?limit=200` rồi khẳng định sản phẩm vừa
+tạo có trong đó. Danh mục đã vượt 200 sản phẩm — các test của P7b tạo một sản phẩm cho mỗi hồ sơ —
+và danh sách sắp theo mã, nên bản mới không nhất thiết nằm ở trang đầu. Test cũ xanh chỉ vì bảng
+còn nhỏ.
+
+Cùng một họ với lỗi `ORDER BY name` ở P7b: **giả định về kích thước dữ liệu, không phải giả định về
+hành vi**. Loại này luôn xanh ở ngày đầu và luôn hỏng về sau, nên nó đáng sửa ở tầng test chứ không
+đáng nới ngưỡng. Đã sửa để duyệt hết các trang.
+
+### Còn nợ của chặng này
+
+- Lịch tự động cho sao lưu và dọn dẹp — chuyển sang P8 cùng tài liệu triển khai, vì nó là việc của
+  máy chủ triển khai chứ không của mã nguồn.
+- Chưa có migration lùi.
+- `compose.yml` chưa khai báo mười service Node và Caddy: cần một `Dockerfile` production, thuộc P8.
+  Test `SEC-10` đã canh sẵn bất biến "chỉ caddy publish cổng" nên lúc thêm vào sẽ đỏ ngay nếu sai.
+- Đẩy bản sao lưu ra khỏi VM, và cảnh báo tự động trên `pg_stat_archiver` — ghi trong `RPO-RTO.md`.
+
+### Commit
+
+`P7c: gateway + Caddy — bien mang, gioi han tan suat, gom AUD-08 ve mot cho`

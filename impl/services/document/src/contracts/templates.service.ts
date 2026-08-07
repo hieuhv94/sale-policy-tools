@@ -5,7 +5,7 @@
  * chỗ dễ nhầm vì Quản trị nắm mọi danh mục khác — nhưng mẫu hợp đồng là văn bản
  * nghiệp vụ do người bán soạn, không phải cấu hình hệ thống.
  */
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { Storage } from '../infra/storage.js';
@@ -39,6 +39,8 @@ export type MappingInput = {
 
 @Injectable()
 export class TemplatesService {
+  private readonly log = new Logger(TemplatesService.name);
+
   constructor(
     private readonly db: Db,
     private readonly storage: Storage,
@@ -223,7 +225,36 @@ export class TemplatesService {
     const existing = await this.db.one<{ id: string }>(
       `SELECT id FROM doc.contract_template LIMIT 1`,
     );
-    if (existing) return;
+    if (existing) {
+      // Có dòng mẫu rồi, nhưng dòng đó CÓ CÒN FILE KHÔNG lại là câu hỏi khác.
+      // CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được: phục hồi CSDL
+      // từ một bản sao lưu cũ hơn MinIO, dựng lại MinIO từ đầu, hoặc xoá nhầm
+      // một object. Khi đó mọi lần xuất hợp đồng đều 409 và thông báo lại nói
+      // "chưa có mẫu nào" — trong khi màn hình quản trị hiển thị rõ ràng là có.
+      //
+      // Tự chữa CHỈ cho mẫu mặc định, vì nó do chính hệ thống sinh ra và dựng
+      // lại được y hệt. Mẫu do Sale Admin tải lên thì KHÔNG: thay thầm nội dung
+      // hợp đồng bằng một mẫu khác tệ hơn nhiều so với báo lỗi.
+      const def = await this.db.one<{ id: string; file_id: string }>(
+        `SELECT id, file_id FROM doc.contract_template WHERE is_default ORDER BY updated_at DESC LIMIT 1`,
+      );
+      if (!def || (await this.files.objectExists(def.file_id))) return;
+      this.log.warn(`mẫu mặc định ${def.id} mất file trên kho lưu trữ — đang dựng lại`);
+      const rebuilt = await this.files.store({
+        fileName: 'mau-hop-dong-mac-dinh.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        buffer: makeDocx(defaultTemplateBody()),
+        ownerKind: 'TEMPLATE',
+        ownerId: null,
+        purpose: 'MAU_HD',
+        uploadedBy: systemUserId,
+      });
+      await this.db.q(
+        `UPDATE doc.contract_template SET file_id = $2, updated_at = now() WHERE id = $1`,
+        [def.id, rebuilt.id],
+      );
+      return;
+    }
 
     const buffer = makeDocx(defaultTemplateBody());
     const file = await this.files.store({

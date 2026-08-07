@@ -26,6 +26,9 @@ importers:
       '@csbh/domain-policy':
         specifier: workspace:*
         version: link:packages/domain-policy
+      '@csbh/gateway':
+        specifier: workspace:*
+        version: link:services/gateway
       '@csbh/http-kit':
         specifier: workspace:*
         version: link:packages/http-kit
@@ -286,6 +289,36 @@ importers:
       pg:
         specifier: 8.13.0
         version: 8.13.0
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: 7.8.1
+        version: 7.8.1
+
+  services/gateway:
+    dependencies:
+      '@csbh/bus':
+        specifier: workspace:*
+        version: link:../../packages/bus
+      '@csbh/http-kit':
+        specifier: workspace:*
+        version: link:../../packages/http-kit
+      '@csbh/identity-core':
+        specifier: workspace:*
+        version: link:../../packages/identity-core
+      '@nestjs/common':
+        specifier: 10.4.6
+        version: 10.4.6(reflect-metadata@0.2.2)(rxjs@7.8.1)
+      '@nestjs/core':
+        specifier: 10.4.6
+        version: 10.4.6(@nestjs/common@10.4.6(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@10.4.6)(reflect-metadata@0.2.2)(rxjs@7.8.1)
+      '@nestjs/platform-express':
+        specifier: 10.4.6
+        version: 10.4.6(@nestjs/common@10.4.6(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@10.4.6)
+      ioredis:
+        specifier: 5.4.1
+        version: 5.4.1
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2

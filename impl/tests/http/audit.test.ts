@@ -304,45 +304,12 @@ describe('AUD-02 sửa một trường quan trọng', () => {
 
 // =============================================================================
 // AUD-08 — nỗ lực vượt quyền vẫn được ghi
+//
+// CHUYỂN SANG tests/http/security.test.ts ở P7c. Việc ghi không còn nằm trong
+// `policy` nữa mà ở gateway, để bảy service dùng chung một chỗ thay vì nhân bản
+// một `ExceptionFilter` ra sáu bản — bản nào quên thì không ai phát hiện được,
+// vì nhật ký vẫn có dòng, chỉ thiếu dòng của đúng service bị quên.
 // =============================================================================
-
-describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
-  it('nhật ký vẫn ghi lại nỗ lực đó', async () => {
-    const d = await draft();
-    // tdv03 thuộc nhánh khác trong cây tổ chức — hồ sơ này ngoài phạm vi.
-    const denied = await act(d.id, 'SUBMIT', 'tdv03');
-    expect(denied.status).toBe(403);
-
-    // Bản ghi outbox đã COMMIT xong trước khi 403 tới tay người gọi — filter chờ
-    // câu INSERT chứ không bắn đi rồi quên. Nên bơm một lần là đủ, không phải
-    // dò tìm trong một cuộc đua.
-    const written = await withAdminDb(async (c) => {
-      const r = await c.query(
-        `SELECT 1 FROM pol.outbox WHERE routing_key = 'security.denied'
-          AND payload->>'id' = $1`,
-        [d.id],
-      );
-      return r.rowCount;
-    });
-    expect(written).toBe(1);
-
-    await flush();
-    const rows = await waitEntries(d.id, 1);
-    expect(rows.map((r) => r.action)).toContain('ACCESS_DENIED');
-
-    const row = await withAdminDb(async (c) => {
-      const r = await c.query<{ actor_role: string; reason: string; after_data: Record<string, string> }>(
-        `SELECT actor_role, reason, after_data FROM aud.audit_log
-          WHERE entity_id = $1 AND action = 'ACCESS_DENIED'`,
-        [d.id],
-      );
-      return r.rows[0]!;
-    });
-    expect(row.actor_role).toBe('TDV');
-    expect(row.reason).toBeTruthy();
-    expect(row.after_data['method']).toBe('POST');
-  }, 90_000);
-});
 
 // =============================================================================
 // AUD-05 — API nhật ký chỉ đọc

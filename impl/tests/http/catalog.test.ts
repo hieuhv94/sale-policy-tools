@@ -221,6 +221,17 @@ describe('CAT-06 trạng thái sản phẩm chỉ có hai giá trị', () => {
   });
 });
 
+
+/** Có mặt trong danh sách đầy đủ hay không, duyệt qua mọi trang. */
+async function existsInAllPages(productId: string): Promise<boolean> {
+  for (let offset = 0; ; offset += 200) {
+    const r = await get(`/catalog/products?limit=200&offset=${offset}`);
+    const items = r.body.items as { id: string }[];
+    if (items.some((p) => p.id === productId)) return true;
+    if (offset + items.length >= Number(r.body.total) || items.length === 0) return false;
+  }
+}
+
 describe('CAT-07 · CAT-08 sản phẩm đã vô hiệu hoá', () => {
   it('không xuất hiện khi lấy danh sách để lập CSBH mới', async () => {
     const { id } = await makeProduct();
@@ -229,8 +240,10 @@ describe('CAT-07 · CAT-08 sản phẩm đã vô hiệu hoá', () => {
     const forNew = await get(`/catalog/products?forNewPolicy=true&limit=200`);
     expect((forNew.body.items as { id: string }[]).some((p) => p.id === id)).toBe(false);
 
-    const all = await get('/catalog/products?limit=200');
-    expect((all.body.items as { id: string }[]).some((p) => p.id === id)).toBe(true);
+    // Duyệt HẾT các trang, không chỉ trang đầu. Danh mục đã vượt 200 sản phẩm
+    // (trần một trang), và sản phẩm sắp theo mã nên bản mới tạo không nhất
+    // thiết nằm ở trang đầu — test cũ xanh chỉ vì bảng còn nhỏ.
+    expect(await existsInAllPages(id)).toBe(true);
   });
 
   it('hồ sơ cũ vẫn mở xem được, hiện đúng mã và tên', async () => {
