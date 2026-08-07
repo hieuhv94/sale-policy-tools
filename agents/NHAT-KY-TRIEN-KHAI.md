@@ -34,7 +34,7 @@ sẽ không tự suy ra được.
 | **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | **xong** — 348/348 xanh |
 | **P6d** | `sla-worker` | **xong** — 363/363 xanh |
 | **P7a** | `audit` + `trace_id` xuyên suốt | **xong** — 373/373 xanh |
-| **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 413/413 xanh |
+| **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 414/414 xanh |
 | **P7c** | `gateway`: Caddy, giới hạn tần suất, header an toàn | chưa |
 | **P7d** | `web`: giao diện React | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -1388,16 +1388,23 @@ File chỉ **người yêu cầu** tải được, kể cả cấp trên. Không
 chốt theo phạm vi của người bấm, cho người khác tải là cho họ đọc một tập dữ liệu dựng theo quyền của
 người kia — kiểu leo thang khó thấy nhất, vì mọi API còn lại vẫn kiểm phạm vi đầy đủ.
 
-### Một chỗ mơ hồ trong yêu cầu, đã chọn và đã ghi lại
+### Một chỗ mơ hồ trong yêu cầu — đã hỏi và đã CHỐT (08/08/2026)
 
 "Thời gian duyệt" ở muc 9.2 đọc được theo hai nghĩa: lúc Trưởng bộ phận ký ở B4, hay lúc hồ sơ có
 hiệu lực sau B10. Tài liệu dùng chữ "duyệt" cho B4 (`Chờ TBP duyệt`, `Quá hạn duyệt`), nhưng một bộ
 lọc báo cáo hỏi "duyệt trong tháng 7" thì gần như chắc chắn muốn nói *có hiệu lực trong tháng 7* —
 hồ sơ được ký rồi bị trả lại thì chưa hề duyệt xong.
 
-**Đã chọn `effective_from`**, và giữ luôn cột `tbp_signed_at` bên cạnh trong read-model. Nếu khách
-hàng hiểu theo nghĩa B4 thì đổi một dòng SQL trong `filter.ts`, **không phải nạp lại dữ liệu**.
-Điểm này cần khách hàng xác nhận.
+**CHỐT: là thời điểm hồ sơ CÓ HIỆU LỰC sau B10**, tức cột `effective_from` — đúng như đã dựng, nên
+không phải sửa dòng mã nào. Cột `tbp_signed_at` vẫn giữ trong read-model; nó không còn là đường lùi
+mà là dữ liệu cho báo cáo về nhánh duyệt của Trưởng bộ phận.
+
+Hệ quả cần nhớ khi đọc báo cáo: **hồ sơ chưa qua B10 thì `approved_at` rỗng**, nên mọi bộ lọc theo
+thời gian duyệt đều loại hết hồ sơ đang chờ. Đó là đúng nghĩa, không phải thiếu dữ liệu.
+
+Ghi ở đây chứ không ghi vào `0016_reporting.sql`: `migrate.sh` so md5 của mỗi file đã áp dụng và
+**dừng hẳn khi nội dung đổi**, kể cả đổi mỗi dòng chú thích. Chốt chặn đó đúng — nó ngăn việc sửa
+lược đồ đã chạy — nên quyết định nghiệp vụ phải nằm ở nhật ký, không nằm trong migration.
 
 ### Hai lỗi có sẵn, cả hai do chạy lại toàn bộ test mới lộ ra
 

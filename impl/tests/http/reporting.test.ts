@@ -391,6 +391,24 @@ describe('RPT-01 từng tiêu chí trong 14 tiêu chí ở muc 9.2', () => {
     expect(ids).toContain(id);
   });
 
+  it('2b. "duyệt" là B10 CÓ HIỆU LỰC, không phải B4 Trưởng bộ phận ký', async () => {
+    // Khách hàng chốt ngày 08/08/2026. Hai bước cách nhau nhiều ngày trong thực
+    // tế, và hồ sơ đã ký ở B4 vẫn có thể bị trả lại — lúc đó nó chưa hề "duyệt
+    // xong", nên không được lọt vào báo cáo theo thời gian duyệt.
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    const row = await rptRow(d.id);
+    expect(row?.['tbp_signed_at'], 'B4 đã xong nên phải có mốc ký').not.toBeNull();
+    expect(row?.['approved_at'], 'chưa qua B10 thì chưa có thời gian duyệt').toBeNull();
+
+    // Khoảng ngày rộng nhất có thể vẫn không kéo được nó vào.
+    const r = await rget('/reports/policies?approvedFrom=2000-01-01&approvedTo=2099-12-31&limit=200');
+    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).not.toContain(d.id);
+  });
+
   it('3. mã khách hàng — khớp chính xác, không phân biệt hoa thường', async () => {
     const d = await draft();
     const r = await rget(
