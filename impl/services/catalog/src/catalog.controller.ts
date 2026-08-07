@@ -1,0 +1,229 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  CurrentUser,
+  int,
+  money,
+  oneOf,
+  opt,
+  Roles,
+  str,
+  validate,
+  type AuthUser,
+} from '@csbh/http-kit';
+import { PRICE_TYPES, PRODUCT_STATUSES, ProductsService } from './products/products.service.js';
+import { RulesService } from './rules/rules.service.js';
+import { LOOKUP_KINDS, LookupsService } from './lookups/lookups.service.js';
+import { parseProductSheet } from './products/excel.js';
+
+const isoDate = () => str(10, 10);
+
+/**
+ * Đọc thì mọi vai trò đã đăng nhập đều được — TDV cần danh mục để lập hồ sơ.
+ * GHI thì chỉ Quản trị hệ thống, khai báo ngay trên từng route bằng @Roles (CAT-01).
+ */
+@Controller('catalog')
+export class CatalogController {
+  constructor(
+    private readonly products: ProductsService,
+    private readonly rules: RulesService,
+    private readonly lookups: LookupsService,
+  ) {}
+
+  // --- Nhóm sản phẩm --------------------------------------------------------
+
+  @Get('product-groups')
+  listGroups() {
+    return this.products.listGroups();
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('product-groups')
+  @HttpCode(201)
+  createGroup(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    const b = validate(body, { code: str(1, 40), name: str(1, 200) });
+    return this.products.createGroup(b.code, b.name, me.id);
+  }
+
+  @Roles('QUAN_TRI')
+  @Delete('product-groups/:id')
+  deleteGroup(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.products.deleteGroup(id, me.id);
+  }
+
+  // --- Sản phẩm -------------------------------------------------------------
+
+  @Get('products')
+  list(@Query('forNewPolicy') forNewPolicy?: string) {
+    return this.products.list({ forNewPolicy: forNewPolicy === 'true' });
+  }
+
+  @Get('products/:id')
+  byId(@Param('id') id: string) {
+    return this.products.byId(id);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('products')
+  @HttpCode(201)
+  create(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    const b = validate(body, {
+      code: str(1, 60),
+      name: str(1, 300),
+      groupCode: str(1, 40),
+      defaultRate2Type1: opt(int(0, 10_000)),
+      defaultRate2Type2: opt(int(0, 10_000)),
+      defaultRate2Type3: opt(int(0, 10_000)),
+    });
+    return this.products.create(b, me.id);
+  }
+
+  @Roles('QUAN_TRI')
+  @Patch('products/:id')
+  update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      name: opt(str(1, 300)),
+      // Trạng thái ngoài tập hai giá trị bị chặn ngay ở đây, trước khi tới CSDL (CAT-06).
+      status: opt(oneOf(...PRODUCT_STATUSES)),
+    });
+    return this.products.update(id, b, me.id);
+  }
+
+  // --- Giá ------------------------------------------------------------------
+
+  @Get('products/:id/prices')
+  priceHistory(@Param('id') id: string) {
+    return this.products.priceHistory(id);
+  }
+
+  @Get('products/:id/current-price')
+  currentPrice(@Param('id') id: string, @Query('priceType') pt?: string, @Query('on') on?: string) {
+    const b = validate({ priceType: pt, on }, { priceType: oneOf(...PRICE_TYPES), on: opt(isoDate()) });
+    return this.products.currentPrice(id, b.priceType, b.on);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('products/:id/prices')
+  @HttpCode(201)
+  setPrice(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      // Loại giá thứ ba bị chặn ở đây — hệ thống chỉ có hai loại giá (CAT-03).
+      priceType: oneOf(...PRICE_TYPES),
+      amount: money(),
+      effectiveFrom: isoDate(),
+    });
+    return this.products.setPrice(id, b.priceType, b.amount, b.effectiveFrom, me.id);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('products/import')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file'))
+  async importProducts(
+    @CurrentUser() me: AuthUser,
+    @UploadedFile() file: { buffer: Buffer } | undefined,
+  ) {
+    const rows = await parseProductSheet(file?.buffer ?? Buffer.alloc(0));
+    return this.products.importProducts(rows, me.id);
+  }
+
+  // --- Chiết khấu quy định --------------------------------------------------
+
+  @Get('discount-rules')
+  listRules() {
+    return this.rules.list();
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('discount-rules')
+  @HttpCode(201)
+  createRule(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    const b = validate(body, {
+      productGroupCode: opt(str(1, 40)),
+      customerType: opt(int(1, 3)),
+      channelCode: opt(str(1, 40)),
+      effectiveFrom: isoDate(),
+      effectiveTo: opt(isoDate()),
+      thresholdRate2: int(0, 10_000),
+    });
+    return this.rules.create(b, me.id);
+  }
+
+  @Get('thresholds/resolve')
+  resolve(
+    @Query('productId') productId: string,
+    @Query('customerType') customerType: string,
+    @Query('channelCode') channelCode?: string,
+    @Query('on') on?: string,
+  ) {
+    const b = validate(
+      { productId, customerType, channelCode, on },
+      {
+        productId: str(1, 60),
+        customerType: int(1, 3),
+        channelCode: opt(str(1, 40)),
+        on: opt(isoDate()),
+      },
+    );
+    return this.rules.resolve(b);
+  }
+
+  // --- Danh mục tra cứu và người ký ----------------------------------------
+
+  @Get('lookups/:kind')
+  listLookup(@Param('kind') kind: string) {
+    const b = validate({ kind }, { kind: oneOf(...LOOKUP_KINDS) });
+    return this.lookups.list(b.kind);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('lookups/:kind')
+  @HttpCode(200)
+  upsertLookup(@CurrentUser() me: AuthUser, @Param('kind') kind: string, @Body() body: unknown) {
+    const b = validate({ kind, ...(body as object) }, {
+      kind: oneOf(...LOOKUP_KINDS),
+      code: str(1, 40),
+      name: str(1, 200),
+    });
+    return this.lookups.upsert(b.kind, b.code, b.name, me.id);
+  }
+
+  @Get('signers')
+  listSigners(@Query('activeOn') activeOn?: string) {
+    return this.lookups.listSigners(activeOn);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post('signers')
+  @HttpCode(201)
+  createSigner(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    const b = validate(body, {
+      fullName: str(1, 200),
+      title: str(1, 120),
+      unit: str(1, 200),
+      signScope: str(1, 120),
+      validFrom: isoDate(),
+      validTo: opt(isoDate()),
+    });
+    return this.lookups.createSigner(b, me.id);
+  }
+
+  @Post('signers/select')
+  @HttpCode(200)
+  selectSigner(@Body() body: unknown) {
+    const b = validate(body, { signerId: str(1, 60), scope: str(1, 120), on: opt(isoDate()) });
+    return this.lookups.selectSigner(b.signerId, b.scope, b.on);
+  }
+}

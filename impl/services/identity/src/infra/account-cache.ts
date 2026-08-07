@@ -1,23 +1,13 @@
 /**
- * Cache trạng thái tài khoản trong Redis, TTL 60 giây (AUTH-07).
+ * Bản AccountSource của identity — đọc thẳng CSDL vì identity SỞ HỮU lược đồ idn.
  *
- * Guard chạy trên MỌI request nên không thể mỗi lần lại truy vấn CSDL. Đổi lại
- * là một cửa sổ trễ: vô hiệu hoá tài khoản qua API thì cache bị xoá ngay nên
- * chặn tức thì; đổi thẳng dưới CSDL thì chậm nhất TTL giây sau mới có hiệu lực.
+ * Ghi vào đúng khoá Redis mà @csbh/http-kit dùng, nên chín service kia đọc lại
+ * được cùng một bản ghi và cam kết "chậm nhất 60 giây" đúng trên toàn hệ.
  */
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
+import { accountCacheKey, JWT, REDIS_URL, type AccountSource, type AccountState } from '@csbh/http-kit';
 import { Db } from './db.js';
-import { CONFIG } from './config.js';
-
-export type AccountState = {
-  id: string;
-  role: string;
-  isActive: boolean;
-  mustChangePassword: boolean;
-  /** epoch MILI giây — giây là quá thô, xem ghi chú ở AuthGuard. */
-  passwordChangedAt: number;
-};
 
 type Row = {
   id: string;
@@ -28,15 +18,13 @@ type Row = {
 };
 
 @Injectable()
-export class AccountCache implements OnModuleDestroy {
-  private readonly redis = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
+export class AccountCache implements AccountSource, OnModuleDestroy {
+  private readonly redis = new Redis(REDIS_URL);
 
   constructor(private readonly db: Db) {}
 
-  private key = (userId: string) => `idn:acct:${userId}`;
-
   async get(userId: string): Promise<AccountState | undefined> {
-    const hit = await this.redis.get(this.key(userId));
+    const hit = await this.redis.get(accountCacheKey(userId));
     if (hit) return JSON.parse(hit) as AccountState;
 
     const row = await this.db.one<Row>(
@@ -53,13 +41,13 @@ export class AccountCache implements OnModuleDestroy {
       mustChangePassword: row.must_change_password,
       passwordChangedAt: row.password_changed_at.getTime(),
     };
-    await this.redis.set(this.key(userId), JSON.stringify(state), 'EX', CONFIG.accountCacheTtlSec);
+    await this.redis.set(accountCacheKey(userId), JSON.stringify(state), 'EX', JWT.accountCacheTtlSec);
     return state;
   }
 
   /** Gọi ngay sau mọi thay đổi đi qua API, để không phải chờ hết TTL. */
   async invalidate(userId: string): Promise<void> {
-    await this.redis.del(this.key(userId));
+    await this.redis.del(accountCacheKey(userId));
   }
 
   async onModuleDestroy(): Promise<void> {

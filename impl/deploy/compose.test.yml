@@ -34,6 +34,9 @@ services:
       - nm_domain_policy:/app/packages/domain-policy/node_modules
       - nm_identity_core:/app/packages/identity-core/node_modules
       - nm_contracts:/app/packages/contracts/node_modules
+      - nm_http_kit:/app/packages/http-kit/node_modules
+      - nm_catalog:/app/services/catalog/node_modules
+      - nm_customer:/app/services/customer/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -44,3 +47,6 @@ volumes:
   nm_domain_policy: {}
   nm_identity_core: {}
   nm_contracts: {}
+  nm_http_kit: {}
+  nm_catalog: {}
+  nm_customer: {}

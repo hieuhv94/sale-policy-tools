@@ -106,3 +106,43 @@ export function activationTokenFrom(mailText: string): string {
   if (!m?.[1]) throw new Error('không tìm thấy liên kết kích hoạt trong thư');
   return decodeURIComponent(m[1]);
 }
+
+// --- Dựng nhiều service nói chuyện với nhau ----------------------------------
+
+/**
+ * Dựng identity và cho nó NGHE THẬT trên một cổng ngẫu nhiên, rồi trỏ biến môi
+ * trường `IDENTITY_URL` vào đó.
+ *
+ * Service khác hỏi trạng thái tài khoản bằng HTTP thật chứ không phải bằng bản
+ * giả, nên đường token dịch vụ giữa hai service được chạy qua trong mọi test —
+ * đúng thứ AUTH-21 nói tới.
+ */
+export async function bootIdentityListening(): Promise<{
+  app: INestApplication;
+  url: string;
+  restore: () => void;
+}> {
+  const app = await boot();
+  await app.listen(0, '127.0.0.1');
+  const addr = (app.getHttpServer() as { address(): { port: number } }).address();
+  const url = `http://127.0.0.1:${addr.port}`;
+  const previous = process.env.IDENTITY_URL;
+  process.env.IDENTITY_URL = url;
+  return {
+    app,
+    url,
+    restore: () => {
+      if (previous === undefined) delete process.env.IDENTITY_URL;
+      else process.env.IDENTITY_URL = previous;
+    },
+  };
+}
+
+/** Xoá cache trạng thái tài khoản để service khác phải hỏi lại identity. */
+export async function clearAccountCache(): Promise<void> {
+  const { default: Redis } = await import('ioredis');
+  const r = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
+  const keys = await r.keys('idn:acct:*');
+  if (keys.length > 0) await r.del(...keys);
+  await r.quit();
+}

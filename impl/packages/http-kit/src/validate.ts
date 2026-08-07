@@ -38,6 +38,31 @@ export const email = (): Check<string> => ({
   },
 });
 
+export const int = (min: number, max: number): Check<number> => ({
+  parse: (v, field) => {
+    const n = typeof v === 'number' ? v : Number(String(v ?? '').trim());
+    if (!Number.isInteger(n)) throw bad(field, 'phải là số nguyên');
+    if (n < min || n > max) throw bad(field, `phải nằm trong khoảng ${min}..${max}`);
+    return n;
+  },
+});
+
+/**
+ * Tiền: số nguyên Việt Nam đồng, trả về `bigint`.
+ *
+ * Không dùng `number`: quá 2^53 là mất chữ số trong im lặng, và tiền là chỗ
+ * không được phép sai một đồng nào (muc 7 YCNV).
+ */
+export const money = (): Check<bigint> => ({
+  parse: (v, field) => {
+    const t = typeof v === 'bigint' ? v.toString() : String(v ?? '').trim();
+    if (!/^-?\d+$/.test(t)) throw bad(field, 'phải là số nguyên đồng, không có phần thập phân');
+    const n = BigInt(t);
+    if (n <= 0n) throw bad(field, 'phải lớn hơn 0');
+    return n;
+  },
+});
+
 export const oneOf = <T extends string>(...vals: readonly T[]): Check<T> => ({
   parse: (v, field) => {
     if (typeof v !== 'string' || !vals.includes(v as T)) {

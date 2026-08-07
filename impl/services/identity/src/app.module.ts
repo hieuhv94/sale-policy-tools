@@ -4,13 +4,12 @@ import { Db } from './infra/db.js';
 import { Mailer } from './infra/mailer.js';
 import { AccountCache } from './infra/account-cache.js';
 import { CONFIG } from './infra/config.js';
-import { AuthGuard } from './auth/auth.guard.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
 import { UsersService } from './admin/users.service.js';
 import { UsersController } from './admin/users.controller.js';
 import { InternalController } from './internal/internal.controller.js';
-import { Public } from './auth/decorators.js';
+import { ACCOUNT_SOURCE, AuthGuard, Public } from '@csbh/http-kit';
 
 @Controller()
 class HealthController {
@@ -39,6 +38,8 @@ class HealthController {
     // Guard đăng ký ở phạm vi TOÀN CỤC: mặc định là chặn, mở ra phải khai báo
     // @Public() ngay tại route. Ngược lại — mặc định mở, nhớ thì mới chặn — là
     // cách quên một route rồi hở cả hệ thống.
+    // identity đọc trạng thái tài khoản thẳng từ CSDL vì nó sở hữu lược đồ idn.
+    { provide: ACCOUNT_SOURCE, useExisting: AccountCache },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
 })

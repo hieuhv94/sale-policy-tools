@@ -1,15 +1,16 @@
 /**
- * Guard xác thực dùng chung. Bốn lớp kiểm, theo đúng thứ tự này:
+ * Guard xác thực dùng chung cho mọi service. Bốn lớp kiểm, theo đúng thứ tự này:
  *
  *   1. chữ ký + hạn + issuer + audience của token
- *   2. tài khoản còn hoạt động không (qua cache TTL 60 giây)
+ *   2. tài khoản còn hoạt động không (qua AccountSource, TTL 60 giây)
  *   3. token có cũ hơn lần đổi mật khẩu gần nhất không
  *   4. tài khoản có đang bị bắt buộc đổi mật khẩu không
  *
- * Kiểm vai trò nằm ở guard riêng vì nó là câu hỏi khác: "đúng người" và "đủ
- * quyền" hỏng theo hai cách khác nhau và trả về hai mã lỗi khác nhau.
+ * Kiểm vai trò nằm ở cuối vì nó là câu hỏi khác: "đúng người" và "đủ quyền"
+ * hỏng theo hai cách khác nhau và trả về hai mã lỗi khác nhau.
  */
 import {
+  Inject,
   Injectable,
   type CanActivate,
   ForbiddenException,
@@ -18,9 +19,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TokenExpiredError, verifyJwt, type JwtPayload } from '@csbh/identity-core';
-import { getKeyPair } from '../infra/keys.js';
-import { CONFIG } from '../infra/config.js';
-import { AccountCache } from '../infra/account-cache.js';
+import { getKeyPair } from './keys.js';
+import { JWT } from './jwt-config.js';
+import { ACCOUNT_SOURCE, type AccountSource } from './account-source.js';
 import { PUBLIC, PWD_RESET_OK, ROLES, SERVICE_ONLY, type AuthUser } from './decorators.js';
 
 type Req = { headers: Record<string, string | string[] | undefined>; user?: AuthUser };
@@ -35,7 +36,7 @@ const bearer = (req: Req): string | undefined => {
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly accounts: AccountCache,
+    @Inject(ACCOUNT_SOURCE) private readonly accounts: AccountSource,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -50,7 +51,7 @@ export class AuthGuard implements CanActivate {
     const token = bearer(req);
     if (!token) throw new UnauthorizedException({ code: 'TOKEN_MISSING' });
 
-    const payload = this.verify(token, CONFIG.audUser);
+    const payload = this.verify(token, JWT.audUser);
 
     const state = await this.accounts.get(String(payload.sub));
     // Tài khoản bị xoá hoặc bị vô hiệu hoá trong lúc token còn hạn (AUTH-07).
@@ -60,8 +61,7 @@ export class AuthGuard implements CanActivate {
     //
     // Mốc này tính bằng MILI GIÂY. Để ở giây thì đăng nhập rồi đổi mật khẩu
     // trong cùng một giây sẽ cho hai giá trị bằng nhau, phép so `<` không thành,
-    // và token của phiên cũ sống sót — test ONB-13 chỉ đỏ khi hai thao tác rơi
-    // đúng vào cùng một giây, nên lỗi này lúc xanh lúc đỏ.
+    // và token của phiên cũ sống sót — lỗi lúc xanh lúc đỏ, rất khó truy.
     const issuedFor = Number(payload['pat'] ?? 0);
     if (issuedFor < state.passwordChangedAt) {
       throw new UnauthorizedException({ code: 'TOKEN_STALE' });
@@ -95,13 +95,13 @@ export class AuthGuard implements CanActivate {
     const raw = Array.isArray(h) ? h[0] : h;
     // Cùng mạng nội bộ không phải là căn cứ để tin nhau (AUTH-21).
     if (!raw) throw new UnauthorizedException({ code: 'SERVICE_TOKEN_MISSING' });
-    this.verify(raw, CONFIG.audInternal);
+    this.verify(raw, JWT.audInternal);
     return true;
   }
 
   private verify(token: string, audience: string): JwtPayload {
     try {
-      return verifyJwt(token, getKeyPair().publicKey, { issuer: CONFIG.issuer, audience });
+      return verifyJwt(token, getKeyPair().publicKey, { issuer: JWT.issuer, audience });
     } catch (e) {
       if (e instanceof TokenExpiredError) {
         throw new UnauthorizedException({ code: 'TOKEN_EXPIRED' });

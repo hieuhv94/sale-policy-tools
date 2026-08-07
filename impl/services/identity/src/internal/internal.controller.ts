@@ -5,14 +5,30 @@
  * Cùng nằm trong mạng `internal` không phải là căn cứ để tin nhau: mọi request
  * ở đây bắt buộc có token dịch vụ đúng audience (AUTH-21).
  */
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
 import { Db } from '../infra/db.js';
-import { ServiceOnly } from '../auth/decorators.js';
+import { AccountCache } from '../infra/account-cache.js';
+import { ServiceOnly } from '@csbh/http-kit';
 
 @ServiceOnly()
 @Controller('internal')
 export class InternalController {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly accounts: AccountCache,
+  ) {}
+
+  /**
+   * Trạng thái tài khoản cho service khác. Chúng không có quyền trên schema idn
+   * nên không tự đọc được; đi qua đây thì bản ghi vào đúng khoá Redis dùng chung,
+   * và lần sau chúng đọc thẳng cache không phải hỏi lại (AUTH-07).
+   */
+  @Get('account/:userId')
+  async account(@Param('userId') userId: string) {
+    const state = await this.accounts.get(userId);
+    if (!state) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+    return state;
+  }
 
   @Get('scope/:userId')
   async scope(@Param('userId') userId: string) {

@@ -1,17 +1,17 @@
-/** Toàn bộ hằng số cấu hình của identity, gom một chỗ để test đọc được đúng giá trị đang chạy. */
+/**
+ * Cấu hình riêng của identity. Phần dùng chung với service khác (issuer,
+ * audience, hạn token, TTL cache) nằm ở `JWT` trong @csbh/http-kit — khai lại ở
+ * đây là cách chắc chắn nhất để hai service không xác minh được token của nhau.
+ */
+import { JWT } from '@csbh/http-kit';
+
 export const CONFIG = {
-  issuer: 'csbh-identity',
-
-  /** Audience tách đôi: token của người dùng KHÔNG gọi được API nội bộ và ngược lại (AUTH-21). */
-  audUser: 'csbh-app',
-  audInternal: 'csbh-internal',
-
-  accessTtlSec: 15 * 60,
-  refreshTtlSec: 8 * 60 * 60,
-
-  /** Cache trạng thái tài khoản. Vô hiệu hoá tài khoản có xoá cache ngay, nên
-   *  60 giây là ĐỘ TRỄ TỐI ĐA cho thay đổi đi vòng ngoài API (AUTH-07). */
-  accountCacheTtlSec: Number(process.env.ACCOUNT_CACHE_TTL_SEC ?? 60),
+  issuer: JWT.issuer,
+  audUser: JWT.audUser,
+  audInternal: JWT.audInternal,
+  accessTtlSec: JWT.accessTtlSec,
+  refreshTtlSec: JWT.refreshTtlSec,
+  accountCacheTtlSec: JWT.accountCacheTtlSec,
 
   maxFailedAttempts: 5,
   lockMinutes: 15,

@@ -1,7 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
-import { CurrentUser, Public, PwdResetOk, type AuthUser } from './decorators.js';
-import { secret, str, validate } from '../infra/validate.js';
+import { CurrentUser, Public, PwdResetOk, secret, str, validate, type AuthUser } from '@csbh/http-kit';
 
 @Controller('auth')
 export class AuthController {

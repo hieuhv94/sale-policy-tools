@@ -7,7 +7,7 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { signJwt } from '@csbh/identity-core';
 import { AppModule } from './app.module.js';
-import { getKeyPair } from './infra/keys.js';
+import { getKeyPair } from '@csbh/http-kit';
 import { CONFIG } from './infra/config.js';
 
 export async function createTestApp(): Promise<INestApplication> {

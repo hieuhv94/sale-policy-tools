@@ -14,7 +14,7 @@ import {
 } from '@csbh/identity-core';
 import { Db } from '../infra/db.js';
 import { CONFIG } from '../infra/config.js';
-import { getKeyPair } from '../infra/keys.js';
+import { getKeyPair } from '@csbh/http-kit';
 import { AccountCache } from '../infra/account-cache.js';
 import { randomBytes } from 'node:crypto';
 
