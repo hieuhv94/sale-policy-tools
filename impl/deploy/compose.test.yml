@@ -8,6 +8,8 @@ services:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
       mailpit:  { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      minio:    { condition: service_healthy }
       migrate:  { condition: service_completed_successfully }
     environment:
       PGHOST: postgres
@@ -20,6 +22,13 @@ services:
       MAILPIT_URL: http://mailpit:8025
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      # Test tự gọi pumpOnce() ở đúng chỗ cần. Bơm nền theo đồng hồ làm mỗi
+      # khẳng định phụ thuộc vào việc bộ đếm 1 giây có kịp nổ hay chưa.
+      OUTBOX_AUTO_PUMP: "0"
+      MAIL_RETRY_BACKOFF_MS: "5,5,5"
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
     volumes:
       - ..:/app
@@ -41,6 +50,8 @@ services:
       - nm_catalog:/app/services/catalog/node_modules
       - nm_customer:/app/services/customer/node_modules
       - nm_policy:/app/services/policy/node_modules
+      - nm_bus:/app/packages/bus/node_modules
+      - nm_notification:/app/services/notification/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -58,3 +69,5 @@ volumes:
   nm_catalog: {}
   nm_customer: {}
   nm_policy: {}
+  nm_bus: {}
+  nm_notification: {}

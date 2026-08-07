@@ -4,10 +4,10 @@
  * Bốn service chạy thật cùng lúc: identity, catalog, customer nghe trên cổng
  * ngẫu nhiên, policy gọi cả ba bằng HTTP với token dịch vụ.
  *
- * CHƯA PHỦ ở chặng này: phần EMAIL của WF-01/04/28 (số thư trong Mailpit) và
- * phần FILE của WF-13/18/21 (object trên MinIO). Ở đây khẳng định tới lớp mà
- * `policy` thật sự chịu trách nhiệm — sự kiện outbox và con trỏ file — còn việc
- * gửi thư và xoá object thuộc `notification` và `document`, chặng P6.
+ * PHÂN CÔNG với các file test khác: ở đây khẳng định tới lớp mà `policy` thật
+ * sự chịu trách nhiệm — sự kiện outbox và con trỏ file. Phần EMAIL của
+ * WF-01/04/28 (số thư trong Mailpit) nằm ở `notification.test.ts`; phần FILE
+ * của WF-13/18/21 (object trên MinIO) thuộc `document`, chặng P6b.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';

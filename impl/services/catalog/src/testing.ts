@@ -9,3 +9,5 @@ export async function createTestApp(): Promise<INestApplication> {
   await app.init();
   return app;
 }
+
+export { CatalogOutbox } from './infra/outbox.relay.js';

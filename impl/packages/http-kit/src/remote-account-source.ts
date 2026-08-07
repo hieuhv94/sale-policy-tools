@@ -40,6 +40,9 @@ export class RemoteAccountSource implements AccountSource, OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
-    await this.redis.quit();
+    // Tắt máy KHÔNG được ném lỗi. Kết nối đã rớt sẵn thì `quit()` báo
+    // "Connection is closed" và Nest biến nó thành lỗi khi đóng ứng dụng — che
+    // mất nguyên nhân thật của lần tắt đó.
+    await this.redis.quit().catch(() => undefined);
   }
 }

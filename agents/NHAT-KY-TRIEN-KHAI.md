@@ -29,7 +29,9 @@ sẽ không tự suy ra được.
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | **xong** — 256/256 xanh |
 | **P5.5** | Yêu cầu phi chức năng: sao lưu, phân trang, chống phình CSDL | **xong** — nhóm test `OPS` mới |
 | **P5.6** | Vòng hai phi chức năng: PITR thật, múi giờ, bí mật, tắt máy êm | **xong** — 285/285 xanh |
-| **P6** | `document`, `notification`, `sla-worker` | chưa |
+| **P6a** | `notification` + đường truyền outbox → RabbitMQ | **xong** — 305/305 xanh |
+| **P6b** | `document`: file, ký số, hợp đồng | chưa |
+| **P6c** | `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
@@ -730,3 +732,115 @@ cam kết RPO/RTO. Xử lý cùng P7 khi dựng gateway và Caddy.
 ### Commit
 
 `P5.6: PITR that, mui gio ICT, bi mat tu file, tat may em`
+
+---
+
+## P6a — `notification` và đường truyền sự kiện
+
+Chặng đầu tiên có **hai service nói chuyện với nhau qua hàng đợi** chứ không qua HTTP. Mẫu outbox
+đã có nửa đầu từ P4 (ghi nghiệp vụ và ghi sự kiện cùng một transaction); ở đây mới có nửa sau.
+**305/305 xanh**, ba lần liên tiếp.
+
+### Đã dựng
+
+```
+packages/bus/                 topology, Bus (amqplib), OutboxRelay
+services/notification/        consumer, mẫu thư, chống trùng, DLQ, hai chốt an toàn
+db/migrations/0010            ntf.sent_mail · ntf.dead_letter · ntf.reminder · idn.notify_targets()
+services/policy/consumers/    price-changed → policy.price_impact
+services/{policy,catalog}/infra/outbox.relay.ts
+```
+
+### Bảo đảm thật sự đạt được là "ít nhất một lần", không phải "đúng một lần"
+
+Giữa `bus.publish` và `UPDATE published_at` luôn có một khe: tiến trình chết đúng lúc đó thì lần bơm
+sau phát lại sự kiện đã phát. **Không cố bịt khe đó** — bịt được ở một chỗ thì lại hở ở chỗ khác.
+Chốt chống trùng đặt ở bên NHẬN, bằng ràng buộc `UNIQUE (event_id)` trong CSDL.
+
+Chỗ đó quan trọng hơn vẻ ngoài: kiểm bằng `SELECT` rồi `INSERT` thì hai bản notification chạy song
+song đều thấy "chưa có" và **cả hai đều gửi**. Test `NTF-06` chạy đúng hai lời gọi song song để
+chứng minh ràng buộc CSDL chặn được, còn phép kiểm ở tầng ứng dụng thì không.
+
+### Đánh đổi phải chọn: mất thư hay gửi trùng
+
+Ghi trước rồi gửi thì **mất thư** nếu chết giữa hai bước; gửi trước rồi ghi thì **gửi trùng**. Chọn
+vế thứ nhất, và lý do nằm ở phía người dùng chứ không ở phía kỹ thuật:
+
+- Gửi trùng là thứ họ **thấy** và không sửa được — bốn thư giống hệt nhau làm họ mất tin vào mọi
+  thông báo sau đó.
+- Mất một thư thì hồ sơ vẫn nằm trong danh sách "chờ tôi xử lý" ở trang chủ (`NTF-07`), tức là vẫn
+  còn một đường thấy việc.
+
+Gửi hỏng thì chỗ đã giữ được **trả lại** rồi mới ghi DLQ. Thiếu bước trả lại thì sự kiện vĩnh viễn bị
+coi là đã gửi và mọi lần gửi lại đều bị chặn vì trùng `event_id` — `NTF-05` kiểm đúng chỗ này.
+
+### Ba lỗi không bản giả nào phát hiện được
+
+**1. Queue phải khai báo TRƯỚC sự kiện đầu tiên.** RabbitMQ vứt bỏ **trong im lặng** thư gửi vào
+exchange chưa ai bind — không lỗi, không cảnh báo, không log. Nếu để consumer tự khai báo lúc khởi
+động thì mọi sự kiện phát trong lúc notification chưa từng chạy sẽ mất hẳn. Cả bên phát lẫn bên nhận
+đều gọi `declareConsumer` lúc khởi động; nhờ vậy `INT-06` (tắt notification rồi duyệt hồ sơ) mới
+đúng: thư nằm chờ trong queue bền và được giao bù khi service trở lại.
+
+**2. `publish` của amqplib không báo lỗi khi broker từ chối.** Nó trả về ngay sau khi ghi vào socket.
+Đã đổi sang **kênh có xác nhận** (`createConfirmChannel` + `waitForConfirms`), nếu không thì "đã phát
+sự kiện" chỉ có nghĩa là "đã ghi vào socket".
+
+**3. `prefetch(1)`.** Thứ tự các bước duyệt của một hồ sơ phải giữ nguyên. Với prefetch lớn thì hai
+thư của cùng hồ sơ chạy song song và thư "chuyển sang chờ kế toán" có thể tới trước thư "Trưởng bộ
+phận đã ký".
+
+### Sự kiện phải TỰ NÓ đủ nghĩa
+
+`notification` không đọc được schema `cus`, nên mã và tên khách hàng được nhét thẳng vào sự kiện lúc
+phát. Cách còn lại — để notification gọi ngược sang customer lúc gửi thư — làm hỏng chính thứ mẫu
+outbox sinh ra để tránh: sự kiện chỉ gửi được khi customer đang sống. Thêm một lợi ích không nhắm
+tới: đọc lại sự kiện ba tháng sau, khi khách hàng đã đổi tên, vẫn thấy đúng tên **tại thời điểm gửi thư**.
+
+Giá phải trả: một lời gọi nội bộ cho mỗi lần chuyển bước.
+
+### Gộp luồng thư làm bằng header, không bằng tiêu đề
+
+Mọi thư của một khách hàng trỏ `References` về **một gốc chung** sinh từ mã khách hàng, nên chúng nối
+thành chuỗi dù gửi cách nhau nhiều tuần và không thư nào là trả lời thư nào. `NTF-04` kiểm cả hai
+chiều: cùng `References`, nhưng **sáu `Message-ID` khác nhau** — gộp luồng không được biến sáu thư
+thành một.
+
+### Lệch so với thiết kế: sáu thư, không phải mười hai
+
+Bản thiết kế ghi luồng 10 bước sinh "12 email". Số đúng là **6**: một bước gửi một thư cho nhiều
+người nhận, không phải mỗi người một thư. Đó cũng là điều kiện để chúng gộp được vào một luồng. Con
+số 12 đếm theo lượt người nhận (thực ra là 14). `NTF-01` khẳng định 6 thư kèm **đúng tập địa chỉ của
+từng thư**, chặt hơn một phép đếm.
+
+### Hai chốt an toàn email, kiểm lúc KHỞI ĐỘNG
+
+Production trỏ vào Mailpit, hoặc môi trường test trỏ vào SMTP thật mà chưa đặt `MAIL_REDIRECT_ALL` —
+cả hai đều làm service **không khởi động nổi**. Kiểm lúc gửi thì một service chạy êm mà gửi nhầm địa
+chỉ, tới lúc có người phàn nàn mới biết.
+
+Chi tiết đáng giữ: tên máy chủ **chưa từng gặp bị coi là relay THẬT**. Mặc định ngược lại — an toàn
+trừ khi nhận ra là thật — nghĩa là mọi tên lạ đều lọt qua và chốt an toàn không chặn được gì.
+
+### Ba lỗi gỡ trong lúc làm
+
+**Lập sản phẩm cũng ghi một sự kiện đổi giá.** `NTF-13` bơm outbox rồi lấy thư đầu tiên, và thư đó là
+của lần **đặt giá đầu tiên** (100.000) chứ không phải lần đổi giá đang thử (120.000). Lỗi của test,
+nhưng nó chỉ ra một điều thật về hệ thống: outbox tích luỹ, nên "bơm rồi lấy thư đầu tiên" không bao
+giờ là phép kiểm đúng.
+
+**`nack` trên kênh đã đóng thành unhandled rejection.** Service đang tắt thì kênh đóng trước khi
+handler chạy xong. Thư chưa ack nên RabbitMQ giao lại cho bản sau — đúng hành vi mong muốn, nhưng
+ném ra ngoài thì Node giết tiến trình.
+
+**`redis.quit()` lúc tắt máy ném "Connection is closed".** Nest biến nó thành lỗi khi đóng ứng dụng
+và **che mất nguyên nhân thật** của lần tắt đó. Tắt máy không được phép ném lỗi.
+
+### Còn nợ của chặng này
+
+`notification` và `bus` chưa có mặt trong `deploy/compose.yml` — cũng như identity, catalog, customer
+và policy, vì chưa chặng nào dựng container cho service ứng dụng. Làm một lượt ở P7 cùng gateway.
+
+### Commit
+
+`P6a: notification + duong truyen outbox -> RabbitMQ`

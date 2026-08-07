@@ -7,6 +7,7 @@ import { RulesService } from './rules/rules.service.js';
 import { LookupsService } from './lookups/lookups.service.js';
 import { CatalogController } from './catalog.controller.js';
 import { CatalogInternalController } from './internal.controller.js';
+import { CatalogOutbox } from './infra/outbox.relay.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -41,6 +42,7 @@ class HealthController {
     ProductsService,
     RulesService,
     LookupsService,
+    CatalogOutbox,
     // catalog KHÔNG có quyền trên schema idn nên phải hỏi identity qua API nội
     // bộ; kết quả nằm ở đúng khoá Redis mà identity dùng, nên vô hiệu hoá tài
     // khoản vẫn có hiệu lực ở đây trong vòng 60 giây (AUTH-07).

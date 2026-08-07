@@ -17,11 +17,13 @@
     "@nestjs/platform-express": "10.4.6",
     "@nestjs/testing": "10.4.6",
     "@swc/core": "1.7.35",
+    "@types/amqplib": "0.10.5",
     "@types/multer": "1.4.12",
     "@types/node": "22.7.5",
     "@types/nodemailer": "6.4.16",
     "@types/pg": "8.11.10",
     "@types/supertest": "6.0.2",
+    "amqplib": "0.10.4",
     "exceljs": "4.4.0",
     "ioredis": "5.4.1",
     "nodemailer": "6.9.15",
@@ -35,12 +37,14 @@
     "vitest": "2.1.3"
   },
   "dependencies": {
+    "@csbh/bus": "workspace:*",
     "@csbh/catalog": "workspace:*",
     "@csbh/customer": "workspace:*",
     "@csbh/domain-policy": "workspace:*",
     "@csbh/http-kit": "workspace:*",
     "@csbh/identity": "workspace:*",
     "@csbh/identity-core": "workspace:*",
+    "@csbh/notification": "workspace:*",
     "@csbh/policy": "workspace:*"
   }
 }

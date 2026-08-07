@@ -9,3 +9,6 @@ export async function createTestApp(): Promise<INestApplication> {
   await app.init();
   return app;
 }
+
+export { PolicyOutbox } from './infra/outbox.relay.js';
+export { PriceChangedConsumer } from './consumers/price-changed.consumer.js';

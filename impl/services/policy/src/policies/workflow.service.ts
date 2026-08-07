@@ -26,6 +26,7 @@ import {
 } from '@csbh/domain-policy';
 import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
+import { Clients } from '../infra/clients.js';
 import { PoliciesService } from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
@@ -51,6 +52,7 @@ export class WorkflowService {
   constructor(
     private readonly db: Db,
     private readonly policies: PoliciesService,
+    private readonly clients: Clients,
   ) {}
 
   async act(
@@ -61,6 +63,7 @@ export class WorkflowService {
   ) {
     const before = await this.db.one<{
       id: string;
+      code: string;
       status: Status;
       row_version: number;
       tdv_user_id: string | null;
@@ -121,6 +124,22 @@ export class WorkflowService {
         });
       }
     }
+
+    // Mã và tên khách hàng lấy TRƯỚC transaction và nhét thẳng vào sự kiện.
+    //
+    // notification không đọc được schema cus, và bắt nó gọi ngược lại customer
+    // lúc gửi thư thì một sự kiện chỉ gửi được khi customer đang sống — đúng thứ
+    // mẫu outbox sinh ra để tránh. Sự kiện phải TỰ NÓ đủ nghĩa: đọc nó ba tháng
+    // sau, khi khách hàng đã đổi tên, vẫn thấy đúng tên tại thời điểm gửi thư.
+    const cus = await this.clients.customer(before.customer_id);
+    const ctx = {
+      policyId,
+      policyCode: before.code,
+      customerId: before.customer_id,
+      customerCode: cus.code,
+      customerName: cus.name,
+      tdvUserId: before.tdv_user_id,
+    };
 
     return this.db.tx(async (c) => {
       // THỨ TỰ Ở ĐÂY LÀ BẮT BUỘC: vô hiệu bản cũ TRƯỚC, kích hoạt bản mới SAU.
@@ -215,7 +234,7 @@ export class WorkflowService {
         );
         for (const r of removed.rows) {
           await emit(c, 'policy.scan_discarded', {
-            policyId,
+            ...ctx,
             attachmentId: r.id,
             fileName: r.file_name,
             objectKey: r.object_key,
@@ -241,8 +260,7 @@ export class WorkflowService {
       const to = RECIPIENTS[action];
       if (to) {
         await emit(c, `policy.${action.toLowerCase()}`, {
-          policyId,
-          customerId: before.customer_id,
+          ...ctx,
           fromStatus: before.status,
           toStatus: step.next,
           action,
@@ -274,9 +292,9 @@ export class WorkflowService {
           undefined,
         );
         await emit(c, 'policy.publish_signed', {
-          policyId,
-          customerId: before.customer_id,
+          ...ctx,
           toStatus: 'CHO_KT_L1',
+          action: 'PUBLISH_SIGNED',
           recipients: ['KE_TOAN'],
           actorId: null,
           at: new Date().toISOString(),
