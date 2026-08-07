@@ -1,0 +1,166 @@
+/**
+ * Máy trạng thái hồ sơ CSBH — YCNV §3 và §4.
+ *
+ * Toàn bộ luật chuyển bước nằm ở MỘT bảng dưới đây, không rải if/else khắp
+ * controller. Mọi hành động không có trong bảng đều bị từ chối kèm danh sách
+ * hành động được phép, đúng yêu cầu của WF-23.
+ */
+
+export const STATUSES = [
+  'NHAP', 'CHO_TBP_DUYET', 'TBP_DA_KY_SO', 'CHO_KT_L1', 'SA_DANG_XU_LY',
+  'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
+  'TU_CHOI', 'QUA_HAN_DUYET',
+] as const;
+export type Status = (typeof STATUSES)[number];
+
+export const ACTIONS = [
+  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT', 'PUBLISH_SIGNED',
+  'KT_RECEIVE_L1', 'KT_RETURN_L1', 'SA_HANDOVER', 'KT_RECEIVE_L2',
+  'KT_RETURN_L2', 'KT_REQUEST_REPRINT', 'RESUBMIT_AFTER_EDIT', 'SUPERSEDE',
+] as const;
+export type Action = (typeof ACTIONS)[number];
+
+export type Role = 'TDV' | 'TBP' | 'KE_TOAN' | 'SALE_ADMIN' | 'BAN_LANH_DAO' | 'QUAN_TRI' | 'SYSTEM';
+
+export interface Rule {
+  from: Status;
+  to: Status;
+  /** Ai được phép. Ban lãnh đạo và Quản trị không xuất hiện ở bất kỳ luật nào. */
+  by: Role;
+  /** Cột mốc thời gian phải ghi trên hồ sơ (§10 — mốc là cột riêng). */
+  stamp?: string;
+  /** Trả lại thì bắt buộc nhập lý do (§3). */
+  requiresReason?: boolean;
+  /** Mọi lần trả lại đều tạo phiên bản mới và đi lại toàn bộ vòng duyệt (§3). */
+  createsNewVersion?: boolean;
+}
+
+const RULES: readonly Rule[] = [
+  { from: 'NHAP',             to: 'CHO_TBP_DUYET',    by: 'TDV',        stamp: 'submitted' },
+  { from: 'YEU_CAU_CHINH_SUA', to: 'CHO_TBP_DUYET',   by: 'TDV',        stamp: 'submitted' },
+  { from: 'CHO_TBP_DUYET',    to: 'TBP_DA_KY_SO',     by: 'TBP',        stamp: 'tbp_signed' },
+  { from: 'CHO_TBP_DUYET',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  { from: 'CHO_TBP_DUYET',    to: 'TU_CHOI',          by: 'TBP',        requiresReason: true },
+  { from: 'TBP_DA_KY_SO',     to: 'CHO_KT_L1',        by: 'SYSTEM' },
+  { from: 'CHO_KT_L1',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    stamp: 'kt_l1_received' },
+  { from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  { from: 'SA_DANG_XU_LY',    to: 'CHO_KT_L2',        by: 'SALE_ADMIN', stamp: 'sa_handover' },
+  { from: 'CHO_KT_L2',        to: 'DANG_CO_HIEU_LUC', by: 'KE_TOAN',    stamp: 'kt_l2_received' },
+  { from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  // Ngoại lệ duy nhất: quay về Sale Admin mà KHÔNG phải ký lại (§3 B10C).
+  { from: 'CHO_KT_L2',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    requiresReason: true },
+  { from: 'DANG_CO_HIEU_LUC', to: 'HET_HIEU_LUC',     by: 'SYSTEM' },
+];
+
+const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
+  SUBMIT:              { from: ['NHAP'],              to: 'CHO_TBP_DUYET' },
+  RESUBMIT_AFTER_EDIT: { from: ['YEU_CAU_CHINH_SUA'], to: 'CHO_TBP_DUYET' },
+  TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'TBP_DA_KY_SO' },
+  TBP_RETURN:          { from: ['CHO_TBP_DUYET'],     to: 'YEU_CAU_CHINH_SUA' },
+  TBP_REJECT:          { from: ['CHO_TBP_DUYET'],     to: 'TU_CHOI' },
+  PUBLISH_SIGNED:      { from: ['TBP_DA_KY_SO'],      to: 'CHO_KT_L1' },
+  KT_RECEIVE_L1:       { from: ['CHO_KT_L1'],         to: 'SA_DANG_XU_LY' },
+  KT_RETURN_L1:        { from: ['CHO_KT_L1'],         to: 'YEU_CAU_CHINH_SUA' },
+  SA_HANDOVER:         { from: ['SA_DANG_XU_LY'],     to: 'CHO_KT_L2' },
+  KT_RECEIVE_L2:       { from: ['CHO_KT_L2'],         to: 'DANG_CO_HIEU_LUC' },
+  KT_RETURN_L2:        { from: ['CHO_KT_L2'],         to: 'YEU_CAU_CHINH_SUA' },
+  KT_REQUEST_REPRINT:  { from: ['CHO_KT_L2'],         to: 'SA_DANG_XU_LY' },
+  SUPERSEDE:           { from: ['DANG_CO_HIEU_LUC'],  to: 'HET_HIEU_LUC' },
+};
+
+/** Trạng thái kết thúc: không có hành động nào đi ra được. */
+export const TERMINAL: readonly Status[] = ['TU_CHOI'];
+
+/** Bốn trạng thái chờ có SLA 14 ngày (§9.1). */
+export const WAITING: readonly Status[] = [
+  'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2',
+];
+
+export class InvalidTransitionError extends Error {
+  readonly code = 'INVALID_TRANSITION';
+  constructor(readonly current: Status, readonly action: Action, readonly allowed: Action[]) {
+    super(
+      `Khong the thuc hien "${action}" khi ho so dang o "${current}". ` +
+        `Hanh dong duoc phep: ${allowed.length ? allowed.join(', ') : 'khong co'}`,
+    );
+    this.name = 'InvalidTransitionError';
+  }
+}
+
+export class ReasonRequiredError extends Error {
+  readonly code = 'REASON_REQUIRED';
+  constructor(action: Action) {
+    super(`Hanh dong "${action}" bat buoc phai nhap ly do`);
+    this.name = 'ReasonRequiredError';
+  }
+}
+
+export class ForbiddenRoleError extends Error {
+  readonly code = 'FORBIDDEN_ROLE';
+  constructor(role: Role, action: Action) {
+    super(`Vai tro "${role}" khong duoc phep thuc hien "${action}"`);
+    this.name = 'ForbiddenRoleError';
+  }
+}
+
+/** Danh sách hành động hợp lệ tại một trạng thái — dùng cho thông báo lỗi và cho UI. */
+export function allowedActions(current: Status): Action[] {
+  return (Object.keys(ACTION_OF) as Action[]).filter((a) =>
+    ACTION_OF[a].from.includes(current),
+  );
+}
+
+export interface TransitionInput {
+  current: Status;
+  action: Action;
+  role: Role;
+  reason?: string | undefined;
+}
+
+export interface TransitionResult {
+  next: Status;
+  stamp: string | undefined;
+  createsNewVersion: boolean;
+  /** Hiệu lực tính NGAY tại thời điểm tiếp nhận L2 (§5.3). */
+  setsEffectiveFrom: boolean;
+}
+
+export function transition(input: TransitionInput): TransitionResult {
+  const { current, action, role, reason } = input;
+
+  const spec = ACTION_OF[action];
+  if (!spec || !spec.from.includes(current)) {
+    throw new InvalidTransitionError(current, action, allowedActions(current));
+  }
+
+  const rule = RULES.find((r) => r.from === current && r.to === spec.to && r.by === role);
+  if (!rule) {
+    // Chuyển bước đúng nhưng sai vai trò.
+    const anyRule = RULES.find((r) => r.from === current && r.to === spec.to);
+    if (anyRule) throw new ForbiddenRoleError(role, action);
+    throw new InvalidTransitionError(current, action, allowedActions(current));
+  }
+
+  if (rule.requiresReason && !reason?.trim()) throw new ReasonRequiredError(action);
+
+  return {
+    next: rule.to,
+    stamp: rule.stamp,
+    createsNewVersion: rule.createsNewVersion === true,
+    setsEffectiveFrom: rule.to === 'DANG_CO_HIEU_LUC',
+  };
+}
+
+/** Quá hạn là LỚP PHỦ lên trạng thái chờ, phải nhớ bước đang chờ để đi tiếp đúng nhánh (§4). */
+export function markOverdue(current: Status): { next: Status; pendingStep: Status } {
+  if (!WAITING.includes(current)) {
+    throw new InvalidTransitionError(current, 'SUBMIT', allowedActions(current));
+  }
+  return { next: 'QUA_HAN_DUYET', pendingStep: current };
+}
+
+/** Người phụ trách xử lý muộn: hồ sơ quay về đúng nhánh cũ chứ không về đầu (§4). */
+export const resumeFromOverdue = (pendingStep: Status): Status => pendingStep;

@@ -13,6 +13,7 @@ sẽ không tự suy ra được.
 | **Thiết kế** | `agents/KIEN-TRUC-CSBH.md` · nghiệp vụ: `agents/YEU-CAU-NGHIEP-VU-CSBH.md` v4.1 |
 | **Nhánh** | `v1.0` — commit sau mỗi chặng test xanh, **không push** |
 | **Quy tắc môi trường** | Mọi thứ chạy trong Docker. Không lệnh nào chạy Node native trên máy |
+| **Bàn giao** | Sau P7 phải có ba tài liệu: chạy test toàn hệ · dựng demo local · user guide (chặng P8) |
 
 ---
 
@@ -21,12 +22,13 @@ sẽ không tự suy ra được.
 | Chặng | Nội dung | Trạng thái |
 |---|---|---|
 | **P1** | Monorepo `impl/`, hạ tầng Docker, migration 9 schema + 9 DB role, bốn bất biến ở tầng CSDL, `VERSION`, khung test | **xong** — 27/27 xanh |
-| **P2** | `domain-policy` thuần: công thức chiết khấu, làm tròn, máy trạng thái | chưa |
+| **P2** | `domain-policy` thuần: công thức chiết khấu, làm tròn, máy trạng thái | **xong** — 71/71 xanh |
 | **P3** | `identity`: JWT, 6 vai trò, cây phân quyền đệ quy, seed 10 tài khoản | chưa |
 | **P4** | `catalog` + `customer` | chưa |
 | **P5** | `policy`: hồ sơ, đóng băng giá, phiên bản, hiệu lực | chưa |
 | **P6** | `document`, `notification`, `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
+| **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
 ---
 
@@ -159,3 +161,74 @@ công khác nhau.
 ### Commit
 
 `P1: nen mong impl/ — 9 schema, 9 DB role, 4 bat bien o tang CSDL`
+
+
+---
+
+## P2 — `domain-policy`: công thức và máy trạng thái
+
+Toàn bộ chặng này là **logic thuần**: không chạm CSDL, không chạm mạng, không đọc giờ hệ thống.
+Nhờ vậy 44 test chạy xong trong chưa tới một giây và không cần hạ tầng nào — đúng chỗ đáng đặt phần
+rủi ro nghiệp vụ cao nhất.
+
+### Quyết định đáng kể nhất: tỷ lệ chiết khấu KHÔNG dùng số thực
+
+YCNV §7 đòi con số hiển thị, con số in ra và con số dùng so ngưỡng phải là **một**. Số thực nhị phân
+không biểu diễn chính xác được 12,35 — sớm muộn sẽ có màn hình hiện 12,35% mà phép so lại thấy
+12,349999.
+
+Cách làm: giữ tỷ lệ dưới dạng **số nguyên đã nhân 100** (kiểu `Rate2`). 12,35% lưu là `1235`. Phép so
+ngưỡng trở thành phép so số nguyên, không bao giờ lệch.
+
+Phép làm tròn xảy ra **đúng một lần**, ngay trong `computeLine`:
+
+```ts
+const scaled = divRoundHalfUp((companyPrice - netPrice) * 10_000n, companyPrice);
+```
+
+Nhân 10.000 trước rồi mới chia, nên không có bước trung gian nào mất chữ số. `divRoundHalfUp` làm
+việc trên `bigint` và làm tròn nửa đi xa khỏi 0 — 12,345 thành 12,35 như tài liệu yêu cầu.
+
+Tiền cũng là `bigint` chứ không phải `number`: YCNV §7 nói tiền luôn là số nguyên đồng, và `bigint`
+biến điều đó thành ràng buộc kiểu chứ không phải quy ước.
+
+### Máy trạng thái nằm gọn trong một bảng
+
+13 luật chuyển bước khai báo trong một mảng `RULES`, không rải `if/else` khắp controller. Mỗi luật
+mang theo bốn thông tin: ai được làm, cột mốc thời gian nào phải ghi, có bắt buộc nhập lý do không,
+có tạo phiên bản mới không.
+
+Nhờ khai báo tập trung, ba tính chất được kiểm bằng cách **duyệt toàn bộ bảng** thay vì viết tay từng
+trường hợp:
+
+- Ban lãnh đạo không có bất kỳ hành động ghi nào — test quét mọi cặp (trạng thái × hành động).
+- Từ chối là trạng thái kết thúc — test quét cả 13 hành động, không hành động nào đi ra được.
+- Luồng tuần tự — không cặp (trạng thái, hành động) nào dẫn tới hai đích khác nhau.
+
+### Chỗ dễ cài sai đã được test khoá lại
+
+**Yêu cầu in lại là ngoại lệ duy nhất không tạo phiên bản mới.** Ba nhánh trả lại khác đều đặt
+`createsNewVersion: true` và bắt buộc lý do; riêng `KT_REQUEST_REPRINT` quay về Sale Admin với
+`createsNewVersion: false` — hồ sơ không phải ký số lại. Nếu ai đó gộp nhánh này chung với ba nhánh
+kia cho "gọn", test `WF-18/19` sẽ đỏ ngay.
+
+**Quá hạn duyệt là lớp phủ, không phải một bước.** `markOverdue` trả về kèm `pendingStep`, và
+`resumeFromOverdue` đưa hồ sơ về đúng nhánh cũ. Chỉ bốn trạng thái chờ mới quá hạn được.
+
+### Kết quả test
+
+**71/71 xanh** (27 của P1 + 44 mới), chạy trong container, 1,7 giây.
+
+| Nhóm | Số case |
+|---|---|
+| `CALC-01/03/05` công thức và bộ số chuẩn của tài liệu | 4 |
+| `CALC-06/07/08` làm tròn rồi mới so ngưỡng, gồm cả trường hợp bằng đúng ngưỡng | 4 |
+| `CALC-09` quét 500 bộ số, khẳng định số hiển thị luôn bằng số đem so | 1 |
+| `CALC-10/11/12/19` giá không hợp lệ, giá thu về âm, tiền nguyên, ổn định qua 1000 lần chạy | 8 |
+| `WF-01…WF-27` đường đi chính, ba nhánh trả lại, từ chối, in lại, chuyển bước sai | 22 |
+| `AUTH-13/14` Ban lãnh đạo và Quản trị không có hành động ghi | 3 |
+| `NTF-10/11` quá hạn và quay lại đúng nhánh | 2 |
+
+### Commit
+
+`P2: domain-policy — cong thuc chiet khau va may trang thai`
