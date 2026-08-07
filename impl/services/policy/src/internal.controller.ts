@@ -18,10 +18,15 @@ export class PolicyInternalController {
   @Get(':id')
   async byId(@Param('id') id: string) {
     const p = await this.db.one<Record<string, unknown>>(
+      // Nhóm cột thứ hai (từ `pending_step` trở đi) thêm ở P7b cho read-model
+      // báo cáo: nó dựng lại toàn bộ dòng từ đây chứ không đọc schema pol.
       `SELECT id, code, customer_id, version_no, status::text AS status, applied_date,
               effective_from, tdv_user_id, created_at, submitted_at, tbp_signed_at,
               tbp_signed_by, kt_l1_received_at, sa_handover_at, kt_l2_received_at,
-              contract_issued_at, contract_issued_by, last_reason, row_version
+              contract_issued_at, contract_issued_by, last_reason, row_version,
+              pending_step::text AS pending_step, source::text AS source,
+              created_by, returned_at, rejected_at, deactivated_at,
+              sla_due_at, sla_started_at
          FROM pol.policy WHERE id = $1`,
       [id],
     );

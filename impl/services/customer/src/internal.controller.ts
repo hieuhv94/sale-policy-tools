@@ -21,6 +21,8 @@ export class CustomerInternalController {
       code: string;
       name: string;
       customer_type: number;
+      province_code: string | null;
+      hospital_code: string | null;
       channel_code: string | null;
       tdv_user_id: string;
       id_number: string | null;
@@ -30,8 +32,12 @@ export class CustomerInternalController {
       owner_title: string | null;
       debt: string;
     }>(
-      `SELECT id, code, name, customer_type, channel_code, tdv_user_id, id_number,
-              registered_address, delivery_address, owner_name, owner_title, debt::text
+      // Ba mã phân loại thêm ở P7b: read-model báo cáo lọc theo tỉnh/thành,
+      // bệnh viện và kênh (tiêu chí 11, 12, 13 muc 9.2), mà `reporting` không
+      // đọc được schema cus.
+      `SELECT id, code, name, customer_type, province_code, hospital_code, channel_code,
+              tdv_user_id, id_number, registered_address, delivery_address,
+              owner_name, owner_title, debt::text
          FROM cus.customer WHERE id = $1`,
       [id],
     );
@@ -41,6 +47,8 @@ export class CustomerInternalController {
       code: row.code,
       name: row.name,
       customerType: row.customer_type,
+      provinceCode: row.province_code,
+      hospitalCode: row.hospital_code,
       channelCode: row.channel_code,
       tdvUserId: row.tdv_user_id,
       idNumber: row.id_number,

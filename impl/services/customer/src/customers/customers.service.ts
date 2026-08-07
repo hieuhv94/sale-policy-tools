@@ -63,40 +63,59 @@ export class CustomersService {
     // bán là nghiệp vụ có thật (CUST-05).
     const duplicates = await this.findByIdNumber(input.idNumber);
 
-    const row = await this.db
-      .one<Row>(
-        `INSERT INTO cus.customer
-           (code, name, id_number, customer_type, registered_address, delivery_address,
-            owner_name, owner_title, owner_id_number, debt,
-            province_code, hospital_code, channel_code, tdv_user_id, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)
-         RETURNING *`,
-        [
-          input.code,
-          input.name,
-          input.idNumber ?? null,
-          input.customerType,
-          input.registeredAddress,
-          input.deliveryAddress ?? null,
-          input.ownerName,
-          input.ownerTitle ?? null,
-          input.ownerIdNumber ?? null,
-          (input.debt ?? 0n).toString(),
-          input.provinceCode ?? null,
-          input.hospitalCode ?? null,
-          input.channelCode ?? null,
-          // TDV phụ trách mặc định là người tạo (CUST-01).
-          me.id,
-        ],
-      )
-      .catch((e: unknown) => {
-        if (pgCode(e) === PG.uniqueViolation) {
-          throw new ConflictException({ code: 'CUSTOMER_CODE_DUPLICATE' });
-        }
-        throw e;
-      });
+    // Ghi khách hàng và ghi sự kiện trong CÙNG transaction. Trước P7b bước này
+    // không phát sự kiện nào, và hậu quả rộng hơn báo cáo: nhật ký cũng không có
+    // dòng nào cho việc lập khách hàng, tức là mục 10 hở đúng ở thao tác mở đầu
+    // mọi hồ sơ.
+    const row = await this.db.tx(async (c) => {
+      const r = await c
+        .query<Row>(
+          `INSERT INTO cus.customer
+             (code, name, id_number, customer_type, registered_address, delivery_address,
+              owner_name, owner_title, owner_id_number, debt,
+              province_code, hospital_code, channel_code, tdv_user_id, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)
+           RETURNING *`,
+          [
+            input.code,
+            input.name,
+            input.idNumber ?? null,
+            input.customerType,
+            input.registeredAddress,
+            input.deliveryAddress ?? null,
+            input.ownerName,
+            input.ownerTitle ?? null,
+            input.ownerIdNumber ?? null,
+            (input.debt ?? 0n).toString(),
+            input.provinceCode ?? null,
+            input.hospitalCode ?? null,
+            input.channelCode ?? null,
+            // TDV phụ trách mặc định là người tạo (CUST-01).
+            me.id,
+          ],
+        )
+        .catch((e: unknown) => {
+          if (pgCode(e) === PG.uniqueViolation) {
+            throw new ConflictException({ code: 'CUSTOMER_CODE_DUPLICATE' });
+          }
+          throw e;
+        });
+      const created = r.rows[0]!;
+      await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+        'customer.created',
+        JSON.stringify({
+          entity: 'customer',
+          id: created.id,
+          customerId: created.id,
+          actorId: me.id,
+          after: toDto(created),
+          at: new Date().toISOString(),
+        }),
+      ]);
+      return created;
+    });
 
-    return { ...toDto(row!), duplicateIdNumberWith: duplicates };
+    return { ...toDto(row), duplicateIdNumberWith: duplicates };
   }
 
   async byId(id: string, me: AuthUser) {
@@ -123,7 +142,13 @@ export class CustomersService {
           AND ($2::text IS NULL
                OR (name || ' ' || registered_address || ' ' || coalesce(id_number, ''))
                   ILIKE $2)
-        ORDER BY name
+        -- Cột id là KHOÁ PHÁ HOÀ, không phải trang trí. Hai khách hàng trùng tên
+        -- là chuyện thường (chuỗi nhà thuốc cùng thương hiệu), và khi khoá sắp
+        -- xếp bị hoà thì Postgres được phép trả về theo thứ tự bất kỳ — hai lời
+        -- gọi LIMIT/OFFSET liên tiếp cho ra hai thứ tự khác nhau, nên trang 2
+        -- lặp lại một dòng của trang 1 và bỏ mất một dòng khác. Không có thông
+        -- báo lỗi nào; người dùng chỉ thấy một khách hàng hiện hai lần.
+        ORDER BY name, id
         LIMIT $3 OFFSET $4`,
       [ids, like, page.limit, page.offset],
     );

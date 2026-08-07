@@ -19,6 +19,7 @@ import type { PoolClient } from 'pg';
 import { computeLine, InvalidLineError, STEP_OF_STATUS, type Status } from '@csbh/domain-policy';
 import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
+import { emit } from '../infra/emit.js';
 import { Clients } from '../infra/clients.js';
 import { ScopeClient } from '../infra/scope.client.js';
 
@@ -60,6 +61,27 @@ export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có mu�
 
 /** Chỉ hồ sơ đang ở hai trạng thái này mới sửa được nội dung (POL-11). */
 const EDITABLE = ['NHAP', 'YEU_CAU_CHINH_SUA'];
+
+/**
+ * Phần nhận dạng đi kèm MỌI sự kiện về hồ sơ.
+ *
+ * Bên nhận không đọc được schema pol lẫn cus, nên sự kiện chỉ mang `policyId`
+ * thì họ phải gọi ngược lại hai service để biết đây là hồ sơ của ai — mà nhật ký
+ * thì cần biết ngay cả khi cả hai service kia đang tắt.
+ */
+const evtCtx = (
+  p: { id: string; code: string; customer_id: string; tdv_user_id: string | null },
+  cus?: { code: string; name: string },
+) => ({
+  entity: 'policy',
+  id: p.id,
+  policyId: p.id,
+  policyCode: p.code,
+  customerId: p.customer_id,
+  customerCode: cus?.code ?? null,
+  customerName: cus?.name ?? null,
+  tdvUserId: p.tdv_user_id,
+});
 
 @Injectable()
 export class PoliciesService {
@@ -151,6 +173,11 @@ export class PoliciesService {
       }
 
       await this.recordEvent(c, policy.id, null, 'NHAP', 'CREATE', me, undefined);
+      await emit(c, 'policy.created', {
+        ...evtCtx(policy, customer),
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
       return this.load(policy.id, c);
     });
   }
@@ -257,24 +284,38 @@ export class PoliciesService {
       }
       await this.upsertLine(c, policyId, line, customer);
       await this.bumpVersion(c, policyId);
+      await emit(c, 'policy.updated', {
+        ...evtCtx(p, customer),
+        change: 'LINE_ADDED',
+        productId: line.productId,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
       return this.load(policyId, c);
     });
   }
 
   async removeLine(policyId: string, lineId: string, me: AuthUser) {
-    await this.mustEdit(policyId, me);
+    const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {
       await c.query(`DELETE FROM pol.policy_line WHERE id = $1 AND policy_id = $2`, [
         lineId,
         policyId,
       ]);
       await this.bumpVersion(c, policyId);
+      await emit(c, 'policy.updated', {
+        ...evtCtx(p),
+        change: 'LINE_REMOVED',
+        lineId,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
       return this.load(policyId, c);
     });
   }
 
   async updateAppliedDate(policyId: string, appliedDate: string, me: AuthUser) {
-    await this.mustEdit(policyId, me);
+    const p = await this.mustEdit(policyId, me);
     // Ngày áp dụng trong quá khứ vẫn chấp nhận: đây chỉ là thông tin hiển thị,
     // không chi phối trạng thái. Hiệu lực tính từ lúc tiếp nhận L2 (POL-09, EFF-07).
     return this.db.tx(async (c) => {
@@ -283,6 +324,13 @@ export class PoliciesService {
         appliedDate,
       ]);
       await this.bumpVersion(c, policyId);
+      await emit(c, 'policy.updated', {
+        ...evtCtx(p),
+        change: 'APPLIED_DATE',
+        appliedDate,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
       return this.load(policyId, c);
     });
   }
@@ -298,7 +346,22 @@ export class PoliciesService {
     if (p.createdBy !== me.id) {
       throw new ForbiddenException({ code: 'NOT_OWNER' });
     }
-    await this.db.q(`DELETE FROM pol.policy WHERE id = $1`, [policyId]);
+    // Xoá và báo xoá trong CÙNG transaction. Tách ra thì hồ sơ biến mất khỏi
+    // nguồn mà vẫn nằm lại trong read-model báo cáo — và không có sự kiện nào
+    // sau đó để sửa, vì hồ sơ không còn tồn tại để phát sự kiện nữa.
+    await this.db.tx(async (c) => {
+      await c.query(`DELETE FROM pol.policy WHERE id = $1`, [policyId]);
+      await emit(c, 'policy.deleted', {
+        entity: 'policy',
+        id: policyId,
+        policyId,
+        policyCode: p.code,
+        customerId: p.customerId,
+        tdvUserId: p.tdvUserId,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
+    });
   }
 
   // --- Đọc ------------------------------------------------------------------
@@ -324,7 +387,9 @@ export class PoliciesService {
         WHERE tdv_user_id = ANY($1::uuid[])
           AND ($2::uuid IS NULL OR customer_id = $2::uuid)
           AND ($3::text IS NULL OR status::text = $3)
-        ORDER BY created_at DESC
+        -- Cột id phá hoà để phân trang ổn định: khoá sắp xếp bị hoà thì thứ tự
+        -- giữa hai lời gọi LIMIT/OFFSET không được bảo đảm giống nhau.
+        ORDER BY created_at DESC, id DESC
         LIMIT $4 OFFSET $5`,
       [ids, filter.customerId ?? null, filter.status ?? null, page.limit, page.offset],
     );
@@ -368,7 +433,7 @@ export class PoliciesService {
         WHERE tdv_user_id = ANY($1::uuid[])
           AND (status::text = ANY($2::text[])
                OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($3::text[])))
-        ORDER BY sla_due_at NULLS LAST, created_at
+        ORDER BY sla_due_at NULLS LAST, created_at, id
         LIMIT $4 OFFSET $5`,
       [ids, mine, mine.map((st) => STEP_OF_STATUS[st as Status] ?? ''), page.limit, page.offset],
     );

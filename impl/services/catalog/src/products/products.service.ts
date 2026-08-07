@@ -174,6 +174,25 @@ export class ProductsService {
     return paged(rows, page);
   }
 
+  /**
+   * Mã nhóm của nhiều sản phẩm trong MỘT vòng mạng.
+   *
+   * `reporting` cần nó cho tiêu chí lọc "nhóm sản phẩm": dòng hồ sơ đóng băng
+   * mã và tên sản phẩm nhưng KHÔNG đóng băng nhóm, vì nhóm là thuộc tính của
+   * danh mục chứ không của giao dịch. Hỏi lại catalog mỗi lần đồng bộ là đúng
+   * ngữ nghĩa: chuyển một sản phẩm sang nhóm khác thì báo cáo phải đi theo.
+   */
+  async groupCodesOf(productIds: string[]): Promise<Record<string, string>> {
+    if (productIds.length === 0) return {};
+    const rows = await this.db.q<{ id: string; group_code: string }>(
+      `SELECT p.id, g.code AS group_code
+         FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
+        WHERE p.id = ANY($1::uuid[])`,
+      [productIds],
+    );
+    return Object.fromEntries(rows.map((r) => [r.id, r.group_code]));
+  }
+
   async byId(id: string) {
     const row = await this.db.one(
       `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status

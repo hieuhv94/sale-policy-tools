@@ -95,6 +95,21 @@ export class CatalogInternalController {
     return out;
   }
 
+  /** Mã nhóm của một loạt sản phẩm — `reporting` gọi mỗi lần đồng bộ read-model. */
+  @Post('product-groups')
+  @HttpCode(200)
+  productGroups(@Body() body: unknown) {
+    const ids = (body as { productIds?: unknown }).productIds;
+    if (!Array.isArray(ids) || ids.length > 500) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'productIds',
+        message: 'productIds phải là mảng tối đa 500 phần tử',
+      });
+    }
+    return this.products.groupCodesOf(ids as string[]);
+  }
+
   /**
    * Người ký đang hiệu lực hôm nay. `document` cần cho khối chữ ký ở cuối bản
    * CSBH A4 và cho ô trống `{{signer.name}}` trên mẫu hợp đồng.

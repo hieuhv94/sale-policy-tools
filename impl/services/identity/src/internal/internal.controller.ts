@@ -5,7 +5,7 @@
  * Cùng nằm trong mạng `internal` không phải là căn cứ để tin nhau: mọi request
  * ở đây bắt buộc có token dịch vụ đúng audience (AUTH-21).
  */
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { Db } from '../infra/db.js';
 import { AccountCache } from '../infra/account-cache.js';
 import { ServiceOnly } from '@csbh/http-kit';
@@ -28,6 +28,33 @@ export class InternalController {
     const state = await this.accounts.get(userId);
     if (!state) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
     return state;
+  }
+
+  /**
+   * Tên hiển thị của một loạt người dùng.
+   *
+   * `reporting` cần "người đề nghị" và "TDV phụ trách" hiện ra bằng TÊN chứ
+   * không phải uuid. Read-model lưu lại tên đã tra được — không phải để đỡ một
+   * lời gọi, mà vì báo cáo về hồ sơ cũ phải đọc được cả sau khi người đó nghỉ
+   * việc và tài khoản đã bị vô hiệu hoá.
+   */
+  @Post('users/names')
+  @HttpCode(200)
+  async names(@Body() body: unknown) {
+    const ids = (body as { userIds?: unknown }).userIds;
+    if (!Array.isArray(ids) || ids.length > 500) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'userIds',
+        message: 'userIds phải là mảng tối đa 500 phần tử',
+      });
+    }
+    if (ids.length === 0) return {};
+    const rows = await this.db.q<{ id: string; full_name: string }>(
+      `SELECT id, full_name FROM idn.app_user WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    return Object.fromEntries(rows.map((r) => [r.id, r.full_name]));
   }
 
   @Get('scope/:userId')

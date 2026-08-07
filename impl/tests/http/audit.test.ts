@@ -272,17 +272,33 @@ describe('AUD-02 sửa một trường quan trọng', () => {
     expect(upd.status).toBe(200);
 
     await flush();
-    await waitEntries(customerId, 1);
+    // HAI dòng, không phải một: từ P7b việc LẬP khách hàng cũng phát sự kiện.
+    // Trước đó thao tác mở đầu mọi hồ sơ không để lại vết nào — mục 10 hở đúng
+    // ở chỗ chỉ lộ ra khi có người đi tìm "ai đã lập khách hàng này".
+    await waitEntries(customerId, 2);
 
-    const row = await withAdminDb(async (c) => {
-      const r = await c.query<{ before_data: Record<string, unknown>; after_data: Record<string, unknown> }>(
-        `SELECT before_data, after_data FROM aud.audit_log WHERE entity_id = $1`,
+    const rows = await withAdminDb(async (c) => {
+      const r = await c.query<{
+        action: string;
+        before_data: Record<string, unknown> | null;
+        after_data: Record<string, unknown> | null;
+      }>(
+        `SELECT action, before_data, after_data FROM aud.audit_log
+          WHERE entity_id = $1 ORDER BY occurred_at, id`,
         [customerId],
       );
-      return r.rows[0]!;
+      return r.rows;
     });
-    expect(row.before_data['registeredAddress']).toBe(before);
-    expect(row.after_data['registeredAddress']).toBe(after);
+
+    const created = rows.find((r) => r.action === 'CREATED');
+    expect(created, 'thiếu dòng nhật ký cho việc lập khách hàng').toBeDefined();
+    expect(created!.before_data).toBeNull();
+    expect(created!.after_data?.['registeredAddress']).toBe(before);
+
+    const changed = rows.find((r) => r.action === 'CHANGED');
+    expect(changed, 'thiếu dòng nhật ký cho việc sửa khách hàng').toBeDefined();
+    expect(changed!.before_data?.['registeredAddress']).toBe(before);
+    expect(changed!.after_data?.['registeredAddress']).toBe(after);
   }, 90_000);
 });
 
@@ -461,10 +477,14 @@ describe('AUD-10 · AUD-11 audit-service ngừng chạy', () => {
     expect(before).toBe(0);
 
     // AUD-11: bật lại thì vết được ghi bù, không mất gì.
+    //
+    // NĂM dòng chứ không bốn: từ P7b việc LẬP hồ sơ cũng phát sự kiện. Chờ đủ
+    // bốn rồi khẳng định là một cuộc đua — `waitEntries` trả về ngay khi đếm
+    // đủ, và dòng thứ năm có thể chưa kịp tới.
     audit = await createAuditApp();
-    const rows = await waitEntries(d.id, 4);
+    const rows = await waitEntries(d.id, 5);
     expect(rows.map((r) => r.action)).toEqual(
-      expect.arrayContaining(['SUBMIT', 'TBP_SIGN', 'PUBLISH_SIGNED', 'KT_RECEIVE_L1']),
+      expect.arrayContaining(['CREATED', 'SUBMIT', 'TBP_SIGN', 'PUBLISH_SIGNED', 'KT_RECEIVE_L1']),
     );
   }, 120_000);
 });

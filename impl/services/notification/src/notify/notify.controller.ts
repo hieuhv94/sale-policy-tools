@@ -23,7 +23,7 @@ export class NotifyController {
               count(*) OVER() AS total_count
          FROM ntf.dead_letter
         WHERE ($1::boolean IS NOT TRUE OR resolved_at IS NULL)
-        ORDER BY failed_at DESC ${pageSql(2)}`,
+        ORDER BY failed_at DESC, id DESC ${pageSql(2)}`,
       [q.open === 'true', p.limit, p.offset],
     );
     return paged(rows, p);
@@ -38,7 +38,7 @@ export class NotifyController {
               count(*) OVER() AS total_count
          FROM ntf.sent_mail
         WHERE ($1::uuid IS NULL OR policy_id = $1)
-        ORDER BY sent_at DESC ${pageSql(2)}`,
+        ORDER BY sent_at DESC, id DESC ${pageSql(2)}`,
       [q.policyId ?? null, p.limit, p.offset],
     );
     return paged(rows, p);

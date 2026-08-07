@@ -196,6 +196,15 @@ export async function bootCustomerListening(): Promise<{
   };
 }
 
+/** Xoá bộ lọc đã lưu trong phiên — dùng giữa các test của reporting (RPT-04). */
+export async function clearSavedFilters(): Promise<void> {
+  const { default: Redis } = await import('ioredis');
+  const r = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
+  const keys = await r.keys('rpt:filter:*');
+  if (keys.length > 0) await r.del(...keys);
+  await r.quit();
+}
+
 /** Dựng policy nghe thật và trỏ `POLICY_URL` vào đó — document gọi nó bằng HTTP. */
 export async function bootPolicyListening(): Promise<{
   app: INestApplication;

@@ -18,6 +18,8 @@ export const BUS = {
     policyDlq: 'pol.events.dlq',
     audit: 'aud.events',
     auditDlq: 'aud.events.dlq',
+    reporting: 'rpt.events',
+    reportingDlq: 'rpt.events.dlq',
   },
   /**
    * notification nghe mọi thứ; document chỉ quan tâm vòng đời file; policy nghe
@@ -37,6 +39,14 @@ export const BUS = {
      * và khoảng trống đó chỉ lộ ra lúc cần điều tra, tức là quá muộn.
      */
     audit: ['#'],
+    /**
+     * Read-model báo cáo nghe vòng đời hồ sơ và mọi thay đổi khách hàng.
+     *
+     * KHÔNG nghe `catalog.#`: tên và mã sản phẩm đã ĐÓNG BĂNG vào dòng hồ sơ lúc
+     * lập, nên đổi danh mục không làm sai một dòng báo cáo nào. Tỉnh/thành đổi
+     * tên cũng vậy — read-model giữ MÃ, tên chỉ tra lúc hiển thị (RPT-06).
+     */
+    reporting: ['policy.#', 'customer.#'],
   },
 } as const;
 

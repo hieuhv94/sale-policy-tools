@@ -34,7 +34,7 @@ sẽ không tự suy ra được.
 | **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | **xong** — 348/348 xanh |
 | **P6d** | `sla-worker` | **xong** — 363/363 xanh |
 | **P7a** | `audit` + `trace_id` xuyên suốt | **xong** — 373/373 xanh |
-| **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | chưa |
+| **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 413/413 xanh |
 | **P7c** | `gateway`: Caddy, giới hạn tần suất, header an toàn | chưa |
 | **P7d** | `web`: giao diện React | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
@@ -1275,3 +1275,164 @@ nó không làm sai một báo cáo nào. Bật lại thì vết được ghi b�
 ### Commit
 
 `P7a: audit — nhat ky chi ghi them, trace_id xuyen suot`
+
+---
+
+## P7b — `reporting`: 14 tiêu chí lọc, ba báo cáo, xuất Excel chạy nền
+
+### Đã dựng
+
+- Migration `0016_reporting.sql` — `rpt.policy_row` (read-model phẳng, một dòng một hồ sơ),
+  `rpt.export_job`, và một nhánh mới trong `sys.run_retention` để dọn file kết xuất hết hạn.
+- Service `reporting`: `sync.service.ts` (dựng lại dòng từ nguồn), `filter.ts` (14 tiêu chí),
+  `reports.service.ts` (danh sách + ba báo cáo), `filter-store.ts` (bộ lọc theo phiên),
+  `exports/` (dựng file `.xlsx` chạy nền), `normalize.ts` (bỏ dấu tiếng Việt).
+- Queue `rpt.events` bind `policy.#` và `customer.#`, khai báo ở cả hai relay.
+- Bốn API nội bộ mở rộng: `customer` trả thêm ba mã phân loại, `catalog` trả nhóm theo lô sản phẩm,
+  `identity` trả tên người dùng theo lô, `policy` trả thêm bảy cột.
+- `tests/http/reporting.test.ts` — 40 test.
+
+### Một lỗ hổng có sẵn, lộ ra vì read-model cần dữ liệu
+
+Lập hồ sơ và lập khách hàng **không phát sự kiện nào**. Trước P7b không ai để ý, vì cả bốn bên nhận
+đều chỉ quan tâm những gì xảy ra *sau* khi hồ sơ được gửi duyệt.
+
+Hậu quả rộng hơn báo cáo: `audit` bind `#` nhưng không có gì để nghe, nên **nhật ký không có một dòng
+nào cho thao tác mở đầu mọi hồ sơ**. Mục 10 hở đúng ở chỗ đó, và hở theo kiểu chỉ phát hiện được khi
+có người đi tìm "ai đã lập hồ sơ này" và không tìm thấy.
+
+Thêm `policy.created`, `policy.updated`, `policy.deleted`, `customer.created` — cùng transaction với
+việc ghi nghiệp vụ, như mọi sự kiện khác. `customers.create` phải chuyển từ một câu `INSERT` sang
+`tx()` để làm được điều đó.
+
+`policy.deleted` là chỗ dễ bỏ sót nhất: xoá hồ sơ mà không báo thì dòng read-model nằm lại vĩnh viễn,
+và **không có sự kiện nào về sau để sửa** — hồ sơ đã không còn tồn tại để phát sự kiện nữa.
+
+### Sự kiện là TÍN HIỆU, không phải dữ liệu
+
+`sync.service.ts` nhận sự kiện rồi **đọc lại nguồn** qua bốn API nội bộ thay vì dùng nội dung sự kiện.
+Đắt hơn — bốn vòng mạng cho mỗi thay đổi — nhưng đổi lại hai thứ mà cách kia không có:
+
+- **Giao lại không hại gì.** Outbox chỉ bảo đảm *ít nhất một lần*. Mỗi lần đồng bộ ghi lại toàn bộ
+  dòng, không cộng dồn, nên chạy hai lần cho ra đúng một kết quả.
+- **Sai thứ tự không hại gì.** Thư "đã ký" tới sau thư "chờ kế toán" vẫn cho trạng thái đúng.
+
+Cách còn lại — nhét sẵn mọi trường vào sự kiện — buộc bốn service phải biết read-model cần gì, và
+thêm một tiêu chí lọc là sửa cả bốn cộng một lần nạp lại dữ liệu cũ.
+
+Vẫn cần một chốt: `src_row_version`. Sự kiện giao lại lần hai có thể đọc nguồn ở thời điểm *sớm hơn*
+lần đồng bộ đang có; `ON CONFLICT ... WHERE policy_row.src_row_version <= EXCLUDED.src_row_version`
+chặn việc hồ sơ **lùi trạng thái** trong báo cáo.
+
+### Chữ `đ` — chỗ `unaccent` của Postgres làm sai trong im lặng
+
+`RPT-05` đòi lọc địa chỉ không phân biệt có dấu / không dấu. Lối đi hiển nhiên là extension
+`unaccent`, và nó **sai**: `đ` (U+0111) không phải `d` cộng một dấu phụ mà là một ký tự Unicode độc
+lập, `NFD` không phân rã được.
+
+Người gõ `da nang` không tìm ra `Đà Nẵng`. Và lỗi này không kêu: mọi tỉnh thành khác vẫn tìm được
+bình thường, nên không ai nghi ngờ gì cho tới lúc có người khẳng định chắc chắn là hồ sơ đó tồn tại.
+
+Chuẩn hoá làm tay trong `normalize.ts`, và làm ở **đúng một chỗ** — cột `*_norm` lúc đồng bộ và từ
+khoá lúc truy vấn đi qua cùng một hàm. Hai bên chuẩn hoá theo hai kiểu là kiểu hỏng tệ nhất: tìm được
+vài chuỗi, không tìm được vài chuỗi khác, không có thông báo lỗi nào.
+
+### `OFFSET` không dùng được cho danh sách sắp theo thời gian giảm dần
+
+`RPT-13` hỏi đúng chỗ đau. Hồ sơ mới chèn vào **đầu** danh sách, nên một hồ sơ được lập trong lúc
+người dùng bấm sang trang 2 đẩy toàn bộ xuống một dòng: dòng thứ 50 của trang 1 hiện lại ở đầu trang
+2, **và một dòng khác biến mất khỏi cả hai trang**.
+
+Không có thông báo lỗi. Người dùng chỉ thấy một hồ sơ lặp, và không có cách nào biết mình đã bỏ sót
+gì. Phân trang bằng con trỏ `(created_at, policy_id)` neo vào **dữ liệu** chứ không vào vị trí; thành
+phần thứ hai để hai hồ sơ lập trong cùng một mili-giây vẫn có thứ tự tất định.
+
+Đây là chỗ duy nhất trong hệ không dùng `pageOf`/`paged` dùng chung — có chủ ý, và lý do ghi ngay tại
+hàm `list()`.
+
+### Phạm vi áp TRƯỚC bộ lọc: `tdv_user_id` mang hai nghĩa
+
+`RPT-09`. Cùng một cột xuất hiện ở hai chỗ với hai nghĩa khác nhau, và trộn lẫn chúng là lỗ hổng:
+
+- `scopeUserIds` do identity trả về — người dùng không đụng vào được, **luôn là điều kiện đầu tiên**.
+- `tdvUserId` là tiêu chí lọc số 10 do người dùng gõ — chỉ **thu hẹp** trong phạm vi đã có.
+
+Cách dựng câu lệnh chọn theo hướng đó: điều kiện phạm vi nối cứng trong `build()` chứ không nằm trong
+danh sách tiêu chí, nên **không có đường nào để một tiêu chí quên nó**. Test kiểm cả hướng ngược:
+tdv01 gõ thẳng id của tdv03 thì kết quả rỗng, không phải mở rộng.
+
+### Ba chi tiết của file Excel, cả ba không lộ ra khi mở bằng mắt
+
+1. **Tiền phải là số.** Ghi `"87.000 đ"` thì file mở ra đẹp nhưng không cộng được, không lọc được
+   ">1 triệu", không vẽ biểu đồ — hỏng đúng thứ người ta xuất Excel để làm. Ghi số rồi đặt `numFmt`.
+2. **Ngày phải là `Date`.** Chuỗi `"07/08/2026"` sắp theo thứ tự chữ cái, nên tháng 12 nằm trước
+   tháng 2.
+3. **Thứ tự cột là hợp đồng.** Người dùng dựng công thức tham chiếu cột E; chèn một cột vào giữa ở
+   bản sau là làm hỏng file của họ trong im lặng. `COLUMNS` chỉ được thêm vào cuối, và test so cả
+   hàng tiêu đề.
+
+### Xuất file chạy nền vì Node chỉ có một vòng lặp sự kiện
+
+Dựng 5000 dòng mất vài giây **CPU**, không phải chờ I/O. Xuất đồng bộ làm đứng mọi request khác của
+cùng tiến trình, kể cả `/healthz`: một người bấm xuất file thì cả phòng thấy hệ thống treo.
+
+Bấm xuất tạo một việc rồi trả `202` ngay. Test kiểm cả ba vế: request trả về dưới 2 giây, `/healthz`
+vẫn phục vụ được trong lúc file đang dựng, và cả việc xong dưới 10 giây.
+
+File nằm trong `bytea` chứ không trên MinIO, có chủ ý: kho đối tượng do `document` sở hữu và mọi
+đường ghi vào đó đều kèm luật nghiệp vụ về hồ sơ. Một file kết xuất tạm sống vài giờ không thuộc luật
+đó. Cái giá là phải có hạn dọn — `expires_at` cộng một nhánh trong `sys.run_retention`, xoá **nội
+dung** nhưng giữ **bản ghi việc**: người dùng vẫn tra được "hôm qua tôi xuất file gì".
+
+File chỉ **người yêu cầu** tải được, kể cả cấp trên. Không phải trùng với kiểm phạm vi: nội dung đã
+chốt theo phạm vi của người bấm, cho người khác tải là cho họ đọc một tập dữ liệu dựng theo quyền của
+người kia — kiểu leo thang khó thấy nhất, vì mọi API còn lại vẫn kiểm phạm vi đầy đủ.
+
+### Một chỗ mơ hồ trong yêu cầu, đã chọn và đã ghi lại
+
+"Thời gian duyệt" ở muc 9.2 đọc được theo hai nghĩa: lúc Trưởng bộ phận ký ở B4, hay lúc hồ sơ có
+hiệu lực sau B10. Tài liệu dùng chữ "duyệt" cho B4 (`Chờ TBP duyệt`, `Quá hạn duyệt`), nhưng một bộ
+lọc báo cáo hỏi "duyệt trong tháng 7" thì gần như chắc chắn muốn nói *có hiệu lực trong tháng 7* —
+hồ sơ được ký rồi bị trả lại thì chưa hề duyệt xong.
+
+**Đã chọn `effective_from`**, và giữ luôn cột `tbp_signed_at` bên cạnh trong read-model. Nếu khách
+hàng hiểu theo nghĩa B4 thì đổi một dòng SQL trong `filter.ts`, **không phải nạp lại dữ liệu**.
+Điểm này cần khách hàng xác nhận.
+
+### Hai lỗi có sẵn, cả hai do chạy lại toàn bộ test mới lộ ra
+
+Không lỗi nào thuộc `reporting`. Cả hai đã nằm sẵn trong mã từ P4, và chỉ đỏ khi bộ test đầy đủ chạy
+lại sau khi P7b làm xê dịch thứ tự dòng và số lượng sự kiện.
+
+**1. `ORDER BY name` không có khoá phá hoà** (`cus.customer`, `OPS-07`). Khi khoá sắp xếp bị hoà,
+Postgres được phép trả về theo thứ tự bất kỳ — và nó thực sự đổi thứ tự giữa hai lời gọi
+`LIMIT/OFFSET` liên tiếp. Trang 2 lặp lại một dòng của trang 1 **và bỏ mất một dòng khác**. Không có
+thông báo lỗi; người dùng chỉ thấy một khách hàng hiện hai lần.
+
+Trùng tên là chuyện thường ở nghiệp vụ này (chuỗi nhà thuốc cùng thương hiệu), nên đây không phải
+tình huống hiếm. Đã thêm `id` vào ba chỗ phân trang khác cùng loại: danh sách hồ sơ, trang chủ, và
+hai màn hình thư của `notification`. Đúng cùng một họ lỗi với `RPT-13`, chỉ khác là ở đó nó là yêu
+cầu ghi sẵn còn ở đây thì không ai nghĩ tới.
+
+**2. Test tự tính ngày theo UTC.** `RPT-01` tiêu chí 2 xanh ở lượt chạy đầu, đỏ ở lượt sau. Nguyên
+nhân không phải cuộc đua: `toISOString()` trả **ngày UTC**, còn bộ lọc so `approved_at >= $::date`
+với `::date` được Postgres diễn giải theo múi giờ phiên — ICT. Bảy tiếng mỗi đêm (17:00–24:00 UTC)
+hai ngày đó lệch nhau một đơn vị, và lượt chạy thứ hai rơi vào đúng khoảng đó.
+
+Sản phẩm đúng, test sai — nhưng sai theo cách đáng ghi: đây chính là bẫy `OPS-09` đã lường trước ở
+mức thiết kế, và nó vẫn lọt vào chỗ không ai ngờ. Test giờ hỏi thẳng CSDL
+(`AT TIME ZONE 'Asia/Ho_Chi_Minh'`) thay vì tính bằng đồng hồ của Node. Một test xanh nhờ chạy đúng
+giờ thì không phải test.
+
+### Còn nợ của chặng này
+
+- Đồng bộ một hồ sơ tốn bốn vòng mạng; một hồ sơ đổi bốn lần trong một giây bị đọc lại bốn lần. Ở quy
+  mô 50 người dùng thì rẻ hơn việc phải giữ thứ tự và tính lũy kế, nhưng không co giãn được.
+- Việc xuất file vẫn chưa qua hàng đợi thật — cùng món nợ `DOC-20`. `SKIP LOCKED` đủ để hai bản
+  service không giành nhau một việc; cái còn thiếu là **giới hạn số việc chạy song song**.
+- Chưa có lệnh nạp lại toàn bộ read-model từ đầu. Cần khi đổi lược đồ `rpt.policy_row`.
+- `PERF-07` (quét SLA trên 20.000 hồ sơ dưới 60 giây) vẫn chưa đo.
+
+### Commit
+
+`P7b: reporting — 14 tieu chi loc, ba bao cao, xuat Excel chay nen`

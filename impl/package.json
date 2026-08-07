@@ -53,6 +53,7 @@
     "@csbh/identity-core": "workspace:*",
     "@csbh/notification": "workspace:*",
     "@csbh/policy": "workspace:*",
+    "@csbh/reporting": "workspace:*",
     "@csbh/sla-worker": "workspace:*"
   },
   "pnpm": {
