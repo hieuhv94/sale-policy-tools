@@ -235,6 +235,28 @@ export class CustomersService {
     );
   }
 
+  /**
+   * Ghi con trỏ tới một hồ sơ pháp lý đã nằm trên kho lưu trữ.
+   *
+   * File thật do `document` giữ; ở đây chỉ lưu siêu dữ liệu. Hai bước chứ không
+   * một: `customer` không đụng tới MinIO, và `document` không biết luật nghiệp
+   * vụ nào về khách hàng. Không có giấy tờ nào là BẮT BUỘC và hệ thống không
+   * cảnh báo hết hạn — việc đó nằm ngoài phần mềm (CUST-13).
+   */
+  async attachDocument(
+    customerId: string,
+    input: { kind: string; fileName: string; objectKey: string; sizeBytes: bigint },
+    me: AuthUser,
+  ) {
+    await this.byId(customerId, me);
+    const r = await this.db.one<{ id: string }>(
+      `INSERT INTO cus.customer_document (customer_id, kind, file_name, object_key, size_bytes, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [customerId, input.kind, input.fileName, input.objectKey, input.sizeBytes.toString(), me.id],
+    );
+    return { id: r!.id, ...input, sizeBytes: input.sizeBytes.toString() };
+  }
+
   // --- Trợ giúp -------------------------------------------------------------
 
   private async findByIdNumber(idNumber: string | undefined) {

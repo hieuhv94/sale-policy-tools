@@ -8,6 +8,7 @@ import { PoliciesService } from './policies/policies.service.js';
 import { WorkflowService } from './policies/workflow.service.js';
 import { PoliciesController } from './policies/policies.controller.js';
 import { PolicyOutbox } from './infra/outbox.relay.js';
+import { PolicyInternalController } from './internal.controller.js';
 import { PriceChangedConsumer } from './consumers/price-changed.consumer.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
@@ -37,7 +38,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, PoliciesController],
+  controllers: [HealthController, PoliciesController, PolicyInternalController],
   providers: [
     Db,
     Clients,

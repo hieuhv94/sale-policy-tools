@@ -434,9 +434,17 @@ describe('CAT-15 nhập danh mục từ Excel', () => {
     expect(r.body.message).toContain('Không dòng nào được ghi');
 
     // Dòng hợp lệ đứng TRƯỚC dòng lỗi cũng không được ghi.
-    const after = (await get('/catalog/products?limit=200')).body.items as { code: string }[];
-    expect(after).toHaveLength(before);
-    expect(after.some((p) => p.code === okCode)).toBe(false);
+    //
+    // So TỔNG với tổng, không so tổng với một trang. Bản trước lấy `before` từ
+    // `total` rồi đối chiếu với `items` của trang đầu — hai con số chỉ bằng nhau
+    // khi danh mục còn dưới 200 sản phẩm, nên test xanh suốt từ P4 rồi đỏ ở P6b
+    // đúng lúc dữ liệu vượt trần phân trang. Lỗi của phép khẳng định, không phải
+    // của mã sản phẩm.
+    expect((await get('/catalog/products?limit=1')).body.total).toBe(before);
+    const found = await withAdminDb(async (c) =>
+      c.query(`SELECT 1 FROM cat.product WHERE code = $1`, [okCode]),
+    );
+    expect(found.rowCount).toBe(0);
   });
 
   it('nhóm sản phẩm không tồn tại cũng là lỗi cả lô', async () => {

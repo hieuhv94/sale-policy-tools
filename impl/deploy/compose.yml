@@ -105,6 +105,26 @@ services:
     volumes: [ miniodata:/data ]
     networks: [ internal ]
 
+  # Chromium + LibreOffice trong một container, gọi qua HTTP. Xem lý do chọn
+  # cách này thay vì nhúng Playwright vào ảnh của document ở infra/gotenberg.ts.
+  gotenberg:
+    logging: *logging
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --api-timeout=60s
+      - --chromium-disable-javascript=true
+    healthcheck:
+      test: ["CMD","curl","-fsS","http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [ internal ]
+
   mailpit:
     logging: *logging
     deploy:

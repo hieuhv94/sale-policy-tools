@@ -195,3 +195,23 @@ export async function bootCustomerListening(): Promise<{
     },
   };
 }
+
+/** Dựng policy nghe thật và trỏ `POLICY_URL` vào đó — document gọi nó bằng HTTP. */
+export async function bootPolicyListening(): Promise<{
+  app: INestApplication;
+  restore: () => void;
+}> {
+  const { createTestApp } = await import('@csbh/policy/testing');
+  const app = await createTestApp();
+  await app.listen(0, '127.0.0.1');
+  const addr = (app.getHttpServer() as { address(): { port: number } }).address();
+  const previous = process.env.POLICY_URL;
+  process.env.POLICY_URL = `http://127.0.0.1:${addr.port}`;
+  return {
+    app,
+    restore: () => {
+      if (previous === undefined) delete process.env.POLICY_URL;
+      else process.env.POLICY_URL = previous;
+    },
+  };
+}

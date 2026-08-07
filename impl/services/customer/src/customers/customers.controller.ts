@@ -31,6 +31,19 @@ export class CustomersController {
   }
 
   @Roles(...WRITERS)
+  @Post(':id/documents')
+  @HttpCode(201)
+  attachDocument(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      kind: str(1, 60),
+      fileName: str(1, 300),
+      objectKey: str(1, 500),
+      sizeBytes: money(),
+    });
+    return this.customers.attachDocument(id, b, me);
+  }
+
+  @Roles(...WRITERS)
   @Post()
   @HttpCode(201)
   create(@CurrentUser() me: AuthUser, @Body() body: unknown) {

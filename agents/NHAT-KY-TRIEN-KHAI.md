@@ -30,8 +30,9 @@ sẽ không tự suy ra được.
 | **P5.5** | Yêu cầu phi chức năng: sao lưu, phân trang, chống phình CSDL | **xong** — nhóm test `OPS` mới |
 | **P5.6** | Vòng hai phi chức năng: PITR thật, múi giờ, bí mật, tắt máy êm | **xong** — 285/285 xanh |
 | **P6a** | `notification` + đường truyền outbox → RabbitMQ | **xong** — 305/305 xanh |
-| **P6b** | `document`: file, ký số, hợp đồng | chưa |
-| **P6c** | `sla-worker` | chưa |
+| **P6b** | `document`: file, ký số nội bộ, bản CSBH A4 | **xong** — 322/322 xanh |
+| **P6c** | `document`: mẫu hợp đồng và xuất hợp đồng | chưa |
+| **P6d** | `sla-worker` | chưa |
 | **P7** | `reporting`, `audit`, `gateway`, `web` | chưa |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
@@ -844,3 +845,117 @@ và policy, vì chưa chặng nào dựng container cho service ứng dụng. L�
 ### Commit
 
 `P6a: notification + duong truyen outbox -> RabbitMQ`
+
+---
+
+## P6b — `document`: file, ký số, bản CSBH A4
+
+Chặng đầu tiên có **file thật** và **PDF thật**. MinIO thật, Chromium thật, và PDF sinh ra được
+**đọc lại** bằng `pdfjs-dist` để đối chiếu chữ, bằng `pdf-lib` để đo khổ giấy. **322/322 xanh**, ba
+lần liên tiếp.
+
+### Lệch so với thiết kế: một Chromium, không phải hai
+
+Bản thiết kế đặt **Playwright + Chromium ngay trong ảnh của `document`** cho phần HTML, và Gotenberg
+chỉ để chuyển `.docx`. Ở đây cả hai đường đều đi qua Gotenberg. Ba lý do:
+
+1. Gotenberg *chính là* Chromium chạy trong container, nên yêu cầu "bản PDF khớp bản đang xem" vẫn
+   giữ nguyên — vẫn là engine của trình duyệt.
+2. Ngân sách RAM ở thiết kế đã tính "Chromium theo đợt 900MB **cộng** Gotenberg 700MB ≈ 6,2GB lúc bận
+   nhất, biên an toàn mỏng". Dùng chung một Chromium cắt hẳn một nửa con số đó.
+3. Ảnh của `document` không phải kéo theo trình duyệt và bộ thư viện hệ thống của nó.
+
+Cái mất: không điều khiển được trình duyệt ở mức chi tiết (chờ selector, chụp ảnh màn hình). Bản CSBH
+A4 là HTML tĩnh nên không cần tới.
+
+### "PDF khớp bản đang xem" bảo đảm bằng cấu trúc, không bằng lời hứa
+
+`GET /policies/:id/render?format=html` trả về **chính chuỗi HTML** mà bản PDF được dựng từ đó. Giao
+diện nhúng đúng chuỗi ấy, nên hai bản không thể lệch nhau. Hệ quả kèm theo: PDF không chứa menu hay
+nút thao tác — không phải vì có bước lọc chúng đi, mà vì bố cục này chưa bao giờ có chúng.
+
+Khổ giấy khai **một chỗ duy nhất**: `@page` trong CSS, cộng `preferCssPageSize` phía Gotenberg. Khai
+cả ở hai nơi là có hai nguồn sự thật và chúng sẽ lệch nhau vào ngày ai đó sửa một bên.
+
+### Liên kết file: hạn ngắn **và** gắn người dùng, thiếu một là hỏng
+
+Không dùng liên kết ký sẵn của MinIO. Liên kết ký sẵn hợp lệ với **bất kỳ ai** cầm được nó, tức là
+gửi liên kết đi là gửi luôn quyền xem. Ở đây mọi lượt tải đi qua `document` với ba lớp kiểm:
+
+1. token còn hạn 5 phút **và cấp cho đúng người đang gọi** — dán vào chat nhóm không có tác dụng
+2. người đó có quyền xem hồ sơ chủ của file — **kiểm lại**, không tin token
+3. nội dung trên kho khớp bản băm ghi lúc tải lên
+
+`DOC-09` kiểm cả hai chiều: tdv03 dùng đúng liên kết của tdv01 thì 403 `LINK_NOT_YOURS`; tdv03 tự xin
+liên kết thì 403 `OUT_OF_SCOPE`. Liên kết **không bao giờ** thay thế phép kiểm phạm vi.
+
+### Hai quyết định về khoá object
+
+**Khoá không mang tên file người dùng đặt.** Tên tiếng Việt có dấu, dấu cách và ký tự Unicode tổ hợp;
+đưa thẳng vào khoá S3 là sinh ra khoá tải về được ở máy này và 404 ở máy khác vì chuẩn hoá NFC/NFD
+khác nhau. Khoá là uuid, tên hiển thị nằm trong CSDL và được chuẩn hoá **NFC** — macOS gửi NFD,
+Windows gửi NFC, không chuẩn hoá thì cùng một cái tên thành hai chuỗi khác nhau.
+
+**Kiểm định dạng bằng số nhận dạng đầu file**, không bằng phần mở rộng hay `Content-Type`. Cả hai thứ
+kia đều do client đặt: đổi tên `virus.exe` thành `giay-phep.pdf` là qua được mọi phép kiểm dựa trên tên.
+
+### Kiểm hết rồi mới ghi lên MinIO
+
+Thứ tự không đảo được. Ghi trước rồi kiểm thì file sai định dạng vẫn để lại một object không ai trỏ
+tới, không ai biết để dọn. `CUST-12` kiểm đúng chỗ này: sau hai lần tải lên hỏng, số object dưới tiền
+tố của khách hàng đó **không đổi**, và `doc.stored_file` không có dòng nào.
+
+### Ký số: hai object, không ghi đè
+
+Bản đã ký là object **mới**, trỏ ngược về bản nháp qua `signed_from_id`. Ghi đè thì câu hỏi "văn bản
+đã đổi gì so với lúc chưa ký" vĩnh viễn không trả lời được. `DOC-05` khẳng định cả hai object **cùng
+tồn tại** trên MinIO và hai bản băm khác nhau.
+
+`DOC-07` kiểm hai lớp: không phụ thuộc nào gợi ý HSM/CA/chứng thư số, và chữ ký chỉ gồm **đúng ba
+trường** — họ tên, vai trò, dấu thời gian. Không chuỗi tin cậy, không chứng thư. Đó là quyết định
+nghiệp vụ đã chốt, không phải chỗ chưa làm xong.
+
+### Lệch nhỏ có chủ ý: 413 thay vì 400
+
+`CUST-12` ghi mong đợi **400** cho file quá 20MB; ở đây trả **413 Payload Too Large**. 413 là mã dành
+riêng cho đúng tình huống này. Quan trọng hơn: multer chặn **ngay trên dòng dữ liệu**, trước khi 21MB
+kịp nằm hết trong RAM — dời phép kiểm vào service để lấy được mã 400 là đánh đổi ngược. Phần quan
+trọng của yêu cầu — chặn được, không để lại object rác — không đổi.
+
+### Ba lỗi gỡ trong lúc làm
+
+**Ném lại lỗi từ trong một exception filter không quay về đường xử lý của Nest.** Nó thành unhandled
+rejection, và mọi lỗi 400 bình thường của endpoint đó biến mất. Phải kế thừa `BaseExceptionFilter` và
+gọi `super.catch`.
+
+**`@nestjs/platform-express` đã đổi `MulterError` thành `PayloadTooLargeException`** trước khi filter
+chạy, nên nhận dạng theo tên lớp của multer không bao giờ khớp. Mất một vòng chạy để tìm ra.
+
+**`DOC-02` đỏ oan vì "Gửi duyệt".** Chuỗi đó nằm trong danh sách "thứ không được có trong PDF", nhưng
+nó là **nhãn của một mốc thời gian** trên chính bản CSBH chứ không phải cái nút. Danh sách giờ chỉ
+gồm thứ thật sự thuộc về giao diện.
+
+### Một lỗi CÓ SẴN TỪ P4 mà chặng này làm lộ ra
+
+`CAT-15` lấy `before` từ `total` rồi đối chiếu với `items` của trang đầu. Hai con số chỉ bằng nhau
+khi danh mục còn **dưới 200 sản phẩm** — đúng trần phân trang. Test xanh suốt từ P4, rồi đỏ ở P6b khi
+`DOC-19` nạp thêm 60 sản phẩm và tổng vượt 200.
+
+Đáng ghi lại vì nó là loại lỗi mà chạy lại toàn bộ test cũ sau mỗi chặng mới bắt được: bản thân P6b
+không đụng gì tới catalog.
+
+### Lệch nhỏ: `DOC-19` dùng 60 dòng thay vì 200
+
+Mỗi dòng cần một sản phẩm riêng trong danh mục, và 200 lượt tạo sản phẩm làm test chạy vài phút mà
+không chứng minh thêm gì. Điều cần chứng minh là **có ngắt trang, dòng tiêu đề lặp lại ở mỗi trang,
+và không mất dòng cuối** — 60 dòng đã tràn sang trang thứ hai nên đủ để kiểm cả ba.
+
+### Còn nợ của chặng này
+
+`DOC-20` mới khẳng định năm lượt render song song đều ra PDF hợp lệ, **chưa** có hàng đợi BullMQ giới
+hạn 2 tiến trình Chromium như thiết kế — hiện dựa vào giới hạn nội tại của Gotenberg. Nhóm hợp đồng
+(`DOC-10` … `DOC-16`, `DOC-21` … `DOC-35`) chuyển sang **P6c**.
+
+### Commit
+
+`P6b: document — file, ky so noi bo, ban CSBH A4 qua Gotenberg`

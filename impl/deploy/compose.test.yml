@@ -10,6 +10,7 @@ services:
       mailpit:  { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       minio:    { condition: service_healthy }
+      gotenberg: { condition: service_healthy }
       migrate:  { condition: service_completed_successfully }
     environment:
       PGHOST: postgres
@@ -29,6 +30,12 @@ services:
       # khẳng định phụ thuộc vào việc bộ đếm 1 giây có kịp nổ hay chưa.
       OUTBOX_AUTO_PUMP: "0"
       MAIL_RETRY_BACKOFF_MS: "5,5,5"
+      MINIO_HOST: minio
+      MINIO_PORT: "9000"
+      MINIO_ACCESS_KEY: csbh
+      MINIO_PASSWORD: ${MINIO_PASSWORD:-csbh_dev_pw}
+      MINIO_BUCKET: csbh-test
+      GOTENBERG_URL: http://gotenberg:3000
       APP_VERSION: ${APP_VERSION:-0.0.0-dev}
     volumes:
       - ..:/app
@@ -52,6 +59,7 @@ services:
       - nm_policy:/app/services/policy/node_modules
       - nm_bus:/app/packages/bus/node_modules
       - nm_notification:/app/services/notification/node_modules
+      - nm_document:/app/services/document/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -71,3 +79,4 @@ volumes:
   nm_policy: {}
   nm_bus: {}
   nm_notification: {}
+  nm_document: {}
