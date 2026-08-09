@@ -63,7 +63,10 @@ export const QUYEN_XEM = {
   danhMuc: VAI_TRO,
   /** Nhật ký chỉ Ban lãnh đạo và Quản trị đọc; các vai trò trong luồng thì không. */
   nhatKy: ['BAN_LANH_DAO', 'QUAN_TRI'],
-  mauHopDong: ['SALE_ADMIN', 'QUAN_TRI'],
+  // CHỈ Sale Admin. Mẫu hợp đồng là văn bản nghiệp vụ của họ, khác với mẫu bản
+  // CSBH và biểu mẫu scan (DOC-26) — máy chủ cũng chỉ cho `SALE_ADMIN`, nên để
+  // `QUAN_TRI` ở đây là bày ra một mục menu luôn dẫn tới 403.
+  mauHopDong: ['SALE_ADMIN'],
   nguoiDung: ['QUAN_TRI'],
 } as const satisfies Record<string, readonly VaiTro[]>;
 

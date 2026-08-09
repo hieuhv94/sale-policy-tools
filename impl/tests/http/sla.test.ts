@@ -19,6 +19,7 @@ import {
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   mailpitClear,
   withAdminDb,
@@ -40,8 +41,7 @@ let outbox: PolicyOutbox;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);

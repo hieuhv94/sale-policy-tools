@@ -28,6 +28,7 @@ import {
   bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   withAdminDb,
 } from './app.js';
@@ -45,8 +46,7 @@ let templates: TemplatesService;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const dget = async (path: string, who: string) =>
   (await http(doc)).get(path).set('Authorization', `Bearer ${tok[who]}`);
@@ -103,6 +103,10 @@ const makeProduct = async (i = 0): Promise<string> => {
       defaultRate2Type2: 1500,
       defaultRate2Type3: 1500,
     });
+  // Kiểm NGAY tại đây. Không kiểm thì một lời gọi hỏng đi tiếp với `id`
+  // undefined và nổ ba mươi dòng sau ở chỗ lập hồ sơ, với thông báo
+  // "productId: phải là chuỗi" — chẳng liên quan gì tới nguyên nhân.
+  if (r.status !== 201) throw new Error(`tạo sản phẩm hỏng: ${JSON.stringify(r.body)}`);
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
     .set('Authorization', `Bearer ${tok['admin01']}`)

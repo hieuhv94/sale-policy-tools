@@ -19,6 +19,7 @@ import {
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   withAdminDb,
 } from './app.js';
@@ -36,8 +37,7 @@ let cusOutbox: CustomerOutbox;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const ppost = async (path: string, body: object, who: string, trace?: string) => {
   const r = (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`);
@@ -85,6 +85,7 @@ const makeProduct = async (): Promise<string> => {
       defaultRate2Type2: 1500,
       defaultRate2Type3: 1500,
     });
+  if (r.status !== 201) throw new Error(`tạo sản phẩm hỏng: ${JSON.stringify(r.body)}`);
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
     .set('Authorization', `Bearer ${tok['admin01']}`)

@@ -41,4 +41,32 @@ for f in /migrations/*.sql; do
     -c "INSERT INTO sys.schema_migration(filename, checksum) VALUES ('$name', '$sum')"
   applied=$((applied+1))
 done
+# --- Đồng bộ mật khẩu của chín DB role -------------------------------------
+#
+# CHẠY MỖI LẦN, không phải một migration. Migration chạy đúng một lần rồi được
+# ghi nhận, nên nó không thể là chỗ giữ cho mật khẩu role khớp với file bí mật
+# đang dùng — xoay mật khẩu là việc vận hành lặp lại, không phải đổi lược đồ.
+#
+# Không có bước này thì triệu chứng rất khó đọc: migration chạy sạch, CSDL vẫn
+# khoẻ, mà cả mười service chết ngay lúc khởi động với
+# "password authentication failed" — và không có gì trong log của migrate gợi ý
+# vì sao.
+if [ -n "${ROLE_PASSWORD_FILE:-}" ] && [ -f "$ROLE_PASSWORD_FILE" ]; then
+  ROLE_PASSWORD=$(cat "$ROLE_PASSWORD_FILE")
+fi
+
+if [ -n "${ROLE_PASSWORD:-}" ]; then
+  # Mật khẩu đi qua BIẾN CỦA PSQL (`:'pwd'`), không nội suy bằng shell.
+  #
+  # Đưa câu lệnh qua STDIN, không qua `-c` và không gói trong `DO $$ … $$`.
+  # psql chỉ thay biến ở đầu vào dạng tệp/stdin: `-c` gửi thẳng chuỗi xuống máy
+  # chủ, còn bên trong chuỗi trích dẫn kiểu dollar thì nó không đụng tới. Cả hai
+  # cách kia đều báo `syntax error at or near ":"` — đã dính đủ cả hai.
+  for role in csbh_idn csbh_cat csbh_cus csbh_pol csbh_doc \
+              csbh_ntf csbh_rpt csbh_aud csbh_sys; do
+    echo "ALTER ROLE $role PASSWORD :'pwd';"
+  done | psql -v ON_ERROR_STOP=1 -q -v pwd="$ROLE_PASSWORD"
+  echo "migrate: đã đồng bộ mật khẩu 9 DB role"
+fi
+
 echo "migrate: xong — áp dụng $applied, bỏ qua $skipped (đã có)"

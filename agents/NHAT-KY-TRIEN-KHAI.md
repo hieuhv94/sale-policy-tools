@@ -37,7 +37,7 @@ sẽ không tự suy ra được.
 | **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 414/414 xanh |
 | **P7c** | `gateway` + Caddy: giới hạn tần suất, header an toàn, CORS | **xong** — 446/446 xanh |
 | **P7d** | `web`: giao diện React | **xong** — 493/493 xanh |
-| **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
+| **P8** | Ảnh chạy thật, chồng demo một lệnh, ba tài liệu bàn giao | **xong** — 495/495 xanh |
 
 ---
 
@@ -1716,3 +1716,122 @@ chuỗi viết thẳng**. Không có nó thì `FE-23` quét bảng quyền và b
 ### Commit
 
 `P7d: web — giao dien React, khong dung thu vien component`
+
+---
+
+## P8 — chạy được thật: ảnh production, chồng demo, ba tài liệu bàn giao
+
+### Đã dựng
+
+- `docker/Dockerfile` — một ảnh cho cả mười service, chọn bằng `ARG SERVICE`.
+- `deploy/compose.demo.yml` — mười service + Caddy, chỉ Caddy mở cổng.
+- `make demo` — một lệnh từ máy trắng tới màn hình đăng nhập.
+- `docs/01-CHAY-TEST.md`, `docs/02-CHAY-DEMO.md`, `docs/03-HUONG-DAN-SU-DUNG.md`.
+
+### Bốn lỗi chỉ lộ ra khi CHẠY THẬT
+
+493 test xanh không nói được gì về việc hệ thống có khởi động nổi hay không. Mỗi lỗi dưới đây đều
+nằm ngoài tầm với của bộ test, vì test dựng service **trong tiến trình** và gọi **thẳng** vào từng
+service.
+
+**1. `tsx` không sinh được `emitDecoratorMetadata` — nghiêm trọng nhất.**
+
+Ảnh đầu tiên chạy service bằng `tsx`. Mọi service khởi động sạch sẽ, log đẹp, ánh xạ đủ route — rồi
+**mọi request** chết với:
+
+```
+TypeError: Cannot read properties of undefined (reading 'getAllAndOverride')
+```
+
+`AuthGuard` nhận `undefined` thay cho `Reflector`: `tsx` chạy bằng esbuild, mà esbuild không sinh
+được metadata của decorator — thứ tiêm phụ thuộc của NestJS đọc để biết constructor cần gì. Đây là
+ràng buộc đã ghi từ P1 cho *vitest*, và tôi đã không nghĩ tới nó khi dựng ảnh chạy thật.
+
+Thử `@swc-node/register`: cũng hỏng, kiểu khác — không phân giải nổi các đường dẫn `./x.js` trỏ tới
+tệp `.ts`. Cuối cùng dùng `vite-node` với **đúng cấu hình swc mà 493 test đang chạy qua**. Nó là con
+đường duy nhất trong repo này đã được chứng minh.
+
+**2. Gateway định tuyến theo tiền tố là không đủ.**
+
+`document` phục vụ ba đường nằm **dưới** `/policies` (`contract.pdf`, `render`, `sign-file`) vì
+chúng thuộc vòng đời file chứ không thuộc máy trạng thái hồ sơ. Bảng tiền tố đẩy tất cả sang
+`policy` → xuất hợp đồng trả 404.
+
+Và hai tiền tố bị **bỏ sót hẳn**: `/contract-templates`, `/admin/users`. Không test nào bắt được vì
+mọi test đều gọi thẳng service.
+
+Sửa xong, tôi thêm một test **suy ra tiền tố từ chính mã nguồn** (`@Controller('…')`) rồi đối chiếu
+với bảng định tuyến. Thiếu một tiền tố là đỏ ngay, không phải chờ ai đó mở đúng màn hình đó.
+
+**3. Ba mật khẩu, ba nơi, không nơi nào biết nơi nào.**
+
+Migration tạo chín DB role với mật khẩu mặc định; mười service đọc mật khẩu từ **file bí mật**;
+MinIO nhận mật khẩu qua **biến môi trường**. Ba đường độc lập, và khi lệch nhau thì thông báo lỗi
+không hề nhắc tới mật khẩu — MinIO nói *"The request signature we calculated does not match"*.
+
+Sửa: `migrate.sh` **đồng bộ lại mật khẩu chín role ở mỗi lần chạy** (không phải một migration —
+xoay mật khẩu là việc vận hành lặp lại, không phải đổi lược đồ), và `make demo` sinh `deploy/.env`
+để compose nội suy đúng bí mật đó vào MinIO.
+
+Riêng chỗ này còn dính thêm hai lần: `psql` **không** thay biến `:'pwd'` bên trong khối
+`DO $$ … $$`, và cũng **không** thay ở `-c`. Chỉ đầu vào dạng tệp/stdin mới được thay.
+
+**4. `notification` từ chối khởi động — và nó ĐÚNG.**
+
+Với `NODE_ENV=production`, `assertSafeMailConfig` chặn hộp thư giả: *"Production trỏ vào hộp thư giả
+mailpit — mọi thông báo sẽ rơi vào hư vô"*. Bản demo cố ý dùng Mailpit.
+
+Không thêm biến `MAIL_ALLOW_FAKE` để đi vòng — biến đó rồi sẽ có ngày xuất hiện trên máy chủ thật.
+Bản demo khai đúng mình là gì: `NODE_ENV=demo`. Mọi cấu hình còn lại vẫn qua file bí mật như
+production.
+
+### Demo và test giành nhau hạ tầng
+
+Sau khi bản demo chạy được, `make test` đỏ 18 test ở bốn tệp khác nhau — không tệp nào có lỗi thật.
+Hai chồng dùng **chung một Postgres, một RabbitMQ, một MinIO**: consumer của bản demo giành mất sự
+kiện trên hàng đợi, `/readyz` thấy service mà bộ test tưởng đang tắt, và hai bản `reporting` cùng
+ghi vào một read-model.
+
+Trước đó còn một lỗi nặng hơn cùng gốc: `migrate.sh` giờ đặt lại mật khẩu chín DB role ở **mỗi lần
+chạy**, nên chạy demo xong thì cả bộ test chết ở dòng kết nối đầu tiên với *"password authentication
+failed"* — 24 test đỏ, không dòng nào nhắc tới nguyên nhân. Sửa bằng cách cho **mỗi chồng tự đặt lại
+mật khẩu cho chính nó**, và `make test` luôn chạy `migrate` trước thay vì tin vào trạng thái
+container còn sót.
+
+Với việc giành hàng đợi thì `make test` **dừng hẳn kèm lời nhắc** thay vì tự tắt bản demo — người
+dùng có thể đang trình bày cho khách hàng.
+
+### Một lỗi giao diện, cũng do chạy thật
+
+`can.ts` cho `QUAN_TRI` thấy mục *Mẫu hợp đồng*, trong khi máy chủ chỉ cho `SALE_ADMIN` (`DOC-26`:
+mẫu hợp đồng là văn bản nghiệp vụ của Sale Admin). Một mục menu luôn dẫn tới 403. Bảng quyền phía
+giao diện không phải lớp bảo mật, nhưng lệch với máy chủ thì nó bày ra đúng thứ nó sinh ra để tránh.
+
+### Mã sinh trong test quay vòng sau 100 giây
+
+Lượt chạy thứ ba đỏ một test với `productId: phải là chuỗi` — thông báo chẳng liên quan gì tới
+nguyên nhân. Tám tệp test dùng chung một cách sinh mã: `${P}-${k}-${++n}-${Date.now() % 100000}`.
+Phần thời gian **quay vòng sau đúng 100 giây**, còn mã sản phẩm thì ở lại CSDL vĩnh viễn, nên hai
+lượt chạy cách nhau bội số của 100 giây sinh ra trùng mã. Lời gọi tạo sản phẩm trả 409, **không ai
+kiểm status**, và `undefined` đi tiếp ba mươi dòng rồi mới nổ.
+
+Hai chỗ sửa, và chỗ thứ hai quan trọng hơn:
+
+1. Gom về một hàm `maDuyNhat` trong `tests/http/app.ts`, hậu tố là số ngẫu nhiên **của lượt chạy**.
+2. **Kiểm status ngay tại chỗ gọi.** Không kiểm thì mọi lỗi hạ tầng đều hiện ra dưới dạng một lỗi
+   kiểm dữ liệu vào ở chỗ khác — và người đọc sẽ đi sửa nhầm chỗ.
+
+Cùng họ với hai lỗi đã ghi ở P7b và P7c: **giả định về dữ liệu tích luỹ**, luôn xanh ở ngày đầu.
+
+### Còn nợ sau P8
+
+- **Ảnh chạy thật vẫn biến đổi TypeScript lúc chạy.** Nên biên dịch sẵn ra JavaScript để bỏ hẳn
+  tầng đó — nhanh hơn lúc khởi động và ảnh nhỏ hơn.
+- **Chưa có lịch tự động** cho `make backup` và `make retention`.
+- **Chưa có migration lùi.**
+- Test trình duyệt thật (Playwright) từ P7d.
+- Màn hình lập/sửa hồ sơ và quản trị danh mục mới ở mức đọc.
+
+### Commit
+
+`P8: chay duoc that — anh production, chong demo mot lenh, ba tai lieu ban giao`

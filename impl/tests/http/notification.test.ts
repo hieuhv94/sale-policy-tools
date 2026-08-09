@@ -29,6 +29,7 @@ import {
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   mailpitClear,
   withAdminDb,
@@ -50,8 +51,7 @@ let outbox: PolicyOutbox;
 let catOutbox: CatalogOutbox;
 let notify: NotifyService;
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const post = async (path: string, body: object, who = 'tdv01') =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);

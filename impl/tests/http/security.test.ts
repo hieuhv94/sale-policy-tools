@@ -8,7 +8,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import { unzipSync, strFromU8 } from 'fflate';
@@ -26,6 +27,7 @@ import {
   bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   serviceToken,
   withAdminDb,
@@ -48,8 +50,7 @@ let outbox: PolicyOutbox;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 /** Gọi QUA gateway — đường duy nhất mà thế giới bên ngoài có. */
 const gw = async () => http(gateway);
@@ -187,6 +188,37 @@ describe('SEC-01 gateway chỉ chuyển tiếp những gì được liệt kê',
     expect((await gget('/healthz')).status).toBe(200);
     const login = await gpost('/auth/login', { login: 'tdv01', password: SEED_PW });
     expect(login.status).toBe(200);
+  });
+
+  it('MỌI tiền tố controller của bảy service đều có đường qua gateway', () => {
+    // Quét mã nguồn tìm tiền tố thật, thay vì tin vào bảng định tuyến. Thiếu một
+    // tiền tố nghĩa là một màn hình trả 404 mà không lỗi nào chỉ ra vì sao —
+    // đúng cách `/contract-templates` và `/admin/users` đã bị bỏ sót, và chỉ lộ
+    // ra khi chạy demo thật.
+    const thuMuc = 'services';
+    const timTep = (d: string): string[] =>
+      readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+        e.isDirectory()
+          ? timTep(join(d, e.name))
+          : e.name.endsWith('.controller.ts')
+            ? [join(d, e.name)]
+            : [],
+      );
+
+    const tienTo = new Set<string>();
+    for (const tep of timTep(thuMuc)) {
+      for (const m of readFileSync(tep, 'utf8').matchAll(/@Controller\('([^']*)'\)/g)) {
+        const p = m[1]!;
+        // API nội bộ CỐ Ý không có đường qua gateway (xem SEC-01 ở trên).
+        if (p === '' || p.startsWith('internal')) continue;
+        tienTo.add(`/${p}`);
+      }
+    }
+
+    expect(tienTo.size).toBeGreaterThan(5);
+    const cua = new Set(UPSTREAMS.map((u) => u.prefix));
+    const thieu = [...tienTo].filter((p) => !cua.has(p));
+    expect(thieu, `tiền tố không có đường qua gateway: ${thieu.join(', ')}`).toEqual([]);
   });
 
   it('mọi đường nghiệp vụ đều đòi token', async () => {
@@ -344,11 +376,26 @@ describe('SEC-10 cổng mở ra ngoài', () => {
   };
 
   it('không service nào trong compose publish cổng, trừ caddy', () => {
-    for (const f of ['deploy/compose.yml', 'deploy/compose.test.yml']) {
+    // Quét CẢ chồng demo: đó là nơi mười service ứng dụng được khai, tức là
+    // nơi dễ vô tình mở một cổng ra ngoài nhất.
+    for (const f of ['deploy/compose.yml', 'deploy/compose.test.yml', 'deploy/compose.demo.yml']) {
       const withPorts = composeServicesWithPorts(f);
       const illegal = withPorts.filter((s) => s !== 'caddy');
       expect(illegal, `${f} có service publish cổng ngoài caddy: ${illegal.join(', ')}`).toEqual([]);
     }
+  });
+
+  it('mười service ứng dụng đều nằm trong mạng internal, không service nào lộ cổng', () => {
+    const text = readFileSync('deploy/compose.demo.yml', 'utf8');
+    for (const svc of [
+      'identity', 'catalog', 'customer', 'policy', 'document',
+      'notification', 'audit', 'reporting', 'sla-worker', 'gateway',
+    ]) {
+      expect(text, `thiếu service ${svc} trong chồng demo`).toContain(`\n  ${svc}:`);
+    }
+    // Chỉ đúng MỘT dòng `ports:` trong cả file, và nó thuộc về caddy.
+    const soDongPorts = text.split('\n').filter((d) => /^ {4}ports:/.test(d)).length;
+    expect(soDongPorts).toBe(1);
   });
 
   it('Postgres, Redis, RabbitMQ, MinIO đều nằm trong mạng internal', () => {

@@ -1,0 +1,186 @@
+# =============================================================================
+# Chồng dịch vụ ứng dụng — dùng để CHẠY DEMO trên máy local.
+#
+# Dùng cùng với compose.yml (hạ tầng):
+#   docker compose -f deploy/compose.yml -f deploy/compose.demo.yml up -d
+# hoặc gọn hơn: `make demo`
+#
+# CHỈ `caddy` mở cổng ra ngoài (SEC-10). Mười service Node và bốn thành phần hạ
+# tầng đều nằm trong mạng `internal`, không có cách nào gọi thẳng từ máy thật.
+# Test `SEC-10` quét chính file này và sẽ đỏ nếu ai thêm `ports:` vào chỗ khác.
+# =============================================================================
+
+x-node: &node
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis:    { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+    migrate:  { condition: service_completed_successfully }
+  environment: &node-env
+    # `demo`, KHÔNG phải `production`, và đây là một quyết định chứ không phải
+    # đường tắt. Hai chốt chặn chỉ bật ở `production` tồn tại để bảo vệ MÁY CHỦ
+    # THẬT: `notification` từ chối khởi động khi SMTP trỏ vào hộp thư giả, và
+    # `getKeyPair` từ chối sinh khoá tạm. Bản demo cố ý dùng hộp thư giả — tắt
+    # chốt đó bằng cách nói thật mình là gì thì đúng hơn là thêm một biến "cho
+    # phép bỏ qua", vì biến đó rồi sẽ có ngày xuất hiện trên máy chủ thật.
+    #
+    # Mọi cấu hình còn lại VẪN đi qua file bí mật như production.
+    NODE_ENV: demo
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGDATABASE: csbh
+    ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
+    REDIS_URL: redis://redis:6379
+    RABBITMQ_URL: amqp://rabbitmq:5672
+    MAIL_HOST: mailpit
+    MAIL_PORT: "1025"
+    MINIO_HOST: minio
+    MINIO_PORT: "9000"
+    MINIO_ACCESS_KEY: csbh
+    MINIO_PASSWORD_FILE: /run/secrets/minio_password.txt
+    MINIO_BUCKET: csbh
+    GOTENBERG_URL: http://gotenberg:3000
+    # MỘT file khoá cho cả mười service. Mỗi service một khoá riêng nghĩa là
+    # không service nào xác minh nổi token của service khác.
+    JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
+    APP_VERSION: ${APP_VERSION:-0.0.0-dev}
+    # Địa chỉ trong liên kết của email. Trỏ về Caddy, không phải về gateway.
+    APP_BASE_URL: ${DEMO_URL:-http://localhost:8080}
+    WEB_BASE_URL: ${DEMO_URL:-http://localhost:8080}
+  volumes:
+    - ./secrets:/run/secrets:ro
+  networks: [ internal ]
+
+services:
+  # Migrate của chồng demo đọc THÊM file mật khẩu role, để nó đồng bộ mật khẩu
+  # của chín DB role với đúng bí mật mà mười service sẽ dùng.
+  migrate:
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
+      PGDATABASE: csbh
+      ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
+      BACKUP_MIRROR_DIR: /mirror
+    volumes:
+      - ../db/migrations:/migrations:ro
+      - ../scripts/migrate.sh:/migrate.sh:ro
+      - ../scripts/backup.sh:/backup.sh:ro
+      - ../scripts/restore.sh:/restore.sh:ro
+      - ../scripts/basebackup.sh:/basebackup.sh:ro
+      - ./secrets:/run/secrets:ro
+      - pgarchive:/archive
+      - ../../workspace/backup-mirror:/mirror
+      - pgbackup:/backup
+
+  identity:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: identity } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3001/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  catalog:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: catalog } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3002/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  customer:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: customer } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3003/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  policy:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: policy } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3004/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  document:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: document } }
+    depends_on:
+      postgres:  { condition: service_healthy }
+      redis:     { condition: service_healthy }
+      rabbitmq:  { condition: service_healthy }
+      minio:     { condition: service_healthy }
+      gotenberg: { condition: service_healthy }
+      migrate:   { condition: service_completed_successfully }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3005/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  notification:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: notification } }
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      mailpit:  { condition: service_healthy }
+      migrate:  { condition: service_completed_successfully }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3006/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  audit:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: audit } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3007/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  reporting:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: reporting } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3008/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  # Không mở cổng nào nên không có healthcheck HTTP. Xem chú thích ở main.ts:
+  # mở một cổng chỉ để healthcheck gọi vào là thêm một bề mặt tấn công cho tiến
+  # trình đáng lẽ không nhận request nào.
+  sla-worker:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: sla-worker } }
+
+  gateway:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: gateway } }
+    environment:
+      <<: *node-env
+      CORS_ORIGINS: ${DEMO_URL:-http://localhost:8080}
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3000/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
+  # Dựng giao diện rồi thoát. Caddy phục vụ thư mục kết quả.
+  web-build:
+    build: { context: .., dockerfile: docker/Dockerfile.dev }
+    working_dir: /app
+    command: ["sh","-c","pnpm install --frozen-lockfile --config.store-dir=/pnpm-store && pnpm build:web"]
+    environment:
+      APP_VERSION: ${APP_VERSION:-0.0.0-dev}
+    volumes:
+      - ..:/app
+      - pnpm_store_demo:/pnpm-store
+    restart: "no"
+    networks: [ internal ]
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+    # CHỖ DUY NHẤT mở cổng ra ngoài trong cả hệ (SEC-10).
+    ports:
+      - "${DEMO_PORT:-8080}:80"
+    environment:
+      SITE_ADDRESS: ":80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../apps/web/dist:/srv:ro
+      - caddy_data:/data
+    depends_on:
+      gateway: { condition: service_healthy }
+      web-build: { condition: service_completed_successfully }
+    networks: [ internal ]
+
+volumes:
+  caddy_data: {}
+  pnpm_store_demo: {}

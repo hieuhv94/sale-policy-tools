@@ -4,6 +4,7 @@
  * Không giả lập tầng nào — app nối vào đúng Postgres và Redis trong Docker, nên
  * test bắt được cả lỗi SQL và lỗi ràng buộc chứ không chỉ lỗi logic TypeScript.
  */
+import { randomBytes } from 'node:crypto';
 import { Client } from 'pg';
 import request, { type Response } from 'supertest';
 import type TestAgent from 'supertest/lib/agent.js';
@@ -15,6 +16,22 @@ export { serviceToken, expiredAccessToken } from '@csbh/identity/testing';
 
 /** Tiền tố cho mọi tài khoản do test tạo ra, để dọn sạch mà không đụng dữ liệu mẫu. */
 export const TEST_PREFIX = 'zztest';
+
+/**
+ * Hậu tố ngẫu nhiên của LƯỢT CHẠY này.
+ *
+ * Bản cũ dùng `Date.now() % 100000`, tức là quay vòng sau đúng 100 giây. Mã sản
+ * phẩm và mã khách hàng thì ở lại trong CSDL vĩnh viễn, nên hai lượt chạy cách
+ * nhau bội số của 100 giây có thể sinh ra cùng một mã — và cú va chạm đó hiện ra
+ * ở một chỗ chẳng liên quan: `productId: phải là chuỗi`, ba mươi dòng sau, vì
+ * lời gọi tạo sản phẩm trả 409 mà không ai kiểm.
+ */
+const LAN_CHAY = randomBytes(4).toString('hex');
+let demMa = 0;
+
+/** Mã duy nhất xuyên suốt mọi lượt chạy. Dùng thay cho `uniq` cục bộ ở từng tệp. */
+export const maDuyNhat = (tienTo: string, loai: string): string =>
+  `${tienTo}-${loai}-${++demMa}-${LAN_CHAY}`;
 
 export async function boot(): Promise<INestApplication> {
   return createTestApp();

@@ -19,6 +19,7 @@ import {
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   withAdminDb,
 } from './app.js';
@@ -45,8 +46,7 @@ const del = async (path: string, who = 'tdv01') =>
 const act = (policyId: string, action: string, who: string, body: object = {}) =>
   post(`/policies/${policyId}/actions/${action}`, body, who);
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 // --- Dữ liệu nền -------------------------------------------------------------
 

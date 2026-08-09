@@ -150,6 +150,10 @@ services:
       PGUSER: postgres
       PGPASSWORD: ${PG_PASSWORD:-csbh_dev_pw}
       PGDATABASE: csbh
+      # Đồng bộ mật khẩu chín DB role về đúng giá trị mà môi trường test dùng.
+      # Chồng demo ghi đè biến này bằng file bí mật của nó; hai chồng dùng CHUNG
+      # một Postgres nên lượt `make` nào chạy sau sẽ đặt lại cho đúng chính nó.
+      ROLE_PASSWORD: ${ROLE_PASSWORD:-csbh_dev_pw}
       BACKUP_MIRROR_DIR: /mirror
     volumes:
       - ../db/migrations:/migrations:ro

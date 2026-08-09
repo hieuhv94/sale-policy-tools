@@ -18,6 +18,7 @@ import {
   bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
+  maDuyNhat,
   http,
   withAdminDb,
 } from './app.js';
@@ -34,8 +35,7 @@ let storage: Storage;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const dget = async (path: string, who: string) =>
   (await http(doc)).get(path).set('Authorization', `Bearer ${tok[who]}`);
@@ -236,9 +236,15 @@ describe('DOC-02 PDF khớp bản đang xem', () => {
     const text = await pdfText(pdf.body as Buffer);
 
     // Cùng một nguồn HTML nên mọi giá trị trên màn hình phải có mặt trong PDF.
+    //
+    // So sau khi BỎ HẾT KHOẢNG TRẮNG. Chromium ngắt dòng bên trong ô hẹp, nên
+    // một mã dài như `ZZDOC-KH-6-3549bb34` bị trích ra thành
+    // `ZZDOC-KH-6- 3549bb34`. Đó là bố cục đúng chứ không phải mất dữ liệu —
+    // cùng cách xử lý đã dùng cho bảng hợp đồng ở P6c.
+    const lien = (x: string) => x.replace(/\s+/g, '');
     expect(html).toContain(d.code);
-    expect(text).toContain(d.code);
-    expect(text).toContain(CUSTOMER_NAME);
+    expect(lien(text)).toContain(lien(d.code));
+    expect(lien(text)).toContain(lien(CUSTOMER_NAME));
     expect(text).toContain('Chính sách bán hàng');
 
     // Bố cục văn bản riêng: không có phần điều hướng nào của ứng dụng.

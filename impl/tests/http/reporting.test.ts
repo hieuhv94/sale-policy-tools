@@ -28,6 +28,7 @@ import {
   clearAccountCache,
   clearSavedFilters,
   clearScopeCache,
+  maDuyNhat,
   http,
   withAdminDb,
 } from './app.js';
@@ -47,8 +48,7 @@ const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
 const userId: Record<string, string> = {};
 
-let n = 0;
-const uniq = (k: string) => `${P}-${k}-${++n}-${Date.now() % 100000}`;
+const uniq = (k: string) => maDuyNhat(P, k);
 
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
