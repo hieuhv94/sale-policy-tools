@@ -11,13 +11,21 @@ export default defineConfig({
       module: { type: 'es6' },
       jsc: {
         target: 'es2022',
-        parser: { syntax: 'typescript', decorators: true },
-        transform: { legacyDecorator: true, decoratorMetadata: true },
+        // `tsx: true` cho cả .ts lẫn .tsx — swc nhận một cấu hình parser duy
+        // nhất cho mọi tệp, và thiếu nó thì mọi test giao diện chết với
+        // "React is not defined".
+        parser: { syntax: 'typescript', tsx: true, decorators: true },
+        transform: {
+          legacyDecorator: true,
+          decoratorMetadata: true,
+          // `automatic` để không phải import React ở từng tệp .tsx.
+          react: { runtime: 'automatic' },
+        },
       },
     }),
   ],
   test: {
-    include: ['tests/**/*.test.ts', 'packages/*/src/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'packages/*/src/**/*.test.ts'],
     // Test ràng buộc CSDL dùng chung một Postgres thật nên chạy tuần tự,
     // tránh hai test cùng chèn vào một bảng rồi đổ lỗi cho nhau.
     fileParallelism: false,

@@ -86,6 +86,7 @@ services:
       - nm_audit:/app/services/audit/node_modules
       - nm_reporting:/app/services/reporting/node_modules
       - nm_gateway:/app/services/gateway/node_modules
+      - nm_web:/app/apps/web/node_modules
     working_dir: /app
     networks: [ internal ]
 
@@ -110,3 +111,4 @@ volumes:
   nm_audit: {}
   nm_reporting: {}
   nm_gateway: {}
+  nm_web: {}

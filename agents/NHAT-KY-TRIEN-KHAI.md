@@ -36,7 +36,7 @@ sẽ không tự suy ra được.
 | **P7a** | `audit` + `trace_id` xuyên suốt | **xong** — 373/373 xanh |
 | **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 414/414 xanh |
 | **P7c** | `gateway` + Caddy: giới hạn tần suất, header an toàn, CORS | **xong** — 446/446 xanh |
-| **P7d** | `web`: giao diện React | chưa |
+| **P7d** | `web`: giao diện React | **xong** — 493/493 xanh |
 | **P8** | Tài liệu bàn giao: hướng dẫn chạy test toàn hệ, hướng dẫn dựng demo local, user guide cho người dùng web | chưa |
 
 ---
@@ -1613,3 +1613,106 @@ hành vi**. Loại này luôn xanh ở ngày đầu và luôn hỏng về sau, n
 ### Commit
 
 `P7c: gateway + Caddy — bien mang, gioi han tan suat, gom AUD-08 ve mot cho`
+
+---
+
+## P7d — `web`: giao diện React, và một lần đi chệch bản thiết kế
+
+### Đã dựng
+
+- `apps/web` — Vite + React 18, tự viết bộ định tuyến và toàn bộ thành phần giao diện.
+- Bảng token màu (`tokens.css`) là nguồn duy nhất của mọi màu, khoảng cách, cỡ chữ.
+- Bảng quyền (`can.ts`) là nguồn duy nhất của "ai thấy nút gì".
+- Chín màn hình: đăng nhập, đổi mật khẩu bắt buộc, việc của tôi, hồ sơ + bộ lọc 14 tiêu chí,
+  chi tiết hồ sơ, khách hàng + chi tiết, báo cáo, danh mục, nhật ký.
+- `tests/web/` — 47 test.
+
+### Bỏ Ant Design — đi chệch bản thiết kế, có chủ ý
+
+Bản thiết kế chọn **Ant Design 5**. Tôi đã không dùng, và lý do không phải sở thích:
+
+1. **`FE-38` đặt trần 250KB nén cho gói dùng chung.** Riêng Ant Design đã chiếm phần lớn con số
+   đó trước khi viết dòng mã nghiệp vụ đầu tiên.
+2. **`FE-03` không dùng được component bảng nào có sẵn.** Yêu cầu là dưới 640px bảng thành thẻ mà
+   **không cột nào biến mất** — thư viện nào cũng giải bài toán này bằng cách ẩn bớt cột. Bốn ô
+   CPBH quyết định giá thu về, giá thu về quyết định tỷ lệ chiết khấu; ẩn đi là bắt người duyệt ký
+   vào một con số họ không kiểm được. Bảng này phải viết tay dù có dùng thư viện hay không.
+3. **`FE-19` cấm mọi mã màu nằm ngoài bảng token**, mà mọi thư viện component đều mang bảng màu
+   riêng của nó.
+
+Kết quả đo được: **56,9KB JS + 2,7KB CSS sau khi nén** — bằng khoảng một phần tư ngân sách. Test
+`FE-38` dựng thật rồi đo, và có thêm một khẳng định rằng `dependencies` chỉ gồm `react` và
+`react-dom`, để lần sau ai thêm thư viện nặng sẽ thấy đỏ ngay tại đây thay vì thấy ở máy người dùng
+dùng mạng 4G.
+
+Cùng lý do đó, `react-router` cũng bị thay bằng ~60 dòng tự viết: ứng dụng có chín đường dẫn, không
+route lồng nhau, không tải dữ liệu ở tầng route.
+
+### Ba cách bố trí, MỘT cây DOM
+
+`FE-03`, `FE-04`, `FE-05` là ba bố cục khác nhau, không phải ba mức thu nhỏ của một bố cục. Cách làm
+hiển nhiên là đọc `window.innerWidth` rồi dựng cây tương ứng — và nó **sai ở đúng `FE-06`**: xoay
+ngang điện thoại giữa lúc đang gõ CPBH sẽ tháo và dựng lại ô nhập, mất nội dung và mất tiêu điểm.
+
+Nên cả ba dùng chung một cây DOM và chỉ khác CSS. Bảng và danh sách thẻ đều được render; media query
+quyết định cái nào hiện. Tốn thêm một ít DOM, đổi lấy việc xoay máy không làm mất gì.
+
+### `FE-27` — chỗ dễ sai nhất trong toàn bộ giao diện
+
+Tỷ lệ chiết khấu phải **khớp tuyệt đối** con số API trả về. Viết `Number(v).toFixed(2)` là phản xạ
+tự nhiên và nó sai: `toFixed` làm tròn theo dấu phẩy động, nên `12.345` ra `12,35` ở màn hình trong
+khi máy chủ đã chốt `12,34` — và chính con số của máy chủ mới là con số đem so ngưỡng. Giao diện
+**không tính toán**; nó chỉ đổi dấu chấm thành dấu phẩy.
+
+Cùng họ với nó là tiền: API trả `bigint` dạng chuỗi vì tiền của hệ này vượt `2^53`. Chèn dấu phân
+cách **trên chuỗi**, không qua `Number`. Có test lấy `9007199254740993` làm ví dụ.
+
+### Một lỗi thật, do test bắt được
+
+Test "năm request cùng nhận 401 chỉ gọi làm mới MỘT lần" đỏ, và không phải vì test sai. Tôi đặt lại
+biến gộp lời gọi làm mới bằng `setTimeout(…, 0)`; nếu lượt sau bắt đầu trước khi bộ đếm nổ thì nó
+dùng **kết quả của lượt trước** — token cũ, và cả phiên bị đá ra. Sửa bằng `.finally()`: mọi bên
+đang chờ đã cầm sẵn tham chiếu tới lời hứa nên vẫn đọc được kết quả, còn biến được xoá ngay khi lời
+hứa kết thúc.
+
+Không gộp lời gọi làm mới thì năm request xoay vòng token song song, bốn cái sau dùng token đã bị
+thu hồi. Đây là loại lỗi chỉ xuất hiện khi một màn hình tải nhiều thứ cùng lúc — tức là gần như
+không bao giờ thấy khi thử tay.
+
+### Phiên hết hạn KHÔNG dỡ màn hình
+
+`FE-33` nói đăng nhập xong phải quay đúng màn hình cũ với dữ liệu còn nguyên. Cách hay gặp là lưu
+bản nháp rồi khôi phục sau khi đăng nhập — nhiều việc và dễ sót trường.
+
+Ở đây lớp phủ đăng nhập lại nằm **đè lên** màn hình đang mở thay vì thay thế nó. State React bên
+dưới không hề bị tháo, nên không có gì phải khôi phục. Bản nháp trong `sessionStorage` vẫn có, nhưng
+để dùng cho nhánh buộc tải lại khi đổi phiên bản MAJOR.
+
+### Bốn test quét MÃ NGUỒN thay vì quét màn hình
+
+`FE-19` (màu ngoài bảng token), `FE-21` (không có chức năng in phía máy người dùng), `FE-08` (vùng
+chạm 44px), `FE-11` (không đặt cỡ chữ bằng px) đều kiểm bằng cách đọc mã nguồn. Lý do: cái sai là
+**sự có mặt của một dòng mã**, ở một màn hình mà người kiểm có thể không nghĩ tới. Mở từng màn hình
+để tìm một dòng `@media print` là việc không bao giờ làm đủ.
+
+Thêm một test cùng loại không nằm trong danh mục: **không màn hình nào được so sánh vai trò bằng
+chuỗi viết thẳng**. Không có nó thì `FE-23` quét bảng quyền và báo xanh trong khi một màn hình nào
+đó vẫn có `role === 'TBP'` rải bên trong.
+
+### Còn nợ của chặng này — phần lớn cần TRÌNH DUYỆT THẬT
+
+Ảnh nền là Alpine, mà Playwright cần glibc; chạy được thì phải thêm một ảnh riêng
+(`mcr.microsoft.com/playwright`). Chưa làm, nên những mục sau chưa có test tự động:
+
+- `FE-01`, `FE-02`, `FE-04`, `FE-05` phần hình học — jsdom không áp dụng media query nên các test
+  hiện tại chỉ khẳng định **cả ba bố cục đều có mặt và không dữ liệu nào bị bỏ**, không đo được bề
+  ngang thật.
+- `FE-06` xoay máy, `FE-07` bàn phím ảo, `FE-34` quét axe-core, `FE-35` đi trọn luồng bằng bàn phím,
+  `FE-37` ảnh chụp đối chiếu, `FE-38` phần thời gian tải trên 4G mô phỏng.
+- `FE-16`, `FE-20`, `FE-22` thuộc đường sinh PDF ở máy chủ, đã có ở P6b/P6c.
+- Màn hình lập và sửa hồ sơ (thêm/bớt dòng sản phẩm), quản trị danh mục, ánh xạ trường mẫu hợp đồng
+  và quản trị người dùng mới ở mức đọc; phần ghi chưa dựng.
+
+### Commit
+
+`P7d: web — giao dien React, khong dung thu vien component`

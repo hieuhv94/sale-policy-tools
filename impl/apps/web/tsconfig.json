@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // DOM chỉ có ở ĐÂY. Đưa vào tsconfig.base là cho phép mọi service Node gọi
+    // `window` hay `document` mà trình biên dịch không kêu — lỗi chỉ lộ ra lúc
+    // chạy thật, trong container không có trình duyệt nào.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    // Không dùng decorator ở giao diện; tắt hẳn để nhầm lẫn lộ ra ngay.
+    "experimentalDecorators": false,
+    "emitDecoratorMetadata": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+}

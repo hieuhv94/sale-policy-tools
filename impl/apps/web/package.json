@@ -1,0 +1,27 @@
+{
+  "name": "@csbh/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./format": "./src/lib/format.ts",
+    "./can": "./src/lib/can.ts",
+    "./api": "./src/lib/api.ts",
+    "./bang-san-pham": "./src/components/BangSanPham.tsx",
+    "./chung": "./src/components/Chung.tsx"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.2",
+    "vite": "5.4.21"
+  }
+}

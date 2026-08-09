@@ -1,0 +1,76 @@
+/**
+ * BẢNG TOKEN — nguồn duy nhất của mọi màu, khoảng cách và cỡ chữ.
+ *
+ * `FE-19` quét toàn bộ mã giao diện tìm mã màu viết thẳng, và file này là chỗ
+ * DUY NHẤT được phép có mã hex. Lý do không phải gọn gàng: màu vượt ngưỡng
+ * chiết khấu, màu trạng thái hồ sơ và màu thương hiệu đều mang NGHĨA nghiệp vụ.
+ * Rải mã hex khắp nơi thì đổi một nghĩa phải đi sửa hai mươi chỗ, và chỗ bị bỏ
+ * sót vẫn hiển thị bình thường — chỉ sai màu.
+ */
+
+:root {
+  /* --- Thương hiệu ------------------------------------------------------- */
+  --mau-thuong-hieu: #034ea2;
+  --mau-thuong-hieu-dam: #023a79;
+  --mau-thuong-hieu-nhat: #e8f1fa;
+
+  /* --- Nền và chữ --------------------------------------------------------- */
+  --mau-nen: #ffffff;
+  --mau-nen-phu: #f5f7fa;
+  --mau-nen-hover: #eef2f7;
+  --mau-vien: #d8dee7;
+  --mau-vien-dam: #b3bcc9;
+  --mau-chu: #1b2530;
+  --mau-chu-phu: #5b6875;
+  --mau-chu-nhat: #8a95a3;
+  --mau-chu-nguoc: #ffffff;
+
+  /* --- Trạng thái --------------------------------------------------------- */
+  --mau-tot: #1a7f4b;
+  --mau-tot-nen: #e6f4ec;
+  --mau-canh-bao: #a15c00;
+  --mau-canh-bao-nen: #fdf3e2;
+  --mau-loi: #b3261e;
+  --mau-loi-nen: #fdeceb;
+  --mau-cho: #4a5b8c;
+  --mau-cho-nen: #eef0f8;
+
+  /* --- Khoảng cách -------------------------------------------------------- */
+  --k1: 4px;
+  --k2: 8px;
+  --k3: 12px;
+  --k4: 16px;
+  --k5: 24px;
+  --k6: 32px;
+
+  /* --- Chữ ---------------------------------------------------------------- */
+  --chu-nho: 0.8125rem;
+  --chu-thuong: 0.9375rem;
+  --chu-to: 1.125rem;
+  --chu-tieu-de: 1.375rem;
+
+  /**
+   * Chữ số ĐỀU CỘT cho mọi ô tiền và tỷ lệ (FE-29).
+   *
+   * Phông tỷ lệ thường cho chữ số 1 hẹp hơn chữ số 0, nên một cột tiền căn phải
+   * vẫn so le răng cưa và mắt không dò được theo cột. `tabular-nums` buộc mọi
+   * chữ số rộng bằng nhau.
+   */
+  --so-deu-cot: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  /* --- Khác ---------------------------------------------------------------- */
+  --bo-goc: 6px;
+  --bong: 0 1px 2px rgb(27 37 48 / 8%), 0 2px 8px rgb(27 37 48 / 6%);
+  --bong-noi: 0 4px 16px rgb(27 37 48 / 14%);
+
+  /**
+   * Vùng chạm tối thiểu 44px (FE-08).
+   *
+   * Không phải con số tuỳ chọn: dưới mức này thì ngón tay người lớn bấm trượt,
+   * và trên màn hình duyệt hồ sơ thì bấm trượt nghĩa là ký nhầm nút bên cạnh.
+   */
+  --vung-cham: 44px;
+}
+
+/* Điểm gãy — khai một chỗ để mọi màn hình gãy ở cùng chỗ (FE-02). */
+/* 0–639: điện thoại · 640–1023: máy tính bảng · ≥1024: máy tính */
