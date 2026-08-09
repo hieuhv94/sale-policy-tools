@@ -45,6 +45,43 @@ Mật khẩu chung: `Test@1234`.
 > nạp tài khoản mẫu **tự từ chối chạy** khi `NODE_ENV=production` (`SEC-14`) — cố ý, để không bao
 > giờ có chuyện máy chủ thật lên với tài khoản `admin/Test@1234`.
 
+## Dữ liệu mẫu có sẵn
+
+Cố ý **nhỏ** — vừa đủ để thử, không phải một đống dữ liệu không ai đọc nổi:
+
+| | Số lượng |
+|---|---|
+| Sản phẩm | 6, chia 2 nhóm, có giá thật |
+| Khách hàng | 4 — nhà thuốc, công ty, khoa bệnh viện |
+| Hồ sơ CSBH | 5, mỗi hồ sơ một trạng thái khác nhau |
+| Danh mục | 3 tỉnh/thành, 2 bệnh viện, 2 kênh, 1 người ký |
+
+Năm hồ sơ đặt ở năm trạng thái để mỗi vai trò đăng nhập vào là **có ngay việc để xem**:
+
+| Hồ sơ | Trạng thái | Ai thấy việc |
+|---|---|---|
+| Nhà thuốc Minh Châu | Nháp | `tdv01` sửa tiếp |
+| Nhà thuốc Minh Châu | Yêu cầu chỉnh sửa | `tdv01` — có dải **lý do trả lại** |
+| Dược phẩm Hoàng Long | Chờ TBP duyệt | `tbp01` |
+| Khoa Dinh dưỡng Bạch Mai | Chờ Kế toán L1 | `kt01` — xuất được hợp đồng |
+| Nhà thuốc Đông Á | Đang có hiệu lực | báo cáo, màn hình khách hàng |
+
+Hai chi tiết được đặt có chủ ý:
+
+- **Đúng một dòng vượt ngưỡng** trong tổng số chín dòng sản phẩm. Vượt ngưỡng phải là ngoại lệ thì
+  dấu cảnh báo mới có nghĩa — một bảng dòng nào cũng đỏ thì người duyệt thôi không nhìn nữa.
+- **Nhà thuốc Đông Á thuộc `tdv02`**, ba khách còn lại thuộc `tdv01`. Đăng nhập bằng `tdv01` sẽ
+  **không** thấy khách hàng đó — phạm vi dữ liệu theo cây tổ chức, nhìn thấy được ngay.
+
+Dữ liệu này nạp **qua API thật**, không chèn thẳng vào CSDL: nó đi qua đúng máy trạng thái và đúng
+phép tính chiết khấu, nên không thể ở một trạng thái mà phần mềm không tạo ra được.
+
+Nạp lại từ đầu bất cứ lúc nào (xoá sạch dữ liệu nghiệp vụ cũ, **giữ nguyên tài khoản**):
+
+```bash
+make demo-data
+```
+
 ## Đi thử một vòng nghiệp vụ
 
 1. **`tdv01`** → *Khách hàng* → lập một khách hàng mới.

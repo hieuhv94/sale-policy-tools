@@ -63,6 +63,23 @@ export const money = (): Check<bigint> => ({
   },
 });
 
+/**
+ * Tiền KHÔNG ÂM — cho phép số 0.
+ *
+ * Khác `money()` một chữ, và khác biệt đó là nghiệp vụ: giá bán phải lớn hơn 0
+ * (bán không đồng là nhập sai), còn **công nợ bằng 0 là chuyện bình thường** —
+ * khách hàng vừa thanh toán xong. Dùng `money()` cho công nợ thì không lập nổi
+ * một khách hàng không nợ gì, và thông báo lỗi lại nói "phải lớn hơn 0" khiến
+ * người nhập tưởng mình gõ thiếu.
+ */
+export const moneyKhongAm = (): Check<bigint> => ({
+  parse: (v, field) => {
+    const t = typeof v === 'bigint' ? v.toString() : String(v ?? '').trim();
+    if (!/^\d+$/.test(t)) throw bad(field, 'phải là số nguyên đồng không âm');
+    return BigInt(t);
+  },
+});
+
 export const oneOf = <T extends string>(...vals: readonly T[]): Check<T> => ({
   parse: (v, field) => {
     if (typeof v !== 'string' || !vals.includes(v as T)) {

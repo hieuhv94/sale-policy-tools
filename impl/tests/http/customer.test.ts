@@ -409,6 +409,22 @@ describe('AD-02 customer không đọc chéo schema khác', () => {
   });
 });
 
+describe('Công nợ bằng 0 là hợp lệ', () => {
+  it('lập được khách hàng không nợ gì', async () => {
+    // `money()` bắt buộc > 0 và đúng cho GIÁ BÁN. Công nợ thì khác: khách vừa
+    // thanh toán xong là nợ 0. Lỗi này chỉ lộ ra khi dựng dữ liệu demo thật.
+    const r = await post('/customers', base({ debt: '0' }));
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.debt).toBe('0');
+  });
+
+  it('công nợ ÂM vẫn bị chặn', async () => {
+    const r = await post('/customers', base({ debt: '-1000' }));
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('debt');
+  });
+});
+
 describe('OPS-07 phân trang', () => {
   it('mặc định trả tối đa 50 dòng kèm tổng số', async () => {
     for (let i = 0; i < 3; i++) await post('/customers', base());

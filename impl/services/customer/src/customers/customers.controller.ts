@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { CurrentUser, int, money, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, int, money, moneyKhongAm, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
 import { CustomersService } from './customers.service.js';
 import { taxId } from './tax-id.js';
 
@@ -58,7 +58,7 @@ export class CustomersController {
       deliveryAddress: opt(str(1, 500)),
       ownerTitle: opt(str(1, 120)),
       ownerIdNumber: opt(str(1, 60)),
-      debt: opt(money()),
+      debt: opt(moneyKhongAm()),
       provinceCode: opt(str(1, 40)),
       hospitalCode: opt(str(1, 40)),
       channelCode: opt(str(1, 40)),
@@ -77,7 +77,7 @@ export class CustomersController {
       ownerTitle: opt(str(1, 120)),
       ownerIdNumber: opt(str(1, 60)),
       idNumber: opt(taxId()),
-      debt: opt(money()),
+      debt: opt(moneyKhongAm()),
       provinceCode: opt(str(1, 40)),
       hospitalCode: opt(str(1, 40)),
       channelCode: opt(str(1, 40)),

@@ -37,7 +37,7 @@ sẽ không tự suy ra được.
 | **P7b** | `reporting`: bộ lọc, báo cáo, xuất Excel | **xong** — 414/414 xanh |
 | **P7c** | `gateway` + Caddy: giới hạn tần suất, header an toàn, CORS | **xong** — 446/446 xanh |
 | **P7d** | `web`: giao diện React | **xong** — 493/493 xanh |
-| **P8** | Ảnh chạy thật, chồng demo một lệnh, ba tài liệu bàn giao | **xong** — 495/495 xanh |
+| **P8** | Ảnh chạy thật, chồng demo một lệnh, ba tài liệu bàn giao | **xong** — 497/497 xanh |
 
 ---
 
@@ -1822,6 +1822,42 @@ Hai chỗ sửa, và chỗ thứ hai quan trọng hơn:
    kiểm dữ liệu vào ở chỗ khác — và người đọc sẽ đi sửa nhầm chỗ.
 
 Cùng họ với hai lỗi đã ghi ở P7b và P7c: **giả định về dữ liệu tích luỹ**, luôn xanh ở ngày đầu.
+
+### Dữ liệu demo: 5.509 hồ sơ xuống còn 5
+
+Bản demo dùng chung Postgres với bộ test, nên nó thừa hưởng **11.372 sản phẩm, 5.651 khách hàng,
+5.509 hồ sơ** — toàn bản ghi `ZZ*` do test sinh ra. Mở màn hình khách hàng ra là một danh sách vô
+nghĩa; không ai thử được gì trên đó.
+
+`scripts/seed-demo.ts` xoá sạch dữ liệu nghiệp vụ rồi nạp lại **6 sản phẩm, 4 khách hàng, 5 hồ sơ**.
+Ba quyết định:
+
+**Nạp qua API THẬT, không `INSERT` thẳng.** Chèn SQL nhanh hơn nhưng đi vòng qua máy trạng thái, qua
+việc đóng băng giá, qua phép tính chiết khấu — và dữ liệu demo sẽ nằm ở những trạng thái mà phần mềm
+không bao giờ tạo ra được. Đi qua API thì nó đúng theo đúng nghĩa phần mềm hiểu.
+
+**Năm hồ sơ ở năm trạng thái khác nhau**, để mỗi vai trò đăng nhập vào là có ngay việc để xem. Hồ sơ
+thứ năm — bị Trưởng bộ phận trả lại — thêm vào sau khi thử: hộp thư đến của TDV chỉ hiện hồ sơ bị
+trả lại, nên không có nó thì `tdv01` mở phần mềm ra thấy trang chủ **trống**. Đúng về hành vi, nhưng
+là một bản demo tệ.
+
+**Đúng một dòng vượt ngưỡng trong chín dòng.** Lần đầu tôi đặt số bừa và bốn trên tám dòng vượt
+ngưỡng — một bảng mà dòng nào cũng đỏ thì người duyệt thôi không nhìn nữa, và dấu cảnh báo mất hết ý
+nghĩa. Đã tính lại từng con số.
+
+### Hai lỗi tìm ra khi dựng dữ liệu demo
+
+**Công nợ bằng 0 bị từ chối.** `debt` dùng `money()`, vốn bắt buộc `> 0` — đúng cho GIÁ BÁN (bán
+không đồng là nhập sai) nhưng sai cho công nợ: khách vừa thanh toán xong là nợ 0. Không lập nổi một
+khách hàng không nợ gì, và thông báo lỗi *"phải lớn hơn 0"* khiến người nhập tưởng mình gõ thiếu.
+Thêm `moneyKhongAm()` và hai test.
+
+**Sửa script seed rồi chạy lại nạp bản CŨ.** Mã nguồn được sao chép vào ảnh lúc build chứ không gắn
+từ máy thật, nên `make demo-data` dùng bản trong ảnh — và không có gì báo cho biết. Đã cho
+`demo-data` dựng lại trước, và xếp lại tầng của Dockerfile (`pnpm fetch` theo lockfile trước, sao
+chép mã nguồn sau) để việc dựng lại đó rẻ. Gộp làm một thì sửa một ký tự là tải lại toàn bộ phụ
+thuộc — hai phút cho một thay đổi một dòng, và người ta sẽ thôi không dựng lại nữa mà đoán xem mã
+đang chạy là bản nào.
 
 ### Còn nợ sau P8
 

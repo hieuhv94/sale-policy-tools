@@ -27,10 +27,23 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 RUN apk add --no-cache curl tini
 
 WORKDIR /app
+
+# HAI BƯỚC, và thứ tự này quyết định tốc độ dựng lại.
+#
+# `pnpm fetch` chỉ cần lockfile: nó tải mọi gói về kho cục bộ mà không cần mã
+# nguồn. Tầng đó chỉ mất hiệu lực khi lockfile đổi. Sao chép mã nguồn rồi mới
+# `install --offline` nên sửa một dòng trong service chỉ dựng lại tầng cuối.
+#
+# Gộp làm một (`COPY . .` rồi `pnpm install`) thì mỗi lần sửa một ký tự là tải
+# lại toàn bộ phụ thuộc — hai phút cho một thay đổi một dòng, và người ta sẽ
+# thôi không dựng lại nữa mà đoán xem mã đang chạy là bản nào.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+RUN pnpm fetch --config.store-dir=/pnpm-store
+
 COPY . .
 
-# Cài ĐẦY ĐỦ, gồm cả devDependencies: `tsx` nằm ở đó và là thứ chạy service.
-RUN pnpm install --frozen-lockfile --config.store-dir=/pnpm-store \
+# Cài ĐẦY ĐỦ, gồm cả devDependencies: `vite-node` nằm ở đó và là thứ chạy service.
+RUN pnpm install --offline --frozen-lockfile --config.store-dir=/pnpm-store \
  && rm -rf /pnpm-store
 
 # Đặt SAU khi cài. Đặt trước thì pnpm bỏ qua devDependencies và ảnh không có tsx.

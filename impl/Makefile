@@ -11,7 +11,7 @@ WORKSPACE := ../workspace
 
 .PHONY: help up down migrate install typecheck test seed clean ps logs psql version \
         backup restore restore-drill retention secrets demo demo-down demo-logs demo-seed \
-        demo-env demo-mail check-demo-down
+        demo-env demo-mail check-demo-down demo-data
 
 help:
 	@echo "up        dựng hạ tầng (postgres, redis, rabbitmq, minio, mailpit) + migration"
@@ -126,6 +126,7 @@ demo: secrets demo-env
 	  identity catalog customer policy document notification audit reporting \
 	  sla-worker gateway caddy
 	$(MAKE) demo-seed
+	$(MAKE) demo-data
 	@echo ""
 	@echo "  Giao diện:   http://localhost:$${DEMO_PORT:-8080}"
 	@echo "  Hộp thư thử: chạy 'make demo-mail' rồi mở http://localhost:8025"
@@ -151,6 +152,18 @@ demo-env:
 # khẩu ai cũng đoán được thì không bao giờ được nạp lên máy chủ thật.
 demo-seed:
 	$(DEMO) run --rm -T -e NODE_ENV= --entrypoint sh identity -c "pnpm seed"
+
+# Dữ liệu nghiệp vụ mẫu: NHỎ và thật.
+#
+# Chạy SAU khi mười service đã sống, vì nó nạp qua API thật chứ không INSERT
+# thẳng — dữ liệu demo phải đi qua đúng máy trạng thái và đúng phép tính chiết
+# khấu, nếu không nó sẽ ở những trạng thái mà phần mềm không tạo ra được.
+demo-data:
+	# Dựng lại TRƯỚC khi chạy. Mã nguồn được sao chép vào ảnh lúc build chứ không
+	# gắn từ máy thật, nên sửa `seed-demo.ts` rồi chạy thẳng sẽ nạp bản cũ — và
+	# không có gì báo cho biết điều đó.
+	$(DEMO) build gateway
+	$(DEMO) run --rm -T -e NODE_ENV= --entrypoint sh gateway -c "pnpm exec tsx scripts/seed-demo.ts"
 
 demo-down:
 	$(DEMO) down
