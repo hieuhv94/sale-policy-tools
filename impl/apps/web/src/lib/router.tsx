@@ -46,14 +46,24 @@ export function Lien({
   den,
   children,
   className,
+  ...rest
 }: {
   den: string;
   children: ReactNode;
   className?: string;
+  /**
+   * Mục điều hướng đang mở đặt `aria-current="page"`.
+   *
+   * Không thừa so với lớp `dang-o`: lớp CSS chỉ đổi màu, mà trình đọc màn hình
+   * không đọc màu. Thiếu thuộc tính này thì người dùng NVDA nghe hết tám mục
+   * giống hệt nhau và không biết mình đang ở đâu (FE-35).
+   */
+  'aria-current'?: 'page';
 }) {
   const { di } = useDuong();
   return (
     <a
+      {...rest}
       href={den}
       className={className}
       onClick={(e) => {

@@ -80,6 +80,20 @@ async function pdfText(pdf: Buffer): Promise<string> {
   return out.replace(/\s+/g, ' ');
 }
 
+/**
+ * Bỏ HẾT khoảng trắng trước khi so chuỗi trong PDF.
+ *
+ * Chromium ngắt dòng bên trong ô hẹp, và `pdfjs` còn tách thêm một lần nữa theo
+ * vị trí đặt chữ — nên một mã dài như `ZZDOC-KH-9-6ff1a4cd` trích ra thành
+ * `ZZDOC-KH-9-6 ff 1a4cd`. Đó là bố cục đúng chứ không phải mất dữ liệu.
+ *
+ * Chỗ tách nằm ở đâu phụ thuộc vào chính các ký tự trong mã, mà mã thì mang hậu
+ * tố ngẫu nhiên của mỗi lượt chạy. Nên phép so chính xác ở đây KHÔNG sai hẳn —
+ * nó đỏ theo xác suất, mỗi vài chục lượt một lần, và người đọc sẽ đi tìm lỗi
+ * trong bộ sinh PDF.
+ */
+const lien = (x: string): string => x.replace(/\s+/g, '');
+
 // --- Dữ liệu nền -------------------------------------------------------------
 
 let groupCode = '';
@@ -236,12 +250,7 @@ describe('DOC-02 PDF khớp bản đang xem', () => {
     const text = await pdfText(pdf.body as Buffer);
 
     // Cùng một nguồn HTML nên mọi giá trị trên màn hình phải có mặt trong PDF.
-    //
-    // So sau khi BỎ HẾT KHOẢNG TRẮNG. Chromium ngắt dòng bên trong ô hẹp, nên
-    // một mã dài như `ZZDOC-KH-6-3549bb34` bị trích ra thành
-    // `ZZDOC-KH-6- 3549bb34`. Đó là bố cục đúng chứ không phải mất dữ liệu —
-    // cùng cách xử lý đã dùng cho bảng hợp đồng ở P6c.
-    const lien = (x: string) => x.replace(/\s+/g, '');
+    // So sau khi bỏ hết khoảng trắng — lý do ở `lien`.
     expect(html).toContain(d.code);
     expect(lien(text)).toContain(lien(d.code));
     expect(lien(text)).toContain(lien(CUSTOMER_NAME));
@@ -286,7 +295,8 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
       'Kế toán', //                           12. kế toán
       'Thời gian duyệt', //                   13. thời gian duyệt
     ];
-    for (const r of required) expect(t, `thiếu mục "${r}"`).toContain(r);
+    const phang = lien(t);
+    for (const r of required) expect(phang, `thiếu mục "${r}"`).toContain(lien(r));
   }, 60_000);
 });
 

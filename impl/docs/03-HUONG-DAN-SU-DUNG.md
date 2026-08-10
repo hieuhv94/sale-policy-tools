@@ -27,14 +27,35 @@ Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và m�
 Bạn chỉ nhìn thấy dữ liệu **trong phạm vi của mình**: TDV thấy khách hàng mình phụ trách, Kế toán
 thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên dưới.
 
-## 3. Trang chủ — *Việc của tôi*
+## 3. Bố cục màn hình
+
+**Thanh bên trái** là toàn bộ điều hướng. Bạn chỉ thấy những mục thuộc vai trò của mình — Ban lãnh
+đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
+mở được tô nền xanh.
+
+**Thanh trên cùng** có ba thứ, từ phải sang: nút **Đăng xuất**, tên và vai trò của bạn, và nút đổi
+**giao diện sáng / tối**.
+
+### Giao diện sáng và tối
+
+Nút hình mặt trăng (hoặc mặt trời) ở thanh trên cùng, và ở góc trên bên phải màn hình đăng nhập.
+
+- **Chưa bấm lần nào** thì phần mềm **đi theo cài đặt của máy bạn**. Máy để chế độ tối — kể cả loại
+  tự chuyển tối vào buổi tối — thì phần mềm tối theo, không cần làm gì.
+- **Bấm một lần** là bạn chọn tay, và lựa chọn đó **thắng cài đặt của máy** theo cả hai chiều. Nó
+  được nhớ trên chính máy này cho những lần sau.
+
+Lựa chọn giao diện là **của riêng từng máy**, không đi theo tài khoản: cùng một người đăng nhập ở
+máy bàn và ở điện thoại có thể để hai giao diện khác nhau.
+
+## 4. Trang chủ — *Việc của tôi*
 
 Chỉ liệt kê hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá hạn** có
 vạch đỏ bên trái.
 
 Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải hệ thống lỗi.
 
-## 4. Lập khách hàng (TDV)
+## 5. Lập khách hàng (TDV)
 
 *Khách hàng* → điền mã, tên, loại khách hàng, địa chỉ đăng ký, người đại diện.
 
@@ -43,7 +64,7 @@ Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phả
 - Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
   điểm bán là chuyện có thật.
 
-## 5. Lập hồ sơ CSBH (TDV)
+## 6. Lập hồ sơ CSBH (TDV)
 
 *Hồ sơ CSBH* → **Lập hồ sơ** → chọn khách hàng → thêm từng dòng sản phẩm.
 
@@ -64,7 +85,7 @@ không cần nhập lại.
 
 Xong thì bấm **Gửi duyệt**.
 
-## 6. Luồng duyệt — 10 bước
+## 7. Luồng duyệt — 10 bước
 
 ```
 TDV lập  →  Gửi duyệt  →  TBP ký số  →  Kế toán tiếp nhận L1  →  xuất hợp đồng
@@ -83,7 +104,7 @@ TDV lập  →  Gửi duyệt  →  TBP ký số  →  Kế toán tiếp nhận 
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật. Trước hạn một ngày hệ
 thống gửi thư nhắc; quá hạn thì hồ sơ chuyển *Quá hạn duyệt* nhưng **vẫn đi tiếp đúng nhánh cũ**.
 
-## 7. Hiệu lực
+## 8. Hiệu lực
 
 Ba điều dễ hiểu nhầm:
 
@@ -92,7 +113,7 @@ Ba điều dễ hiểu nhầm:
    xong — hai việc đó xảy ra cùng lúc, không có khoảnh khắc nào khách hàng không có chính sách.
 3. Hiệu lực chuyển **đúng lúc Kế toán tiếp nhận lần 2**, không phải lúc TBP ký.
 
-## 8. Xuất hợp đồng (Kế toán và Sale Admin)
+## 9. Xuất hợp đồng (Kế toán và Sale Admin)
 
 Mở hồ sơ → **Xuất hợp đồng (PDF)**. File sinh ở máy chủ, trộn dữ liệu hồ sơ vào mẫu do Sale Admin
 tải lên.
@@ -102,7 +123,7 @@ tải lên.
   địa chỉ khách hàng vừa đổi thì bản mới mang địa chỉ mới — đúng theo thiết kế.
 - Trưởng bộ phận **không** thấy nút này.
 
-## 9. Tìm kiếm và bộ lọc
+## 10. Tìm kiếm và bộ lọc
 
 *Hồ sơ CSBH* → **Bộ lọc** — 14 tiêu chí, kết hợp được với nhau:
 
@@ -118,26 +139,32 @@ tải lên.
   **Xoá bộ lọc** để về danh sách đầy đủ.
 - Trên điện thoại, bộ lọc nằm trong tấm trượt lên từ đáy màn hình.
 
-## 10. Báo cáo và xuất Excel
+## 11. Báo cáo và xuất Excel
 
-*Báo cáo* có ba phần: **tiến độ hồ sơ** theo trạng thái và người xử lý, **tỷ lệ hồ sơ bị trả lại**
-(tính cả hồ sơ bị từ chối), và **hạn xử lý (SLA)**.
+Đầu màn hình là **bốn con số** trả lời bốn câu hỏi thường gặp nhất: tổng hồ sơ, đang chờ xử lý, quá
+hạn, và tỷ lệ trả lại. Ô *Quá hạn* chuyển đỏ khi khác 0.
+
+Bên dưới là **tiến độ hồ sơ** theo trạng thái (sắp giảm dần, kèm thanh so sánh độ dài), **tỷ lệ hồ
+sơ bị trả lại** (tính cả hồ sơ bị từ chối), và **hạn xử lý (SLA)**.
 
 **Xuất Excel** chạy nền: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng sẽ hiện liên kết
 tải. File chứa **đúng tập đang lọc**, cột tiền là **số** nên cộng và lọc được ngay trong Excel.
 
 File kết xuất **chỉ người bấm xuất tải được**, và hết hạn lưu sau 24 giờ.
 
-## 11. Dùng trên điện thoại
+## 12. Dùng trên điện thoại
 
 Toàn bộ luồng duyệt làm được trên điện thoại, kể cả bước ký số của Trưởng bộ phận.
+
+Dưới 1024px thanh bên **thu lại thành ngăn kéo**: chạm nút ba gạch ở góc trái thanh trên cùng để mở,
+chạm ra ngoài hoặc chạm dấu X để đóng. Chọn một mục xong thì nó tự đóng.
 
 Bảng dòng sản phẩm dưới 640px chuyển thành **thẻ**, mỗi sản phẩm một thẻ. **Không cột nào bị bỏ** —
 bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 
 Ô nhập tiền gọi **bàn phím số**. Xoay ngang máy giữa lúc đang gõ không làm mất nội dung.
 
-## 12. Khi gặp lỗi
+## 13. Khi gặp lỗi
 
 - **"Không kết nối được máy chủ"** — lỗi mạng. **Dữ liệu bạn đã nhập vẫn còn nguyên**, bấm *Thử lại*.
 - **"Dữ liệu vừa được người khác thay đổi"** — hai người thao tác cùng lúc. Tải lại rồi làm lại.
@@ -145,7 +172,7 @@ bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 - Mỗi thông báo lỗi có **Mã tra cứu**. Đọc mã đó cho bộ phận hỗ trợ; nó dựng lại được toàn bộ chuỗi
   thao tác của bạn.
 
-## 13. Những gì hệ thống **không** làm
+## 14. Những gì hệ thống **không** làm
 
 Nói trước để khỏi đi tìm:
 

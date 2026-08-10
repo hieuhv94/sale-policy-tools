@@ -6,34 +6,109 @@
  * chiết khấu, màu trạng thái hồ sơ và màu thương hiệu đều mang NGHĨA nghiệp vụ.
  * Rải mã hex khắp nơi thì đổi một nghĩa phải đi sửa hai mươi chỗ, và chỗ bị bỏ
  * sót vẫn hiển thị bình thường — chỉ sai màu.
+ *
+ * ---------------------------------------------------------------------------
+ * HAI GIAO DIỆN, BA TRẠNG THÁI
+ * ---------------------------------------------------------------------------
+ * Bảng màu khai ba lần, và thứ tự có ý nghĩa:
+ *
+ *   1. `:root`                              — bảng SÁNG, mặc định cho mọi máy.
+ *   2. `@media (prefers-color-scheme: dark)` — máy đang để chế độ tối thì đổi
+ *      sang bảng TỐI, trừ khi người dùng đã chọn tay giao diện sáng.
+ *   3. `:root[data-theme='toi']`            — người dùng chọn tay, thắng cả hai.
+ *
+ * Cách xếp này khiến giao diện ĐÚNG NGAY TỪ KHUNG HÌNH ĐẦU với người chưa chọn
+ * gì: CSS tự theo cài đặt của máy, không phải chờ JavaScript chạy xong mới đổi
+ * màu. Không thể làm bằng cách chèn một đoạn script vào `index.html` như các
+ * mẫu quản trị vẫn làm — CSP của Caddy đặt `script-src 'self'`, script nội tuyến
+ * bị chặn thẳng (SEC-09).
+ *
+ * Hệ quả: chỉ người CHỌN TAY ngược với cài đặt máy mới thấy một nháy đổi màu
+ * lúc tải trang. Đổi lại thì không phải nới CSP — và nới CSP để tránh một nháy
+ * màu là một cái giá quá đắt.
  */
 
 :root {
+  color-scheme: light;
+
   /* --- Thương hiệu ------------------------------------------------------- */
   --mau-thuong-hieu: #034ea2;
   --mau-thuong-hieu-dam: #023a79;
   --mau-thuong-hieu-nhat: #e8f1fa;
 
-  /* --- Nền và chữ --------------------------------------------------------- */
-  --mau-nen: #ffffff;
-  --mau-nen-phu: #f5f7fa;
-  --mau-nen-hover: #eef2f7;
-  --mau-vien: #d8dee7;
-  --mau-vien-dam: #b3bcc9;
-  --mau-chu: #1b2530;
-  --mau-chu-phu: #5b6875;
-  --mau-chu-nhat: #8a95a3;
+  /**
+   * Nút chính tách khỏi màu thương hiệu, và đây KHÔNG phải chuyện thẩm mỹ.
+   *
+   * Ở giao diện tối, màu thương hiệu phải sáng lên mới đọc được trên nền tối —
+   * nhưng cùng màu ấy làm nền nút thì chữ trắng trên nó chỉ còn tương phản 4:1,
+   * dưới ngưỡng WCAG AA. Hai vai trò khác nhau thì phải là hai token khác nhau.
+   */
+  --mau-nut-chinh: #034ea2;
+  --mau-nut-chinh-hover: #023a79;
+  --mau-nut-nguy-hiem: #b3261e;
+  --mau-nut-nguy-hiem-hover: #8f1e18;
+  /* Chữ nằm trên các mảng màu đậm ở trên. */
   --mau-chu-nguoc: #ffffff;
 
+  /* --- Nền và chữ --------------------------------------------------------- */
+  --mau-nen: #ffffff;
+  --mau-nen-phu: #f1f5f9;
+  --mau-nen-hover: #eef2f7;
+  /* Hai điểm dừng của nền trang. Dải chuyển rất nhạt — đủ để mặt phẳng trang
+     không phẳng lì, không đủ để ai nhận ra là có dải màu. */
+  --mau-nen-tren: #f7fafd;
+  --mau-nen-duoi: #e9eff6;
+  --mau-vien: #e2e8f0;
+  --mau-vien-dam: #cbd5e1;
+  --mau-chu: #16202e;
+  --mau-chu-phu: #52627a;
+  --mau-chu-nhat: #8a97a9;
+
+  /**
+   * Nền của ô đặt logo — TRẮNG ở CẢ HAI giao diện, và đây là chuyện bắt buộc
+   * chứ không phải lựa chọn.
+   *
+   * `logo.png` là ảnh bảng màu 64 màu KHÔNG có kênh trong suốt (không có chunk
+   * tRNS), và hai màu chiếm 96% số điểm ảnh là trắng với xanh thương hiệu. Đặt
+   * thẳng lên nền tối thì hiện ra một hộp trắng vuông quanh logo — trông như
+   * lỗi cắt ảnh.
+   *
+   * Cách vòng qua hiển nhiên là khai màu trắng thành trong suốt, và nó SAI:
+   * 26.679 điểm ảnh trắng nằm bên trong lòng logo (nền của biểu tượng và của
+   * chữ NUTRICARE). Trong suốt hoá thì chữ xanh rơi thẳng xuống nền navy, gần
+   * như không đọc được. Nên logo được đặt lên một ô trắng CÓ CHỦ Ý, bo góc như
+   * một dấu hiệu thương hiệu.
+   */
+  --mau-nen-logo: #ffffff;
+
+  /* --- Thanh bên ---------------------------------------------------------- */
+  /* Xanh navy pha sắc thương hiệu, KHÔNG phải xám trung tính: thanh bên chiếm
+     một phần tư màn hình nên nó là thứ đặt tông cho cả ứng dụng. */
+  --mau-thanh-ben: #0b2545;
+  --mau-thanh-ben-phu: #14355f;
+  --mau-thanh-ben-vien: #1d4370;
+  --mau-thanh-ben-chu: #b9cbe0;
+  --mau-thanh-ben-chu-dam: #ffffff;
+  --mau-thanh-ben-hoat-dong: #2f7ed8;
+
   /* --- Trạng thái --------------------------------------------------------- */
-  --mau-tot: #1a7f4b;
-  --mau-tot-nen: #e6f4ec;
+  --mau-tot: #15803d;
+  --mau-tot-nen: #e3f5e9;
   --mau-canh-bao: #a15c00;
   --mau-canh-bao-nen: #fdf3e2;
   --mau-loi: #b3261e;
   --mau-loi-nen: #fdeceb;
-  --mau-cho: #4a5b8c;
-  --mau-cho-nen: #eef0f8;
+  --mau-cho: #43539b;
+  --mau-cho-nen: #eceffa;
+
+  /* --- Lớp phủ và bóng ----------------------------------------------------- */
+  --mau-lop-phu: rgb(11 37 69 / 55%);
+  --bong-nho: 0 1px 2px rgb(15 34 58 / 6%);
+  --bong: 0 1px 2px rgb(15 34 58 / 5%), 0 8px 20px rgb(15 34 58 / 6%);
+  --bong-noi: 0 24px 60px rgb(15 34 58 / 20%);
+  --bong-thanh-ben: 12px 0 32px rgb(15 34 58 / 10%);
+  /* Vòng sáng quanh ô nhập đang nhận tiêu điểm. */
+  --vong-tieu-diem: 0 0 0 3px rgb(3 78 162 / 18%);
 
   /* --- Khoảng cách -------------------------------------------------------- */
   --k1: 4px;
@@ -44,10 +119,12 @@
   --k6: 32px;
 
   /* --- Chữ ---------------------------------------------------------------- */
+  --chu-rat-nho: 0.75rem;
   --chu-nho: 0.8125rem;
   --chu-thuong: 0.9375rem;
   --chu-to: 1.125rem;
   --chu-tieu-de: 1.375rem;
+  --chu-so-lieu: 1.75rem;
 
   /**
    * Chữ số ĐỀU CỘT cho mọi ô tiền và tỷ lệ (FE-29).
@@ -58,10 +135,11 @@
    */
   --so-deu-cot: 'Inter', 'Segoe UI', system-ui, sans-serif;
 
-  /* --- Khác ---------------------------------------------------------------- */
-  --bo-goc: 6px;
-  --bong: 0 1px 2px rgb(27 37 48 / 8%), 0 2px 8px rgb(27 37 48 / 6%);
-  --bong-noi: 0 4px 16px rgb(27 37 48 / 14%);
+  /* --- Hình khối ----------------------------------------------------------- */
+  --bo-goc-nho: 8px;
+  --bo-goc: 12px;
+  --bo-goc-to: 18px;
+  --rong-thanh-ben: 260px;
 
   /**
    * Vùng chạm tối thiểu 44px (FE-08).
@@ -70,6 +148,129 @@
    * và trên màn hình duyệt hồ sơ thì bấm trượt nghĩa là ký nhầm nút bên cạnh.
    */
   --vung-cham: 44px;
+}
+
+/**
+ * Bảng TỐI — chỉ khai lại phần màu. Khoảng cách, cỡ chữ và bo góc không đổi
+ * theo giao diện, nên chúng không được lặp lại ở đây.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='sang']) {
+    color-scheme: dark;
+
+    --mau-thuong-hieu: #6fb0f5;
+    --mau-thuong-hieu-dam: #9ccbfa;
+    --mau-thuong-hieu-nhat: #15304f;
+
+    /* Nền nút TỐI HƠN màu thương hiệu để chữ trắng vẫn đạt AA — xem ghi chú ở
+       bảng sáng. */
+    --mau-nut-chinh: #1f6ac4;
+    --mau-nut-chinh-hover: #2f7ed8;
+    --mau-nut-nguy-hiem: #b93a3a;
+    --mau-nut-nguy-hiem-hover: #cf4a4a;
+    --mau-chu-nguoc: #ffffff;
+
+    --mau-nen: #151f32;
+    --mau-nen-phu: #101828;
+    --mau-nen-hover: #1c2941;
+    --mau-nen-tren: #0d1626;
+    --mau-nen-duoi: #0a1220;
+    --mau-vien: #27344c;
+    --mau-vien-dam: #3a4a66;
+    --mau-chu: #e6edf7;
+    --mau-chu-phu: #a2b2c9;
+    --mau-chu-nhat: #74869e;
+
+    /**
+     * Thanh bên SÁNG HƠN nền trang ở giao diện tối, ngược với bảng sáng.
+     *
+     * Ở bảng sáng, thanh bên tối hơn nền nên tự nó tách ra. Ở bảng tối, làm nó
+     * tối hơn nữa thì cả hai cùng chạm đáy và ranh giới biến mất — đã dựng thử
+     * và thanh bên hoà thẳng vào nền trang. Cùng một ý "tách khỏi nền" nhưng
+     * phải đi theo hai hướng ngược nhau.
+     */
+    --mau-thanh-ben: #101d33;
+    --mau-thanh-ben-phu: #1d2c48;
+    --mau-thanh-ben-vien: #27385a;
+    --mau-thanh-ben-chu: #a9bbd2;
+    --mau-thanh-ben-chu-dam: #ffffff;
+    --mau-thanh-ben-hoat-dong: #3d8ce0;
+
+    /**
+     * Màu trạng thái ở giao diện tối KHÔNG phải màu sáng bị làm tối đi.
+     *
+     * Chữ phải sáng lên (đọc trên nền tối) còn nền phải tối xuống — tức là hai
+     * đầu đi ngược nhau. Lấy nguyên cặp màu của bảng sáng rồi giảm độ sáng đều
+     * cho ra nhãn xám xịt không phân biệt được với nhau.
+     */
+    --mau-tot: #58d68d;
+    --mau-tot-nen: #10331f;
+    --mau-canh-bao: #f0b352;
+    --mau-canh-bao-nen: #382a11;
+    --mau-loi: #f28b82;
+    --mau-loi-nen: #3b1b1a;
+    --mau-cho: #a5b4fc;
+    --mau-cho-nen: #1e2542;
+
+    --mau-lop-phu: rgb(3 8 17 / 70%);
+    --bong-nho: 0 1px 2px rgb(0 0 0 / 30%);
+    --bong: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 30%);
+    --bong-noi: 0 24px 60px rgb(0 0 0 / 55%);
+    --bong-thanh-ben: 12px 0 32px rgb(0 0 0 / 35%);
+    --vong-tieu-diem: 0 0 0 3px rgb(111 176 245 / 28%);
+  }
+}
+
+/**
+ * Người dùng chọn tay giao diện tối. Cùng nội dung với khối trên — CSS không có
+ * cách nào gộp hai điều kiện này lại mà vẫn giữ được thứ tự ưu tiên đúng.
+ */
+:root[data-theme='toi'] {
+  color-scheme: dark;
+
+  --mau-thuong-hieu: #6fb0f5;
+  --mau-thuong-hieu-dam: #9ccbfa;
+  --mau-thuong-hieu-nhat: #15304f;
+
+  --mau-nut-chinh: #1f6ac4;
+  --mau-nut-chinh-hover: #2f7ed8;
+  --mau-nut-nguy-hiem: #b93a3a;
+  --mau-nut-nguy-hiem-hover: #cf4a4a;
+  --mau-chu-nguoc: #ffffff;
+
+  --mau-nen: #151f32;
+  --mau-nen-phu: #101828;
+  --mau-nen-hover: #1c2941;
+  --mau-nen-tren: #0d1626;
+  --mau-nen-duoi: #0a1220;
+  --mau-vien: #27344c;
+  --mau-vien-dam: #3a4a66;
+  --mau-chu: #e6edf7;
+  --mau-chu-phu: #a2b2c9;
+  --mau-chu-nhat: #74869e;
+
+  --mau-thanh-ben: #101d33;
+  --mau-thanh-ben-phu: #1d2c48;
+  --mau-thanh-ben-vien: #27385a;
+  --mau-thanh-ben-chu: #a9bbd2;
+  --mau-thanh-ben-chu-dam: #ffffff;
+  --mau-thanh-ben-hoat-dong: #3d8ce0;
+
+  --mau-tot: #58d68d;
+  --mau-tot-nen: #10331f;
+  --mau-canh-bao: #f0b352;
+  --mau-canh-bao-nen: #382a11;
+  --mau-loi: #f28b82;
+  --mau-loi-nen: #3b1b1a;
+  --mau-cho: #a5b4fc;
+  --mau-cho-nen: #1e2542;
+
+  --mau-lop-phu: rgb(3 8 17 / 70%);
+  --bong-nho: 0 1px 2px rgb(0 0 0 / 30%);
+  --bong: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 30%);
+  --bong-noi: 0 24px 60px rgb(0 0 0 / 55%);
+  --bong-thanh-ben: 12px 0 32px rgb(0 0 0 / 35%);
+  --vong-tieu-diem: 0 0 0 3px rgb(111 176 245 / 28%);
 }
 
 /* Điểm gãy — khai một chỗ để mọi màn hình gãy ở cùng chỗ (FE-02). */

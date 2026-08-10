@@ -7,6 +7,7 @@
     "./format": "./src/lib/format.ts",
     "./can": "./src/lib/can.ts",
     "./api": "./src/lib/api.ts",
+    "./giao-dien": "./src/lib/giao-dien.ts",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./chung": "./src/components/Chung.tsx"
   },

@@ -1871,3 +1871,115 @@ thuộc — hai phút cho một thay đổi một dòng, và người ta sẽ th
 ### Commit
 
 `P8: chay duoc that — anh production, chong demo mot lenh, ba tai lieu ban giao`
+
+---
+
+## P9 — Giao diện: thiết kế lại theo mẫu quản trị, và hai bảng màu
+
+### Đã dựng
+
+- `tokens.css` viết lại: **hai bảng màu đầy đủ** (sáng / tối) cộng bảng khoảng cách, cỡ chữ, bo góc.
+- `app.css` viết lại quanh bố cục **thanh bên cố định + cột nội dung**, thay cho hàng tab ngang.
+- `lib/giao-dien.ts` — chọn giao diện, ba trạng thái. `components/NutGiaoDien.tsx` — nút đổi.
+- `components/BieuTuong.tsx` — 13 biểu tượng SVG vẽ tay.
+- Màn hình *Báo cáo* có bốn ô số liệu và thanh so sánh theo trạng thái.
+- `tests/web/giao-dien.test.tsx` — 9 test. Tổng bộ test giao diện: **56**.
+
+Đo lại gói: **58,5KB JS + 4,4KB CSS** sau khi nén, trần `FE-38` là 250KB.
+
+### Vì sao thanh bên, không phải hàng tab
+
+Tám mục điều hướng với nhãn tiếng Việt dài ("Việc của tôi", "Mẫu hợp đồng") xếp ngang thì tràn dòng
+ngay ở màn hình 1280px, và một hàng tab tràn thành hai dòng trông như lỗi hiển thị chứ không như một
+thiết kế. Cột dọc thì thêm mục thứ chín cũng không đổi bố cục.
+
+### Ba trạng thái giao diện, không phải hai
+
+Đây là phần dễ làm sai nhất, và cái sai không nhìn thấy được.
+
+Cách hiển nhiên là lưu `'sang'` hoặc `'toi'` vào `localStorage` ngay lần chạy đầu, đọc từ
+`prefers-color-scheme`. Nó **đóng băng** cài đặt của máy tại đúng giây người dùng mở phần mềm lần
+đầu: máy tự chuyển tối lúc chiều muộn thì phần mềm đứng yên, và người dùng không có cách nào biết
+tại sao — họ đâu có bấm gì.
+
+Nên trạng thái mặc định là **chưa chọn**: không ghi `localStorage`, không đặt thuộc tính nào lên
+`<html>`, để `@media (prefers-color-scheme: dark)` trong `tokens.css` tự lo. Bấm nút mới sinh ra
+lựa chọn, và lựa chọn đó thắng theo **cả hai chiều**.
+
+### CSP không cho chèn script chống nháy màu
+
+Mọi mẫu quản trị đều chèn một đoạn script nội tuyến vào `<head>` để đặt `data-theme` trước khi trang
+vẽ. Ở đây **không làm được**: CSP của Caddy đặt `script-src 'self'` (SEC-09), script nội tuyến bị
+chặn thẳng.
+
+Hoá ra không cần. Vì bảng màu sáng nằm ở `:root` và bảng tối nằm trong `@media (prefers-color-scheme)`,
+người **chưa chọn gì** đã đúng màu ngay từ khung hình đầu — CSS chạy trước JavaScript. Chỉ người đã
+chọn tay NGƯỢC với cài đặt máy mới thấy một nháy đổi màu. Nới CSP để tránh một nháy màu cho một
+nhóm nhỏ là một cái giá quá đắt.
+
+### Màu trạng thái ở giao diện tối không phải màu sáng bị làm tối đi
+
+Cặp (chữ, nền) của mỗi nhãn trạng thái phải đi **ngược chiều nhau** khi đổi giao diện: chữ sáng lên
+để đọc được trên nền tối, nền tối xuống để không chói. Lấy nguyên cặp của bảng sáng rồi giảm độ sáng
+đều cho ra bốn nhãn xám xịt không phân biệt được với nhau.
+
+Cùng loại vấn đề, hai chỗ khác:
+
+- **Màu thương hiệu phải tách khỏi nền nút chính.** Ở bảng tối màu thương hiệu phải sáng lên mới đọc
+  được trên nền tối, nhưng cùng màu ấy làm nền nút thì chữ trắng trên nó chỉ còn tương phản ~4:1,
+  dưới ngưỡng AA. Hai vai trò khác nhau thì phải là hai token khác nhau.
+- **Dấu vượt ngưỡng chuyển từ tròn tô đặc sang tròn viền.** Tô đặc buộc chữ bên trong phải nghịch
+  màu, mà ở bảng tối màu lỗi là một sắc đỏ nhạt — chữ trắng trên nó rơi xuống dưới AA. Viền thì dùng
+  đúng một màu cho cả hai giao diện.
+- **Thanh bên phải đi ngược hướng.** Ở bảng sáng nó tối hơn nền nên tự tách ra; ở bảng tối, làm nó
+  tối hơn nữa thì cả hai cùng chạm đáy. Dựng thử ra ảnh mới thấy: thanh bên hoà thẳng vào nền trang.
+
+### Tự soi thiết kế bằng Gotenberg
+
+Không có Playwright trong ảnh Alpine (nợ từ P7d), nên không chụp được màn hình. Nhưng trong chồng đã
+có **Gotenberg**, tức là một Chromium thật.
+
+Dựng tám trang HTML tĩnh nhúng **chính** `tokens.css` + `app.css` của sản phẩm, đẩy qua
+`/forms/chromium/convert/html` với `printBackground=true`, khổ giấy đặt bằng bề rộng màn hình. Ra
+tám bản PDF đọc được bằng mắt.
+
+Ba lỗi chỉ phát hiện được nhờ nhìn, không test nào bắt: thanh bên hoà vào nền ở giao diện tối, hộp
+trắng quanh logo, và ô số liệu đầu tiên có vạch màu quá nhạt.
+
+Script dựng nằm ở thư mục nháp, tệp sinh ra nằm trong `workspace/` — không có gì vào git.
+
+### Logo không hề có nền trong suốt
+
+Chú thích trong `BoCuc.tsx` khẳng định *"logo nền TRONG SUỐT... file .png có kênh alpha"*. Sai. Giải
+mã ra: ảnh bảng màu 64 màu, **không có chunk `tRNS`**, điểm ảnh góc là `#ffffff` đặc. Trên thanh tiêu
+đề xanh của bản cũ nó đã hiện một hộp trắng rồi — chỉ là không ai để ý, và chú thích thì nói ngược
+lại nên cũng không ai đi kiểm.
+
+Cách vòng qua hiển nhiên — khai màu trắng thành trong suốt — cũng **sai**: 26.679 điểm ảnh trắng nằm
+bên trong lòng logo, là nền của biểu tượng và của chữ NUTRICARE. Trong suốt hoá thì chữ xanh rơi
+thẳng xuống nền navy.
+
+Nên logo được đặt lên một **ô trắng bo góc có chủ ý**, như một dấu hiệu thương hiệu. Và chú thích đã
+sửa lại cho đúng với file thật.
+
+### Một test đỏ theo xác suất, lộ ra đúng lượt này
+
+`DOC-03` đỏ ở lượt chạy đầu sau khi sửa giao diện — mà thay đổi thì chỉ nằm ở frontend, không chạm
+vào bộ sinh PDF.
+
+Nguyên nhân: mã khách hàng `ZZDOC-KH-9-6ff1a4cd` bị `pdfjs` trích ra thành `ZZDOC-KH-9-6 ff 1a4cd`.
+Chỗ tách phụ thuộc vào chính các ký tự trong mã, mà mã mang hậu tố ngẫu nhiên **của mỗi lượt chạy**
+(chính cơ chế thêm ở P8). Nên test này không sai hẳn — nó đỏ mỗi vài chục lượt một lần.
+
+`DOC-02` ngay bên trên đã xử lý đúng chuyện này từ P6b, bằng một hàm `lien` bỏ hết khoảng trắng
+trước khi so — nhưng hàm đó là biến cục bộ trong thân test. `DOC-03` viết sau, không nhìn thấy nó,
+và lặp lại lỗi. Đã đưa `lien` ra ngoài phạm vi module cùng với ghi chú lý do.
+
+Đây là lần thứ tư cùng một họ lỗi: **một giả định đúng ở hôm nay, sai ở một lượt chạy nào đó về sau.**
+
+### Còn nợ sau P9
+
+- Vẫn chưa có test trình duyệt thật. Bản dựng bằng Gotenberg kiểm được **màu và bố cục tĩnh**, không
+  kiểm được ngăn kéo mở ra, tiêu điểm bàn phím, hay `axe-core`.
+- Chưa đo tương phản bằng công cụ — mới tính tay ở những cặp màu đáng ngờ.
+- Màn hình lập/sửa hồ sơ và quản trị danh mục vẫn ở mức đọc (nợ từ P7d).
