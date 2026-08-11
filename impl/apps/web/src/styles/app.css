@@ -631,6 +631,59 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
 a.thanh-nhan { color: inherit; text-decoration: none; }
 a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; }
 
+/* --- Dải thẻ chuyển nhóm nội dung (tab) ----------------------------------- */
+
+.dai-the {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k2);
+  border-bottom: 1px solid var(--mau-vien);
+  margin-bottom: var(--k4);
+}
+.the-chon {
+  min-height: var(--vung-cham);          /* FE-08: vùng chạm đủ rộng trên di động */
+  padding: var(--k2) var(--k4);
+  border: 0;
+  border-bottom: 3px solid transparent;  /* giữ chỗ sẵn để đổi thẻ không nhảy bố cục */
+  background: none;
+  color: var(--mau-chu-phu);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.the-chon:hover { color: var(--mau-chu); }
+.the-chon.dang-chon { color: var(--mau-thuong-hieu); border-bottom-color: var(--mau-thuong-hieu); }
+.the-chon:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
+
+/* --- Quản trị người dùng -------------------------------------------------- */
+
+.luoi-bo-phan {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--k3);
+}
+.the-khoi {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  box-shadow: var(--bong-nho);
+  padding: var(--k4);
+}
+.the-khoi > h3 { margin-top: 0; }
+.the-khoi .danh-sach-tep { margin-bottom: var(--k3); }
+
+/* Nhóm nút trong ô bảng: gọn hơn nhóm nút đứng riêng một dòng. */
+.nhom-nut-gon { gap: var(--k2); flex-wrap: wrap; }
+.nhom-nut-gon .nut { padding: var(--k1) var(--k3); font-size: var(--chu-nho); }
+
+.o-danh-dau {
+  display: flex;
+  align-items: center;
+  gap: var(--k2);
+  min-height: var(--vung-cham);
+  margin-bottom: var(--k3);
+}
+
 /* --- Trang tổng quan ------------------------------------------------------ */
 
 .khoi { margin-top: var(--k6); }

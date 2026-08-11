@@ -5,6 +5,8 @@ import { BoCuc } from './components/BoCuc.js';
 import { Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
+import { KichHoat } from './pages/KichHoat.js';
+import { NguoiDung } from './pages/NguoiDung.js';
 import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
@@ -18,6 +20,16 @@ export function App() {
   const { duong } = useDuong();
 
   if (dangTai) return null;
+
+  /*
+    Kích hoạt tài khoản phải đứng TRƯỚC lớp kiểm phiên.
+
+    Người nhận thư mời chưa có mật khẩu dùng được nên không đăng nhập được; đặt
+    `/kich-hoat` xuống dưới `if (!nguoiDung)` là nó không bao giờ chạy, và liên
+    kết trong thư dẫn thẳng vào màn hình đăng nhập mà không nói vì sao.
+  */
+  if (duong === '/kich-hoat') return <KichHoat />;
+
   if (!nguoiDung) return <DangNhap />;
   if (nguoiDung.mustChangePassword) return <DoiMatKhau />;
 
@@ -38,7 +50,14 @@ export function App() {
   );
 }
 
-function noiDung(duong: string, vaiTro: string) {
+/**
+ * Xuất ra để `dieu-huong.test.tsx` gọi thẳng, không cần dựng cả cây React.
+ *
+ * Test chỉ cần biết mỗi mục menu trả về MÀN HÌNH NÀO, mà dựng thật thì kéo theo
+ * cả `usePhien`, `useDuong` và một loạt lời gọi mạng — nhiều thứ có thể hỏng vì
+ * lý do chẳng liên quan gì tới câu hỏi đang kiểm.
+ */
+export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/') return <TongQuan />;
   if (duong === '/ho-so') return <DanhSachHoSo />;
 
@@ -52,12 +71,27 @@ function noiDung(duong: string, vaiTro: string) {
   if (duong === '/bao-cao') return <BaoCao />;
   if (duong === '/danh-muc') return <DanhMuc />;
 
+  if (duong === '/nguoi-dung') {
+    return xem(vaiTro, 'nguoiDung') ? <NguoiDung /> : <KhongCoQuyen />;
+  }
+
   // Chặn ở cả tầng định tuyến, không chỉ ẩn mục menu: gõ thẳng địa chỉ vào thanh
   // duyệt là đường đi vòng hiển nhiên nhất qua một menu bị ẩn.
   if (duong === '/nhat-ky') {
     return xem(vaiTro, 'nhatKy') ? <NhatKy /> : <KhongCoQuyen />;
   }
 
+  return <KhongCoManHinh />;
+}
+
+/**
+ * Hai khối dưới đây là component CÓ TÊN, không phải JSX viết thẳng tại chỗ.
+ *
+ * `dieu-huong.test.tsx` so sánh KIỂU của phần tử trả về chứ không so chuỗi tiêu
+ * đề — sửa lại câu chữ cho người dùng dễ hiểu hơn thì không được làm đỏ một test
+ * chẳng liên quan gì tới câu chữ.
+ */
+export function KhongCoManHinh() {
   return (
     <Trong
       tieuDe="Không có màn hình nào ở địa chỉ này"
@@ -66,7 +100,7 @@ function noiDung(duong: string, vaiTro: string) {
   );
 }
 
-function KhongCoQuyen() {
+export function KhongCoQuyen() {
   return (
     <Trong
       tieuDe="Bạn không có quyền xem mục này"

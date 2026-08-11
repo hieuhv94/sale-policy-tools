@@ -9,7 +9,9 @@
     "./api": "./src/lib/api.ts",
     "./giao-dien": "./src/lib/giao-dien.ts",
     "./tong-quan": "./src/lib/tong-quan.ts",
+    "./nguoi-dung": "./src/lib/nguoi-dung.ts",
     "./router": "./src/lib/router.tsx",
+    "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./chung": "./src/components/Chung.tsx"
   },

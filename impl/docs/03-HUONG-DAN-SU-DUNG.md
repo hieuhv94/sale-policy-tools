@@ -8,6 +8,9 @@ Dành cho người dùng cuối. Viết theo **việc bạn cần làm**, không
 
 Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và mật khẩu.
 
+- **Tài khoản mới**: bạn nhận một thư mời có nút kích hoạt. Bấm vào đó, đặt mật khẩu, rồi đăng nhập.
+  Liên kết sống 48 giờ; quá hạn thì đề nghị Quản trị hệ thống gửi lại. Mỗi lần gửi lại làm **liên
+  kết cũ chết ngay** — luôn dùng thư mới nhất.
 - **Lần đầu** hệ thống bắt đổi mật khẩu. Chưa đổi thì không vào được chức năng nào.
 - Sai mật khẩu **5 lần** thì tài khoản bị khoá tạm; liên hệ Quản trị hệ thống.
 - Đang làm dở mà hết phiên: hệ thống hiện ô đăng nhập lại **đè lên màn hình cũ**. Đăng nhập xong,
@@ -191,7 +194,49 @@ tải. File chứa **đúng tập đang lọc**, cột tiền là **số** nên 
 
 File kết xuất **chỉ người bấm xuất tải được**, và hết hạn lưu sau 24 giờ.
 
-## 12. Dùng trên điện thoại
+## 12. Người dùng và bộ phận (Quản trị hệ thống)
+
+*Người dùng* — hai thẻ: **Người dùng** và **Bộ phận**.
+
+### Thứ tự bắt buộc: bộ phận trước, Trưởng bộ phận sau, Trình dược viên sau cùng
+
+Hồ sơ của Trình dược viên đi tới Trưởng bộ phận **theo bộ phận**, không theo liên kết cá nhân. Làm
+sai thứ tự thì tài khoản tạo ra vẫn đăng nhập được mà **không nhận được hồ sơ nào**.
+
+1. **Tạo bộ phận** ở thẻ *Bộ phận* — mã và tên.
+2. **Tạo tài khoản Trưởng bộ phận**, chọn *Bộ phận phụ trách*. Đánh dấu *người duyệt chính* cho
+   người chịu trách nhiệm; những người còn lại của cùng bộ phận là **người duyệt thay** khi người
+   chính đi vắng.
+3. **Tạo tài khoản Trình dược viên**, chọn *Trưởng bộ phận quản lý*. Màn hình hiện luôn dòng
+   *"Hồ sơ sẽ đi tới bộ phận: …"* — đọc dòng đó trước khi bấm Tạo.
+
+Chọn một Trưởng bộ phận **chưa được gán vào bộ phận nào** thì ô báo lỗi ngay và không cho lưu.
+
+### Trường theo vai trò
+
+| Vai trò tạo | Trường phải điền thêm |
+|---|---|
+| Trình dược viên | Trưởng bộ phận quản lý · Cấp trên (Kế toán) |
+| Trưởng bộ phận | Bộ phận phụ trách · có phải người duyệt chính không |
+| Kế toán | Cấp trên (Sale Admin) |
+| Sale Admin · Ban lãnh đạo · Quản trị hệ thống | không có |
+
+*Cấp trên* dựng cây **xem dữ liệu**: Sale Admin thấy hồ sơ của các Kế toán dưới mình, Kế toán thấy
+của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ phận quản lý*, thứ quyết định hồ sơ chạy
+đi đâu để duyệt.
+
+### Sửa, vô hiệu hoá, gửi lại thư mời
+
+- **Sửa** đổi được họ tên, bộ phận và cấp trên. **Không đổi được vai trò** — đổi vai trò làm hồ sơ
+  đang dở mắc kẹt giữa luồng. Cần đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
+- **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Không có
+  chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới tài khoản, xoá đi là mất dấu vết.
+- **Gửi lại thư mời** chỉ hiện với tài khoản chưa kích hoạt, và làm liên kết cũ chết ngay.
+
+Mật khẩu mặc định do hệ thống sinh sẵn, sửa được. Người dùng **buộc phải đổi** ở lần đăng nhập đầu,
+nên nó chỉ dùng được một lần.
+
+## 13. Dùng trên điện thoại
 
 Toàn bộ luồng duyệt làm được trên điện thoại, kể cả bước ký số của Trưởng bộ phận.
 
@@ -203,7 +248,7 @@ bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 
 Ô nhập tiền gọi **bàn phím số**. Xoay ngang máy giữa lúc đang gõ không làm mất nội dung.
 
-## 13. Khi gặp lỗi
+## 14. Khi gặp lỗi
 
 - **"Không kết nối được máy chủ"** — lỗi mạng. **Dữ liệu bạn đã nhập vẫn còn nguyên**, bấm *Thử lại*.
 - **"Dữ liệu vừa được người khác thay đổi"** — hai người thao tác cùng lúc. Tải lại rồi làm lại.
@@ -211,7 +256,7 @@ bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 - Mỗi thông báo lỗi có **Mã tra cứu**. Đọc mã đó cho bộ phận hỗ trợ; nó dựng lại được toàn bộ chuỗi
   thao tác của bạn.
 
-## 14. Những gì hệ thống **không** làm
+## 15. Những gì hệ thống **không** làm
 
 Nói trước để khỏi đi tìm:
 

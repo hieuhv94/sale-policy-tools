@@ -1,0 +1,59 @@
+/**
+ * Mọi mục menu phải dẫn tới một màn hình THẬT.
+ *
+ * Đây là test đáng lẽ phải có từ P7d. Không có nó, `DIEU_HUONG` khai
+ * `/mau-hop-dong` và `/nguoi-dung` mà `App.tsx` không bắt hai đường dẫn đó, nên
+ * Sale Admin và Quản trị bấm vào mục menu riêng của chính mình và nhận về
+ * "Không có màn hình nào ở địa chỉ này". Cả bộ test cũ vẫn xanh: `FE-25` chỉ
+ * kiểm CHỮ trong nhãn menu, không kiểm nhãn đó dẫn tới đâu.
+ *
+ * Không dựng cây React — chỉ gọi `noiDung()` và soi phần tử trả về. Dựng thật
+ * kéo theo `usePhien`, `useDuong` và một loạt lời gọi mạng, tức là nhiều cách
+ * hỏng chẳng liên quan gì tới câu hỏi đang kiểm.
+ */
+import { describe, expect, it } from 'vitest';
+import type { ReactElement } from 'react';
+import { KhongCoManHinh, KhongCoQuyen, noiDung } from '@csbh/web/app';
+import { DIEU_HUONG, VAI_TRO, dieuHuongCho, xem } from '@csbh/web/can';
+
+/** So KIỂU phần tử, không so chuỗi tiêu đề — sửa câu chữ không được làm đỏ test. */
+const kieu = (el: unknown): unknown => (el as ReactElement)?.type;
+
+describe('mọi mục điều hướng dẫn tới một màn hình', () => {
+  it('không mục nào rơi vào "không có màn hình"', () => {
+    for (const m of DIEU_HUONG) {
+      // Lấy một vai trò thật sự thấy được mục này — mục nào cũng phải có ít nhất
+      // một, nếu không thì nó là mục chết theo một kiểu khác.
+      const vaiTro = VAI_TRO.find((v) => xem(v, m.muc));
+      expect(vaiTro, `mục ${m.duong} không vai trò nào xem được`).toBeDefined();
+
+      expect(
+        kieu(noiDung(m.duong, vaiTro!)),
+        `mục "${m.nhan}" (${m.duong}) chưa đấu dây trong App.tsx`,
+      ).not.toBe(KhongCoManHinh);
+    }
+  });
+
+  it('mọi vai trò bấm hết menu của mình đều ra màn hình thật', () => {
+    for (const v of VAI_TRO) {
+      for (const m of dieuHuongCho(v)) {
+        const k = kieu(noiDung(m.duong, v));
+        expect(k, `${v} · ${m.duong}`).not.toBe(KhongCoManHinh);
+        // Menu đã lọc theo vai trò rồi thì không được có mục nào trả "không có
+        // quyền": hai bảng `QUYEN_XEM` và tầng định tuyến phải khớp nhau.
+        expect(k, `${v} · ${m.duong}`).not.toBe(KhongCoQuyen);
+      }
+    }
+  });
+
+  it('đường dẫn không có trong menu vẫn trả về màn hình trống, không nổ', () => {
+    expect(kieu(noiDung('/khong-ton-tai', 'QUAN_TRI'))).toBe(KhongCoManHinh);
+  });
+
+  it('gõ thẳng địa chỉ ngoài quyền thì bị chặn ở tầng định tuyến, không chỉ ẩn menu', () => {
+    // Ẩn mục menu là chưa đủ: gõ địa chỉ vào thanh duyệt là đường đi vòng hiển
+    // nhiên nhất. Hai màn hình quản trị phải chặn ở đây.
+    expect(kieu(noiDung('/nhat-ky', 'TDV'))).toBe(KhongCoQuyen);
+    expect(kieu(noiDung('/nguoi-dung', 'TDV'))).toBe(KhongCoQuyen);
+  });
+});

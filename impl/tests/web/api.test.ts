@@ -7,7 +7,7 @@
  * cả hai đều khó thử bằng tay nên rất dễ làm sai mà không ai biết.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LoiApi, dangKyHetPhien, datPhien, goi } from '@csbh/web/api';
+import { LoiApi, dangKyHetPhien, datPhien, goi, guiTep, taiVe } from '@csbh/web/api';
 
 const phanHoi = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(status === 204 ? null : JSON.stringify(body), {
@@ -115,5 +115,104 @@ describe('FE-33 token hết hạn khi đang mở biểu mẫu', () => {
     const loi = (await goi('/policies').catch((e: unknown) => e)) as LoiApi;
     expect(loi.code).toBe('PHIEN_HET_HAN');
     expect(baoHetPhien).toHaveBeenCalled();
+  });
+});
+
+describe('gửi file — multipart', () => {
+  it('KHÔNG tự đặt content-type cho FormData', async () => {
+    // Trình duyệt phải tự sinh header kèm `boundary`. Đặt tay
+    // `multipart/form-data` không boundary thì máy chủ không tách nổi phần file,
+    // và lỗi hiện ra tận trong multer với thông điệp không nhắc gì tới header.
+    const f = vi.fn().mockResolvedValue(phanHoi(201, { id: 'x' }));
+    vi.stubGlobal('fetch', f);
+
+    const form = new FormData();
+    form.append('file', new Blob(['abc']), 'a.xlsx');
+    await guiTep('/catalog/products/import', form);
+
+    const headers = f.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers['content-type']).toBeUndefined();
+    expect(f.mock.calls[0]![1].body).toBeInstanceOf(FormData);
+  });
+
+  it('vẫn gắn token và vẫn làm mới MỘT lần khi 401 (FE-33)', async () => {
+    // Đi qua `goi()` chứ không viết `fetch` thứ hai — nếu tách ra thì đường gửi
+    // file mất cả làm mới token lẫn phân biệt lỗi mạng.
+    datPhien({ accessToken: 'cu', refreshToken: 'r1' });
+    let lan = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).endsWith('/auth/refresh')) {
+          return Promise.resolve(phanHoi(200, { accessToken: 'moi', refreshToken: 'r2' }));
+        }
+        lan += 1;
+        return Promise.resolve(lan === 1 ? phanHoi(401, { code: 'TOKEN_EXPIRED' }) : phanHoi(201, { id: 'x' }));
+      }),
+    );
+
+    const form = new FormData();
+    form.append('file', new Blob(['abc']), 'a.xlsx');
+    await expect(guiTep<{ id: string }>('/files', form)).resolves.toEqual({ id: 'x' });
+    expect(lan).toBe(2);
+  });
+
+  it('phần thân JSON vẫn được đặt content-type như cũ', async () => {
+    const f = vi.fn().mockResolvedValue(phanHoi(200, { ok: true }));
+    vi.stubGlobal('fetch', f);
+    await goi('/policies', { method: 'POST', body: { a: 1 } });
+    const headers = f.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers['content-type']).toBe('application/json');
+  });
+});
+
+describe('tải file xuống — mang theo token', () => {
+  const nenTai = () => {
+    // jsdom không cài `createObjectURL`, và không có `click()` thật.
+    const url = 'blob:test';
+    const tao = vi.fn().mockReturnValue(url);
+    const thuHoi = vi.fn();
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: tao, revokeObjectURL: thuHoi }));
+    return { tao, thuHoi };
+  };
+
+  it('gọi qua fetch có Authorization, KHÔNG dùng thẻ neo', async () => {
+    // Thẻ `<a href="/api/…">` không gửi header `Authorization`, và không nơi nào
+    // trong gateway hay http-kit đọc cookie — một liên kết như vậy luôn nhận 401.
+    // Nút "Xuất hợp đồng" đã hỏng đúng kiểu này cho tới P11a.
+    nenTai();
+    datPhien({ accessToken: 'abc', refreshToken: 'r1' });
+    const f = vi.fn().mockResolvedValue(
+      new Response('%PDF-1.4', {
+        status: 200,
+        headers: { 'content-type': 'application/pdf' },
+      }),
+    );
+    vi.stubGlobal('fetch', f);
+
+    await taiVe('/policies/p1/contract.pdf', 'HopDong.pdf');
+
+    const headers = f.mock.calls[0]![1].headers as Record<string, string>;
+    expect(headers['authorization']).toBe('Bearer abc');
+  });
+
+  it('thu hồi object URL sau khi tải, không để rò bộ nhớ', async () => {
+    const { thuHoi } = nenTai();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('x', { status: 200, headers: { 'content-type': 'application/pdf' } })),
+    );
+    await taiVe('/policies/p1/contract.pdf', 'HopDong.pdf');
+    expect(thuHoi).toHaveBeenCalledWith('blob:test');
+  });
+
+  it('lỗi nghiệp vụ khi tải vẫn là LoiApi đọc được, không phải file rỗng', async () => {
+    // Nếu bỏ qua nhánh lỗi thì người dùng nhận về một file .pdf chứa JSON lỗi —
+    // mở ra là hỏng, mà không có gì nói vì sao.
+    nenTai();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(phanHoi(403, { code: 'FORBIDDEN' })));
+    const loi = (await taiVe('/policies/p1/contract.pdf', 'x.pdf').catch((e: unknown) => e)) as LoiApi;
+    expect(loi).toBeInstanceOf(LoiApi);
+    expect(loi.status).toBe(403);
   });
 });

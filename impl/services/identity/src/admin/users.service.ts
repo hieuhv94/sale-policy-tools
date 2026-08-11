@@ -20,6 +20,14 @@ export const ROLE_VALUES = [
 ] as const;
 export type RoleValue = (typeof ROLE_VALUES)[number];
 
+export type UpdateUserInput = {
+  fullName?: string | undefined;
+  /** Chuỗi rỗng = gỡ khỏi bộ phận. `undefined` = không đụng tới. */
+  departmentCode?: string | undefined;
+  /** Chuỗi rỗng = gỡ cấp trên. `undefined` = không đụng tới. */
+  parentUsername?: string | undefined;
+};
+
 export type CreateUserInput = {
   email: string;
   username: string;
@@ -159,13 +167,101 @@ export class UsersService {
     return { ok: true, isActive };
   }
 
+  /**
+   * Sửa tài khoản đã tạo. CỐ Ý không cho đổi `role`.
+   *
+   * Đổi vai trò làm lệch cây phân quyền và làm hồ sơ đang dở mắc kẹt giữa luồng:
+   * một hồ sơ đang chờ `CHO_TBP_DUYET` mà người duyệt vừa thành Kế toán thì
+   * không ai còn hành động nào để đi tiếp, và máy trạng thái không có đường lùi.
+   * Muốn đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
+   */
+  async update(userId: string, input: UpdateUserInput) {
+    const cur = await this.db.one<{ id: string }>(`SELECT id FROM idn.app_user WHERE id = $1`, [
+      userId,
+    ]);
+    if (!cur) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+
+    // `undefined` = không đụng tới; chuỗi rỗng = gỡ liên kết. Gộp hai thứ đó làm
+    // một thì không bao giờ gỡ được cấp trên của một người đã gán nhầm.
+    let departmentId: string | null | undefined;
+    if (input.departmentCode !== undefined) {
+      if (input.departmentCode === '') departmentId = null;
+      else {
+        const d = await this.db.one<{ id: string }>(
+          `SELECT id FROM idn.department WHERE code = $1`,
+          [input.departmentCode],
+        );
+        if (!d) throw new NotFoundException({ code: 'DEPARTMENT_NOT_FOUND' });
+        departmentId = d.id;
+      }
+    }
+
+    let parentId: string | null | undefined;
+    if (input.parentUsername !== undefined) {
+      if (input.parentUsername === '') parentId = null;
+      else {
+        const p = await this.db.one<{ id: string }>(
+          `SELECT id FROM idn.app_user WHERE lower(username) = lower($1)`,
+          [input.parentUsername],
+        );
+        if (!p) throw new NotFoundException({ code: 'PARENT_NOT_FOUND' });
+        if (p.id === userId) {
+          throw new BadRequestException({
+            code: 'VALIDATION_FAILED',
+            field: 'parentUsername',
+            message: 'Không đặt được chính mình làm cấp trên',
+          });
+        }
+        parentId = p.id;
+      }
+    }
+
+    await this.db.tx(async (c) => {
+      if (input.fullName !== undefined || departmentId !== undefined) {
+        await c.query(
+          `UPDATE idn.app_user
+              SET full_name = coalesce($2, full_name),
+                  department_id = CASE WHEN $4 THEN $3 ELSE department_id END,
+                  updated_at = now()
+            WHERE id = $1`,
+          [userId, input.fullName ?? null, departmentId ?? null, departmentId !== undefined],
+        );
+      }
+      if (parentId !== undefined) {
+        // `user_node` có một dòng cho MỌI người dùng (create() luôn chèn), nên
+        // đây là UPDATE chứ không phải upsert — nhưng vẫn phòng dòng thiếu.
+        await c.query(
+          `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)
+           ON CONFLICT (user_id) DO UPDATE SET parent_id = EXCLUDED.parent_id`,
+          [userId, parentId],
+        );
+      }
+    });
+
+    // Phạm vi dữ liệu suy ra từ cây tổ chức, mà cây vừa đổi — cache tài khoản
+    // phải bỏ ngay, không chờ hết TTL 60 giây.
+    await this.accounts.invalidate(userId);
+    return { ok: true };
+  }
+
+  /**
+   * `departmentCode` và `parentUsername` phải có ở đây, không chỉ ở lúc tạo:
+   * biểu mẫu sửa mở ra là phải thấy giá trị đang có. Thiếu hai cột này thì màn
+   * hình quản trị hiện ô trống và người dùng tưởng chưa gán gì.
+   */
   async list(page: Page) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
-      `SELECT id, username, email, full_name AS "fullName", role::text AS role,
-              is_active AS "isActive", must_change_password AS "mustChangePassword",
-              activated_at AS "activatedAt", email_verified_at AS "emailVerifiedAt",
+      `SELECT u.id, u.username, u.email, u.full_name AS "fullName", u.role::text AS role,
+              u.is_active AS "isActive", u.must_change_password AS "mustChangePassword",
+              u.activated_at AS "activatedAt", u.email_verified_at AS "emailVerifiedAt",
+              d.code AS "departmentCode", d.name AS "departmentName",
+              p.username AS "parentUsername",
               count(*) OVER() AS total_count
-         FROM idn.app_user ORDER BY username
+         FROM idn.app_user u
+         LEFT JOIN idn.department d ON d.id = u.department_id
+         LEFT JOIN idn.user_node n ON n.user_id = u.id
+         LEFT JOIN idn.app_user p ON p.id = n.parent_id
+        ORDER BY u.username
         LIMIT $1 OFFSET $2`,
       [page.limit, page.offset],
     );

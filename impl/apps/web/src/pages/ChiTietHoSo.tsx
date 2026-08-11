@@ -6,7 +6,7 @@
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson } from '../lib/api.js';
+import { dang, layJson, taiVe } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
@@ -114,9 +114,16 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       {can(nguoiDung?.role, 'xuatHopDong') && (
         <p>
-          <a className="nut" href={`/api/policies/${hoSo.id}/contract.pdf`}>
+          <button
+            type="button"
+            className="nut"
+            onClick={() => {
+              datLoi(null);
+              taiVe(`/policies/${hoSo.id}/contract.pdf`, `HopDong-${hoSo.code}.pdf`).catch(datLoi);
+            }}
+          >
             Xuất hợp đồng (PDF)
-          </a>
+          </button>
         </p>
       )}
 

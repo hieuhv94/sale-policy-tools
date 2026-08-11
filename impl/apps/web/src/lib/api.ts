@@ -69,6 +69,8 @@ type TuyChon = {
   /** Không gắn token — chỉ dùng cho đăng nhập và làm mới. */
   congKhai?: boolean;
   signal?: AbortSignal;
+  /** Nhận `Response` thô thay vì thân đã phân tích — dùng để tải file. */
+  tho?: boolean;
 };
 
 /** Một lần làm mới token dùng chung cho mọi request đang chờ. */
@@ -104,15 +106,23 @@ async function lamMoiToken(): Promise<boolean> {
 }
 
 export async function goi<T>(duong: string, t: TuyChon = {}): Promise<T> {
+  // `FormData` KHÔNG được đặt `content-type` bằng tay: trình duyệt phải tự sinh
+  // header kèm `boundary`, và một chuỗi `multipart/form-data` không có boundary
+  // làm máy chủ không tách nổi phần file — lỗi hiện ra ở tận multer với thông
+  // điệp không nhắc gì tới header.
+  const laTep = typeof FormData !== 'undefined' && t.body instanceof FormData;
+
   const chay = async (): Promise<Response> => {
     const headers: Record<string, string> = {};
-    if (t.body !== undefined) headers['content-type'] = 'application/json';
+    if (t.body !== undefined && !laTep) headers['content-type'] = 'application/json';
     if (!t.congKhai && phien) headers['authorization'] = `Bearer ${phien.accessToken}`;
     try {
       return await fetch(`${GOC_API}${duong}`, {
         method: t.method ?? 'GET',
         headers,
-        ...(t.body !== undefined ? { body: JSON.stringify(t.body) } : {}),
+        ...(t.body !== undefined
+          ? { body: laTep ? (t.body as FormData) : JSON.stringify(t.body) }
+          : {}),
         ...(t.signal ? { signal: t.signal } : {}),
       });
     } catch (e) {
@@ -140,6 +150,11 @@ export async function goi<T>(duong: string, t: TuyChon = {}): Promise<T> {
     khiHetPhien?.();
     throw new LoiApi(401, 'PHIEN_HET_HAN', 'Phiên đăng nhập đã hết hạn.', {}, traceId);
   }
+
+  // Trả `Response` thô TRƯỚC khi đọc thân: người gọi cần chính đối tượng này để
+  // lấy blob và đọc `Content-Disposition`. Đọc thân ở đây rồi trả sau là hỏng —
+  // thân chỉ đọc được một lần.
+  if (t.tho && res.ok) return res as unknown as T;
 
   if (res.status === 204) return undefined as T;
 
@@ -186,3 +201,63 @@ export const dat = <T,>(duong: string, body: unknown): Promise<T> =>
   goi<T>(duong, { method: 'PUT', body });
 
 export const xoa = <T,>(duong: string): Promise<T> => goi<T>(duong, { method: 'DELETE' });
+
+/** Gửi file. `FormData` đi thẳng, `goi()` tự bỏ qua bước đặt `content-type`. */
+export const guiTep = <T,>(duong: string, form: FormData): Promise<T> =>
+  goi<T>(duong, { method: 'POST', body: form });
+
+/**
+ * Tải một file từ API xuống máy.
+ *
+ * KHÔNG dùng `<a href="/api/...">`: thẻ neo của trình duyệt không gửi header
+ * `Authorization`, và không nơi nào trong gateway hay http-kit đọc cookie — token
+ * chỉ đi qua header. Một liên kết như vậy luôn nhận 401, và người dùng thấy một
+ * trang lỗi JSON thay vì file. Nút "Xuất hợp đồng" đã hỏng đúng kiểu này.
+ *
+ * Đi qua `goi()` nên vẫn được làm mới token một lần (`FE-33`) và vẫn phân biệt
+ * được lỗi mạng với lỗi nghiệp vụ (`FE-32`).
+ */
+export async function taiVe(duong: string, tenMacDinh: string): Promise<void> {
+  const tep = taiLieu();
+  if (!tep) throw new LoiApi(0, 'KHONG_CO_TRINH_DUYET', 'Chỉ tải được từ trình duyệt.');
+
+  const res = await goi<Response>(duong, { tho: true });
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = tep.createElement('a');
+    a.href = url;
+    a.download = tenTepTu(res.headers.get('content-disposition')) ?? tenMacDinh;
+    tep.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    // Thu hồi NGAY sau khi bấm. Trình duyệt đã giữ tham chiếu riêng cho lượt tải
+    // đang chạy; không thu hồi thì blob nằm lại trong bộ nhớ tới lúc đóng tab —
+    // với vài bản PDF hợp đồng là vài chục MB không ai đòi lại.
+    URL.revokeObjectURL(url);
+  }
+}
+
+/**
+ * `document` lấy qua một kiểu CẤU TRÚC HẸP, không qua kiểu DOM toàn cục.
+ *
+ * Tệp này được biên dịch bởi cả dự án TypeScript của máy chủ (vì các test nhập
+ * nó), mà dự án đó không có `lib: dom` — viết thẳng `document.createElement` là
+ * `error TS2584` ở một chỗ chẳng liên quan gì tới giao diện. Cùng lý do với chú
+ * thích về `import.meta.env` ở đầu tệp.
+ */
+type TaiLieu = {
+  createElement(the: 'a'): { href: string; download: string; click(): void; remove(): void };
+  body: { appendChild(nut: unknown): void };
+};
+
+const taiLieu = (): TaiLieu | undefined =>
+  (globalThis as { document?: TaiLieu }).document;
+
+/** Lấy tên file máy chủ đặt, nếu có. Máy chủ biết tên đúng hơn giao diện. */
+function tenTepTu(cd: string | null): string | null {
+  if (!cd) return null;
+  const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+  return m?.[1] ? decodeURIComponent(m[1]) : null;
+}

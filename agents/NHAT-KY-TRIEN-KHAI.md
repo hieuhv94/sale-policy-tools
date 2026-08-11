@@ -2085,3 +2085,94 @@ nhìn thấy đúng là thứ người dùng sẽ thấy, kể cả tên lớp C
   sang `rpt.policy_row`. Cần migration.
 - Chưa có màn hình danh sách thư hỏng; Quản trị mới chỉ thấy con số.
 - Vẫn chưa có test trình duyệt thật (nợ từ P7d).
+
+---
+
+## P11a — Quản trị người dùng, bộ phận, và kích hoạt tài khoản
+
+Đợt đầu của P11. Phạm vi đợt này dựng từ một phép rà **ngược từ máy chủ**: liệt kê mọi route ghi
+trong bảy service, đối chiếu `QUYEN_GHI` và `App.tsx`, xếp từng route vào một đợt. Vòng rà trước đi
+xuôi — liệt kê màn hình muốn có — và bỏ sót bảy nhóm việc.
+
+### Ba thứ hỏng, không phải ba việc còn thiếu
+
+Khác nhau ở chỗ: thiếu thì người dùng không thấy gì, còn hỏng thì người dùng bấm vào và nhận về một
+màn hình sai.
+
+**Hai mục menu dẫn tới màn hình không tồn tại.** `DIEU_HUONG` khai `/mau-hop-dong` cho Sale Admin và
+`/nguoi-dung` cho Quản trị từ P7d, `BieuTuong.tsx` vẽ sẵn biểu tượng cho cả hai, mà `App.tsx` chưa
+bao giờ bắt hai đường dẫn đó. Bấm vào là "Không có màn hình nào ở địa chỉ này". Cả bộ test vẫn xanh
+suốt bốn chặng: `FE-25` kiểm **chữ trong nhãn menu**, không kiểm nhãn đó dẫn tới đâu.
+
+**Thư mời kích hoạt trỏ tới trang không tồn tại.** `users.service.ts` sinh liên kết
+`${webBaseUrl}/kich-hoat?token=…` từ P3b. Không có màn hình nào ở đó. Tức là chức năng tạo người
+dùng — đã có API, đã có test HTTP, đã chạy đúng — vẫn không dùng được từ đầu tới cuối.
+
+**Nút "Xuất hợp đồng (PDF)" không chạy.** `ChiTietHoSo.tsx` dùng `<a href="/api/policies/…">`. Thẻ
+neo của trình duyệt không gửi header `Authorization`, và không nơi nào trong gateway hay `http-kit`
+đọc cookie — token chỉ đi qua header. Bấm vào là 401. Lỗi này sống từ P7d và không test nào chạm tới
+vì nó nằm ở một thuộc tính HTML, không ở một hàm.
+
+### Bộ phận: lỗ hổng sâu hơn giao diện
+
+`idn.department` và `idn.department_approver` chỉ được điền bởi `scripts/seed.ts` — không có endpoint
+nào. Mà chính `department_approver` quyết định hồ sơ của TDV chạy tới TBP nào
+(`0003_identity.sql:113-114`).
+
+Hệ quả nếu chỉ dựng giao diện trên API sẵn có: tạo một TBP qua màn hình mới thì người đó có tài khoản
+đúng, vai trò đúng, quyền đúng — và **không nhận được hồ sơ nào**. Không lỗi nào báo, không con số
+nào lệch. Nên đợt này phải thêm phía máy chủ: `GET/POST /admin/departments`, gán và gỡ người duyệt,
+và `PATCH /admin/users/:id` (route sửa người dùng trước đó cũng chưa tồn tại).
+
+Chặn ngay ở service: **chỉ vai trò `TBP` làm người duyệt được**. Không chặn thì gán nhầm một TDV vào
+là hồ sơ đi vào ngõ cụt — `scope_user_ids` vẫn định tuyến tới người đó, mà người đó không có hành
+động `TBP_SIGN` nào để làm, nên hồ sơ đứng im tới lúc quá hạn.
+
+### "Chọn TBP" ở giao diện, "lưu theo bộ phận" ở CSDL
+
+Người dùng yêu cầu: tạo TDV phải có trường chọn Trưởng bộ phận quản lý, và Quản trị sửa lại được.
+
+Đọc theo nghĩa đen thì phải thêm cột `approver_user_id` vào `app_user` — nhưng `0003_identity.sql:44`
+chốt ngược lại: *"Trưởng bộ phận cấu hình theo bộ phận, có người duyệt thay (muc 2.3). Không gán
+cứng một cá nhân"*. Gán cứng thì đổi người giữ chức phải sửa lại hàng trăm TDV, và mất cơ chế duyệt
+thay khi TBP đi vắng.
+
+Giải: ô chọn hiện **người**, phần lưu ghi **bộ phận mà người đó duyệt**. Giao diện đúng thứ người
+dùng yêu cầu, mô hình giữ nguyên quyết định nghiệp vụ. Màn hình hiện luôn dòng *"Hồ sơ sẽ đi tới bộ
+phận: …"* để chỗ dịch đó nhìn thấy được thay vì xảy ra ngầm.
+
+### `opt()` xoá mất tín hiệu "gỡ liên kết"
+
+`PATCH /admin/users/:id` cần phân biệt hai thứ: thiếu trường = không đụng tới, chuỗi rỗng = gỡ liên
+kết. Nhưng `opt()` trong `validate.ts:92` biến `''` thành `undefined` — hợp lý cho hầu hết trường,
+và ở đây nó gộp mất đúng hai trường hợp cần tách. Triệu chứng: bấm Lưu để gỡ cấp trên, không lỗi
+nào, mà giá trị cũ vẫn còn nguyên.
+
+Hai trường liên kết đọc thẳng từ thân request qua một hàm `lienKet()` riêng, không đi qua `validate`.
+Test bắt được chỗ này ngay lượt chạy đầu.
+
+### Test mới bắt được cả một lớp lỗi
+
+`dieu-huong.test.tsx`: **mọi mục trong `DIEU_HUONG` phải dẫn tới một màn hình thật**. So KIỂU phần tử
+React trả về, không so chuỗi tiêu đề — sửa câu chữ cho dễ hiểu hơn không được làm đỏ một test chẳng
+liên quan. Không dựng cây React: gọi thẳng `noiDung()`, nên không kéo theo `usePhien`, `useDuong` và
+một loạt lời gọi mạng có thể hỏng vì lý do khác.
+
+Lượt chạy đầu nó đỏ đúng chỗ cần đỏ — `/mau-hop-dong`, mục menu chết còn lại, thuộc đợt P11c. Không
+nới lỏng test; tạm gỡ mục menu đó khỏi `DIEU_HUONG` và đặt lại cùng lượt dựng màn hình. Không tính
+năng nào mất đi: chưa từng có màn hình ở đó.
+
+`quyen.test.ts` cũng bắt được một vi phạm mới: `NguoiDung.tsx` viết `u.role === 'TBP'` để lọc danh
+sách Trưởng bộ phận. Thay bằng `can(u.role, 'kySo')` — dùng lại chính bảng quyền, và đọc ra đúng
+nghĩa nghiệp vụ: người duyệt là người ký số được.
+
+### Kết quả
+
+Web 78 → 103 case. HTTP thêm 16 case cho bộ phận và sửa người dùng.
+
+### Còn nợ sau P11a
+
+- `/mau-hop-dong` (Sale Admin) — mục menu đã tạm gỡ, màn hình dựng ở P11c.
+- Toàn bộ phần ghi của danh mục, cấu hình SLA, thư hỏng — P11b.
+- Tệp đính kèm, bản CSBH A4, hồ sơ pháp lý khách hàng — P11c.
+- Lập/sửa hồ sơ và khách hàng — P11d.
