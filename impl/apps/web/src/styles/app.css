@@ -859,26 +859,51 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 /* --- Hộp thoại ------------------------------------------------------------ */
 
+/*
+  `align-items: flex-start` chứ KHÔNG phải `center`, và việc căn giữa giao cho
+  `margin: auto` của con.
+
+  Đây là lỗi kinh điển của flexbox: một item được `align-items: center` mà cao
+  hơn vùng cuộn thì phần tràn ra Ở PHÍA TRÊN nằm ngoài vùng cuộn được — kéo hết
+  cỡ cũng không tới. `margin: auto` cũng căn giữa, nhưng nó nhường chỗ khi hết
+  không gian nên đỉnh của hộp thoại luôn với tới.
+*/
 .lop-phu {
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: var(--k4);
   background: var(--mau-lop-phu);
   z-index: 50;
   overflow-y: auto;
 }
+.lop-phu > * { margin: auto; }
+
 .hop-thoai {
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc-to);
   box-shadow: var(--bong-noi);
-  padding: var(--k5);
   width: min(520px, 100%);
+  /* Cao tối đa bằng màn hình trừ lề của lớp phủ; phần thân tự cuộn bên trong. */
+  max-height: calc(100vh - var(--k4) * 2);
+  max-height: calc(100dvh - var(--k4) * 2);
+  display: flex;
+  flex-direction: column;
+  /* Đệm chuyển xuống hai phần con — nếu để ở đây thì vùng cuộn cắt ngang đệm. */
+  padding: 0;
 }
-.hop-thoai h2 { margin-top: 0; }
+.hop-thoai > h2 {
+  flex: none;
+  margin: 0;
+  padding: var(--k5) var(--k5) var(--k3);
+}
+.hop-thoai-than {
+  overflow-y: auto;
+  padding: 0 var(--k5) var(--k5);
+}
 
 /* --- Đăng nhập ------------------------------------------------------------ */
 

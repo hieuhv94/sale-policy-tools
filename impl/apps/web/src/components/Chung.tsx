@@ -337,8 +337,14 @@ export function HopThoai({
   return (
     <div className="lop-phu" onMouseDown={(e) => e.target === e.currentTarget && dong()}>
       <div className="hop-thoai" role="dialog" aria-modal="true" aria-label={tieuDe} ref={khung}>
+        {/*
+          Tiêu đề nằm NGOÀI vùng cuộn, nội dung nằm trong. Biểu mẫu tạo Trình
+          dược viên có bảy ô nên nó cao hơn màn hình laptop; để cả hộp thoại
+          cùng cuộn thì tiêu đề trôi mất và không có cách nào kéo lại — người
+          dùng không còn biết mình đang mở hộp thoại nào.
+        */}
         <h2>{tieuDe}</h2>
-        {children}
+        <div className="hop-thoai-than">{children}</div>
       </div>
     </div>
   );

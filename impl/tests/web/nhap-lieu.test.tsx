@@ -139,6 +139,23 @@ describe('FE-35 hộp thoại dùng được bằng bàn phím', () => {
     expect(dong).toHaveBeenCalled();
   });
 
+  it('tiêu đề nằm NGOÀI vùng cuộn của hộp thoại', () => {
+    // Biểu mẫu tạo Trình dược viên cao hơn màn hình laptop. Nếu tiêu đề nằm
+    // cùng vùng cuộn với nội dung thì nó trôi mất khi kéo xuống, và người dùng
+    // không còn biết mình đang mở hộp thoại nào. Kiểm CẤU TRÚC ở đây vì jsdom
+    // không tính bố cục — nhưng chính cấu trúc này là thứ dễ bị làm phẳng lại.
+    const { container } = render(
+      <HopThoai tieuDe="Tạo người dùng" dong={() => {}}>
+        <p>Nội dung dài</p>
+      </HopThoai>,
+    );
+    const hop = container.querySelector('.hop-thoai')!;
+    const than = hop.querySelector('.hop-thoai-than')!;
+    expect(hop.querySelector('h2')!.parentElement).toBe(hop);
+    expect(than.contains(hop.querySelector('h2'))).toBe(false);
+    expect(than.textContent).toBe('Nội dung dài');
+  });
+
   it('Tab không thoát ra ngoài hộp thoại', () => {
     render(
       <HopThoai tieuDe="Xác nhận" dong={() => {}}>
