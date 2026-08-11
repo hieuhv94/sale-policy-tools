@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --pretty false && tsc -b apps/web --pretty false",
     "test": "vitest run",
     "seed": "tsx scripts/seed.ts",
+    "seed:admin": "tsx scripts/seed-admin.ts",
     "build:web": "pnpm --filter @csbh/web build"
   },
   "devDependencies": {

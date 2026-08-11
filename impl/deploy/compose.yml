@@ -158,6 +158,7 @@ services:
     volumes:
       - ../db/migrations:/migrations:ro
       - ../scripts/migrate.sh:/migrate.sh:ro
+      - ../scripts/reset-db.sh:/reset-db.sh:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
       - ../scripts/basebackup.sh:/basebackup.sh:ro

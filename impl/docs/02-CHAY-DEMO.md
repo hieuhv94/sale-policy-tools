@@ -23,12 +23,62 @@ Xong sẽ thấy:
 
 ```
   Giao diện:   http://localhost:8080
-  Tài khoản:   tdv01 / tbp01 / kt01 / sa01 / bld01 / admin01 — mật khẩu Test@1234
+  Tài khoản:   admin01 / Test@1234 — CSDL trống, tự tạo phần còn lại
 ```
 
 Mở <http://localhost:8080> và đăng nhập.
 
-## Sáu tài khoản mẫu
+## CSDL trống, một tài khoản quản trị
+
+**`make demo` xoá và dựng lại CSDL từ đầu ở mỗi lần chạy**, rồi tạo đúng một tài khoản:
+`admin01` / `Test@1234`, vai trò Quản trị hệ thống. Không có tài khoản nào khác, không có sản phẩm,
+không có khách hàng, không có hồ sơ.
+
+Đó là chủ ý: thứ đáng thử nhất chính là **đường onboarding thật** — quản trị dựng cây tài khoản,
+khai danh mục và quy định chiết khấu, rồi Trình dược viên lập khách hàng và hồ sơ. Nạp sẵn dữ liệu
+thì không phân biệt được cái mình vừa nhập với cái có sẵn, và cả nhánh onboarding không bao giờ được
+chạy thử.
+
+Xoá hẳn CSDL chứ không dọn từng bảng: danh sách bảng phải giữ đồng bộ với 17 migration, mà quên một
+bảng thì chỗ "sạch" đó lặng lẽ còn dữ liệu cũ — đúng thứ khó nhìn ra nhất khi đang thử nghiệp vụ.
+
+> `make demo` **xoá luôn dữ liệu của bộ test** vì cả hai dùng chung một Postgres. Không sao:
+> `make test` tự nạp lại 10 tài khoản mẫu trước khi chạy.
+
+### Thứ tự dựng tài khoản
+
+Cây phân quyền có hai nhánh độc lập, và **thứ tự có ràng buộc**: không tạo được Trình dược viên khi
+chưa có Trưởng bộ phận nào để chọn.
+
+1. **Trưởng bộ phận** — không có trường nào thêm.
+2. **Sale Admin** — gốc của cây xem dữ liệu.
+3. **Kế toán** — chọn *Cấp trên* là Sale Admin vừa tạo.
+4. **Trình dược viên** — chọn *Trưởng bộ phận quản lý* (**bắt buộc**) và *Cấp trên* là Kế toán.
+5. **Ban lãnh đạo** — nếu muốn xem phần chỉ đọc.
+
+Mỗi tài khoản mới nhận **thư mời kích hoạt**; xem nó ở Mailpit (mục dưới) và đi qua liên kết để đặt
+mật khẩu. Hoặc dùng thẳng mật khẩu mặc định mà màn hình tạo sinh sẵn — nó buộc đổi ở lần đăng nhập
+đầu.
+
+Sau đó, vẫn bằng `admin01`: *Danh mục* → tạo **nhóm sản phẩm**, **sản phẩm** kèm giá, **quy định
+chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái này là nguồn của ba ô chọn
+trên biểu mẫu khách hàng.
+
+> `Test@1234` là lý do `make demo` chạy với `NODE_ENV=demo` chứ không phải `production`. Cả script
+> tạo tài khoản lẫn script dựng lại CSDL đều **tự từ chối chạy** khi `NODE_ENV=production`
+> (`SEC-14`) — cố ý, để không bao giờ có chuyện máy chủ thật lên với tài khoản `admin/Test@1234`,
+> và để không ai xoá nhầm CSDL thật.
+
+## Bộ dữ liệu mẫu — nếu muốn
+
+Không cần dựng tay thì nạp bộ mẫu cũ vào bản demo đang chạy:
+
+```bash
+make demo-mau
+```
+
+Nó nạp 10 tài khoản phủ đủ sáu vai trò (`tdv01` · `tbp01` · `kt01` · `sa01` · `bld01` · `admin01`,
+mật khẩu chung `Test@1234`) kèm dữ liệu nghiệp vụ mẫu mô tả ở mục dưới.
 
 | Tài khoản | Vai trò | Làm được gì |
 |---|---|---|
@@ -39,13 +89,7 @@ Mở <http://localhost:8080> và đăng nhập.
 | `bld01` | Ban lãnh đạo | **Chỉ đọc** — xem báo cáo và nhật ký, không ghi được gì |
 | `admin01` | Quản trị hệ thống | Danh mục sản phẩm, người dùng — **không** nằm trong luồng duyệt |
 
-Mật khẩu chung: `Test@1234`.
-
-> Mật khẩu mẫu này là lý do `make demo` chạy với `NODE_ENV=demo` chứ không phải `production`. Script
-> nạp tài khoản mẫu **tự từ chối chạy** khi `NODE_ENV=production` (`SEC-14`) — cố ý, để không bao
-> giờ có chuyện máy chủ thật lên với tài khoản `admin/Test@1234`.
-
-## Dữ liệu mẫu có sẵn
+### Dữ liệu nghiệp vụ trong bộ mẫu
 
 Cố ý **nhỏ** — vừa đủ để thử, không phải một đống dữ liệu không ai đọc nổi:
 
@@ -82,7 +126,7 @@ Nạp lại từ đầu bất cứ lúc nào (xoá sạch dữ liệu nghiệp v
 make demo-data
 ```
 
-## Đi thử một vòng nghiệp vụ
+## Đi thử một vòng nghiệp vụ — trên bộ mẫu
 
 1. **`tdv01`** → *Khách hàng* → lập một khách hàng mới.
 2. **`tdv01`** → *Hồ sơ CSBH* → lập hồ sơ, thêm sản phẩm, xem tỷ lệ chiết khấu tự tính → **Gửi duyệt**.

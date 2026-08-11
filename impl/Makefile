@@ -11,7 +11,7 @@ WORKSPACE := ../workspace
 
 .PHONY: help up down migrate install typecheck test seed clean ps logs psql version \
         backup restore restore-drill retention secrets demo demo-down demo-logs demo-seed \
-        demo-env demo-mail check-demo-down demo-data
+        demo-env demo-mail check-demo-down demo-data demo-reset demo-admin demo-mau
 
 help:
 	@echo "up        dựng hạ tầng (postgres, redis, rabbitmq, minio, mailpit) + migration"
@@ -23,7 +23,8 @@ help:
 	@echo "restore-drill  phục hồi thử vào CSDL nháp rồi đối chiếu số dòng"
 	@echo "retention xoá dữ liệu hết vòng đời (token, outbox đã gửi)"
 	@echo ""
-	@echo "demo      dựng TOÀN BỘ hệ chạy thử ở http://localhost:8080 (có sẵn tài khoản mẫu)"
+	@echo "demo      dựng hệ chạy thử ở http://localhost:8080 — CSDL TRỐNG, chỉ có tài khoản quản trị"
+	@echo "demo-mau  nạp thêm 10 tài khoản mẫu và dữ liệu nghiệp vụ mẫu vào bản đang chạy"
 	@echo "demo-down dừng bản chạy thử"
 	@echo "demo-logs xem log của bản chạy thử"
 
@@ -51,7 +52,14 @@ seed:
 # chín DB role theo bí mật của mình. Chạy demo rồi chạy test mà bỏ bước này thì
 # cả bộ test chết ở dòng kết nối đầu tiên — 24 test đỏ với "password
 # authentication failed", không dòng nào nhắc tới nguyên nhân.
-test: check-demo-down migrate
+# `seed` nằm trong danh sách phụ thuộc, không phải việc người chạy phải nhớ.
+#
+# Bộ test dựa vào 10 tài khoản mẫu (`tdv01`, `tbp01`, …) để kiểm cây phân quyền,
+# mà không tệp test nào tự nạp chúng. Từ khi `make demo` DỰNG LẠI CSDL từ đầu,
+# chạy demo rồi chạy test là mất sạch tài khoản đó — và triệu chứng là hàng chục
+# case đỏ ở "đăng nhập tdv01 hỏng: 401", không dòng nào nhắc tới nguyên nhân.
+# `seed.ts` dùng ON CONFLICT DO UPDATE nên chạy lại bao nhiêu lần cũng được.
+test: check-demo-down migrate seed
 	@mkdir -p $(WORKSPACE)/reports
 	$(RUN) pnpm test
 
@@ -114,10 +122,23 @@ clean:
 # --- Chạy thử trên máy local -------------------------------------------------
 #
 # Một lệnh, từ máy trắng tới màn hình đăng nhập. Xem deploy/HUONG-DAN-DEMO.md.
+# Bản chạy thử luôn bắt đầu từ CSDL TRỐNG, chỉ có một tài khoản quản trị.
+#
+# Không nạp sẵn tài khoản mẫu và dữ liệu nghiệp vụ mẫu nữa: cái đáng thử chính
+# là đường onboarding thật — quản trị dựng cây tài khoản, khai danh mục và quy
+# định chiết khấu, rồi TDV lập khách hàng và hồ sơ. Nạp sẵn thì không phân biệt
+# được dữ liệu mình vừa nhập với dữ liệu có sẵn, và cả nhánh onboarding không
+# bao giờ được chạy thử.
+#
+# Muốn bộ mẫu cũ thì `make demo-mau` sau khi bản demo đã lên.
 demo: secrets demo-env
 	@mkdir -p $(WORKSPACE)/logs
+	# Dừng chồng cũ TRƯỚC khi xoá CSDL. Một service của lượt trước còn mở kết
+	# nối là `DROP DATABASE` hỏng, và thông báo của Postgres không nói ai giữ.
+	$(DEMO) down
 	$(DEMO) up --exit-code-from pg-init pg-init
 	$(DEMO) up -d --wait postgres redis rabbitmq minio mailpit gotenberg
+	$(MAKE) demo-reset
 	$(DEMO) up --exit-code-from migrate migrate
 	# Nêu TÊN từng service. `up caddy` chỉ kéo theo những gì caddy phụ thuộc, mà
 	# caddy chỉ phụ thuộc gateway — tám service còn lại sẽ không chạy, và triệu
@@ -125,12 +146,35 @@ demo: secrets demo-env
 	$(DEMO) up -d --build --wait \
 	  identity catalog customer policy document notification audit reporting \
 	  sla-worker gateway caddy
-	$(MAKE) demo-seed
-	$(MAKE) demo-data
+	$(MAKE) demo-admin
 	@echo ""
 	@echo "  Giao diện:   http://localhost:$${DEMO_PORT:-8080}"
 	@echo "  Hộp thư thử: chạy 'make demo-mail' rồi mở http://localhost:8025"
-	@echo "  Tài khoản:   tdv01 / tbp01 / kt01 / sa01 / bld01 / admin01 — mật khẩu Test@1234"
+	@echo "  Tài khoản:   admin01 / Test@1234 — CSDL trống, tự tạo phần còn lại"
+	@echo ""
+	@echo "  Thứ tự dựng: Trưởng bộ phận -> Kế toán -> Sale Admin -> Trình dược viên"
+	@echo "  Muốn dữ liệu mẫu như trước: make demo-mau"
+	@echo ""
+
+# Xoá và dựng lại CSDL. Chạy TRƯỚC migrate, sau khi Postgres đã khoẻ.
+demo-reset:
+	$(DEMO) run --rm -T -e NODE_ENV= --entrypoint /bin/sh migrate /reset-db.sh
+
+# Đúng MỘT tài khoản quản trị, không gì khác.
+#
+# NODE_ENV để TRỐNG một cách có chủ ý: chính script này từ chối chạy khi
+# NODE_ENV=production (SEC-14), và đó là hành vi đúng — tài khoản có mật khẩu
+# ai cũng đoán được thì không bao giờ được nạp lên máy chủ thật.
+demo-admin:
+	$(DEMO) run --rm -T -e NODE_ENV= --entrypoint sh identity -c "pnpm seed:admin"
+
+# Bộ mẫu cũ: 10 tài khoản phủ đủ sáu vai trò + dữ liệu nghiệp vụ mẫu.
+#
+# TÁCH RIÊNG khỏi `make demo` — xem chú thích ở đó. Chạy được bất cứ lúc nào
+# trên bản demo đang lên.
+demo-mau: demo-seed demo-data
+	@echo ""
+	@echo "  Tài khoản mẫu: tdv01 / tbp01 / kt01 / sa01 / bld01 / admin01 — mật khẩu Test@1234"
 	@echo ""
 
 # Nối bí mật vào chỗ compose.yml nội suy chúng.

@@ -2526,3 +2526,60 @@ không còn tồn tại).
   ai gọi · chưa có màn hình lịch sử hồ sơ · chưa có test trình duyệt thật.
 - Chưa chạy phép thử cuối trên chồng demo: tạo TBP → tạo TDV chọn TBP đó → kích hoạt qua
   `make demo-mail` → gửi một hồ sơ và xác nhận nó tới đúng người.
+
+---
+
+## P12c — `make demo` bắt đầu từ CSDL trống, chỉ một tài khoản quản trị
+
+Trước đây `make demo` nạp 10 tài khoản mẫu và một bộ dữ liệu nghiệp vụ mẫu. Điều đó tiện để xem
+phần mềm chạy, nhưng nó **giấu mất đúng thứ vừa dựng xong ở P11 và P12**: đường onboarding. Quản trị
+dựng cây tài khoản, khai danh mục và quy định chiết khấu, rồi TDV lập khách hàng và hồ sơ — cả nhánh
+đó chưa từng được chạy thử một lần nào từ đầu tới cuối.
+
+Giờ `make demo` dựng lại CSDL từ đầu và tạo đúng một tài khoản: `admin01`.
+
+### Xoá CSDL, không TRUNCATE từng bảng
+
+`reset-db.sh` gọi `DROP DATABASE` rồi `CREATE DATABASE`. Cách kia — liệt kê bảng rồi TRUNCATE — bắt
+danh sách bảng phải giữ đồng bộ với 17 migration, mà **quên một bảng thì chỗ "sạch" đó lặng lẽ còn
+dữ liệu cũ**: đúng thứ khó nhìn ra nhất khi đang thử nghiệp vụ. `DROP DATABASE` không có danh sách
+nào để quên.
+
+Hai chi tiết phải đúng, cả hai đều hỏng theo kiểu thông báo không nói lên nguyên nhân:
+
+- **Ngắt kết nối còn sót trước khi xoá** (`pg_terminate_backend`). Một service của lượt trước còn mở
+  kết nối là `DROP DATABASE` hỏng với *"is being accessed by other users"*, và Postgres không nói ai
+  đang giữ. `make demo` cũng chạy `$(DEMO) down` trước mọi thứ vì lý do này.
+- **Nối vào `postgres`, không vào CSDL sắp xoá.** Không ai xoá được cái CSDL mà chính mình đang nối
+  vào — và `PGDATABASE` trong container `migrate` mặc định là `csbh`.
+
+Chín DB role nằm ở cấp cụm nên sống sót; quyền của chúng thì không, vì quyền gắn với đối tượng trong
+CSDL vừa bị xoá. `0002_roles` cấp lại toàn bộ ở lượt migrate ngay sau đó.
+
+### Một hệ quả phải xử lý, không phải chuyện phụ
+
+Bản demo và bộ test **dùng chung một Postgres**. `make demo` giờ xoá luôn 10 tài khoản mẫu mà bộ test
+dựa vào — mà không tệp test nào tự nạp chúng. Chạy demo rồi chạy test là hàng chục case đỏ ở
+*"đăng nhập tdv01 hỏng: 401"*, không dòng nào nhắc tới nguyên nhân.
+
+`make test` giờ phụ thuộc `seed`. `seed.ts` dùng `ON CONFLICT DO UPDATE` nên chạy lại bao nhiêu lần
+cũng được. Đây là chỗ đáng lẽ phải có từ đầu: bộ test không nên dựa vào một lệnh mà người chạy phải
+nhớ gõ.
+
+### Chốt an toàn
+
+`reset-db.sh` là script **nguy hiểm nhất** trong repo — nó xoá sạch. Nó từ chối chạy khi
+`NODE_ENV=production`, cùng chốt với `seed.ts` và `seed-admin.ts`, và `SEC-14` giờ kiểm cả ba. Test
+của `reset-db.sh` không chỉ đo mã thoát: nó đếm lại `idn.app_user` sau đó, vì nếu script vẫn chạy
+tới lệnh `DROP` thì mã thoát cũng khác 0 nhưng vì lý do hoàn toàn khác.
+
+### Kiểm chứng
+
+Chạy thật `make demo`: CSDL còn đúng 1 dòng `app_user`, 0 sản phẩm, 0 khách hàng, 0 hồ sơ, 0 nhật ký
+kiểm toán. `admin01` đăng nhập được và nhận token vai trò `QUAN_TRI`. Mẫu hợp đồng mặc định vẫn được
+`document` nạp lúc khởi động nên Kế toán xuất được hợp đồng ngay từ đầu.
+
+Rồi `make demo-down && make test` trên chính CSDL vừa bị xoá: **621/621 xanh** — đúng kịch bản đáng
+lo nhất, và `seed` trong danh sách phụ thuộc lo được.
+
+Bộ mẫu cũ vẫn còn: `make demo-mau` nạp 10 tài khoản và dữ liệu nghiệp vụ mẫu vào bản demo đang chạy.

@@ -628,7 +628,11 @@ describe('SEC-04 tên khách hàng chứa công thức', () => {
 });
 
 // =============================================================================
-// SEC-14 — script seed từ chối chạy ở production
+// SEC-14 — ba script nạp/xoá dữ liệu đều từ chối chạy ở production
+//
+// `reset-db.sh` XOÁ HẲN CSDL. Nó chạy trong container `migrate` chứ không qua
+// pnpm, nên gọi thẳng bằng sh — điều đang kiểm là chốt chặn ở đầu script, không
+// phải đường gọi.
 // =============================================================================
 
 describe('SEC-14 chạy script seed với NODE_ENV=production', () => {
@@ -655,6 +659,54 @@ describe('SEC-14 chạy script seed với NODE_ENV=production', () => {
       return r.rows[0]!.n as string;
     });
     expect(after).toBe(before);
+  }, 120_000);
+
+  it('script tạo tài khoản quản trị của bản demo cũng tự thoát', async () => {
+    const dem = async () =>
+      withAdminDb(async (c) => {
+        const r = await c.query(`SELECT count(*)::text AS n FROM idn.app_user`);
+        return r.rows[0]!.n as string;
+      });
+    const before = await dem();
+
+    let code = 0;
+    let stderr = '';
+    try {
+      await exec('pnpm', ['seed:admin'], { env: { ...process.env, NODE_ENV: 'production' } });
+    } catch (e) {
+      const err = e as { code?: number; stderr?: string; stdout?: string };
+      code = err.code ?? 1;
+      stderr = `${err.stderr ?? ''}${err.stdout ?? ''}`;
+    }
+    expect(code).not.toBe(0);
+    expect(stderr).toMatch(/production/i);
+    expect(await dem()).toBe(before);
+  }, 120_000);
+
+  it('script XOÁ CSDL tự thoát — và CSDL vẫn còn nguyên', async () => {
+    // Đây là chốt chặn đáng giá nhất trong ba cái: hai script kia nạp thêm dữ
+    // liệu, script này xoá sạch. Chạy nhầm nó trên máy chủ thật là mất tất cả.
+    let code = 0;
+    let stderr = '';
+    try {
+      await exec('sh', ['scripts/reset-db.sh'], {
+        env: { ...process.env, NODE_ENV: 'production' },
+      });
+    } catch (e) {
+      const err = e as { code?: number; stderr?: string; stdout?: string };
+      code = err.code ?? 1;
+      stderr = `${err.stderr ?? ''}${err.stdout ?? ''}`;
+    }
+    expect(code).not.toBe(0);
+    expect(stderr).toMatch(/production/i);
+
+    // Không chỉ đo mã thoát: nếu script vẫn chạy tới lệnh DROP thì bảng này
+    // biến mất, và mã thoát khác 0 vì lý do hoàn toàn khác.
+    const con = await withAdminDb(async (c) => {
+      const r = await c.query(`SELECT count(*)::text AS n FROM idn.app_user`);
+      return r.rows[0]!.n as string;
+    });
+    expect(Number(con)).toBeGreaterThan(0);
   }, 120_000);
 });
 
