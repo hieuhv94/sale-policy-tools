@@ -5,9 +5,14 @@
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
 import { ngay, tien } from '../lib/format.js';
-import { Lien } from '../lib/router.js';
+import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
+import {
+  BieuMauKhachHang,
+  DoiTdvPhuTrach,
+  type KhachHangDayDu,
+} from '../components/SuaKhachHang.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 
@@ -22,6 +27,9 @@ type KhachHangDto = {
 };
 
 export function DanhSachKhachHang() {
+  const { nguoiDung } = usePhien();
+  const { di } = useDuong();
+  const [moLap, datMoLap] = useState(false);
   const [tim, datTim] = useState('');
   const [ds, datDs] = useState<KhachHangDto[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
@@ -40,7 +48,14 @@ export function DanhSachKhachHang() {
 
   return (
     <section className="trang">
-      <h1>Khách hàng</h1>
+      <div className="dau-trang">
+        <h1>Khách hàng</h1>
+        {can(nguoiDung?.role, 'lapKhachHang') && (
+          <button type="button" className="nut nut-chinh" onClick={() => datMoLap(true)}>
+            Lập khách hàng
+          </button>
+        )}
+      </div>
       <OTimKiem
         id="tim-khach-hang"
         nhan="Tìm theo tên, địa chỉ hoặc mã số thuế"
@@ -67,6 +82,18 @@ export function DanhSachKhachHang() {
           ))}
         </ul>
       )}
+
+      {moLap && (
+        <BieuMauKhachHang
+          dong={() => datMoLap(false)}
+          xong={(idMoi) => {
+            datMoLap(false);
+            // Đi thẳng sang màn hình chi tiết: việc tiếp theo gần như luôn là
+            // tải hồ sơ pháp lý lên hoặc lập CSBH cho khách vừa tạo.
+            di(`/khach-hang/${idMoi}`);
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -81,13 +108,15 @@ type HoSoHienHanh = {
 
 export function ChiTietKhachHang({ id }: { id: string }) {
   const { nguoiDung } = usePhien();
-  const [kh, datKh] = useState<KhachHangDto | null>(null);
+  const [kh, datKh] = useState<KhachHangDayDu | null>(null);
   const [hoSo, datHoSo] = useState<HoSoHienHanh | null | 'khong-co'>(null);
   const [loi, datLoi] = useState<unknown>(null);
+  const [mo, datMo] = useState<'sua' | 'tdv' | null>(null);
+  const [lan, datLan] = useState(0);
 
   useEffect(() => {
     const huy = new AbortController();
-    layJson<KhachHangDto>(`/customers/${id}`, huy.signal)
+    layJson<KhachHangDayDu>(`/customers/${id}`, huy.signal)
       .then(datKh)
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
@@ -97,15 +126,33 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       // 404 nghĩa là khách chưa có CSBH nào — trạng thái bình thường, không phải lỗi.
       .catch(() => datHoSo('khong-co'));
     return () => huy.abort();
-  }, [id]);
+  }, [id, lan]);
 
   if (loi !== null) return <BaoLoi loi={loi} />;
   if (!kh) return <DangTai />;
 
+  const taiLai = () => datLan((x) => x + 1);
+
   return (
     <section className="trang">
-      <h1>{kh.name}</h1>
-      <p className="mo-ta-trang">Mã khách hàng {kh.code}</p>
+      <div className="dau-trang">
+        <div>
+          <h1>{kh.name}</h1>
+          <p className="mo-ta-trang">Mã khách hàng {kh.code}</p>
+        </div>
+        <div className="nhom-nut nhom-nut-gon">
+          {can(nguoiDung?.role, 'suaKhachHang') && (
+            <button type="button" className="nut nut-nhe" onClick={() => datMo('sua')}>
+              Sửa
+            </button>
+          )}
+          {can(nguoiDung?.role, 'doiTdvPhuTrach') && (
+            <button type="button" className="nut nut-nhe" onClick={() => datMo('tdv')}>
+              Đổi TDV phụ trách
+            </button>
+          )}
+        </div>
+      </div>
 
       <dl className="the-so">
         <div>
@@ -148,6 +195,28 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       )}
 
       <HoSoPhapLy khachHangId={id} choPhepGhi={can(nguoiDung?.role, 'taiTepDinhKem')} />
+
+      {mo === 'sua' && (
+        <BieuMauKhachHang
+          khach={kh}
+          dong={() => datMo(null)}
+          xong={() => {
+            datMo(null);
+            taiLai();
+          }}
+        />
+      )}
+      {mo === 'tdv' && (
+        <DoiTdvPhuTrach
+          khachHangId={id}
+          tdvHienTai={kh.tdvUserId}
+          dong={() => datMo(null)}
+          xong={() => {
+            datMo(null);
+            taiLai();
+          }}
+        />
+      )}
     </section>
   );
 }

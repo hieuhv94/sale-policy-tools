@@ -110,7 +110,20 @@ function CpbhGop({ d }: { d: DongSanPham }) {
   );
 }
 
-export function BangSanPham({ dong }: { dong: DongSanPham[] }) {
+/**
+ * `xoaDong` chỉ truyền khi hồ sơ đang sửa được. Cột thao tác là cột THÊM VÀO,
+ * không thay chỗ cột nào — chú thích đầu tệp cấm ẩn bớt cột, và bốn ô CPBH vẫn
+ * là thứ quyết định giá thu về dù màn hình đang ở chế độ sửa.
+ */
+export function BangSanPham({
+  dong,
+  xoaDong,
+  dangXoa,
+}: {
+  dong: DongSanPham[];
+  xoaDong?: ((id: string) => void) | undefined;
+  dangXoa?: string | null | undefined;
+}) {
   if (dong.length === 0) {
     return (
       <p className="trong">
@@ -131,6 +144,7 @@ export function BangSanPham({ dong }: { dong: DongSanPham[] }) {
                   {c.nhan}
                 </th>
               ))}
+              {xoaDong && <th>Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -150,6 +164,18 @@ export function BangSanPham({ dong }: { dong: DongSanPham[] }) {
                 <td className="so">
                   <OTyLe d={d} />
                 </td>
+                {xoaDong && (
+                  <td>
+                    <button
+                      type="button"
+                      className="nut nut-canh-bao"
+                      disabled={dangXoa === d.id}
+                      onClick={() => xoaDong(d.id)}
+                    >
+                      Xoá dòng
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -185,6 +211,16 @@ export function BangSanPham({ dong }: { dong: DongSanPham[] }) {
               </div>
             </dl>
             <CpbhGop d={d} />
+            {xoaDong && (
+              <button
+                type="button"
+                className="nut nut-canh-bao"
+                disabled={dangXoa === d.id}
+                onClick={() => xoaDong(d.id)}
+              >
+                Xoá dòng
+              </button>
+            )}
           </li>
         ))}
       </ul>

@@ -105,10 +105,23 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
   một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
 - Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
   điểm bán là chuyện có thật.
+- **Loại khách hàng cũng không sửa được** sau khi lưu: nó quyết định ngưỡng chiết khấu áp cho khách.
+
+**Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
+không riêng Trình dược viên. Tỉnh · bệnh viện · kênh bán chọn từ danh mục do Quản trị khai; danh mục
+trống thì ba ô đó cũng trống.
+
+**Đổi trình dược viên phụ trách** — nút riêng, chỉ Sale Admin và Quản trị. Đây không phải đổi một
+cái tên: **phạm vi nhìn thấy đổi theo**. Người cũ thôi thấy khách hàng này và mọi hồ sơ của họ,
+người mới thấy ngay.
 
 ## 6. Lập hồ sơ CSBH (TDV)
 
 *Hồ sơ CSBH* → **Lập hồ sơ** → chọn khách hàng → thêm từng dòng sản phẩm.
+
+Hồ sơ tạo ra ở trạng thái **Nháp** ngay sau khi chọn khách hàng, rồi bạn thêm dòng sản phẩm trên
+màn hình chi tiết. Mỗi lần thêm một dòng, hệ thống tính và hiện ngay **giá thu về** và **tỷ lệ chiết
+khấu** của dòng đó — không phải nhập hết rồi mới biết.
 
 Với mỗi dòng bạn nhập **Giá bán buôn** và bốn ô **CPBH**. Hệ thống tự tính:
 
@@ -126,6 +139,14 @@ hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn
 không cần nhập lại.
 
 Xong thì bấm **Gửi duyệt**.
+
+**Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng dòng sản
+phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
+muốn sửa phải chờ người duyệt trả lại.
+
+**Xoá hồ sơ** — nút riêng, mở cho bốn vai trò trong luồng và Quản trị. Phải **gõ lại mã hồ sơ** để
+xác nhận, vì xoá không lùi được. Hồ sơ **Từ chối không xoá được**, kể cả Quản trị hệ thống: đó là
+trạng thái kết thúc và phải giữ lại dấu vết.
 
 ## 7. Luồng duyệt — 10 bước
 

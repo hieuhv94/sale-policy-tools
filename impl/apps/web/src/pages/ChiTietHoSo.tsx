@@ -6,12 +6,19 @@
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson, taiVe } from '../lib/api.js';
+import { dang, layJson, taiVe, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
+import {
+  SuaNgayApDung,
+  ThemDongSanPham,
+  XoaHoSo,
+  suaDuoc,
+} from '../components/SuaHoSo.js';
+import { useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, HopThoai, Nhan, Truong } from '../components/Chung.js';
 
 type HoSo = {
@@ -35,6 +42,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [hanhDong, datHanhDong] = useState<string | null>(null);
+  const [moSua, datMoSua] = useState<'dong' | 'ngay' | 'xoa' | null>(null);
+  const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
+  const { di } = useDuong();
 
   const tai = useCallback(async (signal: AbortSignal) => {
     const [h, a] = await Promise.all([
@@ -60,6 +70,19 @@ export function ChiTietHoSo({ id }: { id: string }) {
 
   const taiLai = () => datLan((x) => x + 1);
 
+  const xoaDong = async (lineId: string) => {
+    datLoi(null);
+    datDangXoaDong(lineId);
+    try {
+      await xoa(`/policies/${id}/lines/${lineId}`);
+      taiLai();
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangXoaDong(null);
+    }
+  };
+
   const taiBan = (kho: 'a4p' | 'a4l') => {
     datLoi(null);
     taiVe(`/policies/${id}/render?size=${kho}`, `CSBH-${kho}.pdf`).catch(datLoi);
@@ -69,6 +92,11 @@ export function ChiTietHoSo({ id }: { id: string }) {
   if (!hoSo) return <DangTai />;
 
   const tongThuVe = hoSo.lines.reduce((a, d) => a + BigInt(d.netPrice), 0n).toString();
+  // Sửa nội dung cần CẢ HAI: máy chủ cho phép (hồ sơ đang ở trạng thái sửa được)
+  // và vai trò có quyền. Hai điều kiện độc lập — một Kế toán mở hồ sơ Nháp của
+  // TDV thì `allowed-actions` rỗng, nhưng nếu không kiểm quyền thì một hồ sơ bị
+  // trả lại vẫn bày nút sửa cho họ.
+  const dangSua = suaDuoc(choPhep) && can(nguoiDung?.role, 'suaHoSo');
 
   return (
     <section className="trang">
@@ -92,7 +120,20 @@ export function ChiTietHoSo({ id }: { id: string }) {
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 
       <h2>Dòng sản phẩm</h2>
-      <BangSanPham dong={hoSo.lines} />
+      {dangSua && (
+        <div className="nhom-nut">
+          <button type="button" className="nut nut-chinh" onClick={() => datMoSua('dong')}>
+            Thêm dòng sản phẩm
+          </button>
+          <button type="button" className="nut nut-nhe" onClick={() => datMoSua('ngay')}>
+            Sửa ngày áp dụng
+          </button>
+        </div>
+      )}
+      <BangSanPham
+        dong={hoSo.lines}
+        {...(dangSua ? { xoaDong, dangXoa: dangXoaDong } : {})}
+      />
       {hoSo.lines.length > 0 && (
         <p className="tong-cong">
           Tổng giá thu về: <strong className="so">{tien(tongThuVe)}</strong>
@@ -139,6 +180,20 @@ export function ChiTietHoSo({ id }: { id: string }) {
         )}
       </div>
 
+      {/*
+        Xoá mở cho bốn vai trò trong luồng và Quản trị, nhưng KHÔNG bao giờ với
+        hồ sơ Từ chối: đó là trạng thái kết thúc và không ai xoá được, kể cả
+        Quản trị hệ thống (POL-14). Máy chủ chặn; ẩn nút để không ai bấm vào một
+        thứ chắc chắn hỏng.
+      */}
+      {can(nguoiDung?.role, 'xoaHoSo') && hoSo.status !== 'TU_CHOI' && (
+        <p>
+          <button type="button" className="nut nut-canh-bao" onClick={() => datMoSua('xoa')}>
+            Xoá hồ sơ
+          </button>
+        </p>
+      )}
+
       {choPhep.length > 0 && (
         <>
           <h2>Thao tác</h2>
@@ -155,6 +210,36 @@ export function ChiTietHoSo({ id }: { id: string }) {
             ))}
           </div>
         </>
+      )}
+
+      {moSua === 'dong' && (
+        <ThemDongSanPham
+          hoSoId={hoSo.id}
+          dong={() => datMoSua(null)}
+          xong={() => {
+            datMoSua(null);
+            taiLai();
+          }}
+        />
+      )}
+      {moSua === 'ngay' && (
+        <SuaNgayApDung
+          hoSoId={hoSo.id}
+          ngayHienTai={hoSo.appliedDate}
+          dong={() => datMoSua(null)}
+          xong={() => {
+            datMoSua(null);
+            taiLai();
+          }}
+        />
+      )}
+      {moSua === 'xoa' && (
+        <XoaHoSo
+          hoSoId={hoSo.id}
+          ma={hoSo.code}
+          dong={() => datMoSua(null)}
+          xong={() => di('/ho-so')}
+        />
       )}
 
       {hanhDong && (

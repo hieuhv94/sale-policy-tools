@@ -1,6 +1,6 @@
 import { usePhien } from './lib/auth.js';
 import { khop, useDuong } from './lib/router.js';
-import { xem } from './lib/can.js';
+import { can, xem } from './lib/can.js';
 import { BoCuc } from './components/BoCuc.js';
 import { Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
@@ -8,6 +8,7 @@ import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { KichHoat } from './pages/KichHoat.js';
 import { NguoiDung } from './pages/NguoiDung.js';
 import { MauHopDong } from './pages/MauHopDong.js';
+import { LapHoSo } from './pages/LapHoSo.js';
 import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
@@ -61,6 +62,12 @@ export function App() {
 export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/') return <TongQuan />;
   if (duong === '/ho-so') return <DanhSachHoSo />;
+
+  // PHẢI đứng trước `khop('/ho-so/:id')` — nếu không thì `moi` bị bắt như một
+  // mã hồ sơ và màn hình chi tiết đi tìm một hồ sơ không tồn tại.
+  if (duong === '/ho-so/moi') {
+    return can(vaiTro, 'lapHoSo') ? <LapHoSo /> : <KhongCoQuyen />;
+  }
 
   const hs = khop('/ho-so/:id', duong);
   if (hs) return <ChiTietHoSo id={hs['id']!} />;

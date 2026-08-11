@@ -10,6 +10,8 @@ import { dang, dat, layJson } from '../lib/api.js';
 import { ngay } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { usePhien } from '../lib/auth.js';
+import { can } from '../lib/can.js';
 
 type Dong = {
   policyId: string;
@@ -58,6 +60,7 @@ const TIEU_CHI_AN: Record<string, string> = {
 const KHOA_NHAN_TU_LIEN_KET = [...TIEU_CHI.map((t) => t.khoa), ...Object.keys(TIEU_CHI_AN)];
 
 export function DanhSachHoSo() {
+  const { nguoiDung } = usePhien();
   const { truyVan } = useDuong();
   const tuLienKet = truyVan.toString();
 
@@ -151,6 +154,11 @@ export function DanhSachHoSo() {
     <section className="trang">
       <div className="dau-trang">
         <h1>Hồ sơ CSBH</h1>
+        {can(nguoiDung?.role, 'lapHoSo') && (
+          <Lien den="/ho-so/moi" className="nut nut-chinh">
+            Lập hồ sơ
+          </Lien>
+        )}
         <button
           type="button"
           className="nut nut-loc"

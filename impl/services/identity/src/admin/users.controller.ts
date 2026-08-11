@@ -33,6 +33,27 @@ export class UsersController {
     return this.users.list(pageOf({ limit, offset }));
   }
 
+  /**
+   * NGOẠI LỆ của nhóm route này: mở thêm cho Sale Admin.
+   *
+   * `@Roles` ở cấp phương thức GHI ĐÈ cấp lớp (`auth.guard.ts` dùng
+   * `getAllAndOverride`), nên dòng dưới thật sự nới quyền chứ không bị lớp
+   * `@Roles('QUAN_TRI')` ở trên chặn lại.
+   *
+   * Đặt dưới `/admin/users` để dùng lại tiền tố đã có trong danh sách trắng của
+   * gateway. Tên đường dẫn nói rõ nó không phải một route quản trị: nó trả về
+   * đúng những TDV mà người gọi được giao khách hàng cho, không trả tài khoản
+   * hay quyền hạn gì.
+   *
+   * Phải đứng TRƯỚC mọi route `:id` nếu về sau có thêm — `assignable-tdv` sẽ bị
+   * bắt như một id.
+   */
+  @Roles('SALE_ADMIN', 'QUAN_TRI')
+  @Get('assignable-tdv')
+  assignableTdv(@CurrentUser() me: AuthUser) {
+    return this.users.assignableTdv(me);
+  }
+
   @Post()
   @HttpCode(201)
   create(@CurrentUser() me: AuthUser, @Body() body: unknown) {

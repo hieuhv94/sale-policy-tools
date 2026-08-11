@@ -245,6 +245,37 @@ export class UsersService {
   }
 
   /**
+   * Danh sách TDV mà người gọi được phép giao khách hàng cho.
+   *
+   * Sale Admin cần nó để đổi TDV phụ trách (`doiTdvPhuTrach`), mà họ KHÔNG có
+   * quyền trên nhóm route quản trị người dùng. Nguồn thay thế duy nhất trước đây
+   * là `byHandler` của báo cáo tiến độ — nhưng nó chỉ liệt kê TDV **đã có hồ sơ**,
+   * nên một TDV mới tuyển không bao giờ xuất hiện và không ai giao khách được
+   * cho họ.
+   *
+   * Phạm vi suy từ cây tổ chức, không cấu hình tay: Sale Admin thấy TDV thuộc
+   * nhánh của mình. `QUAN_TRI` có phạm vi RỖNG theo thiết kế
+   * (`0003_identity.sql:104`) nên phải xử lý riêng — họ quản trị tài khoản nên
+   * thấy toàn bộ.
+   */
+  async assignableTdv(me: { id: string; role: string }) {
+    if (me.role === 'QUAN_TRI') {
+      return this.db.q(
+        `SELECT id, username, full_name AS "fullName" FROM idn.app_user
+          WHERE role = 'TDV' AND is_active ORDER BY full_name`,
+      );
+    }
+    return this.db.q(
+      `SELECT u.id, u.username, u.full_name AS "fullName"
+         FROM idn.app_user u
+        WHERE u.role = 'TDV' AND u.is_active
+          AND u.id IN (SELECT user_id FROM idn.scope_user_ids($1))
+        ORDER BY u.full_name`,
+      [me.id],
+    );
+  }
+
+  /**
    * `departmentCode` và `parentUsername` phải có ở đây, không chỉ ở lúc tạo:
    * biểu mẫu sửa mở ra là phải thấy giá trị đang có. Thiếu hai cột này thì màn
    * hình quản trị hiện ô trống và người dùng tưởng chưa gán gì.

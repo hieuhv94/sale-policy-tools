@@ -2362,3 +2362,82 @@ Web 116 → 126 case.
 - `DELETE /files/:id` chỉ mở cho TDV và Sale Admin nên nút "Gỡ" của Kế toán chỉ gỡ con trỏ khỏi hồ
   sơ, file vẫn nằm trên kho. Đúng thiết kế của máy chủ, nhưng chưa có màn hình nào cho thấy điều đó.
 - Vẫn chưa có test trình duyệt thật (nợ từ P7d).
+
+---
+
+## P11d — Lập/sửa hồ sơ và khách hàng: đợt cuối của P11
+
+Sau đợt này TDV làm được việc chính của mình trên giao diện. Trước đó họ chỉ thao tác được với dữ
+liệu do `make demo-data` bơm qua API.
+
+### Không chép công thức sang giao diện
+
+Câu hỏi thiết kế lớn nhất của đợt: nhập dòng sản phẩm có tính chiết khấu tại chỗ không?
+
+Tính tại chỗ thì phải có công thức ở giao diện. Mà `bundle.test.ts` chốt phụ thuộc của web đúng
+`react` + `react-dom`, nên không import được `@csbh/domain-policy`; chép tay thì đó là một công thức
+CÓ LUẬT LÀM TRÒN, và so ngưỡng xảy ra SAU khi làm tròn — đúng loại thứ hai bên lệch nhau vào ngày ai
+đó sửa một bên, mà lệch thì không ai đọc ra ngay.
+
+Chọn: hồ sơ tạo ra ở Nháp trước, rồi thêm từng dòng. `POST /policies/:id/lines` trả về NGUYÊN hồ sơ
+đã tính lại, nên mỗi lần thêm một dòng là thấy ngay giá thu về và tỷ lệ chiết khấu của nó. Một vòng
+mạng cho mỗi dòng, đổi lại công thức ở đúng một chỗ.
+
+### Câu hỏi Bổ sung / Chỉnh sửa phải hỏi ở giao diện
+
+Máy chủ có sẵn cơ chế: `POST /policies` không kèm `mode` cho khách đã có CSBH thì trả 409 kèm
+`SUPPLEMENT_REQUIRED` hoặc `AMEND_REQUIRED` — và nó chọn câu hỏi dựa trên danh sách dòng gửi lên.
+
+Nhưng theo cách dựng ở trên, hồ sơ tạo ra khi chưa có dòng nào, nên `hasNew` luôn false và câu máy
+chủ chọn luôn là "đã có, muốn CHỈNH SỬA không?" — đọc ra sai với người định thêm sản phẩm mới. Nên
+giao diện hỏi thẳng bằng hai nút, và gửi `mode` ngay từ đầu. Cơ chế của máy chủ vẫn còn nguyên như
+một chốt chặn cho mọi client khác.
+
+### Sale Admin không có cách nào lấy danh sách TDV
+
+`doiTdvPhuTrach` mở cho Sale Admin, mà `/admin/users` chỉ Quản trị gọi được. Nguồn thay thế duy nhất
+là `byHandler` của báo cáo tiến độ — nhưng nó chỉ liệt kê TDV **đã có hồ sơ**, nên một TDV mới tuyển
+không bao giờ xuất hiện và không ai giao khách được cho họ.
+
+Thêm `GET /admin/users/assignable-tdv`, mở cho `SALE_ADMIN` và `QUAN_TRI`. `@Roles` cấp phương thức
+ghi đè cấp lớp (`auth.guard.ts` dùng `getAllAndOverride`) nên nó thật sự nới quyền chứ không bị lớp
+`@Roles('QUAN_TRI')` chặn lại. Đặt dưới tiền tố `/admin/users` để dùng lại danh sách trắng gateway
+đã có.
+
+`QUAN_TRI` phải xử lý riêng: `scope_user_ids` trả RỖNG cho họ theo thiết kế, nên nếu chỉ lọc theo
+phạm vi thì ô chọn của Quản trị luôn trống.
+
+### Xoá hồ sơ: bắt gõ lại mã, không phải hỏi "Chắc chưa?"
+
+Nút xoá nằm cùng màn hình với những nút dùng hàng ngày, và xoá không lùi được. Một hộp thoại xác
+nhận thường bị bấm qua theo phản xạ; gõ lại mã hồ sơ thì không thể bấm nhầm.
+
+Nút ẩn hẳn với hồ sơ **Từ chối** — trạng thái kết thúc, không ai xoá được kể cả Quản trị (`POL-14`).
+Máy chủ chặn; ẩn nút để không ai bấm vào một thứ chắc chắn hỏng.
+
+### Suy "sửa được" từ câu trả lời của máy chủ
+
+Hồ sơ sửa được khi `allowed-actions` có `SUBMIT` hoặc `RESUBMIT_AFTER_EDIT` — hai hành động chỉ tồn
+tại ở đúng `NHAP` và `YEU_CAU_CHINH_SUA`. Chép danh sách trạng thái sang giao diện là thêm một bản
+sao phải giữ đồng bộ với máy trạng thái.
+
+Test đọc thẳng `ACTION_OF` trong `state-machine.ts` và khẳng định: tập hành động đi RA TỪ hai trạng
+thái sửa được đúng là hai mã đang dùng. Đổi trạng thái nguồn của `SUBMIT` ở máy chủ thì giao diện
+ngừng hiện nút sửa — không lỗi nào báo, chỉ là TDV thấy một hồ sơ Nháp không sửa được. Test bắt.
+
+### Cột thao tác là cột THÊM VÀO
+
+`BangSanPham` nhận `xoaDong` tuỳ chọn. Chú thích đầu tệp cấm ẩn bớt cột, và bốn ô CPBH vẫn là thứ
+quyết định giá thu về dù màn hình đang ở chế độ sửa — nên cột thao tác cộng thêm vào cả hai bố cục
+(bảng và thẻ), không thay chỗ cột nào.
+
+### Kết quả
+
+Web 126 → 133 case, HTTP thêm 4 case. Toàn bộ 17 quyền ghi trong `QUYEN_GHI` giờ đều có màn hình.
+
+### Còn nợ sau P11d
+
+- Xoá khách hàng (`DELETE /customers/:id`) — máy chủ có, chưa có nút. Chưa rõ luật nghiệp vụ khi
+  khách đã có hồ sơ, nên chưa dựng.
+- `DELETE /files/:id` chỉ mở cho TDV và Sale Admin: nút "Gỡ" của Kế toán chỉ gỡ con trỏ khỏi hồ sơ.
+- Vẫn chưa có test trình duyệt thật (nợ từ P7d) — cần ảnh riêng vì ảnh nền Alpine không có glibc.

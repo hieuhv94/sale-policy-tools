@@ -292,3 +292,55 @@ describe('chỉ Quản trị hệ thống vào được nhóm route này', () =>
       .toBe(403);
   });
 });
+
+describe('danh sách TDV giao khách được', () => {
+  it('Sale Admin thấy TDV thuộc nhánh của mình', async () => {
+    // Nguồn duy nhất trước đây là `byHandler` của báo cáo tiến độ, mà nó chỉ
+    // liệt kê TDV ĐÃ CÓ hồ sơ — một TDV mới tuyển không bao giờ xuất hiện, và
+    // không ai giao khách được cho họ.
+    const token = await accessTokenFor(app, 'sa01', SEED_PW);
+    const agent = await http(app);
+    const r = await agent
+      .get('/admin/users/assignable-tdv')
+      .set('Authorization', `Bearer ${token}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const ds = r.body as { id: string; username: string; fullName: string }[];
+    expect(ds.length).toBeGreaterThan(0);
+    expect(ds.some((u) => u.username === 'tdv01')).toBe(true);
+    // Chỉ TDV — bày một Kế toán ra đây là mời gán khách cho người không lập được hồ sơ.
+    expect(ds.some((u) => u.username === 'kt01')).toBe(false);
+  });
+
+  it('Quản trị thấy toàn bộ TDV dù phạm vi dữ liệu của họ RỖNG', async () => {
+    // `scope_user_ids` trả rỗng cho QUAN_TRI theo thiết kế (0003_identity.sql:104),
+    // nên nhánh này phải xử lý riêng — không thì ô chọn của Quản trị luôn trống.
+    const agent = await http(app);
+    const r = await agent
+      .get('/admin/users/assignable-tdv')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(r.status).toBe(200);
+    expect((r.body as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('TDV mới tạo hiện ra ngay, chưa cần có hồ sơ nào', async () => {
+    const tdv = await taoNguoiDung('TDV', { parentUsername: 'kt01' });
+    const token = await accessTokenFor(app, 'sa01', SEED_PW);
+    const agent = await http(app);
+    const r = await agent
+      .get('/admin/users/assignable-tdv')
+      .set('Authorization', `Bearer ${token}`);
+    expect((r.body as { username: string }[]).some((u) => u.username === tdv.username)).toBe(true);
+  });
+
+  it('vai trò không có quyền giao khách thì 403', async () => {
+    for (const ten of ['tdv01', 'tbp01', 'kt01', 'bld01']) {
+      const token = await accessTokenFor(app, ten, SEED_PW);
+      const agent = await http(app);
+      const r = await agent
+        .get('/admin/users/assignable-tdv')
+        .set('Authorization', `Bearer ${token}`);
+      expect(r.status, ten).toBe(403);
+    }
+  });
+});

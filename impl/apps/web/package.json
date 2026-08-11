@@ -15,7 +15,8 @@
     "./router": "./src/lib/router.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
-    "./chung": "./src/components/Chung.tsx"
+    "./chung": "./src/components/Chung.tsx",
+    "./sua-ho-so": "./src/components/SuaHoSo.tsx"
   },
   "scripts": {
     "build": "vite build",
