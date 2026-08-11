@@ -11,6 +11,7 @@
     "./tong-quan": "./src/lib/tong-quan.ts",
     "./nguoi-dung": "./src/lib/nguoi-dung.ts",
     "./danh-muc": "./src/lib/danh-muc.ts",
+    "./mau-hop-dong": "./src/lib/mau-hop-dong.ts",
     "./router": "./src/lib/router.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",

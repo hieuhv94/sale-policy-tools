@@ -2295,3 +2295,70 @@ thời gian — cắt hiệu lực chứ không xoá.
 - `/mau-hop-dong` (Sale Admin) — mục menu vẫn đang tạm gỡ, màn hình dựng ở P11c.
 - Tệp đính kèm, bản CSBH A4, hồ sơ pháp lý khách hàng — P11c.
 - Lập/sửa hồ sơ và khách hàng, đổi TDV phụ trách — P11d.
+
+---
+
+## P11c — Mẫu hợp đồng, tệp đính kèm, bản CSBH A4
+
+Đợt này đóng mục menu chết cuối cùng và mở phần file — thứ đã có API đầy đủ từ P6b/P6c mà giao diện
+chưa chạm tới dòng nào.
+
+### Mục menu chết cuối cùng
+
+`/mau-hop-dong` khai trong `DIEU_HUONG` từ P7d, `App.tsx` chưa bao giờ bắt. P11a tạm gỡ mục menu sau
+khi `dieu-huong.test.tsx` bắt được; giờ đặt lại cùng lượt dựng màn hình. Test đó là thứ bảo đảm hai
+việc luôn đi cùng nhau — không có nó thì "tạm gỡ" rất dễ thành "quên hẳn".
+
+### Tải file: hai bước, và không bước nào bỏ được
+
+`GET /files/:id/link` cấp một token gắn với ĐÚNG người đang gọi, rồi mới tải nội dung (`DOC-09`).
+Không có URL công khai nào trên kho, nên không thể chỉ đặt một thẻ neo — mà thẻ neo cũng không gửi
+header `Authorization`, đúng lỗi đã sửa ở P11a.
+
+Tải LÊN cũng hai bước, và hai bước đó thuộc hai service khác nhau: `document` nhận file thật rồi trả
+`objectKey`, `policy` (hoặc `customer`) ghi con trỏ. Gộp lại là bắt `policy` đụng vào MinIO và
+`document` phải biết luật nghiệp vụ.
+
+### Một cột thiếu trong projection
+
+`pol.policy_attachment` có `object_key` nhưng `policies.service.ts` không trả ra, nên danh sách tệp
+hiện được TÊN mà không nối được sang file để lấy đường tải — đúng tình trạng từ P7d. Thêm một cột
+vào câu SELECT là đủ; khoá kho không phải bí mật, mọi lượt tải vẫn qua token cấp riêng, và
+`files.controller.ts` cũng đã trả trường này.
+
+Đổi `objectKey` sang `fileId` hỏi ĐÚNG LÚC BẤM, không tải sẵn danh sách file lúc mở màn hình: phần
+lớn lượt xem hồ sơ không tải tệp nào, và một lời gọi thừa trên mọi lượt mở để phục vụ một thao tác
+hiếm là đánh đổi sai.
+
+### "Lưu và ban hành" phải lưu thật
+
+`publish` đọc ánh xạ đã lưu ở CSDL, không đọc bảng đang mở. Bản đầu tôi viết nút gọi thẳng `publish`
+— người dùng vừa điền xong cả bảng vẫn nhận `TEMPLATE_INCOMPLETE`, một thông báo đúng về kỹ thuật và
+vô nghĩa với người đang nhìn bảng đầy đủ trước mặt. Nút gọi `PUT mapping` rồi mới `publish`.
+
+Cùng loại lỗi ở điều kiện bật nút: bản đầu đọc `unmapped` của lần tải đầu, tức một ảnh chụp lúc mở
+màn hình. Điền hết bảng thì nút vẫn xám. `banHanhDuoc` nhận tập ô ĐANG CHỌN trên bảng.
+
+### Danh sách hồ sơ pháp lý đọc từ `document`, không từ `customer`
+
+`GET /customers/:id/documents` không trả mã file, mà không có mã file thì không xin được đường tải.
+Đọc từ `GET /files?ownerKind=CUSTOMER&ownerId=` thay thế. Lúc tải lên vẫn ghi cả hai bảng —
+`customer` giữ phân loại nghiệp vụ, `document` giữ file thật.
+
+### Một test đối chiếu hai phía
+
+`DINH_DANG` ở giao diện là bản sao của `FORMATS` trong `services/document/src/contracts/sources.ts`;
+máy chủ không có endpoint nào trả danh sách này ra. Bản sao là chỗ lệch, nên test đọc thẳng tệp
+nguồn của máy chủ và đối chiếu. Thêm một định dạng ở máy chủ mà quên ở đây thì test đỏ, chứ không
+phải Sale Admin phát hiện khi ô chọn thiếu mục. Cùng cách với `TIEN_TO_DONG` / `LINE_PREFIX`.
+
+### Kết quả
+
+Web 116 → 126 case.
+
+### Còn nợ sau P11c
+
+- Lập/sửa/xoá hồ sơ và khách hàng, đổi TDV phụ trách — P11d, đợt cuối.
+- `DELETE /files/:id` chỉ mở cho TDV và Sale Admin nên nút "Gỡ" của Kế toán chỉ gỡ con trỏ khỏi hồ
+  sơ, file vẫn nằm trên kho. Đúng thiết kế của máy chủ, nhưng chưa có màn hình nào cho thấy điều đó.
+- Vẫn chưa có test trình duyệt thật (nợ từ P7d).

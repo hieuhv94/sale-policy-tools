@@ -7,6 +7,7 @@ import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { KichHoat } from './pages/KichHoat.js';
 import { NguoiDung } from './pages/NguoiDung.js';
+import { MauHopDong } from './pages/MauHopDong.js';
 import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
@@ -73,6 +74,9 @@ export function noiDung(duong: string, vaiTro: string) {
 
   if (duong === '/nguoi-dung') {
     return xem(vaiTro, 'nguoiDung') ? <NguoiDung /> : <KhongCoQuyen />;
+  }
+  if (duong === '/mau-hop-dong') {
+    return xem(vaiTro, 'mauHopDong') ? <MauHopDong /> : <KhongCoQuyen />;
   }
 
   // Chặn ở cả tầng định tuyến, không chỉ ẩn mục menu: gõ thẳng địa chỉ vào thanh

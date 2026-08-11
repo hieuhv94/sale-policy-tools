@@ -7,6 +7,9 @@ import { layJson } from '../lib/api.js';
 import { ngay, tien } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
+import { usePhien } from '../lib/auth.js';
+import { can } from '../lib/can.js';
 
 type KhachHangDto = {
   id: string;
@@ -77,6 +80,7 @@ type HoSoHienHanh = {
 };
 
 export function ChiTietKhachHang({ id }: { id: string }) {
+  const { nguoiDung } = usePhien();
   const [kh, datKh] = useState<KhachHangDto | null>(null);
   const [hoSo, datHoSo] = useState<HoSoHienHanh | null | 'khong-co'>(null);
   const [loi, datLoi] = useState<unknown>(null);
@@ -142,6 +146,8 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           <p className="phu">{hoSo.lines.length} dòng sản phẩm</p>
         </div>
       )}
+
+      <HoSoPhapLy khachHangId={id} choPhepGhi={can(nguoiDung?.role, 'taiTepDinhKem')} />
     </section>
   );
 }

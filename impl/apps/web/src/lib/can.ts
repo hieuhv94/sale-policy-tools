@@ -84,13 +84,7 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
   { duong: '/bao-cao', nhan: 'Báo cáo', muc: 'baoCao' },
   { duong: '/danh-muc', nhan: 'Danh mục', muc: 'danhMuc' },
-  // 'Mẫu hợp đồng' (`/mau-hop-dong`, mục `mauHopDong`) TẠM GỠ ở P11a.
-  //
-  // Mục này từng nằm đây từ P7d mà `App.tsx` chưa bao giờ bắt đường dẫn đó, nên
-  // Sale Admin bấm vào mục menu riêng của mình và nhận "Không có màn hình nào ở
-  // địa chỉ này". Không tính năng nào mất đi khi gỡ — chưa từng có màn hình.
-  // Đặt lại cùng lượt dựng màn hình ở P11c; `dieu-huong.test.ts` bắt buộc hai
-  // thứ đó phải tới cùng nhau.
+  { duong: '/mau-hop-dong', nhan: 'Mẫu hợp đồng', muc: 'mauHopDong' },
   { duong: '/nguoi-dung', nhan: 'Người dùng', muc: 'nguoiDung' },
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },
 ];

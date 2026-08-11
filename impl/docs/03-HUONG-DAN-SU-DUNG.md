@@ -165,6 +165,38 @@ tải lên.
   địa chỉ khách hàng vừa đổi thì bản mới mang địa chỉ mới — đúng theo thiết kế.
 - Trưởng bộ phận **không** thấy nút này.
 
+### Mẫu hợp đồng (Sale Admin)
+
+*Mẫu hợp đồng* — file Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng. Ba
+bước, theo đúng thứ tự:
+
+1. **Tải mẫu lên** — file `.docx` với ô trống dạng `{{ten_o}}`. Hệ thống đọc ô trống ngay lúc tải;
+   file hỏng thì mẫu đang dùng không bị ảnh hưởng.
+2. **Ánh xạ trường** — mỗi ô trống trỏ tới một trường dữ liệu. Ô có tiền tố `policy.lines[].` làm
+   **dòng bảng chứa nó được nhân bản theo từng dòng sản phẩm**; đây là chỗ hay chọn nhầm, và chọn
+   nhầm thì hợp đồng ra thiếu dòng.
+3. **Ban hành** — chỉ được khi đã ánh xạ hết. Ban hành mẫu mới **tự động hạ mẫu cũ**; luôn có nhiều
+   nhất một mẫu đang áp dụng.
+
+> **Không có mẫu nào đang áp dụng thì mọi lần Kế toán bấm *Xuất hợp đồng* đều hỏng** — và Kế toán
+> không vào được mục này để sửa. Màn hình hiện cảnh báo đỏ khi rơi vào tình trạng đó.
+
+### Tải văn bản trên màn hình hồ sơ
+
+Mở một hồ sơ, mục **Tải văn bản**:
+
+- **Bản CSBH (A4 dọc / A4 ngang)** — mọi vai trò xem được hồ sơ đều tải được, kể cả Ban lãnh đạo.
+  Chọn khổ ngang khi hồ sơ nhiều dòng: bảng mười cột không vừa khổ dọc.
+- **Xuất hợp đồng (PDF)** — chỉ Kế toán và Sale Admin.
+
+### Tệp đính kèm
+
+Tải lên, tải xuống và gỡ tệp của hồ sơ. Bốn vai trò trong luồng đều làm được, không riêng Trình dược
+viên — bản scan có chữ ký thường do người tiếp nhận đính vào.
+
+Mỗi tệp tối đa **20MB**. Đường tải cấp riêng cho từng người và **hết hạn sau vài phút**; hết hạn thì
+mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi hồ sơ.
+
 ## 10. Tìm kiếm và bộ lọc
 
 *Hồ sơ CSBH* → **Bộ lọc** — 14 tiêu chí, kết hợp được với nhau:

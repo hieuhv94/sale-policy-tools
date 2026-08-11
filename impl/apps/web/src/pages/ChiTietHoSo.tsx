@@ -11,6 +11,7 @@ import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
+import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { BaoLoi, DangTai, HopThoai, Nhan, Truong } from '../components/Chung.js';
 
 type HoSo = {
@@ -24,7 +25,7 @@ type HoSo = {
   lastReason: string | null;
   rowVersion: number;
   lines: DongSanPham[];
-  attachments: { id: string; kind: string; fileName: string; uploadedAt: string }[];
+  attachments: TepDto[];
 };
 
 export function ChiTietHoSo({ id }: { id: string }) {
@@ -58,6 +59,11 @@ export function ChiTietHoSo({ id }: { id: string }) {
   }, [tai, lan]);
 
   const taiLai = () => datLan((x) => x + 1);
+
+  const taiBan = (kho: 'a4p' | 'a4l') => {
+    datLoi(null);
+    taiVe(`/policies/${id}/render?size=${kho}`, `CSBH-${kho}.pdf`).catch(datLoi);
+  };
 
   if (loi !== null && hoSo === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!hoSo) return <DangTai />;
@@ -93,27 +99,33 @@ export function ChiTietHoSo({ id }: { id: string }) {
         </p>
       )}
 
-      <h2>Tệp đính kèm</h2>
-      {hoSo.attachments.length === 0 ? (
-        <p className="trong">Chưa có tệp nào.</p>
-      ) : (
-        <ul className="danh-sach-tep">
-          {hoSo.attachments.map((t) => (
-            <li key={t.id}>
-              <span className="loai">{t.kind === 'SCAN' ? 'Bản scan' : 'Hồ sơ'}</span>
-              <span>{t.fileName}</span>
-              <span className="phu">{ngayGio(t.uploadedAt)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <TepDinhKem
+        hoSoId={hoSo.id}
+        tep={hoSo.attachments}
+        choPhepGhi={can(nguoiDung?.role, 'taiTepDinhKem')}
+        choPhepXoa={can(nguoiDung?.role, 'taiTepDinhKem')}
+        taiLai={taiLai}
+      />
 
-      {/*
-        Nút xuất hợp đồng chỉ hiện với Kế toán và Sale Admin (FE-24, muc 8.3).
-        Trưởng bộ phận KHÔNG thấy — YCNV ghi sai chỗ này và bản hợp nhất đã sửa.
-      */}
-      {can(nguoiDung?.role, 'xuatHopDong') && (
-        <p>
+      <h2>Tải văn bản</h2>
+      <div className="nhom-nut">
+        {/*
+          Bản CSBH A4 mở cho cả năm vai trò đọc được hồ sơ, kể cả Ban lãnh đạo:
+          tải một bản in ra xem KHÔNG phải thao tác ghi, nên không phạm `FE-23`.
+          Hai khổ giấy vì bảng mười cột không vừa khổ dọc khi hồ sơ nhiều dòng.
+        */}
+        <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4p')}>
+          Bản CSBH (A4 dọc)
+        </button>
+        <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4l')}>
+          Bản CSBH (A4 ngang)
+        </button>
+
+        {/*
+          Nút xuất hợp đồng chỉ hiện với Kế toán và Sale Admin (FE-24, muc 8.3).
+          Trưởng bộ phận KHÔNG thấy — YCNV ghi sai chỗ này và bản hợp nhất đã sửa.
+        */}
+        {can(nguoiDung?.role, 'xuatHopDong') && (
           <button
             type="button"
             className="nut"
@@ -124,8 +136,8 @@ export function ChiTietHoSo({ id }: { id: string }) {
           >
             Xuất hợp đồng (PDF)
           </button>
-        </p>
-      )}
+        )}
+      </div>
 
       {choPhep.length > 0 && (
         <>

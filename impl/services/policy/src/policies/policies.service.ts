@@ -509,7 +509,13 @@ export class PoliciesService {
     )) as Record<string, unknown>[];
 
     const attachments = (await q(
-      `SELECT id, kind::text AS kind, file_name AS "fileName", uploaded_at AS "uploadedAt"
+      // `objectKey` để giao diện nối được dòng này sang file bên `document` và
+      // lấy đường tải. Không có nó thì danh sách tệp hiện được tên mà không mở
+      // được — đúng tình trạng từ P7d tới P11b. Khoá kho KHÔNG phải bí mật: mọi
+      // lượt tải vẫn đi qua `/files/:id/content` với token cấp riêng cho người
+      // gọi (DOC-09), và `files.controller.ts` cũng đã trả trường này.
+      `SELECT id, kind::text AS kind, file_name AS "fileName", object_key AS "objectKey",
+              uploaded_at AS "uploadedAt"
          FROM pol.policy_attachment WHERE policy_id = $1 ORDER BY uploaded_at`,
       [policyId],
     )) as Record<string, unknown>[];
