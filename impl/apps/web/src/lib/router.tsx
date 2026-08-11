@@ -12,30 +12,57 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
-type Duong = { duong: string; di: (d: string) => void };
+/**
+ * `duong` là ĐƯỜNG DẪN THUẦN, không kèm chuỗi truy vấn.
+ *
+ * Tách hẳn hai thứ vì `App` so `duong === '/ho-so'` và `khop('/ho-so/:id', duong)`.
+ * Gộp chuỗi truy vấn vào thì `di('/ho-so?status=NHAP')` cho `duong` bằng
+ * `'/ho-so?status=NHAP'`, không khớp mục nào, và người dùng bấm một con số trên
+ * trang tổng quan lại rơi vào màn hình "không có màn hình nào ở địa chỉ này".
+ */
+type Duong = { duong: string; truyVan: URLSearchParams; di: (d: string) => void };
 
-const Ctx = createContext<Duong>({ duong: '/', di: () => {} });
+const Ctx = createContext<Duong>({
+  duong: '/',
+  truyVan: new URLSearchParams(),
+  di: () => {},
+});
 
 export function BoDinhTuyen({ children }: { children: ReactNode }) {
   const [duong, datDuong] = useState(() => window.location.pathname || '/');
+  // Giữ dạng chuỗi trong state chứ không giữ thẳng `URLSearchParams`: đối tượng
+  // đó có thể sửa tại chỗ, nên hai lần dựng khác nhau vẫn có thể là cùng một
+  // tham chiếu và React sẽ không vẽ lại.
+  const [chuoiTruyVan, datChuoiTruyVan] = useState(() => window.location.search);
 
   useEffect(() => {
-    const doi = () => datDuong(window.location.pathname || '/');
+    const doi = () => {
+      datDuong(window.location.pathname || '/');
+      datChuoiTruyVan(window.location.search);
+    };
     window.addEventListener('popstate', doi);
     return () => window.removeEventListener('popstate', doi);
   }, []);
 
   const di = useCallback((d: string) => {
-    if (d === window.location.pathname) return;
+    const [dan = '/', hoi = ''] = d.split('?');
+    const search = hoi === '' ? '' : `?${hoi}`;
+    // So CẢ chuỗi truy vấn: bấm hai con số khác nhau cùng trỏ về `/ho-so` là hai
+    // lần chuyển màn hình thật, không phải một lần lặp lại.
+    if (dan === window.location.pathname && search === window.location.search) return;
     window.history.pushState(null, '', d);
-    datDuong(d);
+    datDuong(dan);
+    datChuoiTruyVan(search);
     // Đưa tiêu điểm về đầu trang sau khi chuyển màn hình. Không làm thì người
     // dùng bàn phím và trình đọc màn hình vẫn đứng ở chỗ cũ của trang trước
     // (FE-35).
     document.getElementById('noi-dung-chinh')?.focus();
   }, []);
 
-  const v = useMemo(() => ({ duong, di }), [duong, di]);
+  const v = useMemo(
+    () => ({ duong, truyVan: new URLSearchParams(chuoiTruyVan), di }),
+    [duong, chuoiTruyVan, di],
+  );
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }
 

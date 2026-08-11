@@ -5,7 +5,7 @@ import { BoCuc } from './components/BoCuc.js';
 import { Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
-import { ViecCuaToi } from './pages/ViecCuaToi.js';
+import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
@@ -39,7 +39,7 @@ export function App() {
 }
 
 function noiDung(duong: string, vaiTro: string) {
-  if (duong === '/') return <ViecCuaToi />;
+  if (duong === '/') return <TongQuan />;
   if (duong === '/ho-so') return <DanhSachHoSo />;
 
   const hs = khop('/ho-so/:id', duong);

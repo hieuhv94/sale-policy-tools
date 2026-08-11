@@ -1983,3 +1983,105 @@ và lặp lại lỗi. Đã đưa `lien` ra ngoài phạm vi module cùng với 
   kiểm được ngăn kéo mở ra, tiêu điểm bàn phím, hay `axe-core`.
 - Chưa đo tương phản bằng công cụ — mới tính tay ở những cặp màu đáng ngờ.
 - Màn hình lập/sửa hồ sơ và quản trị danh mục vẫn ở mức đọc (nợ từ P7d).
+
+---
+
+## P10 — Trang tổng quan: sáu bộ nội dung theo vai trò
+
+### Đã dựng
+
+- `pages/TongQuan.tsx` thay `ViecCuaToi` ở `/`. Mục menu đổi tên **Việc của tôi → Tổng quan**;
+  "Việc của tôi" lùi xuống làm tiêu đề một khối bên trong.
+- `lib/tong-quan.ts` — hai bảng tra: `THE_TRANG_THAI` (vai trò → dải thẻ) và `KHOI_THEO_VAI_TRO`.
+- `components/khoi/` — `Khung`, `HopViec`, `SoLieu`, `HeThong`.
+- `lib/bao-cao.ts` (kiểu + hook chung cho ba báo cáo), `lib/tai.ts` (hook nạp một endpoint).
+- Router đọc được chuỗi truy vấn; `DanhSachHoSo` nhận bộ lọc từ liên kết.
+- `tests/web/tong-quan.test.ts` + `router.test.tsx` — **78 test giao diện**, tăng từ 56.
+
+Không thêm một endpoint nào. Toàn bộ dữ liệu đã có sẵn và đã nằm trong danh sách trắng của gateway.
+
+### Lỗi đang sửa: hai vai trò đăng nhập vào trang trắng
+
+`/policies/inbox` có một bảng `waitingFor` ánh xạ vai trò → trạng thái đang chờ họ, và nó **không có
+nhánh cho `BAN_LANH_DAO` với `QUAN_TRI`** — đúng về nghiệp vụ, cả hai đứng ngoài luồng duyệt. Nhưng
+trang chủ chỉ có đúng hộp việc, nên hai vai trò đó mở phần mềm ra là một màn hình trống trơn, không
+một dòng chữ.
+
+Bốn vai trò còn lại thì thiếu một thứ khác: gửi duyệt xong là **mất dấu hồ sơ**. Không màn hình nào
+trả lời "hồ sơ tôi gửi đang nằm ở bước nào".
+
+### Quản trị hệ thống có phạm vi dữ liệu RỖNG
+
+Phát hiện quan trọng nhất của đợt này, và nó nằm trong SQL chứ không nằm trong mã ứng dụng:
+`idn.scope_user_ids` (0003_identity.sql) trả `RETURN;` — tức tập rỗng — cho `QUAN_TRI`.
+
+Hệ quả: mọi lời gọi `/reports/*` và `/customers` của Quản trị đều trả về **0**. Không phải vì hệ
+thống trống, mà vì hồ sơ không thuộc phạm vi của vai trò đó.
+
+Nên bộ khối của họ **không có một ô đếm hồ sơ nào**. Bày "Tổng hồ sơ: 0" là một con số đúng nhưng
+đọc ra nghĩa hoàn toàn sai — người xem sẽ tưởng chưa ai nhập gì. Thay bằng dải sức khoẻ hệ thống
+(thư hỏng, người dùng, danh mục) cộng một câu nói thẳng vì sao không có hồ sơ. Test khoá cả hai điều
+này lại.
+
+### Thẻ trạng thái chỉ nói việc của CHÍNH vai trò đó
+
+Yêu cầu của người dùng, và nó đúng: một TDV nhìn ô "Chờ Kế toán L2: 7" thì không làm được gì với con
+số ấy, mà nó vẫn chiếm chỗ và vẫn bắt phải đọc.
+
+Chỗ dễ làm ẩu là để test suy ngược bảng "trạng thái này là việc của ai" từ chính `THE_TRANG_THAI` —
+làm thế thì test chỉ đang lặp lại dữ liệu nó cần kiểm và luôn xanh. Nên `BAN_CUA` được khai RIÊNG,
+độc lập, rồi đối chiếu.
+
+Ngoại lệ có chủ ý: `BAN_LANH_DAO` thấy đủ cả 11 trạng thái — vai trò duy nhất giám sát toàn luồng.
+
+### Một phép so vai trò suýt lọt qua
+
+Bản đầu tôi viết `themTheDangCho={vaiTro === 'TDV'}` trong JSX. `quyen.test.ts` cấm đúng dạng này —
+so vai trò bằng chuỗi viết thẳng ngoài `can.ts` — và lệnh cấm ấy có lý do: một phép so rải trong JSX
+là chỗ không ai nghĩ tới khi thêm vai trò. Đã chuyển thành bảng `CO_THE_DANG_CHO`.
+
+Đáng nói vì test này viết từ P7d cho một mục đích khác (bảng quyền là nguồn duy nhất) và nó **bắt
+được một lỗi ở đợt sau, ở một màn hình chưa tồn tại lúc test ra đời**.
+
+### Router phải tách đường dẫn khỏi chuỗi truy vấn
+
+Thẻ bấm được dẫn tới `/ho-so?status=CHO_TBP_DUYET`. Bộ định tuyến tự viết đặt `datDuong(d)` với
+NGUYÊN chuỗi truyền vào, nên `duong` thành `'/ho-so?status=CHO_TBP_DUYET'`, `App` so
+`duong === '/ho-so'` trượt, và người dùng bấm một con số lại rơi vào màn hình *"không có màn hình
+nào ở địa chỉ này"*.
+
+Sửa xong lại lộ ra cái thứ hai: `di()` bỏ qua lời gọi khi đường dẫn không đổi. Bấm thẻ "Nháp" rồi
+bấm thẻ "Từ chối" — cùng trỏ về `/ho-so` — thì lần thứ hai bị coi là "đã ở đó rồi" và màn hình đứng
+yên với bộ lọc cũ. Con số vừa bấm và danh sách đang hiện không khớp nhau, mà không có dấu hiệu gì.
+Phải so **cả** chuỗi truy vấn.
+
+### Một tiêu chí lọc không có ô nhập
+
+`tdvUserId` nhận uuid, chỉ đến từ việc bấm một dòng trên trang tổng quan — biểu mẫu 14 tiêu chí
+không có ô nào cho nó, nên cũng không có cách nào gỡ nó ra. Người dùng sẽ thấy danh sách ngắn bất
+thường mà không biết vì sao.
+
+Thêm một dải "Đang lọc theo Trình dược viên ×". Cả dải là nút chứ không phải chỉ dấu ×: một dấu ×
+rộng 24px là mục tiêu chạm quá nhỏ (`FE-08`), mà bọc riêng nó trong vùng 44px thì dải chip cao gấp
+đôi cần thiết.
+
+### Ba lỗi bố cục chỉ thấy được bằng ảnh
+
+Lại dựng qua Gotenberg như P9, nhưng lần này khác một điểm quan trọng: các khối được render bằng
+**chính component React của sản phẩm** qua `renderToStaticMarkup`, không phải HTML gõ tay. Nên thứ
+nhìn thấy đúng là thứ người dùng sẽ thấy, kể cả tên lớp CSS.
+
+- Dải thẻ gãy **4+1**: `minmax(200px, 1fr)` chỉ cho 4 thẻ lọt một hàng ở 1280px (5×200 + 4 khe = 1048
+  > 1020 chỗ trống), nên hàng cuối còn một thẻ lẻ loi. Xuống 170px là vừa 5.
+- Câu giải thích "Ban lãnh đạo không nằm trong luồng duyệt" nằm **sau** mười một con số — đọc sau thì
+  đã muộn. Dựng riêng, trước dải thẻ.
+- Nhãn "Chờ Kế toán tiếp nhận lần 1" ngắt hai dòng trong cột nhãn hẹp.
+
+### Còn nợ sau P10
+
+- **"Khách hàng chưa có CSBH nào hiệu lực"** — số đáng giá cho TDV nhưng chưa truy vấn được: không
+  có phép nối nào giữa `cus.customer` và `rpt.policy_row` cho ra "khách không xuất hiện".
+- **"Chờ xuất hợp đồng"** cho Kế toán — `contract_issued_at` nằm ở `pol.policy` nhưng không được sao
+  sang `rpt.policy_row`. Cần migration.
+- Chưa có màn hình danh sách thư hỏng; Quản trị mới chỉ thấy con số.
+- Vẫn chưa có test trình duyệt thật (nợ từ P7d).

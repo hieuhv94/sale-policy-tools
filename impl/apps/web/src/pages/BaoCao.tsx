@@ -6,43 +6,18 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, GOC_API } from '../lib/api.js';
+import { useBaoCao } from '../lib/bao-cao.js';
 import { nhanTrangThai } from '../lib/format.js';
-import { BaoLoi, DangTai } from '../components/Chung.js';
+import { BaoLoi, ChiSo, DangTai } from '../components/Chung.js';
 
-type TienDo = {
-  total: number;
-  byStatus: Record<string, number>;
-  byPendingStep: Record<string, number>;
-  byHandler: { userId: string; name: string | null; count: number }[];
-};
-type TyLeTraLai = { submitted: number; returned: number; rejected: number; rate: number };
-type Sla = { waiting: number; overdue: number; dueToday: number; excludedLegacy: number };
 type ViecXuat = { jobId: string; status: string; rowCount: number | null; downloadUrl: string | null };
 
 export function BaoCao() {
-  const [tienDo, datTienDo] = useState<TienDo | null>(null);
-  const [traLai, datTraLai] = useState<TyLeTraLai | null>(null);
-  const [sla, datSla] = useState<Sla | null>(null);
+  // Cùng ba endpoint mà trang Tổng quan đọc — kiểu và cách nạp khai một chỗ ở
+  // `lib/bao-cao.ts`, xem lý do ở đầu tệp đó.
+  const { bo, loi: loiBaoCao } = useBaoCao();
   const [loi, datLoi] = useState<unknown>(null);
   const [viec, datViec] = useState<ViecXuat | null>(null);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    Promise.all([
-      layJson<TienDo>('/reports/progress', huy.signal),
-      layJson<TyLeTraLai>('/reports/return-rate', huy.signal),
-      layJson<Sla>('/reports/sla', huy.signal),
-    ])
-      .then(([a, b, c]) => {
-        datTienDo(a);
-        datTraLai(b);
-        datSla(c);
-      })
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, []);
 
   // Hỏi lại trạng thái việc xuất cho tới khi xong.
   useEffect(() => {
@@ -64,8 +39,9 @@ export function BaoCao() {
     }
   };
 
-  if (loi !== null && tienDo === null) return <BaoLoi loi={loi} />;
-  if (!tienDo || !traLai || !sla) return <DangTai />;
+  if (loiBaoCao !== null) return <BaoLoi loi={loiBaoCao} />;
+  if (bo === null) return <DangTai />;
+  const { tienDo, traLai, sla } = bo;
 
   // Sắp giảm dần: trạng thái đông hồ sơ nhất là thứ người đọc muốn thấy trước,
   // và thứ tự cố định theo tên trạng thái thì cột nào cũng phải dò bằng mắt.
@@ -165,26 +141,5 @@ export function BaoCao() {
         )}
       </div>
     </section>
-  );
-}
-
-/** Một ô số liệu ở hàng đầu. `kieu` chỉ đổi màu vạch bên trái và màu con số. */
-function ChiSo({
-  nhan,
-  giaTri,
-  phu,
-  kieu = 'thuong',
-}: {
-  nhan: string;
-  giaTri: number | string;
-  phu: string;
-  kieu?: 'thuong' | 'tot' | 'cho' | 'canh-bao' | 'loi';
-}) {
-  return (
-    <article className={`chi-so chi-so-${kieu}`}>
-      <span className="chi-so-nhan">{nhan}</span>
-      <strong className="chi-so-gia-tri so">{giaTri}</strong>
-      <span className="chi-so-phu">{phu}</span>
-    </article>
   );
 }

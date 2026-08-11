@@ -48,12 +48,51 @@ Nút hình mặt trăng (hoặc mặt trời) ở thanh trên cùng, và ở gó
 Lựa chọn giao diện là **của riêng từng máy**, không đi theo tài khoản: cùng một người đăng nhập ở
 máy bàn và ở điện thoại có thể để hai giao diện khác nhau.
 
-## 4. Trang chủ — *Việc của tôi*
+## 4. Trang tổng quan
 
-Chỉ liệt kê hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá hạn** có
-vạch đỏ bên trái.
+Màn hình đầu tiên sau khi đăng nhập. **Nội dung khác nhau theo vai trò** — bạn chỉ thấy những con
+số thuộc phần việc của mình.
 
-Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải hệ thống lỗi.
+### Dải thẻ trạng thái
+
+Hàng thẻ trên cùng đếm hồ sơ theo trạng thái. **Bấm vào một thẻ** là mở danh sách hồ sơ đã lọc sẵn
+theo đúng trạng thái đó.
+
+| Vai trò | Thẻ bạn thấy |
+|---|---|
+| **Trình dược viên** | Đang chờ duyệt · Nháp · Yêu cầu chỉnh sửa · Đang có hiệu lực · Từ chối |
+| **Trưởng bộ phận** | Chờ TBP duyệt · Quá hạn duyệt · TBP đã ký số · Đang có hiệu lực · Từ chối |
+| **Kế toán** | Chờ Kế toán L1 · Chờ Kế toán L2 · Quá hạn duyệt · Đang có hiệu lực |
+| **Sale Admin** | Sale Admin đang xử lý · Quá hạn duyệt · Đang có hiệu lực · Từ chối |
+| **Ban lãnh đạo** | **Cả 11 trạng thái** |
+| **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
+
+Cố ý **không** bày cho bạn trạng thái là bước của người khác: một Trình dược viên nhìn ô "Chờ Kế
+toán L2: 7" thì không làm được gì với con số ấy.
+
+### Việc của tôi
+
+Ngay dưới dải thẻ là hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá
+hạn** có vạch đỏ bên trái. Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải hệ thống lỗi.
+
+Riêng **Kế toán** thấy hai danh sách tách rời: *Tiếp nhận lần 1* và *Tiếp nhận lần 2*.
+
+### Từng vai trò còn thấy gì thêm
+
+- **Trưởng bộ phận và Kế toán** — tỷ lệ trả lại, số ngày chờ trung bình, số hồ sơ đến hạn hôm nay.
+- **Sale Admin** — cảnh báo đỏ khi **chưa có mẫu hợp đồng nào đang áp dụng** (lúc đó Kế toán không
+  xuất được hợp đồng, và chỉ bạn sửa được), cùng bảng hồ sơ theo từng trình dược viên.
+- **Ban lãnh đạo** — sức khoẻ luồng duyệt, hồ sơ đang tắc ở bước nào, top 5 trình dược viên, và
+  hoạt động gần đây. Không có nút ghi nào.
+- **Quản trị hệ thống** — thư hỏng chưa xử lý, số người dùng, số tài khoản chưa kích hoạt hoặc đang
+  bị khoá, số sản phẩm đang áp dụng, hoạt động hôm nay và nhật ký gần đây.
+
+> **Ban lãnh đạo và Quản trị hệ thống không có hồ sơ nào ở trang này** — cả hai đều đứng ngoài luồng
+> duyệt. Riêng Quản trị còn không có con số hồ sơ nào, vì hồ sơ không thuộc phạm vi dữ liệu của vai
+> trò đó. Màn hình sẽ nói rõ điều này thay vì để trống.
+
+Dòng *"Số liệu tính lúc HH:MM"* dưới tiêu đề là mốc đọc số. Các con số đến từ bảng tổng hợp, có thể
+trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* thì luôn đọc thẳng dữ liệu gốc.
 
 ## 5. Lập khách hàng (TDV)
 

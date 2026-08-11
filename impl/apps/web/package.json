@@ -8,6 +8,8 @@
     "./can": "./src/lib/can.ts",
     "./api": "./src/lib/api.ts",
     "./giao-dien": "./src/lib/giao-dien.ts",
+    "./tong-quan": "./src/lib/tong-quan.ts",
+    "./router": "./src/lib/router.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./chung": "./src/components/Chung.tsx"
   },

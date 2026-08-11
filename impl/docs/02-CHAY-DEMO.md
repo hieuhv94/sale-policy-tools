@@ -86,8 +86,8 @@ make demo-data
 
 1. **`tdv01`** → *Khách hàng* → lập một khách hàng mới.
 2. **`tdv01`** → *Hồ sơ CSBH* → lập hồ sơ, thêm sản phẩm, xem tỷ lệ chiết khấu tự tính → **Gửi duyệt**.
-3. **`tbp01`** → *Việc của tôi* → mở hồ sơ → **Ký số duyệt**.
-4. **`kt01`** → *Việc của tôi* → **Tiếp nhận lần 1** → **Xuất hợp đồng (PDF)**.
+3. **`tbp01`** → *Tổng quan* → mở hồ sơ → **Ký số duyệt**.
+4. **`kt01`** → *Tổng quan* → **Tiếp nhận lần 1** → **Xuất hợp đồng (PDF)**.
 5. **`sa01`** → tải bản scan lên → **Bàn giao**.
 6. **`kt01`** → **Tiếp nhận lần 2** → hồ sơ chuyển *Đang có hiệu lực*.
 7. **`bld01`** → *Báo cáo* → xem tiến độ, tỷ lệ trả lại, SLA; thử **Xuất Excel**.

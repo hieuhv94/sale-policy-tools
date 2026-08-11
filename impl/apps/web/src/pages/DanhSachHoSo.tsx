@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dang, dat, layJson } from '../lib/api.js';
 import { ngay } from '../lib/format.js';
-import { Lien } from '../lib/router.js';
+import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
 
 type Dong = {
@@ -42,7 +42,25 @@ const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' }[] = [
   { khoa: 'productGroupCode', nhan: 'Nhóm sản phẩm' },
 ];
 
+/**
+ * Tiêu chí đặt được TỪ LIÊN KẾT nhưng KHÔNG có ô nhập trong biểu mẫu.
+ *
+ * `tdvUserId` nhận một uuid, không phải chuỗi người ta gõ ra được — nó chỉ đến
+ * từ việc bấm vào một dòng trên trang tổng quan. Vì không có ô nào để bỏ nó đi,
+ * màn hình phải hiện một dải "đang lọc thêm theo…" có nút gỡ; thiếu dải đó thì
+ * người dùng thấy danh sách ngắn bất thường mà không biết vì sao.
+ */
+const TIEU_CHI_AN: Record<string, string> = {
+  tdvUserId: 'Trình dược viên',
+  requesterId: 'Người đề nghị',
+};
+
+const KHOA_NHAN_TU_LIEN_KET = [...TIEU_CHI.map((t) => t.khoa), ...Object.keys(TIEU_CHI_AN)];
+
 export function DanhSachHoSo() {
+  const { truyVan } = useDuong();
+  const tuLienKet = truyVan.toString();
+
   const [boLoc, datBoLoc] = useState<BoLoc>({});
   const [dong, datDong] = useState<Dong[] | null>(null);
   const [tong, datTong] = useState<number | null>(null);
@@ -51,12 +69,32 @@ export function DanhSachHoSo() {
   const [moLoc, datMoLoc] = useState(false);
   const [lan, datLan] = useState(0);
 
-  // Điều kiện lọc đã lưu ở phiên trước — nạp một lần lúc mở màn hình (RPT-04).
+  /**
+   * Điều kiện lọc lúc mở màn hình. Hai nguồn, và LIÊN KẾT THẮNG.
+   *
+   * Bấm ô "Chờ TBP duyệt: 12" trên trang tổng quan mà lại ra danh sách theo bộ
+   * lọc của phiên trước thì con số vừa bấm và danh sách vừa hiện không khớp
+   * nhau — người dùng sẽ tin vào cái sai trong hai cái. Nên liên kết ghi đè, và
+   * ghi luôn vào bộ lọc của phiên (RPT-04) để nó vẫn còn khi quay lại.
+   */
   useEffect(() => {
+    const q = new URLSearchParams(tuLienKet);
+    const tuDuong: BoLoc = {};
+    for (const khoa of KHOA_NHAN_TU_LIEN_KET) {
+      const v = q.get(khoa);
+      if (v !== null && v.trim() !== '') tuDuong[khoa] = v.trim();
+    }
+
+    if (Object.keys(tuDuong).length > 0) {
+      datBoLoc(tuDuong);
+      void dat('/reports/filters/ho-so', tuDuong).catch(() => undefined);
+      return;
+    }
+
     layJson<{ filter: BoLoc }>('/reports/filters/ho-so')
       .then((r) => datBoLoc(r.filter ?? {}))
       .catch(() => undefined);
-  }, []);
+  }, [tuLienKet]);
 
   const chuoiTruyVan = useCallback(
     (them: Record<string, string> = {}) => {
@@ -107,6 +145,7 @@ export function DanhSachHoSo() {
   };
 
   const soDieuKien = Object.values(boLoc).filter(Boolean).length;
+  const locAn = Object.keys(TIEU_CHI_AN).filter((k) => boLoc[k]);
 
   return (
     <section className="trang">
@@ -125,6 +164,33 @@ export function DanhSachHoSo() {
       <p className="mo-ta-trang" aria-live="polite">
         {tong === null ? 'Đang đếm…' : `${tong} hồ sơ khớp điều kiện`}
       </p>
+
+      {/* Tiêu chí đến từ liên kết mà biểu mẫu không có ô nào để gỡ — xem TIEU_CHI_AN. */}
+      {locAn.length > 0 && (
+        <div className="loc-them">
+          {locAn.map((k) => (
+            /*
+              CẢ dải là nút, không phải chỉ dấu × bên trong nó. Một dấu × rộng
+              24px là mục tiêu chạm quá nhỏ (`FE-08`), mà bọc riêng nó trong một
+              vùng 44px thì dải chip cao gấp đôi cần thiết.
+            */
+            <button
+              key={k}
+              type="button"
+              className="the-loc"
+              onClick={() => datMot(k, '')}
+              aria-label={`Bỏ lọc theo ${TIEU_CHI_AN[k]}`}
+            >
+              <span>
+                Đang lọc theo <strong>{TIEU_CHI_AN[k]}</strong>
+              </span>
+              <span className="dau-go-loc" aria-hidden="true">
+                ×
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={moLoc ? 'tam-loc mo' : 'tam-loc'}>
         <div className="tam-loc-trong">

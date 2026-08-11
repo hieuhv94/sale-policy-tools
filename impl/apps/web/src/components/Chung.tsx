@@ -9,10 +9,49 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { LoiApi } from '../lib/api.js';
 import { nhanTrangThai, nhomTrangThai } from '../lib/format.js';
+import { Lien } from '../lib/router.js';
 
 export function Nhan({ trangThai }: { trangThai: string }) {
   return (
     <span className={`nhan nhan-${nhomTrangThai(trangThai)}`}>{nhanTrangThai(trangThai)}</span>
+  );
+}
+
+/**
+ * Một ô số liệu. `kieu` chỉ đổi màu vạch bên trái và màu con số.
+ *
+ * Có `den` thì cả ô thành một liên kết — không phải chỉ con số, không phải một
+ * nút "xem chi tiết" nhỏ ở góc. Vùng bấm là cả thẻ vì trên điện thoại một con số
+ * cao 1.75rem là mục tiêu quá nhỏ (`FE-08`), và vì người ta chỉ vào con số chứ
+ * không chỉ vào chữ bên cạnh nó.
+ */
+export function ChiSo({
+  nhan,
+  giaTri,
+  phu,
+  kieu = 'thuong',
+  den,
+}: {
+  nhan: string;
+  giaTri: number | string;
+  phu?: string;
+  kieu?: 'thuong' | 'tot' | 'cho' | 'canh-bao' | 'loi';
+  den?: string;
+}) {
+  const trong = (
+    <>
+      <span className="chi-so-nhan">{nhan}</span>
+      <strong className="chi-so-gia-tri so">{giaTri}</strong>
+      {phu !== undefined && <span className="chi-so-phu">{phu}</span>}
+    </>
+  );
+  const lop = `chi-so chi-so-${kieu}`;
+
+  if (den === undefined) return <article className={lop}>{trong}</article>;
+  return (
+    <Lien den={den} className={`${lop} chi-so-lien`}>
+      {trong}
+    </Lien>
   );
 }
 

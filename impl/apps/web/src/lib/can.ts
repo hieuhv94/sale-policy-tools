@@ -79,7 +79,7 @@ export const xem = (vaiTro: string | undefined, muc: MucXem): boolean =>
 export type MucDieuHuong = { duong: string; nhan: string; muc: MucXem };
 
 export const DIEU_HUONG: MucDieuHuong[] = [
-  { duong: '/', nhan: 'Việc của tôi', muc: 'hoSo' },
+  { duong: '/', nhan: 'Tổng quan', muc: 'hoSo' },
   { duong: '/ho-so', nhan: 'Hồ sơ CSBH', muc: 'hoSo' },
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
   { duong: '/bao-cao', nhan: 'Báo cáo', muc: 'baoCao' },

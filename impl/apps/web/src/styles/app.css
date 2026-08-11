@@ -525,9 +525,16 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
 
 /* --- Ô số liệu và thanh tỷ lệ (màn hình Báo cáo) --------------------------- */
 
+/**
+ * `minmax(170px, …)` chứ không phải 200px.
+ *
+ * Ban lãnh đạo có 11 thẻ và Quản trị có 5. Ở 200px thì chỉ 4 thẻ lọt một hàng
+ * trên màn hình 1280px (5×200 + 4×12 khe = 1048 > 1020 chỗ trống), nên hàng cuối
+ * còn đúng một thẻ lẻ loi. Ở 170px thì vừa 5, và `1fr` vẫn kéo chúng đầy hàng.
+ */
 .luoi-chi-so {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--k3);
   margin-bottom: var(--k5);
 }
@@ -558,6 +565,28 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
 .chi-so-canh-bao::before { background: var(--mau-canh-bao); }
 .chi-so-loi::before { background: var(--mau-loi); }
 
+/* Thẻ bấm được: cả ô là liên kết, không chỉ con số (FE-08). */
+.chi-so-lien {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.chi-so-lien:hover {
+  border-color: var(--mau-thuong-hieu);
+  box-shadow: var(--bong-noi);
+}
+/* Mũi tên nhỏ để thấy ô này đi đâu được — hover mới hiện thì người dùng bàn
+   phím và người dùng cảm ứng không bao giờ thấy, nên nó hiện sẵn, mờ. */
+.chi-so-lien::after {
+  content: '›';
+  position: absolute;
+  top: var(--k3);
+  right: var(--k3);
+  color: var(--mau-chu-nhat);
+  font-size: var(--chu-to);
+  line-height: 1;
+}
+
 .chi-so-nhan {
   font-size: var(--chu-nho);
   font-weight: 600;
@@ -580,7 +609,7 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
   gap: var(--k3);
   padding: var(--k2) 0;
 }
-.thanh-nhan { flex: 0 0 clamp(7rem, 22%, 12rem); }
+.thanh-nhan { flex: 0 0 clamp(8rem, 26%, 15rem); }
 .thanh {
   flex: 1;
   height: 8px;
@@ -596,6 +625,65 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
   background: var(--mau-thuong-hieu);
 }
 .danh-sach-thanh .so { flex: none; min-width: 3ch; font-weight: 700; }
+/* Nhãn dòng có thể là liên kết (bấm để mở danh sách đã lọc) — giữ nguyên màu
+   chữ thường, chỉ gạch chân khi rê vào, để hàng chục dòng không thành một mảng
+   xanh. */
+a.thanh-nhan { color: inherit; text-decoration: none; }
+a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; }
+
+/* --- Trang tổng quan ------------------------------------------------------ */
+
+.khoi { margin-top: var(--k6); }
+.khoi:first-of-type { margin-top: var(--k5); }
+.khoi > h2 { margin-top: 0; }
+.tieu-de-phu {
+  margin: var(--k4) 0 var(--k2);
+  font-size: var(--chu-nho);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--mau-chu-phu);
+}
+.khoi .tieu-de-phu:first-child { margin-top: 0; }
+
+/* Câu giải thích vì sao vai trò này không có việc nào. */
+.giai-thich {
+  background: var(--mau-thuong-hieu-nhat);
+  border-left: 4px solid var(--mau-thuong-hieu);
+  border-radius: var(--bo-goc-nho);
+  padding: var(--k3) var(--k4);
+  margin: var(--k4) 0 0;
+  color: var(--mau-chu);
+}
+
+/* Dải "đang lọc theo…" cho tiêu chí không có ô nhập trong biểu mẫu. */
+.loc-them { display: flex; flex-wrap: wrap; gap: var(--k2); margin-bottom: var(--k3); }
+.the-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--k2);
+  /* Cả dải là nút, nên nó phải đạt vùng chạm tối thiểu (FE-08). */
+  min-height: var(--vung-cham);
+  padding: 0 var(--k3);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: 999px;
+  background: var(--mau-nen);
+  color: var(--mau-chu);
+  font: inherit;
+  font-size: var(--chu-nho);
+  cursor: pointer;
+}
+.the-loc:hover { border-color: var(--mau-loi); background: var(--mau-loi-nen); }
+.dau-go-loc {
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--mau-nen-hover);
+  color: var(--mau-chu-phu);
+  line-height: 1;
+}
+.the-loc:hover .dau-go-loc { background: var(--mau-loi); color: var(--mau-chu-nguoc); }
 
 /* --- Thẻ sản phẩm (chỉ hiện dưới 640px) ----------------------------------- */
 

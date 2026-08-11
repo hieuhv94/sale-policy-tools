@@ -2,9 +2,9 @@
  * Khung chung sau khi đăng nhập: thanh bên, thanh tiêu đề, vùng nội dung.
  *
  * Điều hướng nằm ở THANH BÊN chứ không ở một hàng tab ngang. Tám mục với nhãn
- * tiếng Việt dài ("Mẫu hợp đồng", "Việc của tôi") xếp ngang thì tràn dòng ngay
- * ở màn hình 1280px, và một hàng tab tràn thành hai dòng trông như lỗi hiển thị.
- * Cột dọc thì thêm mục thứ chín cũng không đổi bố cục.
+ * tiếng Việt dài ("Mẫu hợp đồng", "Bệnh viện / điểm bán") xếp ngang thì tràn
+ * dòng ngay ở màn hình 1280px, và một hàng tab tràn thành hai dòng trông như lỗi
+ * hiển thị. Cột dọc thì thêm mục thứ chín cũng không đổi bố cục.
  *
  * Dưới 1024px thanh bên thành NGĂN KÉO trượt ra, đúng một cây DOM cho cả hai —
  * dựng lại cây theo bề rộng là thứ `FE-06` cấm.
