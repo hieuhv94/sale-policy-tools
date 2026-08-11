@@ -6,6 +6,7 @@
   "exports": {
     "./format": "./src/lib/format.ts",
     "./can": "./src/lib/can.ts",
+    "./bat-buoc": "./src/lib/bat-buoc.ts",
     "./api": "./src/lib/api.ts",
     "./giao-dien": "./src/lib/giao-dien.ts",
     "./tong-quan": "./src/lib/tong-quan.ts",

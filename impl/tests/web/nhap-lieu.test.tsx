@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
-import { HopThoai, ONhapTien, OTimKiem, Truong } from '@csbh/web/chung';
+import { ChuThichBatBuoc, HopThoai, ONhapTien, OTimKiem, Truong } from '@csbh/web/chung';
 
 /**
  * Dọn DOM sau mỗi test.
@@ -91,6 +91,25 @@ describe('FE-34 nhãn gắn đúng vào ô nhập', () => {
     // Dấu `*` là quy ước thị giác; trình đọc màn hình đọc ra "sao" và người
     // dùng không biết nó nghĩa là gì.
     expect(screen.getByText('(bắt buộc)')).toBeDefined();
+  });
+
+  it('ô KHÔNG bắt buộc thì không có dấu sao — sao phải nói lên điều gì đó', () => {
+    // Gắn sao cho mọi ô là bỏ luôn thông tin: người dùng không còn phân biệt
+    // được ô nào phải điền, và dấu sao thành trang trí.
+    const { container } = render(
+      <Truong id="tuy-chon" nhan="Địa chỉ giao hàng">
+        {(p) => <input {...p} />}
+      </Truong>,
+    );
+    expect(container.querySelector('.sao')).toBeNull();
+    expect(screen.queryByText('(bắt buộc)')).toBeNull();
+  });
+
+  it('chú giải dấu sao ẩn khỏi cây trợ năng, không đọc lặp', () => {
+    // Trình đọc màn hình đã nghe "(bắt buộc)" ở từng nhãn; đọc thêm một câu giải
+    // thích quy ước thị giác ở đầu biểu mẫu là nhiễu.
+    const { container } = render(<ChuThichBatBuoc />);
+    expect(container.firstElementChild!.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('lỗi được nối vào ô bằng aria-describedby', () => {

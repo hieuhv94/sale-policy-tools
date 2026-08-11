@@ -19,7 +19,8 @@ import {
   type SanPham,
   type TrangThaiSanPham,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, DangTai, HopThoai, ONhapTien, Trong, Truong } from '../Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, ONhapTien, Trong, Truong } from '../Chung.js';
+import { thieuTruong } from '../../lib/bat-buoc.js';
 
 export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
   const [ds, datDs] = useState<SanPham[] | null>(null);
@@ -164,6 +165,8 @@ function HopThoaiTao({
   return (
     <HopThoai tieuDe="Thêm sản phẩm" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="sp-ma" nhan="Mã vật tư" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={ma} onChange={(e) => datMa(e.target.value)} />}
         </Truong>
@@ -225,6 +228,8 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
   return (
     <HopThoai tieuDe={`Sửa ${sp.code}`} dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         {/* Mã vật tư không sửa được — cùng lý do với mã khách hàng: hồ sơ cũ
             đóng băng mã sản phẩm, sửa mã là mọi hồ sơ cũ lặng lẽ trỏ sang thứ khác. */}
         <p className="ghi-chu">
@@ -289,6 +294,8 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
     return () => huy.abort();
   }, [sp.id, lan]);
 
+  const thieu = thieuTruong('gia', { priceType: loai, amount: soTien, effectiveFrom: tuNgay });
+
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
@@ -316,6 +323,9 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
       </p>
 
       <form onSubmit={gui}>
+
+        <ChuThichBatBuoc />
+
         <Truong id="gia-loai" nhan="Loại giá" bắtBuộc>
           {(p) => (
             <select
@@ -343,7 +353,7 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || soTien === ''}>
+          <button type="submit" className="nut nut-chinh" disabled={dangGui || thieu.length > 0}>
             {dangGui ? 'Đang lưu…' : 'Đặt giá mới'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>
@@ -408,6 +418,8 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
   return (
     <HopThoai tieuDe="Nhập sản phẩm từ Excel" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="ghi-chu">
           File cần các cột: <strong>mã vật tư</strong>, <strong>tên sản phẩm</strong>,{' '}
           <strong>mã nhóm</strong>. Nhóm phải có sẵn trong danh mục.

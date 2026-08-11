@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
 import { LOAI_KHACH_HANG, LOAI_TRA_CUU, NHAN_TRA_CUU, type MucTraCuu } from '../lib/danh-muc.js';
-import { BaoLoi, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 
 export type KhachHangDayDu = {
   id: string;
@@ -163,6 +163,8 @@ export function BieuMauKhachHang({
   return (
     <HopThoai tieuDe={khach ? `Sửa ${khach.code}` : 'Lập khách hàng'} dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         {khach ? (
           <p className="ghi-chu">
             Mã khách hàng <strong>{khach.code}</strong> và loại khách hàng không sửa được. Hồ sơ CSBH
@@ -354,6 +356,8 @@ export function DoiTdvPhuTrach({
   return (
     <HopThoai tieuDe="Đổi trình dược viên phụ trách" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="giai-thich">
           Đổi người phụ trách <strong>đổi luôn phạm vi nhìn thấy</strong>: trình dược viên cũ thôi
           thấy khách hàng này và mọi hồ sơ của họ; người mới thấy ngay.

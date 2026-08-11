@@ -141,6 +141,22 @@ export function BaoLoi({ loi, thuLai }: { loi: unknown; thuLai?: () => void }) {
   );
 }
 
+/**
+ * Chú giải dấu sao, đặt đầu mỗi biểu mẫu có ô bắt buộc.
+ *
+ * Dấu `*` là quy ước, không phải nghĩa hiển nhiên — và nó là thứ DUY NHẤT phân
+ * biệt ô phải điền với ô không, nên phải nói ra một lần ở nơi người dùng đọc
+ * trước khi bắt đầu điền. Trình đọc màn hình đã có phần "(bắt buộc)" đọc kèm
+ * từng nhãn ở `Truong`, nên khối này ẩn khỏi cây trợ năng để khỏi lặp.
+ */
+export function ChuThichBatBuoc() {
+  return (
+    <p className="ghi-chu" aria-hidden="true">
+      Trường có dấu <span className="sao">*</span> là bắt buộc.
+    </p>
+  );
+}
+
 export function Truong({
   nhan,
   bắtBuộc,
@@ -160,7 +176,7 @@ export function Truong({
       {/* Nhãn gắn ĐÚNG vào ô nhập bằng htmlFor — `FE-34` quét chính chỗ này. */}
       <label htmlFor={id}>
         {nhan}
-        {bắtBuộc && <span aria-hidden="true"> *</span>}
+        {bắtBuộc && <span className="sao" aria-hidden="true"> *</span>}
         {bắtBuộc && <span className="chi-doc-man-hinh"> (bắt buộc)</span>}
       </label>
       {children({

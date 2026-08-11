@@ -373,6 +373,11 @@ main:focus { outline: none; }
 textarea.o-nhap { min-height: 6rem; }
 .truong-loi { color: var(--mau-loi); font-size: var(--chu-nho); margin: 0; }
 
+/* Dấu sao "bắt buộc". Màu lỗi để nhìn ra ngay, nhưng KHÔNG chỉ dựa vào màu:
+   chính ký tự `*` mới là dấu hiệu, và trình đọc màn hình nhận phần "(bắt buộc)"
+   đọc kèm nhãn ở `Truong` (FE-28 áp cho cả biểu mẫu, không riêng bảng). */
+.sao { color: var(--mau-loi); font-weight: 600; }
+
 /* --- Con số --------------------------------------------------------------- */
 
 /* Tiền và tỷ lệ: căn phải, chữ số đều cột (FE-29). */

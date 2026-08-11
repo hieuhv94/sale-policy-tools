@@ -16,7 +16,8 @@ import {
   type MucTraCuu,
   type NguoiKy,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, DaiThe, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DaiThe, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import { thieuTruong } from '../../lib/bat-buoc.js';
 
 // --- Danh mục tra cứu --------------------------------------------------------
 
@@ -135,6 +136,8 @@ function HopThoaiTraCuu({
   return (
     <HopThoai tieuDe={`Thêm vào ${NHAN_TRA_CUU[loai]}`} dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="tc-ma" nhan="Mã" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={ma} onChange={(e) => datMa(e.target.value)} />}
         </Truong>
@@ -350,6 +353,8 @@ function HopThoaiSuaNguoiKy({
   return (
     <HopThoai tieuDe={`Sửa ${k.fullName}`} dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="ghi-chu">
           Họ tên và ngày bắt đầu hiệu lực không sửa được — hợp đồng đã xuất mang tên cũ, mà hệ thống
           không lưu file để đối chiếu lại. Người mới thì khai người mới.
@@ -396,7 +401,13 @@ function HopThoaiNguoiKy({ dong, xong }: { dong: () => void; xong: () => void })
   const [dangGui, datDangGui] = useState(false);
 
   const duGiaTri =
-    hoTen.trim() !== '' && chucDanh.trim() !== '' && donVi.trim() !== '' && phamVi.trim() !== '';
+    thieuTruong('nguoi-ky', {
+      fullName: hoTen,
+      title: chucDanh,
+      unit: donVi,
+      signScope: phamVi,
+      validFrom: tuNgay,
+    }).length === 0;
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -422,6 +433,8 @@ function HopThoaiNguoiKy({ dong, xong }: { dong: () => void; xong: () => void })
   return (
     <HopThoai tieuDe="Thêm người ký" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="nk-ten" nhan="Họ tên" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={hoTen} onChange={(e) => datHoTen(e.target.value)} />}
         </Truong>

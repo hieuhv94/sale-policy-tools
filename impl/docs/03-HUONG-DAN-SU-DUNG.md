@@ -39,6 +39,17 @@ mở được tô nền xanh.
 **Thanh trên cùng** có ba thứ, từ phải sang: nút **Đăng xuất**, tên và vai trò của bạn, và nút đổi
 **giao diện sáng / tối**.
 
+### Ô bắt buộc và ô tuỳ chọn
+
+Mọi biểu mẫu nhập liệu đều đánh dấu ô phải điền bằng **dấu sao đỏ** ngay sau nhãn, và có một dòng
+nhắc *"Trường có dấu \* là bắt buộc"* ở đầu biểu mẫu. Ô không có dấu sao thì bỏ trống được.
+
+**Chưa điền đủ ô bắt buộc thì nút Lưu / Tạo mờ đi và không bấm được.** Bạn không phải bấm thử rồi
+đọc thông báo lỗi để biết mình còn thiếu gì.
+
+Chú ý riêng với **ô ngày**: nó thường có sẵn ngày hôm nay, nhìn như đã điền. Nếu bạn xoá trắng nó
+thì ô đó thành trống và nút Lưu tắt — gõ lại ngày là bấm được.
+
 ### Giao diện sáng và tối
 
 Nút hình mặt trăng (hoặc mặt trời) ở thanh trên cùng, và ở góc trên bên phải màn hình đăng nhập.

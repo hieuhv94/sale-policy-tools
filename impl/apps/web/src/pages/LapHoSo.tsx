@@ -20,7 +20,8 @@ import { useEffect, useState } from 'react';
 import { dang, layJson } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
 import { ngay } from '../lib/format.js';
-import { BaoLoi, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { thieuTruong } from '../lib/bat-buoc.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
 
 type KhachHang = { id: string; code: string; name: string };
 type HoSoHienHanh = { id: string; code: string; appliedDate: string | null };
@@ -130,6 +131,11 @@ function ChonCachLap({
 
   if (hienHanh === null) return <DangTai />;
 
+  // Ô ngày có sẵn giá trị hôm nay nên nhìn như đã điền, mà xoá trắng đi thì
+  // `<input type="date">` trả chuỗi rỗng và không có gì trên màn hình đổi khác.
+  // Máy chủ nhận hồ sơ không có ngày áp dụng — xem `CHAT_HON` ở `bat-buoc.ts`.
+  const thieu = thieuTruong('ho-so', { customerId: khachHang.id, appliedDate: ngayApDung });
+
   return (
     <>
       <div className="the">
@@ -142,6 +148,7 @@ function ChonCachLap({
         </button>
       </div>
 
+      <ChuThichBatBuoc />
       <Truong id="lhs-ngay" nhan="Ngày áp dụng" bắtBuộc>
         {(p) => (
           <input
@@ -160,7 +167,7 @@ function ChonCachLap({
         <>
           <p className="ghi-chu">Khách hàng chưa có CSBH nào — đây sẽ là phiên bản đầu tiên.</p>
           <div className="nhom-nut">
-            <button type="button" className="nut nut-chinh" disabled={dangGui} onClick={() => lap()}>
+            <button type="button" className="nut nut-chinh" disabled={dangGui || thieu.length > 0} onClick={() => lap()}>
               {dangGui ? 'Đang lập…' : 'Lập hồ sơ'}
             </button>
           </div>
@@ -177,12 +184,17 @@ function ChonCachLap({
             <button
               type="button"
               className="nut nut-chinh"
-              disabled={dangGui}
+              disabled={dangGui || thieu.length > 0}
               onClick={() => lap('SUPPLEMENT')}
             >
               Bổ sung — thêm sản phẩm chưa có
             </button>
-            <button type="button" className="nut" disabled={dangGui} onClick={() => lap('AMEND')}>
+            <button
+              type="button"
+              className="nut"
+              disabled={dangGui || thieu.length > 0}
+              onClick={() => lap('AMEND')}
+            >
               Chỉnh sửa — đổi sản phẩm đã có
             </button>
           </div>

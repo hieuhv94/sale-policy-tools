@@ -20,7 +20,7 @@ import {
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
-import { BaoLoi, DaiThe, DangTai, HopThoai, Truong } from '../components/Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DaiThe, DangTai, HopThoai, Truong } from '../components/Chung.js';
 import { TheHeThong } from '../components/quan-tri/HeThong.js';
 
 type The = 'nguoi-dung' | 'he-thong';
@@ -264,7 +264,7 @@ function HopThoaiTao({
   return (
     <HopThoai tieuDe="Tạo người dùng" dong={dong}>
       <form onSubmit={gui}>
-        <p className="ghi-chu">Trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p>
+        <ChuThichBatBuoc />
 
         <Truong id="nd-vai-tro" nhan="Vai trò" bắtBuộc>
           {(p) => (
@@ -436,6 +436,8 @@ function HopThoaiSua({
           Vai trò <strong>{NHAN_VAI_TRO[u.role]}</strong> không đổi được. Đổi vai trò làm hồ sơ đang
           dở mắc kẹt giữa luồng — vô hiệu hoá tài khoản này và tạo tài khoản mới.
         </p>
+
+        <ChuThichBatBuoc />
 
         <Truong id="sua-ho-ten" nhan="Họ tên" bắtBuộc>
           {(p) => (

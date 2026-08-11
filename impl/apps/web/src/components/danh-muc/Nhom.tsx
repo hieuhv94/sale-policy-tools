@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { dang, xoa } from '../../lib/api.js';
 import { LoiApi } from '../../lib/api.js';
 import type { NhomSanPham } from '../../lib/danh-muc.js';
-import { BaoLoi, HopThoai, Trong, Truong } from '../Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, Trong, Truong } from '../Chung.js';
 
 export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => void }) {
   const [moTao, datMoTao] = useState(false);
@@ -123,6 +123,8 @@ function HopThoaiTaoNhom({ dong, xong }: { dong: () => void; xong: () => void })
   return (
     <HopThoai tieuDe="Thêm nhóm sản phẩm" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="nhom-ma" nhan="Mã nhóm" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={ma} onChange={(e) => datMa(e.target.value)} />}
         </Truong>

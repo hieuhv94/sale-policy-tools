@@ -19,7 +19,8 @@ import {
   type NhomSanPham,
   type QuyDinhChietKhau,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import { thieuTruong } from '../../lib/bat-buoc.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
   const [ds, datDs] = useState<QuyDinhChietKhau[] | null>(null);
@@ -206,6 +207,8 @@ function HopThoaiSuaQuyDinh({
   return (
     <HopThoai tieuDe="Sửa quy định chiết khấu" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="ghi-chu">
           Áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực từ {ngay(q.effectiveFrom)}.
           Ba ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
@@ -273,7 +276,8 @@ function HopThoaiTaoQuyDinh({
   const [dangGui, datDangGui] = useState(false);
 
   const n = Number(nguong);
-  const hopLe = nguong !== '' && Number.isFinite(n) && n >= 0 && n <= 100;
+  const thieu = thieuTruong('chiet-khau', { effectiveFrom: tuNgay, thresholdRate2: nguong });
+  const hopLe = thieu.length === 0 && Number.isFinite(n) && n >= 0 && n <= 100;
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,6 +303,8 @@ function HopThoaiTaoQuyDinh({
   return (
     <HopThoai tieuDe="Thêm quy định chiết khấu" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="ghi-chu">
           Bỏ trống một ô nghĩa là <strong>áp dụng cho mọi giá trị</strong> của ô đó. Càng điền nhiều
           ô thì quy định càng cụ thể, và quy định cụ thể hơn thắng khi nhiều dòng cùng khớp.

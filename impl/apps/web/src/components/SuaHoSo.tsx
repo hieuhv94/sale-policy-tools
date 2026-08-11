@@ -9,7 +9,8 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
-import { BaoLoi, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { thieuTruong } from '../lib/bat-buoc.js';
 
 export { suaDuoc } from '../lib/sua-ho-so.js';
 
@@ -72,6 +73,8 @@ export function ThemDongSanPham({
   return (
     <HopThoai tieuDe="Thêm dòng sản phẩm" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="dsp-sp" nhan="Sản phẩm" bắtBuộc>
           {(p) => (
             <select
@@ -156,6 +159,8 @@ export function SuaNgayApDung({
   return (
     <HopThoai tieuDe="Sửa ngày áp dụng" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <Truong id="nad-ngay" nhan="Ngày áp dụng" bắtBuộc>
           {(p) => (
             <input
@@ -169,7 +174,11 @@ export function SuaNgayApDung({
         </Truong>
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui}>
+          <button
+            type="submit"
+            className="nut nut-chinh"
+            disabled={dangGui || thieuTruong('ngay-ap-dung', { appliedDate: ngayMoi }).length > 0}
+          >
             {dangGui ? 'Đang lưu…' : 'Lưu'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>

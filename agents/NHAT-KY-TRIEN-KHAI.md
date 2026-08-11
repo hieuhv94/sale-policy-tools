@@ -2441,3 +2441,88 @@ Web 126 → 133 case, HTTP thêm 4 case. Toàn bộ 17 quyền ghi trong `QUYEN_
   khách đã có hồ sơ, nên chưa dựng.
 - `DELETE /files/:id` chỉ mở cho TDV và Sale Admin: nút "Gỡ" của Kế toán chỉ gỡ con trỏ khỏi hồ sơ.
 - Vẫn chưa có test trình duyệt thật (nợ từ P7d) — cần ảnh riêng vì ảnh nền Alpine không có glibc.
+
+---
+
+## P12 — Bỏ khái niệm "bộ phận", và dấu sao cho trường bắt buộc
+
+Hai yêu cầu đi cùng một lượt, và chúng gặp nhau ở đúng một chỗ: ô "Trưởng bộ phận quản lý" của biểu
+mẫu tạo TDV vừa là thứ thay cho bộ phận, vừa là trường bắt buộc đầu tiên được máy chủ chặn thật.
+
+### P12a — Một cột thay cho hai bảng
+
+Trước đây một TDV nối với người duyệt qua **hai bước gián tiếp**: `app_user.department_id` →
+`department_approver.user_id`. Bộ phận là một thực thể riêng phải tạo trước, gán người duyệt cho nó,
+rồi mới gán TDV vào — ba thao tác quản trị cho một quan hệ mà nghiệp vụ chỉ nhìn thấy là *"TDV này
+do Trưởng bộ phận nào duyệt"*.
+
+Sau `0017_bo_bo_phan.sql` nó là một cột: `app_user.approver_user_id`.
+
+Ở P11a tôi đã bảo vệ mô hình cũ bằng lập luận "đổi người giữ chức chỉ sửa một dòng thay vì sửa hàng
+trăm TDV". Lập luận đó đúng về mặt số phép ghi, nhưng nó trả giá bằng một thực thể mà người dùng
+không có khái niệm tương ứng — và **chi phí đó rơi vào mọi lần tạo TDV**, còn lợi ích chỉ xuất hiện
+khi đổi người giữ chức. Người dùng chọn bỏ; tôi cho là chọn đúng.
+
+**Đánh đổi đã chấp nhận**: mất cơ chế người duyệt thay (`department_approver.is_primary`, muc 2.3).
+
+**Hai hàm phải sửa cùng lượt**, vì cả hai đọc bảng sắp bị xoá — và Postgres **không** theo dõi phụ
+thuộc vào bảng bên trong thân plpgsql, nên đảo thứ tự thì không có gì báo lỗi lúc migrate, chỉ hỏng
+lúc chạy:
+
+| Hàm | Đổi gì |
+|---|---|
+| `idn.scope_user_ids` (0003) | nhánh TBP: `approver_user_id = p_user_id` thay cho hai phép nối |
+| `idn.notify_targets` (0010) | CTE `approver`: một phép nối thẳng thay cho hai |
+
+**Trigger `trg_app_user_approver`** giữ cột luôn trỏ vào một tài khoản TBP, vì `CHECK` không diễn đạt
+được điều kiện nằm ở dòng khác. Gán nhầm một kế toán vào đây là hồ sơ đi vào **ngõ cụt**: định tuyến
+vẫn chạy tới người đó, mà họ không có hành động `TBP_SIGN` nào để làm — hồ sơ đứng im tới khi quá
+hạn và không có gì chỉ ra nguyên nhân. Tầng service cũng chặn (để trả `VALIDATION_FAILED` kèm tên
+trường thay vì `check_violation` không dấu), nhưng seed và sửa tay bằng SQL đi vòng qua service.
+
+**TDV không có người duyệt bị từ chối ngay lúc tạo.** Trước đây không có ràng buộc nào như vậy, và
+hệ quả chỉ lộ ra ở hồ sơ đầu tiên của người đó.
+
+### Một lỗ hổng lộ ra nhờ đi ngang qua
+
+`make typecheck` **đã đỏ từ P11d** với `TS6142`: `tests/web/sua-ho-so.test.ts` là `.ts`, dự án gốc
+gom `tests/**/*.ts` mà không bật `jsx`, nên nó không được phép import thẳng `SuaHoSo.tsx`.
+`make test` không chạy `tsc` nên chuyện đó lọt qua cả một đợt commit. Chuyển `suaDuoc` sang
+`lib/sua-ho-so.ts`: logic thuần ở `lib/`, JSX ở `components/`.
+
+### P12b — Dấu sao phải nói lên điều gì đó
+
+Bảng `BAT_BUOC` ở `lib/bat-buoc.ts` khai trường bắt buộc của 11 biểu mẫu, khoá là **tên trường của
+máy chủ**. `bat-buoc.test.ts` đọc thẳng `*.controller.ts`, tách khối `validate(…, { … })` và khẳng
+định: trường nào không bọc `opt()` thì phải có trong bảng, và ngược lại.
+
+Hai kiểu sai, hỏng theo hai cách khác nhau — nên test bắt cả hai chiều:
+
+- Máy chủ bắt buộc mà giao diện không đánh dấu → người dùng điền xong, bấm Lưu, nhận
+  `VALIDATION_FAILED` cho một ô không có gì báo là phải điền.
+- Giao diện đánh dấu mà máy chủ không bắt buộc → nút Lưu chết mà không ai hiểu vì sao.
+
+`CHAT_HON` là danh sách ngoại lệ cho chiều thứ hai, mỗi mục phải có lý do. Hiện có đúng một:
+`ho-so.appliedDate` — `POST /policies` nhận hồ sơ không có ngày áp dụng vì nó dựng để tạo nháp rồi
+điền dần, nhưng màn hình Lập hồ sơ tạo hồ sơ ngay tại chỗ nên ô trống ở đó chỉ xảy ra khi người dùng
+xoá nó đi, và kết quả là một hồ sơ chạy qua cả bốn bước duyệt với ô ngày để trống trên bản A4.
+
+**Năm biểu mẫu có cùng một lỗ**, và cả năm đều là ô ngày: Lập hồ sơ · Đặt giá · Quy định chiết khấu ·
+Người ký · Sửa ngày áp dụng. Ô ngày có sẵn giá trị hôm nay nên **nhìn như đã điền**, mà xoá trắng đi
+thì `<input type="date">` trả chuỗi rỗng và không có gì trên màn hình đổi khác. Dấu sao đã có từ
+trước; cái thiếu là điều kiện `disabled` của nút gửi.
+
+`thieuTruong()` đo bằng `undefined | null | chuỗi rỗng sau khi cắt khoảng trắng`, **không** bằng
+phép kiểm falsy: `customerType` là số, và loại khách hàng `0` hay công nợ `0` phải tính là đã điền.
+
+### Kết quả
+
+Web 155 case (thêm 24), toàn bộ 616 case xanh. Xoá `departments.test.ts` (19 case của một nhóm route
+không còn tồn tại).
+
+### Còn nợ sau P12
+
+- Vẫn nợ từ trước: nút "Tải file" của xuất Excel dùng `<a href>` nên trả 401 · `sign-file` không có
+  ai gọi · chưa có màn hình lịch sử hồ sơ · chưa có test trình duyệt thật.
+- Chưa chạy phép thử cuối trên chồng demo: tạo TBP → tạo TDV chọn TBP đó → kích hoạt qua
+  `make demo-mail` → gửi một hồ sơ và xác nhận nó tới đúng người.

@@ -24,7 +24,7 @@ import {
   type MauHopDong as MauDto,
   type ThongTinOTrong,
 } from '../lib/mau-hop-dong.js';
-import { BaoLoi, DangTai, HopThoai, Trong, Truong } from '../components/Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Trong, Truong } from '../components/Chung.js';
 
 export function MauHopDong() {
   const [ds, datDs] = useState<MauDto[] | null>(null);
@@ -228,6 +228,8 @@ function HopThoaiTaiMau({
   return (
     <HopThoai tieuDe="Tải mẫu hợp đồng" dong={dong}>
       <form onSubmit={gui}>
+        <ChuThichBatBuoc />
+
         <p className="ghi-chu">
           File <strong>.docx</strong> với các ô trống dạng <code>{'{{ten_o}}'}</code>. Hệ thống đọc
           ô trống ngay lúc tải lên — file hỏng thì mẫu đang dùng không bị ảnh hưởng.
