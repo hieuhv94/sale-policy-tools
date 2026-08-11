@@ -532,6 +532,16 @@ describe('NTF-05 SMTP hỏng', () => {
     expect(admin.status).toBe(200);
     expect(Array.isArray(admin.body.items)).toBe(true);
 
+    // Tên trường camelCase như mọi endpoint khác. Trước P11b nhóm này trả thẳng
+    // tên cột snake_case — màn hình thư hỏng đọc `routingKey`/`failedAt`, nên
+    // quay lại snake_case là bảng hiện toàn ô trống mà không lỗi nào báo.
+    const dong = (admin.body.items as Record<string, unknown>[])[0];
+    if (dong) {
+      expect(Object.keys(dong)).toEqual(
+        expect.arrayContaining(['eventId', 'routingKey', 'lastError', 'failedAt', 'resolvedAt']),
+      );
+    }
+
     const tdv = await (await http(ntf))
       .get('/notifications/dead-letters')
       .set('Authorization', `Bearer ${tok['tdv01']}`);

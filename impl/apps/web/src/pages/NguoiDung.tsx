@@ -22,9 +22,10 @@ import {
   type BoPhanDto,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
-import { BaoLoi, DangTai, HopThoai, Trong, Truong } from '../components/Chung.js';
+import { BaoLoi, DaiThe, DangTai, HopThoai, Trong, Truong } from '../components/Chung.js';
+import { TheHeThong } from '../components/quan-tri/HeThong.js';
 
-type The = 'nguoi-dung' | 'bo-phan';
+type The = 'nguoi-dung' | 'bo-phan' | 'he-thong';
 
 export function NguoiDung() {
   const [the, datThe] = useState<The>('nguoi-dung');
@@ -64,34 +65,22 @@ export function NguoiDung() {
         </div>
       </div>
 
-      <div className="dai-the" role="tablist" aria-label="Nhóm nội dung">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={the === 'nguoi-dung'}
-          className={the === 'nguoi-dung' ? 'the-chon dang-chon' : 'the-chon'}
-          onClick={() => datThe('nguoi-dung')}
-        >
-          Người dùng ({ds.length})
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={the === 'bo-phan'}
-          className={the === 'bo-phan' ? 'the-chon dang-chon' : 'the-chon'}
-          onClick={() => datThe('bo-phan')}
-        >
-          Bộ phận ({boPhan.length})
-        </button>
-      </div>
+      <DaiThe
+        nhanVung="Nhóm nội dung"
+        dangChon={the}
+        chon={datThe}
+        muc={[
+          { khoa: 'nguoi-dung', nhan: 'Người dùng', dem: ds.length },
+          { khoa: 'bo-phan', nhan: 'Bộ phận', dem: boPhan.length },
+          { khoa: 'he-thong', nhan: 'Hệ thống' },
+        ]}
+      />
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 
-      {the === 'nguoi-dung' ? (
-        <TheNguoiDung ds={ds} boPhan={boPhan} taiLai={taiLai} />
-      ) : (
-        <TheBoPhan ds={ds} boPhan={boPhan} taiLai={taiLai} />
-      )}
+      {the === 'nguoi-dung' && <TheNguoiDung ds={ds} boPhan={boPhan} taiLai={taiLai} />}
+      {the === 'bo-phan' && <TheBoPhan ds={ds} boPhan={boPhan} taiLai={taiLai} />}
+      {the === 'he-thong' && <TheHeThong />}
     </section>
   );
 }

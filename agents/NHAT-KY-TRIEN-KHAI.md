@@ -2176,3 +2176,92 @@ Web 78 → 103 case. HTTP thêm 16 case cho bộ phận và sửa người dùng
 - Toàn bộ phần ghi của danh mục, cấu hình SLA, thư hỏng — P11b.
 - Tệp đính kèm, bản CSBH A4, hồ sơ pháp lý khách hàng — P11c.
 - Lập/sửa hồ sơ và khách hàng — P11d.
+
+---
+
+## P11b — Danh mục, hạn xử lý, thư hỏng: phần còn lại của Quản trị
+
+Năm thẻ ở `/danh-muc` và một thẻ thứ ba ở `/nguoi-dung`. Sau đợt này Quản trị hệ thống làm được trọn
+việc của vai trò mình trên giao diện.
+
+### Ba thứ dễ làm sai, và cách đặt chúng vào chỗ nhìn thấy được
+
+**Giá không phải một ô trên sản phẩm.** Nó là một chuỗi dòng có ngày hiệu lực, và giá hiện hành là
+dòng mới nhất có ngày *không ở tương lai* (`CAT-05`). Nên màn hình không có ô "sửa giá" — nó có nút
+*Đặt giá mới* và một bảng lịch sử. Dựng một ô sửa được thì người dùng sẽ tin rằng đổi số trong ô là
+đổi giá ngay, mà thực tế đặt giá cho ngày mai thì hôm nay vẫn dùng giá cũ.
+
+**Ngưỡng chiết khấu lưu bằng phần vạn.** Máy chủ khai `int(0, 10_000)`, tức 10 000 = 100%; người
+dùng nhập và đọc bằng phần trăm. Phép quy đổi để ở đúng một chỗ (`lib/danh-muc.ts`) chứ không rải
+phép chia 100 khắp màn hình. Đây là loại lỗi tệ nhất trong hệ thống: sai 100 lần thì hoặc mọi dòng
+đều bị đánh dấu vượt ngưỡng, hoặc không dòng nào bị đánh dấu — và không con số nào trông bất thường.
+
+**Nhập Excel là cả lô một transaction.** Một dòng lỗi thì không dòng nào được ghi (`CAT-15`). Người
+dùng quen kiểu nhập từng dòng bỏ qua dòng hỏng, nên hộp thoại nói trước điều đó — biết trước thì họ
+sửa file rồi nhập lại, không biết thì họ đi tìm xem đã ghi được tới đâu.
+
+### Thứ tự thẻ là thứ tự phụ thuộc
+
+`MUC_DANH_MUC` xếp *Nhóm sản phẩm* trước *Sản phẩm* vì phải có nhóm mới tạo được sản phẩm, và có một
+test khẳng định đúng thứ tự đó. Cùng lý do với thứ tự bộ phận → TBP → TDV ở P11a: người quản trị mở
+màn hình lần đầu không biết ràng buộc nào có trước, và thứ tự các thẻ là chỗ rẻ nhất để nói điều đó.
+
+Nhóm sản phẩm tải ở **cấp trang**, không trong từng thẻ: ba thẻ cùng cần nó, và tải ba lần thì ba
+nơi lệch nhau ngay sau khi thêm một nhóm mới.
+
+### Vai trò không quản trị thấy hai thẻ, không phải năm thẻ rỗng
+
+`/danh-muc` mở cho mọi vai trò. Bày cả năm thẻ rồi ẩn hết nút bên trong là bắt họ bấm qua ba màn
+hình trống mới hiểu ra không có gì cho mình. Lọc còn *Sản phẩm* và *Quy định chiết khấu* — hai thứ
+cần tra khi lập và khi duyệt hồ sơ — và bảng sản phẩm giữ nguyên bốn cột của bản trước P11b, vì đó
+là màn hình năm vai trò kia đã quen từ bản demo.
+
+### Một endpoint trả sai kiểu tên
+
+`/notifications/dead-letters` là nhóm route DUY NHẤT trả thẳng tên cột snake_case; mọi endpoint khác
+đều đặt bí danh camelCase. Không test nào phụ thuộc vào tên đó, nên sửa ở máy chủ thay vì viết một
+DTO đi ngược cả ứng dụng. Thêm một khẳng định vào `notification.test.ts` để nó không lặng lẽ quay
+lại — bảng thư hỏng đọc `routingKey`/`failedAt`, quay lại snake_case là bảng hiện toàn ô trống mà
+không lỗi nào báo.
+
+### Cảnh báo trước khi bấm, không phải sau
+
+Đổi số ngày SLA **tính lại hạn cho mọi hồ sơ đang chờ**, kể cả hồ sơ nộp từ trước — rút ngắn hạn có
+thể làm một loạt hồ sơ chuyển sang *Quá hạn duyệt* ngay lập tức. Câu cảnh báo đó nằm trên biểu mẫu,
+trước nút Lưu, chứ không nằm trong thông báo sau khi lưu.
+
+Ở thư hỏng: kết quả `duplicate` **không phải lỗi** — sự kiện đã gửi thành công ở một lượt khác. Gộp
+nó vào "hỏng" là bắt người quản trị đi tìm một vấn đề không tồn tại.
+
+### Một lượt đỏ theo xác suất, và nó là lỗi thật của bộ test
+
+Lượt chạy đầy đủ đầu tiên đỏ một case: `RPT-10` báo `expected 29 to be 28` ở trạng thái `NHAP`.
+P11b không chạm gì tới `policy` hay `reporting`, nên phải tìm nguyên nhân thật trước khi đổ cho
+môi trường.
+
+`flushSync` chờ sai điều kiện: nó chờ dòng read-model **tồn tại**, không chờ dòng đó **đúng trạng
+thái**. Trình tự làm nó hỏng:
+
+1. `draft()` tạo hồ sơ → chiếu sang read-model với `NHAP`.
+2. `SUBMIT` đổi nguồn sang `CHO_TBP_DUYET`, sinh sự kiện thứ hai.
+3. `flushSync` thấy dòng ĐÃ CÓ từ bước 1 nên trả về ngay, trong khi projection còn ghi `NHAP`.
+
+Báo cáo đếm thừa đúng một hồ sơ ở `NHAP`, và thông điệp lỗi không nhắc gì tới độ trễ. Sửa: điều
+kiện dừng là trạng thái read-model khớp trạng thái nguồn, và `pumpOnce()` gọi TRONG vòng lặp vì sự
+kiện thứ hai có thể chưa nằm trong outbox lúc bơm lần đầu. Ba lượt chạy riêng tệp này đều xanh sau
+khi sửa.
+
+Cùng loại với `DOC-03` ở P9: một case đỏ hoá ra là lỗi của bộ test chứ không của sản phẩm — và cũng
+như lần đó, đọc kỹ trước khi sửa test là việc đáng làm.
+
+### Kết quả
+
+Web 103 → 116 case. `DaiThe` rút ra `Chung.tsx` vì giờ có ba chỗ dùng dải thẻ.
+
+### Còn nợ sau P11b
+
+- `/mau-hop-dong` (Sale Admin) — mục menu vẫn đang tạm gỡ, màn hình dựng ở P11c.
+- Tệp đính kèm, bản CSBH A4, hồ sơ pháp lý khách hàng — P11c.
+- Lập/sửa hồ sơ và khách hàng, đổi TDV phụ trách — P11d.
+- Sửa và xoá quy định chiết khấu, người ký: máy chủ chỉ có `POST`, chưa có `PATCH`/`DELETE`. Khai
+  nhầm một dòng thì hiện chưa gỡ được qua giao diện.

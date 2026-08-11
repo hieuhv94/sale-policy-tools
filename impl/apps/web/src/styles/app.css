@@ -684,6 +684,31 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   margin-bottom: var(--k3);
 }
 
+/* Số đếm trong nhãn thẻ: nhạt hơn chữ để không tranh chỗ với tên thẻ. */
+.the-dem { color: var(--mau-chu-phu); font-weight: 400; }
+
+/* Một ô nhập ngắn cạnh một nút, trên cùng một hàng. */
+.hang-nhap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--k3);
+}
+.hang-nhap .truong { margin-bottom: 0; }
+.o-nhap-hep { max-width: 10rem; }
+
+/*
+ * Lỗi gốc của thư hỏng: giữ NGUYÊN VĂN, chỉ chặn không cho nó kéo giãn bảng.
+ * Người đọc cột này là người sẽ phải sửa nguyên nhân — một câu tóm tắt thân
+ * thiện không giúp được gì cho việc đó.
+ */
+.loi-goc {
+  font-family: ui-monospace, monospace;
+  font-size: var(--chu-rat-nho);
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+
 /* --- Trang tổng quan ------------------------------------------------------ */
 
 .khoi { margin-top: var(--k6); }

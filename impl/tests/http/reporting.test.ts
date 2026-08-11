@@ -63,21 +63,48 @@ const rput = async (path: string, body: object, who = 'tdv01') =>
   (await http(reporting)).put(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 
 /** Bơm outbox rồi chờ read-model có đủ những hồ sơ đã nêu. */
+/**
+ * Chờ read-model ĐUỔI KỊP NGUỒN cho những hồ sơ nêu tên.
+ *
+ * Điều kiện dừng là **trạng thái khớp**, không phải "dòng đã tồn tại". Bản cũ
+ * chỉ chờ tồn tại, và điều đó tạo ra một lượt đỏ theo xác suất ở `RPT-10`:
+ *
+ *   1. `draft()` tạo hồ sơ → chiếu sang read-model với trạng thái `NHAP`.
+ *   2. `SUBMIT` đổi nguồn sang `CHO_TBP_DUYET`, sinh sự kiện thứ hai.
+ *   3. `flushSync` thấy dòng ĐÃ CÓ (từ bước 1) nên trả về ngay — trong khi
+ *      projection vẫn còn ghi `NHAP`.
+ *
+ * Kết quả là báo cáo đếm thừa đúng một hồ sơ ở `NHAP` và thiếu một ở
+ * `CHO_TBP_DUYET`, rồi phép so với nguồn đỏ với thông điệp `expected 29 to be
+ * 28` — không nhắc gì tới độ trễ. Đo được một lần trên mỗi vài lượt chạy.
+ *
+ * `pumpOnce()` gọi TRONG vòng lặp chứ không chỉ một lần trước: sự kiện thứ hai
+ * có thể chưa nằm trong outbox lúc bơm lần đầu.
+ */
 async function flushSync(policyIds: string[], timeoutMs = 20_000): Promise<void> {
-  await outbox.pumpOnce();
-  await cusOutbox.pumpOnce();
   const until = Date.now() + timeoutMs;
   for (;;) {
-    const rows = await withAdminDb(async (c) => {
-      const r = await c.query<{ policy_id: string }>(
-        `SELECT policy_id FROM rpt.policy_row WHERE policy_id = ANY($1::uuid[])`,
+    await outbox.pumpOnce();
+    await cusOutbox.pumpOnce();
+
+    const lech = await withAdminDb(async (c) => {
+      const r = await c.query<{ policy_id: string; nguon: string; chieu: string | null }>(
+        `SELECT p.id AS policy_id, p.status::text AS nguon, r.status AS chieu
+           FROM pol.policy p
+           LEFT JOIN rpt.policy_row r ON r.policy_id = p.id
+          WHERE p.id = ANY($1::uuid[])
+            AND (r.policy_id IS NULL OR r.status <> p.status::text)`,
         [policyIds],
       );
       return r.rows;
     });
-    if (rows.length >= policyIds.length) return;
+    if (lech.length === 0) return;
+
     if (Date.now() >= until) {
-      throw new Error(`read-model mới có ${rows.length}/${policyIds.length} hồ sơ`);
+      const mo = lech
+        .map((x) => `${x.policy_id}: nguồn ${x.nguon}, read-model ${x.chieu ?? 'chưa có'}`)
+        .join('; ');
+      throw new Error(`read-model chưa đuổi kịp nguồn — ${mo}`);
     }
     await new Promise((r) => setTimeout(r, 100));
   }

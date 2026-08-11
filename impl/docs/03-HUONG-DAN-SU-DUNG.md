@@ -236,7 +236,48 @@ của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ
 Mật khẩu mặc định do hệ thống sinh sẵn, sửa được. Người dùng **buộc phải đổi** ở lần đăng nhập đầu,
 nên nó chỉ dùng được một lần.
 
-## 13. Dùng trên điện thoại
+### Hạn xử lý và thư hỏng — thẻ *Hệ thống*
+
+**Hạn xử lý (SLA)**: số ngày cho mỗi bước chờ. Đổi số này **tính lại hạn cho mọi hồ sơ đang chờ**,
+kể cả hồ sơ nộp từ trước — rút ngắn hạn có thể làm một số hồ sơ chuyển sang *Quá hạn duyệt* ngay.
+
+**Thư hỏng**: thư hệ thống không gửi được sau nhiều lần thử. Người phụ trách ở bước đó **không nhận
+được thông báo**, nên họ chỉ biết có việc khi tự mở phần mềm. Bấm *Gửi lại* chạy lại đúng đường xử
+lý cũ. Kết quả *"đã gửi thành công trước đó"* không phải lỗi — sự kiện đã đi lọt ở một lượt khác, và
+thư được đánh dấu đã xử lý.
+
+## 13. Danh mục (Quản trị hệ thống)
+
+*Danh mục* — năm thẻ, xếp theo đúng thứ tự phụ thuộc. Các vai trò khác vẫn vào được mục này nhưng
+chỉ thấy hai thẻ **Sản phẩm** và **Quy định chiết khấu**, ở dạng chỉ đọc.
+
+**1. Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo nhóm.
+Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
+
+**2. Sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
+
+- **Mã vật tư không sửa được** sau khi tạo. Hồ sơ CSBH đã lập đóng băng mã này.
+- **Vô hiệu hoá** chỉ chặn hồ sơ **lập mới**. Hồ sơ cũ giữ nguyên sản phẩm và giá đã đóng băng.
+- **Giá không phải một ô** — nó là chuỗi dòng có ngày hiệu lực. Nút *Giá* mở lịch sử và cho đặt giá
+  mới. Giá hiện hành là dòng mới nhất có ngày **không ở tương lai**: đặt giá cho ngày mai thì hôm nay
+  vẫn dùng giá cũ.
+- **Sản phẩm mới chưa có giá** nên chưa lập được hồ sơ với nó. Đặt giá ngay sau khi tạo.
+- **Nhập Excel** cần ba cột: mã vật tư, tên sản phẩm, mã nhóm. **Một dòng lỗi thì không dòng nào
+  được ghi** — thông báo nêu đúng số dòng hỏng để bạn sửa file rồi nhập lại.
+
+**3. Quy định chiết khấu** — ngưỡng để cảnh báo khi lập hồ sơ. Bỏ trống một ô nghĩa là *mọi giá trị*
+của ô đó. Nhiều quy định cùng khớp một tình huống là bình thường: **quy định cụ thể hơn thắng**, và
+cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
+nhìn thấy.
+
+**4. Danh mục tra cứu** — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
+chọn trong biểu mẫu khách hàng**; để trống thì người lập khách hàng gặp ba ô rỗng. Thêm lại một mã
+đã có sẽ đổi tên mã đó, không tạo bản thứ hai.
+
+**5. Người ký** — người đứng tên trên hợp đồng xuất ra. Mỗi người có phạm vi ký và khoảng hiệu lực
+riêng; ký ngoài phạm vi hoặc ngoài hạn thì hệ thống từ chối.
+
+## 14. Dùng trên điện thoại
 
 Toàn bộ luồng duyệt làm được trên điện thoại, kể cả bước ký số của Trưởng bộ phận.
 
@@ -248,7 +289,7 @@ bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 
 Ô nhập tiền gọi **bàn phím số**. Xoay ngang máy giữa lúc đang gõ không làm mất nội dung.
 
-## 14. Khi gặp lỗi
+## 15. Khi gặp lỗi
 
 - **"Không kết nối được máy chủ"** — lỗi mạng. **Dữ liệu bạn đã nhập vẫn còn nguyên**, bấm *Thử lại*.
 - **"Dữ liệu vừa được người khác thay đổi"** — hai người thao tác cùng lúc. Tải lại rồi làm lại.
@@ -256,7 +297,7 @@ bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 - Mỗi thông báo lỗi có **Mã tra cứu**. Đọc mã đó cho bộ phận hỗ trợ; nó dựng lại được toàn bộ chuỗi
   thao tác của bạn.
 
-## 15. Những gì hệ thống **không** làm
+## 16. Những gì hệ thống **không** làm
 
 Nói trước để khỏi đi tìm:
 

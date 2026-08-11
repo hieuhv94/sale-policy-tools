@@ -11,6 +11,43 @@ import { LoiApi } from '../lib/api.js';
 import { nhanTrangThai, nhomTrangThai } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
 
+/**
+ * Dải thẻ chuyển nhóm nội dung trong một màn hình.
+ *
+ * KHÔNG phải điều hướng: hai thẻ của cùng một trang là cùng một địa chỉ, nên
+ * dùng `role="tab"` chứ không dùng `Lien`. Ngược lại thì nút Quay lại của trình
+ * duyệt phải đi qua từng thẻ, mà người dùng chỉ muốn ra khỏi màn hình.
+ */
+export function DaiThe<T extends string>({
+  muc,
+  dangChon,
+  chon,
+  nhanVung,
+}: {
+  muc: { khoa: T; nhan: string; dem?: number }[];
+  dangChon: T;
+  chon: (k: T) => void;
+  nhanVung: string;
+}) {
+  return (
+    <div className="dai-the" role="tablist" aria-label={nhanVung}>
+      {muc.map((m) => (
+        <button
+          key={m.khoa}
+          type="button"
+          role="tab"
+          aria-selected={m.khoa === dangChon}
+          className={m.khoa === dangChon ? 'the-chon dang-chon' : 'the-chon'}
+          onClick={() => chon(m.khoa)}
+        >
+          {m.nhan}
+          {m.dem !== undefined && <span className="the-dem"> ({m.dem})</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Nhan({ trangThai }: { trangThai: string }) {
   return (
     <span className={`nhan nhan-${nhomTrangThai(trangThai)}`}>{nhanTrangThai(trangThai)}</span>

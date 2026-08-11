@@ -19,7 +19,11 @@ export class NotifyController {
   async deadLetters(@Query() q: { limit?: string; offset?: string; open?: string }) {
     const p = pageOf(q);
     const rows = await this.db.q<Record<string, unknown>>(
-      `SELECT id, event_id, routing_key, attempts, last_error, failed_at, resolved_at,
+      // Đặt bí danh camelCase như mọi endpoint khác. Trước P11b nhóm này trả
+      // thẳng tên cột snake_case — không sai, nhưng là endpoint DUY NHẤT làm
+      // vậy, và giao diện đọc nó sẽ phải mang một DTO đi ngược cả ứng dụng.
+      `SELECT id, event_id AS "eventId", routing_key AS "routingKey", attempts,
+              last_error AS "lastError", failed_at AS "failedAt", resolved_at AS "resolvedAt",
               count(*) OVER() AS total_count
          FROM ntf.dead_letter
         WHERE ($1::boolean IS NOT TRUE OR resolved_at IS NULL)
