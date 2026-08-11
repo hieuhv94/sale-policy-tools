@@ -23,3 +23,7 @@ impl/deploy/secrets/*
 
 # file tạm của Claude Code
 .claude/settings.local.json.tmp.*
+
+# Trạng thái phiên của Visual Studio trong bộ mẫu giao diện — .suo và
+# slnx.sqlite là tệp nhị phân của riêng từng máy, không phải nội dung mẫu.
+ui-templates/.vs/
