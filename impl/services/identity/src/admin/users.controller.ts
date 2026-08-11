@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ROLE_VALUES, UsersService } from './users.service.js';
-import { CurrentUser, email, oneOf, opt, pageOf, Roles, secret, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, email, oneOf, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
 
 /**
  * Đọc một trường LIÊN KẾT thẳng từ thân request, không qua `validate`.
@@ -61,7 +61,6 @@ export class UsersController {
       username: str(2, 60),
       fullName: str(2, 200),
       role: oneOf(...ROLE_VALUES),
-      defaultPassword: secret(8),
       approverUsername: opt(str(1, 60)),
       parentUsername: opt(str(1, 60)),
     });

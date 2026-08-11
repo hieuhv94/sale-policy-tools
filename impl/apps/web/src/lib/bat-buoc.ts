@@ -33,7 +33,7 @@ export type TenBieuMau =
   | 'ngay-ap-dung';
 
 export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
-  'nguoi-dung': ['email', 'username', 'fullName', 'role', 'defaultPassword'],
+  'nguoi-dung': ['email', 'username', 'fullName', 'role'],
   'khach-hang': ['code', 'name', 'customerType', 'registeredAddress', 'ownerName'],
   'san-pham': ['code', 'name', 'groupCode'],
   gia: ['priceType', 'amount', 'effectiveFrom'],

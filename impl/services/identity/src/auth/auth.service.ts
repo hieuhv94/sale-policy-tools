@@ -12,7 +12,9 @@ import {
   signJwt,
   verifyPassword,
 } from '@csbh/identity-core';
+import { newSecretToken } from '@csbh/identity-core';
 import { Db } from '../infra/db.js';
+import { Mailer } from '../infra/mailer.js';
 import { CONFIG } from '../infra/config.js';
 import { getKeyPair } from '@csbh/http-kit';
 import { AccountCache } from '../infra/account-cache.js';
@@ -52,6 +54,7 @@ export class AuthService {
   constructor(
     private readonly db: Db,
     private readonly accounts: AccountCache,
+    private readonly mailer: Mailer,
   ) {}
 
   // --- Đăng nhập ------------------------------------------------------------
@@ -273,6 +276,97 @@ export class AuthService {
   }
 
   async activate(rawToken: string, newPassword: string) {
+    await this.dungToken(rawToken, 'ACTIVATE', newPassword);
+    return { ok: true, emailVerified: true };
+  }
+
+  // --- Quên mật khẩu --------------------------------------------------------
+
+  /**
+   * Phát hành liên kết đặt lại mật khẩu. CÔNG KHAI, nên có ba ràng buộc.
+   *
+   * 1. **Luôn trả về cùng một câu trả lời.** Báo "không tìm thấy tài khoản" là
+   *    biến đường này thành máy dò xem tên tài khoản hay địa chỉ email nào có
+   *    thật trong hệ thống — cùng lý do với `INVALID_CREDENTIALS` ở đăng nhập
+   *    (AUTH-02).
+   * 2. **Chặn gửi dồn.** Đã có liên kết còn hạn và chưa dùng thì không phát
+   *    hành thêm. Thiếu chốt này thì bất kỳ ai cũng bơm được thư vào hộp thư
+   *    của người khác, và giữa đống thư đó là một liên kết thật.
+   * 3. **Chỉ thu hồi token CÙNG LOẠI.** Đụng vào token của thư mời thì người
+   *    ngoài chỉ cần gọi lặp lại là vô hiệu hoá được mọi lời mời vừa gửi đi.
+   */
+  async forgotPassword(login: string) {
+    const u = await this.db.one<{
+      id: string;
+      email: string;
+      full_name: string;
+      is_active: boolean;
+    }>(
+      `SELECT id, email, full_name, is_active FROM idn.app_user
+        WHERE lower(username) = lower($1) OR lower(email) = lower($1)`,
+      [login],
+    );
+
+    // Tài khoản bị vô hiệu hoá cũng không nhận thư: gửi đi là mời người ta đặt
+    // mật khẩu cho một tài khoản không đăng nhập được.
+    if (u && u.is_active && !(await this.vuaGuiLienKetDatLai(u.id))) {
+      const token = newSecretToken();
+      await this.db.tx(async (c) => {
+        await c.query(
+          `UPDATE idn.activation_token SET revoked_at = now()
+            WHERE user_id = $1 AND purpose = 'RESET'
+              AND used_at IS NULL AND revoked_at IS NULL`,
+          [u.id],
+        );
+        await c.query(
+          `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, purpose)
+           VALUES ($1,$2, now() + ($3 || ' hours')::interval, 'RESET')`,
+          [u.id, token.hash, String(CONFIG.resetTtlHours)],
+        );
+      });
+      await this.mailer.sendPasswordReset(
+        u.email,
+        u.full_name,
+        `${CONFIG.webBaseUrl}/dat-lai-mat-khau?token=${encodeURIComponent(token.raw)}`,
+      );
+      this.log.log(`đã gửi liên kết đặt lại mật khẩu cho ${u.id}`);
+    }
+
+    return { ok: true };
+  }
+
+  async resetPassword(rawToken: string, newPassword: string) {
+    await this.dungToken(rawToken, 'RESET', newPassword);
+    return { ok: true };
+  }
+
+  private async vuaGuiLienKetDatLai(userId: string): Promise<boolean> {
+    const gan = await this.db.one<{ id: string }>(
+      `SELECT id FROM idn.activation_token
+        WHERE user_id = $1 AND purpose = 'RESET'
+          AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
+          AND created_at > now() - ($2 || ' minutes')::interval`,
+      [userId, String(CONFIG.resetThrottleMinutes)],
+    );
+    // `db.one()` trả `undefined` khi không có dòng, KHÔNG phải `null`
+    // (`http-kit/src/db.ts:28`). So với `null` thì phép so luôn đúng, mọi lượt
+    // đều bị coi là gửi dồn, và tính năng chết trong im lặng — không lỗi nào,
+    // chỉ là không thư nào tới.
+    return gan !== undefined;
+  }
+
+  // --- Dùng một token đặt mật khẩu -----------------------------------------
+
+  /**
+   * Kiểm token, đặt mật khẩu mới, đánh dấu đã dùng. Chung cho cả hai loại.
+   *
+   * `purpose` nằm trong ĐIỀU KIỆN TÌM chứ không kiểm sau khi tìm thấy: token sai
+   * loại phải không phân biệt được với token không tồn tại. Trả `TOKEN_INVALID`
+   * cho cái này và một mã khác cho cái kia là nói cho người thử biết họ đang
+   * cầm một token thật, chỉ nộp nhầm cửa.
+   */
+  private async dungToken(rawToken: string, purpose: 'ACTIVATE' | 'RESET', newPassword: string) {
+    // Token trong liên kết có thể mang tiền tố; phần sau dấu chấm mới là bí mật.
     const dot = rawToken.indexOf('.');
     const raw = dot < 0 ? rawToken : rawToken.slice(dot + 1);
 
@@ -286,8 +380,8 @@ export class AuthService {
     }>(
       `SELECT t.id, t.user_id, t.used_at, t.revoked_at, t.expires_at, u.password_hash
          FROM idn.activation_token t JOIN idn.app_user u ON u.id = t.user_id
-        WHERE t.token_hash = $1`,
-      [hashSecretToken(raw)],
+        WHERE t.token_hash = $1 AND t.purpose = $2`,
+      [hashSecretToken(raw), purpose],
     );
     if (!row) throw new BadRequestException({ code: 'TOKEN_INVALID' });
     if (row.revoked_at) throw new BadRequestException({ code: 'TOKEN_REVOKED' });
@@ -297,7 +391,9 @@ export class AuthService {
     }
 
     const problems = checkNewPassword(newPassword);
-    // Mật khẩu mới trùng mật khẩu mặc định thì cả bước kích hoạt vô nghĩa (ONB-11).
+    // Đặt lại đúng bằng mật khẩu đang dùng thì cả thao tác vô nghĩa (ONB-11).
+    // Với tài khoản mới, `password_hash` là băm của một chuỗi ngẫu nhiên nên
+    // nhánh này không bao giờ chạm tới — đúng như mong đợi.
     if (await verifyPassword(newPassword, row.password_hash)) problems.push('SAME_AS_CURRENT');
     if (problems.length > 0) {
       throw new BadRequestException({
@@ -309,14 +405,17 @@ export class AuthService {
 
     await this.db.tx(async (c) => {
       await c.query(`UPDATE idn.activation_token SET used_at = now() WHERE id = $1`, [row.id]);
+      // Thu hồi MỌI token đang treo của người này, cả hai loại: mật khẩu vừa
+      // đổi thì mọi liên kết cũ đều là đường vào không còn ai kiểm soát.
       await c.query(
         `UPDATE idn.activation_token SET revoked_at = now()
           WHERE user_id = $1 AND id <> $2 AND used_at IS NULL AND revoked_at IS NULL`,
         [row.user_id, row.id],
       );
     });
+    // Đi qua được liên kết trong thư là chứng minh đọc được hộp thư đó — đúng
+    // thứ `email_verified_at` ghi nhận (0004), không phụ thuộc loại token.
     await this.applyNewPassword(row.user_id, newPassword, { verifyEmail: true });
-    return { ok: true, emailVerified: true };
   }
 
   private async applyNewPassword(

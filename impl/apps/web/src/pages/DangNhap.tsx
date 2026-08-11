@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { usePhien } from '../lib/auth.js';
+import { useDuong } from '../lib/router.js';
 import { BaoLoi, Truong } from '../components/Chung.js';
 import { NutGiaoDien } from '../components/NutGiaoDien.js';
 import logo from '../logo.png';
 
 export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
   const { dangNhap } = usePhien();
+  const { di } = useDuong();
   const [login, datLogin] = useState('');
   const [matKhau, datMatKhau] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
@@ -82,6 +84,17 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         <button type="submit" className="nut nut-chinh nut-rong" disabled={dangGui}>
           {dangGui ? 'Đang đăng nhập…' : 'Đăng nhập'}
         </button>
+
+        {/*
+          Ẩn khi đang là lớp phủ hết phiên: lúc đó người dùng ĐÃ có phiên và chỉ
+          cần gõ lại mật khẩu. Đưa họ sang màn hình quên mật khẩu là dỡ mất cái
+          màn hình đang giữ nguyên biểu mẫu họ nhập dở (`FE-33`).
+        */}
+        {!lopPhu && (
+          <button type="button" className="lien-phu" onClick={() => di('/quen-mat-khau')}>
+            Quên mật khẩu?
+          </button>
+        )}
       </form>
     </div>
   );

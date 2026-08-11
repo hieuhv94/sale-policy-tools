@@ -3,6 +3,7 @@
  * hệ thống KHÔNG có màn hình đăng ký công khai.
  */
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
 import { paged, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
@@ -33,7 +34,6 @@ export type CreateUserInput = {
   username: string;
   fullName: string;
   role: RoleValue;
-  defaultPassword: string;
   /** Tài khoản Trưởng bộ phận duyệt hồ sơ của TDV này. BẮT BUỘC khi `role` là TDV. */
   approverUsername?: string | undefined;
   parentUsername?: string | undefined;
@@ -48,16 +48,6 @@ export class UsersService {
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
-    // Mật khẩu mặc định vẫn phải đủ dài — nó là mật khẩu dùng được thật, chỉ là
-    // dùng được đúng một lần để vào đổi mật khẩu.
-    if (input.defaultPassword.length < 8) {
-      throw new BadRequestException({
-        code: 'VALIDATION_FAILED',
-        field: 'defaultPassword',
-        message: 'Mật khẩu mặc định phải có tối thiểu 8 ký tự',
-      });
-    }
-
     const dup = await this.db.one<{ id: string }>(
       `SELECT id FROM idn.app_user WHERE lower(email) = lower($1) OR lower(username) = lower($2)`,
       [input.email, input.username],
@@ -88,7 +78,7 @@ export class UsersService {
       parentId = p.id;
     }
 
-    const hash = await hashPassword(input.defaultPassword);
+    const hash = await this.matKhauKhoa();
     const token = newSecretToken();
 
     const created = await this.db.tx(async (c) => {
@@ -114,8 +104,8 @@ export class UsersService {
         parentId,
       ]);
       await c.query(
-        `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by)
-         VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4)`,
+        `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by, purpose)
+         VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4, 'ACTIVATE')`,
         [id, token.hash, String(CONFIG.activationTtlHours), createdBy],
       );
       return id;
@@ -145,12 +135,13 @@ export class UsersService {
     await this.db.tx(async (c) => {
       await c.query(
         `UPDATE idn.activation_token SET revoked_at = now()
-          WHERE user_id = $1 AND used_at IS NULL AND revoked_at IS NULL`,
+          WHERE user_id = $1 AND purpose = 'ACTIVATE'
+            AND used_at IS NULL AND revoked_at IS NULL`,
         [userId],
       );
       await c.query(
-        `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by)
-         VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4)`,
+        `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by, purpose)
+         VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4, 'ACTIVATE')`,
         [userId, token.hash, String(CONFIG.activationTtlHours), createdBy],
       );
     });
@@ -339,6 +330,19 @@ export class UsersService {
     }
     return a.id;
   }
+
+  /**
+   * Băm của một chuỗi ngẫu nhiên 32 byte — tài khoản mới KHÔNG có mật khẩu.
+   *
+   * `password_hash` là `NOT NULL`, và để nó nhận NULL thì mọi đường đăng nhập
+   * phải thêm một nhánh kiểm — quên một nhánh là một lỗ xác thực. Một giá trị
+   * không ai đoán được thì mọi phép so đều trượt, mà không đường nào phải sửa.
+   *
+   * Đường DUY NHẤT để tài khoản có mật khẩu là liên kết trong thư mời. Không
+   * còn "mật khẩu mặc định" nào để bàn giao ngoài luồng, cũng không còn kênh
+   * nào để nó lọt ra.
+   */
+  private matKhauKhoa = () => hashPassword(randomBytes(32).toString('base64'));
 
   private activationUrl = (raw: string) =>
     `${CONFIG.webBaseUrl}/kich-hoat?token=${encodeURIComponent(raw)}`;

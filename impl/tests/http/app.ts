@@ -124,6 +124,29 @@ export function activationTokenFrom(mailText: string): string {
   return decodeURIComponent(m[1]);
 }
 
+/** Bóc token đặt lại mật khẩu ra khỏi liên kết trong thư. */
+export function resetTokenFrom(mailText: string): string {
+  const m = /dat-lai-mat-khau\?token=([^\s]+)/.exec(mailText);
+  if (!m?.[1]) throw new Error('không tìm thấy liên kết đặt lại mật khẩu trong thư');
+  return decodeURIComponent(m[1]);
+}
+
+/** Thư MỚI NHẤT gửi tới địa chỉ này. `mailpitFind` trả thư đầu danh sách. */
+export async function mailpitLatestTo(
+  toAddress: string,
+): Promise<{ subject: string; text: string } | undefined> {
+  const res = await fetch(`${MAILPIT}/api/v1/messages?limit=200`);
+  const list = (await res.json()) as { messages: Summary[] };
+  // Mailpit trả mới nhất trước; lấy cái đầu tiên khớp địa chỉ.
+  const hit = list.messages.find((m) =>
+    m.To.some((t) => t.Address.toLowerCase() === toAddress.toLowerCase()),
+  );
+  if (!hit) return undefined;
+  const full = await fetch(`${MAILPIT}/api/v1/message/${hit.ID}`);
+  const body = (await full.json()) as { Text: string; Subject: string };
+  return { subject: body.Subject, text: body.Text };
+}
+
 // --- Dựng nhiều service nói chuyện với nhau ----------------------------------
 
 /**

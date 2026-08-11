@@ -36,9 +36,18 @@ describe('AUTH-08 · đúng 6 vai trò', () => {
       ['TDV','TBP','KE_TOAN','SALE_ADMIN','BAN_LANH_DAO','QUAN_TRI']);
   });
   it('10 tài khoản mẫu phủ đủ 6 vai trò', async () => {
-    const r = await db.query('SELECT count(DISTINCT role)::int n, count(*)::int t FROM idn.app_user');
-    expect(r.rows[0].n).toBe(6);
+    // Đếm ĐÚNG bộ tài khoản mẫu, không đếm cả bảng.
+    //
+    // Bản demo và bộ test dùng chung một Postgres, và từ khi `make demo` bắt đầu
+    // từ CSDL trống thì mọi tài khoản người thử tự tạo đều nằm lại ở đây. Đếm
+    // cả bảng là một test đỏ vì lý do chẳng liên quan gì tới điều đang kiểm.
+    const r = await db.query(
+      `SELECT count(DISTINCT role)::int n, count(*)::int t FROM idn.app_user
+        WHERE username = ANY($1)`,
+      [['sa01','kt01','kt02','tdv01','tdv02','tdv03','tbp01','tbp02','bld01','admin01']],
+    );
     expect(r.rows[0].t).toBe(10);
+    expect(r.rows[0].n).toBe(6);
   });
 });
 
@@ -84,8 +93,18 @@ describe('AUTH-12 · Trưởng bộ phận là nhánh riêng, độc lập với
 });
 
 describe('AUTH-13/14 · Ban lãnh đạo và Quản trị hệ thống', () => {
-  it('bld01 thấy toàn bộ 10 người', async () => {
-    expect(await scopeOf('bld01')).toHaveLength(10);
+  it('bld01 thấy MỌI tài khoản trong hệ thống, không giới hạn nhánh', async () => {
+    // So với chính bảng người dùng, KHÔNG chốt con số 10.
+    //
+    // Bản demo và bộ test dùng chung một Postgres, và từ khi `make demo` cho
+    // người dùng tự tạo tài khoản thì bảng này có thêm bao nhiêu dòng là chuyện
+    // của người đang thử. Chốt con số là một test đỏ vì lý do chẳng liên quan gì
+    // tới điều đang kiểm — mà điều đang kiểm là "không giới hạn nhánh".
+    const tatCa = await db.query<{ username: string }>(
+      `SELECT username FROM idn.app_user ORDER BY username`,
+    );
+    expect(await scopeOf('bld01')).toEqual(tatCa.rows.map((r) => r.username));
+    expect(tatCa.rows.length).toBeGreaterThanOrEqual(10);
   });
   it('admin01 không có phạm vi hồ sơ nào — đứng ngoài luồng duyệt', async () => {
     expect(await scopeOf('admin01')).toEqual([]);

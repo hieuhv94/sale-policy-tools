@@ -39,6 +39,30 @@ export class AuthController {
     return this.auth.activate(b.token, b.newPassword);
   }
 
+  /**
+   * Quên mật khẩu. CÔNG KHAI, và LUÔN trả về cùng một câu trả lời.
+   *
+   * Không phân biệt "có tài khoản" với "không có": phân biệt ra là biến đường
+   * này thành máy dò xem tên tài khoản hay địa chỉ email nào có thật trong hệ
+   * thống — cùng lý do với `INVALID_CREDENTIALS` ở đăng nhập (AUTH-02).
+   */
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  forgotPassword(@Body() body: unknown) {
+    const b = validate(body, { login: str(1, 254) });
+    return this.auth.forgotPassword(b.login);
+  }
+
+  /** Đặt mật khẩu mới bằng liên kết trong thư — người dùng chưa đăng nhập được. */
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  resetPassword(@Body() body: unknown) {
+    const b = validate(body, { token: str(1), newPassword: secret(1) });
+    return this.auth.resetPassword(b.token, b.newPassword);
+  }
+
   @PwdResetOk()
   @Get('me')
   me(@CurrentUser() u: AuthUser) {

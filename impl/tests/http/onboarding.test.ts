@@ -19,7 +19,7 @@ import {
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
-const DEFAULT_PW = 'MacDinh@2026';
+
 const NEW_PW = 'MatKhauMoi@2026';
 
 let app: INestApplication;
@@ -42,7 +42,6 @@ const createUser = async (
     email: base.email,
     fullName: 'Nguoi dung thu nghiem',
     role: 'TDV',
-    defaultPassword: DEFAULT_PW,
     approverUsername: 'tbp01',
     parentUsername: 'kt01',
     ...over,
@@ -67,7 +66,7 @@ afterAll(async () => {
   await mailpitClear();
 });
 
-describe('ONB-01 quản trị tạo tài khoản kèm mật khẩu mặc định', () => {
+describe('ONB-01 quản trị tạo tài khoản, KHÔNG có mật khẩu mặc định', () => {
   it('tài khoản ở trạng thái chờ kích hoạt và có token dùng một lần', async () => {
     const { res, username } = await createUser();
     expect(res.status).toBe(201);
@@ -107,7 +106,7 @@ describe('ONB-02 chỉ quản trị hệ thống tạo được tài khoản', (
       const res = await agent
         .post('/admin/users')
         .set('Authorization', `Bearer ${t}`)
-        .send({ ...newUser(), fullName: 'X', role: 'TDV', defaultPassword: DEFAULT_PW });
+        .send({ ...newUser(), fullName: 'X', role: 'TDV' });
       expect(res.status, `${who} đáng lẽ bị chặn`).toBe(403);
     }
   });
@@ -148,30 +147,45 @@ describe('ONB-04 email mời', () => {
     expect(mail!.text).toContain('72 giờ');
   });
 
-  it('thư KHÔNG chứa mật khẩu mặc định', async () => {
+  it('thư KHÔNG chứa mật khẩu nào', async () => {
     const { email } = await createUser();
     const mail = await mailpitFind(email);
-    expect(mail!.text).not.toContain(DEFAULT_PW);
+    // Không còn mật khẩu mặc định nào để lỡ tay đưa vào thư — nhưng vẫn kiểm,
+    // vì một bản sửa sau này có thể lại nhét mật khẩu sinh tự động vào đây.
+    expect(mail!.text).not.toMatch(/m\u1eadt kh\u1ea9u l\u00e0|password:/i);
   });
 });
 
-describe('ONB-05 · ONB-06 đăng nhập bằng mật khẩu mặc định', () => {
-  it('vào được nhưng phiên bị giới hạn đúng màn hình đổi mật khẩu', async () => {
-    const { username } = await createUser();
-    const lg = await login(app, username, DEFAULT_PW);
-    expect(lg.status).toBe(200);
-    expect(lg.body.mustChangePassword).toBe(true);
+describe('ONB-05 · ONB-06 tài khoản chưa kích hoạt thì KHÔNG đăng nhập được', () => {
+  it('không mật khẩu nào vào được — liên kết trong thư là đường duy nhất', async () => {
+    const { username, email } = await createUser();
 
-    const agent = await http(app);
-    const token = lg.body.accessToken as string;
+    // Vài phỏng đoán quen thuộc, kể cả những chuỗi mà một bản "mật khẩu mặc
+    // định sinh tự động" hay rơi vào.
+    for (const doan of ['MacDinh@2026', 'Test@1234', ' ', username, email]) {
+      expect((await login(app, username, doan)).status, doan).toBe(401);
+    }
 
-    // Được phép: xem thông tin bản thân và đổi mật khẩu.
-    expect((await agent.get('/auth/me').set('Authorization', `Bearer ${token}`)).status).toBe(200);
+    // Mật khẩu rỗng dừng ở tầng kiểm dữ liệu vào (`secret(1)`), trước cả khi
+    // chạm tới tài khoản — 400 chứ không phải 401, và câu trả lời đó không phụ
+    // thuộc vào việc tài khoản có thật hay không nên không lộ gì.
+    expect((await login(app, username, '')).status).toBe(400);
+  });
 
-    // Bị chặn: mọi thứ còn lại.
-    const blocked = await agent.get('/admin/users').set('Authorization', `Bearer ${token}`);
-    expect(blocked.status).toBe(403);
-    expect(blocked.body.code).toBe('PASSWORD_CHANGE_REQUIRED');
+  it('CSDL không lưu mật khẩu dùng được nào cho tài khoản mới', async () => {
+    const { res } = await createUser();
+    const row = await withAdminDb(async (c) => {
+      const q = await c.query<{ password_hash: string; must_change_password: boolean }>(
+        `SELECT password_hash, must_change_password FROM idn.app_user WHERE id = $1`,
+        [res.body.id],
+      );
+      return q.rows[0]!;
+    });
+    // Có băm — cột NOT NULL — nhưng là băm của một chuỗi ngẫu nhiên 32 byte mà
+    // không ai biết. Để cột nhận NULL thì mọi đường đăng nhập phải thêm một
+    // nhánh kiểm, và quên một nhánh là một lỗ xác thực.
+    expect(row.password_hash).toMatch(/^scrypt\$/);
+    expect(row.password_hash.length).toBeGreaterThan(40);
   });
 });
 
@@ -196,8 +210,8 @@ describe('ONB-07 kích hoạt qua liên kết trong email', () => {
     expect(me.body.emailVerifiedAt).not.toBeNull();
     expect(me.body.activatedAt).not.toBeNull();
 
-    // Mật khẩu mặc định chết hẳn.
-    expect((await login(app, username, DEFAULT_PW)).status).toBe(401);
+    // Liên kết đã dùng xong; không còn đường nào khác vào tài khoản.
+    expect((await login(app, username, 'MacDinh@2026')).status).toBe(401);
   });
 });
 
@@ -261,16 +275,6 @@ describe('ONB-10 gửi lại lời mời', () => {
 });
 
 describe('ONB-11 · ONB-12 điều kiện mật khẩu mới', () => {
-  it('trùng mật khẩu mặc định thì bị từ chối', async () => {
-    const { email } = await createUser();
-    const token = activationTokenFrom((await mailpitFind(email))!.text);
-    const agent = await http(app);
-    const res = await agent.post('/auth/activate').send({ token, newPassword: DEFAULT_PW });
-    expect(res.status).toBe(400);
-    expect(res.body.code).toBe('PASSWORD_WEAK');
-    expect(res.body.problems).toContain('SAME_AS_CURRENT');
-  });
-
   it('quá ngắn hoặc thiếu chữ số thì báo rõ thiếu điều kiện nào', async () => {
     const { email } = await createUser();
     const token = activationTokenFrom((await mailpitFind(email))!.text);
@@ -319,27 +323,22 @@ describe('ONB-13 đổi mật khẩu thu hồi mọi phiên đang mở', () => {
   });
 });
 
-describe('ONB-14 kích hoạt không qua email', () => {
-  it('tài khoản hoạt động nhưng email vẫn chưa được xác nhận', async () => {
+describe('ONB-14 không còn đường kích hoạt nào ngoài email', () => {
+  it('đổi mật khẩu đòi mật khẩu hiện tại, mà tài khoản mới không có mật khẩu nào', async () => {
+    // Trước đây quản trị bàn giao mật khẩu mặc định ngoài luồng, người dùng
+    // đăng nhập rồi tự đổi — tài khoản hoạt động mà email chưa từng được xác
+    // nhận. Bỏ mật khẩu mặc định là bỏ luôn nhánh đó: KHÔNG có cách nào vào
+    // được tài khoản mà không đi qua hộp thư.
     const { username, res } = await createUser();
-    const lg = await login(app, username, DEFAULT_PW);
-    const agent = await http(app);
+    expect((await login(app, username, 'MacDinh@2026')).status).toBe(401);
 
-    const changed = await agent
-      .post('/auth/change-password')
-      .set('Authorization', `Bearer ${lg.body.accessToken}`)
-      .send({ currentPassword: DEFAULT_PW, newPassword: NEW_PW });
-    expect(changed.status).toBe(200);
-    expect(changed.body.emailVerified).toBe(false);
-
-    const full = await login(app, username, NEW_PW);
-    expect(full.body.mustChangePassword).toBe(false);
-
-    const listed = await agent.get('/admin/users').set('Authorization', `Bearer ${adminToken}`);
-    const row = (listed.body.items as { id: string; activatedAt: string | null; emailVerifiedAt: string | null }[])
-      .find((r) => r.id === res.body.id);
-    expect(row!.activatedAt).not.toBeNull();
-    // Đây là điểm khác nhau giữa hai cột: chưa ai chứng minh hộp thư có thật.
+    const listed = await http(app).then((a) =>
+      a.get('/admin/users').set('Authorization', `Bearer ${adminToken}`),
+    );
+    const row = (
+      listed.body.items as { id: string; activatedAt: string | null; emailVerifiedAt: string | null }[]
+    ).find((r) => r.id === res.body.id);
+    expect(row!.activatedAt).toBeNull();
     expect(row!.emailVerifiedAt).toBeNull();
   });
 });
@@ -359,7 +358,6 @@ describe('ONB-15 không lưu bí mật dạng thô', () => {
       return q.rows;
     });
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.password_hash).not.toContain(DEFAULT_PW);
     expect(rows[0]!.password_hash.startsWith('scrypt$')).toBe(true);
     expect(rows[0]!.token_hash).not.toContain(rawToken);
     expect(rows[0]!.token_hash).toMatch(/^[0-9a-f]{64}$/);

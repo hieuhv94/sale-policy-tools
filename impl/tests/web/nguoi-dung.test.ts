@@ -13,7 +13,6 @@ import {
   TRUONG_THEM,
   TRUONG_BAT_BUOC,
   VAI_TRO_CAP_TREN,
-  matKhauNgauNhien,
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '@csbh/web/nguoi-dung';
@@ -114,24 +113,5 @@ describe('trạng thái tài khoản', () => {
     // Một tài khoản vừa chưa kích hoạt vừa bị vô hiệu hoá thì việc cần làm là
     // bật lại, không phải gửi lại thư mời.
     expect(trangThaiTaiKhoan(nguoi({ isActive: false, activatedAt: null }))).toBe('Đã vô hiệu hoá');
-  });
-});
-
-describe('mật khẩu mặc định', () => {
-  it('đủ dài theo yêu cầu của máy chủ', () => {
-    // `users.service.ts` từ chối dưới 8 ký tự. Sinh ngắn hơn là biểu mẫu luôn
-    // hỏng ở lần bấm đầu tiên.
-    expect(matKhauNgauNhien().length).toBeGreaterThanOrEqual(8);
-  });
-
-  it('hai lần sinh không ra cùng một chuỗi', () => {
-    expect(matKhauNgauNhien()).not.toBe(matKhauNgauNhien());
-  });
-
-  it('không chứa ký tự dễ đọc nhầm khi đọc qua điện thoại', () => {
-    // Mật khẩu này được đọc miệng hoặc chép tay từ thư — `0/O` và `1/l/I` là chỗ
-    // hỏng thường xuyên nhất.
-    const ds = Array.from({ length: 40 }, () => matKhauNgauNhien()).join('');
-    expect(ds).not.toMatch(/[0O1lI]/);
   });
 });

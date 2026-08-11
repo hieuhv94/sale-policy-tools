@@ -927,6 +927,24 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   width: min(420px, 100%);
 }
 .dang-nhap-dau { text-align: center; margin-bottom: var(--k5); }
+
+/* Liên kết phụ dưới nút chính. Là <button> chứ không phải <a>: nó chuyển màn
+   hình trong ứng dụng, và một thẻ neo ở đây sẽ tải lại cả trang. */
+.lien-phu {
+  display: block;
+  width: 100%;
+  margin-top: var(--k3);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mau-thuong-hieu);
+  font: inherit;
+  font-size: var(--chu-nho);
+  text-align: center;
+  cursor: pointer;
+}
+.lien-phu:hover { text-decoration: underline; }
+.lien-phu:focus-visible { outline: none; box-shadow: var(--vong-tieu-diem); border-radius: var(--bo-goc); }
 .dang-nhap-dau h1 { margin-bottom: var(--k1); }
 .dang-nhap-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
 .logo-lon {

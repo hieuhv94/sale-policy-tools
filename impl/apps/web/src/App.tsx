@@ -5,7 +5,8 @@ import { BoCuc } from './components/BoCuc.js';
 import { Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
-import { KichHoat } from './pages/KichHoat.js';
+import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
+import { QuenMatKhau } from './pages/QuenMatKhau.js';
 import { NguoiDung } from './pages/NguoiDung.js';
 import { MauHopDong } from './pages/MauHopDong.js';
 import { LapHoSo } from './pages/LapHoSo.js';
@@ -24,13 +25,16 @@ export function App() {
   if (dangTai) return null;
 
   /*
-    Kích hoạt tài khoản phải đứng TRƯỚC lớp kiểm phiên.
+    Ba màn hình công khai phải đứng TRƯỚC lớp kiểm phiên.
 
-    Người nhận thư mời chưa có mật khẩu dùng được nên không đăng nhập được; đặt
-    `/kich-hoat` xuống dưới `if (!nguoiDung)` là nó không bao giờ chạy, và liên
-    kết trong thư dẫn thẳng vào màn hình đăng nhập mà không nói vì sao.
+    Người nhận thư mời chưa có mật khẩu dùng được, và người quên mật khẩu thì
+    theo định nghĩa là không đăng nhập được; đặt chúng xuống dưới
+    `if (!nguoiDung)` là chúng không bao giờ chạy, và liên kết trong thư dẫn
+    thẳng vào màn hình đăng nhập mà không nói vì sao.
   */
   if (duong === '/kich-hoat') return <KichHoat />;
+  if (duong === '/dat-lai-mat-khau') return <DatLaiMatKhau />;
+  if (duong === '/quen-mat-khau') return <QuenMatKhau />;
 
   if (!nguoiDung) return <DangNhap />;
   if (nguoiDung.mustChangePassword) return <DoiMatKhau />;

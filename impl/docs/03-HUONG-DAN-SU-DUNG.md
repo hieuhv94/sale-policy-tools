@@ -8,11 +8,27 @@ Dành cho người dùng cuối. Viết theo **việc bạn cần làm**, không
 
 Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và mật khẩu.
 
-- **Tài khoản mới**: bạn nhận một thư mời có nút kích hoạt. Bấm vào đó, đặt mật khẩu, rồi đăng nhập.
-  Liên kết sống 48 giờ; quá hạn thì đề nghị Quản trị hệ thống gửi lại. Mỗi lần gửi lại làm **liên
-  kết cũ chết ngay** — luôn dùng thư mới nhất.
-- **Lần đầu** hệ thống bắt đổi mật khẩu. Chưa đổi thì không vào được chức năng nào.
+- **Tài khoản mới**: bạn nhận một thư mời kèm liên kết kích hoạt. Bấm vào đó và **tự đặt mật khẩu**.
+  Không ai — kể cả Quản trị hệ thống — đưa cho bạn một mật khẩu sẵn, vì hệ thống không tạo ra cái
+  nào. Trước khi đi qua liên kết, tài khoản chưa đăng nhập được.
+  Liên kết sống **72 giờ**; quá hạn thì đề nghị Quản trị hệ thống gửi lại. Mỗi lần gửi lại làm
+  **liên kết cũ chết ngay** — luôn dùng thư mới nhất.
 - Sai mật khẩu **5 lần** thì tài khoản bị khoá tạm; liên hệ Quản trị hệ thống.
+
+### Quên mật khẩu
+
+Bấm **Quên mật khẩu?** ngay dưới nút Đăng nhập, nhập tên tài khoản hoặc email. Hệ thống gửi liên kết
+đặt lại tới **email khai trong hệ thống** của tài khoản đó — không phải địa chỉ bạn vừa gõ, nếu hai
+cái khác nhau.
+
+- Liên kết đặt lại sống **2 giờ**, ngắn hơn thư mời: bạn đang ngồi trước máy, còn một liên kết sống
+  lâu là một liên kết nằm lại trong hộp thư.
+- Đặt lại xong, **mọi phiên đang mở đều bị đăng xuất** — kể cả phiên của người khác nếu mật khẩu cũ
+  đã bị lộ.
+- Màn hình luôn hiện *"Đã gửi, nếu tài khoản tồn tại"* dù tài khoản có thật hay không. Đó là chủ ý:
+  nói khác đi là để người ngoài dò được danh sách tài khoản của công ty.
+- Nhận được thư đặt lại mà **không phải bạn yêu cầu** thì cứ bỏ qua — mật khẩu hiện tại giữ nguyên.
+  Nhận nhiều lần thì báo Quản trị hệ thống.
 - Đang làm dở mà hết phiên: hệ thống hiện ô đăng nhập lại **đè lên màn hình cũ**. Đăng nhập xong,
   mọi thứ bạn đang nhập vẫn còn nguyên — không phải làm lại.
 
@@ -295,8 +311,17 @@ của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ
   chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới tài khoản, xoá đi là mất dấu vết.
 - **Gửi lại thư mời** chỉ hiện với tài khoản chưa kích hoạt, và làm liên kết cũ chết ngay.
 
-Mật khẩu mặc định do hệ thống sinh sẵn, sửa được. Người dùng **buộc phải đổi** ở lần đăng nhập đầu,
-nên nó chỉ dùng được một lần.
+### Không có mật khẩu mặc định
+
+Tạo tài khoản **không đặt mật khẩu**. Hệ thống gửi thư mời tới địa chỉ đã khai, và **liên kết trong
+thư đó là đường duy nhất** để tài khoản có mật khẩu. Trước khi người dùng đi qua liên kết, tài khoản
+không đăng nhập được bằng bất cứ gì.
+
+Nghĩa là bạn **không phải bàn giao mật khẩu** cho ai qua tin nhắn, giấy tờ hay lời nói — thứ vốn là
+chỗ rò rỉ thường xuyên nhất. Đổi lại, **địa chỉ email phải đúng**: gõ nhầm thì thư mời đi vào hộp
+thư của người khác, và người đó đặt được mật khẩu cho tài khoản. Đọc kỹ ô email trước khi bấm Tạo.
+
+Liên kết hết hạn sau **72 giờ**; hết hạn thì bấm **Gửi lại thư mời**.
 
 ### Hạn xử lý và thư hỏng — thẻ *Hệ thống*
 

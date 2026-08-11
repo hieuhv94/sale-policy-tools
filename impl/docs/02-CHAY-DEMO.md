@@ -56,9 +56,9 @@ chưa có Trưởng bộ phận nào để chọn.
 4. **Trình dược viên** — chọn *Trưởng bộ phận quản lý* (**bắt buộc**) và *Cấp trên* là Kế toán.
 5. **Ban lãnh đạo** — nếu muốn xem phần chỉ đọc.
 
-Mỗi tài khoản mới nhận **thư mời kích hoạt**; xem nó ở Mailpit (mục dưới) và đi qua liên kết để đặt
-mật khẩu. Hoặc dùng thẳng mật khẩu mặc định mà màn hình tạo sinh sẵn — nó buộc đổi ở lần đăng nhập
-đầu.
+Mỗi tài khoản mới nhận **thư mời kích hoạt**, và đó là **đường duy nhất** để nó có mật khẩu — không
+có mật khẩu mặc định nào để bàn giao. Xem thư ở Mailpit (mục dưới) và đi qua liên kết để đặt mật
+khẩu. Chưa đi qua liên kết thì tài khoản không đăng nhập được bằng bất cứ gì.
 
 Sau đó, vẫn bằng `admin01`: *Danh mục* → tạo **nhóm sản phẩm**, **sản phẩm** kèm giá, **quy định
 chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái này là nguồn của ba ô chọn

@@ -16,7 +16,6 @@ import {
   TRUONG_BAT_BUOC,
   TRUONG_THEM,
   VAI_TRO_CAP_TREN,
-  matKhauNgauNhien,
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
@@ -218,7 +217,6 @@ function HopThoaiTao({
   const [hoTen, datHoTen] = useState('');
   const [taiKhoan, datTaiKhoan] = useState('');
   const [thu, datThu] = useState('');
-  const [matKhau, datMatKhau] = useState(matKhauNgauNhien);
   const [tbp, datTbp] = useState('');
   const [capTren, datCapTren] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
@@ -240,7 +238,6 @@ function HopThoaiTao({
         username: taiKhoan.trim(),
         fullName: hoTen.trim(),
         role: vaiTro,
-        defaultPassword: matKhau,
         ...(truong.includes('tbp-quan-ly') && tbp ? { approverUsername: tbp } : {}),
         ...(capTren ? { parentUsername: capTren } : {}),
       });
@@ -256,7 +253,6 @@ function HopThoaiTao({
     hoTen.trim().length >= 2 &&
     taiKhoan.trim().length >= 2 &&
     thu.trim().length > 0 &&
-    matKhau.length >= 8 &&
     // Ô chọn người duyệt là trường BẮT BUỘC của TDV — máy chủ cũng chặn, nhưng
     // chặn luôn ở đây để người dùng thấy ngay thay vì gửi đi rồi nhận về lỗi.
     (!batBuoc.includes('tbp-quan-ly') || tbp !== '');
@@ -354,14 +350,10 @@ function HopThoaiTao({
           </Truong>
         )}
 
-        <Truong id="nd-mat-khau" nhan="Mật khẩu mặc định" bắtBuộc>
-          {(p) => (
-            <input {...p} className="o-nhap" value={matKhau}
-              onChange={(e) => datMatKhau(e.target.value)} />
-          )}
-        </Truong>
         <p className="ghi-chu">
-          Người dùng phải đổi mật khẩu ngay lần đăng nhập đầu. Thư mời kích hoạt gửi tự động.
+          Hệ thống gửi thư mời tới địa chỉ trên. Người dùng tự đặt mật khẩu qua liên kết trong thư —
+          <strong> không có mật khẩu mặc định để bàn giao</strong>, và tài khoản chưa đăng nhập được
+          cho tới khi họ đi qua liên kết đó.
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}

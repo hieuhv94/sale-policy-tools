@@ -37,4 +37,32 @@ export class Mailer {
     });
     this.log.log(`đã gửi thư mời tới ${to}`);
   }
+
+  /**
+   * Thư đặt lại mật khẩu.
+   *
+   * Nội dung nói rõ "nếu không phải bạn yêu cầu thì bỏ qua thư này": đường
+   * `/auth/forgot-password` công khai và nhận tên tài khoản của bất kỳ ai, nên
+   * một người dùng có thể nhận thư mà không hề bấm gì. Không nói ra thì thư
+   * chính đáng của hệ thống lại giống hệt một cú lừa.
+   */
+  async sendPasswordReset(to: string, fullName: string, resetUrl: string): Promise<void> {
+    await this.tx.sendMail({
+      from: CONFIG.mailFrom,
+      to,
+      subject: 'Đặt lại mật khẩu Chính sách bán hàng',
+      text: [
+        `Chào ${fullName},`,
+        '',
+        'Có yêu cầu đặt lại mật khẩu cho tài khoản Chính sách bán hàng của bạn.',
+        'Bấm liên kết dưới đây để đặt mật khẩu mới:',
+        '',
+        resetUrl,
+        '',
+        `Liên kết dùng được một lần và hết hạn sau ${CONFIG.resetTtlHours} giờ.`,
+        'Nếu không phải bạn yêu cầu, bỏ qua thư này — mật khẩu hiện tại vẫn giữ nguyên.',
+      ].join('\n'),
+    });
+    this.log.log(`đã gửi liên kết đặt lại mật khẩu tới ${to}`);
+  }
 }

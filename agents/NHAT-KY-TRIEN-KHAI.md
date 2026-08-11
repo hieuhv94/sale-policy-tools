@@ -2583,3 +2583,72 @@ Rồi `make demo-down && make test` trên chính CSDL vừa bị xoá: **621/621
 lo nhất, và `seed` trong danh sách phụ thuộc lo được.
 
 Bộ mẫu cũ vẫn còn: `make demo-mau` nạp 10 tài khoản và dữ liệu nghiệp vụ mẫu vào bản demo đang chạy.
+
+---
+
+## P13 — Bỏ mật khẩu mặc định, thêm quên mật khẩu
+
+### P13a — Không còn mật khẩu nào để bàn giao
+
+Trước đây quản trị đặt một **mật khẩu mặc định** khi tạo tài khoản: dùng được thật, dùng được đúng
+một lần, và phải bàn giao cho người dùng qua một kênh nào đó ngoài hệ thống. Chính cái "kênh nào đó"
+là chỗ rò rỉ — tin nhắn, giấy tờ, lời nói — và không có gì trong sản phẩm nhìn thấy nó.
+
+Giờ `POST /admin/users` **không nhận mật khẩu**. `password_hash` nhận băm của một chuỗi ngẫu nhiên
+32 byte mà không ai biết, nên mọi phép so đều trượt. Đường DUY NHẤT để tài khoản có mật khẩu là liên
+kết trong thư mời.
+
+Chọn "băm của chuỗi ngẫu nhiên" chứ không phải cho cột nhận NULL, và đó là quyết định về an toàn:
+để `password_hash` nhận NULL thì **mọi** đường đăng nhập phải thêm một nhánh kiểm, và quên một nhánh
+là một lỗ xác thực. Một giá trị không ai đoán được thì không đường nào phải sửa.
+
+**Một khả năng mất đi, cố ý**: `ONB-14` cũ cho phép kích hoạt KHÔNG qua email — quản trị bàn giao
+mật khẩu ngoài luồng, người dùng đăng nhập rồi tự đổi, tài khoản hoạt động mà `email_verified_at`
+vẫn rỗng. Nhánh đó biến mất hoàn toàn. Đổi lại, **địa chỉ email phải đúng**: gõ nhầm là thư mời đi
+vào hộp thư người khác, và người đó đặt được mật khẩu. Đã ghi vào tài liệu hướng dẫn.
+
+### P13b — Quên mật khẩu
+
+Bỏ mật khẩu mặc định làm lộ ra một lỗ đã có sẵn: `resendInvite` từ chối tài khoản đã kích hoạt, và
+không có endpoint nào đặt lại mật khẩu — **người dùng quên mật khẩu là mất tài khoản vĩnh viễn**.
+
+`0018_quen_mat_khau.sql` thêm cột `purpose` vào `idn.activation_token` thay vì dựng bảng thứ hai:
+hai loại token có vòng đời giống hệt nhau (một lần dùng, có hạn, thu hồi được, chỉ lưu bản băm), và
+chép lại cả bộ máy đó là mời sửa một bên quên bên kia ở đúng những chỗ không được sai.
+
+Ba thứ ĐƯỜNG CÔNG KHAI này không được làm, và phần lớn test của `quen-mat-khau.test.ts` kiểm đúng
+những thứ đó:
+
+| Không được | Vì sao | Cách chặn |
+|---|---|---|
+| Nói ra tài khoản nào có thật | Thành máy dò danh sách tài khoản (AUTH-02) | Luôn trả `{ok:true}`, cả hai bên máy chủ và giao diện cùng im |
+| Gửi thư dồn dập | Ai cũng bơm được thư vào hộp thư người khác | Đã có liên kết còn hạn chưa dùng trong 2 phút thì không phát hành thêm |
+| Thu hồi token của thư mời | Gọi lặp lại là vô hiệu hoá được mọi lời mời vừa gửi | Chỉ thu hồi token **cùng loại** |
+| Cho dùng chéo hai loại token | Mã lỗi khác nhau là nói cho người thử biết họ cầm token thật, chỉ nộp nhầm cửa | `purpose` nằm trong ĐIỀU KIỆN TÌM, không kiểm sau khi tìm thấy |
+
+Hạn liên kết đặt lại là **2 giờ**, không phải 72 như thư mời: người quên mật khẩu đang ngồi trước
+máy, còn liên kết sống lâu là liên kết nằm lại trong hộp thư — chỗ có thể bị đọc trộm muộn hơn nhiều
+so với lúc gửi.
+
+Cả hai loại token đều đặt `email_verified_at`. Thứ cột đó ghi nhận là "hộp thư có thật và người dùng
+đọc được nó" (0004), mà đi qua được liên kết đặt lại thì chứng minh đúng điều ấy chẳng kém gì liên
+kết kích hoạt.
+
+### Một cái bẫy đã dính
+
+`db.one()` trả **`undefined`** khi không có dòng, không phải `null` (`http-kit/src/db.ts:28`). Hàm
+chặn gửi dồn viết `gan !== null` nên nó luôn đúng: mọi lượt đều bị coi là gửi dồn và **không thư nào
+được gửi** — không lỗi, không log, chỉ là tính năng chết trong im lặng. Tám test đỏ với
+"Cannot read properties of undefined (reading 'text')" và không cái nào trỏ vào nguyên nhân.
+
+### Hai test đỏ vì CSDL dùng chung
+
+`scope.test.ts` có hai chỗ chốt cứng "bảng người dùng có đúng 10 dòng". Từ khi `make demo` bắt đầu
+từ CSDL trống và người thử tự tạo tài khoản, những dòng đó nằm lại trong cùng một Postgres mà bộ
+test dùng. Đã đổi sang so với chính bảng người dùng (`bld01` thấy MỌI tài khoản) và lọc đúng bộ 10
+tên tài khoản mẫu — cả hai đều là điều test thật sự muốn kiểm, con số 10 chỉ là hệ quả.
+
+### Kết quả
+
+Thêm `tests/http/quen-mat-khau.test.ts` (13 case). Gỡ ONB-14 cũ, viết lại ONB-05/06 thành "tài khoản
+chưa kích hoạt thì không mật khẩu nào vào được".

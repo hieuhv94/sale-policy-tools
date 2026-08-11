@@ -89,11 +89,3 @@ export const TRUONG_BAT_BUOC: Record<VaiTro, TruongThem[]> = {
   BAN_LANH_DAO: [],
   QUAN_TRI: [],
 };
-
-/** Mật khẩu mặc định dùng đúng một lần — tài khoản mới luôn phải đổi khi đăng nhập. */
-export function matKhauNgauNhien(): string {
-  const chu = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
-  const n = new Uint32Array(12);
-  crypto.getRandomValues(n);
-  return Array.from(n, (x) => chu[x % chu.length]).join('');
-}
