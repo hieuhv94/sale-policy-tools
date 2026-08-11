@@ -7,7 +7,7 @@
  * cho họ biết phải nhờ ai.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson } from '../../lib/api.js';
+import { dang, layJson, va, xoa } from '../../lib/api.js';
 import { ngay } from '../../lib/format.js';
 import {
   LOAI_TRA_CUU,
@@ -163,8 +163,28 @@ export function TheNguoiKy() {
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [moTao, datMoTao] = useState(false);
+  const [sua, datSua] = useState<NguoiKy | null>(null);
+  const [dangChay, datDangChay] = useState<string | null>(null);
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
+
+  const chay = async (k: NguoiKy, fn: () => Promise<unknown>) => {
+    datLoi(null);
+    datDangChay(k.id);
+    try {
+      await fn();
+      taiLai();
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangChay(null);
+    }
+  };
+
+  const doiHieuLuc = (k: NguoiKy) =>
+    chay(k, () => va(`/catalog/signers/${k.id}`, { isActive: !k.isActive }));
+
+  const go = (k: NguoiKy) => chay(k, () => xoa(`/catalog/signers/${k.id}`));
 
   useEffect(() => {
     const huy = new AbortController();
@@ -208,6 +228,7 @@ export function TheNguoiKy() {
                 <th>Phạm vi ký</th>
                 <th>Hiệu lực</th>
                 <th>Trạng thái</th>
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -222,6 +243,35 @@ export function TheNguoiKy() {
                     {k.validTo ? ` – ${ngay(k.validTo)}` : ' – không thời hạn'}
                   </td>
                   <td>{k.isActive ? 'Đang hiệu lực' : 'Đã ngừng'}</td>
+                  <td>
+                    <div className="nhom-nut nhom-nut-gon">
+                      <button type="button" className="nut nut-nhe" onClick={() => datSua(k)}>
+                        Sửa
+                      </button>
+                      {/*
+                        NGỪNG là thao tác chính, XOÁ là ngoại lệ. Hệ thống không
+                        lưu file hợp đồng, nên bản giấy khách hàng đang giữ là dấu
+                        vết duy nhất — và nó dẫn chiếu tới một cái tên mà CSDL phải
+                        còn giải thích được. Xoá chỉ dành cho dòng vừa khai nhầm.
+                      */}
+                      <button
+                        type="button"
+                        className="nut nut-nhe"
+                        disabled={dangChay === k.id}
+                        onClick={() => doiHieuLuc(k)}
+                      >
+                        {k.isActive ? 'Ngừng dùng' : 'Dùng lại'}
+                      </button>
+                      <button
+                        type="button"
+                        className="nut nut-canh-bao"
+                        disabled={dangChay === k.id}
+                        onClick={() => go(k)}
+                      >
+                        Xoá
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -238,7 +288,100 @@ export function TheNguoiKy() {
           }}
         />
       )}
+
+      {sua && (
+        <HopThoaiSuaNguoiKy
+          k={sua}
+          dong={() => datSua(null)}
+          xong={() => {
+            datSua(null);
+            taiLai();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/**
+ * Sửa người ký. Họ tên và ngày bắt đầu hiệu lực KHÔNG sửa được.
+ *
+ * Đổi họ tên là biến bản ghi này thành một người khác, trong khi những hợp đồng
+ * đã xuất vẫn mang tên cũ — mà hệ thống không lưu file hợp đồng nên không có
+ * cách nào đối chiếu lại. Người mới thì khai người mới.
+ */
+function HopThoaiSuaNguoiKy({
+  k,
+  dong,
+  xong,
+}: {
+  k: NguoiKy;
+  dong: () => void;
+  xong: () => void;
+}) {
+  const [chucDanh, datChucDanh] = useState(k.title);
+  const [donVi, datDonVi] = useState(k.unit);
+  const [phamVi, datPhamVi] = useState(k.signScope);
+  const [denNgay, datDenNgay] = useState(k.validTo ?? '');
+  const [loi, datLoi] = useState<unknown>(null);
+  const [dangGui, datDangGui] = useState(false);
+
+  const duGiaTri = chucDanh.trim() !== '' && donVi.trim() !== '' && phamVi.trim() !== '';
+
+  const gui = async (e: React.FormEvent) => {
+    e.preventDefault();
+    datLoi(null);
+    datDangGui(true);
+    try {
+      await va(`/catalog/signers/${k.id}`, {
+        title: chucDanh.trim(),
+        unit: donVi.trim(),
+        signScope: phamVi.trim(),
+        validTo: denNgay,
+      });
+      xong();
+    } catch (err) {
+      datLoi(err);
+    } finally {
+      datDangGui(false);
+    }
+  };
+
+  return (
+    <HopThoai tieuDe={`Sửa ${k.fullName}`} dong={dong}>
+      <form onSubmit={gui}>
+        <p className="ghi-chu">
+          Họ tên và ngày bắt đầu hiệu lực không sửa được — hợp đồng đã xuất mang tên cũ, mà hệ thống
+          không lưu file để đối chiếu lại. Người mới thì khai người mới.
+        </p>
+
+        <Truong id="nk-sua-chuc" nhan="Chức danh" bắtBuộc>
+          {(p) => <input {...p} className="o-nhap" value={chucDanh} onChange={(e) => datChucDanh(e.target.value)} />}
+        </Truong>
+        <Truong id="nk-sua-don-vi" nhan="Đơn vị" bắtBuộc>
+          {(p) => <input {...p} className="o-nhap" value={donVi} onChange={(e) => datDonVi(e.target.value)} />}
+        </Truong>
+        <Truong id="nk-sua-pham-vi" nhan="Phạm vi ký" bắtBuộc>
+          {(p) => <input {...p} className="o-nhap" value={phamVi} onChange={(e) => datPhamVi(e.target.value)} />}
+        </Truong>
+        <Truong id="nk-sua-den" nhan="Hiệu lực đến">
+          {(p) => (
+            <input {...p} className="o-nhap" type="date" value={denNgay} onChange={(e) => datDenNgay(e.target.value)} />
+          )}
+        </Truong>
+        <p className="ghi-chu">Để trống là không thời hạn.</p>
+
+        {loi !== null && <BaoLoi loi={loi} />}
+        <div className="nhom-nut">
+          <button type="submit" className="nut nut-chinh" disabled={dangGui || !duGiaTri}>
+            {dangGui ? 'Đang lưu…' : 'Lưu'}
+          </button>
+          <button type="button" className="nut nut-nhe" onClick={dong}>
+            Huỷ
+          </button>
+        </div>
+      </form>
+    </HopThoai>
   );
 }
 

@@ -2258,10 +2258,40 @@ như lần đó, đọc kỹ trước khi sửa test là việc đáng làm.
 
 Web 103 → 116 case. `DaiThe` rút ra `Chung.tsx` vì giờ có ba chỗ dùng dải thẻ.
 
+
+### Bổ sung ngay trong đợt: sửa và xoá quy định chiết khấu, người ký
+
+Ghi vào nợ xong thì người dùng bảo làm luôn. Trước đó cả hai nhóm chỉ có `POST` — khai nhầm một dòng
+thì phải vào thẳng CSDL, tức là một thao tác không đi qua nhật ký nào.
+
+**Xoá quy định chiết khấu KHÔNG viết lại lịch sử.** `pol.policy_line.threshold_snap`
+(`0001_init.sql:92`) đã đóng băng ngưỡng vào từng dòng hồ sơ lúc lập, nên xoá chỉ đổi cách tính cho
+hồ sơ lập từ đây về sau. Không có chỗ này thì xoá là thao tác nguy hiểm và đáng lẽ phải cấm.
+
+**Sửa chỉ mở hai ô: ngưỡng và ngày kết thúc.** Ba khoá khớp (nhóm · loại khách · kênh) không sửa
+được, vì đổi chúng là đổi `specificity` — tức đổi thứ tự ưu tiên khi nhiều dòng cùng khớp
+(`CAT-11`). Một lần bấm có thể lặng lẽ đảo thứ tự ưu tiên của cả bảng mà không gì trên màn hình nói
+ra. Khai nhầm phạm vi thì xoá rồi khai lại: hai việc rõ ràng thay vì một việc mập mờ. Ba ô đó hiện
+dạng CHỮ trong hộp thoại sửa, không dạng ô nhập.
+
+**Người ký thì NGỪNG là thao tác chính, XOÁ là ngoại lệ.** Cột `is_active` đã có sẵn từ P4. Hệ thống
+không lưu file hợp đồng, nên bản giấy khách hàng đang giữ là dấu vết duy nhất — và nó dẫn chiếu tới
+một cái tên mà CSDL phải còn giải thích được. Họ tên và ngày bắt đầu cũng không sửa: đổi họ tên là
+biến bản ghi thành một người khác trong khi hợp đồng đã xuất vẫn mang tên cũ.
+
+Cả bốn thao tác đều phát `catalog.changed` kèm giá trị TRƯỚC (`CAT-13`), có test khẳng định.
+
+Gặp lại đúng cái bẫy `opt()` của P11a ở `effectiveTo` và `validTo`: chuỗi rỗng phải giữ nghĩa "gỡ
+ngày kết thúc", mà `opt()` biến nó thành `undefined` = "không đụng tới". Đọc thẳng từ thân request,
+như đã làm ở `PATCH /admin/users/:id`.
+
+Một test của tôi sai chứ không phải mã: khẳng định sau khi cắt hiệu lực thì tra ngưỡng rơi về
+`PRODUCT_DEFAULT`, nhưng sản phẩm trong test không có ngưỡng mặc định nên API trả 404
+`THRESHOLD_NOT_CONFIGURED`. Sửa test cho sản phẩm có mặc định, và thêm hai khẳng định hai phía mốc
+thời gian — cắt hiệu lực chứ không xoá.
+
 ### Còn nợ sau P11b
 
 - `/mau-hop-dong` (Sale Admin) — mục menu vẫn đang tạm gỡ, màn hình dựng ở P11c.
 - Tệp đính kèm, bản CSBH A4, hồ sơ pháp lý khách hàng — P11c.
 - Lập/sửa hồ sơ và khách hàng, đổi TDV phụ trách — P11d.
-- Sửa và xoá quy định chiết khấu, người ký: máy chủ chỉ có `POST`, chưa có `PATCH`/`DELETE`. Khai
-  nhầm một dòng thì hiện chưa gỡ được qua giao diện.

@@ -169,6 +169,39 @@ export class CatalogController {
     return this.rules.create(b, me.id);
   }
 
+  /**
+   * CHỈ sửa ngưỡng và ngày kết thúc — ba khoá khớp không sửa được. Xem chú thích
+   * ở `RulesService.update`: đổi khoá khớp là đổi thứ tự ưu tiên của cả bảng.
+   */
+  @Roles('QUAN_TRI')
+  @Patch('discount-rules/:id')
+  updateRule(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, { thresholdRate2: opt(int(0, 10_000)) });
+    // `effectiveTo` không đi qua `opt()`: chuỗi rỗng phải giữ nghĩa "gỡ ngày kết
+    // thúc", mà `opt()` biến nó thành `undefined` = "không đụng tới"
+    // (`validate.ts:92`). Cùng cái bẫy đã gặp ở `PATCH /admin/users/:id`.
+    const raw = (body ?? {}) as Record<string, unknown>;
+    const coDenNgay = Object.prototype.hasOwnProperty.call(raw, 'effectiveTo');
+    const denNgay =
+      raw['effectiveTo'] === null || raw['effectiveTo'] === ''
+        ? null
+        : coDenNgay
+          ? isoDate().parse(raw['effectiveTo'], 'effectiveTo')
+          : undefined;
+
+    return this.rules.update(
+      id,
+      { ...b, ...(coDenNgay ? { effectiveTo: denNgay } : {}) },
+      me.id,
+    );
+  }
+
+  @Roles('QUAN_TRI')
+  @Delete('discount-rules/:id')
+  removeRule(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.rules.remove(id, me.id);
+  }
+
   @Get('thresholds/resolve')
   resolve(
     @Query('productId') productId: string,
@@ -226,6 +259,43 @@ export class CatalogController {
       validTo: opt(isoDate()),
     });
     return this.lookups.createSigner(b, me.id);
+  }
+
+  /** `isActive: false` là cách ngừng dùng một người ký. Xem `updateSigner`. */
+  @Roles('QUAN_TRI')
+  @Patch('signers/:id')
+  updateSigner(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      title: opt(str(1, 120)),
+      unit: opt(str(1, 200)),
+      signScope: opt(str(1, 120)),
+    });
+    const raw = (body ?? {}) as Record<string, unknown>;
+    const coDenNgay = Object.prototype.hasOwnProperty.call(raw, 'validTo');
+    const denNgay =
+      raw['validTo'] === null || raw['validTo'] === ''
+        ? null
+        : coDenNgay
+          ? isoDate().parse(raw['validTo'], 'validTo')
+          : undefined;
+    // Boolean không đi qua `validate` được — bộ kiểm chỉ có str/int/money/oneOf.
+    const conDung = typeof raw['isActive'] === 'boolean' ? (raw['isActive'] as boolean) : undefined;
+
+    return this.lookups.updateSigner(
+      id,
+      {
+        ...b,
+        ...(coDenNgay ? { validTo: denNgay } : {}),
+        ...(conDung !== undefined ? { isActive: conDung } : {}),
+      },
+      me.id,
+    );
+  }
+
+  @Roles('QUAN_TRI')
+  @Delete('signers/:id')
+  removeSigner(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.lookups.removeSigner(id, me.id);
   }
 
   @Post('signers/select')

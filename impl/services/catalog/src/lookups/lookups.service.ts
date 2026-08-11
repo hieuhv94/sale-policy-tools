@@ -102,6 +102,73 @@ export class LookupsService {
     });
   }
 
+  /**
+   * Sửa người ký. `isActive: false` là cách ĐÚNG để ngừng dùng một người.
+   *
+   * Xoá (`removeSigner`) chỉ dành cho dòng vừa khai nhầm. Người đã từng đứng tên
+   * trên hợp đồng xuất ra thì phải ngừng chứ không xoá: hệ thống không lưu file
+   * hợp đồng, nên bản giấy khách hàng đang giữ là dấu vết duy nhất, và nó dẫn
+   * chiếu tới một cái tên mà CSDL phải còn giải thích được.
+   */
+  async updateSigner(
+    id: string,
+    input: {
+      title?: string | undefined;
+      unit?: string | undefined;
+      signScope?: string | undefined;
+      validTo?: string | null | undefined;
+      isActive?: boolean | undefined;
+    },
+    actorId: string,
+  ) {
+    return this.db.tx(async (c) => {
+      const truoc = await c.query(`SELECT * FROM cat.signer WHERE id = $1`, [id]);
+      if (truoc.rowCount === 0) throw new NotFoundException({ code: 'SIGNER_NOT_FOUND' });
+
+      const r = await c.query(
+        `UPDATE cat.signer
+            SET title      = coalesce($2, title),
+                unit       = coalesce($3, unit),
+                sign_scope = coalesce($4, sign_scope),
+                valid_to   = CASE WHEN $6 THEN $5::date ELSE valid_to END,
+                is_active  = coalesce($7, is_active)
+          WHERE id = $1
+        RETURNING full_name AS "fullName", title, unit, sign_scope AS "signScope",
+                  valid_from AS "validFrom", valid_to AS "validTo", is_active AS "isActive"`,
+        [
+          id,
+          input.title ?? null,
+          input.unit ?? null,
+          input.signScope ?? null,
+          input.validTo ?? null,
+          input.validTo !== undefined,
+          input.isActive ?? null,
+        ],
+      );
+      const sau = r.rows[0]!;
+      await emit(
+        c,
+        'catalog.changed',
+        changeEvent('signer', id, actorId, { before: truoc.rows[0], after: sau }),
+      );
+      return { id, ...sau };
+    });
+  }
+
+  /** Xoá hẳn — chỉ dùng cho dòng vừa khai nhầm. Xem chú thích ở `updateSigner`. */
+  async removeSigner(id: string, actorId: string) {
+    return this.db.tx(async (c) => {
+      const truoc = await c.query(`DELETE FROM cat.signer WHERE id = $1 RETURNING *`, [id]);
+      if (truoc.rowCount === 0) throw new NotFoundException({ code: 'SIGNER_NOT_FOUND' });
+      await emit(
+        c,
+        'catalog.changed',
+        changeEvent('signer', id, actorId, { before: truoc.rows[0], after: null }),
+      );
+      return { ok: true };
+    });
+  }
+
   listSigners(activeOn?: string) {
     return this.db.q(
       `SELECT id, full_name AS "fullName", title, unit, sign_scope AS "signScope",

@@ -60,6 +60,79 @@ export class RulesService {
     });
   }
 
+  /**
+   * Sửa NGƯỠNG và NGÀY KẾT THÚC — không sửa được ba khoá khớp.
+   *
+   * Đổi nhóm sản phẩm, loại khách hay kênh là đổi `specificity`, tức là đổi thứ
+   * tự ưu tiên khi nhiều dòng cùng khớp (`CAT-11`). Cho sửa ba ô đó thì một lần
+   * bấm có thể lặng lẽ đảo ngược thứ tự ưu tiên của cả bảng, và không có gì trên
+   * màn hình nói ra điều đó. Khai nhầm phạm vi thì xoá dòng rồi khai lại — hai
+   * việc rõ ràng thay vì một việc mập mờ.
+   *
+   * Sửa KHÔNG viết lại lịch sử: `pol.policy_line.threshold_snap` đã đóng băng
+   * ngưỡng vào từng dòng hồ sơ lúc lập (`0001_init.sql:92`).
+   */
+  async update(
+    id: string,
+    input: { thresholdRate2?: number | undefined; effectiveTo?: string | null | undefined },
+    actorId: string,
+  ) {
+    return this.db.tx(async (c) => {
+      const truoc = await c.query(
+        `SELECT product_group_id, customer_type, channel_code, effective_from,
+                effective_to, threshold_rate2
+           FROM cat.discount_rule WHERE id = $1`,
+        [id],
+      );
+      if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
+
+      const r = await c.query<{ threshold_rate2: number; effective_to: Date | null }>(
+        `UPDATE cat.discount_rule
+            SET threshold_rate2 = coalesce($2, threshold_rate2),
+                effective_to    = CASE WHEN $4 THEN $3::date ELSE effective_to END
+          WHERE id = $1
+        RETURNING threshold_rate2, effective_to`,
+        [
+          id,
+          input.thresholdRate2 ?? null,
+          input.effectiveTo ?? null,
+          input.effectiveTo !== undefined,
+        ],
+      );
+      const sau = r.rows[0]!;
+      await emit(
+        c,
+        'catalog.changed',
+        changeEvent('discount_rule', id, actorId, { before: truoc.rows[0], after: sau }),
+      );
+      return { id, thresholdRate2: sau.threshold_rate2, effectiveTo: sau.effective_to };
+    });
+  }
+
+  /**
+   * Xoá hẳn một quy định.
+   *
+   * An toàn với lịch sử vì cùng lý do trên: hồ sơ đã lập giữ `threshold_snap`
+   * của chính nó. Xoá chỉ đổi cách tính cho hồ sơ lập TỪ ĐÂY VỀ SAU.
+   */
+  async remove(id: string, actorId: string) {
+    return this.db.tx(async (c) => {
+      const truoc = await c.query(
+        `DELETE FROM cat.discount_rule WHERE id = $1
+         RETURNING product_group_id, customer_type, channel_code, effective_from,
+                   effective_to, threshold_rate2`,
+        [id],
+      );
+      if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
+      await emit(
+        c,
+        'catalog.changed',
+        changeEvent('discount_rule', id, actorId, { before: truoc.rows[0], after: null }),
+      );
+      return { ok: true };
+    });
+  }
+
   async list(page: Page) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT r.id, g.code AS "productGroupCode", r.customer_type AS "customerType",

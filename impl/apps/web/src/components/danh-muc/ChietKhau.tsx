@@ -8,7 +8,7 @@
  * "vì sao hồ sơ này lấy ngưỡng 25% chứ không phải 30%" là câu hỏi sẽ được hỏi.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson } from '../../lib/api.js';
+import { dang, layJson, va, xoa } from '../../lib/api.js';
 import { ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
@@ -27,8 +27,23 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [moTao, datMoTao] = useState(false);
+  const [sua, datSua] = useState<QuyDinhChietKhau | null>(null);
+  const [dangXoa, datDangXoa] = useState<string | null>(null);
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
+
+  const go = async (q: QuyDinhChietKhau) => {
+    datLoi(null);
+    datDangXoa(q.id);
+    try {
+      await xoa(`/catalog/discount-rules/${q.id}`);
+      taiLai();
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangXoa(null);
+    }
+  };
 
   useEffect(() => {
     const huy = new AbortController();
@@ -81,6 +96,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                 <th>Ngưỡng</th>
                 <th>Hiệu lực</th>
                 <th>Độ cụ thể</th>
+                {!chiXem && <th>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -93,6 +109,23 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                     {q.effectiveTo ? ` – ${ngay(q.effectiveTo)}` : ' – không thời hạn'}
                   </td>
                   <td className="so">{q.specificity}</td>
+                  {!chiXem && (
+                    <td>
+                      <div className="nhom-nut nhom-nut-gon">
+                        <button type="button" className="nut nut-nhe" onClick={() => datSua(q)}>
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          className="nut nut-canh-bao"
+                          disabled={dangXoa === q.id}
+                          onClick={() => go(q)}
+                        >
+                          Xoá
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -111,7 +144,111 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
           }}
         />
       )}
+
+      {sua && (
+        <HopThoaiSuaQuyDinh
+          q={sua}
+          dong={() => datSua(null)}
+          xong={() => {
+            datSua(null);
+            taiLai();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/**
+ * Sửa chỉ hai ô: ngưỡng và ngày kết thúc.
+ *
+ * Ba khoá khớp (nhóm · loại khách · kênh) hiện ra dạng CHỮ, không dạng ô nhập —
+ * đổi chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng
+ * khớp (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai
+ * lại.
+ */
+function HopThoaiSuaQuyDinh({
+  q,
+  dong,
+  xong,
+}: {
+  q: QuyDinhChietKhau;
+  dong: () => void;
+  xong: () => void;
+}) {
+  const [nguong, datNguong] = useState(phanTramTuNguong(q.thresholdRate2));
+  const [denNgay, datDenNgay] = useState(q.effectiveTo ?? '');
+  const [loi, datLoi] = useState<unknown>(null);
+  const [dangGui, datDangGui] = useState(false);
+
+  const n = Number(nguong);
+  const hopLe = nguong !== '' && Number.isFinite(n) && n >= 0 && n <= 100;
+
+  const gui = async (e: React.FormEvent) => {
+    e.preventDefault();
+    datLoi(null);
+    datDangGui(true);
+    try {
+      // `effectiveTo` gửi chuỗi RỖNG để gỡ ngày kết thúc — máy chủ phân biệt
+      // "không đụng tới" (thiếu trường) với "gỡ" (rỗng).
+      await va(`/catalog/discount-rules/${q.id}`, {
+        thresholdRate2: nguongTuPhanTram(nguong),
+        effectiveTo: denNgay,
+      });
+      xong();
+    } catch (err) {
+      datLoi(err);
+    } finally {
+      datDangGui(false);
+    }
+  };
+
+  return (
+    <HopThoai tieuDe="Sửa quy định chiết khấu" dong={dong}>
+      <form onSubmit={gui}>
+        <p className="ghi-chu">
+          Áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực từ {ngay(q.effectiveFrom)}.
+          Ba ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
+          vi thì xoá dòng này rồi khai lại.
+        </p>
+
+        <Truong
+          id="ck-sua-nguong"
+          nhan="Ngưỡng chiết khấu (%)"
+          bắtBuộc
+          loi={nguong !== '' && !hopLe ? 'Nhập một số từ 0 đến 100.' : undefined}
+        >
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap o-nhap-hep so"
+              inputMode="decimal"
+              value={nguong}
+              onChange={(e) => datNguong(e.target.value)}
+            />
+          )}
+        </Truong>
+        <Truong id="ck-sua-den" nhan="Hiệu lực đến">
+          {(p) => (
+            <input {...p} className="o-nhap" type="date" value={denNgay} onChange={(e) => datDenNgay(e.target.value)} />
+          )}
+        </Truong>
+        <p className="ghi-chu">
+          Để trống là không thời hạn. Sửa <strong>không</strong> làm đổi hồ sơ đã lập — mỗi dòng hồ
+          sơ giữ ngưỡng đã chụp lúc lập.
+        </p>
+
+        {loi !== null && <BaoLoi loi={loi} />}
+        <div className="nhom-nut">
+          <button type="submit" className="nut nut-chinh" disabled={dangGui || !hopLe}>
+            {dangGui ? 'Đang lưu…' : 'Lưu'}
+          </button>
+          <button type="button" className="nut nut-nhe" onClick={dong}>
+            Huỷ
+          </button>
+        </div>
+      </form>
+    </HopThoai>
   );
 }
 

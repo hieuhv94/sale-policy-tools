@@ -585,3 +585,198 @@ describe('AD-02 catalog không đọc chéo schema khác', () => {
     expect(err?.code).toBe('42501');
   });
 });
+
+// =============================================================================
+// Sửa và xoá quy định chiết khấu, người ký
+//
+// Trước đợt này cả hai nhóm chỉ có POST. Khai nhầm một dòng thì không gỡ được
+// qua API — phải vào thẳng CSDL, tức là một thao tác không đi qua nhật ký nào.
+// =============================================================================
+
+describe('sửa và xoá quy định chiết khấu', () => {
+  const mkRule = async (over: Record<string, unknown> = {}) => {
+    const { groupCode } = await makeProduct();
+    const r = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 1,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1500,
+      ...over,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    return { id: r.body.id as string, groupCode };
+  };
+
+  it('sửa ngưỡng rồi tra lại ra con số mới', async () => {
+    const { id, groupCode } = await mkRule();
+    const sp = await post('/catalog/products', {
+      code: code('P'),
+      name: 'San pham',
+      groupCode,
+    });
+
+    const sua = await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 2200 });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+
+    const tra = await get(
+      `/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1`,
+    );
+    expect(tra.body.thresholdRate2).toBe(2200);
+  });
+
+  it('đặt ngày kết thúc thì dòng thôi khớp sau ngày đó', async () => {
+    const { id, groupCode } = await mkRule();
+    // Sản phẩm có ngưỡng mặc định, để lúc dòng thôi khớp thì thấy nó RƠI VỀ ĐÂU.
+    // Không có mặc định thì API trả 404 THRESHOLD_NOT_CONFIGURED, và test không
+    // phân biệt được "dòng hết hiệu lực" với "tra hỏng vì lý do khác".
+    const sp = await post('/catalog/products', {
+      code: code('P'),
+      name: 'SP',
+      groupCode,
+      defaultRate2Type1: 999,
+    });
+    const tra = (on: string) =>
+      get(`/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1&on=${on}`);
+
+    expect((await tra('2026-01-01')).body.source).toBe('RULE');
+
+    await patch(`/catalog/discount-rules/${id}`, { effectiveTo: '2020-12-31' });
+
+    const sau = await tra('2026-01-01');
+    expect(sau.body.source).toBe('PRODUCT_DEFAULT');
+    expect(sau.body.thresholdRate2).toBe(999);
+    // Trước ngày kết thúc thì dòng vẫn khớp — cắt hiệu lực chứ không xoá.
+    expect((await tra('2020-06-01')).body.source).toBe('RULE');
+  });
+
+  it('chuỗi rỗng GỠ ngày kết thúc, thiếu trường thì giữ nguyên', async () => {
+    // Cùng cái bẫy `opt()` đã gặp ở PATCH /admin/users/:id: bộ kiểm dùng chung
+    // biến '' thành undefined, nên hai trường hợp này phải đọc thẳng từ thân.
+    const { id } = await mkRule({ effectiveTo: '2020-12-31' });
+
+    await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 1600 });
+    let ds = (await get('/catalog/discount-rules?limit=200')).body.items as {
+      id: string;
+      effectiveTo: string | null;
+      thresholdRate2: number;
+    }[];
+    let dong = ds.find((x) => x.id === id)!;
+    expect(dong.effectiveTo).not.toBeNull();
+    expect(dong.thresholdRate2).toBe(1600);
+
+    await patch(`/catalog/discount-rules/${id}`, { effectiveTo: '' });
+    ds = (await get('/catalog/discount-rules?limit=200')).body.items as typeof ds;
+    dong = ds.find((x) => x.id === id)!;
+    expect(dong.effectiveTo).toBeNull();
+  });
+
+  it('KHÔNG sửa được ba khoá khớp — độ cụ thể giữ nguyên', async () => {
+    // Đổi nhóm/loại khách/kênh là đổi `specificity`, tức đổi thứ tự ưu tiên của
+    // cả bảng (CAT-11). Trường lạ bị bỏ qua, không được âm thầm ghi vào.
+    const { id } = await mkRule();
+    const truoc = ((await get('/catalog/discount-rules?limit=200')).body.items as {
+      id: string;
+      specificity: number;
+      customerType: number | null;
+    }[]).find((x) => x.id === id)!;
+
+    await patch(`/catalog/discount-rules/${id}`, { customerType: 3, productGroupCode: null });
+
+    const sau = ((await get('/catalog/discount-rules?limit=200')).body.items as typeof truoc[]).find(
+      (x) => x.id === id,
+    )!;
+    expect(sau.customerType).toBe(truoc.customerType);
+    expect(sau.specificity).toBe(truoc.specificity);
+  });
+
+  it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {
+    const { id } = await mkRule();
+    expect((await del(`/catalog/discount-rules/${id}`)).status).toBe(200);
+
+    const ds = (await get('/catalog/discount-rules?limit=200')).body.items as { id: string }[];
+    expect(ds.some((x) => x.id === id)).toBe(false);
+
+    expect((await del(`/catalog/discount-rules/${id}`)).status).toBe(404);
+  });
+
+  it('sửa và xoá đều phát sự kiện nhật ký kèm giá trị TRƯỚC (CAT-13)', async () => {
+    const { id } = await mkRule();
+
+    await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 3000 });
+    let ev = await lastEvent('catalog.changed');
+    expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(1500);
+
+    await del(`/catalog/discount-rules/${id}`);
+    ev = await lastEvent('catalog.changed');
+    expect(ev!['after']).toBeNull();
+    expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(3000);
+  });
+
+  it('vai trò khác Quản trị không sửa và không xoá được', async () => {
+    const { id } = await mkRule();
+    expect((await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 1 }, tdvT)).status).toBe(403);
+    expect((await del(`/catalog/discount-rules/${id}`, tdvT)).status).toBe(403);
+  });
+});
+
+describe('sửa và xoá người ký', () => {
+  const mkSigner = async (over: Record<string, unknown> = {}) => {
+    const r = await post('/catalog/signers', {
+      fullName: `${P} Nguoi ky sua`,
+      title: 'Giam doc',
+      unit: 'Nutricare',
+      signScope: 'CSBH',
+      validFrom: '2020-01-01',
+      ...over,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    return r.body.id as string;
+  };
+
+  it('ngừng dùng thì KHÔNG chọn được nữa, dùng lại thì chọn được', async () => {
+    // `isActive: false` là cách đúng để ngừng một người ký — hợp đồng đã xuất
+    // mang tên họ, mà hệ thống không lưu file để đối chiếu lại.
+    const id = await mkSigner();
+    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(200);
+
+    expect((await patch(`/catalog/signers/${id}`, { isActive: false })).status).toBe(200);
+    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(400);
+
+    await patch(`/catalog/signers/${id}`, { isActive: true });
+    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(200);
+  });
+
+  it('sửa được phạm vi ký', async () => {
+    const id = await mkSigner();
+    expect((await post('/catalog/signers/select', { signerId: id, scope: 'HOP_DONG' })).status).toBe(400);
+
+    await patch(`/catalog/signers/${id}`, { signScope: 'HOP_DONG' });
+    expect((await post('/catalog/signers/select', { signerId: id, scope: 'HOP_DONG' })).status).toBe(200);
+  });
+
+  it('họ tên và ngày bắt đầu KHÔNG sửa được', async () => {
+    const id = await mkSigner();
+    await patch(`/catalog/signers/${id}`, { fullName: 'Ten khac', validFrom: '2030-01-01' });
+
+    const ds = (await get('/catalog/signers')).body as {
+      id: string;
+      fullName: string;
+      validFrom: string;
+    }[];
+    const k = ds.find((x) => x.id === id)!;
+    expect(k.fullName).toBe(`${P} Nguoi ky sua`);
+    expect(String(k.validFrom)).toContain('2020-01-01');
+  });
+
+  it('xoá rồi thì 404 ở lần xoá thứ hai', async () => {
+    const id = await mkSigner();
+    expect((await del(`/catalog/signers/${id}`)).status).toBe(200);
+    expect((await del(`/catalog/signers/${id}`)).status).toBe(404);
+  });
+
+  it('vai trò khác Quản trị không sửa và không xoá được', async () => {
+    const id = await mkSigner();
+    expect((await patch(`/catalog/signers/${id}`, { isActive: false }, tdvT)).status).toBe(403);
+    expect((await del(`/catalog/signers/${id}`, tdvT)).status).toBe(403);
+  });
+});

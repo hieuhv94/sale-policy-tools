@@ -270,12 +270,26 @@ của ô đó. Nhiều quy định cùng khớp một tình huống là bình th
 cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
 nhìn thấy.
 
+- **Sửa** chỉ đổi được *ngưỡng* và *ngày kết thúc*. Ba ô phạm vi (nhóm · loại khách · kênh) không
+  sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai
+  lại**.
+- **Sửa và xoá không làm đổi hồ sơ đã lập.** Mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập; thay đổi ở
+  đây chỉ áp dụng cho hồ sơ lập **từ đây về sau**.
+- Muốn một quy định thôi áp dụng từ một ngày nào đó thì **đặt ngày kết thúc**, đừng xoá — xoá là mất
+  luôn dấu vết vì sao khoảng thời gian trước đó lại dùng ngưỡng ấy.
+
 **4. Danh mục tra cứu** — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
 chọn trong biểu mẫu khách hàng**; để trống thì người lập khách hàng gặp ba ô rỗng. Thêm lại một mã
 đã có sẽ đổi tên mã đó, không tạo bản thứ hai.
 
 **5. Người ký** — người đứng tên trên hợp đồng xuất ra. Mỗi người có phạm vi ký và khoảng hiệu lực
 riêng; ký ngoài phạm vi hoặc ngoài hạn thì hệ thống từ chối.
+
+- Người thôi giữ chức thì bấm **Ngừng dùng**, đừng xoá. Hệ thống không lưu file hợp đồng, nên bản
+  giấy khách hàng đang giữ là dấu vết duy nhất — và nó dẫn chiếu tới một cái tên mà phần mềm phải
+  còn giải thích được. **Xoá** chỉ dành cho dòng vừa khai nhầm.
+- **Họ tên và ngày bắt đầu hiệu lực không sửa được.** Đổi họ tên là biến bản ghi thành một người
+  khác trong khi hợp đồng đã xuất vẫn mang tên cũ. Người mới thì khai người mới.
 
 ## 14. Dùng trên điện thoại
 
