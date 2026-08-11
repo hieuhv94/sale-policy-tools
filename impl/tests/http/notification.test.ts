@@ -306,7 +306,7 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
     const all = await listMail();
     const addrs = all.flatMap((m) => m.To.map((t) => t.Address));
     expect(addrs).not.toContain('tdv03@csbh.test');
-    // tbp02 duyệt bộ phận BP02; hồ sơ này của tdv01 thuộc BP01.
+    // tbp02 duyệt tdv03; hồ sơ này của tdv01, do tbp01 duyệt.
     expect(addrs).not.toContain('tbp02@csbh.test');
   });
 });

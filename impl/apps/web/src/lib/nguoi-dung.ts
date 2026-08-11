@@ -13,16 +13,15 @@
 import type { VaiTro } from './can.js';
 
 export type TruongThem =
-  /** Ô chọn Trưởng bộ phận; lưu xuống thành `departmentCode` của bộ phận người đó duyệt. */
+  /** Ô chọn Trưởng bộ phận duyệt hồ sơ của TDV này; lưu thành `approverUsername`. */
   | 'tbp-quan-ly'
-  /** Ô chọn bộ phận + đánh dấu người duyệt chính. Chỉ TBP có. */
-  | 'bo-phan-phu-trach'
   /** Ô chọn cấp trên trong cây dữ liệu Sale Admin → kế toán → TDV. */
   | 'cap-tren';
 
 export const TRUONG_THEM: Record<VaiTro, TruongThem[]> = {
   TDV: ['tbp-quan-ly', 'cap-tren'],
-  TBP: ['bo-phan-phu-trach'],
+  // Trưởng bộ phận đứng ngoài cây dữ liệu: TDV trỏ ngược lên họ, không ngược lại.
+  TBP: [],
   KE_TOAN: ['cap-tren'],
   // Sale Admin là gốc của cây dữ liệu, Ban lãnh đạo và Quản trị đứng ngoài cây.
   SALE_ADMIN: [],
@@ -62,16 +61,9 @@ export type NguoiDungDto = {
   role: VaiTro;
   isActive: boolean;
   activatedAt: string | null;
-  departmentCode: string | null;
-  departmentName: string | null;
+  approverUsername: string | null;
+  approverName: string | null;
   parentUsername: string | null;
-};
-
-export type BoPhanDto = {
-  id: string;
-  code: string;
-  name: string;
-  approvers: { userId: string; username: string; fullName: string; isPrimary: boolean }[];
 };
 
 /** Ba trạng thái tài khoản, theo thứ tự người quản trị cần xử lý. */
@@ -82,15 +74,21 @@ export function trangThaiTaiKhoan(u: NguoiDungDto): string {
 }
 
 /**
- * Bộ phận mà một TBP đang duyệt. Dùng để dịch ô chọn "Trưởng bộ phận quản lý"
- * trên biểu mẫu TDV thành `departmentCode` gửi lên máy chủ.
+ * Trường nào BẮT BUỘC khi tạo tài khoản vai trò này.
  *
- * Một TBP có thể duyệt nhiều bộ phận; lấy bộ phận đầu tiên theo thứ tự mã. Đó là
- * lựa chọn có chủ ý chứ không phải bỏ sót: giao diện chỉ cho chọn MỘT bộ phận
- * cho TDV, nên phải quyết định ở đâu đó, và quyết định ở đây thì đọc được.
+ * Đọc từ đúng thứ máy chủ chặn (`users.service.ts`): TDV không có Trưởng bộ phận
+ * quản lý là tài khoản chết — hồ sơ họ gửi không tới ai. Cấp trên thì không bắt
+ * buộc: một TDV chưa gán kế toán vẫn gửi được hồ sơ, chỉ là kế toán không thấy
+ * trong danh sách của mình.
  */
-export const boPhanCuaTbp = (ds: BoPhanDto[], userId: string): BoPhanDto | undefined =>
-  ds.find((b) => b.approvers.some((a) => a.userId === userId));
+export const TRUONG_BAT_BUOC: Record<VaiTro, TruongThem[]> = {
+  TDV: ['tbp-quan-ly'],
+  TBP: [],
+  KE_TOAN: [],
+  SALE_ADMIN: [],
+  BAN_LANH_DAO: [],
+  QUAN_TRI: [],
+};
 
 /** Mật khẩu mặc định dùng đúng một lần — tài khoản mới luôn phải đổi khi đăng nhập. */
 export function matKhauNgauNhien(): string {

@@ -11,13 +11,9 @@ import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, HopThoai, ONhapTien, Truong } from './Chung.js';
 
+export { suaDuoc } from '../lib/sua-ho-so.js';
+
 type SanPham = { id: string; code: string; name: string };
-
-/** Hành động chỉ có ở hồ sơ đang sửa được — dùng để suy ra "có sửa được không". */
-const HANH_DONG_SUA = ['SUBMIT', 'RESUBMIT_AFTER_EDIT'];
-
-export const suaDuoc = (choPhep: string[]): boolean =>
-  choPhep.some((a) => HANH_DONG_SUA.includes(a));
 
 export function ThemDongSanPham({
   hoSoId,

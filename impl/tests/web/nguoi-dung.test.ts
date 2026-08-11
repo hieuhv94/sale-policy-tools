@@ -11,11 +11,10 @@ import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import {
   NHAN_VAI_TRO,
   TRUONG_THEM,
+  TRUONG_BAT_BUOC,
   VAI_TRO_CAP_TREN,
-  boPhanCuaTbp,
   matKhauNgauNhien,
   trangThaiTaiKhoan,
-  type BoPhanDto,
   type NguoiDungDto,
 } from '@csbh/web/nguoi-dung';
 
@@ -27,15 +26,15 @@ const nguoi = (p: Partial<NguoiDungDto>): NguoiDungDto => ({
   role: 'TDV',
   isActive: true,
   activatedAt: '2026-08-01T00:00:00Z',
-  departmentCode: null,
-  departmentName: null,
+  approverUsername: null,
+  approverName: null,
   parentUsername: null,
   ...p,
 });
 
 describe('ba bảng tra phủ đủ sáu vai trò', () => {
   it('không vai trò nào thiếu khoá', () => {
-    for (const bang of [TRUONG_THEM, VAI_TRO_CAP_TREN, NHAN_VAI_TRO]) {
+    for (const bang of [TRUONG_THEM, TRUONG_BAT_BUOC, VAI_TRO_CAP_TREN, NHAN_VAI_TRO]) {
       expect(Object.keys(bang).sort()).toEqual([...VAI_TRO].sort());
     }
   });
@@ -51,20 +50,16 @@ describe('trường thêm đúng theo vai trò', () => {
     expect(TRUONG_THEM.TDV).toContain('tbp-quan-ly');
   });
 
-  it('CHỈ Trưởng bộ phận có ô chọn bộ phận phụ trách', () => {
-    const co = VAI_TRO.filter((v) => TRUONG_THEM[v].includes('bo-phan-phu-trach'));
-    expect(co).toEqual(['TBP']);
+  it('CHỈ TDV có ô chọn Trưởng bộ phận quản lý', () => {
+    // Máy chủ chặn vai trò khác ở `users.service.ts:resolveApprover`; giao diện
+    // không được bày ra một ô mà bấm xong chắc chắn nhận 400.
+    const co = VAI_TRO.filter((v) => TRUONG_THEM[v].includes('tbp-quan-ly'));
+    expect(co).toEqual(['TDV']);
   });
 
-  it('chỉ TBP mới nhận ô bộ phận phụ trách vì chỉ TBP làm người duyệt được', () => {
-    // Máy chủ chặn vai trò khác ở `departments.service.ts`; giao diện không được
-    // bày ra một ô mà bấm xong chắc chắn nhận 400.
-    expect(TRUONG_THEM.TDV).not.toContain('bo-phan-phu-trach');
-    expect(TRUONG_THEM.KE_TOAN).not.toContain('bo-phan-phu-trach');
-  });
-
-  it('ba vai trò ngoài cây dữ liệu không có trường cây nào', () => {
-    for (const v of ['SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI'] as VaiTro[]) {
+  it('bốn vai trò ngoài cây dữ liệu không có trường cây nào', () => {
+    // Trưởng bộ phận nằm ở đây từ 0017: TDV trỏ ngược lên họ, họ không trỏ đi đâu.
+    for (const v of ['TBP', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI'] as VaiTro[]) {
       expect(TRUONG_THEM[v], v).toEqual([]);
     }
   });
@@ -89,25 +84,22 @@ describe('trường thêm đúng theo vai trò', () => {
   });
 });
 
-describe('suy bộ phận từ Trưởng bộ phận đã chọn', () => {
-  const bp: BoPhanDto[] = [
-    {
-      id: 'b1',
-      code: 'KDMB',
-      name: 'Kinh doanh miền Bắc',
-      approvers: [{ userId: 'tbp1', username: 'tbp01', fullName: 'A', isPrimary: true }],
-    },
-    { id: 'b2', code: 'KDMN', name: 'Kinh doanh miền Nam', approvers: [] },
-  ];
-
-  it('chọn một TBP thì ra đúng bộ phận người đó duyệt', () => {
-    expect(boPhanCuaTbp(bp, 'tbp1')?.code).toBe('KDMB');
+describe('trường bắt buộc', () => {
+  it('TDV BẮT BUỘC có Trưởng bộ phận quản lý', () => {
+    // Một TDV không có người duyệt là tài khoản chết: hồ sơ họ gửi không tới ai,
+    // đứng im tới khi quá hạn. `users.service.ts` chặn ở máy chủ; bảng này là
+    // bản sao ở giao diện để chặn TRƯỚC khi gửi đi.
+    expect(TRUONG_BAT_BUOC.TDV).toContain('tbp-quan-ly');
   });
 
-  it('TBP chưa duyệt bộ phận nào thì KHÔNG suy ra bộ phận', () => {
-    // Phải trả `undefined` chứ không rơi về bộ phận đầu danh sách: gán im lặng
-    // một TDV vào bộ phận sai là hồ sơ chạy tới nhầm người duyệt.
-    expect(boPhanCuaTbp(bp, 'tbp-chua-gan')).toBeUndefined();
+  it('trường bắt buộc luôn là tập con của trường có mặt', () => {
+    // Đánh dấu bắt buộc một ô KHÔNG được vẽ ra là biểu mẫu không bao giờ gửi
+    // được, mà không có gì trên màn hình chỉ ra thiếu cái gì.
+    for (const v of VAI_TRO) {
+      for (const t of TRUONG_BAT_BUOC[v]) {
+        expect(TRUONG_THEM[v], `${v}: ${t} bắt buộc nhưng không có ô nào`).toContain(t);
+      }
+    }
   });
 });
 

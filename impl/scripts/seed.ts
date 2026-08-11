@@ -14,15 +14,15 @@ if (process.env.NODE_ENV === 'production') {
 
 const PASSWORD = 'Test@1234';
 
-type Row = { u: string; name: string; role: string; dept?: string; parent?: string };
+type Row = { u: string; name: string; role: string; tbp?: string; parent?: string };
 
 const USERS: Row[] = [
   { u: 'sa01',    name: 'Sale Admin 01',        role: 'SALE_ADMIN' },
   { u: 'kt01',    name: 'Ke toan 01',           role: 'KE_TOAN',    parent: 'sa01' },
   { u: 'kt02',    name: 'Ke toan 02',           role: 'KE_TOAN',    parent: 'sa01' },
-  { u: 'tdv01',   name: 'Trinh duoc vien 01',   role: 'TDV', dept: 'BP01', parent: 'kt01' },
-  { u: 'tdv02',   name: 'Trinh duoc vien 02',   role: 'TDV', dept: 'BP01', parent: 'kt01' },
-  { u: 'tdv03',   name: 'Trinh duoc vien 03',   role: 'TDV', dept: 'BP02', parent: 'kt02' },
+  { u: 'tdv01',   name: 'Trinh duoc vien 01',   role: 'TDV', tbp: 'tbp01', parent: 'kt01' },
+  { u: 'tdv02',   name: 'Trinh duoc vien 02',   role: 'TDV', tbp: 'tbp01', parent: 'kt01' },
+  { u: 'tdv03',   name: 'Trinh duoc vien 03',   role: 'TDV', tbp: 'tbp02', parent: 'kt02' },
   { u: 'tbp01',   name: 'Truong bo phan 01',    role: 'TBP' },
   { u: 'tbp02',   name: 'Truong bo phan 02',    role: 'TBP' },
   { u: 'bld01',   name: 'Ban lanh dao',         role: 'BAN_LANH_DAO' },
@@ -39,26 +39,27 @@ const main = async () => {
   await db.connect();
   await db.query('BEGIN');
 
-  for (const [code, name] of [['BP01', 'Bo phan Mien Bac'], ['BP02', 'Bo phan Mien Nam']]) {
-    await db.query(
-      `INSERT INTO idn.department (code, name) VALUES ($1,$2)
-       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name`, [code, name]);
-  }
-
   const hash = await hashPassword(PASSWORD);
   const id: Record<string, string> = {};
 
+  // Hai lượt: tài khoản trước, người duyệt sau. `approver_user_id` trỏ vào chính
+  // bảng này nên tbp01 phải TỒN TẠI trước khi tdv01 trỏ vào được.
   for (const r of USERS) {
     const res = await db.query(
-      `INSERT INTO idn.app_user (username, email, full_name, role, department_id, password_hash)
-       VALUES ($1,$2,$3,$4::idn.user_role,
-               (SELECT id FROM idn.department WHERE code = $5), $6)
+      `INSERT INTO idn.app_user (username, email, full_name, role, password_hash)
+       VALUES ($1,$2,$3,$4::idn.user_role,$5)
        ON CONFLICT (username) DO UPDATE
          SET full_name = EXCLUDED.full_name, role = EXCLUDED.role,
-             department_id = EXCLUDED.department_id, password_hash = EXCLUDED.password_hash
+             password_hash = EXCLUDED.password_hash
        RETURNING id`,
-      [r.u, `${r.u}@csbh.test`, r.name, r.role, r.dept ?? null, hash]);
+      [r.u, `${r.u}@csbh.test`, r.name, r.role, hash]);
     id[r.u] = res.rows[0].id;
+  }
+
+  for (const r of USERS.filter((x) => x.tbp)) {
+    await db.query(
+      `UPDATE idn.app_user SET approver_user_id = $2 WHERE id = $1`,
+      [id[r.u], id[r.tbp!]]);
   }
 
   for (const r of USERS) {
@@ -66,14 +67,6 @@ const main = async () => {
       `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)
        ON CONFLICT (user_id) DO UPDATE SET parent_id = EXCLUDED.parent_id`,
       [id[r.u], r.parent ? id[r.parent] : null]);
-  }
-
-  // tbp01 duyệt bộ phận BP01, tbp02 duyệt BP02. Đổi người giữ chức = đổi dòng ở đây.
-  for (const [user, dept] of [['tbp01', 'BP01'], ['tbp02', 'BP02']]) {
-    await db.query(
-      `INSERT INTO idn.department_approver (department_id, user_id)
-       VALUES ((SELECT id FROM idn.department WHERE code=$1), $2)
-       ON CONFLICT DO NOTHING`, [dept, id[user!]]);
   }
 
   await db.query('COMMIT');

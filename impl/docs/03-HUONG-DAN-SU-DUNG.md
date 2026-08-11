@@ -247,32 +247,29 @@ tải. File chứa **đúng tập đang lọc**, cột tiền là **số** nên 
 
 File kết xuất **chỉ người bấm xuất tải được**, và hết hạn lưu sau 24 giờ.
 
-## 12. Người dùng và bộ phận (Quản trị hệ thống)
+## 12. Người dùng (Quản trị hệ thống)
 
-*Người dùng* — hai thẻ: **Người dùng** và **Bộ phận**.
+*Người dùng* — hai thẻ: **Người dùng** và **Hệ thống**.
 
-### Thứ tự bắt buộc: bộ phận trước, Trưởng bộ phận sau, Trình dược viên sau cùng
+### Thứ tự bắt buộc: Trưởng bộ phận trước, Trình dược viên sau
 
-Hồ sơ của Trình dược viên đi tới Trưởng bộ phận **theo bộ phận**, không theo liên kết cá nhân. Làm
-sai thứ tự thì tài khoản tạo ra vẫn đăng nhập được mà **không nhận được hồ sơ nào**.
+Hồ sơ của Trình dược viên đi tới **đúng Trưởng bộ phận được gán cho người đó**. Chưa có tài khoản
+Trưởng bộ phận nào thì ô chọn rỗng và **không tạo được** Trình dược viên.
 
-1. **Tạo bộ phận** ở thẻ *Bộ phận* — mã và tên.
-2. **Tạo tài khoản Trưởng bộ phận**, chọn *Bộ phận phụ trách*. Đánh dấu *người duyệt chính* cho
-   người chịu trách nhiệm; những người còn lại của cùng bộ phận là **người duyệt thay** khi người
-   chính đi vắng.
-3. **Tạo tài khoản Trình dược viên**, chọn *Trưởng bộ phận quản lý*. Màn hình hiện luôn dòng
-   *"Hồ sơ sẽ đi tới bộ phận: …"* — đọc dòng đó trước khi bấm Tạo.
-
-Chọn một Trưởng bộ phận **chưa được gán vào bộ phận nào** thì ô báo lỗi ngay và không cho lưu.
+1. **Tạo tài khoản Trưởng bộ phận** — không có trường nào thêm ngoài họ tên, tài khoản và thư.
+2. **Tạo tài khoản Trình dược viên**, chọn *Trưởng bộ phận quản lý*. Đây là trường **bắt buộc**:
+   một Trình dược viên không có người duyệt là tài khoản chết — hồ sơ họ gửi không tới ai, đứng im
+   cho tới khi quá hạn.
 
 ### Trường theo vai trò
 
+Trường có dấu <span aria-hidden="true">\*</span> là **bắt buộc**, không điền thì nút Tạo không bấm được.
+
 | Vai trò tạo | Trường phải điền thêm |
 |---|---|
-| Trình dược viên | Trưởng bộ phận quản lý · Cấp trên (Kế toán) |
-| Trưởng bộ phận | Bộ phận phụ trách · có phải người duyệt chính không |
+| Trình dược viên | Trưởng bộ phận quản lý **\*** · Cấp trên (Kế toán) |
 | Kế toán | Cấp trên (Sale Admin) |
-| Sale Admin · Ban lãnh đạo · Quản trị hệ thống | không có |
+| Trưởng bộ phận · Sale Admin · Ban lãnh đạo · Quản trị hệ thống | không có |
 
 *Cấp trên* dựng cây **xem dữ liệu**: Sale Admin thấy hồ sơ của các Kế toán dưới mình, Kế toán thấy
 của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ phận quản lý*, thứ quyết định hồ sơ chạy
@@ -280,7 +277,8 @@ của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ
 
 ### Sửa, vô hiệu hoá, gửi lại thư mời
 
-- **Sửa** đổi được họ tên, bộ phận và cấp trên. **Không đổi được vai trò** — đổi vai trò làm hồ sơ
+- **Sửa** đổi được họ tên, Trưởng bộ phận quản lý và cấp trên — đổi người giữ chức chỉ là sửa lại ô
+  này ở từng Trình dược viên liên quan. **Không đổi được vai trò** — đổi vai trò làm hồ sơ
   đang dở mắc kẹt giữa luồng. Cần đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
 - **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Không có
   chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới tài khoản, xoá đi là mất dấu vết.

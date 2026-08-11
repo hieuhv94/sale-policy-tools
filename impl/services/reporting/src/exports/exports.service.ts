@@ -50,7 +50,7 @@ export class ExportsService {
 
   /**
    * Nhận yêu cầu và trả về NGAY. Phạm vi dữ liệu chốt ở thời điểm này, không ở
-   * thời điểm việc chạy: người dùng bấm xuất rồi bị chuyển bộ phận hai giây sau
+   * thời điểm việc chạy: người dùng bấm xuất rồi bị chuyển sang nhánh khác hai giây sau
    * thì file phải chứa đúng những gì họ được xem lúc bấm.
    */
   async request(me: AuthUser, filter: Filter): Promise<{ jobId: string; status: string }> {

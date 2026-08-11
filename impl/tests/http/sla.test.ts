@@ -499,7 +499,7 @@ describe('NTF-07 trang chủ theo từng vai trò', () => {
   }, 90_000);
 
   it('không thấy hồ sơ ngoài phạm vi dữ liệu của mình', async () => {
-    // tdv03 thuộc bộ phận BP02, do tbp02 duyệt. tbp01 không được thấy.
+    // tdv03 do tbp02 duyệt. tbp01 không được thấy.
     const id = await submitted('tdv03');
     const tbp1 = (await pget('/policies/inbox?limit=200', 'tbp01')).body.items as { id: string }[];
     expect(tbp1.map((x) => x.id)).not.toContain(id);

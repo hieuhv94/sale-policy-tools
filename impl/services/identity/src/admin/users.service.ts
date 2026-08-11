@@ -22,8 +22,8 @@ export type RoleValue = (typeof ROLE_VALUES)[number];
 
 export type UpdateUserInput = {
   fullName?: string | undefined;
-  /** Chuỗi rỗng = gỡ khỏi bộ phận. `undefined` = không đụng tới. */
-  departmentCode?: string | undefined;
+  /** Chuỗi rỗng = gỡ Trưởng bộ phận quản lý. `undefined` = không đụng tới. */
+  approverUsername?: string | undefined;
   /** Chuỗi rỗng = gỡ cấp trên. `undefined` = không đụng tới. */
   parentUsername?: string | undefined;
 };
@@ -34,7 +34,8 @@ export type CreateUserInput = {
   fullName: string;
   role: RoleValue;
   defaultPassword: string;
-  departmentCode?: string | undefined;
+  /** Tài khoản Trưởng bộ phận duyệt hồ sơ của TDV này. BẮT BUỘC khi `role` là TDV. */
+  approverUsername?: string | undefined;
   parentUsername?: string | undefined;
 };
 
@@ -65,15 +66,17 @@ export class UsersService {
     // liên kết không kích hoạt được cái gì (ONB-03).
     if (dup) throw new ConflictException({ code: 'EMAIL_DUPLICATE' });
 
-    let departmentId: string | null = null;
-    if (input.departmentCode) {
-      const d = await this.db.one<{ id: string }>(
-        `SELECT id FROM idn.department WHERE code = $1`,
-        [input.departmentCode],
-      );
-      if (!d) throw new NotFoundException({ code: 'DEPARTMENT_NOT_FOUND' });
-      departmentId = d.id;
+    // Một TDV KHÔNG CÓ người duyệt là một tài khoản không dùng được: hồ sơ họ
+    // gửi đi không tới ai, đứng im tới khi quá hạn, và không có chỗ nào trong
+    // sản phẩm nói vì sao. Chặn ngay lúc tạo thay vì để phát hiện ở hồ sơ đầu tiên.
+    if (input.role === 'TDV' && !input.approverUsername) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'approverUsername',
+        message: 'Trình dược viên phải có Trưởng bộ phận quản lý',
+      });
     }
+    const approverId = await this.resolveApprover(input.role, input.approverUsername);
 
     let parentId: string | null = null;
     if (input.parentUsername) {
@@ -91,7 +94,7 @@ export class UsersService {
     const created = await this.db.tx(async (c) => {
       const r = await c.query<{ id: string }>(
         `INSERT INTO idn.app_user
-           (username, email, full_name, role, department_id, password_hash,
+           (username, email, full_name, role, approver_user_id, password_hash,
             must_change_password, created_by)
          VALUES ($1,$2,$3,$4::idn.user_role,$5,$6,true,$7)
          RETURNING id`,
@@ -100,7 +103,7 @@ export class UsersService {
           input.email,
           input.fullName,
           input.role,
-          departmentId,
+          approverId,
           hash,
           createdBy,
         ],
@@ -176,24 +179,30 @@ export class UsersService {
    * Muốn đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
    */
   async update(userId: string, input: UpdateUserInput) {
-    const cur = await this.db.one<{ id: string }>(`SELECT id FROM idn.app_user WHERE id = $1`, [
-      userId,
-    ]);
+    const cur = await this.db.one<{ id: string; role: RoleValue }>(
+      `SELECT id, role::text AS role FROM idn.app_user WHERE id = $1`,
+      [userId],
+    );
     if (!cur) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
 
     // `undefined` = không đụng tới; chuỗi rỗng = gỡ liên kết. Gộp hai thứ đó làm
     // một thì không bao giờ gỡ được cấp trên của một người đã gán nhầm.
-    let departmentId: string | null | undefined;
-    if (input.departmentCode !== undefined) {
-      if (input.departmentCode === '') departmentId = null;
-      else {
-        const d = await this.db.one<{ id: string }>(
-          `SELECT id FROM idn.department WHERE code = $1`,
-          [input.departmentCode],
-        );
-        if (!d) throw new NotFoundException({ code: 'DEPARTMENT_NOT_FOUND' });
-        departmentId = d.id;
+    let approverId: string | null | undefined;
+    if (input.approverUsername !== undefined) {
+      // Gỡ người duyệt của một TDV để lại đúng cái tài khoản chết mà `create`
+      // vừa chặn không cho tạo. Cấm luôn ở đây, nếu không thì đường vòng là
+      // "tạo đúng rồi sửa cho sai".
+      if (input.approverUsername === '' && cur.role === 'TDV') {
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          field: 'approverUsername',
+          message: 'Trình dược viên phải có Trưởng bộ phận quản lý',
+        });
       }
+      approverId =
+        input.approverUsername === ''
+          ? null
+          : await this.resolveApprover(cur.role, input.approverUsername);
     }
 
     let parentId: string | null | undefined;
@@ -217,14 +226,14 @@ export class UsersService {
     }
 
     await this.db.tx(async (c) => {
-      if (input.fullName !== undefined || departmentId !== undefined) {
+      if (input.fullName !== undefined || approverId !== undefined) {
         await c.query(
           `UPDATE idn.app_user
               SET full_name = coalesce($2, full_name),
-                  department_id = CASE WHEN $4 THEN $3 ELSE department_id END,
+                  approver_user_id = CASE WHEN $4 THEN $3 ELSE approver_user_id END,
                   updated_at = now()
             WHERE id = $1`,
-          [userId, input.fullName ?? null, departmentId ?? null, departmentId !== undefined],
+          [userId, input.fullName ?? null, approverId ?? null, approverId !== undefined],
         );
       }
       if (parentId !== undefined) {
@@ -276,7 +285,7 @@ export class UsersService {
   }
 
   /**
-   * `departmentCode` và `parentUsername` phải có ở đây, không chỉ ở lúc tạo:
+   * `approverUsername` và `parentUsername` phải có ở đây, không chỉ ở lúc tạo:
    * biểu mẫu sửa mở ra là phải thấy giá trị đang có. Thiếu hai cột này thì màn
    * hình quản trị hiện ô trống và người dùng tưởng chưa gán gì.
    */
@@ -285,11 +294,11 @@ export class UsersService {
       `SELECT u.id, u.username, u.email, u.full_name AS "fullName", u.role::text AS role,
               u.is_active AS "isActive", u.must_change_password AS "mustChangePassword",
               u.activated_at AS "activatedAt", u.email_verified_at AS "emailVerifiedAt",
-              d.code AS "departmentCode", d.name AS "departmentName",
+              a.username AS "approverUsername", a.full_name AS "approverName",
               p.username AS "parentUsername",
               count(*) OVER() AS total_count
          FROM idn.app_user u
-         LEFT JOIN idn.department d ON d.id = u.department_id
+         LEFT JOIN idn.app_user a ON a.id = u.approver_user_id
          LEFT JOIN idn.user_node n ON n.user_id = u.id
          LEFT JOIN idn.app_user p ON p.id = n.parent_id
         ORDER BY u.username
@@ -297,6 +306,38 @@ export class UsersService {
       [page.limit, page.offset],
     );
     return paged(rows, page);
+  }
+
+  /**
+   * Đổi tên tài khoản Trưởng bộ phận thành id, và CHẶN mọi vai trò khác.
+   *
+   * Trigger `trg_app_user_approver` (0017) cũng chặn, nhưng nó ném ra
+   * `check_violation` của Postgres — người dùng nhận về lỗi 500 với một câu
+   * tiếng Anh không dấu. Chặn ở đây để có `VALIDATION_FAILED` kèm tên trường,
+   * đúng thứ biểu mẫu cần để tô đỏ đúng ô.
+   */
+  private async resolveApprover(role: RoleValue, username: string | undefined) {
+    if (!username) return null;
+    if (role !== 'TDV') {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'approverUsername',
+        message: 'Chỉ Trình dược viên mới có Trưởng bộ phận quản lý',
+      });
+    }
+    const a = await this.db.one<{ id: string; role: string }>(
+      `SELECT id, role::text AS role FROM idn.app_user WHERE lower(username) = lower($1)`,
+      [username],
+    );
+    if (!a) throw new NotFoundException({ code: 'APPROVER_NOT_FOUND' });
+    if (a.role !== 'TBP') {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'approverUsername',
+        message: 'Người duyệt phải là tài khoản Trưởng bộ phận',
+      });
+    }
+    return a.id;
   }
 
   private activationUrl = (raw: string) =>

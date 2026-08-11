@@ -37,7 +37,6 @@ const env = (k: string, d: string) => (): string => process.env[k] ?? d;
 export const UPSTREAMS: Upstream[] = [
   { prefix: '/auth', name: 'identity', url: env('IDENTITY_URL', 'http://identity:3001') },
   { prefix: '/admin/users', name: 'identity', url: env('IDENTITY_URL', 'http://identity:3001') },
-  { prefix: '/admin/departments', name: 'identity', url: env('IDENTITY_URL', 'http://identity:3001') },
   { prefix: '/catalog', name: 'catalog', url: env('CATALOG_URL', 'http://catalog:3002') },
   { prefix: '/customers', name: 'customer', url: env('CUSTOMER_URL', 'http://customer:3003') },
   {

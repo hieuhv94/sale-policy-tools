@@ -12,11 +12,11 @@
     "./nguoi-dung": "./src/lib/nguoi-dung.ts",
     "./danh-muc": "./src/lib/danh-muc.ts",
     "./mau-hop-dong": "./src/lib/mau-hop-dong.ts",
+    "./sua-ho-so": "./src/lib/sua-ho-so.ts",
     "./router": "./src/lib/router.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
-    "./chung": "./src/components/Chung.tsx",
-    "./sua-ho-so": "./src/components/SuaHoSo.tsx"
+    "./chung": "./src/components/Chung.tsx"
   },
   "scripts": {
     "build": "vite build",

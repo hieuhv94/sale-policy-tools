@@ -1,6 +1,5 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { ROLE_VALUES, UsersService } from './users.service.js';
-import { DepartmentsService } from './departments.service.js';
 import { CurrentUser, email, oneOf, opt, pageOf, Roles, secret, str, validate, type AuthUser } from '@csbh/http-kit';
 
 /**
@@ -63,7 +62,7 @@ export class UsersController {
       fullName: str(2, 200),
       role: oneOf(...ROLE_VALUES),
       defaultPassword: secret(8),
-      departmentCode: opt(str(1, 40)),
+      approverUsername: opt(str(1, 60)),
       parentUsername: opt(str(1, 60)),
     });
     return this.users.create(b, me.id);
@@ -77,11 +76,11 @@ export class UsersController {
   @HttpCode(200)
   update(@Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, { fullName: opt(str(2, 200)) });
-    const departmentCode = lienKet(body, 'departmentCode', 40);
+    const approverUsername = lienKet(body, 'approverUsername', 60);
     const parentUsername = lienKet(body, 'parentUsername', 60);
     return this.users.update(id, {
       ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
-      ...(departmentCode !== undefined ? { departmentCode } : {}),
+      ...(approverUsername !== undefined ? { approverUsername } : {}),
       ...(parentUsername !== undefined ? { parentUsername } : {}),
     });
   }
@@ -102,47 +101,5 @@ export class UsersController {
   @HttpCode(200)
   reactivate(@Param('id') id: string) {
     return this.users.setActive(id, true);
-  }
-}
-
-/**
- * Bộ phận và người duyệt. Cũng chỉ Quản trị hệ thống (ONB-02).
- *
- * Tách controller riêng thay vì nhét vào `admin/users`: tiền tố đường dẫn khác
- * nhau, và gateway so khớp theo ĐOẠN đường dẫn (`resolveUpstream`) nên
- * `/admin/departments` phải được kể tên trong danh sách trắng như một mục riêng.
- */
-@Roles('QUAN_TRI')
-@Controller('admin/departments')
-export class DepartmentsController {
-  constructor(private readonly departments: DepartmentsService) {}
-
-  @Get()
-  list() {
-    return this.departments.list();
-  }
-
-  @Post()
-  @HttpCode(201)
-  create(@Body() body: unknown) {
-    const b = validate(body, { code: str(1, 40), name: str(1, 200) });
-    return this.departments.create(b.code, b.name);
-  }
-
-  @Post(':id/approvers')
-  @HttpCode(200)
-  addApprover(@Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { userId: str(36, 36) });
-    // `isPrimary` là boolean nên không đi qua `validate` được — bộ kiểm chỉ có
-    // str/int/money/oneOf. Đọc thẳng và mặc định `true`, giống cách
-    // `contracts.controller.ts` xử lý `required`.
-    const isPrimary = (body as { isPrimary?: unknown })?.isPrimary !== false;
-    return this.departments.addApprover(id, b.userId, isPrimary);
-  }
-
-  @Delete(':id/approvers/:userId')
-  @HttpCode(200)
-  removeApprover(@Param('id') id: string, @Param('userId') userId: string) {
-    return this.departments.removeApprover(id, userId);
   }
 }

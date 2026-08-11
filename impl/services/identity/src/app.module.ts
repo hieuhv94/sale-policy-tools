@@ -7,8 +7,7 @@ import { CONFIG } from './infra/config.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
 import { UsersService } from './admin/users.service.js';
-import { DepartmentsService } from './admin/departments.service.js';
-import { DepartmentsController, UsersController } from './admin/users.controller.js';
+import { UsersController } from './admin/users.controller.js';
 import { InternalController } from './internal/internal.controller.js';
 import { ACCOUNT_SOURCE, AuthGuard, Public, TraceMiddleware } from '@csbh/http-kit';
 
@@ -42,7 +41,6 @@ class HealthController {
     HealthController,
     AuthController,
     UsersController,
-    DepartmentsController,
     InternalController,
   ],
   providers: [
@@ -51,7 +49,6 @@ class HealthController {
     AccountCache,
     AuthService,
     UsersService,
-    DepartmentsService,
     // Guard đăng ký ở phạm vi TOÀN CỤC: mặc định là chặn, mở ra phải khai báo
     // @Public() ngay tại route. Ngược lại — mặc định mở, nhớ thì mới chặn — là
     // cách quên một route rồi hở cả hệ thống.

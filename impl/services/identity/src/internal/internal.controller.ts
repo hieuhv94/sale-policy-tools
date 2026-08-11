@@ -72,8 +72,8 @@ export class InternalController {
    * `notification` nhận được danh sách VAI TRÒ trong sự kiện (bảng bước muc 3)
    * chứ không nhận địa chỉ. Dịch vai trò sang người cụ thể phải làm ở đây vì
    * phép dịch đó đọc cây tổ chức: "kế toán" của hồ sơ này là cấp trên gần nhất
-   * của TDV, "TBP" là người duyệt của bộ phận TDV. Đổi người giữ chức chỉ là đổi
-   * một dòng trong idn, không service nào khác phải biết.
+   * của TDV, "TBP" là người duyệt gán thẳng cho TDV đó. Đổi người duyệt chỉ là
+   * đổi một cột trong idn, không service nào khác phải biết.
    */
   @Get('notify-targets/:tdvUserId')
   async notifyTargets(@Param('tdvUserId') tdvUserId: string) {

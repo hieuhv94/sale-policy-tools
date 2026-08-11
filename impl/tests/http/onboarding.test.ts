@@ -43,7 +43,7 @@ const createUser = async (
     fullName: 'Nguoi dung thu nghiem',
     role: 'TDV',
     defaultPassword: DEFAULT_PW,
-    departmentCode: 'BP01',
+    approverUsername: 'tbp01',
     parentUsername: 'kt01',
     ...over,
   };

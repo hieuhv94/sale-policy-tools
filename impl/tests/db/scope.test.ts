@@ -2,9 +2,9 @@
  * AUTH-09…20 · phạm vi dữ liệu suy ra từ CÂY TỔ CHỨC, không cấu hình tay (YCNV §2.1).
  *
  * Cây trong dữ liệu mẫu:
- *   sa01 ──┬── kt01 ──┬── tdv01  (bộ phận BP01, tbp01 duyệt)
- *          │          └── tdv02  (BP01)
- *          └── kt02 ───── tdv03  (BP02, tbp02 duyệt)
+ *   sa01 ──┬── kt01 ──┬── tdv01  (tbp01 duyệt)
+ *          │          └── tdv02  (tbp01 duyệt)
+ *          └── kt02 ───── tdv03  (tbp02 duyệt)
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
@@ -71,7 +71,7 @@ describe('AUTH-11/19 · Sale Admin thấy toàn nhánh, cây sâu 3 cấp', () =
 });
 
 describe('AUTH-12 · Trưởng bộ phận là nhánh riêng, độc lập với nhánh kế toán', () => {
-  it('tbp01 thấy TDV của bộ phận BP01', async () => {
+  it('tbp01 thấy đúng những TDV nhận mình làm người duyệt', async () => {
     expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
   });
   it('tbp02 chỉ thấy tdv03', async () => {
@@ -123,29 +123,41 @@ describe('AUTH-17 · cây tổ chức không được có vòng lặp', () => {
   });
 });
 
-describe('AUTH-18/20 · Trưởng bộ phận cấu hình theo bộ phận, có người duyệt thay', () => {
-  it('thêm người duyệt thay cho BP01 thì người đó thấy thêm TDV của BP01', async () => {
+describe('AUTH-18/20 · Trưởng bộ phận gán THẲNG cho từng TDV (0017 bỏ khái niệm bộ phận)', () => {
+  it('chuyển một TDV sang Trưởng bộ phận khác thì cả hai phạm vi đổi theo', async () => {
     await inRollback(db, async () => {
-      await db.query(
-        `INSERT INTO idn.department_approver (department_id, user_id, is_primary)
-         VALUES ((SELECT id FROM idn.department WHERE code='BP01'), $1, false)`,
-        [uid['tbp02']]);
-      // tbp02 giữ nguyên BP02 của mình và có thêm BP01.
-      expect(await scopeOf('tbp02')).toEqual(['tdv01','tdv02','tdv03']);
+      await db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
+                     [uid['tbp02'], uid['tdv01']]);
+      expect(await scopeOf('tbp01')).toEqual(['tdv02']);
+      expect(await scopeOf('tbp02')).toEqual(['tdv01','tdv03']);
     });
+    expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
     expect(await scopeOf('tbp02')).toEqual(['tdv03']);
   });
 
-  it('đổi người giữ chức TBP chỉ là đổi một dòng, không đụng tới hồ sơ nào', async () => {
+  it('đổi người giữ chức = đổi cột của những TDV liên quan, không đụng tới hồ sơ nào', async () => {
     await inRollback(db, async () => {
-      await db.query(
-        `UPDATE idn.department_approver SET user_id=$1
-          WHERE user_id=$2 AND department_id=(SELECT id FROM idn.department WHERE code='BP01')`,
-        [uid['tbp02'], uid['tbp01']]);
-      // Người cũ mất phạm vi, người mới nhận thêm BP01 bên cạnh BP02 sẵn có.
+      await db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE approver_user_id=$2',
+                     [uid['tbp02'], uid['tbp01']]);
       expect(await scopeOf('tbp01')).toEqual([]);
       expect(await scopeOf('tbp02')).toEqual(['tdv01','tdv02','tdv03']);
     });
     expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
+  });
+
+  it('KHÔNG gán được người duyệt không phải Trưởng bộ phận', async () => {
+    // Gán nhầm một kế toán vào đây là hồ sơ đi vào ngõ cụt: định tuyến vẫn chạy
+    // tới người đó, mà họ không có hành động TBP_SIGN nào để làm.
+    const err = await expectSqlError(() =>
+      db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
+               [uid['kt01'], uid['tdv01']]));
+    expect(err.code).toBe('23514');
+  });
+
+  it('KHÔNG gán được người duyệt cho tài khoản không phải TDV', async () => {
+    const err = await expectSqlError(() =>
+      db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
+               [uid['tbp01'], uid['kt01']]));
+    expect(err.code).toBe('23514');
   });
 });
