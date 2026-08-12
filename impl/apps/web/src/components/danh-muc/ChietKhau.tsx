@@ -19,7 +19,15 @@ import {
   type NhomSanPham,
   type QuyDinhChietKhau,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import {
+  BaoLoi,
+  ChuThichBatBuoc,
+  DangTai,
+  HopThoai,
+  HopThoaiXacNhan,
+  Trong,
+  Truong,
+} from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
@@ -30,6 +38,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   const [moTao, datMoTao] = useState(false);
   const [sua, datSua] = useState<QuyDinhChietKhau | null>(null);
   const [dangXoa, datDangXoa] = useState<string | null>(null);
+  const [hoiXoa, datHoiXoa] = useState<QuyDinhChietKhau | null>(null);
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
@@ -120,7 +129,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                           type="button"
                           className="nut nut-canh-bao"
                           disabled={dangXoa === q.id}
-                          onClick={() => go(q)}
+                          onClick={() => datHoiXoa(q)}
                         >
                           Xoá
                         </button>
@@ -132,6 +141,23 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
             </tbody>
           </table>
         </div>
+      )}
+
+      {hoiXoa && (
+        <HopThoaiXacNhan
+          tieuDe="Xoá quy định chiết khấu"
+          hauQua={
+            <p>
+              Ngưỡng riêng của tổ hợp này biến mất. Hồ sơ lập sau đó rơi về{' '}
+              <strong>ngưỡng mặc định của sản phẩm</strong> — vẫn lập được, vẫn duyệt được, và không
+              có gì trên màn hình báo rằng ngưỡng đang dùng không còn là ngưỡng bạn đã khai.
+            </p>
+          }
+          nhanNut="Xoá quy định"
+          dangChay={dangXoa === hoiXoa.id}
+          dong={() => datHoiXoa(null)}
+          xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}
+        />
       )}
 
       {moTao && (

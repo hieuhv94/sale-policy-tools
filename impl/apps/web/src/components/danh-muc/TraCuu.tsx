@@ -16,7 +16,17 @@ import {
   type MucTraCuu,
   type NguoiKy,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, DaiThe, DangTai, HopThoai, Trong, Truong } from '../Chung.js';
+import {
+  BaoLoi,
+  ChuThichBatBuoc,
+  DaiThe,
+  DangTai,
+  HopThoai,
+  HopThoaiXacNhan,
+  ThanhHoanTac,
+  Trong,
+  Truong,
+} from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 
 // --- Danh mục tra cứu --------------------------------------------------------
@@ -168,6 +178,9 @@ export function TheNguoiKy() {
   const [moTao, datMoTao] = useState(false);
   const [sua, datSua] = useState<NguoiKy | null>(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
+  const [hoiXoa, datHoiXoa] = useState<NguoiKy | null>(null);
+  /** Việc vừa làm và cách lùi lại. Xem `ThanhHoanTac`. */
+  const [vuaLam, datVuaLam] = useState<{ loi: string; lui: () => void } | null>(null);
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
@@ -184,8 +197,22 @@ export function TheNguoiKy() {
     }
   };
 
-  const doiHieuLuc = (k: NguoiKy) =>
-    chay(k, () => va(`/catalog/signers/${k.id}`, { isActive: !k.isActive }));
+  /**
+   * Bật/tắt hiệu lực KHÔNG hỏi trước — hỏi ở đây là thêm một cú bấm cho một trăm
+   * lần đúng, để đỡ một lần sai vốn tự sửa được. Thay vào đó là thanh hoàn tác:
+   * bấm nhầm dòng thì lùi lại ngay, không phải đi tìm lại dòng đó trong bảng.
+   */
+  const doiHieuLuc = async (k: NguoiKy) => {
+    const bat = !k.isActive;
+    await chay(k, () => va(`/catalog/signers/${k.id}`, { isActive: bat }));
+    datVuaLam({
+      loi: `${bat ? 'Đã cho dùng lại' : 'Đã ngừng dùng'} người ký ${k.fullName}.`,
+      lui: () => {
+        datVuaLam(null);
+        void chay(k, () => va(`/catalog/signers/${k.id}`, { isActive: !bat }));
+      },
+    });
+  };
 
   const go = (k: NguoiKy) => chay(k, () => xoa(`/catalog/signers/${k.id}`));
 
@@ -269,7 +296,7 @@ export function TheNguoiKy() {
                         type="button"
                         className="nut nut-canh-bao"
                         disabled={dangChay === k.id}
-                        onClick={() => go(k)}
+                        onClick={() => datHoiXoa(k)}
                       >
                         Xoá
                       </button>
@@ -280,6 +307,27 @@ export function TheNguoiKy() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {hoiXoa && (
+        <HopThoaiXacNhan
+          tieuDe={`Xoá người ký ${hoiXoa.fullName}`}
+          hauQua={
+            <p>
+              Xoá là <strong>không lùi được</strong>, và chỉ dành cho dòng vừa khai nhầm. Người ký đã
+              từng đứng tên trên hồ sơ nào thì nên bấm <em>Ngừng dùng</em> thay vì xoá — hồ sơ cũ còn
+              phải giải thích được về sau.
+            </p>
+          }
+          nhanNut="Xoá người ký"
+          dangChay={dangChay === hoiXoa.id}
+          dong={() => datHoiXoa(null)}
+          xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}
+        />
+      )}
+
+      {vuaLam && (
+        <ThanhHoanTac loi={vuaLam.loi} hoanTac={vuaLam.lui} dong={() => datVuaLam(null)} />
       )}
 
       {moTao && (

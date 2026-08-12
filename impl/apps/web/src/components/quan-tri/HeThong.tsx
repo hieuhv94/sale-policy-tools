@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dang, dat, layJson } from '../../lib/api.js';
 import { ngayGio } from '../../lib/format.js';
-import { BaoLoi, DangTai, Trong, Truong } from '../Chung.js';
+import { BaoLoi, DangTai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
 
 type CauHinhSla = {
   days: number;
@@ -45,6 +45,7 @@ function CauHinhHanXuLy() {
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const [daLuu, datDaLuu] = useState(false);
+  const [hoi, datHoi] = useState(false);
 
   useEffect(() => {
     const huy = new AbortController();
@@ -59,8 +60,7 @@ function CauHinhHanXuLy() {
     return () => huy.abort();
   }, []);
 
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const gui = async () => {
     datLoi(null);
     datDaLuu(false);
     datDangGui(true);
@@ -100,7 +100,13 @@ function CauHinhHanXuLy() {
         trước. Rút ngắn hạn có thể làm một số hồ sơ chuyển sang <em>Quá hạn duyệt</em> ngay.
       </p>
 
-      <form onSubmit={gui} className="hang-nhap">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          datHoi(true);
+        }}
+        className="hang-nhap"
+      >
         <Truong id="sla-ngay" nhan="Số ngày" bắtBuộc>
           {(p) => (
             <input
@@ -127,6 +133,31 @@ function CauHinhHanXuLy() {
         </p>
       )}
       {ch.updatedAt && <p className="ghi-chu">Sửa lần cuối {ngayGio(ch.updatedAt)}.</p>}
+
+      {hoi && (
+        <HopThoaiXacNhan
+          tieuDe="Đổi hạn xử lý"
+          hauQua={
+            <>
+              <p>
+                Từ <strong>{ch.days} ngày</strong> sang <strong>{n} ngày</strong>, áp cho{' '}
+                <strong>mọi bước chờ của mọi hồ sơ</strong>, kể cả hồ sơ đã nộp từ trước.
+              </p>
+              {n < ch.days && (
+                <p>
+                  Rút ngắn hạn: một số hồ sơ đang đúng hạn có thể chuyển sang <em>Quá hạn duyệt</em>{' '}
+                  ngay sau khi bấm.
+                </p>
+              )}
+            </>
+          }
+          nhanNut="Đổi hạn"
+          nguyHiem={n < ch.days}
+          dangChay={dangGui}
+          dong={() => datHoi(false)}
+          xacNhan={() => void gui().then(() => datHoi(false))}
+        />
+      )}
     </section>
   );
 }
@@ -153,6 +184,8 @@ function ThuHongChuaXuLy() {
       });
     return () => huy.abort();
   }, [lan, hienDaXong]);
+
+  const [hoiGui, datHoiGui] = useState<ThuHong | null>(null);
 
   const guiLai = async (t: ThuHong) => {
     datLoi(null);
@@ -242,7 +275,7 @@ function ThuHongChuaXuLy() {
                         type="button"
                         className="nut nut-nhe"
                         disabled={dangChay === t.id}
-                        onClick={() => guiLai(t)}
+                        onClick={() => datHoiGui(t)}
                       >
                         {dangChay === t.id ? 'Đang gửi…' : 'Gửi lại'}
                       </button>
@@ -253,6 +286,24 @@ function ThuHongChuaXuLy() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {hoiGui && (
+        <HopThoaiXacNhan
+          tieuDe="Gửi lại thư hỏng"
+          hauQua={
+            <p>
+              Thư đi ra <strong>hộp thư thật của người nhận</strong>. Nếu lượt hỏng trước thực ra đã
+              gửi được rồi thì họ nhận thư thứ hai giống hệt — hệ thống nhận ra trường hợp đó và báo
+              <em> đã gửi trước đó</em>, nhưng chỉ sau khi đã thử.
+            </p>
+          }
+          nhanNut="Gửi lại"
+          nguyHiem={false}
+          dangChay={dangChay === hoiGui.id}
+          dong={() => datHoiGui(null)}
+          xacNhan={() => void guiLai(hoiGui).then(() => datHoiGui(null))}
+        />
       )}
     </section>
   );

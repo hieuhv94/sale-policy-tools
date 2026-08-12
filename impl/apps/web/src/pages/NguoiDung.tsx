@@ -21,7 +21,16 @@ import {
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
-import { BaoLoi, ChuThichBatBuoc, DaiThe, DangTai, HopThoai, Truong } from '../components/Chung.js';
+import {
+  BaoLoi,
+  ChuThichBatBuoc,
+  DaiThe,
+  DangTai,
+  HopThoai,
+  HopThoaiXacNhan,
+  ThanhHoanTac,
+  Truong,
+} from '../components/Chung.js';
 import { TheHeThong } from '../components/quan-tri/HeThong.js';
 
 type The = 'nguoi-dung' | 'he-thong';
@@ -82,6 +91,10 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [thuHong, datThuHong] = useState<string | null>(null);
+  /** Thao tác đang chờ xác nhận: vô hiệu hoá, hoặc gửi lại thư mời. */
+  const [hoi, datHoi] = useState<{ u: NguoiDungDto; viec: 'khoa' | 'moi' } | null>(null);
+  /** Việc vừa làm và cách lùi lại — chỉ dùng cho thao tác lùi được. */
+  const [vuaLam, datVuaLam] = useState<{ loi: string; lui: () => void } | null>(null);
 
   const chay = async (id: string, fn: () => Promise<{ inviteMailSent?: boolean } | unknown>) => {
     datLoi(null);
@@ -171,9 +184,7 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                         type="button"
                         className="nut nut-nhe"
                         disabled={dangChay === u.id}
-                        onClick={() =>
-                          chay(u.id, () => dang(`/admin/users/${u.id}/resend-invite`))
-                        }
+                        onClick={() => datHoi({ u, viec: 'moi' })}
                       >
                         Gửi lại thư mời
                       </button>
@@ -182,13 +193,26 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                       type="button"
                       className={u.isActive ? 'nut nut-canh-bao' : 'nut nut-nhe'}
                       disabled={dangChay === u.id}
-                      onClick={() =>
-                        chay(u.id, () =>
-                          dang(
-                            `/admin/users/${u.id}/${u.isActive ? 'deactivate' : 'activate-account'}`,
-                          ),
-                        )
-                      }
+                      onClick={() => {
+                        // Vô hiệu hoá là thao tác đá người khác ra khỏi hệ
+                        // thống ⇒ hỏi trước. Kích hoạt lại thì lùi được bằng
+                        // đúng nút vừa bấm ⇒ cho hoàn tác thay vì hỏi.
+                        if (u.isActive) {
+                          datHoi({ u, viec: 'khoa' });
+                          return;
+                        }
+                        void chay(u.id, () =>
+                          dang(`/admin/users/${u.id}/activate-account`),
+                        ).then(() =>
+                          datVuaLam({
+                            loi: `Đã kích hoạt lại tài khoản ${u.username}.`,
+                            lui: () => {
+                              datVuaLam(null);
+                              void chay(u.id, () => dang(`/admin/users/${u.id}/deactivate`));
+                            },
+                          }),
+                        );
+                      }}
                     >
                       {u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt lại'}
                     </button>
@@ -199,6 +223,53 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
           </tbody>
         </table>
       </div>
+
+      {hoi?.viec === 'khoa' && (
+        <HopThoaiXacNhan
+          tieuDe={`Vô hiệu hoá tài khoản ${hoi.u.username}`}
+          hauQua={
+            <p>
+              <strong>{hoi.u.fullName}</strong> bị đăng xuất và không đăng nhập lại được. Hồ sơ đang
+              chờ họ xử lý vẫn nằm nguyên chỗ cũ và <strong>không tự chuyển cho ai</strong> — nó sẽ
+              đứng đó tới khi quá hạn, trừ khi bạn giao lại trước.
+            </p>
+          }
+          nhanNut="Vô hiệu hoá"
+          dangChay={dangChay === hoi.u.id}
+          dong={() => datHoi(null)}
+          xacNhan={() =>
+            void chay(hoi.u.id, () => dang(`/admin/users/${hoi.u.id}/deactivate`)).then(() =>
+              datHoi(null),
+            )
+          }
+        />
+      )}
+
+      {hoi?.viec === 'moi' && (
+        <HopThoaiXacNhan
+          tieuDe={`Gửi lại thư mời cho ${hoi.u.username}`}
+          hauQua={
+            <p>
+              Thư mới mang một liên kết mới, và <strong>liên kết cũ chết ngay lúc này</strong>. Nếu
+              người dùng đang cầm thư trước trong tay, họ bấm vào sẽ nhận "liên kết không còn hiệu
+              lực" mà không hiểu vì sao — chỉ gửi lại khi họ báo là chưa nhận được hoặc đã hết hạn.
+            </p>
+          }
+          nhanNut="Gửi lại thư mời"
+          nguyHiem={false}
+          dangChay={dangChay === hoi.u.id}
+          dong={() => datHoi(null)}
+          xacNhan={() =>
+            void chay(hoi.u.id, () => dang(`/admin/users/${hoi.u.id}/resend-invite`)).then(() =>
+              datHoi(null),
+            )
+          }
+        />
+      )}
+
+      {vuaLam && (
+        <ThanhHoanTac loi={vuaLam.loi} hoanTac={vuaLam.lui} dong={() => datVuaLam(null)} />
+      )}
 
       {mo?.kieu === 'tao' && (
         <HopThoaiTao

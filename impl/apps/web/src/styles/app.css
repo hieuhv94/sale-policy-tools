@@ -1059,3 +1059,26 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Thanh hoàn tác ------------------------------------------------------- */
+
+/* Nổi ở đáy màn hình chứ không chèn vào luồng trang: chèn vào luồng thì bảng
+   nhảy xuống một dòng đúng lúc người dùng đang nhắm chuột vào dòng kế tiếp. */
+.thanh-hoan-tac {
+  position: fixed;
+  left: 50%;
+  bottom: var(--k4);
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: var(--k3);
+  max-width: calc(100vw - 2 * var(--k3));
+  padding: var(--k2) var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  box-shadow: var(--bong-noi);
+}
+.thanh-hoan-tac .nut { white-space: nowrap; }
+.nut-dong-thanh { padding: 0 var(--k2); font-size: var(--chu-to); line-height: 1; }

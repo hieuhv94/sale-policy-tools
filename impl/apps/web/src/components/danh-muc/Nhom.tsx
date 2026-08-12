@@ -10,12 +10,13 @@ import { useState } from 'react';
 import { dang, xoa } from '../../lib/api.js';
 import { LoiApi } from '../../lib/api.js';
 import type { NhomSanPham } from '../../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, HopThoai, Trong, Truong } from '../Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
 
 export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => void }) {
   const [moTao, datMoTao] = useState(false);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangXoa, datDangXoa] = useState<string | null>(null);
+  const [hoiXoa, datHoiXoa] = useState<NhomSanPham | null>(null);
 
   const go = async (n: NhomSanPham) => {
     datLoi(null);
@@ -75,7 +76,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
                       type="button"
                       className="nut nut-canh-bao"
                       disabled={dangXoa === n.id}
-                      onClick={() => go(n)}
+                      onClick={() => datHoiXoa(n)}
                     >
                       Xoá
                     </button>
@@ -85,6 +86,23 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
             </tbody>
           </table>
         </div>
+      )}
+
+      {hoiXoa && (
+        <HopThoaiXacNhan
+          tieuDe={`Xoá nhóm "${hoiXoa.name}"`}
+          hauQua={
+            <p>
+              Nhóm biến mất khỏi mọi ô chọn. Còn sản phẩm nào trỏ vào nhóm này thì máy chủ chặn —
+              nhưng nếu nhóm đang rỗng, xoá xong <strong>không lấy lại được</strong> và quy định
+              chiết khấu khai theo nhóm này cũng mất chỗ dựa.
+            </p>
+          }
+          nhanNut="Xoá nhóm"
+          dangChay={dangXoa === hoiXoa.id}
+          dong={() => datHoiXoa(null)}
+          xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}
+        />
       )}
 
       {moTao && (

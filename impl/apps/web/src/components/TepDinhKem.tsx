@@ -13,7 +13,7 @@
 import { useState } from 'react';
 import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
-import { BaoLoi, HopThoai, Truong } from './Chung.js';
+import { BaoLoi, HopThoai, HopThoaiXacNhan, Truong } from './Chung.js';
 
 export type TepDto = {
   id: string;
@@ -72,6 +72,9 @@ export function TepDinhKem({
     }
   };
 
+  /** Tệp đang chờ xác nhận gỡ. */
+  const [hoiGo, datHoiGo] = useState<TepDto | null>(null);
+
   const go = async (t: TepDto) => {
     datLoi(null);
     datDangChay(t.id);
@@ -125,7 +128,7 @@ export function TepDinhKem({
                     type="button"
                     className="nut nut-canh-bao"
                     disabled={dangChay === t.id}
-                    onClick={() => go(t)}
+                    onClick={() => datHoiGo(t)}
                   >
                     Gỡ
                   </button>
@@ -134,6 +137,23 @@ export function TepDinhKem({
             </li>
           ))}
         </ul>
+      )}
+
+      {hoiGo && (
+        <HopThoaiXacNhan
+          tieuDe={`Gỡ tệp "${hoiGo.fileName}"`}
+          hauQua={
+            <p>
+              Tệp không còn gắn với hồ sơ này nữa. Nếu đây là <strong>bản scan</strong> thì bước bàn
+              giao bị chặn lại cho tới khi có bản scan mới — mà tải lại thì phải có bản giấy trong
+              tay.
+            </p>
+          }
+          nhanNut="Gỡ tệp"
+          dangChay={dangChay === hoiGo.id}
+          dong={() => datHoiGo(null)}
+          xacNhan={() => void go(hoiGo).then(() => datHoiGo(null))}
+        />
       )}
 
       {moTai && (

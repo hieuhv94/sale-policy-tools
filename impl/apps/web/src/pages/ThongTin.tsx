@@ -11,7 +11,7 @@ import { usePhien } from '../lib/auth.js';
 // Bảng nhãn của `format.ts` nhận khoá `string`; `nguoi-dung.ts` đòi đúng kiểu
 // `VaiTro`, mà vai trò trong phiên đăng nhập chỉ là `string`.
 import { NHAN_VAI_TRO } from '../lib/format.js';
-import { BaoLoi, Truong } from '../components/Chung.js';
+import { BaoLoi, HopThoaiXacNhan, Truong } from '../components/Chung.js';
 
 export function ThongTin() {
   const { nguoiDung, capNhatNguoiDung } = usePhien();
@@ -19,13 +19,13 @@ export function ThongTin() {
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const [xong, datXong] = useState(false);
+  const [hoi, datHoi] = useState(false);
 
   if (!nguoiDung) return null;
 
   const daDoi = ten.trim() !== nguoiDung.fullName && ten.trim().length >= 2;
 
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const gui = async () => {
     datLoi(null);
     datXong(false);
     datDangGui(true);
@@ -46,7 +46,13 @@ export function ThongTin() {
     <section className="trang trang-hep">
       <h1>Thông tin của tôi</h1>
 
-      <form className="the" onSubmit={gui}>
+      <form
+        className="the"
+        onSubmit={(e) => {
+          e.preventDefault();
+          datHoi(true);
+        }}
+      >
         <Truong id="tt-ten" nhan="Họ và tên" bắtBuộc>
           {(p) => (
             <input
@@ -100,6 +106,24 @@ export function ThongTin() {
           </button>
         </div>
       </form>
+
+      {hoi && (
+        <HopThoaiXacNhan
+          tieuDe="Đổi họ và tên"
+          hauQua={
+            <p>
+              Từ <strong>{nguoiDung.fullName}</strong> sang <strong>{ten.trim()}</strong>. Tên này
+              hiện trên hồ sơ bạn lập, trong thư hệ thống gửi cho người khác, và trong{' '}
+              <strong>nhật ký kiểm toán</strong> — nơi nó phải khớp với chữ ký trên bản giấy.
+            </p>
+          }
+          nhanNut="Đổi tên"
+          nguyHiem={false}
+          dangChay={dangGui}
+          dong={() => datHoi(false)}
+          xacNhan={() => void gui().then(() => datHoi(false))}
+        />
+      )}
     </section>
   );
 }

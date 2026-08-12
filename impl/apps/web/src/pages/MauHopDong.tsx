@@ -24,7 +24,15 @@ import {
   type MauHopDong as MauDto,
   type ThongTinOTrong,
 } from '../lib/mau-hop-dong.js';
-import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Trong, Truong } from '../components/Chung.js';
+import {
+  BaoLoi,
+  ChuThichBatBuoc,
+  DangTai,
+  HopThoai,
+  HopThoaiXacNhan,
+  Trong,
+  Truong,
+} from '../components/Chung.js';
 
 export function MauHopDong() {
   const [ds, datDs] = useState<MauDto[] | null>(null);
@@ -33,6 +41,9 @@ export function MauHopDong() {
   const [moTai, datMoTai] = useState(false);
   const [anhXa, datAnhXa] = useState<MauDto | null>(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
+  // Hai thao tác đổi hành vi của CẢ hệ thống nên hỏi ở mức nặng — xem hộp thoại
+  // ở cuối tệp.
+  const [hoi, datHoi] = useState<{ mau: MauDto; viec: 'publish' | 'deactivate' } | null>(null);
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
@@ -142,7 +153,7 @@ export function MauHopDong() {
                           type="button"
                           className="nut nut-canh-bao"
                           disabled={dangChay === t.id}
-                          onClick={() => chay(t, 'deactivate')}
+                          onClick={() => datHoi({ mau: t, viec: 'deactivate' })}
                         >
                           Ngừng dùng
                         </button>
@@ -151,7 +162,7 @@ export function MauHopDong() {
                           type="button"
                           className="nut nut-nhe"
                           disabled={dangChay === t.id}
-                          onClick={() => chay(t, 'publish')}
+                          onClick={() => datHoi({ mau: t, viec: 'publish' })}
                         >
                           Ban hành
                         </button>
@@ -163,6 +174,39 @@ export function MauHopDong() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {hoi && (
+        <HopThoaiXacNhan
+          tieuDe={hoi.viec === 'publish' ? `Ban hành mẫu "${hoi.mau.name}"` : `Ngừng dùng mẫu "${hoi.mau.name}"`}
+          hauQua={
+            hoi.viec === 'publish' ? (
+              <>
+                <p>
+                  Từ lúc bấm, <strong>mọi lượt xuất hợp đồng</strong> đều dùng mẫu này. Mẫu đang áp
+                  dụng bị thay ngay lập tức.
+                </p>
+                <p>
+                  Hệ thống không lưu lại hợp đồng đã xuất, nên không có bản cũ để đối chiếu và không
+                  có phiên bản để quay lại — muốn về mẫu cũ thì phải ban hành lại mẫu đó.
+                </p>
+              </>
+            ) : (
+              <p>
+                Sau khi ngừng, <strong>không còn mẫu nào đang áp dụng</strong>: kế toán và Sale Admin
+                bấm Xuất hợp đồng sẽ không xuất được, cho tới khi có người ban hành một mẫu khác.
+              </p>
+            )
+          }
+          nhanNut={hoi.viec === 'publish' ? 'Ban hành' : 'Ngừng dùng'}
+          goLai={hoi.mau.name}
+          dangChay={dangChay === hoi.mau.id}
+          dong={() => datHoi(null)}
+          // `chay` tự nuốt lỗi và đặt `loi` của trang, nên đóng hộp thoại ở cả
+          // hai đường là đúng: hỏng thì người dùng đọc lỗi trên nền trang, không
+          // phải trong một hộp thoại vừa hỏi xong.
+          xacNhan={() => void chay(hoi.mau, hoi.viec).then(() => datHoi(null))}
+        />
       )}
 
       {moTai && (

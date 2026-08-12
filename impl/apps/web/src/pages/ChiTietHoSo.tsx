@@ -19,7 +19,14 @@ import {
   suaDuoc,
 } from '../components/SuaHoSo.js';
 import { useDuong } from '../lib/router.js';
-import { BaoLoi, DangTai, HopThoai, Nhan, Truong } from '../components/Chung.js';
+import {
+  BaoLoi,
+  DangTai,
+  HopThoai,
+  HopThoaiXacNhan,
+  Nhan,
+  Truong,
+} from '../components/Chung.js';
 
 type HoSo = {
   id: string;
@@ -42,6 +49,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [hanhDong, datHanhDong] = useState<string | null>(null);
+  /** Dòng sản phẩm đang chờ xác nhận xoá. Nút Xoá nằm ngay trong bảng dữ liệu
+      đọc hàng ngày, nên không cho nó xoá thẳng. */
+  const [xoaDongId, datXoaDongId] = useState<string | null>(null);
   const [moSua, datMoSua] = useState<'dong' | 'ngay' | 'xoa' | null>(null);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   const { di } = useDuong();
@@ -132,7 +142,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
       )}
       <BangSanPham
         dong={hoSo.lines}
-        {...(dangSua ? { xoaDong, dangXoa: dangXoaDong } : {})}
+        {...(dangSua ? { xoaDong: datXoaDongId, dangXoa: dangXoaDong } : {})}
       />
       {hoSo.lines.length > 0 && (
         <p className="tong-cong">
@@ -239,6 +249,23 @@ export function ChiTietHoSo({ id }: { id: string }) {
           ma={hoSo.code}
           dong={() => datMoSua(null)}
           xong={() => di('/ho-so')}
+        />
+      )}
+
+      {xoaDongId && (
+        <HopThoaiXacNhan
+          tieuDe="Xoá dòng sản phẩm"
+          hauQua={
+            <p>
+              Dòng này biến mất khỏi hồ sơ và <strong>không lấy lại được</strong>. Nếu đây là dòng
+              thừa kế từ bản CSBH trước thì hồ sơ sẽ bị chặn ở bước gửi duyệt — bản mới phải chứa lại
+              toàn bộ sản phẩm cũ.
+            </p>
+          }
+          nhanNut="Xoá dòng"
+          dangChay={dangXoaDong === xoaDongId}
+          dong={() => datXoaDongId(null)}
+          xacNhan={() => void xoaDong(xoaDongId).then(() => datXoaDongId(null))}
         />
       )}
 
