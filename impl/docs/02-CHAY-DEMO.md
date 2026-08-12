@@ -141,11 +141,16 @@ make demo-data
 **Ở bản demo, không thư nào ra Internet.** Tất cả đi vào **Mailpit** chạy trong máy. Mở nó ra:
 
 ```bash
-make demo-mail    # rồi mở http://localhost:8025
+make demo-mail         # mở http://localhost:8025
+make demo-mail-down    # đóng lại, thư đã nhận vẫn còn
 ```
 
 Tách riêng thành một lệnh có chủ ý: nó mở thêm một cổng, mà bất biến *"chỉ Caddy mở cổng"*
-(`SEC-10`) chỉ có nghĩa khi việc phá nó là một hành động rõ ràng.
+(`SEC-10`) chỉ có nghĩa khi việc phá nó là một hành động rõ ràng. Giao diện Mailpit đọc được **mọi**
+thư của hệ thống — kể cả liên kết kích hoạt và liên kết đặt lại mật khẩu, tức là chiếm được mọi tài
+khoản — nên nó không mở thường trực.
+
+Cổng khác 8025 thì `MAILPIT_PORT=9025 make demo-mail`.
 
 ### Địa chỉ người gửi
 

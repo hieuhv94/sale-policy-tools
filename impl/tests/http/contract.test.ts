@@ -8,11 +8,11 @@
  * DOC-16 KHÔNG có ở đây, và đó là một quyết định chứ không phải bỏ sót. Xem
  * describe cuối file.
  */
+import { readdirSync, readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import {
   createTestApp as createDocumentApp,
-  Storage,
   TemplatesService,
   makeDocx,
   para,
@@ -41,7 +41,6 @@ let catalog: INestApplication;
 let customer: INestApplication;
 let policy: INestApplication;
 let doc: INestApplication;
-let storage: Storage;
 let templates: TemplatesService;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
@@ -177,7 +176,6 @@ beforeAll(async () => {
   restores.push(po.restore);
 
   doc = await createDocumentApp();
-  storage = doc.get(Storage);
   templates = doc.get(TemplatesService);
 
   const g = await (await http(catalog))
@@ -755,42 +753,76 @@ describe('DOC-28 quét lược đồ, bảng định tuyến và kho lưu trữ'
     expect(paths.some((p) => /^\/contracts\//.test(p))).toBe(false);
   });
 
-  it('không object hợp đồng nào nằm lại trên MinIO sau khi xuất', async () => {
-    // Quét theo TỪNG mục đích chứ không quét cả bucket bằng tiền tố rỗng.
+  it('xuất hợp đồng không sinh thêm file nào trong kho', async () => {
+    // Bằng chứng đọc từ `doc.stored_file`, KHÔNG từ việc liệt kê MinIO.
     //
-    // Không phải để chạy nhanh hơn: bucket dùng chung của môi trường test tích
-    // luỹ qua từng lượt chạy, và quá khoảng một nghìn object thì trình phân tích
-    // XML trong thư viện minio ném lỗi TỪ BÊN TRONG luồng — không bắt được,
-    // vòng lặp chỉ treo tới lúc hết giờ. Xem chú thích ở `Storage.listKeys`.
+    // Bản trước liệt kê kho theo từng tiền tố mục đích và nó treo: trình phân
+    // tích XML trong `minio` ném "Entity expansion limit exceeded" từ bên trong
+    // `Transform._flush`, tức là ngoại lệ không ai bắt được, và lượt liệt kê chỉ
+    // đứng chờ tới lúc hết giờ. Bốn hướng đã bị loại trừ — xem chú thích ở
+    // `Storage.listKeys`. Chưa tìm ra nguyên nhân gốc.
     //
-    // Quét theo mục đích cũng nói đúng điều cần nói hơn: bất biến ở đây là
-    // "hợp đồng KHÔNG CÓ mục đích nào trong danh sách", vì nó không được lưu.
-    const PURPOSES = ['ho_so', 'scan', 'phap_ly', 'ban_csbh', 'ban_da_ky', 'mau_hd'];
-    const scan = async () => {
-      const keys: string[] = [];
-      for (const p of PURPOSES) keys.push(...(await storage.listKeys(`${p}/`)));
-      return keys;
-    };
+    // Đổi nguồn bằng chứng chứ không nới bất biến: điều cần chứng minh vẫn là
+    // "xuất hợp đồng không để lại gì trong kho". `doc.stored_file` trả lời được
+    // đúng câu đó vì mọi lượt ghi MinIO của ứng dụng đều kèm một dòng ở đây —
+    // test ngay dưới ghim lại chính điều kiện ấy, để phép thay nguồn không âm
+    // thầm mất hiệu lực khi ai đó thêm một đường ghi kho thứ ba.
+    //
+    // So CẢ TẬP DÒNG chứ không so số đếm: một cặp thêm-rồi-xoá giữ nguyên số
+    // đếm nhưng vẫn là dấu vết hợp đồng đã từng nằm trong kho.
+    const anhChup = () =>
+      withAdminDb(async (c) => {
+        const r = await c.query<{ k: string }>(
+          `SELECT object_key || ' ' || purpose || ' ' || coalesce(deleted_at::text,'-') AS k
+             FROM doc.stored_file ORDER BY object_key`,
+        );
+        return r.rows.map((x) => x.k);
+      });
 
     const d = await toReceivedL1();
-    const before = await scan();
+    const truoc = await anhChup();
     expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
-    const after = await scan();
 
-    // PDF trả thẳng về người bấm và không đi qua kho. Chỉ có thể bằng nhau.
-    expect(after.length).toBe(before.length);
-    expect(after.some((k) => k.includes('hop-dong') || k.includes('contract'))).toBe(false);
+    // PDF trả thẳng về người bấm và không đi qua kho. Chỉ có thể y nguyên.
+    expect(await anhChup()).toEqual(truoc);
+  }, 120_000);
 
-    // Và danh sách mục đích ở trên phải PHỦ HẾT enum trong CSDL — thiếu một giá
-    // trị là quét sót đúng chỗ hợp đồng có thể lọt vào mà không ai thấy.
+  it('mọi đường ghi vào kho đều để lại một dòng `stored_file`', async () => {
+    // Điều kiện làm cho test trên có giá trị. Nếu một ngày có mã gọi thẳng
+    // `storage.put` mà không ghi CSDL thì phép "soi kho qua CSDL" mù đúng chỗ
+    // hợp đồng có thể lọt vào — nên ghim số điểm ghi lại ở đây.
+    const src = readFileSync(
+      new URL('../../services/document/src/files/files.service.ts', import.meta.url),
+      'utf8',
+    );
+    // Hai điểm ghi: `upload()` (file người dùng tải lên) và `store()` (file do
+    // hệ thống sinh). Cả hai đều gọi `insert()` ngay sau đó.
+    expect(src.match(/this\.storage\.put\(/g)).toHaveLength(2);
+
+    // Chỉ quét `services/document`: `Storage` là provider của riêng service này,
+    // service khác không tiêm được nó.
+    const goc = new URL('../../services/document/src/', import.meta.url);
+    const khac = readdirSync(goc, { recursive: true })
+      .map(String)
+      .filter((t) => t.endsWith('.ts') && t !== 'files/files.service.ts')
+      .filter((t) => /\.storage\.put\(|\.putObject\(/.test(readFileSync(new URL(t, goc), 'utf8')))
+      // `storage.ts` là chính lớp bọc — nó gọi `putObject`, đó là việc của nó.
+      .filter((t) => t !== 'infra/storage.ts');
+    expect(khac).toEqual([]);
+  });
+
+  it('không mục đích lưu trữ nào dành cho hợp đồng', async () => {
+    // Hợp đồng không được lưu, nên nó không có chỗ để lưu. Danh sách khai thẳng
+    // ra: thêm một giá trị enum mới là test đỏ và người thêm phải nói rõ nó
+    // dùng cho việc gì.
     const known = await withAdminDb(async (c) => {
       const r = await c.query<{ v: string }>(
         `SELECT unnest(enum_range(NULL::doc.file_purpose))::text AS v`,
       );
       return r.rows.map((x) => x.v.toLowerCase());
     });
-    expect(PURPOSES.sort()).toEqual(known.sort());
-  }, 120_000);
+    expect(known.sort()).toEqual(['ban_csbh', 'ban_da_ky', 'ho_so', 'mau_hd', 'phap_ly', 'scan']);
+  });
 });
 
 // =============================================================================

@@ -22,6 +22,9 @@ export const BUCKET = process.env.MINIO_BUCKET ?? 'csbh';
 
 export const sha256 = (b: Buffer): string => createHash('sha256').update(b).digest('hex');
 
+/** Trần thời gian cho một lượt liệt kê. Xem chú thích ở `Storage.listKeys`. */
+const LIET_KE_HET_GIO_MS = 15_000;
+
 @Injectable()
 export class Storage implements OnModuleInit {
   private readonly log = new Logger(Storage.name);
@@ -82,18 +85,52 @@ export class Storage implements OnModuleInit {
    * được**: bọc `try/catch` quanh `for await` không hề nhận được lỗi, vòng lặp
    * chỉ treo cho tới lúc test hết giờ. Tôi đã thử và đó là kết quả.
    *
-   * Nên **luôn truyền tiền tố hẹp**, đừng bao giờ gọi với chuỗi rỗng: bucket
-   * dùng chung của môi trường test tích luỹ qua từng lượt chạy và đã vượt mốc
-   * đó. Mã sản phẩm không liệt kê bucket ở bất kỳ đâu, nên trần này chỉ chạm
-   * tới test.
+   * Nên **luôn truyền tiền tố hẹp**, đừng bao giờ gọi với chuỗi rỗng.
+   *
+   * Và nghe theo sự kiện `error` của luồng thay vì `for await`: `for await`
+   * KHÔNG nhận được lỗi ném ra từ `Transform._flush` lúc `prefinish`, nên nó
+   * đứng chờ mãi một luồng đã chết. Ở đây lỗi thành `reject`, kèm một trần thời
+   * gian để trường hợp xấu nhất là một thông báo rõ ràng chứ không phải một
+   * lượt chạy treo tới lúc ai đó bấm huỷ.
+   *
+   * CHƯA TÌM RA NGUYÊN NHÂN GỐC, và đây là những gì đã loại trừ được — để người
+   * đọc sau không đi lại đúng bốn con đường ấy:
+   *
+   *   * KHÔNG phải số lượng object. Kho rỗng hoàn toàn (0 object) vẫn treo.
+   *   * KHÔNG phải thư viện. Cùng lời gọi ấy trong một tiến trình sạch, cùng
+   *     máy chủ MinIO: 28ms.
+   *   * KHÔNG phải socket dùng lại. Dựng `Client` mới cho riêng lượt liệt kê
+   *     cũng treo y hệt.
+   *
+   *   * KHÔNG phải bộ trộn DOCX dùng chung thư viện phân tích XML. Đây là
+   *     hướng nghi lâu nhất và nó sai: `fast-xml-parser` chỉ có đúng một người
+   *     phụ thuộc trong cây là `minio`, còn `contracts/docx.ts` dùng `fflate`
+   *     với regex, không đụng tới nó.
+   *
+   * Điều duy nhất còn chắc chắn: nó chỉ treo ở CUỐI một tệp test đã chạy hàng
+   * trăm thao tác object, và triệu chứng đầu tiên là một ngoại lệ không bắt
+   * được từ bên trong luồng — "Entity expansion limit exceeded: 1002 > 1000".
    */
   async listKeys(prefix: string): Promise<string[]> {
-    const out: string[] = [];
-    const stream = this.client.listObjectsV2(BUCKET, prefix, true);
-    for await (const o of stream) {
-      const k = (o as { name?: string }).name;
-      if (k) out.push(k);
-    }
-    return out;
+    return new Promise<string[]>((resolve, reject) => {
+      const out: string[] = [];
+      const stream = this.client.listObjectsV2(BUCKET, prefix, true);
+
+      const hetGio = setTimeout(() => {
+        stream.destroy();
+        reject(new Error(`listKeys("${prefix}") quá ${LIET_KE_HET_GIO_MS}ms — luồng không kết thúc`));
+      }, LIET_KE_HET_GIO_MS);
+      const xong = (fn: () => void) => {
+        clearTimeout(hetGio);
+        fn();
+      };
+
+      stream.on('data', (o: { name?: string }) => {
+        if (o.name) out.push(o.name);
+      });
+      stream.on('error', (e: Error) => xong(() => reject(e)));
+      stream.on('end', () => xong(() => resolve(out)));
+      stream.on('close', () => xong(() => resolve(out)));
+    });
   }
 }

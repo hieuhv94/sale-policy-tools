@@ -2719,3 +2719,74 @@ test `PWD-09` thay tạm hàm gửi thư bằng một hàm luôn ném, rồi so 
 `MAIL_FROM` vẫn là `csbh-noreply@nutricare.test`. `.test` là tên miền dành riêng cho thử nghiệm
 (RFC 6761) nên nó không bao giờ gửi ra Internet thật được — phải đổi trước khi lên máy chủ, kèm khai
 SPF · DKIM · DMARC cho tên miền thật.
+
+---
+
+## P14c — `make demo-mail` mở nhầm cổng, và một test đổi nguồn bằng chứng
+
+Người dùng báo: *"make demo-mail chưa expose port 8025 từ docker ra host thì phải"*. Đúng, và hỏng
+theo **hai tầng** chứ không phải một.
+
+### Vì sao `--service-ports` không mở cổng nào
+
+Lệnh cũ là `docker compose run --rm --service-ports mailpit`. `--service-ports` publish những cổng
+**đã khai trong service**, mà `mailpit` không khai `ports:` nào cả — nên nó publish đúng không cổng
+nào. Cờ đó có mặt và không làm gì, đó là lý do lỗi sống lâu.
+
+Tầng thứ hai tệ hơn: `run` dựng một container **thứ hai**. Kể cả cổng có mở thì người ta vẫn nhìn vào
+một tiến trình Mailpit riêng với hộp thư rỗng — không phải cái đang nhận thư của hệ thống.
+
+### Một lớp phủ riêng, không phải thêm `ports:` vào `compose.yml`
+
+`SEC-10` quét ba tệp compose và bắt đỏ nếu có service nào ngoài `caddy` publish cổng. Bất biến "chỉ
+biên mạng mở cổng" chỉ có nghĩa khi phá nó là hành động **phải gõ ra**, nên phần mở cổng nằm ở
+`deploy/compose.mail.yml` và chỉ vào theo `make demo-mail`, ra theo `make demo-mail-down`. Giao diện
+Mailpit đọc được MỌI thư của hệ thống — kể cả liên kết kích hoạt và đặt lại mật khẩu, tức là chiếm
+được mọi tài khoản — nên nó không được mở thường trực. `SEC-10` có thêm test biết đến tệp mới, để
+danh sách ngoại lệ không phình ra trong im lặng.
+
+Mailpit cũng được `MP_DATABASE` và một volume: mở hộp thư mà xoá mất thư cần xem thì mở làm gì.
+`make demo` thêm bước dọn kho MinIO — xoá CSDL mà giữ nguyên object là để lại rác không ai dọn.
+
+Kiểm trên chồng demo đầy đủ: 17 container trước và sau (không sinh container thừa),
+`0.0.0.0:8025->8025/tcp`, HTTP 200, và thư gửi **trước** khi mở giao diện vẫn còn đó.
+
+### `DOC-28` treo — bốn hướng, cả bốn đều sai
+
+Một case đỏ suốt lượt này: `contract.test.ts › DOC-28` liệt kê MinIO để chứng minh không object hợp
+đồng nào nằm lại, và lượt liệt kê không bao giờ kết thúc. Triệu chứng gốc là một ngoại lệ **không bắt
+được** ném từ trong luồng — `Entity expansion limit exceeded: 1002 > 1000`, từ `fast-xml-parser` bên
+trong `minio`, ở `Transform._flush`. `for await` không nhận được lỗi ném ra lúc `prefinish` nên nó
+đứng chờ mãi một luồng đã chết; đổi sang nghe sự kiện `error` kèm trần thời gian biến 120 giây câm
+lặng thành một thông báo rõ ràng, nhưng không chữa được nguyên nhân.
+
+Bốn giả thuyết, mỗi cái một lượt chạy, **cả bốn đều bị bác**:
+
+| Giả thuyết | Phép thử | Kết quả |
+|---|---|---|
+| Số object tích luỹ qua các lượt chạy | Xoá sạch bucket còn 0 object | Vẫn treo |
+| Thư viện `minio` hỏng | Cùng lời gọi, tiến trình sạch, cùng máy chủ | 28ms |
+| Socket/agent dùng lại bị hỏng | Dựng `Client` mới cho riêng lượt liệt kê | Vẫn treo |
+| Dùng chung `XMLParser` với bộ trộn DOCX | Đọc `pnpm-lock.yaml` | `fast-xml-parser` chỉ có một người phụ thuộc là `minio`; `docx.ts` dùng `fflate` + regex, không đụng tới |
+
+Giả thuyết cuối là hướng tôi tin lâu nhất và nó sai hoàn toàn — đã sửa lại chú thích ở `listKeys`,
+vì một lời giải thích sai để lại trong mã còn tệ hơn không có lời giải thích nào.
+
+### Đổi nguồn bằng chứng, không nới bất biến
+
+Chưa tìm ra nguyên nhân gốc, nên câu hỏi là: điều cần chứng minh có nhất thiết phải đi qua lượt liệt
+kê ấy không. Không. Bất biến là *"xuất hợp đồng không để lại gì trong kho"*, và `doc.stored_file` trả
+lời đúng câu đó — mọi lượt ghi MinIO của ứng dụng đều kèm một dòng ở bảng này.
+
+Điều kiện ấy là thứ làm phép thay nguồn có giá trị, nên nó được **ghim lại thành test riêng**: quét
+`services/document/src` và khẳng định chỉ `files.service.ts` gọi `storage.put`, đúng hai điểm, cả hai
+đều ghi CSDL ngay sau đó. Thêm một đường ghi kho thứ ba là test đỏ — chứ không phải phép soi kho qua
+CSDL âm thầm mù đúng chỗ hợp đồng có thể lọt vào.
+
+Hai chi tiết nhỏ nhưng cố ý: so **cả tập dòng** chứ không so số đếm (một cặp thêm-rồi-xoá giữ nguyên
+số đếm nhưng vẫn là dấu vết), và phần kiểm enum `doc.file_purpose` tách thành test riêng khai thẳng
+sáu giá trị — hợp đồng không được lưu nên nó không có mục đích lưu trữ nào, thêm giá trị mới thì
+người thêm phải nói rõ nó dùng cho việc gì.
+
+`listKeys` vẫn còn, `document.test.ts` vẫn dùng nó với tiền tố hẹp theo từng khách hàng và không
+treo. Nguyên nhân gốc còn nợ lại.

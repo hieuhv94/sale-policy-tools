@@ -1,0 +1,19 @@
+# =============================================================================
+# Lớp phủ DUY NHẤT được phép mở cổng ngoài Caddy — và chỉ mở giao diện Mailpit.
+#
+# Vì sao là một tệp riêng chứ không thêm `ports:` vào `compose.yml`:
+#
+#   1. `SEC-10` quét ba tệp compose kia và bắt đỏ nếu có service nào ngoài
+#      `caddy` publish cổng. Bất biến "chỉ biên mạng mở cổng" chỉ có nghĩa khi
+#      việc phá nó là một hành động RÕ RÀNG, có tên, phải gõ ra.
+#   2. Hộp thư thử chỉ cần mở lúc người ta thật sự muốn xem thư. Mở thường trực
+#      là để hở một giao diện đọc được MỌI thư của hệ thống — kể cả liên kết
+#      kích hoạt và liên kết đặt lại mật khẩu, tức là chiếm được mọi tài khoản.
+#
+# Dùng qua `make demo-mail`, không gọi tay.
+# =============================================================================
+
+services:
+  mailpit:
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"

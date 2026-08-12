@@ -385,6 +385,28 @@ describe('SEC-10 cổng mở ra ngoài', () => {
     }
   });
 
+  it('lớp phủ hộp thư thử mở ĐÚNG một cổng, và chỉ của mailpit', () => {
+    // `compose.mail.yml` là ngoại lệ DUY NHẤT, và nó phải ở một tệp riêng chứ
+    // không nằm trong ba tệp trên: bất biến "chỉ biên mạng mở cổng" chỉ có
+    // nghĩa khi việc phá nó là một hành động rõ ràng, phải gõ ra.
+    //
+    // Test này giữ cho ngoại lệ đó không phình ra. Thêm một service vào tệp ấy
+    // là mở thẳng một cổng ra ngoài mà không test nào khác nhìn thấy.
+    expect(composeServicesWithPorts('deploy/compose.mail.yml')).toEqual(['mailpit']);
+  });
+
+  it('hộp thư thử KHÔNG mở sẵn — phải gọi `make demo-mail` mới mở', () => {
+    // Giao diện Mailpit đọc được MỌI thư của hệ thống, kể cả liên kết kích hoạt
+    // và liên kết đặt lại mật khẩu — tức là chiếm được mọi tài khoản. Mở thường
+    // trực là để hở đúng cái đó.
+    const mk = readFileSync('Makefile', 'utf8');
+    expect(mk).toMatch(/^demo-mail:/m);
+    expect(mk).toContain('compose.mail.yml');
+    // `make demo` KHÔNG được kéo theo lớp phủ này.
+    const khoiDemo = /^demo: [\s\S]*?\n\n/m.exec(mk)?.[0] ?? '';
+    expect(khoiDemo).not.toContain('compose.mail.yml');
+  });
+
   it('mười service ứng dụng đều nằm trong mạng internal, không service nào lộ cổng', () => {
     const text = readFileSync('deploy/compose.demo.yml', 'utf8');
     for (const svc of [

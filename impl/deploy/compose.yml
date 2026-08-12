@@ -132,6 +132,15 @@ services:
         limits: { memory: 128m }
     image: axllent/mailpit:v1.20
     restart: unless-stopped
+    # Lưu thư xuống volume thay vì giữ trong bộ nhớ.
+    #
+    # `make demo-mail` phải TẠO LẠI container này để publish cổng 8025, và với
+    # kho trong bộ nhớ thì đúng thao tác "mở hộp thư ra xem" lại xoá sạch thư
+    # cần xem — kể cả liên kết kích hoạt vừa gửi.
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpitdata:/data
     healthcheck:
       test: ["CMD","/mailpit","readyz"]
       interval: 5s
@@ -173,6 +182,7 @@ networks:
   internal: {}
 
 volumes:
+  mailpitdata: {}
   pgdata: {}
   pgarchive: {}
   pgbackup: {}

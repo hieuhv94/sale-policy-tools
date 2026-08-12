@@ -11,7 +11,8 @@ WORKSPACE := ../workspace
 
 .PHONY: help up down migrate install typecheck test seed clean ps logs psql version \
         backup restore restore-drill retention secrets demo demo-down demo-logs demo-seed \
-        demo-env demo-mail check-demo-down demo-data demo-reset demo-admin demo-mau
+        demo-env demo-mail demo-mail-down check-demo-down demo-data demo-reset \
+        demo-admin demo-mau demo-reset-files
 
 help:
 	@echo "up        dựng hạ tầng (postgres, redis, rabbitmq, minio, mailpit) + migration"
@@ -157,8 +158,26 @@ demo: secrets demo-env
 	@echo ""
 
 # Xoá và dựng lại CSDL. Chạy TRƯỚC migrate, sau khi Postgres đã khoẻ.
-demo-reset:
+demo-reset: demo-reset-files
 	$(DEMO) run --rm -T -e NODE_ENV= --entrypoint /bin/sh migrate /reset-db.sh
+
+# Dọn sạch kho tệp cùng lượt với CSDL.
+#
+# Xoá CSDL mà giữ nguyên MinIO thì mọi object còn lại là RÁC: không dòng nào
+# trong CSDL trỏ tới chúng nữa, không màn hình nào hiện chúng, và không có gì
+# dọn chúng. Chúng chỉ lớn dần.
+#
+# Đã hỏng thật vì chuyện này: `document` nạp một mẫu hợp đồng mặc định ở MỖI lần
+# khởi động khi chưa có mẫu nào trong CSDL, nên mỗi lượt `make demo` để lại thêm
+# một object dưới `mau_hd/`. Tới lượt bộ test quét kho, thư viện minio ném
+# "Entity expansion limit exceeded" TỪ BÊN TRONG luồng — không bắt được, và test
+# chỉ treo tới lúc hết giờ, không có dòng nào nói vì sao.
+demo-reset-files:
+	@$(DEMO) exec -T minio sh -c '\
+	  mc alias set l http://localhost:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" > /dev/null && \
+	  mc rm --recursive --force l/csbh/ > /dev/null 2>&1; \
+	  mc mb --ignore-existing l/csbh > /dev/null' \
+	  && echo "demo-reset-files: đã dọn sạch kho tệp" || true
 
 # Đúng MỘT tài khoản quản trị, không gì khác.
 #
@@ -218,5 +237,24 @@ demo-logs:
 # Mở hộp thư thử ra ngoài. TÁCH RIÊNG khỏi `make demo` vì nó mở thêm một cổng,
 # và bất biến "chỉ Caddy mở cổng" chỉ có nghĩa khi việc phá nó là một hành động
 # rõ ràng, có chủ ý.
+#
+# `up -d mailpit` với lớp phủ `compose.mail.yml`, KHÔNG phải `run`.
+#
+# Bản cũ dùng `run --service-ports`, và nó hỏng theo hai tầng cùng lúc:
+#   * `--service-ports` publish những cổng ĐÃ KHAI trong service, mà `mailpit`
+#     không khai `ports:` nào — nên nó publish đúng không cổng nào, và
+#     `localhost:8025` không kết nối được;
+#   * `run` dựng một container THỨ HAI, tức một tiến trình Mailpit riêng với hộp
+#     thư rỗng của chính nó. Kể cả cổng có mở thì thứ nhìn thấy vẫn là một hộp
+#     thư trống, không phải hộp thư đang nhận thư của hệ thống.
 demo-mail:
-	$(DEMO) run --rm -d --service-ports --entrypoint /mailpit mailpit
+	$(DEMO) -f deploy/compose.mail.yml up -d --wait mailpit
+	@echo ""
+	@echo "  Hộp thư thử: http://localhost:$${MAILPIT_PORT:-8025}"
+	@echo "  Đóng lại:    make demo-mail-down"
+	@echo ""
+
+# Đóng cổng 8025, giữ nguyên thư đã nhận (thư nằm ở volume `mailpitdata`).
+demo-mail-down:
+	$(DEMO) up -d --wait --force-recreate mailpit
+	@echo "  Đã đóng cổng 8025. Thư cũ vẫn còn."
