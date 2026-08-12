@@ -8,6 +8,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
+import { Mailer as IdentityMailer } from '@csbh/identity/testing';
 import {
   accessTokenFor,
   activationTokenFrom,
@@ -245,6 +246,30 @@ describe('PWD-07 liên kết đặt lại dùng một lần', () => {
       .send({ token, newPassword: PW_MOI });
     expect(res.status).toBe(400);
     expect(res.body.code).toBe('TOKEN_EXPIRED');
+  });
+});
+
+describe('PWD-09 SMTP hỏng cũng không lộ tài khoản nào có thật', () => {
+  it('gửi thư hỏng vẫn trả về đúng câu trả lời của tài khoản không tồn tại', async () => {
+    // Đây là chỗ dễ hỏng nhất của cả tính năng: mọi công sức giấu danh sách tài
+    // khoản đổ sông đổ biển nếu tài khoản CÓ THẬT + SMTP hỏng trả 500 còn tài
+    // khoản không tồn tại trả 200. Người dò chỉ cần làm SMTP nghẽn một nhịp.
+    const { username } = await nguoiDaKichHoat('MatKhauCu@2026');
+
+    const mailer = app.get(IdentityMailer);
+    const that = mailer.sendPasswordReset.bind(mailer);
+    mailer.sendPasswordReset = async () => {
+      throw new Error('SMTP giả vờ hỏng');
+    };
+    try {
+      const co = await quen(username);
+      const khong = await quen(`${TEST_PREFIX}_van_khong_co`);
+      expect(co.status).toBe(khong.status);
+      expect(co.body).toEqual(khong.body);
+      expect(co.status).toBe(200);
+    } finally {
+      mailer.sendPasswordReset = that;
+    }
   });
 });
 

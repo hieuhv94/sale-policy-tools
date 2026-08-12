@@ -136,9 +136,9 @@ make demo-data
 6. **`kt01`** → **Tiếp nhận lần 2** → hồ sơ chuyển *Đang có hiệu lực*.
 7. **`bld01`** → *Báo cáo* → xem tiến độ, tỷ lệ trả lại, SLA; thử **Xuất Excel**.
 
-## Xem email hệ thống gửi
+## Email: cơ chế gửi
 
-Mọi email đi vào **Mailpit**, không ra Internet. Mở nó ra ngoài:
+**Ở bản demo, không thư nào ra Internet.** Tất cả đi vào **Mailpit** chạy trong máy. Mở nó ra:
 
 ```bash
 make demo-mail    # rồi mở http://localhost:8025
@@ -146,6 +146,49 @@ make demo-mail    # rồi mở http://localhost:8025
 
 Tách riêng thành một lệnh có chủ ý: nó mở thêm một cổng, mà bất biến *"chỉ Caddy mở cổng"*
 (`SEC-10`) chỉ có nghĩa khi việc phá nó là một hành động rõ ràng.
+
+### Địa chỉ người gửi
+
+`MAIL_FROM`, đặt ở `deploy/compose.demo.yml`, hiện là **`csbh-noreply@nutricare.test`**.
+
+`.test` là tên miền dành riêng cho thử nghiệm (RFC 6761) — nó **không bao giờ tồn tại** trên
+Internet thật. Lên máy chủ thật phải đổi thành địa chỉ trên tên miền của công ty, và tên miền đó
+phải khai **SPF · DKIM · DMARC**; thiếu thì máy chủ nhận sẽ chặn hoặc ném vào thư rác.
+
+### Hai đường gửi thư, tách nhau
+
+| | Thư kích hoạt · đặt lại mật khẩu | Thông báo luồng duyệt |
+|---|---|---|
+| Ai gửi | `identity`, gọi SMTP thẳng trong request | `notification`, qua RabbitMQ |
+| Thử lại | 3 lần (0,2s · 1s · 3s) trong tiến trình | 3 lần (1s · 3s · 9s) |
+| Hỏng hẳn | Ghi log, API báo `inviteMailSent: false` | Vào **hàng thư hỏng**, gửi lại được ở màn hình *Hệ thống* |
+
+**Vì sao thư mời không đi qua hàng đợi như phần còn lại**: hàng thư hỏng lưu nguyên thân sự kiện
+(`ntf.dead_letter.payload`) và người quản trị đọc được nó. Đẩy thư mời qua đó là đưa **token kích
+hoạt thô** vào một bảng có người đọc — ai mở được màn hình thư hỏng là chiếm được tài khoản chưa
+kích hoạt. Hiện tại token thô chỉ tồn tại trong bộ nhớ và trong thân email; CSDL chỉ giữ bản băm.
+
+Đổi lại, thư mời hỏng thì **không có hàng chờ để gửi lại tự động** — cách cứu là bấm *Gửi lại thư
+mời*, và nút đó **sinh token mới** chứ không phát lại token cũ.
+
+### Biến môi trường
+
+Cả hai service đọc **cùng một bộ**, qua `loadMailConfig` ở `@csbh/http-kit`:
+
+| Biến | Việc |
+|---|---|
+| `MAIL_HOST` · `MAIL_PORT` | Máy chủ SMTP. Mặc định `mailpit:1025` |
+| `MAIL_FROM` | Địa chỉ ô *From* |
+| `MAIL_REDIRECT_ALL` | Dồn **mọi** thư về một hộp thư; người nhận gốc ghi ở header `X-Original-To` |
+| `MAIL_ALLOWLIST` | Chỉ gửi tới các tên miền này, cách nhau bằng dấu phẩy |
+
+Hai chốt an toàn chạy **lúc khởi động**, không lúc gửi — service cấu hình sai thì không chạy nổi,
+và một service không chạy thì ai cũng thấy ngay:
+
+- `NODE_ENV=production` mà `MAIL_HOST` là hộp thư giả (`mailpit`, `localhost`…) → **chặn**. Không có
+  nó thì mọi thông báo rơi vào hư vô mà không ai báo lỗi.
+- Môi trường khác production trỏ vào SMTP thật mà chưa đặt `MAIL_REDIRECT_ALL` → **chặn**. Không có
+  nó thì thư thử nghiệm bay thẳng tới Trưởng bộ phận thật.
 
 ## Lệnh hay dùng
 

@@ -4,6 +4,8 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
+import { assertSafeMailConfig, UnsafeMailConfigError } from '@csbh/http-kit';
+import { Mailer as IdentityMailer } from '@csbh/identity/testing';
 import {
   accessTokenFor,
   activationTokenFrom,
@@ -340,6 +342,61 @@ describe('ONB-14 không còn đường kích hoạt nào ngoài email', () => {
     ).find((r) => r.id === res.body.id);
     expect(row!.activatedAt).toBeNull();
     expect(row!.emailVerifiedAt).toBeNull();
+  });
+});
+
+describe('ONB-16 SMTP hỏng không làm mất tài khoản vừa tạo', () => {
+  it('vẫn trả 201, báo rõ thư chưa gửi được, và tài khoản có thật', async () => {
+    // Thư gửi SAU khi transaction đã commit. Ném ra thì quản trị nhận 500 và
+    // không biết mình vừa tạo xong hay chưa — rồi thử tạo lại và nhận 409.
+    const mailer = app.get(IdentityMailer);
+    const that = mailer.sendInvite.bind(mailer);
+    mailer.sendInvite = async () => {
+      throw new Error('SMTP giả vờ hỏng');
+    };
+
+    let res;
+    try {
+      ({ res } = await createUser());
+    } finally {
+      mailer.sendInvite = that;
+    }
+
+    expect(res!.status).toBe(201);
+    expect(res!.body.inviteMailSent).toBe(false);
+    expect(res!.body.status).toBe('CHO_KICH_HOAT');
+
+    // Tài khoản có thật, và đường cứu là "Gửi lại thư mời" — nút đó chỉ hiện
+    // với tài khoản chưa kích hoạt, nên trạng thái phải đúng như trên.
+    const co = await withAdminDb(async (c) => {
+      const q = await c.query(`SELECT 1 FROM idn.app_user WHERE id = $1`, [res!.body.id]);
+      return q.rowCount;
+    });
+    expect(co).toBe(1);
+  });
+
+  it('gửi được thì cờ là true — cờ phải nói lên điều gì đó', async () => {
+    const { res } = await createUser();
+    expect(res.body.inviteMailSent).toBe(true);
+  });
+});
+
+describe('ONB-17 identity dùng CHUNG chốt an toàn cấu hình thư với notification', () => {
+  it('production trỏ vào hộp thư giả — chặn', () => {
+    // Trước P14a, identity đọc `SMTP_HOST` còn deploy đặt `MAIL_HOST`, nên nó
+    // bỏ qua cấu hình triển khai và dùng mặc định viết cứng `mailpit:1025`.
+    // Trên máy chủ thật, mọi thư kích hoạt hỏng — mà từ P13 thư kích hoạt là
+    // đường DUY NHẤT để tài khoản có mật khẩu.
+    expect(() => assertSafeMailConfig({ NODE_ENV: 'production', MAIL_HOST: 'mailpit' })).toThrow(
+      UnsafeMailConfigError,
+    );
+  });
+
+  it('cấu hình thư của identity đọc MAIL_HOST, không phải SMTP_HOST', async () => {
+    const { loadMailConfig } = await import('@csbh/http-kit');
+    const cfg = loadMailConfig({ MAIL_HOST: 'mailpit', MAIL_PORT: '2525' } as NodeJS.ProcessEnv);
+    expect(cfg.host).toBe('mailpit');
+    expect(cfg.port).toBe(2525);
   });
 });
 

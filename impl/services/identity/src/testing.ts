@@ -10,6 +10,12 @@ import { AppModule } from './app.module.js';
 import { getKeyPair } from '@csbh/http-kit';
 import { CONFIG } from './infra/config.js';
 
+/**
+ * Xuất ra để test thay tạm hàm gửi thư — kiểm nhánh "SMTP hỏng" mà không phải
+ * dựng một máy chủ SMTP hỏng thật.
+ */
+export { Mailer } from './infra/mailer.js';
+
 export async function createTestApp(): Promise<INestApplication> {
   const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = mod.createNestApplication();

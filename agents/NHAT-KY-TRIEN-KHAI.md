@@ -2652,3 +2652,70 @@ tên tài khoản mẫu — cả hai đều là điều test thật sự muốn 
 
 Thêm `tests/http/quen-mat-khau.test.ts` (13 case). Gỡ ONB-14 cũ, viết lại ONB-05/06 thành "tài khoản
 chưa kích hoạt thì không mật khẩu nào vào được".
+
+---
+
+## P14 — Một lỗi triển khai chờ sẵn, và cơ chế gửi thư
+
+Tìm ra khi trả lời một câu hỏi tưởng là vô hại: *"thư kích hoạt để địa chỉ người gửi là gì"*.
+
+### Hai service, hai tên biến
+
+`notification` đọc `MAIL_HOST ?? SMTP_HOST`. `identity` chỉ đọc `SMTP_HOST`. `deploy/` chỉ đặt
+`MAIL_HOST`. Kiểm trong container demo đang chạy:
+
+```
+SMTP_HOST = undefined | MAIL_HOST = mailpit | MAIL_FROM = undefined
+```
+
+Nghĩa là identity **bỏ qua toàn bộ cấu hình triển khai** và chạy bằng giá trị mặc định viết cứng
+`mailpit:1025`. Bản demo chạy đúng hoàn toàn do trùng hợp.
+
+Trên máy chủ thật: đặt `MAIL_HOST=smtp.nutricare.com.vn`, notification dùng đúng, identity vẫn gõ
+cửa `mailpit` — **mọi thư kích hoạt và đặt lại mật khẩu hỏng**. Mà từ P13, thư kích hoạt là đường
+DUY NHẤT để tài khoản có mật khẩu. Triệu chứng là **không ai đăng nhập được vào hệ thống vừa triển
+khai**, và không có dòng log nào nhắc tới nguyên nhân.
+
+Đây là loại lỗi mà bộ test không bắt được vì cả hai đầu đều đúng khi chạy ở môi trường test. Nó chỉ
+lộ ra khi đọc chéo hai tệp cấu hình cạnh nhau.
+
+`loadMailConfig` chuyển sang `packages/http-kit`; identity gọi nó ở tầng module nên hai chốt an toàn
+của `NTF-16` giờ áp cho cả identity — cấu hình nguy hiểm thì service **không khởi động nổi**.
+`MAIL_REDIRECT_ALL` và `MAIL_ALLOWLIST` cũng áp cho thư mời, trước đây thì không: dồn thư về hộp thư
+QA mà thư mời vẫn bay tới người thật là đúng thứ biến đó dựng ra để chặn.
+
+### Không gộp hai đường gửi thư — và vì sao
+
+Đề nghị ban đầu của tôi là đẩy thư mời qua `notification` để có thử lại và hàng thư hỏng. **Sai**, và
+chỗ sai lộ ra khi đọc lược đồ: `ntf.dead_letter.payload jsonb` lưu NGUYÊN thân sự kiện, và người
+quản trị đọc được nó ở màn hình *Hệ thống*. Đẩy thư mời qua đó là đưa **token kích hoạt thô** vào một
+bảng có người đọc — ai mở được màn hình thư hỏng là chiếm được tài khoản chưa kích hoạt. Hiện tại
+token thô chỉ tồn tại trong bộ nhớ và trong thân email; CSDL chỉ giữ bản băm (`ONB-15`).
+
+Nên identity giữ đường gửi riêng, và tự lo phần thiếu:
+
+- **Thử lại ba lần** (0,2s · 1s · 3s) ngay trong tiến trình. SMTP chớp một nhịp là chuyện thường, mà
+  không thử lại thì nhịp đó làm hỏng đúng cái thư người dùng đang chờ để vào hệ thống lần đầu.
+- **Gửi hỏng không làm mất tài khoản.** Thư gửi sau khi transaction đã commit, nên ném ra là quản trị
+  nhận 500 và không biết mình vừa tạo xong hay chưa — rồi thử lại và nhận 409. Giờ trả 201 kèm
+  `inviteMailSent: false`, và màn hình nói đúng một câu có ích: tài khoản đã tạo, thư chưa đi, bấm
+  *Gửi lại thư mời*. Nút đó **sinh token mới** chứ không phát lại token cũ — đúng cách thử lại một
+  thư chứa bí mật dùng một lần.
+
+### Chỗ nguy hiểm nhất của lượt này
+
+`forgot-password` cũng gọi mailer. Ném ra thì **tài khoản có thật + SMTP hỏng trả 500, còn tài khoản
+không tồn tại vẫn trả 200** — và chênh lệch đó chính là thứ cả đường ấy dựng ra để không có. Người
+dò chỉ cần làm SMTP nghẽn một nhịp là đọc được danh sách tài khoản của công ty. Đã nuốt lỗi và có
+test `PWD-09` thay tạm hàm gửi thư bằng một hàm luôn ném, rồi so cả mã lẫn thân phản hồi.
+
+### Kết quả
+
+637 case (thêm 5). Tài liệu `02-CHAY-DEMO.md` có mục *Email: cơ chế gửi* — địa chỉ người gửi, hai
+đường gửi và vì sao tách, bảng biến môi trường, hai chốt an toàn.
+
+### Còn nợ
+
+`MAIL_FROM` vẫn là `csbh-noreply@nutricare.test`. `.test` là tên miền dành riêng cho thử nghiệm
+(RFC 6761) nên nó không bao giờ gửi ra Internet thật được — phải đổi trước khi lên máy chủ, kèm khai
+SPF · DKIM · DMARC cho tên miền thật.

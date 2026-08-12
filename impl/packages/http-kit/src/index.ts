@@ -1,4 +1,5 @@
 export * from './jwt-config.js';
+export * from './mail-config.js';
 export * from './keys.js';
 export * from './decorators.js';
 export * from './validate.js';

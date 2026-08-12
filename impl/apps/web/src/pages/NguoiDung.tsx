@@ -79,12 +79,17 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
   const [mo, datMo] = useState<{ kieu: 'tao' } | { kieu: 'sua'; u: NguoiDungDto } | null>(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
+  const [thuHong, datThuHong] = useState<string | null>(null);
 
-  const chay = async (id: string, fn: () => Promise<unknown>) => {
+  const chay = async (id: string, fn: () => Promise<{ inviteMailSent?: boolean } | unknown>) => {
     datLoi(null);
+    datThuHong(null);
     datDangChay(id);
     try {
-      await fn();
+      const kq = (await fn()) as { inviteMailSent?: boolean } | undefined;
+      if (kq?.inviteMailSent === false) {
+        datThuHong('Thao tác đã xong nhưng KHÔNG gửi được thư. Kiểm tra cấu hình máy chủ thư.');
+      }
       taiLai();
     } catch (e) {
       datLoi(e);
@@ -102,6 +107,18 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
       </div>
 
       {loi !== null && <BaoLoi loi={loi} />}
+      {thuHong !== null && (
+        <div className="ghi-chu-tra-lai" role="status">
+          <p>
+            <strong>{thuHong}</strong>
+          </p>
+          <p className="ghi-chu">
+            Tài khoản vẫn được tạo và vẫn ở trạng thái <em>Chờ kích hoạt</em>. Người dùng chưa nhận
+            được gì và <strong>chưa đăng nhập được</strong> — sửa xong máy chủ thư thì bấm
+            <strong> Gửi lại thư mời</strong>.
+          </p>
+        </div>
+      )}
 
       <div className="khung-cuon" role="region" aria-label="Danh sách người dùng" tabIndex={0}>
         <table className="bang">
@@ -172,8 +189,11 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
         <HopThoaiTao
           ds={ds}
           dong={() => datMo(null)}
-          xong={() => {
+          xong={(daGuiThu) => {
             datMo(null);
+            datThuHong(
+              daGuiThu ? null : 'Đã tạo tài khoản nhưng KHÔNG gửi được thư mời.',
+            );
             taiLai();
           }}
         />
@@ -211,7 +231,8 @@ function HopThoaiTao({
 }: {
   ds: NguoiDungDto[];
   dong: () => void;
-  xong: () => void;
+  /** `daGuiThu` false = tài khoản đã tạo nhưng thư mời không đi được. */
+  xong: (daGuiThu: boolean) => void;
 }) {
   const [vaiTro, datVaiTro] = useState<VaiTro>('TDV');
   const [hoTen, datHoTen] = useState('');
@@ -233,7 +254,7 @@ function HopThoaiTao({
     datLoi(null);
     datDangGui(true);
     try {
-      await dang<{ id: string }>('/admin/users', {
+      const kq = await dang<{ id: string; inviteMailSent: boolean }>('/admin/users', {
         email: thu.trim(),
         username: taiKhoan.trim(),
         fullName: hoTen.trim(),
@@ -241,7 +262,7 @@ function HopThoaiTao({
         ...(truong.includes('tbp-quan-ly') && tbp ? { approverUsername: tbp } : {}),
         ...(capTren ? { parentUsername: capTren } : {}),
       });
-      xong();
+      xong(kq.inviteMailSent);
     } catch (err) {
       datLoi(err);
     } finally {

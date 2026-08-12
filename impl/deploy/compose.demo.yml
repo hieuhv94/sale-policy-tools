@@ -41,6 +41,11 @@ x-node: &node
     RABBITMQ_URL: amqp://rabbitmq:5672
     MAIL_HOST: mailpit
     MAIL_PORT: "1025"
+    # Đặt TƯỜNG MINH, không dựa vào giá trị mặc định viết cứng trong mã. Đây là
+    # địa chỉ người nhận nhìn thấy ở ô "From"; `.test` là tên miền dành riêng
+    # cho thử nghiệm (RFC 6761) nên nó KHÔNG BAO GIỜ gửi ra Internet thật được.
+    # Lên máy chủ thật phải đổi thành tên miền có SPF/DKIM/DMARC của công ty.
+    MAIL_FROM: csbh-noreply@nutricare.test
     MINIO_HOST: minio
     MINIO_PORT: "9000"
     MINIO_ACCESS_KEY: csbh

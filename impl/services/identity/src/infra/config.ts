@@ -3,7 +3,18 @@
  * audience, hạn token, TTL cache) nằm ở `JWT` trong @csbh/http-kit — khai lại ở
  * đây là cách chắc chắn nhất để hai service không xác minh được token của nhau.
  */
-import { JWT } from '@csbh/http-kit';
+import { JWT, loadMailConfig } from '@csbh/http-kit';
+
+/**
+ * Cấu hình thư dùng CHUNG với `notification` — cùng biến môi trường, cùng hai
+ * chốt an toàn lúc khởi động.
+ *
+ * Gọi ở tầng module nên `assertSafeMailConfig` chạy lúc NẠP: cấu hình sai thì
+ * identity không khởi động nổi. Đó là hành vi đúng — một service không chạy thì
+ * ai cũng thấy ngay, còn một service chạy êm mà gửi thư vào hư vô thì tới lúc
+ * có người không đăng nhập được mới biết (NTF-16).
+ */
+export const MAIL = loadMailConfig();
 
 export const CONFIG = {
   issuer: JWT.issuer,
@@ -26,9 +37,6 @@ export const CONFIG = {
   resetThrottleMinutes: 2,
 
   webBaseUrl: process.env.WEB_BASE_URL ?? 'http://localhost:8080',
-  mailFrom: process.env.MAIL_FROM ?? 'csbh-noreply@nutricare.test',
-  smtpHost: process.env.SMTP_HOST ?? 'mailpit',
-  smtpPort: Number(process.env.SMTP_PORT ?? 1025),
 
   appVersion: process.env.APP_VERSION ?? '0.0.0-dev',
 } as const;

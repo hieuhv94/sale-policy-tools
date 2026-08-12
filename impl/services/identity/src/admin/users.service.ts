@@ -2,7 +2,13 @@
  * Tạo và quản lý tài khoản — YCNV muc 2.8. Chỉ vai trò QUAN_TRI gọi được;
  * hệ thống KHÔNG có màn hình đăng ký công khai.
  */
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
 import { paged, type Page } from '@csbh/http-kit';
@@ -41,6 +47,8 @@ export type CreateUserInput = {
 
 @Injectable()
 export class UsersService {
+  private readonly log = new Logger(UsersService.name);
+
   constructor(
     private readonly db: Db,
     private readonly mailer: Mailer,
@@ -111,7 +119,18 @@ export class UsersService {
       return id;
     });
 
-    await this.mailer.sendInvite(input.email, input.fullName, this.activationUrl(token.raw));
+    // Gửi thư SAU khi đã ghi tài khoản, nên hỏng ở đây KHÔNG được làm hỏng cả
+    // lời gọi: tài khoản đã tồn tại thật rồi. Ném ra thì quản trị nhận 500 và
+    // không biết là mình vừa tạo xong hay chưa — rồi thử tạo lại và nhận 409.
+    //
+    // Trả về `inviteMailSent: false` để màn hình nói đúng một câu có ích: tài
+    // khoản đã tạo, thư chưa đi, bấm "Gửi lại thư mời".
+    const inviteMailSent = await this.guiThuMoi(
+      input.email,
+      input.fullName,
+      token.raw,
+      created,
+    );
 
     return {
       id: created,
@@ -119,6 +138,7 @@ export class UsersService {
       email: input.email,
       role: input.role,
       status: 'CHO_KICH_HOAT',
+      inviteMailSent,
     };
   }
 
@@ -145,8 +165,30 @@ export class UsersService {
         [userId, token.hash, String(CONFIG.activationTtlHours), createdBy],
       );
     });
-    await this.mailer.sendInvite(u.email, u.full_name, this.activationUrl(token.raw));
-    return { ok: true };
+    const inviteMailSent = await this.guiThuMoi(u.email, u.full_name, token.raw, userId);
+    return { ok: true, inviteMailSent };
+  }
+
+  /**
+   * Gửi thư mời, nuốt lỗi và trả về gửi được hay không.
+   *
+   * `Mailer` đã tự thử lại ba lần; tới đây là SMTP hỏng thật. Ghi log ở mức
+   * `error` để còn dò được trong log vận hành — đường này không có hàng thư
+   * hỏng, và cố ý không có: xem chú thích đầu `mailer.ts`.
+   */
+  private async guiThuMoi(
+    email: string,
+    fullName: string,
+    rawToken: string,
+    userId: string,
+  ): Promise<boolean> {
+    try {
+      await this.mailer.sendInvite(email, fullName, this.activationUrl(rawToken));
+      return true;
+    } catch (e) {
+      this.log.error(`không gửi được thư mời cho ${userId} (${email}): ${String(e)}`);
+      return false;
+    }
   }
 
   async setActive(userId: string, isActive: boolean) {

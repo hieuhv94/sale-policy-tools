@@ -324,12 +324,22 @@ export class AuthService {
           [u.id, token.hash, String(CONFIG.resetTtlHours)],
         );
       });
-      await this.mailer.sendPasswordReset(
-        u.email,
-        u.full_name,
-        `${CONFIG.webBaseUrl}/dat-lai-mat-khau?token=${encodeURIComponent(token.raw)}`,
-      );
-      this.log.log(`đã gửi liên kết đặt lại mật khẩu cho ${u.id}`);
+      // Nuốt lỗi gửi thư, và đây KHÔNG phải sự lười biếng.
+      //
+      // Ném ra thì tài khoản có thật + SMTP hỏng trả 500, còn tài khoản không
+      // tồn tại vẫn trả 200 — và chênh lệch đó chính là thứ cả đường này dựng ra
+      // để không có. Người dò chỉ cần làm SMTP nghẽn một nhịp là đọc được danh
+      // sách tài khoản của công ty.
+      try {
+        await this.mailer.sendPasswordReset(
+          u.email,
+          u.full_name,
+          `${CONFIG.webBaseUrl}/dat-lai-mat-khau?token=${encodeURIComponent(token.raw)}`,
+        );
+        this.log.log(`đã gửi liên kết đặt lại mật khẩu cho ${u.id}`);
+      } catch (e) {
+        this.log.error(`không gửi được liên kết đặt lại cho ${u.id}: ${String(e)}`);
+      }
     }
 
     return { ok: true };
