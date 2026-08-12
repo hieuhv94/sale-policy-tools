@@ -56,13 +56,35 @@ export class UsersService {
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
-    const dup = await this.db.one<{ id: string }>(
-      `SELECT id FROM idn.app_user WHERE lower(email) = lower($1) OR lower(username) = lower($2)`,
+    const trung = await this.db.q<{ email: string; username: string }>(
+      `SELECT email, username FROM idn.app_user
+        WHERE lower(email) = lower($1) OR lower(username) = lower($2)`,
       [input.email, input.username],
     );
     // Chặn TRƯỚC khi gửi thư: tạo hỏng mà thư đã bay đi thì người nhận có một
     // liên kết không kích hoạt được cái gì (ONB-03).
-    if (dup) throw new ConflictException({ code: 'EMAIL_DUPLICATE' });
+    //
+    // Nói RÕ trùng cái nào, và kèm `message`. Không kèm thì giao diện rơi xuống
+    // câu mặc định cho 409 — "Dữ liệu vừa được người khác thay đổi, hãy tải lại"
+    // — vốn đúng cho tranh chấp ghi đồng thời và hoàn toàn sai ở đây: người
+    // quản trị tải lại bao nhiêu lần thì tên tài khoản đó vẫn đang có người
+    // dùng. Họ phải ĐỔI, mà câu kia không hề nói điều đó.
+    if (trung.length > 0) {
+      const trungEmail = trung.some((r) => r.email.toLowerCase() === input.email.toLowerCase());
+      const trungTen = trung.some(
+        (r) => r.username.toLowerCase() === input.username.toLowerCase(),
+      );
+      throw new ConflictException({
+        // Giữ `EMAIL_DUPLICATE` cho trường hợp trùng email (ONB-03 tra mã này).
+        code: trungEmail ? 'EMAIL_DUPLICATE' : 'USERNAME_DUPLICATE',
+        field: trungEmail && !trungTen ? 'email' : 'username',
+        message: trungEmail
+          ? trungTen
+            ? `Đã có tài khoản dùng tên "${input.username}", và cũng đã có tài khoản dùng email ${input.email}. Đổi cả hai rồi thử lại.`
+            : `Email ${input.email} đã dùng cho một tài khoản khác. Mỗi tài khoản một địa chỉ riêng vì thư kích hoạt gửi tới đó.`
+          : `Tên tài khoản "${input.username}" đã có người dùng. Chọn tên khác.`,
+      });
+    }
 
     // Một TDV KHÔNG CÓ người duyệt là một tài khoản không dùng được: hồ sơ họ
     // gửi đi không tới ai, đứng im tới khi quá hạn, và không có chỗ nào trong

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
 import { VAI_TRO, can, type VaiTro } from '../lib/can.js';
 import {
+  NHAN_CAP_TREN,
   NHAN_VAI_TRO,
   TRUONG_BAT_BUOC,
   TRUONG_THEM,
@@ -128,7 +129,9 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
               <th>Tài khoản</th>
               <th>Vai trò</th>
               <th>Trưởng bộ phận quản lý</th>
-              <th>Cấp trên</th>
+              {/* Kế toán với TDV, Sale Admin với kế toán — một cột, hai nghĩa
+                  tuỳ vai trò của dòng, nên nhãn để chung. */}
+              <th>Người quản lý</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -139,7 +142,10 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                 <td>{u.fullName}</td>
                 <td className="ma-phu">{u.username}</td>
                 <td>{NHAN_VAI_TRO[u.role] ?? u.role}</td>
-                <td>{u.approverName ?? '—'}</td>
+                {/* Cả hai cột đều là TÊN TÀI KHOẢN. Một cột họ tên còn cột kia
+                    username thì hai ô cạnh nhau trông như hai loại dữ liệu khác
+                    nhau, và không đối chiếu được với cột Tài khoản ở trên. */}
+                <td className="ma-phu">{u.approverUsername ?? '—'}</td>
                 <td className="ma-phu">{u.parentUsername ?? '—'}</td>
                 <td>{trangThaiTaiKhoan(u)}</td>
                 <td>
@@ -356,7 +362,7 @@ function HopThoaiTao({
         )}
 
         {truong.includes('cap-tren') && vaiTroCha && (
-          <Truong id="nd-cap-tren" nhan={`Cấp trên (${NHAN_VAI_TRO[vaiTroCha]})`}>
+          <Truong id="nd-cap-tren" nhan={NHAN_CAP_TREN[vaiTro]}>
             {(p) => (
               <select {...p} className="o-nhap" value={capTren}
                 onChange={(e) => datCapTren(e.target.value)}>
@@ -480,7 +486,7 @@ function HopThoaiSua({
         )}
 
         {vaiTroCha && (
-          <Truong id="sua-cap-tren" nhan={`Cấp trên (${NHAN_VAI_TRO[vaiTroCha]})`}>
+          <Truong id="sua-cap-tren" nhan={NHAN_CAP_TREN[u.role]}>
             {(p) => (
               <select {...p} className="o-nhap" value={capTren}
                 onChange={(e) => datCapTren(e.target.value)}>

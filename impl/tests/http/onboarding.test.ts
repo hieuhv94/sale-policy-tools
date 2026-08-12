@@ -137,6 +137,30 @@ describe('ONB-03 email trùng', () => {
     const again = await createUser({ email: first.email.toUpperCase() });
     expect(again.res.status).toBe(409);
   });
+
+  it('nói RÕ trùng cái nào, và nói đúng việc phải làm', async () => {
+    // Không có `message` thì giao diện rơi xuống câu mặc định cho 409 — "Dữ liệu
+    // vừa được người khác thay đổi, hãy tải lại rồi thử lại" — đúng cho tranh
+    // chấp ghi đồng thời và hoàn toàn sai ở đây: tải lại bao nhiêu lần thì tên
+    // tài khoản đó vẫn đang có người dùng. Việc phải làm là ĐỔI.
+    const first = await createUser();
+
+    const trungTen = await createUser({ username: first.username });
+    expect(trungTen.res.status).toBe(409);
+    expect(trungTen.res.body.code).toBe('USERNAME_DUPLICATE');
+    expect(trungTen.res.body.message).toContain(first.username);
+    expect(trungTen.res.body.message).not.toMatch(/tải lại/i);
+
+    const trungMail = await createUser({ email: first.email });
+    expect(trungMail.res.body.code).toBe('EMAIL_DUPLICATE');
+    expect(trungMail.res.body.message).toContain(first.email);
+
+    // Trùng cả hai thì báo cả hai — sửa một cái rồi vẫn 409 là hai lượt bực mình
+    // liên tiếp cho cùng một việc.
+    const trungCa = await createUser({ username: first.username, email: first.email });
+    expect(trungCa.res.body.message).toContain(first.username);
+    expect(trungCa.res.body.message).toContain(first.email);
+  });
 });
 
 describe('ONB-04 email mời', () => {

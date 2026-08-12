@@ -44,6 +44,24 @@ export const VAI_TRO_CAP_TREN: Record<VaiTro, VaiTro | null> = {
   QUAN_TRI: null,
 };
 
+/**
+ * Nhãn của ô chọn cấp trên, THEO VAI TRÒ đang tạo.
+ *
+ * Không gọi là "Cấp trên" nữa: kế toán không phải cấp trên của trình dược viên
+ * theo nghĩa tổ chức, và gọi vậy trên màn hình là nói sai về công ty. Quan hệ
+ * này chỉ là phạm vi dữ liệu — ai nhìn thấy hồ sơ của ai (`idn.scope_user_ids`).
+ *
+ * Vai trò không có cấp trên thì không có ô này, nên nhãn để chuỗi rỗng.
+ */
+export const NHAN_CAP_TREN: Record<VaiTro, string> = {
+  TDV: 'Kế toán quản lý',
+  KE_TOAN: 'Sale Admin quản lý',
+  TBP: '',
+  SALE_ADMIN: '',
+  BAN_LANH_DAO: '',
+  QUAN_TRI: '',
+};
+
 export const NHAN_VAI_TRO: Record<VaiTro, string> = {
   TDV: 'Trình dược viên',
   TBP: 'Trưởng bộ phận',

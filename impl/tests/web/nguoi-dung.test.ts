@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import {
+  NHAN_CAP_TREN,
   NHAN_VAI_TRO,
   TRUONG_THEM,
   TRUONG_BAT_BUOC,
@@ -33,8 +34,31 @@ const nguoi = (p: Partial<NguoiDungDto>): NguoiDungDto => ({
 
 describe('ba bảng tra phủ đủ sáu vai trò', () => {
   it('không vai trò nào thiếu khoá', () => {
-    for (const bang of [TRUONG_THEM, TRUONG_BAT_BUOC, VAI_TRO_CAP_TREN, NHAN_VAI_TRO]) {
+    for (const bang of [
+      TRUONG_THEM,
+      TRUONG_BAT_BUOC,
+      VAI_TRO_CAP_TREN,
+      NHAN_VAI_TRO,
+      NHAN_CAP_TREN,
+    ]) {
       expect(Object.keys(bang).sort()).toEqual([...VAI_TRO].sort());
+    }
+  });
+
+  it('vai trò nào có ô cấp trên thì có nhãn cho ô đó, và ngược lại', () => {
+    // Hai bảng rời nhau nên chúng lệch được: thêm `cap-tren` cho một vai trò mà
+    // quên nhãn thì ô hiện ra không có tên, người dùng không biết đang chọn gì.
+    const coO = VAI_TRO.filter((v) => TRUONG_THEM[v].includes('cap-tren')).sort();
+    const coNhan = VAI_TRO.filter((v) => NHAN_CAP_TREN[v] !== '').sort();
+    expect(coNhan).toEqual(coO);
+  });
+
+  it('nhãn ô cấp trên KHÔNG gọi là "cấp trên"', () => {
+    // Kế toán không phải cấp trên của trình dược viên theo nghĩa tổ chức. Quan
+    // hệ này chỉ quyết định phạm vi dữ liệu, và gọi sai trên màn hình là nói
+    // sai về công ty.
+    for (const v of VAI_TRO) {
+      expect(NHAN_CAP_TREN[v].toLowerCase()).not.toContain('cấp trên');
     }
   });
 
