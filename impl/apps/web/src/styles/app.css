@@ -231,7 +231,12 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   border: 1px solid var(--mau-vien);
   border-radius: 999px;
   background: var(--mau-nen-phu);
+  /* Là liên kết tới "Thông tin của tôi" nhưng KHÔNG trông như một liên kết chữ:
+     gạch chân với đổi màu ở đây làm thanh trên cùng thành một mớ nhấp nháy. */
+  color: inherit;
+  text-decoration: none;
 }
+.the-nguoi-dung:hover { border-color: var(--mau-vien-dam); background: var(--mau-nen-hover); }
 .anh-dai-dien {
   display: inline-grid;
   place-items: center;
@@ -251,6 +256,10 @@ main { padding: var(--k5) var(--k4) var(--k6); }
 main:focus { outline: none; }
 
 .trang { max-width: 1200px; margin: 0 auto; }
+
+/* Biểu mẫu một cột: ô nhập kéo dài 1200px thì mắt phải quét cả màn hình cho một
+   trường hai mươi ký tự. */
+.trang-hep { max-width: 560px; }
 .mo-ta-trang { color: var(--mau-chu-phu); }
 .ghi-chu { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
 .phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); }

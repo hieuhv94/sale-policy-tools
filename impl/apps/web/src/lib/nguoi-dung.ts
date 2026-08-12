@@ -84,6 +84,31 @@ export type NguoiDungDto = {
   parentUsername: string | null;
 };
 
+/**
+ * Vai trò nào cần Trưởng bộ phận quản lý thì mới làm được việc của mình.
+ *
+ * Bảng chứ không `role === 'TDV'`: `quyen.test.ts` cấm so sánh vai trò bằng
+ * chuỗi viết thẳng ngoài `can.ts`, và một chỗ sót kiểu đó thì không test nào bắt.
+ */
+export const CAN_TBP: Record<VaiTro, boolean> = {
+  TDV: true,
+  TBP: false,
+  KE_TOAN: false,
+  SALE_ADMIN: false,
+  BAN_LANH_DAO: false,
+  QUAN_TRI: false,
+};
+
+/**
+ * Tài khoản này đang kẹt vì thiếu Trưởng bộ phận quản lý.
+ *
+ * Không phải lỗi dữ liệu — gán sau là hợp lệ — nhưng chừng nào còn thiếu thì
+ * TDV đó gửi hồ sơ sẽ bị máy chủ chặn với `NO_APPROVER`, nên danh sách phải
+ * chỉ ra được ngay chứ không để người quản trị đọc dấu gạch ngang rồi đoán.
+ */
+export const thieuTbp = (u: NguoiDungDto): boolean =>
+  CAN_TBP[u.role] && u.approverUsername === null;
+
 /** Ba trạng thái tài khoản, theo thứ tự người quản trị cần xử lý. */
 export function trangThaiTaiKhoan(u: NguoiDungDto): string {
   if (!u.isActive) return 'Đã vô hiệu hoá';
@@ -94,13 +119,18 @@ export function trangThaiTaiKhoan(u: NguoiDungDto): string {
 /**
  * Trường nào BẮT BUỘC khi tạo tài khoản vai trò này.
  *
- * Đọc từ đúng thứ máy chủ chặn (`users.service.ts`): TDV không có Trưởng bộ phận
- * quản lý là tài khoản chết — hồ sơ họ gửi không tới ai. Cấp trên thì không bắt
- * buộc: một TDV chưa gán kế toán vẫn gửi được hồ sơ, chỉ là kế toán không thấy
- * trong danh sách của mình.
+ * Hiện KHÔNG vai trò nào có trường cây bắt buộc, và bảng vẫn giữ lại vì đây là
+ * chỗ khai điều đó — xoá bảng đi thì lần sau ai muốn bắt buộc một ô sẽ rải
+ * `required` vào JSX.
+ *
+ * Trưởng bộ phận quản lý ĐÃ TỪNG bắt buộc với TDV và đã bỏ theo yêu cầu: gán
+ * sau cũng được, qua hộp thoại Sửa. Cái giá phải biết là hồ sơ do một TDV chưa
+ * gán Trưởng bộ phận gửi đi sẽ nằm ở "Chờ TBP duyệt" mà KHÔNG vào hộp việc của
+ * ai — hộp việc của TBP suy từ `approver_user_id`. Nên giao diện phải nói rõ
+ * chỗ nào chưa gán thay vì chặn (xem ghi chú dưới ô chọn và cột trong bảng).
  */
 export const TRUONG_BAT_BUOC: Record<VaiTro, TruongThem[]> = {
-  TDV: ['tbp-quan-ly'],
+  TDV: [],
   TBP: [],
   KE_TOAN: [],
   SALE_ADMIN: [],

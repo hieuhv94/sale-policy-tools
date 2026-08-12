@@ -1,8 +1,8 @@
 /**
- * Lời gọi ra hai service khác. policy không đọc được schema `cat` lẫn `cus`.
+ * Lời gọi ra ba service khác. policy không đọc được schema `cat`, `cus` lẫn `idn`.
  */
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { mintServiceToken } from '@csbh/http-kit';
+import { identityUrl, mintServiceToken } from '@csbh/http-kit';
 
 const catalogUrl = () => process.env.CATALOG_URL ?? 'http://catalog:3002';
 const customerUrl = () => process.env.CUSTOMER_URL ?? 'http://customer:3003';
@@ -30,6 +30,16 @@ const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });
 
 @Injectable()
 export class Clients {
+  /** TDV này đã có Trưởng bộ phận quản lý chưa. `null` là chưa gán. */
+  async approverOf(tdvUserId: string): Promise<string | null> {
+    const res = await fetch(
+      `${identityUrl()}/internal/approver/${encodeURIComponent(tdvUserId)}`,
+      { headers: svc() },
+    );
+    if (!res.ok) throw new Error(`identity trả ${res.status} khi hỏi Trưởng bộ phận quản lý`);
+    return ((await res.json()) as { approverUserId: string | null }).approverUserId;
+  }
+
   async customer(id: string): Promise<CustomerInfo> {
     const res = await fetch(`${customerUrl()}/internal/customers/${encodeURIComponent(id)}`, {
       headers: svc(),

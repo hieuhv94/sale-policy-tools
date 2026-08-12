@@ -57,6 +57,28 @@ export class InternalController {
     return Object.fromEntries(rows.map((r) => [r.id, r.full_name]));
   }
 
+  /**
+   * TDV này đã có Trưởng bộ phận quản lý chưa.
+   *
+   * `policy` hỏi TRƯỚC khi cho gửi hồ sơ. Trưởng bộ phận không còn bắt buộc lúc
+   * tạo tài khoản, nên chỗ duy nhất còn chặn được là đây — hồ sơ gửi đi khi
+   * chưa có người duyệt sẽ nằm ở "Chờ TBP duyệt" mà không vào hộp việc của ai,
+   * vì hộp việc của TBP suy từ `approver_user_id` (`idn.scope_user_ids`).
+   *
+   * Trả riêng một câu hỏi hẹp chứ không dùng lại `notify-targets`: câu kia trả
+   * cả địa chỉ thư của mọi người liên quan, và một service chỉ cần biết "có hay
+   * không" thì không nên cầm chỗ dữ liệu đó.
+   */
+  @Get('approver/:tdvUserId')
+  async approver(@Param('tdvUserId') tdvUserId: string) {
+    const r = await this.db.one<{ approver_user_id: string | null; role: string }>(
+      `SELECT approver_user_id, role::text AS role FROM idn.app_user WHERE id = $1`,
+      [tdvUserId],
+    );
+    if (!r) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+    return { tdvUserId, role: r.role, approverUserId: r.approver_user_id };
+  }
+
   @Get('scope/:userId')
   async scope(@Param('userId') userId: string) {
     const rows = await this.db.q<{ user_id: string }>(

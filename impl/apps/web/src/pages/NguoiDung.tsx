@@ -17,6 +17,7 @@ import {
   TRUONG_BAT_BUOC,
   TRUONG_THEM,
   VAI_TRO_CAP_TREN,
+  thieuTbp,
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
@@ -145,7 +146,15 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                 {/* Cả hai cột đều là TÊN TÀI KHOẢN. Một cột họ tên còn cột kia
                     username thì hai ô cạnh nhau trông như hai loại dữ liệu khác
                     nhau, và không đối chiếu được với cột Tài khoản ở trên. */}
-                <td className="ma-phu">{u.approverUsername ?? '—'}</td>
+                <td className="ma-phu">
+                  {thieuTbp(u) ? (
+                    <span className="nhan nhan-canh-bao" title="Chưa gửi được hồ sơ">
+                      Chưa gán
+                    </span>
+                  ) : (
+                    (u.approverUsername ?? '—')
+                  )}
+                </td>
                 <td className="ma-phu">{u.parentUsername ?? '—'}</td>
                 <td>{trangThaiTaiKhoan(u)}</td>
                 <td>
@@ -326,7 +335,7 @@ function HopThoaiTao({
               onChange={(e) => datTaiKhoan(e.target.value)} />
           )}
         </Truong>
-        <Truong id="nd-thu" nhan="Thư điện tử" bắtBuộc>
+        <Truong id="nd-thu" nhan="Email" bắtBuộc>
           {(p) => (
             <input {...p} className="o-nhap" type="email" value={thu}
               onChange={(e) => datThu(e.target.value)} />
@@ -352,10 +361,15 @@ function HopThoaiTao({
                 </select>
               )}
             </Truong>
-            {dsTbp.length === 0 && (
+            {/* Không bắt buộc, nhưng bỏ trống có hậu quả — và hậu quả đó chỉ lộ
+                ra ở hồ sơ đầu tiên, nên phải nói ngay tại đây. */}
+            {tbp === '' && (
               <p className="ghi-chu">
-                Chưa có tài khoản Trưởng bộ phận nào đang hoạt động. Tạo Trưởng bộ phận trước —
-                hồ sơ của Trình dược viên phải có người duyệt, nếu không nó đứng im tới khi quá hạn.
+                {dsTbp.length === 0
+                  ? 'Chưa có tài khoản Trưởng bộ phận nào đang hoạt động. '
+                  : 'Để trống cũng được, gán sau bằng nút Sửa. '}
+                Chừng nào chưa gán thì Trình dược viên này <strong>chưa gửi được hồ sơ</strong> —
+                không có ai duyệt để hồ sơ đi tiếp.
               </p>
             )}
           </>

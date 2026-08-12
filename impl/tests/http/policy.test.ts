@@ -330,6 +330,60 @@ describe('POL-08 phiên bản mới phải chứa lại toàn bộ sản phẩm 
   });
 });
 
+describe('TDV chưa có Trưởng bộ phận quản lý thì chưa gửi được hồ sơ', () => {
+  /**
+   * Trưởng bộ phận không còn bắt buộc lúc tạo tài khoản (yêu cầu nghiệp vụ), nên
+   * chỗ chặn duy nhất còn lại là đây.
+   *
+   * Không chặn thì hồ sơ đi vào "Chờ TBP duyệt" và nằm đó: hộp việc của TBP suy
+   * từ `approver_user_id`, không ai gán thì không hộp việc nào chứa nó. Hồ sơ
+   * biến mất êm ru cho tới lúc quá hạn, và không màn hình nào nói vì sao.
+   */
+  /**
+   * Đổi trên `tdv02`, KHÔNG phải `tdv01`: các tệp test chạy song song trên cùng
+   * một CSDL và gần như tệp nào cũng gửi hồ sơ bằng `tdv01`. Gỡ người duyệt của
+   * `tdv01` dù chỉ vài trăm mili giây cũng đủ làm một tệp khác đỏ vì lý do chẳng
+   * liên quan tới nó. Không tệp nào khác gửi hồ sơ bằng `tdv02`.
+   */
+  const doiNguoiDuyet = async (username: string) => {
+    const u = await withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = $1`, [
+        'tdv02',
+      ]);
+      return r.rows[0]!.id;
+    });
+    const res = await (await http(identity))
+      .patch(`/admin/users/${u}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ approverUsername: username });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+  };
+
+  it('gửi duyệt trả 422 NO_APPROVER, và gán xong thì gửi được ngay', async () => {
+    const customerId = await makeCustomer('tdv02');
+    const productId = await makeProduct();
+    const tao = await post('/policies', { customerId, lines: [line(productId)] }, 'tdv02');
+    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
+    const id = tao.body.id as string;
+
+    await doiNguoiDuyet(''); // chuỗi rỗng = gỡ liên kết
+    try {
+      const chan = await act(id, 'SUBMIT', 'tdv02');
+      expect(chan.status).toBe(422);
+      expect(chan.body.code).toBe('NO_APPROVER');
+      // Câu báo phải nói việc phải làm, không chỉ nói "không được".
+      expect(chan.body.message).toContain('Trưởng bộ phận');
+
+      // Hồ sơ vẫn nguyên là bản nháp — chặn ở đây không làm mất gì.
+      expect((await get(`/policies/${id}`, 'tdv02')).body.status).toBe('NHAP');
+    } finally {
+      await doiNguoiDuyet('tbp01');
+    }
+
+    expect((await act(id, 'SUBMIT', 'tdv02')).status).toBe(200);
+  });
+});
+
 describe('POL-09 ngày áp dụng trong quá khứ', () => {
   it('chấp nhận — chỉ là thông tin hiển thị, không chi phối trạng thái', async () => {
     const d = await draft();

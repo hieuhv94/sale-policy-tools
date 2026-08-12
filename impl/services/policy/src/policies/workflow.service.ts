@@ -120,6 +120,23 @@ export class WorkflowService {
         });
       }
       await this.policies.assertNoMissingInheritedProduct(policyId);
+
+      // TDV chưa có Trưởng bộ phận quản lý thì hồ sơ này sẽ nằm ở "Chờ TBP
+      // duyệt" mà KHÔNG vào hộp việc của ai: hộp việc của TBP suy từ
+      // `approver_user_id` (`idn.scope_user_ids`). Không chặn thì hồ sơ biến mất
+      // êm ru cho tới lúc quá hạn, và không màn hình nào nói vì sao.
+      //
+      // Chặn ở ĐÂY chứ không lúc tạo tài khoản: lúc tạo thường chưa biết ai sẽ
+      // duyệt, còn ở đây hồ sơ vẫn là bản nháp, chưa mất gì, và câu báo nói
+      // đúng việc phải làm.
+      if (before.tdv_user_id && (await this.clients.approverOf(before.tdv_user_id)) === null) {
+        throw new UnprocessableEntityException({
+          code: 'NO_APPROVER',
+          message:
+            'Trình dược viên lập hồ sơ này chưa được gán Trưởng bộ phận quản lý, ' +
+            'nên chưa có ai duyệt được. Đề nghị Quản trị hệ thống gán trước khi gửi.',
+        });
+      }
     }
 
     if (action === 'SA_HANDOVER') {

@@ -9,9 +9,11 @@
 import { describe, expect, it } from 'vitest';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import {
+  CAN_TBP,
   NHAN_CAP_TREN,
   NHAN_VAI_TRO,
   TRUONG_THEM,
+  thieuTbp,
   TRUONG_BAT_BUOC,
   VAI_TRO_CAP_TREN,
   trangThaiTaiKhoan,
@@ -40,6 +42,7 @@ describe('ba bảng tra phủ đủ sáu vai trò', () => {
       VAI_TRO_CAP_TREN,
       NHAN_VAI_TRO,
       NHAN_CAP_TREN,
+      CAN_TBP,
     ]) {
       expect(Object.keys(bang).sort()).toEqual([...VAI_TRO].sort());
     }
@@ -108,11 +111,24 @@ describe('trường thêm đúng theo vai trò', () => {
 });
 
 describe('trường bắt buộc', () => {
-  it('TDV BẮT BUỘC có Trưởng bộ phận quản lý', () => {
-    // Một TDV không có người duyệt là tài khoản chết: hồ sơ họ gửi không tới ai,
-    // đứng im tới khi quá hạn. `users.service.ts` chặn ở máy chủ; bảng này là
-    // bản sao ở giao diện để chặn TRƯỚC khi gửi đi.
-    expect(TRUONG_BAT_BUOC.TDV).toContain('tbp-quan-ly');
+  it('Trưởng bộ phận quản lý KHÔNG bắt buộc lúc tạo TDV', () => {
+    // Đã bỏ theo yêu cầu nghiệp vụ: lúc tạo tài khoản thường chưa biết ai duyệt,
+    // gán sau bằng nút Sửa. Cái chặn chuyển sang lúc GỬI hồ sơ (`NO_APPROVER`),
+    // chỗ hồ sơ còn là bản nháp và người dùng chưa mất gì.
+    expect(TRUONG_BAT_BUOC.TDV).not.toContain('tbp-quan-ly');
+  });
+
+  it('nhưng thiếu Trưởng bộ phận thì danh sách phải chỉ ra được', () => {
+    // Không chặn mà cũng không nói gì thì người quản trị đọc một dấu gạch ngang
+    // rồi đoán, và chỗ hỏng chỉ lộ ra ở hồ sơ đầu tiên của TDV đó.
+    expect(thieuTbp(nguoi({ role: 'TDV', approverUsername: null }))).toBe(true);
+    expect(thieuTbp(nguoi({ role: 'TDV', approverUsername: 'tbp01' }))).toBe(false);
+  });
+
+  it('chỉ TDV mới cần Trưởng bộ phận — vai trò khác không bị gắn cờ', () => {
+    for (const v of VAI_TRO.filter((x) => x !== 'TDV')) {
+      expect(thieuTbp(nguoi({ role: v, approverUsername: null })), v).toBe(false);
+    }
   });
 
   it('trường bắt buộc luôn là tập con của trường có mặt', () => {

@@ -122,7 +122,9 @@ export function BoCuc({ children }: { children: ReactNode }) {
           <div className="nguoi-dung">
             <NutGiaoDien />
 
-            <div className="the-nguoi-dung">
+            {/* Thẻ tên là ĐƯỜNG VÀO màn hình thông tin của mình. Chỗ người ta
+                bấm khi muốn sửa tên mình là chính chỗ hiện tên mình. */}
+            <Lien den="/thong-tin" className="the-nguoi-dung">
               <span className="anh-dai-dien" aria-hidden="true">
                 {chuDau(nguoiDung?.fullName)}
               </span>
@@ -132,7 +134,7 @@ export function BoCuc({ children }: { children: ReactNode }) {
                   {NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}
                 </span>
               </span>
-            </div>
+            </Lien>
 
             <button type="button" className="nut nut-nhe nut-thoat" onClick={dangXuat}>
               <BieuTuongDangXuat />

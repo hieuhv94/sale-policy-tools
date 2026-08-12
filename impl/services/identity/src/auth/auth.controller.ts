@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { CurrentUser, Public, PwdResetOk, secret, str, validate, type AuthUser } from '@csbh/http-kit';
 
@@ -67,6 +67,23 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() u: AuthUser) {
     return this.auth.me(u.id);
+  }
+
+  /**
+   * Người dùng tự sửa thông tin của chính mình.
+   *
+   * KHÔNG có `@PwdResetOk()`: người đang bị buộc đổi mật khẩu chỉ được đi đúng
+   * một đường, là đổi mật khẩu. Mở thêm đường ghi nào ở trạng thái đó là mở
+   * đúng thứ `must_change_password` dựng ra để đóng.
+   *
+   * Chỉ nhận `fullName`. Danh sách trắng chứ không phải danh sách đen — thêm
+   * cột mới vào bảng thì nó KHÔNG tự nhiên sửa được từ đây.
+   */
+  @Patch('me')
+  @HttpCode(200)
+  updateMe(@CurrentUser() u: AuthUser, @Body() body: unknown) {
+    const b = validate(body, { fullName: str(2, 200) });
+    return this.auth.updateProfile(u.id, b.fullName);
   }
 
   @PwdResetOk()

@@ -8,6 +8,7 @@ import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
 import { QuenMatKhau } from './pages/QuenMatKhau.js';
 import { NguoiDung } from './pages/NguoiDung.js';
+import { ThongTin } from './pages/ThongTin.js';
 import { MauHopDong } from './pages/MauHopDong.js';
 import { LapHoSo } from './pages/LapHoSo.js';
 import { TongQuan } from './pages/TongQuan.js';
@@ -79,6 +80,11 @@ export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/khach-hang') return <DanhSachKhachHang />;
   const kh = khop('/khach-hang/:id', duong);
   if (kh) return <ChiTietKhachHang id={kh['id']!} />;
+
+  // Không nằm trong `DIEU_HUONG`: đây là màn hình của CHÍNH mình, mọi vai trò
+  // đều vào được, và chỗ tìm nó tự nhiên là thẻ tên ở thanh trên cùng chứ không
+  // phải một mục menu thứ chín.
+  if (duong === '/thong-tin') return <ThongTin />;
 
   if (duong === '/bao-cao') return <BaoCao />;
   if (duong === '/danh-muc') return <DanhMuc />;

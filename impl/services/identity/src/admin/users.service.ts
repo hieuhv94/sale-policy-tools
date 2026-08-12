@@ -86,16 +86,14 @@ export class UsersService {
       });
     }
 
-    // Một TDV KHÔNG CÓ người duyệt là một tài khoản không dùng được: hồ sơ họ
-    // gửi đi không tới ai, đứng im tới khi quá hạn, và không có chỗ nào trong
-    // sản phẩm nói vì sao. Chặn ngay lúc tạo thay vì để phát hiện ở hồ sơ đầu tiên.
-    if (input.role === 'TDV' && !input.approverUsername) {
-      throw new BadRequestException({
-        code: 'VALIDATION_FAILED',
-        field: 'approverUsername',
-        message: 'Trình dược viên phải có Trưởng bộ phận quản lý',
-      });
-    }
+    // Trưởng bộ phận quản lý KHÔNG bắt buộc lúc tạo — gán sau cũng được, qua
+    // `PATCH /admin/users/:id`. Trước đây chặn ở đây; bỏ theo yêu cầu nghiệp vụ
+    // vì lúc tạo TDV thường chưa biết ai sẽ duyệt.
+    //
+    // Hệ quả phải nhớ: hồ sơ do một TDV chưa gán gửi đi nằm ở "Chờ TBP duyệt"
+    // mà không vào hộp việc của ai — hộp việc của TBP suy từ `approver_user_id`
+    // (`idn.scope_user_ids`). Cái chặn thật nằm ở lúc GỬI hồ sơ, chỗ người dùng
+    // còn sửa được, chứ không phải lúc tạo tài khoản.
     const approverId = await this.resolveApprover(input.role, input.approverUsername);
 
     let parentId: string | null = null;
@@ -244,16 +242,11 @@ export class UsersService {
     // một thì không bao giờ gỡ được cấp trên của một người đã gán nhầm.
     let approverId: string | null | undefined;
     if (input.approverUsername !== undefined) {
-      // Gỡ người duyệt của một TDV để lại đúng cái tài khoản chết mà `create`
-      // vừa chặn không cho tạo. Cấm luôn ở đây, nếu không thì đường vòng là
-      // "tạo đúng rồi sửa cho sai".
-      if (input.approverUsername === '' && cur.role === 'TDV') {
-        throw new BadRequestException({
-          code: 'VALIDATION_FAILED',
-          field: 'approverUsername',
-          message: 'Trình dược viên phải có Trưởng bộ phận quản lý',
-        });
-      }
+      // Gỡ người duyệt của một TDV KHÔNG còn bị cấm ở đây. Trước thì cấm, để
+      // đường vòng "tạo đúng rồi sửa cho sai" không mở ra — nhưng từ khi tạo
+      // tài khoản không bắt buộc Trưởng bộ phận nữa thì cấm ở đây chẳng chặn
+      // được gì, chỉ làm người quản trị không sửa nổi một liên kết gán nhầm.
+      // Chỗ chặn thật là lúc GỬI hồ sơ (`NO_APPROVER` bên policy).
       approverId =
         input.approverUsername === ''
           ? null

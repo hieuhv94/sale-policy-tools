@@ -255,6 +255,36 @@ export class AuthService {
     };
   }
 
+  /**
+   * Người dùng tự sửa thông tin của mình.
+   *
+   * Sửa được ĐÚNG họ tên, và đó không phải vì làm tắt: tài khoản chỉ có username,
+   * email, họ tên và vai trò. Ba thứ còn lại đều không được tự đổi —
+   *
+   *   * **username** là định danh trong nhật ký kiểm toán. Nhật ký lưu `user_id`
+   *     nên đổi tên không làm mất vết, nhưng mọi màn hình tra cứu đều hiện tên
+   *     tài khoản, và một cái tên đổi được thì "ai làm việc này" mất tính đối
+   *     chứng khi cần đối chiếu với biên bản giấy.
+   *   * **email** là đường nhận liên kết đặt lại mật khẩu. Tự đổi được nghĩa là
+   *     bất kỳ ai chiếm được phiên đăng nhập cũng chuyển được đường khôi phục
+   *     sang hộp thư của mình, và chủ tài khoản mất quyền vĩnh viễn. Đổi email
+   *     phải đi qua Quản trị hệ thống.
+   *   * **vai trò** đổi được từ đây là tự nâng quyền — không cần bàn thêm.
+   *
+   * Trả về nguyên `me()` để màn hình không phải gọi lại một vòng nữa.
+   */
+  async updateProfile(userId: string, fullName: string) {
+    const r = await this.db.q(
+      `UPDATE idn.app_user SET full_name = $2, updated_at = now()
+        WHERE id = $1 AND is_active RETURNING id`,
+      [userId, fullName.trim()],
+    );
+    // Tài khoản vừa bị vô hiệu hoá giữa chừng: không có dòng nào đổi. Trả 401
+    // như mọi đường khác trong tệp này thay vì "ok" cho một lần ghi không xảy ra.
+    if (r.length === 0) throw new UnauthorizedException({ code: 'ACCOUNT_DISABLED' });
+    return this.me(userId);
+  }
+
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const u = await this.db.one<UserRow>(`SELECT * FROM idn.app_user WHERE id = $1`, [userId]);
     if (!u) throw new UnauthorizedException({ code: 'ACCOUNT_DISABLED' });

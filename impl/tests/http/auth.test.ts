@@ -314,3 +314,111 @@ describe('AUTH-21 API nội bộ giữa hai service', () => {
     expect(res.body.scopeUserIds).toHaveLength(6);
   });
 });
+
+// =============================================================================
+// Người dùng tự sửa thông tin của mình
+// =============================================================================
+
+describe('PATCH /auth/me', () => {
+  /**
+   * Trước lượt này, đổi họ tên phải nhờ Quản trị hệ thống. Cái đáng kiểm không
+   * phải là "sửa được" — mà là ba thứ KHÔNG sửa được, vì mỗi thứ hỏng theo một
+   * kiểu riêng: đổi email là chuyển đường khôi phục mật khẩu sang hộp thư khác,
+   * đổi username là làm nhật ký kiểm toán mất tính đối chứng, đổi vai trò là tự
+   * nâng quyền.
+   *
+   * Dùng tài khoản RIÊNG của tệp này chứ không mượn `tdv01`: các tệp test chạy
+   * song song trên cùng một CSDL, và họ tên của `tdv01` đi vào read-model báo
+   * cáo — đổi nó giữa chừng là gài một lần đỏ ngẫu nhiên cho tệp khác.
+   */
+  const ME_USER = `${TEST_PREFIX}_me`;
+  let token = '';
+
+  beforeAll(async () => {
+    const hash = await hashPassword(SEED_PW);
+    await withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(
+        `INSERT INTO idn.app_user (username, email, full_name, role, password_hash,
+                                   activated_at, email_verified_at)
+         VALUES ($1, $1 || '@csbh.test', 'Ten Ban Dau', 'TDV', $2, now(), now()) RETURNING id`,
+        [ME_USER, hash],
+      );
+      await c.query(`INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1, NULL)`, [
+        r.rows[0]!.id,
+      ]);
+    });
+    token = await accessTokenFor(app, ME_USER, SEED_PW);
+  });
+
+  const sua = async (body: object, t = token) =>
+    (await http(app)).patch('/auth/me').set('Authorization', `Bearer ${t}`).send(body);
+
+  const doc = async (t = token) =>
+    (await (await http(app)).get('/auth/me').set('Authorization', `Bearer ${t}`)).body;
+
+  it('sửa được họ tên của chính mình', async () => {
+    const res = await sua({ fullName: 'Ten Vua Doi' });
+    expect(res.status).toBe(200);
+    expect(res.body.fullName).toBe('Ten Vua Doi');
+
+    // Đọc lại từ máy chủ, không tin phản hồi của chính lời gọi vừa rồi.
+    expect((await doc()).fullName).toBe('Ten Vua Doi');
+  });
+
+  it('KHÔNG đổi được email, tên tài khoản hay vai trò dù gửi kèm', async () => {
+    const truoc = await doc();
+    const res = await sua({
+      fullName: truoc.fullName,
+      email: 'ke-gian@csbh.test',
+      username: 'admin99',
+      role: 'QUAN_TRI',
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.email).toBe(truoc.email);
+    expect(res.body.username).toBe(truoc.username);
+    expect(res.body.role).toBe(truoc.role);
+  });
+
+  it('họ tên rỗng hoặc một ký tự thì 400', async () => {
+    for (const v of ['', ' ', 'A']) {
+      expect((await sua({ fullName: v })).status, `"${v}" đáng lẽ bị chặn`).toBe(400);
+    }
+  });
+
+  it('không có token thì 401', async () => {
+    const res = await (await http(app)).patch('/auth/me').send({ fullName: 'X' });
+    expect(res.status).toBe(401);
+  });
+
+  it('tài khoản đang buộc đổi mật khẩu thì KHÔNG dùng được', async () => {
+    // `must_change_password` chỉ mở đúng một đường là đổi mật khẩu. Mở thêm một
+    // đường ghi nào ở trạng thái đó là mở đúng thứ nó dựng ra để đóng.
+    await withAdminDb((c) =>
+      c.query(`UPDATE idn.app_user SET must_change_password = true WHERE username = $1`, [ME_USER]),
+    );
+    try {
+      const t = await accessTokenFor(app, ME_USER, SEED_PW);
+      expect((await sua({ fullName: 'Ten Moi' }, t)).status).toBe(403);
+    } finally {
+      await withAdminDb((c) =>
+        c.query(`UPDATE idn.app_user SET must_change_password = false WHERE username = $1`, [
+          ME_USER,
+        ]),
+      );
+    }
+  });
+
+  it('tài khoản bị vô hiệu hoá thì 401, không phải "ok" cho một lần ghi không xảy ra', async () => {
+    const t = await accessTokenFor(app, ME_USER, SEED_PW);
+    await withAdminDb((c) =>
+      c.query(`UPDATE idn.app_user SET is_active = false WHERE username = $1`, [ME_USER]),
+    );
+    try {
+      expect((await sua({ fullName: 'Ten Khac' }, t)).status).toBe(401);
+    } finally {
+      await withAdminDb((c) =>
+        c.query(`UPDATE idn.app_user SET is_active = true WHERE username = $1`, [ME_USER]),
+      );
+    }
+  });
+});
