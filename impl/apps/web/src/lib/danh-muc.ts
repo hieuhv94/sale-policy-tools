@@ -1,32 +1,63 @@
 /**
- * Kiểu dữ liệu và bảng tra của màn hình Danh mục.
+ * Bảng tra và kiểu dữ liệu của màn hình Danh mục.
  *
- * Năm thẻ, và thứ tự trong `MUC_DANH_MUC` là thứ tự PHỤ THUỘC chứ không phải
- * thứ tự quan trọng: phải có nhóm sản phẩm mới tạo được sản phẩm, phải có sản
- * phẩm mới đặt được giá, và quy định chiết khấu tham chiếu tới nhóm. Người
- * quản trị mở màn hình lần đầu không biết điều đó, nên các thẻ xếp theo đúng
- * trình tự họ cần làm.
+ * BA thẻ, và ba thôi. Trước P20 có năm — "Nhóm sản phẩm" và "Danh mục tra cứu"
+ * đứng riêng, cộng thêm "Người ký". Năm thẻ cho một màn hình mà bốn trong năm
+ * chỉ Quản trị vào được là bắt mọi người khác bấm qua mấy màn hình trống mới
+ * hiểu ra không có gì cho mình.
+ *
+ * Hai thẻ cũ KHÔNG mất chức năng, chúng thành khối bên trong:
+ *   * Nhóm sản phẩm → trong thẻ Sản phẩm, vì nhóm là trường bắt buộc của sản
+ *     phẩm; tạo sản phẩm mà chưa có nhóm là đứng luôn ở ô đầu tiên.
+ *   * Danh mục tra cứu → trong thẻ Quy định chiết khấu, vì kênh phân phối là
+ *     một chiều của chính quy định chiết khấu. Tỉnh và bệnh viện đi nhờ cùng
+ *     khối đó — chúng là dữ liệu tra cứu dùng chung, không thuộc riêng thẻ nào.
+ *
+ * "Người ký" đã gỡ khỏi giao diện: yêu cầu nghiệp vụ cho nó chưa rõ. API bên
+ * `catalog` vẫn còn và vẫn có test — gỡ màn hình không phải là xoá nghiệp vụ.
  */
 
-export type MucDanhMuc = 'san-pham' | 'nhom' | 'chiet-khau' | 'tra-cuu' | 'nguoi-ky';
+export type MucDanhMuc = 'san-pham' | 'chiet-khau' | 'giay-to-mau';
 
 export const MUC_DANH_MUC: { khoa: MucDanhMuc; nhan: string }[] = [
-  { khoa: 'nhom', nhan: 'Nhóm sản phẩm' },
   { khoa: 'san-pham', nhan: 'Sản phẩm' },
   { khoa: 'chiet-khau', nhan: 'Quy định chiết khấu' },
-  { khoa: 'tra-cuu', nhan: 'Danh mục tra cứu' },
-  { khoa: 'nguoi-ky', nhan: 'Người ký' },
+  { khoa: 'giay-to-mau', nhan: 'Giấy tờ mẫu' },
 ];
 
-/** Đúng hai loại giá. Giá bán lẻ niêm yết CHÍNH LÀ Giá bán Công ty (CAT-03). */
+/** Thẻ nào các vai trò KHÔNG quản trị nhìn thấy. */
+export const THE_CHUNG: MucDanhMuc[] = ['san-pham', 'chiet-khau'];
+
 /**
- * Loại giá ĐẶT ĐƯỢC trong danh mục. Đúng một: Giá bán Công ty.
+ * Bỏ dấu tiếng Việt để tìm kiếm.
  *
- * Giá bán buôn không nằm ở đây vì nó không phải thuộc tính của sản phẩm — người
- * đề nghị nhập nó trên từng dòng của từng hồ sơ, khác nhau theo khách hàng
- * (muc 6.1). Phải khớp `PRICE_TYPES` bên `catalog`, và `danh-muc.test.ts` ghim
- * lại điều đó.
+ * Người dùng gõ "sua" phải ra "Sữa" — gõ đủ dấu trên bàn phím điện thoại giữa
+ * lúc đang ngồi với khách hàng là thứ không ai làm. `NFD` tách dấu thành ký tự
+ * riêng rồi xoá dải dấu đi; `đ` không có dạng tách nên phải thay tay.
  */
+export const khongDau = (s: string): string =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+
+/**
+ * Lọc sản phẩm theo từ khoá — khớp cả TÊN và MÃ.
+ *
+ * Khớp cả mã vì người dùng đọc mã từ hoá đơn giấy nhiều hơn là nhớ tên đầy đủ,
+ * và một ô tìm kiếm chỉ ăn tên thì họ gõ mã vào rồi tưởng sản phẩm không tồn tại.
+ */
+export const locSanPham = <T extends { code: string; name: string }>(
+  ds: T[],
+  tuKhoa: string,
+): T[] => {
+  const k = khongDau(tuKhoa.trim());
+  if (k === '') return ds;
+  return ds.filter((s) => khongDau(s.name).includes(k) || khongDau(s.code).includes(k));
+};
+
 export const LOAI_GIA = ['GIA_BAN_CONG_TY'] as const;
 export type LoaiGia = (typeof LOAI_GIA)[number];
 
@@ -90,16 +121,6 @@ export type QuyDinhChietKhau = {
 
 export type MucTraCuu = { code: string; name: string };
 
-export type NguoiKy = {
-  id: string;
-  fullName: string;
-  title: string;
-  unit: string;
-  signScope: string;
-  validFrom: string;
-  validTo: string | null;
-  isActive: boolean;
-};
 
 /**
  * Ngưỡng lưu dưới dạng PHẦN VẠN (basis point ×100): `int(0, 10_000)` ở máy chủ,

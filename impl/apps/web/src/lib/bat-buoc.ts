@@ -27,7 +27,6 @@ export type TenBieuMau =
   | 'nhom-san-pham'
   | 'chiet-khau'
   | 'tra-cuu'
-  | 'nguoi-ky'
   | 'ho-so'
   | 'dong-san-pham'
   | 'ngay-ap-dung';
@@ -40,7 +39,6 @@ export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nhom-san-pham': ['code', 'name'],
   'chiet-khau': ['effectiveFrom', 'thresholdRate2'],
   'tra-cuu': ['code', 'name'],
-  'nguoi-ky': ['fullName', 'title', 'unit', 'signScope', 'validFrom'],
   'ho-so': ['customerId', 'appliedDate'],
   'dong-san-pham': ['productId', 'wholesalePrice'],
   'ngay-ap-dung': ['appliedDate'],

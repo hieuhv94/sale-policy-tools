@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, guiTep, layJson, va } from '../../lib/api.js';
 import { ngay, tien } from '../../lib/format.js';
 import {
+  locSanPham,
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
@@ -18,11 +19,21 @@ import {
   type SanPham,
   type TrangThaiSanPham,
 } from '../../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, ONhapTien, Trong, Truong } from '../Chung.js';
+import {
+  BaoLoi,
+  ChuThichBatBuoc,
+  DangTai,
+  HopThoai,
+  ONhapTien,
+  OTimKiem,
+  Trong,
+  Truong,
+} from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 
 export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
   const [ds, datDs] = useState<SanPham[] | null>(null);
+  const [tim, datTim] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [mo, datMo] = useState<
@@ -44,6 +55,8 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
 
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
+
+  const loc = locSanPham(ds, tim);
 
   const dong = () => datMo(null);
   const xong = () => {
@@ -76,8 +89,29 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 
+      {ds.length > 0 && (
+        <div className="hang-tim">
+          <OTimKiem
+            id="tim-san-pham-qt"
+            nhan="Tìm theo tên hoặc mã sản phẩm"
+            giaTri={tim}
+            doi={datTim}
+          />
+          {tim.trim() !== '' && (
+            <span className="ghi-chu" role="status">
+              {loc.length} sản phẩm khớp
+            </span>
+          )}
+        </div>
+      )}
+
       {ds.length === 0 ? (
         <Trong tieuDe="Danh mục chưa có sản phẩm nào" />
+      ) : loc.length === 0 ? (
+        <Trong
+          tieuDe="Không có sản phẩm nào khớp"
+          moTa="Thử bỏ bớt chữ, hoặc gõ mã vật tư thay vì tên."
+        />
       ) : (
         <div className="khung-cuon" role="region" aria-label="Danh mục sản phẩm" tabIndex={0}>
           <table className="bang">
@@ -92,7 +126,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
               </tr>
             </thead>
             <tbody>
-              {ds.map((s) => (
+              {loc.map((s) => (
                 <tr key={s.id}>
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>

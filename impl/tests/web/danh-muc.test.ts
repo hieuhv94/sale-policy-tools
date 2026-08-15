@@ -11,6 +11,8 @@ import {
   LOAI_GIA,
   LOAI_TRA_CUU,
   MUC_DANH_MUC,
+  THE_CHUNG,
+  locSanPham,
   NHAN_LOAI_GIA,
   NHAN_TRA_CUU,
   NHAN_TRANG_THAI_SAN_PHAM,
@@ -109,15 +111,57 @@ describe('các bảng tra cố định', () => {
     expect(Object.keys(NHAN_TRA_CUU).sort()).toEqual([...LOAI_TRA_CUU].sort());
   });
 
-  it('năm thẻ danh mục, khoá không trùng nhau', () => {
-    expect(MUC_DANH_MUC).toHaveLength(5);
-    expect(new Set(MUC_DANH_MUC.map((m) => m.khoa)).size).toBe(5);
+  it('ba thẻ danh mục, khoá không trùng nhau', () => {
+    expect(MUC_DANH_MUC.map((m) => m.khoa)).toEqual(['san-pham', 'chiet-khau', 'giay-to-mau']);
   });
 
-  it('thẻ Nhóm sản phẩm đứng TRƯỚC thẻ Sản phẩm', () => {
-    // Thứ tự thẻ là thứ tự phụ thuộc: phải có nhóm mới tạo được sản phẩm. Người
-    // quản trị mở màn hình lần đầu không biết điều đó.
-    const i = (k: string) => MUC_DANH_MUC.findIndex((m) => m.khoa === k);
-    expect(i('nhom')).toBeLessThan(i('san-pham'));
+  it('năm vai trò kia thấy đúng hai thẻ, KHÔNG thấy Giấy tờ mẫu', () => {
+    // Giấy tờ mẫu là chỗ nhập của riêng Quản trị. Bày ra rồi khoá hết nút bên
+    // trong là bắt người ta bấm vào một màn hình trống mới hiểu.
+    expect([...THE_CHUNG]).toEqual(['san-pham', 'chiet-khau']);
+    for (const k of THE_CHUNG) {
+      expect(MUC_DANH_MUC.some((m) => m.khoa === k)).toBe(true);
+    }
+  });
+
+  it('KHÔNG còn thẻ Người ký', () => {
+    // Gỡ ở P20 vì yêu cầu nghiệp vụ chưa rõ. API bên máy chủ vẫn còn — test này
+    // chỉ ghim rằng giao diện không bày nó ra nữa.
+    expect(MUC_DANH_MUC.some((m) => m.nhan.includes('Người ký'))).toBe(false);
+  });
+});
+
+describe('tìm sản phẩm', () => {
+  const ds = [
+    { code: 'SP-01', name: 'Nutricare Gold' },
+    { code: 'SP-02', name: 'Sữa non ColosCare' },
+    { code: 'MET-09', name: 'Metacare Đêm' },
+  ];
+
+  it('từ khoá rỗng trả về nguyên danh sách', () => {
+    expect(locSanPham(ds, '')).toHaveLength(3);
+    expect(locSanPham(ds, '   ')).toHaveLength(3);
+  });
+
+  it('gõ KHÔNG DẤU vẫn ra chữ có dấu', () => {
+    // Đây là lý do có hàm này thay vì `includes` thẳng: gõ đủ dấu trên bàn phím
+    // điện thoại giữa lúc ngồi với khách hàng là thứ không ai làm.
+    expect(locSanPham(ds, 'sua').map((x) => x.code)).toEqual(['SP-02']);
+    expect(locSanPham(ds, 'dem').map((x) => x.code)).toEqual(['MET-09']);
+  });
+
+  it('khớp cả MÃ, không riêng tên', () => {
+    // Người dùng đọc mã từ hoá đơn giấy nhiều hơn là nhớ tên đầy đủ.
+    expect(locSanPham(ds, 'met-09').map((x) => x.name)).toEqual(['Metacare Đêm']);
+  });
+
+  it('không phân biệt hoa thường', () => {
+    expect(locSanPham(ds, 'NUTRICARE')).toHaveLength(1);
+  });
+
+  it('không khớp thì trả về rỗng, không trả về tất cả', () => {
+    // Lỗi kinh điển của ô tìm kiếm: không khớp gì thì bỏ qua bộ lọc, và người
+    // dùng tưởng mọi sản phẩm đều khớp từ khoá của mình.
+    expect(locSanPham(ds, 'khong-co-gi')).toEqual([]);
   });
 });

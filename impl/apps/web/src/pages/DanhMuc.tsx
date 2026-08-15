@@ -1,14 +1,14 @@
 /**
  * Danh mục — mọi vai trò ĐỌC, chỉ Quản trị hệ thống GHI.
  *
- * Trước P11b trang này là một bảng bốn cột chỉ đọc, và chú thích cũ ghi "nhập
- * liệu thuộc Quản trị hệ thống" — nhưng Quản trị cũng không có màn hình nào để
- * nhập. Toàn bộ phần ghi nằm sau `can(vaiTro,'quanTriDanhMuc')`.
+ * Toàn bộ phần ghi nằm sau `can(vaiTro,'quanTriDanhMuc')`.
  *
- * Vai trò không quản trị thấy ĐÚNG hai thẻ có nghĩa với họ: sản phẩm và ngưỡng
- * chiết khấu — hai thứ cần tra khi lập và khi duyệt hồ sơ. Bày cả năm thẻ rồi ẩn
- * hết nút bên trong là bắt họ bấm qua ba màn hình trống mới hiểu ra là không có
- * gì cho mình.
+ * Năm vai trò kia thấy ĐÚNG hai thẻ có nghĩa với họ: Sản phẩm và Quy định chiết
+ * khấu — hai thứ cần tra khi lập và khi duyệt hồ sơ. Quản trị thấy thêm thẻ thứ
+ * ba là Giấy tờ mẫu.
+ *
+ * Nhóm sản phẩm và Danh mục tra cứu KHÔNG còn là thẻ riêng; chúng thành khối
+ * bên trong hai thẻ đầu — xem lý do ở `lib/danh-muc.ts`.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
@@ -17,17 +17,18 @@ import { can } from '../lib/can.js';
 import {
   MUC_DANH_MUC,
   NHAN_TRANG_THAI_SAN_PHAM,
+  THE_CHUNG,
+  locSanPham,
   type MucDanhMuc,
   type NhomSanPham,
   type SanPham,
 } from '../lib/danh-muc.js';
-import { BaoLoi, DaiThe, DangTai, Trong } from '../components/Chung.js';
+import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
-import { TheNguoiKy, TheTraCuu } from '../components/danh-muc/TraCuu.js';
-
-const THE_CHI_XEM: MucDanhMuc[] = ['san-pham', 'chiet-khau'];
+import { TheTraCuu } from '../components/danh-muc/TraCuu.js';
+import { TheGiayToMau } from '../components/danh-muc/GiayToMau.js';
 
 export function DanhMuc() {
   const { nguoiDung } = usePhien();
@@ -55,7 +56,7 @@ export function DanhMuc() {
     return () => huy.abort();
   }, [lan, quanTri]);
 
-  const muc = quanTri ? MUC_DANH_MUC : MUC_DANH_MUC.filter((m) => THE_CHI_XEM.includes(m.khoa));
+  const muc = quanTri ? MUC_DANH_MUC : MUC_DANH_MUC.filter((m) => THE_CHUNG.includes(m.khoa));
 
   if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLaiNhom} />;
   if (quanTri && !nhom) return <DangTai />;
@@ -77,11 +78,21 @@ export function DanhMuc() {
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLaiNhom} />}
 
-      {the === 'san-pham' && (quanTri && nhom ? <TheSanPham nhom={nhom} /> : <BangSanPhamChiXem />)}
-      {the === 'chiet-khau' && <TheChietKhau nhom={nhom ?? []} chiXem={!quanTri} />}
-      {quanTri && the === 'nhom' && nhom && <TheNhom nhom={nhom} taiLai={taiLaiNhom} />}
-      {quanTri && the === 'tra-cuu' && <TheTraCuu />}
-      {quanTri && the === 'nguoi-ky' && <TheNguoiKy />}
+      {the === 'san-pham' && (
+        <>
+          {quanTri && nhom ? <TheSanPham nhom={nhom} /> : <BangSanPhamChiXem />}
+          {/* Nhóm sản phẩm nằm DƯỚI bảng sản phẩm chứ không trên: việc thường
+              ngày là tra sản phẩm, còn thêm nhóm là việc hiếm. */}
+          {quanTri && nhom && <TheNhom nhom={nhom} taiLai={taiLaiNhom} />}
+        </>
+      )}
+      {the === 'chiet-khau' && (
+        <>
+          <TheChietKhau nhom={nhom ?? []} chiXem={!quanTri} />
+          {quanTri && <TheTraCuu />}
+        </>
+      )}
+      {quanTri && the === 'giay-to-mau' && <TheGiayToMau />}
     </section>
   );
 }
@@ -94,6 +105,7 @@ export function DanhMuc() {
  */
 function BangSanPhamChiXem() {
   const [ds, datDs] = useState<SanPham[] | null>(null);
+  const [tim, datTim] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
 
   useEffect(() => {
@@ -110,28 +122,53 @@ function BangSanPhamChiXem() {
   if (!ds) return <DangTai />;
   if (ds.length === 0) return <Trong tieuDe="Danh mục chưa có sản phẩm nào" />;
 
+  const loc = locSanPham(ds, tim);
+
   return (
-    <div className="khung-cuon" role="region" aria-label="Danh mục sản phẩm" tabIndex={0}>
-      <table className="bang">
-        <thead>
-          <tr>
-            <th>Mã vật tư</th>
-            <th>Tên sản phẩm</th>
-            <th>Nhóm</th>
-            <th>Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ds.map((s) => (
-            <tr key={s.id}>
-              <td className="ma-phu">{s.code}</td>
-              <td>{s.name}</td>
-              <td>{s.groupCode}</td>
-              <td>{NHAN_TRANG_THAI_SAN_PHAM[s.status] ?? s.status}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <>
+      <div className="hang-tim">
+        <OTimKiem
+          id="tim-san-pham"
+          nhan="Tìm theo tên hoặc mã sản phẩm"
+          giaTri={tim}
+          doi={datTim}
+        />
+        {tim.trim() !== '' && (
+          <span className="ghi-chu" role="status">
+            {loc.length} sản phẩm khớp
+          </span>
+        )}
     </div>
+
+      {loc.length === 0 ? (
+        <Trong
+          tieuDe="Không có sản phẩm nào khớp"
+          moTa="Thử bỏ bớt chữ, hoặc gõ mã vật tư thay vì tên."
+        />
+      ) : (
+        <div className="khung-cuon" role="region" aria-label="Danh mục sản phẩm" tabIndex={0}>
+          <table className="bang">
+            <thead>
+              <tr>
+                <th>Mã vật tư</th>
+                <th>Tên sản phẩm</th>
+                <th>Nhóm</th>
+                <th>Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loc.map((s) => (
+                <tr key={s.id}>
+                  <td className="ma-phu">{s.code}</td>
+                  <td>{s.name}</td>
+                  <td>{s.groupCode}</td>
+                  <td>{NHAN_TRANG_THAI_SAN_PHAM[s.status] ?? s.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   );
 }

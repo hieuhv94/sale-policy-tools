@@ -1060,6 +1060,20 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   }
 }
 
+/* --- Ô tìm kiếm ----------------------------------------------------------- */
+
+.hang-tim {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--k3);
+  margin: 0 0 var(--k3);
+}
+/* Không kéo hết chiều rộng bảng: một ô tìm kiếm dài 1200px trông như ô nhập nội
+   dung, và người dùng không nhận ra nó là chỗ để lọc. `.truong` là khối nhãn +
+   ô của `OTimKiem`. */
+.hang-tim .truong { max-width: 360px; flex: 1; margin-bottom: 0; }
+.hang-tim .ghi-chu { padding-bottom: var(--k2); white-space: nowrap; }
+
 /* --- Bảng dọc (nhãn — giá trị) -------------------------------------------- */
 
 /* Hai cột trên màn hình rộng, một cột trên điện thoại. Dùng `dl` chứ không dùng

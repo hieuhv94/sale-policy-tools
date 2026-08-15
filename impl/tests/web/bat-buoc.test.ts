@@ -38,7 +38,6 @@ const NGUON: Record<TenBieuMau, { tep: string; neo: string; boQua?: string[] }> 
     neo: "@Post('lookups/:kind')",
     boQua: ['kind'],
   },
-  'nguoi-ky': { tep: 'services/catalog/src/catalog.controller.ts', neo: "@Post('signers')" },
   'ho-so': { tep: 'services/policy/src/policies/policies.controller.ts', neo: '@Post()' },
   'dong-san-pham': { tep: 'services/policy/src/policies/policies.controller.ts', neo: 'const lineShape =' },
   'ngay-ap-dung': { tep: 'services/policy/src/policies/policies.controller.ts', neo: "@Patch(':id')" },
@@ -190,10 +189,10 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
 
 describe('đánh dấu sao', () => {
   it('trường có trong bảng thì gắn sao', () => {
-    expect(batBuoc('nguoi-ky', 'validFrom')).toBe(true);
+    expect(batBuoc('ho-so', 'customerId')).toBe(true);
   });
 
   it('trường không có trong bảng thì không gắn sao', () => {
-    expect(batBuoc('nguoi-ky', 'validTo')).toBe(false);
+    expect(batBuoc('ho-so', 'note')).toBe(false);
   });
 });
