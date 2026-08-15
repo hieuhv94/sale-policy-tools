@@ -8,7 +8,7 @@
  * trí đều có mặt trong cùng một cây DOM, và không dữ liệu nào bị bỏ rơi.**
  * Kiểm hình học thật cần trình duyệt thật — xem phần "Còn nợ" của P7d.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BangSanPham, cotCho, soCotCpbh, type DongSanPham } from '@csbh/web/bang-san-pham';
@@ -24,6 +24,7 @@ afterEach(cleanup);
 
 const dong = (p: Partial<DongSanPham> = {}): DongSanPham => ({
   id: 'd1',
+  productId: 'sp-1',
   productCode: 'SP-01',
   productName: 'Nutricare Gold Đặc Biệt',
   companyPrice: '100000',
@@ -134,6 +135,38 @@ describe('FE-28 dấu hiệu vượt ngưỡng không chỉ dựa vào màu', ()
     render(<BangSanPham dong={[dong({ overThreshold: false })]} />);
     expect(document.querySelectorAll('.dau-vuot')).toHaveLength(0);
     expect(screen.queryByText(/vượt ngưỡng/)).toBeNull();
+  });
+});
+
+describe('sửa một dòng đã có', () => {
+  it('không truyền `suaDong` thì KHÔNG có nút Sửa', () => {
+    // Hồ sơ đã gửi duyệt thì không sửa được; bày nút ra là mời người dùng bấm
+    // vào một thứ máy chủ chắc chắn từ chối.
+    render(<BangSanPham dong={[dong()]} />);
+    expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
+  });
+
+  it('truyền `suaDong` thì trả về ĐÚNG dòng được bấm', async () => {
+    const nguoi = userEvent.setup();
+    const sua = vi.fn();
+    const ds = [dong({ id: 'a', productCode: 'SP-A' }), dong({ id: 'b', productCode: 'SP-B' })];
+    render(<BangSanPham dong={ds} suaDong={sua} />);
+
+    // Hai bố cục cùng nằm trong một cây DOM nên mỗi dòng có HAI nút Sửa; cả hai
+    // phải trỏ về cùng một dòng.
+    const bang = screen.getByRole('table');
+    const hang = within(bang)
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-B') !== null);
+    await nguoi.click(within(hang as HTMLElement).getByRole('button', { name: 'Sửa' }));
+    expect(sua).toHaveBeenCalledWith(ds[1]);
+  });
+
+  it('sửa và xoá đứng cạnh nhau, không thay chỗ nhau', async () => {
+    render(<BangSanPham dong={[dong()]} suaDong={() => undefined} xoaDong={() => undefined} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getAllByRole('button', { name: 'Sửa' }).length).toBeGreaterThan(0);
+    expect(within(bang).getAllByRole('button', { name: 'Xoá dòng' }).length).toBeGreaterThan(0);
   });
 });
 

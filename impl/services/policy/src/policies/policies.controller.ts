@@ -156,6 +156,26 @@ export class PoliciesController {
   }
 
   @Roles('TDV')
+  /**
+   * Sửa một dòng đã có. Sản phẩm KHÔNG nằm trong DTO — đổi sản phẩm là xoá dòng
+   * rồi thêm dòng khác, xem chú thích ở `PoliciesService.updateLine`.
+   */
+  @Roles(...WRITERS)
+  @Patch(':id/lines/:lineId')
+  suaDong(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Param('lineId') lineId: string,
+    @Body() body: unknown,
+  ) {
+    rejectForbidden(body);
+    const b = validate(body, {
+      wholesalePrice: money(),
+      cpbh: opt(danhSach(moneyKhongAm())),
+    });
+    return this.policies.updateLine(id, lineId, b, me);
+  }
+
   @Delete(':id/lines/:lineId')
   removeLine(
     @CurrentUser() me: AuthUser,

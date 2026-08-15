@@ -286,6 +286,57 @@ export class PoliciesService {
     });
   }
 
+  /**
+   * Sửa một dòng đã có: giá bán buôn và các khoản chi phí.
+   *
+   * Đường RIÊNG chứ không cho `addLine` ghi đè khi trùng sản phẩm. Trùng sản
+   * phẩm lúc THÊM là một nhầm lẫn — người dùng tưởng mình đang thêm mặt hàng
+   * mới — và `POL-02` chặn nó có chủ ý. Biến nó thành ghi đè im lặng là đánh
+   * mất một cái chặn đúng để đổi lấy một chức năng khác hẳn.
+   *
+   * SẢN PHẨM KHÔNG ĐỔI ĐƯỢC. Đổi sản phẩm của một dòng là xoá dòng này và thêm
+   * dòng khác; hai việc ấy có ý nghĩa nghiệp vụ khác nhau và để lại vết khác
+   * nhau trong nhật ký.
+   *
+   * Giá bán Công ty và ngưỡng chiết khấu CHỤP LẠI theo danh mục tại thời điểm
+   * sửa, đúng như lúc thêm dòng — hồ sơ chưa gửi duyệt thì con số của nó phải
+   * là con số hiện hành, nếu không thì sửa một khoản chi phí lại vô tình giữ
+   * nguyên một mức giá đã cũ.
+   */
+  async updateLine(
+    policyId: string,
+    lineId: string,
+    input: { wholesalePrice: bigint; cpbh?: readonly bigint[] | undefined },
+    me: AuthUser,
+  ) {
+    const p = await this.mustEdit(policyId, me);
+    const customer = await this.clients.customer(p.customer_id);
+    return this.db.tx(async (c) => {
+      const cu = await c.query<{ product_id: string }>(
+        `SELECT product_id FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
+        [lineId, policyId],
+      );
+      if (cu.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
+
+      await this.upsertLine(
+        c,
+        policyId,
+        { productId: cu.rows[0]!.product_id, ...input },
+        customer,
+      );
+      await this.bumpVersion(c, policyId);
+      await emit(c, 'policy.updated', {
+        ...evtCtx(p, customer),
+        change: 'LINE_UPDATED',
+        lineId,
+        productId: cu.rows[0]!.product_id,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
+      return this.load(policyId, c);
+    });
+  }
+
   async removeLine(policyId: string, lineId: string, me: AuthUser) {
     const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {

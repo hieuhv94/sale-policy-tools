@@ -11,26 +11,46 @@ import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
+import type { DongSanPham } from './BangSanPham.js';
 
 export { suaDuoc } from '../lib/sua-ho-so.js';
 
 type SanPham = { id: string; code: string; name: string };
 
+/**
+ * Thêm MỘT dòng sản phẩm, hoặc SỬA một dòng đã có.
+ *
+ * Cùng một biểu mẫu, HAI đường máy chủ: `POST .../lines` để thêm, `PATCH
+ * .../lines/:lineId` để sửa. Không gộp làm một vì trùng sản phẩm lúc THÊM là một
+ * nhầm lẫn — người dùng tưởng mình đang thêm mặt hàng mới — và `POL-02` chặn nó
+ * có chủ ý. Cho `POST` ghi đè là đánh mất một cái chặn đúng.
+ *
+ * Khi sửa thì Ô CHỌN SẢN PHẨM KHOÁ LẠI. Đổi sản phẩm không phải là sửa dòng này
+ * mà là thêm một dòng khác — và dòng cũ vẫn nằm nguyên đó, nên người dùng tưởng
+ * mình vừa đổi một dòng trong khi hồ sơ có thêm một sản phẩm.
+ */
 export function ThemDongSanPham({
   hoSoId,
+  dongCu,
   dong,
   xong,
 }: {
   hoSoId: string;
+  /** Có nghĩa là SỬA dòng này. Bỏ trống là thêm dòng mới. */
+  dongCu?: DongSanPham | undefined;
   dong: () => void;
   xong: () => void;
 }) {
+  const sua = dongCu !== undefined;
   const [ds, datDs] = useState<SanPham[] | null>(null);
-  const [sanPham, datSanPham] = useState('');
-  const [giaBanBuon, datGiaBanBuon] = useState('');
-  // Bắt đầu bằng MỘT ô. Hồ sơ thường chỉ có một khoản chi phí; bày sẵn bốn ô là
-  // bắt gõ số 0 vào ba ô không có nghĩa gì, rồi ba cột số 0 ấy đi thẳng ra bản in.
-  const [cpbh, datCpbh] = useState<string[]>(['']);
+  const [sanPham, datSanPham] = useState(dongCu?.productId ?? '');
+  const [giaBanBuon, datGiaBanBuon] = useState(dongCu?.wholesalePrice ?? '');
+  // Bắt đầu bằng MỘT ô khi thêm mới. Hồ sơ thường chỉ có một khoản chi phí; bày
+  // sẵn bốn ô là bắt gõ số 0 vào ba ô không có nghĩa gì, rồi ba cột số 0 ấy đi
+  // thẳng ra bản in. Khi sửa thì nạp đúng các khoản đang có.
+  const [cpbh, datCpbh] = useState<string[]>(
+    dongCu && dongCu.cpbh.length > 0 ? [...dongCu.cpbh] : [''],
+  );
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
@@ -57,14 +77,15 @@ export function ThemDongSanPham({
     datLoi(null);
     datDangGui(true);
     try {
-      await dang(`/policies/${hoSoId}/lines`, {
-        productId: sanPham,
+      const than = {
         wholesalePrice: giaBanBuon,
         // Ô để trống gửi '0' chứ không bỏ đi: người dùng đã mở ô đó ra thì nó là
         // một khoản họ có ý định khai, chỉ là bằng không. Bỏ đi sẽ làm lệch số
         // thứ tự của các khoản sau nó.
         cpbh: cpbh.map((v) => v || '0'),
-      });
+      };
+      if (sua) await va(`/policies/${hoSoId}/lines/${dongCu.id}`, than);
+      else await dang(`/policies/${hoSoId}/lines`, { productId: sanPham, ...than });
       xong();
     } catch (err) {
       datLoi(err);
@@ -74,7 +95,10 @@ export function ThemDongSanPham({
   };
 
   return (
-    <HopThoai tieuDe="Thêm dòng sản phẩm" dong={dong}>
+    <HopThoai
+      tieuDe={sua ? `Sửa dòng ${dongCu.productCode}` : 'Thêm dòng sản phẩm'}
+      dong={dong}
+    >
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
 
@@ -84,9 +108,19 @@ export function ThemDongSanPham({
               {...p}
               className="o-nhap"
               value={sanPham}
+              disabled={sua}
               onChange={(e) => datSanPham(e.target.value)}
             >
               <option value="">— Chọn sản phẩm —</option>
+              {/* Khi sửa, danh mục có thể KHÔNG còn sản phẩm này (đã vô hiệu
+                  hoá) — nhưng hồ sơ vẫn giữ nó. Thêm thẳng một mục từ chính dòng
+                  đang sửa, nếu không ô chọn sẽ hiện rỗng và người dùng tưởng dữ
+                  liệu hỏng. */}
+              {sua && !(ds ?? []).some((s) => s.id === dongCu.productId) && (
+                <option value={dongCu.productId}>
+                  {dongCu.productName} ({dongCu.productCode})
+                </option>
+              )}
               {(ds ?? []).map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.code})
@@ -130,7 +164,14 @@ export function ThemDongSanPham({
         <p className="ghi-chu">
           <strong>Giá bán Công ty</strong> và <strong>ngưỡng chiết khấu</strong> lấy từ danh mục và
           được đóng băng vào hồ sơ — bạn không nhập. Giá thu về và tỷ lệ chiết khấu hiện ngay sau khi
-          thêm.
+          lưu.
+          {sua && (
+            <>
+              {' '}
+              <strong>Đổi sản phẩm thì xoá dòng này rồi thêm dòng mới</strong> — sản phẩm là thứ
+              nhận diện một dòng.
+            </>
+          )}
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}
@@ -140,7 +181,7 @@ export function ThemDongSanPham({
             className="nut nut-chinh"
             disabled={dangGui || sanPham === '' || giaBanBuon === ''}
           >
-            {dangGui ? 'Đang thêm…' : 'Thêm dòng'}
+            {dangGui ? 'Đang lưu…' : sua ? 'Lưu dòng' : 'Thêm dòng'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>
             Huỷ

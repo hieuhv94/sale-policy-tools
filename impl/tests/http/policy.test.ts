@@ -1365,3 +1365,77 @@ describe('CPBH không cố định bốn khoản', () => {
     expect(moi.netPrice).toBe(cu.netPrice);
   });
 });
+
+describe('sửa một dòng sản phẩm đã có', () => {
+  /**
+   * Trước đây giao diện chỉ có Xoá, nên đổi một con số nghĩa là xoá dòng rồi
+   * thêm lại — gõ lại cả giá bán buôn lẫn mọi khoản chi phí, và giữa hai thao
+   * tác thì hồ sơ thiếu mất một sản phẩm.
+   *
+   * Đường riêng `PATCH .../lines/:lineId`, KHÔNG cho `POST` ghi đè khi trùng sản
+   * phẩm: trùng lúc thêm là một nhầm lẫn và `POL-02` chặn nó có chủ ý.
+   */
+  const suaDong = async (policyId: string, lineId: string, body: object, who = 'tdv01') =>
+    patch(`/policies/${policyId}/lines/${lineId}`, body, who);
+
+  it('đổi được giá bán buôn và các khoản chi phí', async () => {
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+
+    const r = await suaDong(d.id, l.id, {
+      wholesalePrice: '80000',
+      cpbh: ['1000', '2000'],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const sau = (await get(`/policies/${d.id}`)).body.lines;
+    expect(sau).toHaveLength(1);
+    expect(sau[0].wholesalePrice).toBe('80000');
+    expect(sau[0].cpbh).toEqual(['1000', '2000']);
+    // Giá thu về tính lại theo con số mới, không giữ giá trị cũ.
+    expect(sau[0].netPrice).toBe('77000');
+  });
+
+  it('giữ NGUYÊN id dòng và sản phẩm', async () => {
+    // Giao diện nhận diện dòng theo `id` để bấm Xoá; đổi id sau mỗi lần sửa là
+    // nút Xoá trỏ vào một dòng không còn tồn tại.
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    await suaDong(d.id, l.id, { wholesalePrice: '85000' });
+    const sau = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(sau.id).toBe(l.id);
+    expect(sau.productId).toBe(l.productId);
+  });
+
+  it('KHÔNG đổi được sản phẩm qua đường sửa', async () => {
+    // `productId` không có trong DTO nên bị bỏ qua. Đổi sản phẩm của một dòng là
+    // xoá dòng này và thêm dòng khác — hai việc có ý nghĩa nghiệp vụ khác nhau.
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    const spKhac = await makeProduct();
+    await suaDong(d.id, l.id, { wholesalePrice: '85000', productId: spKhac });
+    expect((await get(`/policies/${d.id}`)).body.lines[0].productId).toBe(l.productId);
+  });
+
+  it('KHÔNG gửi kèm được giá bán Công ty hay ngưỡng', async () => {
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    const r = await suaDong(d.id, l.id, { wholesalePrice: '85000', companyPrice: '1' });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('FIELD_NOT_ALLOWED');
+  });
+
+  it('dòng không thuộc hồ sơ này thì 404', async () => {
+    const a = await draft();
+    const b = await draft();
+    const lb = (await get(`/policies/${b.id}`)).body.lines[0];
+    expect((await suaDong(a.id, lb.id, { wholesalePrice: '80000' })).status).toBe(404);
+  });
+
+  it('hồ sơ đã gửi duyệt thì KHÔNG sửa được dòng', async () => {
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await suaDong(d.id, l.id, { wholesalePrice: '80000' })).status).toBe(409);
+  });
+});

@@ -52,6 +52,8 @@ export function ChiTietHoSo({ id }: { id: string }) {
   /** Dòng sản phẩm đang chờ xác nhận xoá. Nút Xoá nằm ngay trong bảng dữ liệu
       đọc hàng ngày, nên không cho nó xoá thẳng. */
   const [xoaDongId, datXoaDongId] = useState<string | null>(null);
+  /** Dòng đang mở để sửa. Cùng biểu mẫu với thêm dòng — xem `ThemDongSanPham`. */
+  const [suaDongCu, datSuaDongCu] = useState<DongSanPham | null>(null);
   const [moSua, datMoSua] = useState<'dong' | 'ngay' | 'xoa' | null>(null);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   const { di } = useDuong();
@@ -147,7 +149,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
       )}
       <BangSanPham
         dong={hoSo.lines}
-        {...(dangSua ? { xoaDong: datXoaDongId, dangXoa: dangXoaDong } : {})}
+        {...(dangSua
+          ? { xoaDong: datXoaDongId, suaDong: datSuaDongCu, dangXoa: dangXoaDong }
+          : {})}
       />
 
       <TepDinhKem
@@ -220,6 +224,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
             ))}
           </div>
         </>
+      )}
+
+      {suaDongCu && (
+        <ThemDongSanPham
+          hoSoId={hoSo.id}
+          dongCu={suaDongCu}
+          dong={() => datSuaDongCu(null)}
+          xong={() => {
+            datSuaDongCu(null);
+            taiLai();
+          }}
+        />
       )}
 
       {moSua === 'dong' && (

@@ -30,6 +30,8 @@ import { tien, tyLe } from '../lib/format.js';
 
 export type DongSanPham = {
   id: string;
+  /** Cần cho việc SỬA dòng: máy chủ nhận diện dòng theo sản phẩm, không theo id. */
+  productId: string;
   productCode: string;
   productName: string;
   companyPrice: string;
@@ -137,19 +139,29 @@ function CpbhGop({ d }: { d: DongSanPham }) {
 }
 
 /**
- * `xoaDong` chỉ truyền khi hồ sơ đang sửa được. Cột thao tác là cột THÊM VÀO,
+ * `xoaDong` và `suaDong` chỉ truyền khi hồ sơ đang sửa được. Cột thao tác là cột THÊM VÀO,
  * không thay chỗ cột nào — chú thích đầu tệp cấm ẩn bớt cột, và bốn ô CPBH vẫn
  * là thứ quyết định giá thu về dù màn hình đang ở chế độ sửa.
  */
 export function BangSanPham({
   dong,
   xoaDong,
+  suaDong,
   dangXoa,
 }: {
   dong: DongSanPham[];
   xoaDong?: ((id: string) => void) | undefined;
+  /**
+   * Sửa một dòng đã có.
+   *
+   * Trước đây chỉ có Xoá, nên đổi một con số nghĩa là xoá dòng rồi thêm lại từ
+   * đầu — gõ lại cả giá bán buôn lẫn mọi khoản chi phí, và trong khoảng giữa hai
+   * thao tác thì hồ sơ thiếu mất một sản phẩm.
+   */
+  suaDong?: ((d: DongSanPham) => void) | undefined;
   dangXoa?: string | null | undefined;
 }) {
+  const coThaoTac = xoaDong !== undefined || suaDong !== undefined;
   if (dong.length === 0) {
     return (
       <p className="trong">
@@ -170,7 +182,7 @@ export function BangSanPham({
                   {c.nhan}
                 </th>
               ))}
-              {xoaDong && <th>Thao tác</th>}
+              {coThaoTac && <th>Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -193,16 +205,25 @@ export function BangSanPham({
                 <td className="so">
                   <OTyLe d={d} />
                 </td>
-                {xoaDong && (
+                {coThaoTac && (
                   <td>
-                    <button
-                      type="button"
-                      className="nut nut-canh-bao"
-                      disabled={dangXoa === d.id}
-                      onClick={() => xoaDong(d.id)}
-                    >
-                      Xoá dòng
-                    </button>
+                    <div className="nhom-nut nhom-nut-gon">
+                      {suaDong && (
+                        <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
+                          Sửa
+                        </button>
+                      )}
+                      {xoaDong && (
+                        <button
+                          type="button"
+                          className="nut nut-canh-bao"
+                          disabled={dangXoa === d.id}
+                          onClick={() => xoaDong(d.id)}
+                        >
+                          Xoá dòng
+                        </button>
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -240,15 +261,24 @@ export function BangSanPham({
               </div>
             </dl>
             <CpbhGop d={d} />
-            {xoaDong && (
-              <button
-                type="button"
-                className="nut nut-canh-bao"
-                disabled={dangXoa === d.id}
-                onClick={() => xoaDong(d.id)}
-              >
-                Xoá dòng
-              </button>
+            {coThaoTac && (
+              <div className="nhom-nut nhom-nut-gon">
+                {suaDong && (
+                  <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
+                    Sửa
+                  </button>
+                )}
+                {xoaDong && (
+                  <button
+                    type="button"
+                    className="nut nut-canh-bao"
+                    disabled={dangXoa === d.id}
+                    onClick={() => xoaDong(d.id)}
+                  >
+                    Xoá dòng
+                  </button>
+                )}
+              </div>
             )}
           </li>
         ))}
