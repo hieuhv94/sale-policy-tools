@@ -370,6 +370,50 @@ và thắng nó.
 Hệ quả cho người dùng: cách “cho một quy định thôi áp dụng từ ngày X” không còn. Muốn dừng thì **xoá
 dòng**. Xoá không làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 
+#### 6.3.1. Một sản phẩm khớp nhiều quy định `bổ sung 15/08`
+
+Chuyện bình thường, không phải lỗi cấu hình: dòng chung cho cả nhóm và dòng riêng cho một kênh đều
+đúng. Hệ thống chọn đúng một dòng, theo thứ tự:
+
+1. **Cụ thể hơn thì thắng.** Trọng số: nhóm sản phẩm **4** · loại khách hàng **2** · kênh **1**. Nhóm
+   sản phẩm là chiều mạnh nhất vì ngưỡng gắn với bản chất hàng hoá. Ba trọng số này là luỹ thừa của
+   hai, nên **hai phạm vi khác nhau không bao giờ hoà điểm**.
+2. **Mới hơn thì thắng.** Hai dòng bằng điểm bắt buộc phải trùng phạm vi, và khi đó dòng có ngày hiệu
+   lực muộn hơn thắng. Từ khi quy định vô thời hạn, đây là **cách đổi ngưỡng duy nhất**: khai một
+   dòng mới cùng phạm vi, ngày muộn hơn — dòng cũ tự bị che.
+
+**Không có tầng thứ ba.** Hai quy định trùng đúng phạm vi *và* đúng ngày hiệu lực **không tồn tại
+được**: hệ thống từ chối ngay lúc khai, kèm thông báo chỉ ra hai cách đi tiếp (sửa ngưỡng dòng đang
+có, hoặc khai ngày muộn hơn). “Trùng phạm vi” tính cả các ô **để trống**: hai dòng cùng bỏ trống ô
+nhóm sản phẩm đều nói “mọi nhóm”, nên chúng trùng nhau.
+
+Lý do chặn thay vì tự phân xử: trước đây hệ thống vẫn chọn được một dòng, nhưng bằng một thứ tự nội
+bộ không có nghĩa nghiệp vụ. Người khai hai dòng 15% và 20% không có cách nào biết trước dòng nào ăn,
+và màn hình bày cả hai cạnh nhau mà không nói dòng nào đang có hiệu lực.
+
+#### 6.3.2. Khi không quy định nào khớp `bổ sung 15/08`
+
+Hồ sơ vẫn lập được — ngưỡng rơi về cột “CSBH loại 1/2/3” của chính sản phẩm. Nhưng **người lập được
+báo ngay lúc chọn sản phẩm**, trước khi nhập giá:
+
+> ◆ **Chưa có quy định chiết khấu cho sản phẩm này.** Không quy định nào phủ nó với loại khách hàng
+> và kênh của khách hàng này, nên hồ sơ sẽ dùng **ngưỡng mặc định 15,00%** khai trong danh mục sản
+> phẩm. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu con số đó không đúng.
+
+Báo trước chứ không báo sau vì ngưỡng **đóng băng vào dòng hồ sơ ngay khi lưu**; biết sau thì phải
+xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu.
+
+Nếu sản phẩm **không có cả quy định lẫn mặc định**, đó là lỗi thật: thêm dòng sẽ bị từ chối, và màn
+hình nói thẳng điều đó.
+
+Dòng đã lập trong tình huống này mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để người duyệt
+biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu
+quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có **chú
+thích màu** ngay dưới nó.
+
+Mỗi dòng hồ sơ còn ghi lại **đúng quy định nào** đã cho ra ngưỡng của nó, để về sau trả lời được câu
+“vì sao hồ sơ này ngưỡng 15% mà hồ sơ kia 20%”. Xoá quy định không xoá dấu vết ấy.
+
 ### 6.4. Giấy tờ mẫu và người ký
 
 | Loại mẫu | Ai quản lý | Tình trạng |
@@ -668,5 +712,12 @@ CPBH tuỳ từng dòng sản phẩm**, không cố định bốn; bản in lấ
 ít hơn để ô trống · **sửa được dòng sản phẩm** chứ không chỉ xoá, nhưng không đổi được sản phẩm của
 dòng · bỏ dòng "Tổng giá thu về" dưới bảng vì cộng dồn giá thu về của nhiều mặt hàng không có nghĩa
 nghiệp vụ · ô nhập tiền ghi rõ đơn vị và định dạng ngay khi gõ.
+
+**Trùng và thiếu quy định chiết khấu** (15/08) — **một phạm vi × một ngày hiệu lực = tối đa một quy
+định**; khai trùng thì hệ thống từ chối thay vì tự phân xử, và "trùng" tính cả các ô để trống · nhiều
+quy định cùng khớp vẫn là chuyện bình thường, phân xử bằng **cụ thể hơn thắng, rồi mới hơn thắng** ·
+**cảnh báo ngay lúc chọn sản phẩm** khi không quy định nào khớp, kèm con số ngưỡng mặc định sẽ dùng ·
+dòng ấy mang **nền vàng và dấu ◆** trong bảng, có chú thích màu đi kèm · mỗi dòng hồ sơ **ghi lại quy
+định nào** đã cho ra ngưỡng của nó.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

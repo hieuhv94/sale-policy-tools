@@ -3154,3 +3154,88 @@ hiệu hoá vẫn hiện đúng tên: danh sách chọn lọc bỏ chúng nhưng
 một mục dựng từ chính dòng đang sửa — không có nó thì ô hiện rỗng và người dùng tưởng dữ liệu hỏng.
 
 712 case.
+
+---
+
+## P28 — Trùng và thiếu quy định chiết khấu
+
+Câu hỏi mở màn: *một sản phẩm thoả mãn hai quy định chiết khấu thì sao?* Đọc mã thì hệ thống đã xử
+đúng — `ORDER BY specificity DESC, effective_from DESC, id` — nhưng tầng thứ ba là một cái hố.
+
+### Vì sao chỉ có tầng ba là hố
+
+Trọng số của `specificity` là **4/2/1**, tức là nhị phân, nên tám tổ hợp cho tám con số phân biệt:
+**hai phạm vi khác nhau không bao giờ hoà điểm**. Suy ra hoà điểm ⇒ hai dòng khai cùng bộ chiều; mà
+cả hai cùng khớp một truy vấn ⇒ ba giá trị phạm vi giống hệt nhau. Nói cách khác, **hoà điểm chỉ xảy
+ra khi trùng phạm vi**, và lúc đó `effective_from DESC` — cơ chế đổi ngưỡng duy nhất còn lại sau
+`0020` — vẫn xử đúng.
+
+Chỉ còn đúng một tình huống chạm tới `id`: trùng phạm vi **và** trùng ngày hiệu lực. Tất định thì có
+tất định, nhưng `gen_random_uuid()` không mang ý nghĩa nghiệp vụ nào. Người khai hai dòng 15% và 20%
+không có cách nào biết trước dòng nào ăn.
+
+### Bịt ở chỗ đúng
+
+Không sửa `ORDER BY` mà **không cho tồn tại** hai dòng trùng phạm vi. Chỉ mục duy nhất trên bốn cột
+phạm vi + ngày, và mấu chốt là **`NULLS NOT DISTINCT`**: mặc định Postgres coi mỗi NULL là một giá
+trị riêng, nên hai dòng *"mọi nhóm, mọi loại KH, mọi kênh"* cùng ngày vẫn lọt qua chỉ mục thường —
+mà đó chính là cặp dễ khai trùng nhất, vì nó là dòng người ta khai đầu tiên khi chưa nghĩ tới phạm
+vi. Cần Postgres 15+; hệ thống chạy 16.
+
+Sau chỉ mục ấy, tầng `id` không còn với tới được. **Vẫn giữ nó trong `ORDER BY`** — lưới an toàn
+phòng khi chỉ mục bị gỡ, bỏ hẳn thì mất tính tất định trong đúng cái tình huống lẽ ra không xảy ra.
+
+Từ chối chứ không ghi đè, mã riêng `RULE_SCOPE_DUPLICATE`: người khai có thể đang định sửa ngưỡng
+dòng cũ, mà cũng có thể đang khai nhầm dòng thứ hai. Ghi đè là đoán hộ họ ý thứ nhất và xoá mất dữ
+liệu nếu đoán sai.
+
+Migration dọn dữ liệu trùng có sẵn trước khi dựng chỉ mục, **giữ lại đúng dòng đang có hiệu lực**
+(`id` nhỏ nhất — chính là dòng `resolve` vẫn chọn). Các dòng bị xoá đã bị che từ lúc được khai và
+chưa từng được chọn, nên không hồ sơ nào đổi kết quả.
+
+### Nửa còn lại: không quy định nào khớp
+
+Hồ sơ vẫn lập được, ngưỡng rơi về mặc định của sản phẩm — nhưng trước P28 **không ai biết điều đó
+đã xảy ra**. Ba lớp:
+
+- **Dòng hồ sơ nhớ nguồn** — `threshold_source` và `rule_id_snap`, đóng băng cùng lúc với
+  `threshold_snap` từ cùng một lời gọi `resolve`. `NULL` là **không rõ** (dòng lập trước `0022`),
+  không phải `PRODUCT_DEFAULT`: tô vàng hàng loạt dòng cũ chỉ vì thiếu dữ liệu là báo động giả, và
+  báo động giả hàng loạt thì lần sau không ai nhìn màu vàng nữa. Một `CHECK` giữ hai cột khớp nhau.
+- **Cảnh báo lúc chọn sản phẩm**, không phải sau khi lưu — ngưỡng đóng băng ngay lúc bấm Lưu, biết
+  sau thì phải xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu. Cần một đường mới,
+  `GET /policies/:id/threshold-preview`: ngưỡng phụ thuộc loại khách và kênh, mà hộp thoại sửa dòng
+  chỉ cầm mã hồ sơ. Bắt giao diện tự đi lấy khách hàng rồi ghép tham số là chép luật tra ngưỡng sang
+  giao diện.
+- **Nền vàng + dấu ◆ + chú thích màu.** Dòng vừa vượt ngưỡng vừa thiếu quy định: nền **đỏ** thắng
+  (nó là thứ phải xử lý), dấu ◆ vẫn còn vì hai chuyện khác nhau.
+
+### Ba quyết định nhỏ đáng ghi
+
+- **Không khoá ngoại** từ `rule_id_snap` sang `cat.discount_rule`: `policy` không đọc được schema
+  `cat` (AD-02), và ảnh chụp phải sống sót khi quy định bị xoá — khoá ngoại thì hoặc chặn xoá hoặc
+  xoá luôn dấu vết.
+- **Lỗi mạng lúc xem trước không hiện gì.** Đây là thông tin thêm, không phải điều kiện để lưu; một
+  khối đỏ cạnh biểu mẫu đang gõ dở chỉ làm người dùng tưởng mình vừa làm hỏng thứ gì. Máy chủ vẫn
+  tra lại lúc lưu.
+- **Chú thích màu nằm trong `BangSanPham`**, không ở trang gọi — mọi chỗ bày bảng đều bày cùng bộ
+  màu, để trang tự thêm thì sớm muộn có một trang quên.
+
+### Hai test đỏ, và cả hai đều đúng
+
+Chú thích màu cố tình dùng **đúng** lớp `.dau-vuot` và `.dau-mac-dinh` của dấu thật — một chú thích
+vẽ ký hiệu khác thì không đối chiếu được, tức là không còn là chú thích. Nên
+`document.querySelectorAll('.dau-vuot')` đếm dư đúng một cái, và hai test cũ đỏ ngay.
+
+Sửa **test**, không sửa mã: câu hỏi các test ấy đặt ra là *"dòng nào mang dấu"*, không phải *"có dấu
+nào trên trang"*. Thêm `dauTrongDuLieu()` khoanh vùng vào `.bang-san-pham` và `.the-san-pham`.
+
+743 case (712 → 743).
+
+### Còn nợ
+
+- Bản in A4 **không hiện** dấu thiếu quy định. Người ký bản cứng không thấy được điều mà người duyệt
+  trên màn hình thấy. Chưa làm vì chưa rõ nó nên hiện thành cột riêng hay chú thích chân trang.
+- `rule_id_snap` **chưa có màn hình nào đọc** — nó dành cho truy vết bằng truy vấn. Đủ dùng, nhưng
+  nghĩa là không lối nào trên giao diện bảo vệ nó khỏi bị bỏ quên khi sửa mã sau này; chỉ có test
+  HTTP giữ.

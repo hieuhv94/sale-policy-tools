@@ -8,7 +8,7 @@
  * là thêm một bản sao phải giữ đồng bộ với máy trạng thái.
  */
 import { useEffect, useState } from 'react';
-import { dang, layJson, va, xoa } from '../lib/api.js';
+import { dang, layJson, LoiApi, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import type { DongSanPham } from './BangSanPham.js';
@@ -16,6 +16,52 @@ import type { DongSanPham } from './BangSanPham.js';
 export { suaDuoc } from '../lib/sua-ho-so.js';
 
 type SanPham = { id: string; code: string; name: string };
+
+type XemTruocNguong = {
+  productCode: string;
+  threshold: string;
+  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT';
+};
+
+/**
+ * Hỏi trước xem ngưỡng chiết khấu của sản phẩm này từ đâu ra, rồi cảnh báo NGAY
+ * nếu nó rơi về mặc định của sản phẩm.
+ *
+ * Vì sao hỏi trước khi lưu chứ không báo sau: ngưỡng ĐÓNG BĂNG vào dòng hồ sơ
+ * lúc lưu. Biết sau thì phải xoá dòng, đi nhờ Quản trị khai quy định, rồi nhập
+ * lại từ đầu. Biết trước thì người lập chọn được — vẫn lập với ngưỡng mặc định,
+ * hay dừng lại hỏi trước.
+ *
+ * Lỗi mạng ở đây KHÔNG hiện gì. Đây là thông tin thêm, không phải điều kiện để
+ * lưu; một khối đỏ "không tra được ngưỡng" cạnh biểu mẫu đang gõ dở chỉ làm
+ * người dùng tưởng mình vừa làm hỏng thứ gì. Máy chủ vẫn tra lại lúc lưu và vẫn
+ * từ chối nếu sản phẩm không có ngưỡng nào.
+ */
+function useXemTruocNguong(hoSoId: string, productId: string) {
+  const [xem, datXem] = useState<XemTruocNguong | null>(null);
+  const [khongCoNguong, datKhongCoNguong] = useState(false);
+
+  useEffect(() => {
+    datXem(null);
+    datKhongCoNguong(false);
+    if (productId === '') return undefined;
+    const huy = new AbortController();
+    layJson<XemTruocNguong>(
+      `/policies/${hoSoId}/threshold-preview?productId=${encodeURIComponent(productId)}`,
+      huy.signal,
+    )
+      .then(datXem)
+      .catch((e: unknown) => {
+        if (huy.signal.aborted) return;
+        // Sản phẩm không có ngưỡng nào — cả quy định lẫn mặc định đều trống. Lưu
+        // chắc chắn hỏng, nên chỗ này thì phải nói.
+        if (e instanceof LoiApi && e.code === 'THRESHOLD_NOT_CONFIGURED') datKhongCoNguong(true);
+      });
+    return () => huy.abort();
+  }, [hoSoId, productId]);
+
+  return { xem, khongCoNguong };
+}
 
 /**
  * Thêm MỘT dòng sản phẩm, hoặc SỬA một dòng đã có.
@@ -53,6 +99,7 @@ export function ThemDongSanPham({
   );
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+  const { xem, khongCoNguong } = useXemTruocNguong(hoSoId, sanPham);
 
   useEffect(() => {
     const huy = new AbortController();
@@ -129,6 +176,30 @@ export function ThemDongSanPham({
             </select>
           )}
         </Truong>
+
+        {/*
+          Cảnh báo NGAY sau ô chọn sản phẩm, không phải dưới đáy biểu mẫu: nó nói
+          về sản phẩm vừa chọn, và người dùng sắp cuộn xuống gõ giá. Đặt cuối thì
+          họ đọc nó sau khi đã gõ xong — quá muộn để đổi ý một cách rẻ.
+        */}
+        {khongCoNguong && (
+          <div className="bao-loi" role="alert">
+            <strong>Sản phẩm này chưa có ngưỡng chiết khấu nào.</strong> Danh mục không có quy định
+            nào phủ nó, mà mặc định của chính sản phẩm cũng để trống. Thêm dòng sẽ bị từ chối — báo
+            Quản trị hệ thống khai ngưỡng trước.
+          </div>
+        )}
+        {xem?.thresholdSource === 'PRODUCT_DEFAULT' && (
+          <div className="hop-canh-bao" role="note">
+            <span className="dau-mac-dinh" aria-hidden="true">
+              ◆
+            </span>{' '}
+            <strong>Chưa có quy định chiết khấu cho sản phẩm này.</strong> Không quy định nào phủ nó
+            với loại khách hàng và kênh của khách hàng này, nên hồ sơ sẽ dùng{' '}
+            <strong>ngưỡng mặc định {xem.threshold}%</strong> khai trong danh mục sản phẩm. Vẫn lập
+            hồ sơ được; báo Quản trị hệ thống nếu con số đó không đúng.
+          </div>
+        )}
 
         <Truong id="dsp-gia" nhan="Giá bán buôn" donVi="Tiền tệ đơn vị đồng" bắtBuộc>
           {(p) => <ONhapTien {...p} giaTri={giaBanBuon} doi={datGiaBanBuon} />}

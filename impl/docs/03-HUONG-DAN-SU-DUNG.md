@@ -169,8 +169,24 @@ việc khác nhau.
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ ngay lúc lập. Danh mục đổi giá về sau không làm đổi hồ sơ đã lập.
 
-Dòng **vượt ngưỡng** hiện dấu chấm than đỏ kèm chữ *"vượt ngưỡng"*. Vượt ngưỡng **không bị chặn** —
-nó chỉ được đánh dấu để người duyệt nhìn thấy.
+### Hai màu trong bảng dòng sản phẩm
+
+Ngay dưới bảng có **chú thích màu** giải nghĩa cả hai:
+
+| Dấu hiệu | Nghĩa | Có chặn không |
+|---|---|---|
+| Nền **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
+| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng; ngưỡng lấy từ mặc định khai trong danh mục sản phẩm | Không. Báo Quản trị hệ thống nếu con số đó không đúng |
+
+Dòng vừa vượt ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
+nhưng dấu `◆` vẫn còn.
+
+**Bạn được báo trước, không phải sau.** Ngay khi chọn sản phẩm trong hộp thoại thêm dòng, nếu không
+quy định nào khớp thì một khối vàng hiện ra kèm **đúng con số ngưỡng sẽ dùng**. Báo trước vì ngưỡng
+đóng băng vào hồ sơ ngay lúc bấm Lưu; biết sau thì phải xoá dòng, nhờ Quản trị khai quy định, rồi
+nhập lại từ đầu.
+
+Nếu sản phẩm **không có cả quy định lẫn mặc định** thì khối hiện ra màu đỏ: thêm dòng sẽ bị từ chối.
 
 Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạn muốn **Bổ sung** (thêm sản phẩm mới)
 hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
@@ -380,6 +396,18 @@ kia không bấm được. Không xoá được nhóm đang có sản phẩm; ch
 của ô đó. Nhiều quy định cùng khớp một tình huống là bình thường: **quy định cụ thể hơn thắng**, và
 cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
 nhìn thấy.
+
+**Thứ tự phân xử khi nhiều quy định cùng khớp:**
+
+1. **Cụ thể hơn thắng** — nhóm sản phẩm (4 điểm) mạnh hơn loại khách hàng (2) mạnh hơn kênh (1).
+2. **Mới hơn thắng** — chỉ dùng tới khi hai dòng bằng điểm, mà bằng điểm nghĩa là trùng phạm vi.
+
+**Không có bước thứ ba.** Hệ thống **từ chối** khi bạn khai một quy định trùng đúng phạm vi *và*
+đúng ngày hiệu lực với một dòng đã có — thông báo chỉ ra hai cách đi tiếp: sửa ngưỡng của dòng đang
+có, hoặc khai **ngày hiệu lực muộn hơn** để đè lên. Dòng cũ **không bị ghi đè**.
+
+Lưu ý **ô để trống cũng tính là trùng**: hai dòng cùng bỏ trống ô nhóm sản phẩm đều nói *"mọi nhóm"*,
+nên chúng trùng nhau.
 
 - **Sửa chỉ đổi được *ngưỡng***. Ba ô phạm vi (nhóm · loại khách · kênh) không sửa được — đổi chúng
   là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai lại**.

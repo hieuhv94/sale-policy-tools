@@ -423,6 +423,18 @@ textarea.o-nhap { min-height: 6rem; }
   font-weight: 800;
 }
 
+/* Dấu "ngưỡng mặc định của sản phẩm" (0022). Hình THOI chứ không tròn: khác dấu
+   vượt ngưỡng cả về hình lẫn màu, để phân biệt được khi in đen trắng và khi hai
+   dấu đứng cạnh nhau trên cùng một dòng. */
+.dau-mac-dinh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--k1);
+  color: var(--mau-canh-bao);
+  font-size: 0.8em;
+}
+
 /* --- Nhãn trạng thái ------------------------------------------------------ */
 
 .nhan {
@@ -471,8 +483,42 @@ tbody tr:last-child th,
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--mau-nen-hover); }
 tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
+/* Dòng lấy ngưỡng mặc định của sản phẩm vì không quy định nào khớp (0022).
+   Một dòng vừa vượt ngưỡng vừa thiếu quy định chỉ mang lớp `vuot-nguong` —
+   `lopDong()` ở `BangSanPham.tsx` quyết định, không phải thứ tự luật ở đây. */
+tr.thieu-quy-dinh td, tr.thieu-quy-dinh th { background: var(--mau-canh-bao-nen); }
 
 .tong-cong { margin-top: var(--k3); text-align: right; }
+
+/* --- Chú thích màu -------------------------------------------------------- */
+
+.chu-thich-mau {
+  list-style: none;
+  margin: var(--k3) 0 0;
+  padding: var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-phu);
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+}
+.chu-thich-mau li { display: flex; align-items: baseline; gap: var(--k1); }
+.chu-thich-mau li + li { margin-top: var(--k2); }
+.chu-thich-mau strong { color: var(--mau-chu); }
+
+/* Ô màu của chú thích. `flex: none` vì trong một hàng flex, ô vuông này bị co
+   lại thành hình chữ nhật dẹt khi chữ bên cạnh dài — và một chú thích màu có ô
+   màu méo thì không đối chiếu được với nền của dòng. */
+.o-mau {
+  flex: none;
+  display: inline-block;
+  width: 1em; height: 1em;
+  border-radius: 3px;
+  border: 1px solid var(--mau-vien);
+  transform: translateY(0.1em);
+}
+.o-mau-loi { background: var(--mau-loi-nen); border-color: var(--mau-loi); }
+.o-mau-canh-bao { background: var(--mau-canh-bao-nen); border-color: var(--mau-canh-bao); }
 
 /* --- Thẻ ------------------------------------------------------------------ */
 
@@ -484,6 +530,11 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
   padding: var(--k4);
   margin-bottom: var(--k3);
 }
+/* Bố trí THẺ (<640px) mang cùng bộ màu với bố trí BẢNG. Thiếu hai luật dưới thì
+   trên điện thoại chỉ còn dấu `!` — nền cảnh báo biến mất đúng ở màn hình khó
+   đọc nhất, và hai bố trí nói hai chuyện khác nhau về cùng một dòng. */
+.the.vuot-nguong { border-color: var(--mau-loi); background: var(--mau-loi-nen); }
+.the.thieu-quy-dinh { border-color: var(--mau-canh-bao); background: var(--mau-canh-bao-nen); }
 .the > :last-child { margin-bottom: 0; }
 .the-so { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k3); margin: 0; }
 .the-so dt { font-size: var(--chu-nho); color: var(--mau-chu-phu); }
@@ -873,7 +924,9 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .bao-loi-chinh { font-weight: 700; margin-bottom: var(--k1); }
 .bao-loi-phu, .bao-loi-ma { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
 
-.ghi-chu-tra-lai {
+/* Khối cảnh báo màu vàng dùng chung. `ghi-chu-tra-lai` là lý do trả lại hồ sơ,
+   `hop-canh-bao` là mọi cảnh báo khác — hai nghĩa khác nhau, một bộ màu. */
+.ghi-chu-tra-lai, .hop-canh-bao {
   background: var(--mau-canh-bao-nen);
   border: 1px solid var(--mau-canh-bao);
   border-left-width: 4px;
@@ -1054,6 +1107,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   }
   .bang-san-pham thead .cot-khoa { background: var(--mau-nen-phu); z-index: 2; }
   .bang-san-pham tr.vuot-nguong .cot-khoa { background: var(--mau-loi-nen); }
+  /* Cột khoá có nền riêng để che phần đang cuộn phía dưới, nên nó KHÔNG thừa
+     hưởng nền cảnh báo của dòng — phải khai lại, nếu không thì cuộn ngang xong
+     dòng vàng trông như dòng thường ở đúng cột người dùng đang nhìn. */
+  .bang-san-pham tr.thieu-quy-dinh .cot-khoa { background: var(--mau-canh-bao-nen); }
 }
 
 /* =========================================================================

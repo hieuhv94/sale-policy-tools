@@ -390,6 +390,90 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
   });
 });
 
+/**
+ * 0022 — hai quy định trùng phạm vi không còn tồn tại được.
+ *
+ * Trước 0022 chúng chèn được, và `resolve` phân xử bằng thứ tự `id` — tất định
+ * nhưng vô nghĩa với người khai. Giờ máy chủ từ chối ngay lúc khai, kèm mã riêng
+ * để màn hình nói được phải làm gì thay vì bày một lỗi 500.
+ */
+describe('0022 trùng phạm vi quy định chiết khấu', () => {
+  it('khai lại đúng phạm vi và đúng ngày hiệu lực → 409 RULE_SCOPE_DUPLICATE', async () => {
+    const { groupCode } = await makeProduct();
+    const mot = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 1,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1500,
+    });
+    expect(mot.status).toBe(201);
+
+    const hai = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 1,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 2000,
+    });
+    expect(hai.status).toBe(409);
+    expect(hai.body.code).toBe('RULE_SCOPE_DUPLICATE');
+  });
+
+  it('dòng đầu vẫn nguyên vẹn sau khi dòng thứ hai bị từ chối', async () => {
+    // Từ chối chứ KHÔNG ghi đè: người khai có thể đang định sửa ngưỡng, mà cũng
+    // có thể đang khai nhầm. Ghi đè là đoán hộ họ và xoá mất dữ liệu nếu đoán sai.
+    const { id, groupCode } = await makeProduct();
+    await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 3,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1234,
+    });
+    await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 3,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 9999,
+    });
+    const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=3`);
+    expect(r.body.thresholdRate2).toBe(1234);
+  });
+
+  it('cùng phạm vi, ngày muộn hơn → nhận, và dòng mới thắng', async () => {
+    const { id, groupCode } = await makeProduct();
+    await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 2,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1100,
+    });
+    const sau = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 2,
+      effectiveFrom: '2024-01-01',
+      thresholdRate2: 2200,
+    });
+    expect(sau.status).toBe(201);
+    const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=2`);
+    expect(r.body.thresholdRate2).toBe(2200);
+  });
+
+  it('resolve chỉ ra ĐÍCH DANH quy định đã thắng', async () => {
+    // `ruleId` là thứ `policy` đóng băng vào `policy_line.rule_id_snap`. Không
+    // có nó thì sáu tháng sau không ai trả lời được vì sao hồ sơ này ngưỡng
+    // khác hồ sơ kia.
+    const { id, groupCode } = await makeProduct();
+    const tao = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      customerType: 1,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1700,
+    });
+    const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=1`);
+    expect(r.body.source).toBe('RULE');
+    expect(r.body.ruleId).toBe(tao.body.id);
+  });
+});
+
 describe('CAT-13 nhật ký ghi giá trị trước và sau', () => {
   it('sửa tên sản phẩm sinh sự kiện có cả before lẫn after', async () => {
     const { id, res } = await makeProduct();

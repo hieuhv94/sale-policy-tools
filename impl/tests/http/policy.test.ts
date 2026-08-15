@@ -1439,3 +1439,153 @@ describe('sửa một dòng sản phẩm đã có', () => {
     expect((await suaDong(d.id, l.id, { wholesalePrice: '80000' })).status).toBe(409);
   });
 });
+
+/**
+ * 0022 — dòng hồ sơ nhớ NGUỒN của ngưỡng, không chỉ con số.
+ *
+ * Giao diện tô vàng dòng nào rơi về ngưỡng mặc định của sản phẩm, và người duyệt
+ * dựa vào đó để biết con số ấy KHÔNG đến từ chính sách chiết khấu đã ban hành.
+ * Cờ đó vô nghĩa nếu nó không đi theo dòng qua mọi đường ghi.
+ */
+describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ', () => {
+  /** Sản phẩm trong NHÓM RIÊNG, để khai quy định mà không đụng nhóm chung của tệp. */
+  const sanPhamNhomRieng = async (): Promise<{ productId: string; groupCode: string }> => {
+    const c = await http(catalog);
+    const g = uniq('NHOM0022');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom rieng 0022' });
+    const r = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        code: uniq('SP0022'),
+        name: 'Nutricare Gold',
+        groupCode: g,
+        defaultRate2Type1: 1500,
+        defaultRate2Type2: 1500,
+        defaultRate2Type3: 1500,
+      });
+    await c
+      .post(`/catalog/products/${r.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+    return { productId: r.body.id as string, groupCode: g };
+  };
+
+  const khaiQuyDinh = async (g: string, nguong: number) =>
+    (await http(catalog))
+      .post('/catalog/discount-rules')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        productGroupCode: g,
+        customerType: 1,
+        effectiveFrom: '2020-01-01',
+        thresholdRate2: nguong,
+      });
+
+  it('có quy định khớp → thresholdSource là RULE', async () => {
+    const { productId, groupCode: g } = await sanPhamNhomRieng();
+    expect((await khaiQuyDinh(g, 2500)).status).toBe(201);
+
+    const d = await draft({ productId });
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('RULE');
+    expect(l.threshold).toBe('25.00');
+  });
+
+  it('không quy định nào khớp → thresholdSource là PRODUCT_DEFAULT', async () => {
+    // Nhóm riêng và KHÔNG khai quy định nào cho nó, nên chắc chắn rơi về mặc
+    // định. Mọi quy định do bộ test tạo ra đều gắn nhóm cụ thể, không có dòng
+    // nào phủ "mọi nhóm" để lọt vào đây.
+    const { productId } = await sanPhamNhomRieng();
+    const d = await draft({ productId });
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(l.threshold).toBe('15.00');
+  });
+
+  it('sửa một dòng thì tra lại nguồn, không giữ nguyên cờ cũ', async () => {
+    // `upsertLine` chạy lại `resolve` mỗi lần ghi. Nếu Quản trị khai quy định
+    // giữa hai lần sửa thì dòng phải đổi cả ngưỡng lẫn nguồn — giữ cờ cũ là để
+    // lại một dòng vàng vĩnh viễn dù quy định đã có.
+    const { productId, groupCode: g } = await sanPhamNhomRieng();
+    const d = await draft({ productId });
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
+
+    expect((await khaiQuyDinh(g, 2800)).status).toBe(201);
+    expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '80000' })).status)
+      .toBe(200);
+
+    const sau = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(sau.thresholdSource).toBe('RULE');
+    expect(sau.threshold).toBe('28.00');
+  });
+
+  it('phiên bản mới thừa kế dòng cũ thì thừa kế cả nguồn ngưỡng', async () => {
+    // Dòng thừa kế giữ NGUYÊN ngưỡng của bản cũ, nên nó phải giữ nguyên cả câu
+    // trả lời "ngưỡng ấy từ đâu ra". Bỏ hai cột lại thì dòng thừa kế mang ngưỡng
+    // cũ mà nguồn rỗng, và màn hình đọc ra là "không rõ".
+    const { productId } = await sanPhamNhomRieng();
+    const d = await draft({ productId });
+    await runToActive(d);
+
+    const spMoi = await makeProduct();
+    const moi = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'SUPPLEMENT',
+      lines: [line(spMoi)],
+    });
+    expect(moi.status, JSON.stringify(moi.body)).toBe(201);
+
+    const lines = (await get(`/policies/${moi.body.id}`)).body.lines as {
+      productId: string;
+      thresholdSource: string | null;
+    }[];
+    const thuaKe = lines.find((x) => x.productId === productId);
+    expect(thuaKe?.thresholdSource).toBe('PRODUCT_DEFAULT');
+  });
+});
+
+/**
+ * 0022 — xem trước ngưỡng TRƯỚC khi thêm dòng.
+ *
+ * Sinh ra để màn hình cảnh báo được lúc người dùng còn đổi ý được rẻ. Sau khi
+ * lưu thì con số đã đóng băng và sửa lại là thêm một lượt thao tác.
+ */
+describe('0022 GET /policies/:id/threshold-preview', () => {
+  it('nói rõ ngưỡng sẽ dùng và nó từ đâu ra', async () => {
+    const d = await draft();
+    const r = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.threshold).toBe('15.00');
+    expect(r.body.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(r.body.productId).toBe(d.productId);
+  });
+
+  it('KHÔNG ghi gì — hồ sơ vẫn nguyên số dòng cũ', async () => {
+    const d = await draft();
+    const spKhac = await makeProduct();
+    await get(`/policies/${d.id}/threshold-preview?productId=${spKhac}`);
+    expect((await get(`/policies/${d.id}`)).body.lines).toHaveLength(1);
+  });
+
+  it('sản phẩm không có thật thì 404', async () => {
+    const d = await draft();
+    const r = await get(`/policies/${d.id}/threshold-preview?productId=${crypto.randomUUID()}`);
+    expect(r.status).toBe(404);
+  });
+
+  it('thiếu productId thì 400', async () => {
+    const d = await draft();
+    expect((await get(`/policies/${d.id}/threshold-preview`)).status).toBe(400);
+  });
+
+  it('hồ sơ ngoài phạm vi thì 403 — đường đọc vẫn siết phạm vi', async () => {
+    const d = await draft();
+    const r = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`, 'tdv02');
+    expect(r.status).toBe(403);
+  });
+});

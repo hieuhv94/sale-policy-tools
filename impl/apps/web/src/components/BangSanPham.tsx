@@ -43,7 +43,31 @@ export type DongSanPham = {
   discountRate: string;
   threshold: string | null;
   overThreshold: boolean;
+  /**
+   * Ngưỡng của dòng này từ đâu ra (`0022`).
+   *
+   * `PRODUCT_DEFAULT` là **không có quy định chiết khấu nào phủ** sản phẩm này
+   * với loại khách và kênh của khách hàng — hồ sơ rơi về ngưỡng mặc định khai
+   * trong danh mục sản phẩm. Không phải lỗi, nhưng là thứ người duyệt cần biết:
+   * con số ấy không đến từ chính sách chiết khấu đã ban hành.
+   *
+   * `null` là dòng lập trước 0022, không rõ nguồn — KHÔNG tô cảnh báo.
+   */
+  thresholdSource?: 'RULE' | 'PRODUCT_DEFAULT' | null | undefined;
 };
+
+/** Dòng rơi về ngưỡng mặc định của sản phẩm vì không quy định nào khớp. */
+export const thieuQuyDinh = (d: DongSanPham): boolean =>
+  d.thresholdSource === 'PRODUCT_DEFAULT';
+
+/**
+ * Lớp CSS của một dòng. Hai cảnh báo có thể cùng đúng trên một dòng, mà một dòng
+ * chỉ tô được một nền — nên VƯỢT NGƯỠNG THẮNG: nó là thứ chặn hồ sơ đi tiếp,
+ * còn thiếu quy định chỉ là thông tin về nguồn con số. Dấu hiệu thiếu quy định
+ * không mất đi khi đó: nó nằm trong ô Tỷ lệ CK, ngoài nền.
+ */
+export const lopDong = (d: DongSanPham): string | undefined =>
+  d.overThreshold ? 'vuot-nguong' : thieuQuyDinh(d) ? 'thieu-quy-dinh' : undefined;
 
 /** Cột cố định, KHÔNG kể các cột CPBH — số cột CPBH tuỳ dữ liệu. */
 export const COT_TRUOC = [
@@ -100,7 +124,55 @@ function OTyLe({ d }: { d: DongSanPham }) {
           vượt ngưỡng {tyLe(d.threshold)}
         </span>
       )}
+      {/*
+        Dấu thiếu quy định đi CÙNG chỗ với dấu vượt ngưỡng và theo cùng ba lớp
+        (`FE-28`): một ký hiệu nhìn thấy, một câu cho trình đọc màn hình, và màu
+        nền của dòng. Nó vẫn hiện khi dòng đang đỏ vì vượt ngưỡng — hai chuyện
+        khác nhau, mất một cái là mất một nửa câu trả lời.
+      */}
+      {thieuQuyDinh(d) && (
+        <>
+          <span className="dau-mac-dinh" aria-hidden="true">
+            ◆
+          </span>
+          <span className="chi-doc-man-hinh">
+            {' '}
+            ngưỡng mặc định của sản phẩm, chưa có quy định chiết khấu nào áp dụng
+          </span>
+        </>
+      )}
     </span>
+  );
+}
+
+/**
+ * Chú thích màu — bảng tô màu mà không nói màu nghĩa là gì thì màu chỉ là trang trí.
+ *
+ * Hiện CẢ HAI mục ngay cả khi bảng chưa có dòng nào mang màu ấy. Người dùng gặp
+ * dòng đỏ đầu tiên vào lúc đang lập hồ sơ dở, và đó là lúc tệ nhất để đi tìm xem
+ * màu đỏ nghĩa là gì.
+ */
+export function ChuThichMau() {
+  return (
+    <ul className="chu-thich-mau">
+      <li>
+        <span className="o-mau o-mau-loi" aria-hidden="true" />
+        <span className="dau-vuot" aria-hidden="true">
+          !
+        </span>{' '}
+        <strong>Vượt ngưỡng</strong> — tỷ lệ chiết khấu cao hơn ngưỡng cho phép. Hồ sơ vẫn gửi được
+        nhưng người duyệt sẽ thấy dấu này.
+      </li>
+      <li>
+        <span className="o-mau o-mau-canh-bao" aria-hidden="true" />
+        <span className="dau-mac-dinh" aria-hidden="true">
+          ◆
+        </span>{' '}
+        <strong>Chưa có quy định chiết khấu</strong> — không quy định nào phủ sản phẩm này với loại
+        khách và kênh của khách hàng, nên ngưỡng lấy từ mặc định khai trong danh mục sản phẩm. Báo
+        Quản trị hệ thống nếu con số đó không đúng.
+      </li>
+    </ul>
   );
 }
 
@@ -187,7 +259,7 @@ export function BangSanPham({
           </thead>
           <tbody>
             {dong.map((d) => (
-              <tr key={d.id} className={d.overThreshold ? 'vuot-nguong' : undefined}>
+              <tr key={d.id} className={lopDong(d)}>
                 <td>{d.productCode}</td>
                 <th scope="row" className="cot-khoa">
                   {d.productName}
@@ -235,7 +307,7 @@ export function BangSanPham({
       {/* <640px: thẻ. Đủ MỌI cột, bốn ô CPBH gấp lại. */}
       <ul className="the-san-pham">
         {dong.map((d) => (
-          <li key={d.id} className={d.overThreshold ? 'the vuot-nguong' : 'the'}>
+          <li key={d.id} className={['the', lopDong(d)].filter(Boolean).join(' ')}>
             <div className="the-dau">
               <span className="ma">{d.productCode}</span>
               <h3>{d.productName}</h3>
@@ -283,6 +355,11 @@ export function BangSanPham({
           </li>
         ))}
       </ul>
+
+      {/* Nằm TRONG component chứ không ở trang gọi: mọi chỗ bày bảng này đều
+          bày cùng bộ màu, nên chú thích phải đi theo bảng. Để trang tự thêm thì
+          sớm muộn có một trang quên. */}
+      <ChuThichMau />
     </>
   );
 }

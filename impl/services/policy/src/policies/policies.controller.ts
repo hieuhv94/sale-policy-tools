@@ -123,6 +123,23 @@ export class PoliciesController {
     return this.policies.events(id, me);
   }
 
+  /**
+   * Xem trước ngưỡng chiết khấu của một sản phẩm với khách hàng của hồ sơ này.
+   *
+   * Không gắn `@Roles`: đây là đường ĐỌC, và nó không lộ ra thứ gì mà
+   * `/catalog/thresholds/resolve` chưa lộ cho mọi vai trò. Phạm vi vẫn siết —
+   * `thresholdPreview` gọi `assertInScope` như mọi đường đọc hồ sơ khác.
+   */
+  @Get(':id/threshold-preview')
+  thresholdPreview(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Query('productId') productId: string,
+  ) {
+    const q = validate({ productId }, { productId: str(1, 60) });
+    return this.policies.thresholdPreview(id, q.productId, me);
+  }
+
   @Get(':id/allowed-actions')
   allowed(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     return this.workflow.allowed(id, me);

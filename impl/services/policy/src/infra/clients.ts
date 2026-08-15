@@ -23,7 +23,10 @@ export type ProductSnapshot = {
   status: string;
   companyPrice: string;
   thresholdRate2: number;
-  thresholdSource: string;
+  /** Ngưỡng đến từ một quy định cấu hình, hay rơi về mặc định của sản phẩm. */
+  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT';
+  /** Quy định đã thắng. `null` đi kèm `PRODUCT_DEFAULT` — xem `0022`. */
+  ruleId: string | null;
 };
 
 const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });

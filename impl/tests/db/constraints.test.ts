@@ -252,3 +252,144 @@ describe('MIG-01/02 · sẵn sàng cho giai đoạn 2', () => {
       ['app_version','import_batch_id','source']);
   });
 });
+
+/**
+ * 0022 — một phạm vi chiết khấu chỉ có một quy định.
+ *
+ * Kiểm ở tầng CSDL chứ không chỉ qua HTTP vì đây là thứ duy nhất còn đứng vững
+ * khi ai đó chèn thẳng bằng SQL, và vì cái dễ sai nhất — NULL — là hành vi của
+ * chỉ mục chứ không phải của mã ứng dụng.
+ */
+describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', () => {
+  const mkGroup = async (c: Client, tag: string) => {
+    const r = await c.query<{ id: string }>(
+      `INSERT INTO cat.product_group (code, name) VALUES ($1, 'Nhom test') RETURNING id`,
+      [`ZZ-G-${tag}-${crypto.randomUUID().slice(0, 8)}`],
+    );
+    return r.rows[0]!.id;
+  };
+
+  const mkRule = (
+    c: Client,
+    v: {
+      groupId?: string | null;
+      customerType?: number | null;
+      channel?: string | null;
+      from?: string;
+      threshold?: number;
+    } = {},
+  ) =>
+    c.query(
+      `INSERT INTO cat.discount_rule
+         (product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        v.groupId ?? null,
+        v.customerType ?? null,
+        v.channel ?? null,
+        v.from ?? '2020-01-01',
+        v.threshold ?? 1500,
+      ],
+    );
+
+  it('hai dòng cùng nhóm, cùng loại KH, cùng kênh, cùng ngày → 23505', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db, 'DUP1');
+      await mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-X' });
+      const err = await expectSqlErrorInTx(db, () =>
+        mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-X', threshold: 2500 }));
+      expect(err.code).toBe('23505');
+      expect(err.message).toContain('uq_rule_pham_vi');
+    });
+  });
+
+  /**
+   * Đây là test QUAN TRỌNG NHẤT của nhóm này.
+   *
+   * Mặc định Postgres coi mỗi NULL là một giá trị riêng, nên nếu chỉ mục thiếu
+   * `NULLS NOT DISTINCT` thì hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt
+   * — mà đó chính là cặp dễ khai trùng nhất, vì nó là dòng người ta khai đầu
+   * tiên khi chưa nghĩ tới phạm vi.
+   */
+  it('hai dòng để trống CẢ BA ô phạm vi, cùng ngày → vẫn 23505', async () => {
+    await inRollback(db, async () => {
+      await mkRule(db, { from: '2021-03-01' });
+      const err = await expectSqlErrorInTx(db, () =>
+        mkRule(db, { from: '2021-03-01', threshold: 2000 }));
+      expect(err.code).toBe('23505');
+      expect(err.message).toContain('uq_rule_pham_vi');
+    });
+  });
+
+  it('cùng phạm vi nhưng KHÁC ngày hiệu lực thì nhận — đó là cách đổi ngưỡng', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db, 'DUP2');
+      await mkRule(db, { groupId: g, customerType: 2, from: '2020-01-01', threshold: 1500 });
+      await mkRule(db, { groupId: g, customerType: 2, from: '2026-01-01', threshold: 2000 });
+      const r = await db.query(
+        `SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
+      expect(r.rows[0].n).toBe(2);
+    });
+  });
+
+  it('khác phạm vi, cùng ngày thì nhận — dòng chung và dòng riêng đều đúng', async () => {
+    await inRollback(db, async () => {
+      const g = await mkGroup(db, 'DUP3');
+      await mkRule(db, { groupId: g });
+      await mkRule(db, { groupId: g, customerType: 1 });
+      await mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-Y' });
+      const r = await db.query(
+        `SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
+      expect(r.rows[0].n).toBe(3);
+    });
+  });
+});
+
+/**
+ * 0022 — dòng hồ sơ phải nói được ngưỡng của nó từ đâu ra.
+ *
+ * Ràng buộc này giữ hai cột KHỚP NHAU. Không có nó thì một dòng có thể mang
+ * `threshold_source='RULE'` mà `rule_id_snap` rỗng — tức là khẳng định "có quy
+ * định" nhưng không chỉ ra được quy định nào, đúng thứ mà hai cột này sinh ra
+ * để tránh.
+ */
+describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và id quy định phải khớp', () => {
+  const mkLine = (c: Client, policyId: string, v: { source: string | null; ruleId: string | null }) =>
+    c.query(
+      `INSERT INTO pol.policy_line
+         (policy_id, product_id, product_code_snap, product_name_snap,
+          company_price_snap, wholesale_price, discount_rate,
+          threshold_snap, threshold_source, rule_id_snap)
+       VALUES ($1, $2, 'SP-01', 'San pham test', 100000, 90000, 10.00, 30.00, $3, $4)`,
+      [policyId, crypto.randomUUID(), v.source, v.ruleId],
+    );
+
+  it("source='RULE' mà không có rule_id_snap → 23514", async () => {
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `NG-A-${Date.now()}`, await mkCustomer(db, 'NGA'), 'NHAP');
+      const err = await expectSqlErrorInTx(db, () =>
+        mkLine(db, pol, { source: 'RULE', ruleId: null }));
+      expect(err.code).toBe('23514');
+      expect(err.message).toContain('nguon_nguong_hop_le');
+    });
+  });
+
+  it("source='PRODUCT_DEFAULT' mà lại có rule_id_snap → 23514", async () => {
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `NG-B-${Date.now()}`, await mkCustomer(db, 'NGB'), 'NHAP');
+      const err = await expectSqlErrorInTx(db, () =>
+        mkLine(db, pol, { source: 'PRODUCT_DEFAULT', ruleId: crypto.randomUUID() }));
+      expect(err.code).toBe('23514');
+    });
+  });
+
+  it('cả hai cùng NULL thì nhận — đó là dòng lập trước 0022', async () => {
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `NG-C-${Date.now()}`, await mkCustomer(db, 'NGC'), 'NHAP');
+      await mkLine(db, pol, { source: null, ruleId: null });
+      const r = await db.query(
+        `SELECT count(*)::int n FROM pol.policy_line WHERE policy_id = $1`, [pol]);
+      expect(r.rows[0].n).toBe(1);
+    });
+  });
+});

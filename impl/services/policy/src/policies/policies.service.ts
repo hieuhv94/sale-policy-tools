@@ -147,13 +147,17 @@ export class PoliciesService {
       // rồi mới áp các dòng người dùng gửi lên đè lên (POL-05, POL-07, muc 5.4).
       if (active) {
         await c.query(
+          // Chép cả `rule_id_snap` và `threshold_source`: dòng thừa kế giữ
+          // NGUYÊN ngưỡng của bản cũ, nên nó cũng phải giữ nguyên câu trả lời
+          // "ngưỡng ấy từ đâu ra". Bỏ hai cột này lại thì dòng thừa kế mang
+          // ngưỡng cũ mà nguồn rỗng, và giao diện đọc ra là "không rõ".
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
               company_price_snap, wholesale_price, cpbh,
-              discount_rate, threshold_snap)
+              discount_rate, threshold_snap, rule_id_snap, threshold_source)
            SELECT $1, product_id, product_code_snap, product_name_snap,
                   company_price_snap, wholesale_price, cpbh,
-                  discount_rate, threshold_snap
+                  discount_rate, threshold_snap, rule_id_snap, threshold_source
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
         );
@@ -227,14 +231,16 @@ export class PoliciesService {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
-            discount_rate, threshold_snap)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9)
+            discount_rate, threshold_snap, rule_id_snap, threshold_source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
             cpbh = EXCLUDED.cpbh,
             company_price_snap = EXCLUDED.company_price_snap,
             discount_rate = EXCLUDED.discount_rate,
-            threshold_snap = EXCLUDED.threshold_snap`,
+            threshold_snap = EXCLUDED.threshold_snap,
+            rule_id_snap = EXCLUDED.rule_id_snap,
+            threshold_source = EXCLUDED.threshold_source`,
         [
           policyId,
           line.productId,
@@ -245,6 +251,11 @@ export class PoliciesService {
           (line.cpbh ?? []).map((v) => v.toString()),
           rate,
           threshold,
+          // Đóng băng CÙNG LÚC với `threshold_snap`, từ cùng một lời gọi
+          // `resolve`. Tra lại ở chỗ khác là chấp nhận hai con số lệch nhau khi
+          // danh mục đổi giữa hai lời gọi.
+          snap.ruleId ?? null,
+          snap.thresholdSource,
         ],
       )
       .catch((e: unknown) => {
@@ -414,6 +425,43 @@ export class PoliciesService {
     return p;
   }
 
+  /**
+   * Ngưỡng SẼ áp cho một sản phẩm nếu đưa vào hồ sơ này — xem trước, chưa ghi gì.
+   *
+   * Sinh ra để trả lời một câu hỏi người lập hồ sơ không tự trả lời được: sản
+   * phẩm này có quy định chiết khấu nào phủ không, hay sẽ rơi về ngưỡng mặc định
+   * của chính sản phẩm. Biết SAU KHI lưu thì đã muộn — con số đã đóng băng vào
+   * hồ sơ và sửa lại là một lượt thao tác nữa.
+   *
+   * Đặt ở `policy` chứ không để giao diện gọi thẳng `/catalog/thresholds/resolve`:
+   * ngưỡng phụ thuộc LOẠI KHÁCH và KÊNH của khách hàng, mà màn hình sửa dòng chỉ
+   * cầm mã hồ sơ. Bắt nó tự đi lấy khách hàng rồi tự ghép tham số là chép luật
+   * tra ngưỡng sang giao diện — đúng thứ mà việc đóng băng ở máy chủ tránh.
+   */
+  async thresholdPreview(policyId: string, productId: string, me: AuthUser) {
+    const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
+    if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
+    await this.assertInScope(p.tdv_user_id ?? '', me);
+
+    const customer = await this.clients.customer(p.customer_id);
+    // Không bắt lỗi `THRESHOLD_NOT_CONFIGURED`: 404 kèm mã đó là câu trả lời
+    // đúng và đầy đủ — thêm sản phẩm này vào hồ sơ chắc chắn hỏng, và màn hình
+    // nói được điều đó TRƯỚC khi người dùng bấm Lưu.
+    const snap = await this.clients.productSnapshot(
+      productId,
+      customer.customerType,
+      customer.channelCode,
+    );
+    return {
+      productId: snap.productId,
+      productCode: snap.productCode,
+      productName: snap.productName,
+      companyPrice: snap.companyPrice,
+      threshold: (snap.thresholdRate2 / 100).toFixed(2),
+      thresholdSource: snap.thresholdSource,
+    };
+  }
+
   async list(
     me: AuthUser,
     filter: { customerId?: string | undefined; status?: string | undefined },
@@ -544,7 +592,11 @@ export class PoliciesService {
               cpbh::text[] AS cpbh,
               cpbh_total::text AS "cpbhTotal", net_price::text AS "netPrice",
               discount_rate::text AS "discountRate", threshold_snap::text AS "threshold",
-              over_threshold AS "overThreshold"
+              over_threshold AS "overThreshold",
+              -- Giao diện tô vàng dòng nào rơi về mặc định sản phẩm (0022).
+              -- rule_id_snap KHÔNG trả ra: id nội bộ của danh mục không có việc
+              -- gì trên màn hình, nó dành cho truy vết bằng truy vấn.
+              threshold_source AS "thresholdSource"
          FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];

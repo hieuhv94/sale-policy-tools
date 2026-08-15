@@ -17,6 +17,7 @@
     "./router": "./src/lib/router.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
+    "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chung": "./src/components/Chung.tsx"
   },
   "scripts": {

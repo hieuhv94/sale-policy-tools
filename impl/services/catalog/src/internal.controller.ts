@@ -52,6 +52,10 @@ export class CatalogInternalController {
       companyPrice: price.amount,
       thresholdRate2: threshold.thresholdRate2,
       thresholdSource: threshold.source,
+      // Dòng quy định NÀO đã cho ra con số trên. `policy` đóng băng nó vào
+      // `policy_line.rule_id_snap` để về sau còn trả lời được "vì sao hồ sơ này
+      // ngưỡng 15% mà hồ sơ kia 20%" (0022). `null` khi rơi về mặc định sản phẩm.
+      ruleId: threshold.ruleId,
     };
   }
 

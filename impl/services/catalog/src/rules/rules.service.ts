@@ -1,8 +1,8 @@
 /**
  * Chiết khấu quy định — NGUỒN DUY NHẤT kiểm vượt ngưỡng (YCNV muc 6.3).
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { paged, type Page } from '@csbh/http-kit';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { paged, PG, pgCode, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
 
@@ -25,6 +25,18 @@ export type Resolved = {
 export class RulesService {
   constructor(private readonly db: Db) {}
 
+  /**
+   * Khai một quy định.
+   *
+   * TRÙNG PHẠM VI thì từ chối (`0022`). "Trùng" tính cả các ô để trống: hai dòng
+   * cùng bỏ trống nhóm sản phẩm là cùng nói "mọi nhóm", nên chúng trùng nhau —
+   * chỉ mục dùng `NULLS NOT DISTINCT` đúng vì lẽ đó.
+   *
+   * Từ chối chứ không âm thầm ghi đè: người khai có thể đang định sửa ngưỡng của
+   * dòng cũ, mà cũng có thể đang khai nhầm một dòng thứ hai. Ghi đè thì đoán hộ
+   * họ ý thứ nhất và xoá mất dữ liệu nếu đoán sai. Báo 409 kèm mã rõ ràng thì họ
+   * chọn: sửa ngưỡng dòng cũ, hay khai ngày hiệu lực muộn hơn để đè lên.
+   */
   async create(input: RuleInput, actorId: string) {
     return this.db.tx(async (c) => {
       let groupId: string | null = null;
@@ -36,18 +48,30 @@ export class RulesService {
         if (g.rowCount === 0) throw new NotFoundException({ code: 'GROUP_NOT_FOUND' });
         groupId = g.rows[0]!.id;
       }
-      const r = await c.query<{ id: string; specificity: number }>(
-        `INSERT INTO cat.discount_rule
-           (product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id, specificity`,
-        [
-          groupId,
-          input.customerType ?? null,
-          input.channelCode ?? null,
-          input.effectiveFrom,
-          input.thresholdRate2,
-        ],
-      );
+      const r = await c
+        .query<{ id: string; specificity: number }>(
+          `INSERT INTO cat.discount_rule
+             (product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
+           VALUES ($1,$2,$3,$4,$5) RETURNING id, specificity`,
+          [
+            groupId,
+            input.customerType ?? null,
+            input.channelCode ?? null,
+            input.effectiveFrom,
+            input.thresholdRate2,
+          ],
+        )
+        .catch((e: unknown) => {
+          if (pgCode(e) === PG.uniqueViolation) {
+            throw new ConflictException({
+              code: 'RULE_SCOPE_DUPLICATE',
+              message:
+                'Đã có quy định cho đúng phạm vi này và đúng ngày hiệu lực này. ' +
+                'Sửa ngưỡng của dòng đang có, hoặc khai ngày hiệu lực muộn hơn để đè lên.',
+            });
+          }
+          throw e;
+        });
       const row = r.rows[0]!;
       await emit(
         c,
@@ -147,8 +171,15 @@ export class RulesService {
    * được dòng CỤ THỂ NHẤT một cách tất định (CAT-11), nếu không thì cùng một hồ
    * sơ có thể lúc vượt ngưỡng lúc không tuỳ thứ tự Postgres trả về.
    *
-   * Thứ tự: điểm cụ thể giảm dần → ngày hiệu lực muộn hơn → id, để không bao giờ
-   * có hoà. Cột `specificity` sinh sẵn trong CSDL nên trọng số chỉ định nghĩa một chỗ.
+   * Thứ tự: điểm cụ thể giảm dần → ngày hiệu lực muộn hơn → id. Cột
+   * `specificity` sinh sẵn trong CSDL nên trọng số chỉ định nghĩa một chỗ.
+   *
+   * TẦNG `id` KHÔNG CÒN VỚI TỚI ĐƯỢC từ `0022`. Trọng số 4/2/1 là nhị phân nên
+   * hai phạm vi khác nhau không bao giờ hoà điểm; hoà điểm ⇒ trùng phạm vi ⇒ chỉ
+   * mục `uq_rule_pham_vi` đã chặn từ lúc khai. Giữ `id` trong `ORDER BY` là lưới
+   * an toàn phòng khi chỉ mục bị gỡ, KHÔNG phải một luật nghiệp vụ — thứ tự uuid
+   * ngẫu nhiên không nói lên điều gì. Bỏ hẳn đi thì mất tính tất định trong đúng
+   * cái tình huống lẽ ra không xảy ra.
    */
   async resolve(args: {
     productId: string;

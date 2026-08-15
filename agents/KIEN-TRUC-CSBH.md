@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Bảy chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`.
+> Chín chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp hai thứ đó lại là tô vàng hàng loạt dòng cũ.
 
 ---
 
@@ -248,8 +248,29 @@ pol.policy_line
   net_price           bigint  GENERATED ALWAYS AS (wholesale_price - pol.tong_cpbh(cpbh)) STORED
   discount_rate       numeric(5,2)        -- ĐÃ làm tròn 2 số, ghi một lần
   threshold_snap      numeric(5,2)        -- ngưỡng lấy từ Chiết khấu quy định lúc submit
+  threshold_source    text                -- RULE | PRODUCT_DEFAULT | NULL(dòng trước 0022)
+  rule_id_snap        uuid                -- quy định NÀO đã cho ra threshold_snap (0022)
   over_threshold      boolean GENERATED ALWAYS AS (discount_rate > threshold_snap) STORED
+
+  CONSTRAINT nguon_nguong_hop_le CHECK (      -- hai cột trên phải KHỚP NHAU
+    (threshold_source = 'RULE'            AND rule_id_snap IS NOT NULL) OR
+    (threshold_source = 'PRODUCT_DEFAULT' AND rule_id_snap IS NULL)     OR
+    (threshold_source IS NULL             AND rule_id_snap IS NULL))
 ```
+
+> **Vì sao lưu cả nguồn ngưỡng** `0022`
+>
+> Trước 0022 dòng hồ sơ chỉ giữ con số. Câu "vì sao hồ sơ này ngưỡng 15% mà hồ sơ kia 20%" chỉ trả
+> lời được bằng cách dựng lại bảng quy định tại thời điểm đó từ nhật ký kiểm toán.
+>
+> `threshold_source` còn là thứ giao diện dùng để **tô vàng** dòng rơi về mặc định sản phẩm, và để
+> cảnh báo người lập **trước khi lưu**. `NULL` là "không rõ" chứ không phải `PRODUCT_DEFAULT` — tô
+> vàng hàng loạt dòng cũ chỉ vì thiếu dữ liệu là báo động giả, và báo động giả hàng loạt thì lần sau
+> không ai nhìn màu vàng nữa.
+>
+> **Không khoá ngoại sang `cat.discount_rule`.** Hai lý do, mỗi lý do đủ để một mình quyết định:
+> `policy` không đọc được schema `cat` (AD-02), và đây là **ảnh chụp** — quy định bị xoá thì dòng hồ
+> sơ vẫn phải nhớ nó đã dùng dòng nào, mà khoá ngoại thì hoặc chặn xoá hoặc xoá luôn dấu vết.
 
 > **Vì sao MẢNG chứ không bảng con** `0021`
 >
@@ -933,8 +954,10 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-08 | Mở một CSBH cũ có chứa sản phẩm đã vô hiệu hóa | Vẫn hiện đúng mã và tên sản phẩm nhờ snapshot, không lỗi | §6.2 §7 | `P0` |
 | CAT-09 | Tạo sản phẩm không gán nhóm sản phẩm | 400 — nhóm SP bắt buộc vì dùng cho chiết khấu quy định và báo cáo | §6.2 | `P1` |
 | CAT-10 | Tra ngưỡng theo (nhóm SP, loại KH, kênh, thời gian) có đúng một dòng khớp | Trả đúng ngưỡng của dòng đó | §6.3 | `P0` |
-| CAT-11 | Hai dòng chiết khấu quy định cùng khớp một tình huống | Chọn dòng cụ thể nhất theo thứ tự ưu tiên đã định nghĩa; có test riêng cho từng cặp tranh chấp | §6.3 | `P0` |
-| CAT-12 | Không dòng chiết khấu quy định nào khớp | Lấy giá trị mặc định “CSBH loại 1/2/3” trong danh mục sản phẩm | §6.3 | `P0` |
+| CAT-11 | Hai dòng chiết khấu quy định cùng khớp một tình huống | Chọn dòng **cụ thể nhất** (`specificity` 4/2/1, trọng số nhị phân nên không bao giờ hoà giữa hai phạm vi khác nhau), rồi **mới nhất** | §6.3.1 | `P0` |
+| CAT-11b | Khai hai quy định **trùng đúng phạm vi và đúng ngày hiệu lực** | 409 `RULE_SCOPE_DUPLICATE`; chỉ mục `uq_rule_pham_vi` với `NULLS NOT DISTINCT` chặn cả khi ba ô phạm vi đều để trống. Dòng đầu **không bị ghi đè** | §6.3.1 | `P0` |
+| CAT-12 | Không dòng chiết khấu quy định nào khớp | Lấy giá trị mặc định “CSBH loại 1/2/3” trong danh mục sản phẩm; dòng hồ sơ mang `threshold_source = PRODUCT_DEFAULT` và giao diện tô vàng | §6.3.2 | `P0` |
+| CAT-12b | Tra ngưỡng khi có dòng khớp | Trả kèm `ruleId` để `policy` đóng băng vào `rule_id_snap` | §6.3.2 | `P1` |
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |
 | CAT-15 | Nhập danh mục sản phẩm từ Excel, trong đó có dòng lỗi | Báo lỗi kèm số dòng và **không ghi một phần** — toàn bộ lô nằm trong một giao dịch | §6.2 | `P1` |
