@@ -3,9 +3,14 @@
  *
  * Bốn ô lọc (nhóm · loại khách · kênh · thời gian) đều bỏ trống được, và bỏ
  * trống nghĩa là "mọi". Nhiều dòng cùng khớp một tình huống là chuyện BÌNH
- * THƯỜNG chứ không phải lỗi cấu hình: dòng cụ thể hơn thắng, `specificity` là
- * con số máy chủ tính để xếp thứ tự đó. Màn hình hiện nó ra thay vì giấu, vì
- * "vì sao hồ sơ này lấy ngưỡng 25% chứ không phải 30%" là câu hỏi sẽ được hỏi.
+ * THƯỜNG chứ không phải lỗi cấu hình: dòng cụ thể hơn thắng.
+ *
+ * Bảng KHÔNG còn cột "Độ cụ thể" `0023`. Nó là con số nội bộ máy chủ dùng để xếp
+ * thứ tự, và bày ra thì người đọc phải tự học luật 4/2/1 mới hiểu — trong khi
+ * chính cột "Áp dụng cho" ngay bên cạnh đã nói rõ dòng nào hẹp hơn dòng nào.
+ * Câu hỏi "vì sao hồ sơ này lấy ngưỡng 25% chứ không phải 30%" giờ trả lời bằng
+ * cột **Id**: mỗi dòng hồ sơ mang mã của đúng quy định đã cho ra ngưỡng của nó,
+ * dán mã ấy vào ô tìm kiếm ở đây là ra thẳng dòng cần xem.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../../lib/api.js';
@@ -13,6 +18,7 @@ import { ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
   doiSoThapPhan,
+  locQuyDinh,
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
@@ -27,6 +33,7 @@ import {
   HopThoai,
   HopThoaiXacNhan,
   ONhapPhanTram,
+  OTimKiem,
   Trong,
   Truong,
 } from '../Chung.js';
@@ -41,6 +48,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   const [sua, datSua] = useState<QuyDinhChietKhau | null>(null);
   const [dangXoa, datDangXoa] = useState<string | null>(null);
   const [hoiXoa, datHoiXoa] = useState<QuyDinhChietKhau | null>(null);
+  const [tim, datTim] = useState('');
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
@@ -77,6 +85,8 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
 
+  const loc = locQuyDinh(ds, tim);
+
   return (
     <>
       {!chiXem && (
@@ -100,27 +110,48 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
           moTa="Chưa có quy định thì không dòng sản phẩm nào bị đánh dấu vượt ngưỡng."
         />
       ) : (
+        <>
+          <div className="hang-tim">
+            <OTimKiem
+              id="tim-quy-dinh"
+              nhan="Tìm theo mã quy định, phạm vi hoặc ngưỡng"
+              giaTri={tim}
+              doi={datTim}
+            />
+            {tim.trim() !== '' && (
+              <span className="ghi-chu" role="status">
+                {loc.length} quy định khớp
+              </span>
+            )}
+          </div>
+
+          {loc.length === 0 ? (
+            <Trong
+              tieuDe="Không có quy định nào khớp"
+              moTa="Thử dán nguyên mã ở cột QĐCK của dòng hồ sơ, hoặc gõ mã nhóm sản phẩm."
+            />
+          ) : (
         <div className="khung-cuon" role="region" aria-label="Quy định chiết khấu" tabIndex={0}>
           <table className="bang">
             <thead>
               <tr>
+                <th>Id</th>
                 <th>Áp dụng cho</th>
                 <th>Ngưỡng</th>
                 <th>Hiệu lực</th>
-                <th>Độ cụ thể</th>
                 {!chiXem && <th>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
-              {ds.map((q) => (
+              {loc.map((q) => (
                 <tr key={q.id}>
+                  <td className="ma-quy-dinh">{q.id}</td>
                   <td>{phamViChietKhau(q)}</td>
                   <td className="so">{phanTramTuNguong(q.thresholdRate2)}%</td>
                   <td>
                     {ngay(q.effectiveFrom)}
                     {' – vô thời hạn'}
                   </td>
-                  <td className="so">{q.specificity}</td>
                   {!chiXem && (
                     <td>
                       <div className="nhom-nut nhom-nut-gon">
@@ -143,6 +174,8 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
             </tbody>
           </table>
         </div>
+          )}
+        </>
       )}
 
       {hoiXoa && (

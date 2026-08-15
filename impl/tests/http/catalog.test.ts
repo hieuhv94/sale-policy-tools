@@ -735,8 +735,8 @@ describe('sửa và xoá quy định chiết khấu', () => {
   it('đặt ngày kết thúc thì dòng thôi khớp sau ngày đó', async () => {
     const { id, groupCode } = await mkRule();
     // Sản phẩm có ngưỡng mặc định, để lúc dòng thôi khớp thì thấy nó RƠI VỀ ĐÂU.
-    // Không có mặc định thì API trả 404 THRESHOLD_NOT_CONFIGURED, và test không
-    // phân biệt được "dòng hết hiệu lực" với "tra hỏng vì lý do khác".
+    // Không có mặc định thì `source` rơi thẳng sang `KHONG_CO`, và test không
+    // phân biệt được "dòng hết hiệu lực" với "sản phẩm vốn chẳng có ngưỡng nào".
     const sp = await post('/catalog/products', {
       code: code('P'),
       name: 'SP',

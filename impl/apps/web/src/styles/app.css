@@ -520,6 +520,15 @@ tr.thieu-quy-dinh td, tr.thieu-quy-dinh th { background: var(--mau-canh-bao-nen)
 .o-mau-loi { background: var(--mau-loi-nen); border-color: var(--mau-loi); }
 .o-mau-canh-bao { background: var(--mau-canh-bao-nen); border-color: var(--mau-canh-bao); }
 
+/* Mã quy định chiết khấu (uuid). Chữ đơn cách và nhỏ hơn: 36 ký tự trong một
+   bảng mười cột thì bề ngang là thứ đắt nhất, và uuid đọc theo từng ký tự nên
+   chữ đơn cách dễ dò hơn hẳn. */
+.ma-quy-dinh {
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: var(--chu-rat-nho);
+  color: var(--mau-chu-phu);
+}
+
 /* --- Thẻ ------------------------------------------------------------------ */
 
 .the {

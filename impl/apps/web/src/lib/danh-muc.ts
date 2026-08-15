@@ -162,3 +162,25 @@ export function phamViChietKhau(q: QuyDinhChietKhau): string {
   if (q.channelCode) phan.push(`kênh ${q.channelCode}`);
   return phan.join(' · ');
 }
+
+/**
+ * Lọc quy định chiết khấu theo từ khoá — khớp cả **mã quy định**.
+ *
+ * Khớp mã là công dụng chính, không phải công dụng phụ: bảng dòng sản phẩm của
+ * mỗi hồ sơ có cột *QĐCK* mang đúng mã ấy, và đường đi tự nhiên là chép mã từ hồ
+ * sơ rồi dán vào đây để xem quy định nào đã cho ra ngưỡng. Khớp theo **chuỗi
+ * con** nên dán một phần đầu của mã cũng ra.
+ *
+ * Ba trường còn lại khớp theo câu mô tả phạm vi — người dùng nhớ "nhóm SUA" chứ
+ * không nhớ ba ô rời. Ngưỡng khớp theo con số phần trăm đang hiện trên màn hình
+ * (`25,00`), không theo giá trị lưu trong máy (`2500`): gõ cái mình đang nhìn
+ * thấy mới là điều người ta làm.
+ */
+export const locQuyDinh = (ds: QuyDinhChietKhau[], tuKhoa: string): QuyDinhChietKhau[] => {
+  const k = khongDau(tuKhoa.trim());
+  if (k === '') return ds;
+  return ds.filter((q) =>
+    [q.id, phamViChietKhau(q), phanTramTuNguong(q.thresholdRate2), q.effectiveFrom]
+      .some((x) => khongDau(x).includes(k)),
+  );
+};

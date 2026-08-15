@@ -17,6 +17,7 @@ import {
   NHAN_TRA_CUU,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
+  locQuyDinh,
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
@@ -185,5 +186,58 @@ describe('tìm sản phẩm', () => {
     // Lỗi kinh điển của ô tìm kiếm: không khớp gì thì bỏ qua bộ lọc, và người
     // dùng tưởng mọi sản phẩm đều khớp từ khoá của mình.
     expect(locSanPham(ds, 'khong-co-gi')).toEqual([]);
+  });
+});
+
+/**
+ * 0023 — tìm quy định chiết khấu, đặc biệt là TÌM THEO MÃ.
+ *
+ * Đường đi thật của người dùng: mở một hồ sơ, thấy cột *QĐCK* của một dòng, chép
+ * mã đó, dán vào ô tìm ở màn hình Chiết khấu để xem quy định nào đã cho ra ngưỡng
+ * ấy. Cả chuỗi đó gãy nếu ô tìm không khớp mã.
+ */
+describe('0023 lọc quy định chiết khấu', () => {
+  const ba = [
+    qd({ id: 'aaaa1111-2222-3333-4444-555566667777', productGroupCode: 'SUA', thresholdRate2: 2500 }),
+    qd({ id: 'bbbb1111-2222-3333-4444-555566667777', productGroupCode: 'BOT', thresholdRate2: 3000 }),
+    qd({ id: 'cccc1111-2222-3333-4444-555566667777', customerType: 2, thresholdRate2: 1000 }),
+  ];
+
+  it('từ khoá rỗng trả nguyên danh sách', () => {
+    expect(locQuyDinh(ba, '')).toHaveLength(3);
+    expect(locQuyDinh(ba, '   ')).toHaveLength(3);
+  });
+
+  it('khớp NGUYÊN mã quy định', () => {
+    const r = locQuyDinh(ba, 'bbbb1111-2222-3333-4444-555566667777');
+    expect(r).toHaveLength(1);
+    expect(r[0]!.productGroupCode).toBe('BOT');
+  });
+
+  it('khớp cả MỘT PHẦN mã — dán hụt vài ký tự vẫn ra', () => {
+    // Cột QĐCK trên bảng hồ sơ hẹp, và người ta hay bôi đen thiếu đuôi.
+    expect(locQuyDinh(ba, 'cccc1111')).toHaveLength(1);
+  });
+
+  it('khớp mã KHÔNG phân biệt hoa thường', () => {
+    expect(locQuyDinh(ba, 'AAAA1111')).toHaveLength(1);
+  });
+
+  it('khớp theo phạm vi áp dụng, bỏ dấu', () => {
+    expect(locQuyDinh(ba, 'SUA')).toHaveLength(1);
+    // "khách loại 2" — gõ không dấu vẫn ra.
+    expect(locQuyDinh(ba, 'khach loai 2')).toHaveLength(1);
+  });
+
+  it('khớp theo con số ĐANG HIỆN trên màn hình, không phải giá trị lưu', () => {
+    // Màn hình hiện "25,00%", máy lưu 2500. Người dùng gõ cái họ nhìn thấy.
+    expect(locQuyDinh(ba, '25,00')).toHaveLength(1);
+    expect(locQuyDinh(ba, '2500')).toHaveLength(0);
+  });
+
+  it('không khớp gì thì trả danh sách rỗng, không trả nguyên danh sách', () => {
+    // Trả nguyên danh sách khi không khớp là kiểu lỗi tệ nhất của một ô tìm
+    // kiếm: người dùng tưởng mọi dòng đều khớp và đọc nhầm cả bảng.
+    expect(locQuyDinh(ba, 'khong-co-gi-khop')).toHaveLength(0);
   });
 });

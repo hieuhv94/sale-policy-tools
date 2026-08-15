@@ -18,6 +18,7 @@
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
+    "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
     "./chung": "./src/components/Chung.tsx"
   },
   "scripts": {

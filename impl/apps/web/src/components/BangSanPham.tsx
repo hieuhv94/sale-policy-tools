@@ -44,21 +44,24 @@ export type DongSanPham = {
   threshold: string | null;
   overThreshold: boolean;
   /**
-   * Ngưỡng của dòng này từ đâu ra (`0022`).
+   * Ngưỡng của dòng này từ đâu ra (`0022`, `0023`).
    *
-   * `PRODUCT_DEFAULT` là **không có quy định chiết khấu nào phủ** sản phẩm này
-   * với loại khách và kênh của khách hàng — hồ sơ rơi về ngưỡng mặc định khai
-   * trong danh mục sản phẩm. Không phải lỗi, nhưng là thứ người duyệt cần biết:
-   * con số ấy không đến từ chính sách chiết khấu đã ban hành.
+   * `PRODUCT_DEFAULT` và `KHONG_CO` đều nghĩa là **không có quy định chiết khấu
+   * nào phủ** sản phẩm này với loại khách và kênh của khách hàng. Khác nhau ở
+   * chỗ rơi về đâu: mặc định khai trong danh mục sản phẩm, hay không có ngưỡng
+   * nào để đối chiếu. Cả hai đều không phải lỗi, và cả hai đều là thứ người
+   * duyệt cần biết — con số ấy không đến từ chính sách chiết khấu đã ban hành.
    *
    * `null` là dòng lập trước 0022, không rõ nguồn — KHÔNG tô cảnh báo.
    */
-  thresholdSource?: 'RULE' | 'PRODUCT_DEFAULT' | null | undefined;
+  thresholdSource?: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO' | null | undefined;
+  /** Mã quy định đã cho ra ngưỡng. `null` với hai nguồn còn lại (`0023`). */
+  ruleId?: string | null | undefined;
 };
 
-/** Dòng rơi về ngưỡng mặc định của sản phẩm vì không quy định nào khớp. */
+/** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
 export const thieuQuyDinh = (d: DongSanPham): boolean =>
-  d.thresholdSource === 'PRODUCT_DEFAULT';
+  d.thresholdSource === 'PRODUCT_DEFAULT' || d.thresholdSource === 'KHONG_CO';
 
 /**
  * Lớp CSS của một dòng. Hai cảnh báo có thể cùng đúng trên một dòng, mà một dòng
@@ -80,6 +83,18 @@ export const COT_TRUOC = [
 export const COT_SAU = [
   { khoa: 'netPrice', nhan: 'Giá thu về' },
   { khoa: 'discountRate', nhan: 'Tỷ lệ CK' },
+  /*
+   * Mã quy định chiết khấu đã cho ra ngưỡng của dòng này (`0023`).
+   *
+   * Đứng NGAY SAU Tỷ lệ CK vì nó trả lời chính câu hỏi mà con số ấy gợi ra —
+   * "ngưỡng đem so là ngưỡng nào, ai khai". Dán mã này vào ô tìm kiếm ở màn hình
+   * Chiết khấu là ra đúng dòng quy định.
+   *
+   * Ô TRỐNG khi không có: dòng rơi về mặc định của sản phẩm, hoặc không có ngưỡng
+   * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — cột kế bên
+   * đã mang dấu ◆ nói đúng điều đó rồi.
+   */
+  { khoa: 'ruleId', nhan: 'QĐCK' },
 ] as const;
 
 /**
@@ -135,9 +150,13 @@ function OTyLe({ d }: { d: DongSanPham }) {
           <span className="dau-mac-dinh" aria-hidden="true">
             ◆
           </span>
+          {/* Cùng một ký hiệu, HAI câu khác nhau: rơi về mặc định là còn một con
+              số để đối chiếu, còn không có ngưỡng nào thì không. Người dùng
+              trình đọc màn hình không thấy được sự khác biệt ấy qua màu. */}
           <span className="chi-doc-man-hinh">
-            {' '}
-            ngưỡng mặc định của sản phẩm, chưa có quy định chiết khấu nào áp dụng
+            {d.thresholdSource === 'KHONG_CO'
+              ? ' chưa có quy định chiết khấu nào áp dụng, và sản phẩm cũng không có ngưỡng mặc định'
+              : ' ngưỡng mặc định của sản phẩm, chưa có quy định chiết khấu nào áp dụng'}
           </span>
         </>
       )}
@@ -169,8 +188,15 @@ export function ChuThichMau() {
           ◆
         </span>{' '}
         <strong>Chưa có quy định chiết khấu</strong> — không quy định nào phủ sản phẩm này với loại
-        khách và kênh của khách hàng, nên ngưỡng lấy từ mặc định khai trong danh mục sản phẩm. Báo
-        Quản trị hệ thống nếu con số đó không đúng.
+        khách và kênh của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm, hoặc
+        không có ngưỡng nào để đối chiếu. Hồ sơ vẫn lập và vẫn duyệt được; báo Quản trị hệ thống nếu
+        cần một ngưỡng cho sản phẩm này.
+      </li>
+      <li>
+        <span className="o-mau" aria-hidden="true" />
+        Cột <strong>QĐCK</strong> là mã quy định đã cho ra ngưỡng của dòng. Dán mã đó vào ô tìm kiếm
+        ở màn hình <em>Chiết khấu</em> để xem chính quy định ấy. Ô trống nghĩa là không có quy định
+        nào — đúng những dòng mang dấu ◆.
       </li>
     </ul>
   );
@@ -277,6 +303,7 @@ export function BangSanPham({
                 <td className="so">
                   <OTyLe d={d} />
                 </td>
+                <td className="ma-quy-dinh">{d.ruleId ?? ''}</td>
                 {coThaoTac && (
                   <td>
                     <div className="nhom-nut nhom-nut-gon">
@@ -331,6 +358,14 @@ export function BangSanPham({
                   <OTyLe d={d} />
                 </dd>
               </div>
+              {/* Chỉ hiện khi CÓ. Bố trí thẻ dành cho màn hình hẹp nhất; một ô
+                  rỗng mang nhãn "QĐCK" ở đó là một dòng chữ không nói gì. */}
+              {d.ruleId && (
+                <div>
+                  <dt>QĐCK</dt>
+                  <dd className="ma-quy-dinh">{d.ruleId}</dd>
+                </div>
+              )}
             </dl>
             <CpbhGop d={d} />
             {coThaoTac && (

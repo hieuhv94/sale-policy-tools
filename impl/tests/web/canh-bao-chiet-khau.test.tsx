@@ -104,20 +104,51 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
     expect(document.querySelector('.hop-canh-bao')).toBeNull();
   });
 
-  it('sản phẩm không có ngưỡng nào → khối LỖI, vì lưu chắc chắn hỏng', async () => {
-    chanFetch(() => phanHoi(404, { code: 'THRESHOLD_NOT_CONFIGURED' }));
+  it('sản phẩm không có ngưỡng nào → vẫn cảnh báo VÀNG, vì vẫn thêm được', async () => {
+    // Trước `0023` chỗ này là khối ĐỎ và máy chủ từ chối thêm dòng. Ngưỡng chỉ
+    // để cảnh báo — vượt ngưỡng còn không chặn gửi duyệt — nên thiếu ngưỡng
+    // không thể là lý do chặn, nhất là khi người lập không có quyền tự khai.
+    chanFetch(() =>
+      phanHoi(200, {
+        productId: 'sp-1',
+        productCode: 'SP-01',
+        productName: 'Nutricare Gold',
+        companyPrice: '100000',
+        threshold: null,
+        thresholdSource: 'KHONG_CO',
+      }),
+    );
     moHopThoai();
     await chonSanPham();
 
-    const loi = await waitFor(() => {
-      const el = document.querySelector('.bao-loi');
+    const canhBao = await waitFor(() => {
+      const el = document.querySelector('.hop-canh-bao');
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(loi.textContent).toContain('chưa có ngưỡng chiết khấu nào');
+    expect(canhBao.textContent).toContain('không có ngưỡng mặc định');
+    expect(canhBao.textContent).toContain('Vẫn lập hồ sơ được');
+    // Không phải khối lỗi, và nút Thêm dòng không bị khoá vì chuyện này.
+    expect(document.querySelectorAll('.bao-loi')).toHaveLength(0);
   });
 
-  it('lỗi mạng lúc xem trước KHÔNG hiện gì', async () => {
+  it('KHONG_CO không hiện con số ngưỡng — không có con số nào để hiện', async () => {
+    chanFetch(() =>
+      phanHoi(200, { productId: 'sp-1', threshold: null, thresholdSource: 'KHONG_CO' }),
+    );
+    moHopThoai();
+    await chonSanPham();
+
+    const canhBao = await waitFor(() => {
+      const el = document.querySelector('.hop-canh-bao');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    expect(canhBao.textContent).not.toContain('ngưỡng mặc định 0');
+    expect(canhBao.textContent).not.toContain('null');
+  });
+
+  it('lỗi lúc xem trước KHÔNG hiện gì', async () => {
     // Đây là thông tin thêm, không phải điều kiện để lưu. Một khối đỏ cạnh biểu
     // mẫu đang gõ dở chỉ làm người dùng tưởng mình vừa làm hỏng thứ gì, trong
     // khi máy chủ vẫn tra lại ngưỡng lúc lưu.

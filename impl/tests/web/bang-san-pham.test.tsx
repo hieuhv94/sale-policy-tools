@@ -251,3 +251,76 @@ describe('0022 chú thích màu', () => {
     expect(chu.querySelectorAll('.o-mau-canh-bao')).toHaveLength(1);
   });
 });
+
+/**
+ * 0023 — sản phẩm không có ngưỡng nào, và cột QĐCK.
+ */
+describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
+  it('KHONG_CO cũng tô vàng — cùng một chuyện: không quy định nào phủ', () => {
+    render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
+    expect(document.querySelectorAll('tr.thieu-quy-dinh')).toHaveLength(1);
+    expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
+  });
+
+  it('KHONG_CO nói RÕ là không có cả ngưỡng mặc định', () => {
+    // Cùng ký hiệu ◆ nhưng hai câu khác nhau: rơi về mặc định là còn một con số
+    // để đối chiếu, không có ngưỡng nào thì không. Người dùng trình đọc màn hình
+    // không thấy được khác biệt ấy qua màu.
+    render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
+    expect(screen.getAllByText(/cũng không có ngưỡng mặc định/).length).toBeGreaterThan(0);
+  });
+
+  it('không ngưỡng thì KHÔNG bị đánh dấu vượt ngưỡng', () => {
+    render(
+      <BangSanPham
+        dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null, overThreshold: false })]}
+      />,
+    );
+    expect(document.querySelectorAll('tr.vuot-nguong')).toHaveLength(0);
+    expect(dauTrongDuLieu('.dau-vuot')).toHaveLength(0);
+  });
+
+  it('cột QĐCK hiện mã quy định', () => {
+    const ds = [dong({ thresholdSource: 'RULE', ruleId: 'aaaa1111-2222-3333-4444-555566667777' })];
+    render(<BangSanPham dong={ds} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getByText('QĐCK')).toBeDefined();
+    // Mã hiện NGUYÊN VẸN: nó dùng để chép sang ô tìm ở màn hình Chiết khấu, cắt
+    // bớt là cắt luôn công dụng của cột.
+    expect(within(bang).getByText('aaaa1111-2222-3333-4444-555566667777')).toBeDefined();
+  });
+
+  it('không có quy định thì ô QĐCK để TRỐNG', () => {
+    const ds = [dong({ thresholdSource: 'PRODUCT_DEFAULT', ruleId: null })];
+    render(<BangSanPham dong={ds} />);
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
+    const oCuoi = within(hang).getAllByRole('cell').at(-1);
+    expect(oCuoi?.textContent).toBe('');
+  });
+
+  it('cột QĐCK nằm trong danh sách cột chuẩn, không phải cột lén thêm', () => {
+    // `cotCho()` là nguồn duy nhất cho tiêu đề bảng và cho test bố cục; thêm ô
+    // vào `<tr>` mà quên khai ở đây thì bảng lệch cột mà không test nào bắt.
+    const ds = [dong()];
+    expect(cotCho(ds).map((c) => c.nhan)).toContain('QĐCK');
+    render(<BangSanPham dong={ds} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getAllByRole('columnheader').map((t) => t.textContent)).toEqual(
+      cotCho(ds).map((c) => c.nhan),
+    );
+  });
+
+  it('bố trí THẺ chỉ hiện QĐCK khi có', () => {
+    render(<BangSanPham dong={[dong({ ruleId: null })]} />);
+    const the = document.querySelector('.the-san-pham .the') as HTMLElement;
+    expect(within(the).queryByText('QĐCK')).toBeNull();
+
+    cleanup();
+    render(<BangSanPham dong={[dong({ ruleId: 'q-123' })]} />);
+    const the2 = document.querySelector('.the-san-pham .the') as HTMLElement;
+    expect(within(the2).getByText('QĐCK')).toBeDefined();
+    expect(within(the2).getByText('q-123')).toBeDefined();
+  });
+});

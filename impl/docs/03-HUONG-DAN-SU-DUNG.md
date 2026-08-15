@@ -176,7 +176,7 @@ Ngay dưới bảng có **chú thích màu** giải nghĩa cả hai:
 | Dấu hiệu | Nghĩa | Có chặn không |
 |---|---|---|
 | Nền **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
-| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng; ngưỡng lấy từ mặc định khai trong danh mục sản phẩm | Không. Báo Quản trị hệ thống nếu con số đó không đúng |
+| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm — hoặc không có ngưỡng nào để đối chiếu | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
 
 Dòng vừa vượt ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
 nhưng dấu `◆` vẫn còn.
@@ -186,7 +186,17 @@ quy định nào khớp thì một khối vàng hiện ra kèm **đúng con số
 đóng băng vào hồ sơ ngay lúc bấm Lưu; biết sau thì phải xoá dòng, nhờ Quản trị khai quy định, rồi
 nhập lại từ đầu.
 
-Nếu sản phẩm **không có cả quy định lẫn mặc định** thì khối hiện ra màu đỏ: thêm dòng sẽ bị từ chối.
+Sản phẩm **không có cả quy định lẫn mặc định** thì vẫn thêm dòng được. Dòng ấy đơn giản là không có
+ngưỡng nào để đối chiếu: cột *Tỷ lệ CK* vẫn tính đủ, chỉ là không bao giờ bị đánh dấu vượt ngưỡng.
+
+### Cột QĐCK
+
+Mã của **đúng quy định chiết khấu** đã cho ra ngưỡng của dòng đó. Ô trống nghĩa là không có quy định
+nào — đúng những dòng mang dấu `◆`.
+
+Dùng để làm gì: chép mã, sang mục **Chiết khấu**, dán vào ô tìm kiếm. Ra ngay dòng quy định đang chi
+phối con số ngưỡng của dòng hồ sơ ấy. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia
+30%"*.
 
 Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạn muốn **Bổ sung** (thêm sản phẩm mới)
 hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
@@ -408,6 +418,15 @@ có, hoặc khai **ngày hiệu lực muộn hơn** để đè lên. Dòng cũ *
 
 Lưu ý **ô để trống cũng tính là trùng**: hai dòng cùng bỏ trống ô nhóm sản phẩm đều nói *"mọi nhóm"*,
 nên chúng trùng nhau.
+
+**Cột Id và ô tìm kiếm.** Mỗi quy định có một mã, hiện ở cột *Id*. Ô tìm kiếm phía trên bảng khớp
+**cả mã** — dán nguyên mã ở cột *QĐCK* của một dòng hồ sơ là ra thẳng quy định đã cho ra ngưỡng của
+dòng ấy; dán một phần đầu của mã cũng ra. Ô tìm còn khớp phạm vi áp dụng (gõ không dấu được) và con
+số ngưỡng đang hiện trên màn hình (`25,00`).
+
+Cột **"Độ cụ thể"** đã bỏ. Nó là con số nội bộ để xếp thứ tự ưu tiên; cột *Áp dụng cho* ngay bên
+cạnh đã nói rõ dòng nào hẹp hơn dòng nào, và câu hỏi *"hồ sơ này lấy ngưỡng từ đâu"* giờ trả lời
+bằng cột *Id* cộng cột *QĐCK*.
 
 - **Sửa chỉ đổi được *ngưỡng***. Ba ô phạm vi (nhóm · loại khách · kênh) không sửa được — đổi chúng
   là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai lại**.

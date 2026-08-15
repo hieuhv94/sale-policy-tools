@@ -15,9 +15,14 @@ export type RuleInput = {
 };
 
 export type Resolved = {
-  thresholdRate2: number;
-  /** `RULE` là có dòng cấu hình khớp; `PRODUCT_DEFAULT` là rơi về mặc định của sản phẩm. */
-  source: 'RULE' | 'PRODUCT_DEFAULT';
+  /** `null` đi kèm `KHONG_CO`: không có ngưỡng nào để đối chiếu. */
+  thresholdRate2: number | null;
+  /**
+   * `RULE` — có dòng cấu hình khớp.
+   * `PRODUCT_DEFAULT` — rơi về mặc định khai trong danh mục sản phẩm.
+   * `KHONG_CO` — không có cả hai.
+   */
+  source: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO';
   ruleId: string | null;
 };
 
@@ -217,7 +222,23 @@ export class RulesService {
 
     // Không dòng nào khớp thì rơi về cột "CSBH loại 1/2/3" của sản phẩm (CAT-12).
     const fallback = { 1: p.d1, 2: p.d2, 3: p.d3 }[args.customerType as 1 | 2 | 3] ?? null;
-    if (fallback === null) throw new NotFoundException({ code: 'THRESHOLD_NOT_CONFIGURED' });
-    return { thresholdRate2: fallback, source: 'PRODUCT_DEFAULT', ruleId: null };
+    if (fallback !== null) {
+      return { thresholdRate2: fallback, source: 'PRODUCT_DEFAULT', ruleId: null };
+    }
+
+    /*
+     * KHÔNG có ngưỡng nào — và đây KHÔNG phải lỗi.
+     *
+     * Bản trước ném `THRESHOLD_NOT_CONFIGURED`, tức là chặn luôn việc thêm dòng
+     * sản phẩm vào hồ sơ. Nhìn lại thì cái chặn ấy sai về nghiệp vụ: ngưỡng chỉ
+     * để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt (muc 6.3). Không có
+     * ngưỡng thì chỉ có nghĩa là không đối chiếu được — hồ sơ vẫn đủ mọi con số
+     * của nó, và người duyệt vẫn duyệt được bằng mắt.
+     *
+     * Chặn ở đây còn đẩy người lập vào ngõ cụt: họ không có quyền khai quy định
+     * chiết khấu lẫn ngưỡng mặc định của sản phẩm, nên việc duy nhất làm được là
+     * dừng lại chờ Quản trị.
+     */
+    return { thresholdRate2: null, source: 'KHONG_CO', ruleId: null };
   }
 }

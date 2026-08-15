@@ -1589,3 +1589,135 @@ describe('0022 GET /policies/:id/threshold-preview', () => {
     expect(r.status).toBe(403);
   });
 });
+
+/**
+ * 0023 — sản phẩm KHÔNG có ngưỡng nào vẫn đưa vào hồ sơ được.
+ *
+ * Trước 0023 máy chủ ném `THRESHOLD_NOT_CONFIGURED` và chặn luôn việc thêm dòng.
+ * Ngưỡng chỉ để cảnh báo — vượt ngưỡng còn không chặn gửi duyệt — nên thiếu
+ * ngưỡng không thể là lý do chặn, nhất là khi TDV không có quyền tự khai.
+ */
+describe('0023 sản phẩm không có ngưỡng nào', () => {
+  /** Sản phẩm nhóm riêng, KHÔNG khai ngưỡng mặc định nào. */
+  const sanPhamKhongNguong = async (): Promise<string> => {
+    const c = await http(catalog);
+    const g = uniq('NHOM0023');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom rieng 0023' });
+    const r = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: uniq('SP0023'), name: 'San pham khong nguong', groupCode: g });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    await c
+      .post(`/catalog/products/${r.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+    return r.body.id as string;
+  };
+
+  it('danh mục trả nguồn KHONG_CO thay vì 404', async () => {
+    const productId = await sanPhamKhongNguong();
+    const r = await (await http(catalog))
+      .get(`/catalog/thresholds/resolve?productId=${productId}&customerType=1`)
+      .set('Authorization', `Bearer ${tok['admin01']}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.source).toBe('KHONG_CO');
+    expect(r.body.thresholdRate2).toBeNull();
+    expect(r.body.ruleId).toBeNull();
+  });
+
+  it('THÊM ĐƯỢC dòng, và dòng đó không có ngưỡng', async () => {
+    const productId = await sanPhamKhongNguong();
+    const customerId = await makeCustomer();
+    const hs = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(hs.status, JSON.stringify(hs.body)).toBe(201);
+
+    const l = (await get(`/policies/${hs.body.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('KHONG_CO');
+    expect(l.threshold).toBeNull();
+    expect(l.ruleId).toBeNull();
+    // Mọi con số khác vẫn đủ: 90.000 − 5.000 = 85.000, tức chiết khấu 15%.
+    expect(l.netPrice).toBe('85000');
+    expect(l.discountRate).toBe('15.00');
+  });
+
+  it('không ngưỡng thì KHÔNG bao giờ bị đánh dấu vượt ngưỡng', async () => {
+    // Cột sinh `over_threshold` đã tính sẵn `threshold_snap IS NOT NULL`. Nếu ai
+    // đó "sửa" bằng cách đặt ngưỡng 0 khi thiếu thì MỌI dòng sẽ đỏ.
+    const productId = await sanPhamKhongNguong();
+    const customerId = await makeCustomer();
+    const hs = await post('/policies', {
+      customerId,
+      // Giá thu về rất thấp: chiết khấu 90%, chắc chắn vượt mọi ngưỡng có thật.
+      lines: [line(productId, { wholesalePrice: '10000', cpbh: [] })],
+    });
+    expect(hs.status).toBe(201);
+    const l = (await get(`/policies/${hs.body.id}`)).body.lines[0];
+    expect(l.discountRate).toBe('90.00');
+    expect(l.overThreshold).toBe(false);
+  });
+
+  it('hồ sơ đó vẫn chạy hết luồng tới Đang có hiệu lực', async () => {
+    // Thiếu ngưỡng không được chặn ở BẤT KỲ bước nào sau đó, không riêng bước
+    // thêm dòng — một cái chặn ở giữa luồng còn khó gỡ hơn cái chặn lúc lập.
+    const productId = await sanPhamKhongNguong();
+    const customerId = await makeCustomer();
+    const hs = await post('/policies', { customerId, lines: [line(productId)] });
+    await runToActive({ id: hs.body.id as string });
+    expect((await get(`/policies/${hs.body.id}`)).body.status).toBe('DANG_CO_HIEU_LUC');
+  });
+
+  it('xem trước cũng trả KHONG_CO, không 404', async () => {
+    const productId = await sanPhamKhongNguong();
+    const d = await draft();
+    const r = await get(`/policies/${d.id}/threshold-preview?productId=${productId}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.thresholdSource).toBe('KHONG_CO');
+    expect(r.body.threshold).toBeNull();
+  });
+});
+
+/** 0023 — mã quy định đi ra tới giao diện, cho cột QĐCK. */
+describe('0023 dòng hồ sơ trả ruleId', () => {
+  it('có quy định khớp thì ruleId là ĐÚNG quy định ấy', async () => {
+    const c = await http(catalog);
+    const g = uniq('NHOM0023B');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom rieng 0023b' });
+    const sp = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: uniq('SP0023B'), name: 'SP', groupCode: g, defaultRate2Type1: 1500 });
+    await c
+      .post(`/catalog/products/${sp.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+    const qd = await c
+      .post('/catalog/discount-rules')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        productGroupCode: g,
+        customerType: 1,
+        effectiveFrom: '2020-01-01',
+        thresholdRate2: 3300,
+      });
+    expect(qd.status, JSON.stringify(qd.body)).toBe(201);
+
+    const d = await draft({ productId: sp.body.id as string });
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.ruleId).toBe(qd.body.id);
+    expect(l.threshold).toBe('33.00');
+  });
+
+  it('rơi về mặc định sản phẩm thì ruleId là null', async () => {
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(l.ruleId).toBeNull();
+  });
+});

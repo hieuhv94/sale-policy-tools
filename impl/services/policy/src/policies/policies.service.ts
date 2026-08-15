@@ -212,7 +212,10 @@ export class PoliciesService {
         companyPrice: BigInt(snap.companyPrice),
         wholesalePrice: line.wholesalePrice,
         cpbh: line.cpbh ?? [],
-        threshold: snap.thresholdRate2,
+        // Không có ngưỡng thì bỏ trường đi, chứ không gửi 0: `computeLine` coi
+        // `undefined` là "không đối chiếu được", còn 0 là "ngưỡng bằng không" và
+        // mọi dòng sẽ bị đánh dấu vượt ngưỡng.
+        ...(snap.thresholdRate2 === null ? {} : { threshold: snap.thresholdRate2 }),
       });
     } catch (e) {
       if (e instanceof InvalidLineError) {
@@ -224,7 +227,7 @@ export class PoliciesService {
     // Rate2 (1235) sang numeric(5,2) (12.35). Chia ở ĐÚNG một chỗ này; con số
     // đem so ngưỡng đã được làm tròn từ trước trong computeLine.
     const rate = (calc.discountRate / 100).toFixed(2);
-    const threshold = (snap.thresholdRate2 / 100).toFixed(2);
+    const threshold = snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2);
 
     await c
       .query(
@@ -444,9 +447,6 @@ export class PoliciesService {
     await this.assertInScope(p.tdv_user_id ?? '', me);
 
     const customer = await this.clients.customer(p.customer_id);
-    // Không bắt lỗi `THRESHOLD_NOT_CONFIGURED`: 404 kèm mã đó là câu trả lời
-    // đúng và đầy đủ — thêm sản phẩm này vào hồ sơ chắc chắn hỏng, và màn hình
-    // nói được điều đó TRƯỚC khi người dùng bấm Lưu.
     const snap = await this.clients.productSnapshot(
       productId,
       customer.customerType,
@@ -457,7 +457,8 @@ export class PoliciesService {
       productCode: snap.productCode,
       productName: snap.productName,
       companyPrice: snap.companyPrice,
-      threshold: (snap.thresholdRate2 / 100).toFixed(2),
+      threshold:
+        snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2),
       thresholdSource: snap.thresholdSource,
     };
   }
@@ -593,10 +594,11 @@ export class PoliciesService {
               cpbh_total::text AS "cpbhTotal", net_price::text AS "netPrice",
               discount_rate::text AS "discountRate", threshold_snap::text AS "threshold",
               over_threshold AS "overThreshold",
-              -- Giao diện tô vàng dòng nào rơi về mặc định sản phẩm (0022).
-              -- rule_id_snap KHÔNG trả ra: id nội bộ của danh mục không có việc
-              -- gì trên màn hình, nó dành cho truy vết bằng truy vấn.
-              threshold_source AS "thresholdSource"
+              -- Giao diện tô vàng dòng nào KHÔNG có quy định nào phủ (0022).
+              threshold_source AS "thresholdSource",
+              -- Cột "QĐCK" trên bảng dòng sản phẩm: mã của chính quy định đã cho
+              -- ra ngưỡng, để đối chiếu thẳng sang màn hình Chiết khấu (0023).
+              rule_id_snap AS "ruleId"
          FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];

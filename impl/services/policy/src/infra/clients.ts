@@ -22,10 +22,11 @@ export type ProductSnapshot = {
   productName: string;
   status: string;
   companyPrice: string;
-  thresholdRate2: number;
-  /** Ngưỡng đến từ một quy định cấu hình, hay rơi về mặc định của sản phẩm. */
-  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT';
-  /** Quy định đã thắng. `null` đi kèm `PRODUCT_DEFAULT` — xem `0022`. */
+  /** `null` đi kèm `KHONG_CO`: sản phẩm này không có ngưỡng nào để đối chiếu. */
+  thresholdRate2: number | null;
+  /** Ngưỡng đến từ quy định, từ mặc định của sản phẩm, hay không có (`0023`). */
+  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO';
+  /** Quy định đã thắng. `null` với hai nguồn còn lại — xem `0022`. */
   ruleId: string | null;
 };
 

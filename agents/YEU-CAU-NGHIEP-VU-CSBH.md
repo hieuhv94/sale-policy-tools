@@ -403,16 +403,29 @@ báo ngay lúc chọn sản phẩm**, trước khi nhập giá:
 Báo trước chứ không báo sau vì ngưỡng **đóng băng vào dòng hồ sơ ngay khi lưu**; biết sau thì phải
 xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu.
 
-Nếu sản phẩm **không có cả quy định lẫn mặc định**, đó là lỗi thật: thêm dòng sẽ bị từ chối, và màn
-hình nói thẳng điều đó.
+Nếu sản phẩm **không có cả quy định lẫn mặc định** thì hồ sơ **vẫn lập được** `sửa 15/08`. Dòng ấy
+đơn giản là không có ngưỡng nào để đối chiếu — mọi con số khác vẫn đủ, và nó không bao giờ bị đánh
+dấu vượt ngưỡng. Cảnh báo lúc chọn sản phẩm nói rõ điều đó.
 
-Dòng đã lập trong tình huống này mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để người duyệt
-biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu
-quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có **chú
-thích màu** ngay dưới nó.
+> Bản trước **chặn** tình huống này. Cái chặn ấy sai: ngưỡng chỉ để cảnh báo — vượt ngưỡng còn không
+> chặn gửi duyệt — nên thiếu ngưỡng không thể là lý do từ chối. Nó còn đẩy người lập vào ngõ cụt, vì
+> TDV không có quyền khai quy định chiết khấu lẫn ngưỡng mặc định của sản phẩm.
 
-Mỗi dòng hồ sơ còn ghi lại **đúng quy định nào** đã cho ra ngưỡng của nó, để về sau trả lời được câu
-“vì sao hồ sơ này ngưỡng 15% mà hồ sơ kia 20%”. Xoá quy định không xoá dấu vết ấy.
+Dòng đã lập trong cả hai tình huống trên mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để
+người duyệt biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt
+ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn.
+Bảng luôn có **chú thích màu** ngay dưới nó.
+
+#### 6.3.3. Truy vết: cột QĐCK và cột Id `bổ sung 15/08`
+
+Mỗi dòng hồ sơ ghi lại **đúng quy định nào** đã cho ra ngưỡng của nó, và mã ấy hiện thành cột
+**QĐCK** trong bảng dòng sản phẩm — ô trống khi không có quy định nào. Bảng *Quy định chiết khấu*
+có cột **Id** mang cùng mã đó, và **ô tìm kiếm khớp cả mã**: chép mã từ hồ sơ, dán vào ô tìm, ra
+thẳng dòng quy định cần xem. Xoá quy định không xoá dấu vết ấy trong hồ sơ đã lập.
+
+Cột **“Độ cụ thể”** đã **gỡ khỏi bảng** quy định. Nó là con số nội bộ để xếp thứ tự, và bày ra thì
+người đọc phải tự học luật trọng số 4/2/1 mới hiểu — trong khi cột *Áp dụng cho* ngay bên cạnh đã
+nói rõ dòng nào hẹp hơn dòng nào.
 
 ### 6.4. Giấy tờ mẫu và người ký
 
@@ -718,6 +731,8 @@ nghiệp vụ · ô nhập tiền ghi rõ đơn vị và định dạng ngay khi
 quy định cùng khớp vẫn là chuyện bình thường, phân xử bằng **cụ thể hơn thắng, rồi mới hơn thắng** ·
 **cảnh báo ngay lúc chọn sản phẩm** khi không quy định nào khớp, kèm con số ngưỡng mặc định sẽ dùng ·
 dòng ấy mang **nền vàng và dấu ◆** trong bảng, có chú thích màu đi kèm · mỗi dòng hồ sơ **ghi lại quy
-định nào** đã cho ra ngưỡng của nó.
+định nào** đã cho ra ngưỡng của nó · **sản phẩm không có ngưỡng nào vẫn đưa vào hồ sơ được**, chỉ là
+không đối chiếu được — bản trước chặn, và cái chặn đó đã gỡ · cột **QĐCK** trên bảng dòng sản phẩm và
+cột **Id** trên bảng quy định mang cùng một mã, **ô tìm kiếm khớp cả mã** · **gỡ cột "Độ cụ thể"**.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

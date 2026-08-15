@@ -3239,3 +3239,70 @@ nào trên trang"*. Thêm `dauTrongDuLieu()` khoanh vùng vào `.bang-san-pham` 
 - `rule_id_snap` **chưa có màn hình nào đọc** — nó dành cho truy vết bằng truy vấn. Đủ dùng, nhưng
   nghĩa là không lối nào trên giao diện bảo vệ nó khỏi bị bỏ quên khi sửa mã sau này; chỉ có test
   HTTP giữ.
+
+---
+
+## P29 — Gỡ cái chặn sai, và đường truy vết bằng mã quy định
+
+Bốn việc, mà ba trong số đó là một chuỗi.
+
+### Cái chặn sai
+
+P28 để nguyên `THRESHOLD_NOT_CONFIGURED`: sản phẩm không có cả quy định lẫn ngưỡng mặc định thì
+**không thêm dòng vào hồ sơ được**. Người dùng gặp ngay, và họ đúng.
+
+Cái chặn ấy sai về nghiệp vụ. Ngưỡng chỉ để **cảnh báo** — vượt ngưỡng còn không chặn gửi duyệt
+(muc 6.3). Không có ngưỡng thì chỉ có nghĩa là không đối chiếu được, chứ hồ sơ vẫn đủ mọi con số của
+nó. Nó còn đẩy người lập vào ngõ cụt: TDV không có quyền khai quy định chiết khấu lẫn ngưỡng mặc
+định của sản phẩm, nên việc duy nhất họ làm được là dừng lại chờ Quản trị.
+
+Thêm giá trị thứ ba `KHONG_CO` thay vì để `threshold_source` NULL: NULL đã có nghĩa sẵn là "dòng lập
+trước `0022`, không rõ nguồn". Gộp hai thứ đó lại thì không phân biệt được **"đã tra và biết chắc là
+không có"** với **"chưa từng tra"**.
+
+Hai chỗ suýt sai, cả hai đều lặng lẽ:
+
+- **`threshold: 0` thay cho `undefined`.** `computeLine` hiểu `undefined` là "không đối chiếu được",
+  còn `0` là "ngưỡng bằng không" — mọi dòng sẽ bị đánh dấu vượt ngưỡng. Truyền có điều kiện, và có
+  một test lấy chiết khấu 90% để chứng minh cờ vẫn tắt.
+- **Cột sinh `over_threshold`** đã có sẵn `threshold_snap IS NOT NULL` từ `0001`, nên tầng CSDL vốn
+  đã đúng. Nếu không thì `NULL > x` cho NULL, và một cột boolean NULL đọc ra là "không vượt" ở chỗ
+  này, "không xác định" ở chỗ khác.
+
+Bản in A4 cũng vốn đã đúng: `pct()` trả `—` cho NULL.
+
+### Chuỗi ba việc: Id · QĐCK · bỏ Độ cụ thể
+
+Ba yêu cầu rời nhau trên giấy nhưng là một chuyện. Cột *Độ cụ thể* từng là câu trả lời cho "vì sao
+hồ sơ này lấy ngưỡng 25% chứ không 30%" — nhưng nó bắt người đọc tự học luật trọng số 4/2/1, trong
+khi cột *Áp dụng cho* ngay bên cạnh đã nói rõ dòng nào hẹp hơn.
+
+Câu trả lời mới đi thẳng: dòng hồ sơ mang **mã của đúng quy định** đã cho ra ngưỡng của nó (cột
+QĐCK), bảng quy định có cột **Id** cùng mã, và ô tìm kiếm khớp **chuỗi con của mã**. Chép — dán —
+xong. Bỏ *Độ cụ thể* mà quên một trong hai mảnh kia là bỏ đi một câu trả lời và không đưa lại gì;
+tệp test cho bảng quy định nói đúng câu đó ở phần đầu.
+
+Ba quyết định nhỏ:
+
+- **Mã hiện nguyên vẹn**, không cắt. Cắt bớt là cắt luôn công dụng của cột. Đổi lại dùng chữ đơn
+  cách cỡ nhỏ — uuid đọc theo từng ký tự nên chữ đơn cách dễ dò hơn hẳn, và hẹp hơn khoảng một phần
+  năm trong một bảng vốn đã mười cột.
+- **Ô QĐCK để TRỐNG** khi không có, không phải "—" hay "không có". Cột kế bên đã mang dấu ◆ nói đúng
+  điều đó rồi.
+- **Bố trí thẻ (<640px) chỉ hiện QĐCK khi có.** Một ô rỗng mang nhãn ở màn hình hẹp nhất là một dòng
+  chữ không nói gì — khác với bảng, nơi cột phải đều nhau.
+
+Ô tìm khớp **con số đang hiện trên màn hình** (`25,00`) chứ không phải giá trị lưu (`2500`): gõ cái
+mình đang nhìn thấy mới là điều người ta làm. Có test cho cả hai phía.
+
+`rule_id_snap` từ chỗ "chưa màn hình nào đọc" — món nợ P29 tự ghi — thành thứ nằm giữa đường đi hàng
+ngày. Nợ đóng bằng cách dùng nó, không phải bằng cách xoá nó.
+
+773 case (743 → 773).
+
+### Còn nợ
+
+- Bản in A4 vẫn **không hiện** dấu thiếu quy định lẫn cột QĐCK. Người ký bản cứng không thấy được
+  điều người duyệt trên màn hình thấy.
+- Ô tìm quy định lọc **phía giao diện**, trên 200 dòng đầu như bảng sản phẩm. Vượt 200 quy định thì
+  phải chuyển sang lọc phía máy chủ; chưa tới ngưỡng đó nên chưa làm.
