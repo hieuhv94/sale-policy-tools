@@ -296,6 +296,7 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
   it('CAT-10 đúng một dòng khớp thì trả ngưỡng của dòng đó', async () => {
     const { id, groupCode } = await makeProduct();
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -313,11 +314,13 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
 
     // Dòng chung cho cả nhóm, và dòng riêng cho một kênh — cả hai đều khớp.
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1000,
     });
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 2,
       channelCode: `${P}-KENH`,
@@ -339,12 +342,14 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     const { id, groupCode } = await makeProduct();
     // Hai dòng cùng điểm cụ thể, khác ngày hiệu lực: phải luôn chọn dòng mới hơn.
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 3,
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1100,
     });
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 3,
       effectiveFrom: '2024-01-01',
@@ -356,24 +361,28 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     }
   });
 
-  it('CAT-12 không dòng nào khớp thì lấy mặc định của sản phẩm', async () => {
-    const { id } = await makeProduct({
-      defaultRate2Type1: 800,
-      defaultRate2Type2: 900,
-      defaultRate2Type3: 1000,
-    });
+  it('CAT-12 không dòng nào khớp thì KHÔNG CÓ ngưỡng nào', async () => {
+    // Từ `0025` không còn ngưỡng mặc định trên sản phẩm để rơi về. Bảng quy định
+    // là nguồn DUY NHẤT, đúng như `0005` đã chốt — ba cột mặc định kia là một
+    // nguồn thứ hai song song, vô hình vì không có màn hình nhập.
+    //
+    // 200 chứ không 404: xem `0023`. Ngưỡng chỉ để cảnh báo, nên thiếu ngưỡng
+    // không phải lỗi — chỉ là không đối chiếu được.
+    const { id } = await makeProduct();
     const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=2`);
-    expect(r.body.thresholdRate2).toBe(900);
-    expect(r.body.source).toBe('PRODUCT_DEFAULT');
-    expect(r.body.ruleId).toBeNull();
+    expect(r.status).toBe(200);
+    expect(r.body.thresholdRate2).toBeNull();
+    expect(r.body.source).toBe('KHONG_CO');
+    expect(r.body.ruleCode).toBeNull();
   });
 
   it('CAT-12 quy định VÔ THỜI HẠN — không có ngày hết hiệu lực', async () => {
     // Từ 0020, ngưỡng chiết khấu theo đúng luật của chính CSBH: có hiệu lực từ
     // ngày khai cho tới khi bị xoá. Gửi kèm `effectiveTo` thì trường lạ bị bỏ
     // qua, KHÔNG được âm thầm ghi vào.
-    const { id, groupCode } = await makeProduct({ defaultRate2Type1: 700 });
+    const { id, groupCode } = await makeProduct();
     const tao = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -401,6 +410,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
   it('khai lại đúng phạm vi và đúng ngày hiệu lực → 409 RULE_SCOPE_DUPLICATE', async () => {
     const { groupCode } = await makeProduct();
     const mot = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -409,6 +419,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     expect(mot.status).toBe(201);
 
     const hai = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -423,12 +434,14 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     // có thể đang khai nhầm. Ghi đè là đoán hộ họ và xoá mất dữ liệu nếu đoán sai.
     const { id, groupCode } = await makeProduct();
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 3,
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1234,
     });
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 3,
       effectiveFrom: '2020-01-01',
@@ -441,12 +454,14 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
   it('cùng phạm vi, ngày muộn hơn → nhận, và dòng mới thắng', async () => {
     const { id, groupCode } = await makeProduct();
     await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 2,
       effectiveFrom: '2020-01-01',
       thresholdRate2: 1100,
     });
     const sau = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 2,
       effectiveFrom: '2024-01-01',
@@ -458,11 +473,12 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
   });
 
   it('resolve chỉ ra ĐÍCH DANH quy định đã thắng', async () => {
-    // `ruleId` là thứ `policy` đóng băng vào `policy_line.rule_id_snap`. Không
+    // `ruleCode` là thứ `policy` đóng băng vào `policy_line.rule_code_snap`. Không
     // có nó thì sáu tháng sau không ai trả lời được vì sao hồ sơ này ngưỡng
     // khác hồ sơ kia.
     const { id, groupCode } = await makeProduct();
     const tao = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -470,7 +486,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
     });
     const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=1`);
     expect(r.body.source).toBe('RULE');
-    expect(r.body.ruleId).toBe(tao.body.id);
+    expect(r.body.ruleCode).toBe(tao.body.code);
   });
 });
 
@@ -705,6 +721,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
   const mkRule = async (over: Record<string, unknown> = {}) => {
     const { groupCode } = await makeProduct();
     const r = await post('/catalog/discount-rules', {
+      code: code('CK'),
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
@@ -712,18 +729,18 @@ describe('sửa và xoá quy định chiết khấu', () => {
       ...over,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
-    return { id: r.body.id as string, groupCode };
+    return { ma: r.body.code as string, groupCode };
   };
 
   it('sửa ngưỡng rồi tra lại ra con số mới', async () => {
-    const { id, groupCode } = await mkRule();
+    const { ma, groupCode } = await mkRule();
     const sp = await post('/catalog/products', {
       code: code('P'),
       name: 'San pham',
       groupCode,
     });
 
-    const sua = await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 2200 });
+    const sua = await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 2200 });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
 
     const tra = await get(
@@ -733,15 +750,11 @@ describe('sửa và xoá quy định chiết khấu', () => {
   });
 
   it('đặt ngày kết thúc thì dòng thôi khớp sau ngày đó', async () => {
-    const { id, groupCode } = await mkRule();
-    // Sản phẩm có ngưỡng mặc định, để lúc dòng thôi khớp thì thấy nó RƠI VỀ ĐÂU.
-    // Không có mặc định thì `source` rơi thẳng sang `KHONG_CO`, và test không
-    // phân biệt được "dòng hết hiệu lực" với "sản phẩm vốn chẳng có ngưỡng nào".
+    const { ma, groupCode } = await mkRule();
     const sp = await post('/catalog/products', {
       code: code('P'),
       name: 'SP',
       groupCode,
-      defaultRate2Type1: 999,
     });
     const tra = (on: string) =>
       get(`/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1&on=${on}`);
@@ -750,69 +763,72 @@ describe('sửa và xoá quy định chiết khấu', () => {
 
     // Gửi kèm `effectiveTo` KHÔNG cắt được hiệu lực nữa — trường đó không còn
     // tồn tại nên bị bỏ qua. Muốn dừng một quy định thì XOÁ dòng.
-    const suaR = await patch(`/catalog/discount-rules/${id}`, {
+    const suaR = await patch(`/catalog/discount-rules/${ma}`, {
       thresholdRate2: 1500,
       effectiveTo: '2020-12-31',
     });
     expect(suaR.status).toBe(200);
     expect((await tra('2026-01-01')).body.source).toBe('RULE');
 
-    await del(`/catalog/discount-rules/${id}`);
+    // Xoá dòng thì KHÔNG còn quy định nào phủ sản phẩm này. Trước `0025` chỗ
+    // này rơi về ngưỡng mặc định của sản phẩm; ba cột ấy đã bỏ nên giờ rơi thẳng
+    // sang `KHONG_CO`.
+    await del(`/catalog/discount-rules/${ma}`);
     const sau = await tra('2026-01-01');
-    expect(sau.body.source).toBe('PRODUCT_DEFAULT');
-    expect(sau.body.thresholdRate2).toBe(999);
+    expect(sau.body.source).toBe('KHONG_CO');
+    expect(sau.body.thresholdRate2).toBeNull();
   });
 
   it('KHÔNG sửa được ba khoá khớp — độ cụ thể giữ nguyên', async () => {
     // Đổi nhóm/loại khách/kênh là đổi `specificity`, tức đổi thứ tự ưu tiên của
     // cả bảng (CAT-11). Trường lạ bị bỏ qua, không được âm thầm ghi vào.
-    const { id } = await mkRule();
+    const { ma } = await mkRule();
     const truoc = ((await get('/catalog/discount-rules?limit=200')).body.items as {
-      id: string;
+      code: string;
       specificity: number;
       customerType: number | null;
-    }[]).find((x) => x.id === id)!;
+    }[]).find((x) => x.code === ma)!;
 
-    await patch(`/catalog/discount-rules/${id}`, {
+    await patch(`/catalog/discount-rules/${ma}`, {
       thresholdRate2: 1500,
       customerType: 3,
       productGroupCode: null,
     });
 
     const sau = ((await get('/catalog/discount-rules?limit=200')).body.items as typeof truoc[]).find(
-      (x) => x.id === id,
+      (x) => x.code === ma,
     )!;
     expect(sau.customerType).toBe(truoc.customerType);
     expect(sau.specificity).toBe(truoc.specificity);
   });
 
   it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {
-    const { id } = await mkRule();
-    expect((await del(`/catalog/discount-rules/${id}`)).status).toBe(200);
+    const { ma } = await mkRule();
+    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(200);
 
-    const ds = (await get('/catalog/discount-rules?limit=200')).body.items as { id: string }[];
-    expect(ds.some((x) => x.id === id)).toBe(false);
+    const ds = (await get('/catalog/discount-rules?limit=200')).body.items as { code: string }[];
+    expect(ds.some((x) => x.code === ma)).toBe(false);
 
-    expect((await del(`/catalog/discount-rules/${id}`)).status).toBe(404);
+    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(404);
   });
 
   it('sửa và xoá đều phát sự kiện nhật ký kèm giá trị TRƯỚC (CAT-13)', async () => {
-    const { id } = await mkRule();
+    const { ma } = await mkRule();
 
-    await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 3000 });
+    await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 3000 });
     let ev = await lastEvent('catalog.changed');
     expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(1500);
 
-    await del(`/catalog/discount-rules/${id}`);
+    await del(`/catalog/discount-rules/${ma}`);
     ev = await lastEvent('catalog.changed');
     expect(ev!['after']).toBeNull();
     expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(3000);
   });
 
   it('vai trò khác Quản trị không sửa và không xoá được', async () => {
-    const { id } = await mkRule();
-    expect((await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 1 }, tdvT)).status).toBe(403);
-    expect((await del(`/catalog/discount-rules/${id}`, tdvT)).status).toBe(403);
+    const { ma } = await mkRule();
+    expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1 }, tdvT)).status).toBe(403);
+    expect((await del(`/catalog/discount-rules/${ma}`, tdvT)).status).toBe(403);
   });
 });
 
@@ -875,5 +891,161 @@ describe('sửa và xoá người ký', () => {
     const id = await mkSigner();
     expect((await patch(`/catalog/signers/${id}`, { isActive: false }, tdvT)).status).toBe(403);
     expect((await del(`/catalog/signers/${id}`, tdvT)).status).toBe(403);
+  });
+});
+
+/**
+ * 0024 — mã quy định do người dùng đặt, và hai cách trùng khác nhau.
+ *
+ * `0023` đưa mã ra tới mặt người dùng (cột *Id*, cột *QĐCK*, ô tìm kiếm) trong
+ * khi nó vẫn là uuid. Một mã được CHÉP ra khỏi hệ thống thì phải do người dùng
+ * đặt — 36 ký tự ngẫu nhiên không ai đọc, nhớ hay đọc qua điện thoại được.
+ */
+describe('0024 mã quy định chiết khấu', () => {
+  const khai = (over: Record<string, unknown> = {}) =>
+    post('/catalog/discount-rules', {
+      code: code('CK'),
+      productGroupCode: undefined,
+      customerType: 1,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1500,
+      ...over,
+    });
+
+  it('mã người dùng gửi lên chính là mã trả về và lưu lại', async () => {
+    const { groupCode } = await makeProduct();
+    const ma = code('CK-DAT-TAY');
+    const r = await khai({ code: ma, productGroupCode: groupCode });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.code).toBe(ma);
+
+    const ds = (await get('/catalog/discount-rules?limit=200')).body.items as { code: string }[];
+    expect(ds.some((x) => x.code === ma)).toBe(true);
+  });
+
+  it('thiếu mã thì 400 — mã không sinh tự động nữa', async () => {
+    const { groupCode } = await makeProduct();
+    const r = await post('/catalog/discount-rules', {
+      productGroupCode: groupCode,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1500,
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('code');
+  });
+
+  it('TRÙNG MÃ thì 409 RULE_CODE_DUPLICATE, phân biệt với trùng phạm vi', async () => {
+    // Hai cách trùng, hai cách sửa khác nhau — gộp thành một thông báo là bắt
+    // người dùng đoán mình phải đổi mã hay đổi ngày hiệu lực.
+    const a = await makeProduct();
+    const b = await makeProduct();
+    const ma = code('CK-TRUNG');
+    expect((await khai({ code: ma, productGroupCode: a.groupCode })).status).toBe(201);
+
+    // Phạm vi KHÁC hẳn (nhóm khác) nên chỉ có mỗi mã là trùng.
+    const lai = await khai({ code: ma, productGroupCode: b.groupCode });
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('RULE_CODE_DUPLICATE');
+  });
+
+  it('trùng mã KHÔNG phân biệt hoa thường và khoảng trắng thừa', async () => {
+    // Cùng luật với mã vật tư (CAT-02). Hai mã chỉ khác hoa thường là hai mã
+    // người dùng đọc ra giống hệt nhau — và một trong hai sẽ không tìm được.
+    const a = await makeProduct();
+    const b = await makeProduct();
+    const ma = code('CK-HOA-THUONG');
+    expect((await khai({ code: ma, productGroupCode: a.groupCode })).status).toBe(201);
+
+    const lai = await khai({ code: `  ${ma.toLowerCase()}  `, productGroupCode: b.groupCode });
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('RULE_CODE_DUPLICATE');
+  });
+
+  it('trùng PHẠM VI vẫn là RULE_SCOPE_DUPLICATE, không lẫn sang mã', async () => {
+    const { groupCode } = await makeProduct();
+    expect((await khai({ productGroupCode: groupCode })).status).toBe(201);
+
+    // Mã khác hẳn, chỉ phạm vi và ngày hiệu lực trùng.
+    const lai = await khai({ productGroupCode: groupCode });
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('RULE_SCOPE_DUPLICATE');
+  });
+
+  it('mã rỗng hoặc toàn khoảng trắng thì 400', async () => {
+    const { groupCode } = await makeProduct();
+    expect((await khai({ code: '', productGroupCode: groupCode })).status).toBe(400);
+    expect((await khai({ code: '   ', productGroupCode: groupCode })).status).toBe(400);
+  });
+
+  it('sửa và xoá đi theo MÃ, không theo id nội bộ nào nữa', async () => {
+    const { groupCode } = await makeProduct();
+    const ma = code('CK-SUA-XOA');
+    expect((await khai({ code: ma, productGroupCode: groupCode })).status).toBe(201);
+
+    const sua = await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 2600 });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+    expect(sua.body.code).toBe(ma);
+    expect(sua.body.thresholdRate2).toBe(2600);
+
+    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(200);
+    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(404);
+  });
+});
+
+/**
+ * 0025 — không còn ngưỡng chiết khấu mặc định trên sản phẩm.
+ *
+ * Ba cột `default_rate2_type1/2/3` là một NGUỒN NGƯỠNG THỨ HAI song song với
+ * bảng quy định, trong khi `0005` đã chốt bảng quy định là nguồn duy nhất.
+ */
+describe('0025 bỏ ngưỡng mặc định của sản phẩm', () => {
+  it('gửi kèm defaultRate2Type* thì bị BỎ QUA, không lưu lại', async () => {
+    const { id, res } = await makeProduct({
+      defaultRate2Type1: 800,
+      defaultRate2Type2: 900,
+      defaultRate2Type3: 1000,
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.defaultRate2Type1).toBeUndefined();
+
+    const mot = await get(`/catalog/products/${id}`);
+    expect(mot.body.defaultRate2Type1).toBeUndefined();
+    expect(mot.body.defaultRate2Type2).toBeUndefined();
+    expect(mot.body.defaultRate2Type3).toBeUndefined();
+  });
+
+  it('tra ngưỡng KHÔNG bao giờ trả PRODUCT_DEFAULT nữa', async () => {
+    const { id } = await makeProduct({ defaultRate2Type1: 800 });
+    for (const loai of [1, 2, 3]) {
+      const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=${loai}`);
+      expect(r.body.source).toBe('KHONG_CO');
+    }
+  });
+
+  it('nhập Excel vẫn nhận file mẫu CŨ, ba cột thừa bị bỏ qua', async () => {
+    // Chặn file cũ là bắt người dùng sửa lại một file họ đã có, để đổi lấy đúng
+    // con số không: ba cột ấy giờ không dùng vào việc gì.
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom excel 0025' });
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('sp');
+    ws.addRow(['ma_vat_tu', 'ten_vat_tu', 'nhom_sp', 'ck_loai_1', 'ck_loai_2', 'ck_loai_3']);
+    const maSp = code('P');
+    ws.addRow([maSp, 'San pham excel', groupCode, 12.35, 12.35, 12.35]);
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+
+    const r = await (await http(app))
+      .post('/catalog/products/import')
+      .set('Authorization', `Bearer ${adminT}`)
+      .attach('file', buf, 'sp.xlsx');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.imported).toBe(1);
+
+    const ds = (await get(`/catalog/products?q=${encodeURIComponent(maSp)}&limit=50`)).body
+      .items as { code: string; defaultRate2Type1?: number }[];
+    const sp = ds.find((x) => x.code === maSp);
+    expect(sp).toBeDefined();
+    expect(sp!.defaultRate2Type1).toBeUndefined();
   });
 });

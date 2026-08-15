@@ -108,9 +108,6 @@ const makeProduct = async (i = 0): Promise<string> => {
       code: uniq('SP'),
       name: `Nutricare Gold ${i} — sữa dinh dưỡng`,
       groupCode,
-      defaultRate2Type1: 1500,
-      defaultRate2Type2: 1500,
-      defaultRate2Type3: 1500,
     });
   await c
     .post(`/catalog/products/${r.body.id}/prices`)

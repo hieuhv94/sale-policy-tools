@@ -269,6 +269,8 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
     return r.rows[0]!.id;
   };
 
+  // Mã sinh ngẫu nhiên: nhóm test này kiểm chỉ mục PHẠM VI, nên mã phải luôn
+  // khác nhau để không vướng chỉ mục MÃ và làm lẫn hai loại trùng (0024).
   const mkRule = (
     c: Client,
     v: {
@@ -281,9 +283,10 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
   ) =>
     c.query(
       `INSERT INTO cat.discount_rule
-         (product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
-       VALUES ($1,$2,$3,$4,$5)`,
+         (code, product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
       [
+        `ZZ-CK-${crypto.randomUUID().slice(0, 8)}`,
         v.groupId ?? null,
         v.customerType ?? null,
         v.channel ?? null,
@@ -349,36 +352,36 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
  * 0022 — dòng hồ sơ phải nói được ngưỡng của nó từ đâu ra.
  *
  * Ràng buộc này giữ hai cột KHỚP NHAU. Không có nó thì một dòng có thể mang
- * `threshold_source='RULE'` mà `rule_id_snap` rỗng — tức là khẳng định "có quy
+ * `threshold_source='RULE'` mà `rule_code_snap` rỗng — tức là khẳng định "có quy
  * định" nhưng không chỉ ra được quy định nào, đúng thứ mà hai cột này sinh ra
  * để tránh.
  */
-describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và id quy định phải khớp', () => {
-  const mkLine = (c: Client, policyId: string, v: { source: string | null; ruleId: string | null }) =>
+describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và mã quy định phải khớp', () => {
+  const mkLine = (c: Client, policyId: string, v: { source: string | null; ruleCode: string | null }) =>
     c.query(
       `INSERT INTO pol.policy_line
          (policy_id, product_id, product_code_snap, product_name_snap,
           company_price_snap, wholesale_price, discount_rate,
-          threshold_snap, threshold_source, rule_id_snap)
+          threshold_snap, threshold_source, rule_code_snap)
        VALUES ($1, $2, 'SP-01', 'San pham test', 100000, 90000, 10.00, 30.00, $3, $4)`,
-      [policyId, crypto.randomUUID(), v.source, v.ruleId],
+      [policyId, crypto.randomUUID(), v.source, v.ruleCode],
     );
 
-  it("source='RULE' mà không có rule_id_snap → 23514", async () => {
+  it("source='RULE' mà không có rule_code_snap → 23514", async () => {
     await inRollback(db, async () => {
       const pol = await mkPolicy(db, `NG-A-${Date.now()}`, await mkCustomer(db, 'NGA'), 'NHAP');
       const err = await expectSqlErrorInTx(db, () =>
-        mkLine(db, pol, { source: 'RULE', ruleId: null }));
+        mkLine(db, pol, { source: 'RULE', ruleCode: null }));
       expect(err.code).toBe('23514');
       expect(err.message).toContain('nguon_nguong_hop_le');
     });
   });
 
-  it("source='PRODUCT_DEFAULT' mà lại có rule_id_snap → 23514", async () => {
+  it("source='PRODUCT_DEFAULT' mà lại có rule_code_snap → 23514", async () => {
     await inRollback(db, async () => {
       const pol = await mkPolicy(db, `NG-B-${Date.now()}`, await mkCustomer(db, 'NGB'), 'NHAP');
       const err = await expectSqlErrorInTx(db, () =>
-        mkLine(db, pol, { source: 'PRODUCT_DEFAULT', ruleId: crypto.randomUUID() }));
+        mkLine(db, pol, { source: 'PRODUCT_DEFAULT', ruleCode: 'CK-01' }));
       expect(err.code).toBe('23514');
     });
   });
@@ -386,10 +389,113 @@ describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và id quy định p
   it('cả hai cùng NULL thì nhận — đó là dòng lập trước 0022', async () => {
     await inRollback(db, async () => {
       const pol = await mkPolicy(db, `NG-C-${Date.now()}`, await mkCustomer(db, 'NGC'), 'NHAP');
-      await mkLine(db, pol, { source: null, ruleId: null });
+      await mkLine(db, pol, { source: null, ruleCode: null });
       const r = await db.query(
         `SELECT count(*)::int n FROM pol.policy_line WHERE policy_id = $1`, [pol]);
       expect(r.rows[0].n).toBe(1);
+    });
+  });
+});
+
+/**
+ * 0024 — mã quy định là khoá chính, và chuẩn hoá như mã vật tư.
+ */
+describe('0024 · mã quy định chiết khấu', () => {
+  const mkRule = (c: Client, ma: string) =>
+    c.query(
+      `INSERT INTO cat.discount_rule (code, customer_type, effective_from, threshold_rate2)
+       VALUES ($1, 1, $2, 1500)`,
+      [ma, `20${String(Math.floor(Math.random() * 90) + 10)}-01-01`],
+    );
+
+  it('trùng mã y nguyên → 23505', async () => {
+    await inRollback(db, async () => {
+      await mkRule(db, 'ZZ-CK-A');
+      const err = await expectSqlErrorInTx(db, () => mkRule(db, 'ZZ-CK-A'));
+      expect(err.code).toBe('23505');
+    });
+  });
+
+  it('trùng mã chỉ khác HOA THƯỜNG hoặc khoảng trắng → vẫn 23505', async () => {
+    // Hai mã người dùng đọc ra giống hệt nhau. Để lọt thì một trong hai không
+    // bao giờ tìm được bằng ô tìm kiếm.
+    await inRollback(db, async () => {
+      await mkRule(db, 'ZZ-CK-B');
+      const err = await expectSqlErrorInTx(db, () => mkRule(db, '  zz-ck-b  '));
+      expect(err.code).toBe('23505');
+      expect(err.message).toContain('uq_rule_code_norm');
+    });
+  });
+
+  it('mã toàn khoảng trắng bị CSDL chặn, không chỉ chặn ở ứng dụng', async () => {
+    await inRollback(db, async () => {
+      const err = await expectSqlErrorInTx(db, () => mkRule(db, '   '));
+      expect(err.code).toBe('23514');
+      expect(err.message).toContain('rule_code_khong_rong');
+    });
+  });
+
+  it('cột id cũ KHÔNG còn tồn tại', async () => {
+    const r = await db.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'cat' AND table_name = 'discount_rule' AND column_name = 'id'`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+});
+
+/**
+ * 0025 — ba cột ngưỡng mặc định biến mất khỏi sản phẩm.
+ *
+ * Kiểm ở tầng lược đồ chứ không chỉ qua API: cột còn nằm đó thì sớm muộn có
+ * người ghi vào nó, và nguồn ngưỡng thứ hai sống lại mà không ai để ý.
+ */
+describe('0025 · sản phẩm không còn ngưỡng mặc định', () => {
+  it('ba cột default_rate2_type* đã bị xoá', async () => {
+    const r = await db.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'cat' AND table_name = 'product'
+          AND column_name LIKE 'default_rate2%'`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+
+  it("nhãn PRODUCT_DEFAULT vẫn CHÈN ĐƯỢC — dòng hồ sơ cũ mang nó", async () => {
+    // Cấm nhãn cũ là làm hỏng chính những dòng đã lập theo nguồn ấy. Ngưỡng của
+    // chúng vẫn đúng tại thời điểm chúng được lập.
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `PD-${Date.now()}`, await mkCustomer(db, 'PD'), 'NHAP');
+      await db.query(
+        `INSERT INTO pol.policy_line
+           (policy_id, product_id, product_code_snap, product_name_snap,
+            company_price_snap, wholesale_price, discount_rate,
+            threshold_snap, threshold_source, rule_code_snap)
+         VALUES ($1, $2, 'SP-01', 'San pham cu', 100000, 90000, 10.00,
+                 15.00, 'PRODUCT_DEFAULT', NULL)`,
+        [pol, crypto.randomUUID()],
+      );
+      const r = await db.query(
+        `SELECT threshold_source FROM pol.policy_line WHERE policy_id = $1`, [pol]);
+      expect(r.rows[0].threshold_source).toBe('PRODUCT_DEFAULT');
+    });
+  });
+
+  it("source='KHONG_CO' đi kèm ngưỡng RỖNG, và không bao giờ vượt ngưỡng", async () => {
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `KC-${Date.now()}`, await mkCustomer(db, 'KC'), 'NHAP');
+      await db.query(
+        `INSERT INTO pol.policy_line
+           (policy_id, product_id, product_code_snap, product_name_snap,
+            company_price_snap, wholesale_price, discount_rate,
+            threshold_snap, threshold_source, rule_code_snap)
+         VALUES ($1, $2, 'SP-01', 'San pham', 100000, 10000, 90.00,
+                 NULL, 'KHONG_CO', NULL)`,
+        [pol, crypto.randomUUID()],
+      );
+      const r = await db.query(
+        `SELECT over_threshold FROM pol.policy_line WHERE policy_id = $1`, [pol]);
+      // Chiết khấu 90% mà cờ vẫn tắt: cột sinh đã tính sẵn `IS NOT NULL`.
+      expect(r.rows[0].over_threshold).toBe(false);
     });
   });
 });

@@ -114,9 +114,6 @@ export type SanPham = {
   name: string;
   groupCode: string;
   status: TrangThaiSanPham;
-  defaultRate2Type1: number | null;
-  defaultRate2Type2: number | null;
-  defaultRate2Type3: number | null;
 };
 
 export type NhomSanPham = { id: string; code: string; name: string };
@@ -124,7 +121,8 @@ export type NhomSanPham = { id: string; code: string; name: string };
 export type DongGia = { priceType: LoaiGia; amount: string; effectiveFrom: string };
 
 export type QuyDinhChietKhau = {
-  id: string;
+  /** Mã do Quản trị đặt — khoá chính từ `0024`, hiện ở cột *Id*. */
+  code: string;
   productGroupCode: string | null;
   customerType: number | null;
   channelCode: string | null;
@@ -189,7 +187,7 @@ export const locQuyDinh = (ds: QuyDinhChietKhau[], tuKhoa: string): QuyDinhChiet
   const k = khongDau(tuKhoa.trim());
   if (k === '') return ds;
   return ds.filter((q) =>
-    [q.id, phamViChietKhau(q), phanTramTuNguong(q.thresholdRate2), q.effectiveFrom]
+    [q.code, phamViChietKhau(q), phanTramTuNguong(q.thresholdRate2), q.effectiveFrom]
       .some((x) => khongDau(x).includes(k)),
   );
 };

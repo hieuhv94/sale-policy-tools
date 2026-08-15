@@ -281,17 +281,17 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
   });
 
   it('cột QĐCK hiện mã quy định', () => {
-    const ds = [dong({ thresholdSource: 'RULE', ruleId: 'aaaa1111-2222-3333-4444-555566667777' })];
+    const ds = [dong({ thresholdSource: 'RULE', ruleCode: 'CK-SUA-L1' })];
     render(<BangSanPham dong={ds} />);
     const bang = screen.getByRole('table');
     expect(within(bang).getByText('QĐCK')).toBeDefined();
     // Mã hiện NGUYÊN VẸN: nó dùng để chép sang ô tìm ở màn hình Chiết khấu, cắt
     // bớt là cắt luôn công dụng của cột.
-    expect(within(bang).getByText('aaaa1111-2222-3333-4444-555566667777')).toBeDefined();
+    expect(within(bang).getByText('CK-SUA-L1')).toBeDefined();
   });
 
   it('không có quy định thì ô QĐCK để TRỐNG', () => {
-    const ds = [dong({ thresholdSource: 'PRODUCT_DEFAULT', ruleId: null })];
+    const ds = [dong({ thresholdSource: 'PRODUCT_DEFAULT', ruleCode: null })];
     render(<BangSanPham dong={ds} />);
     const hang = screen
       .getAllByRole('row')
@@ -313,12 +313,12 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
   });
 
   it('bố trí THẺ chỉ hiện QĐCK khi có', () => {
-    render(<BangSanPham dong={[dong({ ruleId: null })]} />);
+    render(<BangSanPham dong={[dong({ ruleCode: null })]} />);
     const the = document.querySelector('.the-san-pham .the') as HTMLElement;
     expect(within(the).queryByText('QĐCK')).toBeNull();
 
     cleanup();
-    render(<BangSanPham dong={[dong({ ruleId: 'q-123' })]} />);
+    render(<BangSanPham dong={[dong({ ruleCode: 'q-123' })]} />);
     const the2 = document.querySelector('.the-san-pham .the') as HTMLElement;
     expect(within(the2).getByText('QĐCK')).toBeDefined();
     expect(within(the2).getByText('q-123')).toBeDefined();

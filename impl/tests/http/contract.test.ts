@@ -98,9 +98,6 @@ const makeProduct = async (i = 0): Promise<string> => {
       code: uniq('SP'),
       name: `Nutricare Gold ${i}`,
       groupCode,
-      defaultRate2Type1: 1500,
-      defaultRate2Type2: 1500,
-      defaultRate2Type3: 1500,
     });
   // Kiểm NGAY tại đây. Không kiểm thì một lời gọi hỏng đi tiếp với `id`
   // undefined và nổ ba mươi dòng sau ở chỗ lập hồ sơ, với thông báo

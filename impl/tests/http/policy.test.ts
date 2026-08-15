@@ -53,20 +53,13 @@ const uniq = (k: string) => maDuyNhat(P, k);
 let groupCode = '';
 const products: string[] = [];
 
-/** Sản phẩm có Giá bán Công ty 100.000 và ngưỡng mặc định 15,00%. */
+/** Sản phẩm có Giá bán Công ty 100.000. Ngưỡng 15,00% đến từ quy định của nhóm. */
 const makeProduct = async (): Promise<string> => {
   const c = await http(catalog);
   const r = await c
     .post('/catalog/products')
     .set('Authorization', `Bearer ${tok['admin01']}`)
-    .send({
-      code: uniq('SP'),
-      name: 'Nutricare Gold',
-      groupCode,
-      defaultRate2Type1: 1500,
-      defaultRate2Type2: 1500,
-      defaultRate2Type3: 1500,
-    });
+    .send({ code: uniq('SP'), name: 'Nutricare Gold', groupCode });
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
     .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -178,10 +171,27 @@ beforeAll(async () => {
   }
 
   groupCode = uniq('NHOM');
-  await (await http(catalog))
+  const dm = await http(catalog);
+  await dm
     .post('/catalog/product-groups')
     .set('Authorization', `Bearer ${tok['admin01']}`)
     .send({ code: groupCode, name: 'Nhom thu nghiem' });
+
+  // MỘT quy định chiết khấu 15% cho cả nhóm.
+  //
+  // Trước `0025` con số ấy đến từ ba cột ngưỡng mặc định trên từng sản phẩm. Ba
+  // cột đó đã bỏ — bảng quy định là nguồn duy nhất — nên nền của cả tệp test
+  // này phải khai một quy định, đúng như người dùng thật sẽ phải làm.
+  const r = await dm
+    .post('/catalog/discount-rules')
+    .set('Authorization', `Bearer ${tok['admin01']}`)
+    .send({
+      code: uniq('CK'),
+      productGroupCode: groupCode,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1500,
+    });
+  if (r.status !== 201) throw new Error(`khai quy định hỏng: ${JSON.stringify(r.body)}`);
 });
 
 afterAll(async () => {
@@ -1459,14 +1469,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({
-        code: uniq('SP0022'),
-        name: 'Nutricare Gold',
-        groupCode: g,
-        defaultRate2Type1: 1500,
-        defaultRate2Type2: 1500,
-        defaultRate2Type3: 1500,
-      });
+      .send({ code: uniq('SP0022'), name: 'Nutricare Gold', groupCode: g });
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -1479,6 +1482,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
       .post('/catalog/discount-rules')
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({
+        code: uniq('CK0022'),
         productGroupCode: g,
         customerType: 1,
         effectiveFrom: '2020-01-01',
@@ -1495,15 +1499,16 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
     expect(l.threshold).toBe('25.00');
   });
 
-  it('không quy định nào khớp → thresholdSource là PRODUCT_DEFAULT', async () => {
-    // Nhóm riêng và KHÔNG khai quy định nào cho nó, nên chắc chắn rơi về mặc
-    // định. Mọi quy định do bộ test tạo ra đều gắn nhóm cụ thể, không có dòng
-    // nào phủ "mọi nhóm" để lọt vào đây.
+  it('không quy định nào khớp → thresholdSource là KHONG_CO, ngưỡng rỗng', async () => {
+    // Nhóm riêng và KHÔNG khai quy định nào cho nó. Từ `0025` không còn ngưỡng
+    // mặc định nào để rơi về, nên dòng đơn giản là không có ngưỡng đối chiếu.
+    // Mọi quy định do bộ test tạo ra đều gắn nhóm cụ thể, không có dòng nào phủ
+    // "mọi nhóm" để lọt vào đây.
     const { productId } = await sanPhamNhomRieng();
     const d = await draft({ productId });
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
-    expect(l.threshold).toBe('15.00');
+    expect(l.thresholdSource).toBe('KHONG_CO');
+    expect(l.threshold).toBeNull();
   });
 
   it('sửa một dòng thì tra lại nguồn, không giữ nguyên cờ cũ', async () => {
@@ -1513,7 +1518,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
     const { productId, groupCode: g } = await sanPhamNhomRieng();
     const d = await draft({ productId });
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(l.thresholdSource).toBe('KHONG_CO');
 
     expect((await khaiQuyDinh(g, 2800)).status).toBe(201);
     expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '80000' })).status)
@@ -1545,7 +1550,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
       thresholdSource: string | null;
     }[];
     const thuaKe = lines.find((x) => x.productId === productId);
-    expect(thuaKe?.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(thuaKe?.thresholdSource).toBe('KHONG_CO');
   });
 });
 
@@ -1561,7 +1566,7 @@ describe('0022 GET /policies/:id/threshold-preview', () => {
     const r = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`);
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.threshold).toBe('15.00');
-    expect(r.body.thresholdSource).toBe('PRODUCT_DEFAULT');
+    expect(r.body.thresholdSource).toBe('RULE');
     expect(r.body.productId).toBe(d.productId);
   });
 
@@ -1626,7 +1631,7 @@ describe('0023 sản phẩm không có ngưỡng nào', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.source).toBe('KHONG_CO');
     expect(r.body.thresholdRate2).toBeNull();
-    expect(r.body.ruleId).toBeNull();
+    expect(r.body.ruleCode).toBeNull();
   });
 
   it('THÊM ĐƯỢC dòng, và dòng đó không có ngưỡng', async () => {
@@ -1638,7 +1643,7 @@ describe('0023 sản phẩm không có ngưỡng nào', () => {
     const l = (await get(`/policies/${hs.body.id}`)).body.lines[0];
     expect(l.thresholdSource).toBe('KHONG_CO');
     expect(l.threshold).toBeNull();
-    expect(l.ruleId).toBeNull();
+    expect(l.ruleCode).toBeNull();
     // Mọi con số khác vẫn đủ: 90.000 − 5.000 = 85.000, tức chiết khấu 15%.
     expect(l.netPrice).toBe('85000');
     expect(l.discountRate).toBe('15.00');
@@ -1682,7 +1687,26 @@ describe('0023 sản phẩm không có ngưỡng nào', () => {
 
 /** 0023 — mã quy định đi ra tới giao diện, cho cột QĐCK. */
 describe('0023 dòng hồ sơ trả ruleId', () => {
-  it('có quy định khớp thì ruleId là ĐÚNG quy định ấy', async () => {
+  /** Sản phẩm nhóm riêng, KHÔNG khai quy định nào cho nhóm ấy. */
+  const sanPhamTroi = async (): Promise<string> => {
+    const c = await http(catalog);
+    const g = uniq('NHOM0024');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom rieng 0024' });
+    const r = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: uniq('SP0024'), name: 'SP troi', groupCode: g });
+    await c
+      .post(`/catalog/products/${r.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+    return r.body.id as string;
+  };
+
+  it('có quy định khớp thì ruleCode là ĐÚNG quy định ấy', async () => {
     const c = await http(catalog);
     const g = uniq('NHOM0023B');
     await c
@@ -1692,7 +1716,7 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
     const sp = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0023B'), name: 'SP', groupCode: g, defaultRate2Type1: 1500 });
+      .send({ code: uniq('SP0023B'), name: 'SP', groupCode: g });
     await c
       .post(`/catalog/products/${sp.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -1701,6 +1725,7 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
       .post('/catalog/discount-rules')
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({
+        code: uniq('CK0023B'),
         productGroupCode: g,
         customerType: 1,
         effectiveFrom: '2020-01-01',
@@ -1710,15 +1735,17 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
 
     const d = await draft({ productId: sp.body.id as string });
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.ruleId).toBe(qd.body.id);
+    expect(l.ruleCode).toBe(qd.body.code);
     expect(l.threshold).toBe('33.00');
   });
 
-  it('rơi về mặc định sản phẩm thì ruleId là null', async () => {
-    const d = await draft();
-    const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.thresholdSource).toBe('PRODUCT_DEFAULT');
-    expect(l.ruleId).toBeNull();
+  it('không quy định nào khớp thì ruleCode là null', async () => {
+    const productId = await sanPhamTroi();
+    const customerId = await makeCustomer();
+    const hs = await post('/policies', { customerId, lines: [line(productId)] });
+    const l = (await get(`/policies/${hs.body.id}`)).body.lines[0];
+    expect(l.thresholdSource).toBe('KHONG_CO');
+    expect(l.ruleCode).toBeNull();
   });
 });
 
@@ -1730,7 +1757,15 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
  * mình, còn hồ sơ lập sau thì dùng ngưỡng mới.
  */
 describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () => {
-  /** Sản phẩm nhóm riêng, ba loại khách ba ngưỡng KHÁC NHAU để phân biệt được. */
+  /**
+   * Sản phẩm nhóm riêng, BA QUY ĐỊNH cho ba loại khách — ba ngưỡng khác nhau.
+   *
+   * Ba ngưỡng phải KHÁC NHAU thì test mới có nghĩa: sản phẩm ngưỡng đều nhau
+   * làm cả bốn case dưới đây xanh kể cả khi mã sai hoàn toàn.
+   *
+   * Trước `0025` ba con số này là ba cột trên chính sản phẩm. Giờ chúng là ba
+   * dòng trong bảng quy định — đúng chỗ duy nhất khai ngưỡng.
+   */
   const sanPhamBaNguong = async (): Promise<string> => {
     const c = await http(catalog);
     const g = uniq('NHOM0023C');
@@ -1738,17 +1773,27 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
       .post('/catalog/product-groups')
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({ code: g, name: 'Nhom rieng 0023c' });
+    for (const [loai, nguong] of [
+      [1, 1000], // 10,00%
+      [2, 2000], // 20,00%
+      [3, 3000], // 30,00%
+    ] as const) {
+      const q = await c
+        .post('/catalog/discount-rules')
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({
+          code: uniq('CK0023C'),
+          productGroupCode: g,
+          customerType: loai,
+          effectiveFrom: '2020-01-01',
+          thresholdRate2: nguong,
+        });
+      if (q.status !== 201) throw new Error(`khai quy định hỏng: ${JSON.stringify(q.body)}`);
+    }
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({
-        code: uniq('SP0023C'),
-        name: 'SP ba nguong',
-        groupCode: g,
-        defaultRate2Type1: 1000, // loại 1 → 10,00%
-        defaultRate2Type2: 2000, // loại 2 → 20,00%
-        defaultRate2Type3: 3000, // loại 3 → 30,00%
-      });
+      .send({ code: uniq('SP0023C'), name: 'SP ba nguong', groupCode: g });
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)

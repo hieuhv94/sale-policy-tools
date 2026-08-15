@@ -54,9 +54,9 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 
   const go = async (q: QuyDinhChietKhau) => {
     datLoi(null);
-    datDangXoa(q.id);
+    datDangXoa(q.code);
     try {
-      await xoa(`/catalog/discount-rules/${q.id}`);
+      await xoa(`/catalog/discount-rules/${encodeURIComponent(q.code)}`);
       taiLai();
     } catch (e) {
       datLoi(e);
@@ -144,8 +144,8 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
             </thead>
             <tbody>
               {loc.map((q) => (
-                <tr key={q.id}>
-                  <td className="ma-quy-dinh">{q.id}</td>
+                <tr key={q.code}>
+                  <td className="ma-quy-dinh">{q.code}</td>
                   <td>{phamViChietKhau(q)}</td>
                   <td className="so">{phanTramTuNguong(q.thresholdRate2)}%</td>
                   <td>
@@ -161,7 +161,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                         <button
                           type="button"
                           className="nut nut-canh-bao"
-                          disabled={dangXoa === q.id}
+                          disabled={dangXoa === q.code}
                           onClick={() => datHoiXoa(q)}
                         >
                           Xoá
@@ -184,12 +184,13 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
           hauQua={
             <p>
               Ngưỡng riêng của tổ hợp này biến mất. Hồ sơ lập sau đó rơi về{' '}
-              <strong>ngưỡng mặc định của sản phẩm</strong> — vẫn lập được, vẫn duyệt được, và không
-              có gì trên màn hình báo rằng ngưỡng đang dùng không còn là ngưỡng bạn đã khai.
+              <strong>quy định rộng hơn</strong> nếu có; không có quy định nào khác phủ thì dòng sản
+              phẩm sẽ <strong>không có ngưỡng nào để đối chiếu</strong> — vẫn lập được, vẫn duyệt
+              được, chỉ là không đánh dấu vượt ngưỡng được nữa.
             </p>
           }
           nhanNut="Xoá quy định"
-          dangChay={dangXoa === hoiXoa.id}
+          dangChay={dangXoa === hoiXoa.code}
           dong={() => datHoiXoa(null)}
           xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}
         />
@@ -251,7 +252,7 @@ function HopThoaiSuaQuyDinh({
     datDangGui(true);
     try {
       // "không đụng tới" (thiếu trường) với "gỡ" (rỗng).
-      await va(`/catalog/discount-rules/${q.id}`, {
+      await va(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, {
         thresholdRate2: nguongTuPhanTram(nguong),
       });
       xong();
@@ -268,7 +269,8 @@ function HopThoaiSuaQuyDinh({
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          Áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực từ {ngay(q.effectiveFrom)}.
+          Mã <strong>{q.code}</strong> — áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực
+          từ {ngay(q.effectiveFrom)}.
           Ba ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
           vi thì xoá dòng này rồi khai lại.
         </p>
@@ -312,6 +314,7 @@ function HopThoaiTaoQuyDinh({
   dong: () => void;
   xong: () => void;
 }) {
+  const [ma, datMa] = useState('');
   const [maNhom, datMaNhom] = useState('');
   const [loaiKhach, datLoaiKhach] = useState('');
   const [maKenh, datMaKenh] = useState('');
@@ -321,7 +324,11 @@ function HopThoaiTaoQuyDinh({
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
-  const thieu = thieuTruong('chiet-khau', { effectiveFrom: tuNgay, thresholdRate2: nguong });
+  const thieu = thieuTruong('chiet-khau', {
+    code: ma,
+    effectiveFrom: tuNgay,
+    thresholdRate2: nguong,
+  });
   const hopLe = thieu.length === 0 && Number.isFinite(n) && n >= 0 && n <= 100;
 
   const gui = async (e: React.FormEvent) => {
@@ -330,6 +337,7 @@ function HopThoaiTaoQuyDinh({
     datDangGui(true);
     try {
       await dang('/catalog/discount-rules', {
+        code: ma.trim(),
         ...(maNhom ? { productGroupCode: maNhom } : {}),
         ...(loaiKhach ? { customerType: Number(loaiKhach) } : {}),
         ...(maKenh ? { channelCode: maKenh } : {}),
@@ -348,6 +356,27 @@ function HopThoaiTaoQuyDinh({
     <HopThoai tieuDe="Thêm quy định chiết khấu" dong={dong}>
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
+
+        {/* MÃ đứng đầu biểu mẫu vì nó là thứ người dùng sẽ nhìn thấy lại: cột
+            *Id* ở bảng này, cột *QĐCK* trên từng dòng hồ sơ, và là thứ họ gõ vào
+            ô tìm kiếm. Đặt cuối thì nó trông như một trường phụ. */}
+        <Truong id="ck-ma" nhan="Mã quy định" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              autoComplete="off"
+              placeholder="VD: CK-SUA-L1"
+              value={ma}
+              onChange={(e) => datMa(e.target.value)}
+            />
+          )}
+        </Truong>
+        <p className="ghi-chu">
+          Mã <strong>không sửa được sau khi tạo</strong> — hồ sơ đã lập ghi lại mã này để truy vết.
+          Đặt nhầm thì xoá dòng rồi khai lại. Mã <strong>không phân biệt hoa thường</strong>:{' '}
+          <code>CK-01</code> và <code>ck-01</code> là một.
+        </p>
 
         <p className="ghi-chu">
           Bỏ trống một ô nghĩa là <strong>áp dụng cho mọi giá trị</strong> của ô đó. Càng điền nhiều

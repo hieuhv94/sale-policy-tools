@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Mười một chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng.
+> Mười hai chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng; **(12)** phân biệt hai loại trùng quy định bằng cách dò chuỗi `'code'` trong tên ràng buộc — trùng mã đến từ HAI ràng buộc (`discount_rule_pkey` khi trùng y nguyên, `uq_rule_code_norm` khi khác hoa thường), nên phải nhận diện theo đúng một tên là `uq_rule_pham_vi` rồi coi phần còn lại là trùng mã (`0024`).
 
 ---
 
@@ -248,16 +248,16 @@ pol.policy_line
   net_price           bigint  GENERATED ALWAYS AS (wholesale_price - pol.tong_cpbh(cpbh)) STORED
   discount_rate       numeric(5,2)        -- ĐÃ làm tròn 2 số, ghi một lần
   threshold_snap      numeric(5,2)        -- ngưỡng lúc submit. NULL khi KHONG_CO (0023)
-  threshold_source    text                -- RULE | PRODUCT_DEFAULT | KHONG_CO | NULL(trước 0022)
-  rule_id_snap        uuid                -- quy định NÀO đã cho ra threshold_snap (0022)
+  threshold_source    text                -- RULE | KHONG_CO | (PRODUCT_DEFAULT, NULL: lịch sử)
+  rule_code_snap      text                -- MÃ quy định đã cho ra threshold_snap (0022, 0024)
   over_threshold      boolean GENERATED ALWAYS AS
                         (threshold_snap IS NOT NULL AND discount_rate > threshold_snap) STORED
 
   CONSTRAINT nguon_nguong_hop_le CHECK (      -- hai cột trên phải KHỚP NHAU
-    (threshold_source = 'RULE'            AND rule_id_snap IS NOT NULL) OR
-    (threshold_source = 'PRODUCT_DEFAULT' AND rule_id_snap IS NULL)     OR
-    (threshold_source = 'KHONG_CO'        AND rule_id_snap IS NULL)     OR
-    (threshold_source IS NULL             AND rule_id_snap IS NULL))
+    (threshold_source = 'RULE'            AND rule_code_snap IS NOT NULL) OR
+    (threshold_source = 'PRODUCT_DEFAULT' AND rule_code_snap IS NULL)     OR
+    (threshold_source = 'KHONG_CO'        AND rule_code_snap IS NULL)     OR
+    (threshold_source IS NULL             AND rule_code_snap IS NULL))
 ```
 
 > **Vì sao lưu cả nguồn ngưỡng** `0022`
@@ -271,8 +271,13 @@ pol.policy_line
 > `0022`. Gộp hai thứ đó lại thì tô vàng hàng loạt dòng cũ chỉ vì thiếu dữ liệu, và báo động giả hàng
 > loạt thì lần sau không ai nhìn màu vàng nữa.
 >
-> `rule_id_snap` đi ra tới giao diện thành cột **QĐCK** trên bảng dòng sản phẩm (`0023`), đối chiếu
-> thẳng sang cột **Id** của bảng Quy định chiết khấu — ô tìm kiếm ở đó khớp cả mã.
+> `rule_code_snap` đi ra tới giao diện thành cột **QĐCK** trên bảng dòng sản phẩm (`0023`), đối chiếu
+> thẳng sang cột **Id** của bảng Quy định chiết khấu — ô tìm kiếm ở đó khớp cả mã. Từ `0024` nó là
+> **mã do người dùng đặt**, không phải uuid: một mã được chép ra khỏi hệ thống thì phải đọc được.
+>
+> Bốn giá trị của `threshold_source`, và chỉ HAI trong đó còn được sinh ra: `RULE` và `KHONG_CO`.
+> `PRODUCT_DEFAULT` là nhãn lịch sử của những dòng lập trước `0025`, `NULL` của những dòng lập trước
+> `0022`. Ràng buộc vẫn nhận cả bốn — cấm nhãn cũ là làm hỏng chính những dòng đã lập theo nguồn ấy.
 >
 > **Không khoá ngoại sang `cat.discount_rule`.** Hai lý do, mỗi lý do đủ để một mình quyết định:
 > `policy` không đọc được schema `cat` (AD-02), và đây là **ảnh chụp** — quy định bị xoá thì dòng hồ
@@ -963,8 +968,9 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-10 | Tra ngưỡng theo (nhóm SP, loại KH, kênh, thời gian) có đúng một dòng khớp | Trả đúng ngưỡng của dòng đó | §6.3 | `P0` |
 | CAT-11 | Hai dòng chiết khấu quy định cùng khớp một tình huống | Chọn dòng **cụ thể nhất** (`specificity` 4/2/1, trọng số nhị phân nên không bao giờ hoà giữa hai phạm vi khác nhau), rồi **mới nhất** | §6.3.1 | `P0` |
 | CAT-11b | Khai hai quy định **trùng đúng phạm vi và đúng ngày hiệu lực** | 409 `RULE_SCOPE_DUPLICATE`; chỉ mục `uq_rule_pham_vi` với `NULLS NOT DISTINCT` chặn cả khi ba ô phạm vi đều để trống. Dòng đầu **không bị ghi đè** | §6.3.1 | `P0` |
-| CAT-12 | Không dòng chiết khấu quy định nào khớp | Lấy giá trị mặc định “CSBH loại 1/2/3” trong danh mục sản phẩm; dòng hồ sơ mang `threshold_source = PRODUCT_DEFAULT` và giao diện tô vàng | §6.3.2 | `P0` |
-| CAT-12c | Không có cả quy định lẫn mặc định | **200**, `source = KHONG_CO`, `thresholdRate2 = null`. Dòng hồ sơ **vẫn thêm được**, `threshold_snap` NULL, và `over_threshold` không bao giờ bật (`0023`) | §6.3.2 | `P0` |
+| CAT-12 | Không dòng chiết khấu quy định nào khớp | **200**, `source = KHONG_CO`, `thresholdRate2 = null` — không còn ngưỡng mặc định nào để rơi về (`0025`). Dòng hồ sơ **vẫn thêm được**, `threshold_snap` NULL, `over_threshold` không bao giờ bật, giao diện tô vàng | §6.3.2 | `P0` |
+| CAT-12d | Khai quy định **trùng mã** | 409 `RULE_CODE_DUPLICATE`, phân biệt với `RULE_SCOPE_DUPLICATE`. Chuẩn hoá `upper(btrim(code))` như mã vật tư (`0024`) | §6.3 | `P0` |
+| CAT-12e | Khai quy định **thiếu mã** | 400 — mã không sinh tự động nữa (`0024`) | §6.3 | `P1` |
 | CAT-12b | Tra ngưỡng khi có dòng khớp | Trả kèm `ruleId` để `policy` đóng băng vào `rule_id_snap` | §6.3.2 | `P1` |
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |

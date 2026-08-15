@@ -24,10 +24,10 @@ export type ProductSnapshot = {
   companyPrice: string;
   /** `null` đi kèm `KHONG_CO`: sản phẩm này không có ngưỡng nào để đối chiếu. */
   thresholdRate2: number | null;
-  /** Ngưỡng đến từ quy định, từ mặc định của sản phẩm, hay không có (`0023`). */
-  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO';
-  /** Quy định đã thắng. `null` với hai nguồn còn lại — xem `0022`. */
-  ruleId: string | null;
+  /** Ngưỡng đến từ một quy định, hay không có quy định nào (`0025`). */
+  thresholdSource: 'RULE' | 'KHONG_CO';
+  /** Mã quy định đã thắng. `null` khi `KHONG_CO` — xem `0022`, `0024`. */
+  ruleCode: string | null;
 };
 
 const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });

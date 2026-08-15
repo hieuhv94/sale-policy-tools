@@ -536,9 +536,6 @@ describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
         code: uniq('SP'),
         name: 'Nutricare Gold',
         groupCode: g.body.code,
-        defaultRate2Type1: 3000,
-        defaultRate2Type2: 3000,
-        defaultRate2Type3: 3000,
       },
       'admin01',
     );

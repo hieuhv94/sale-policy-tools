@@ -196,7 +196,7 @@ Ngay dưới bảng có **chú thích màu** giải nghĩa cả hai:
 | Dấu hiệu | Nghĩa | Có chặn không |
 |---|---|---|
 | Nền **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
-| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm — hoặc không có ngưỡng nào để đối chiếu | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
+| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
 
 Dòng vừa vượt ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
 nhưng dấu `◆` vẫn còn.
@@ -423,9 +423,11 @@ kia không bấm được. Không xoá được nhóm đang có sản phẩm; ch
 ### 13.2. Chiết khấu
 
 **Quy định chiết khấu** — ngưỡng để cảnh báo khi lập hồ sơ. Bỏ trống một ô nghĩa là *mọi giá trị*
-của ô đó. Nhiều quy định cùng khớp một tình huống là bình thường: **quy định cụ thể hơn thắng**, và
-cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
-nhìn thấy.
+của ô đó. Nhiều quy định cùng khớp một tình huống là bình thường: **quy định cụ thể hơn thắng**.
+Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt nhìn thấy.
+
+Đây là **nguồn ngưỡng duy nhất**. Sản phẩm không còn ô "ngưỡng mặc định" nào — sản phẩm nào không
+được quy định nào phủ thì dòng hồ sơ của nó không có ngưỡng để đối chiếu.
 
 **Thứ tự phân xử khi nhiều quy định cùng khớp:**
 
@@ -439,7 +441,18 @@ có, hoặc khai **ngày hiệu lực muộn hơn** để đè lên. Dòng cũ *
 Lưu ý **ô để trống cũng tính là trùng**: hai dòng cùng bỏ trống ô nhóm sản phẩm đều nói *"mọi nhóm"*,
 nên chúng trùng nhau.
 
-**Cột Id và ô tìm kiếm.** Mỗi quy định có một mã, hiện ở cột *Id*. Ô tìm kiếm phía trên bảng khớp
+**Mã quy định do bạn đặt.** Ô *Mã quy định* đứng đầu biểu mẫu *Thêm quy định*. Đặt mã đọc được và
+nói lên phạm vi — ví dụ `CK-SUA-L1` — vì đây là thứ sẽ hiện lại ở cột *Id* và ở cột *QĐCK* của từng
+dòng hồ sơ.
+
+- **Trùng mã thì không tạo được.** Mã **không phân biệt hoa thường** và bỏ qua khoảng trắng thừa:
+  `CK-01`, `ck-01` và ` CK-01 ` là một mã.
+- Thông báo lỗi phân biệt rõ **trùng mã** với **trùng phạm vi** — hai chuyện khác nhau, hai cách sửa
+  khác nhau.
+- **Mã không sửa được** sau khi tạo: hồ sơ đã lập ghi lại mã này để truy vết. Đặt nhầm thì xoá dòng
+  rồi khai lại.
+
+**Cột Id và ô tìm kiếm.** Mã hiện ở cột *Id*. Ô tìm kiếm phía trên bảng khớp
 **cả mã** — dán nguyên mã ở cột *QĐCK* của một dòng hồ sơ là ra thẳng quy định đã cho ra ngưỡng của
 dòng ấy; dán một phần đầu của mã cũng ra. Ô tìm còn khớp phạm vi áp dụng (gõ không dấu được) và con
 số ngưỡng đang hiện trên màn hình (`25,00`).

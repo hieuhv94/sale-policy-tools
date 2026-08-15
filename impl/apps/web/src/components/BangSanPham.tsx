@@ -46,17 +46,19 @@ export type DongSanPham = {
   /**
    * Ngưỡng của dòng này từ đâu ra (`0022`, `0023`).
    *
-   * `PRODUCT_DEFAULT` và `KHONG_CO` đều nghĩa là **không có quy định chiết khấu
-   * nào phủ** sản phẩm này với loại khách và kênh của khách hàng. Khác nhau ở
-   * chỗ rơi về đâu: mặc định khai trong danh mục sản phẩm, hay không có ngưỡng
-   * nào để đối chiếu. Cả hai đều không phải lỗi, và cả hai đều là thứ người
-   * duyệt cần biết — con số ấy không đến từ chính sách chiết khấu đã ban hành.
+   * `KHONG_CO` nghĩa là **không có quy định chiết khấu nào phủ** sản phẩm này
+   * với loại khách và kênh của khách hàng — không phải lỗi, nhưng là thứ người
+   * duyệt cần biết: dòng ấy không có ngưỡng nào để đối chiếu.
+   *
+   * `PRODUCT_DEFAULT` chỉ còn là nhãn LỊCH SỬ. Ngưỡng mặc định trên sản phẩm đã
+   * bỏ ở `0025`, nên không dòng nào mang nhãn này nữa; những dòng cũ vẫn giữ nó
+   * và vẫn phải hiện đúng.
    *
    * `null` là dòng lập trước 0022, không rõ nguồn — KHÔNG tô cảnh báo.
    */
   thresholdSource?: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO' | null | undefined;
-  /** Mã quy định đã cho ra ngưỡng. `null` với hai nguồn còn lại (`0023`). */
-  ruleId?: string | null | undefined;
+  /** Mã quy định đã cho ra ngưỡng. `null` khi không quy định nào khớp (`0024`). */
+  ruleCode?: string | null | undefined;
 };
 
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
@@ -94,7 +96,7 @@ export const COT_SAU = [
    * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — cột kế bên
    * đã mang dấu ◆ nói đúng điều đó rồi.
    */
-  { khoa: 'ruleId', nhan: 'QĐCK' },
+  { khoa: 'ruleCode', nhan: 'QĐCK' },
 ] as const;
 
 /**
@@ -303,7 +305,7 @@ export function BangSanPham({
                 <td className="so">
                   <OTyLe d={d} />
                 </td>
-                <td className="ma-quy-dinh">{d.ruleId ?? ''}</td>
+                <td className="ma-quy-dinh">{d.ruleCode ?? ''}</td>
                 {coThaoTac && (
                   <td>
                     <div className="nhom-nut nhom-nut-gon">
@@ -360,10 +362,10 @@ export function BangSanPham({
               </div>
               {/* Chỉ hiện khi CÓ. Bố trí thẻ dành cho màn hình hẹp nhất; một ô
                   rỗng mang nhãn "QĐCK" ở đó là một dòng chữ không nói gì. */}
-              {d.ruleId && (
+              {d.ruleCode && (
                 <div>
                   <dt>QĐCK</dt>
-                  <dd className="ma-quy-dinh">{d.ruleId}</dd>
+                  <dd className="ma-quy-dinh">{d.ruleCode}</dd>
                 </div>
               )}
             </dl>

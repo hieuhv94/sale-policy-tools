@@ -56,33 +56,6 @@ const chonSanPham = async () => {
 };
 
 describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
-  it('rơi về mặc định sản phẩm → hiện cảnh báo vàng kèm con số sẽ dùng', async () => {
-    chanFetch(() =>
-      phanHoi(200, {
-        productId: 'sp-1',
-        productCode: 'SP-01',
-        productName: 'Nutricare Gold',
-        companyPrice: '100000',
-        threshold: '15.00',
-        thresholdSource: 'PRODUCT_DEFAULT',
-      }),
-    );
-    moHopThoai();
-    await chonSanPham();
-
-    const canhBao = await waitFor(() => {
-      const el = document.querySelector('.hop-canh-bao');
-      expect(el).not.toBeNull();
-      return el as HTMLElement;
-    });
-    expect(canhBao.textContent).toContain('Chưa có quy định chiết khấu');
-    // Con số PHẢI có mặt: "chưa có quy định" mà không nói sẽ dùng ngưỡng nào thì
-    // người lập vẫn không quyết định được gì.
-    expect(canhBao.textContent).toContain('15.00%');
-    // Không phải khối lỗi — vẫn lập hồ sơ được.
-    expect(document.querySelectorAll('.bao-loi')).toHaveLength(0);
-  });
-
   it('có quy định khớp → KHÔNG cảnh báo gì', async () => {
     chanFetch(() =>
       phanHoi(200, {
@@ -126,7 +99,7 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(canhBao.textContent).toContain('không có ngưỡng mặc định');
+    expect(canhBao.textContent).toContain('không có ngưỡng nào để đối chiếu');
     expect(canhBao.textContent).toContain('Vẫn lập hồ sơ được');
     // Không phải khối lỗi, và nút Thêm dòng không bị khoá vì chuyện này.
     expect(document.querySelectorAll('.bao-loi')).toHaveLength(0);
@@ -144,8 +117,8 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
       expect(el).not.toBeNull();
       return el as HTMLElement;
     });
-    expect(canhBao.textContent).not.toContain('ngưỡng mặc định 0');
     expect(canhBao.textContent).not.toContain('null');
+    expect(canhBao.textContent).not.toContain('%');
   });
 
   it('lỗi lúc xem trước KHÔNG hiện gì', async () => {
@@ -167,9 +140,7 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
   });
 
   it('gọi đúng hồ sơ và đúng sản phẩm', async () => {
-    const f = chanFetch(() =>
-      phanHoi(200, { threshold: '15.00', thresholdSource: 'PRODUCT_DEFAULT' }),
-    );
+    const f = chanFetch(() => phanHoi(200, { threshold: null, thresholdSource: 'KHONG_CO' }));
     moHopThoai();
     await chonSanPham();
 

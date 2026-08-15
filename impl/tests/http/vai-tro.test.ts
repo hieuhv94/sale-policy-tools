@@ -104,9 +104,6 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
       code: uniq('SP'),
       name: 'Nutricare Gold',
       groupCode: g.body.code,
-      defaultRate2Type1: 1500,
-      defaultRate2Type2: 1500,
-      defaultRate2Type3: 1500,
     });
   await (await http(catalog))
     .post(`/catalog/products/${sp.body.id}/prices`)

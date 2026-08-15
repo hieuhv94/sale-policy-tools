@@ -3388,3 +3388,66 @@ chỉ sửa một chỗ.
 - Hồ sơ **Nháp** của khách vừa đổi loại mang ngưỡng cũ mà **không có dấu hiệu nào** trên màn hình nói
   ra điều đó. Người lập phải nhớ. Một dấu "ngưỡng chụp theo loại cũ" trên dòng sản phẩm sẽ đóng chỗ
   này, nhưng nó cần dòng hồ sơ nhớ luôn loại khách lúc chụp — chưa có cột đó.
+
+---
+
+## P32 — Mã quy định do người dùng đặt, và một nguồn ngưỡng duy nhất
+
+Hai yêu cầu, và cả hai đều là **dọn lại thứ P28–P29 vừa dựng**.
+
+### Mã: uuid đi ra tới mặt người dùng là một lỗi thiết kế
+
+`0023` đưa mã quy định lên ba chỗ người dùng nhìn thấy — cột *Id*, cột *QĐCK*, ô tìm kiếm — trong khi
+nó vẫn là `gen_random_uuid()`. Ba mươi sáu ký tự không ai đọc được, nhớ được, hay đọc qua điện thoại
+được. Một mã được **chép ra khỏi hệ thống** thì phải do người dùng đặt.
+
+`code text` thành khoá chính, `id uuid` biến mất. Có tiền lệ ngay trong kho: `cat.province` (CAT-16)
+chốt "khoá chính là MÃ, không phải id sinh tự động". Ở đây lý do còn mạnh hơn.
+
+Chuẩn hoá `upper(btrim(code))` như mã vật tư (CAT-02): hai mã chỉ khác hoa thường là hai mã người
+dùng đọc ra giống hệt nhau, và một trong hai sẽ không bao giờ tìm được bằng ô tìm kiếm.
+
+Nạp lại dữ liệu cũ sinh mã từ tám ký tự đầu của uuid. Xấu, nhưng **không mất liên kết** — và nhánh
+`coalesce` dựng mã từ chính uuid mồ côi là cần thiết: quy định có thể đã bị xoá trong khi dòng hồ sơ
+vẫn phải nhớ nó đã dùng dòng nào. Bỏ nhánh ấy thì `nguon_nguong_hop_le` vỡ ngay giữa migration.
+
+**Một test đỏ dạy đúng bài học.** Trùng mã đến từ **HAI** ràng buộc — `discount_rule_pkey` khi trùng
+y nguyên, `uq_rule_code_norm` khi chỉ khác hoa thường. Bản đầu dò chuỗi `'code'` trong tên ràng buộc
+nên bỏ sót cái thứ nhất, và trùng mã y nguyên lại báo là *trùng phạm vi*. Sửa bằng cách nhận diện
+theo **đúng một tên** — `uq_rule_pham_vi` — rồi coi mọi tên còn lại là trùng mã. Danh sách trắng một
+phần tử bền hơn danh sách đen dò chuỗi.
+
+### Ngưỡng mặc định: một nguồn thứ hai, và nó vô hình
+
+Ba cột `default_rate2_type1/2/3` trên sản phẩm là **nguồn ngưỡng thứ hai** song song với bảng quy
+định — trong khi chính `0005` đã chốt bảng quy định là "NGUỒN DUY NHẤT kiểm vượt ngưỡng".
+
+Điều tệ hơn: nguồn thứ hai ấy **không có màn hình nhập**. Nó chỉ vào hệ thống qua nhập Excel và qua
+script, rồi âm thầm thắng ở mọi sản phẩm chưa khai quy định. Người dùng nhìn màn hình Chiết khấu thấy
+bảng trống mà hồ sơ vẫn có ngưỡng, và không có gì giải thích con số ấy từ đâu.
+
+Xoá cột chứ không để lại, cùng lý do đã ghi ở `0020`. `PRODUCT_DEFAULT` **giữ nguyên trong ràng
+buộc**: dòng hồ sơ đã lập theo nguồn ấy vẫn còn, và ngưỡng của chúng vẫn đúng tại thời điểm lập. Cấm
+nhãn cũ là làm hỏng chính những dòng ấy.
+
+File Excel mẫu cũ vẫn nhập được, ba cột thừa bị **bỏ qua** chứ không báo lỗi — chặn là bắt người dùng
+sửa lại một file họ đã có, để đổi lấy đúng con số không.
+
+### Cái giá phải trả, ở chỗ không ngờ
+
+Bộ test. `makeProduct` của `policy.test.ts` từng dựa vào ngưỡng mặc định 15% để mọi phép so sánh có
+một con số; giờ nền của cả tệp phải **khai một quy định**, đúng như người dùng thật sẽ phải làm. Và
+fixture ba ngưỡng của P31 — thứ chứng minh việc đổi loại khách hàng là an toàn — chuyển từ ba cột
+trên sản phẩm thành **ba dòng quy định**. Nó đúng chỗ hơn hẳn.
+
+Đó là dấu hiệu tốt: khi bỏ một đường tắt, chỗ đau nhất là những nơi đã quen dùng đường tắt ấy.
+
+806 case (773 → 806).
+
+### Còn nợ
+
+- Bản in A4 vẫn không hiện cột QĐCK lẫn dấu thiếu quy định.
+- **Sản phẩm cũ giờ không có ngưỡng nào** cho tới khi Quản trị khai quy định. Trên bản demo thì
+  `make demo-mau` lo việc đó; trên dữ liệu thật, `0025` xoá ba cột mà **không** sinh quy định thay
+  thế — cố ý, vì đoán hộ phạm vi cho một quy định là đoán sai. Cần một lượt khai tay trước khi chạy
+  thật.

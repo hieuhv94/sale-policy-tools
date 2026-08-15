@@ -21,7 +21,7 @@ afterEach(() => {
 
 const QUY_DINH = [
   {
-    id: 'aaaa1111-2222-3333-4444-555566667777',
+    code: 'CK-SUA-L1',
     productGroupCode: 'SUA',
     customerType: 1,
     channelCode: null,
@@ -30,7 +30,7 @@ const QUY_DINH = [
     specificity: 6,
   },
   {
-    id: 'bbbb1111-2222-3333-4444-555566667777',
+    code: 'CK-BOT-CHUNG',
     productGroupCode: 'BOT',
     customerType: null,
     channelCode: null,
@@ -68,7 +68,7 @@ describe('0023 cột Id thay cho Độ cụ thể', () => {
     const bang = await bay();
     expect(within(bang).getByText('Id')).toBeDefined();
     // Mã hiện NGUYÊN VẸN: nó dùng để chép, cắt bớt là cắt luôn công dụng.
-    expect(within(bang).getByText('aaaa1111-2222-3333-4444-555566667777')).toBeDefined();
+    expect(within(bang).getByText('CK-SUA-L1')).toBeDefined();
   });
 
   it('KHÔNG còn cột Độ cụ thể', async () => {
@@ -105,11 +105,11 @@ describe('0023 tìm kiếm quy định chiết khấu', () => {
 
   it('dán nguyên mã thì còn đúng một dòng', async () => {
     await bay();
-    await go('bbbb1111-2222-3333-4444-555566667777');
+    await go('CK-BOT-CHUNG');
     await waitFor(() => {
       const bang = screen.getByRole('table');
-      expect(within(bang).queryByText('aaaa1111-2222-3333-4444-555566667777')).toBeNull();
-      expect(within(bang).getByText('bbbb1111-2222-3333-4444-555566667777')).toBeDefined();
+      expect(within(bang).queryByText('CK-SUA-L1')).toBeNull();
+      expect(within(bang).getByText('CK-BOT-CHUNG')).toBeDefined();
     }, { timeout: 3000 });
   });
 

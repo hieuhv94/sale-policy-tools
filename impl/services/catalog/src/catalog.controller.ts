@@ -91,9 +91,6 @@ export class CatalogController {
       code: str(1, 60),
       name: str(1, 300),
       groupCode: str(1, 40),
-      defaultRate2Type1: opt(int(0, 10_000)),
-      defaultRate2Type2: opt(int(0, 10_000)),
-      defaultRate2Type3: opt(int(0, 10_000)),
     });
     return this.products.create(b, me.id);
   }
@@ -167,6 +164,14 @@ export class CatalogController {
   @HttpCode(201)
   createRule(@CurrentUser() me: AuthUser, @Body() body: unknown) {
     const b = validate(body, {
+      /*
+       * Mã do Quản trị ĐẶT, không sinh tự động (`0024`).
+       *
+       * Mã này đi ra tới mặt người dùng: cột *Id* ở bảng quy định, cột *QĐCK*
+       * trên từng dòng hồ sơ, và ô tìm kiếm khớp theo nó. Một uuid 36 ký tự
+       * không ai đọc được, không nhớ được, không đọc qua điện thoại được.
+       */
+      code: str(1, 40),
       productGroupCode: opt(str(1, 40)),
       customerType: opt(int(1, 3)),
       channelCode: opt(str(1, 40)),
@@ -184,16 +189,16 @@ export class CatalogController {
    * thời hạn, muốn dừng thì xoá dòng hoặc khai một dòng cụ thể hơn đè lên.
    */
   @Roles('QUAN_TRI')
-  @Patch('discount-rules/:id')
-  updateRule(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+  @Patch('discount-rules/:code')
+  updateRule(@CurrentUser() me: AuthUser, @Param('code') code: string, @Body() body: unknown) {
     const b = validate(body, { thresholdRate2: int(0, 10_000) });
-    return this.rules.update(id, b, me.id);
+    return this.rules.update(code, b, me.id);
   }
 
   @Roles('QUAN_TRI')
-  @Delete('discount-rules/:id')
-  removeRule(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.rules.remove(id, me.id);
+  @Delete('discount-rules/:code')
+  removeRule(@CurrentUser() me: AuthUser, @Param('code') code: string) {
+    return this.rules.remove(code, me.id);
   }
 
   @Get('thresholds/resolve')

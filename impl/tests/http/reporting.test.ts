@@ -138,9 +138,6 @@ async function makeProduct(name: string, groupCode: string): Promise<string> {
     code: uniq('SP'),
     name,
     groupCode,
-    defaultRate2Type1: 3000,
-    defaultRate2Type2: 3000,
-    defaultRate2Type3: 3000,
   });
   if (r.status !== 201) throw new Error(`tạo sản phẩm hỏng: ${JSON.stringify(r.body)}`);
   await cpost(`/catalog/products/${r.body.id}/prices`, {

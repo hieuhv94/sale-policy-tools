@@ -12,12 +12,18 @@ export type ImportRow = {
   code: string;
   name: string;
   groupCode: string;
-  defaultRate2Type1?: number | undefined;
-  defaultRate2Type2?: number | undefined;
-  defaultRate2Type3?: number | undefined;
 };
 
-const HEADERS = ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp', 'ck_loai_1', 'ck_loai_2', 'ck_loai_3'];
+/*
+ * Ba cột, không hơn (`0025`).
+ *
+ * File mẫu cũ có thêm `ck_loai_1..3` — ngưỡng chiết khấu mặc định theo loại
+ * khách. Khái niệm ấy đã bỏ: ngưỡng chỉ khai ở bảng Chiết khấu quy định, nguồn
+ * duy nhất. File cũ vẫn nhập được, ba cột thừa bị BỎ QUA chứ không báo lỗi —
+ * chặn chúng là bắt người dùng sửa lại một file họ đã có, để đổi lấy đúng con
+ * số không.
+ */
+const HEADERS = ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp'];
 
 const cellText = (v: ExcelJS.CellValue): string => {
   if (v === null || v === undefined) return '';
@@ -26,21 +32,6 @@ const cellText = (v: ExcelJS.CellValue): string => {
   return String(v).trim();
 };
 
-const cellRate2 = (v: ExcelJS.CellValue, rowNumber: number, col: string): number | undefined => {
-  const t = cellText(v);
-  if (t === '') return undefined;
-  // Nhận cả "12,35" lẫn "12.35" — bàn phím tiếng Việt cho ra dấu phẩy.
-  const n = Number(t.replace(',', '.'));
-  if (!Number.isFinite(n) || n < 0) {
-    throw new BadRequestException({
-      code: 'IMPORT_FAILED',
-      rowNumber,
-      reason: 'RATE_INVALID',
-      message: `Dòng ${rowNumber}: cột ${col} không phải số hợp lệ. Không dòng nào được ghi.`,
-    });
-  }
-  return Math.round(n * 100);
-};
 
 export async function parseProductSheet(buffer: Buffer): Promise<ImportRow[]> {
   const wb = new ExcelJS.Workbook();
@@ -51,7 +42,7 @@ export async function parseProductSheet(buffer: Buffer): Promise<ImportRow[]> {
   const header = (ws.getRow(1).values as ExcelJS.CellValue[]).slice(1).map((v) =>
     cellText(v).toLowerCase(),
   );
-  for (const [i, want] of HEADERS.slice(0, 3).entries()) {
+  for (const [i, want] of HEADERS.entries()) {
     if (header[i] !== want) {
       throw new BadRequestException({
         code: 'BAD_HEADER',
@@ -90,9 +81,6 @@ export async function parseProductSheet(buffer: Buffer): Promise<ImportRow[]> {
       code,
       name,
       groupCode,
-      defaultRate2Type1: cellRate2(r.getCell(4).value, n, 'ck_loai_1'),
-      defaultRate2Type2: cellRate2(r.getCell(5).value, n, 'ck_loai_2'),
-      defaultRate2Type3: cellRate2(r.getCell(6).value, n, 'ck_loai_3'),
     });
   }
   return rows;

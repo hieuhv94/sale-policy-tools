@@ -25,7 +25,7 @@ import {
 } from '@csbh/web/danh-muc';
 
 const qd = (p: Partial<QuyDinhChietKhau>): QuyDinhChietKhau => ({
-  id: 'q1',
+  code: 'QD-1',
   productGroupCode: null,
   customerType: null,
   channelCode: null,
@@ -198,9 +198,9 @@ describe('tìm sản phẩm', () => {
  */
 describe('0023 lọc quy định chiết khấu', () => {
   const ba = [
-    qd({ id: 'aaaa1111-2222-3333-4444-555566667777', productGroupCode: 'SUA', thresholdRate2: 2500 }),
-    qd({ id: 'bbbb1111-2222-3333-4444-555566667777', productGroupCode: 'BOT', thresholdRate2: 3000 }),
-    qd({ id: 'cccc1111-2222-3333-4444-555566667777', customerType: 2, thresholdRate2: 1000 }),
+    qd({ code: 'CK-SUA-L1', productGroupCode: 'SUA', thresholdRate2: 2500 }),
+    qd({ code: 'CK-BOT-CHUNG', productGroupCode: 'BOT', thresholdRate2: 3000 }),
+    qd({ code: 'CK-MOI-NHOM-L2', customerType: 2, thresholdRate2: 1000 }),
   ];
 
   it('từ khoá rỗng trả nguyên danh sách', () => {
@@ -209,18 +209,18 @@ describe('0023 lọc quy định chiết khấu', () => {
   });
 
   it('khớp NGUYÊN mã quy định', () => {
-    const r = locQuyDinh(ba, 'bbbb1111-2222-3333-4444-555566667777');
+    const r = locQuyDinh(ba, 'CK-BOT-CHUNG');
     expect(r).toHaveLength(1);
     expect(r[0]!.productGroupCode).toBe('BOT');
   });
 
   it('khớp cả MỘT PHẦN mã — dán hụt vài ký tự vẫn ra', () => {
     // Cột QĐCK trên bảng hồ sơ hẹp, và người ta hay bôi đen thiếu đuôi.
-    expect(locQuyDinh(ba, 'cccc1111')).toHaveLength(1);
+    expect(locQuyDinh(ba, 'CK-MOI-NHOM')).toHaveLength(1);
   });
 
   it('khớp mã KHÔNG phân biệt hoa thường', () => {
-    expect(locQuyDinh(ba, 'AAAA1111')).toHaveLength(1);
+    expect(locQuyDinh(ba, 'ck-sua-l1')).toHaveLength(1);
   });
 
   it('khớp theo phạm vi áp dụng, bỏ dấu', () => {

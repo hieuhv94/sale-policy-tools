@@ -380,8 +380,16 @@ mọi dòng sản phẩm họ sắp nhập.
 ### 6.3. Chiết khấu quy định — nguồn kiểm soát ngưỡng
 
 Theo nhóm sản phẩm, loại khách hàng, kênh/khu vực và ngày bắt đầu hiệu lực.
-**Đây là nguồn duy nhất để kiểm tra vượt ngưỡng.** Cột “CSBH loại 1/2/3” trong danh mục sản phẩm
-chỉ còn là giá trị mặc định khi không có dòng cấu hình nào khớp.
+**Đây là nguồn DUY NHẤT để kiểm tra vượt ngưỡng** — và từ `sửa 15/08` thì đúng nghĩa duy nhất: ba
+cột “CSBH loại 1/2/3” trong danh mục sản phẩm **đã bỏ hẳn**. Chúng là một nguồn ngưỡng thứ hai song
+song, lại vô hình vì không có màn hình nhập — chỉ vào hệ thống qua nhập Excel và script, rồi âm thầm
+thắng ở những sản phẩm chưa khai quy định. Không quy định nào phủ thì dòng sản phẩm **không có ngưỡng
+để đối chiếu**, xem 6.3.2.
+
+**Mỗi quy định có một MÃ do Quản trị đặt** `mới 15/08`, không sinh tự động. Mã là khoá định danh:
+cột *Id* trên bảng quy định, cột *QĐCK* trên từng dòng hồ sơ, và là thứ gõ vào ô tìm kiếm. Trùng mã
+thì hệ thống **từ chối tạo**, tính cả khi chỉ khác hoa thường hoặc thừa khoảng trắng — `CK-01` và
+`ck-01` là một mã. Mã **không sửa được** sau khi tạo; đặt nhầm thì xoá dòng rồi khai lại.
 
 **Quy định VÔ THỜI HẠN** `sửa 15/08`. Không còn ngày kết thúc — cùng luật với chính CSBH (muc 5).
 Một dòng có hiệu lực từ ngày khai cho tới khi bị xoá, hoặc cho tới khi một dòng **cụ thể hơn** khớp
@@ -413,28 +421,26 @@ và màn hình bày cả hai cạnh nhau mà không nói dòng nào đang có hi
 
 #### 6.3.2. Khi không quy định nào khớp `bổ sung 15/08`
 
-Hồ sơ vẫn lập được — ngưỡng rơi về cột “CSBH loại 1/2/3” của chính sản phẩm. Nhưng **người lập được
-báo ngay lúc chọn sản phẩm**, trước khi nhập giá:
+Hồ sơ **vẫn lập được**, và dòng ấy đơn giản **không có ngưỡng nào để đối chiếu** — mọi con số khác
+vẫn đủ, và nó không bao giờ bị đánh dấu vượt ngưỡng. Người lập được báo ngay lúc chọn sản phẩm,
+trước khi nhập giá:
 
 > ◆ **Chưa có quy định chiết khấu cho sản phẩm này.** Không quy định nào phủ nó với loại khách hàng
-> và kênh của khách hàng này, nên hồ sơ sẽ dùng **ngưỡng mặc định 15,00%** khai trong danh mục sản
-> phẩm. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu con số đó không đúng.
+> và kênh của khách hàng này, nên dòng này sẽ **không có ngưỡng nào để đối chiếu** — cột Tỷ lệ CK vẫn
+> tính, chỉ là không đánh dấu vượt ngưỡng được. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một
+> ngưỡng cho sản phẩm này.
 
 Báo trước chứ không báo sau vì ngưỡng **đóng băng vào dòng hồ sơ ngay khi lưu**; biết sau thì phải
 xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu.
 
-Nếu sản phẩm **không có cả quy định lẫn mặc định** thì hồ sơ **vẫn lập được** `sửa 15/08`. Dòng ấy
-đơn giản là không có ngưỡng nào để đối chiếu — mọi con số khác vẫn đủ, và nó không bao giờ bị đánh
-dấu vượt ngưỡng. Cảnh báo lúc chọn sản phẩm nói rõ điều đó.
+> Bản trước **chặn** tình huống này `sửa 15/08`. Cái chặn ấy sai: ngưỡng chỉ để cảnh báo — vượt ngưỡng
+> còn không chặn gửi duyệt — nên thiếu ngưỡng không thể là lý do từ chối. Nó còn đẩy người lập vào ngõ
+> cụt, vì TDV không có quyền khai quy định chiết khấu.
 
-> Bản trước **chặn** tình huống này. Cái chặn ấy sai: ngưỡng chỉ để cảnh báo — vượt ngưỡng còn không
-> chặn gửi duyệt — nên thiếu ngưỡng không thể là lý do từ chối. Nó còn đẩy người lập vào ngõ cụt, vì
-> TDV không có quyền khai quy định chiết khấu lẫn ngưỡng mặc định của sản phẩm.
-
-Dòng đã lập trong cả hai tình huống trên mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để
-người duyệt biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt
-ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn.
-Bảng luôn có **chú thích màu** ngay dưới nó.
+Dòng đã lập trong tình huống này mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để người duyệt
+biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu
+quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có
+**chú thích màu** ngay dưới nó.
 
 #### 6.3.3. Truy vết: cột QĐCK và cột Id `bổ sung 15/08`
 
@@ -754,6 +760,11 @@ dòng ấy mang **nền vàng và dấu ◆** trong bảng, có chú thích màu
 định nào** đã cho ra ngưỡng của nó · **sản phẩm không có ngưỡng nào vẫn đưa vào hồ sơ được**, chỉ là
 không đối chiếu được — bản trước chặn, và cái chặn đó đã gỡ · cột **QĐCK** trên bảng dòng sản phẩm và
 cột **Id** trên bảng quy định mang cùng một mã, **ô tìm kiếm khớp cả mã** · **gỡ cột "Độ cụ thể"**.
+
+**Mã quy định và nguồn ngưỡng duy nhất** (15/08) — **mã quy định chiết khấu do Quản trị đặt**, không
+sinh tự động; trùng mã thì từ chối tạo, tính cả khác hoa thường và khoảng trắng thừa · **bỏ hẳn ba cột
+“CSBH loại 1/2/3”** trên sản phẩm — bảng Chiết khấu quy định là nguồn ngưỡng duy nhất, không quy định
+nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ

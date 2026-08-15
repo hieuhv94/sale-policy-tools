@@ -35,18 +35,12 @@ export type ProductRow = {
   name: string;
   group_id: string;
   status: ProductStatus;
-  default_rate2_type1: number | null;
-  default_rate2_type2: number | null;
-  default_rate2_type3: number | null;
 };
 
 export type ProductInput = {
   code: string;
   name: string;
   groupCode: string;
-  defaultRate2Type1?: number | undefined;
-  defaultRate2Type2?: number | undefined;
-  defaultRate2Type3?: number | undefined;
 };
 
 @Injectable()
@@ -113,17 +107,9 @@ export class ProductsService {
 
     const r = await c
       .query<ProductRow>(
-        `INSERT INTO cat.product (code, name, group_id,
-            default_rate2_type1, default_rate2_type2, default_rate2_type3)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [
-          input.code,
-          input.name,
-          g.rows[0]!.id,
-          input.defaultRate2Type1 ?? null,
-          input.defaultRate2Type2 ?? null,
-          input.defaultRate2Type3 ?? null,
-        ],
+        `INSERT INTO cat.product (code, name, group_id)
+         VALUES ($1,$2,$3) RETURNING *`,
+        [input.code, input.name, g.rows[0]!.id],
       )
       .catch(rethrow({ [PG.uniqueViolation]: 'PRODUCT_CODE_DUPLICATE' }));
 
@@ -174,9 +160,6 @@ export class ProductsService {
     const where = opts.forNewPolicy ? `WHERE p.status = 'DANG_AP_DUNG'` : '';
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status,
-              p.default_rate2_type1 AS "defaultRate2Type1",
-              p.default_rate2_type2 AS "defaultRate2Type2",
-              p.default_rate2_type3 AS "defaultRate2Type3",
               count(*) OVER() AS total_count
          FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
          ${where}
@@ -322,9 +305,6 @@ const toDto = (r: ProductRow) => ({
   code: r.code,
   name: r.name,
   status: r.status,
-  defaultRate2Type1: r.default_rate2_type1,
-  defaultRate2Type2: r.default_rate2_type2,
-  defaultRate2Type3: r.default_rate2_type3,
 });
 
 /** Dịch mã lỗi Postgres sang mã nghiệp vụ, giữ nguyên mọi lỗi khác. */

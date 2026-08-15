@@ -21,17 +21,25 @@ type XemTruocNguong = {
   productCode: string;
   /** `null` đi kèm `KHONG_CO`: không có ngưỡng nào để đối chiếu. */
   threshold: string | null;
-  thresholdSource: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO';
+  /**
+   * HAI giá trị, không phải bốn.
+   *
+   * Đây là kết quả tra NGAY BÂY GIỜ, nên nó không bao giờ mang hai nhãn lịch sử
+   * mà dòng hồ sơ đã lưu có thể mang (`PRODUCT_DEFAULT` từ trước `0025`, và
+   * `null` từ trước `0022`). Nhận đủ bốn ở đây là mời người đọc mã sau này viết
+   * hai nhánh không bao giờ chạy.
+   */
+  thresholdSource: 'RULE' | 'KHONG_CO';
 };
 
 /**
- * Hỏi trước xem ngưỡng chiết khấu của sản phẩm này từ đâu ra, rồi cảnh báo NGAY
- * nếu nó rơi về mặc định của sản phẩm.
+ * Hỏi trước xem sản phẩm này có quy định chiết khấu nào phủ không, rồi cảnh báo
+ * NGAY nếu không có.
  *
  * Vì sao hỏi trước khi lưu chứ không báo sau: ngưỡng ĐÓNG BĂNG vào dòng hồ sơ
  * lúc lưu. Biết sau thì phải xoá dòng, đi nhờ Quản trị khai quy định, rồi nhập
- * lại từ đầu. Biết trước thì người lập chọn được — vẫn lập với ngưỡng mặc định,
- * hay dừng lại hỏi trước.
+ * lại từ đầu. Biết trước thì người lập chọn được — vẫn lập và chấp nhận dòng
+ * không có ngưỡng đối chiếu, hay dừng lại hỏi trước.
  *
  * Mọi lỗi ở đây KHÔNG hiện gì. Đây là thông tin thêm, không phải điều kiện để
  * lưu; một khối đỏ "không tra được ngưỡng" cạnh biểu mẫu đang gõ dở chỉ làm
@@ -176,26 +184,16 @@ export function ThemDongSanPham({
           về sản phẩm vừa chọn, và người dùng sắp cuộn xuống gõ giá. Đặt cuối thì
           họ đọc nó sau khi đã gõ xong — quá muộn để đổi ý một cách rẻ.
         */}
-        {xem && xem.thresholdSource !== 'RULE' && (
+        {xem?.thresholdSource === 'KHONG_CO' && (
           <div className="hop-canh-bao" role="note">
             <span className="dau-mac-dinh" aria-hidden="true">
               ◆
             </span>{' '}
             <strong>Chưa có quy định chiết khấu cho sản phẩm này.</strong> Không quy định nào phủ nó
-            với loại khách hàng và kênh của khách hàng này.{' '}
-            {xem.thresholdSource === 'PRODUCT_DEFAULT' ? (
-              <>
-                Hồ sơ sẽ dùng <strong>ngưỡng mặc định {xem.threshold}%</strong> khai trong danh mục
-                sản phẩm.
-              </>
-            ) : (
-              <>
-                Sản phẩm cũng <strong>không có ngưỡng mặc định</strong>, nên dòng này sẽ{' '}
-                <strong>không có ngưỡng nào để đối chiếu</strong> — cột Tỷ lệ CK vẫn tính, chỉ là
-                không đánh dấu vượt ngưỡng được.
-              </>
-            )}{' '}
-            Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này.
+            với loại khách hàng và kênh của khách hàng này, nên dòng này sẽ{' '}
+            <strong>không có ngưỡng nào để đối chiếu</strong> — cột Tỷ lệ CK vẫn tính, chỉ là không
+            đánh dấu vượt ngưỡng được. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một ngưỡng
+            cho sản phẩm này.
           </div>
         )}
 

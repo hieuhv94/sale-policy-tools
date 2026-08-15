@@ -120,7 +120,6 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                 <th>Mã vật tư</th>
                 <th>Tên sản phẩm</th>
                 <th>Nhóm</th>
-                <th>Ngưỡng CK mặc định (loại 1 · 2 · 3)</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
@@ -131,7 +130,6 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
                   <td>{s.groupCode}</td>
-                  <td className="so">{nguongMacDinh(s)}</td>
                   <td>{NHAN_TRANG_THAI_SAN_PHAM[s.status] ?? s.status}</td>
                   <td>
                     <div className="nhom-nut nhom-nut-gon">
@@ -157,12 +155,6 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
     </>
   );
 }
-
-/** Ba ngưỡng mặc định trên một dòng — bày ba cột riêng thì bảng tràn ngang. */
-const nguongMacDinh = (s: SanPham): string =>
-  [s.defaultRate2Type1, s.defaultRate2Type2, s.defaultRate2Type3]
-    .map((n) => (n === null ? '—' : `${(n / 100).toFixed(2)}%`))
-    .join(' · ');
 
 // --- Tạo ---------------------------------------------------------------------
 

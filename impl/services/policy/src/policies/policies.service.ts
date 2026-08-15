@@ -147,17 +147,17 @@ export class PoliciesService {
       // rồi mới áp các dòng người dùng gửi lên đè lên (POL-05, POL-07, muc 5.4).
       if (active) {
         await c.query(
-          // Chép cả `rule_id_snap` và `threshold_source`: dòng thừa kế giữ
+          // Chép cả `rule_code_snap` và `threshold_source`: dòng thừa kế giữ
           // NGUYÊN ngưỡng của bản cũ, nên nó cũng phải giữ nguyên câu trả lời
           // "ngưỡng ấy từ đâu ra". Bỏ hai cột này lại thì dòng thừa kế mang
           // ngưỡng cũ mà nguồn rỗng, và giao diện đọc ra là "không rõ".
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
               company_price_snap, wholesale_price, cpbh,
-              discount_rate, threshold_snap, rule_id_snap, threshold_source)
+              discount_rate, threshold_snap, rule_code_snap, threshold_source)
            SELECT $1, product_id, product_code_snap, product_name_snap,
                   company_price_snap, wholesale_price, cpbh,
-                  discount_rate, threshold_snap, rule_id_snap, threshold_source
+                  discount_rate, threshold_snap, rule_code_snap, threshold_source
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
         );
@@ -234,7 +234,7 @@ export class PoliciesService {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
-            discount_rate, threshold_snap, rule_id_snap, threshold_source)
+            discount_rate, threshold_snap, rule_code_snap, threshold_source)
          VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
@@ -242,7 +242,7 @@ export class PoliciesService {
             company_price_snap = EXCLUDED.company_price_snap,
             discount_rate = EXCLUDED.discount_rate,
             threshold_snap = EXCLUDED.threshold_snap,
-            rule_id_snap = EXCLUDED.rule_id_snap,
+            rule_code_snap = EXCLUDED.rule_code_snap,
             threshold_source = EXCLUDED.threshold_source`,
         [
           policyId,
@@ -257,7 +257,7 @@ export class PoliciesService {
           // Đóng băng CÙNG LÚC với `threshold_snap`, từ cùng một lời gọi
           // `resolve`. Tra lại ở chỗ khác là chấp nhận hai con số lệch nhau khi
           // danh mục đổi giữa hai lời gọi.
-          snap.ruleId ?? null,
+          snap.ruleCode ?? null,
           snap.thresholdSource,
         ],
       )
@@ -596,9 +596,10 @@ export class PoliciesService {
               over_threshold AS "overThreshold",
               -- Giao diện tô vàng dòng nào KHÔNG có quy định nào phủ (0022).
               threshold_source AS "thresholdSource",
-              -- Cột "QĐCK" trên bảng dòng sản phẩm: mã của chính quy định đã cho
-              -- ra ngưỡng, để đối chiếu thẳng sang màn hình Chiết khấu (0023).
-              rule_id_snap AS "ruleId"
+              -- Cột "QĐCK" trên bảng dòng sản phẩm: mã của chính quy định đã
+              -- cho ra ngưỡng, để đối chiếu thẳng sang màn hình Chiết khấu
+              -- (0023, 0024).
+              rule_code_snap AS "ruleCode"
          FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];
