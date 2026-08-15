@@ -1078,6 +1078,14 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   }
 }
 
+/* --- Hàng CPBH thêm bớt được ---------------------------------------------- */
+
+/* Nút "Bớt" canh theo ĐÁY ô nhập, không theo giữa: nhãn nằm trên ô nên canh giữa
+   sẽ đẩy nút lên ngang nhãn. */
+.hang-cpbh { display: flex; align-items: flex-end; gap: var(--k3); }
+.hang-cpbh .truong { flex: 1; }
+.hang-cpbh .nut { margin-bottom: var(--k3); }
+
 /* --- Ô tìm kiếm ----------------------------------------------------------- */
 
 .hang-tim {

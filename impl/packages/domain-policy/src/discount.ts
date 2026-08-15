@@ -9,8 +9,14 @@ export interface LineInput {
   companyPrice: Vnd;
   /** Giá bán buôn — người đề nghị nhập. */
   wholesalePrice: Vnd;
-  /** CPBH1–4: số tiền VNĐ, KHÔNG phải tỷ lệ (§7). */
-  cpbh1: Vnd; cpbh2: Vnd; cpbh3: Vnd; cpbh4: Vnd;
+  /**
+   * Các khoản chi phí bán hàng: số tiền VNĐ, KHÔNG phải tỷ lệ (§7).
+   *
+   * SỐ LƯỢNG TUỲ DÒNG, không cố định bốn. Mỗi sản phẩm có số khoản chi phí khác
+   * nhau, và bắt điền đủ bốn là bắt gõ số 0 vào những ô không có nghĩa gì. Mảng
+   * rỗng là hợp lệ: giá thu về khi đó bằng đúng giá bán buôn.
+   */
+  cpbh: readonly Vnd[];
   /** Ngưỡng lấy từ bảng Chiết khấu quy định, đơn vị Rate2. */
   threshold?: Rate2 | undefined;
 }
@@ -33,7 +39,7 @@ export class InvalidLineError extends Error {
 }
 
 export function computeLine(input: LineInput): LineResult {
-  const { companyPrice, wholesalePrice, cpbh1, cpbh2, cpbh3, cpbh4 } = input;
+  const { companyPrice, wholesalePrice, cpbh } = input;
 
   if (companyPrice <= 0n) {
     throw new InvalidLineError(
@@ -41,11 +47,16 @@ export function computeLine(input: LineInput): LineResult {
       'Giá bán Công ty phải lớn hơn 0 — không có phép chia cho 0',
     );
   }
-  for (const [name, v] of Object.entries({ wholesalePrice, cpbh1, cpbh2, cpbh3, cpbh4 })) {
-    if (v < 0n) throw new InvalidLineError('NEGATIVE_AMOUNT', `${name} không được âm`);
+  if (wholesalePrice < 0n) {
+    throw new InvalidLineError('NEGATIVE_AMOUNT', 'wholesalePrice không được âm');
   }
+  cpbh.forEach((v, i) => {
+    // Nêu ĐÚNG khoản thứ mấy. "CPBH không được âm" khi có mười khoản là bắt
+    // người dùng dò lại cả dòng.
+    if (v < 0n) throw new InvalidLineError('NEGATIVE_AMOUNT', `CPBH ${i + 1} không được âm`);
+  });
 
-  const cpbhTotal = cpbh1 + cpbh2 + cpbh3 + cpbh4;
+  const cpbhTotal = cpbh.reduce((a, v) => a + v, 0n);
   const netPrice = wholesalePrice - cpbhTotal;
 
   // (Giá bán Công ty − Giá thu về) / Giá bán Công ty × 100, làm tròn 2 chữ số.

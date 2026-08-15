@@ -132,15 +132,50 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
       await db.query(
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
-            company_price_snap, wholesale_price, cpbh1, cpbh2, cpbh3, cpbh4,
+            company_price_snap, wholesale_price, cpbh,
             discount_rate, threshold_snap)
-         VALUES ($1,$2,'VT-02','Nutricare Gold',100000,90000,2000,1500,1000,500,15.00,12.34)`,
+         VALUES ($1,$2,'VT-02','Nutricare Gold',100000,90000,
+                 ARRAY[2000,1500,1000,500]::bigint[],15.00,12.34)`,
         [id, crypto.randomUUID()]);
       const r = await db.query(
         'SELECT cpbh_total, net_price, over_threshold FROM pol.policy_line WHERE policy_id=$1', [id]);
       expect(Number(r.rows[0].cpbh_total)).toBe(5000);
       expect(Number(r.rows[0].net_price)).toBe(85000);      // 90.000 − 5.000
       expect(r.rows[0].over_threshold).toBe(true);          // 15,00% > 12,34%
+    });
+  });
+
+  it('mảng CPBH rỗng cho tổng 0 và giá thu về bằng giá bán buôn', async () => {
+    // Không có khoản chi phí nào là chuyện hợp lệ từ 0021. Tổng phải là 0, KHÔNG
+    // phải NULL — `sum()` của một mảng rỗng trả NULL, và `net_price` mà NULL thì
+    // mọi phép so sánh sau đó im lặng sai.
+    await inRollback(db, async () => {
+      const id = await mkPolicy(db, `CALC0-${Date.now()}`, await mkCustomer(db, 'CALC0'), 'NHAP');
+      await db.query(
+        `INSERT INTO pol.policy_line
+           (policy_id, product_id, product_code_snap, product_name_snap,
+            company_price_snap, wholesale_price, discount_rate, threshold_snap)
+         VALUES ($1,$2,'VT-03','Khong co CPBH',100000,90000,10.00,12.34)`,
+        [id, crypto.randomUUID()]);
+      const r = await db.query(
+        'SELECT cpbh, cpbh_total, net_price FROM pol.policy_line WHERE policy_id=$1', [id]);
+      expect(r.rows[0].cpbh).toEqual([]);
+      expect(Number(r.rows[0].cpbh_total)).toBe(0);
+      expect(Number(r.rows[0].net_price)).toBe(90000);
+    });
+  });
+
+  it('CSDL từ chối khoản CPBH âm', async () => {
+    await inRollback(db, async () => {
+      const id = await mkPolicy(db, `CALCA-${Date.now()}`, await mkCustomer(db, 'CALCA'), 'NHAP');
+      const e = await expectSqlErrorInTx(db, () =>
+        db.query(
+          `INSERT INTO pol.policy_line
+             (policy_id, product_id, product_code_snap, product_name_snap,
+              company_price_snap, wholesale_price, cpbh, discount_rate)
+           VALUES ($1,$2,'VT-04','Am',100000,90000,ARRAY[1000,-5]::bigint[],10.00)`,
+          [id, crypto.randomUUID()]));
+      expect(e.code).toBe('23514'); // check_violation
     });
   });
 

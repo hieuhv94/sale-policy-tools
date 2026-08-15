@@ -21,10 +21,8 @@ export type PolicyLine = {
   product_name_snap: string;
   company_price: string;
   wholesale_price: string;
-  cpbh1: string;
-  cpbh2: string;
-  cpbh3: string;
-  cpbh4: string;
+  /** Các khoản chi phí bán hàng, số lượng TUỲ DÒNG (0021). */
+  cpbh: string[];
   cpbh_total: string;
   net_price: string;
   discount_rate: string;

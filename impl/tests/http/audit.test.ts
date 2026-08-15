@@ -113,7 +113,7 @@ async function draft(): Promise<{ id: string; customerId: string }> {
   const productId = await makeProduct();
   const r = await ppost(
     '/policies',
-    { customerId, lines: [{ productId, wholesalePrice: '90000', cpbh1: '3000' }] },
+    { customerId, lines: [{ productId, wholesalePrice: '90000', cpbh: ['3000'] }] },
     'tdv01',
   );
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${JSON.stringify(r.body)}`);

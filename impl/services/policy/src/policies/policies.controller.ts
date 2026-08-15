@@ -11,7 +11,20 @@ import {
   Query,
 } from '@nestjs/common';
 import { ACTIONS, type Action } from '@csbh/domain-policy';
-import { CurrentUser, int, money, oneOf, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import {
+  CurrentUser,
+  danhSach,
+  int,
+  money,
+  moneyKhongAm,
+  oneOf,
+  opt,
+  pageOf,
+  Roles,
+  str,
+  validate,
+  type AuthUser,
+} from '@csbh/http-kit';
 import { PoliciesService, type LineInput } from './policies.service.js';
 import { WorkflowService } from './workflow.service.js';
 
@@ -43,10 +56,20 @@ const rejectForbidden = (body: unknown): void => {
 const lineShape = {
   productId: str(1, 60),
   wholesalePrice: money(),
-  cpbh1: opt(money()),
-  cpbh2: opt(money()),
-  cpbh3: opt(money()),
-  cpbh4: opt(money()),
+  /**
+   * Các khoản chi phí bán hàng — SỐ LƯỢNG TUỲ DÒNG, không cố định bốn.
+   *
+   * `moneyKhongAm` chứ không `money`: một khoản chi phí bằng 0 là chuyện bình
+   * thường (khoản đó không phát sinh), còn `money()` đòi lớn hơn 0 và sẽ chặn
+   * đúng trường hợp ấy.
+   *
+   * Bọc `opt()` dù `danhSach()` tự trả mảng rỗng khi thiếu trường: `opt()` là
+   * DẤU HIỆU DUY NHẤT của "không bắt buộc" trong cả kho mã, và `bat-buoc.test`
+   * đọc chính dấu hiệu đó để đối chiếu dấu sao trên biểu mẫu với DTO. Bỏ nó đi
+   * thì giao diện gắn sao cho một ô không bắt buộc, và nút Lưu chết mà không ai
+   * hiểu vì sao.
+   */
+  cpbh: opt(danhSach(moneyKhongAm())),
 };
 
 const WRITERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'];

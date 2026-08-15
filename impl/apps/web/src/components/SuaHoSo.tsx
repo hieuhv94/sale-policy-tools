@@ -28,7 +28,9 @@ export function ThemDongSanPham({
   const [ds, datDs] = useState<SanPham[] | null>(null);
   const [sanPham, datSanPham] = useState('');
   const [giaBanBuon, datGiaBanBuon] = useState('');
-  const [cpbh, datCpbh] = useState(['', '', '', '']);
+  // Bắt đầu bằng MỘT ô. Hồ sơ thường chỉ có một khoản chi phí; bày sẵn bốn ô là
+  // bắt gõ số 0 vào ba ô không có nghĩa gì, rồi ba cột số 0 ấy đi thẳng ra bản in.
+  const [cpbh, datCpbh] = useState<string[]>(['']);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
@@ -47,6 +49,9 @@ export function ThemDongSanPham({
   const doiCpbh = (i: number, v: string) =>
     datCpbh((cu) => cu.map((x, j) => (j === i ? v : x)));
 
+  const themCpbh = () => datCpbh((cu) => [...cu, '']);
+  const botCpbh = (i: number) => datCpbh((cu) => cu.filter((_, j) => j !== i));
+
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
@@ -55,12 +60,10 @@ export function ThemDongSanPham({
       await dang(`/policies/${hoSoId}/lines`, {
         productId: sanPham,
         wholesalePrice: giaBanBuon,
-        // Ô trống gửi '0' chứ không bỏ trường: bốn ô CPBH cùng quyết định giá
-        // thu về, và bỏ một ô đi thì con số dẫn xuất vẫn ra — chỉ là ra sai.
-        cpbh1: cpbh[0] || '0',
-        cpbh2: cpbh[1] || '0',
-        cpbh3: cpbh[2] || '0',
-        cpbh4: cpbh[3] || '0',
+        // Ô để trống gửi '0' chứ không bỏ đi: người dùng đã mở ô đó ra thì nó là
+        // một khoản họ có ý định khai, chỉ là bằng không. Bỏ đi sẽ làm lệch số
+        // thứ tự của các khoản sau nó.
+        cpbh: cpbh.map((v) => v || '0'),
       });
       xong();
     } catch (err) {
@@ -97,11 +100,32 @@ export function ThemDongSanPham({
           {(p) => <ONhapTien {...p} giaTri={giaBanBuon} doi={datGiaBanBuon} />}
         </Truong>
 
-        {[0, 1, 2, 3].map((i) => (
-          <Truong key={i} id={`dsp-cpbh${i + 1}`} nhan={`CPBH ${i + 1}`} donVi="Tiền tệ đơn vị đồng">
-            {(p) => <ONhapTien {...p} giaTri={cpbh[i] ?? ''} doi={(v) => doiCpbh(i, v)} />}
-          </Truong>
+        {/* SỐ KHOẢN CPBH tuỳ dòng, người lập tự thêm bớt. Mỗi sản phẩm có cấu
+            trúc chi phí khác nhau; ô cố định bốn là ép mọi sản phẩm vào một
+            khuôn không có thật. */}
+        {cpbh.map((v, i) => (
+          <div className="hang-cpbh" key={i}>
+            <Truong id={`dsp-cpbh${i + 1}`} nhan={`CPBH ${i + 1}`} donVi="Tiền tệ đơn vị đồng">
+              {(p) => <ONhapTien {...p} giaTri={v} doi={(x) => doiCpbh(i, x)} />}
+            </Truong>
+            {cpbh.length > 1 && (
+              <button
+                type="button"
+                className="nut nut-nhe"
+                aria-label={`Bớt CPBH ${i + 1}`}
+                onClick={() => botCpbh(i)}
+              >
+                Bớt
+              </button>
+            )}
+          </div>
         ))}
+
+        <div className="nhom-nut">
+          <button type="button" className="nut nut-nhe" onClick={themCpbh}>
+            + Thêm khoản chi phí
+          </button>
+        </div>
 
         <p className="ghi-chu">
           <strong>Giá bán Công ty</strong> và <strong>ngưỡng chiết khấu</strong> lấy từ danh mục và

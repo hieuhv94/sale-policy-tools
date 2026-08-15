@@ -89,17 +89,31 @@ export const dmyHm = (v: string | null | undefined): string => {
 export const pct = (v: string | null | undefined): string =>
   v === null || v === undefined ? '—' : `${Number(v).toFixed(2)}%`;
 
-const lineRow = (l: PolicyLine, i: number): string => `
+/**
+ * Số cột CPBH của cả bảng = dòng NHIỀU KHOẢN NHẤT.
+ *
+ * Mỗi dòng có số khoản chi phí riêng, nhưng một bảng in ra giấy phải có số cột
+ * đều nhau — cột so le thì không đọc theo hàng dọc được, và người ký không đối
+ * chiếu nổi. Dòng ít khoản hơn để ô TRỐNG, không điền số 0: số 0 là một con số
+ * có nghĩa ("khoản này bằng không"), còn ô trống nói đúng điều cần nói là dòng
+ * ấy không có khoản thứ mấy đó.
+ *
+ * Không dòng nào có khoản nào thì bảng không có cột CPBH — thay vì bốn cột số 0
+ * như bản trước 0021.
+ */
+export const soCotCpbh = (lines: readonly PolicyLine[]): number =>
+  lines.reduce((max, l) => Math.max(max, l.cpbh?.length ?? 0), 0);
+
+const lineRow = (soCot: number) => (l: PolicyLine, i: number): string => `
   <tr class="${l.over_threshold ? 'over' : ''}">
     <td class="n">${i + 1}</td>
     <td>${esc(l.product_code_snap)}</td>
     <td>${esc(l.product_name_snap)}</td>
     <td class="r">${money(l.company_price)}</td>
     <td class="r">${money(l.wholesale_price)}</td>
-    <td class="r">${money(l.cpbh1)}</td>
-    <td class="r">${money(l.cpbh2)}</td>
-    <td class="r">${money(l.cpbh3)}</td>
-    <td class="r">${money(l.cpbh4)}</td>
+    ${Array.from({ length: soCot }, (_, k) =>
+      `<td class="r">${l.cpbh?.[k] === undefined ? '' : money(l.cpbh[k])}</td>`,
+    ).join('')}
     <td class="r">${money(l.net_price)}</td>
     <td class="r">${pct(l.discount_rate)}</td>
     <td class="r">${pct(l.threshold_snap)}</td>
@@ -190,11 +204,11 @@ export function sheetHtml(inp: SheetInput): string {
     <tr>
       <th>#</th><th>Mã SP</th><th>Tên sản phẩm</th>
       <th>Giá bán Công ty</th><th>Giá bán buôn</th>
-      <th>CPBH1</th><th>CPBH2</th><th>CPBH3</th><th>CPBH4</th>
+      ${Array.from({ length: soCotCpbh(p.lines) }, (_, k) => `<th>CPBH${k + 1}</th>`).join('')}
       <th>Giá thu về</th><th>Tỷ lệ CK</th><th>Ngưỡng</th>
     </tr>
   </thead>
-  <tbody>${p.lines.map(lineRow).join('')}</tbody>
+  <tbody>${p.lines.map(lineRow(soCotCpbh(p.lines))).join('')}</tbody>
 </table>
 
 ${

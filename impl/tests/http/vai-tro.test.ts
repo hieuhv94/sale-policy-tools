@@ -118,7 +118,7 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
     .set('Authorization', `Bearer ${tok['tdv01']}`)
     .send({
       customerId: kh.body.id,
-      lines: [{ productId: sp.body.id, wholesalePrice: '90000', cpbh1: '5000' }],
+      lines: [{ productId: sp.body.id, wholesalePrice: '90000', cpbh: ['5000'] }],
     });
   expect(hs.status, JSON.stringify(hs.body)).toBe(201);
 

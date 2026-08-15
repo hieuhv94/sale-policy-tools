@@ -10,11 +10,16 @@
  *     khoá cố định bên trái. Không có cột khoá thì cuộn sang phải là mất dấu
  *     đang đọc dòng nào — với bảng tiền thì đó là đọc nhầm số của sản phẩm khác.
  *   - **<640px (`FE-03`)** — mỗi dòng thành một THẺ. **Không cột nào biến mất.**
- *     Bốn ô CPBH gấp vào một dòng tổng, bấm mới mở.
+ *     Các ô CPBH gấp vào một dòng tổng, bấm mới mở.
  *
- * Điều dễ làm sai nhất ở đây là "ẩn bớt cột cho vừa màn hình". Bốn ô CPBH là
+ * Điều dễ làm sai nhất ở đây là "ẩn bớt cột cho vừa màn hình". Các ô CPBH là
  * thứ quyết định giá thu về, và giá thu về quyết định tỷ lệ chiết khấu — ẩn đi
  * là làm người duyệt ký vào một con số họ không kiểm được.
+ *
+ * SỐ CỘT CPBH KHÔNG CỐ ĐỊNH (0021). Mỗi dòng có số khoản riêng; bảng lấy số cột
+ * của dòng nhiều khoản nhất, dòng ít hơn để ô TRỐNG. Không điền số 0 thay: số 0
+ * là một con số có nghĩa ("khoản này bằng không"), ô trống nói đúng điều cần nói
+ * là dòng ấy không có khoản thứ mấy đó.
  *
  * Cả ba cách bố trí dùng CÙNG MỘT cây DOM, chỉ khác CSS. Dựng ba cây theo
  * `window.innerWidth` thì xoay ngang điện thoại giữa lúc đang gõ sẽ tháo và dựng
@@ -29,10 +34,8 @@ export type DongSanPham = {
   productName: string;
   companyPrice: string;
   wholesalePrice: string;
-  cpbh1: string;
-  cpbh2: string;
-  cpbh3: string;
-  cpbh4: string;
+  /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. */
+  cpbh: string[];
   cpbhTotal: string;
   netPrice: string;
   discountRate: string;
@@ -40,18 +43,38 @@ export type DongSanPham = {
   overThreshold: boolean;
 };
 
-export const COT = [
+/** Cột cố định, KHÔNG kể các cột CPBH — số cột CPBH tuỳ dữ liệu. */
+export const COT_TRUOC = [
   { khoa: 'productCode', nhan: 'Mã SP' },
   { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
   { khoa: 'wholesalePrice', nhan: 'Giá bán buôn' },
-  { khoa: 'cpbh1', nhan: 'CPBH 1' },
-  { khoa: 'cpbh2', nhan: 'CPBH 2' },
-  { khoa: 'cpbh3', nhan: 'CPBH 3' },
-  { khoa: 'cpbh4', nhan: 'CPBH 4' },
+] as const;
+
+export const COT_SAU = [
   { khoa: 'netPrice', nhan: 'Giá thu về' },
   { khoa: 'discountRate', nhan: 'Tỷ lệ CK' },
 ] as const;
+
+/**
+ * Số cột CPBH của cả bảng = dòng NHIỀU KHOẢN NHẤT.
+ *
+ * Một bảng phải có số cột đều nhau, nếu không thì không đọc theo hàng dọc được.
+ * Cùng luật với bản in A4 (`sheet.ts:soCotCpbh`) — hai chỗ phải ra cùng một con
+ * số, nếu không thì bản trên màn hình và bản ký tên khác nhau.
+ */
+export const soCotCpbh = (dong: readonly DongSanPham[]): number =>
+  dong.reduce((max, d) => Math.max(max, d.cpbh?.length ?? 0), 0);
+
+/** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
+export const cotCho = (dong: readonly DongSanPham[]) => [
+  ...COT_TRUOC,
+  ...Array.from({ length: soCotCpbh(dong) }, (_, i) => ({
+    khoa: `cpbh${i + 1}`,
+    nhan: `CPBH ${i + 1}`,
+  })),
+  ...COT_SAU,
+];
 
 /**
  * Dấu hiệu vượt ngưỡng KHÔNG chỉ là màu đỏ (`FE-28`).
@@ -81,7 +104,7 @@ function OTyLe({ d }: { d: DongSanPham }) {
 
 function CpbhGop({ d }: { d: DongSanPham }) {
   const [mo, datMo] = useState(false);
-  const co = [d.cpbh1, d.cpbh2, d.cpbh3, d.cpbh4];
+  const co = d.cpbh ?? [];
   return (
     <div className="cpbh-gop">
       <button
@@ -96,16 +119,19 @@ function CpbhGop({ d }: { d: DongSanPham }) {
           {mo ? '▲' : '▼'}
         </span>
       </button>
-      {mo && (
-        <dl className="cpbh-chi-tiet">
-          {co.map((v, i) => (
-            <div key={i}>
-              <dt>CPBH {i + 1}</dt>
-              <dd className="so">{tien(v)}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      {mo &&
+        (co.length === 0 ? (
+          <p className="ghi-chu">Dòng này không có khoản chi phí bán hàng nào.</p>
+        ) : (
+          <dl className="cpbh-chi-tiet">
+            {co.map((v, i) => (
+              <div key={i}>
+                <dt>CPBH {i + 1}</dt>
+                <dd className="so">{tien(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        ))}
     </div>
   );
 }
@@ -139,7 +165,7 @@ export function BangSanPham({
         <table className="bang-san-pham">
           <thead>
             <tr>
-              {COT.map((c) => (
+              {cotCho(dong).map((c) => (
                 <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
                   {c.nhan}
                 </th>
@@ -156,10 +182,13 @@ export function BangSanPham({
                 </th>
                 <td className="so">{tien(d.companyPrice)}</td>
                 <td className="so">{tien(d.wholesalePrice)}</td>
-                <td className="so">{tien(d.cpbh1)}</td>
-                <td className="so">{tien(d.cpbh2)}</td>
-                <td className="so">{tien(d.cpbh3)}</td>
-                <td className="so">{tien(d.cpbh4)}</td>
+                {/* Ô TRỐNG cho dòng ít khoản hơn, không phải số 0 — xem chú
+                    thích đầu tệp. */}
+                {Array.from({ length: soCotCpbh(dong) }, (_, k) => (
+                  <td key={k} className="so">
+                    {d.cpbh?.[k] === undefined ? '' : tien(d.cpbh[k])}
+                  </td>
+                ))}
                 <td className="so">{tien(d.netPrice)}</td>
                 <td className="so">
                   <OTyLe d={d} />

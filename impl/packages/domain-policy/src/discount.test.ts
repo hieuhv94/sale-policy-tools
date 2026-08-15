@@ -6,23 +6,23 @@ import { formatRate2, formatVnd, rate2FromPercent } from './money.js';
 const line = (o: Partial<Parameters<typeof computeLine>[0]> = {}) =>
   computeLine({
     companyPrice: 100_000n, wholesalePrice: 90_000n,
-    cpbh1: 0n, cpbh2: 0n, cpbh3: 0n, cpbh4: 0n, ...o,
+    cpbh: [], ...o,
   });
 
 describe('CALC-01/03 · CPBH tổng và giá thu về', () => {
   it('CPBH tổng là tổng bốn khoản', () => {
-    const r = line({ cpbh1: 2000n, cpbh2: 1500n, cpbh3: 1000n, cpbh4: 500n });
+    const r = line({ cpbh: [2000n, 1500n, 1000n, 500n] });
     expect(r.cpbhTotal).toBe(5000n);
   });
   it('giá thu về = giá bán buôn − CPBH tổng', () => {
-    const r = line({ cpbh1: 2000n, cpbh2: 1500n, cpbh3: 1000n, cpbh4: 500n });
+    const r = line({ cpbh: [2000n, 1500n, 1000n, 500n] });
     expect(r.netPrice).toBe(85_000n);
   });
 });
 
 describe('CALC-05 · bộ số chuẩn của tài liệu', () => {
   it('GBCT 100.000 · GBB 90.000 · CPBH tổng 5.000 → thu về 85.000, tỷ lệ 15,00%', () => {
-    const r = line({ cpbh1: 5000n });
+    const r = line({ cpbh: [5000n] });
     expect(r.netPrice).toBe(85_000n);
     expect(r.discountRate).toBe(1500);
     expect(formatRate2(r.discountRate)).toBe('15,00');
@@ -58,7 +58,7 @@ describe('CALC-06/07/08 · làm tròn hai chữ số rồi mới so ngưỡng', 
   });
 
   it('bằng đúng ngưỡng thì KHÔNG tính là vượt', () => {
-    const r = line({ cpbh1: 5000n, threshold: rate2FromPercent(15) });
+    const r = line({ cpbh: [5000n], threshold: rate2FromPercent(15) });
     expect(r.discountRate).toBe(1500);
     expect(r.overThreshold).toBe(false);
   });
@@ -94,7 +94,7 @@ describe('CALC-10 · giá bán Công ty không hợp lệ', () => {
 
 describe('CALC-11 · giá thu về âm', () => {
   it('CPBH tổng lớn hơn giá bán buôn thì cảnh báo nhưng vẫn tính được', () => {
-    const r = line({ wholesalePrice: 1000n, cpbh1: 5000n });
+    const r = line({ wholesalePrice: 1000n, cpbh: [5000n] });
     expect(r.negativeNetPrice).toBe(true);
     expect(r.netPrice).toBe(-4000n);
   });
@@ -102,7 +102,7 @@ describe('CALC-11 · giá thu về âm', () => {
 
 describe('CALC-12 · tiền luôn là số nguyên đồng', () => {
   it('mọi giá trị tiền trả về đều là bigint, không có phần thập phân', () => {
-    const r = line({ cpbh1: 5000n });
+    const r = line({ cpbh: [5000n] });
     expect(typeof r.cpbhTotal).toBe('bigint');
     expect(typeof r.netPrice).toBe('bigint');
   });
@@ -113,9 +113,9 @@ describe('CALC-12 · tiền luôn là số nguyên đồng', () => {
 
 describe('CALC-19 · kết quả ổn định', () => {
   it('chạy lại 1000 lần cùng đầu vào cho kết quả giống hệt — không sai số tích luỹ', () => {
-    const first = line({ companyPrice: 199_999n, wholesalePrice: 123_457n, cpbh1: 777n });
+    const first = line({ companyPrice: 199_999n, wholesalePrice: 123_457n, cpbh: [777n] });
     for (let i = 0; i < 1000; i++) {
-      const r = line({ companyPrice: 199_999n, wholesalePrice: 123_457n, cpbh1: 777n });
+      const r = line({ companyPrice: 199_999n, wholesalePrice: 123_457n, cpbh: [777n] });
       expect(r.discountRate).toBe(first.discountRate);
       expect(r.netPrice).toBe(first.netPrice);
     }

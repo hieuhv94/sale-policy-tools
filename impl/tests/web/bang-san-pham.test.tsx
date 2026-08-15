@@ -11,7 +11,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BangSanPham, COT, type DongSanPham } from '@csbh/web/bang-san-pham';
+import { BangSanPham, cotCho, soCotCpbh, type DongSanPham } from '@csbh/web/bang-san-pham';
 
 /**
  * Dọn DOM sau mỗi test.
@@ -28,10 +28,7 @@ const dong = (p: Partial<DongSanPham> = {}): DongSanPham => ({
   productName: 'Nutricare Gold Đặc Biệt',
   companyPrice: '100000',
   wholesalePrice: '90000',
-  cpbh1: '3000',
-  cpbh2: '0',
-  cpbh3: '0',
-  cpbh4: '0',
+  cpbh: ['3000'],
   cpbhTotal: '3000',
   netPrice: '87000',
   discountRate: '13.00',
@@ -40,22 +37,50 @@ const dong = (p: Partial<DongSanPham> = {}): DongSanPham => ({
   ...p,
 });
 
-describe('FE-05 từ 1024px hiện đủ 10 cột', () => {
-  it('bảng có đúng 10 cột, không cột nào bị bỏ', () => {
-    render(<BangSanPham dong={[dong()]} />);
+describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
+  it('số cột khớp đúng dữ liệu', () => {
+    const ds = [dong()];
+    render(<BangSanPham dong={ds} />);
     const bang = screen.getByRole('table');
     const tieuDe = within(bang).getAllByRole('columnheader');
-    expect(tieuDe).toHaveLength(10);
-    expect(COT).toHaveLength(10);
-    expect(tieuDe.map((t) => t.textContent)).toEqual(COT.map((c) => c.nhan));
+    expect(tieuDe.map((t) => t.textContent)).toEqual(cotCho(ds).map((c) => c.nhan));
   });
 
-  it('bốn ô CPBH đều là cột riêng, không gộp sẵn', () => {
-    render(<BangSanPham dong={[dong()]} />);
+  it('mỗi khoản CPBH là một cột riêng, không gộp sẵn', () => {
+    const ds = [dong({ cpbh: ['3000', '1000', '500'] })];
+    render(<BangSanPham dong={ds} />);
     const bang = screen.getByRole('table');
-    for (const n of ['CPBH 1', 'CPBH 2', 'CPBH 3', 'CPBH 4']) {
+    for (const n of ['CPBH 1', 'CPBH 2', 'CPBH 3']) {
       expect(within(bang).getByText(n)).toBeDefined();
     }
+    expect(within(bang).queryByText('CPBH 4')).toBeNull();
+  });
+
+  it('SỐ CỘT lấy theo dòng NHIỀU KHOẢN NHẤT', () => {
+    // Bảng phải có số cột đều nhau; dòng ít khoản hơn để ô trống.
+    const ds = [dong({ id: 'a', cpbh: ['1000'] }), dong({ id: 'b', cpbh: ['1000', '2000', '300'] })];
+    expect(soCotCpbh(ds)).toBe(3);
+    render(<BangSanPham dong={ds} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getByText('CPBH 3')).toBeDefined();
+  });
+
+  it('dòng ít khoản hơn để Ô TRỐNG, không phải số 0', () => {
+    // Số 0 là một con số CÓ NGHĨA — "khoản này bằng không". Điền 0 vào chỗ không
+    // có khoản nào là bịa ra một dữ kiện người dùng chưa từng nhập.
+    const ds = [dong({ id: 'a', cpbh: ['1000'] }), dong({ id: 'b', cpbh: ['1000', '2000'] })];
+    render(<BangSanPham dong={ds} />);
+    const hang = screen.getAllByRole('row').find((r) => within(r).queryByText('SP-01') !== null);
+    const o = within(hang as HTMLElement).getAllByRole('cell');
+    // Ô CPBH 2 của dòng chỉ có một khoản: rỗng, không phải "0".
+    expect(o.some((x) => x.textContent === '0')).toBe(false);
+  });
+
+  it('không dòng nào có khoản nào thì KHÔNG có cột CPBH', () => {
+    const ds = [dong({ cpbh: [], cpbhTotal: '0', netPrice: '90000' })];
+    expect(soCotCpbh(ds)).toBe(0);
+    render(<BangSanPham dong={ds} />);
+    expect(within(screen.getByRole('table')).queryByText(/^CPBH/)).toBeNull();
   });
 });
 
@@ -75,9 +100,11 @@ describe('FE-03 dưới 640px thành thẻ, KHÔNG cột nào biến mất', () 
     expect(t.getByText('Nutricare Gold Đặc Biệt')).toBeDefined();
   });
 
-  it('bốn ô CPBH gấp vào một dòng tổng, bấm mới mở', async () => {
+  it('các ô CPBH gấp vào một dòng tổng, bấm mới mở', async () => {
     const nguoi = userEvent.setup();
-    render(<BangSanPham dong={[dong({ cpbh1: '3000', cpbh2: '1000', cpbh3: '500', cpbh4: '250', cpbhTotal: '4750' })]} />);
+    render(
+      <BangSanPham dong={[dong({ cpbh: ['3000', '1000', '500', '250'], cpbhTotal: '4750' })]} />,
+    );
     const the = document.querySelector('.the-san-pham .the') as HTMLElement;
     const nut = within(the).getByRole('button', { name: /Tổng CPBH/ });
 

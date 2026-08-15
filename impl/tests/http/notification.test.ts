@@ -172,7 +172,7 @@ const makeCustomer = async (): Promise<{ id: string; code: string }> => {
 const line = (productId: string, over = false) => ({
   productId,
   wholesalePrice: '90000',
-  cpbh1: over ? '20000' : '3000',
+  cpbh: [over ? '20000' : '3000'],
 });
 
 async function draft(): Promise<{ id: string; customerId: string; productId: string }> {

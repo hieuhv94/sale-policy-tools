@@ -131,7 +131,7 @@ async function submitted(who = 'tdv01'): Promise<string> {
   const productId = await makeProduct();
   const r = await ppost(
     '/policies',
-    { customerId, lines: [{ productId, wholesalePrice: '90000', cpbh1: '3000' }] },
+    { customerId, lines: [{ productId, wholesalePrice: '90000', cpbh: ['3000'] }] },
     who,
   );
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${JSON.stringify(r.body)}`);

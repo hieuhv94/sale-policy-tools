@@ -196,7 +196,7 @@ async function draft(o: PolicyOpts = {}): Promise<{ id: string; customerCode: st
     {
       customerId: cus.id,
       ...(o.appliedDate ? { appliedDate: o.appliedDate } : {}),
-      lines: [{ productId, wholesalePrice: '90000', cpbh1: '3000' }],
+      lines: [{ productId, wholesalePrice: '90000', cpbh: ['3000'] }],
     },
     o.who ?? 'tdv01',
   );

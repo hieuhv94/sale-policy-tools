@@ -131,7 +131,7 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
   return { id: r.body.id as string, code };
 };
 
-const line = (productId: string) => ({ productId, wholesalePrice: '90000', cpbh1: '3000' });
+const line = (productId: string) => ({ productId, wholesalePrice: '90000', cpbh: ['3000'] });
 
 async function draft(lineCount = 1, customerId?: string) {
   const cus = customerId ? { id: customerId, code: '' } : await makeCustomer();

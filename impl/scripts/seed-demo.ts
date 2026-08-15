@@ -244,10 +244,10 @@ async function main(): Promise<void> {
   }
 
   /** Một dòng sản phẩm. `cpbh` là chi phí bán hàng, quyết định tỷ lệ chiết khấu. */
-  const dong = (ma: string, giaBuon: number, cpbh1: number) => ({
+  const dong = (ma: string, giaBuon: number, ...cpbh: number[]) => ({
     productId: sanPham[ma]!,
     wholesalePrice: String(giaBuon),
-    cpbh1: String(cpbh1),
+    cpbh: cpbh.map(String),
   });
 
   const lapHoSo = async (khachHang: string, lines: object[], ai = 'tdv01') =>

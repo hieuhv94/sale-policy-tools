@@ -35,7 +35,7 @@ export class PolicyInternalController {
     const lines = await this.db.q<Record<string, unknown>>(
       `SELECT product_id, product_code_snap, product_name_snap,
               company_price_snap::text AS company_price, wholesale_price::text AS wholesale_price,
-              cpbh1::text AS cpbh1, cpbh2::text AS cpbh2, cpbh3::text AS cpbh3, cpbh4::text AS cpbh4,
+              cpbh::text[] AS cpbh,
               cpbh_total::text AS cpbh_total, net_price::text AS net_price,
               discount_rate::text AS discount_rate, threshold_snap::text AS threshold_snap,
               over_threshold

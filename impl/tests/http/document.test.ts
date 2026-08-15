@@ -137,7 +137,7 @@ const makeCustomer = async (): Promise<{ id: string; code: string }> => {
   return { id: r.body.id as string, code };
 };
 
-const line = (productId: string) => ({ productId, wholesalePrice: '90000', cpbh1: '3000' });
+const line = (productId: string) => ({ productId, wholesalePrice: '90000', cpbh: ['3000'] });
 
 async function draft(lineCount = 1): Promise<{ id: string; customerId: string; code: string }> {
   const cus = await makeCustomer();

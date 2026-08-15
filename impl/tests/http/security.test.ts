@@ -562,7 +562,7 @@ describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
       '/policies',
       {
         customerId: cus.body.id,
-        lines: [{ productId: prod.body.id, wholesalePrice: '90000', cpbh1: '3000' }],
+        lines: [{ productId: prod.body.id, wholesalePrice: '90000', cpbh: ['3000'] }],
       },
       'tdv01',
     );

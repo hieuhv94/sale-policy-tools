@@ -80,6 +80,25 @@ export const moneyKhongAm = (): Check<bigint> => ({
   },
 });
 
+/**
+ * Danh sách, mỗi phần tử qua cùng một bộ kiểm.
+ *
+ * Nêu lỗi kèm CHỈ SỐ (`cpbh[2]`) chứ không nêu tên trường trần: khi có mười
+ * khoản chi phí thì "cpbh phải là số nguyên đồng" bắt người dùng dò lại cả dòng.
+ *
+ * `toiDa` không phải luật nghiệp vụ mà là chốt chống lạm dụng — một mảng mười
+ * nghìn phần tử gửi lên là một yêu cầu không ai gõ tay được. Đặt rộng rãi, và
+ * nới ra chỉ là sửa một con số.
+ */
+export const danhSach = <T>(c: Check<T>, toiDa = 50): Check<T[]> => ({
+  parse: (v, field) => {
+    if (v === undefined || v === null) return [];
+    if (!Array.isArray(v)) throw bad(field, 'phải là một danh sách');
+    if (v.length > toiDa) throw bad(field, `tối đa ${toiDa} phần tử`);
+    return v.map((x, i) => c.parse(x, `${field}[${i}]`));
+  },
+});
+
 export const oneOf = <T extends string>(...vals: readonly T[]): Check<T> => ({
   parse: (v, field) => {
     if (typeof v !== 'string' || !vals.includes(v as T)) {

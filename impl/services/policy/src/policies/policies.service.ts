@@ -26,10 +26,8 @@ import { ScopeClient } from '../infra/scope.client.js';
 export type LineInput = {
   productId: string;
   wholesalePrice: bigint;
-  cpbh1?: bigint | undefined;
-  cpbh2?: bigint | undefined;
-  cpbh3?: bigint | undefined;
-  cpbh4?: bigint | undefined;
+  /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. Thiếu = không có khoản nào. */
+  cpbh?: readonly bigint[] | undefined;
 };
 
 export type CreateInput = {
@@ -151,10 +149,10 @@ export class PoliciesService {
         await c.query(
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
-              company_price_snap, wholesale_price, cpbh1, cpbh2, cpbh3, cpbh4,
+              company_price_snap, wholesale_price, cpbh,
               discount_rate, threshold_snap)
            SELECT $1, product_id, product_code_snap, product_name_snap,
-                  company_price_snap, wholesale_price, cpbh1, cpbh2, cpbh3, cpbh4,
+                  company_price_snap, wholesale_price, cpbh,
                   discount_rate, threshold_snap
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
@@ -209,10 +207,7 @@ export class PoliciesService {
       calc = computeLine({
         companyPrice: BigInt(snap.companyPrice),
         wholesalePrice: line.wholesalePrice,
-        cpbh1: line.cpbh1 ?? 0n,
-        cpbh2: line.cpbh2 ?? 0n,
-        cpbh3: line.cpbh3 ?? 0n,
-        cpbh4: line.cpbh4 ?? 0n,
+        cpbh: line.cpbh ?? [],
         threshold: snap.thresholdRate2,
       });
     } catch (e) {
@@ -231,13 +226,12 @@ export class PoliciesService {
       .query(
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
-            company_price_snap, wholesale_price, cpbh1, cpbh2, cpbh3, cpbh4,
+            company_price_snap, wholesale_price, cpbh,
             discount_rate, threshold_snap)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
-            cpbh1 = EXCLUDED.cpbh1, cpbh2 = EXCLUDED.cpbh2,
-            cpbh3 = EXCLUDED.cpbh3, cpbh4 = EXCLUDED.cpbh4,
+            cpbh = EXCLUDED.cpbh,
             company_price_snap = EXCLUDED.company_price_snap,
             discount_rate = EXCLUDED.discount_rate,
             threshold_snap = EXCLUDED.threshold_snap`,
@@ -248,10 +242,7 @@ export class PoliciesService {
           snap.productName,
           snap.companyPrice,
           line.wholesalePrice.toString(),
-          (line.cpbh1 ?? 0n).toString(),
-          (line.cpbh2 ?? 0n).toString(),
-          (line.cpbh3 ?? 0n).toString(),
-          (line.cpbh4 ?? 0n).toString(),
+          (line.cpbh ?? []).map((v) => v.toString()),
           rate,
           threshold,
         ],
@@ -499,8 +490,7 @@ export class PoliciesService {
               product_name_snap AS "productName",
               company_price_snap::text AS "companyPrice",
               wholesale_price::text AS "wholesalePrice",
-              cpbh1::text AS cpbh1, cpbh2::text AS cpbh2,
-              cpbh3::text AS cpbh3, cpbh4::text AS cpbh4,
+              cpbh::text[] AS cpbh,
               cpbh_total::text AS "cpbhTotal", net_price::text AS "netPrice",
               discount_rate::text AS "discountRate", threshold_snap::text AS "threshold",
               over_threshold AS "overThreshold"

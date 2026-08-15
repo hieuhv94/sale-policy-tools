@@ -94,7 +94,7 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
 const line = (productId: string, over: Record<string, unknown> = {}) => ({
   productId,
   wholesalePrice: '90000',
-  cpbh1: '5000',
+  cpbh: ['5000'],
   ...over,
 });
 
@@ -287,7 +287,7 @@ describe('POL-04 … POL-07 bổ sung và chỉnh sửa', () => {
     const r = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { wholesalePrice: '80000', cpbh1: '1000' })],
+      lines: [line(d.productId, { wholesalePrice: '80000', cpbh: ['1000'] })],
     });
     expect(r.status).toBe(201);
     expect(r.body.supersedesId).toBe(d.id);
@@ -539,14 +539,14 @@ describe('POL-16 số phiên bản', () => {
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '6000' })],
+      lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
 
     const v3 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '7000' })],
+      lines: [line(d.productId, { cpbh: ['7000'] })],
     });
     expect(v3.body.versionNo).toBe(3);
   });
@@ -1048,7 +1048,7 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '6000' })],
+      lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
 
@@ -1073,13 +1073,13 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '6000' })],
+      lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
     const v3 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '7000' })],
+      lines: [line(d.productId, { cpbh: ['7000'] })],
     });
     await runToActive({ id: v3.body.id });
 
@@ -1107,7 +1107,7 @@ describe('EFF-03 · EFF-04 bản cũ giữ nguyên hiệu lực trong lúc bản
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '6000' })],
+      lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await act(v2.body.id, 'SUBMIT', 'tdv01');
     await act(v2.body.id, 'TBP_SIGN', 'tbp01');
@@ -1123,7 +1123,7 @@ describe('EFF-03 · EFF-04 bản cũ giữ nguyên hiệu lực trong lúc bản
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'AMEND',
-      lines: [line(d.productId, { cpbh1: '6000' })],
+      lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await act(v2.body.id, 'SUBMIT', 'tdv01');
     await act(v2.body.id, 'TBP_REJECT', 'tbp01', { reason: 'Khong dat' });
@@ -1166,7 +1166,7 @@ describe('EFF-08 CSBH hiện hành của một khách hàng', () => {
       const v = await post('/policies', {
         customerId: d.customerId,
         mode: 'AMEND',
-        lines: [line(d.productId, { cpbh1: cpbh })],
+        lines: [line(d.productId, { cpbh: [cpbh] })],
       });
       await runToActive({ id: v.body.id });
     }
@@ -1287,5 +1287,81 @@ describe('AD-02 policy không đọc chéo schema khác', () => {
       });
       expect(err?.code, `csbh_pol đáng lẽ không đọc được ${table}`).toBe('42501');
     }
+  });
+});
+
+// =============================================================================
+// CPBH số lượng tự do (0021)
+// =============================================================================
+
+describe('CPBH không cố định bốn khoản', () => {
+  it('lập được dòng KHÔNG có khoản chi phí nào', async () => {
+    // Giá thu về khi đó bằng đúng giá bán buôn. Trước 0021 phải gõ bốn số 0.
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const r = await post('/policies', {
+      customerId,
+      lines: [{ productId, wholesalePrice: '90000' }],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    const l = r.body.lines[0];
+    expect(l.cpbh).toEqual([]);
+    expect(l.cpbhTotal).toBe('0');
+    expect(l.netPrice).toBe('90000');
+  });
+
+  it('lập được dòng nhiều hơn bốn khoản', async () => {
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const r = await post('/policies', {
+      customerId,
+      lines: [
+        { productId, wholesalePrice: '90000', cpbh: ['1000', '2000', '500', '400', '100', '3000'] },
+      ],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    const l = r.body.lines[0];
+    expect(l.cpbh).toEqual(['1000', '2000', '500', '400', '100', '3000']);
+    expect(l.cpbhTotal).toBe('7000');
+    expect(l.netPrice).toBe('83000');
+  });
+
+  it('GIỮ NGUYÊN THỨ TỰ người dùng nhập', async () => {
+    // Thứ tự là dữ liệu: khoản thứ mấy trên bản in phải khớp khoản thứ mấy người
+    // lập đã khai. Sắp lại hay dồn số 0 xuống cuối đều là sửa hồ sơ của họ.
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const r = await post('/policies', {
+      customerId,
+      lines: [{ productId, wholesalePrice: '90000', cpbh: ['0', '5000', '0'] }],
+    });
+    expect(r.body.lines[0].cpbh).toEqual(['0', '5000', '0']);
+    expect(r.body.lines[0].cpbhTotal).toBe('5000');
+  });
+
+  it('khoản âm bị chặn, và báo ĐÚNG khoản thứ mấy', async () => {
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const r = await post('/policies', {
+      customerId,
+      lines: [{ productId, wholesalePrice: '90000', cpbh: ['1000', '-5'] }],
+    });
+    expect(r.status).toBe(400);
+    // Chỉ số nằm trong tên trường: "cpbh[1]", không phải "cpbh" trần — với mười
+    // khoản thì lỗi không nêu chỉ số bắt người dùng dò lại cả dòng.
+    expect(JSON.stringify(r.body)).toContain('cpbh[1]');
+  });
+
+  it('phiên bản mới chép lại ĐÚNG các khoản của bản cũ', async () => {
+    // Bản bổ sung phải chứa lại toàn bộ sản phẩm cũ (POL-08). Chép thiếu khoản
+    // chi phí là đổi giá thu về của một dòng mà không ai bấm gì.
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', { customerId: d.customerId, mode: 'AMEND', lines: [] });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    const cu = (await get(`/policies/${d.id}`)).body.lines[0];
+    const moi = v2.body.lines.find((l: { productId: string }) => l.productId === d.productId);
+    expect(moi.cpbh).toEqual(cu.cpbh);
+    expect(moi.netPrice).toBe(cu.netPrice);
   });
 });
