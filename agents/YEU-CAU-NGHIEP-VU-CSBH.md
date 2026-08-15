@@ -58,7 +58,10 @@ Quản trị hệ thống ─ danh mục và cấu hình, ngoài luồng duyệt
 
 - Tạo khách hàng, nhập thông tin và tải hồ sơ pháp lý. Mã khách hàng do kế toán cấp bên ngoài
   phần mềm; hệ thống chỉ chặn tạo mới trùng mã đã có.
-- Lập CSBH: chọn khách hàng, chọn sản phẩm từ danh mục, nhập giá bán buôn và CPBH1–4.
+- Lập CSBH: chọn khách hàng, chọn sản phẩm từ danh mục, nhập giá bán buôn và các khoản chi phí bán
+  hàng. **Số khoản CPBH tuỳ từng dòng sản phẩm**, không cố định bốn `sửa 15/08`.
+- **Sửa một dòng đã có** `mới 15/08`: đổi giá bán buôn và các khoản chi phí. Sản phẩm của dòng thì
+  không đổi được — đổi sản phẩm là xoá dòng này rồi thêm dòng khác.
 - Xem bản CSBH trước khi gửi duyệt; sửa và gửi lại khi bị trả về.
 - Khi bổ sung hoặc chỉnh sửa chính sách: đưa lại **toàn bộ** sản phẩm cũ vào hồ sơ mới.
 
@@ -293,9 +296,19 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
    thế, thời điểm và người thao tác.
 6. Mã phiên bản tự sinh theo số lần cập nhật CSBH của khách hàng đó và hiển thị trên bản in.
 
+**Sửa một dòng sản phẩm** `mới 15/08` — khi hồ sơ còn ở trạng thái sửa được, người lập đổi được
+**giá bán buôn** và **các khoản chi phí** của một dòng đã có, không phải xoá rồi thêm lại.
+
+- **Sản phẩm của dòng không đổi được.** Đổi sản phẩm là xoá dòng này và thêm dòng khác — hai việc có
+  ý nghĩa nghiệp vụ khác nhau và để lại vết khác nhau trong nhật ký.
+- Giá bán Công ty và ngưỡng chiết khấu **chụp lại theo danh mục tại thời điểm sửa**, đúng như lúc
+  thêm dòng. Hồ sơ chưa gửi duyệt thì con số của nó phải là con số hiện hành.
+
 ### 5.1. Kiểm tra khi thêm sản phẩm
 
-- Trùng ngay trong hồ sơ đang lập: không cho tạo dòng trùng, hiện thông báo.
+- Trùng ngay trong hồ sơ đang lập: không cho tạo dòng trùng, hiện thông báo. **Thêm và sửa là hai
+  đường riêng** `sửa 15/08` — trùng sản phẩm lúc *thêm* là một nhầm lẫn (người dùng tưởng mình đang
+  thêm mặt hàng mới), nên nó bị chặn chứ không âm thầm ghi đè dòng cũ.
 - Khách hàng đã có CSBH nhưng chưa có chính sách cho sản phẩm vừa chọn:
   *“CSBH cho sản phẩm này chưa có. Bạn có muốn BỔ SUNG không?”*
 - Khách hàng đã có chính sách cho sản phẩm đó:
@@ -346,9 +359,16 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 
 ### 6.3. Chiết khấu quy định — nguồn kiểm soát ngưỡng
 
-Theo nhóm sản phẩm, loại khách hàng, kênh/khu vực, thời gian hiệu lực và giới hạn.
+Theo nhóm sản phẩm, loại khách hàng, kênh/khu vực và ngày bắt đầu hiệu lực.
 **Đây là nguồn duy nhất để kiểm tra vượt ngưỡng.** Cột “CSBH loại 1/2/3” trong danh mục sản phẩm
 chỉ còn là giá trị mặc định khi không có dòng cấu hình nào khớp.
+
+**Quy định VÔ THỜI HẠN** `sửa 15/08`. Không còn ngày kết thúc — cùng luật với chính CSBH (muc 5).
+Một dòng có hiệu lực từ ngày khai cho tới khi bị xoá, hoặc cho tới khi một dòng **cụ thể hơn** khớp
+và thắng nó.
+
+Hệ quả cho người dùng: cách “cho một quy định thôi áp dụng từ ngày X” không còn. Muốn dừng thì **xoá
+dòng**. Xoá không làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 
 ### 6.4. Giấy tờ mẫu và người ký
 
@@ -368,19 +388,33 @@ người ký dùng ở đâu trong luồng, ai gán cho hồ sơ nào, và đổ
 dùng điền vào cũng không biết để làm gì thì tệ hơn là không có. **Cần làm rõ yêu cầu rồi mới dựng
 lại.**
 
-### 6.5. Màn hình Danh mục `sửa 15/08`
+### 6.5. Ba mục menu thay cho "Danh mục" `sửa 15/08`
 
-Ba thẻ, không phải năm:
+"Danh mục" không còn là một mục menu. Ba mục ngang hàng:
 
-| Thẻ | Ai thấy | Nội dung |
+| Mục menu | Ai thấy | Nội dung |
 |---|---|---|
-| **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**; Quản trị thêm phần tạo/sửa, đặt giá, nhập Excel, và quản lý **nhóm sản phẩm** |
-| **Quy định chiết khấu** | Mọi vai trò | Bảng ngưỡng; Quản trị thêm phần tạo/sửa và quản lý **danh mục tra cứu** (tỉnh · bệnh viện · kênh) |
+| **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
+| **Chiết khấu** | Mọi vai trò | Bảng ngưỡng; Quản trị thêm phần tạo/sửa và quản lý **danh mục tra cứu** (tỉnh · bệnh viện · kênh) |
 | **Giấy tờ mẫu** | Chỉ Quản trị | Xem 6.4 |
 
-Nhóm sản phẩm và danh mục tra cứu **không mất chức năng**, chúng thành khối bên trong hai thẻ đầu.
+Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
+"Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở
+đâu.
+
+Nhóm sản phẩm và danh mục tra cứu **không mất chức năng**: nhóm sản phẩm là thẻ thứ hai trong màn
+hình Sản phẩm, danh mục tra cứu là khối trong màn hình Chiết khấu. Cả hai đều **chỉ Quản trị thấy**.
+
 Tìm kiếm **bỏ dấu**: gõ `sua` ra "Sữa" — gõ đủ dấu trên bàn phím điện thoại giữa lúc ngồi với khách
 hàng là thứ không ai làm.
+
+### 6.6. Nhập số tiền và tỷ lệ `mới 15/08`
+
+- Mọi ô nhập tiền ghi rõ **đơn vị ngay trên ô** ("Tiền tệ đơn vị đồng"), và hiện **dấu phân nhóm
+  nghìn ngay khi đang gõ**. Đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó sai theo bội số
+  của mười.
+- Ô nhập tỷ lệ cắt còn **hai chữ số thập phân ngay lúc gõ**, dấu thập phân là **dấu phẩy**. Nhận cả
+  dấu chấm vì bàn phím số trên laptop chỉ có dấu chấm.
 
 ---
 
@@ -388,8 +422,8 @@ hàng là thứ không ai làm.
 
 | Chỉ tiêu | Công thức |
 |---|---|
-| CPBH1–4 | Nhập tay, **đơn vị Việt Nam đồng** — không có phương án nhập theo tỷ lệ |
-| CPBH tổng | Tổng CPBH1 → CPBH4 |
+| Các khoản CPBH | Nhập tay, **đơn vị Việt Nam đồng** — không có phương án nhập theo tỷ lệ. **Số khoản tuỳ từng dòng sản phẩm** `sửa 15/08` |
+| CPBH tổng | Tổng mọi khoản CPBH của dòng đó. Dòng không có khoản nào thì tổng bằng 0 |
 | Giá thu về | `Giá bán buôn − CPBH tổng` |
 | Tỷ lệ CK | `(Giá bán Công ty − Giá thu về) / Giá bán Công ty`, tính theo phần trăm |
 
@@ -412,6 +446,21 @@ vượt chiết khấu; người dùng đồng ý thì **vẫn cho gửi**. Đâ
 ## 8. Hợp đồng
 
 Thuộc **giai đoạn 1**.
+
+### 7.1. Bản CSBH in ra — số cột CPBH `mới 15/08`
+
+Mỗi dòng sản phẩm có số khoản CPBH riêng, nhưng một bảng in ra giấy phải có **số cột đều nhau** —
+cột so le thì không đọc theo hàng dọc được và người ký không đối chiếu nổi.
+
+- Số cột CPBH của cả bảng = **dòng nhiều khoản nhất**.
+- Dòng ít khoản hơn để **ô trống**, KHÔNG điền số 0. Số 0 là một con số có nghĩa ("khoản này bằng
+  không"); ô trống nói đúng điều cần nói là dòng ấy không có khoản thứ mấy đó.
+- Không dòng nào có khoản nào thì bảng **không có cột CPBH**.
+
+Luật này áp cho cả bản in A4 lẫn bảng trên màn hình — hai chỗ phải ra cùng một con số, nếu không thì
+bản người dùng xem khác bản đem ký.
+
+---
 
 ### 8.1. Hợp đồng không phải là hồ sơ CSBH
 
@@ -611,7 +660,13 @@ Quản trị **đổi được vai trò** nhưng bị chặn khi còn hồ sơ d
 đổi người quản lý** (TDV, Kế toán), không đổi được email · vai trò · tên tài khoản.
 
 **Danh mục** (15/08) — danh mục sản phẩm chỉ còn **một loại giá** là Giá bán Công ty; giá bán buôn
-nhập trên từng dòng hồ sơ · màn hình Danh mục còn **ba thẻ**, có tìm kiếm sản phẩm bỏ dấu · **gỡ
-màn hình Người ký** vì yêu cầu chưa rõ.
+nhập trên từng dòng hồ sơ · "Danh mục" tách thành **ba mục menu** (Sản phẩm · Chiết khấu · Giấy tờ
+mẫu), có tìm kiếm sản phẩm bỏ dấu · **gỡ màn hình Người ký** vì yêu cầu chưa rõ.
+
+**Hồ sơ và chiết khấu** (15/08) — **quy định chiết khấu vô thời hạn**, bỏ ngày kết thúc · **số khoản
+CPBH tuỳ từng dòng sản phẩm**, không cố định bốn; bản in lấy số cột của dòng nhiều khoản nhất, dòng
+ít hơn để ô trống · **sửa được dòng sản phẩm** chứ không chỉ xoá, nhưng không đổi được sản phẩm của
+dòng · bỏ dòng "Tổng giá thu về" dưới bảng vì cộng dồn giá thu về của nhiều mặt hàng không có nghĩa
+nghiệp vụ · ô nhập tiền ghi rõ đơn vị và định dạng ngay khi gõ.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

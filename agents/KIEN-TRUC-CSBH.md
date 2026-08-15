@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Sáu chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền.
+> Bảy chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`.
 
 ---
 
@@ -243,13 +243,23 @@ pol.policy_line
   product_code_snap · product_name_snap   -- tên lúc gửi duyệt, không join lại catalog
   company_price_snap  bigint              -- Giá bán Công ty ĐÓNG BĂNG khi submit (§7)
   wholesale_price     bigint              -- Giá bán buôn, TDV nhập
-  cpbh1..cpbh4        bigint              -- VNĐ, không phải tỷ lệ (§7)
-  cpbh_total          bigint  GENERATED ALWAYS AS (cpbh1+cpbh2+cpbh3+cpbh4) STORED
-  net_price           bigint  GENERATED ALWAYS AS (wholesale_price - cpbh_total) STORED
+  cpbh                bigint[]            -- VNĐ, không phải tỷ lệ (§7). SỐ KHOẢN TUỲ DÒNG (0021)
+  cpbh_total          bigint  GENERATED ALWAYS AS (pol.tong_cpbh(cpbh)) STORED
+  net_price           bigint  GENERATED ALWAYS AS (wholesale_price - pol.tong_cpbh(cpbh)) STORED
   discount_rate       numeric(5,2)        -- ĐÃ làm tròn 2 số, ghi một lần
   threshold_snap      numeric(5,2)        -- ngưỡng lấy từ Chiết khấu quy định lúc submit
   over_threshold      boolean GENERATED ALWAYS AS (discount_rate > threshold_snap) STORED
 ```
+
+> **Vì sao MẢNG chứ không bảng con** `0021`
+>
+> Các khoản CPBH **không có thuộc tính riêng** — không tên, không loại, không ghi chú. Chúng chỉ là
+> một dãy số có thứ tự. Bảng con `policy_line_cost` đúng "chuẩn" hơn nhưng đổi lại là một phép nối
+> cho mỗi lần đọc hồ sơ và xoá-rồi-chèn cả nhóm cho mỗi lần sửa, mà không mua được gì.
+>
+> Tổng một mảng cần một hàm `IMMUTABLE` (`pol.tong_cpbh`) thì cột sinh mới nhận. Mảng rỗng cho tổng
+> **0 chứ không NULL** — `sum()` của mảng rỗng trả NULL, và `net_price` mà NULL thì mọi phép so sánh
+> sau đó im lặng sai.
 
 > **Quy tắc làm tròn — nguồn sai số kinh điển**
 >
@@ -702,7 +712,7 @@ Làm responsive “đều tay” cho mọi màn hình là cách tốn công mà 
 |---|---|---|---|
 | Trưởng bộ phận | **Điện thoại** | Mở hồ sơ, đọc bảng chiết khấu, bấm duyệt và ký số — việc ngắn, làm ở bất cứ đâu | `Mobile-first` Màn hình duyệt phải dùng được trọn vẹn trên điện thoại, kể cả ký số và nhập lý do trả lại. |
 | Ban lãnh đạo | **Điện thoại** | Tra một khách hàng đang áp chính sách nào, xem báo cáo tiến độ | `Mobile-first` Tra cứu và lọc phải gọn trên màn hình nhỏ; xuất Excel thì gửi link tải. |
-| TDV | PC để lập, điện thoại để theo dõi | Nhập hồ sơ nhiều dòng sản phẩm với CPBH1–4 | Desktop-first cho màn hình lập; danh sách và trạng thái hồ sơ vẫn xem tốt trên điện thoại. |
+| TDV | PC để lập, điện thoại để theo dõi | Nhập hồ sơ nhiều dòng sản phẩm, mỗi dòng một số khoản CPBH riêng | Desktop-first cho màn hình lập; danh sách và trạng thái hồ sơ vẫn xem tốt trên điện thoại. |
 | Kế toán | PC | Đối chiếu hai lần, xuất hợp đồng | Desktop-first. Trên điện thoại vẫn tiếp nhận được nhưng không tối ưu. |
 | Sale Admin | PC | In, scan, tải file, soạn mẫu hợp đồng và ánh xạ trường | Desktop-only cho màn hình ánh xạ trường — kéo thả trên điện thoại là vô nghĩa. |
 | Quản trị hệ thống | PC | Danh mục, giá, nhập Excel | Desktop-only. Điện thoại chỉ cần xem được, không cần sửa. |
@@ -740,7 +750,7 @@ Làm responsive “đều tay” cho mọi màn hình là cách tốn công mà 
 ├────────────────────────────────────┤
 │ Giá bán buôn      [    90.000 ]    │  ← ô nhập · bàn phím số
 ├────────────────────────────────────┤
-│ CPBH tổng (4 khoản)      5.000  ⌄  │  ← bấm để mở CPBH1–4
+│ CPBH tổng                5.000  ⌄  │  ← bấm để mở từng khoản
 ├────────────────────────────────────┤
 │ Giá thu về               85.000    │
 ╞════════════════════════════════════╡
@@ -754,7 +764,7 @@ Làm responsive “đều tay” cho mọi màn hình là cách tốn công mà 
 **Quy tắc chuyển bảng thành thẻ** — dùng chung cho mọi bảng: hồ sơ, khách hàng, sản phẩm, báo cáo.
 
 1. Cột định danh (Tên sản phẩm) thành tiêu đề thẻ, **không bao giờ ẩn**.
-2. Cột người dùng **nhập** (giá buôn, CPBH1–4) luôn hiện và sửa được.
+2. Cột người dùng **nhập** (giá buôn, các khoản CPBH) luôn hiện và sửa được.
 3. Cột hệ thống **tính** (CP tổng, thu về, tỷ lệ) hiện ở phần tóm tắt dưới thẻ.
 4. Bốn ô CPBH gộp thành một dòng "CPBH tổng", bấm mới mở ra bốn ô.
 5. Cảnh báo vượt ngưỡng **không chỉ dùng màu đỏ** — kèm dấu và chữ, vì khoảng 8% nam giới không
@@ -936,7 +946,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
-| CALC-01 | Nhập CPBH1–4 | `CPBH tổng = CPBH1+CPBH2+CPBH3+CPBH4`, đơn vị VNĐ, số nguyên | §7 | `P0` |
+| CALC-01 | Nhập các khoản CPBH (số lượng tuỳ dòng) | `CPBH tổng` = tổng mọi khoản của dòng đó, đơn vị VNĐ, số nguyên. Không khoản nào thì tổng bằng 0 `sửa 0021` | §7 | `P0` |
 | CALC-02 | Gửi CPBH dưới dạng tỷ lệ phần trăm | 400 — không có phương án nhập theo tỷ lệ, chỉ có số tiền | §7 | `P0` |
 | CALC-03 | Tính giá thu về | `Giá thu về = Giá bán buôn − CPBH tổng` | §7 | `P0` |
 | CALC-04 | Tính tỷ lệ chiết khấu | `(Giá bán Công ty − Giá thu về) / Giá bán Công ty × 100`, làm tròn 2 chữ số thập phân | §7 | `P0` |
@@ -1511,7 +1521,7 @@ it('WF-04 · TBP ký số thì kế toán và TDV nhận thư đủ nội dung',
 | # | Tài khoản | Thao tác | Phải thấy |
 |---|---|---|---|
 | 1 | tdv01 | Tạo khách hàng mới, nhập trùng mã KH đã có | Bị chặn với thông báo trùng mã |
-| 2 | tdv01 | Lập CSBH, thêm 3 sản phẩm, nhập giá bán buôn và CPBH1–4 | Tỷ lệ CK tự tính, hiện 2 số thập phân |
+| 2 | tdv01 | Lập CSBH, thêm 3 sản phẩm, nhập giá bán buôn và các khoản CPBH | Tỷ lệ CK tự tính, hiện 2 số thập phân |
 | 3 | tdv01 | Nhập CPBH đẩy tỷ lệ vượt ngưỡng | Cột tỷ lệ chuyển đỏ ngay khi nhập |
 | 4 | tdv01 | Bấm gửi duyệt | Hộp thoại cảnh báo vượt ngưỡng; đồng ý thì vẫn gửi được |
 | 5 | tdv01 | Thử sửa hồ sơ vừa gửi | Hồ sơ đã khóa, không sửa được |

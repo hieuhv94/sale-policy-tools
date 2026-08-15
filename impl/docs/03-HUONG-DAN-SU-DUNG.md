@@ -150,10 +150,21 @@ Hồ sơ tạo ra ở trạng thái **Nháp** ngay sau khi chọn khách hàng, 
 màn hình chi tiết. Mỗi lần thêm một dòng, hệ thống tính và hiện ngay **giá thu về** và **tỷ lệ chiết
 khấu** của dòng đó — không phải nhập hết rồi mới biết.
 
-Với mỗi dòng bạn nhập **Giá bán buôn** và bốn ô **CPBH**. Hệ thống tự tính:
+Với mỗi dòng bạn nhập **Giá bán buôn** và các khoản **CPBH**. Hệ thống tự tính:
 
-> **Giá thu về** = Giá bán buôn − (CPBH1 + CPBH2 + CPBH3 + CPBH4)
+> **Giá thu về** = Giá bán buôn − (tổng các khoản CPBH)
 > **Tỷ lệ chiết khấu** = 1 − Giá thu về / Giá bán Công ty
+
+**Số khoản CPBH tuỳ từng dòng.** Biểu mẫu mở sẵn một ô; bấm *+ Thêm khoản chi phí* để có thêm, bấm
+*Bớt* để bỏ ô thừa. Không phải mọi sản phẩm đều có bốn khoản, và gõ số 0 vào những ô không dùng chỉ
+làm bản in dài thêm mấy cột số 0.
+
+Trên bản in, số cột CPBH lấy theo **dòng nhiều khoản nhất**; dòng ít khoản hơn để **ô trống** — ô
+trống nghĩa là dòng ấy không có khoản đó, khác với số 0 nghĩa là khoản đó bằng không.
+
+**Sửa một dòng đã thêm**: bấm *Sửa* ở cột Thao tác. Đổi được giá bán buôn và các khoản chi phí.
+**Sản phẩm thì không đổi được** — muốn đổi sản phẩm thì xoá dòng rồi thêm dòng mới, vì đó là hai
+việc khác nhau.
 
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ ngay lúc lập. Danh mục đổi giá về sau không làm đổi hồ sơ đã lập.
@@ -370,13 +381,14 @@ của ô đó. Nhiều quy định cùng khớp một tình huống là bình th
 cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
 nhìn thấy.
 
-- **Sửa** chỉ đổi được *ngưỡng* và *ngày kết thúc*. Ba ô phạm vi (nhóm · loại khách · kênh) không
-  sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai
-  lại**.
+- **Sửa chỉ đổi được *ngưỡng***. Ba ô phạm vi (nhóm · loại khách · kênh) không sửa được — đổi chúng
+  là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai lại**.
+- **Quy định vô thời hạn**, không có ngày kết thúc. Có hiệu lực từ ngày khai cho tới khi bị xoá,
+  hoặc cho tới khi một quy định cụ thể hơn khớp và thắng nó.
 - **Sửa và xoá không làm đổi hồ sơ đã lập.** Mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập; thay đổi ở
   đây chỉ áp dụng cho hồ sơ lập **từ đây về sau**.
-- Muốn một quy định thôi áp dụng từ một ngày nào đó thì **đặt ngày kết thúc**, đừng xoá — xoá là mất
-  luôn dấu vết vì sao khoảng thời gian trước đó lại dùng ngưỡng ấy.
+- Muốn một quy định thôi áp dụng thì **xoá dòng**, hoặc khai một dòng cụ thể hơn đè lên. Xoá **không**
+  làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 
 **Danh mục tra cứu** (dưới bảng quy định, chỉ Quản trị) — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
 chọn trong biểu mẫu khách hàng**; để trống thì người lập khách hàng gặp ba ô rỗng. Thêm lại một mã

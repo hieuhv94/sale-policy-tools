@@ -3005,3 +3005,152 @@ là nhớ tên đầy đủ, nên ô chỉ ăn tên sẽ làm họ tưởng sả
 
 Mẫu hồ sơ CSBH tải lên. Khi làm phải trả lời trước một câu: **nếu mẫu do người dùng soạn, hệ thống
 không còn bảo đảm được 13 mục bắt buộc của mục 8.2 có mặt.**
+
+---
+
+## P22 — "Danh mục" tách thành ba mục menu
+
+Năm thẻ trong một mục menu là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất**: bấm "Danh
+mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở đâu.
+Ba mục ngang hàng — Sản phẩm · Chiết khấu · Giấy tờ mẫu — thì bấm một lần là tới, và mục đang mở tự
+sáng lên.
+
+Hai quyết định kèm theo:
+
+- **Giữ `/danh-muc` trỏ về màn hình Sản phẩm.** Liên kết đã lưu trong trình duyệt và trong tài liệu
+  chạy demo vẫn còn dùng đường đó; bỏ hẳn là để người ta bấm vào một trang "không có màn hình nào ở
+  địa chỉ này".
+- **Xoá bảng thẻ `MUC_DANH_MUC`.** Từ giờ `DIEU_HUONG` bên `can.ts` là nguồn duy nhất — hai bảng
+  cùng khai một danh sách là hai bảng sẽ lệch nhau.
+
+Thẻ *Giấy tờ mẫu* rỗng, và nói rõ vì sao: mẫu hợp đồng thuộc Sale Admin ở màn hình riêng (quyết định
+06/08, `DOC-26`), mẫu hồ sơ CSBH tách sang lượt sau.
+
+685 case.
+
+---
+
+## P23 — Sản phẩm và Nhóm sản phẩm thành hai thẻ
+
+Hai bảng xếp chồng thì bảng nhóm nằm dưới một bảng sản phẩm dài, phải cuộn qua hết mới tới — mà nó
+lại là thứ phải làm **trước** khi tạo sản phẩm đầu tiên, vì chưa có nhóm nào thì nút *Tạo sản phẩm*
+không bấm được.
+
+Thẻ *Sản phẩm* vẫn đứng trước dù thứ tự phụ thuộc là nhóm-trước-sản-phẩm: tra sản phẩm là việc hàng
+ngày, thêm nhóm là việc vài lần một năm. Bù lại, hướng dẫn sử dụng nói thẳng "làm thẻ Nhóm trước nếu
+danh mục còn trống".
+
+Phải sửa lại lời của chính mình ở P22: chú thích trong `lib/danh-muc.ts` viết "KHÔNG còn bảng thẻ ở
+đây" — câu đó nói về bảng **mục menu**, để nguyên thì mâu thuẫn với bảng thẻ vừa thêm. Một dải thẻ
+NẰM TRONG một màn hình không phải một tầng điều hướng.
+
+687 case.
+
+---
+
+## P24 — Chiết khấu vô thời hạn, và định dạng số khi đang gõ
+
+### Xoá cột chứ không để lại NULL
+
+Quy định chiết khấu bỏ ngày hết hiệu lực, theo đúng luật của chính CSBH. **Xoá hẳn cột** `effective_to`
+thay vì để nó luôn NULL: một cột luôn NULL là một cột người đọc mã phải dừng lại để hỏi "còn dùng
+không", và câu trả lời chỉ nằm trong lịch sử git.
+
+### Tên khách hàng hiện sai ở màn hình lập hồ sơ
+
+Lớp `.viec-lien` viết cho thẻ `<a>`, nhưng màn hình chọn khách hàng đặt nó lên `<button>` — bấm là
+chọn, không đi đâu cả. Không có luật reset thì trình duyệt vẽ nút mặc định **đè lên**: chữ về phông
+hệ thống cỡ nhỏ, canh giữa, nằm trong một hộp xám co lại vừa nội dung.
+
+### Ô nhập số
+
+Đơn vị hiện ngay **trên** ô, không đặt trong ô (lẫn với con số đang gõ) cũng không đặt sau ô (trên
+điện thoại nó rơi xuống dòng dưới). Tiền hiện dấu phân nhóm nghìn ngay khi gõ nhưng vẫn báo ra chuỗi
+số trần — gửi "90.000" thì `money()` bên máy chủ từ chối.
+
+Ô phần trăm cắt hai chữ số thập phân **lúc đang gõ**, và nó phải chịu được trạng thái gõ dở: `"12,"`
+là chuỗi người dùng bắt buộc phải đi qua để gõ `"12,5"`. Chuẩn hoá quá tay ở đây là ô tự xoá ký tự
+vừa gõ, và không nhập được phần thập phân nữa.
+
+Đổi sang dấu phẩy kéo theo một lỗi phải sửa luôn: `Number("12,34")` ra `NaN`, nên ô ngưỡng sẽ báo
+"không phải số". Thêm `doiSoThapPhan` nhận cả dấu phẩy lẫn dấu chấm — bàn phím số trên laptop chỉ có
+dấu chấm.
+
+### `POL-12` đỏ, và cách viết test mới là vấn đề
+
+Test khẳng định `threshold` bằng đúng `'15.00'`, tức ngầm giả định thêm một điều kiện — *không quy
+định chiết khấu nào khớp sản phẩm này* — mà điều kiện đó phụ thuộc dữ liệu của **tệp test khác đang
+chạy song song** trên cùng CSDL (`catalog.test` có bước `DELETE FROM cat.discount_rule`). Đổi sang
+hỏi thẳng danh mục rồi so. Bỏ ngày hết hiệu lực làm giả định cũ càng dễ vỡ.
+
+693 case.
+
+---
+
+## P25 — CPBH số lượng tự do theo từng dòng
+
+Bỏ bốn cột cứng `cpbh1..cpbh4`, thay bằng một **mảng**. Mỗi sản phẩm có số khoản chi phí khác nhau;
+bắt điền đủ bốn là bắt gõ số 0 vào những ô không có nghĩa gì, rồi ba cột số 0 ấy đi thẳng ra bản in.
+
+### Mảng chứ không bảng con
+
+Cân nhắc cả hai. Các khoản CPBH **không có thuộc tính riêng** — không tên, không loại, không ghi
+chú; chúng chỉ là một dãy số có thứ tự. Bảng con đúng "chuẩn" hơn nhưng đổi lại là một phép nối cho
+mỗi lần đọc hồ sơ và xoá-rồi-chèn cả nhóm cho mỗi lần sửa, mà không mua được gì.
+
+Hai cột tự tính phải dựng lại vì chúng sinh từ bốn cột sắp biến mất. Tổng một mảng cần một hàm
+`IMMUTABLE` thì cột sinh mới nhận; mảng rỗng phải cho **0 chứ không NULL** — `sum()` của mảng rỗng
+trả NULL, và `net_price` mà NULL thì mọi phép so sánh sau đó im lặng sai.
+
+Nạp lại dữ liệu cũ giữ **đủ bốn phần tử kể cả số 0**: số 0 người dùng đã nhập là một con số họ đã
+nhập, cắt đi là tự ý sửa hồ sơ đã lập của họ.
+
+### Luật in
+
+Số cột lấy theo dòng **nhiều khoản nhất**, dòng ít hơn để **ô trống** — không điền số 0 thay, vì số
+0 là một con số *có nghĩa* ("khoản này bằng không") còn ô trống nói đúng điều cần nói. Luật này viết
+ở hai chỗ (bản A4 và bảng trên màn hình) và có chú thích chéo giữa chúng: hai con số lệch nhau nghĩa
+là bản trên màn hình khác bản đem ký.
+
+### Một quy ước bị phá, và test bắt được
+
+Khai `cpbh: danhSach(...)` mà không bọc `opt()`. `danhSach` tự trả mảng rỗng khi thiếu trường nên nó
+**thực tế** là không bắt buộc — nhưng `opt()` mới là dấu hiệu duy nhất của "không bắt buộc" trong cả
+kho mã, và `bat-buoc.test` đọc chính dấu hiệu đó để đối chiếu dấu sao trên biểu mẫu với DTO. Bỏ nó
+thì giao diện gắn sao cho ô CPBH và nút Lưu chết mà không ai hiểu vì sao.
+
+703 case.
+
+---
+
+## P26 — Sửa được dòng sản phẩm, không chỉ xoá
+
+Trước đây giao diện chỉ có Xoá, nên đổi một con số nghĩa là xoá dòng rồi thêm lại — gõ lại cả giá
+bán buôn lẫn mọi khoản chi phí, và giữa hai thao tác thì hồ sơ thiếu mất một sản phẩm.
+
+### Một phán đoán sai, và test bắt ngay
+
+Tôi tưởng máy chủ đã làm được: `POST .../lines` trông như upsert. **Sai** — đường
+`ON CONFLICT DO UPDATE` nằm ở lối TẠO hồ sơ, còn thêm dòng thì cố ý trả 409 `DUPLICATE_PRODUCT`
+(`POL-02`). Nếu tin vào phán đoán ấy mà bỏ qua bước chạy test thì nút *Sửa* sẽ luôn báo lỗi khi bấm.
+
+### Đường riêng, không cho POST ghi đè
+
+`PATCH /policies/:id/lines/:lineId`. Trùng sản phẩm lúc **thêm** là một nhầm lẫn — người dùng tưởng
+mình đang thêm mặt hàng mới — và biến nó thành ghi đè im lặng là đánh mất một cái chặn đúng để đổi
+lấy một chức năng khác hẳn.
+
+Ba điều khoá lại:
+
+- **`productId` không nằm trong DTO.** Đổi sản phẩm của một dòng là xoá dòng này và thêm dòng khác;
+  hai việc có ý nghĩa nghiệp vụ khác nhau và để lại vết khác nhau trong nhật ký.
+- **Giá bán Công ty và ngưỡng chụp lại theo danh mục** tại thời điểm sửa. Hồ sơ chưa gửi duyệt thì
+  con số của nó phải là con số hiện hành — nếu không thì sửa một khoản chi phí lại vô tình giữ
+  nguyên một mức giá đã cũ.
+- Sự kiện `LINE_UPDATED` tách khỏi `LINE_ADDED`/`LINE_REMOVED`.
+
+Giao diện dùng lại đúng biểu mẫu thêm dòng, ô chọn sản phẩm **khoá lại** khi sửa. Sản phẩm đã vô
+hiệu hoá vẫn hiện đúng tên: danh sách chọn lọc bỏ chúng nhưng hồ sơ cũ vẫn giữ, nên ô chọn tự thêm
+một mục dựng từ chính dòng đang sửa — không có nó thì ô hiện rỗng và người dùng tưởng dữ liệu hỏng.
+
+712 case.
