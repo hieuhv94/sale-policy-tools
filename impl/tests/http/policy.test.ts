@@ -1721,3 +1721,97 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
     expect(l.ruleId).toBeNull();
   });
 });
+
+/**
+ * 0023 — đổi loại khách hàng KHÔNG được làm lệch hồ sơ đã lập.
+ *
+ * Loại khách hàng quyết định ngưỡng chiết khấu, và từ `0023` nó sửa được. Cái
+ * phải chứng minh là việc sửa ấy an toàn: hồ sơ đã lập giữ nguyên con số của
+ * mình, còn hồ sơ lập sau thì dùng ngưỡng mới.
+ */
+describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () => {
+  /** Sản phẩm nhóm riêng, ba loại khách ba ngưỡng KHÁC NHAU để phân biệt được. */
+  const sanPhamBaNguong = async (): Promise<string> => {
+    const c = await http(catalog);
+    const g = uniq('NHOM0023C');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom rieng 0023c' });
+    const r = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        code: uniq('SP0023C'),
+        name: 'SP ba nguong',
+        groupCode: g,
+        defaultRate2Type1: 1000, // loại 1 → 10,00%
+        defaultRate2Type2: 2000, // loại 2 → 20,00%
+        defaultRate2Type3: 3000, // loại 3 → 30,00%
+      });
+    await c
+      .post(`/catalog/products/${r.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+    return r.body.id as string;
+  };
+
+  const doiLoai = async (customerId: string, loai: number) =>
+    (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ customerType: loai });
+
+  it('hồ sơ NHÁP đã lập giữ NGUYÊN ngưỡng cũ sau khi đổi loại', async () => {
+    // Đây là bất biến quan trọng nhất của thay đổi này. Nếu ngưỡng tự đổi theo
+    // thì một con số trong hồ sơ đang mở thay đổi dưới tay người đang xem, mà
+    // không thao tác nào của họ gây ra.
+    const productId = await sanPhamBaNguong();
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId, productId });
+    expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('10.00');
+
+    expect((await doiLoai(customerId, 3)).status).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('10.00');
+  });
+
+  it('hồ sơ lập SAU khi đổi loại thì dùng ngưỡng mới', async () => {
+    const productId = await sanPhamBaNguong();
+    const customerId = await makeCustomer();
+    expect((await doiLoai(customerId, 3)).status).toBe(200);
+
+    const hs = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(hs.status, JSON.stringify(hs.body)).toBe(201);
+    expect((await get(`/policies/${hs.body.id}`)).body.lines[0].threshold).toBe('30.00');
+  });
+
+  it('sửa lại một dòng thì nó nhận ngưỡng mới — đường tự cập nhật duy nhất', async () => {
+    // Câu này nằm nguyên văn trên hộp thoại sửa khách hàng: muốn hồ sơ đang sửa
+    // dùng ngưỡng mới thì mở nó ra, bấm Sửa ở từng dòng rồi lưu.
+    const productId = await sanPhamBaNguong();
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId, productId });
+    expect((await doiLoai(customerId, 2)).status).toBe(200);
+
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    expect(l.threshold).toBe('10.00');
+    expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '88000' })).status)
+      .toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('20.00');
+  });
+
+  it('hồ sơ ĐANG CÓ HIỆU LỰC không đổi số, và cũng không sửa được dòng', async () => {
+    const productId = await sanPhamBaNguong();
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId, productId });
+    await runToActive(d);
+    expect((await doiLoai(customerId, 3)).status).toBe(200);
+
+    const sau = (await get(`/policies/${d.id}`)).body;
+    expect(sau.status).toBe('DANG_CO_HIEU_LUC');
+    expect(sau.lines[0].threshold).toBe('10.00');
+    // Hồ sơ đã khoá sửa nên không có đường nào làm nó đổi số.
+    expect((await patch(`/policies/${d.id}/lines/${sau.lines[0].id}`, { wholesalePrice: '80000' })).status)
+      .toBe(409);
+  });
+});

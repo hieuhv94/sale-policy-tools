@@ -19,6 +19,7 @@
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
+    "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
     "./chung": "./src/components/Chung.tsx"
   },
   "scripts": {

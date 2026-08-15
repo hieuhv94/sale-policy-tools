@@ -7,6 +7,7 @@ import { layJson } from '../lib/api.js';
 import { ngay, tien } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import {
   BieuMauKhachHang,
@@ -20,6 +21,7 @@ type KhachHangDto = {
   id: string;
   code: string;
   name: string;
+  customerType: number;
   registeredAddress: string;
   idNumber: string | null;
   ownerName: string;
@@ -74,7 +76,12 @@ export function DanhSachKhachHang() {
           {ds.map((k) => (
             <li key={k.id}>
               <Lien den={`/khach-hang/${k.id}`} className="the-lien">
-                <span className="ma-phu">{k.code}</span>
+                {/* Loại khách hàng đứng cạnh mã: nó quyết định ngưỡng chiết
+                    khấu, nên người lập hồ sơ cần thấy nó TRƯỚC khi mở khách
+                    hàng ra, không phải sau. */}
+                <span className="ma-phu">
+                  {k.code} · {nhanLoaiKhach(k.customerType)}
+                </span>
                 <strong>{k.name}</strong>
                 <span className="phu">{k.registeredAddress}</span>
               </Lien>
@@ -155,6 +162,10 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       </div>
 
       <dl className="the-so">
+        <div>
+          <dt>Loại khách hàng</dt>
+          <dd>{nhanLoaiKhach(kh.customerType)}</dd>
+        </div>
         <div>
           <dt>Địa chỉ đăng ký</dt>
           <dd>{kh.registeredAddress}</dd>

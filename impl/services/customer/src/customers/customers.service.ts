@@ -181,6 +181,7 @@ export class CustomersService {
     return this.db.tx(async (c) => {
       const r = await c.query<Row>(
         `UPDATE cus.customer SET
+            customer_type      = coalesce($14, customer_type),
             name               = coalesce($2, name),
             id_number          = coalesce($3, id_number),
             registered_address = coalesce($4, registered_address),
@@ -209,6 +210,7 @@ export class CustomersService {
           patch.hospitalCode ?? null,
           patch.channelCode ?? null,
           patch.tdvUserId ?? null,
+          patch.customerType ?? null,
         ],
       );
       const after = r.rows[0]!;

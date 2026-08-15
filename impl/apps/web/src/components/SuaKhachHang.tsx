@@ -13,7 +13,13 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
-import { LOAI_KHACH_HANG, LOAI_TRA_CUU, NHAN_TRA_CUU, type MucTraCuu } from '../lib/danh-muc.js';
+import {
+  LOAI_KHACH_HANG,
+  LOAI_TRA_CUU,
+  NHAN_TRA_CUU,
+  nhanLoaiKhach,
+  type MucTraCuu,
+} from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 
 export type KhachHangDayDu = {
@@ -114,6 +120,9 @@ export function BieuMauKhachHang({
 
   const sua = (p: Partial<Gia>) => datG((cu) => ({ ...cu, ...p }));
 
+  /** Đang sửa một khách đã có, VÀ ô loại khách hàng thật sự đổi giá trị. */
+  const doiLoai = khach !== undefined && Number(g.customerType) !== khach.customerType;
+
   // Trường tuỳ chọn để trống thì BỎ HẲN khỏi thân request, không gửi chuỗi rỗng:
   // `str(1, …)` của máy chủ từ chối chuỗi rỗng, nên gửi đi là 400 ở một trường
   // mà người dùng cố ý bỏ trống.
@@ -137,7 +146,13 @@ export function BieuMauKhachHang({
         ...opt('channelCode', coGiaTri(g.channelCode)),
       };
       if (khach) {
-        await va(`/customers/${khach.id}`, than);
+        // Chỉ gửi khi ĐÃ ĐỔI. Gửi kèm ở mọi lượt sửa thì một lần sửa địa chỉ
+        // cũng ghi một dòng "đổi loại khách hàng" vào nhật ký kiểm toán, và
+        // nhật ký đầy những thay đổi không có thật thì không ai đọc nữa.
+        await va(`/customers/${khach.id}`, {
+          ...than,
+          ...(doiLoai ? { customerType: Number(g.customerType) } : {}),
+        });
         xong(khach.id);
       } else {
         const moi = await dang<{ id: string }>('/customers', {
@@ -167,8 +182,8 @@ export function BieuMauKhachHang({
 
         {khach ? (
           <p className="ghi-chu">
-            Mã khách hàng <strong>{khach.code}</strong> và loại khách hàng không sửa được. Hồ sơ CSBH
-            đã lập trỏ tới mã này.
+            Mã khách hàng <strong>{khach.code}</strong> không sửa được. Hồ sơ CSBH đã lập trỏ tới mã
+            này.
           </p>
         ) : (
           <>
@@ -180,23 +195,45 @@ export function BieuMauKhachHang({
             <p className="ghi-chu">
               <strong>Mã không sửa được sau khi lưu.</strong> Nhập nhầm thì phải lập khách hàng mới.
             </p>
-            <Truong id="kh-loai" nhan="Loại khách hàng" bắtBuộc>
-              {(p) => (
-                <select
-                  {...p}
-                  className="o-nhap"
-                  value={g.customerType}
-                  onChange={(e) => sua({ customerType: e.target.value })}
-                >
-                  {LOAI_KHACH_HANG.map((l) => (
-                    <option key={l} value={l}>
-                      Loại {l}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
           </>
+        )}
+
+        {/* LOẠI KHÁCH HÀNG sửa được, cả khi lập lẫn khi sửa. Trước đây khoá lại
+            vì nó quyết định ngưỡng chiết khấu — nhưng khách hàng có đổi hạng
+            thật, và cách duy nhất còn lại là lập một khách hàng mới với mã mới,
+            tức là cắt đôi lịch sử CSBH của cùng một khách. */}
+        <Truong id="kh-loai" nhan="Loại khách hàng" bắtBuộc>
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={g.customerType}
+              onChange={(e) => sua({ customerType: e.target.value })}
+            >
+              {LOAI_KHACH_HANG.map((l) => (
+                <option key={l} value={l}>
+                  {nhanLoaiKhach(l)}
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+
+        {/*
+          Cảnh báo CHỈ hiện khi ô thật sự đổi giá trị. Bày sẵn một khối vàng ở
+          mọi lượt sửa tên hay địa chỉ là dạy người dùng bỏ qua nó, và lúc họ đổi
+          loại thật thì nó đã thành nền.
+        */}
+        {doiLoai && (
+          <div className="hop-canh-bao" role="note">
+            <strong>
+              Đổi từ {nhanLoaiKhach(khach!.customerType)} sang {nhanLoaiKhach(Number(g.customerType))}.
+            </strong>{' '}
+            Loại khách hàng quyết định ngưỡng chiết khấu. Hồ sơ CSBH <strong>đã lập giữ nguyên</strong>{' '}
+            ngưỡng đã chụp lúc lập — kể cả hồ sơ đang là Nháp hay đang bị trả lại. Muốn một hồ sơ
+            đang sửa dùng ngưỡng mới thì mở nó ra, bấm <strong>Sửa</strong> ở từng dòng sản phẩm rồi
+            lưu lại; hồ sơ lập từ đây về sau thì tự dùng ngưỡng mới.
+          </div>
         )}
 
         <Truong id="kh-ten" nhan="Tên khách hàng" bắtBuộc>

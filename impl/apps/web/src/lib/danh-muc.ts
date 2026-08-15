@@ -99,6 +99,15 @@ export const NHAN_TRA_CUU: Record<LoaiTraCuu, string> = {
 /** Ba loại khách hàng (CUST-06). Ngưỡng chiết khấu khai theo từng loại. */
 export const LOAI_KHACH_HANG = [1, 2, 3] as const;
 
+/**
+ * Nhãn của một loại khách hàng.
+ *
+ * Một hàm chứ không nội suy thẳng `Loại ${n}` ở bốn màn hình: khi nghiệp vụ đặt
+ * tên thật cho ba loại (đại lý cấp 1, nhà thuốc, bệnh viện…) thì chỉ sửa ở đây.
+ * Giá trị lạ vẫn hiện ra được — dữ liệu cũ không bao giờ nên hiện thành ô trống.
+ */
+export const nhanLoaiKhach = (n: number): string => `Loại ${n}`;
+
 export type SanPham = {
   id: string;
   code: string;

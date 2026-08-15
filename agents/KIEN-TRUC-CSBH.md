@@ -933,7 +933,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CUST-03 | Mã KH trùng nhưng khác hoa/thường hoặc thừa khoảng trắng | Vẫn bị chặn — chuẩn hóa trước khi so sánh | §6.1 | `P0` |
 | CUST-04 | Nhập mã số thuế sai định dạng (không phải 10 hoặc 13 chữ số) | 400 kèm thông báo cụ thể | §6.1 | `P1` |
 | CUST-05 | Nhập CCCD/MST trùng với khách hàng khác | Vẫn lưu được nhưng trả cảnh báo kèm danh sách khách hàng bị trùng | §6.1 | `P1` |
-| CUST-06 | Loại khách hàng ngoài tập {1, 2, 3} | 400 | §6.1 | `P1` |
+| CUST-06 | Loại khách hàng ngoài tập {1, 2, 3} | 400, cả khi tạo lẫn khi sửa | §6.1 | `P1` |
+| CUST-06b | Đổi loại khách hàng của khách đã có hồ sơ | 200. Hồ sơ đã lập **giữ nguyên** `threshold_snap` — kể cả hồ sơ Nháp; chỉ hồ sơ lập sau, hoặc dòng được ghi lại qua `PATCH .../lines/:lineId`, mới nhận ngưỡng mới (`0023`) | §6.1 §6.3 | `P0` |
 | CUST-07 | Địa chỉ đăng ký khác nơi nhận hàng | Lưu và trả về đủ hai trường; hợp đồng in đúng cả hai | §6.1 | `P1` |
 | CUST-08 | Gửi mã tỉnh/thành, bệnh viện hoặc kênh không có trong danh mục | 400 — bốn trường phân loại đều là danh mục có mã | §6.1 | `P0` |
 | CUST-09 | Nhập công nợ | Lưu như trường số bình thường; không có lời gọi ra hệ thống kế toán nào | §6.1 | `P0` |

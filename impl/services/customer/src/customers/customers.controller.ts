@@ -71,6 +71,19 @@ export class CustomersController {
   update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
       name: opt(str(1, 300)),
+      /*
+       * Loại khách hàng SỬA ĐƯỢC (`0023`).
+       *
+       * Trước đây chỉ đặt được lúc lập. Lý do cũ nghe hợp lý — nó quyết định
+       * ngưỡng chiết khấu — nhưng thực tế khách hàng ĐỔI hạng, và cách duy nhất
+       * còn lại là lập một khách hàng mới với mã mới, tức là cắt đôi lịch sử
+       * CSBH của cùng một khách.
+       *
+       * An toàn với hồ sơ đã lập: mỗi dòng giữ `threshold_snap` của riêng nó, và
+       * ngưỡng chỉ tra lại khi dòng được ghi lại. Hồ sơ đang chờ duyệt không
+       * khoá sửa được nên chúng không đổi số dưới tay người duyệt.
+       */
+      customerType: opt(int(1, 3)),
       registeredAddress: opt(str(1, 500)),
       deliveryAddress: opt(str(1, 500)),
       ownerName: opt(str(1, 200)),

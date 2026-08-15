@@ -3338,3 +3338,53 @@ gateway xuống thì mã thoát 1 kèm đúng câu ấy.
 Kho mã này đã có `check-demo-down` từ lâu, tức là **cái bẫy "demo và test giành nhau một CSDL" đã
 được nhận ra và đã được rào một nửa**. Nửa còn lại không ai nghĩ tới cho tới khi có người vấp. Một
 cái rào dựng theo hướng mình vừa đi qua thường chỉ chắn đúng hướng đó.
+
+---
+
+## P31 — Loại khách hàng: hiện ra, và sửa được
+
+Hai yêu cầu rời nhau, nhưng chúng vá đúng một lỗ. Loại khách hàng quyết định ngưỡng chiết khấu của
+**mọi dòng sản phẩm** trong mọi hồ sơ của khách ấy — mà màn hình khách hàng không hiện nó ở đâu cả,
+và biểu mẫu sửa thì khoá nó lại.
+
+### Một quyết định cũ bị lật, và vì sao lật là đúng
+
+Bản trước chốt "loại khách hàng không sửa được sau khi lưu: nó quyết định ngưỡng chiết khấu". Nghe
+hợp lý, và nó sai — vì cái giá của lệnh cấm không được cân.
+
+Khách hàng **có** đổi hạng. Khi đổi, cách duy nhất còn lại là lập một khách hàng mới với mã mới, tức
+là **cắt đôi lịch sử CSBH của cùng một khách**: báo cáo hết đọc được liên tục, và màn hình "CSBH
+đang áp dụng" của khách cũ vĩnh viễn trỏ vào một bản ghi không còn ai dùng. Đổi lấy điều gì? Một rủi
+ro mà `threshold_snap` đã chặn từ `0001`.
+
+### Cái phải chứng minh không phải "sửa được", mà "sửa an toàn"
+
+Bốn test HTTP, và cái đầu quan trọng nhất: **hồ sơ Nháp đã lập giữ nguyên ngưỡng cũ sau khi đổi
+loại.** Nếu ngưỡng tự đổi theo thì một con số trong hồ sơ đang mở thay đổi dưới tay người đang xem,
+không do thao tác nào của họ gây ra — thứ khó tin hơn hẳn một con số cũ.
+
+Sản phẩm dựng riêng cho nhóm test này có **ba ngưỡng khác nhau** cho ba loại khách (10% · 20% · 30%).
+Dùng sản phẩm ngưỡng đều nhau thì cả bốn test đều xanh kể cả khi mã sai hoàn toàn.
+
+Đường tự cập nhật duy nhất là mở hồ sơ ra, bấm *Sửa* ở từng dòng — `upsertLine` tra lại `resolve` mỗi
+lần ghi. Câu ấy nằm nguyên văn trên hộp thoại, và có một test đi đúng đường đó.
+
+### Hai chi tiết nhỏ, cùng một lối nghĩ
+
+- **Cảnh báo chỉ hiện khi ô THẬT SỰ đổi giá trị.** Bày sẵn một khối vàng ở mọi lượt sửa tên hay địa
+  chỉ là dạy người dùng bỏ qua nó, và tới lúc họ đổi loại thật thì nó đã thành nền.
+- **`customerType` chỉ gửi khi đã đổi.** Gửi kèm ở mọi lượt sửa thì một lần sửa địa chỉ cũng ghi một
+  dòng "đổi loại khách hàng" vào nhật ký kiểm toán — nhật ký đầy những thay đổi không có thật thì
+  không ai đọc nữa. Có test đọc thẳng thân request để chốt cả hai chiều, và chốt luôn rằng nó gửi
+  dạng **số** chứ không phải chuỗi (`int(1, 3)` ở máy chủ).
+
+`nhanLoaiKhach()` thay cho bốn chỗ nội suy `Loại ${n}`: khi nghiệp vụ đặt tên thật cho ba loại thì
+chỉ sửa một chỗ.
+
+790 case (773 → 790).
+
+### Còn nợ
+
+- Hồ sơ **Nháp** của khách vừa đổi loại mang ngưỡng cũ mà **không có dấu hiệu nào** trên màn hình nói
+  ra điều đó. Người lập phải nhớ. Một dấu "ngưỡng chụp theo loại cũ" trên dòng sản phẩm sẽ đóng chỗ
+  này, nhưng nó cần dòng hồ sơ nhớ luôn loại khách lúc chụp — chưa có cột đó.

@@ -132,11 +132,31 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
   một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
 - Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
   điểm bán là chuyện có thật.
-- **Loại khách hàng cũng không sửa được** sau khi lưu: nó quyết định ngưỡng chiết khấu áp cho khách.
+- **Loại khách hàng thì sửa được** — xem ngay dưới đây.
+
+Loại khách hàng hiện ở **cả hai chỗ**: cạnh mã trên từng thẻ ở danh sách, và trong khối thông tin ở
+màn hình chi tiết. Nó quyết định ngưỡng chiết khấu, nên người lập hồ sơ cần thấy nó trước khi mở
+khách hàng ra.
 
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
 không riêng Trình dược viên. Tỉnh · bệnh viện · kênh bán chọn từ danh mục do Quản trị khai; danh mục
 trống thì ba ô đó cũng trống.
+
+### Đổi loại khách hàng
+
+Ô *Loại khách hàng* nằm ngay trong hộp thoại *Sửa*. Chọn loại khác thì một khối vàng hiện ra nói rõ
+hệ quả — nó chỉ hiện khi bạn thật sự đổi giá trị.
+
+| Hồ sơ | Sau khi đổi loại |
+|---|---|
+| Đã lập, bất kể trạng thái nào — kể cả **Nháp** và **Yêu cầu chỉnh sửa** | **Giữ nguyên** ngưỡng đã chụp lúc lập |
+| Lập **từ đây về sau** | Dùng ngưỡng của loại mới |
+
+Muốn một hồ sơ đang sửa dùng ngưỡng mới: mở hồ sơ ra, bấm **Sửa** ở từng dòng sản phẩm rồi lưu lại.
+Đó là đường duy nhất — hệ thống **không** tự tính lại, và đó là cố ý: một con số trong hồ sơ đang mở
+mà tự đổi dưới tay người đang xem, không do thao tác nào của họ, là thứ khó tin hơn hẳn.
+
+Hồ sơ đã gửi duyệt thì khoá sửa, nên không có đường nào làm nó đổi số.
 
 **Đổi trình dược viên phụ trách** — nút riêng, chỉ Sale Admin và Quản trị. Đây không phải đổi một
 cái tên: **phạm vi nhìn thấy đổi theo**. Người cũ thôi thấy khách hàng này và mọi hồ sơ của họ,

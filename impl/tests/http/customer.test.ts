@@ -462,3 +462,66 @@ describe('OPS-07 phân trang', () => {
     expect((await get('/customers?offset=-1')).status).toBe(400);
   });
 });
+
+/**
+ * 0023 — loại khách hàng SỬA ĐƯỢC.
+ *
+ * Trước đây chỉ đặt được lúc lập, vì nó quyết định ngưỡng chiết khấu. Lý do ấy
+ * không đủ: khách hàng có đổi hạng thật, và cách duy nhất còn lại là lập một
+ * khách hàng mới với mã mới — tức là cắt đôi lịch sử CSBH của cùng một khách.
+ */
+describe('0023 sửa loại khách hàng', () => {
+  it('đổi được từ loại 1 sang loại 3', async () => {
+    const kh = await post('/customers', base({ customerType: 1 }));
+    expect(kh.status).toBe(201);
+
+    const r = await patch(`/customers/${kh.body.id}`, { customerType: 3 });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.customerType).toBe(3);
+    expect((await get(`/customers/${kh.body.id}`)).body.customerType).toBe(3);
+  });
+
+  it('giá trị ngoài 1..3 thì 400, và KHÔNG ghi gì', async () => {
+    const kh = await post('/customers', base({ customerType: 2 }));
+    const r = await patch(`/customers/${kh.body.id}`, { customerType: 4 });
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('customerType');
+    expect((await get(`/customers/${kh.body.id}`)).body.customerType).toBe(2);
+  });
+
+  it('không gửi trường này thì loại GIỮ NGUYÊN', async () => {
+    // `coalesce($n, customer_type)` — sửa tên không được kéo theo loại về mặc
+    // định. Giao diện cũng chỉ gửi trường này khi ô thật sự đổi giá trị.
+    const kh = await post('/customers', base({ customerType: 3 }));
+    const r = await patch(`/customers/${kh.body.id}`, { name: 'Ten moi' });
+    expect(r.status).toBe(200);
+    expect(r.body.customerType).toBe(3);
+    expect(r.body.name).toBe('Ten moi');
+  });
+
+  it('danh sách khách hàng trả kèm loại — màn hình cần nó để hiện', async () => {
+    const kh = await post('/customers', base({ customerType: 2 }));
+    const ds = await get('/customers?limit=200');
+    const co = (ds.body.items as { id: string; customerType: number }[]).find(
+      (x) => x.id === kh.body.id,
+    );
+    expect(co?.customerType).toBe(2);
+  });
+
+  it('đổi loại đi vào nhật ký kèm giá trị TRƯỚC và SAU', async () => {
+    // CUST-15. Không có dòng này thì sáu tháng sau không ai trả lời được vì sao
+    // khách này từng lấy ngưỡng của loại 1.
+    const kh = await post('/customers', base({ customerType: 1 }));
+    await patch(`/customers/${kh.body.id}`, { customerType: 2 });
+    const ev = await withAdminDb(async (c) => {
+      const r = await c.query<{ payload: { before: { customerType: number }; after: { customerType: number } } }>(
+        `SELECT payload FROM cus.outbox WHERE routing_key = 'customer.changed'
+           AND payload->>'id' = $1 ORDER BY created_at DESC LIMIT 1`,
+        [kh.body.id],
+      );
+      return r.rows[0]?.payload;
+    });
+    expect(ev?.before.customerType).toBe(1);
+    expect(ev?.after.customerType).toBe(2);
+  });
+});

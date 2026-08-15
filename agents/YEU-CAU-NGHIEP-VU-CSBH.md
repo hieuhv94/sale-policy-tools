@@ -328,7 +328,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Mã khách hàng | **Khóa định danh.** Kế toán cấp bên ngoài phần mềm; hệ thống chặn trùng khi tạo mới |
 | Tên khách hàng / hộ kinh doanh / công ty | Nhập tay, dùng tra cứu và lọc |
 | CCCD / Mã số thuế | Kiểm tra định dạng, cảnh báo trùng, dùng lọc |
-| Loại khách hàng | Loại 1: HKD của KH · Loại 2: HKD cộng tác · Loại 3: HKD/công ty là điểm bán hoặc cơ sở y tế |
+| Loại khách hàng | Loại 1: HKD của KH · Loại 2: HKD cộng tác · Loại 3: HKD/công ty là điểm bán hoặc cơ sở y tế. **Sửa được sau khi lưu** `sửa 15/08` — xem dưới bảng |
 | Địa chỉ đăng ký / Nơi nhận hàng | Cho phép khác nhau; hiển thị đúng trên hợp đồng; dùng lọc |
 | Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
 | Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
@@ -344,6 +344,26 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 >
 > Bỏ khái niệm “Tên mã khách”. Muốn tìm khách hàng thì lọc theo Tên khách hàng, Địa chỉ đăng ký
 > hoặc Mã số thuế.
+
+**Loại khách hàng sửa được** `sửa 15/08`. Trước đây khoá lại vì nó quyết định ngưỡng chiết khấu — lý
+do ấy không đủ: khách hàng có đổi hạng thật, và cách duy nhất còn lại là lập một khách hàng mới với
+mã mới, tức là **cắt đôi lịch sử CSBH của cùng một khách**. Ô nằm trong hộp thoại *Sửa*, và chỉ khi
+thật sự đổi giá trị thì một khối cảnh báo mới hiện ra nói rõ hệ quả.
+
+| Hồ sơ | Sau khi đổi loại |
+|---|---|
+| Đã lập, mọi trạng thái — kể cả Nháp và Yêu cầu chỉnh sửa | **Giữ nguyên** ngưỡng đã chụp lúc lập |
+| Lập từ đây về sau | Dùng ngưỡng của loại mới |
+
+Muốn một hồ sơ đang sửa dùng ngưỡng mới thì mở nó ra, bấm *Sửa* ở từng dòng sản phẩm rồi lưu — đó là
+đường duy nhất, và **cố ý** không tự động: một con số trong hồ sơ đang mở mà tự đổi dưới tay người
+đang xem, không do thao tác nào của họ, là thứ khó tin hơn hẳn. Hồ sơ đã gửi duyệt thì khoá sửa nên
+không có đường nào làm nó đổi số.
+
+**Loại khách hàng hiển thị ở cả hai màn hình** `sửa 15/08`: cạnh mã trên từng thẻ ở danh sách, và
+trong khối thông tin ở màn hình chi tiết. Trước đây không hiện ở đâu cả, nên người lập hồ sơ không
+có cách nào biết khách thuộc loại mấy — trong khi chính con số ấy quyết định ngưỡng chiết khấu của
+mọi dòng sản phẩm họ sắp nhập.
 
 ### 6.2. Sản phẩm và giá — do Quản trị hệ thống nhập
 
@@ -734,5 +754,9 @@ dòng ấy mang **nền vàng và dấu ◆** trong bảng, có chú thích màu
 định nào** đã cho ra ngưỡng của nó · **sản phẩm không có ngưỡng nào vẫn đưa vào hồ sơ được**, chỉ là
 không đối chiếu được — bản trước chặn, và cái chặn đó đã gỡ · cột **QĐCK** trên bảng dòng sản phẩm và
 cột **Id** trên bảng quy định mang cùng một mã, **ô tìm kiếm khớp cả mã** · **gỡ cột "Độ cụ thể"**.
+
+**Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
+**sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
+sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.
