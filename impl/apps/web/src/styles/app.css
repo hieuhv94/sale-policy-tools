@@ -381,6 +381,9 @@ main:focus { outline: none; }
 }
 textarea.o-nhap { min-height: 6rem; }
 .truong-loi { color: var(--mau-loi); font-size: var(--chu-nho); margin: 0; }
+/* Đơn vị đứng cùng dòng nhãn, nhạt hơn — nó là chú thích cho con số, không phải
+   một phần của tên trường. */
+.don-vi { color: var(--mau-chu-nhat); font-weight: 400; }
 
 /* Dấu sao "bắt buộc". Màu lỗi để nhìn ra ngay, nhưng KHÔNG chỉ dựa vào màu:
    chính ký tự `*` mới là dấu hiệu, và trình đọc màn hình nhận phần "(bắt buộc)"
@@ -513,6 +516,21 @@ tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
   padding: var(--k3) var(--k4);
   text-decoration: none;
   color: var(--mau-chu);
+}
+
+/* Cùng hai lớp trên nhưng đặt vào <button> — màn hình chọn khách hàng ở
+   `/ho-so/moi` làm vậy vì bấm vào là chọn, không phải đi tới địa chỉ khác.
+   Không có khối này thì trình duyệt vẽ nút mặc định của nó ĐÈ LÊN: chữ về phông
+   hệ thống cỡ nhỏ, canh giữa, nằm trong một hộp xám co lại vừa nội dung — tên
+   khách hàng hiện ra không giống bất kỳ danh sách nào khác trong sản phẩm. */
+button.viec-lien,
+button.the-lien {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
 /* Vạch đỏ bên trái cho hồ sơ quá hạn — nhìn thấy trước khi kịp đọc chữ. */
 .viec.qua-han { border-left: 4px solid var(--mau-loi); }

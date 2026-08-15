@@ -368,18 +368,25 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
     expect(r.body.ruleId).toBeNull();
   });
 
-  it('CAT-12 hết hiệu lực thì dòng đó không còn khớp', async () => {
+  it('CAT-12 quy định VÔ THỜI HẠN — không có ngày hết hiệu lực', async () => {
+    // Từ 0020, ngưỡng chiết khấu theo đúng luật của chính CSBH: có hiệu lực từ
+    // ngày khai cho tới khi bị xoá. Gửi kèm `effectiveTo` thì trường lạ bị bỏ
+    // qua, KHÔNG được âm thầm ghi vào.
     const { id, groupCode } = await makeProduct({ defaultRate2Type1: 700 });
-    await post('/catalog/discount-rules', {
+    const tao = await post('/catalog/discount-rules', {
       productGroupCode: groupCode,
       customerType: 1,
       effectiveFrom: '2020-01-01',
       effectiveTo: '2020-12-31',
       thresholdRate2: 5000,
     });
+    expect(tao.status).toBe(201);
+    expect(tao.body.effectiveTo).toBeUndefined();
+
+    // Ngày hôm nay vẫn khớp dù "ngày kết thúc" kia đã qua từ lâu.
     const r = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=1`);
-    expect(r.body.thresholdRate2).toBe(700);
-    expect(r.body.source).toBe('PRODUCT_DEFAULT');
+    expect(r.body.thresholdRate2).toBe(5000);
+    expect(r.body.source).toBe('RULE');
   });
 });
 
@@ -657,34 +664,19 @@ describe('sửa và xoá quy định chiết khấu', () => {
 
     expect((await tra('2026-01-01')).body.source).toBe('RULE');
 
-    await patch(`/catalog/discount-rules/${id}`, { effectiveTo: '2020-12-31' });
+    // Gửi kèm `effectiveTo` KHÔNG cắt được hiệu lực nữa — trường đó không còn
+    // tồn tại nên bị bỏ qua. Muốn dừng một quy định thì XOÁ dòng.
+    const suaR = await patch(`/catalog/discount-rules/${id}`, {
+      thresholdRate2: 1500,
+      effectiveTo: '2020-12-31',
+    });
+    expect(suaR.status).toBe(200);
+    expect((await tra('2026-01-01')).body.source).toBe('RULE');
 
+    await del(`/catalog/discount-rules/${id}`);
     const sau = await tra('2026-01-01');
     expect(sau.body.source).toBe('PRODUCT_DEFAULT');
     expect(sau.body.thresholdRate2).toBe(999);
-    // Trước ngày kết thúc thì dòng vẫn khớp — cắt hiệu lực chứ không xoá.
-    expect((await tra('2020-06-01')).body.source).toBe('RULE');
-  });
-
-  it('chuỗi rỗng GỠ ngày kết thúc, thiếu trường thì giữ nguyên', async () => {
-    // Cùng cái bẫy `opt()` đã gặp ở PATCH /admin/users/:id: bộ kiểm dùng chung
-    // biến '' thành undefined, nên hai trường hợp này phải đọc thẳng từ thân.
-    const { id } = await mkRule({ effectiveTo: '2020-12-31' });
-
-    await patch(`/catalog/discount-rules/${id}`, { thresholdRate2: 1600 });
-    let ds = (await get('/catalog/discount-rules?limit=200')).body.items as {
-      id: string;
-      effectiveTo: string | null;
-      thresholdRate2: number;
-    }[];
-    let dong = ds.find((x) => x.id === id)!;
-    expect(dong.effectiveTo).not.toBeNull();
-    expect(dong.thresholdRate2).toBe(1600);
-
-    await patch(`/catalog/discount-rules/${id}`, { effectiveTo: '' });
-    ds = (await get('/catalog/discount-rules?limit=200')).body.items as typeof ds;
-    dong = ds.find((x) => x.id === id)!;
-    expect(dong.effectiveTo).toBeNull();
   });
 
   it('KHÔNG sửa được ba khoá khớp — độ cụ thể giữ nguyên', async () => {
@@ -697,7 +689,11 @@ describe('sửa và xoá quy định chiết khấu', () => {
       customerType: number | null;
     }[]).find((x) => x.id === id)!;
 
-    await patch(`/catalog/discount-rules/${id}`, { customerType: 3, productGroupCode: null });
+    await patch(`/catalog/discount-rules/${id}`, {
+      thresholdRate2: 1500,
+      customerType: 3,
+      productGroupCode: null,
+    });
 
     const sau = ((await get('/catalog/discount-rules?limit=200')).body.items as typeof truoc[]).find(
       (x) => x.id === id,

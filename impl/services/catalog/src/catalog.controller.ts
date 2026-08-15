@@ -171,37 +171,23 @@ export class CatalogController {
       customerType: opt(int(1, 3)),
       channelCode: opt(str(1, 40)),
       effectiveFrom: isoDate(),
-      effectiveTo: opt(isoDate()),
       thresholdRate2: int(0, 10_000),
     });
     return this.rules.create(b, me.id);
   }
 
   /**
-   * CHỈ sửa ngưỡng và ngày kết thúc — ba khoá khớp không sửa được. Xem chú thích
-   * ở `RulesService.update`: đổi khoá khớp là đổi thứ tự ưu tiên của cả bảng.
+   * CHỈ sửa NGƯỠNG.
+   *
+   * Ba khoá khớp không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng
+   * (`specificity`). Ngày kết thúc thì không còn tồn tại từ 0020: quy định vô
+   * thời hạn, muốn dừng thì xoá dòng hoặc khai một dòng cụ thể hơn đè lên.
    */
   @Roles('QUAN_TRI')
   @Patch('discount-rules/:id')
   updateRule(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { thresholdRate2: opt(int(0, 10_000)) });
-    // `effectiveTo` không đi qua `opt()`: chuỗi rỗng phải giữ nghĩa "gỡ ngày kết
-    // thúc", mà `opt()` biến nó thành `undefined` = "không đụng tới"
-    // (`validate.ts:92`). Cùng cái bẫy đã gặp ở `PATCH /admin/users/:id`.
-    const raw = (body ?? {}) as Record<string, unknown>;
-    const coDenNgay = Object.prototype.hasOwnProperty.call(raw, 'effectiveTo');
-    const denNgay =
-      raw['effectiveTo'] === null || raw['effectiveTo'] === ''
-        ? null
-        : coDenNgay
-          ? isoDate().parse(raw['effectiveTo'], 'effectiveTo')
-          : undefined;
-
-    return this.rules.update(
-      id,
-      { ...b, ...(coDenNgay ? { effectiveTo: denNgay } : {}) },
-      me.id,
-    );
+    const b = validate(body, { thresholdRate2: int(0, 10_000) });
+    return this.rules.update(id, b, me.id);
   }
 
   @Roles('QUAN_TRI')

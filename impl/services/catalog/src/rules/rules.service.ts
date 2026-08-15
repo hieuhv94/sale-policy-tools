@@ -11,7 +11,6 @@ export type RuleInput = {
   customerType?: number | undefined;
   channelCode?: string | undefined;
   effectiveFrom: string;
-  effectiveTo?: string | undefined;
   thresholdRate2: number;
 };
 
@@ -39,14 +38,13 @@ export class RulesService {
       }
       const r = await c.query<{ id: string; specificity: number }>(
         `INSERT INTO cat.discount_rule
-           (product_group_id, customer_type, channel_code, effective_from, effective_to, threshold_rate2)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, specificity`,
+           (product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
+         VALUES ($1,$2,$3,$4,$5) RETURNING id, specificity`,
         [
           groupId,
           input.customerType ?? null,
           input.channelCode ?? null,
           input.effectiveFrom,
-          input.effectiveTo ?? null,
           input.thresholdRate2,
         ],
       );
@@ -72,32 +70,26 @@ export class RulesService {
    * Sửa KHÔNG viết lại lịch sử: `pol.policy_line.threshold_snap` đã đóng băng
    * ngưỡng vào từng dòng hồ sơ lúc lập (`0001_init.sql:92`).
    */
-  async update(
-    id: string,
-    input: { thresholdRate2?: number | undefined; effectiveTo?: string | null | undefined },
-    actorId: string,
-  ) {
+  /**
+   * Sửa quy định. Từ 0020 chỉ còn đổi được NGƯỠNG.
+   *
+   * Ba ô phạm vi không sửa được vì đổi chúng là đổi thứ tự ưu tiên của cả bảng
+   * (`specificity`), và ngày hết hiệu lực thì không còn tồn tại — quy định vô
+   * thời hạn, muốn dừng thì xoá dòng.
+   */
+  async update(id: string, input: { thresholdRate2: number }, actorId: string) {
     return this.db.tx(async (c) => {
       const truoc = await c.query(
-        `SELECT product_group_id, customer_type, channel_code, effective_from,
-                effective_to, threshold_rate2
+        `SELECT product_group_id, customer_type, channel_code, effective_from, threshold_rate2
            FROM cat.discount_rule WHERE id = $1`,
         [id],
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
 
-      const r = await c.query<{ threshold_rate2: number; effective_to: Date | null }>(
-        `UPDATE cat.discount_rule
-            SET threshold_rate2 = coalesce($2, threshold_rate2),
-                effective_to    = CASE WHEN $4 THEN $3::date ELSE effective_to END
-          WHERE id = $1
-        RETURNING threshold_rate2, effective_to`,
-        [
-          id,
-          input.thresholdRate2 ?? null,
-          input.effectiveTo ?? null,
-          input.effectiveTo !== undefined,
-        ],
+      const r = await c.query<{ threshold_rate2: number }>(
+        `UPDATE cat.discount_rule SET threshold_rate2 = $2
+          WHERE id = $1 RETURNING threshold_rate2`,
+        [id, input.thresholdRate2],
       );
       const sau = r.rows[0]!;
       await emit(
@@ -105,7 +97,7 @@ export class RulesService {
         'catalog.changed',
         changeEvent('discount_rule', id, actorId, { before: truoc.rows[0], after: sau }),
       );
-      return { id, thresholdRate2: sau.threshold_rate2, effectiveTo: sau.effective_to };
+      return { id, thresholdRate2: sau.threshold_rate2 };
     });
   }
 
@@ -120,7 +112,7 @@ export class RulesService {
       const truoc = await c.query(
         `DELETE FROM cat.discount_rule WHERE id = $1
          RETURNING product_group_id, customer_type, channel_code, effective_from,
-                   effective_to, threshold_rate2`,
+                   threshold_rate2`,
         [id],
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
@@ -137,7 +129,7 @@ export class RulesService {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT r.id, g.code AS "productGroupCode", r.customer_type AS "customerType",
               r.channel_code AS "channelCode", r.effective_from AS "effectiveFrom",
-              r.effective_to AS "effectiveTo", r.threshold_rate2 AS "thresholdRate2",
+              r.threshold_rate2 AS "thresholdRate2",
               r.specificity, count(*) OVER() AS total_count
          FROM cat.discount_rule r LEFT JOIN cat.product_group g ON g.id = r.product_group_id
         ORDER BY r.specificity DESC, r.effective_from DESC
@@ -183,7 +175,6 @@ export class RulesService {
           AND (customer_type    IS NULL OR customer_type    = $2)
           AND (channel_code     IS NULL OR channel_code     = $3)
           AND effective_from <= coalesce($4::date, current_date)
-          AND (effective_to IS NULL OR effective_to >= coalesce($4::date, current_date))
         ORDER BY specificity DESC, effective_from DESC, id
         LIMIT 1`,
       [p.group_id, args.customerType, args.channelCode ?? null, args.on ?? null],

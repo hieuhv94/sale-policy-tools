@@ -7,7 +7,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
-import { ChuThichBatBuoc, HopThoai, ONhapTien, OTimKiem, Truong } from '@csbh/web/chung';
+import {
+  catHaiChuSo,
+  ChuThichBatBuoc,
+  HopThoai,
+  ONhapTien,
+  OTimKiem,
+  Truong,
+} from '@csbh/web/chung';
+import { doiSoThapPhan, nguongTuPhanTram, phanTramTuNguong } from '@csbh/web/danh-muc';
 
 /**
  * Dọn DOM sau mỗi test.
@@ -179,5 +187,64 @@ describe('FE-35 hộp thoại dùng được bằng bàn phím', () => {
     const h = screen.getByRole('dialog');
     expect(h.getAttribute('aria-modal')).toBe('true');
     expect(h.getAttribute('aria-label')).toBe('Xác nhận xoá');
+  });
+});
+
+// =============================================================================
+// Định dạng số NGAY KHI ĐANG GÕ
+// =============================================================================
+
+describe('ô nhập tiền', () => {
+  it('hiện dấu phân nhóm nghìn ngay khi gõ, nhưng báo ra chuỗi số trần', async () => {
+    // Đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó sai theo bội số của
+    // mười. Nhưng giá trị gửi lên máy chủ phải là số trần — gửi "90.000" thì
+    // `money()` bên máy chủ từ chối.
+    const doi = vi.fn();
+    render(<ONhapTien id="t" giaTri="90000" doi={doi} />);
+    const o = screen.getByRole('textbox') as HTMLInputElement;
+    expect(o.value).toBe('90.000');
+
+    await userEvent.type(o, '5');
+    expect(doi).toHaveBeenLastCalledWith('900005');
+  });
+
+  it('ô rỗng hiện rỗng, không hiện dấu gạch ngang', () => {
+    // `tien('')` trả '—' cho bảng dữ liệu; trong ô nhập thì đó là rác người dùng
+    // phải xoá đi trước khi gõ được.
+    render(<ONhapTien id="t" giaTri="" doi={() => undefined} />);
+    expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('');
+  });
+});
+
+describe('ô nhập phần trăm', () => {
+  it('cắt còn hai chữ số thập phân ngay lúc gõ', () => {
+    expect(catHaiChuSo('12,345')).toBe('12,34');
+    expect(catHaiChuSo('12.345')).toBe('12,34');
+  });
+
+  it('CHỊU ĐƯỢC trạng thái gõ dở', () => {
+    // "12," là chuỗi người dùng bắt buộc phải đi qua để gõ "12,5". Chuẩn hoá quá
+    // tay ở đây là ô nhập tự xoá ký tự vừa gõ, và không cách nào nhập phần thập
+    // phân được nữa.
+    expect(catHaiChuSo('12,')).toBe('12,');
+    expect(catHaiChuSo('')).toBe('');
+  });
+
+  it('bỏ ký tự không phải số', () => {
+    expect(catHaiChuSo('1a2b,3c')).toBe('12,3');
+  });
+
+  it('đọc được cả dấu phẩy lẫn dấu chấm', () => {
+    // Quy ước tiếng Việt là dấu phẩy, nhưng bàn phím số trên laptop chỉ có dấu
+    // chấm — ép một kiểu là thỉnh thoảng có người nhập xong thấy báo "không phải
+    // số" mà không hiểu vì sao.
+    expect(doiSoThapPhan('12,34')).toBeCloseTo(12.34);
+    expect(doiSoThapPhan('12.34')).toBeCloseTo(12.34);
+    expect(Number.isNaN(doiSoThapPhan(''))).toBe(true);
+  });
+
+  it('đi một vòng phần trăm → phần vạn → phần trăm vẫn đúng', () => {
+    expect(nguongTuPhanTram('12,34')).toBe(1234);
+    expect(phanTramTuNguong(1234)).toBe('12,34');
   });
 });

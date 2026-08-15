@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { LoiApi } from '../lib/api.js';
-import { nhanTrangThai, nhomTrangThai } from '../lib/format.js';
+import { nhanTrangThai, nhomTrangThai, tien } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
 
 /**
@@ -160,12 +160,22 @@ export function ChuThichBatBuoc() {
 export function Truong({
   nhan,
   bắtBuộc,
+  donVi,
   loi,
   children,
   id,
 }: {
   nhan: string;
   bắtBuộc?: boolean;
+  /**
+   * Đơn vị của con số, hiện ngay TRÊN ô nhập.
+   *
+   * Đặt trên chứ không đặt trong ô: chữ nằm trong ô thì lẫn với con số đang gõ,
+   * còn đặt sau ô thì trên điện thoại nó rơi xuống dòng dưới và người dùng đọc
+   * xong con số rồi mới thấy đơn vị. "90.000" mà không biết đồng hay nghìn đồng
+   * là chỗ sai tiền theo bội số của một nghìn.
+   */
+  donVi?: string | undefined;
   loi?: string | undefined;
   children: (props: { id: string; 'aria-describedby'?: string; 'aria-invalid'?: boolean }) => ReactNode;
   id: string;
@@ -178,6 +188,7 @@ export function Truong({
         {nhan}
         {bắtBuộc && <span className="sao" aria-hidden="true"> *</span>}
         {bắtBuộc && <span className="chi-doc-man-hinh"> (bắt buộc)</span>}
+        {donVi && <span className="don-vi"> ({donVi})</span>}
       </label>
       {children({
         id,
@@ -218,10 +229,63 @@ export function ONhapTien({
       type="text"
       inputMode="numeric"
       autoComplete="off"
-      value={giaTri}
+      // HIỂN THỊ có dấu chấm phân nhóm, GIÁ TRỊ gửi đi vẫn là chuỗi số trần.
+      // Người nhập 90000 phải đọc được ngay là chín mươi nghìn chứ không phải
+      // chín trăm nghìn — đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó
+      // sai theo bội số của mười.
+      value={tien(giaTri) === '—' ? '' : tien(giaTri)}
       onChange={(e) => doi(e.target.value.replace(/[^\d]/g, ''))}
     />
   );
+}
+
+/**
+ * Ô nhập PHẦN TRĂM, hai chữ số thập phân.
+ *
+ * Dấu thập phân là **dấu phẩy** theo quy ước tiếng Việt (`FE-27`), nhưng nhận cả
+ * dấu chấm: bàn phím số trên laptop chỉ có dấu chấm, và bắt người ta đổi bàn
+ * phím giữa lúc gõ một con số là thứ không ai chịu.
+ *
+ * Cắt ở hai chữ số ngay khi đang gõ chứ không đợi lúc lưu. Gõ được `12,345` rồi
+ * lưu xong thấy `12,35` là người dùng phải tự đoán ra hệ thống đã làm gì với con
+ * số của mình.
+ */
+export function ONhapPhanTram({
+  id,
+  giaTri,
+  doi,
+  ...rest
+}: {
+  id: string;
+  giaTri: string;
+  doi: (v: string) => void;
+} & Record<string, unknown>) {
+  return (
+    <input
+      {...rest}
+      id={id}
+      className="o-nhap o-nhap-hep so"
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={giaTri}
+      onChange={(e) => doi(catHaiChuSo(e.target.value))}
+    />
+  );
+}
+
+/**
+ * Giữ lại đúng những gì hợp lệ trong một số thập phân đang gõ dở.
+ *
+ * Phải chịu được TRẠNG THÁI DỞ DANG: `12,` là chuỗi người dùng bắt buộc phải đi
+ * qua để gõ `12,5`. Chuẩn hoá quá tay ở đây — cắt dấu phẩy cuối — là ô nhập tự
+ * xoá ký tự người ta vừa gõ, và không cách nào nhập được phần thập phân.
+ */
+export function catHaiChuSo(v: string): string {
+  const s = v.replace(/\./g, ',').replace(/[^\d,]/g, '');
+  const [nguyen = '', ...le] = s.split(',');
+  if (le.length === 0) return nguyen;
+  return `${nguyen},${le.join('').slice(0, 2)}`;
 }
 
 /**

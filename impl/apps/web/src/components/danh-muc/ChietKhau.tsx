@@ -12,6 +12,7 @@ import { dang, layJson, va, xoa } from '../../lib/api.js';
 import { ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
+  doiSoThapPhan,
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
@@ -25,6 +26,7 @@ import {
   DangTai,
   HopThoai,
   HopThoaiXacNhan,
+  ONhapPhanTram,
   Trong,
   Truong,
 } from '../Chung.js';
@@ -116,7 +118,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                   <td className="so">{phanTramTuNguong(q.thresholdRate2)}%</td>
                   <td>
                     {ngay(q.effectiveFrom)}
-                    {q.effectiveTo ? ` – ${ngay(q.effectiveTo)}` : ' – không thời hạn'}
+                    {' – vô thời hạn'}
                   </td>
                   <td className="so">{q.specificity}</td>
                   {!chiXem && (
@@ -204,11 +206,10 @@ function HopThoaiSuaQuyDinh({
   xong: () => void;
 }) {
   const [nguong, datNguong] = useState(phanTramTuNguong(q.thresholdRate2));
-  const [denNgay, datDenNgay] = useState(q.effectiveTo ?? '');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
-  const n = Number(nguong);
+  const n = doiSoThapPhan(nguong);
   const hopLe = nguong !== '' && Number.isFinite(n) && n >= 0 && n <= 100;
 
   const gui = async (e: React.FormEvent) => {
@@ -216,11 +217,9 @@ function HopThoaiSuaQuyDinh({
     datLoi(null);
     datDangGui(true);
     try {
-      // `effectiveTo` gửi chuỗi RỖNG để gỡ ngày kết thúc — máy chủ phân biệt
       // "không đụng tới" (thiếu trường) với "gỡ" (rỗng).
       await va(`/catalog/discount-rules/${q.id}`, {
         thresholdRate2: nguongTuPhanTram(nguong),
-        effectiveTo: denNgay,
       });
       xong();
     } catch (err) {
@@ -243,28 +242,16 @@ function HopThoaiSuaQuyDinh({
 
         <Truong
           id="ck-sua-nguong"
-          nhan="Ngưỡng chiết khấu (%)"
+          nhan="Ngưỡng chiết khấu" donVi="phần trăm, hai chữ số thập phân"
           bắtBuộc
           loi={nguong !== '' && !hopLe ? 'Nhập một số từ 0 đến 100.' : undefined}
         >
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap o-nhap-hep so"
-              inputMode="decimal"
-              value={nguong}
-              onChange={(e) => datNguong(e.target.value)}
-            />
-          )}
-        </Truong>
-        <Truong id="ck-sua-den" nhan="Hiệu lực đến">
-          {(p) => (
-            <input {...p} className="o-nhap" type="date" value={denNgay} onChange={(e) => datDenNgay(e.target.value)} />
-          )}
+          {(p) => <ONhapPhanTram {...p} giaTri={nguong} doi={datNguong} />}
         </Truong>
         <p className="ghi-chu">
-          Để trống là không thời hạn. Sửa <strong>không</strong> làm đổi hồ sơ đã lập — mỗi dòng hồ
-          sơ giữ ngưỡng đã chụp lúc lập.
+          Quy định <strong>vô thời hạn</strong> — muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể
+          hơn đè lên. Sửa <strong>không</strong> làm đổi hồ sơ đã lập: mỗi dòng hồ sơ giữ ngưỡng đã
+          chụp lúc lập.
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}
@@ -296,12 +283,11 @@ function HopThoaiTaoQuyDinh({
   const [loaiKhach, datLoaiKhach] = useState('');
   const [maKenh, datMaKenh] = useState('');
   const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
-  const [denNgay, datDenNgay] = useState('');
   const [nguong, datNguong] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
-  const n = Number(nguong);
+  const n = doiSoThapPhan(nguong);
   const thieu = thieuTruong('chiet-khau', { effectiveFrom: tuNgay, thresholdRate2: nguong });
   const hopLe = thieu.length === 0 && Number.isFinite(n) && n >= 0 && n <= 100;
 
@@ -315,7 +301,6 @@ function HopThoaiTaoQuyDinh({
         ...(loaiKhach ? { customerType: Number(loaiKhach) } : {}),
         ...(maKenh ? { channelCode: maKenh } : {}),
         effectiveFrom: tuNgay,
-        ...(denNgay ? { effectiveTo: denNgay } : {}),
         thresholdRate2: nguongTuPhanTram(nguong),
       });
       xong();
@@ -377,19 +362,11 @@ function HopThoaiTaoQuyDinh({
 
         <Truong
           id="ck-nguong"
-          nhan="Ngưỡng chiết khấu (%)"
+          nhan="Ngưỡng chiết khấu" donVi="phần trăm, hai chữ số thập phân"
           bắtBuộc
           loi={nguong !== '' && !hopLe ? 'Nhập một số từ 0 đến 100.' : undefined}
         >
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap o-nhap-hep so"
-              inputMode="decimal"
-              value={nguong}
-              onChange={(e) => datNguong(e.target.value)}
-            />
-          )}
+          {(p) => <ONhapPhanTram {...p} giaTri={nguong} doi={datNguong} />}
         </Truong>
 
         <Truong id="ck-tu" nhan="Hiệu lực từ" bắtBuộc>
@@ -397,12 +374,10 @@ function HopThoaiTaoQuyDinh({
             <input {...p} className="o-nhap" type="date" value={tuNgay} onChange={(e) => datTuNgay(e.target.value)} />
           )}
         </Truong>
-        <Truong id="ck-den" nhan="Hiệu lực đến">
-          {(p) => (
-            <input {...p} className="o-nhap" type="date" value={denNgay} onChange={(e) => datDenNgay(e.target.value)} />
-          )}
-        </Truong>
-        <p className="ghi-chu">Bỏ trống ô "đến" nghĩa là quy định không có thời hạn kết thúc.</p>
+        <p className="ghi-chu">
+          Quy định có hiệu lực từ ngày trên và <strong>vô thời hạn</strong> — cùng luật với chính
+          CSBH. Muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể hơn đè lên.
+        </p>
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">

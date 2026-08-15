@@ -259,7 +259,7 @@ export function BieuMauKhachHang({
           Trùng mã số thuế với khách khác <strong>vẫn lưu được</strong> — hệ thống chỉ cảnh báo. Một
           chủ hộ mở nhiều điểm bán là chuyện bình thường.
         </p>
-        <Truong id="kh-no" nhan="Công nợ">
+        <Truong id="kh-no" nhan="Công nợ" donVi="Tiền tệ đơn vị đồng">
           {(p) => <ONhapTien {...p} giaTri={g.debt} doi={(v) => sua({ debt: v })} />}
         </Truong>
 

@@ -93,12 +93,12 @@ export function ThemDongSanPham({
           )}
         </Truong>
 
-        <Truong id="dsp-gia" nhan="Giá bán buôn" bắtBuộc>
+        <Truong id="dsp-gia" nhan="Giá bán buôn" donVi="Tiền tệ đơn vị đồng" bắtBuộc>
           {(p) => <ONhapTien {...p} giaTri={giaBanBuon} doi={datGiaBanBuon} />}
         </Truong>
 
         {[0, 1, 2, 3].map((i) => (
-          <Truong key={i} id={`dsp-cpbh${i + 1}`} nhan={`CPBH ${i + 1}`}>
+          <Truong key={i} id={`dsp-cpbh${i + 1}`} nhan={`CPBH ${i + 1}`} donVi="Tiền tệ đơn vị đồng">
             {(p) => <ONhapTien {...p} giaTri={cpbh[i] ?? ''} doi={(v) => doiCpbh(i, v)} />}
           </Truong>
         ))}

@@ -29,7 +29,6 @@ const qd = (p: Partial<QuyDinhChietKhau>): QuyDinhChietKhau => ({
   customerType: null,
   channelCode: null,
   effectiveFrom: '2026-01-01',
-  effectiveTo: null,
   thresholdRate2: 2500,
   specificity: 0,
   ...p,
@@ -37,16 +36,18 @@ const qd = (p: Partial<QuyDinhChietKhau>): QuyDinhChietKhau => ({
 
 describe('quy đổi ngưỡng chiết khấu', () => {
   it('phần vạn ra phần trăm, hai chữ số thập phân', () => {
-    expect(phanTramTuNguong(2500)).toBe('25.00');
-    expect(phanTramTuNguong(10_000)).toBe('100.00');
-    expect(phanTramTuNguong(0)).toBe('0.00');
+    // Dấu PHẨY thập phân theo quy ước tiếng Việt (FE-27) — ô nhập hiện đúng
+    // thứ người dùng sẽ đọc trên giấy tờ.
+    expect(phanTramTuNguong(2500)).toBe('25,00');
+    expect(phanTramTuNguong(10_000)).toBe('100,00');
+    expect(phanTramTuNguong(0)).toBe('0,00');
   });
 
   it('giữ được phần lẻ mà máy chủ lưu được', () => {
     // 2 rưỡi phần vạn = 0.25%. Làm tròn về số nguyên phần trăm ở đây là vứt đi
     // độ chính xác mà CSDL vẫn giữ.
-    expect(phanTramTuNguong(25)).toBe('0.25');
-    expect(phanTramTuNguong(1)).toBe('0.01');
+    expect(phanTramTuNguong(25)).toBe('0,25');
+    expect(phanTramTuNguong(1)).toBe('0,01');
   });
 
   it('phần trăm về phần vạn là số NGUYÊN', () => {

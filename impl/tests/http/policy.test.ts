@@ -458,7 +458,23 @@ describe('POL-12 TDV không sửa được giá bán Công ty và ngưỡng', ()
   it('giá và ngưỡng luôn lấy từ danh mục, đóng băng vào hồ sơ', async () => {
     const d = await draft();
     expect(d.body.lines[0].companyPrice).toBe('100000');
-    expect(d.body.lines[0].threshold).toBe('15.00');
+
+    // So với chính DANH MỤC, không so với một con số viết cứng.
+    //
+    // Bất biến cần kiểm là "ngưỡng trên dòng hồ sơ CHÍNH LÀ ngưỡng danh mục trả
+    // về", chứ không phải "ngưỡng bằng 15,00". Viết cứng con số là ngầm giả định
+    // thêm một điều kiện — rằng không quy định chiết khấu nào khớp sản phẩm này
+    // — mà điều kiện đó phụ thuộc dữ liệu của tệp test KHÁC đang chạy song song
+    // trên cùng một CSDL. Từ khi quy định chiết khấu vô thời hạn (0020), giả
+    // định ấy càng dễ vỡ: một dòng khai từ 2020 không còn tự hết hiệu lực.
+    const tra = await (await http(catalog))
+      .get(
+        `/catalog/thresholds/resolve?productId=${d.productId}&customerType=1`,
+      )
+      .set('Authorization', `Bearer ${tok['admin01']}`);
+    expect(tra.status, JSON.stringify(tra.body)).toBe(200);
+    const mongDoi = (tra.body.thresholdRate2 / 100).toFixed(2);
+    expect(d.body.lines[0].threshold).toBe(mongDoi);
   });
 });
 

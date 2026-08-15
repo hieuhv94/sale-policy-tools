@@ -120,7 +120,6 @@ export type QuyDinhChietKhau = {
   customerType: number | null;
   channelCode: string | null;
   effectiveFrom: string;
-  effectiveTo: string | null;
   thresholdRate2: number;
   specificity: number;
 };
@@ -135,9 +134,25 @@ export type MucTraCuu = { code: string; name: string };
  * Đổi ở đúng một chỗ. Rải phép chia 100 khắp các màn hình là cách chắc chắn để
  * có ngày một chỗ quên, và một ngưỡng sai 100 lần thì không ai đọc ra ngay.
  */
-export const phanTramTuNguong = (n: number): string => (n / 100).toFixed(2);
+export const phanTramTuNguong = (n: number): string => (n / 100).toFixed(2).replace('.', ',');
 
-export const nguongTuPhanTram = (s: string): number => Math.round(Number(s) * 100);
+/**
+ * Đọc một con số người dùng gõ, chấp nhận CẢ dấu phẩy lẫn dấu chấm thập phân.
+ *
+ * Quy ước tiếng Việt là dấu phẩy (`FE-27`) và ô nhập hiển thị dấu phẩy, nhưng
+ * bàn phím số trên laptop chỉ có dấu chấm. Nhận cả hai là nhận đúng những gì
+ * người ta thật sự gõ; ép một kiểu là thỉnh thoảng có người nhập xong thấy ô
+ * báo "không phải số" mà không hiểu vì sao.
+ *
+ * Trả `NaN` khi không đọc được — người gọi tự quyết định coi đó là lỗi hay là
+ * trạng thái gõ dở.
+ */
+export const doiSoThapPhan = (s: string): number => {
+  const t = s.trim().replace(',', '.');
+  return t === '' ? NaN : Number(t);
+};
+
+export const nguongTuPhanTram = (s: string): number => Math.round(doiSoThapPhan(s) * 100);
 
 /** Câu mô tả phạm vi áp dụng của một quy định — bốn ô rời rạc đọc rất khó. */
 export function phamViChietKhau(q: QuyDinhChietKhau): string {

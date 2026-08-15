@@ -101,7 +101,12 @@ export function ChiTietHoSo({ id }: { id: string }) {
   if (loi !== null && hoSo === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!hoSo) return <DangTai />;
 
-  const tongThuVe = hoSo.lines.reduce((a, d) => a + BigInt(d.netPrice), 0n).toString();
+  // KHÔNG hiện "Tổng giá thu về" dưới bảng nữa. Cộng dồn giá thu về của nhiều
+  // sản phẩm khác nhau ra một con số không có nghĩa nghiệp vụ nào: mỗi dòng là
+  // một mức giá cho một mặt hàng, không phải một khoản tiền của cùng một giao
+  // dịch. Con số ấy đứng ngay dưới bảng thì người đọc mặc nhiên hiểu là giá trị
+  // hợp đồng.
+
   // Sửa nội dung cần CẢ HAI: máy chủ cho phép (hồ sơ đang ở trạng thái sửa được)
   // và vai trò có quyền. Hai điều kiện độc lập — một Kế toán mở hồ sơ Nháp của
   // TDV thì `allowed-actions` rỗng, nhưng nếu không kiểm quyền thì một hồ sơ bị
@@ -144,11 +149,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
         dong={hoSo.lines}
         {...(dangSua ? { xoaDong: datXoaDongId, dangXoa: dangXoaDong } : {})}
       />
-      {hoSo.lines.length > 0 && (
-        <p className="tong-cong">
-          Tổng giá thu về: <strong className="so">{tien(tongThuVe)}</strong>
-        </p>
-      )}
 
       <TepDinhKem
         hoSoId={hoSo.id}

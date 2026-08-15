@@ -364,7 +364,7 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
 
         <ChuThichBatBuoc />
 
-        <Truong id="gia-tien" nhan="Giá bán Công ty" bắtBuộc>
+        <Truong id="gia-tien" nhan="Giá bán Công ty" donVi="Tiền tệ đơn vị đồng" bắtBuộc>
           {(p) => <ONhapTien {...p} giaTri={soTien} doi={datSoTien} />}
         </Truong>
         <Truong id="gia-tu" nhan="Áp dụng từ ngày" bắtBuộc>
