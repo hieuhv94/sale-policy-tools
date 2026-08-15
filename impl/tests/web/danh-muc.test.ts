@@ -7,11 +7,10 @@
  * đều bị đánh dấu vượt ngưỡng — hoặc không dòng nào bị đánh dấu cả.
  */
 import { describe, expect, it } from 'vitest';
+import { DIEU_HUONG, VAI_TRO, xem } from '@csbh/web/can';
 import {
   LOAI_GIA,
   LOAI_TRA_CUU,
-  MUC_DANH_MUC,
-  THE_CHUNG,
   locSanPham,
   NHAN_LOAI_GIA,
   NHAN_TRA_CUU,
@@ -111,23 +110,31 @@ describe('các bảng tra cố định', () => {
     expect(Object.keys(NHAN_TRA_CUU).sort()).toEqual([...LOAI_TRA_CUU].sort());
   });
 
-  it('ba thẻ danh mục, khoá không trùng nhau', () => {
-    expect(MUC_DANH_MUC.map((m) => m.khoa)).toEqual(['san-pham', 'chiet-khau', 'giay-to-mau']);
+  it('ba màn hình tách ra từ Danh mục, khai ở MỘT chỗ', () => {
+    // `DIEU_HUONG` là nguồn duy nhất từ P22 — trước đó có thêm một bảng thẻ
+    // riêng trong `lib/danh-muc.ts`, và hai bảng cùng khai một danh sách là hai
+    // bảng sẽ lệch nhau.
+    const duong = DIEU_HUONG.map((m) => m.duong);
+    expect(duong).toContain('/san-pham');
+    expect(duong).toContain('/chiet-khau');
+    expect(duong).toContain('/giay-to-mau');
+    expect(duong).not.toContain('/danh-muc');
   });
 
-  it('năm vai trò kia thấy đúng hai thẻ, KHÔNG thấy Giấy tờ mẫu', () => {
-    // Giấy tờ mẫu là chỗ nhập của riêng Quản trị. Bày ra rồi khoá hết nút bên
-    // trong là bắt người ta bấm vào một màn hình trống mới hiểu.
-    expect([...THE_CHUNG]).toEqual(['san-pham', 'chiet-khau']);
-    for (const k of THE_CHUNG) {
-      expect(MUC_DANH_MUC.some((m) => m.khoa === k)).toBe(true);
+  it('Giấy tờ mẫu CHỈ Quản trị thấy, hai màn kia mọi vai trò', () => {
+    // Bày một mục menu cho vai trò không làm được gì trong đó là bắt họ bấm vào
+    // một màn hình trống mới hiểu ra.
+    for (const v of VAI_TRO) {
+      expect(xem(v, 'sanPham'), `${v} phải xem được Sản phẩm`).toBe(true);
+      expect(xem(v, 'chietKhau'), `${v} phải xem được Chiết khấu`).toBe(true);
     }
+    expect(VAI_TRO.filter((v) => xem(v, 'giayToMau'))).toEqual(['QUAN_TRI']);
   });
 
-  it('KHÔNG còn thẻ Người ký', () => {
+  it('KHÔNG còn mục Người ký', () => {
     // Gỡ ở P20 vì yêu cầu nghiệp vụ chưa rõ. API bên máy chủ vẫn còn — test này
     // chỉ ghim rằng giao diện không bày nó ra nữa.
-    expect(MUC_DANH_MUC.some((m) => m.nhan.includes('Người ký'))).toBe(false);
+    expect(DIEU_HUONG.some((m) => m.nhan.includes('Người ký'))).toBe(false);
   });
 });
 

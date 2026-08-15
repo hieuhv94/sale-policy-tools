@@ -60,7 +60,13 @@ export const QUYEN_XEM = {
   hoSo: VAI_TRO,
   khachHang: VAI_TRO,
   baoCao: VAI_TRO,
-  danhMuc: VAI_TRO,
+  // "Danh mục" tách làm ba mục menu riêng ở P22. Sản phẩm và Chiết khấu mọi vai
+  // trò đọc được — đó là hai thứ phải tra khi lập và khi duyệt hồ sơ.
+  sanPham: VAI_TRO,
+  chietKhau: VAI_TRO,
+  // Giấy tờ mẫu CHỈ Quản trị. Bày cho vai trò khác là một mục menu dẫn tới màn
+  // hình họ không làm được gì.
+  giayToMau: ['QUAN_TRI'],
   /** Nhật ký chỉ Ban lãnh đạo và Quản trị đọc; các vai trò trong luồng thì không. */
   nhatKy: ['BAN_LANH_DAO', 'QUAN_TRI'],
   // CHỈ Sale Admin. Mẫu hợp đồng là văn bản nghiệp vụ của họ, khác với mẫu bản
@@ -83,7 +89,9 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/ho-so', nhan: 'Hồ sơ CSBH', muc: 'hoSo' },
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
   { duong: '/bao-cao', nhan: 'Báo cáo', muc: 'baoCao' },
-  { duong: '/danh-muc', nhan: 'Danh mục', muc: 'danhMuc' },
+  { duong: '/san-pham', nhan: 'Sản phẩm', muc: 'sanPham' },
+  { duong: '/chiet-khau', nhan: 'Chiết khấu', muc: 'chietKhau' },
+  { duong: '/giay-to-mau', nhan: 'Giấy tờ mẫu', muc: 'giayToMau' },
   { duong: '/mau-hop-dong', nhan: 'Mẫu hợp đồng', muc: 'mauHopDong' },
   { duong: '/nguoi-dung', nhan: 'Người dùng', muc: 'nguoiDung' },
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },

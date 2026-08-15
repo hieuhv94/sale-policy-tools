@@ -1,49 +1,46 @@
 /**
- * Danh mục — mọi vai trò ĐỌC, chỉ Quản trị hệ thống GHI.
+ * Ba màn hình tách ra từ "Danh mục" cũ: Sản phẩm · Chiết khấu · Giấy tờ mẫu.
  *
- * Toàn bộ phần ghi nằm sau `can(vaiTro,'quanTriDanhMuc')`.
+ * Trước P22 đây là MỘT mục menu với một dải thẻ bên trong. Dải thẻ ấy là một
+ * tầng điều hướng thứ hai nằm bên trong tầng thứ nhất: người dùng bấm "Danh
+ * mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết
+ * mình đang đứng ở đâu. Ba mục menu ngang hàng thì bấm một lần là tới, và mục
+ * đang mở tự sáng lên.
  *
- * Năm vai trò kia thấy ĐÚNG hai thẻ có nghĩa với họ: Sản phẩm và Quy định chiết
- * khấu — hai thứ cần tra khi lập và khi duyệt hồ sơ. Quản trị thấy thêm thẻ thứ
- * ba là Giấy tờ mẫu.
+ * Cả ba dùng chung một danh sách nhóm sản phẩm tải ở `useNhom` — sản phẩm cần
+ * nó để chọn nhóm, chiết khấu cần nó để chọn phạm vi.
  *
- * Nhóm sản phẩm và Danh mục tra cứu KHÔNG còn là thẻ riêng; chúng thành khối
- * bên trong hai thẻ đầu — xem lý do ở `lib/danh-muc.ts`.
+ * Phần GHI nằm sau `can(vaiTro,'quanTriDanhMuc')`; năm vai trò còn lại đọc.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 import {
-  MUC_DANH_MUC,
   NHAN_TRANG_THAI_SAN_PHAM,
-  THE_CHUNG,
   locSanPham,
-  type MucDanhMuc,
   type NhomSanPham,
   type SanPham,
 } from '../lib/danh-muc.js';
-import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js';
+import { BaoLoi, DangTai, OTimKiem, Trong } from '../components/Chung.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
 import { TheTraCuu } from '../components/danh-muc/TraCuu.js';
 import { TheGiayToMau } from '../components/danh-muc/GiayToMau.js';
 
-export function DanhMuc() {
-  const { nguoiDung } = usePhien();
-  const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
-
-  const [the, datThe] = useState<MucDanhMuc>('san-pham');
+/**
+ * Danh sách nhóm sản phẩm, tải một lần cho cả màn hình.
+ *
+ * Chỉ tải khi là Quản trị: vai trò khác không có ô chọn nhóm nào, và gọi một API
+ * họ không có quyền chỉ để bỏ kết quả đi là tự tạo ra 403 trong log.
+ */
+function useNhom(quanTri: boolean) {
   const [nhom, datNhom] = useState<NhomSanPham[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
+  const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
-  const taiLaiNhom = useCallback(() => datLan((x) => x + 1), []);
-
-  // Nhóm sản phẩm tải ở CẤP TRANG chứ không trong từng thẻ: ba thẻ cùng cần nó
-  // (sản phẩm để chọn nhóm, thẻ Nhóm để hiện bảng, chiết khấu để chọn phạm vi),
-  // và tải ba lần thì ba nơi lệch nhau ngay sau khi thêm một nhóm mới.
   useEffect(() => {
     if (!quanTri) return;
     const huy = new AbortController();
@@ -56,53 +53,90 @@ export function DanhMuc() {
     return () => huy.abort();
   }, [lan, quanTri]);
 
-  const muc = quanTri ? MUC_DANH_MUC : MUC_DANH_MUC.filter((m) => THE_CHUNG.includes(m.khoa));
+  return { nhom, loi, taiLai };
+}
 
-  if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLaiNhom} />;
+function DauTrang({ tieuDe, moTa }: { tieuDe: string; moTa: string }) {
+  return (
+    <div className="dau-trang">
+      <div>
+        <h1>{tieuDe}</h1>
+        <p className="mo-ta-trang">{moTa}</p>
+      </div>
+    </div>
+  );
+}
+
+// --- Sản phẩm ---------------------------------------------------------------
+
+export function TrangSanPham() {
+  const { nguoiDung } = usePhien();
+  const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
+  const { nhom, loi, taiLai } = useNhom(quanTri);
+
+  if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (quanTri && !nhom) return <DangTai />;
 
   return (
     <section className="trang">
-      <div className="dau-trang">
-        <div>
-          <h1>Danh mục</h1>
-          <p className="mo-ta-trang">
-            {quanTri
-              ? 'Sản phẩm, giá, ngưỡng chiết khấu và các danh mục dùng chung.'
-              : 'Chỉ xem. Việc thêm và sửa thuộc Quản trị hệ thống.'}
-          </p>
-        </div>
-      </div>
+      <DauTrang
+        tieuDe="Sản phẩm"
+        moTa={
+          quanTri
+            ? 'Danh mục sản phẩm, giá bán Công ty và nhóm sản phẩm.'
+            : 'Chỉ xem. Việc thêm và sửa thuộc Quản trị hệ thống.'
+        }
+      />
 
-      <DaiThe nhanVung="Nhóm danh mục" dangChon={the} chon={datThe} muc={muc} />
-
-      {loi !== null && <BaoLoi loi={loi} thuLai={taiLaiNhom} />}
-
-      {the === 'san-pham' && (
-        <>
-          {quanTri && nhom ? <TheSanPham nhom={nhom} /> : <BangSanPhamChiXem />}
-          {/* Nhóm sản phẩm nằm DƯỚI bảng sản phẩm chứ không trên: việc thường
-              ngày là tra sản phẩm, còn thêm nhóm là việc hiếm. */}
-          {quanTri && nhom && <TheNhom nhom={nhom} taiLai={taiLaiNhom} />}
-        </>
-      )}
-      {the === 'chiet-khau' && (
-        <>
-          <TheChietKhau nhom={nhom ?? []} chiXem={!quanTri} />
-          {quanTri && <TheTraCuu />}
-        </>
-      )}
-      {quanTri && the === 'giay-to-mau' && <TheGiayToMau />}
+      {/* HAI BẢNG, không gộp: bảng sản phẩm là thứ tra hàng ngày, bảng nhóm là
+          thứ sửa vài lần một năm. Gộp lại thì cột của bảng này thành cột trống
+          của bảng kia. Nhóm nằm DƯỚI vì đó là thứ ít động tới hơn. */}
+      {quanTri && nhom ? <TheSanPham nhom={nhom} /> : <BangSanPhamChiXem />}
+      {quanTri && nhom && <TheNhom nhom={nhom} taiLai={taiLai} />}
     </section>
   );
 }
 
-/**
- * Bảng sản phẩm chỉ đọc — giữ NGUYÊN bốn cột của bản trước P11b.
- *
- * Đây là màn hình mà năm vai trò còn lại nhìn thấy, và họ đã quen nó từ bản
- * demo. Đổi hình dáng ở đây là đổi thứ không ai yêu cầu đổi.
- */
+// --- Chiết khấu -------------------------------------------------------------
+
+export function TrangChietKhau() {
+  const { nguoiDung } = usePhien();
+  const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
+  const { nhom, loi, taiLai } = useNhom(quanTri);
+
+  if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLai} />;
+  if (quanTri && !nhom) return <DangTai />;
+
+  return (
+    <section className="trang">
+      <DauTrang
+        tieuDe="Chiết khấu"
+        moTa={
+          quanTri
+            ? 'Ngưỡng chiết khấu quy định, và các danh mục tra cứu dùng chung.'
+            : 'Ngưỡng chiết khấu quy định. Chỉ xem.'
+        }
+      />
+
+      <TheChietKhau nhom={nhom ?? []} chiXem={!quanTri} />
+      {/* Danh mục tra cứu ở đây vì kênh phân phối là một chiều của chính quy
+          định chiết khấu. Tỉnh và bệnh viện đi nhờ cùng khối. */}
+      {quanTri && <TheTraCuu />}
+    </section>
+  );
+}
+
+// --- Giấy tờ mẫu ------------------------------------------------------------
+
+export function TrangGiayToMau() {
+  return (
+    <section className="trang">
+      <DauTrang tieuDe="Giấy tờ mẫu" moTa="Mẫu văn bản dùng để xuất PDF." />
+      <TheGiayToMau />
+    </section>
+  );
+}
+
 function BangSanPhamChiXem() {
   const [ds, datDs] = useState<SanPham[] | null>(null);
   const [tim, datTim] = useState('');

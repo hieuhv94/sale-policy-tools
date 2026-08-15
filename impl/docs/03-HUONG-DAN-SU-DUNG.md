@@ -333,26 +333,37 @@ kể cả hồ sơ nộp từ trước — rút ngắn hạn có thể làm mộ
 lý cũ. Kết quả *"đã gửi thành công trước đó"* không phải lỗi — sự kiện đã đi lọt ở một lượt khác, và
 thư được đánh dấu đã xử lý.
 
-## 13. Danh mục (Quản trị hệ thống)
+## 13. Sản phẩm, Chiết khấu, Giấy tờ mẫu
 
-*Danh mục* — năm thẻ, xếp theo đúng thứ tự phụ thuộc. Các vai trò khác vẫn vào được mục này nhưng
-chỉ thấy hai thẻ **Sản phẩm** và **Quy định chiết khấu**, ở dạng chỉ đọc.
+Ba mục menu riêng. **Sản phẩm** và **Chiết khấu** mọi vai trò vào được — vai trò không phải Quản trị
+thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Giấy tờ mẫu** chỉ Quản trị hệ thống thấy.
 
-**1. Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo nhóm.
-Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
+### 13.1. Sản phẩm
 
-**2. Sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
+Màn hình này có **hai bảng**: sản phẩm ở trên, nhóm sản phẩm ở dưới.
+
+Ô **tìm kiếm** phía trên bảng sản phẩm khớp cả **tên lẫn mã**, và **không cần gõ dấu** — gõ `sua` ra
+"Sữa", gõ `dem` ra "Metacare Đêm".
+
+**Bảng sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
 
 - **Mã vật tư không sửa được** sau khi tạo. Hồ sơ CSBH đã lập đóng băng mã này.
 - **Vô hiệu hoá** chỉ chặn hồ sơ **lập mới**. Hồ sơ cũ giữ nguyên sản phẩm và giá đã đóng băng.
 - **Giá không phải một ô** — nó là chuỗi dòng có ngày hiệu lực. Nút *Giá* mở lịch sử và cho đặt giá
   mới. Giá hiện hành là dòng mới nhất có ngày **không ở tương lai**: đặt giá cho ngày mai thì hôm nay
   vẫn dùng giá cũ.
+- Danh mục chỉ có **một loại giá: Giá bán Công ty**. Giá bán buôn KHÔNG khai ở đây — người đề nghị
+  nhập nó trên từng dòng của từng hồ sơ, vì nó khác nhau theo khách hàng.
 - **Sản phẩm mới chưa có giá** nên chưa lập được hồ sơ với nó. Đặt giá ngay sau khi tạo.
 - **Nhập Excel** cần ba cột: mã vật tư, tên sản phẩm, mã nhóm. **Một dòng lỗi thì không dòng nào
   được ghi** — thông báo nêu đúng số dòng hỏng để bạn sửa file rồi nhập lại.
 
-**3. Quy định chiết khấu** — ngưỡng để cảnh báo khi lập hồ sơ. Bỏ trống một ô nghĩa là *mọi giá trị*
+**Bảng nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
+nhóm. Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
+
+### 13.2. Chiết khấu
+
+**Quy định chiết khấu** — ngưỡng để cảnh báo khi lập hồ sơ. Bỏ trống một ô nghĩa là *mọi giá trị*
 của ô đó. Nhiều quy định cùng khớp một tình huống là bình thường: **quy định cụ thể hơn thắng**, và
 cột *Độ cụ thể* cho thấy thứ tự đó. Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho người duyệt
 nhìn thấy.
@@ -365,18 +376,19 @@ nhìn thấy.
 - Muốn một quy định thôi áp dụng từ một ngày nào đó thì **đặt ngày kết thúc**, đừng xoá — xoá là mất
   luôn dấu vết vì sao khoảng thời gian trước đó lại dùng ngưỡng ấy.
 
-**4. Danh mục tra cứu** — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
+**Danh mục tra cứu** (dưới bảng quy định, chỉ Quản trị) — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
 chọn trong biểu mẫu khách hàng**; để trống thì người lập khách hàng gặp ba ô rỗng. Thêm lại một mã
 đã có sẽ đổi tên mã đó, không tạo bản thứ hai.
 
-**5. Người ký** — người đứng tên trên hợp đồng xuất ra. Mỗi người có phạm vi ký và khoảng hiệu lực
-riêng; ký ngoài phạm vi hoặc ngoài hạn thì hệ thống từ chối.
+### 13.3. Giấy tờ mẫu (chỉ Quản trị hệ thống)
 
-- Người thôi giữ chức thì bấm **Ngừng dùng**, đừng xoá. Hệ thống không lưu file hợp đồng, nên bản
-  giấy khách hàng đang giữ là dấu vết duy nhất — và nó dẫn chiếu tới một cái tên mà phần mềm phải
-  còn giải thích được. **Xoá** chỉ dành cho dòng vừa khai nhầm.
-- **Họ tên và ngày bắt đầu hiệu lực không sửa được.** Đổi họ tên là biến bản ghi thành một người
-  khác trong khi hợp đồng đã xuất vẫn mang tên cũ. Người mới thì khai người mới.
+Nơi nhập mẫu văn bản để xuất PDF. **Hiện chưa nhập được gì** — mẫu hồ sơ CSBH đang được làm; bản A4
+hiện do hệ thống tự dựng bố cục theo 13 mục bắt buộc.
+
+**Mẫu hợp đồng không nằm ở đây.** Nó thuộc **Sale Admin**, ở mục menu *Mẫu hợp đồng* riêng.
+
+> **Người ký đã gỡ khỏi phần mềm.** Yêu cầu cho chức năng này chưa đủ rõ: chưa xác định người ký
+> dùng ở đâu trong luồng và ai gán cho hồ sơ nào. Sẽ dựng lại sau khi chốt yêu cầu.
 
 ## 14. Dùng trên điện thoại
 

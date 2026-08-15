@@ -1,32 +1,21 @@
 /**
- * Bảng tra và kiểu dữ liệu của màn hình Danh mục.
+ * Bảng tra và kiểu dữ liệu của ba màn hình tách ra từ "Danh mục" cũ.
  *
- * BA thẻ, và ba thôi. Trước P20 có năm — "Nhóm sản phẩm" và "Danh mục tra cứu"
- * đứng riêng, cộng thêm "Người ký". Năm thẻ cho một màn hình mà bốn trong năm
- * chỉ Quản trị vào được là bắt mọi người khác bấm qua mấy màn hình trống mới
- * hiểu ra không có gì cho mình.
+ * KHÔNG còn bảng thẻ ở đây. Trước P22 màn hình Danh mục có một dải thẻ riêng và
+ * `MUC_DANH_MUC` khai ra nó; giờ ba màn hình là ba mục menu ngang hàng, nên
+ * `DIEU_HUONG` bên `can.ts` là nguồn DUY NHẤT — hai bảng cùng khai một danh sách
+ * là hai bảng sẽ lệch nhau.
  *
- * Hai thẻ cũ KHÔNG mất chức năng, chúng thành khối bên trong:
- *   * Nhóm sản phẩm → trong thẻ Sản phẩm, vì nhóm là trường bắt buộc của sản
- *     phẩm; tạo sản phẩm mà chưa có nhóm là đứng luôn ở ô đầu tiên.
- *   * Danh mục tra cứu → trong thẻ Quy định chiết khấu, vì kênh phân phối là
- *     một chiều của chính quy định chiết khấu. Tỉnh và bệnh viện đi nhờ cùng
- *     khối đó — chúng là dữ liệu tra cứu dùng chung, không thuộc riêng thẻ nào.
+ * Nhóm sản phẩm và danh mục tra cứu không có mục menu riêng, chúng là khối bên
+ * trong hai màn hình đầu:
+ *   * Nhóm sản phẩm → màn hình Sản phẩm, bảng thứ hai. Nhóm là trường bắt buộc
+ *     của sản phẩm; tạo sản phẩm mà chưa có nhóm là đứng luôn ở ô đầu tiên.
+ *   * Danh mục tra cứu → màn hình Chiết khấu, vì kênh phân phối là một chiều của
+ *     chính quy định chiết khấu.
  *
  * "Người ký" đã gỡ khỏi giao diện: yêu cầu nghiệp vụ cho nó chưa rõ. API bên
  * `catalog` vẫn còn và vẫn có test — gỡ màn hình không phải là xoá nghiệp vụ.
  */
-
-export type MucDanhMuc = 'san-pham' | 'chiet-khau' | 'giay-to-mau';
-
-export const MUC_DANH_MUC: { khoa: MucDanhMuc; nhan: string }[] = [
-  { khoa: 'san-pham', nhan: 'Sản phẩm' },
-  { khoa: 'chiet-khau', nhan: 'Quy định chiết khấu' },
-  { khoa: 'giay-to-mau', nhan: 'Giấy tờ mẫu' },
-];
-
-/** Thẻ nào các vai trò KHÔNG quản trị nhìn thấy. */
-export const THE_CHUNG: MucDanhMuc[] = ['san-pham', 'chiet-khau'];
 
 /**
  * Bỏ dấu tiếng Việt để tìm kiếm.

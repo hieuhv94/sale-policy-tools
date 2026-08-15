@@ -17,7 +17,7 @@ import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
 import { BaoCao } from './pages/BaoCao.js';
 import { NhatKy } from './pages/NhatKy.js';
-import { DanhMuc } from './pages/DanhMuc.js';
+import { TrangChietKhau, TrangGiayToMau, TrangSanPham } from './pages/DanhMuc.js';
 
 export function App() {
   const { nguoiDung, hetHan, dangTai } = usePhien();
@@ -87,7 +87,14 @@ export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/thong-tin') return <ThongTin />;
 
   if (duong === '/bao-cao') return <BaoCao />;
-  if (duong === '/danh-muc') return <DanhMuc />;
+
+  // "Danh mục" tách làm ba mục menu ở P22. Giữ đường cũ trỏ về Sản phẩm: liên
+  // kết đã lưu trong trình duyệt và trong tài liệu chạy demo vẫn còn dùng nó.
+  if (duong === '/danh-muc' || duong === '/san-pham') return <TrangSanPham />;
+  if (duong === '/chiet-khau') return <TrangChietKhau />;
+  if (duong === '/giay-to-mau') {
+    return xem(vaiTro, 'giayToMau') ? <TrangGiayToMau /> : <KhongCoQuyen />;
+  }
 
   if (duong === '/nguoi-dung') {
     return xem(vaiTro, 'nguoiDung') ? <NguoiDung /> : <KhongCoQuyen />;

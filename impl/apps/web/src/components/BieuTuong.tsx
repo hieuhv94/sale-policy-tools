@@ -71,6 +71,21 @@ const HinhDanhMuc = (
   </Hinh>
 );
 
+/** Ba vạch đậm dần — bảng ngưỡng theo mức. */
+const HinhChietKhau = (
+  <Hinh>
+    <path d="M4 18h4V9H4zM10 18h4V5h-4zM16 18h4v-6h-4z" />
+  </Hinh>
+);
+
+/** Hai tờ giấy chồng nhau — mẫu để nhân bản, không phải một văn bản cụ thể. */
+const HinhGiayToMau = (
+  <Hinh>
+    <path d="M8 3h7l3 3v10H8z" />
+    <path d="M15 3v3h3M16 16v5H6V8h2" />
+  </Hinh>
+);
+
 const HinhMauHopDong = (
   <Hinh>
     <path d="M6 3h9l4 4v14H6z" />
@@ -112,7 +127,12 @@ export function bieuTuongMuc(duong: string): ReactNode {
     case '/bao-cao':
       return HinhBaoCao;
     case '/danh-muc':
+    case '/san-pham':
       return HinhDanhMuc;
+    case '/chiet-khau':
+      return HinhChietKhau;
+    case '/giay-to-mau':
+      return HinhGiayToMau;
     case '/mau-hop-dong':
       return HinhMauHopDong;
     case '/nguoi-dung':

@@ -52,17 +52,18 @@ chưa có Trưởng bộ phận nào để chọn.
 
 1. **Trưởng bộ phận** — không có trường nào thêm.
 2. **Sale Admin** — gốc của cây xem dữ liệu.
-3. **Kế toán** — chọn *Cấp trên* là Sale Admin vừa tạo.
-4. **Trình dược viên** — chọn *Trưởng bộ phận quản lý* (**bắt buộc**) và *Cấp trên* là Kế toán.
+3. **Kế toán** — chọn *Sale Admin quản lý*.
+4. **Trình dược viên** — chọn *Trưởng bộ phận quản lý* và *Kế toán quản lý*. Trưởng bộ phận không
+   bắt buộc lúc tạo, nhưng **chưa gán thì TDV chưa gửi được hồ sơ**.
 5. **Ban lãnh đạo** — nếu muốn xem phần chỉ đọc.
 
 Mỗi tài khoản mới nhận **thư mời kích hoạt**, và đó là **đường duy nhất** để nó có mật khẩu — không
 có mật khẩu mặc định nào để bàn giao. Xem thư ở Mailpit (mục dưới) và đi qua liên kết để đặt mật
 khẩu. Chưa đi qua liên kết thì tài khoản không đăng nhập được bằng bất cứ gì.
 
-Sau đó, vẫn bằng `admin01`: *Danh mục* → tạo **nhóm sản phẩm**, **sản phẩm** kèm giá, **quy định
-chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái này là nguồn của ba ô chọn
-trên biểu mẫu khách hàng.
+Sau đó, vẫn bằng `admin01`: *Sản phẩm* → tạo **nhóm sản phẩm** (bảng dưới) rồi **sản phẩm** kèm giá.
+*Chiết khấu* → tạo **quy định chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái
+này là nguồn của ba ô chọn trên biểu mẫu khách hàng.
 
 > `Test@1234` là lý do `make demo` chạy với `NODE_ENV=demo` chứ không phải `production`. Cả script
 > tạo tài khoản lẫn script dựng lại CSDL đều **tự từ chối chạy** khi `NODE_ENV=production`
@@ -98,7 +99,7 @@ Cố ý **nhỏ** — vừa đủ để thử, không phải một đống dữ 
 | Sản phẩm | 6, chia 2 nhóm, có giá thật |
 | Khách hàng | 4 — nhà thuốc, công ty, khoa bệnh viện |
 | Hồ sơ CSBH | 5, mỗi hồ sơ một trạng thái khác nhau |
-| Danh mục | 3 tỉnh/thành, 2 bệnh viện, 2 kênh, 1 người ký |
+| Danh mục | 3 tỉnh/thành, 2 bệnh viện, 2 kênh |
 
 Năm hồ sơ đặt ở năm trạng thái để mỗi vai trò đăng nhập vào là **có ngay việc để xem**:
 
