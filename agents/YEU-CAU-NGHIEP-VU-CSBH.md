@@ -43,7 +43,8 @@ Quản trị hệ thống ─ danh mục và cấu hình, ngoài luồng duyệt
 ```
 
 - Một Sale Admin phụ trách nhiều kế toán; mỗi kế toán phụ trách nhiều TDV.
-- Trưởng bộ phận quản lý nhiều TDV theo bộ phận, là nhánh riêng.
+- Trưởng bộ phận quản lý nhiều TDV, là nhánh riêng. **Gán thẳng TDV → Trưởng bộ phận**, không qua
+  khái niệm "bộ phận" — xem 2.9.
 - **TDV và QL là một vai trò duy nhất**, không tách.
 - **Kế toán L1 và L2 là một vai trò**, cùng một người xử lý cả hai lần tiếp nhận.
 
@@ -79,7 +80,10 @@ CSBH mình phụ trách.
 - Không duyệt: bắt buộc nhập lý do, hồ sơ quay về Bước 3.
 - Không sửa nội dung hồ sơ, không tham gia các bước sau khi đã ký, **không xuất hợp đồng**.
 
-> Vai trò này phải cấu hình được theo bộ phận và có người duyệt thay — không gán cứng một cá nhân.
+> **Đã thay bằng gán trực tiếp** (xem 2.9). Bản gốc yêu cầu cấu hình theo bộ phận và có người duyệt
+> thay; thực tế nghiệp vụ chỉ nhìn thấy quan hệ "TDV này do ai duyệt", nên một ô chọn Trưởng bộ phận
+> ngay trên tài khoản TDV thay cho ba thao tác quản trị. Cơ chế người duyệt thay **chưa làm** — TDV
+> chỉ có một Trưởng bộ phận tại một thời điểm, đổi được bất cứ lúc nào.
 
 ### 2.4. Kế toán
 
@@ -131,8 +135,9 @@ Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ
 
 ### 2.7. Quản trị hệ thống
 
-- Nhập và duy trì danh mục sản phẩm và giá, chiết khấu quy định, thông tin người ký, mẫu bản CSBH
-  và biểu mẫu scan. **Mẫu hợp đồng không thuộc vai trò này** — xem mục 2.5.
+- Nhập và duy trì danh mục sản phẩm và giá, nhóm sản phẩm, chiết khấu quy định, danh mục tra cứu.
+  **Mẫu hợp đồng không thuộc vai trò này** — xem mục 2.5. Mẫu hồ sơ CSBH thuộc vai trò này nhưng
+  **chưa làm**, và màn hình *Người ký* đã gỡ vì yêu cầu chưa rõ — xem mục 6.4.
 - Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1 — quy trình tạo tài khoản ở mục 2.8.
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
@@ -145,25 +150,74 @@ tác của Quản trị hệ thống.
 
 | Bước | Người thực hiện | Việc |
 |---|---|---|
-| A1 | Quản trị hệ thống | Nhập email, họ tên, vai trò, bộ phận, cấp trên, và **tự đặt mật khẩu mặc định** |
+| A1 | Quản trị hệ thống | Nhập email, họ tên, vai trò, người quản lý. **Không đặt mật khẩu** |
 | A2 | Hệ thống | Tạo tài khoản ở trạng thái **Chờ kích hoạt**, sinh liên kết kích hoạt dùng một lần |
 | A3 | Hệ thống | Gửi email tới địa chỉ vừa nhập: lời mời, liên kết kích hoạt, hạn dùng |
-| A4 | Người dùng | Mở liên kết, đặt mật khẩu mới → tài khoản **Đang hoạt động**, email được xác nhận |
+| A4 | Người dùng | Mở liên kết, đặt mật khẩu → tài khoản **Đang hoạt động**, email được xác nhận |
 
 - **Email là định danh đăng nhập** và là duy nhất trên toàn hệ thống. Trùng email thì báo lỗi, không
   tạo tài khoản thứ hai.
-- Mật khẩu mặc định do Quản trị hệ thống đặt **dùng được để đăng nhập ngay**, nhưng phiên đăng nhập
-  đó bị giới hạn: chỉ đổi được mật khẩu, không gọi được nghiệp vụ nào khác. Đây là đường dự phòng cho
-  trường hợp email chưa tới.
+- **KHÔNG CÒN mật khẩu mặc định** `sửa 12/08`. Bản trước cho Quản trị tự đặt một mật khẩu và bàn
+  giao tay; đường đó bị bỏ vì mật khẩu đi qua tin nhắn, giấy nhớ hoặc lời nói là mật khẩu người thứ
+  ba biết được, và không có cách nào biết nó đã đi tới đâu. Tài khoản mới **không có mật khẩu nào
+  dùng được** cho tới khi chủ tài khoản tự đặt qua liên kết trong thư.
+- Hệ quả phải chấp nhận: **email hỏng thì không ai vào được**. Không còn đường dự phòng. Bù lại,
+  màn hình tạo tài khoản báo ngay khi thư không gửi được, kèm nút *Gửi lại thư mời*.
+- **Quên mật khẩu** `mới 12/08` — người dùng tự yêu cầu liên kết đặt lại, gửi vào email đã đăng ký.
+  Câu trả lời **giống hệt nhau** dù tài khoản có thật hay không, để đường này không thành máy dò xem
+  địa chỉ nào đang có trong hệ thống.
 - Đổi mật khẩu bằng đường nào cũng kích hoạt tài khoản. Nhưng **chỉ đi qua liên kết trong email mới
   được tính là đã xác nhận email** — danh sách tài khoản của Quản trị hệ thống hiện rõ cột này, để
   biết địa chỉ nào chưa từng chứng minh là có thật.
 - Liên kết kích hoạt **hạn 72 giờ, dùng một lần**. Hết hạn thì Quản trị hệ thống gửi lại; lần gửi lại
   huỷ hiệu lực mọi liên kết cũ của người đó.
-- Mật khẩu mới tối thiểu 10 ký tự, có chữ và số, và **không được trùng mật khẩu mặc định**.
+- Mật khẩu mới tối thiểu 10 ký tự, có chữ và số.
 - Đổi mật khẩu thành công thì **thu hồi toàn bộ phiên đăng nhập đang mở** của người đó.
 - Mọi bước ở trên vào nhật ký. Nhật ký ghi ai tạo, tạo lúc nào, gửi lại mấy lần — **không bao giờ ghi
   mật khẩu hay nội dung liên kết kích hoạt**.
+
+### 2.9. Sửa tài khoản đã tạo `mới 12/08`
+
+Bản gốc chỉ mô tả việc TẠO tài khoản. Ba câu hỏi phát sinh khi dùng thật — ai sửa được gì, đổi vai
+trò có được không, và người dùng tự làm được đến đâu — trả lời ở đây.
+
+**Quản trị hệ thống**
+
+| Việc | Quy tắc |
+|---|---|
+| Đổi **vai trò** | Được, nhưng **chặn khi tài khoản còn hồ sơ dở dang**. Báo lỗi kèm danh sách mã hồ sơ |
+| Gán **người quản lý** | Được, ở thẻ *Xem* của tài khoản. Cần cho người chưa kích hoạt hoặc đã nghỉ việc |
+| Xem thông tin | Thẻ *Xem*: họ tên, tài khoản, email, vai trò, Trưởng bộ phận, người quản lý, trạng thái |
+| Sửa **họ tên** | **Không**. Chủ tài khoản tự sửa |
+| Đổi **email**, **tên tài khoản** | **Không ai đổi được** qua giao diện |
+| Xoá tài khoản | **Không có**. Nhật ký kiểm toán tham chiếu tới người dùng; chỉ vô hiệu hoá |
+
+Vì sao chặn đổi vai trò khi còn hồ sơ dở dang: hộp việc suy ra từ vai trò và cây tổ chức, nên đổi
+vai trò giữa chừng là **bỏ rơi** những hồ sơ đang chờ đúng bước của vai trò cũ — không ai khác nhận
+được chúng, và chúng đứng im tới khi quá hạn. Đổi vai trò xong, liên kết cây nào không còn hợp lệ
+sẽ tự gỡ.
+
+**Người dùng tự sửa** — màn hình *Thông tin của tôi*, vào bằng cách bấm thẻ tên ở thanh trên cùng.
+
+| Trường | Tự sửa được |
+|---|---|
+| Họ và tên | Có |
+| **Người quản lý** (TDV và Kế toán) | Có — chọn từ danh sách người đang giữ vai trò tương ứng |
+| Mật khẩu | Có, qua đổi mật khẩu |
+| Email · tên tài khoản · vai trò | **Không** |
+
+Hệ quả của việc cho tự đổi người quản lý, **đã cân nhắc và chấp nhận**: định tuyến suy từ liên kết
+này, nên hồ sơ đang chờ duyệt **chuyển sang hộp việc của người mới ngay lập tức**, và người quản lý
+cũ không còn nhìn thấy dữ liệu của người đó. Màn hình nói thẳng điều này trước khi lưu.
+
+Ba trường không cho tự đổi, mỗi trường một lý do khác nhau: **email** là đường nhận liên kết đặt lại
+mật khẩu — tự đổi được nghĩa là ai mượn được máy lúc đang đăng nhập cũng chuyển được đường khôi phục
+sang hộp thư của họ; **tên tài khoản** đi vào nhật ký kiểm toán và phải đối chiếu được với chữ ký
+trên bản giấy; **vai trò** thì khỏi bàn.
+
+**Trưởng bộ phận quản lý không bắt buộc lúc tạo TDV** `sửa 12/08`. Lúc tạo thường chưa biết ai sẽ
+duyệt. Nhưng TDV chưa gán thì **không gửi được hồ sơ** — chặn ở lúc gửi, nơi hồ sơ vẫn là bản nháp
+và chưa mất gì, chứ không chặn ở lúc tạo tài khoản. Danh sách tài khoản đánh dấu rõ ai đang thiếu.
 
 ---
 
@@ -284,8 +338,8 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 |---|---|
 | Mã vật tư | Duy nhất, người đề nghị không sửa được |
 | Tên vật tư | Chọn từ danh sách xổ xuống |
-| Giá bán Công ty | Theo danh mục và ngày hiệu lực. **Chính là giá bán lẻ niêm yết** — hệ thống chỉ có hai loại giá |
-| Giá bán buôn | Người đề nghị nhập |
+| Giá bán Công ty | Theo danh mục và ngày hiệu lực. **Chính là giá bán lẻ niêm yết** — và là loại giá **duy nhất** trong danh mục `sửa 15/08` |
+| Giá bán buôn | Người đề nghị nhập **trên từng dòng của từng hồ sơ**, KHÔNG có trong danh mục sản phẩm |
 | **Nhóm sản phẩm** | Danh mục có mã, dùng cho chiết khấu quy định và báo cáo |
 | Trạng thái | Đang áp dụng · Đã vô hiệu hóa — chỉ hai giá trị |
 | Lịch sử giá | Đóng băng theo phiên bản khi hồ sơ được gửi duyệt |
@@ -298,13 +352,35 @@ chỉ còn là giá trị mặc định khi không có dòng cấu hình nào kh
 
 ### 6.4. Giấy tờ mẫu và người ký
 
-| Loại mẫu | Ai quản lý | Ghi chú |
+| Loại mẫu | Ai quản lý | Tình trạng |
 |---|---|---|
-| Mẫu bản CSBH, phụ lục, biểu mẫu scan | Quản trị hệ thống | Bố cục bản in của chính hồ sơ CSBH |
-| **Mẫu hợp đồng** | **Sale Admin** | Văn bản riêng, soạn sẵn, có ô trống ánh xạ tới trường dữ liệu — xem mục 8 |
+| **Mẫu hồ sơ CSBH** | Quản trị hệ thống | **Chưa làm** — bản A4 hiện do hệ thống tự dựng bố cục, xem dưới |
+| **Mẫu hợp đồng** | **Sale Admin** | Đã làm. Văn bản riêng, soạn sẵn, có ô trống ánh xạ tới trường dữ liệu — mục 8 |
 
-Thông tin người ký: họ tên, chức danh, đơn vị, phạm vi ký, mẫu chữ ký, trạng thái hiệu lực — do
-Quản trị hệ thống nhập.
+**Bản CSBH A4 hiện KHÔNG sinh từ mẫu tải lên** `làm rõ 15/08`. Hệ thống tự dựng bố cục trong mã, vì
+mục 8.2 chốt 13 mục bắt buộc và bố cục ấy do hệ thống định nghĩa. Cho tải mẫu lên là một hạng mục
+riêng chưa làm — và khi làm thì phải trả lời trước một câu: **nếu mẫu do người dùng soạn, hệ thống
+không còn bảo đảm được 13 mục kia có mặt.**
+
+**Người ký — đã gỡ khỏi giao diện** `sửa 15/08`. Yêu cầu cho nó chưa đủ rõ: không có mô tả nào nói
+người ký dùng ở đâu trong luồng, ai gán cho hồ sơ nào, và đổi người giữ chức thì hồ sơ đã ký chịu
+ảnh hưởng gì. API và lược đồ dữ liệu vẫn còn; màn hình nhập liệu thì không, vì một màn hình mà người
+dùng điền vào cũng không biết để làm gì thì tệ hơn là không có. **Cần làm rõ yêu cầu rồi mới dựng
+lại.**
+
+### 6.5. Màn hình Danh mục `sửa 15/08`
+
+Ba thẻ, không phải năm:
+
+| Thẻ | Ai thấy | Nội dung |
+|---|---|---|
+| **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**; Quản trị thêm phần tạo/sửa, đặt giá, nhập Excel, và quản lý **nhóm sản phẩm** |
+| **Quy định chiết khấu** | Mọi vai trò | Bảng ngưỡng; Quản trị thêm phần tạo/sửa và quản lý **danh mục tra cứu** (tỉnh · bệnh viện · kênh) |
+| **Giấy tờ mẫu** | Chỉ Quản trị | Xem 6.4 |
+
+Nhóm sản phẩm và danh mục tra cứu **không mất chức năng**, chúng thành khối bên trong hai thẻ đầu.
+Tìm kiếm **bỏ dấu**: gõ `sua` ra "Sữa" — gõ đủ dấu trên bàn phím điện thoại giữa lúc ngồi với khách
+hàng là thứ không ai làm.
 
 ---
 
@@ -525,8 +601,17 @@ trị hệ thống · **xuất hợp đồng là thao tác tức thời sinh ra 
 không bảng, không trạng thái, không bản scan, không phiên bản.
 
 **Tài khoản** (07/08) — **không có đăng ký công khai**, tài khoản chỉ do Quản trị hệ thống tạo bằng
-email · quản trị tự đặt mật khẩu mặc định · hệ thống gửi email mời kèm liên kết kích hoạt hạn 72 giờ,
-dùng một lần · người dùng phải đổi mật khẩu mới dùng được hệ thống · đăng nhập bằng mật khẩu mặc định
-chỉ mở được đúng màn hình đổi mật khẩu · chỉ đi qua liên kết trong email mới tính là đã xác nhận email.
+email · hệ thống gửi email mời kèm liên kết kích hoạt hạn 72 giờ, dùng một lần · người dùng phải đặt
+mật khẩu mới dùng được hệ thống · chỉ đi qua liên kết trong email mới tính là đã xác nhận email.
+
+**Tài khoản, đợt sửa sau khi dựng** (12/08 – 15/08) — **bỏ mật khẩu mặc định**, không còn đường bàn
+giao mật khẩu bằng tay · thêm **quên mật khẩu** tự phục vụ · **bỏ khái niệm "bộ phận"**, TDV gán
+thẳng vào một Trưởng bộ phận · Trưởng bộ phận **không bắt buộc lúc tạo**, chặn ở lúc gửi hồ sơ ·
+Quản trị **đổi được vai trò** nhưng bị chặn khi còn hồ sơ dở dang · người dùng **tự sửa họ tên và tự
+đổi người quản lý** (TDV, Kế toán), không đổi được email · vai trò · tên tài khoản.
+
+**Danh mục** (15/08) — danh mục sản phẩm chỉ còn **một loại giá** là Giá bán Công ty; giá bán buôn
+nhập trên từng dòng hồ sơ · màn hình Danh mục còn **ba thẻ**, có tìm kiếm sản phẩm bỏ dấu · **gỡ
+màn hình Người ký** vì yêu cầu chưa rõ.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

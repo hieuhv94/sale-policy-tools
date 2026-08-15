@@ -2790,3 +2790,218 @@ người thêm phải nói rõ nó dùng cho việc gì.
 
 `listKeys` vẫn còn, `document.test.ts` vẫn dùng nó với tiền tố hẹp theo từng khách hàng và không
 treo. Nguyên nhân gốc còn nợ lại.
+
+---
+
+## P15 — Ba chỗ sai ở màn hình người dùng
+
+Ba lỗi hiển thị, nhưng một trong ba là lỗi **hướng dẫn sai**, không phải lỗi câu chữ.
+
+### "Cấp trên" là nói sai về công ty
+
+Kế toán không phải cấp trên của trình dược viên theo nghĩa tổ chức. Quan hệ ấy chỉ quyết định phạm
+vi dữ liệu — ai nhìn thấy hồ sơ của ai — và gọi nó là "cấp trên" trên màn hình là để phần mềm phát
+biểu một điều về cơ cấu công ty mà không ai yêu cầu nó phát biểu.
+
+Thành bảng tra `NHAN_CAP_TREN`: TDV → *Kế toán quản lý*, Kế toán → *Sale Admin quản lý*. Sửa cả
+nhánh kế toán chứ không riêng TDV, vì lý do áp dụng y hệt. Cột trong bảng danh sách mang hai nghĩa
+tuỳ vai trò của dòng nên để nhãn chung là *Người quản lý*.
+
+### Một câu 409 đúng ngữ pháp và sai việc
+
+`ConflictException({ code: 'EMAIL_DUPLICATE' })` không kèm `message`, nên giao diện rơi xuống câu
+mặc định cho mọi mã 409: *"Dữ liệu vừa được người khác thay đổi. Hãy tải lại rồi thử lại."*
+
+Câu đó viết cho tranh chấp ghi đồng thời. Ở đây nó **sai hướng dẫn**: người quản trị tải lại bao
+nhiêu lần thì tên tài khoản kia vẫn đang có người dùng. Việc phải làm là ĐỔI, mà câu kia không hề
+nói điều đó — và người đọc làm đúng theo nó sẽ lặp lại đúng thao tác vừa hỏng.
+
+Thêm `USERNAME_DUPLICATE`, và trùng cả hai thì báo cả hai trong một lần: sửa xong một cái rồi vẫn
+nhận 409 là hai lượt bực mình liên tiếp cho cùng một việc. Test khẳng định thông báo **không chứa
+chữ "tải lại"**.
+
+### Kết quả
+
+644 case. Hai cột người quản lý cùng hiển thị tên tài khoản — một cột họ tên cạnh một cột username
+trông như hai loại dữ liệu khác nhau và không đối chiếu được với cột *Tài khoản*.
+
+---
+
+## P16 — Trưởng bộ phận thôi bắt buộc, và màn hình của chính mình
+
+### Dời chỗ chặn, không xoá nó
+
+Bỏ bắt buộc Trưởng bộ phận lúc tạo TDV là yêu cầu nghiệp vụ: lúc tạo thường chưa biết ai sẽ duyệt.
+Nhưng bỏ trắng thì hồ sơ của TDV đó rơi vào **ngõ cụt im lặng** — hộp việc của TBP suy từ
+`approver_user_id`, chưa gán thì hồ sơ nằm ở *Chờ TBP duyệt* mà không vào hộp việc của ai, đứng tới
+khi quá hạn, và không màn hình nào nói vì sao.
+
+Nên chốt chặn **dời sang lúc gửi hồ sơ** (`NO_APPROVER`, 422): chỗ hồ sơ vẫn là bản nháp, chưa mất
+gì, và câu báo nói thẳng phải nhờ Quản trị gán trước. Việc này cần một đường hỏi mới giữa `policy`
+và `identity` — `GET /internal/approver/:tdvUserId`. Trả riêng câu hỏi hẹp "có hay không" thay vì
+dùng lại `notify-targets`, vì câu kia trả kèm địa chỉ thư của mọi người liên quan, và một service
+chỉ cần biết có/không thì không nên cầm chỗ dữ liệu đó.
+
+Bỏ luôn phép cấm **gỡ** liên kết ở `update()`. Giữ lại thì chẳng chặn được gì — tạo mới đã không bắt
+buộc — chỉ làm người quản trị không sửa nổi một liên kết gán nhầm.
+
+### Thu hẹp một yêu cầu, và nói ra
+
+Yêu cầu là *"trừ email và username, mọi thông tin khác người dùng đổi được"*. Một tài khoản chỉ có
+bốn trường: username, email, họ tên, **vai trò**. Nên "mọi thông tin khác" đúng nghĩa đen gồm cả vai
+trò — mà đó là đường tự nâng mình lên Quản trị hệ thống. Đã khoá vai trò cùng hai trường kia và báo
+lại người dùng thay vì im lặng làm hẹp.
+
+Màn hình nói rõ vì sao từng trường bị khoá, thay vì hiện ô xám không giải thích: người không đọc
+được lý do sẽ đi mở phiếu hỗ trợ hỏi đúng câu đó.
+
+### Kết quả
+
+653 case. Vào màn hình bằng cách bấm thẻ tên ở thanh trên cùng — chỗ người ta bấm khi muốn sửa tên
+mình chính là chỗ đang hiện tên mình.
+
+---
+
+## P17 — Hỏi lại trước mọi thao tác không lùi được
+
+Rà toàn bộ mã giao diện tìm mọi lời gọi ghi, xếp theo hậu quả, rồi chọn **ba mức** thay vì một hộp
+thoại dùng chung.
+
+| Mức | Dùng cho | Vì sao |
+|---|---|---|
+| Gõ lại định danh | Ban hành · ngừng dùng mẫu hợp đồng | Đổi hành vi của cả hệ thống. Gõ lại tên buộc người bấm phải đọc xem mình đang đứng ở dòng nào |
+| Nêu hậu quả | 10 thao tác xoá và gửi ra ngoài | Đủ để dừng lại một nhịp, không đủ nặng để thành nghi thức |
+| Hoàn tác | Bật/tắt người ký · kích hoạt lại tài khoản | Lùi được bằng một cú bấm. Hỏi trước ở đây là thêm một cú bấm cho một trăm lần đúng, để đỡ một lần sai vốn tự sửa được |
+
+### Câu hỏi phải nói ra thứ sẽ hỏng
+
+*"Bạn có chắc không?"* không thêm một thông tin nào; người đọc xong vẫn không biết mình sắp làm hỏng
+cái gì, và lần thứ ba thì bấm theo phản xạ. Có **test quét mã nguồn cấm chính câu đó** trong giao
+diện — và nó bắt nhầm ngay lượt đầu: các dòng CHÚ THÍCH giải thích vì sao không dùng câu ấy cũng bị
+tính là vi phạm. Sửa để bỏ qua chú thích, vì cấm cả chú thích thì lời giải thích phải biến mất theo.
+
+### Test giữ bất biến, không phải test đếm hộp thoại
+
+Cái đáng giá hơn cả các hộp thoại là phép quét: tệp nào gọi `xoa()` hoặc chạm một trong năm đường
+ghi ra ngoài hệ thống mà không có lớp hỏi lại thì đỏ. Một nút Xoá thêm ở màn hình mới sáu tháng nữa
+sẽ bị bắt ngay, không chờ ai nhớ ra.
+
+661 case. Cũng phát hiện `DELETE /customers/:id` có ở máy chủ và trong bảng quyền nhưng **không có
+nút nào trên giao diện** — chưa thêm, vì đó là quyết định nghiệp vụ chứ không phải việc gắn hộp thoại.
+
+---
+
+## P18 — Đổi vai trò có chốt chặn, và tự đổi người quản lý
+
+### Đảo một quyết định cũ, giữ lại lý do của nó
+
+P11 cố ý **cấm** đổi vai trò: *"đổi vai trò làm lệch cây phân quyền và làm hồ sơ đang dở mắc kẹt
+giữa luồng"*. Yêu cầu nghiệp vụ mở nó ra. Lý do cũ vẫn đúng nguyên, nên cái cấm thành **chốt chặn có
+điều kiện** chứ không biến mất: `identity` hỏi `policy` qua `POST /internal/dang-do`, và trả 409 kèm
+**danh sách mã hồ sơ** — "còn 3 hồ sơ" thì người quản trị không tra ra được ba hồ sơ nào.
+
+`identity` gửi kèm phạm vi dữ liệu tính sẵn thay vì để `policy` hỏi ngược lại — vòng gọi ngược giữa
+lúc `identity` đang xử lý request của chính nó là thêm một điểm hỏng cho một phép tra mà bên gọi đã
+có sẵn câu trả lời.
+
+### Chỗ dễ sót nhất, tìm ra khi đang viết test
+
+Đổi vai trò xong phải dọn liên kết cây. Tôi định điều kiện là *"vai trò mới có ô cấp trên không"* —
+**sai**. Đổi TDV → Kế toán thì ô cấp trên vẫn còn, nhưng người đang nằm trong đó là một kế toán,
+trong khi cấp trên của kế toán phải là Sale Admin. Giữ lại là để một quan hệ **sai kiểu** trong cây,
+và phạm vi dữ liệu suy ra từ đó thì sai mà không có lỗi nào báo. Điều kiện đúng là *"người đang gán
+có đúng vai trò mà vai trò MỚI đòi hỏi không"*, tính bằng SQL vì câu trả lời nằm ở dòng của người kia.
+
+### Hai lượt đỏ, cả hai là lỗi thật
+
+1. `ThongTin.tsx` so vai trò bằng chuỗi viết thẳng — đúng thứ `quyen.test.ts` cấm, và cấm có lý: một
+   chỗ sót kiểu đó thì không test nào bắt. Bảng tra cần dùng đã có sẵn từ P15.
+2. Danh sách hồ sơ mắc lại **cắt nhầm đầu**: sắp theo mã rồi cắt ở 20, nên với `tdv01` — tài khoản
+   gần như tệp test nào cũng dùng — hai mươi hồ sơ trả về là hai mươi cái **cũ nhất**, đúng những
+   cái ít liên quan nhất tới việc vừa bị chặn. Sửa thành mới nhất trước, và trả thêm `count` là tổng
+   thật: nói "còn 3 hồ sơ" trong khi thực tế còn 300 là nói sai với người đang phải quyết định.
+
+### Tự đổi người quản lý — một quyết định nghiệp vụ, không phải tiện ích
+
+Cho TDV tự chọn Trưởng bộ phận nghĩa là họ tự chọn người duyệt cho mình, và tự chuyển mình ra khỏi
+tầm nhìn của kế toán đang quản lý. Đã nêu rõ trước khi làm và người dùng chọn cho tự do. Hộp thoại
+xác nhận nói thẳng: hồ sơ đang chờ duyệt **chuyển sang hộp việc của người mới ngay lập tức**.
+
+`/auth/managers` là đường riêng chỉ trả tên và tài khoản — `/admin/users` trả email của cả công ty,
+và một TDV chọn TBP thì không cần danh bạ đó.
+
+679 case, gồm cả hai nhánh của chốt chặn (hồ sơ do chính mình lập, và hồ sơ đang chờ đúng bước của
+mình) cùng nhánh hồ sơ quá hạn — nhánh này giấu bước thật trong `pending_step` nên có truy vấn riêng.
+
+---
+
+## P19 — Danh mục sản phẩm chỉ còn Giá bán Công ty
+
+Bỏ ô chọn loại giá thay vì để một ô chỉ có một lựa chọn: ô nhập mang thẳng nhãn *Giá bán Công ty*,
+máy chủ tự điền loại. Bắt gửi một trường chỉ có đúng một giá trị hợp lệ là bắt gõ lại một hằng số.
+
+Kiểm lại thì `GIA_BAN_BUON` **vốn đã là dữ liệu chết**: không service nào đọc, `catalog` chỉ tra
+`GIA_BAN_CONG_TY` khi đóng băng giá cho hồ sơ. Và mục 6.1 của yêu cầu nghiệp vụ đã ghi sẵn *"Giá bán
+buôn — Người đề nghị nhập"*, tức nó thuộc từng dòng của từng hồ sơ, khác nhau theo khách hàng. Một
+con số cấp danh mục không tả được thứ đó.
+
+### Ba quyết định ở tầng CSDL
+
+- **Không xoá nhãn khỏi enum.** Postgres không xoá được nhãn enum tại chỗ — phải dựng type mới và
+  đổi mọi thứ phụ thuộc, mà chẳng đổi lại được gì vì chốt chặn thật nằm ở `CHECK`.
+- **Không xoá dòng lịch sử đã lỡ ghi.** Lịch sử giá là bản ghi một việc đã xảy ra; xoá nó là sửa lại
+  quá khứ cho hiện tại trông gọn hơn.
+- **`CHECK ... NOT VALID`** — chặn mọi dòng mới, không quét lại dòng cũ. Di trú chạy được trên CSDL
+  đang có dữ liệu cũ mà không phải chọn giữa "hỏng" và "xoá dữ liệu người ta".
+
+Bảng nhãn phía giao diện **rộng hơn** danh sách chọn được: vẫn biết `GIA_BAN_BUON` để bảng lịch sử
+đọc ra chữ thay vì mã enum trần.
+
+### Một lượt đỏ không phải của mình
+
+80 case đỏ ở 17 tệp, kiểu lỗi trông như nghiệp vụ (`null value in column "tdv_user_id"`). Thực ra
+Redis và Postgres rớt giữa lượt chạy — log đầy `ECONNREFUSED`, và các test của chính lượt sửa này
+thậm chí bị **bỏ qua** chứ chưa chạy. Chạy lại cùng mã: 680/680 xanh.
+
+Đáng ghi lại vì mất một lượt chạy mới nhận ra: `check-demo-down` chỉ kiểm container `gateway`, nên
+chồng container bị gỡ giữa chừng thì không có gì cản, và triệu chứng đội lốt lỗi nghiệp vụ.
+
+---
+
+## P20 — Danh mục còn ba thẻ, thêm tìm kiếm, gỡ mục Người ký
+
+Năm thẻ → ba: *Sản phẩm* · *Quy định chiết khấu* · *Giấy tờ mẫu*. Hai thẻ cũ **không mất chức năng**,
+chúng thành khối bên trong: nhóm sản phẩm nằm dưới bảng sản phẩm (việc thường ngày là tra sản phẩm,
+thêm nhóm là việc hiếm), danh mục tra cứu vào thẻ chiết khấu (kênh phân phối là một chiều của chính
+quy định chiết khấu).
+
+### Suýt làm hỏng bộ gõ tiếng Việt
+
+Tôi viết một `OTimKiem` mới cho ô tìm kiếm. Typecheck báo **trùng tên** — đã có sẵn một cái xử lý
+`compositionstart`/`compositionend` theo `FE-31`. Bản của tôi gọi lọc ở mỗi lần `change`, tức là gõ
+Telex "Đà Nẵng" đi qua trạng thái trung gian "Dda Nawng" sẽ bị React ghi đè giữa lúc bộ gõ đang bỏ
+dấu — **mất dấu hoặc mất ký tự**. Đã bỏ bản mới, dùng bản có sẵn.
+
+Đây là lần thứ hai trong dự án một quy tắc cũ cứu một đoạn mã mới, sau `quyen.test.ts` ở P18.
+
+### Gỡ màn hình không phải là xoá nghiệp vụ
+
+*Người ký* gỡ khỏi giao diện vì yêu cầu chưa rõ: không có mô tả nào nói người ký dùng ở đâu trong
+luồng, ai gán, và đổi người giữ chức thì hồ sơ đã ký chịu ảnh hưởng gì. API `/catalog/signers` và
+test của nó vẫn còn — một màn hình mà người dùng điền vào cũng không biết để làm gì thì tệ hơn là
+không có.
+
+### Một thẻ rỗng, và vì sao không giấu nó đi
+
+Thẻ *Giấy tờ mẫu* lượt này không có gì: mẫu hợp đồng vẫn thuộc Sale Admin theo quyết định 06/08
+(`DOC-26` bắt Quản trị nhận 403), còn mẫu hồ sơ CSBH tách sang lượt sau. Vẫn dựng thẻ với trạng thái
+rỗng nói rõ sẽ có gì và mẫu hợp đồng nằm ở đâu — người quản trị đi tìm ở đây rồi kết luận hệ thống
+thiếu chức năng thì tệ hơn một thẻ trống có lời giải thích.
+
+685 case. Tìm kiếm khớp **cả tên lẫn mã** và **bỏ dấu**: người dùng đọc mã từ hoá đơn giấy nhiều hơn
+là nhớ tên đầy đủ, nên ô chỉ ăn tên sẽ làm họ tưởng sản phẩm không tồn tại.
+
+### Còn nợ sau lượt này
+
+Mẫu hồ sơ CSBH tải lên. Khi làm phải trả lời trước một câu: **nếu mẫu do người dùng soạn, hệ thống
+không còn bảo đảm được 13 mục bắt buộc của mục 8.2 có mặt.**

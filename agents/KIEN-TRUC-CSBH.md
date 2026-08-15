@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Ba chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống.
+> Sáu chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền.
 
 ---
 
@@ -316,13 +316,25 @@ lần bấm — nên bấm hai lần cách nhau một tuần có thể ra hai n�
 ### Cây phân quyền
 
 ```
--- idn.user_node: (user_id, parent_id, role) — phạm vi suy ra bằng recursive CTE
+-- idn.user_node: (user_id, parent_id) — phạm vi suy ra bằng recursive CTE
 WITH RECURSIVE sub AS (
   SELECT user_id FROM idn.user_node WHERE user_id = $1
   UNION ALL
   SELECT n.user_id FROM idn.user_node n JOIN sub ON n.parent_id = sub.user_id
 ) SELECT user_id FROM sub;   -- cache Redis TTL 60s, xóa cache khi cây đổi
+
+-- NHÁNH DUYỆT tách riêng: idn.app_user.approver_user_id trỏ thẳng TDV -> TBP.
+-- Phạm vi của một TBP KHÔNG đi qua user_node:
+SELECT id FROM idn.app_user WHERE role = 'TDV' AND approver_user_id = $1;
 ```
+
+**Hai nhánh, hai cơ chế** `sửa 12/08`. Khái niệm "bộ phận" đã bỏ: trước đây TDV nối với người duyệt
+qua ba bước gián tiếp (tạo bộ phận → gán người duyệt cho bộ phận → gán TDV vào bộ phận) cho một quan
+hệ mà nghiệp vụ chỉ nhìn thấy là *"TDV này do ai duyệt"*. Giờ là một cột trỏ thẳng.
+
+Hệ quả phải nhớ khi đọc mã: **hộp việc của Trưởng bộ phận không suy từ `user_node`**. Một TDV chưa
+gán `approver_user_id` thì hồ sơ họ gửi nằm ở `CHO_TBP_DUYET` mà **không vào hộp việc của ai** — nên
+`policy` chặn ngay ở bước gửi với `NO_APPROVER`, chứ không để hồ sơ đi vào ngõ cụt im lặng.
 
 ---
 
@@ -462,14 +474,22 @@ Không có màn hình đăng ký. Tài khoản chỉ ra đời từ Quản trị
 
 | Trạng thái | Vào bằng cách nào | Làm được gì |
 |---|---|---|
-| **Chờ kích hoạt** | Quản trị tạo tài khoản, tự đặt mật khẩu mặc định | Đăng nhập được, nhưng token mang cờ `pwd_reset` — mọi route nghiệp vụ trả 403 `PASSWORD_CHANGE_REQUIRED` |
+| **Chờ kích hoạt** | Quản trị tạo tài khoản. **Không có mật khẩu nào dùng được** `sửa 12/08` | Không đăng nhập được cho tới khi đi qua liên kết trong thư |
 | **Đang hoạt động** | Đổi mật khẩu, qua liên kết email *hoặc* qua màn hình đổi mật khẩu | Đầy đủ theo vai trò |
 | **Ngừng hoạt động** | Quản trị vô hiệu hóa | Không gì — chậm nhất 60 giây sau là mọi token còn hạn cũng bị chặn (AUTH-07) |
 
-- **Hai đường kích hoạt, chỉ một đường xác nhận được email.** Liên kết trong email chứng minh hộp thư có thật; đăng nhập bằng mật khẩu mặc định thì không. Hệ thống ghi hai cột riêng (`activated_at`, `email_verified_at`) thay vì gộp một, để danh sách quản trị chỉ ra được tài khoản nào chưa từng mở email — trường hợp gõ nhầm địa chỉ.
+- **Không còn mật khẩu mặc định** `sửa 12/08`. Bản trước cho quản trị tự đặt một mật khẩu rồi bàn giao tay; đường đó bị bỏ vì mật khẩu đi qua tin nhắn hay lời nói là mật khẩu người thứ ba biết được. Tài khoản mới mang một **băm của 32 byte ngẫu nhiên** — không ai biết chuỗi thô, kể cả hệ thống. Hệ quả đã chấp nhận: email hỏng thì không ai vào được, không có đường dự phòng.
+- Hai cột `activated_at` và `email_verified_at` vẫn tách riêng: đặt mật khẩu qua liên kết *quên mật khẩu* cũng kích hoạt tài khoản, nhưng chỉ liên kết trong **thư mời** mới chứng minh hộp thư có thật ngay từ đầu.
+- **Thư kích hoạt KHÔNG đi qua `notification`** `mới 12/08`. `ntf.dead_letter.payload` lưu nguyên thân sự kiện và quản trị đọc được nó ở màn hình *Hệ thống* — đẩy thư mời qua đó là đưa **token kích hoạt thô** vào một bảng có người đọc. `identity` giữ đường gửi riêng, tự lo thử lại ba lần.
 - Token kích hoạt **chỉ lưu bản băm SHA-256**, hạn 72 giờ, dùng một lần; gửi lại thì thu hồi mọi token cũ của người đó. Chuỗi thô chỉ tồn tại trong đúng một email.
 - Email mời **không bao giờ chứa mật khẩu mặc định** — quản trị tự bàn giao bằng kênh khác. Email bị chuyển tiếp hay lộ hộp thư thì cũng không lộ mật khẩu.
 - Đổi mật khẩu thành công **thu hồi toàn bộ họ refresh token** của người đó.
+- **Đổi vai trò** `mới 15/08` — Quản trị đổi được, nhưng `identity` hỏi `policy` trước qua
+  `POST /internal/dang-do` và **chặn nếu còn hồ sơ dở dang** (409 `ROLE_CHANGE_BLOCKED`, kèm danh
+  sách mã hồ sơ). Vai trò dùng để phân quyền đọc từ **cache tài khoản**, không đọc từ claim trong
+  token — nên hạ quyền có hiệu lực ở request kế tiếp, không phải chờ hết hạn access token.
+- **Người dùng tự sửa** `mới 15/08` — `PATCH /auth/me` nhận họ tên, và với TDV/Kế toán thì nhận cả
+  người quản lý. Danh sách TRẮNG: email, tên tài khoản và vai trò không có mặt trong DTO.
 
 ### Vận hành và tuổi thọ dữ liệu `mới 07/08`
 
@@ -895,7 +915,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 |---|---|---|---|---|
 | CAT-01 | tdv01 tạo hoặc sửa sản phẩm | 403 — chỉ quản trị hệ thống | §6.2 | `P0` |
 | CAT-02 | Tạo sản phẩm trùng mã vật tư | 409 | §6.2 | `P1` |
-| CAT-03 | Gửi một loại giá thứ ba ngoài Giá bán Công ty và Giá bán buôn | 400 — hệ thống chỉ có hai loại giá, giá bán lẻ niêm yết *chính là* Giá bán Công ty | §6.2 | `P0` |
+| CAT-03 | Gửi bất kỳ loại giá nào khác Giá bán Công ty — kể cả `GIA_BAN_BUON` | 400. Danh mục chỉ có **một** loại giá; giá bán lẻ niêm yết *chính là* Giá bán Công ty, còn giá bán buôn nhập trên từng dòng hồ sơ `sửa 15/08` | §6.2 | `P0` |
 | CAT-04 | Đổi giá bán Công ty của một sản phẩm | Tạo bản ghi lịch sử giá mới có ngày hiệu lực; bản cũ giữ nguyên | §6.2 | `P0` |
 | CAT-05 | Đặt giá có ngày hiệu lực trong tương lai | Hồ sơ lập hôm nay vẫn lấy giá hiện hành, không lấy giá tương lai | §6.2 | `P1` |
 | CAT-06 | Đặt trạng thái sản phẩm ngoài {Đang áp dụng, Đã vô hiệu hóa} | 400 — chỉ hai giá trị | §6.2 | `P1` |
