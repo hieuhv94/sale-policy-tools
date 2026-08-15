@@ -61,7 +61,8 @@ Mỗi tài khoản mới nhận **thư mời kích hoạt**, và đó là **đư
 có mật khẩu mặc định nào để bàn giao. Xem thư ở Mailpit (mục dưới) và đi qua liên kết để đặt mật
 khẩu. Chưa đi qua liên kết thì tài khoản không đăng nhập được bằng bất cứ gì.
 
-Sau đó, vẫn bằng `admin01`: *Sản phẩm* → tạo **nhóm sản phẩm** (bảng dưới) rồi **sản phẩm** kèm giá.
+Sau đó, vẫn bằng `admin01`: *Sản phẩm* → thẻ **Nhóm sản phẩm** tạo nhóm trước, rồi quay lại thẻ
+**Sản phẩm** tạo sản phẩm kèm giá.
 *Chiết khấu* → tạo **quy định chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái
 này là nguồn của ba ô chọn trên biểu mẫu khách hàng.
 

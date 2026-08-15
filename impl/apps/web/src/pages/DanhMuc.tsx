@@ -18,11 +18,13 @@ import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 import {
   NHAN_TRANG_THAI_SAN_PHAM,
+  THE_SAN_PHAM,
   locSanPham,
   type NhomSanPham,
   type SanPham,
+  type TheSanPhamKhoa,
 } from '../lib/danh-muc.js';
-import { BaoLoi, DangTai, OTimKiem, Trong } from '../components/Chung.js';
+import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
@@ -73,6 +75,7 @@ export function TrangSanPham() {
   const { nguoiDung } = usePhien();
   const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
   const { nhom, loi, taiLai } = useNhom(quanTri);
+  const [the, datThe] = useState<TheSanPhamKhoa>('san-pham');
 
   if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (quanTri && !nhom) return <DangTai />;
@@ -88,11 +91,21 @@ export function TrangSanPham() {
         }
       />
 
-      {/* HAI BẢNG, không gộp: bảng sản phẩm là thứ tra hàng ngày, bảng nhóm là
-          thứ sửa vài lần một năm. Gộp lại thì cột của bảng này thành cột trống
-          của bảng kia. Nhóm nằm DƯỚI vì đó là thứ ít động tới hơn. */}
-      {quanTri && nhom ? <TheSanPham nhom={nhom} /> : <BangSanPhamChiXem />}
-      {quanTri && nhom && <TheNhom nhom={nhom} taiLai={taiLai} />}
+      {/* HAI THẺ, và chỉ Quản trị mới thấy chúng. Hai bảng xếp chồng thì bảng
+          nhóm nằm dưới một bảng sản phẩm dài, phải cuộn qua hết mới tới — mà nó
+          lại là thứ phải làm TRƯỚC khi tạo sản phẩm đầu tiên.
+
+          Vai trò khác không có dải thẻ: họ chỉ đọc bảng sản phẩm, và một dải thẻ
+          một mục là một dải thẻ vô nghĩa. */}
+      {quanTri && nhom ? (
+        <>
+          <DaiThe nhanVung="Nhóm nội dung" dangChon={the} chon={datThe} muc={THE_SAN_PHAM} />
+          {the === 'san-pham' && <TheSanPham nhom={nhom} />}
+          {the === 'nhom' && <TheNhom nhom={nhom} taiLai={taiLai} />}
+        </>
+      ) : (
+        <BangSanPhamChiXem />
+      )}
     </section>
   );
 }

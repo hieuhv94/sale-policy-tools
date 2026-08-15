@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { DIEU_HUONG, VAI_TRO, xem } from '@csbh/web/can';
 import {
   LOAI_GIA,
+  THE_SAN_PHAM,
   LOAI_TRA_CUU,
   locSanPham,
   NHAN_LOAI_GIA,
@@ -129,6 +130,19 @@ describe('các bảng tra cố định', () => {
       expect(xem(v, 'chietKhau'), `${v} phải xem được Chiết khấu`).toBe(true);
     }
     expect(VAI_TRO.filter((v) => xem(v, 'giayToMau'))).toEqual(['QUAN_TRI']);
+  });
+
+  it('màn hình Sản phẩm có hai thẻ, Sản phẩm đứng trước', () => {
+    // Thẻ Sản phẩm trước vì đó là việc hàng ngày; thêm nhóm là việc vài lần một
+    // năm. Đây là dải thẻ TRONG một màn hình, không phải một tầng điều hướng —
+    // nên nó không trùng `DIEU_HUONG` chỗ nào.
+    expect(THE_SAN_PHAM.map((t) => t.khoa)).toEqual(['san-pham', 'nhom']);
+  });
+
+  it('nhóm sản phẩm KHÔNG có mục menu riêng', () => {
+    // Nó là thẻ bên trong màn hình Sản phẩm. Có cả hai chỗ là hai đường tới cùng
+    // một bảng, và người dùng không đoán được đường nào là đường đúng.
+    expect(DIEU_HUONG.some((m) => m.duong.includes('nhom'))).toBe(false);
   });
 
   it('KHÔNG còn mục Người ký', () => {

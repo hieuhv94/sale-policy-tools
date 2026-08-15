@@ -1,21 +1,38 @@
 /**
  * Bảng tra và kiểu dữ liệu của ba màn hình tách ra từ "Danh mục" cũ.
  *
- * KHÔNG còn bảng thẻ ở đây. Trước P22 màn hình Danh mục có một dải thẻ riêng và
- * `MUC_DANH_MUC` khai ra nó; giờ ba màn hình là ba mục menu ngang hàng, nên
- * `DIEU_HUONG` bên `can.ts` là nguồn DUY NHẤT — hai bảng cùng khai một danh sách
- * là hai bảng sẽ lệch nhau.
+ * KHÔNG có bảng MỤC MENU ở đây. Trước P22 màn hình Danh mục có một dải thẻ khai
+ * ra ba mục ấy; giờ chúng là ba mục menu ngang hàng nên `DIEU_HUONG` bên
+ * `can.ts` là nguồn DUY NHẤT — hai bảng cùng khai một danh sách là hai bảng sẽ
+ * lệch nhau.
  *
- * Nhóm sản phẩm và danh mục tra cứu không có mục menu riêng, chúng là khối bên
- * trong hai màn hình đầu:
- *   * Nhóm sản phẩm → màn hình Sản phẩm, bảng thứ hai. Nhóm là trường bắt buộc
- *     của sản phẩm; tạo sản phẩm mà chưa có nhóm là đứng luôn ở ô đầu tiên.
- *   * Danh mục tra cứu → màn hình Chiết khấu, vì kênh phân phối là một chiều của
- *     chính quy định chiết khấu.
+ * `THE_SAN_PHAM` dưới đây là chuyện khác: một dải thẻ NẰM TRONG một màn hình,
+ * không phải một tầng điều hướng. Nó không trùng với `DIEU_HUONG` chỗ nào.
+ *
+ * Danh mục tra cứu không có thẻ riêng — nó là khối trong màn hình Chiết khấu, vì
+ * kênh phân phối là một chiều của chính quy định chiết khấu.
  *
  * "Người ký" đã gỡ khỏi giao diện: yêu cầu nghiệp vụ cho nó chưa rõ. API bên
  * `catalog` vẫn còn và vẫn có test — gỡ màn hình không phải là xoá nghiệp vụ.
  */
+
+/**
+ * Hai thẻ của màn hình Sản phẩm — CHỈ Quản trị hệ thống thấy.
+ *
+ * Vai trò khác không có thẻ nào: họ chỉ đọc bảng sản phẩm, và một dải thẻ một
+ * mục là một dải thẻ vô nghĩa.
+ *
+ * Thứ tự là thứ tự PHỤ THUỘC, không phải thứ tự quan trọng: nhóm là trường bắt
+ * buộc của sản phẩm, nên người mở màn hình lần đầu mà chưa có nhóm nào sẽ đứng
+ * ngay ở ô đầu tiên của biểu mẫu tạo sản phẩm. Nhưng thẻ Sản phẩm vẫn đứng
+ * TRƯỚC vì đó là việc hàng ngày, còn thêm nhóm là việc vài lần một năm.
+ */
+export type TheSanPhamKhoa = 'san-pham' | 'nhom';
+
+export const THE_SAN_PHAM: { khoa: TheSanPhamKhoa; nhan: string }[] = [
+  { khoa: 'san-pham', nhan: 'Sản phẩm' },
+  { khoa: 'nhom', nhan: 'Nhóm sản phẩm' },
+];
 
 /**
  * Bỏ dấu tiếng Việt để tìm kiếm.

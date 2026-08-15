@@ -340,12 +340,13 @@ thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Giấy tờ mẫu**
 
 ### 13.1. Sản phẩm
 
-Màn hình này có **hai bảng**: sản phẩm ở trên, nhóm sản phẩm ở dưới.
+Quản trị hệ thống thấy **hai thẻ**: *Sản phẩm* và *Nhóm sản phẩm*. Vai trò khác chỉ thấy bảng sản
+phẩm, ở dạng chỉ đọc.
 
 Ô **tìm kiếm** phía trên bảng sản phẩm khớp cả **tên lẫn mã**, và **không cần gõ dấu** — gõ `sua` ra
 "Sữa", gõ `dem` ra "Metacare Đêm".
 
-**Bảng sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
+**Thẻ Sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
 
 - **Mã vật tư không sửa được** sau khi tạo. Hồ sơ CSBH đã lập đóng băng mã này.
 - **Vô hiệu hoá** chỉ chặn hồ sơ **lập mới**. Hồ sơ cũ giữ nguyên sản phẩm và giá đã đóng băng.
@@ -358,8 +359,9 @@ Màn hình này có **hai bảng**: sản phẩm ở trên, nhóm sản phẩm �
 - **Nhập Excel** cần ba cột: mã vật tư, tên sản phẩm, mã nhóm. **Một dòng lỗi thì không dòng nào
   được ghi** — thông báo nêu đúng số dòng hỏng để bạn sửa file rồi nhập lại.
 
-**Bảng nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
-nhóm. Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
+**Thẻ Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
+nhóm. **Làm thẻ này trước** nếu danh mục còn trống: chưa có nhóm nào thì nút *Tạo sản phẩm* bên thẻ
+kia không bấm được. Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
 
 ### 13.2. Chiết khấu
 
