@@ -3306,3 +3306,35 @@ ngày. Nợ đóng bằng cách dùng nó, không phải bằng cách xoá nó.
   điều người duyệt trên màn hình thấy.
 - Ô tìm quy định lọc **phía giao diện**, trên 200 dòng đầu như bảng sản phẩm. Vượt 200 quy định thì
   phải chuyển sang lọc phía máy chủ; chưa tới ngưỡng đó nên chưa làm.
+
+---
+
+## P30 — `make demo-mau` chết bằng một vết ngăn xếp không nói gì
+
+Không phải lỗi trong mã: bộ dữ liệu mẫu nạp **qua API thật** nên nó đòi mười service đang sống, mà
+chồng demo lúc ấy đã hạ. Chạy lại với chồng đang chạy thì xanh ngay, không sửa một dòng nào.
+
+Cái đáng sửa là **cách nó hỏng**. Lệnh dựng lại ảnh gateway mất khoảng một phút, in bốn mươi dòng
+log docker, rồi chết bằng:
+
+```
+TypeError: fetch failed
+  [cause]: Error: getaddrinfo ENOTFOUND gateway
+```
+
+Một vết ngăn xếp Node không nhắc gì tới chồng demo. Đọc xong không biết phải làm gì tiếp — và đây là
+lệnh người dùng gõ đúng vào lúc họ vừa mất dữ liệu demo, tức là lúc dễ hoang mang nhất.
+
+Thêm `check-demo-up`, đúng điều kiện NGƯỢC LẠI của `check-demo-down` đã có sẵn. Cần một cái riêng
+chứ không dùng chung: `make test` chỉ đòi CSDL không bị ai giành, còn `demo-data` đòi cả mười service
+sống. Gắn vào `demo-mau` và cả `demo-data` — ai gọi thẳng `demo-data` cũng phải được chặn.
+
+Nó dừng trong **không giây** thay vì sau một phút build, và nói đủ ba điều: chuyện gì, làm gì tiếp,
+và hệ quả (`make demo` xoá sạch CSDL demo). Kiểm cả hai chiều: chồng đang chạy thì mã thoát 0, hạ
+gateway xuống thì mã thoát 1 kèm đúng câu ấy.
+
+### Điều đáng ghi hơn cả
+
+Kho mã này đã có `check-demo-down` từ lâu, tức là **cái bẫy "demo và test giành nhau một CSDL" đã
+được nhận ra và đã được rào một nửa**. Nửa còn lại không ai nghĩ tới cho tới khi có người vấp. Một
+cái rào dựng theo hướng mình vừa đi qua thường chỉ chắn đúng hướng đó.

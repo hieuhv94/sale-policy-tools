@@ -81,6 +81,24 @@ check-demo-down:
 	  exit 1; \
 	fi
 
+# Điều kiện NGƯỢC LẠI của `check-demo-down`, và cần một cái riêng chứ không dùng
+# chung: `demo-data` nạp qua API THẬT nên nó đòi mười service đang sống, chứ
+# không phải chỉ đòi CSDL.
+#
+# Thiếu bước này thì `make demo-mau` chạy trên chồng đã hạ sẽ dựng lại ảnh
+# gateway mất một phút, rồi chết bằng `TypeError: fetch failed` kèm
+# `ENOTFOUND gateway` — một vết ngăn xếp Node không nhắc gì tới chồng demo, và
+# đọc xong không biết phải làm gì tiếp.
+check-demo-up:
+	@if [ -z "$$(docker compose -f deploy/compose.yml -f deploy/compose.demo.yml ps -q gateway 2>/dev/null)" ]; then \
+	  echo ""; \
+	  echo "  DỪNG: chồng demo chưa chạy, mà bộ dữ liệu mẫu nạp qua API thật."; \
+	  echo "  Chạy 'make demo' trước, rồi 'make demo-mau'."; \
+	  echo "  Lưu ý: 'make demo' XOÁ SẠCH CSDL demo rồi seed lại admin01."; \
+	  echo ""; \
+	  exit 1; \
+	fi
+
 secrets:
 	sh scripts/gen-secrets.sh deploy/secrets
 
@@ -191,7 +209,7 @@ demo-admin:
 #
 # TÁCH RIÊNG khỏi `make demo` — xem chú thích ở đó. Chạy được bất cứ lúc nào
 # trên bản demo đang lên.
-demo-mau: demo-seed demo-data
+demo-mau: check-demo-up demo-seed demo-data
 	@echo ""
 	@echo "  Tài khoản mẫu: tdv01 / tbp01 / kt01 / sa01 / bld01 / admin01 — mật khẩu Test@1234"
 	@echo ""
@@ -221,7 +239,7 @@ demo-seed:
 # Chạy SAU khi mười service đã sống, vì nó nạp qua API thật chứ không INSERT
 # thẳng — dữ liệu demo phải đi qua đúng máy trạng thái và đúng phép tính chiết
 # khấu, nếu không nó sẽ ở những trạng thái mà phần mềm không tạo ra được.
-demo-data:
+demo-data: check-demo-up
 	# Dựng lại TRƯỚC khi chạy. Mã nguồn được sao chép vào ảnh lúc build chứ không
 	# gắn từ máy thật, nên sửa `seed-demo.ts` rồi chạy thẳng sẽ nạp bản cũ — và
 	# không có gì báo cho biết điều đó.

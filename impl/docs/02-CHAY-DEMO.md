@@ -79,6 +79,11 @@ Không cần dựng tay thì nạp bộ mẫu cũ vào bản demo đang chạy:
 make demo-mau
 ```
 
+**Chồng demo phải đang chạy.** Bộ mẫu nạp qua **API thật** chứ không chèn thẳng vào CSDL — dữ liệu
+demo đi qua đúng máy trạng thái và đúng phép tính chiết khấu, nếu không nó sẽ nằm ở những trạng thái
+mà phần mềm không tạo ra được. Chạy trên chồng đã hạ thì lệnh dừng ngay và nói phải làm gì; chưa
+chạy `make demo` lần nào thì chạy nó trước (lưu ý: `make demo` **xoá sạch CSDL demo**).
+
 Nó nạp 10 tài khoản phủ đủ sáu vai trò (`tdv01` · `tbp01` · `kt01` · `sa01` · `bld01` · `admin01`,
 mật khẩu chung `Test@1234`) kèm dữ liệu nghiệp vụ mẫu mô tả ở mục dưới.
 
