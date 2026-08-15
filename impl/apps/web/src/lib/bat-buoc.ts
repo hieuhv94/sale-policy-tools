@@ -36,7 +36,7 @@ export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nguoi-dung': ['email', 'username', 'fullName', 'role'],
   'khach-hang': ['code', 'name', 'customerType', 'registeredAddress', 'ownerName'],
   'san-pham': ['code', 'name', 'groupCode'],
-  gia: ['priceType', 'amount', 'effectiveFrom'],
+  gia: ['amount', 'effectiveFrom'],
   'nhom-san-pham': ['code', 'name'],
   'chiet-khau': ['effectiveFrom', 'thresholdRate2'],
   'tra-cuu': ['code', 'name'],

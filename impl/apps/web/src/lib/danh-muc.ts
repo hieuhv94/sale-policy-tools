@@ -19,12 +19,26 @@ export const MUC_DANH_MUC: { khoa: MucDanhMuc; nhan: string }[] = [
 ];
 
 /** Đúng hai loại giá. Giá bán lẻ niêm yết CHÍNH LÀ Giá bán Công ty (CAT-03). */
-export const LOAI_GIA = ['GIA_BAN_CONG_TY', 'GIA_BAN_BUON'] as const;
+/**
+ * Loại giá ĐẶT ĐƯỢC trong danh mục. Đúng một: Giá bán Công ty.
+ *
+ * Giá bán buôn không nằm ở đây vì nó không phải thuộc tính của sản phẩm — người
+ * đề nghị nhập nó trên từng dòng của từng hồ sơ, khác nhau theo khách hàng
+ * (muc 6.1). Phải khớp `PRICE_TYPES` bên `catalog`, và `danh-muc.test.ts` ghim
+ * lại điều đó.
+ */
+export const LOAI_GIA = ['GIA_BAN_CONG_TY'] as const;
 export type LoaiGia = (typeof LOAI_GIA)[number];
 
-export const NHAN_LOAI_GIA: Record<LoaiGia, string> = {
+/**
+ * Nhãn để HIỂN THỊ, rộng hơn danh sách đặt được.
+ *
+ * Vẫn biết `GIA_BAN_BUON` vì lịch sử giá có thể còn dòng cũ ghi trước khi loại
+ * đó rút khỏi danh mục — bảng lịch sử phải đọc ra chữ, không phải mã enum trần.
+ */
+export const NHAN_LOAI_GIA: Record<string, string> = {
   GIA_BAN_CONG_TY: 'Giá bán Công ty',
-  GIA_BAN_BUON: 'Giá bán buôn',
+  GIA_BAN_BUON: 'Giá bán buôn (đã rút khỏi danh mục)',
 };
 
 export const TRANG_THAI_SAN_PHAM = ['DANG_AP_DUNG', 'DA_VO_HIEU_HOA'] as const;

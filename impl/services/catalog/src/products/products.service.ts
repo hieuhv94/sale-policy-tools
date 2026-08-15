@@ -12,8 +12,21 @@ import { changeEvent, emit } from '../infra/outbox.js';
 export const PRODUCT_STATUSES = ['DANG_AP_DUNG', 'DA_VO_HIEU_HOA'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
-/** Đúng hai loại giá. Giá bán lẻ niêm yết CHÍNH LÀ Giá bán Công ty (CAT-03). */
-export const PRICE_TYPES = ['GIA_BAN_CONG_TY', 'GIA_BAN_BUON'] as const;
+/**
+ * Danh mục sản phẩm chỉ giữ MỘT loại giá: Giá bán Công ty (giá bán lẻ niêm yết
+ * chính là nó — CAT-03).
+ *
+ * `GIA_BAN_BUON` đã rút khỏi danh mục. Nó không bị xoá vì nhầm lẫn mà vì nó
+ * thuộc về chỗ khác: giá bán buôn do NGƯỜI ĐỀ NGHỊ nhập trên từng dòng sản phẩm
+ * của từng hồ sơ (muc 6.1), khác nhau theo khách hàng và theo lần lập. Một con
+ * số cấp danh mục không tả được thứ đó, và không nơi nào trong hệ thống đọc nó —
+ * `internal.controller` chỉ tra `GIA_BAN_CONG_TY`. Để lại là bày ra một ô mà
+ * điền vào cũng không ảnh hưởng tới bất cứ phép tính nào.
+ *
+ * Giá trị enum trong CSDL vẫn còn, để lịch sử giá đã lỡ ghi vẫn đọc được. Chốt
+ * chặn dòng mới nằm ở `0019_mot_loai_gia.sql`.
+ */
+export const PRICE_TYPES = ['GIA_BAN_CONG_TY'] as const;
 export type PriceType = (typeof PRICE_TYPES)[number];
 
 export type ProductRow = {

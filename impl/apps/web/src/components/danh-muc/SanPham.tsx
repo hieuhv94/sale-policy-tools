@@ -10,7 +10,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, guiTep, layJson, va } from '../../lib/api.js';
 import { ngay, tien } from '../../lib/format.js';
 import {
-  LOAI_GIA,
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
@@ -277,7 +276,6 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
 
 function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
   const [ls, datLs] = useState<DongGia[] | null>(null);
-  const [loai, datLoai] = useState<(typeof LOAI_GIA)[number]>('GIA_BAN_CONG_TY');
   const [soTien, datSoTien] = useState('');
   const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
@@ -294,15 +292,16 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
     return () => huy.abort();
   }, [sp.id, lan]);
 
-  const thieu = thieuTruong('gia', { priceType: loai, amount: soTien, effectiveFrom: tuNgay });
+  const thieu = thieuTruong('gia', { amount: soTien, effectiveFrom: tuNgay });
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
     datDangGui(true);
     try {
+      // Không gửi `priceType`: danh mục chỉ còn Giá bán Công ty, máy chủ tự
+      // điền. Gửi kèm một hằng số chỉ để nó đi vòng qua mạng rồi quay về.
       await dang(`/catalog/products/${sp.id}/prices`, {
-        priceType: loai,
         amount: soTien,
         effectiveFrom: tuNgay,
       });
@@ -318,6 +317,11 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
   return (
     <HopThoai tieuDe={`Giá — ${sp.code} ${sp.name}`} dong={dong}>
       <p className="ghi-chu">
+        Danh mục chỉ giữ <strong>Giá bán Công ty</strong>. Giá bán buôn do người đề nghị nhập trên
+        từng dòng sản phẩm của từng hồ sơ — nó khác nhau theo khách hàng nên không có một con số
+        chung ở đây.
+      </p>
+      <p className="ghi-chu">
         Giá hiện hành là dòng mới nhất có ngày hiệu lực <strong>không ở tương lai</strong>. Đặt giá
         cho ngày mai thì hôm nay vẫn dùng giá cũ.
       </p>
@@ -326,23 +330,7 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
 
         <ChuThichBatBuoc />
 
-        <Truong id="gia-loai" nhan="Loại giá" bắtBuộc>
-          {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={loai}
-              onChange={(e) => datLoai(e.target.value as (typeof LOAI_GIA)[number])}
-            >
-              {LOAI_GIA.map((g) => (
-                <option key={g} value={g}>
-                  {NHAN_LOAI_GIA[g]}
-                </option>
-              ))}
-            </select>
-          )}
-        </Truong>
-        <Truong id="gia-tien" nhan="Số tiền" bắtBuộc>
+        <Truong id="gia-tien" nhan="Giá bán Công ty" bắtBuộc>
           {(p) => <ONhapTien {...p} giaTri={soTien} doi={datSoTien} />}
         </Truong>
         <Truong id="gia-tu" nhan="Áp dụng từ ngày" bắtBuộc>

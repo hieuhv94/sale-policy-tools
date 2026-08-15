@@ -87,9 +87,17 @@ describe('câu mô tả phạm vi áp dụng', () => {
 });
 
 describe('các bảng tra cố định', () => {
-  it('đúng hai loại giá — Giá bán lẻ niêm yết CHÍNH LÀ Giá bán Công ty (CAT-03)', () => {
-    expect(LOAI_GIA).toHaveLength(2);
-    expect(Object.keys(NHAN_LOAI_GIA).sort()).toEqual([...LOAI_GIA].sort());
+  it('danh mục chỉ ĐẶT được một loại giá: Giá bán Công ty (CAT-03)', () => {
+    // Giá bán lẻ niêm yết chính là Giá bán Công ty, nên chỉ còn đúng một. Giá
+    // bán buôn không phải thuộc tính của sản phẩm — người đề nghị nhập nó trên
+    // từng dòng của từng hồ sơ, khác nhau theo khách hàng (muc 6.1).
+    expect([...LOAI_GIA]).toEqual(['GIA_BAN_CONG_TY']);
+
+    // Bảng nhãn RỘNG HƠN danh sách đặt được, và đó là chủ ý: lịch sử giá có thể
+    // còn dòng ghi trước lúc `GIA_BAN_BUON` rút khỏi danh mục, và bảng lịch sử
+    // phải đọc ra chữ chứ không phải mã enum trần.
+    for (const g of LOAI_GIA) expect(NHAN_LOAI_GIA[g]).toBeTruthy();
+    expect(NHAN_LOAI_GIA['GIA_BAN_BUON']).toBeTruthy();
   });
 
   it('đúng hai trạng thái sản phẩm, đều có nhãn', () => {

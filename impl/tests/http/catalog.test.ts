@@ -140,7 +140,7 @@ describe('CAT-02 mã vật tư trùng', () => {
   });
 });
 
-describe('CAT-03 chỉ có hai loại giá', () => {
+describe('CAT-03 danh mục chỉ có Giá bán Công ty', () => {
   it('loại giá thứ ba bị từ chối', async () => {
     const { id } = await makeProduct();
     const r = await post(`/catalog/products/${id}/prices`, {
@@ -153,16 +153,33 @@ describe('CAT-03 chỉ có hai loại giá', () => {
     expect(r.body.field).toBe('priceType');
   });
 
-  it('hai loại giá hợp lệ đều nhận', async () => {
+  it('GIÁ BÁN BUÔN cũng bị từ chối — nó không thuộc danh mục', async () => {
+    // Giá bán buôn do người đề nghị nhập trên từng dòng hồ sơ, khác nhau theo
+    // khách hàng và theo lần lập (muc 6.1). Một con số cấp danh mục không tả
+    // được thứ đó, và không service nào đọc nó — để lại là bày ra một ô mà điền
+    // vào cũng không ảnh hưởng tới phép tính nào.
     const { id } = await makeProduct();
-    for (const priceType of ['GIA_BAN_CONG_TY', 'GIA_BAN_BUON']) {
-      const r = await post(`/catalog/products/${id}/prices`, {
-        priceType,
-        amount: '100000',
-        effectiveFrom: '2026-01-01',
-      });
-      expect(r.status).toBe(201);
-    }
+    const r = await post(`/catalog/products/${id}/prices`, {
+      priceType: 'GIA_BAN_BUON',
+      amount: '90000',
+      effectiveFrom: '2026-01-01',
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('priceType');
+  });
+
+  it('bỏ trống loại giá thì hiểu là Giá bán Công ty', async () => {
+    // Biểu mẫu không còn ô chọn, nên nó không gửi trường này. Bắt gửi một trường
+    // chỉ có đúng một giá trị hợp lệ là bắt gõ lại một hằng số.
+    const { id } = await makeProduct();
+    const r = await post(`/catalog/products/${id}/prices`, {
+      amount: '100000',
+      effectiveFrom: '2026-01-01',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+
+    const ls = await get(`/catalog/products/${id}/prices`);
+    expect(ls.body[0].priceType).toBe('GIA_BAN_CONG_TY');
   });
 });
 

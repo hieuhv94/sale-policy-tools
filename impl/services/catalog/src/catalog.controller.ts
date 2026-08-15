@@ -127,12 +127,20 @@ export class CatalogController {
   @HttpCode(201)
   setPrice(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
-      // Loại giá thứ ba bị chặn ở đây — hệ thống chỉ có hai loại giá (CAT-03).
-      priceType: oneOf(...PRICE_TYPES),
+      // Loại giá nào khác Giá bán Công ty đều bị chặn ở đây (CAT-03). Để `opt()`
+      // vì danh mục chỉ còn một loại — biểu mẫu không có ô chọn nữa, và bắt gửi
+      // một trường chỉ có đúng một giá trị hợp lệ là bắt gõ lại một hằng số.
+      priceType: opt(oneOf(...PRICE_TYPES)),
       amount: money(),
       effectiveFrom: isoDate(),
     });
-    return this.products.setPrice(id, b.priceType, b.amount, b.effectiveFrom, me.id);
+    return this.products.setPrice(
+      id,
+      b.priceType ?? 'GIA_BAN_CONG_TY',
+      b.amount,
+      b.effectiveFrom,
+      me.id,
+    );
   }
 
   @Roles('QUAN_TRI')

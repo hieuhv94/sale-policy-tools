@@ -184,8 +184,7 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
   it('ô ngày bị xoá trắng bị bắt', () => {
     // Đây là lỗ đã có thật ở năm biểu mẫu: ô ngày có sẵn giá trị mặc định nên
     // nhìn như đã điền, mà xoá đi thì `<input type="date">` trả chuỗi rỗng.
-    expect(thieuTruong('gia', { priceType: 'BAN_CONG_TY', amount: '100', effectiveFrom: '' }))
-      .toEqual(['effectiveFrom']);
+    expect(thieuTruong('gia', { amount: '100', effectiveFrom: '' })).toEqual(['effectiveFrom']);
   });
 });
 
