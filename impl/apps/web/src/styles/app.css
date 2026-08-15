@@ -1060,6 +1060,25 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   }
 }
 
+/* --- Bảng dọc (nhãn — giá trị) -------------------------------------------- */
+
+/* Hai cột trên màn hình rộng, một cột trên điện thoại. Dùng `dl` chứ không dùng
+   `table`: đây là danh sách thuộc tính của MỘT đối tượng, không phải nhiều dòng
+   cùng cấu trúc — trình đọc màn hình đọc `dt`/`dd` thành từng cặp có nghĩa. */
+.bang-doc {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--k2) var(--k4);
+  margin: 0 0 var(--k4);
+}
+.bang-doc dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+.bang-doc dd { margin: 0; }
+
+@media (max-width: 639px) {
+  .bang-doc { grid-template-columns: 1fr; gap: 0; }
+  .bang-doc dd { margin-bottom: var(--k3); }
+}
+
 /* --- Thanh hoàn tác ------------------------------------------------------- */
 
 /* Nổi ở đáy màn hình chứ không chèn vào luồng trang: chèn vào luồng thì bảng

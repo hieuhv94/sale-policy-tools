@@ -16,6 +16,7 @@ import { Db } from '../infra/db.js';
 import { CONFIG } from '../infra/config.js';
 import { Mailer } from '../infra/mailer.js';
 import { AccountCache } from '../infra/account-cache.js';
+import { PolicyClient } from '../infra/policy.client.js';
 
 export const ROLE_VALUES = [
   'TDV',
@@ -27,8 +28,28 @@ export const ROLE_VALUES = [
 ] as const;
 export type RoleValue = (typeof ROLE_VALUES)[number];
 
+/**
+ * Cấp trên của một vai trò PHẢI là vai trò nào — `idn.scope_user_ids` suy phạm
+ * vi dữ liệu từ đúng chuỗi này (`0003_identity.sql`). `null` = vai trò đứng
+ * ngoài cây dữ liệu.
+ *
+ * Bản sao của bảng cùng tên bên giao diện, và đó là chủ ý: giao diện dựng ô
+ * chọn, máy chủ CHẶN. Máy chủ tin bảng của giao diện là tin một thứ người dùng
+ * sửa được.
+ */
+export const VAI_TRO_CAP_TREN: Record<RoleValue, RoleValue | null> = {
+  TDV: 'KE_TOAN',
+  KE_TOAN: 'SALE_ADMIN',
+  TBP: null,
+  SALE_ADMIN: null,
+  BAN_LANH_DAO: null,
+  QUAN_TRI: null,
+};
+
 export type UpdateUserInput = {
   fullName?: string | undefined;
+  /** Vai trò mới. Đổi được, nhưng có chốt chặn — xem `assertKhongConDangDo`. */
+  role?: RoleValue | undefined;
   /** Chuỗi rỗng = gỡ Trưởng bộ phận quản lý. `undefined` = không đụng tới. */
   approverUsername?: string | undefined;
   /** Chuỗi rỗng = gỡ cấp trên. `undefined` = không đụng tới. */
@@ -53,6 +74,7 @@ export class UsersService {
     private readonly db: Db,
     private readonly mailer: Mailer,
     private readonly accounts: AccountCache,
+    private readonly policies: PolicyClient,
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
@@ -224,12 +246,16 @@ export class UsersService {
   }
 
   /**
-   * Sửa tài khoản đã tạo. CỐ Ý không cho đổi `role`.
+   * Sửa tài khoản đã tạo, KỂ CẢ vai trò.
    *
-   * Đổi vai trò làm lệch cây phân quyền và làm hồ sơ đang dở mắc kẹt giữa luồng:
-   * một hồ sơ đang chờ `CHO_TBP_DUYET` mà người duyệt vừa thành Kế toán thì
-   * không ai còn hành động nào để đi tiếp, và máy trạng thái không có đường lùi.
-   * Muốn đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
+   * Đổi vai trò từng bị cấm hoàn toàn, vì lý do vẫn còn đúng nguyên: một hồ sơ
+   * đang chờ `CHO_TBP_DUYET` mà người duyệt vừa thành Kế toán thì không ai còn
+   * hành động nào để đi tiếp, và máy trạng thái không có đường lùi. Yêu cầu
+   * nghiệp vụ mở nó ra, nên cái cấm chuyển thành CHỐT CHẶN CÓ ĐIỀU KIỆN thay vì
+   * biến mất: còn hồ sơ dở dang thì không đổi được, và câu trả lời nói rõ hồ sơ
+   * nào (`assertKhongConDangDo`).
+   *
+   * Đổi được rồi thì hai liên kết cây phải dọn theo — xem `donLienKet`.
    */
   async update(userId: string, input: UpdateUserInput) {
     const cur = await this.db.one<{ id: string; role: RoleValue }>(
@@ -237,6 +263,13 @@ export class UsersService {
       [userId],
     );
     if (!cur) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+
+    const vaiTroMoi = input.role !== undefined && input.role !== cur.role ? input.role : null;
+    if (vaiTroMoi) await this.assertKhongConDangDo(userId, cur.role);
+
+    // Vai trò sau khi đổi quyết định liên kết nào còn hợp lệ, nên mọi phép kiểm
+    // dưới đây đọc `vaiTro`, không đọc `cur.role`.
+    const vaiTro = vaiTroMoi ?? cur.role;
 
     // `undefined` = không đụng tới; chuỗi rỗng = gỡ liên kết. Gộp hai thứ đó làm
     // một thì không bao giờ gỡ được cấp trên của một người đã gán nhầm.
@@ -250,7 +283,7 @@ export class UsersService {
       approverId =
         input.approverUsername === ''
           ? null
-          : await this.resolveApprover(cur.role, input.approverUsername);
+          : await this.resolveApprover(vaiTro, input.approverUsername);
     }
 
     let parentId: string | null | undefined;
@@ -273,15 +306,49 @@ export class UsersService {
       }
     }
 
+    // Đổi vai trò thì hai liên kết cây phải dọn theo, nếu không sẽ còn lại đúng
+    // thứ mà trigger `forbid_bad_approver` chặn không cho tạo: một người không
+    // phải TDV mà vẫn mang Trưởng bộ phận quản lý. Dọn NGẦM chứ không báo lỗi —
+    // người quản trị đang đổi vai trò, họ không việc gì phải đi gỡ liên kết cũ
+    // trước rồi mới đổi được.
+    const goApprover = vaiTroMoi !== null && vaiTroMoi !== 'TDV';
+    // Cấp trên KHÔNG chỉ hỏng khi vai trò mới đứng ngoài cây. Đổi TDV → Kế toán
+    // thì ô cấp trên vẫn còn, nhưng người đang nằm trong đó là một kế toán —
+    // trong khi cấp trên của kế toán phải là Sale Admin. Nên điều kiện là "người
+    // đang gán có đúng vai trò mà vai trò MỚI đòi hỏi không", tính bằng SQL vì
+    // câu trả lời nằm ở dòng của người kia.
+    const capTrenPhaiLa = vaiTroMoi === null ? null : VAI_TRO_CAP_TREN[vaiTroMoi];
+
     await this.db.tx(async (c) => {
-      if (input.fullName !== undefined || approverId !== undefined) {
+      if (input.fullName !== undefined || approverId !== undefined || vaiTroMoi !== null) {
         await c.query(
           `UPDATE idn.app_user
               SET full_name = coalesce($2, full_name),
-                  approver_user_id = CASE WHEN $4 THEN $3 ELSE approver_user_id END,
+                  role = coalesce($5::idn.user_role, role),
+                  approver_user_id = CASE WHEN $6 THEN NULL
+                                          WHEN $4 THEN $3
+                                          ELSE approver_user_id END,
                   updated_at = now()
             WHERE id = $1`,
-          [userId, input.fullName ?? null, approverId ?? null, approverId !== undefined],
+          [
+            userId,
+            input.fullName ?? null,
+            approverId ?? null,
+            approverId !== undefined,
+            vaiTroMoi,
+            goApprover,
+          ],
+        );
+      }
+      if (vaiTroMoi !== null) {
+        await c.query(
+          `UPDATE idn.user_node n SET parent_id = NULL
+            WHERE n.user_id = $1
+              AND n.parent_id IS NOT NULL
+              AND ($2::text IS NULL
+                   OR NOT EXISTS (SELECT 1 FROM idn.app_user p
+                                   WHERE p.id = n.parent_id AND p.role::text = $2))`,
+          [userId, capTrenPhaiLa],
         );
       }
       if (parentId !== undefined) {
@@ -364,6 +431,39 @@ export class UsersService {
    * tiếng Anh không dấu. Chặn ở đây để có `VALIDATION_FAILED` kèm tên trường,
    * đúng thứ biểu mẫu cần để tô đỏ đúng ô.
    */
+  /**
+   * Chặn đổi vai trò khi người này còn hồ sơ dở dang.
+   *
+   * Đây là chỗ giữ lại lý do cũ của việc cấm đổi vai trò. Hồ sơ đang chờ đúng
+   * bước của vai trò cũ sẽ KHÔNG tự chuyển cho ai — hộp việc suy từ cây tổ chức
+   * và từ vai trò, nên đổi vai trò là bỏ rơi chúng ở một trạng thái không ai
+   * còn hành động nào để đi tiếp.
+   *
+   * Trả về lỗi kèm DANH SÁCH mã hồ sơ, không chỉ một con số: người quản trị phải
+   * biết đi tìm cái gì, chứ "còn 3 hồ sơ" thì họ không tra ra được ba hồ sơ nào.
+   */
+  private async assertKhongConDangDo(userId: string, role: RoleValue): Promise<void> {
+    const scope = await this.db.q<{ user_id: string }>(
+      `SELECT user_id FROM idn.scope_user_ids($1)`,
+      [userId],
+    );
+    const dangDo = await this.policies.dangDo(
+      userId,
+      role,
+      scope.map((r) => r.user_id),
+    );
+    if (dangDo.count === 0) return;
+    throw new ConflictException({
+      code: 'ROLE_CHANGE_BLOCKED',
+      count: dangDo.count,
+      message:
+        `Tài khoản còn ${dangDo.count} hồ sơ chưa xử lý xong nên chưa đổi được vai trò. ` +
+        'Xử lý xong hoặc giao lại cho người khác, rồi đổi.',
+      // Chỉ 20 hồ sơ mới nhất — `count` ở trên mới là tổng.
+      policies: dangDo.policies,
+    });
+  }
+
   private async resolveApprover(role: RoleValue, username: string | undefined) {
     if (!username) return null;
     if (role !== 'TDV') {

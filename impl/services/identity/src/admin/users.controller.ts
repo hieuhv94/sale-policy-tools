@@ -74,11 +74,12 @@ export class UsersController {
   @Patch(':id')
   @HttpCode(200)
   update(@Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { fullName: opt(str(2, 200)) });
+    const b = validate(body, { fullName: opt(str(2, 200)), role: opt(oneOf(...ROLE_VALUES)) });
     const approverUsername = lienKet(body, 'approverUsername', 60);
     const parentUsername = lienKet(body, 'parentUsername', 60);
     return this.users.update(id, {
       ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
+      ...(b.role !== undefined ? { role: b.role } : {}),
       ...(approverUsername !== undefined ? { approverUsername } : {}),
       ...(parentUsername !== undefined ? { parentUsername } : {}),
     });

@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { Db } from './infra/db.js';
 import { Mailer } from './infra/mailer.js';
 import { AccountCache } from './infra/account-cache.js';
+import { PolicyClient } from './infra/policy.client.js';
 import { CONFIG } from './infra/config.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
@@ -47,6 +48,7 @@ class HealthController {
     Db,
     Mailer,
     AccountCache,
+    PolicyClient,
     AuthService,
     UsersService,
     // Guard đăng ký ở phạm vi TOÀN CỤC: mặc định là chặn, mở ra phải khai báo

@@ -18,6 +18,7 @@ import { Mailer } from '../infra/mailer.js';
 import { CONFIG } from '../infra/config.js';
 import { getKeyPair } from '@csbh/http-kit';
 import { AccountCache } from '../infra/account-cache.js';
+import { VAI_TRO_CAP_TREN, type RoleValue } from '../admin/users.service.js';
 import { randomBytes } from 'node:crypto';
 
 type UserRow = {
@@ -243,7 +244,21 @@ export class AuthService {
   async me(userId: string) {
     const u = await this.db.one<UserRow>(`SELECT * FROM idn.app_user WHERE id = $1`, [userId]);
     if (!u) throw new UnauthorizedException({ code: 'ACCOUNT_DISABLED' });
+    // Hai liên kết cây đọc kèm luôn: màn hình "Thông tin của tôi" cần biết mình
+    // đang thuộc ai, và tách ra thành một lời gọi thứ hai chỉ để lấy hai chuỗi
+    // thì màn hình phải xử lý trạng thái tải của hai nguồn thay vì một.
+    const lk = await this.db.one<{ approver: string | null; parent: string | null }>(
+      `SELECT a.username AS approver, p.username AS parent
+         FROM idn.app_user u
+         LEFT JOIN idn.app_user a ON a.id = u.approver_user_id
+         LEFT JOIN idn.user_node n ON n.user_id = u.id
+         LEFT JOIN idn.app_user p ON p.id = n.parent_id
+        WHERE u.id = $1`,
+      [userId],
+    );
     return {
+      approverUsername: lk?.approver ?? null,
+      parentUsername: lk?.parent ?? null,
       id: u.id,
       username: u.username,
       email: u.email,
@@ -253,6 +268,123 @@ export class AuthService {
       activatedAt: u.activated_at,
       emailVerifiedAt: u.email_verified_at,
     };
+  }
+
+  /**
+   * Danh sách người có thể làm quản lý của CHÍNH người gọi.
+   *
+   * Đường riêng chứ không dùng `/admin/users`: đường kia là của Quản trị hệ
+   * thống và trả về email của mọi tài khoản. Một TDV cần chọn Trưởng bộ phận thì
+   * chỉ cần tên và tài khoản — không có lý do gì để họ cầm danh bạ email của cả
+   * công ty.
+   *
+   * Trả về theo TỪNG LOẠI liên kết, vì TDV có hai loại còn kế toán có một.
+   */
+  async managers(userId: string) {
+    const u = await this.db.one<UserRow>(`SELECT * FROM idn.app_user WHERE id = $1`, [userId]);
+    if (!u) throw new UnauthorizedException({ code: 'ACCOUNT_DISABLED' });
+    const role = u.role as RoleValue;
+
+    const theoVaiTro = async (r: RoleValue | null) =>
+      r === null
+        ? []
+        : this.db.q<{ username: string; fullName: string }>(
+            `SELECT username, full_name AS "fullName" FROM idn.app_user
+              WHERE role = $1::idn.user_role AND is_active AND id <> $2
+              ORDER BY full_name`,
+            [r, userId],
+          );
+
+    // `coApprover`/`coCapTren` KHÁC với "danh sách rỗng": rỗng có thể là vai trò
+    // này không có ô đó, mà cũng có thể là chưa ai giữ chức. Giao diện cần phân
+    // biệt — trường hợp sau phải hiện ô kèm lời giải thích, không được giấu ô đi.
+    const vaiTroCha = VAI_TRO_CAP_TREN[role];
+    return {
+      role,
+      // Chỉ TDV mới có Trưởng bộ phận quản lý — cùng luật với `resolveApprover`.
+      coApprover: role === 'TDV',
+      coCapTren: vaiTroCha !== null,
+      approvers: role === 'TDV' ? await theoVaiTro('TBP') : [],
+      parents: await theoVaiTro(vaiTroCha),
+    };
+  }
+
+  /**
+   * Người dùng tự đổi người quản lý của mình.
+   *
+   * Đây là một quyết định nghiệp vụ chứ không phải tiện ích giao diện, và hệ quả
+   * phải nói thẳng: cây tổ chức quyết định hồ sơ chạy tới ai duyệt và ai nhìn
+   * thấy dữ liệu của ai. Người dùng tự đổi được nghĩa là **hồ sơ đang chờ duyệt
+   * chuyển sang hộp việc của người mới ngay lập tức** — định tuyến suy ra từ
+   * `approver_user_id` chứ không lưu vào hồ sơ.
+   *
+   * Chỉ TDV và Kế toán dùng được. Vai trò khác gọi vào thì 400 chứ không im lặng
+   * bỏ qua: im lặng thì giao diện của một vai trò khác có thể bày ra ô chọn mà
+   * bấm Lưu không đổi gì, và không ai hiểu vì sao.
+   */
+  async updateManagers(
+    userId: string,
+    input: { approverUsername?: string | undefined; parentUsername?: string | undefined },
+  ) {
+    const u = await this.db.one<UserRow>(`SELECT * FROM idn.app_user WHERE id = $1`, [userId]);
+    if (!u) throw new UnauthorizedException({ code: 'ACCOUNT_DISABLED' });
+    const role = u.role as RoleValue;
+
+    const tra = async (username: string, canRole: RoleValue, field: string) => {
+      const r = await this.db.one<{ id: string; role: string }>(
+        `SELECT id, role::text AS role FROM idn.app_user
+          WHERE lower(username) = lower($1) AND is_active`,
+        [username],
+      );
+      if (!r || r.role !== canRole) {
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          field,
+          message: `Người quản lý phải là tài khoản ${canRole} đang hoạt động`,
+        });
+      }
+      if (r.id === userId) {
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          field,
+          message: 'Không đặt được chính mình làm người quản lý',
+        });
+      }
+      return r.id;
+    };
+
+    if (input.approverUsername !== undefined) {
+      if (role !== 'TDV') {
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          field: 'approverUsername',
+          message: 'Chỉ Trình dược viên mới có Trưởng bộ phận quản lý',
+        });
+      }
+      const id = input.approverUsername === '' ? null : await tra(input.approverUsername, 'TBP', 'approverUsername');
+      await this.db.q(`UPDATE idn.app_user SET approver_user_id = $2, updated_at = now() WHERE id = $1`, [userId, id]);
+    }
+
+    if (input.parentUsername !== undefined) {
+      const canRole = VAI_TRO_CAP_TREN[role];
+      if (canRole === null) {
+        throw new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          field: 'parentUsername',
+          message: 'Vai trò này không có người quản lý trong cây dữ liệu',
+        });
+      }
+      const id = input.parentUsername === '' ? null : await tra(input.parentUsername, canRole, 'parentUsername');
+      await this.db.q(
+        `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)
+         ON CONFLICT (user_id) DO UPDATE SET parent_id = EXCLUDED.parent_id`,
+        [userId, id],
+      );
+    }
+
+    // Phạm vi dữ liệu vừa đổi — bỏ cache ngay, đừng để 60 giây TTL quyết định
+    // lúc nào hồ sơ mới xuất hiện đúng chỗ.
+    await this.accounts.invalidate(userId);
   }
 
   /**

@@ -76,14 +76,38 @@ export class AuthController {
    * một đường, là đổi mật khẩu. Mở thêm đường ghi nào ở trạng thái đó là mở
    * đúng thứ `must_change_password` dựng ra để đóng.
    *
-   * Chỉ nhận `fullName`. Danh sách trắng chứ không phải danh sách đen — thêm
-   * cột mới vào bảng thì nó KHÔNG tự nhiên sửa được từ đây.
+   * Nhận `fullName`, và với TDV/Kế toán thì nhận thêm người quản lý. Danh sách
+   * TRẮNG chứ không phải danh sách đen — thêm cột mới vào bảng thì nó KHÔNG tự
+   * nhiên sửa được từ đây. Vai trò và email cố ý không có mặt: đổi vai trò là tự
+   * nâng quyền, đổi email là tự chuyển đường đặt lại mật khẩu sang hộp thư khác.
    */
   @Patch('me')
   @HttpCode(200)
-  updateMe(@CurrentUser() u: AuthUser, @Body() body: unknown) {
+  async updateMe(@CurrentUser() u: AuthUser, @Body() body: unknown) {
     const b = validate(body, { fullName: str(2, 200) });
+
+    // Hai ô người quản lý đọc THẲNG từ thân request, không qua `validate`: `opt()`
+    // biến chuỗi rỗng thành `undefined`, mà ở đây chuỗi rỗng có nghĩa riêng là
+    // "gỡ liên kết". Cùng lý do với `lienKet()` bên `users.controller.ts`.
+    const t = (body ?? {}) as Record<string, unknown>;
+    const lienKet = (k: string) =>
+      typeof t[k] === 'string' ? (t[k] as string).trim().slice(0, 60) : undefined;
+
+    await this.auth.updateManagers(u.id, {
+      ...(lienKet('approverUsername') !== undefined
+        ? { approverUsername: lienKet('approverUsername')! }
+        : {}),
+      ...(lienKet('parentUsername') !== undefined
+        ? { parentUsername: lienKet('parentUsername')! }
+        : {}),
+    });
     return this.auth.updateProfile(u.id, b.fullName);
+  }
+
+  /** Ai có thể làm quản lý của chính người gọi — để dựng ô chọn. */
+  @Get('managers')
+  managers(@CurrentUser() u: AuthUser) {
+    return this.auth.managers(u.id);
   }
 
   @PwdResetOk()
