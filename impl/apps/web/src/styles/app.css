@@ -441,6 +441,35 @@ textarea.o-nhap { min-height: 6rem; }
    cột số chính là thứ giúp dò nhanh trong bảng tiền. Vai trò "dấu hiệu không
    phải màu" của chúng chuyển sang `.dau-hoi`. */
 
+/* --- Chênh lệch so với danh mục (0029) ------------------------------------ */
+
+/* Danh sách con NẰM TRONG một mục việc, thụt vào để mắt đọc ra quan hệ "hồ sơ
+   này → những chỗ lệch của nó" mà không cần đường kẻ. */
+.lech-muc {
+  list-style: none;
+  margin: var(--k2) 0 0;
+  padding: 0 0 0 var(--k4);
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+}
+.lech-muc li + li { margin-top: 2px; }
+.lech-muc .so { font-weight: 600; color: var(--mau-chu); }
+
+/* Hai loại chênh lệch, hai màu — nhưng KHÔNG dùng màu lỗi: hồ sơ lệch không
+   phải hồ sơ sai, và tô đỏ nó là bảo người dùng đi chữa một thứ chưa hỏng. */
+.nhan-lech {
+  display: inline-block;
+  min-width: 4.5em;
+  padding: 0 var(--k1);
+  border-radius: 3px;
+  font-size: var(--chu-rat-nho);
+  font-weight: 700;
+  text-align: center;
+  color: var(--mau-nen);
+}
+.nhan-lech.gia { background: var(--mau-chinh); }
+.nhan-lech.nguong { background: var(--mau-canh-bao); }
+
 /* --- Nhãn trạng thái ------------------------------------------------------ */
 
 .nhan {

@@ -63,6 +63,37 @@ export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có mu�
 const EDITABLE = ['NHAP', 'YEU_CAU_CHINH_SUA'];
 
 /**
+ * Hồ sơ ĐÃ ĐÓNG BĂNG — số của nó không đổi nữa, dù danh mục có đổi (`0029`).
+ *
+ * Gồm cả `DANG_CO_HIEU_LUC`: nó cũng đóng băng, và cũng lệch được. Không gồm
+ * `TU_CHOI` và `HET_HIEU_LUC` — hai trạng thái kết thúc, lệch hay không cũng
+ * không ai làm gì được nữa.
+ */
+export const DA_DONG_BANG = [
+  'CHO_TBP_DUYET',
+  'TBP_DA_KY_SO',
+  'CHO_KT_L1',
+  'SA_DANG_XU_LY',
+  'CHO_KT_L2',
+  'QUA_HAN_DUYET',
+  'DANG_CO_HIEU_LUC',
+];
+
+/**
+ * `date` của Postgres về tới đây thành `Date`; catalog nhận chuỗi `yyyy-mm-dd`.
+ *
+ * `toISOString()` đổi sang UTC trước khi cắt, và với một `Date` dựng từ cột
+ * `date` (nửa đêm giờ máy chủ) thì ở múi giờ dương như Việt Nam nó lùi về NGÀY
+ * HÔM TRƯỚC. Dùng các thành phần theo giờ địa phương thay vì cắt chuỗi UTC.
+ */
+export const ngayISO = (v: Date | string | null | undefined): string | undefined => {
+  if (v === null || v === undefined) return undefined;
+  if (typeof v === 'string') return v.slice(0, 10);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+};
+
+/**
  * Phần nhận dạng đi kèm MỌI sự kiện về hồ sơ.
  *
  * Bên nhận không đọc được schema pol lẫn cus, nên sự kiện chỉ mang `policyId`
@@ -167,12 +198,16 @@ export class PoliciesService {
 
       // Tra ảnh chụp cả lô TRƯỚC vòng lặp: gọi từng dòng thì hồ sơ 30 sản phẩm
       // là 30 vòng mạng nối tiếp sang catalog.
+      // NGÀY ÁP DỤNG quyết định giá và ngưỡng nào được chụp (`0029`), không phải
+      // ngày lập. Hồ sơ áp dụng từ tháng sau phải mang bảng giá của tháng sau.
+      const on = ngayISO(input.appliedDate);
       const snaps = await this.clients.productSnapshots(
         input.lines.map((l) => l.productId),
         customer.customerType,
+        on,
       );
       for (const line of input.lines) {
-        await this.upsertLine(c, policy.id, line, customer, snaps.get(line.productId));
+        await this.upsertLine(c, policy.id, line, { ...customer, on }, snaps.get(line.productId));
       }
 
       await this.recordEvent(c, policy.id, null, 'NHAP', 'CREATE', me, undefined);
@@ -190,12 +225,12 @@ export class PoliciesService {
     c: PoolClient,
     policyId: string,
     line: LineInput,
-    customer: { customerType: number },
+    customer: { customerType: number; on?: string | undefined },
     preloaded?: import('../infra/clients.js').ProductSnapshot | undefined,
   ): Promise<void> {
     const snap =
       preloaded ??
-      (await this.clients.productSnapshot(line.productId, customer.customerType));
+      (await this.clients.productSnapshot(line.productId, customer.customerType, customer.on));
     if (snap.status !== 'DANG_AP_DUNG') {
       throw new BadRequestException({
         code: 'PRODUCT_DISABLED',
@@ -289,7 +324,7 @@ export class PoliciesService {
           message: 'Sản phẩm này đã có trong hồ sơ',
         });
       }
-      await this.upsertLine(c, policyId, line, customer);
+      await this.upsertLine(c, policyId, line, { ...customer, on: ngayISO(p.applied_date) });
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p, customer),
@@ -338,7 +373,7 @@ export class PoliciesService {
         c,
         policyId,
         { productId: cu.rows[0]!.product_id, ...input },
-        customer,
+        { ...customer, on: ngayISO(p.applied_date) },
       );
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
@@ -381,6 +416,10 @@ export class PoliciesService {
         policyId,
         appliedDate,
       ]);
+      // Đổi ngày áp dụng là đổi BẢNG GIÁ dùng để chụp (`0029`). Làm mới ngay
+      // trong cùng transaction chứ không chờ lần mở sau: người dùng vừa đổi ngày
+      // và đang nhìn thẳng vào bảng số, để nguyên số cũ là nói dối họ một lượt.
+      await this.lamMoiDong(c, policyId);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p),
@@ -391,6 +430,103 @@ export class PoliciesService {
       });
       return this.load(policyId, c);
     });
+  }
+
+  /**
+   * Chụp lại giá và ngưỡng cho MỌI dòng của một hồ sơ CÒN SỬA ĐƯỢC (`0029`).
+   *
+   * Hồ sơ Nháp không đóng băng. Nó là một bản đang soạn, và con số trên nó phải
+   * là con số sẽ được đóng băng nếu bấm Gửi duyệt ngay lúc ấy — nếu không thì
+   * người lập ký gửi một thứ khác với thứ họ vừa đọc.
+   *
+   * KHÔNG chạm tới `row_version`: đó là khoá lạc quan của luồng duyệt, và một
+   * lượt ĐỌC làm hỏng thẻ khoá mà người dùng đang cầm là một lỗi 409 không giải
+   * thích được. Cũng KHÔNG phát `policy.updated`: không có người nào vừa sửa gì.
+   *
+   * Trả về danh sách dòng KHÔNG làm mới được — sản phẩm đã vô hiệu hoá, hoặc
+   * chưa có giá tại ngày áp dụng. Những dòng ấy GIỮ NGUYÊN số cũ: chặn ở đây là
+   * chặn người dùng mở chính hồ sơ của họ ra để sửa cái dòng hỏng. Chỗ chặn đúng
+   * là lúc GỬI DUYỆT, xem `workflow.service.ts`.
+   */
+  async lamMoiDong(c: PoolClient, policyId: string): Promise<string[]> {
+    const p = await c.query<{ customer_id: string; status: string; applied_date: Date | null }>(
+      `SELECT customer_id, status::text AS status, applied_date FROM pol.policy WHERE id = $1`,
+      [policyId],
+    );
+    const ho = p.rows[0];
+    if (!ho || !EDITABLE.includes(ho.status)) return [];
+
+    const dong = await c.query<{ product_id: string; product_code_snap: string }>(
+      `SELECT product_id, product_code_snap FROM pol.policy_line WHERE policy_id = $1`,
+      [policyId],
+    );
+    if (dong.rowCount === 0) return [];
+
+    const customer = await this.clients.customer(ho.customer_id);
+    const on = ngayISO(ho.applied_date);
+    // Một vòng mạng cho cả hồ sơ, không phải một vòng cho mỗi dòng — hàm này
+    // chạy ở đường ĐỌC, nên chi phí của nó là thứ người dùng ngồi chờ.
+    const snaps = await this.clients.productSnapshots(
+      dong.rows.map((d) => d.product_id),
+      customer.customerType,
+      on,
+    );
+
+    const hong: string[] = [];
+    for (const d of dong.rows) {
+      const snap = snaps.get(d.product_id);
+      if (!snap || snap.status !== 'DANG_AP_DUNG') {
+        hong.push(d.product_code_snap);
+        continue;
+      }
+      // Đọc lại giá bán buôn và CPBH từ chính dòng đang có: chúng là con số
+      // NGƯỜI DÙNG nhập, không phải ảnh chụp danh mục, nên làm mới không được
+      // đụng tới. Chỉ ba thứ đến từ danh mục mới được tính lại.
+      const cu = await c.query<{ wholesale_price: string; cpbh: string[] }>(
+        `SELECT wholesale_price::text, cpbh::text[] AS cpbh
+           FROM pol.policy_line WHERE policy_id = $1 AND product_id = $2`,
+        [policyId, d.product_id],
+      );
+      const g = cu.rows[0]!;
+      let calc;
+      try {
+        calc = computeLine({
+          companyPrice: BigInt(snap.companyPrice),
+          wholesalePrice: BigInt(g.wholesale_price),
+          cpbh: (g.cpbh ?? []).map((v) => BigInt(v)),
+          ...(snap.thresholdRate2 === null ? {} : { threshold: snap.thresholdRate2 }),
+        });
+      } catch {
+        // Giá bán Công ty mới có thể làm dòng cũ thành vô lý (giá thu về âm chẳng
+        // hạn). Không ghi đè bằng một con số sai — để nguyên và báo ở lúc gửi.
+        hong.push(d.product_code_snap);
+        continue;
+      }
+
+      await c.query(
+        `UPDATE pol.policy_line
+            SET product_code_snap  = $3,
+                product_name_snap  = $4,
+                company_price_snap = $5,
+                discount_rate      = $6,
+                threshold_snap     = $7,
+                rule_code_snap     = $8,
+                threshold_source   = $9
+          WHERE policy_id = $1 AND product_id = $2`,
+        [
+          policyId,
+          d.product_id,
+          snap.productCode,
+          snap.productName,
+          snap.companyPrice,
+          (calc.discountRate / 100).toFixed(2),
+          snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2),
+          snap.ruleCode ?? null,
+          snap.thresholdSource,
+        ],
+      );
+    }
+    return hong;
   }
 
   async remove(policyId: string, me: AuthUser) {
@@ -424,10 +560,66 @@ export class PoliciesService {
 
   // --- Đọc ------------------------------------------------------------------
 
+  /**
+   * Mở một hồ sơ. Hồ sơ CÒN SỬA ĐƯỢC thì làm mới giá và ngưỡng trước (`0029`).
+   *
+   * Kiểm phạm vi TRƯỚC khi làm mới: làm mới là một lượt ghi, và ghi vào một hồ
+   * sơ ngoài phạm vi của người gọi — dù chỉ ghi lại đúng con số danh mục — là
+   * một tác dụng phụ do người ngoài kích hoạt.
+   *
+   * Lỗi của bước làm mới bị NUỐT có chủ ý. Nó là một tiện ích, không phải điều
+   * kiện để đọc hồ sơ: catalog chết thì người dùng vẫn phải xem được hồ sơ của
+   * mình, với con số của lần chụp gần nhất.
+   */
   async byId(policyId: string, me: AuthUser) {
-    const p = await this.load(policyId);
-    await this.assertInScope(p.tdvUserId, me);
-    return p;
+    const so = await this.db.one<{ tdv_user_id: string | null; status: string }>(
+      `SELECT tdv_user_id, status::text AS status FROM pol.policy WHERE id = $1`,
+      [policyId],
+    );
+    if (!so) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
+    await this.assertInScope(so.tdv_user_id ?? '', me);
+
+    if (EDITABLE.includes(so.status)) {
+      await this.db.tx((c) => this.lamMoiDong(c, policyId)).catch(() => undefined);
+    }
+    return this.load(policyId);
+  }
+
+  /**
+   * Hồ sơ ĐÃ ĐÓNG BĂNG đang lệch so với danh mục — box "Yêu cầu cập nhật" (`0029`).
+   *
+   * Cùng phép lọc phạm vi với hộp việc: `tdv_user_id` của hồ sơ phải nằm trong
+   * cây của người gọi. TBP thấy hồ sơ của các TDV mình duyệt, Kế toán và Sale
+   * Admin thấy nhánh của mình, TDV thấy của chính mình.
+   *
+   * Lọc trạng thái ở ĐÂY chứ không dọn bảng `policy_impact` theo từng bước
+   * chuyển: một hồ sơ bị từ chối hay hết hiệu lực vẫn còn dòng dấu vết, nhưng nó
+   * không lọt qua mệnh đề này. Dọn theo trạng thái là thêm một chỗ nữa phải nhớ
+   * cập nhật mỗi lần luồng đổi, mà quên thì lỗi im lặng.
+   */
+  async impacted(me: AuthUser, page: Page) {
+    const ids = await this.scope.userIdsFor(me);
+    if (ids.length === 0) return paged([], page);
+
+    const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
+      `SELECT p.id, p.code, p.status::text AS status, p.version_no AS "versionNo",
+              p.applied_date AS "appliedDate",
+              jsonb_agg(jsonb_build_object(
+                'kind', i.kind, 'productCode', i.product_code,
+                'snapValue', i.snap_value, 'newValue', i.new_value
+              ) ORDER BY i.product_code, i.kind) AS lech,
+              max(i.detected_at) AS "detectedAt",
+              count(*) OVER() AS total_count
+         FROM pol.policy p
+         JOIN pol.policy_impact i ON i.policy_id = p.id
+        WHERE p.tdv_user_id = ANY($1::uuid[])
+          AND p.status::text = ANY($2::text[])
+        GROUP BY p.id
+        ORDER BY max(i.detected_at) DESC, p.code
+        LIMIT $3 OFFSET $4`,
+      [ids, DA_DONG_BANG, page.limit, page.offset],
+    );
+    return paged(rows, page);
   }
 
   /**
@@ -449,7 +641,11 @@ export class PoliciesService {
     await this.assertInScope(p.tdv_user_id ?? '', me);
 
     const customer = await this.clients.customer(p.customer_id);
-    const snap = await this.clients.productSnapshot(productId, customer.customerType);
+    const snap = await this.clients.productSnapshot(
+      productId,
+      customer.customerType,
+      ngayISO(p.applied_date),
+    );
     return {
       productId: snap.productId,
       productCode: snap.productCode,

@@ -188,10 +188,10 @@ export function BieuMauKhachHang({
             <strong>
               Đổi từ {nhanLoaiKhach(khach!.customerType)} sang {nhanLoaiKhach(Number(g.customerType))}.
             </strong>{' '}
-            Loại khách hàng quyết định ngưỡng chiết khấu. Hồ sơ CSBH <strong>đã lập giữ nguyên</strong>{' '}
-            ngưỡng đã chụp lúc lập — kể cả hồ sơ đang là Nháp hay đang bị trả lại. Muốn một hồ sơ
-            đang sửa dùng ngưỡng mới thì mở nó ra, bấm <strong>Sửa</strong> ở từng dòng sản phẩm rồi
-            lưu lại; hồ sơ lập từ đây về sau thì tự dùng ngưỡng mới.
+            Loại khách hàng quyết định ngưỡng chiết khấu. Hồ sơ <strong>Nháp</strong> và hồ sơ bị
+            trả lại sẽ <strong>tự nhận ngưỡng mới</strong> ngay lần mở tiếp theo. Hồ sơ{' '}
+            <strong>đã gửi duyệt</strong> thì giữ nguyên ngưỡng đã đóng băng — chúng sẽ hiện trong
+            box <em>Yêu cầu cập nhật</em> ở trang Tổng quan để người phụ trách tự quyết định.
           </div>
         )}
 

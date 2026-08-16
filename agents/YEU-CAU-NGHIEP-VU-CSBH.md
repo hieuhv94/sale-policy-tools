@@ -353,15 +353,15 @@ do ấy không đủ: khách hàng có đổi hạng thật, và cách duy nhấ
 mã mới, tức là **cắt đôi lịch sử CSBH của cùng một khách**. Ô nằm trong hộp thoại *Sửa*, và chỉ khi
 thật sự đổi giá trị thì một khối cảnh báo mới hiện ra nói rõ hệ quả.
 
-| Hồ sơ | Sau khi đổi loại |
+| Hồ sơ | Sau khi đổi loại `sửa 16/08` |
 |---|---|
-| Đã lập, mọi trạng thái — kể cả Nháp và Yêu cầu chỉnh sửa | **Giữ nguyên** ngưỡng đã chụp lúc lập |
-| Lập từ đây về sau | Dùng ngưỡng của loại mới |
+| Nháp · Yêu cầu chỉnh sửa | **Tự nhận ngưỡng mới** ngay lần mở tiếp theo |
+| Đã gửi duyệt trở đi | **Giữ nguyên** ngưỡng đã đóng băng; hiện trong box *Yêu cầu cập nhật* |
 
-Muốn một hồ sơ đang sửa dùng ngưỡng mới thì mở nó ra, bấm *Sửa* ở từng dòng sản phẩm rồi lưu — đó là
-đường duy nhất, và **cố ý** không tự động: một con số trong hồ sơ đang mở mà tự đổi dưới tay người
-đang xem, không do thao tác nào của họ, là thứ khó tin hơn hẳn. Hồ sơ đã gửi duyệt thì khoá sửa nên
-không có đường nào làm nó đổi số.
+Bản trước chốt ngược lại — hồ sơ Nháp giữ nguyên ngưỡng cũ, với lý do "một con số tự đổi dưới tay
+người đang xem là thứ khó tin". Lý do ấy nghe đúng nhưng dẫn tới điều tệ hơn: người lập đọc một con
+số rồi bấm *Gửi duyệt*, và thứ được đóng băng là một con số **khác**. Con số vẫn đổi dưới tay họ,
+chỉ là đổi muộn hơn và ở chỗ họ không nhìn thấy. Xem 7.2.
 
 **Loại khách hàng hiển thị ở cả hai màn hình** `sửa 15/08`: cạnh mã trên từng thẻ ở danh sách, và
 trong khối thông tin ở màn hình chi tiết. Trước đây không hiện ở đâu cả, nên người lập hồ sơ không
@@ -551,13 +551,31 @@ và con số dùng để so ngưỡng phải là một: so sánh **sau khi** đ�
 **Vượt ngưỡng** — cột tỷ lệ hiện đỏ ngay khi nhập. Khi bấm duyệt và gửi, hiện hộp thoại cảnh báo
 vượt chiết khấu; người dùng đồng ý thì **vẫn cho gửi**. Đây là cảnh báo mềm, không chặn.
 
-**Khi giá thay đổi**
+### 7.1. Ảnh chụp lấy theo NGÀY ÁP DỤNG `mới 16/08`
 
-- Hồ sơ đang lập: hệ thống tự tính lại CPBH tổng, giá thu về, tỷ lệ CK và hiển thị phần dữ liệu
-  thay đổi để người dùng kiểm tra trước khi gửi duyệt.
-- Hồ sơ đã ký: **không bao giờ ghi đè**. Hệ thống rà các CSBH đang có hiệu lực, xác định hồ sơ bị
-  ảnh hưởng và **gửi email cho TDV phụ trách** yêu cầu cập nhật. Việc cập nhật là lập CSBH mới
-  theo đúng luồng duyệt.
+Giá bán Công ty và ngưỡng chiết khấu đều có ngày hiệu lực. Con số chụp vào một dòng hồ sơ là con số
+có hiệu lực **tại Thời gian áp dụng của hồ sơ ấy**, không phải tại ngày lập.
+
+Hồ sơ áp dụng từ 01/09 thì mang bảng giá của 01/09, kể cả khi được lập từ tháng 8. Đổi *Thời gian áp
+dụng* thì mọi dòng **chụp lại** theo bảng giá của ngày mới. Bỏ trống Thời gian áp dụng thì lấy giá
+hôm nay.
+
+### 7.2. Đóng băng: đúng một lần, ở đúng lúc gửi duyệt `sửa 16/08`
+
+| Hồ sơ | Khi danh mục đổi giá hoặc đổi quy định chiết khấu |
+|---|---|
+| **Nháp · Yêu cầu chỉnh sửa** | **Sống theo danh mục.** Mỗi lần mở hồ sơ, giá và ngưỡng chụp lại; lúc bấm *Gửi duyệt* chụp lại lần cuối rồi mới đóng băng |
+| **Đã gửi duyệt → Đang có hiệu lực** | **Không bao giờ ghi đè.** Hiện trong box *Yêu cầu cập nhật* (muc 9.3); riêng hồ sơ đang hiệu lực còn có **email tới TDV phụ trách** |
+| **Từ chối · Hết hiệu lực** | Không theo dõi nữa |
+
+Giá bán buôn và các khoản CPBH **không bao giờ** bị làm mới — đó là con số người lập nhập, không phải
+ảnh chụp danh mục. Làm mới chỉ tính lại ba thứ đến từ danh mục: Giá bán Công ty, ngưỡng, và mã quy
+định đã cho ra ngưỡng ấy.
+
+**Làm mới hỏng thì giữ số cũ, và chặn ở lúc gửi.** Sản phẩm đã vô hiệu hoá, hoặc chưa khai giá tại
+ngày áp dụng, thì dòng ấy giữ nguyên số cũ khi mở hồ sơ — chặn ở đó là nhốt người lập ngoài chính hồ
+sơ họ cần vào để xoá dòng hỏng. Bấm *Gửi duyệt* thì bị chặn, kèm tên sản phẩm: đó mới là lúc con số
+đi vào một văn bản sắp ký.
 
 ---
 
@@ -648,6 +666,24 @@ trong phiên làm việc:
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần xem,
 ký, tiếp nhận, xuất file và tải tài liệu.
 
+### 9.3. Box "Yêu cầu cập nhật" trên trang Tổng quan `mới 16/08`
+
+Có ở **bốn vai trò trong luồng**: TDV, Trưởng bộ phận, Sale Admin, Kế toán. Liệt kê những hồ sơ **đã
+đóng băng** của phạm vi người đó mà giá hoặc ngưỡng đã lệch so với danh mục hôm nay — từ *Chờ TBP
+duyệt* cho tới *Đang có hiệu lực*.
+
+Mỗi dòng nói **con số**, không nói "bị ảnh hưởng": lệch cái gì (giá hay ngưỡng), sản phẩm nào, từ bao
+nhiêu sang bao nhiêu. Không kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra rồi tự so —
+đúng cái việc box này sinh ra để khỏi phải làm.
+
+**Box không có nút nào.** Việc phải làm khác nhau theo vai trò và theo bước — trả lại để sửa, cứ
+duyệt vì chênh lệch không đáng kể, hay lập một CSBH mới — và đó là quyết định của người.
+
+**Ẩn hẳn khi không có gì lệch.** Đây là màn hình mở mỗi sáng; một khối rỗng lặp lại mỗi ngày là khối
+người dùng ngừng nhìn, và đúng hôm nó có nội dung thì họ cũng không nhìn.
+
+Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai nằm ngoài luồng duyệt.
+
 > **Lưu ý khi dựng:** địa chỉ đăng ký là text tự do nên chỉ lọc được kiểu “có chứa” — và từ
 > `sửa 16/08` đó là cách lọc theo địa bàn DUY NHẤT còn lại, vì trường Tỉnh/thành đã bỏ.
 
@@ -734,7 +770,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-49 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+55 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
 định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
@@ -803,6 +839,14 @@ nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
 sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
+
+**Giá theo ngày áp dụng, hồ sơ Nháp sống theo danh mục** (16/08) — ảnh chụp giá và ngưỡng lấy theo
+**Thời gian áp dụng** của hồ sơ, không phải ngày lập · hồ sơ **Nháp và Yêu cầu chỉnh sửa không đóng
+băng**: chụp lại mỗi lần mở và một lần cuối lúc gửi duyệt · **đóng băng đúng một lần**, ở đúng lúc
+gửi duyệt · dòng không làm mới được thì giữ số cũ khi mở, **chặn khi gửi** · **đổi quy định chiết
+khấu cũng gửi email** tới TDV của CSBH đang hiệu lực, đúng như đổi giá · thêm box **"Yêu cầu cập
+nhật"** ở trang Tổng quan của bốn vai trò trong luồng, liệt kê hồ sơ đã đóng băng đang lệch kèm con
+số cũ và mới.
 
 **Sửa ngày hiệu lực của quy định** (16/08) — quy định chiết khấu **sửa được ngày bắt đầu hiệu lực**,
 không chỉ ngưỡng; trùng phạm vi và trùng ngày với một dòng khác thì từ chối · cột *Hiệu lực* trên

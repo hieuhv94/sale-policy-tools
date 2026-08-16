@@ -115,6 +115,22 @@ export class PoliciesController {
   }
 
 
+  /**
+   * Hồ sơ đã đóng băng đang lệch so với danh mục (`0029`).
+   *
+   * ĐỨNG TRƯỚC `@Get(':id')`: Nest khớp route theo thứ tự khai báo, nên đặt sau
+   * thì `/policies/impacted` rơi vào `:id` và trả 404 cho một chuỗi không phải
+   * uuid — lỗi chỉ lộ ra khi mở đúng trang Tổng quan.
+   */
+  @Get('impacted')
+  impacted(
+    @CurrentUser() me: AuthUser,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.policies.impacted(me, pageOf({ limit, offset }));
+  }
+
   @Get(':id')
   byId(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     return this.policies.byId(id, me);

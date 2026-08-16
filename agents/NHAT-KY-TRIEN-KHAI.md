@@ -3707,3 +3707,86 @@ phải "định dạng lệch". Test khoá `o.value` bằng đúng `2026-01-01`.
 - Vẫn chưa nhìn bằng mắt: chồng demo đang tắt từ P35.
 - Dời ngày của một quy định **về quá khứ** không tính lại hồ sơ nào — đúng thiết kế (`threshold_snap`
   đóng băng), nhưng chưa có gì trên màn hình nói điều đó ra ngay lúc bấm Lưu.
+
+---
+
+## P37 — Hồ sơ Nháp sống theo danh mục, hồ sơ đã gửi thì được nhắc
+
+Đợt lớn nhất từ P11: năm việc, và bốn trong năm đều xoay quanh một câu hỏi duy nhất — **con số trên
+hồ sơ đóng băng lúc nào**.
+
+Bốn quyết định hỏi trước khi làm, vì mỗi hướng dẫn tới một khối lượng và một hành vi khác hẳn: làm
+mới Nháp lúc nào, phát hiện hồ sơ lệch bằng cách nào, box có gồm hồ sơ đang hiệu lực không, và làm
+mới hỏng thì xử ra sao. Hỏi trước rẻ hơn nhiều so với dựng xong rồi tháo.
+
+### Lằn ranh đóng băng dời từ "lúc lập" sang "lúc gửi duyệt"
+
+Trước đợt này, mỗi lần ghi một dòng là một lần chụp — và không bao giờ chụp lại. Hệ quả nghe hợp lý
+("hồ sơ đang mở không tự đổi số dưới tay người xem") nhưng dẫn tới điều tệ hơn: người lập đọc một con
+số, bấm *Gửi duyệt*, và thứ đóng băng là một con số **khác**. Con số vẫn đổi dưới tay họ — chỉ là
+muộn hơn và ở chỗ họ không nhìn thấy.
+
+Giờ có đúng một lằn ranh: **Nháp sống theo danh mục, gửi duyệt thì đóng băng**. Làm mới ở hai chỗ —
+mỗi lần mở hồ sơ, và một lần cuối ngay trước khi chuyển trạng thái. Chỗ thứ hai không thừa: giữa lúc
+người lập mở màn hình và lúc họ bấm Gửi có thể là nửa tiếng.
+
+Điều này **đảo ngược một quyết định của P31**, và hai test của P31 đỏ đúng chỗ đáng đỏ. Không sửa
+mã cho test xanh — sửa test, và ghi lý do đảo ngược ngay trong tệp test.
+
+### Ba thứ `lamMoiDong` cố ý KHÔNG chạm
+
+- **`row_version`.** Đó là khoá lạc quan của luồng duyệt. Một lượt ĐỌC làm hỏng thẻ khoá người dùng
+  đang cầm là một 409 không giải thích được cho họ. Có test riêng khoá điều này lại.
+- **Giá bán buôn và CPBH.** Con số người dùng nhập, không phải ảnh chụp danh mục. Làm mới chỉ tính
+  lại ba thứ đến từ danh mục.
+- **Sự kiện `policy.updated`.** Không có người nào vừa sửa gì.
+
+### Làm mới hỏng: chặn ở đâu là cả một quyết định
+
+Sản phẩm vô hiệu hoá, hoặc chưa có giá tại ngày áp dụng. Chặn lúc MỞ hồ sơ là nhốt người lập ngoài
+chính hồ sơ họ cần vào để xoá cái dòng hỏng — cách chắc chắn nhất để biến một lỗi dữ liệu thành một
+lỗi không sửa được. Nên: mở thì giữ số cũ, **gửi duyệt thì 422 kèm tên sản phẩm**. Đó mới là lúc con
+số đi vào một văn bản sắp ký.
+
+### Tại sao phép rà không được lọc theo `rule_code_snap`
+
+Đây là chỗ dễ làm sai nhất của cả đợt. Trực giác nói: quy định X đổi thì tìm hồ sơ có
+`rule_code_snap = X`. Sai — một quy định **mới**, cụ thể hơn, thắng quy định đã chụp, mà hồ sơ không
+hề nhắc tới mã của nó. Lọc theo mã bỏ sót đúng cái trường hợp khó thấy nhất.
+
+Nên consumer **tra lại rồi so**, chấp nhận một lượt rà toàn bộ hồ sơ đã đóng băng mỗi lần quy định
+đổi. Việc nặng, nhưng chạy đúng lúc danh mục đổi — mà đó là việc hiếm, và nó là một consumer chứ
+không phải một đường request. Có test riêng cho đúng tình huống này.
+
+### So với danh mục HÔM NAY, không phải với ngày áp dụng
+
+Hai phép so khác nhau, và trộn chúng là hỏng cả hai:
+
+- **Nháp** tra theo **ngày áp dụng** — đó là con số sẽ được đóng băng.
+- **Đã đóng băng** so với **hôm nay** — câu hỏi của người đọc box là "hồ sơ này còn khớp với bảng giá
+  đang bán không", chứ không phải "lúc lập nó có đúng không". Lúc lập thì nó luôn đúng.
+
+### Một bẫy múi giờ suýt lọt
+
+`ngayISO()` không dùng `toISOString().slice(0,10)`. Cột `date` của Postgres về tới Node thành `Date`
+lúc nửa đêm giờ máy chủ; đổi sang UTC trước khi cắt thì ở múi giờ dương như Việt Nam nó **lùi về ngày
+hôm trước**. Một hồ sơ áp dụng 01/09 sẽ tra bảng giá của 31/08 — sai đúng một ngày, và đúng một ngày
+là đủ để rơi vào bên kia một mốc đổi giá.
+
+### Đổi tên consumer
+
+`price-changed.consumer.ts` giờ nghe cả `catalog.changed`, nên nó thành `catalog-impact.consumer.ts`.
+Cùng lối nghĩ với `lookups → signers` ở P33: để nguyên tên là để một cái bẫy cho người sau.
+
+868 case (838 → 868).
+
+### Còn nợ
+
+- **Giá khai trước, hiệu lực sau.** Impact so với giá HÔM NAY, mà `catalog.price_changed` phát lúc
+  KHAI. Khai hôm nay một dòng giá hiệu lực 01/10 thì tới 01/10 hồ sơ mới thật sự lệch — và không có
+  sự kiện nào vào ngày ấy. Đóng lại cần một lượt quét định kỳ, chỗ đúng là `sla-worker` (đã quét 5
+  phút một lần). Chưa làm.
+- Rà toàn bộ khi quy định đổi là O(số hồ sơ đã đóng băng). Với vài nghìn CSBH đang hiệu lực thì một
+  lần đổi quy định là vài nghìn lượt so. Chưa đo thật.
+- Box chưa có phân trang; `limit=50` là cứng.
+- Vẫn chưa nhìn bằng mắt trên trình duyệt: chồng demo tắt từ P35.

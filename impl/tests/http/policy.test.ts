@@ -11,7 +11,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp as createPolicyApp } from '@csbh/policy/testing';
+import { createTestApp as createPolicyApp, CatalogImpactConsumer } from '@csbh/policy/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -1807,17 +1807,27 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .send({ customerType: loai });
 
-  it('hồ sơ NHÁP đã lập giữ NGUYÊN ngưỡng cũ sau khi đổi loại', async () => {
-    // Đây là bất biến quan trọng nhất của thay đổi này. Nếu ngưỡng tự đổi theo
-    // thì một con số trong hồ sơ đang mở thay đổi dưới tay người đang xem, mà
-    // không thao tác nào của họ gây ra.
+  /*
+   * ĐẢO NGƯỢC Ở `0029`.
+   *
+   * P31 chốt: hồ sơ Nháp GIỮ NGUYÊN ngưỡng cũ sau khi đổi loại khách hàng, với
+   * lý do "một con số trong hồ sơ đang mở không được đổi dưới tay người đang
+   * xem". Lý do ấy nghe đúng nhưng dẫn tới điều tệ hơn: người lập đọc một con
+   * số rồi bấm Gửi duyệt, và thứ được đóng băng là một con số KHÁC — vì lúc gửi
+   * mới tra lại. Nói cách khác, con số vẫn đổi dưới tay họ, chỉ là đổi muộn hơn
+   * và ở chỗ họ không nhìn thấy.
+   *
+   * `0029` chọn hướng ngược lại và nói thẳng: hồ sơ Nháp SỐNG THEO danh mục, mọi
+   * lúc. Đóng băng chỉ xảy ra một lần, ở đúng lúc gửi duyệt.
+   */
+  it('0029 hồ sơ NHÁP nhận ngưỡng MỚI ngay khi mở lại sau khi đổi loại', async () => {
     const productId = await sanPhamBaNguong();
     const customerId = await makeCustomer();
     const d = await draft({ customerId, productId });
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('10.00');
 
     expect((await doiLoai(customerId, 3)).status).toBe(200);
-    expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('10.00');
+    expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('30.00');
   });
 
   it('hồ sơ lập SAU khi đổi loại thì dùng ngưỡng mới', async () => {
@@ -1830,16 +1840,16 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
     expect((await get(`/policies/${hs.body.id}`)).body.lines[0].threshold).toBe('30.00');
   });
 
-  it('sửa lại một dòng thì nó nhận ngưỡng mới — đường tự cập nhật duy nhất', async () => {
-    // Câu này nằm nguyên văn trên hộp thoại sửa khách hàng: muốn hồ sơ đang sửa
-    // dùng ngưỡng mới thì mở nó ra, bấm Sửa ở từng dòng rồi lưu.
+  it('sửa một dòng cũng nhận ngưỡng mới — nhưng không còn là đường DUY NHẤT', async () => {
+    // Trước `0029` đây là cách duy nhất làm hồ sơ Nháp nhận ngưỡng mới. Giờ chỉ
+    // cần mở hồ sơ ra; đường sửa dòng vẫn phải đúng, nên vẫn kiểm.
     const productId = await sanPhamBaNguong();
     const customerId = await makeCustomer();
     const d = await draft({ customerId, productId });
     expect((await doiLoai(customerId, 2)).status).toBe(200);
 
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.threshold).toBe('10.00');
+    expect(l.threshold).toBe('20.00');
     expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '88000' })).status)
       .toBe(200);
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('20.00');
@@ -1966,5 +1976,381 @@ describe('0027 ghi chú của dòng sản phẩm', () => {
       (x) => x.productId === productId,
     );
     expect(cu?.note).toBe('Ghi chú phải sống qua phiên bản');
+  });
+});
+
+// =============================================================================
+// 0029 — giá và ngưỡng theo NGÀY ÁP DỤNG, hồ sơ Nháp sống theo danh mục
+// =============================================================================
+
+const cat = async () => http(catalog);
+const datGia = async (productId: string, amount: string, effectiveFrom: string) =>
+  (await cat())
+    .post(`/catalog/products/${productId}/prices`)
+    .set('Authorization', `Bearer ${tok['admin01']}`)
+    .send({ priceType: 'GIA_BAN_CONG_TY', amount, effectiveFrom });
+
+const khaiQuyDinh = async (body: object) =>
+  (await cat())
+    .post('/catalog/discount-rules')
+    .set('Authorization', `Bearer ${tok['admin01']}`)
+    .send(body);
+
+/** Sản phẩm thuộc nhóm RIÊNG, để quy định khai cho nó không đụng tệp test khác. */
+const sanPhamNhomRieng = async (gia: string, tuNgay = '2020-01-01') => {
+  const nhom = uniq('NHOM');
+  const c = await cat();
+  await c
+    .post('/catalog/product-groups')
+    .set('Authorization', `Bearer ${tok['admin01']}`)
+    .send({ code: nhom, name: 'Nhom rieng' });
+  const r = await c
+    .post('/catalog/products')
+    .set('Authorization', `Bearer ${tok['admin01']}`)
+    .send({ code: uniq('SP'), name: 'San pham rieng', groupCode: nhom });
+  products.push(r.body.id);
+  await datGia(r.body.id as string, gia, tuNgay);
+  return { productId: r.body.id as string, groupCode: nhom };
+};
+
+describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG, không phải hôm nay', () => {
+  it('giá của ngày áp dụng thắng giá của hôm nay', async () => {
+    // Hai mốc giá: 100.000 từ 2020, 300.000 từ 2020-06. Hồ sơ áp dụng 2020-03
+    // phải chụp 100.000 — dù hôm nay giá đã là 300.000.
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(productId, '300000', '2020-06-01');
+
+    const customerId = await makeCustomer();
+    const r = await post('/policies', {
+      customerId,
+      appliedDate: '2020-03-15',
+      lines: [line(productId)],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.lines[0].companyPrice).toBe('100000');
+  });
+
+  it('không khai ngày áp dụng thì lấy giá hôm nay', async () => {
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(productId, '300000', '2020-06-01');
+
+    const customerId = await makeCustomer();
+    const r = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(r.status).toBe(201);
+    expect(r.body.lines[0].companyPrice).toBe('300000');
+  });
+
+  it('NGƯỠNG cũng theo ngày áp dụng, không chỉ giá', async () => {
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000', '2019-01-01');
+    expect((await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom,
+      effectiveFrom: '2019-01-01', thresholdRate2: 1000,
+    })).status).toBe(201);
+    expect((await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom,
+      effectiveFrom: '2019-06-01', thresholdRate2: 2000,
+    })).status).toBe(201);
+
+    const customerId = await makeCustomer();
+    const r = await post('/policies', {
+      customerId,
+      appliedDate: '2019-03-01',
+      lines: [line(productId)],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.lines[0].threshold).toBe('10.00');
+  });
+
+  it('đổi NGÀY ÁP DỤNG thì chụp lại theo bảng giá của ngày mới', async () => {
+    // Đây là chỗ dễ quên nhất: đổi ngày mà không chụp lại thì hồ sơ mang ngày
+    // của tháng sau và giá của tháng trước.
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(productId, '300000', '2020-06-01');
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', {
+      customerId, appliedDate: '2020-03-15', lines: [line(productId)],
+    });
+    expect(d.body.lines[0].companyPrice).toBe('100000');
+
+    const sua = await patch(`/policies/${d.body.id}`, { appliedDate: '2020-09-01' });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+    expect(sua.body.lines[0].companyPrice).toBe('300000');
+  });
+});
+
+describe('0029 hồ sơ Nháp sống theo danh mục, không đóng băng', () => {
+  it('mở lại hồ sơ Nháp sau khi đổi giá thì thấy giá MỚI', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(d.body.lines[0].companyPrice).toBe('100000');
+
+    await datGia(productId, '150000', '2020-02-01');
+
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.status).toBe(200);
+    expect(lai.body.lines[0].companyPrice).toBe('150000');
+    // Giá thu về giữ nguyên (người dùng nhập), tỷ lệ chiết khấu tính LẠI.
+    expect(lai.body.lines[0].wholesalePrice).toBe('90000');
+    expect(lai.body.lines[0].discountRate).not.toBe(d.body.lines[0].discountRate);
+  });
+
+  it('mở lại hồ sơ Nháp sau khi đổi NGƯỠNG thì thấy ngưỡng MỚI', async () => {
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
+    const qd = await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom,
+      effectiveFrom: '2020-01-01', thresholdRate2: 1000,
+    });
+    expect(qd.status).toBe(201);
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(d.body.lines[0].threshold).toBe('10.00');
+
+    expect(
+      (await (await cat())
+        .patch(`/catalog/discount-rules/${qd.body.code}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({ thresholdRate2: 2500 })).status,
+    ).toBe(200);
+
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.body.lines[0].threshold).toBe('25.00');
+    expect(lai.body.lines[0].ruleCode).toBe(qd.body.code);
+  });
+
+  it('làm mới KHÔNG đụng giá bán buôn và CPBH — đó là số người dùng nhập', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', {
+      customerId,
+      lines: [{ productId, wholesalePrice: '77000', cpbh: ['1000', '2000'] }],
+    });
+    await datGia(productId, '500000', '2020-02-01');
+
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.body.lines[0].wholesalePrice).toBe('77000');
+    expect(lai.body.lines[0].cpbh).toEqual(['1000', '2000']);
+    expect(lai.body.lines[0].companyPrice).toBe('500000');
+  });
+
+  it('hồ sơ ĐÃ GỬI DUYỆT thì KHÔNG làm mới — đóng băng là đóng băng', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await datGia(productId, '900000', '2020-02-01');
+
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.body.status).toBe('CHO_TBP_DUYET');
+    expect(lai.body.lines[0].companyPrice).toBe('100000');
+  });
+
+  it('làm mới KHÔNG bump row_version — thẻ khoá lạc quan phải còn dùng được', async () => {
+    // Một lượt ĐỌC làm hỏng thẻ khoá người dùng đang cầm là một 409 không giải
+    // thích được cho họ.
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    const v = d.body.rowVersion as number;
+
+    await datGia(productId, '150000', '2020-02-01');
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.body.rowVersion).toBe(v);
+    // Và hành động kèm đúng rowVersion ấy vẫn đi được.
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+  });
+});
+
+describe('0029 GỬI DUYỆT làm mới lần cuối rồi mới đóng băng', () => {
+  it('giá đổi giữa lúc mở và lúc bấm Gửi thì đóng băng giá MỚI', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+
+    // Không mở lại hồ sơ — đổi giá rồi bấm Gửi thẳng.
+    await datGia(productId, '250000', '2020-02-01');
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const sau = await get(`/policies/${d.body.id}`);
+    expect(sau.body.lines[0].companyPrice).toBe('250000');
+  });
+
+  it('sản phẩm vô hiệu hoá: MỞ vẫn được, GỬI thì 422 kèm tên sản phẩm', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    const maSp = d.body.lines[0].productCode as string;
+
+    expect(
+      (await (await cat())
+        .patch(`/catalog/products/${productId}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({ status: 'DA_VO_HIEU_HOA' })).status,
+    ).toBe(200);
+
+    // MỞ: vẫn xem được, dòng giữ nguyên số cũ. Chặn ở đây là nhốt người dùng
+    // ngoài chính hồ sơ của họ, đúng cái hồ sơ họ cần vào để xoá dòng hỏng.
+    const lai = await get(`/policies/${d.body.id}`);
+    expect(lai.status).toBe(200);
+    expect(lai.body.lines[0].companyPrice).toBe('100000');
+
+    // GỬI: chặn, và nói rõ sản phẩm nào.
+    const gui = await act(d.body.id, 'SUBMIT', 'tdv01');
+    expect(gui.status).toBe(422);
+    expect(gui.body.code).toBe('STALE_LINE');
+    expect(gui.body.products).toContain(maSp);
+  });
+});
+
+// =============================================================================
+// 0029 — dấu vết "hồ sơ đã đóng băng đang lệch so với danh mục"
+//
+// Gọi THẲNG `handle()` thay vì đẩy qua RabbitMQ: phần bus đã được `notification.
+// test.ts` chạy qua đường thật rồi, còn ở đây thứ cần khẳng định là PHÉP SO và
+// phép đồng bộ bảng — hai thứ không cần tới hàng đợi để sai.
+// =============================================================================
+
+describe('0029 box Yêu cầu cập nhật', () => {
+  const raSoat = async (productId?: string) =>
+    app.get(CatalogImpactConsumer).handle(productId === undefined ? {} : { productId });
+
+  const lech = async (who = 'tdv01') =>
+    (await get('/policies/impacted?limit=50', who)).body.items as {
+      id: string;
+      lech: { kind: string; productCode: string; snapValue: string; newValue: string | null }[];
+    }[];
+
+  it('đổi giá xong thì hồ sơ ĐANG CHỜ DUYỆT hiện trong box, kèm giá cũ và mới', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await datGia(productId, '180000', '2020-02-01');
+    await raSoat(productId);
+
+    const ds = await lech();
+    const h = ds.find((x) => x.id === d.body.id);
+    expect(h, 'hồ sơ chờ duyệt phải nằm trong box').toBeDefined();
+    const gia = h!.lech.find((l) => l.kind === 'PRICE')!;
+    expect(gia.snapValue).toBe('100000');
+    expect(gia.newValue).toBe('180000');
+  });
+
+  it('hồ sơ ĐANG CÓ HIỆU LỰC cũng nằm trong box', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId, productId });
+    await runToActive(d);
+
+    await datGia(productId, '190000', '2020-02-01');
+    await raSoat(productId);
+
+    expect((await lech()).some((x) => x.id === d.id)).toBe(true);
+  });
+
+  it('hồ sơ NHÁP KHÔNG nằm trong box — nó tự cập nhật, không cần nhắc', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+
+    await datGia(productId, '200000', '2020-02-01');
+    await raSoat(productId);
+
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
+
+  it('đổi giá TRẢ LẠI như cũ thì dấu vết BIẾN MẤT', async () => {
+    // Một box còn treo cảnh báo đã hết hiệu lực là một box người dùng học cách
+    // bỏ qua — nên xoá quan trọng ngang ghi.
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await datGia(productId, '210000', '2020-02-01');
+    await raSoat(productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(true);
+
+    await datGia(productId, '100000', '2020-03-01');
+    await raSoat(productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
+
+  it('đổi NGƯỠNG cũng vào box, và loại chênh lệch là RULE', async () => {
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
+    const qd = await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom,
+      effectiveFrom: '2020-01-01', thresholdRate2: 1000,
+    });
+    expect(qd.status).toBe(201);
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    expect(
+      (await (await cat())
+        .patch(`/catalog/discount-rules/${qd.body.code}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({ thresholdRate2: 2200 })).status,
+    ).toBe(200);
+    await raSoat();
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h).toBeDefined();
+    const ng = h!.lech.find((l) => l.kind === 'RULE')!;
+    expect(ng.snapValue).toBe('10.00');
+    expect(ng.newValue).toBe('22.00');
+  });
+
+  it('quy định MỚI cụ thể hơn cũng bị bắt — dù hồ sơ không nhắc tới mã của nó', async () => {
+    // Đây là lý do phép rà phải TRA LẠI thay vì lọc theo `rule_code_snap`. Hồ sơ
+    // chụp quy định chung cho cả nhóm; một quy định khai sau, riêng cho loại
+    // khách này, thắng nó — mà mã của quy định mới chưa từng xuất hiện trên hồ sơ.
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
+    expect((await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom,
+      effectiveFrom: '2020-01-01', thresholdRate2: 1000,
+    })).status).toBe(201);
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    // Khách hàng test là loại 1 (`makeCustomer`).
+    expect((await khaiQuyDinh({
+      code: uniq('CK'), productGroupCode: nhom, customerType: 1,
+      effectiveFrom: '2020-01-01', thresholdRate2: 3300,
+    })).status).toBe(201);
+    await raSoat();
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'quy định mới cụ thể hơn phải bị bắt').toBeDefined();
+    expect(h!.lech.find((l) => l.kind === 'RULE')!.newValue).toBe('33.00');
+  });
+
+  it('phạm vi dữ liệu: TDV khác KHÔNG thấy hồ sơ này', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer('tdv01');
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await datGia(productId, '230000', '2020-02-01');
+    await raSoat(productId);
+
+    expect((await lech('tdv01')).some((x) => x.id === d.body.id)).toBe(true);
+    expect((await lech('tdv02')).some((x) => x.id === d.body.id)).toBe(false);
+    // Trưởng bộ phận duyệt tdv01 thì THẤY — box đi theo cây phân quyền.
+    expect((await lech('tbp01')).some((x) => x.id === d.body.id)).toBe(true);
+  });
+
+  it('không có gì lệch thì trả danh sách RỖNG, không phải lỗi', async () => {
+    const r = await get('/policies/impacted?limit=50', 'sa01');
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body.items)).toBe(true);
   });
 });

@@ -106,8 +106,11 @@ describe('0023 cảnh báo hệ quả khi đổi loại', () => {
     });
     expect(canhBao.textContent).toContain('Loại 1');
     expect(canhBao.textContent).toContain('Loại 3');
-    // Và nói HỆ QUẢ, không chỉ nhắc lại thao tác vừa làm.
-    expect(canhBao.textContent).toContain('đã lập giữ nguyên');
+    // Và nói HỆ QUẢ, không chỉ nhắc lại thao tác vừa làm. Từ `0029` hệ quả là
+    // HAI vế khác nhau: hồ sơ còn sửa được tự nhận ngưỡng mới, hồ sơ đã gửi
+    // duyệt thì không. Nói một vế là để người dùng suy sai vế kia.
+    expect(canhBao.textContent).toContain('tự nhận ngưỡng mới');
+    expect(canhBao.textContent).toContain('đã gửi duyệt');
   });
 
   it('chọn lại đúng loại cũ thì cảnh báo biến mất', async () => {

@@ -20,7 +20,9 @@
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
-    "./chung": "./src/components/Chung.tsx"
+    "./chung": "./src/components/Chung.tsx",
+    "./tong-quan-ui": "./src/pages/TongQuan.tsx",
+    "./yeu-cau-cap-nhat": "./src/components/khoi/YeuCauCapNhat.tsx"
   },
   "scripts": {
     "build": "vite build",

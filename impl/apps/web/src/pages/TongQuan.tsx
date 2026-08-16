@@ -25,6 +25,7 @@ import type { VaiTro } from '../lib/can.js';
 import { BaoLoi, DangTai } from '../components/Chung.js';
 import { Khoi, ViSaoKhongCoViec } from '../components/khoi/Khung.js';
 import { DanhSachViec, type MucViec } from '../components/khoi/HopViec.js';
+import { YeuCauCapNhat } from '../components/khoi/YeuCauCapNhat.js';
 import { DaiTheTrangThai, SucKhoeLuong, TheoBuoc, TheoTdv } from '../components/khoi/SoLieu.js';
 import {
   CanhBaoMauHopDong,
@@ -78,6 +79,9 @@ export function TongQuan() {
 
       case 'canh-bao-thu-hong':
         return <CanhBaoThuHong key={ten} />;
+
+      case 'yeu-cau-cap-nhat':
+        return <YeuCauCapNhat key={ten} />;
 
       case 'hop-viec':
         return (

@@ -100,9 +100,28 @@ theo đúng trạng thái đó.
 Cố ý **không** bày cho bạn trạng thái là bước của người khác: một Trình dược viên nhìn ô "Chờ Kế
 toán L2: 7" thì không làm được gì với con số ấy.
 
+### Yêu cầu cập nhật
+
+Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, Kế toán**. Khối này chỉ hiện khi có
+việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
+
+Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà giá hoặc ngưỡng
+chiết khấu trên hồ sơ **đã khác với danh mục hiện tại**. Mỗi dòng nói rõ: lệch giá hay lệch ngưỡng,
+sản phẩm nào, **từ bao nhiêu sang bao nhiêu**.
+
+Vì sao cần: hồ sơ đã gửi duyệt thì đóng băng số, và đó là chủ ý — không ai được sửa một văn bản đang
+chờ chữ ký. Hệ quả là hồ sơ nằm trên bàn bạn có thể mang con số đã lỗi thời mà **không có gì trên hồ
+sơ nói ra điều đó**. Khối này là chỗ duy nhất bạn biết trước khi ký.
+
+**Khối không có nút nào**, và đó là chủ ý. Việc phải làm tuỳ tình huống: trả lại để người lập sửa,
+cứ duyệt tiếp vì chênh lệch không đáng kể, hay lập một CSBH mới. Phần mềm không đoán hộ.
+
+Hồ sơ còn ở *Nháp* hoặc *Yêu cầu chỉnh sửa* **không xuất hiện ở đây** — chúng tự cập nhật mỗi lần mở
+nên không có gì để nhắc.
+
 ### Việc của tôi
 
-Ngay dưới dải thẻ là hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá
+Ngay dưới đó là hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá
 hạn** có vạch đỏ bên trái. Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải hệ thống lỗi.
 
 Riêng **Kế toán** thấy hai danh sách tách rời: *Tiếp nhận lần 1* và *Tiếp nhận lần 2*.
@@ -190,7 +209,24 @@ trống nghĩa là dòng ấy không có khoản đó, khác với số 0 nghĩa
 việc khác nhau.
 
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
-**đóng băng** vào hồ sơ ngay lúc lập. Danh mục đổi giá về sau không làm đổi hồ sơ đã lập.
+**đóng băng** vào hồ sơ — nhưng chỉ **từ lúc bấm Gửi duyệt**.
+
+> **Hồ sơ Nháp sống theo danh mục.** Còn ở *Nháp* hay *Yêu cầu chỉnh sửa* thì mỗi lần bạn mở hồ sơ,
+> giá và ngưỡng được lấy lại từ danh mục; lúc bấm *Gửi duyệt* lấy lại lần cuối rồi mới đóng băng. Nhờ
+> vậy con số bạn vừa đọc đúng là con số sẽ được đóng băng.
+>
+> **Giá lấy theo *Thời gian áp dụng*, không phải ngày hôm nay.** Hồ sơ áp dụng từ 01/09 thì mang bảng
+> giá của 01/09, kể cả khi bạn lập nó từ tháng 8. Đổi *Thời gian áp dụng* thì mọi dòng tính lại theo
+> bảng giá của ngày mới.
+>
+> **Giá bán buôn và các khoản CPBH không bao giờ bị thay.** Đó là con số bạn nhập; chỉ Giá bán Công
+> ty và ngưỡng — hai thứ lấy từ danh mục — mới được làm mới.
+>
+> **Gửi duyệt bị chặn nếu có dòng không lấy được giá.** Sản phẩm đã vô hiệu hoá, hoặc chưa khai giá
+> tại ngày áp dụng. Hệ thống nói rõ sản phẩm nào; xoá dòng đó hoặc đổi *Thời gian áp dụng* rồi gửi
+> lại. Mở hồ sơ ra xem thì vẫn xem được bình thường.
+
+Hồ sơ **đã gửi duyệt** thì không bao giờ tự đổi số — xem *Yêu cầu cập nhật* ở mục 4.
 
 ### Hai màu trong bảng dòng sản phẩm
 

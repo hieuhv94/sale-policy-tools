@@ -32,7 +32,13 @@ export const BUS = {
   bindings: {
     notification: ['policy.#', 'catalog.#', 'customer.#', 'sla.#'],
     document: ['policy.scan_discarded', 'policy.rejected'],
-    policy: ['catalog.price_changed'],
+    /**
+     * `catalog.changed` thêm ở `0029`: đổi QUY ĐỊNH CHIẾT KHẤU cũng làm hồ sơ đã
+     * đóng băng lệch khỏi danh mục, đúng như đổi giá. Consumer tự lọc `entity`
+     * — hàng đợi không lọc mịn hơn `catalog.#` được, và `catalog.changed` mang
+     * cả thay đổi nhóm sản phẩm lẫn người ký.
+     */
+    policy: ['catalog.price_changed', 'catalog.changed'],
     /**
      * Nhật ký nghe TẤT CẢ. Khác với ba queue trên vốn lọc theo nhu cầu, ở đây
      * bất kỳ sự kiện nào không tới được đều là một khoảng trống trong vết —

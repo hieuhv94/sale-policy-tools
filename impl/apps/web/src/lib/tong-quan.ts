@@ -115,6 +115,7 @@ export type TenKhoi =
   | 'vi-sao-khong-co-viec'
   | 'canh-bao-mau-hop-dong'
   | 'canh-bao-thu-hong'
+  | 'yeu-cau-cap-nhat'
   | 'hop-viec'
   | 'hop-viec-ke-toan'
   | 'suc-khoe-luong'
@@ -131,11 +132,22 @@ export type TenKhoi =
  * người này chữa được. Đặt nó dưới một danh sách dài là gần như chắc chắn không
  * ai cuộn tới.
  */
+/*
+ * `yeu-cau-cap-nhat` đứng TRƯỚC hộp việc ở cả bốn vai trò trong luồng (`0029`).
+ *
+ * Cùng lý do với hai cảnh báo phía trên nó: một hồ sơ mang con số đã lỗi thời là
+ * thứ phải biết TRƯỚC khi mở nó ra ký. Đặt dưới một danh sách việc dài là gần
+ * như chắc chắn không ai cuộn tới, mà cuộn tới thì cũng đã ký xong rồi.
+ *
+ * Ban lãnh đạo và Quản trị KHÔNG có: cả hai nằm ngoài luồng duyệt, phạm vi dữ
+ * liệu của họ không chứa hồ sơ nào (Quản trị) hoặc chỉ để xem (Ban lãnh đạo) —
+ * bày một danh sách việc-phải-làm cho người không làm được việc ấy là nhiễu.
+ */
 export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
-  TDV: ['hop-viec'],
-  TBP: ['hop-viec', 'suc-khoe-luong'],
-  KE_TOAN: ['hop-viec-ke-toan', 'suc-khoe-luong'],
-  SALE_ADMIN: ['canh-bao-mau-hop-dong', 'hop-viec', 'theo-tdv'],
+  TDV: ['yeu-cau-cap-nhat', 'hop-viec'],
+  TBP: ['yeu-cau-cap-nhat', 'hop-viec', 'suc-khoe-luong'],
+  KE_TOAN: ['yeu-cau-cap-nhat', 'hop-viec-ke-toan', 'suc-khoe-luong'],
+  SALE_ADMIN: ['canh-bao-mau-hop-dong', 'yeu-cau-cap-nhat', 'hop-viec', 'theo-tdv'],
   BAN_LANH_DAO: [
     'vi-sao-khong-co-viec',
     'suc-khoe-luong',

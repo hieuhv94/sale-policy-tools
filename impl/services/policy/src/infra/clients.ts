@@ -52,16 +52,24 @@ export class Clients {
     return (await res.json()) as CustomerInfo;
   }
 
-  /** Tra nhiều sản phẩm trong MỘT vòng mạng (chống N+1 khi hồ sơ nhiều dòng). */
+  /**
+   * Tra nhiều sản phẩm trong MỘT vòng mạng (chống N+1 khi hồ sơ nhiều dòng).
+   *
+   * `on` là NGÀY ÁP DỤNG của hồ sơ (`0029`). Bỏ trống thì catalog lấy hôm nay.
+   * Đây là tham số quan trọng nhất của cả hàm: giá và ngưỡng đều có ngày hiệu
+   * lực, nên tra theo hôm nay cho một hồ sơ áp dụng từ tháng sau là chụp đúng
+   * con số của một ngày không liên quan gì tới hồ sơ ấy.
+   */
   async productSnapshots(
     productIds: string[],
     customerType: number,
+    on?: string | undefined,
   ): Promise<Map<string, ProductSnapshot>> {
     if (productIds.length === 0) return new Map();
     const res = await fetch(`${catalogUrl()}/internal/catalog/product-snapshots`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...svc() },
-      body: JSON.stringify({ productIds, customerType }),
+      body: JSON.stringify({ productIds, customerType, ...(on ? { on } : {}) }),
     });
     if (res.status === 404) throw new NotFoundException({ code: 'PRODUCT_NOT_FOUND' });
     if (!res.ok) throw new Error(`catalog trả ${res.status}`);
@@ -69,8 +77,14 @@ export class Clients {
     return new Map(list.map((s) => [s.productId, s]));
   }
 
-  async productSnapshot(productId: string, customerType: number): Promise<ProductSnapshot> {
+  /** `on` — xem chú thích ở `productSnapshots`. */
+  async productSnapshot(
+    productId: string,
+    customerType: number,
+    on?: string | undefined,
+  ): Promise<ProductSnapshot> {
     const qs = new URLSearchParams({ customerType: String(customerType) });
+    if (on) qs.set('on', on);
     const res = await fetch(
       `${catalogUrl()}/internal/catalog/product-snapshot/${encodeURIComponent(productId)}?${qs}`,
       { headers: svc() },

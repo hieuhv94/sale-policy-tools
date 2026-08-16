@@ -121,6 +121,30 @@ export class WorkflowService {
       }
       await this.policies.assertNoMissingInheritedProduct(policyId);
 
+      /*
+       * LÀM MỚI LẦN CUỐI, rồi mới đóng băng (`0029`).
+       *
+       * Đây là ranh giới: trước lằn này hồ sơ sống theo danh mục, sau nó thì
+       * không bao giờ nữa. Làm mới ở đây chứ không tin vào lần mở gần nhất, vì
+       * giữa lúc người lập mở màn hình và lúc họ bấm Gửi có thể là nửa tiếng, và
+       * trong nửa tiếng ấy Quản trị có thể đã đổi bảng giá.
+       *
+       * Dòng KHÔNG làm mới được thì CHẶN — ngược hẳn với đường mở hồ sơ, nơi
+       * chúng chỉ giữ số cũ. Ở đó chặn là nhốt người dùng ngoài hồ sơ của chính
+       * họ; ở đây cho qua là để một con số không kiểm được đi vào văn bản sắp ký.
+       */
+      const hong = await this.db.tx((c) => this.policies.lamMoiDong(c, policyId));
+      if (hong.length > 0) {
+        throw new UnprocessableEntityException({
+          code: 'STALE_LINE',
+          products: hong,
+          message:
+            `Không lấy được giá hoặc ngưỡng hiện hành cho: ${hong.join(', ')}. ` +
+            'Sản phẩm có thể đã vô hiệu hoá, hoặc chưa khai giá tại ngày áp dụng. ' +
+            'Xoá dòng đó hoặc đổi ngày áp dụng rồi gửi lại.',
+        });
+      }
+
       // TDV chưa có Trưởng bộ phận quản lý thì hồ sơ này sẽ nằm ở "Chờ TBP
       // duyệt" mà KHÔNG vào hộp việc của ai: hộp việc của TBP suy từ
       // `approver_user_id` (`idn.scope_user_ids`). Không chặn thì hồ sơ biến mất

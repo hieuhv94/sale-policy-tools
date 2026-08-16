@@ -12,7 +12,7 @@ import { PolicyInternalController } from './internal.controller.js';
 import { DangDoController } from './dang-do.controller.js';
 import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
-import { PriceChangedConsumer } from './consumers/price-changed.consumer.js';
+import { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -56,7 +56,7 @@ class HealthController {
     WorkflowService,
     SlaConfigService,
     PolicyOutbox,
-    PriceChangedConsumer,
+    CatalogImpactConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

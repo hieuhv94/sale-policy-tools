@@ -11,4 +11,4 @@ export async function createTestApp(): Promise<INestApplication> {
 }
 
 export { PolicyOutbox } from './infra/outbox.relay.js';
-export { PriceChangedConsumer } from './consumers/price-changed.consumer.js';
+export { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';

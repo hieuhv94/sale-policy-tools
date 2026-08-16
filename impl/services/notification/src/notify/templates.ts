@@ -48,6 +48,12 @@ const TITLE: Record<string, string> = {
   KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
   PRICE_IMPACT: 'Giá sản phẩm trong CSBH đang hiệu lực đã thay đổi',
+  // Ba nhãn cho cùng một sự kiện `policy.catalog_impact` (`0029`). Người nhận
+  // đọc dòng tiêu đề TRƯỚC khi mở thư, nên nó phải nói đúng thứ đã đổi — gộp cả
+  // ba thành "danh mục đã thay đổi" là bắt họ mở thư ra mới biết có liên quan
+  // tới mình không.
+  RULE_IMPACT: 'Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi',
+  CATALOG_IMPACT: 'Giá và quy định chiết khấu trong CSBH đang hiệu lực đã thay đổi',
   SLA_REMINDER: 'Nhắc: hồ sơ sắp quá hạn duyệt',
   SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt',
 };

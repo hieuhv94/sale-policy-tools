@@ -664,7 +664,7 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
       const r = await withAdminDb(async (c) =>
         c.query(
           `SELECT 1 FROM pol.outbox
-            WHERE routing_key = 'policy.price_impact' AND payload->>'policyId' = $1`,
+            WHERE routing_key = 'policy.catalog_impact' AND payload->>'policyId' = $1`,
           [d.id],
         ),
       );
@@ -688,6 +688,87 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
       return q.rows[0]!;
     });
     expect(after).toEqual(before);
+  });
+});
+
+// =============================================================================
+// 0029 — đổi QUY ĐỊNH CHIẾT KHẤU cũng báo cho TDV, đúng như đổi giá
+// =============================================================================
+
+describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực', () => {
+  it('thư tới đúng TDV, tiêu đề nói về NGƯỠNG chứ không nói về giá', async () => {
+    // Sản phẩm thuộc nhóm RIÊNG: quy định khai cho nó không được đụng tới những
+    // hồ sơ khác trong tệp này, nếu không phép đếm thư ở đây thành vô nghĩa.
+    const c = await http(catalog);
+    const nhom = uniq('NHOM29');
+    await c
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: nhom, name: 'Nhom rieng 0029' });
+    const sp = await c
+      .post('/catalog/products')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: uniq('SP29'), name: 'SP rieng 0029', groupCode: nhom });
+    await c
+      .post(`/catalog/products/${sp.body.id}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '100000', effectiveFrom: '2020-01-01' });
+
+    const cus = await makeCustomer();
+    const hs = await post('/policies', {
+      customerId: cus.id,
+      lines: [line(sp.body.id as string)],
+    });
+    expect(hs.status, JSON.stringify(hs.body)).toBe(201);
+    await runToActive(hs.body.id as string);
+    await flush(6);
+    await mailpitClear();
+
+    await withAdminDb(async (cc) => {
+      await cc.query(`UPDATE cat.outbox SET published_at = now() WHERE published_at IS NULL`);
+      await cc.query(`UPDATE pol.outbox SET published_at = now() WHERE published_at IS NULL`);
+    });
+
+    // Hồ sơ chụp lúc CHƯA có quy định nào — ngưỡng rỗng. Khai một quy định giờ
+    // là đúng cái tình huống khó thấy nhất: hồ sơ không mang mã quy định nào,
+    // nên lọc theo `rule_code_snap` sẽ bỏ sót nó hoàn toàn.
+    await c
+      .post('/catalog/discount-rules')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        code: uniq('CK29'),
+        productGroupCode: nhom,
+        effectiveFrom: '2020-01-01',
+        thresholdRate2: 1750,
+      });
+
+    await catOutbox.pumpOnce();
+    await waitFor(async () => {
+      const r = await withAdminDb(async (cc) =>
+        cc.query(
+          `SELECT 1 FROM pol.outbox
+            WHERE routing_key = 'policy.catalog_impact' AND payload->>'policyId' = $1`,
+          [hs.body.id],
+        ),
+      );
+      return r.rowCount === 1;
+    }, 'policy chưa tiêu thụ xong catalog.changed');
+
+    const mails = await flush(1);
+    const m = await fullMail(mails[0]!.ID);
+    expect(m.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
+    expect(m.Subject).toContain('Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi');
+    expect(m.Text).toContain('17.50');
+
+    // Và hồ sơ đã ký KHÔNG bị ghi đè: ngưỡng của nó vẫn rỗng như lúc lập.
+    const sau = await withAdminDb(async (cc) => {
+      const q = await cc.query<{ threshold_snap: string | null }>(
+        `SELECT threshold_snap::text FROM pol.policy_line WHERE policy_id = $1`,
+        [hs.body.id],
+      );
+      return q.rows[0]!;
+    });
+    expect(sau.threshold_snap).toBeNull();
   });
 });
 

@@ -298,6 +298,35 @@ pol.policy_line
 > `policy` không đọc được schema `cat` (AD-02), và đây là **ảnh chụp** — quy định bị xoá thì dòng hồ
 > sơ vẫn phải nhớ nó đã dùng dòng nào, mà khoá ngoại thì hoặc chặn xoá hoặc xoá luôn dấu vết.
 
+### Dấu vết "hồ sơ đã đóng băng đang lệch so với danh mục" `0029`
+
+```
+pol.policy_impact
+  policy_id · product_id · kind        -- kind: PRICE | RULE. Khoá chính là bộ ba
+  product_code                          -- chép sẵn: Tổng quan không join sang cat (AD-02)
+  snap_value  text                      -- con số ĐANG nằm trên hồ sơ
+  new_value   text                      -- con số hiện hành. NULL = không còn quy định nào
+  detected_at timestamptz
+```
+
+> **Vì sao là bảng dấu vết, không phải tính tại chỗ**
+>
+> Tính tại chỗ lúc mở Tổng quan thì mỗi lần bất kỳ ai mở trang phải tra lại giá và ngưỡng cho MỌI
+> dòng của MỌI hồ sơ trong phạm vi họ — một màn hình ai cũng mở mỗi sáng. Ghi lúc có sự kiện thì việc
+> nặng chạy đúng lúc danh mục đổi, mà đó là việc hiếm.
+>
+> **KHÔNG lọc theo `rule_code_snap`.** Một quy định MỚI, cụ thể hơn, thắng quy định đã chụp — mà hồ
+> sơ không hề nhắc tới mã của nó. Lọc theo mã là bỏ sót đúng cái trường hợp khó thấy nhất, nên
+> consumer phải TRA LẠI toàn bộ rồi so.
+>
+> **So với danh mục HÔM NAY**, không phải với danh mục tại ngày áp dụng — hai thứ khác nhau. Câu hỏi
+> của người đọc box là "hồ sơ này còn khớp với bảng giá đang bán không", chứ không phải "lúc lập nó
+> có đúng không": lúc lập thì nó luôn đúng.
+>
+> Lọc trạng thái ở lúc ĐỌC chứ không dọn bảng theo từng bước chuyển. Hồ sơ bị từ chối vẫn còn dòng
+> dấu vết, nhưng nó không lọt qua mệnh đề `status = ANY(DA_DONG_BANG)`. Dọn theo trạng thái là thêm
+> một chỗ nữa phải nhớ cập nhật mỗi lần luồng đổi, mà quên thì lỗi im lặng.
+
 > **Vì sao MẢNG chứ không bảng con** `0021`
 >
 > Các khoản CPBH **không có thuộc tính riêng** — không tên, không loại, không ghi chú. Chúng chỉ là
@@ -1152,6 +1181,13 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | NTF-11 | Người phụ trách xử lý sau khi hồ sơ đã quá hạn | Hồ sơ đi tiếp **đúng nhánh cũ** dựa vào bước đã lưu, không quay về đầu | §4 | `P0` |
 | NTF-12 | Quản trị đổi cấu hình SLA từ 14 ngày sang N ngày | Hồ sơ đang chờ được tính lại hạn theo quy tắc đã công bố, có ghi nhật ký | §2.7 | `P1` |
 | NTF-13 | Đổi giá sản phẩm nằm trong CSBH đang hiệu lực | Email tới đúng TDV phụ trách; hồ sơ đã ký **không** bị ghi đè | §7 | `P0` |
+| NTF-13b | Đổi **quy định chiết khấu** áp cho CSBH đang hiệu lực | Email tới đúng TDV, tiêu đề nói về NGƯỠNG; hồ sơ đã ký không bị ghi đè (`0029`) | §7.2 | `P0` |
+| NTF-13c | Đổi giá hai lần liên tiếp cùng một hướng | **Một** thư, không phải hai: chỉ chênh lệch MỚI mới phát thư (`0029`) | §7.2 | `P1` |
+| POL-20 | Lập hồ sơ có *Thời gian áp dụng* trong tương lai, danh mục có giá hiệu lực từ ngày đó | Chụp giá của NGÀY ÁP DỤNG, không phải giá hôm nay (`0029`) | §7.1 | `P0` |
+| POL-21 | Đổi *Thời gian áp dụng* của hồ sơ Nháp | Mọi dòng chụp lại theo bảng giá của ngày mới (`0029`) | §7.1 | `P0` |
+| POL-22 | Mở lại hồ sơ Nháp sau khi danh mục đổi | Giá và ngưỡng là số MỚI; giá bán buôn và CPBH **không đổi**; `row_version` **không đổi** (`0029`) | §7.2 | `P0` |
+| POL-23 | Gửi duyệt hồ sơ có dòng không làm mới được | 422 `STALE_LINE` kèm danh sách mã sản phẩm. Mở hồ sơ thì vẫn xem được (`0029`) | §7.2 | `P0` |
+| POL-24 | `GET /policies/impacted` | Hồ sơ đã đóng băng trong phạm vi người gọi đang lệch, kèm con số cũ và mới. Hồ sơ Nháp KHÔNG có mặt (`0029`) | §9.3 | `P0` |
 | NTF-14 | Container sla-worker restart giữa chừng một vòng quét | Không gửi nhắc trùng — idempotent theo (hồ sơ, ngày) | §9.1 | `P1` |
 | NTF-15 | Chạy hai bản sla-worker cùng lúc | Khóa phân tán Redis đảm bảo chỉ một bản thực thi vòng quét | §9.1 | `P1` |
 | NTF-16 | Khởi động service với cấu hình thư nguy hiểm: production trỏ vào Mailpit, hoặc môi trường test trỏ vào SMTP thật mà chưa đặt `MAIL_REDIRECT_ALL` | Service **từ chối khởi động** trong cả hai trường hợp — không có đường nào để thư test lọt tới người thật | — | `P0` |
