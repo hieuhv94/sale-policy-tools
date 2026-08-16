@@ -23,7 +23,6 @@ type Ctx = {
   policy: PolicyFull;
   customer: CustomerFull;
   people: Record<string, string>;
-  signer: { fullName: string; title: string; unit: string } | undefined;
 };
 
 /** Trường đơn: một hồ sơ ra một giá trị. */
@@ -47,10 +46,6 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'company.name': () => COMPANY.name,
   'company.address': () => COMPANY.address,
   'company.tax_code': () => COMPANY.taxCode,
-
-  'signer.name': (c) => c.signer?.fullName ?? null,
-  'signer.title': (c) => c.signer?.title ?? null,
-  'signer.unit': (c) => c.signer?.unit ?? null,
 
   'person.tdv': (c) => c.people['TDV'] ?? null,
   'person.tbp': (c) => c.people['TBP'] ?? null,

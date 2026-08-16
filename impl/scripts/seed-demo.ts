@@ -434,7 +434,6 @@ async function xoaDuLieuCu(): Promise<void> {
       DELETE FROM cat.discount_rule;
       DELETE FROM cat.product;
       DELETE FROM cat.product_group;
-      DELETE FROM cat.signer;
       DELETE FROM ntf.sent_mail;
       DELETE FROM ntf.dead_letter;
       ALTER TABLE aud.audit_log DISABLE TRIGGER trg_audit_immutable;
@@ -556,14 +555,6 @@ async function main(): Promise<void> {
       effectiveFrom: '2026-01-01',
     });
   }
-
-  await goi('/catalog/signers', 'admin01', {
-    fullName: 'Nguyễn Văn Thành',
-    title: 'Giám đốc Kinh doanh',
-    unit: 'Công ty TNHH Dược phẩm Nutricare',
-    signScope: 'Chính sách bán hàng',
-    validFrom: '2026-01-01',
-  }).catch(() => undefined);
 
   // Khách hàng. `KH-0002` thuộc tdv02 để thấy rõ phạm vi dữ liệu: tdv01 KHÔNG
   // thấy khách này. Bốn khách cuối chia cho tdv02 và tdv03 vì cùng lý do — một

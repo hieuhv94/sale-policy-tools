@@ -103,17 +103,6 @@ export class Clients implements OnModuleDestroy {
     return (await r.json()) as CustomerFull;
   }
 
-  /** Người ký đang hiệu lực — dùng cho khối chữ ký ở cuối bản CSBH A4. */
-  async signer(): Promise<{ fullName: string; title: string; unit: string } | undefined> {
-    const r = await fetch(`${catalogUrl()}/internal/catalog/signers`, {
-      headers: svc(),
-    }).catch(() => undefined);
-    if (!r?.ok) return undefined;
-    const list = (await r.json()) as { fullName?: string; title?: string; unit?: string }[];
-    const first = list[0];
-    if (!first?.fullName) return undefined;
-    return { fullName: first.fullName, title: first.title ?? '', unit: first.unit ?? '' };
-  }
 
   /**
    * Họ tên theo vai trò cho khối "TBP · kế toán · người đề nghị" trên bản A4.

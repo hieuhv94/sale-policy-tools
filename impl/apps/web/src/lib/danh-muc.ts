@@ -13,8 +13,11 @@
  * ngưỡng chiết khấu chỉ còn khớp theo nhóm sản phẩm × loại khách hàng, và ba mã
  * ấy không còn chỗ nào để đi tới.
  *
- * "Người ký" đã gỡ khỏi giao diện: yêu cầu nghiệp vụ cho nó chưa rõ. API bên
- * `catalog` vẫn còn và vẫn có test — gỡ màn hình không phải là xoá nghiệp vụ.
+ * "Người ký" đã XOÁ HẲN ở `0033` — lược đồ, API, test, và ba ô trộn `signer.*`
+ * của mẫu hợp đồng. Nó gỡ khỏi giao diện từ 15/08 vì yêu cầu chưa rõ, và sống
+ * tiếp một năm rưỡi ở trạng thái nửa vời: có API mà không có màn hình nào tạo
+ * được dữ liệu cho nó. Khách hàng chốt 16/08 là hợp đồng không cần in tên người
+ * ký của Công ty.
  */
 
 /**

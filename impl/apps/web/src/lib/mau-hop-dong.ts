@@ -64,7 +64,6 @@ const NHAN_NHOM: Record<string, string> = {
   customer: 'Khách hàng',
   policy: 'Hồ sơ CSBH',
   company: 'Công ty',
-  signer: 'Người ký',
   'Dòng sản phẩm': 'Dòng sản phẩm (nhân bản theo dòng)',
 };
 

@@ -1,0 +1,49 @@
+-- =============================================================================
+-- 0033_bo_nguoi_ky — xoá hẳn đối tượng "Người ký".
+--
+-- KHÔNG CÓ 0032: đó là nhãn của đợt "vai trò cố định, vô hiệu hoá phải bàn giao"
+-- (P41–P42) — nó dựng endpoint và luật ở tầng service, không cần dòng DDL nào.
+-- Cùng nếp với `0028` và `0030`; xem đầu `0029`.
+--
+-- --- Vì sao xoá --------------------------------------------------------------
+--
+-- `cat.signer` là người ký hợp đồng thay mặt Công ty (khác hẳn Trưởng bộ phận ký
+-- số). Nó ở trạng thái NỬA VỜI suốt từ 15/08:
+--
+--   * Lược đồ và API đủ CRUD, có test.
+--   * Đúng MỘT chỗ đọc nó: ba ô trộn `{{signer.name}}` · `{{signer.title}}` ·
+--     `{{signer.unit}}` của mẫu hợp đồng. Bản CSBH A4 KHÔNG dùng — chỗ ghi
+--     `signerName` trong A4 lấy tên Trưởng bộ phận, một thứ khác trùng tên biến.
+--   * KHÔNG có màn hình nhập liệu. Gỡ ngày 15/08 vì yêu cầu nghiệp vụ chưa rõ:
+--     không mô tả nào nói người ký dùng ở đâu trong luồng, ai gán cho hồ sơ nào,
+--     và đổi người giữ chức thì hồ sơ đã ký chịu ảnh hưởng gì.
+--
+-- Hệ quả thật của trạng thái ấy: trên một bản triển khai mới, không ai tạo được
+-- người ký qua giao diện. Ba ô trộn luôn rỗng, và nếu Sale Admin đánh dấu chúng
+-- là bắt buộc thì xuất hợp đồng trả 422 mà không màn hình nào cho phép sửa.
+--
+-- Khách hàng chốt ngày 16/08: **không cần in tên người ký của Công ty trên hợp
+-- đồng**. Nên xoá hẳn thay vì dựng lại màn hình.
+--
+-- --- Cái mất đi --------------------------------------------------------------
+--
+-- Mẫu hợp đồng không còn ánh xạ được tới tên/chức danh/đơn vị người ký. Ba chỗ
+-- ký trên hợp đồng vẫn còn — chúng là chỗ TRỐNG để ký tay trên giấy, và vốn dĩ
+-- luôn là như vậy: phần mềm không có bước nào cho việc Ban lãnh đạo ký bản cứng
+-- (YCNV muc 2.6).
+-- =============================================================================
+
+-- --- 1. Dọn ánh xạ đang trỏ tới nguồn sắp biến mất ---------------------------
+--
+-- Chạy TRƯỚC khi xoá bảng, và chạy kể cả khi hôm nay không có dòng nào: một bản
+-- triển khai khác có thể đã có Sale Admin ánh xạ ba ô ấy. Bỏ qua bước này thì
+-- `doc.contract_template_field` còn dòng trỏ tới một `source` mà `sources.ts`
+-- không còn phân giải được — và lỗi chỉ lộ ra ở lần XUẤT HỢP ĐỒNG tiếp theo,
+-- dưới dạng một ô trống không ai giải thích được.
+DELETE FROM doc.contract_template_field WHERE source LIKE 'signer.%';
+
+-- --- 2. Xoá bảng -------------------------------------------------------------
+--
+-- Không bảng nào có khoá ngoại trỏ vào `cat.signer` (hợp đồng không được lưu
+-- lại — muc 8.3), nên xoá thẳng, không cần CASCADE.
+DROP TABLE IF EXISTS cat.signer;

@@ -4,7 +4,6 @@
  */
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { int, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
-import { SignersService } from './signers/signers.service.js';
 import { ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
 
@@ -12,7 +11,6 @@ import { RulesService } from './rules/rules.service.js';
 @Controller('internal/catalog')
 export class CatalogInternalController {
   constructor(
-    private readonly signers: SignersService,
     private readonly products: ProductsService,
     private readonly rules: RulesService,
   ) {}
@@ -97,14 +95,5 @@ export class CatalogInternalController {
       });
     }
     return this.products.groupCodesOf(ids as string[]);
-  }
-
-  /**
-   * Người ký đang hiệu lực hôm nay. `document` cần cho khối chữ ký ở cuối bản
-   * CSBH A4 và cho ô trống `{{signer.name}}` trên mẫu hợp đồng.
-   */
-  @Get('signers')
-  listSigners(@Query('on') on?: string) {
-    return this.signers.listSigners(on ?? new Date().toISOString().slice(0, 10));
   }
 }

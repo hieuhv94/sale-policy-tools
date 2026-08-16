@@ -154,7 +154,7 @@ Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ
 
 - Nhập và duy trì danh mục sản phẩm và giá, nhóm sản phẩm, chiết khấu quy định, danh mục tra cứu.
   **Mẫu hợp đồng không thuộc vai trò này** — xem mục 2.5. Mẫu hồ sơ CSBH thuộc vai trò này nhưng
-  **chưa làm**, và màn hình *Người ký* đã gỡ vì yêu cầu chưa rõ — xem mục 6.4.
+  **chưa làm**, và *Người ký* đã xoá hẳn — xem mục 6.4.
 - Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1 — quy trình tạo tài khoản ở mục 2.8.
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
@@ -513,11 +513,15 @@ mục 8.2 chốt 13 mục bắt buộc và bố cục ấy do hệ thống đị
 riêng chưa làm — và khi làm thì phải trả lời trước một câu: **nếu mẫu do người dùng soạn, hệ thống
 không còn bảo đảm được 13 mục kia có mặt.**
 
-**Người ký — đã gỡ khỏi giao diện** `sửa 15/08`. Yêu cầu cho nó chưa đủ rõ: không có mô tả nào nói
-người ký dùng ở đâu trong luồng, ai gán cho hồ sơ nào, và đổi người giữ chức thì hồ sơ đã ký chịu
-ảnh hưởng gì. API và lược đồ dữ liệu vẫn còn; màn hình nhập liệu thì không, vì một màn hình mà người
-dùng điền vào cũng không biết để làm gì thì tệ hơn là không có. **Cần làm rõ yêu cầu rồi mới dựng
-lại.**
+**Người ký — ĐÃ XOÁ HẲN** `sửa 16/08`. Bản trước gỡ màn hình nhập liệu (15/08) nhưng giữ lược đồ và
+API, chờ làm rõ yêu cầu. Trạng thái nửa vời ấy có hệ quả thật: **không màn hình nào tạo được người
+ký**, nên ba ô trộn `{{signer.name}}` · `{{signer.title}}` · `{{signer.unit}}` của mẫu hợp đồng luôn
+rỗng — và nếu Sale Admin đánh dấu chúng là bắt buộc thì xuất hợp đồng trả 422 mà không ai sửa được.
+
+Chốt: **hợp đồng không cần in tên người ký của Công ty.** Xoá bảng `cat.signer`, toàn bộ API, ba ô
+trộn và các ca kiểm thử. Ba chỗ ký trên hợp đồng vẫn còn — chúng là **chỗ trống để ký tay trên
+giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước nào cho việc Ban lãnh đạo ký bản cứng
+(muc 2.6).
 
 ### 6.5. Ba mục menu thay cho "Danh mục" `sửa 15/08`
 
@@ -811,7 +815,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-67 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
+68 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
 quyết định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới
 nhất.
 
@@ -869,7 +873,8 @@ Quản trị **đổi được vai trò** nhưng bị chặn khi còn hồ sơ d
 
 **Danh mục** (15/08) — danh mục sản phẩm chỉ còn **một loại giá** là Giá bán Công ty; giá bán buôn
 nhập trên từng dòng hồ sơ · "Danh mục" tách thành **ba mục menu** (Sản phẩm · Chiết khấu · Giấy tờ
-mẫu), có tìm kiếm sản phẩm bỏ dấu · **gỡ màn hình Người ký** vì yêu cầu chưa rõ.
+mẫu), có tìm kiếm sản phẩm bỏ dấu · **gỡ màn hình Người ký** vì yêu cầu chưa rõ, rồi **xoá hẳn đối
+tượng Người ký** ngày 16/08 vì hợp đồng không cần in tên người ký của Công ty.
 
 **Hồ sơ và chiết khấu** (15/08) — **quy định chiết khấu vô thời hạn**, bỏ ngày kết thúc · **số khoản
 CPBH tuỳ từng dòng sản phẩm**, không cố định bốn; bản in lấy số cột của dòng nhiều khoản nhất, dòng

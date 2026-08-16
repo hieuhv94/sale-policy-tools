@@ -26,7 +26,6 @@ import {
 } from '@csbh/http-kit';
 import { PRICE_TYPES, PRODUCT_STATUSES, ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
-import { SignersService } from './signers/signers.service.js';
 import { parseProductSheet } from './products/excel.js';
 
 const isoDate = () => str(10, 10);
@@ -40,7 +39,6 @@ export class CatalogController {
   constructor(
     private readonly products: ProductsService,
     private readonly rules: RulesService,
-    private readonly signers: SignersService,
   ) {}
 
   // --- Nhóm sản phẩm --------------------------------------------------------
@@ -217,71 +215,5 @@ export class CatalogController {
       { productId: str(1, 60), customerType: int(1, 3), on: opt(isoDate()) },
     );
     return this.rules.resolve(b);
-  }
-
-  // --- Người ký -------------------------------------------------------------
-
-  @Get('signers')
-  listSigners(@Query('activeOn') activeOn?: string) {
-    return this.signers.listSigners(activeOn);
-  }
-
-  @Roles('QUAN_TRI')
-  @Post('signers')
-  @HttpCode(201)
-  createSigner(@CurrentUser() me: AuthUser, @Body() body: unknown) {
-    const b = validate(body, {
-      fullName: str(1, 200),
-      title: str(1, 120),
-      unit: str(1, 200),
-      signScope: str(1, 120),
-      validFrom: isoDate(),
-      validTo: opt(isoDate()),
-    });
-    return this.signers.createSigner(b, me.id);
-  }
-
-  /** `isActive: false` là cách ngừng dùng một người ký. Xem `updateSigner`. */
-  @Roles('QUAN_TRI')
-  @Patch('signers/:id')
-  updateSigner(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, {
-      title: opt(str(1, 120)),
-      unit: opt(str(1, 200)),
-      signScope: opt(str(1, 120)),
-    });
-    const raw = (body ?? {}) as Record<string, unknown>;
-    const coDenNgay = Object.prototype.hasOwnProperty.call(raw, 'validTo');
-    const denNgay =
-      raw['validTo'] === null || raw['validTo'] === ''
-        ? null
-        : coDenNgay
-          ? isoDate().parse(raw['validTo'], 'validTo')
-          : undefined;
-    // Boolean không đi qua `validate` được — bộ kiểm chỉ có str/int/money/oneOf.
-    const conDung = typeof raw['isActive'] === 'boolean' ? (raw['isActive'] as boolean) : undefined;
-
-    return this.signers.updateSigner(
-      id,
-      {
-        ...b,
-        ...(coDenNgay ? { validTo: denNgay } : {}),
-        ...(conDung !== undefined ? { isActive: conDung } : {}),
-      },
-      me.id,
-    );
-  }
-
-  @Roles('QUAN_TRI')
-  @Delete('signers/:id')
-  removeSigner(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.signers.removeSigner(id, me.id);
-  }
-
-  @Post('signers/select')
-  @HttpCode(200)
-  selectSigner(@Body() body: unknown) {
-    const b = validate(body, { signerId: str(1, 60), scope: str(1, 120), on: opt(isoDate()) });
-    return this.signers.selectSigner(b.signerId, b.scope, b.on);
   }
 }

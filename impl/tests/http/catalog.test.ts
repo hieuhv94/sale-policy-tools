@@ -1,5 +1,10 @@
 /**
- * CAT-01 … CAT-18 — danh mục sản phẩm, giá, chiết khấu quy định, người ký.
+ * CAT-01 … CAT-18 — danh mục sản phẩm, giá, quy định chiết khấu.
+ *
+ * KHÔNG còn `CAT-17 chọn người ký`: đối tượng Người ký đã xoá hẳn ở `0033`. Nó ở
+ * trạng thái nửa vời từ 15/08 — có lược đồ, có API, có test, mà KHÔNG có màn
+ * hình nhập liệu, nên trên một bản triển khai mới không ai tạo được người ký
+ * nào. Khách hàng chốt 16/08 là hợp đồng không cần in tên người ký của Công ty.
  *
  * catalog chạy cùng identity thật: mỗi request đi qua guard, và guard phải hỏi
  * identity qua API nội bộ vì catalog không có quyền trên schema idn.
@@ -40,7 +45,6 @@ const cleanup = () =>
     await c.query(`DELETE FROM cat.discount_rule`);
     await c.query(`DELETE FROM cat.product WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cat.product_group WHERE code LIKE $1`, [`${P}%`]);
-    await c.query(`DELETE FROM cat.signer WHERE full_name LIKE $1`, [`${P}%`]);
   });
 
 /** Sự kiện outbox mới nhất theo routing key. */
@@ -618,47 +622,6 @@ describe('0026 kênh bán không còn ảnh hưởng tới ngưỡng', () => {
   });
 });
 
-describe('CAT-17 chọn người ký', () => {
-  const mkSigner = (over: Record<string, unknown> = {}) =>
-    post('/catalog/signers', {
-      fullName: `${P} Nguoi ky`,
-      title: 'Giam doc',
-      unit: 'Nutricare',
-      signScope: 'CSBH',
-      validFrom: '2020-01-01',
-      ...over,
-    });
-
-  it('người ký đã hết hiệu lực thì 400', async () => {
-    const s = await mkSigner({ validTo: '2021-12-31' });
-    const r = await post('/catalog/signers/select', { signerId: s.body.id, scope: 'CSBH' });
-    expect(r.status).toBe(400);
-    expect(r.body.code).toBe('SIGNER_NOT_VALID');
-  });
-
-  it('ký ngoài phạm vi được giao cũng bị chặn', async () => {
-    const s = await mkSigner();
-    const r = await post('/catalog/signers/select', { signerId: s.body.id, scope: 'HOP_DONG' });
-    expect(r.status).toBe(400);
-    expect(r.body.code).toBe('SIGNER_OUT_OF_SCOPE');
-  });
-
-  it('người ký còn hiệu lực, đúng phạm vi thì chọn được', async () => {
-    const s = await mkSigner();
-    const r = await post('/catalog/signers/select', { signerId: s.body.id, scope: 'CSBH' });
-    expect(r.status).toBe(200);
-    expect(r.body.id).toBe(s.body.id);
-  });
-
-  it('danh sách lọc theo ngày chỉ trả người còn hiệu lực', async () => {
-    await mkSigner({ fullName: `${P} Het han`, validTo: '2021-01-01' });
-    const list = (await get('/catalog/signers?activeOn=2026-08-07')).body as {
-      fullName: string;
-    }[];
-    expect(list.some((s) => s.fullName === `${P} Het han`)).toBe(false);
-  });
-});
-
 describe('CAT-18 đổi giá phát sự kiện đúng một lần', () => {
   it('sự kiện kèm giá cũ và giá mới, nằm cùng transaction với thay đổi', async () => {
     const { id } = await makeProduct();
@@ -724,7 +687,7 @@ describe('AD-02 catalog không đọc chéo schema khác', () => {
 });
 
 // =============================================================================
-// Sửa và xoá quy định chiết khấu, người ký
+// Sửa và xoá quy định chiết khấu
 //
 // Trước đợt này cả hai nhóm chỉ có POST. Khai nhầm một dòng thì không gỡ được
 // qua API — phải vào thẳng CSDL, tức là một thao tác không đi qua nhật ký nào.
@@ -907,75 +870,6 @@ describe('sửa và xoá quy định chiết khấu', () => {
   });
 });
 
-describe('sửa và xoá người ký', () => {
-  const mkSigner = async (over: Record<string, unknown> = {}) => {
-    const r = await post('/catalog/signers', {
-      fullName: `${P} Nguoi ky sua`,
-      title: 'Giam doc',
-      unit: 'Nutricare',
-      signScope: 'CSBH',
-      validFrom: '2020-01-01',
-      ...over,
-    });
-    expect(r.status, JSON.stringify(r.body)).toBe(201);
-    return r.body.id as string;
-  };
-
-  it('ngừng dùng thì KHÔNG chọn được nữa, dùng lại thì chọn được', async () => {
-    // `isActive: false` là cách đúng để ngừng một người ký — hợp đồng đã xuất
-    // mang tên họ, mà hệ thống không lưu file để đối chiếu lại.
-    const id = await mkSigner();
-    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(200);
-
-    expect((await patch(`/catalog/signers/${id}`, { isActive: false })).status).toBe(200);
-    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(400);
-
-    await patch(`/catalog/signers/${id}`, { isActive: true });
-    expect((await post('/catalog/signers/select', { signerId: id, scope: 'CSBH' })).status).toBe(200);
-  });
-
-  it('sửa được phạm vi ký', async () => {
-    const id = await mkSigner();
-    expect((await post('/catalog/signers/select', { signerId: id, scope: 'HOP_DONG' })).status).toBe(400);
-
-    await patch(`/catalog/signers/${id}`, { signScope: 'HOP_DONG' });
-    expect((await post('/catalog/signers/select', { signerId: id, scope: 'HOP_DONG' })).status).toBe(200);
-  });
-
-  it('họ tên và ngày bắt đầu KHÔNG sửa được', async () => {
-    const id = await mkSigner();
-    await patch(`/catalog/signers/${id}`, { fullName: 'Ten khac', validFrom: '2030-01-01' });
-
-    const ds = (await get('/catalog/signers')).body as {
-      id: string;
-      fullName: string;
-      validFrom: string;
-    }[];
-    const k = ds.find((x) => x.id === id)!;
-    expect(k.fullName).toBe(`${P} Nguoi ky sua`);
-    expect(String(k.validFrom)).toContain('2020-01-01');
-  });
-
-  it('xoá rồi thì 404 ở lần xoá thứ hai', async () => {
-    const id = await mkSigner();
-    expect((await del(`/catalog/signers/${id}`)).status).toBe(200);
-    expect((await del(`/catalog/signers/${id}`)).status).toBe(404);
-  });
-
-  it('vai trò khác Quản trị không sửa và không xoá được', async () => {
-    const id = await mkSigner();
-    expect((await patch(`/catalog/signers/${id}`, { isActive: false }, tdvT)).status).toBe(403);
-    expect((await del(`/catalog/signers/${id}`, tdvT)).status).toBe(403);
-  });
-});
-
-/**
- * 0024 — mã quy định do người dùng đặt, và hai cách trùng khác nhau.
- *
- * `0023` đưa mã ra tới mặt người dùng (cột *Id*, cột *QĐCK*, ô tìm kiếm) trong
- * khi nó vẫn là uuid. Một mã được CHÉP ra khỏi hệ thống thì phải do người dùng
- * đặt — 36 ký tự ngẫu nhiên không ai đọc, nhớ hay đọc qua điện thoại được.
- */
 describe('0024 mã quy định chiết khấu', () => {
   const khai = (over: Record<string, unknown> = {}) =>
     post('/catalog/discount-rules', {

@@ -4269,3 +4269,62 @@ trước — cần biết là mình đang tháo cái phanh duy nhất.
 dùng được ở đúng bước Trưởng bộ phận, và nó **bịa ra một sự kiện nghiệp vụ không có thật**: nhật ký
 ghi *Yêu cầu chỉnh sửa* trong khi nội dung chẳng sai gì, hồ sơ lùi trạng thái, SLA đếm lại từ đầu.
 Đọc lịch sử ba tháng sau sẽ hiểu sai chuyện đã xảy ra.
+
+---
+
+## P43 — Xoá hẳn đối tượng "Người ký"
+
+Câu hỏi của khách hàng — *"tại sao vẫn còn đối tượng Người ký"* — chạm đúng một chỗ nửa vời tôi để
+lại từ 15/08 rồi không quay lại.
+
+### Trạng thái nửa vời, và vì sao nó tệ hơn cả hai đầu
+
+`cat.signer` là người ký hợp đồng thay mặt Công ty, khác hẳn Trưởng bộ phận ký số. Rà lại thì nó ở
+đúng giữa hai bờ:
+
+| | |
+|---|---|
+| Lược đồ + API | Đủ CRUD, có test |
+| Nơi đọc | ĐÚNG MỘT: ba ô trộn `{{signer.*}}` của mẫu hợp đồng. Bản A4 **không** dùng — chỗ ghi `signerName` ở đó lấy tên TBP, một thứ khác trùng tên biến |
+| Màn hình nhập liệu | **Không có.** Gỡ 15/08 vì yêu cầu chưa rõ |
+
+Hệ quả thật: trên một bản triển khai mới **không ai tạo được người ký nào**. `clients.signer()` trả
+`undefined`, ba ô trộn ra rỗng, và nếu Sale Admin đánh dấu chúng bắt buộc thì xuất hợp đồng trả 422
+`CONTRACT_FIELDS_MISSING` mà không màn hình nào cho phép sửa.
+
+Bài học đáng ghi: **gỡ màn hình mà giữ lược đồ nghe như một nước đi thận trọng, nhưng nó tạo ra một
+tính năng vừa tồn tại vừa không dùng được.** Ai đọc danh sách "xoá được những gì" sẽ thấy nó và
+tưởng nó chạy. Khách hàng phải hỏi mới lộ ra.
+
+### Đề xuất ba đường, khách chọn xoá
+
+Dựng lại màn hình · xoá hẳn · giữ nhưng bỏ ba ô trộn khỏi danh sách nguồn. Khách chốt **xoá hẳn**:
+hợp đồng không cần in tên người ký của Công ty.
+
+Điều đó đúng với thiết kế sẵn có: ba chỗ ký trên hợp đồng vốn là **chỗ trống để ký tay trên giấy**,
+và phần mềm chưa bao giờ có bước nào cho việc Ban lãnh đạo ký bản cứng (muc 2.6).
+
+### Một bước dọn dễ quên
+
+Migration xoá ánh xạ đang trỏ tới nguồn sắp biến mất TRƯỚC khi drop bảng:
+
+```sql
+DELETE FROM doc.contract_template_field WHERE source LIKE 'signer.%';
+```
+
+Hôm nay CSDL không có dòng nào, và tôi vẫn viết câu đó — một bản triển khai khác có thể đã có Sale
+Admin ánh xạ ba ô ấy. Bỏ qua thì bảng còn dòng trỏ tới một `source` mà `sources.ts` không phân giải
+được nữa, và lỗi chỉ lộ ra ở lần xuất hợp đồng tiếp theo dưới dạng một ô trống không ai giải thích
+được.
+
+### Xoá những gì
+
+`cat.signer` · `SignersService` và cả thư mục · 5 route công khai + 1 route nội bộ · `clients.signer()`
+· ba resolver `signer.*` và trường `signer` trong `Ctx` · nhãn `signer: 'Người ký'` bên giao diện ·
+lời gọi trong `seed-demo` · hai khối test `CAT-17` và *sửa và xoá người ký*.
+
+894/894 xanh (903 → 894: −9 ca của hai khối vừa xoá).
+
+### Còn nợ
+
+- Vẫn **chưa nhìn hộp thoại gửi duyệt và hộp thoại bàn giao bằng mắt** trong trình duyệt.
