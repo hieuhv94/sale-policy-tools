@@ -44,6 +44,71 @@ export class CustomerInternalController {
     return { granted: ids.length };
   }
 
+  /**
+   * Khách hàng do TDV này phụ trách — đếm trước khi vô hiệu hoá tài khoản (`0032`).
+   *
+   * Tách khỏi lệnh chuyển thật để màn hình quản trị nói được con số TRƯỚC khi
+   * bấm, cùng lý do với `xem-truoc` bên policy.
+   */
+  @Post('cua-tdv/:userId')
+  @HttpCode(200)
+  async cuaTdv(@Param('userId') userId: string) {
+    const rows = await this.db.q<{ code: string; name: string }>(
+      `SELECT code, name FROM cus.customer WHERE tdv_user_id = $1 ORDER BY code`,
+      [userId],
+    );
+    return { count: rows.length, customers: rows.slice(0, 20) };
+  }
+
+  /**
+   * Chuyển toàn bộ khách hàng của một TDV sang TDV khác (`0032`).
+   *
+   * Đi kèm việc chuyển giao hồ sơ lúc vô hiệu hoá tài khoản, và phải đi kèm chứ
+   * không phải tuỳ chọn: `cus.customer.tdv_user_id` là thứ quyết định ai xem
+   * được khách hàng, và **read-model báo cáo lấy phạm vi từ chính cột ấy**
+   * (`sync.service.ts`). Chuyển hồ sơ mà bỏ lại khách hàng là để hai bên nói hai
+   * chuyện khác nhau: hồ sơ đã sang người mới, còn dòng báo cáo của nó vẫn tính
+   * cho người cũ.
+   *
+   * Chuyển **MỌI** khách hàng, kể cả khách chưa có hồ sơ nào. Đó chính là loại
+   * khách dễ mồ côi nhất — không hồ sơ nào trỏ tới nên không đường nào khác với
+   * tới chúng, và người duy nhất còn nhìn thấy thì vừa bị khoá tài khoản.
+   */
+  @Post('chuyen-tdv')
+  @HttpCode(200)
+  async chuyenTdv(@Body() body: { fromUserId?: unknown; toUserId?: unknown; actorId?: unknown }) {
+    const from = String(body?.fromUserId ?? '');
+    const to = String(body?.toUserId ?? '');
+    const actor = String(body?.actorId ?? '') || null;
+    if (!from || !to || from === to) return { count: 0, customers: [] };
+
+    return this.db.tx(async (c) => {
+      const r = await c.query<{ id: string; code: string; name: string }>(
+        `UPDATE cus.customer SET tdv_user_id = $2, updated_at = now()
+          WHERE tdv_user_id = $1
+        RETURNING id, code, name`,
+        [from, to],
+      );
+      // Một dòng nhật ký cho MỖI khách hàng, không phải một dòng gộp: người đi
+      // tra sau này tra theo khách hàng, không tra theo lượt bàn giao.
+      for (const x of r.rows) {
+        await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+          'customer.changed',
+          JSON.stringify({
+            entity: 'customer',
+            id: x.id,
+            actorId: actor,
+            action: 'HANDOVER',
+            before: { tdvUserId: from },
+            after: { tdvUserId: to },
+            at: new Date().toISOString(),
+          }),
+        ]);
+      }
+      return { count: r.rows.length, customers: r.rows.map((x) => ({ code: x.code, name: x.name })) };
+    });
+  }
+
   @Get(':id')
   async byId(@Param('id') id: string) {
     // Sáu trường cuối thêm ở P6b cho bản CSBH A4 và cho việc trộn hợp đồng:

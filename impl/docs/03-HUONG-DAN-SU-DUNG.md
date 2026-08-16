@@ -468,11 +468,12 @@ dược viên**.
 
 Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
 
-1. **Tài khoản này đang giữ bao nhiêu hồ sơ** — hệ thống tự đếm và hiện ra ngay khi mở hộp thoại,
-   kèm mã của tối đa 20 hồ sơ. *"Vô hiệu hoá tài khoản này sẽ chuyển 14 hồ sơ"* là một câu khác hẳn
-   *"vô hiệu hoá tài khoản này"*, và bạn phải đọc được câu thứ nhất trước khi quyết định.
-2. **Người nhận bàn giao** — **bắt buộc** nếu còn hồ sơ, và phải **cùng vai trò**, đang hoạt động,
-   đã kích hoạt. Không chọn thì **không vô hiệu hoá được**.
+1. **Tài khoản này đang giữ bao nhiêu hồ sơ và bao nhiêu khách hàng** — hệ thống tự đếm và hiện ra
+   ngay khi mở hộp thoại, kèm mã của tối đa 20 hồ sơ và 20 khách. *"Vô hiệu hoá tài khoản này sẽ
+   chuyển 14 hồ sơ và 9 khách hàng"* là một câu khác hẳn *"vô hiệu hoá tài khoản này"*, và bạn phải
+   đọc được câu thứ nhất trước khi quyết định.
+2. **Người nhận bàn giao** — **bắt buộc** nếu còn hồ sơ **hoặc còn khách hàng**, và phải **cùng vai
+   trò**, đang hoạt động, đã kích hoạt. Không chọn thì **không vô hiệu hoá được**.
 3. **Gõ lại họ tên** của người bị vô hiệu hoá. Chỉ khác dấu cách hay chữ hoa thì vẫn nhận — chép từ
    màn hình sang là chuyện bình thường; cái cần chặn là bấm nhầm dòng.
 
@@ -485,6 +486,12 @@ Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
 kể cả bản **Nháp**, và kể cả hồ sơ **Đang có hiệu lực** (người phụ trách nó là người nhận thư khi
 giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối** và **Hết hiệu lực** thì không, vì không ai còn
 phải làm gì với chúng.
+
+**Khách hàng đi cùng hồ sơ** — chỉ với Trình dược viên, vì *TDV phụ trách* là liên kết duy nhất giữa
+khách hàng và người. Chuyển **mọi** khách của người đó, **kể cả khách chưa có hồ sơ nào**: đó chính
+là loại khách dễ mồ côi nhất — không hồ sơ nào trỏ tới nên không đường nào khác với tới, và người
+duy nhất còn nhìn thấy thì vừa bị khoá tài khoản. Vì thế một TDV chỉ có khách mà chưa lập hồ sơ nào
+**cũng phải chọn người nhận**.
 
 **Trạng thái không đổi.** Chuyển giao là đổi người, không phải một bước của luồng duyệt: hồ sơ đang
 ở *Chờ TBP duyệt* thì vẫn ở đó, chỉ là chờ một Trưởng bộ phận khác.

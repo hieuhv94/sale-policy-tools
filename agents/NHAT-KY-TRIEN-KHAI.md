@@ -4177,3 +4177,70 @@ vẫn đang hoạt động** — chặn phải là chặn thật, không phải 
 - **Không có đường giao lại một hồ sơ lẻ** khi người phụ trách vẫn đang làm việc — mới chỉ có đường
   đi kèm vô hiệu hoá tài khoản.
 - Vẫn **chưa nhìn hộp thoại bàn giao bằng mắt** trong trình duyệt.
+
+---
+
+## P42 — Khách hàng đi cùng hồ sơ khi bàn giao
+
+Món nợ ghi ở cuối P41, đóng lại. Vô hiệu hoá một TDV thì hồ sơ chuyển tay, nhưng
+`cus.customer.tdv_user_id` vẫn trỏ vào tài khoản đã khoá.
+
+### Vì sao đây không phải chuyện nhỏ
+
+Hai hệ quả, và hệ quả thứ hai nặng hơn:
+
+- **Khách hàng mồ côi.** Không TDV nào khác nhìn thấy, và người duy nhất còn thấy thì vừa bị khoá.
+- **Read-model báo cáo lấy phạm vi từ chính cột ấy** (`sync.service.ts`: `cus.tdvUserId || src.tdv_user_id`).
+  Chuyển hồ sơ mà bỏ lại khách hàng là để hai bên nói hai chuyện khác nhau — hồ sơ đã sang người
+  mới, còn dòng báo cáo của nó vẫn tính cho người cũ.
+
+### Vì sao identity gọi thẳng customer, không nhờ policy
+
+Cám dỗ là để `policy` làm nốt trong lượt chuyển hồ sơ — nó đã gọi `customer` sẵn để cấp quyền xem.
+Nhưng `policy` **chỉ biết những khách hàng CÓ hồ sơ**. Khách chưa có hồ sơ nào thì nó không thấy — mà
+đó chính là loại khách dễ mồ côi nhất, và cũng đúng loại mà P40 đã viện dẫn để cấp cho Quản trị
+quyền thấy toàn bộ khách hàng.
+
+Nên identity gọi hai service: `customer` cho khách, `policy` cho hồ sơ. identity là nơi điều phối
+việc vô hiệu hoá tài khoản, và đó là vai trò đúng của nó.
+
+### Thứ tự hai lời gọi là bắt buộc
+
+**Khách hàng trước, hồ sơ sau.** Hai lời gọi mạng nối tiếp, không transaction nào bọc chúng.
+
+Với thứ tự ngược lại: hồ sơ chuyển xong mà khách hàng hỏng, lượt bấm lại sẽ thấy `dangGiu` đã về 0
+**và** `khach` cũng về 0 (vì khách chưa chuyển nhưng điều kiện đọc sai)… không, chính xác hơn: nó
+thấy hồ sơ đã hết, còn khách vẫn còn — nhưng nếu người quản trị bấm lại và điều kiện chỉ đếm hồ sơ
+thì hệ thống vô hiệu hoá thẳng, bỏ lại đúng đống khách mồ côi vừa đi chữa. Đặt khách trước thì mọi
+lượt bấm lại vẫn còn ít nhất một vế khác 0 cho tới khi cả hai xong.
+
+### Điều kiện "cần người nhận" phải đếm cả hai
+
+Đây là chỗ bản đầu của `0032` để lọt: điều kiện chỉ đếm hồ sơ. Một TDV có 5 khách mà chưa lập hồ sơ
+nào thì vô hiệu hoá thẳng được — và 5 khách ấy mồ côi ngay. Giờ `dangGiu.count > 0 || khach.count > 0`.
+
+### Vết trong nhật ký
+
+Một dòng `customer.changed` với `action: 'HANDOVER'` cho **mỗi** khách hàng, không phải một dòng
+gộp: người đi tra sau này tra theo khách hàng, không tra theo lượt bàn giao.
+
+### Test
+
++5 ca, và ca đắt nhất là ca không có hồ sơ nào:
+
+- TDV chỉ có khách hàng, không hồ sơ → **vẫn phải chọn người nhận**
+- khách chuyển **cùng** hồ sơ sang đúng người
+- khách **chưa có hồ sơ nào** cũng chuyển — ca này canh đúng lý do identity gọi thẳng `customer`
+- vai trò khác TDV thì `customerCount` luôn 0
+- bất biến: không khách hàng nào còn trỏ vào tài khoản đã khoá
+
+Kèm theo, `auth.test.ts` phải dựng thêm `customer` — tài khoản thử nghiệm ở đó là TDV. Cùng lý do
+với việc phải dựng `policy` ở P41: `deactivate` **fail closed**, và tôi không nới điều kiện để test
+xanh lại.
+
+903/903 xanh (898 → 903).
+
+### Còn nợ
+
+- Không có đường **giao lại một hồ sơ lẻ** khi người phụ trách vẫn đang làm việc.
+- Vẫn **chưa nhìn hộp thoại bàn giao bằng mắt** trong trình duyệt.

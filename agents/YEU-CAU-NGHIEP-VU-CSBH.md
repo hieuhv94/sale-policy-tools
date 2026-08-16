@@ -811,7 +811,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-65 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
+66 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
 quyết định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới
 nhất.
 
@@ -823,7 +823,8 @@ của Quản trị hệ thống**, không phải Sale Admin `16/08`.
 **Tài khoản** `16/08` — **không đổi được vai trò** sau khi tạo; cần đổi thì vô hiệu hoá tài khoản cũ
 rồi tạo mới · vô hiệu hoá phải **gõ lại họ tên** và **chọn người nhận bàn giao cùng vai trò**, không
 chọn thì không vô hiệu hoá được · bàn giao chuyển mọi hồ sơ chưa kết thúc, kể cả Nháp và Đang có
-hiệu lực, giữ nguyên trạng thái, và ghi vết vào **nhật ký của từng hồ sơ**.
+hiệu lực, giữ nguyên trạng thái, và ghi vết vào **nhật ký của từng hồ sơ** · với TDV thì **khách
+hàng chuyển cùng hồ sơ**, kể cả khách chưa có hồ sơ nào.
 
 **Phân công và phạm vi** `16/08` — TDV chọn Trưởng bộ phận và Kế toán lúc gửi duyệt · Kế toán chọn
 Sale Admin lúc tiếp nhận lần 1 · tiếp nhận lần 2 về đúng người đã nhận lần 1, không chọn lại · phạm

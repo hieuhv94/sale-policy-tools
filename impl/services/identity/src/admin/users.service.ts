@@ -18,6 +18,7 @@ import { CONFIG } from '../infra/config.js';
 import { Mailer } from '../infra/mailer.js';
 import { AccountCache } from '../infra/account-cache.js';
 import { PolicyClient } from '../infra/policy.client.js';
+import { CustomerClient } from '../infra/customer.client.js';
 
 export const ROLE_VALUES = [
   'TDV',
@@ -78,6 +79,7 @@ export class UsersService {
     private readonly mailer: Mailer,
     private readonly accounts: AccountCache,
     private readonly policies: PolicyClient,
+    private readonly customers: CustomerClient,
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
@@ -218,7 +220,18 @@ export class UsersService {
     );
     if (!u) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
     const hs = await this.policies.xemTruoc(userId, u.role);
-    return { userId, role: u.role, fullName: u.full_name, ...hs };
+    // Khách hàng CHỈ có ở TDV — `cus.customer.tdv_user_id` là cột duy nhất gắn
+    // khách với người, và nó chỉ trỏ vào TDV.
+    const kh =
+      u.role === 'TDV' ? await this.customers.cuaTdv(userId) : { count: 0, customers: [] };
+    return {
+      userId,
+      role: u.role,
+      fullName: u.full_name,
+      ...hs,
+      customerCount: kh.count,
+      customers: kh.customers,
+    };
   }
 
   /**
@@ -259,6 +272,7 @@ export class UsersService {
       count: 0,
       policies: [],
     };
+    let chuyenKhach: { count: number } = { count: 0 };
 
     if (!isActive) {
       // So sau khi chuẩn hoá khoảng trắng và chữ hoa: người quản trị chép tên từ
@@ -273,8 +287,29 @@ export class UsersService {
       }
 
       const dangGiu = await this.policies.xemTruoc(userId, u.role);
-      if (dangGiu.count > 0) {
+      // Khách hàng tính vào điều kiện "cần người nhận", không chỉ hồ sơ. Một TDV
+      // có 5 khách mà chưa lập hồ sơ nào thì trước đây vô hiệu hoá thẳng được,
+      // và 5 khách ấy mồ côi: `cus.customer.tdv_user_id` trỏ vào tài khoản đã
+      // khoá, không TDV nào khác thấy, và không hồ sơ nào dẫn tới chúng.
+      const khach =
+        u.role === 'TDV' ? await this.customers.cuaTdv(userId) : { count: 0, customers: [] };
+
+      if (dangGiu.count > 0 || khach.count > 0) {
         const nguoiNhan = await this.kiemNguoiNhan(userId, u.role, opts.successorId);
+
+        // KHÁCH HÀNG TRƯỚC, HỒ SƠ SAU, và thứ tự này là bắt buộc.
+        //
+        // Hai lời gọi mạng nối tiếp, không có transaction nào bọc chúng. Nếu
+        // hồ sơ chuyển xong mà khách hàng hỏng, lượt bấm lại sẽ thấy `dangGiu`
+        // đã về 0 — và với thứ tự ngược lại thì nó cũng thấy `khach` về 0, tức
+        // KHÔNG đòi người nhận nữa và vô hiệu hoá thẳng, bỏ lại đúng đống khách
+        // mồ côi vừa đi chữa. Đặt khách trước thì mọi lượt bấm lại vẫn còn ít
+        // nhất một vế khác 0 cho tới khi cả hai xong.
+        chuyenKhach = await this.customers.chuyen({
+          fromUserId: userId,
+          toUserId: nguoiNhan,
+          actorId: opts.actorId,
+        });
         banGiao = await this.policies.chuyen({
           fromUserId: userId,
           toUserId: nguoiNhan,
@@ -292,7 +327,13 @@ export class UsersService {
     // Xoá cache ngay để không phải chờ hết TTL — 60 giây chỉ là trần cho thay
     // đổi đi vòng ngoài API (AUTH-07).
     await this.accounts.invalidate(userId);
-    return { ok: true, isActive, handedOver: banGiao.count, policies: banGiao.policies };
+    return {
+      ok: true,
+      isActive,
+      handedOver: banGiao.count,
+      policies: banGiao.policies,
+      customersHandedOver: chuyenKhach.count,
+    };
   }
 
   /**
@@ -313,8 +354,8 @@ export class UsersService {
         code: 'SUCCESSOR_REQUIRED',
         field: 'successorId',
         message:
-          'Tài khoản này đang giữ hồ sơ chưa xử lý xong. Chọn người nhận bàn giao ' +
-          `cùng vai trò ${role} trước khi vô hiệu hoá.`,
+          'Tài khoản này đang giữ hồ sơ hoặc khách hàng chưa bàn giao. Chọn người ' +
+          `nhận cùng vai trò ${role} trước khi vô hiệu hoá.`,
       });
     }
     if (successorId === userId) {

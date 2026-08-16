@@ -458,7 +458,7 @@ function HopThoaiVoHieu({
     return () => huy.abort();
   }, [u.id, u.role]);
 
-  const canNguoiNhan = (hoSo?.count ?? 0) > 0;
+  const canNguoiNhan = (hoSo?.count ?? 0) > 0 || (hoSo?.customerCount ?? 0) > 0;
   const duGiaTri =
     ten.trim().length > 0 && hoSo !== null && (!canNguoiNhan || nguoiNhan !== '');
 
@@ -486,19 +486,36 @@ function HopThoaiVoHieu({
 
       {hoSo === null ? (
         <DangTai />
-      ) : hoSo.count === 0 ? (
-        <p className="ghi-chu">Tài khoản này không giữ hồ sơ nào — không có gì phải bàn giao.</p>
+      ) : !canNguoiNhan ? (
+        <p className="ghi-chu">
+          Tài khoản này không giữ hồ sơ hay khách hàng nào — không có gì phải bàn giao.
+        </p>
       ) : (
         <>
           <p>
-            Tài khoản đang giữ <strong>{hoSo.count} hồ sơ</strong> chưa xử lý xong hoặc đang có hiệu
-            lực. Toàn bộ sẽ <strong>chuyển sang người bạn chọn</strong>, giữ nguyên trạng thái, và
-            việc chuyển giao được ghi vào <strong>nhật ký của từng hồ sơ</strong>.
+            Tài khoản đang giữ{' '}
+            {hoSo.count > 0 && (
+              <>
+                <strong>{hoSo.count} hồ sơ</strong> chưa xử lý xong hoặc đang có hiệu lực
+              </>
+            )}
+            {hoSo.count > 0 && hoSo.customerCount > 0 ? ' và ' : ''}
+            {hoSo.customerCount > 0 && <strong>{hoSo.customerCount} khách hàng</strong>}. Toàn bộ sẽ{' '}
+            <strong>chuyển sang người bạn chọn</strong>. Hồ sơ giữ nguyên trạng thái, và việc chuyển
+            giao được ghi vào <strong>nhật ký của từng hồ sơ</strong>.
           </p>
           {hoSo.policies.length > 0 && (
             <p className="ghi-chu">
               {hoSo.policies.map((x) => x.code).join(' · ')}
               {hoSo.count > hoSo.policies.length ? ` … và ${hoSo.count - hoSo.policies.length} hồ sơ nữa` : ''}
+            </p>
+          )}
+          {hoSo.customers.length > 0 && (
+            <p className="ghi-chu">
+              {hoSo.customers.map((x) => x.code).join(' · ')}
+              {hoSo.customerCount > hoSo.customers.length
+                ? ` … và ${hoSo.customerCount - hoSo.customers.length} khách nữa`
+                : ''}
             </p>
           )}
 

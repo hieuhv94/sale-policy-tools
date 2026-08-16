@@ -17,6 +17,7 @@ import {
   TEST_PREFIX,
   withAdminDb,
   bootPolicyListening,
+  bootCustomerListening,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -25,6 +26,8 @@ const DEACT_USER = `${TEST_PREFIX}_deact`;
 
 let app: INestApplication;
 let policyApp: INestApplication;
+let customerApp: INestApplication;
+let restoreCustomer: (() => void) | undefined;
 let restorePolicy: (() => void) | undefined;
 let redis: Redis;
 let lockUserId = '';
@@ -56,12 +59,19 @@ beforeAll(async () => {
   const po = await bootPolicyListening();
   policyApp = po.app;
   restorePolicy = po.restore;
+  // Và `customer`: tài khoản thử nghiệm ở tệp này là TDV, mà vô hiệu hoá một
+  // TDV còn phải hỏi "đang phụ trách khách hàng nào" (`0032`).
+  const cu = await bootCustomerListening();
+  customerApp = cu.app;
+  restoreCustomer = cu.restore;
   redis = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
 });
 
 afterAll(async () => {
   await policyApp?.close();
   restorePolicy?.();
+  await customerApp?.close();
+  restoreCustomer?.();
   await redis?.quit();
   await app?.close();
   await cleanupTestUsers();

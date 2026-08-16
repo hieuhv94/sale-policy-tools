@@ -570,6 +570,128 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     });
   }
 
+  // --- Khách hàng đi cùng hồ sơ (`0032`) -------------------------------------
+
+  const khachCua = (userId: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM cus.customer WHERE tdv_user_id = $1`,
+        [userId],
+      );
+      return Number(r.rows[0]!.n);
+    });
+
+  /** Một khách hàng do `tdv01` lập, rồi gán sang tài khoản dùng một lần. */
+  const khachCuaAi = async (userId: string): Promise<string> => {
+    const kh = await (await http(customer))
+      .post('/customers')
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({
+        code: uniq('KH'),
+        name: 'Nha thuoc ban giao',
+        customerType: 1,
+        registeredAddress: 'Ha Noi',
+        ownerName: 'Chu ho',
+      });
+    expect(kh.status, JSON.stringify(kh.body)).toBe(201);
+    await withAdminDb((c) =>
+      c.query(`UPDATE cus.customer SET tdv_user_id = $1 WHERE id = $2`, [userId, kh.body.id]),
+    );
+    return kh.body.id as string;
+  };
+
+  it('TDV chỉ có KHÁCH HÀNG, không hồ sơ nào — vẫn phải chọn người nhận', async () => {
+    // Đây là ca dễ mồ côi nhất và là chỗ bản đầu của `0032` để lọt: điều kiện
+    // "cần người nhận" chỉ đếm hồ sơ, nên một TDV có 5 khách mà chưa lập hồ sơ
+    // nào thì vô hiệu hoá thẳng được — và 5 khách ấy trỏ vào tài khoản đã khoá,
+    // không TDV nào khác thấy, không hồ sơ nào dẫn tới chúng.
+    const u = await taoNguoiDung('TDV');
+    await khachCuaAi(u.id);
+
+    const xt = await get(`/admin/users/${u.id}/ban-giao`);
+    expect(xt.status).toBe(200);
+    expect(xt.body.count).toBe(0);
+    expect(xt.body.customerCount).toBe(1);
+
+    const thieu = await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: 'Nguoi dung thu nghiem',
+    });
+    expect(thieu.status, JSON.stringify(thieu.body)).toBe(422);
+    expect(thieu.body.code).toBe('SUCCESSOR_REQUIRED');
+    expect((await doc(u.id)).isActive).toBe(true);
+  });
+
+  it('khách hàng chuyển CÙNG hồ sơ sang đúng TDV nhận bàn giao', async () => {
+    const hs = await lapVaGui();
+    const u = await taoNguoiDung('TDV');
+    const nhan = await idCua('tdv01');
+    const khId = await khachCuaAi(u.id);
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET tdv_user_id = $1 WHERE code = $2`, [u.id, hs.code]),
+    );
+    expect(await khachCua(u.id)).toBe(1);
+
+    const r = await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: 'Nguoi dung thu nghiem',
+      successorId: nhan,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.handedOver).toBeGreaterThanOrEqual(1);
+    expect(r.body.customersHandedOver).toBe(1);
+
+    // Cả hai vế đều sang người mới.
+    expect(await nguoiGiu(hs.code, 'TDV')).toBe(nhan);
+    expect(await khachCua(u.id)).toBe(0);
+    const chu = await withAdminDb(async (c) => {
+      const x = await c.query<{ v: string }>(
+        `SELECT tdv_user_id AS v FROM cus.customer WHERE id = $1`,
+        [khId],
+      );
+      return x.rows[0]!.v;
+    });
+    expect(chu).toBe(nhan);
+  });
+
+  it('khách hàng CHƯA CÓ HỒ SƠ nào cũng chuyển', async () => {
+    // `policy` chỉ biết khách hàng CÓ hồ sơ, nên nếu việc chuyển khách nhờ policy
+    // làm hộ thì đúng loại khách này bị bỏ lại. identity gọi thẳng `customer`
+    // chính là vì thế.
+    const u = await taoNguoiDung('TDV');
+    const nhan = await idCua('tdv01');
+    await khachCuaAi(u.id);
+    await khachCuaAi(u.id);
+
+    const r = await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: 'Nguoi dung thu nghiem',
+      successorId: nhan,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.handedOver).toBe(0);
+    expect(r.body.customersHandedOver).toBe(2);
+    expect(await khachCua(u.id)).toBe(0);
+  });
+
+  it('vai trò KHÔNG phải TDV thì không có khách nào để chuyển', async () => {
+    // `cus.customer.tdv_user_id` chỉ trỏ vào TDV. Đi hỏi `customer` cho một
+    // Trưởng bộ phận là hỏi một câu không có nghĩa.
+    const u = await taoNguoiDung('TBP');
+    const xt = await get(`/admin/users/${u.id}/ban-giao`);
+    expect(xt.body.customerCount).toBe(0);
+  });
+
+  it('KHÔNG khách hàng nào còn trỏ vào tài khoản đã vô hiệu hoá', async () => {
+    // Bất biến song song với bất biến về hồ sơ, và cùng một lý do: một hàng dữ
+    // liệu trỏ vào tài khoản đã khoá là một hàng không ai còn nhìn thấy.
+    const u = await taoNguoiDung('TDV');
+    const nhan = await idCua('tdv01');
+    await khachCuaAi(u.id);
+    await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: 'Nguoi dung thu nghiem',
+      successorId: nhan,
+    });
+    expect(await khachCua(u.id), 'còn khách hàng mồ côi').toBe(0);
+  });
+
   it('bật lại tài khoản KHÔNG cần gõ tên hay chọn ai', async () => {
     // Bật lại không làm hồ sơ nào kẹt, nên không có lý do gì để hỏi thêm.
     const u = await taoNguoiDung('SALE_ADMIN');

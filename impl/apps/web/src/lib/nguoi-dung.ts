@@ -53,4 +53,7 @@ export type XemTruocBanGiao = {
   fullName: string;
   count: number;
   policies: { code: string; status: string }[];
+  /** Khách hàng do TDV này phụ trách. Vai trò khác luôn là 0 (`0032`). */
+  customerCount: number;
+  customers: { code: string; name: string }[];
 };
