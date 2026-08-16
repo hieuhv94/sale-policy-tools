@@ -1,39 +1,55 @@
 /**
- * Hỏi `policy`: người này còn hồ sơ nào dở dang không.
+ * Hỏi và sai khiến `policy` trong luồng vô hiệu hoá tài khoản.
  *
- * identity không đọc được schema `pol` (AD-02), nên câu hỏi phải đi qua đây.
- * Chiều gọi là identity → policy chứ không ngược lại, và identity gửi kèm phạm
- * vi dữ liệu tính sẵn — để policy khỏi phải hỏi ngược lại identity ngay giữa lúc
- * identity đang xử lý request của chính nó.
+ * identity không đọc được schema `pol` (AD-02), nên cả hai câu — "người này đang
+ * giữ hồ sơ nào" và "chuyển hết sang người kia" — phải đi qua đây.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { mintServiceToken } from '@csbh/http-kit';
 
 const policyUrl = () => process.env.POLICY_URL ?? 'http://policy:3004';
 
-export type HoSoDangDo = { code: string; status: string; reason: string };
-/** `count` là TỔNG hồ sơ mắc lại; `policies` chỉ là 20 cái mới nhất. */
-export type KetQuaDangDo = { count: number; policies: HoSoDangDo[] };
+export type HoSoDangGiu = { code: string; status: string };
+/** `count` là TỔNG hồ sơ; `policies` ở bản xem trước chỉ là 20 cái mới nhất. */
+export type KetQuaBanGiao = { count: number; policies: HoSoDangGiu[] };
 
 @Injectable()
 export class PolicyClient {
   private readonly log = new Logger(PolicyClient.name);
 
-  async dangDo(userId: string, role: string, scopeUserIds: string[]): Promise<KetQuaDangDo> {
-    const res = await fetch(`${policyUrl()}/internal/dang-do`, {
+  private async goi(duong: string, body: unknown): Promise<KetQuaBanGiao> {
+    const res = await fetch(`${policyUrl()}/internal/ban-giao${duong}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Service-Token': mintServiceToken('identity'),
       },
-      body: JSON.stringify({ userId, role, scopeUserIds }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
-      // KHÔNG nuốt lỗi thành "không có hồ sơ nào". Đây là chốt chặn: hỏng mà trả
-      // rỗng thì phép đổi vai trò đi qua đúng lúc không ai kiểm được nó nữa.
-      this.log.error(`policy trả ${res.status} khi hỏi hồ sơ dở dang của ${userId}`);
-      throw new Error(`policy trả ${res.status} khi hỏi hồ sơ dở dang`);
+      throw new Error(`policy trả ${res.status} khi ${duong ? 'xem trước' : 'chuyển giao'} hồ sơ`);
     }
-    return (await res.json()) as KetQuaDangDo;
+    return (await res.json()) as KetQuaBanGiao;
+  }
+
+  /** Người này đang giữ hồ sơ nào — để màn hình nói con số TRƯỚC khi bấm. */
+  xemTruoc(userId: string, role: string): Promise<KetQuaBanGiao> {
+    return this.goi('/xem-truoc', { userId, role });
+  }
+
+  /**
+   * Chuyển hết sang người khác.
+   *
+   * KHÔNG nuốt lỗi: vô hiệu hoá tài khoản mà chuyển giao hỏng là đúng cái ngõ
+   * cụt việc này sinh ra để chữa. Thà để cả thao tác hỏng và người quản trị bấm
+   * lại còn hơn để một nửa.
+   */
+  chuyen(input: {
+    fromUserId: string;
+    toUserId: string;
+    role: string;
+    actorId: string;
+  }): Promise<KetQuaBanGiao> {
+    return this.goi('', input);
   }
 }

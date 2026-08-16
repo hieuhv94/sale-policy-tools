@@ -455,12 +455,44 @@ dược viên**.
 
 ### Sửa, vô hiệu hoá, gửi lại thư mời
 
-- **Sửa** đổi được họ tên. **Không đổi được vai trò** khi người đó còn hồ sơ dở dang — hồ sơ ghi
-  thẳng tên người xử lý lên chính nó, nên đổi vai trò là bỏ rơi đúng những hồ sơ đang chờ họ, và
-  không ai khác cầm được. Màn hình liệt kê ra mã của tối đa 20 hồ sơ đang chặn.
-- **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Không có
-  chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới tài khoản, xoá đi là mất dấu vết.
+- **Sửa** đổi được **họ tên, và chỉ họ tên**. **Vai trò cố định từ lúc tạo tài khoản** — không có
+  chức năng đổi vai trò. Hồ sơ ghi thẳng tên người xử lý lên chính nó, nên đổi vai trò là bỏ rơi
+  đúng những hồ sơ đang chờ người đó, và không ai khác cầm được. Cần đổi vai trò thì **vô hiệu hoá
+  tài khoản cũ** (kèm bàn giao, xem dưới) rồi **tạo tài khoản mới**.
+- **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Đi qua
+  **ba cửa** — xem mục dưới. Không có chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới
+  tài khoản, xoá đi là mất dấu vết. Vô hiệu hoá là cách duy nhất để một tài khoản ngừng hoạt động.
 - **Gửi lại thư mời** chỉ hiện với tài khoản chưa kích hoạt, và làm liên kết cũ chết ngay.
+
+### Vô hiệu hoá: gõ lại tên, và bàn giao hồ sơ
+
+Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
+
+1. **Tài khoản này đang giữ bao nhiêu hồ sơ** — hệ thống tự đếm và hiện ra ngay khi mở hộp thoại,
+   kèm mã của tối đa 20 hồ sơ. *"Vô hiệu hoá tài khoản này sẽ chuyển 14 hồ sơ"* là một câu khác hẳn
+   *"vô hiệu hoá tài khoản này"*, và bạn phải đọc được câu thứ nhất trước khi quyết định.
+2. **Người nhận bàn giao** — **bắt buộc** nếu còn hồ sơ, và phải **cùng vai trò**, đang hoạt động,
+   đã kích hoạt. Không chọn thì **không vô hiệu hoá được**.
+3. **Gõ lại họ tên** của người bị vô hiệu hoá. Chỉ khác dấu cách hay chữ hoa thì vẫn nhận — chép từ
+   màn hình sang là chuyện bình thường; cái cần chặn là bấm nhầm dòng.
+
+> **Vì sao bàn giao là bắt buộc.** Hồ sơ ghi thẳng id người xử lý lên chính nó. Vô hiệu hoá mà không
+> chuyển giao là để lại những hồ sơ **không ai nhìn thấy và không ai thao tác được** — chúng không
+> nằm trong hộp việc của ai, không lọt vào phạm vi của ai, và chỉ lộ ra khi có người đi tìm một hồ
+> sơ cụ thể rồi không thấy đâu.
+
+**Chuyển những hồ sơ nào**: mọi hồ sơ **chưa kết thúc** mà người đó đang giữ ở vai trò của mình —
+kể cả bản **Nháp**, và kể cả hồ sơ **Đang có hiệu lực** (người phụ trách nó là người nhận thư khi
+giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối** và **Hết hiệu lực** thì không, vì không ai còn
+phải làm gì với chúng.
+
+**Trạng thái không đổi.** Chuyển giao là đổi người, không phải một bước của luồng duyệt: hồ sơ đang
+ở *Chờ TBP duyệt* thì vẫn ở đó, chỉ là chờ một Trưởng bộ phận khác.
+
+**Có vết trong nhật ký của từng hồ sơ.** Mở một hồ sơ vừa đổi tay ra là thấy dòng *Chuyển giao* kèm
+lý do, đúng chỗ với các bước duyệt khác — không phải đi tìm trong nhật ký hệ thống.
+
+**Bật lại** thì không hỏi gì: nó không làm hồ sơ nào kẹt.
 
 ### Không có mật khẩu mặc định
 

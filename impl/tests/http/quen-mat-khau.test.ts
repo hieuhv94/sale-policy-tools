@@ -22,12 +22,15 @@ import {
   resetTokenFrom,
   TEST_PREFIX,
   withAdminDb,
+  bootPolicyListening,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
 const PW_MOI = 'DatLai@2026xyz';
 
 let app: INestApplication;
+let policyApp: INestApplication;
+let restorePolicy: (() => void) | undefined;
 let adminToken = '';
 let n = 0;
 
@@ -54,10 +57,19 @@ beforeAll(async () => {
   await cleanupTestUsers();
   await mailpitClear();
   app = await boot();
+  // `POST /admin/users/:id/deactivate` hỏi `policy` xem tài khoản đang giữ hồ sơ
+  // nào (`0032`), và FAIL CLOSED nếu không hỏi được — mục đích của cả tính năng
+  // là "không hồ sơ nào bị treo", mà không hỏi được thì không biết. Nên tệp này
+  // phải dựng `policy` dù nó chẳng kiểm gì về hồ sơ.
+  const po = await bootPolicyListening();
+  policyApp = po.app;
+  restorePolicy = po.restore;
   adminToken = await accessTokenFor(app, 'admin01', SEED_PW);
 });
 
 afterAll(async () => {
+  await policyApp?.close();
+  restorePolicy?.();
   await app?.close();
   await cleanupTestUsers();
   await mailpitClear();
@@ -130,9 +142,11 @@ describe('PWD-03 tài khoản bị vô hiệu hoá không nhận thư', () => {
       ]);
       return r.rows[0]!.id;
     });
+    // `confirmName` bắt buộc từ `0032`; họ tên đặt ở `nguoiDaKichHoat`.
     await (await http(app))
       .post(`/admin/users/${id}/deactivate`)
       .set('Authorization', `Bearer ${adminToken}`)
+      .send({ confirmName: 'Nguoi quen mat khau' })
       .expect(200);
 
     await mailpitClear();

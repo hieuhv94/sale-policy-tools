@@ -131,11 +131,11 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
   return { id: hs.body.id as string, code: hs.body.code as string };
 };
 
-/** Tài khoản chỉ còn vai trò để đọc — hai cột liên kết đã gỡ ở `0031`. */
+/** Tài khoản chỉ còn vai trò và trạng thái để đọc — hai cột liên kết gỡ ở `0031`. */
 const doc = async (id: string) =>
   withAdminDb(async (c) => {
-    const r = await c.query<{ role: string }>(
-      `SELECT role::text AS role FROM idn.app_user WHERE id = $1`,
+    const r = await c.query<{ role: string; isActive: boolean }>(
+      `SELECT role::text AS role, is_active AS "isActive" FROM idn.app_user WHERE id = $1`,
       [id],
     );
     return r.rows[0]!;
@@ -177,6 +177,17 @@ afterAll(async () => {
   // khách hàng. Xoá khách hàng trước mà bỏ lại hồ sơ là để lại rác trỏ vào một
   // khách hàng không còn tồn tại, và các lượt chạy sau đếm phải nó.
   await withAdminDb(async (c) => {
+    // Gỡ nhãn Từ chối TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
+    // xoá hồ sơ ở trạng thái kết thúc ấy (YCNV muc 4), và tệp này cố ý dựng ra
+    // một hồ sơ như vậy để kiểm việc chuyển giao bỏ qua nó. Không gỡ thì bước
+    // dọn ném lỗi và CẢ TỆP đỏ, với một thông báo chẳng liên quan tới điều đang
+    // kiểm — đúng thứ đã xảy ra một lần.
+    await c.query(
+      `UPDATE pol.policy SET status = 'NHAP'
+        WHERE status = 'TU_CHOI'
+          AND customer_id IN (SELECT id FROM cus.customer WHERE code LIKE $1)`,
+      [`${P}%`],
+    );
     await c.query(
       `DELETE FROM pol.policy WHERE customer_id IN
          (SELECT id FROM cus.customer WHERE code LIKE $1)`,
@@ -192,95 +203,393 @@ afterAll(async () => {
 // Quản trị đổi vai trò
 // =============================================================================
 
-describe('đổi vai trò', () => {
-  it('tài khoản sạch thì đổi được', async () => {
+describe('`0032` KHÔNG còn đổi được vai trò', () => {
+  /*
+   * Cả khối `describe('đổi vai trò')` cũ đã bỏ. Nó kiểm bảy ca quanh một chốt
+   * chặn có điều kiện — "còn hồ sơ dở dang thì không đổi được vai trò" — và
+   * chốt chặn ấy giờ là một cái CẤM HẲN.
+   *
+   * Vì sao cấm hẳn thay vì giữ chốt chặn: chốt chặn chỉ dời vấn đề. Nó bắt người
+   * quản trị đi xử lý cho hết hồ sơ trước khi đổi vai trò, mà "xử lý cho hết"
+   * không phải việc của người quản trị — họ không có quyền ký số, không tiếp
+   * nhận, không bàn giao. Đường đi đúng là vô hiệu hoá tài khoản cũ (kèm chuyển
+   * giao) rồi tạo tài khoản mới, và đó là đường duy nhất còn lại.
+   */
+  it('gửi `role` trong PATCH thì bị BỎ QUA, không đổi gì', async () => {
     const u = await taoNguoiDung('TDV');
-    const res = await idn(`/admin/users/${u.id}`, { role: 'BAN_LANH_DAO' });
+    const res = await idn(`/admin/users/${u.id}`, { fullName: 'Ten Moi', role: 'QUAN_TRI' });
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    expect((await doc(u.id)).role).toBe('BAN_LANH_DAO');
-  });
-
-  it('tạo tài khoản KHÔNG còn nhận trường liên kết nào (`0031`)', async () => {
-    // Ba ca cũ ở chỗ này kiểm việc DỌN liên kết khi đổi vai trò: gỡ người duyệt
-    // khi TDV lên Sale Admin, gỡ cấp trên khi TDV thành Kế toán vì cấp trên của
-    // Kế toán phải là Sale Admin, và giữ nguyên khi loại cấp trên không đổi.
-    // Cả ba là hệ quả của việc biểu mẫu tạo tài khoản đổi hình theo vai trò —
-    // và mỗi lần đổi hình là một chỗ có thể gán sai.
-    //
-    // Không còn ô nào để gán, nên không còn gì để dọn. Ca này canh đúng điều đó:
-    // gửi kèm hai trường cũ thì máy chủ BỎ QUA chúng, không tạo ra liên kết nào.
-    const u = await taoNguoiDung('TDV', { approverUsername: 'tbp01', parentUsername: 'kt01' });
     expect((await doc(u.id)).role).toBe('TDV');
-
-    expect((await idn(`/admin/users/${u.id}`, { role: 'SALE_ADMIN' })).status).toBe(200);
-    expect((await doc(u.id)).role).toBe('SALE_ADMIN');
   });
 
-  it('còn hồ sơ dở dang thì CHẶN, và nói rõ hồ sơ nào', async () => {
-    const hs = await lapVaGui();
-    const tdv01Id = await idCua('tdv01');
-
-    const chan = await idn(`/admin/users/${tdv01Id}`, { role: 'KE_TOAN' });
-    expect(chan.status, JSON.stringify(chan.body)).toBe(409);
-    expect(chan.body.code).toBe('ROLE_CHANGE_BLOCKED');
-    // Con số không đủ: người quản trị phải tra ra được ĐÚNG hồ sơ nào.
-    expect(Array.isArray(chan.body.policies)).toBe(true);
-    expect(chan.body.policies.some((x: { code: string }) => x.code === hs.code)).toBe(true);
-    expect(chan.body.count).toBeGreaterThan(0);
-
-    // Và vai trò KHÔNG đổi — chặn phải là chặn thật, không phải cảnh báo rồi ghi.
-    expect((await doc(tdv01Id)).role).toBe('TDV');
+  it('gửi mỗi `role`, không kèm gì khác, cũng không đổi', async () => {
+    const u = await taoNguoiDung('KE_TOAN');
+    expect((await idn(`/admin/users/${u.id}`, { role: 'TDV' })).status).toBe(200);
+    expect((await doc(u.id)).role).toBe('KE_TOAN');
   });
 
-  it('CHẶN cả khi hồ sơ đang chờ NGƯỜI KHÁC lập, nhưng chờ đúng bước của mình', async () => {
-    // Nhánh thứ hai của chốt chặn, và là kiểu mắc kẹt tệ hơn: hồ sơ không nằm ở
-    // người bị đổi vai trò mà ở một TDV khác, GIAO ĐÍCH DANH cho họ. Đổi vai trò
-    // một Trưởng bộ phận đang có hồ sơ chờ ký là bỏ rơi đúng hồ sơ đó — và từ
-    // `0031` điều này chặt hơn hẳn: trước đây một đồng nghiệp cùng nhánh cây còn
-    // nhìn thấy, giờ hồ sơ chỉ nằm trong hộp việc của đúng người được chọn.
-    const hs = await lapVaGui();
-    const tbp01Id = await idCua('tbp01');
-
-    const chan = await idn(`/admin/users/${tbp01Id}`, { role: 'BAN_LANH_DAO' });
-    expect(chan.status, JSON.stringify(chan.body)).toBe(409);
-    expect(chan.body.code).toBe('ROLE_CHANGE_BLOCKED');
-    expect(chan.body.policies.some((x: { code: string }) => x.code === hs.code)).toBe(true);
-    // Lý do phải nói đúng NHÁNH nào bắt được nó, không gộp làm một.
-    expect(
-      chan.body.policies.find((x: { code: string }) => x.code === hs.code).reason,
-    ).toBe('dang cho xu ly');
-    expect((await doc(tbp01Id)).role).toBe('TBP');
-  });
-
-  it('hồ sơ QUÁ HẠN vẫn tính là dở dang', async () => {
-    // Hồ sơ quá hạn giấu bước thật trong `pending_step`, nên câu truy vấn có một
-    // nhánh riêng cho nó. Bỏ sót nhánh đó là bỏ sót đúng những hồ sơ đã chờ lâu
-    // nhất — cái dễ bị quên nhất khi đổi vai trò.
-    const hs = await lapVaGui();
-    await withAdminDb((c) =>
-      c.query(
-        `UPDATE pol.policy SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET'
-          WHERE code = $1`,
-        [hs.code],
-      ),
-    );
-    const tbp01Id = await idCua('tbp01');
-    const chan = await idn(`/admin/users/${tbp01Id}`, { role: 'BAN_LANH_DAO' });
-    expect(chan.status).toBe(409);
-    expect(chan.body.policies.some((x: { code: string }) => x.code === hs.code)).toBe(true);
-  });
-
-  it('vai trò lạ thì 400', async () => {
-    const u = await taoNguoiDung('TDV');
-    expect((await idn(`/admin/users/${u.id}`, { role: 'GIAM_DOC' })).status).toBe(400);
-  });
-
-  it('vai trò khác Quản trị không đổi được vai trò của ai', async () => {
+  it('vai trò khác Quản trị không sửa được tài khoản của ai', async () => {
     const u = await taoNguoiDung('TDV');
     for (const who of ['tdv01', 'kt01', 'tbp01', 'sa01', 'bld01']) {
-      const res = await idn(`/admin/users/${u.id}`, { role: 'KE_TOAN' }, who);
+      const res = await idn(`/admin/users/${u.id}`, { fullName: 'X' }, who);
       expect(res.status, `${who} đáng lẽ bị chặn`).toBe(403);
     }
+  });
+});
+
+// =============================================================================
+// `0032` — Vô hiệu hoá tài khoản: gõ lại tên, chọn người nhận, chuyển giao
+// =============================================================================
+
+describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () => {
+  const post = async (path: string, body: object = {}, who = 'admin01') =>
+    (await http(identity)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
+  const get = async (path: string, who = 'admin01') =>
+    (await http(identity)).get(path).set('Authorization', `Bearer ${tok[who]}`);
+
+  const cot = (r: string) =>
+    ({ TDV: 'tdv_user_id', TBP: 'tbp_user_id', KE_TOAN: 'ke_toan_user_id', SALE_ADMIN: 'sale_admin_user_id' })[r]!;
+
+  /** Ai đang giữ hồ sơ này ở vai trò ấy. */
+  const nguoiGiu = (code: string, role: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ v: string | null }>(
+        `SELECT ${cot(role)} AS v FROM pol.policy WHERE code = $1`,
+        [code],
+      );
+      return r.rows[0]?.v ?? null;
+    });
+
+  const nhatKy = (code: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ action: string; reason: string | null; from_status: string; to_status: string }>(
+        `SELECT e.action, e.reason, e.from_status::text, e.to_status::text
+           FROM pol.policy_event e JOIN pol.policy p ON p.id = e.policy_id
+          WHERE p.code = $1 ORDER BY e.seq`,
+        [code],
+      );
+      return r.rows;
+    });
+
+  const batLai = async (id: string) => post(`/admin/users/${id}/activate-account`);
+
+  it('xem trước nói đúng số hồ sơ đang giữ, TRƯỚC khi bấm gì', async () => {
+    const hs = await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const r = await get(`/admin/users/${tbp01}/ban-giao`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.role).toBe('TBP');
+    expect(r.body.count).toBeGreaterThanOrEqual(1);
+    expect((r.body.policies as { code: string }[]).some((x) => x.code === hs.code)).toBe(true);
+  });
+
+  it('gõ SAI họ tên thì 400 và KHÔNG vô hiệu hoá gì', async () => {
+    const u = await taoNguoiDung('TBP');
+    const r = await post(`/admin/users/${u.id}/deactivate`, { confirmName: 'Ten Sai' });
+    expect(r.status, JSON.stringify(r.body)).toBe(400);
+    expect(r.body.code).toBe('CONFIRM_NAME_MISMATCH');
+    // Câu báo phải NÓI RA tên đúng, nếu không người quản trị chỉ đoán.
+    expect(r.body.message).toContain('Nguoi dung thu nghiem');
+    expect((await doc(u.id)).isActive).toBe(true);
+  });
+
+  it('thiếu họ tên hoàn toàn cũng bị chặn', async () => {
+    const u = await taoNguoiDung('TBP');
+    expect((await post(`/admin/users/${u.id}/deactivate`)).status).toBe(400);
+    expect((await doc(u.id)).isActive).toBe(true);
+  });
+
+  it('họ tên chỉ khác dấu cách và chữ hoa thì VẪN nhận', async () => {
+    // Người quản trị chép tên từ màn hình sang; một dấu cách thừa không phải là
+    // bấm nhầm dòng, và bắt họ gõ lại là làm phiền chứ không làm an toàn hơn.
+    const u = await taoNguoiDung('BAN_LANH_DAO');
+    const r = await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: '  nguoi  DUNG thu nghiem ',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect((await doc(u.id)).isActive).toBe(false);
+  });
+
+  it('tài khoản KHÔNG giữ hồ sơ nào thì không cần chọn người nhận', async () => {
+    const u = await taoNguoiDung('KE_TOAN');
+    const r = await post(`/admin/users/${u.id}/deactivate`, {
+      confirmName: 'Nguoi dung thu nghiem',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.handedOver).toBe(0);
+    expect((await doc(u.id)).isActive).toBe(false);
+  });
+
+  it('còn giữ hồ sơ mà KHÔNG chọn người nhận thì 422, và tài khoản vẫn hoạt động', async () => {
+    // Ca quan trọng nhất của cả khối: đây đúng là chỗ hồ sơ bị treo nếu bỏ chốt
+    // chặn. Id người xử lý nằm cứng trên hồ sơ, nên vô hiệu hoá mà không chuyển
+    // giao là để lại hồ sơ không ai thấy và không ai thao tác được.
+    await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const r = await post(`/admin/users/${tbp01}/deactivate`, {
+      confirmName: 'Truong bo phan 01',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(422);
+    expect(r.body.code).toBe('SUCCESSOR_REQUIRED');
+    expect((await doc(tbp01)).isActive).toBe(true);
+  });
+
+  it('chọn người nhận SAI VAI TRÒ thì 422', async () => {
+    await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const r = await post(`/admin/users/${tbp01}/deactivate`, {
+      confirmName: 'Truong bo phan 01',
+      successorId: await idCua('kt01'),
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(422);
+    expect(r.body.code).toBe('SUCCESSOR_WRONG_ROLE');
+    expect((await doc(tbp01)).isActive).toBe(true);
+  });
+
+  it('chọn CHÍNH MÌNH làm người nhận thì 422', async () => {
+    await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const r = await post(`/admin/users/${tbp01}/deactivate`, {
+      confirmName: 'Truong bo phan 01',
+      successorId: tbp01,
+    });
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe('SUCCESSOR_INVALID');
+  });
+
+  it('chọn người nhận CHƯA KÍCH HOẠT thì 422', async () => {
+    // Tài khoản tạo qua API chưa đi qua thư mời — giao hồ sơ cho họ là gửi vào
+    // chỗ không ai mở ra, đúng cái ngõ cụt đang đi chữa.
+    await lapVaGui();
+    const moi = await taoNguoiDung('TBP');
+    const tbp01 = await idCua('tbp01');
+    const r = await post(`/admin/users/${tbp01}/deactivate`, {
+      confirmName: 'Truong bo phan 01',
+      successorId: moi.id,
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(422);
+    expect(r.body.code).toBe('SUCCESSOR_INACTIVE');
+  });
+
+  it('chuyển giao THẬT: hồ sơ đổi tay, giữ nguyên trạng thái, ghi vào nhật ký hồ sơ', async () => {
+    const hs = await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const tbp02 = await idCua('tbp02');
+    expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
+
+    const r = await post(`/admin/users/${tbp01}/deactivate`, {
+      confirmName: 'Truong bo phan 01',
+      successorId: tbp02,
+    });
+    try {
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(r.body.handedOver).toBeGreaterThanOrEqual(1);
+
+      // 1. Hồ sơ đã đổi tay.
+      expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp02);
+
+      // 2. TRẠNG THÁI KHÔNG ĐỔI — chuyển giao là đổi người, không phải một bước
+      //    của luồng duyệt.
+      const sau = await withAdminDb(async (c) => {
+        const x = await c.query<{ s: string }>(
+          `SELECT status::text AS s FROM pol.policy WHERE code = $1`,
+          [hs.code],
+        );
+        return x.rows[0]!.s;
+      });
+      expect(sau).toBe('CHO_TBP_DUYET');
+
+      // 3. Nhật ký CỦA CHÍNH HỒ SƠ có vết, kèm lý do đọc được.
+      const nk = await nhatKy(hs.code);
+      const dong = nk.find((x) => x.action === 'HANDOVER');
+      expect(dong, 'phải có dòng HANDOVER trong nhật ký hồ sơ').toBeDefined();
+      expect(dong!.reason).toContain('vô hiệu hoá');
+      // from = to: không bịa ra một bước chuyển không có thật.
+      expect(dong!.from_status).toBe(dong!.to_status);
+    } finally {
+      await batLai(tbp01);
+    }
+  });
+
+  it('hồ sơ ĐANG CÓ HIỆU LỰC cũng chuyển, không chỉ hồ sơ đang chờ', async () => {
+    // Hồ sơ hiệu lực không phải "việc đang chờ", nhưng người phụ trách nó là
+    // người nhận thư khi giá hay quy định chiết khấu đổi. Bỏ sót nó là gửi thư
+    // vào một hộp thư không ai đọc.
+    const hs = await lapVaGui();
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET status = 'DANG_CO_HIEU_LUC' WHERE code = $1`, [hs.code]),
+    );
+    const tbp01 = await idCua('tbp01');
+    const tbp02 = await idCua('tbp02');
+    try {
+      const r = await post(`/admin/users/${tbp01}/deactivate`, {
+        confirmName: 'Truong bo phan 01',
+        successorId: tbp02,
+      });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp02);
+    } finally {
+      await batLai(tbp01);
+    }
+  });
+
+  it('hồ sơ TỪ CHỐI thì KHÔNG chuyển — đó là trạng thái kết thúc', async () => {
+    const hs = await lapVaGui();
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET status = 'TU_CHOI' WHERE code = $1`, [hs.code]),
+    );
+    const tbp01 = await idCua('tbp01');
+    const tbp02 = await idCua('tbp02');
+    try {
+      await post(`/admin/users/${tbp01}/deactivate`, {
+        confirmName: 'Truong bo phan 01',
+        successorId: tbp02,
+      });
+      expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
+    } finally {
+      await batLai(tbp01);
+      // Trả trạng thái về: `afterAll` dọn bằng `DELETE`, mà trigger
+      // `trg_forbid_delete_rejected` chặn xoá hồ sơ Từ chối (YCNV muc 4). Để
+      // nguyên là cả tệp đỏ ở bước dọn, với một lỗi chẳng liên quan tới điều
+      // đang kiểm.
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET status = 'CHO_TBP_DUYET' WHERE code = $1`, [hs.code]),
+      );
+    }
+  });
+
+  it('KHÔNG hồ sơ nào của người bị vô hiệu hoá còn treo lại — quét cả bốn cột', async () => {
+    // Bất biến của cả tính năng, phát biểu thẳng: sau khi vô hiệu hoá, không tồn
+    // tại một hồ sơ CHƯA KẾT THÚC nào còn trỏ tới tài khoản đó ở bất kỳ cột nào.
+    const hs = await lapVaGui();
+    const tbp01 = await idCua('tbp01');
+    const tbp02 = await idCua('tbp02');
+    try {
+      await post(`/admin/users/${tbp01}/deactivate`, {
+        confirmName: 'Truong bo phan 01',
+        successorId: tbp02,
+      });
+      const treo = await withAdminDb(async (c) => {
+        const r = await c.query<{ n: string }>(
+          `SELECT count(*)::text AS n FROM pol.policy
+            WHERE status::text <> ALL($2::text[])
+              AND (tdv_user_id = $1 OR tbp_user_id = $1
+                   OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
+          [tbp01, ['TU_CHOI', 'HET_HIEU_LUC']],
+        );
+        return Number(r.rows[0]!.n);
+      });
+      expect(treo, `hồ sơ còn treo lại ở tài khoản đã vô hiệu hoá (${hs.code} chẳng hạn)`).toBe(0);
+    } finally {
+      await batLai(tbp01);
+    }
+  });
+
+  /*
+   * BỐN VAI TRÒ TRONG LUỒNG, cùng một bất biến.
+   *
+   * Ca thật đi hết luồng ở trên đã phủ `TBP`. Ba vai trò còn lại dựng bằng cách
+   * ĐẶT THẲNG cột người trên hồ sơ rồi vô hiệu hoá tài khoản ấy — và đó là phép
+   * thử đúng, vì chính cột đó là thứ mọi phép lọc phạm vi và mọi hộp việc đọc.
+   *
+   * Dùng tài khoản dùng một lần chứ không dùng `tdv01`/`kt01`/`sa01`: các tệp
+   * test chạy SONG SONG trên cùng một CSDL và gần như tệp nào cũng thao tác bằng
+   * ba tài khoản ấy. Vô hiệu hoá một trong số chúng dù chỉ vài trăm mili giây
+   * cũng đủ làm một tệp khác đỏ vì lý do chẳng liên quan tới nó.
+   */
+  for (const [role, nguoiNhan] of [
+    ['TDV', 'tdv01'],
+    ['TBP', 'tbp01'],
+    ['KE_TOAN', 'kt01'],
+    ['SALE_ADMIN', 'sa01'],
+  ] as const) {
+    it(`${role}: vô hiệu hoá thì hồ sơ đổi tay và không còn hồ sơ nào treo`, async () => {
+      const hs = await lapVaGui();
+      const u = await taoNguoiDung(role);
+      const nhan = await idCua(nguoiNhan);
+
+      // Đặt tài khoản dùng một lần vào đúng cột của vai trò ấy.
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET ${cot(role)} = $1 WHERE code = $2`, [u.id, hs.code]),
+      );
+      expect(await nguoiGiu(hs.code, role)).toBe(u.id);
+
+      // Thiếu người nhận thì chặn — với MỌI vai trò, không riêng TBP.
+      const thieu = await post(`/admin/users/${u.id}/deactivate`, {
+        confirmName: 'Nguoi dung thu nghiem',
+      });
+      expect(thieu.status, `${role}: ${JSON.stringify(thieu.body)}`).toBe(422);
+      expect(thieu.body.code).toBe('SUCCESSOR_REQUIRED');
+      expect((await doc(u.id)).isActive, `${role} không được vô hiệu hoá khi chưa bàn giao`).toBe(
+        true,
+      );
+
+      // Chọn đúng người thì chuyển được.
+      const r = await post(`/admin/users/${u.id}/deactivate`, {
+        confirmName: 'Nguoi dung thu nghiem',
+        successorId: nhan,
+      });
+      expect(r.status, `${role}: ${JSON.stringify(r.body)}`).toBe(200);
+      expect(await nguoiGiu(hs.code, role)).toBe(nhan);
+      expect((await doc(u.id)).isActive).toBe(false);
+
+      // Nhật ký của chính hồ sơ có vết.
+      expect((await nhatKy(hs.code)).some((x) => x.action === 'HANDOVER')).toBe(true);
+
+      // Bất biến: không còn hồ sơ CHƯA KẾT THÚC nào trỏ tới tài khoản đã khoá.
+      const treo = await withAdminDb(async (c) => {
+        const x = await c.query<{ n: string }>(
+          `SELECT count(*)::text AS n FROM pol.policy
+            WHERE status::text <> ALL($2::text[])
+              AND (tdv_user_id = $1 OR tbp_user_id = $1
+                   OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
+          [u.id, ['TU_CHOI', 'HET_HIEU_LUC']],
+        );
+        return Number(x.rows[0]!.n);
+      });
+      expect(treo, `${role}: còn hồ sơ treo lại`).toBe(0);
+    });
+  }
+
+  for (const role of ['BAN_LANH_DAO', 'QUAN_TRI'] as const) {
+    it(`${role}: không cầm hồ sơ nào nên vô hiệu hoá thẳng, không hỏi người nhận`, async () => {
+      // Hai vai trò này đứng ngoài luồng duyệt — một bên chỉ đọc, một bên quản
+      // trị. Đòi người nhận bàn giao ở đây là bắt người quản trị trả lời một câu
+      // hỏi không có nghĩa.
+      const u = await taoNguoiDung(role);
+      const xt = await get(`/admin/users/${u.id}/ban-giao`);
+      expect(xt.status).toBe(200);
+      expect(xt.body.count).toBe(0);
+
+      const r = await post(`/admin/users/${u.id}/deactivate`, {
+        confirmName: 'Nguoi dung thu nghiem',
+      });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(r.body.handedOver).toBe(0);
+      expect((await doc(u.id)).isActive).toBe(false);
+    });
+  }
+
+  it('bật lại tài khoản KHÔNG cần gõ tên hay chọn ai', async () => {
+    // Bật lại không làm hồ sơ nào kẹt, nên không có lý do gì để hỏi thêm.
+    const u = await taoNguoiDung('SALE_ADMIN');
+    await post(`/admin/users/${u.id}/deactivate`, { confirmName: 'Nguoi dung thu nghiem' });
+    expect((await doc(u.id)).isActive).toBe(false);
+    expect((await batLai(u.id)).status).toBe(200);
+    expect((await doc(u.id)).isActive).toBe(true);
+  });
+
+  it('vai trò khác Quản trị không vô hiệu hoá được ai', async () => {
+    const u = await taoNguoiDung('TDV');
+    for (const who of ['tdv01', 'kt01', 'tbp01', 'sa01', 'bld01']) {
+      const r = await post(
+        `/admin/users/${u.id}/deactivate`,
+        { confirmName: 'Nguoi dung thu nghiem' },
+        who,
+      );
+      expect(r.status, `${who} đáng lẽ bị chặn`).toBe(403);
+    }
+    expect((await doc(u.id)).isActive).toBe(true);
   });
 });
 

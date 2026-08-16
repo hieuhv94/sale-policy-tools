@@ -40,3 +40,17 @@ export function trangThaiTaiKhoan(u: NguoiDungDto): string {
   if (u.activatedAt === null) return 'Chờ kích hoạt';
   return 'Đang hoạt động';
 }
+
+/**
+ * Người này đang giữ hồ sơ nào — hỏi trước khi vô hiệu hoá tài khoản (`0032`).
+ *
+ * `policies` chỉ là 20 mã mới nhất; `count` mới là tổng. Đổ hết vài trăm mã vào
+ * một hộp thoại thì không ai đọc, mà con số thì phải đúng.
+ */
+export type XemTruocBanGiao = {
+  userId: string;
+  role: VaiTro;
+  fullName: string;
+  count: number;
+  policies: { code: string; status: string }[];
+};

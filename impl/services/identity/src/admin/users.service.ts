@@ -8,6 +8,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
@@ -41,10 +42,24 @@ export type RoleValue = (typeof ROLE_VALUES)[number];
  * người chọn nhìn thấy ngay hồ sơ mình đang gửi.
  */
 
+/**
+ * KHÔNG có `role` (`0032`). Vai trò cố định từ lúc tạo tài khoản.
+ *
+ * Đổi vai trò từng bị cấm hoàn toàn, rồi mở ra kèm chốt chặn "còn hồ sơ dở dang
+ * thì không đổi được", và giờ đóng lại hẳn theo yêu cầu nghiệp vụ.
+ *
+ * Lý do đóng vẫn là lý do cũ, và từ `0031` nó mạnh hơn: hồ sơ ghi thẳng id người
+ * xử lý lên chính nó. Một Trưởng bộ phận đang có hồ sơ chờ ký mà thành Kế toán
+ * thì hồ sơ ấy trỏ tới người không còn hành động `TBP_SIGN` nào, và **không ai
+ * khác cầm được** vì hồ sơ chỉ nằm trong hộp việc của đúng người được chọn.
+ * Chốt chặn có điều kiện chỉ dời vấn đề: nó bắt người quản trị đi xử lý hết hồ
+ * sơ trước, mà "xử lý hết" không phải việc của người quản trị.
+ *
+ * Cần đổi vai trò thì **vô hiệu hoá tài khoản cũ** (kèm chuyển giao hồ sơ, xem
+ * `setActive`) và tạo tài khoản mới.
+ */
 export type UpdateUserInput = {
   fullName?: string | undefined;
-  /** Vai trò mới. Đổi được, nhưng có chốt chặn — xem `assertKhongConDangDo`. */
-  role?: RoleValue | undefined;
 };
 
 export type CreateUserInput = {
@@ -189,7 +204,86 @@ export class UsersService {
     }
   }
 
-  async setActive(userId: string, isActive: boolean) {
+  /**
+   * Người này đang giữ hồ sơ nào — màn hình hỏi TRƯỚC khi mở hộp thoại vô hiệu hoá.
+   *
+   * "Vô hiệu hoá tài khoản này sẽ chuyển 14 hồ sơ sang người khác" là một câu
+   * khác hẳn "vô hiệu hoá tài khoản này", và người quản trị phải đọc được câu
+   * thứ nhất trước khi quyết định.
+   */
+  async xemTruocBanGiao(userId: string) {
+    const u = await this.db.one<{ role: RoleValue; full_name: string }>(
+      `SELECT role::text AS role, full_name FROM idn.app_user WHERE id = $1`,
+      [userId],
+    );
+    if (!u) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+    const hs = await this.policies.xemTruoc(userId, u.role);
+    return { userId, role: u.role, fullName: u.full_name, ...hs };
+  }
+
+  /**
+   * Vô hiệu hoá hoặc bật lại một tài khoản (`0032`).
+   *
+   * Vô hiệu hoá đi qua BA chốt chặn, và mỗi chốt chặn một kiểu hỏng khác nhau:
+   *
+   *   1. **Gõ lại họ tên** — chặn bấm nhầm dòng. Danh sách người dùng có 26
+   *      dòng và các nút nằm sát nhau; một cú bấm lệch một dòng là khoá nhầm
+   *      người, và người bị khoá chỉ biết vào sáng hôm sau.
+   *   2. **Phải chọn người nhận bàn giao** cùng vai trò, đang hoạt động. Không
+   *      chọn thì KHÔNG vô hiệu hoá được — đây là chốt chặn quan trọng nhất, xem
+   *      dưới.
+   *   3. **Chuyển giao chạy TRƯỚC**, và hỏng thì cả thao tác hỏng.
+   *
+   * Vì sao chốt thứ hai không thể bỏ qua: từ `0031` id người xử lý nằm cứng trên
+   * từng hồ sơ. Vô hiệu hoá mà không chuyển giao là để lại những hồ sơ **không
+   * ai nhìn thấy và không ai thao tác được** — chúng không nằm trong hộp việc
+   * của ai, không lọt vào phạm vi của ai, và chỉ lộ ra khi có người đi tìm một
+   * hồ sơ cụ thể rồi không thấy đâu.
+   *
+   * Bật lại thì KHÔNG cần gì: nó không làm hồ sơ nào kẹt.
+   */
+  async setActive(
+    userId: string,
+    isActive: boolean,
+    opts: { confirmName?: string | undefined; successorId?: string | undefined; actorId: string } = {
+      actorId: '',
+    },
+  ) {
+    const u = await this.db.one<{ role: RoleValue; full_name: string; is_active: boolean }>(
+      `SELECT role::text AS role, full_name, is_active FROM idn.app_user WHERE id = $1`,
+      [userId],
+    );
+    if (!u) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+
+    let banGiao: { count: number; policies: { code: string; status: string }[] } = {
+      count: 0,
+      policies: [],
+    };
+
+    if (!isActive) {
+      // So sau khi chuẩn hoá khoảng trắng và chữ hoa: người quản trị chép tên từ
+      // màn hình sang, và một dấu cách thừa không phải là bấm nhầm.
+      const chuan = (x: string) => x.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
+      if (chuan(opts.confirmName ?? '') !== chuan(u.full_name)) {
+        throw new BadRequestException({
+          code: 'CONFIRM_NAME_MISMATCH',
+          field: 'confirmName',
+          message: `Gõ đúng họ tên "${u.full_name}" để xác nhận vô hiệu hoá tài khoản này.`,
+        });
+      }
+
+      const dangGiu = await this.policies.xemTruoc(userId, u.role);
+      if (dangGiu.count > 0) {
+        const nguoiNhan = await this.kiemNguoiNhan(userId, u.role, opts.successorId);
+        banGiao = await this.policies.chuyen({
+          fromUserId: userId,
+          toUserId: nguoiNhan,
+          role: u.role,
+          actorId: opts.actorId,
+        });
+      }
+    }
+
     const r = await this.db.q(
       `UPDATE idn.app_user SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id`,
       [userId, isActive],
@@ -198,57 +292,71 @@ export class UsersService {
     // Xoá cache ngay để không phải chờ hết TTL — 60 giây chỉ là trần cho thay
     // đổi đi vòng ngoài API (AUTH-07).
     await this.accounts.invalidate(userId);
-    return { ok: true, isActive };
+    return { ok: true, isActive, handedOver: banGiao.count, policies: banGiao.policies };
   }
 
   /**
-   * Sửa tài khoản đã tạo, KỂ CẢ vai trò.
+   * Người nhận bàn giao phải: có thật · CÙNG VAI TRÒ · đang hoạt động · không
+   * phải chính người đang bị vô hiệu hoá.
    *
-   * Đổi vai trò từng bị cấm hoàn toàn, vì lý do vẫn còn đúng nguyên: một hồ sơ
-   * đang chờ `CHO_TBP_DUYET` mà người duyệt vừa thành Kế toán thì không ai còn
-   * hành động nào để đi tiếp, và máy trạng thái không có đường lùi. Yêu cầu
-   * nghiệp vụ mở nó ra, nên cái cấm chuyển thành CHỐT CHẶN CÓ ĐIỀU KIỆN thay vì
-   * biến mất: còn hồ sơ dở dang thì không đổi được, và câu trả lời nói rõ hồ sơ
-   * nào (`assertKhongConDangDo`).
-   *
-   * Đổi được rồi thì hai liên kết cây phải dọn theo — xem `donLienKet`.
+   * Cùng vai trò là điều kiện cứng, không phải tiện ích: hồ sơ đang chờ ở bước
+   * của vai trò ấy: giao cho một vai trò khác là chuyển hồ sơ tới người không có
+   * hành động nào để làm — đúng cái ngõ cụt việc này sinh ra để chữa.
    */
-  async update(userId: string, input: UpdateUserInput) {
-    const cur = await this.db.one<{ id: string; role: RoleValue }>(
-      `SELECT id, role::text AS role FROM idn.app_user WHERE id = $1`,
-      [userId],
+  private async kiemNguoiNhan(
+    userId: string,
+    role: RoleValue,
+    successorId: string | undefined,
+  ): Promise<string> {
+    if (!successorId) {
+      throw new UnprocessableEntityException({
+        code: 'SUCCESSOR_REQUIRED',
+        field: 'successorId',
+        message:
+          'Tài khoản này đang giữ hồ sơ chưa xử lý xong. Chọn người nhận bàn giao ' +
+          `cùng vai trò ${role} trước khi vô hiệu hoá.`,
+      });
+    }
+    if (successorId === userId) {
+      throw new UnprocessableEntityException({
+        code: 'SUCCESSOR_INVALID',
+        field: 'successorId',
+        message: 'Không bàn giao cho chính tài khoản đang bị vô hiệu hoá.',
+      });
+    }
+    const n = await this.db.one<{ role: string; is_active: boolean; activated_at: Date | null }>(
+      `SELECT role::text AS role, is_active, activated_at FROM idn.app_user WHERE id = $1`,
+      [successorId],
     );
-    if (!cur) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+    if (!n) throw new NotFoundException({ code: 'SUCCESSOR_NOT_FOUND' });
+    if (n.role !== role) {
+      throw new UnprocessableEntityException({
+        code: 'SUCCESSOR_WRONG_ROLE',
+        field: 'successorId',
+        message: `Người nhận bàn giao phải cùng vai trò ${role}, tài khoản vừa chọn là ${n.role}.`,
+      });
+    }
+    if (!n.is_active || n.activated_at === null) {
+      throw new UnprocessableEntityException({
+        code: 'SUCCESSOR_INACTIVE',
+        field: 'successorId',
+        message: 'Người nhận bàn giao phải là tài khoản đang hoạt động và đã kích hoạt.',
+      });
+    }
+    return successorId;
+  }
 
-    const vaiTroMoi = input.role !== undefined && input.role !== cur.role ? input.role : null;
-    if (vaiTroMoi) await this.assertKhongConDangDo(userId, cur.role);
+  /** Sửa tài khoản đã tạo. Chỉ họ tên — xem `UpdateUserInput`. */
+  async update(userId: string, input: UpdateUserInput) {
+    if (input.fullName === undefined) return { ok: true };
+    const r = await this.db.q(
+      `UPDATE idn.app_user SET full_name = $2, updated_at = now()
+        WHERE id = $1 RETURNING id`,
+      [userId, input.fullName],
+    );
+    if (r.length === 0) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
 
-    // Vai trò sau khi đổi quyết định liên kết nào còn hợp lệ, nên mọi phép kiểm
-    // dưới đây đọc `vaiTro`, không đọc `cur.role`.
-    const vaiTro = vaiTroMoi ?? cur.role;
-
-    await this.db.tx(async (c) => {
-      if (input.fullName !== undefined || vaiTroMoi !== null) {
-        await c.query(
-          `UPDATE idn.app_user
-              SET full_name = coalesce($2, full_name),
-                  role = coalesce($3::idn.user_role, role),
-                  updated_at = now()
-            WHERE id = $1`,
-          [userId, input.fullName ?? null, vaiTroMoi],
-        );
-      }
-    });
-
-    // Đổi vai trò KHÔNG còn phải dọn liên kết cây nào (`0031`). Trước đây một
-    // TDV lên Kế toán để lại hai liên kết hỏng — người duyệt trỏ vào một TBP mà
-    // Kế toán không cần, cấp trên trỏ vào một Kế toán trong khi cấp trên của Kế
-    // toán phải là Sale Admin — và cả hai phải dọn ngầm ở đây. Không còn liên
-    // kết nào thì không còn gì để dọn, và một trong những chỗ tinh vi nhất của
-    // service này biến mất cùng với chúng.
-
-    // Phạm vi dữ liệu suy từ vai trò, mà vai trò vừa đổi — cache tài khoản phải
-    // bỏ ngay, không chờ hết TTL 60 giây.
+    // Họ tên nằm trong cache tài khoản — bỏ ngay, không chờ hết TTL 60 giây.
     await this.accounts.invalidate(userId);
     return { ok: true };
   }
@@ -298,40 +406,6 @@ export class UsersService {
       [page.limit, page.offset],
     );
     return paged(rows, page);
-  }
-
-  /**
-   * Chặn đổi vai trò khi người này còn hồ sơ dở dang.
-   *
-   * Đây là chỗ giữ lại lý do cũ của việc cấm đổi vai trò, và từ `0031` lý do ấy
-   * còn MẠNH HƠN: hồ sơ ghi thẳng id người xử lý lên chính nó. Đổi vai trò của
-   * một Trưởng bộ phận đang có hồ sơ chờ ký là để lại một hồ sơ trỏ tới người
-   * không còn hành động `TBP_SIGN` nào — và không ai khác cầm được nó, vì hồ sơ
-   * chỉ nằm trong hộp việc của đúng người được chọn.
-   *
-   * Trả về lỗi kèm DANH SÁCH mã hồ sơ, không chỉ một con số: người quản trị phải
-   * biết đi tìm cái gì, chứ "còn 3 hồ sơ" thì họ không tra ra được ba hồ sơ nào.
-   */
-  private async assertKhongConDangDo(userId: string, role: RoleValue): Promise<void> {
-    const scope = await this.db.q<{ user_id: string }>(
-      `SELECT user_id FROM idn.scope_user_ids($1)`,
-      [userId],
-    );
-    const dangDo = await this.policies.dangDo(
-      userId,
-      role,
-      scope.map((r) => r.user_id),
-    );
-    if (dangDo.count === 0) return;
-    throw new ConflictException({
-      code: 'ROLE_CHANGE_BLOCKED',
-      count: dangDo.count,
-      message:
-        `Tài khoản còn ${dangDo.count} hồ sơ chưa xử lý xong nên chưa đổi được vai trò. ` +
-        'Xử lý xong hoặc giao lại cho người khác, rồi đổi.',
-      // Chỉ 20 hồ sơ mới nhất — `count` ở trên mới là tổng.
-      policies: dangDo.policies,
-    });
   }
 
   /**

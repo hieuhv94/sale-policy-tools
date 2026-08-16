@@ -45,17 +45,22 @@ export class UsersController {
   }
 
   /**
-   * KHÔNG có `role` trong danh sách trường sửa được — xem chú thích ở
-   * `UsersService.update`. Người sửa về sau đừng thêm vào đây mà không đọc chỗ đó.
+   * CHỈ họ tên. `role` đã bị gỡ hẳn ở `0032` — xem chú thích ở `UpdateUserInput`.
+   * Người sửa về sau đừng thêm nó vào đây mà không đọc chỗ đó.
    */
   @Patch(':id')
   @HttpCode(200)
   update(@Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { fullName: opt(str(2, 200)), role: opt(oneOf(...ROLE_VALUES)) });
+    const b = validate(body, { fullName: opt(str(2, 200)) });
     return this.users.update(id, {
       ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
-      ...(b.role !== undefined ? { role: b.role } : {}),
     });
+  }
+
+  /** Người này đang giữ hồ sơ nào — hỏi trước khi mở hộp thoại vô hiệu hoá. */
+  @Get(':id/ban-giao')
+  banGiao(@Param('id') id: string) {
+    return this.users.xemTruocBanGiao(id);
   }
 
   @Post(':id/resend-invite')
@@ -64,15 +69,31 @@ export class UsersController {
     return this.users.resendInvite(id, me.id);
   }
 
+  /**
+   * Vô hiệu hoá — đòi gõ lại họ tên VÀ chọn người nhận bàn giao (`0032`).
+   *
+   * `confirmName` và `successorId` đọc qua `validate` như mọi trường khác, nhưng
+   * cả hai là `opt()`: chốt chặn nằm ở tầng service, nơi biết được người này có
+   * đang giữ hồ sơ nào không. Bắt buộc ở DTO thì tài khoản chưa cầm hồ sơ nào
+   * cũng phải chọn người nhận — một ô bắt buộc không có nghĩa gì.
+   */
   @Post(':id/deactivate')
   @HttpCode(200)
-  deactivate(@Param('id') id: string) {
-    return this.users.setActive(id, false);
+  deactivate(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body ?? {}, {
+      confirmName: opt(str(1, 200)),
+      successorId: opt(str(36, 36)),
+    });
+    return this.users.setActive(id, false, {
+      ...(b.confirmName !== undefined ? { confirmName: b.confirmName } : {}),
+      ...(b.successorId !== undefined ? { successorId: b.successorId } : {}),
+      actorId: me.id,
+    });
   }
 
   @Post(':id/activate-account')
   @HttpCode(200)
-  reactivate(@Param('id') id: string) {
-    return this.users.setActive(id, true);
+  reactivate(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.users.setActive(id, true, { actorId: me.id });
   }
 }

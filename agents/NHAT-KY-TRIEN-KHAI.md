@@ -4082,3 +4082,98 @@ Ca **mới**: thiếu ô chọn → 422 kèm tên ô · chọn sai vai trò → 
   trò, nhưng không có đường **giao lại** một hồ sơ đang chờ cho người khác. Trước đây Quản trị đổi
   `approver_user_id` là xong; giờ id nằm cứng trên hồ sơ.
 - `assertKhongConDangDo` vẫn gửi `scopeUserIds` sang `policy` dù `dang-do.controller` không còn đọc.
+
+---
+
+## P41 — Vai trò cố định, và vô hiệu hoá phải bàn giao
+
+Ba yêu cầu, và yêu cầu thứ hai chính là món nợ tôi ghi ở cuối P40: *hồ sơ mắc kẹt khi người được
+giao nghỉ việc*.
+
+### Đổi vai trò: từ cấm, sang chốt chặn, rồi cấm hẳn
+
+Chức năng này đi hết một vòng. Ban đầu cấm hoàn toàn; P11a mở ra kèm chốt chặn có điều kiện — *còn
+hồ sơ dở dang thì không đổi được, và nói rõ hồ sơ nào*; giờ đóng lại hẳn.
+
+Lý do đóng đáng ghi lại, vì chốt chặn nghe có vẻ đủ: **nó chỉ dời vấn đề.** Chốt chặn bắt người quản
+trị đi xử lý cho hết hồ sơ trước khi đổi vai trò — mà "xử lý cho hết" không phải việc của họ. Người
+quản trị không ký số được, không tiếp nhận được, không bàn giao được. Chốt chặn ấy trong thực tế là
+một cánh cửa không bao giờ mở, chỉ khác là người dùng phải tự phát hiện ra điều đó.
+
+Đường đi đúng còn lại đúng một: vô hiệu hoá tài khoản cũ (kèm bàn giao) rồi tạo tài khoản mới.
+
+Gỡ theo: `assertKhongConDangDo`, mã lỗi `ROLE_CHANGE_BLOCKED`, và cả `internal/dang-do` bên policy.
+
+### Ba cửa cho một thao tác
+
+`POST /admin/users/:id/deactivate` giờ đi qua ba cửa, mỗi cửa chặn một kiểu hỏng khác nhau:
+
+1. **Gõ lại họ tên.** Chặn bấm nhầm dòng — danh sách có 26 dòng và các nút nằm sát nhau; bấm lệch
+   một dòng là khoá nhầm người, và người bị khoá chỉ biết vào sáng hôm sau. So sau khi chuẩn hoá
+   khoảng trắng và chữ hoa: người quản trị chép tên từ màn hình sang, một dấu cách thừa không phải
+   là bấm nhầm.
+2. **Người nhận bàn giao, cùng vai trò.** Bắt buộc khi còn hồ sơ. Cùng vai trò là điều kiện cứng:
+   hồ sơ đang chờ ở bước của vai trò ấy, giao cho vai trò khác là chuyển nó tới người không có hành
+   động nào để làm — đúng cái ngõ cụt việc này sinh ra để chữa.
+3. **Chuyển giao chạy trước, hỏng thì cả thao tác hỏng.**
+
+### Fail closed, và cái giá của nó
+
+`deactivate` gọi sang `policy` để hỏi "người này đang giữ hồ sơ nào". Không hỏi được thì **không vô
+hiệu hoá** — mục đích của cả tính năng là "không hồ sơ nào bị treo", mà không hỏi được thì không biết.
+
+Cái giá lộ ra ngay ở bộ test: `auth.test.ts` và `quen-mat-khau.test.ts` chỉ dựng `identity`, nên
+`deactivate` trả 500. Tôi **không** nới điều kiện để hai tệp ấy xanh lại — tôi dựng thêm `policy`
+trong chúng. Nới điều kiện là bỏ đúng thứ vừa xây.
+
+### Vết nằm ở nhật ký của CHÍNH hồ sơ
+
+Ghi vào `pol.policy_event` với `action = 'HANDOVER'`, không chỉ vào nhật ký kiểm toán chung. Người
+mở hồ sơ ra ba tháng sau phải thấy được vì sao nó đổi tay; nếu vết chỉ nằm ở nhật ký hệ thống thì họ
+phải biết trước là có chuyện gì để mà đi tìm.
+
+Hai chi tiết nhỏ nhưng cố ý: `from_status` = `to_status` = trạng thái hiện tại — chuyển giao **không
+đổi trạng thái**, và đặt hai giá trị lệch nhau là bịa ra một bước chuyển không có thật. `seq` tính
+tại chỗ cho từng hồ sơ, vì nhật ký hồ sơ là một chuỗi liên tục không được có lỗ.
+
+### Hồ sơ nào chuyển, hồ sơ nào không
+
+Mọi hồ sơ **chưa kết thúc** ở cột của vai trò ấy — kể cả **Nháp** (bản nháp của một TDV bị khoá cũng
+không ai mở được nữa) và kể cả **Đang có hiệu lực**. Cái thứ hai dễ bỏ sót: hồ sơ hiệu lực không
+phải "việc đang chờ", nhưng người phụ trách nó là người nhận thư khi giá hay quy định chiết khấu đổi
+(muc 7.2), và gửi thư cho một tài khoản đã vô hiệu hoá là gửi vào chỗ không ai đọc.
+
+Không chuyển: `TU_CHOI` và `HET_HIEU_LUC`.
+
+Người nhận còn được cấp luôn **quyền xem khách hàng** của những hồ sơ vừa nhận — không thì họ mở hồ
+sơ ra mà không mở nổi khách hàng trong đó (`0031`).
+
+### Test: phủ cả sáu vai trò
+
++17 ca. Ca đắt nhất là bất biến phát biểu thẳng:
+
+> Sau khi vô hiệu hoá, **không tồn tại một hồ sơ chưa kết thúc nào còn trỏ tới tài khoản đó ở bất kỳ
+> cột nào trong bốn cột.**
+
+Chạy cho `TDV`, `TBP`, `KE_TOAN`, `SALE_ADMIN`, cộng hai ca cho `BAN_LANH_DAO` và `QUAN_TRI` (không
+cầm hồ sơ nên vô hiệu hoá thẳng, không hỏi người nhận).
+
+Bốn vai trò trong luồng dựng bằng cách **đặt thẳng cột người** trên hồ sơ rồi vô hiệu hoá tài khoản
+dùng một lần ấy — chính cột đó là thứ mọi phép lọc phạm vi và mọi hộp việc đọc, nên đó là phép thử
+đúng. Không dùng `tdv01`/`kt01`/`sa01`: các tệp test chạy **song song** trên cùng một CSDL, và vô
+hiệu hoá một trong ba tài khoản ấy dù chỉ vài trăm mili giây cũng đủ làm một tệp khác đỏ.
+
+Ca âm cũng đủ: gõ sai tên → 400 · thiếu tên → 400 · thiếu người nhận → 422 · sai vai trò → 422 ·
+chọn chính mình → 422 · chọn người chưa kích hoạt → 422. Mọi ca âm đều khẳng định thêm **tài khoản
+vẫn đang hoạt động** — chặn phải là chặn thật, không phải cảnh báo rồi vẫn ghi.
+
+898/898 xanh (881 → 898).
+
+### Còn nợ
+
+- **Khách hàng của một TDV bị vô hiệu hoá không tự chuyển.** Hồ sơ thì chuyển, nhưng
+  `cus.customer.tdv_user_id` vẫn trỏ vào tài khoản đã khoá — và read-model báo cáo lấy phạm vi từ
+  cột ấy. Quản trị đổi tay được qua *Khách hàng ▸ Sửa*, nhưng không có gì nhắc họ làm.
+- **Không có đường giao lại một hồ sơ lẻ** khi người phụ trách vẫn đang làm việc — mới chỉ có đường
+  đi kèm vô hiệu hoá tài khoản.
+- Vẫn **chưa nhìn hộp thoại bàn giao bằng mắt** trong trình duyệt.

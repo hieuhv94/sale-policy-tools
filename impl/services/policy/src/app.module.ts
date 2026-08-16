@@ -9,7 +9,7 @@ import { WorkflowService } from './policies/workflow.service.js';
 import { PoliciesController } from './policies/policies.controller.js';
 import { PolicyOutbox } from './infra/outbox.relay.js';
 import { PolicyInternalController } from './internal.controller.js';
-import { DangDoController } from './dang-do.controller.js';
+import { BanGiaoController } from './ban-giao.controller.js';
 import { SlaConfigService } from './policies/sla-config.service.js';
 import { SlaConfigController } from './policies/sla-config.controller.js';
 import { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';
@@ -46,7 +46,7 @@ class HealthController {
     PoliciesController,
     SlaConfigController,
     PolicyInternalController,
-    DangDoController,
+    BanGiaoController,
   ],
   providers: [
     Db,

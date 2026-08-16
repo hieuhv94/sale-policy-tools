@@ -16,6 +16,7 @@ import {
   serviceToken,
   TEST_PREFIX,
   withAdminDb,
+  bootPolicyListening,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -23,6 +24,8 @@ const LOCK_USER = `${TEST_PREFIX}_lock`;
 const DEACT_USER = `${TEST_PREFIX}_deact`;
 
 let app: INestApplication;
+let policyApp: INestApplication;
+let restorePolicy: (() => void) | undefined;
 let redis: Redis;
 let lockUserId = '';
 let deactUserId = '';
@@ -46,10 +49,19 @@ beforeAll(async () => {
     }
   });
   app = await boot();
+  // `POST /admin/users/:id/deactivate` hỏi `policy` xem tài khoản đang giữ hồ sơ
+  // nào (`0032`), và FAIL CLOSED nếu không hỏi được — mục đích của cả tính năng
+  // là "không hồ sơ nào bị treo", mà không hỏi được thì không biết. Nên tệp này
+  // phải dựng `policy` dù nó chẳng kiểm gì về hồ sơ.
+  const po = await bootPolicyListening();
+  policyApp = po.app;
+  restorePolicy = po.restore;
   redis = new Redis(process.env.REDIS_URL ?? 'redis://redis:6379');
 });
 
 afterAll(async () => {
+  await policyApp?.close();
+  restorePolicy?.();
   await redis?.quit();
   await app?.close();
   await cleanupTestUsers();
@@ -219,10 +231,13 @@ describe('AUTH-07 vô hiệu hoá tài khoản khi token còn hạn', () => {
     expect((await agent.get('/auth/me').set('Authorization', `Bearer ${victim}`)).status).toBe(200);
 
     const adminToken = await accessTokenFor(app, 'admin01', SEED_PW);
+    // `confirmName` bắt buộc từ `0032` — gõ lại họ tên để chặn bấm nhầm dòng.
+    // Tài khoản này lấy chính username làm họ tên (xem `beforeAll`).
     const off = await agent
       .post(`/admin/users/${deactUserId}/deactivate`)
-      .set('Authorization', `Bearer ${adminToken}`);
-    expect(off.status).toBe(200);
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ confirmName: DEACT_USER });
+    expect(off.status, JSON.stringify(off.body)).toBe(200);
 
     const after = await agent.get('/auth/me').set('Authorization', `Bearer ${victim}`);
     expect(after.status).toBe(401);

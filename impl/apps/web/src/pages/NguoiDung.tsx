@@ -15,7 +15,9 @@ import {
   NHAN_VAI_TRO,
   trangThaiTaiKhoan,
   type NguoiDungDto,
+  type XemTruocBanGiao,
 } from '../lib/nguoi-dung.js';
+import type { NguoiChon } from '../lib/nguoi-xu-ly.js';
 import {
   BaoLoi,
   ChuThichBatBuoc,
@@ -94,7 +96,10 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
    */
   const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(ds);
   const [mo, datMo] = useState<
-    { kieu: 'tao' } | { kieu: 'sua'; u: NguoiDungDto } | { kieu: 'xem'; u: NguoiDungDto } | null
+    | { kieu: 'tao' }
+    | { kieu: 'xem'; u: NguoiDungDto }
+    | { kieu: 'khoa'; u: NguoiDungDto }
+    | null
   >(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
@@ -171,13 +176,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                     >
                       Xem
                     </button>
-                    <button
-                      type="button"
-                      className="nut nut-nhe"
-                      onClick={() => datMo({ kieu: 'sua', u })}
-                    >
-                      Đổi vai trò
-                    </button>
                     {u.activatedAt === null && (
                       <button
                         type="button"
@@ -197,7 +195,7 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                         // thống ⇒ hỏi trước. Kích hoạt lại thì lùi được bằng
                         // đúng nút vừa bấm ⇒ cho hoàn tác thay vì hỏi.
                         if (u.isActive) {
-                          datHoi({ u, viec: 'khoa' });
+                          datMo({ kieu: 'khoa', u });
                           return;
                         }
                         void chay(u.id, () =>
@@ -223,27 +221,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
         </table>
       </div>
       <PhanTrang trang={trang} soTrang={soTrang} tong={ds.length} doiTrang={doiTrang} nhan="tài khoản" />
-
-      {hoi?.viec === 'khoa' && (
-        <HopThoaiXacNhan
-          tieuDe={`Vô hiệu hoá tài khoản ${hoi.u.username}`}
-          hauQua={
-            <p>
-              <strong>{hoi.u.fullName}</strong> bị đăng xuất và không đăng nhập lại được. Hồ sơ đang
-              chờ họ xử lý vẫn nằm nguyên chỗ cũ và <strong>không tự chuyển cho ai</strong> — nó sẽ
-              đứng đó tới khi quá hạn, trừ khi bạn giao lại trước.
-            </p>
-          }
-          nhanNut="Vô hiệu hoá"
-          dangChay={dangChay === hoi.u.id}
-          dong={() => datHoi(null)}
-          xacNhan={() =>
-            void chay(hoi.u.id, () => dang(`/admin/users/${hoi.u.id}/deactivate`)).then(() =>
-              datHoi(null),
-            )
-          }
-        />
-      )}
 
       {hoi?.viec === 'moi' && (
         <HopThoaiXacNhan
@@ -296,8 +273,8 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
         />
       )}
 
-      {mo?.kieu === 'sua' && (
-        <HopThoaiSua
+      {mo?.kieu === 'khoa' && (
+        <HopThoaiVoHieu
           u={mo.u}
           dong={() => datMo(null)}
           xong={() => {
@@ -434,87 +411,155 @@ function HopThoaiTao({
  * biểu mẫu khiến thao tác nặng nhất (đổi vai trò) trông y hệt thao tác nhẹ nhất
  * (sửa lỗi chính tả trong họ tên).
  */
-function HopThoaiSua({ u, dong, xong }: { u: NguoiDungDto; dong: () => void; xong: () => void }) {
-  const [vaiTro, datVaiTro] = useState<VaiTro>(u.role);
+/**
+ * Vô hiệu hoá một tài khoản (`0032`).
+ *
+ * Ba phần, và phần thứ hai mới là lý do hộp thoại này tồn tại:
+ *
+ *   1. **Bao nhiêu hồ sơ sẽ đổi tay** — hỏi máy chủ ngay khi mở, vì "vô hiệu
+ *      hoá tài khoản này sẽ chuyển 14 hồ sơ" là một câu khác hẳn "vô hiệu hoá
+ *      tài khoản này".
+ *   2. **Chọn người nhận bàn giao** cùng vai trò. Bắt buộc khi còn hồ sơ: id
+ *      người xử lý nằm cứng trên từng hồ sơ, nên không chuyển giao là để lại
+ *      những hồ sơ không ai nhìn thấy và không ai thao tác được.
+ *   3. **Gõ lại họ tên** — chặn bấm nhầm dòng. Danh sách có hàng chục dòng và
+ *      các nút nằm sát nhau.
+ */
+function HopThoaiVoHieu({
+  u,
+  dong,
+  xong,
+}: {
+  u: NguoiDungDto;
+  dong: () => void;
+  xong: () => void;
+}) {
+  const [ten, datTen] = useState('');
+  const [nguoiNhan, datNguoiNhan] = useState('');
+  const [hoSo, datHoSo] = useState<XemTruocBanGiao | null>(null);
+  const [ungVien, datUngVien] = useState<NguoiChon[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const huy = new AbortController();
+    Promise.all([
+      layJson<XemTruocBanGiao>(`/admin/users/${u.id}/ban-giao`, huy.signal),
+      layJson<NguoiChon[]>(`/auth/nguoi-theo-vai-tro/${u.role}`, huy.signal).catch(() => []),
+    ])
+      .then(([hs, ds]) => {
+        datHoSo(hs);
+        // Bỏ chính người đang bị vô hiệu hoá khỏi danh sách ứng viên.
+        datUngVien(ds.filter((x) => x.id !== u.id));
+      })
+      .catch((e: unknown) => {
+        if (!huy.signal.aborted) datLoi(e);
+      });
+    return () => huy.abort();
+  }, [u.id, u.role]);
+
+  const canNguoiNhan = (hoSo?.count ?? 0) > 0;
+  const duGiaTri =
+    ten.trim().length > 0 && hoSo !== null && (!canNguoiNhan || nguoiNhan !== '');
+
+  const gui = async () => {
     datLoi(null);
     datDangGui(true);
     try {
-      await va(`/admin/users/${u.id}`, { role: vaiTro });
+      await dang(`/admin/users/${u.id}/deactivate`, {
+        confirmName: ten.trim(),
+        ...(canNguoiNhan ? { successorId: nguoiNhan } : {}),
+      });
       xong();
-    } catch (err) {
-      datLoi(err);
+    } catch (e) {
+      datLoi(e);
     } finally {
       datDangGui(false);
     }
   };
 
-  const doi = vaiTro !== u.role;
-
   return (
-    <HopThoai tieuDe={`Đổi vai trò của ${u.username}`} dong={dong}>
-      <form onSubmit={gui}>
-        <Truong id="sua-vai-tro" nhan="Vai trò" bắtBuộc>
-          {(p) => (
-            <select
-              {...p}
-              className="o-nhap"
-              value={vaiTro}
-              onChange={(e) => datVaiTro(e.target.value as VaiTro)}
-            >
-              {VAI_TRO.map((v) => (
-                <option key={v} value={v}>
-                  {NHAN_VAI_TRO[v]}
-                </option>
-              ))}
-            </select>
+    <HopThoai tieuDe={`Vô hiệu hoá tài khoản ${u.username}`} dong={dong}>
+      <p>
+        <strong>{u.fullName}</strong> bị đăng xuất và không đăng nhập lại được.
+      </p>
+
+      {hoSo === null ? (
+        <DangTai />
+      ) : hoSo.count === 0 ? (
+        <p className="ghi-chu">Tài khoản này không giữ hồ sơ nào — không có gì phải bàn giao.</p>
+      ) : (
+        <>
+          <p>
+            Tài khoản đang giữ <strong>{hoSo.count} hồ sơ</strong> chưa xử lý xong hoặc đang có hiệu
+            lực. Toàn bộ sẽ <strong>chuyển sang người bạn chọn</strong>, giữ nguyên trạng thái, và
+            việc chuyển giao được ghi vào <strong>nhật ký của từng hồ sơ</strong>.
+          </p>
+          {hoSo.policies.length > 0 && (
+            <p className="ghi-chu">
+              {hoSo.policies.map((x) => x.code).join(' · ')}
+              {hoSo.count > hoSo.policies.length ? ` … và ${hoSo.count - hoSo.policies.length} hồ sơ nữa` : ''}
+            </p>
           )}
-        </Truong>
 
-        {doi && (
-          <div className="giai-thich">
-            <p>
-              Từ <strong>{NHAN_VAI_TRO[u.role]}</strong> sang{' '}
-              <strong>{NHAN_VAI_TRO[vaiTro]}</strong>. Hồ sơ đang chờ đúng bước của vai trò cũ{' '}
-              <strong>không tự chuyển cho ai</strong> — máy chủ chặn nếu còn hồ sơ dở dang và sẽ nói
-              rõ hồ sơ nào.
-            </p>
-            <p>
-              Liên kết không còn hợp lệ sẽ bị gỡ theo: chỉ Trình dược viên mới có Trưởng bộ phận
-              quản lý, và chỉ Trình dược viên với Kế toán mới nằm trong cây dữ liệu.
-            </p>
-          </div>
+          <Truong id="nguoi-nhan" nhan={`Người nhận bàn giao (${u.role})`} bắtBuộc>
+            {(p) => (
+              <>
+                <select
+                  {...p}
+                  className="o-nhap"
+                  value={nguoiNhan}
+                  onChange={(e) => datNguoiNhan(e.target.value)}
+                >
+                  <option value="">— Chọn người nhận —</option>
+                  {(ungVien ?? []).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.fullName} ({x.username})
+                    </option>
+                  ))}
+                </select>
+                {ungVien !== null && ungVien.length === 0 && (
+                  <span className="ghi-chu canh-bao">
+                    Không có tài khoản {u.role} nào khác đang hoạt động để nhận bàn giao. Tạo và kích
+                    hoạt một tài khoản trước, rồi quay lại.
+                  </span>
+                )}
+              </>
+            )}
+          </Truong>
+        </>
+      )}
+
+      <Truong id="xac-nhan-ten" nhan={`Gõ lại họ tên "${u.fullName}" để xác nhận`} bắtBuộc>
+        {(p) => (
+          <input
+            {...p}
+            className="o-nhap"
+            autoComplete="off"
+            value={ten}
+            onChange={(e) => datTen(e.target.value)}
+          />
         )}
+      </Truong>
 
-        {loi !== null && <BaoLoi loi={loi} />}
-
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-canh-bao" disabled={dangGui || !doi}>
-            {dangGui ? 'Đang lưu…' : 'Đổi vai trò'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Huỷ
-          </button>
-        </div>
-      </form>
+      {loi !== null && <BaoLoi loi={loi} />}
+      <div className="nhom-nut">
+        <button
+          type="button"
+          className="nut nut-canh-bao"
+          disabled={dangGui || !duGiaTri}
+          onClick={gui}
+        >
+          {dangGui ? 'Đang xử lý…' : 'Vô hiệu hoá'}
+        </button>
+        <button type="button" className="nut nut-nhe" onClick={dong}>
+          Huỷ
+        </button>
+      </div>
     </HopThoai>
   );
 }
 
-// --- Hộp thoại xem ----------------------------------------------------------
-
-/**
- * Thông tin đầy đủ của một tài khoản, và chỗ Quản trị gán liên kết cây.
- *
- * Vì sao gán liên kết nằm ở thẻ XEM chứ không ở thẻ Sửa: người dùng tự đổi được
- * người quản lý của mình, nhưng tài khoản CHƯA KÍCH HOẠT hoặc người đã nghỉ việc
- * thì không ai đăng nhập vào để tự sửa. Quản trị phải còn đường gán, nếu không
- * một liên kết gán nhầm sẽ không có cách nào chữa.
- */
 function HopThoaiXem({
   u,
   ds,
