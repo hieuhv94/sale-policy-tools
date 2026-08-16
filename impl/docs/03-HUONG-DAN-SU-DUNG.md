@@ -309,6 +309,14 @@ khoản vai trò đó nào đang hoạt động — màn hình nói thẳng đi�
 
 Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: bạn có quyền gửi cho một Trưởng bộ phận khác.
 
+> **Chọn xong là không đổi được.** Hệ thống **không có** chức năng giao lại một hồ sơ cho người
+> khác. Chọn nhầm người thì hồ sơ nằm ở hộp việc của người đó và không ai gỡ ra được — người lập
+> không sửa được, người đáng lẽ phải nhận thì không nhìn thấy hồ sơ để mà nhận, Quản trị hệ thống
+> cũng không có nút nào. Đọc kỹ hai ô chọn trước khi bấm Xác nhận.
+>
+> Đổi người phụ trách chỉ xảy ra ở đúng hai chỗ: **lúc chọn người** trong luồng, và **lúc vô hiệu
+> hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
+
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng dòng sản
 phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
 muốn sửa phải chờ người duyệt trả lại.

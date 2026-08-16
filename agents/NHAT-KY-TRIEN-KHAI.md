@@ -4174,8 +4174,8 @@ vẫn đang hoạt động** — chặn phải là chặn thật, không phải 
 - **Khách hàng của một TDV bị vô hiệu hoá không tự chuyển.** Hồ sơ thì chuyển, nhưng
   `cus.customer.tdv_user_id` vẫn trỏ vào tài khoản đã khoá — và read-model báo cáo lấy phạm vi từ
   cột ấy. Quản trị đổi tay được qua *Khách hàng ▸ Sửa*, nhưng không có gì nhắc họ làm.
-- **Không có đường giao lại một hồ sơ lẻ** khi người phụ trách vẫn đang làm việc — mới chỉ có đường
-  đi kèm vô hiệu hoá tài khoản.
+- ~~Không có đường giao lại một hồ sơ lẻ~~ — **KHÔNG PHẢI NỢ**, khách hàng chốt không hỗ trợ. Xem
+  cuối P42.
 - Vẫn **chưa nhìn hộp thoại bàn giao bằng mắt** trong trình duyệt.
 
 ---
@@ -4242,5 +4242,30 @@ xanh lại.
 
 ### Còn nợ
 
-- Không có đường **giao lại một hồ sơ lẻ** khi người phụ trách vẫn đang làm việc.
 - Vẫn **chưa nhìn hộp thoại bàn giao bằng mắt** trong trình duyệt.
+
+### Quyết định: KHÔNG hỗ trợ giao lại một hồ sơ lẻ `16/08`
+
+Tôi đề xuất thêm thao tác *"Giao lại hồ sơ này"* cho một hồ sơ đơn, giữ nguyên trạng thái và SLA —
+để xử lý bốn tình huống: chọn nhầm người lúc gửi duyệt, người phụ trách nghỉ phép, ốm đột xuất, và
+san tải giữa các đồng nghiệp. **Khách hàng trả lời: không hỗ trợ.**
+
+Ghi lại ở đây để lần rà sau không đề xuất lại, và để người đọc mã không tưởng đây là chỗ bỏ sót.
+
+**Đổi người phụ trách một hồ sơ chỉ có đúng hai đường**, cả hai đều đã có:
+
+1. Lúc **chọn người** — `SUBMIT`, `RESUBMIT_AFTER_EDIT`, `KT_RECEIVE_L1`.
+2. Lúc **vô hiệu hoá tài khoản** — chuyển toàn bộ, kèm khách hàng nếu là TDV.
+
+**Hệ quả phải nói thẳng, vì nó không hiển nhiên:** chọn nhầm người lúc gửi duyệt thì **không có
+đường lùi**. Hồ sơ nằm ở hộp việc của người không liên quan; người lập không sửa được, người đáng lẽ
+phải nhận thì không nhìn thấy hồ sơ để mà nhận, và Quản trị cũng không có nút nào.
+
+Điều đó làm **bước xác nhận lúc gửi duyệt trở thành chốt chặn cuối cùng**, không phải một lớp lịch
+sự. Ai sửa hộp thoại ấy về sau — bỏ khung xem trước, bỏ nút xác nhận, tự điền sẵn người của lần
+trước — cần biết là mình đang tháo cái phanh duy nhất.
+
+Đường đi vòng duy nhất còn lại là **trả lại hồ sơ** để người lập gửi lại và chọn người khác. Nó chỉ
+dùng được ở đúng bước Trưởng bộ phận, và nó **bịa ra một sự kiện nghiệp vụ không có thật**: nhật ký
+ghi *Yêu cầu chỉnh sửa* trong khi nội dung chẳng sai gì, hồ sơ lùi trạng thái, SLA đếm lại từ đầu.
+Đọc lịch sử ba tháng sau sẽ hiểu sai chuyện đã xảy ra.
