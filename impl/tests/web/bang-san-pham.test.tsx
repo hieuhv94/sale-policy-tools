@@ -196,15 +196,14 @@ describe('FE-36 hồ sơ chưa có dòng nào', () => {
  * chính sách chiết khấu đã ban hành mà từ ô mặc định khai trong danh mục.
  */
 describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
-  it('tô lớp cảnh báo cho dòng PRODUCT_DEFAULT', () => {
+  it('tô CON SỐ tỷ lệ cho dòng PRODUCT_DEFAULT, ở cả bảng lẫn thẻ', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'PRODUCT_DEFAULT' })]} />);
-    expect(document.querySelectorAll('tr.thieu-quy-dinh')).toHaveLength(1);
-    expect(document.querySelectorAll('li.the.thieu-quy-dinh')).toHaveLength(1);
+    expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(2);
   });
 
   it('KHÔNG tô gì khi ngưỡng đến từ một quy định', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'RULE' })]} />);
-    expect(document.querySelectorAll('.thieu-quy-dinh')).toHaveLength(0);
+    expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(0);
     expect(dauTrongDuLieu('.dau-mac-dinh')).toHaveLength(0);
   });
 
@@ -212,7 +211,7 @@ describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
     // Tô vàng hàng loạt dòng cũ chỉ vì thiếu dữ liệu là báo động giả, và báo
     // động giả hàng loạt thì lần sau không ai nhìn màu vàng nữa.
     render(<BangSanPham dong={[dong({ thresholdSource: null })]} />);
-    expect(document.querySelectorAll('.thieu-quy-dinh')).toHaveLength(0);
+    expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(0);
   });
 
   it('FE-28 dấu hiệu KHÔNG chỉ là màu — có ký hiệu và có câu cho trình đọc', () => {
@@ -222,16 +221,16 @@ describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
       .toBeGreaterThan(0);
   });
 
-  it('vừa vượt ngưỡng vừa thiếu quy định: nền là ĐỎ, dấu thiếu quy định vẫn còn', () => {
-    // Một dòng chỉ tô được một nền. Vượt ngưỡng thắng vì nó là thứ người duyệt
-    // phải xử lý; nguồn ngưỡng thì vẫn nói được bằng ký hiệu, ngoài nền.
+  it('vừa vượt ngưỡng vừa thiếu quy định: con số ĐỎ, dấu thiếu quy định vẫn còn', () => {
+    // Một con số chỉ mang được một màu. Vượt ngưỡng thắng vì nó là thứ người
+    // duyệt phải xử lý; nguồn ngưỡng thì vẫn nói được bằng ký hiệu, ngoài màu.
     render(
       <BangSanPham
         dong={[dong({ overThreshold: true, thresholdSource: 'PRODUCT_DEFAULT' })]}
       />,
     );
-    expect(document.querySelectorAll('tr.vuot-nguong')).toHaveLength(1);
-    expect(document.querySelectorAll('tr.thieu-quy-dinh')).toHaveLength(0);
+    expect(dauTrongDuLieu('.ty-le.vuot')).toHaveLength(2);
+    expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(0);
     expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
     expect(dauTrongDuLieu('.dau-vuot').length).toBeGreaterThan(0);
   });
@@ -258,7 +257,7 @@ describe('0022 chú thích màu', () => {
 describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
   it('KHONG_CO cũng tô vàng — cùng một chuyện: không quy định nào phủ', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
-    expect(document.querySelectorAll('tr.thieu-quy-dinh')).toHaveLength(1);
+    expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(2);
     expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
   });
 
@@ -276,7 +275,7 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
         dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null, overThreshold: false })]}
       />,
     );
-    expect(document.querySelectorAll('tr.vuot-nguong')).toHaveLength(0);
+    expect(dauTrongDuLieu('.ty-le.vuot')).toHaveLength(0);
     expect(dauTrongDuLieu('.dau-vuot')).toHaveLength(0);
   });
 
@@ -296,8 +295,10 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
     const hang = screen
       .getAllByRole('row')
       .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
-    const oCuoi = within(hang).getAllByRole('cell').at(-1);
-    expect(oCuoi?.textContent).toBe('');
+    // Đếm từ đầu theo VỊ TRÍ CỘT, không lấy ô cuối: cột QĐCK không còn đứng
+    // cuối từ khi có cột Ghi chú (0027).
+    const cot = cotCho(ds).findIndex((c) => c.khoa === 'ruleCode');
+    expect(within(hang).getAllByRole('cell')[cot - 1]?.textContent).toBe('');
   });
 
   it('cột QĐCK nằm trong danh sách cột chuẩn, không phải cột lén thêm', () => {
@@ -322,5 +323,124 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
     const the2 = document.querySelector('.the-san-pham .the') as HTMLElement;
     expect(within(the2).getByText('QĐCK')).toBeDefined();
     expect(within(the2).getByText('q-123')).toBeDefined();
+  });
+});
+
+
+/**
+ * 0027 — màu chỉ nằm trên CON SỐ, và dấu `?` nói vì sao.
+ *
+ * Trước 0027 cả dòng đổi nền. Nền phủ lên Giá bán Công ty và các khoản CPBH,
+ * những con số hoàn toàn bình thường; thứ duy nhất đáng ngờ là tỷ lệ chiết khấu.
+ */
+describe('0027 màu chỉ trên con số tỷ lệ', () => {
+  it('KHÔNG dòng nào và KHÔNG thẻ nào mang nền cảnh báo nữa', () => {
+    render(
+      <BangSanPham dong={[dong({ overThreshold: true, thresholdSource: 'KHONG_CO' })]} />,
+    );
+    expect(document.querySelectorAll('tr.vuot-nguong')).toHaveLength(0);
+    expect(document.querySelectorAll('.the.vuot-nguong')).toHaveLength(0);
+    expect(document.querySelectorAll('tr.thieu-quy-dinh')).toHaveLength(0);
+    expect(document.querySelectorAll('.the.thieu-quy-dinh')).toHaveLength(0);
+  });
+
+  it('màu nằm đúng trên ô Tỷ lệ CK, không lan sang ô nào khác', () => {
+    render(<BangSanPham dong={[dong({ overThreshold: true })]} />);
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
+    const mang = within(hang)
+      .getAllByRole('cell')
+      .filter((o) => o.querySelector('.ty-le.vuot') !== null);
+    expect(mang).toHaveLength(1);
+    expect(mang[0]?.textContent).toContain('%');
+  });
+});
+
+describe('0027 dấu ? giải thích lý do', () => {
+  it('vượt ngưỡng: lời giải thích nêu cả tỷ lệ lẫn ngưỡng', () => {
+    render(<BangSanPham dong={[dong({ overThreshold: true, discountRate: '40.00' })]} />);
+    const nut = dauTrongDuLieu('.dau-hoi')[0] as HTMLElement;
+    expect(nut).toBeDefined();
+    // `title` cho chuột, `aria-label` cho trình đọc màn hình và người dùng Tab —
+    // cùng một câu, vì một dấu hỏi chỉ trả lời được cho người có chuột là một
+    // dấu hỏi hỏng với phần còn lại.
+    expect(nut.getAttribute('title')).toContain('Vượt ngưỡng');
+    expect(nut.getAttribute('title')).toContain('40,00%');
+    expect(nut.getAttribute('title')).toContain('30,00%');
+    expect(nut.getAttribute('aria-label')).toBe(nut.getAttribute('title'));
+  });
+
+  it('không có quy định: lời giải thích nói KHÔNG TÌM THẤY quy định nào', () => {
+    render(
+      <BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />,
+    );
+    const nut = dauTrongDuLieu('.dau-hoi')[0] as HTMLElement;
+    expect(nut.getAttribute('title')).toContain('Không tìm thấy quy định chiết khấu');
+  });
+
+  it('cả hai lý do cùng đúng thì nói CẢ HAI, không chọn một', () => {
+    render(
+      <BangSanPham
+        dong={[dong({ overThreshold: true, thresholdSource: 'PRODUCT_DEFAULT' })]}
+      />,
+    );
+    const t = (dauTrongDuLieu('.dau-hoi')[0] as HTMLElement).getAttribute('title') ?? '';
+    expect(t).toContain('Vượt ngưỡng');
+    expect(t).toContain('Không tìm thấy quy định chiết khấu');
+  });
+
+  it('dòng bình thường KHÔNG có dấu ? — không có gì để hỏi', () => {
+    render(<BangSanPham dong={[dong({ thresholdSource: 'RULE' })]} />);
+    expect(dauTrongDuLieu('.dau-hoi')).toHaveLength(0);
+  });
+
+  it('là NÚT thật nên bấm và Tab tới được, không phải span trơ', () => {
+    render(<BangSanPham dong={[dong({ overThreshold: true })]} />);
+    const nut = dauTrongDuLieu('.dau-hoi')[0] as HTMLElement;
+    expect(nut.tagName).toBe('BUTTON');
+    // `type="button"` — thiếu nó thì trong một <form> nút này gửi biểu mẫu.
+    expect(nut.getAttribute('type')).toBe('button');
+  });
+});
+
+/**
+ * 0027 — cột Ghi chú.
+ */
+describe('0027 cột Ghi chú của dòng sản phẩm', () => {
+  it('nằm trong danh sách cột chuẩn và đứng CUỐI', () => {
+    const ds = [dong()];
+    const nhan = cotCho(ds).map((c) => c.nhan);
+    expect(nhan.at(-1)).toBe('Ghi chú');
+    render(<BangSanPham dong={ds} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getAllByRole('columnheader').map((t) => t.textContent)).toEqual(nhan);
+  });
+
+  it('hiện nguyên văn ghi chú trong bảng', () => {
+    render(<BangSanPham dong={[dong({ note: 'Giá theo thoả thuận tháng 8' })]} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).getByText('Giá theo thoả thuận tháng 8')).toBeDefined();
+  });
+
+  it('không có ghi chú thì ô để TRỐNG, không phải dấu gạch', () => {
+    const ds = [dong({ note: null })];
+    render(<BangSanPham dong={ds} />);
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
+    expect(within(hang).getAllByRole('cell').at(-1)?.textContent).toBe('');
+  });
+
+  it('bố trí THẺ chỉ hiện Ghi chú khi có', () => {
+    render(<BangSanPham dong={[dong({ note: null })]} />);
+    const the = document.querySelector('.the-san-pham .the') as HTMLElement;
+    expect(within(the).queryByText('Ghi chú')).toBeNull();
+
+    cleanup();
+    render(<BangSanPham dong={[dong({ note: 'Đóng thùng 12' })]} />);
+    const the2 = document.querySelector('.the-san-pham .the') as HTMLElement;
+    expect(within(the2).getByText('Ghi chú')).toBeDefined();
+    expect(within(the2).getByText('Đóng thùng 12')).toBeDefined();
   });
 });

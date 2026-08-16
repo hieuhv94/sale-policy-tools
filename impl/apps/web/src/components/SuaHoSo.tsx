@@ -99,6 +99,7 @@ export function ThemDongSanPham({
   const [cpbh, datCpbh] = useState<string[]>(
     dongCu && dongCu.cpbh.length > 0 ? [...dongCu.cpbh] : [''],
   );
+  const [ghiChu, datGhiChu] = useState(dongCu?.note ?? '');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const xem = useXemTruocNguong(hoSoId, sanPham);
@@ -132,6 +133,11 @@ export function ThemDongSanPham({
         // một khoản họ có ý định khai, chỉ là bằng không. Bỏ đi sẽ làm lệch số
         // thứ tự của các khoản sau nó.
         cpbh: cpbh.map((v) => v || '0'),
+        // Ghi chú gửi lên KỂ CẢ khi rỗng: `opt()` phía máy chủ coi chuỗi rỗng
+        // là vắng mặt, và vắng mặt là lệnh xoá ghi chú cũ. Bỏ hẳn trường đi khi
+        // rỗng cũng cho cùng kết quả, nhưng viết thẳng thế này thì đọc mã là
+        // thấy ngay "xoá ô rồi lưu = xoá ghi chú".
+        note: ghiChu.trim(),
       };
       if (sua) await va(`/policies/${hoSoId}/lines/${dongCu.id}`, than);
       else await dang(`/policies/${hoSoId}/lines`, { productId: sanPham, ...than });
@@ -190,7 +196,7 @@ export function ThemDongSanPham({
               ◆
             </span>{' '}
             <strong>Chưa có quy định chiết khấu cho sản phẩm này.</strong> Không quy định nào phủ nó
-            với loại khách hàng và kênh của khách hàng này, nên dòng này sẽ{' '}
+            với loại khách hàng của khách hàng này, nên dòng này sẽ{' '}
             <strong>không có ngưỡng nào để đối chiếu</strong> — cột Tỷ lệ CK vẫn tính, chỉ là không
             đánh dấu vượt ngưỡng được. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một ngưỡng
             cho sản phẩm này.
@@ -227,6 +233,25 @@ export function ThemDongSanPham({
             + Thêm khoản chi phí
           </button>
         </div>
+
+        {/* Ghi chú ĐỨNG CUỐI, sau mọi con số: nó nói VỀ những con số ấy, nên
+            người lập viết nó sau khi đã nhập xong chứ không phải trước. */}
+        <Truong id="dsp-ghi-chu" nhan="Ghi chú">
+          {(p) => (
+            <textarea
+              {...p}
+              className="o-nhap"
+              rows={2}
+              maxLength={500}
+              value={ghiChu}
+              onChange={(e) => datGhiChu(e.target.value)}
+            />
+          )}
+        </Truong>
+        <p className="ghi-chu">
+          Ghi chú riêng cho dòng sản phẩm này — <strong>in ra bản CSBH A4</strong> và hiện trong bảng
+          cho mọi người duyệt. Tối đa 500 ký tự. Để trống thì không có ghi chú.
+        </p>
 
         <p className="ghi-chu">
           <strong>Giá bán Công ty</strong> và <strong>ngưỡng chiết khấu</strong> lấy từ danh mục và

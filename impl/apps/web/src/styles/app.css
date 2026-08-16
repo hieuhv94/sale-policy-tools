@@ -400,7 +400,38 @@ textarea.o-nhap { min-height: 6rem; }
   white-space: nowrap;
 }
 
+/* Màu nằm trên CHÍNH CON SỐ, không phải trên nền cả dòng (0027). Các ô còn lại
+   của dòng là số bình thường và phải đọc được như số bình thường. */
 .ty-le.vuot { color: var(--mau-loi); font-weight: 700; }
+.ty-le.thieu { color: var(--mau-canh-bao); font-weight: 700; }
+
+/**
+ * Dấu `?` cạnh con số — bấm hoặc rê chuột để biết vì sao nó có màu (0027).
+ *
+ * Là `<button>` nên phải gỡ hết dáng nút mặc định của trình duyệt. Giữ nguyên
+ * `cursor: help`: con trỏ dấu hỏi nói trước rằng đây là lời giải thích chứ
+ * không phải một thao tác — bấm nhầm vào một nút giữa bảng tiền là thứ người
+ * dùng sợ.
+ */
+.dau-hoi {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em; height: 1.15em;
+  margin-left: var(--k1);
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mau-chu-phu);
+  font: inherit;
+  font-size: 0.7em;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+.dau-hoi:hover { color: var(--mau-chu); }
+.dau-hoi:focus-visible { outline: 2px solid var(--mau-chinh); outline-offset: 2px; }
 
 /**
  * Dấu vượt ngưỡng: vòng tròn VIỀN chứ không tô đặc.
@@ -482,11 +513,8 @@ thead th {
 tbody tr:last-child th,
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--mau-nen-hover); }
-tr.vuot-nguong td, tr.vuot-nguong th { background: var(--mau-loi-nen); }
-/* Dòng lấy ngưỡng mặc định của sản phẩm vì không quy định nào khớp (0022).
-   Một dòng vừa vượt ngưỡng vừa thiếu quy định chỉ mang lớp `vuot-nguong` —
-   `lopDong()` ở `BangSanPham.tsx` quyết định, không phải thứ tự luật ở đây. */
-tr.thieu-quy-dinh td, tr.thieu-quy-dinh th { background: var(--mau-canh-bao-nen); }
+/* KHÔNG có luật tô nền cho cả dòng (0027). Cảnh báo vượt ngưỡng và thiếu quy
+   định nằm trên chính con số tỷ lệ — xem `.ty-le.vuot` / `.ty-le.thieu`. */
 
 .tong-cong { margin-top: var(--k3); text-align: right; }
 
@@ -517,15 +545,32 @@ tr.thieu-quy-dinh td, tr.thieu-quy-dinh th { background: var(--mau-canh-bao-nen)
   border: 1px solid var(--mau-vien);
   transform: translateY(0.1em);
 }
-.o-mau-loi { background: var(--mau-loi-nen); border-color: var(--mau-loi); }
-.o-mau-canh-bao { background: var(--mau-canh-bao-nen); border-color: var(--mau-canh-bao); }
+/* Ô màu ĐẶC, không phải nền nhạt: từ 0027 màu nằm trên chữ số, nên mẫu màu ở
+   chú thích phải là chính cái màu chữ ấy để đối chiếu bằng mắt được. */
+.o-mau-loi { background: var(--mau-loi); border-color: var(--mau-loi); }
+.o-mau-canh-bao { background: var(--mau-canh-bao); border-color: var(--mau-canh-bao); }
 
-/* Mã quy định chiết khấu (uuid). Chữ đơn cách và nhỏ hơn: 36 ký tự trong một
-   bảng mười cột thì bề ngang là thứ đắt nhất, và uuid đọc theo từng ký tự nên
-   chữ đơn cách dễ dò hơn hẳn. */
+/* Mã quy định chiết khấu. Chữ đơn cách và nhỏ hơn: bề ngang là thứ đắt nhất
+   trong bảng này, và mã được đọc theo từng ký tự để chép sang màn hình Chiết
+   khấu nên chữ đơn cách dễ dò hơn hẳn. */
 .ma-quy-dinh {
   font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
   font-size: var(--chu-rat-nho);
+  color: var(--mau-chu-phu);
+}
+
+/**
+ * Ghi chú của một dòng sản phẩm (0027) — cột CHỮ duy nhất giữa một bảng số.
+ *
+ * `white-space: pre-wrap` để giữ đúng cách người lập xuống dòng, `break-word`
+ * để một mã hàng dài không có dấu cách không đẩy vỡ bề ngang bảng. Chặn bề rộng
+ * ở 28ch: không chặn thì một ghi chú dài bóp mọi cột tiền bên trái nó lại.
+ */
+.ghi-chu-dong {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-width: 28ch;
+  font-size: var(--chu-nho);
   color: var(--mau-chu-phu);
 }
 
@@ -539,13 +584,14 @@ tr.thieu-quy-dinh td, tr.thieu-quy-dinh th { background: var(--mau-canh-bao-nen)
   padding: var(--k4);
   margin-bottom: var(--k3);
 }
-/* Bố trí THẺ (<640px) mang cùng bộ màu với bố trí BẢNG. Thiếu hai luật dưới thì
-   trên điện thoại chỉ còn dấu `!` — nền cảnh báo biến mất đúng ở màn hình khó
-   đọc nhất, và hai bố trí nói hai chuyện khác nhau về cùng một dòng. */
-.the.vuot-nguong { border-color: var(--mau-loi); background: var(--mau-loi-nen); }
-.the.thieu-quy-dinh { border-color: var(--mau-canh-bao); background: var(--mau-canh-bao-nen); }
+/* Bố trí THẺ (<640px) mang cùng bộ dấu hiệu với bố trí BẢNG, và từ 0027 đó là
+   màu trên chính con số tỷ lệ — thẻ không cần luật riêng nào nữa. */
 .the > :last-child { margin-bottom: 0; }
 .the-so { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--k3); margin: 0; }
+/* Ô chiếm cả bề ngang thẻ — dành cho ghi chú, thứ duy nhất trên thẻ là câu chữ
+   chứ không phải con số. Nhét vào nửa thẻ thì nó xuống dòng bốn lần. */
+.the-so .o-rong { grid-column: 1 / -1; }
+.the-so .ghi-chu-dong { max-width: none; }
 .the-so dt { font-size: var(--chu-nho); color: var(--mau-chu-phu); }
 .the-so dd { margin: 0; }
 
@@ -1115,11 +1161,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
     box-shadow: 1px 0 0 var(--mau-vien);
   }
   .bang-san-pham thead .cot-khoa { background: var(--mau-nen-phu); z-index: 2; }
-  .bang-san-pham tr.vuot-nguong .cot-khoa { background: var(--mau-loi-nen); }
-  /* Cột khoá có nền riêng để che phần đang cuộn phía dưới, nên nó KHÔNG thừa
-     hưởng nền cảnh báo của dòng — phải khai lại, nếu không thì cuộn ngang xong
-     dòng vàng trông như dòng thường ở đúng cột người dùng đang nhìn. */
-  .bang-san-pham tr.thieu-quy-dinh .cot-khoa { background: var(--mau-canh-bao-nen); }
+  /* Trước 0027 cột khoá phải khai lại nền cảnh báo của dòng vì nó có nền riêng
+     để che phần đang cuộn. Không còn nền dòng nào để khai lại. */
 }
 
 /* =========================================================================

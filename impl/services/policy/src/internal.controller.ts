@@ -38,7 +38,7 @@ export class PolicyInternalController {
               cpbh::text[] AS cpbh,
               cpbh_total::text AS cpbh_total, net_price::text AS net_price,
               discount_rate::text AS discount_rate, threshold_snap::text AS threshold_snap,
-              over_threshold
+              over_threshold, note
          FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
       [id],
     );

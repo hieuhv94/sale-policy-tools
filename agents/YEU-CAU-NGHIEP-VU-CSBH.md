@@ -442,10 +442,20 @@ xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu.
 > còn không chặn gửi duyệt — nên thiếu ngưỡng không thể là lý do từ chối. Nó còn đẩy người lập vào ngõ
 > cụt, vì TDV không có quyền khai quy định chiết khấu.
 
-Dòng đã lập trong tình huống này mang **nền vàng và dấu ◆** trong bảng dòng sản phẩm, để người duyệt
-biết con số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu
-quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có
-**chú thích màu** ngay dưới nó.
+Dòng đã lập trong tình huống này mang **dấu ◆ và con số Tỷ lệ CK màu vàng**, để người duyệt biết con
+số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu quy định
+thì con số là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có **chú thích
+màu** ngay dưới nó.
+
+> **Màu chỉ nằm trên con số tỷ lệ, không phủ cả dòng** `sửa 16/08`. Bản trước tô nền cả dòng. Nền ấy
+> phủ lên Giá bán Công ty và các khoản CPBH — những con số hoàn toàn bình thường — trong khi thứ duy
+> nhất đáng ngờ là tỷ lệ chiết khấu, và nó còn làm mọi ô trên dòng khó đọc hơn đúng lúc người duyệt
+> cần đọc chúng kỹ nhất.
+>
+> Cạnh con số có thêm một **dấu `?` nhỏ**: rê chuột hoặc bấm vào để đọc lý do đầy đủ — vượt ngưỡng
+> bao nhiêu so với ngưỡng nào, hay không tìm thấy quy định chiết khấu nào áp dụng. Là **nút** chứ
+> không phải chữ có `title`, vì `title` chỉ hiện khi có chuột: trên điện thoại và với người dùng bàn
+> phím, một dấu hỏi không bao giờ trả lời được là một dấu hỏi hỏng.
 
 #### 6.3.3. Truy vết: cột QĐCK và cột Id `bổ sung 15/08`
 
@@ -455,7 +465,7 @@ có cột **Id** mang cùng mã đó, và **ô tìm kiếm khớp cả mã**: ch
 thẳng dòng quy định cần xem. Xoá quy định không xoá dấu vết ấy trong hồ sơ đã lập.
 
 Cột **“Độ cụ thể”** đã **gỡ khỏi bảng** quy định. Nó là con số nội bộ để xếp thứ tự, và bày ra thì
-người đọc phải tự học luật trọng số 4/2/1 mới hiểu — trong khi cột *Áp dụng cho* ngay bên cạnh đã
+người đọc phải tự học luật trọng số mới hiểu — trong khi cột *Áp dụng cho* ngay bên cạnh đã
 nói rõ dòng nào hẹp hơn dòng nào.
 
 ### 6.4. Giấy tờ mẫu và người ký
@@ -514,6 +524,7 @@ hàng là thứ không ai làm.
 | CPBH tổng | Tổng mọi khoản CPBH của dòng đó. Dòng không có khoản nào thì tổng bằng 0 |
 | Giá thu về | `Giá bán buôn − CPBH tổng` |
 | Tỷ lệ CK | `(Giá bán Công ty − Giá thu về) / Giá bán Công ty`, tính theo phần trăm |
+| Ghi chú | `mới 16/08` Chữ tự do người lập gõ cho **riêng dòng ấy**, tối đa 500 ký tự. Không tham gia phép tính nào, hiện thành cột cuối của bảng dòng sản phẩm và **in ra bản CSBH A4**. Để trống thì ô trống — không có ghi chú mặc định nào |
 
 **Làm tròn** — tiền là số nguyên đồng; tỷ lệ CK làm tròn **hai chữ số thập phân**. Con số hiển thị
 và con số dùng để so ngưỡng phải là một: so sánh **sau khi** đã làm tròn.
@@ -704,7 +715,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-44 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+47 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
 định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
@@ -773,6 +784,10 @@ nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
 sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
+
+**Ghi chú dòng sản phẩm, và màu đúng chỗ** (16/08) — mỗi dòng sản phẩm trong hồ sơ có một ô **ghi
+chú** tự do 500 ký tự, in ra cả bản A4 · **màu cảnh báo chỉ tô con số Tỷ lệ CK**, không phủ nền cả
+dòng · thêm **dấu `?`** cạnh con số, rê chuột hoặc bấm để đọc lý do đầy đủ.
 
 **Hai yếu tố, và ba danh mục địa lý biến mất** (16/08) — **ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
 phẩm và loại khách hàng**; chiều **kênh bán** rời khỏi quy định · **bỏ hẳn ba trường Tỉnh/thành ·

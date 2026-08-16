@@ -70,6 +70,13 @@ const lineShape = {
    * hiểu vì sao.
    */
   cpbh: opt(danhSach(moneyKhongAm())),
+  /**
+   * Ghi chú tự do cho riêng dòng này (`0027`).
+   *
+   * 500 ký tự là chỗ cho vài câu, không phải chỗ cho một phụ lục — ô này in
+   * thẳng vào bản CSBH A4 và một đoạn văn ở đó sẽ đẩy vỡ bảng mười cột.
+   */
+  note: opt(str(1, 500)),
 };
 
 const WRITERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'];
@@ -189,6 +196,9 @@ export class PoliciesController {
     const b = validate(body, {
       wholesalePrice: money(),
       cpbh: opt(danhSach(moneyKhongAm())),
+      // Vắng mặt là XOÁ ghi chú, không phải "giữ nguyên": biểu mẫu sửa dòng gửi
+      // lên toàn bộ nội dung dòng, cùng luật với `cpbh` ngay trên.
+      note: opt(str(1, 500)),
     });
     return this.policies.updateLine(id, lineId, b, me);
   }

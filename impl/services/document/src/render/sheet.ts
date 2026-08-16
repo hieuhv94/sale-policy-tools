@@ -117,6 +117,7 @@ const lineRow = (soCot: number) => (l: PolicyLine, i: number): string => `
     <td class="r">${money(l.net_price)}</td>
     <td class="r">${pct(l.discount_rate)}</td>
     <td class="r">${pct(l.threshold_snap)}</td>
+    <td class="gc">${esc(l.note ?? '')}</td>
   </tr>`;
 
 export function sheetHtml(inp: SheetInput): string {
@@ -148,6 +149,10 @@ export function sheetHtml(inp: SheetInput): string {
   .lines th { background: #eee; }
   .lines td.r { text-align: right; }
   .lines td.n { text-align: center; }
+  /* Ghi chú là cột chữ DUY NHẤT ở nửa phải của bảng số. Cho nó xuống dòng —
+     nowrap như các cột tiền sẽ đẩy vỡ bề ngang trang giấy ngay ở ghi chú đầu
+     tiên dài hơn một cụm từ. */
+  .lines td.gc { white-space: pre-wrap; word-break: break-word; max-width: 45mm; }
   /* Dòng tiêu đề LẶP LẠI ở mỗi trang, và không dòng nào bị cắt đôi qua trang.
      Với hồ sơ 200 dòng thì đây là khác biệt giữa đọc được và không (DOC-19). */
   thead { display: table-header-group; }
@@ -205,7 +210,7 @@ export function sheetHtml(inp: SheetInput): string {
       <th>#</th><th>Mã SP</th><th>Tên sản phẩm</th>
       <th>Giá bán Công ty</th><th>Giá bán buôn</th>
       ${Array.from({ length: soCotCpbh(p.lines) }, (_, k) => `<th>CPBH${k + 1}</th>`).join('')}
-      <th>Giá thu về</th><th>Tỷ lệ CK</th><th>Ngưỡng</th>
+      <th>Giá thu về</th><th>Tỷ lệ CK</th><th>Ngưỡng</th><th>Ghi chú</th>
     </tr>
   </thead>
   <tbody>${p.lines.map(lineRow(soCotCpbh(p.lines))).join('')}</tbody>

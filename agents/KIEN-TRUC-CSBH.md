@@ -250,6 +250,7 @@ pol.policy_line
   threshold_snap      numeric(5,2)        -- ngưỡng lúc submit. NULL khi KHONG_CO (0023)
   threshold_source    text                -- RULE | KHONG_CO | (PRODUCT_DEFAULT, NULL: lịch sử)
   rule_code_snap      text                -- MÃ quy định đã cho ra threshold_snap (0022, 0024)
+  note                text                -- ghi chú tự do của người lập cho RIÊNG dòng này (0027)
   over_threshold      boolean GENERATED ALWAYS AS
                         (threshold_snap IS NOT NULL AND discount_rate > threshold_snap) STORED
 
@@ -258,7 +259,21 @@ pol.policy_line
     (threshold_source = 'PRODUCT_DEFAULT' AND rule_code_snap IS NULL)     OR
     (threshold_source = 'KHONG_CO'        AND rule_code_snap IS NULL)     OR
     (threshold_source IS NULL             AND rule_code_snap IS NULL))
+
+  CONSTRAINT ghi_chu_khong_rong CHECK (note IS NULL OR btrim(note) <> '')
 ```
+
+> **`note` là cột DUY NHẤT trên dòng không phải ảnh chụp** `0027`
+>
+> Mọi cột `*_snap` cạnh nó là bản sao của danh mục tại thời điểm lập. `note` thì không có bản gốc
+> nào để chụp — nó là chữ người lập gõ vào chính dòng này. Vì thế không đóng băng, không đồng bộ,
+> không tra lại: nó chỉ đổi khi người dùng sửa dòng.
+>
+> Nó vẫn **đi theo dòng khi hồ sơ lên phiên bản mới**, cùng luật với `wholesale_price` và `cpbh`:
+> phiên bản mới phải chứa lại toàn bộ sản phẩm cũ (POL-05), nên nó phải chứa lại cả ghi chú.
+>
+> Chuỗi rỗng bị chặn ở CSDL chứ không chỉ ở DTO. Chuỗi rỗng và `NULL` cùng nghĩa "không ghi chú", và
+> hai cách viết một nghĩa là hai cách để một bộ lọc sót.
 
 > **Vì sao lưu cả nguồn ngưỡng** `0022`
 >

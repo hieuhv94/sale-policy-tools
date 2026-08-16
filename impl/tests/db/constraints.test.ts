@@ -574,3 +574,42 @@ describe('0026 · chiết khấu chỉ phụ thuộc nhóm sản phẩm và lo�
     });
   });
 });
+
+/**
+ * 0027 — ghi chú của dòng sản phẩm.
+ *
+ * Chặn chuỗi rỗng ở CSDL chứ không chỉ ở DTO: chuỗi rỗng và NULL cùng nghĩa
+ * "không ghi chú", và hai cách viết một nghĩa là hai cách để một bộ lọc sót.
+ * Tầng ứng dụng đã quên chuẩn hoá một lần rồi (`delivery_address`).
+ */
+describe('0027 · ghi_chu_khong_rong — ghi chú rỗng thì không phải ghi chú', () => {
+  const mkLine = (c: Client, policyId: string, note: string | null) =>
+    c.query(
+      `INSERT INTO pol.policy_line
+         (policy_id, product_id, product_code_snap, product_name_snap,
+          company_price_snap, wholesale_price, discount_rate, note)
+       VALUES ($1, $2, 'SP-01', 'San pham', 100000, 90000, 10.00, $3)`,
+      [policyId, crypto.randomUUID(), note],
+    );
+
+  it('NULL là hợp lệ — phần lớn dòng không có ghi chú', async () => {
+    await inRollback(db, async () => {
+      const pol = await mkPolicy(db, `GC-${Date.now()}`, await mkCustomer(db, 'GC'), 'NHAP');
+      await mkLine(db, pol, null);
+      const r = await db.query(`SELECT note FROM pol.policy_line WHERE policy_id = $1`, [pol]);
+      expect(r.rows[0].note).toBeNull();
+    });
+  });
+
+  it('chuỗi rỗng và chuỗi toàn khoảng trắng đều bị từ chối', async () => {
+    for (const rong of ['', '   ']) {
+      await inRollback(db, async () => {
+        const pol = await mkPolicy(db, `GC-${Date.now()}-${rong.length}`,
+          await mkCustomer(db, 'GC'), 'NHAP');
+        const err = await expectSqlErrorInTx(db, () => mkLine(db, pol, rong));
+        expect(err.code).toBe('23514');
+        expect(err.message).toContain('ghi_chu_khong_rong');
+      });
+    }
+  });
+});

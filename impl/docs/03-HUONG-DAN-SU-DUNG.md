@@ -194,15 +194,21 @@ việc khác nhau.
 
 ### Hai màu trong bảng dòng sản phẩm
 
-Ngay dưới bảng có **chú thích màu** giải nghĩa cả hai:
+Màu nằm trên **chính con số ở cột Tỷ lệ CK**, không phủ nền cả dòng: những ô còn lại của dòng là số
+bình thường và vẫn phải đọc được như số bình thường. Ngay dưới bảng có **chú thích màu** giải nghĩa
+cả hai:
 
 | Dấu hiệu | Nghĩa | Có chặn không |
 |---|---|---|
-| Nền **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
-| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách hàng của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
+| Tỷ lệ CK màu **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
+| Tỷ lệ CK màu **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách hàng của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
 
-Dòng vừa vượt ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
+Dòng vừa vượt ngưỡng vừa thiếu quy định thì con số là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
 nhưng dấu `◆` vẫn còn.
+
+**Không nhớ màu nghĩa là gì thì bấm dấu `?`** ngay cạnh con số. Rê chuột cũng được; trên điện thoại
+thì bấm. Nó nói đủ lý do: vượt ngưỡng bao nhiêu so với ngưỡng nào, hay không tìm thấy quy định chiết
+khấu nào áp dụng.
 
 **Bạn được báo trước, không phải sau.** Ngay khi chọn sản phẩm trong hộp thoại thêm dòng, nếu không
 quy định nào khớp thì một khối vàng hiện ra kèm **đúng con số ngưỡng sẽ dùng**. Báo trước vì ngưỡng
@@ -211,6 +217,17 @@ nhập lại từ đầu.
 
 Sản phẩm **không có cả quy định lẫn mặc định** thì vẫn thêm dòng được. Dòng ấy đơn giản là không có
 ngưỡng nào để đối chiếu: cột *Tỷ lệ CK* vẫn tính đủ, chỉ là không bao giờ bị đánh dấu vượt ngưỡng.
+
+### Cột Ghi chú
+
+Ô chữ tự do cho **riêng một dòng sản phẩm** — "giá theo thoả thuận tháng 8", "khách yêu cầu đóng
+thùng 12". Nhập trong hộp thoại thêm hoặc sửa dòng, tối đa 500 ký tự.
+
+- Ghi chú **in ra bản CSBH A4**, ở cột cuối của bảng dòng sản phẩm. Người duyệt và người ký đều đọc
+  được nó.
+- **Xoá sạch ô rồi Lưu là xoá ghi chú.** Hộp thoại sửa dòng gửi lên toàn bộ nội dung dòng, nên bỏ
+  trống ô nghĩa là bạn vừa bỏ ghi chú đi.
+- Ghi chú **đi theo dòng sang phiên bản mới** của hồ sơ, trừ khi chính dòng ấy được nhập lại.
 
 ### Cột QĐCK
 

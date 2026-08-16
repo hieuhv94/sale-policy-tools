@@ -1860,3 +1860,111 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
       .toBe(409);
   });
 });
+
+/**
+ * 0027 — ghi chú tự do trên từng dòng sản phẩm.
+ *
+ * Cột chữ duy nhất giữa một dòng toàn số, và là thứ duy nhất trên dòng KHÔNG
+ * phải ảnh chụp của danh mục: nó là chữ người lập gõ vào chính dòng này.
+ */
+describe('0027 ghi chú của dòng sản phẩm', () => {
+  it('lưu và trả về nguyên văn khi lập hồ sơ', async () => {
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const r = await post('/policies', {
+      customerId,
+      lines: [line(productId, { note: 'Giá theo thoả thuận tháng 8' })],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.lines[0].note).toBe('Giá theo thoả thuận tháng 8');
+  });
+
+  it('không gửi ghi chú thì là null, không phải chuỗi rỗng', async () => {
+    // Chuỗi rỗng và null cùng nghĩa "không ghi chú" — hai cách viết một nghĩa là
+    // hai cách để một bộ lọc sót. Ràng buộc `ghi_chu_khong_rong` chặn ở CSDL.
+    const d = await draft();
+    expect((await get(`/policies/${d.id}`)).body.lines[0].note).toBeNull();
+  });
+
+  it('chuỗi rỗng nghĩa là KHÔNG ghi chú, và lưu xuống thành null', async () => {
+    // `opt()` coi chuỗi rỗng là vắng mặt — nhờ đó ô ghi chú của biểu mẫu gửi
+    // lên được ở mọi lượt lưu mà không phải tự quyết định khi nào thì bỏ trường
+    // đi. Chuỗi rỗng KHÔNG bao giờ xuống tới CSDL: `ghi_chu_khong_rong` chặn nó
+    // ở đó, phòng đường ghi nào khác quên chuẩn hoá.
+    const d = await draft();
+    const r = await post(`/policies/${d.id}/lines`, line(await makeProduct(), { note: '' }));
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.lines.at(-1).note).toBeNull();
+  });
+
+  it('chuỗi toàn khoảng trắng bị từ chối kèm tên trường', async () => {
+    // Khác chuỗi rỗng: người dùng gõ mấy dấu cách rồi lưu là một nhầm lẫn, và
+    // `str()` cắt khoảng trắng trước khi đo độ dài nên nó rơi xuống dưới tối
+    // thiểu 1 ký tự.
+    const d = await draft();
+    const r = await post(`/policies/${d.id}/lines`, line(await makeProduct(), { note: '   ' }));
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('note');
+  });
+
+  it('quá 500 ký tự thì 400 — ô này in thẳng vào bản A4', async () => {
+    const d = await draft();
+    const r = await post(
+      `/policies/${d.id}/lines`,
+      line(await makeProduct(), { note: 'x'.repeat(501) }),
+    );
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('note');
+  });
+
+  it('sửa dòng đổi được ghi chú, và BỎ trường đi là XOÁ ghi chú', async () => {
+    // Biểu mẫu sửa dòng gửi lên toàn bộ nội dung dòng, nên vắng mặt ô ghi chú
+    // nghĩa là người dùng vừa xoá nó — không phải "giữ nguyên giá trị cũ".
+    const d = await draft();
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+
+    expect(
+      (await patch(`/policies/${d.id}/lines/${l.id}`, {
+        wholesalePrice: '90000',
+        note: 'Khách yêu cầu đóng thùng 12',
+      })).status,
+    ).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines[0].note).toBe(
+      'Khách yêu cầu đóng thùng 12',
+    );
+
+    expect(
+      (await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '90000' })).status,
+    ).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines[0].note).toBeNull();
+  });
+
+  it('phiên bản mới CHÉP LẠI ghi chú của dòng thừa kế', async () => {
+    // Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ (POL-05). Chép dòng mà bỏ
+    // ghi chú lại thì bản ký tên lần hai thiếu đúng phần chữ người lập viết ra.
+    const customerId = await makeCustomer();
+    const productId = await makeProduct();
+    const d = await draft({ customerId, productId });
+    const l = (await get(`/policies/${d.id}`)).body.lines[0];
+    await patch(`/policies/${d.id}/lines/${l.id}`, {
+      wholesalePrice: '90000',
+      note: 'Ghi chú phải sống qua phiên bản',
+    });
+    await runToActive(d);
+
+    // BỔ SUNG một sản phẩm khác: dòng cũ KHÔNG nằm trong danh sách gửi lên nên
+    // nó là dòng thừa kế thuần tuý.
+    const spMoi = await makeProduct();
+    const v2 = await post('/policies', {
+      customerId,
+      mode: 'SUPPLEMENT',
+      lines: [line(spMoi)],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+
+    const cu = (v2.body.lines as { productId: string; note: string | null }[]).find(
+      (x) => x.productId === productId,
+    );
+    expect(cu?.note).toBe('Ghi chú phải sống qua phiên bản');
+  });
+});

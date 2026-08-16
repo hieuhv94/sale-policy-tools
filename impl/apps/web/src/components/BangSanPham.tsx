@@ -1,11 +1,11 @@
 /**
  * Bảng dòng sản phẩm — màn hình khó nhất của cả ứng dụng.
  *
- * Mười cột số phải đọc được trên màn hình rộng 360px. Ba yêu cầu, ba cách bố
+ * Hơn mười cột phải đọc được trên màn hình rộng 360px. Ba yêu cầu, ba cách bố
  * trí khác nhau, và điều quan trọng là chúng KHÔNG phải ba mức độ của cùng một
  * thứ:
  *
- *   - **≥1024px (`FE-05`)** — đủ 10 cột, không cắt chữ.
+ *   - **≥1024px (`FE-05`)** — đủ mọi cột, không cắt chữ.
  *   - **640–1023px (`FE-04`)** — cuộn ngang TRONG KHUNG RIÊNG, cột Tên sản phẩm
  *     khoá cố định bên trái. Không có cột khoá thì cuộn sang phải là mất dấu
  *     đang đọc dòng nào — với bảng tiền thì đó là đọc nhầm số của sản phẩm khác.
@@ -47,7 +47,7 @@ export type DongSanPham = {
    * Ngưỡng của dòng này từ đâu ra (`0022`, `0023`).
    *
    * `KHONG_CO` nghĩa là **không có quy định chiết khấu nào phủ** sản phẩm này
-   * với loại khách và kênh của khách hàng — không phải lỗi, nhưng là thứ người
+   * với loại khách hàng của khách hàng — không phải lỗi, nhưng là thứ người
    * duyệt cần biết: dòng ấy không có ngưỡng nào để đối chiếu.
    *
    * `PRODUCT_DEFAULT` chỉ còn là nhãn LỊCH SỬ. Ngưỡng mặc định trên sản phẩm đã
@@ -59,6 +59,8 @@ export type DongSanPham = {
   thresholdSource?: 'RULE' | 'PRODUCT_DEFAULT' | 'KHONG_CO' | null | undefined;
   /** Mã quy định đã cho ra ngưỡng. `null` khi không quy định nào khớp (`0024`). */
   ruleCode?: string | null | undefined;
+  /** Ghi chú tự do của người lập cho riêng dòng này (`0027`). */
+  note?: string | null | undefined;
 };
 
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
@@ -66,13 +68,48 @@ export const thieuQuyDinh = (d: DongSanPham): boolean =>
   d.thresholdSource === 'PRODUCT_DEFAULT' || d.thresholdSource === 'KHONG_CO';
 
 /**
- * Lớp CSS của một dòng. Hai cảnh báo có thể cùng đúng trên một dòng, mà một dòng
- * chỉ tô được một nền — nên VƯỢT NGƯỠNG THẮNG: nó là thứ chặn hồ sơ đi tiếp,
- * còn thiếu quy định chỉ là thông tin về nguồn con số. Dấu hiệu thiếu quy định
- * không mất đi khi đó: nó nằm trong ô Tỷ lệ CK, ngoài nền.
+ * Lớp CSS của ô TỶ LỆ CK — không phải của cả dòng (`0027`).
+ *
+ * Trước đây cả dòng đổi nền. Đọc được, nhưng sai chỗ: nền phủ lên cả Giá bán
+ * Công ty lẫn các khoản CPBH, những con số hoàn toàn bình thường, trong khi thứ
+ * duy nhất đáng ngờ là **tỷ lệ chiết khấu**. Nền đỏ cả dòng còn làm mọi ô trên
+ * dòng khó đọc hơn đúng lúc người duyệt cần đọc chúng kỹ nhất.
+ *
+ * Hai cảnh báo cùng đúng trên một dòng thì VƯỢT NGƯỠNG thắng về màu — nó là thứ
+ * người duyệt phải xử lý. Dấu hiệu kia không mất: cả hai ký hiệu `!` và `◆` đều
+ * đứng cạnh con số, và dấu `?` giải thích đủ cả hai.
  */
-export const lopDong = (d: DongSanPham): string | undefined =>
-  d.overThreshold ? 'vuot-nguong' : thieuQuyDinh(d) ? 'thieu-quy-dinh' : undefined;
+export const lopTyLe = (d: DongSanPham): string =>
+  ['ty-le', d.overThreshold ? 'vuot' : thieuQuyDinh(d) ? 'thieu' : '']
+    .filter(Boolean)
+    .join(' ');
+
+/**
+ * Câu giải thích hiện khi rê chuột vào dấu `?` (`0027`).
+ *
+ * Một câu ĐỦ NGHĨA chứ không phải một nhãn: người đọc nó đang hỏi "vì sao con số
+ * này có màu", nên câu trả lời phải nói cả nguyên nhân lẫn hệ quả. Trả `undefined`
+ * khi dòng bình thường — không có gì để hỏi thì không bày dấu hỏi.
+ */
+export const lyDoTyLe = (d: DongSanPham): string | undefined => {
+  const phan: string[] = [];
+  if (d.overThreshold) {
+    phan.push(
+      `Vượt ngưỡng: tỷ lệ chiết khấu ${tyLe(d.discountRate)} cao hơn ngưỡng ` +
+        `${tyLe(d.threshold)} của quy định đang áp dụng. Hồ sơ vẫn gửi duyệt được.`,
+    );
+  }
+  if (thieuQuyDinh(d)) {
+    phan.push(
+      d.thresholdSource === 'KHONG_CO'
+        ? 'Không tìm thấy quy định chiết khấu nào áp dụng cho sản phẩm này với loại ' +
+          'khách hàng của khách hàng này, nên dòng không có ngưỡng nào để đối chiếu.'
+        : 'Không tìm thấy quy định chiết khấu nào áp dụng, ngưỡng lấy từ mặc định ' +
+          'cũ khai trong danh mục sản phẩm.',
+    );
+  }
+  return phan.length === 0 ? undefined : phan.join(' ');
+};
 
 /** Cột cố định, KHÔNG kể các cột CPBH — số cột CPBH tuỳ dữ liệu. */
 export const COT_TRUOC = [
@@ -97,6 +134,14 @@ export const COT_SAU = [
    * đã mang dấu ◆ nói đúng điều đó rồi.
    */
   { khoa: 'ruleCode', nhan: 'QĐCK' },
+  /*
+   * Ghi chú của người lập cho riêng dòng này (`0027`).
+   *
+   * ĐỨNG CUỐI vì nó là cột chữ duy nhất giữa một bảng số: xen vào giữa thì mọi
+   * cột tiền bên phải nó mất thế thẳng hàng, và bảng tiền mà không đọc được
+   * theo cột dọc là bảng không kiểm được.
+   */
+  { khoa: 'note', nhan: 'Ghi chú' },
 ] as const;
 
 /**
@@ -127,8 +172,9 @@ export const cotCho = (dong: readonly DongSanPham[]) => [
  * đọc màn hình, và màu. Bỏ bất kỳ cái nào thì có một nhóm người dùng không thấy.
  */
 function OTyLe({ d }: { d: DongSanPham }) {
+  const lyDo = lyDoTyLe(d);
   return (
-    <span className={d.overThreshold ? 'ty-le vuot' : 'ty-le'}>
+    <span className={lopTyLe(d)}>
       {d.overThreshold && (
         <span className="dau-vuot" aria-hidden="true">
           !
@@ -144,8 +190,8 @@ function OTyLe({ d }: { d: DongSanPham }) {
       {/*
         Dấu thiếu quy định đi CÙNG chỗ với dấu vượt ngưỡng và theo cùng ba lớp
         (`FE-28`): một ký hiệu nhìn thấy, một câu cho trình đọc màn hình, và màu
-        nền của dòng. Nó vẫn hiện khi dòng đang đỏ vì vượt ngưỡng — hai chuyện
-        khác nhau, mất một cái là mất một nửa câu trả lời.
+        của chính con số. Nó vẫn hiện khi con số đang đỏ vì vượt ngưỡng — hai
+        chuyện khác nhau, mất một cái là mất một nửa câu trả lời.
       */}
       {thieuQuyDinh(d) && (
         <>
@@ -162,6 +208,23 @@ function OTyLe({ d }: { d: DongSanPham }) {
           </span>
         </>
       )}
+      {/*
+        Dấu `?` — lý do đầy đủ, hiện khi rê chuột (`0027`).
+
+        Là `<button>` chứ không phải `<span title>`: `title` chỉ hiện khi có
+        CHUỘT. Trên điện thoại, và với người dùng bàn phím, một `span` mang
+        `title` là một dấu hỏi không bao giờ trả lời được. Nút thì nhận được
+        tiêu điểm, `aria-label` mang nguyên câu ấy, nên trình đọc màn hình và
+        người dùng Tab đều tới được cùng một nội dung.
+
+        Không mở hộp thoại: câu trả lời dài hai dòng, và bắt người dùng đóng một
+        hộp thoại để quay lại bảng là đắt hơn thứ họ vừa hỏi.
+      */}
+      {lyDo && (
+        <button type="button" className="dau-hoi" title={lyDo} aria-label={lyDo}>
+          ?
+        </button>
+      )}
     </span>
   );
 }
@@ -170,8 +233,8 @@ function OTyLe({ d }: { d: DongSanPham }) {
  * Chú thích màu — bảng tô màu mà không nói màu nghĩa là gì thì màu chỉ là trang trí.
  *
  * Hiện CẢ HAI mục ngay cả khi bảng chưa có dòng nào mang màu ấy. Người dùng gặp
- * dòng đỏ đầu tiên vào lúc đang lập hồ sơ dở, và đó là lúc tệ nhất để đi tìm xem
- * màu đỏ nghĩa là gì.
+ * con số đỏ đầu tiên vào lúc đang lập hồ sơ dở, và đó là lúc tệ nhất để đi tìm
+ * xem màu đỏ nghĩa là gì.
  */
 export function ChuThichMau() {
   return (
@@ -190,9 +253,18 @@ export function ChuThichMau() {
           ◆
         </span>{' '}
         <strong>Chưa có quy định chiết khấu</strong> — không quy định nào phủ sản phẩm này với loại
-        khách và kênh của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm, hoặc
+        khách hàng của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm, hoặc
         không có ngưỡng nào để đối chiếu. Hồ sơ vẫn lập và vẫn duyệt được; báo Quản trị hệ thống nếu
         cần một ngưỡng cho sản phẩm này.
+      </li>
+      <li>
+        <span className="o-mau" aria-hidden="true" />
+        Màu chỉ nằm trên <strong>con số tỷ lệ</strong>, không phủ cả dòng: những ô còn lại của dòng
+        vẫn là số bình thường và vẫn phải đọc được. Rê chuột hoặc bấm vào dấu{' '}
+        <span className="dau-hoi" aria-hidden="true">
+          ?
+        </span>{' '}
+        cạnh con số để xem lý do đầy đủ.
       </li>
       <li>
         <span className="o-mau" aria-hidden="true" />
@@ -287,7 +359,7 @@ export function BangSanPham({
           </thead>
           <tbody>
             {dong.map((d) => (
-              <tr key={d.id} className={lopDong(d)}>
+              <tr key={d.id}>
                 <td>{d.productCode}</td>
                 <th scope="row" className="cot-khoa">
                   {d.productName}
@@ -306,6 +378,7 @@ export function BangSanPham({
                   <OTyLe d={d} />
                 </td>
                 <td className="ma-quy-dinh">{d.ruleCode ?? ''}</td>
+                <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   <td>
                     <div className="nhom-nut nhom-nut-gon">
@@ -336,7 +409,7 @@ export function BangSanPham({
       {/* <640px: thẻ. Đủ MỌI cột, bốn ô CPBH gấp lại. */}
       <ul className="the-san-pham">
         {dong.map((d) => (
-          <li key={d.id} className={['the', lopDong(d)].filter(Boolean).join(' ')}>
+          <li key={d.id} className="the">
             <div className="the-dau">
               <span className="ma">{d.productCode}</span>
               <h3>{d.productName}</h3>
@@ -366,6 +439,14 @@ export function BangSanPham({
                 <div>
                   <dt>QĐCK</dt>
                   <dd className="ma-quy-dinh">{d.ruleCode}</dd>
+                </div>
+              )}
+              {/* Ghi chú chiếm CẢ BỀ NGANG của thẻ (`o-rong`): nó là câu chữ,
+                  và một câu nhét vào nửa thẻ thì xuống dòng bốn lần. */}
+              {d.note && (
+                <div className="o-rong">
+                  <dt>Ghi chú</dt>
+                  <dd className="ghi-chu-dong">{d.note}</dd>
                 </div>
               )}
             </dl>

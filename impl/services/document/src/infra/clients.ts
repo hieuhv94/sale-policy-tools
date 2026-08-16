@@ -28,6 +28,8 @@ export type PolicyLine = {
   discount_rate: string;
   threshold_snap: string | null;
   over_threshold: boolean;
+  /** Ghi chú tự do của người lập cho riêng dòng này (`0027`). */
+  note: string | null;
 };
 
 export type PolicyFull = {

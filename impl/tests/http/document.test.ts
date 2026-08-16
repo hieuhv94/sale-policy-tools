@@ -134,7 +134,12 @@ const makeCustomer = async (): Promise<{ id: string; code: string }> => {
   return { id: r.body.id as string, code };
 };
 
-const line = (productId: string) => ({ productId, wholesalePrice: '90000', cpbh: ['3000'] });
+const line = (productId: string, over: Record<string, unknown> = {}) => ({
+  productId,
+  wholesalePrice: '90000',
+  cpbh: ['3000'],
+  ...over,
+});
 
 async function draft(lineCount = 1): Promise<{ id: string; customerId: string; code: string }> {
   const cus = await makeCustomer();
@@ -684,4 +689,50 @@ describe('DOC-17 · WF-13 · WF-18 bản scan bị huỷ khi kế toán yêu c�
     expect(gone.status).toBe(404);
     expect(gone.body.code).toBe('FILE_DISCARDED');
   }, 120_000);
+});
+
+/**
+ * 0027 — ghi chú của dòng sản phẩm phải có mặt trên bản A4.
+ *
+ * Ghi chú chỉ hiện trên màn hình là ghi chú vô dụng: bản A4 mới là thứ người
+ * duyệt ký tên vào, và nếu nó thiếu đúng phần chữ người lập viết ra thì người
+ * lập sẽ quay về cách cũ — gọi điện nói miệng.
+ */
+describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
+  it('cột Ghi chú có trong bản HTML, và nội dung hiện nguyên văn', async () => {
+    const cus = await makeCustomer();
+    const productId = await makeProduct(90);
+    const r = await ppost(
+      '/policies',
+      { customerId: cus.id, lines: [line(productId, { note: 'Khách yêu cầu đóng thùng 12' })] },
+      'tdv01',
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+
+    const html = (
+      await (await http(doc))
+        .get(`/policies/${r.body.id}/render?format=html`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).text;
+
+    expect(html).toContain('<th>Ghi chú</th>');
+    expect(html).toContain('Khách yêu cầu đóng thùng 12');
+  }, 60_000);
+
+  it('dòng không có ghi chú vẫn đủ số cột — ô rỗng chứ không thiếu ô', async () => {
+    // Bảng in ra giấy phải có số ô đều nhau ở mọi dòng; thiếu một ô là mọi cột
+    // bên phải nó trượt sang trái và người ký đối chiếu nhầm cột.
+    const d = await draft(1);
+    const html = (
+      await (await http(doc))
+        .get(`/policies/${d.id}/render?format=html`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).text;
+
+    const bang = html.slice(html.indexOf('<table class="lines">'));
+    const soCotTieuDe = (bang.slice(0, bang.indexOf('</thead>')).match(/<th>/g) ?? []).length;
+    const hang = bang.slice(bang.indexOf('<tbody>'), bang.indexOf('</tbody>'));
+    const soO = (hang.match(/<td/g) ?? []).length;
+    expect(soO).toBe(soCotTieuDe);
+  }, 60_000);
 });

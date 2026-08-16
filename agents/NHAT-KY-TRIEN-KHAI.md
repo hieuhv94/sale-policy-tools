@@ -3526,3 +3526,70 @@ phẩm ấy lấy 15% từ `CK-SUA`.
   có cấu trúc trên khách hàng chứ không phải dựng lại ba danh mục vừa bỏ.
 - Dữ liệu ba trường ấy trên chồng demo và trên mọi CSDL đã chạy migration **mất hẳn**, không có bản
   lưu tạm.
+
+---
+
+## P34 — Màu đúng chỗ, dấu hỏi biết trả lời, và một ô ghi chú
+
+Hai yêu cầu nhỏ về giao diện, và một trong hai hoá ra là sửa một quyết định của chính P28.
+
+### Nền cả dòng là tô sai chỗ
+
+P28 tô nền cả dòng cho hai cảnh báo. Đọc được — nhưng nền phủ lên Giá bán Công ty và các khoản CPBH,
+những con số **hoàn toàn bình thường**, trong khi thứ duy nhất đáng ngờ là tỷ lệ chiết khấu. Tệ hơn:
+nền đỏ làm mọi ô trên dòng khó đọc hơn đúng lúc người duyệt cần đọc chúng kỹ nhất.
+
+Chuyển màu về đúng con số. `lopDong()` biến mất, `lopTyLe()` thay chỗ. Cùng với nó là bốn luật CSS
+biến mất — trong đó có hai luật khai lại nền cho **cột khoá** ở dải 640–1023px, thứ chỉ tồn tại vì
+cột khoá có nền riêng để che phần đang cuộn phía dưới. Bỏ nền dòng thì cả nhánh phụ thuộc ấy tự rụng.
+
+Ô màu trong chú thích cũng phải đổi: từ nền nhạt sang **màu đặc**. Mẫu màu phải là chính cái màu
+người dùng nhìn thấy, mà giờ nó là màu chữ chứ không phải màu nền.
+
+### Dấu `?`: `<button>` chứ không phải `<span title>`
+
+`title` chỉ hiện khi có CHUỘT. Trên điện thoại — nơi `FE-03` bắt cả bảng gập thành thẻ — và với
+người dùng bàn phím, một `span` mang `title` là một dấu hỏi không bao giờ trả lời được. Nút thì nhận
+tiêu điểm, `aria-label` mang nguyên câu ấy, nên trình đọc màn hình và người dùng Tab đều tới được
+cùng một nội dung. `cursor: help` giữ nguyên để nó không trông như một thao tác giữa bảng tiền.
+
+Lý do là **một câu đủ nghĩa**, không phải một nhãn: người bấm vào đang hỏi "vì sao con số này có
+màu", nên câu trả lời nói cả nguyên nhân lẫn hệ quả, và khi hai lý do cùng đúng thì nói **cả hai**.
+
+### `note`: cột duy nhất trên dòng không phải ảnh chụp
+
+Mọi cột `*_snap` cạnh nó là bản sao của danh mục tại thời điểm lập. `note` không có bản gốc nào để
+chụp — nó là chữ người lập gõ vào chính dòng này. Kéo theo ba quyết định:
+
+- **Đi theo dòng sang phiên bản mới**, cùng luật với `wholesale_price` và `cpbh` (POL-05).
+- **Vắng mặt là XOÁ, không phải "giữ nguyên"** — hộp thoại sửa dòng gửi lên toàn bộ nội dung dòng,
+  nên không có ô ghi chú nghĩa là người dùng vừa bỏ nó đi. Cùng ngữ nghĩa với `cpbh` ngay bên cạnh.
+- **In ra bản A4.** Ghi chú chỉ hiện trên màn hình là ghi chú vô dụng: bản A4 mới là thứ được ký, và
+  nếu nó thiếu đúng phần chữ người lập viết ra thì người lập quay về cách cũ — gọi điện nói miệng.
+
+Cột đứng **CUỐI** cả trên màn hình lẫn trên giấy: nó là cột chữ duy nhất giữa một bảng số, xen vào
+giữa thì mọi cột tiền bên phải mất thế thẳng hàng, và bảng tiền không đọc được theo cột dọc là bảng
+không kiểm được.
+
+### Ba test đỏ, một nguyên nhân: chưa đọc kỹ `opt()`
+
+`opt()` map chuỗi rỗng **thành `undefined`**, không ném lỗi. Nên:
+
+- Test "chuỗi rỗng thì 400" sai từ tiền đề — và hành vi thật lại **tốt hơn** thứ tôi định làm: ô ghi
+  chú của biểu mẫu gửi lên được ở mọi lượt lưu mà không phải tự quyết định khi nào bỏ trường đi. Đổi
+  test thành "chuỗi rỗng = không ghi chú, lưu xuống thành null", và thêm một test cho chuỗi toàn
+  khoảng trắng — cái đó thì 400 thật, vì `str()` cắt khoảng trắng trước khi đo độ dài.
+- Mã ứng dụng cũng đơn giản đi theo: gửi thẳng `note: ghiChu.trim()` thay vì spread có điều kiện.
+
+Lỗi thứ ba thì thẳng thắn hơn: DTO của `PATCH .../lines/:lineId` là một shape **riêng**, không dùng
+lại `lineShape`. Thêm trường vào một chỗ mà quên chỗ kia, và triệu chứng là "sửa xong ghi chú không
+đổi" — không có lỗi nào, không có log nào.
+
+827 case (805 → 827).
+
+### Còn nợ
+
+- Bản in A4 giờ có cột Ghi chú nhưng **vẫn không có cột QĐCK lẫn dấu thiếu quy định** — nợ từ P32,
+  vẫn chưa rõ nên là một cột hay một dòng chú thích chân trang.
+- Bề rộng cột Ghi chú trên giấy chặn cứng ở 45mm. Chưa đo thật trên hồ sơ nhiều cột CPBH; máy không
+  có LibreOffice nên chỉ kiểm được bằng cách đếm ô trong HTML.

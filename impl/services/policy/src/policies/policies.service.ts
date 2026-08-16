@@ -28,6 +28,8 @@ export type LineInput = {
   wholesalePrice: bigint;
   /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. Thiếu = không có khoản nào. */
   cpbh?: readonly bigint[] | undefined;
+  /** Ghi chú tự do cho riêng dòng này (`0027`). Thiếu = xoá ghi chú đang có. */
+  note?: string | undefined;
 };
 
 export type CreateInput = {
@@ -154,10 +156,10 @@ export class PoliciesService {
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
               company_price_snap, wholesale_price, cpbh,
-              discount_rate, threshold_snap, rule_code_snap, threshold_source)
+              discount_rate, threshold_snap, rule_code_snap, threshold_source, note)
            SELECT $1, product_id, product_code_snap, product_name_snap,
                   company_price_snap, wholesale_price, cpbh,
-                  discount_rate, threshold_snap, rule_code_snap, threshold_source
+                  discount_rate, threshold_snap, rule_code_snap, threshold_source, note
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
         );
@@ -229,8 +231,8 @@ export class PoliciesService {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
-            discount_rate, threshold_snap, rule_code_snap, threshold_source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11)
+            discount_rate, threshold_snap, rule_code_snap, threshold_source, note)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
             cpbh = EXCLUDED.cpbh,
@@ -238,7 +240,11 @@ export class PoliciesService {
             discount_rate = EXCLUDED.discount_rate,
             threshold_snap = EXCLUDED.threshold_snap,
             rule_code_snap = EXCLUDED.rule_code_snap,
-            threshold_source = EXCLUDED.threshold_source`,
+            threshold_source = EXCLUDED.threshold_source,
+            -- Thiếu note trong thân request là XOÁ ghi chú, không phải "giữ
+            -- nguyên". Biểu mẫu sửa dòng gửi lên toàn bộ nội dung dòng, nên
+            -- không có ô ghi chú nghĩa là người dùng vừa xoá nó đi.
+            note = EXCLUDED.note`,
         [
           policyId,
           line.productId,
@@ -254,6 +260,7 @@ export class PoliciesService {
           // danh mục đổi giữa hai lời gọi.
           snap.ruleCode ?? null,
           snap.thresholdSource,
+          line.note?.trim() || null,
         ],
       )
       .catch((e: unknown) => {
@@ -315,7 +322,7 @@ export class PoliciesService {
   async updateLine(
     policyId: string,
     lineId: string,
-    input: { wholesalePrice: bigint; cpbh?: readonly bigint[] | undefined },
+    input: { wholesalePrice: bigint; cpbh?: readonly bigint[] | undefined; note?: string | undefined },
     me: AuthUser,
   ) {
     const p = await this.mustEdit(policyId, me);
@@ -590,7 +597,9 @@ export class PoliciesService {
               -- Cột "QĐCK" trên bảng dòng sản phẩm: mã của chính quy định đã
               -- cho ra ngưỡng, để đối chiếu thẳng sang màn hình Chiết khấu
               -- (0023, 0024).
-              rule_code_snap AS "ruleCode"
+              rule_code_snap AS "ruleCode",
+              -- Ghi chú tự do của người lập cho riêng dòng này (0027).
+              note
          FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];
