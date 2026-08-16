@@ -90,8 +90,25 @@ async function guiTep<T>(duong: string, ai: string, form: FormData): Promise<T> 
   return (await r.json()) as T;
 }
 
+/**
+ * Người được phân công ở ba bước bắt buộc chọn (`0031`).
+ *
+ * Điền ở đây một lần thay vì rải ra ~140 chỗ gọi: bộ nạp không quan tâm ai duyệt,
+ * nó chỉ cần hồ sơ đi hết luồng. Ca nào cần người khác thì truyền trong `body` —
+ * nó nằm sau nên ghi đè.
+ */
+const idNguoiDung: Record<string, string> = {};
+
+const phanCong = (hanhDong: string): Record<string, string> => {
+  if (hanhDong === 'SUBMIT' || hanhDong === 'RESUBMIT_AFTER_EDIT') {
+    return { tbpUserId: idNguoiDung['tbp01']!, keToanUserId: idNguoiDung['kt01']! };
+  }
+  if (hanhDong === 'KT_RECEIVE_L1') return { saleAdminUserId: idNguoiDung['sa01']! };
+  return {};
+};
+
 const act = (id: string, hanhDong: string, ai: string, body: Record<string, unknown> = {}) =>
-  goi(`/policies/${id}/actions/${hanhDong}`, ai, body);
+  goi(`/policies/${id}/actions/${hanhDong}`, ai, { ...phanCong(hanhDong), ...body });
 
 // --- Danh mục -----------------------------------------------------------------
 
@@ -326,38 +343,35 @@ const MAU_HOP_DONG = [
 ];
 
 /**
- * Tài khoản thêm — **chỉ cho bản demo**, và mọi cái đều treo vào một nhánh tổ
- * chức TÁCH HẲN: `sa02` → `kt03`/`kt04` → `tdv04`…`tdv15`, người duyệt `tbp03`.
+ * Tài khoản thêm — **chỉ cho bản demo**, để danh sách Người dùng vượt 20 dòng.
  *
- * Nhánh tách là điều kiện bắt buộc, không phải sở thích. Chồng demo và bộ test
- * dùng CHUNG một Postgres, và `tests/db/scope.test.ts` khẳng định từng phạm vi
- * bằng danh sách đóng: `sa01` thấy đúng 6 người, `tbp01` thấy đúng `tdv01` và
- * `tdv02`. Treo một TDV mới vào `tbp01` là bảy ca kiểm thử phân quyền đỏ ngay
- * lượt `make test` sau đó — đã thử và đã đỏ đúng bảy ca.
+ * Không còn liên kết quản lý nào (`0031`): tài khoản chỉ có tên, email và vai
+ * trò. Trước đây khối này phải khai một nhánh tổ chức tách hẳn để khỏi làm đỏ
+ * bảy ca kiểm thử phân quyền — không còn cây thì không còn nhánh nào để tách.
  *
- * Cũng vì thế mà chúng KHÔNG nằm trong `seed.ts`: tệp ấy là kho tài khoản của
- * bộ test, không phải chỗ chứa dữ liệu trình diễn.
+ * Vẫn KHÔNG nằm trong `seed.ts`: tệp ấy là kho tài khoản của bộ test, không
+ * phải chỗ chứa dữ liệu trình diễn.
  *
  * Tên có dấu là có chủ ý: ô tìm kiếm trong màn hình Người dùng khớp bỏ dấu, mà
  * mười tài khoản gốc viết không dấu nên không bao giờ chạm tới nhánh mã ấy.
  */
-const NGUOI_DUNG_THEM: { u: string; ten: string; role: string; tren?: string; tbp?: string }[] = [
+const NGUOI_DUNG_THEM: { u: string; ten: string; role: string }[] = [
   { u: 'sa02', ten: 'Đặng Thu Hằng', role: 'SALE_ADMIN' },
   { u: 'tbp03', ten: 'Lý Trường Giang', role: 'TBP' },
-  { u: 'kt03', ten: 'Vũ Thị Bích Ngọc', role: 'KE_TOAN', tren: 'sa02' },
-  { u: 'kt04', ten: 'Hoàng Minh Tuấn', role: 'KE_TOAN', tren: 'sa02' },
-  { u: 'tdv04', ten: 'Nguyễn Văn Cường', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv05', ten: 'Trần Thị Kim Oanh', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv06', ten: 'Phạm Đức Anh', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv07', ten: 'Lê Thị Hồng Nhung', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv08', ten: 'Đỗ Quang Huy', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv09', ten: 'Bùi Thanh Tùng', role: 'TDV', tren: 'kt03', tbp: 'tbp03' },
-  { u: 'tdv10', ten: 'Ngô Thị Lan Anh', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
-  { u: 'tdv11', ten: 'Dương Hữu Phước', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
-  { u: 'tdv12', ten: 'Trịnh Thị Mai', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
-  { u: 'tdv13', ten: 'Cao Bá Lộc', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
-  { u: 'tdv14', ten: 'Hà Thị Thuỳ Dương', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
-  { u: 'tdv15', ten: 'Mai Xuân Trường', role: 'TDV', tren: 'kt04', tbp: 'tbp03' },
+  { u: 'kt03', ten: 'Vũ Thị Bích Ngọc', role: 'KE_TOAN' },
+  { u: 'kt04', ten: 'Hoàng Minh Tuấn', role: 'KE_TOAN' },
+  { u: 'tdv04', ten: 'Nguyễn Văn Cường', role: 'TDV' },
+  { u: 'tdv05', ten: 'Trần Thị Kim Oanh', role: 'TDV' },
+  { u: 'tdv06', ten: 'Phạm Đức Anh', role: 'TDV' },
+  { u: 'tdv07', ten: 'Lê Thị Hồng Nhung', role: 'TDV' },
+  { u: 'tdv08', ten: 'Đỗ Quang Huy', role: 'TDV' },
+  { u: 'tdv09', ten: 'Bùi Thanh Tùng', role: 'TDV' },
+  { u: 'tdv10', ten: 'Ngô Thị Lan Anh', role: 'TDV' },
+  { u: 'tdv11', ten: 'Dương Hữu Phước', role: 'TDV' },
+  { u: 'tdv12', ten: 'Trịnh Thị Mai', role: 'TDV' },
+  { u: 'tdv13', ten: 'Cao Bá Lộc', role: 'TDV' },
+  { u: 'tdv14', ten: 'Hà Thị Thuỳ Dương', role: 'TDV' },
+  { u: 'tdv15', ten: 'Mai Xuân Trường', role: 'TDV' },
 ];
 
 const SO_THU_HONG = 24;
@@ -492,6 +506,21 @@ async function main(): Promise<void> {
     await dangNhap(u);
   }
 
+  // Id của những người sẽ được giao hồ sơ. Đọc THẲNG từ CSDL: `/admin/users`
+  // phân trang 20 dòng một trang, và bộ nạp này tạo tới 26 tài khoản.
+  {
+    const db = moKetNoi();
+    await db.connect();
+    try {
+      const r = await db.query<{ username: string; id: string }>(
+        `SELECT username, id FROM idn.app_user`,
+      );
+      for (const x of r.rows) idNguoiDung[x.username] = x.id;
+    } finally {
+      await db.end();
+    }
+  }
+
   // Tài khoản thêm. `xoaDuLieuCu` KHÔNG đụng schema `idn`, nên chạy lại
   // `demo-mau` lần thứ hai sẽ gặp lại đúng những tài khoản này — bỏ qua trong im
   // lặng thay vì chết, vì tạo trùng ở đây không phải một lỗi đáng dừng cả lượt.
@@ -501,8 +530,6 @@ async function main(): Promise<void> {
       email: `${n.u}@csbh.test`,
       fullName: n.ten,
       role: n.role,
-      ...(n.tren ? { parentUsername: n.tren } : {}),
-      ...(n.tbp ? { approverUsername: n.tbp } : {}),
     }).catch((e: unknown) => {
       if (!String(e).includes('409')) throw e;
     });

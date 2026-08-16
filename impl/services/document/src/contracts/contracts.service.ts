@@ -99,7 +99,11 @@ export class ContractsService {
 
     const [customer, people, signer] = await Promise.all([
       this.clients.customer(policy.customer_id),
-      this.clients.peopleFor(policy.tdv_user_id ?? ''),
+      this.clients.peopleFor(policy.tdv_user_id ?? '', {
+        tbp: policy.tbp_user_id,
+        keToan: policy.ke_toan_user_id,
+        saleAdmin: policy.sale_admin_user_id,
+      }),
       this.clients.signer(),
     ]);
     const ctx = { policy, customer, people, signer };

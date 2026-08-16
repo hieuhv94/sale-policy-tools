@@ -119,11 +119,12 @@ export class SyncService {
          customer_id, customer_code, customer_name, customer_name_norm,
          registered_address, address_norm, tax_id,
          requester_id, requester_name, tdv_user_id, tdv_name,
+         tbp_user_id, ke_toan_user_id, sale_admin_user_id,
          product_codes, product_names, product_names_norm, product_group_codes,
          line_count, total_net, max_discount, src_row_version, synced_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-               $31,$32,$33,$34,$35, now())
+               $31,$32,$33,$34,$35,$36,$37,$38, now())
        ON CONFLICT (policy_id) DO UPDATE SET
          code = EXCLUDED.code, version_no = EXCLUDED.version_no,
          status = EXCLUDED.status, pending_step = EXCLUDED.pending_step,
@@ -140,6 +141,9 @@ export class SyncService {
          address_norm = EXCLUDED.address_norm, tax_id = EXCLUDED.tax_id,
          requester_id = EXCLUDED.requester_id, requester_name = EXCLUDED.requester_name,
          tdv_user_id = EXCLUDED.tdv_user_id, tdv_name = EXCLUDED.tdv_name,
+         tbp_user_id = EXCLUDED.tbp_user_id,
+         ke_toan_user_id = EXCLUDED.ke_toan_user_id,
+         sale_admin_user_id = EXCLUDED.sale_admin_user_id,
          product_codes = EXCLUDED.product_codes, product_names = EXCLUDED.product_names,
          product_names_norm = EXCLUDED.product_names_norm,
          product_group_codes = EXCLUDED.product_group_codes,
@@ -179,6 +183,12 @@ export class SyncService {
         names[src.created_by ?? ''] ?? null,
         tdv,
         names[tdv] ?? null,
+        // Ba người được phân công (`0031`). Chép NGUYÊN từ hồ sơ, không suy lại:
+        // báo cáo phải lọc được đúng như màn hình hồ sơ lọc, và hai phép suy
+        // song song là hai phép sẽ có ngày lệch nhau.
+        src.tbp_user_id ?? null,
+        src.ke_toan_user_id ?? null,
+        src.sale_admin_user_id ?? null,
         lines.map((l) => l.product_code_snap),
         productNames,
         normAll(productNames),

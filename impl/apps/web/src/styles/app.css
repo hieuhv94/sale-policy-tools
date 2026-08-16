@@ -1252,3 +1252,31 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 }
 .thanh-hoan-tac .nut { white-space: nowrap; }
 .nut-dong-thanh { padding: 0 var(--k2); font-size: var(--chu-to); line-height: 1; }
+
+/* --- Xem trước bản CSBH A4 trước khi gửi duyệt (`0031`) -------------------- */
+
+/*
+ * Khung PDF cao cố định theo `vh`, KHÔNG theo tỷ lệ A4.
+ *
+ * Một khung đúng tỷ lệ 1:1.414 trên màn hình laptop cao hơn cả cửa sổ, nên hộp
+ * thoại tự cuộn và hai nút Xác nhận/Huỷ trôi ra ngoài tầm nhìn — người dùng đọc
+ * xong bản xem trước rồi không thấy nút đâu. Khung thấp hơn, tự cuộn bên trong,
+ * giữ nút luôn nhìn thấy được.
+ */
+.xem-truoc {
+  margin-bottom: 16px;
+}
+
+.khung-pdf {
+  width: 100%;
+  height: min(52vh, 560px);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-phu);
+}
+
+/* Ghi chú cảnh báo dưới một ô chọn rỗng — vàng, KÈM chữ (FE-28). */
+.ghi-chu.canh-bao {
+  color: var(--mau-canh-bao);
+  font-weight: 600;
+}

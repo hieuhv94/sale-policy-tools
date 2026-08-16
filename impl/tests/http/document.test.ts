@@ -21,6 +21,7 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  phanCongMacDinh,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -43,8 +44,14 @@ const dpost = async (path: string, who: string) =>
   (await http(doc)).post(path).set('Authorization', `Bearer ${tok[who]}`);
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
-const act = (id: string, action: string, who: string, body: object = {}) =>
-  ppost(`/policies/${id}/actions/${action}`, body, who);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (id: string, action: string, who: string, body: object = {}) =>
+  ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
 // --- Đọc PDF -----------------------------------------------------------------
 

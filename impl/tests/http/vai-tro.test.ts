@@ -27,6 +27,7 @@ import {
   maDuyNhat,
   TEST_PREFIX,
   withAdminDb,
+  phanCongMacDinh,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -119,24 +120,22 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
     });
   expect(hs.status, JSON.stringify(hs.body)).toBe(201);
 
+  // Chọn người xử lý ngay lúc gửi (`0031`). Trước đây `send({})` là đủ vì hồ sơ
+  // tự tìm đường qua cây tổ chức.
   const gui = await (await http(policy))
     .post(`/policies/${hs.body.id}/actions/SUBMIT`)
     .set('Authorization', `Bearer ${tok['tdv01']}`)
-    .send({});
+    .send(await phanCongMacDinh('SUBMIT'));
   expect(gui.status, JSON.stringify(gui.body)).toBe(200);
 
   return { id: hs.body.id as string, code: hs.body.code as string };
 };
 
+/** Tài khoản chỉ còn vai trò để đọc — hai cột liên kết đã gỡ ở `0031`. */
 const doc = async (id: string) =>
   withAdminDb(async (c) => {
-    const r = await c.query<{ role: string; approver: string | null; parent: string | null }>(
-      `SELECT u.role::text AS role, a.username AS approver, p.username AS parent
-         FROM idn.app_user u
-         LEFT JOIN idn.app_user a ON a.id = u.approver_user_id
-         LEFT JOIN idn.user_node nd ON nd.user_id = u.id
-         LEFT JOIN idn.app_user p ON p.id = nd.parent_id
-        WHERE u.id = $1`,
+    const r = await c.query<{ role: string }>(
+      `SELECT role::text AS role FROM idn.app_user WHERE id = $1`,
       [id],
     );
     return r.rows[0]!;
@@ -201,34 +200,20 @@ describe('đổi vai trò', () => {
     expect((await doc(u.id)).role).toBe('BAN_LANH_DAO');
   });
 
-  it('gỡ Trưởng bộ phận quản lý khi vai trò mới không phải TDV', async () => {
-    // Không gỡ thì còn lại đúng thứ trigger `forbid_bad_approver` chặn không cho
-    // tạo: một người không phải TDV mà vẫn mang Trưởng bộ phận quản lý.
+  it('tạo tài khoản KHÔNG còn nhận trường liên kết nào (`0031`)', async () => {
+    // Ba ca cũ ở chỗ này kiểm việc DỌN liên kết khi đổi vai trò: gỡ người duyệt
+    // khi TDV lên Sale Admin, gỡ cấp trên khi TDV thành Kế toán vì cấp trên của
+    // Kế toán phải là Sale Admin, và giữ nguyên khi loại cấp trên không đổi.
+    // Cả ba là hệ quả của việc biểu mẫu tạo tài khoản đổi hình theo vai trò —
+    // và mỗi lần đổi hình là một chỗ có thể gán sai.
+    //
+    // Không còn ô nào để gán, nên không còn gì để dọn. Ca này canh đúng điều đó:
+    // gửi kèm hai trường cũ thì máy chủ BỎ QUA chúng, không tạo ra liên kết nào.
     const u = await taoNguoiDung('TDV', { approverUsername: 'tbp01', parentUsername: 'kt01' });
-    expect((await doc(u.id)).approver).toBe('tbp01');
+    expect((await doc(u.id)).role).toBe('TDV');
 
     expect((await idn(`/admin/users/${u.id}`, { role: 'SALE_ADMIN' })).status).toBe(200);
-    const sau = await doc(u.id);
-    expect(sau.approver).toBeNull();
-    // Sale Admin đứng ngoài cây dữ liệu nên cấp trên cũng phải biến mất.
-    expect(sau.parent).toBeNull();
-  });
-
-  it('gỡ cấp trên khi vai trò mới đòi hỏi một LOẠI cấp trên khác', async () => {
-    // Chỗ này dễ sót nhất: TDV → Kế toán thì ô cấp trên vẫn còn, nhưng người
-    // đang nằm trong đó là một kế toán, còn cấp trên của kế toán phải là Sale
-    // Admin. Giữ lại là để một quan hệ SAI KIỂU trong cây, và phạm vi dữ liệu
-    // suy ra từ đó thì sai mà không có lỗi nào báo.
-    const u = await taoNguoiDung('TDV', { approverUsername: 'tbp01', parentUsername: 'kt01' });
-    expect((await idn(`/admin/users/${u.id}`, { role: 'KE_TOAN' })).status).toBe(200);
-    expect((await doc(u.id)).parent).toBeNull();
-  });
-
-  it('GIỮ cấp trên khi vai trò mới vẫn đòi hỏi đúng loại đó', async () => {
-    const u = await taoNguoiDung('KE_TOAN', { parentUsername: 'sa01' });
-    // Kế toán và... kế toán: không đổi gì thì không được đụng vào liên kết.
-    expect((await idn(`/admin/users/${u.id}`, { fullName: 'Ten Khac' })).status).toBe(200);
-    expect((await doc(u.id)).parent).toBe('sa01');
+    expect((await doc(u.id)).role).toBe('SALE_ADMIN');
   });
 
   it('còn hồ sơ dở dang thì CHẶN, và nói rõ hồ sơ nào', async () => {
@@ -249,9 +234,10 @@ describe('đổi vai trò', () => {
 
   it('CHẶN cả khi hồ sơ đang chờ NGƯỜI KHÁC lập, nhưng chờ đúng bước của mình', async () => {
     // Nhánh thứ hai của chốt chặn, và là kiểu mắc kẹt tệ hơn: hồ sơ không nằm ở
-    // người bị đổi vai trò mà ở một TDV dưới quyền họ. Đổi vai trò một Trưởng bộ
-    // phận đang có hồ sơ chờ duyệt là bỏ rơi đúng hồ sơ đó — hộp việc suy từ cây
-    // tổ chức nên không ai khác nhận được nó.
+    // người bị đổi vai trò mà ở một TDV khác, GIAO ĐÍCH DANH cho họ. Đổi vai trò
+    // một Trưởng bộ phận đang có hồ sơ chờ ký là bỏ rơi đúng hồ sơ đó — và từ
+    // `0031` điều này chặt hơn hẳn: trước đây một đồng nghiệp cùng nhánh cây còn
+    // nhìn thấy, giờ hồ sơ chỉ nằm trong hộp việc của đúng người được chọn.
     const hs = await lapVaGui();
     const tbp01Id = await idCua('tbp01');
 
@@ -299,114 +285,74 @@ describe('đổi vai trò', () => {
 });
 
 // =============================================================================
-// Người dùng tự đổi người quản lý
+// Ô CHỌN NGƯỜI XỬ LÝ — thay cho "tự đổi người quản lý" (`0031`)
 // =============================================================================
+//
+// Cả khối `describe('tự đổi người quản lý')` cũ đã bỏ cùng với `GET /auth/managers`
+// và `PATCH /auth/me` phần liên kết. Nó kiểm mười hai ca quanh một tính năng có
+// hệ quả không nhỏ: định tuyến suy từ `approver_user_id` chứ không lưu vào hồ sơ,
+// nên người dùng tự đổi một ô là chuyển NGAY mọi hồ sơ đang chờ duyệt của mình
+// sang hộp việc người khác — kể cả hồ sơ đã gửi từ tuần trước.
+//
+// Thay bằng `GET /auth/nguoi-theo-vai-tro/:role`: chỉ đọc, và phục vụ đúng chỗ
+// quyết định giờ nằm ở — ô chọn lúc gửi duyệt.
 
-describe('tự đổi người quản lý', () => {
-  /** Tạo một TDV thật, kích hoạt bằng cách đặt mật khẩu thẳng vào CSDL. */
-  const taoVaDangNhap = async (role: string, over: Record<string, unknown> = {}) => {
-    const u = await taoNguoiDung(role, over);
-    const { hashPassword } = await import('@csbh/identity-core');
-    const hash = await hashPassword(SEED_PW);
-    await withAdminDb((c) =>
-      c.query(
-        `UPDATE idn.app_user
-            SET password_hash = $2, must_change_password = false,
-                activated_at = now(), email_verified_at = now()
-          WHERE id = $1`,
-        [u.id, hash],
-      ),
-    );
-    await clearAccountCache();
-    return { ...u, token: await accessTokenFor(identity, u.username, SEED_PW) };
-  };
-
-  const suaToi = async (token: string, body: object) =>
-    (await http(identity)).patch('/auth/me').set('Authorization', `Bearer ${token}`).send(body);
-
-  it('TDV đổi được cả Trưởng bộ phận và kế toán quản lý', async () => {
-    const u = await taoVaDangNhap('TDV');
-    const res = await suaToi(u.token, {
-      fullName: 'Ten Van Nhu Cu',
-      approverUsername: 'tbp01',
-      parentUsername: 'kt01',
-    });
+describe('/auth/nguoi-theo-vai-tro — nguồn cho mọi ô chọn người', () => {
+  it('trả đúng vai trò được hỏi', async () => {
+    const res = await (await http(identity))
+      .get('/auth/nguoi-theo-vai-tro/TBP')
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
     expect(res.status, JSON.stringify(res.body)).toBe(200);
-    const sau = await doc(u.id);
-    expect(sau.approver).toBe('tbp01');
-    expect(sau.parent).toBe('kt01');
-
-    // Và `/auth/me` trả lại đúng hai liên kết đó — màn hình đọc từ đây.
-    expect(res.body.approverUsername).toBe('tbp01');
-    expect(res.body.parentUsername).toBe('kt01');
+    const ten = (res.body as { username: string }[]).map((x) => x.username);
+    expect(ten).toContain('tbp01');
+    expect(ten).not.toContain('kt01');
   });
 
-  it('chuỗi rỗng là GỠ liên kết, không phải "không đụng tới"', async () => {
-    const u = await taoVaDangNhap('TDV', { approverUsername: 'tbp01' });
-    expect((await suaToi(u.token, { fullName: 'X X', approverUsername: '' })).status).toBe(200);
-    expect((await doc(u.id)).approver).toBeNull();
+  it('KHÔNG trả email — ô chọn chỉ cần tên và tài khoản', async () => {
+    // Một TDV chọn người duyệt thì không có lý do gì để họ cầm danh bạ email của
+    // cả công ty. Đó là việc của `/admin/users`, sau `@Roles('QUAN_TRI')`.
+    const res = await (await http(identity))
+      .get('/auth/nguoi-theo-vai-tro/KE_TOAN')
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(res.status).toBe(200);
+    for (const x of res.body as Record<string, unknown>[]) {
+      expect(Object.keys(x).sort()).toEqual(['fullName', 'id', 'username']);
+    }
   });
 
-  it('kế toán đổi được Sale Admin quản lý, nhưng KHÔNG có Trưởng bộ phận', async () => {
-    const u = await taoVaDangNhap('KE_TOAN');
-    expect((await suaToi(u.token, { fullName: 'X X', parentUsername: 'sa01' })).status).toBe(200);
-    expect((await doc(u.id)).parent).toBe('sa01');
-
-    const sai = await suaToi(u.token, { fullName: 'X X', approverUsername: 'tbp01' });
-    expect(sai.status).toBe(400);
+  it('tài khoản CHƯA KÍCH HOẠT không xuất hiện', async () => {
+    // Giao hồ sơ cho người chưa đăng nhập được lần nào là gửi nó vào chỗ không
+    // ai mở ra. Tài khoản vừa tạo qua `/admin/users` luôn ở trạng thái này.
+    const u = await taoNguoiDung('TBP');
+    const res = await (await http(identity))
+      .get('/auth/nguoi-theo-vai-tro/TBP')
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect((res.body as { username: string }[]).map((x) => x.username)).not.toContain(u.username);
   });
 
-  it('không gán được người SAI VAI TRÒ làm quản lý', async () => {
-    const u = await taoVaDangNhap('TDV');
-    // kt01 không phải TBP, tbp01 không phải kế toán — cả hai đều phải bị chặn.
-    expect((await suaToi(u.token, { fullName: 'X X', approverUsername: 'kt01' })).status).toBe(400);
-    expect((await suaToi(u.token, { fullName: 'X X', parentUsername: 'tbp01' })).status).toBe(400);
+  it('vai trò ngoài luồng duyệt thì 400', async () => {
+    // Ban lãnh đạo và Quản trị không nhận hồ sơ, nên không có ô chọn nào cho họ.
+    for (const r of ['BAN_LANH_DAO', 'QUAN_TRI', 'GIAM_DOC']) {
+      const res = await (await http(identity))
+        .get(`/auth/nguoi-theo-vai-tro/${r}`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`);
+      expect(res.status, r).toBe(400);
+    }
   });
 
-  it('không đặt được chính mình làm quản lý', async () => {
-    const u = await taoVaDangNhap('KE_TOAN');
-    const res = await suaToi(u.token, { fullName: 'X X', parentUsername: u.username });
-    expect(res.status).toBe(400);
-  });
-
-  it('vai trò ngoài cây dữ liệu thì không có gì để đổi', async () => {
-    const u = await taoVaDangNhap('BAN_LANH_DAO');
-    expect((await suaToi(u.token, { fullName: 'X X', parentUsername: 'sa01' })).status).toBe(400);
-  });
-
-  it('`/auth/managers` chỉ trả tên và tài khoản, KHÔNG trả email', async () => {
-    // Một TDV chọn Trưởng bộ phận thì chỉ cần tên. Không có lý do gì để họ cầm
-    // danh bạ email của cả công ty — đó là việc `/admin/users` làm, và đường đó
-    // chỉ Quản trị hệ thống vào được.
-    const u = await taoVaDangNhap('TDV');
+  it('`/auth/managers` đã bị gỡ', async () => {
     const res = await (await http(identity))
       .get('/auth/managers')
-      .set('Authorization', `Bearer ${u.token}`);
-    expect(res.status).toBe(200);
-    expect(res.body.coApprover).toBe(true);
-    expect(res.body.coCapTren).toBe(true);
-    expect(JSON.stringify(res.body)).not.toContain('@');
-    expect(res.body.approvers.every((x: { role?: string }) => x.role === undefined)).toBe(true);
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(res.status).toBe(404);
   });
 
-  it('Ban lãnh đạo không có ô nào để chọn', async () => {
-    const u = await taoVaDangNhap('BAN_LANH_DAO');
+  it('`PATCH /auth/me` chỉ đổi được họ tên', async () => {
     const res = await (await http(identity))
-      .get('/auth/managers')
-      .set('Authorization', `Bearer ${u.token}`);
-    expect(res.body.coApprover).toBe(false);
-    expect(res.body.coCapTren).toBe(false);
-  });
-
-  it('KHÔNG đổi được vai trò hay email qua `/auth/me`', async () => {
-    const u = await taoVaDangNhap('TDV');
-    const res = await suaToi(u.token, {
-      fullName: 'X X',
-      role: 'QUAN_TRI',
-      email: 'ke-gian@csbh.test',
-    });
-    expect(res.status).toBe(200);
-    expect(res.body.role).toBe('TDV');
-    expect(res.body.email).toBe(`${u.username}@csbh.test`);
+      .patch('/auth/me')
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ fullName: 'Ten Moi 0031', approverUsername: 'tbp02', role: 'QUAN_TRI' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect((await doc(await idCua('tdv01'))).role).toBe('TDV');
   });
 });

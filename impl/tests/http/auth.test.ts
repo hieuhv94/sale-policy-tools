@@ -38,8 +38,9 @@ beforeAll(async () => {
          VALUES ($1, $1 || '@csbh.test', $1, 'TDV', $2, now(), now()) RETURNING id`,
         [u, hash],
       );
+      // `idn.user_node` đã bị gỡ ở `0031` — tài khoản không còn chỗ nào trong
+      // một cây tổ chức để phải đăng ký vào.
       const id = r.rows[0]!.id;
-      await c.query(`INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1, NULL)`, [id]);
       if (u === LOCK_USER) lockUserId = id;
       else deactUserId = id;
     }
@@ -310,8 +311,12 @@ describe('AUTH-21 API nội bộ giữa hai service', () => {
       .get(`/internal/scope/${sa}`)
       .set('X-Service-Token', serviceToken());
     expect(res.status).toBe(200);
-    // sa01 + kt01 + kt02 + tdv01 + tdv02 + tdv03 = 6
-    expect(res.body.scopeUserIds).toHaveLength(6);
+    // ĐÚNG MỘT người — chính mình (`0031`).
+    //
+    // Trước đây câu này trả về sáu người (sa01 + hai kế toán + ba TDV) vì phạm
+    // vi suy từ cây tổ chức. Cây đã gỡ; phần "tôi liên quan tới hồ sơ nào" nằm
+    // ở bốn cột người trên `pol.policy`, không ở đây nữa.
+    expect(res.body.scopeUserIds).toEqual([sa]);
   });
 });
 
@@ -337,15 +342,12 @@ describe('PATCH /auth/me', () => {
   beforeAll(async () => {
     const hash = await hashPassword(SEED_PW);
     await withAdminDb(async (c) => {
-      const r = await c.query<{ id: string }>(
+      await c.query(
         `INSERT INTO idn.app_user (username, email, full_name, role, password_hash,
                                    activated_at, email_verified_at)
-         VALUES ($1, $1 || '@csbh.test', 'Ten Ban Dau', 'TDV', $2, now(), now()) RETURNING id`,
+         VALUES ($1, $1 || '@csbh.test', 'Ten Ban Dau', 'TDV', $2, now(), now())`,
         [ME_USER, hash],
       );
-      await c.query(`INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1, NULL)`, [
-        r.rows[0]!.id,
-      ]);
     });
     token = await accessTokenFor(app, ME_USER, SEED_PW);
   });

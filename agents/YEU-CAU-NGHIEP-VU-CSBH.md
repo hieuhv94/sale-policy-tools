@@ -27,24 +27,38 @@ tiếp nhận kế toán hai lần, phát hành hợp đồng, theo dõi hiệu 
 
 ## 2. Vai trò người dùng và phân quyền
 
-### 2.1. Cây phân quyền dữ liệu
+### 2.1. Phạm vi dữ liệu — theo PHÂN CÔNG trên từng hồ sơ `sửa 16/08`
 
-Phạm vi hồ sơ mỗi người nhìn thấy **suy ra từ cây tổ chức**, không cấu hình tay từng người.
+**Người dùng không quản lý lẫn nhau.** Tài khoản chỉ có tên, email và vai trò; không có ô "Trưởng bộ
+phận quản lý", không có ô "cấp trên", không có cây tổ chức.
 
-```
-Sale Admin ──┬── Kế toán A ──┬── TDV 1
-             │               └── TDV 2
-             └── Kế toán B ──┬── TDV 3
-                             └── TDV 4
+Việc *ai xử lý hồ sơ của ai* là thuộc tính của **hồ sơ**, quyết định tại đúng lúc chuyển tay:
 
-Trưởng bộ phận ──── nhiều TDV        (nhánh duyệt, độc lập với nhánh trên)
-Ban lãnh đạo ────── toàn bộ, chỉ đọc
-Quản trị hệ thống ─ danh mục và cấu hình, ngoài luồng duyệt
-```
+| Bước | Người đang cầm hồ sơ chọn |
+|---|---|
+| Gửi duyệt (B3) | **Trưởng bộ phận** duyệt · **Kế toán** tiếp nhận |
+| Tiếp nhận lần 1 (B6) | **Sale Admin** xử lý |
+| Tiếp nhận lần 2 (B10) | *không chọn* — đúng người đã nhận L1 |
 
-- Một Sale Admin phụ trách nhiều kế toán; mỗi kế toán phụ trách nhiều TDV.
-- Trưởng bộ phận quản lý nhiều TDV, là nhánh riêng. **Gán thẳng TDV → Trưởng bộ phận**, không qua
-  khái niệm "bộ phận" — xem 2.9.
+Từ đó suy ra phạm vi đọc: **một hồ sơ thuộc phạm vi của tôi khi tên tôi nằm ở một trong bốn ô người
+lập / TBP / Kế toán / Sale Admin của chính hồ sơ ấy** — kể cả những bước đã qua, để còn tra lại việc
+mình đã làm. Ban lãnh đạo đọc toàn bộ; Quản trị hệ thống đứng ngoài luồng duyệt, không có phạm vi hồ
+sơ nào.
+
+> **Vì sao bỏ cây tổ chức.** Cây trả lời câu "ai nhìn thấy dữ liệu của ai" bằng một quan hệ nhân sự
+> cố định, và nó trả lời sai ở một chỗ căn bản: cùng một TDV có hồ sơ này cần Trưởng bộ phận A duyệt
+> và hồ sơ kia cần Trưởng bộ phận B, mà cây chỉ có một câu trả lời cho cả hai. Cây còn đẻ ra một
+> kiểu hỏng im lặng — TDV chưa được gán người duyệt thì hồ sơ gửi đi nằm ở *Chờ TBP duyệt* mà không
+> vào hộp việc của ai, đứng im tới lúc quá hạn và không màn hình nào nói vì sao.
+
+**Khách hàng**: TDV phụ trách thấy khách của mình; TBP, Kế toán và Sale Admin thấy khách của những
+CSBH đã giao cho họ; Ban lãnh đạo thấy toàn bộ. **Quản trị hệ thống thấy toàn bộ khách hàng** — một
+ngoại lệ có chủ ý, vì họ là người **đổi TDV phụ trách** khi một TDV nghỉ việc, mà khách cần chuyển
+thường chưa có hồ sơ nào nên không đường nào khác với tới.
+
+- **Đổi TDV phụ trách là quyền của Quản trị hệ thống** `sửa 16/08`, không phải Sale Admin. Yêu cầu
+  nghiệp vụ chưa bao giờ cấp quyền ấy cho Sale Admin; căn cứ duy nhất của bản trước là Sale Admin
+  đứng ở gốc nhánh cây chứa TDV đó.
 - **TDV và QL là một vai trò duy nhất**, không tách.
 - **Kế toán L1 và L2 là một vai trò**, cùng một người xử lý cả hai lần tiếp nhận.
 
@@ -75,7 +89,7 @@ CSBH mình phụ trách.
 
 | | |
 |---|---|
-| **Phạm vi** | Hồ sơ của các TDV thuộc quyền |
+| **Phạm vi** | Những hồ sơ được TDV chọn mình duyệt lúc gửi `sửa 16/08` |
 
 - Mở hồ sơ, xem bản CSBH và tài liệu đính kèm.
 - **Duyệt và ký số** bằng chữ ký điện tử nội bộ. Sau khi ký, nút đổi trạng thái và không cho ký lặp;
@@ -115,7 +129,7 @@ trong hai:
 
 | | |
 |---|---|
-| **Phạm vi** | Toàn bộ hồ sơ của các kế toán mình phụ trách |
+| **Phạm vi** | Những hồ sơ được Kế toán giao cho mình ở bước tiếp nhận lần 1 `sửa 16/08` |
 
 - Nhận hồ sơ **sau khi** kế toán tiếp nhận lần 1.
 - **Tạo và duy trì mẫu hợp đồng** — soạn sẵn văn bản mẫu, tải lên hệ thống, đặt ánh xạ giữa các ô
@@ -236,7 +250,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B4 | TBP — duyệt | TBP đã ký số | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký |
 | B4B | TBP — không duyệt | Yêu cầu chỉnh sửa → B3 | TDV | Bắt buộc nhập lý do; hồ sơ mở khóa, tạo phiên bản mới |
 | B5 | Hệ thống | Chờ Kế toán L1 | — | Phát hành liên kết “CSBH đã ký số” tại bàn kế toán |
-| B6A | Kế toán — nhận L1 | Sale Admin đang xử lý | SA, TBP, TDV | Tiếp nhận file mềm; khách hàng đủ điều kiện xuất hàng và xuất VAT |
+| B6A | Kế toán — nhận L1 | Sale Admin đang xử lý | SA, TBP, TDV | Tiếp nhận file mềm và **chọn Sale Admin xử lý bước sau** `sửa 16/08`; khách hàng đủ điều kiện xuất hàng và xuất VAT |
 | B6B | Kế toán — không nhận L1 | Yêu cầu chỉnh sửa → B3 | TBP, TDV | Bắt buộc nhập lý do; duyệt và ký lại từ đầu |
 | B7 | Kế toán **hoặc** Sale Admin | — | — | Xuất file hợp đồng (xem mục 8) |
 | B8 | Sale Admin | Sale Admin đang xử lý | KT, TBP, TDV | In, trình BLĐ ký, nhận lại, scan, tải file lên |
@@ -797,12 +811,18 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-56 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
-định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
+61 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
+quyết định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới
+nhất.
 
-**Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
-phân quyền Sale Admin → kế toán → TDV · khách hàng do TDV tự tạo · danh mục sản phẩm, giá và chiết
-khấu do Quản trị hệ thống nhập.
+**Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một ·
+khách hàng do TDV tự tạo · danh mục sản phẩm, giá và chiết khấu do Quản trị hệ thống nhập ·
+**người dùng không quản lý lẫn nhau, bỏ hẳn cây phân quyền** `16/08` · **đổi TDV phụ trách là quyền
+của Quản trị hệ thống**, không phải Sale Admin `16/08`.
+
+**Phân công và phạm vi** `16/08` — TDV chọn Trưởng bộ phận và Kế toán lúc gửi duyệt · Kế toán chọn
+Sale Admin lúc tiếp nhận lần 1 · tiếp nhận lần 2 về đúng người đã nhận lần 1, không chọn lại · phạm
+vi đọc suy từ bốn ô người trên chính hồ sơ · gửi duyệt phải xem bản CSBH A4 dạng PDF rồi mới xác nhận.
 
 **Luồng** — tuần tự, không song song · kế toán từ chối lần 2 có hai lựa chọn · quy tắc bổ sung và
 chỉnh sửa CSBH · trả lại bắt buộc nhập lý do · bản scan cũ bị xóa khi yêu cầu in lại.

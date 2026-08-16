@@ -97,7 +97,14 @@ export type Built = { where: string; params: unknown[] };
  */
 export function build(f: Filter, scopeUserIds: string[]): Built {
   const params: unknown[] = [scopeUserIds];
-  const cond: string[] = ['tdv_user_id = ANY($1::uuid[])'];
+  // Phạm vi: id của tôi ở MỘT TRONG BỐN cột người (`0031`). Cùng phép lọc với
+  // `thuocPhamVi` bên policy — hai chỗ phải trả lời giống hệt nhau, nếu không
+  // thì một hồ sơ mở được ở màn hình Hồ sơ mà biến mất khỏi Báo cáo.
+  const cond: string[] = [
+    `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
+      .map((c) => `${c} = ANY($1::uuid[])`)
+      .join(' OR ')})`,
+  ];
   const add = (sql: (i: number) => string, value: unknown): void => {
     params.push(value);
     cond.push(sql(params.length));

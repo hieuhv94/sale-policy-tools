@@ -23,6 +23,8 @@ import {
   http,
   mailpitClear,
   withAdminDb,
+  phanCongMacDinh,
+  idNguoiDung,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -49,8 +51,14 @@ const pget = async (path: string, who: string) =>
   (await http(policy)).get(path).set('Authorization', `Bearer ${tok[who]}`);
 const pput = async (path: string, body: object, who: string) =>
   (await http(policy)).put(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
-const act = (id: string, action: string, who: string, body: object = {}) =>
-  ppost(`/policies/${id}/actions/${action}`, body, who);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (id: string, action: string, who: string, body: object = {}) =>
+  ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
 const listMail = async (): Promise<{ ID: string; To: { Address: string }[]; Subject: string }[]> => {
   const r = await fetch(`${MAILPIT}/api/v1/messages?limit=200`);
@@ -123,7 +131,13 @@ const makeCustomer = async (who = 'tdv01') => {
 };
 
 /** Hồ sơ đã gửi duyệt — đang chờ Trưởng bộ phận, đồng hồ SLA bắt đầu chạy. */
-async function submitted(who = 'tdv01'): Promise<string> {
+/**
+ * `tbp` cho phép gửi tới một Trưởng bộ phận KHÁC người mặc định (`0031`).
+ *
+ * Trước đây "hồ sơ này của tbp02" là hệ quả của cây tổ chức — tdv03 do tbp02
+ * duyệt. Giờ nó là một lựa chọn tại chỗ, nên ca kiểm thử phải nói ra lựa chọn ấy.
+ */
+async function submitted(who = 'tdv01', tbp = 'tbp01'): Promise<string> {
   const customerId = await makeCustomer(who);
   const productId = await makeProduct();
   const r = await ppost(
@@ -132,7 +146,11 @@ async function submitted(who = 'tdv01'): Promise<string> {
     who,
   );
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${JSON.stringify(r.body)}`);
-  expect((await act(r.body.id, 'SUBMIT', who)).status).toBe(200);
+  const id = await idNguoiDung();
+  expect(
+    (await act(r.body.id, 'SUBMIT', who, { tbpUserId: id[tbp]! })).status,
+    `gửi duyệt hỏng cho ${who}`,
+  ).toBe(200);
 
   // Đánh dấu thư "gửi duyệt" là đã phát. File test này chỉ quan tâm thư của
   // sla-worker; để nguyên thì mọi phép đếm thư đều cộng thêm một thư của bước
@@ -496,8 +514,9 @@ describe('NTF-07 trang chủ theo từng vai trò', () => {
   }, 90_000);
 
   it('không thấy hồ sơ ngoài phạm vi dữ liệu của mình', async () => {
-    // tdv03 do tbp02 duyệt. tbp01 không được thấy.
-    const id = await submitted('tdv03');
+    // Hồ sơ gửi cho tbp02, nên tbp01 không được thấy. Trước `0031` điều này suy
+    // từ cây (tdv03 do tbp02 duyệt); giờ nó là lựa chọn lúc gửi duyệt.
+    const id = await submitted('tdv03', 'tbp02');
     const tbp1 = (await pget('/policies/inbox?limit=200', 'tbp01')).body.items as { id: string }[];
     expect(tbp1.map((x) => x.id)).not.toContain(id);
 

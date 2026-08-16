@@ -14,15 +14,23 @@ if (process.env.NODE_ENV === 'production') {
 
 const PASSWORD = 'Test@1234';
 
-type Row = { u: string; name: string; role: string; tbp?: string; parent?: string };
+/*
+ * KHÔNG còn `tbp` và `parent` (`0031`).
+ *
+ * Người dùng không quản lý lẫn nhau nữa. Mười tài khoản này vẫn giữ nguyên tên
+ * và vai trò — hàng chục ca kiểm thử viện dẫn đúng chúng — nhưng cây tổ chức
+ * nối chúng lại với nhau thì đã bỏ. "Ai xử lý hồ sơ của ai" giờ nằm trên từng
+ * hồ sơ, do người gửi duyệt chọn.
+ */
+type Row = { u: string; name: string; role: string };
 
 const USERS: Row[] = [
   { u: 'sa01',    name: 'Sale Admin 01',        role: 'SALE_ADMIN' },
-  { u: 'kt01',    name: 'Ke toan 01',           role: 'KE_TOAN',    parent: 'sa01' },
-  { u: 'kt02',    name: 'Ke toan 02',           role: 'KE_TOAN',    parent: 'sa01' },
-  { u: 'tdv01',   name: 'Trinh duoc vien 01',   role: 'TDV', tbp: 'tbp01', parent: 'kt01' },
-  { u: 'tdv02',   name: 'Trinh duoc vien 02',   role: 'TDV', tbp: 'tbp01', parent: 'kt01' },
-  { u: 'tdv03',   name: 'Trinh duoc vien 03',   role: 'TDV', tbp: 'tbp02', parent: 'kt02' },
+  { u: 'kt01',    name: 'Ke toan 01',           role: 'KE_TOAN' },
+  { u: 'kt02',    name: 'Ke toan 02',           role: 'KE_TOAN' },
+  { u: 'tdv01',   name: 'Trinh duoc vien 01',   role: 'TDV' },
+  { u: 'tdv02',   name: 'Trinh duoc vien 02',   role: 'TDV' },
+  { u: 'tdv03',   name: 'Trinh duoc vien 03',   role: 'TDV' },
   { u: 'tbp01',   name: 'Truong bo phan 01',    role: 'TBP' },
   { u: 'tbp02',   name: 'Truong bo phan 02',    role: 'TBP' },
   { u: 'bld01',   name: 'Ban lanh dao',         role: 'BAN_LANH_DAO' },
@@ -42,32 +50,28 @@ const main = async () => {
   const hash = await hashPassword(PASSWORD);
   const id: Record<string, string> = {};
 
-  // Hai lượt: tài khoản trước, người duyệt sau. `approver_user_id` trỏ vào chính
-  // bảng này nên tbp01 phải TỒN TẠI trước khi tdv01 trỏ vào được.
+  // MỘT lượt. Trước `0031` phải chạy ba lượt vì `approver_user_id` trỏ vào chính
+  // bảng này và `user_node` là bảng thứ hai — tbp01 phải tồn tại trước khi tdv01
+  // trỏ vào được. Không còn liên kết nào thì không còn thứ tự nào phải giữ.
   for (const r of USERS) {
     const res = await db.query(
-      `INSERT INTO idn.app_user (username, email, full_name, role, password_hash)
-       VALUES ($1,$2,$3,$4::idn.user_role,$5)
+      // `activated_at` phải có giá trị: mười tài khoản này ĐÃ dùng được ngay —
+      // chúng có mật khẩu đặt thẳng, không đi qua thư mời. Để NULL thì chúng
+      // đọc ra là "chờ kích hoạt", và từ `0031` mọi ô chọn người đều lọc bỏ
+      // tài khoản chưa kích hoạt — giao việc cho người chưa đăng nhập được lần
+      // nào là gửi hồ sơ vào chỗ không ai mở ra.
+      `INSERT INTO idn.app_user
+         (username, email, full_name, role, password_hash, activated_at)
+       VALUES ($1,$2,$3,$4::idn.user_role,$5, now())
        ON CONFLICT (username) DO UPDATE
          SET full_name = EXCLUDED.full_name, role = EXCLUDED.role,
-             password_hash = EXCLUDED.password_hash
+             password_hash = EXCLUDED.password_hash,
+             activated_at = coalesce(idn.app_user.activated_at, now())
        RETURNING id`,
       [r.u, `${r.u}@csbh.test`, r.name, r.role, hash]);
     id[r.u] = res.rows[0].id;
   }
 
-  for (const r of USERS.filter((x) => x.tbp)) {
-    await db.query(
-      `UPDATE idn.app_user SET approver_user_id = $2 WHERE id = $1`,
-      [id[r.u], id[r.tbp!]]);
-  }
-
-  for (const r of USERS) {
-    await db.query(
-      `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)
-       ON CONFLICT (user_id) DO UPDATE SET parent_id = EXCLUDED.parent_id`,
-      [id[r.u], r.parent ? id[r.parent] : null]);
-  }
 
   await db.query('COMMIT');
   await db.end();

@@ -31,6 +31,7 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  phanCongMacDinh,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -55,8 +56,14 @@ const dput = async (path: string, who: string, body: object) =>
   (await http(doc)).put(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
-const act = (id: string, action: string, who: string, body: object = {}) =>
-  ppost(`/policies/${id}/actions/${action}`, body, who);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (id: string, action: string, who: string, body: object = {}) =>
+  ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
 const pdfOf = async (path: string, who: string) =>
   (await http(doc)).get(path).set('Authorization', `Bearer ${tok[who]}`).responseType('blob');
@@ -318,12 +325,32 @@ describe('DOC-10 · DOC-21 cổng thời điểm giống nhau cho cả hai vai t
     expect(r.body.code).toBe('CONTRACT_NOT_READY');
   }, 60_000);
 
-  it('DOC-21 Sale Admin cũng 409 — quyền rộng ra nhưng cổng không mở sớm hơn', async () => {
+  it('DOC-21 Sale Admin CHƯA ĐƯỢC GIAO thì 403, không phải 409 (`0031`)', async () => {
+    // Ca này đổi ý nghĩa cùng `0031`, và đổi theo hướng chặt hơn.
+    //
+    // Trước đây Sale Admin thấy mọi hồ sơ trong nhánh cây của mình, nên câu hỏi
+    // duy nhất còn lại là "cổng thời điểm đã mở chưa" — và câu trả lời là 409.
+    // Giờ Sale Admin chỉ được giao hồ sơ ở bước `KT_RECEIVE_L1`; ở `CHO_TBP_DUYET`
+    // họ chưa liên quan gì tới hồ sơ này, nên chặn ở tầng PHẠM VI trước.
+    //
+    // 403 trước 409 là đúng thứ tự: không nói cho người ngoài phạm vi biết hồ sơ
+    // ấy đang ở bước nào.
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     const r = await dget(`/policies/${d.id}/contract/preview`, 'sa01');
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('CONTRACT_NOT_READY');
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('OUT_OF_SCOPE');
+  }, 60_000);
+
+  it('Sale Admin ĐÃ ĐƯỢC GIAO thì qua phạm vi, và cổng thời điểm vẫn giữ nguyên', async () => {
+    // Nửa còn lại của DOC-21: quyền rộng ra không mở cổng sớm hơn. Kiểm bằng
+    // chính người đã được giao, để phép kiểm nói về CỔNG chứ không về phạm vi.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    const r = await dget(`/policies/${d.id}/contract/preview`, 'sa01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
   }, 60_000);
 });
 

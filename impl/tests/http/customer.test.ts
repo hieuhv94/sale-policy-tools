@@ -230,7 +230,15 @@ describe('CUST-10 đổi TDV phụ trách', () => {
     expect(r.body.code).toBe('REASSIGN_FORBIDDEN');
   });
 
-  it('Sale Admin thì đổi được', async () => {
+  it('Quản trị hệ thống thì đổi được (`0031`)', async () => {
+    // Quyền này chuyển từ Sale Admin sang Quản trị hệ thống. Rà lại thì KHÔNG
+    // yêu cầu nghiệp vụ nào cấp nó cho Sale Admin — YCNV §6.1 chỉ nói "khách
+    // hàng do TDV tạo", §2.5 liệt kê bảy đầu việc của Sale Admin mà không có
+    // việc giao khách. Căn cứ duy nhất của lựa chọn cũ là Sale Admin đứng ở gốc
+    // nhánh cây chứa TDV đó, và cây ấy đã bị gỡ.
+    //
+    // Quản trị hệ thống thay vào vì đây là vế sau của một việc hành chính họ đã
+    // làm: vô hiệu hoá tài khoản TDV nghỉ việc rồi chuyển khách của người đó.
     const c = await post('/customers', base());
     const tdv02Id = await withAdminDb(async (x) => {
       const q = await x.query<{ id: string }>(
@@ -238,9 +246,17 @@ describe('CUST-10 đổi TDV phụ trách', () => {
       );
       return q.rows[0]!.id;
     });
-    const r = await patch(`/customers/${c.body.id}`, { tdvUserId: tdv02Id }, 'sa01');
-    expect(r.status).toBe(200);
+    const r = await patch(`/customers/${c.body.id}`, { tdvUserId: tdv02Id }, 'admin01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.tdvUserId).toBe(tdv02Id);
+  });
+
+  it('Sale Admin KHÔNG còn đổi được', async () => {
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { tdvUserId: c.body.tdvUserId }, 'sa01');
+    // 403 vì phạm vi (chưa có hồ sơ nào giao cho họ) — chặn sớm hơn cả phép kiểm
+    // quyền, và đó là đúng thứ tự: không nói cho người ngoài phạm vi biết gì.
+    expect(r.status).toBe(403);
   });
 });
 
@@ -262,9 +278,23 @@ describe('CUST-14 phạm vi dữ liệu', () => {
     expect(r.body.code).toBe('OUT_OF_SCOPE');
   });
 
-  it('kt01 thấy được vì tdv01 nằm dưới quyền mình', async () => {
+  it('kt01 KHÔNG thấy khách chưa có hồ sơ nào giao cho mình (`0031`)', async () => {
+    // Đảo ngược hoàn toàn so với bản cũ, và đây là thay đổi CÓ CHỦ Ý.
+    //
+    // Trước đây kt01 thấy mọi khách của mọi TDV dưới nhánh cây của mình — kể cả
+    // khách vừa lập xong, chưa có hồ sơ nào. Giờ quyền xem khách hàng đi kèm
+    // việc được giao một CSBH của khách ấy; chưa được giao thì chưa thấy.
     const c = await post('/customers', base());
-    expect((await get(`/customers/${c.body.id}`, 'kt01')).status).toBe(200);
+    expect((await get(`/customers/${c.body.id}`, 'kt01')).status).toBe(403);
+  });
+
+  it('Quản trị hệ thống thấy MỌI khách — để còn đổi được TDV phụ trách', async () => {
+    // Ngoại lệ có chủ ý: phạm vi hồ sơ của Quản trị rỗng theo thiết kế, nhưng
+    // khách cần chuyển khi một TDV nghỉ việc thường là khách CHƯA có hồ sơ nào,
+    // tức không đường nào khác với tới. Không mở đường này thì chức năng đổi TDV
+    // phụ trách không dùng được, và những khách đó không còn ai nhìn thấy.
+    const c = await post('/customers', base());
+    expect((await get(`/customers/${c.body.id}`, 'admin01')).status).toBe(200);
   });
 
   it('Ban lãnh đạo đọc được toàn bộ nhưng không ghi được', async () => {

@@ -22,6 +22,8 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  phanCongMacDinh,
+  idNguoiDung,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -43,8 +45,14 @@ const get = async (path: string, who = 'tdv01') =>
 const del = async (path: string, who = 'tdv01') =>
   (await http(app)).delete(path).set('Authorization', `Bearer ${tok[who]}`);
 
-const act = (policyId: string, action: string, who: string, body: object = {}) =>
-  post(`/policies/${policyId}/actions/${action}`, body, who);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (policyId: string, action: string, who: string, body: object = {}) =>
+  post(`/policies/${policyId}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
 const uniq = (k: string) => maDuyNhat(P, k);
 
@@ -166,7 +174,7 @@ beforeAll(async () => {
   await clearScopeCache();
   app = await createPolicyApp();
 
-  for (const u of ['tdv01', 'tdv02', 'tbp01', 'kt01', 'kt02', 'sa01', 'admin01', 'bld01']) {
+  for (const u of ['tdv01', 'tdv02', 'tbp01', 'tbp02', 'kt01', 'kt02', 'sa01', 'admin01', 'bld01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
 
@@ -340,57 +348,112 @@ describe('POL-08 phiên bản mới phải chứa lại toàn bộ sản phẩm 
   });
 });
 
-describe('TDV chưa có Trưởng bộ phận quản lý thì chưa gửi được hồ sơ', () => {
-  /**
-   * Trưởng bộ phận không còn bắt buộc lúc tạo tài khoản (yêu cầu nghiệp vụ), nên
-   * chỗ chặn duy nhất còn lại là đây.
+describe('`0031` chọn người xử lý lúc gửi duyệt', () => {
+  /*
+   * Thay cho khối `TDV chưa có Trưởng bộ phận quản lý thì chưa gửi được hồ sơ`.
    *
-   * Không chặn thì hồ sơ đi vào "Chờ TBP duyệt" và nằm đó: hộp việc của TBP suy
-   * từ `approver_user_id`, không ai gán thì không hộp việc nào chứa nó. Hồ sơ
-   * biến mất êm ru cho tới lúc quá hạn, và không màn hình nào nói vì sao.
+   * Khối cũ canh một ca hỏng có thật: TDV không được gán người duyệt thì hồ sơ
+   * đi vào "Chờ TBP duyệt" và NẰM ĐÓ — hộp việc của TBP suy từ `approver_user_id`,
+   * không ai gán thì không hộp việc nào chứa nó, và hồ sơ biến mất êm ru tới lúc
+   * quá hạn.
+   *
+   * Ca hỏng ấy không còn tồn tại được: người duyệt chọn ngay tại chỗ gửi. Nhưng
+   * ba cách chọn SAI thì có, và cả ba dẫn tới đúng cái ngõ cụt cũ — nên phải
+   * chặn cả ba.
    */
-  /**
-   * Đổi trên `tdv02`, KHÔNG phải `tdv01`: các tệp test chạy song song trên cùng
-   * một CSDL và gần như tệp nào cũng gửi hồ sơ bằng `tdv01`. Gỡ người duyệt của
-   * `tdv01` dù chỉ vài trăm mili giây cũng đủ làm một tệp khác đỏ vì lý do chẳng
-   * liên quan tới nó. Không tệp nào khác gửi hồ sơ bằng `tdv02`.
-   */
-  const doiNguoiDuyet = async (username: string) => {
-    const u = await withAdminDb(async (c) => {
-      const r = await c.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = $1`, [
-        'tdv02',
-      ]);
-      return r.rows[0]!.id;
-    });
-    const res = await (await http(identity))
-      .patch(`/admin/users/${u}`)
-      .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ approverUsername: username });
-    expect(res.status, JSON.stringify(res.body)).toBe(200);
-  };
+  it('thiếu ô chọn thì 422 và nói rõ thiếu ô nào', async () => {
+    const d = await draft();
+    const r = await post(`/policies/${d.id}/actions/SUBMIT`, {}, 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(422);
+    expect(r.body.code).toBe('ASSIGNEE_REQUIRED');
+    expect(r.body.fields).toEqual(['tbpUserId', 'keToanUserId']);
+    // Câu báo phải nói việc phải làm, không chỉ nói "không được".
+    expect(r.body.message).toContain('Trưởng bộ phận');
 
-  it('gửi duyệt trả 422 NO_APPROVER, và gán xong thì gửi được ngay', async () => {
-    const customerId = await makeCustomer('tdv02');
-    const productId = await makeProduct();
-    const tao = await post('/policies', { customerId, lines: [line(productId)] }, 'tdv02');
-    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
-    const id = tao.body.id as string;
+    // Hồ sơ vẫn nguyên là bản nháp — chặn ở đây không làm mất gì.
+    expect((await get(`/policies/${d.id}`)).body.status).toBe('NHAP');
+  });
 
-    await doiNguoiDuyet(''); // chuỗi rỗng = gỡ liên kết
+  it('chọn thiếu MỘT trong hai ô cũng bị chặn', async () => {
+    const d = await draft();
+    const id = await idNguoiDung();
+    const r = await post(`/policies/${d.id}/actions/SUBMIT`, { tbpUserId: id['tbp01'] }, 'tdv01');
+    expect(r.status).toBe(422);
+    expect(r.body.fields).toEqual(['keToanUserId']);
+  });
+
+  it('chọn SAI VAI TRÒ thì 422, kèm tên ô và vai trò thật của người vừa chọn', async () => {
+    // Gán một kế toán vào ô Trưởng bộ phận là hồ sơ vào ngõ cụt: người đó không
+    // có hành động `TBP_SIGN` nào để làm. Đây đúng là ca mà trigger
+    // `forbid_bad_approver` của mô hình cũ chặn ở tầng CSDL.
+    const d = await draft();
+    const id = await idNguoiDung();
+    const r = await post(
+      `/policies/${d.id}/actions/SUBMIT`,
+      { tbpUserId: id['kt01'], keToanUserId: id['kt01'] },
+      'tdv01',
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(422);
+    expect(r.body.code).toBe('ASSIGNEE_WRONG_ROLE');
+    expect(r.body.field).toBe('tbpUserId');
+    expect(r.body.message).toContain('KE_TOAN');
+  });
+
+  it('chọn tài khoản ĐÃ VÔ HIỆU HOÁ thì 422', async () => {
+    // Ô chọn của giao diện đã lọc, nhưng ô chọn là thứ người dùng sửa được.
+    const d = await draft();
+    const id = await idNguoiDung();
+    await withAdminDb((c) =>
+      c.query(`UPDATE idn.app_user SET is_active = false WHERE username = 'tbp02'`),
+    );
     try {
-      const chan = await act(id, 'SUBMIT', 'tdv02');
-      expect(chan.status).toBe(422);
-      expect(chan.body.code).toBe('NO_APPROVER');
-      // Câu báo phải nói việc phải làm, không chỉ nói "không được".
-      expect(chan.body.message).toContain('Trưởng bộ phận');
-
-      // Hồ sơ vẫn nguyên là bản nháp — chặn ở đây không làm mất gì.
-      expect((await get(`/policies/${id}`, 'tdv02')).body.status).toBe('NHAP');
+      const r = await post(
+        `/policies/${d.id}/actions/SUBMIT`,
+        { tbpUserId: id['tbp02'], keToanUserId: id['kt01'] },
+        'tdv01',
+      );
+      expect(r.status, JSON.stringify(r.body)).toBe(422);
+      expect(r.body.code).toBe('ASSIGNEE_INACTIVE');
     } finally {
-      await doiNguoiDuyet('tbp01');
+      await withAdminDb((c) =>
+        c.query(`UPDATE idn.app_user SET is_active = true WHERE username = 'tbp02'`),
+      );
     }
+  });
 
-    expect((await act(id, 'SUBMIT', 'tdv02')).status).toBe(200);
+  it('chọn đúng thì hồ sơ GHI LẠI cả hai người, và hộp việc chỉ hiện ở người được chọn', async () => {
+    const d = await draft();
+    const id = await idNguoiDung();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const cot = await withAdminDb(async (c) => {
+      const r = await c.query<{ tbp: string; kt: string }>(
+        `SELECT tbp_user_id AS tbp, ke_toan_user_id AS kt FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
+      return r.rows[0]!;
+    });
+    expect(cot.tbp).toBe(id['tbp01']);
+    expect(cot.kt).toBe(id['kt01']);
+
+    // tbp01 được chọn → thấy trong hộp việc. tbp02 không → không thấy.
+    const cua = async (who: string) =>
+      ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map(
+        (x) => x.id,
+      );
+    expect(await cua('tbp01')).toContain(d.id);
+    expect(await cua('tbp02')).not.toContain(d.id);
+  });
+
+  it('Trưởng bộ phận KHÔNG được chọn thì không đọc nổi hồ sơ', async () => {
+    // Ranh giới chặt hơn hẳn mô hình cây: trước đây mọi TBP cùng nhánh đều đọc
+    // được. Giờ chỉ người được ghi tên lên hồ sơ.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await get(`/policies/${d.id}`, 'tbp01')).status).toBe(200);
+    const ngoai = await get(`/policies/${d.id}`, 'tbp02');
+    expect(ngoai.status).toBe(403);
+    expect(ngoai.body.code).toBe('OUT_OF_SCOPE');
   });
 });
 
@@ -534,10 +597,18 @@ describe('POL-15 phạm vi dữ liệu khi lập hồ sơ', () => {
     expect(r.body.code).toBe('OUT_OF_SCOPE');
   });
 
-  it('kt02 không đọc được hồ sơ của tdv01', async () => {
+  it('kế toán chỉ đọc được hồ sơ ĐƯỢC GIAO cho mình (`0031`)', async () => {
+    // Bản cũ dựa vào cây: kt01 đọc được vì tdv01 nằm dưới quyền mình, kt02 thì
+    // không. Giờ căn cứ là phân công trên chính hồ sơ, nên hồ sơ còn NHÁP thì
+    // KHÔNG kế toán nào đọc được — kể cả người sắp được chọn.
     const d = await draft();
+    expect((await get(`/policies/${d.id}`, 'kt01')).status).toBe(403);
     expect((await get(`/policies/${d.id}`, 'kt02')).status).toBe(403);
+
+    // Gửi duyệt và chọn kt01 → kt01 đọc được, kt02 vẫn không.
+    await act(d.id, 'SUBMIT', 'tdv01');
     expect((await get(`/policies/${d.id}`, 'kt01')).status).toBe(200);
+    expect((await get(`/policies/${d.id}`, 'kt02')).status).toBe(403);
   });
 });
 
@@ -849,12 +920,33 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
   });
 
   it('WF-15 bàn giao khi hồ sơ còn ở Chờ Kế toán L1 thì 409 INVALID_TRANSITION', async () => {
+    // Phải đi qua `KT_RECEIVE_L1` rồi LÙI trạng thái bằng SQL, chứ không dừng ở
+    // `CHO_KT_L1` như bản cũ (`0031`): Sale Admin chỉ được giao ở bước tiếp nhận
+    // L1, nên trước đó họ chưa liên quan gì tới hồ sơ và bị chặn ở tầng PHẠM VI
+    // — 403, không phải 409. Muốn kiểm CỔNG TRẠNG THÁI thì người gọi phải đã ở
+    // trong phạm vi, nếu không ca này kiểm nhầm thứ khác.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET status = 'CHO_KT_L1' WHERE id = $1`, [d.id]),
+    );
+    const r = await act(d.id, 'SA_HANDOVER', 'sa01');
+    expect(r.status, JSON.stringify(r.body)).toBe(409);
+    expect(r.body.code).toBe('INVALID_TRANSITION');
+  });
+
+  it('Sale Admin CHƯA được giao thì 403, chặn trước cả cổng trạng thái', async () => {
+    // Nửa còn lại của ca trên, tách ra vì nó nói về một luật khác: phạm vi chặn
+    // TRƯỚC trạng thái, và đó là đúng thứ tự — không nói cho người ngoài phạm vi
+    // biết hồ sơ đang ở bước nào.
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
     const r = await act(d.id, 'SA_HANDOVER', 'sa01');
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('INVALID_TRANSITION');
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('OUT_OF_SCOPE');
   });
 });
 
@@ -978,9 +1070,11 @@ describe('WF-22 không có nghiệp vụ thu hồi', () => {
 
 describe('WF-23 hành động sai trạng thái', () => {
   it('409 kèm trạng thái hiện tại và danh sách hành động được phép', async () => {
+    // Người gọi phải NẰM TRONG phạm vi thì mới tới được cổng trạng thái (`0031`)
+    // — dùng chính người lập, vì hồ sơ Nháp chưa giao cho ai khác.
     const d = await draft();
-    const r = await act(d.id, 'KT_RECEIVE_L2', 'kt01');
-    expect(r.status).toBe(409);
+    const r = await act(d.id, 'KT_RECEIVE_L2', 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(409);
     expect(r.body.status).toBe('NHAP');
     expect(r.body.allowed).toEqual(['SUBMIT']);
   });

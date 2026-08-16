@@ -32,27 +32,6 @@ export class UsersController {
     return this.users.list(pageOf({ limit, offset }));
   }
 
-  /**
-   * NGOẠI LỆ của nhóm route này: mở thêm cho Sale Admin.
-   *
-   * `@Roles` ở cấp phương thức GHI ĐÈ cấp lớp (`auth.guard.ts` dùng
-   * `getAllAndOverride`), nên dòng dưới thật sự nới quyền chứ không bị lớp
-   * `@Roles('QUAN_TRI')` ở trên chặn lại.
-   *
-   * Đặt dưới `/admin/users` để dùng lại tiền tố đã có trong danh sách trắng của
-   * gateway. Tên đường dẫn nói rõ nó không phải một route quản trị: nó trả về
-   * đúng những TDV mà người gọi được giao khách hàng cho, không trả tài khoản
-   * hay quyền hạn gì.
-   *
-   * Phải đứng TRƯỚC mọi route `:id` nếu về sau có thêm — `assignable-tdv` sẽ bị
-   * bắt như một id.
-   */
-  @Roles('SALE_ADMIN', 'QUAN_TRI')
-  @Get('assignable-tdv')
-  assignableTdv(@CurrentUser() me: AuthUser) {
-    return this.users.assignableTdv(me);
-  }
-
   @Post()
   @HttpCode(201)
   create(@CurrentUser() me: AuthUser, @Body() body: unknown) {
@@ -61,8 +40,6 @@ export class UsersController {
       username: str(2, 60),
       fullName: str(2, 200),
       role: oneOf(...ROLE_VALUES),
-      approverUsername: opt(str(1, 60)),
-      parentUsername: opt(str(1, 60)),
     });
     return this.users.create(b, me.id);
   }
@@ -75,13 +52,9 @@ export class UsersController {
   @HttpCode(200)
   update(@Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, { fullName: opt(str(2, 200)), role: opt(oneOf(...ROLE_VALUES)) });
-    const approverUsername = lienKet(body, 'approverUsername', 60);
-    const parentUsername = lienKet(body, 'parentUsername', 60);
     return this.users.update(id, {
       ...(b.fullName !== undefined ? { fullName: b.fullName } : {}),
       ...(b.role !== undefined ? { role: b.role } : {}),
-      ...(approverUsername !== undefined ? { approverUsername } : {}),
-      ...(parentUsername !== undefined ? { parentUsername } : {}),
     });
   }
 

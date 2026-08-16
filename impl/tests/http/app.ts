@@ -264,3 +264,41 @@ export async function bootPolicyListening(): Promise<{
     },
   };
 }
+
+
+// --- Phân công người xử lý (`0031`) -----------------------------------------
+
+let _idNguoiDung: Record<string, string> | null = null;
+
+/** Id của mười tài khoản mẫu, tra MỘT lần cho cả lượt chạy. */
+export async function idNguoiDung(): Promise<Record<string, string>> {
+  if (_idNguoiDung) return _idNguoiDung;
+  _idNguoiDung = await withAdminDb(async (c) => {
+    const r = await c.query<{ username: string; id: string }>(
+      `SELECT username, id FROM idn.app_user`,
+    );
+    return Object.fromEntries(r.rows.map((x) => [x.username, x.id]));
+  });
+  return _idNguoiDung;
+}
+
+/**
+ * Người mặc định cho ba bước bắt buộc chọn (`0031`).
+ *
+ * Từ khi bỏ cây tổ chức, `SUBMIT` không tự tìm được Trưởng bộ phận nữa — nó đòi
+ * `tbpUserId` và `keToanUserId`, và `KT_RECEIVE_L1` đòi `saleAdminUserId`. Gần
+ * một trăm chỗ trong bộ test gọi `act(id, 'SUBMIT', 'tdv01')` và không chỗ nào
+ * quan tâm ai duyệt.
+ *
+ * Nên: mặc định `tbp01`/`kt01`/`sa01` — đúng những người mà cây tổ chức cũ vẫn
+ * chọn cho `tdv01`, nên hành vi của các ca cũ không đổi. Ca nào QUAN TÂM tới
+ * người cụ thể thì truyền thẳng trong `body`, và nó ghi đè (xem `act` từng tệp).
+ */
+export async function phanCongMacDinh(action: string): Promise<Record<string, string>> {
+  const id = await idNguoiDung();
+  if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
+    return { tbpUserId: id['tbp01']!, keToanUserId: id['kt01']! };
+  }
+  if (action === 'KT_RECEIVE_L1') return { saleAdminUserId: id['sa01']! };
+  return {};
+}

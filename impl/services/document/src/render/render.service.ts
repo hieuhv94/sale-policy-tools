@@ -32,7 +32,11 @@ export class RenderService {
     await this.files.assertCanAccess('POLICY', policyId, me);
     const [customer, people] = await Promise.all([
       this.clients.customer(policy.customer_id),
-      this.clients.peopleFor(policy.tdv_user_id ?? ''),
+      this.clients.peopleFor(policy.tdv_user_id ?? '', {
+        tbp: policy.tbp_user_id,
+        keToan: policy.ke_toan_user_id,
+        saleAdmin: policy.sale_admin_user_id,
+      }),
     ]);
     return { policy, customer, people };
   }

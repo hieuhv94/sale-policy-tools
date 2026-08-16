@@ -34,13 +34,49 @@ const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });
 @Injectable()
 export class Clients {
   /** TDV này đã có Trưởng bộ phận quản lý chưa. `null` là chưa gán. */
-  async approverOf(tdvUserId: string): Promise<string | null> {
+  /**
+   * Vai trò và trạng thái của những tài khoản vừa được chọn (`0031`).
+   *
+   * Thay cho `approverOf` bị gỡ cùng cây tổ chức. Hỏi MỘT lượt cho cả danh sách
+   * chứ không mỗi người một lượt: bước gửi duyệt chọn hai người cùng lúc, và hai
+   * vòng mạng nối tiếp cho một thao tác đồng bộ là hai lần cơ hội hỏng.
+   */
+  async checkUsers(
+    ids: string[],
+  ): Promise<Record<string, { role: string; isActive: boolean; fullName: string }>> {
+    if (ids.length === 0) return {};
+    const res = await fetch(`${identityUrl()}/internal/users/check`, {
+      method: 'POST',
+      headers: { ...svc(), 'content-type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) throw new Error(`identity trả ${res.status} khi kiểm tài khoản được chọn`);
+    return (
+      (await res.json()) as {
+        users: Record<string, { role: string; isActive: boolean; fullName: string }>;
+      }
+    ).users;
+  }
+
+  /**
+   * Cấp quyền xem khách hàng cho những người vừa được giao hồ sơ (`0031`).
+   *
+   * Ném ra khi hỏng, KHÔNG nuốt: một người được ghi tên lên hồ sơ mà không mở
+   * được khách hàng của hồ sơ ấy là một trạng thái nửa vời, và người dùng không
+   * có cách nào tự chữa. Thà để hành động hỏng và bấm lại.
+   */
+  async grantCustomerAccess(customerId: string, userIds: string[]): Promise<void> {
+    const ids = userIds.filter(Boolean);
+    if (ids.length === 0) return;
     const res = await fetch(
-      `${identityUrl()}/internal/approver/${encodeURIComponent(tdvUserId)}`,
-      { headers: svc() },
+      `${customerUrl()}/internal/customers/${encodeURIComponent(customerId)}/access`,
+      {
+        method: 'POST',
+        headers: { ...svc(), 'content-type': 'application/json' },
+        body: JSON.stringify({ userIds: ids }),
+      },
     );
-    if (!res.ok) throw new Error(`identity trả ${res.status} khi hỏi Trưởng bộ phận quản lý`);
-    return ((await res.json()) as { approverUserId: string | null }).approverUserId;
+    if (!res.ok) throw new Error(`customer trả ${res.status} khi cấp quyền xem khách hàng`);
   }
 
   async customer(id: string): Promise<CustomerInfo> {

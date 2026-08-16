@@ -22,6 +22,7 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  phanCongMacDinh,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -46,8 +47,14 @@ const ppost = async (path: string, body: object, who: string, trace?: string) =>
 };
 const aget = async (path: string, who: string) =>
   (await http(audit)).get(path).set('Authorization', `Bearer ${tok[who]}`);
-const act = (id: string, action: string, who: string, body: object = {}, trace?: string) =>
-  ppost(`/policies/${id}/actions/${action}`, body, who, trace);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (id: string, action: string, who: string, body: object = {}, trace?: string) =>
+  ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who, trace);
 
 /** Đợi tới khi nhật ký có đủ số dòng cho một hồ sơ. */
 async function waitEntries(entityId: string, want: number, timeoutMs = 30_000) {
@@ -263,11 +270,14 @@ describe('AUD-02 sửa một trường quan trọng', () => {
     const before = 'Số 8 Tôn Thất Thuyết, Hà Nội';
     const after = 'Số 145 Nguyễn Trãi, Thanh Xuân, Hà Nội';
 
+    // Sửa bằng chính TDV phụ trách (`0031`). Trước đây `sa01` sửa được vì cây
+    // tổ chức cho họ thấy khách của mọi TDV trong nhánh; giờ quyền xem khách đi
+    // kèm việc được giao một CSBH của khách ấy, mà khách này chưa có hồ sơ nào.
     const upd = await (await http(customer))
       .patch(`/customers/${customerId}`)
-      .set('Authorization', `Bearer ${tok['sa01']}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
       .send({ registeredAddress: after });
-    expect(upd.status).toBe(200);
+    expect(upd.status, JSON.stringify(upd.body)).toBe(200);
 
     await flush();
     // HAI dòng, không phải một: từ P7b việc LẬP khách hàng cũng phát sự kiện.

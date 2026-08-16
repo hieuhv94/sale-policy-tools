@@ -51,6 +51,10 @@ type PolicyRow = {
   applied_date: Date | null;
   effective_from: Date | null;
   tdv_user_id: string | null;
+  /** Ba người được phân công theo luồng (`0031`). NULL tới lúc tới lượt họ. */
+  tbp_user_id: string | null;
+  ke_toan_user_id: string | null;
+  sale_admin_user_id: string | null;
   row_version: number;
   last_reason: string | null;
 };
@@ -63,12 +67,47 @@ export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có mu�
 const EDITABLE = ['NHAP', 'YEU_CAU_CHINH_SUA'];
 
 /**
+ * Một hồ sơ thuộc phạm vi của tôi khi id của tôi nằm ở MỘT TRONG BỐN cột người
+ * (`0031`).
+ *
+ * Trước `0031` câu lọc là `tdv_user_id = ANY(scope)`, và `scope` là cả một nhánh
+ * cây tổ chức. Giờ `scope` gần như luôn là đúng một id — chính mình — còn phần
+ * "tôi liên quan tới hồ sơ này" chuyển sang bốn cột phân công.
+ *
+ * Vẫn dùng `= ANY($n)` chứ không `= $n` vì Ban lãnh đạo có phạm vi là MỌI người
+ * dùng; giữ một dạng câu cho cả sáu vai trò thì không có nhánh nào để quên.
+ *
+ * `n` là số thứ tự tham số chứa mảng id. Trả về chuỗi SQL chứ không phải một câu
+ * hoàn chỉnh: bốn chỗ gọi có bốn hình dạng truy vấn khác nhau, và nhét chúng vào
+ * một hàm chung là dựng ra một hàm mà mỗi lời gọi dùng một nhánh riêng.
+ */
+export const thuocPhamVi = (n: number, alias = ''): string => {
+  const a = alias ? `${alias}.` : '';
+  return `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
+    .map((c) => `${a}${c} = ANY($${n}::uuid[])`)
+    .join(' OR ')})`;
+};
+
+/**
  * Hồ sơ ĐÃ ĐÓNG BĂNG — số của nó không đổi nữa, dù danh mục có đổi (`0029`).
  *
  * Gồm cả `DANG_CO_HIEU_LUC`: nó cũng đóng băng, và cũng lệch được. Không gồm
  * `TU_CHOI` và `HET_HIEU_LUC` — hai trạng thái kết thúc, lệch hay không cũng
  * không ai làm gì được nữa.
  */
+/**
+ * Vai trò nào đọc cột người nào trên hồ sơ (`0031`).
+ *
+ * Kế toán chỉ có MỘT cột cho cả hai lần tiếp nhận — đúng với quyết định "L1 và
+ * L2 là một vai trò, một người, hai màn hình".
+ */
+export const COT_CUA_VAI_TRO: Record<string, string> = {
+  TDV: 'tdv_user_id',
+  TBP: 'tbp_user_id',
+  KE_TOAN: 'ke_toan_user_id',
+  SALE_ADMIN: 'sale_admin_user_id',
+};
+
 export const DA_DONG_BANG = [
   'CHO_TBP_DUYET',
   'TBP_DA_KY_SO',
@@ -572,12 +611,14 @@ export class PoliciesService {
    * mình, với con số của lần chụp gần nhất.
    */
   async byId(policyId: string, me: AuthUser) {
-    const so = await this.db.one<{ tdv_user_id: string | null; status: string }>(
-      `SELECT tdv_user_id, status::text AS status FROM pol.policy WHERE id = $1`,
+    const so = await this.db.one<PolicyRow & { status: string }>(
+      `SELECT tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
+              status::text AS status
+         FROM pol.policy WHERE id = $1`,
       [policyId],
     );
     if (!so) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.assertInScope(so.tdv_user_id ?? '', me);
+    await this.assertPolicyInScope(so, me);
 
     if (EDITABLE.includes(so.status)) {
       await this.db.tx((c) => this.lamMoiDong(c, policyId)).catch(() => undefined);
@@ -612,7 +653,7 @@ export class PoliciesService {
               count(*) OVER() AS total_count
          FROM pol.policy p
          JOIN pol.policy_impact i ON i.policy_id = p.id
-        WHERE p.tdv_user_id = ANY($1::uuid[])
+        WHERE ${thuocPhamVi(1, 'p')}
           AND p.status::text = ANY($2::text[])
         GROUP BY p.id
         ORDER BY max(i.detected_at) DESC, p.code
@@ -638,7 +679,7 @@ export class PoliciesService {
   async thresholdPreview(policyId: string, productId: string, me: AuthUser) {
     const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.assertInScope(p.tdv_user_id ?? '', me);
+    await this.assertPolicyInScope(p, me);
 
     const customer = await this.clients.customer(p.customer_id);
     const snap = await this.clients.productSnapshot(
@@ -669,7 +710,7 @@ export class PoliciesService {
               effective_from AS "effectiveFrom", row_version AS "rowVersion",
               count(*) OVER() AS total_count
          FROM pol.policy
-        WHERE tdv_user_id = ANY($1::uuid[])
+        WHERE ${thuocPhamVi(1)}
           AND ($2::uuid IS NULL OR customer_id = $2::uuid)
           AND ($3::text IS NULL OR status::text = $3)
         -- Cột id phá hoà để phân trang ổn định: khoá sắp xếp bị hoà thì thứ tự
@@ -708,6 +749,13 @@ export class PoliciesService {
     const mine = waitingFor[me.role] ?? [];
     if (mine.length === 0) return paged([], page);
 
+    // Hộp việc lọc theo ĐÚNG cột của vai trò mình, không phải theo bốn cột
+    // (`0031`). Một Kế toán đã tiếp nhận L1 vẫn ĐỌC được hồ sơ ấy ở bước Sale
+    // Admin, nhưng nó không phải việc của họ nữa — để nó nằm lại trong hộp việc
+    // là biến hộp việc thành một danh sách hồ sơ, và hộp việc chỉ có nghĩa khi
+    // mọi dòng trong đó đều là việc phải làm hôm nay.
+    const cot = COT_CUA_VAI_TRO[me.role] ?? 'tdv_user_id';
+
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
               status::text AS status, pending_step::text AS "pendingStep",
@@ -715,7 +763,7 @@ export class PoliciesService {
               (status = 'QUA_HAN_DUYET') AS overdue,
               count(*) OVER() AS total_count
          FROM pol.policy
-        WHERE tdv_user_id = ANY($1::uuid[])
+        WHERE ${cot} = ANY($1::uuid[])
           AND (status::text = ANY($2::text[])
                OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($3::text[])))
         ORDER BY sla_due_at NULLS LAST, created_at, id
@@ -835,7 +883,7 @@ export class PoliciesService {
   private async mustEdit(policyId: string, me: AuthUser): Promise<PolicyRow> {
     const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.assertInScope(p.tdv_user_id ?? '', me);
+    await this.assertPolicyInScope(p, me);
     if (!EDITABLE.includes(p.status)) {
       throw new ConflictException({
         code: 'POLICY_LOCKED',
@@ -872,6 +920,33 @@ export class PoliciesService {
   async assertInScope(ownerUserId: string, me: AuthUser): Promise<void> {
     const ids = await this.scope.userIdsFor(me);
     if (!ids.includes(ownerUserId)) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+  }
+
+  /**
+   * Người này có liên quan tới HỒ SƠ này không (`0031`).
+   *
+   * Khác `assertInScope` ở chỗ nó hỏi về một hồ sơ cụ thể chứ không về người sở
+   * hữu. Từ khi bỏ cây tổ chức, "tôi thấy hồ sơ của TDV này" không còn nghĩa gì
+   * — cùng một TDV có hồ sơ gửi cho tôi và hồ sơ gửi cho Trưởng bộ phận khác.
+   *
+   * Cả bốn cột đều tính, kể cả những bước đã qua: Kế toán đã tiếp nhận L1 vẫn
+   * phải mở lại được hồ sơ mình đã xử lý sau khi nó đi tiếp. Mất quyền đọc ngay
+   * khi hồ sơ rời khỏi bàn mình là mất khả năng tra cứu lại việc mình đã làm.
+   */
+  async assertPolicyInScope(
+    p: {
+      tdv_user_id: string | null;
+      tbp_user_id: string | null;
+      ke_toan_user_id: string | null;
+      sale_admin_user_id: string | null;
+    },
+    me: AuthUser,
+  ): Promise<void> {
+    const ids = await this.scope.userIdsFor(me);
+    const nguoi = [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
+    if (!nguoi.some((x) => x !== null && ids.includes(x))) {
+      throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+    }
   }
 
   /**

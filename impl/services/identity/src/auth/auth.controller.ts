@@ -1,6 +1,15 @@
-import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
-import { CurrentUser, Public, PwdResetOk, secret, str, validate, type AuthUser } from '@csbh/http-kit';
+import {
+  CurrentUser,
+  oneOf,
+  Public,
+  PwdResetOk,
+  secret,
+  str,
+  validate,
+  type AuthUser,
+} from '@csbh/http-kit';
 
 @Controller('auth')
 export class AuthController {
@@ -85,29 +94,24 @@ export class AuthController {
   @HttpCode(200)
   async updateMe(@CurrentUser() u: AuthUser, @Body() body: unknown) {
     const b = validate(body, { fullName: str(2, 200) });
-
-    // Hai ô người quản lý đọc THẲNG từ thân request, không qua `validate`: `opt()`
-    // biến chuỗi rỗng thành `undefined`, mà ở đây chuỗi rỗng có nghĩa riêng là
-    // "gỡ liên kết". Cùng lý do với `lienKet()` bên `users.controller.ts`.
-    const t = (body ?? {}) as Record<string, unknown>;
-    const lienKet = (k: string) =>
-      typeof t[k] === 'string' ? (t[k] as string).trim().slice(0, 60) : undefined;
-
-    await this.auth.updateManagers(u.id, {
-      ...(lienKet('approverUsername') !== undefined
-        ? { approverUsername: lienKet('approverUsername')! }
-        : {}),
-      ...(lienKet('parentUsername') !== undefined
-        ? { parentUsername: lienKet('parentUsername')! }
-        : {}),
-    });
     return this.auth.updateProfile(u.id, b.fullName);
   }
 
-  /** Ai có thể làm quản lý của chính người gọi — để dựng ô chọn. */
-  @Get('managers')
-  managers(@CurrentUser() u: AuthUser) {
-    return this.auth.managers(u.id);
+  /**
+   * Tài khoản đang hoạt động của một vai trò — nguồn cho MỌI ô chọn người (`0031`).
+   *
+   * Thay cho `GET /auth/managers`, vốn trả "ai làm quản lý của tôi được". Không
+   * còn quản lý, nhưng nhu cầu dựng ô chọn thì lớn hơn trước: gửi duyệt chọn
+   * Trưởng bộ phận và Kế toán, tiếp nhận L1 chọn Sale Admin.
+   *
+   * Mở cho MỌI người đã đăng nhập, và chỉ trả tên với tài khoản — không email.
+   * Một TDV cần chọn người duyệt thì không có lý do gì để họ cầm danh bạ email
+   * của cả công ty; đó là việc của `/admin/users`, sau `@Roles('QUAN_TRI')`.
+   */
+  @Get('nguoi-theo-vai-tro/:role')
+  nguoiTheoVaiTro(@Param('role') role: string) {
+    const b = validate({ role }, { role: oneOf('TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN') });
+    return this.auth.nguoiTheoVaiTro(b.role);
   }
 
   @PwdResetOk()

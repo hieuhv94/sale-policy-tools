@@ -12,12 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
 import { VAI_TRO, can, type VaiTro } from '../lib/can.js';
 import {
-  NHAN_CAP_TREN,
   NHAN_VAI_TRO,
-  TRUONG_BAT_BUOC,
-  TRUONG_THEM,
-  VAI_TRO_CAP_TREN,
-  thieuTbp,
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '../lib/nguoi-dung.js';
@@ -156,9 +151,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
               <th>Tài khoản</th>
               <th>Vai trò</th>
               <th>Trưởng bộ phận quản lý</th>
-              {/* Kế toán với TDV, Sale Admin với kế toán — một cột, hai nghĩa
-                  tuỳ vai trò của dòng, nên nhãn để chung. */}
-              <th>Người quản lý</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
@@ -169,19 +161,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
                 <td>{u.fullName}</td>
                 <td className="ma-phu">{u.username}</td>
                 <td>{NHAN_VAI_TRO[u.role] ?? u.role}</td>
-                {/* Cả hai cột đều là TÊN TÀI KHOẢN. Một cột họ tên còn cột kia
-                    username thì hai ô cạnh nhau trông như hai loại dữ liệu khác
-                    nhau, và không đối chiếu được với cột Tài khoản ở trên. */}
-                <td className="ma-phu">
-                  {thieuTbp(u) ? (
-                    <span className="nhan nhan-canh-bao" title="Chưa gửi được hồ sơ">
-                      Chưa gán
-                    </span>
-                  ) : (
-                    (u.approverUsername ?? '—')
-                  )}
-                </td>
-                <td className="ma-phu">{u.parentUsername ?? '—'}</td>
                 <td>{trangThaiTaiKhoan(u)}</td>
                 <td>
                   <div className="nhom-nut nhom-nut-gon">
@@ -356,16 +335,8 @@ function HopThoaiTao({
   const [hoTen, datHoTen] = useState('');
   const [taiKhoan, datTaiKhoan] = useState('');
   const [thu, datThu] = useState('');
-  const [tbp, datTbp] = useState('');
-  const [capTren, datCapTren] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
-
-  const truong = TRUONG_THEM[vaiTro];
-  const batBuoc = TRUONG_BAT_BUOC[vaiTro];
-  const dsTbp = locTbp(ds);
-  const vaiTroCha = VAI_TRO_CAP_TREN[vaiTro];
-  const dsCapTren = vaiTroCha ? ds.filter((u) => u.role === vaiTroCha) : [];
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -377,8 +348,6 @@ function HopThoaiTao({
         username: taiKhoan.trim(),
         fullName: hoTen.trim(),
         role: vaiTro,
-        ...(truong.includes('tbp-quan-ly') && tbp ? { approverUsername: tbp } : {}),
-        ...(capTren ? { parentUsername: capTren } : {}),
       });
       xong(kq.inviteMailSent);
     } catch (err) {
@@ -388,13 +357,10 @@ function HopThoaiTao({
     }
   };
 
+  // Bốn trường, giống nhau cho cả sáu vai trò (`0031`). Biểu mẫu này từng đổi
+  // hình theo vai trò đang chọn, và mỗi lần đổi hình là một chỗ có thể gán sai.
   const duGiaTri =
-    hoTen.trim().length >= 2 &&
-    taiKhoan.trim().length >= 2 &&
-    thu.trim().length > 0 &&
-    // Ô chọn người duyệt là trường BẮT BUỘC của TDV — máy chủ cũng chặn, nhưng
-    // chặn luôn ở đây để người dùng thấy ngay thay vì gửi đi rồi nhận về lỗi.
-    (!batBuoc.includes('tbp-quan-ly') || tbp !== '');
+    hoTen.trim().length >= 2 && taiKhoan.trim().length >= 2 && thu.trim().length > 0;
 
   return (
     <HopThoai tieuDe="Tạo người dùng" dong={dong}>
@@ -407,15 +373,7 @@ function HopThoaiTao({
               {...p}
               className="o-nhap"
               value={vaiTro}
-              onChange={(e) => {
-                datVaiTro(e.target.value as VaiTro);
-                // Xoá các ô cây khi đổi vai trò: giữ lại một người duyệt của lượt
-                // trước rồi gửi kèm cho một vai trò không có trường đó là 400 từ
-                // `resolveApprover`, với thông báo không liên quan gì tới thao
-                // tác vừa làm.
-                datTbp('');
-                datCapTren('');
-              }}
+              onChange={(e) => datVaiTro(e.target.value as VaiTro)}
             >
               {VAI_TRO.map((v) => (
                 <option key={v} value={v}>
@@ -444,55 +402,6 @@ function HopThoaiTao({
               onChange={(e) => datThu(e.target.value)} />
           )}
         </Truong>
-
-        {truong.includes('tbp-quan-ly') && (
-          <>
-            <Truong
-              id="nd-tbp"
-              nhan="Trưởng bộ phận quản lý"
-              bắtBuộc={batBuoc.includes('tbp-quan-ly')}
-            >
-              {(p) => (
-                <select {...p} className="o-nhap" value={tbp}
-                  onChange={(e) => datTbp(e.target.value)}>
-                  <option value="">— Chọn Trưởng bộ phận —</option>
-                  {dsTbp.map((u) => (
-                    <option key={u.id} value={u.username}>
-                      {u.fullName} ({u.username})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-            {/* Không bắt buộc, nhưng bỏ trống có hậu quả — và hậu quả đó chỉ lộ
-                ra ở hồ sơ đầu tiên, nên phải nói ngay tại đây. */}
-            {tbp === '' && (
-              <p className="ghi-chu">
-                {dsTbp.length === 0
-                  ? 'Chưa có tài khoản Trưởng bộ phận nào đang hoạt động. '
-                  : 'Để trống cũng được, gán sau bằng nút Sửa. '}
-                Chừng nào chưa gán thì Trình dược viên này <strong>chưa gửi được hồ sơ</strong> —
-                không có ai duyệt để hồ sơ đi tiếp.
-              </p>
-            )}
-          </>
-        )}
-
-        {truong.includes('cap-tren') && vaiTroCha && (
-          <Truong id="nd-cap-tren" nhan={NHAN_CAP_TREN[vaiTro]}>
-            {(p) => (
-              <select {...p} className="o-nhap" value={capTren}
-                onChange={(e) => datCapTren(e.target.value)}>
-                <option value="">— Chưa gán —</option>
-                {dsCapTren.map((u) => (
-                  <option key={u.id} value={u.username}>
-                    {u.fullName} ({u.username})
-                  </option>
-                ))}
-              </select>
-            )}
-          </Truong>
-        )}
 
         <p className="ghi-chu">
           Hệ thống gửi thư mời tới địa chỉ trên. Người dùng tự đặt mật khẩu qua liên kết trong thư —
@@ -617,36 +526,9 @@ function HopThoaiXem({
   dong: () => void;
   xong: () => void;
 }) {
-  const [tbp, datTbp] = useState(u.approverUsername ?? '');
-  const [capTren, datCapTren] = useState(u.parentUsername ?? '');
-  const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
-
-  const coTbp = TRUONG_THEM[u.role].includes('tbp-quan-ly');
-  const vaiTroCha = VAI_TRO_CAP_TREN[u.role];
-  const dsTbp = locTbp(ds).filter((x) => x.id !== u.id);
-  const dsCapTren = vaiTroCha ? ds.filter((x) => x.role === vaiTroCha && x.id !== u.id) : [];
-  const coGan = coTbp || vaiTroCha !== null;
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    datLoi(null);
-    datDangGui(true);
-    try {
-      // Gửi chuỗi RỖNG chứ không bỏ trường: máy chủ phân biệt "không đụng tới"
-      // (thiếu trường) với "gỡ liên kết" (chuỗi rỗng).
-      await va(`/admin/users/${u.id}`, {
-        ...(coTbp ? { approverUsername: tbp } : {}),
-        ...(vaiTroCha ? { parentUsername: capTren } : {}),
-      });
-      xong();
-    } catch (err) {
-      datLoi(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
-
+  // Hộp thoại này CHỈ CÒN ĐỌC (`0031`). Nó từng mang một biểu mẫu gán "Trưởng
+  // bộ phận quản lý" và "Người quản lý" — hai liên kết không còn tồn tại. Việc
+  // chọn người xử lý đã chuyển sang từng hồ sơ, ở đúng bước gửi duyệt.
   return (
     <HopThoai tieuDe={`Tài khoản ${u.username}`} dong={dong}>
       <dl className="bang-doc">
@@ -658,72 +540,15 @@ function HopThoaiXem({
         <dd className="ma-phu">{u.email}</dd>
         <dt>Vai trò</dt>
         <dd>{NHAN_VAI_TRO[u.role] ?? u.role}</dd>
-        <dt>Trưởng bộ phận quản lý</dt>
-        <dd className="ma-phu">{u.approverUsername ?? '—'}</dd>
-        <dt>Người quản lý</dt>
-        <dd className="ma-phu">{u.parentUsername ?? '—'}</dd>
         <dt>Trạng thái</dt>
         <dd>{trangThaiTaiKhoan(u)}</dd>
       </dl>
 
-      {coGan ? (
-        <form onSubmit={gui}>
-          <h3>Gán người quản lý</h3>
-          <p className="ghi-chu">
-            Người dùng tự đổi được ở màn hình <em>Thông tin của tôi</em>. Gán ở đây khi họ chưa kích
-            hoạt tài khoản, hoặc đã nghỉ việc.
-          </p>
-
-          {coTbp && (
-            <Truong id="xem-tbp" nhan="Trưởng bộ phận quản lý">
-              {(p) => (
-                <select {...p} className="o-nhap" value={tbp}
-                  onChange={(e) => datTbp(e.target.value)}>
-                  <option value="">— Chưa gán —</option>
-                  {dsTbp.map((x) => (
-                    <option key={x.id} value={x.username}>
-                      {x.fullName} ({x.username})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-          )}
-
-          {vaiTroCha && (
-            <Truong id="xem-cap-tren" nhan={NHAN_CAP_TREN[u.role]}>
-              {(p) => (
-                <select {...p} className="o-nhap" value={capTren}
-                  onChange={(e) => datCapTren(e.target.value)}>
-                  <option value="">— Chưa gán —</option>
-                  {dsCapTren.map((x) => (
-                    <option key={x.id} value={x.username}>
-                      {x.fullName} ({x.username})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-          )}
-
-          {loi !== null && <BaoLoi loi={loi} />}
-
-          <div className="nhom-nut">
-            <button type="submit" className="nut nut-chinh" disabled={dangGui}>
-              {dangGui ? 'Đang lưu…' : 'Lưu'}
-            </button>
-            <button type="button" className="nut nut-nhe" onClick={dong}>
-              Đóng
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="nhom-nut">
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Đóng
-          </button>
-        </div>
-      )}
+      <div className="nhom-nut">
+        <button type="button" className="nut nut-nhe" onClick={dong}>
+          Đóng
+        </button>
+      </div>
     </HopThoai>
   );
 }

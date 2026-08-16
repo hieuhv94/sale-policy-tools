@@ -41,6 +41,10 @@ type WaitingRow = {
   status: Status;
   customer_id: string;
   tdv_user_id: string | null;
+  /** Ba người được phân công (`0031`) — thư nhắc phải tới đúng người đang giữ hồ sơ. */
+  tbp_user_id: string | null;
+  ke_toan_user_id: string | null;
+  sale_admin_user_id: string | null;
   sla_due_at: Date;
   row_version: number;
 };
@@ -98,7 +102,8 @@ export class SlaService {
     // Viết `now()` ở đây thì test đẩy giờ không có tác dụng và hai con số 13/14
     // ngày vĩnh viễn không kiểm được.
     const rows = await this.db.q<WaitingRow>(
-      `SELECT id, code, status, customer_id, tdv_user_id, sla_due_at, row_version
+      `SELECT id, code, status, customer_id, tdv_user_id,
+              tbp_user_id, ke_toan_user_id, sale_admin_user_id, sla_due_at, row_version
          FROM pol.policy
         WHERE status::text = ANY($2::text[])
           AND sla_due_at IS NOT NULL
@@ -179,6 +184,9 @@ export class SlaService {
           customerCode: cus?.code,
           customerName: cus?.name,
           tdvUserId: p.tdv_user_id,
+          tbpUserId: p.tbp_user_id,
+          keToanUserId: p.ke_toan_user_id,
+          saleAdminUserId: p.sale_admin_user_id,
           action: 'SLA_OVERDUE',
           toStatus: 'QUA_HAN_DUYET',
           // Bước đang chờ đi kèm THÔNG BÁO chứ không chỉ nằm trong CSDL: người
@@ -209,6 +217,9 @@ export class SlaService {
         customerCode: cus?.code,
         customerName: cus?.name,
         tdvUserId: p.tdv_user_id,
+        tbpUserId: p.tbp_user_id,
+        keToanUserId: p.ke_toan_user_id,
+        saleAdminUserId: p.sale_admin_user_id,
         action,
         toStatus: p.status,
         pendingStep: p.status,

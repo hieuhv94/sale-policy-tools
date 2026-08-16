@@ -98,9 +98,10 @@ Nó nạp 10 tài khoản gốc phủ đủ sáu vai trò (`tdv01` · `tbp01` ·
 
 Ngoài mười tài khoản trên còn 16 tài khoản nữa (`sa02`, `tbp03`, `kt03`, `kt04`, `tdv04`…`tdv15`)
 chỉ để danh sách Người dùng có đủ dòng mà thử phân trang. Chúng **chưa kích hoạt** nên không đăng
-nhập được, và treo vào một nhánh tổ chức tách hẳn `sa02 → kt03/kt04 → tdv04…` — nhánh riêng là bắt
-buộc, vì bộ test dùng chung CSDL và khẳng định phạm vi của `sa01`, `tbp01`, `tbp02` bằng danh sách
-đóng.
+nhập được — và cũng vì thế không xuất hiện trong ô chọn người xử lý ở bước gửi duyệt.
+
+Tài khoản **không có quan hệ quản lý** với nhau: chỉ có tên, email và vai trò. Việc ai xử lý hồ sơ
+của ai do người gửi duyệt chọn tại chỗ.
 
 ### Dữ liệu nghiệp vụ trong bộ mẫu
 
@@ -163,9 +164,13 @@ make demo-data
 ## Đi thử một vòng nghiệp vụ — trên bộ mẫu
 
 1. **`tdv01`** → *Khách hàng* → lập một khách hàng mới.
-2. **`tdv01`** → *Hồ sơ CSBH* → lập hồ sơ, thêm sản phẩm, xem tỷ lệ chiết khấu tự tính → **Gửi duyệt**.
-3. **`tbp01`** → *Tổng quan* → mở hồ sơ → **Ký số duyệt**.
-4. **`kt01`** → *Tổng quan* → **Tiếp nhận lần 1** → **Xuất hợp đồng (PDF)**.
+2. **`tdv01`** → *Hồ sơ CSBH* → lập hồ sơ, thêm sản phẩm, xem tỷ lệ chiết khấu tự tính → **Gửi
+   duyệt** → chọn **Trưởng bộ phận** và **Kế toán**, đọc lại **bản CSBH A4** hiện ngay trong hộp
+   thoại, rồi mới bấm Xác nhận.
+3. **`tbp01`** → *Tổng quan* → mở hồ sơ → **Ký số duyệt**. Đăng nhập `tbp02` thì **không thấy** hồ sơ
+   này — chỉ người được chọn mới thấy.
+4. **`kt01`** → *Tổng quan* → **Tiếp nhận lần 1**, chọn **Sale Admin** xử lý bước sau → **Xuất hợp
+   đồng (PDF)**.
 5. **`sa01`** → tải bản scan lên → **Bàn giao**.
 6. **`kt01`** → **Tiếp nhận lần 2** → hồ sơ chuyển *Đang có hiệu lực*.
 7. **`bld01`** → *Báo cáo* → xem tiến độ, tỷ lệ trả lại, SLA; thử **Xuất Excel**.

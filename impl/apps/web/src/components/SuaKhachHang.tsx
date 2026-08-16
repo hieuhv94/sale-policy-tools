@@ -304,7 +304,7 @@ export function DoiTdvPhuTrach({
 
   useEffect(() => {
     const huy = new AbortController();
-    layJson<Tdv[]>('/admin/users/assignable-tdv', huy.signal)
+    layJson<Tdv[]>('/auth/nguoi-theo-vai-tro/TDV', huy.signal)
       .then(datDs)
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);

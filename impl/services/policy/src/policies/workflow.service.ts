@@ -53,6 +53,35 @@ const RECIPIENTS: Partial<Record<Action, string[]>> = {
  * ngay, không chờ triển khai lại (muc 2.7, NTF-12).
  */
 
+
+/**
+ * Bước nào bắt buộc chọn ai (`0031`).
+ *
+ * Ba dòng này thay cho toàn bộ cây tổ chức. Trước đây hồ sơ tự tìm đường qua
+ * `approver_user_id` và qua chuỗi cấp trên; giờ mỗi lần chuyển tay là một lần
+ * người đang cầm hồ sơ nói rõ mình giao cho ai.
+ *
+ * `RESUBMIT_AFTER_EDIT` cũng chọn lại, không kế thừa lần trước: hồ sơ bị trả về
+ * để sửa thì người sửa có quyền gửi cho một Trưởng bộ phận khác, và ép họ giữ
+ * nguyên người vừa trả lại hồ sơ là một mặc định khó chịu mà không luật nào đòi.
+ *
+ * Kế toán KHÔNG xuất hiện ở `KT_RECEIVE_L1`: người ấy đã được chọn từ lúc gửi
+ * duyệt và nhận cả hai lần tiếp nhận.
+ */
+const PHAN_CONG: Record<string, { truong: 'tbpUserId' | 'keToanUserId' | 'saleAdminUserId'; cot: string; vaiTro: string; nhan: string }[]> = {
+  SUBMIT: [
+    { truong: 'tbpUserId', cot: 'tbp_user_id', vaiTro: 'TBP', nhan: 'Trưởng bộ phận duyệt' },
+    { truong: 'keToanUserId', cot: 'ke_toan_user_id', vaiTro: 'KE_TOAN', nhan: 'Kế toán tiếp nhận' },
+  ],
+  RESUBMIT_AFTER_EDIT: [
+    { truong: 'tbpUserId', cot: 'tbp_user_id', vaiTro: 'TBP', nhan: 'Trưởng bộ phận duyệt' },
+    { truong: 'keToanUserId', cot: 'ke_toan_user_id', vaiTro: 'KE_TOAN', nhan: 'Kế toán tiếp nhận' },
+  ],
+  KT_RECEIVE_L1: [
+    { truong: 'saleAdminUserId', cot: 'sale_admin_user_id', vaiTro: 'SALE_ADMIN', nhan: 'Sale Admin xử lý' },
+  ],
+};
+
 @Injectable()
 export class WorkflowService {
   constructor(
@@ -65,7 +94,14 @@ export class WorkflowService {
     policyId: string,
     action: Action,
     me: AuthUser,
-    opts: { reason?: string | undefined; rowVersion?: number | undefined },
+    opts: {
+      reason?: string | undefined;
+      rowVersion?: number | undefined;
+      /** Người được chọn ở bước này (`0031`). Xem `PHAN_CONG`. */
+      tbpUserId?: string | undefined;
+      keToanUserId?: string | undefined;
+      saleAdminUserId?: string | undefined;
+    },
   ) {
     const before = await this.db.one<{
       id: string;
@@ -73,13 +109,21 @@ export class WorkflowService {
       status: Status;
       row_version: number;
       tdv_user_id: string | null;
+      tbp_user_id: string | null;
+      ke_toan_user_id: string | null;
+      sale_admin_user_id: string | null;
       customer_id: string;
       supersedes_id: string | null;
       tbp_signed_at: Date | null;
       pending_step: Step | null;
     }>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!before) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.policies.assertInScope(before.tdv_user_id ?? '', me);
+    await this.policies.assertPolicyInScope(before, me);
+
+    // Người được chọn ở bước này — kiểm TRƯỚC khi đụng tới trạng thái, vì chọn
+    // sai là lỗi của biểu mẫu chứ không phải của luồng, và người dùng phải nhận
+    // về một lỗi nói đúng ô nào sai.
+    const phanCong = await this.doiPhanCong(action, opts);
 
     // Ký số lần thứ hai trên cùng hồ sơ. Không để rơi vào nhánh INVALID_TRANSITION
     // chung, vì nguyên nhân khác hẳn: không phải sai bước mà là bấm lặp, và người
@@ -144,23 +188,6 @@ export class WorkflowService {
             'Xoá dòng đó hoặc đổi ngày áp dụng rồi gửi lại.',
         });
       }
-
-      // TDV chưa có Trưởng bộ phận quản lý thì hồ sơ này sẽ nằm ở "Chờ TBP
-      // duyệt" mà KHÔNG vào hộp việc của ai: hộp việc của TBP suy từ
-      // `approver_user_id` (`idn.scope_user_ids`). Không chặn thì hồ sơ biến mất
-      // êm ru cho tới lúc quá hạn, và không màn hình nào nói vì sao.
-      //
-      // Chặn ở ĐÂY chứ không lúc tạo tài khoản: lúc tạo thường chưa biết ai sẽ
-      // duyệt, còn ở đây hồ sơ vẫn là bản nháp, chưa mất gì, và câu báo nói
-      // đúng việc phải làm.
-      if (before.tdv_user_id && (await this.clients.approverOf(before.tdv_user_id)) === null) {
-        throw new UnprocessableEntityException({
-          code: 'NO_APPROVER',
-          message:
-            'Trình dược viên lập hồ sơ này chưa được gán Trưởng bộ phận quản lý, ' +
-            'nên chưa có ai duyệt được. Đề nghị Quản trị hệ thống gán trước khi gửi.',
-        });
-      }
     }
 
     if (action === 'SA_HANDOVER') {
@@ -191,9 +218,19 @@ export class WorkflowService {
       customerCode: cus.code,
       customerName: cus.name,
       tdvUserId: before.tdv_user_id,
+      // Bốn người của hồ sơ SAU bước này, trong MỌI sự kiện (`0031`).
+      //
+      // Đặt ở `ctx` chứ không ở riêng sự kiện hành động: `policy.publish_signed`
+      // gửi cho Kế toán, và nó là một sự kiện TỰ ĐỘNG phát sau khi TBP ký — nếu
+      // nó thiếu ba khoá này thì `notify_targets` chỉ trả về người lập, `pick`
+      // không tìm thấy Kế toán nào, và lá thư ấy rơi vào bảng thư hỏng. Đã mất
+      // đúng một trong sáu thư vì chuyện này.
+      tbpUserId: phanCong.tbp_user_id ?? before.tbp_user_id,
+      keToanUserId: phanCong.ke_toan_user_id ?? before.ke_toan_user_id,
+      saleAdminUserId: phanCong.sale_admin_user_id ?? before.sale_admin_user_id,
     };
 
-    return this.db.tx(async (c) => {
+    const ketQua = await this.db.tx(async (c) => {
       // THỨ TỰ Ở ĐÂY LÀ BẮT BUỘC: vô hiệu bản cũ TRƯỚC, kích hoạt bản mới SAU.
       //
       // Partial unique index uq_policy_active_per_customer kiểm ngay sau từng
@@ -310,6 +347,25 @@ export class WorkflowService {
         opts.reason,
       );
 
+      // Ghi người được chọn trong CÙNG transaction với bước chuyển. Tách ra là
+      // mở một khe: hồ sơ sang "Chờ TBP duyệt" mà chưa có `tbp_user_id` thì nó
+      // không nằm trong hộp việc của ai, và không có gì trên màn hình nói vì sao.
+      if (Object.keys(phanCong).length > 0) {
+        await c.query(
+          `UPDATE pol.policy
+              SET tbp_user_id = coalesce($2, tbp_user_id),
+                  ke_toan_user_id = coalesce($3, ke_toan_user_id),
+                  sale_admin_user_id = coalesce($4, sale_admin_user_id)
+            WHERE id = $1`,
+          [
+            policyId,
+            phanCong.tbp_user_id ?? null,
+            phanCong.ke_toan_user_id ?? null,
+            phanCong.sale_admin_user_id ?? null,
+          ],
+        );
+      }
+
       // Email đi qua outbox trong cùng transaction: bước chuyển thành công mà
       // email mất, hoặc email bay đi mà bước chuyển bị rollback, đều không xảy ra.
       const to = RECIPIENTS[action];
@@ -359,6 +415,77 @@ export class WorkflowService {
 
       return this.policies.load(policyId, c);
     });
+
+    // Cấp quyền xem khách hàng cho người vừa được giao (`0031`).
+    //
+    // SAU transaction, không trong: `cus` là schema của service khác, và một
+    // lời gọi HTTP nằm trong transaction giữ khoá dòng hồ sơ suốt thời gian
+    // mạng — đúng thứ biến một service chậm thành một CSDL đứng.
+    if (Object.keys(phanCong).length > 0) {
+      await this.clients.grantCustomerAccess(before.customer_id, Object.values(phanCong));
+    }
+
+    return ketQua;
+  }
+
+
+  /**
+   * Đọc và KIỂM những người được chọn ở bước này.
+   *
+   * Ba phép kiểm, và cả ba đều đã có lần hỏng thật ở mô hình cũ:
+   *
+   *   1. **Thiếu** — hồ sơ sang bước tiếp mà không có ai cầm. Ở mô hình cây, đây
+   *      là ca "TDV chưa được gán Trưởng bộ phận": hồ sơ nằm ở Chờ TBP duyệt
+   *      không vào hộp việc của ai và đứng im tới lúc quá hạn.
+   *   2. **Sai vai trò** — chọn một Kế toán vào ô Trưởng bộ phận. Người đó không
+   *      có hành động `TBP_SIGN` nào, nên hồ sơ vào ngõ cụt y hệt.
+   *   3. **Đã vô hiệu hoá** — tài khoản còn trong CSDL nhưng không đăng nhập
+   *      được. Ô chọn của giao diện đã lọc, nhưng ô chọn là thứ người dùng sửa
+   *      được; chốt chặn phải nằm ở đây.
+   */
+  private async doiPhanCong(
+    action: Action,
+    opts: {
+      tbpUserId?: string | undefined;
+      keToanUserId?: string | undefined;
+      saleAdminUserId?: string | undefined;
+    },
+  ): Promise<Record<string, string>> {
+    const can = PHAN_CONG[action];
+    if (!can) return {};
+
+    const thieu = can.filter((x) => !opts[x.truong]);
+    if (thieu.length > 0) {
+      throw new UnprocessableEntityException({
+        code: 'ASSIGNEE_REQUIRED',
+        fields: thieu.map((x) => x.truong),
+        message: `Chưa chọn ${thieu.map((x) => x.nhan).join(' và ')}.`,
+      });
+    }
+
+    const ids = can.map((x) => opts[x.truong]!);
+    const users = await this.clients.checkUsers(ids);
+    const ra: Record<string, string> = {};
+    for (const x of can) {
+      const id = opts[x.truong]!;
+      const u = users[id];
+      if (!u || !u.isActive) {
+        throw new UnprocessableEntityException({
+          code: 'ASSIGNEE_INACTIVE',
+          field: x.truong,
+          message: `Tài khoản chọn cho ô "${x.nhan}" không còn hoạt động. Chọn người khác.`,
+        });
+      }
+      if (u.role !== x.vaiTro) {
+        throw new UnprocessableEntityException({
+          code: 'ASSIGNEE_WRONG_ROLE',
+          field: x.truong,
+          message: `Ô "${x.nhan}" phải chọn tài khoản ${x.vaiTro}, người vừa chọn là ${u.role}.`,
+        });
+      }
+      ra[x.cot] = id;
+    }
+    return ra;
   }
 
   /** Danh sách hành động hợp lệ tại trạng thái hiện tại — dùng cho UI và cho lỗi 409. */
@@ -374,12 +501,19 @@ export class WorkflowService {
     input: { kind: 'HO_SO' | 'SCAN'; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
   ) {
-    const p = await this.db.one<{ status: Status; tdv_user_id: string | null }>(
-      `SELECT status, tdv_user_id FROM pol.policy WHERE id = $1`,
+    const p = await this.db.one<{
+      status: Status;
+      tdv_user_id: string | null;
+      tbp_user_id: string | null;
+      ke_toan_user_id: string | null;
+      sale_admin_user_id: string | null;
+    }>(
+      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id
+         FROM pol.policy WHERE id = $1`,
       [policyId],
     );
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.policies.assertInScope(p.tdv_user_id ?? '', me);
+    await this.policies.assertPolicyInScope(p, me);
 
     // Hồ sơ đính kèm chỉ sửa được khi còn Nháp; bản scan thì ngược lại, chỉ tải
     // lên ở bước Sale Admin xử lý (POL-18, WF-13).
@@ -406,12 +540,19 @@ export class WorkflowService {
   }
 
   async detach(policyId: string, attachmentId: string, me: AuthUser) {
-    const p = await this.db.one<{ status: Status; tdv_user_id: string | null }>(
-      `SELECT status, tdv_user_id FROM pol.policy WHERE id = $1`,
+    const p = await this.db.one<{
+      status: Status;
+      tdv_user_id: string | null;
+      tbp_user_id: string | null;
+      ke_toan_user_id: string | null;
+      sale_admin_user_id: string | null;
+    }>(
+      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id
+         FROM pol.policy WHERE id = $1`,
       [policyId],
     );
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
-    await this.policies.assertInScope(p.tdv_user_id ?? '', me);
+    await this.policies.assertPolicyInScope(p, me);
     if (!['NHAP', 'YEU_CAU_CHINH_SUA', 'SA_DANG_XU_LY'].includes(p.status)) {
       throw new ConflictException({ code: 'POLICY_LOCKED' });
     }

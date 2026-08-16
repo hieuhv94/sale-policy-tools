@@ -28,32 +28,23 @@ export const ROLE_VALUES = [
 ] as const;
 export type RoleValue = (typeof ROLE_VALUES)[number];
 
-/**
- * Cấp trên của một vai trò PHẢI là vai trò nào — `idn.scope_user_ids` suy phạm
- * vi dữ liệu từ đúng chuỗi này (`0003_identity.sql`). `null` = vai trò đứng
- * ngoài cây dữ liệu.
+/*
+ * KHÔNG CÒN `VAI_TRO_CAP_TREN`, và không còn cấp trên nào cả (`0031`).
  *
- * Bản sao của bảng cùng tên bên giao diện, và đó là chủ ý: giao diện dựng ô
- * chọn, máy chủ CHẶN. Máy chủ tin bảng của giao diện là tin một thứ người dùng
- * sửa được.
+ * Người dùng không quản lý lẫn nhau nữa: một tài khoản chỉ có tên, email và vai
+ * trò. Việc "ai xử lý hồ sơ của ai" chuyển sang từng hồ sơ — TDV chọn Trưởng bộ
+ * phận và Kế toán lúc gửi duyệt, Kế toán chọn Sale Admin lúc tiếp nhận L1.
+ *
+ * Hệ quả đáng nhớ nhất: **tạo tài khoản không còn bước nào có thể gán sai**.
+ * Trước đây gán nhầm một kế toán vào ô người duyệt là hồ sơ đi vào ngõ cụt và
+ * đứng im tới lúc quá hạn; giờ ô ấy không tồn tại, và việc chọn diễn ra ở chỗ
+ * người chọn nhìn thấy ngay hồ sơ mình đang gửi.
  */
-export const VAI_TRO_CAP_TREN: Record<RoleValue, RoleValue | null> = {
-  TDV: 'KE_TOAN',
-  KE_TOAN: 'SALE_ADMIN',
-  TBP: null,
-  SALE_ADMIN: null,
-  BAN_LANH_DAO: null,
-  QUAN_TRI: null,
-};
 
 export type UpdateUserInput = {
   fullName?: string | undefined;
   /** Vai trò mới. Đổi được, nhưng có chốt chặn — xem `assertKhongConDangDo`. */
   role?: RoleValue | undefined;
-  /** Chuỗi rỗng = gỡ Trưởng bộ phận quản lý. `undefined` = không đụng tới. */
-  approverUsername?: string | undefined;
-  /** Chuỗi rỗng = gỡ cấp trên. `undefined` = không đụng tới. */
-  parentUsername?: string | undefined;
 };
 
 export type CreateUserInput = {
@@ -61,9 +52,6 @@ export type CreateUserInput = {
   username: string;
   fullName: string;
   role: RoleValue;
-  /** Tài khoản Trưởng bộ phận duyệt hồ sơ của TDV này. BẮT BUỘC khi `role` là TDV. */
-  approverUsername?: string | undefined;
-  parentUsername?: string | undefined;
 };
 
 @Injectable()
@@ -108,51 +96,19 @@ export class UsersService {
       });
     }
 
-    // Trưởng bộ phận quản lý KHÔNG bắt buộc lúc tạo — gán sau cũng được, qua
-    // `PATCH /admin/users/:id`. Trước đây chặn ở đây; bỏ theo yêu cầu nghiệp vụ
-    // vì lúc tạo TDV thường chưa biết ai sẽ duyệt.
-    //
-    // Hệ quả phải nhớ: hồ sơ do một TDV chưa gán gửi đi nằm ở "Chờ TBP duyệt"
-    // mà không vào hộp việc của ai — hộp việc của TBP suy từ `approver_user_id`
-    // (`idn.scope_user_ids`). Cái chặn thật nằm ở lúc GỬI hồ sơ, chỗ người dùng
-    // còn sửa được, chứ không phải lúc tạo tài khoản.
-    const approverId = await this.resolveApprover(input.role, input.approverUsername);
-
-    let parentId: string | null = null;
-    if (input.parentUsername) {
-      const p = await this.db.one<{ id: string }>(
-        `SELECT id FROM idn.app_user WHERE lower(username) = lower($1)`,
-        [input.parentUsername],
-      );
-      if (!p) throw new NotFoundException({ code: 'PARENT_NOT_FOUND' });
-      parentId = p.id;
-    }
-
     const hash = await this.matKhauKhoa();
     const token = newSecretToken();
 
     const created = await this.db.tx(async (c) => {
       const r = await c.query<{ id: string }>(
         `INSERT INTO idn.app_user
-           (username, email, full_name, role, approver_user_id, password_hash,
+           (username, email, full_name, role, password_hash,
             must_change_password, created_by)
-         VALUES ($1,$2,$3,$4::idn.user_role,$5,$6,true,$7)
+         VALUES ($1,$2,$3,$4::idn.user_role,$5,true,$6)
          RETURNING id`,
-        [
-          input.username,
-          input.email,
-          input.fullName,
-          input.role,
-          approverId,
-          hash,
-          createdBy,
-        ],
+        [input.username, input.email, input.fullName, input.role, hash, createdBy],
       );
       const id = r.rows[0]!.id;
-      await c.query(`INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)`, [
-        id,
-        parentId,
-      ]);
       await c.query(
         `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by, purpose)
          VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4, 'ACTIVATE')`,
@@ -271,151 +227,72 @@ export class UsersService {
     // dưới đây đọc `vaiTro`, không đọc `cur.role`.
     const vaiTro = vaiTroMoi ?? cur.role;
 
-    // `undefined` = không đụng tới; chuỗi rỗng = gỡ liên kết. Gộp hai thứ đó làm
-    // một thì không bao giờ gỡ được cấp trên của một người đã gán nhầm.
-    let approverId: string | null | undefined;
-    if (input.approverUsername !== undefined) {
-      // Gỡ người duyệt của một TDV KHÔNG còn bị cấm ở đây. Trước thì cấm, để
-      // đường vòng "tạo đúng rồi sửa cho sai" không mở ra — nhưng từ khi tạo
-      // tài khoản không bắt buộc Trưởng bộ phận nữa thì cấm ở đây chẳng chặn
-      // được gì, chỉ làm người quản trị không sửa nổi một liên kết gán nhầm.
-      // Chỗ chặn thật là lúc GỬI hồ sơ (`NO_APPROVER` bên policy).
-      approverId =
-        input.approverUsername === ''
-          ? null
-          : await this.resolveApprover(vaiTro, input.approverUsername);
-    }
-
-    let parentId: string | null | undefined;
-    if (input.parentUsername !== undefined) {
-      if (input.parentUsername === '') parentId = null;
-      else {
-        const p = await this.db.one<{ id: string }>(
-          `SELECT id FROM idn.app_user WHERE lower(username) = lower($1)`,
-          [input.parentUsername],
-        );
-        if (!p) throw new NotFoundException({ code: 'PARENT_NOT_FOUND' });
-        if (p.id === userId) {
-          throw new BadRequestException({
-            code: 'VALIDATION_FAILED',
-            field: 'parentUsername',
-            message: 'Không đặt được chính mình làm cấp trên',
-          });
-        }
-        parentId = p.id;
-      }
-    }
-
-    // Đổi vai trò thì hai liên kết cây phải dọn theo, nếu không sẽ còn lại đúng
-    // thứ mà trigger `forbid_bad_approver` chặn không cho tạo: một người không
-    // phải TDV mà vẫn mang Trưởng bộ phận quản lý. Dọn NGẦM chứ không báo lỗi —
-    // người quản trị đang đổi vai trò, họ không việc gì phải đi gỡ liên kết cũ
-    // trước rồi mới đổi được.
-    const goApprover = vaiTroMoi !== null && vaiTroMoi !== 'TDV';
-    // Cấp trên KHÔNG chỉ hỏng khi vai trò mới đứng ngoài cây. Đổi TDV → Kế toán
-    // thì ô cấp trên vẫn còn, nhưng người đang nằm trong đó là một kế toán —
-    // trong khi cấp trên của kế toán phải là Sale Admin. Nên điều kiện là "người
-    // đang gán có đúng vai trò mà vai trò MỚI đòi hỏi không", tính bằng SQL vì
-    // câu trả lời nằm ở dòng của người kia.
-    const capTrenPhaiLa = vaiTroMoi === null ? null : VAI_TRO_CAP_TREN[vaiTroMoi];
-
     await this.db.tx(async (c) => {
-      if (input.fullName !== undefined || approverId !== undefined || vaiTroMoi !== null) {
+      if (input.fullName !== undefined || vaiTroMoi !== null) {
         await c.query(
           `UPDATE idn.app_user
               SET full_name = coalesce($2, full_name),
-                  role = coalesce($5::idn.user_role, role),
-                  approver_user_id = CASE WHEN $6 THEN NULL
-                                          WHEN $4 THEN $3
-                                          ELSE approver_user_id END,
+                  role = coalesce($3::idn.user_role, role),
                   updated_at = now()
             WHERE id = $1`,
-          [
-            userId,
-            input.fullName ?? null,
-            approverId ?? null,
-            approverId !== undefined,
-            vaiTroMoi,
-            goApprover,
-          ],
-        );
-      }
-      if (vaiTroMoi !== null) {
-        await c.query(
-          `UPDATE idn.user_node n SET parent_id = NULL
-            WHERE n.user_id = $1
-              AND n.parent_id IS NOT NULL
-              AND ($2::text IS NULL
-                   OR NOT EXISTS (SELECT 1 FROM idn.app_user p
-                                   WHERE p.id = n.parent_id AND p.role::text = $2))`,
-          [userId, capTrenPhaiLa],
-        );
-      }
-      if (parentId !== undefined) {
-        // `user_node` có một dòng cho MỌI người dùng (create() luôn chèn), nên
-        // đây là UPDATE chứ không phải upsert — nhưng vẫn phòng dòng thiếu.
-        await c.query(
-          `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1,$2)
-           ON CONFLICT (user_id) DO UPDATE SET parent_id = EXCLUDED.parent_id`,
-          [userId, parentId],
+          [userId, input.fullName ?? null, vaiTroMoi],
         );
       }
     });
 
-    // Phạm vi dữ liệu suy ra từ cây tổ chức, mà cây vừa đổi — cache tài khoản
-    // phải bỏ ngay, không chờ hết TTL 60 giây.
+    // Đổi vai trò KHÔNG còn phải dọn liên kết cây nào (`0031`). Trước đây một
+    // TDV lên Kế toán để lại hai liên kết hỏng — người duyệt trỏ vào một TBP mà
+    // Kế toán không cần, cấp trên trỏ vào một Kế toán trong khi cấp trên của Kế
+    // toán phải là Sale Admin — và cả hai phải dọn ngầm ở đây. Không còn liên
+    // kết nào thì không còn gì để dọn, và một trong những chỗ tinh vi nhất của
+    // service này biến mất cùng với chúng.
+
+    // Phạm vi dữ liệu suy từ vai trò, mà vai trò vừa đổi — cache tài khoản phải
+    // bỏ ngay, không chờ hết TTL 60 giây.
     await this.accounts.invalidate(userId);
     return { ok: true };
   }
 
   /**
-   * Danh sách TDV mà người gọi được phép giao khách hàng cho.
+   * Tài khoản đang hoạt động của một vai trò — nguồn cho MỌI ô chọn người.
    *
-   * Sale Admin cần nó để đổi TDV phụ trách (`doiTdvPhuTrach`), mà họ KHÔNG có
-   * quyền trên nhóm route quản trị người dùng. Nguồn thay thế duy nhất trước đây
-   * là `byHandler` của báo cáo tiến độ — nhưng nó chỉ liệt kê TDV **đã có hồ sơ**,
-   * nên một TDV mới tuyển không bao giờ xuất hiện và không ai giao khách được
-   * cho họ.
+   * Từ `0031` có bốn chỗ cần đúng danh sách này và chúng phải nhìn thấy như
+   * nhau: TDV chọn Trưởng bộ phận và Kế toán lúc gửi duyệt, Kế toán chọn Sale
+   * Admin lúc tiếp nhận L1, Quản trị chọn TDV lúc đổi người phụ trách khách hàng.
    *
-   * Phạm vi suy từ cây tổ chức, không cấu hình tay: Sale Admin thấy TDV thuộc
-   * nhánh của mình. `QUAN_TRI` có phạm vi RỖNG theo thiết kế
-   * (`0003_identity.sql:104`) nên phải xử lý riêng — họ quản trị tài khoản nên
-   * thấy toàn bộ.
+   * KHÔNG lọc theo phạm vi người gọi, và đó là chủ ý. Phạm vi trả lời câu "tôi
+   * được xem hồ sơ nào"; ô chọn trả lời câu "tôi giao việc này cho ai được".
+   * Trộn hai câu ấy làm một chính là lỗi cũ: `assignableTdv` từng lọc qua
+   * `scope_user_ids`, nên một TDV mới tuyển chưa có hồ sơ nào thì không ai giao
+   * khách được cho họ.
+   *
+   * Tài khoản đã vô hiệu hoá KHÔNG xuất hiện: giao việc cho người không đăng
+   * nhập được là gửi hồ sơ vào ngõ cụt.
    */
-  async assignableTdv(me: { id: string; role: string }) {
-    if (me.role === 'QUAN_TRI') {
-      return this.db.q(
-        `SELECT id, username, full_name AS "fullName" FROM idn.app_user
-          WHERE role = 'TDV' AND is_active ORDER BY full_name`,
-      );
-    }
+  async byRole(role: RoleValue) {
     return this.db.q(
-      `SELECT u.id, u.username, u.full_name AS "fullName"
-         FROM idn.app_user u
-        WHERE u.role = 'TDV' AND u.is_active
-          AND u.id IN (SELECT user_id FROM idn.scope_user_ids($1))
-        ORDER BY u.full_name`,
-      [me.id],
+      `SELECT id, username, full_name AS "fullName", email
+         FROM idn.app_user
+        WHERE role = $1::idn.user_role AND is_active AND activated_at IS NOT NULL
+        ORDER BY full_name`,
+      [role],
     );
   }
 
   /**
-   * `approverUsername` và `parentUsername` phải có ở đây, không chỉ ở lúc tạo:
-   * biểu mẫu sửa mở ra là phải thấy giá trị đang có. Thiếu hai cột này thì màn
-   * hình quản trị hiện ô trống và người dùng tưởng chưa gán gì.
+   * Không còn cột liên kết nào (`0031`).
+   *
+   * Trước đây câu này nối ba lần sang chính `app_user` để lấy tên người duyệt và
+   * tên cấp trên, vì biểu mẫu sửa phải mở ra thấy giá trị đang có. Hai ô ấy
+   * không còn, nên ba phép nối cũng không còn.
    */
   async list(page: Page) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT u.id, u.username, u.email, u.full_name AS "fullName", u.role::text AS role,
               u.is_active AS "isActive", u.must_change_password AS "mustChangePassword",
               u.activated_at AS "activatedAt", u.email_verified_at AS "emailVerifiedAt",
-              a.username AS "approverUsername", a.full_name AS "approverName",
-              p.username AS "parentUsername",
               count(*) OVER() AS total_count
          FROM idn.app_user u
-         LEFT JOIN idn.app_user a ON a.id = u.approver_user_id
-         LEFT JOIN idn.user_node n ON n.user_id = u.id
-         LEFT JOIN idn.app_user p ON p.id = n.parent_id
         ORDER BY u.username
         LIMIT $1 OFFSET $2`,
       [page.limit, page.offset],
@@ -424,20 +301,13 @@ export class UsersService {
   }
 
   /**
-   * Đổi tên tài khoản Trưởng bộ phận thành id, và CHẶN mọi vai trò khác.
-   *
-   * Trigger `trg_app_user_approver` (0017) cũng chặn, nhưng nó ném ra
-   * `check_violation` của Postgres — người dùng nhận về lỗi 500 với một câu
-   * tiếng Anh không dấu. Chặn ở đây để có `VALIDATION_FAILED` kèm tên trường,
-   * đúng thứ biểu mẫu cần để tô đỏ đúng ô.
-   */
-  /**
    * Chặn đổi vai trò khi người này còn hồ sơ dở dang.
    *
-   * Đây là chỗ giữ lại lý do cũ của việc cấm đổi vai trò. Hồ sơ đang chờ đúng
-   * bước của vai trò cũ sẽ KHÔNG tự chuyển cho ai — hộp việc suy từ cây tổ chức
-   * và từ vai trò, nên đổi vai trò là bỏ rơi chúng ở một trạng thái không ai
-   * còn hành động nào để đi tiếp.
+   * Đây là chỗ giữ lại lý do cũ của việc cấm đổi vai trò, và từ `0031` lý do ấy
+   * còn MẠNH HƠN: hồ sơ ghi thẳng id người xử lý lên chính nó. Đổi vai trò của
+   * một Trưởng bộ phận đang có hồ sơ chờ ký là để lại một hồ sơ trỏ tới người
+   * không còn hành động `TBP_SIGN` nào — và không ai khác cầm được nó, vì hồ sơ
+   * chỉ nằm trong hộp việc của đúng người được chọn.
    *
    * Trả về lỗi kèm DANH SÁCH mã hồ sơ, không chỉ một con số: người quản trị phải
    * biết đi tìm cái gì, chứ "còn 3 hồ sơ" thì họ không tra ra được ba hồ sơ nào.
@@ -462,30 +332,6 @@ export class UsersService {
       // Chỉ 20 hồ sơ mới nhất — `count` ở trên mới là tổng.
       policies: dangDo.policies,
     });
-  }
-
-  private async resolveApprover(role: RoleValue, username: string | undefined) {
-    if (!username) return null;
-    if (role !== 'TDV') {
-      throw new BadRequestException({
-        code: 'VALIDATION_FAILED',
-        field: 'approverUsername',
-        message: 'Chỉ Trình dược viên mới có Trưởng bộ phận quản lý',
-      });
-    }
-    const a = await this.db.one<{ id: string; role: string }>(
-      `SELECT id, role::text AS role FROM idn.app_user WHERE lower(username) = lower($1)`,
-      [username],
-    );
-    if (!a) throw new NotFoundException({ code: 'APPROVER_NOT_FOUND' });
-    if (a.role !== 'TBP') {
-      throw new BadRequestException({
-        code: 'VALIDATION_FAILED',
-        field: 'approverUsername',
-        message: 'Người duyệt phải là tài khoản Trưởng bộ phận',
-      });
-    }
-    return a.id;
   }
 
   /**

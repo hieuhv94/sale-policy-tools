@@ -36,8 +36,19 @@ type Row = {
   tdv_user_id: string;
 };
 
-/** Vai trò được đổi TDV phụ trách. TDV không tự chuyển khách của mình (CUST-10). */
-const CAN_REASSIGN = ['SALE_ADMIN', 'QUAN_TRI'];
+/**
+ * Vai trò được đổi TDV phụ trách. TDV không tự chuyển khách của mình (CUST-10).
+ *
+ * CHỈ CÒN Quản trị hệ thống từ `0031`. Sale Admin có quyền này suốt từ P11d, và
+ * hôm nay rà lại thì KHÔNG có yêu cầu nghiệp vụ nào cấp nó: YCNV §6.1 chỉ nói
+ * "khách hàng do TDV tạo", §2.5 liệt kê bảy đầu việc của Sale Admin mà không có
+ * việc giao khách. Lý do thật của lựa chọn cũ là Sale Admin đứng ở gốc nhánh cây
+ * chứa TDV đó — và cây ấy vừa bị bỏ.
+ *
+ * Quản trị hệ thống thay vào, vì đây là việc hành chính đi kèm việc vô hiệu hoá
+ * tài khoản một TDV nghỉ việc, và họ đã là người làm vế kia.
+ */
+const CAN_REASSIGN = ['QUAN_TRI'];
 
 @Injectable()
 export class CustomersService {
@@ -105,7 +116,7 @@ export class CustomersService {
   async byId(id: string, me: AuthUser) {
     const row = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!row) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
-    await this.assertInScope(row.tdv_user_id, me);
+    await this.assertInScope(row.tdv_user_id, me, id);
     return toDto(row);
   }
 
@@ -121,8 +132,15 @@ export class CustomersService {
     // Chuỗi ghép giống hệt biểu thức của index GIN trigram ix_customer_search —
     // lệch một ký tự là Postgres không dùng index và quay về quét toàn bảng.
     const rows = await this.db.q<Row & { total_count: string }>(
-      `SELECT *, count(*) OVER() AS total_count FROM cus.customer
-        WHERE tdv_user_id = ANY($1::uuid[])
+      // Hai nguồn quyền xem, gộp bằng `OR` (`0031`): khách mình phụ trách, và
+      // khách của những CSBH mình đã xử lý. `$3` là cờ "Quản trị thấy tất cả" —
+      // đưa vào câu lệnh thay vì dựng hai câu, để chỉ có một hình dạng truy vấn
+      // phải đọc và phải tối ưu.
+      `SELECT *, count(*) OVER() AS total_count FROM cus.customer c
+        WHERE ($5::boolean
+               OR c.tdv_user_id = ANY($1::uuid[])
+               OR EXISTS (SELECT 1 FROM cus.customer_access a
+                           WHERE a.customer_id = c.id AND a.user_id = ANY($1::uuid[])))
           AND ($2::text IS NULL
                OR (name || ' ' || registered_address || ' ' || coalesce(id_number, ''))
                   ILIKE $2)
@@ -134,7 +152,7 @@ export class CustomersService {
         -- báo lỗi nào; người dùng chỉ thấy một khách hàng hiện hai lần.
         ORDER BY name, id
         LIMIT $3 OFFSET $4`,
-      [ids, like, page.limit, page.offset],
+      [ids, like, page.limit, page.offset, me.role === 'QUAN_TRI'],
     );
     const out = paged(rows, page);
     return { ...out, items: out.items.map((r) => toDto(r as unknown as Row)) };
@@ -152,12 +170,12 @@ export class CustomersService {
   ) {
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
-    await this.assertInScope(cur.tdv_user_id, me);
+    await this.assertInScope(cur.tdv_user_id, me, id);
 
     if (patch.tdvUserId !== undefined && !CAN_REASSIGN.includes(me.role)) {
       throw new ForbiddenException({
         code: 'REASSIGN_FORBIDDEN',
-        message: 'Chỉ Sale Admin hoặc Quản trị hệ thống đổi được TDV phụ trách',
+        message: 'Chỉ Quản trị hệ thống đổi được TDV phụ trách',
       });
     }
 
@@ -211,7 +229,7 @@ export class CustomersService {
   async remove(id: string, me: AuthUser) {
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
-    await this.assertInScope(cur.tdv_user_id, me);
+    await this.assertInScope(cur.tdv_user_id, me, id);
 
     // Khoá ngoại từ pol.policy chặn ở tầng CSDL. Hỏi trước rồi xoá sau sẽ hở
     // một khe cho hồ sơ lập xen vào giữa hai câu lệnh (CUST-16).
@@ -272,10 +290,34 @@ export class CustomersService {
     return rows;
   }
 
-  /** Phạm vi dữ liệu suy ra từ cây tổ chức, do identity giữ (CUST-14). */
-  private async assertInScope(ownerUserId: string, me: AuthUser): Promise<void> {
+  /**
+   * Ai xem được một khách hàng (`0031`, CUST-14).
+   *
+   * HAI đường, và cả hai đều cần:
+   *
+   *   1. **TDV phụ trách** — `cus.customer.tdv_user_id`. Đúng cả với khách chưa
+   *      có hồ sơ nào, tức đúng ngay từ giây người ta vừa lập xong khách hàng.
+   *   2. **Đã xử lý một CSBH của khách này** — `cus.customer_access`, do
+   *      `policy` bắn sự kiện sang. Đây là đường của TBP, Kế toán và Sale Admin.
+   *
+   * Quản trị hệ thống là ngoại lệ, và là ngoại lệ CÓ CHỦ Ý: phạm vi hồ sơ của
+   * họ rỗng theo thiết kế, nhưng họ là người đổi TDV phụ trách khi một TDV nghỉ
+   * việc — mà khách cần chuyển thường là khách chưa có hồ sơ nào, tức không
+   * đường nào ở trên với tới. Không mở đường này thì chức năng ấy không dùng
+   * được, và những khách hàng đó không còn ai nhìn thấy.
+   */
+  private async assertInScope(ownerUserId: string, me: AuthUser, customerId?: string): Promise<void> {
+    if (me.role === 'QUAN_TRI') return;
     const ids = await this.scope.userIdsFor(me);
-    if (!ids.includes(ownerUserId)) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+    if (ids.includes(ownerUserId)) return;
+    if (customerId) {
+      const r = await this.db.q(
+        `SELECT 1 FROM cus.customer_access WHERE customer_id = $1 AND user_id = ANY($2::uuid[])`,
+        [customerId, ids],
+      );
+      if (r.length > 0) return;
+    }
+    throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
   }
 }
 

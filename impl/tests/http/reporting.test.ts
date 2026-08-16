@@ -31,6 +31,7 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  phanCongMacDinh,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -52,8 +53,14 @@ const uniq = (k: string) => maDuyNhat(P, k);
 
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
-const act = (id: string, action: string, who: string, body: object = {}) =>
-  ppost(`/policies/${id}/actions/${action}`, body, who);
+/**
+ * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
+ *
+ * Xem `phanCongMacDinh`. Ca nào quan tâm tới người cụ thể thì truyền trong
+ * `body` — nó nằm sau nên ghi đè mặc định.
+ */
+const act = async (id: string, action: string, who: string, body: object = {}) =>
+  ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
 const rget = async (path: string, who = 'tdv01') =>
   (await http(reporting)).get(path).set('Authorization', `Bearer ${tok[who]}`);
@@ -454,7 +461,10 @@ describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
 
   it('8. người đề nghị', async () => {
     const d = await draft({ who: 'tdv02' });
-    const r = await rget(`/reports/policies?requesterId=${userId['tdv02']}&limit=200`, 'kt01');
+    // Đọc bằng `bld01` (`0031`): ca này kiểm TIÊU CHÍ LỌC, không kiểm phạm vi.
+    // Hồ sơ còn Nháp thì chưa giao cho kế toán nào, nên đọc bằng `kt01` là kiểm
+    // nhầm sang phạm vi và che mất thứ đang muốn kiểm.
+    const r = await rget(`/reports/policies?requesterId=${userId['tdv02']}&limit=200`, 'bld01');
     const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
     expect(ids).toContain(d.id);
     expect(r.body.items.every((x: { requesterId: string }) => x.requesterId === userId['tdv02'])).toBe(
@@ -480,7 +490,8 @@ describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
   it('10. TDV phụ trách', async () => {
     const mine = await draft({ who: 'tdv01' });
     const other = await draft({ who: 'tdv02' });
-    const r = await rget(`/reports/policies?tdvUserId=${userId['tdv01']}&limit=200`, 'kt01');
+    // `bld01` vì cùng lý do với tiêu chí 8 (`0031`).
+    const r = await rget(`/reports/policies?tdvUserId=${userId['tdv01']}&limit=200`, 'bld01');
     const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
     expect(ids).toContain(mine.id);
     expect(ids).not.toContain(other.id);
@@ -641,11 +652,13 @@ describe('RPT-09 tdv01 dùng bộ lọc rộng nhất có thể', () => {
   it('báo cáo tổng hợp cũng áp phạm vi, không chỉ danh sách', async () => {
     await draft({ who: 'tdv03' });
     const mineTotal = (await rget('/reports/policies/count', 'tdv01')).body.total;
-    const saTotal = (await rget('/reports/policies/count', 'sa01')).body.total;
+    // `bld01` thay `sa01` (`0031`): Sale Admin không còn "đứng trên cả cây" —
+    // họ thấy đúng những hồ sơ được giao. Vai trò duy nhất còn thấy toàn bộ là
+    // Ban lãnh đạo, và đó chính là thứ ca này cần để so "rộng hơn".
+    const bldTotal = (await rget('/reports/policies/count', 'bld01')).body.total;
     const progress = (await rget('/reports/progress', 'tdv01')).body;
 
-    // Sale Admin đứng trên cả cây nên thấy nhiều hơn hoặc bằng.
-    expect(saTotal).toBeGreaterThan(mineTotal);
+    expect(bldTotal).toBeGreaterThan(mineTotal);
     expect(progress.total).toBe(mineTotal);
   });
 });
@@ -661,7 +674,9 @@ describe('RPT-10 báo cáo tiến độ', () => {
     expect((await act(b.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     await flushSync([a.id, b.id]);
 
-    const rep = (await rget('/reports/progress', 'sa01')).body;
+    // `bld01`: ca này đối chiếu read-model với NGUỒN trên TOÀN BỘ bảng, nên
+    // người đọc phải là vai trò thấy toàn bộ (`0031`).
+    const rep = (await rget('/reports/progress', 'bld01')).body;
 
     // Đối chiếu với NGUỒN, không với chính read-model: mục đích của RPT-10 là
     // phát hiện lúc hai bên lệch nhau.
@@ -697,7 +712,7 @@ describe('RPT-11 báo cáo tỷ lệ hồ sơ bị trả lại', () => {
     expect((await act(clean.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     await flushSync([returned.id, rejected.id, clean.id]);
 
-    const r = (await rget('/reports/return-rate', 'sa01')).body;
+    const r = (await rget('/reports/return-rate', 'bld01')).body;
     expect(r.returned).toBeGreaterThanOrEqual(1);
     expect(r.rejected).toBeGreaterThanOrEqual(1);
     // Hồ sơ Từ chối nằm trong tử số — bỏ nó ra là giấu đúng những hồ sơ hỏng nặng nhất.
@@ -725,7 +740,7 @@ describe('RPT-12 báo cáo SLA khi dữ liệu có bản ghi LEGACY', () => {
     expect(await sync.refreshPolicy(legacy.id)).toBe('synced');
     expect((await rptRow(legacy.id))?.['source']).toBe('LEGACY');
 
-    const r = (await rget('/reports/sla', 'sa01')).body;
+    const r = (await rget('/reports/sla', 'bld01')).body;
     expect(r.excludedLegacy).toBeGreaterThanOrEqual(1);
 
     // Chứng minh trực tiếp: đếm số hồ sơ đang chờ trong read-model, trừ LEGACY.

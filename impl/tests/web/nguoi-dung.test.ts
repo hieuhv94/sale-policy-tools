@@ -1,21 +1,22 @@
 /**
- * Biểu mẫu tạo người dùng — quét BẢNG TRA, không mở màn hình.
+ * Màn hình Người dùng — quét BẢNG TRA, không mở màn hình.
  *
- * Cái sai cần bắt ở đây là một ô vắng mặt: một vai trò thiếu trường cây thì tài
- * khoản tạo ra vẫn hợp lệ, vẫn đăng nhập được, mà nằm ngoài cây phân quyền —
- * không nhận được hồ sơ nào và không nhìn thấy hồ sơ nào. Không có lỗi nào đỏ
- * lên; chỉ có một người dùng ngồi trước màn hình trống.
+ * TỆP NÀY TỪNG DÀI HƠN NHIỀU. Nó quét bốn bảng tra dựng ô "Trưởng bộ phận quản
+ * lý" và "Cấp trên" theo vai trò đang tạo, và cái sai nó canh là một ô VẮNG MẶT:
+ * một vai trò thiếu trường cây thì tài khoản tạo ra vẫn hợp lệ, vẫn đăng nhập
+ * được, mà nằm ngoài cây phân quyền — không nhận hồ sơ nào và không thấy hồ sơ
+ * nào, không có lỗi nào đỏ lên.
+ *
+ * `0031` bỏ hẳn quan hệ quản lý giữa người dùng, nên cả bốn bảng biến mất và cái
+ * sai kia không còn tồn tại được: biểu mẫu tạo tài khoản chỉ còn bốn ô, giống
+ * nhau cho cả sáu vai trò, và không có nhánh nào để quên.
+ *
+ * Việc chọn người xử lý chuyển sang từng hồ sơ — quét ở `nguoi-xu-ly.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
-import { VAI_TRO, type VaiTro } from '@csbh/web/can';
+import { VAI_TRO } from '@csbh/web/can';
 import {
-  CAN_TBP,
-  NHAN_CAP_TREN,
   NHAN_VAI_TRO,
-  TRUONG_THEM,
-  thieuTbp,
-  TRUONG_BAT_BUOC,
-  VAI_TRO_CAP_TREN,
   trangThaiTaiKhoan,
   type NguoiDungDto,
 } from '@csbh/web/nguoi-dung';
@@ -28,117 +29,18 @@ const nguoi = (p: Partial<NguoiDungDto>): NguoiDungDto => ({
   role: 'TDV',
   isActive: true,
   activatedAt: '2026-08-01T00:00:00Z',
-  approverUsername: null,
-  approverName: null,
-  parentUsername: null,
   ...p,
 });
 
-describe('ba bảng tra phủ đủ sáu vai trò', () => {
-  it('không vai trò nào thiếu khoá', () => {
-    for (const bang of [
-      TRUONG_THEM,
-      TRUONG_BAT_BUOC,
-      VAI_TRO_CAP_TREN,
-      NHAN_VAI_TRO,
-      NHAN_CAP_TREN,
-      CAN_TBP,
-    ]) {
-      expect(Object.keys(bang).sort()).toEqual([...VAI_TRO].sort());
-    }
-  });
-
-  it('vai trò nào có ô cấp trên thì có nhãn cho ô đó, và ngược lại', () => {
-    // Hai bảng rời nhau nên chúng lệch được: thêm `cap-tren` cho một vai trò mà
-    // quên nhãn thì ô hiện ra không có tên, người dùng không biết đang chọn gì.
-    const coO = VAI_TRO.filter((v) => TRUONG_THEM[v].includes('cap-tren')).sort();
-    const coNhan = VAI_TRO.filter((v) => NHAN_CAP_TREN[v] !== '').sort();
-    expect(coNhan).toEqual(coO);
-  });
-
-  it('nhãn ô cấp trên KHÔNG gọi là "cấp trên"', () => {
-    // Kế toán không phải cấp trên của trình dược viên theo nghĩa tổ chức. Quan
-    // hệ này chỉ quyết định phạm vi dữ liệu, và gọi sai trên màn hình là nói
-    // sai về công ty.
-    for (const v of VAI_TRO) {
-      expect(NHAN_CAP_TREN[v].toLowerCase()).not.toContain('cấp trên');
-    }
-  });
-
+describe('nhãn vai trò', () => {
   it('mỗi vai trò có nhãn tiếng Việt riêng, không trùng nhau', () => {
     const nhan = VAI_TRO.map((v) => NHAN_VAI_TRO[v]);
     expect(new Set(nhan).size).toBe(VAI_TRO.length);
-  });
-});
-
-describe('trường thêm đúng theo vai trò', () => {
-  it('TDV có ô chọn Trưởng bộ phận quản lý', () => {
-    expect(TRUONG_THEM.TDV).toContain('tbp-quan-ly');
+    for (const n of nhan) expect(n.length).toBeGreaterThan(3);
   });
 
-  it('CHỈ TDV có ô chọn Trưởng bộ phận quản lý', () => {
-    // Máy chủ chặn vai trò khác ở `users.service.ts:resolveApprover`; giao diện
-    // không được bày ra một ô mà bấm xong chắc chắn nhận 400.
-    const co = VAI_TRO.filter((v) => TRUONG_THEM[v].includes('tbp-quan-ly'));
-    expect(co).toEqual(['TDV']);
-  });
-
-  it('bốn vai trò ngoài cây dữ liệu không có trường cây nào', () => {
-    // Trưởng bộ phận nằm ở đây từ 0017: TDV trỏ ngược lên họ, họ không trỏ đi đâu.
-    for (const v of ['TBP', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI'] as VaiTro[]) {
-      expect(TRUONG_THEM[v], v).toEqual([]);
-    }
-  });
-
-  it('vai trò nào có ô "cấp trên" thì phải khai được cấp trên là ai', () => {
-    // Bày ô chọn cấp trên mà không biết lọc theo vai trò nào thì danh sách đổ ra
-    // cả sáu vai trò, và gán một TDV làm cấp trên của TDV khác là dựng sai cây.
-    for (const v of VAI_TRO) {
-      if (TRUONG_THEM[v].includes('cap-tren')) {
-        expect(VAI_TRO_CAP_TREN[v], `${v} có ô cấp trên nhưng không khai cấp trên là vai trò nào`)
-          .not.toBeNull();
-      }
-    }
-  });
-
-  it('chuỗi cấp trên đúng theo cây Sale Admin → kế toán → TDV', () => {
-    expect(VAI_TRO_CAP_TREN.TDV).toBe('KE_TOAN');
-    expect(VAI_TRO_CAP_TREN.KE_TOAN).toBe('SALE_ADMIN');
-    // Trưởng bộ phận là nhánh riêng, độc lập với cây dữ liệu (muc 2.1).
-    expect(VAI_TRO_CAP_TREN.TBP).toBeNull();
-    expect(VAI_TRO_CAP_TREN.SALE_ADMIN).toBeNull();
-  });
-});
-
-describe('trường bắt buộc', () => {
-  it('Trưởng bộ phận quản lý KHÔNG bắt buộc lúc tạo TDV', () => {
-    // Đã bỏ theo yêu cầu nghiệp vụ: lúc tạo tài khoản thường chưa biết ai duyệt,
-    // gán sau bằng nút Sửa. Cái chặn chuyển sang lúc GỬI hồ sơ (`NO_APPROVER`),
-    // chỗ hồ sơ còn là bản nháp và người dùng chưa mất gì.
-    expect(TRUONG_BAT_BUOC.TDV).not.toContain('tbp-quan-ly');
-  });
-
-  it('nhưng thiếu Trưởng bộ phận thì danh sách phải chỉ ra được', () => {
-    // Không chặn mà cũng không nói gì thì người quản trị đọc một dấu gạch ngang
-    // rồi đoán, và chỗ hỏng chỉ lộ ra ở hồ sơ đầu tiên của TDV đó.
-    expect(thieuTbp(nguoi({ role: 'TDV', approverUsername: null }))).toBe(true);
-    expect(thieuTbp(nguoi({ role: 'TDV', approverUsername: 'tbp01' }))).toBe(false);
-  });
-
-  it('chỉ TDV mới cần Trưởng bộ phận — vai trò khác không bị gắn cờ', () => {
-    for (const v of VAI_TRO.filter((x) => x !== 'TDV')) {
-      expect(thieuTbp(nguoi({ role: v, approverUsername: null })), v).toBe(false);
-    }
-  });
-
-  it('trường bắt buộc luôn là tập con của trường có mặt', () => {
-    // Đánh dấu bắt buộc một ô KHÔNG được vẽ ra là biểu mẫu không bao giờ gửi
-    // được, mà không có gì trên màn hình chỉ ra thiếu cái gì.
-    for (const v of VAI_TRO) {
-      for (const t of TRUONG_BAT_BUOC[v]) {
-        expect(TRUONG_THEM[v], `${v}: ${t} bắt buộc nhưng không có ô nào`).toContain(t);
-      }
-    }
+  it('phủ đủ sáu vai trò, không thiếu khoá nào', () => {
+    for (const v of VAI_TRO) expect(NHAN_VAI_TRO[v], v).toBeTruthy();
   });
 });
 

@@ -1,10 +1,23 @@
 /**
- * AUTH-09…20 · phạm vi dữ liệu suy ra từ CÂY TỔ CHỨC, không cấu hình tay (YCNV §2.1).
+ * AUTH-09…20 · phạm vi dữ liệu suy ra từ PHÂN CÔNG TRÊN HỒ SƠ (`0031`).
  *
- * Cây trong dữ liệu mẫu:
- *   sa01 ──┬── kt01 ──┬── tdv01  (tbp01 duyệt)
- *          │          └── tdv02  (tbp01 duyệt)
- *          └── kt02 ───── tdv03  (tbp02 duyệt)
+ * KHÔNG CÒN CÂY TỔ CHỨC. Tệp này từng kiểm một cây ba tầng
+ * `sa01 → kt01/kt02 → tdv01…03` cùng với `approver_user_id` gán thẳng cho từng
+ * TDV, và phần lớn nội dung cũ của nó đã mất chỗ dựa — không phải vì viết sai,
+ * mà vì thứ nó canh không còn tồn tại.
+ *
+ * Ghi lại để người sau không đi tìm: cây ấy trả lời câu "ai nhìn thấy dữ liệu
+ * của ai", và nó trả lời SAI ở một chỗ căn bản — cùng một TDV có hồ sơ này gửi
+ * cho Trưởng bộ phận A, hồ sơ kia gửi cho Trưởng bộ phận B, mà cây thì chỉ có
+ * một câu trả lời cho cả hai. `0031` chuyển câu hỏi sang từng hồ sơ.
+ *
+ * `idn.scope_user_ids` sau `0031` chỉ còn ba nhánh và không đệ quy:
+ *   - Ban lãnh đạo → mọi người
+ *   - Quản trị     → rỗng
+ *   - còn lại      → chính mình
+ *
+ * Phần "còn thấy gì nữa" nằm ở `pol.policy`: bốn cột người, kiểm ở
+ * `tests/http/policy.test.ts` và `tests/http/vai-tro.test.ts`.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
@@ -60,35 +73,27 @@ describe('AUTH-09 · TDV chỉ thấy hồ sơ của chính mình', () => {
   });
 });
 
-describe('AUTH-10 · kế toán thấy đúng TDV mình phụ trách', () => {
-  it('kt01 thấy tdv01 và tdv02, KHÔNG thấy tdv03', async () => {
-    const s = await scopeOf('kt01');
-    expect(s).toContain('tdv01');
-    expect(s).toContain('tdv02');
-    expect(s).not.toContain('tdv03');
-  });
-  it('kt02 không thấy tdv01', async () => {
-    expect(await scopeOf('kt02')).not.toContain('tdv01');
-  });
-});
+describe('AUTH-10/11/12 · bốn vai trò trong luồng chỉ có CHÍNH MÌNH trong phạm vi (`0031`)', () => {
+  // Bốn ca này thay cho ba `describe` cũ về nhánh kế toán và nhánh Trưởng bộ
+  // phận. Chúng nói cùng một điều, và điều đó mới là bất biến thật: KHÔNG vai
+  // trò nào thừa hưởng dữ liệu của người khác chỉ vì một quan hệ nhân sự.
+  for (const u of ['kt01', 'kt02', 'sa01', 'tbp01', 'tbp02']) {
+    it(`${u} chỉ có mình trong phạm vi`, async () => {
+      expect(await scopeOf(u)).toEqual([u]);
+    });
+  }
 
-describe('AUTH-11/19 · Sale Admin thấy toàn nhánh, cây sâu 3 cấp', () => {
-  it('sa01 thấy cả hai kế toán và cả ba TDV — đúng 6 người kể cả chính mình', async () => {
-    const s = await scopeOf('sa01');
-    expect(s).toEqual(['kt01','kt02','sa01','tdv01','tdv02','tdv03']);
-  });
-});
-
-describe('AUTH-12 · Trưởng bộ phận là nhánh riêng, độc lập với nhánh kế toán', () => {
-  it('tbp01 thấy đúng những TDV nhận mình làm người duyệt', async () => {
-    expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
-  });
-  it('tbp02 chỉ thấy tdv03', async () => {
-    expect(await scopeOf('tbp02')).toEqual(['tdv03']);
-  });
-  it('phạm vi của TBP không phụ thuộc vào cây kế toán', async () => {
-    // tdv01 nằm dưới kt01, nhưng tbp01 thấy được mà không cần liên quan gì tới kt01.
-    expect(await scopeOf('tbp01')).not.toContain('kt01');
+  it('không ai thấy TDV nào qua phạm vi nữa — kể cả Sale Admin ở gốc cây cũ', async () => {
+    // Đây là ca đắt nhất của cả tệp: trước `0031` câu này trả về sáu người và
+    // đó là căn cứ để Sale Admin đọc được hồ sơ của ba TDV. Giờ Sale Admin đọc
+    // được hồ sơ vì tên họ nằm ở cột `sale_admin_user_id` của chính hồ sơ đó,
+    // không vì ai là cấp dưới của ai.
+    for (const u of ['sa01', 'kt01', 'tbp01']) {
+      const s = await scopeOf(u);
+      expect(s).not.toContain('tdv01');
+      expect(s).not.toContain('tdv02');
+      expect(s).not.toContain('tdv03');
+    }
   });
 });
 
@@ -111,72 +116,58 @@ describe('AUTH-13/14 · Ban lãnh đạo và Quản trị hệ thống', () => {
   });
 });
 
-describe('AUTH-15 · chuyển TDV sang kế toán khác thì phạm vi đổi theo, không sửa tay từng hồ sơ', () => {
-  it('chuyển tdv03 từ kt02 sang kt01 thì cả hai phạm vi đổi theo', async () => {
+describe('AUTH-15/17/18/20 · cây tổ chức đã bị gỡ (`0031`)', () => {
+  it('không còn bảng idn.user_node', async () => {
+    const r = await db.query(
+      `SELECT to_regclass('idn.user_node') IS NULL AS da_go`,
+    );
+    expect(r.rows[0].da_go).toBe(true);
+  });
+
+  it('không còn cột approver_user_id trên idn.app_user', async () => {
+    const r = await db.query(
+      `SELECT count(*)::int n FROM information_schema.columns
+        WHERE table_schema='idn' AND table_name='app_user' AND column_name='approver_user_id'`,
+    );
+    expect(r.rows[0].n).toBe(0);
+  });
+
+  it('không còn bản notify_targets(uuid) một tham số', async () => {
+    // Bản cũ suy người nhận thư từ cây. Để lại hai bản chồng tên thì Postgres
+    // chọn theo số tham số, và một lời gọi thiếu đối số rơi âm thầm vào bản cũ —
+    // im lặng đúng tới ngày cây không còn dữ liệu.
+    const r = await db.query(
+      `SELECT count(*)::int n FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname='idn' AND p.proname='notify_targets' AND p.pronargs = 1`,
+    );
+    expect(r.rows[0].n).toBe(0);
+  });
+
+  it('notify_targets bốn tham số trả đúng những người được truyền vào', async () => {
+    const r = await db.query(
+      `SELECT target_role FROM idn.notify_targets($1,$2,$3,$4) ORDER BY target_role`,
+      [uid['tdv01'], uid['tbp01'], uid['kt01'], uid['sa01']],
+    );
+    expect(r.rows.map((x) => x.target_role)).toEqual(['KE_TOAN', 'SALE_ADMIN', 'TBP', 'TDV']);
+  });
+
+  it('ô phân công bỏ trống thì người đó đơn giản là không có trong danh sách', async () => {
+    // Hồ sơ Nháp chưa chọn ai. Thư của nó vẫn phải tới được người lập.
+    const r = await db.query(
+      `SELECT target_role FROM idn.notify_targets($1,NULL,NULL,NULL)`,
+      [uid['tdv01']],
+    );
+    expect(r.rows.map((x) => x.target_role)).toEqual(['TDV']);
+  });
+
+  it('tài khoản đã vô hiệu hoá KHÔNG nhận thư', async () => {
     await inRollback(db, async () => {
-      await db.query('UPDATE idn.user_node SET parent_id=$1 WHERE user_id=$2',
-                     [uid['kt01'], uid['tdv03']]);
-      expect(await scopeOf('kt01')).toContain('tdv03');
-      expect(await scopeOf('kt02')).not.toContain('tdv03');
+      await db.query(`UPDATE idn.app_user SET is_active = false WHERE id = $1`, [uid['tbp01']]);
+      const r = await db.query(
+        `SELECT target_role FROM idn.notify_targets($1,$2,NULL,NULL)`,
+        [uid['tdv01'], uid['tbp01']],
+      );
+      expect(r.rows.map((x) => x.target_role)).toEqual(['TDV']);
     });
-    // Sau khi hoàn tác, phạm vi trở lại như cũ.
-    expect(await scopeOf('kt01')).not.toContain('tdv03');
-    expect(await scopeOf('kt02')).toContain('tdv03');
-  });
-});
-
-describe('AUTH-17 · cây tổ chức không được có vòng lặp', () => {
-  it('đặt sa01 làm cấp dưới của tdv01 (tạo chu trình) thì bị chặn', async () => {
-    const err = await expectSqlError(() =>
-      db.query('UPDATE idn.user_node SET parent_id=$1 WHERE user_id=$2',
-               [uid['tdv01'], uid['sa01']]));
-    expect(err.message).toContain('vong lap');
-  });
-  it('không ai làm cấp trên của chính mình', async () => {
-    const err = await expectSqlError(() =>
-      db.query('UPDATE idn.user_node SET parent_id=$1 WHERE user_id=$1', [uid['kt01']]));
-    expect(err.code).toBe('23514');
-  });
-  it('truy vấn phạm vi vẫn trả kết quả bình thường sau khi thử tạo vòng lặp', async () => {
-    expect(await scopeOf('sa01')).toHaveLength(6);
-  });
-});
-
-describe('AUTH-18/20 · Trưởng bộ phận gán THẲNG cho từng TDV (0017 bỏ khái niệm bộ phận)', () => {
-  it('chuyển một TDV sang Trưởng bộ phận khác thì cả hai phạm vi đổi theo', async () => {
-    await inRollback(db, async () => {
-      await db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
-                     [uid['tbp02'], uid['tdv01']]);
-      expect(await scopeOf('tbp01')).toEqual(['tdv02']);
-      expect(await scopeOf('tbp02')).toEqual(['tdv01','tdv03']);
-    });
-    expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
-    expect(await scopeOf('tbp02')).toEqual(['tdv03']);
-  });
-
-  it('đổi người giữ chức = đổi cột của những TDV liên quan, không đụng tới hồ sơ nào', async () => {
-    await inRollback(db, async () => {
-      await db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE approver_user_id=$2',
-                     [uid['tbp02'], uid['tbp01']]);
-      expect(await scopeOf('tbp01')).toEqual([]);
-      expect(await scopeOf('tbp02')).toEqual(['tdv01','tdv02','tdv03']);
-    });
-    expect(await scopeOf('tbp01')).toEqual(['tdv01','tdv02']);
-  });
-
-  it('KHÔNG gán được người duyệt không phải Trưởng bộ phận', async () => {
-    // Gán nhầm một kế toán vào đây là hồ sơ đi vào ngõ cụt: định tuyến vẫn chạy
-    // tới người đó, mà họ không có hành động TBP_SIGN nào để làm.
-    const err = await expectSqlError(() =>
-      db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
-               [uid['kt01'], uid['tdv01']]));
-    expect(err.code).toBe('23514');
-  });
-
-  it('KHÔNG gán được người duyệt cho tài khoản không phải TDV', async () => {
-    const err = await expectSqlError(() =>
-      db.query('UPDATE idn.app_user SET approver_user_id=$1 WHERE id=$2',
-               [uid['tbp01'], uid['kt01']]));
-    expect(err.code).toBe('23514');
   });
 });

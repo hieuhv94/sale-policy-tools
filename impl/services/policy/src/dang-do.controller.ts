@@ -5,10 +5,10 @@
  * `pol` (AD-02). identity tự truy vấn là phá đúng ranh giới sở hữu dữ liệu mà cả
  * hệ thống dựng theo.
  *
- * Và vì sao identity gửi kèm `scopeUserIds` thay vì để policy tự hỏi: policy hỏi
- * lại identity ngay giữa lúc identity đang xử lý request của mình là một vòng
- * gọi ngược, thêm một điểm hỏng cho một phép tra mà bên gọi ĐÃ có sẵn câu trả
- * lời. identity biết cây tổ chức — nó tính phạm vi ở nhà rồi gửi sang.
+ * `scopeUserIds` KHÔNG còn dùng tới từ `0031` — identity vẫn gửi, policy vẫn
+ * nhận cho tương thích, nhưng câu trả lời giờ nằm gọn trong `pol.policy`: hồ sơ
+ * ghi thẳng id của bốn người xử lý nó. Không phải hỏi ai cây tổ chức nữa, vì
+ * không còn cây.
  */
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ServiceOnly, str, validate } from '@csbh/http-kit';
@@ -22,6 +22,14 @@ import { Db } from './infra/db.js';
  * lâu quá (§4), và đó chính là loại hồ sơ dễ mắc kẹt nhất nếu đổi vai trò.
  */
 const XONG = ['DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'TU_CHOI'];
+
+/** Cột nào trên hồ sơ ghi người của vai trò nào (`0031`). */
+const COT_CUA_VAI_TRO: Record<string, string> = {
+  TDV: 'tdv_user_id',
+  TBP: 'tbp_user_id',
+  KE_TOAN: 'ke_toan_user_id',
+  SALE_ADMIN: 'sale_admin_user_id',
+};
 
 /** Bước nào đang chờ vai trò nào. Cùng bảng với hộp việc ở `policies.service`. */
 const CHO_VAI_TRO: Record<string, string[]> = {
@@ -52,7 +60,6 @@ export class DangDoController {
   @HttpCode(200)
   async dangDo(@Body() body: unknown) {
     const b = validate(body, { userId: str(36, 36), role: str(1, 30) });
-    const scope = ((body as { scopeUserIds?: unknown }).scopeUserIds ?? []) as string[];
 
     // Hai nguồn mắc kẹt khác nhau, gộp lại vì người quản trị chỉ cần biết "có
     // hay không, và những hồ sơ nào":
@@ -60,11 +67,16 @@ export class DangDoController {
     //   1. Hồ sơ do CHÍNH người này lập mà chưa kết thúc. Đổi vai trò khỏi TDV
     //      thì `tdv_user_id` trỏ vào một người không còn là TDV — hồ sơ vẫn
     //      chạy nhưng không màn hình nào của họ mở ra được nữa.
-    //   2. Hồ sơ đang chờ ĐÚNG BƯỚC mà vai trò hiện tại của người này xử lý,
-    //      trong phạm vi dữ liệu của họ. Đổi vai trò là bỏ rơi đúng những hồ sơ
-    //      đó — không ai khác nhận được, vì hộp việc suy từ cây tổ chức.
+    //   2. Hồ sơ đang chờ ĐÚNG BƯỚC mà vai trò hiện tại của người này xử lý, và
+    //      GIAO ĐÍCH DANH cho họ. Đổi vai trò là bỏ rơi đúng những hồ sơ đó —
+    //      không ai khác nhận được, vì hồ sơ chỉ nằm ở hộp việc của người được
+    //      chọn. Từ `0031` điều này chặt hơn hẳn bản cũ: trước đây một đồng
+    //      nghiệp cùng nhánh cây còn nhìn thấy, giờ thì không.
     const cho = CHO_VAI_TRO[b.role] ?? [];
     const buoc = BUOC_VAI_TRO[b.role] ?? [];
+    // Tên cột lấy từ bảng tra, KHÔNG ghép từ `b.role` — `b.role` là chuỗi do bên
+    // gọi gửi, và ghép thẳng nó vào SQL là mở một đường tiêm.
+    const cot = COT_CUA_VAI_TRO[b.role] ?? 'tdv_user_id';
 
     // Sắp theo MỚI NHẤT TRƯỚC và cắt ở 20. Hai chi tiết, cả hai đều có lý do:
     //
@@ -89,13 +101,13 @@ export class DangDoController {
          UNION
          SELECT code, status::text AS status, created_at, 'dang cho xu ly' AS ly_do
            FROM pol.policy
-          WHERE tdv_user_id = ANY($3::uuid[])
-            AND (status::text = ANY($4::text[])
-                 OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($5::text[])))
+          WHERE ${cot} = $1
+            AND (status::text = ANY($3::text[])
+                 OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($4::text[])))
        )
        SELECT code, status, ly_do, count(*) OVER() AS tong
          FROM mac ORDER BY created_at DESC LIMIT 20`,
-      [b.userId, XONG, scope, cho, buoc],
+      [b.userId, XONG, cho, buoc],
     );
 
     return {

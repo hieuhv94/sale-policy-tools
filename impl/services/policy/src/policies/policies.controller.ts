@@ -255,6 +255,13 @@ export class PoliciesController {
     const b = validate(body ?? {}, {
       reason: opt(str(1, 2000)),
       rowVersion: opt(int(0, 1_000_000)),
+      // Người được chọn ở bước này (`0031`). `opt()` ở đây chứ không bắt buộc:
+      // chỉ ba hành động cần chúng, và bắt buộc ở tầng DTO thì mọi hành động
+      // khác cũng phải gửi kèm. Ai cần thì `doiPhanCong` đòi, kèm câu nói rõ
+      // thiếu ô nào.
+      tbpUserId: opt(str(36, 36)),
+      keToanUserId: opt(str(36, 36)),
+      saleAdminUserId: opt(str(36, 36)),
     });
     return this.workflow.act(id, a.action as Action, me, b);
   }

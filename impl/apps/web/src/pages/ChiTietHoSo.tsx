@@ -6,7 +6,7 @@
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson, taiVe, xoa } from '../lib/api.js';
+import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
@@ -19,6 +19,11 @@ import {
   suaDuoc,
 } from '../components/SuaHoSo.js';
 import { useDuong } from '../lib/router.js';
+import {
+  CAN_XEM_TRUOC,
+  O_CHON_CUA,
+  type NguoiChon,
+} from '../lib/nguoi-xu-ly.js';
 import {
   BaoLoi,
   DangTai,
@@ -301,6 +306,20 @@ export function ChiTietHoSo({ id }: { id: string }) {
   );
 }
 
+/**
+ * Hộp thoại một hành động của luồng duyệt.
+ *
+ * Ba phần, và phần nào có mặt là do BẢNG quyết định chứ không do một chuỗi `if`:
+ *
+ *   1. **Lý do** — `CAN_LY_DO` (trả lại, từ chối, yêu cầu in lại).
+ *   2. **Chọn người xử lý bước sau** — `O_CHON_CUA` (`0031`).
+ *   3. **Xem trước bản CSBH A4** — `CAN_XEM_TRUOC`, chỉ lúc gửi duyệt.
+ *
+ * Nút xác nhận KHOÁ tới khi cả ba phần đủ. Với bản xem trước, "đủ" nghĩa là đã
+ * tải xong và hiện ra — không phải người dùng đã cuộn hết. Ép cuộn là thứ người
+ * ta học cách bấm qua trong ba ngày, còn bày ra toàn văn thì ít nhất người muốn
+ * đọc có chỗ để đọc.
+ */
 function HopThoaiHanhDong({
   hanhDong,
   hoSoId,
@@ -315,9 +334,57 @@ function HopThoaiHanhDong({
   xong: () => void;
 }) {
   const canLyDo = CAN_LY_DO.has(hanhDong);
+  const oChon = O_CHON_CUA[hanhDong] ?? [];
+  const canXem = CAN_XEM_TRUOC.has(hanhDong);
+
   const [lyDo, datLyDo] = useState('');
+  const [chon, datChon] = useState<Record<string, string>>({});
+  const [nguoi, datNguoi] = useState<Record<string, NguoiChon[]> | null>(null);
+  const [xemUrl, datXemUrl] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+
+  // Danh sách người cho từng ô. Tải MỘT lượt cho cả hộp thoại; hai ô của bước
+  // gửi duyệt hỏi hai vai trò khác nhau nên vẫn là hai lời gọi, nhưng chúng chạy
+  // song song chứ không nối tiếp.
+  useEffect(() => {
+    if (oChon.length === 0) return;
+    const huy = new AbortController();
+    Promise.all(
+      oChon.map((o) =>
+        layJson<NguoiChon[]>(`/auth/nguoi-theo-vai-tro/${o.vaiTro}`, huy.signal).then(
+          (ds) => [o.truong, ds] as const,
+        ),
+      ),
+    )
+      .then((cap) => datNguoi(Object.fromEntries(cap)))
+      .catch((e: unknown) => {
+        if (!huy.signal.aborted) datLoi(e);
+      });
+    return () => huy.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hanhDong]);
+
+  // Bản A4 tải về bộ nhớ rồi nhúng. Thu hồi `blob:` khi đóng — xem `xemTruoc`.
+  useEffect(() => {
+    if (!canXem) return;
+    let url: string | null = null;
+    let song = true;
+    xemTruoc(`/policies/${hoSoId}/render?size=a4p`)
+      .then((u) => {
+        url = u;
+        if (song) datXemUrl(u);
+        else URL.revokeObjectURL(u);
+      })
+      .catch(datLoi);
+    return () => {
+      song = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [canXem, hoSoId]);
+
+  const thieuNguoi = oChon.some((o) => !chon[o.truong]);
+  const chuaXem = canXem && xemUrl === null;
 
   const gui = async () => {
     datLoi(null);
@@ -326,11 +393,12 @@ function HopThoaiHanhDong({
       await dang(`/policies/${hoSoId}/actions/${hanhDong}`, {
         rowVersion,
         ...(canLyDo ? { reason: lyDo.trim() } : {}),
+        ...chon,
       });
       xong();
     } catch (e) {
-      // KHÔNG đóng hộp thoại khi lỗi: lý do vừa gõ phải còn nguyên để bấm lại
-      // (FE-32). Đóng rồi mở lại là bắt người dùng gõ lại từ đầu.
+      // KHÔNG đóng hộp thoại khi lỗi: lý do vừa gõ và người vừa chọn phải còn
+      // nguyên để bấm lại (FE-32). Đóng rồi mở lại là bắt làm lại từ đầu.
       datLoi(e);
     } finally {
       datDangGui(false);
@@ -339,6 +407,51 @@ function HopThoaiHanhDong({
 
   return (
     <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
+      {canXem && (
+        <div className="xem-truoc">
+          <p className="ghi-chu">
+            Đọc lại bản CSBH dưới đây trước khi gửi. Sau bước này{' '}
+            <strong>giá và ngưỡng đóng băng</strong>, và mọi chỉnh sửa đều phải đi một vòng trả lại.
+          </p>
+          {xemUrl === null ? (
+            <DangTai />
+          ) : (
+            <iframe className="khung-pdf" src={xemUrl} title="Bản CSBH A4" />
+          )}
+        </div>
+      )}
+
+      {oChon.map((o) => (
+        <Truong key={o.truong} id={`chon-${o.truong}`} nhan={o.nhan} bắtBuộc>
+          {(p) => (
+            <>
+              <select
+                {...p}
+                className="o-nhap"
+                value={chon[o.truong] ?? ''}
+                onChange={(e) => datChon((cu) => ({ ...cu, [o.truong]: e.target.value }))}
+              >
+                <option value="">— Chọn người —</option>
+                {(nguoi?.[o.truong] ?? []).map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.fullName} ({n.username})
+                  </option>
+                ))}
+              </select>
+              <span className="ghi-chu">{o.moTa}</span>
+              {/* Danh sách RỖNG phải nói ra, không được để một ô chọn trống câm
+                  lặng: người dùng sẽ tưởng mình chưa bấm trúng. */}
+              {nguoi !== null && (nguoi[o.truong] ?? []).length === 0 && (
+                <span className="ghi-chu canh-bao">
+                  Chưa có tài khoản {o.vaiTro} nào đang hoạt động. Đề nghị Quản trị hệ thống tạo
+                  hoặc kích hoạt trước khi gửi.
+                </span>
+              )}
+            </>
+          )}
+        </Truong>
+      ))}
+
       {canLyDo && (
         <Truong id="ly-do" nhan="Lý do" bắtBuộc>
           {(p) => (
@@ -352,13 +465,15 @@ function HopThoaiHanhDong({
           )}
         </Truong>
       )}
-      {!canLyDo && <p>Xác nhận thực hiện thao tác này?</p>}
+      {!canLyDo && oChon.length === 0 && !canXem && <p>Xác nhận thực hiện thao tác này?</p>}
       {loi !== null && <BaoLoi loi={loi} />}
       <div className="nhom-nut">
         <button
           type="button"
           className="nut nut-chinh"
-          disabled={dangGui || (canLyDo && lyDo.trim().length === 0)}
+          disabled={
+            dangGui || (canLyDo && lyDo.trim().length === 0) || thieuNguoi || chuaXem
+          }
           onClick={gui}
         >
           {dangGui ? 'Đang gửi…' : 'Xác nhận'}

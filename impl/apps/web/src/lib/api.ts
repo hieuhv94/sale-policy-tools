@@ -240,6 +240,22 @@ export async function taiVe(duong: string, tenMacDinh: string): Promise<void> {
 }
 
 /**
+ * Tải một file về BỘ NHỚ và trả về `blob:` URL để nhúng vào `<iframe>` (`0031`).
+ *
+ * Không dùng thẳng `<iframe src="/api/policies/.../render">` được: thẻ `iframe`
+ * không gửi header `Authorization`, và không nơi nào trong gateway đọc token từ
+ * cookie — nhúng thẳng là nhận về một trang 401. Đây đúng là lỗi mà nút "Xuất
+ * hợp đồng" từng mắc với thẻ `<a href>`.
+ *
+ * Người gọi PHẢI `URL.revokeObjectURL` khi đóng: một bản PDF hồ sơ vài MB nằm
+ * lại trong bộ nhớ tới lúc đóng tab, và hộp xem trước này mở ra mỗi lần gửi duyệt.
+ */
+export async function xemTruoc(duong: string): Promise<string> {
+  const res = await goi<Response>(duong, { tho: true });
+  return URL.createObjectURL(await res.blob());
+}
+
+/**
  * `document` lấy qua một kiểu CẤU TRÚC HẸP, không qua kiểu DOM toàn cục.
  *
  * Tệp này được biên dịch bởi cả dự án TypeScript của máy chủ (vì các test nhập

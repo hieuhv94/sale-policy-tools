@@ -215,15 +215,21 @@ export class TemplatesService {
   // --- Mẫu mặc định ---------------------------------------------------------
 
   /**
-   * Seed một mẫu tối thiểu lúc khởi động nếu chưa có mẫu nào.
+   * Seed một mẫu tối thiểu lúc khởi động nếu chưa có mẫu nào ĐANG DÙNG.
    *
    * Không có bước này thì hệ thống mới triển khai xong sẽ trả 409 ở lần xuất hợp
    * đồng đầu tiên, và người dùng gặp một lỗi mà họ không có cách nào đoán ra
    * phải làm gì (DOC-35).
    */
   async ensureDefault(systemUserId: string): Promise<void> {
+    // Điều kiện là "có mẫu nào ĐANG DÙNG không", KHÔNG phải "bảng có dòng nào
+    // không". Hai câu ấy khác nhau ở đúng tình huống đã xảy ra thật: một lượt
+    // chạy vô hiệu hết mẫu rồi chết giữa chừng trước khi phát hành lại, để lại
+    // 54 dòng mẫu mà không dòng nào đang dùng. Với điều kiện cũ thì `ensureDefault`
+    // thấy "đã có mẫu" và không làm gì — mọi lần xuất hợp đồng sau đó đều 409,
+    // vĩnh viễn, và khởi động lại service cũng không chữa được.
     const existing = await this.db.one<{ id: string }>(
-      `SELECT id FROM doc.contract_template LIMIT 1`,
+      `SELECT id FROM doc.contract_template WHERE is_active LIMIT 1`,
     );
     if (existing) {
       // Có dòng mẫu rồi, nhưng dòng đó CÓ CÒN FILE KHÔNG lại là câu hỏi khác.

@@ -41,6 +41,10 @@ export type PolicyFull = {
   applied_date: string | null;
   effective_from: string | null;
   tdv_user_id: string | null;
+  /** Ba người được phân công theo luồng (`0031`). */
+  tbp_user_id: string | null;
+  ke_toan_user_id: string | null;
+  sale_admin_user_id: string | null;
   submitted_at: string | null;
   tbp_signed_at: string | null;
   kt_l1_received_at: string | null;
@@ -118,10 +122,29 @@ export class Clients implements OnModuleDestroy {
    * email ghi hai cái tên khác nhau cho cùng một hồ sơ thì một trong hai sai, và
    * cách chắc chắn nhất để điều đó không xảy ra là chỉ có một phép suy diễn.
    */
-  async peopleFor(tdvUserId: string): Promise<Record<string, string>> {
+  /**
+   * Tên người theo vai trò, để điền vào bản A4 và hợp đồng.
+   *
+   * Từ `0031` phải truyền cả ba người được phân công: `notify-targets` không suy
+   * ngược từ cây tổ chức nữa, nên gọi với mỗi TDV thì bản A4 chỉ có tên người
+   * lập và ba ô chữ ký còn trống.
+   */
+  async peopleFor(
+    tdvUserId: string,
+    phanCong: {
+      tbp?: string | null | undefined;
+      keToan?: string | null | undefined;
+      saleAdmin?: string | null | undefined;
+    } = {},
+  ): Promise<Record<string, string>> {
     if (!tdvUserId) return {};
+    const q = new URLSearchParams();
+    if (phanCong.tbp) q.set('tbp', phanCong.tbp);
+    if (phanCong.keToan) q.set('keToan', phanCong.keToan);
+    if (phanCong.saleAdmin) q.set('saleAdmin', phanCong.saleAdmin);
+    const duoi = q.toString() ? `?${q.toString()}` : '';
     const r = await fetch(
-      `${identityUrl()}/internal/notify-targets/${encodeURIComponent(tdvUserId)}`,
+      `${identityUrl()}/internal/notify-targets/${encodeURIComponent(tdvUserId)}${duoi}`,
       { headers: svc() },
     );
     if (!r.ok) return {};

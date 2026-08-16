@@ -41,6 +41,10 @@ export type PolicySrc = {
   sla_due_at: string | null;
   sla_started_at: string | null;
   tdv_user_id: string | null;
+  /** Ba người được phân công theo luồng (`0031`). */
+  tbp_user_id: string | null;
+  ke_toan_user_id: string | null;
+  sale_admin_user_id: string | null;
   row_version: number;
   lines: {
     product_id: string;

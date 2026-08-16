@@ -3956,3 +3956,129 @@ tìm kiếm.
   là mở `http://localhost:8080` ra xem.
 - `/catalog/products` và `/catalog/discount-rules` vẫn không nhận `q`. Đây mới là việc phải làm trước
   khi bỏ được trần 200 dòng.
+
+---
+
+## P40 — Bỏ cây tổ chức: phân công nằm trên hồ sơ
+
+Yêu cầu đổi bốn điểm cùng lúc: người dùng thôi quản lý lẫn nhau; TDV chọn Trưởng bộ phận và Kế toán
+lúc gửi duyệt, sau khi xem bản CSBH A4 dạng PDF; Kế toán chọn Sale Admin lúc tiếp nhận L1; và rà lại
+toàn bộ ca kiểm thử.
+
+### Cây tổ chức đang gánh bốn việc, không phải một
+
+Trước khi viết dòng nào phải đếm xem gỡ nó ra thì cái gì rơi:
+
+| Việc | Chỗ dựa cũ | Chỗ dựa mới |
+|---|---|---|
+| Ai thấy hồ sơ / khách / báo cáo nào | `idn.scope_user_ids` đệ quy trên `user_node` | bốn ô người trên `pol.policy` |
+| Thư của một hồ sơ gửi cho ai | `idn.notify_targets(tdv)` leo ngược cây | bốn id đi kèm mọi sự kiện |
+| Chốt chặn lúc gửi duyệt | `approverOf` — "TDV này có người duyệt chưa" | `checkUsers` — "người vừa chọn nhận việc được không" |
+| Ô chọn TDV để giao khách | lọc qua `scope_user_ids` | `GET /auth/nguoi-theo-vai-tro/:role` |
+
+Bốn chỗ này phải có chỗ dựa mới **trong cùng một migration**. Gỡ cây trước rồi dựng cái thay thế sau
+là để hở phân quyền giữa hai lần chạy.
+
+### Câu hỏi phải hỏi trước, không phải đoán
+
+Bỏ cây thì phạm vi dữ liệu mất nền, và không có phương án nào suy ra được từ yêu cầu. Hỏi bốn câu,
+và câu thứ hai đẻ ra một câu thứ năm đáng giá hơn cả bốn câu kia: **vì sao Sale Admin được đổi TDV
+phụ trách?**
+
+Tra ba nguồn thì ra sự thật: **không yêu cầu nghiệp vụ nào cấp quyền ấy.** YCNV §6.1 chỉ nói "khách
+hàng do TDV tạo"; §2.5 liệt kê bảy đầu việc của Sale Admin, không có việc giao khách; §2.4 lại nói
+việc gắn khách với TDV là của **Kế toán**, làm ngoài phần mềm. Quyền đó do tôi tự thêm ở P11d, và lý
+do thật — không ghi ở đâu — là *Sale Admin đứng ở gốc nhánh cây chứa TDV đó*. Tức là căn cứ duy nhất
+của nó chính là thứ đang bị bỏ.
+
+Chuyển sang Quản trị hệ thống: đây là vế sau của một việc hành chính họ đã làm — vô hiệu hoá tài
+khoản TDV nghỉ việc rồi chuyển khách của người đó.
+
+### Phạm vi: bốn cột, một phép so
+
+`scope_user_ids` co lại còn ba nhánh và không còn đệ quy — Ban lãnh đạo thấy tất cả, Quản trị thấy
+rỗng, còn lại thấy **chính mình**. Phần "còn thấy gì nữa" chuyển sang `pol.policy`:
+
+```sql
+WHERE (tdv_user_id = ANY($1) OR tbp_user_id = ANY($1)
+       OR ke_toan_user_id = ANY($1) OR sale_admin_user_id = ANY($1))
+```
+
+Vẫn `= ANY` chứ không `= $1`, vì Ban lãnh đạo có phạm vi là mọi người dùng — giữ MỘT dạng câu cho cả
+sáu vai trò thì không có nhánh nào để quên. Cùng phép so ấy lặp lại ở `reporting` và ở `document`;
+ba chỗ lệch nhau là một hồ sơ mở được ở màn hình này mà biến mất ở màn hình kia.
+
+Hộp việc thì lọc theo **đúng một cột** của vai trò mình, không phải bốn: Kế toán đã tiếp nhận L1 vẫn
+ĐỌC được hồ sơ ấy ở bước Sale Admin, nhưng nó không còn là việc của họ. Để nó nằm lại trong hộp việc
+là biến hộp việc thành một danh sách hồ sơ.
+
+### Quyền không được đến muộn
+
+Khách hàng nằm ở schema `cus`, phân công nằm ở `pol`. Bản đầu tôi dựng `cus.customer_access` như một
+read-model, do một consumer nghe `policy.#` ghi vào — đúng mẫu outbox của `rpt.policy_row`.
+
+Bỏ, và lý do đáng ghi lại: **quyền tới muộn là loại lỗi tệ nhất trong một phép kiểm quyền.** Người
+vừa được giao hồ sơ mở màn hình khách hàng ra, nhận 403, vài giây sau lại được — không ai tin một hệ
+thống hành xử như vậy, và không ai tra ra nguyên nhân. Thay bằng lời gọi đồng bộ
+`POST /internal/customers/:id/access` ngay sau khi ghi phân công. Chiều gọi policy → customer đã tồn
+tại sẵn (policy hỏi mã và tên khách để nhét vào sự kiện), nên không thêm điểm hỏng mới nào.
+
+### Một sự kiện thiếu ba khoá = một lá thư mất
+
+Ba khoá phân công ban đầu tôi chỉ gắn vào sự kiện của hành động. `policy.publish_signed` là sự kiện
+**tự động** phát sau khi TBP ký, gửi cho Kế toán — nó không có ba khoá ấy, nên `notify_targets` chỉ
+trả về người lập, `pick` không tìm thấy Kế toán nào, và lá thư rơi vào bảng thư hỏng. Triệu chứng:
+`chỉ có 5/6 thư sau 15000ms`. Sửa bằng cách đưa ba khoá vào `ctx` — thứ mà **mọi** sự kiện của hành
+động đều trải ra.
+
+Cùng bệnh ở `sla-worker`: thư nhắc hạn cũng phải mang theo phân công, nếu không nó chỉ tới người lập.
+
+### Rà test: 170 → 85 → 32 → 0
+
+Chạy thật, không ước lượng.
+
+**Đòn bẩy lớn nhất là các helper.** Mỗi tệp test có một `act()` riêng, và ~94 chỗ gọi
+`act(id,'SUBMIT','tdv01')` không chỗ nào quan tâm ai duyệt. Thêm `phanCongMacDinh()` vào
+`tests/http/app.ts` rồi sửa **7 helper** — mặc định `tbp01`/`kt01`/`sa01`, đúng những người mà cây cũ
+vẫn chọn cho `tdv01`, nên hành vi ca cũ không đổi. Một lượt đó gỡ 85 ca.
+
+85 ca còn lại phần lớn đỏ **vì chúng đúng** — chúng canh đúng luật vừa bị thay:
+
+- `tests/db/scope.test.ts` — viết lại hẳn. Bản cũ khẳng định `sa01` thấy 6 người, `tbp01` thấy
+  `tdv01`+`tdv02`. Cám dỗ ở đây là nới `toHaveLength(6)` thành "chứa ít nhất"; **đừng** — đó chính là
+  thứ bắt được một truy vấn phạm vi trả về cả công ty. Thay bằng ca khẳng định cây đã bị gỡ thật
+  (`to_regclass` NULL, cột không còn, không còn bản `notify_targets(uuid)` một tham số).
+- `vai-tro.test.ts` — bỏ cả khối "tự đổi người quản lý" (12 ca). Tính năng ấy có hệ quả không nhỏ:
+  định tuyến suy từ `approver_user_id` nên đổi một ô là chuyển ngay mọi hồ sơ đang chờ duyệt sang hộp
+  việc người khác, kể cả hồ sơ gửi từ tuần trước.
+- `contract.test.ts` — `DOC-21` đổi nghĩa: Sale Admin chưa được giao thì **403 trước 409**. Đúng thứ
+  tự — không nói cho người ngoài phạm vi biết hồ sơ đang ở bước nào. Tách nửa còn lại thành một ca
+  riêng dùng người đã được giao, để phép kiểm nói về CỔNG chứ không về phạm vi.
+- `reporting` — các ca đối chiếu read-model với nguồn chuyển sang đọc bằng `bld01`: Sale Admin không
+  còn "đứng trên cả cây", vai trò duy nhất còn thấy toàn bộ là Ban lãnh đạo.
+
+Ca **mới**: thiếu ô chọn → 422 kèm tên ô · chọn sai vai trò → 422 kèm vai trò thật · chọn tài khoản
+đã vô hiệu hoá → 422 · hồ sơ ghi lại đúng hai id và chỉ hiện ở hộp việc người được chọn · TBP không
+được chọn thì không đọc nổi hồ sơ · kế toán không đọc được hồ sơ còn Nháp · Quản trị thấy mọi khách ·
+`nguoi-xu-ly.test.ts` quét bảng ô chọn của giao diện.
+
+**881/881 xanh.**
+
+### Hai thứ tìm ra dọc đường, không do đợt này gây ra
+
+- **CSDL test không có mẫu hợp đồng nào đang dùng** — 54 dòng mẫu, 0 dòng `is_active`. Một lượt chạy
+  hỏng trước đó vô hiệu hết rồi chết trước khi phát hành lại. `ensureDefault` kiểm "bảng có dòng
+  nào không" nên thấy "đã có mẫu" và không làm gì; mọi lần xuất hợp đồng 409 **vĩnh viễn**, khởi động
+  lại service cũng không chữa. Đổi điều kiện thành "có mẫu nào ĐANG DÙNG không" — tự chữa được.
+- **Migration đã áp dụng mà sửa nội dung thì runner chặn** (checksum lệch). Đúng hành vi. `0031` chưa
+  phát hành nên cập nhật lại sổ; với một migration đã lên máy chủ thật thì phải viết migration mới.
+
+### Còn nợ
+
+- **Chưa nhìn bằng mắt trong trình duyệt.** Chồng demo đang lên với dữ liệu mới, phạm vi kiểm bằng
+  API đã đúng (tdv01 136 hồ sơ · tbp01 115 · sa01 54 · bld01 137 · admin01 0), nhưng hộp thoại gửi
+  duyệt kèm khung PDF thì chưa ai mở ra xem.
+- **Hồ sơ mắc kẹt khi người được giao nghỉ việc.** Chốt chặn `ROLE_CHANGE_BLOCKED` vẫn chặn đổi vai
+  trò, nhưng không có đường **giao lại** một hồ sơ đang chờ cho người khác. Trước đây Quản trị đổi
+  `approver_user_id` là xong; giờ id nằm cứng trên hồ sơ.
+- `assertKhongConDangDo` vẫn gửi `scopeUserIds` sang `policy` dù `dang-do.controller` không còn đọc.

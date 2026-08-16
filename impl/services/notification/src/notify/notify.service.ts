@@ -54,7 +54,18 @@ export class NotifyService {
     if (!claimed) return 'duplicate';
 
     try {
-      const targets = this.recipients.pick(await this.recipients.targetsFor(tdvUserId), roles);
+      // Bốn người của hồ sơ đi kèm sự kiện (`0031`). Sự kiện cũ trong hàng đợi
+      // hoặc trong bảng thư hỏng không có ba khoá này — chúng rơi về `undefined`
+      // và người nhận thu về còn mỗi TDV. Đúng hơn là ném lỗi: một lá thư thiếu
+      // người nhận vẫn tới được người lập, còn ném lỗi thì không ai nhận gì.
+      const targets = this.recipients.pick(
+        await this.recipients.targetsFor(tdvUserId, {
+          tbp: s(p['tbpUserId']),
+          keToan: s(p['keToanUserId']),
+          saleAdmin: s(p['saleAdminUserId']),
+        }),
+        roles,
+      );
       if (targets.length === 0) throw new Error(`không tìm được người nhận cho vai trò ${roles}`);
 
       const mail: MailEvent = {

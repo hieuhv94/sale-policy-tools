@@ -43,7 +43,15 @@ export const QUYEN_GHI = {
   xuatHopDong: ['KE_TOAN', 'SALE_ADMIN'],
   lapKhachHang: ['TDV'],
   suaKhachHang: ['TDV', 'KE_TOAN', 'SALE_ADMIN', 'QUAN_TRI'],
-  doiTdvPhuTrach: ['SALE_ADMIN', 'QUAN_TRI'],
+  /**
+   * CHỈ Quản trị hệ thống (`0031`).
+   *
+   * Sale Admin có quyền này từ P11d, và rà lại thì không yêu cầu nghiệp vụ nào
+   * cấp nó — YCNV §6.1 chỉ nói "khách hàng do TDV tạo", §2.5 liệt kê bảy đầu
+   * việc của Sale Admin mà không có việc giao khách. Lý do thật của lựa chọn cũ
+   * là Sale Admin đứng ở gốc nhánh cây chứa TDV đó, và cây ấy đã bị bỏ.
+   */
+  doiTdvPhuTrach: ['QUAN_TRI'],
   quanTriDanhMuc: ['QUAN_TRI'],
   quanTriMauHopDong: ['SALE_ADMIN'],
   quanTriNguoiDung: ['QUAN_TRI'],

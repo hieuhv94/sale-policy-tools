@@ -5,7 +5,17 @@
  * Cùng nằm trong mạng `internal` không phải là căn cứ để tin nhau: mọi request
  * ở đây bắt buộc có token dịch vụ đúng audience (AUTH-21).
  */
-import { BadRequestException, Body, Controller, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { Db } from '../infra/db.js';
 import { AccountCache } from '../infra/account-cache.js';
 import { ServiceOnly } from '@csbh/http-kit';
@@ -58,25 +68,31 @@ export class InternalController {
   }
 
   /**
-   * TDV này đã có Trưởng bộ phận quản lý chưa.
+   * Những người này có tồn tại, còn hoạt động, và đúng vai trò không.
    *
-   * `policy` hỏi TRƯỚC khi cho gửi hồ sơ. Trưởng bộ phận không còn bắt buộc lúc
-   * tạo tài khoản, nên chỗ duy nhất còn chặn được là đây — hồ sơ gửi đi khi
-   * chưa có người duyệt sẽ nằm ở "Chờ TBP duyệt" mà không vào hộp việc của ai,
-   * vì hộp việc của TBP suy từ `approver_user_id` (`idn.scope_user_ids`).
+   * Thay cho `GET approver/:tdvUserId` bị gỡ ở `0031`. Câu hỏi cũ là "TDV này đã
+   * có người duyệt chưa" — nó suy từ `approver_user_id`, mà cột ấy không còn.
+   * Câu hỏi mới là câu `policy` thật sự cần lúc TDV bấm gửi duyệt: **người vừa
+   * được chọn có nhận việc này được không**.
    *
-   * Trả riêng một câu hỏi hẹp chứ không dùng lại `notify-targets`: câu kia trả
-   * cả địa chỉ thư của mọi người liên quan, và một service chỉ cần biết "có hay
-   * không" thì không nên cầm chỗ dữ liệu đó.
+   * Trả cả `role` để phía gọi tự đối chiếu, thay vì nhận về một chữ "hợp lệ" —
+   * `policy` cần biết chọn sai thành vai trò NÀO để nói cho người dùng.
    */
-  @Get('approver/:tdvUserId')
-  async approver(@Param('tdvUserId') tdvUserId: string) {
-    const r = await this.db.one<{ approver_user_id: string | null; role: string }>(
-      `SELECT approver_user_id, role::text AS role FROM idn.app_user WHERE id = $1`,
-      [tdvUserId],
+  @Post('users/check')
+  @HttpCode(200)
+  async check(@Body() body: { ids?: unknown }) {
+    const ids = Array.isArray(body?.ids) ? body.ids.map(String).filter(Boolean) : [];
+    if (ids.length === 0) return { users: {} };
+    const rows = await this.db.q<{ id: string; role: string; is_active: boolean; name: string }>(
+      `SELECT id, role::text AS role, is_active, full_name AS name
+         FROM idn.app_user WHERE id = ANY($1::uuid[])`,
+      [ids],
     );
-    if (!r) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
-    return { tdvUserId, role: r.role, approverUserId: r.approver_user_id };
+    return {
+      users: Object.fromEntries(
+        rows.map((r) => [r.id, { role: r.role, isActive: r.is_active, fullName: r.name }]),
+      ),
+    };
   }
 
   @Get('scope/:userId')
@@ -89,22 +105,34 @@ export class InternalController {
   }
 
   /**
-   * Địa chỉ thư của những người liên quan tới hồ sơ do TDV này lập.
+   * Địa chỉ thư của bốn người được phân công trên một hồ sơ.
    *
    * `notification` nhận được danh sách VAI TRÒ trong sự kiện (bảng bước muc 3)
-   * chứ không nhận địa chỉ. Dịch vai trò sang người cụ thể phải làm ở đây vì
-   * phép dịch đó đọc cây tổ chức: "kế toán" của hồ sơ này là cấp trên gần nhất
-   * của TDV, "TBP" là người duyệt gán thẳng cho TDV đó. Đổi người duyệt chỉ là
-   * đổi một cột trong idn, không service nào khác phải biết.
+   * chứ không nhận địa chỉ. Phép dịch vai trò → người vẫn làm ở đây, nhưng từ
+   * `0031` nó không còn đọc cây tổ chức: bốn người đã được ghi thẳng lên hồ sơ,
+   * và ở đây chỉ còn việc tra địa chỉ thư của họ.
+   *
+   * Ba tham số sau nhận rỗng: hồ sơ Nháp chưa có ai được chọn, và sự kiện của nó
+   * vẫn phải gửi được cho chính người lập.
    */
   @Get('notify-targets/:tdvUserId')
-  async notifyTargets(@Param('tdvUserId') tdvUserId: string) {
+  async notifyTargets(
+    @Param('tdvUserId') tdvUserId: string,
+    @Query('tbp') tbp?: string,
+    @Query('keToan') keToan?: string,
+    @Query('saleAdmin') saleAdmin?: string,
+  ) {
     const rows = await this.db.q<{
       target_user_id: string;
       target_role: string;
       target_email: string;
       target_name: string;
-    }>(`SELECT * FROM idn.notify_targets($1)`, [tdvUserId]);
+    }>(`SELECT * FROM idn.notify_targets($1,$2,$3,$4)`, [
+      tdvUserId,
+      tbp || null,
+      keToan || null,
+      saleAdmin || null,
+    ]);
     return {
       tdvUserId,
       targets: rows.map((r) => ({

@@ -98,13 +98,22 @@ export class FilesService {
     }
     if (!ownerId) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
 
-    const ownerUser =
+    // Hồ sơ: id của tôi ở MỘT TRONG BỐN cột người (`0031`). Cùng phép so với
+    // `assertPolicyInScope` bên policy — hai chỗ phải trả lời giống hệt nhau,
+    // nếu không thì một hồ sơ mở được mà không xuất được hợp đồng.
+    //
+    // Khách hàng thì vẫn theo TDV phụ trách: `document` chỉ đụng tới hồ sơ pháp
+    // lý của khách, và người tải chúng lên là chính TDV đó.
+    const nguoi =
       ownerKind === 'POLICY'
-        ? ((await this.clients.policy(ownerId)).tdv_user_id ?? '')
-        : (await this.clients.customer(ownerId)).tdvUserId;
+        ? await (async () => {
+            const p = await this.clients.policy(ownerId);
+            return [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
+          })()
+        : [(await this.clients.customer(ownerId)).tdvUserId];
 
     const scope = await this.clients.scopeUserIds(me);
-    if (!scope.includes(ownerUser)) {
+    if (!nguoi.some((x) => x && scope.includes(x))) {
       throw new ForbiddenException({
         code: 'OUT_OF_SCOPE',
         message: 'Hồ sơ này nằm ngoài phạm vi dữ liệu của bạn',
