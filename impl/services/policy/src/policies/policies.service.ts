@@ -168,7 +168,6 @@ export class PoliciesService {
       const snaps = await this.clients.productSnapshots(
         input.lines.map((l) => l.productId),
         customer.customerType,
-        customer.channelCode,
       );
       for (const line of input.lines) {
         await this.upsertLine(c, policy.id, line, customer, snaps.get(line.productId));
@@ -189,16 +188,12 @@ export class PoliciesService {
     c: PoolClient,
     policyId: string,
     line: LineInput,
-    customer: { customerType: number; channelCode: string | null },
+    customer: { customerType: number },
     preloaded?: import('../infra/clients.js').ProductSnapshot | undefined,
   ): Promise<void> {
     const snap =
       preloaded ??
-      (await this.clients.productSnapshot(
-        line.productId,
-        customer.customerType,
-        customer.channelCode,
-      ));
+      (await this.clients.productSnapshot(line.productId, customer.customerType));
     if (snap.status !== 'DANG_AP_DUNG') {
       throw new BadRequestException({
         code: 'PRODUCT_DISABLED',
@@ -447,11 +442,7 @@ export class PoliciesService {
     await this.assertInScope(p.tdv_user_id ?? '', me);
 
     const customer = await this.clients.customer(p.customer_id);
-    const snap = await this.clients.productSnapshot(
-      productId,
-      customer.customerType,
-      customer.channelCode,
-    );
+    const snap = await this.clients.productSnapshot(productId, customer.customerType);
     return {
       productId: snap.productId,
       productCode: snap.productCode,

@@ -12,7 +12,6 @@ export type CustomerInfo = {
   code: string;
   name: string;
   customerType: number;
-  channelCode: string | null;
   tdvUserId: string;
 };
 
@@ -57,17 +56,12 @@ export class Clients {
   async productSnapshots(
     productIds: string[],
     customerType: number,
-    channelCode: string | null,
   ): Promise<Map<string, ProductSnapshot>> {
     if (productIds.length === 0) return new Map();
     const res = await fetch(`${catalogUrl()}/internal/catalog/product-snapshots`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...svc() },
-      body: JSON.stringify({
-        productIds,
-        customerType,
-        ...(channelCode ? { channelCode } : {}),
-      }),
+      body: JSON.stringify({ productIds, customerType }),
     });
     if (res.status === 404) throw new NotFoundException({ code: 'PRODUCT_NOT_FOUND' });
     if (!res.ok) throw new Error(`catalog trả ${res.status}`);
@@ -75,13 +69,8 @@ export class Clients {
     return new Map(list.map((s) => [s.productId, s]));
   }
 
-  async productSnapshot(
-    productId: string,
-    customerType: number,
-    channelCode: string | null,
-  ): Promise<ProductSnapshot> {
+  async productSnapshot(productId: string, customerType: number): Promise<ProductSnapshot> {
     const qs = new URLSearchParams({ customerType: String(customerType) });
-    if (channelCode) qs.set('channelCode', channelCode);
     const res = await fetch(
       `${catalogUrl()}/internal/catalog/product-snapshot/${encodeURIComponent(productId)}?${qs}`,
       { headers: svc() },

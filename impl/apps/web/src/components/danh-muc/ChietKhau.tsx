@@ -1,12 +1,15 @@
 /**
  * Thẻ Quy định chiết khấu — ngưỡng cảnh báo khi lập hồ sơ.
  *
- * Bốn ô lọc (nhóm · loại khách · kênh · thời gian) đều bỏ trống được, và bỏ
+ * HAI ô phạm vi (nhóm sản phẩm · loại khách hàng) đều bỏ trống được, và bỏ
  * trống nghĩa là "mọi". Nhiều dòng cùng khớp một tình huống là chuyện BÌNH
  * THƯỜNG chứ không phải lỗi cấu hình: dòng cụ thể hơn thắng.
  *
+ * Chiều thứ ba — kênh bán — đã bỏ ở `0026`: ngưỡng chỉ phụ thuộc bản chất hàng
+ * hoá và loại khách hàng.
+ *
  * Bảng KHÔNG còn cột "Độ cụ thể" `0023`. Nó là con số nội bộ máy chủ dùng để xếp
- * thứ tự, và bày ra thì người đọc phải tự học luật 4/2/1 mới hiểu — trong khi
+ * thứ tự, và bày ra thì người đọc phải tự học luật trọng số mới hiểu — trong khi
  * chính cột "Áp dụng cho" ngay bên cạnh đã nói rõ dòng nào hẹp hơn dòng nào.
  * Câu hỏi "vì sao hồ sơ này lấy ngưỡng 25% chứ không phải 30%" giờ trả lời bằng
  * cột **Id**: mỗi dòng hồ sơ mang mã của đúng quy định đã cho ra ngưỡng của nó,
@@ -22,7 +25,6 @@ import {
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
-  type MucTraCuu,
   type NhomSanPham,
   type QuyDinhChietKhau,
 } from '../../lib/danh-muc.js';
@@ -41,7 +43,6 @@ import { thieuTruong } from '../../lib/bat-buoc.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
   const [ds, datDs] = useState<QuyDinhChietKhau[] | null>(null);
-  const [kenh, datKenh] = useState<MucTraCuu[]>([]);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [moTao, datMoTao] = useState(false);
@@ -68,14 +69,8 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   useEffect(() => {
     const huy = new AbortController();
     datLoi(null);
-    Promise.all([
-      layJson<{ items: QuyDinhChietKhau[] }>('/catalog/discount-rules?limit=200', huy.signal),
-      layJson<MucTraCuu[]>('/catalog/lookups/channel', huy.signal),
-    ])
-      .then(([q, k]) => {
-        datDs(q.items);
-        datKenh(k);
-      })
+    layJson<{ items: QuyDinhChietKhau[] }>('/catalog/discount-rules?limit=200', huy.signal)
+      .then((q) => datDs(q.items))
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
       });
@@ -199,7 +194,6 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
       {moTao && (
         <HopThoaiTaoQuyDinh
           nhom={nhom}
-          kenh={kenh}
           dong={() => datMoTao(false)}
           xong={() => {
             datMoTao(false);
@@ -223,12 +217,11 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 }
 
 /**
- * Sửa chỉ hai ô: ngưỡng và ngày kết thúc.
+ * Sửa chỉ MỘT ô: ngưỡng.
  *
- * Ba khoá khớp (nhóm · loại khách · kênh) hiện ra dạng CHỮ, không dạng ô nhập —
- * đổi chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng
- * khớp (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai
- * lại.
+ * Hai khoá khớp (nhóm · loại khách) hiện ra dạng CHỮ, không dạng ô nhập — đổi
+ * chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng khớp
+ * (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai lại.
  */
 function HopThoaiSuaQuyDinh({
   q,
@@ -271,7 +264,7 @@ function HopThoaiSuaQuyDinh({
         <p className="ghi-chu">
           Mã <strong>{q.code}</strong> — áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực
           từ {ngay(q.effectiveFrom)}.
-          Ba ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
+          Hai ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
           vi thì xoá dòng này rồi khai lại.
         </p>
 
@@ -305,19 +298,16 @@ function HopThoaiSuaQuyDinh({
 
 function HopThoaiTaoQuyDinh({
   nhom,
-  kenh,
   dong,
   xong,
 }: {
   nhom: NhomSanPham[];
-  kenh: MucTraCuu[];
   dong: () => void;
   xong: () => void;
 }) {
   const [ma, datMa] = useState('');
   const [maNhom, datMaNhom] = useState('');
   const [loaiKhach, datLoaiKhach] = useState('');
-  const [maKenh, datMaKenh] = useState('');
   const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
   const [nguong, datNguong] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
@@ -340,7 +330,6 @@ function HopThoaiTaoQuyDinh({
         code: ma.trim(),
         ...(maNhom ? { productGroupCode: maNhom } : {}),
         ...(loaiKhach ? { customerType: Number(loaiKhach) } : {}),
-        ...(maKenh ? { channelCode: maKenh } : {}),
         effectiveFrom: tuNgay,
         thresholdRate2: nguongTuPhanTram(nguong),
       });
@@ -379,8 +368,9 @@ function HopThoaiTaoQuyDinh({
         </p>
 
         <p className="ghi-chu">
-          Bỏ trống một ô nghĩa là <strong>áp dụng cho mọi giá trị</strong> của ô đó. Càng điền nhiều
-          ô thì quy định càng cụ thể, và quy định cụ thể hơn thắng khi nhiều dòng cùng khớp.
+          Ngưỡng chỉ phụ thuộc <strong>hai yếu tố</strong>: nhóm sản phẩm và loại khách hàng. Bỏ
+          trống một ô nghĩa là <strong>áp dụng cho mọi giá trị</strong> của ô đó; điền cả hai thì
+          quy định cụ thể hơn và nó thắng khi nhiều dòng cùng khớp.
         </p>
 
         <Truong id="ck-nhom" nhan="Nhóm sản phẩm">
@@ -403,19 +393,6 @@ function HopThoaiTaoQuyDinh({
               {LOAI_KHACH_HANG.map((l) => (
                 <option key={l} value={l}>
                   Loại {l}
-                </option>
-              ))}
-            </select>
-          )}
-        </Truong>
-
-        <Truong id="ck-kenh" nhan="Kênh bán">
-          {(p) => (
-            <select {...p} className="o-nhap" value={maKenh} onChange={(e) => datMaKenh(e.target.value)}>
-              <option value="">— Mọi kênh —</option>
-              {kenh.map((k) => (
-                <option key={k.code} value={k.code}>
-                  {k.name} ({k.code})
                 </option>
               ))}
             </select>

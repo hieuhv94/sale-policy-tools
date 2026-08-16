@@ -1,20 +1,13 @@
 /**
- * Danh mục tra cứu (tỉnh/thành, bệnh viện, kênh) và người ký — YCNV muc 6.1, 6.4.
+ * Người ký — YCNV muc 6.4.
+ *
+ * Tệp này từng mang tên `lookups.service.ts` và giữ thêm ba danh mục tra cứu
+ * tỉnh/thành · bệnh viện · kênh. Cả ba rời khỏi phần mềm ở `0026`; phần còn lại
+ * đổi tên theo đúng thứ nó còn làm.
  */
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
-
-export const LOOKUP_KINDS = ['province', 'hospital', 'channel'] as const;
-export type LookupKind = (typeof LOOKUP_KINDS)[number];
-
-/** Bảng nào ứng với danh mục nào — bảng tra cố định, KHÔNG ghép chuỗi từ tham số
- *  người dùng vào câu SQL. Postgres không cho tham số hoá tên bảng. */
-const TABLE: Record<LookupKind, string> = {
-  province: 'cat.province',
-  hospital: 'cat.hospital',
-  channel: 'cat.channel',
-};
 
 export type SignerInput = {
   fullName: string;
@@ -26,57 +19,8 @@ export type SignerInput = {
 };
 
 @Injectable()
-export class LookupsService {
+export class SignersService {
   constructor(private readonly db: Db) {}
-
-  list(kind: LookupKind) {
-    return this.db.q(`SELECT code, name FROM ${TABLE[kind]} ORDER BY code`);
-  }
-
-  async upsert(kind: LookupKind, code: string, name: string, actorId: string) {
-    return this.db.tx(async (c) => {
-      const before = await c.query(`SELECT code, name FROM ${TABLE[kind]} WHERE code = $1`, [code]);
-      // MÃ là khoá chính, đổi tên không đụng tới mã — nên hồ sơ và bộ lọc cũ
-      // tham chiếu theo mã vẫn đúng sau khi đổi tên (CAT-16).
-      const r = await c.query<{ code: string; name: string }>(
-        `INSERT INTO ${TABLE[kind]} (code, name) VALUES ($1,$2)
-         ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
-         RETURNING code, name`,
-        [code, name],
-      );
-      await emit(
-        c,
-        'catalog.changed',
-        changeEvent(kind, code, actorId, {
-          before: before.rows[0] ?? null,
-          after: r.rows[0],
-        }),
-      );
-      return r.rows[0]!;
-    });
-  }
-
-  /** Kiểm một loạt mã cùng lúc — customer gọi qua API nội bộ (CUST-08). */
-  async validateCodes(input: {
-    provinceCode?: string | undefined;
-    hospitalCode?: string | undefined;
-    channelCode?: string | undefined;
-  }): Promise<{ ok: boolean; unknown: string[] }> {
-    const unknownCodes: string[] = [];
-    const checks: [LookupKind, string | undefined][] = [
-      ['province', input.provinceCode],
-      ['hospital', input.hospitalCode],
-      ['channel', input.channelCode],
-    ];
-    for (const [kind, code] of checks) {
-      if (code === undefined) continue;
-      const hit = await this.db.one(`SELECT code FROM ${TABLE[kind]} WHERE code = $1`, [code]);
-      if (!hit) unknownCodes.push(`${kind}:${code}`);
-    }
-    return { ok: unknownCodes.length === 0, unknown: unknownCodes };
-  }
-
-  // --- Người ký -------------------------------------------------------------
 
   async createSigner(input: SignerInput, actorId: string) {
     return this.db.tx(async (c) => {

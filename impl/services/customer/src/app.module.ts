@@ -3,7 +3,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { CustomerOutbox } from './infra/outbox.relay.js';
-import { CatalogClient } from './infra/catalog.client.js';
 import { ScopeClient } from './infra/scope.client.js';
 import { CustomersService } from './customers/customers.service.js';
 import { CustomersController } from './customers/customers.controller.js';
@@ -40,7 +39,6 @@ class HealthController {
   providers: [
     Db,
     CustomerOutbox,
-    CatalogClient,
     ScopeClient,
     CustomersService,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },

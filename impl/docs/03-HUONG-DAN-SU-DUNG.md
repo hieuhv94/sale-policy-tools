@@ -139,8 +139,11 @@ màn hình chi tiết. Nó quyết định ngưỡng chiết khấu, nên ngư�
 khách hàng ra.
 
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
-không riêng Trình dược viên. Tỉnh · bệnh viện · kênh bán chọn từ danh mục do Quản trị khai; danh mục
-trống thì ba ô đó cũng trống.
+không riêng Trình dược viên.
+
+> **Ba ô Tỉnh/thành · Bệnh viện–điểm bán · Kênh bán đã bỏ.** Ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
+> phẩm và loại khách hàng, nên ba ô ấy không còn ảnh hưởng tới bất kỳ con số nào. Dữ liệu đã nhập của
+> chúng không còn nữa; muốn lọc theo địa bàn thì dùng ô **Địa chỉ đăng ký**.
 
 ### Đổi loại khách hàng
 
@@ -196,7 +199,7 @@ Ngay dưới bảng có **chú thích màu** giải nghĩa cả hai:
 | Dấu hiệu | Nghĩa | Có chặn không |
 |---|---|---|
 | Nền **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
-| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách và kênh của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
+| Nền **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách hàng của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
 
 Dòng vừa vượt ngưỡng vừa thiếu quy định thì nền là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
 nhưng dấu `◆` vẫn còn.
@@ -304,14 +307,14 @@ mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi h�
 
 ## 10. Tìm kiếm và bộ lọc
 
-*Hồ sơ CSBH* → **Bộ lọc** — 14 tiêu chí, kết hợp được với nhau:
+*Hồ sơ CSBH* → **Bộ lọc** — 11 tiêu chí, kết hợp được với nhau:
 
 > thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
-> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · tỉnh/thành ·
-> bệnh viện hoặc điểm bán · kênh · nhóm sản phẩm
+> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
 
 - **Địa chỉ đăng ký** chỉ tìm kiểu *"có chứa"*, và **không phân biệt dấu**: gõ `da nang` vẫn ra
-  `Đà Nẵng`. Muốn lọc theo địa bàn cho chắc thì dùng **Tỉnh/thành**.
+  `Đà Nẵng`. Đây là cách lọc theo địa bàn duy nhất — ba tiêu chí tỉnh/thành, bệnh viện và kênh đã bỏ
+  cùng ba trường tương ứng bên khách hàng.
 - **Thời gian duyệt** là lúc hồ sơ **có hiệu lực** (sau bước tiếp nhận L2), không phải lúc TBP ký.
   Hồ sơ đang chờ chưa có thời gian duyệt nên không lọt vào kết quả lọc theo tiêu chí này.
 - Điều kiện lọc **được giữ trong phiên làm việc**: chuyển màn hình rồi quay lại vẫn còn. Bấm
@@ -431,7 +434,7 @@ Vượt ngưỡng **không bị chặn**, chỉ được đánh dấu cho ngư�
 
 **Thứ tự phân xử khi nhiều quy định cùng khớp:**
 
-1. **Cụ thể hơn thắng** — nhóm sản phẩm (4 điểm) mạnh hơn loại khách hàng (2) mạnh hơn kênh (1).
+1. **Cụ thể hơn thắng** — nhóm sản phẩm (2 điểm) mạnh hơn loại khách hàng (1 điểm).
 2. **Mới hơn thắng** — chỉ dùng tới khi hai dòng bằng điểm, mà bằng điểm nghĩa là trùng phạm vi.
 
 **Không có bước thứ ba.** Hệ thống **từ chối** khi bạn khai một quy định trùng đúng phạm vi *và*
@@ -461,7 +464,7 @@ Cột **"Độ cụ thể"** đã bỏ. Nó là con số nội bộ để xếp 
 cạnh đã nói rõ dòng nào hẹp hơn dòng nào, và câu hỏi *"hồ sơ này lấy ngưỡng từ đâu"* giờ trả lời
 bằng cột *Id* cộng cột *QĐCK*.
 
-- **Sửa chỉ đổi được *ngưỡng***. Ba ô phạm vi (nhóm · loại khách · kênh) không sửa được — đổi chúng
+- **Sửa chỉ đổi được *ngưỡng***. Hai ô phạm vi (nhóm · loại khách) không sửa được — đổi chúng
   là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì **xoá dòng rồi khai lại**.
 - **Quy định vô thời hạn**, không có ngày kết thúc. Có hiệu lực từ ngày khai cho tới khi bị xoá,
   hoặc cho tới khi một quy định cụ thể hơn khớp và thắng nó.
@@ -470,9 +473,9 @@ bằng cột *Id* cộng cột *QĐCK*.
 - Muốn một quy định thôi áp dụng thì **xoá dòng**, hoặc khai một dòng cụ thể hơn đè lên. Xoá **không**
   làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 
-**Danh mục tra cứu** (dưới bảng quy định, chỉ Quản trị) — tỉnh/thành phố, bệnh viện, kênh bán. Ba danh mục này là **nguồn của ba ô
-chọn trong biểu mẫu khách hàng**; để trống thì người lập khách hàng gặp ba ô rỗng. Thêm lại một mã
-đã có sẽ đổi tên mã đó, không tạo bản thứ hai.
+> **Danh mục tra cứu đã bỏ.** Khối tỉnh/thành · bệnh viện · kênh bán dưới bảng quy định không còn:
+> ngưỡng chỉ khớp theo **nhóm sản phẩm × loại khách hàng**, và ba danh mục ấy không còn ô nào để điền
+> vào.
 
 ### 13.3. Giấy tờ mẫu (chỉ Quản trị hệ thống)
 

@@ -5,7 +5,7 @@
  *
  * Ba thay đổi này là một chuỗi, không phải ba việc rời: cột *Độ cụ thể* từng là
  * câu trả lời cho "vì sao hồ sơ này lấy ngưỡng 25% chứ không 30%", nhưng nó bắt
- * người đọc tự học luật 4/2/1. Câu trả lời mới là **mã quy định** — hồ sơ mang
+ * người đọc tự học luật trọng số. Câu trả lời mới là **mã quy định** — hồ sơ mang
  * mã ở cột QĐCK, dán vào ô tìm ở đây là ra thẳng dòng cần xem. Bỏ cột cũ mà
  * quên một trong hai mảnh kia là bỏ đi một câu trả lời và không đưa lại gì.
  */
@@ -24,19 +24,17 @@ const QUY_DINH = [
     code: 'CK-SUA-L1',
     productGroupCode: 'SUA',
     customerType: 1,
-    channelCode: null,
     effectiveFrom: '2026-01-01',
     thresholdRate2: 2500,
-    specificity: 6,
+    specificity: 3,
   },
   {
     code: 'CK-BOT-CHUNG',
     productGroupCode: 'BOT',
     customerType: null,
-    channelCode: null,
     effectiveFrom: '2026-01-01',
     thresholdRate2: 3000,
-    specificity: 4,
+    specificity: 2,
   },
 ];
 
@@ -52,7 +50,6 @@ const chanFetch = () =>
     vi.fn((duong: unknown) => {
       const d = String(duong);
       if (d.includes('/discount-rules')) return Promise.resolve(phanHoi({ items: QUY_DINH }));
-      if (d.includes('/lookups/channel')) return Promise.resolve(phanHoi([]));
       return Promise.resolve(phanHoi({}));
     }),
   );
@@ -75,7 +72,7 @@ describe('0023 cột Id thay cho Độ cụ thể', () => {
     const bang = await bay();
     expect(within(bang).queryByText('Độ cụ thể')).toBeNull();
     // Và con số của nó cũng không lọt ra chỗ nào khác trong bảng.
-    expect(within(bang).queryByText('6')).toBeNull();
+    expect(within(bang).queryByText('3')).toBeNull();
   });
 
   it('vẫn còn đủ ba cột nội dung còn lại', async () => {

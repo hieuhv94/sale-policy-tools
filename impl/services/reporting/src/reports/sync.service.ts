@@ -118,13 +118,12 @@ export class SyncService {
          returned_at, rejected_at, deactivated_at, sla_due_at, sla_started_at,
          customer_id, customer_code, customer_name, customer_name_norm,
          registered_address, address_norm, tax_id,
-         province_code, hospital_code, channel_code,
          requester_id, requester_name, tdv_user_id, tdv_name,
          product_codes, product_names, product_names_norm, product_group_codes,
          line_count, total_net, max_discount, src_row_version, synced_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-               $31,$32,$33,$34,$35,$36,$37,$38, now())
+               $31,$32,$33,$34,$35, now())
        ON CONFLICT (policy_id) DO UPDATE SET
          code = EXCLUDED.code, version_no = EXCLUDED.version_no,
          status = EXCLUDED.status, pending_step = EXCLUDED.pending_step,
@@ -139,8 +138,6 @@ export class SyncService {
          customer_name_norm = EXCLUDED.customer_name_norm,
          registered_address = EXCLUDED.registered_address,
          address_norm = EXCLUDED.address_norm, tax_id = EXCLUDED.tax_id,
-         province_code = EXCLUDED.province_code, hospital_code = EXCLUDED.hospital_code,
-         channel_code = EXCLUDED.channel_code,
          requester_id = EXCLUDED.requester_id, requester_name = EXCLUDED.requester_name,
          tdv_user_id = EXCLUDED.tdv_user_id, tdv_name = EXCLUDED.tdv_name,
          product_codes = EXCLUDED.product_codes, product_names = EXCLUDED.product_names,
@@ -178,9 +175,6 @@ export class SyncService {
         cus.registeredAddress,
         norm(cus.registeredAddress),
         cus.idNumber,
-        cus.provinceCode,
-        cus.hospitalCode,
-        cus.channelCode,
         src.created_by,
         names[src.created_by ?? ''] ?? null,
         tdv,

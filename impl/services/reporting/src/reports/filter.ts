@@ -1,5 +1,9 @@
 /**
- * Mười bốn tiêu chí lọc ở muc 9.2, dịch sang SQL.
+ * Mười một tiêu chí lọc ở muc 9.2, dịch sang SQL.
+ *
+ * Từng là mười bốn. Tỉnh/thành, bệnh viện và kênh rời khỏi phần mềm ở `0026`
+ * cùng ba cột nguồn của chúng bên khách hàng — ba tiêu chí ấy không còn gì để
+ * lọc theo.
  *
  * MỘT LUẬT KHÔNG ĐƯỢC PHÉP LÁCH: phạm vi dữ liệu áp TRƯỚC bộ lọc và không tiêu
  * chí nào ghi đè được nó (RPT-09). Vì thế `tdv_user_id` xuất hiện ở HAI chỗ với
@@ -31,13 +35,10 @@ export type Filter = {
   requesterId?: string | undefined;
   status?: string | undefined;
   tdvUserId?: string | undefined;
-  provinceCode?: string | undefined;
-  hospitalCode?: string | undefined;
-  channelCode?: string | undefined;
   productGroupCode?: string | undefined;
 };
 
-/** Tên tham số nhận từ query string, theo đúng thứ tự 14 tiêu chí ở muc 9.2. */
+/** Tên tham số nhận từ query string, theo đúng thứ tự 11 tiêu chí ở muc 9.2. */
 export const FILTER_KEYS = [
   'appliedFrom',
   'appliedTo',
@@ -51,9 +52,6 @@ export const FILTER_KEYS = [
   'requesterId',
   'status',
   'tdvUserId',
-  'provinceCode',
-  'hospitalCode',
-  'channelCode',
   'productGroupCode',
 ] as const;
 
@@ -92,7 +90,7 @@ export type Built = { where: string; params: unknown[] };
 /**
  * Dựng mệnh đề WHERE. `params[0]` LUÔN là danh sách phạm vi.
  *
- * Mỗi tiêu chí thêm một tham số đánh số động thay vì cố định `$1..$16`: điều
+ * Mỗi tiêu chí thêm một tham số đánh số động thay vì cố định `$1..$13`: điều
  * kiện `IS NULL OR` cho mọi tiêu chí đọc gọn hơn nhưng buộc Postgres lập kế
  * hoạch cho một câu lệnh không dùng được chỉ mục nào — với 20 nghìn hồ sơ thì
  * đó là quét toàn bảng ở mọi lần mở màn hình.
@@ -147,13 +145,7 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
   // 10. TDV phụ trách — CHỈ thu hẹp trong phạm vi, xem chú thích đầu file.
   if (f.tdvUserId) add((i) => `tdv_user_id = $${i}::uuid`, f.tdvUserId);
 
-  // 11, 12, 13. Ba danh mục có mã. Lọc theo MÃ nên đổi tên tỉnh không ảnh hưởng
-  //     kết quả — tên chỉ được tra lúc hiển thị (RPT-06, CAT-16).
-  if (f.provinceCode) add((i) => `province_code = $${i}`, f.provinceCode);
-  if (f.hospitalCode) add((i) => `hospital_code = $${i}`, f.hospitalCode);
-  if (f.channelCode) add((i) => `channel_code = $${i}`, f.channelCode);
-
-  // 14. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
+  // 11. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
   if (f.productGroupCode) add((i) => `product_group_codes && ARRAY[$${i}]::text[]`, f.productGroupCode);
 
   return { where: cond.join(' AND '), params };

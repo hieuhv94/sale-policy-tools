@@ -28,7 +28,6 @@ import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
-import { TheTraCuu } from '../components/danh-muc/TraCuu.js';
 import { TheGiayToMau } from '../components/danh-muc/GiayToMau.js';
 
 /**
@@ -126,15 +125,12 @@ export function TrangChietKhau() {
         tieuDe="Chiết khấu"
         moTa={
           quanTri
-            ? 'Ngưỡng chiết khấu quy định, và các danh mục tra cứu dùng chung.'
+            ? 'Ngưỡng chiết khấu quy định theo nhóm sản phẩm và loại khách hàng.'
             : 'Ngưỡng chiết khấu quy định. Chỉ xem.'
         }
       />
 
       <TheChietKhau nhom={nhom ?? []} chiXem={!quanTri} />
-      {/* Danh mục tra cứu ở đây vì kênh phân phối là một chiều của chính quy
-          định chiết khấu. Tỉnh và bệnh viện đi nhờ cùng khối. */}
-      {quanTri && <TheTraCuu />}
     </section>
   );
 }

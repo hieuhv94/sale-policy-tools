@@ -63,26 +63,28 @@ const NHOM = [
 
 /** Giá bán Công ty là số nguyên đồng. Sáu sản phẩm là đủ để thấy bảng 10 cột. */
 const SAN_PHAM = [
-  { code: 'NC-GOLD-900', name: 'Nutricare Gold 900g', nhom: 'SUA-BOT', gia: 615_000, nguong: 1800 },
-  { code: 'NC-GOLD-400', name: 'Nutricare Gold 400g', nhom: 'SUA-BOT', gia: 315_000, nguong: 1800 },
-  { code: 'NC-BONE-900', name: 'Nutricare Bone 900g', nhom: 'SUA-BOT', gia: 585_000, nguong: 1500 },
-  { code: 'NC-META-900', name: 'Metacare Gold 900g', nhom: 'SUA-BOT', gia: 495_000, nguong: 1500 },
-  { code: 'NC-LEAN-400', name: 'Leanmax Rice 400g', nhom: 'DINH-DUONG-Y-HOC', gia: 275_000, nguong: 1200 },
-  { code: 'NC-CANXI-400', name: 'Nutricare Canxi 400g', nhom: 'DINH-DUONG-Y-HOC', gia: 325_000, nguong: 1200 },
+  { code: 'NC-GOLD-900', name: 'Nutricare Gold 900g', nhom: 'SUA-BOT', gia: 615_000 },
+  { code: 'NC-GOLD-400', name: 'Nutricare Gold 400g', nhom: 'SUA-BOT', gia: 315_000 },
+  { code: 'NC-BONE-900', name: 'Nutricare Bone 900g', nhom: 'SUA-BOT', gia: 585_000 },
+  { code: 'NC-META-900', name: 'Metacare Gold 900g', nhom: 'SUA-BOT', gia: 495_000 },
+  { code: 'NC-LEAN-400', name: 'Leanmax Rice 400g', nhom: 'DINH-DUONG-Y-HOC', gia: 275_000 },
+  { code: 'NC-CANXI-400', name: 'Nutricare Canxi 400g', nhom: 'DINH-DUONG-Y-HOC', gia: 325_000 },
 ];
 
-const TINH = [
-  { code: 'HN', name: 'Hà Nội' },
-  { code: 'DN', name: 'Đà Nẵng' },
-  { code: 'HCM', name: 'TP Hồ Chí Minh' },
-];
-const BENH_VIEN = [
-  { code: 'BV-BACH-MAI', name: 'Bệnh viện Bạch Mai' },
-  { code: 'BV-DA-NANG', name: 'Bệnh viện Đà Nẵng' },
-];
-const KENH = [
-  { code: 'NHA-THUOC', name: 'Nhà thuốc' },
-  { code: 'BENH-VIEN', name: 'Bệnh viện' },
+/**
+ * Ngưỡng chiết khấu — nguồn DUY NHẤT, khớp theo nhóm sản phẩm × loại khách hàng
+ * (`0025`, `0026`).
+ *
+ * Bốn dòng chứ không phải hai, để chồng demo bày ra được chính cái luật khó nhất
+ * của màn hình này: dòng CỤ THỂ HƠN thắng. Khách loại 1 mua sữa bột lấy 18% từ
+ * `CK-SUA-L1`, khách loại 3 mua cùng sản phẩm ấy lấy 15% từ `CK-SUA` — hai hồ sơ
+ * cạnh nhau, hai ngưỡng khác nhau, và cột QĐCK nói ra vì sao.
+ */
+const QUY_DINH_CK = [
+  { code: 'CK-SUA', productGroupCode: 'SUA-BOT', thresholdRate2: 1500 },
+  { code: 'CK-SUA-L1', productGroupCode: 'SUA-BOT', customerType: 1, thresholdRate2: 1800 },
+  { code: 'CK-SUA-L2', productGroupCode: 'SUA-BOT', customerType: 2, thresholdRate2: 2000 },
+  { code: 'CK-YHOC', productGroupCode: 'DINH-DUONG-Y-HOC', thresholdRate2: 1200 },
 ];
 
 const KHACH = [
@@ -94,8 +96,6 @@ const KHACH = [
     ownerName: 'Trần Thị Mỹ Hạnh',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0101234567',
-    provinceCode: 'HN',
-    channelCode: 'NHA-THUOC',
     debt: '4500000',
   },
   {
@@ -106,8 +106,6 @@ const KHACH = [
     ownerName: 'Lê Quang Đạo',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0402345678',
-    provinceCode: 'DN',
-    channelCode: 'NHA-THUOC',
     debt: '0',
   },
   {
@@ -118,8 +116,6 @@ const KHACH = [
     ownerName: 'Phạm Hoàng Long',
     ownerTitle: 'Giám đốc',
     idNumber: '0312345678',
-    provinceCode: 'HCM',
-    channelCode: 'NHA-THUOC',
     debt: '128000000',
   },
   {
@@ -130,9 +126,6 @@ const KHACH = [
     ownerName: 'Nguyễn Thị Thu Hà',
     ownerTitle: 'Trưởng khoa',
     idNumber: '0104567890',
-    provinceCode: 'HN',
-    hospitalCode: 'BV-BACH-MAI',
-    channelCode: 'BENH-VIEN',
     debt: '0',
   },
 ];
@@ -201,12 +194,8 @@ async function main(): Promise<void> {
   for (const u of ['tdv01', 'tdv02', 'tbp01', 'kt01', 'sa01', 'admin01']) await dangNhap(u);
 
   for (const n of NHOM) await goi('/catalog/product-groups', 'admin01', n);
-  for (const [kind, ds] of [
-    ['province', TINH],
-    ['hospital', BENH_VIEN],
-    ['channel', KENH],
-  ] as const) {
-    for (const m of ds) await goi(`/catalog/lookups/${kind}`, 'admin01', m);
+  for (const q of QUY_DINH_CK) {
+    await goi('/catalog/discount-rules', 'admin01', { ...q, effectiveFrom: '2026-01-01' });
   }
 
   const sanPham: Record<string, string> = {};
@@ -215,9 +204,6 @@ async function main(): Promise<void> {
       code: p.code,
       name: p.name,
       groupCode: p.nhom,
-      defaultRate2Type1: p.nguong,
-      defaultRate2Type2: p.nguong,
-      defaultRate2Type3: p.nguong,
     });
     sanPham[p.code] = r.id;
     await goi(`/catalog/products/${r.id}/prices`, 'admin01', {

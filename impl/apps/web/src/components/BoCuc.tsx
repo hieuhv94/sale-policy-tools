@@ -2,7 +2,7 @@
  * Khung chung sau khi đăng nhập: thanh bên, thanh tiêu đề, vùng nội dung.
  *
  * Điều hướng nằm ở THANH BÊN chứ không ở một hàng tab ngang. Tám mục với nhãn
- * tiếng Việt dài ("Mẫu hợp đồng", "Bệnh viện / điểm bán") xếp ngang thì tràn
+ * tiếng Việt dài ("Mẫu hợp đồng", "Quy định chiết khấu") xếp ngang thì tràn
  * dòng ngay ở màn hình 1280px, và một hàng tab tràn thành hai dòng trông như lỗi
  * hiển thị. Cột dọc thì thêm mục thứ chín cũng không đổi bố cục.
  *

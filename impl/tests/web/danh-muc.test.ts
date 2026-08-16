@@ -11,10 +11,8 @@ import { DIEU_HUONG, VAI_TRO, xem } from '@csbh/web/can';
 import {
   LOAI_GIA,
   THE_SAN_PHAM,
-  LOAI_TRA_CUU,
   locSanPham,
   NHAN_LOAI_GIA,
-  NHAN_TRA_CUU,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
   locQuyDinh,
@@ -28,7 +26,6 @@ const qd = (p: Partial<QuyDinhChietKhau>): QuyDinhChietKhau => ({
   code: 'QD-1',
   productGroupCode: null,
   customerType: null,
-  channelCode: null,
   effectiveFrom: '2026-01-01',
   thresholdRate2: 2500,
   specificity: 0,
@@ -75,11 +72,9 @@ describe('câu mô tả phạm vi áp dụng', () => {
     expect(phamViChietKhau(qd({}))).toBe('mọi nhóm sản phẩm · mọi loại khách');
   });
 
-  it('điền đủ thì nêu đủ ba phần', () => {
-    const s = phamViChietKhau(qd({ productGroupCode: 'SUA', customerType: 2, channelCode: 'BV' }));
-    expect(s).toContain('nhóm SUA');
-    expect(s).toContain('khách loại 2');
-    expect(s).toContain('kênh BV');
+  it('điền đủ thì nêu đủ HAI phần — và chỉ hai (0026)', () => {
+    const s = phamViChietKhau(qd({ productGroupCode: 'SUA', customerType: 2 }));
+    expect(s).toBe('nhóm SUA · khách loại 2');
   });
 
   it('loại khách 0 KHÔNG bị nhầm thành "mọi loại"', () => {
@@ -106,11 +101,6 @@ describe('các bảng tra cố định', () => {
 
   it('đúng hai trạng thái sản phẩm, đều có nhãn', () => {
     expect(Object.keys(NHAN_TRANG_THAI_SAN_PHAM).sort()).toEqual([...TRANG_THAI_SAN_PHAM].sort());
-  });
-
-  it('ba loại tra cứu khớp LOOKUP_KINDS của máy chủ', () => {
-    expect([...LOAI_TRA_CUU]).toEqual(['province', 'hospital', 'channel']);
-    expect(Object.keys(NHAN_TRA_CUU).sort()).toEqual([...LOAI_TRA_CUU].sort());
   });
 
   it('ba màn hình tách ra từ Danh mục, khai ở MỘT chỗ', () => {

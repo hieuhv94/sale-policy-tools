@@ -32,12 +32,6 @@ const NGUON: Record<TenBieuMau, { tep: string; neo: string; boQua?: string[] }> 
   gia: { tep: 'services/catalog/src/catalog.controller.ts', neo: "@Post('products/:id/prices')" },
   'nhom-san-pham': { tep: 'services/catalog/src/catalog.controller.ts', neo: "@Post('product-groups')" },
   'chiet-khau': { tep: 'services/catalog/src/catalog.controller.ts', neo: "@Post('discount-rules')" },
-  // `kind` (tỉnh · bệnh viện · kênh) là thẻ đang mở, đi qua đường dẫn.
-  'tra-cuu': {
-    tep: 'services/catalog/src/catalog.controller.ts',
-    neo: "@Post('lookups/:kind')",
-    boQua: ['kind'],
-  },
   'ho-so': { tep: 'services/policy/src/policies/policies.controller.ts', neo: '@Post()' },
   'dong-san-pham': { tep: 'services/policy/src/policies/policies.controller.ts', neo: 'const lineShape =' },
   'ngay-ap-dung': { tep: 'services/policy/src/policies/policies.controller.ts', neo: "@Patch(':id')" },

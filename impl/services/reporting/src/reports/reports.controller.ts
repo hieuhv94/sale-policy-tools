@@ -45,11 +45,13 @@ export class ReportsController {
     return { total: await this.reports.count(me, cleanFilter(q)) };
   }
 
-  /** Danh sách tên tham số lọc — màn hình dựng form từ đây, không gõ lại 16 chuỗi. */
+  /** Danh sách tên tham số lọc — màn hình dựng form từ đây, không gõ lại 13 chuỗi. */
   @Roles(...VIEWERS)
   @Get('filter-keys')
   filterKeys() {
-    return { keys: FILTER_KEYS, criteria: 14 };
+    // 11 tiêu chí kể từ `0026`: tỉnh/thành, bệnh viện và kênh rời khỏi phần mềm
+    // cùng ba cột nguồn của chúng bên khách hàng.
+    return { keys: FILTER_KEYS, criteria: 11 };
   }
 
   @Roles(...VIEWERS)

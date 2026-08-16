@@ -52,9 +52,6 @@ const KHACH: KhachHangDayDu = {
   ownerTitle: null,
   idNumber: null,
   debt: '0',
-  provinceCode: null,
-  hospitalCode: null,
-  channelCode: null,
   tdvUserId: 'u-1',
 };
 

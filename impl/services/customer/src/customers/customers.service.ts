@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
-import { CatalogClient } from '../infra/catalog.client.js';
 import { ScopeClient } from '../infra/scope.client.js';
 
 export type CustomerInput = {
@@ -20,9 +19,6 @@ export type CustomerInput = {
   ownerTitle?: string | undefined;
   ownerIdNumber?: string | undefined;
   debt?: bigint | undefined;
-  provinceCode?: string | undefined;
-  hospitalCode?: string | undefined;
-  channelCode?: string | undefined;
 };
 
 type Row = {
@@ -37,9 +33,6 @@ type Row = {
   owner_title: string | null;
   owner_id_number: string | null;
   debt: string;
-  province_code: string | null;
-  hospital_code: string | null;
-  channel_code: string | null;
   tdv_user_id: string;
 };
 
@@ -50,15 +43,10 @@ const CAN_REASSIGN = ['SALE_ADMIN', 'QUAN_TRI'];
 export class CustomersService {
   constructor(
     private readonly db: Db,
-    private readonly catalog: CatalogClient,
     private readonly scope: ScopeClient,
   ) {}
 
   async create(input: CustomerInput, me: AuthUser) {
-    // Bốn trường phân loại đều là danh mục có mã. customer không đọc được
-    // schema cat nên hỏi catalog qua API nội bộ (CUST-08).
-    await this.assertCodesKnown(input);
-
     // Trùng CCCD/MST thì VẪN LƯU, chỉ kèm cảnh báo: một chủ hộ mở nhiều điểm
     // bán là nghiệp vụ có thật (CUST-05).
     const duplicates = await this.findByIdNumber(input.idNumber);
@@ -72,9 +60,8 @@ export class CustomersService {
         .query<Row>(
           `INSERT INTO cus.customer
              (code, name, id_number, customer_type, registered_address, delivery_address,
-              owner_name, owner_title, owner_id_number, debt,
-              province_code, hospital_code, channel_code, tdv_user_id, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14)
+              owner_name, owner_title, owner_id_number, debt, tdv_user_id, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
            RETURNING *`,
           [
             input.code,
@@ -87,9 +74,6 @@ export class CustomersService {
             input.ownerTitle ?? null,
             input.ownerIdNumber ?? null,
             (input.debt ?? 0n).toString(),
-            input.provinceCode ?? null,
-            input.hospitalCode ?? null,
-            input.channelCode ?? null,
             // TDV phụ trách mặc định là người tạo (CUST-01).
             me.id,
           ],
@@ -176,12 +160,11 @@ export class CustomersService {
         message: 'Chỉ Sale Admin hoặc Quản trị hệ thống đổi được TDV phụ trách',
       });
     }
-    await this.assertCodesKnown(patch);
 
     return this.db.tx(async (c) => {
       const r = await c.query<Row>(
         `UPDATE cus.customer SET
-            customer_type      = coalesce($14, customer_type),
+            customer_type      = coalesce($11, customer_type),
             name               = coalesce($2, name),
             id_number          = coalesce($3, id_number),
             registered_address = coalesce($4, registered_address),
@@ -190,10 +173,7 @@ export class CustomersService {
             owner_title        = coalesce($7, owner_title),
             owner_id_number    = coalesce($8, owner_id_number),
             debt               = coalesce($9, debt),
-            province_code      = coalesce($10, province_code),
-            hospital_code      = coalesce($11, hospital_code),
-            channel_code       = coalesce($12, channel_code),
-            tdv_user_id        = coalesce($13, tdv_user_id),
+            tdv_user_id        = coalesce($10, tdv_user_id),
             updated_at         = now()
           WHERE id = $1 RETURNING *`,
         [
@@ -206,9 +186,6 @@ export class CustomersService {
           patch.ownerTitle ?? null,
           patch.ownerIdNumber ?? null,
           patch.debt?.toString() ?? null,
-          patch.provinceCode ?? null,
-          patch.hospitalCode ?? null,
-          patch.channelCode ?? null,
           patch.tdvUserId ?? null,
           patch.customerType ?? null,
         ],
@@ -295,25 +272,6 @@ export class CustomersService {
     return rows;
   }
 
-  private async assertCodesKnown(input: {
-    provinceCode?: string | undefined;
-    hospitalCode?: string | undefined;
-    channelCode?: string | undefined;
-  }): Promise<void> {
-    const res = await this.catalog.validateCodes({
-      provinceCode: input.provinceCode,
-      hospitalCode: input.hospitalCode,
-      channelCode: input.channelCode,
-    });
-    if (!res.ok) {
-      throw new NotFoundException({
-        code: 'LOOKUP_CODE_UNKNOWN',
-        unknown: res.unknown,
-        message: `Mã không có trong danh mục: ${res.unknown.join(', ')}`,
-      });
-    }
-  }
-
   /** Phạm vi dữ liệu suy ra từ cây tổ chức, do identity giữ (CUST-14). */
   private async assertInScope(ownerUserId: string, me: AuthUser): Promise<void> {
     const ids = await this.scope.userIdsFor(me);
@@ -333,8 +291,5 @@ const toDto = (r: Row) => ({
   ownerTitle: r.owner_title,
   ownerIdNumber: r.owner_id_number,
   debt: r.debt,
-  provinceCode: r.province_code,
-  hospitalCode: r.hospital_code,
-  channelCode: r.channel_code,
   tdvUserId: r.tdv_user_id,
 });

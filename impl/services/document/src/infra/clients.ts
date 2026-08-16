@@ -54,7 +54,6 @@ export type CustomerFull = {
   code: string;
   name: string;
   customerType: number;
-  channelCode: string | null;
   tdvUserId: string;
   idNumber: string | null;
   registeredAddress: string;

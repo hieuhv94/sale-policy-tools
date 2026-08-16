@@ -4,7 +4,7 @@ import { ACCOUNT_SOURCE, AuthGuard, Public, RemoteAccountSource, TraceMiddleware
 import { Db } from './infra/db.js';
 import { ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
-import { LookupsService } from './lookups/lookups.service.js';
+import { SignersService } from './signers/signers.service.js';
 import { CatalogController } from './catalog.controller.js';
 import { CatalogInternalController } from './internal.controller.js';
 import { CatalogOutbox } from './infra/outbox.relay.js';
@@ -41,7 +41,7 @@ class HealthController {
     Db,
     ProductsService,
     RulesService,
-    LookupsService,
+    SignersService,
     CatalogOutbox,
     // catalog KHÔNG có quyền trên schema idn nên phải hỏi identity qua API nội
     // bộ; kết quả nằm ở đúng khoá Redis mà identity dùng, nên vô hiệu hoá tài

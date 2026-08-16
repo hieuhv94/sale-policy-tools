@@ -41,9 +41,6 @@ const cleanup = () =>
     await c.query(`DELETE FROM cat.product WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cat.product_group WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cat.signer WHERE full_name LIKE $1`, [`${P}%`]);
-    for (const t of ['province', 'hospital', 'channel']) {
-      await c.query(`DELETE FROM cat.${t} WHERE code LIKE $1`, [`${P}%`]);
-    }
   });
 
 /** Sự kiện outbox mới nhất theo routing key. */
@@ -310,9 +307,9 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
 
   it('CAT-11 hai dòng cùng khớp thì chọn dòng cụ thể nhất', async () => {
     const { id, groupCode } = await makeProduct();
-    await post('/catalog/lookups/channel', { code: `${P}-KENH`, name: 'Kenh thu nghiem' });
 
-    // Dòng chung cho cả nhóm, và dòng riêng cho một kênh — cả hai đều khớp.
+    // Dòng chung cho cả nhóm, và dòng riêng cho một loại khách — cả hai đều
+    // khớp khi khách thuộc loại ấy. HAI chiều là tất cả những gì còn lại (0026).
     await post('/catalog/discount-rules', {
       code: code('CK'),
       productGroupCode: groupCode,
@@ -323,18 +320,15 @@ describe('CAT-10 · CAT-11 · CAT-12 tra ngưỡng chiết khấu', () => {
       code: code('CK'),
       productGroupCode: groupCode,
       customerType: 2,
-      channelCode: `${P}-KENH`,
       effectiveFrom: '2020-01-01',
       thresholdRate2: 2000,
     });
 
-    const specific = await get(
-      `/catalog/thresholds/resolve?productId=${id}&customerType=2&channelCode=${P}-KENH`,
-    );
+    const specific = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=2`);
     expect(specific.body.thresholdRate2).toBe(2000);
 
-    // Bỏ kênh đi thì dòng riêng không còn khớp, rơi về dòng chung.
-    const general = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=2`);
+    // Khách loại khác thì dòng riêng không còn khớp, rơi về dòng chung.
+    const general = await get(`/catalog/thresholds/resolve?productId=${id}&customerType=3`);
     expect(general.body.thresholdRate2).toBe(1000);
   });
 
@@ -591,17 +585,36 @@ describe('CAT-15 nhập danh mục từ Excel', () => {
   });
 });
 
-describe('CAT-16 đổi tên tỉnh/thành', () => {
-  it('mã giữ nguyên nên hồ sơ và bộ lọc cũ vẫn đúng', async () => {
-    const c = `${P}-TINH`;
-    await post('/catalog/lookups/province', { code: c, name: 'Ten cu' });
-    const renamed = await post('/catalog/lookups/province', { code: c, name: 'Ten moi' });
-    expect(renamed.status).toBe(200);
-    expect(renamed.body.code).toBe(c);
-    expect(renamed.body.name).toBe('Ten moi');
+/**
+ * 0026 — kênh bán không còn là một chiều của quy định chiết khấu.
+ *
+ * Kiểm qua HTTP chứ không chỉ ở lược đồ: `validate` bỏ im lặng mọi trường lạ,
+ * nên máy chủ vẫn nhận `channelCode` mà không báo gì. Điều phải chứng minh là
+ * nó KHÔNG ĐỔI ĐƯỢC KẾT QUẢ — một biểu mẫu cũ hay một script cũ còn gửi trường
+ * ấy lên thì ngưỡng trả về vẫn là ngưỡng của hai chiều còn lại.
+ */
+describe('0026 kênh bán không còn ảnh hưởng tới ngưỡng', () => {
+  it('gửi kèm channelCode cũng ra đúng ngưỡng của nhóm × loại khách', async () => {
+    const { id, groupCode } = await makeProduct();
+    await post('/catalog/discount-rules', {
+      code: code('CK'),
+      productGroupCode: groupCode,
+      customerType: 1,
+      channelCode: 'KENH-CU',
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1700,
+    });
 
-    const all = (await get('/catalog/lookups/province')).body as { code: string }[];
-    expect(all.filter((x) => x.code === c)).toHaveLength(1);
+    const r = await get(
+      `/catalog/thresholds/resolve?productId=${id}&customerType=1&channelCode=KENH-KHAC`,
+    );
+    expect(r.status).toBe(200);
+    expect(r.body.thresholdRate2).toBe(1700);
+  });
+
+  it('danh mục tra cứu không còn đường nào để gọi', async () => {
+    expect((await get('/catalog/lookups/province')).status).toBe(404);
+    expect((await post('/catalog/lookups/channel', { code: 'X', name: 'X' })).status).toBe(404);
   });
 });
 

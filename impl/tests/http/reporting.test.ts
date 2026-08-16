@@ -1,5 +1,5 @@
 /**
- * RPT-01 … RPT-14 — bộ lọc 14 tiêu chí, ba báo cáo, xuất Excel.
+ * RPT-01 … RPT-14 — bộ lọc 11 tiêu chí, ba báo cáo, xuất Excel.
  *
  * Read-model dựng từ sự kiện thật: hồ sơ được lập qua API policy, sự kiện đi qua
  * outbox lên RabbitMQ, consumer của reporting đọc lại nguồn rồi ghi dòng phẳng.
@@ -124,11 +124,6 @@ const rptRow = (id: string) =>
 
 let groupA = '';
 let groupB = '';
-/** `!` vì bốn mã danh mục dưới đây luôn được dựng xong trong `beforeAll`. */
-const province = (k: 'HN' | 'DN'): string => provinces[k]!;
-const provinces: Record<string, string> = {};
-let hospitalCode = '';
-let channelCode = '';
 
 const cpost = async (path: string, body: object, who = 'admin01') =>
   (await http(catalog)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
@@ -152,9 +147,6 @@ type CustomerOpts = {
   name?: string;
   address?: string;
   taxId?: string;
-  provinceCode?: string;
-  hospitalCode?: string;
-  channelCode?: string;
   who?: string;
 };
 
@@ -170,9 +162,6 @@ async function makeCustomer(o: CustomerOpts = {}): Promise<{ id: string; code: s
       registeredAddress: o.address ?? 'Số 8 Tôn Thất Thuyết, Hà Nội',
       ownerName: 'Trần Thị Mỹ Hạnh',
       ...(o.taxId ? { idNumber: o.taxId } : {}),
-      ...(o.provinceCode ? { provinceCode: o.provinceCode } : {}),
-      ...(o.hospitalCode ? { hospitalCode: o.hospitalCode } : {}),
-      ...(o.channelCode ? { channelCode: o.channelCode } : {}),
     });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
@@ -285,19 +274,6 @@ beforeAll(async () => {
   groupA = ga.body.code as string;
   const gb = await cpost('/catalog/product-groups', { code: uniq('NHOM'), name: 'Dinh duong' });
   groupB = gb.body.code as string;
-
-  for (const [key, name] of [
-    ['HN', 'Hà Nội'],
-    ['DN', 'Đà Nẵng'],
-  ] as const) {
-    const code = uniq(key);
-    await cpost(`/catalog/lookups/province`, { code, name });
-    provinces[key] = code;
-  }
-  hospitalCode = uniq('BV');
-  await cpost(`/catalog/lookups/hospital`, { code: hospitalCode, name: 'Bệnh viện Bạch Mai' });
-  channelCode = uniq('KENH');
-  await cpost(`/catalog/lookups/channel`, { code: channelCode, name: 'Nhà thuốc' });
 }, 180_000);
 
 afterAll(async () => {
@@ -373,14 +349,14 @@ describe('RPT-14 read-model trễ hơn nguồn nhưng hội tụ', () => {
 // RPT-01 — mười bốn tiêu chí, mỗi tiêu chí một test
 // =============================================================================
 
-describe('RPT-01 từng tiêu chí trong 14 tiêu chí ở muc 9.2', () => {
-  it('có đúng 14 tiêu chí, khai báo ở một chỗ', async () => {
+describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
+  it('có đúng 11 tiêu chí, khai báo ở một chỗ', async () => {
     const r = await rget('/reports/filter-keys');
     expect(r.status).toBe(200);
-    expect(r.body.criteria).toBe(14);
-    // 16 tham số cho 14 tiêu chí: hai tiêu chí thời gian mỗi cái có hai đầu.
-    expect(r.body.keys).toHaveLength(16);
-    expect(FILTER_KEYS).toHaveLength(16);
+    expect(r.body.criteria).toBe(11);
+    // 13 tham số cho 11 tiêu chí: hai tiêu chí thời gian mỗi cái có hai đầu.
+    expect(r.body.keys).toHaveLength(13);
+    expect(FILTER_KEYS).toHaveLength(13);
   });
 
   it('1. thời gian áp dụng — bao gồm cả hai ngày biên', async () => {
@@ -510,28 +486,12 @@ describe('RPT-01 từng tiêu chí trong 14 tiêu chí ở muc 9.2', () => {
     expect(ids).not.toContain(other.id);
   });
 
-  it('11. tỉnh/thành', async () => {
-    const hn = await draft({ provinceCode: province('HN') });
-    const dn = await draft({ provinceCode: province('DN') });
-    const r = await rget(`/reports/policies?provinceCode=${province('HN')}&limit=200`);
-    const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
-    expect(ids).toContain(hn.id);
-    expect(ids).not.toContain(dn.id);
-  });
-
-  it('12. bệnh viện hoặc điểm bán', async () => {
-    const d = await draft({ hospitalCode });
-    const r = await rget(`/reports/policies?hospitalCode=${hospitalCode}&limit=200`);
-    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
-  });
-
-  it('13. kênh', async () => {
-    const d = await draft({ channelCode });
-    const r = await rget(`/reports/policies?channelCode=${channelCode}&limit=200`);
-    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
-  });
-
-  it('14. nhóm sản phẩm', async () => {
+  /*
+   * Ba tiêu chí 11 · 12 · 13 cũ — tỉnh/thành, bệnh viện, kênh — đã xoá cùng
+   * `0026`. Bộ lọc gửi lên vẫn không gãy (`cleanFilter` bỏ khoá lạ), nhưng
+   * không còn cột nào để lọc theo nên không còn gì để kiểm.
+   */
+  it('11. nhóm sản phẩm', async () => {
     const a = await draft({ groupCode: groupA });
     const b = await draft({ groupCode: groupB });
     const r = await rget(`/reports/policies?productGroupCode=${groupB}&limit=200`);
@@ -550,18 +510,16 @@ describe('RPT-02 kết hợp 5 điều kiện cùng lúc', () => {
     const hit = await draft({
       name: 'Công ty Dược Hoàng Long',
       address: '55 Lê Duẩn, Hải Phòng',
-      provinceCode: province('HN'),
-      channelCode,
+      taxId: '5566778899',
       groupCode: groupB,
       productName: 'Nutricare Bone',
       appliedDate: '2026-05-05',
     });
-    // Khác đúng MỘT điều kiện (tỉnh) — phải bị loại.
+    // Khác đúng MỘT điều kiện (mã số thuế) — phải bị loại.
     const miss = await draft({
       name: 'Công ty Dược Hoàng Long',
       address: '55 Lê Duẩn, Hải Phòng',
-      provinceCode: province('DN'),
-      channelCode,
+      taxId: '1199887766',
       groupCode: groupB,
       productName: 'Nutricare Bone',
       appliedDate: '2026-05-05',
@@ -570,8 +528,8 @@ describe('RPT-02 kết hợp 5 điều kiện cùng lúc', () => {
     const qs = [
       `customerName=${encodeURIComponent('hoang long')}`,
       `address=${encodeURIComponent('le duan')}`,
-      `provinceCode=${province('HN')}`,
-      `channelCode=${channelCode}`,
+      'taxId=5566778899',
+      `productName=${encodeURIComponent('bone')}`,
       `productGroupCode=${groupB}`,
       'limit=200',
     ].join('&');
@@ -614,7 +572,7 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
   it('đặt bộ lọc, chuyển màn hình rồi quay lại thì điều kiện còn nguyên', async () => {
     const saved = await rput('/reports/filters/ho-so', {
       status: 'NHAP',
-      provinceCode: province('HN'),
+      taxId: '0101234567',
       customerName: 'Minh Châu',
     });
     expect(saved.status).toBe(200);
@@ -626,7 +584,7 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
     const back = await rget('/reports/filters/ho-so');
     expect(back.body.filter).toEqual({
       status: 'NHAP',
-      provinceCode: province('HN'),
+      taxId: '0101234567',
       customerName: 'Minh Châu',
     });
   });
@@ -648,29 +606,14 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
 });
 
 // =============================================================================
-// RPT-06 — lọc theo mã, đổi tên danh mục không ảnh hưởng
+// RPT-06 — lọc theo MÃ chứ không theo TÊN
+//
+// Test cũ dựng lên từ danh mục tỉnh/thành: đổi tên tỉnh rồi kiểm bộ lọc cũ vẫn
+// ra đúng hồ sơ. Cả danh mục ấy lẫn tiêu chí lọc theo nó đã đi ở `0026`, nên
+// không còn cặp mã/tên nào trong read-model để dựng lại phép thử này. Luật
+// CAT-16 (khoá chính là MÃ) vẫn còn hiệu lực và vẫn được kiểm — ở `catalog.test`
+// cho nhóm sản phẩm và quy định chiết khấu.
 // =============================================================================
-
-describe('RPT-06 đổi tên tỉnh/thành', () => {
-  it('bộ lọc cũ vẫn đúng vì lọc theo MÃ chứ không theo tên', async () => {
-    const d = await draft({ provinceCode: province('DN') });
-    const before = await rget(`/reports/policies?provinceCode=${province('DN')}&limit=200`);
-    expect(before.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
-
-    // Đổi tên tỉnh trong danh mục — mã giữ nguyên (CAT-16).
-    const renamed = await cpost(`/catalog/lookups/province`, {
-      code: province('DN'),
-      name: 'Thành phố Đà Nẵng (hợp nhất)',
-    });
-    expect(renamed.status).toBeLessThan(300);
-
-    const after = await rget(`/reports/policies?provinceCode=${province('DN')}&limit=200`);
-    expect(after.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
-    // Và read-model không hề phải đồng bộ lại: nó giữ mã, không giữ tên.
-    const row = await rptRow(d.id);
-    expect(row?.['province_code']).toBe(province('DN'));
-  });
-});
 
 // =============================================================================
 // RPT-09 — phạm vi áp TRƯỚC bộ lọc

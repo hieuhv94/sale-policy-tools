@@ -1,9 +1,12 @@
 /**
  * CUST-01 … CUST-17 — khách hàng do TDV tạo (YCNV muc 6.1).
  *
- * Ba service chạy thật cùng lúc: customer gọi identity để giải phạm vi dữ liệu
- * và gọi catalog để kiểm mã danh mục. Không có bản giả nào — đường token dịch vụ
- * giữa các service được chạy qua trong mọi test.
+ * Hai service chạy thật cùng lúc: customer gọi identity để giải phạm vi dữ
+ * liệu. Không có bản giả nào — đường token dịch vụ giữa các service được chạy
+ * qua trong mọi test.
+ *
+ * Từ `0026` customer KHÔNG còn gọi catalog: ba mã phân loại (tỉnh · bệnh viện ·
+ * kênh) đã rời khỏi phần mềm, và chúng là thứ duy nhất customer từng hỏi sang.
  *
  * CHƯA PHỦ: CUST-11 và CUST-12 (tải và kiểm file hồ sơ pháp lý). File do service
  * `document` giữ trên MinIO, service đó thuộc chặng P6.
@@ -13,7 +16,6 @@ import type { INestApplication } from '@nestjs/common';
 import { createTestApp as createCustomerApp } from '@csbh/customer/testing';
 import {
   accessTokenFor,
-  bootCatalogListening,
   bootIdentityListening,
   clearAccountCache,
   clearScopeCache,
@@ -25,10 +27,8 @@ const SEED_PW = 'Test@1234';
 const P = 'ZZCUS';
 
 let identity: INestApplication;
-let catalog: INestApplication;
 let app: INestApplication;
 let restoreIdentity: () => void;
-let restoreCatalog: () => void;
 const tok: Record<string, string> = {};
 
 const post = async (path: string, body: object, who = 'tdv01') =>
@@ -57,7 +57,6 @@ const cleanup = () =>
     await c.query(`DELETE FROM pol.policy WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cus.outbox`);
     await c.query(`DELETE FROM cus.customer WHERE code LIKE $1`, [`${P}%`]);
-    await c.query(`DELETE FROM cat.province WHERE code LIKE $1`, [`${P}%`]);
   });
 
 beforeAll(async () => {
@@ -66,10 +65,6 @@ beforeAll(async () => {
   identity = idn.app;
   restoreIdentity = idn.restore;
 
-  const cat = await bootCatalogListening();
-  catalog = cat.app;
-  restoreCatalog = cat.restore;
-
   await clearAccountCache();
   await clearScopeCache();
   app = await createCustomerApp();
@@ -77,21 +72,11 @@ beforeAll(async () => {
   for (const u of ['tdv01', 'tdv02', 'kt01', 'sa01', 'admin01', 'bld01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
-
-  // Một mã tỉnh có thật trong danh mục, để phân biệt "mã sai" với "mã đúng".
-  await (
-    await http(catalog)
-  )
-    .post('/catalog/lookups/province')
-    .set('Authorization', `Bearer ${tok['admin01']}`)
-    .send({ code: `${P}-HN`, name: 'Ha Noi' });
 });
 
 afterAll(async () => {
   await app?.close();
-  await catalog?.close();
   await identity?.close();
-  restoreCatalog?.();
   restoreIdentity?.();
   await cleanup();
 });
@@ -206,18 +191,20 @@ describe('CUST-07 địa chỉ đăng ký khác nơi nhận hàng', () => {
   });
 });
 
-describe('CUST-08 bốn trường phân loại là danh mục có mã', () => {
-  it('mã tỉnh không có trong danh mục thì bị từ chối', async () => {
-    const r = await post('/customers', base({ provinceCode: 'KHONG-CO-TINH-NAY' }));
-    expect(r.status).toBe(404);
-    expect(r.body.code).toBe('LOOKUP_CODE_UNKNOWN');
-    expect(r.body.unknown).toContain('province:KHONG-CO-TINH-NAY');
-  });
-
-  it('mã có thật thì nhận — kiểm qua API nội bộ của catalog', async () => {
-    const r = await post('/customers', base({ provinceCode: `${P}-HN` }));
+/**
+ * CUST-08 cũ — ba mã phân loại phải có trong danh mục. Luật ấy mất hiệu lực ở
+ * `0026` cùng với chính ba trường: ngưỡng chiết khấu chỉ còn khớp theo nhóm sản
+ * phẩm × loại khách hàng, và không chỗ nào khác trong phần mềm đọc tới chúng.
+ *
+ * Cái còn phải giữ là ĐƯỜNG CŨ KHÔNG GÃY: một biểu mẫu chưa kịp cập nhật gửi
+ * kèm `provinceCode` thì khách hàng vẫn lập được, chỉ là trường ấy rơi mất.
+ */
+describe('0026 ba trường phân loại đã rời khỏi khách hàng', () => {
+  it('gửi kèm provinceCode vẫn tạo được, và trường ấy không quay về', async () => {
+    const r = await post('/customers', base({ provinceCode: 'HN', channelCode: 'NHA-THUOC' }));
     expect(r.status).toBe(201);
-    expect(r.body.provinceCode).toBe(`${P}-HN`);
+    expect(r.body.provinceCode).toBeUndefined();
+    expect(r.body.channelCode).toBeUndefined();
   });
 });
 

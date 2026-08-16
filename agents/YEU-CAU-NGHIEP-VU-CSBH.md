@@ -332,13 +332,16 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Địa chỉ đăng ký / Nơi nhận hàng | Cho phép khác nhau; hiển thị đúng trên hợp đồng; dùng lọc |
 | Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
 | Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
-| **Tỉnh/thành** | Danh mục có mã |
-| **Bệnh viện / điểm bán** | Danh mục có mã |
-| **Kênh** | Danh mục có mã |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
 | Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác; bấm tên file để xem |
 
-> Bốn trường in đậm là bổ sung so với v3.1, phục vụ lọc và báo cáo. Việc **kiểm tra tính hợp lệ và
+> **Ba trường Tỉnh/thành · Bệnh viện–điểm bán · Kênh đã BỎ HẲN** `sửa 16/08`. Chúng từng là danh
+> mục có mã, phục vụ lọc và báo cáo, và kênh còn là một chiều của quy định chiết khấu. Nghiệp vụ chốt
+> ngưỡng chỉ phụ thuộc **nhóm sản phẩm và loại khách hàng**, nên chiều kênh mất chỗ đứng; hai trường
+> còn lại thì cả vòng đời chỉ là gõ vào rồi đọc lại, không dẫn tới quyết định nào. Bỏ cả ba, cùng ba
+> danh mục tra cứu, ba tiêu chí lọc và ba cột trong file Excel xuất ra.
+>
+> Trường **TDV phụ trách** in đậm là bổ sung so với v3.1. Việc **kiểm tra tính hợp lệ và
 > hạn của hồ sơ pháp lý nằm ngoài hệ thống** — người dùng tự kiểm tra, phần mềm không cấu hình
 > giấy tờ bắt buộc và không cảnh báo hết hạn.
 >
@@ -379,7 +382,9 @@ mọi dòng sản phẩm họ sắp nhập.
 
 ### 6.3. Chiết khấu quy định — nguồn kiểm soát ngưỡng
 
-Theo nhóm sản phẩm, loại khách hàng, kênh/khu vực và ngày bắt đầu hiệu lực.
+Theo **hai yếu tố** `sửa 16/08` — nhóm sản phẩm và loại khách hàng — cùng ngày bắt đầu hiệu lực.
+Kênh/khu vực **không còn là một chiều khớp**: ngưỡng gắn với bản chất hàng hoá và với loại khách
+hàng, không gắn với nơi bán.
 **Đây là nguồn DUY NHẤT để kiểm tra vượt ngưỡng** — và từ `sửa 15/08` thì đúng nghĩa duy nhất: ba
 cột “CSBH loại 1/2/3” trong danh mục sản phẩm **đã bỏ hẳn**. Chúng là một nguồn ngưỡng thứ hai song
 song, lại vô hình vì không có màn hình nhập — chỉ vào hệ thống qua nhập Excel và script, rồi âm thầm
@@ -400,11 +405,11 @@ dòng**. Xoá không làm đổi hồ sơ đã lập — mỗi dòng hồ sơ gi
 
 #### 6.3.1. Một sản phẩm khớp nhiều quy định `bổ sung 15/08`
 
-Chuyện bình thường, không phải lỗi cấu hình: dòng chung cho cả nhóm và dòng riêng cho một kênh đều
-đúng. Hệ thống chọn đúng một dòng, theo thứ tự:
+Chuyện bình thường, không phải lỗi cấu hình: dòng chung cho cả nhóm và dòng riêng cho một loại khách
+đều đúng. Hệ thống chọn đúng một dòng, theo thứ tự:
 
-1. **Cụ thể hơn thì thắng.** Trọng số: nhóm sản phẩm **4** · loại khách hàng **2** · kênh **1**. Nhóm
-   sản phẩm là chiều mạnh nhất vì ngưỡng gắn với bản chất hàng hoá. Ba trọng số này là luỹ thừa của
+1. **Cụ thể hơn thì thắng.** Trọng số `sửa 16/08`: nhóm sản phẩm **2** · loại khách hàng **1**. Nhóm
+   sản phẩm là chiều mạnh hơn vì ngưỡng gắn với bản chất hàng hoá. Hai trọng số này là luỹ thừa của
    hai, nên **hai phạm vi khác nhau không bao giờ hoà điểm**.
 2. **Mới hơn thì thắng.** Hai dòng bằng điểm bắt buộc phải trùng phạm vi, và khi đó dòng có ngày hiệu
    lực muộn hơn thắng. Từ khi quy định vô thời hạn, đây là **cách đổi ngưỡng duy nhất**: khai một
@@ -426,7 +431,7 @@ vẫn đủ, và nó không bao giờ bị đánh dấu vượt ngưỡng. Ngư�
 trước khi nhập giá:
 
 > ◆ **Chưa có quy định chiết khấu cho sản phẩm này.** Không quy định nào phủ nó với loại khách hàng
-> và kênh của khách hàng này, nên dòng này sẽ **không có ngưỡng nào để đối chiếu** — cột Tỷ lệ CK vẫn
+> của khách hàng này, nên dòng này sẽ **không có ngưỡng nào để đối chiếu** — cột Tỷ lệ CK vẫn
 > tính, chỉ là không đánh dấu vượt ngưỡng được. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một
 > ngưỡng cho sản phẩm này.
 
@@ -478,7 +483,7 @@ lại.**
 | Mục menu | Ai thấy | Nội dung |
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
-| **Chiết khấu** | Mọi vai trò | Bảng ngưỡng; Quản trị thêm phần tạo/sửa và quản lý **danh mục tra cứu** (tỉnh · bệnh viện · kênh) |
+| **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
 | **Giấy tờ mẫu** | Chỉ Quản trị | Xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
@@ -608,14 +613,13 @@ Bộ lọc tối thiểu, cho phép kết hợp nhiều điều kiện, xóa b�
 trong phiên làm việc:
 
 > thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
-> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · tỉnh/thành ·
-> bệnh viện hoặc điểm bán · kênh · nhóm sản phẩm
+> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
 
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần xem,
 ký, tiếp nhận, xuất file và tải tài liệu.
 
-> **Lưu ý khi dựng:** địa chỉ đăng ký là text tự do nên chỉ lọc được kiểu “có chứa”. Muốn lọc theo
-> địa bàn thì dùng trường Tỉnh/thành vì đó là danh mục có mã.
+> **Lưu ý khi dựng:** địa chỉ đăng ký là text tự do nên chỉ lọc được kiểu “có chứa” — và từ
+> `sửa 16/08` đó là cách lọc theo địa bàn DUY NHẤT còn lại, vì trường Tỉnh/thành đã bỏ.
 
 ---
 
@@ -700,7 +704,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-42 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+44 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
 định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
@@ -769,5 +773,11 @@ nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
 sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
+
+**Hai yếu tố, và ba danh mục địa lý biến mất** (16/08) — **ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
+phẩm và loại khách hàng**; chiều **kênh bán** rời khỏi quy định · **bỏ hẳn ba trường Tỉnh/thành ·
+Bệnh viện–điểm bán · Kênh** khỏi khách hàng, cùng ba danh mục tra cứu, ba tiêu chí lọc và ba cột
+trong file Excel — bộ lọc còn **11 tiêu chí** · dữ liệu đã nhập của ba trường ấy **mất theo**, có chủ
+ý: giữ lại cột là giữ lại màn hình nhập, và dữ liệu nhập vào sẽ có người tin là có nghĩa.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

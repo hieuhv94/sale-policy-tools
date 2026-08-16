@@ -3451,3 +3451,78 @@ trên sản phẩm thành **ba dòng quy định**. Nó đúng chỗ hơn hẳn.
   `make demo-mau` lo việc đó; trên dữ liệu thật, `0025` xoá ba cột mà **không** sinh quy định thay
   thế — cố ý, vì đoán hộ phạm vi cho một quy định là đoán sai. Cần một lượt khai tay trước khi chạy
   thật.
+
+---
+
+## P33 — Chiết khấu chỉ còn hai yếu tố, và ba danh mục địa lý biến khỏi phần mềm
+
+Một câu yêu cầu, hai việc rất khác nhau về độ rủi ro: thu chiều khớp của quy định chiết khấu từ ba
+xuống hai, và **xoá hẳn** tỉnh/thành · bệnh viện · kênh khỏi mọi tầng.
+
+### Vì sao xoá chứ không để lại cho chắc
+
+Cám dỗ ở đây là giữ cột lại "phòng khi cần". Nhưng cột còn thì màn hình nhập còn, người dùng còn gõ,
+và **dữ liệu gõ vào ấy sẽ được ai đó tin là có nghĩa** — trong khi không có một dòng mã nào đọc tới
+nó nữa. Một trường không dẫn tới quyết định nào mà vẫn bắt người dùng điền là một lời nói dối nhỏ
+lặp lại mỗi ngày.
+
+Phép rà cho ra đúng ba đường đi, và chỉ một trong ba là thật:
+
+- `cat.channel` → chiều thứ ba của quy định chiết khấu. Đường **duy nhất** mà một trong ba mã đổi
+  được kết quả tính toán — và nghiệp vụ vừa chốt là nó không được đổi.
+- `cat.province`, `cat.hospital` → ba cột trên `cus.customer` → chép sang `rpt.policy_row` → ba tiêu
+  chí lọc và ba cột Excel. Toàn bộ vòng đời: gõ vào rồi đọc lại.
+
+Nên bỏ cả ba, một lượt, ở mọi tầng: bảng danh mục, API `/catalog/lookups`, `validate-codes` mà
+`customer` gọi sang, ba cột khách hàng, ba cột read-model, ba tiêu chí lọc, ba cột Excel, màn hình
+*Danh mục tra cứu*, ba ô chọn trong biểu mẫu khách hàng, ô *Kênh bán* trong biểu mẫu quy định.
+
+### Gộp quy định: giữ dòng RỘNG, không giữ dòng hẹp
+
+Bỏ một chiều khớp thì hai dòng từng khác nhau (cùng nhóm, cùng loại khách, khác kênh) trở thành cùng
+một phạm vi — mà `uq_rule_pham_vi` không cho hai dòng cùng phạm vi tồn tại. Phải gộp trước khi dựng
+lại chỉ mục, và câu hỏi là **giữ dòng nào**.
+
+Giữ dòng **không khai kênh**. Dòng ấy vốn đã nói "mọi kênh", nên giữ nó là giữ nguyên nghĩa cũ; giữ
+một dòng khai riêng cho một kênh thì lặng lẽ áp ngưỡng của kênh đó lên mọi kênh còn lại. Đây là loại
+lựa chọn mà cả hai hướng đều "chạy được" và chỉ một hướng không đổi hành vi cho đa số dữ liệu.
+
+### Đổi tên `lookups.service.ts` là một phần của việc
+
+Sau khi gỡ ba danh mục, tệp ấy chỉ còn giữ người ký. Để nguyên tên thì sáu tháng nữa có người đi tìm
+danh mục tra cứu trong một tệp không còn danh mục nào. Đổi thành `signers/signers.service.ts` —
+`SignersService`. Cái giá là một va chạm nhỏ: trường tiêm `signers` trùng tên phương thức
+`signers()` trong `internal.controller`, TypeScript báo `TS2300`. Đổi phương thức thành `listSigners`.
+
+### Ba chỗ tài liệu nói sai sau khi xoá, và cách sửa từng chỗ
+
+- **CUST-08** ("ba mã phân loại phải có trong danh mục") — luật mất chủ thể. Gạch đi, ghi rõ đã bỏ ở
+  `0026`, và thay test cũ bằng test **đường cũ không gãy**: biểu mẫu chưa cập nhật gửi kèm
+  `provinceCode` thì khách hàng vẫn lập được, trường ấy rơi mất chứ không thành 400.
+- **RPT-06** ("đổi tên tỉnh thì bộ lọc theo mã vẫn đúng") — không còn cặp mã/tên nào trong read-model
+  để dựng lại phép thử. Xoá test, giữ lại một khối chú thích nói nó đi đâu.
+- **CAT-16** ("khoá chính là MÃ") — luật vẫn đúng, chỉ là ví dụ của nó (danh mục tỉnh) đã chết. Phát
+  biểu lại trên nhóm sản phẩm, nơi luật ấy vẫn đang được kiểm thật.
+
+Ba cách xử lý khác nhau cho ba tình huống nghe giống nhau. Xoá nhầm luật còn hiệu lực chỉ vì ví dụ
+của nó đã cũ là cách đánh mất một ràng buộc mà không ai nhận ra.
+
+### Một lỗi P32 để lại, lộ ra ở đây
+
+`scripts/seed-demo.ts` vẫn gửi `defaultRate2Type1/2/3` khi tạo sản phẩm — ba trường P32 đã xoá. Máy
+chủ bỏ im lặng mọi trường lạ, nên script chạy xanh và **chồng demo không có một ngưỡng nào**. Không
+test nào bắt được: bộ test không chạy qua seed demo.
+
+Sửa bằng bốn dòng quy định thật, và chọn bốn dòng ấy để chồng demo bày ra được chính cái luật khó
+nhất của màn hình này: khách loại 1 mua sữa bột lấy 18% từ `CK-SUA-L1`, khách loại 3 mua đúng sản
+phẩm ấy lấy 15% từ `CK-SUA`.
+
+805 case (806 → 805): thêm 8, bỏ 9 — ba tiêu chí lọc, CUST-08, RPT-06 và test đổi tên tỉnh không còn
+đối tượng để kiểm.
+
+### Còn nợ
+
+- Bộ lọc **11 tiêu chí** thay vì 14. Nếu về sau cần lọc theo địa bàn thật, đường đúng là một trường
+  có cấu trúc trên khách hàng chứ không phải dựng lại ba danh mục vừa bỏ.
+- Dữ liệu ba trường ấy trên chồng demo và trên mọi CSDL đã chạy migration **mất hẳn**, không có bản
+  lưu tạm.

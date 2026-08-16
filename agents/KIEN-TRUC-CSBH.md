@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Mười hai chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng; **(12)** phân biệt hai loại trùng quy định bằng cách dò chuỗi `'code'` trong tên ràng buộc — trùng mã đến từ HAI ràng buộc (`discount_rule_pkey` khi trùng y nguyên, `uq_rule_code_norm` khi khác hoa thường), nên phải nhận diện theo đúng một tên là `uq_rule_pham_vi` rồi coi phần còn lại là trùng mã (`0024`).
+> Mười ba chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng; **(12)** phân biệt hai loại trùng quy định bằng cách dò chuỗi `'code'` trong tên ràng buộc — trùng mã đến từ HAI ràng buộc (`discount_rule_pkey` khi trùng y nguyên, `uq_rule_code_norm` khi khác hoa thường), nên phải nhận diện theo đúng một tên là `uq_rule_pham_vi` rồi coi phần còn lại là trùng mã (`0024`); **(13)** khớp quy định chiết khấu theo kênh, tỉnh hay bệnh viện — ngưỡng chỉ phụ thuộc **nhóm sản phẩm × loại khách hàng**, cả ba danh mục ấy đã rời khỏi phần mềm ở `0026` và không có cột nào để khớp nữa.
 
 ---
 
@@ -134,7 +134,7 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 |---|---|---|---|
 | api-gateway | Xác thực JWT, kiểm quyền thô, gộp dữ liệu cho một màn hình, rate limit, gắn trace-id | — | Màn hình “hồ sơ chi tiết” cần dữ liệu từ 4 service; nếu để trình duyệt tự gọi thì mỗi lần mở hồ sơ là 5 vòng mạng và 5 lần kiểm quyền. |
 | identity | Tài khoản, 6 vai trò, cây tổ chức Sale Admin → kế toán → TDV, phát và thu hồi token, giải phạm vi dữ liệu | `idn.*` | Phạm vi dữ liệu suy ra từ cây tổ chức được mọi service dùng; tách ra để chỉ có một nơi định nghĩa “ai thấy được gì”. |
-| catalog | Sản phẩm, giá bán Công ty, lịch sử giá, chiết khấu quy định, nhóm SP, tỉnh/thành, bệnh viện, kênh, mẫu bản CSBH, người ký *(không gồm mẫu hợp đồng)* | `cat.*` | Do Quản trị hệ thống nhập, nhịp thay đổi rất chậm và độc lập hoàn toàn với luồng duyệt. Chỉ nó được phát `catalog.price_changed`. |
+| catalog | Sản phẩm, giá bán Công ty, lịch sử giá, chiết khấu quy định, nhóm SP, mẫu bản CSBH, người ký *(không gồm mẫu hợp đồng)* | `cat.*` | Do Quản trị hệ thống nhập, nhịp thay đổi rất chậm và độc lập hoàn toàn với luồng duyệt. Chỉ nó được phát `catalog.price_changed`. |
 | customer | Khách hàng, chống trùng mã KH, hồ sơ pháp lý đính kèm, gán TDV phụ trách | `cus.*` | Vòng đời khách hàng dài hơn vòng đời một CSBH; nhiều CSBH tham chiếu tới cùng một khách hàng. |
 | policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái 11 trạng thái, phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
 | document | Render bản CSBH A4, ký số nội bộ, băm và lưu file, xóa scan khi in lại. **Sở hữu nghiệp vụ hợp đồng**: mẫu do Sale Admin tải lên, bảng ánh xạ trường, trộn dữ liệu và sinh PDF theo yêu cầu | `doc.*` — chỉ mẫu và ánh xạ, **không lưu hợp đồng** | Chạy Chromium headless — ngốn RAM và CPU theo đợt. Tách để giới hạn tài nguyên riêng, không làm chậm API nghiệp vụ. Mẫu hợp đồng nằm ở đây chứ không ở `catalog` vì mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này, và do Sale Admin vận hành chứ không phải danh mục dùng chung. |
@@ -148,7 +148,7 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 | Service | Endpoint tiêu biểu |
 |---|---|
 | identity | `POST /auth/login` · `POST /auth/refresh` · `GET /me/scope` · `GET /users?role=` · `PUT /org/{userId}/parent` |
-| catalog | `GET /products` · `POST /products` · `PUT /products/{id}/price` · `GET /discount-rules/resolve?group=&customerType=&channel=` |
+| catalog | `GET /products` · `POST /products` · `PUT /products/{id}/price` · `GET /discount-rules/resolve?group=&customerType=` |
 | customer | `POST /customers` · `GET /customers?q=` · `POST /customers/{id}/attachments` |
 | policy | `POST /policies` · `POST /policies/{id}/lines` · `POST /policies/{id}/submit` · `POST /policies/{id}/sign` · `POST /policies/{id}/receive-l1` · `POST /policies/{id}/handover` · `POST /policies/{id}/receive-l2` · `POST /policies/{id}/return` · `POST /policies/{id}/reject` · `POST /policies/{id}/request-reprint` · `GET /customers/{id}/active-policy` |
 | document | `GET /policies/{id}/render?size=a4p\|a4l` · `POST /policies/{id}/sign-file` · `DELETE /scans/{id}` · `GET /files/{id}` · *Mẫu hợp đồng (Sale Admin):* `POST /contract-templates` · `PUT /contract-templates/{id}/mapping` · `POST /contract-templates/{id}/publish` · `GET /contract-templates/{id}/placeholders` · *Hợp đồng:* `GET /policies/{id}/contract/preview` · `GET /policies/{id}/contract.pdf` — trả thẳng file, **không** có `/contracts/{id}` vì không lưu bản ghi nào |
@@ -941,7 +941,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CUST-06 | Loại khách hàng ngoài tập {1, 2, 3} | 400, cả khi tạo lẫn khi sửa | §6.1 | `P1` |
 | CUST-06b | Đổi loại khách hàng của khách đã có hồ sơ | 200. Hồ sơ đã lập **giữ nguyên** `threshold_snap` — kể cả hồ sơ Nháp; chỉ hồ sơ lập sau, hoặc dòng được ghi lại qua `PATCH .../lines/:lineId`, mới nhận ngưỡng mới (`0023`) | §6.1 §6.3 | `P0` |
 | CUST-07 | Địa chỉ đăng ký khác nơi nhận hàng | Lưu và trả về đủ hai trường; hợp đồng in đúng cả hai | §6.1 | `P1` |
-| CUST-08 | Gửi mã tỉnh/thành, bệnh viện hoặc kênh không có trong danh mục | 400 — bốn trường phân loại đều là danh mục có mã | §6.1 | `P0` |
+| CUST-08 | ~~Gửi mã tỉnh/thành, bệnh viện hoặc kênh không có trong danh mục~~ **BỎ `0026`** — ba trường ấy không còn trên khách hàng. Gửi kèm thì bị bỏ qua, không lỗi | §6.1 | — |
 | CUST-09 | Nhập công nợ | Lưu như trường số bình thường; không có lời gọi ra hệ thống kế toán nào | §6.1 | `P0` |
 | CUST-10 | tdv01 tự đổi TDV phụ trách sang tdv02 | 403 — chỉ Sale Admin hoặc quản trị mới đổi được | §6.1 | `P1` |
 | CUST-11 | Tải hồ sơ pháp lý PDF 5MB | 201, trả link xem; bấm tên file mở được | §6.1 | `P1` |
@@ -965,9 +965,9 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-07 | Lấy danh sách sản phẩm để lập CSBH mới | Sản phẩm đã vô hiệu hóa không xuất hiện | §6.2 | `P1` |
 | CAT-08 | Mở một CSBH cũ có chứa sản phẩm đã vô hiệu hóa | Vẫn hiện đúng mã và tên sản phẩm nhờ snapshot, không lỗi | §6.2 §7 | `P0` |
 | CAT-09 | Tạo sản phẩm không gán nhóm sản phẩm | 400 — nhóm SP bắt buộc vì dùng cho chiết khấu quy định và báo cáo | §6.2 | `P1` |
-| CAT-10 | Tra ngưỡng theo (nhóm SP, loại KH, kênh, thời gian) có đúng một dòng khớp | Trả đúng ngưỡng của dòng đó | §6.3 | `P0` |
-| CAT-11 | Hai dòng chiết khấu quy định cùng khớp một tình huống | Chọn dòng **cụ thể nhất** (`specificity` 4/2/1, trọng số nhị phân nên không bao giờ hoà giữa hai phạm vi khác nhau), rồi **mới nhất** | §6.3.1 | `P0` |
-| CAT-11b | Khai hai quy định **trùng đúng phạm vi và đúng ngày hiệu lực** | 409 `RULE_SCOPE_DUPLICATE`; chỉ mục `uq_rule_pham_vi` với `NULLS NOT DISTINCT` chặn cả khi ba ô phạm vi đều để trống. Dòng đầu **không bị ghi đè** | §6.3.1 | `P0` |
+| CAT-10 | Tra ngưỡng theo (nhóm SP, loại KH, thời gian) có đúng một dòng khớp | Trả đúng ngưỡng của dòng đó | §6.3 | `P0` |
+| CAT-11 | Hai dòng chiết khấu quy định cùng khớp một tình huống | Chọn dòng **cụ thể nhất** (`specificity` 2/1 từ `0026`, trọng số nhị phân nên không bao giờ hoà giữa hai phạm vi khác nhau), rồi **mới nhất** | §6.3.1 | `P0` |
+| CAT-11b | Khai hai quy định **trùng đúng phạm vi và đúng ngày hiệu lực** | 409 `RULE_SCOPE_DUPLICATE`; chỉ mục `uq_rule_pham_vi` với `NULLS NOT DISTINCT` chặn cả khi cả hai ô phạm vi đều để trống. Dòng đầu **không bị ghi đè** | §6.3.1 | `P0` |
 | CAT-12 | Không dòng chiết khấu quy định nào khớp | **200**, `source = KHONG_CO`, `thresholdRate2 = null` — không còn ngưỡng mặc định nào để rơi về (`0025`). Dòng hồ sơ **vẫn thêm được**, `threshold_snap` NULL, `over_threshold` không bao giờ bật, giao diện tô vàng | §6.3.2 | `P0` |
 | CAT-12d | Khai quy định **trùng mã** | 409 `RULE_CODE_DUPLICATE`, phân biệt với `RULE_SCOPE_DUPLICATE`. Chuẩn hoá `upper(btrim(code))` như mã vật tư (`0024`) | §6.3 | `P0` |
 | CAT-12e | Khai quy định **thiếu mã** | 400 — mã không sinh tự động nữa (`0024`) | §6.3 | `P1` |
@@ -975,7 +975,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |
 | CAT-15 | Nhập danh mục sản phẩm từ Excel, trong đó có dòng lỗi | Báo lỗi kèm số dòng và **không ghi một phần** — toàn bộ lô nằm trong một giao dịch | §6.2 | `P1` |
-| CAT-16 | Đổi tên một tỉnh/thành trong danh mục | Mã giữ nguyên; hồ sơ và bộ lọc cũ vẫn đúng | §6.1 §9.2 | `P1` |
+| CAT-16 | Đổi tên một **nhóm sản phẩm** trong danh mục | Mã giữ nguyên; hồ sơ và bộ lọc cũ vẫn đúng. *(Trước `0026` luật này phát biểu trên danh mục tỉnh/thành — danh mục ấy đã bỏ, luật thì không.)* | §6.1 §9.2 | `P1` |
 | CAT-17 | Chọn người ký đã hết hiệu lực | 400 — chỉ chọn được người ký còn hiệu lực trong phạm vi ký | §6.4 | `P1` |
 | CAT-18 | Đổi giá sản phẩm đang nằm trong hồ sơ ở trạng thái *Nháp* | Phát sự kiện `catalog.price_changed` đúng một lần kèm giá cũ và giá mới | §7 | `P0` |
 
@@ -1472,7 +1472,7 @@ Mật khẩu chung ở môi trường dev: `Test@1234`. Email dạng `tdv01@csbh
 ### Dữ liệu mẫu kèm theo
 
 - **12 sản phẩm** thuộc 3 nhóm, có sản phẩm đã vô hiệu hóa để kiểm `CAT-07/08`.
-- **6 dòng chiết khấu quy định**, trong đó có 2 dòng cố ý cùng khớp một tình huống để kiểm quy tắc chọn dòng cụ thể nhất (`CAT-11`).
+- **4 dòng chiết khấu quy định** `0026`, trong đó có 2 dòng cố ý cùng khớp một tình huống để kiểm quy tắc chọn dòng cụ thể nhất (`CAT-11`).
 - **3 khách hàng** — mỗi loại 1, một khách có địa chỉ đăng ký khác nơi nhận hàng.
 - **4 hồ sơ dựng sẵn**: một ở *Chờ TBP duyệt*, một ở *Chờ Kế toán L2*, một *Đang có hiệu lực* (để thử luồng bổ sung/chỉnh sửa), một *Từ chối* (để thử không xóa được).
 - **1 hồ sơ `LEGACY`** thiếu file ký và thiếu mốc thời gian, để kiểm nhóm `MIG` ngay từ giai đoạn 1.

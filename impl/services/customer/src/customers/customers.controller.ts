@@ -59,9 +59,6 @@ export class CustomersController {
       ownerTitle: opt(str(1, 120)),
       ownerIdNumber: opt(str(1, 60)),
       debt: opt(moneyKhongAm()),
-      provinceCode: opt(str(1, 40)),
-      hospitalCode: opt(str(1, 40)),
-      channelCode: opt(str(1, 40)),
     });
     return this.customers.create(b, me);
   }
@@ -91,9 +88,6 @@ export class CustomersController {
       ownerIdNumber: opt(str(1, 60)),
       idNumber: opt(taxId()),
       debt: opt(moneyKhongAm()),
-      provinceCode: opt(str(1, 40)),
-      hospitalCode: opt(str(1, 40)),
-      channelCode: opt(str(1, 40)),
       tdvUserId: opt(str(36, 36)),
     });
     return this.customers.update(id, b, me);

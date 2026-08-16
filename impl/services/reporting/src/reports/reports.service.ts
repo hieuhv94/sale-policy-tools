@@ -21,8 +21,6 @@ export const LIST_COLUMNS = `
   applied_date AS "appliedDate", approved_at AS "approvedAt",
   customer_code AS "customerCode", customer_name AS "customerName",
   registered_address AS "registeredAddress", tax_id AS "taxId",
-  province_code AS "provinceCode", hospital_code AS "hospitalCode",
-  channel_code AS "channelCode",
   requester_name AS "requesterName", tdv_name AS "tdvName",
   tdv_user_id AS "tdvUserId", requester_id AS "requesterId",
   line_count AS "lineCount", total_net AS "totalNet",

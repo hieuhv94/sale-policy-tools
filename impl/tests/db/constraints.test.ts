@@ -276,31 +276,29 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
     v: {
       groupId?: string | null;
       customerType?: number | null;
-      channel?: string | null;
       from?: string;
       threshold?: number;
     } = {},
   ) =>
     c.query(
       `INSERT INTO cat.discount_rule
-         (code, product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+         (code, product_group_id, customer_type, effective_from, threshold_rate2)
+       VALUES ($1,$2,$3,$4,$5)`,
       [
         `ZZ-CK-${crypto.randomUUID().slice(0, 8)}`,
         v.groupId ?? null,
         v.customerType ?? null,
-        v.channel ?? null,
         v.from ?? '2020-01-01',
         v.threshold ?? 1500,
       ],
     );
 
-  it('hai dòng cùng nhóm, cùng loại KH, cùng kênh, cùng ngày → 23505', async () => {
+  it('hai dòng cùng nhóm, cùng loại KH, cùng ngày → 23505', async () => {
     await inRollback(db, async () => {
       const g = await mkGroup(db, 'DUP1');
-      await mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-X' });
+      await mkRule(db, { groupId: g, customerType: 1 });
       const err = await expectSqlErrorInTx(db, () =>
-        mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-X', threshold: 2500 }));
+        mkRule(db, { groupId: g, customerType: 1, threshold: 2500 }));
       expect(err.code).toBe('23505');
       expect(err.message).toContain('uq_rule_pham_vi');
     });
@@ -310,11 +308,11 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
    * Đây là test QUAN TRỌNG NHẤT của nhóm này.
    *
    * Mặc định Postgres coi mỗi NULL là một giá trị riêng, nên nếu chỉ mục thiếu
-   * `NULLS NOT DISTINCT` thì hai dòng "mọi nhóm, mọi loại KH, mọi kênh" vẫn lọt
-   * — mà đó chính là cặp dễ khai trùng nhất, vì nó là dòng người ta khai đầu
-   * tiên khi chưa nghĩ tới phạm vi.
+   * `NULLS NOT DISTINCT` thì hai dòng "mọi nhóm, mọi loại KH" vẫn lọt — mà đó
+   * chính là cặp dễ khai trùng nhất, vì nó là dòng người ta khai đầu tiên khi
+   * chưa nghĩ tới phạm vi.
    */
-  it('hai dòng để trống CẢ BA ô phạm vi, cùng ngày → vẫn 23505', async () => {
+  it('hai dòng để trống CẢ HAI ô phạm vi, cùng ngày → vẫn 23505', async () => {
     await inRollback(db, async () => {
       await mkRule(db, { from: '2021-03-01' });
       const err = await expectSqlErrorInTx(db, () =>
@@ -340,7 +338,7 @@ describe('0022 · uq_rule_pham_vi — trùng phạm vi thì CSDL từ chối', (
       const g = await mkGroup(db, 'DUP3');
       await mkRule(db, { groupId: g });
       await mkRule(db, { groupId: g, customerType: 1 });
-      await mkRule(db, { groupId: g, customerType: 1, channel: 'KENH-Y' });
+      await mkRule(db, { groupId: g, customerType: 2 });
       const r = await db.query(
         `SELECT count(*)::int n FROM cat.discount_rule WHERE product_group_id = $1`, [g]);
       expect(r.rows[0].n).toBe(3);
@@ -496,6 +494,83 @@ describe('0025 · sản phẩm không còn ngưỡng mặc định', () => {
         `SELECT over_threshold FROM pol.policy_line WHERE policy_id = $1`, [pol]);
       // Chiết khấu 90% mà cờ vẫn tắt: cột sinh đã tính sẵn `IS NOT NULL`.
       expect(r.rows[0].over_threshold).toBe(false);
+    });
+  });
+});
+
+/**
+ * 0026 — quy định chiết khấu chỉ còn HAI chiều, và ba danh mục địa lý biến mất.
+ *
+ * Kiểm ở tầng lược đồ vì đây là loại thứ chỉ chết hẳn khi cột chết: cột
+ * `channel_code` còn nằm đó thì một script nhập liệu vẫn ghi vào được, và chiều
+ * thứ ba sống lại trong im lặng — `resolve` không đọc nó nữa nhưng chỉ mục phạm
+ * vi thì vẫn tính nó là một phần của "phạm vi".
+ */
+describe('0026 · chiết khấu chỉ phụ thuộc nhóm sản phẩm và loại khách hàng', () => {
+  it('cột channel_code đã bị xoá khỏi quy định', async () => {
+    const r = await db.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'cat' AND table_name = 'discount_rule'
+          AND column_name = 'channel_code'`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+
+  it('ba bảng danh mục địa lý đã bị xoá', async () => {
+    const r = await db.query(
+      `SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'cat' AND table_name IN ('province', 'hospital', 'channel')`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+
+  it('khách hàng không còn ba cột phân loại', async () => {
+    const r = await db.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'cus' AND table_name = 'customer'
+          AND column_name IN ('province_code', 'hospital_code', 'channel_code')`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+
+  it('read model báo cáo cũng không còn ba cột ấy', async () => {
+    const r = await db.query(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'rpt' AND table_name = 'policy_row'
+          AND column_name IN ('province_code', 'hospital_code', 'channel_code')`,
+    );
+    expect(r.rowCount).toBe(0);
+  });
+
+  /**
+   * Trọng số 2/1 phải giữ tính nhị phân — đó là thứ làm cho hai phạm vi KHÁC
+   * nhau không bao giờ hoà điểm, tức là thứ giữ cho `resolve` tất định mà không
+   * cần tới tầng phân xử theo mã.
+   */
+  it('điểm cụ thể: bốn tổ hợp cho bốn con số phân biệt', async () => {
+    await inRollback(db, async () => {
+      const g = (
+        await db.query<{ id: string }>(
+          `INSERT INTO cat.product_group (code, name) VALUES ($1, 'Nhom test') RETURNING id`,
+          [`ZZ-G-SPEC-${crypto.randomUUID().slice(0, 8)}`],
+        )
+      ).rows[0]!.id;
+      const rule = (groupId: string | null, customerType: number | null) =>
+        db.query(
+          `INSERT INTO cat.discount_rule
+             (code, product_group_id, customer_type, effective_from, threshold_rate2)
+           VALUES ($1,$2,$3,'2019-01-01',1500)`,
+          [`ZZ-CK-${crypto.randomUUID().slice(0, 8)}`, groupId, customerType],
+        );
+      await rule(null, null);
+      await rule(null, 1);
+      await rule(g, null);
+      await rule(g, 1);
+      const r = await db.query<{ specificity: number }>(
+        `SELECT specificity FROM cat.discount_rule
+          WHERE effective_from = '2019-01-01' ORDER BY specificity`,
+      );
+      expect(r.rows.map((x) => x.specificity)).toEqual([0, 1, 2, 3]);
     });
   });
 });

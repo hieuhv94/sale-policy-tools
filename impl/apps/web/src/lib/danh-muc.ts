@@ -9,8 +9,9 @@
  * `THE_SAN_PHAM` dưới đây là chuyện khác: một dải thẻ NẰM TRONG một màn hình,
  * không phải một tầng điều hướng. Nó không trùng với `DIEU_HUONG` chỗ nào.
  *
- * Danh mục tra cứu không có thẻ riêng — nó là khối trong màn hình Chiết khấu, vì
- * kênh phân phối là một chiều của chính quy định chiết khấu.
+ * Danh mục tra cứu (tỉnh · bệnh viện · kênh) đã biến khỏi phần mềm ở `0026`:
+ * ngưỡng chiết khấu chỉ còn khớp theo nhóm sản phẩm × loại khách hàng, và ba mã
+ * ấy không còn chỗ nào để đi tới.
  *
  * "Người ký" đã gỡ khỏi giao diện: yêu cầu nghiệp vụ cho nó chưa rõ. API bên
  * `catalog` vẫn còn và vẫn có test — gỡ màn hình không phải là xoá nghiệp vụ.
@@ -86,16 +87,6 @@ export const NHAN_TRANG_THAI_SAN_PHAM: Record<TrangThaiSanPham, string> = {
   DA_VO_HIEU_HOA: 'Đã vô hiệu hoá',
 };
 
-/** Ba loại danh mục tra cứu — cố định, khớp `LOOKUP_KINDS` phía máy chủ. */
-export const LOAI_TRA_CUU = ['province', 'hospital', 'channel'] as const;
-export type LoaiTraCuu = (typeof LOAI_TRA_CUU)[number];
-
-export const NHAN_TRA_CUU: Record<LoaiTraCuu, string> = {
-  province: 'Tỉnh / Thành phố',
-  hospital: 'Bệnh viện',
-  channel: 'Kênh bán',
-};
-
 /** Ba loại khách hàng (CUST-06). Ngưỡng chiết khấu khai theo từng loại. */
 export const LOAI_KHACH_HANG = [1, 2, 3] as const;
 
@@ -123,16 +114,13 @@ export type DongGia = { priceType: LoaiGia; amount: string; effectiveFrom: strin
 export type QuyDinhChietKhau = {
   /** Mã do Quản trị đặt — khoá chính từ `0024`, hiện ở cột *Id*. */
   code: string;
+  /** HAI chiều khớp, không hơn (`0026`). `null` nghĩa là "mọi giá trị". */
   productGroupCode: string | null;
   customerType: number | null;
-  channelCode: string | null;
   effectiveFrom: string;
   thresholdRate2: number;
   specificity: number;
 };
-
-export type MucTraCuu = { code: string; name: string };
-
 
 /**
  * Ngưỡng lưu dưới dạng PHẦN VẠN (basis point ×100): `int(0, 10_000)` ở máy chủ,
@@ -161,13 +149,12 @@ export const doiSoThapPhan = (s: string): number => {
 
 export const nguongTuPhanTram = (s: string): number => Math.round(doiSoThapPhan(s) * 100);
 
-/** Câu mô tả phạm vi áp dụng của một quy định — bốn ô rời rạc đọc rất khó. */
+/** Câu mô tả phạm vi áp dụng của một quy định — hai ô rời rạc đọc rất khó. */
 export function phamViChietKhau(q: QuyDinhChietKhau): string {
-  const phan: string[] = [];
-  phan.push(q.productGroupCode ? `nhóm ${q.productGroupCode}` : 'mọi nhóm sản phẩm');
-  phan.push(q.customerType === null ? 'mọi loại khách' : `khách loại ${q.customerType}`);
-  if (q.channelCode) phan.push(`kênh ${q.channelCode}`);
-  return phan.join(' · ');
+  return [
+    q.productGroupCode ? `nhóm ${q.productGroupCode}` : 'mọi nhóm sản phẩm',
+    q.customerType === null ? 'mọi loại khách' : `khách loại ${q.customerType}`,
+  ].join(' · ');
 }
 
 /**
@@ -178,7 +165,7 @@ export function phamViChietKhau(q: QuyDinhChietKhau): string {
  * sơ rồi dán vào đây để xem quy định nào đã cho ra ngưỡng. Khớp theo **chuỗi
  * con** nên dán một phần đầu của mã cũng ra.
  *
- * Ba trường còn lại khớp theo câu mô tả phạm vi — người dùng nhớ "nhóm SUA" chứ
+ * Hai trường phạm vi khớp theo câu mô tả — người dùng nhớ "nhóm SUA" chứ
  * không nhớ ba ô rời. Ngưỡng khớp theo con số phần trăm đang hiện trên màn hình
  * (`25,00`), không theo giá trị lưu trong máy (`2500`): gõ cái mình đang nhìn
  * thấy mới là điều người ta làm.

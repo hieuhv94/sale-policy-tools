@@ -9,9 +9,12 @@ import { changeEvent, emit } from '../infra/outbox.js';
 export type RuleInput = {
   /** Mã do Quản trị đặt, khoá chính từ `0024`. */
   code: string;
+  /**
+   * HAI chiều khớp, không hơn (`0026`). Bỏ trống một chiều nghĩa là "mọi giá
+   * trị" — đó là cách khai một ngưỡng chung, không phải một ô còn thiếu.
+   */
   productGroupCode?: string | undefined;
   customerType?: number | undefined;
-  channelCode?: string | undefined;
   effectiveFrom: string;
   thresholdRate2: number;
 };
@@ -60,13 +63,12 @@ export class RulesService {
       const r = await c
         .query<{ code: string; specificity: number }>(
           `INSERT INTO cat.discount_rule
-             (code, product_group_id, customer_type, channel_code, effective_from, threshold_rate2)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING code, specificity`,
+             (code, product_group_id, customer_type, effective_from, threshold_rate2)
+           VALUES ($1,$2,$3,$4,$5) RETURNING code, specificity`,
           [
             input.code,
             groupId,
             input.customerType ?? null,
-            input.channelCode ?? null,
             input.effectiveFrom,
             input.thresholdRate2,
           ],
@@ -86,28 +88,19 @@ export class RulesService {
   }
 
   /**
-   * Sửa NGƯỠNG và NGÀY KẾT THÚC — không sửa được ba khoá khớp.
+   * Sửa quy định. Từ 0020 chỉ còn đổi được NGƯỠNG.
    *
-   * Đổi nhóm sản phẩm, loại khách hay kênh là đổi `specificity`, tức là đổi thứ
-   * tự ưu tiên khi nhiều dòng cùng khớp (`CAT-11`). Cho sửa ba ô đó thì một lần
-   * bấm có thể lặng lẽ đảo ngược thứ tự ưu tiên của cả bảng, và không có gì trên
-   * màn hình nói ra điều đó. Khai nhầm phạm vi thì xoá dòng rồi khai lại — hai
-   * việc rõ ràng thay vì một việc mập mờ.
+   * Hai ô phạm vi không sửa được vì đổi chúng là đổi thứ tự ưu tiên của cả bảng
+   * (`specificity`), và ngày hết hiệu lực thì không còn tồn tại — quy định vô
+   * thời hạn, muốn dừng thì xoá dòng.
    *
    * Sửa KHÔNG viết lại lịch sử: `pol.policy_line.threshold_snap` đã đóng băng
    * ngưỡng vào từng dòng hồ sơ lúc lập (`0001_init.sql:92`).
    */
-  /**
-   * Sửa quy định. Từ 0020 chỉ còn đổi được NGƯỠNG.
-   *
-   * Ba ô phạm vi không sửa được vì đổi chúng là đổi thứ tự ưu tiên của cả bảng
-   * (`specificity`), và ngày hết hiệu lực thì không còn tồn tại — quy định vô
-   * thời hạn, muốn dừng thì xoá dòng.
-   */
   async update(code: string, input: { thresholdRate2: number }, actorId: string) {
     return this.db.tx(async (c) => {
       const truoc = await c.query(
-        `SELECT product_group_id, customer_type, channel_code, effective_from, threshold_rate2
+        `SELECT product_group_id, customer_type, effective_from, threshold_rate2
            FROM cat.discount_rule WHERE code = $1`,
         [code],
       );
@@ -138,8 +131,7 @@ export class RulesService {
     return this.db.tx(async (c) => {
       const truoc = await c.query(
         `DELETE FROM cat.discount_rule WHERE code = $1
-         RETURNING product_group_id, customer_type, channel_code, effective_from,
-                   threshold_rate2`,
+         RETURNING product_group_id, customer_type, effective_from, threshold_rate2`,
         [code],
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
@@ -155,8 +147,7 @@ export class RulesService {
   async list(page: Page) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT r.code, g.code AS "productGroupCode", r.customer_type AS "customerType",
-              r.channel_code AS "channelCode", r.effective_from AS "effectiveFrom",
-              r.threshold_rate2 AS "thresholdRate2",
+              r.effective_from AS "effectiveFrom", r.threshold_rate2 AS "thresholdRate2",
               r.specificity, count(*) OVER() AS total_count
          FROM cat.discount_rule r LEFT JOIN cat.product_group g ON g.id = r.product_group_id
         ORDER BY r.specificity DESC, r.effective_from DESC
@@ -170,23 +161,23 @@ export class RulesService {
    * Tra ngưỡng cho một tình huống cụ thể.
    *
    * Nhiều dòng cùng khớp là chuyện bình thường, không phải lỗi cấu hình: dòng
-   * chung cho cả nhóm sản phẩm và dòng riêng cho một kênh đều đúng. Phải chọn
-   * được dòng CỤ THỂ NHẤT một cách tất định (CAT-11), nếu không thì cùng một hồ
-   * sơ có thể lúc vượt ngưỡng lúc không tuỳ thứ tự Postgres trả về.
+   * chung cho cả nhóm sản phẩm và dòng riêng cho một loại khách đều đúng. Phải
+   * chọn được dòng CỤ THỂ NHẤT một cách tất định (CAT-11), nếu không thì cùng
+   * một hồ sơ có thể lúc vượt ngưỡng lúc không tuỳ thứ tự Postgres trả về.
    *
    * Thứ tự: điểm cụ thể giảm dần → ngày hiệu lực muộn hơn → mã. Cột
    * `specificity` sinh sẵn trong CSDL nên trọng số chỉ định nghĩa một chỗ.
    *
-   * TẦNG THỨ BA KHÔNG CÒN VỚI TỚI ĐƯỢC từ `0022`. Trọng số 4/2/1 là nhị phân nên
-   * hai phạm vi khác nhau không bao giờ hoà điểm; hoà điểm ⇒ trùng phạm vi ⇒ chỉ
-   * mục `uq_rule_pham_vi` đã chặn từ lúc khai. Giữ `code` trong `ORDER BY` là
-   * lưới an toàn phòng khi chỉ mục bị gỡ, KHÔNG phải một luật nghiệp vụ. Bỏ hẳn
-   * đi thì mất tính tất định trong đúng cái tình huống lẽ ra không xảy ra.
+   * TẦNG THỨ BA KHÔNG CÒN VỚI TỚI ĐƯỢC từ `0022`. Trọng số 2/1 vẫn nhị phân sau
+   * khi chiều kênh biến mất (`0026`), nên hai phạm vi khác nhau không bao giờ
+   * hoà điểm; hoà điểm ⇒ trùng phạm vi ⇒ chỉ mục `uq_rule_pham_vi` đã chặn từ
+   * lúc khai. Giữ `code` trong `ORDER BY` là lưới an toàn phòng khi chỉ mục bị
+   * gỡ, KHÔNG phải một luật nghiệp vụ. Bỏ hẳn đi thì mất tính tất định trong
+   * đúng cái tình huống lẽ ra không xảy ra.
    */
   async resolve(args: {
     productId: string;
     customerType: number;
-    channelCode?: string | undefined;
     on?: string | undefined;
   }): Promise<Resolved> {
     // Vẫn phải tra sản phẩm dù không còn ngưỡng mặc định nào để lấy: cần
@@ -202,11 +193,10 @@ export class RulesService {
       `SELECT code, threshold_rate2 FROM cat.discount_rule
         WHERE (product_group_id IS NULL OR product_group_id = $1)
           AND (customer_type    IS NULL OR customer_type    = $2)
-          AND (channel_code     IS NULL OR channel_code     = $3)
-          AND effective_from <= coalesce($4::date, current_date)
+          AND effective_from <= coalesce($3::date, current_date)
         ORDER BY specificity DESC, effective_from DESC, code
         LIMIT 1`,
-      [p.group_id, args.customerType, args.channelCode ?? null, args.on ?? null],
+      [p.group_id, args.customerType, args.on ?? null],
     );
 
     if (rule) {

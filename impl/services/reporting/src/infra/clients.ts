@@ -56,9 +56,6 @@ export type CustomerSrc = {
   code: string;
   name: string;
   customerType: number;
-  provinceCode: string | null;
-  hospitalCode: string | null;
-  channelCode: string | null;
   tdvUserId: string;
   idNumber: string | null;
   registeredAddress: string;

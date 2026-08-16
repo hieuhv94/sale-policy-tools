@@ -1,5 +1,8 @@
 /**
- * Danh sách hồ sơ, có bộ lọc 14 tiêu chí (muc 9.2).
+ * Danh sách hồ sơ, có bộ lọc 11 tiêu chí (muc 9.2).
+ *
+ * Ba tiêu chí tỉnh/thành · bệnh viện · kênh rời khỏi phần mềm ở `0026` cùng ba
+ * cột nguồn của chúng bên khách hàng.
  *
  * Trên điện thoại bộ lọc nằm trong TẤM TRƯỢT LÊN, và đóng lại vẫn giữ điều kiện
  * đã chọn cùng số kết quả (`FE-10`). Điều kiện lưu ở máy chủ theo phiên, nên
@@ -38,9 +41,6 @@ const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' }[] = [
   { khoa: 'taxId', nhan: 'Mã số thuế' },
   { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'status', nhan: 'Trạng thái' },
-  { khoa: 'provinceCode', nhan: 'Tỉnh/thành' },
-  { khoa: 'hospitalCode', nhan: 'Bệnh viện / điểm bán' },
-  { khoa: 'channelCode', nhan: 'Kênh' },
   { khoa: 'productGroupCode', nhan: 'Nhóm sản phẩm' },
 ];
 

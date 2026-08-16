@@ -13,13 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
-import {
-  LOAI_KHACH_HANG,
-  LOAI_TRA_CUU,
-  NHAN_TRA_CUU,
-  nhanLoaiKhach,
-  type MucTraCuu,
-} from '../lib/danh-muc.js';
+import { LOAI_KHACH_HANG, nhanLoaiKhach } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 
 export type KhachHangDayDu = {
@@ -33,30 +27,8 @@ export type KhachHangDayDu = {
   ownerTitle: string | null;
   idNumber: string | null;
   debt: string;
-  provinceCode: string | null;
-  hospitalCode: string | null;
-  channelCode: string | null;
   tdvUserId: string | null;
 };
-
-type TraCuu = Record<string, MucTraCuu[]>;
-
-/** Ba danh mục tra cứu tải cùng lúc — ba ô chọn cùng nằm trên một biểu mẫu. */
-function useTraCuu(): TraCuu {
-  const [ds, datDs] = useState<TraCuu>({});
-  useEffect(() => {
-    const huy = new AbortController();
-    Promise.all(
-      LOAI_TRA_CUU.map((k) =>
-        layJson<MucTraCuu[]>(`/catalog/lookups/${k}`, huy.signal).then((r) => [k, r] as const),
-      ),
-    )
-      .then((cap) => datDs(Object.fromEntries(cap)))
-      .catch(() => undefined);
-    return () => huy.abort();
-  }, []);
-  return ds;
-}
 
 type Gia = {
   code: string;
@@ -68,9 +40,6 @@ type Gia = {
   ownerTitle: string;
   idNumber: string;
   debt: string;
-  provinceCode: string;
-  hospitalCode: string;
-  channelCode: string;
 };
 
 const rong: Gia = {
@@ -83,9 +52,6 @@ const rong: Gia = {
   ownerTitle: '',
   idNumber: '',
   debt: '',
-  provinceCode: '',
-  hospitalCode: '',
-  channelCode: '',
 };
 
 const tuDto = (k: KhachHangDayDu): Gia => ({
@@ -98,9 +64,6 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   ownerTitle: k.ownerTitle ?? '',
   idNumber: k.idNumber ?? '',
   debt: k.debt,
-  provinceCode: k.provinceCode ?? '',
-  hospitalCode: k.hospitalCode ?? '',
-  channelCode: k.channelCode ?? '',
 });
 
 export function BieuMauKhachHang({
@@ -113,7 +76,6 @@ export function BieuMauKhachHang({
   dong: () => void;
   xong: (id: string) => void;
 }) {
-  const traCuu = useTraCuu();
   const [g, datG] = useState<Gia>(khach ? tuDto(khach) : rong);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -141,9 +103,6 @@ export function BieuMauKhachHang({
         ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
         ...opt('idNumber', coGiaTri(g.idNumber)),
         ...opt('debt', coGiaTri(g.debt)),
-        ...opt('provinceCode', coGiaTri(g.provinceCode)),
-        ...opt('hospitalCode', coGiaTri(g.hospitalCode)),
-        ...opt('channelCode', coGiaTri(g.channelCode)),
       };
       if (khach) {
         // Chỉ gửi khi ĐÃ ĐỔI. Gửi kèm ở mọi lượt sửa thì một lần sửa địa chỉ
@@ -299,29 +258,6 @@ export function BieuMauKhachHang({
         <Truong id="kh-no" nhan="Công nợ" donVi="Tiền tệ đơn vị đồng">
           {(p) => <ONhapTien {...p} giaTri={g.debt} doi={(v) => sua({ debt: v })} />}
         </Truong>
-
-        {LOAI_TRA_CUU.map((k) => {
-          const khoa = `${k}Code` as 'provinceCode' | 'hospitalCode' | 'channelCode';
-          return (
-            <Truong key={k} id={`kh-${k}`} nhan={NHAN_TRA_CUU[k]}>
-              {(p) => (
-                <select
-                  {...p}
-                  className="o-nhap"
-                  value={g[khoa]}
-                  onChange={(e) => sua({ [khoa]: e.target.value } as Partial<Gia>)}
-                >
-                  <option value="">— Không chọn —</option>
-                  {(traCuu[k] ?? []).map((m) => (
-                    <option key={m.code} value={m.code}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-          );
-        })}
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">

@@ -1,10 +1,10 @@
 /**
- * API nội bộ của catalog. `customer` gọi để kiểm mã danh mục, `policy` gọi để
- * tra giá và ngưỡng — không service nào đọc thẳng schema cat (AD-02).
+ * API nội bộ của catalog. `policy` gọi để tra giá và ngưỡng, `reporting` gọi để
+ * tra nhóm sản phẩm — không service nào đọc thẳng schema cat (AD-02).
  */
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { int, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
-import { LookupsService } from './lookups/lookups.service.js';
+import { SignersService } from './signers/signers.service.js';
 import { ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
 
@@ -12,7 +12,7 @@ import { RulesService } from './rules/rules.service.js';
 @Controller('internal/catalog')
 export class CatalogInternalController {
   constructor(
-    private readonly lookups: LookupsService,
+    private readonly signers: SignersService,
     private readonly products: ProductsService,
     private readonly rules: RulesService,
   ) {}
@@ -29,12 +29,11 @@ export class CatalogInternalController {
   async snapshot(
     @Param('productId') productId: string,
     @Query('customerType') customerType: string,
-    @Query('channelCode') channelCode?: string,
     @Query('on') on?: string,
   ) {
     const q = validate(
-      { customerType, channelCode, on },
-      { customerType: int(1, 3), channelCode: opt(str(1, 40)), on: opt(str(10, 10)) },
+      { customerType, on },
+      { customerType: int(1, 3), on: opt(str(10, 10)) },
     );
     const product = (await this.products.byId(productId)) as {
       id: string;
@@ -60,17 +59,6 @@ export class CatalogInternalController {
     };
   }
 
-  @Post('validate-codes')
-  @HttpCode(200)
-  validateCodes(@Body() body: unknown) {
-    const b = validate(body, {
-      provinceCode: opt(str(1, 40)),
-      hospitalCode: opt(str(1, 40)),
-      channelCode: opt(str(1, 40)),
-    });
-    return this.lookups.validateCodes(b);
-  }
-
   /**
    * Ảnh chụp NHIỀU sản phẩm trong một lời gọi.
    *
@@ -80,11 +68,7 @@ export class CatalogInternalController {
   @Post('product-snapshots')
   @HttpCode(200)
   async snapshots(@Body() body: unknown) {
-    const b = validate(body, {
-      customerType: int(1, 3),
-      channelCode: opt(str(1, 40)),
-      on: opt(str(10, 10)),
-    });
+    const b = validate(body, { customerType: int(1, 3), on: opt(str(10, 10)) });
     const ids = (body as { productIds?: unknown }).productIds;
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) {
       throw new BadRequestException({
@@ -95,7 +79,7 @@ export class CatalogInternalController {
     }
     const out = [];
     for (const id of ids as string[]) {
-      out.push(await this.snapshot(id, String(b.customerType), b.channelCode, b.on));
+      out.push(await this.snapshot(id, String(b.customerType), b.on));
     }
     return out;
   }
@@ -118,20 +102,9 @@ export class CatalogInternalController {
   /**
    * Người ký đang hiệu lực hôm nay. `document` cần cho khối chữ ký ở cuối bản
    * CSBH A4 và cho ô trống `{{signer.name}}` trên mẫu hợp đồng.
-   *
-   * Endpoint riêng chứ không nhét vào `/lookups`: `lookups` dựng tên bảng từ
-   * tham số `kind`, nên gọi nó với `kind=signer` sinh ra truy vấn `cat.undefined`
-   * và 500 — chạy được suốt vì lời gọi có `.catch()` bọc ngoài, chỉ để lại một
-   * núi lỗi trong log mà không ai đọc.
    */
   @Get('signers')
-  signers(@Query('on') on?: string) {
-    return this.lookups.listSigners(on ?? new Date().toISOString().slice(0, 10));
-  }
-
-  @Get('lookups')
-  list(@Query('kind') kind?: string) {
-    const b = validate({ kind }, { kind: str(1, 20) });
-    return this.lookups.list(b.kind as 'province');
+  listSigners(@Query('on') on?: string) {
+    return this.signers.listSigners(on ?? new Date().toISOString().slice(0, 10));
   }
 }
