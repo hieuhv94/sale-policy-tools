@@ -18,7 +18,7 @@ import {
   XoaHoSo,
   suaDuoc,
 } from '../components/SuaHoSo.js';
-import { useDuong } from '../lib/router.js';
+import { Lien, useDuong } from '../lib/router.js';
 import {
   CAN_XEM_TRUOC,
   O_CHON_CUA,
@@ -128,6 +128,10 @@ export function ChiTietHoSo({ id }: { id: string }) {
           <p className="mo-ta-trang">
             Phiên bản {hoSo.versionNo} · Ngày áp dụng {ngay(hoSo.appliedDate)}
             {hoSo.effectiveFrom && ` · Có hiệu lực ${ngayGio(hoSo.effectiveFrom)}`}
+            {' · '}
+            {/* Nhật ký ở màn hình RIÊNG (`0036`), không phải một khối gập ở
+                cuối trang này: nó cần một địa chỉ để dán vào thư báo. */}
+            <Lien den={`/ho-so/${hoSo.id}/nhat-ky`}>Nhật ký</Lien>
           </p>
         </div>
         <Nhan trangThai={hoSo.status} />

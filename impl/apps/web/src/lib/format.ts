@@ -103,6 +103,42 @@ export function nhomTrangThai(s: string): 'tot' | 'cho' | 'loi' | 'canh-bao' | '
   return 'thuong';
 }
 
+/**
+ * Nhãn cho MỘT DÒNG NHẬT KÝ, viết ở thì đã xảy ra (`0036`).
+ *
+ * KHÔNG dùng lại `HANH_DONG_NHAN` ở `can.ts`, và khác biệt là có chủ ý ở hai
+ * điểm:
+ *
+ *   1. Bảng kia là nhãn NÚT — mệnh lệnh, "Ký số duyệt". Đọc một dòng lịch sử
+ *      ghi "Ký số duyệt" thì nghe như một việc đang chờ làm.
+ *   2. Bảng kia chỉ có những hành động CÓ NÚT. Nhật ký còn chứa những việc
+ *      không ai bấm: hệ thống tự chuyển bước sau khi ký (`PUBLISH_SIGNED`),
+ *      quá hạn (`SLA_OVERDUE`), bàn giao khi một tài khoản bị vô hiệu hoá
+ *      (`HANDOVER`), khách hàng bị xoá (`CUSTOMER_RETIRED`). Thiếu chúng thì
+ *      đúng những dòng khó hiểu nhất lại hiện ra dưới dạng mã viết hoa.
+ */
+export const NHAN_HANH_DONG: Record<string, string> = {
+  CREATE: 'Lập hồ sơ',
+  SUBMIT: 'Gửi duyệt',
+  RESUBMIT_AFTER_EDIT: 'Gửi lại sau chỉnh sửa',
+  TBP_SIGN: 'Trưởng bộ phận ký số',
+  PUBLISH_SIGNED: 'Hệ thống chuyển sang Kế toán',
+  TBP_RETURN: 'Trưởng bộ phận trả lại để chỉnh sửa',
+  TBP_REJECT: 'Trưởng bộ phận từ chối',
+  KT_RECEIVE_L1: 'Kế toán tiếp nhận lần 1',
+  KT_RETURN_L1: 'Kế toán không tiếp nhận lần 1',
+  SA_HANDOVER: 'Sale Admin bàn giao bản cứng',
+  KT_RECEIVE_L2: 'Kế toán tiếp nhận lần 2',
+  KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
+  KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
+  SLA_OVERDUE: 'Quá hạn xử lý',
+  HANDOVER: 'Bàn giao do tài khoản bị vô hiệu hoá',
+  CUSTOMER_RETIRED: 'Khách hàng bị xoá',
+  DELETE: 'Người lập xoá hồ sơ',
+};
+
+export const nhanHanhDong = (a: string): string => NHAN_HANH_DONG[a] ?? a;
+
 export const NHAN_VAI_TRO: Record<string, string> = {
   TDV: 'Trình dược viên',
   TBP: 'Trưởng bộ phận',

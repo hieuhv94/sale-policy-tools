@@ -70,22 +70,23 @@ export class UsersController {
   }
 
   /**
-   * Vô hiệu hoá — đòi gõ lại họ tên VÀ chọn người nhận bàn giao (`0032`).
+   * Vô hiệu hoá — đòi gõ lại TÊN ĐĂNG NHẬP VÀ chọn người nhận bàn giao (`0032`).
    *
-   * `confirmName` và `successorId` đọc qua `validate` như mọi trường khác, nhưng
-   * cả hai là `opt()`: chốt chặn nằm ở tầng service, nơi biết được người này có
-   * đang giữ hồ sơ nào không. Bắt buộc ở DTO thì tài khoản chưa cầm hồ sơ nào
-   * cũng phải chọn người nhận — một ô bắt buộc không có nghĩa gì.
+   * `confirmUsername` (trước `0036` là `confirmName`, gõ lại họ tên) và
+   * `successorId` đọc qua `validate` như mọi trường khác, nhưng cả hai là
+   * `opt()`: chốt chặn nằm ở tầng service, nơi biết được người này có đang giữ
+   * hồ sơ nào không. Bắt buộc ở DTO thì tài khoản chưa cầm hồ sơ nào cũng phải
+   * chọn người nhận — một ô bắt buộc không có nghĩa gì.
    */
   @Post(':id/deactivate')
   @HttpCode(200)
   deactivate(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     const b = validate(body ?? {}, {
-      confirmName: opt(str(1, 200)),
+      confirmUsername: opt(str(1, 200)),
       successorId: opt(str(36, 36)),
     });
     return this.users.setActive(id, false, {
-      ...(b.confirmName !== undefined ? { confirmName: b.confirmName } : {}),
+      ...(b.confirmUsername !== undefined ? { confirmUsername: b.confirmUsername } : {}),
       ...(b.successorId !== undefined ? { successorId: b.successorId } : {}),
       actorId: me.id,
     });

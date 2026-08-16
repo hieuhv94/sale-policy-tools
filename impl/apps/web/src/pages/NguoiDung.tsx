@@ -422,8 +422,10 @@ function HopThoaiTao({
  *   2. **Chọn người nhận bàn giao** cùng vai trò. Bắt buộc khi còn hồ sơ: id
  *      người xử lý nằm cứng trên từng hồ sơ, nên không chuyển giao là để lại
  *      những hồ sơ không ai nhìn thấy và không ai thao tác được.
- *   3. **Gõ lại họ tên** — chặn bấm nhầm dòng. Danh sách có hàng chục dòng và
- *      các nút nằm sát nhau.
+ *   3. **Gõ lại tên đăng nhập** — chặn bấm nhầm dòng. Danh sách có hàng chục
+ *      dòng và các nút nằm sát nhau. Tên đăng nhập chứ không phải họ tên
+ *      (`0036`): họ tên không duy nhất, nên nó không chứng minh được người
+ *      quản trị đang nhìn đúng dòng.
  */
 function HopThoaiVoHieu({
   u,
@@ -467,7 +469,7 @@ function HopThoaiVoHieu({
     datDangGui(true);
     try {
       await dang(`/admin/users/${u.id}/deactivate`, {
-        confirmName: ten.trim(),
+        confirmUsername: ten.trim(),
         ...(canNguoiNhan ? { successorId: nguoiNhan } : {}),
       });
       xong();
@@ -547,7 +549,15 @@ function HopThoaiVoHieu({
         </>
       )}
 
-      <Truong id="xac-nhan-ten" nhan={`Gõ lại họ tên "${u.fullName}" để xác nhận`} bắtBuộc>
+      {/* Gõ lại TÊN ĐĂNG NHẬP, không phải họ tên (`0036`). Họ tên không duy
+          nhất — hai người trùng tên trong cùng một danh sách là chuyện bình
+          thường — nên gõ đúng nó không chứng minh được đang nhìn đúng dòng, mà
+          đó là toàn bộ việc phép xác nhận này phải làm. */}
+      <Truong
+        id="xac-nhan-ten"
+        nhan={`Gõ lại tên đăng nhập "${u.username}" để xác nhận`}
+        bắtBuộc
+      >
         {(p) => (
           <input
             {...p}

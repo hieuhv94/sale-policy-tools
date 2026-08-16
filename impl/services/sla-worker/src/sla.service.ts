@@ -175,6 +175,18 @@ export class SlaService {
       );
 
       const cus = await this.clients.customer(p.customer_id).catch(() => undefined);
+      /*
+       * Ai đã từng thao tác lên hồ sơ này (`0036`).
+       *
+       * Quá hạn CŨNG là một lần đổi trạng thái, nên nó cũng phải báo cho những
+       * người đã đi qua hồ sơ — và ở đây nó còn đáng báo hơn các bước khác: hồ
+       * sơ đang TẮC, và người tắc nó không nhất thiết là người biết vì sao.
+       */
+      const daDong = await c.query<{ actor_id: string }>(
+        `SELECT DISTINCT actor_id FROM pol.policy_event
+          WHERE policy_id = $1 AND actor_id IS NOT NULL`,
+        [p.id],
+      );
       await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
         'sla.overdue',
         JSON.stringify({
@@ -193,6 +205,7 @@ export class SlaService {
           // nhận thư cần biết ngay việc đang tắc ở đâu.
           pendingStep: p.status,
           recipients: [OWNER_ROLE[p.status] ?? 'TDV', 'TDV'],
+          observers: daDong.rows.map((x) => x.actor_id),
           at: now.toISOString(),
           extra: { 'Hạn xử lý': p.sla_due_at.toISOString() },
         }),

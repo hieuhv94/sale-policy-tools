@@ -481,8 +481,10 @@ textarea.o-nhap { min-height: 6rem; }
 .lech-muc li + li { margin-top: 2px; }
 .lech-muc .so { font-weight: 600; color: var(--mau-chu); }
 
-/* Hai loại chênh lệch, hai màu — nhưng KHÔNG dùng màu lỗi: hồ sơ lệch không
-   phải hồ sơ sai, và tô đỏ nó là bảo người dùng đi chữa một thứ chưa hỏng. */
+/* Ba loại chênh lệch, ba màu. Giá và Ngưỡng KHÔNG dùng màu lỗi: hồ sơ lệch
+   không phải hồ sơ sai, và tô đỏ nó là bảo người dùng đi chữa một thứ chưa
+   hỏng. `Sản phẩm` thì CÓ (`0036`) — mặt hàng không còn bán được là một điều
+   khoản không thực hiện được, không phải một chênh lệch để cân nhắc. */
 .nhan-lech {
   display: inline-block;
   min-width: 4.5em;
@@ -495,6 +497,7 @@ textarea.o-nhap { min-height: 6rem; }
 }
 .nhan-lech.gia { background: var(--mau-chinh); }
 .nhan-lech.nguong { background: var(--mau-canh-bao); }
+.nhan-lech.san-pham { background: var(--mau-loi); }
 
 /* --- Nhãn trạng thái ------------------------------------------------------ */
 

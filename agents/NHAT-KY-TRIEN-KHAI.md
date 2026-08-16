@@ -4530,3 +4530,96 @@ rồi thử xoá ở mỗi cái — thêm một trạng thái vào enum mà quê
 ra khi có người bấm trúng. Hai trạng thái phải đặt bằng SQL vì không lời gọi nào tới được: `QUA_HAN_DUYET`
 (chỉ `sla-worker` đặt) và `TBP_DA_KY_SO` (chớp nhoáng — `TBP_SIGN` tự chuyển tiếp trong cùng
 transaction).
+
+---
+
+## P47 — Danh mục biến mất cũng là thay đổi · xác nhận bằng cách gõ lại · thư cho mọi người đã tác động
+
+Bốn yêu cầu, và ba trong số đó bịt những lỗ đã mở sẵn từ lâu.
+
+### 1. Vô hiệu hoá hay xoá sản phẩm cũng là một thay đổi (`0036`)
+
+Box *Yêu cầu cập nhật* (`0029`) nhận ra đúng hai loại lệch: giá và ngưỡng. Thiếu loại thứ ba, và nó
+**nặng hơn cả hai**: một CSBH đang có hiệu lực cho mặt hàng không còn bán nữa không phải "lệch vài
+đồng" — nó là một điều khoản không thực hiện được.
+
+Hai lỗ, cùng một gốc:
+
+* `catalog.changed` với `entity = 'product'` bị consumer **bỏ qua hoàn toàn**. Vô hiệu hoá một sản
+  phẩm không đổi giá của nó, mà phép rà chỉ so giá và ngưỡng — nên nó lọt qua sạch.
+* Sản phẩm bị **xoá hẳn** thì lời gọi tra ảnh chụp trả 404 cho cả lô và consumer `continue`, bỏ qua
+  **toàn bộ hồ sơ**. Một sản phẩm biến mất che mất mọi chênh lệch còn lại của chính hồ sơ đó. Giờ
+  đường nhanh vẫn là một lời gọi cả lô, hỏng mới lùi về hỏi từng cái — đường chậm chỉ chạy đúng lúc
+  có sản phẩm bị xoá.
+
+`null` ở cột `new_value` giờ mang hai nghĩa tuỳ loại, và cả thư lẫn màn hình đều phải nói đúng nghĩa:
+ở `RULE` là "không còn quy định nào phủ", ở `PRODUCT` là "đã xoá khỏi danh mục". Nhãn `Sản phẩm` tô
+**đỏ**, hai nhãn kia thì không — đỏ dành cho thứ không làm gì được nữa, không dành cho một con số để
+cân nhắc.
+
+Xoá quy định chiết khấu thì **đã chạy đúng từ trước** (ngưỡng về rỗng là một chênh lệch `RULE`), chỉ
+thiếu ca kiểm thử khẳng định điều đó. Giờ có.
+
+### 2. Xác nhận bằng cách gõ lại mã (`0036`)
+
+Nếp đã có từ `0032` cho tài khoản, giờ thành hàm dùng chung `xacNhanGoLai` ở `http-kit` và phủ bốn
+đường: xoá nhóm sản phẩm, xoá quy định chiết khấu, **vô hiệu hoá** sản phẩm, vô hiệu hoá tài khoản.
+
+Ba quyết định:
+
+**Mã nghiệp vụ, không phải uuid.** Yêu cầu viết "nhập id hoặc username". Với người dùng thì username
+đúng nguyên văn; với sản phẩm và quy định thì thứ hiện trên màn hình và gõ lại được là **mã** —
+uuid thì không ai gõ, họ sẽ sao chép, mà sao chép cũng phản xạ y như bấm nút, tức là chốt chặn biến
+thành một bước thừa không chặn được gì.
+
+**Tài khoản đổi từ họ tên sang tên đăng nhập.** Họ tên **không duy nhất** — hai người trùng tên trong
+một danh sách là chuyện bình thường — nên gõ đúng họ tên không chứng minh được người quản trị đang
+nhìn đúng dòng, mà đó là toàn bộ việc phép kiểm này phải làm.
+
+**Chỉ thao tác PHÁ HUỶ mới đòi.** Đổi tên sản phẩm không đòi, bật lại sản phẩm đã vô hiệu hoá không
+đòi. Bắt gõ mã cho mọi lần lưu là làm mòn chính chốt chặn ấy: người dùng gõ mãi thành phản xạ rồi gõ
+luôn cả lúc vô hiệu hoá.
+
+### 3. Thư cho mọi người đã tác động, và liên kết dẫn tới nhật ký (`0036`, `0037`)
+
+Nguồn người nhận là **nhật ký của chính hồ sơ**, không phải bốn cột phân công. Hai tập ấy khác nhau ở
+đúng ca đáng quan tâm: Trưởng bộ phận trả hồ sơ về, người lập sửa rồi gửi cho một Trưởng bộ phận
+khác — người thứ nhất biến khỏi cột `tbp_user_id` nhưng vẫn là người đã đọc hồ sơ và đã viết lý do.
+
+**Hai lá thư, không phải một lá gửi cho nhiều người hơn.** Hai nhóm cần hai đường dẫn khác nhau, và
+một lá thư chỉ mang được một liên kết. Trừ ba nhóm khỏi lá thứ hai: người vừa nhận lá thứ nhất,
+người vừa bấm nút, và tài khoản đã vô hiệu hoá.
+
+**KHÔNG gắn observers vào `PUBLISH_SIGNED`** — đó là bước hệ thống tự chạy trong cùng transaction với
+`TBP_SIGN`, và lá thư của bước ký vừa bay đi một khoảnh khắc trước.
+
+**Lỗi đáng ghi nhất của đợt.** Bản đầu tôi nhét hậu tố vào chính `event_id` (`<uuid>:theo-doi`) làm
+khoá chống trùng cho lá thư thứ hai. Cột kiểu `uuid` từ chối — và nó từ chối ở đúng chỗ tệ nhất: lỗi
+ném ra SAU khi lá thư chính đã gửi xong, nhánh dọn dẹp xoá chỗ đã giữ của lá thư ấy rồi đẩy cả sự
+kiện vào bảng thư hỏng, nên gửi lại từ đó là gửi trùng lá thư chính. `0037` đổi khoá chống trùng
+thành cặp `(event_id, kind)`, và thêm một cờ để nhánh `catch` không trả lại chỗ đã giữ của một lá
+thư đã bay đi.
+
+**Sửa một liên kết hỏng từ đầu dự án.** Mọi lá thư trỏ tới `${webBaseUrl}/policies/:id` — đường của
+**API**, không phải của giao diện. `App.tsx` không bắt nó, nên mọi liên kết trong mọi thông báo từ
+trước tới nay đều dẫn tới "Không có màn hình nào ở địa chỉ này". Giờ là `/ho-so/:id`, và có một ca
+kiểm thử trong `dieu-huong.test.tsx` quét cả hai đường dẫn xuất hiện trong thư.
+
+### 4. Màn hình Nhật ký hồ sơ (`0036`)
+
+`GET /policies/:id/events` có từ chặng đầu và **không màn hình nào gọi nó**, nên mọi câu hỏi kiểu
+"ai trả hồ sơ này về, lý do gì" chỉ trả lời được bằng cách đọc thẳng cơ sở dữ liệu.
+
+Màn hình RIÊNG ở `/ho-so/:id/nhat-ky`, không phải một khối gập trong trang chi tiết — nó cần một địa
+chỉ để dán vào thư. Đường API giờ trả kèm **tên** người thao tác; đọc "e207b271-… đã ký số" không
+trả lời được câu hỏi người ta vào đây để hỏi.
+
+Bảng nhãn hành động viết RIÊNG, không dùng lại `HANH_DONG_NHAN`: bảng kia là nhãn **nút** (mệnh
+lệnh, "Ký số duyệt" — đọc trong lịch sử thì nghe như việc đang chờ làm) và chỉ có những hành động
+**có nút**. Nhật ký còn chứa `PUBLISH_SIGNED`, `SLA_OVERDUE`, `HANDOVER`, `CUSTOMER_RETIRED` — thiếu
+chúng thì đúng những dòng khó hiểu nhất lại hiện ra dưới dạng mã viết hoa.
+
+### Test
+
++56 ca, **1001/1001 xanh**. Ba bảng phủ theo trạng thái: vô hiệu hoá sản phẩm × 12 trạng thái (bảy
+vào box, năm không), nhật ký đọc được × 12 trạng thái, và ma trận xác nhận cho bốn đường phá huỷ.

@@ -153,6 +153,30 @@ const evtCtx = (
   tdvUserId: p.tdv_user_id,
 });
 
+/**
+ * Mọi người đã từng thao tác lên hồ sơ này — nguồn của thư "để biết" (`0036`).
+ *
+ * VÌ SAO ĐỌC TỪ NHẬT KÝ chứ không từ bốn cột phân công: bốn cột nói ai ĐANG giữ
+ * hồ sơ, còn câu hỏi ở đây là ai ĐÃ ĐỘNG VÀO nó. Hai tập khác nhau ở đúng những
+ * ca đáng quan tâm — một Trưởng bộ phận đã trả hồ sơ về rồi lần sau người lập
+ * chọn Trưởng bộ phận khác thì người thứ nhất biến mất khỏi cột `tbp_user_id`,
+ * nhưng họ vẫn là người đã đọc và đã viết lý do, và họ có lý do để muốn biết hồ
+ * sơ ấy về sau ra sao.
+ *
+ * Gọi TRONG transaction và SAU `recordEvent`, nên hành động vừa xảy ra đã nằm
+ * trong danh sách. Người vừa bấm bị notification loại ra sau — ở đây không loại,
+ * vì "ai đã tác động" là một sự thật của hồ sơ, còn "ai cần nhận thư" là quyết
+ * định của tầng gửi thư.
+ */
+export async function daTacDong(c: PoolClient, policyId: string): Promise<string[]> {
+  const r = await c.query<{ actor_id: string }>(
+    `SELECT DISTINCT actor_id FROM pol.policy_event
+      WHERE policy_id = $1 AND actor_id IS NOT NULL`,
+    [policyId],
+  );
+  return r.rows.map((x) => x.actor_id);
+}
+
 @Injectable()
 export class PoliciesService {
   constructor(
@@ -676,6 +700,8 @@ export class PoliciesService {
         // Người đã trả hồ sơ lại đang chờ nó quay về. Không báo thì họ chờ một
         // thứ sẽ không bao giờ tới, và hồ sơ chỉ lặng lẽ rời khỏi danh sách.
         recipients: ['TBP', 'KE_TOAN'],
+        // Và cả những người đã tác động ở các bước trước (`0036`).
+        observers: await daTacDong(c, policyId),
         tbpUserId: p.tbp_user_id,
         keToanUserId: p.ke_toan_user_id,
         saleAdminUserId: p.sale_admin_user_id,
@@ -891,14 +917,33 @@ export class PoliciesService {
     );
   }
 
+  /**
+   * Nhật ký của một hồ sơ, KÈM TÊN người thao tác (`0036`).
+   *
+   * Trước `0036` đường này chỉ trả `actorId` — một uuid — và không màn hình nào
+   * gọi nó. Giờ nó là nội dung của màn hình *Nhật ký hồ sơ*, và của liên kết
+   * trong thư gửi những người chỉ cần biết, nên tên phải đi kèm: đọc một dòng
+   * "e207b271-… đã ký số" thì không trả lời được câu hỏi người ta vào đây để hỏi.
+   *
+   * Tên tra một lượt cho cả danh sách, và tra được tới đâu thì dùng tới đó —
+   * `userNames` nuốt lỗi và trả rỗng, nên identity chết cũng không làm màn hình
+   * nhật ký chết theo.
+   */
   async events(policyId: string, me: AuthUser) {
     await this.byId(policyId, me);
-    return this.db.q(
+    const rows = await this.db.q<{ actorId: string | null } & Record<string, unknown>>(
       `SELECT seq, from_status::text AS "fromStatus", to_status::text AS "toStatus",
               action, actor_id AS "actorId", actor_role AS "actorRole", reason, at
          FROM pol.policy_event WHERE policy_id = $1 ORDER BY seq`,
       [policyId],
     );
+    const ten = await this.clients.userNames(
+      rows.map((r) => r.actorId).filter((x): x is string => x !== null),
+    );
+    return rows.map((r) => ({
+      ...r,
+      actorName: r.actorId === null ? null : (ten[r.actorId] ?? null),
+    }));
   }
 
   // --- Trợ giúp dùng chung với workflow -------------------------------------

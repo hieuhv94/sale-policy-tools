@@ -43,6 +43,29 @@ export class Clients {
    * chứ không mỗi người một lượt: bước gửi duyệt chọn hai người cùng lúc, và hai
    * vòng mạng nối tiếp cho một thao tác đồng bộ là hai lần cơ hội hỏng.
    */
+  /**
+   * Tên hiển thị của một loạt người dùng — cho màn hình nhật ký hồ sơ (`0036`).
+   *
+   * HỎNG THÌ TRẢ RỖNG, không ném: nhật ký hiện uuid thay cho tên thì xấu, còn
+   * ném lỗi thì cả màn hình nhật ký không mở được — mà nó là màn hình người ta
+   * vào đúng lúc đang đi tìm xem chuyện gì đã xảy ra.
+   */
+  async userNames(ids: string[]): Promise<Record<string, string>> {
+    const list = [...new Set(ids.filter(Boolean))];
+    if (list.length === 0) return {};
+    try {
+      const res = await fetch(`${identityUrl()}/internal/users/names`, {
+        method: 'POST',
+        headers: { ...svc(), 'content-type': 'application/json' },
+        body: JSON.stringify({ userIds: list }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      return (await res.json()) as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
   async checkUsers(
     ids: string[],
   ): Promise<Record<string, { role: string; isActive: boolean; fullName: string }>> {

@@ -2,7 +2,7 @@
  * Chiết khấu quy định — NGUỒN DUY NHẤT kiểm vượt ngưỡng (YCNV muc 6.3).
  */
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { paged, PG, pgCode, type Page } from '@csbh/http-kit';
+import { paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
 
@@ -158,8 +158,23 @@ export class RulesService {
    * An toàn với lịch sử vì cùng lý do trên: hồ sơ đã lập giữ `threshold_snap`
    * của chính nó. Xoá chỉ đổi cách tính cho hồ sơ lập TỪ ĐÂY VỀ SAU.
    */
-  async remove(code: string, actorId: string) {
+  async remove(code: string, confirm: string | undefined, actorId: string) {
     return this.db.tx(async (c) => {
+      /*
+       * Đọc TRƯỚC, xoá SAU — đảo thứ tự so với bản cũ (`0036`).
+       *
+       * Phép xác nhận phải chạy trên một quy định CÓ THẬT. Xoá trước rồi mới so
+       * chuỗi thì gõ sai vẫn ném lỗi và transaction vẫn quay lui, nên kết quả
+       * đúng — nhưng nó dựa vào việc người sửa sau này nhớ giữ cả hai câu trong
+       * cùng một transaction. Đọc trước thì phép kiểm đứng độc lập.
+       */
+      const co = await c.query<{ code: string }>(
+        `SELECT code FROM cat.discount_rule WHERE code = $1`,
+        [code],
+      );
+      if (co.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
+      xacNhanGoLai(confirm, co.rows[0]!.code, { viec: 'xoá quy định chiết khấu này' });
+
       const truoc = await c.query(
         `DELETE FROM cat.discount_rule WHERE code = $1
          RETURNING product_group_id, customer_type, effective_from, threshold_rate2`,

@@ -40,8 +40,47 @@ type DongCanRa = {
   threshold_snap: string | null;
 };
 
-/** Một chênh lệch đã tìm ra trên một dòng. */
-type Lech = { kind: 'PRICE' | 'RULE'; productCode: string; snap: string; moi: string | null };
+/**
+ * Một chênh lệch đã tìm ra trên một dòng.
+ *
+ * `PRODUCT` là loại thứ ba, thêm ở `0036`: sản phẩm bị vô hiệu hoá hoặc đã xoá
+ * khỏi danh mục. Nặng hơn hai loại kia — không phải "lệch vài đồng" mà là một
+ * điều khoản không thực hiện được — nên nó đứng ĐẦU danh sách trong thư.
+ */
+type Lech = {
+  kind: 'PRICE' | 'RULE' | 'PRODUCT';
+  productCode: string;
+  snap: string;
+  moi: string | null;
+};
+
+/** Nhãn trạng thái sản phẩm cho câu chữ trong thư và trong box Yêu cầu cập nhật. */
+const NHAN_TRANG_THAI_SP: Record<string, string> = {
+  DANG_AP_DUNG: 'Đang áp dụng',
+  DA_VO_HIEU_HOA: 'Đã vô hiệu hoá',
+};
+
+const NHAN_LOAI: Record<Lech['kind'], string> = {
+  PRICE: 'Giá',
+  RULE: 'Ngưỡng',
+  PRODUCT: 'Sản phẩm',
+};
+
+const nhanLech = (l: Lech): string => `${NHAN_LOAI[l.kind]} · ${l.productCode}`;
+
+/**
+ * `moi === null` mang hai nghĩa khác nhau theo loại, và thư phải nói đúng nghĩa.
+ *
+ * Ở `RULE` nghĩa là không quy định nào phủ nữa; ở `PRODUCT` nghĩa là sản phẩm đã
+ * bị xoá khỏi danh mục. Dùng chung một câu "không còn quy định nào" cho cả hai
+ * là nói với người đọc một chuyện không xảy ra.
+ */
+const giaTriLech = (l: Lech): string => {
+  if (l.moi !== null) return `${l.snap} → ${l.moi}`;
+  return l.kind === 'PRODUCT'
+    ? `${l.snap} → đã xoá khỏi danh mục sản phẩm`
+    : `${l.snap} → không còn quy định nào`;
+};
 
 @Injectable()
 export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
@@ -63,11 +102,26 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         this.log.log(`đổi giá ${String(e.payload['productCode'])}: ${n} hồ sơ lệch`);
         return;
       }
-      // `catalog.changed` mang mọi thay đổi danh mục — sản phẩm, nhóm, người ký.
-      // Chỉ quy định chiết khấu mới đổi được ngưỡng của một hồ sơ.
-      if (e.routingKey === 'catalog.changed' && e.payload['entity'] === 'discount_rule') {
+      // `catalog.changed` mang mọi thay đổi danh mục — sản phẩm, nhóm, quy định.
+      //
+      // `discount_rule` đổi được NGƯỠNG của hồ sơ (kể cả khi bị xoá: không quy
+      // định nào phủ nữa thì ngưỡng về rỗng). `product` đổi được TRẠNG THÁI của
+      // dòng sản phẩm — vô hiệu hoá hay xoá khỏi danh mục (`0036`).
+      //
+      // Trước `0036` nhánh `product` không có, nên vô hiệu hoá một sản phẩm lọt
+      // qua sạch: nó không đổi giá, mà consumer chỉ so giá và ngưỡng.
+      if (e.routingKey !== 'catalog.changed') return;
+      const entity = e.payload['entity'];
+      if (entity === 'discount_rule') {
         const n = await this.handle({});
         this.log.log(`đổi quy định ${String(e.payload['id'])}: ${n} hồ sơ lệch`);
+        return;
+      }
+      if (entity === 'product') {
+        // Rà đúng sản phẩm ấy: khác với quy định, ở đây biết chắc dòng nào bị
+        // ảnh hưởng, nên không cần quét cả bảng.
+        const n = await this.handle({ productId: String(e.payload['id'] ?? '') });
+        this.log.log(`đổi sản phẩm ${String(e.payload['id'])}: ${n} hồ sơ lệch`);
       }
     });
   }
@@ -109,24 +163,45 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       const customer = await this.clients.customer(dau.customer_id).catch(() => undefined);
       if (!customer) continue;
 
-      let snaps: Map<string, ProductSnapshot>;
-      try {
-        // KHÔNG truyền `on`: so với danh mục HÔM NAY — xem chú thích đầu tệp.
-        snaps = await this.clients.productSnapshots(
-          cac.map((x) => x.product_id),
-          customer.customerType,
-        );
-      } catch {
-        // Sản phẩm bị xoá khỏi danh mục chẳng hạn. Bỏ qua hồ sơ này chứ không
-        // hỏng cả lượt rà — một hồ sơ không tra được không được che mất mọi hồ
-        // sơ còn lại.
-        continue;
-      }
+      const snaps = await this.traAnhChup(
+        cac.map((x) => x.product_id),
+        customer.customerType,
+      );
 
       const lech: Lech[] = [];
       for (const d of cac) {
         const s = snaps.get(d.product_id);
-        if (!s) continue;
+        /*
+         * KHÔNG có ảnh chụp = sản phẩm đã bị XOÁ khỏi danh mục (`0036`).
+         *
+         * Trước `0036` nhánh này là `continue` — im lặng bỏ qua dòng. Đó là ca
+         * nặng nhất mà lại bị nuốt gọn nhất: hồ sơ đang có hiệu lực cho một mặt
+         * hàng không còn tồn tại, và không có gì trên màn hình nói ra.
+         *
+         * So sánh giá và ngưỡng thì không làm được nữa — không còn gì để so —
+         * nên dừng ở đây với đúng một dòng lệch. Nói "giá đã đổi" về một sản
+         * phẩm không còn nữa là một câu vô nghĩa.
+         */
+        if (!s) {
+          lech.push({
+            kind: 'PRODUCT',
+            productCode: d.product_code_snap,
+            snap: NHAN_TRANG_THAI_SP['DANG_AP_DUNG']!,
+            moi: null,
+          });
+          continue;
+        }
+        // Vô hiệu hoá: sản phẩm còn trong danh mục nhưng không đưa vào hồ sơ mới
+        // được nữa (CAT-07). Vẫn so tiếp giá và ngưỡng ở dưới — chúng vẫn có
+        // nghĩa, và người đọc cần thấy đủ mọi thứ đã lệch trên dòng ấy.
+        if (s.status !== 'DANG_AP_DUNG') {
+          lech.push({
+            kind: 'PRODUCT',
+            productCode: d.product_code_snap,
+            snap: NHAN_TRANG_THAI_SP['DANG_AP_DUNG']!,
+            moi: NHAN_TRANG_THAI_SP[s.status] ?? s.status,
+          });
+        }
         if (String(s.companyPrice) !== String(d.company_price_snap)) {
           lech.push({
             kind: 'PRICE',
@@ -157,6 +232,36 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       }
     }
     return soLech;
+  }
+
+  /**
+   * Ảnh chụp danh mục HÔM NAY cho một loạt sản phẩm, chịu được sản phẩm đã xoá.
+   *
+   * Lời gọi cả lô trả 404 cho TOÀN BỘ khi chỉ một id không còn — đó là hợp đồng
+   * của `/internal/catalog/product-snapshots`, và nó đúng cho đường lập hồ sơ
+   * (thiếu một sản phẩm thì cả hồ sơ sai). Ở đây thì ngược lại: một sản phẩm
+   * biến mất là THÔNG TIN CẦN BÁO, không phải lý do bỏ qua cả hồ sơ.
+   *
+   * Nên: đường nhanh vẫn là một lời gọi cả lô, và chỉ khi nó hỏng mới lùi về
+   * hỏi từng cái. Đường chậm chỉ chạy đúng lúc có sản phẩm bị xoá — chuyện hiếm.
+   * Id nào không tra được thì VẮNG MẶT trong map, và người gọi hiểu đó là "đã
+   * xoá khỏi danh mục".
+   */
+  private async traAnhChup(
+    productIds: string[],
+    customerType: number,
+  ): Promise<Map<string, ProductSnapshot>> {
+    try {
+      // KHÔNG truyền `on`: so với danh mục HÔM NAY — xem chú thích đầu tệp.
+      return await this.clients.productSnapshots(productIds, customerType);
+    } catch {
+      const ra = new Map<string, ProductSnapshot>();
+      for (const id of productIds) {
+        const s = await this.clients.productSnapshot(id, customerType).catch(() => undefined);
+        if (s) ra.set(id, s);
+      }
+      return ra;
+    }
   }
 
   /**
@@ -216,11 +321,24 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
     cus: { code: string; name: string },
     lech: Lech[],
   ): Promise<void> {
-    // Đủ MỘT loại thì dùng đúng tên loại ấy; lệch cả hai thì nói cả hai. Người
-    // nhận đọc dòng tiêu đề trước khi mở thư, nên nó phải nói đúng chuyện gì.
-    const coGia = lech.some((l) => l.kind === 'PRICE');
-    const coQd = lech.some((l) => l.kind === 'RULE');
-    const action = coGia && coQd ? 'CATALOG_IMPACT' : coGia ? 'PRICE_IMPACT' : 'RULE_IMPACT';
+    /*
+     * Đủ MỘT loại thì dùng đúng tên loại ấy; nhiều loại thì nói chung. Người
+     * nhận đọc dòng tiêu đề trước khi mở thư, nên nó phải nói đúng chuyện gì.
+     *
+     * NGOẠI LỆ: có `PRODUCT` thì tiêu đề LUÔN nói về sản phẩm, kể cả khi lệch
+     * thêm giá hay ngưỡng (`0036`). Sản phẩm không còn bán được là một điều
+     * khoản không thực hiện được, không cùng hạng với chênh lệch vài đồng — gộp
+     * nó vào "giá và quy định đã thay đổi" là hạ nó xuống ngang hàng và người
+     * nhận sẽ đọc lướt qua.
+     */
+    const loai = new Set(lech.map((l) => l.kind));
+    const action = loai.has('PRODUCT')
+      ? 'PRODUCT_IMPACT'
+      : loai.size > 1
+        ? 'CATALOG_IMPACT'
+        : loai.has('PRICE')
+          ? 'PRICE_IMPACT'
+          : 'RULE_IMPACT';
 
     await this.db.tx(async (c) => {
       await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
@@ -236,12 +354,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
           toStatus: 'DANG_CO_HIEU_LUC',
           recipients: ['TDV'],
           at: new Date().toISOString(),
-          extra: Object.fromEntries(
-            lech.map((l) => [
-              `${l.kind === 'PRICE' ? 'Giá' : 'Ngưỡng'} · ${l.productCode}`,
-              `${l.snap} → ${l.moi ?? 'không còn quy định nào'}`,
-            ]),
-          ),
+          extra: Object.fromEntries(lech.map((l) => [nhanLech(l), giaTriLech(l)])),
         }),
       ]);
     });

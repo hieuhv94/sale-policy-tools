@@ -179,6 +179,15 @@ const line = (productId: string, over = false) => ({
   cpbh: [over ? '20000' : '3000'],
 });
 
+/** Id của một tài khoản mẫu — cần khi ca kiểm thử chọn ĐÍCH DANH người xử lý. */
+const idCua = async (username: string): Promise<string> =>
+  withAdminDb(async (c) => {
+    const r = await c.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = $1`, [
+      username,
+    ]);
+    return r.rows[0]!.id;
+  });
+
 async function draft(): Promise<{ id: string; customerId: string; productId: string }> {
   const productId = await makeProduct();
   const cus = await makeCustomer();
@@ -346,6 +355,71 @@ describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nh�
   });
 });
 
+describe('`0036` thư "để biết" cho mọi người đã tác động lên hồ sơ', () => {
+  /*
+   * Yêu cầu: đổi trạng thái thì báo cho MỌI người đã đi qua hồ sơ, không chỉ
+   * người phải xử lý bước hiện tại.
+   *
+   * Ca dựng ra ở đây là ca duy nhất mà hai tập ấy KHÁC NHAU: Trưởng bộ phận thứ
+   * nhất trả hồ sơ về, người lập sửa rồi gửi cho một Trưởng bộ phận KHÁC. Người
+   * thứ nhất biến khỏi cột `tbp_user_id`, nên mọi phép suy từ bốn cột phân công
+   * đều bỏ sót họ — nhưng họ là người đã đọc hồ sơ và đã viết lý do trả lại.
+   */
+  it('Trưởng bộ phận đã bị thay vẫn nhận thư, và liên kết trỏ vào NHẬT KÝ', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
+    // Gửi lại cho tbp02 — `RESUBMIT_AFTER_EDIT` chọn lại người, không kế thừa.
+    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01', { tbpUserId: await idCua('tbp02') });
+
+    // Bốn thư: gửi duyệt → tbp01, trả lại → tdv01, gửi lại → tbp02, và thư
+    // "để biết" → tbp01.
+    const mails = await flush(4);
+    const theoDoi = [];
+    for (const m of mails) {
+      const full = await fullMail(m.ID);
+      if (full.Text.includes('chỉ để bạn biết')) theoDoi.push(full);
+    }
+    expect(theoDoi, 'phải có đúng một thư "để biết"').toHaveLength(1);
+
+    const t = theoDoi[0]!;
+    expect(t.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
+    // Liên kết trỏ vào NHẬT KÝ: mở hồ sơ ra họ chẳng có nút nào bấm được, còn
+    // thứ họ muốn biết là hồ sơ đã đi qua đâu từ lúc mình rời tay.
+    expect(t.Text).toMatch(/\/ho-so\/[0-9a-f-]{36}\/nhat-ky/);
+    expect(t.Text).toContain('KHÔNG phải xử lý gì');
+  });
+
+  it('người ĐANG phải xử lý chỉ nhận MỘT thư, không nhận thêm bản "để biết"', async () => {
+    // Hai thư cho một sự kiện là cách nhanh nhất khiến người ta ngừng đọc cả
+    // hai. Người nhận thư chính bị trừ khỏi danh sách "để biết".
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+
+    // Ba thư: gửi duyệt, ký số, và bước tự động sau ký. KHÔNG thư thứ tư.
+    const mails = await flush(3);
+    expect(mails).toHaveLength(3);
+    for (const m of mails) {
+      expect((await fullMail(m.ID)).Text).not.toContain('chỉ để bạn biết');
+    }
+  });
+
+  it('người vừa bấm nút KHÔNG tự nhận thư "để biết" về việc mình vừa làm', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await flush(1);
+    await mailpitClear();
+
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sai gia' });
+    const mails = await flush(1);
+    // Đúng một thư, tới người lập. tbp01 vừa bấm nút nên không nhận gì.
+    expect(mails).toHaveLength(1);
+    const m = await fullMail(mails[0]!.ID);
+    expect(m.To.map((x) => x.Address)).toEqual(['tdv01@csbh.test']);
+  });
+});
+
 describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', () => {
   it('mã KH, tên KH, mã hồ sơ, trạng thái, bước, thời điểm, liên kết', async () => {
     const d = await draft();
@@ -366,7 +440,11 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
     expect(m.Text).toContain('Chờ Trưởng bộ phận duyệt');
     expect(m.Text).toContain('Bước 4 — Trưởng bộ phận duyệt và ký số');
     expect(m.Text).toMatch(/Thời điểm:\s+\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
-    expect(m.Text).toMatch(/\/policies\/[0-9a-f-]{36}/);
+    // `/ho-so/:id`, KHÔNG phải `/policies/:id` (`0036`). Đường cũ là đường của
+    // API — `App.tsx` không bắt nó, nên mọi liên kết trong mọi lá thư từ trước
+    // tới nay đều dẫn tới màn hình "Không có màn hình nào ở địa chỉ này".
+    expect(m.Text).toMatch(/\/ho-so\/[0-9a-f-]{36}/);
+    expect(m.Text).not.toContain('/policies/');
   });
 
   it('thư trả lại có LÝ DO, thư báo thành công thì không có dòng lý do', async () => {

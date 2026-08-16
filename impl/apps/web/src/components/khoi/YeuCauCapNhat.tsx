@@ -23,10 +23,24 @@ import { useTrangMay } from '../../lib/phan-trang.js';
 import { Khoi } from './Khung.js';
 
 export type LechMuc = {
-  kind: 'PRICE' | 'RULE';
+  /** `PRODUCT` là loại thứ ba từ `0036`: sản phẩm vô hiệu hoá hoặc đã xoá. */
+  kind: 'PRICE' | 'RULE' | 'PRODUCT';
   productCode: string;
   snapValue: string;
   newValue: string | null;
+};
+
+/**
+ * Nhãn, lớp CSS và cách đọc giá trị — MỘT bảng cho cả ba loại.
+ *
+ * Trước `0036` ba thứ này là ba phép `l.kind === 'PRICE' ? … : …` nằm rải trong
+ * JSX, và thêm loại thứ ba vào một biểu thức nhị phân là cách chắc chắn để có
+ * một chỗ quên: `PRODUCT` sẽ lặng lẽ hiện ra dưới nhãn "Ngưỡng".
+ */
+const LOAI: Record<LechMuc['kind'], { nhan: string; lop: string }> = {
+  PRICE: { nhan: 'Giá', lop: 'gia' },
+  RULE: { nhan: 'Ngưỡng', lop: 'nguong' },
+  PRODUCT: { nhan: 'Sản phẩm', lop: 'san-pham' },
 };
 
 export type HoSoLech = {
@@ -45,8 +59,16 @@ export type HoSoLech = {
  * văn con số nó đã so, còn cách đọc là việc của màn hình.
  */
 const doc = (l: LechMuc, v: string | null): string => {
-  if (v === null) return 'không còn quy định nào';
+  // `null` mang HAI nghĩa khác nhau tuỳ loại, và câu chữ phải nói đúng nghĩa:
+  // ở `RULE` là không quy định nào phủ nữa, ở `PRODUCT` là sản phẩm đã bị xoá
+  // khỏi danh mục. Dùng chung một câu cho cả hai là nói một chuyện không xảy ra.
+  if (v === null) {
+    return l.kind === 'PRODUCT' ? 'đã xoá khỏi danh mục' : 'không còn quy định nào';
+  }
   if (v === '—') return '—';
+  // Trạng thái sản phẩm về tới đây đã là chữ ("Đang áp dụng" / "Đã vô hiệu
+  // hoá"), không phải số — không ép kiểu tiền hay phần trăm lên nó.
+  if (l.kind === 'PRODUCT') return v;
   return l.kind === 'PRICE' ? `${tien(v)} đ` : `${v.replace('.', ',')}%`;
 };
 
@@ -79,9 +101,7 @@ export function YeuCauCapNhat() {
             <ul className="lech-muc">
               {h.lech.map((l, i) => (
                 <li key={i}>
-                  <span className={l.kind === 'PRICE' ? 'nhan-lech gia' : 'nhan-lech nguong'}>
-                    {l.kind === 'PRICE' ? 'Giá' : 'Ngưỡng'}
-                  </span>{' '}
+                  <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>{' '}
                   <span className="ma-phu">{l.productCode}</span>{' '}
                   <span className="so">{doc(l, l.snapValue)}</span>
                   {' → '}

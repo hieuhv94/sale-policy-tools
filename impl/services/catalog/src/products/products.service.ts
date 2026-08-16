@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { paged, PG, pgCode, type Page } from '@csbh/http-kit';
+import { paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import type { PoolClient } from 'pg';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
@@ -67,10 +67,17 @@ export class ProductsService {
     });
   }
 
-  async deleteGroup(id: string, actorId: string) {
+  async deleteGroup(id: string, confirm: string | undefined, actorId: string) {
     return this.db.tx(async (c) => {
-      const before = await c.query(`SELECT code, name FROM cat.product_group WHERE id = $1`, [id]);
+      const before = await c.query<{ code: string; name: string }>(
+        `SELECT code, name FROM cat.product_group WHERE id = $1`,
+        [id],
+      );
       if (before.rowCount === 0) throw new NotFoundException({ code: 'GROUP_NOT_FOUND' });
+      // Gõ lại MÃ nhóm, không phải tên: hai nhóm trùng tên là chuyện có thật,
+      // còn mã thì duy nhất — xác nhận bằng một chuỗi không định danh thì nó
+      // không phân biệt được cái đang xoá với cái đứng cạnh (`0036`).
+      xacNhanGoLai(confirm, before.rows[0]!.code, { viec: 'xoá nhóm sản phẩm này' });
 
       // Khoá ngoại từ cat.product chặn ở tầng CSDL; ở đây chỉ dịch mã lỗi
       // Postgres sang mã HTTP. Kiểm trước bằng SELECT rồi mới xoá là để hở một
@@ -124,13 +131,31 @@ export class ProductsService {
 
   async update(
     id: string,
-    patch: { name?: string | undefined; status?: ProductStatus | undefined },
+    patch: {
+      name?: string | undefined;
+      status?: ProductStatus | undefined;
+      confirm?: string | undefined;
+    },
     actorId: string,
   ) {
     return this.db.tx(async (c) => {
       const cur = await c.query<ProductRow>(`SELECT * FROM cat.product WHERE id = $1`, [id]);
       if (cur.rowCount === 0) throw new NotFoundException({ code: 'PRODUCT_NOT_FOUND' });
       const before = cur.rows[0]!;
+
+      /*
+       * VÔ HIỆU HOÁ mới phải gõ lại mã, ba chiều đổi còn lại thì không (`0036`).
+       *
+       * Đây là thao tác phá huỷ thật sự của sản phẩm — không có đường xoá hẳn —
+       * và hệ quả của nó vượt ra ngoài danh mục: sản phẩm biến khỏi ô chọn lúc
+       * lập hồ sơ, và MỌI CSBH đang hiệu lực chứa nó lập tức hiện trong box
+       * *Yêu cầu cập nhật* kèm một lá thư tới từng TDV phụ trách.
+       *
+       * Bật lại thì KHÔNG đòi gì: nó không làm hỏng gì cả.
+       */
+      if (patch.status === 'DA_VO_HIEU_HOA' && before.status !== 'DA_VO_HIEU_HOA') {
+        xacNhanGoLai(patch.confirm, before.code, { viec: 'vô hiệu hoá sản phẩm này' });
+      }
 
       const r = await c.query<ProductRow>(
         `UPDATE cat.product

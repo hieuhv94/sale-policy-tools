@@ -3,6 +3,7 @@ export * from './mail-config.js';
 export * from './keys.js';
 export * from './decorators.js';
 export * from './validate.js';
+export * from './xac-nhan.js';
 export * from './account-source.js';
 export * from './auth.guard.js';
 export * from './remote-account-source.js';

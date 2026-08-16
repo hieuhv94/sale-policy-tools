@@ -900,6 +900,121 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
   });
 });
 
+// =============================================================================
+// `0036` — nhật ký của một hồ sơ
+//
+// Đường `GET /policies/:id/events` có từ chặng đầu và tới `0036` mới có màn hình
+// gọi nó, cùng một liên kết trong thư. Hai thứ ấy đòi hai điều đường cũ không
+// có: TÊN người thao tác, và phép kiểm phạm vi đúng như khi mở hồ sơ.
+// =============================================================================
+
+describe('`0036` nhật ký hồ sơ', () => {
+  const nk = async (policyId: string, who = 'tdv01') =>
+    get(`/policies/${policyId}/events`, who);
+
+  it('mỗi bước một dòng, đúng thứ tự, kèm TÊN người thao tác', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
+
+    const r = await nk(d.id);
+    expect(r.status).toBe(200);
+    const ds = r.body as {
+      seq: number;
+      action: string;
+      actorName: string | null;
+      actorRole: string;
+      reason: string | null;
+      fromStatus: string | null;
+      toStatus: string;
+    }[];
+
+    expect(ds.map((x) => x.action)).toEqual(['CREATE', 'SUBMIT', 'TBP_RETURN']);
+    expect(ds.map((x) => x.seq)).toEqual([1, 2, 3]);
+    // TÊN, không phải uuid — đó là cả lý do đường này được sửa ở `0036`.
+    expect(ds[0]!.actorName, 'phải tra được tên người lập').toBeTruthy();
+    expect(ds[2]!.actorRole).toBe('TBP');
+    expect(ds[2]!.reason).toBe('Thieu chung tu');
+    expect(ds[2]!.fromStatus).toBe('CHO_TBP_DUYET');
+    expect(ds[2]!.toStatus).toBe('YEU_CAU_CHINH_SUA');
+  });
+
+  it('bước hệ thống tự chạy cũng có dòng riêng, vai trò SYSTEM', async () => {
+    // `PUBLISH_SIGNED` không ai bấm — nó chạy trong cùng transaction với ký số.
+    // Thiếu nó trong nhật ký thì hồ sơ "tự nhiên" nhảy sang bàn Kế toán.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+
+    const ds = (await nk(d.id)).body as { action: string; actorRole: string }[];
+    const tu = ds.find((x) => x.action === 'PUBLISH_SIGNED');
+    expect(tu, 'bước tự động phải có dòng').toBeDefined();
+    expect(tu!.actorRole).toBe('SYSTEM');
+  });
+
+  /*
+   * ĐỌC ĐƯỢC Ở MỌI TRẠNG THÁI, kể cả ba trạng thái kết thúc.
+   *
+   * Đây là chỗ dễ làm sai theo hướng ngược với trực giác: nhật ký của một hồ sơ
+   * đã đóng lại là thứ người ta cần NHẤT, vì không còn màn hình nào khác nói
+   * chuyện gì đã xảy ra. Chặn ở đây là bịt đúng lối đi cuối cùng.
+   */
+  for (const tt of [
+    'NHAP',
+    'CHO_TBP_DUYET',
+    'TBP_DA_KY_SO',
+    'CHO_KT_L1',
+    'SA_DANG_XU_LY',
+    'CHO_KT_L2',
+    'DANG_CO_HIEU_LUC',
+    'HET_HIEU_LUC',
+    'YEU_CAU_CHINH_SUA',
+    'TU_CHOI',
+    'QUA_HAN_DUYET',
+    'DA_XOA',
+  ]) {
+    it(`hồ sơ ${tt}: nhật ký vẫn đọc được`, async () => {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01');
+      if (tt !== 'CHO_TBP_DUYET') {
+        await withAdminDb((c) =>
+          c.query(
+            `UPDATE pol.policy SET status = $2::pol.policy_status,
+                    pending_step = $3::pol.policy_step WHERE id = $1`,
+            [d.id, tt, tt === 'QUA_HAN_DUYET' ? 'B4_TBP_DUYET' : null],
+          ),
+        );
+      }
+
+      const r = await nk(d.id);
+      expect(r.status, `${tt}: ${JSON.stringify(r.body)}`).toBe(200);
+      expect((r.body as unknown[]).length, `${tt}: phải có ít nhất CREATE và SUBMIT`)
+        .toBeGreaterThanOrEqual(2);
+
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE id = $1`, [d.id]),
+      );
+    });
+  }
+
+  it('cùng phép kiểm phạm vi với việc MỞ hồ sơ — TDV khác thì 403', async () => {
+    // Nhật ký kể ra tên khách hàng, lý do trả lại, tên người duyệt. Để nó lỏng
+    // hơn đường mở hồ sơ là dựng một cửa sau vào đúng phần nhạy cảm nhất.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    const r = await nk(d.id, 'tdv02');
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('OUT_OF_SCOPE');
+  });
+
+  it('người được giao hồ sơ đọc được, và Ban lãnh đạo cũng vậy', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await nk(d.id, 'tbp01')).status).toBe(200);
+    expect((await nk(d.id, 'bld01')).status).toBe(200);
+  });
+});
+
 describe('POL-15 phạm vi dữ liệu khi lập hồ sơ', () => {
   it('tdv02 lập hồ sơ cho khách hàng của tdv01 thì 403', async () => {
     const customerId = await makeCustomer('tdv01');
@@ -2593,7 +2708,8 @@ describe('0029 GỬI DUYỆT làm mới lần cuối rồi mới đóng băng', 
       (await (await cat())
         .patch(`/catalog/products/${productId}`)
         .set('Authorization', `Bearer ${tok['admin01']}`)
-        .send({ status: 'DA_VO_HIEU_HOA' })).status,
+        // `confirm` = mã sản phẩm, bắt buộc từ `0036`.
+        .send({ status: 'DA_VO_HIEU_HOA', confirm: maSp })).status,
     ).toBe(200);
 
     // MỞ: vẫn xem được, dòng giữ nguyên số cũ. Chặn ở đây là nhốt người dùng
@@ -2758,4 +2874,188 @@ describe('0029 box Yêu cầu cập nhật', () => {
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body.items)).toBe(true);
   });
+
+  // ===========================================================================
+  // `0036` — loại lệch thứ ba: sản phẩm không còn dùng được
+  //
+  // Trước `0036` cả nhóm này lọt sạch. Vô hiệu hoá một sản phẩm KHÔNG đổi giá
+  // của nó, mà consumer chỉ so giá và ngưỡng; còn xoá hẳn thì lời gọi tra ảnh
+  // chụp trả 404 cho cả lô và consumer bỏ qua TOÀN BỘ hồ sơ.
+  // ===========================================================================
+
+  const voHieuHoa = async (productId: string, ma: string) =>
+    (await cat())
+      .patch(`/catalog/products/${productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DA_VO_HIEU_HOA', confirm: ma });
+
+  it('VÔ HIỆU HOÁ sản phẩm cũng là một thay đổi — vào box, loại PRODUCT', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    const maSp = d.body.lines[0].productCode as string;
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    expect((await voHieuHoa(productId, maSp)).status).toBe(200);
+    await raSoat(productId);
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'sản phẩm vô hiệu hoá phải đưa hồ sơ vào box').toBeDefined();
+    const sp = h!.lech.find((l) => l.kind === 'PRODUCT');
+    expect(sp, `chỉ thấy: ${JSON.stringify(h!.lech)}`).toBeDefined();
+    expect(sp!.snapValue).toBe('Đang áp dụng');
+    expect(sp!.newValue).toBe('Đã vô hiệu hoá');
+    // Giá không đổi thì KHÔNG kèm một dòng PRICE — box nói đúng thứ đã đổi.
+    expect(h!.lech.some((l) => l.kind === 'PRICE')).toBe(false);
+  });
+
+  it('BẬT LẠI sản phẩm thì dấu vết biến mất', async () => {
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    const maSp = d.body.lines[0].productCode as string;
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    await voHieuHoa(productId, maSp);
+    await raSoat(productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(true);
+
+    await (await cat())
+      .patch(`/catalog/products/${productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DANG_AP_DUNG' });
+    await raSoat(productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
+
+  it('sản phẩm bị XOÁ khỏi danh mục: `newValue` rỗng, không nuốt lặng', async () => {
+    // Ca nặng nhất và lại bị nuốt gọn nhất trước `0036`: lời gọi tra ảnh chụp
+    // trả 404 cho cả lô, consumer `continue`, và hồ sơ biến khỏi box.
+    const { productId } = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    // Không có đường API nào xoá sản phẩm — đó là chủ ý. Ở đây xoá thẳng bằng
+    // SQL để dựng đúng tình huống "dòng hồ sơ trỏ vào một sản phẩm không còn".
+    await withAdminDb((c) => c.query(`DELETE FROM cat.product WHERE id = $1`, [productId]));
+    await raSoat(productId);
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'sản phẩm đã xoá phải đưa hồ sơ vào box').toBeDefined();
+    const sp = h!.lech.find((l) => l.kind === 'PRODUCT')!;
+    expect(sp.newValue).toBeNull();
+  });
+
+  it('một sản phẩm biến mất KHÔNG che mất chênh lệch của dòng còn lại', async () => {
+    // Bất biến của cả nhánh lùi-về-hỏi-từng-cái: lời gọi cả lô hỏng thì phải hỏi
+    // lẻ, chứ không bỏ qua cả hồ sơ.
+    const a = await sanPhamNhomRieng('100000');
+    const b = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', {
+      customerId,
+      lines: [line(a.productId), line(b.productId)],
+    });
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    await withAdminDb((c) => c.query(`DELETE FROM cat.product WHERE id = $1`, [a.productId]));
+    await datGia(b.productId, '175000', '2020-02-01');
+    await raSoat();
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h).toBeDefined();
+    expect(h!.lech.some((l) => l.kind === 'PRODUCT')).toBe(true);
+    const gia = h!.lech.find((l) => l.kind === 'PRICE');
+    expect(gia, 'dòng còn lại vẫn phải được so').toBeDefined();
+    expect(gia!.newValue).toBe('175000');
+  });
+
+  it('XOÁ quy định chiết khấu: ngưỡng về rỗng, và đó là một chênh lệch', async () => {
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
+    const ma = uniq('CK');
+    expect((await khaiQuyDinh({
+      code: ma, productGroupCode: nhom,
+      effectiveFrom: '2020-01-01', thresholdRate2: 1000,
+    })).status).toBe(201);
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    expect(
+      (await (await cat())
+        .delete(`/catalog/discount-rules/${ma}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({ confirm: ma })).status,
+    ).toBe(200);
+    await raSoat();
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'xoá quy định phải đưa hồ sơ vào box').toBeDefined();
+    const ng = h!.lech.find((l) => l.kind === 'RULE')!;
+    expect(ng.snapValue).toBe('10.00');
+    expect(ng.newValue, 'không còn quy định nào phủ').toBeNull();
+  });
+
+  /*
+   * PHỦ ĐỦ MƯỜI HAI TRẠNG THÁI.
+   *
+   * Câu hỏi thật của box: hồ sơ nào ĐÃ ĐÓNG BĂNG số của nó. Bảy trạng thái có,
+   * năm trạng thái không — và cả hai vế đều đáng khẳng định. `NHAP` và
+   * `YEU_CAU_CHINH_SUA` vắng mặt vì chúng tự tra lại mỗi lần mở, nên nhắc là
+   * thừa; ba trạng thái kết thúc vắng mặt vì không ai làm gì được nữa.
+   */
+  const CHO_VAO_BOX = [
+    'CHO_TBP_DUYET',
+    'TBP_DA_KY_SO',
+    'CHO_KT_L1',
+    'SA_DANG_XU_LY',
+    'CHO_KT_L2',
+    'QUA_HAN_DUYET',
+    'DANG_CO_HIEU_LUC',
+  ];
+  const KHONG_VAO_BOX = ['NHAP', 'YEU_CAU_CHINH_SUA', 'TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA'];
+
+  for (const tt of [...CHO_VAO_BOX, ...KHONG_VAO_BOX]) {
+    const nen = CHO_VAO_BOX.includes(tt);
+    it(`vô hiệu hoá sản phẩm · hồ sơ ${tt} ${nen ? 'VÀO' : 'KHÔNG vào'} box`, async () => {
+      const { productId } = await sanPhamNhomRieng('100000');
+      const customerId = await makeCustomer();
+      const d = await post('/policies', { customerId, lines: [line(productId)] });
+      const maSp = d.body.lines[0].productCode as string;
+
+      // Đặt thẳng trạng thái: ở đây điều đang kiểm là PHÉP LỌC theo trạng thái,
+      // không phải đường đi tới trạng thái ấy — cái đó đã có bộ test luồng
+      // riêng. Chạy đủ mười bước cho mười hai ca là mười hai lần chạy lại cùng
+      // một luồng để kiểm một mệnh đề khác.
+      if (tt !== 'NHAP') {
+        await withAdminDb((c) =>
+          c.query(
+            `UPDATE pol.policy SET status = $2::pol.policy_status,
+                    pending_step = $3::pol.policy_step WHERE id = $1`,
+            [d.body.id, tt, tt === 'QUA_HAN_DUYET' ? 'B4_TBP_DUYET' : null],
+          ),
+        );
+      }
+
+      expect((await voHieuHoa(productId, maSp)).status).toBe(200);
+      await raSoat(productId);
+
+      const co = await withAdminDb(async (c) => {
+        const r = await c.query<{ n: string }>(
+          `SELECT count(*)::text AS n FROM pol.policy_impact
+            WHERE policy_id = $1 AND kind = 'PRODUCT'`,
+          [d.body.id],
+        );
+        return Number(r.rows[0]!.n) > 0;
+      });
+      expect(co, `${tt}: dấu vết PRODUCT`).toBe(nen);
+
+      // Dọn: `DA_XOA` và `TU_CHOI` không xoá được ở bước dọn cuối tệp.
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE id = $1`, [d.body.id]),
+      );
+    });
+  }
 });

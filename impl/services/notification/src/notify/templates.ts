@@ -59,6 +59,10 @@ const TITLE: Record<string, string> = {
   // tới mình không.
   RULE_IMPACT: 'Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi',
   CATALOG_IMPACT: 'Giá và quy định chiết khấu trong CSBH đang hiệu lực đã thay đổi',
+  // Nhãn thứ tư (`0036`), và nó nói NẶNG hơn ba nhãn kia có chủ ý: sản phẩm
+  // không còn bán được là một điều khoản không thực hiện được, khác hạng với
+  // chênh lệch vài đồng.
+  PRODUCT_IMPACT: 'Sản phẩm trong CSBH đang hiệu lực không còn dùng được',
   SLA_REMINDER: 'Nhắc: hồ sơ sắp quá hạn duyệt',
   SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt',
 };
@@ -80,6 +84,15 @@ export type MailEvent = {
   reason?: string | null | undefined;
   at?: string | undefined;
   extra?: Record<string, string> | undefined;
+  /**
+   * Thư "để biết" — người nhận KHÔNG phải xử lý gì ở bước này (`0036`).
+   *
+   * Đổi hai thứ trong thân thư: một dòng nói thẳng họ không phải làm gì, và
+   * liên kết trỏ vào NHẬT KÝ thay vì vào hồ sơ. Người không có việc mà mở hồ sơ
+   * ra sẽ thấy một màn hình không nút nào bấm được, còn thứ họ thật sự muốn
+   * biết — hồ sơ đã đi qua những đâu từ lúc mình rời tay — thì nằm ở nhật ký.
+   */
+  chiDeBiet?: boolean | undefined;
 };
 
 /**
@@ -110,7 +123,16 @@ export const subjectFor = (e: MailEvent): string =>
   `[CSBH] ${titleFor(e)} — ${e.customerName ?? 'Khách hàng'}`;
 
 export function bodyFor(e: MailEvent, webBaseUrl: string): string {
-  const link = e.policyId ? `${webBaseUrl}/policies/${e.policyId}` : webBaseUrl;
+  /*
+   * `/ho-so/:id`, KHÔNG phải `/policies/:id`.
+   *
+   * Đường cũ là đường của API, không phải của giao diện — `App.tsx` không bắt
+   * nó, nên mọi liên kết trong mọi lá thư từ trước tới nay đều dẫn tới màn hình
+   * "Không có màn hình nào ở địa chỉ này". Sửa cùng đợt `0036` vì chính đợt này
+   * thêm một liên kết thứ hai, và thêm một liên kết hỏng nữa thì thôi.
+   */
+  const hoSo = e.policyId ? `${webBaseUrl}/ho-so/${e.policyId}` : webBaseUrl;
+  const link = e.chiDeBiet && e.policyId ? `${hoSo}/nhat-ky` : hoSo;
   const status = STATUS_LABEL[e.toStatus ?? ''] ?? e.toStatus ?? '—';
   const step = STEP_LABEL[e.pendingStep ?? e.toStatus ?? ''] ?? 'Không còn bước nào phải xử lý';
 
@@ -130,6 +152,19 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
   if (e.reason) lines.push(`Lý do:           ${e.reason}`);
   for (const [k, v] of Object.entries(e.extra ?? {})) lines.push(`${k}: ${v}`);
 
-  lines.push('', `Mở hồ sơ: ${link}`, '', 'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.');
+  if (e.chiDeBiet) {
+    lines.push(
+      '',
+      'Thư này chỉ để bạn biết — bạn KHÔNG phải xử lý gì ở bước này. Bạn nhận nó',
+      'vì đã từng thao tác trên hồ sơ.',
+    );
+  }
+
+  lines.push(
+    '',
+    e.chiDeBiet ? `Xem nhật ký hồ sơ: ${link}` : `Mở hồ sơ: ${link}`,
+    '',
+    'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
+  );
   return lines.join('\n');
 }

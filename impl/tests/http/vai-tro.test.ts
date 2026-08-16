@@ -284,28 +284,28 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     expect((r.body.policies as { code: string }[]).some((x) => x.code === hs.code)).toBe(true);
   });
 
-  it('gõ SAI họ tên thì 400 và KHÔNG vô hiệu hoá gì', async () => {
+  it('gõ SAI tên đăng nhập thì 400 và KHÔNG vô hiệu hoá gì', async () => {
     const u = await taoNguoiDung('TBP');
-    const r = await post(`/admin/users/${u.id}/deactivate`, { confirmName: 'Ten Sai' });
+    const r = await post(`/admin/users/${u.id}/deactivate`, { confirmUsername: 'ten-sai' });
     expect(r.status, JSON.stringify(r.body)).toBe(400);
-    expect(r.body.code).toBe('CONFIRM_NAME_MISMATCH');
-    // Câu báo phải NÓI RA tên đúng, nếu không người quản trị chỉ đoán.
-    expect(r.body.message).toContain('Nguoi dung thu nghiem');
+    expect(r.body.code).toBe('CONFIRM_MISMATCH');
+    // Câu báo phải NÓI RA chuỗi đúng, nếu không người quản trị chỉ đoán.
+    expect(r.body.message).toContain(u.username);
     expect((await doc(u.id)).isActive).toBe(true);
   });
 
-  it('thiếu họ tên hoàn toàn cũng bị chặn', async () => {
+  it('thiếu tên đăng nhập hoàn toàn cũng bị chặn', async () => {
     const u = await taoNguoiDung('TBP');
     expect((await post(`/admin/users/${u.id}/deactivate`)).status).toBe(400);
     expect((await doc(u.id)).isActive).toBe(true);
   });
 
-  it('họ tên chỉ khác dấu cách và chữ hoa thì VẪN nhận', async () => {
-    // Người quản trị chép tên từ màn hình sang; một dấu cách thừa không phải là
-    // bấm nhầm dòng, và bắt họ gõ lại là làm phiền chứ không làm an toàn hơn.
+  it('tên đăng nhập chỉ khác khoảng trắng và chữ hoa thì VẪN nhận', async () => {
+    // Người quản trị chép chuỗi từ màn hình sang; một dấu cách thừa không phải
+    // là bấm nhầm dòng, và bắt họ gõ lại là làm phiền chứ không làm an toàn hơn.
     const u = await taoNguoiDung('BAN_LANH_DAO');
     const r = await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: '  nguoi  DUNG thu nghiem ',
+      confirmUsername: `  ${u.username.toUpperCase()} `,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect((await doc(u.id)).isActive).toBe(false);
@@ -314,7 +314,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
   it('tài khoản KHÔNG giữ hồ sơ nào thì không cần chọn người nhận', async () => {
     const u = await taoNguoiDung('KE_TOAN');
     const r = await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: 'Nguoi dung thu nghiem',
+      confirmUsername: u.username,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.handedOver).toBe(0);
@@ -328,7 +328,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     await lapVaGui();
     const tbp01 = await idCua('tbp01');
     const r = await post(`/admin/users/${tbp01}/deactivate`, {
-      confirmName: 'Truong bo phan 01',
+      confirmUsername: 'tbp01',
     });
     expect(r.status, JSON.stringify(r.body)).toBe(422);
     expect(r.body.code).toBe('SUCCESSOR_REQUIRED');
@@ -339,7 +339,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     await lapVaGui();
     const tbp01 = await idCua('tbp01');
     const r = await post(`/admin/users/${tbp01}/deactivate`, {
-      confirmName: 'Truong bo phan 01',
+      confirmUsername: 'tbp01',
       successorId: await idCua('kt01'),
     });
     expect(r.status, JSON.stringify(r.body)).toBe(422);
@@ -351,7 +351,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     await lapVaGui();
     const tbp01 = await idCua('tbp01');
     const r = await post(`/admin/users/${tbp01}/deactivate`, {
-      confirmName: 'Truong bo phan 01',
+      confirmUsername: 'tbp01',
       successorId: tbp01,
     });
     expect(r.status).toBe(422);
@@ -365,7 +365,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     const moi = await taoNguoiDung('TBP');
     const tbp01 = await idCua('tbp01');
     const r = await post(`/admin/users/${tbp01}/deactivate`, {
-      confirmName: 'Truong bo phan 01',
+      confirmUsername: 'tbp01',
       successorId: moi.id,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(422);
@@ -379,7 +379,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
 
     const r = await post(`/admin/users/${tbp01}/deactivate`, {
-      confirmName: 'Truong bo phan 01',
+      confirmUsername: 'tbp01',
       successorId: tbp02,
     });
     try {
@@ -424,7 +424,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     const tbp02 = await idCua('tbp02');
     try {
       const r = await post(`/admin/users/${tbp01}/deactivate`, {
-        confirmName: 'Truong bo phan 01',
+        confirmUsername: 'tbp01',
         successorId: tbp02,
       });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
@@ -449,7 +449,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
       const tbp02 = await idCua('tbp02');
       try {
         await post(`/admin/users/${tbp01}/deactivate`, {
-          confirmName: 'Truong bo phan 01',
+          confirmUsername: 'tbp01',
           successorId: tbp02,
         });
         expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
@@ -474,7 +474,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     const tbp02 = await idCua('tbp02');
     try {
       await post(`/admin/users/${tbp01}/deactivate`, {
-        confirmName: 'Truong bo phan 01',
+        confirmUsername: 'tbp01',
         successorId: tbp02,
       });
       const treo = await withAdminDb(async (c) => {
@@ -524,7 +524,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
 
       // Thiếu người nhận thì chặn — với MỌI vai trò, không riêng TBP.
       const thieu = await post(`/admin/users/${u.id}/deactivate`, {
-        confirmName: 'Nguoi dung thu nghiem',
+        confirmUsername: u.username,
       });
       expect(thieu.status, `${role}: ${JSON.stringify(thieu.body)}`).toBe(422);
       expect(thieu.body.code).toBe('SUCCESSOR_REQUIRED');
@@ -534,7 +534,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
 
       // Chọn đúng người thì chuyển được.
       const r = await post(`/admin/users/${u.id}/deactivate`, {
-        confirmName: 'Nguoi dung thu nghiem',
+        confirmUsername: u.username,
         successorId: nhan,
       });
       expect(r.status, `${role}: ${JSON.stringify(r.body)}`).toBe(200);
@@ -570,7 +570,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
       expect(xt.body.count).toBe(0);
 
       const r = await post(`/admin/users/${u.id}/deactivate`, {
-        confirmName: 'Nguoi dung thu nghiem',
+        confirmUsername: u.username,
       });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
       expect(r.body.handedOver).toBe(0);
@@ -622,7 +622,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     expect(xt.body.customerCount).toBe(1);
 
     const thieu = await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: 'Nguoi dung thu nghiem',
+      confirmUsername: u.username,
     });
     expect(thieu.status, JSON.stringify(thieu.body)).toBe(422);
     expect(thieu.body.code).toBe('SUCCESSOR_REQUIRED');
@@ -640,7 +640,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     expect(await khachCua(u.id)).toBe(1);
 
     const r = await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: 'Nguoi dung thu nghiem',
+      confirmUsername: u.username,
       successorId: nhan,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
@@ -670,7 +670,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     await khachCuaAi(u.id);
 
     const r = await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: 'Nguoi dung thu nghiem',
+      confirmUsername: u.username,
       successorId: nhan,
     });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
@@ -694,7 +694,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     const nhan = await idCua('tdv01');
     await khachCuaAi(u.id);
     await post(`/admin/users/${u.id}/deactivate`, {
-      confirmName: 'Nguoi dung thu nghiem',
+      confirmUsername: u.username,
       successorId: nhan,
     });
     expect(await khachCua(u.id), 'còn khách hàng mồ côi').toBe(0);
@@ -703,7 +703,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
   it('bật lại tài khoản KHÔNG cần gõ tên hay chọn ai', async () => {
     // Bật lại không làm hồ sơ nào kẹt, nên không có lý do gì để hỏi thêm.
     const u = await taoNguoiDung('SALE_ADMIN');
-    await post(`/admin/users/${u.id}/deactivate`, { confirmName: 'Nguoi dung thu nghiem' });
+    await post(`/admin/users/${u.id}/deactivate`, { confirmUsername: u.username });
     expect((await doc(u.id)).isActive).toBe(false);
     expect((await batLai(u.id)).status).toBe(200);
     expect((await doc(u.id)).isActive).toBe(true);
@@ -714,7 +714,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     for (const who of ['tdv01', 'kt01', 'tbp01', 'sa01', 'bld01']) {
       const r = await post(
         `/admin/users/${u.id}/deactivate`,
-        { confirmName: 'Nguoi dung thu nghiem' },
+        { confirmUsername: u.username },
         who,
       );
       expect(r.status, `${who} đáng lẽ bị chặn`).toBe(403);

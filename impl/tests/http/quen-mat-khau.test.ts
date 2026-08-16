@@ -142,11 +142,11 @@ describe('PWD-03 tài khoản bị vô hiệu hoá không nhận thư', () => {
       ]);
       return r.rows[0]!.id;
     });
-    // `confirmName` bắt buộc từ `0032`; họ tên đặt ở `nguoiDaKichHoat`.
+    // Gõ lại tên đăng nhập, bắt buộc từ `0032` (`0036` đổi từ họ tên sang).
     await (await http(app))
       .post(`/admin/users/${id}/deactivate`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ confirmName: 'Nguoi quen mat khau' })
+      .send({ confirmUsername: username })
       .expect(200);
 
     await mailpitClear();

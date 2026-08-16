@@ -56,10 +56,19 @@ export class CatalogController {
     return this.products.createGroup(b.code, b.name, me.id);
   }
 
+  /**
+   * Xoá một nhóm — đòi gõ lại MÃ NHÓM (`0036`).
+   *
+   * `@Body()` trên một `DELETE` là chuyện hiếm nhưng hợp lệ, và ở đây nó đúng
+   * hơn hai lựa chọn kia: tham số truy vấn thì chuỗi xác nhận nằm trong URL và
+   * đi thẳng vào log máy chủ, còn một header riêng thì không màn hình nào và
+   * không lệnh `curl` nào của người vận hành nghĩ tới.
+   */
   @Roles('QUAN_TRI')
   @Delete('product-groups/:id')
-  deleteGroup(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.products.deleteGroup(id, me.id);
+  deleteGroup(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body ?? {}, { confirm: opt(str(1, 60)) });
+    return this.products.deleteGroup(id, b.confirm, me.id);
   }
 
   // --- Sản phẩm -------------------------------------------------------------
@@ -93,6 +102,15 @@ export class CatalogController {
     return this.products.create(b, me.id);
   }
 
+  /**
+   * Sửa sản phẩm. VÔ HIỆU HOÁ thì đòi gõ lại mã sản phẩm (`0036`).
+   *
+   * `confirm` là `opt()` ở đây chứ không bắt buộc: đổi tên sản phẩm là thao tác
+   * nhẹ, hằng ngày, và bắt gõ lại mã cho nó là làm mòn chính chốt chặn ấy —
+   * người dùng gõ mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá. Ai phải gõ
+   * và khi nào thì `products.service` quyết, vì chỉ nó biết trạng thái đang đổi
+   * theo chiều nào.
+   */
   @Roles('QUAN_TRI')
   @Patch('products/:id')
   update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
@@ -100,6 +118,7 @@ export class CatalogController {
       name: opt(str(1, 300)),
       // Trạng thái ngoài tập hai giá trị bị chặn ngay ở đây, trước khi tới CSDL (CAT-06).
       status: opt(oneOf(...PRODUCT_STATUSES)),
+      confirm: opt(str(1, 60)),
     });
     return this.products.update(id, b, me.id);
   }
@@ -198,10 +217,12 @@ export class CatalogController {
     return this.rules.update(code, b, me.id);
   }
 
+  /** Xoá một quy định — đòi gõ lại MÃ QUY ĐỊNH (`0036`). Xem `deleteGroup`. */
   @Roles('QUAN_TRI')
   @Delete('discount-rules/:code')
-  removeRule(@CurrentUser() me: AuthUser, @Param('code') code: string) {
-    return this.rules.remove(code, me.id);
+  removeRule(@CurrentUser() me: AuthUser, @Param('code') code: string, @Body() body: unknown) {
+    const b = validate(body ?? {}, { confirm: opt(str(1, 60)) });
+    return this.rules.remove(code, b.confirm, me.id);
   }
 
   @Get('thresholds/resolve')

@@ -241,12 +241,12 @@ describe('AUTH-07 vô hiệu hoá tài khoản khi token còn hạn', () => {
     expect((await agent.get('/auth/me').set('Authorization', `Bearer ${victim}`)).status).toBe(200);
 
     const adminToken = await accessTokenFor(app, 'admin01', SEED_PW);
-    // `confirmName` bắt buộc từ `0032` — gõ lại họ tên để chặn bấm nhầm dòng.
-    // Tài khoản này lấy chính username làm họ tên (xem `beforeAll`).
+    // Gõ lại TÊN ĐĂNG NHẬP để chặn bấm nhầm dòng — bắt buộc từ `0032`, và đổi
+    // từ họ tên sang tên đăng nhập ở `0036` (họ tên không duy nhất).
     const off = await agent
       .post(`/admin/users/${deactUserId}/deactivate`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ confirmName: DEACT_USER });
+      .send({ confirmUsername: DEACT_USER });
     expect(off.status, JSON.stringify(off.body)).toBe(200);
 
     const after = await agent.get('/auth/me').set('Authorization', `Bearer ${victim}`);

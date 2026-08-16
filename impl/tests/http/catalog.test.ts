@@ -36,8 +36,13 @@ const patch = async (path: string, body: object, token = adminT) =>
   (await http(app)).patch(path).set('Authorization', `Bearer ${token}`).send(body);
 const get = async (path: string, token = adminT) =>
   (await http(app)).get(path).set('Authorization', `Bearer ${token}`);
-const del = async (path: string, token = adminT) =>
-  (await http(app)).delete(path).set('Authorization', `Bearer ${token}`);
+/**
+ * `DELETE` KÈM THÂN REQUEST — mọi đường xoá của danh mục đòi gõ lại mã (`0036`).
+ *
+ * Mặc định `{}` để những ca cố ý gọi THIẾU `confirm` vẫn viết được ngắn gọn.
+ */
+const del = async (path: string, body: object = {}, token = adminT) =>
+  (await http(app)).delete(path).set('Authorization', `Bearer ${token}`).send(body);
 
 const cleanup = () =>
   withAdminDb(async (c) => {
@@ -252,8 +257,11 @@ async function existsInAllPages(productId: string): Promise<boolean> {
 
 describe('CAT-07 · CAT-08 sản phẩm đã vô hiệu hoá', () => {
   it('không xuất hiện khi lấy danh sách để lập CSBH mới', async () => {
-    const { id } = await makeProduct();
-    await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
+    const { id, res } = await makeProduct();
+    await patch(`/catalog/products/${id}`, {
+      status: 'DA_VO_HIEU_HOA',
+      confirm: res.body.code,
+    });
 
     const forNew = await get(`/catalog/products?forNewPolicy=true&limit=200`);
     expect((forNew.body.items as { id: string }[]).some((p) => p.id === id)).toBe(false);
@@ -266,7 +274,10 @@ describe('CAT-07 · CAT-08 sản phẩm đã vô hiệu hoá', () => {
 
   it('hồ sơ cũ vẫn mở xem được, hiện đúng mã và tên', async () => {
     const { id, res } = await makeProduct();
-    await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
+    await patch(`/catalog/products/${id}`, {
+      status: 'DA_VO_HIEU_HOA',
+      confirm: res.body.code,
+    });
 
     const one = await get(`/catalog/products/${id}`);
     expect(one.status).toBe(200);
@@ -512,14 +523,15 @@ describe('CAT-14 xoá nhóm còn sản phẩm tham chiếu', () => {
     const g = await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co SP' });
     await post('/catalog/products', { code: code('P'), name: 'sp', groupCode });
 
-    const r = await del(`/catalog/product-groups/${g.body.id}`);
+    const r = await del(`/catalog/product-groups/${g.body.id}`, { confirm: groupCode });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('GROUP_IN_USE');
   });
 
   it('nhóm rỗng thì xoá được', async () => {
-    const g = await post('/catalog/product-groups', { code: code('G'), name: 'Nhom rong' });
-    expect((await del(`/catalog/product-groups/${g.body.id}`)).status).toBe(200);
+    const ma = code('G');
+    const g = await post('/catalog/product-groups', { code: ma, name: 'Nhom rong' });
+    expect((await del(`/catalog/product-groups/${g.body.id}`, { confirm: ma })).status).toBe(200);
   });
 });
 
@@ -749,7 +761,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     // Xoá dòng thì KHÔNG còn quy định nào phủ sản phẩm này. Trước `0025` chỗ
     // này rơi về ngưỡng mặc định của sản phẩm; ba cột ấy đã bỏ nên giờ rơi thẳng
     // sang `KHONG_CO`.
-    await del(`/catalog/discount-rules/${ma}`);
+    await del(`/catalog/discount-rules/${ma}`, { confirm: ma });
     const sau = await tra('2026-01-01');
     expect(sau.body.source).toBe('KHONG_CO');
     expect(sau.body.thresholdRate2).toBeNull();
@@ -842,12 +854,12 @@ describe('sửa và xoá quy định chiết khấu', () => {
 
   it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {
     const { ma } = await mkRule();
-    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(200);
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(200);
 
     const ds = (await get('/catalog/discount-rules?limit=200')).body.items as { code: string }[];
     expect(ds.some((x) => x.code === ma)).toBe(false);
 
-    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(404);
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(404);
   });
 
   it('sửa và xoá đều phát sự kiện nhật ký kèm giá trị TRƯỚC (CAT-13)', async () => {
@@ -857,7 +869,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     let ev = await lastEvent('catalog.changed');
     expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(1500);
 
-    await del(`/catalog/discount-rules/${ma}`);
+    await del(`/catalog/discount-rules/${ma}`, { confirm: ma });
     ev = await lastEvent('catalog.changed');
     expect(ev!['after']).toBeNull();
     expect((ev!['before'] as Record<string, unknown>)['threshold_rate2']).toBe(3000);
@@ -866,7 +878,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
   it('vai trò khác Quản trị không sửa và không xoá được', async () => {
     const { ma } = await mkRule();
     expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1 }, tdvT)).status).toBe(403);
-    expect((await del(`/catalog/discount-rules/${ma}`, tdvT)).status).toBe(403);
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma }, tdvT)).status).toBe(403);
   });
 });
 
@@ -956,8 +968,8 @@ describe('0024 mã quy định chiết khấu', () => {
     expect(sua.body.code).toBe(ma);
     expect(sua.body.thresholdRate2).toBe(2600);
 
-    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(200);
-    expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(404);
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(200);
+    expect((await del(`/catalog/discount-rules/${ma}`, { confirm: ma })).status).toBe(404);
   });
 });
 
@@ -1035,5 +1047,140 @@ describe('0025 bỏ ngưỡng mặc định của sản phẩm', () => {
     };
     expect(sp.code).toBe(maSp);
     expect(sp.defaultRate2Type1).toBeUndefined();
+  });
+});
+
+// =============================================================================
+// `0036` — mọi thao tác PHÁ HUỶ đòi gõ lại mã
+//
+// Vì sao phép kiểm nằm ở MÁY CHỦ chứ không chỉ ở hộp thoại: hộp thoại chặn bấm
+// nhầm, còn đây là hợp đồng. Một script dọn dữ liệu, một lần thử tay bằng
+// `curl`, hay một màn hình viết sau này quên mất bước xác nhận — cả ba đều đi
+// qua đường này, và cả ba đều phải nói ra đúng thứ mình định xoá.
+// =============================================================================
+
+describe('`0036` xác nhận bằng cách gõ lại mã', () => {
+  describe('xoá nhóm sản phẩm', () => {
+    const nhomRong = async () => {
+      const ma = code('G');
+      const g = await post('/catalog/product-groups', { code: ma, name: 'Nhom xac nhan' });
+      return { id: g.body.id as string, ma };
+    };
+
+    it('thiếu `confirm` thì 400 và nhóm CÒN NGUYÊN', async () => {
+      const { id, ma } = await nhomRong();
+      const r = await del(`/catalog/product-groups/${id}`);
+      expect(r.status, JSON.stringify(r.body)).toBe(400);
+      expect(r.body.code).toBe('CONFIRM_MISMATCH');
+      // Câu báo phải NÓI RA chuỗi đúng — giấu nó đi không thêm an toàn nào,
+      // người gọi đang nhìn thẳng vào bản ghi đó, mà lại biến một chốt chặn
+      // chống bấm nhầm thành một câu đố.
+      expect(r.body.message).toContain(ma);
+      expect((await get('/catalog/product-groups')).body.some((x: { id: string }) => x.id === id))
+        .toBe(true);
+    });
+
+    it('gõ SAI mã thì 400', async () => {
+      const { id } = await nhomRong();
+      expect((await del(`/catalog/product-groups/${id}`, { confirm: 'MA-SAI' })).status).toBe(400);
+    });
+
+    it('gõ đúng nhưng khác hoa thường và thừa khoảng trắng thì VẪN nhận', async () => {
+      // Người quản trị chép mã từ màn hình sang; một chữ hoa lệch không phải là
+      // bấm nhầm dòng, và bắt gõ lại là làm phiền chứ không làm an toàn hơn.
+      const { id, ma } = await nhomRong();
+      const r = await del(`/catalog/product-groups/${id}`, { confirm: `  ${ma.toLowerCase()} ` });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+    });
+  });
+
+  describe('xoá quy định chiết khấu', () => {
+    const quyDinh = async () => {
+      const ma = code('CK');
+      const g = code('G');
+      await post('/catalog/product-groups', { code: g, name: 'Nhom cho quy dinh' });
+      const r = await post('/catalog/discount-rules', {
+        code: ma,
+        productGroupCode: g,
+        effectiveFrom: '2020-01-01',
+        thresholdRate2: 1500,
+      });
+      expect(r.status, JSON.stringify(r.body)).toBe(201);
+      return ma;
+    };
+
+    it('thiếu `confirm` thì 400 và quy định CÒN NGUYÊN', async () => {
+      const ma = await quyDinh();
+      const r = await del(`/catalog/discount-rules/${ma}`);
+      expect(r.status, JSON.stringify(r.body)).toBe(400);
+      expect(r.body.code).toBe('CONFIRM_MISMATCH');
+      // Phép kiểm chạy TRƯỚC câu `DELETE`, nên quy định phải còn đó thật.
+      const con = await get(`/catalog/discount-rules?limit=200`);
+      expect((con.body.items as { code: string }[]).some((x) => x.code === ma)).toBe(true);
+    });
+
+    it('gõ SAI mã thì 400', async () => {
+      const ma = await quyDinh();
+      expect((await del(`/catalog/discount-rules/${ma}`, { confirm: `${ma}X` })).status).toBe(400);
+    });
+
+    it('quy định KHÔNG TỒN TẠI thì 404, không phải 400', async () => {
+      // Thứ tự phép kiểm quan trọng: "không có gì để xoá" là một câu trả lời
+      // khác hẳn "gõ sai chuỗi xác nhận", và trả nhầm mã làm người gọi đi sửa
+      // sai chỗ.
+      const r = await del('/catalog/discount-rules/KHONG-CO-THAT', { confirm: 'KHONG-CO-THAT' });
+      expect(r.status).toBe(404);
+      expect(r.body.code).toBe('RULE_NOT_FOUND');
+    });
+  });
+
+  describe('vô hiệu hoá sản phẩm', () => {
+    it('thiếu `confirm` thì 400 và sản phẩm VẪN đang áp dụng', async () => {
+      const { id, res } = await makeProduct();
+      const r = await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
+      expect(r.status, JSON.stringify(r.body)).toBe(400);
+      expect(r.body.code).toBe('CONFIRM_MISMATCH');
+      expect(r.body.message).toContain(res.body.code);
+      expect((await get(`/catalog/products/${id}`)).body.status).toBe('DANG_AP_DUNG');
+    });
+
+    it('gõ SAI mã thì 400', async () => {
+      const { id } = await makeProduct();
+      const r = await patch(`/catalog/products/${id}`, {
+        status: 'DA_VO_HIEU_HOA',
+        confirm: 'SAI-MA',
+      });
+      expect(r.status).toBe(400);
+    });
+
+    it('ĐỔI TÊN thì KHÔNG đòi gõ lại gì', async () => {
+      // Bắt gõ mã cho mọi lần lưu là làm mòn chính chốt chặn ấy: người dùng gõ
+      // mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá.
+      const { id } = await makeProduct();
+      const r = await patch(`/catalog/products/${id}`, { name: 'Ten moi khong can xac nhan' });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(r.body.name).toBe('Ten moi khong can xac nhan');
+    });
+
+    it('BẬT LẠI thì cũng KHÔNG đòi gì — nó không làm hỏng gì cả', async () => {
+      const { id, res } = await makeProduct();
+      await patch(`/catalog/products/${id}`, {
+        status: 'DA_VO_HIEU_HOA',
+        confirm: res.body.code,
+      });
+      const r = await patch(`/catalog/products/${id}`, { status: 'DANG_AP_DUNG' });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(r.body.status).toBe('DANG_AP_DUNG');
+    });
+
+    it('vô hiệu hoá LẦN HAI cũng không đòi — trạng thái không đổi chiều', async () => {
+      const { id, res } = await makeProduct();
+      await patch(`/catalog/products/${id}`, {
+        status: 'DA_VO_HIEU_HOA',
+        confirm: res.body.code,
+      });
+      const lai = await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
+      expect(lai.status, JSON.stringify(lai.body)).toBe(200);
+    });
   });
 });

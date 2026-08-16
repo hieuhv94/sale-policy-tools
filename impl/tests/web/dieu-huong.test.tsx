@@ -50,6 +50,31 @@ describe('mọi mục điều hướng dẫn tới một màn hình', () => {
     expect(kieu(noiDung('/khong-ton-tai', 'QUAN_TRI'))).toBe(KhongCoManHinh);
   });
 
+  /*
+   * `0036` — liên kết trong THƯ cũng phải dẫn tới một màn hình thật.
+   *
+   * Cùng loại lỗi với hai mục menu chết mà tệp này sinh ra để bắt, chỉ khác chỗ
+   * bắt đầu: người dùng không bấm menu mà bấm một đường dẫn trong hộp thư, và
+   * nếu nó rơi vào "Không có màn hình nào" thì không có gì trên màn hình nói vì
+   * sao. Đây cũng là chỗ đã hỏng thật: mọi lá thư từ trước tới nay đều trỏ vào
+   * `/policies/:id` — đường của API, không phải của giao diện.
+   */
+  it('hai đường dẫn xuất hiện trong thư đều mở được, với mọi vai trò', () => {
+    for (const v of VAI_TRO) {
+      expect(kieu(noiDung('/ho-so/abc-123', v)), `${v} · mở hồ sơ`).not.toBe(KhongCoManHinh);
+      expect(kieu(noiDung('/ho-so/abc-123/nhat-ky', v)), `${v} · nhật ký`).not.toBe(
+        KhongCoManHinh,
+      );
+    }
+  });
+
+  it('`/ho-so/moi` KHÔNG bị nuốt bởi mẫu nhật ký hay mẫu chi tiết', () => {
+    // Ba mẫu cùng bắt đầu bằng `/ho-so/`, và thứ tự trong `noiDung()` là thứ
+    // duy nhất giữ chúng khỏi đè nhau.
+    expect(kieu(noiDung('/ho-so/moi', 'TDV'))).not.toBe(KhongCoManHinh);
+    expect(kieu(noiDung('/ho-so/moi', 'TDV'))).not.toBe(kieu(noiDung('/ho-so/abc', 'TDV')));
+  });
+
   it('gõ thẳng địa chỉ ngoài quyền thì bị chặn ở tầng định tuyến, không chỉ ẩn menu', () => {
     // Ẩn mục menu là chưa đủ: gõ địa chỉ vào thanh duyệt là đường đi vòng hiển
     // nhiên nhất. Hai màn hình quản trị phải chặn ở đây.

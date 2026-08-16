@@ -303,6 +303,13 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 - `Quá hạn duyệt` áp dụng chung cho mọi trạng thái chờ. Bản ghi phải lưu kèm **bước đang chờ**
   để khi người phụ trách xử lý muộn thì hồ sơ đi tiếp đúng nhánh cũ.
 - Không có nghiệp vụ **thu hồi**. Muốn thay đổi thì lập CSBH mới.
+- **Mỗi lần đổi trạng thái báo cho MỌI người đã tác động lên hồ sơ**, không chỉ người phải xử lý bước
+  hiện tại. Hai nhóm nhận hai lá thư khác nhau: người phải xử lý nhận liên kết mở **hồ sơ**, người
+  chỉ cần biết nhận liên kết mở **nhật ký hồ sơ**. Không gửi cho người vừa bấm nút, người vừa nhận
+  thư chính, và tài khoản đã vô hiệu hoá.
+- **Nhật ký của một hồ sơ đọc được ở mọi trạng thái**, kể cả ba trạng thái kết thúc — đó là lúc cần
+  nó nhất, vì không còn màn hình nào khác nói chuyện gì đã xảy ra. Phạm vi xem giống hệt phạm vi mở
+  hồ sơ.
 
 ---
 
@@ -705,9 +712,25 @@ Có ở **bốn vai trò trong luồng**: TDV, Trưởng bộ phận, Sale Admin
 đóng băng** của phạm vi người đó mà giá hoặc ngưỡng đã lệch so với danh mục hôm nay — từ *Chờ TBP
 duyệt* cho tới *Đang có hiệu lực*.
 
-Mỗi dòng nói **con số**, không nói "bị ảnh hưởng": lệch cái gì (giá hay ngưỡng), sản phẩm nào, từ bao
-nhiêu sang bao nhiêu. Không kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra rồi tự so —
-đúng cái việc box này sinh ra để khỏi phải làm.
+Mỗi dòng nói **con số**, không nói "bị ảnh hưởng": lệch cái gì, sản phẩm nào, từ đâu sang đâu. Không
+kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra rồi tự so — đúng cái việc box này sinh ra
+để khỏi phải làm.
+
+**BA loại lệch** `sửa 17/08`:
+
+| Loại | Sinh ra khi |
+|---|---|
+| `Giá` | Giá bán Công ty của sản phẩm đổi |
+| `Ngưỡng` | Quy định chiết khấu áp cho dòng đó đổi, **hoặc bị xoá** — khi đó ngưỡng mới là rỗng |
+| `Sản phẩm` | Sản phẩm **bị vô hiệu hoá**, hoặc **bị xoá** khỏi danh mục |
+
+Loại thứ ba là bổ sung của `17/08`. Trước đó vô hiệu hoá một sản phẩm lọt qua sạch — nó không đổi giá
+mà phép rà chỉ so giá và ngưỡng — dù đó là loại lệch **nặng nhất**: một CSBH đang có hiệu lực cho mặt
+hàng không còn bán nữa là một điều khoản không thực hiện được, không cùng hạng với chênh lệch vài
+đồng. Nhãn của nó tô đỏ, hai loại kia thì không.
+
+Cả ba loại đều **gửi email tới TDV phụ trách** khi hồ sơ đang *Đang có hiệu lực*, đúng như quy tắc đã
+có ở muc 7.2.
 
 **Box không có nút nào.** Việc phải làm khác nhau theo vai trò và theo bước — trả lại để sửa, cứ
 duyệt vì chênh lệch không đáng kể, hay lập một CSBH mới — và đó là quyết định của người.
@@ -845,12 +868,28 @@ CSBH đang hiệu lực chuyển **Hết hiệu lực**, khách chưa có hồ s
 lịch sử thì giữ lại kèm nhãn *Đã xoá* để tra cứu hồ sơ cũ.
 
 **Tài khoản** `16/08` — **không đổi được vai trò** sau khi tạo; cần đổi thì vô hiệu hoá tài khoản cũ
-rồi tạo mới · vô hiệu hoá phải **gõ lại họ tên** và **chọn người nhận bàn giao cùng vai trò**, không
+rồi tạo mới · vô hiệu hoá phải **gõ lại tên đăng nhập** (`sửa 17/08` — trước là họ tên, mà họ tên
+không duy nhất nên nó không chứng minh được người quản trị đang nhìn đúng dòng) và **chọn người nhận
+bàn giao cùng vai trò**, không
 chọn thì không vô hiệu hoá được · bàn giao chuyển mọi hồ sơ chưa kết thúc, kể cả Nháp và Đang có
 hiệu lực, giữ nguyên trạng thái, và ghi vết vào **nhật ký của từng hồ sơ** · với TDV thì **khách
 hàng chuyển cùng hồ sơ**, kể cả khách chưa có hồ sơ nào · **KHÔNG hỗ trợ giao lại một hồ sơ lẻ** khi
 người phụ trách vẫn đang làm việc — đổi người chỉ có ở hai chỗ: lúc chọn người trong luồng, và lúc
 vô hiệu hoá tài khoản.
+
+**Xoá đối tượng trong danh mục** `17/08` — mọi thao tác phá huỷ đòi **gõ lại mã nghiệp vụ** của
+chính đối tượng ấy: mã nhóm khi xoá nhóm sản phẩm, mã quy định khi xoá quy định chiết khấu, mã vật tư
+khi **vô hiệu hoá** sản phẩm (sản phẩm không có đường xoá hẳn, nên vô hiệu hoá là thao tác phá huỷ
+của nó), tên đăng nhập khi vô hiệu hoá tài khoản · dùng **mã nghiệp vụ chứ không dùng uuid**: uuid
+không ai gõ, người dùng sẽ sao chép, mà sao chép cũng phản xạ y như bấm nút · phép kiểm nằm ở **máy
+chủ**, không chỉ ở hộp thoại — script dọn dữ liệu và lệnh `curl` cũng phải nói ra thứ mình định xoá ·
+thao tác **không phá huỷ** thì không đòi gì: đổi tên sản phẩm, bật lại sản phẩm đã vô hiệu hoá.
+
+**Thông báo và nhật ký** `17/08` — mỗi lần đổi trạng thái báo cho **mọi người đã tác động** lên hồ
+sơ, không chỉ người phải xử lý bước hiện tại · hai nhóm nhận **hai lá thư khác nhau**, khác ở đường
+dẫn: người phải xử lý mở **hồ sơ**, người chỉ cần biết mở **nhật ký hồ sơ** · **màn hình nhật ký hồ
+sơ** liệt kê đủ mọi bước kể cả bước hệ thống tự chạy, đọc được ở mọi trạng thái, phạm vi xem giống
+hệt phạm vi mở hồ sơ.
 
 **Phân công và phạm vi** `16/08` — TDV chọn Trưởng bộ phận và Kế toán lúc gửi duyệt · Kế toán chọn
 Sale Admin lúc tiếp nhận lần 1 · tiếp nhận lần 2 về đúng người đã nhận lần 1, không chọn lại · phạm

@@ -38,6 +38,29 @@ export class RecipientsClient {
   }
 
   /**
+   * Địa chỉ thư của những người CỤ THỂ, tra thẳng theo id (`0036`).
+   *
+   * Khác `targetsFor` ở chỗ căn bản: bên kia dịch bốn VAI TRÒ trên hồ sơ sang
+   * người, còn ở đây danh sách người đã có sẵn — nó đọc ra từ nhật ký của chính
+   * hồ sơ, nên không còn vai trò nào để dịch. Tài khoản đã vô hiệu hoá bị
+   * identity lọc bỏ: người nghỉ việc vẫn nằm trong nhật ký mãi mãi, và gửi thư
+   * cho họ là gửi vào hộp thư không ai mở.
+   */
+  async byIds(userIds: string[]): Promise<Target[]> {
+    if (userIds.length === 0) return [];
+    const res = await fetch(`${identityUrl()}/internal/users/mail-targets`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'X-Service-Token': mintServiceToken('notification'),
+      },
+      body: JSON.stringify({ userIds }),
+    });
+    if (!res.ok) throw new Error(`identity trả ${res.status} khi tra địa chỉ thư theo id`);
+    return ((await res.json()) as { targets: Target[] }).targets;
+  }
+
+  /**
    * Lọc theo danh sách vai trò của bước, GIỮ NGUYÊN THỨ TỰ vai trò trong bảng
    * muc 3. Người nhận trùng địa chỉ hai lần chỉ xuất hiện một lần.
    */

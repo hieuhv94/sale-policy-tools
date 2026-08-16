@@ -30,7 +30,7 @@ import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { emit } from '../infra/emit.js';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
-import { PoliciesService } from './policies.service.js';
+import { daTacDong, PoliciesService } from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
 const RECIPIENTS: Partial<Record<Action, string[]>> = {
@@ -376,6 +376,8 @@ export class WorkflowService {
           toStatus: step.next,
           action,
           recipients: to,
+          // Mọi người đã từng chạm vào hồ sơ này (`0036`) — xem `daTacDong`.
+          observers: await daTacDong(c, policyId),
           reason: opts.reason ?? null,
           actorId: me.id,
           at: new Date().toISOString(),
@@ -408,6 +410,15 @@ export class WorkflowService {
           toStatus: 'CHO_KT_L1',
           action: 'PUBLISH_SIGNED',
           recipients: ['KE_TOAN'],
+          /*
+           * KHÔNG có `observers` ở đây, khác mọi bước còn lại (`0036`).
+           *
+           * Đây không phải một lần đổi trạng thái do người làm — nó là bước hệ
+           * thống tự chạy ngay sau `TBP_SIGN`, trong cùng transaction. Lá thư
+           * của `TBP_SIGN` vừa bay đi một khoảnh khắc trước và đã nói đúng
+           * chuyện ấy; thêm một lá "để biết" nữa là hai thư về cùng một giây,
+           * và đó là cách nhanh nhất khiến người ta ngừng đọc cả hai.
+           */
           actorId: null,
           at: new Date().toISOString(),
         });
@@ -566,6 +577,7 @@ export class WorkflowService {
 
 const WAITING_STATES = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'];
 const isWaiting = (s: string) => WAITING_STATES.includes(s);
+
 
 /** Lỗi của máy trạng thái sang mã HTTP. Giữ nguyên thông điệp và danh sách gợi ý. */
 function mapDomainError(e: unknown, current: Status): Error {

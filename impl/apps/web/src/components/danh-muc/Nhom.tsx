@@ -28,7 +28,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
     datLoi(null);
     datDangXoa(n.id);
     try {
-      await xoa(`/catalog/product-groups/${n.id}`);
+      await xoa(`/catalog/product-groups/${n.id}`, { confirm: n.code });
       taiLai();
     } catch (e) {
       // `GROUP_IN_USE` là tình huống bình thường, không phải sự cố — nói rõ phải
@@ -103,6 +103,8 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
       />
 
       {hoiXoa && (
+        /* `goLai` — gõ lại MÃ nhóm, không phải tên: hai nhóm trùng tên là
+           chuyện có thật, còn mã thì duy nhất (`0036`). */
         <HopThoaiXacNhan
           tieuDe={`Xoá nhóm "${hoiXoa.name}"`}
           hauQua={
@@ -113,6 +115,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
             </p>
           }
           nhanNut="Xoá nhóm"
+          goLai={hoiXoa.code}
           dangChay={dangXoa === hoiXoa.id}
           dong={() => datHoiXoa(null)}
           xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}

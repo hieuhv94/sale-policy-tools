@@ -41,6 +41,44 @@ export class InternalController {
   }
 
   /**
+   * Địa chỉ thư của một loạt người dùng CỤ THỂ, tra thẳng theo id (`0036`).
+   *
+   * Khác `notify-targets` ở chỗ căn bản: bên kia nhận bốn VAI TRÒ trên hồ sơ rồi
+   * dịch sang người, còn ở đây `notification` đã biết chính xác cần gửi cho ai —
+   * đó là danh sách những người đã từng thao tác lên hồ sơ, đọc ra từ nhật ký
+   * của chính hồ sơ. Không có vai trò nào để dịch, chỉ còn việc tra địa chỉ.
+   *
+   * BỎ QUA tài khoản đã vô hiệu hoá: người đã nghỉ việc từng ký một hồ sơ vẫn
+   * nằm trong nhật ký của nó mãi mãi, và gửi thư cho họ là gửi vào một hộp thư
+   * không ai mở — hoặc tệ hơn, vào hộp thư công ty đã cấp lại cho người khác.
+   */
+  @Post('users/mail-targets')
+  @HttpCode(200)
+  async mailTargets(@Body() body: unknown) {
+    const ids = (body as { userIds?: unknown }).userIds;
+    if (!Array.isArray(ids) || ids.length > 200) {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'userIds',
+        message: 'userIds phải là mảng tối đa 200 phần tử',
+      });
+    }
+    if (ids.length === 0) return { targets: [] };
+    const rows = await this.db.q<{
+      userId: string;
+      role: string;
+      email: string;
+      fullName: string;
+    }>(
+      `SELECT id AS "userId", role::text AS role, email, full_name AS "fullName"
+         FROM idn.app_user
+        WHERE id = ANY($1::uuid[]) AND is_active`,
+      [ids as string[]],
+    );
+    return { targets: rows };
+  }
+
+  /**
    * Tên hiển thị của một loạt người dùng.
    *
    * `reporting` cần "người đề nghị" và "TDV phụ trách" hiện ra bằng TÊN chứ

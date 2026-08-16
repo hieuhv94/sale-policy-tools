@@ -23,6 +23,7 @@
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
     "./chung": "./src/components/Chung.tsx",
     "./tong-quan-ui": "./src/pages/TongQuan.tsx",
+    "./nhat-ky-ho-so": "./src/pages/NhatKyHoSo.tsx",
     "./yeu-cau-cap-nhat": "./src/components/khoi/YeuCauCapNhat.tsx",
     "./phan-trang": "./src/lib/phan-trang.ts",
     "./phan-trang-ui": "./src/components/PhanTrang.tsx"

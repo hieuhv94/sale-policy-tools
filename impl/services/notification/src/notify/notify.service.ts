@@ -53,6 +53,8 @@ export class NotifyService {
     const claimed = await this.claim(ev, s(p['policyId']), s(p['customerId']));
     if (!claimed) return 'duplicate';
 
+    /** Lá thư chính đã bay đi chưa — quyết định nhánh dọn dẹp ở `catch`. */
+    let daGuiChinh = false;
     try {
       // Bốn người của hồ sơ đi kèm sự kiện (`0031`). Sự kiện cũ trong hàng đợi
       // hoặc trong bảng thư hỏng không có ba khoá này — chúng rơi về `undefined`
@@ -99,14 +101,28 @@ export class NotifyService {
       await this.db.q(
         `UPDATE ntf.sent_mail
             SET message_id = $2, to_addresses = $3, subject = $4, thread_key = $5, attempts = $6
-          WHERE event_id = $1`,
+          WHERE event_id = $1 AND kind = 'CHINH'`,
         [ev.eventId, sent.messageId, sent.to, subject, threadKey, sent.attempts],
       );
+      daGuiChinh = true;
+
+      await this.baoNguoiDaTacDong(ev, mail, targets, threadKey);
       return 'sent';
     } catch (e) {
-      // Trả lại chỗ đã giữ. Không làm bước này thì sự kiện vĩnh viễn bị coi là
-      // "đã gửi" và lần gửi lại từ DLQ nào cũng bị chặn vì trùng event_id.
-      await this.db.q(`DELETE FROM ntf.sent_mail WHERE event_id = $1`, [ev.eventId]);
+      /*
+       * Trả lại chỗ đã giữ. Không làm bước này thì sự kiện vĩnh viễn bị coi là
+       * "đã gửi" và lần gửi lại từ DLQ nào cũng bị chặn vì trùng khoá.
+       *
+       * NHƯNG CHỈ KHI LÁ THƯ CHÍNH CHƯA ĐI (`0037`). Nếu nó đã gửi rồi thì hỏng
+       * ở đây là hỏng của thứ khác, và trả lại chỗ là biến một lỗi phụ thành
+       * một lá thư trùng ở lần gửi lại. Đã dính đúng lỗi này: lá thư "để biết"
+       * ném lỗi kiểu dữ liệu và kéo theo cả sự kiện đã gửi xong vào DLQ.
+       */
+      if (!daGuiChinh) {
+        await this.db.q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'CHINH'`, [
+          ev.eventId,
+        ]);
+      }
       await this.db.q(
         `INSERT INTO ntf.dead_letter (event_id, routing_key, payload, attempts, last_error)
          VALUES ($1,$2,$3::jsonb,$4,$5)`,
@@ -124,19 +140,101 @@ export class NotifyService {
   }
 
   /**
+   * Thư THỨ HAI: "để biết", gửi cho mọi người đã từng thao tác lên hồ sơ (`0036`).
+   *
+   * Vì sao là hai lá thư chứ không phải một lá gửi cho nhiều người hơn: HAI
+   * NHÓM CẦN HAI ĐƯỜNG DẪN KHÁC NHAU. Người phải xử lý cần mở thẳng hồ sơ để
+   * bấm nút; người chỉ cần biết thì mở hồ sơ ra chẳng có nút nào, nên liên kết
+   * của họ trỏ vào NHẬT KÝ — nơi trả lời đúng câu họ đang hỏi: "từ lúc tôi rời
+   * tay, hồ sơ này đã đi qua những đâu". Một lá thư chỉ mang được một liên kết.
+   *
+   * TRỪ BA NHÓM khỏi danh sách:
+   *   * Người đã nhận lá thư thứ nhất — nhận hai thư cho một sự kiện là cách
+   *     nhanh nhất khiến người ta ngừng đọc cả hai.
+   *   * Người vừa bấm nút — họ vừa nhìn thấy kết quả trên màn hình.
+   *   * Tài khoản đã vô hiệu hoá — lọc ở identity (`users/mail-targets`).
+   *
+   * HỎNG THÌ NUỐT. Đây là thư phụ; để nó kéo cả sự kiện vào DLQ là biến một
+   * tiện ích thành một điểm hỏng cho lá thư chính — mà lá thư chính đã gửi
+   * xong rồi, gửi lại từ DLQ sẽ thành thư trùng.
+   */
+  private async baoNguoiDaTacDong(
+    ev: Incoming,
+    mail: MailEvent,
+    daNhan: { userId: string }[],
+    threadKey: string,
+  ): Promise<void> {
+    const p = ev.payload;
+    const ids = Array.isArray(p['observers']) ? (p['observers'] as string[]) : [];
+    if (ids.length === 0) return;
+
+    const bo = new Set([...daNhan.map((t) => t.userId), s(p['actorId']) ?? '']);
+    const conLai = [...new Set(ids)].filter((id) => typeof id === 'string' && !bo.has(id));
+    if (conLai.length === 0) return;
+
+    /*
+     * CÙNG `event_id`, khác `kind` (`0037`).
+     *
+     * Bản đầu tôi nhét hậu tố vào chính `event_id` (`<uuid>:theo-doi`) và cột
+     * kiểu `uuid` từ chối — ở đúng chỗ tệ nhất, SAU khi lá thư chính đã gửi.
+     * Khoá chống trùng giờ là cặp `(event_id, kind)`.
+     */
+    try {
+      const targets = await this.recipients.byIds(conLai);
+      if (targets.length === 0) return;
+      if (
+        !(await this.claim(ev, s(p['policyId']), s(p['customerId']), 'THEO_DOI'))
+      ) {
+        return;
+      }
+
+      // `eventId` của LÁ THƯ, dùng làm `Message-ID` — phải khác lá thư chính,
+      // nếu không trình khách gộp hai thư thành một.
+      const eventId = `${ev.eventId}:theo-doi`;
+      const theoDoi: MailEvent = { ...mail, eventId, chiDeBiet: true };
+      const subject = subjectFor(theoDoi);
+      const sent = await this.mailer.send({
+        eventId,
+        to: targets.map((t) => t.email),
+        subject,
+        text: bodyFor(theoDoi, this.mailer.cfg.webBaseUrl),
+        threadKey,
+      });
+      await this.db.q(
+        `UPDATE ntf.sent_mail
+            SET message_id = $2, to_addresses = $3, subject = $4, thread_key = $5, attempts = 1
+          WHERE event_id = $1 AND kind = 'THEO_DOI'`,
+        [ev.eventId, sent.messageId, sent.to, subject, threadKey],
+      );
+    } catch (e) {
+      await this.db
+        .q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'THEO_DOI'`, [ev.eventId])
+        .catch(() => undefined);
+      this.log.warn(`không gửi được thư "để biết" cho ${ev.eventId}: ${String(e)}`);
+    }
+  }
+
+  /**
    * Giữ chỗ bằng chính ràng buộc UNIQUE của CSDL, không bằng SELECT rồi INSERT.
    *
    * Hai bản notification chạy song song cùng nhận một sự kiện thì cả hai đều
    * thấy "chưa có" ở câu SELECT, và cả hai đều gửi. `ON CONFLICT DO NOTHING`
    * thì đúng một bản thắng, không cần khoá phân tán nào (NTF-06).
    */
-  private async claim(ev: Incoming, policyId?: string, customerId?: string): Promise<boolean> {
+  private async claim(
+    ev: Incoming,
+    policyId?: string,
+    customerId?: string,
+    /** `0037` — một sự kiện có hai lá thư, nên khoá chống trùng là CẶP. */
+    kind: 'CHINH' | 'THEO_DOI' = 'CHINH',
+  ): Promise<boolean> {
     const r = await this.db.q<{ id: string }>(
-      `INSERT INTO ntf.sent_mail (event_id, routing_key, policy_id, customer_id, message_id, to_addresses, subject)
-       VALUES ($1,$2,$3,$4,'','{}','')
-       ON CONFLICT (event_id) DO NOTHING
+      `INSERT INTO ntf.sent_mail
+         (event_id, kind, routing_key, policy_id, customer_id, message_id, to_addresses, subject)
+       VALUES ($1,$5,$2,$3,$4,'','{}','')
+       ON CONFLICT (event_id, kind) DO NOTHING
        RETURNING id`,
-      [ev.eventId, ev.routingKey, policyId ?? null, customerId ?? null],
+      [ev.eventId, ev.routingKey, policyId ?? null, customerId ?? null, kind],
     );
     return r.length > 0;
   }

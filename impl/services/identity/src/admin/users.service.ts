@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
-import { paged, type Page } from '@csbh/http-kit';
+import { paged, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { CONFIG } from '../infra/config.js';
 import { Mailer } from '../infra/mailer.js';
@@ -258,12 +258,20 @@ export class UsersService {
   async setActive(
     userId: string,
     isActive: boolean,
-    opts: { confirmName?: string | undefined; successorId?: string | undefined; actorId: string } = {
-      actorId: '',
-    },
+    opts: {
+      confirmUsername?: string | undefined;
+      successorId?: string | undefined;
+      actorId: string;
+    } = { actorId: '' },
   ) {
-    const u = await this.db.one<{ role: RoleValue; full_name: string; is_active: boolean }>(
-      `SELECT role::text AS role, full_name, is_active FROM idn.app_user WHERE id = $1`,
+    const u = await this.db.one<{
+      role: RoleValue;
+      username: string;
+      full_name: string;
+      is_active: boolean;
+    }>(
+      `SELECT role::text AS role, username, full_name, is_active
+         FROM idn.app_user WHERE id = $1`,
       [userId],
     );
     if (!u) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
@@ -275,16 +283,19 @@ export class UsersService {
     let chuyenKhach: { count: number } = { count: 0 };
 
     if (!isActive) {
-      // So sau khi chuẩn hoá khoảng trắng và chữ hoa: người quản trị chép tên từ
-      // màn hình sang, và một dấu cách thừa không phải là bấm nhầm.
-      const chuan = (x: string) => x.trim().replace(/\s+/g, ' ').toLocaleLowerCase('vi');
-      if (chuan(opts.confirmName ?? '') !== chuan(u.full_name)) {
-        throw new BadRequestException({
-          code: 'CONFIRM_NAME_MISMATCH',
-          field: 'confirmName',
-          message: `Gõ đúng họ tên "${u.full_name}" để xác nhận vô hiệu hoá tài khoản này.`,
-        });
-      }
+      /*
+       * Gõ lại TÊN ĐĂNG NHẬP, không phải họ tên (`0036`).
+       *
+       * Đổi từ `confirmName`. Họ tên KHÔNG duy nhất — hai "Nguyễn Văn An" trong
+       * cùng một danh sách là chuyện bình thường ở đây — nên gõ đúng họ tên
+       * không chứng minh được người quản trị đang nhìn đúng dòng, mà đó là toàn
+       * bộ việc phép kiểm này phải làm. Tên đăng nhập thì duy nhất, ngắn hơn, và
+       * cũng là chuỗi các đối tượng khác dùng để xác nhận sau `0036`.
+       */
+      xacNhanGoLai(opts.confirmUsername, u.username, {
+        field: 'confirmUsername',
+        viec: 'vô hiệu hoá tài khoản này',
+      });
 
       const dangGiu = await this.policies.xemTruoc(userId, u.role);
       // Khách hàng tính vào điều kiện "cần người nhận", không chỉ hồ sơ. Một TDV

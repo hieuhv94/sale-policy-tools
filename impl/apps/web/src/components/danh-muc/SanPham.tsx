@@ -246,15 +246,30 @@ function HopThoaiTao({
 function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: () => void }) {
   const [ten, datTen] = useState(sp.name);
   const [trangThai, datTrangThai] = useState<TrangThaiSanPham>(sp.status);
+  const [go, datGo] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+
+  /*
+   * VÔ HIỆU HOÁ là thao tác phá huỷ của sản phẩm — không có đường xoá hẳn — nên
+   * nó đòi gõ lại mã (`0036`), y như xoá nhóm hay xoá quy định.
+   *
+   * Chỉ đòi khi đang BẬT sang vô hiệu hoá, không đòi khi bật lại và không đòi
+   * khi chỉ sửa tên. Bắt gõ mã cho mọi lần lưu là làm mòn chính chốt chặn ấy:
+   * người dùng gõ mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá.
+   */
+  const dangVoHieu = trangThai === 'DA_VO_HIEU_HOA' && sp.status !== 'DA_VO_HIEU_HOA';
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
     datDangGui(true);
     try {
-      await va(`/catalog/products/${sp.id}`, { name: ten.trim(), status: trangThai });
+      await va(`/catalog/products/${sp.id}`, {
+        name: ten.trim(),
+        status: trangThai,
+        ...(dangVoHieu ? { confirm: go.trim() } : {}),
+      });
       xong();
     } catch (err) {
       datLoi(err);
@@ -297,9 +312,39 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
           và giá đã đóng băng.
         </p>
 
+        {dangVoHieu && (
+          <>
+            {/* Nói HẬU QUẢ THẬT thay vì một câu hỏi rỗng nghĩa: vô hiệu hoá
+                một sản phẩm gửi thư đi khắp nơi, và người bấm nút cần biết
+                điều đó TRƯỚC khi bấm. */}
+            <div className="hop-canh-bao" role="note">
+              Mọi CSBH <strong>đang có hiệu lực</strong> còn chứa sản phẩm này sẽ hiện trong khối{' '}
+              <strong>Yêu cầu cập nhật</strong> của người phụ trách, kèm một lá thư tới từng Trình
+              dược viên. Sản phẩm cũng biến khỏi ô chọn khi lập hồ sơ mới.
+            </div>
+            <Truong id="sp-sua-xn" nhan={`Gõ lại mã "${sp.code}" để xác nhận vô hiệu hoá`} bắtBuộc>
+              {(p) => (
+                <input
+                  {...p}
+                  className="o-nhap"
+                  autoComplete="off"
+                  value={go}
+                  onChange={(e) => datGo(e.target.value)}
+                />
+              )}
+            </Truong>
+          </>
+        )}
+
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || ten.trim() === ''}>
+          <button
+            type="submit"
+            className="nut nut-chinh"
+            disabled={
+              dangGui || ten.trim() === '' || (dangVoHieu && go.trim() !== sp.code)
+            }
+          >
             {dangGui ? 'Đang lưu…' : 'Lưu'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>

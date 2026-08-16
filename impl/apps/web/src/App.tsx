@@ -14,6 +14,7 @@ import { LapHoSo } from './pages/LapHoSo.js';
 import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
+import { NhatKyHoSo } from './pages/NhatKyHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
 import { BaoCao } from './pages/BaoCao.js';
 import { NhatKy } from './pages/NhatKy.js';
@@ -73,6 +74,12 @@ export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/ho-so/moi') {
     return can(vaiTro, 'lapHoSo') ? <LapHoSo /> : <KhongCoQuyen />;
   }
+
+  // ĐỨNG TRƯỚC `/ho-so/:id` vì cùng lý do với `/ho-so/moi`: bắt theo thứ tự,
+  // và `khop` so số đoạn nên hai mẫu này không đụng nhau — nhưng đặt sau thì
+  // người sửa sau dễ chèn nhầm một mẫu hai đoạn vào giữa.
+  const nk = khop('/ho-so/:id/nhat-ky', duong);
+  if (nk) return <NhatKyHoSo id={nk['id']!} />;
 
   const hs = khop('/ho-so/:id', duong);
   if (hs) return <ChiTietHoSo id={hs['id']!} />;

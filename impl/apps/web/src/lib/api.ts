@@ -200,7 +200,16 @@ export const va = <T,>(duong: string, body: unknown): Promise<T> =>
 export const dat = <T,>(duong: string, body: unknown): Promise<T> =>
   goi<T>(duong, { method: 'PUT', body });
 
-export const xoa = <T,>(duong: string): Promise<T> => goi<T>(duong, { method: 'DELETE' });
+/**
+ * Xoá. `body` là chuỗi xác nhận "gõ lại tên của thứ sắp mất" (`0036`).
+ *
+ * `DELETE` có thân request là chuyện hiếm nhưng hợp lệ, và ở đây đúng hơn hai
+ * lựa chọn kia: tham số truy vấn thì chuỗi xác nhận nằm trong URL và đi thẳng
+ * vào log máy chủ, còn một header riêng thì không ai gõ tay lại được bằng
+ * `curl` lúc cần.
+ */
+export const xoa = <T,>(duong: string, body?: unknown): Promise<T> =>
+  goi<T>(duong, { method: 'DELETE', ...(body !== undefined ? { body } : {}) });
 
 /** Gửi file. `FormData` đi thẳng, `goi()` tự bỏ qua bước đặt `content-type`. */
 export const guiTep = <T,>(duong: string, form: FormData): Promise<T> =>

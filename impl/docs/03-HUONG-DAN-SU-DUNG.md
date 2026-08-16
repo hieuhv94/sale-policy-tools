@@ -120,9 +120,20 @@ toán L2: 7" thì không làm được gì với con số ấy.
 Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, Kế toán**. Khối này chỉ hiện khi có
 việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
 
-Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà giá hoặc ngưỡng
-chiết khấu trên hồ sơ **đã khác với danh mục hiện tại**. Mỗi dòng nói rõ: lệch giá hay lệch ngưỡng,
-sản phẩm nào, **từ bao nhiêu sang bao nhiêu**.
+Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà nội dung trên hồ sơ
+**đã khác với danh mục hiện tại**. Mỗi dòng nói rõ: lệch cái gì, sản phẩm nào, **từ đâu sang đâu**.
+
+Ba loại lệch, phân biệt bằng nhãn màu ở đầu dòng:
+
+| Nhãn | Nghĩa |
+|---|---|
+| **Giá** | Giá bán Công ty của sản phẩm đã đổi |
+| **Ngưỡng** | Quy định chiết khấu áp cho dòng đó đã đổi, hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
+| **Sản phẩm** | Sản phẩm **đã bị vô hiệu hoá**, hoặc **đã bị xoá** khỏi danh mục |
+
+Nhãn **Sản phẩm** tô đỏ, hai nhãn kia thì không — và đó là chủ ý. Lệch vài đồng là chuyện để cân
+nhắc; còn một CSBH đang có hiệu lực cho mặt hàng không còn bán nữa là **một điều khoản không thực
+hiện được**.
 
 Vì sao cần: hồ sơ đã gửi duyệt thì đóng băng số, và đó là chủ ý — không ai được sửa một văn bản đang
 chờ chữ ký. Hệ quả là hồ sơ nằm trên bàn bạn có thể mang con số đã lỗi thời mà **không có gì trên hồ
@@ -400,6 +411,43 @@ cùng vai trò không thấy, không mở.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
 
+### Ai nhận thư khi hồ sơ đổi trạng thái
+
+**Hai nhóm, hai lá thư khác nhau.**
+
+| Nhóm | Nhận gì | Liên kết trong thư dẫn tới |
+|---|---|---|
+| Người **phải xử lý** bước tiếp theo | Thư chính | **Hồ sơ** — mở ra là bấm nút được ngay |
+| Người **đã từng thao tác** lên hồ sơ nhưng giờ không có việc | Thư *để biết* | **Nhật ký hồ sơ** |
+
+Nhóm thứ hai là điểm khác so với trước: hồ sơ đi tiếp thì mọi người đã đi qua nó đều được báo, không
+chỉ người đang cầm nó. Trường hợp rõ nhất là **Trưởng bộ phận đã bị thay**: người thứ nhất trả hồ sơ
+về, người lập sửa rồi gửi cho một Trưởng bộ phận khác — người thứ nhất không còn liên quan tới hồ sơ
+theo bất kỳ ô nào trên màn hình, nhưng họ đã đọc nó và đã viết lý do trả lại, nên họ vẫn được báo.
+
+Thư *để biết* nói thẳng ở thân thư rằng bạn **không phải xử lý gì**, và liên kết của nó mở **nhật
+ký** chứ không mở hồ sơ: mở hồ sơ ra bạn chẳng có nút nào bấm được, còn thứ bạn muốn biết là hồ sơ đã
+đi qua những đâu từ lúc bạn rời tay.
+
+Ba nhóm **không** nhận thư *để biết*: người vừa nhận thư chính (nhận hai thư cho một sự kiện là cách
+nhanh nhất khiến người ta ngừng đọc cả hai), người **vừa bấm nút** (họ vừa nhìn thấy kết quả trên
+màn hình), và tài khoản **đã bị vô hiệu hoá**.
+
+### Nhật ký hồ sơ
+
+Liên kết **Nhật ký** nằm ngay dưới mã hồ sơ trên màn hình chi tiết. Nó liệt kê **toàn bộ** các bước
+hồ sơ đã đi qua, cũ nhất trước: thời điểm, việc gì, chuyển từ trạng thái nào sang trạng thái nào, ai
+làm, và lý do nếu bước đó có.
+
+- **Có cả những bước không ai bấm** — hệ thống tự chuyển sang Kế toán sau khi Trưởng bộ phận ký, tự
+  đánh dấu quá hạn, bàn giao khi một tài khoản bị vô hiệu hoá. Chúng ghi người thực hiện là *Hệ
+  thống*.
+- **Nhật ký chỉ ghi thêm** — không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
+- **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Từ chối*, *Đã xoá* hay *Hết hiệu lực*. Đó chính là
+  lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
+- Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được nhật ký của nó, không thấy thì
+  không.
+
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật. Trước hạn một ngày hệ
 thống gửi thư nhắc; quá hạn thì hồ sơ chuyển *Quá hạn duyệt* nhưng **vẫn đi tiếp đúng nhánh cũ**.
 
@@ -530,8 +578,12 @@ Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
    đọc được câu thứ nhất trước khi quyết định.
 2. **Người nhận bàn giao** — **bắt buộc** nếu còn hồ sơ **hoặc còn khách hàng**, và phải **cùng vai
    trò**, đang hoạt động, đã kích hoạt. Không chọn thì **không vô hiệu hoá được**.
-3. **Gõ lại họ tên** của người bị vô hiệu hoá. Chỉ khác dấu cách hay chữ hoa thì vẫn nhận — chép từ
-   màn hình sang là chuyện bình thường; cái cần chặn là bấm nhầm dòng.
+3. **Gõ lại tên đăng nhập** của người bị vô hiệu hoá. Chỉ khác khoảng trắng hay chữ hoa thì vẫn
+   nhận — chép từ màn hình sang là chuyện bình thường; cái cần chặn là bấm nhầm dòng.
+
+   Tên đăng nhập chứ không phải họ tên: **họ tên không duy nhất**. Hai người trùng tên trong cùng một
+   danh sách là chuyện bình thường, nên gõ đúng họ tên không chứng minh được bạn đang nhìn đúng dòng
+   — mà đó là toàn bộ việc phép xác nhận này phải làm.
 
 > **Vì sao bàn giao là bắt buộc.** Hồ sơ ghi thẳng id người xử lý lên chính nó. Vô hiệu hoá mà không
 > chuyển giao là để lại những hồ sơ **không ai nhìn thấy và không ai thao tác được** — chúng không
@@ -596,6 +648,10 @@ phẩm, ở dạng chỉ đọc.
 
 - **Mã vật tư không sửa được** sau khi tạo. Hồ sơ CSBH đã lập đóng băng mã này.
 - **Vô hiệu hoá** chỉ chặn hồ sơ **lập mới**. Hồ sơ cũ giữ nguyên sản phẩm và giá đã đóng băng.
+  Nhưng nó **không im lặng**: mọi CSBH đang hiệu lực còn chứa sản phẩm ấy hiện ngay trong khối *Yêu
+  cầu cập nhật* của người phụ trách, kèm một lá thư tới từng Trình dược viên. Vì thế hộp thoại bắt
+  bạn **gõ lại mã vật tư** để xác nhận — đây là thao tác phá huỷ duy nhất của sản phẩm, vì không có
+  đường xoá hẳn. Đổi tên hay **bật lại** thì không đòi gì.
 - **Giá không phải một ô** — nó là chuỗi dòng có ngày hiệu lực. Nút *Giá* mở lịch sử và cho đặt giá
   mới. Giá hiện hành là dòng mới nhất có ngày **không ở tương lai**: đặt giá cho ngày mai thì hôm nay
   vẫn dùng giá cũ.
@@ -608,6 +664,7 @@ phẩm, ở dạng chỉ đọc.
 **Thẻ Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
 nhóm. **Làm thẻ này trước** nếu danh mục còn trống: chưa có nhóm nào thì nút *Tạo sản phẩm* bên thẻ
 kia không bấm được. Không xoá được nhóm đang có sản phẩm; chuyển sản phẩm sang nhóm khác trước.
+Xoá nhóm đòi **gõ lại mã nhóm** — mã chứ không phải tên, vì hai nhóm trùng tên là chuyện có thật.
 
 ### 13.2. Chiết khấu
 
@@ -661,6 +718,9 @@ bằng cột *Id* cộng cột *QĐCK*.
   đây chỉ áp dụng cho hồ sơ lập **từ đây về sau**.
 - Muốn một quy định thôi áp dụng thì **xoá dòng**, hoặc khai một dòng cụ thể hơn đè lên. Xoá **không**
   làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
+- **Xoá đòi gõ lại mã quy định.** Và xoá **không im lặng**: mọi CSBH đã gửi duyệt còn dùng ngưỡng của
+  quy định ấy hiện ngay trong khối *Yêu cầu cập nhật*, với ngưỡng mới là **rỗng** — không quy định
+  nào phủ nữa. CSBH đang hiệu lực thì còn kèm một lá thư tới Trình dược viên phụ trách.
 
 > **Danh mục tra cứu đã bỏ.** Khối tỉnh/thành · bệnh viện · kênh bán dưới bảng quy định không còn:
 > ngưỡng chỉ khớp theo **nhóm sản phẩm × loại khách hàng**, và ba danh mục ấy không còn ô nào để điền

@@ -59,7 +59,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
     datLoi(null);
     datDangXoa(q.code);
     try {
-      await xoa(`/catalog/discount-rules/${encodeURIComponent(q.code)}`);
+      await xoa(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, { confirm: q.code });
       taiLai();
     } catch (e) {
       datLoi(e);
@@ -190,6 +190,9 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
       )}
 
       {hoiXoa && (
+        /* `goLai` — gõ lại MÃ quy định (`0036`). Máy chủ đòi đúng chuỗi ấy
+           trong thân request, nên đây không phải một hộp thoại lịch sự mà là
+           một phần của lời gọi. */
         <HopThoaiXacNhan
           tieuDe="Xoá quy định chiết khấu"
           hauQua={
@@ -201,6 +204,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
             </p>
           }
           nhanNut="Xoá quy định"
+          goLai={hoiXoa.code}
           dangChay={dangXoa === hoiXoa.code}
           dong={() => datHoiXoa(null)}
           xacNhan={() => void go(hoiXoa).then(() => datHoiXoa(null))}
