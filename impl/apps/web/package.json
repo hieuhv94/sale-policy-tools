@@ -22,7 +22,9 @@
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
     "./chung": "./src/components/Chung.tsx",
     "./tong-quan-ui": "./src/pages/TongQuan.tsx",
-    "./yeu-cau-cap-nhat": "./src/components/khoi/YeuCauCapNhat.tsx"
+    "./yeu-cau-cap-nhat": "./src/components/khoi/YeuCauCapNhat.tsx",
+    "./phan-trang": "./src/lib/phan-trang.ts",
+    "./phan-trang-ui": "./src/components/PhanTrang.tsx"
   },
   "scripts": {
     "build": "vite build",

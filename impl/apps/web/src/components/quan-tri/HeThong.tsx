@@ -10,6 +10,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, dat, layJson } from '../../lib/api.js';
 import { ngayGio } from '../../lib/format.js';
 import { BaoLoi, DangTai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
+import { PhanTrang } from '../PhanTrang.js';
+import { useTrangMay } from '../../lib/phan-trang.js';
 
 type CauHinhSla = {
   days: number;
@@ -165,30 +167,27 @@ function CauHinhHanXuLy() {
 // --- Thư hỏng ----------------------------------------------------------------
 
 function ThuHongChuaXuLy() {
-  const [ds, datDs] = useState<ThuHong[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [ketQua, datKetQua] = useState<string | null>(null);
-  const [lan, datLan] = useState(0);
   const [hienDaXong, datHienDaXong] = useState(false);
+  // Lỗi của thao tác GỬI LẠI, tách khỏi lỗi của lượt tải danh sách: một lần gửi
+  // lại hỏng không được xoá mất bảng đang hiện.
+  const [loiGui, datLoiGui] = useState<unknown>(null);
 
-  const taiLai = useCallback(() => datLan((x) => x + 1), []);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    const hoi = hienDaXong ? '?limit=50' : '?open=true&limit=50';
-    layJson<{ items: ThuHong[] }>(`/notifications/dead-letters${hoi}`, huy.signal)
-      .then((r) => datDs(r.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [lan, hienDaXong]);
+  const {
+    muc: ds,
+    tong,
+    loi,
+    trang,
+    soTrang,
+    doiTrang,
+    taiLai,
+  } = useTrangMay<ThuHong>(hienDaXong ? '/notifications/dead-letters' : '/notifications/dead-letters?open=true');
 
   const [hoiGui, datHoiGui] = useState<ThuHong | null>(null);
 
   const guiLai = async (t: ThuHong) => {
-    datLoi(null);
+    datLoiGui(null);
     datKetQua(null);
     datDangChay(t.id);
     try {
@@ -204,7 +203,7 @@ function ThuHongChuaXuLy() {
       );
       taiLai();
     } catch (e) {
-      datLoi(e);
+      datLoiGui(e);
     } finally {
       datDangChay(null);
     }
@@ -225,15 +224,12 @@ function ThuHongChuaXuLy() {
         <input
           type="checkbox"
           checked={hienDaXong}
-          onChange={(e) => {
-            datHienDaXong(e.target.checked);
-            datDs(null);
-          }}
+          onChange={(e) => datHienDaXong(e.target.checked)}
         />
         Hiện cả thư đã xử lý
       </label>
 
-      {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
+      {loiGui !== null && <BaoLoi loi={loiGui} />}
       {ketQua && (
         <p className="ghi-chu" role="status">
           {ketQua}
@@ -287,6 +283,7 @@ function ThuHongChuaXuLy() {
           </table>
         </div>
       )}
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="thư" />
 
       {hoiGui && (
         <HopThoaiXacNhan

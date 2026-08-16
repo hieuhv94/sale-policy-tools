@@ -10,8 +10,6 @@
  * ở `lib/tong-quan.ts` rồi dựng theo. Thêm một vai trò là thêm một dòng vào hai
  * bảng đó, không phải sửa ở đây.
  */
-import { useEffect, useState } from 'react';
-import { layJson } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { useBaoCao } from '../lib/bao-cao.js';
 import {
@@ -24,6 +22,8 @@ import {
 import type { VaiTro } from '../lib/can.js';
 import { BaoLoi, DangTai } from '../components/Chung.js';
 import { Khoi, ViSaoKhongCoViec } from '../components/khoi/Khung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangMay } from '../lib/phan-trang.js';
 import { DanhSachViec, type MucViec } from '../components/khoi/HopViec.js';
 import { YeuCauCapNhat } from '../components/khoi/YeuCauCapNhat.js';
 import { DaiTheTrangThai, SucKhoeLuong, TheoBuoc, TheoTdv } from '../components/khoi/SoLieu.js';
@@ -54,19 +54,14 @@ export function TongQuan() {
   const { bo, loi: loiBaoCao, luc } = useBaoCao(canBaoCao);
 
   const canViec = khoi.some((k) => CAN_HOP_VIEC.includes(k));
-  const [viec, datViec] = useState<MucViec[] | null>(null);
-  const [loiViec, datLoiViec] = useState<unknown>(null);
-
-  useEffect(() => {
-    if (!canViec) return;
-    const huy = new AbortController();
-    layJson<{ items: MucViec[] }>('/policies/inbox?limit=100', huy.signal)
-      .then((r) => datViec(r.items))
-      .catch((e: unknown) => {
-        if (!huy.signal.aborted) datLoiViec(e);
-      });
-    return () => huy.abort();
-  }, [canViec]);
+  const {
+    muc: viec,
+    tong: tongViec,
+    loi: loiViec,
+    trang: trangViec,
+    soTrang: soTrangViec,
+    doiTrang: doiTrangViec,
+  } = useTrangMay<MucViec>(canViec ? '/policies/inbox' : null);
 
   const veKhoi = (ten: TenKhoi) => {
     switch (ten) {
@@ -96,6 +91,13 @@ export function TongQuan() {
               trongTieuDe="Không có hồ sơ nào đang chờ bạn"
               trongMoTa="Hồ sơ sẽ hiện ở đây khi tới bước bạn phụ trách."
             />
+            <PhanTrang
+              trang={trangViec}
+              soTrang={soTrangViec}
+              tong={tongViec}
+              doiTrang={doiTrangViec}
+              nhan="hồ sơ"
+            />
           </Khoi>
         );
 
@@ -121,6 +123,17 @@ export function TongQuan() {
             <DanhSachViec
               muc={(viec ?? []).filter((v) => buoc(v) === 'CHO_KT_L2')}
               trongTieuDe="Không có hồ sơ nào chờ tiếp nhận lần 2"
+            />
+            {/* MỘT thanh cho cả hai danh sách: máy chủ cắt trang trên hộp việc
+                CHUNG rồi màn hình mới tách đôi theo bước, nên hai nửa không có
+                số trang riêng. Tách trang riêng cho mỗi nửa cần hai lượt gọi và
+                hai bộ đếm — không đáng cho một màn hình chỉ để xem. */}
+            <PhanTrang
+              trang={trangViec}
+              soTrang={soTrangViec}
+              tong={tongViec}
+              doiTrang={doiTrangViec}
+              nhan="hồ sơ"
             />
           </Khoi>
         );

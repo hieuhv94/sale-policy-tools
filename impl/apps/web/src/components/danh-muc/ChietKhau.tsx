@@ -40,6 +40,8 @@ import {
   Truong,
 } from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
+import { PhanTrang } from '../PhanTrang.js';
+import { useTrangTaiCho } from '../../lib/phan-trang.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
   const [ds, datDs] = useState<QuyDinhChietKhau[] | null>(null);
@@ -77,10 +79,14 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
     return () => huy.abort();
   }, [lan]);
 
+  // Lọc trước, cắt trang sau, và cả hai TRÊN mọi `return` sớm — `useTrangTaiCho`
+  // là hook. Cắt tại chỗ để ô tìm kiếm vẫn tìm trên toàn bộ bảng quy định, không
+  // chỉ trong 20 dòng đang hiện.
+  const loc = locQuyDinh(ds ?? [], tim);
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
+
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
-
-  const loc = locQuyDinh(ds, tim);
 
   return (
     <>
@@ -140,7 +146,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
               </tr>
             </thead>
             <tbody>
-              {loc.map((q) => (
+              {cuaTrang.map((q) => (
                 <tr key={q.code}>
                   <td className="ma-quy-dinh">{q.code}</td>
                   <td>{phamViChietKhau(q)}</td>
@@ -173,6 +179,13 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
           </table>
         </div>
           )}
+          <PhanTrang
+            trang={trang}
+            soTrang={soTrang}
+            tong={loc.length}
+            doiTrang={doiTrang}
+            nhan="quy định"
+          />
         </>
       )}
 

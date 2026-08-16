@@ -7,6 +7,8 @@ import { layJson } from '../lib/api.js';
 import { ngay, tien } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangMay } from '../lib/phan-trang.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import {
@@ -33,20 +35,16 @@ export function DanhSachKhachHang() {
   const { di } = useDuong();
   const [moLap, datMoLap] = useState(false);
   const [tim, datTim] = useState('');
-  const [ds, datDs] = useState<KhachHangDto[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    datLoi(null);
-    const q = tim ? `?q=${encodeURIComponent(tim)}&limit=50` : '?limit=50';
-    layJson<{ items: KhachHangDto[] }>(`/customers${q}`, huy.signal)
-      .then((r) => datDs(r.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [tim]);
+  // Tìm kiếm chạy Ở MÁY CHỦ (`?q=`), nên phân trang cũng phải ở máy chủ: cắt
+  // tại chỗ thì trang 2 của một từ khoá không tồn tại.
+  const {
+    muc: ds,
+    tong,
+    loi,
+    trang,
+    soTrang,
+    doiTrang,
+  } = useTrangMay<KhachHangDto>(tim ? `/customers?q=${encodeURIComponent(tim)}` : '/customers');
 
   return (
     <section className="trang">
@@ -72,6 +70,7 @@ export function DanhSachKhachHang() {
       )}
 
       {ds && ds.length > 0 && (
+        <>
         <ul className="danh-sach-the">
           {ds.map((k) => (
             <li key={k.id}>
@@ -88,6 +87,8 @@ export function DanhSachKhachHang() {
             </li>
           ))}
         </ul>
+        <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="khách hàng" />
+        </>
       )}
 
       {moLap && (

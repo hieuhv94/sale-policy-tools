@@ -33,6 +33,8 @@ import {
   Trong,
   Truong,
 } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangTaiCho } from '../lib/phan-trang.js';
 
 export function MauHopDong() {
   const [ds, datDs] = useState<MauDto[] | null>(null);
@@ -57,6 +59,13 @@ export function MauHopDong() {
       });
     return () => huy.abort();
   }, [lan]);
+
+  // `/contract-templates` trả về MẢNG TRẦN, không phân trang ở máy chủ — và đó
+  // là endpoint duy nhất còn như vậy. Khối cảnh báo trên trang Tổng quan đọc
+  // chính mảng ấy để biết "đã có mẫu nào đang áp dụng chưa"; đổi nó sang
+  // `{ items }` là sửa hai chỗ để đổi lấy đúng con số không, vì số mẫu hợp đồng
+  // đếm trên đầu ngón tay. Cắt trang tại chỗ.
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(ds ?? []);
 
   const chay = async (t: MauDto, duong: string) => {
     datLoi(null);
@@ -129,7 +138,7 @@ export function MauHopDong() {
               </tr>
             </thead>
             <tbody>
-              {ds.map((t) => (
+              {cuaTrang.map((t) => (
                 <tr key={t.id}>
                   <td>{t.name}</td>
                   <td>
@@ -175,6 +184,13 @@ export function MauHopDong() {
           </table>
         </div>
       )}
+      <PhanTrang
+        trang={trang}
+        soTrang={soTrang}
+        tong={ds?.length ?? 0}
+        doiTrang={doiTrang}
+        nhan="mẫu"
+      />
 
       {hoi && (
         <HopThoaiXacNhan

@@ -30,6 +30,8 @@ import {
   Truong,
 } from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
+import { PhanTrang } from '../PhanTrang.js';
+import { useTrangTaiCho } from '../../lib/phan-trang.js';
 
 export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
   const [ds, datDs] = useState<SanPham[] | null>(null);
@@ -53,10 +55,20 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
     return () => huy.abort();
   }, [lan]);
 
+  /*
+   * Lọc TRƯỚC, cắt trang SAU — và cả hai phải nằm TRÊN mọi lệnh `return` sớm,
+   * vì `useTrangTaiCho` là một hook: gọi nó sau một `return` có điều kiện là đổi
+   * số hook giữa hai lần vẽ, và React sẽ ném.
+   *
+   * Cắt trang TẠI CHỖ chứ không nhờ máy chủ: ô tìm kiếm bỏ dấu ở đây chạy trên
+   * dữ liệu đã tải, nên cắt ở máy chủ là biến nó thành "tìm trong 20 dòng đang
+   * hiện" — gãy đúng cái việc nó sinh ra để làm.
+   */
+  const loc = locSanPham(ds ?? [], tim);
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
+
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
-
-  const loc = locSanPham(ds, tim);
 
   const dong = () => datMo(null);
   const xong = () => {
@@ -125,7 +137,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
               </tr>
             </thead>
             <tbody>
-              {loc.map((s) => (
+              {cuaTrang.map((s) => (
                 <tr key={s.id}>
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
@@ -147,6 +159,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
           </table>
         </div>
       )}
+      <PhanTrang trang={trang} soTrang={soTrang} tong={loc.length} doiTrang={doiTrang} nhan="sản phẩm" />
 
       {mo?.kieu === 'tao' && <HopThoaiTao nhom={nhom} dong={dong} xong={xong} />}
       {mo?.kieu === 'sua' && <HopThoaiSua sp={mo.sp} dong={dong} xong={xong} />}

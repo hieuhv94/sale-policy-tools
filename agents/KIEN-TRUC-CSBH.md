@@ -1308,6 +1308,10 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | FE-34 | Quét axe-core trên 5 màn hình chính ở cả 3 điểm gãy | Không lỗi mức nghiêm trọng; mọi ô nhập có nhãn gắn đúng | — | `P1` |
 | FE-35 | Làm trọn luồng duyệt của TBP chỉ bằng bàn phím | Hoàn tất được; tiêu điểm luôn nhìn thấy; không có bẫy tiêu điểm trong hộp thoại | — | `P1` |
 | FE-36 | Màn hình không có dữ liệu và màn hình lỗi | Có nội dung hướng dẫn việc cần làm tiếp, không phải một bảng rỗng không lời | — | `P2` |
+| FE-37 | Bất kỳ danh sách nào có hơn 20 mục | Hiện **tối đa 20**, kèm thanh phân trang nói rõ trang mấy trên mấy và tổng bao nhiêu. Không danh sách nào bị cắt trong im lặng (`0030`) | §11.3 | `P0` |
+| FE-38 | Đổi bộ lọc hoặc từ khoá khi đang ở trang 7 | Về trang 1 — trang 7 của kết quả mới thường rỗng, và màn hình trắng ngay sau khi gõ đọc ra là "không tìm thấy gì" (`0030`) | §11.3 | `P1` |
+| FE-39 | Xoá mục cuối cùng của trang cuối | Tự lùi về trang còn dữ liệu, không để người dùng nhìn một trang rỗng (`0030`) | §11.3 | `P1` |
+| FE-40 | Màn hình có ô tìm kiếm bỏ dấu chạy tại chỗ (Sản phẩm, Chiết khấu) | Tìm trên **toàn bộ** dữ liệu đã tải rồi mới cắt trang — không phải tìm trong 20 dòng đang hiện (`0030`) | §11.3 | `P0` |
 | FE-37 | Ảnh chụp màn hình đối chiếu ở 3 điểm gãy cho 8 màn hình chính | Khác biệt so với ảnh chuẩn dưới 0,1% điểm ảnh; lệch nhiều hơn thì CI báo đỏ để người xem lại | — | `P1` |
 | FE-38 | Mở màn hình danh sách hồ sơ trên điện thoại tầm trung qua mạng 4G mô phỏng | Dùng được trong dưới 3 giây; gói dùng chung ≤ 250KB nén | — | `P1` |
 

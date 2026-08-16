@@ -13,6 +13,8 @@ import { dang, dat, layJson } from '../lib/api.js';
 import { ngay } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { MOI_TRANG, soTrangCua } from '../lib/phan-trang.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 
@@ -67,6 +69,21 @@ export function DanhSachHoSo() {
   const [boLoc, datBoLoc] = useState<BoLoc>({});
   const [dong, datDong] = useState<Dong[] | null>(null);
   const [tong, datTong] = useState<number | null>(null);
+  /*
+   * NGĂN XẾP CON TRỎ, không phải `offset` (`0030`).
+   *
+   * Danh sách này phân trang bằng con trỏ neo vào `(createdAt, policyId)` — với
+   * `offset`, một hồ sơ mới lập giữa lúc người dùng bấm Sau sẽ đẩy mọi dòng
+   * xuống một bậc, và họ nhận lại một dòng đã đọc trong khi một dòng khác biến
+   * mất. Con trỏ không có chuyện đó, nhưng nó chỉ đi TỚI được.
+   *
+   * Nên giữ lại con trỏ mở đầu MỖI trang đã qua: `moTrang[i]` là con trỏ để lấy
+   * trang thứ `i+1`. Lùi là đọc lại phần tử trước trong ngăn xếp. Đây là cái giá
+   * của con trỏ, và nó rẻ hơn nhiều so với một danh sách trượt dưới tay người
+   * đang đọc.
+   */
+  const [moTrang, datMoTrang] = useState<(string | null)[]>([null]);
+  const [trang, datTrang] = useState(1);
   const [conTrỏ, datConTrỏ] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [moLoc, datMoLoc] = useState(false);
@@ -111,7 +128,11 @@ export function DanhSachHoSo() {
   useEffect(() => {
     const huy = new AbortController();
     datLoi(null);
-    const qs = chuoiTruyVan({ limit: '50' });
+    const mo = moTrang[trang - 1] ?? null;
+    const qs = chuoiTruyVan({
+      limit: String(MOI_TRANG),
+      ...(mo === null ? {} : { cursor: mo }),
+    });
     Promise.all([
       layJson<{ items: Dong[]; nextCursor: string | null }>(`/reports/policies?${qs}`, huy.signal),
       layJson<{ total: number }>(`/reports/policies/count?${chuoiTruyVan()}`, huy.signal),
@@ -125,7 +146,27 @@ export function DanhSachHoSo() {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [chuoiTruyVan, lan]);
+  }, [chuoiTruyVan, lan, trang, moTrang]);
+
+  // Đổi bộ lọc là đổi hẳn tập kết quả: mọi con trỏ đã ghi lại đều trỏ vào tập
+  // cũ, nên phải vứt cả ngăn xếp chứ không chỉ về trang 1.
+  useEffect(() => {
+    datMoTrang([null]);
+    datTrang(1);
+  }, [chuoiTruyVan]);
+
+  const doiTrang = (n: number) => {
+    if (n === trang) return;
+    if (n < trang) {
+      datTrang(Math.max(1, n));
+      return;
+    }
+    // Chỉ đi tới ĐÚNG MỘT trang: thanh phân trang không có nút nhảy, nên `n`
+    // luôn là `trang + 1`. Ghi con trỏ mở đầu trang mới nếu chưa có.
+    if (conTrỏ === null) return;
+    datMoTrang((cu) => (cu.length > n - 1 ? cu : [...cu, conTrỏ]));
+    datTrang(n);
+  };
 
   const datMot = (k: string, v: string) => {
     const moi = { ...boLoc, [k]: v };
@@ -137,14 +178,6 @@ export function DanhSachHoSo() {
   const xoaLoc = async () => {
     datBoLoc({});
     await dang('/reports/filters/ho-so/clear', {}).catch(() => undefined);
-  };
-
-  const themTrang = async () => {
-    if (!conTrỏ) return;
-    const qs = chuoiTruyVan({ limit: '50', cursor: conTrỏ });
-    const r = await layJson<{ items: Dong[]; nextCursor: string | null }>(`/reports/policies?${qs}`);
-    datDong((cu) => [...(cu ?? []), ...r.items]);
-    datConTrỏ(r.nextCursor);
   };
 
   const soDieuKien = Object.values(boLoc).filter(Boolean).length;
@@ -282,11 +315,13 @@ export function DanhSachHoSo() {
               </tbody>
             </table>
           </div>
-          {conTrỏ && (
-            <button type="button" className="nut nut-rong" onClick={themTrang}>
-              Tải thêm
-            </button>
-          )}
+          <PhanTrang
+            trang={trang}
+            soTrang={tong === null ? trang : soTrangCua(tong)}
+            {...(tong === null ? {} : { tong })}
+            doiTrang={doiTrang}
+            nhan="hồ sơ"
+          />
         </>
       )}
     </section>

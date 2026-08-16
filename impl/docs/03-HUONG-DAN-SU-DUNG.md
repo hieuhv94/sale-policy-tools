@@ -66,6 +66,21 @@ nhắc *"Trường có dấu \* là bắt buộc"* ở đầu biểu mẫu. Ô k
 Chú ý riêng với **ô ngày**: nó thường có sẵn ngày hôm nay, nhìn như đã điền. Nếu bạn xoá trắng nó
 thì ô đó thành trống và nút Lưu tắt — gõ lại ngày là bấm được.
 
+### Phân trang
+
+**Mọi danh sách trong phần mềm hiện tối đa 20 dòng một trang.** Dưới mỗi danh sách dài hơn thế có
+thanh *Trang X / Y · N mục* kèm hai nút **← Trước** và **Sau →**. Danh sách ngắn hơn 20 dòng thì
+không có thanh nào — không cần.
+
+- **Gõ vào ô tìm kiếm hoặc đổi bộ lọc thì quay về trang 1.** Nếu không, bạn sẽ đứng ở trang 7 của kết
+  quả cũ và nhìn một màn hình trắng.
+- **Ô tìm kiếm luôn tìm trên toàn bộ**, không phải chỉ trong 20 dòng đang hiện.
+- **Xoá dòng cuối cùng của trang cuối** thì phần mềm tự lùi bạn về trang trước.
+
+Ba thứ **không** phân trang, và đó là chủ ý: bảng dòng sản phẩm bên trong một hồ sơ CSBH, lịch sử giá
+của một sản phẩm, và tệp đính kèm của một hồ sơ. Chúng là nội dung của **một** hồ sơ chứ không phải
+danh sách để duyệt — và bản A4 in ra phải khớp đúng bản trên màn hình.
+
 ### Giao diện sáng và tối
 
 Nút hình mặt trăng (hoặc mặt trời) ở thanh trên cùng, và ở góc trên bên phải màn hình đăng nhập.

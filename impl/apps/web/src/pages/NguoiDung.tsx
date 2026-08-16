@@ -31,6 +31,8 @@ import {
   ThanhHoanTac,
   Truong,
 } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangTaiCho } from '../lib/phan-trang.js';
 import { TheHeThong } from '../components/quan-tri/HeThong.js';
 
 type The = 'nguoi-dung' | 'he-thong';
@@ -87,6 +89,15 @@ export function NguoiDung() {
 // --- Thẻ Người dùng ---------------------------------------------------------
 
 function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }) {
+  /*
+   * Cắt trang TẠI CHỖ, và ở đây lý do khác hai màn hình danh mục.
+   *
+   * `ds` không chỉ nuôi cái bảng: mọi hộp thoại tạo và sửa người dùng đều lấy ô
+   * chọn "Trưởng bộ phận quản lý" từ chính nó (`locTbp(ds)`). Cắt ở máy chủ thì
+   * ô chọn ấy chỉ còn thấy 20 tài khoản đầu — một TDV sẽ không gán được vào
+   * Trưởng bộ phận thứ 21, và không có gì trên màn hình nói vì sao.
+   */
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(ds);
   const [mo, datMo] = useState<
     { kieu: 'tao' } | { kieu: 'sua'; u: NguoiDungDto } | { kieu: 'xem'; u: NguoiDungDto } | null
   >(null);
@@ -153,7 +164,7 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
             </tr>
           </thead>
           <tbody>
-            {ds.map((u) => (
+            {cuaTrang.map((u) => (
               <tr key={u.id}>
                 <td>{u.fullName}</td>
                 <td className="ma-phu">{u.username}</td>
@@ -232,6 +243,7 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
           </tbody>
         </table>
       </div>
+      <PhanTrang trang={trang} soTrang={soTrang} tong={ds.length} doiTrang={doiTrang} nhan="tài khoản" />
 
       {hoi?.viec === 'khoa' && (
         <HopThoaiXacNhan

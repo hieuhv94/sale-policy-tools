@@ -1,8 +1,8 @@
 /** Nhật ký — chỉ Ban lãnh đạo và Quản trị đọc được (muc 10). */
-import { useEffect, useState } from 'react';
-import { layJson } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, DangTai, Trong } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangMay } from '../lib/phan-trang.js';
 
 type Dong = {
   id: string;
@@ -16,18 +16,9 @@ type Dong = {
 };
 
 export function NhatKy() {
-  const [ds, datDs] = useState<Dong[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    layJson<{ items: Dong[] }>('/audit/entries?limit=100', huy.signal)
-      .then((r) => datDs(r.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, []);
+  // Nhật ký chỉ ghi thêm và không bao giờ xoá, nên nó là danh sách lớn nhanh
+  // nhất trong cả hệ thống — chỗ cần máy chủ cắt trang rõ ràng nhất.
+  const { muc: ds, tong, loi, trang, soTrang, doiTrang } = useTrangMay<Dong>('/audit/entries');
 
   if (loi !== null) return <BaoLoi loi={loi} />;
   if (!ds) return <DangTai />;
@@ -62,6 +53,7 @@ export function NhatKy() {
           </tbody>
         </table>
       </div>
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="dòng" />
     </section>
   );
 }

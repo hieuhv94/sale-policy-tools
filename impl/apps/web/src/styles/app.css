@@ -441,6 +441,32 @@ textarea.o-nhap { min-height: 6rem; }
    cột số chính là thứ giúp dò nhanh trong bảng tiền. Vai trò "dấu hiệu không
    phải màu" của chúng chuyển sang `.dau-hoi`. */
 
+/* --- Phân trang (0030) ---------------------------------------------------- */
+
+/**
+ * Căn GIỮA chứ không dồn phải.
+ *
+ * Trên điện thoại, thanh dồn phải đẩy nút "Trước" ra khỏi vùng ngón cái trái
+ * với; căn giữa thì cả hai nút đều tới được bằng một tay. Trên máy tính thì
+ * khác biệt không đáng kể, nên lấy bố cục tốt cho màn hình khó hơn.
+ */
+.phan-trang {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--k3);
+  margin-top: var(--k3);
+  flex-wrap: wrap;
+}
+.phan-trang-so {
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+  /* Chữ số đều cột: "Trang 9 / 10" và "Trang 10 / 10" không được nhảy bề ngang,
+     nếu không thì hai nút hai bên dịch chỗ mỗi lần sang trang. */
+  font-variant-numeric: tabular-nums;
+}
+.phan-trang-so strong { color: var(--mau-chu); }
+
 /* --- Chênh lệch so với danh mục (0029) ------------------------------------ */
 
 /* Danh sách con NẰM TRONG một mục việc, thụt vào để mắt đọc ra quan hệ "hồ sơ

@@ -719,6 +719,33 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - Bảng CSBH xem tối thiểu có: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và
   tên khách hàng, tên sản phẩm, CPBH, trạng thái, file đính kèm, Trưởng bộ phận, kế toán, thời gian duyệt.
 
+### 11.3. Phân trang `mới 16/08`
+
+**Mọi danh sách đều phân trang, tối đa 20 mục một trang.** Một cỡ trang cho cả phần mềm — hồ sơ,
+khách hàng, sản phẩm, quy định chiết khấu, người dùng, nhật ký, thư hỏng, mẫu hợp đồng, hộp việc và
+box *Yêu cầu cập nhật*.
+
+Thanh phân trang nói **trang mấy trên mấy** và **tổng bao nhiêu mục**, chỉ có nút *Trước* và *Sau*,
+và **ẩn hẳn khi chỉ có một trang**. Không có dãy số trang: danh sách hồ sơ phân trang bằng con trỏ
+nên không nhảy thẳng tới trang 9 được, và một thanh có số bấm được ở chỗ này còn chỗ kia thì không là
+hai thanh khác nhau đội lốt một.
+
+Ba luật đi kèm, mỗi luật bịt một cách làm người dùng mất phương hướng:
+
+- **Đổi bộ lọc thì về trang 1.** Đứng ở trang 7 của kết quả cũ mà lọc lại thì trang 7 của kết quả mới
+  thường rỗng, và màn hình trắng ngay sau khi gõ từ khoá đọc ra là "không tìm thấy gì".
+- **Xoá mục cuối của trang cuối thì tự lùi** về trang còn dữ liệu.
+- **Ô tìm kiếm tìm trên toàn bộ dữ liệu**, rồi mới cắt trang — không phải tìm trong 20 dòng đang hiện.
+
+Vấn đề nó giải quyết không phải là hiệu năng mà là **sự im lặng**: trước đây mỗi màn hình tự chọn một
+con số (50, 100, 200) và không màn hình nào nói cho người dùng biết họ đang nhìn một phần hay toàn bộ
+— mà với danh sách bị cắt trong im lặng, người dùng luôn tin mình đang nhìn toàn bộ.
+
+**Không phân trang**: bảng dòng sản phẩm trong một hồ sơ CSBH, lịch sử giá của một sản phẩm, tệp đính
+kèm của một hồ sơ. Chúng là **nội dung của một hồ sơ**, không phải danh sách để duyệt — và bản A4 in
+ra phải khớp đúng bản trên màn hình (muc 11.1), nên cắt trang ở đó là làm người ký nhìn thiếu dòng.
+Các ô chọn trong biểu mẫu cũng không: một ô chọn phân trang là một ô chọn không dùng được.
+
 ### 11.2. Giao diện trên máy tính và điện thoại
 
 - Toàn bộ giao diện phải **dùng được trên cả máy tính và điện thoại**. Không có màn hình nào chỉ mở
@@ -770,7 +797,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-55 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+56 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
 định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
@@ -839,6 +866,11 @@ nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
 sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
+
+**Phân trang** (16/08) — **mọi danh sách tối đa 20 mục một trang**, một cỡ trang cho cả phần mềm ·
+thanh phân trang nói trang mấy trên mấy và tổng bao nhiêu, ẩn khi chỉ có một trang · đổi bộ lọc thì
+về trang 1 · ô tìm kiếm vẫn tìm trên toàn bộ dữ liệu · nội dung của một hồ sơ (dòng sản phẩm, lịch sử
+giá, tệp đính kèm) **không** phân trang.
 
 **Giá theo ngày áp dụng, hồ sơ Nháp sống theo danh mục** (16/08) — ảnh chụp giá và ngưỡng lấy theo
 **Thời gian áp dụng** của hồ sơ, không phải ngày lập · hồ sơ **Nháp và Yêu cầu chỉnh sửa không đóng

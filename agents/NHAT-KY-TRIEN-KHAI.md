@@ -3790,3 +3790,71 @@ Cùng lối nghĩ với `lookups → signers` ở P33: để nguyên tên là đ
   lần đổi quy định là vài nghìn lượt so. Chưa đo thật.
 - Box chưa có phân trang; `limit=50` là cứng.
 - Vẫn chưa nhìn bằng mắt trên trình duyệt: chồng demo tắt từ P35.
+
+---
+
+## P38 — Phân trang: 20 mục một trang, mọi danh sách
+
+Yêu cầu một câu, và cái hay của nó nằm ở chữ "tất cả": nó biến một loạt quyết định rời rạc thành một
+luật. Trước đợt này mỗi màn hình tự chọn một con số — hồ sơ 50, người dùng 200, nhật ký 100, hộp việc
+100, sản phẩm 200. Không con số nào sai riêng lẻ.
+
+Vấn đề không phải hiệu năng mà là **sự im lặng**. Không màn hình nào nói cho người dùng biết họ đang
+nhìn một phần hay toàn bộ, mà với một danh sách bị cắt lặng lẽ thì người dùng **luôn tin mình đang
+nhìn toàn bộ**. Đó chính là món nợ tôi tự ghi ở box *Yêu cầu cập nhật* hai lượt trước, và hoá ra nó
+không phải nợ của một box — nó là nợ của cả ứng dụng.
+
+### Hai kiểu cắt, và chọn kiểu nào KHÔNG tuỳ tiện
+
+- **Máy chủ cắt** (`useTrangMay`) — hồ sơ, khách hàng, nhật ký, thư hỏng, hộp việc, box Yêu cầu cập
+  nhật. Danh sách lớn tuỳ dữ liệu; tải 20 dòng thì chỉ tốn 20 dòng.
+- **Màn hình cắt** (`useTrangTaiCho`) — sản phẩm, chiết khấu, người dùng, mẫu hợp đồng.
+
+Kiểu thứ hai nghe như đi lùi, nhưng cắt ở máy chủ những chỗ này là **gãy đúng một việc khác**:
+
+- Sản phẩm và Chiết khấu có ô tìm kiếm bỏ dấu chạy tại chỗ. Cắt ở máy chủ thì nó thành "tìm trong 20
+  dòng đang hiện" — gãy đúng cái việc nó sinh ra để làm. Muốn cắt ở máy chủ thì phải đưa tìm kiếm bỏ
+  dấu xuống SQL trước, và `cat.product` chưa có cột chuẩn hoá nào.
+- Người dùng thì lý do khác hẳn: `ds` không chỉ nuôi cái bảng, **mọi hộp thoại tạo và sửa đều lấy ô
+  chọn "Trưởng bộ phận quản lý" từ chính nó**. Cắt ở máy chủ thì ô chọn ấy chỉ còn thấy 20 tài khoản
+  đầu, và một TDV sẽ không gán được vào Trưởng bộ phận thứ 21 — không có gì trên màn hình nói vì sao.
+
+Đây là loại quyết định mà "cho nhất quán" là lời khuyên tệ: hai cơ chế khác nhau vì hai ràng buộc
+khác nhau, và ép chúng thành một là hỏng một trong hai.
+
+### Danh sách hồ sơ: ngăn xếp con trỏ
+
+Màn hình này phân trang bằng **con trỏ** neo vào `(createdAt, policyId)`, không phải `offset` — với
+`offset`, một hồ sơ mới lập giữa lúc người dùng bấm *Sau* sẽ đẩy mọi dòng xuống một bậc, và họ nhận
+lại một dòng đã đọc trong khi một dòng khác biến mất. Cái giá: con trỏ chỉ đi TỚI được.
+
+Nên giữ một **ngăn xếp con trỏ mở đầu mỗi trang đã qua**: `moTrang[i]` là con trỏ để lấy trang `i+1`,
+lùi là đọc lại phần tử trước. Và đổi bộ lọc thì **vứt cả ngăn xếp**, không chỉ về trang 1 — mọi con
+trỏ đã ghi đều trỏ vào tập kết quả cũ.
+
+Điều này quyết định luôn hình dạng thanh phân trang: **không có dãy số trang**, vì màn hình này không
+nhảy thẳng tới trang 9 được. Một thanh có số bấm được ở chỗ này và không bấm được ở chỗ kia là hai
+thanh khác nhau đội lốt một.
+
+### Một bẫy React lặp lại ba lần
+
+`useTrangTaiCho` là hook, nên nó phải nằm **trên mọi `return` sớm**. Ba màn hình đều có sẵn nếp
+`if (!ds) return <DangTai />;` rồi mới lọc — đặt hook sau đó là đổi số hook giữa hai lần vẽ và React
+ném. Phải chuyển phép lọc lên trước, đọc `ds ?? []`.
+
+### Cái không phân trang, và vì sao
+
+Bảng dòng sản phẩm trong một hồ sơ, lịch sử giá, tệp đính kèm: **nội dung của một hồ sơ**, không phải
+danh sách để duyệt. Bản A4 in ra phải khớp đúng bản trên màn hình (muc 11.1), nên cắt trang ở đó là
+làm người ký nhìn thiếu dòng. Các ô chọn trong biểu mẫu cũng không — một ô chọn phân trang là một ô
+chọn không dùng được.
+
+880 case (868 → 880).
+
+### Còn nợ
+
+- Bốn màn hình cắt tại chỗ vẫn tải **tối đa 200 dòng**. Quá 200 sản phẩm thì danh sách im lặng cụt —
+  đúng cái bệnh đợt này đi chữa, chỉ là ở một ngưỡng cao hơn. Chữa dứt cần tìm kiếm bỏ dấu ở SQL
+  (một cột chuẩn hoá trên `cat.product`), rồi chuyển sang máy chủ cắt.
+- `/contract-templates` là endpoint danh sách DUY NHẤT còn trả mảng trần, không `{ items, total }`.
+- Khối *Hoạt động gần đây* giữ 8 dòng cố định: nó là bản tóm tắt, không phải danh sách để duyệt.

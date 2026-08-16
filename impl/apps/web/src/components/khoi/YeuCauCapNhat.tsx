@@ -17,8 +17,9 @@
  */
 import { ngay, tien } from '../../lib/format.js';
 import { Lien } from '../../lib/router.js';
-import { useTai } from '../../lib/tai.js';
 import { Nhan } from '../Chung.js';
+import { PhanTrang } from '../PhanTrang.js';
+import { useTrangMay } from '../../lib/phan-trang.js';
 import { Khoi } from './Khung.js';
 
 export type LechMuc = {
@@ -50,12 +51,12 @@ const doc = (l: LechMuc, v: string | null): string => {
 };
 
 export function YeuCauCapNhat() {
-  const { du, loi } = useTai<{ items: HoSoLech[] }>('/policies/impacted?limit=50');
+  const { muc, tong, loi, trang, soTrang, doiTrang } = useTrangMay<HoSoLech>('/policies/impacted');
 
   // Chưa tải xong hoặc gọi hỏng thì KHÔNG hiện gì. Một khối cảnh báo chớp lên
   // rồi biến mất còn tệ hơn là không có khối nào.
   if (loi !== null && loi !== undefined) return null;
-  if (du === null || du.items.length === 0) return null;
+  if (muc === null || muc.length === 0) return null;
 
   return (
     <Khoi tieuDe="Yêu cầu cập nhật">
@@ -65,7 +66,7 @@ export function YeuCauCapNhat() {
         Xem rồi tự quyết định: trả lại để sửa, duyệt tiếp, hay lập một CSBH mới.
       </p>
       <ul className="danh-sach-viec">
-        {du.items.map((h) => (
+        {muc.map((h) => (
           <li key={h.id} className="viec">
             <Lien den={`/ho-so/${h.id}`} className="viec-lien">
               <span className="viec-ma">{h.code}</span>
@@ -91,6 +92,7 @@ export function YeuCauCapNhat() {
           </li>
         ))}
       </ul>
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="hồ sơ" />
     </Khoi>
   );
 }

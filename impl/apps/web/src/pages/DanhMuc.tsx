@@ -25,6 +25,8 @@ import {
   type TheSanPhamKhoa,
 } from '../lib/danh-muc.js';
 import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js';
+import { PhanTrang } from '../components/PhanTrang.js';
+import { useTrangTaiCho } from '../lib/phan-trang.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
@@ -161,11 +163,13 @@ function BangSanPhamChiXem() {
     return () => huy.abort();
   }, []);
 
+  // Lọc và cắt trang TRÊN mọi `return` sớm — `useTrangTaiCho` là hook.
+  const loc = locSanPham(ds ?? [], tim);
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
+
   if (loi !== null) return <BaoLoi loi={loi} />;
   if (!ds) return <DangTai />;
   if (ds.length === 0) return <Trong tieuDe="Danh mục chưa có sản phẩm nào" />;
-
-  const loc = locSanPham(ds, tim);
 
   return (
     <>
@@ -200,7 +204,7 @@ function BangSanPhamChiXem() {
               </tr>
             </thead>
             <tbody>
-              {loc.map((s) => (
+              {cuaTrang.map((s) => (
                 <tr key={s.id}>
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
@@ -212,6 +216,7 @@ function BangSanPhamChiXem() {
           </table>
         </div>
       )}
+      <PhanTrang trang={trang} soTrang={soTrang} tong={loc.length} doiTrang={doiTrang} nhan="sản phẩm" />
     </>
   );
 }
