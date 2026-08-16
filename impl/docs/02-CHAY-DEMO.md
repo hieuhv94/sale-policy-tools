@@ -47,15 +47,13 @@ bảng thì chỗ "sạch" đó lặng lẽ còn dữ liệu cũ — đúng th�
 
 ### Thứ tự dựng tài khoản
 
-Cây phân quyền có hai nhánh độc lập, và **thứ tự có ràng buộc**: không tạo được Trình dược viên khi
-chưa có Trưởng bộ phận nào để chọn.
+**Không còn ràng buộc thứ tự nào** — tài khoản không quan hệ với nhau, biểu mẫu tạo chỉ có bốn ô
+giống hệt nhau cho cả sáu vai trò: họ tên, tên tài khoản, email, vai trò.
 
-1. **Trưởng bộ phận** — không có trường nào thêm.
-2. **Sale Admin** — gốc của cây xem dữ liệu.
-3. **Kế toán** — chọn *Sale Admin quản lý*.
-4. **Trình dược viên** — chọn *Trưởng bộ phận quản lý* và *Kế toán quản lý*. Trưởng bộ phận không
-   bắt buộc lúc tạo, nhưng **chưa gán thì TDV chưa gửi được hồ sơ**.
-5. **Ban lãnh đạo** — nếu muốn xem phần chỉ đọc.
+Nhưng vẫn nên dựng **Trưởng bộ phận, Kế toán và Sale Admin trước** Trình dược viên, vì lý do khác:
+lúc gửi duyệt, TDV phải chọn được một Trưởng bộ phận và một Kế toán **đã kích hoạt tài khoản**. Chưa
+có ai trong danh sách thì ô chọn rỗng và hồ sơ không gửi đi được — màn hình nói rõ điều đó ngay dưới
+ô chọn.
 
 Mỗi tài khoản mới nhận **thư mời kích hoạt**, và đó là **đường duy nhất** để nó có mật khẩu — không
 có mật khẩu mặc định nào để bàn giao. Xem thư ở Mailpit (mục dưới) và đi qua liên kết để đặt mật
@@ -141,7 +139,8 @@ Ba chi tiết được đặt có chủ ý:
 - **Đúng một dòng vượt ngưỡng** trong chín dòng sản phẩm của các ca viết tay. Vượt ngưỡng phải là
   ngoại lệ thì dấu cảnh báo mới có nghĩa — một bảng dòng nào cũng đỏ thì người duyệt thôi không nhìn.
 - **Nhà thuốc Đông Á thuộc `tdv02`**, và bốn khách cuối thuộc `tdv02`/`tdv03`. Đăng nhập bằng `tdv01`
-  sẽ **không** thấy những khách đó — phạm vi dữ liệu theo cây tổ chức, nhìn thấy được ngay.
+  sẽ **không** thấy những khách đó. Thử tiếp bằng `tbp02`: họ không thấy hồ sơ nào cả, vì bộ mẫu giao
+  hết cho `tbp01` — phạm vi đi theo phân công trên từng hồ sơ, nhìn thấy được ngay.
 - **Giá và ngưỡng đổi ở bước cuối cùng**, sau khi mọi hồ sơ đã đóng băng. Đó là lý do box *Yêu cầu
   cập nhật* trên trang Tổng quan có nội dung: 87 hồ sơ đang giữ con số cũ trong khi danh mục đã đổi.
 
@@ -151,9 +150,8 @@ kiện thật của hồ sơ thật, nên nút **Gửi lại** ở *Quản trị
 xử lý.
 
 Nạp mất khoảng **một phút rưỡi** — 137 hồ sơ đi qua đúng máy trạng thái là vài trăm lượt gọi API.
-
-Dữ liệu này nạp **qua API thật**, không chèn thẳng vào CSDL: nó đi qua đúng máy trạng thái và đúng
-phép tính chiết khấu, nên không thể ở một trạng thái mà phần mềm không tạo ra được.
+Mọi hồ sơ đều giao cho `tbp01` · `kt01` · `sa01`, nên đăng nhập bằng `tbp02` là thấy một hộp việc
+rỗng — đúng theo thiết kế.
 
 Nạp lại từ đầu bất cứ lúc nào (xoá sạch dữ liệu nghiệp vụ cũ, **giữ nguyên tài khoản**):
 

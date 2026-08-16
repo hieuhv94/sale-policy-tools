@@ -293,7 +293,21 @@ Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạ
 hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
 không cần nhập lại.
 
-Xong thì bấm **Gửi duyệt**.
+### Gửi duyệt: chọn người, đọc lại, rồi mới xác nhận
+
+Bấm **Gửi duyệt** thì hộp thoại mở ra ba phần, theo đúng thứ tự này:
+
+1. **Bản CSBH A4** hiện ngay trong hộp thoại, đủ 13 mục và toàn bộ bảng dòng sản phẩm. Đọc lại đi —
+   đây là **lần cuối nội dung còn sửa được**. Sau bước này giá và ngưỡng đóng băng, và mọi chỉnh sửa
+   đều phải đi một vòng trả lại.
+2. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
+   của họ; Trưởng bộ phận khác không thấy, và cũng không mở được.
+3. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
+
+Nút *Xác nhận* khoá tới khi bản A4 tải xong và cả hai ô đã chọn. Ô chọn rỗng nghĩa là chưa có tài
+khoản vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
+
+Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: bạn có quyền gửi cho một Trưởng bộ phận khác.
 
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng dòng sản
 phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
@@ -311,6 +325,17 @@ TDV lập  →  Gửi duyệt  →  TBP ký số  →  Kế toán tiếp nhận 
 ```
 
 Ở mỗi bước, người phụ trách nhận **email** kèm liên kết mở thẳng hồ sơ.
+
+**Ai nhận hồ sơ ở bước sau là do người ở bước trước chọn**, không phải do một cấu hình nhân sự nào:
+
+| Bước | Người đang cầm hồ sơ chọn |
+|---|---|
+| Gửi duyệt | Trưởng bộ phận duyệt · Kế toán tiếp nhận |
+| Kế toán tiếp nhận L1 | Sale Admin xử lý |
+| Kế toán tiếp nhận L2 | *không chọn* — về đúng người đã nhận L1 |
+
+Hồ sơ chỉ nằm trong hộp việc của **đúng người được chọn**, và cũng chỉ người đó mở được. Đồng nghiệp
+cùng vai trò không thấy, không mở.
 
 **Trả lại và từ chối**
 
@@ -406,35 +431,33 @@ File kết xuất **chỉ người bấm xuất tải được**, và hết hạ
 
 *Người dùng* — hai thẻ: **Người dùng** và **Hệ thống**.
 
-### Thứ tự bắt buộc: Trưởng bộ phận trước, Trình dược viên sau
+### Biểu mẫu tạo tài khoản chỉ có bốn ô
 
-Hồ sơ của Trình dược viên đi tới **đúng Trưởng bộ phận được gán cho người đó**. Chưa có tài khoản
-Trưởng bộ phận nào thì ô chọn rỗng và **không tạo được** Trình dược viên.
+Họ tên, tên tài khoản, email, vai trò — **giống hệt nhau cho cả sáu vai trò**. Không có ô "Trưởng bộ
+phận quản lý", không có ô "cấp trên": người dùng không quản lý lẫn nhau.
 
-1. **Tạo tài khoản Trưởng bộ phận** — không có trường nào thêm ngoài họ tên, tài khoản và thư.
-2. **Tạo tài khoản Trình dược viên**, chọn *Trưởng bộ phận quản lý*. Đây là trường **bắt buộc**:
-   một Trình dược viên không có người duyệt là tài khoản chết — hồ sơ họ gửi không tới ai, đứng im
-   cho tới khi quá hạn.
+Việc *ai xử lý hồ sơ của ai* quyết định trên **từng hồ sơ**, lúc chuyển tay: Trình dược viên chọn
+Trưởng bộ phận và Kế toán ngay ở bước Gửi duyệt, Kế toán chọn Sale Admin ở bước Tiếp nhận lần 1.
 
-### Trường theo vai trò
+> Trước đây hai ô ấy nằm ở đây, và chúng đẻ ra một kiểu hỏng im lặng: gán nhầm một Kế toán vào ô
+> người duyệt thì hồ sơ đi vào ngõ cụt — người đó không có thao tác *Ký số duyệt* nào để làm, hồ sơ
+> đứng im tới lúc quá hạn và không màn hình nào nói vì sao. Bỏ trống ô ấy còn tệ hơn: Trình dược viên
+> không gửi được hồ sơ nào cả, mà chỉ biết điều đó ở lần gửi đầu tiên.
 
-Trường có dấu <span aria-hidden="true">\*</span> là **bắt buộc**, không điền thì nút Tạo không bấm được.
+### Không còn thứ tự bắt buộc, nhưng vẫn nên dựng theo thứ tự
 
-| Vai trò tạo | Trường phải điền thêm |
-|---|---|
-| Trình dược viên | Trưởng bộ phận quản lý **\*** · Cấp trên (Kế toán) |
-| Kế toán | Cấp trên (Sale Admin) |
-| Trưởng bộ phận · Sale Admin · Ban lãnh đạo · Quản trị hệ thống | không có |
+Tạo tài khoản nào trước cũng được. Nhưng Trình dược viên chỉ **gửi** được hồ sơ khi đã có ít nhất một
+Trưởng bộ phận và một Kế toán **đã kích hoạt tài khoản** để chọn — tài khoản mới tạo mà chưa đi qua
+liên kết trong thư mời thì chưa xuất hiện trong ô chọn.
 
-*Cấp trên* dựng cây **xem dữ liệu**: Sale Admin thấy hồ sơ của các Kế toán dưới mình, Kế toán thấy
-của các Trình dược viên dưới mình. Khác hẳn với *Trưởng bộ phận quản lý*, thứ quyết định hồ sơ chạy
-đi đâu để duyệt.
+Nên dựng theo thứ tự này để không phải quay lại: **Trưởng bộ phận → Kế toán → Sale Admin → Trình
+dược viên**.
 
 ### Sửa, vô hiệu hoá, gửi lại thư mời
 
-- **Sửa** đổi được họ tên, Trưởng bộ phận quản lý và cấp trên — đổi người giữ chức chỉ là sửa lại ô
-  này ở từng Trình dược viên liên quan. **Không đổi được vai trò** — đổi vai trò làm hồ sơ
-  đang dở mắc kẹt giữa luồng. Cần đổi thì vô hiệu hoá tài khoản cũ và tạo tài khoản mới.
+- **Sửa** đổi được họ tên. **Không đổi được vai trò** khi người đó còn hồ sơ dở dang — hồ sơ ghi
+  thẳng tên người xử lý lên chính nó, nên đổi vai trò là bỏ rơi đúng những hồ sơ đang chờ họ, và
+  không ai khác cầm được. Màn hình liệt kê ra mã của tối đa 20 hồ sơ đang chặn.
 - **Vô hiệu hoá** chặn đăng nhập trong vòng một phút, kể cả khi người đó đang mở phần mềm. Không có
   chức năng **xoá** người dùng: nhật ký kiểm toán tham chiếu tới tài khoản, xoá đi là mất dấu vết.
 - **Gửi lại thư mời** chỉ hiện với tài khoản chưa kích hoạt, và làm liên kết cũ chết ngay.
