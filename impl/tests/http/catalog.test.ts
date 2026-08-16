@@ -1117,10 +1117,29 @@ describe('0025 bỏ ngưỡng mặc định của sản phẩm', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200);
     expect(r.body.imported).toBe(1);
 
-    const ds = (await get(`/catalog/products?q=${encodeURIComponent(maSp)}&limit=50`)).body
-      .items as { code: string; defaultRate2Type1?: number }[];
-    const sp = ds.find((x) => x.code === maSp);
-    expect(sp).toBeDefined();
-    expect(sp!.defaultRate2Type1).toBeUndefined();
+    // Đọc SẢN PHẨM VỪA NHẬP theo id, không lọc trên danh sách.
+    //
+    // Bản trước gọi `/catalog/products?q=<mã>&limit=50` rồi tìm trong kết quả —
+    // và nó xanh suốt một thời gian dài vì một lý do sai: `/catalog/products`
+    // KHÔNG có tham số `q` nào cả (`products.service.ts:159` chỉ nhận
+    // `forNewPolicy` và phân trang). Máy chủ bỏ qua `q` trong im lặng và trả 50
+    // sản phẩm đầu theo mã. Chừng nào bảng còn dưới 50 dòng thì "50 sản phẩm
+    // đầu" tình cờ là "tất cả", nên ca kiểm thử vẫn xanh.
+    //
+    // CSDL của bộ test dùng chung và các tệp test khác không dọn sản phẩm của
+    // mình — tới 1.337 dòng thì sản phẩm vừa nhập rơi ra ngoài 50 dòng đầu và ca
+    // này đỏ, không phải vì việc nhập Excel hỏng.
+    const id = await withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(`SELECT id FROM cat.product WHERE code = $1`, [maSp]);
+      return r.rows[0]?.id;
+    });
+    expect(id, 'sản phẩm nhập từ Excel phải nằm trong danh mục').toBeDefined();
+
+    const sp = (await get(`/catalog/products/${id!}`)).body as {
+      code: string;
+      defaultRate2Type1?: number;
+    };
+    expect(sp.code).toBe(maSp);
+    expect(sp.defaultRate2Type1).toBeUndefined();
   });
 });

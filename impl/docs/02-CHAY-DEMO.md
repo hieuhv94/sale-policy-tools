@@ -84,8 +84,8 @@ demo đi qua đúng máy trạng thái và đúng phép tính chiết khấu, n�
 mà phần mềm không tạo ra được. Chạy trên chồng đã hạ thì lệnh dừng ngay và nói phải làm gì; chưa
 chạy `make demo` lần nào thì chạy nó trước (lưu ý: `make demo` **xoá sạch CSDL demo**).
 
-Nó nạp 10 tài khoản phủ đủ sáu vai trò (`tdv01` · `tbp01` · `kt01` · `sa01` · `bld01` · `admin01`,
-mật khẩu chung `Test@1234`) kèm dữ liệu nghiệp vụ mẫu mô tả ở mục dưới.
+Nó nạp 10 tài khoản gốc phủ đủ sáu vai trò (`tdv01` · `tbp01` · `kt01` · `sa01` · `bld01` ·
+`admin01`, mật khẩu chung `Test@1234`) kèm dữ liệu nghiệp vụ mẫu mô tả ở mục dưới.
 
 | Tài khoản | Vai trò | Làm được gì |
 |---|---|---|
@@ -96,18 +96,36 @@ mật khẩu chung `Test@1234`) kèm dữ liệu nghiệp vụ mẫu mô tả �
 | `bld01` | Ban lãnh đạo | **Chỉ đọc** — xem báo cáo và nhật ký, không ghi được gì |
 | `admin01` | Quản trị hệ thống | Danh mục sản phẩm, người dùng — **không** nằm trong luồng duyệt |
 
+Ngoài mười tài khoản trên còn 16 tài khoản nữa (`sa02`, `tbp03`, `kt03`, `kt04`, `tdv04`…`tdv15`)
+chỉ để danh sách Người dùng có đủ dòng mà thử phân trang. Chúng **chưa kích hoạt** nên không đăng
+nhập được, và treo vào một nhánh tổ chức tách hẳn `sa02 → kt03/kt04 → tdv04…` — nhánh riêng là bắt
+buộc, vì bộ test dùng chung CSDL và khẳng định phạm vi của `sa01`, `tbp01`, `tbp02` bằng danh sách
+đóng.
+
 ### Dữ liệu nghiệp vụ trong bộ mẫu
 
-Cố ý **nhỏ** — vừa đủ để thử, không phải một đống dữ liệu không ai đọc nổi:
+**Phần đầu viết tay, phần đuôi sinh ra.** Những ca đáng nhìn được chọn tay và đứng đầu danh sách;
+phần sinh ra chỉ để mỗi màn hình vượt 20 dòng — không có nó thì không thử được phân trang, mà 20
+dòng viết tay cho mười màn hình là 200 dòng dữ liệu không ai giữ đúng được.
 
-| | Số lượng |
-|---|---|
-| Sản phẩm | 6, chia 2 nhóm, có giá thật |
-| Khách hàng | 4 — nhà thuốc, công ty, khoa bệnh viện |
-| Hồ sơ CSBH | 5, mỗi hồ sơ một trạng thái khác nhau |
-| Danh mục | 3 tỉnh/thành, 2 bệnh viện, 2 kênh |
+| | Số lượng | Vượt một trang? |
+|---|---|---|
+| Người dùng | 26 | ✓ |
+| Nhóm sản phẩm | 24 | ✓ |
+| Sản phẩm | 35, có giá thật | ✓ |
+| Quy định chiết khấu | 27 | ✓ |
+| Khách hàng | 28 — nhà thuốc, công ty, khoa bệnh viện | ✓ |
+| Hồ sơ CSBH | 137, trải khắp 8 trạng thái | ✓ |
+| Mẫu hợp đồng | 22 tệp `.docx` thật | ✓ |
+| Thư hỏng chưa xử lý | 24 | ✓ |
+| Nhật ký | ~670 dòng | ✓ |
+| Hồ sơ cần cập nhật | 87 | ✓ |
 
-Năm hồ sơ đặt ở năm trạng thái để mỗi vai trò đăng nhập vào là **có ngay việc để xem**:
+Hộp việc của **cả bốn vai trò trong luồng** cũng vượt một trang — 22 hồ sơ chờ `tbp01`, 23 chờ
+`kt01`, 21 chờ `sa01`, 22 hồ sơ bị trả lại về `tdv01`.
+
+Năm hồ sơ đầu là năm ca viết tay, đặt ở năm trạng thái để mỗi vai trò đăng nhập vào là **có ngay
+việc để xem**, và chúng vẫn đứng đầu danh sách:
 
 | Hồ sơ | Trạng thái | Ai thấy việc |
 |---|---|---|
@@ -117,12 +135,21 @@ Năm hồ sơ đặt ở năm trạng thái để mỗi vai trò đăng nhập v
 | Khoa Dinh dưỡng Bạch Mai | Chờ Kế toán L1 | `kt01` — xuất được hợp đồng |
 | Nhà thuốc Đông Á | Đang có hiệu lực | báo cáo, màn hình khách hàng |
 
-Hai chi tiết được đặt có chủ ý:
+Ba chi tiết được đặt có chủ ý:
 
-- **Đúng một dòng vượt ngưỡng** trong tổng số chín dòng sản phẩm. Vượt ngưỡng phải là ngoại lệ thì
-  dấu cảnh báo mới có nghĩa — một bảng dòng nào cũng đỏ thì người duyệt thôi không nhìn nữa.
-- **Nhà thuốc Đông Á thuộc `tdv02`**, ba khách còn lại thuộc `tdv01`. Đăng nhập bằng `tdv01` sẽ
-  **không** thấy khách hàng đó — phạm vi dữ liệu theo cây tổ chức, nhìn thấy được ngay.
+- **Đúng một dòng vượt ngưỡng** trong chín dòng sản phẩm của các ca viết tay. Vượt ngưỡng phải là
+  ngoại lệ thì dấu cảnh báo mới có nghĩa — một bảng dòng nào cũng đỏ thì người duyệt thôi không nhìn.
+- **Nhà thuốc Đông Á thuộc `tdv02`**, và bốn khách cuối thuộc `tdv02`/`tdv03`. Đăng nhập bằng `tdv01`
+  sẽ **không** thấy những khách đó — phạm vi dữ liệu theo cây tổ chức, nhìn thấy được ngay.
+- **Giá và ngưỡng đổi ở bước cuối cùng**, sau khi mọi hồ sơ đã đóng băng. Đó là lý do box *Yêu cầu
+  cập nhật* trên trang Tổng quan có nội dung: 87 hồ sơ đang giữ con số cũ trong khi danh mục đã đổi.
+
+**Một ngoại lệ của "nạp qua API thật":** 24 thư hỏng được chèn thẳng SQL. Không API nào tạo được
+chúng — thư hỏng là hậu quả của một lần gửi thất bại, không phải thứ ai đó khai báo. Payload là sự
+kiện thật của hồ sơ thật, nên nút **Gửi lại** ở *Quản trị ▸ Hệ thống* gửi được thư và tự đánh dấu đã
+xử lý.
+
+Nạp mất khoảng **một phút rưỡi** — 137 hồ sơ đi qua đúng máy trạng thái là vài trăm lượt gọi API.
 
 Dữ liệu này nạp **qua API thật**, không chèn thẳng vào CSDL: nó đi qua đúng máy trạng thái và đúng
 phép tính chiết khấu, nên không thể ở một trạng thái mà phần mềm không tạo ra được.

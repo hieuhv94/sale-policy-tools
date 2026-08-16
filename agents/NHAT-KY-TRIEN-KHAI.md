@@ -3858,3 +3858,101 @@ chọn không dùng được.
   (một cột chuẩn hoá trên `cat.product`), rồi chuyển sang máy chủ cắt.
 - `/contract-templates` là endpoint danh sách DUY NHẤT còn trả mảng trần, không `{ items, total }`.
 - Khối *Hoạt động gần đây* giữ 8 dòng cố định: nó là bản tóm tắt, không phải danh sách để duyệt.
+
+---
+
+## P39 — Bộ dữ liệu demo đủ lớn để nhìn thấy phân trang
+
+P38 dựng phân trang cho mười một màn hình, rồi chạy 880 case xanh và dừng ở đó. Nhưng chồng demo chỉ
+có 6 sản phẩm, 4 khách hàng và 5 hồ sơ — **không màn hình nào hiện nổi thanh phân trang**, vì
+`PhanTrang` ẩn hẳn khi chỉ có một trang. Chức năng vừa làm xong không nhìn được bằng mắt ở bất cứ đâu.
+
+Đợt này chỉ làm một việc: nâng bộ mẫu của `make demo-mau` để **mọi đối tượng vượt 20**.
+
+### Đầu viết tay, đuôi sinh ra
+
+20 dòng viết tay cho mười màn hình là 200 dòng dữ liệu không ai đọc và không ai giữ đúng được. Nhưng
+sinh hết bằng vòng lặp thì mất những ca đã chọn kỹ: hồ sơ bị trả lại kèm lý do, một dòng vượt ngưỡng
+nằm cạnh hai dòng dưới ngưỡng, hai khách thuộc hai TDV khác nhau.
+
+Nên tách hẳn hai phần: **năm hồ sơ viết tay đứng đầu, phần sinh ra xếp sau**. Người mở demo lần đầu
+vẫn gặp đúng những ca đã chọn cho họ; người thử phân trang có đủ khối lượng.
+
+| Đối tượng | Trước | Sau |
+|---|---|---|
+| Người dùng | 10 | 26 |
+| Nhóm sản phẩm | 2 | 24 |
+| Sản phẩm | 6 | 35 |
+| Quy định chiết khấu | 4 | 27 |
+| Khách hàng | 4 | 28 |
+| Hồ sơ CSBH | 5 | 137 |
+| Mẫu hợp đồng | 0 | 22 |
+| Thư hỏng | 0 | 24 |
+| Hồ sơ cần cập nhật | 0 | 87 |
+
+Hộp việc của cả bốn vai trò trong luồng cũng vượt một trang: 22 chờ `tbp01`, 23 chờ `kt01`, 21 chờ
+`sa01`, 22 trả lại `tdv01`. Nạp hết mất một phút rưỡi.
+
+### Tài khoản thêm KHÔNG được nằm trong `seed.ts`
+
+Lần đầu tôi thêm 16 tài khoản vào `scripts/seed.ts` cho gọn. `make test` đỏ **bảy ca** ở
+`tests/db/scope.test.ts` và `tests/http/auth.test.ts`.
+
+Lý do đúng và đáng nhớ: `seed.ts` là **kho tài khoản của bộ test**, không phải chỗ chứa dữ liệu trình
+diễn — và các ca kiểm thử phân quyền khẳng định từng phạm vi bằng **danh sách đóng** (`sa01` thấy
+đúng 6 người, `tbp01` thấy đúng `tdv01` và `tdv02`). Thêm một TDV vào `tbp01` là làm sai đúng những
+ca ấy.
+
+Cám dỗ ở đây là nới các khẳng định đó thành "chứa ít nhất". Đừng: `toHaveLength(6)` là thứ bắt được
+một truy vấn phạm vi trả về cả công ty, và nới nó ra là bỏ mất chính cái nó canh.
+
+Cách đúng: tài khoản thêm **do `seed-demo.ts` tạo qua `POST /admin/users`**, và treo vào một nhánh tổ
+chức tách hẳn — `sa02 → kt03/kt04 → tdv04…tdv15`, người duyệt `tbp03`. Không nhánh nào trong số đó
+xuất hiện trong bất kỳ phạm vi nào bộ test đang khẳng định, nên cả bảy ca xanh trở lại mà không phải
+sửa một dòng test nào.
+
+Kèm theo là một cái bẫy của CSDL dùng chung: 16 tài khoản của lần chạy hỏng **vẫn nằm lại trong CSDL**
+sau khi `seed.ts` đã trả về nguyên trạng, nên `make test` tiếp theo vẫn đỏ. Phải xoá tay. `seed.ts`
+dùng `ON CONFLICT DO UPDATE` — nó thêm và sửa, không bao giờ xoá.
+
+### `scripts/` chưa từng được biên dịch kiểm tra
+
+`tsconfig.json` liệt kê `packages`, `services`, `tests` — **không có `scripts`**. Tức `seed-demo.ts`
+chưa bao giờ đi qua `tsc`, và cái giá đã trả rồi: ở P33 phát hiện nó vẫn gửi ba trường
+`defaultRate2Type1/2/3` đã bị xoá khỏi API từ P32, nên chồng demo chạy suốt một thời gian với **bảng
+quy định chiết khấu rỗng**. Không test nào bắt được, vì test không chạy bộ nạp demo.
+
+Thêm `scripts/**/*.ts` vào `include`. Đợt này viết thêm 400 dòng script; đưa nó vào tầm kiểm tra
+trước khi viết là điều kiện cần, không phải việc dọn dẹp thêm.
+
+### Nhóm sản phẩm — danh sách sót lại của P38
+
+Seed 24 nhóm thì lộ ra thẻ *Nhóm sản phẩm* chưa phân trang. Nó dùng chung mảng `nhom` mà `useNhom`
+tải trọn để nuôi ô chọn của thẻ Sản phẩm và thẻ Chiết khấu, nên đúng kiểu **màn hình tự cắt** —
+`useTrangTaiCho`, y như bốn màn hình kia.
+
+### Một ca kiểm thử xanh vì lý do sai
+
+`make test` đỏ một ca ở `tests/http/catalog.test.ts` — trên cả mã đã commit, không phải do đợt này.
+
+Ca ấy nhập một sản phẩm từ Excel rồi tìm lại bằng `/catalog/products?q=<mã>&limit=50`. Sự thật:
+**`/catalog/products` không có tham số `q` nào cả** (`products.service.ts:159` chỉ nhận `forNewPolicy`
+và phân trang). Máy chủ bỏ `q` đi trong im lặng và trả 50 sản phẩm đầu theo mã. Chừng nào bảng còn
+dưới 50 dòng thì "50 dòng đầu" tình cờ là "tất cả", nên ca này xanh — vì lý do sai.
+
+CSDL của bộ test dùng chung và các tệp test khác không dọn sản phẩm của mình. Tới 1.337 dòng thì sản
+phẩm vừa nhập rơi ra ngoài 50 dòng đầu, và ca đỏ mà chẳng liên quan gì tới việc nhập Excel. Sửa: đọc
+sản phẩm theo id qua `/catalog/products/:id`, không lọc trên danh sách.
+
+Đây cũng là gốc của món nợ 200 dòng ghi ở P38: bốn màn hình cắt tại chỗ không phải "chưa chuyển sang
+máy chủ cắt" — mà là **máy chủ không có gì để chuyển sang**, vì endpoint sản phẩm không nhận từ khoá
+tìm kiếm.
+
+880 case, không đổi số lượng.
+
+### Còn nợ
+
+- Vẫn **chưa nhìn bằng mắt trong trình duyệt**. Chồng demo đang lên và dữ liệu đã đúng; phần còn lại
+  là mở `http://localhost:8080` ra xem.
+- `/catalog/products` và `/catalog/discount-rules` vẫn không nhận `q`. Đây mới là việc phải làm trước
+  khi bỏ được trần 200 dòng.

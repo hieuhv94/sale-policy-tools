@@ -5,6 +5,11 @@
     "packages/*/src/**/*.ts",
     "services/*/src/**/*.ts",
     "tests/**/*.ts",
+    // `scripts/` KHÔNG được kiểm cho tới `0030`, và cái giá phải trả là có
+    // thật: `seed-demo.ts` từng gửi ba trường đã bị xoá khỏi API ở P32 mà không
+    // gì báo lỗi — chồng demo chạy suốt một tháng với BẢNG QUY ĐỊNH CHIẾT KHẤU
+    // RỖNG. Không test nào bắt được vì test không chạy bộ nạp demo.
+    "scripts/**/*.ts",
     "vitest.config.ts"
   ]
 }

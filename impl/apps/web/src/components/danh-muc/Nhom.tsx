@@ -11,12 +11,18 @@ import { dang, xoa } from '../../lib/api.js';
 import { LoiApi } from '../../lib/api.js';
 import type { NhomSanPham } from '../../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
+import { PhanTrang } from '../PhanTrang.js';
+import { useTrangTaiCho } from '../../lib/phan-trang.js';
 
 export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => void }) {
   const [moTao, datMoTao] = useState(false);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangXoa, datDangXoa] = useState<string | null>(null);
   const [hoiXoa, datHoiXoa] = useState<NhomSanPham | null>(null);
+
+  // MÀN HÌNH tự cắt: `nhom` đã tải trọn ở `useNhom` để nuôi các ô chọn của thẻ
+  // Sản phẩm và thẻ Chiết khấu. Cắt ở máy chủ là gãy hai ô chọn đó (`0030`).
+  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(nhom);
 
   const go = async (n: NhomSanPham) => {
     datLoi(null);
@@ -67,7 +73,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
               </tr>
             </thead>
             <tbody>
-              {nhom.map((n) => (
+              {cuaTrang.map((n) => (
                 <tr key={n.id}>
                   <td className="ma-phu">{n.code}</td>
                   <td>{n.name}</td>
@@ -87,6 +93,14 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
           </table>
         </div>
       )}
+
+      <PhanTrang
+        trang={trang}
+        soTrang={soTrang}
+        tong={nhom.length}
+        doiTrang={doiTrang}
+        nhan="nhóm"
+      />
 
       {hoiXoa && (
         <HopThoaiXacNhan
