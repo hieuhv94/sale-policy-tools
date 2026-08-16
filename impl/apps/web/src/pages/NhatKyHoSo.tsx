@@ -107,7 +107,7 @@ export function NhatKyHoSo({ id }: { id: string }) {
       {muc.length === 0 ? (
         <p className="ghi-chu">Chưa có bước nào được ghi.</p>
       ) : (
-        <div className="bang-cuon">
+        <div className="khung-cuon" role="region" aria-label="Nhật ký hồ sơ" tabIndex={0}>
           <table className="bang">
             <thead>
               <tr>
