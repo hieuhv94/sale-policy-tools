@@ -3593,3 +3593,59 @@ lại `lineShape`. Thêm trường vào một chỗ mà quên chỗ kia, và tri
   vẫn chưa rõ nên là một cột hay một dòng chú thích chân trang.
 - Bề rộng cột Ghi chú trên giấy chặn cứng ở 45mm. Chưa đo thật trên hồ sơ nhiều cột CPBH; máy không
   có LibreOffice nên chỉ kiểm được bằng cách đếm ô trong HTML.
+
+---
+
+## P35 — Gỡ hai ký hiệu và khối chú thích, giữ nguyên luật đứng sau chúng
+
+Hai yêu cầu ngắn, và cả hai đều chạm vào `FE-28` — luật "không bao giờ chỉ dùng màu". Việc ở đây
+không phải là chọn giữa yêu cầu và luật, mà là nhận ra **vật mang tin đổi được còn luật thì không**.
+
+### `!` và `◆`: ký hiệu thứ hai cạnh một ký hiệu đã đủ việc
+
+Lý do người dùng đưa ra là hình thức, nhưng nó đúng về chức năng: hai ký hiệu chen vào giữa một cột
+số làm con số hết thẳng hàng, mà trong bảng tiền thì thế thẳng hàng của cột số chính là thứ giúp dò
+nhanh. `font-variant-numeric: tabular-nums` ở `.so` sinh ra để giữ đúng cái thế ấy, và hai ký hiệu
+độ rộng khác nhau phá nó ngay ở dòng đầu tiên.
+
+Điều làm yêu cầu này an toàn là **dấu `?` vừa thêm ở P34**. Nó là ký hiệu nhìn thấy được, hiện đúng
+ở dòng có màu và biến mất ở dòng thường, và `title`/`aria-label` của nó nói rõ đây là màu gì. Nghĩa
+là `FE-28` vẫn còn đủ ba lớp — chỉ là lớp "ký hiệu" đổi từ hai dấu câm sang một dấu biết trả lời.
+Nếu P34 chưa có dấu `?`, yêu cầu này sẽ là một sự đánh đổi thật và tôi đã phải nói ra.
+
+Một chi tiết theo sau: `.dau-hoi` chuyển sang `color: inherit`. Khi nó là dấu hiệu duy nhất của ô,
+cho nó màu riêng là tách nó khỏi con số đúng lúc cần dính vào con số nhất.
+
+### Khối chú thích: đúng nội dung, sai chỗ và sai lúc
+
+`ChuThichMau` do chính tôi thêm ở P28, với lập luận "người dùng gặp dòng đỏ đầu tiên vào lúc đang lập
+hồ sơ dở, và đó là lúc tệ nhất để đi tìm xem màu đỏ nghĩa là gì". Lập luận ấy vẫn đúng — nhưng nó
+biện minh cho việc **có sẵn lời giải thích**, không biện minh cho việc **in bốn dòng chữ dưới mọi hồ
+sơ**, kể cả hồ sơ không có dòng nào mang màu.
+
+Dấu `?` giải đúng bài toán ấy tốt hơn: lời giải thích nằm cạnh chính con số gây thắc mắc, và chỉ
+xuất hiện khi có gì để thắc mắc. Cái mất đi là khả năng đọc trước khi gặp; đổi lại là không phải đọc
+gì khi không cần.
+
+Gỡ nó kéo theo hai thứ nhỏ: `.o-mau-loi`/`.o-mau-canh-bao` — vừa mới đổi từ nền nhạt sang màu đặc ở
+P34 — biến mất luôn; và `dauTrongDuLieu()` trong test mất lý do tồn tại ban đầu (nó sinh ra để bỏ qua
+chính khối chú thích). Giữ hàm lại: câu hỏi nó đặt ra vẫn đúng, và khối chú thích nào thêm lại sau
+này cũng sẽ dùng đúng những lớp ấy.
+
+### Một dấu ◆ mồ côi ở chỗ không ai nghĩ tới
+
+Hộp thoại thêm dòng sản phẩm mở đầu khối cảnh báo bằng `◆` — cố ý, để nối lời cảnh báo với ký hiệu
+người dùng sắp thấy trong bảng. Ký hiệu ấy giờ không còn, nên dấu ◆ ở đó trỏ tới một thứ họ sẽ không
+tìm thấy. Gỡ.
+
+Đây là loại rác mà `grep` một lớp CSS không tìm ra: nó là **ký tự**, không phải lớp. Nên test mới
+kiểm cả hai — không còn `.dau-vuot`/`.dau-mac-dinh`, **và** `document.body.textContent` không chứa
+`◆`. Đổi lớp mà giữ ký tự thì test cũ xanh còn màn hình vẫn y nguyên.
+
+829 case (827 → 829).
+
+### Còn nợ
+
+- Chưa nhìn bằng mắt trên trình duyệt thật: `make demo` đang tắt (phải hạ để chạy `make test`).
+- `FE-28` giờ dựa vào một `<button>` nhỏ 1,15em. Kiểm tương phản thật của nó trên nền vàng ở giao
+  diện tối là việc chưa làm — `--mau-canh-bao` vốn được chọn cho chữ đậm, không cho viền mảnh.

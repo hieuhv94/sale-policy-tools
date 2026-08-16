@@ -423,48 +423,23 @@ textarea.o-nhap { min-height: 6rem; }
   border: 1px solid currentColor;
   border-radius: 50%;
   background: transparent;
-  color: var(--mau-chu-phu);
+  /* THỪA HƯỞNG màu của con số (0028). Từ khi `!` và `◆` bị gỡ, dấu này là dấu
+     hiệu nhìn thấy duy nhất của ô — cho nó màu riêng thì nó tách khỏi con số
+     đúng lúc cần dính vào con số nhất. */
+  color: inherit;
   font: inherit;
   font-size: 0.7em;
   font-weight: 700;
   line-height: 1;
   cursor: help;
 }
-.dau-hoi:hover { color: var(--mau-chu); }
+.dau-hoi:hover { background: var(--mau-nen-hover); }
 .dau-hoi:focus-visible { outline: 2px solid var(--mau-chinh); outline-offset: 2px; }
 
-/**
- * Dấu vượt ngưỡng: vòng tròn VIỀN chứ không tô đặc.
- *
- * Tô đặc thì chữ bên trong phải nghịch màu, mà ở giao diện tối màu lỗi là một
- * sắc đỏ nhạt — chữ trắng trên nó rơi xuống dưới ngưỡng AA. Viền thì dùng đúng
- * một màu cho cả hai giao diện và vẫn nổi rõ.
- */
-.dau-vuot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25em; height: 1.25em;
-  margin-right: var(--k1);
-  border: 2px solid var(--mau-loi);
-  border-radius: 50%;
-  background: var(--mau-loi-nen);
-  color: var(--mau-loi);
-  font-size: 0.75em;
-  font-weight: 800;
-}
-
-/* Dấu "ngưỡng mặc định của sản phẩm" (0022). Hình THOI chứ không tròn: khác dấu
-   vượt ngưỡng cả về hình lẫn màu, để phân biệt được khi in đen trắng và khi hai
-   dấu đứng cạnh nhau trên cùng một dòng. */
-.dau-mac-dinh {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: var(--k1);
-  color: var(--mau-canh-bao);
-  font-size: 0.8em;
-}
+/* Dấu `!` (`.dau-vuot`) và hình thoi `◆` (`.dau-mac-dinh`) đã gỡ ở 0028. Hai ký
+   hiệu chen vào giữa một cột số làm con số hết thẳng hàng, mà thế thẳng hàng của
+   cột số chính là thứ giúp dò nhanh trong bảng tiền. Vai trò "dấu hiệu không
+   phải màu" của chúng chuyển sang `.dau-hoi`. */
 
 /* --- Nhãn trạng thái ------------------------------------------------------ */
 
@@ -518,37 +493,9 @@ tbody tr:hover { background: var(--mau-nen-hover); }
 
 .tong-cong { margin-top: var(--k3); text-align: right; }
 
-/* --- Chú thích màu -------------------------------------------------------- */
-
-.chu-thich-mau {
-  list-style: none;
-  margin: var(--k3) 0 0;
-  padding: var(--k3);
-  border: 1px solid var(--mau-vien);
-  border-radius: var(--bo-goc);
-  background: var(--mau-nen-phu);
-  font-size: var(--chu-nho);
-  color: var(--mau-chu-phu);
-}
-.chu-thich-mau li { display: flex; align-items: baseline; gap: var(--k1); }
-.chu-thich-mau li + li { margin-top: var(--k2); }
-.chu-thich-mau strong { color: var(--mau-chu); }
-
-/* Ô màu của chú thích. `flex: none` vì trong một hàng flex, ô vuông này bị co
-   lại thành hình chữ nhật dẹt khi chữ bên cạnh dài — và một chú thích màu có ô
-   màu méo thì không đối chiếu được với nền của dòng. */
-.o-mau {
-  flex: none;
-  display: inline-block;
-  width: 1em; height: 1em;
-  border-radius: 3px;
-  border: 1px solid var(--mau-vien);
-  transform: translateY(0.1em);
-}
-/* Ô màu ĐẶC, không phải nền nhạt: từ 0027 màu nằm trên chữ số, nên mẫu màu ở
-   chú thích phải là chính cái màu chữ ấy để đối chiếu bằng mắt được. */
-.o-mau-loi { background: var(--mau-loi); border-color: var(--mau-loi); }
-.o-mau-canh-bao { background: var(--mau-canh-bao); border-color: var(--mau-canh-bao); }
+/* Khối chú thích màu (`.chu-thich-mau`, `.o-mau*`) đã gỡ ở 0028: nó chiếm bốn
+   dòng chữ dưới MỌI hồ sơ, kể cả hồ sơ không có dòng nào mang màu. Lời giải
+   thích chuyển vào dấu `?` cạnh chính con số có màu. */
 
 /* Mã quy định chiết khấu. Chữ đơn cách và nhỏ hơn: bề ngang là thứ đắt nhất
    trong bảng này, và mã được đọc theo từng ký tự để chép sang màn hình Chiết

@@ -195,20 +195,20 @@ việc khác nhau.
 ### Hai màu trong bảng dòng sản phẩm
 
 Màu nằm trên **chính con số ở cột Tỷ lệ CK**, không phủ nền cả dòng: những ô còn lại của dòng là số
-bình thường và vẫn phải đọc được như số bình thường. Ngay dưới bảng có **chú thích màu** giải nghĩa
-cả hai:
+bình thường và vẫn phải đọc được như số bình thường:
 
 | Dấu hiệu | Nghĩa | Có chặn không |
 |---|---|---|
-| Tỷ lệ CK màu **đỏ** + dấu chấm than `!` | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
-| Tỷ lệ CK màu **vàng** + dấu `◆` | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách hàng của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
+| Tỷ lệ CK màu **đỏ** | **Vượt ngưỡng** — tỷ lệ chiết khấu cao hơn ngưỡng cho phép | Không. Chỉ được đánh dấu để người duyệt nhìn thấy |
+| Tỷ lệ CK màu **vàng** | **Chưa có quy định chiết khấu** phủ sản phẩm này với loại khách hàng của khách hàng, nên dòng **không có ngưỡng nào để đối chiếu** | Không. Báo Quản trị hệ thống nếu cần một ngưỡng cho sản phẩm này |
 
-Dòng vừa vượt ngưỡng vừa thiếu quy định thì con số là **đỏ** — vượt ngưỡng là thứ phải xử lý trước —
-nhưng dấu `◆` vẫn còn.
+Dòng vừa vượt ngưỡng vừa thiếu quy định thì con số là **đỏ** — vượt ngưỡng là thứ phải xử lý trước.
 
 **Không nhớ màu nghĩa là gì thì bấm dấu `?`** ngay cạnh con số. Rê chuột cũng được; trên điện thoại
-thì bấm. Nó nói đủ lý do: vượt ngưỡng bao nhiêu so với ngưỡng nào, hay không tìm thấy quy định chiết
-khấu nào áp dụng.
+thì bấm. Nó nói đủ lý do, và nói **cả hai** khi cả hai cùng đúng: vượt ngưỡng bao nhiêu so với ngưỡng
+nào, hay không tìm thấy quy định chiết khấu nào áp dụng.
+
+Dấu `?` chỉ hiện ở dòng có màu — thấy nó là biết dòng ấy có chuyện, không thấy là dòng bình thường.
 
 **Bạn được báo trước, không phải sau.** Ngay khi chọn sản phẩm trong hộp thoại thêm dòng, nếu không
 quy định nào khớp thì một khối vàng hiện ra kèm **đúng con số ngưỡng sẽ dùng**. Báo trước vì ngưỡng
@@ -232,7 +232,7 @@ thùng 12". Nhập trong hộp thoại thêm hoặc sửa dòng, tối đa 500 k
 ### Cột QĐCK
 
 Mã của **đúng quy định chiết khấu** đã cho ra ngưỡng của dòng đó. Ô trống nghĩa là không có quy định
-nào — đúng những dòng mang dấu `◆`.
+nào — đúng những dòng có Tỷ lệ CK màu vàng.
 
 Dùng để làm gì: chép mã, sang mục **Chiết khấu**, dán vào ô tìm kiếm. Ra ngay dòng quy định đang chi
 phối con số ngưỡng của dòng hồ sơ ấy. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia

@@ -76,8 +76,8 @@ export const thieuQuyDinh = (d: DongSanPham): boolean =>
  * dòng khó đọc hơn đúng lúc người duyệt cần đọc chúng kỹ nhất.
  *
  * Hai cảnh báo cùng đúng trên một dòng thì VƯỢT NGƯỠNG thắng về màu — nó là thứ
- * người duyệt phải xử lý. Dấu hiệu kia không mất: cả hai ký hiệu `!` và `◆` đều
- * đứng cạnh con số, và dấu `?` giải thích đủ cả hai.
+ * người duyệt phải xử lý. Cảnh báo kia không mất: dấu `?` cạnh con số nói ĐỦ CẢ
+ * HAI lý do, và trình đọc màn hình cũng đọc đủ cả hai.
  */
 export const lopTyLe = (d: DongSanPham): string =>
   ['ty-le', d.overThreshold ? 'vuot' : thieuQuyDinh(d) ? 'thieu' : '']
@@ -130,8 +130,8 @@ export const COT_SAU = [
    * Chiết khấu là ra đúng dòng quy định.
    *
    * Ô TRỐNG khi không có: dòng rơi về mặc định của sản phẩm, hoặc không có ngưỡng
-   * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — cột kế bên
-   * đã mang dấu ◆ nói đúng điều đó rồi.
+   * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — con số Tỷ lệ
+   * CK ngay bên trái đã đổi màu và mang dấu `?` nói đúng điều đó rồi.
    */
   { khoa: 'ruleCode', nhan: 'QĐCK' },
   /*
@@ -165,21 +165,27 @@ export const cotCho = (dong: readonly DongSanPham[]) => [
 ];
 
 /**
- * Dấu hiệu vượt ngưỡng KHÔNG chỉ là màu đỏ (`FE-28`).
+ * Ô Tỷ lệ CK: MÀU và dấu `?`, không có ký hiệu nào khác (`0028`).
  *
- * Khoảng 8% nam giới mù màu đỏ-lục; với họ ô đỏ và ô thường trông giống nhau.
- * Nên vượt ngưỡng mang cả ba: một dấu chấm than, chữ "vượt ngưỡng" cho trình
- * đọc màn hình, và màu. Bỏ bất kỳ cái nào thì có một nhóm người dùng không thấy.
+ * Bản trước đặt một dấu `!` trước con số và một hình thoi `◆` sau nó. Người dùng
+ * yêu cầu bỏ cả hai: hai ký hiệu chen vào giữa một cột số làm con số hết thẳng
+ * hàng, và trong một bảng tiền thì thế thẳng hàng của cột số chính là thứ giúp
+ * dò nhanh.
+ *
+ * `FE-28` — "không bao giờ chỉ dùng màu" — VẪN ĐƯỢC GIỮ, chỉ đổi vật mang tin:
+ *
+ *   - Dấu `?` là ký hiệu nhìn thấy được, hiện đúng ở những dòng có màu và biến
+ *     mất ở dòng bình thường. Ai không phân biệt được đỏ với vàng vẫn thấy nó,
+ *     và `title` nói rõ đây là màu gì.
+ *   - Hai câu `chi-doc-man-hinh` dưới đây không đổi — trình đọc màn hình đọc
+ *     nguyên trạng thái của dòng mà không cần tới màu lẫn ký hiệu.
+ *
+ * Nói cách khác: `!` và `◆` là ký hiệu THỨ HAI cạnh một ký hiệu đã đủ việc.
  */
 function OTyLe({ d }: { d: DongSanPham }) {
   const lyDo = lyDoTyLe(d);
   return (
     <span className={lopTyLe(d)}>
-      {d.overThreshold && (
-        <span className="dau-vuot" aria-hidden="true">
-          !
-        </span>
-      )}
       {tyLe(d.discountRate)}
       {d.overThreshold && (
         <span className="chi-doc-man-hinh">
@@ -187,26 +193,15 @@ function OTyLe({ d }: { d: DongSanPham }) {
           vượt ngưỡng {tyLe(d.threshold)}
         </span>
       )}
-      {/*
-        Dấu thiếu quy định đi CÙNG chỗ với dấu vượt ngưỡng và theo cùng ba lớp
-        (`FE-28`): một ký hiệu nhìn thấy, một câu cho trình đọc màn hình, và màu
-        của chính con số. Nó vẫn hiện khi con số đang đỏ vì vượt ngưỡng — hai
-        chuyện khác nhau, mất một cái là mất một nửa câu trả lời.
-      */}
+      {/* Cùng một tình huống, HAI câu khác nhau: rơi về mặc định là còn một con
+          số để đối chiếu, còn không có ngưỡng nào thì không. Người dùng trình
+          đọc màn hình không thấy được sự khác biệt ấy qua màu. */}
       {thieuQuyDinh(d) && (
-        <>
-          <span className="dau-mac-dinh" aria-hidden="true">
-            ◆
-          </span>
-          {/* Cùng một ký hiệu, HAI câu khác nhau: rơi về mặc định là còn một con
-              số để đối chiếu, còn không có ngưỡng nào thì không. Người dùng
-              trình đọc màn hình không thấy được sự khác biệt ấy qua màu. */}
-          <span className="chi-doc-man-hinh">
-            {d.thresholdSource === 'KHONG_CO'
-              ? ' chưa có quy định chiết khấu nào áp dụng, và sản phẩm cũng không có ngưỡng mặc định'
-              : ' ngưỡng mặc định của sản phẩm, chưa có quy định chiết khấu nào áp dụng'}
-          </span>
-        </>
+        <span className="chi-doc-man-hinh">
+          {d.thresholdSource === 'KHONG_CO'
+            ? ' chưa có quy định chiết khấu nào áp dụng, và sản phẩm cũng không có ngưỡng mặc định'
+            : ' ngưỡng mặc định của sản phẩm, chưa có quy định chiết khấu nào áp dụng'}
+        </span>
       )}
       {/*
         Dấu `?` — lý do đầy đủ, hiện khi rê chuột (`0027`).
@@ -216,6 +211,9 @@ function OTyLe({ d }: { d: DongSanPham }) {
         `title` là một dấu hỏi không bao giờ trả lời được. Nút thì nhận được
         tiêu điểm, `aria-label` mang nguyên câu ấy, nên trình đọc màn hình và
         người dùng Tab đều tới được cùng một nội dung.
+
+        Từ `0028` đây là ký hiệu nhìn thấy DUY NHẤT của ô này, nên nó cũng là thứ
+        giữ `FE-28` — xem chú thích trên `OTyLe`.
 
         Không mở hộp thoại: câu trả lời dài hai dòng, và bắt người dùng đóng một
         hộp thoại để quay lại bảng là đắt hơn thứ họ vừa hỏi.
@@ -229,52 +227,18 @@ function OTyLe({ d }: { d: DongSanPham }) {
   );
 }
 
-/**
- * Chú thích màu — bảng tô màu mà không nói màu nghĩa là gì thì màu chỉ là trang trí.
+/*
+ * Chú thích màu — ĐÃ GỠ ở `0028`.
  *
- * Hiện CẢ HAI mục ngay cả khi bảng chưa có dòng nào mang màu ấy. Người dùng gặp
- * con số đỏ đầu tiên vào lúc đang lập hồ sơ dở, và đó là lúc tệ nhất để đi tìm
- * xem màu đỏ nghĩa là gì.
+ * Khối `<ul class="chu-thich-mau">` từng nằm dưới bảng, giải nghĩa hai màu và
+ * cột QĐCK. Người dùng yêu cầu bỏ: nó chiếm bốn dòng chữ dưới MỌI hồ sơ, kể cả
+ * hồ sơ không có dòng nào mang màu, và trên điện thoại thì đẩy nút thao tác
+ * xuống dưới màn hình.
+ *
+ * Lời giải thích không mất theo — nó chuyển vào dấu `?` cạnh chính con số có
+ * màu, tức là đúng chỗ người dùng đang nhìn khi họ thắc mắc. Cái mất đi là khả
+ * năng đọc trước khi gặp; đổi lại là không phải đọc gì khi không cần.
  */
-export function ChuThichMau() {
-  return (
-    <ul className="chu-thich-mau">
-      <li>
-        <span className="o-mau o-mau-loi" aria-hidden="true" />
-        <span className="dau-vuot" aria-hidden="true">
-          !
-        </span>{' '}
-        <strong>Vượt ngưỡng</strong> — tỷ lệ chiết khấu cao hơn ngưỡng cho phép. Hồ sơ vẫn gửi được
-        nhưng người duyệt sẽ thấy dấu này.
-      </li>
-      <li>
-        <span className="o-mau o-mau-canh-bao" aria-hidden="true" />
-        <span className="dau-mac-dinh" aria-hidden="true">
-          ◆
-        </span>{' '}
-        <strong>Chưa có quy định chiết khấu</strong> — không quy định nào phủ sản phẩm này với loại
-        khách hàng của khách hàng. Ngưỡng lấy từ mặc định khai trong danh mục sản phẩm, hoặc
-        không có ngưỡng nào để đối chiếu. Hồ sơ vẫn lập và vẫn duyệt được; báo Quản trị hệ thống nếu
-        cần một ngưỡng cho sản phẩm này.
-      </li>
-      <li>
-        <span className="o-mau" aria-hidden="true" />
-        Màu chỉ nằm trên <strong>con số tỷ lệ</strong>, không phủ cả dòng: những ô còn lại của dòng
-        vẫn là số bình thường và vẫn phải đọc được. Rê chuột hoặc bấm vào dấu{' '}
-        <span className="dau-hoi" aria-hidden="true">
-          ?
-        </span>{' '}
-        cạnh con số để xem lý do đầy đủ.
-      </li>
-      <li>
-        <span className="o-mau" aria-hidden="true" />
-        Cột <strong>QĐCK</strong> là mã quy định đã cho ra ngưỡng của dòng. Dán mã đó vào ô tìm kiếm
-        ở màn hình <em>Chiết khấu</em> để xem chính quy định ấy. Ô trống nghĩa là không có quy định
-        nào — đúng những dòng mang dấu ◆.
-      </li>
-    </ul>
-  );
-}
 
 function CpbhGop({ d }: { d: DongSanPham }) {
   const [mo, datMo] = useState(false);
@@ -473,11 +437,6 @@ export function BangSanPham({
           </li>
         ))}
       </ul>
-
-      {/* Nằm TRONG component chứ không ở trang gọi: mọi chỗ bày bảng này đều
-          bày cùng bộ màu, nên chú thích phải đi theo bảng. Để trang tự thêm thì
-          sớm muộn có một trang quên. */}
-      <ChuThichMau />
     </>
   );
 }

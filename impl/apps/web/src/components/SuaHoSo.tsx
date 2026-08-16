@@ -189,12 +189,12 @@ export function ThemDongSanPham({
           Cảnh báo NGAY sau ô chọn sản phẩm, không phải dưới đáy biểu mẫu: nó nói
           về sản phẩm vừa chọn, và người dùng sắp cuộn xuống gõ giá. Đặt cuối thì
           họ đọc nó sau khi đã gõ xong — quá muộn để đổi ý một cách rẻ.
+
+          Không còn dấu ◆ dẫn đầu (`0028`): ký hiệu ấy đã gỡ khỏi bảng, nên để
+          lại đây là trỏ tới một thứ người dùng sẽ không tìm thấy.
         */}
         {xem?.thresholdSource === 'KHONG_CO' && (
           <div className="hop-canh-bao" role="note">
-            <span className="dau-mac-dinh" aria-hidden="true">
-              ◆
-            </span>{' '}
             <strong>Chưa có quy định chiết khấu cho sản phẩm này.</strong> Không quy định nào phủ nó
             với loại khách hàng của khách hàng này, nên dòng này sẽ{' '}
             <strong>không có ngưỡng nào để đối chiếu</strong> — cột Tỷ lệ CK vẫn tính, chỉ là không

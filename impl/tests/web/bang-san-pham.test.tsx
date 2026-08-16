@@ -41,11 +41,10 @@ const dong = (p: Partial<DongSanPham> = {}): DongSanPham => ({
 /**
  * Đếm dấu hiệu TRONG PHẦN DỮ LIỆU, bỏ qua chú thích màu.
  *
- * Chú thích màu cố tình dùng ĐÚNG những lớp ấy — một chú thích vẽ ký hiệu khác
- * với ký hiệu thật thì không đối chiếu được, tức là không còn là chú thích. Nên
- * `document.querySelectorAll('.dau-vuot')` luôn đếm dư đúng một cái, và câu hỏi
- * mà mọi test dưới đây đặt ra là "DÒNG NÀO mang dấu", không phải "có dấu nào
- * trên trang".
+ * Khối chú thích màu đã gỡ ở `0028` nên không còn chỗ nào ngoài bảng vẽ những
+ * lớp ấy nữa. Giữ hàm này vì câu hỏi nó đặt ra vẫn đúng — "DÒNG NÀO mang dấu",
+ * không phải "có dấu nào trên trang" — và vì bất kỳ khối chú thích nào thêm lại
+ * sau này cũng sẽ dùng lại đúng những lớp ấy.
  */
 const dauTrongDuLieu = (lop: string) =>
   document.querySelectorAll(`.bang-san-pham ${lop}, .the-san-pham ${lop}`);
@@ -134,19 +133,36 @@ describe('FE-03 dưới 640px thành thẻ, KHÔNG cột nào biến mất', () 
   });
 });
 
+/**
+ * FE-28 sau `0028` — dấu `!` và hình thoi `◆` đã gỡ, nhưng luật thì không.
+ *
+ * Vật mang tin đổi chứ không mất: dấu `?` là ký hiệu nhìn thấy được, hiện đúng ở
+ * dòng có màu và biến mất ở dòng thường; câu cho trình đọc màn hình giữ nguyên.
+ */
 describe('FE-28 dấu hiệu vượt ngưỡng không chỉ dựa vào màu', () => {
   it('có cả dấu hiệu hình và chữ cho trình đọc màn hình', () => {
     render(<BangSanPham dong={[dong({ overThreshold: true, discountRate: '35.00' })]} />);
     // Chữ: đọc được bằng trình đọc màn hình và bằng người mù màu đỏ-lục.
     expect(screen.getAllByText(/vượt ngưỡng 30,00%/).length).toBeGreaterThan(0);
     // Dấu hình, tách khỏi màu.
-    expect(dauTrongDuLieu('.dau-vuot').length).toBeGreaterThan(0);
+    expect(dauTrongDuLieu('.dau-hoi').length).toBeGreaterThan(0);
   });
 
   it('dòng không vượt thì không có dấu nào', () => {
     render(<BangSanPham dong={[dong({ overThreshold: false })]} />);
-    expect(dauTrongDuLieu('.dau-vuot')).toHaveLength(0);
+    expect(dauTrongDuLieu('.dau-hoi')).toHaveLength(0);
     expect(screen.queryByText(/vượt ngưỡng/)).toBeNull();
+  });
+
+  it('0028 KHÔNG còn dấu ! và hình thoi ◆ ở bất kỳ đâu trên trang', () => {
+    render(
+      <BangSanPham dong={[dong({ overThreshold: true, thresholdSource: 'KHONG_CO' })]} />,
+    );
+    expect(document.querySelectorAll('.dau-vuot')).toHaveLength(0);
+    expect(document.querySelectorAll('.dau-mac-dinh')).toHaveLength(0);
+    // Kiểm cả ký tự thật, không chỉ lớp CSS: đổi lớp mà giữ ký tự thì test cũ
+    // xanh còn màn hình thì vẫn y nguyên.
+    expect(document.body.textContent).not.toContain('◆');
   });
 });
 
@@ -204,7 +220,7 @@ describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
   it('KHÔNG tô gì khi ngưỡng đến từ một quy định', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'RULE' })]} />);
     expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(0);
-    expect(dauTrongDuLieu('.dau-mac-dinh')).toHaveLength(0);
+    expect(dauTrongDuLieu('.dau-hoi')).toHaveLength(0);
   });
 
   it('KHÔNG tô gì cho dòng lập trước 0022 — nguồn null là "không rõ"', () => {
@@ -216,7 +232,7 @@ describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
 
   it('FE-28 dấu hiệu KHÔNG chỉ là màu — có ký hiệu và có câu cho trình đọc', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'PRODUCT_DEFAULT' })]} />);
-    expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
+    expect(dauTrongDuLieu('.dau-hoi').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/chưa có quy định chiết khấu nào áp dụng/).length)
       .toBeGreaterThan(0);
   });
@@ -231,23 +247,26 @@ describe('0022 dấu hiệu "chưa có quy định chiết khấu"', () => {
     );
     expect(dauTrongDuLieu('.ty-le.vuot')).toHaveLength(2);
     expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(0);
-    expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
-    expect(dauTrongDuLieu('.dau-vuot').length).toBeGreaterThan(0);
+    // Màu chỉ nói được MỘT trong hai; dấu `?` nói cả hai.
+    const t = (dauTrongDuLieu('.dau-hoi')[0] as HTMLElement).getAttribute('title') ?? '';
+    expect(t).toContain('Vượt ngưỡng');
+    expect(t).toContain('Không tìm thấy quy định chiết khấu');
   });
 });
 
-describe('0022 chú thích màu', () => {
-  it('giải nghĩa CẢ HAI màu ngay cả khi bảng chưa có dòng nào mang màu ấy', () => {
-    // Người dùng gặp dòng đỏ đầu tiên vào lúc đang lập hồ sơ dở — lúc tệ nhất
-    // để đi tìm xem màu đỏ nghĩa là gì.
-    render(<BangSanPham dong={[dong()]} />);
-    const chu = document.querySelector('.chu-thich-mau') as HTMLElement;
-    expect(chu).not.toBeNull();
-    expect(within(chu).getByText(/Vượt ngưỡng/)).toBeDefined();
-    expect(within(chu).getByText(/Chưa có quy định chiết khấu/)).toBeDefined();
-    // Ô màu để đối chiếu bằng mắt với nền của dòng.
-    expect(chu.querySelectorAll('.o-mau-loi')).toHaveLength(1);
-    expect(chu.querySelectorAll('.o-mau-canh-bao')).toHaveLength(1);
+describe('0028 khối chú thích màu đã gỡ', () => {
+  it('không còn khối chú thích nào dưới bảng', () => {
+    // Nó chiếm bốn dòng chữ dưới MỌI hồ sơ, kể cả hồ sơ không có dòng nào mang
+    // màu. Lời giải thích chuyển vào dấu `?` cạnh chính con số có màu.
+    render(<BangSanPham dong={[dong({ overThreshold: true })]} />);
+    expect(document.querySelector('.chu-thich-mau')).toBeNull();
+    expect(document.querySelectorAll('.o-mau')).toHaveLength(0);
+  });
+
+  it('nhưng lý do thì vẫn đọc được — trên chính dấu ?', () => {
+    render(<BangSanPham dong={[dong({ overThreshold: true })]} />);
+    const nut = dauTrongDuLieu('.dau-hoi')[0] as HTMLElement;
+    expect(nut.getAttribute('title')).toContain('Vượt ngưỡng');
   });
 });
 
@@ -258,11 +277,11 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
   it('KHONG_CO cũng tô vàng — cùng một chuyện: không quy định nào phủ', () => {
     render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
     expect(dauTrongDuLieu('.ty-le.thieu')).toHaveLength(2);
-    expect(dauTrongDuLieu('.dau-mac-dinh').length).toBeGreaterThan(0);
+    expect(dauTrongDuLieu('.dau-hoi').length).toBeGreaterThan(0);
   });
 
   it('KHONG_CO nói RÕ là không có cả ngưỡng mặc định', () => {
-    // Cùng ký hiệu ◆ nhưng hai câu khác nhau: rơi về mặc định là còn một con số
+    // Cùng một màu vàng nhưng hai câu khác nhau: rơi về mặc định là còn một con số
     // để đối chiếu, không có ngưỡng nào thì không. Người dùng trình đọc màn hình
     // không thấy được khác biệt ấy qua màu.
     render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
@@ -276,7 +295,6 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
       />,
     );
     expect(dauTrongDuLieu('.ty-le.vuot')).toHaveLength(0);
-    expect(dauTrongDuLieu('.dau-vuot')).toHaveLength(0);
   });
 
   it('cột QĐCK hiện mã quy định', () => {

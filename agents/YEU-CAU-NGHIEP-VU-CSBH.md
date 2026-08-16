@@ -442,10 +442,9 @@ xoá dòng, nhờ Quản trị khai quy định, rồi nhập lại từ đầu.
 > còn không chặn gửi duyệt — nên thiếu ngưỡng không thể là lý do từ chối. Nó còn đẩy người lập vào ngõ
 > cụt, vì TDV không có quyền khai quy định chiết khấu.
 
-Dòng đã lập trong tình huống này mang **dấu ◆ và con số Tỷ lệ CK màu vàng**, để người duyệt biết con
-số ngưỡng ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu quy định
-thì con số là **đỏ** — vượt ngưỡng là thứ phải xử lý — nhưng dấu ◆ vẫn còn. Bảng luôn có **chú thích
-màu** ngay dưới nó.
+Dòng đã lập trong tình huống này mang **con số Tỷ lệ CK màu vàng**, để người duyệt biết con số ngưỡng
+ấy không đến từ chính sách chiết khấu đã ban hành. Dòng vừa vượt ngưỡng vừa thiếu quy định thì con số
+là **đỏ** — vượt ngưỡng là thứ phải xử lý — và dấu `?` nói **cả hai** lý do.
 
 > **Màu chỉ nằm trên con số tỷ lệ, không phủ cả dòng** `sửa 16/08`. Bản trước tô nền cả dòng. Nền ấy
 > phủ lên Giá bán Công ty và các khoản CPBH — những con số hoàn toàn bình thường — trong khi thứ duy
@@ -456,6 +455,16 @@ màu** ngay dưới nó.
 > bao nhiêu so với ngưỡng nào, hay không tìm thấy quy định chiết khấu nào áp dụng. Là **nút** chứ
 > không phải chữ có `title`, vì `title` chỉ hiện khi có chuột: trên điện thoại và với người dùng bàn
 > phím, một dấu hỏi không bao giờ trả lời được là một dấu hỏi hỏng.
+>
+> **Dấu `?` là ký hiệu duy nhất trong ô** `sửa 16/08`. Dấu chấm than `!` trước con số và hình thoi
+> `◆` sau nó đã bỏ: hai ký hiệu chen vào giữa một cột số làm con số hết thẳng hàng, mà trong bảng
+> tiền thì thế thẳng hàng của cột số chính là thứ giúp dò nhanh. Luật "không bao giờ chỉ dùng màu"
+> vẫn giữ — dấu `?` hiện đúng ở dòng có màu và biến mất ở dòng thường, nên nó vừa là lời giải thích
+> vừa là dấu hiệu không phải màu.
+>
+> **Khối chú thích màu dưới bảng cũng bỏ** `sửa 16/08`. Nó chiếm bốn dòng chữ dưới mọi hồ sơ, kể cả
+> hồ sơ không có dòng nào mang màu, và trên điện thoại thì đẩy nút thao tác xuống dưới màn hình. Lời
+> giải thích không mất — nó nằm trong dấu `?`, tức là đúng chỗ người dùng đang nhìn khi thắc mắc.
 
 #### 6.3.3. Truy vết: cột QĐCK và cột Id `bổ sung 15/08`
 
@@ -787,7 +796,8 @@ sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
 
 **Ghi chú dòng sản phẩm, và màu đúng chỗ** (16/08) — mỗi dòng sản phẩm trong hồ sơ có một ô **ghi
 chú** tự do 500 ký tự, in ra cả bản A4 · **màu cảnh báo chỉ tô con số Tỷ lệ CK**, không phủ nền cả
-dòng · thêm **dấu `?`** cạnh con số, rê chuột hoặc bấm để đọc lý do đầy đủ.
+dòng · thêm **dấu `?`** cạnh con số, rê chuột hoặc bấm để đọc lý do đầy đủ · **bỏ dấu `!` và hình
+thoi `◆`** cạnh con số, và **bỏ khối chú thích màu** dưới bảng — dấu `?` gánh cả hai việc.
 
 **Hai yếu tố, và ba danh mục địa lý biến mất** (16/08) — **ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
 phẩm và loại khách hàng**; chiều **kênh bán** rời khỏi quy định · **bỏ hẳn ba trường Tỉnh/thành ·
