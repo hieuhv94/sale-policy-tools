@@ -815,6 +815,68 @@ describe('sửa và xoá quy định chiết khấu', () => {
     expect(sau.specificity).toBe(truoc.specificity);
   });
 
+  /*
+   * 0028 — sửa được NGÀY HIỆU LỰC.
+   *
+   * Nó không đổi phạm vi của dòng nào, chỉ đổi thứ tự giữa các dòng CÙNG phạm
+   * vi — đúng cái cơ chế "khai ngày muộn hơn để đè lên" của 0020. Trước 0028,
+   * gõ nhầm một ngày nghĩa là xoá dòng rồi khai lại, và giữa hai thao tác thì
+   * mọi hồ sơ lập ra mất ngưỡng.
+   */
+  it('0028 đổi ngày hiệu lực, và ngày mới quyết định lúc nào quy định ăn', async () => {
+    const { ma, groupCode } = await mkRule();
+    const sp = await post('/catalog/products', { code: code('P'), name: 'SP', groupCode });
+    const tra = (on: string) =>
+      get(`/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1&on=${on}`);
+
+    // Dời sang tương lai: tra ở một ngày TRƯỚC mốc mới thì không quy định nào khớp.
+    const sua = await patch(`/catalog/discount-rules/${ma}`, {
+      thresholdRate2: 1500,
+      effectiveFrom: '2027-06-01',
+    });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+
+    expect((await tra('2027-01-01')).body.source).toBe('KHONG_CO');
+    expect((await tra('2027-06-01')).body.source).toBe('RULE');
+  });
+
+  it('0028 vắng `effectiveFrom` là GIỮ NGUYÊN, không phải xoá', async () => {
+    // Cột `NOT NULL` nên không có trạng thái "không có giá trị" để một lần gửi
+    // thiếu diễn đạt — ngược với `note` của dòng hồ sơ (0027).
+    const { ma } = await mkRule({ effectiveFrom: '2021-03-04' });
+    expect((await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 1800 })).status)
+      .toBe(200);
+
+    const dong = ((await get('/catalog/discount-rules?limit=200')).body.items as {
+      code: string;
+      effectiveFrom: string;
+    }[]).find((x) => x.code === ma)!;
+    expect(String(dong.effectiveFrom).slice(0, 10)).toBe('2021-03-04');
+  });
+
+  it('0028 dời vào đúng ngày của một dòng CÙNG phạm vi thì 409', async () => {
+    // Hai dòng trùng phạm vi và trùng ngày không phân xử được — `uq_rule_pham_vi`
+    // chặn từ 0022, và đường sửa phải trả cùng một mã lỗi với đường tạo.
+    const { groupCode } = await makeProduct();
+    const chung = { productGroupCode: groupCode, customerType: 2, thresholdRate2: 1500 };
+    expect(
+      (await post('/catalog/discount-rules', {
+        code: code('CK'), ...chung, effectiveFrom: '2024-01-01',
+      })).status,
+    ).toBe(201);
+    const sau = await post('/catalog/discount-rules', {
+      code: code('CK'), ...chung, effectiveFrom: '2025-01-01',
+    });
+    expect(sau.status).toBe(201);
+
+    const dung = await patch(`/catalog/discount-rules/${sau.body.code}`, {
+      thresholdRate2: 1500,
+      effectiveFrom: '2024-01-01',
+    });
+    expect(dung.status).toBe(409);
+    expect(dung.body.code).toBe('RULE_SCOPE_DUPLICATE');
+  });
+
   it('xoá rồi thì không còn trong danh sách, xoá lần nữa là 404', async () => {
     const { ma } = await mkRule();
     expect((await del(`/catalog/discount-rules/${ma}`)).status).toBe(200);

@@ -181,16 +181,22 @@ export class CatalogController {
   }
 
   /**
-   * CHỈ sửa NGƯỠNG.
+   * Sửa NGƯỠNG và NGÀY HIỆU LỰC (`0028`).
    *
    * Hai khoá khớp không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng
    * (`specificity`). Ngày kết thúc thì không còn tồn tại từ 0020: quy định vô
    * thời hạn, muốn dừng thì xoá dòng hoặc khai một dòng cụ thể hơn đè lên.
+   *
+   * `effectiveFrom` bọc `opt()` vì vắng mặt là GIỮ NGUYÊN — cột `NOT NULL` nên
+   * không có trạng thái "không có giá trị" nào để một lần gửi thiếu diễn đạt.
    */
   @Roles('QUAN_TRI')
   @Patch('discount-rules/:code')
   updateRule(@CurrentUser() me: AuthUser, @Param('code') code: string, @Body() body: unknown) {
-    const b = validate(body, { thresholdRate2: int(0, 10_000) });
+    const b = validate(body, {
+      thresholdRate2: int(0, 10_000),
+      effectiveFrom: opt(isoDate()),
+    });
     return this.rules.update(code, b, me.id);
   }
 

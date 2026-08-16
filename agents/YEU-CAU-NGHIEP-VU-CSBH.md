@@ -397,11 +397,21 @@ thì hệ thống **từ chối tạo**, tính cả khi chỉ khác hoa thườn
 `ck-01` là một mã. Mã **không sửa được** sau khi tạo; đặt nhầm thì xoá dòng rồi khai lại.
 
 **Quy định VÔ THỜI HẠN** `sửa 15/08`. Không còn ngày kết thúc — cùng luật với chính CSBH (muc 5).
+Cột *Hiệu lực* trên bảng quy định vì thế chỉ hiện **ngày bắt đầu** `sửa 16/08`: chữ "vô thời hạn"
+đứng sau mọi dòng là một luật của cả bảng, không phải dữ liệu phân biệt dòng này với dòng kia, nên
+nó được nói đúng một lần ở câu ghi chú đầu bảng.
 Một dòng có hiệu lực từ ngày khai cho tới khi bị xoá, hoặc cho tới khi một dòng **cụ thể hơn** khớp
 và thắng nó.
 
 Hệ quả cho người dùng: cách “cho một quy định thôi áp dụng từ ngày X” không còn. Muốn dừng thì **xoá
 dòng**. Xoá không làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
+
+**Sửa được NGÀY BẮT ĐẦU HIỆU LỰC** `mới 16/08`, cùng với ngưỡng. Hai ô phạm vi thì vẫn không —
+chúng quyết định thứ tự ưu tiên của cả bảng. Ngày hiệu lực không đổi phạm vi của dòng nào, nó chỉ
+đổi thứ tự giữa các dòng **cùng** phạm vi, tức đúng cái cơ chế “khai ngày muộn hơn để đè lên” ở
+trên. Trước đây gõ nhầm một ngày nghĩa là xoá dòng rồi khai lại, và giữa hai thao tác ấy mọi hồ sơ
+lập ra đều mất ngưỡng. Dời vào đúng ngày của một dòng cùng phạm vi thì hệ thống **từ chối** — hai
+dòng như vậy không phân xử được, đúng luật ở 6.3.1.
 
 #### 6.3.1. Một sản phẩm khớp nhiều quy định `bổ sung 15/08`
 
@@ -724,7 +734,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-47 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
+49 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08/2026, nhóm theo chủ đề. Sáu quyết
 định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới nhất.
 
 **Vai trò** — Kế toán L1 và L2 là một · Ban lãnh đạo là một người, chỉ đọc · TDV và QL là một, cây
@@ -793,6 +803,10 @@ nào phủ thì dòng hồ sơ không có ngưỡng để đối chiếu.
 **Khách hàng** (15/08) — **loại khách hàng hiển thị** trên cả danh sách lẫn màn hình chi tiết ·
 **sửa được sau khi lưu**, có cảnh báo hệ quả khi đổi; hồ sơ đã lập giữ nguyên ngưỡng đã chụp, chỉ hồ
 sơ lập sau hoặc dòng được ghi lại mới nhận ngưỡng mới.
+
+**Sửa ngày hiệu lực của quy định** (16/08) — quy định chiết khấu **sửa được ngày bắt đầu hiệu lực**,
+không chỉ ngưỡng; trùng phạm vi và trùng ngày với một dòng khác thì từ chối · cột *Hiệu lực* trên
+bảng quy định **bỏ chữ "vô thời hạn"**, chỉ hiện ngày bắt đầu.
 
 **Ghi chú dòng sản phẩm, và màu đúng chỗ** (16/08) — mỗi dòng sản phẩm trong hồ sơ có một ô **ghi
 chú** tự do 500 ký tự, in ra cả bản A4 · **màu cảnh báo chỉ tô con số Tỷ lệ CK**, không phủ nền cả

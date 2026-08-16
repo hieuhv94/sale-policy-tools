@@ -986,6 +986,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-12 | Không dòng chiết khấu quy định nào khớp | **200**, `source = KHONG_CO`, `thresholdRate2 = null` — không còn ngưỡng mặc định nào để rơi về (`0025`). Dòng hồ sơ **vẫn thêm được**, `threshold_snap` NULL, `over_threshold` không bao giờ bật, giao diện tô vàng | §6.3.2 | `P0` |
 | CAT-12d | Khai quy định **trùng mã** | 409 `RULE_CODE_DUPLICATE`, phân biệt với `RULE_SCOPE_DUPLICATE`. Chuẩn hoá `upper(btrim(code))` như mã vật tư (`0024`) | §6.3 | `P0` |
 | CAT-12e | Khai quy định **thiếu mã** | 400 — mã không sinh tự động nữa (`0024`) | §6.3 | `P1` |
+| CAT-12f | `PATCH` quy định kèm `effectiveFrom` mới | 200; ngày mới quyết định lúc nào quy định ăn. Vắng trường ấy là **giữ nguyên** — cột `NOT NULL` nên "vắng mặt = xoá" không biểu diễn được (`0028`) | §6.3 | `P1` |
+| CAT-12g | `PATCH` dời ngày vào đúng ngày của một dòng **cùng phạm vi** | 409 `RULE_SCOPE_DUPLICATE` — cùng mã lỗi với đường tạo, vì cùng một `uq_rule_pham_vi` chặn (`0028`) | §6.3.1 | `P1` |
 | CAT-12b | Tra ngưỡng khi có dòng khớp | Trả kèm `ruleId` để `policy` đóng băng vào `rule_id_snap` | §6.3.2 | `P1` |
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |

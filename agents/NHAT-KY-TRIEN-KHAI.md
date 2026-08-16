@@ -3649,3 +3649,61 @@ kiểm cả hai — không còn `.dau-vuot`/`.dau-mac-dinh`, **và** `document.b
 - Chưa nhìn bằng mắt trên trình duyệt thật: `make demo` đang tắt (phải hạ để chạy `make test`).
 - `FE-28` giờ dựa vào một `<button>` nhỏ 1,15em. Kiểm tương phản thật của nó trên nền vàng ở giao
   diện tối là việc chưa làm — `--mau-canh-bao` vốn được chọn cho chữ đậm, không cho viền mảnh.
+
+---
+
+## P36 — Sửa được ngày hiệu lực, và một cột bớt đi bốn chữ lặp
+
+Hai việc nhỏ, và cái thứ hai giải thích cái thứ nhất.
+
+### "– vô thời hạn" là luật, không phải dữ liệu
+
+Cột *Hiệu lực* in `01/01/2026 – vô thời hạn` ở mọi dòng. Bốn chữ ấy **giống hệt nhau trên mọi dòng**,
+nên chúng không phân biệt dòng nào với dòng nào — mà phân biệt là toàn bộ việc của một ô trong bảng.
+Chúng là một luật của cả bảng, và chỗ của luật ấy là câu ghi chú đầu bảng, nơi nó được nói **đúng
+một lần**.
+
+Không xoá thẳng: câu ấy chuyển lên đoạn ghi chú trên đầu bảng, cùng chỗ với câu "ngưỡng chỉ để cảnh
+báo". Test khoá lại cả hai nửa — bảng không chứa chữ ấy, **và** trang vẫn nói nó đúng một lần. Chỉ
+kiểm nửa đầu thì xoá nhầm cả thông tin cũng xanh.
+
+### Ngày hiệu lực: cái không sửa được lẽ ra vẫn phải sửa được
+
+`0020` chốt "sửa quy định chỉ đổi được ngưỡng", và tôi đã gộp ngày hiệu lực vào cùng nhóm với hai ô
+phạm vi. Gộp sai. Hai thứ ấy khác nhau về bản chất:
+
+- **Nhóm sản phẩm và loại khách hàng** quyết định `specificity`, tức thứ tự ưu tiên giữa các phạm vi
+  KHÁC nhau. Đổi một ô là đảo thứ tự của cả bảng, và không có gì trên màn hình nói ra điều đó.
+- **Ngày hiệu lực** chỉ xếp thứ tự giữa các dòng CÙNG phạm vi — mà đó chính là cơ chế đổi ngưỡng duy
+  nhất còn lại sau `0020`: khai một dòng mới cùng phạm vi, ngày muộn hơn, dòng cũ tự bị che.
+
+Cái giá của việc gộp sai: gõ nhầm một ngày nghĩa là **xoá dòng rồi khai lại**, và giữa hai thao tác
+ấy mọi hồ sơ lập ra đều mất ngưỡng. Một lỗi gõ phím đổi lấy một khoảng thời gian dữ liệu sai.
+
+**Vắng mặt là GIỮ NGUYÊN**, ngược với `note` ở `0027`. Lý do không phải là sở thích: cột `NOT NULL`,
+không có trạng thái "không có giá trị" nào để một lần gửi thiếu diễn đạt, nên "vắng mặt = xoá" thậm
+chí không biểu diễn được. Ngữ nghĩa của một trường tuỳ chọn suy ra từ lược đồ, không phải từ thói
+quen.
+
+### Một 409 phải trả về đúng mã cũ
+
+Dời ngày có thể đâm vào một dòng cùng phạm vi đã giữ đúng ngày đó — `uq_rule_pham_vi` chặn. Đường
+sửa dùng lại `trungGiNao()` của đường tạo thay vì tự dựng thông báo: người dùng gặp cùng một tình
+huống thì phải đọc cùng một câu, và mã lỗi `RULE_SCOPE_DUPLICATE` là thứ giao diện sẽ bắt.
+
+Trên đường sửa, mã quy định không đổi nên `uq_rule_pham_vi` là ràng buộc duy nhất còn có thể vỡ —
+`trungGiNao()` phân loại đúng mà không cần biết nó đang được gọi từ đâu.
+
+### Một bẫy nhỏ ở ô ngày
+
+`pg` dựng cột `date` thành chuỗi ISO có cả phần giờ, còn `<input type="date">` chỉ nhận `yyyy-mm-dd`.
+Không cắt mười ký tự đầu thì ô ngày mở ra **rỗng**, và người dùng đọc ra là "dữ liệu hỏng" chứ không
+phải "định dạng lệch". Test khoá `o.value` bằng đúng `2026-01-01`.
+
+838 case (829 → 838).
+
+### Còn nợ
+
+- Vẫn chưa nhìn bằng mắt: chồng demo đang tắt từ P35.
+- Dời ngày của một quy định **về quá khứ** không tính lại hồ sơ nào — đúng thiết kế (`threshold_snap`
+  đóng băng), nhưng chưa có gì trên màn hình nói điều đó ra ngay lúc bấm Lưu.

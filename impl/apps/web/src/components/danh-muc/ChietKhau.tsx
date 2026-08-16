@@ -94,7 +94,9 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 
       <p className="ghi-chu">
         Ngưỡng chỉ để <strong>cảnh báo</strong>. Hồ sơ vượt ngưỡng vẫn gửi duyệt được — nó chỉ được
-        đánh dấu để người duyệt nhìn thấy.
+        đánh dấu để người duyệt nhìn thấy. Cột <em>Hiệu lực</em> là <strong>ngày bắt đầu</strong>:
+        mọi quy định đều vô thời hạn, chạy từ ngày đó cho tới khi bị xoá hoặc bị một dòng cụ thể hơn
+        đè lên.
       </p>
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
@@ -143,10 +145,11 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                   <td className="ma-quy-dinh">{q.code}</td>
                   <td>{phamViChietKhau(q)}</td>
                   <td className="so">{phanTramTuNguong(q.thresholdRate2)}%</td>
-                  <td>
-                    {ngay(q.effectiveFrom)}
-                    {' – vô thời hạn'}
-                  </td>
+                  {/* CHỈ ngày bắt đầu (`0028`). Chữ "– vô thời hạn" lặp lại y
+                      nguyên ở mọi dòng nên nó không phân biệt dòng nào với dòng
+                      nào; nó là một luật của CẢ BẢNG, và chỗ của luật ấy là câu
+                      ghi chú trên đầu bảng — nơi nó được nói đúng một lần. */}
+                  <td>{ngay(q.effectiveFrom)}</td>
                   {!chiXem && (
                     <td>
                       <div className="nhom-nut nhom-nut-gon">
@@ -217,11 +220,17 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
 }
 
 /**
- * Sửa chỉ MỘT ô: ngưỡng.
+ * Sửa HAI ô: ngưỡng và ngày hiệu lực (`0028`).
  *
- * Hai khoá khớp (nhóm · loại khách) hiện ra dạng CHỮ, không dạng ô nhập — đổi
- * chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng khớp
- * (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai lại.
+ * Hai khoá khớp (nhóm · loại khách) vẫn hiện ra dạng CHỮ, không dạng ô nhập —
+ * đổi chúng là đổi `specificity`, tức đổi thứ tự ưu tiên khi nhiều dòng cùng
+ * khớp (`CAT-11`). Máy chủ cũng không nhận. Khai nhầm phạm vi thì xoá rồi khai
+ * lại.
+ *
+ * Ngày hiệu lực thì mở ra sửa được: nó không đổi phạm vi của dòng nào, chỉ đổi
+ * thứ tự giữa các dòng CÙNG phạm vi — đúng cái cơ chế "khai ngày muộn hơn để đè
+ * lên" đã chốt ở `0020`. Trước `0028`, gõ nhầm một ngày nghĩa là xoá dòng rồi
+ * khai lại, và giữa hai thao tác thì mọi hồ sơ lập ra mất ngưỡng.
  */
 function HopThoaiSuaQuyDinh({
   q,
@@ -233,20 +242,24 @@ function HopThoaiSuaQuyDinh({
   xong: () => void;
 }) {
   const [nguong, datNguong] = useState(phanTramTuNguong(q.thresholdRate2));
+  // `<input type="date">` chỉ nhận `yyyy-mm-dd`. Máy chủ trả về `date` của
+  // Postgres, mà `pg` dựng nó thành chuỗi ISO có cả phần giờ — cắt lấy mười ký
+  // tự đầu, nếu không ô ngày mở ra RỖNG và người dùng tưởng dữ liệu hỏng.
+  const [tuNgay, datTuNgay] = useState(String(q.effectiveFrom).slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
-  const hopLe = nguong !== '' && Number.isFinite(n) && n >= 0 && n <= 100;
+  const hopLe = nguong !== '' && Number.isFinite(n) && n >= 0 && n <= 100 && tuNgay !== '';
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
     datDangGui(true);
     try {
-      // "không đụng tới" (thiếu trường) với "gỡ" (rỗng).
       await va(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, {
         thresholdRate2: nguongTuPhanTram(nguong),
+        effectiveFrom: tuNgay,
       });
       xong();
     } catch (err) {
@@ -262,10 +275,9 @@ function HopThoaiSuaQuyDinh({
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          Mã <strong>{q.code}</strong> — áp dụng cho <strong>{phamViChietKhau(q)}</strong>, hiệu lực
-          từ {ngay(q.effectiveFrom)}.
-          Hai ô phạm vi không sửa được — đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm
-          vi thì xoá dòng này rồi khai lại.
+          Mã <strong>{q.code}</strong> — áp dụng cho <strong>{phamViChietKhau(q)}</strong>. Hai ô
+          phạm vi không sửa được: đổi chúng là đổi thứ tự ưu tiên của cả bảng. Khai nhầm phạm vi thì
+          xoá dòng này rồi khai lại.
         </p>
 
         <Truong
@@ -276,10 +288,23 @@ function HopThoaiSuaQuyDinh({
         >
           {(p) => <ONhapPhanTram {...p} giaTri={nguong} doi={datNguong} />}
         </Truong>
+
+        <Truong id="ck-sua-tu" nhan="Hiệu lực từ" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              type="date"
+              value={tuNgay}
+              onChange={(e) => datTuNgay(e.target.value)}
+            />
+          )}
+        </Truong>
         <p className="ghi-chu">
           Quy định <strong>vô thời hạn</strong> — muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể
-          hơn đè lên. Sửa <strong>không</strong> làm đổi hồ sơ đã lập: mỗi dòng hồ sơ giữ ngưỡng đã
-          chụp lúc lập.
+          hơn đè lên. Đã có một quy định khác <strong>cùng phạm vi và cùng ngày</strong> thì hệ thống
+          từ chối, vì hai dòng như vậy không phân xử được. Sửa <strong>không</strong> làm đổi hồ sơ
+          đã lập: mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}

@@ -141,3 +141,68 @@ describe('0023 tìm kiếm quy định chiết khấu', () => {
     }, { timeout: 3000 });
   });
 });
+
+/**
+ * 0028 — cột Hiệu lực chỉ còn NGÀY, và hộp thoại sửa có ô ngày.
+ */
+describe('0028 cột Hiệu lực', () => {
+  it('KHÔNG còn chữ "vô thời hạn" trong bảng', async () => {
+    // Chữ ấy lặp y nguyên ở mọi dòng nên nó không phân biệt dòng nào với dòng
+    // nào — đó là một luật của cả bảng, không phải dữ liệu của một dòng.
+    const bang = await bay();
+    expect(bang.textContent).not.toContain('vô thời hạn');
+  });
+
+  it('luật vô thời hạn vẫn được nói, ĐÚNG MỘT LẦN, ngoài bảng', async () => {
+    await bay();
+    expect(screen.getAllByText(/vô thời hạn/)).toHaveLength(1);
+  });
+
+  it('ô Hiệu lực vẫn hiện ngày bắt đầu', async () => {
+    const bang = await bay();
+    expect(within(bang).getAllByText('01/01/2026').length).toBeGreaterThan(0);
+  });
+});
+
+describe('0028 sửa được ngày hiệu lực', () => {
+  const moSua = async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.click(screen.getAllByRole('button', { name: 'Sửa' })[0] as HTMLElement);
+    return nguoi;
+  };
+
+  it('hộp thoại sửa có ô Hiệu lực từ, đặt sẵn ngày hiện tại của dòng', async () => {
+    await moSua();
+    const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
+    expect(o.type).toBe('date');
+    expect(o.value).toBe('2026-01-01');
+  });
+
+  it('gửi lên CẢ ngưỡng lẫn ngày, không chỉ ngưỡng', async () => {
+    const nguoi = await moSua();
+    const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
+    await nguoi.clear(o);
+    await nguoi.type(o, '2027-06-01');
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => {
+      const goi = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.find(
+        (c) => (c[1] as { method?: string } | undefined)?.method === 'PATCH',
+      );
+      expect(goi).toBeDefined();
+      const than = JSON.parse(String((goi![1] as { body: string }).body)) as Record<string, unknown>;
+      expect(than['effectiveFrom']).toBe('2027-06-01');
+      expect(than['thresholdRate2']).toBe(2500);
+    }, { timeout: 3000 });
+  });
+
+  it('xoá trắng ô ngày thì nút Lưu tắt — cột này KHÔNG cho rỗng', async () => {
+    const nguoi = await moSua();
+    const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
+    await nguoi.clear(o);
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true),
+    );
+  });
+});

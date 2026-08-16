@@ -88,16 +88,31 @@ export class RulesService {
   }
 
   /**
-   * Sửa quy định. Từ 0020 chỉ còn đổi được NGƯỠNG.
+   * Sửa quy định: NGƯỠNG và NGÀY HIỆU LỰC.
    *
-   * Hai ô phạm vi không sửa được vì đổi chúng là đổi thứ tự ưu tiên của cả bảng
-   * (`specificity`), và ngày hết hiệu lực thì không còn tồn tại — quy định vô
-   * thời hạn, muốn dừng thì xoá dòng.
+   * Hai ô phạm vi vẫn không sửa được — đổi chúng là đổi `specificity`, tức đổi
+   * thứ tự ưu tiên của cả bảng (`CAT-11`), và không có gì trên màn hình nói ra
+   * điều đó. Khai nhầm phạm vi thì xoá dòng rồi khai lại.
+   *
+   * Ngày hiệu lực thì KHÁC, và mở ra sửa được từ `0028`. Nó không đổi phạm vi
+   * của dòng nào, chỉ đổi thứ tự giữa các dòng CÙNG phạm vi — mà đó chính là
+   * cách đổi ngưỡng đã chốt ở `0020`. Trước đó, gõ nhầm một ngày nghĩa là phải
+   * xoá dòng rồi khai lại, và trong khoảng giữa hai thao tác thì mọi hồ sơ lập
+   * ra mất ngưỡng.
+   *
+   * `effectiveFrom` vắng mặt là GIỮ NGUYÊN, không phải "xoá" — ngược với `note`
+   * của dòng hồ sơ (`0027`). Lý do đơn giản: cột này `NOT NULL`, không có trạng
+   * thái "không có giá trị" nào để diễn đạt, nên "vắng mặt = xoá" thậm chí không
+   * biểu diễn được.
    *
    * Sửa KHÔNG viết lại lịch sử: `pol.policy_line.threshold_snap` đã đóng băng
    * ngưỡng vào từng dòng hồ sơ lúc lập (`0001_init.sql:92`).
    */
-  async update(code: string, input: { thresholdRate2: number }, actorId: string) {
+  async update(
+    code: string,
+    input: { thresholdRate2: number; effectiveFrom?: string | undefined },
+    actorId: string,
+  ) {
     return this.db.tx(async (c) => {
       const truoc = await c.query(
         `SELECT product_group_id, customer_type, effective_from, threshold_rate2
@@ -106,18 +121,34 @@ export class RulesService {
       );
       if (truoc.rowCount === 0) throw new NotFoundException({ code: 'RULE_NOT_FOUND' });
 
-      const r = await c.query<{ threshold_rate2: number }>(
-        `UPDATE cat.discount_rule SET threshold_rate2 = $2
-          WHERE code = $1 RETURNING threshold_rate2`,
-        [code, input.thresholdRate2],
-      );
+      const r = await c
+        .query<{ threshold_rate2: number; effective_from: Date }>(
+          `UPDATE cat.discount_rule
+              SET threshold_rate2 = $2,
+                  effective_from  = coalesce($3::date, effective_from)
+            WHERE code = $1
+          RETURNING threshold_rate2, effective_from`,
+          [code, input.thresholdRate2, input.effectiveFrom ?? null],
+        )
+        .catch((e: unknown) => {
+          // Đổi ngày có thể đâm vào một dòng CÙNG phạm vi đã giữ đúng ngày đó.
+          // Trên đường này mã không đổi, nên `uq_rule_pham_vi` là ràng buộc duy
+          // nhất còn có thể vỡ — `trungGiNao` vẫn phân loại đúng, và dùng lại nó
+          // giữ thông báo trùng phạm vi ở đúng một chỗ.
+          if (pgCode(e) === PG.uniqueViolation) throw trungGiNao(e);
+          throw e;
+        });
       const sau = r.rows[0]!;
       await emit(
         c,
         'catalog.changed',
         changeEvent('discount_rule', code, actorId, { before: truoc.rows[0], after: sau }),
       );
-      return { code, thresholdRate2: sau.threshold_rate2 };
+      return {
+        code,
+        thresholdRate2: sau.threshold_rate2,
+        effectiveFrom: sau.effective_from,
+      };
     });
   }
 
