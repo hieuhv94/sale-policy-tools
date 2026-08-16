@@ -52,6 +52,14 @@ export const QUYEN_GHI = {
    * là Sale Admin đứng ở gốc nhánh cây chứa TDV đó, và cây ấy đã bị bỏ.
    */
   doiTdvPhuTrach: ['QUAN_TRI'],
+  /**
+   * Ngừng hợp tác với một khách hàng (`0034`) — gộp của "xoá" và "ngừng".
+   *
+   * CHỈ TDV, và máy chủ còn siết thêm một tầng: đúng TDV phụ trách khách đó
+   * (`assertChinhTdv`). Bảng này chỉ nói được vai trò, không nói được "chính
+   * người ấy" — nên nó là điều kiện CẦN, không phải điều kiện đủ.
+   */
+  ngungHopTac: ['TDV'],
   quanTriDanhMuc: ['QUAN_TRI'],
   quanTriMauHopDong: ['SALE_ADMIN'],
   quanTriNguoiDung: ['QUAN_TRI'],

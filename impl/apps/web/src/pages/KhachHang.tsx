@@ -15,6 +15,7 @@ import {
   BieuMauKhachHang,
   DoiTdvPhuTrach,
   type KhachHangDayDu,
+  HopThoaiNgungHopTac,
 } from '../components/SuaKhachHang.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
@@ -119,7 +120,7 @@ export function ChiTietKhachHang({ id }: { id: string }) {
   const [kh, datKh] = useState<KhachHangDayDu | null>(null);
   const [hoSo, datHoSo] = useState<HoSoHienHanh | null | 'khong-co'>(null);
   const [loi, datLoi] = useState<unknown>(null);
-  const [mo, datMo] = useState<'sua' | 'tdv' | null>(null);
+  const [mo, datMo] = useState<'sua' | 'tdv' | 'ngung' | null>(null);
   const [lan, datLan] = useState(0);
 
   useEffect(() => {
@@ -146,7 +147,15 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       <div className="dau-trang">
         <div>
           <h1>{kh.name}</h1>
-          <p className="mo-ta-trang">Mã khách hàng {kh.code}</p>
+          <p className="mo-ta-trang">
+            Mã khách hàng {kh.code}
+            {kh.status === 'NGUNG_HOP_TAC' && (
+              <>
+                {' · '}
+                <span className="nhan nhan-canh-bao">Đã ngừng hợp tác</span>
+              </>
+            )}
+          </p>
         </div>
         <div className="nhom-nut nhom-nut-gon">
           {can(nguoiDung?.role, 'suaKhachHang') && (
@@ -157,6 +166,13 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           {can(nguoiDung?.role, 'doiTdvPhuTrach') && (
             <button type="button" className="nut nut-nhe" onClick={() => datMo('tdv')}>
               Đổi TDV phụ trách
+            </button>
+          )}
+          {/* Chỉ hiện với khách CÒN hợp tác. Một nút "Ngừng hợp tác" trên một
+              khách đã ngừng là một nút bấm vào chỉ để nhận lỗi. */}
+          {can(nguoiDung?.role, 'ngungHopTac') && kh.status !== 'NGUNG_HOP_TAC' && (
+            <button type="button" className="nut nut-canh-bao" onClick={() => datMo('ngung')}>
+              Ngừng hợp tác
             </button>
           )}
         </div>
@@ -222,6 +238,17 @@ export function ChiTietKhachHang({ id }: { id: string }) {
         <DoiTdvPhuTrach
           khachHangId={id}
           tdvHienTai={kh.tdvUserId}
+          dong={() => datMo(null)}
+          xong={() => {
+            datMo(null);
+            taiLai();
+          }}
+        />
+      )}
+
+      {mo === 'ngung' && (
+        <HopThoaiNgungHopTac
+          kh={kh}
           dong={() => datMo(null)}
           xong={() => {
             datMo(null);

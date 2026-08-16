@@ -347,6 +347,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
 | Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
+| **Trạng thái** `16/08` | *Đang hợp tác* · *Ngừng hợp tác*. Khách đã ngừng biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
 | Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác; bấm tên file để xem |
 
 > **Ba trường Tỉnh/thành · Bệnh viện–điểm bán · Kênh đã BỎ HẲN** `sửa 16/08`. Chúng từng là danh
@@ -815,7 +816,7 @@ chuẩn bị từ đầu thì giai đoạn 2 sẽ phải đổi lược đồ.
 
 ## Phụ lục B — Nhật ký quyết định
 
-68 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
+70 quyết định chốt trong các phiên 04/08, 05/08, 06/08, 07/08 và 16/08/2026, nhóm theo chủ đề. Sáu
 quyết định của phiên 04/08 đã bị phiên 05/08 thay thế nên không còn trong danh sách — chỉ giữ bản mới
 nhất.
 
@@ -823,6 +824,11 @@ nhất.
 khách hàng do TDV tự tạo · danh mục sản phẩm, giá và chiết khấu do Quản trị hệ thống nhập ·
 **người dùng không quản lý lẫn nhau, bỏ hẳn cây phân quyền** `16/08` · **đổi TDV phụ trách là quyền
 của Quản trị hệ thống**, không phải Sale Admin `16/08`.
+
+**Khách hàng** `16/08` — **xoá khách hàng chỉ do TDV phụ trách** chính khách đó, không phải mọi vai
+trò ghi · gộp *Xoá* và *Ngừng hợp tác* thành **một thao tác**: chỉ làm được khi **không CSBH nào đang
+chờ**, mọi CSBH đang hiệu lực chuyển **Hết hiệu lực**, khách chưa có hồ sơ nào thì xoá hẳn còn khách
+đã có lịch sử thì giữ lại ở trạng thái *Ngừng hợp tác*.
 
 **Tài khoản** `16/08` — **không đổi được vai trò** sau khi tạo; cần đổi thì vô hiệu hoá tài khoản cũ
 rồi tạo mới · vô hiệu hoá phải **gõ lại họ tên** và **chọn người nhận bàn giao cùng vai trò**, không

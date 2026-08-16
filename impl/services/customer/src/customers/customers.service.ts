@@ -7,6 +7,7 @@ import {
 import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
+import { PolicyClient } from '../infra/policy.client.js';
 
 export type CustomerInput = {
   code: string;
@@ -34,6 +35,9 @@ type Row = {
   owner_id_number: string | null;
   debt: string;
   tdv_user_id: string;
+  /** `0034` — ngừng hợp tác thì khách biến khỏi ô chọn lúc lập hồ sơ. */
+  status: string;
+  retired_at: Date | null;
 };
 
 /**
@@ -55,6 +59,7 @@ export class CustomersService {
   constructor(
     private readonly db: Db,
     private readonly scope: ScopeClient,
+    private readonly policies: PolicyClient,
   ) {}
 
   async create(input: CustomerInput, me: AuthUser) {
@@ -126,7 +131,12 @@ export class CustomersService {
    * KHÔNG có trường "Tên mã khách" — khái niệm đó đã bỏ khỏi yêu cầu; ai muốn
    * tra thì dùng đúng ba tiêu chí trên.
    */
-  async search(q: string | undefined, me: AuthUser, page: Page) {
+  async search(
+    q: string | undefined,
+    me: AuthUser,
+    page: Page,
+    opts: { forNewPolicy?: boolean | undefined } = {},
+  ) {
     const ids = await this.scope.userIdsFor(me);
     const like = q ? `%${q}%` : null;
     // Chuỗi ghép giống hệt biểu thức của index GIN trigram ix_customer_search —
@@ -144,6 +154,11 @@ export class CustomersService {
           AND ($2::text IS NULL
                OR (name || ' ' || registered_address || ' ' || coalesce(id_number, ''))
                   ILIKE $2)
+          -- forNewPolicy giấu khách đã ngừng hợp tác khỏi ô chọn lúc lập hồ sơ.
+          -- Danh sách khách hàng bình thường VẪN hiện họ: hồ sơ cũ của họ phải
+          -- tra lại được, và một khách biến mất hẳn khỏi mọi màn hình là một
+          -- khách không ai đối chiếu được nữa (0034).
+          AND (NOT $6::boolean OR c.status = 'DANG_HOP_TAC')
         -- Cột id là KHOÁ PHÁ HOÀ, không phải trang trí. Hai khách hàng trùng tên
         -- là chuyện thường (chuỗi nhà thuốc cùng thương hiệu), và khi khoá sắp
         -- xếp bị hoà thì Postgres được phép trả về theo thứ tự bất kỳ — hai lời
@@ -152,7 +167,7 @@ export class CustomersService {
         -- báo lỗi nào; người dùng chỉ thấy một khách hàng hiện hai lần.
         ORDER BY name, id
         LIMIT $3 OFFSET $4`,
-      [ids, like, page.limit, page.offset, me.role === 'QUAN_TRI'],
+      [ids, like, page.limit, page.offset, me.role === 'QUAN_TRI', opts.forNewPolicy === true],
     );
     const out = paged(rows, page);
     return { ...out, items: out.items.map((r) => toDto(r as unknown as Row)) };
@@ -226,23 +241,146 @@ export class CustomersService {
     });
   }
 
-  async remove(id: string, me: AuthUser) {
+  /**
+   * Xem trước: bấm *Ngừng hợp tác* bây giờ thì chuyện gì xảy ra (`0034`).
+   *
+   * Màn hình phải nói được ba con số TRƯỚC khi người dùng bấm, vì ba kết cục
+   * khác hẳn nhau: chặn lại, xoá hẳn, hay giữ lại và cho hết hiệu lực.
+   */
+  async xemTruocNgung(id: string, me: AuthUser) {
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
-    await this.assertInScope(cur.tdv_user_id, me, id);
+    this.assertChinhTdv(cur, me);
+    const hs = await this.policies.hoSoCua(id);
+    return {
+      id,
+      code: cur.code,
+      name: cur.name,
+      status: cur.status,
+      dangCho: hs.dangCho,
+      dangHieuLuc: hs.dangHieuLuc,
+      // Chưa hồ sơ nào thì dòng bị XOÁ HẲN, không phải chuyển trạng thái. Người
+      // dùng cần biết điều đó trước khi bấm — hai kết cục không lùi được như nhau.
+      seXoaHan: hs.tong === 0,
+    };
+  }
 
-    // Khoá ngoại từ pol.policy chặn ở tầng CSDL. Hỏi trước rồi xoá sau sẽ hở
-    // một khe cho hồ sơ lập xen vào giữa hai câu lệnh (CUST-16).
-    await this.db.q(`DELETE FROM cus.customer WHERE id = $1`, [id]).catch((e: unknown) => {
-      if (pgCode(e) === PG.foreignKeyViolation) {
-        throw new ConflictException({
-          code: 'CUSTOMER_HAS_POLICY',
-          message: 'Khách hàng đã có hồ sơ CSBH, không xoá được',
-        });
-      }
-      throw e;
+  /**
+   * Ngừng hợp tác với một khách hàng (`0034`).
+   *
+   * MỘT thao tác thay cho hai nút cũ (*Xoá* và một *Ngừng hợp tác* chưa bao giờ
+   * tồn tại). Điều kiện cũng chỉ một: **không CSBH nào đang chờ**. Kết cục thì
+   * hệ thống tự chọn theo việc khách ấy đã có lịch sử hay chưa — đó là chi tiết
+   * của hệ thống, không phải quyết định của người dùng:
+   *
+   *   * **Chưa có hồ sơ nào** → xoá hẳn dòng. Đây là ca lập nhầm: gõ sai mã KH,
+   *     tạo trùng, chọn nhầm loại khách. Một bản ghi như thế bị "ngừng hợp tác"
+   *     sẽ nằm lại trong mọi danh sách và mọi ô chọn mãi mãi.
+   *   * **Đã có hồ sơ** → `NGUNG_HOP_TAC`, và mọi CSBH đang hiệu lực chuyển
+   *     `HET_HIEU_LUC`. KHÔNG xoá dòng: hồ sơ trỏ vào khách bằng khoá ngoại, xoá
+   *     là mất tên khách trên mọi hồ sơ cũ.
+   *
+   * THỨ TỰ: cho hồ sơ hết hiệu lực TRƯỚC, đổi trạng thái khách SAU. Ngược lại
+   * thì một lượt hỏng giữa chừng để lại khách đã ngừng mà CSBH vẫn đang hiệu
+   * lực — tức một chính sách còn hiệu lực cho một khách không còn giao dịch, và
+   * không màn hình nào cho thấy sự mâu thuẫn ấy.
+   */
+  async ngungHopTac(id: string, me: AuthUser) {
+    const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
+    if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
+    this.assertChinhTdv(cur, me);
+
+    if (cur.status === 'NGUNG_HOP_TAC') {
+      throw new ConflictException({
+        code: 'CUSTOMER_ALREADY_RETIRED',
+        message: 'Khách hàng này đã ngừng hợp tác rồi.',
+      });
+    }
+
+    const kq = await this.policies.ngung(id, me.id);
+    if (kq.blocked) {
+      throw new ConflictException({
+        code: 'CUSTOMER_HAS_PENDING_POLICY',
+        message:
+          `Khách hàng còn ${kq.dangCho.length} hồ sơ CSBH chưa đi hết luồng duyệt. ` +
+          'Xử lý xong hoặc xoá hồ sơ đó trước, rồi ngừng hợp tác.',
+        policies: kq.dangCho.map((x) => ({ code: x.code, status: x.status })),
+      });
+    }
+
+    // Không hồ sơ nào — kể cả hồ sơ đã kết thúc — thì không có gì để giữ lại.
+    const conVet = await this.policies.hoSoCua(id);
+    if (conVet.tong === 0) {
+      await this.db.tx(async (c) => {
+        await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+          'customer.deleted',
+          JSON.stringify({
+            entity: 'customer',
+            id,
+            actorId: me.id,
+            before: toDto(cur),
+            at: new Date().toISOString(),
+          }),
+        ]);
+        // Khoá ngoại vẫn là chốt chặn cuối: một hồ sơ lập xen vào giữa hai câu
+        // lệnh thì CSDL từ chối, và người dùng nhận đúng câu "khách đã có hồ sơ".
+        await c
+          .query(`DELETE FROM cus.customer WHERE id = $1`, [id])
+          .catch((e: unknown) => {
+            if (pgCode(e) === PG.foreignKeyViolation) {
+              throw new ConflictException({
+                code: 'CUSTOMER_HAS_POLICY',
+                message: 'Khách hàng vừa có hồ sơ CSBH mới, không xoá được. Tải lại rồi thử lại.',
+              });
+            }
+            throw e;
+          });
+      });
+      return { ok: true, deleted: true, expired: kq.expired.length };
+    }
+
+    await this.db.tx(async (c) => {
+      const r = await c.query<Row>(
+        `UPDATE cus.customer
+            SET status = 'NGUNG_HOP_TAC', retired_at = now(), updated_at = now()
+          WHERE id = $1 RETURNING *`,
+        [id],
+      );
+      await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+        'customer.changed',
+        JSON.stringify({
+          entity: 'customer',
+          id,
+          actorId: me.id,
+          action: 'RETIRED',
+          before: toDto(cur),
+          after: toDto(r.rows[0]!),
+          at: new Date().toISOString(),
+        }),
+      ]);
     });
-    return { ok: true };
+    return { ok: true, deleted: false, expired: kq.expired.length };
+  }
+
+  /**
+   * CHỈ TDV phụ trách khách hàng này (`0034`).
+   *
+   * Chặt hơn `assertInScope`: một Trưởng bộ phận hay Kế toán được giao một CSBH
+   * của khách này cũng ĐỌC được khách (`0031`) — nhưng ngừng hợp tác là quyết
+   * định về quan hệ với khách hàng, không phải một bước xử lý hồ sơ. Người duy
+   * nhất biết khách còn giao dịch hay không là người phụ trách họ.
+   *
+   * Quản trị hệ thống cũng KHÔNG, dù họ thấy mọi khách hàng: họ đổi được TDV
+   * phụ trách, và đó là đúng vai trò hành chính của họ — còn quyết định nghiệp
+   * vụ thì thuộc người làm nghiệp vụ.
+   */
+  private assertChinhTdv(cur: Row, me: AuthUser): void {
+    if (cur.tdv_user_id !== me.id) {
+      throw new ForbiddenException({
+        code: 'NOT_OWNING_TDV',
+        message: 'Chỉ Trình dược viên phụ trách khách hàng này mới ngừng hợp tác được.',
+      });
+    }
   }
 
   // --- Hồ sơ đính kèm -------------------------------------------------------
@@ -323,6 +461,7 @@ export class CustomersService {
 
 const toDto = (r: Row) => ({
   id: r.id,
+  status: r.status,
   code: r.code,
   name: r.name,
   idNumber: r.id_number,

@@ -119,6 +119,7 @@ export class CustomerInternalController {
       code: string;
       name: string;
       customer_type: number;
+      status: string;
       tdv_user_id: string;
       id_number: string | null;
       registered_address: string;
@@ -127,7 +128,7 @@ export class CustomerInternalController {
       owner_title: string | null;
       debt: string;
     }>(
-      `SELECT id, code, name, customer_type,
+      `SELECT id, code, name, customer_type, status::text AS status,
               tdv_user_id, id_number, registered_address, delivery_address,
               owner_name, owner_title, debt::text
          FROM cus.customer WHERE id = $1`,
@@ -139,6 +140,7 @@ export class CustomerInternalController {
       code: row.code,
       name: row.name,
       customerType: row.customer_type,
+      status: row.status,
       tdvUserId: row.tdv_user_id,
       idNumber: row.id_number,
       registeredAddress: row.registered_address,

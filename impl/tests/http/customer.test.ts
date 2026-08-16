@@ -21,6 +21,7 @@ import {
   clearScopeCache,
   http,
   withAdminDb,
+  bootPolicyListening,
 } from './app.js';
 
 const SEED_PW = 'Test@1234';
@@ -28,6 +29,8 @@ const P = 'ZZCUS';
 
 let identity: INestApplication;
 let app: INestApplication;
+let policyApp: INestApplication;
+let restorePolicy: (() => void) | undefined;
 let restoreIdentity: () => void;
 const tok: Record<string, string> = {};
 
@@ -54,6 +57,12 @@ const base = (over: Record<string, unknown> = {}) => ({
 
 const cleanup = () =>
   withAdminDb(async (c) => {
+    // Gỡ nhãn Từ chối TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
+    // xoá hồ sơ ở trạng thái kết thúc ấy (YCNV muc 4), và tệp này cố ý dựng ra
+    // hồ sơ như vậy để kiểm nhánh "đã kết thúc" của việc ngừng hợp tác.
+    await c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE code LIKE $1 AND status = 'TU_CHOI'`, [
+      `${P}%`,
+    ]);
     await c.query(`DELETE FROM pol.policy WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cus.outbox`);
     await c.query(`DELETE FROM cus.customer WHERE code LIKE $1`, [`${P}%`]);
@@ -68,6 +77,12 @@ beforeAll(async () => {
   await clearAccountCache();
   await clearScopeCache();
   app = await createCustomerApp();
+  // `0034`: ngừng hợp tác hỏi `policy` xem khách còn hồ sơ nào đang chờ, và
+  // FAIL CLOSED nếu không hỏi được. Tệp này phải dựng policy dù nó kiểm về
+  // khách hàng.
+  const po = await bootPolicyListening();
+  policyApp = po.app;
+  restorePolicy = po.restore;
 
   for (const u of ['tdv01', 'tdv02', 'kt01', 'sa01', 'admin01', 'bld01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
@@ -75,6 +90,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await policyApp?.close();
+  restorePolicy?.();
   await app?.close();
   await identity?.close();
   restoreIdentity?.();
@@ -355,23 +372,234 @@ describe('CUST-15 sửa khách hàng đang có CSBH hiệu lực', () => {
   });
 });
 
-describe('CUST-16 xoá khách hàng đã có hồ sơ CSBH', () => {
-  it('trả 409', async () => {
-    const c = await post('/customers', base());
+describe('`0034` CUST-16 ngừng hợp tác — một nút thay cho hai', () => {
+  /*
+   * Khối này thay `CUST-16 xoá khách hàng đã có hồ sơ CSBH` cũ (2 ca).
+   *
+   * Bản cũ kiểm một thao tác `DELETE` thuần: có hồ sơ thì 409, không có thì xoá.
+   * Nó bỏ ngỏ đúng tình huống hay gặp nhất — khách hàng NGỪNG GIAO DỊCH — vì
+   * `cus.customer` khi ấy không có cột trạng thái nào, nên khách đã có hồ sơ thì
+   * nằm mãi trong danh sách và CSBH của họ "Đang có hiệu lực" vĩnh viễn.
+   *
+   * Giờ MỘT thao tác, MỘT điều kiện (không hồ sơ nào đang chờ), và hệ thống tự
+   * chọn kết cục theo lịch sử của khách.
+   */
+  const idTdv = (u: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = $1`, [
+        u,
+      ]);
+      return r.rows[0]!.id;
+    });
+
+  /** Cắm một hồ sơ ở trạng thái bất kỳ cho khách này. */
+  const themHoSo = async (customerId: string, status: string): Promise<string> => {
+    const code = `${P}-HS-${Math.random().toString(36).slice(2, 10)}`;
     await withAdminDb((x) =>
-      x.query(`INSERT INTO pol.policy (code, customer_id, status) VALUES ($1,$2,'NHAP')`, [
-        `${P}-POL2-${Date.now()}`,
-        c.body.id,
-      ]),
+      x.query(
+        `INSERT INTO pol.policy (code, customer_id, status, tdv_user_id)
+         VALUES ($1,$2,$3::pol.policy_status,$4)`,
+        [code, customerId, status, tok['tdv01'] ? null : null],
+      ),
     );
+    return code;
+  };
+
+  const trangThaiKhach = (id: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ s: string }>(
+        `SELECT status::text AS s FROM cus.customer WHERE id = $1`,
+        [id],
+      );
+      return r.rows[0]?.s ?? null;
+    });
+
+  const trangThaiHoSo = (code: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ s: string }>(
+        `SELECT status::text AS s FROM pol.policy WHERE code = $1`,
+        [code],
+      );
+      return r.rows[0]?.s ?? null;
+    });
+
+  // --- Nhánh CHẶN -----------------------------------------------------------
+
+  for (const st of [
+    'NHAP',
+    'YEU_CAU_CHINH_SUA',
+    'CHO_TBP_DUYET',
+    'TBP_DA_KY_SO',
+    'CHO_KT_L1',
+    'SA_DANG_XU_LY',
+    'CHO_KT_L2',
+    'QUA_HAN_DUYET',
+  ]) {
+    it(`còn hồ sơ ở ${st} thì CHẶN, và khách vẫn nguyên trạng`, async () => {
+      // Kể cả `NHAP`: bản nháp chưa chờ ai duyệt, nhưng nó vẫn là việc đang dở
+      // của chính người lập. Ngừng hợp tác khi còn nháp là để lại một hồ sơ trỏ
+      // vào khách hàng không còn giao dịch.
+      const c = await post('/customers', base());
+      const code = await themHoSo(c.body.id as string, st);
+
+      const r = await del(`/customers/${c.body.id}`);
+      expect(r.status, `${st}: ${JSON.stringify(r.body)}`).toBe(409);
+      expect(r.body.code).toBe('CUSTOMER_HAS_PENDING_POLICY');
+      expect((r.body.policies as { code: string }[]).some((x) => x.code === code)).toBe(true);
+
+      expect(await trangThaiKhach(c.body.id as string)).toBe('DANG_HOP_TAC');
+      expect(await trangThaiHoSo(code)).toBe(st);
+    });
+  }
+
+  // --- Nhánh XOÁ HẲN --------------------------------------------------------
+
+  it('chưa có hồ sơ nào thì XOÁ HẲN dòng', async () => {
+    // Đây là ca lập nhầm: gõ sai mã KH, tạo trùng, chọn nhầm loại khách. Một bản
+    // ghi như thế bị "ngừng hợp tác" sẽ nằm lại trong mọi danh sách mãi mãi.
+    const c = await post('/customers', base());
     const r = await del(`/customers/${c.body.id}`);
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('CUSTOMER_HAS_POLICY');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.deleted).toBe(true);
+    expect(await trangThaiKhach(c.body.id as string)).toBeNull();
   });
 
-  it('chưa có hồ sơ nào thì xoá được', async () => {
+  // --- Nhánh GIỮ LẠI --------------------------------------------------------
+
+  it('có CSBH đang hiệu lực: khách GIỮ LẠI, hồ sơ chuyển HẾT HIỆU LỰC', async () => {
     const c = await post('/customers', base());
+    const code = await themHoSo(c.body.id as string, 'DANG_CO_HIEU_LUC');
+
+    const r = await del(`/customers/${c.body.id}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.deleted).toBe(false);
+    expect(r.body.expired).toBe(1);
+
+    expect(await trangThaiKhach(c.body.id as string)).toBe('NGUNG_HOP_TAC');
+    expect(await trangThaiHoSo(code)).toBe('HET_HIEU_LUC');
+  });
+
+  it('không thể có HAI CSBH hiệu lực để mà phải hết hiệu lực cả hai', async () => {
+    // Ca này ban đầu tôi viết là "nhiều CSBH hiệu lực thì hết hiệu lực tất cả",
+    // và nó KHÔNG dựng được: `uq_policy_active_per_customer` là một unique index
+    // riêng phần, chặn ngay ở tầng CSDL, và tắt trigger không tắt được index.
+    //
+    // Giữ lại ca này để nói ra điều đó. Vòng lặp trong `ngung-hop-tac.controller`
+    // vẫn viết theo kiểu nhiều dòng — đúng, vì nó đọc từ một câu truy vấn trả về
+    // tập hợp — nhưng bất biến thật nằm ở đây, và nếu ai gỡ index kia thì ca này
+    // đỏ trước khi hồ sơ hỏng.
+    const c = await post('/customers', base());
+    await themHoSo(c.body.id as string, 'DANG_CO_HIEU_LUC');
+    await expect(themHoSo(c.body.id as string, 'DANG_CO_HIEU_LUC')).rejects.toMatchObject({
+      constraint: 'uq_policy_active_per_customer',
+    });
+  });
+
+  for (const st of ['TU_CHOI', 'HET_HIEU_LUC']) {
+    it(`chỉ có hồ sơ ${st} (đã kết thúc): giữ lại khách, KHÔNG hết hiệu lực gì`, async () => {
+      const c = await post('/customers', base());
+      const code = await themHoSo(c.body.id as string, st);
+
+      const r = await del(`/customers/${c.body.id}`);
+      expect(r.status, `${st}: ${JSON.stringify(r.body)}`).toBe(200);
+      expect(r.body.deleted, 'còn hồ sơ thì không xoá dòng khách').toBe(false);
+      expect(r.body.expired).toBe(0);
+      expect(await trangThaiKhach(c.body.id as string)).toBe('NGUNG_HOP_TAC');
+      expect(await trangThaiHoSo(code)).toBe(st);
+    });
+  }
+
+  it('ghi vết vào nhật ký CỦA CHÍNH HỒ SƠ', async () => {
+    const c = await post('/customers', base());
+    const code = await themHoSo(c.body.id as string, 'DANG_CO_HIEU_LUC');
+    await del(`/customers/${c.body.id}`);
+
+    const nk = await withAdminDb(async (x) => {
+      const r = await x.query<{ action: string; reason: string; from_status: string; to_status: string }>(
+        `SELECT e.action, e.reason, e.from_status::text, e.to_status::text
+           FROM pol.policy_event e JOIN pol.policy p ON p.id = e.policy_id
+          WHERE p.code = $1`,
+        [code],
+      );
+      return r.rows;
+    });
+    const dong = nk.find((x) => x.action === 'CUSTOMER_RETIRED');
+    expect(dong, 'phải có dòng CUSTOMER_RETIRED').toBeDefined();
+    expect(dong!.from_status).toBe('DANG_CO_HIEU_LUC');
+    expect(dong!.to_status).toBe('HET_HIEU_LUC');
+    // KHÁC `policy.superseded`: ở đây không có bản mới nào thay thế.
+    expect(dong!.reason).toContain('ngừng hợp tác');
+  });
+
+  // --- Quyền -----------------------------------------------------------------
+
+  it('ngừng hai lần thì 409', async () => {
+    const c = await post('/customers', base());
+    await themHoSo(c.body.id as string, 'HET_HIEU_LUC');
     expect((await del(`/customers/${c.body.id}`)).status).toBe(200);
+    const lai = await del(`/customers/${c.body.id}`);
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('CUSTOMER_ALREADY_RETIRED');
+  });
+
+  it('TDV KHÁC không ngừng được, dù cùng vai trò', async () => {
+    // Chặt hơn phạm vi đọc: quyết định về quan hệ với khách hàng thuộc người
+    // phụ trách họ, không thuộc bất kỳ ai nhìn thấy được họ.
+    const c = await post('/customers', base());
+    const r = await del(`/customers/${c.body.id}`, 'tdv02');
+    expect(r.status).toBe(403);
+    expect(await trangThaiKhach(c.body.id as string)).toBe('DANG_HOP_TAC');
+  });
+
+  it('bốn vai trò còn lại và cả Quản trị đều KHÔNG ngừng được', async () => {
+    // Quản trị thấy MỌI khách hàng (`0031`) và đổi được TDV phụ trách — nhưng
+    // ngừng hợp tác là quyết định nghiệp vụ, không phải việc hành chính.
+    const c = await post('/customers', base());
+    for (const who of ['kt01', 'sa01', 'bld01', 'admin01']) {
+      const r = await del(`/customers/${c.body.id}`, who);
+      expect(r.status, `${who} đáng lẽ bị chặn`).toBe(403);
+    }
+    expect(await trangThaiKhach(c.body.id as string)).toBe('DANG_HOP_TAC');
+  });
+
+  // --- Sau khi ngừng ---------------------------------------------------------
+
+  it('khách đã ngừng BIẾN KHỎI ô chọn lập hồ sơ, nhưng VẪN trong danh sách thường', async () => {
+    // Hai câu khác nhau: ô chọn phải sạch, còn danh sách tra cứu thì không —
+    // hồ sơ cũ của họ phải tra lại được, và một khách biến mất hẳn khỏi mọi màn
+    // hình là một khách không ai đối chiếu được nữa.
+    const c = await post('/customers', base());
+    await themHoSo(c.body.id as string, 'HET_HIEU_LUC');
+    await del(`/customers/${c.body.id}`);
+
+    const chon = (await get('/customers?limit=200&forNewPolicy=true')).body.items as {
+      id: string;
+    }[];
+    expect(chon.map((x) => x.id)).not.toContain(c.body.id);
+
+    const thuong = (await get('/customers?limit=200')).body.items as { id: string }[];
+    expect(thuong.map((x) => x.id)).toContain(c.body.id);
+  });
+
+  it('xem trước nói đúng ba con số TRƯỚC khi bấm', async () => {
+    const c = await post('/customers', base());
+    await themHoSo(c.body.id as string, 'DANG_CO_HIEU_LUC');
+    const r = await get(`/customers/${c.body.id}/ngung-hop-tac`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.seXoaHan).toBe(false);
+    expect(r.body.dangCho).toEqual([]);
+    expect(r.body.dangHieuLuc).toHaveLength(1);
+  });
+
+  it('xem trước với khách chưa có hồ sơ nói rõ là sẽ XOÁ HẲN', async () => {
+    const c = await post('/customers', base());
+    const r = await get(`/customers/${c.body.id}/ngung-hop-tac`);
+    expect(r.body.seXoaHan).toBe(true);
+  });
+
+  it('xem trước cũng chỉ TDV phụ trách gọi được', async () => {
+    const c = await post('/customers', base());
+    expect((await get(`/customers/${c.body.id}/ngung-hop-tac`, 'tdv02')).status).toBe(403);
   });
 });
 

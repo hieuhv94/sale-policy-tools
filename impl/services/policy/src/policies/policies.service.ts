@@ -168,6 +168,17 @@ export class PoliciesService {
     // Không lập hộ khách hàng ngoài phạm vi của mình (POL-15).
     await this.assertInScope(customer.tdvUserId, me);
 
+    // Khách đã ngừng hợp tác thì không lập CSBH mới (`0034`). Chặn ở đây chứ
+    // không chỉ giấu khỏi ô chọn: ô chọn là thứ người dùng đi vòng được, và một
+    // hồ sơ lập cho khách đã ngừng sẽ chặn luôn chính việc ngừng hợp tác ấy —
+    // nó là "hồ sơ đang chờ" theo đúng nghĩa của điều kiện kia.
+    if (customer.status === 'NGUNG_HOP_TAC') {
+      throw new ConflictException({
+        code: 'CUSTOMER_RETIRED',
+        message: 'Khách hàng này đã ngừng hợp tác, không lập CSBH mới được.',
+      });
+    }
+
     const active = await this.db.one<PolicyRow>(
       `SELECT * FROM pol.policy WHERE customer_id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
       [input.customerId],

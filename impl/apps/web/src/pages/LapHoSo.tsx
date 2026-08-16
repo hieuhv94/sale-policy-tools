@@ -36,7 +36,11 @@ export function LapHoSo() {
   useEffect(() => {
     const huy = new AbortController();
     datLoi(null);
-    const q = tim ? `?q=${encodeURIComponent(tim)}&limit=20` : '?limit=20';
+    // `forNewPolicy` giấu khách đã ngừng hợp tác (`0034`) — máy chủ cũng chặn,
+    // nhưng bày ra một lựa chọn rồi từ chối là bắt người dùng đoán vì sao.
+    const q = tim
+      ? `?q=${encodeURIComponent(tim)}&limit=20&forNewPolicy=true`
+      : '?limit=20&forNewPolicy=true';
     layJson<{ items: KhachHang[] }>(`/customers${q}`, huy.signal)
       .then((r) => datDs(r.items))
       .catch((e) => {

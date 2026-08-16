@@ -199,6 +199,30 @@ Hồ sơ đã gửi duyệt thì khoá sửa, nên không có đường nào là
 cái tên: **phạm vi nhìn thấy đổi theo**. Người cũ thôi thấy khách hàng này và mọi hồ sơ của họ,
 người mới thấy ngay.
 
+### Ngừng hợp tác với một khách hàng
+
+Nút **Ngừng hợp tác** trên màn hình chi tiết khách hàng. **Chỉ Trình dược viên phụ trách chính khách
+đó** bấm được — không phải Kế toán, không phải Sale Admin, và cũng không phải Quản trị hệ thống dù
+họ nhìn thấy mọi khách hàng. Quan hệ với khách hàng là việc của người phụ trách họ.
+
+**Điều kiện duy nhất:** khách **không còn CSBH nào đang chờ**. Còn một bản Nháp cũng không được —
+xử lý xong hoặc xoá hồ sơ đó trước. Màn hình liệt kê ra mã từng hồ sơ đang chặn.
+
+Hộp thoại hỏi máy chủ trước rồi mới nói hậu quả, vì hậu quả khác nhau:
+
+| Khách hàng | Bấm xong thì sao |
+|---|---|
+| **Chưa có hồ sơ CSBH nào** | Bản ghi bị **xoá hẳn**, không lấy lại được |
+| **Đã có hồ sơ** | Khách **giữ lại để tra cứu**, chuyển *Ngừng hợp tác*. Mọi CSBH **Đang có hiệu lực** chuyển sang **Hết hiệu lực** |
+
+Sau khi ngừng: khách **biến khỏi ô chọn lúc lập hồ sơ** và không lập CSBH mới được, nhưng **vẫn nằm
+trong danh sách khách hàng** — hồ sơ cũ của họ phải tra lại được. Việc cho hết hiệu lực có vết trong
+**nhật ký của từng hồ sơ**, ghi rõ lý do là khách hàng ngừng hợp tác.
+
+> Vì sao xoá hẳn ở ca đầu mà không phải cũng "ngừng hợp tác": khách chưa có hồ sơ nào là khách vừa
+> lập nhầm — gõ sai mã, tạo trùng, chọn nhầm loại. Một bản ghi như thế mang nhãn *Ngừng hợp tác* sẽ
+> nằm lại trong mọi danh sách mãi mãi, và không ai giải thích được nó là gì.
+
 ## 6. Lập hồ sơ CSBH (TDV)
 
 *Hồ sơ CSBH* → **Lập hồ sơ** → chọn khách hàng → thêm từng dòng sản phẩm.

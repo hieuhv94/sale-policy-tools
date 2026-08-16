@@ -12,6 +12,8 @@ export type CustomerInfo = {
   code: string;
   name: string;
   customerType: number;
+  /** `DANG_HOP_TAC` | `NGUNG_HOP_TAC` (`0034`). */
+  status?: string;
   tdvUserId: string;
 };
 

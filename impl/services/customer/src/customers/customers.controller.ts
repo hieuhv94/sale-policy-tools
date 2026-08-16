@@ -16,8 +16,12 @@ export class CustomersController {
     @Query('q') q?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    /** `true` = giấu khách đã ngừng hợp tác. Dùng cho ô chọn lúc lập hồ sơ (`0034`). */
+    @Query('forNewPolicy') forNewPolicy?: string,
   ) {
-    return this.customers.search(q, me, pageOf({ limit, offset }));
+    return this.customers.search(q, me, pageOf({ limit, offset }), {
+      forNewPolicy: forNewPolicy === 'true',
+    });
   }
 
   @Get(':id')
@@ -93,9 +97,28 @@ export class CustomersController {
     return this.customers.update(id, b, me);
   }
 
-  @Roles(...WRITERS)
+  /**
+   * Xem trước hậu quả của *Ngừng hợp tác* (`0034`).
+   *
+   * `@Roles('TDV')` chứ không phải `WRITERS`: chỉ TDV phụ trách bấm được, và
+   * service còn kiểm đúng người nữa (`assertChinhTdv`).
+   */
+  @Roles('TDV')
+  @Get(':id/ngung-hop-tac')
+  xemTruocNgung(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.customers.xemTruocNgung(id, me);
+  }
+
+  /**
+   * MỘT thao tác thay cho *Xoá* và *Ngừng hợp tác* (`0034`).
+   *
+   * Giữ động từ HTTP `DELETE` vì với khách chưa có hồ sơ nào thì nó xoá thật;
+   * còn khách đã có lịch sử thì nó chuyển trạng thái. Người gọi không phải chọn
+   * — xem `CustomersService.ngungHopTac`.
+   */
+  @Roles('TDV')
   @Delete(':id')
   remove(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.customers.remove(id, me);
+    return this.customers.ngungHopTac(id, me);
   }
 }

@@ -12,9 +12,9 @@
  *     tưởng mình nhập sai và đi sửa một dữ liệu đúng.
  */
 import { useEffect, useState } from 'react';
-import { dang, layJson, va } from '../lib/api.js';
+import { dang, layJson, va, xoa } from '../lib/api.js';
 import { LOAI_KHACH_HANG, nhanLoaiKhach } from '../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, ONhapTien, Truong } from './Chung.js';
 
 export type KhachHangDayDu = {
   id: string;
@@ -28,6 +28,8 @@ export type KhachHangDayDu = {
   idNumber: string | null;
   debt: string;
   tdvUserId: string | null;
+  /** `DANG_HOP_TAC` | `NGUNG_HOP_TAC` (`0034`). */
+  status: string;
 };
 
 type Gia = {
@@ -365,3 +367,118 @@ export function DoiTdvPhuTrach({
     </HopThoai>
   );
 }
+
+
+/**
+ * Ngừng hợp tác với một khách hàng (`0034`) — MỘT nút thay cho hai.
+ *
+ * Hộp thoại nói ra HẬU QUẢ trước, vì hậu quả khác nhau theo lịch sử của khách và
+ * người dùng không đoán được từ cái nút:
+ *
+ *   * Chưa hồ sơ nào → **xoá hẳn**, không lùi được.
+ *   * Đã có hồ sơ → giữ lại để tra cứu, và mọi CSBH đang hiệu lực **hết hiệu lực**.
+ *   * Còn hồ sơ đang chờ → **chặn**, kèm mã từng hồ sơ.
+ */
+export function HopThoaiNgungHopTac({
+  kh,
+  dong,
+  xong,
+}: {
+  kh: KhachHangDayDu;
+  dong: () => void;
+  xong: () => void;
+}) {
+  const [xem, datXem] = useState<XemTruocNgung | null>(null);
+  const [loi, datLoi] = useState<unknown>(null);
+  const [dangGui, datDangGui] = useState(false);
+
+  useEffect(() => {
+    const huy = new AbortController();
+    layJson<XemTruocNgung>(`/customers/${kh.id}/ngung-hop-tac`, huy.signal)
+      .then(datXem)
+      .catch((e: unknown) => {
+        if (!huy.signal.aborted) datLoi(e);
+      });
+    return () => huy.abort();
+  }, [kh.id]);
+
+  const gui = async () => {
+    datLoi(null);
+    datDangGui(true);
+    try {
+      await xoa(`/customers/${kh.id}`);
+      xong();
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangGui(false);
+    }
+  };
+
+  const chan = (xem?.dangCho.length ?? 0) > 0;
+
+  return (
+    <HopThoai tieuDe={`Ngừng hợp tác với ${kh.name}`} dong={dong}>
+      {xem === null && loi === null ? (
+        <DangTai />
+      ) : chan ? (
+        <>
+          <p>
+            Khách hàng còn <strong>{xem!.dangCho.length} hồ sơ CSBH chưa đi hết luồng duyệt</strong>.
+            Xử lý xong hoặc xoá những hồ sơ đó trước, rồi quay lại đây.
+          </p>
+          <p className="ghi-chu">
+            {xem!.dangCho.map((x) => `${x.code} (${x.status})`).join(' · ')}
+          </p>
+        </>
+      ) : (
+        <>
+          {xem?.seXoaHan ? (
+            <p>
+              Khách hàng này <strong>chưa có hồ sơ CSBH nào</strong>, nên bản ghi sẽ bị{' '}
+              <strong>xoá hẳn</strong> — không lấy lại được.
+            </p>
+          ) : (
+            <p>
+              Khách hàng được <strong>giữ lại để tra cứu</strong> hồ sơ cũ, nhưng biến khỏi ô chọn
+              lúc lập hồ sơ và <strong>không lập CSBH mới được nữa</strong>.
+            </p>
+          )}
+          {(xem?.dangHieuLuc.length ?? 0) > 0 && (
+            <p>
+              <strong>{xem!.dangHieuLuc.length} CSBH đang có hiệu lực</strong> sẽ chuyển sang{' '}
+              <strong>Hết hiệu lực</strong>: {xem!.dangHieuLuc.map((x) => x.code).join(' · ')}.
+            </p>
+          )}
+        </>
+      )}
+
+      {loi !== null && <BaoLoi loi={loi} />}
+      <div className="nhom-nut">
+        {!chan && (
+          <button
+            type="button"
+            className="nut nut-canh-bao"
+            disabled={dangGui || xem === null}
+            onClick={gui}
+          >
+            {dangGui ? 'Đang xử lý…' : xem?.seXoaHan ? 'Xoá khách hàng' : 'Ngừng hợp tác'}
+          </button>
+        )}
+        <button type="button" className="nut nut-nhe" onClick={dong}>
+          {chan ? 'Đóng' : 'Huỷ'}
+        </button>
+      </div>
+    </HopThoai>
+  );
+}
+
+export type XemTruocNgung = {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  dangCho: { code: string; status: string }[];
+  dangHieuLuc: { code: string }[];
+  seXoaHan: boolean;
+};

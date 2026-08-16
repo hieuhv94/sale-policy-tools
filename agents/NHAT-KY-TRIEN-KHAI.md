@@ -4328,3 +4328,89 @@ lời gọi trong `seed-demo` · hai khối test `CAT-17` và *sửa và xoá ng
 ### Còn nợ
 
 - Vẫn **chưa nhìn hộp thoại gửi duyệt và hộp thoại bàn giao bằng mắt** trong trình duyệt.
+
+---
+
+## P44 — Ngừng hợp tác: gộp hai nút thành một
+
+Hai yêu cầu, và yêu cầu thứ hai đóng lại lỗ hổng tôi phát hiện khi trả lời câu hỏi *"tại sao khách
+hàng lại xoá mà không phải vô hiệu hoá"*: `cus.customer` không có cột trạng thái nào, nên tình huống
+khách ngừng giao dịch **không có cơ chế nào cả**.
+
+### Gộp được, vì hai nút trả lời cùng một câu hỏi
+
+Người dùng chỉ hỏi một câu: *"cho khách này biến khỏi danh sách làm việc của tôi"*. Việc có lịch sử
+phải giữ hay không là chi tiết của hệ thống, không phải quyết định của họ. Nên: **một nút, một điều
+kiện, hai kết cục do hệ thống chọn.**
+
+| Khách hàng | Kết cục |
+|---|---|
+| Chưa có hồ sơ nào | **Xoá hẳn** dòng — đây là ca lập nhầm, và một bản ghi như thế mang nhãn *Ngừng hợp tác* sẽ nằm lại trong mọi danh sách mãi mãi |
+| Đã có hồ sơ | `NGUNG_HOP_TAC`, mọi CSBH đang hiệu lực → `HET_HIEU_LUC`. **Không xoá dòng**: hồ sơ trỏ vào khách bằng khoá ngoại, xoá là mất tên khách trên mọi hồ sơ cũ |
+
+Điều kiện: **không CSBH nào đang chờ**, kể cả `NHAP`. Bản nháp chưa chờ ai duyệt, nhưng nó là việc
+đang dở của chính người lập — chặn và bắt xoá nháp trước thì họ biết mình đang bỏ cái gì.
+
+### Chiều gọi customer → policy, và vì sao lần này được
+
+`0031` tôi từ chối đúng chiều này cho đường đọc danh sách khách hàng. Lý do vẫn nguyên: đó là hot
+path, mở mỗi lần vào màn hình, và policy chậm là màn hình khách hàng chết theo dù chẳng cần gì ở đó.
+
+Ở đây khác: một thao tác **ghi**, hiếm, do người dùng bấm, và nó **vốn phải hỏng** nếu không hỏi
+được — không có câu trả lời thì không biết khách còn hồ sơ nào đang chờ. Cùng lập luận với
+`grantCustomerAccess` đi chiều ngược lại.
+
+### Thứ tự và chốt chặn kép
+
+Cho hồ sơ hết hiệu lực TRƯỚC, đổi trạng thái khách SAU. Ngược lại thì một lượt hỏng giữa chừng để
+lại khách đã ngừng mà CSBH vẫn đang hiệu lực — một chính sách còn hiệu lực cho một khách không còn
+giao dịch, và không màn hình nào cho thấy mâu thuẫn ấy.
+
+`policy` kiểm "còn hồ sơ đang chờ" **lần thứ hai** bên trong transaction có `FOR UPDATE`, dù
+`customer` đã hỏi trước. Giữa hai lời gọi có một khe và một hồ sơ mới có thể gửi vào đó; phép kiểm
+đứng cùng transaction với phép ghi mới là phép kiểm thật.
+
+Và chặn ở đường vào: `POST /policies` từ chối khách đã ngừng (`CUSTOMER_RETIRED`). Chỉ giấu khỏi ô
+chọn là không đủ — ô chọn là thứ người dùng đi vòng được, và một hồ sơ lập cho khách đã ngừng sẽ
+chặn luôn chính việc ngừng hợp tác ấy.
+
+### Quyền: chặt hơn phạm vi đọc
+
+`@Roles('TDV')` cộng `assertChinhTdv` — **đúng TDV phụ trách**, không phải mọi TDV. Trưởng bộ phận
+và Kế toán được giao một CSBH của khách này thì ĐỌC được khách (`0031`), nhưng ngừng hợp tác là
+quyết định về quan hệ khách hàng, không phải một bước xử lý hồ sơ.
+
+Quản trị hệ thống cũng không, dù họ thấy mọi khách hàng: họ đổi được TDV phụ trách, và đó là đúng
+vai trò hành chính của họ — quyết định nghiệp vụ thuộc người làm nghiệp vụ.
+
+### Test: 19 ca, phủ từng trạng thái một
+
+Tám ca cho tám trạng thái chờ (`NHAP` … `QUA_HAN_DUYET`), mỗi ca khẳng định thêm **khách vẫn nguyên
+trạng và hồ sơ vẫn nguyên trạng** — chặn phải là chặn thật. Hai ca cho hai trạng thái kết thúc
+(`TU_CHOI`, `HET_HIEU_LUC`): giữ lại khách, không hết hiệu lực gì. Cộng: xoá hẳn, hết hiệu lực,
+nhật ký hồ sơ, ngừng hai lần, TDV khác, bốn vai trò còn lại, giấu khỏi ô chọn nhưng còn trong danh
+sách, và hai ca xem trước.
+
+913/913 xanh (894 → 913).
+
+### Tôi tự làm hỏng CSDL dùng chung, và bài học
+
+Một ca tôi viết ban đầu — *"nhiều CSBH đang hiệu lực thì hết hiệu lực tất cả"* — dùng
+`ALTER TABLE pol.policy DISABLE TRIGGER ALL` để dựng dữ liệu. Hai chuyện xảy ra:
+
+1. Nó **không dựng được**: `uq_policy_active_per_customer` là một **unique index riêng phần**, và
+   tắt trigger không tắt được index. Ca ấy bất khả thi theo thiết kế — tôi thay bằng một ca khẳng
+   định đúng điều đó, để nếu ai gỡ index kia thì test đỏ trước khi hồ sơ hỏng.
+2. Nó **chết giữa chừng nên `ENABLE TRIGGER ALL` không bao giờ chạy** — và `DISABLE TRIGGER ALL`
+   tắt luôn **các trigger nội bộ thực thi khoá ngoại**. CSDL dùng chung mất kiểm tra FK, sinh ra
+   475 dòng `policy_event` mồ côi, làm đỏ thêm ba ca ở hai tệp khác: `constraints.test.ts` (FK đáng
+   lẽ phải chặn mà lại cho qua) và `ops.test.ts` (`pg_restore` không dựng lại nổi khoá ngoại).
+
+Bài học: **`DISABLE TRIGGER ALL` trên một CSDL dùng chung là một cú tắt phanh toàn cục**, không phải
+một tiện ích dựng dữ liệu. Nếu buộc phải dùng thì bọc trong `try/finally`, và tốt hơn là đừng —
+trạng thái nào dựng không được bằng đường thường thường là trạng thái mà hệ thống không cho phép tồn
+tại, tức là chính câu trả lời mình đang đi tìm.
+
+### Còn nợ
+
+- Vẫn **chưa nhìn ba hộp thoại mới bằng mắt** trong trình duyệt: gửi duyệt, bàn giao, ngừng hợp tác.

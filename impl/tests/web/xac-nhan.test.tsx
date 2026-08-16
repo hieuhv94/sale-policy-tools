@@ -153,8 +153,17 @@ const PHAI_HOI: { mau: RegExp; viec: string }[] = [
   { mau: /'\/sla\/config'/, viec: 'đổi hạn xử lý toàn hệ thống' },
 ];
 
-/** Có lớp hỏi lại: hộp thoại xác nhận, hoặc thanh hoàn tác cho việc lùi được. */
-const CO_LOP_HOI = /HopThoaiXacNhan|ThanhHoanTac/;
+/**
+ * Có lớp hỏi lại: hộp thoại xác nhận dùng chung, hoặc thanh hoàn tác cho việc
+ * lùi được.
+ *
+ * `XoaHoSo` và `HopThoaiNgungHopTac` là hai hộp thoại RIÊNG, và chúng riêng vì
+ * `HopThoaiXacNhan` không tả nổi việc chúng làm: cả hai phải HỎI MÁY CHỦ trước
+ * rồi mới nói được hậu quả, và hậu quả đổi theo câu trả lời — xoá hẳn, hay giữ
+ * lại và cho hết hiệu lực, hay chặn luôn. Một hộp thoại tĩnh nói được đúng một
+ * trong ba, tức là nói sai hai phần ba số lần.
+ */
+const CO_LOP_HOI = /HopThoaiXacNhan|ThanhHoanTac|HopThoaiNgungHopTac/;
 
 describe('mọi thao tác nguy hiểm đều có lớp hỏi lại', () => {
   it('không tệp nào gọi thẳng mà không hỏi', () => {
