@@ -9,7 +9,7 @@
 export const STATUSES = [
   'NHAP', 'CHO_TBP_DUYET', 'TBP_DA_KY_SO', 'CHO_KT_L1', 'SA_DANG_XU_LY',
   'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
-  'TU_CHOI', 'QUA_HAN_DUYET',
+  'TU_CHOI', 'QUA_HAN_DUYET', 'DA_XOA',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 
@@ -71,8 +71,16 @@ const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
   SUPERSEDE:           { from: ['DANG_CO_HIEU_LUC'],  to: 'HET_HIEU_LUC' },
 };
 
-/** Trạng thái kết thúc: không có hành động nào đi ra được. */
-export const TERMINAL: readonly Status[] = ['TU_CHOI'];
+/**
+ * Trạng thái kết thúc: không có hành động nào đi ra được.
+ *
+ * `DA_XOA` vào đây từ `0035` — người lập tự bỏ hồ sơ đã từng vào luồng. Nó
+ * KHÔNG có luật nào trong `RULES`, và đó là chủ ý: đường tới nó là
+ * `DELETE /policies/:id`, không phải một hành động trong dải nút *Thao tác*.
+ * Thêm luật ở đây sẽ làm `allowedActions('YEU_CAU_CHINH_SUA')` mọc thêm một
+ * nút xoá đứng ngay cạnh "Gửi lại duyệt".
+ */
+export const TERMINAL: readonly Status[] = ['TU_CHOI', 'DA_XOA'];
 
 /** Bốn trạng thái chờ có SLA 14 ngày (§9.1). */
 export const WAITING: readonly Status[] = [

@@ -109,7 +109,7 @@ theo đúng trạng thái đó.
 | **Trưởng bộ phận** | Chờ TBP duyệt · Quá hạn duyệt · TBP đã ký số · Đang có hiệu lực · Từ chối |
 | **Kế toán** | Chờ Kế toán L1 · Chờ Kế toán L2 · Quá hạn duyệt · Đang có hiệu lực |
 | **Sale Admin** | Sale Admin đang xử lý · Quá hạn duyệt · Đang có hiệu lực · Từ chối |
-| **Ban lãnh đạo** | **Cả 11 trạng thái** |
+| **Ban lãnh đạo** | **Cả 12 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
 Cố ý **không** bày cho bạn trạng thái là bước của người khác: một Trình dược viên nhìn ô "Chờ Kế
@@ -349,9 +349,27 @@ Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: b
 phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
 muốn sửa phải chờ người duyệt trả lại.
 
-**Xoá hồ sơ** — nút riêng, mở cho bốn vai trò trong luồng và Quản trị. Phải **gõ lại mã hồ sơ** để
-xác nhận, vì xoá không lùi được. Hồ sơ **Từ chối không xoá được**, kể cả Quản trị hệ thống: đó là
-trạng thái kết thúc và phải giữ lại dấu vết.
+**Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ khi hồ sơ còn sửa
+được: **Nháp** hoặc **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế
+toán không tiếp nhận L1, Kế toán không tiếp nhận L2). Phải **gõ lại mã hồ sơ** để xác nhận, vì xoá
+không lùi được.
+
+Hai kết cục, hệ thống tự chọn — bạn không phải quyết định:
+
+| Hồ sơ đang ở | Bấm *Xoá hồ sơ* thì |
+|---|---|
+| **Nháp** (chưa gửi duyệt) | Biến mất hẳn, không để lại dòng nhật ký nào |
+| **Yêu cầu chỉnh sửa** | Chuyển sang **Đã xoá** — hồ sơ ở lại, giữ nguyên lịch sử và lý do trả lại, tra cứu được, nhưng không đi tiếp được nữa |
+
+Sự khác nhau nằm ở chỗ **đã có ai khác đọc hồ sơ chưa**. Bản nháp chưa gửi thì chưa ai ngoài bạn
+nhìn thấy, nên giữ lại một dòng "đã xoá" cho mỗi lần lập nhầm chỉ làm rác nhật ký. Hồ sơ bị trả lại
+thì đã qua tay người khác, họ đã đọc và đã viết lý do — xoá sạch dấu vết là làm biến mất luôn phần
+việc của họ. **Người đã trả hồ sơ lại sẽ nhận thư báo** khi bạn xoá, vì họ đang chờ một bản sửa sẽ
+không bao giờ tới.
+
+Ở **mọi trạng thái khác** thì không ai xoá được, kể cả bạn và kể cả Quản trị hệ thống: hồ sơ đã gửi
+đi đang nằm trên bàn người khác, còn **Từ chối**, **Đã xoá**, **Hết hiệu lực** và **Đang có hiệu
+lực** thì phải giữ lại dấu vết.
 
 ## 7. Luồng duyệt — 10 bước
 
@@ -379,6 +397,8 @@ cùng vai trò không thấy, không mở.
   lại từ đầu vòng duyệt.
 - **Từ chối** (chỉ TBP): hồ sơ đóng vĩnh viễn. **Không ai xoá được** hồ sơ đã từ chối, kể cả Quản
   trị hệ thống.
+- **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
+  đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
 
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật. Trước hạn một ngày hệ
 thống gửi thư nhắc; quá hạn thì hồ sơ chuyển *Quá hạn duyệt* nhưng **vẫn đi tiếp đúng nhánh cũ**.
@@ -520,7 +540,7 @@ Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
 
 **Chuyển những hồ sơ nào**: mọi hồ sơ **chưa kết thúc** mà người đó đang giữ ở vai trò của mình —
 kể cả bản **Nháp**, và kể cả hồ sơ **Đang có hiệu lực** (người phụ trách nó là người nhận thư khi
-giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối** và **Hết hiệu lực** thì không, vì không ai còn
+giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối**, **Đã xoá** và **Hết hiệu lực** thì không, vì không ai còn
 phải làm gì với chúng.
 
 **Khách hàng đi cùng hồ sơ** — chỉ với Trình dược viên, vì *TDV phụ trách* là liên kết duy nhất giữa

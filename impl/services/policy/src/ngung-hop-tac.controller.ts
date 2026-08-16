@@ -23,8 +23,12 @@ import { emit } from './infra/emit.js';
  * duyệt, nhưng nó vẫn là việc đang dở của chính người lập: ngừng hợp tác trong
  * khi còn một bản nháp là để lại một hồ sơ trỏ vào khách hàng không còn giao
  * dịch. Chặn và bắt xoá nháp trước thì người dùng biết mình đang bỏ cái gì.
+ *
+ * `DA_XOA` vào danh sách này từ `0035`. Bỏ sót nó là dựng một ngõ cụt kín: hồ sơ
+ * người lập đã tự bỏ vẫn bị đếm là "đang chờ", nên khách hàng ấy không xoá được
+ * nữa, mà cũng không có thao tác nào đưa hồ sơ đó đi đâu tiếp.
  */
-const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI'];
+const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI', 'DA_XOA'];
 
 type Hang = { id: string; code: string; status: string };
 

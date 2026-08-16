@@ -10,7 +10,7 @@
  */
 import type { VaiTro } from './can.js';
 
-/** 11 trạng thái của muc 4. Cùng tập khoá với `NHAN_TRANG_THAI` ở `format.ts`. */
+/** 12 trạng thái của muc 4 và `0035`. Cùng tập khoá với `NHAN_TRANG_THAI` ở `format.ts`. */
 export type TrangThai =
   | 'NHAP'
   | 'CHO_TBP_DUYET'
@@ -22,7 +22,8 @@ export type TrangThai =
   | 'HET_HIEU_LUC'
   | 'YEU_CAU_CHINH_SUA'
   | 'TU_CHOI'
-  | 'QUA_HAN_DUYET';
+  | 'QUA_HAN_DUYET'
+  | 'DA_XOA';
 
 export const MOI_TRANG_THAI: TrangThai[] = [
   'NHAP',
@@ -36,14 +37,16 @@ export const MOI_TRANG_THAI: TrangThai[] = [
   'YEU_CAU_CHINH_SUA',
   'TU_CHOI',
   'QUA_HAN_DUYET',
+  'DA_XOA',
 ];
 
 /**
  * Trạng thái này là VIỆC CỦA AI — hồ sơ đang nằm trên bàn của vai trò nào.
  *
  * `null` nghĩa là trạng thái kết thúc hoặc trạng thái cắt ngang, không thuộc bàn
- * của riêng ai: hồ sơ đã có hiệu lực, đã hết hiệu lực, đã bị từ chối, hoặc đang
- * quá hạn ở một bước bất kỳ. Bốn cái đó ai xem cũng có nghĩa.
+ * của riêng ai: hồ sơ đã có hiệu lực, đã hết hiệu lực, đã bị từ chối, đã bị
+ * người lập xoá, hoặc đang quá hạn ở một bước bất kỳ. Năm cái đó ai xem cũng có
+ * nghĩa.
  *
  * Bảng này KHÔNG dùng để dựng màn hình. Nó tồn tại để test đối chiếu được rằng
  * dải thẻ của một vai trò không chứa bước của vai trò khác — nếu suy ngược từ
@@ -61,6 +64,7 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
   HET_HIEU_LUC: null,
   TU_CHOI: null,
   QUA_HAN_DUYET: null,
+  DA_XOA: null,
 };
 
 /**

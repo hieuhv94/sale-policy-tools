@@ -39,6 +39,7 @@ const STATUS_LABEL: Record<string, string> = {
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
   TU_CHOI: 'Từ chối',
   QUA_HAN_DUYET: 'Quá hạn duyệt',
+  DA_XOA: 'Đã xoá',
 };
 
 export const COMPANY = {

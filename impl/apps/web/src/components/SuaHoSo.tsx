@@ -353,18 +353,28 @@ export function SuaNgayApDung({
  * Xoá là thao tác không lùi được và nút của nó nằm ngay cạnh những nút dùng hàng
  * ngày. Một hộp thoại xác nhận thường bị bấm qua theo phản xạ; gõ lại mã thì
  * không thể bấm nhầm.
+ *
+ * HAI HẬU QUẢ KHÁC NHAU, và hộp thoại phải nói đúng cái sắp xảy ra (`0035`).
+ * Hồ sơ chưa gửi duyệt thì biến mất hẳn; hồ sơ đã bị trả lại thì ở lại với nhãn
+ * *Đã xoá* và giữ nguyên lịch sử. Nói chung chung "xoá là không lùi được" cho cả
+ * hai là đúng một nửa ở mỗi vế — người dùng hoặc tưởng mình xoá sạch được một
+ * hồ sơ người khác đã đọc, hoặc ngại xoá một bản nháp vì sợ nó nằm lại.
  */
 export function XoaHoSo({
   hoSoId,
   ma,
+  trangThai,
   dong,
   xong,
 }: {
   hoSoId: string;
   ma: string;
+  trangThai: string;
   dong: () => void;
   xong: () => void;
 }) {
+  /** Chưa gửi duyệt thì chưa ai ngoài người lập thấy hồ sơ này — xoá hẳn. */
+  const xoaHan = trangThai === 'NHAP';
   const [go, datGo] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -384,10 +394,20 @@ export function XoaHoSo({
 
   return (
     <HopThoai tieuDe={`Xoá hồ sơ ${ma}`} dong={dong}>
-      <p className="giai-thich">
-        Xoá là <strong>không lùi được</strong>. Hồ sơ và mọi dòng sản phẩm của nó biến mất; nhật ký
-        thao tác vẫn còn.
-      </p>
+      {xoaHan ? (
+        <p className="giai-thich">
+          Hồ sơ này <strong>chưa gửi duyệt</strong> nên nó biến mất hẳn cùng mọi dòng sản phẩm, và{' '}
+          <strong>không lùi được</strong>. Lịch sử của riêng hồ sơ cũng mất theo — chưa ai ngoài bạn
+          nhìn thấy nó.
+        </p>
+      ) : (
+        <p className="giai-thich">
+          Hồ sơ này <strong>đã từng vào luồng duyệt</strong> nên nó ở lại với nhãn{' '}
+          <strong>Đã xoá</strong>: lịch sử và lý do trả lại giữ nguyên, tra cứu được, nhưng hồ sơ
+          không đi tiếp được nữa và <strong>không lùi được</strong>. Người đã trả hồ sơ lại cho bạn
+          sẽ nhận thư báo.
+        </p>
+      )}
       <Truong id="xhs-ma" nhan={`Gõ lại mã hồ sơ để xác nhận: ${ma}`} bắtBuộc>
         {(p) => (
           <input

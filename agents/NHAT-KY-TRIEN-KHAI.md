@@ -4452,3 +4452,81 @@ vựng khác nhau, có chủ ý**:
 — nó nói thẳng: *"bản ghi được giữ lại để tra cứu hồ sơ cũ, nhưng đánh dấu Đã xoá"*.
 
 Không đổi test nào: chúng khẳng định mã lỗi và enum, không khẳng định nhãn. 913/913 xanh.
+
+---
+
+## P46 — TDV xoá được hồ sơ bị trả lại
+
+Yêu cầu: TDV xoá được **những hồ sơ mình sửa được** — bị *Yêu cầu chỉnh sửa*, hoặc L1/L2 không tiếp
+nhận. Hồ sơ đó chuyển sang trạng thái mới **Đã xoá**, ghi vào lịch sử giống *Từ chối*. Riêng hồ sơ
+**chưa gửi duyệt** thì xoá không cần lưu lịch sử, để tránh spam.
+
+### Lỗ hổng đang bịt
+
+Trước đợt này, `YEU_CAU_CHINH_SUA` có đúng **một** đường đi ra: sửa rồi gửi lại. Không có đường bỏ.
+Nên những hồ sơ sẽ không bao giờ được gửi lại — khách đổi ý, lập nhầm khách, đã có bản khác thay —
+nằm mãi trong hộp việc của chính người lập, và mãi trong ô *Yêu cầu chỉnh sửa* của báo cáo tỷ lệ
+trả lại.
+
+### Điều kiện là `EDITABLE`, không phải một danh sách riêng
+
+"Xoá được đúng những hồ sơ sửa được" là nguyên văn yêu cầu, nên nó viết thành **cùng một hằng số**
+mà `mustEdit()` đang dùng. Ba đường trả về (TBP yêu cầu chỉnh sửa, KT không tiếp nhận L1, KT không
+tiếp nhận L2) đều đổ về `YEU_CAU_CHINH_SUA`, nên cả ba tự động nằm trong. Giao diện cũng không chép
+danh sách trạng thái: nút Xoá hiện đúng khi `dangSua` bật.
+
+### Hai kết cục, hệ thống chọn
+
+| Hồ sơ ở | Kết cục | Vì sao |
+|---|---|---|
+| `NHAP` | Xoá hẳn dòng, **không** dòng nhật ký nào | Chưa ai ngoài người lập thấy nó. Ghi một dòng "đã xoá" cho mỗi lần lập nhầm là chống spam ngược — người lập sẽ ngại mở bản nháp |
+| `YEU_CAU_CHINH_SUA` | `DA_XOA` + `policy_event` như `TU_CHOI` | Hồ sơ đã qua tay người khác, đã bị trả lại kèm lý do. Xoá sạch là làm biến mất luôn phần việc của họ |
+
+Cùng một nút, cùng một `DELETE /policies/:id` — người dùng không chọn giữa hai kết cục. Cùng nếp với
+`0034` (xoá khách hàng). Hộp thoại xác nhận **nói đúng cái sắp xảy ra**, hai câu chữ khác nhau: nói
+chung chung cho cả hai là đúng một nửa ở mỗi vế.
+
+### Ba quyết định đáng ghi
+
+**`DA_XOA` KHÔNG có luật nào trong máy trạng thái.** Thêm nó vào `RULES` sẽ làm
+`allowedActions('YEU_CAU_CHINH_SUA')` mọc thêm một hành động, và giao diện bày nó giữa dải nút
+*Thao tác* — ngay cạnh "Gửi lại duyệt", đúng chỗ dễ bấm nhầm nhất — trong khi xoá phải đứng riêng và
+phải gõ lại mã hồ sơ mới chạy. Có một test khẳng định thẳng điều này: quét mọi `(trạng thái, hành
+động, vai trò)` và đòi không tổ hợp nào dẫn tới `DA_XOA`.
+
+**`policy.discarded`, không phải `policy.deleted`.** Hai khoá cho hai chuyện khác hẳn ở phía
+reporting: `policy.deleted` nghĩa là dòng nguồn không còn và `sync.service.ts` **xoá** dòng
+read-model theo nó. Dùng lại khoá ấy thì hồ sơ `DA_XOA` biến mất khỏi mọi báo cáo — đúng thứ việc
+giữ lại lịch sử sinh ra để tránh.
+
+**Sửa một lỗi có sẵn: điều kiện "đúng người" đọc nhầm cột.** `remove()` so với `created_by`. Cột đó
+đứng yên khi hồ sơ đổi tay lúc bàn giao (`0032`), nên sau khi một TDV nghỉ việc thì người kế nhiệm
+không xoá được hồ sơ mình đang phải xử lý, còn người xoá được thì đã bị vô hiệu hoá — đúng loại hồ sơ
+treo mà cả đợt bàn giao sinh ra để dọn. Giờ so với `tdv_user_id`.
+
+### Quét lại mọi chỗ đếm "trạng thái kết thúc"
+
+Thêm một trạng thái kết thúc không phải chỉ là thêm một dòng vào enum. Bốn chỗ phải sửa cùng lúc, và
+**quên chỗ nào cũng cho ra một ngõ cụt kín** — hồ sơ không đi tiếp được mà cũng không ai gỡ được:
+
+* `ngung-hop-tac.controller.ts` — hồ sơ `DA_XOA` vẫn bị đếm là "đang chờ" thì khách hàng của nó
+  không xoá được nữa, vĩnh viễn.
+* `ban-giao.controller.ts` — bàn giao một hồ sơ đã bỏ chỉ làm dài thêm bảng xem trước.
+* `trg_forbid_delete_rejected` ở CSDL — mở rộng sang `DA_XOA` (tên trigger giữ nguyên: đổi tên là
+  sửa `seed-demo.ts`, bốn tệp test và một phép khẳng định đọc thẳng `pg_trigger.tgname`).
+* Bốn bảng nhãn: giao diện, thư, bản A4, và `TERMINAL` của `@csbh/domain-policy`.
+
+### Quyền thu lại
+
+`DELETE /policies/:id` từ `WRITERS + QUAN_TRI` xuống còn `TDV`, và `QUYEN_GHI.xoaHoSo` cũng vậy.
+Bốn vai trò kia có mặt ở đó từ P11d mà **chưa bao giờ xoá được gì** — `remove()` luôn đòi hồ sơ ở
+trạng thái của người lập và đúng người phụ trách. Bày ra một quyền chỉ dẫn tới 403 là mời người đọc
+bảng phân quyền hiểu sai.
+
+### Test
+
++32 ca, **945/945 xanh**. Phần đáng kể nhất là bảng dựng từng hồ sơ tới **đúng mười hai trạng thái**
+rồi thử xoá ở mỗi cái — thêm một trạng thái vào enum mà quên thử xoá ở đó là đúng loại lỗ hổng chỉ lộ
+ra khi có người bấm trúng. Hai trạng thái phải đặt bằng SQL vì không lời gọi nào tới được: `QUA_HAN_DUYET`
+(chỉ `sla-worker` đặt) và `TBP_DA_KY_SO` (chớp nhoáng — `TBP_SIGN` tự chuyển tiếp trong cùng
+transaction).

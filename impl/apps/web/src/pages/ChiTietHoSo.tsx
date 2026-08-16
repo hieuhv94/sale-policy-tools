@@ -200,12 +200,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
       </div>
 
       {/*
-        Xoá mở cho bốn vai trò trong luồng và Quản trị, nhưng KHÔNG bao giờ với
-        hồ sơ Từ chối: đó là trạng thái kết thúc và không ai xoá được, kể cả
-        Quản trị hệ thống (POL-14). Máy chủ chặn; ẩn nút để không ai bấm vào một
-        thứ chắc chắn hỏng.
+        Xoá hiện đúng khi hồ sơ CÒN SỬA ĐƯỢC, và chỉ với TDV (`0035`).
+
+        Điều kiện dùng lại `dangSua` chứ không chép danh sách trạng thái sang
+        đây: máy chủ cho xoá đúng những hồ sơ nó cho sửa (`EDITABLE`), nên hai
+        nút phải xuất hiện cùng nhau. Chép danh sách là dựng một bản sao thứ hai
+        phải giữ đồng bộ — và lệch về phía nào cũng sai: thừa thì bày ra một nút
+        chắc chắn 403, thiếu thì giấu mất đường bỏ hồ sơ.
+
+        Hồ sơ Từ chối vẫn không ai xoá được (POL-14) — nó không sửa được nên
+        không lọt qua điều kiện này.
       */}
-      {can(nguoiDung?.role, 'xoaHoSo') && hoSo.status !== 'TU_CHOI' && (
+      {dangSua && can(nguoiDung?.role, 'xoaHoSo') && (
         <p>
           <button type="button" className="nut nut-canh-bao" onClick={() => datMoSua('xoa')}>
             Xoá hồ sơ
@@ -268,6 +274,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
         <XoaHoSo
           hoSoId={hoSo.id}
           ma={hoSo.code}
+          trangThai={hoSo.status}
           dong={() => datMoSua(null)}
           xong={() => di('/ho-so')}
         />

@@ -237,10 +237,17 @@ export class PoliciesController {
   }
 
   /**
-   * Xoá hồ sơ. KHÔNG có ngoại lệ cho vai trò nào: hồ sơ Từ chối là trạng thái
-   * kết thúc và không ai xoá được, kể cả Quản trị hệ thống (POL-14).
+   * Xoá hồ sơ — CHỈ TDV đang phụ trách, và chỉ khi hồ sơ còn sửa được (`0035`).
+   *
+   * Vai trò thu từ `WRITERS + QUAN_TRI` xuống còn `TDV`. Bốn vai trò kia chưa
+   * bao giờ xoá được gì: `remove()` luôn đòi hồ sơ ở trạng thái của người lập và
+   * đúng người phụ trách, nên với họ đường này chỉ có một kết quả là 403. Bày ra
+   * một quyền không dùng được là mời người đọc bảng phân quyền hiểu sai.
+   *
+   * Hồ sơ Từ chối vẫn không ai xoá được, kể cả Quản trị hệ thống (POL-14) — nó
+   * không nằm trong `EDITABLE`, và trigger ở CSDL chặn thêm một lần nữa.
    */
-  @Roles(...WRITERS, 'QUAN_TRI')
+  @Roles('TDV')
   @Delete(':id')
   @HttpCode(204)
   async remove(@CurrentUser() me: AuthUser, @Param('id') id: string) {

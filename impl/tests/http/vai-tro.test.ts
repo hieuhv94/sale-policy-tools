@@ -177,14 +177,15 @@ afterAll(async () => {
   // khách hàng. Xoá khách hàng trước mà bỏ lại hồ sơ là để lại rác trỏ vào một
   // khách hàng không còn tồn tại, và các lượt chạy sau đếm phải nó.
   await withAdminDb(async (c) => {
-    // Gỡ nhãn Từ chối TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
-    // xoá hồ sơ ở trạng thái kết thúc ấy (YCNV muc 4), và tệp này cố ý dựng ra
+    // Gỡ nhãn kết thúc TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
+    // xoá hồ sơ ở CẢ HAI trạng thái kết thúc (YCNV muc 4 và `0035`), và tệp này
+    // cố ý dựng ra
     // một hồ sơ như vậy để kiểm việc chuyển giao bỏ qua nó. Không gỡ thì bước
     // dọn ném lỗi và CẢ TỆP đỏ, với một thông báo chẳng liên quan tới điều đang
     // kiểm — đúng thứ đã xảy ra một lần.
     await c.query(
       `UPDATE pol.policy SET status = 'NHAP'
-        WHERE status = 'TU_CHOI'
+        WHERE status::text IN ('TU_CHOI', 'DA_XOA')
           AND customer_id IN (SELECT id FROM cus.customer WHERE code LIKE $1)`,
       [`${P}%`],
     );
@@ -433,30 +434,37 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
     }
   });
 
-  it('hồ sơ TỪ CHỐI thì KHÔNG chuyển — đó là trạng thái kết thúc', async () => {
-    const hs = await lapVaGui();
-    await withAdminDb((c) =>
-      c.query(`UPDATE pol.policy SET status = 'TU_CHOI' WHERE code = $1`, [hs.code]),
-    );
-    const tbp01 = await idCua('tbp01');
-    const tbp02 = await idCua('tbp02');
-    try {
-      await post(`/admin/users/${tbp01}/deactivate`, {
-        confirmName: 'Truong bo phan 01',
-        successorId: tbp02,
-      });
-      expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
-    } finally {
-      await batLai(tbp01);
-      // Trả trạng thái về: `afterAll` dọn bằng `DELETE`, mà trigger
-      // `trg_forbid_delete_rejected` chặn xoá hồ sơ Từ chối (YCNV muc 4). Để
-      // nguyên là cả tệp đỏ ở bước dọn, với một lỗi chẳng liên quan tới điều
-      // đang kiểm.
+  // Hai trạng thái kết thúc, cùng một lý do không bàn giao: không có việc gì cho
+  // người kế nhiệm làm với chúng. `DA_XOA` vào đây từ `0035`.
+  for (const tt of ['TU_CHOI', 'DA_XOA']) {
+    it(`hồ sơ ${tt} thì KHÔNG chuyển — đó là trạng thái kết thúc`, async () => {
+      const hs = await lapVaGui();
       await withAdminDb((c) =>
-        c.query(`UPDATE pol.policy SET status = 'CHO_TBP_DUYET' WHERE code = $1`, [hs.code]),
+        c.query(`UPDATE pol.policy SET status = $2::pol.policy_status WHERE code = $1`, [
+          hs.code,
+          tt,
+        ]),
       );
-    }
-  });
+      const tbp01 = await idCua('tbp01');
+      const tbp02 = await idCua('tbp02');
+      try {
+        await post(`/admin/users/${tbp01}/deactivate`, {
+          confirmName: 'Truong bo phan 01',
+          successorId: tbp02,
+        });
+        expect(await nguoiGiu(hs.code, 'TBP')).toBe(tbp01);
+      } finally {
+        await batLai(tbp01);
+        // Trả trạng thái về: `afterAll` dọn bằng `DELETE`, mà trigger
+        // `trg_forbid_delete_rejected` chặn xoá hồ sơ ở CẢ HAI trạng thái này
+        // (YCNV muc 4, `0035`). Để nguyên là cả tệp đỏ ở bước dọn, với một lỗi
+        // chẳng liên quan tới điều đang kiểm.
+        await withAdminDb((c) =>
+          c.query(`UPDATE pol.policy SET status = 'CHO_TBP_DUYET' WHERE code = $1`, [hs.code]),
+        );
+      }
+    });
+  }
 
   it('KHÔNG hồ sơ nào của người bị vô hiệu hoá còn treo lại — quét cả bốn cột', async () => {
     // Bất biến của cả tính năng, phát biểu thẳng: sau khi vô hiệu hoá, không tồn
@@ -475,7 +483,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
             WHERE status::text <> ALL($2::text[])
               AND (tdv_user_id = $1 OR tbp_user_id = $1
                    OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
-          [tbp01, ['TU_CHOI', 'HET_HIEU_LUC']],
+          [tbp01, ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']],
         );
         return Number(r.rows[0]!.n);
       });
@@ -543,7 +551,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
             WHERE status::text <> ALL($2::text[])
               AND (tdv_user_id = $1 OR tbp_user_id = $1
                    OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
-          [u.id, ['TU_CHOI', 'HET_HIEU_LUC']],
+          [u.id, ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']],
         );
         return Number(x.rows[0]!.n);
       });

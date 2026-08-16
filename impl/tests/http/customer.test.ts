@@ -57,12 +57,15 @@ const base = (over: Record<string, unknown> = {}) => ({
 
 const cleanup = () =>
   withAdminDb(async (c) => {
-    // Gỡ nhãn Từ chối TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
-    // xoá hồ sơ ở trạng thái kết thúc ấy (YCNV muc 4), và tệp này cố ý dựng ra
-    // hồ sơ như vậy để kiểm nhánh "đã kết thúc" của việc ngừng hợp tác.
-    await c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE code LIKE $1 AND status = 'TU_CHOI'`, [
-      `${P}%`,
-    ]);
+    // Gỡ nhãn kết thúc TRƯỚC khi xoá: trigger `trg_forbid_delete_rejected` chặn
+    // xoá hồ sơ ở CẢ HAI trạng thái kết thúc (YCNV muc 4 và `DA_XOA` từ `0035`),
+    // và tệp này cố ý dựng ra hồ sơ như vậy để kiểm nhánh "đã kết thúc" của việc
+    // ngừng hợp tác.
+    await c.query(
+      `UPDATE pol.policy SET status = 'NHAP'
+        WHERE code LIKE $1 AND status::text IN ('TU_CHOI', 'DA_XOA')`,
+      [`${P}%`],
+    );
     await c.query(`DELETE FROM pol.policy WHERE code LIKE $1`, [`${P}%`]);
     await c.query(`DELETE FROM cus.outbox`);
     await c.query(`DELETE FROM cus.customer WHERE code LIKE $1`, [`${P}%`]);
@@ -495,7 +498,11 @@ describe('`0034` CUST-16 ngừng hợp tác — một nút thay cho hai', () => 
     });
   });
 
-  for (const st of ['TU_CHOI', 'HET_HIEU_LUC']) {
+  // `DA_XOA` nằm trong danh sách này từ `0035`, và đó là nửa quan trọng của việc
+  // thêm một trạng thái kết thúc: quên nó ở `KET_THUC` thì hồ sơ người lập đã tự
+  // bỏ vẫn bị đếm là "đang chờ", nên khách hàng không xoá được nữa — mà cũng
+  // không thao tác nào đưa hồ sơ đó đi tiếp được. Một ngõ cụt kín.
+  for (const st of ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']) {
     it(`chỉ có hồ sơ ${st} (đã kết thúc): giữ lại khách, KHÔNG hết hiệu lực gì`, async () => {
       const c = await post('/customers', base());
       const code = await themHoSo(c.body.id as string, st);

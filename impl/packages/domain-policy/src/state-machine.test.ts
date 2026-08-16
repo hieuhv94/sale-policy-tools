@@ -10,8 +10,9 @@ const go = (current: Status, action: Action, role: Parameters<typeof transition>
             reason?: string) => transition({ current, action, role, reason });
 
 describe('WF-02/03 · bộ trạng thái là danh sách đóng', () => {
-  it('đúng 11 trạng thái', () => {
-    expect(STATUSES).toHaveLength(11);
+  it('đúng 12 trạng thái', () => {
+    // 11 của muc 4, cộng `DA_XOA` từ `0035`.
+    expect(STATUSES).toHaveLength(12);
   });
   it('không còn nhãn cũ nào', () => {
     for (const cu of ['BAN_DEMO', 'DANG_DUYET', 'DA_CHUYEN_BUOC_SAU', 'DANG_AP_DUNG']) {
@@ -85,8 +86,41 @@ describe('WF-08 · Từ chối là trạng thái kết thúc', () => {
       expect(() => go('TU_CHOI', a, 'TDV')).toThrow(InvalidTransitionError);
     }
   });
-  it('TERMINAL đúng bằng một trạng thái', () => {
-    expect(TERMINAL).toEqual(['TU_CHOI']);
+  it('TERMINAL đúng bằng hai trạng thái kết thúc', () => {
+    expect(TERMINAL).toEqual(['TU_CHOI', 'DA_XOA']);
+  });
+});
+
+describe('`0035` · Đã xoá cũng là trạng thái kết thúc', () => {
+  it('không hành động nào đi ra khỏi Đã xoá', () => {
+    expect(allowedActions('DA_XOA')).toEqual([]);
+    for (const a of ACTIONS) {
+      expect(() => go('DA_XOA', a, 'TDV')).toThrow(InvalidTransitionError);
+    }
+  });
+
+  /**
+   * Và không hành động nào ĐI VÀO nó, cũng có chủ ý.
+   *
+   * Đường tới `DA_XOA` là `DELETE /policies/:id`, không phải một nút trong dải
+   * *Thao tác*. Thêm một luật ở đây sẽ làm `allowedActions('YEU_CAU_CHINH_SUA')`
+   * mọc thêm một nút xoá đứng ngay cạnh "Gửi lại duyệt" — cạnh nhau đúng chỗ dễ
+   * bấm nhầm nhất, mà xoá thì phải gõ lại mã hồ sơ mới chạy.
+   */
+  it('cũng không hành động nào đi VÀO Đã xoá', () => {
+    for (const s of STATUSES) {
+      for (const a of allowedActions(s)) {
+        for (const v of ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'SYSTEM'] as const) {
+          let toi: string | undefined;
+          try {
+            toi = go(s, a, v).next;
+          } catch {
+            continue;
+          }
+          expect(toi, `${s} + ${a} (${v}) không được dẫn tới DA_XOA`).not.toBe('DA_XOA');
+        }
+      }
+    }
   });
 });
 

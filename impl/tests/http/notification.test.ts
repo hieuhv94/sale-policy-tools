@@ -315,6 +315,37 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
   });
 });
 
+describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nhận được thư', () => {
+  /*
+   * Vì sao có thư ở đây, trong khi yêu cầu không nhắc tới email.
+   *
+   * `YEU_CAU_CHINH_SUA` nghĩa là có người đã đọc hồ sơ, đã trả nó lại kèm lý do,
+   * và đang chờ một bản sửa. Xoá trong im lặng thì bản sửa ấy không bao giờ tới
+   * và không có gì nói vì sao — hồ sơ chỉ lặng lẽ rời khỏi danh sách của họ. Đó
+   * đúng là loại "việc treo" mà cả hệ này đang cố gỡ.
+   */
+  it('thư đi tới TBP và Kế toán, tiêu đề nói rõ ai làm gì', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
+
+    const xoa = await (await http(policy))
+      .delete(`/policies/${d.id}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(xoa.status, JSON.stringify(xoa.body)).toBe(204);
+
+    // Ba thư: gửi duyệt → TBP, trả lại → TDV, xoá → TBP và Kế toán.
+    const mails = await flush(3);
+    const m = await fullMail(mails[0]!.ID);
+    expect(m.To.map((t) => t.Address).sort()).toEqual(['kt01@csbh.test', 'tbp01@csbh.test']);
+    expect(m.Subject).toContain('đã xoá hồ sơ bị trả lại');
+    // Trạng thái trong thân thư phải là nhãn tiếng Việt, không phải mã enum —
+    // thiếu một dòng trong `STATUS_LABEL` là người nhận đọc thấy "DA_XOA".
+    expect(m.Text).toContain('Đã xoá');
+    expect(m.Text).not.toContain('DA_XOA');
+  });
+});
+
 describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', () => {
   it('mã KH, tên KH, mã hồ sơ, trạng thái, bước, thời điểm, liên kết', async () => {
     const d = await draft();

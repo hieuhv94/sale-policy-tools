@@ -279,6 +279,7 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 | `Yêu cầu chỉnh sửa` | Bị trả lại, chờ TDV sửa | — |
 | `Từ chối` | Trưởng bộ phận từ chối — **trạng thái kết thúc**, hồ sơ bị bỏ | — |
 | `Quá hạn duyệt` | Quá 14 ngày ở một trạng thái chờ | — |
+| `Đã xóa` | Người lập bỏ hẳn một hồ sơ bị trả lại — **trạng thái kết thúc** | — |
 
 **Quy tắc**
 
@@ -286,6 +287,19 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 - Không dùng các tên cũ: “Bản Demo”, “Đang duyệt”, “Đã chuyển bước sau”, “Đang áp dụng”.
 - Hồ sơ ở `Từ chối` **không ai xóa được**, kể cả người tạo — giữ nguyên trong lịch sử và trong
   báo cáo tỷ lệ hồ sơ bị trả lại.
+- **TDV xóa được đúng những hồ sơ mình sửa được**, tức `Nháp` và `Yêu cầu chỉnh sửa` (gồm cả ba
+  đường bị trả về: TBP yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2).
+  Hai kết cục, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
+  - `Nháp` → **xóa hẳn, không ghi lịch sử**. Hồ sơ chưa gửi duyệt thì chưa ai ngoài người lập nhìn
+    thấy; ghi một dòng "đã xóa" cho mỗi lần lập nhầm là biến nhật ký thành bãi rác và làm người lập
+    ngại mở bản nháp.
+  - `Yêu cầu chỉnh sửa` → chuyển `Đã xóa`, **ghi vào lịch sử hồ sơ y như `Từ chối`**. Hồ sơ đã qua
+    tay người khác và đã bị trả lại kèm lý do; xóa sạch dấu vết là làm biến mất phần việc của họ.
+    Người đã trả hồ sơ lại nhận thư báo.
+  Chỉ **TDV đang phụ trách** hồ sơ xóa được, không phải người đã lập ra nó — hai thứ khác nhau sau
+  một lần bàn giao. Vai trò khác không xóa được gì, kể cả Quản trị hệ thống.
+- Hồ sơ ở `Đã xóa` cũng **không ai xóa được** và không hành động nào đi ra được, giống `Từ chối`.
+  Nó không chặn việc xóa khách hàng và không được bàn giao khi một tài khoản bị vô hiệu hóa.
 - `Quá hạn duyệt` áp dụng chung cho mọi trạng thái chờ. Bản ghi phải lưu kèm **bước đang chờ**
   để khi người phụ trách xử lý muộn thì hồ sơ đi tiếp đúng nhánh cũ.
 - Không có nghiệp vụ **thu hồi**. Muốn thay đổi thì lập CSBH mới.

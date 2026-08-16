@@ -30,7 +30,18 @@ export const VAI_TRO: VaiTro[] = [
 export const QUYEN_GHI = {
   lapHoSo: ['TDV'],
   suaHoSo: ['TDV'],
-  xoaHoSo: ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'QUAN_TRI'],
+  /**
+   * Xoá hồ sơ — CHỈ TDV (`0035`).
+   *
+   * Bốn vai trò kia có mặt ở đây từ P11d và chưa bao giờ xoá được gì: máy chủ
+   * luôn đòi hồ sơ ở trạng thái của người lập (`Nháp` hoặc `Yêu cầu chỉnh sửa`)
+   * VÀ đúng TDV đang phụ trách, nên với họ nút ấy chỉ dẫn tới 403 — đúng thứ
+   * bảng này sinh ra để không bày ra.
+   *
+   * Giống `xoaKhachHang`: đây là điều kiện CẦN. "Đúng người phụ trách" là điều
+   * kiện đủ, và chỉ máy chủ biết.
+   */
+  xoaHoSo: ['TDV'],
   guiDuyet: ['TDV'],
   kySo: ['TBP'],
   traLai: ['TBP', 'KE_TOAN'],

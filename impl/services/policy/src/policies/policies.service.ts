@@ -579,31 +579,106 @@ export class PoliciesService {
     return hong;
   }
 
+  /**
+   * TDV bỏ một hồ sơ (`0035`).
+   *
+   * ĐIỀU KIỆN là `EDITABLE`, không phải một danh sách riêng: "xoá được đúng
+   * những hồ sơ sửa được" là nguyên văn yêu cầu, và viết nó thành cùng một hằng
+   * số thì không có ngày hai danh sách lệch nhau. Cụ thể là `NHAP` và
+   * `YEU_CAU_CHINH_SUA` — trạng thái sau gom cả ba đường trả về: Trưởng bộ phận
+   * yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2.
+   *
+   * HAI KẾT CỤC, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
+   *
+   *   * `NHAP` → xoá hẳn dòng, không ghi nhật ký. Hồ sơ chưa gửi duyệt thì chưa
+   *     ai ngoài người lập thấy nó; ghi một dòng "đã xoá" cho mỗi lần lập nhầm
+   *     là chống spam ngược — người lập sẽ ngại mở bản nháp.
+   *   * `YEU_CAU_CHINH_SUA` → `DA_XOA` và ghi nhật ký y như `TU_CHOI`. Hồ sơ này
+   *     đã qua tay người khác, đã bị trả lại kèm lý do; xoá sạch là làm biến mất
+   *     luôn phần việc của họ.
+   */
   async remove(policyId: string, me: AuthUser) {
-    const p = await this.byId(policyId, me);
-    if (p.status !== 'NHAP') {
+    // Đọc thẳng dòng nguồn, KHÔNG qua `byId`: đường kia làm mới giá và ngưỡng
+    // trước khi trả về (`0029`), tức là một lượt GHI vào hồ sơ ngay trước khi
+    // xoá nó. Ở đây chỉ cần bốn cột người, trạng thái và mã.
+    const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
+    if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
+    await this.assertPolicyInScope(p, me);
+
+    if (!EDITABLE.includes(p.status)) {
       throw new ForbiddenException({
-        code: 'ONLY_DRAFT_DELETABLE',
-        message: `Chỉ xoá được hồ sơ ở trạng thái Nháp; hồ sơ đang ở ${p.status}`,
+        code: 'ONLY_EDITABLE_DELETABLE',
+        message:
+          'Chỉ xoá được hồ sơ đang sửa được (Nháp hoặc Yêu cầu chỉnh sửa); ' +
+          `hồ sơ đang ở ${p.status}`,
       });
     }
-    if (p.createdBy !== me.id) {
-      throw new ForbiddenException({ code: 'NOT_OWNER' });
+    /*
+     * NGƯỜI PHỤ TRÁCH HIỆN TẠI, không phải người đã lập.
+     *
+     * Trước `0035` chỗ này so với `createdBy`, và nó sai từ lúc có bàn giao
+     * (`0032`): TDV nghỉ việc thì hồ sơ sang tay người kế nhiệm qua
+     * `tdv_user_id`, còn `created_by` vẫn trỏ vào tài khoản đã vô hiệu hoá. So
+     * với `created_by` là để lại đúng loại hồ sơ treo mà đợt bàn giao sinh ra
+     * để dọn — không ai xoá được nữa, kể cả người đang phải xử lý nó.
+     */
+    if (p.tdv_user_id !== me.id) {
+      throw new ForbiddenException({
+        code: 'NOT_OWNER',
+        message: 'Chỉ TDV đang phụ trách hồ sơ này mới xoá được.',
+      });
     }
+
+    // Mã và tên khách hàng cho lá thư báo, lấy TRƯỚC transaction. Nuốt lỗi có
+    // chủ ý: đây là thứ trang trí cho thông báo, còn xoá một hồ sơ của chính
+    // mình thì không có lý do gì phải hỏng chỉ vì `customer` đang tắt.
+    const cus = await this.clients.customer(p.customer_id).catch(() => undefined);
+
     // Xoá và báo xoá trong CÙNG transaction. Tách ra thì hồ sơ biến mất khỏi
     // nguồn mà vẫn nằm lại trong read-model báo cáo — và không có sự kiện nào
     // sau đó để sửa, vì hồ sơ không còn tồn tại để phát sự kiện nữa.
     await this.db.tx(async (c) => {
-      await c.query(`DELETE FROM pol.policy WHERE id = $1`, [policyId]);
-      await emit(c, 'policy.deleted', {
-        entity: 'policy',
-        id: policyId,
-        policyId,
-        policyCode: p.code,
-        customerId: p.customerId,
-        tdvUserId: p.tdvUserId,
+      const chung = {
+        ...evtCtx(p, cus),
         actorId: me.id,
         at: new Date().toISOString(),
+      };
+
+      if (p.status === 'NHAP') {
+        await c.query(`DELETE FROM pol.policy WHERE id = $1`, [policyId]);
+        await emit(c, 'policy.deleted', chung);
+        return;
+      }
+
+      await c.query(
+        `UPDATE pol.policy SET status = 'DA_XOA', row_version = row_version + 1,
+                sla_due_at = NULL, sla_started_at = NULL, pending_step = NULL
+          WHERE id = $1`,
+        [policyId],
+      );
+      await this.recordEvent(c, policyId, p.status, 'DA_XOA', 'DELETE', me, undefined);
+      /*
+       * `policy.discarded`, KHÔNG phải `policy.deleted`.
+       *
+       * Hai khoá cho hai chuyện khác hẳn nhau ở phía reporting: `policy.deleted`
+       * nghĩa là dòng nguồn không còn, và `sync.service.ts` xoá dòng read-model
+       * theo nó. Dùng lại khoá ấy ở đây thì hồ sơ `DA_XOA` biến mất khỏi mọi báo
+       * cáo — đúng thứ mà việc giữ lại lịch sử sinh ra để tránh.
+       *
+       * (Khác `policy.scan_discarded`: bản kia nói về một tệp scan bị huỷ, hồ sơ
+       * vẫn đi tiếp.)
+       */
+      await emit(c, 'policy.discarded', {
+        ...chung,
+        fromStatus: p.status,
+        toStatus: 'DA_XOA',
+        action: 'DELETE',
+        // Người đã trả hồ sơ lại đang chờ nó quay về. Không báo thì họ chờ một
+        // thứ sẽ không bao giờ tới, và hồ sơ chỉ lặng lẽ rời khỏi danh sách.
+        recipients: ['TBP', 'KE_TOAN'],
+        tbpUserId: p.tbp_user_id,
+        keToanUserId: p.ke_toan_user_id,
+        saleAdminUserId: p.sale_admin_user_id,
       });
     });
   }

@@ -551,41 +551,352 @@ describe('POL-12 TDV không sửa được giá bán Công ty và ngưỡng', ()
   });
 });
 
-describe('POL-13 · POL-14 xoá hồ sơ', () => {
-  it('POL-13 xoá hồ sơ Nháp của chính mình thì 204', async () => {
-    const d = await draft();
-    expect((await del(`/policies/${d.id}`)).status).toBe(204);
-    expect((await get(`/policies/${d.id}`)).status).toBe(404);
+/**
+ * Đưa một hồ sơ mới tới đúng một trạng thái, để ma trận xoá bên dưới thử được
+ * CẢ MƯỜI HAI.
+ *
+ * Hai trạng thái không tới được bằng lời gọi API và phải đặt thẳng bằng SQL:
+ *
+ *   * `QUA_HAN_DUYET` — chỉ `sla-worker` đặt, sau 14 ngày. Nó là một NHÃN chồng
+ *     lên trạng thái chờ, nên đặt kèm `pending_step` đúng như worker làm.
+ *   * `TBP_DA_KY_SO` — trạng thái CHỚP NHOÁNG: `TBP_SIGN` tự chuyển tiếp sang
+ *     `CHO_KT_L1` trong cùng transaction (WF-09), nên không lời gọi nào để hồ sơ
+ *     đứng lại ở đó. Vẫn phải thử: hồ sơ có thể mắc ở đây nếu bước tự động hỏng.
+ */
+const datTrangThai = (id: string, tt: string, buoc: string | null = null) =>
+  withAdminDb((c) =>
+    c.query(
+      `UPDATE pol.policy SET status = $2::pol.policy_status,
+              pending_step = $3::pol.policy_step WHERE id = $1`,
+      [id, tt, buoc],
+    ),
+  );
+
+/** Hồ sơ ở `YEU_CAU_CHINH_SUA` — ba đường trả về, mặc định là TBP trả lại. */
+const biTraLai = async (
+  qua: 'TBP_RETURN' | 'KT_RETURN_L1' | 'KT_RETURN_L2' = 'TBP_RETURN',
+) => {
+  const d = await draft();
+  await act(d.id, 'SUBMIT', 'tdv01');
+  if (qua === 'TBP_RETURN') {
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
+  } else {
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    if (qua === 'KT_RETURN_L1') {
+      await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Sai ma khach hang' });
+    } else {
+      await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+      await post(
+        `/policies/${d.id}/attachments`,
+        { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+        'sa01',
+      );
+      await act(d.id, 'SA_HANDOVER', 'sa01');
+      await act(d.id, 'KT_RETURN_L2', 'kt01', { reason: 'Ban cung sai mau' });
+    }
+  }
+  expect((await get(`/policies/${d.id}`)).body.status).toBe('YEU_CAU_CHINH_SUA');
+  return d;
+};
+
+const nhatKy = (policyId: string) =>
+  withAdminDb(async (c) => {
+    const r = await c.query<{ from_status: string; to_status: string; action: string }>(
+      `SELECT from_status::text, to_status::text, action FROM pol.policy_event
+        WHERE policy_id = $1 ORDER BY seq`,
+      [policyId],
+    );
+    return r.rows;
   });
 
-  it('POL-14 hồ sơ Từ chối KHÔNG vai trò nào xoá được, kể cả quản trị', async () => {
-    const d = await draft();
-    await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
-    expect((await get(`/policies/${d.id}`)).body.status).toBe('TU_CHOI');
+describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
+  describe('Nháp — xoá hẳn, không để lại vết', () => {
+    it('POL-13 xoá hồ sơ Nháp của chính mình thì 204 và hồ sơ biến mất', async () => {
+      const d = await draft();
+      expect((await del(`/policies/${d.id}`)).status).toBe(204);
+      expect((await get(`/policies/${d.id}`)).status).toBe(404);
+      // Chống spam: bản nháp không để lại dòng nhật ký nào (`0035`).
+      expect(await nhatKy(d.id)).toEqual([]);
+    });
 
-    for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
-      const r = await del(`/policies/${d.id}`, who);
-      expect([403, 404], `${who} đáng lẽ không xoá được`).toContain(r.status);
-      expect(r.status).not.toBe(204);
+    it('phát `policy.deleted` — read-model phải XOÁ dòng, không phải cập nhật', async () => {
+      const d = await draft();
+      await del(`/policies/${d.id}`);
+      const khoa = (await outboxFor(d.id)).map((e) => e.routing_key);
+      expect(khoa).toContain('policy.deleted');
+      expect(khoa).not.toContain('policy.discarded');
+    });
+
+    it('xoá nháp rồi lập lại cho cùng khách hàng thì được', async () => {
+      const d = await draft();
+      await del(`/policies/${d.id}`);
+      const lai = await post('/policies', {
+        customerId: d.customerId,
+        lines: [line(d.productId)],
+      });
+      expect(lai.status).toBe(201);
+    });
+  });
+
+  describe('Yêu cầu chỉnh sửa — chuyển `DA_XOA`, giữ nguyên lịch sử', () => {
+    // Ba đường về `YEU_CAU_CHINH_SUA` đều phải xoá được: yêu cầu nghiệp vụ nêu
+    // đích danh cả ba ("bị Yêu cầu chỉnh sửa, L1 hoặc L2 không tiếp nhận").
+    for (const qua of ['TBP_RETURN', 'KT_RETURN_L1', 'KT_RETURN_L2'] as const) {
+      it(`bị trả lại qua ${qua} thì TDV xoá được, hồ sơ còn nguyên ở "Đã xoá"`, async () => {
+        const d = await biTraLai(qua);
+        expect((await del(`/policies/${d.id}`)).status).toBe(204);
+
+        const sau = await get(`/policies/${d.id}`);
+        expect(sau.status).toBe(200);
+        expect(sau.body.status).toBe('DA_XOA');
+      });
     }
 
-    // Và cả bằng SQL thô — trigger ở CSDL chặn.
-    const err = await withAdminDb(async (c) => {
-      try {
-        await c.query(`DELETE FROM pol.policy WHERE id = $1`, [d.id]);
-        return undefined;
-      } catch (e) {
-        return e as { message: string };
-      }
+    it('ghi vào nhật ký của chính hồ sơ, và KHÔNG xoá dòng cũ nào', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      const truoc = await nhatKy(d.id);
+      await del(`/policies/${d.id}`);
+      const sau = await nhatKy(d.id);
+
+      // Lịch sử chỉ DÀI THÊM. Lý do trả lại của Trưởng bộ phận vẫn còn — đó là
+      // phần việc của người khác, xoá nó đi là làm biến mất một việc đã làm.
+      expect(sau.slice(0, truoc.length)).toEqual(truoc);
+      expect(sau).toHaveLength(truoc.length + 1);
+      expect(sau.at(-1)).toEqual({
+        from_status: 'YEU_CAU_CHINH_SUA',
+        to_status: 'DA_XOA',
+        action: 'DELETE',
+      });
     });
-    expect(err?.message).toContain('TU_CHOI');
+
+    it('phát `policy.discarded` kèm người nhận, KHÔNG phát `policy.deleted`', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      await del(`/policies/${d.id}`);
+      const evs = await outboxFor(d.id);
+      const khoa = evs.map((e) => e.routing_key);
+
+      // Dùng nhầm `policy.deleted` ở đây thì `sync.service.ts` xoá dòng
+      // read-model, và hồ sơ "Đã xoá" biến mất khỏi mọi báo cáo — đúng thứ việc
+      // giữ lại lịch sử sinh ra để tránh.
+      expect(khoa).toContain('policy.discarded');
+      expect(khoa).not.toContain('policy.deleted');
+
+      const e = evs.find((x) => x.routing_key === 'policy.discarded')!;
+      // Người đã trả hồ sơ lại đang chờ một bản sửa sẽ không bao giờ tới.
+      expect(e.payload['recipients']).toEqual(['TBP', 'KE_TOAN']);
+      expect(e.payload['toStatus']).toBe('DA_XOA');
+      expect(e.payload['tbpUserId']).toBe((await idNguoiDung())['tbp01']);
+    });
+
+    it('xoá rồi thì lập hồ sơ mới cho cùng khách hàng được', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      await del(`/policies/${d.id}`);
+      const lai = await post('/policies', {
+        customerId: d.customerId,
+        lines: [line(d.productId)],
+      });
+      expect(lai.status).toBe(201);
+    });
   });
 
-  it('không xoá được hồ sơ đã gửi duyệt', async () => {
-    const d = await draft();
-    await act(d.id, 'SUBMIT', 'tdv01');
-    expect((await del(`/policies/${d.id}`)).status).toBe(403);
+  describe('`DA_XOA` là trạng thái KẾT THÚC', () => {
+    it('không hành động nào đi ra được, và xoá lần hai thì 403', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      await del(`/policies/${d.id}`);
+
+      expect((await get(`/policies/${d.id}/allowed-actions`)).body.allowed).toEqual([]);
+      expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(409);
+      expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(409);
+
+      const lai = await del(`/policies/${d.id}`);
+      expect(lai.status).toBe(403);
+      expect(lai.body.code).toBe('ONLY_EDITABLE_DELETABLE');
+    });
+
+    it('nội dung khoá lại — không thêm dòng, không đổi ngày áp dụng', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      await del(`/policies/${d.id}`);
+
+      const them = await post(`/policies/${d.id}/lines`, line(await makeProduct()));
+      expect(them.status).toBe(409);
+      expect((await patch(`/policies/${d.id}`, { appliedDate: '2030-01-01' })).status).toBe(409);
+    });
+
+    it('SQL thô cũng không xoá nổi — trigger ở CSDL chặn (`0035`)', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      await del(`/policies/${d.id}`);
+
+      const err = await withAdminDb(async (c) => {
+        try {
+          await c.query(`DELETE FROM pol.policy WHERE id = $1`, [d.id]);
+          return undefined;
+        } catch (e) {
+          return e as { message: string };
+        }
+      });
+      expect(err?.message).toContain('DA_XOA');
+    });
+  });
+
+  describe('mọi trạng thái CÒN LẠI đều 403', () => {
+    /**
+     * Bảng dựng từng hồ sơ tới đúng một trạng thái. Viết thành bảng chứ không
+     * thành mười `it` rời: thêm một trạng thái vào enum mà quên thử xoá ở đó là
+     * đúng loại lỗ hổng chỉ lộ ra khi có người dùng bấm trúng.
+     */
+    const CACH: Record<string, () => Promise<string>> = {
+      CHO_TBP_DUYET: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        return d.id;
+      },
+      TBP_DA_KY_SO: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await act(d.id, 'TBP_SIGN', 'tbp01');
+        await datTrangThai(d.id, 'TBP_DA_KY_SO');
+        return d.id;
+      },
+      CHO_KT_L1: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await act(d.id, 'TBP_SIGN', 'tbp01');
+        return d.id;
+      },
+      SA_DANG_XU_LY: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await act(d.id, 'TBP_SIGN', 'tbp01');
+        await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+        return d.id;
+      },
+      CHO_KT_L2: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await act(d.id, 'TBP_SIGN', 'tbp01');
+        await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+        await post(
+          `/policies/${d.id}/attachments`,
+          { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+          'sa01',
+        );
+        await act(d.id, 'SA_HANDOVER', 'sa01');
+        return d.id;
+      },
+      DANG_CO_HIEU_LUC: async () => {
+        const d = await draft();
+        await runToActive(d);
+        return d.id;
+      },
+      HET_HIEU_LUC: async () => {
+        // Hết hiệu lực theo đúng đường thật: một bản CHỈNH SỬA chạy tới hiệu lực
+        // sẽ đẩy bản cũ ra (EFF-01).
+        const d = await draft();
+        await runToActive(d);
+        const v2 = await post('/policies', {
+          customerId: d.customerId,
+          mode: 'AMEND',
+          lines: [line(d.productId, { wholesalePrice: '80000', cpbh: ['1000'] })],
+        });
+        await runToActive({ id: v2.body.id as string });
+        return d.id;
+      },
+      TU_CHOI: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+        return d.id;
+      },
+      QUA_HAN_DUYET: async () => {
+        const d = await draft();
+        await act(d.id, 'SUBMIT', 'tdv01');
+        await datTrangThai(d.id, 'QUA_HAN_DUYET', 'B4_TBP_DUYET');
+        return d.id;
+      },
+    };
+
+    for (const [tt, dung] of Object.entries(CACH)) {
+      it(`hồ sơ ở ${tt} thì chính TDV phụ trách cũng không xoá được`, async () => {
+        const id = await dung();
+        const r = await del(`/policies/${id}`);
+        expect(r.status, `${tt} đáng lẽ 403`).toBe(403);
+        expect(r.body.code).toBe('ONLY_EDITABLE_DELETABLE');
+        // Và hồ sơ vẫn còn nguyên trạng thái cũ.
+        expect((await get(`/policies/${id}`)).body.status).toBe(tt);
+      });
+    }
+  });
+
+  describe('POL-14 · ai được xoá', () => {
+    it('POL-14 hồ sơ Từ chối KHÔNG vai trò nào xoá được, kể cả quản trị', async () => {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+      expect((await get(`/policies/${d.id}`)).body.status).toBe('TU_CHOI');
+
+      for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
+        const r = await del(`/policies/${d.id}`, who);
+        expect([403, 404], `${who} đáng lẽ không xoá được`).toContain(r.status);
+        expect(r.status).not.toBe(204);
+      }
+
+      // Và cả bằng SQL thô — trigger ở CSDL chặn.
+      const err = await withAdminDb(async (c) => {
+        try {
+          await c.query(`DELETE FROM pol.policy WHERE id = $1`, [d.id]);
+          return undefined;
+        } catch (e) {
+          return e as { message: string };
+        }
+      });
+      expect(err?.message).toContain('TU_CHOI');
+    });
+
+    /*
+     * Năm vai trò còn lại KHÔNG xoá được, kể cả hồ sơ đang nằm trên bàn của họ.
+     *
+     * Từ `0035` chốt chặn nằm ở `@Roles('TDV')`, tức là 403 ngay ở cổng — trước
+     * đó bốn vai trò ghi vẫn qua được cổng rồi mới bị `remove()` từ chối. Thử ở
+     * CẢ HAI trạng thái xoá được, vì đó là hai trạng thái duy nhất mà một lỗi
+     * phân quyền ở đây thành xoá thật.
+     */
+    for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA'] as const) {
+      it(`hồ sơ ${tt}: năm vai trò không phải TDV đều 403`, async () => {
+        const d = tt === 'NHAP' ? await draft() : await biTraLai('TBP_RETURN');
+        for (const who of ['tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
+          const r = await del(`/policies/${d.id}`, who);
+          expect(r.status, `${who} đáng lẽ 403`).toBe(403);
+        }
+        expect((await get(`/policies/${d.id}`)).body.status).toBe(tt);
+      });
+    }
+
+    it('TDV khác thì không thấy hồ sơ, nên không xoá được', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      const r = await del(`/policies/${d.id}`, 'tdv02');
+      expect(r.status).toBe(403);
+      expect(r.body.code).toBe('OUT_OF_SCOPE');
+      expect((await get(`/policies/${d.id}`)).body.status).toBe('YEU_CAU_CHINH_SUA');
+    });
+
+    /*
+     * NGƯỜI PHỤ TRÁCH HIỆN TẠI, không phải người đã lập.
+     *
+     * `created_by` đứng yên khi hồ sơ đổi tay lúc bàn giao (`0032`), nên so với
+     * nó là để lại một hồ sơ mà người đang phải xử lý không xoá nổi — đúng loại
+     * hồ sơ treo mà đợt bàn giao sinh ra để dọn.
+     */
+    it('hồ sơ đã bàn giao sang TDV khác thì người đó xoá được', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      const nguoiMoi = (await idNguoiDung())['tdv02'];
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET tdv_user_id = $2 WHERE id = $1`, [d.id, nguoiMoi]),
+      );
+      // Người lập cũ giờ ngoài phạm vi.
+      expect((await del(`/policies/${d.id}`, 'tdv01')).status).toBe(403);
+      expect((await del(`/policies/${d.id}`, 'tdv02')).status).toBe(204);
+      expect((await get(`/policies/${d.id}`, 'tdv02')).body.status).toBe('DA_XOA');
+    });
   });
 });
 

@@ -20,6 +20,7 @@ export const STATUS_LABEL: Record<string, string> = {
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
   TU_CHOI: 'Từ chối',
   QUA_HAN_DUYET: 'Quá hạn duyệt',
+  DA_XOA: 'Đã xoá',
 };
 
 /** Tên bước đang chờ xử lý, theo đúng mười bước ở muc 3. */
@@ -32,6 +33,7 @@ export const STEP_LABEL: Record<string, string> = {
   DANG_CO_HIEU_LUC: 'Đã hoàn tất — không còn bước nào phải xử lý',
   TU_CHOI: 'Đã kết thúc — hồ sơ bị từ chối',
   QUA_HAN_DUYET: 'Quá hạn — vẫn chờ đúng bước cũ',
+  DA_XOA: 'Đã kết thúc — người lập đã xoá hồ sơ',
 };
 
 const TITLE: Record<string, string> = {
@@ -47,6 +49,9 @@ const TITLE: Record<string, string> = {
   KT_RECEIVE_L2: 'Kế toán đã tiếp nhận lần 2 — CSBH bắt đầu có hiệu lực',
   KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
+  // Người lập bỏ hẳn hồ sơ đã bị trả lại (`0035`). Thư này đi tới đúng người đã
+  // trả nó — họ đang chờ một bản sửa sẽ không bao giờ tới.
+  DELETE: 'Trình dược viên đã xoá hồ sơ bị trả lại',
   PRICE_IMPACT: 'Giá sản phẩm trong CSBH đang hiệu lực đã thay đổi',
   // Ba nhãn cho cùng một sự kiện `policy.catalog_impact` (`0029`). Người nhận
   // đọc dòng tiêu đề TRƯỚC khi mở thư, nên nó phải nói đúng thứ đã đổi — gộp cả

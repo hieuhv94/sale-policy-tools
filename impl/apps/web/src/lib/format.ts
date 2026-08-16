@@ -73,7 +73,7 @@ export function ngayGio(v: string | Date | null | undefined): string {
   return `${g('day')}/${g('month')}/${g('year')} ${HAI_SO(Number(g('hour')))}:${g('minute')}`;
 }
 
-/** Nhãn tiếng Việt của 11 trạng thái (muc 4). Danh sách ĐÓNG. */
+/** Nhãn tiếng Việt của 12 trạng thái (muc 4, `0035`). Danh sách ĐÓNG. */
 export const NHAN_TRANG_THAI: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ TBP duyệt',
@@ -86,6 +86,7 @@ export const NHAN_TRANG_THAI: Record<string, string> = {
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
   TU_CHOI: 'Từ chối',
   QUA_HAN_DUYET: 'Quá hạn duyệt',
+  DA_XOA: 'Đã xoá',
 };
 
 export const nhanTrangThai = (s: string): string => NHAN_TRANG_THAI[s] ?? s;
@@ -96,6 +97,9 @@ export function nhomTrangThai(s: string): 'tot' | 'cho' | 'loi' | 'canh-bao' | '
   if (s === 'TU_CHOI') return 'loi';
   if (s === 'QUA_HAN_DUYET' || s === 'YEU_CAU_CHINH_SUA') return 'canh-bao';
   if (s.startsWith('CHO_') || s === 'SA_DANG_XU_LY' || s === 'TBP_DA_KY_SO') return 'cho';
+  // `DA_XOA` rơi vào nhánh này, KHÔNG vào `loi` cùng `TU_CHOI` (`0035`). Đỏ là
+  // màu của thứ hỏng hoặc bị người khác chặn; hồ sơ này do chính người lập bỏ,
+  // và tô đỏ một việc họ cố ý làm là bày ra một báo động giả.
   return 'thuong';
 }
 

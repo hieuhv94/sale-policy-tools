@@ -48,7 +48,7 @@ describe('hai bảng tra phủ đủ sáu vai trò', () => {
 });
 
 describe('mã trạng thái phải có thật', () => {
-  it('`MOI_TRANG_THAI` đúng bằng 11 trạng thái của muc 4', () => {
+  it('`MOI_TRANG_THAI` đúng bằng 12 trạng thái của muc 4 và `0035`', () => {
     expect([...MOI_TRANG_THAI].sort()).toEqual(Object.keys(NHAN_TRANG_THAI).sort());
   });
 
@@ -101,7 +101,7 @@ describe('thẻ trạng thái chỉ nói việc của CHÍNH vai trò đó', () 
     expect(viPham, viPham.join('\n')).toEqual([]);
   });
 
-  it('Ban lãnh đạo thì ngược lại — thấy đủ cả 11', () => {
+  it('Ban lãnh đạo thì ngược lại — thấy đủ cả 12', () => {
     expect([...THE_TRANG_THAI.BAN_LANH_DAO].sort()).toEqual([...MOI_TRANG_THAI].sort());
   });
 

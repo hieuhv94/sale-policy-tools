@@ -33,8 +33,12 @@ import { COT_CUA_VAI_TRO } from './policies/policies.service.js';
  * hiệu lực KHÔNG phải việc đang chờ, nhưng nó vẫn phải đổi tay. Người phụ trách
  * nó là người nhận thư khi giá hay quy định chiết khấu đổi (muc 7.2), và gửi thư
  * cho một tài khoản đã vô hiệu hoá là gửi vào chỗ không ai đọc.
+ *
+ * `DA_XOA` vào danh sách này từ `0035` — hồ sơ người lập đã tự bỏ thì không có
+ * gì để người kế nhiệm làm với nó, và bàn giao nó chỉ làm dài thêm bảng xem
+ * trước mà Quản trị phải đọc trước khi vô hiệu hoá một tài khoản.
  */
-const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI'];
+const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI', 'DA_XOA'];
 
 type Hang = { id: string; code: string; status: string; customer_id: string };
 

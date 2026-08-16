@@ -85,6 +85,26 @@ describe('POL-14 · hồ sơ Từ chối không ai xoá được', () => {
       expect(r.rows[0].n).toBe(0);
     });
   });
+
+  /*
+   * Trạng thái kết thúc THỨ HAI, thêm ở `0035`.
+   *
+   * Cùng một trigger, cùng một lý do: hồ sơ `DA_XOA` giữ nguyên lịch sử của nó,
+   * và `pol.policy_event` có `ON DELETE CASCADE` — xoá dòng hồ sơ là xoá luôn
+   * phần nhật ký mà cả tính năng ấy sinh ra để giữ.
+   */
+  it('`DA_XOA` cũng không xoá nổi bằng SQL thô (`0035`)', async () => {
+    await inRollback(db, async () => {
+      const id = await mkPolicy(db, `P35-${Date.now()}`, await mkCustomer(db, 'P35'), 'DA_XOA');
+      const err = await expectSqlErrorInTx(db, () =>
+        db.query('DELETE FROM pol.policy WHERE id=$1', [id]));
+      // Thông báo nêu ĐÚNG trạng thái đang chặn, không phải một câu chung chung:
+      // người đọc log phải biết ngay hồ sơ ấy bị bỏ hay bị từ chối.
+      expect(err.message).toContain('DA_XOA');
+      const still = await db.query('SELECT count(*)::int n FROM pol.policy WHERE id=$1', [id]);
+      expect(still.rows[0].n).toBe(1);
+    });
+  });
 });
 
 describe('AUD-03/04 · nhật ký chỉ ghi thêm', () => {
@@ -193,7 +213,7 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
 });
 
 describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
-  it('trạng thái ngoài 11 giá trị bị CSDL từ chối', async () => {
+  it('trạng thái ngoài 12 giá trị bị CSDL từ chối', async () => {
     await inRollback(db, async () => {
       const cust = await mkCustomer(db, 'WF02');
       const err = await expectSqlErrorInTx(db, () =>
@@ -202,13 +222,16 @@ describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
     });
   });
 
-  it('đủ đúng 11 trạng thái, không thừa không thiếu', async () => {
+  it('đủ đúng 12 trạng thái, không thừa không thiếu', async () => {
     const r = await db.query(
       `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
        WHERE t.typname='policy_status' ORDER BY e.enumsortorder`);
     expect(r.rows.map((x) => x.enumlabel)).toEqual([
       'NHAP','CHO_TBP_DUYET','TBP_DA_KY_SO','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2',
-      'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','TU_CHOI','QUA_HAN_DUYET']);
+      'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','TU_CHOI','QUA_HAN_DUYET',
+      // Thứ 12, thêm ở `0035`. `ADD VALUE` nối vào CUỐI dãy, nên thứ tự này cũng
+      // là thứ tự thật của enum — đổi chỗ nó là đỏ, và đúng ra phải đỏ.
+      'DA_XOA']);
   });
 });
 
