@@ -347,7 +347,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
 | Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
-| **Trạng thái** `16/08` | *Đang hợp tác* · *Ngừng hợp tác*. Khách đã ngừng biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
+| **Trạng thái** `16/08` | Bình thường · **Đã xoá**. Khách đã xoá biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
 | Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác; bấm tên file để xem |
 
 > **Ba trường Tỉnh/thành · Bệnh viện–điểm bán · Kênh đã BỎ HẲN** `sửa 16/08`. Chúng từng là danh
@@ -826,9 +826,9 @@ khách hàng do TDV tự tạo · danh mục sản phẩm, giá và chiết kh�
 của Quản trị hệ thống**, không phải Sale Admin `16/08`.
 
 **Khách hàng** `16/08` — **xoá khách hàng chỉ do TDV phụ trách** chính khách đó, không phải mọi vai
-trò ghi · gộp *Xoá* và *Ngừng hợp tác* thành **một thao tác**: chỉ làm được khi **không CSBH nào đang
-chờ**, mọi CSBH đang hiệu lực chuyển **Hết hiệu lực**, khách chưa có hồ sơ nào thì xoá hẳn còn khách
-đã có lịch sử thì giữ lại ở trạng thái *Ngừng hợp tác*.
+trò ghi · **một nút duy nhất mang nhãn *Xoá***: chỉ làm được khi **không CSBH nào đang chờ**, mọi
+CSBH đang hiệu lực chuyển **Hết hiệu lực**, khách chưa có hồ sơ nào thì xoá hẳn dòng còn khách đã có
+lịch sử thì giữ lại kèm nhãn *Đã xoá* để tra cứu hồ sơ cũ.
 
 **Tài khoản** `16/08` — **không đổi được vai trò** sau khi tạo; cần đổi thì vô hiệu hoá tài khoản cũ
 rồi tạo mới · vô hiệu hoá phải **gõ lại họ tên** và **chọn người nhận bàn giao cùng vai trò**, không

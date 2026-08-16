@@ -199,9 +199,9 @@ Hồ sơ đã gửi duyệt thì khoá sửa, nên không có đường nào là
 cái tên: **phạm vi nhìn thấy đổi theo**. Người cũ thôi thấy khách hàng này và mọi hồ sơ của họ,
 người mới thấy ngay.
 
-### Ngừng hợp tác với một khách hàng
+### Xoá một khách hàng
 
-Nút **Ngừng hợp tác** trên màn hình chi tiết khách hàng. **Chỉ Trình dược viên phụ trách chính khách
+Nút **Xoá** trên màn hình chi tiết khách hàng. **Chỉ Trình dược viên phụ trách chính khách
 đó** bấm được — không phải Kế toán, không phải Sale Admin, và cũng không phải Quản trị hệ thống dù
 họ nhìn thấy mọi khách hàng. Quan hệ với khách hàng là việc của người phụ trách họ.
 
@@ -213,15 +213,19 @@ Hộp thoại hỏi máy chủ trước rồi mới nói hậu quả, vì hậu 
 | Khách hàng | Bấm xong thì sao |
 |---|---|
 | **Chưa có hồ sơ CSBH nào** | Bản ghi bị **xoá hẳn**, không lấy lại được |
-| **Đã có hồ sơ** | Khách **giữ lại để tra cứu**, chuyển *Ngừng hợp tác*. Mọi CSBH **Đang có hiệu lực** chuyển sang **Hết hiệu lực** |
+| **Đã có hồ sơ** | Bản ghi **giữ lại để tra cứu**, đánh dấu **Đã xoá**. Mọi CSBH **Đang có hiệu lực** chuyển sang **Hết hiệu lực** |
 
-Sau khi ngừng: khách **biến khỏi ô chọn lúc lập hồ sơ** và không lập CSBH mới được, nhưng **vẫn nằm
-trong danh sách khách hàng** — hồ sơ cũ của họ phải tra lại được. Việc cho hết hiệu lực có vết trong
-**nhật ký của từng hồ sơ**, ghi rõ lý do là khách hàng ngừng hợp tác.
+Sau khi xoá: khách **biến khỏi ô chọn lúc lập hồ sơ** và không lập CSBH mới được, nhưng **vẫn nằm
+trong danh sách khách hàng** kèm nhãn *Đã xoá* — hồ sơ cũ của họ phải tra lại được. Việc cho hết
+hiệu lực có vết trong **nhật ký của từng hồ sơ**.
 
-> Vì sao xoá hẳn ở ca đầu mà không phải cũng "ngừng hợp tác": khách chưa có hồ sơ nào là khách vừa
-> lập nhầm — gõ sai mã, tạo trùng, chọn nhầm loại. Một bản ghi như thế mang nhãn *Ngừng hợp tác* sẽ
-> nằm lại trong mọi danh sách mãi mãi, và không ai giải thích được nó là gì.
+> **Vì sao bản ghi vẫn còn sau khi bấm Xoá.** Hồ sơ CSBH trỏ vào khách hàng bằng khoá ngoại; xoá
+> hẳn dòng là mất luôn tên khách trên mọi hồ sơ cũ, kể cả hồ sơ đã ký. Nhãn *Đã xoá* nói đúng điều
+> người dùng vừa làm, còn bản ghi ở lại là để lịch sử đọc được.
+
+> Vì sao ca đầu xoá hẳn mà ca sau chỉ đánh dấu: khách chưa có hồ sơ nào là khách vừa lập nhầm — gõ
+> sai mã, tạo trùng, chọn nhầm loại. Không có lịch sử nào để giữ, và một bản ghi như thế nằm lại
+> trong mọi danh sách mãi mãi thì không ai giải thích được nó là gì.
 
 ## 6. Lập hồ sơ CSBH (TDV)
 

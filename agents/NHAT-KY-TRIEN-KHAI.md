@@ -4414,3 +4414,41 @@ tại, tức là chính câu trả lời mình đang đi tìm.
 ### Còn nợ
 
 - Vẫn **chưa nhìn ba hộp thoại mới bằng mắt** trong trình duyệt: gửi duyệt, bàn giao, ngừng hợp tác.
+
+---
+
+## P45 — Một từ vựng trên màn hình: "Xoá"
+
+Khách hàng chốt: nút chỉ mang nhãn **Xoá**, không phải *Ngừng hợp tác*.
+
+Đổi nhãn thì dễ, nhưng nó kéo theo một quyết định không tránh được: **nhãn trạng thái sau khi bấm**.
+Bấm nút *Xoá* rồi thấy bản ghi mang nhãn *Đã ngừng hợp tác* là bắt người dùng tự dịch giữa hai cách
+gọi cho một việc họ vừa làm. Nên thống nhất **một từ vựng ở mọi chỗ người dùng nhìn thấy**:
+
+| Chỗ | Trước | Sau |
+|---|---|---|
+| Nút trên màn hình khách hàng | Ngừng hợp tác | **Xoá** |
+| Tiêu đề hộp thoại | Ngừng hợp tác với X | **Xoá khách hàng X** |
+| Nút xác nhận trong hộp thoại | Xoá khách hàng / Ngừng hợp tác | **Xoá** (một nhãn cho cả hai kết cục) |
+| Nhãn trạng thái | Đã ngừng hợp tác | **Đã xoá** |
+| Khoá phân quyền | `ngungHopTac` | `xoaKhachHang` |
+| Thông điệp lỗi của máy chủ | "…mới ngừng hợp tác được" | "…mới xoá được" |
+
+Nút xác nhận trước đây đổi nhãn theo kết cục — *Xoá khách hàng* khi sẽ xoá hẳn, *Ngừng hợp tác* khi
+sẽ giữ lại. Bỏ luôn: người dùng không quyết định giữa hai kết cục ấy, hệ thống quyết. Một nút đổi
+nhãn theo một điều người bấm không chọn được chỉ làm họ nghĩ là mình đang chọn.
+
+### Cái KHÔNG đổi, và vì sao
+
+Bên trong vẫn là `NGUNG_HOP_TAC`: enum của CSDL, mã lỗi `CUSTOMER_ALREADY_RETIRED`, sự kiện
+`policy.customer_retired`, hành động `CUSTOMER_RETIRED` trong nhật ký hồ sơ. Đó là **hai lớp từ
+vựng khác nhau, có chủ ý**:
+
+* Người dùng nói "xoá" vì với họ khách hàng ấy biến khỏi công việc hàng ngày.
+* Hệ thống nói "retired" vì dòng dữ liệu **vẫn còn** — hồ sơ CSBH trỏ vào khách hàng bằng khoá
+  ngoại, và xoá hẳn là mất tên khách trên mọi hồ sơ cũ, kể cả hồ sơ đã ký.
+
+Đổi enum theo nhãn màn hình sẽ tạo ra một cái tên nói dối về thứ nó lưu. Chỗ nối hai lớp là hộp thoại
+— nó nói thẳng: *"bản ghi được giữ lại để tra cứu hồ sơ cũ, nhưng đánh dấu Đã xoá"*.
+
+Không đổi test nào: chúng khẳng định mã lỗi và enum, không khẳng định nhãn. 913/913 xanh.

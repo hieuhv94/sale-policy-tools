@@ -53,13 +53,17 @@ export const QUYEN_GHI = {
    */
   doiTdvPhuTrach: ['QUAN_TRI'],
   /**
-   * Ngừng hợp tác với một khách hàng (`0034`) — gộp của "xoá" và "ngừng".
+   * Xoá một khách hàng (`0034`).
+   *
+   * Tên khoá giữ nguyên `xoaKhachHang` cho khớp với nhãn trên màn hình. Bên
+   * trong, "xoá" có hai kết cục — xoá hẳn dòng, hoặc giữ lại và đánh dấu
+   * `NGUNG_HOP_TAC` — nhưng đó là chi tiết của hệ thống, không phải hai quyền.
    *
    * CHỈ TDV, và máy chủ còn siết thêm một tầng: đúng TDV phụ trách khách đó
    * (`assertChinhTdv`). Bảng này chỉ nói được vai trò, không nói được "chính
    * người ấy" — nên nó là điều kiện CẦN, không phải điều kiện đủ.
    */
-  ngungHopTac: ['TDV'],
+  xoaKhachHang: ['TDV'],
   quanTriDanhMuc: ['QUAN_TRI'],
   quanTriMauHopDong: ['SALE_ADMIN'],
   quanTriNguoiDung: ['QUAN_TRI'],

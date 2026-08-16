@@ -175,7 +175,7 @@ export class PoliciesService {
     if (customer.status === 'NGUNG_HOP_TAC') {
       throw new ConflictException({
         code: 'CUSTOMER_RETIRED',
-        message: 'Khách hàng này đã ngừng hợp tác, không lập CSBH mới được.',
+        message: 'Khách hàng này đã xoá, không lập CSBH mới được.',
       });
     }
 

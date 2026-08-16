@@ -370,7 +370,12 @@ export function DoiTdvPhuTrach({
 
 
 /**
- * Ngừng hợp tác với một khách hàng (`0034`) — MỘT nút thay cho hai.
+ * Xoá một khách hàng (`0034`) — MỘT nút, hai kết cục.
+ *
+ * NHÃN là "Xoá" ở mọi chỗ người dùng nhìn thấy, dù bên trong có khi là xoá dòng
+ * và có khi là chuyển trạng thái `NGUNG_HOP_TAC`. Trộn hai từ vựng trên cùng một
+ * màn hình — bấm nút "Xoá" rồi thấy nhãn "Đã ngừng hợp tác" — là bắt người dùng
+ * tự dịch giữa hai cách gọi cho một việc họ vừa làm.
  *
  * Hộp thoại nói ra HẬU QUẢ trước, vì hậu quả khác nhau theo lịch sử của khách và
  * người dùng không đoán được từ cái nút:
@@ -418,7 +423,7 @@ export function HopThoaiNgungHopTac({
   const chan = (xem?.dangCho.length ?? 0) > 0;
 
   return (
-    <HopThoai tieuDe={`Ngừng hợp tác với ${kh.name}`} dong={dong}>
+    <HopThoai tieuDe={`Xoá khách hàng ${kh.name}`} dong={dong}>
       {xem === null && loi === null ? (
         <DangTai />
       ) : chan ? (
@@ -440,8 +445,9 @@ export function HopThoaiNgungHopTac({
             </p>
           ) : (
             <p>
-              Khách hàng được <strong>giữ lại để tra cứu</strong> hồ sơ cũ, nhưng biến khỏi ô chọn
-              lúc lập hồ sơ và <strong>không lập CSBH mới được nữa</strong>.
+              Khách hàng đã có hồ sơ CSBH nên bản ghi <strong>được giữ lại để tra cứu</strong> hồ sơ
+              cũ — nhưng đánh dấu <strong>Đã xoá</strong>, biến khỏi ô chọn lúc lập hồ sơ và{' '}
+              <strong>không lập CSBH mới được nữa</strong>.
             </p>
           )}
           {(xem?.dangHieuLuc.length ?? 0) > 0 && (
@@ -462,7 +468,7 @@ export function HopThoaiNgungHopTac({
             disabled={dangGui || xem === null}
             onClick={gui}
           >
-            {dangGui ? 'Đang xử lý…' : xem?.seXoaHan ? 'Xoá khách hàng' : 'Ngừng hợp tác'}
+            {dangGui ? 'Đang xử lý…' : 'Xoá'}
           </button>
         )}
         <button type="button" className="nut nut-nhe" onClick={dong}>

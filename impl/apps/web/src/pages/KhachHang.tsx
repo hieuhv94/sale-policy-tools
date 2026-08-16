@@ -152,7 +152,7 @@ export function ChiTietKhachHang({ id }: { id: string }) {
             {kh.status === 'NGUNG_HOP_TAC' && (
               <>
                 {' · '}
-                <span className="nhan nhan-canh-bao">Đã ngừng hợp tác</span>
+                <span className="nhan nhan-canh-bao">Đã xoá</span>
               </>
             )}
           </p>
@@ -168,11 +168,11 @@ export function ChiTietKhachHang({ id }: { id: string }) {
               Đổi TDV phụ trách
             </button>
           )}
-          {/* Chỉ hiện với khách CÒN hợp tác. Một nút "Ngừng hợp tác" trên một
-              khách đã ngừng là một nút bấm vào chỉ để nhận lỗi. */}
-          {can(nguoiDung?.role, 'ngungHopTac') && kh.status !== 'NGUNG_HOP_TAC' && (
+          {/* Chỉ hiện với khách chưa xoá. Một nút "Xoá" trên một khách đã xoá
+              là một nút bấm vào chỉ để nhận lỗi. */}
+          {can(nguoiDung?.role, 'xoaKhachHang') && kh.status !== 'NGUNG_HOP_TAC' && (
             <button type="button" className="nut nut-canh-bao" onClick={() => datMo('ngung')}>
-              Ngừng hợp tác
+              Xoá
             </button>
           )}
         </div>

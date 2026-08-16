@@ -293,7 +293,7 @@ export class CustomersService {
     if (cur.status === 'NGUNG_HOP_TAC') {
       throw new ConflictException({
         code: 'CUSTOMER_ALREADY_RETIRED',
-        message: 'Khách hàng này đã ngừng hợp tác rồi.',
+        message: 'Khách hàng này đã xoá rồi.',
       });
     }
 
@@ -303,7 +303,7 @@ export class CustomersService {
         code: 'CUSTOMER_HAS_PENDING_POLICY',
         message:
           `Khách hàng còn ${kq.dangCho.length} hồ sơ CSBH chưa đi hết luồng duyệt. ` +
-          'Xử lý xong hoặc xoá hồ sơ đó trước, rồi ngừng hợp tác.',
+          'Xử lý xong hoặc xoá hồ sơ đó trước, rồi xoá khách hàng.',
         policies: kq.dangCho.map((x) => ({ code: x.code, status: x.status })),
       });
     }
@@ -378,7 +378,7 @@ export class CustomersService {
     if (cur.tdv_user_id !== me.id) {
       throw new ForbiddenException({
         code: 'NOT_OWNING_TDV',
-        message: 'Chỉ Trình dược viên phụ trách khách hàng này mới ngừng hợp tác được.',
+        message: 'Chỉ Trình dược viên phụ trách khách hàng này mới xoá được.',
       });
     }
   }
