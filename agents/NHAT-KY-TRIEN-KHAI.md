@@ -4682,3 +4682,61 @@ tự phục vụ, mọi vai trò đều dùng.
 suy từ chính hàm đang kiểm), và giao diện × mọi cặp (trạng thái × vai trò) đối chiếu với máy trạng
 thái. Sửa thêm một ca mong manh: `lech()` cắt ở `limit=50` trong khi hồ sơ lệch cộng dồn trên CSDL
 dùng chung, nên hồ sơ vừa dựng rơi ra ngoài trang đầu.
+
+---
+
+## P49 — TDV xoá được hồ sơ đã bị Từ chối
+
+Không có tệp migration — `0039` là nhãn của một đợt chỉ đụng service và giao diện, cùng nếp với
+`0028`, `0030`, `0032`, `0038`.
+
+### Điều luật cũ nói ngược lại, và nó không bị bỏ
+
+`POL-14` / YCNV muc 4: *"Hồ sơ ở Từ chối không ai xóa được, kể cả người tạo — giữ nguyên trong lịch
+sử và trong báo cáo tỷ lệ hồ sơ bị trả lại."*
+
+Điều ấy bảo vệ **dấu vết**, không bảo vệ con số trên thẻ đếm. Từ `0035` "xoá" một hồ sơ đã vào luồng
+đã không còn nghĩa là xoá dòng — nó chuyển `DA_XOA` và ghi thêm một dòng nhật ký. Nên yêu cầu mới
+không đụng vào thứ `POL-14` giữ:
+
+| `POL-14` giữ gì | Sau `0039` |
+|---|---|
+| Dòng dữ liệu | Còn nguyên. `trg_forbid_delete_rejected` vẫn chặn XOÁ DÒNG ở cả `TU_CHOI` lẫn `DA_XOA` |
+| Lịch sử | Dài thêm một dòng `DELETE`, lý do từ chối của TBP còn nguyên |
+| Báo cáo tỷ lệ trả lại | Không đổi — xem dưới |
+
+Cái mất đi đúng bằng cái người dùng muốn mất: hồ sơ thôi nằm trong thẻ *Từ chối* của người lập.
+
+### Chỗ suýt hỏng, và hỏng theo hướng đẹp lên
+
+Báo cáo tỷ lệ trả lại đếm `count(*) FILTER (WHERE status = 'TU_CHOI')`. Với `0039` thì **mỗi lần dọn
+màn hình là một lần tỷ lệ từ chối của chính người đó tụt xuống** — một chỉ số tự bào mòn, và bào theo
+hướng không ai nhìn ra vì nó chỉ nhỏ đi.
+
+Đổi sang đếm theo `rejected_at IS NOT NULL` (và `returned_at` cho vế trả lại): mốc **đã xảy ra**,
+không đảo ngược được. Đây cũng đúng nguyên văn muc 4 — "giữ nguyên trong báo cáo tỷ lệ hồ sơ bị trả
+lại" — chỉ là giữ bằng cột mốc thay vì bằng trạng thái.
+
+### `xoaDuoc` là cờ do máy chủ tính
+
+Tới `0035` giao diện suy điều kiện xoá từ `allowed-actions`: hồ sơ nào còn `SUBMIT` hoặc
+`RESUBMIT_AFTER_EDIT` thì sửa được, mà sửa được thì xoá được. `0039` **cắt đứt phép suy ấy** —
+`TU_CHOI` xoá được mà không có hành động nào đi ra.
+
+Trả về một cờ boolean thay vì chép danh sách trạng thái sang giao diện: máy chủ vẫn là nơi duy nhất
+biết luật, và nó đã tính sẵn cả phần "đúng TDV đang phụ trách" mà giao diện không biết. Cùng lý do
+`XOA_DUOC` tách khỏi `EDITABLE` — hai câu hỏi giờ có hai câu trả lời, gộp một chỗ là sẽ sai khi một
+trong hai đổi tiếp.
+
+### Hai câu chữ phải đổi theo
+
+* **Hộp thoại** nói "lý do **từ chối**" thay vì "lý do trả lại" khi hồ sơ ở `TU_CHOI`, và nói thêm
+  một câu về báo cáo — đó là chỗ người lập dễ hiểu nhầm nhất, họ dễ tưởng xoá là xoá khỏi mọi con số.
+* **Tiêu đề thư** bỏ chữ "bị trả lại": `DELETE: 'Trình dược viên đã xoá hồ sơ'`. Một tiêu đề đúng cho
+  nửa số trường hợp là tiêu đề sai.
+
+### Test
+
++9 ca, **1032/1032 xanh**. `POL-14` tách làm ba ca thay vì một: không xoá được dòng (kể cả SQL thô) ·
+năm vai trò kia vẫn không đụng được · chính TDV phụ trách thì chuyển được sang `DA_XOA`. Thêm ma trận
+cờ `xoaDuoc` ở đủ 12 trạng thái, và một ca khẳng định báo cáo **không đổi** sau khi xoá.

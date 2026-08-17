@@ -403,9 +403,17 @@ export function XoaHoSo({
       ) : (
         <p className="giai-thich">
           Hồ sơ này <strong>đã từng vào luồng duyệt</strong> nên nó ở lại với nhãn{' '}
-          <strong>Đã xoá</strong>: lịch sử và lý do trả lại giữ nguyên, tra cứu được, nhưng hồ sơ
-          không đi tiếp được nữa và <strong>không lùi được</strong>. Người đã trả hồ sơ lại cho bạn
+          <strong>Đã xoá</strong>: lịch sử và lý do{' '}
+          {trangThai === 'TU_CHOI' ? 'từ chối' : 'trả lại'} giữ nguyên, tra cứu được, nhưng hồ sơ
+          không đi tiếp được nữa và <strong>không lùi được</strong>. Người đã xử lý hồ sơ trước đó
           sẽ nhận thư báo.
+          {trangThai === 'TU_CHOI' && (
+            <>
+              {' '}
+              Hồ sơ vẫn được tính trong <strong>báo cáo tỷ lệ trả lại và từ chối</strong> — xoá ở
+              đây chỉ dọn thẻ đếm trên trang tổng quan của bạn.
+            </>
+          )}
         </p>
       )}
       <Truong id="xhs-ma" nhan={`Gõ lại mã hồ sơ để xác nhận: ${ma}`} bắtBuộc>

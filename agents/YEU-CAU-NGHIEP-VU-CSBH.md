@@ -285,10 +285,15 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 
 - Mỗi trạng thái có một mã kỹ thuật và một nhãn hiển thị; danh sách trên là danh sách đóng.
 - Không dùng các tên cũ: “Bản Demo”, “Đang duyệt”, “Đã chuyển bước sau”, “Đang áp dụng”.
-- Hồ sơ ở `Từ chối` **không ai xóa được**, kể cả người tạo — giữ nguyên trong lịch sử và trong
-  báo cáo tỷ lệ hồ sơ bị trả lại.
-- **TDV xóa được đúng những hồ sơ mình sửa được**, tức `Nháp` và `Yêu cầu chỉnh sửa` (gồm cả ba
-  đường bị trả về: TBP yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2).
+- Hồ sơ ở `Từ chối` **không ai xóa được DÒNG**, kể cả người tạo — giữ nguyên trong lịch sử và trong
+  báo cáo tỷ lệ hồ sơ bị trả lại. `sửa 18/08`: TDV đang phụ trách **bỏ được nó khỏi màn hình của
+  mình** bằng cách chuyển sang `Đã xóa`, và đó không mâu thuẫn với điều trên — dòng dữ liệu còn
+  nguyên, nhật ký dài thêm một dòng, và báo cáo đếm theo **mốc `rejected_at`** chứ không theo trạng
+  thái hiện tại nên con số không đổi. Cái mất đi đúng bằng cái người dùng muốn mất: hồ sơ thôi nằm
+  trong thẻ đếm *Từ chối* trên trang tổng quan của người lập.
+- **TDV xóa được hồ sơ ở ba trạng thái**: `Nháp`, `Yêu cầu chỉnh sửa` (gồm cả ba đường bị trả về:
+  TBP yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2), và `Từ chối`
+  (`thêm 18/08`).
   Hai kết cục, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
   - `Nháp` → **xóa hẳn, không ghi lịch sử**. Hồ sơ chưa gửi duyệt thì chưa ai ngoài người lập nhìn
     thấy; ghi một dòng "đã xóa" cho mỗi lần lập nhầm là biến nhật ký thành bãi rác và làm người lập

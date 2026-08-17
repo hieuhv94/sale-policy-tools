@@ -699,6 +699,66 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     });
   });
 
+  describe('`0039` cờ `xoaDuoc` trên hồ sơ', () => {
+    // Giao diện đọc đúng cờ này để ẩn nút, nên nó phải khớp từng ca với việc
+    // `DELETE` có chạy hay không — thừa thì bày ra một nút 403, thiếu thì giấu
+    // mất đường bỏ hồ sơ.
+    const co = async (policyId: string, who = 'tdv01'): Promise<boolean> =>
+      (await get(`/policies/${policyId}`, who)).body.xoaDuoc as boolean;
+
+    it('bật ở đúng ba trạng thái xoá được', async () => {
+      for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA', 'TU_CHOI']) {
+        const d = await draft();
+        if (tt !== 'NHAP') {
+          await withAdminDb((c) =>
+            c.query(`UPDATE pol.policy SET status = $2::pol.policy_status WHERE id = $1`, [
+              d.id,
+              tt,
+            ]),
+          );
+        }
+        expect(await co(d.id), `${tt} phải xoá được`).toBe(true);
+        await withAdminDb((c) =>
+          c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE id = $1`, [d.id]),
+        );
+      }
+    });
+
+    it('tắt ở mọi trạng thái còn lại', async () => {
+      for (const tt of [
+        'CHO_TBP_DUYET',
+        'TBP_DA_KY_SO',
+        'CHO_KT_L1',
+        'SA_DANG_XU_LY',
+        'CHO_KT_L2',
+        'DANG_CO_HIEU_LUC',
+        'HET_HIEU_LUC',
+        'QUA_HAN_DUYET',
+        'DA_XOA',
+      ]) {
+        const d = await draft();
+        await withAdminDb((c) =>
+          c.query(
+            `UPDATE pol.policy SET status = $2::pol.policy_status,
+                    pending_step = $3::pol.policy_step WHERE id = $1`,
+            [d.id, tt, tt === 'QUA_HAN_DUYET' ? 'B4_TBP_DUYET' : null],
+          ),
+        );
+        expect(await co(d.id), `${tt} không được xoá`).toBe(false);
+        await withAdminDb((c) =>
+          c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE id = $1`, [d.id]),
+        );
+      }
+    });
+
+    it('tắt với TDV KHÁC, dù hồ sơ đang ở trạng thái xoá được', async () => {
+      const d = await biTraLai('TBP_RETURN');
+      // tdv02 không thấy hồ sơ này, nên hỏi bằng chính người trong phạm vi:
+      // Trưởng bộ phận. Họ mở được, và cờ phải tắt.
+      expect(await co(d.id, 'tbp01')).toBe(false);
+    });
+  });
+
   describe('`DA_XOA` là trạng thái KẾT THÚC', () => {
     it('không hành động nào đi ra được, và xoá lần hai thì 403', async () => {
       const d = await biTraLai('TBP_RETURN');
@@ -801,12 +861,6 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
         await runToActive({ id: v2.body.id as string });
         return d.id;
       },
-      TU_CHOI: async () => {
-        const d = await draft();
-        await act(d.id, 'SUBMIT', 'tdv01');
-        await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
-        return d.id;
-      },
       QUA_HAN_DUYET: async () => {
         const d = await draft();
         await act(d.id, 'SUBMIT', 'tdv01');
@@ -828,19 +882,23 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
   });
 
   describe('POL-14 · ai được xoá', () => {
-    it('POL-14 hồ sơ Từ chối KHÔNG vai trò nào xoá được, kể cả quản trị', async () => {
+    /*
+     * POL-14 ĐỔI NGHĨA ở `0039`, không bị bỏ.
+     *
+     * Bản cũ: "hồ sơ Từ chối không ai xoá được, kể cả quản trị". Điều luật ấy
+     * bảo vệ DẤU VẾT — hồ sơ bị từ chối phải còn trong lịch sử và trong báo cáo
+     * tỷ lệ trả lại. Từ `0039` TDV phụ trách bỏ được nó khỏi màn hình của mình,
+     * nhưng "bỏ" ở đây là chuyển `DA_XOA`: không dòng nào mất, nhật ký dài thêm
+     * một dòng, và báo cáo đếm theo `rejected_at` nên không đổi.
+     *
+     * Ba vế dưới đây là ba nửa còn lại của POL-14, và cả ba vẫn đúng nguyên.
+     */
+    it('POL-14 hồ sơ Từ chối: KHÔNG XOÁ ĐƯỢC DÒNG, kể cả bằng SQL thô', async () => {
       const d = await draft();
       await act(d.id, 'SUBMIT', 'tdv01');
       await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
       expect((await get(`/policies/${d.id}`)).body.status).toBe('TU_CHOI');
 
-      for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
-        const r = await del(`/policies/${d.id}`, who);
-        expect([403, 404], `${who} đáng lẽ không xoá được`).toContain(r.status);
-        expect(r.status).not.toBe(204);
-      }
-
-      // Và cả bằng SQL thô — trigger ở CSDL chặn.
       const err = await withAdminDb(async (c) => {
         try {
           await c.query(`DELETE FROM pol.policy WHERE id = $1`, [d.id]);
@@ -850,6 +908,52 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
         }
       });
       expect(err?.message).toContain('TU_CHOI');
+    });
+
+    it('POL-14 năm vai trò còn lại vẫn không đụng được vào hồ sơ Từ chối', async () => {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+
+      for (const who of ['tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
+        const r = await del(`/policies/${d.id}`, who);
+        expect([403, 404], `${who} đáng lẽ không xoá được`).toContain(r.status);
+        expect(r.status).not.toBe(204);
+      }
+      expect((await get(`/policies/${d.id}`)).body.status).toBe('TU_CHOI');
+    });
+
+    it('`0039` chính TDV phụ trách thì xoá được — hồ sơ sang `DA_XOA`', async () => {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+
+      const truoc = await nhatKy(d.id);
+      expect((await del(`/policies/${d.id}`, 'tdv01')).status).toBe(204);
+
+      const sau = await get(`/policies/${d.id}`);
+      expect(sau.status, 'hồ sơ phải CÒN, chỉ đổi trạng thái').toBe(200);
+      expect(sau.body.status).toBe('DA_XOA');
+
+      // Nhật ký chỉ DÀI THÊM — lý do từ chối của Trưởng bộ phận còn nguyên.
+      const nk = await nhatKy(d.id);
+      expect(nk.slice(0, truoc.length)).toEqual(truoc);
+      expect(nk.at(-1)).toEqual({
+        from_status: 'TU_CHOI',
+        to_status: 'DA_XOA',
+        action: 'DELETE',
+      });
+      expect(nk.some((x) => x.action === 'TBP_REJECT')).toBe(true);
+    });
+
+    it('`0039` TDV khác không xoá được hồ sơ Từ chối của người khác', async () => {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+
+      const r = await del(`/policies/${d.id}`, 'tdv02');
+      expect(r.status).toBe(403);
+      expect((await get(`/policies/${d.id}`)).body.status).toBe('TU_CHOI');
     });
 
     /*

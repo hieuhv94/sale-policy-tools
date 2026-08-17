@@ -42,6 +42,8 @@ type HoSo = {
   appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
+  /** Máy chủ tính sẵn (`0039`) — giao diện KHÔNG chép danh sách trạng thái. */
+  xoaDuoc: boolean;
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
@@ -204,18 +206,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
       </div>
 
       {/*
-        Xoá hiện đúng khi hồ sơ CÒN SỬA ĐƯỢC, và chỉ với TDV (`0035`).
+        Xoá đọc thẳng cờ `xoaDuoc` MÁY CHỦ tính (`0039`).
 
-        Điều kiện dùng lại `dangSua` chứ không chép danh sách trạng thái sang
-        đây: máy chủ cho xoá đúng những hồ sơ nó cho sửa (`EDITABLE`), nên hai
-        nút phải xuất hiện cùng nhau. Chép danh sách là dựng một bản sao thứ hai
-        phải giữ đồng bộ — và lệch về phía nào cũng sai: thừa thì bày ra một nút
-        chắc chắn 403, thiếu thì giấu mất đường bỏ hồ sơ.
+        Tới `0035` điều kiện là `dangSua` — xoá được đúng những hồ sơ sửa được.
+        `0039` cắt đứt phép suy ấy: hồ sơ *Từ chối* xoá được mà không có hành
+        động nào đi ra, nên không suy ra được từ `allowed-actions`.
 
-        Hồ sơ Từ chối vẫn không ai xoá được (POL-14) — nó không sửa được nên
-        không lọt qua điều kiện này.
+        Chép danh sách trạng thái sang đây là dựng bản sao thứ hai phải giữ đồng
+        bộ, và lệch về phía nào cũng sai: thừa thì bày ra một nút chắc chắn 403,
+        thiếu thì giấu mất đường bỏ hồ sơ. Một cờ boolean thì máy chủ vẫn là nơi
+        duy nhất biết luật — kể cả phần "đúng TDV đang phụ trách".
       */}
-      {dangSua && can(nguoiDung?.role, 'xoaHoSo') && (
+      {hoSo.xoaDuoc && can(nguoiDung?.role, 'xoaHoSo') && (
         <p>
           <button type="button" className="nut nut-canh-bao" onClick={() => datMoSua('xoa')}>
             Xoá hồ sơ

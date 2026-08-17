@@ -183,10 +183,23 @@ export class ReportsService {
       rejected: string;
       either: string;
     }>(
+      /*
+       * Đếm theo MỐC THỜI GIAN, không theo trạng thái hiện tại (`0039`).
+       *
+       * Từ `0039` người lập xoá được hồ sơ đã bị từ chối, và hồ sơ ấy chuyển
+       * `DA_XOA`. Đếm theo `status = 'TU_CHOI'` thì mỗi lần dọn màn hình là một
+       * lần tỷ lệ từ chối của chính người đó tụt xuống — một chỉ số tự bào mòn,
+       * và bào theo hướng đẹp lên.
+       *
+       * `rejected_at` và `returned_at` là mốc ĐÃ XẢY RA, không đảo ngược được.
+       * Đó cũng đúng tinh thần muc 4: hồ sơ bị từ chối phải còn nguyên trong báo
+       * cáo tỷ lệ trả lại, dù nó đã rời khỏi thẻ đếm của người lập.
+       */
       `SELECT count(*) FILTER (WHERE submitted_at IS NOT NULL)::text AS submitted,
               count(*) FILTER (WHERE returned_at IS NOT NULL)::text AS returned,
-              count(*) FILTER (WHERE status = 'TU_CHOI')::text AS rejected,
-              count(*) FILTER (WHERE returned_at IS NOT NULL OR status = 'TU_CHOI')::text AS either
+              count(*) FILTER (WHERE rejected_at IS NOT NULL)::text AS rejected,
+              count(*) FILTER (WHERE returned_at IS NOT NULL
+                                  OR rejected_at IS NOT NULL)::text AS either
          FROM rpt.policy_row WHERE ${where}`,
       params,
     );

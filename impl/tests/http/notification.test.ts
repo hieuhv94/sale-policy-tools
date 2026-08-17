@@ -347,7 +347,9 @@ describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nh�
     const mails = await flush(3);
     const m = await fullMail(mails[0]!.ID);
     expect(m.To.map((t) => t.Address).sort()).toEqual(['kt01@csbh.test', 'tbp01@csbh.test']);
-    expect(m.Subject).toContain('đã xoá hồ sơ bị trả lại');
+    // Tiêu đề KHÔNG nói "bị trả lại" nữa (`0039`): hồ sơ *Từ chối* cũng xoá được,
+    // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai.
+    expect(m.Subject).toContain('Trình dược viên đã xoá hồ sơ');
     // Trạng thái trong thân thư phải là nhãn tiếng Việt, không phải mã enum —
     // thiếu một dòng trong `STATUS_LABEL` là người nhận đọc thấy "DA_XOA".
     expect(m.Text).toContain('Đã xoá');

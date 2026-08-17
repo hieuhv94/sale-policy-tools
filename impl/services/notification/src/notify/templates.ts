@@ -49,9 +49,13 @@ const TITLE: Record<string, string> = {
   KT_RECEIVE_L2: 'Kế toán đã tiếp nhận lần 2 — CSBH bắt đầu có hiệu lực',
   KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
-  // Người lập bỏ hẳn hồ sơ đã bị trả lại (`0035`). Thư này đi tới đúng người đã
-  // trả nó — họ đang chờ một bản sửa sẽ không bao giờ tới.
-  DELETE: 'Trình dược viên đã xoá hồ sơ bị trả lại',
+  // Người lập bỏ hẳn một hồ sơ đã vào luồng (`0035`, `0039`). Thư đi tới người
+  // đã trả lại hoặc đã từ chối nó.
+  //
+  // Tiêu đề KHÔNG nói "bị trả lại" nữa: từ `0039` hồ sơ *Từ chối* cũng xoá được,
+  // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai. Thân thư đã ghi rõ
+  // trạng thái và mã hồ sơ.
+  DELETE: 'Trình dược viên đã xoá hồ sơ',
   PRICE_IMPACT: 'Giá sản phẩm trong CSBH đang hiệu lực đã thay đổi',
   // Ba nhãn cho cùng một sự kiện `policy.catalog_impact` (`0029`). Người nhận
   // đọc dòng tiêu đề TRƯỚC khi mở thư, nên nó phải nói đúng thứ đã đổi — gộp cả

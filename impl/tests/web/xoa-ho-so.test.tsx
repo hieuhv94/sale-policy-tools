@@ -53,6 +53,28 @@ describe('hộp thoại nói đúng hậu quả', () => {
   });
 });
 
+describe('`0039` hồ sơ Từ chối', () => {
+  it('nói đúng "lý do từ chối", không nói "lý do trả lại"', () => {
+    mo('TU_CHOI');
+    expect(chu()).toContain('lý do từ chối');
+    expect(chu()).not.toContain('lý do trả lại');
+    expect(chu()).toContain('Đã xoá');
+  });
+
+  it('nói rõ báo cáo KHÔNG đổi — đây là chỗ dễ hiểu nhầm nhất', () => {
+    // Người lập dễ tưởng xoá là xoá khỏi mọi con số, kể cả tỷ lệ từ chối của
+    // mình. Không phải: báo cáo đếm theo mốc `rejected_at`, không đảo được.
+    mo('TU_CHOI');
+    expect(chu()).toContain('báo cáo tỷ lệ trả lại và từ chối');
+  });
+
+  it('hồ sơ bị TRẢ LẠI thì KHÔNG nhắc tới báo cáo', () => {
+    // Câu đó chỉ đúng với hồ sơ Từ chối. Thêm vào mọi hộp thoại là nhiễu.
+    mo('YEU_CAU_CHINH_SUA');
+    expect(chu()).not.toContain('báo cáo tỷ lệ');
+  });
+});
+
 describe('vẫn phải gõ lại mã hồ sơ', () => {
   it('nút khoá cho tới khi gõ đúng mã, ở CẢ HAI trạng thái', async () => {
     for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA']) {

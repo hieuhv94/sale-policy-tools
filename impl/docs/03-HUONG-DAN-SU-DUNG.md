@@ -360,10 +360,10 @@ Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: b
 phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
 muốn sửa phải chờ người duyệt trả lại.
 
-**Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ khi hồ sơ còn sửa
-được: **Nháp** hoặc **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế
-toán không tiếp nhận L1, Kế toán không tiếp nhận L2). Phải **gõ lại mã hồ sơ** để xác nhận, vì xoá
-không lùi được.
+**Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:
+**Nháp**, **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế toán không
+tiếp nhận L1, Kế toán không tiếp nhận L2), và **Từ chối**. Phải **gõ lại mã hồ sơ** để xác nhận, vì
+xoá không lùi được.
 
 Hai kết cục, hệ thống tự chọn — bạn không phải quyết định:
 
@@ -371,6 +371,7 @@ Hai kết cục, hệ thống tự chọn — bạn không phải quyết địn
 |---|---|
 | **Nháp** (chưa gửi duyệt) | Biến mất hẳn, không để lại dòng nhật ký nào |
 | **Yêu cầu chỉnh sửa** | Chuyển sang **Đã xoá** — hồ sơ ở lại, giữ nguyên lịch sử và lý do trả lại, tra cứu được, nhưng không đi tiếp được nữa |
+| **Từ chối** | Cũng chuyển sang **Đã xoá**, giữ nguyên lịch sử và lý do từ chối |
 
 Sự khác nhau nằm ở chỗ **đã có ai khác đọc hồ sơ chưa**. Bản nháp chưa gửi thì chưa ai ngoài bạn
 nhìn thấy, nên giữ lại một dòng "đã xoá" cho mỗi lần lập nhầm chỉ làm rác nhật ký. Hồ sơ bị trả lại
@@ -378,9 +379,16 @@ thì đã qua tay người khác, họ đã đọc và đã viết lý do — xo
 việc của họ. **Người đã trả hồ sơ lại sẽ nhận thư báo** khi bạn xoá, vì họ đang chờ một bản sửa sẽ
 không bao giờ tới.
 
+**Xoá hồ sơ bị Từ chối** là để dọn màn hình: hồ sơ ấy đã đóng vĩnh viễn, không làm gì được nữa, mà
+vẫn nằm đếm trong thẻ *Từ chối* trên trang tổng quan của bạn. Xoá xong nó rời khỏi thẻ đó.
+
+> **Nó KHÔNG biến mất khỏi báo cáo.** Tỷ lệ trả lại và từ chối đếm theo **thời điểm hồ sơ bị từ
+> chối**, không theo trạng thái hiện tại — nên xoá ở đây không làm con số của bạn đẹp lên. Lịch sử
+> hồ sơ cũng giữ nguyên, kể cả lý do Trưởng bộ phận đã ghi.
+
 Ở **mọi trạng thái khác** thì không ai xoá được, kể cả bạn và kể cả Quản trị hệ thống: hồ sơ đã gửi
-đi đang nằm trên bàn người khác, còn **Từ chối**, **Đã xoá**, **Hết hiệu lực** và **Đang có hiệu
-lực** thì phải giữ lại dấu vết.
+đi đang nằm trên bàn người khác, còn **Đã xoá**, **Hết hiệu lực** và **Đang có hiệu lực** thì phải
+giữ lại dấu vết.
 
 ## 7. Luồng duyệt — 10 bước
 

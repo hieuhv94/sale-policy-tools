@@ -67,6 +67,36 @@ export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có mu�
 const EDITABLE = ['NHAP', 'YEU_CAU_CHINH_SUA'];
 
 /**
+ * Trạng thái TDV phụ trách xoá được (`0039`).
+ *
+ * Tới `0035` danh sách này ĐÚNG BẰNG `EDITABLE` — "xoá được đúng những hồ sơ sửa
+ * được". `0039` thêm `TU_CHOI`, và vì thế nó tách thành hằng số riêng: hai câu
+ * hỏi "sửa được không" và "xoá được không" giờ có hai câu trả lời khác nhau, gộp
+ * lại một chỗ là sẽ sai khi một trong hai đổi tiếp.
+ *
+ * VÌ SAO `TU_CHOI` VÀO ĐƯỢC, dù `POL-14` từng nói không ai xoá được nó. Điều
+ * `POL-14` bảo vệ là **dấu vết**, không phải con số trên thẻ đếm: hồ sơ bị từ
+ * chối phải còn lại trong lịch sử và trong báo cáo tỷ lệ trả lại. Ở đây "xoá"
+ * KHÔNG xoá dòng nào — nó chuyển `DA_XOA` và ghi thêm một dòng nhật ký, nên cả
+ * hai thứ ấy còn nguyên. Cái mất đi đúng bằng cái người dùng muốn mất: hồ sơ
+ * thôi nằm trong thẻ *Từ chối* của người lập, nơi nó chỉ còn là rác nhìn.
+ *
+ * Chốt ở CSDL vẫn nguyên: `trg_forbid_delete_rejected` chặn XOÁ DÒNG ở cả
+ * `TU_CHOI` lẫn `DA_XOA`. Đường duy nhất là đổi trạng thái, và nó có vết.
+ */
+const XOA_DUOC = [...EDITABLE, 'TU_CHOI'];
+
+/**
+ * Hồ sơ này người đang xem có xoá được không — giao diện đọc để ẩn nút (`0039`).
+ *
+ * Gộp CẢ HAI điều kiện: trạng thái, và "đúng TDV đang phụ trách". Giao diện
+ * không biết vế thứ hai — nó chỉ có `tdvUserId` chứ không có luật — nên trả về
+ * một cờ boolean là cách duy nhất để nút hiện ra đúng bằng những lần bấm được.
+ */
+export const xoaDuoc = (status: string, tdvUserId: string | null, me: AuthUser): boolean =>
+  XOA_DUOC.includes(status) && tdvUserId !== null && tdvUserId === me.id;
+
+/**
  * Một hồ sơ thuộc phạm vi của tôi khi id của tôi nằm ở MỘT TRONG BỐN cột người
  * (`0031`).
  *
@@ -604,22 +634,23 @@ export class PoliciesService {
   }
 
   /**
-   * TDV bỏ một hồ sơ (`0035`).
+   * TDV bỏ một hồ sơ (`0035`, mở rộng ở `0039`).
    *
-   * ĐIỀU KIỆN là `EDITABLE`, không phải một danh sách riêng: "xoá được đúng
-   * những hồ sơ sửa được" là nguyên văn yêu cầu, và viết nó thành cùng một hằng
-   * số thì không có ngày hai danh sách lệch nhau. Cụ thể là `NHAP` và
-   * `YEU_CAU_CHINH_SUA` — trạng thái sau gom cả ba đường trả về: Trưởng bộ phận
-   * yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2.
+   * BA trạng thái xoá được — xem `XOA_DUOC`:
+   *
+   *   * `NHAP` — chưa gửi duyệt.
+   *   * `YEU_CAU_CHINH_SUA` — gom cả ba đường trả về: Trưởng bộ phận yêu cầu
+   *     chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2.
+   *   * `TU_CHOI` — thêm ở `0039`.
    *
    * HAI KẾT CỤC, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
    *
    *   * `NHAP` → xoá hẳn dòng, không ghi nhật ký. Hồ sơ chưa gửi duyệt thì chưa
    *     ai ngoài người lập thấy nó; ghi một dòng "đã xoá" cho mỗi lần lập nhầm
    *     là chống spam ngược — người lập sẽ ngại mở bản nháp.
-   *   * `YEU_CAU_CHINH_SUA` → `DA_XOA` và ghi nhật ký y như `TU_CHOI`. Hồ sơ này
-   *     đã qua tay người khác, đã bị trả lại kèm lý do; xoá sạch là làm biến mất
-   *     luôn phần việc của họ.
+   *   * `YEU_CAU_CHINH_SUA` và `TU_CHOI` → `DA_XOA` và ghi nhật ký. Hồ sơ đã qua
+   *     tay người khác, đã bị trả lại hoặc từ chối kèm lý do; xoá sạch là làm
+   *     biến mất luôn phần việc của họ.
    */
   async remove(policyId: string, me: AuthUser) {
     // Đọc thẳng dòng nguồn, KHÔNG qua `byId`: đường kia làm mới giá và ngưỡng
@@ -629,11 +660,11 @@ export class PoliciesService {
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.assertPolicyInScope(p, me);
 
-    if (!EDITABLE.includes(p.status)) {
+    if (!XOA_DUOC.includes(p.status)) {
       throw new ForbiddenException({
         code: 'ONLY_EDITABLE_DELETABLE',
         message:
-          'Chỉ xoá được hồ sơ đang sửa được (Nháp hoặc Yêu cầu chỉnh sửa); ' +
+          'Chỉ xoá được hồ sơ ở Nháp, Yêu cầu chỉnh sửa hoặc Từ chối; ' +
           `hồ sơ đang ở ${p.status}`,
       });
     }
@@ -735,7 +766,20 @@ export class PoliciesService {
     if (EDITABLE.includes(so.status)) {
       await this.db.tx((c) => this.lamMoiDong(c, policyId)).catch(() => undefined);
     }
-    return this.load(policyId);
+    const p = await this.load(policyId);
+    /*
+     * `xoaDuoc` tính Ở ĐÂY rồi gửi kèm hồ sơ (`0039`).
+     *
+     * Trước đó giao diện suy điều kiện xoá từ `allowed-actions`: hồ sơ nào còn
+     * `SUBMIT` hoặc `RESUBMIT_AFTER_EDIT` thì sửa được, mà sửa được thì xoá
+     * được. `0039` cắt đứt phép suy ấy — `TU_CHOI` xoá được mà không có hành
+     * động nào đi ra.
+     *
+     * Chép danh sách trạng thái sang giao diện là dựng bản sao thứ hai phải giữ
+     * đồng bộ; trả về một cờ BOOLEAN thì máy chủ vẫn là nơi duy nhất biết luật,
+     * và nó đã tính sẵn cả phần "đúng người phụ trách" mà giao diện không biết.
+     */
+    return { ...p, xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me) };
   }
 
   /**

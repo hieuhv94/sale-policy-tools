@@ -62,6 +62,10 @@ const ppost = async (path: string, body: object, who: string) =>
 const act = async (id: string, action: string, who: string, body: object = {}) =>
   ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
+/** Xoá một hồ sơ qua `policy` — cần cho ca kiểm thử `0039` bên dưới. */
+const pdel = async (path: string, who = 'tdv01') =>
+  (await http(policy)).delete(path).set('Authorization', `Bearer ${tok[who]}`);
+
 const rget = async (path: string, who = 'tdv01') =>
   (await http(reporting)).get(path).set('Authorization', `Bearer ${tok[who]}`);
 const rpost = async (path: string, body: object, who = 'tdv01') =>
@@ -721,6 +725,37 @@ describe('RPT-11 báo cáo tỷ lệ hồ sơ bị trả lại', () => {
 
     const rowRejected = await rptRow(rejected.id);
     expect(rowRejected?.['status']).toBe('TU_CHOI');
+  });
+
+  it('`0039` người lập XOÁ hồ sơ bị từ chối thì con số KHÔNG đổi', async () => {
+    /*
+     * Chỗ dễ hỏng nhất của `0039`, và hỏng theo hướng đẹp lên.
+     *
+     * Từ `0039` TDV bỏ được hồ sơ đã bị từ chối khỏi thẻ đếm của mình, và hồ sơ
+     * chuyển `DA_XOA`. Nếu báo cáo đếm theo `status = 'TU_CHOI'` như trước thì
+     * mỗi lần dọn màn hình là một lần tỷ lệ từ chối của chính người đó tụt
+     * xuống — một chỉ số tự bào mòn, mà không ai nhìn ra vì nó chỉ nhỏ đi.
+     *
+     * Nên báo cáo đếm theo `rejected_at`: một mốc ĐÃ XẢY RA, không đảo được.
+     */
+    const rejected = await draft();
+    expect((await act(rejected.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(
+      (await act(rejected.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiết khấu vượt trần' })).status,
+    ).toBe(200);
+    await flushSync([rejected.id]);
+
+    const truoc = (await rget('/reports/return-rate', 'bld01')).body;
+
+    // Người lập bỏ nó đi.
+    expect((await pdel(`/policies/${rejected.id}`, 'tdv01')).status).toBe(204);
+    await flushSync([rejected.id]);
+    expect((await rptRow(rejected.id))?.['status']).toBe('DA_XOA');
+
+    const sau = (await rget('/reports/return-rate', 'bld01')).body;
+    expect(sau.rejected, 'xoá khỏi màn hình không được xoá khỏi báo cáo').toBe(truoc.rejected);
+    expect(sau.returnedOrRejected).toBe(truoc.returnedOrRejected);
+    expect(sau.rate).toBe(truoc.rate);
   });
 });
 
