@@ -4623,3 +4623,62 @@ chúng thì đúng những dòng khó hiểu nhất lại hiện ra dưới dạ
 
 +56 ca, **1001/1001 xanh**. Ba bảng phủ theo trạng thái: vô hiệu hoá sản phẩm × 12 trạng thái (bảy
 vào box, năm không), nhật ký đọc được × 12 trạng thái, và ma trận xác nhận cho bốn đường phá huỷ.
+
+---
+
+## P48 — Dải nút *Thao tác* chỉ hiện việc vai trò ấy làm được
+
+Không có tệp migration nào ở đợt này — `0038` là NHÃN của một đợt chỉ đụng tầng service và giao diện.
+Cùng nếp với `0028`, `0030` và `0032`.
+
+### Lỗi
+
+`GET /policies/:id/allowed-actions` trả về `allowedActions(status)` — lọc theo **trạng thái**, không
+xét ai hỏi. `ChiTietHoSo` đem thẳng danh sách ấy ra vẽ nút. Ba nhóm nút chắc chắn hỏng khi bấm:
+
+1. **Nút của vai trò khác.** Trình dược viên mở hồ sơ của chính mình đang *Chờ TBP duyệt* thấy đủ
+   "Ký số duyệt", "Trả lại chỉnh sửa", "Từ chối hồ sơ" — cả ba trả 403 `FORBIDDEN_ROLE`.
+2. **Nút của HỆ THỐNG.** `PUBLISH_SIGNED` (tự chạy sau khi ký) và `SUPERSEDE` (tự chạy khi bản mới có
+   hiệu lực) không ai bấm, vẫn hiện — và vì không có nhãn tiếng Việt nên hiện **nguyên mã viết hoa**.
+3. **Ban lãnh đạo.** Vai trò chỉ đọc (muc 2.6) vẫn thấy nguyên dải nút của bước hiện tại.
+
+### Sửa ở MÁY CHỦ trước
+
+`allowedActionsFor(status, role)` suy thẳng từ `RULES` — không khai thêm bảng vai trò thứ hai, vì
+bảng ấy sẽ có ngày lệch với chính máy trạng thái, và lệch về phía "thừa" thì lại đúng kiểu lỗi này.
+Mọi client nhận cùng một câu trả lời, kể cả màn hình viết sau này.
+
+**Thông báo lỗi thì NGƯỢC LẠI**: `INVALID_TRANSITION` vẫn liệt kê đủ hành động của trạng thái. Câu đó
+nói về trạng thái — "ở đây chỉ đi tiếp được bằng X hoặc Y" — nên phải kể cả việc của người khác. Lọc
+luôn ở đó thì Kế toán bấm nhầm đọc được "hành động được phép: không có", và hiểu ra là hồ sơ hỏng chứ
+không phải đang chờ Trưởng bộ phận.
+
+### Bảy quyền khai từ P11 mà chưa ai gọi
+
+`traLai` · `tuChoi` · `tiepNhanL1` · `banGiao` · `tiepNhanL2` · `yeuCauInLai` · `guiDuyet` — đều nằm
+trong `QUYEN_GHI` với **0 chỗ dùng**. Chúng được viết ra đúng cho việc này rồi bỏ quên. Giờ nối lại
+qua bảng `QUYEN_HANH_DONG`.
+
+Và ca kiểm thử đối chiếu bảng ấy với máy trạng thái **bắt được một lỗi ngay lúc viết**: `traLai:
+['TBP','KE_TOAN']` là một khoá quá thô cho ba hành động của hai người khác nhau — nó nói Kế toán trả
+lại được ở bước của Trưởng bộ phận. Tách thành `traLaiTbp` và `traLaiKt`.
+
+Giữ lớp giao diện dù máy chủ đã lọc, vì hai lý do cụ thể: `FE-23` quét chính bảng quyền để khẳng định
+Ban lãnh đạo không có nút ghi nào — một khẳng định đọc được ngay trong mã thay vì phải dựng máy chủ
+lên mới biết; và một danh sách cũ còn trong bộ nhớ trình duyệt sau khi đổi tài khoản thì đây là thứ
+chặn nó. Nó là bản sao **được kiểm**, không phải bảng thứ hai tự do trôi.
+
+### Rà nốt các màn hình còn lại
+
+Quét mọi tệp có lời gọi ghi rồi đối chiếu với `can()`: **không có ổ thứ hai**. Mười một tệp không tự
+gác quyền đều là component con đã được cha gác — `TepDinhKem` và `HoSoPhapLy` nhận `choPhepGhi` từ
+cha; ba thẻ danh mục nằm sau `can(vaiTro,'quanTriDanhMuc')`; `MauHopDong` nằm sau `xem(vaiTro,
+'mauHopDong')` ở tầng định tuyến; các hộp thoại chỉ mở được từ nút đã gác; ba màn hình mật khẩu là
+tự phục vụ, mọi vai trò đều dùng.
+
+### Test
+
++21 ca, **1023/1023 xanh**. Hai bảng phủ: máy chủ × 11 trạng thái × 5 vai trò (kỳ vọng viết TAY, không
+suy từ chính hàm đang kiểm), và giao diện × mọi cặp (trạng thái × vai trò) đối chiếu với máy trạng
+thái. Sửa thêm một ca mong manh: `lech()` cắt ở `limit=50` trong khi hồ sơ lệch cộng dồn trên CSDL
+dùng chung, nên hồ sơ vừa dựng rơi ra ngoài trang đầu.

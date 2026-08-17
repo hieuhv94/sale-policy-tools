@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
-import { CAN_LY_DO, HANH_DONG_NHAN, can } from '../lib/can.js';
+import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
@@ -223,11 +223,20 @@ export function ChiTietHoSo({ id }: { id: string }) {
         </p>
       )}
 
-      {choPhep.length > 0 && (
+      {/*
+        Lọc LẦN NỮA theo vai trò (`0038`), dù máy chủ đã lọc.
+
+        Máy chủ là chốt thật: `/allowed-actions` trả về đúng những hành động
+        vai trò này làm được. Giữ thêm phép lọc ở đây vì `FE-23` quét chính bảng
+        quyền để khẳng định Ban lãnh đạo không có nút ghi nào — và vì một danh
+        sách cũ còn nằm trong bộ nhớ trình duyệt sau khi đổi tài khoản thì đây
+        là thứ chặn nó.
+      */}
+      {choPhep.some((a) => canHanhDong(nguoiDung?.role, a)) && (
         <>
           <h2>Thao tác</h2>
           <div className="nhom-nut">
-            {choPhep.map((a) => (
+            {choPhep.filter((a) => canHanhDong(nguoiDung?.role, a)).map((a) => (
               <button
                 key={a}
                 type="button"

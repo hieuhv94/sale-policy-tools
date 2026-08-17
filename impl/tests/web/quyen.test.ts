@@ -8,7 +8,17 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { QUYEN_GHI, VAI_TRO, can, dieuHuongCho, xem } from '@csbh/web/can';
+import {
+  HANH_DONG_NHAN,
+  QUYEN_GHI,
+  QUYEN_HANH_DONG,
+  VAI_TRO,
+  can,
+  canHanhDong,
+  dieuHuongCho,
+  xem,
+} from '@csbh/web/can';
+import { ACTIONS, STATUSES, allowedActions, allowedActionsFor } from '@csbh/domain-policy';
 
 const GOC = 'apps/web/src';
 
@@ -97,6 +107,94 @@ describe('Bảng quyền là nguồn DUY NHẤT', () => {
       for (const v of vaiTro as readonly string[]) {
         expect(VAI_TRO as readonly string[]).toContain(v);
       }
+    }
+  });
+});
+
+// =============================================================================
+// `0038` — dải nút *Thao tác* chỉ hiện việc vai trò ấy làm được
+// =============================================================================
+
+describe('`0038` không bày nút bấm vào là 403', () => {
+  /*
+   * Lỗi đang bịt: `/allowed-actions` từng trả về mọi hành động của TRẠNG THÁI,
+   * không xét ai hỏi, và màn hình đem thẳng ra vẽ nút. Trình dược viên mở hồ sơ
+   * của chính mình đang *Chờ TBP duyệt* thấy đủ "Ký số duyệt", "Trả lại chỉnh
+   * sửa", "Từ chối hồ sơ" — bấm cái nào cũng 403 `FORBIDDEN_ROLE`.
+   */
+  it('BẢNG QUYỀN của giao diện khớp đúng máy trạng thái, ở mọi cặp trạng thái × vai trò', () => {
+    // Đây là ca giữ cho bảng ở `can.ts` không trôi khỏi `RULES`. Không có nó thì
+    // bảng kia là bản sao thứ hai, và lệch về phía "thừa" là quay lại đúng lỗi
+    // vừa sửa.
+    const lech: string[] = [];
+    for (const s of STATUSES) {
+      for (const v of VAI_TRO) {
+        const mayChu = new Set(allowedActionsFor(s, v));
+        const giaoDien = new Set(allowedActions(s).filter((a) => canHanhDong(v, a)));
+        const chung = [...new Set([...mayChu, ...giaoDien])];
+        for (const a of chung) {
+          if (mayChu.has(a) !== giaoDien.has(a)) {
+            lech.push(
+              `${s} × ${v} · ${a}: máy chủ ${mayChu.has(a) ? 'cho' : 'cấm'}, ` +
+                `giao diện ${giaoDien.has(a) ? 'cho' : 'cấm'}`,
+            );
+          }
+        }
+      }
+    }
+    expect(lech, `hai bảng lệch nhau:\n${lech.join('\n')}`).toEqual([]);
+  });
+
+  it('hành động của HỆ THỐNG không vai trò nào bấm được', () => {
+    // `PUBLISH_SIGNED` tự chạy sau khi ký, `SUPERSEDE` tự chạy khi bản mới có
+    // hiệu lực. Trước `0038` cả hai hiện thành nút, và vì không có nhãn tiếng
+    // Việt nên hiện nguyên mã viết hoa.
+    for (const a of ['PUBLISH_SIGNED', 'SUPERSEDE']) {
+      for (const v of VAI_TRO) {
+        expect(canHanhDong(v, a), `${v} không được bấm ${a}`).toBe(false);
+      }
+    }
+  });
+
+  it('Ban lãnh đạo không bấm được hành động nào, ở bất kỳ trạng thái nào', () => {
+    for (const s of STATUSES) {
+      for (const a of allowedActions(s)) {
+        expect(canHanhDong('BAN_LANH_DAO', a), `${s} · ${a}`).toBe(false);
+      }
+    }
+  });
+
+  it('Quản trị hệ thống cũng vậy — họ đứng ngoài luồng duyệt', () => {
+    for (const s of STATUSES) {
+      for (const a of allowedActions(s)) {
+        expect(canHanhDong('QUAN_TRI', a), `${s} · ${a}`).toBe(false);
+      }
+    }
+  });
+
+  it('bốn vai trò trong luồng vẫn bấm được đúng việc của mình', () => {
+    // Vế NGƯỢC LẠI của ba ca trên: lọc quá tay thì người ta không làm được việc,
+    // và đó là lỗi im lặng hơn nhiều so với một nút trả 403.
+    expect(canHanhDong('TDV', 'SUBMIT')).toBe(true);
+    expect(canHanhDong('TDV', 'RESUBMIT_AFTER_EDIT')).toBe(true);
+    expect(canHanhDong('TBP', 'TBP_SIGN')).toBe(true);
+    expect(canHanhDong('TBP', 'TBP_RETURN')).toBe(true);
+    expect(canHanhDong('TBP', 'TBP_REJECT')).toBe(true);
+    expect(canHanhDong('KE_TOAN', 'KT_RECEIVE_L1')).toBe(true);
+    expect(canHanhDong('KE_TOAN', 'KT_RECEIVE_L2')).toBe(true);
+    expect(canHanhDong('KE_TOAN', 'KT_RETURN_L1')).toBe(true);
+    expect(canHanhDong('KE_TOAN', 'KT_RETURN_L2')).toBe(true);
+    expect(canHanhDong('KE_TOAN', 'KT_REQUEST_REPRINT')).toBe(true);
+    expect(canHanhDong('SALE_ADMIN', 'SA_HANDOVER')).toBe(true);
+  });
+
+  it('mọi hành động có nút đều có CẢ nhãn lẫn quyền', () => {
+    // Thiếu nhãn thì nút hiện mã viết hoa; thiếu quyền thì nút biến mất với mọi
+    // vai trò. Cả hai đều lặng lẽ.
+    for (const a of ACTIONS) {
+      const cuaHeThong = a === 'PUBLISH_SIGNED' || a === 'SUPERSEDE';
+      expect(QUYEN_HANH_DONG[a] !== undefined, `${a} thiếu quyền`).toBe(!cuaHeThong);
+      expect(HANH_DONG_NHAN[a] !== undefined, `${a} thiếu nhãn`).toBe(!cuaHeThong);
     }
   });
 });

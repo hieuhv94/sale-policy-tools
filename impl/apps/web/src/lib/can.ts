@@ -44,7 +44,16 @@ export const QUYEN_GHI = {
   xoaHoSo: ['TDV'],
   guiDuyet: ['TDV'],
   kySo: ['TBP'],
-  traLai: ['TBP', 'KE_TOAN'],
+  /*
+   * TÁCH LÀM HAI (`0038`), trước là một khoá `traLai: ['TBP', 'KE_TOAN']`.
+   *
+   * "Trả lại" là ba hành động của hai người khác nhau: Trưởng bộ phận trả ở
+   * bước duyệt, Kế toán trả ở L1 và L2. Gộp một khoá thì bảng này nói Kế toán
+   * trả lại được ở bước của Trưởng bộ phận — sai, và đúng kiểu sai làm mọc ra
+   * một nút 403. Ca kiểm thử đối chiếu bảng này với máy trạng thái bắt được.
+   */
+  traLaiTbp: ['TBP'],
+  traLaiKt: ['KE_TOAN'],
   tuChoi: ['TBP'],
   tiepNhanL1: ['KE_TOAN'],
   banGiao: ['SALE_ADMIN'],
@@ -132,12 +141,50 @@ export const dieuHuongCho = (vaiTro: string | undefined): MucDieuHuong[] =>
   DIEU_HUONG.filter((m) => xem(vaiTro, m.muc));
 
 /**
- * Hành động khả dụng ở một trạng thái, cho một vai trò.
+ * Mỗi hành động trong luồng đòi QUYỀN nào (`0038`).
  *
- * Máy trạng thái đầy đủ nằm ở `@csbh/domain-policy` phía máy chủ và API
- * `/policies/:id/allowed-actions` trả về danh sách chính xác. Bảng dưới đây chỉ
- * để **ẩn bớt nút trước khi hỏi máy chủ** — nếu hai bên lệch nhau thì máy chủ
- * thắng, và giao diện luôn hiển thị theo danh sách máy chủ trả về.
+ * Bảy trong tám quyền dưới đây đã khai từ P11 mà **chưa chỗ nào gọi** — dải nút
+ * *Thao tác* vẽ thẳng danh sách máy chủ trả về, không lọc gì. Bảng này nối chúng
+ * lại với nút.
+ *
+ * Đây là lớp thứ HAI. Chốt thật nằm ở `/policies/:id/allowed-actions`, giờ đã
+ * lọc theo vai trò. Giữ thêm lớp này vì `FE-23` quét đúng bảng quyền để khẳng
+ * định Ban lãnh đạo không có nút ghi nào — một khẳng định đọc được ngay trong mã
+ * thay vì phải dựng máy chủ lên mới biết.
+ *
+ * `quyen.test.ts` khẳng định bảng này KHỚP đúng máy trạng thái ở mọi cặp
+ * (trạng thái × vai trò), nên nó là bản sao ĐƯỢC KIỂM chứ không phải một bảng
+ * thứ hai tự do trôi.
+ */
+export const QUYEN_HANH_DONG: Record<string, Quyen> = {
+  SUBMIT: 'guiDuyet',
+  RESUBMIT_AFTER_EDIT: 'guiDuyet',
+  TBP_SIGN: 'kySo',
+  TBP_RETURN: 'traLaiTbp',
+  TBP_REJECT: 'tuChoi',
+  KT_RECEIVE_L1: 'tiepNhanL1',
+  KT_RETURN_L1: 'traLaiKt',
+  SA_HANDOVER: 'banGiao',
+  KT_RECEIVE_L2: 'tiepNhanL2',
+  KT_RETURN_L2: 'traLaiKt',
+  KT_REQUEST_REPRINT: 'yeuCauInLai',
+};
+
+/**
+ * Vai trò này có bấm được hành động ấy không.
+ *
+ * Hành động KHÔNG có trong bảng là hành động của HỆ THỐNG — `PUBLISH_SIGNED`
+ * (tự chạy sau khi ký) và `SUPERSEDE` (tự chạy khi bản mới có hiệu lực). Không
+ * ai bấm chúng, nên trả `false` cho mọi vai trò. Trước `0038` chúng hiện ra
+ * thành nút, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+ */
+export const canHanhDong = (vaiTro: string | undefined, hanhDong: string): boolean => {
+  const q = QUYEN_HANH_DONG[hanhDong];
+  return q !== undefined && can(vaiTro, q);
+};
+
+/**
+ * Nhãn tiếng Việt của nút. KHÔNG phải bảng phân quyền — xem `QUYEN_HANH_DONG`.
  */
 export const HANH_DONG_NHAN: Record<string, string> = {
   SUBMIT: 'Gửi duyệt',

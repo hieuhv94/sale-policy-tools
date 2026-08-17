@@ -891,6 +891,14 @@ dẫn: người phải xử lý mở **hồ sơ**, người chỉ cần biết m
 sơ** liệt kê đủ mọi bước kể cả bước hệ thống tự chạy, đọc được ở mọi trạng thái, phạm vi xem giống
 hệt phạm vi mở hồ sơ.
 
+**Nút Thao tác trên hồ sơ** `18/08` — dải nút chỉ hiện **việc vai trò đang đăng nhập làm được**,
+không hiện mọi việc của trạng thái · `/policies/:id/allowed-actions` lọc theo vai trò ngay ở máy chủ,
+suy thẳng từ máy trạng thái chứ không khai thêm bảng vai trò thứ hai · hai hành động của **hệ thống**
+(`PUBLISH_SIGNED` sau khi ký, `SUPERSEDE` khi bản mới có hiệu lực) không hiện cho ai · Ban lãnh đạo
+và Quản trị hệ thống mở được hồ sơ ở mọi bước mà **không có nút nào** · thông báo lỗi
+`INVALID_TRANSITION` thì NGƯỢC LẠI, vẫn liệt kê đủ hành động của trạng thái để người bấm nhầm biết
+hồ sơ đang chờ ai.
+
 **Phân công và phạm vi** `16/08` — TDV chọn Trưởng bộ phận và Kế toán lúc gửi duyệt · Kế toán chọn
 Sale Admin lúc tiếp nhận lần 1 · tiếp nhận lần 2 về đúng người đã nhận lần 1, không chọn lại · phạm
 vi đọc suy từ bốn ô người trên chính hồ sơ · gửi duyệt phải xem bản CSBH A4 dạng PDF rồi mới xác nhận.

@@ -1015,6 +1015,140 @@ describe('`0036` nhật ký hồ sơ', () => {
   });
 });
 
+// =============================================================================
+// `0038` — `/allowed-actions` lọc theo VAI TRÒ
+//
+// Trước đợt này nó trả về mọi hành động của TRẠNG THÁI, bất kể ai hỏi, và giao
+// diện đem thẳng ra vẽ nút. Hệ quả: Trình dược viên mở hồ sơ của chính mình đang
+// *Chờ TBP duyệt* thấy đủ "Ký số duyệt", "Trả lại chỉnh sửa", "Từ chối hồ sơ" —
+// bấm cái nào cũng 403.
+// =============================================================================
+
+describe('`0038` chỉ trả về hành động vai trò ấy làm được', () => {
+  const nut = async (policyId: string, who: string): Promise<string[]> =>
+    (await get(`/policies/${policyId}/allowed-actions`, who)).body.allowed as string[];
+
+  it('hồ sơ Chờ TBP duyệt: TBP thấy ba nút, TDV thấy KHÔNG nút nào', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+
+    expect([...(await nut(d.id, 'tbp01'))].sort()).toEqual([
+      'TBP_REJECT',
+      'TBP_RETURN',
+      'TBP_SIGN',
+    ]);
+    // Người lập vẫn MỞ được hồ sơ của mình, chỉ là không có việc gì để bấm.
+    expect(await nut(d.id, 'tdv01')).toEqual([]);
+    expect(await nut(d.id, 'kt01')).toEqual([]);
+  });
+
+  /**
+   * Đưa một hồ sơ tới đúng một trạng thái rồi hỏi cả sáu vai trò cùng lúc.
+   *
+   * Bảng kỳ vọng viết TAY, không suy từ `allowedActionsFor` — suy lại từ chính
+   * hàm đang kiểm thì ca này chỉ đang lặp lại mã nguồn của nó.
+   */
+  const MONG_DOI: Record<string, Record<string, string[]>> = {
+    NHAP: { tdv01: ['SUBMIT'] },
+    CHO_TBP_DUYET: { tbp01: ['TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT'] },
+    // `TBP_DA_KY_SO` chỉ có `PUBLISH_SIGNED`, mà đó là việc của HỆ THỐNG.
+    TBP_DA_KY_SO: {},
+    CHO_KT_L1: { kt01: ['KT_RECEIVE_L1', 'KT_RETURN_L1'] },
+    SA_DANG_XU_LY: { sa01: ['SA_HANDOVER'] },
+    CHO_KT_L2: { kt01: ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT'] },
+    YEU_CAU_CHINH_SUA: { tdv01: ['RESUBMIT_AFTER_EDIT'] },
+    // `SUPERSEDE` cũng của hệ thống — không ai bấm cho bản đang hiệu lực hết hạn.
+    DANG_CO_HIEU_LUC: {},
+    HET_HIEU_LUC: {},
+    TU_CHOI: {},
+    DA_XOA: {},
+  };
+
+  for (const [tt, mong] of Object.entries(MONG_DOI)) {
+    it(`hồ sơ ${tt}: mỗi vai trò chỉ thấy đúng việc của mình`, async () => {
+      const d = await draft();
+      // Bốn cột người phải có mặt thì bốn vai trò mới MỞ được hồ sơ — không mở
+      // được thì 403, và ca này không phân biệt được "không có nút" với "không
+      // thấy hồ sơ". Gửi duyệt một lần là đủ để điền `tbp` và `keToan`.
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await withAdminDb(async (c) => {
+        await c.query(
+          `UPDATE pol.policy
+              SET sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01'),
+                  status = $2::pol.policy_status,
+                  pending_step = NULL
+            WHERE id = $1`,
+          [d.id, tt],
+        );
+      });
+
+      for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
+        const co = [...(await nut(d.id, who))].sort();
+        expect(co, `${tt} × ${who}`).toEqual([...(mong[who] ?? [])].sort());
+      }
+
+      await withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET status = 'NHAP' WHERE id = $1`, [d.id]),
+      );
+    });
+  }
+
+  it('hành động của HỆ THỐNG không lọt ra cho vai trò nào', async () => {
+    // `PUBLISH_SIGNED` và `SUPERSEDE` do máy chạy. Trước `0038` chúng hiện thành
+    // nút, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    // Gán cả Sale Admin: không có tên trên hồ sơ thì họ nhận 403 ở bước MỞ, và
+    // ca này không phân biệt được "không có nút" với "không thấy hồ sơ".
+    await withAdminDb((c) =>
+      c.query(
+        `UPDATE pol.policy
+            SET status = 'TBP_DA_KY_SO',
+                sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01')
+          WHERE id = $1`,
+        [d.id],
+      ),
+    );
+
+    for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
+      expect(await nut(d.id, who), `${who} không được thấy PUBLISH_SIGNED`).toEqual([]);
+    }
+  });
+
+  it('Ban lãnh đạo mở được hồ sơ ở mọi bước mà không có nút nào', async () => {
+    // Muc 2.6: chỉ đọc. Đây là vai trò dễ lọt nhất — họ thấy MỌI hồ sơ.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await get(`/policies/${d.id}`, 'bld01')).status).toBe(200);
+    expect(await nut(d.id, 'bld01')).toEqual([]);
+
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    expect(await nut(d.id, 'bld01')).toEqual([]);
+  });
+
+  it('lỗi INVALID_TRANSITION vẫn liệt kê ĐỦ hành động của trạng thái', async () => {
+    /*
+     * Vế ngược: danh sách trong THÔNG BÁO LỖI không được lọc theo vai trò.
+     *
+     * Câu đó nói về trạng thái — "ở đây chỉ đi tiếp được bằng X hoặc Y" — nên nó
+     * phải kể cả hành động của người khác. Lọc luôn ở đây thì Kế toán bấm nhầm
+     * sẽ đọc được "hành động được phép: không có", và hiểu ra là hồ sơ hỏng chứ
+     * không phải là đang chờ Trưởng bộ phận.
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    const r = await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('INVALID_TRANSITION');
+    expect([...(r.body.allowed as string[])].sort()).toEqual([
+      'TBP_REJECT',
+      'TBP_RETURN',
+      'TBP_SIGN',
+    ]);
+  });
+});
+
 describe('POL-15 phạm vi dữ liệu khi lập hồ sơ', () => {
   it('tdv02 lập hồ sơ cho khách hàng của tdv01 thì 403', async () => {
     const customerId = await makeCustomer('tdv01');
@@ -2738,8 +2872,16 @@ describe('0029 box Yêu cầu cập nhật', () => {
   const raSoat = async (productId?: string) =>
     app.get(CatalogImpactConsumer).handle(productId === undefined ? {} : { productId });
 
+  /*
+   * `limit=200` — trần một trang, không phải 50.
+   *
+   * Mỗi ca trong khối này dựng thêm một hồ sơ lệch, và CSDL của bộ test dùng
+   * chung nên chúng cộng dồn. Tới lúc vượt 50, hồ sơ mà ca kiểm thử vừa dựng rơi
+   * ra ngoài trang đầu và ca ấy đỏ vì một lý do chẳng liên quan gì tới điều đang
+   * kiểm. Đã dính đúng chuyện này.
+   */
   const lech = async (who = 'tdv01') =>
-    (await get('/policies/impacted?limit=50', who)).body.items as {
+    (await get('/policies/impacted?limit=200', who)).body.items as {
       id: string;
       lech: { kind: string; productCode: string; snapValue: string; newValue: string | null }[];
     }[];

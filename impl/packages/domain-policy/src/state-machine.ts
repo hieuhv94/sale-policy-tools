@@ -150,10 +150,43 @@ export class ForbiddenRoleError extends Error {
   }
 }
 
-/** Danh sách hành động hợp lệ tại một trạng thái — dùng cho thông báo lỗi và cho UI. */
+/**
+ * Hành động hợp lệ tại một trạng thái, KHÔNG xét vai trò.
+ *
+ * Dùng cho THÔNG BÁO LỖI `INVALID_TRANSITION`: câu đó nói về trạng thái — "ở
+ * đây chỉ đi tiếp được bằng X hoặc Y" — nên nó phải liệt kê đủ, kể cả hành động
+ * của vai trò khác. Người đọc cần biết hồ sơ đang chờ ai.
+ *
+ * ĐỪNG dùng để dựng nút bấm: xem `allowedActionsFor`.
+ */
 export function allowedActions(current: Status): Action[] {
   return (Object.keys(ACTION_OF) as Action[]).filter((a) =>
     ACTION_OF[a].from.includes(current),
+  );
+}
+
+/**
+ * Hành động một VAI TRÒ CỤ THỂ làm được tại một trạng thái — danh sách dựng nút.
+ *
+ * Vì sao phải có hàm này: `allowedActions` chỉ lọc theo trạng thái, và giao diện
+ * đem thẳng kết quả ấy ra vẽ nút. Hệ quả là ba nhóm nút chắc chắn hỏng khi bấm:
+ *
+ *   1. **Nút của vai trò khác.** Trình dược viên mở hồ sơ của chính mình đang ở
+ *      *Chờ TBP duyệt* thì thấy đủ "Ký số duyệt", "Trả lại chỉnh sửa", "Từ chối
+ *      hồ sơ" — cả ba đều trả 403 `FORBIDDEN_ROLE`.
+ *   2. **Nút của HỆ THỐNG.** `PUBLISH_SIGNED` và `SUPERSEDE` do máy chạy, không
+ *      ai bấm; chúng vẫn hiện ra, và vì không có nhãn tiếng Việt nên hiện
+ *      nguyên mã viết hoa.
+ *   3. **Nút cho vai trò ngoài luồng.** Ban lãnh đạo chỉ đọc (muc 2.6) mà vẫn
+ *      thấy nguyên dải nút của bước hiện tại.
+ *
+ * Suy thẳng từ `RULES` chứ không khai thêm một bảng vai trò thứ hai — bảng ấy sẽ
+ * có ngày lệch với chính máy trạng thái, và lệch về phía "thừa" thì lại đúng
+ * kiểu lỗi này.
+ */
+export function allowedActionsFor(current: Status, role: Role): Action[] {
+  return allowedActions(current).filter((a) =>
+    RULES.some((r) => r.from === current && r.to === ACTION_OF[a].to && r.by === role),
   );
 }
 

@@ -16,6 +16,7 @@ import {
 import type { PoolClient } from 'pg';
 import {
   allowedActions,
+  allowedActionsFor,
   effectiveStatus,
   ForbiddenRoleError,
   InvalidTransitionError,
@@ -499,10 +500,25 @@ export class WorkflowService {
     return ra;
   }
 
-  /** Danh sách hành động hợp lệ tại trạng thái hiện tại — dùng cho UI và cho lỗi 409. */
+  /**
+   * Hành động NGƯỜI GỌI làm được tại trạng thái hiện tại — danh sách dựng nút.
+   *
+   * Lọc theo vai trò từ `0038`. Trước đó đường này trả về mọi hành động của
+   * trạng thái, bất kể ai hỏi, và giao diện đem thẳng ra vẽ nút — nên Trình dược
+   * viên mở hồ sơ đang *Chờ TBP duyệt* thấy cả "Ký số duyệt" lẫn "Từ chối hồ
+   * sơ", bấm vào thì nhận 403.
+   *
+   * Lọc Ở ĐÂY chứ không ở giao diện: máy trạng thái nằm phía máy chủ, và mọi
+   * client — màn hình hôm nay, màn hình viết sau này, một lệnh `curl` của người
+   * vận hành — đều phải nhận cùng một câu trả lời. Bảng quyền phía giao diện chỉ
+   * là lớp ẩn bớt thứ hai.
+   */
   async allowed(policyId: string, me: AuthUser) {
     const p = await this.policies.byId(policyId, me);
-    return { status: p.status, allowed: allowedActions(p.status as Status) };
+    return {
+      status: p.status,
+      allowed: allowedActionsFor(p.status as Status, me.role as Role),
+    };
   }
 
   // --- File đính kèm --------------------------------------------------------

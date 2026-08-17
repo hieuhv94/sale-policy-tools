@@ -411,6 +411,16 @@ cùng vai trò không thấy, không mở.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
 
+### Dải nút *Thao tác*
+
+Trên màn hình hồ sơ, khối *Thao tác* chỉ hiện **những việc bạn làm được ở bước hiện tại** — không
+phải mọi việc của bước ấy. Trưởng bộ phận mở một hồ sơ đang chờ mình thấy ba nút *Ký số duyệt · Trả
+lại chỉnh sửa · Từ chối hồ sơ*; Trình dược viên mở đúng hồ sơ đó **không thấy nút nào**, vì lúc này
+việc không thuộc về họ.
+
+Khối biến mất hẳn khi bạn không có việc gì, không hiện ra rồi báo lỗi khi bấm. **Ban lãnh đạo** và
+**Quản trị hệ thống** không bao giờ thấy khối này — cả hai đứng ngoài luồng duyệt.
+
 ### Ai nhận thư khi hồ sơ đổi trạng thái
 
 **Hai nhóm, hai lá thư khác nhau.**
