@@ -95,12 +95,16 @@ máy bàn và ở điện thoại có thể để hai giao diện khác nhau.
 
 ## 4. Trang tổng quan
 
-**Đăng nhập xong bạn luôn vào đây**, dù trước đó thanh địa chỉ đang ở màn hình nào. Mở lại một tab cũ
-đang đứng ở *Người dùng* rồi đăng nhập cũng vào trang tổng quan, không rơi vào giữa một màn hình con
-mà vai trò của bạn có thể không xem được.
+**Đăng nhập xong bạn vào đây**, dù trước đó thanh địa chỉ đang ở màn hình nào. Mở lại một tab cũ đang
+đứng ở *Người dùng* rồi đăng nhập cũng vào trang tổng quan, không rơi vào giữa một màn hình con mà
+vai trò của bạn có thể không xem được.
 
-Ngoại lệ **duy nhất** là khi phiên hết hạn giữa chừng: ô đăng nhập lại hiện đè lên màn hình cũ, và
-đăng nhập xong bạn ở nguyên chỗ đang làm với mọi thứ đang gõ dở còn nguyên.
+Hai ngoại lệ:
+
+- **Liên kết trong thư báo.** Bấm *Mở hồ sơ* hay *Xem nhật ký* trong email rồi đăng nhập thì bạn vào
+  thẳng hồ sơ đó, không bị đưa về đây — bạn bấm vào nó vì cần đúng nó.
+- **Phiên hết hạn giữa chừng.** Ô đăng nhập lại hiện đè lên màn hình cũ, và đăng nhập xong bạn ở
+  nguyên chỗ đang làm với mọi thứ đang gõ dở còn nguyên.
 
 Màn hình đầu tiên sau khi đăng nhập. **Nội dung khác nhau theo vai trò** — bạn chỉ thấy những con
 số thuộc phần việc của mình.

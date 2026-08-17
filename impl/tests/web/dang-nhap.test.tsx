@@ -20,6 +20,7 @@ import { App } from '@csbh/web/app';
 import { PhienProvider } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
 import { VAI_TRO } from '@csbh/web/can';
+import { duongSauDangNhap } from '@csbh/web/sau-dang-nhap';
 
 afterEach(() => {
   cleanup();
@@ -58,6 +59,31 @@ const chanMang = (role: string) => {
     // trần thay vì `{ items, total }` — nợ kỹ thuật đã ghi nhận. Trả sai hình
     // dạng cho nó thì khối của Sale Admin nổ ngay lúc dựng.
     if (d.includes('/contract-templates')) return Promise.resolve(json([]));
+    // Ca liên kết sâu dựng THẬT màn hình chi tiết hồ sơ, nên nó cần một hồ sơ
+    // đúng hình dạng — không phải danh sách rỗng như mọi đường kia.
+    if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: [] }));
+    // `impacted` và `inbox` cũng khớp `/policies/<gì đó>` nhưng là DANH SÁCH,
+    // không phải một hồ sơ — trả nhầm hình dạng thì khối *Yêu cầu cập nhật* và
+    // hộp việc nổ ngay.
+    const laDanhSach = ['/policies/impacted', '/policies/inbox'].some((x) => d.includes(x));
+    if (!laDanhSach && /\/policies\/[^/?]+($|\?)/.test(d)) {
+      return Promise.resolve(
+        json({
+          id: 'abc-123',
+          code: 'CSBH-2026-000001',
+          customerId: 'kh-1',
+          versionNo: 1,
+          status: 'DANG_CO_HIEU_LUC',
+          appliedDate: '2026-01-01',
+          effectiveFrom: null,
+          lastReason: null,
+          xoaDuoc: false,
+          rowVersion: 0,
+          lines: [],
+          attachments: [],
+        }),
+      );
+    }
     /*
      * Hình dạng chung đủ cho mọi khối còn lại: danh sách rỗng, tổng bằng 0.
      *
@@ -153,6 +179,20 @@ describe('`0040` đăng nhập xong là vào trang tổng quan', () => {
     }
   });
 
+  it('`0041` liên kết trong thư GIỮ NGUYÊN, không bị đá về trang tổng quan', async () => {
+    // Người nhận thư vừa bấm vào một hồ sơ CỤ THỂ vì họ cần đúng hồ sơ đó. Đưa
+    // họ về trang tổng quan là làm mất chính thứ vừa bấm, và không có cách nào
+    // tìm lại ngoài mở lại hộp thư.
+    chanMang('TDV');
+    mo('/ho-so/abc-123');
+    await dangNhap();
+    await waitFor(() =>
+      expect(window.location.pathname, 'liên kết mở hồ sơ').toBe('/ho-so/abc-123'),
+    );
+    // Và màn hình hồ sơ dựng THẬT, không phải chỉ đúng đường dẫn.
+    await waitFor(() => expect(screen.getByText('CSBH-2026-000001')).toBeTruthy());
+  });
+
   it('màn hình công khai KHÔNG bị đá về trang tổng quan', async () => {
     // `/quen-mat-khau` đứng trước lớp kiểm phiên: người quên mật khẩu theo định
     // nghĩa là chưa đăng nhập được, nên điều hướng sau đăng nhập không được
@@ -160,5 +200,53 @@ describe('`0040` đăng nhập xong là vào trang tổng quan', () => {
     chanMang('TDV');
     mo('/quen-mat-khau');
     await waitFor(() => expect(window.location.pathname).toBe('/quen-mat-khau'));
+  });
+});
+
+// =============================================================================
+// `0041` — đường nào giữ, đường nào về trang tổng quan
+//
+// Kiểm THẲNG hàm quyết định thay vì dựng cả màn hình cho từng đường: dựng màn
+// hình đắt, và điều đang kiểm ở đây thuần là một phép phân loại đường dẫn.
+// =============================================================================
+
+describe('`0041` `duongSauDangNhap`', () => {
+  it('GIỮ đường trỏ vào một bản ghi cụ thể', () => {
+    // Hai dòng đầu là hai liên kết duy nhất xuất hiện trong thư báo.
+    expect(duongSauDangNhap('/ho-so/abc-123')).toBe('/ho-so/abc-123');
+    expect(duongSauDangNhap('/ho-so/abc-123/nhat-ky')).toBe('/ho-so/abc-123/nhat-ky');
+    expect(duongSauDangNhap('/khach-hang/kh-9')).toBe('/khach-hang/kh-9');
+  });
+
+  it('ĐƯA VỀ trang tổng quan mọi màn hình danh sách và quản trị', () => {
+    // Đây là những đường một tab cũ hay đứng lại, và là chỗ vai trò không xem
+    // được sẽ gặp "Bạn không có quyền" ngay sau khi đăng nhập.
+    for (const d of [
+      '/',
+      '/ho-so',
+      '/khach-hang',
+      '/bao-cao',
+      '/san-pham',
+      '/chiet-khau',
+      '/nguoi-dung',
+      '/mau-hop-dong',
+      '/nhat-ky',
+      '/thong-tin',
+      '/khong-ton-tai',
+    ]) {
+      expect(duongSauDangNhap(d), `${d} phải về trang tổng quan`).toBe('/');
+    }
+  });
+
+  it('`/ho-so/moi` KHỚP mẫu bản ghi nhưng KHÔNG được giữ', () => {
+    /*
+     * Cùng cái bẫy `App.tsx` phải xử bằng thứ tự: `moi` lọt qua `/ho-so/:id`
+     * như một mã hồ sơ.
+     *
+     * Và loại nó là đúng chứ không chỉ là tránh bẫy: đó là biểu mẫu lập hồ sơ
+     * mới, mà phiên mất thì nội dung đang gõ cũng mất theo (phiên nằm ở
+     * `sessionStorage`). Trả người dùng về một biểu mẫu trống không giúp được gì.
+     */
+    expect(duongSauDangNhap('/ho-so/moi')).toBe('/');
   });
 });

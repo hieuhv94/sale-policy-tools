@@ -17,6 +17,7 @@
     "./sua-ho-so": "./src/lib/sua-ho-so.ts",
     "./auth": "./src/lib/auth.tsx",
     "./router": "./src/lib/router.tsx",
+    "./sau-dang-nhap": "./src/lib/sau-dang-nhap.ts",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",

@@ -4786,3 +4786,42 @@ Thêm hai ca ngoài ma trận:
 * **Màn hình công khai không bị đá về trang tổng quan** — `/quen-mat-khau` đứng trước lớp kiểm phiên.
 
 **1047/1047 xanh.**
+
+---
+
+## P51 — Giữ liên kết sâu từ thư báo khi đăng nhập
+
+Nhãn `0041`. Sửa đúng cái đánh đổi đã nêu ở `P50`.
+
+### Câu tôi đề xuất ở P50 là SAI
+
+Tôi viết: *"muốn giữ liên kết thì đổi điều kiện thành: chỉ điều hướng khi đường dẫn hiện tại là `/`"*.
+Điều kiện đó **vô tác dụng** — `di('/')` khi đang ở `/` vốn đã không làm gì (`router.tsx` thoát sớm
+khi đường dẫn không đổi). Nó bằng đúng việc gỡ bỏ `0040`, và tab cũ đứng ở `/nguoi-dung` lại rơi vào
+"Bạn không có quyền" như trước.
+
+### Tín hiệu thật để phân biệt
+
+Hai tình huống trông giống hệt nhau ở tầng mã — chưa đăng nhập, đường dẫn khác `/` — mà người dùng
+muốn hai kết cục ngược nhau:
+
+| Tình huống | Đường dẫn thường gặp | Muốn gì |
+|---|---|---|
+| Tab cũ mở lại | `/nguoi-dung`, `/bao-cao`, `/ho-so` | Về trang tổng quan |
+| Bấm liên kết trong thư | `/ho-so/<id>`, `/ho-so/<id>/nhat-ky` | Vào đúng hồ sơ đó |
+
+Phân biệt được bằng đúng một thứ: **đường dẫn có trỏ vào một bản ghi cụ thể không**. Danh sách và màn
+hình quản trị thì không; `/ho-so/<id>` thì có. `GIU_DUONG` vì thế chỉ chứa đường CÓ THAM SỐ — thêm
+một đường không tham số vào đó là mở lại đúng tình huống thứ nhất.
+
+`/ho-so/moi` khớp mẫu `/ho-so/:id` mà không phải bản ghi — cùng cái bẫy `App.tsx` phải xử bằng thứ
+tự. Loại thẳng, và loại là đúng chứ không chỉ để tránh bẫy: phiên nằm ở `sessionStorage` nên mất
+phiên là mất luôn nội dung đang gõ, trả người dùng về một biểu mẫu trống không giúp được gì.
+
+### Test
+
++4 ca. Một ca dựng THẬT màn hình chi tiết qua liên kết sâu và đòi thấy mã hồ sơ trên màn hình, chứ
+không chỉ đòi đúng đường dẫn — bài học từ `P50`. Ba ca còn lại kiểm thẳng `duongSauDangNhap`: giữ ba
+đường bản ghi, đưa về `/` mười một đường danh sách và quản trị, và loại `/ho-so/moi`.
+
+**1051/1051 xanh.**
