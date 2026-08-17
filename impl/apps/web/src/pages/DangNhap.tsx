@@ -19,6 +19,21 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
     datDangGui(true);
     try {
       await dangNhap(login.trim(), matKhau);
+      /*
+       * Đăng nhập xong thì VÀO TRANG TỔNG QUAN (`0040`).
+       *
+       * Trước đó không có bước này: màn hình sau khi đăng nhập là bất cứ đường
+       * dẫn nào đang nằm trên thanh địa chỉ. Mở app ở `/` thì tình cờ đúng, còn
+       * mở lại một tab cũ đang ở `/bao-cao` hay `/nguoi-dung` thì người dùng rơi
+       * thẳng vào giữa một màn hình con — và với vai trò không xem được màn hình
+       * ấy thì rơi vào "Bạn không có quyền", ngay sau khi đăng nhập thành công.
+       *
+       * KHÔNG áp dụng cho lớp phủ phiên hết hạn (`lopPhu`). Ở đó màn hình bên
+       * dưới vẫn còn nguyên cùng mọi thứ đang gõ dở (`FE-33`), và điều đúng là
+       * trả người dùng về đúng chỗ họ đang làm — đá họ về trang tổng quan là làm
+       * mất chính thứ lớp phủ ấy sinh ra để giữ.
+       */
+      if (!lopPhu) di('/');
     } catch (err) {
       datLoi(err);
     } finally {

@@ -4740,3 +4740,49 @@ trong hai đổi tiếp.
 +9 ca, **1032/1032 xanh**. `POL-14` tách làm ba ca thay vì một: không xoá được dòng (kể cả SQL thô) ·
 năm vai trò kia vẫn không đụng được · chính TDV phụ trách thì chuyển được sang `DA_XOA`. Thêm ma trận
 cờ `xoaDuoc` ở đủ 12 trạng thái, và một ca khẳng định báo cáo **không đổi** sau khi xoá.
+
+---
+
+## P50 — Đăng nhập xong là vào trang tổng quan
+
+Nhãn `0040`, không có tệp migration — chỉ đụng giao diện.
+
+### Trước đó
+
+Không có bước điều hướng nào sau khi đăng nhập: màn hình hiện ra là bất cứ đường dẫn nào đang nằm
+trên thanh địa chỉ. Mở app ở `/` thì tình cờ đúng, nên lỗi này khuất — nhưng mở lại một tab cũ đang
+đứng ở `/nguoi-dung` hay `/bao-cao` thì người dùng rơi thẳng vào giữa một màn hình con, và với vai
+trò không xem được màn hình ấy thì rơi vào *"Bạn không có quyền"* NGAY SAU khi đăng nhập thành công.
+
+### Ngoại lệ có chủ ý: lớp phủ phiên hết hạn
+
+`DangNhap` phục vụ hai tình huống, và chỉ tình huống thứ nhất được điều hướng:
+
+| Tình huống | Sau khi đăng nhập |
+|---|---|
+| Đăng nhập đầu (toàn màn hình) | Về `/` |
+| Phiên hết hạn giữa chừng (`lopPhu`) | **Ở nguyên chỗ cũ** |
+
+Vế thứ hai là `FE-33`: lớp phủ không dỡ màn hình bên dưới, nên state React của biểu mẫu đang dở vẫn
+còn nguyên. Đá người dùng về trang tổng quan ở đó là làm mất đúng thứ lớp phủ ấy sinh ra để giữ.
+
+**Đánh đổi phải nói ra**: liên kết sâu từ email (`/ho-so/:id`) giờ cũng bị đưa về trang tổng quan nếu
+người nhận chưa đăng nhập. Đó là hệ quả trực tiếp của yêu cầu — "luôn vào trang tổng quan" và "giữ
+liên kết sâu" không cùng đúng được. Muốn giữ liên kết thì điều kiện đổi thành "chỉ điều hướng khi
+đường dẫn hiện tại là `/`", một dòng.
+
+### Test
+
++14 ca. Hai ca cho **mỗi** vai trò trong sáu vai trò: mở ở `/` rồi đăng nhập, và mở ở `/nguoi-dung`
+rồi đăng nhập — đường dẫn thứ hai chọn có chủ ý vì năm trong sáu vai trò không xem được nó.
+
+Thêm hai ca ngoài ma trận:
+
+* **Trang tổng quan dựng XONG, không khối nào nổ giữa chừng.** Khẳng định "về đúng đường dẫn" chưa
+  đủ — một khối nổ lúc dựng thì đường dẫn vẫn là `/` mà màn hình trắng. Chính chuyện đó xảy ra khi
+  viết tệp này: stub trả `byTdv` trong khi máy chủ trả `byHandler`, khối *Theo từng TDV* của Sale
+  Admin chết, và ca kiểm thử vẫn xanh vì nó chỉ soi đường dẫn. Ca mới bắt `console.error` và đòi
+  không có "Uncaught" nào.
+* **Màn hình công khai không bị đá về trang tổng quan** — `/quen-mat-khau` đứng trước lớp kiểm phiên.
+
+**1047/1047 xanh.**

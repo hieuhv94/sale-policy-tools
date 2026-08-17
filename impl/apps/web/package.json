@@ -15,6 +15,7 @@
     "./danh-muc": "./src/lib/danh-muc.ts",
     "./mau-hop-dong": "./src/lib/mau-hop-dong.ts",
     "./sua-ho-so": "./src/lib/sua-ho-so.ts",
+    "./auth": "./src/lib/auth.tsx",
     "./router": "./src/lib/router.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
