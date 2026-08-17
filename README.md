@@ -47,3 +47,14 @@ Trái trực giác, dễ làm sai nếu không biết trước:
   được**, kể cả Quản trị hệ thống.
 
 Toàn bộ tài liệu, mã nguồn, chú thích và thông báo trên màn hình đều bằng **tiếng Việt**.
+
+## Giấy phép
+
+**Độc quyền — mọi quyền được bảo lưu.** © 2026 hieuhv.
+
+Phần mềm được phát triển riêng cho Công ty TNHH Dược phẩm Nutricare, cấp cho công ty quyền sử dụng
+theo thoả thuận giữa hai bên. Không được sao chép, phân phối, công bố hay tạo sản phẩm phái sinh
+ngoài phạm vi đó nếu không có văn bản cho phép của người giữ bản quyền.
+
+Đây **không phải** phần mềm mã nguồn mở: repo không có file `LICENSE`, và hai `package.json` đều
+đánh dấu `"private": true` để chặn việc lỡ tay phát hành lên npm.
