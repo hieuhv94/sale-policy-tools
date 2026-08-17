@@ -946,6 +946,70 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       expect(nk.some((x) => x.action === 'TBP_REJECT')).toBe(true);
     });
 
+    it('`0039` KHÔNG động vào CSDL: chỉ đúng cột `status` đổi, không dòng nào mất', async () => {
+      /*
+       * Khẳng định thẳng điều người dùng đã chốt: "chỉ chuyển trạng thái sang
+       * Đã xóa, không động gì vào CSDL, mọi nhật ký của hồ sơ đó vẫn còn".
+       *
+       * Ca này chụp TOÀN BỘ dòng hồ sơ trước và sau rồi so từng cột, thay vì chỉ
+       * kiểm trạng thái. Một câu `DELETE` lọt vào nhánh này về sau, hay một cột
+       * bị dọn kèm cho "sạch", đều đỏ ở đây.
+       */
+      const d = await draft();
+      // Thêm một tệp đính kèm để ca này còn kiểm cả bảng con thứ ba.
+      await post(`/policies/${d.id}/attachments`, {
+        kind: 'HO_SO',
+        fileName: 'ho-so-phap-ly.pdf',
+        objectKey: `hs/${d.id}.pdf`,
+      });
+      await act(d.id, 'SUBMIT', 'tdv01');
+      await act(d.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiet khau qua cao' });
+
+      const chup = () =>
+        withAdminDb(async (c) => {
+          const p = await c.query(`SELECT * FROM pol.policy WHERE id = $1`, [d.id]);
+          const dem = await c.query<{ dong: string; su_kien: string; tep: string }>(
+            `SELECT (SELECT count(*) FROM pol.policy_line WHERE policy_id = $1)::text AS dong,
+                    (SELECT count(*) FROM pol.policy_event WHERE policy_id = $1)::text AS su_kien,
+                    (SELECT count(*) FROM pol.policy_attachment WHERE policy_id = $1)::text AS tep`,
+            [d.id],
+          );
+          return { hang: p.rows[0] as Record<string, unknown>, dem: dem.rows[0]! };
+        });
+
+      const truoc = await chup();
+      expect((await del(`/policies/${d.id}`, 'tdv01')).status).toBe(204);
+      const sau = await chup();
+
+      // 1. Dòng hồ sơ CÒN, và chỉ hai cột đổi: trạng thái, và số phiên bản của
+      //    khoá lạc quan. Mọi cột khác — mã, khách hàng, bốn cột người, mọi mốc
+      //    thời gian, `rejected_at`, `last_reason` — giữ nguyên từng cái.
+      const boQua = new Set(['status', 'row_version']);
+      for (const cot of Object.keys(truoc.hang)) {
+        if (boQua.has(cot)) continue;
+        expect(String(sau.hang[cot]), `cột ${cot} không được đổi`).toBe(String(truoc.hang[cot]));
+      }
+      expect(truoc.hang['status']).toBe('TU_CHOI');
+      expect(sau.hang['status']).toBe('DA_XOA');
+
+      // 2. Không bảng con nào mất dòng. Nhật ký DÀI THÊM đúng một dòng.
+      expect(sau.dem.dong, 'dòng sản phẩm').toBe(truoc.dem.dong);
+      expect(sau.dem.tep, 'tệp đính kèm').toBe(truoc.dem.tep);
+      expect(Number(sau.dem.su_kien)).toBe(Number(truoc.dem.su_kien) + 1);
+
+      // 3. Và lý do từ chối của Trưởng bộ phận vẫn đọc được nguyên văn.
+      const nk = await nhatKy(d.id);
+      expect(nk.some((x) => x.action === 'TBP_REJECT')).toBe(true);
+      const lyDo = await withAdminDb(async (c) => {
+        const r = await c.query<{ reason: string }>(
+          `SELECT reason FROM pol.policy_event WHERE policy_id = $1 AND action = 'TBP_REJECT'`,
+          [d.id],
+        );
+        return r.rows[0]?.reason;
+      });
+      expect(lyDo).toBe('Chiet khau qua cao');
+    });
+
     it('`0039` TDV khác không xoá được hồ sơ Từ chối của người khác', async () => {
       const d = await draft();
       await act(d.id, 'SUBMIT', 'tdv01');
