@@ -785,11 +785,28 @@ async function main(): Promise<void> {
       effectiveFrom: homNay,
     });
   }
-  // Và một ngưỡng đổi, để box hiện được cả hai loại lệch chứ không chỉ loại giá.
+  // Và một ngưỡng đổi, để box hiện được cả loại lệch thứ hai chứ không chỉ giá.
   await goi(
     '/catalog/discount-rules/CK-SUA-L1',
     'admin01',
     { thresholdRate2: 1650, effectiveFrom: homNay },
+    'PATCH',
+  );
+
+  /*
+   * Và loại thứ BA: một sản phẩm bị vô hiệu hoá (`0036`).
+   *
+   * Chọn `NC-CAN-400` — nó nằm trong hồ sơ hàng loạt nhưng KHÔNG phải
+   * `NC-GOLD-900`, nên nó không đè lên hai loại lệch kia và box hiện đủ ba nhãn
+   * cạnh nhau. Đặt CUỐI CÙNG, sau mọi lần lập hồ sơ: vô hiệu hoá sớm hơn thì
+   * `POL-01` chặn chính những hồ sơ sắp dùng nó.
+   *
+   * `confirm` là mã vật tư — bắt buộc từ `0036` cho mọi thao tác phá huỷ.
+   */
+  await goi(
+    `/catalog/products/${sanPham['NC-CAN-400']!}`,
+    'admin01',
+    { status: 'DA_VO_HIEU_HOA', confirm: 'NC-CAN-400' },
     'PATCH',
   );
 

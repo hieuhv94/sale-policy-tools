@@ -2971,6 +2971,50 @@ describe('0029 box Yêu cầu cập nhật', () => {
     expect(gia!.newValue).toBe('175000');
   });
 
+  it('rà theo MỘT sản phẩm KHÔNG xoá dấu vết của sản phẩm khác cùng hồ sơ', async () => {
+    /*
+     * Lỗi có thật, và hỏng lặng lẽ.
+     *
+     * Lượt rà theo một sản phẩm cụ thể chỉ tính ra chênh lệch cho đúng sản phẩm
+     * ấy, rồi vòng dọn coi mọi dấu vết còn lại của cùng hồ sơ là "đã hết" và
+     * xoá sạch. Quản trị đổi giá sản phẩm A thì cảnh báo của sản phẩm B trên
+     * cùng hồ sơ biến mất, dù B vẫn đang lệch — không có gì báo, con số chỉ tụt.
+     *
+     * Trước `0036` lỗi bị che vì lượt rà cuối trong mọi đường đi đều là quét
+     * toàn bộ; thêm một lượt rà theo sản phẩm vào cuối là lộ ra ngay.
+     */
+    const a = await sanPhamNhomRieng('100000');
+    const b = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', {
+      customerId,
+      lines: [line(a.productId), line(b.productId)],
+    });
+    const maB = (d.body.lines as { productId: string; productCode: string }[]).find(
+      (x) => x.productId === b.productId,
+    )!.productCode;
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    // Lệch ở A trước.
+    await datGia(a.productId, '155000', '2020-02-01');
+    await raSoat(a.productId);
+    expect(
+      (await lech()).find((x) => x.id === d.body.id)?.lech.some((l) => l.kind === 'PRICE'),
+    ).toBe(true);
+
+    // Rồi một lượt rà CHỈ VỀ B. Dấu vết của A phải còn nguyên.
+    expect((await voHieuHoa(b.productId, maB)).status).toBe(200);
+    await raSoat(b.productId);
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'hồ sơ không được biến mất khỏi box').toBeDefined();
+    expect(
+      h!.lech.some((l) => l.kind === 'PRICE'),
+      `dấu vết của sản phẩm A bị xoá oan; còn lại: ${JSON.stringify(h!.lech)}`,
+    ).toBe(true);
+    expect(h!.lech.some((l) => l.kind === 'PRODUCT')).toBe(true);
+  });
+
   it('XOÁ quy định chiết khấu: ngưỡng về rỗng, và đó là một chênh lệch', async () => {
     const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
     const ma = uniq('CK');

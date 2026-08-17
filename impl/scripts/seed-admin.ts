@@ -58,14 +58,17 @@ const main = async () => {
     [TAI_KHOAN, THU, hash],
   );
 
-  // `user_node` có một dòng cho MỌI người dùng — `scope_user_ids` và
-  // `notify_targets` đều nối vào bảng này. Quản trị đứng ngoài cây nên
-  // `parent_id` là NULL, nhưng DÒNG thì phải có.
-  await db.query(
-    `INSERT INTO idn.user_node (user_id, parent_id) VALUES ($1, NULL)
-     ON CONFLICT (user_id) DO NOTHING`,
-    [r.rows[0]!.id],
-  );
+  /*
+   * KHÔNG còn bảng `idn.user_node` nào phải điền (`0031`).
+   *
+   * Bản trước chèn một dòng vào đó cho mọi người dùng, vì `scope_user_ids` và
+   * `notify_targets` đều nối vào bảng ấy. `0031` bỏ cây tổ chức và DROP luôn
+   * bảng — phạm vi giờ suy từ bốn cột người trên chính hồ sơ.
+   *
+   * Câu lệnh cũ nằm lại và làm `make demo` chết ngay ở bước cuối, sau khi đã
+   * dựng xong mười service: `relation "idn.user_node" does not exist`. Bộ test
+   * không bắt được vì nó dùng `seed.ts`, một script khác.
+   */
 
   await db.end();
   console.log(`seed-admin: xong — ${TAI_KHOAN} / ${MAT_KHAU}`);

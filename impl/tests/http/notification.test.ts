@@ -870,8 +870,37 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
       return r.rowCount === 1;
     }, 'policy chưa tiêu thụ xong catalog.changed');
 
-    const mails = await flush(1);
-    const m = await fullMail(mails[0]!.ID);
+    /*
+     * TÌM ĐÚNG LÁ THƯ CỦA HỒ SƠ NÀY, không lấy lá mới nhất.
+     *
+     * Nhóm sản phẩm riêng ở trên chỉ cô lập được phép KHỚP quy định. Việc RÀ thì
+     * không: đổi một quy định làm consumer quét TOÀN BỘ hồ sơ đã đóng băng — nó
+     * buộc phải quét, vì một quy định mới cụ thể hơn có thể thắng quy định mà hồ
+     * sơ đã chụp, mà hồ sơ không hề nhắc tới mã của nó. Trên CSDL dùng chung,
+     * phép quét ấy chạm cả hồ sơ của tệp test khác và sinh thư cho TDV khác.
+     *
+     * Vì thế "lá thư mới nhất là lá của tôi" luôn là một giả định mong manh —
+     * nó xanh nhờ may mắn về thứ tự, và đã đỏ một lần với địa chỉ `tdv02`. Lọc
+     * theo mã hồ sơ thì mọi khẳng định bên dưới giữ nguyên mà không phụ thuộc
+     * vào việc ai khác vừa nhận thư gì.
+     */
+    const maHoSo = hs.body.code as string;
+    let m!: Awaited<ReturnType<typeof fullMail>>;
+    await waitFor(async () => {
+      // BƠM outbox mỗi vòng, đúng như `flush()` vẫn làm. Bỏ bước này thì sự
+      // kiện nằm mãi trong `pol.outbox`: ca này đỏ vì không thấy thư, RỒI ca
+      // chạy sau đỏ theo vì lá thư ấy tới muộn và làm lệch phép đếm của nó.
+      await outbox.pumpOnce();
+      for (const x of await listMail()) {
+        const day = await fullMail(x.ID);
+        if (day.Text.includes(maHoSo)) {
+          m = day;
+          return true;
+        }
+      }
+      return false;
+    }, `không thấy thư nào nhắc tới hồ sơ ${maHoSo}`);
+
     expect(m.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
     expect(m.Subject).toContain('Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi');
     expect(m.Text).toContain('17.50');

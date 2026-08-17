@@ -270,6 +270,18 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
    * Xoá cũng quan trọng ngang ghi: Quản trị đổi giá rồi đổi trả lại thì hồ sơ
    * hết lệch, và một box còn treo cảnh báo đã hết hiệu lực là một box người dùng
    * sẽ học cách bỏ qua.
+   *
+   * NHƯNG CHỈ ĐỐI SOÁT NHỮNG SẢN PHẨM VỪA RÀ. Đây là chỗ đã hỏng thật, và hỏng
+   * lặng lẽ: lượt rà theo một sản phẩm cụ thể (`catalog.price_changed` và
+   * `catalog.changed` của sản phẩm đều mang `productId`) chỉ tính ra chênh lệch
+   * cho ĐÚNG sản phẩm ấy — rồi vòng dọn bên dưới coi mọi dấu vết còn lại của
+   * cùng hồ sơ là "đã hết" và xoá sạch. Hệ quả: Quản trị đổi giá sản phẩm A, và
+   * cảnh báo lệch của sản phẩm B trên cùng hồ sơ biến mất khỏi box, dù B vẫn
+   * đang lệch. Không có gì báo, con số chỉ tụt xuống.
+   *
+   * Trước `0036` lỗi này bị che vì lượt rà cuối cùng của bộ dữ liệu mẫu là một
+   * lượt QUÉT TOÀN BỘ (đổi quy định chiết khấu) — nó dựng lại mọi thứ vừa bị
+   * xoá. Thêm một lượt rà theo sản phẩm vào cuối là con số rơi thẳng về 0.
    */
   private async dongBoDauVet(
     c: PoolClient,
@@ -278,9 +290,12 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
     lech: Lech[],
   ): Promise<Lech[]> {
     const maTheoSanPham = new Map(cac.map((d) => [d.product_code_snap, d.product_id]));
+    // Phạm vi đối soát = đúng những dòng vừa được so ở lượt này.
+    const daRa = new Set(cac.map((d) => d.product_id));
     const dangCo = await c.query<{ product_id: string; kind: string }>(
-      `SELECT product_id, kind FROM pol.policy_impact WHERE policy_id = $1`,
-      [policyId],
+      `SELECT product_id, kind FROM pol.policy_impact
+        WHERE policy_id = $1 AND product_id = ANY($2::uuid[])`,
+      [policyId, [...daRa]],
     );
     const cu = new Set(dangCo.rows.map((r) => `${r.product_id}|${r.kind}`));
 
