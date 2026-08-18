@@ -14,8 +14,20 @@
  * Ẩn HẲN khi không có gì lệch, không hiện "không có gì". Đây là màn hình mở mỗi
  * sáng; một khối rỗng lặp lại mỗi ngày là khối người dùng ngừng nhìn, và đúng
  * hôm nó có nội dung thì họ cũng không nhìn.
+ *
+ * GẤP LẠI THEO TỪNG HỒ SƠ (`0049`). Bản trước trải hết mọi dòng lệch của mọi hồ
+ * sơ ra ngay trên trang tổng quan: mười hồ sơ, mỗi hồ sơ ba dòng, là ba mươi
+ * dòng số đẩy hộp việc xuống dưới màn hình. Giờ mỗi hồ sơ một dòng, bấm mới mở
+ * chi tiết.
+ *
+ * Nhưng dòng gấp lại VẪN mang nhãn LOẠI lệch, không chỉ mã hồ sơ. Đó là khác
+ * biệt giữa một danh sách quét được và một danh sách phải mở từng cái: *Sản
+ * phẩm* là điều khoản không thực hiện được, còn *Giá* lệch vài đồng thì duyệt
+ * tiếp cũng chẳng sao — giấu cả hai sau cùng một cú bấm là bắt người ta mở hết
+ * mười hồ sơ mới biết nên lo cái nào.
  */
-import { ngay, tien } from '../../lib/format.js';
+import { useState } from 'react';
+import { tien } from '../../lib/format.js';
 import { Lien } from '../../lib/router.js';
 import { Nhan } from '../Chung.js';
 import { PhanTrang } from '../PhanTrang.js';
@@ -72,6 +84,72 @@ const doc = (l: LechMuc, v: string | null): string => {
   return l.kind === 'PRICE' ? `${tien(v)} đ` : `${v.replace('.', ',')}%`;
 };
 
+/**
+ * Thứ tự đọc của nhãn loại trên dòng gấp lại: nặng nhất trước.
+ *
+ * Cùng thứ tự với thư báo (`catalog-impact.consumer.ts`) — một hồ sơ vừa mất
+ * sản phẩm vừa lệch giá thì thứ đáng nói trước là mất sản phẩm, ở cả hai chỗ.
+ */
+const THU_TU: LechMuc['kind'][] = ['PRODUCT', 'PRICE', 'RULE'];
+
+/** Một hồ sơ trong danh sách: gấp lại thì một dòng, mở ra thì kèm chi tiết. */
+function DongLech({ h }: { h: HoSoLech }) {
+  const [mo, datMo] = useState(false);
+  const loai = THU_TU.filter((k) => h.lech.some((l) => l.kind === k));
+
+  return (
+    <li className="viec">
+      <button
+        type="button"
+        className="viec-lien"
+        aria-expanded={mo}
+        onClick={() => datMo((x) => !x)}
+      >
+        <span className="viec-ma">{h.code}</span>
+        <Nhan trangThai={h.status} />
+        <span className="lech-tom-tat">
+          {loai.map((k) => (
+            <span key={k} className={`nhan-lech ${LOAI[k].lop}`}>
+              {LOAI[k].nhan}
+            </span>
+          ))}
+        </span>
+        <span className="viec-han">
+          {h.lech.length} điểm lệch
+        </span>
+        <span className="mui-ten" aria-hidden="true">
+          {mo ? '▲' : '▼'}
+        </span>
+      </button>
+
+      {mo && (
+        <div className="lech-chi-tiet">
+          {/* Nói RÕ lệch cái gì, từ đâu sang đâu. "Hồ sơ này bị ảnh hưởng" mà
+              không kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra,
+              rồi tự so — đúng cái việc box này sinh ra để khỏi phải làm. */}
+          <ul className="lech-muc">
+            {h.lech.map((l, i) => (
+              <li key={i}>
+                <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>{' '}
+                <span className="ma-phu">{l.productCode}</span>{' '}
+                <span className="so">{doc(l, l.snapValue)}</span>
+                {' → '}
+                <span className="so">{doc(l, l.newValue)}</span>
+              </li>
+            ))}
+          </ul>
+          {/* Liên kết nằm TRONG phần mở ra, vì dòng ngoài đã là nút gấp/mở. Một
+              hàng vừa đi tới địa chỉ khác vừa gấp mở theo chỗ bấm là hàng người
+              dùng bấm sai ít nhất một lần trước khi hiểu. */}
+          <Lien den={`/ho-so/${h.id}`} className="lien-mo-ho-so">
+            Mở hồ sơ →
+          </Lien>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function YeuCauCapNhat() {
   const { muc, tong, loi, trang, soTrang, doiTrang } = useTrangMay<HoSoLech>('/policies/impacted');
 
@@ -83,33 +161,12 @@ export function YeuCauCapNhat() {
   return (
     <Khoi tieuDe="Yêu cầu cập nhật">
       <p className="ghi-chu">
-        Những hồ sơ này đã <strong>đóng băng</strong> giá và ngưỡng, nhưng danh mục đã đổi từ lúc đó.
-        Số trên hồ sơ <strong>không tự cập nhật</strong> — đó là chủ ý, vì hồ sơ đang chờ chữ ký.
-        Xem rồi tự quyết định: trả lại để sửa, duyệt tiếp, hay lập một CSBH mới.
+        Danh mục đã đổi sau khi những hồ sơ này đóng băng giá và ngưỡng. Số trên hồ sơ{' '}
+        <strong>không tự cập nhật</strong> — bấm vào một hồ sơ để xem nó lệch những gì.
       </p>
       <ul className="danh-sach-viec">
         {muc.map((h) => (
-          <li key={h.id} className="viec">
-            <Lien den={`/ho-so/${h.id}`} className="viec-lien">
-              <span className="viec-ma">{h.code}</span>
-              <Nhan trangThai={h.status} />
-              <span className="viec-han">Áp dụng {ngay(h.appliedDate)}</span>
-            </Lien>
-            {/* Nói RÕ lệch cái gì, từ đâu sang đâu. "Hồ sơ này bị ảnh hưởng" mà
-                không kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra,
-                rồi tự so — đúng cái việc box này sinh ra để khỏi phải làm. */}
-            <ul className="lech-muc">
-              {h.lech.map((l, i) => (
-                <li key={i}>
-                  <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>{' '}
-                  <span className="ma-phu">{l.productCode}</span>{' '}
-                  <span className="so">{doc(l, l.snapValue)}</span>
-                  {' → '}
-                  <span className="so">{doc(l, l.newValue)}</span>
-                </li>
-              ))}
-            </ul>
-          </li>
+          <DongLech key={h.id} h={h} />
         ))}
       </ul>
       <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="hồ sơ" />

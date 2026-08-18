@@ -5295,3 +5295,45 @@ do chính ca kiểm thử "không khối nào nổ giữa chừng" bắt đượ
 vào hồ sơ còn ở *Nháp* nên nhận 403 — đỏ vì phạm vi chứ không vì cái cờ nó đang đo. Đổi sang `tdv01`,
 người luôn nằm trong phạm vi hồ sơ của chính mình ở mọi trạng thái. Đây là lần thứ hai trong hai đợt
 liên tiếp tôi dính đúng lỗi này.
+
+---
+
+## P59 — Box *Yêu cầu cập nhật* gấp lại theo từng hồ sơ
+
+Khách hàng: *"làm ngắn gọn lại, chỉ show danh sách hồ sơ, khi người dùng bấm vào mới show thông tin
+cụ thể tại sao cần cập nhật"*.
+
+Bản trước trải hết mọi dòng lệch của mọi hồ sơ ra ngay trên trang tổng quan. Mười hồ sơ, mỗi hồ sơ ba
+dòng, là ba mươi dòng số đẩy hộp việc xuống dưới màn hình — mà box này đứng TRƯỚC hộp việc chính vì
+nó phải được đọc trước khi ký.
+
+### Chỗ dễ cắt quá tay
+
+Cắt đúng chữ "chỉ hiện danh sách hồ sơ" thì dòng gấp lại còn mã hồ sơ và trạng thái. Nhưng khi ấy
+mười hồ sơ lệch trông **y hệt nhau**, và người dùng phải mở từng cái mới biết cái nào mất sản phẩm —
+một điều khoản không thực hiện được — với cái nào chỉ lệch giá vài đồng mà duyệt tiếp cũng chẳng sao.
+
+Nên dòng gấp lại **vẫn mang nhãn LOẠI** (*Sản phẩm* · *Giá* · *Ngưỡng*) và số điểm lệch, vẫn gọn
+trong một hàng. Cái được gấp lại là **con số**: sản phẩm nào, từ đâu sang đâu. Đó mới là phần dài.
+
+Nhãn **không lặp** khi một hồ sơ có nhiều dòng cùng loại, và xếp **nặng nhất trước** — cùng thứ tự
+với thư báo, để *Sản phẩm* không bao giờ đứng sau *Giá* ở bất kỳ chỗ nào trong sản phẩm.
+
+### Một hàng không được làm hai việc
+
+Dòng ngoài trước đây là `<Lien>` đi tới hồ sơ. Giờ nó là nút gấp/mở, nên liên kết chuyển **vào phần
+mở ra**. Không ghép cả hai lên một hàng: một hàng vừa đi tới địa chỉ khác vừa gấp mở tuỳ chỗ bấm là
+hàng người dùng bấm sai ít nhất một lần trước khi hiểu nó.
+
+Dùng lại đúng mẫu gấp/mở đã có ở `BangSanPham` (`<button aria-expanded>` + mũi tên ▼/▲) và lớp
+`button.viec-lien` đã có sẵn trong CSS — không dựng mẫu thứ hai cho cùng một cử chỉ.
+
+Câu dẫn ở đầu box rút từ ba câu xuống một, giữ lại đúng mệnh đề *"không tự cập nhật"* (có ca kiểm thử
+canh) và thêm lời mời bấm.
+
+### Kiểm chứng
+
+Ca cũ soi con số nay phải MỞ hồ sơ ra trước. Thêm bốn ca cho chính `0049`: dòng gấp lại có nhãn loại
+nhưng chưa có con số · nhãn không lặp mà số điểm lệch vẫn đếm đủ · *Sản phẩm* đứng trước *Giá* · bấm
+lần nữa thì gấp lại. Và một ca canh chỗ dễ mất nhất: **gấp lại thì chưa có liên kết, mở ra thì phải
+có** — mất nó thì box thành bảng thông báo cụt, biết hồ sơ nào lệch mà không có đường tới đó.

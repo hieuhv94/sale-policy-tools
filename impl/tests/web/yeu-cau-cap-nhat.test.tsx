@@ -7,9 +7,12 @@
  * ngưỡng — luật đúng, không ai được sửa văn bản đang chờ chữ ký — nên người sắp
  * ký vào nó không có cách nào biết con số đã lỗi thời. Mọi test dưới đây kiểm
  * đúng cái đó: người đọc box phải thấy CON SỐ, không phải một câu "bị ảnh hưởng".
+ *
+ * `0049` gấp chi tiết lại sau một cú bấm, nên phần lớn ca dưới đây phải MỞ hồ sơ
+ * ra trước khi soi con số. Cái không đổi: mở ra rồi thì con số vẫn phải ở đó.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { YeuCauCapNhat, type HoSoLech } from '@csbh/web/yeu-cau-cap-nhat';
 import { KHOI_THEO_VAI_TRO } from '@csbh/web/tong-quan';
 
@@ -56,6 +59,13 @@ const doiKhoi = async (): Promise<HTMLElement> =>
     return el as HTMLElement;
   });
 
+/** Chờ khối rồi BẤM MỞ hồ sơ đầu tiên — chi tiết gấp lại từ `0049`. */
+const moHoSoDau = async (): Promise<HTMLElement> => {
+  const khoi = await doiKhoi();
+  fireEvent.click(within(khoi).getAllByRole('button', { expanded: false })[0]!);
+  return khoi;
+};
+
 describe('0029 box hiện đúng thứ người đọc cần', () => {
   it('hiện mã hồ sơ và trạng thái của nó', async () => {
     chan(HO_SO);
@@ -63,10 +73,10 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     await waitFor(() => expect(screen.getByText('CSBH-2026-000123')).toBeDefined());
   });
 
-  it('nói RÕ lệch cái gì, từ đâu sang đâu — không chỉ "bị ảnh hưởng"', async () => {
+  it('mở ra rồi thì nói RÕ lệch cái gì, từ đâu sang đâu', async () => {
     chan(HO_SO);
     render(<YeuCauCapNhat />);
-    const khoi = await doiKhoi();
+    const khoi = await moHoSoDau();
     // Giá đọc theo tiền, ngưỡng đọc theo phần trăm — cùng một cột text ở CSDL.
     expect(within(khoi).getByText('615.000 đ')).toBeDefined();
     expect(within(khoi).getByText('680.000 đ')).toBeDefined();
@@ -81,12 +91,78 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     expect(document.querySelector('.nhan-lech.nguong')).not.toBeNull();
   });
 
+  it('`0049` dòng GẤP LẠI vẫn mang nhãn loại — quét được mà không phải mở', async () => {
+    /*
+     * Khẳng định chính của `0049`, và là chỗ dễ cắt quá tay nhất.
+     *
+     * "Chỉ hiện danh sách hồ sơ" mà cắt luôn nhãn loại thì mười hồ sơ lệch trông
+     * y hệt nhau, và người dùng phải mở từng cái mới biết cái nào mất sản phẩm
+     * (điều khoản không thực hiện được) với cái nào chỉ lệch giá vài đồng.
+     */
+    chan(HO_SO);
+    render(<YeuCauCapNhat />);
+    const khoi = await doiKhoi();
+    const tomTat = khoi.querySelector('.lech-tom-tat');
+    expect(tomTat, 'dòng gấp lại không có nhãn loại nào').not.toBeNull();
+    expect(tomTat!.textContent).toContain('Giá');
+    expect(tomTat!.textContent).toContain('Ngưỡng');
+
+    // Nhưng CON SỐ thì chưa hiện — đó mới là phần được gấp lại.
+    expect(within(khoi).queryByText('615.000 đ')).toBeNull();
+  });
+
+  it('`0049` nhãn loại KHÔNG lặp lại khi một hồ sơ lệch nhiều dòng cùng loại', async () => {
+    chan([
+      {
+        ...HO_SO[0]!,
+        lech: [
+          { kind: 'PRICE', productCode: 'A', snapValue: '1', newValue: '2' },
+          { kind: 'PRICE', productCode: 'B', snapValue: '3', newValue: '4' },
+        ],
+      },
+    ]);
+    render(<YeuCauCapNhat />);
+    const khoi = await doiKhoi();
+    expect(khoi.querySelectorAll('.lech-tom-tat .nhan-lech')).toHaveLength(1);
+    // Nhưng số điểm lệch vẫn đếm đủ hai.
+    expect(khoi.textContent).toContain('2 điểm lệch');
+  });
+
+  it('`0049` nhãn nặng nhất đứng trước — Sản phẩm trước Giá', async () => {
+    // Cùng thứ tự với thư báo: mất sản phẩm là điều khoản không thực hiện được,
+    // không cùng hạng với chênh lệch vài đồng.
+    chan([
+      {
+        ...HO_SO[0]!,
+        lech: [
+          { kind: 'PRICE', productCode: 'A', snapValue: '1', newValue: '2' },
+          { kind: 'PRODUCT', productCode: 'B', snapValue: 'Đang áp dụng', newValue: null },
+        ],
+      },
+    ]);
+    render(<YeuCauCapNhat />);
+    const khoi = await doiKhoi();
+    const nhan = [...khoi.querySelectorAll('.lech-tom-tat .nhan-lech')].map((e) => e.textContent);
+    expect(nhan).toEqual(['Sản phẩm', 'Giá']);
+  });
+
+  it('`0049` bấm lần nữa thì gấp lại', async () => {
+    chan(HO_SO);
+    render(<YeuCauCapNhat />);
+    const khoi = await moHoSoDau();
+    expect(within(khoi).getByText('615.000 đ')).toBeDefined();
+
+    fireEvent.click(within(khoi).getAllByRole('button', { expanded: true })[0]!);
+    expect(within(khoi).queryByText('615.000 đ')).toBeNull();
+  });
+
   it('không còn quy định nào thì nói THÀNH LỜI, không để ô trống', async () => {
     chan([{ ...HO_SO[0]!, lech: [
       { kind: 'RULE', productCode: 'NC-GOLD-900', snapValue: '15.00', newValue: null },
     ] }]);
     render(<YeuCauCapNhat />);
-    await waitFor(() => expect(screen.getByText(/không còn quy định nào/)).toBeDefined());
+    await moHoSoDau();
+    expect(screen.getByText(/không còn quy định nào/)).toBeDefined();
   });
 
   it('nói rõ hồ sơ KHÔNG tự cập nhật — nếu không người dùng sẽ chờ nó tự sửa', async () => {
@@ -96,10 +172,17 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     expect(khoi.textContent).toContain('không tự cập nhật');
   });
 
-  it('bấm vào dẫn thẳng tới hồ sơ', async () => {
+  it('`0049` mở ra rồi vẫn còn đường sang hồ sơ', async () => {
+    // Dòng ngoài giờ là nút gấp/mở, nên liên kết chuyển vào phần mở ra. Mất nó
+    // thì box này thành một bảng thông báo cụt: biết hồ sơ nào lệch mà không có
+    // cách nào tới đó.
     chan(HO_SO);
     render(<YeuCauCapNhat />);
-    const a = await waitFor(() => screen.getByRole('link') as HTMLAnchorElement);
+    const khoi = await doiKhoi();
+    expect(within(khoi).queryByRole('link'), 'gấp lại mà đã có liên kết').toBeNull();
+
+    fireEvent.click(within(khoi).getAllByRole('button', { expanded: false })[0]!);
+    const a = within(khoi).getByRole('link') as HTMLAnchorElement;
     expect(a.getAttribute('href')).toBe('/ho-so/hs-1');
   });
 });

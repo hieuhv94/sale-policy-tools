@@ -181,9 +181,13 @@ Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, 
 việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
 
 Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà nội dung trên hồ sơ
-**đã khác với danh mục hiện tại**. Mỗi dòng nói rõ: lệch cái gì, sản phẩm nào, **từ đâu sang đâu**.
+**đã khác với danh mục hiện tại**.
 
-Ba loại lệch, phân biệt bằng nhãn màu ở đầu dòng:
+**Mỗi hồ sơ một dòng.** Dòng ấy cho biết mã hồ sơ, trạng thái, **lệch loại gì** và bao nhiêu điểm
+lệch — đủ để quét cả danh sách mà không phải đọc số. **Bấm vào một dòng** thì nó mở ra: lệch ở sản
+phẩm nào, **từ đâu sang đâu**, kèm liên kết mở hồ sơ. Bấm lần nữa thì gấp lại.
+
+Ba loại lệch, phân biệt bằng nhãn màu — nhãn hiện ngay trên dòng gấp lại:
 
 | Nhãn | Nghĩa |
 |---|---|

@@ -471,6 +471,23 @@ textarea.o-nhap { min-height: 6rem; }
 
 /* Danh sách con NẰM TRONG một mục việc, thụt vào để mắt đọc ra quan hệ "hồ sơ
    này → những chỗ lệch của nó" mà không cần đường kẻ. */
+/* Dòng gấp lại của box Yêu cầu cập nhật (`0049`): nhãn loại nằm ngay trên hàng,
+   nên quét mười hồ sơ là biết nên mở cái nào — xem chú thích đầu component. */
+.lech-tom-tat { display: inline-flex; flex-wrap: wrap; gap: var(--k1); }
+
+.lech-chi-tiet {
+  padding: 0 var(--k4) var(--k3);
+  border-top: 1px solid var(--mau-vien);
+  margin-top: var(--k1);
+  padding-top: var(--k3);
+}
+.lien-mo-ho-so {
+  display: inline-block;
+  margin-top: var(--k2);
+  font-size: var(--chu-nho);
+  font-weight: 600;
+}
+
 .lech-muc {
   list-style: none;
   margin: var(--k2) 0 0;
