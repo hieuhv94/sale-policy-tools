@@ -4880,3 +4880,43 @@ bốn ca cho bốn đường thu hồi — mỗi ca dùng một tài khoản t�
 mượn `tdv01` thì ca chạy sau mất phiên vì lý do chẳng liên quan.
 
 **1056/1056 xanh.**
+
+---
+
+## P53 — Token xoay vòng phải được ghi lại, nếu không phiên chết khi mở lại trình duyệt
+
+Nhãn `0043`. Đây là lỗi CHẶN yêu cầu "tắt trình duyệt bật lại vẫn giữ phiên" mà `0042` một mình chưa
+làm được.
+
+### Lỗi
+
+`lamMoiToken()` ở `api.ts` cập nhật biến `phien` TRONG BỘ NHỚ sau mỗi lần xoay vòng, và không ghi
+xuống kho. Chuỗi sự việc:
+
+1. Đăng nhập → kho lưu `R1`.
+2. Mười lăm phút sau, một lời gọi nhận 401 → làm mới → máy chủ đánh dấu `R1` đã dùng, trả về `R2`.
+   Bộ nhớ giữ `R2`, **kho vẫn giữ `R1`**.
+3. Người dùng đóng trình duyệt.
+4. Mở lại → nạp `R1` từ kho → lời gọi đầu 401 → gửi `R1` lên làm mới.
+5. Máy chủ thấy `used_at IS NOT NULL` → `REFRESH_REUSED` → **thu hồi CẢ HỌ**.
+
+Kết cục tệ gấp đôi việc chỉ mất phiên: người dùng vừa phải đăng nhập lại, vừa mất luôn phiên đang mở
+ở máy khác — vì phép phát hiện đánh cắp làm đúng việc của nó với một tín hiệu mà chính giao diện tạo
+ra.
+
+Trước `0042` lỗi này gần như vô hình: phiên nằm ở `sessionStorage` và chết theo tab, nên hiếm khi có
+ai mở lại với một token đã lưu. Đúng lúc phiên phải sống qua việc đóng trình duyệt thì nó lộ ra.
+
+### Sửa
+
+Thêm móc `dangKyLuuPhien(fn)` ở `api.ts`, gọi ngay sau khi xoay vòng thành công. `auth.tsx` đăng ký
+một hàm ghi cặp token mới đè lên bản lưu, giữ nguyên phần `user` — lời gọi làm mới chỉ trả về hai
+token, không trả hồ sơ người dùng.
+
+### Test
+
++2 ca. Ca thứ hai dựng đúng kịch bản người dùng mô tả: **đăng nhập · làm việc · tắt trình duyệt · bật
+lại**, trong đó "tắt trình duyệt" là xoá phiên trong bộ nhớ rồi nạp lại từ kho — đúng những gì
+`PhienProvider` làm lúc khởi động. Máy chủ giả từ chối token đã dùng, nên ca này đỏ trước `0043`.
+
+**1058/1058 xanh.**

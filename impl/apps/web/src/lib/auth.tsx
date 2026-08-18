@@ -11,7 +11,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dang, dangKyHetPhien, datPhien, goi, layPhien } from './api.js';
+import { dang, dangKyHetPhien, dangKyLuuPhien, datPhien, goi, layPhien } from './api.js';
 import { xoaHetNhap } from './nhap-tam.js';
 
 export type NguoiDung = {
@@ -93,6 +93,27 @@ export function PhienProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     dangKyHetPhien(() => datHetHan(true));
+
+    /*
+     * Ghi lại phiên sau MỖI lần xoay vòng token (`0043`).
+     *
+     * Refresh token chỉ dùng được một lần. Không ghi lại thì bản lưu mang mãi
+     * token của lần đăng nhập, và lần mở trình duyệt kế tiếp gửi lên một token
+     * đã dùng — máy chủ đọc ra là bị đánh cắp và thu hồi cả họ.
+     *
+     * Giữ nguyên phần `user` đang lưu: lời gọi làm mới chỉ trả về hai token,
+     * không trả về hồ sơ người dùng.
+     */
+    dangKyLuuPhien((p) => {
+      try {
+        const s = KHO().getItem(KHOA);
+        if (!s) return;
+        const cu = JSON.parse(s) as KetQuaDangNhap;
+        KHO().setItem(KHOA, JSON.stringify({ ...cu, ...p }));
+      } catch {
+        /* không lưu được thì phiên chỉ sống tới lúc đóng trình duyệt */
+      }
+    });
   }, []);
 
   const luu = useCallback((kq: KetQuaDangNhap) => {

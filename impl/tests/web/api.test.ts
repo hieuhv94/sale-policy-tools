@@ -7,7 +7,15 @@
  * cả hai đều khó thử bằng tay nên rất dễ làm sai mà không ai biết.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LoiApi, dangKyHetPhien, datPhien, goi, guiTep, taiVe } from '@csbh/web/api';
+import {
+  LoiApi,
+  dangKyHetPhien,
+  dangKyLuuPhien,
+  datPhien,
+  goi,
+  guiTep,
+  taiVe,
+} from '@csbh/web/api';
 
 const phanHoi = (status: number, body: unknown, headers: Record<string, string> = {}) =>
   new Response(status === 204 ? null : JSON.stringify(body), {
@@ -18,6 +26,8 @@ const phanHoi = (status: number, body: unknown, headers: Record<string, string> 
 afterEach(() => {
   vi.unstubAllGlobals();
   datPhien(null);
+  // Gỡ móc ghi phiên: ca sau không được nhận vào mảng của ca trước (`0043`).
+  dangKyLuuPhien(() => undefined);
 });
 
 describe('FE-32 mất mạng giữa chừng', () => {
@@ -214,5 +224,98 @@ describe('tải file xuống — mang theo token', () => {
     const loi = (await taiVe('/policies/p1/contract.pdf', 'x.pdf').catch((e: unknown) => e)) as LoiApi;
     expect(loi).toBeInstanceOf(LoiApi);
     expect(loi.status).toBe(403);
+  });
+});
+
+// =============================================================================
+// `0043` — token xoay vòng phải được GHI LẠI
+//
+// Refresh token dùng được đúng một lần: máy chủ xoay sang token mới ngay lần làm
+// mới đầu tiên. Không ghi lại thì bản lưu mang mãi token của lần đăng nhập, và
+// lần MỞ LẠI TRÌNH DUYỆT kế tiếp gửi lên một token đã dùng — máy chủ đọc ra là
+// bị đánh cắp, thu hồi cả họ, người dùng vừa bị bắt đăng nhập lại vừa mất luôn
+// phiên ở máy khác.
+//
+// Trước `0042` lỗi gần như vô hình vì phiên chết theo tab. Từ lúc phiên phải
+// sống qua việc đóng trình duyệt thì nó thành đúng thứ chặn yêu cầu ấy.
+// =============================================================================
+
+describe('`0043` giữ phiên qua việc tắt rồi bật lại trình duyệt', () => {
+  it('token mới sau mỗi lần làm mới được ghi lại ngay', async () => {
+    const daLuu: { accessToken: string; refreshToken: string }[] = [];
+    dangKyLuuPhien((p) => daLuu.push(p));
+    datPhien({ accessToken: 'A1', refreshToken: 'R1' });
+
+    let daGoiLamMoi = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((duong: unknown, tuyChon?: { body?: unknown }) => {
+        const d = String(duong);
+        if (d.endsWith('/auth/refresh')) {
+          // Máy chủ nhận token CŨ và trả về một cặp MỚI — đúng phép xoay vòng.
+          expect(JSON.parse(String(tuyChon?.body)).refreshToken).toBe('R1');
+          daGoiLamMoi = true;
+          return Promise.resolve(phanHoi(200, { accessToken: 'A2', refreshToken: 'R2' }));
+        }
+        // Lời gọi đầu 401 (access token đã hết hạn), lời gọi sau thành công.
+        return Promise.resolve(
+          daGoiLamMoi ? phanHoi(200, { ok: true }) : phanHoi(401, { code: 'TOKEN_EXPIRED' }),
+        );
+      }),
+    );
+
+    await goi('/policies');
+
+    expect(daGoiLamMoi, 'phải thử làm mới trước khi bỏ cuộc').toBe(true);
+    expect(daLuu, 'token xoay vòng phải được ghi lại').toEqual([
+      { accessToken: 'A2', refreshToken: 'R2' },
+    ]);
+  });
+
+  it('KỊCH BẢN THẬT: đăng nhập · làm việc · tắt trình duyệt · bật lại', async () => {
+    /*
+     * Đây là ca dựng đúng thứ người dùng làm, và là ca đỏ trước `0043`.
+     *
+     * "Tắt trình duyệt" mô phỏng bằng cách xoá phiên trong bộ nhớ rồi nạp lại từ
+     * kho — đúng những gì `PhienProvider` làm lúc khởi động.
+     */
+    const kho = new Map<string, string>();
+    dangKyLuuPhien((p) => kho.set('phien', JSON.stringify(p)));
+
+    // 1. Đăng nhập: lưu R1.
+    kho.set('phien', JSON.stringify({ accessToken: 'A1', refreshToken: 'R1' }));
+    datPhien({ accessToken: 'A1', refreshToken: 'R1' });
+
+    // 2. Làm việc một lúc — access token hết hạn, hệ thống tự làm mới sang R2.
+    let daXoay = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((duong: unknown, tuyChon?: { body?: unknown }) => {
+        const d = String(duong);
+        if (d.endsWith('/auth/refresh')) {
+          const gui = JSON.parse(String(tuyChon?.body)).refreshToken as string;
+          // Token đã dùng thì máy chủ TỪ CHỐI — đây là phép phát hiện đánh cắp.
+          if (gui !== 'R1') return Promise.resolve(phanHoi(401, { code: 'REFRESH_REUSED' }));
+          daXoay = true;
+          return Promise.resolve(phanHoi(200, { accessToken: 'A2', refreshToken: 'R2' }));
+        }
+        return Promise.resolve(daXoay ? phanHoi(200, { ok: true }) : phanHoi(401, {}));
+      }),
+    );
+    await goi('/policies');
+    expect(daXoay).toBe(true);
+
+    // 3. TẮT TRÌNH DUYỆT: bộ nhớ mất, chỉ còn thứ đã ghi vào kho.
+    datPhien(null);
+
+    // 4. BẬT LẠI: nạp phiên từ kho, đúng như lúc khởi động.
+    const luuTru = JSON.parse(kho.get('phien')!) as {
+      accessToken: string;
+      refreshToken: string;
+    };
+    expect(luuTru.refreshToken, 'kho phải giữ token MỚI, không phải token lúc đăng nhập').toBe(
+      'R2',
+    );
+    datPhien(luuTru);
   });
 });

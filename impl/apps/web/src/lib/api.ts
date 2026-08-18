@@ -50,6 +50,7 @@ type Phien = { accessToken: string; refreshToken: string };
 
 let phien: Phien | null = null;
 let khiHetPhien: (() => void) | null = null;
+let luuPhien: ((p: Phien) => void) | null = null;
 let phienBanMoi: ((v: string) => void) | null = null;
 
 export const datPhien = (p: Phien | null): void => {
@@ -58,6 +59,23 @@ export const datPhien = (p: Phien | null): void => {
 export const layPhien = (): Phien | null => phien;
 export const dangKyHetPhien = (fn: () => void): void => {
   khiHetPhien = fn;
+};
+
+/**
+ * Ghi lại phiên sau mỗi lần XOAY VÒNG token (`0043`).
+ *
+ * Thiếu bước này thì `localStorage` giữ mãi refresh token của LẦN ĐĂNG NHẬP,
+ * trong khi máy chủ đã xoay sang token khác ngay lần làm mới đầu tiên. Hệ quả
+ * chỉ lộ ra sau khi ĐÓNG rồi MỞ LẠI trình duyệt: bản lưu mang một token đã dùng,
+ * máy chủ nhận ra là "dùng lại" — dấu hiệu bị đánh cắp — và thu hồi CẢ HỌ, nên
+ * người dùng vừa bị bắt đăng nhập lại vừa mất luôn phiên ở máy khác.
+ *
+ * Trước `0042` lỗi này gần như vô hình vì phiên nằm ở `sessionStorage` và chết
+ * theo tab. Từ lúc phiên phải sống qua việc đóng trình duyệt thì nó thành đúng
+ * thứ chặn yêu cầu ấy.
+ */
+export const dangKyLuuPhien = (fn: (p: Phien) => void): void => {
+  luuPhien = fn;
 };
 export const dangKyPhienBan = (fn: (v: string) => void): void => {
   phienBanMoi = fn;
@@ -91,6 +109,8 @@ async function lamMoiToken(): Promise<boolean> {
         });
         if (!res.ok) return false;
         phien = (await res.json()) as Phien;
+        // GHI LẠI NGAY, không đợi tới lần đăng nhập sau. Xem `dangKyLuuPhien`.
+        luuPhien?.(phien);
         return true;
       } catch {
         return false;
