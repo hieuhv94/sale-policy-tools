@@ -5550,3 +5550,42 @@ hàng trong file test đều dùng chung một tên. Ca chuyển sang đỏ vì 
 Sửa đúng chỗ hỏng: **dọn hộp thư lặp lại cho tới khi một lượt dọn không nhặt được gì mới**. Đó là dấu
 hiệu duy nhất đáng tin rằng không còn lá nào trên đường, và nó không đụng tới điều ca ấy muốn khẳng
 định.
+
+---
+
+## P64 — Gọi đúng tên "QĐ chiết khấu", và dựng chi tiết lệch thành bảng
+
+### Đổi tên loại lệch `RULE`
+
+"Ngưỡng" → **"QĐ chiết khấu"**. Thứ đã đổi là **quy định** chiết khấu; ngưỡng chỉ là con số nó sinh
+ra. Gọi theo con số thì người đọc đi tìm một trường tên "ngưỡng" để sửa, mà cái sửa được nằm ở màn
+hình *Danh mục ▸ Quy định chiết khấu*.
+
+Đổi ở **cả ba chỗ** cùng lúc: box *Yêu cầu cập nhật*, khối cảnh báo trên màn hình hồ sơ (`0050` dùng
+chung một component nên đi theo), và **nhãn trong thư báo** (`catalog-impact.consumer.ts`). Sót chỗ
+thứ ba thì lá thư nói "Ngưỡng" còn màn hình nói "QĐ chiết khấu" về cùng một dòng dữ liệu — đúng loại
+lệch mấy đợt vừa rồi phải đi dọn.
+
+Viết tắt "QĐ" chứ không "Quy định": dạng đầy đủ đẩy cột đầu rộng gấp đôi cột giá trị. Bảng dòng sản
+phẩm đã dùng "QĐCK" cho cùng khái niệm.
+
+### Chi tiết lệch thành bảng
+
+Bản trước xếp bốn mẩu trên **một dòng chảy**: `[nhãn] mã-sp giá-cũ → giá-mới`. Nhãn dài ngắn khác
+nhau nên mã sản phẩm và con số bắt đầu ở một cột khác nhau trên mỗi dòng — đọc ba dòng thì mắt phải
+dò lại từ đầu ba lần, mà đây đúng là chỗ người ta cần **so con số theo cột**.
+
+Giờ là bảng bốn cột: *Lệch ở · Sản phẩm · Trên hồ sơ · Danh mục hiện tại*. Hai giá trị nằm ở hai cột
+riêng thay vì hai mẩu chữ nối bằng mũi tên.
+
+Dùng lại lớp `bang` và `khung-cuon` của các bảng khác trong sản phẩm — cuộn ngang được trên điện
+thoại, và đọc quen một bảng là quen mọi bảng. Thêm `white-space: nowrap` cho nhãn: "QĐ chiết khấu" đủ
+dài để bị ngắt dòng trong một ô hẹp, và một cái nhãn hai dòng trông như hai nhãn.
+
+Dọn luôn `.lech-muc` — không component nào còn dùng, và CSS chết là thứ người sau sẽ tưởng còn sống.
+
+### Kiểm chứng
+
+Ba ca mới: nhãn `RULE` đọc ra "QĐ chiết khấu" **và không còn chữ "Ngưỡng"** · chi tiết là `table` với
+đúng bốn tiêu đề cột · một hàng cho ra đúng bốn ô `['Giá', 'NC-GOLD-900', '615.000 đ', '680.000 đ']`
+· bảng nằm trong `.khung-cuon` để còn cuộn được trên điện thoại.

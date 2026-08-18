@@ -106,7 +106,7 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     const tomTat = khoi.querySelector('.lech-tom-tat');
     expect(tomTat, 'dòng gấp lại không có nhãn loại nào').not.toBeNull();
     expect(tomTat!.textContent).toContain('Giá');
-    expect(tomTat!.textContent).toContain('Ngưỡng');
+    expect(tomTat!.textContent).toContain('QĐ chiết khấu');
 
     // Nhưng CON SỐ thì chưa hiện — đó mới là phần được gấp lại.
     expect(within(khoi).queryByText('615.000 đ')).toBeNull();
@@ -145,6 +145,53 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     const khoi = await doiKhoi();
     const nhan = [...khoi.querySelectorAll('.lech-tom-tat .nhan-lech')].map((e) => e.textContent);
     expect(nhan).toEqual(['Sản phẩm', 'Giá']);
+  });
+
+  it('`0054` loại RULE gọi là "QĐ chiết khấu", không phải "Ngưỡng"', async () => {
+    /*
+     * Thứ đã đổi là **quy định** chiết khấu; ngưỡng chỉ là con số nó sinh ra.
+     * Gọi theo con số thì người đọc đi tìm một trường tên "ngưỡng" để sửa, mà
+     * cái sửa được nằm ở màn hình *Danh mục ▸ Quy định chiết khấu*.
+     */
+    chan([{ ...HO_SO[0]!, lech: [
+      { kind: 'RULE', productCode: 'NC-GOLD-900', snapValue: '15.00', newValue: '18.00' },
+    ] }]);
+    render(<YeuCauCapNhat />);
+    const khoi = await moHoSoDau();
+    expect(khoi.textContent).toContain('QĐ chiết khấu');
+    expect(khoi.textContent, 'vẫn còn tên cũ').not.toContain('Ngưỡng');
+  });
+
+  it('`0054` chi tiết lệch dựng thành BẢNG, các cột thẳng hàng', async () => {
+    /*
+     * Bản trước xếp bốn mẩu trên một dòng chảy, nên mã sản phẩm và con số bắt
+     * đầu ở một cột khác nhau trên mỗi dòng — đọc ba dòng thì mắt phải dò lại từ
+     * đầu ba lần, mà đây đúng là chỗ người ta cần so con số theo cột.
+     */
+    chan([{ ...HO_SO[0]!, lech: [
+      { kind: 'PRICE', productCode: 'NC-GOLD-900', snapValue: '615000', newValue: '680000' },
+      { kind: 'RULE', productCode: 'NC-BONE-900', snapValue: '15.00', newValue: '18.00' },
+    ] }]);
+    render(<YeuCauCapNhat />);
+    const khoi = await moHoSoDau();
+
+    const bang = khoi.querySelector('table.bang-lech');
+    expect(bang, 'chi tiết lệch không phải bảng').not.toBeNull();
+    expect([...bang!.querySelectorAll('thead th')].map((e) => e.textContent)).toEqual([
+      'Lệch ở',
+      'Sản phẩm',
+      'Trên hồ sơ',
+      'Danh mục hiện tại',
+    ]);
+
+    const dong = [...bang!.querySelectorAll('tbody tr')];
+    expect(dong).toHaveLength(2);
+    // Giá trị cũ và mới nằm ở HAI CỘT, không phải hai mẩu chữ cách nhau bằng mũi tên.
+    const o = [...dong[0]!.querySelectorAll('td')].map((e) => e.textContent);
+    expect(o).toEqual(['Giá', 'NC-GOLD-900', '615.000 đ', '680.000 đ']);
+
+    // Bảng phải cuộn ngang được trên điện thoại, như mọi bảng khác trong sản phẩm.
+    expect(bang!.closest('.khung-cuon'), 'bảng không bọc trong khung cuộn').not.toBeNull();
   });
 
   it('`0049` bấm lần nữa thì gấp lại', async () => {

@@ -62,7 +62,11 @@ const NHAN_TRANG_THAI_SP: Record<string, string> = {
 
 const NHAN_LOAI: Record<Lech['kind'], string> = {
   PRICE: 'Giá',
-  RULE: 'Ngưỡng',
+  // "QĐ chiết khấu", không phải "Ngưỡng" (`0054`) — cùng tên với box *Yêu cầu
+  // cập nhật* và khối cảnh báo trên màn hình hồ sơ. Thứ đã đổi là quy định;
+  // ngưỡng chỉ là con số nó sinh ra, và gọi theo con số thì người nhận thư đi
+  // tìm một trường không tồn tại.
+  RULE: 'QĐ chiết khấu',
   PRODUCT: 'Sản phẩm',
 };
 

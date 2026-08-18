@@ -487,7 +487,15 @@ textarea.o-nhap { min-height: 6rem; }
   background: var(--mau-canh-bao-nen);
 }
 .canh-bao-lech .ghi-chu { margin: var(--k1) 0 var(--k2); }
-.canh-bao-lech .lech-muc { padding-left: 0; }
+.canh-bao-lech /* Bảng chênh lệch (`0054`) — gọn hơn `.bang` thường vì nó nằm LỒNG trong một
+   khối cảnh báo hoặc một hàng đang mở, không phải một bảng chiếm cả màn hình. */
+.bang-lech { font-size: var(--chu-nho); }
+.bang-lech th, .bang-lech td { padding: var(--k1) var(--k3); }
+.bang-lech th:first-child, .bang-lech td:first-child { padding-left: 0; }
+/* Hai cột giá trị đọc theo chiều dọc để so nhanh — cùng lý do với mọi cột số
+   khác trong sản phẩm. */
+.bang-lech .so { font-family: var(--so-deu-cot); }
+
 
 .lech-chi-tiet {
   padding: 0 var(--k4) var(--k3);
@@ -502,23 +510,18 @@ textarea.o-nhap { min-height: 6rem; }
   font-weight: 600;
 }
 
-.lech-muc {
-  list-style: none;
-  margin: var(--k2) 0 0;
-  padding: 0 0 0 var(--k4);
-  font-size: var(--chu-nho);
-  color: var(--mau-chu-phu);
-}
-.lech-muc li + li { margin-top: 2px; }
-.lech-muc .so { font-weight: 600; color: var(--mau-chu); }
 
-/* Ba loại chênh lệch, ba màu. Giá và Ngưỡng KHÔNG dùng màu lỗi: hồ sơ lệch
-   không phải hồ sơ sai, và tô đỏ nó là bảo người dùng đi chữa một thứ chưa
+/* Ba loại chênh lệch, ba màu. Giá và QĐ chiết khấu KHÔNG dùng màu lỗi: hồ sơ
+   lệch không phải hồ sơ sai, và tô đỏ nó là bảo người dùng đi chữa một thứ chưa
    hỏng. `Sản phẩm` thì CÓ (`0036`) — mặt hàng không còn bán được là một điều
    khoản không thực hiện được, không phải một chênh lệch để cân nhắc. */
 .nhan-lech {
   display: inline-block;
+  /* Chiều rộng tối thiểu để ba nhãn xếp thẳng cột khi đứng cạnh nhau ở dòng gấp
+     lại. `white-space: nowrap` vì "QĐ chiết khấu" (`0054`) đủ dài để bị ngắt
+     dòng trong một ô bảng hẹp, và một cái nhãn hai dòng trông như hai nhãn. */
   min-width: 4.5em;
+  white-space: nowrap;
   padding: 0 var(--k1);
   border-radius: 3px;
   font-size: var(--chu-rat-nho);

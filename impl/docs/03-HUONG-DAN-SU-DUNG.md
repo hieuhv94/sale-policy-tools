@@ -199,8 +199,11 @@ Ba loại lệch, phân biệt bằng nhãn màu — nhãn hiện ngay trên dò
 | Nhãn | Nghĩa |
 |---|---|
 | **Giá** | Giá bán Công ty của sản phẩm đã đổi |
-| **Ngưỡng** | Quy định chiết khấu áp cho dòng đó đã đổi, hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
+| **QĐ chiết khấu** | Quy định chiết khấu áp cho dòng đó đã đổi, hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
 | **Sản phẩm** | Sản phẩm **đã bị vô hiệu hoá**, hoặc **đã bị xoá** khỏi danh mục |
+
+Chi tiết dựng thành **bảng bốn cột** — *Lệch ở · Sản phẩm · Trên hồ sơ · Danh mục hiện tại* — để con
+số cũ và mới nằm thẳng cột mà so, thay vì trôi trên một dòng chữ.
 
 Nhãn **Sản phẩm** tô đỏ, hai nhãn kia thì không — và đó là chủ ý. Lệch vài đồng là chuyện để cân
 nhắc; còn một CSBH đang có hiệu lực cho mặt hàng không còn bán nữa là **một điều khoản không thực

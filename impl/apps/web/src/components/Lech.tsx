@@ -25,7 +25,17 @@ export type LechMuc = {
  */
 export const LOAI: Record<LechMuc['kind'], { nhan: string; lop: string }> = {
   PRICE: { nhan: 'Giá', lop: 'gia' },
-  RULE: { nhan: 'Ngưỡng', lop: 'nguong' },
+  /*
+   * "QĐ chiết khấu", KHÔNG phải "Ngưỡng" (`0054`).
+   *
+   * Thứ đã đổi là **quy định** chiết khấu; ngưỡng chỉ là con số nó sinh ra. Gọi
+   * theo con số thì người đọc đi tìm một trường tên "ngưỡng" để sửa, mà cái sửa
+   * được nằm ở màn hình *Danh mục ▸ Quy định chiết khấu*.
+   *
+   * Viết tắt "QĐ" cho vừa một hàng: dạng đầy đủ đẩy cột đầu rộng gấp đôi cột giá
+   * trị. Bảng dòng sản phẩm đã dùng "QĐCK" cho cùng khái niệm này.
+   */
+  RULE: { nhan: 'QĐ chiết khấu', lop: 'nguong' },
   PRODUCT: { nhan: 'Sản phẩm', lop: 'san-pham' },
 };
 
@@ -78,19 +88,39 @@ export function TomTatLech({ lech }: { lech: LechMuc[] }) {
  *
  * "Hồ sơ này bị ảnh hưởng" mà không kèm con số thì người đọc phải mở hồ sơ ra,
  * mở danh mục ra, rồi tự so — đúng cái việc phần này sinh ra để khỏi phải làm.
+ *
+ * BẢNG chứ không phải danh sách (`0054`). Bản trước xếp bốn mẩu trên một dòng
+ * chảy, nên mã sản phẩm và con số bắt đầu ở một cột khác nhau trên mỗi dòng —
+ * đọc ba dòng thì mắt phải dò lại từ đầu ba lần, mà đây đúng là chỗ người ta cần
+ * so con số theo cột. Dùng lại lớp `bang` và `khung-cuon` của các bảng khác
+ * trong sản phẩm: cuộn ngang được trên điện thoại, và đọc quen một bảng là quen
+ * mọi bảng.
  */
 export function DanhSachLech({ lech }: { lech: LechMuc[] }) {
   return (
-    <ul className="lech-muc">
-      {lech.map((l, i) => (
-        <li key={i}>
-          <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>{' '}
-          <span className="ma-phu">{l.productCode}</span>{' '}
-          <span className="so">{doc(l, l.snapValue)}</span>
-          {' → '}
-          <span className="so">{doc(l, l.newValue)}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="khung-cuon" role="region" aria-label="Chênh lệch so với danh mục" tabIndex={0}>
+      <table className="bang bang-lech">
+        <thead>
+          <tr>
+            <th>Lệch ở</th>
+            <th>Sản phẩm</th>
+            <th>Trên hồ sơ</th>
+            <th>Danh mục hiện tại</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lech.map((l, i) => (
+            <tr key={i}>
+              <td>
+                <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>
+              </td>
+              <td className="ma-phu">{l.productCode}</td>
+              <td className="so">{doc(l, l.snapValue)}</td>
+              <td className="so">{doc(l, l.newValue)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
