@@ -431,7 +431,7 @@ describe('NTF-11 xử lý sau khi hồ sơ đã quá hạn', () => {
     expect(signed.status).toBe(200);
 
     const row = await policyRow(id);
-    // Sau khi ký, hệ thống tự chuyển sang Chờ Kế toán L1 (WF-09) — đúng bước kế
+    // Sau khi ký, hệ thống tự chuyển sang KT duyệt bản mềm (WF-09) — đúng bước kế
     // tiếp của nhánh cũ, không phải quay về Nháp.
     expect(row.status).toBe('CHO_KT_L1');
     expect(row.pending_step).toBeNull();

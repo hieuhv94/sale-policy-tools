@@ -1030,3 +1030,169 @@ describe('Read-model đồng bộ đúng khi sự kiện giao lại hoặc hồ 
     expect(norm('  NHÀ   THUỐC  ')).toBe('nha thuoc');
   });
 });
+
+/**
+ * `0045` — hai thẻ của Sale Admin, và hồ sơ quá hạn không được biến mất.
+ *
+ * Cả nhóm này kiểm đúng MỘT tính chất, ở hai chỗ khác nhau của nó: **con số trên
+ * thẻ và danh sách mà bấm vào thẻ mở ra phải là cùng một tập hồ sơ**. Lệch nhau
+ * thì không có lỗi nào nổi lên — người dùng chỉ thấy một ô ghi 12 mở ra 9 dòng,
+ * và tự nghi ngờ mình đếm sai.
+ */
+describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', () => {
+  /** Hồ sơ đang nằm trên bàn Sale Admin ở bước B8, chưa ai bắt in lại. */
+  async function toiSaleAdmin(): Promise<string> {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    await flushSync([d.id]);
+    return d.id;
+  }
+
+  /** Đưa hồ sơ tới bàn kế toán lần 2 — cần bản scan mới bàn giao được (WF-14). */
+  async function toiKeToanL2(id: string): Promise<void> {
+    expect(
+      (
+        await ppost(
+          `/policies/${id}/attachments`,
+          { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: uniq('scan') },
+          'sa01',
+        )
+      ).status,
+    ).toBe(201);
+    expect((await act(id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    await flushSync([id]);
+  }
+
+  const moc = (id: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ a: string | null; b: string | null }>(
+        `SELECT p.reprint_requested_at AS a, r.reprint_requested_at AS b
+           FROM pol.policy p LEFT JOIN rpt.policy_row r ON r.policy_id = p.id
+          WHERE p.id = $1`,
+        [id],
+      );
+      return r.rows[0]!;
+    });
+
+  it('yêu cầu in lại đặt mốc, bàn giao lại xoá mốc', async () => {
+    const id = await toiSaleAdmin();
+    expect((await moc(id)).a, 'chưa ai bắt in lại mà đã có mốc').toBeNull();
+
+    await toiKeToanL2(id);
+    expect((await act(id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Bản in mờ' })).status).toBe(200);
+    await flushSync([id]);
+
+    const sau = await moc(id);
+    expect(sau.a, 'nguồn chưa ghi mốc in lại').not.toBeNull();
+    expect(sau.b, 'read-model chưa chép mốc sang').not.toBeNull();
+
+    // Bàn giao lại: hồ sơ rời bàn Sale Admin, mốc phải mất theo. Còn lại thì lần
+    // sau hồ sơ quay về B8 vì lý do khác vẫn bị gắn nhãn đỏ "Lỗi bản cứng".
+    await toiKeToanL2(id);
+    expect((await moc(id)).a, 'bàn giao rồi mà mốc còn').toBeNull();
+  });
+
+  it('hai nửa của B8 tách ra hai ô đếm riêng', async () => {
+    const thuong = await toiSaleAdmin();
+    const inLai = await toiSaleAdmin();
+    await toiKeToanL2(inLai);
+    expect((await act(inLai, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Mất dấu' })).status).toBe(200);
+    await flushSync([thuong, inLai]);
+
+    const r = await rget('/reports/progress', 'sa01');
+    expect(r.status).toBe(200);
+    const o = r.body.byStepDetail as Record<string, { total: number; overdue: number }>;
+    expect(o.B8_TRINH_KY?.total ?? 0).toBeGreaterThan(0);
+    expect(o.B8_LOI_BAN_CUNG?.total ?? 0).toBeGreaterThan(0);
+
+    // Và cái quan trọng: bấm vào thẻ nào mở ra đúng hồ sơ của thẻ ấy.
+    const ma = async (q: string) =>
+      (await rget(`/reports/policies?${q}&limit=200`, 'sa01')).body.items.map(
+        (x: { policyId: string }) => x.policyId,
+      );
+    const trinhKy = await ma('pendingStep=B8_SA_XU_LY&reprint=0');
+    const loi = await ma('pendingStep=B8_SA_XU_LY&reprint=1');
+    expect(trinhKy).toContain(thuong);
+    expect(trinhKy).not.toContain(inLai);
+    expect(loi).toContain(inLai);
+    expect(loi).not.toContain(thuong);
+  });
+
+  it('bỏ `reprint` thì lấy trọn cả hai nửa — đúng cho thẻ "Đang chờ"', async () => {
+    const thuong = await toiSaleAdmin();
+    const inLai = await toiSaleAdmin();
+    await toiKeToanL2(inLai);
+    expect((await act(inLai, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Nhoè chữ' })).status).toBe(200);
+    await flushSync([thuong, inLai]);
+
+    const r = await rget('/reports/policies?pendingStep=B8_SA_XU_LY&limit=200', 'kt01');
+    const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
+    expect(ids).toContain(thuong);
+    expect(ids).toContain(inLai);
+  });
+
+  it('`reprint` nhận giá trị lạ thì 400, không im lặng bỏ qua', async () => {
+    // Bỏ qua một tiêu chí không hiểu ở đây nghĩa là MỞ RỘNG kết quả ra cả hai
+    // nhóm — sai theo hướng trả về nhiều hơn, tức là kiểu sai phải báo.
+    const r = await rget('/reports/policies?pendingStep=B8_SA_XU_LY&reprint=2', 'sa01');
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('VALIDATION_FAILED');
+    expect(r.body.field).toBe('reprint');
+  });
+
+  it('hồ sơ QUÁ HẠN vẫn nằm trong thẻ của bước nó đang tắc', async () => {
+    /*
+     * Đây là ca kiểm quan trọng nhất của đợt.
+     *
+     * Khách hàng bỏ thẻ "Quá hạn duyệt" khỏi cả bốn vai trò trong luồng. Nhưng
+     * `QUA_HAN_DUYET` ĐÈ LÊN trạng thái cũ chứ không đứng cạnh nó, nên nếu thẻ
+     * "Chờ TBP duyệt" đếm theo `status` thì bỏ thẻ kia đi là làm hồ sơ trễ nhất
+     * biến mất hẳn khỏi màn hình — trong khi nó vẫn đang chờ đúng người ấy xử lý
+     * và vẫn xử lý được bình thường (muc 4, `effectiveStatus`).
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy
+            SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET',
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [d.id],
+      );
+    });
+    await sync.refreshPolicy(d.id);
+
+    const r = await rget('/reports/progress', 'tbp01');
+    const o = r.body.byStepDetail as Record<string, { total: number; overdue: number }>;
+    expect(o.B4_TBP_DUYET?.overdue ?? 0, 'không đếm được hồ sơ quá hạn').toBeGreaterThan(0);
+
+    const theoBuoc = (await rget('/reports/policies?pendingStep=B4_TBP_DUYET&limit=200', 'tbp01'))
+      .body.items.map((x: { policyId: string }) => x.policyId);
+    expect(theoBuoc, 'lọc theo bước phải thấy hồ sơ quá hạn').toContain(d.id);
+
+    // Và đây là cách cũ sẽ hỏng: lọc theo trạng thái KHÔNG thấy nó.
+    const theoTrangThai = (await rget('/reports/policies?status=CHO_TBP_DUYET&limit=200', 'tbp01'))
+      .body.items.map((x: { policyId: string }) => x.policyId);
+    expect(theoTrangThai).not.toContain(d.id);
+  });
+
+  it('con số trên thẻ bằng đúng số dòng danh sách mở ra', async () => {
+    // Bất biến của cả đợt, kiểm thẳng: đếm và lọc phải cho ra cùng một tập.
+    const id = await toiSaleAdmin();
+    await flushSync([id]);
+
+    const o = (await rget('/reports/progress', 'sa01')).body.byStepDetail as Record<
+      string,
+      { total: number }
+    >;
+    const dem = o.B8_TRINH_KY?.total ?? 0;
+    const ds = await rget('/reports/policies?pendingStep=B8_SA_XU_LY&reprint=0&limit=200', 'sa01');
+    expect(ds.body.items.length).toBe(dem);
+    expect(dem).toBeGreaterThan(0);
+  });
+});

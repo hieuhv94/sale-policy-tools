@@ -4937,3 +4937,127 @@ một tuần thay vì một tháng.
 **Khoá màn hình khi rảnh**: đã hỏi, khách hàng trả lời **chưa cần bây giờ**. Người rời máy tự bấm
 *Đăng xuất*, và hướng dẫn sử dụng đã nói rõ điều đó ở phần máy dùng chung. Ghi lại ở đây để lần sau
 không phải hỏi lại.
+
+---
+
+## P55 — Dải thẻ trang tổng quan viết lại theo bản khách hàng chốt
+
+Khách hàng đưa thẳng bốn danh sách thẻ và hai định nghĩa, kèm một yêu cầu: **bấm được vào mọi thẻ**.
+
+| Vai trò | Thẻ |
+|---|---|
+| TDV | Yêu cầu chỉnh sửa · Nháp · Đang chờ · Đang có hiệu lực · Từ chối |
+| TBP | Chờ TBP duyệt · Đang chờ · Đang có hiệu lực · Từ chối |
+| Kế toán | KT duyệt bản mềm · KT duyệt bản cứng · Đang chờ · Đang có hiệu lực |
+| Sale Admin | Trình ký · Lỗi bản cứng · Đang chờ · Đang có hiệu lực |
+
+Bốn điểm phải hỏi lại trước khi sửa, vì mỗi điểm đổi hẳn con số trên thẻ.
+
+### Điểm một: hồ sơ quá hạn — tôi đã nói ngược lại khách hàng, và giữ nguyên ý đó
+
+Khách hàng trả lời *"không cần thẻ cho trạng thái này, vì khi đã quá hạn coi như hồ sơ đó đã chết,
+không thể thao tác được nữa"*.
+
+Tiền đề ấy **không đúng với hệ đang chạy**. `QUA_HAN_DUYET` là một cái nhãn dán chồng: bước đang chờ
+cất riêng ở `pending_step`, `effectiveStatus()` gỡ nhãn ra rồi xét trạng thái thật, và người phụ
+trách vẫn duyệt / trả lại / từ chối bình thường. `TERMINAL` chỉ có `TU_CHOI` và `DA_XOA`.
+
+Nói thẳng chỗ đó rồi vẫn làm theo quyết định — **không có thẻ *Quá hạn duyệt*** — nhưng đổi cách
+đếm: thẻ của bốn bước chờ đếm theo **bước** (`coalesce(pending_step, …)`) thay vì theo **trạng
+thái**, nên hồ sơ quá hạn nằm trong chính thẻ của bước nó đang tắc, kèm dòng đỏ *"trong đó N quá
+hạn"*. Danh sách thẻ ra đúng bản đã chốt, và không hồ sơ nào biến mất.
+
+Bỏ thẻ mà vẫn đếm theo trạng thái thì đúng những hồ sơ trễ nhất rơi khỏi màn hình của người duy nhất
+xử lý được chúng — sai theo hướng không ai phát hiện ra, vì một ô vắng mặt không báo lỗi.
+
+Nếu khách hàng thật sự muốn quá hạn thành trạng thái chết hẳn thì đó là việc khác: máy trạng thái,
+sla-worker, YCNV mục 4. Đã nêu ra như một đợt riêng.
+
+### Điểm hai: "Đang chờ" suy ra, không khai tay
+
+Định nghĩa khách hàng chốt: hồ sơ **trong phạm vi nhưng hiện không cần thao tác gì**. Suy từ
+`BUOC_CUA` — mọi bước chờ trừ bước của chính vai trò ấy — chứ không khai bốn danh sách. Khai tay thì
+thêm một bước vào luồng là bốn chỗ phải nhớ sửa.
+
+`TBP_DA_KY_SO` **không** có ô đếm, và không phải bỏ sót: hệ thống chuyển nó sang `CHO_KT_L1` ngay
+trong cùng transaction với lần TBP ký (B5), nên không hồ sơ nào từng nằm lại ở đó. Thẻ *TBP đã ký
+số* của bản cũ luôn bằng 0 — thêm một lý do nó đáng bỏ.
+
+### Điểm ba: hai thẻ của Sale Admin cần một cột mới
+
+*Trình ký* và *Lỗi bản cứng* **cùng là `SA_DANG_XU_LY`**. Khác nhau ở đường đi tới: B8 bình thường,
+hay B10C kế toán bắt in lại (bản scan cũ bị xoá khỏi hệ thống, phải làm lại từ đầu). Trạng thái ghi
+hồ sơ *đang ở đâu*, không ghi nó *tới đó bằng đường nào*.
+
+Suy từ nhật ký thì được nhưng là một phép quét `pol.policy_event` cho mỗi hồ sơ ở mỗi lần đếm thẻ.
+`0045` thêm `reprint_requested_at` trên `pol.policy`, chép sang `rpt.policy_row`, backfill từ nhật ký
+cho dữ liệu cũ. Bất biến: **đặt khi vào bằng B10C, xoá khi ra bằng B9** — hai lối duy nhất ra vào
+`SA_DANG_XU_LY`, nên không cần chỗ dọn thứ ba.
+
+### Điểm bốn: đổi tên hai trạng thái khắp phần mềm
+
+`CHO_KT_L1` → **KT duyệt bản mềm**, `CHO_KT_L2` → **KT duyệt bản cứng**. Bốn bảng nhãn: giao diện,
+thư báo (hai bảng), bản A4. Cộng YCNV, kiến trúc, hướng dẫn sử dụng, hướng dẫn demo.
+
+### Con số trên thẻ và danh sách mở ra phải là một tập
+
+Đây là bất biến của cả đợt, và là chỗ dễ hỏng nhất. Thẻ *Chờ TBP duyệt* đếm cả hồ sơ quá hạn ở bước
+ấy; lọc `?status=CHO_TBP_DUYET` mở ra danh sách **ngắn hơn con số vừa bấm** — người dùng đếm được, và
+không có phép kiểm nào tự bắt lỗi đó.
+
+Nên `duongThe()` khai **cùng một chỗ** với phép đếm, và thêm hai tiêu chí lọc: `pendingStep` (đọc
+`coalesce(pending_step, …)`, khớp đúng phép đếm) và `reprint` (0/1, tách hai nửa B8). Cả hai để
+**riêng khỏi `FILTER_KEYS`**: màn hình dựng biểu mẫu lọc từ danh sách kia, nối vào là mọc thêm hai ô
+nhập không ai gõ nổi. Con số *11 tiêu chí ở mục 9.2* giữ nguyên.
+
+`reprint` nhận giá trị lạ thì **400**, không im lặng bỏ qua: bỏ qua ở đây nghĩa là mở rộng kết quả ra
+cả hai nhóm — sai theo hướng trả về nhiều hơn.
+
+### Ba lỗi tự gây trong lúc làm
+
+**Trang tổng quan trắng bóc trong test đăng nhập.** Stub `/reports/progress` thiếu khoá
+`byStepDetail` → `bo.tienDo.byStepDetail[o]` nổ giữa lúc dựng. Đúng cái bẫy P50 đã dựng ca kiểm thử
+để bắt, và nó bắt được. Sửa stub, **và** đọc bằng `?.` trên chính bảng: một khoá thiếu ở API không
+đáng đổi lấy một màn hình rỗng không lời giải thích.
+
+**`nhan` rỗng trong bảng dữ liệu.** Bản đầu tôi để `nhan: ''` cho thẻ trạng thái rồi định điền lúc
+dựng. Đổi sang `nhan?: string` và `nhanThe()` mượn tên ở `NHAN_TRANG_THAI` — một trạng thái mang đúng
+một tên trên mọi màn hình, không có nguồn thứ hai để lệch.
+
+**`TheoBuoc` vẫn lọc theo trạng thái.** Khối *Đang tắc ở bước nào* của Ban lãnh đạo đếm theo
+`byPendingStep` (đã gồm quá hạn) mà bấm vào lại lọc `?status=` — cùng đúng cái lỗi lệch tập. Sửa
+luôn sang `?pendingStep=`.
+
+### Một ca đỏ KHÔNG do đợt này
+
+`notification.test.ts` — *"policy chưa tiêu thụ xong catalog.changed — quá 15000ms"*. Cất tạm toàn bộ
+thay đổi rồi chạy lại: **vẫn đỏ trên mã đã commit**, thậm chí đỏ hai ca.
+
+Nguyên nhân: đổi một quy định chiết khấu buộc rà lại **mọi** hồ sơ đã đóng băng, mỗi hồ sơ một lượt
+hỏi khách hàng và một lượt hỏi danh mục, nối đuôi nhau. CSDL của bộ test không bị dọn giữa các lượt
+chạy nên số hồ sơ đóng băng chỉ tăng — mỗi `make test` bồi thêm vài trăm. Tới mốc 1300 hồ sơ thì lượt
+rà vượt 15 giây.
+
+Hai việc đã làm:
+
+1. **Nhớ tạm khách hàng và ảnh chụp sản phẩm trong một lượt rà**, và **bỏ hẳn transaction cho hồ sơ
+   không lệch gì và không mang sẵn dấu vết**. Nhớ tạm còn đúng hơn bản cũ: một lượt rà là một phép so
+   tại MỘT thời điểm, chứ không phải hồ sơ đầu danh sách so với bảng giá lúc 9:00 còn hồ sơ cuối so
+   với bảng giá lúc 9:01.
+2. **Nới hạn chờ của ca ấy lên 120 giây.** Ca này khẳng định lá thư nói về *ngưỡng* chứ không nói về
+   *giá*; nó không khẳng định gì về tốc độ rà, nên buộc nó vào một ngân sách thời gian là bắt nó gãy
+   vì lý do nó không nói tới.
+
+**Còn nợ, đã báo khách hàng**: nhớ tạm không cứu được chính bộ test, vì ở đó mỗi hồ sơ có một khách
+hàng riêng và một sản phẩm riêng nên không có gì để dùng lại. Phép rà vẫn là O(số hồ sơ) vòng mạng
+nối đuôi. Ở 20 nghìn hồ sơ thật, một lần đổi quy định chiết khấu là hàng phút chạy nền. Không ai phải
+chờ nó, nhưng muốn gọn thì cần một endpoint tra khách hàng theo lô và gộp ảnh chụp theo loại khách
+hàng — một đợt riêng.
+
+### Kiểm chứng
+
+`make test` — 47 tệp, 1078/1078 xanh. Thêm 30 ca ở `tests/web/tong-quan.test.ts` (dải thẻ chốt cứng
+theo bản khách hàng đọc, mọi thẻ bấm được, thẻ bước không lọc theo trạng thái, `reprint` chỉ kèm khi
+lấy đúng một nửa B8) và 6 ca ở `tests/http/reporting.test.ts` (đặt và xoá mốc in lại, tách hai ô đếm,
+`reprint` sai thì 400, **hồ sơ quá hạn vẫn nằm trong thẻ của bước nó đang tắc**, và con số trên thẻ
+bằng đúng số dòng danh sách mở ra).

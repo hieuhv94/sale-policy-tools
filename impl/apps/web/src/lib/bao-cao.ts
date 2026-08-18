@@ -16,6 +16,14 @@ export type TienDo = {
   total: number;
   byStatus: Record<string, number>;
   byPendingStep: Record<string, number>;
+  /**
+   * Đếm theo Ô của trang tổng quan (`0045`) — khoá là `OBuoc` bên `tong-quan.ts`.
+   *
+   * Khác `byPendingStep` ở hai điểm, và cả hai đều cần: B8 tách làm hai theo
+   * việc Sale Admin đang làm bản cứng lần đầu hay làm lại, và mỗi ô kèm số hồ sơ
+   * đã quá hạn để thẻ nói được "12, trong đó 3 quá hạn".
+   */
+  byStepDetail?: Record<string, { total: number; overdue: number } | undefined>;
   byHandler: { userId: string; name: string | null; count: number }[];
 };
 

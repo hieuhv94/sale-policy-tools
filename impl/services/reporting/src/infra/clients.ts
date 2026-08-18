@@ -40,6 +40,8 @@ export type PolicySrc = {
   deactivated_at: string | null;
   sla_due_at: string | null;
   sla_started_at: string | null;
+  /** Kế toán đòi in lại bản cứng và Sale Admin chưa bàn giao lại (`0045`). */
+  reprint_requested_at: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */
   tbp_user_id: string | null;

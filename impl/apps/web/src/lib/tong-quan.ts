@@ -3,12 +3,13 @@
  *
  * HAI BẢNG TRA, và chúng là nguồn duy nhất. Rải `if (vaiTro === …)` trong JSX là
  * cách chắc chắn để có ngày một vai trò sót một thẻ — mà thẻ sót thì không báo
- * lỗi, nó chỉ vắng mặt. `tong-quan.test.tsx` quét đúng hai bảng này.
+ * lỗi, nó chỉ vắng mặt. `tong-quan.test.ts` quét đúng hai bảng này.
  *
  * Không đặt trong `can.ts`: đó là bảng PHÂN QUYỀN và `FE-23` quét chính nó. Trộn
  * chuyện bố cục vào là mời người sau sửa quyền lúc đang định sửa giao diện.
  */
 import type { VaiTro } from './can.js';
+import { nhanTrangThai, nhomTrangThai } from './format.js';
 
 /** 12 trạng thái của muc 4 và `0035`. Cùng tập khoá với `NHAN_TRANG_THAI` ở `format.ts`. */
 export type TrangThai =
@@ -50,7 +51,7 @@ export const MOI_TRANG_THAI: TrangThai[] = [
  *
  * Bảng này KHÔNG dùng để dựng màn hình. Nó tồn tại để test đối chiếu được rằng
  * dải thẻ của một vai trò không chứa bước của vai trò khác — nếu suy ngược từ
- * chính `THE_TRANG_THAI` thì test chỉ đang lặp lại dữ liệu nó cần kiểm.
+ * chính bảng thẻ thì test chỉ đang lặp lại dữ liệu nó cần kiểm.
  */
 export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
   NHAP: 'TDV',
@@ -68,51 +69,192 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
 };
 
 /**
- * Dải thẻ đếm hồ sơ theo trạng thái, cho từng vai trò.
+ * Ô ĐẾM theo bước đang chờ — khoá của `byStepDetail` bên reporting (`0045`).
  *
- * Quy tắc: **chỉ trạng thái thuộc phần việc của chính vai trò đó**, cộng các
- * trạng thái kết thúc. Một TDV nhìn ô "Chờ Kế toán L2: 7" thì không làm được gì
- * với con số ấy, mà nó vẫn chiếm chỗ và vẫn bắt phải đọc.
+ * Bốn bước chờ của muc 3, riêng B8 tách làm hai vì Sale Admin có HAI việc khác
+ * hẳn nhau dưới cùng một trạng thái `SA_DANG_XU_LY`:
  *
- * Ngoại lệ duy nhất là `BAN_LANH_DAO`: vai trò giám sát toàn luồng nên không
- * cắt bớt cái nào.
+ *   - `B8_TRINH_KY` — kế toán vừa nhận bản mềm; in, trình BLĐ ký, scan.
+ *   - `B8_LOI_BAN_CUNG` — kế toán nhận bản cứng rồi bắt in lại (B10C). Bản scan
+ *     cũ đã bị xoá khỏi hệ thống, phải làm lại một việc tưởng đã xong.
+ *
+ * `TBP_DA_KY_SO` KHÔNG có ô nào ở đây, và không phải vì bỏ sót: hệ thống chuyển
+ * nó sang `CHO_KT_L1` ngay trong CÙNG transaction với lần TBP ký
+ * (`workflow.service.ts`, B5). Không hồ sơ nào từng nằm lại ở đó để mà đếm.
+ */
+export type OBuoc = 'B4_TBP_DUYET' | 'B6_KT_L1' | 'B8_TRINH_KY' | 'B8_LOI_BAN_CUNG' | 'B10_KT_L2';
+
+export const MOI_O_BUOC: OBuoc[] = [
+  'B4_TBP_DUYET',
+  'B6_KT_L1',
+  'B8_TRINH_KY',
+  'B8_LOI_BAN_CUNG',
+  'B10_KT_L2',
+];
+
+/** Ô đếm → bước thật trong CSDL. Hai nửa của B8 cùng trỏ về một bước. */
+export const BUOC_THAT: Record<OBuoc, string> = {
+  B4_TBP_DUYET: 'B4_TBP_DUYET',
+  B6_KT_L1: 'B6_KT_L1',
+  B8_TRINH_KY: 'B8_SA_XU_LY',
+  B8_LOI_BAN_CUNG: 'B8_SA_XU_LY',
+  B10_KT_L2: 'B10_KT_L2',
+};
+
+/** Ô đếm này là việc của vai trò nào — dùng để suy ra thẻ "Đang chờ". */
+export const BUOC_CUA: Record<OBuoc, VaiTro> = {
+  B4_TBP_DUYET: 'TBP',
+  B6_KT_L1: 'KE_TOAN',
+  B8_TRINH_KY: 'SALE_ADMIN',
+  B8_LOI_BAN_CUNG: 'SALE_ADMIN',
+  B10_KT_L2: 'KE_TOAN',
+};
+
+/**
+ * Một thẻ trên trang tổng quan.
+ *
+ * `dem` khai CẢ phép đếm LẪN đường dẫn khi bấm vào — một chỗ, không hai. Tách
+ * chúng ra là mở đường cho thẻ ghi 12 mà bấm vào ra danh sách 9 dòng: người
+ * dùng đếm được, và không có phép kiểm nào tự bắt lỗi ấy.
+ */
+export type The = {
+  /** Khoá React, và cũng là tên thẻ trong test. */
+  ma: string;
+  /**
+   * Nhãn hiện trên thẻ. Thẻ đếm theo TRẠNG THÁI bỏ trống ô này — tên của nó lấy
+   * từ `NHAN_TRANG_THAI` lúc dựng, để một trạng thái mang đúng một tên trên mọi
+   * màn hình. Chép tên sang đây là tạo ra nguồn thứ hai để hai bên lệch nhau.
+   */
+  nhan?: string;
+  /** Dòng chữ nhỏ dưới con số. Bỏ trống thì thẻ chỉ có nhãn và số. */
+  phu?: string;
+  dem: { tu: 'trangThai'; trangThai: TrangThai } | { tu: 'buoc'; o: OBuoc[] };
+};
+
+const theTrangThai = (t: TrangThai, phu?: string): The => ({
+  ma: t,
+  ...(phu === undefined ? {} : { phu }),
+  dem: { tu: 'trangThai', trangThai: t },
+});
+
+const theBuoc = (ma: string, nhan: string, o: OBuoc[], phu?: string): The => ({
+  ma,
+  nhan,
+  ...(phu === undefined ? {} : { phu }),
+  dem: { tu: 'buoc', o },
+});
+
+/**
+ * Thẻ "Đang chờ" của một vai trò: mọi bước chờ TRỪ bước của chính họ.
+ *
+ * Trả lời đúng một câu — "hồ sơ trong phạm vi của tôi vẫn đang chạy chứ, có cái
+ * nào cần tôi không?" — bằng một con số thay vì bốn ô của bốn người khác. Suy ra
+ * từ `BUOC_CUA` chứ không khai tay bốn danh sách: khai tay thì thêm một bước vào
+ * luồng là bốn chỗ phải nhớ sửa, và quên một chỗ thì một vai trò đếm thiếu mà
+ * không ai biết.
+ */
+const theDangCho = (vaiTro: VaiTro): The =>
+  theBuoc(
+    'DANG_CHO',
+    'Đang chờ',
+    MOI_O_BUOC.filter((o) => BUOC_CUA[o] !== vaiTro),
+    'đang ở bước của người khác',
+  );
+
+/**
+ * Dải thẻ đếm hồ sơ, cho từng vai trò `0045`.
+ *
+ * Quy tắc: **việc của chính vai trò đó, gộp một thẻ cho phần còn lại đang chạy,
+ * rồi tới các trạng thái kết thúc**. Một TDV nhìn ô "KT duyệt bản cứng: 7" thì
+ * không làm được gì với con số ấy, mà nó vẫn chiếm chỗ và vẫn bắt phải đọc.
+ *
+ * KHÔNG có thẻ *Quá hạn duyệt* ở bất kỳ vai trò nào trong luồng. Hồ sơ quá hạn
+ * nằm trong chính thẻ của bước nó đang tắc, kèm dòng phụ đếm riêng — vì
+ * `QUA_HAN_DUYET` là cái NHÃN đè lên trạng thái cũ chứ không phải một chặng
+ * mới, và người phụ trách vẫn duyệt được bình thường (muc 4, `effectiveStatus`).
+ * Đếm theo `status` thay vì theo bước sẽ làm đúng những hồ sơ trễ nhất biến mất
+ * khỏi màn hình của người duy nhất xử lý được chúng.
+ *
+ * Ngoại lệ duy nhất là `BAN_LANH_DAO`: vai trò giám sát toàn luồng nên bày đủ
+ * mười hai trạng thái, không gộp, không cắt.
  *
  * `QUAN_TRI` KHÔNG có thẻ nào, và đây là chỗ dễ làm sai nhất của cả màn hình:
  * `idn.scope_user_ids` trả về RỖNG cho họ (0003_identity.sql), nên mọi lời gọi
  * `/reports/*` đều ra 0. Bày một ô "Tổng hồ sơ: 0" là một con số đúng nhưng đọc
  * ra nghĩa hoàn toàn sai — người xem sẽ tưởng hệ thống trống.
  */
-export const THE_TRANG_THAI: Record<VaiTro, TrangThai[]> = {
-  TDV: ['NHAP', 'YEU_CAU_CHINH_SUA', 'DANG_CO_HIEU_LUC', 'TU_CHOI'],
-  TBP: ['CHO_TBP_DUYET', 'QUA_HAN_DUYET', 'TBP_DA_KY_SO', 'DANG_CO_HIEU_LUC', 'TU_CHOI'],
-  KE_TOAN: ['CHO_KT_L1', 'CHO_KT_L2', 'QUA_HAN_DUYET', 'DANG_CO_HIEU_LUC'],
-  SALE_ADMIN: ['SA_DANG_XU_LY', 'QUA_HAN_DUYET', 'DANG_CO_HIEU_LUC', 'TU_CHOI'],
-  BAN_LANH_DAO: MOI_TRANG_THAI,
+export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
+  TDV: [
+    theTrangThai('YEU_CAU_CHINH_SUA', 'bị trả lại, chờ bạn sửa'),
+    theTrangThai('NHAP', 'chưa gửi duyệt'),
+    theDangCho('TDV'),
+    theTrangThai('DANG_CO_HIEU_LUC'),
+    theTrangThai('TU_CHOI'),
+  ],
+  TBP: [
+    theBuoc('B4_TBP_DUYET', 'Chờ TBP duyệt', ['B4_TBP_DUYET'], 'đang chờ bạn ký số'),
+    theDangCho('TBP'),
+    theTrangThai('DANG_CO_HIEU_LUC'),
+    theTrangThai('TU_CHOI'),
+  ],
+  KE_TOAN: [
+    theBuoc('B6_KT_L1', 'KT duyệt bản mềm', ['B6_KT_L1'], 'tiếp nhận lần 1'),
+    theBuoc('B10_KT_L2', 'KT duyệt bản cứng', ['B10_KT_L2'], 'tiếp nhận lần 2'),
+    theDangCho('KE_TOAN'),
+    theTrangThai('DANG_CO_HIEU_LUC'),
+  ],
+  SALE_ADMIN: [
+    theBuoc('B8_TRINH_KY', 'Trình ký', ['B8_TRINH_KY'], 'in, trình ký, scan'),
+    theBuoc('B8_LOI_BAN_CUNG', 'Lỗi bản cứng', ['B8_LOI_BAN_CUNG'], 'kế toán bắt in lại'),
+    theDangCho('SALE_ADMIN'),
+    theTrangThai('DANG_CO_HIEU_LUC'),
+  ],
+  BAN_LANH_DAO: MOI_TRANG_THAI.map((t) => theTrangThai(t)),
   QUAN_TRI: [],
 };
 
-/**
- * Bốn trạng thái mà hồ sơ ĐANG ĐI trong luồng duyệt.
- *
- * TDV có thêm một thẻ gộp "Đang chờ duyệt" bằng tổng bốn cái này — nó trả lời
- * "hồ sơ tôi gửi vẫn đang chạy chứ?" mà không phải bày ra bốn ô của bốn người
- * khác.
- */
-export const DANG_CHO: TrangThai[] = [
-  'CHO_TBP_DUYET',
-  'CHO_KT_L1',
-  'SA_DANG_XU_LY',
-  'CHO_KT_L2',
-];
+/** Nhãn hiện trên thẻ — thẻ trạng thái mượn tên chung ở `format.ts`. */
+export const nhanThe = (the: The): string =>
+  the.nhan ?? (the.dem.tu === 'trangThai' ? nhanTrangThai(the.dem.trangThai) : the.ma);
 
 /**
- * Vai trò nào được thêm thẻ gộp "Đang chờ duyệt".
+ * Màu của thẻ.
  *
- * Là một BẢNG chứ không phải `vaiTro === 'TDV'` trong màn hình: `quyen.test.ts`
- * cấm so sánh vai trò bằng chuỗi viết thẳng ngoài `can.ts`, và cái lệnh cấm ấy
- * có lý do — một phép so rải trong JSX là chỗ không ai nghĩ tới khi thêm vai trò.
+ * `B8_LOI_BAN_CUNG` là ô DUY NHẤT tô vàng trong nhóm bước, và đó là chủ ý: bốn ô
+ * kia là việc bình thường đang tới lượt, còn ô này là việc PHẢI LÀM LẠI — bản
+ * cứng đã in, đã trình ký, đã scan, rồi bị bỏ đi hết. Nó tốn đúng bằng lần đầu
+ * và lẽ ra không phải tốn.
+ *
+ * Thẻ "Đang chờ" thì không tô: theo định nghĩa nó là phần KHÔNG cần ai làm gì.
  */
-export const CO_THE_DANG_CHO: VaiTro[] = ['TDV'];
+export function mauThe(the: The): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' {
+  if (the.dem.tu === 'trangThai') return nhomTrangThai(the.dem.trangThai);
+  if (the.ma === 'DANG_CHO') return 'thuong';
+  return the.ma === 'B8_LOI_BAN_CUNG' ? 'canh-bao' : 'cho';
+}
+
+/**
+ * Bấm vào thẻ thì mở danh sách nào.
+ *
+ * Thẻ đếm theo BƯỚC phải lọc theo bước, không theo trạng thái: hồ sơ quá hạn
+ * mang `status = 'QUA_HAN_DUYET'` nên `?status=CHO_TBP_DUYET` cho ra danh sách
+ * ngắn hơn chính con số vừa bấm vào. Tiêu chí `pendingStep` bên reporting đọc
+ * `coalesce(pending_step, …)`, khớp đúng phép đếm.
+ */
+export function duongThe(the: The): string {
+  if (the.dem.tu === 'trangThai') return `/ho-so?status=${the.dem.trangThai}`;
+
+  const buoc = [...new Set(the.dem.o.map((o) => BUOC_THAT[o]))];
+  const q = `pendingStep=${buoc.join(',')}`;
+
+  // Hai nửa của B8 chỉ tách được bằng mốc `reprint_requested_at`. Thẻ nào lấy
+  // trọn cả hai nửa thì KHÔNG kèm tiêu chí này — kèm vào là lọc mất một nửa.
+  const nuaB8 = the.dem.o.filter((o) => BUOC_THAT[o] === 'B8_SA_XU_LY');
+  if (nuaB8.length === 1) {
+    return `/ho-so?${q}&reprint=${nuaB8[0] === 'B8_LOI_BAN_CUNG' ? '1' : '0'}`;
+  }
+  return `/ho-so?${q}`;
+}
 
 /** Các khối ngoài dải thẻ. Thứ tự trong mảng là thứ tự hiện trên màn hình. */
 export type TenKhoi =

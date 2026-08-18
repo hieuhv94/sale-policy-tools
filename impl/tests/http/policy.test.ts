@@ -1491,7 +1491,7 @@ describe('WF-02 · WF-03 danh sách trạng thái là danh sách đóng', () => 
 });
 
 describe('WF-04 · WF-05 · WF-09 TBP ký số', () => {
-  it('ký xong thì hệ thống TỰ chuyển sang Chờ Kế toán L1', async () => {
+  it('ký xong thì hệ thống TỰ chuyển sang KT duyệt bản mềm', async () => {
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     const r = await act(d.id, 'TBP_SIGN', 'tbp01');
@@ -1635,7 +1635,7 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
     expect(r.body.code).toBe('SCAN_REQUIRED');
   });
 
-  it('WF-13 có scan rồi thì sang Chờ Kế toán L2', async () => {
+  it('WF-13 có scan rồi thì sang KT duyệt bản cứng', async () => {
     const d = await toSaStage();
     await post(
       `/policies/${d.id}/attachments`,
@@ -1647,7 +1647,7 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
     expect(r.body.status).toBe('CHO_KT_L2');
   });
 
-  it('WF-15 bàn giao khi hồ sơ còn ở Chờ Kế toán L1 thì 409 INVALID_TRANSITION', async () => {
+  it('WF-15 bàn giao khi hồ sơ còn ở KT duyệt bản mềm thì 409 INVALID_TRANSITION', async () => {
     // Phải đi qua `KT_RECEIVE_L1` rồi LÙI trạng thái bằng SQL, chứ không dừng ở
     // `CHO_KT_L1` như bản cũ (`0031`): Sale Admin chỉ được giao ở bước tiếp nhận
     // L1, nên trước đó họ chưa liên quan gì tới hồ sơ và bị chặn ở tầng PHẠM VI

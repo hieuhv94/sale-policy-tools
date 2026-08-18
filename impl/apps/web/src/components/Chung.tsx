@@ -66,12 +66,21 @@ export function ChiSo({
   nhan,
   giaTri,
   phu,
+  canhBao,
   kieu = 'thuong',
   den,
 }: {
   nhan: string;
   giaTri: number | string;
   phu?: string;
+  /**
+   * Dòng cảnh báo đỏ dưới cùng, ví dụ "3 hồ sơ quá hạn".
+   *
+   * Tách khỏi `phu` chứ không nối chuỗi vào nó: hai câu này khác hẳn nhau về
+   * mức khẩn, và gộp vào một dòng xám thì cái cần chú ý mang đúng sắc độ với
+   * cái không cần.
+   */
+  canhBao?: string;
   kieu?: 'thuong' | 'tot' | 'cho' | 'canh-bao' | 'loi';
   den?: string;
 }) {
@@ -80,6 +89,7 @@ export function ChiSo({
       <span className="chi-so-nhan">{nhan}</span>
       <strong className="chi-so-gia-tri so">{giaTri}</strong>
       {phu !== undefined && <span className="chi-so-phu">{phu}</span>}
+      {canhBao !== undefined && <span className="chi-so-tre">{canhBao}</span>}
     </>
   );
   const lop = `chi-so chi-so-${kieu}`;

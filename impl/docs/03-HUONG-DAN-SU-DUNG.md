@@ -130,22 +130,37 @@ Hai ngoại lệ:
 Màn hình đầu tiên sau khi đăng nhập. **Nội dung khác nhau theo vai trò** — bạn chỉ thấy những con
 số thuộc phần việc của mình.
 
-### Dải thẻ trạng thái
+### Dải thẻ
 
-Hàng thẻ trên cùng đếm hồ sơ theo trạng thái. **Bấm vào một thẻ** là mở danh sách hồ sơ đã lọc sẵn
-theo đúng trạng thái đó.
+Hàng thẻ trên cùng đếm hồ sơ. **Bấm được vào mọi thẻ, không trừ cái nào** — mở ra danh sách hồ sơ đã
+lọc sẵn đúng bằng con số vừa bấm.
 
 | Vai trò | Thẻ bạn thấy |
 |---|---|
-| **Trình dược viên** | Đang chờ duyệt · Nháp · Yêu cầu chỉnh sửa · Đang có hiệu lực · Từ chối |
-| **Trưởng bộ phận** | Chờ TBP duyệt · Quá hạn duyệt · TBP đã ký số · Đang có hiệu lực · Từ chối |
-| **Kế toán** | Chờ Kế toán L1 · Chờ Kế toán L2 · Quá hạn duyệt · Đang có hiệu lực |
-| **Sale Admin** | Sale Admin đang xử lý · Quá hạn duyệt · Đang có hiệu lực · Từ chối |
+| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Trưởng bộ phận** | Chờ TBP duyệt · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · Đang chờ · Đang có hiệu lực |
+| **Sale Admin** | Trình ký · Lỗi bản cứng · Đang chờ · Đang có hiệu lực |
 | **Ban lãnh đạo** | **Cả 12 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
-Cố ý **không** bày cho bạn trạng thái là bước của người khác: một Trình dược viên nhìn ô "Chờ Kế
-toán L2: 7" thì không làm được gì với con số ấy.
+Cố ý **không** bày cho bạn bước của người khác thành thẻ riêng: một Trình dược viên nhìn ô "KT duyệt
+bản cứng: 7" thì không làm được gì với con số ấy.
+
+**Thẻ *Đang chờ*** gộp đúng phần ấy lại thành một số: hồ sơ trong phạm vi của bạn đang chạy trong
+luồng nhưng **hiện không cần bạn làm gì**. Nó trả lời câu "hồ sơ tôi gửi vẫn đang đi chứ" mà không
+bắt bạn đọc bốn ô của bốn người khác.
+
+**Hai thẻ của Sale Admin** trông giống nhau nhưng là hai việc khác hẳn:
+
+| Thẻ | Nghĩa |
+|---|---|
+| **Trình ký** | Kế toán vừa nhận bản mềm. In, trình Ban lãnh đạo ký, nhận lại, scan, tải lên (bước B8). |
+| **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ đã bị xoá khỏi hệ thống — phải làm lại từ đầu. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
+
+**Hồ sơ quá hạn không có thẻ riêng.** Quá 14 ngày chờ **không** làm hồ sơ chết — nó vẫn nằm ở đúng
+bước cũ và vẫn duyệt được bình thường, chỉ là đã trễ. Nên nó được đếm trong chính thẻ của bước đang
+tắc, kèm một dòng đỏ *"trong đó N quá hạn"* ngay dưới con số.
 
 ### Yêu cầu cập nhật
 

@@ -121,10 +121,11 @@ export class SyncService {
          requester_id, requester_name, tdv_user_id, tdv_name,
          tbp_user_id, ke_toan_user_id, sale_admin_user_id,
          product_codes, product_names, product_names_norm, product_group_codes,
-         line_count, total_net, max_discount, src_row_version, synced_at)
+         line_count, total_net, max_discount, reprint_requested_at,
+         src_row_version, synced_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-               $31,$32,$33,$34,$35,$36,$37,$38, now())
+               $31,$32,$33,$34,$35,$36,$37,$38,$39, now())
        ON CONFLICT (policy_id) DO UPDATE SET
          code = EXCLUDED.code, version_no = EXCLUDED.version_no,
          status = EXCLUDED.status, pending_step = EXCLUDED.pending_step,
@@ -149,6 +150,7 @@ export class SyncService {
          product_group_codes = EXCLUDED.product_group_codes,
          line_count = EXCLUDED.line_count, total_net = EXCLUDED.total_net,
          max_discount = EXCLUDED.max_discount,
+         reprint_requested_at = EXCLUDED.reprint_requested_at,
          src_row_version = EXCLUDED.src_row_version, synced_at = now()
        -- Bỏ qua bản GHI ĐÈ BẰNG DỮ LIỆU CŨ. Sự kiện giao lại lần hai đọc nguồn
        -- ở một thời điểm sớm hơn lần đồng bộ đang có thì row_version của nó nhỏ
@@ -196,6 +198,9 @@ export class SyncService {
         lines.length,
         totalNet.toString(),
         maxDiscount,
+        // `0045` — chép nguyên chứ không suy lại từ nhật ký: thẻ "Lỗi bản cứng"
+        // phải đếm ra đúng cùng một tập với danh sách mà bấm vào thẻ mở ra.
+        src.reprint_requested_at ?? null,
         src.row_version,
       ],
     );

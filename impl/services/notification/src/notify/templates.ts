@@ -12,9 +12,9 @@ export const STATUS_LABEL: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
   TBP_DA_KY_SO: 'Trưởng bộ phận đã ký số',
-  CHO_KT_L1: 'Chờ Kế toán tiếp nhận lần 1',
+  CHO_KT_L1: 'KT duyệt bản mềm',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
-  CHO_KT_L2: 'Chờ Kế toán tiếp nhận lần 2',
+  CHO_KT_L2: 'KT duyệt bản cứng',
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
@@ -26,9 +26,9 @@ export const STATUS_LABEL: Record<string, string> = {
 /** Tên bước đang chờ xử lý, theo đúng mười bước ở muc 3. */
 export const STEP_LABEL: Record<string, string> = {
   CHO_TBP_DUYET: 'Bước 4 — Trưởng bộ phận duyệt và ký số',
-  CHO_KT_L1: 'Bước 6 — Kế toán tiếp nhận lần 1',
+  CHO_KT_L1: 'Bước 6 — KT duyệt bản mềm',
   SA_DANG_XU_LY: 'Bước 8 — Sale Admin xử lý và bàn giao bản cứng',
-  CHO_KT_L2: 'Bước 10 — Kế toán tiếp nhận lần 2',
+  CHO_KT_L2: 'Bước 10 — KT duyệt bản cứng',
   YEU_CAU_CHINH_SUA: 'Bước 3 — Trình dược viên chỉnh sửa và gửi lại',
   DANG_CO_HIEU_LUC: 'Đã hoàn tất — không còn bước nào phải xử lý',
   TU_CHOI: 'Đã kết thúc — hồ sơ bị từ chối',

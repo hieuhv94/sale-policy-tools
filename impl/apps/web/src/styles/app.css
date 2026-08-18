@@ -745,6 +745,13 @@ button.the-lien {
 }
 .chi-so-loi .chi-so-gia-tri { color: var(--mau-loi); }
 .chi-so-phu { font-size: var(--chu-rat-nho); color: var(--mau-chu-nhat); }
+/* Dòng "trong đó N quá hạn". Đậm hơn `.chi-so-phu` một bậc vì nó là thứ duy nhất
+   trên thẻ đòi người ta làm gì đó ngay — xem `THE_THEO_VAI_TRO`. */
+.chi-so-tre {
+  font-size: var(--chu-rat-nho);
+  font-weight: 600;
+  color: var(--mau-loi);
+}
 
 .danh-sach-thanh li {
   display: flex;

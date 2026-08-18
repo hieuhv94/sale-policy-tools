@@ -249,12 +249,12 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B3 | TDV | Chờ TBP duyệt | TBP | Xem bản CSBH, chốt và gửi duyệt. Hồ sơ khóa sửa |
 | B4 | TBP — duyệt | TBP đã ký số | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký |
 | B4B | TBP — không duyệt | Yêu cầu chỉnh sửa → B3 | TDV | Bắt buộc nhập lý do; hồ sơ mở khóa, tạo phiên bản mới |
-| B5 | Hệ thống | Chờ Kế toán L1 | — | Phát hành liên kết “CSBH đã ký số” tại bàn kế toán |
+| B5 | Hệ thống | KT duyệt bản mềm | — | Phát hành liên kết “CSBH đã ký số” tại bàn kế toán |
 | B6A | Kế toán — nhận L1 | Sale Admin đang xử lý | SA, TBP, TDV | Tiếp nhận file mềm và **chọn Sale Admin xử lý bước sau** `sửa 16/08`; khách hàng đủ điều kiện xuất hàng và xuất VAT |
 | B6B | Kế toán — không nhận L1 | Yêu cầu chỉnh sửa → B3 | TBP, TDV | Bắt buộc nhập lý do; duyệt và ký lại từ đầu |
 | B7 | Kế toán **hoặc** Sale Admin | — | — | Xuất file hợp đồng (xem mục 8) |
 | B8 | Sale Admin | Sale Admin đang xử lý | KT, TBP, TDV | In, trình BLĐ ký, nhận lại, scan, tải file lên |
-| B9 | Sale Admin | Chờ Kế toán L2 | KT, TBP, TDV | Bàn giao bản cứng |
+| B9 | Sale Admin | KT duyệt bản cứng | KT, TBP, TDV | Bàn giao bản cứng |
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
 | B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ bị xóa; Sale Admin làm lại bản cứng |
@@ -271,9 +271,9 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 | `Nháp` | Trạng thái đầu tiên, sửa tự do | — |
 | `Chờ TBP duyệt` | Đã gửi duyệt, hồ sơ khóa sửa | 14 ngày |
 | `TBP đã ký số` | Có file ký và dấu thời gian | — |
-| `Chờ Kế toán L1` | Chờ tiếp nhận file mềm | 14 ngày |
+| `KT duyệt bản mềm` | Chờ tiếp nhận file mềm — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L1* | 14 ngày |
 | `Sale Admin đang xử lý` | In, trình ký, scan | 14 ngày |
-| `Chờ Kế toán L2` | Chờ tiếp nhận bản cứng | 14 ngày |
+| `KT duyệt bản cứng` | Chờ tiếp nhận bản cứng — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L2* | 14 ngày |
 | `Đang có hiệu lực` | CSBH đang áp dụng, vô thời hạn | — |
 | `Hết hiệu lực` | Bị thay bởi một CSBH mới của cùng khách hàng | — |
 | `Yêu cầu chỉnh sửa` | Bị trả lại, chờ TDV sửa | — |

@@ -275,10 +275,28 @@ export class WorkflowService {
       params.push(isWaiting(step.next));
       const slaIdx = params.length;
 
+      /*
+       * Mốc phân biệt "Trình ký" với "Lỗi bản cứng" (`0045`).
+       *
+       * Cả hai cùng là `SA_DANG_XU_LY`, nên trạng thái không nói được Sale Admin
+       * đang làm bản cứng LẦN ĐẦU hay đang làm LẠI sau khi kế toán bắt in lại.
+       *
+       * Bất biến: mốc chỉ tồn tại trong lúc hồ sơ đang nằm ở Sale Admin. Đặt khi
+       * vào bằng cửa B10C, xoá khi ra bằng B9. Đó là hai lối duy nhất — không có
+       * hành động nào khác đi ra khỏi `SA_DANG_XU_LY`, nên không cần dọn ở đâu
+       * nữa; thêm chỗ dọn thứ ba chỉ làm bất biến này khó đọc hơn.
+       */
+      const reprintSql =
+        action === 'KT_REQUEST_REPRINT'
+          ? 'reprint_requested_at = now(),'
+          : action === 'SA_HANDOVER'
+            ? 'reprint_requested_at = NULL,'
+            : '';
+
       const upd = await c.query<{ id: string }>(
         `UPDATE pol.policy SET
             status = $2::pol.policy_status,
-            ${stampSql}
+            ${stampSql}${reprintSql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
             sla_due_at = CASE WHEN $${slaIdx}
@@ -385,7 +403,7 @@ export class WorkflowService {
         });
       }
 
-      // Sau khi TBP ký số, hệ thống TỰ chuyển sang Chờ Kế toán L1 và phát hành
+      // Sau khi TBP ký số, hệ thống TỰ chuyển sang KT duyệt bản mềm và phát hành
       // liên kết tại bàn kế toán — không có ai bấm nút ở bước này (WF-09, B5).
       if (action === 'TBP_SIGN') {
         await c.query(

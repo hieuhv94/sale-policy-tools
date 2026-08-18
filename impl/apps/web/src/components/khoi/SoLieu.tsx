@@ -7,66 +7,75 @@
  * bốn nhịp.
  */
 import type { BoBaoCao } from '../../lib/bao-cao.js';
-import { nhanTrangThai, nhomTrangThai } from '../../lib/format.js';
 import { Lien } from '../../lib/router.js';
 import { ChiSo, Trong } from '../Chung.js';
-import { DANG_CHO, type TrangThai } from '../../lib/tong-quan.js';
-
-/** Bước đang chờ → trạng thái tương ứng. Bảng NGHỊCH của `STEP_FROM_STATUS` bên reporting. */
-const TRANG_THAI_CUA_BUOC: Record<string, TrangThai> = {
-  B4_TBP_DUYET: 'CHO_TBP_DUYET',
-  B6_KT_L1: 'CHO_KT_L1',
-  B8_SA_XU_LY: 'SA_DANG_XU_LY',
-  B10_KT_L2: 'CHO_KT_L2',
-};
+import { duongThe, mauThe, nhanThe, type The } from '../../lib/tong-quan.js';
 
 const NHAN_BUOC: Record<string, string> = {
   B4_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
-  B6_KT_L1: 'Chờ Kế toán tiếp nhận lần 1',
+  B6_KT_L1: 'KT duyệt bản mềm',
   B8_SA_XU_LY: 'Chờ Sale Admin bàn giao',
-  B10_KT_L2: 'Chờ Kế toán tiếp nhận lần 2',
+  B10_KT_L2: 'KT duyệt bản cứng',
 };
 
 const so = (v: number | undefined): number => v ?? 0;
 
 /**
- * Dải thẻ đếm hồ sơ theo trạng thái — phần chính của trang.
+ * Dải thẻ đếm hồ sơ — phần chính của trang.
  *
- * Trạng thái có 0 hồ sơ VẪN HIỆN. Ẩn đi thì dải thẻ đổi số lượng ô theo dữ liệu,
- * và người dùng quen vị trí sẽ bấm nhầm ô; tệ hơn, "không có ô Từ chối" và
- * "không có hồ sơ nào bị từ chối" trông giống hệt nhau.
+ * Ô có 0 hồ sơ VẪN HIỆN. Ẩn đi thì dải thẻ đổi số lượng ô theo dữ liệu, và người
+ * dùng quen vị trí sẽ bấm nhầm ô; tệ hơn, "không có ô Từ chối" và "không có hồ
+ * sơ nào bị từ chối" trông giống hệt nhau.
+ *
+ * MỌI thẻ đều bấm được, không trừ cái nào (`0045`) — kể cả thẻ gộp "Đang chờ".
+ * Một con số không mở ra được danh sách đằng sau nó là một con số người dùng
+ * phải tin mà không kiểm được.
  */
-export function DaiTheTrangThai({
-  danhSach,
-  bo,
-  themTheDangCho = false,
-}: {
-  danhSach: TrangThai[];
-  bo: BoBaoCao;
-  themTheDangCho?: boolean;
-}) {
+export function DaiTheTrangThai({ danhSach, bo }: { danhSach: The[]; bo: BoBaoCao }) {
   if (danhSach.length === 0) return null;
 
   return (
     <div className="luoi-chi-so">
-      {themTheDangCho && (
-        <ChiSo
-          nhan="Đang chờ duyệt"
-          giaTri={DANG_CHO.reduce((a, t) => a + so(bo.tienDo.byStatus[t]), 0)}
-          phu="hồ sơ bạn gửi đang đi trong luồng"
-          kieu="cho"
-        />
-      )}
-      {danhSach.map((t) => (
-        <ChiSo
-          key={t}
-          nhan={nhanTrangThai(t)}
-          giaTri={so(bo.tienDo.byStatus[t])}
-          kieu={nhomTrangThai(t)}
-          den={`/ho-so?status=${t}`}
-        />
-      ))}
+      {danhSach.map((the) => {
+        const { tong, treHan } = demThe(the, bo);
+        return (
+          <ChiSo
+            key={the.ma}
+            nhan={nhanThe(the)}
+            giaTri={tong}
+            {...(the.phu === undefined ? {} : { phu: the.phu })}
+            {...(treHan > 0 ? { canhBao: `trong đó ${treHan} quá hạn` } : {})}
+            kieu={mauThe(the)}
+            den={duongThe(the)}
+          />
+        );
+      })}
     </div>
+  );
+}
+
+/**
+ * Con số trên một thẻ, và trong đó bao nhiêu hồ sơ đã quá hạn.
+ *
+ * Thẻ đếm theo BƯỚC đọc `byStepDetail` chứ không `byStatus`, và khác biệt ấy là
+ * cả lý do bảng đó tồn tại: hồ sơ quá 14 ngày mang `status = 'QUA_HAN_DUYET'`
+ * đè lên trạng thái cũ, nên đếm theo trạng thái sẽ bỏ sót đúng những hồ sơ trễ
+ * nhất — mà chúng vẫn đang nằm trên bàn của người này và vẫn xử lý được bình
+ * thường (muc 4).
+ */
+function demThe(the: The, bo: BoBaoCao): { tong: number; treHan: number } {
+  if (the.dem.tu === 'trangThai') {
+    return { tong: so(bo.tienDo.byStatus[the.dem.trangThai]), treHan: 0 };
+  }
+  // `?.` trên chính bảng, không chỉ trên phần tử: máy chủ chưa trả khoá này thì
+  // cả trang tổng quan trắng bóc, mà đáng lẽ chỉ nên là vài ô ghi 0. Một thiếu
+  // sót nhỏ ở API không đáng đổi lấy một màn hình rỗng không lời giải thích.
+  return the.dem.o.reduce(
+    (a, o) => {
+      const c = bo.tienDo.byStepDetail?.[o];
+      return { tong: a.tong + so(c?.total), treHan: a.treHan + so(c?.overdue) };
+    },
+    { tong: 0, treHan: 0 },
   );
 }
 
@@ -111,7 +120,10 @@ export function TheoBuoc({ bo }: { bo: BoBaoCao }) {
       <ul className="danh-sach-thanh">
         {dong.map(([buoc, n]) => (
           <li key={buoc}>
-            <Lien den={`/ho-so?status=${TRANG_THAI_CUA_BUOC[buoc]}`} className="thanh-nhan">
+            {/* Lọc theo BƯỚC, không theo trạng thái (`0045`): con số bên phải đã
+                gồm cả hồ sơ quá hạn ở bước này, mà chúng mang `QUA_HAN_DUYET`
+                nên `?status=` sẽ mở ra một danh sách ngắn hơn chính nó. */}
+            <Lien den={`/ho-so?pendingStep=${buoc}`} className="thanh-nhan">
               {NHAN_BUOC[buoc]}
             </Lien>
             {/* Thanh dài ngắn là TRANG TRÍ cho con số bên cạnh — trình đọc màn

@@ -131,7 +131,7 @@ việc để xem**, và chúng vẫn đứng đầu danh sách:
 | Nhà thuốc Minh Châu | Nháp | `tdv01` sửa tiếp |
 | Nhà thuốc Minh Châu | Yêu cầu chỉnh sửa | `tdv01` — có dải **lý do trả lại** |
 | Dược phẩm Hoàng Long | Chờ TBP duyệt | `tbp01` |
-| Khoa Dinh dưỡng Bạch Mai | Chờ Kế toán L1 | `kt01` — xuất được hợp đồng |
+| Khoa Dinh dưỡng Bạch Mai | KT duyệt bản mềm | `kt01` — xuất được hợp đồng |
 | Nhà thuốc Đông Á | Đang có hiệu lực | báo cáo, màn hình khách hàng |
 
 Ba chi tiết được đặt có chủ ý:

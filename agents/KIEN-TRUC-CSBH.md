@@ -434,9 +434,9 @@ stateDiagram-v2
   Nhap: Nháp — sửa tự do
   ChoTBP: Chờ TBP duyệt — khóa sửa
   DaKy: TBP đã ký số
-  ChoL1: Chờ Kế toán L1
+  ChoL1: KT duyệt bản mềm
   SAXuLy: Sale Admin đang xử lý
-  ChoL2: Chờ Kế toán L2
+  ChoL2: KT duyệt bản cứng
   HieuLuc: Đang có hiệu lực — vô thời hạn
   HetHieuLuc: Hết hiệu lực
   YeuCauSua: Yêu cầu chỉnh sửa — bắt buộc có lý do
@@ -1085,17 +1085,17 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | WF-06 | TBP không duyệt nhưng bỏ trống lý do | 400 `REASON_REQUIRED` | §3 B4B | `P0` |
 | WF-07 | TBP không duyệt kèm lý do | *Yêu cầu chỉnh sửa*, hồ sơ mở khóa, tạo phiên bản mới, email tới TDV kèm lý do | §3 B4B | `P0` |
 | WF-08 | TBP từ chối hồ sơ | *Từ chối*; thử mọi hành động tiếp theo đều 409 — đây là trạng thái kết thúc | §4 | `P0` |
-| WF-09 | Sau khi TBP ký số | Hệ thống tự chuyển *Chờ Kế toán L1* và phát hành liên kết “CSBH đã ký số” tại bàn kế toán | §3 B5 | `P0` |
+| WF-09 | Sau khi TBP ký số | Hệ thống tự chuyển *KT duyệt bản mềm* và phát hành liên kết “CSBH đã ký số” tại bàn kế toán | §3 B5 | `P0` |
 | WF-10 | Kế toán tiếp nhận lần 1 | *Sale Admin đang xử lý*; email tới SA, TBP, TDV | §3 B6A | `P0` |
 | WF-11 | Kế toán không tiếp nhận lần 1, có lý do | *Yêu cầu chỉnh sửa* → Bước 3; hồ sơ phải duyệt và ký lại từ đầu | §3 B6B | `P0` |
 | WF-12 | kt02 tiếp nhận hồ sơ của tdv01 (ngoài phạm vi) | 403 | §2.4 | `P0` |
-| WF-13 | Sale Admin tải bản scan rồi bấm bàn giao | *Chờ Kế toán L2*; email tới KT, TBP, TDV | §3 B8 B9 | `P0` |
+| WF-13 | Sale Admin tải bản scan rồi bấm bàn giao | *KT duyệt bản cứng*; email tới KT, TBP, TDV | §3 B8 B9 | `P0` |
 | WF-14 | Sale Admin bấm bàn giao khi chưa có file scan | 409 | §2.5 | `P0` |
-| WF-15 | Sale Admin gọi bàn giao khi hồ sơ đang ở *Chờ Kế toán L1* | 409 `INVALID_TRANSITION` — không bỏ qua được bước tiếp nhận L1 | §2.5 | `P0` |
+| WF-15 | Sale Admin gọi bàn giao khi hồ sơ đang ở *KT duyệt bản mềm* | 409 `INVALID_TRANSITION` — không bỏ qua được bước tiếp nhận L1 | §2.5 | `P0` |
 | WF-16 | Kế toán tiếp nhận lần 2 | *Đang có hiệu lực* **ngay tại thời điểm đó**; `effective_from` = đúng timestamp hành động | §5.3 | `P0` |
 | WF-17 | Kế toán không tiếp nhận L2, chọn “Trả về Bước 3” | *Yêu cầu chỉnh sửa*, tạo phiên bản mới, bắt buộc có lý do | §3 B10B | `P0` |
 | WF-18 | Kế toán không tiếp nhận L2, chọn “Yêu cầu in lại bản cứng” | Về Sale Admin (Bước 8); **bản scan cũ bị xóa khỏi hệ thống**; nhật ký ghi ai hủy, lúc nào, lý do gì | §3 B10C §10 | `P0` |
-| WF-19 | Sau khi in lại và bàn giao lần hai | Quay lại *Chờ Kế toán L2* mà **không** phải ký số lại — đây là ngoại lệ duy nhất | §3 B10C | `P0` |
+| WF-19 | Sau khi in lại và bàn giao lần hai | Quay lại *KT duyệt bản cứng* mà **không** phải ký số lại — đây là ngoại lệ duy nhất | §3 B10C | `P0` |
 | WF-20 | Hồ sơ bị trả về Bước 3 từ bất kỳ nhánh nào, rồi gửi lại | Đi lại **toàn bộ** vòng duyệt, kể cả bước ký số của TBP | §3 | `P0` |
 | WF-21 | Mở lịch sử sau khi hồ sơ đã sang phiên bản mới | File đã ký của phiên bản cũ vẫn mở được, không bị ghi đè | §10 §11.1 | `P0` |
 | WF-22 | Quét OpenAPI tìm nghiệp vụ thu hồi | Không tồn tại endpoint nào cho việc thu hồi hồ sơ | §4 | `P0` |
@@ -1531,7 +1531,7 @@ Mật khẩu chung ở môi trường dev: `Test@1234`. Email dạng `tdv01@csbh
 - **12 sản phẩm** thuộc 3 nhóm, có sản phẩm đã vô hiệu hóa để kiểm `CAT-07/08`.
 - **4 dòng chiết khấu quy định** `0026`, trong đó có 2 dòng cố ý cùng khớp một tình huống để kiểm quy tắc chọn dòng cụ thể nhất (`CAT-11`).
 - **3 khách hàng** — mỗi loại 1, một khách có địa chỉ đăng ký khác nơi nhận hàng.
-- **4 hồ sơ dựng sẵn**: một ở *Chờ TBP duyệt*, một ở *Chờ Kế toán L2*, một *Đang có hiệu lực* (để thử luồng bổ sung/chỉnh sửa), một *Từ chối* (để thử không xóa được).
+- **4 hồ sơ dựng sẵn**: một ở *Chờ TBP duyệt*, một ở *KT duyệt bản cứng*, một *Đang có hiệu lực* (để thử luồng bổ sung/chỉnh sửa), một *Từ chối* (để thử không xóa được).
 - **1 hồ sơ `LEGACY`** thiếu file ký và thiếu mốc thời gian, để kiểm nhóm `MIG` ngay từ giai đoạn 1.
 - **1 mẫu hợp đồng mặc định** đã ánh xạ đủ trường, seed sẵn khi triển khai để chạy thử ngay mà không phải chờ Sale Admin soạn mẫu thật (§8.2). Kèm một mẫu thứ hai còn ô trống chưa ánh xạ để kiểm `DOC-30`.
 
@@ -1624,7 +1624,7 @@ it('WF-04 · TBP ký số thì kế toán và TDV nhận thư đủ nội dung',
 | 8 | kt01 | Tiếp nhận L1 rồi xuất hợp đồng | Xuất được; kiểm tra `tbp01` **không** có nút này |
 | 8b | sa01 | Mở cùng hồ sơ đó, xuất hợp đồng lần nữa | Cũng xuất được, nhận một PDF mới sinh; Mailpit không có gì, nhật ký có **hai** dòng xuất hợp đồng |
 | 9 | sa01 | Bấm bàn giao khi chưa tải scan | Bị chặn |
-| 10 | sa01 | Tải scan rồi bàn giao | Chuyển *Chờ Kế toán L2*, email tới kt01 xuất hiện ở Mailpit |
+| 10 | sa01 | Tải scan rồi bàn giao | Chuyển *KT duyệt bản cứng*, email tới kt01 xuất hiện ở Mailpit |
 | 11 | kt01 | Chọn “yêu cầu in lại” | Hồ sơ về sa01; bản scan cũ biến mất; nhật ký ghi việc hủy scan |
 | 12 | sa01 → kt01 | Làm lại bản cứng rồi tiếp nhận L2 | *Đang có hiệu lực* ngay lúc đó; CSBH cũ của khách hàng đó chuyển *Hết hiệu lực* |
 | 13 | bld01 | Mở hồ sơ, lọc theo tỉnh/thành, xuất Excel | Xem và xuất được; không thấy bất kỳ nút thao tác nào |

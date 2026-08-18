@@ -6,17 +6,16 @@
  * (`policies.service.ts`, bảng `waitingFor`), đăng nhập vào một trang TRẮNG
  * không lời giải thích.
  *
- * Màn hình này không tự quyết gì: nó đọc `THE_TRANG_THAI` và `KHOI_THEO_VAI_TRO`
+ * Màn hình này không tự quyết gì: nó đọc `THE_THEO_VAI_TRO` và `KHOI_THEO_VAI_TRO`
  * ở `lib/tong-quan.ts` rồi dựng theo. Thêm một vai trò là thêm một dòng vào hai
  * bảng đó, không phải sửa ở đây.
  */
 import { usePhien } from '../lib/auth.js';
 import { useBaoCao } from '../lib/bao-cao.js';
 import {
-  CO_THE_DANG_CHO,
   KHOI_THEO_VAI_TRO,
   LY_DO_KHONG_CO_VIEC,
-  THE_TRANG_THAI,
+  THE_THEO_VAI_TRO,
   type TenKhoi,
 } from '../lib/tong-quan.js';
 import type { VaiTro } from '../lib/can.js';
@@ -44,7 +43,7 @@ export function TongQuan() {
   const { nguoiDung } = usePhien();
   const vaiTro = (nguoiDung?.role ?? '') as VaiTro;
 
-  const the = THE_TRANG_THAI[vaiTro] ?? [];
+  const the = THE_THEO_VAI_TRO[vaiTro] ?? [];
   const khoi = KHOI_THEO_VAI_TRO[vaiTro] ?? [];
 
   // Chỉ gọi endpoint mà bộ khối của vai trò này thật sự dùng. Quản trị hệ thống
@@ -188,19 +187,14 @@ export function TongQuan() {
       )}
 
       {/*
-        Dải thẻ trạng thái. Chỉ những trạng thái thuộc phần việc của chính vai
-        trò này — xem `THE_TRANG_THAI`. Quản trị hệ thống không có thẻ nào vì
-        phạm vi dữ liệu của họ rỗng, nên mọi con số sẽ là 0 và đọc ra nghĩa sai.
+        Dải thẻ. Chỉ phần việc của chính vai trò này, cộng một thẻ gộp cho phần
+        còn lại đang chạy trong luồng — xem `THE_THEO_VAI_TRO`. Quản trị hệ thống
+        không có thẻ nào vì phạm vi dữ liệu của họ rỗng, nên mọi con số sẽ là 0
+        và đọc ra nghĩa hoàn toàn sai.
       */}
       {the.length > 0 && loiBaoCao !== null && <BaoLoi loi={loiBaoCao} />}
       {the.length > 0 && bo === null && loiBaoCao === null && <DangTai />}
-      {the.length > 0 && bo !== null && (
-        <DaiTheTrangThai
-          danhSach={the}
-          bo={bo}
-          themTheDangCho={CO_THE_DANG_CHO.includes(vaiTro)}
-        />
-      )}
+      {the.length > 0 && bo !== null && <DaiTheTrangThai danhSach={the} bo={bo} />}
 
       {khoi.map(veKhoi)}
     </section>

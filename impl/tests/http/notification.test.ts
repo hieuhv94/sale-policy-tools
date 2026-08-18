@@ -860,11 +860,29 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
         thresholdRate2: 1750,
       });
 
-    // BƠM MỖI VÒNG, không bơm một lần rồi chờ suông.
-    //
-    // Một lượt bơm duy nhất phải rơi đúng lúc consumer đã sẵn sàng thì mới ăn;
-    // lệch nhịp là ca này chờ hết 15 giây rồi đỏ, mà chạy lại một mình thì xanh.
-    // Đúng kiểu mong manh chỉ lộ ra khi cả bộ test chạy cùng nhau.
+    /*
+     * BƠM MỖI VÒNG, không bơm một lần rồi chờ suông.
+     *
+     * Một lượt bơm duy nhất phải rơi đúng lúc consumer đã sẵn sàng thì mới ăn;
+     * lệch nhịp là ca này chờ hết hạn rồi đỏ, mà chạy lại một mình thì xanh.
+     * Đúng kiểu mong manh chỉ lộ ra khi cả bộ test chạy cùng nhau.
+     *
+     * VÀ HẠN CHỜ RỘNG HƠN HẲN MẶC ĐỊNH — 120 giây, không phải 15.
+     *
+     * Đổi một quy định chiết khấu buộc consumer rà LẠI MỌI hồ sơ đã đóng băng
+     * (xem `catalog-impact.consumer.ts`): không suy ra được hồ sơ nào bị ảnh
+     * hưởng mà không tra lại từng cái. Mỗi hồ sơ tốn một lượt hỏi khách hàng và
+     * một lượt hỏi danh mục, nối đuôi nhau.
+     *
+     * CSDL của bộ test KHÔNG bị dọn giữa các lượt chạy, nên số hồ sơ đã đóng
+     * băng chỉ tăng — mỗi lượt `make test` bồi thêm vài trăm. Ở mốc 1300 hồ sơ,
+     * lượt rà đã vượt 15 giây, và ca này đỏ theo đúng cái đà tăng ấy chứ không
+     * theo bất kỳ thay đổi nào của mã.
+     *
+     * Nới hạn là ĐÚNG chỗ để sửa: ca này khẳng định lá thư nói về NGƯỠNG chứ
+     * không nói về giá — nó không khẳng định gì về tốc độ rà. Buộc nó vào một
+     * ngân sách thời gian là bắt nó gãy vì một lý do nó không nói tới.
+     */
     await waitFor(async () => {
       await catOutbox.pumpOnce();
       const r = await withAdminDb(async (cc) =>
@@ -875,7 +893,7 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
         ),
       );
       return r.rowCount === 1;
-    }, 'policy chưa tiêu thụ xong catalog.changed');
+    }, 'policy chưa tiêu thụ xong catalog.changed', 120_000);
 
     /*
      * TÌM ĐÚNG LÁ THƯ CỦA HỒ SƠ NÀY, không lấy lá mới nhất.

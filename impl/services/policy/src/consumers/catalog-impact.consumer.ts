@@ -157,16 +157,76 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       theoHoSo.set(d.policy_id, c);
     }
 
+    /*
+     * NHỚ TẠM TRONG MỘT LƯỢT RÀ (`0045`).
+     *
+     * Đổi một quy định chiết khấu buộc phải rà MỌI hồ sơ đã đóng băng — không
+     * suy ra được hồ sơ nào bị ảnh hưởng mà không tra lại. Nhưng vòng lặp cũ gọi
+     * mạng hai lần cho MỖI hồ sơ, mà cả nghìn hồ sơ thì chỉ có vài chục khách
+     * hàng và vài chục sản phẩm: gần như mọi lời gọi là hỏi lại đúng câu vừa hỏi.
+     * Với 1100 hồ sơ đó là hơn 2000 vòng mạng nối đuôi nhau, và một lượt rà mất
+     * hàng chục giây — đủ để một ca kiểm thử chờ 15 giây rồi đỏ.
+     *
+     * Nhớ tạm còn ĐÚNG HƠN bản cũ: một lượt rà là một phép so tại MỘT thời điểm.
+     * Gọi lại danh mục giữa chừng nghĩa là hồ sơ đầu danh sách so với bảng giá
+     * lúc 9:00 còn hồ sơ cuối so với bảng giá lúc 9:01, và không ai đọc dấu vết
+     * ra được là hai con số ấy đến từ hai thời điểm.
+     *
+     * Phạm vi là MỘT lượt gọi `handle` — không phải bộ nhớ đệm sống lâu. Lượt rà
+     * sau đọc lại danh mục từ đầu.
+     */
+    const nhoKhach = new Map<string, Awaited<ReturnType<Clients['customer']>> | undefined>();
+    const nhoAnh = new Map<string, ProductSnapshot | undefined>();
+
+    /*
+     * HỒ SƠ NÀO ĐANG CÓ DẤU VẾT — đọc một lượt cho cả đợt rà (`0045`).
+     *
+     * Dùng DUY NHẤT làm đường tắt: hồ sơ không lệch gì ở lượt này VÀ không mang
+     * sẵn dấu vết nào thì `dongBoDauVet` chắc chắn không ghi và không xoá gì cả —
+     * nhưng vẫn tốn một transaction. Với vài nghìn hồ sơ đã đóng băng, đó là vài
+     * nghìn lượt BEGIN/COMMIT rỗng, và một lượt rà mất hàng chục giây.
+     *
+     * Đường tắt này an toàn kể cả khi ảnh chụp lỗi thời: sai theo hướng "tưởng
+     * có dấu vết" chỉ tốn thêm một transaction rồi phát hiện không có gì để làm.
+     * Sai theo hướng ngược lại nghĩa là một lượt rà khác vừa ghi dấu vết xen vào
+     * — mà nó vừa xác nhận dấu vết ấy đúng, nên bỏ qua mới là hành vi đúng.
+     *
+     * Phép so `moi` (dòng lệch MỚI XUẤT HIỆN, thứ quyết định có gửi thư hay
+     * không) vẫn đọc lại TRONG transaction như cũ. Không hạ nó xuống đọc ở đây:
+     * hai lượt rà chồng nhau sẽ cùng thấy một ảnh chụp cũ và cùng gửi thư.
+     */
+    const coDauVet = new Set(
+      (
+        await this.db.q<{ policy_id: string }>(
+          `SELECT DISTINCT policy_id FROM pol.policy_impact WHERE policy_id = ANY($1::uuid[])`,
+          [[...theoHoSo.keys()]],
+        )
+      ).map((r) => r.policy_id),
+    );
+
     let soLech = 0;
     for (const [policyId, cac] of theoHoSo) {
       const dau = cac[0]!;
-      const customer = await this.clients.customer(dau.customer_id).catch(() => undefined);
+      if (!nhoKhach.has(dau.customer_id)) {
+        nhoKhach.set(
+          dau.customer_id,
+          await this.clients.customer(dau.customer_id).catch(() => undefined),
+        );
+      }
+      const customer = nhoKhach.get(dau.customer_id);
       if (!customer) continue;
 
-      const snaps = await this.traAnhChup(
-        cac.map((x) => x.product_id),
-        customer.customerType,
-      );
+      const loai = customer.customerType;
+      const chuaCo = cac.map((x) => x.product_id).filter((id) => !nhoAnh.has(`${loai}:${id}`));
+      if (chuaCo.length > 0) {
+        const moi = await this.traAnhChup(chuaCo, loai);
+        for (const id of chuaCo) nhoAnh.set(`${loai}:${id}`, moi.get(id));
+      }
+      const snaps = new Map<string, ProductSnapshot>();
+      for (const x of cac) {
+        const s = nhoAnh.get(`${loai}:${x.product_id}`);
+        if (s) snaps.set(x.product_id, s);
+      }
 
       const lech: Lech[] = [];
       for (const d of cac) {
@@ -220,6 +280,8 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
           });
         }
       }
+
+      if (lech.length === 0 && !coDauVet.has(policyId)) continue;
 
       const moiXuatHien = await this.db.tx((c) => this.dongBoDauVet(c, policyId, cac, lech));
       if (lech.length > 0) soLech += 1;

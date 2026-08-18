@@ -36,7 +36,33 @@ export type Filter = {
   status?: string | undefined;
   tdvUserId?: string | undefined;
   productGroupCode?: string | undefined;
+  pendingStep?: string | undefined;
+  reprint?: string | undefined;
 };
+
+/**
+ * Bước đang chờ suy từ trạng thái — dạng SQL.
+ *
+ * Lặp lại `STEP_OF_STATUS` bên `@csbh/domain-policy` vì phép này phải chạy TRONG
+ * CSDL: kéo hai mươi nghìn dòng về Node để nhóm lại là chính thứ read-model sinh
+ * ra để tránh.
+ */
+export const STEP_FROM_STATUS = `CASE status
+    WHEN 'CHO_TBP_DUYET' THEN 'B4_TBP_DUYET'
+    WHEN 'CHO_KT_L1'     THEN 'B6_KT_L1'
+    WHEN 'SA_DANG_XU_LY' THEN 'B8_SA_XU_LY'
+    WHEN 'CHO_KT_L2'     THEN 'B10_KT_L2'
+  END`;
+
+/**
+ * Bước đang chờ THẬT SỰ của một hồ sơ, quá hạn hay không.
+ *
+ * `pending_step` chỉ có giá trị khi hồ sơ đã quá hạn — nó sinh ra để hồ sơ quá
+ * hạn còn biết đường đi tiếp đúng nhánh cũ (muc 4). Hồ sơ chờ bình thường thì
+ * bước suy từ trạng thái. Lọc chỉ theo `status` là bỏ sót đúng những hồ sơ trễ
+ * nhất, vì `QUA_HAN_DUYET` ĐÈ LÊN trạng thái cũ chứ không đứng cạnh nó.
+ */
+export const BUOC_DANG_CHO = `coalesce(pending_step, ${STEP_FROM_STATUS})`;
 
 /** Tên tham số nhận từ query string, theo đúng thứ tự 11 tiêu chí ở muc 9.2. */
 export const FILTER_KEYS = [
@@ -55,6 +81,17 @@ export const FILTER_KEYS = [
   'productGroupCode',
 ] as const;
 
+/**
+ * Tiêu chí CHỈ ĐẾN TỪ LIÊN KẾT, không có ô nào trong biểu mẫu lọc (`0045`).
+ *
+ * Để RIÊNG khỏi `FILTER_KEYS` chứ không nối vào cuối, vì màn hình dựng biểu mẫu
+ * từ danh sách kia (`GET /reports/filter-keys`): nối vào là mọc thêm hai ô nhập
+ * mà người dùng không gõ nổi — "bước đang chờ" là mã viết hoa, còn "reprint"
+ * nhận 0 hoặc 1. Chúng chỉ sinh ra khi bấm một thẻ trên trang tổng quan, và bộ
+ * lọc vẫn phải hiểu để danh sách mở ra khớp con số vừa bấm.
+ */
+export const KHOA_TU_LIEN_KET = ['pendingStep', 'reprint'] as const;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -68,7 +105,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function cleanFilter(q: Record<string, unknown>): Filter {
   const out: Record<string, string> = {};
-  for (const k of FILTER_KEYS) {
+  for (const k of [...FILTER_KEYS, ...KHOA_TU_LIEN_KET]) {
     const v = q[k];
     if (typeof v !== 'string') continue;
     const t = v.trim();
@@ -81,6 +118,13 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
   }
   for (const k of ['requesterId', 'tdvUserId'] as const) {
     if (out[k] && !UUID.test(out[k]!)) throw bad(k, 'phải là uuid');
+  }
+  // `reprint` KHÔNG được im lặng bỏ qua khi sai. Nó chỉ nhận hai giá trị, và
+  // "bỏ qua tiêu chí không hiểu" ở đây nghĩa là mở rộng kết quả ra cả hai nhóm —
+  // một tiêu chí hỏng lại trả về NHIỀU hơn là thứ phải báo, không phải thứ nên
+  // lặng lẽ chịu đựng.
+  if (out['reprint'] && out['reprint'] !== '0' && out['reprint'] !== '1') {
+    throw bad('reprint', 'chỉ nhận 0 hoặc 1');
   }
   return out as Filter;
 }
@@ -154,6 +198,27 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
 
   // 11. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
   if (f.productGroupCode) add((i) => `product_group_codes && ARRAY[$${i}]::text[]`, f.productGroupCode);
+
+  /*
+   * 12. Bước đang chờ (`0045`) — cách DUY NHẤT để một liên kết mở ra đúng tập hồ
+   * sơ mà thẻ trên trang tổng quan đã đếm.
+   *
+   * Không thay được bằng `status`: thẻ "Chờ TBP duyệt" đếm cả hồ sơ quá hạn ở
+   * bước ấy, mà chúng mang `status = 'QUA_HAN_DUYET'`. Lọc `status=CHO_TBP_DUYET`
+   * cho ra một danh sách NGẮN HƠN con số vừa bấm vào — người dùng đếm được, và
+   * đó là kiểu sai không ai báo lỗi giúp.
+   */
+  if (f.pendingStep) {
+    add(
+      (i) => `${BUOC_DANG_CHO} = ANY($${i}::text[])`,
+      f.pendingStep.split(',').map((s) => s.trim()).filter(Boolean),
+    );
+  }
+
+  // 13. Lý do hồ sơ nằm ở Sale Admin (`0045`): `1` = đang phải in lại bản cứng,
+  //     `0` = trình ký lần đầu. Chỉ có nghĩa khi đi kèm tiêu chí 12.
+  if (f.reprint === '1') cond.push('reprint_requested_at IS NOT NULL');
+  if (f.reprint === '0') cond.push('reprint_requested_at IS NULL');
 
   return { where: cond.join(' AND '), params };
 }

@@ -10,7 +10,20 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
-import { build, type Filter } from './filter.js';
+import { build, BUOC_DANG_CHO, STEP_FROM_STATUS, type Filter } from './filter.js';
+
+/**
+ * Khoá thẻ trên trang tổng quan — bốn bước chờ, riêng B8 tách làm hai (`0045`).
+ *
+ * `SA_DANG_XU_LY` gộp hai việc khác hẳn nhau: in và trình ký lần đầu (B8), hay
+ * làm lại bản cứng vì kế toán bắt in lại (B10C). Sale Admin cần hai con số, và
+ * chỉ mốc `reprint_requested_at` phân biệt được.
+ */
+const KHOA_THE = `CASE
+    WHEN ${BUOC_DANG_CHO} <> 'B8_SA_XU_LY' THEN ${BUOC_DANG_CHO}
+    WHEN reprint_requested_at IS NOT NULL  THEN 'B8_LOI_BAN_CUNG'
+    ELSE 'B8_TRINH_KY'
+  END`;
 
 export const LIST_LIMIT_MAX = 200;
 
@@ -143,10 +156,28 @@ export class ReportsService {
       params,
     );
     const byStep = await this.db.q<{ k: string; n: string }>(
-      `SELECT coalesce(pending_step, ${STEP_FROM_STATUS}) AS k, count(*)::text AS n
+      `SELECT ${BUOC_DANG_CHO} AS k, count(*)::text AS n
          FROM rpt.policy_row
         WHERE ${where} AND (pending_step IS NOT NULL OR ${STEP_FROM_STATUS} IS NOT NULL)
         GROUP BY 1 ORDER BY count(*) DESC`,
+      params,
+    );
+    /*
+     * Cùng phép nhóm, thêm hai thứ trang tổng quan cần mà `byPendingStep` không
+     * nói được: B8 tách đôi, và trong mỗi ô có bao nhiêu hồ sơ đã quá hạn.
+     *
+     * Con số quá hạn đi KÈM ô của bước chứ không đứng thành ô riêng: hồ sơ quá
+     * hạn vẫn đang nằm trên bàn của đúng người ấy và vẫn xử lý được bình thường
+     * (`effectiveStatus`, muc 4). Tách nó ra một thẻ riêng thì thẻ "Chờ TBP
+     * duyệt" đọc ra ít việc hơn thực tế; bỏ hẳn nó đi thì hồ sơ trễ nhất không
+     * còn xuất hiện ở đâu cả.
+     */
+    const byStepDetail = await this.db.q<{ k: string; n: string; qh: string }>(
+      `SELECT ${KHOA_THE} AS k, count(*)::text AS n,
+              count(*) FILTER (WHERE status = 'QUA_HAN_DUYET')::text AS qh
+         FROM rpt.policy_row
+        WHERE ${where} AND (pending_step IS NOT NULL OR ${STEP_FROM_STATUS} IS NOT NULL)
+        GROUP BY 1`,
       params,
     );
     const byTdv = await this.db.q<{ k: string; name: string | null; n: string }>(
@@ -160,6 +191,9 @@ export class ReportsService {
       total: byStatus.reduce((a, r) => a + Number(r.n), 0),
       byStatus: Object.fromEntries(byStatus.map((r) => [r.k, Number(r.n)])),
       byPendingStep: Object.fromEntries(byStep.map((r) => [r.k, Number(r.n)])),
+      byStepDetail: Object.fromEntries(
+        byStepDetail.map((r) => [r.k, { total: Number(r.n), overdue: Number(r.qh) }]),
+      ),
       byHandler: byTdv.map((r) => ({ userId: r.k, name: r.name, count: Number(r.n) })),
     };
   }
@@ -268,18 +302,6 @@ export class ReportsService {
     };
   }
 }
-
-/**
- * Bước đang chờ suy từ trạng thái. Bảng này lặp lại `STEP_OF_STATUS` bên
- * `@csbh/domain-policy` nhưng ở dạng SQL, vì phép đếm phải chạy trong CSDL —
- * kéo 20 nghìn dòng về Node để nhóm lại là chính thứ read-model sinh ra để tránh.
- */
-const STEP_FROM_STATUS = `CASE status
-    WHEN 'CHO_TBP_DUYET' THEN 'B4_TBP_DUYET'
-    WHEN 'CHO_KT_L1'     THEN 'B6_KT_L1'
-    WHEN 'SA_DANG_XU_LY' THEN 'B8_SA_XU_LY'
-    WHEN 'CHO_KT_L2'     THEN 'B10_KT_L2'
-  END`;
 
 export const encodeCursor = (c: Cursor): string =>
   Buffer.from(`${c.createdAt}|${c.policyId}`, 'utf8').toString('base64url');

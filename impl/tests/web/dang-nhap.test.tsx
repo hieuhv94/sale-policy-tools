@@ -90,13 +90,21 @@ const chanMang = (role: string) => {
     /*
      * Hình dạng chung đủ cho mọi khối còn lại: danh sách rỗng, tổng bằng 0.
      *
-     * `byHandler` và `byPendingStep` phải đúng TÊN của máy chủ. Bản đầu tôi viết
-     * `byTdv` và khối *Theo từng TDV* của Sale Admin nổ ngay trong lúc dựng —
-     * ca kiểm thử vẫn xanh vì nó chỉ soi đường dẫn, còn màn hình thì trắng. Đó
-     * là lời nhắc rằng khẳng định "về đúng trang" chưa đủ; xem ca cuối khối.
+     * `byHandler`, `byPendingStep` và `byStepDetail` phải đúng TÊN của máy chủ.
+     * Bản đầu tôi viết `byTdv` và khối *Theo từng TDV* của Sale Admin nổ ngay
+     * trong lúc dựng — ca kiểm thử vẫn xanh vì nó chỉ soi đường dẫn, còn màn
+     * hình thì trắng. Đó là lời nhắc rằng khẳng định "về đúng trang" chưa đủ;
+     * xem ca cuối khối. `byStepDetail` (`0045`) vào đây vì đúng lý do ấy.
      */
     return Promise.resolve(
-      json({ items: [], total: 0, byStatus: {}, byPendingStep: {}, byHandler: [] }),
+      json({
+        items: [],
+        total: 0,
+        byStatus: {},
+        byPendingStep: {},
+        byStepDetail: {},
+        byHandler: [],
+      }),
     );
   });
   vi.stubGlobal('fetch', f);

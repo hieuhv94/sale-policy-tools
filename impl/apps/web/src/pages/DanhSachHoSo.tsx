@@ -57,6 +57,11 @@ const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' }[] = [
 const TIEU_CHI_AN: Record<string, string> = {
   tdvUserId: 'Trình dược viên',
   requesterId: 'Người đề nghị',
+  // Hai tiêu chí của trang tổng quan (`0045`). `pendingStep` là cách DUY NHẤT để
+  // một thẻ mở ra đúng tập hồ sơ nó vừa đếm: thẻ đếm cả hồ sơ quá hạn ở bước ấy,
+  // mà chúng mang `QUA_HAN_DUYET` nên `status` lọc không ra.
+  pendingStep: 'Bước đang chờ',
+  reprint: 'Việc của Sale Admin',
 };
 
 const KHOA_NHAN_TU_LIEN_KET = [...TIEU_CHI.map((t) => t.khoa), ...Object.keys(TIEU_CHI_AN)];
