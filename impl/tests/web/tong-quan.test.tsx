@@ -186,12 +186,12 @@ describe('`0047` thẻ Sắp quá hạn', () => {
     }
   });
 
-  it('bấm vào lọc theo `dueSoon`, không theo bước nào', () => {
+  it('bấm vào lọc theo `han`, không theo bước nào', () => {
     // Nó cộng hồ sơ ở MỌI bước — người liên quan nào cũng thấy, kể cả khi hồ sơ
     // đang nằm ở bàn người khác. Kèm `pendingStep` vào là cắt mất phần lớn.
     for (const v of CO_HO_SO) {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'SAP_QUA_HAN')!;
-      expect(duongThe(the)).toBe('/ho-so?dueSoon=1');
+      expect(duongThe(the)).toBe('/ho-so?han=SAP_QUA_HAN');
     }
   });
 
@@ -284,7 +284,10 @@ describe('`0047` thẻ Sắp quá hạn', () => {
     for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'QUA_HAN_DUYET')!;
       expect(the.dem.tu).toBe('trangThai');
-      expect(duongThe(the)).toBe('/ho-so?status=QUA_HAN_DUYET');
+      // ĐẾM theo trạng thái, nhưng BẤM vào lọc theo *Hạn xử lý* (`0060`): hai
+      // đường cho ra cùng một tập, và đường này để lại đúng cái ô chọn mà người
+      // dùng thấy trong biểu mẫu.
+      expect(duongThe(the)).toBe('/ho-so?han=QUA_HAN');
       // Đỏ như thẻ Sắp quá hạn: `nhomTrangThai` cho `QUA_HAN_DUYET` màu cảnh báo,
       // nhưng ở đây nó KHÔNG còn là cảnh báo — nó là mất mát đã xảy ra.
       expect(mauThe(the), v).toBe('canh-bao');
@@ -483,7 +486,8 @@ describe('khối và câu giải thích khớp nhau', () => {
     /*
      * Bản trước liệt kê tay hai khoá (`pendingStep`, `reprint`) và quét mã nguồn
      * tìm chúng. Nó xanh mãi mãi — kể cả khi `0047` thêm thẻ *Sắp quá hạn* với
-     * tham số `dueSoon` thứ ba mà quên khai bên màn hình hồ sơ. Hệ quả: bấm thẻ
+     * tham số thứ ba (`dueSoon`, nay là `han`) mà quên khai bên màn hình hồ sơ.
+     * Hệ quả: bấm thẻ
      * ấy ra TOÀN BỘ hồ sơ, vì tham số nào không có tên trong danh sách nhận thì
      * bị bỏ trong IM LẶNG — không lỗi, không cảnh báo, chỉ một danh sách dài hơn
      * con số vừa bấm vào.

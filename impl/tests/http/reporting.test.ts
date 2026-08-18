@@ -1149,8 +1149,8 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
      * quyết định thứ tự xử lý.
      *
      * Cờ tính ở MÁY CHỦ bằng đúng biểu thức của thẻ *Sắp quá hạn* và tiêu chí
-     * `dueSoon`. Ba chỗ cùng một định nghĩa, nên phép kiểm ở đây là: cờ trên dòng
-     * và tập mà `?dueSoon=1` trả về phải khớp nhau tuyệt đối.
+     * `han=SAP_QUA_HAN`. Ba chỗ cùng một định nghĩa, nên phép kiểm ở đây là: cờ
+     * trên dòng và tập bộ lọc trả về phải khớp nhau tuyệt đối.
      */
     const sapChet = await draft();
     expect((await act(sapChet.id, 'SUBMIT', 'tdv01')).status).toBe(200);
@@ -1181,7 +1181,7 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
 
     // Và cờ phải khớp ĐÚNG tập của bộ lọc — hai đường đọc cùng một định nghĩa.
     const loc = new Set(
-      (await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01')).body.items.map(
+      (await rget('/reports/policies?han=SAP_QUA_HAN&limit=200', 'tbp01')).body.items.map(
         (x: { policyId: string }) => x.policyId,
       ),
     );
@@ -1334,7 +1334,7 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     await sync.refreshPolicy(sapChet.id);
     await sync.refreshPolicy(daChet.id);
 
-    const ds = await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01');
+    const ds = await rget('/reports/policies?han=SAP_QUA_HAN&limit=200', 'tbp01');
     const ids = ds.body.items.map((x: { policyId: string }) => x.policyId);
     expect(ids, 'hồ sơ sắp quá hạn không vào thẻ').toContain(sapChet.id);
     expect(ids, 'hồ sơ ĐÃ chết lọt vào thẻ Sắp quá hạn').not.toContain(daChet.id);
@@ -1348,7 +1348,7 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(tong).toBe(ids.length);
   });
 
-  it('`0059` hồ sơ hệ thống ĐÃ XOÁ không lọt vào `dueSoon`', async () => {
+  it('`0059` hồ sơ hệ thống ĐÃ XOÁ không lọt vào *Sắp quá hạn*', async () => {
     /*
      * `discardOverdue` (`0047`) chuyển hồ sơ quá hạn quá 3 ngày sang `DA_XOA`
      * nhưng KHÔNG xoá `sla_due_at`. Với hai vế cũ — "chưa mang QUA_HAN_DUYET" và
@@ -1374,7 +1374,7 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     });
     await sync.refreshPolicy(d.id);
 
-    const ids = (await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01')).body.items.map(
+    const ids = (await rget('/reports/policies?han=SAP_QUA_HAN&limit=200', 'tbp01')).body.items.map(
       (x: { policyId: string }) => x.policyId,
     );
     expect(ids, 'hồ sơ đã xoá vẫn nằm trong danh sách sắp quá hạn').not.toContain(d.id);
@@ -1386,10 +1386,10 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(dong?.sapQuaHan, 'cờ trên dòng nói ngược với bộ lọc').toBe(false);
   });
 
-  it('`dueSoon` nhận giá trị lạ thì 400', async () => {
-    const r = await rget('/reports/policies?dueSoon=0', 'tbp01');
+  it('`han` nhận giá trị lạ thì 400', async () => {
+    const r = await rget('/reports/policies?han=KHONG_CO_GIA_TRI_NAY', 'tbp01');
     expect(r.status).toBe(400);
-    expect(r.body.field).toBe('dueSoon');
+    expect(r.body.field).toBe('han');
   });
 
   it('con số trên thẻ bằng đúng số dòng danh sách mở ra', async () => {

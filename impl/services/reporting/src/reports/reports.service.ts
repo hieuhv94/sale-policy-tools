@@ -41,7 +41,7 @@ export const LIST_COLUMNS = `
   product_group_codes AS "productGroupCodes",
   created_at AS "createdAt", synced_at AS "syncedAt",
   -- Cột TÍNH RA, không có trong bảng (0053). Dùng lại đúng biểu thức mà thẻ
-  -- "Sắp quá hạn" và tiêu chí dueSoon đang dùng: ba chỗ hiện cùng một khái niệm
+  -- "Sắp quá hạn" và tiêu chí "han" đang dùng: ba chỗ hiện cùng một khái niệm
   -- thì phải đọc từ cùng một định nghĩa, nếu không sẽ có ngày một hồ sơ được
   -- đánh dấu ở màn hình này mà không lọt vào bộ lọc kia.
   --

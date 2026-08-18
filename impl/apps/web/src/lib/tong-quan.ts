@@ -128,6 +128,8 @@ export type The = {
   nhan?: string;
   /** Dòng chữ nhỏ dưới con số. Bỏ trống thì thẻ chỉ có nhãn và số. */
   phu?: string;
+  /** Ghi đè đường dẫn mặc định suy từ `dem`. Xem `theQuaHan`. */
+  den?: string;
   dem:
     | { tu: 'trangThai'; trangThai: TrangThai }
     | { tu: 'buoc'; o: OBuoc[] }
@@ -186,6 +188,14 @@ const theQuaHan = (): The => ({
   nhan: 'Quá hạn',
   phu: 'đã chết, hệ thống xoá sau 3 ngày',
   dem: { tu: 'trangThai', trangThai: 'QUA_HAN_DUYET' },
+  /*
+   * Bấm vào lọc theo *Hạn xử lý*, không theo trạng thái (`0060`).
+   *
+   * Hai đường cho ra cùng một tập, nhưng đường này để lại đúng cái ô chọn mà
+   * người dùng thấy trong biểu mẫu — bấm thẻ rồi mở Bộ lọc ra là hiểu ngay mình
+   * đang lọc theo gì, và đổi sang *Sắp quá hạn* bằng một cú chọn.
+   */
+  den: '/ho-so?han=QUA_HAN',
 });
 
 /**
@@ -302,8 +312,9 @@ export function mauThe(the: The): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' 
  * `coalesce(pending_step, …)`, khớp đúng phép đếm.
  */
 export function duongThe(the: The): string {
+  if (the.den !== undefined) return the.den;
   if (the.dem.tu === 'trangThai') return `/ho-so?status=${the.dem.trangThai}`;
-  if (the.dem.tu === 'sapQuaHan') return '/ho-so?dueSoon=1';
+  if (the.dem.tu === 'sapQuaHan') return '/ho-so?han=SAP_QUA_HAN';
 
   const buoc = [...new Set(the.dem.o.map((o) => BUOC_THAT[o]))];
   const q = `pendingStep=${buoc.join(',')}`;

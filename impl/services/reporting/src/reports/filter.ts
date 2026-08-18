@@ -38,8 +38,11 @@ export type Filter = {
   productGroupCode?: string | undefined;
   pendingStep?: string | undefined;
   reprint?: string | undefined;
-  dueSoon?: string | undefined;
+  han?: string | undefined;
 };
+
+/** Hai giá trị của tiêu chí *Hạn xử lý* (`0060`). */
+export const HAN_XU_LY = ['SAP_QUA_HAN', 'QUA_HAN'] as const;
 
 /**
  * Bước đang chờ suy từ trạng thái — dạng SQL.
@@ -111,15 +114,19 @@ export const FILTER_KEYS = [
 ] as const;
 
 /**
- * Tiêu chí CHỈ ĐẾN TỪ LIÊN KẾT, không có ô nào trong biểu mẫu lọc (`0045`).
+ * Tiêu chí NGOÀI mười một tiêu chí của muc 9.2.
  *
- * Để RIÊNG khỏi `FILTER_KEYS` chứ không nối vào cuối, vì màn hình dựng biểu mẫu
- * từ danh sách kia (`GET /reports/filter-keys`): nối vào là mọc thêm hai ô nhập
- * mà người dùng không gõ nổi — "bước đang chờ" là mã viết hoa, còn "reprint"
- * nhận 0 hoặc 1. Chúng chỉ sinh ra khi bấm một thẻ trên trang tổng quan, và bộ
- * lọc vẫn phải hiểu để danh sách mở ra khớp con số vừa bấm.
+ * Để RIÊNG khỏi `FILTER_KEYS` chứ không nối vào cuối: danh sách kia là bản chép
+ * của muc 9.2 và `GET /reports/filter-keys` công bố đúng con số ấy. Trộn vào là
+ * làm một tài liệu nghiệp vụ nói sai về chính nó.
+ *
+ * `pendingStep` và `reprint` chỉ sinh ra khi bấm một thẻ trên trang tổng quan —
+ * "bước đang chờ" là mã viết hoa, `reprint` nhận 0 hoặc 1, không phải thứ người
+ * ta gõ. `han` thì KHÁC (`0060`): nó có một ô chọn thật trong biểu mẫu lọc, vì
+ * "hồ sơ nào sắp hết giờ" là câu người dùng tự hỏi chứ không phải hệ quả của một
+ * cú bấm ở màn hình khác.
  */
-export const KHOA_TU_LIEN_KET = ['pendingStep', 'reprint', 'dueSoon'] as const;
+export const KHOA_NGOAI_MUC_92 = ['pendingStep', 'reprint', 'han'] as const;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -134,7 +141,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function cleanFilter(q: Record<string, unknown>): Filter {
   const out: Record<string, string> = {};
-  for (const k of [...FILTER_KEYS, ...KHOA_TU_LIEN_KET]) {
+  for (const k of [...FILTER_KEYS, ...KHOA_NGOAI_MUC_92]) {
     const v = q[k];
     if (typeof v !== 'string') continue;
     const t = v.trim();
@@ -155,7 +162,9 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
   if (out['reprint'] && out['reprint'] !== '0' && out['reprint'] !== '1') {
     throw bad('reprint', 'chỉ nhận 0 hoặc 1');
   }
-  if (out['dueSoon'] && out['dueSoon'] !== '1') throw bad('dueSoon', 'chỉ nhận 1');
+  if (out['han'] && !(HAN_XU_LY as readonly string[]).includes(out['han'])) {
+    throw bad('han', `chỉ nhận ${HAN_XU_LY.join(' hoặc ')}`);
+  }
   return out as Filter;
 }
 
@@ -250,8 +259,18 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
   if (f.reprint === '1') cond.push('reprint_requested_at IS NOT NULL');
   if (f.reprint === '0') cond.push('reprint_requested_at IS NULL');
 
-  // 14. Sắp quá hạn (`0047`) — đường dẫn của thẻ cùng tên trên trang tổng quan.
-  if (f.dueSoon === '1') cond.push(SAP_QUA_HAN);
+  /*
+   * 14. Hạn xử lý (`0060`) — một ô chọn gom hai câu hỏi về hạn vào một chỗ.
+   *
+   * Thay cho `dueSoon=1` của `0047`. Hai tiêu chí cho hai nửa của cùng một câu
+   * hỏi là hai chỗ phải nhớ, và người dùng thì hỏi "hồ sơ nào đang có vấn đề về
+   * hạn" chứ không hỏi riêng từng nửa.
+   *
+   * `QUA_HAN` trùng nghĩa với `status=QUA_HAN_DUYET`, và trùng là chấp nhận
+   * được: người tìm theo HẠN không nhất thiết nghĩ nó là một trạng thái.
+   */
+  if (f.han === 'SAP_QUA_HAN') cond.push(SAP_QUA_HAN);
+  if (f.han === 'QUA_HAN') cond.push(`status = 'QUA_HAN_DUYET'`);
 
   return { where: cond.join(' AND '), params };
 }

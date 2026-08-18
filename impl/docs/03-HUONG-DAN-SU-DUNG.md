@@ -671,10 +671,21 @@ mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi h�
 
 ## 10. Tìm kiếm và bộ lọc
 
-*Hồ sơ CSBH* → **Bộ lọc** — 11 tiêu chí, kết hợp được với nhau:
+*Hồ sơ CSBH* → **Bộ lọc** — 11 tiêu chí của yêu cầu nghiệp vụ, kết hợp được với nhau:
 
 > thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
 > mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
+
+Cộng thêm một ô **Hạn xử lý**, đứng ngay sau *Trạng thái*:
+
+| Chọn | Ra hồ sơ nào |
+|---|---|
+| — tất cả — | Không lọc theo hạn |
+| **Sắp quá hạn (dưới 24 giờ)** | Còn dưới 24 giờ là tới hạn, và vẫn đang chờ ai đó xử lý |
+| **Đã quá hạn** | Đã quá hạn — không thao tác được nữa, hệ thống xoá sau 3 ngày |
+
+Đây cũng là chỗ hai thẻ *Sắp quá hạn* và *Quá hạn* trên trang Tổng quan dẫn tới: bấm thẻ rồi mở *Bộ
+lọc* ra là thấy đúng ô này đang được chọn, và đổi sang nửa kia bằng một cú chọn.
 
 - **Địa chỉ đăng ký** chỉ tìm kiểu *"có chứa"*, và **không phân biệt dấu**: gõ `da nang` vẫn ra
   `Đà Nẵng`. Đây là cách lọc theo địa bàn duy nhất — ba tiêu chí tỉnh/thành, bệnh viện và kênh đã bỏ

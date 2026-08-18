@@ -31,14 +31,26 @@ type Dong = {
    * Còn dưới 24 giờ là tới hạn, và chưa quá hạn (`0053`).
    *
    * Máy chủ tính, giao diện không suy lại từ `slaDueAt`: cùng một biểu thức với
-   * thẻ *Sắp quá hạn* và tiêu chí `dueSoon`, nên ba chỗ không thể lệch nhau.
+   * thẻ *Sắp quá hạn* và tiêu chí `han=SAP_QUA_HAN`, nên ba chỗ không lệch nhau.
    */
   sapQuaHan: boolean;
 };
 
 type BoLoc = Record<string, string>;
 
-const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' }[] = [
+/**
+ * Lựa chọn của ô *Hạn xử lý* (`0060`).
+ *
+ * Ô CHỌN chứ không phải ô gõ: hai giá trị ấy là mã viết hoa, và một ô nhập tự do
+ * cho hai giá trị cố định là một ô người dùng gõ sai được.
+ */
+const HAN_XU_LY: { gia: string; nhan: string }[] = [
+  { gia: '', nhan: '— tất cả —' },
+  { gia: 'SAP_QUA_HAN', nhan: 'Sắp quá hạn (dưới 24 giờ)' },
+  { gia: 'QUA_HAN', nhan: 'Đã quá hạn' },
+];
+
+const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' | 'chon' }[] = [
   { khoa: 'appliedFrom', nhan: 'Áp dụng từ', kieu: 'date' },
   { khoa: 'appliedTo', nhan: 'Áp dụng đến', kieu: 'date' },
   { khoa: 'approvedFrom', nhan: 'Duyệt từ', kieu: 'date' },
@@ -50,6 +62,13 @@ const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' }[] = [
   { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'status', nhan: 'Trạng thái' },
   { khoa: 'productGroupCode', nhan: 'Nhóm sản phẩm' },
+  /*
+   * Đứng NGAY SAU *Trạng thái* (`0060`), và đó là chỗ của nó: hai ô cùng trả lời
+   * "hồ sơ đang ở tình trạng nào", chỉ khác một cái theo bước còn một cái theo
+   * đồng hồ. Đặt cuối danh sách thì người đi tìm hồ sơ sắp hết giờ phải quét qua
+   * mã số thuế và tên sản phẩm trước khi gặp nó.
+   */
+  { khoa: 'han', nhan: 'Hạn xử lý', kieu: 'chon' },
 ];
 
 /**
@@ -68,10 +87,6 @@ const TIEU_CHI_AN: Record<string, string> = {
   // mà chúng mang `QUA_HAN_DUYET` nên `status` lọc không ra.
   pendingStep: 'Bước đang chờ',
   reprint: 'Việc của Sale Admin',
-  // `0059` — thiếu dòng này thì bấm thẻ *Sắp quá hạn* ra TOÀN BỘ hồ sơ. Tham số
-  // nào không có tên ở đây bị bỏ trong im lặng: không lỗi, không cảnh báo, chỉ
-  // một danh sách dài hơn con số vừa bấm vào.
-  dueSoon: 'Sắp quá hạn',
 };
 
 /**
@@ -259,19 +274,37 @@ export function DanhSachHoSo() {
         <div className="tam-loc-trong">
           <h2>Bộ lọc</h2>
           <div className="luoi-loc">
-            {TIEU_CHI.map((t) =>
-              t.kieu === 'date' ? (
-                <div className="truong" key={t.khoa}>
-                  <label htmlFor={`loc-${t.khoa}`}>{t.nhan}</label>
-                  <input
-                    id={`loc-${t.khoa}`}
-                    className="o-nhap"
-                    type="date"
-                    value={boLoc[t.khoa] ?? ''}
-                    onChange={(e) => datMot(t.khoa, e.target.value)}
-                  />
-                </div>
-              ) : (
+            {TIEU_CHI.map((t) => {
+              if (t.kieu === 'date' || t.kieu === 'chon') {
+                return (
+                  <div className="truong" key={t.khoa}>
+                    <label htmlFor={`loc-${t.khoa}`}>{t.nhan}</label>
+                    {t.kieu === 'date' ? (
+                      <input
+                        id={`loc-${t.khoa}`}
+                        className="o-nhap"
+                        type="date"
+                        value={boLoc[t.khoa] ?? ''}
+                        onChange={(e) => datMot(t.khoa, e.target.value)}
+                      />
+                    ) : (
+                      <select
+                        id={`loc-${t.khoa}`}
+                        className="o-nhap"
+                        value={boLoc[t.khoa] ?? ''}
+                        onChange={(e) => datMot(t.khoa, e.target.value)}
+                      >
+                        {HAN_XU_LY.map((o) => (
+                          <option key={o.gia} value={o.gia}>
+                            {o.nhan}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              }
+              return (
                 <OTimKiem
                   key={t.khoa}
                   id={`loc-${t.khoa}`}
@@ -279,8 +312,8 @@ export function DanhSachHoSo() {
                   giaTri={boLoc[t.khoa] ?? ''}
                   doi={(v) => datMot(t.khoa, v)}
                 />
-              ),
-            )}
+              );
+            })}
           </div>
           <div className="nhom-nut">
             <button type="button" className="nut nut-nhe" onClick={xoaLoc}>

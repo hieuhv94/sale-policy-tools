@@ -5785,3 +5785,53 @@ phép đếm và phép lọc đọc chung một định nghĩa — và khối ph
 
 Chữa bằng cách xoá `sla_due_at` lúc discard cũng được, nhưng vế ba mạnh hơn: nó đúng bất kể còn trạng
 thái nào khác giữ lại một mốc hạn cũ.
+
+---
+
+## P70 — Ô *Hạn xử lý* trong bộ lọc, thay cho tham số `dueSoon`
+
+Khách hàng hỏi cách tìm hồ sơ sắp quá hạn **từ biểu mẫu lọc**. Câu trả lời lúc ấy: không có — `dueSoon`
+là tham số chỉ đến từ liên kết, cố ý để ngoài biểu mẫu vì nó nhận đúng một giá trị `1`.
+
+Cách sạch không phải thêm ô `dueSoon` mà là một Ô CHỌN gom cả hai câu hỏi về hạn:
+
+> **Hạn xử lý**: — tất cả — · Sắp quá hạn (dưới 24 giờ) · Đã quá hạn
+
+### Thay chứ không thêm
+
+`dueSoon` bị **gỡ hẳn**, đổi thành `han` với hai giá trị. Giữ cả hai là hai tham số cho hai nửa của
+cùng một câu hỏi — hai chỗ phải nhớ, và có ngày một chỗ sửa còn chỗ kia quên.
+
+`han=QUA_HAN` trùng nghĩa với `status=QUA_HAN_DUYET`, và trùng là chấp nhận được: người đi tìm theo
+HẠN không nhất thiết nghĩ nó là một trạng thái.
+
+Thẻ *Quá hạn* cũng chuyển sang `?han=QUA_HAN` thay vì `?status=…`. Hai đường cho ra cùng một tập,
+nhưng đường này để lại đúng cái ô chọn người dùng thấy trong biểu mẫu — bấm thẻ rồi mở *Bộ lọc* là
+hiểu ngay mình đang lọc theo gì, và đổi sang nửa kia bằng một cú chọn. Kéo theo `The` có thêm ô `den`
+để ghi đè đường dẫn mặc định suy từ `dem`.
+
+### Chỗ đặt trong biểu mẫu
+
+Ngay **sau *Trạng thái***, không phải cuối danh sách. Hai ô cùng trả lời "hồ sơ đang ở tình trạng
+nào", chỉ khác một cái theo bước còn một cái theo đồng hồ. Đặt cuối thì người đi tìm hồ sơ sắp hết
+giờ phải quét qua mã số thuế và tên sản phẩm trước khi gặp nó.
+
+Ô CHỌN chứ không ô gõ: hai giá trị là mã viết hoa, và một ô nhập tự do cho hai giá trị cố định là một
+ô người dùng gõ sai được. Giá trị lạ vẫn trả **400** chứ không im lặng bỏ qua.
+
+### Đổi tên `KHOA_TU_LIEN_KET`
+
+Tên cũ nghĩa là "chỉ đến từ liên kết", và `han` phá vỡ điều đó — nó có ô thật trong biểu mẫu. Đổi
+thành `KHOA_NGOAI_MUC_92`: ranh giới thật sự là "trong hay ngoài mười một tiêu chí của muc 9.2", vì
+`GET /reports/filter-keys` công bố đúng con số ấy và trộn vào là làm một tài liệu nghiệp vụ nói sai
+về chính nó.
+
+### Kiểm chứng trên chồng demo
+
+| Bộ lọc | Kết quả |
+|---|---|
+| không lọc | 124 hồ sơ |
+| `han=SAP_QUA_HAN` | 5 |
+| `han=QUA_HAN` | 4 |
+| `status=QUA_HAN_DUYET` | 4 — khớp, đúng như mong đợi |
+| `han=SAI` | 400 |
