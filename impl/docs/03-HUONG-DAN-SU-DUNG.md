@@ -217,6 +217,10 @@ sản phẩm nói ra điều đó.
 nên mở hồ sơ thẳng từ thư báo hay từ hộp việc thì vẫn thấy, không phải ghé qua trang tổng quan trước.
 Khối chỉ hiện khi hồ sơ đó thật sự lệch.
 
+> **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
+> CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
+> sáng và đọc khối vàng trước khi ký.
+
 **Khối không có nút nào**, và đó là chủ ý. Việc phải làm tuỳ tình huống: trả lại để người lập sửa,
 cứ duyệt tiếp vì chênh lệch không đáng kể, hay lập một CSBH mới. Phần mềm không đoán hộ.
 
@@ -871,7 +875,8 @@ bằng cột *Id* cộng cột *QĐCK*.
   làm đổi hồ sơ đã lập — mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
 - **Xoá đòi gõ lại mã quy định.** Và xoá **không im lặng**: mọi CSBH đã gửi duyệt còn dùng ngưỡng của
   quy định ấy hiện ngay trong khối *Yêu cầu cập nhật*, với ngưỡng mới là **rỗng** — không quy định
-  nào phủ nữa. CSBH đang hiệu lực thì còn kèm một lá thư tới Trình dược viên phụ trách.
+  nào phủ nữa, và cả trên màn hình từng hồ sơ. **Không có thư báo** — chênh lệch chỉ hiện trên màn
+  hình.
 
 > **Danh mục tra cứu đã bỏ.** Khối tỉnh/thành · bệnh viện · kênh bán dưới bảng quy định không còn:
 > ngưỡng chỉ khớp theo **nhóm sản phẩm × loại khách hàng**, và ba danh mục ấy không còn ô nào để điền

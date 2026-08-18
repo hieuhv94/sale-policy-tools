@@ -622,7 +622,7 @@ hôm nay.
 | Hồ sơ | Khi danh mục đổi giá hoặc đổi quy định chiết khấu |
 |---|---|
 | **Nháp · Yêu cầu chỉnh sửa** | **Sống theo danh mục.** Mỗi lần mở hồ sơ, giá và ngưỡng chụp lại; lúc bấm *Gửi duyệt* chụp lại lần cuối rồi mới đóng băng |
-| **Đã gửi duyệt → Đang có hiệu lực** | **Không bao giờ ghi đè.** Hiện trong box *Yêu cầu cập nhật* (muc 9.3); riêng hồ sơ đang hiệu lực còn có **email tới TDV phụ trách** |
+| **Đã gửi duyệt → Đang có hiệu lực** | **Không bao giờ ghi đè.** Hiện trong box *Yêu cầu cập nhật* (muc 9.3) và trong khối cảnh báo ngay trên màn hình hồ sơ `18/08`. **Không gửi email** `sửa 18/08` |
 | **Từ chối · Hết hiệu lực** | Không theo dõi nữa |
 
 Giá bán buôn và các khoản CPBH **không bao giờ** bị làm mới — đó là con số người lập nhập, không phải
@@ -753,8 +753,12 @@ mà phép rà chỉ so giá và ngưỡng — dù đó là loại lệch **nặn
 hàng không còn bán nữa là một điều khoản không thực hiện được, không cùng hạng với chênh lệch vài
 đồng. Nhãn của nó tô đỏ, hai loại kia thì không.
 
-Cả ba loại đều **gửi email tới TDV phụ trách** khi hồ sơ đang *Đang có hiệu lực*, đúng như quy tắc đã
-có ở muc 7.2.
+**Không loại nào gửi email** `sửa 18/08`. Bản trước gửi thư tới TDV phụ trách khi hồ sơ *Đang có hiệu
+lực* bị lệch; khách hàng yêu cầu bỏ. Chênh lệch chỉ hiện trên màn hình, ở hai chỗ:
+
+- box *Yêu cầu cập nhật* trên trang Tổng quan;
+- khối cảnh báo **ngay trên màn hình hồ sơ**, phía trên bảng dòng sản phẩm `18/08` — nên mở hồ sơ
+  thẳng từ hộp việc hay từ danh sách vẫn thấy, không phải ghé qua trang Tổng quan trước.
 
 **Box không có nút nào.** Việc phải làm khác nhau theo vai trò và theo bước — trả lại để sửa, cứ
 duyệt vì chênh lệch không đáng kể, hay lập một CSBH mới — và đó là quyết định của người.

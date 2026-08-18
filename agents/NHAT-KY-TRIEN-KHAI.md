@@ -5589,3 +5589,46 @@ Dọn luôn `.lech-muc` — không component nào còn dùng, và CSS chết là
 Ba ca mới: nhãn `RULE` đọc ra "QĐ chiết khấu" **và không còn chữ "Ngưỡng"** · chi tiết là `table` với
 đúng bốn tiêu đề cột · một hàng cho ra đúng bốn ô `['Giá', 'NC-GOLD-900', '615.000 đ', '680.000 đ']`
 · bảng nằm trong `.khung-cuon` để còn cuộn được trên điện thoại.
+
+---
+
+## P65 — Bỏ thư báo TDV khi CSBH đang hiệu lực bị lệch danh mục
+
+Khách hàng yêu cầu bỏ. Đây là gỡ một **yêu cầu nghiệp vụ đã chốt** — tiêu chí NTF-13, NTF-13b,
+NTF-13c và một dòng ở YCNV muc 7.2 — nên mã, bộ kiểm và tài liệu gỡ cùng lúc.
+
+### Gỡ những gì
+
+| Thứ | Vì sao đi theo |
+|---|---|
+| `baoTdv()` và sự kiện `policy.catalog_impact` | Chính lá thư |
+| Bốn nhãn tiêu đề `*_IMPACT` ở `templates.ts` | Không sự kiện nào dùng nữa |
+| `NHAN_LOAI`, `nhanLech()`, `giaTriLech()` | Chỉ dựng phần `extra` của lá thư ấy |
+| Giá trị trả về của `dongBoDauVet()` | Nó trả về "những dòng lệch MỚI XUẤT HIỆN", chỉ để quyết định có gửi thư hay không |
+
+`dongBoDauVet` vẫn ghi và xoá `pol.policy_impact` như cũ — box *Yêu cầu cập nhật* và khối cảnh báo
+trên màn hình hồ sơ (`0050`) đọc bảng ấy. Chỉ phép so "mới hay cũ" là mất.
+
+Ba chỗ đều để lại **chú thích mộ chí** thay vì xoá lặng lẽ: đầu consumer, chỗ bốn nhãn cũ, và trên
+`dongBoDauVet`. Không có chúng thì người đọc sau sẽ tự hỏi vì sao consumer này phát hiện ra chênh
+lệch mà không báo cho ai — rồi thêm lại.
+
+### Bộ kiểm đổi chiều, không xoá
+
+Hai ca đang khẳng định lá thư giờ khẳng định **dấu vết được ghi VÀ không lá thư nào đi ra**. Vế thứ
+hai là nửa quan trọng: gỡ một tính năng mà không có gì canh thì nó lặng lẽ quay lại ở lần sửa sau.
+
+Một hệ quả dễ chịu: ca `0029` trước đây phải lục cả hộp thư dùng chung để tìm đúng lá của hồ sơ mình
+— đổi một quy định làm consumer quét toàn bộ hồ sơ đã đóng băng nên nó sinh thư cho cả TDV của tệp
+test khác, và "lá mới nhất là lá của tôi" đã đỏ một lần với địa chỉ `tdv02`. Bỏ thư thì khẳng định
+gọn lại thành "hộp thư trống", không còn phụ thuộc ai vừa nhận gì.
+
+### Một điều cần nói với khách hàng
+
+Sau đợt này, **không còn kênh ĐẨY nào** báo rằng một CSBH đang có hiệu lực đã lệch khỏi danh mục.
+Người dùng chỉ biết khi họ tự mở phần mềm: box *Yêu cầu cập nhật* trên trang Tổng quan, hoặc khối
+cảnh báo trên màn hình hồ sơ. Với hồ sơ **đang chờ duyệt** thì không sao — người ta mở nó ra để ký,
+và khối cảnh báo nằm ngay trên bảng số. Với hồ sơ **đang có hiệu lực** thì khác: không ai có lý do mở
+nó ra hằng ngày.
+
+Đã ghi rõ trong hướng dẫn sử dụng, kèm câu nhắc nhìn trang Tổng quan mỗi sáng.

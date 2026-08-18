@@ -56,17 +56,17 @@ const TITLE: Record<string, string> = {
   // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai. Thân thư đã ghi rõ
   // trạng thái và mã hồ sơ.
   DELETE: 'Trình dược viên đã xoá hồ sơ',
-  PRICE_IMPACT: 'Giá sản phẩm trong CSBH đang hiệu lực đã thay đổi',
-  // Ba nhãn cho cùng một sự kiện `policy.catalog_impact` (`0029`). Người nhận
-  // đọc dòng tiêu đề TRƯỚC khi mở thư, nên nó phải nói đúng thứ đã đổi — gộp cả
-  // ba thành "danh mục đã thay đổi" là bắt họ mở thư ra mới biết có liên quan
-  // tới mình không.
-  RULE_IMPACT: 'Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi',
-  CATALOG_IMPACT: 'Giá và quy định chiết khấu trong CSBH đang hiệu lực đã thay đổi',
-  // Nhãn thứ tư (`0036`), và nó nói NẶNG hơn ba nhãn kia có chủ ý: sản phẩm
-  // không còn bán được là một điều khoản không thực hiện được, khác hạng với
-  // chênh lệch vài đồng.
-  PRODUCT_IMPACT: 'Sản phẩm trong CSBH đang hiệu lực không còn dùng được',
+  /*
+   * BỐN nhãn `*_IMPACT` đã bị gỡ ở `0055` cùng với chính lá thư ấy.
+   *
+   * Chúng phục vụ sự kiện `policy.catalog_impact` — thư báo TDV rằng CSBH đang
+   * hiệu lực của họ đã lệch so với danh mục. Khách hàng yêu cầu bỏ thư này; nơi
+   * còn nói ra chênh lệch là box *Yêu cầu cập nhật* và khối cảnh báo trên màn
+   * hình hồ sơ (`0050`).
+   *
+   * Ghi lại thay vì xoá lặng lẽ: bốn nhãn ấy là thứ duy nhất còn sót lại để tra
+   * ngược ra rằng thư này từng tồn tại.
+   */
   SLA_REMINDER: 'Nhắc: hồ sơ sắp quá hạn duyệt',
   SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt',
   SLA_DISCARDED: 'Hồ sơ quá hạn đã bị hệ thống xoá',

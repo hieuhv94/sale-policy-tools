@@ -5,12 +5,17 @@
  * sửa một dòng nào. Giá và ngưỡng đã đóng băng lúc gửi (muc 7); tự động cập nhật
  * lại là sửa một văn bản đang chờ chữ ký. Consumer chỉ GHI DẤU VẾT và BÁO.
  *
- * Hai việc, cùng một phép so:
+ * MỘT việc duy nhất: ghi `pol.policy_impact` — bảng cho box *Yêu cầu cập nhật*
+ * trên trang Tổng quan, gồm mọi hồ sơ đã đóng băng đang lệch (`0029`).
  *
- *   1. `pol.policy_impact` — bảng cho box *Yêu cầu cập nhật* trên trang Tổng
- *      quan, gồm mọi hồ sơ đã đóng băng đang lệch (`0029`).
- *   2. Email tới TDV phụ trách, chỉ cho hồ sơ **đang có hiệu lực** — đó là hồ sơ
- *      duy nhất mà việc phải làm nằm ngoài luồng duyệt: lập một CSBH mới.
+ * TỪNG CÓ việc thứ hai: gửi email tới TDV phụ trách khi hồ sơ *Đang có hiệu lực*
+ * bị lệch. **Bỏ ở `0055`** theo yêu cầu của khách hàng, cùng với tiêu chí NTF-13.
+ * Ghi lại ở đây thay vì xoá lặng lẽ, vì cả một nhánh mã và bốn nhãn tiêu đề thư
+ * biến mất theo, và người đọc sau sẽ tự hỏi vì sao consumer này phát hiện ra
+ * chênh lệch mà không báo cho ai.
+ *
+ * Chỗ người dùng biết chênh lệch, sau `0055`: box *Yêu cầu cập nhật* trên trang
+ * Tổng quan, và khối cảnh báo ngay trên màn hình hồ sơ (`0050`).
  *
  * SO VỚI DANH MỤC HÔM NAY, không phải với danh mục tại ngày áp dụng. Hai thứ
  * khác nhau, và ở đây phải là hôm nay: câu hỏi của người đọc box là "hồ sơ này
@@ -58,32 +63,6 @@ type Lech = {
 const NHAN_TRANG_THAI_SP: Record<string, string> = {
   DANG_AP_DUNG: 'Đang áp dụng',
   DA_VO_HIEU_HOA: 'Đã vô hiệu hoá',
-};
-
-const NHAN_LOAI: Record<Lech['kind'], string> = {
-  PRICE: 'Giá',
-  // "QĐ chiết khấu", không phải "Ngưỡng" (`0054`) — cùng tên với box *Yêu cầu
-  // cập nhật* và khối cảnh báo trên màn hình hồ sơ. Thứ đã đổi là quy định;
-  // ngưỡng chỉ là con số nó sinh ra, và gọi theo con số thì người nhận thư đi
-  // tìm một trường không tồn tại.
-  RULE: 'QĐ chiết khấu',
-  PRODUCT: 'Sản phẩm',
-};
-
-const nhanLech = (l: Lech): string => `${NHAN_LOAI[l.kind]} · ${l.productCode}`;
-
-/**
- * `moi === null` mang hai nghĩa khác nhau theo loại, và thư phải nói đúng nghĩa.
- *
- * Ở `RULE` nghĩa là không quy định nào phủ nữa; ở `PRODUCT` nghĩa là sản phẩm đã
- * bị xoá khỏi danh mục. Dùng chung một câu "không còn quy định nào" cho cả hai
- * là nói với người đọc một chuyện không xảy ra.
- */
-const giaTriLech = (l: Lech): string => {
-  if (l.moi !== null) return `${l.snap} → ${l.moi}`;
-  return l.kind === 'PRODUCT'
-    ? `${l.snap} → đã xoá khỏi danh mục sản phẩm`
-    : `${l.snap} → không còn quy định nào`;
 };
 
 @Injectable()
@@ -307,15 +286,8 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
 
       if (lech.length === 0 && !coDauVet.has(policyId)) return;
 
-      const moiXuatHien = await this.db.tx((c) => this.dongBoDauVet(c, policyId, cac, lech));
+      await this.db.tx((c) => this.dongBoDauVet(c, policyId, cac, lech));
       if (lech.length > 0) soLech += 1;
-
-      // Thư CHỈ khi có chênh lệch MỚI, và chỉ cho hồ sơ đang hiệu lực. Đổi giá
-      // hai lần trong một buổi sáng không được thành hai lá thư nói cùng một
-      // chuyện — lá thứ hai làm người nhận ngừng đọc cả hai.
-      if (moiXuatHien.length > 0 && dau.status === 'DANG_CO_HIEU_LUC') {
-        await this.baoTdv(dau, customer, moiXuatHien);
-      }
     };
 
     for (let i = 0; i < muc.length; i += SONG_SONG) {
@@ -355,7 +327,11 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Ghi chênh lệch còn đúng, xoá chênh lệch đã hết. Trả về những dòng MỚI.
+   * Ghi chênh lệch còn đúng, xoá chênh lệch đã hết.
+   *
+   * Tới `0055` nó còn trả về những dòng MỚI XUẤT HIỆN, để lớp trên quyết định có
+   * gửi thư hay không. Thư đã bỏ, nên phép so ấy đi theo — giữ lại một giá trị
+   * trả về không ai đọc là mời người sau tưởng nó còn dùng.
    *
    * Xoá cũng quan trọng ngang ghi: Quản trị đổi giá rồi đổi trả lại thì hồ sơ
    * hết lệch, và một box còn treo cảnh báo đã hết hiệu lực là một box người dùng
@@ -378,7 +354,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
     policyId: string,
     cac: DongCanRa[],
     lech: Lech[],
-  ): Promise<Lech[]> {
+  ): Promise<void> {
     const maTheoSanPham = new Map(cac.map((d) => [d.product_code_snap, d.product_id]));
     // Phạm vi đối soát = đúng những dòng vừa được so ở lượt này.
     const daRa = new Set(cac.map((d) => d.product_id));
@@ -387,16 +363,11 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         WHERE policy_id = $1 AND product_id = ANY($2::uuid[])`,
       [policyId, [...daRa]],
     );
-    const cu = new Set(dangCo.rows.map((r) => `${r.product_id}|${r.kind}`));
-
     const giu = new Set<string>();
-    const moi: Lech[] = [];
     for (const l of lech) {
       const productId = maTheoSanPham.get(l.productCode);
       if (!productId) continue;
-      const khoa = `${productId}|${l.kind}`;
-      giu.add(khoa);
-      if (!cu.has(khoa)) moi.push(l);
+      giu.add(`${productId}|${l.kind}`);
       await c.query(
         `INSERT INTO pol.policy_impact
            (policy_id, product_id, kind, product_code, snap_value, new_value)
@@ -417,52 +388,6 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         [policyId, r.product_id, r.kind],
       );
     }
-    return moi;
-  }
-
-  /** Một sự kiện cho MỖI hồ sơ: mỗi hồ sơ có TDV riêng, thư phải tới đúng người. */
-  private async baoTdv(
-    d: DongCanRa,
-    cus: { code: string; name: string },
-    lech: Lech[],
-  ): Promise<void> {
-    /*
-     * Đủ MỘT loại thì dùng đúng tên loại ấy; nhiều loại thì nói chung. Người
-     * nhận đọc dòng tiêu đề trước khi mở thư, nên nó phải nói đúng chuyện gì.
-     *
-     * NGOẠI LỆ: có `PRODUCT` thì tiêu đề LUÔN nói về sản phẩm, kể cả khi lệch
-     * thêm giá hay ngưỡng (`0036`). Sản phẩm không còn bán được là một điều
-     * khoản không thực hiện được, không cùng hạng với chênh lệch vài đồng — gộp
-     * nó vào "giá và quy định đã thay đổi" là hạ nó xuống ngang hàng và người
-     * nhận sẽ đọc lướt qua.
-     */
-    const loai = new Set(lech.map((l) => l.kind));
-    const action = loai.has('PRODUCT')
-      ? 'PRODUCT_IMPACT'
-      : loai.size > 1
-        ? 'CATALOG_IMPACT'
-        : loai.has('PRICE')
-          ? 'PRICE_IMPACT'
-          : 'RULE_IMPACT';
-
-    await this.db.tx(async (c) => {
-      await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
-        'policy.catalog_impact',
-        JSON.stringify({
-          policyId: d.policy_id,
-          policyCode: d.code,
-          customerId: d.customer_id,
-          customerCode: cus.code,
-          customerName: cus.name,
-          tdvUserId: d.tdv_user_id,
-          action,
-          toStatus: 'DANG_CO_HIEU_LUC',
-          recipients: ['TDV'],
-          at: new Date().toISOString(),
-          extra: Object.fromEntries(lech.map((l) => [nhanLech(l), giaTriLech(l)])),
-        }),
-      ]);
-    });
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -801,24 +801,25 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({ priceType: 'GIA_BAN_CONG_TY', amount: '120000', effectiveFrom: '2020-06-01' });
 
-    // Chạy đúng đường thật: catalog -> bus -> policy tiêu thụ -> pol.outbox.
+    /*
+     * Chạy đúng đường thật: catalog -> bus -> policy tiêu thụ -> `pol.policy_impact`.
+     *
+     * `0055` bỏ lá thư, nên chờ DẤU VẾT chứ không chờ sự kiện thư. Dấu vết mới là
+     * thứ box *Yêu cầu cập nhật* và khối cảnh báo trên màn hình hồ sơ đọc.
+     */
     await catOutbox.pumpOnce();
     await waitFor(async () => {
       const r = await withAdminDb(async (c) =>
-        c.query(
-          `SELECT 1 FROM pol.outbox
-            WHERE routing_key = 'policy.catalog_impact' AND payload->>'policyId' = $1`,
-          [d.id],
-        ),
+        c.query(`SELECT 1 FROM pol.policy_impact WHERE policy_id = $1 AND kind = 'PRICE'`, [d.id]),
       );
       return r.rowCount === 1;
     }, 'policy chưa tiêu thụ xong catalog.price_changed');
 
-    const mails = await flush(1);
-    const m = await fullMail(mails[0]!.ID);
-    expect(m.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
-    expect(m.Subject).toContain('Giá sản phẩm trong CSBH đang hiệu lực đã thay đổi');
-    expect(m.Text).toContain('120000');
+    // Và KHÔNG lá thư nào đi ra (`0055`). Đây là nửa quan trọng của ca này: gỡ
+    // một tính năng mà không có gì canh thì nó lặng lẽ quay lại ở lần sửa sau.
+    await outbox.pumpOnce();
+    await new Promise((r) => setTimeout(r, 500));
+    expect((await listMail()).length, 'vẫn còn gửi thư báo lệch danh mục').toBe(0);
 
     // Giá đóng băng và số phiên bản không đổi một chữ số nào.
     const after = await withAdminDb(async (c) => {
@@ -835,11 +836,11 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
 });
 
 // =============================================================================
-// 0029 — đổi QUY ĐỊNH CHIẾT KHẤU cũng báo cho TDV, đúng như đổi giá
+// 0029 — đổi QUY ĐỊNH CHIẾT KHẤU cũng ghi dấu vết, đúng như đổi giá
 // =============================================================================
 
 describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực', () => {
-  it('thư tới đúng TDV, tiêu đề nói về NGƯỠNG chứ không nói về giá', async () => {
+  it('`0055` ghi dấu vết cho box Yêu cầu cập nhật, và KHÔNG gửi thư', async () => {
     // Sản phẩm thuộc nhóm RIÊNG: quy định khai cho nó không được đụng tới những
     // hồ sơ khác trong tệp này, nếu không phép đếm thư ở đây thành vô nghĩa.
     const c = await http(catalog);
@@ -904,56 +905,39 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
      * lượt rà đã vượt 15 giây, và ca này đỏ theo đúng cái đà tăng ấy chứ không
      * theo bất kỳ thay đổi nào của mã.
      *
-     * Nới hạn là ĐÚNG chỗ để sửa: ca này khẳng định lá thư nói về NGƯỠNG chứ
-     * không nói về giá — nó không khẳng định gì về tốc độ rà. Buộc nó vào một
-     * ngân sách thời gian là bắt nó gãy vì một lý do nó không nói tới.
+     * Nới hạn là ĐÚNG chỗ để sửa: ca này khẳng định dấu vết ghi ra đúng NGƯỠNG
+     * mới — nó không khẳng định gì về tốc độ rà. Buộc nó vào một ngân sách thời
+     * gian là bắt nó gãy vì một lý do nó không nói tới.
      */
+    let dauVet!: { kind: string; new_value: string | null };
     await waitFor(async () => {
       await catOutbox.pumpOnce();
       const r = await withAdminDb(async (cc) =>
-        cc.query(
-          `SELECT 1 FROM pol.outbox
-            WHERE routing_key = 'policy.catalog_impact' AND payload->>'policyId' = $1`,
+        cc.query<{ kind: string; new_value: string | null }>(
+          `SELECT kind, new_value FROM pol.policy_impact WHERE policy_id = $1`,
           [hs.body.id],
         ),
       );
-      return r.rowCount === 1;
+      if (r.rowCount !== 1) return false;
+      dauVet = r.rows[0]!;
+      return true;
     }, 'policy chưa tiêu thụ xong catalog.changed', 120_000);
 
-    /*
-     * TÌM ĐÚNG LÁ THƯ CỦA HỒ SƠ NÀY, không lấy lá mới nhất.
-     *
-     * Nhóm sản phẩm riêng ở trên chỉ cô lập được phép KHỚP quy định. Việc RÀ thì
-     * không: đổi một quy định làm consumer quét TOÀN BỘ hồ sơ đã đóng băng — nó
-     * buộc phải quét, vì một quy định mới cụ thể hơn có thể thắng quy định mà hồ
-     * sơ đã chụp, mà hồ sơ không hề nhắc tới mã của nó. Trên CSDL dùng chung,
-     * phép quét ấy chạm cả hồ sơ của tệp test khác và sinh thư cho TDV khác.
-     *
-     * Vì thế "lá thư mới nhất là lá của tôi" luôn là một giả định mong manh —
-     * nó xanh nhờ may mắn về thứ tự, và đã đỏ một lần với địa chỉ `tdv02`. Lọc
-     * theo mã hồ sơ thì mọi khẳng định bên dưới giữ nguyên mà không phụ thuộc
-     * vào việc ai khác vừa nhận thư gì.
-     */
-    const maHoSo = hs.body.code as string;
-    let m!: Awaited<ReturnType<typeof fullMail>>;
-    await waitFor(async () => {
-      // BƠM outbox mỗi vòng, đúng như `flush()` vẫn làm. Bỏ bước này thì sự
-      // kiện nằm mãi trong `pol.outbox`: ca này đỏ vì không thấy thư, RỒI ca
-      // chạy sau đỏ theo vì lá thư ấy tới muộn và làm lệch phép đếm của nó.
-      await outbox.pumpOnce();
-      for (const x of await listMail()) {
-        const day = await fullMail(x.ID);
-        if (day.Text.includes(maHoSo)) {
-          m = day;
-          return true;
-        }
-      }
-      return false;
-    }, `không thấy thư nào nhắc tới hồ sơ ${maHoSo}`);
+    // Dấu vết nói về NGƯỠNG chứ không nói về giá, và mang đúng con số mới.
+    expect(dauVet.kind).toBe('RULE');
+    expect(dauVet.new_value).toBe('17.50');
 
-    expect(m.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
-    expect(m.Subject).toContain('Quy định chiết khấu áp cho CSBH đang hiệu lực đã thay đổi');
-    expect(m.Text).toContain('17.50');
+    /*
+     * Và KHÔNG lá thư nào đi ra (`0055`).
+     *
+     * Trước `0055` đây là chỗ ca kiểm thử đi tìm lá thư của đúng hồ sơ này giữa
+     * một hộp thư dùng chung — đổi một quy định làm consumer quét TOÀN BỘ hồ sơ
+     * đã đóng băng, nên nó sinh thư cho cả TDV của tệp test khác. Bỏ thư thì
+     * phiền phức ấy biến mất, và khẳng định còn lại gọn hơn hẳn: hộp thư trống.
+     */
+    await outbox.pumpOnce();
+    await new Promise((r) => setTimeout(r, 500));
+    expect((await listMail()).length, 'vẫn còn gửi thư báo lệch danh mục').toBe(0);
 
     // Và hồ sơ đã ký KHÔNG bị ghi đè: ngưỡng của nó vẫn rỗng như lúc lập.
     const sau = await withAdminDb(async (cc) => {

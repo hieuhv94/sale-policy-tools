@@ -1182,9 +1182,9 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | NTF-16 | Hồ sơ ở *Quá hạn duyệt* đủ 3 ngày | sla-worker tự chuyển *Đã xóa*, giữ nguyên nhật ký, báo TDV lập hồ sơ và người phụ trách bước ấy `0047` | §4 §9.1 | `P0` |
 | NTF-17 | Còn dưới 24 giờ là tới hạn | Thẻ *Sắp quá hạn* trên trang tổng quan của **mọi** vai trò nhìn thấy hồ sơ, mọi bước `0047` | §9.1 | `P1` |
 | NTF-12 | Quản trị đổi cấu hình SLA từ 14 ngày sang N ngày | Hồ sơ đang chờ được tính lại hạn theo quy tắc đã công bố, có ghi nhật ký | §2.7 | `P1` |
-| NTF-13 | Đổi giá sản phẩm nằm trong CSBH đang hiệu lực | Email tới đúng TDV phụ trách; hồ sơ đã ký **không** bị ghi đè | §7 | `P0` |
-| NTF-13b | Đổi **quy định chiết khấu** áp cho CSBH đang hiệu lực | Email tới đúng TDV, tiêu đề nói về NGƯỠNG; hồ sơ đã ký không bị ghi đè (`0029`) | §7.2 | `P0` |
-| NTF-13c | Đổi giá hai lần liên tiếp cùng một hướng | **Một** thư, không phải hai: chỉ chênh lệch MỚI mới phát thư (`0029`) | §7.2 | `P1` |
+| NTF-13 | Đổi giá sản phẩm nằm trong CSBH đang hiệu lực | Ghi dấu vết vào `pol.policy_impact`; **không gửi email** `0055`; hồ sơ đã ký **không** bị ghi đè | §7 | `P0` |
+| NTF-13b | Đổi **quy định chiết khấu** áp cho CSBH đang hiệu lực | Dấu vết mang `kind = RULE` và ngưỡng mới; **không gửi email** `0055`; hồ sơ đã ký không bị ghi đè (`0029`) | §7.2 | `P0` |
+| NTF-13c | ~~Đổi giá hai lần liên tiếp cùng một hướng~~ | **Bỏ ở `0055`** cùng với lá thư mà nó canh: không còn thư thì không còn chuyện gửi trùng. Dấu vết vốn đã idempotent theo `(hồ sơ, sản phẩm, loại)` | §7.2 | — |
 | POL-20 | Lập hồ sơ có *Thời gian áp dụng* trong tương lai, danh mục có giá hiệu lực từ ngày đó | Chụp giá của NGÀY ÁP DỤNG, không phải giá hôm nay (`0029`) | §7.1 | `P0` |
 | POL-21 | Đổi *Thời gian áp dụng* của hồ sơ Nháp | Mọi dòng chụp lại theo bảng giá của ngày mới (`0029`) | §7.1 | `P0` |
 | POL-22 | Mở lại hồ sơ Nháp sau khi danh mục đổi | Giá và ngưỡng là số MỚI; giá bán buôn và CPBH **không đổi**; `row_version` **không đổi** (`0029`) | §7.2 | `P0` |
