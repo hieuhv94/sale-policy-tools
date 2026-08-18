@@ -392,7 +392,9 @@ textarea.o-nhap { min-height: 6rem; }
 
 /* --- Con số --------------------------------------------------------------- */
 
-/* Tiền và tỷ lệ: căn phải, chữ số đều cột (FE-29). */
+/* Tiền và tỷ lệ: chữ số đều cột (FE-29).
+   Căn phải ở đây là mặc định cho `.so` ĐỨNG MỘT MÌNH — trong bảng thì bị ghi đè
+   sang căn trái để khớp tiêu đề cột, xem `th.so, td.so` (`0057`). */
 .so {
   text-align: right;
   font-family: var(--so-deu-cot);
@@ -603,6 +605,24 @@ th, td {
   border-bottom: 1px solid var(--mau-vien);
   white-space: nowrap;
 }
+/*
+ * TRONG BẢNG, ô số cũng căn TRÁI (`0057`) — đảo một vế của `FE-29`.
+ *
+ * `.so` căn phải (xem khối "Con số"), nên trước đó tiêu đề cột nằm sát mép trái
+ * còn con số dưới nó nằm sát mép phải. Cột càng rộng thì khoảng hở giữa hai thứ
+ * càng lớn, và mắt phải bắc cầu qua chỗ trống ấy để biết con số này thuộc tiêu
+ * đề nào — đúng chỗ người dùng thấy "lệch".
+ *
+ * Đổi tiêu đề sang căn phải thì cũng khớp, nhưng khách hàng chọn căn trái cả
+ * hai. ĐÁNH ĐỔI: tiền nhiều chữ số không còn thẳng hàng đơn vị theo cột dọc.
+ * `font-variant-numeric: tabular-nums` vẫn giữ chữ số đều bề ngang, nên các số
+ * cùng độ dài vẫn thẳng — chỉ số dài ngắn khác nhau thì lệch ở đuôi.
+ *
+ * CHỈ trong bảng: `.so` đứng một mình ở dải thanh so sánh hay dòng tổng cộng
+ * vẫn căn phải, vì ở đó nó không có tiêu đề cột nào để mà khớp.
+ */
+th.so,
+td.so { text-align: left; }
 thead th {
   background: var(--mau-nen-phu);
   font-size: var(--chu-rat-nho);

@@ -66,6 +66,29 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
     expect(thieu, thieu.join('\n')).toEqual([]);
   });
 
+  it('`0057` trong bảng, ô số căn TRÁI như tiêu đề cột', () => {
+    /*
+     * `.so` căn phải, `th`/`td` căn trái. Không ghi đè thì tiêu đề cột nằm sát
+     * mép trái còn con số dưới nó nằm sát mép phải — cột càng rộng, khoảng hở
+     * càng lớn, và mắt phải bắc cầu qua chỗ trống ấy để biết con số thuộc tiêu
+     * đề nào.
+     *
+     * Quét CSS chứ không dựng trình duyệt: jsdom không tính kiểu xếp tầng, nên
+     * `getComputedStyle` ở đây trả về đúng thứ ta vừa viết chứ không kiểm gì.
+     */
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    );
+    const luat = css.match(/th\.so\s*,\s*td\.so\s*\{[^}]*\}/);
+    expect(luat, 'thiếu luật căn lề cho ô số trong bảng').not.toBeNull();
+    expect(luat![0]).toContain('text-align: left');
+
+    // Và luật ấy phải đứng SAU `.so` để thắng theo thứ tự — cùng độ đặc hiệu thì
+    // dòng sau thắng, mà `td.so` (0,1,1) vốn đã đặc hiệu hơn `.so` (0,1,0).
+    expect(css.indexOf('td.so')).toBeGreaterThan(css.indexOf('.so {'));
+  });
+
   it('`0056` không selector nào bị chú thích cắt làm hai', () => {
     /*
      * Lỗi đã xảy ra thật ở `0054`, và không phép kiểm nào bắt được.

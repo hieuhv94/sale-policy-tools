@@ -105,7 +105,7 @@ export function DanhSachLech({ lech }: { lech: LechMuc[] }) {
             <th>Lệch ở</th>
             <th>Sản phẩm</th>
             <th>Trên hồ sơ</th>
-            <th>Danh mục hiện tại</th>
+            <th>Đã cập nhật</th>
           </tr>
         </thead>
         <tbody>

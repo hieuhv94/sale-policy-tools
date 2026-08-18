@@ -181,7 +181,7 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
       'Lệch ở',
       'Sản phẩm',
       'Trên hồ sơ',
-      'Danh mục hiện tại',
+      'Đã cập nhật',
     ]);
 
     const dong = [...bang!.querySelectorAll('tbody tr')];

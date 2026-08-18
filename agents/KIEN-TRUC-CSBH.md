@@ -1302,7 +1302,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | FE-26 | Đăng nhập bằng bld01 rồi kiểm các gói mã đã tải | Không tải màn hình ánh xạ trường của Sale Admin — mã chia theo vai trò | — | `P2` |
 | FE-27 | Tỷ lệ chiết khấu hiển thị trên màn hình | Đúng 2 chữ số thập phân và **khớp tuyệt đối** con số API trả về — không tính lại ở giao diện | §7 | `P0` |
 | FE-28 | Dòng vượt ngưỡng, xem qua bộ lọc mô phỏng mù màu đỏ-lục | Vẫn nhận ra được là vượt ngưỡng nhờ **dấu `?`** cạnh con số và câu cho trình đọc màn hình, không chỉ dựa vào màu đỏ. *(Dấu `!` và hình thoi `◆` đã gỡ ở `0028`; vật mang tin đổi, luật thì không.)* | §7 | `P0` |
-| FE-29 | Hiển thị mọi trường tiền | Có dấu phân nhóm nghìn, không có phần thập phân, căn phải, chữ số đều cột | §7 | `P1` |
+| FE-29 | Hiển thị mọi trường tiền | Có dấu phân nhóm nghìn, không có phần thập phân, chữ số đều cột. **Căn TRÁI trong bảng** `0057` — cùng phía với tiêu đề cột; ngoài bảng vẫn căn phải | §7 | `P1` |
 | FE-30 | Tên khách hàng và sản phẩm có dấu tiếng Việt đầy đủ | Hiển thị đúng ở bảng, thẻ trên điện thoại, bản in A4 và file Excel xuất ra | — | `P0` |
 | FE-31 | Gõ tiếng Việt bằng bộ gõ (Telex/VNI) vào ô tìm kiếm có tự động gợi ý | Không mất dấu, không mất ký tự, không gọi tìm kiếm giữa lúc đang bỏ dấu | §9.2 | `P0` |
 | FE-32 | Mất mạng giữa lúc bấm gửi duyệt | Báo lỗi rõ ràng, **giữ nguyên dữ liệu đã nhập**, cho bấm thử lại | — | `P0` |

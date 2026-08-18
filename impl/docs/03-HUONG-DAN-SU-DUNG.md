@@ -202,7 +202,7 @@ Ba loại lệch, phân biệt bằng nhãn màu — nhãn hiện ngay trên dò
 | **QĐ chiết khấu** | Quy định chiết khấu áp cho dòng đó đã đổi, hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
 | **Sản phẩm** | Sản phẩm **đã bị vô hiệu hoá**, hoặc **đã bị xoá** khỏi danh mục |
 
-Chi tiết dựng thành **bảng bốn cột** — *Lệch ở · Sản phẩm · Trên hồ sơ · Danh mục hiện tại* — để con
+Chi tiết dựng thành **bảng bốn cột** — *Lệch ở · Sản phẩm · Trên hồ sơ · Đã cập nhật* — để con
 số cũ và mới nằm thẳng cột mà so, thay vì trôi trên một dòng chữ.
 
 Nhãn **Sản phẩm** tô đỏ, hai nhãn kia thì không — và đó là chủ ý. Lệch vài đồng là chuyện để cân

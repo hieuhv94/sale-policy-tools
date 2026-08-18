@@ -5692,3 +5692,34 @@ công sang `tbp02` rồi khẳng định dải vẫn ghi `tbp01`.
 
 Ca ấy đỏ lần đầu vì tôi đọc bằng `tbp01`: đổi người phân công làm chính họ rơi khỏi phạm vi hồ sơ và
 `GET /policies/:id` trả 403. Đọc bằng TDV phụ trách — người luôn trong phạm vi hồ sơ của mình.
+
+---
+
+## P67 — Ô số trong bảng căn trái, và đổi tên cột "Đã cập nhật"
+
+### Vì sao trông "lệch"
+
+`th, td` căn trái; `.so` căn phải. Nên tiêu đề cột nằm sát mép trái còn con số dưới nó nằm sát mép
+phải. Cột càng rộng thì khoảng hở càng lớn, và mắt phải bắc cầu qua chỗ trống ấy để biết con số này
+thuộc tiêu đề nào.
+
+Hai cách sửa, và cả hai đều làm hết "lệch": đưa tiêu đề sang phải, hoặc đưa con số sang trái. Khách
+hàng chọn **căn trái cả hai**.
+
+**Đánh đổi, đã nói với khách hàng**: tiền nhiều chữ số không còn thẳng hàng đơn vị theo cột dọc — thứ
+mà căn phải sinh ra để làm. `font-variant-numeric: tabular-nums` vẫn giữ chữ số đều bề ngang nên các
+số cùng độ dài vẫn thẳng; chỉ số dài ngắn khác nhau thì lệch ở đuôi.
+
+Đây là đảo một vế của tiêu chí **FE-29** ("căn phải, chữ số đều cột"), nên đã sửa cả dòng tiêu chí
+trong kiến trúc thay vì để mã và tài liệu nói hai chuyện.
+
+Phạm vi **chỉ trong bảng**: `th.so, td.so`. `.so` đứng một mình — con số cuối dải thanh so sánh, dòng
+tổng cộng — vẫn căn phải, vì ở đó không có tiêu đề cột nào để mà khớp.
+
+Chốt kiểm quét CSS chứ không dựng trình duyệt: jsdom không tính kiểu xếp tầng, nên `getComputedStyle`
+chỉ trả lại đúng thứ vừa viết chứ không kiểm được gì.
+
+### Đổi tên cột
+
+*"Danh mục hiện tại"* → **"Đã cập nhật"**. Ngắn hơn hẳn, và cặp *Trên hồ sơ · Đã cập nhật* đọc thành
+một cặp đối nhau rõ ràng hơn *Trên hồ sơ · Danh mục hiện tại*.
