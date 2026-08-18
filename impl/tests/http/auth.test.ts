@@ -78,7 +78,7 @@ afterAll(async () => {
 });
 
 describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
-  it('trả access token 15 phút, refresh token 30 ngày, vai trò và thông tin người dùng', async () => {
+  it('trả access token 15 phút, refresh token 7 ngày, vai trò và thông tin người dùng', async () => {
     const res = await login(app, 'tdv01', SEED_PW);
     expect(res.status).toBe(200);
     expect(res.body.user.role).toBe('TDV');
@@ -96,7 +96,7 @@ describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
     expect(res.status).toBe(200);
   });
 
-  it('`0042` refresh token hết hạn sau đúng 30 ngày, không phải 8 giờ', async () => {
+  it('`0044` refresh token hết hạn sau đúng 7 ngày', async () => {
     const res = await login(app, 'tdv02', SEED_PW);
     const raw = (res.body.refreshToken as string).split('.').slice(1).join('.');
     const row = await withAdminDb(async (c) => {
@@ -109,7 +109,7 @@ describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
       return q.rows[0];
     });
     expect(Number(row!.secs)).toBe(CONFIG.refreshTtlSec);
-    expect(CONFIG.refreshTtlSec).toBe(30 * 24 * 60 * 60);
+    expect(CONFIG.refreshTtlSec).toBe(7 * 24 * 60 * 60);
   });
 });
 
@@ -151,7 +151,7 @@ describe('`0042` bốn thứ vẫn cắt phiên ngay lập tức', () => {
 
   it('XOAY VÒNG gia hạn lại từ đầu — hạn là "nghỉ bao lâu", không phải "làm việc bao lâu"', async () => {
     /*
-     * Điểm dễ hiểu nhầm nhất của con số 30 ngày. Nó KHÔNG phải trần của một
+     * Điểm dễ hiểu nhầm nhất của con số 7 ngày. Nó KHÔNG phải trần của một
      * phiên: mỗi lần làm mới sinh một token mới với hạn tính lại từ đầu. Người
      * dùng mở phần mềm mỗi tuần thì không bao giờ gặp lại màn hình đăng nhập.
      */
@@ -168,7 +168,7 @@ describe('`0042` bốn thứ vẫn cắt phiên ngay lập tức', () => {
       );
       return Number(q.rows[0]!.secs);
     });
-    // Gần đủ 30 ngày, không phải phần còn lại của token cũ.
+    // Gần đủ 7 ngày, không phải phần còn lại của token cũ.
     expect(con).toBeGreaterThan(CONFIG.refreshTtlSec - 60);
   });
 

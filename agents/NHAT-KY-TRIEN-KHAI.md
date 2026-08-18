@@ -4840,7 +4840,7 @@ thứ khác:
 
 | Nguyên nhân | Trước `0042` | Sau |
 |---|---|---|
-| Hạn refresh token | 8 giờ | **30 ngày**, đọc được từ `REFRESH_TTL_SEC` |
+| Hạn refresh token | 8 giờ | **30 ngày**, đọc được từ `REFRESH_TTL_SEC` (hạ xuống **7 ngày** ở `P54`) |
 | Nơi giữ phiên | `sessionStorage` — chết theo TAB | **`localStorage`** |
 
 Vế thứ hai mới là thứ người dùng gặp hàng ngày: dù hạn token có ba mươi ngày, đóng trình duyệt là
@@ -4920,3 +4920,20 @@ lại**, trong đó "tắt trình duyệt" là xoá phiên trong bộ nhớ rồ
 `PhienProvider` làm lúc khởi động. Máy chủ giả từ chối token đã dùng, nên ca này đỏ trước `0043`.
 
 **1058/1058 xanh.**
+
+---
+
+## P54 — Hạ cửa sổ phiên từ 30 ngày xuống 7 ngày
+
+Nhãn `0044`. Khách hàng chốt sau khi được hỏi rõ hai cách hiểu của "hết 30 ngày".
+
+**Vẫn tính từ LẦN DÙNG GẦN NHẤT**, không phải từ lần đăng nhập — đó là điều đã hỏi và đã chốt. Nên
+tính chất quan trọng nhất không đổi: người dùng mở phần mềm hàng tuần thì **không bao giờ** gặp lại
+màn hình đăng nhập. Chỉ có trần của thời gian NGHỈ ngắn lại, nên một máy bị bỏ quên hết hiệu lực sau
+một tuần thay vì một tháng.
+
+Đổi đúng một hằng số mặc định; `REFRESH_TTL_SEC` vẫn ghi đè được cho từng môi trường.
+
+**Khoá màn hình khi rảnh**: đã hỏi, khách hàng trả lời **chưa cần bây giờ**. Người rời máy tự bấm
+*Đăng xuất*, và hướng dẫn sử dụng đã nói rõ điều đó ở phần máy dùng chung. Ghi lại ở đây để lần sau
+không phải hỏi lại.

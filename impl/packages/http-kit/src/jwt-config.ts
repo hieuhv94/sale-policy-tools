@@ -25,8 +25,13 @@ export const JWT = {
    * gặp lại màn hình đăng nhập.
    *
    * Trước `0042` là 8 giờ, chọn theo ca làm việc. Đổi vì yêu cầu: không phải
-   * đăng nhập lại chừng nào KHÔNG CÓ GÌ THAY ĐỔI. Bốn thứ vẫn cắt phiên ngay
-   * lập tức, và đó là toàn bộ nghĩa của "có gì thay đổi":
+   * đăng nhập lại chừng nào KHÔNG CÓ GÌ THAY ĐỔI. `0044` hạ từ 30 ngày xuống
+   * **7 ngày** — vẫn là trần của thời gian NGHỈ, nên người dùng mở phần mềm
+   * hàng tuần vẫn không bao giờ gặp lại màn hình đăng nhập, mà một máy bị bỏ
+   * quên thì hết hiệu lực sau một tuần thay vì một tháng.
+   *
+   * Bốn thứ vẫn cắt phiên ngay lập tức, và đó là toàn bộ nghĩa của "có gì thay
+   * đổi":
    *
    *   1. Đổi mật khẩu — `revokeAllSessions`, thu hồi mọi refresh token.
    *   2. Vô hiệu hoá tài khoản — mỗi lần làm mới đọc `is_active` tươi từ CSDL.
@@ -36,7 +41,7 @@ export const JWT = {
    * Đọc được từ môi trường: máy dùng chung ở quầy nên đặt ngắn, còn máy cá nhân
    * thì để mặc định. Đổi số này KHÔNG cần triển khai lại mã.
    */
-  refreshTtlSec: Number(process.env.REFRESH_TTL_SEC ?? 30 * 24 * 60 * 60),
+  refreshTtlSec: Number(process.env.REFRESH_TTL_SEC ?? 7 * 24 * 60 * 60),
 
   /** Độ trễ tối đa để tài khoản bị vô hiệu hoá có hiệu lực trên toàn hệ (AUTH-07). */
   accountCacheTtlSec: Number(process.env.ACCOUNT_CACHE_TTL_SEC ?? 60),

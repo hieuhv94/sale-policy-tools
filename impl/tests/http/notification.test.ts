@@ -860,8 +860,13 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
         thresholdRate2: 1750,
       });
 
-    await catOutbox.pumpOnce();
+    // BƠM MỖI VÒNG, không bơm một lần rồi chờ suông.
+    //
+    // Một lượt bơm duy nhất phải rơi đúng lúc consumer đã sẵn sàng thì mới ăn;
+    // lệch nhịp là ca này chờ hết 15 giây rồi đỏ, mà chạy lại một mình thì xanh.
+    // Đúng kiểu mong manh chỉ lộ ra khi cả bộ test chạy cùng nhau.
     await waitFor(async () => {
+      await catOutbox.pumpOnce();
       const r = await withAdminDb(async (cc) =>
         cc.query(
           `SELECT 1 FROM pol.outbox

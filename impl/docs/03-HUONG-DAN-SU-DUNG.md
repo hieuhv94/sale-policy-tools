@@ -18,8 +18,11 @@ Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và m�
 ### Bao lâu phải đăng nhập lại
 
 **Không phải đăng nhập lại chừng nào không có gì thay đổi.** Phiên được gia hạn mỗi lần bạn dùng phần
-mềm, và nó sống qua cả việc đóng trình duyệt. Nghỉ liên tục **30 ngày** không mở phần mềm thì mới
+mềm, và nó sống qua cả việc đóng trình duyệt. Nghỉ liên tục **7 ngày** không mở phần mềm thì mới
 phải đăng nhập lại.
+
+Bảy ngày tính từ **lần dùng gần nhất**, không phải từ lần đăng nhập: mở phần mềm hàng tuần thì phiên
+gia hạn liên tục và bạn không bao giờ gặp lại màn hình đăng nhập.
 
 Bốn việc cắt phiên **ngay lập tức**, kể cả phiên đang mở ở máy khác:
 

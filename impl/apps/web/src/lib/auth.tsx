@@ -56,10 +56,10 @@ const KHOA = 'csbh:phien';
 /**
  * Nơi giữ phiên: `localStorage`, đổi từ `sessionStorage` ở `0042`.
  *
- * `sessionStorage` chết theo TAB. Nghĩa là dù refresh token còn hạn ba mươi
- * ngày, đóng trình duyệt là phải đăng nhập lại — và đó mới là thứ người dùng
- * gặp hàng ngày, không phải cái hạn kia. Kéo dài hạn token mà vẫn để ở đây thì
- * không đổi được gì.
+ * `sessionStorage` chết theo TAB. Nghĩa là dù refresh token còn hạn cả tuần,
+ * đóng trình duyệt là phải đăng nhập lại — và đó mới là thứ người dùng gặp hàng
+ * ngày, không phải cái hạn kia. Kéo dài hạn token mà vẫn để ở đây thì không đổi
+ * được gì.
  *
  * KHÁC với `nhap-tam.ts`, và khác có chủ ý: bản nháp biểu mẫu vẫn ở
  * `sessionStorage`. Hai thứ chịu hai rủi ro khác nhau trên một máy dùng chung —
