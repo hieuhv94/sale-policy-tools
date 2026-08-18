@@ -15,6 +15,24 @@ Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và m�
   **liên kết cũ chết ngay** — luôn dùng thư mới nhất.
 - Sai mật khẩu **5 lần** thì tài khoản bị khoá tạm; liên hệ Quản trị hệ thống.
 
+### Bao lâu phải đăng nhập lại
+
+**Không phải đăng nhập lại chừng nào không có gì thay đổi.** Phiên được gia hạn mỗi lần bạn dùng phần
+mềm, và nó sống qua cả việc đóng trình duyệt. Nghỉ liên tục **30 ngày** không mở phần mềm thì mới
+phải đăng nhập lại.
+
+Bốn việc cắt phiên **ngay lập tức**, kể cả phiên đang mở ở máy khác:
+
+| Việc | Vì sao |
+|---|---|
+| Bạn **đổi mật khẩu** | Nếu mật khẩu đã bị lộ thì đổi mật khẩu phải cắt được phiên của người đang dùng trộm |
+| Quản trị **vô hiệu hoá** tài khoản | Có hiệu lực ngay ở lần gia hạn kế tiếp, không chờ |
+| Bạn bấm **Đăng xuất** | Cắt cả chuỗi phiên, không riêng thiết bị đang bấm |
+| Hệ thống phát hiện phiên bị **dùng lại bất thường** | Dấu hiệu token bị đánh cắp — cắt sạch, thà bắt đăng nhập lại |
+
+> **Máy dùng chung**: phiên sống qua việc đóng trình duyệt, nên trên máy ở quầy hãy bấm **Đăng xuất**
+> thay vì chỉ đóng cửa sổ.
+
 ### Quên mật khẩu
 
 Bấm **Quên mật khẩu?** ngay dưới nút Đăng nhập, nhập tên tài khoản hoặc email. Hệ thống gửi liên kết

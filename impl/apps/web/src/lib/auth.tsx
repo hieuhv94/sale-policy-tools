@@ -51,8 +51,26 @@ type Phien = {
 
 const Ctx = createContext<Phien | null>(null);
 
-/** Khoá lưu phiên. `sessionStorage` — xem lý do ở nhap-tam.ts. */
 const KHOA = 'csbh:phien';
+
+/**
+ * Nơi giữ phiên: `localStorage`, đổi từ `sessionStorage` ở `0042`.
+ *
+ * `sessionStorage` chết theo TAB. Nghĩa là dù refresh token còn hạn ba mươi
+ * ngày, đóng trình duyệt là phải đăng nhập lại — và đó mới là thứ người dùng
+ * gặp hàng ngày, không phải cái hạn kia. Kéo dài hạn token mà vẫn để ở đây thì
+ * không đổi được gì.
+ *
+ * KHÁC với `nhap-tam.ts`, và khác có chủ ý: bản nháp biểu mẫu vẫn ở
+ * `sessionStorage`. Hai thứ chịu hai rủi ro khác nhau trên một máy dùng chung —
+ * phiên thì thu hồi được từ xa (đổi mật khẩu, vô hiệu hoá tài khoản) và người
+ * dùng thấy rõ mình đang đăng nhập; còn nội dung hồ sơ khách hàng nằm lại trong
+ * `localStorage` sau khi người ta rời đi thì không ai thu hồi được, và không ai
+ * biết nó ở đó.
+ *
+ * `dangXuat` xoá khoá này, nên nút Đăng xuất vẫn cắt sạch như cũ.
+ */
+const KHO = () => localStorage;
 
 export function PhienProvider({ children }: { children: ReactNode }) {
   const [nguoiDung, datNguoiDung] = useState<NguoiDung | null>(null);
@@ -61,7 +79,7 @@ export function PhienProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const s = sessionStorage.getItem(KHOA);
+      const s = KHO().getItem(KHOA);
       if (s) {
         const p = JSON.parse(s) as KetQuaDangNhap;
         datPhien({ accessToken: p.accessToken, refreshToken: p.refreshToken });
@@ -82,7 +100,7 @@ export function PhienProvider({ children }: { children: ReactNode }) {
     datNguoiDung(kq.user);
     datHetHan(false);
     try {
-      sessionStorage.setItem(KHOA, JSON.stringify(kq));
+      KHO().setItem(KHOA, JSON.stringify(kq));
     } catch {
       /* không lưu được thì phiên chỉ sống trong tab này */
     }
@@ -113,7 +131,7 @@ export function PhienProvider({ children }: { children: ReactNode }) {
     datHetHan(false);
     xoaHetNhap();
     try {
-      sessionStorage.removeItem(KHOA);
+      KHO().removeItem(KHOA);
     } catch {
       /* không sao */
     }
@@ -124,10 +142,10 @@ export function PhienProvider({ children }: { children: ReactNode }) {
       if (!cu) return cu;
       const moi = { ...cu, ...n };
       try {
-        const s = sessionStorage.getItem(KHOA);
+        const s = KHO().getItem(KHOA);
         if (s) {
           const p = JSON.parse(s) as KetQuaDangNhap;
-          sessionStorage.setItem(KHOA, JSON.stringify({ ...p, user: moi }));
+          KHO().setItem(KHOA, JSON.stringify({ ...p, user: moi }));
         }
       } catch {
         /* không sao */

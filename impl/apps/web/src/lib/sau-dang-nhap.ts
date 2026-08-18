@@ -34,8 +34,8 @@ export const GIU_DUONG = ['/ho-so/:id', '/ho-so/:id/nhat-ky', '/khach-hang/:id']
  *
  * Cùng cái bẫy `App.tsx` đã dính và phải xử bằng thứ tự. Ở đây không có thứ tự
  * nào để dựa vào nên phải loại thẳng — và loại là đúng: đó là biểu mẫu lập hồ sơ
- * mới, mà phiên mất thì nội dung đang gõ cũng mất theo (phiên nằm ở
- * `sessionStorage`). Trả người dùng về một biểu mẫu trống không giúp được gì.
+ * mới, mà bản nháp đang gõ nằm ở `sessionStorage` (`nhap-tam.ts`) nên đóng tab
+ * là mất. Trả người dùng về một biểu mẫu trống không giúp được gì.
  */
 const KHONG_PHAI_BAN_GHI = ['/ho-so/moi'];
 

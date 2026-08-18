@@ -451,7 +451,11 @@ describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
   });
 
   it('6. mã số thuế', async () => {
-    const tax = `0${Date.now() % 1_000_000_000}`;
+    // `padStart(9)` là bắt buộc, không phải cho đẹp: `Date.now() % 1e9` rơi
+    // xuống 8 chữ số suốt ~28 giờ trong mỗi chu kỳ 11,6 ngày, và khi ấy mã số
+    // thuế chỉ còn 9 ký tự — máy chủ từ chối, ca này đỏ mà chẳng dính gì tới
+    // điều đang kiểm. Một quả bom hẹn giờ nổ khoảng 10% số ngày.
+    const tax = `0${String(Date.now() % 1_000_000_000).padStart(9, '0')}`;
     const d = await draft({ taxId: tax });
     const r = await rget(`/reports/policies?taxId=${tax}&limit=200`);
     expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toEqual([d.id]);
@@ -855,7 +859,11 @@ const readSheet = async (buf: Buffer) => {
 
 describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
   it('file chứa đúng tập đã lọc, đúng thứ tự cột, tiền là SỐ chứ không phải chuỗi', async () => {
-    const tax = `0${Date.now() % 1_000_000_000}`;
+    // `padStart(9)` là bắt buộc, không phải cho đẹp: `Date.now() % 1e9` rơi
+    // xuống 8 chữ số suốt ~28 giờ trong mỗi chu kỳ 11,6 ngày, và khi ấy mã số
+    // thuế chỉ còn 9 ký tự — máy chủ từ chối, ca này đỏ mà chẳng dính gì tới
+    // điều đang kiểm. Một quả bom hẹn giờ nổ khoảng 10% số ngày.
+    const tax = `0${String(Date.now() % 1_000_000_000).padStart(9, '0')}`;
     const wanted = await draft({ taxId: tax, name: 'Nhà thuốc Thiên Ân' });
     await draft({ name: 'Không nằm trong bộ lọc' });
 

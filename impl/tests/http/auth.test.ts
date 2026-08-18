@@ -78,7 +78,7 @@ afterAll(async () => {
 });
 
 describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
-  it('trả access token 15 phút, refresh token 8 giờ, vai trò và thông tin người dùng', async () => {
+  it('trả access token 15 phút, refresh token 30 ngày, vai trò và thông tin người dùng', async () => {
     const res = await login(app, 'tdv01', SEED_PW);
     expect(res.status).toBe(200);
     expect(res.body.user.role).toBe('TDV');
@@ -96,7 +96,7 @@ describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
     expect(res.status).toBe(200);
   });
 
-  it('refresh token hết hạn sau đúng 8 giờ', async () => {
+  it('`0042` refresh token hết hạn sau đúng 30 ngày, không phải 8 giờ', async () => {
     const res = await login(app, 'tdv02', SEED_PW);
     const raw = (res.body.refreshToken as string).split('.').slice(1).join('.');
     const row = await withAdminDb(async (c) => {
@@ -108,7 +108,127 @@ describe('AUTH-01 đăng nhập đúng mật khẩu', () => {
       );
       return q.rows[0];
     });
-    expect(Number(row!.secs)).toBe(8 * 60 * 60);
+    expect(Number(row!.secs)).toBe(CONFIG.refreshTtlSec);
+    expect(CONFIG.refreshTtlSec).toBe(30 * 24 * 60 * 60);
+  });
+});
+
+// =============================================================================
+// `0042` — không phải đăng nhập lại chừng nào KHÔNG CÓ GÌ THAY ĐỔI
+//
+// Hạn 30 ngày ở trên chỉ có nghĩa khi bốn thứ dưới đây vẫn cắt phiên NGAY. Đó
+// đúng là toàn bộ nghĩa của chữ "có gì thay đổi" trong yêu cầu, và cũng là cái
+// giá phải trả cho một token sống lâu — nên chúng được kiểm từng cái.
+// =============================================================================
+
+describe('`0042` bốn thứ vẫn cắt phiên ngay lập tức', () => {
+  /** Làm mới một lần, trả về token kế tiếp — dùng để nối chuỗi xoay vòng. */
+  const lamMoi = async (refreshToken: string) =>
+    (await http(app)).post('/auth/refresh').send({ refreshToken });
+
+  /**
+   * Tài khoản DÙNG MỘT LẦN cho mỗi ca.
+   *
+   * Hai ca dưới đây thu hồi sạch phiên của tài khoản chúng dùng. Mượn `tdv01`
+   * thì ca chạy sau trong cùng tệp mất phiên vì lý do chẳng liên quan gì tới nó.
+   */
+  let dem = 0;
+  const taoNguoiDungTam = async () => {
+    const username = `${TEST_PREFIX}_ph${(dem += 1)}`;
+    const matKhau = 'Tam@2026xyz';
+    const hash = await hashPassword(matKhau);
+    const id = await withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(
+        `INSERT INTO idn.app_user (username, email, full_name, role, password_hash,
+                                   activated_at, email_verified_at)
+         VALUES ($1, $1 || '@csbh.test', $1, 'TDV', $2, now(), now()) RETURNING id`,
+        [username, hash],
+      );
+      return r.rows[0]!.id;
+    });
+    return { id, username, matKhau };
+  };
+
+  it('XOAY VÒNG gia hạn lại từ đầu — hạn là "nghỉ bao lâu", không phải "làm việc bao lâu"', async () => {
+    /*
+     * Điểm dễ hiểu nhầm nhất của con số 30 ngày. Nó KHÔNG phải trần của một
+     * phiên: mỗi lần làm mới sinh một token mới với hạn tính lại từ đầu. Người
+     * dùng mở phần mềm mỗi tuần thì không bao giờ gặp lại màn hình đăng nhập.
+     */
+    const lg = await login(app, 'tdv01', SEED_PW);
+    const r = await lamMoi(lg.body.refreshToken as string);
+    expect(r.status).toBe(200);
+
+    const raw = (r.body.refreshToken as string).split('.').slice(1).join('.');
+    const con = await withAdminDb(async (c) => {
+      const q = await c.query<{ secs: string }>(
+        `SELECT extract(epoch FROM (expires_at - now()))::text AS secs
+           FROM idn.refresh_token WHERE token_hash = encode(sha256($1::bytea), 'hex')`,
+        [raw],
+      );
+      return Number(q.rows[0]!.secs);
+    });
+    // Gần đủ 30 ngày, không phải phần còn lại của token cũ.
+    expect(con).toBeGreaterThan(CONFIG.refreshTtlSec - 60);
+  });
+
+  it('1. ĐỔI MẬT KHẨU thu hồi mọi phiên, kể cả phiên ở máy khác', async () => {
+    const u = await taoNguoiDungTam();
+    const lg = await login(app, u.username, u.matKhau);
+    // Hai phiên song song, như hai máy.
+    const lg2 = await login(app, u.username, u.matKhau);
+
+    const doi = await (await http(app))
+      .post('/auth/change-password')
+      .set('Authorization', `Bearer ${lg.body.accessToken}`)
+      .send({ currentPassword: u.matKhau, newPassword: 'MatKhauMoi@2026' });
+    expect(doi.status, JSON.stringify(doi.body)).toBe(200);
+
+    for (const [ten, phien] of [['phiên đổi', lg], ['phiên máy khác', lg2]] as const) {
+      const r = await lamMoi(phien.body.refreshToken as string);
+      expect(r.status, `${ten} đáng lẽ bị cắt`).toBe(401);
+    }
+  });
+
+  it('2. VÔ HIỆU HOÁ tài khoản chặn ngay ở lần làm mới kế tiếp', async () => {
+    // Đọc `is_active` TƯƠI từ CSDL mỗi lần làm mới, không qua cache — nên không
+    // phải chờ hết 60 giây của `accountCacheTtlSec`.
+    const u = await taoNguoiDungTam();
+    const lg = await login(app, u.username, u.matKhau);
+
+    const adminToken = await accessTokenFor(app, 'admin01', SEED_PW);
+    const off = await (await http(app))
+      .post(`/admin/users/${u.id}/deactivate`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ confirmUsername: u.username });
+    expect(off.status, JSON.stringify(off.body)).toBe(200);
+
+    const r = await lamMoi(lg.body.refreshToken as string);
+    expect(r.status).toBe(401);
+  });
+
+  it('3. ĐĂNG XUẤT thu hồi cả họ, không riêng token đang cầm', async () => {
+    const lg = await login(app, 'tdv02', SEED_PW);
+    const sau = await lamMoi(lg.body.refreshToken as string);
+    expect(sau.status).toBe(200);
+
+    // Đăng xuất bằng token MỚI, rồi thử token mới ấy: phải chết.
+    await (await http(app))
+      .post('/auth/logout')
+      .send({ refreshToken: sau.body.refreshToken });
+    expect((await lamMoi(sau.body.refreshToken as string)).status).toBe(401);
+  });
+
+  it('4. DÙNG LẠI token đã xoay vòng thu hồi cả họ — dấu hiệu bị đánh cắp', async () => {
+    const lg = await login(app, 'kt01', SEED_PW);
+    const cu = lg.body.refreshToken as string;
+    const moi = (await lamMoi(cu)).body.refreshToken as string;
+
+    // Kẻ cầm token CŨ thử dùng.
+    expect((await lamMoi(cu)).status).toBe(401);
+    // Và token MỚI của người dùng thật cũng bị cắt theo — thà bắt họ đăng nhập
+    // lại còn hơn để một phiên bị đánh cắp sống tiếp ba mươi ngày.
+    expect((await lamMoi(moi)).status).toBe(401);
   });
 });
 

@@ -25,6 +25,9 @@ import { duongSauDangNhap } from '@csbh/web/sau-dang-nhap';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  // Phiên chuyển sang `localStorage` ở `0042`; bản nháp biểu mẫu vẫn ở
+  // `sessionStorage`. Dọn cả hai cho chắc.
+  localStorage.clear();
   sessionStorage.clear();
 });
 
@@ -169,10 +172,10 @@ describe('`0040` đăng nhập xong là vào trang tổng quan', () => {
       } finally {
         console.error = cu;
         cleanup();
-        // Phiên nằm ở `sessionStorage`, và vòng lặp này ở TRONG một ca kiểm thử
-        // nên `afterEach` chưa chạy. Không dọn thì vòng thứ hai mở ra đã đăng
-        // nhập sẵn và không tìm thấy biểu mẫu nào để điền.
-        sessionStorage.clear();
+        // Phiên nằm ở `localStorage` (`0042`), và vòng lặp này ở TRONG một ca
+        // kiểm thử nên `afterEach` chưa chạy. Không dọn thì vòng thứ hai mở ra
+        // đã đăng nhập sẵn và không tìm thấy biểu mẫu nào để điền.
+        localStorage.clear();
       }
       const no = loi.filter((x) => String(x).includes('Uncaught'));
       expect(no, `${vaiTro}: có khối nổ khi dựng — ${String(no[0] ?? '')}`).toEqual([]);
@@ -245,7 +248,7 @@ describe('`0041` `duongSauDangNhap`', () => {
      *
      * Và loại nó là đúng chứ không chỉ là tránh bẫy: đó là biểu mẫu lập hồ sơ
      * mới, mà phiên mất thì nội dung đang gõ cũng mất theo (phiên nằm ở
-     * `sessionStorage`). Trả người dùng về một biểu mẫu trống không giúp được gì.
+     * `sessionStorage`, `nhap-tam.ts`). Trả về một biểu mẫu trống không giúp gì.
      */
     expect(duongSauDangNhap('/ho-so/moi')).toBe('/');
   });

@@ -4825,3 +4825,58 @@ không chỉ đòi đúng đường dẫn — bài học từ `P50`. Ba ca còn 
 đường bản ghi, đưa về `/` mười một đường danh sách và quản trị, và loại `/ho-so/moi`.
 
 **1051/1051 xanh.**
+
+---
+
+## P52 — Không phải đăng nhập lại chừng nào không có gì thay đổi
+
+Nhãn `0042`.
+
+### Yêu cầu nói "bỏ refresh token", nhưng bỏ nó cho kết quả NGƯỢC LẠI
+
+Refresh token chính là thứ giữ người dùng khỏi phải đăng nhập lại. Bỏ nó đi thì chỉ còn access token
+**15 phút** — cứ mười lăm phút một lần đăng nhập. Điều thật sự bắt người dùng đăng nhập lại là hai
+thứ khác:
+
+| Nguyên nhân | Trước `0042` | Sau |
+|---|---|---|
+| Hạn refresh token | 8 giờ | **30 ngày**, đọc được từ `REFRESH_TTL_SEC` |
+| Nơi giữ phiên | `sessionStorage` — chết theo TAB | **`localStorage`** |
+
+Vế thứ hai mới là thứ người dùng gặp hàng ngày: dù hạn token có ba mươi ngày, đóng trình duyệt là
+phải đăng nhập lại. Kéo dài hạn mà vẫn để ở `sessionStorage` thì không đổi được gì.
+
+### 30 ngày là "nghỉ bao lâu", không phải "làm việc bao lâu"
+
+Refresh token đã XOAY VÒNG sẵn từ đầu: mỗi lần làm mới, token cũ bị đánh dấu đã dùng và một token mới
+ra đời với hạn tính lại từ đầu. Nên con số này là trần của thời gian KHÔNG DÙNG. Người dùng mở phần
+mềm mỗi tuần thì không bao giờ gặp lại màn hình đăng nhập — đúng nguyên văn yêu cầu.
+
+### Cái giá, và bốn thứ trả nó
+
+Một token sống ba mươi ngày chỉ chấp nhận được khi thu hồi được. Cả bốn đường thu hồi đã có sẵn trong
+mã từ trước, đợt này chỉ kiểm chúng từng cái vì giờ chúng gánh nhiều hơn hẳn:
+
+1. **Đổi mật khẩu** → `revokeAllSessions`, cắt cả phiên ở máy khác.
+2. **Vô hiệu hoá tài khoản** → mỗi lần làm mới đọc `is_active` TƯƠI từ CSDL, không qua cache, nên
+   không phải chờ hết 60 giây của `accountCacheTtlSec`.
+3. **Đăng xuất** → thu hồi cả họ token, không riêng cái đang cầm.
+4. **Dùng lại một token đã xoay vòng** → dấu hiệu bị đánh cắp, thu hồi cả họ.
+
+`nhap-tam.ts` **giữ nguyên `sessionStorage`**, và khác biệt là có chủ ý: phiên thì thu hồi được từ xa
+và người dùng thấy rõ mình đang đăng nhập, còn nội dung hồ sơ khách hàng nằm lại trong `localStorage`
+sau khi người ta rời khỏi một máy dùng chung thì không ai thu hồi được và không ai biết nó ở đó.
+
+### Một quả bom hẹn giờ dọn tiện tay
+
+`reporting.test.ts` dựng mã số thuế bằng `` `0${Date.now() % 1_000_000_000}` ``. Phần dư ấy rơi xuống
+8 chữ số suốt **~28 giờ trong mỗi chu kỳ 11,6 ngày**, và khi ấy mã chỉ còn 9 ký tự — máy chủ từ chối,
+hai ca đỏ mà chẳng dính gì tới điều đang kiểm. Khoảng 10% số ngày là đỏ. Thêm `padStart(9, '0')`.
+
+### Test
+
++6 ca. Một ca khẳng định xoay vòng gia hạn lại từ đầu (điểm dễ hiểu nhầm nhất của con số 30 ngày), và
+bốn ca cho bốn đường thu hồi — mỗi ca dùng một tài khoản tạo riêng, vì chúng thu hồi sạch phiên và
+mượn `tdv01` thì ca chạy sau mất phiên vì lý do chẳng liên quan.
+
+**1056/1056 xanh.**
