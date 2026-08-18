@@ -27,7 +27,13 @@ type Dong = {
   appliedDate: string | null;
   approvedAt: string | null;
   tdvName: string | null;
-  lineCount: number;
+  /**
+   * Còn dưới 24 giờ là tới hạn, và chưa quá hạn (`0053`).
+   *
+   * Máy chủ tính, giao diện không suy lại từ `slaDueAt`: cùng một biểu thức với
+   * thẻ *Sắp quá hạn* và tiêu chí `dueSoon`, nên ba chỗ không thể lệch nhau.
+   */
+  sapQuaHan: boolean;
 };
 
 type BoLoc = Record<string, string>;
@@ -297,7 +303,15 @@ export function DanhSachHoSo() {
                   <th>Trạng thái</th>
                   <th>Ngày áp dụng</th>
                   <th>TDV phụ trách</th>
-                  <th className="so">Số dòng</th>
+                  {/*
+                    Thay cho cột *Số dòng* (`0053`).
+
+                    Số dòng sản phẩm là một con số không ai làm gì với nó ở màn
+                    hình danh sách — muốn biết hồ sơ có gì thì phải mở ra xem,
+                    mà mở ra thì đã có cả bảng. Chỗ ấy để cho thứ quyết định
+                    được thứ tự xử lý: hồ sơ nào sắp hết giờ.
+                  */}
+                  <th>Hạn xử lý</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,7 +328,13 @@ export function DanhSachHoSo() {
                     </td>
                     <td>{ngay(d.appliedDate)}</td>
                     <td>{d.tdvName ?? '—'}</td>
-                    <td className="so">{d.lineCount}</td>
+                    <td>
+                      {d.sapQuaHan ? (
+                        <span className="nhan nhan-loi">Sắp quá hạn</span>
+                      ) : (
+                        <span className="phu">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -151,6 +151,10 @@ bản cứng: 7" thì không làm được gì với con số ấy.
 luồng nhưng **hiện không cần bạn làm gì**. Nó trả lời câu "hồ sơ tôi gửi vẫn đang đi chứ" mà không
 bắt bạn đọc bốn ô của bốn người khác.
 
+Thẻ này **không** kèm dòng đếm *"trong đó N sắp quá hạn"* như các ô đếm việc khác — theo đúng định
+nghĩa của nó, đây là phần không cần bạn làm gì. Bấm vào thì vẫn thấy: danh sách mở ra có cột
+*Hạn xử lý* đánh dấu từng hồ sơ.
+
 **Hai thẻ của Sale Admin** trông giống nhau nhưng là hai việc khác hẳn:
 
 | Thẻ | Nghĩa |
@@ -654,6 +658,13 @@ mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi h�
 - Điều kiện lọc **được giữ trong phiên làm việc**: chuyển màn hình rồi quay lại vẫn còn. Bấm
   **Xoá bộ lọc** để về danh sách đầy đủ.
 - Trên điện thoại, bộ lọc nằm trong tấm trượt lên từ đáy màn hình.
+
+Cột cuối bảng là **Hạn xử lý**: hồ sơ nào còn **dưới 24 giờ** là tới hạn mang nhãn đỏ *Sắp quá hạn*,
+còn lại để trống. Đây là cột thay cho *Số dòng* — số dòng sản phẩm là thứ phải mở hồ sơ ra mới dùng
+được, còn nhãn này quyết định thứ tự xử lý ngay trên danh sách.
+
+Nhãn ấy dùng đúng một định nghĩa với thẻ *Sắp quá hạn* trên trang Tổng quan, nên bấm vào thẻ rồi đếm
+số dòng có nhãn đỏ sẽ ra đúng con số vừa bấm.
 
 ## 11. Báo cáo và xuất Excel
 

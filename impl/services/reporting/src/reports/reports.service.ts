@@ -39,7 +39,15 @@ export const LIST_COLUMNS = `
   line_count AS "lineCount", total_net AS "totalNet",
   max_discount AS "maxDiscount", product_names AS "productNames",
   product_group_codes AS "productGroupCodes",
-  created_at AS "createdAt", synced_at AS "syncedAt"`;
+  created_at AS "createdAt", synced_at AS "syncedAt",
+  -- Cột TÍNH RA, không có trong bảng (0053). Dùng lại đúng biểu thức mà thẻ
+  -- "Sắp quá hạn" và tiêu chí dueSoon đang dùng: ba chỗ hiện cùng một khái niệm
+  -- thì phải đọc từ cùng một định nghĩa, nếu không sẽ có ngày một hồ sơ được
+  -- đánh dấu ở màn hình này mà không lọt vào bộ lọc kia.
+  --
+  -- KHÔNG vào file Excel: COLUMNS bên exports/sheet.ts khai riêng theo tên khoá,
+  -- nên thêm ở đây không đụng tới bảng tính.
+  ${SAP_QUA_HAN} AS "sapQuaHan"`;
 
 export type Cursor = { createdAt: string; policyId: string };
 

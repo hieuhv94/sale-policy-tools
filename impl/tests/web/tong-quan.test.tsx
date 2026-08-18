@@ -1,4 +1,6 @@
 /**
+ * @vitest-environment jsdom
+ *
  * Trang tổng quan — quét HAI BẢNG TRA, không mở từng màn hình.
  *
  * Cái sai cần bắt ở đây không phải một hàm trả sai giá trị, mà là **một ô vắng
@@ -8,7 +10,10 @@
  * đăng nhập lần lượt sáu tài khoản mà nhìn.
  */
 import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { cleanup, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { DaiTheTrangThai } from '@csbh/web/so-lieu';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import { NHAN_TRANG_THAI } from '@csbh/web/format';
 import {
@@ -187,6 +192,71 @@ describe('`0047` thẻ Sắp quá hạn', () => {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'SAP_QUA_HAN')!;
       expect(duongThe(the)).toBe('/ho-so?dueSoon=1');
     }
+  });
+
+  it('`0053` thẻ Đang chờ KHÔNG mang dòng đếm sắp quá hạn', () => {
+    /*
+     * Thẻ ấy đếm hồ sơ ở bàn NGƯỜI KHÁC — theo đúng định nghĩa khách hàng chốt,
+     * phần không cần mình làm gì. Treo một con số gấp lên đó là mời người đọc lo
+     * một việc họ không bấm được, mà thẻ *Sắp quá hạn* ngay bên cạnh đã đếm sẵn
+     * toàn phạm vi rồi.
+     *
+     * Kiểm bằng cách DỰNG số liệu rồi soi kết quả, không đọc mã: thứ cần khẳng
+     * định là con số hiện ra, không phải một nhánh `if` nào đó còn nguyên.
+     */
+    const bo = {
+      tienDo: {
+        total: 0,
+        byStatus: {},
+        byPendingStep: {},
+        byStepDetail: {
+          B4_TBP_DUYET: { total: 4, soon: 2 },
+          B6_KT_L1: { total: 3, soon: 1 },
+          B8_TRINH_KY: { total: 2, soon: 1 },
+          B8_LOI_BAN_CUNG: { total: 1, soon: 0 },
+          B10_KT_L2: { total: 5, soon: 3 },
+        },
+        byHandler: [],
+      },
+      traLai: { submitted: 0, returned: 0, rejected: 0, returnedOrRejected: 0, rate: 0 },
+      sla: { waiting: 0, overdue: 0, dueUnflagged: 0, dueToday: 0, avgWaitingDays: 0, excludedLegacy: 0 },
+    };
+
+    const ve = (v: VaiTro) =>
+      render(createElement(DaiTheTrangThai, { danhSach: THE_THEO_VAI_TRO[v], bo }));
+
+    for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
+      cleanup();
+      ve(v);
+      const o = [...document.querySelectorAll('.chi-so')].find(
+        (e) => e.querySelector('.chi-so-nhan')?.textContent === 'Đang chờ',
+      );
+      expect(o, `${v} thiếu thẻ Đang chờ`).toBeDefined();
+      expect(o!.querySelector('.chi-so-tre'), `${v}: thẻ Đang chờ còn dòng đếm`).toBeNull();
+    }
+    cleanup();
+  });
+
+  it('`0053` nhưng thẻ của CHÍNH bước mình thì vẫn giữ dòng đếm ấy', () => {
+    // Ở đó con số nói "trong mười hai việc của bạn, hai cái sắp hết giờ" — đó là
+    // thứ quyết định thứ tự xử lý sáng nay, và không chỗ nào khác nói ra được.
+    const bo = {
+      tienDo: {
+        total: 0,
+        byStatus: {},
+        byPendingStep: {},
+        byStepDetail: { B4_TBP_DUYET: { total: 12, soon: 2 } },
+        byHandler: [],
+      },
+      traLai: { submitted: 0, returned: 0, rejected: 0, returnedOrRejected: 0, rate: 0 },
+      sla: { waiting: 0, overdue: 0, dueUnflagged: 0, dueToday: 0, avgWaitingDays: 0, excludedLegacy: 0 },
+    };
+    render(createElement(DaiTheTrangThai, { danhSach: THE_THEO_VAI_TRO.TBP, bo }));
+    const o = [...document.querySelectorAll('.chi-so')].find(
+      (e) => e.querySelector('.chi-so-nhan')?.textContent === 'Chờ TBP duyệt',
+    );
+    expect(o!.querySelector('.chi-so-tre')?.textContent).toContain('2 sắp quá hạn');
+    cleanup();
   });
 
   it('`0048` đứng ngay cạnh thẻ Quá hạn, và hai thẻ nói hai chuyện khác nhau', () => {

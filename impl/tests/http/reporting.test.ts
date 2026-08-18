@@ -1142,6 +1142,60 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(r.body.field).toBe('reprint');
   });
 
+  it('`0053` danh sách hồ sơ mang cờ `sapQuaHan` cho từng dòng', async () => {
+    /*
+     * Cột *Số dòng* trên màn hình danh sách đổi thành *Hạn xử lý*: số dòng sản
+     * phẩm là con số không ai làm gì với nó ở đó, còn "hồ sơ nào sắp hết giờ" thì
+     * quyết định thứ tự xử lý.
+     *
+     * Cờ tính ở MÁY CHỦ bằng đúng biểu thức của thẻ *Sắp quá hạn* và tiêu chí
+     * `dueSoon`. Ba chỗ cùng một định nghĩa, nên phép kiểm ở đây là: cờ trên dòng
+     * và tập mà `?dueSoon=1` trả về phải khớp nhau tuyệt đối.
+     */
+    const sapChet = await draft();
+    expect((await act(sapChet.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const conLau = await draft();
+    expect((await act(conLau.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([sapChet.id, conLau.id]);
+
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy SET sla_due_at = now() + interval '5 hours' WHERE id = $1`,
+        [sapChet.id],
+      );
+      await c.query(
+        `UPDATE pol.policy SET sla_due_at = now() + interval '9 days' WHERE id = $1`,
+        [conLau.id],
+      );
+    });
+    await sync.refreshPolicy(sapChet.id);
+    await sync.refreshPolicy(conLau.id);
+
+    const ds = (await rget('/reports/policies?limit=200', 'tbp01')).body.items as {
+      policyId: string;
+      sapQuaHan: boolean;
+    }[];
+    const co = (id: string) => ds.find((x) => x.policyId === id)!;
+    expect(co(sapChet.id).sapQuaHan, 'hồ sơ còn 5 giờ mà không được đánh dấu').toBe(true);
+    expect(co(conLau.id).sapQuaHan, 'hồ sơ còn 9 ngày mà bị đánh dấu').toBe(false);
+
+    // Và cờ phải khớp ĐÚNG tập của bộ lọc — hai đường đọc cùng một định nghĩa.
+    const loc = new Set(
+      (await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01')).body.items.map(
+        (x: { policyId: string }) => x.policyId,
+      ),
+    );
+    const theoCo = new Set(ds.filter((x) => x.sapQuaHan).map((x) => x.policyId));
+    expect(theoCo).toEqual(loc);
+  });
+
+  it('`0053` cờ ấy KHÔNG lọt vào file Excel', async () => {
+    // `COLUMNS` bên `exports/sheet.ts` khai riêng theo tên khoá, nên thêm cột vào
+    // câu SELECT không đụng tới bảng tính. Khẳng định thẳng để lần sau ai thêm
+    // cột cũng phải tự hỏi nó có thuộc về file xuất ra hay không.
+    expect(COLUMNS.map((c) => c.key)).not.toContain('sapQuaHan');
+  });
+
   it('`0051` binding của reporting PHỦ được khoá mà sla-worker phát', () => {
     /*
      * Chốt thứ hai, và nó cần thiết vì chốt tích hợp ở dưới CÓ THỂ XANH GIẢ.

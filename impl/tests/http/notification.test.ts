@@ -79,6 +79,26 @@ const listMail = async (): Promise<Summary[]> => {
   return ((await r.json()) as { messages: Summary[] }).messages;
 };
 
+/**
+ * Dọn hộp thư rồi CHỜ CHO NÓ ĐỨNG YÊN.
+ *
+ * `ntf.close()` không chờ lá thư đang gửi dở hoàn tất, nên một lá của ca kiểm
+ * thử trước vẫn đáp xuống SAU `mailpitClear()` — và ca dưới đây, vốn khẳng định
+ * "consumer đã tắt thì hộp thư phải trống", đếm nhầm nó thành thư của mình. Đỏ
+ * theo xác suất, chỉ khi cả bộ test chạy cùng nhau.
+ *
+ * Dọn LẶP LẠI cho tới khi một lượt dọn không còn nhặt được gì mới: đó là dấu
+ * hiệu duy nhất đáng tin rằng không còn lá nào trên đường.
+ */
+async function donHopThuVaCho(): Promise<void> {
+  for (let i = 0; i < 20; i += 1) {
+    await mailpitClear();
+    await new Promise((r) => setTimeout(r, 250));
+    if ((await listMail()).length === 0) return;
+  }
+  throw new Error('hộp thư vẫn nhận thư mới sau 20 lượt dọn — consumer chưa tắt hẳn?');
+}
+
 const fullMail = async (id: string) => {
   const r = await fetch(`${MAILPIT}/api/v1/message/${id}`);
   return (await r.json()) as {
@@ -188,12 +208,17 @@ const idCua = async (username: string): Promise<string> =>
     return r.rows[0]!.id;
   });
 
-async function draft(): Promise<{ id: string; customerId: string; productId: string }> {
+async function draft(): Promise<{
+  id: string;
+  code: string;
+  customerId: string;
+  productId: string;
+}> {
   const productId = await makeProduct();
   const cus = await makeCustomer();
   const r = await post('/policies', { customerId: cus.id, lines: [line(productId)] });
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${r.status} ${JSON.stringify(r.body)}`);
-  return { id: r.body.id as string, customerId: cus.id, productId };
+  return { id: r.body.id as string, code: r.body.code as string, customerId: cus.id, productId };
 }
 
 /** Chạy hết 10 bước bằng 5 tài khoản mẫu. */
@@ -953,8 +978,7 @@ describe('INT-06 notification chết trong lúc duyệt hồ sơ', () => {
       (await import('@csbh/notification/testing')).NotifyConsumer,
     );
     await ntf.close();
-    // Thư của test trước có thể còn đang trên đường; dọn sau khi consumer đã tắt.
-    await mailpitClear();
+    await donHopThuVaCho();
 
     const d = await draft();
     await runToActive(d.id);
@@ -962,7 +986,7 @@ describe('INT-06 notification chết trong lúc duyệt hồ sơ', () => {
 
     // Không có consumer nào chạy — hộp thư trống.
     await new Promise((r) => setTimeout(r, 300));
-    expect((await listMail()).length).toBe(0);
+    expect((await listMail()).length, 'consumer đã tắt mà thư vẫn đi').toBe(0);
 
     // Hồ sơ vẫn đi hết luồng: gửi thư không nằm trong transaction duyệt.
     const status = await withAdminDb(async (c) => {

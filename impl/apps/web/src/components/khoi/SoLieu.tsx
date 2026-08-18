@@ -84,7 +84,18 @@ function demThe(the: The, bo: BoBaoCao): { tong: number; sapHet: number } {
   const tong = o.reduce((a, k) => a + so(bang?.[k]?.total), 0);
   const sapHet = o.reduce((a, k) => a + so(bang?.[k]?.soon), 0);
 
-  return the.dem.tu === 'sapQuaHan' ? { tong: sapHet, sapHet: 0 } : { tong, sapHet };
+  if (the.dem.tu === 'sapQuaHan') return { tong: sapHet, sapHet: 0 };
+
+  /*
+   * Thẻ *Đang chờ* KHÔNG mang dòng "trong đó N sắp quá hạn" (`0053`).
+   *
+   * Nó đếm hồ sơ ở bàn NGƯỜI KHÁC — theo đúng định nghĩa, phần không cần mình
+   * làm gì. Treo một con số gấp lên đó là mời người đọc lo một việc họ không
+   * bấm được, và thẻ *Sắp quá hạn* ngay bên cạnh đã đếm sẵn toàn phạm vi rồi.
+   *
+   * Bấm vào thì VẪN thấy: danh sách mở ra có cột *Hạn xử lý* đánh dấu từng hồ sơ.
+   */
+  return the.ma === 'DANG_CHO' ? { tong, sapHet: 0 } : { tong, sapHet };
 }
 
 /** Ba con số nói luồng duyệt có khoẻ không. */

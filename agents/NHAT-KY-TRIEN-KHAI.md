@@ -5493,3 +5493,60 @@ Chỗ dễ hỏng: bỏ thẻ mà **quên** thêm vào hộp việc thì hồ s�
 bàn người lập, và cũng chưa có ai khác được phân công vào nó. Bốn ca kiểm thử: nháp nằm trong hộp việc
 của người lập · gửi duyệt xong thì rời sang hộp việc TBP · ba vai trò kia không thấy · nháp của TDV
 khác cũng không lọt vào hộp việc của mình.
+
+---
+
+## P63 — Cột *Hạn xử lý* thay *Số dòng*, và gỡ dòng đếm khỏi thẻ *Đang chờ*
+
+### Đổi cột trên danh sách hồ sơ
+
+*Số dòng* là con số **không ai làm gì với nó** ở màn hình danh sách: muốn biết hồ sơ có gì thì phải
+mở ra, mà mở ra thì đã có cả bảng sản phẩm. Chỗ ấy để cho thứ quyết định được thứ tự xử lý — hồ sơ
+nào sắp hết giờ.
+
+Cờ `sapQuaHan` tính ở **máy chủ**, bằng đúng biểu thức `SAP_QUA_HAN` mà thẻ *Sắp quá hạn* và tiêu chí
+`dueSoon` đang dùng. Ba chỗ hiện cùng một khái niệm thì phải đọc từ cùng một định nghĩa; suy lại ở
+giao diện từ `slaDueAt` là dựng bản sao thứ tư, và nó sẽ lệch ở đúng chỗ khó thấy nhất — hồ sơ đã quá
+hạn vẫn có `sla_due_at`, chỉ là đã trôi qua.
+
+Ca kiểm thử vì thế không so cờ với một bảng chép tay mà so **hai đường đọc với nhau**: tập dòng mang
+cờ và tập mà `?dueSoon=1` trả về phải khớp tuyệt đối.
+
+Thêm cột vào `LIST_COLUMNS` **không** đụng tới file Excel — `COLUMNS` bên `exports/sheet.ts` khai
+riêng theo tên khoá. Có một ca khẳng định thẳng điều đó, để lần sau ai thêm cột cũng phải tự hỏi nó
+có thuộc về bảng tính hay không.
+
+Dùng chữ **"Sắp quá hạn"** chứ không phải "sắp hết hạn" như trong yêu cầu: thẻ, tiêu đề thư và hướng
+dẫn đều đang gọi như vậy, và hai tên cho một thứ là đúng loại lệch mà mấy đợt vừa rồi phải đi dọn.
+
+### Gỡ dòng đếm khỏi thẻ *Đang chờ*
+
+Thẻ ấy đếm hồ sơ ở bàn **người khác** — theo đúng định nghĩa khách hàng chốt, phần không cần mình làm
+gì. Treo *"trong đó N sắp quá hạn"* lên đó là mời người đọc lo một việc họ không bấm được, mà thẻ
+*Sắp quá hạn* ngay bên cạnh đã đếm sẵn toàn phạm vi rồi.
+
+Giữ nguyên dòng ấy trên thẻ của **chính bước mình**: ở đó nó nói "trong mười hai việc của bạn, hai
+cái sắp hết giờ" — thứ quyết định thứ tự xử lý sáng nay, và không chỗ nào khác nói ra được.
+
+Hai ca kiểm thử **dựng số liệu rồi soi kết quả** chứ không quét mã: thứ cần khẳng định là con số hiện
+ra trên màn hình, không phải một nhánh `if` nào đó còn nguyên. Đổi `tong-quan.test.ts` thành `.tsx`
+và thêm `@vitest-environment jsdom` để dựng được component.
+
+### Ghi lại một cái bẫy đã dính lần thứ ba
+
+Backtick trong chú thích SQL nằm bên trong template literal — trình biên dịch đọc ra số bát phân.
+`make typecheck` bắt được ngay nên không lọt, nhưng đây là lần thứ ba trong dự án. Không thêm test:
+`tsc` ĐÃ là chốt và nó hoạt động; thứ hỏng là thói quen gõ của tôi, không phải lưới an toàn.
+
+### Một ca đỏ theo xác suất, không do đợt này
+
+`INT-06` đỏ ở lượt chạy đầy đủ, xanh khi chạy riêng — dấu hiệu quen thuộc. Ca ấy tắt notification rồi
+khẳng định **hộp thư rỗng hẳn**, nhưng `ntf.close()` không chờ lá thư đang gửi dở của ca trước hoàn
+tất: lá ấy đáp xuống SAU `mailpitClear()` và bị đếm thành thư của ca này.
+
+Lần sửa đầu tôi lọc thư theo mã hồ sơ — **sai**, vì chủ đề thư mang TÊN KHÁCH HÀNG, mà mọi khách
+hàng trong file test đều dùng chung một tên. Ca chuyển sang đỏ vì tìm không đủ 6 lá.
+
+Sửa đúng chỗ hỏng: **dọn hộp thư lặp lại cho tới khi một lượt dọn không nhặt được gì mới**. Đó là dấu
+hiệu duy nhất đáng tin rằng không còn lá nào trên đường, và nó không đụng tới điều ca ấy muốn khẳng
+định.
