@@ -236,7 +236,6 @@ const theDangCho = (vaiTro: VaiTro): The =>
 export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
   TDV: [
     theTrangThai('YEU_CAU_CHINH_SUA', 'bị trả lại, chờ bạn sửa'),
-    theTrangThai('NHAP', 'chưa gửi duyệt'),
     theSapQuaHan(),
     theQuaHan(),
     theDangCho('TDV'),
@@ -341,21 +340,26 @@ export type TenKhoi =
  * ai cuộn tới.
  */
 /*
- * `yeu-cau-cap-nhat` đứng TRƯỚC hộp việc ở cả bốn vai trò trong luồng (`0029`).
+ * `hop-viec` đứng TRƯỚC `yeu-cau-cap-nhat` ở cả bốn vai trò trong luồng (`0052`).
  *
- * Cùng lý do với hai cảnh báo phía trên nó: một hồ sơ mang con số đã lỗi thời là
- * thứ phải biết TRƯỚC khi mở nó ra ký. Đặt dưới một danh sách việc dài là gần
- * như chắc chắn không ai cuộn tới, mà cuộn tới thì cũng đã ký xong rồi.
+ * ĐẢO NGƯỢC `0029`. Hồi ấy *Yêu cầu cập nhật* phải đứng trước vì nó là chỗ DUY
+ * NHẤT nói cho người sắp ký biết con số trên hồ sơ đã lỗi thời — đặt dưới một
+ * danh sách việc dài thì không ai cuộn tới, mà cuộn tới thì cũng đã ký xong rồi.
+ *
+ * `0050` gỡ bỏ đúng cái ràng buộc ấy: cảnh báo lệch giờ hiện NGAY TRÊN màn hình
+ * hồ sơ, phía trên bảng số. Không còn đường nào mở hồ sơ ra mà không thấy nó,
+ * nên khối trên trang tổng quan không phải chặn cửa nữa — và việc phải làm hôm
+ * nay mới là thứ người ta mở phần mềm ra để xem.
  *
  * Ban lãnh đạo và Quản trị KHÔNG có: cả hai nằm ngoài luồng duyệt, phạm vi dữ
  * liệu của họ không chứa hồ sơ nào (Quản trị) hoặc chỉ để xem (Ban lãnh đạo) —
  * bày một danh sách việc-phải-làm cho người không làm được việc ấy là nhiễu.
  */
 export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
-  TDV: ['yeu-cau-cap-nhat', 'hop-viec'],
-  TBP: ['yeu-cau-cap-nhat', 'hop-viec', 'suc-khoe-luong'],
-  KE_TOAN: ['yeu-cau-cap-nhat', 'hop-viec-ke-toan', 'suc-khoe-luong'],
-  SALE_ADMIN: ['canh-bao-mau-hop-dong', 'yeu-cau-cap-nhat', 'hop-viec', 'theo-tdv'],
+  TDV: ['hop-viec', 'yeu-cau-cap-nhat'],
+  TBP: ['hop-viec', 'yeu-cau-cap-nhat', 'suc-khoe-luong'],
+  KE_TOAN: ['hop-viec-ke-toan', 'yeu-cau-cap-nhat', 'suc-khoe-luong'],
+  SALE_ADMIN: ['canh-bao-mau-hop-dong', 'hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   BAN_LANH_DAO: [
     'vi-sao-khong-co-viec',
     'suc-khoe-luong',
@@ -371,6 +375,16 @@ export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
     'nhat-ky-gon',
   ],
 };
+
+/**
+ * Mỗi trang bao nhiêu hồ sơ ở *Việc của tôi* và *Yêu cầu cập nhật* (`0052`).
+ *
+ * Nhỏ hơn hẳn `MOI_TRANG` của các màn hình danh sách, và có lý do: ở đây chúng
+ * chỉ là hai trong nhiều khối chứ không phải cả màn hình. Hai mươi dòng mỗi khối
+ * đẩy sức khoẻ luồng duyệt, bảng theo TDV và mọi thứ còn lại xuống dưới tầm mắt
+ * — trang tổng quan thành một danh sách dài, đúng thứ nó sinh ra để thay thế.
+ */
+export const MOI_TRANG_TONG_QUAN = 5;
 
 /** Khối nào có nút ghi — `FE-23` cấm `BAN_LANH_DAO` chạm vào bất kỳ cái nào. */
 export const KHOI_CO_NUT_GHI: TenKhoi[] = ['canh-bao-mau-hop-dong', 'canh-bao-thu-hong'];

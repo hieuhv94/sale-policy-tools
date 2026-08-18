@@ -978,7 +978,18 @@ export class PoliciesService {
     // Ban lãnh đạo và Quản trị không có việc trong luồng duyệt: một bên chỉ đọc,
     // một bên nằm ngoài luồng. Trả rỗng chứ không trả "tất cả".
     const waitingFor: Record<string, string[]> = {
-      TDV: ['YEU_CAU_CHINH_SUA'],
+      /*
+       * `NHAP` vào đây ở `0052`, cùng lúc thẻ *Nháp* rời khỏi dải thẻ của TDV.
+       *
+       * Hai thứ ấy nói cùng một chuyện — "hồ sơ bạn chưa gửi đi" — nên bày cả
+       * hai là bắt người dùng đọc một con số ở trên rồi lại đọc chính danh sách
+       * ấy ở dưới. Hộp việc thắng vì nó bấm thẳng vào từng hồ sơ mà sửa tiếp
+       * được; con số trên thẻ thì phải bấm thêm một lần nữa mới tới nơi.
+       *
+       * Với ba vai trò còn lại thì `NHAP` KHÔNG phải việc của họ: hồ sơ chưa gửi
+       * duyệt chưa từng rời khỏi bàn người lập.
+       */
+      TDV: ['NHAP', 'YEU_CAU_CHINH_SUA'],
       TBP: ['CHO_TBP_DUYET'],
       KE_TOAN: ['CHO_KT_L1', 'CHO_KT_L2'],
       SALE_ADMIN: ['SA_DANG_XU_LY'],

@@ -15,6 +15,7 @@ import { useBaoCao } from '../lib/bao-cao.js';
 import {
   KHOI_THEO_VAI_TRO,
   LY_DO_KHONG_CO_VIEC,
+  MOI_TRANG_TONG_QUAN,
   THE_THEO_VAI_TRO,
   type TenKhoi,
 } from '../lib/tong-quan.js';
@@ -60,7 +61,7 @@ export function TongQuan() {
     trang: trangViec,
     soTrang: soTrangViec,
     doiTrang: doiTrangViec,
-  } = useTrangMay<MucViec>(canViec ? '/policies/inbox' : null);
+  } = useTrangMay<MucViec>(canViec ? '/policies/inbox' : null, MOI_TRANG_TONG_QUAN);
 
   const veKhoi = (ten: TenKhoi) => {
     switch (ten) {
@@ -113,15 +114,23 @@ export function TongQuan() {
             loi={loiViec}
             dangTai={viec === null && loiViec === null}
           >
+            {/*
+              Câu rỗng đổi theo việc CÒN TRANG SAU hay không (`0052`).
+
+              Một thanh phân trang cho hai danh sách, mà mỗi trang giờ chỉ 5 hồ
+              sơ: trang này có thể toàn hồ sơ lần 1 trong khi lần 2 đang chờ ở
+              trang sau. Nói "không có hồ sơ nào chờ tiếp nhận lần 2" lúc ấy là
+              nói sai — người dùng đọc xong rồi thôi không bấm sang trang nữa.
+            */}
             <h3 className="tieu-de-phu">Tiếp nhận lần 1</h3>
             <DanhSachViec
               muc={(viec ?? []).filter((v) => buoc(v) === 'CHO_KT_L1')}
-              trongTieuDe="Không có hồ sơ nào chờ tiếp nhận lần 1"
+              trongTieuDe={trongViec(soTrangViec, 'chờ tiếp nhận lần 1')}
             />
             <h3 className="tieu-de-phu">Tiếp nhận lần 2</h3>
             <DanhSachViec
               muc={(viec ?? []).filter((v) => buoc(v) === 'CHO_KT_L2')}
-              trongTieuDe="Không có hồ sơ nào chờ tiếp nhận lần 2"
+              trongTieuDe={trongViec(soTrangViec, 'chờ tiếp nhận lần 2')}
             />
             {/* MỘT thanh cho cả hai danh sách: máy chủ cắt trang trên hộp việc
                 CHUNG rồi màn hình mới tách đôi theo bước, nên hai nửa không có
@@ -199,6 +208,19 @@ export function TongQuan() {
       {khoi.map(veKhoi)}
     </section>
   );
+}
+
+/**
+ * Câu cho một danh sách con rỗng, xét theo việc còn trang sau hay không (`0052`).
+ *
+ * Hai danh sách của Kế toán dùng CHUNG một thanh phân trang, nên "rỗng ở trang
+ * này" và "rỗng hẳn" là hai chuyện khác nhau — và chỉ một trong hai là lý do để
+ * người dùng ngừng bấm sang trang.
+ */
+function trongViec(soTrang: number, viec: string): string {
+  return soTrang > 1
+    ? `Trang này không có hồ sơ nào ${viec} — xem tiếp ở trang sau`
+    : `Không có hồ sơ nào ${viec}`;
 }
 
 /**

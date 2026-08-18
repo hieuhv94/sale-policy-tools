@@ -73,11 +73,15 @@ type PhanHoi<T> = { items: T[]; total: number };
  * `duongCoSo` là đường dẫn kèm mọi tham số riêng của màn hình, KHÔNG kèm
  * `limit`/`offset` — hook tự nối hai cái đó. Truyền `null` để chưa tải gì.
  *
+ * `moiTrang` mặc định là `MOI_TRANG`. Hai khối trên trang Tổng quan truyền số
+ * nhỏ hơn (`0052`): ở đó chúng chỉ là hai trong nhiều khối, không phải cả màn
+ * hình — hai mươi dòng mỗi khối là đẩy mọi thứ còn lại xuống dưới tầm mắt.
+ *
  * Đổi `duongCoSo` (tức đổi bộ lọc hay từ khoá) thì VỀ TRANG 1: đứng ở trang 7
  * của kết quả cũ mà lọc lại thì trang 7 của kết quả mới thường là rỗng, và màn
  * hình trắng ngay sau khi gõ từ khoá đọc ra là "không tìm thấy gì".
  */
-export function useTrangMay<T>(duongCoSo: string | null): TrangMay<T> {
+export function useTrangMay<T>(duongCoSo: string | null, moiTrang = MOI_TRANG): TrangMay<T> {
   const [trang, datTrang] = useState(1);
   const [du, datDu] = useState<PhanHoi<T> | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
@@ -91,17 +95,17 @@ export function useTrangMay<T>(duongCoSo: string | null): TrangMay<T> {
     const huy = new AbortController();
     datLoi(null);
     const noi = duongCoSo.includes('?') ? '&' : '?';
-    const duong = `${duongCoSo}${noi}limit=${MOI_TRANG}&offset=${(trang - 1) * MOI_TRANG}`;
+    const duong = `${duongCoSo}${noi}limit=${moiTrang}&offset=${(trang - 1) * moiTrang}`;
     layJson<PhanHoi<T>>(duong, huy.signal)
       .then(datDu)
       .catch((e: unknown) => {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [duongCoSo, trang, lan]);
+  }, [duongCoSo, trang, lan, moiTrang]);
 
   const tong = du?.total ?? 0;
-  const soTrang = soTrangCua(tong);
+  const soTrang = Math.max(1, Math.ceil(tong / moiTrang));
 
   // Xoá mục cuối cùng của trang cuối thì trang ấy biến mất — kéo người dùng về
   // trang còn dữ liệu thay vì để họ nhìn một danh sách rỗng.

@@ -5449,3 +5449,47 @@ thật, nên đã ghi vào hướng dẫn demo thay vì coi là lệch.
 Ghi lại một lỗi đọc của chính tôi: lần đầu soi `pol.outbox` tôi kết luận sự kiện không được chèn, vì
 `| head` cắt mất hai dòng cuối bảng — `policy.updated` và `sla.overdue` sắp sau `policy.tbp_reject`
 theo thứ tự chữ cái. Suýt đi sửa một thứ không hỏng.
+
+---
+
+## P62 — *Việc của tôi* lên trước, mỗi trang 5 hồ sơ, bỏ thẻ *Nháp* của TDV
+
+### Đảo thứ tự — và vì sao giờ mới đảo được
+
+`0029` chốt *Yêu cầu cập nhật* phải đứng TRƯỚC hộp việc, với một lý do vững: nó là chỗ **duy nhất**
+nói cho người sắp ký biết con số trên hồ sơ đã lỗi thời. Đặt dưới một danh sách việc dài thì không ai
+cuộn tới, mà cuộn tới thì cũng đã ký xong rồi.
+
+`0050` gỡ đúng cái ràng buộc ấy: cảnh báo lệch giờ hiện **ngay trên màn hình hồ sơ**, phía trên bảng
+số. Không còn đường nào mở hồ sơ ra mà không thấy nó. Khối trên trang tổng quan không phải chặn cửa
+nữa, nên việc phải làm hôm nay lên trước — đó mới là thứ người ta mở phần mềm ra để xem.
+
+Ca kiểm thử cũ khẳng định thứ tự ngược lại, giờ khẳng định thứ tự mới, và **ghi rõ điều kiện để đảo
+lại**: nếu ai gỡ khối cảnh báo ở `ChiTietHoSo` thì thứ tự này phải xét lại. Ca `0050` canh đúng chỗ ấy.
+
+### Mỗi trang 5 hồ sơ
+
+`useTrangMay` nhận thêm tham số `moiTrang`, mặc định vẫn `MOI_TRANG = 20`. Hai khối trên trang tổng
+quan truyền `MOI_TRANG_TONG_QUAN = 5`.
+
+Cắt ở MÁY CHỦ chứ không vẽ ít đi ở giao diện: hỏi 20 dòng rồi vẽ 5 là tải thừa gấp bốn trên mỗi lần
+mở trang tổng quan, và số trang hiện ra cũng sai.
+
+**Một hệ quả phải xử lý.** Hai danh sách của Kế toán dùng chung MỘT thanh phân trang. Với 20 dòng mỗi
+trang thì hầu như luôn thấy cả hai nhóm; với 5 thì trang này có thể toàn hồ sơ lần 1 trong khi lần 2
+đang chờ ở trang sau — và câu *"Không có hồ sơ nào chờ tiếp nhận lần 2"* lúc ấy là **nói sai**, người
+dùng đọc xong rồi thôi không bấm sang trang nữa. Câu rỗng giờ đổi theo việc còn trang sau hay không.
+
+### Bỏ thẻ *Nháp*, đưa Nháp vào hộp việc
+
+Hai thứ nói cùng một chuyện — "hồ sơ bạn chưa gửi đi" — nên bày cả hai là bắt người dùng đọc một con
+số ở trên rồi đọc lại chính danh sách ấy ở dưới. Hộp việc thắng vì bấm thẳng vào từng hồ sơ mà sửa
+tiếp được; con số trên thẻ phải bấm thêm một lần nữa mới tới nơi.
+
+Chỗ dễ hỏng: bỏ thẻ mà **quên** thêm vào hộp việc thì hồ sơ nháp biến mất khỏi trang tổng quan — và
+đó là thứ duy nhất TDV mở phần mềm ra để làm tiếp. Có ca kiểm thử canh cả hai chiều.
+
+`NHAP` chỉ vào hộp việc của **TDV**. Ba vai trò còn lại không: hồ sơ chưa gửi duyệt chưa từng rời khỏi
+bàn người lập, và cũng chưa có ai khác được phân công vào nó. Bốn ca kiểm thử: nháp nằm trong hộp việc
+của người lập · gửi duyệt xong thì rời sang hộp việc TBP · ba vai trò kia không thấy · nháp của TDV
+khác cũng không lọt vào hộp việc của mình.

@@ -32,6 +32,7 @@ import { Nhan } from '../Chung.js';
 import { DanhSachLech, TomTatLech, type LechMuc } from '../Lech.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
+import { MOI_TRANG_TONG_QUAN } from '../../lib/tong-quan.js';
 import { Khoi } from './Khung.js';
 
 /** Vẫn xuất lại từ đây: bộ kiểm và các màn hình cũ nhập kiểu qua đường này. */
@@ -89,7 +90,10 @@ function DongLech({ h }: { h: HoSoLech }) {
 }
 
 export function YeuCauCapNhat() {
-  const { muc, tong, loi, trang, soTrang, doiTrang } = useTrangMay<HoSoLech>('/policies/impacted');
+  const { muc, tong, loi, trang, soTrang, doiTrang } = useTrangMay<HoSoLech>(
+    '/policies/impacted',
+    MOI_TRANG_TONG_QUAN,
+  );
 
   // Chưa tải xong hoặc gọi hỏng thì KHÔNG hiện gì. Một khối cảnh báo chớp lên
   // rồi biến mất còn tệ hơn là không có khối nào.

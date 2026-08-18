@@ -70,7 +70,6 @@ describe('hai bảng tra phủ đủ sáu vai trò', () => {
 const DA_CHOT: Partial<Record<VaiTro, string[]>> = {
   TDV: [
     'Yêu cầu chỉnh sửa',
-    'Nháp',
     'Sắp quá hạn',
     'Quá hạn',
     'Đang chờ',

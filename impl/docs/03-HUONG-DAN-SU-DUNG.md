@@ -137,7 +137,7 @@ lọc sẵn đúng bằng con số vừa bấm.
 
 | Vai trò | Thẻ bạn thấy |
 |---|---|
-| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Trình dược viên** | Yêu cầu chỉnh sửa · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
 | **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
 | **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
@@ -177,8 +177,11 @@ mọi màn hình.
 
 ### Yêu cầu cập nhật
 
-Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, Kế toán**. Khối này chỉ hiện khi có
-việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
+Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, Kế toán**. Khối này đứng **ngay sau
+*Việc của tôi***, và chỉ hiện khi có việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
+
+Mỗi trang **tối đa 5 hồ sơ**, như *Việc của tôi*: trên trang Tổng quan chúng chỉ là hai trong nhiều
+khối, và hai mươi dòng mỗi khối đẩy mọi thứ còn lại xuống dưới tầm mắt.
 
 Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà nội dung trên hồ sơ
 **đã khác với danh mục hiện tại**.
@@ -215,10 +218,19 @@ nên không có gì để nhắc.
 
 ### Việc của tôi
 
-Ngay dưới đó là hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ sơ **quá
-hạn** có vạch đỏ bên trái. Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải hệ thống lỗi.
+Khối **đầu tiên** dưới dải thẻ: hồ sơ **đang chờ chính bạn** xử lý, sắp theo hạn gần nhất trước. Hồ
+sơ còn dưới 24 giờ có vạch đỏ bên trái. Không thấy hồ sơ nào nghĩa là bạn không còn việc — không phải
+hệ thống lỗi.
 
-Riêng **Kế toán** thấy hai danh sách tách rời: *Tiếp nhận lần 1* và *Tiếp nhận lần 2*.
+**Mỗi trang tối đa 5 hồ sơ.**
+
+Với **Trình dược viên**, danh sách này gồm cả hồ sơ **Nháp** chưa gửi duyệt, không chỉ hồ sơ bị trả
+lại — hồ sơ bạn đang viết dở cũng là việc của bạn. Vì vậy dải thẻ không còn ô *Nháp* riêng: một con số
+ở trên rồi lại chính danh sách ấy ở dưới là bắt bạn đọc hai lần cùng một chuyện.
+
+Riêng **Kế toán** thấy hai danh sách tách rời: *Tiếp nhận lần 1* và *Tiếp nhận lần 2*. Hai danh sách
+dùng **chung một thanh phân trang**, nên khi còn trang sau, danh sách rỗng sẽ nói rõ *"trang này không
+có hồ sơ nào… — xem tiếp ở trang sau"* thay vì báo là hết việc.
 
 ### Từng vai trò còn thấy gì thêm
 

@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { YeuCauCapNhat, type HoSoLech } from '@csbh/web/yeu-cau-cap-nhat';
-import { KHOI_THEO_VAI_TRO } from '@csbh/web/tong-quan';
+import { KHOI_THEO_VAI_TRO, MOI_TRANG_TONG_QUAN } from '@csbh/web/tong-quan';
 
 afterEach(() => {
   cleanup();
@@ -227,13 +227,40 @@ describe('0029 box ẩn hẳn khi không có gì', () => {
 });
 
 describe('0029 box có mặt ở đúng bốn vai trò', () => {
-  it('bốn vai trò trong luồng đều có, và nó đứng TRƯỚC hộp việc', () => {
+  it('`0052` bốn vai trò trong luồng đều có, và nó đứng SAU hộp việc', () => {
+    /*
+     * ĐẢO NGƯỢC `0029`, và lý do đảo được nằm ở `0050`.
+     *
+     * Hồi `0029` box phải đứng TRƯỚC vì nó là chỗ duy nhất nói cho người sắp ký
+     * biết con số đã lỗi thời. `0050` đưa cảnh báo ấy lên thẳng màn hình hồ sơ,
+     * phía trên bảng số — không còn đường nào mở hồ sơ ra mà không thấy nó.
+     *
+     * Ràng buộc cũ mất, nên việc phải làm hôm nay lên trước. Nếu ai đó gỡ khối
+     * cảnh báo ở `ChiTietHoSo` thì thứ tự này phải xét lại — ca kiểm thử
+     * `0050` bên trên canh đúng chỗ ấy.
+     */
     for (const vt of ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'] as const) {
       const khoi = KHOI_THEO_VAI_TRO[vt];
       expect(khoi, `${vt} phải có box`).toContain('yeu-cau-cap-nhat');
       const hopViec = khoi.findIndex((k) => k.startsWith('hop-viec'));
-      expect(khoi.indexOf('yeu-cau-cap-nhat')).toBeLessThan(hopViec);
+      expect(hopViec, `${vt} phải có hộp việc`).toBeGreaterThanOrEqual(0);
+      expect(hopViec).toBeLessThan(khoi.indexOf('yeu-cau-cap-nhat'));
     }
+  });
+
+  it('`0052` mỗi trang tối đa 5 hồ sơ, và box hỏi máy chủ đúng con số ấy', async () => {
+    // Không phải cắt ở phía giao diện: hỏi 20 dòng rồi vẽ 5 là tải thừa gấp bốn
+    // trên mỗi lần mở trang tổng quan, và số trang hiện ra cũng sai.
+    expect(MOI_TRANG_TONG_QUAN).toBe(5);
+
+    const f = vi.fn(() => Promise.resolve(phanHoi({ items: HO_SO, total: 12 })));
+    vi.stubGlobal('fetch', f);
+    render(<YeuCauCapNhat />);
+    await doiKhoi();
+
+    const duong = String((f.mock.calls[0] as unknown[])[0]);
+    expect(duong).toContain('limit=5');
+    expect(duong).toContain('offset=0');
   });
 
   it('Ban lãnh đạo và Quản trị KHÔNG có — cả hai nằm ngoài luồng duyệt', () => {

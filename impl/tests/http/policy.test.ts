@@ -457,6 +457,51 @@ describe('`0031` chọn người xử lý lúc gửi duyệt', () => {
   });
 });
 
+describe('`0052` hộp việc của TDV gồm cả hồ sơ Nháp', () => {
+  const hopViec = async (who: string) =>
+    ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map((x) => x.id);
+
+  it('hồ sơ chưa gửi duyệt nằm trong hộp việc của người lập', async () => {
+    /*
+     * Đi cùng việc bỏ thẻ *Nháp* khỏi dải thẻ của TDV.
+     *
+     * Hai thứ ấy nói cùng một chuyện — "hồ sơ bạn chưa gửi đi" — nên bày cả hai
+     * là bắt người dùng đọc một con số ở trên rồi đọc lại chính danh sách ấy ở
+     * dưới. Bỏ thẻ mà KHÔNG thêm vào hộp việc thì hồ sơ nháp biến mất khỏi trang
+     * tổng quan, và đó là thứ duy nhất TDV mở phần mềm ra để làm tiếp.
+     */
+    const d = await draft();
+    expect(await hopViec('tdv01'), 'hồ sơ nháp rơi khỏi hộp việc').toContain(d.id);
+  });
+
+  it('gửi duyệt xong thì RỜI hộp việc của TDV, sang hộp việc của TBP', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(await hopViec('tdv01'), 'gửi rồi mà vẫn là việc của TDV').not.toContain(d.id);
+    expect(await hopViec('tbp01')).toContain(d.id);
+  });
+
+  it('ba vai trò còn lại KHÔNG thấy hồ sơ nháp của người khác', async () => {
+    // Hồ sơ chưa gửi duyệt chưa từng rời khỏi bàn người lập — nó không phải việc
+    // của ai khác, và cũng chưa có ai khác được phân công vào nó.
+    const d = await draft();
+    for (const who of ['tbp01', 'kt01', 'sa01']) {
+      expect(await hopViec(who), `${who} thấy hồ sơ nháp`).not.toContain(d.id);
+    }
+  });
+
+  it('hồ sơ nháp của TDV khác cũng không lọt vào hộp việc của mình', async () => {
+    // Phạm vi dữ liệu vẫn áp như mọi chỗ khác: `NHAP` không nới lỏng gì cả.
+    const cua02 = await makeCustomer('tdv02');
+    const sp = await makeProduct();
+    const r = await post('/policies', { customerId: cua02, lines: [line(sp)] }, 'tdv02');
+    expect(r.status).toBe(201);
+
+    expect(await hopViec('tdv01')).not.toContain(r.body.id);
+    expect(await hopViec('tdv02')).toContain(r.body.id);
+  });
+});
+
 describe('POL-09 ngày áp dụng trong quá khứ', () => {
   it('chấp nhận — chỉ là thông tin hiển thị, không chi phối trạng thái', async () => {
     const d = await draft();
