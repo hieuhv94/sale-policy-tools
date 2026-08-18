@@ -51,8 +51,24 @@ export const BUS = {
      * KHÔNG nghe `catalog.#`: tên và mã sản phẩm đã ĐÓNG BĂNG vào dòng hồ sơ lúc
      * lập, nên đổi danh mục không làm sai một dòng báo cáo nào. Tỉnh/thành đổi
      * tên cũng vậy — read-model giữ MÃ, tên chỉ tra lúc hiển thị (RPT-06).
+     *
+     * `sla.#` thêm ở `0051`, và nó là một LỖI ĐÃ SỐNG LÂU. sla-worker phát
+     * `sla.overdue` khi hồ sơ quá hạn — một lần đổi trạng thái thật sự, ghi thẳng
+     * vào `pol.policy` — nhưng khoá ấy không khớp `policy.#`, nên read-model
+     * không bao giờ nghe thấy. Hệ quả trên màn hình:
+     *
+     *   - thẻ *Quá hạn* vĩnh viễn bằng 0;
+     *   - hồ sơ quá hạn VẪN bị đếm vào thẻ của bước cũ, đúng thứ `0047` gỡ ra;
+     *   - lọc `?status=QUA_HAN_DUYET` không ra gì;
+     *   - và tệ nhất: nó còn lọt vào thẻ *Sắp quá hạn*, vì read-model vẫn giữ
+     *     trạng thái chờ cũ với một mốc hạn đã trôi qua.
+     *
+     * Nghe cả `sla.#` chứ không riêng `sla.overdue`: binding hẹp quá là đúng
+     * nguyên nhân sinh ra lỗi này, và một sự kiện `sla.*` về sau có đổi hồ sơ thì
+     * cũng lại rơi vào im lặng y hệt. Đồng bộ lại một hồ sơ không đổi gì là một
+     * lượt ghi thừa vô hại — rẻ hơn nhiều so với một con số sai không ai báo.
      */
-    reporting: ['policy.#', 'customer.#'],
+    reporting: ['policy.#', 'customer.#', 'sla.#'],
   },
 } as const;
 

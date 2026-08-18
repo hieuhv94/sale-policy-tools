@@ -376,6 +376,51 @@ const NGUOI_DUNG_THEM: { u: string; ten: string; role: string }[] = [
 
 const SO_THU_HONG = 24;
 
+/**
+ * Hồ sơ SẮP quá hạn và ĐÃ quá hạn (`0051`).
+ *
+ * Bốn bước chờ đều có mặt ở cả hai nhóm, nên mỗi vai trò trong luồng đăng nhập
+ * vào đều thấy thẻ *Sắp quá hạn* và *Quá hạn* khác 0 — chứ không phải chỉ một
+ * vai trò may mắn.
+ *
+ * `conLaiGio` là số giờ còn tới hạn: dưới 24 thì hồ sơ vào thẻ *Sắp quá hạn*, và
+ * vòng quét SLA gửi luôn thư nhắc nên `make demo-mail` cũng có cái để xem.
+ *
+ * `quaHanNgay` là số ngày ĐÃ quá hạn. Giữ dưới 3 — đúng 3 ngày là sla-worker tự
+ * chuyển *Đã xoá* (`0047`), và một bản demo mà dữ liệu tự biến mất sau vài phút
+ * là một bản demo khó tin.
+ */
+const SAP_QUA_HAN: { buoc: string; conLaiGio: number }[] = [
+  { buoc: 'CHO_TBP_DUYET', conLaiGio: 3 },
+  { buoc: 'CHO_TBP_DUYET', conLaiGio: 11 },
+  { buoc: 'CHO_KT_L1', conLaiGio: 6 },
+  { buoc: 'SA_DANG_XU_LY', conLaiGio: 20 },
+  { buoc: 'CHO_KT_L2', conLaiGio: 9 },
+];
+
+const DA_QUA_HAN: { buoc: string; quaHanNgay: number }[] = [
+  { buoc: 'CHO_TBP_DUYET', quaHanNgay: 2 },
+  { buoc: 'CHO_KT_L1', quaHanNgay: 1 },
+  { buoc: 'SA_DANG_XU_LY', quaHanNgay: 2 },
+  { buoc: 'CHO_KT_L2', quaHanNgay: 1 },
+];
+
+/** Bước chờ → vai trò phải xử lý. Người nhận thư quá hạn, cùng bảng với sla-worker. */
+const CHU_BUOC: Record<string, string> = {
+  CHO_TBP_DUYET: 'TBP',
+  CHO_KT_L1: 'KE_TOAN',
+  SA_DANG_XU_LY: 'SALE_ADMIN',
+  CHO_KT_L2: 'KE_TOAN',
+};
+
+/** Bước chờ → mã bước lưu trong `pending_step`. Bảng của muc 3. */
+const MA_BUOC: Record<string, string> = {
+  CHO_TBP_DUYET: 'B4_TBP_DUYET',
+  CHO_KT_L1: 'B6_KT_L1',
+  SA_DANG_XU_LY: 'B8_SA_XU_LY',
+  CHO_KT_L2: 'B10_KT_L2',
+};
+
 const LOI_THU = [
   'connect ECONNREFUSED 172.20.0.9:1025',
   'Greeting never received',
@@ -489,6 +534,94 @@ async function namThuHong(): Promise<void> {
         WHERE t.n <= $1`,
       [SO_THU_HONG, LOI_THU],
     );
+  } finally {
+    await db.end();
+  }
+}
+
+/**
+ * Vặn đồng hồ SLA của những hồ sơ vừa lập — ngoại lệ THỨ HAI của "nạp qua API thật".
+ *
+ * Cùng lý do với `namThuHong`: **không API nào tạo được hồ sơ quá hạn**. Hạn 14
+ * ngày do máy chủ tự đặt lúc chuyển bước, và trạng thái *Quá hạn duyệt* chỉ đến
+ * từ vòng quét của sla-worker khi đồng hồ thật đi qua mốc ấy. Muốn có nó "thật"
+ * thì phải chờ hai tuần, hoặc chỉnh đồng hồ máy chủ — cả hai đều tệ hơn nhiều so
+ * với việc ghi thẳng và nói rõ ở đây là đã ghi thẳng.
+ *
+ * Hồ sơ thì VẪN lập qua API và đẩy tới bước bằng đúng những hành động giao diện
+ * gọi, nên dòng sản phẩm, nhật ký, người được phân công đều là dữ liệu thật. Chỉ
+ * mốc thời gian là vặn tay.
+ *
+ * Với nhóm ĐÃ quá hạn còn phát kèm `sla.overdue` vào outbox — đúng khoá và đúng
+ * hình dạng sla-worker phát ra. Nhờ vậy read-model đồng bộ theo (`0051`), nhật ký
+ * kiểm toán có vết, và Mailpit có thư quá hạn để xem. Ghi thẳng vào
+ * `rpt.policy_row` thì nhanh hơn nhưng dựng ra một bản demo mà các đường ống
+ * không hề chạy — đúng thứ dễ làm người xem tin nhầm.
+ */
+async function vanDongHoSla(
+  sapQuaHan: string[],
+  daQuaHan: { id: string; buoc: string; quaHanNgay: number }[],
+): Promise<void> {
+  const db = moKetNoi();
+  await db.connect();
+  try {
+    for (const [i, id] of sapQuaHan.entries()) {
+      const gio = SAP_QUA_HAN[i]!.conLaiGio;
+      await db.query(
+        `UPDATE pol.policy
+            SET sla_due_at = now() + ($2 || ' hours')::interval,
+                sla_started_at = now() + ($2 || ' hours')::interval - interval '14 days',
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [id, String(gio)],
+      );
+      // Read-model giữ `sla_due_at` cho thẻ *Sắp quá hạn*, nên nó phải nghe được
+      // lần vặn này. `policy.updated` khớp `policy.#`.
+      await db.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
+        'policy.updated',
+        JSON.stringify({ policyId: id }),
+      ]);
+    }
+
+    for (const h of daQuaHan) {
+      await db.query(
+        `UPDATE pol.policy
+            SET status = 'QUA_HAN_DUYET',
+                pending_step = $2::pol.policy_step,
+                overdue_at = now() - ($3 || ' days')::interval,
+                sla_due_at = now() - ($3 || ' days')::interval,
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [h.id, MA_BUOC[h.buoc]!, String(h.quaHanNgay)],
+      );
+      // Nhật ký hồ sơ phải đọc ra được vì sao nó chết — thiếu dòng này thì màn
+      // hình nhật ký nhảy thẳng từ "Gửi duyệt" sang một trạng thái không ai gây ra.
+      await db.query(
+        `INSERT INTO pol.policy_event
+           (policy_id, seq, from_status, to_status, action, actor_role, at)
+         VALUES ($1, (SELECT coalesce(max(seq), 0) + 1 FROM pol.policy_event WHERE policy_id = $1),
+                 $2::pol.policy_status, 'QUA_HAN_DUYET', 'SLA_OVERDUE', 'SYSTEM',
+                 now() - ($3 || ' days')::interval)`,
+        [h.id, h.buoc, String(h.quaHanNgay)],
+      );
+      await db.query(
+        `INSERT INTO pol.outbox (routing_key, payload)
+         SELECT 'sla.overdue',
+                jsonb_build_object(
+                  'policyId', p.id, 'policyCode', p.code,
+                  'customerId', p.customer_id, 'customerCode', c.code, 'customerName', c.name,
+                  'tdvUserId', p.tdv_user_id, 'tbpUserId', p.tbp_user_id,
+                  'keToanUserId', p.ke_toan_user_id, 'saleAdminUserId', p.sale_admin_user_id,
+                  'action', 'SLA_OVERDUE', 'toStatus', 'QUA_HAN_DUYET',
+                  'pendingStep', $2::text,
+                  'recipients', jsonb_build_array($3::text, 'TDV'),
+                  'at', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+                )
+           FROM pol.policy p JOIN cus.customer c ON c.id = p.customer_id
+          WHERE p.id = $1`,
+        [h.id, h.buoc, CHU_BUOC[h.buoc]!],
+      );
+    }
   } finally {
     await db.end();
   }
@@ -700,6 +833,35 @@ async function main(): Promise<void> {
    * khai rõ là bổ sung hay chỉnh sửa. Đẩy một khách lên hiệu lực trước rồi mới
    * lập tiếp cho họ là tự dựng ra lỗi 409 giữa chừng.
    */
+  let stt = 0;
+  let daLap = 5;
+
+  // === Hồ sơ sắp quá hạn và đã quá hạn (`0051`) ==============================
+  //
+  // Dựng TRƯỚC khối hàng loạt, và lý do rất cụ thể: `DANG_CO_HIEU_LUC` chiếm mỗi
+  // khách một suất (`uq_policy_active_per_customer`), nên lập sau đợt ấy thì hết
+  // khách còn trống. Ở đây khách vẫn xoay vòng thoải mái — chín hồ sơ này đều
+  // dừng ở một bước chờ, không cái nào lên hiệu lực.
+  const idSapQuaHan: string[] = [];
+  for (const h of SAP_QUA_HAN) {
+    stt += 1;
+    const id = await lapHoSo(cuaTdv01[stt % cuaTdv01.length]!, dongCuaHoSo(stt));
+    await dayToi(id, h.buoc);
+    idSapQuaHan.push(id);
+    daLap += 1;
+  }
+
+  const idDaQuaHan: { id: string; buoc: string; quaHanNgay: number }[] = [];
+  for (const h of DA_QUA_HAN) {
+    stt += 1;
+    const id = await lapHoSo(cuaTdv01[stt % cuaTdv01.length]!, dongCuaHoSo(stt));
+    await dayToi(id, h.buoc);
+    idDaQuaHan.push({ id, buoc: h.buoc, quaHanNgay: h.quaHanNgay });
+    daLap += 1;
+  }
+
+  await vanDongHoSla(idSapQuaHan, idDaQuaHan);
+
   const KE_HOACH: [string, number][] = [
     ['NHAP', QUA_MOT_TRANG],
     ['YEU_CAU_CHINH_SUA', QUA_MOT_TRANG],
@@ -718,8 +880,6 @@ async function main(): Promise<void> {
     );
   }
 
-  let stt = 0;
-  let daLap = 5;
   for (const [dich, soLuong] of KE_HOACH) {
     for (let i = 0; i < soLuong; i += 1) {
       // Hồ sơ hiệu lực lấy khách theo CHỈ SỐ THẲNG, không xoay vòng: xoay vòng
@@ -815,7 +975,8 @@ async function main(): Promise<void> {
   console.log(
     `seed-demo: xong — ${NHOM.length} nhóm, ${SAN_PHAM.length} sản phẩm, ` +
       `${QUY_DINH_CK.length} quy định chiết khấu, ${KHACH.length} khách hàng, ` +
-      `${daLap} hồ sơ, ${MAU_HOP_DONG.length} mẫu hợp đồng, ${SO_THU_HONG} thư hỏng, ` +
+      `${daLap} hồ sơ (${SAP_QUA_HAN.length} sắp quá hạn, ${DA_QUA_HAN.length} đã quá hạn), ` +
+      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${SO_THU_HONG} thư hỏng, ` +
       `${lech} hồ sơ cần cập nhật`,
   );
 }

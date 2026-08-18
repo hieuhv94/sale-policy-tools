@@ -114,11 +114,13 @@ dòng viết tay cho mười màn hình là 200 dòng dữ liệu không ai gi�
 | Sản phẩm | 35, có giá thật | ✓ |
 | Quy định chiết khấu | 27 | ✓ |
 | Khách hàng | 28 — nhà thuốc, công ty, khoa bệnh viện | ✓ |
-| Hồ sơ CSBH | 137, trải khắp 8 trạng thái | ✓ |
+| Hồ sơ CSBH | 146, trải khắp 9 trạng thái | ✓ |
 | Mẫu hợp đồng | 22 tệp `.docx` thật | ✓ |
 | Thư hỏng chưa xử lý | 24 | ✓ |
 | Nhật ký | ~670 dòng | ✓ |
-| Hồ sơ cần cập nhật | 87 | ✓ |
+| Hồ sơ cần cập nhật | 95 | ✓ |
+| Hồ sơ **sắp quá hạn** | 5 — còn 3 đến 20 giờ | ✓ |
+| Hồ sơ **đã quá hạn** | 4 — mỗi bước chờ một cái | ✓ |
 
 Hộp việc của **cả bốn vai trò trong luồng** cũng vượt một trang — 22 hồ sơ chờ `tbp01`, 23 chờ
 `kt01`, 21 chờ `sa01`, 22 hồ sơ bị trả lại về `tdv01`.
@@ -142,12 +144,39 @@ Ba chi tiết được đặt có chủ ý:
   sẽ **không** thấy những khách đó. Thử tiếp bằng `tbp02`: họ không thấy hồ sơ nào cả, vì bộ mẫu giao
   hết cho `tbp01` — phạm vi đi theo phân công trên từng hồ sơ, nhìn thấy được ngay.
 - **Giá và ngưỡng đổi ở bước cuối cùng**, sau khi mọi hồ sơ đã đóng băng. Đó là lý do box *Yêu cầu
-  cập nhật* trên trang Tổng quan có nội dung: 87 hồ sơ đang giữ con số cũ trong khi danh mục đã đổi.
+  cập nhật* trên trang Tổng quan có nội dung: 95 hồ sơ đang giữ con số cũ trong khi danh mục đã đổi.
 
-**Một ngoại lệ của "nạp qua API thật":** 24 thư hỏng được chèn thẳng SQL. Không API nào tạo được
-chúng — thư hỏng là hậu quả của một lần gửi thất bại, không phải thứ ai đó khai báo. Payload là sự
-kiện thật của hồ sơ thật, nên nút **Gửi lại** ở *Quản trị ▸ Hệ thống* gửi được thư và tự đánh dấu đã
-xử lý.
+### Hồ sơ sắp quá hạn và đã quá hạn
+
+Chín hồ sơ dựng riêng để hai thẻ cảnh báo trên trang Tổng quan có nội dung:
+
+| Nhóm | Số lượng | Đặt ở đâu |
+|---|---|---|
+| **Sắp quá hạn** | 5 | Còn 3 · 6 · 9 · 11 · 20 giờ là tới hạn, rải trên cả bốn bước chờ |
+| **Đã quá hạn** | 4 | Quá hạn 1–2 ngày, mỗi bước chờ đúng một cái |
+
+Nhóm quá hạn giữ **dưới 3 ngày** có chủ ý: đúng 3 ngày là sla-worker tự chuyển *Đã xoá*, và một bản
+demo mà dữ liệu tự biến mất sau vài phút là một bản demo khó tin.
+
+Vòng quét SLA chạy 5 phút một lần, nên trong vòng năm phút sau khi nạp, `make demo-mail` có thêm
+**5 thư nhắc** (chỉ tới người phải thao tác) và **4 thư quá hạn** (tới chủ bước và TDV lập hồ sơ).
+
+Đăng nhập `sa01` sẽ thấy **2** ở mỗi thẻ chứ không phải 4 và 5 — và đó là đúng: hồ sơ chưa qua tay
+Sale Admin thì cột `sale_admin_user_id` còn rỗng, nên nó nằm ngoài phạm vi dữ liệu của họ. Một chỗ
+nữa nhìn thấy phạm vi hoạt động thật.
+
+**Hai ngoại lệ của "nạp qua API thật".** Cả hai đều vì cùng một lẽ: không API nào tạo ra được thứ
+đó, và giả lập cho "thật" thì mong manh hơn nhiều so với việc ghi thẳng rồi nói rõ ra đây.
+
+1. **24 thư hỏng** chèn thẳng SQL — thư hỏng là hậu quả của một lần gửi thất bại, không phải thứ ai
+   đó khai báo. Payload là sự kiện thật của hồ sơ thật, nên nút **Gửi lại** ở *Quản trị ▸ Hệ thống*
+   gửi được thư và tự đánh dấu đã xử lý.
+2. **Đồng hồ SLA của 9 hồ sơ trên** vặn thẳng bằng SQL — hạn 14 ngày do máy chủ tự đặt, còn trạng
+   thái *Quá hạn duyệt* chỉ đến từ vòng quét khi đồng hồ thật đi qua mốc ấy. Muốn "thật" thì phải chờ
+   hai tuần. Bản thân hồ sơ **vẫn lập qua API** và đẩy tới bước bằng đúng những hành động giao diện
+   gọi, nên dòng sản phẩm, nhật ký và người được phân công đều là dữ liệu thật; chỉ mốc thời gian là
+   vặn tay. Nhóm quá hạn còn phát kèm sự kiện `sla.overdue` đúng như sla-worker phát, nên read-model
+   đồng bộ theo, nhật ký kiểm toán có vết và Mailpit có thư để xem.
 
 Nạp mất khoảng **một phút rưỡi** — 137 hồ sơ đi qua đúng máy trạng thái là vài trăm lượt gọi API.
 Mọi hồ sơ đều giao cho `tbp01` · `kt01` · `sa01`, nên đăng nhập bằng `tbp02` là thấy một hộp việc

@@ -5385,3 +5385,67 @@ quét hết mười cột số — đã muộn, người ta tin vào những con
 Phần vẽ tách ra `components/Lech.tsx` dùng chung cho cả hai chỗ. Hai bản sao của cùng một cách đọc số
 là hai bản sẽ có ngày nói hai chuyện khác nhau về cùng một dòng dữ liệu — mà đây đúng là loại thông
 tin người ta đọc rồi đặt bút ký.
+
+---
+
+## P61 — Dữ liệu demo quá hạn, và một lỗi binding đã sống lâu
+
+Khách hàng muốn `demo-mau` có hồ sơ **sắp quá hạn** và **đã quá hạn**. Đi làm thì lộ ra lý do vì sao
+nó chưa từng có: dựng được dữ liệu ấy cũng chưa đủ để nó hiện lên màn hình.
+
+### Lỗi tìm được: hồ sơ quá hạn KHÔNG BAO GIỜ tới read-model
+
+sla-worker phát `sla.overdue`. Hàng đợi reporting buộc `['policy.#', 'customer.#']`. **Không khớp
+cái nào.** Read-model vì thế không bao giờ biết một hồ sơ đã quá hạn, và bốn thứ hỏng theo:
+
+- thẻ *Quá hạn* (`0048`) vĩnh viễn bằng 0;
+- hồ sơ quá hạn VẪN bị đếm vào thẻ của bước cũ — đúng thứ `0047` gỡ ra;
+- lọc `?status=QUA_HAN_DUYET` không ra gì;
+- và tệ nhất: nó còn lọt vào thẻ *Sắp quá hạn*, vì read-model giữ trạng thái chờ cũ với một mốc hạn
+  đã trôi qua.
+
+Lỗi này có từ trước `0045`, và **mọi ca kiểm thử đều che mất nó**: các ca `0047` gọi thẳng
+`sync.refreshPolicy()` nên chúng xanh mà không hề chứng minh đường đi qua bus.
+
+Sửa: thêm `sla.#` vào binding của reporting. Nghe cả nhánh chứ không riêng `sla.overdue` — binding
+hẹp quá là đúng nguyên nhân sinh ra lỗi này.
+
+**Hai chốt, và chốt thứ hai là bắt buộc.** Binding của RabbitMQ cộng dồn và nằm lại trên broker: hàng
+đợi đã buộc `sla.#` một lần thì giữ mãi, kể cả khi ai đó lùi dòng khai báo trong mã. Ca tích hợp sẽ
+vẫn xanh trên broker cũ trong khi môi trường dựng mới lại hỏng — nên có thêm một ca đọc thẳng bảng
+khai báo, không đụng tới broker.
+
+### Dữ liệu demo
+
+Chín hồ sơ: 5 sắp quá hạn (còn 3–20 giờ, rải cả bốn bước chờ) và 4 đã quá hạn (1–2 ngày, mỗi bước
+một cái). Giữ **dưới 3 ngày** có chủ ý — đúng 3 ngày là sla-worker tự xoá, và một bản demo mà dữ liệu
+tự biến mất sau vài phút là một bản demo khó tin.
+
+Đây là ngoại lệ THỨ HAI của "nạp qua API thật", sau thư hỏng, và cùng một lẽ. Hồ sơ vẫn lập qua API
+và đẩy tới bước bằng đúng những hành động giao diện gọi; chỉ mốc thời gian vặn tay. Nhóm quá hạn phát
+kèm `sla.overdue` **đúng khoá và đúng hình dạng sla-worker phát** — ghi thẳng vào `rpt.policy_row`
+thì nhanh hơn nhưng dựng ra một bản demo mà các đường ống không hề chạy, đúng thứ dễ làm người xem
+tin nhầm.
+
+Vị trí trong luồng nạp cũng là một ràng buộc: phải đứng TRƯỚC khối `DANG_CO_HIEU_LUC`, vì đợt ấy
+chiếm mỗi khách một suất (`uq_policy_active_per_customer`) và lập sau thì hết khách trống.
+
+### Kiểm chứng bằng cách chạy thật
+
+`make demo && make demo-mau`, rồi soi cả bốn tầng:
+
+| Kiểm | Kết quả |
+|---|---|
+| Nguồn ↔ read-model | 4 ↔ 4 quá hạn, `pending_step` đủ bốn bước |
+| Thẻ theo vai trò | tdv01/tbp01/kt01/bld01 thấy 4 và 5 |
+| Bấm vào thẻ | `?status=QUA_HAN_DUYET` → 4 dòng · `?dueSoon=1` → 5 dòng |
+| Thư quá hạn | 4 lá, mỗi lá tới chủ bước **và** TDV |
+| Thư nhắc | 5 lá, **chỉ** tới chủ bước — đúng `0047` |
+
+`sa01` thấy **2** chứ không phải 4 và 5, và đó là ĐÚNG: hồ sơ chưa qua tay Sale Admin thì
+`sale_admin_user_id` còn rỗng nên nằm ngoài phạm vi của họ. Một chỗ nữa nhìn thấy phạm vi hoạt động
+thật, nên đã ghi vào hướng dẫn demo thay vì coi là lệch.
+
+Ghi lại một lỗi đọc của chính tôi: lần đầu soi `pol.outbox` tôi kết luận sự kiện không được chèn, vì
+`| head` cắt mất hai dòng cuối bảng — `policy.updated` và `sla.overdue` sắp sau `policy.tbp_reject`
+theo thứ tự chữ cái. Suýt đi sửa một thứ không hỏng.

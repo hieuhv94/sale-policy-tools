@@ -1142,6 +1142,67 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(r.body.field).toBe('reprint');
   });
 
+  it('`0051` binding của reporting PHỦ được khoá mà sla-worker phát', () => {
+    /*
+     * Chốt thứ hai, và nó cần thiết vì chốt tích hợp ở dưới CÓ THỂ XANH GIẢ.
+     *
+     * Binding của RabbitMQ cộng dồn và nằm lại trên broker: hàng đợi đã buộc
+     * `sla.#` một lần thì giữ mãi, kể cả khi ai đó lùi dòng khai báo trong mã.
+     * Ca dưới sẽ vẫn xanh trên một broker cũ, trong khi môi trường dựng mới lại
+     * hỏng — đúng kiểu lỗi chỉ lộ ra lúc triển khai.
+     *
+     * Phép so ở đây đọc thẳng bảng khai báo, không đụng tới broker.
+     */
+    const khop = (mau: string, khoa: string): boolean =>
+      new RegExp(
+        `^${mau.split('.').map((x) => (x === '#' ? '.*' : x === '*' ? '[^.]+' : x)).join('\\.')}$`,
+      ).test(khoa);
+
+    for (const khoa of ['sla.overdue', 'sla.reminder', 'policy.sla_discarded']) {
+      expect(
+        BUS.bindings.reporting.some((m) => khop(m, khoa)),
+        `read-model không nghe thấy "${khoa}"`,
+      ).toBe(true);
+    }
+  });
+
+  it('`0051` sự kiện QUÁ HẠN tới được read-model — không cần ai gọi đồng bộ tay', async () => {
+    /*
+     * Lỗi đã sống lâu, và mọi ca kiểm thử trước đều che mất nó.
+     *
+     * sla-worker phát `sla.overdue`, nhưng hàng đợi reporting chỉ buộc `policy.#`
+     * và `customer.#` — khoá ấy không khớp cái nào. Read-model vì thế không bao
+     * giờ biết hồ sơ đã quá hạn. Các ca `0047` gọi `sync.refreshPolicy()` THẲNG
+     * nên chúng xanh mà không chứng minh được đường đi qua bus.
+     *
+     * Ở đây KHÔNG gọi `refreshPolicy`: chỉ ghi nguồn, đẩy sự kiện, rồi chờ.
+     * Thiếu binding thì `flushSync` hết giờ — đúng cách nó phải hỏng.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy
+            SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET',
+                overdue_at = now(), row_version = row_version + 1
+          WHERE id = $1`,
+        [d.id],
+      );
+      // Đúng khoá và đúng hình dạng sla-worker phát ra.
+      await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
+        'sla.overdue',
+        JSON.stringify({ policyId: d.id, action: 'SLA_OVERDUE', toStatus: 'QUA_HAN_DUYET' }),
+      ]);
+    });
+
+    await flushSync([d.id]);
+
+    const row = await rptRow(d.id);
+    expect(row?.['status'], 'read-model không nghe thấy sự kiện quá hạn').toBe('QUA_HAN_DUYET');
+  });
+
   it('`0047` hồ sơ QUÁ HẠN rơi khỏi MỌI thẻ đếm việc', async () => {
     /*
      * ĐẢO CHIỀU so với `0045`, và cố ý giữ lại ca này để đọc ra được cả hai lần
