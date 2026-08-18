@@ -822,8 +822,32 @@ export class PoliciesService {
      * Luật trạng thái vẫn nằm nguyên một chỗ ở máy chủ; giao diện nhận cờ đã
      * tính rồi và chỉ việc AND với bảng quyền của nó.
      */
+    /*
+     * Chênh lệch so với danh mục, gửi KÈM hồ sơ (`0050`).
+     *
+     * Trước đó nó chỉ có ở box *Yêu cầu cập nhật* trên trang tổng quan. Nhưng
+     * người sắp ký mở thẳng hồ sơ ra — từ thư báo, từ hộp việc, từ danh sách —
+     * và ở đó **không có gì nói rằng con số họ đang nhìn đã lỗi thời**. Box kia
+     * chỉ cứu được người tình cờ ghé qua trang tổng quan trước.
+     *
+     * Đọc theo `DA_DONG_BANG` y như `impacted()`: dấu vết chỉ có nghĩa với hồ sơ
+     * đã đóng băng số. Hồ sơ còn ở Nháp thì `byId` vừa làm mới giá ngay phía
+     * trên, nên không thể lệch; hồ sơ đã từ chối hay đã xoá thì dấu vết cũ còn
+     * sót lại cũng không còn ai cần.
+     */
+    const lech = DA_DONG_BANG.includes(p.status)
+      ? await this.db.q<Record<string, unknown>>(
+          `SELECT kind, product_code AS "productCode",
+                  snap_value AS "snapValue", new_value AS "newValue"
+             FROM pol.policy_impact WHERE policy_id = $1
+            ORDER BY product_code, kind`,
+          [policyId],
+        )
+      : [];
+
     return {
       ...p,
+      lech,
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
       tepXoaDuoc: tepXoaDuoc(p.status),

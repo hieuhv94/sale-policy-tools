@@ -32,6 +32,7 @@ import {
   Nhan,
   Truong,
 } from '../components/Chung.js';
+import { DanhSachLech, type LechMuc } from '../components/Lech.js';
 
 type HoSo = {
   id: string;
@@ -51,6 +52,8 @@ type HoSo = {
    * cờ trả lời "hồ sơ này lúc này cho phép chưa".
    */
   xoaDuoc: boolean;
+  /** Chênh lệch so với danh mục hôm nay (`0050`). Rỗng là không lệch gì. */
+  lech?: LechMuc[];
   /*
    * Ba cờ `0048` khai là TUỲ CHỌN, và đọc kèm giá trị lùi an toàn ngay dưới.
    *
@@ -164,6 +167,28 @@ export function ChiTietHoSo({ id }: { id: string }) {
       )}
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
+
+      {/*
+        Chênh lệch so với danh mục, đặt NGAY TRƯỚC bảng số (`0050`).
+        
+        Cho tới `0049` thông tin này chỉ có ở box *Yêu cầu cập nhật* trên trang
+        tổng quan. Nhưng người sắp ký thường mở thẳng hồ sơ — từ thư báo, từ hộp
+        việc, từ danh sách — và ở đó không có gì nói rằng con số họ đang nhìn đã
+        lỗi thời. Box kia chỉ cứu được người tình cờ ghé qua trang tổng quan.
+
+        Đặt TRÊN bảng sản phẩm, không phải dưới: đọc sau khi đã quét hết mười cột
+        số thì đã muộn — người ta đã tin vào những con số ấy rồi.
+      */}
+      {(hoSo.lech ?? []).length > 0 && (
+        <div className="canh-bao-lech" role="note">
+          <strong>Số trên hồ sơ này đã lệch so với danh mục hiện tại.</strong>
+          <p className="ghi-chu">
+            Hồ sơ đã <strong>đóng băng</strong> giá và ngưỡng lúc gửi duyệt — đó là chủ ý, không ai
+            sửa một văn bản đang chờ chữ ký. Bảng dưới đây vẫn là con số đã đóng băng.
+          </p>
+          <DanhSachLech lech={hoSo.lech ?? []} />
+        </div>
+      )}
 
       <h2>Dòng sản phẩm</h2>
       {dangSua && (

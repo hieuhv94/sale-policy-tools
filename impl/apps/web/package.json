@@ -27,6 +27,7 @@
     "./tong-quan-ui": "./src/pages/TongQuan.tsx",
     "./nhat-ky-ho-so": "./src/pages/NhatKyHoSo.tsx",
     "./yeu-cau-cap-nhat": "./src/components/khoi/YeuCauCapNhat.tsx",
+    "./lech": "./src/components/Lech.tsx",
     "./phan-trang": "./src/lib/phan-trang.ts",
     "./phan-trang-ui": "./src/components/PhanTrang.tsx"
   },

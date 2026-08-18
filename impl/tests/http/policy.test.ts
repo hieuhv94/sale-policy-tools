@@ -699,6 +699,61 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     });
   });
 
+  describe('`0050` hồ sơ mang theo chênh lệch so với danh mục', () => {
+    /*
+     * Người sắp ký thường mở THẲNG hồ sơ — từ thư báo, từ hộp việc, từ danh sách
+     * — chứ không đi vòng qua trang tổng quan. Tới `0049` thông tin "số này đã
+     * lỗi thời" chỉ có ở box *Yêu cầu cập nhật* trên trang ấy, nên ai mở thẳng
+     * hồ sơ thì không có gì nói cho họ biết.
+     */
+    const lechCua = async (id: string, who = 'tdv01') =>
+      (await get(`/policies/${id}`, who)).body.lech as { kind: string; productCode: string }[];
+
+    it('rỗng khi không có dấu vết nào', async () => {
+      const d = await draft();
+      expect(await lechCua(d.id)).toEqual([]);
+    });
+
+    it('trả đúng dấu vết của hồ sơ ĐÃ ĐÓNG BĂNG', async () => {
+      const d = await draft();
+      expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+      await withAdminDb((c) =>
+        c.query(
+          `INSERT INTO pol.policy_impact
+             (policy_id, product_id, kind, product_code, snap_value, new_value)
+           SELECT $1, product_id, 'PRICE', product_code_snap, '100', '120'
+             FROM pol.policy_line WHERE policy_id = $1`,
+          [d.id],
+        ),
+      );
+
+      const l = await lechCua(d.id);
+      expect(l.length).toBeGreaterThan(0);
+      expect(l[0]!.kind).toBe('PRICE');
+    });
+
+    it('hồ sơ chưa đóng băng thì KHÔNG trả dấu vết, dù bảng còn dòng cũ', async () => {
+      /*
+       * `byId` vừa LÀM MỚI giá và ngưỡng ngay trước đó cho hồ sơ còn sửa được,
+       * nên nó không thể lệch. Một dòng dấu vết còn sót từ lần gửi duyệt trước
+       * mà hiện ra ở đây là cảnh báo về một chênh lệch đã tự biến mất — người
+       * dùng đi tìm mãi không thấy.
+       */
+      const d = await draft();
+      await withAdminDb((c) =>
+        c.query(
+          `INSERT INTO pol.policy_impact
+             (policy_id, product_id, kind, product_code, snap_value, new_value)
+           SELECT $1, product_id, 'PRICE', product_code_snap, '100', '120'
+             FROM pol.policy_line WHERE policy_id = $1`,
+          [d.id],
+        ),
+      );
+      expect(await lechCua(d.id)).toEqual([]);
+    });
+  });
+
   describe('`0048` ba cờ còn lại — thao tác không làm được thì KHÔNG hiện', () => {
     /*
      * Yêu cầu của khách hàng: "thao tác nào không thực hiện được thì không hiển

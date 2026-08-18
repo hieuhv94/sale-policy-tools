@@ -200,8 +200,12 @@ nhắc; còn một CSBH đang có hiệu lực cho mặt hàng không còn bán 
 hiện được**.
 
 Vì sao cần: hồ sơ đã gửi duyệt thì đóng băng số, và đó là chủ ý — không ai được sửa một văn bản đang
-chờ chữ ký. Hệ quả là hồ sơ nằm trên bàn bạn có thể mang con số đã lỗi thời mà **không có gì trên hồ
-sơ nói ra điều đó**. Khối này là chỗ duy nhất bạn biết trước khi ký.
+chờ chữ ký. Hệ quả là hồ sơ nằm trên bàn bạn có thể mang con số đã lỗi thời mà không có gì trên bảng
+sản phẩm nói ra điều đó.
+
+**Cùng cảnh báo ấy hiện ngay trên màn hình hồ sơ**, ở khối vàng **phía trên bảng dòng sản phẩm** —
+nên mở hồ sơ thẳng từ thư báo hay từ hộp việc thì vẫn thấy, không phải ghé qua trang tổng quan trước.
+Khối chỉ hiện khi hồ sơ đó thật sự lệch.
 
 **Khối không có nút nào**, và đó là chủ ý. Việc phải làm tuỳ tình huống: trả lại để người lập sửa,
 cứ duyệt tiếp vì chênh lệch không đáng kể, hay lập một CSBH mới. Phần mềm không đoán hộ.

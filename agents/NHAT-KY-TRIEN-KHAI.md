@@ -5337,3 +5337,51 @@ Ca cũ soi con số nay phải MỞ hồ sơ ra trước. Thêm bốn ca cho ch�
 nhưng chưa có con số · nhãn không lặp mà số điểm lệch vẫn đếm đủ · *Sản phẩm* đứng trước *Giá* · bấm
 lần nữa thì gấp lại. Và một ca canh chỗ dễ mất nhất: **gấp lại thì chưa có liên kết, mở ra thì phải
 có** — mất nó thì box thành bảng thông báo cụt, biết hồ sơ nào lệch mà không có đường tới đó.
+
+---
+
+## P60 — Nhãn *Giá* vô hình suốt một năm, và cảnh báo lệch lên màn hình hồ sơ
+
+### Nhãn *Giá* không có nền, và không ai thấy được vì sao
+
+Khách hàng báo nhãn *Giá* "bị chìm mất". Nguyên nhân:
+
+```css
+.nhan-lech { color: var(--mau-nen); }        /* trắng ở giao diện sáng */
+.nhan-lech.gia { background: var(--mau-chinh); }
+```
+
+**`--mau-chinh` chưa bao giờ được khai ở `tokens.css`.** Trình duyệt bỏ nguyên khai báo hỏng, nhãn
+không có nền, và chữ trắng nằm trên thẻ trắng. Nhãn *Giá* — loại lệch hay gặp nhất — vô hình từ
+`0029` tới giờ. Cùng biến ấy còn nằm ở `.dau-hoi:focus-visible`, nên viền tiêu điểm của nút trợ giúp
+cũng hỏng theo.
+
+Đổi sang `--mau-thuong-hieu`: xanh thương hiệu ở giao diện sáng (tương phản ~8,6:1 với chữ trắng),
+xanh nhạt ở giao diện tối với chữ nền sẫm — cùng cách hai nhãn kia đã làm.
+
+### Vì sao `FE-19` không bắt được
+
+`FE-19` cấm **mã màu viết thẳng**, nên `var(--mau-chinh)` đi qua sạch sẽ — nó trông y hệt một biến
+hợp lệ. Không màn hình nào đỏ, không ca kiểm thử nào đỏ; nhãn chỉ đơn giản là không hiện.
+
+Thêm `0050`: **quét ngược từ chỗ DÙNG về chỗ KHAI** — mọi `var(--x)` trong `.css` và `.tsx` phải có
+mặt trong `tokens.css`, trừ khi có đường lùi `var(--x, giá-trị)`. Đã thử bằng cách đặt lại lỗi cũ:
+ca kiểm thử đỏ đúng dòng 519. Một chốt rẻ cho một lớp lỗi im lặng.
+
+### Cảnh báo lệch lên màn hình hồ sơ
+
+Tới `0049` thông tin "số này đã lỗi thời" **chỉ có ở box *Yêu cầu cập nhật*** trên trang tổng quan.
+Nhưng người sắp ký thường mở **thẳng hồ sơ** — từ thư báo, từ hộp việc, từ danh sách — và ở đó không
+có gì nói ra điều đó. Box kia chỉ cứu được người tình cờ ghé qua trang tổng quan trước.
+
+`byId` giờ trả kèm `lech`, đọc theo `DA_DONG_BANG` y như `impacted()`. Hồ sơ còn ở Nháp thì `byId`
+vừa làm mới giá ngay phía trên nên không thể lệch — trả một dòng dấu vết còn sót ở đó là cảnh báo về
+một chênh lệch đã tự biến mất, người dùng đi tìm mãi không thấy. Có ca kiểm thử canh đúng chỗ này.
+
+Màn hình hồ sơ hiện khối vàng **NGAY TRƯỚC** bảng dòng sản phẩm. Đặt dưới bảng thì đọc sau khi đã
+quét hết mười cột số — đã muộn, người ta tin vào những con số ấy rồi. Có ca kiểm thử canh cả thứ tự
+ấy, không chỉ sự có mặt.
+
+Phần vẽ tách ra `components/Lech.tsx` dùng chung cho cả hai chỗ. Hai bản sao của cùng một cách đọc số
+là hai bản sẽ có ngày nói hai chuyện khác nhau về cùng một dòng dữ liệu — mà đây đúng là loại thông
+tin người ta đọc rồi đặt bút ký.

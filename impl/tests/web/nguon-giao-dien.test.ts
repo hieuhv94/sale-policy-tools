@@ -37,6 +37,35 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
     expect(lac, `màu nằm ngoài bảng token:\n${lac.join('\n')}`).toEqual([]);
   });
 
+  it('`0050` mọi biến CSS được dùng đều CÓ THẬT trong tokens.css', () => {
+    /*
+     * Lỗ hổng mà `FE-19` không bịt, và nó đã lọt suốt từ `0029`.
+     *
+     * `FE-19` cấm mã màu viết thẳng, nên `background: var(--mau-chinh)` đi qua
+     * sạch sẽ — trông y hệt một biến hợp lệ. Nhưng `--mau-chinh` chưa bao giờ
+     * được khai. Trình duyệt bỏ qua cả khai báo hỏng, nhãn *Giá* không có nền,
+     * mà chữ thì `color: var(--mau-nen)` — trắng trên nền trắng.
+     *
+     * Không màn hình nào đỏ, không test nào đỏ; nhãn chỉ đơn giản là vô hình.
+     * Quét ngược từ chỗ DÙNG về chỗ KHAI là cách duy nhất bắt được.
+     */
+    const tokens = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
+    const daKhai = new Set([...tokens.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]!));
+
+    const thieu: string[] = [];
+    for (const tep of moiTep(GOC, ['.css', '.tsx'])) {
+      if (tep.endsWith('tokens.css')) continue;
+      for (const [i, dong] of readFileSync(tep, 'utf8').split('\n').entries()) {
+        for (const m of dong.matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
+          // `var(--x, giá-trị-lùi)` thì thiếu cũng không sao — đã có đường lùi.
+          const coDuongLui = dong.slice(m.index ?? 0).includes(',');
+          if (!daKhai.has(m[1]!) && !coDuongLui) thieu.push(`${tep}:${i + 1} ${m[1]}`);
+        }
+      }
+    }
+    expect(thieu, thieu.join('\n')).toEqual([]);
+  });
+
   it('tokens.css khai đủ nhóm màu có nghĩa nghiệp vụ', () => {
     const css = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
     for (const bien of [

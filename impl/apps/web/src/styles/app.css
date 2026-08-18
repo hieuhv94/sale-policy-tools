@@ -434,7 +434,7 @@ textarea.o-nhap { min-height: 6rem; }
   cursor: help;
 }
 .dau-hoi:hover { background: var(--mau-nen-hover); }
-.dau-hoi:focus-visible { outline: 2px solid var(--mau-chinh); outline-offset: 2px; }
+.dau-hoi:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
 
 /* Dấu `!` (`.dau-vuot`) và hình thoi `◆` (`.dau-mac-dinh`) đã gỡ ở 0028. Hai ký
    hiệu chen vào giữa một cột số làm con số hết thẳng hàng, mà thế thẳng hàng của
@@ -475,6 +475,20 @@ textarea.o-nhap { min-height: 6rem; }
    nên quét mười hồ sơ là biết nên mở cái nào — xem chú thích đầu component. */
 .lech-tom-tat { display: inline-flex; flex-wrap: wrap; gap: var(--k1); }
 
+/* Khối cảnh báo lệch trên màn hình hồ sơ (`0050`). Vàng chứ không đỏ: hồ sơ lệch
+   không phải hồ sơ sai — người đọc còn quyền duyệt tiếp nếu chênh lệch không
+   đáng kể. Cùng bảng màu với nhãn `Ngưỡng`, để đọc quen một chỗ là quen chỗ kia. */
+.canh-bao-lech {
+  margin: var(--k4) 0;
+  padding: var(--k3) var(--k4);
+  border: 1px solid var(--mau-canh-bao);
+  border-left-width: 4px;
+  border-radius: var(--bo-goc);
+  background: var(--mau-canh-bao-nen);
+}
+.canh-bao-lech .ghi-chu { margin: var(--k1) 0 var(--k2); }
+.canh-bao-lech .lech-muc { padding-left: 0; }
+
 .lech-chi-tiet {
   padding: 0 var(--k4) var(--k3);
   border-top: 1px solid var(--mau-vien);
@@ -512,7 +526,11 @@ textarea.o-nhap { min-height: 6rem; }
   text-align: center;
   color: var(--mau-nen);
 }
-.nhan-lech.gia { background: var(--mau-chinh); }
+/* `--mau-chinh` KHÔNG TỒN TẠI — biến này chưa bao giờ được khai ở `tokens.css`.
+   Khai báo hỏng bị trình duyệt bỏ qua, nên nhãn không có nền, mà chữ thì đặt
+   `color: var(--mau-nen)` — trắng trên nền trắng. Nhãn *Giá* vô hình suốt từ
+   `0029` tới `0049`, và nó là loại lệch hay gặp nhất. */
+.nhan-lech.gia { background: var(--mau-thuong-hieu); }
 .nhan-lech.nguong { background: var(--mau-canh-bao); }
 .nhan-lech.san-pham { background: var(--mau-loi); }
 

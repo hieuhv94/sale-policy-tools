@@ -27,33 +27,15 @@
  * mười hồ sơ mới biết nên lo cái nào.
  */
 import { useState } from 'react';
-import { tien } from '../../lib/format.js';
 import { Lien } from '../../lib/router.js';
 import { Nhan } from '../Chung.js';
+import { DanhSachLech, TomTatLech, type LechMuc } from '../Lech.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
 import { Khoi } from './Khung.js';
 
-export type LechMuc = {
-  /** `PRODUCT` là loại thứ ba từ `0036`: sản phẩm vô hiệu hoá hoặc đã xoá. */
-  kind: 'PRICE' | 'RULE' | 'PRODUCT';
-  productCode: string;
-  snapValue: string;
-  newValue: string | null;
-};
-
-/**
- * Nhãn, lớp CSS và cách đọc giá trị — MỘT bảng cho cả ba loại.
- *
- * Trước `0036` ba thứ này là ba phép `l.kind === 'PRICE' ? … : …` nằm rải trong
- * JSX, và thêm loại thứ ba vào một biểu thức nhị phân là cách chắc chắn để có
- * một chỗ quên: `PRODUCT` sẽ lặng lẽ hiện ra dưới nhãn "Ngưỡng".
- */
-const LOAI: Record<LechMuc['kind'], { nhan: string; lop: string }> = {
-  PRICE: { nhan: 'Giá', lop: 'gia' },
-  RULE: { nhan: 'Ngưỡng', lop: 'nguong' },
-  PRODUCT: { nhan: 'Sản phẩm', lop: 'san-pham' },
-};
+/** Vẫn xuất lại từ đây: bộ kiểm và các màn hình cũ nhập kiểu qua đường này. */
+export type { LechMuc };
 
 export type HoSoLech = {
   id: string;
@@ -65,37 +47,9 @@ export type HoSoLech = {
   detectedAt: string;
 };
 
-/**
- * Giá là số nguyên đồng, ngưỡng là phần trăm — hai cách đọc khác nhau trên cùng
- * một cột `text` của CSDL. Ép kiểu ở đây chứ không ở máy chủ: máy chủ giữ nguyên
- * văn con số nó đã so, còn cách đọc là việc của màn hình.
- */
-const doc = (l: LechMuc, v: string | null): string => {
-  // `null` mang HAI nghĩa khác nhau tuỳ loại, và câu chữ phải nói đúng nghĩa:
-  // ở `RULE` là không quy định nào phủ nữa, ở `PRODUCT` là sản phẩm đã bị xoá
-  // khỏi danh mục. Dùng chung một câu cho cả hai là nói một chuyện không xảy ra.
-  if (v === null) {
-    return l.kind === 'PRODUCT' ? 'đã xoá khỏi danh mục' : 'không còn quy định nào';
-  }
-  if (v === '—') return '—';
-  // Trạng thái sản phẩm về tới đây đã là chữ ("Đang áp dụng" / "Đã vô hiệu
-  // hoá"), không phải số — không ép kiểu tiền hay phần trăm lên nó.
-  if (l.kind === 'PRODUCT') return v;
-  return l.kind === 'PRICE' ? `${tien(v)} đ` : `${v.replace('.', ',')}%`;
-};
-
-/**
- * Thứ tự đọc của nhãn loại trên dòng gấp lại: nặng nhất trước.
- *
- * Cùng thứ tự với thư báo (`catalog-impact.consumer.ts`) — một hồ sơ vừa mất
- * sản phẩm vừa lệch giá thì thứ đáng nói trước là mất sản phẩm, ở cả hai chỗ.
- */
-const THU_TU: LechMuc['kind'][] = ['PRODUCT', 'PRICE', 'RULE'];
-
 /** Một hồ sơ trong danh sách: gấp lại thì một dòng, mở ra thì kèm chi tiết. */
 function DongLech({ h }: { h: HoSoLech }) {
   const [mo, datMo] = useState(false);
-  const loai = THU_TU.filter((k) => h.lech.some((l) => l.kind === k));
 
   return (
     <li className="viec">
@@ -107,13 +61,7 @@ function DongLech({ h }: { h: HoSoLech }) {
       >
         <span className="viec-ma">{h.code}</span>
         <Nhan trangThai={h.status} />
-        <span className="lech-tom-tat">
-          {loai.map((k) => (
-            <span key={k} className={`nhan-lech ${LOAI[k].lop}`}>
-              {LOAI[k].nhan}
-            </span>
-          ))}
-        </span>
+        <TomTatLech lech={h.lech} />
         <span className="viec-han">
           {h.lech.length} điểm lệch
         </span>
@@ -127,17 +75,7 @@ function DongLech({ h }: { h: HoSoLech }) {
           {/* Nói RÕ lệch cái gì, từ đâu sang đâu. "Hồ sơ này bị ảnh hưởng" mà
               không kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra,
               rồi tự so — đúng cái việc box này sinh ra để khỏi phải làm. */}
-          <ul className="lech-muc">
-            {h.lech.map((l, i) => (
-              <li key={i}>
-                <span className={`nhan-lech ${LOAI[l.kind].lop}`}>{LOAI[l.kind].nhan}</span>{' '}
-                <span className="ma-phu">{l.productCode}</span>{' '}
-                <span className="so">{doc(l, l.snapValue)}</span>
-                {' → '}
-                <span className="so">{doc(l, l.newValue)}</span>
-              </li>
-            ))}
-          </ul>
+          <DanhSachLech lech={h.lech} />
           {/* Liên kết nằm TRONG phần mở ra, vì dòng ngoài đã là nút gấp/mở. Một
               hàng vừa đi tới địa chỉ khác vừa gấp mở theo chỗ bấm là hàng người
               dùng bấm sai ít nhất một lần trước khi hiểu. */}

@@ -11,6 +11,7 @@
  * `0049` gấp chi tiết lại sau một cú bấm, nên phần lớn ca dưới đây phải MỞ hồ sơ
  * ra trước khi soi con số. Cái không đổi: mở ra rồi thì con số vẫn phải ở đó.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { YeuCauCapNhat, type HoSoLech } from '@csbh/web/yeu-cau-cap-nhat';
@@ -184,6 +185,26 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     fireEvent.click(within(khoi).getAllByRole('button', { expanded: false })[0]!);
     const a = within(khoi).getByRole('link') as HTMLAnchorElement;
     expect(a.getAttribute('href')).toBe('/ho-so/hs-1');
+  });
+});
+
+describe('`0050` cùng thông tin ấy có mặt trên màn hình hồ sơ', () => {
+  it('màn hình chi tiết hồ sơ dựng danh sách lệch, không chỉ trang tổng quan', () => {
+    /*
+     * Box này chỉ cứu được người tình cờ ghé qua trang tổng quan trước khi ký.
+     * Người sắp ký thường mở THẲNG hồ sơ — từ thư báo, từ hộp việc, từ danh sách
+     * — và tới `0049` ở đó không có gì nói rằng con số họ đang nhìn đã lỗi thời.
+     *
+     * Quét mã nguồn vì dựng cả trang chi tiết trong test cần chặn bốn lời gọi
+     * mạng và một ngữ cảnh phiên; ở đây chỉ cần biết khối ấy CÓ được dựng.
+     */
+    const nguon = readFileSync('apps/web/src/pages/ChiTietHoSo.tsx', 'utf8');
+    expect(nguon).toContain('DanhSachLech');
+    expect(nguon).toContain('canh-bao-lech');
+
+    // Và nó phải đứng TRƯỚC bảng số. Đọc sau khi đã quét hết mười cột thì đã
+    // muộn — người ta đã tin vào những con số ấy rồi.
+    expect(nguon.indexOf('canh-bao-lech')).toBeLessThan(nguon.indexOf('<h2>Dòng sản phẩm</h2>'));
   });
 });
 
