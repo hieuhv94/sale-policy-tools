@@ -42,17 +42,6 @@ export type Filter = {
 };
 
 /**
- * "Sắp quá hạn" — còn dưới 24 giờ là tới hạn, và CHƯA quá hạn (`0047`).
- *
- * Vế thứ hai không thừa: từ `0047` hồ sơ quá hạn mang `QUA_HAN_DUYET` và
- * `sla_due_at` của nó vẫn nằm đó, đã trôi qua. Thiếu vế ấy thì thẻ *Sắp quá hạn*
- * đếm luôn cả hồ sơ đã chết — đúng những hồ sơ mà thẻ này sinh ra để ngăn.
- */
-export const SAP_QUA_HAN = `(status <> 'QUA_HAN_DUYET'
-    AND sla_due_at IS NOT NULL
-    AND sla_due_at <= now() + interval '1 day')`;
-
-/**
  * Bước đang chờ suy từ trạng thái — dạng SQL.
  *
  * Lặp lại `STEP_OF_STATUS` bên `@csbh/domain-policy` vì phép này phải chạy TRONG
@@ -79,6 +68,30 @@ export const STEP_FROM_STATUS = `CASE status
  * phải cho ra cùng một tập, nếu không thẻ ghi 12 mà bấm vào ra 9 dòng.
  */
 export const BUOC_DANG_CHO = STEP_FROM_STATUS;
+
+/**
+ * "Sắp quá hạn" — dưới 24 giờ là tới hạn, và hồ sơ CÒN ĐANG CHỜ.
+ *
+ * Ba vế, và vế thứ ba mới thêm ở `0059`:
+ *
+ *   1. `sla_due_at` còn trong vòng 24 giờ tới;
+ *   2. chưa mang nhãn `QUA_HAN_DUYET` (`0047`) — hồ sơ đã chết thì `sla_due_at`
+ *      vẫn nằm đó, đã trôi qua, nên thiếu vế này là đếm luôn cả nó;
+ *   3. **vẫn đang ở một bước chờ**.
+ *
+ * Vế ba bịt một lỗ đúng cùng kiểu với vế hai, ở một trạng thái khác: hồ sơ hệ
+ * thống TỰ XOÁ sau 3 ngày quá hạn (`0047`) chuyển sang `DA_XOA` mà KHÔNG xoá
+ * `sla_due_at` — nó thoả cả vế một lẫn vế hai, và lọt vào đây vĩnh viễn. Thẻ
+ * *Sắp quá hạn* thì đếm qua `byStepDetail`, vốn đã lọc theo bước, nên thẻ ghi 5
+ * còn danh sách mở ra 6 dòng: kiểu lệch người dùng đếm được mà phép kiểm không.
+ *
+ * Dựng TỪ `BUOC_DANG_CHO` chứ không viết lại điều kiện — một khái niệm, một định
+ * nghĩa. Đó cũng là lý do khối này phải nằm SAU nó.
+ */
+export const SAP_QUA_HAN = `(status <> 'QUA_HAN_DUYET'
+    AND ${BUOC_DANG_CHO} IS NOT NULL
+    AND sla_due_at IS NOT NULL
+    AND sla_due_at <= now() + interval '1 day')`;
 
 /** Tên tham số nhận từ query string, theo đúng thứ tự 11 tiêu chí ở muc 9.2. */
 export const FILTER_KEYS = [

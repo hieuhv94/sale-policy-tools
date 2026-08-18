@@ -5742,3 +5742,46 @@ trên.
 Nhân tiện tôi đã nới cả đệm DỌC từ `--k1` lên `--k2` rồi trả lại: khách hàng báo chật theo chiều
 ngang, còn `--k1` là con số chọn có chủ ý ở `0054` (bảng lồng trong khối, gọn hơn bảng thường). Sửa
 kèm một thứ không ai hỏi là cách làm một lượt sửa nhỏ trở thành thứ phải xem lại.
+
+---
+
+## P69 — Thẻ *Sắp quá hạn* bấm vào ra toàn bộ hồ sơ
+
+### Lỗi
+
+Bấm thẻ mở `/ho-so?dueSoon=1`, và màn hình hồ sơ hiện **124 hồ sơ thay vì 5**. Đo trên chồng demo.
+
+`DanhSachHoSo` chỉ nhận những tham số có tên trong `TIEU_CHI_AN` / `TIEU_CHI`; tham số lạ bị **bỏ
+trong im lặng**. `0047` thêm thẻ và thêm tiêu chí `dueSoon` bên reporting, nhưng quên khai bên màn
+hình hồ sơ. Không lỗi, không cảnh báo — chỉ một danh sách dài hơn con số vừa bấm vào.
+
+### Vì sao phép kiểm không bắt
+
+Ca canh chuyện này (`0045`) liệt kê TAY hai khoá rồi quét mã nguồn tìm chúng:
+
+```ts
+expect(nguon).toContain('pendingStep:');
+expect(nguon).toContain('reprint:');
+```
+
+Nó xanh mãi mãi. Một phép kiểm liệt kê tay **không lớn theo mã** — thêm khoá thứ ba thì nó vẫn xanh.
+
+Bản mới SUY RA danh sách khoá từ chính `duongThe()` của **mọi thẻ, mọi vai trò**, rồi đối chiếu với
+`KHOA_NHAN_TU_LIEN_KET` xuất từ màn hình hồ sơ. Thêm thẻ mới mang tham số mới là nó tự bắt. Đã thử
+bằng cách gỡ lại dòng vừa thêm: đỏ ở cả bốn vai trò.
+
+### Một lỗ hổng thứ hai, cùng bộ lọc
+
+Rà tiếp thì thấy `SAP_QUA_HAN` còn thiếu một vế. `discardOverdue` (`0047`) chuyển hồ sơ quá hạn quá 3
+ngày sang `DA_XOA` mà **không xoá `sla_due_at`**. Với hai vế cũ — "chưa mang `QUA_HAN_DUYET`" và "hạn
+trong vòng 24 giờ" — hồ sơ ấy thoả cả hai và lọt vào bộ lọc vĩnh viễn.
+
+Mà thẻ thì đếm qua `byStepDetail`, vốn đã lọc theo bước, nên nó KHÔNG đếm hồ sơ ấy: **thẻ ghi 5, bấm
+vào ra 6 dòng**. Chưa lộ ra vì vòng quét xoá chưa chạy trên dữ liệu demo — nhưng nó sẽ lộ ở môi
+trường thật sau đúng ba ngày.
+
+Thêm vế ba: `BUOC_DANG_CHO IS NOT NULL`. Dựng TỪ `BUOC_DANG_CHO` chứ không viết lại điều kiện, nên
+phép đếm và phép lọc đọc chung một định nghĩa — và khối phải chuyển xuống nằm sau nó.
+
+Chữa bằng cách xoá `sla_due_at` lúc discard cũng được, nhưng vế ba mạnh hơn: nó đúng bất kể còn trạng
+thái nào khác giữ lại một mốc hạn cũ.

@@ -14,6 +14,7 @@ import { createElement } from 'react';
 import { cleanup, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DaiTheTrangThai } from '@csbh/web/so-lieu';
+import { KHOA_NHAN_TU_LIEN_KET } from '@csbh/web/ho-so-ui';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import { NHAN_TRANG_THAI } from '@csbh/web/format';
 import {
@@ -478,12 +479,30 @@ describe('khối và câu giải thích khớp nhau', () => {
     }
   });
 
-  it('màn hình hồ sơ nhận được hai tiêu chí mà thẻ gửi sang', () => {
-    // Thẻ trỏ tới `?pendingStep=…&reprint=…`; nếu màn hình kia không nhận hai
-    // khoá đó thì mọi thẻ bước mở ra danh sách KHÔNG lọc gì — dài hơn con số
-    // vừa bấm, và trông vẫn như đang chạy đúng.
-    const nguon = readFileSync('apps/web/src/pages/DanhSachHoSo.tsx', 'utf8');
-    expect(nguon).toContain('pendingStep:');
-    expect(nguon).toContain('reprint:');
+  it('`0059` MỌI tham số thẻ sinh ra đều được màn hình hồ sơ chấp nhận', () => {
+    /*
+     * Bản trước liệt kê tay hai khoá (`pendingStep`, `reprint`) và quét mã nguồn
+     * tìm chúng. Nó xanh mãi mãi — kể cả khi `0047` thêm thẻ *Sắp quá hạn* với
+     * tham số `dueSoon` thứ ba mà quên khai bên màn hình hồ sơ. Hệ quả: bấm thẻ
+     * ấy ra TOÀN BỘ hồ sơ, vì tham số nào không có tên trong danh sách nhận thì
+     * bị bỏ trong IM LẶNG — không lỗi, không cảnh báo, chỉ một danh sách dài hơn
+     * con số vừa bấm vào.
+     *
+     * Một phép kiểm liệt kê tay không lớn theo mã. Bản này SUY RA danh sách khoá
+     * từ chính `duongThe()` của mọi thẻ, nên thêm thẻ mới với tham số mới là nó
+     * tự bắt.
+     */
+    const thieu: string[] = [];
+    for (const v of VAI_TRO) {
+      for (const t of THE_THEO_VAI_TRO[v]) {
+        const q = duongThe(t).split('?')[1] ?? '';
+        for (const khoa of new URLSearchParams(q).keys()) {
+          if (!KHOA_NHAN_TU_LIEN_KET.includes(khoa)) {
+            thieu.push(`${v}/${t.ma} gửi "${khoa}" mà màn hình hồ sơ không nhận`);
+          }
+        }
+      }
+    }
+    expect([...new Set(thieu)], [...new Set(thieu)].join('\n')).toEqual([]);
   });
 });

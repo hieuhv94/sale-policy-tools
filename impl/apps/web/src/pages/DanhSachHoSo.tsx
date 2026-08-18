@@ -68,9 +68,20 @@ const TIEU_CHI_AN: Record<string, string> = {
   // mà chúng mang `QUA_HAN_DUYET` nên `status` lọc không ra.
   pendingStep: 'Bước đang chờ',
   reprint: 'Việc của Sale Admin',
+  // `0059` — thiếu dòng này thì bấm thẻ *Sắp quá hạn* ra TOÀN BỘ hồ sơ. Tham số
+  // nào không có tên ở đây bị bỏ trong im lặng: không lỗi, không cảnh báo, chỉ
+  // một danh sách dài hơn con số vừa bấm vào.
+  dueSoon: 'Sắp quá hạn',
 };
 
-const KHOA_NHAN_TU_LIEN_KET = [...TIEU_CHI.map((t) => t.khoa), ...Object.keys(TIEU_CHI_AN)];
+/**
+ * Tham số màn hình này nhận TỪ LIÊN KẾT. Xuất ra để bộ kiểm đối chiếu được với
+ * đường dẫn mà từng thẻ trên trang Tổng quan sinh ra (`0059`).
+ */
+export const KHOA_NHAN_TU_LIEN_KET = [
+  ...TIEU_CHI.map((t) => t.khoa),
+  ...Object.keys(TIEU_CHI_AN),
+];
 
 export function DanhSachHoSo() {
   const { nguoiDung } = usePhien();

@@ -1348,6 +1348,44 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(tong).toBe(ids.length);
   });
 
+  it('`0059` hồ sơ hệ thống ĐÃ XOÁ không lọt vào `dueSoon`', async () => {
+    /*
+     * `discardOverdue` (`0047`) chuyển hồ sơ quá hạn quá 3 ngày sang `DA_XOA`
+     * nhưng KHÔNG xoá `sla_due_at`. Với hai vế cũ — "chưa mang QUA_HAN_DUYET" và
+     * "hạn trong vòng 24 giờ" — hồ sơ ấy thoả cả hai và lọt vào thẻ *Sắp quá hạn*
+     * VĨNH VIỄN.
+     *
+     * Mà thẻ thì đếm qua `byStepDetail`, vốn đã lọc theo bước, nên nó KHÔNG đếm
+     * hồ sơ ấy: thẻ ghi 5, bấm vào ra 6 dòng. Đúng kiểu lệch người dùng đếm được
+     * còn phép kiểm thì không.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy
+            SET status = 'DA_XOA', sla_due_at = now() - interval '5 days',
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [d.id],
+      );
+    });
+    await sync.refreshPolicy(d.id);
+
+    const ids = (await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01')).body.items.map(
+      (x: { policyId: string }) => x.policyId,
+    );
+    expect(ids, 'hồ sơ đã xoá vẫn nằm trong danh sách sắp quá hạn').not.toContain(d.id);
+
+    // Và cờ trên từng dòng cũng phải nói đúng như vậy.
+    const dong = (await rget('/reports/policies?status=DA_XOA&limit=200', 'tbp01')).body.items.find(
+      (x: { policyId: string }) => x.policyId === d.id,
+    );
+    expect(dong?.sapQuaHan, 'cờ trên dòng nói ngược với bộ lọc').toBe(false);
+  });
+
   it('`dueSoon` nhận giá trị lạ thì 400', async () => {
     const r = await rget('/reports/policies?dueSoon=0', 'tbp01');
     expect(r.status).toBe(400);
