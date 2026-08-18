@@ -699,6 +699,99 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     });
   });
 
+  describe('`0048` ba cờ còn lại — thao tác không làm được thì KHÔNG hiện', () => {
+    /*
+     * Yêu cầu của khách hàng: "thao tác nào không thực hiện được thì không hiển
+     * thị, tránh trường hợp nhấn vào rồi hiện lỗi".
+     *
+     * Nên phép kiểm ở đây KHÔNG so cờ với một bảng trạng thái chép tay — chép
+     * tay thì test và mã cùng sai một kiểu. Nó so cờ với VIỆC MÁY CHỦ CÓ NHẬN
+     * THẬT KHÔNG: bật cờ mà gọi vào 409, hoặc tắt cờ mà gọi vào 200, đều đỏ.
+     */
+    const co = async (policyId: string, who = 'tdv01') =>
+      (await get(`/policies/${policyId}`, who)).body as {
+        loaiTepGhiDuoc: string[];
+        tepXoaDuoc: boolean;
+        xuatHopDongDuoc: boolean;
+        xoaDuoc: boolean;
+      };
+
+    /** Ép hồ sơ về một trạng thái bất kỳ để soi cờ, không phải đi hết luồng. */
+    const dat = (id: string, tt: string) =>
+      withAdminDb((c) =>
+        c.query(`UPDATE pol.policy SET status = $2::pol.policy_status WHERE id = $1`, [id, tt]),
+      );
+
+    it('`loaiTepGhiDuoc` khớp đúng loại tệp máy chủ nhận', async () => {
+      const MONG: Record<string, string[]> = {
+        NHAP: ['HO_SO'],
+        YEU_CAU_CHINH_SUA: ['HO_SO'],
+        SA_DANG_XU_LY: ['SCAN'],
+        CHO_TBP_DUYET: [],
+        CHO_KT_L1: [],
+        CHO_KT_L2: [],
+        DANG_CO_HIEU_LUC: [],
+        QUA_HAN_DUYET: [],
+        TU_CHOI: [],
+        DA_XOA: [],
+      };
+
+      for (const [tt, mong] of Object.entries(MONG)) {
+        const d = await draft();
+        await dat(d.id, tt);
+        expect((await co(d.id)).loaiTepGhiDuoc, tt).toEqual(mong);
+
+        /*
+         * Và cờ ấy phải ĐÚNG: thử đính kèm cả hai loại, xem máy chủ nhận cái nào.
+         *
+         * Gọi bằng `tdv01` — TDV phụ trách luôn nằm trong phạm vi hồ sơ của mình
+         * ở MỌI trạng thái. Dùng `sa01` thì hồ sơ còn ở Nháp trả 403 vì chưa
+         * phân công, và ca kiểm thử đỏ vì phạm vi chứ không vì cái cờ nó đang đo.
+         */
+        for (const loai of ['HO_SO', 'SCAN']) {
+          const r = await post(
+            `/policies/${d.id}/attachments`,
+            { kind: loai, fileName: 'a.pdf', objectKey: uniq('k') },
+            'tdv01',
+          );
+          const nhan = r.status === 201;
+          expect(nhan, `${tt}/${loai}: cờ nói ${mong.includes(loai)} mà máy chủ nói ${nhan}`).toBe(
+            mong.includes(loai),
+          );
+        }
+        await dat(d.id, 'NHAP');
+      }
+    });
+
+    it('`xuatHopDongDuoc` bật đúng từ lúc kế toán tiếp nhận lần 1', async () => {
+      // Cổng là MỐC THỜI GIAN, không phải trạng thái (muc 8.3): mốc ấy không mất
+      // đi khi hồ sơ đi tiếp, nên cờ phải còn bật ở cả những bước sau.
+      const d = await draft();
+      expect((await co(d.id)).xuatHopDongDuoc, 'chưa gửi duyệt mà đã xuất được').toBe(false);
+
+      expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+      expect((await co(d.id)).xuatHopDongDuoc, 'mới gửi duyệt mà đã xuất được').toBe(false);
+
+      expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+      expect((await co(d.id)).xuatHopDongDuoc, 'TBP mới ký mà đã xuất được').toBe(false);
+
+      expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+      expect((await co(d.id)).xuatHopDongDuoc, 'đã nhận L1 mà chưa xuất được').toBe(true);
+    });
+
+    it('hồ sơ QUÁ HẠN tắt sạch mọi cờ ghi', async () => {
+      // Khớp `0047`: quá hạn là trạng thái chết. Giao diện không được bày một
+      // nút nào lên hồ sơ ấy — kể cả nút đính kèm hay nút gỡ tệp.
+      const d = await draft();
+      await dat(d.id, 'QUA_HAN_DUYET');
+      const c = await co(d.id);
+      expect(c.loaiTepGhiDuoc).toEqual([]);
+      expect(c.tepXoaDuoc).toBe(false);
+      expect(c.xoaDuoc).toBe(false);
+      expect((await get(`/policies/${d.id}/allowed-actions`, 'tdv01')).body.allowed).toEqual([]);
+    });
+  });
+
   describe('`0039` cờ `xoaDuoc` trên hồ sơ', () => {
     // Giao diện đọc đúng cờ này để ẩn nút, nên nó phải khớp từng ca với việc
     // `DELETE` có chạy hay không — thừa thì bày ra một nút 403, thiếu thì giấu

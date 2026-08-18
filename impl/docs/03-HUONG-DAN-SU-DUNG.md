@@ -137,10 +137,10 @@ lọc sẵn đúng bằng con số vừa bấm.
 
 | Vai trò | Thẻ bạn thấy |
 |---|---|
-| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
-| **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
-| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực |
-| **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực |
+| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
+| **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Ban lãnh đạo** | **Cả 12 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
@@ -164,9 +164,16 @@ qua, nên ai liên quan cũng cần thấy để còn gọi nhắc. Ô tô **đ�
 phải một việc tồn đọng. Các ô đếm việc khác có thêm dòng *"trong đó N sắp quá hạn"* để biết chỗ nào
 đang gấp.
 
-**Hồ sơ ĐÃ quá hạn không có thẻ nào.** Nó là trạng thái kết thúc — không bấm được gì và sắp bị xoá —
-nên để nó trong một ô đếm việc là nói sai về lượng việc còn phải làm. Tra nó bằng bộ lọc trạng thái ở
-màn hình Hồ sơ.
+**Thẻ *Quá hạn*** đứng ngay cạnh, và hai thẻ nói hai chuyện khác nhau:
+
+| Thẻ | Nghĩa | Làm gì được |
+|---|---|---|
+| **Sắp quá hạn** | Còn dưới 24 giờ | Còn cứu được — xử lý ngay, hoặc gọi cho người đang giữ |
+| **Quá hạn** | Đã chết, hệ thống xoá sau 3 ngày | Không bấm được gì. Lập một CSBH mới cho khách hàng đó |
+
+Thẻ *Quá hạn* **không** gộp vào ô đếm việc của bước: ô đếm việc nói việc phải **làm**, thẻ này nói
+việc phải **làm lại**. Ba ngày ấy là cửa sổ duy nhất để biết mình vừa mất gì trước khi hồ sơ rời khỏi
+mọi màn hình.
 
 ### Yêu cầu cập nhật
 
@@ -482,6 +489,21 @@ việc không thuộc về họ.
 Khối biến mất hẳn khi bạn không có việc gì, không hiện ra rồi báo lỗi khi bấm. **Ban lãnh đạo** và
 **Quản trị hệ thống** không bao giờ thấy khối này — cả hai đứng ngoài luồng duyệt.
 
+**Luật này áp cho MỌI nút trên màn hình hồ sơ**, không riêng dải *Thao tác*:
+
+| Nút | Chỉ hiện khi |
+|---|---|
+| *Sửa hồ sơ* | Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*, và bạn là TDV phụ trách |
+| *Xoá hồ sơ* | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa* hoặc *Từ chối*, và bạn là TDV phụ trách |
+| *Tải tệp lên* | Hồ sơ đang nhận được đúng loại tệp ấy — *Hồ sơ* ở bước nháp, *Bản scan* ở bước Sale Admin |
+| *Gỡ* tệp | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa* hoặc *Sale Admin đang xử lý* |
+| *Xuất hợp đồng (PDF)* | Kế toán đã tiếp nhận lần 1 |
+
+Hộp thoại *Tải tệp lên* cũng không hỏi loại tệp khi chỉ có một loại hợp lệ — một ô chọn với đúng một
+lựa chọn dùng được không phải lựa chọn.
+
+Hệ quả với hồ sơ **Quá hạn duyệt**: mở ra thì **không còn nút nào cả**.
+
 ### Ai nhận thư khi hồ sơ đổi trạng thái
 
 **Hai nhóm, hai lá thư khác nhau.**
@@ -532,8 +554,8 @@ Hệ thống quét **5 phút một lần**, nên thư đi trong vòng tối đa 
 > ### Quá hạn là hết — hồ sơ không cứu được nữa
 >
 > Từ khi hồ sơ chuyển *Quá hạn duyệt*, **không ai thao tác được lên nó nữa**, kể cả đúng người ở
-> đúng bước. Bấm bất kỳ nút nào cũng nhận thông báo *"Hồ sơ đã quá hạn xử lý"*. Việc phải làm là
-> **lập một CSBH mới** cho khách hàng đó.
+> đúng bước. Mở hồ sơ ra thì **dải nút Thao tác trống rỗng** — không có nút nào để bấm, kể cả nút
+> đính kèm tệp hay nút gỡ tệp. Việc phải làm là **lập một CSBH mới** cho khách hàng đó.
 >
 > Ba ngày sau, hệ thống tự chuyển nó sang *Đã xoá*. **Nội dung và nhật ký còn nguyên** — tra lại
 > được mãi mãi bằng bộ lọc trạng thái ở màn hình Hồ sơ — nhưng nó rời khỏi mọi thẻ đếm việc.

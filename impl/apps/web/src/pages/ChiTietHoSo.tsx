@@ -42,8 +42,26 @@ type HoSo = {
   appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
-  /** Máy chủ tính sẵn (`0039`) — giao diện KHÔNG chép danh sách trạng thái. */
+  /**
+   * Bốn cờ MÁY CHỦ tính sẵn (`0039`, `0048`) — giao diện KHÔNG chép danh sách
+   * trạng thái sang, vì bản sao thứ hai là bản sẽ có ngày lệch với máy trạng thái.
+   *
+   * Nguyên tắc chung: thao tác nào không làm được thì ĐỪNG HIỆN. Giao diện AND
+   * cờ này với bảng quyền của nó — quyền trả lời "vai trò này được phép chưa",
+   * cờ trả lời "hồ sơ này lúc này cho phép chưa".
+   */
   xoaDuoc: boolean;
+  /*
+   * Ba cờ `0048` khai là TUỲ CHỌN, và đọc kèm giá trị lùi an toàn ngay dưới.
+   *
+   * Máy chủ cũ hơn giao diện — hoặc một stub trong test — không gửi chúng, và
+   * `undefined.length` làm nổ cả trang chi tiết. Thiếu một cờ thì đáng lẽ chỉ
+   * mất một nút, không phải mất cả màn hình. Giá trị lùi chọn phía AN TOÀN: ẩn
+   * nút, chứ không hiện một nút sẽ trả 409.
+   */
+  loaiTepGhiDuoc?: string[];
+  tepXoaDuoc?: boolean;
+  xuatHopDongDuoc?: boolean;
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
@@ -168,8 +186,14 @@ export function ChiTietHoSo({ id }: { id: string }) {
       <TepDinhKem
         hoSoId={hoSo.id}
         tep={hoSo.attachments}
-        choPhepGhi={can(nguoiDung?.role, 'taiTepDinhKem')}
-        choPhepXoa={can(nguoiDung?.role, 'taiTepDinhKem')}
+        /*
+          Quyền VÀ trạng thái, cả hai (`0048`). Bảng quyền phía giao diện nói
+          "vai trò này được đính kèm"; máy chủ nói "hồ sơ này lúc này đính kèm
+          được loại gì". Thiếu vế thứ hai thì nút vẫn hiện ở hồ sơ đã quá hạn
+          hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
+        */
+        loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
+        choPhepXoa={can(nguoiDung?.role, 'taiTepDinhKem') && hoSo.tepXoaDuoc === true}
         taiLai={taiLai}
       />
 
@@ -191,7 +215,12 @@ export function ChiTietHoSo({ id }: { id: string }) {
           Nút xuất hợp đồng chỉ hiện với Kế toán và Sale Admin (FE-24, muc 8.3).
           Trưởng bộ phận KHÔNG thấy — YCNV ghi sai chỗ này và bản hợp nhất đã sửa.
         */}
-        {can(nguoiDung?.role, 'xuatHopDong') && (
+        {/*
+          `xuatHopDongDuoc` là CỔNG THỜI ĐIỂM của muc 8.3 — chỉ xuất được sau khi
+          kế toán tiếp nhận lần 1. Trước `0048` giao diện chỉ xét vai trò, nên Kế
+          toán thấy nút này ở mọi hồ sơ, kể cả bản còn đang chờ TBP ký.
+        */}
+        {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
           <button
             type="button"
             className="nut"

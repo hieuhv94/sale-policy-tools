@@ -170,6 +170,25 @@ const theSapQuaHan = (): The => ({
 });
 
 /**
+ * Thẻ *Quá hạn* — hồ sơ đã chết, còn 3 ngày trước khi hệ thống xoá (`0048`).
+ *
+ * Ở `0047` tôi CỐ Ý không làm thẻ này: khách hàng đã hai lần nói quá hạn là chết,
+ * và đếm một thứ không bấm được vào ô đếm việc là nói dối về lượng việc. Khách
+ * hàng yêu cầu lại — và lý do của họ đúng hơn lý do của tôi: ba ngày ấy là cửa
+ * sổ duy nhất để người ta biết mình vừa mất cái gì và lập lại bản mới trước khi
+ * nó biến mất hẳn khỏi mọi màn hình.
+ *
+ * Nên nó đứng RIÊNG, không gộp vào thẻ của bước như `0045` từng làm. Thẻ của
+ * bước đếm việc phải làm; thẻ này đếm việc phải làm LẠI.
+ */
+const theQuaHan = (): The => ({
+  ma: 'QUA_HAN_DUYET',
+  nhan: 'Quá hạn',
+  phu: 'đã chết, hệ thống xoá sau 3 ngày',
+  dem: { tu: 'trangThai', trangThai: 'QUA_HAN_DUYET' },
+});
+
+/**
  * Thẻ "Đang chờ" của một vai trò: mọi bước chờ TRỪ bước của chính họ.
  *
  * Trả lời đúng một câu — "hồ sơ trong phạm vi của tôi vẫn đang chạy chứ, có cái
@@ -193,12 +212,18 @@ const theDangCho = (vaiTro: VaiTro): The =>
  * rồi tới các trạng thái kết thúc**. Một TDV nhìn ô "KT duyệt bản cứng: 7" thì
  * không làm được gì với con số ấy, mà nó vẫn chiếm chỗ và vẫn bắt phải đọc.
  *
- * KHÔNG có thẻ *Quá hạn duyệt* ở bất kỳ vai trò nào trong luồng. Hồ sơ quá hạn
- * nằm trong chính thẻ của bước nó đang tắc, kèm dòng phụ đếm riêng — vì
- * `QUA_HAN_DUYET` là cái NHÃN đè lên trạng thái cũ chứ không phải một chặng
- * mới, và người phụ trách vẫn duyệt được bình thường (muc 4, `effectiveStatus`).
- * Đếm theo `status` thay vì theo bước sẽ làm đúng những hồ sơ trễ nhất biến mất
- * khỏi màn hình của người duy nhất xử lý được chúng.
+ * HAI THẺ CẢNH BÁO đứng cạnh nhau ở giữa dải, và chúng nói hai chuyện khác hẳn:
+ *
+ *   - *Sắp quá hạn* — còn dưới 24 giờ, CÒN CỨU ĐƯỢC. Đây là lúc gọi điện.
+ *   - *Quá hạn* — đã chết, không ai thao tác được, hệ thống xoá sau 3 ngày. Việc
+ *     duy nhất còn làm được là lập một hồ sơ mới.
+ *
+ * Cả hai đếm hồ sơ ở MỌI bước trong phạm vi, không riêng bước của vai trò đang
+ * xem — hồ sơ chết ở bàn Kế toán thì TDV đã lập nó cũng mất công như nhau.
+ *
+ * Hồ sơ quá hạn KHÔNG được gộp vào thẻ của bước như `0045` từng làm: thẻ của
+ * bước đếm việc phải làm, còn thẻ này đếm việc phải làm LẠI. Trộn chúng là bảo
+ * người ta còn 12 việc trong khi 3 trong số đó không bấm được gì.
  *
  * Ngoại lệ duy nhất là `BAN_LANH_DAO`: vai trò giám sát toàn luồng nên bày đủ
  * mười hai trạng thái, không gộp, không cắt.
@@ -213,6 +238,7 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theTrangThai('YEU_CAU_CHINH_SUA', 'bị trả lại, chờ bạn sửa'),
     theTrangThai('NHAP', 'chưa gửi duyệt'),
     theSapQuaHan(),
+    theQuaHan(),
     theDangCho('TDV'),
     theTrangThai('DANG_CO_HIEU_LUC'),
     theTrangThai('TU_CHOI'),
@@ -220,6 +246,7 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
   TBP: [
     theBuoc('B4_TBP_DUYET', 'Chờ TBP duyệt', ['B4_TBP_DUYET'], 'đang chờ bạn ký số'),
     theSapQuaHan(),
+    theQuaHan(),
     theDangCho('TBP'),
     theTrangThai('DANG_CO_HIEU_LUC'),
     theTrangThai('TU_CHOI'),
@@ -228,6 +255,7 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theBuoc('B6_KT_L1', 'KT duyệt bản mềm', ['B6_KT_L1'], 'tiếp nhận lần 1'),
     theBuoc('B10_KT_L2', 'KT duyệt bản cứng', ['B10_KT_L2'], 'tiếp nhận lần 2'),
     theSapQuaHan(),
+    theQuaHan(),
     theDangCho('KE_TOAN'),
     theTrangThai('DANG_CO_HIEU_LUC'),
   ],
@@ -235,6 +263,7 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theBuoc('B8_TRINH_KY', 'Trình ký', ['B8_TRINH_KY'], 'in, trình ký, scan'),
     theBuoc('B8_LOI_BAN_CUNG', 'Lỗi bản cứng', ['B8_LOI_BAN_CUNG'], 'kế toán bắt in lại'),
     theSapQuaHan(),
+    theQuaHan(),
     theDangCho('SALE_ADMIN'),
     theTrangThai('DANG_CO_HIEU_LUC'),
   ],

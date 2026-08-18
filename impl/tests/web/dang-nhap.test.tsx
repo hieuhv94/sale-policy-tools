@@ -84,6 +84,12 @@ const chanMang = (role: string) => {
           rowVersion: 0,
           lines: [],
           attachments: [],
+          // Ba cờ `0048`, có mặt ở đây vì đúng lý do đã ghi cho `byStepDetail`:
+          // stub phải nói đúng hình dạng máy chủ trả, không phải hình dạng tối
+          // thiểu để ca kiểm thử xanh.
+          loaiTepGhiDuoc: [],
+          tepXoaDuoc: false,
+          xuatHopDongDuoc: false,
         }),
       );
     }

@@ -60,6 +60,7 @@ type PolicyRow = {
   /** Lúc bị đánh dấu quá hạn — mốc đếm 3 ngày trước khi tự xoá (`0047`). */
   overdue_at: Date | null;
   pending_step: string | null;
+  kt_l1_received_at: Date | null;
 };
 
 export const SUPPLEMENT_MESSAGE =
@@ -114,6 +115,34 @@ export const xoaDuoc = (status: string, tdvUserId: string | null, me: AuthUser):
  * hoàn chỉnh: bốn chỗ gọi có bốn hình dạng truy vấn khác nhau, và nhét chúng vào
  * một hàm chung là dựng ra một hàm mà mỗi lời gọi dùng một nhánh riêng.
  */
+/**
+ * Loại tệp đính kèm ĐANG tải lên được, theo trạng thái hồ sơ (`0048`).
+ *
+ * Cùng luật với `WorkflowService.attach`, và trả về từ MÁY CHỦ vì đúng lý do đã
+ * viết cho `xoaDuoc`: chép danh sách trạng thái sang giao diện là dựng một bản
+ * sao thứ hai phải giữ đồng bộ.
+ *
+ * Rỗng nghĩa là không hiện nút *Tải tệp lên* — thẳng thắn hơn hẳn việc hiện nút
+ * rồi trả 409 khi người ta đã chọn xong file.
+ */
+export const loaiTepGhiDuoc = (status: string): string[] => {
+  if (EDITABLE.includes(status)) return ['HO_SO'];
+  if (status === 'SA_DANG_XU_LY') return ['SCAN'];
+  return [];
+};
+
+/** Gỡ tệp được không — cùng luật với `WorkflowService.detach`. */
+export const tepXoaDuoc = (status: string): boolean =>
+  [...EDITABLE, 'SA_DANG_XU_LY'].includes(status);
+
+/**
+ * Xuất hợp đồng được chưa (muc 8.3).
+ *
+ * Cổng là MỐC THỜI GIAN chứ không phải trạng thái: kế toán đã tiếp nhận lần 1
+ * thì hồ sơ có hợp đồng để xuất, và mốc ấy không mất đi khi hồ sơ đi tiếp.
+ */
+export const xuatHopDongDuoc = (ktL1ReceivedAt: Date | null): boolean => ktL1ReceivedAt !== null;
+
 export const thuocPhamVi = (n: number, alias = ''): string => {
   const a = alias ? `${alias}.` : '';
   return `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
@@ -759,7 +788,7 @@ export class PoliciesService {
   async byId(policyId: string, me: AuthUser) {
     const so = await this.db.one<PolicyRow & { status: string }>(
       `SELECT tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
-              status::text AS status
+              status::text AS status, kt_l1_received_at
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );
@@ -782,7 +811,24 @@ export class PoliciesService {
      * đồng bộ; trả về một cờ BOOLEAN thì máy chủ vẫn là nơi duy nhất biết luật,
      * và nó đã tính sẵn cả phần "đúng người phụ trách" mà giao diện không biết.
      */
-    return { ...p, xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me) };
+    /*
+     * Ba cờ nữa cùng một lẽ (`0048`).
+     *
+     * Yêu cầu của khách hàng: thao tác nào không làm được thì ĐỪNG HIỆN, chứ
+     * không phải hiện rồi bấm vào mới báo lỗi. Giao diện trước đó chỉ chặn theo
+     * VAI TRÒ — Kế toán luôn thấy nút *Xuất hợp đồng*, ai có quyền đính kèm thì
+     * luôn thấy nút *Tải tệp lên* — nên ở hồ sơ sai trạng thái, bấm vào là 409.
+     *
+     * Luật trạng thái vẫn nằm nguyên một chỗ ở máy chủ; giao diện nhận cờ đã
+     * tính rồi và chỉ việc AND với bảng quyền của nó.
+     */
+    return {
+      ...p,
+      xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
+      loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
+      tepXoaDuoc: tepXoaDuoc(p.status),
+      xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
+    };
   }
 
   /**

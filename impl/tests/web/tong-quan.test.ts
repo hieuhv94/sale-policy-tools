@@ -68,16 +68,32 @@ describe('hai bảng tra phủ đủ sáu vai trò', () => {
  * trông có lý. Đổi bảng mà không đổi cả dòng ở đây là chưa hỏi lại khách hàng.
  */
 const DA_CHOT: Partial<Record<VaiTro, string[]>> = {
-  TDV: ['Yêu cầu chỉnh sửa', 'Nháp', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
-  TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
+  TDV: [
+    'Yêu cầu chỉnh sửa',
+    'Nháp',
+    'Sắp quá hạn',
+    'Quá hạn',
+    'Đang chờ',
+    'Đang có hiệu lực',
+    'Từ chối',
+  ],
+  TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
   KE_TOAN: [
     'KT duyệt bản mềm',
     'KT duyệt bản cứng',
     'Sắp quá hạn',
+    'Quá hạn',
     'Đang chờ',
     'Đang có hiệu lực',
   ],
-  SALE_ADMIN: ['Trình ký', 'Lỗi bản cứng', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực'],
+  SALE_ADMIN: [
+    'Trình ký',
+    'Lỗi bản cứng',
+    'Sắp quá hạn',
+    'Quá hạn',
+    'Đang chờ',
+    'Đang có hiệu lực',
+  ],
 };
 
 describe('dải thẻ đúng bản đã chốt với khách hàng', () => {
@@ -87,21 +103,9 @@ describe('dải thẻ đúng bản đã chốt với khách hàng', () => {
     });
   }
 
-  it('không vai trò nào trong luồng còn thẻ "Quá hạn duyệt"', () => {
-    /*
-     * Hồ sơ quá hạn KHÔNG biến mất theo cái thẻ vừa bỏ đi.
-     *
-     * `QUA_HAN_DUYET` là cái NHÃN đè lên trạng thái cũ chứ không phải một chặng
-     * mới, và người phụ trách vẫn duyệt được bình thường (muc 4). Nên thẻ của
-     * bốn bước chờ đếm theo BƯỚC — `byStepDetail`, vốn đọc
-     * `coalesce(pending_step, …)` — chứ không theo trạng thái. Nếu ai đó đổi
-     * chúng sang đếm theo trạng thái thì đúng những hồ sơ trễ nhất lặng lẽ rơi
-     * khỏi màn hình của người duy nhất xử lý được chúng.
-     */
+  it('mỗi vai trò trong luồng đều có thẻ đếm theo bước', () => {
     for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
-      const the = THE_THEO_VAI_TRO[v];
-      expect(the.map(trangThaiCua)).not.toContain('QUA_HAN_DUYET');
-      const buoc = the.filter((t) => t.dem.tu === 'buoc');
+      const buoc = THE_THEO_VAI_TRO[v].filter((t) => t.dem.tu === 'buoc');
       expect(buoc.length, `${v} phải có ít nhất một thẻ đếm theo bước`).toBeGreaterThan(0);
     }
   });
@@ -186,12 +190,34 @@ describe('`0047` thẻ Sắp quá hạn', () => {
     }
   });
 
-  it('không vai trò nào còn thẻ cho trạng thái Quá hạn duyệt', () => {
-    // `0047`: quá hạn là trạng thái CHẾT — không thao tác được, 3 ngày sau bị
-    // xoá. Bày nó thành một ô đếm việc là mời người ta bấm vào một thứ đã hỏng.
-    for (const v of CO_HO_SO) {
-      if (v === 'BAN_LANH_DAO') continue; // vai trò giám sát, thấy đủ 12 trạng thái
-      expect(THE_THEO_VAI_TRO[v].map(trangThaiCua)).not.toContain('QUA_HAN_DUYET');
+  it('`0048` đứng ngay cạnh thẻ Quá hạn, và hai thẻ nói hai chuyện khác nhau', () => {
+    /*
+     * Ở `0047` tôi cố ý KHÔNG làm thẻ *Quá hạn*, lập luận rằng đếm một thứ không
+     * bấm được vào ô đếm việc là nói dối về lượng việc. Khách hàng yêu cầu lại ở
+     * `0048`, và lý do của họ đúng hơn: ba ngày ấy là cửa sổ duy nhất để người ta
+     * biết mình vừa mất gì và lập lại trước khi nó biến mất hẳn.
+     *
+     * Hai thẻ phải ĐỨNG CẠNH NHAU và theo đúng thứ tự thời gian — còn cứu được
+     * trước, đã mất sau. Đảo lại là bắt người đọc nhảy ngược dòng thời gian.
+     */
+    for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
+      const ma = THE_THEO_VAI_TRO[v].map((t) => t.ma);
+      const i = ma.indexOf('SAP_QUA_HAN');
+      expect(i, `${v} thiếu thẻ Sắp quá hạn`).toBeGreaterThanOrEqual(0);
+      expect(ma[i + 1], `${v}: thẻ Quá hạn không đứng ngay sau Sắp quá hạn`).toBe('QUA_HAN_DUYET');
+    }
+  });
+
+  it('`0048` thẻ Quá hạn đếm theo TRẠNG THÁI, không gộp vào thẻ của bước', () => {
+    // Thẻ của bước đếm việc phải làm; thẻ này đếm việc phải làm LẠI. Gộp lại là
+    // đúng cái `0045` từng làm và `0047` đã gỡ ra.
+    for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
+      const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'QUA_HAN_DUYET')!;
+      expect(the.dem.tu).toBe('trangThai');
+      expect(duongThe(the)).toBe('/ho-so?status=QUA_HAN_DUYET');
+      // Đỏ như thẻ Sắp quá hạn: `nhomTrangThai` cho `QUA_HAN_DUYET` màu cảnh báo,
+      // nhưng ở đây nó KHÔNG còn là cảnh báo — nó là mất mát đã xảy ra.
+      expect(mauThe(the), v).toBe('canh-bao');
     }
   });
 });

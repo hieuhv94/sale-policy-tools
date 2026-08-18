@@ -5225,3 +5225,73 @@ chưa đủ 3 ngày thì không xoá · đủ 3 ngày thì xoá và **nhật ký
 lại không xoá lần hai · thư tới đúng hai người · hồ sơ quá hạn rơi khỏi mọi thẻ đếm nhưng vẫn tra ra
 được bằng bộ lọc trạng thái · thẻ *Sắp quá hạn* không đếm nhầm hồ sơ đã chết · con số trên thẻ khớp
 danh sách mở ra.
+
+---
+
+## P58 — Thẻ *Quá hạn*, và ẩn hẳn thao tác không làm được
+
+Hai yêu cầu, và yêu cầu đầu **đảo lại một phán đoán của chính tôi**.
+
+### Thẻ *Quá hạn* — tôi đã sai ở `0047`
+
+Ở `0047` tôi cố ý không làm thẻ này, lập luận rằng đếm một thứ không bấm được vào ô đếm việc là nói
+dối về lượng việc, và khách hàng đã hai lần nói quá hạn là chết. Tôi có ghi rõ trong báo cáo rằng
+mình chọn không làm.
+
+Khách hàng yêu cầu lại, và **lý do của họ đúng hơn lý do của tôi**: giữa lúc quá hạn và lúc hệ thống
+xoá có đúng **3 ngày**, và đó là cửa sổ duy nhất để người ta biết mình vừa mất cái gì và lập lại bản
+mới trước khi hồ sơ rời khỏi mọi màn hình. Lập luận của tôi đúng về *ô đếm việc* nhưng bỏ sót rằng
+đây không phải ô đếm việc.
+
+Nên thẻ đứng **riêng**, ngay sau *Sắp quá hạn*, và không gộp vào thẻ của bước như `0045` từng làm:
+
+| Thẻ | Nghĩa | Còn làm gì được |
+|---|---|---|
+| *Sắp quá hạn* | Dưới 24 giờ | Còn cứu — xử lý ngay, hoặc gọi người đang giữ |
+| *Quá hạn* | Đã chết, xoá sau 3 ngày | Không gì. Lập CSBH mới |
+
+Thứ tự có kiểm bằng test: *Quá hạn* phải đứng NGAY SAU *Sắp quá hạn*. Đảo lại là bắt người đọc nhảy
+ngược dòng thời gian.
+
+### Ẩn thao tác — hoá ra rộng hơn chuyện quá hạn
+
+Yêu cầu nói về hồ sơ quá hạn, nhưng rà ra thì dải nút *Thao tác* **đã đúng** từ trước: nó đọc
+`/allowed-actions`, mà máy trạng thái không có nước nào đi ra khỏi `QUA_HAN_DUYET` nên danh sách
+rỗng. `Sửa` và `Xoá` cũng đã đúng.
+
+Ba nút còn lại thì **chỉ chặn theo VAI TRÒ**, không xét trạng thái:
+
+- *Tải tệp lên* và *Gỡ* — hiện với bất kỳ ai có quyền đính kèm, ở **mọi** hồ sơ. Máy chủ chỉ nhận ở
+  `NHAP`/`YEU_CAU_CHINH_SUA` (loại `HO_SO`) và `SA_DANG_XU_LY` (loại `SCAN`), nên ở hồ sơ khác là
+  409 — sau khi người dùng đã chọn xong file.
+- *Xuất hợp đồng (PDF)* — hiện với Kế toán và Sale Admin ở mọi hồ sơ, kể cả bản còn đang chờ TBP ký.
+  Cổng thật là mốc `kt_l1_received_at`.
+
+Sửa theo đúng tiền lệ `xoaDuoc` của `0039`: **máy chủ tính cờ, giao diện AND với bảng quyền**. Ba cờ
+mới trên `byId` — `loaiTepGhiDuoc` (một mảng, không phải boolean), `tepXoaDuoc`, `xuatHopDongDuoc`.
+Chép danh sách trạng thái sang giao diện là dựng bản sao thứ hai sẽ có ngày lệch với máy trạng thái.
+
+`loaiTepGhiDuoc` là mảng vì nó trả lời được cả câu hỏi thứ hai: hộp thoại tải tệp **không hỏi loại**
+khi chỉ có một loại hợp lệ. Một ô chọn với đúng một lựa chọn dùng được và một lựa chọn trả 409 thì
+không phải lựa chọn, mà là một cái bẫy.
+
+Ba cờ khai **tuỳ chọn** ở phía giao diện, đọc kèm giá trị lùi an toàn (`?? []`, `=== true`). Máy chủ
+cũ hơn giao diện thì mất một nút, chứ không mất cả màn hình — và giá trị lùi chọn phía ẩn nút, không
+phải phía hiện một nút sẽ hỏng.
+
+### Ca kiểm thử không chép bảng trạng thái
+
+Phép kiểm cho ba cờ **không** so với một bảng chép tay — chép tay thì test và mã cùng sai một kiểu.
+Nó so cờ với **việc máy chủ có nhận thật không**: với mỗi trạng thái, gọi đính kèm cả hai loại rồi
+đối chiếu 201/409 với nội dung cờ. Bật cờ mà 409, hoặc tắt cờ mà 201, đều đỏ.
+
+### Hai lần tôi tự làm hỏng
+
+**Stub thiếu khoá mới → trang trắng.** `dang-nhap.test.tsx` không trả `loaiTepGhiDuoc`, và
+`undefined.length` làm nổ cả trang chi tiết. Đúng lớp lỗi đã gặp với `byStepDetail` ở `0045`, và lại
+do chính ca kiểm thử "không khối nào nổ giữa chừng" bắt được.
+
+**Người gọi ngoài phạm vi.** Ca kiểm thử đính kèm dùng `sa01`, nhưng Sale Admin chưa được phân công
+vào hồ sơ còn ở *Nháp* nên nhận 403 — đỏ vì phạm vi chứ không vì cái cờ nó đang đo. Đổi sang `tdv01`,
+người luôn nằm trong phạm vi hồ sơ của chính mình ở mọi trạng thái. Đây là lần thứ hai trong hai đợt
+liên tiếp tôi dính đúng lỗi này.

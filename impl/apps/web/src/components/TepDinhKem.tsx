@@ -30,13 +30,23 @@ const NHAN_LOAI: Record<string, string> = { HO_SO: 'Hồ sơ', SCAN: 'Bản scan
 export function TepDinhKem({
   hoSoId,
   tep,
-  choPhepGhi,
+  loaiGhiDuoc,
   choPhepXoa,
   taiLai,
 }: {
   hoSoId: string;
   tep: TepDto[];
-  choPhepGhi: boolean;
+  /**
+   * Loại tệp tải lên được NGAY BÂY GIỜ — vai trò AND trạng thái hồ sơ (`0048`).
+   *
+   * Trước đó chỗ này là một cờ chỉ xét VAI TRÒ, nên ai có quyền đính kèm cũng
+   * thấy nút *Tải tệp lên* ở mọi hồ sơ — kể cả hồ sơ đang chờ duyệt hay đã quá
+   * hạn, nơi máy chủ trả 409 sau khi người ta đã chọn xong file.
+   *
+   * Rỗng thì không có nút. Một phần tử thì hộp thoại không hỏi loại nữa — chỉ có
+   * một lựa chọn thì bày ra một ô chọn là bắt người dùng xác nhận điều hiển nhiên.
+   */
+  loaiGhiDuoc: string[];
   choPhepXoa: boolean;
   taiLai: () => void;
 }) {
@@ -95,7 +105,7 @@ export function TepDinhKem({
     <>
       <h2>Tệp đính kèm</h2>
 
-      {choPhepGhi && (
+      {loaiGhiDuoc.length > 0 && (
         <div className="nhom-nut">
           <button type="button" className="nut nut-nhe" onClick={() => datMoTai(true)}>
             Tải tệp lên
@@ -159,6 +169,7 @@ export function TepDinhKem({
       {moTai && (
         <HopThoaiTaiTep
           hoSoId={hoSoId}
+          loaiGhiDuoc={loaiGhiDuoc}
           dong={() => datMoTai(false)}
           xong={() => {
             datMoTai(false);
@@ -172,14 +183,19 @@ export function TepDinhKem({
 
 function HopThoaiTaiTep({
   hoSoId,
+  loaiGhiDuoc,
   dong,
   xong,
 }: {
   hoSoId: string;
+  loaiGhiDuoc: string[];
   dong: () => void;
   xong: () => void;
 }) {
-  const [loai, datLoai] = useState<'HO_SO' | 'SCAN'>('HO_SO');
+  // Mặc định là loại ĐẦU TIÊN máy chủ cho phép, không phải `HO_SO` cứng: ở bước
+  // Sale Admin thì chỉ `SCAN` tải lên được, và mở hộp thoại ra đã chọn sẵn một
+  // loại sẽ hỏng là mời người dùng bấm Gửi rồi nhận 409.
+  const [loai, datLoai] = useState<string>(loaiGhiDuoc[0] ?? 'HO_SO');
   const [tep, datTep] = useState<File | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -216,19 +232,29 @@ function HopThoaiTaiTep({
   return (
     <HopThoai tieuDe="Tải tệp lên" dong={dong}>
       <form onSubmit={gui}>
-          <Truong id="tep-loai" nhan="Loại tệp" bắtBuộc>
-            {(p) => (
-              <select
-                {...p}
-                className="o-nhap"
-                value={loai}
-                onChange={(e) => datLoai(e.target.value as 'HO_SO' | 'SCAN')}
-              >
-                <option value="HO_SO">Hồ sơ</option>
-                <option value="SCAN">Bản scan</option>
-              </select>
-            )}
-          </Truong>
+          {/*
+            Chỉ bày ô chọn khi thật sự CÓ gì để chọn (`0048`). Ở bước Sale Admin
+            chỉ tải được bản scan, ở hồ sơ nháp chỉ tải được tệp hồ sơ — một ô
+            chọn với đúng một lựa chọn hợp lệ và một lựa chọn trả 409 thì không
+            phải lựa chọn, mà là một cái bẫy.
+          */}
+          {loaiGhiDuoc.length > 1 ? (
+            <Truong id="tep-loai" nhan="Loại tệp" bắtBuộc>
+              {(p) => (
+                <select {...p} className="o-nhap" value={loai} onChange={(e) => datLoai(e.target.value)}>
+                  {loaiGhiDuoc.map((k) => (
+                    <option key={k} value={k}>
+                      {NHAN_LOAI[k] ?? k}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Truong>
+          ) : (
+            <p className="mo-ta-truong">
+              Loại tệp: <strong>{NHAN_LOAI[loai] ?? loai}</strong>
+            </p>
+          )}
           <Truong id="tep-file" nhan="Tệp" bắtBuộc>
             {(p) => (
               <input
