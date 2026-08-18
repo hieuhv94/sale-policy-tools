@@ -1,8 +1,8 @@
 /** WF — luồng duyệt và chuyển trạng thái (YCNV §3, §4). */
 import { describe, expect, it } from 'vitest';
 import {
-  ACTIONS, allowedActions, ForbiddenRoleError, InvalidTransitionError, markOverdue,
-  ReasonRequiredError, resumeFromOverdue, STATUSES, TERMINAL, transition, WAITING,
+  ACTIONS, allowedActions, allowedActionsFor, ForbiddenRoleError, InvalidTransitionError, markOverdue,
+  ReasonRequiredError, STATUSES, TERMINAL, transition, WAITING,
   type Action, type Status,
 } from './state-machine.js';
 
@@ -86,8 +86,8 @@ describe('WF-08 · Từ chối là trạng thái kết thúc', () => {
       expect(() => go('TU_CHOI', a, 'TDV')).toThrow(InvalidTransitionError);
     }
   });
-  it('TERMINAL đúng bằng hai trạng thái kết thúc', () => {
-    expect(TERMINAL).toEqual(['TU_CHOI', 'DA_XOA']);
+  it('TERMINAL đúng bằng ba trạng thái kết thúc — `0047` thêm Quá hạn duyệt', () => {
+    expect(TERMINAL).toEqual(['TU_CHOI', 'DA_XOA', 'QUA_HAN_DUYET']);
   });
 });
 
@@ -185,19 +185,35 @@ describe('WF-26 · luồng tuần tự, không có bước nào song song', () =
   });
 });
 
-describe('NTF-10/11 · Quá hạn duyệt là lớp phủ, nhớ bước đang chờ', () => {
+describe('NTF-10 · `0047` Quá hạn duyệt là trạng thái KẾT THÚC, vẫn nhớ bước chết', () => {
   it('bốn trạng thái chờ đều quá hạn được và lưu lại bước cũ', () => {
     expect(WAITING).toHaveLength(4);
     for (const s of WAITING) {
       const r = markOverdue(s);
       expect(r.next).toBe('QUA_HAN_DUYET');
+      // `pending_step` VẪN lưu, dù `0047` đã bỏ việc định tuyến theo nó: nó là
+      // câu trả lời duy nhất cho "hồ sơ chết ở bước nào", thứ phải có trong thư
+      // báo và trong nhật ký.
       expect(r.pendingStep).toBe(s);
-      expect(resumeFromOverdue(r.pendingStep)).toBe(s);   // đi tiếp đúng nhánh cũ
     }
   });
+
   it('trạng thái không phải chờ thì không quá hạn được', () => {
     expect(() => markOverdue('DANG_CO_HIEU_LUC')).toThrow(InvalidTransitionError);
     expect(() => markOverdue('TU_CHOI')).toThrow(InvalidTransitionError);
+  });
+
+  it('KHÔNG hành động nào đi ra khỏi Quá hạn duyệt, với BẤT KỲ vai trò nào', () => {
+    /*
+     * Đảo ngược NTF-11 (`0047`). Trước đó hồ sơ quá hạn đi tiếp đúng nhánh cũ,
+     * nên máy trạng thái không cần luật nào từ `QUA_HAN_DUYET` — lớp trên gỡ
+     * nhãn ra rồi mới hỏi. Giờ không còn ai gỡ nhãn nữa, và tính chất "không có
+     * đường ra" phải được khẳng định thẳng ở đây.
+     */
+    expect(allowedActions('QUA_HAN_DUYET')).toEqual([]);
+    for (const vt of ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI'] as const) {
+      expect(allowedActionsFor('QUA_HAN_DUYET', vt), `${vt} còn thao tác được`).toEqual([]);
+    }
   });
 });
 

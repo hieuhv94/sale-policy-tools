@@ -204,8 +204,28 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       ).map((r) => r.policy_id),
     );
 
+    /*
+     * CHẠY SONG SONG THEO LÔ (`0047`).
+     *
+     * Nút thắt còn lại sau khi đã nhớ tạm: mỗi hồ sơ vẫn tốn một lượt hỏi khách
+     * hàng và một lượt hỏi danh mục, và nhớ tạm không cứu được khi mỗi hồ sơ một
+     * khách hàng riêng — đúng tình hình ở bộ test, và cũng đúng ở một công ty có
+     * hàng nghìn khách. Nối đuôi nhau thì 1400 hồ sơ là 2800 vòng mạng, và một
+     * lượt rà mất hàng chục giây tới hàng phút.
+     *
+     * Mỗi hồ sơ là một đơn vị ĐỘC LẬP — khác hàng, khác transaction, khác sự
+     * kiện — nên chạy chồng lên nhau được. Giới hạn 8: đủ để lấp thời gian chờ
+     * mạng, mà không mở 1400 kết nối cùng lúc rồi làm cạn pool của chính mình.
+     *
+     * Nhớ tạm vẫn có tác dụng trong lô: hồ sơ cùng khách hàng rơi vào các lô
+     * khác nhau thì lô sau đọc lại từ `nhoKhach`.
+     */
+    const SONG_SONG = 8;
+    const muc = [...theoHoSo.entries()];
     let soLech = 0;
-    for (const [policyId, cac] of theoHoSo) {
+
+    // Hàm mũi tên, không phải `function`: thân hàm gọi `this.db` và `this.clients`.
+    const raMotHoSo = async (policyId: string, cac: DongCanRa[]): Promise<void> => {
       const dau = cac[0]!;
       if (!nhoKhach.has(dau.customer_id)) {
         nhoKhach.set(
@@ -214,7 +234,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         );
       }
       const customer = nhoKhach.get(dau.customer_id);
-      if (!customer) continue;
+      if (!customer) return;
 
       const loai = customer.customerType;
       const chuaCo = cac.map((x) => x.product_id).filter((id) => !nhoAnh.has(`${loai}:${id}`));
@@ -281,7 +301,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      if (lech.length === 0 && !coDauVet.has(policyId)) continue;
+      if (lech.length === 0 && !coDauVet.has(policyId)) return;
 
       const moiXuatHien = await this.db.tx((c) => this.dongBoDauVet(c, policyId, cac, lech));
       if (lech.length > 0) soLech += 1;
@@ -292,6 +312,10 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       if (moiXuatHien.length > 0 && dau.status === 'DANG_CO_HIEU_LUC') {
         await this.baoTdv(dau, customer, moiXuatHien);
       }
+    };
+
+    for (let i = 0; i < muc.length; i += SONG_SONG) {
+      await Promise.all(muc.slice(i, i + SONG_SONG).map(([id, cac]) => raMotHoSo(id, cac)));
     }
     return soLech;
   }

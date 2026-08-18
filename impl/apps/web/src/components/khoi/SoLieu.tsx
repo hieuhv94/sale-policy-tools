@@ -37,14 +37,14 @@ export function DaiTheTrangThai({ danhSach, bo }: { danhSach: The[]; bo: BoBaoCa
   return (
     <div className="luoi-chi-so">
       {danhSach.map((the) => {
-        const { tong, treHan } = demThe(the, bo);
+        const { tong, sapHet } = demThe(the, bo);
         return (
           <ChiSo
             key={the.ma}
             nhan={nhanThe(the)}
             giaTri={tong}
             {...(the.phu === undefined ? {} : { phu: the.phu })}
-            {...(treHan > 0 ? { canhBao: `trong đó ${treHan} quá hạn` } : {})}
+            {...(sapHet > 0 ? { canhBao: `trong đó ${sapHet} sắp quá hạn` } : {})}
             kieu={mauThe(the)}
             den={duongThe(the)}
           />
@@ -55,28 +55,36 @@ export function DaiTheTrangThai({ danhSach, bo }: { danhSach: The[]; bo: BoBaoCa
 }
 
 /**
- * Con số trên một thẻ, và trong đó bao nhiêu hồ sơ đã quá hạn.
+ * Con số trên một thẻ, và trong đó bao nhiêu hồ sơ SẮP quá hạn.
  *
- * Thẻ đếm theo BƯỚC đọc `byStepDetail` chứ không `byStatus`, và khác biệt ấy là
- * cả lý do bảng đó tồn tại: hồ sơ quá 14 ngày mang `status = 'QUA_HAN_DUYET'`
- * đè lên trạng thái cũ, nên đếm theo trạng thái sẽ bỏ sót đúng những hồ sơ trễ
- * nhất — mà chúng vẫn đang nằm trên bàn của người này và vẫn xử lý được bình
- * thường (muc 4).
+ * Thẻ đếm theo BƯỚC đọc `byStepDetail` chứ không `byStatus`, vì `byStepDetail`
+ * tách đôi bước B8 theo việc Sale Admin đang làm.
+ *
+ * Hồ sơ ĐÃ quá hạn không nằm trong con số nào ở đây (`0047`): nó là trạng thái
+ * chết, không ai thao tác được, nên đếm nó vào một ô đếm việc là nói dối về
+ * lượng việc. Thứ đi kèm ô bây giờ là `soon` — hồ sơ còn kịp cứu.
  */
-function demThe(the: The, bo: BoBaoCao): { tong: number; treHan: number } {
+function demThe(the: The, bo: BoBaoCao): { tong: number; sapHet: number } {
   if (the.dem.tu === 'trangThai') {
-    return { tong: so(bo.tienDo.byStatus[the.dem.trangThai]), treHan: 0 };
+    return { tong: so(bo.tienDo.byStatus[the.dem.trangThai]), sapHet: 0 };
   }
+
   // `?.` trên chính bảng, không chỉ trên phần tử: máy chủ chưa trả khoá này thì
   // cả trang tổng quan trắng bóc, mà đáng lẽ chỉ nên là vài ô ghi 0. Một thiếu
   // sót nhỏ ở API không đáng đổi lấy một màn hình rỗng không lời giải thích.
-  return the.dem.o.reduce(
-    (a, o) => {
-      const c = bo.tienDo.byStepDetail?.[o];
-      return { tong: a.tong + so(c?.total), treHan: a.treHan + so(c?.overdue) };
-    },
-    { tong: 0, treHan: 0 },
-  );
+  const bang = bo.tienDo.byStepDetail;
+
+  /*
+   * Thẻ *Sắp quá hạn* cộng dồn `soon` của MỌI bước, không riêng bước của vai trò
+   * này — xem `theSapQuaHan`. Cộng ở đây chứ không thêm một khoá riêng trong báo
+   * cáo: hai con số suy từ cùng một phép đếm thì không có đường nào lệch nhau,
+   * mà thẻ và các ô bước lại nằm ngay cạnh nhau trên màn hình.
+   */
+  const o = the.dem.tu === 'sapQuaHan' ? Object.keys(bang ?? {}) : the.dem.o;
+  const tong = o.reduce((a, k) => a + so(bang?.[k]?.total), 0);
+  const sapHet = o.reduce((a, k) => a + so(bang?.[k]?.soon), 0);
+
+  return the.dem.tu === 'sapQuaHan' ? { tong: sapHet, sapHet: 0 } : { tong, sapHet };
 }
 
 /** Ba con số nói luồng duyệt có khoẻ không. */

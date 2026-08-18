@@ -237,11 +237,27 @@ afterAll(async () => {
  * sẽ nhắc cả chúng, và mọi phép đếm đều lệch. Đây không phải chuyện riêng của
  * test: nó phản ánh đúng việc worker chạy trên toàn bộ CSDL.
  */
+/**
+ * Đẩy mọi hồ sơ CÓ SẴN ra khỏi tầm với của vòng quét.
+ *
+ * CSDL của bộ test không được dọn giữa các lượt chạy, nên nó tích lại hàng trăm
+ * hồ sơ từ mọi file test khác. Đẩy hạn của chúng đi 10 năm thì vòng quét chỉ
+ * còn thấy đúng hồ sơ mà ca kiểm thử vừa dựng.
+ *
+ * `overdue_at` phải đẩy theo (`0047`), và đây là chỗ đã hỏng thật: vòng quét tự
+ * xoá không nhìn `sla_due_at` mà nhìn `overdue_at`, nên hàng chục hồ sơ quá hạn
+ * tồn từ trước bị xoá sạch ngay ở lần quét đầu tiên — kéo theo hàng chục lá thư
+ * làm sai lệch mọi phép đếm thư của cả file.
+ */
 const parkExistingPolicies = () =>
   withAdminDb(async (c) => {
     await c.query(
       `UPDATE pol.policy SET sla_due_at = now() + interval '3650 days', sla_started_at = now()
         WHERE sla_due_at IS NOT NULL`,
+    );
+    await c.query(
+      `UPDATE pol.policy SET overdue_at = now() + interval '3650 days'
+        WHERE status = 'QUA_HAN_DUYET'`,
     );
   });
 
@@ -296,11 +312,16 @@ describe('NTF-09 đẩy đồng hồ tới ngày thứ 13', () => {
     expect(mails.length).toBe(1);
     const m = await fullMail(mails[0]!.ID);
     expect(m.Subject).toContain('sắp quá hạn');
-    // Thư nhắc tới người phải xử lý (TBP) và TDV lập hồ sơ.
-    expect(mails[0]!.To.map((t) => t.Address).sort()).toEqual([
-      'tbp01@csbh.test',
-      'tdv01@csbh.test',
-    ]);
+    /*
+     * CHỈ người phải thao tác (`0047`), không kèm TDV lập hồ sơ.
+     *
+     * Thư nhắc là cú huých tới người còn kịp làm gì đó. Gửi rộng thì phần lớn
+     * người nhận không làm gì được với nó và học rất nhanh cách bỏ qua cả loại
+     * thư này — kể cả lá *đã quá hạn* sau đó, lá họ thật sự cần đọc.
+     *
+     * Thư QUÁ HẠN vẫn gửi rộng: lúc ấy là tin phải báo, không còn là việc phải làm.
+     */
+    expect(mails[0]!.To.map((t) => t.Address).sort()).toEqual(['tbp01@csbh.test']);
     expect(m.Text).toContain('Bước 4');
 
     const row = await policyRow(id);
@@ -505,45 +526,149 @@ describe('NTF-08 · NTF-10 đẩy đồng hồ tới ngày thứ 14', () => {
   }, 90_000);
 });
 
-describe('NTF-11 xử lý sau khi hồ sơ đã quá hạn', () => {
-  it('đi tiếp ĐÚNG NHÁNH CŨ dựa vào bước đã lưu, không quay về đầu', async () => {
+describe('`0047` quá hạn là KẾT THÚC — đảo ngược NTF-11', () => {
+  /*
+   * YCNV mục 4 và tiêu chí NTF-11 chốt điều ngược lại: hồ sơ quá hạn "đi tiếp
+   * đúng nhánh cũ", người phụ trách xử lý muộn thì mọi thứ chạy tiếp bình
+   * thường. Khách hàng đổi ý ngày 18/08 — quá hạn là chết.
+   *
+   * Giữ nguyên tên NTF-11 trong tiêu đề để tra ngược ra được quyết định cũ. Ca
+   * kiểm thử cũ khẳng định `TBP_SIGN` trả 200; giờ nó phải trả 409.
+   */
+  it('người phụ trách KHÔNG thao tác được nữa, kể cả đúng vai trò đúng bước', async () => {
     const id = await submitted();
     clock.advanceDays(14);
     expect((await sla.scan()).overdue).toBe(1);
     expect((await policyRow(id)).status).toBe('QUA_HAN_DUYET');
 
-    // Trưởng bộ phận ký số như bình thường — hồ sơ vẫn đang ở nhánh của họ.
     const signed = await act(id, 'TBP_SIGN', 'tbp01');
-    expect(signed.status).toBe(200);
+    expect(signed.status).toBe(409);
+    expect(signed.body.code).toBe('POLICY_OVERDUE');
+    // Thông báo phải nói VIỆC PHẢI LÀM, không chỉ nói không được: hồ sơ sắp biến
+    // mất và cách duy nhất là lập bản mới.
+    expect(signed.body.message).toContain('lập một hồ sơ mới');
+    expect(signed.body.pendingStep).toBe('B4_TBP_DUYET');
+
+    // Không nước nào đi ra được, kể cả của người lập.
+    //
+    // Chỉ thử người CÓ TRONG PHẠM VI hồ sơ này. Kế toán và Sale Admin chưa được
+    // phân công vào hồ sơ đang ở bước TBP, nên họ nhận 403 vì phạm vi — cũng là
+    // chặn, nhưng chặn ở lớp khác và không nói gì về `0047`.
+    for (const [who, hd] of [
+      ['tdv01', 'RESUBMIT_AFTER_EDIT'],
+      ['tbp01', 'TBP_REJECT'],
+    ] as const) {
+      const r = await act(id, hd, who);
+      expect(r.status, `${who}/${hd}`).toBe(409);
+      expect(r.body.code, `${who}/${hd}`).toBe('POLICY_OVERDUE');
+    }
+
+    // Trạng thái không nhúc nhích sau tất cả những lần thử trên.
+    expect((await policyRow(id)).status).toBe('QUA_HAN_DUYET');
+  }, 120_000);
+
+  it('dải nút Thao tác rỗng — giao diện không mời bấm thứ sẽ hỏng', async () => {
+    const id = await submitted();
+    clock.advanceDays(14);
+    await sla.scan();
+
+    for (const who of ['tdv01', 'tbp01']) {
+      const r = await pget(`/policies/${id}/allowed-actions`, who);
+      expect(r.status).toBe(200);
+      expect(r.body.allowed, who).toEqual([]);
+    }
+  }, 90_000);
+
+  it('rời khỏi hộp việc — không ai còn việc gì với nó', async () => {
+    const id = await submitted();
+    const truoc = ((await pget('/policies/inbox?limit=200', 'tbp01')).body.items as { id: string }[])
+      .map((x) => x.id);
+    expect(truoc).toContain(id);
+
+    clock.advanceDays(14);
+    await sla.scan();
+
+    const sau = ((await pget('/policies/inbox?limit=200', 'tbp01')).body.items as { id: string }[])
+      .map((x) => x.id);
+    expect(sau, 'hồ sơ chết vẫn nằm trong hộp việc').not.toContain(id);
+  }, 90_000);
+});
+
+describe('`0047` tự xoá sau 3 ngày quá hạn', () => {
+  it('chưa đủ 3 ngày thì KHÔNG xoá', async () => {
+    const id = await submitted();
+    clock.advanceDays(14);
+    expect((await sla.scan()).overdue).toBe(1);
+
+    clock.advanceDays(2);
+    expect((await sla.scan()).discarded).toBe(0);
+    expect((await policyRow(id)).status).toBe('QUA_HAN_DUYET');
+  }, 120_000);
+
+  it('đủ 3 ngày thì chuyển Đã xoá, và NHẬT KÝ CÒN NGUYÊN', async () => {
+    const id = await submitted();
+    clock.advanceDays(14);
+    await sla.scan();
+
+    clock.advanceDays(3);
+    expect((await sla.scan()).discarded).toBe(1);
 
     const row = await policyRow(id);
-    // Sau khi ký, hệ thống tự chuyển sang KT duyệt bản mềm (WF-09) — đúng bước kế
-    // tiếp của nhánh cũ, không phải quay về Nháp.
-    expect(row.status).toBe('CHO_KT_L1');
-    expect(row.pending_step).toBeNull();
-    expect(row.sla_due_at).not.toBeNull(); // đồng hồ SLA chạy lại từ đầu ở bước mới
+    expect(row.status).toBe('DA_XOA');
 
+    /*
+     * Điều quan trọng nhất của cả nhóm này: "xoá" KHÔNG xoá gì cả.
+     *
+     * Đúng nghĩa như `0035` và `0039` — đổi trạng thái, ghi thêm một dòng nhật
+     * ký. Nội dung hồ sơ, dòng sản phẩm, mốc thời gian, chuỗi sự kiện đều còn.
+     */
     const events = (await pget(`/policies/${id}/events`, 'tdv01')).body as { action: string }[];
     expect(events.map((e) => e.action)).toEqual([
       'CREATE',
       'SUBMIT',
       'SLA_OVERDUE',
-      'TBP_SIGN',
-      'PUBLISH_SIGNED',
+      'SLA_DISCARDED',
     ]);
-  }, 90_000);
 
-  it('sai vai trò vẫn bị chặn khi hồ sơ quá hạn — nhãn quá hạn không nới quyền', async () => {
+    const lines = await withAdminDb(async (c) => {
+      const r = await c.query(`SELECT 1 FROM pol.policy_line WHERE policy_id = $1`, [id]);
+      return r.rowCount;
+    });
+    expect(lines, 'dòng sản phẩm bị xoá mất').toBeGreaterThan(0);
+  }, 120_000);
+
+  it('quét lại lần nữa KHÔNG xoá thêm lần thứ hai', async () => {
     const id = await submitted();
     clock.advanceDays(14);
     await sla.scan();
+    clock.advanceDays(3);
+    expect((await sla.scan()).discarded).toBe(1);
 
-    // Kế toán không xử lý được hồ sơ đang chờ Trưởng bộ phận, quá hạn hay không.
-    const r = await act(id, 'KT_RECEIVE_L1', 'kt01');
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('INVALID_TRANSITION');
-    expect(r.body.status).toBe('CHO_TBP_DUYET'); // báo trạng thái THẬT bên dưới nhãn
-  }, 90_000);
+    // `DA_XOA` không còn khớp điều kiện quét, nên vòng sau bỏ qua. Nếu điều kiện
+    // ấy hỏng thì mỗi 5 phút lại thêm một dòng nhật ký và một lá thư.
+    for (let i = 0; i < 3; i++) expect((await sla.scan()).discarded).toBe(0);
+
+    const events = (await pget(`/policies/${id}/events`, 'tdv01')).body as { action: string }[];
+    expect(events.filter((e) => e.action === 'SLA_DISCARDED')).toHaveLength(1);
+  }, 120_000);
+
+  it('báo cho người lập VÀ người phụ trách bước hồ sơ chết ở đó', async () => {
+    const id = await submitted();
+    clock.advanceDays(14);
+    await sla.scan();
+    await flush(1); // lá thư quá hạn
+    await mailpitClear();
+
+    clock.advanceDays(3);
+    expect((await sla.scan()).discarded).toBe(1);
+
+    const mails = await flush(1);
+    const m = mails.find((x) => x.Subject.includes('đã bị hệ thống xoá'));
+    expect(m, 'không có thư báo hồ sơ bị xoá').toBeDefined();
+    // TDV lập hồ sơ — công sức của họ vừa mất, và việc phải làm là lập lại.
+    // TBP — người đã để nó chết.
+    expect(m!.To.map((t) => t.Address).sort()).toEqual(['tbp01@csbh.test', 'tdv01@csbh.test']);
+  }, 120_000);
 });
 
 // =============================================================================
@@ -579,25 +704,49 @@ describe('NTF-07 trang chủ theo từng vai trò', () => {
     expect((await pget('/policies/inbox', 'admin01')).body.items).toEqual([]);
   }, 120_000);
 
-  it('hồ sơ quá hạn VẪN hiện, ở đúng ô của người đang phải xử lý', async () => {
+  it('`0047` hồ sơ SẮP quá hạn được đánh dấu; hồ sơ ĐÃ quá hạn rời hộp việc', async () => {
+    /*
+     * Đảo chiều so với bản trước, vốn khẳng định hồ sơ quá hạn VẪN hiện ở đúng ô
+     * của người phải xử lý — đúng khi họ còn xử lý được. Từ `0047` họ không xử
+     * lý được nữa, nên để nó lại là bày một dòng không bấm được gì.
+     *
+     * Thứ thay chỗ nó là cờ `sapQuaHan`: hồ sơ còn dưới 24 giờ, còn CỨU ĐƯỢC.
+     */
     const id = await submitted();
-    clock.advanceDays(14);
-    await sla.scan();
 
-    const items = (await pget('/policies/inbox?limit=200', 'tbp01')).body.items as {
+    /*
+     * Đặt THẲNG hạn vào CSDL, không đẩy đồng hồ tiêm.
+     *
+     * Cờ `sapQuaHan` tính bằng `now()` của Postgres — hộp việc là API người dùng
+     * gọi thật, không có đồng hồ nào tiêm được vào đó. Đẩy đồng hồ ứng dụng thì
+     * Postgres không hay biết gì và cờ vĩnh viễn bằng `false`. Đây đúng là cái
+     * bẫy ghi ở đầu `clock.ts`, và tôi đã dính nó một lượt.
+     */
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy SET sla_due_at = now() + interval '12 hours' WHERE id = $1`,
+        [id],
+      );
+    });
+
+    const sap = (await pget('/policies/inbox?limit=200', 'tbp01')).body.items as {
       id: string;
-      overdue: boolean;
-      pendingStep: string;
+      sapQuaHan: boolean;
+      status: string;
     }[];
-    const hit = items.find((x) => x.id === id);
-    expect(hit).toBeDefined();
-    expect(hit!.overdue).toBe(true);
-    expect(hit!.pendingStep).toBe('B4_TBP_DUYET');
+    const truoc = sap.find((x) => x.id === id);
+    expect(truoc, 'hồ sơ sắp quá hạn phải còn trong hộp việc').toBeDefined();
+    expect(truoc!.sapQuaHan).toBe(true);
+    expect(truoc!.status).toBe('CHO_TBP_DUYET');
 
-    // Và không lọt sang ô của kế toán.
-    const kt = (await pget('/policies/inbox?limit=200', 'kt01')).body.items as { id: string }[];
-    expect(kt.map((x) => x.id)).not.toContain(id);
-  }, 90_000);
+    // Quá hạn: chết, rời hộp việc của tất cả mọi người.
+    clock.advanceDays(14);
+    expect((await sla.scan()).overdue).toBe(1);
+    for (const who of ['tbp01', 'kt01', 'tdv01', 'sa01']) {
+      const items = (await pget('/policies/inbox?limit=200', who)).body.items as { id: string }[];
+      expect(items.map((x) => x.id), `${who} còn thấy hồ sơ đã chết`).not.toContain(id);
+    }
+  }, 120_000);
 
   it('không thấy hồ sơ ngoài phạm vi dữ liệu của mình', async () => {
     // Hồ sơ gửi cho tbp02, nên tbp01 không được thấy. Trước `0031` điều này suy

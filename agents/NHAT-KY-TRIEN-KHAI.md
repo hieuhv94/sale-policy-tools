@@ -5129,3 +5129,99 @@ Thư *"Hồ sơ đã quá hạn duyệt"* gửi **một lần duy nhất**, ở 
 (chậm nhất 5 phút). Đúng một lần vì gửi xong thì trạng thái chuyển `QUA_HAN_DUYET`, mà trạng thái này
 không nằm trong danh sách chờ nên vòng quét sau không nhặt lại. Người nhận: người phải xử lý ở bước
 đang tắc, TDV lập hồ sơ, và mọi người đã từng thao tác (thư *để biết*, liên kết mở nhật ký).
+
+---
+
+## P57 — Quá hạn duyệt thành trạng thái chết, tự xoá sau 3 ngày
+
+Ba yêu cầu, và yêu cầu đầu **đảo ngược YCNV mục 4 cùng tiêu chí NTF-11** — quyết định "hồ sơ quá hạn
+đi tiếp đúng nhánh cũ" đã nằm trong máy trạng thái từ đầu dự án. Khách hàng nêu ý này lần đầu ở vòng
+hỏi P55 (*"khi đã quá hạn coi như hồ sơ đó đã chết"*), tôi đã nói rõ nó trái với hệ đang chạy và tách
+ra thành một đợt riêng; giờ họ nêu lại thành yêu cầu, nên làm.
+
+### 1. Quá hạn là kết thúc
+
+- `TERMINAL` thêm `QUA_HAN_DUYET`. `allowedActionsFor` trả rỗng cho mọi vai trò — nút biến mất.
+- **Xoá `effectiveStatus()` và `resumeFromOverdue()`**, và để lại một khối chú thích ngay chỗ trống
+  ấy. Hai hàm đó trông rất hợp lý; người đọc mã sau này rất dễ viết lại chúng, mà viết lại là mở
+  đúng cái đường `0047` vừa đóng.
+- Chặn bằng lỗi RIÊNG `POLICY_OVERDUE` chứ không để rơi vào `INVALID_TRANSITION` chung. Câu chung là
+  *"hành động được phép: không có"* — đúng nhưng không nói vì sao, mà đây đúng lúc người dùng cần
+  biết nhất: hồ sơ sắp biến mất và việc phải làm là **lập bản mới**, không phải thử lại.
+- Hồ sơ quá hạn **rời hộp việc**. Hộp việc chỉ có nghĩa khi mọi dòng trong đó đều bấm được.
+- `pending_step` VẪN lưu, nhưng đổi vai trò: từ "đi tiếp nhánh nào" sang "chết ở bước nào" — thứ duy
+  nhất nói được ai đã để hồ sơ chết, và nó vào thư báo lẫn nhật ký.
+
+Tự xoá: cột `overdue_at` (`0047`) làm mốc đếm, vòng quét thứ hai trong sla-worker chuyển `DA_XOA`
+sau 3 ngày (`SLA_DISCARDED`, actor `SYSTEM`). "Xoá" **không xoá gì cả** — đúng nghĩa `0035` và
+`0039`: đổi trạng thái, ghi thêm một dòng nhật ký, mọi thứ khác còn nguyên.
+
+Số ngày để ở `SLA_DISCARD_DAYS` chứ không ở `pol.sla_config`: cột kia có màn hình cho Quản trị sửa
+(NTF-12), con số này chưa có, và một cột CSDL không ai sửa được qua giao diện chỉ tạo cảm giác sai
+rằng nó sửa được.
+
+### 2. Thư nhắc chỉ tới người phải thao tác
+
+Trước: `[chủ bước, TDV]` cộng người theo dõi. Giờ: **chỉ chủ bước**. Thư nhắc là cú huých tới người
+còn kịp làm gì đó; gửi rộng thì phần lớn người nhận không làm gì được với nó và học rất nhanh cách bỏ
+qua cả loại thư này — kể cả lá *đã quá hạn* sau đó, lá họ thật sự cần đọc.
+
+Thư **quá hạn** và thư **hệ thống đã xoá** vẫn gửi rộng: lúc ấy là tin phải báo, không còn là việc
+phải làm. Thư xoá tới TDV lập hồ sơ (công sức vừa mất, phải lập lại) và người phụ trách bước hồ sơ
+chết ở đó.
+
+### 3. Thẻ *Sắp quá hạn*
+
+Có ở cả năm vai trò nhìn thấy hồ sơ, **không** có ở Quản trị hệ thống — phạm vi dữ liệu của họ rỗng
+nên ô ấy vĩnh viễn bằng 0, mà một cảnh báo đỏ luôn bằng 0 dạy người ta bỏ qua mọi cảnh báo đỏ khác.
+
+Đếm hồ sơ ở **mọi bước** trong phạm vi, không riêng bước của vai trò đó — đúng chữ "tất cả người dùng
+liên quan". Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày qua; người gọi nhắc được
+là những người khác. Màu **đỏ**, không vàng: vàng là "có việc tồn", đỏ là "sắp mất".
+
+Con số suy từ tổng `soon` của `byStepDetail` chứ không thêm một khoá riêng trong báo cáo — hai con số
+suy từ cùng một phép đếm thì không có đường nào lệch nhau, mà thẻ và các ô bước nằm ngay cạnh nhau.
+
+**`byStepDetail` đổi chiều so với `0045`**, và ca kiểm thử cũ được giữ lại nguyên chỗ để đọc ra được
+cả hai lần đổi ý: `0045` đếm hồ sơ quá hạn VÀO thẻ của bước (khi ấy nó còn xử lý được, bỏ ra là làm
+hồ sơ trễ nhất biến mất); `0047` loại nó HẲN (giờ nó chết, đếm vào ô đếm việc là nói dối về lượng
+việc). Chỗ nó để lại là `soon`.
+
+Kèm theo: `BUOC_DANG_CHO` rút gọn còn `STEP_FROM_STATUS`, nên hồ sơ quá hạn tự rơi khỏi cả phép đếm
+lẫn bộ lọc theo bước — đếm và lọc phải cho ra cùng một tập, nếu không thẻ ghi 12 mà bấm vào ra 9 dòng.
+
+### Ba lần tôi tự làm hỏng
+
+**Backtick trong template literal.** Viết `(`0047`)` vào một chú thích SQL bên trong template literal
+— trình biên dịch đọc ra số bát phân. Đúng cái bẫy đã ghi trong CLAUDE.md, dính hai lần trong một
+đợt.
+
+**Đồng hồ tiêm không với tới Postgres.** Cờ `sapQuaHan` và tiêu chí `dueSoon` so với `now()` của
+Postgres, nên `clock.advanceDays(13)` không làm gì cả và ca kiểm thử đỏ với `expected false to be
+true`. Chính cái bẫy ghi ở đầu `clock.ts`. Sửa bằng cách đặt thẳng `sla_due_at` vào CSDL thay vì đẩy
+đồng hồ.
+
+**Ca kiểm thử quá chặt.** Tôi khẳng định mọi vai trò nhận 409 `POLICY_OVERDUE`; Kế toán và Sale Admin
+nhận **403** vì chưa được phân công vào hồ sơ đang ở bước TBP. Cũng là chặn, nhưng chặn ở lớp phạm vi
+và không nói gì về `0047` — sửa ca kiểm thử, không sửa mã.
+
+Và một cái bẫy của bộ test: `parkExistingPolicies` đẩy `sla_due_at` đi 10 năm nhưng **không** đẩy
+`overdue_at`, nên vòng quét tự xoá nuốt luôn 26 hồ sơ quá hạn tồn từ các lượt chạy trước — kéo theo
+26 lá thư làm sai lệch mọi phép đếm thư của cả file.
+
+### Món nợ ở P55 đã tới hạn
+
+Ba ca đỏ ở lượt chạy đầy đủ đều là phép rà lại danh mục hết giờ — đúng món nợ tôi đã báo cuối P55
+(*"phép rà vẫn là O(số hồ sơ) vòng mạng nối đuôi"*). Bộ test giờ có ~1400 hồ sơ đã đóng băng.
+
+Sửa bằng **chạy song song theo lô 8**. Mỗi hồ sơ là một đơn vị độc lập — khác khách hàng, khác
+transaction, khác sự kiện — nên chồng lên nhau được; 8 đủ lấp thời gian chờ mạng mà không mở 1400 kết
+nối rồi làm cạn pool của chính mình. Không cần endpoint mới, không đổi giao thức.
+
+### Kiểm chứng
+
+Thêm ca cho: không nước nào đi ra khỏi quá hạn với bất kỳ vai trò nào · dải nút rỗng · rời hộp việc ·
+chưa đủ 3 ngày thì không xoá · đủ 3 ngày thì xoá và **nhật ký cùng dòng sản phẩm còn nguyên** · quét
+lại không xoá lần hai · thư tới đúng hai người · hồ sơ quá hạn rơi khỏi mọi thẻ đếm nhưng vẫn tra ra
+được bằng bộ lọc trạng thái · thẻ *Sắp quá hạn* không đếm nhầm hồ sơ đã chết · con số trên thẻ khớp
+danh sách mở ra.

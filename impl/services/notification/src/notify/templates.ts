@@ -69,6 +69,7 @@ const TITLE: Record<string, string> = {
   PRODUCT_IMPACT: 'Sản phẩm trong CSBH đang hiệu lực không còn dùng được',
   SLA_REMINDER: 'Nhắc: hồ sơ sắp quá hạn duyệt',
   SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt',
+  SLA_DISCARDED: 'Hồ sơ quá hạn đã bị hệ thống xoá',
 };
 
 // `| undefined` viết ra tường minh: tsconfig bật exactOptionalPropertyTypes nên

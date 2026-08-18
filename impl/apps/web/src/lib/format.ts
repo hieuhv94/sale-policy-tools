@@ -132,6 +132,7 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
   SLA_OVERDUE: 'Quá hạn xử lý',
+  SLA_DISCARDED: 'Hệ thống xoá hồ sơ quá hạn quá 3 ngày',
   HANDOVER: 'Bàn giao do tài khoản bị vô hiệu hoá',
   CUSTOMER_RETIRED: 'Khách hàng bị xoá',
   DELETE: 'Người lập xoá hồ sơ',

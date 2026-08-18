@@ -17,7 +17,6 @@ import type { PoolClient } from 'pg';
 import {
   allowedActions,
   allowedActionsFor,
-  effectiveStatus,
   ForbiddenRoleError,
   InvalidTransitionError,
   ReasonRequiredError,
@@ -117,6 +116,7 @@ export class WorkflowService {
       supersedes_id: string | null;
       tbp_signed_at: Date | null;
       pending_step: Step | null;
+      overdue_at: Date | null;
     }>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!before) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.policies.assertPolicyInScope(before, me);
@@ -137,9 +137,30 @@ export class WorkflowService {
       });
     }
 
-    // Hồ sơ QUÁ HẠN vẫn đi tiếp đúng nhánh cũ: gỡ nhãn quá hạn ra, xét trạng
-    // thái thật nằm dưới nó theo `pending_step` (NTF-11).
-    const current = effectiveStatus(before.status, before.pending_step);
+    /*
+     * Hồ sơ QUÁ HẠN thì không ai thao tác được nữa (`0047`).
+     *
+     * Đảo ngược NTF-11: trước đây nhãn quá hạn được gỡ ra để hồ sơ đi tiếp đúng
+     * nhánh cũ. Từ `0047` nó là trạng thái chết, và sla-worker tự chuyển sang
+     * *Đã xoá* sau 3 ngày.
+     *
+     * Chặn bằng một lỗi RIÊNG chứ không để rơi vào `INVALID_TRANSITION` chung.
+     * Câu chung sẽ là "hành động được phép: không có" — đúng nhưng không nói
+     * được vì sao, mà đây lại đúng lúc người dùng cần biết vì sao nhất: hồ sơ
+     * sắp biến mất và việc phải làm là lập bản mới, không phải thử lại.
+     */
+    if (before.status === 'QUA_HAN_DUYET') {
+      throw new ConflictException({
+        code: 'POLICY_OVERDUE',
+        message:
+          'Hồ sơ đã quá hạn xử lý nên không thao tác được nữa. Hệ thống tự xoá nó sau 3 ngày ' +
+          'kể từ lúc quá hạn — hãy lập một hồ sơ mới cho khách hàng này.',
+        overdueAt: before.overdue_at ?? null,
+        pendingStep: before.pending_step ?? null,
+      });
+    }
+
+    const current = before.status;
 
     let step;
     try {

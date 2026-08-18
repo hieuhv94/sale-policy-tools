@@ -1,5 +1,6 @@
 /**
- * Vòng quét SLA: nhắc trước một ngày, và chuyển *Quá hạn duyệt* khi hết hạn.
+ * Vòng quét SLA: nhắc trước một ngày, chuyển *Quá hạn duyệt* khi hết hạn, rồi
+ * tự xoá hồ sơ quá hạn đã đủ 3 ngày (`0047`).
  *
  * Ba tính chất phải giữ, và mỗi cái hỏng theo một kiểu riêng:
  *
@@ -26,11 +27,20 @@ import Redis from 'ioredis';
 import { randomUUID } from 'node:crypto';
 import { REDIS_URL } from '@csbh/http-kit';
 import { Db, Clients } from '@csbh/policy/infra';
-import { STEP_OF_STATUS, WAITING, type Status } from '@csbh/domain-policy';
+import { STATUS_OF_STEP, STEP_OF_STATUS, WAITING, type Status, type Step } from '@csbh/domain-policy';
 import { Clock } from './clock.js';
 
 const LOCK_KEY = 'csbh:sla:scan';
 const LOCK_TTL_MS = 60_000;
+
+/**
+ * Bao lâu sau khi quá hạn thì hồ sơ tự chuyển *Đã xoá* (`0047`).
+ *
+ * Để ở biến môi trường chứ không ở `pol.sla_config` như số ngày SLA: cột kia có
+ * màn hình cho Quản trị sửa (NTF-12), còn con số này chưa có, và một cột CSDL
+ * không ai sửa được qua giao diện chỉ tạo cảm giác sai rằng nó sửa được.
+ */
+const DISCARD_DAYS = Number(process.env.SLA_DISCARD_DAYS ?? 3);
 
 /** Ai phải xử lý ở mỗi bước chờ — cũng chính là người nhận thư nhắc và thư quá hạn. */
 const OWNER_ROLE: Record<string, string> = {
@@ -59,6 +69,8 @@ export type ScanResult = {
   scanned: number;
   reminded: number;
   overdue: number;
+  /** Hồ sơ quá hạn đã đủ 3 ngày và vừa bị tự chuyển *Đã xoá* (`0047`). */
+  discarded: number;
 };
 
 @Injectable()
@@ -89,7 +101,7 @@ export class SlaService {
     const got = await this.redis.set(LOCK_KEY, token, 'PX', LOCK_TTL_MS, 'NX');
     if (got !== 'OK') {
       this.log.debug('bản khác đang quét, bỏ lượt này');
-      return { skipped: true, scanned: 0, reminded: 0, overdue: 0 };
+      return { skipped: true, scanned: 0, reminded: 0, overdue: 0, discarded: 0 };
     }
 
     try {
@@ -126,7 +138,7 @@ export class SlaService {
         reminded++;
       }
     }
-    return { scanned: rows.length, reminded, overdue };
+    return { scanned: rows.length, reminded, overdue, discarded: await this.discardOverdue(now) };
   }
 
   // --- Nhắc trước một ngày --------------------------------------------------
@@ -173,10 +185,14 @@ export class SlaService {
         `UPDATE pol.policy
             SET status = 'QUA_HAN_DUYET',
                 pending_step = $2::pol.policy_step,
+                -- Mốc đếm 3 ngày (0047). Lấy từ ĐỒNG HỒ TIÊM, không phải
+                -- now() của Postgres — bằng không test đẩy giờ không kiểm được
+                -- hạn xoá, y như chuyện đã xảy ra với hạn 14 ngày.
+                overdue_at = $5::timestamptz,
                 row_version = row_version + 1
           WHERE id = $1 AND row_version = $3 AND status::text = ANY($4::text[])
           RETURNING id`,
-        [p.id, step, p.row_version, [...WAITING]],
+        [p.id, step, p.row_version, [...WAITING], now.toISOString()],
       );
       if (upd.rowCount === 0) return false;
 
@@ -249,11 +265,121 @@ export class SlaService {
         action,
         toStatus: p.status,
         pendingStep: p.status,
-        recipients: [OWNER_ROLE[p.status] ?? 'TDV', 'TDV'],
+        /*
+         * CHỈ người phải thao tác, không phải mọi người liên quan (`0047`).
+         *
+         * Thư nhắc là một cú huých tới đúng người còn kịp làm gì đó. Gửi kèm
+         * TDV và những người đã đi qua hồ sơ thì ba phần tư số người nhận không
+         * làm gì được với nó, và học rất nhanh cách bỏ qua cả loại thư này —
+         * kể cả lá thư *đã quá hạn* sau đó, lá mà họ thật sự cần đọc.
+         *
+         * Thư QUÁ HẠN thì ngược lại, vẫn gửi rộng: lúc ấy là tin phải báo, không
+         * còn là việc phải làm.
+         */
+        recipients: [OWNER_ROLE[p.status] ?? 'TDV'],
         at: this.clock.now().toISOString(),
         extra,
       }),
     ]);
+  }
+
+  // --- Tự xoá hồ sơ quá hạn đã đủ 3 ngày (`0047`) ---------------------------
+
+  /**
+   * Hồ sơ quá hạn quá `DISCARD_DAYS` ngày thì chuyển *Đã xoá*.
+   *
+   * "Xoá" ở đây KHÔNG xoá dòng nào — đúng nghĩa như `0035` và `0039`: đổi trạng
+   * thái, ghi thêm một dòng nhật ký. Toàn bộ nội dung hồ sơ, mọi dòng sản phẩm,
+   * mọi mốc thời gian và cả chuỗi sự kiện đều còn nguyên, tra lại được mãi mãi.
+   * Cái mất đi chỉ là chỗ đứng của nó trên các màn hình đếm việc.
+   *
+   * Có THƯ BÁO, và đó không phải việc thêm ngoài yêu cầu: `0036` đã chốt rằng
+   * mọi lần đổi trạng thái đều báo cho những người đã đi qua hồ sơ. Đây là lần
+   * đổi trạng thái cuối cùng của nó, và là lần duy nhất mà người lập cần biết
+   * ngay — công sức của họ vừa mất, việc phải làm là lập lại từ đầu.
+   */
+  private async discardOverdue(now: Date): Promise<number> {
+    const han = new Date(now.getTime() - DISCARD_DAYS * 24 * 60 * 60 * 1000);
+
+    // Đọc trước, đổi sau — mỗi hồ sơ một transaction riêng. Gộp cả lô vào một
+    // câu UPDATE thì nhanh hơn, nhưng một hồ sơ hỏng sẽ kéo đổ cả lô, và vòng
+    // quét sau lại thử lại đúng cả lô ấy.
+    const rows = await this.db.q<WaitingRow & { pending_step: string | null }>(
+      `SELECT id, code, status, customer_id, tdv_user_id,
+              tbp_user_id, ke_toan_user_id, sale_admin_user_id,
+              sla_due_at, row_version, pending_step::text AS pending_step
+         FROM pol.policy
+        WHERE status = 'QUA_HAN_DUYET'
+          AND overdue_at IS NOT NULL
+          AND overdue_at <= $1::timestamptz`,
+      [han.toISOString()],
+    );
+
+    let n = 0;
+    for (const p of rows) {
+      if (await this.discardOne(p, now)) n++;
+    }
+    return n;
+  }
+
+  private async discardOne(
+    p: WaitingRow & { pending_step: string | null },
+    now: Date,
+  ): Promise<boolean> {
+    return this.db.tx(async (c) => {
+      const upd = await c.query<{ id: string }>(
+        `UPDATE pol.policy
+            SET status = 'DA_XOA', row_version = row_version + 1
+          WHERE id = $1 AND row_version = $2 AND status = 'QUA_HAN_DUYET'
+          RETURNING id`,
+        [p.id, p.row_version],
+      );
+      if (upd.rowCount === 0) return false;
+
+      await c.query(
+        `INSERT INTO pol.policy_event (policy_id, seq, from_status, to_status, action, actor_role)
+         VALUES ($1, (SELECT coalesce(max(seq), 0) + 1 FROM pol.policy_event WHERE policy_id = $1),
+                 'QUA_HAN_DUYET', 'DA_XOA', 'SLA_DISCARDED', 'SYSTEM')`,
+        [p.id],
+      );
+
+      const cus = await this.clients.customer(p.customer_id).catch(() => undefined);
+      const daDong = await c.query<{ actor_id: string }>(
+        `SELECT DISTINCT actor_id FROM pol.policy_event
+          WHERE policy_id = $1 AND actor_id IS NOT NULL`,
+        [p.id],
+      );
+
+      // Người phụ trách bước hồ sơ chết ở đó, cộng người lập. Suy từ
+      // `pending_step` chứ không từ `status` — status giờ là `QUA_HAN_DUYET`,
+      // nó không nói được ai đã để hồ sơ này chết.
+      const bucKet = p.pending_step ? STATUS_OF_STEP[p.pending_step as Step] : undefined;
+      const chuBuoc = bucKet ? OWNER_ROLE[bucKet] : undefined;
+
+      await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
+        'policy.sla_discarded',
+        JSON.stringify({
+          policyId: p.id,
+          policyCode: p.code,
+          customerId: p.customer_id,
+          customerCode: cus?.code,
+          customerName: cus?.name,
+          tdvUserId: p.tdv_user_id,
+          tbpUserId: p.tbp_user_id,
+          keToanUserId: p.ke_toan_user_id,
+          saleAdminUserId: p.sale_admin_user_id,
+          action: 'SLA_DISCARDED',
+          fromStatus: 'QUA_HAN_DUYET',
+          toStatus: 'DA_XOA',
+          pendingStep: bucKet ?? null,
+          recipients: [...new Set(['TDV', ...(chuBuoc ? [chuBuoc] : [])])],
+          observers: daDong.rows.map((x) => x.actor_id),
+          at: now.toISOString(),
+          extra: { 'Số ngày quá hạn': String(DISCARD_DAYS) },
+        }),
+      ]);
+      return true;
+    });
   }
 
   // --- Dọn dữ liệu hết vòng đời ---------------------------------------------

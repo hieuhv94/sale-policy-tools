@@ -10,7 +10,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
-import { build, BUOC_DANG_CHO, STEP_FROM_STATUS, type Filter } from './filter.js';
+import { build, BUOC_DANG_CHO, SAP_QUA_HAN, type Filter } from './filter.js';
 
 /**
  * Khoá thẻ trên trang tổng quan — bốn bước chờ, riêng B8 tách làm hai (`0045`).
@@ -158,25 +158,27 @@ export class ReportsService {
     const byStep = await this.db.q<{ k: string; n: string }>(
       `SELECT ${BUOC_DANG_CHO} AS k, count(*)::text AS n
          FROM rpt.policy_row
-        WHERE ${where} AND (pending_step IS NOT NULL OR ${STEP_FROM_STATUS} IS NOT NULL)
+        WHERE ${where} AND ${BUOC_DANG_CHO} IS NOT NULL
         GROUP BY 1 ORDER BY count(*) DESC`,
       params,
     );
     /*
      * Cùng phép nhóm, thêm hai thứ trang tổng quan cần mà `byPendingStep` không
-     * nói được: B8 tách đôi, và trong mỗi ô có bao nhiêu hồ sơ đã quá hạn.
+     * nói được: B8 tách đôi, và trong mỗi ô có bao nhiêu hồ sơ SẮP quá hạn.
      *
-     * Con số quá hạn đi KÈM ô của bước chứ không đứng thành ô riêng: hồ sơ quá
-     * hạn vẫn đang nằm trên bàn của đúng người ấy và vẫn xử lý được bình thường
-     * (`effectiveStatus`, muc 4). Tách nó ra một thẻ riêng thì thẻ "Chờ TBP
-     * duyệt" đọc ra ít việc hơn thực tế; bỏ hẳn nó đi thì hồ sơ trễ nhất không
-     * còn xuất hiện ở đâu cả.
+     * LOẠI HẲN hồ sơ đã quá hạn (`0047`) — đổi chiều so với `0045`. Hồi ấy quá
+     * hạn chỉ là cái nhãn và người phụ trách vẫn duyệt được, nên đếm nó vào thẻ
+     * của bước là đúng. Giờ nó là trạng thái chết: đếm vào thẻ việc là bảo người
+     * ta còn 12 việc phải làm trong khi 3 trong số đó không bấm được gì.
+     *
+     * Chỗ trống nó để lại là `soon` — hồ sơ CÒN KỊP CỨU, dưới 24 giờ. Đó mới là
+     * con số đáng đứng cạnh một ô đếm việc.
      */
     const byStepDetail = await this.db.q<{ k: string; n: string; qh: string }>(
       `SELECT ${KHOA_THE} AS k, count(*)::text AS n,
-              count(*) FILTER (WHERE status = 'QUA_HAN_DUYET')::text AS qh
+              count(*) FILTER (WHERE ${SAP_QUA_HAN})::text AS qh
          FROM rpt.policy_row
-        WHERE ${where} AND (pending_step IS NOT NULL OR ${STEP_FROM_STATUS} IS NOT NULL)
+        WHERE ${where} AND ${BUOC_DANG_CHO} IS NOT NULL
         GROUP BY 1`,
       params,
     );
@@ -192,7 +194,7 @@ export class ReportsService {
       byStatus: Object.fromEntries(byStatus.map((r) => [r.k, Number(r.n)])),
       byPendingStep: Object.fromEntries(byStep.map((r) => [r.k, Number(r.n)])),
       byStepDetail: Object.fromEntries(
-        byStepDetail.map((r) => [r.k, { total: Number(r.n), overdue: Number(r.qh) }]),
+        byStepDetail.map((r) => [r.k, { total: Number(r.n), soon: Number(r.qh) }]),
       ),
       byHandler: byTdv.map((r) => ({ userId: r.k, name: r.name, count: Number(r.n) })),
     };

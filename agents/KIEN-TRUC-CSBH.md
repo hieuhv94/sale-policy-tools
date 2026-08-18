@@ -70,7 +70,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 | §7 | Đóng băng giá khi gửi duyệt | Snapshot giá bán Công ty và ngưỡng CK vào từng dòng hồ sơ tại thời điểm gửi duyệt. Không join sang catalog khi hiển thị hồ sơ đã gửi. |
 | §10 | Nhật ký chỉ ghi thêm, chặn ở tầng CSDL | Bảng `audit_log` thuộc role riêng: `REVOKE UPDATE, DELETE` + trigger `RAISE EXCEPTION`. Service ứng dụng chỉ có quyền INSERT. |
 | §10 | Mốc thời gian là cột riêng trên hồ sơ | SLA và báo cáo truy vấn thẳng các cột `*_at`/`*_by`. Nhật ký chỉ dùng truy vết — sập audit-service không làm sai báo cáo. |
-| §9.1 | SLA 14 ngày, tính cả cuối tuần, nhắc trước 1 ngày | Không cần thư viện lịch làm việc. Một worker cron quét cột `sla_due_at`; trạng thái `QUA_HAN_DUYET` lưu kèm `pending_step` để đi tiếp đúng nhánh cũ. |
+| §9.1 | SLA 14 ngày, tính cả cuối tuần, nhắc trước 1 ngày | Không cần thư viện lịch làm việc. Một worker cron quét cột `sla_due_at`; `QUA_HAN_DUYET` lưu kèm `pending_step` để nói hồ sơ chết ở bước nào, và `overdue_at` để đếm 3 ngày trước khi tự xoá (`0047`). |
 | §12 | Giai đoạn 2 nhập CSBH cũ từ Excel | Cột `source` (`NORMAL`/`LEGACY`) và `import_batch_id` có mặt *từ ngày đầu*; mọi cột mốc thời gian và người duyệt phải nullable. Báo cáo SLA loại trừ `LEGACY`. |
 
 > **Bẫy dễ làm sai**
@@ -141,7 +141,7 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 | notification | Email theo bảng bước §3, gộp một luồng cho mỗi khách hàng, nhắc SLA, DLQ | `ntf.*` | Phụ thuộc SMTP bên ngoài, hay lỗi và cần retry lâu. Không được để việc gửi thư làm hỏng transaction duyệt hồ sơ. |
 | reporting | Read-model phẳng phục vụ 14 tiêu chí lọc, báo cáo tiến độ, xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
 | audit | Nhật ký chỉ ghi thêm, giá trị trước/sau, báo cáo nhật ký người dùng | `aud.*` | Cần chế độ quyền CSDL khác hẳn phần còn lại (chỉ INSERT). Tách schema là cách duy nhất cưỡng chế được điều đó. |
-| sla-worker | Cron 5 phút: quét hạn 14 ngày, gửi nhắc ngày thứ 13, chuyển `QUA_HAN_DUYET`, rà CSBH bị ảnh hưởng khi đổi giá | dùng `pol.*` (chung mã nguồn với policy) | Là tiến trình nền, cần scale và restart độc lập với API. Dùng chung code với policy nên không phát sinh chi phí đồng bộ mô hình. |
+| sla-worker | Cron 5 phút: quét hạn 14 ngày, gửi nhắc trước 24 giờ, chuyển `QUA_HAN_DUYET`, tự xoá hồ sơ quá hạn quá 3 ngày (`0047`), rà CSBH bị ảnh hưởng khi đổi giá | dùng `pol.*` (chung mã nguồn với policy) | Là tiến trình nền, cần scale và restart độc lập với API. Dùng chung code với policy nên không phát sinh chi phí đồng bộ mô hình. |
 
 ### API chính theo service
 
@@ -1177,8 +1177,10 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | NTF-07 | Mở trang chủ bằng từng vai trò | Chỉ hiện danh sách CSBH đang chờ chính người đăng nhập xử lý | §9.1 | `P0` |
 | NTF-08 | Hồ sơ nằm ở trạng thái chờ, đẩy đồng hồ tới ngày thứ 14 (có cả cuối tuần) | Chuyển *Quá hạn duyệt* — SLA tính cả thứ bảy và chủ nhật | §9.1 | `P0` |
 | NTF-09 | Đẩy đồng hồ tới ngày thứ 13, rồi quét từng giờ suốt 24 giờ cuối | Gửi đúng **một** email nhắc trước một ngày — không lặp mỗi lần cron chạy, và **không lặp khi cửa sổ nhắc vắt qua nửa đêm** `0046` | §9.1 | `P0` |
-| NTF-10 | Hồ sơ chuyển *Quá hạn duyệt* | Lưu kèm `pending_step` — bước đang chờ khi quá hạn | §4 | `P0` |
-| NTF-11 | Người phụ trách xử lý sau khi hồ sơ đã quá hạn | Hồ sơ đi tiếp **đúng nhánh cũ** dựa vào bước đã lưu, không quay về đầu | §4 | `P0` |
+| NTF-10 | Hồ sơ chuyển *Quá hạn duyệt* | Lưu kèm `pending_step` — bước hồ sơ chết ở đó. Dùng cho thư báo và nhật ký, **không còn** để định tuyến `0047` | §4 | `P0` |
+| NTF-11 | Người phụ trách thao tác lên hồ sơ đã quá hạn | **409 `POLICY_OVERDUE`** — quá hạn là trạng thái kết thúc `0047`, không ai thao tác được. ĐẢO NGƯỢC tiêu chí cũ ("đi tiếp đúng nhánh cũ") | §4 | `P0` |
+| NTF-16 | Hồ sơ ở *Quá hạn duyệt* đủ 3 ngày | sla-worker tự chuyển *Đã xóa*, giữ nguyên nhật ký, báo TDV lập hồ sơ và người phụ trách bước ấy `0047` | §4 §9.1 | `P0` |
+| NTF-17 | Còn dưới 24 giờ là tới hạn | Thẻ *Sắp quá hạn* trên trang tổng quan của **mọi** vai trò nhìn thấy hồ sơ, mọi bước `0047` | §9.1 | `P1` |
 | NTF-12 | Quản trị đổi cấu hình SLA từ 14 ngày sang N ngày | Hồ sơ đang chờ được tính lại hạn theo quy tắc đã công bố, có ghi nhật ký | §2.7 | `P1` |
 | NTF-13 | Đổi giá sản phẩm nằm trong CSBH đang hiệu lực | Email tới đúng TDV phụ trách; hồ sơ đã ký **không** bị ghi đè | §7 | `P0` |
 | NTF-13b | Đổi **quy định chiết khấu** áp cho CSBH đang hiệu lực | Email tới đúng TDV, tiêu đề nói về NGƯỠNG; hồ sơ đã ký không bị ghi đè (`0029`) | §7.2 | `P0` |

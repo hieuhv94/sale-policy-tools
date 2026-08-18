@@ -278,7 +278,7 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 | `Hết hiệu lực` | Bị thay bởi một CSBH mới của cùng khách hàng | — |
 | `Yêu cầu chỉnh sửa` | Bị trả lại, chờ TDV sửa | — |
 | `Từ chối` | Trưởng bộ phận từ chối — **trạng thái kết thúc**, hồ sơ bị bỏ | — |
-| `Quá hạn duyệt` | Quá 14 ngày ở một trạng thái chờ | — |
+| `Quá hạn duyệt` | Quá 14 ngày ở một trạng thái chờ. **Trạng thái kết thúc** `sửa 18/08` — không ai thao tác được nữa, và sau **3 ngày** hệ thống tự chuyển sang `Đã xóa` | — |
 | `Đã xóa` | Người lập bỏ hẳn một hồ sơ bị trả lại — **trạng thái kết thúc** | — |
 
 **Quy tắc**
@@ -305,8 +305,20 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
   một lần bàn giao. Vai trò khác không xóa được gì, kể cả Quản trị hệ thống.
 - Hồ sơ ở `Đã xóa` cũng **không ai xóa được** và không hành động nào đi ra được, giống `Từ chối`.
   Nó không chặn việc xóa khách hàng và không được bàn giao khi một tài khoản bị vô hiệu hóa.
-- `Quá hạn duyệt` áp dụng chung cho mọi trạng thái chờ. Bản ghi phải lưu kèm **bước đang chờ**
-  để khi người phụ trách xử lý muộn thì hồ sơ đi tiếp đúng nhánh cũ.
+- `Quá hạn duyệt` áp dụng chung cho mọi trạng thái chờ. **Là trạng thái KẾT THÚC** `sửa 18/08`:
+  không vai trò nào thao tác được lên hồ sơ nữa, và sau **3 ngày** hệ thống tự chuyển nó sang
+  `Đã xóa` — vẫn giữ nguyên toàn bộ nhật ký, y như mọi đường vào `Đã xóa` khác. Muốn tiếp tục thì
+  lập một CSBH mới cho khách hàng đó.
+
+  > **Đảo ngược quyết định cũ.** Bản trước chốt rằng bản ghi lưu kèm **bước đang chờ** để "khi người
+  > phụ trách xử lý muộn thì hồ sơ đi tiếp đúng nhánh cũ" — tiêu chí `NTF-11`. Từ 18/08 không còn
+  > việc xử lý muộn. Bước đang chờ **vẫn lưu**, nhưng để trả lời "hồ sơ chết ở bước nào": nó vào thư
+  > báo và vào nhật ký, không còn dùng để định tuyến.
+
+- **Thư nhắc trước 24 giờ chỉ gửi cho người phải thao tác** `sửa 18/08`, không gửi cho mọi người
+  liên quan. Đó là một cú huých tới người còn kịp làm gì đó; gửi rộng thì phần lớn người nhận không
+  làm gì được với nó và sẽ học cách bỏ qua cả loại thư này. Thư **đã quá hạn** và thư **hệ thống đã
+  xóa** thì ngược lại, vẫn gửi rộng: lúc ấy là tin phải báo, không còn là việc phải làm.
 - Không có nghiệp vụ **thu hồi**. Muốn thay đổi thì lập CSBH mới.
 - **Mỗi lần đổi trạng thái báo cho MỌI người đã tác động lên hồ sơ**, không chỉ người phải xử lý bước
   hiện tại. Hai nhóm nhận hai lá thư khác nhau: người phải xử lý nhận liên kết mở **hồ sơ**, người
@@ -697,8 +709,15 @@ phải một cách in khác của hồ sơ.
 - **Gộp một luồng email cho mỗi khách hàng.** Vì mỗi khách hàng chỉ có một CSBH còn hiệu lực nên
   gộp theo khách hàng hay theo CSBH là như nhau.
 - **Trang chủ** vẫn hiển thị danh sách CSBH đang chờ chính người đang đăng nhập xử lý.
-- SLA: 14 ngày cho mọi trạng thái chờ, **tính cả cuối tuần**. **Đúng một** email nhắc trước một ngày `sửa 18/08`. Quá hạn thì
-  hồ sơ chuyển sang trạng thái `Quá hạn duyệt`.
+- SLA: 14 ngày cho mọi trạng thái chờ, **tính cả cuối tuần**.
+- **Đúng một** email nhắc trước 24 giờ `sửa 18/08`, và **chỉ gửi cho người phải thao tác**.
+- Quá hạn thì hồ sơ chuyển `Quá hạn duyệt` — **trạng thái kết thúc** — và có email báo cho người phụ
+  trách bước ấy, TDV lập hồ sơ, cùng mọi người đã tác động lên hồ sơ.
+- Sau **3 ngày** ở `Quá hạn duyệt`, hệ thống **tự chuyển sang `Đã xóa`** và báo cho TDV lập hồ sơ
+  cùng người phụ trách bước hồ sơ chết ở đó `sửa 18/08`.
+- **Trang tổng quan có thẻ *Sắp quá hạn*** cho mọi vai trò nhìn thấy hồ sơ `sửa 18/08`: hồ sơ còn
+  dưới 24 giờ là tới hạn, ở **bất kỳ bước nào** trong phạm vi người đang xem — không riêng bước của
+  chính họ. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày qua.
 
 ### 9.2. Bộ lọc và báo cáo
 

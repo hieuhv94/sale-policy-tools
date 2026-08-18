@@ -21,9 +21,11 @@ export type TienDo = {
    *
    * Khác `byPendingStep` ở hai điểm, và cả hai đều cần: B8 tách làm hai theo
    * việc Sale Admin đang làm bản cứng lần đầu hay làm lại, và mỗi ô kèm số hồ sơ
-   * đã quá hạn để thẻ nói được "12, trong đó 3 quá hạn".
+   * SẮP quá hạn để thẻ nói được "12, trong đó 3 sắp quá hạn".
+   *
+   * Hồ sơ ĐÃ quá hạn không có mặt ở đây (`0047`) — nó là trạng thái chết.
    */
-  byStepDetail?: Record<string, { total: number; overdue: number } | undefined>;
+  byStepDetail?: Record<string, { total: number; soon: number } | undefined>;
   byHandler: { userId: string; name: string | null; count: number }[];
 };
 

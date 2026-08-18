@@ -38,7 +38,19 @@ export type Filter = {
   productGroupCode?: string | undefined;
   pendingStep?: string | undefined;
   reprint?: string | undefined;
+  dueSoon?: string | undefined;
 };
+
+/**
+ * "Sắp quá hạn" — còn dưới 24 giờ là tới hạn, và CHƯA quá hạn (`0047`).
+ *
+ * Vế thứ hai không thừa: từ `0047` hồ sơ quá hạn mang `QUA_HAN_DUYET` và
+ * `sla_due_at` của nó vẫn nằm đó, đã trôi qua. Thiếu vế ấy thì thẻ *Sắp quá hạn*
+ * đếm luôn cả hồ sơ đã chết — đúng những hồ sơ mà thẻ này sinh ra để ngăn.
+ */
+export const SAP_QUA_HAN = `(status <> 'QUA_HAN_DUYET'
+    AND sla_due_at IS NOT NULL
+    AND sla_due_at <= now() + interval '1 day')`;
 
 /**
  * Bước đang chờ suy từ trạng thái — dạng SQL.
@@ -55,14 +67,18 @@ export const STEP_FROM_STATUS = `CASE status
   END`;
 
 /**
- * Bước đang chờ THẬT SỰ của một hồ sơ, quá hạn hay không.
+ * Bước mà hồ sơ ĐANG CHỜ — và chỉ hồ sơ còn sống mới có bước (`0047`).
  *
- * `pending_step` chỉ có giá trị khi hồ sơ đã quá hạn — nó sinh ra để hồ sơ quá
- * hạn còn biết đường đi tiếp đúng nhánh cũ (muc 4). Hồ sơ chờ bình thường thì
- * bước suy từ trạng thái. Lọc chỉ theo `status` là bỏ sót đúng những hồ sơ trễ
- * nhất, vì `QUA_HAN_DUYET` ĐÈ LÊN trạng thái cũ chứ không đứng cạnh nó.
+ * Từng là `coalesce(pending_step, …)` để hồ sơ quá hạn vẫn tính vào bước cũ của
+ * nó, hồi quá hạn còn là lớp phủ và người phụ trách vẫn duyệt được. Từ `0047`
+ * quá hạn là chết, nên nó KHÔNG còn là "đang chờ" ở đâu cả: `STEP_FROM_STATUS`
+ * trả `NULL` cho `QUA_HAN_DUYET`, và thế là nó tự rơi ra khỏi mọi phép đếm lẫn
+ * mọi bộ lọc theo bước.
+ *
+ * Giữ tên và giữ MỘT định nghĩa dùng chung là chuyện sống còn ở đây: đếm và lọc
+ * phải cho ra cùng một tập, nếu không thẻ ghi 12 mà bấm vào ra 9 dòng.
  */
-export const BUOC_DANG_CHO = `coalesce(pending_step, ${STEP_FROM_STATUS})`;
+export const BUOC_DANG_CHO = STEP_FROM_STATUS;
 
 /** Tên tham số nhận từ query string, theo đúng thứ tự 11 tiêu chí ở muc 9.2. */
 export const FILTER_KEYS = [
@@ -90,7 +106,7 @@ export const FILTER_KEYS = [
  * nhận 0 hoặc 1. Chúng chỉ sinh ra khi bấm một thẻ trên trang tổng quan, và bộ
  * lọc vẫn phải hiểu để danh sách mở ra khớp con số vừa bấm.
  */
-export const KHOA_TU_LIEN_KET = ['pendingStep', 'reprint'] as const;
+export const KHOA_TU_LIEN_KET = ['pendingStep', 'reprint', 'dueSoon'] as const;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -126,6 +142,7 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
   if (out['reprint'] && out['reprint'] !== '0' && out['reprint'] !== '1') {
     throw bad('reprint', 'chỉ nhận 0 hoặc 1');
   }
+  if (out['dueSoon'] && out['dueSoon'] !== '1') throw bad('dueSoon', 'chỉ nhận 1');
   return out as Filter;
 }
 
@@ -219,6 +236,9 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
   //     `0` = trình ký lần đầu. Chỉ có nghĩa khi đi kèm tiêu chí 12.
   if (f.reprint === '1') cond.push('reprint_requested_at IS NOT NULL');
   if (f.reprint === '0') cond.push('reprint_requested_at IS NULL');
+
+  // 14. Sắp quá hạn (`0047`) — đường dẫn của thẻ cùng tên trên trang tổng quan.
+  if (f.dueSoon === '1') cond.push(SAP_QUA_HAN);
 
   return { where: cond.join(' AND '), params };
 }

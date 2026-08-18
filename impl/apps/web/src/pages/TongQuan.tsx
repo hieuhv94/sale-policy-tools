@@ -204,14 +204,12 @@ export function TongQuan() {
 /**
  * Bước đang chờ của một mục trong hộp việc.
  *
- * Đọc `status` khi hồ sơ chưa quá hạn, và đọc `pendingStep` khi đã quá hạn —
- * lúc đó `status` là `QUA_HAN_DUYET` và bước cũ được giữ riêng để hồ sơ đi tiếp
- * đúng nhánh (muc 4). Chỉ nhìn `status` thì mọi hồ sơ quá hạn của Kế toán rơi ra
- * ngoài cả hai danh sách và biến mất khỏi màn hình.
+ * Chỉ còn đọc `status` (`0047`). Bản trước phải gỡ nhãn `QUA_HAN_DUYET` ra để
+ * hồ sơ quá hạn của Kế toán không rơi khỏi cả hai danh sách; giờ hộp việc không
+ * chứa hồ sơ quá hạn nữa, vì không ai thao tác được lên chúng.
  */
 function buoc(v: MucViec): string {
-  if (v.status !== 'QUA_HAN_DUYET') return v.status;
-  return v.pendingStep === 'B6_KT_L1' ? 'CHO_KT_L1' : 'CHO_KT_L2';
+  return v.status;
 }
 
 const gio = (d: Date): string =>

@@ -24,12 +24,16 @@ import {
   mauThe,
   nhanThe,
   THE_THEO_VAI_TRO,
+  type OBuoc,
   type The,
 } from '@csbh/web/tong-quan';
 
 /** Trạng thái mà thẻ này đếm, hoặc `null` nếu nó đếm theo bước. */
 const trangThaiCua = (t: The): string | null =>
   t.dem.tu === 'trangThai' ? t.dem.trangThai : null;
+
+/** Các ô bước mà thẻ này cộng vào. Rỗng với thẻ trạng thái và thẻ *Sắp quá hạn*. */
+const oCua = (t: The): OBuoc[] => (t.dem.tu === 'buoc' ? t.dem.o : []);
 
 describe('hai bảng tra phủ đủ sáu vai trò', () => {
   it('không vai trò nào thiếu khoá trong `THE_THEO_VAI_TRO`', () => {
@@ -64,10 +68,16 @@ describe('hai bảng tra phủ đủ sáu vai trò', () => {
  * trông có lý. Đổi bảng mà không đổi cả dòng ở đây là chưa hỏi lại khách hàng.
  */
 const DA_CHOT: Partial<Record<VaiTro, string[]>> = {
-  TDV: ['Yêu cầu chỉnh sửa', 'Nháp', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
-  TBP: ['Chờ TBP duyệt', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
-  KE_TOAN: ['KT duyệt bản mềm', 'KT duyệt bản cứng', 'Đang chờ', 'Đang có hiệu lực'],
-  SALE_ADMIN: ['Trình ký', 'Lỗi bản cứng', 'Đang chờ', 'Đang có hiệu lực'],
+  TDV: ['Yêu cầu chỉnh sửa', 'Nháp', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
+  TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
+  KE_TOAN: [
+    'KT duyệt bản mềm',
+    'KT duyệt bản cứng',
+    'Sắp quá hạn',
+    'Đang chờ',
+    'Đang có hiệu lực',
+  ],
+  SALE_ADMIN: ['Trình ký', 'Lỗi bản cứng', 'Sắp quá hạn', 'Đang chờ', 'Đang có hiệu lực'],
 };
 
 describe('dải thẻ đúng bản đã chốt với khách hàng', () => {
@@ -110,7 +120,7 @@ describe('mã trạng thái và mã bước phải có thật', () => {
         if (t.dem.tu === 'trangThai') {
           expect(NHAN_TRANG_THAI[t.dem.trangThai], `${v}: trạng thái lạ`).toBeDefined();
         } else {
-          for (const o of t.dem.o) expect(MOI_O_BUOC, `${v}: ô bước lạ "${o}"`).toContain(o);
+          for (const o of oCua(t)) expect(MOI_O_BUOC, `${v}: ô bước lạ "${o}"`).toContain(o);
         }
       }
     }
@@ -136,6 +146,52 @@ describe('mã trạng thái và mã bước phải có thật', () => {
     for (const v of VAI_TRO) {
       const ma = THE_THEO_VAI_TRO[v].map((t) => t.ma);
       expect(new Set(ma).size, `${v} có thẻ trùng`).toBe(ma.length);
+    }
+  });
+});
+
+describe('`0047` thẻ Sắp quá hạn', () => {
+  const CO_HO_SO: VaiTro[] = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
+
+  it('có ở mọi vai trò nhìn thấy hồ sơ', () => {
+    for (const v of CO_HO_SO) {
+      expect(
+        THE_THEO_VAI_TRO[v].map((t) => t.ma),
+        `${v} thiếu thẻ Sắp quá hạn`,
+      ).toContain('SAP_QUA_HAN');
+    }
+  });
+
+  it('KHÔNG có ở Quản trị hệ thống, vì họ không thấy hồ sơ nào', () => {
+    // `idn.scope_user_ids` trả rỗng cho vai trò này, nên ô ấy vĩnh viễn bằng 0.
+    // Một cảnh báo đỏ luôn bằng 0 dạy người ta bỏ qua mọi cảnh báo đỏ khác.
+    expect(THE_THEO_VAI_TRO.QUAN_TRI).toEqual([]);
+  });
+
+  it('màu ĐỎ, không phải vàng', () => {
+    // Vàng là "có việc tồn"; đỏ là "sắp mất". Sau 24 giờ nữa hồ sơ chết hẳn, và
+    // 3 ngày sau hệ thống xoá — đây là ô duy nhất trên trang báo một thứ sắp mất.
+    for (const v of CO_HO_SO) {
+      const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'SAP_QUA_HAN')!;
+      expect(mauThe(the), v).toBe('loi');
+    }
+  });
+
+  it('bấm vào lọc theo `dueSoon`, không theo bước nào', () => {
+    // Nó cộng hồ sơ ở MỌI bước — người liên quan nào cũng thấy, kể cả khi hồ sơ
+    // đang nằm ở bàn người khác. Kèm `pendingStep` vào là cắt mất phần lớn.
+    for (const v of CO_HO_SO) {
+      const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'SAP_QUA_HAN')!;
+      expect(duongThe(the)).toBe('/ho-so?dueSoon=1');
+    }
+  });
+
+  it('không vai trò nào còn thẻ cho trạng thái Quá hạn duyệt', () => {
+    // `0047`: quá hạn là trạng thái CHẾT — không thao tác được, 3 ngày sau bị
+    // xoá. Bày nó thành một ô đếm việc là mời người ta bấm vào một thứ đã hỏng.
+    for (const v of CO_HO_SO) {
+      if (v === 'BAN_LANH_DAO') continue; // vai trò giám sát, thấy đủ 12 trạng thái
+      expect(THE_THEO_VAI_TRO[v].map(trangThaiCua)).not.toContain('QUA_HAN_DUYET');
     }
   });
 });
@@ -208,9 +264,10 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
           if (chu !== null && chu !== v) viPham.push(`${v} có thẻ "${t.ma}" vốn là việc của ${chu}`);
           continue;
         }
-        // Thẻ gộp "Đang chờ" là ngoại lệ CÓ CHỦ Ý: nó tồn tại để nói "phần còn
-        // lại đang ở bàn người khác", nên đương nhiên toàn bước của người khác.
-        if (t.ma === 'DANG_CHO') continue;
+        // Hai thẻ là ngoại lệ CÓ CHỦ Ý, và vì cùng một lẽ: chúng nói về hồ sơ
+        // của người khác. "Đang chờ" nói phần còn lại đang ở bàn ai; "Sắp quá
+        // hạn" nói hồ sơ nào sắp chết, ở bất kỳ bàn nào (`0047`).
+        if (t.ma === 'DANG_CHO' || t.dem.tu === 'sapQuaHan') continue;
         for (const o of t.dem.o) {
           if (BUOC_CUA[o] !== v) viPham.push(`${v} có thẻ bước "${o}" vốn là việc của ${BUOC_CUA[o]}`);
         }
@@ -226,7 +283,7 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
     for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'DANG_CHO');
       expect(the, `${v} thiếu thẻ Đang chờ`).toBeDefined();
-      const o = the!.dem.tu === 'buoc' ? the!.dem.o : [];
+      const o = oCua(the!);
       expect(o.length, `${v}: thẻ Đang chờ rỗng`).toBeGreaterThan(0);
       for (const b of o) expect(BUOC_CUA[b], `${v} tự đếm bước của mình`).not.toBe(v);
     }
@@ -237,15 +294,14 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
     // nào ở màn hình để đối chiếu.
     for (const v of Object.keys(DA_CHOT) as VaiTro[]) {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'DANG_CHO')!;
-      const o = the.dem.tu === 'buoc' ? [...the.dem.o].sort() : [];
+      const o = [...oCua(the)].sort();
       expect(o).toEqual(MOI_O_BUOC.filter((b) => BUOC_CUA[b] !== v).sort());
     }
   });
 
   it('Ban lãnh đạo thì ngược lại — thấy đủ cả 12 trạng thái', () => {
-    expect(THE_THEO_VAI_TRO.BAN_LANH_DAO.map(trangThaiCua).sort()).toEqual(
-      [...MOI_TRANG_THAI].sort(),
-    );
+    const t = THE_THEO_VAI_TRO.BAN_LANH_DAO.map(trangThaiCua).filter((x) => x !== null);
+    expect([...t].sort()).toEqual([...MOI_TRANG_THAI].sort());
   });
 
   it('Quản trị hệ thống KHÔNG có thẻ hồ sơ nào', () => {
@@ -260,7 +316,9 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
       const cuaMinh = THE_THEO_VAI_TRO[v].filter((t) =>
         t.dem.tu === 'trangThai'
           ? BAN_CUA[t.dem.trangThai] === v
-          : t.ma !== 'DANG_CHO' && t.dem.o.every((o) => BUOC_CUA[o] === v),
+          : t.ma !== 'DANG_CHO' &&
+            t.dem.tu === 'buoc' &&
+            t.dem.o.every((o) => BUOC_CUA[o] === v),
       );
       expect(cuaMinh.length, `${v} chỉ có thẻ kết thúc, không có việc nào của mình`).toBeGreaterThan(
         0,

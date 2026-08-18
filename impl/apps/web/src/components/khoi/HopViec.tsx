@@ -18,7 +18,14 @@ export type MucViec = {
   status: string;
   pendingStep: string | null;
   slaDueAt: string | null;
-  overdue: boolean;
+  /**
+   * Còn dưới 24 giờ là tới hạn (`0047`).
+   *
+   * Trước đó cột này tên `overdue` và nghĩa là ĐÃ quá hạn. Hồ sơ quá hạn giờ
+   * không nằm trong hộp việc nữa — không ai thao tác được nữa — nên thứ đáng tô
+   * đỏ ở đây là hồ sơ còn kịp cứu, không phải hồ sơ đã chết.
+   */
+  sapQuaHan: boolean;
 };
 
 export function DanhSachViec({
@@ -37,12 +44,12 @@ export function DanhSachViec({
   return (
     <ul className="danh-sach-viec">
       {muc.map((m) => (
-        <li key={m.id} className={m.overdue ? 'viec qua-han' : 'viec'}>
+        <li key={m.id} className={m.sapQuaHan ? 'viec qua-han' : 'viec'}>
           <Lien den={`/ho-so/${m.id}`} className="viec-lien">
             <span className="viec-ma">{m.code}</span>
             <Nhan trangThai={m.status} />
             <span className="viec-han">
-              {m.overdue ? 'Quá hạn từ ' : 'Hạn xử lý '}
+              {m.sapQuaHan ? 'Sắp quá hạn — ' : 'Hạn xử lý '}
               {ngay(m.slaDueAt)}
             </span>
           </Lien>

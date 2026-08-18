@@ -128,7 +128,17 @@ export type The = {
   nhan?: string;
   /** Dòng chữ nhỏ dưới con số. Bỏ trống thì thẻ chỉ có nhãn và số. */
   phu?: string;
-  dem: { tu: 'trangThai'; trangThai: TrangThai } | { tu: 'buoc'; o: OBuoc[] };
+  dem:
+    | { tu: 'trangThai'; trangThai: TrangThai }
+    | { tu: 'buoc'; o: OBuoc[] }
+    /**
+     * Sắp quá hạn: mọi hồ sơ trong phạm vi còn dưới 24 giờ là tới hạn (`0047`).
+     *
+     * KHÔNG giới hạn ở bước của chính vai trò — đó là cả điểm của nó. Hồ sơ sắp
+     * chết ở bàn Kế toán vẫn phải hiện với TDV đã lập nó và với TBP đã ký nó:
+     * họ không bấm được nút nào, nhưng họ gọi điện được cho người đang giữ.
+     */
+    | { tu: 'sapQuaHan' };
 };
 
 const theTrangThai = (t: TrangThai, phu?: string): The => ({
@@ -142,6 +152,21 @@ const theBuoc = (ma: string, nhan: string, o: OBuoc[], phu?: string): The => ({
   nhan,
   ...(phu === undefined ? {} : { phu }),
   dem: { tu: 'buoc', o },
+});
+
+/**
+ * Thẻ *Sắp quá hạn* — có ở MỌI vai trò nhìn thấy hồ sơ (`0047`).
+ *
+ * Từ `0047` quá hạn là chết: không ai thao tác được, và 3 ngày sau hệ thống tự
+ * xoá. Nên 24 giờ cuối là cơ hội cuối, và nó phải hiện với tất cả những người
+ * liên quan chứ không riêng người đang giữ hồ sơ — người đang giữ chính là người
+ * đã không xử lý suốt 13 ngày qua.
+ */
+const theSapQuaHan = (): The => ({
+  ma: 'SAP_QUA_HAN',
+  nhan: 'Sắp quá hạn',
+  phu: 'còn dưới 24 giờ',
+  dem: { tu: 'sapQuaHan' },
 });
 
 /**
@@ -187,12 +212,14 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
   TDV: [
     theTrangThai('YEU_CAU_CHINH_SUA', 'bị trả lại, chờ bạn sửa'),
     theTrangThai('NHAP', 'chưa gửi duyệt'),
+    theSapQuaHan(),
     theDangCho('TDV'),
     theTrangThai('DANG_CO_HIEU_LUC'),
     theTrangThai('TU_CHOI'),
   ],
   TBP: [
     theBuoc('B4_TBP_DUYET', 'Chờ TBP duyệt', ['B4_TBP_DUYET'], 'đang chờ bạn ký số'),
+    theSapQuaHan(),
     theDangCho('TBP'),
     theTrangThai('DANG_CO_HIEU_LUC'),
     theTrangThai('TU_CHOI'),
@@ -200,16 +227,18 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
   KE_TOAN: [
     theBuoc('B6_KT_L1', 'KT duyệt bản mềm', ['B6_KT_L1'], 'tiếp nhận lần 1'),
     theBuoc('B10_KT_L2', 'KT duyệt bản cứng', ['B10_KT_L2'], 'tiếp nhận lần 2'),
+    theSapQuaHan(),
     theDangCho('KE_TOAN'),
     theTrangThai('DANG_CO_HIEU_LUC'),
   ],
   SALE_ADMIN: [
     theBuoc('B8_TRINH_KY', 'Trình ký', ['B8_TRINH_KY'], 'in, trình ký, scan'),
     theBuoc('B8_LOI_BAN_CUNG', 'Lỗi bản cứng', ['B8_LOI_BAN_CUNG'], 'kế toán bắt in lại'),
+    theSapQuaHan(),
     theDangCho('SALE_ADMIN'),
     theTrangThai('DANG_CO_HIEU_LUC'),
   ],
-  BAN_LANH_DAO: MOI_TRANG_THAI.map((t) => theTrangThai(t)),
+  BAN_LANH_DAO: [theSapQuaHan(), ...MOI_TRANG_THAI.map((t) => theTrangThai(t))],
   QUAN_TRI: [],
 };
 
@@ -229,6 +258,9 @@ export const nhanThe = (the: The): string =>
  */
 export function mauThe(the: The): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' {
   if (the.dem.tu === 'trangThai') return nhomTrangThai(the.dem.trangThai);
+  // Đỏ, không vàng: sau 24 giờ nữa hồ sơ chết hẳn và 3 ngày sau biến mất. Đây là
+  // ô duy nhất trên trang báo một thứ SẮP MẤT, chứ không phải một việc tồn đọng.
+  if (the.dem.tu === 'sapQuaHan') return 'loi';
   if (the.ma === 'DANG_CHO') return 'thuong';
   return the.ma === 'B8_LOI_BAN_CUNG' ? 'canh-bao' : 'cho';
 }
@@ -243,6 +275,7 @@ export function mauThe(the: The): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' 
  */
 export function duongThe(the: The): string {
   if (the.dem.tu === 'trangThai') return `/ho-so?status=${the.dem.trangThai}`;
+  if (the.dem.tu === 'sapQuaHan') return '/ho-so?dueSoon=1';
 
   const buoc = [...new Set(the.dem.o.map((o) => BUOC_THAT[o]))];
   const q = `pendingStep=${buoc.join(',')}`;

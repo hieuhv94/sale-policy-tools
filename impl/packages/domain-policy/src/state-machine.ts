@@ -79,8 +79,16 @@ const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
  * `DELETE /policies/:id`, không phải một hành động trong dải nút *Thao tác*.
  * Thêm luật ở đây sẽ làm `allowedActions('YEU_CAU_CHINH_SUA')` mọc thêm một
  * nút xoá đứng ngay cạnh "Gửi lại duyệt".
+ *
+ * `QUA_HAN_DUYET` vào đây từ `0047`, và đó là một ĐẢO CHIỀU: trước đó nó là lớp
+ * phủ tạm thời, người phụ trách xử lý muộn thì hồ sơ đi tiếp đúng nhánh cũ
+ * (YCNV mục 4, NTF-11). Khách hàng đổi ý ngày 18/08 — quá hạn là chết, và sau 3
+ * ngày sla-worker tự chuyển sang `DA_XOA`.
+ *
+ * "Kết thúc" ở đây nghĩa là **không người nào thao tác được nữa**. Hệ thống vẫn
+ * đi tiếp một nước cuối, y như `DANG_CO_HIEU_LUC` vẫn tự sang `HET_HIEU_LUC`.
  */
-export const TERMINAL: readonly Status[] = ['TU_CHOI', 'DA_XOA'];
+export const TERMINAL: readonly Status[] = ['TU_CHOI', 'DA_XOA', 'QUA_HAN_DUYET'];
 
 /** Bốn trạng thái chờ có SLA 14 ngày (§9.1). */
 export const WAITING: readonly Status[] = [
@@ -108,20 +116,20 @@ export const STATUS_OF_STEP: Record<Step, Status> = {
   B10_KT_L2:     'CHO_KT_L2',
 };
 
-/**
- * Trạng thái DÙNG ĐỂ XÉT chuyển bước.
+/*
+ * `effectiveStatus()` ĐÃ BỊ XOÁ ở `0047`, và chỗ trống này để lại có chủ ý.
  *
- * `QUA_HAN_DUYET` là một cái NHÃN chồng lên hồ sơ, không phải một chặng mới
- * trong luồng: nó nói "đã quá 14 ngày", không nói "đang chờ ai". Bước đang chờ
- * nằm ở `pending_step`, và người phụ trách xử lý sau khi quá hạn thì hồ sơ đi
- * tiếp ĐÚNG NHÁNH CŨ chứ không quay về đầu (§4, NTF-11).
+ * Hàm ấy gỡ nhãn `QUA_HAN_DUYET` ra để lấy trạng thái chờ nằm dưới, cho phép
+ * người phụ trách xử lý muộn và hồ sơ đi tiếp đúng nhánh cũ. Từ `0047` quá hạn
+ * là trạng thái chết: không gỡ nhãn nữa, không ai thao tác nữa.
  *
- * Vì vậy máy trạng thái không có luật nào đi ra từ `QUA_HAN_DUYET` — thêm luật
- * cho nó sẽ nhân đôi mọi luật hiện có, mỗi luật một bản "bình thường" và một bản
- * "quá hạn". Thay vào đó, gỡ nhãn ra rồi xét trạng thái thật bên dưới.
+ * Ghi lại đây thay vì xoá im lặng, vì hàm cũ trông rất hợp lý và người đọc mã
+ * sau này rất dễ viết lại nó. Viết lại là mở lại đúng cái đường mà `0047` đóng.
+ * `resumeFromOverdue()` bị xoá cùng lý do.
+ *
+ * `STATUS_OF_STEP` thì GIỮ: `pending_step` vẫn phải đọc ra được tên bước để nói
+ * "hồ sơ chết ở đâu" trong thư báo và trong nhật ký.
  */
-export const effectiveStatus = (status: Status, pendingStep: Step | null | undefined): Status =>
-  status === 'QUA_HAN_DUYET' && pendingStep ? STATUS_OF_STEP[pendingStep] : status;
 
 export class InvalidTransitionError extends Error {
   readonly code = 'INVALID_TRANSITION';
@@ -239,5 +247,3 @@ export function markOverdue(current: Status): { next: Status; pendingStep: Statu
   return { next: 'QUA_HAN_DUYET', pendingStep: current };
 }
 
-/** Người phụ trách xử lý muộn: hồ sơ quay về đúng nhánh cũ chứ không về đầu (§4). */
-export const resumeFromOverdue = (pendingStep: Status): Status => pendingStep;

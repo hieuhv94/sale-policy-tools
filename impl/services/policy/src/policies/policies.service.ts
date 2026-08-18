@@ -57,6 +57,9 @@ type PolicyRow = {
   sale_admin_user_id: string | null;
   row_version: number;
   last_reason: string | null;
+  /** Lúc bị đánh dấu quá hạn — mốc đếm 3 ngày trước khi tự xoá (`0047`). */
+  overdue_at: Date | null;
+  pending_step: string | null;
 };
 
 export const SUPPLEMENT_MESSAGE =
@@ -888,8 +891,16 @@ export class PoliciesService {
    *   - **Đúng phạm vi:** hồ sơ nằm trong cây tổ chức của người đó. Kế toán này
    *     không thấy hồ sơ của TDV thuộc kế toán khác.
    *
-   * Hồ sơ QUÁ HẠN vẫn hiện, và hiện ở đúng ô của người đang chờ xử lý — đó là
-   * lý do `pending_step` phải lưu lại chứ không chỉ đổi trạng thái (§4).
+   * Hồ sơ QUÁ HẠN KHÔNG còn hiện ở đây (`0047`).
+   *
+   * Trước đó nó hiện ở đúng ô của người đang chờ xử lý, vì họ vẫn xử lý được.
+   * Từ `0047` không ai thao tác được nữa, nên để nó nằm trong hộp việc là bày ra
+   * một dòng không bấm được gì — và hộp việc chỉ có nghĩa khi mọi dòng trong đó
+   * đều là việc làm được hôm nay.
+   *
+   * Nó vẫn tra ra được ở màn hình Hồ sơ bằng bộ lọc trạng thái, và thư báo quá
+   * hạn đã tới tay đủ người. Đây là chỗ nó rời khỏi luồng việc, không phải chỗ
+   * nó biến mất.
    */
   async inbox(me: AuthUser, page: Page) {
     const ids = await this.scope.userIdsFor(me);
@@ -916,15 +927,16 @@ export class PoliciesService {
       `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
               status::text AS status, pending_step::text AS "pendingStep",
               sla_due_at AS "slaDueAt",
-              (status = 'QUA_HAN_DUYET') AS overdue,
+              -- Còn ở đây thì chưa quá hạn (xem trên); cột này giờ nói "SẮP quá
+              -- hạn" — dưới 24 giờ — để hộp việc tô được dòng gấp (0047).
+              (sla_due_at IS NOT NULL AND sla_due_at <= now() + interval '1 day') AS "sapQuaHan",
               count(*) OVER() AS total_count
          FROM pol.policy
         WHERE ${cot} = ANY($1::uuid[])
-          AND (status::text = ANY($2::text[])
-               OR (status = 'QUA_HAN_DUYET' AND pending_step::text = ANY($3::text[])))
+          AND status::text = ANY($2::text[])
         ORDER BY sla_due_at NULLS LAST, created_at, id
-        LIMIT $4 OFFSET $5`,
-      [ids, mine, mine.map((st) => STEP_OF_STATUS[st as Status] ?? ''), page.limit, page.offset],
+        LIMIT $3 OFFSET $4`,
+      [ids, mine, page.limit, page.offset],
     );
     return paged(rows, page);
   }

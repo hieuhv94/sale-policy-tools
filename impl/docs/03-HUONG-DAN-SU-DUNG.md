@@ -137,10 +137,10 @@ lọc sẵn đúng bằng con số vừa bấm.
 
 | Vai trò | Thẻ bạn thấy |
 |---|---|
-| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · Đang chờ · Đang có hiệu lực · Từ chối |
-| **Trưởng bộ phận** | Chờ TBP duyệt · Đang chờ · Đang có hiệu lực · Từ chối |
-| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · Đang chờ · Đang có hiệu lực |
-| **Sale Admin** | Trình ký · Lỗi bản cứng · Đang chờ · Đang có hiệu lực |
+| **Trình dược viên** | Yêu cầu chỉnh sửa · Nháp · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực |
+| **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Ban lãnh đạo** | **Cả 12 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
@@ -158,9 +158,15 @@ bắt bạn đọc bốn ô của bốn người khác.
 | **Trình ký** | Kế toán vừa nhận bản mềm. In, trình Ban lãnh đạo ký, nhận lại, scan, tải lên (bước B8). |
 | **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ đã bị xoá khỏi hệ thống — phải làm lại từ đầu. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
 
-**Hồ sơ quá hạn không có thẻ riêng.** Quá 14 ngày chờ **không** làm hồ sơ chết — nó vẫn nằm ở đúng
-bước cũ và vẫn duyệt được bình thường, chỉ là đã trễ. Nên nó được đếm trong chính thẻ của bước đang
-tắc, kèm một dòng đỏ *"trong đó N quá hạn"* ngay dưới con số.
+**Thẻ *Sắp quá hạn*** đếm hồ sơ còn dưới 24 giờ là tới hạn, **ở bất kỳ bước nào** trong phạm vi của
+bạn — không riêng bước bạn phụ trách. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày
+qua, nên ai liên quan cũng cần thấy để còn gọi nhắc. Ô tô **đỏ** vì đây là thứ sắp mất hẳn, không
+phải một việc tồn đọng. Các ô đếm việc khác có thêm dòng *"trong đó N sắp quá hạn"* để biết chỗ nào
+đang gấp.
+
+**Hồ sơ ĐÃ quá hạn không có thẻ nào.** Nó là trạng thái kết thúc — không bấm được gì và sắp bị xoá —
+nên để nó trong một ô đếm việc là nói sai về lượng việc còn phải làm. Tra nó bằng bộ lọc trạng thái ở
+màn hình Hồ sơ.
 
 ### Yêu cầu cập nhật
 
@@ -515,18 +521,27 @@ làm, và lý do nếu bước đó có.
 
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật.
 
-| Lúc nào | Việc gì |
-|---|---|
-| Còn **24 giờ** tới hạn | Gửi **đúng một** thư *"Nhắc: hồ sơ sắp quá hạn duyệt"* |
-| Hết hạn | Gửi thư *"Hồ sơ đã quá hạn duyệt"*, **một lần duy nhất**, rồi hồ sơ chuyển *Quá hạn duyệt* |
+| Lúc nào | Việc gì | Thư tới ai |
+|---|---|---|
+| Còn **24 giờ** tới hạn | **Đúng một** thư *"Nhắc: hồ sơ sắp quá hạn duyệt"*, và hồ sơ vào thẻ **Sắp quá hạn** | **Chỉ người phải thao tác** |
+| Hết hạn | Thư *"Hồ sơ đã quá hạn duyệt"*, rồi hồ sơ chuyển *Quá hạn duyệt* | Người phụ trách bước ấy · TDV lập hồ sơ · mọi người đã tác động |
+| **3 ngày sau đó** | Thư *"Hồ sơ quá hạn đã bị hệ thống xoá"*, hồ sơ chuyển *Đã xoá* | TDV lập hồ sơ · người phụ trách bước hồ sơ chết ở đó |
 
-Hệ thống quét **5 phút một lần**, nên thư đi trong vòng tối đa 5 phút kể từ mốc trên. Cả hai lá đều
-tới **người phải xử lý ở bước đang tắc** và **TDV lập hồ sơ**; những người đã từng thao tác lên hồ sơ
-nhận thêm một lá *để biết*, có liên kết mở nhật ký hồ sơ.
+Hệ thống quét **5 phút một lần**, nên thư đi trong vòng tối đa 5 phút kể từ mốc trên.
 
-*Quá hạn duyệt* **không** làm hồ sơ chết: nó vẫn nằm ở đúng bước cũ và vẫn duyệt / trả lại / từ chối
-bình thường, **đi tiếp đúng nhánh cũ**. Chỉ bốn trạng thái chờ mới có hạn — hồ sơ ở *Nháp* hay *Yêu
-cầu chỉnh sửa* nằm trên bàn TDV nên không bao giờ quá hạn.
+> ### Quá hạn là hết — hồ sơ không cứu được nữa
+>
+> Từ khi hồ sơ chuyển *Quá hạn duyệt*, **không ai thao tác được lên nó nữa**, kể cả đúng người ở
+> đúng bước. Bấm bất kỳ nút nào cũng nhận thông báo *"Hồ sơ đã quá hạn xử lý"*. Việc phải làm là
+> **lập một CSBH mới** cho khách hàng đó.
+>
+> Ba ngày sau, hệ thống tự chuyển nó sang *Đã xoá*. **Nội dung và nhật ký còn nguyên** — tra lại
+> được mãi mãi bằng bộ lọc trạng thái ở màn hình Hồ sơ — nhưng nó rời khỏi mọi thẻ đếm việc.
+>
+> Vì vậy **24 giờ cuối là cơ hội cuối**, và đó là lý do có thẻ *Sắp quá hạn*.
+
+Chỉ bốn trạng thái chờ mới có hạn — hồ sơ ở *Nháp* hay *Yêu cầu chỉnh sửa* nằm trên bàn TDV nên không
+bao giờ quá hạn.
 
 Mỗi lần hồ sơ sang bước chờ mới thì **đồng hồ chạy lại từ đầu**, và lần chờ mới có thư nhắc riêng của
 nó — kể cả khi nó bắt đầu ngay trong ngày hồ sơ vừa bị trả lại.

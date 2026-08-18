@@ -1142,43 +1142,101 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(r.body.field).toBe('reprint');
   });
 
-  it('hồ sơ QUÁ HẠN vẫn nằm trong thẻ của bước nó đang tắc', async () => {
+  it('`0047` hồ sơ QUÁ HẠN rơi khỏi MỌI thẻ đếm việc', async () => {
     /*
-     * Đây là ca kiểm quan trọng nhất của đợt.
+     * ĐẢO CHIỀU so với `0045`, và cố ý giữ lại ca này để đọc ra được cả hai lần
+     * đổi ý.
      *
-     * Khách hàng bỏ thẻ "Quá hạn duyệt" khỏi cả bốn vai trò trong luồng. Nhưng
-     * `QUA_HAN_DUYET` ĐÈ LÊN trạng thái cũ chứ không đứng cạnh nó, nên nếu thẻ
-     * "Chờ TBP duyệt" đếm theo `status` thì bỏ thẻ kia đi là làm hồ sơ trễ nhất
-     * biến mất hẳn khỏi màn hình — trong khi nó vẫn đang chờ đúng người ấy xử lý
-     * và vẫn xử lý được bình thường (muc 4, `effectiveStatus`).
+     * `0045`: quá hạn chỉ là cái nhãn, người phụ trách vẫn duyệt được, nên thẻ
+     * của bước phải đếm nó — bỏ ra là làm hồ sơ trễ nhất biến mất khỏi màn hình
+     * của người duy nhất xử lý được chúng.
+     *
+     * `0047`: quá hạn là chết, không ai thao tác được, 3 ngày sau hệ thống xoá.
+     * Giờ đếm nó vào một ô đếm VIỆC là nói dối về lượng việc — bảo người ta còn
+     * 12 việc trong khi 3 trong số đó không bấm được gì.
      */
     const d = await draft();
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     await flushSync([d.id]);
 
+    const truoc = ((await rget('/reports/progress', 'tbp01')).body.byStepDetail
+      ?.B4_TBP_DUYET?.total ?? 0) as number;
+
     await withAdminDb(async (c) => {
       await c.query(
         `UPDATE pol.policy
             SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET',
-                row_version = row_version + 1
+                overdue_at = now(), row_version = row_version + 1
           WHERE id = $1`,
         [d.id],
       );
     });
     await sync.refreshPolicy(d.id);
 
-    const r = await rget('/reports/progress', 'tbp01');
-    const o = r.body.byStepDetail as Record<string, { total: number; overdue: number }>;
-    expect(o.B4_TBP_DUYET?.overdue ?? 0, 'không đếm được hồ sơ quá hạn').toBeGreaterThan(0);
+    const sau = ((await rget('/reports/progress', 'tbp01')).body.byStepDetail
+      ?.B4_TBP_DUYET?.total ?? 0) as number;
+    expect(sau, 'hồ sơ chết vẫn bị đếm là việc phải làm').toBe(truoc - 1);
 
+    // Và bộ lọc theo bước cũng không thấy nó — đếm và lọc phải cùng một tập.
     const theoBuoc = (await rget('/reports/policies?pendingStep=B4_TBP_DUYET&limit=200', 'tbp01'))
       .body.items.map((x: { policyId: string }) => x.policyId);
-    expect(theoBuoc, 'lọc theo bước phải thấy hồ sơ quá hạn').toContain(d.id);
+    expect(theoBuoc).not.toContain(d.id);
 
-    // Và đây là cách cũ sẽ hỏng: lọc theo trạng thái KHÔNG thấy nó.
-    const theoTrangThai = (await rget('/reports/policies?status=CHO_TBP_DUYET&limit=200', 'tbp01'))
+    // Nó vẫn TRA RA ĐƯỢC bằng bộ lọc trạng thái. Đây là chỗ nó rời khỏi luồng
+    // việc, không phải chỗ nó biến mất khỏi phần mềm.
+    const theoTrangThai = (await rget('/reports/policies?status=QUA_HAN_DUYET&limit=200', 'tbp01'))
       .body.items.map((x: { policyId: string }) => x.policyId);
-    expect(theoTrangThai).not.toContain(d.id);
+    expect(theoTrangThai).toContain(d.id);
+  });
+
+  it('`0047` thẻ Sắp quá hạn đếm hồ sơ còn dưới 24 giờ, và chỉ hồ sơ còn sống', async () => {
+    const sapChet = await draft();
+    expect((await act(sapChet.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const daChet = await draft();
+    expect((await act(daChet.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([sapChet.id, daChet.id]);
+
+    /*
+     * Đặt thẳng vào CSDL: `SAP_QUA_HAN` so với `now()` của Postgres, nên không
+     * có đồng hồ nào tiêm được. Hồ sơ thứ hai đã quá hạn nhưng `sla_due_at` của
+     * nó VẪN nằm đó, đã trôi qua — nó là cái bẫy mà vế `status <> 'QUA_HAN_DUYET'`
+     * trong `SAP_QUA_HAN` sinh ra để đỡ.
+     */
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy SET sla_due_at = now() + interval '6 hours' WHERE id = $1`,
+        [sapChet.id],
+      );
+      await c.query(
+        `UPDATE pol.policy
+            SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET',
+                sla_due_at = now() - interval '1 hour', overdue_at = now(),
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [daChet.id],
+      );
+    });
+    await sync.refreshPolicy(sapChet.id);
+    await sync.refreshPolicy(daChet.id);
+
+    const ds = await rget('/reports/policies?dueSoon=1&limit=200', 'tbp01');
+    const ids = ds.body.items.map((x: { policyId: string }) => x.policyId);
+    expect(ids, 'hồ sơ sắp quá hạn không vào thẻ').toContain(sapChet.id);
+    expect(ids, 'hồ sơ ĐÃ chết lọt vào thẻ Sắp quá hạn').not.toContain(daChet.id);
+
+    // Con số trên thẻ = tổng `soon` của mọi bước, và phải khớp danh sách.
+    const o = (await rget('/reports/progress', 'tbp01')).body.byStepDetail as Record<
+      string,
+      { total: number; soon: number }
+    >;
+    const tong = Object.values(o).reduce((a, x) => a + x.soon, 0);
+    expect(tong).toBe(ids.length);
+  });
+
+  it('`dueSoon` nhận giá trị lạ thì 400', async () => {
+    const r = await rget('/reports/policies?dueSoon=0', 'tbp01');
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('dueSoon');
   });
 
   it('con số trên thẻ bằng đúng số dòng danh sách mở ra', async () => {
