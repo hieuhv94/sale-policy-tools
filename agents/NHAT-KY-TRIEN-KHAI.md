@@ -5723,3 +5723,22 @@ chỉ trả lại đúng thứ vừa viết chứ không kiểm được gì.
 
 *"Danh mục hiện tại"* → **"Đã cập nhật"**. Ngắn hơn hẳn, và cặp *Trên hồ sơ · Đã cập nhật* đọc thành
 một cặp đối nhau rõ ràng hơn *Trên hồ sơ · Danh mục hiện tại*.
+
+---
+
+## P68 — Cột đầu của bảng chênh lệch hết dính mép
+
+`0054` đặt `padding-left: 0` cho cột đầu của `.bang-lech`, để chữ trong bảng thẳng hàng với đoạn văn
+ngay trên nó. Lúc ấy bảng nằm trên một mảng nền vàng phẳng nên trông tạm được.
+
+`0056` đổi khối lưu ý thành thẻ có viền và vạch màu bên trái — và chữ cột đầu dính sát vào mép trong
+của thẻ, hụt hẳn một khoảng thở so với mọi bảng khác trong sản phẩm. Một quyết định đúng ở bối cảnh
+cũ thành sai ở bối cảnh mới, mà không có gì báo.
+
+Gỡ luật ấy đi: cột đầu nhận đệm như mọi cột khác. Thẳng hàng với đoạn văn không đáng đổi lấy chuyện
+đó — một bảng là một khối riêng, mắt đọc nó theo lưới của chính nó chứ không nối tiếp dòng văn phía
+trên.
+
+Nhân tiện tôi đã nới cả đệm DỌC từ `--k1` lên `--k2` rồi trả lại: khách hàng báo chật theo chiều
+ngang, còn `--k1` là con số chọn có chủ ý ở `0054` (bảng lồng trong khối, gọn hơn bảng thường). Sửa
+kèm một thứ không ai hỏi là cách làm một lượt sửa nhỏ trở thành thứ phải xem lại.

@@ -525,7 +525,17 @@ textarea.o-nhap { min-height: 6rem; }
    trụi. Không lỗi nào nổi lên, chỉ một bảng trông khác bảng kia. */
 .bang-lech { font-size: var(--chu-nho); }
 .bang-lech th, .bang-lech td { padding: var(--k1) var(--k3); }
-.bang-lech th:first-child, .bang-lech td:first-child { padding-left: 0; }
+/*
+ * Cột đầu KHÔNG bị bỏ đệm trái (`0058`).
+ *
+ * `0054` đặt `padding-left: 0` cho cột đầu để chữ trong bảng thẳng hàng với đoạn
+ * văn ngay trên nó. Lúc ấy bảng nằm trên một mảng nền vàng phẳng nên trông tạm
+ * được; từ `0056` nó nằm trong một thẻ có viền và vạch màu, và chữ dính sát vào
+ * mép trong của thẻ — hụt hẳn một khoảng thở so với mọi bảng khác trong sản phẩm.
+ *
+ * Thẳng hàng với đoạn văn không đáng đổi lấy chuyện đó: một bảng là một khối
+ * riêng, mắt đọc nó theo lưới của chính nó chứ không nối tiếp dòng văn phía trên.
+ */
 /* Hai cột giá trị đọc theo chiều dọc để so nhanh — cùng lý do với mọi cột số
    khác trong sản phẩm. */
 .bang-lech .so { font-family: var(--so-deu-cot); }
