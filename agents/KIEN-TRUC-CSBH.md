@@ -1176,7 +1176,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | NTF-06 | Consumer nhận lại cùng một sự kiện | Không gửi email trùng — chặn bằng khóa idempotency theo `event_id` | §9.1 | `P0` |
 | NTF-07 | Mở trang chủ bằng từng vai trò | Chỉ hiện danh sách CSBH đang chờ chính người đăng nhập xử lý | §9.1 | `P0` |
 | NTF-08 | Hồ sơ nằm ở trạng thái chờ, đẩy đồng hồ tới ngày thứ 14 (có cả cuối tuần) | Chuyển *Quá hạn duyệt* — SLA tính cả thứ bảy và chủ nhật | §9.1 | `P0` |
-| NTF-09 | Đẩy đồng hồ tới ngày thứ 13 | Gửi đúng một email nhắc trước một ngày, không gửi lặp mỗi lần cron chạy | §9.1 | `P0` |
+| NTF-09 | Đẩy đồng hồ tới ngày thứ 13, rồi quét từng giờ suốt 24 giờ cuối | Gửi đúng **một** email nhắc trước một ngày — không lặp mỗi lần cron chạy, và **không lặp khi cửa sổ nhắc vắt qua nửa đêm** `0046` | §9.1 | `P0` |
 | NTF-10 | Hồ sơ chuyển *Quá hạn duyệt* | Lưu kèm `pending_step` — bước đang chờ khi quá hạn | §4 | `P0` |
 | NTF-11 | Người phụ trách xử lý sau khi hồ sơ đã quá hạn | Hồ sơ đi tiếp **đúng nhánh cũ** dựa vào bước đã lưu, không quay về đầu | §4 | `P0` |
 | NTF-12 | Quản trị đổi cấu hình SLA từ 14 ngày sang N ngày | Hồ sơ đang chờ được tính lại hạn theo quy tắc đã công bố, có ghi nhật ký | §2.7 | `P1` |
@@ -1188,7 +1188,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | POL-22 | Mở lại hồ sơ Nháp sau khi danh mục đổi | Giá và ngưỡng là số MỚI; giá bán buôn và CPBH **không đổi**; `row_version` **không đổi** (`0029`) | §7.2 | `P0` |
 | POL-23 | Gửi duyệt hồ sơ có dòng không làm mới được | 422 `STALE_LINE` kèm danh sách mã sản phẩm. Mở hồ sơ thì vẫn xem được (`0029`) | §7.2 | `P0` |
 | POL-24 | `GET /policies/impacted` | Hồ sơ đã đóng băng trong phạm vi người gọi đang lệch, kèm con số cũ và mới. Hồ sơ Nháp KHÔNG có mặt (`0029`) | §9.3 | `P0` |
-| NTF-14 | Container sla-worker restart giữa chừng một vòng quét | Không gửi nhắc trùng — idempotent theo (hồ sơ, ngày) | §9.1 | `P1` |
+| NTF-14 | Container sla-worker restart giữa chừng một vòng quét | Không gửi nhắc trùng — idempotent theo (hồ sơ, **mốc hạn**) `0046`, không theo ngày lịch | §9.1 | `P1` |
 | NTF-15 | Chạy hai bản sla-worker cùng lúc | Khóa phân tán Redis đảm bảo chỉ một bản thực thi vòng quét | §9.1 | `P1` |
 | NTF-16 | Khởi động service với cấu hình thư nguy hiểm: production trỏ vào Mailpit, hoặc môi trường test trỏ vào SMTP thật mà chưa đặt `MAIL_REDIRECT_ALL` | Service **từ chối khởi động** trong cả hai trường hợp — không có đường nào để thư test lọt tới người thật | — | `P0` |
 | NTF-17 | Gửi 4 thư của cùng một khách hàng tới hộp thư thật trên trình khách Nutricare đang dùng (*thủ công, chỉ lặp khi đổi cách sinh `Message-ID`*) | Trình khách gộp cả 4 vào một luồng; header `References` nối đúng chuỗi | §9.1 | `P1` |

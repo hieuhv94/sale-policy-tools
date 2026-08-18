@@ -513,8 +513,23 @@ làm, và lý do nếu bước đó có.
 - Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được nhật ký của nó, không thấy thì
   không.
 
-**Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật. Trước hạn một ngày hệ
-thống gửi thư nhắc; quá hạn thì hồ sơ chuyển *Quá hạn duyệt* nhưng **vẫn đi tiếp đúng nhánh cũ**.
+**Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật.
+
+| Lúc nào | Việc gì |
+|---|---|
+| Còn **24 giờ** tới hạn | Gửi **đúng một** thư *"Nhắc: hồ sơ sắp quá hạn duyệt"* |
+| Hết hạn | Gửi thư *"Hồ sơ đã quá hạn duyệt"*, **một lần duy nhất**, rồi hồ sơ chuyển *Quá hạn duyệt* |
+
+Hệ thống quét **5 phút một lần**, nên thư đi trong vòng tối đa 5 phút kể từ mốc trên. Cả hai lá đều
+tới **người phải xử lý ở bước đang tắc** và **TDV lập hồ sơ**; những người đã từng thao tác lên hồ sơ
+nhận thêm một lá *để biết*, có liên kết mở nhật ký hồ sơ.
+
+*Quá hạn duyệt* **không** làm hồ sơ chết: nó vẫn nằm ở đúng bước cũ và vẫn duyệt / trả lại / từ chối
+bình thường, **đi tiếp đúng nhánh cũ**. Chỉ bốn trạng thái chờ mới có hạn — hồ sơ ở *Nháp* hay *Yêu
+cầu chỉnh sửa* nằm trên bàn TDV nên không bao giờ quá hạn.
+
+Mỗi lần hồ sơ sang bước chờ mới thì **đồng hồ chạy lại từ đầu**, và lần chờ mới có thư nhắc riêng của
+nó — kể cả khi nó bắt đầu ngay trong ngày hồ sơ vừa bị trả lại.
 
 ## 8. Hiệu lực
 

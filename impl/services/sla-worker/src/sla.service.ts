@@ -3,10 +3,15 @@
  *
  * Ba tính chất phải giữ, và mỗi cái hỏng theo một kiểu riêng:
  *
- *   1. **Idempotent theo (hồ sơ, ngày).** Cron chạy 5 phút một lần nên trong
- *      ngày thứ 13 nó gặp cùng một hồ sơ 288 lần. Chống trùng bằng khoá chính
+ *   1. **Idempotent theo (hồ sơ, MỐC HẠN).** Cron chạy 5 phút một lần nên trong
+ *      ngày cuối nó gặp cùng một hồ sơ 288 lần. Chống trùng bằng khoá chính
  *      trong CSDL chứ không bằng biến trong tiến trình — biến mất khi restart,
  *      và restart giữa vòng quét là chuyện bình thường (NTF-09, NTF-14).
+ *
+ *      Khoá là mốc hạn, KHÔNG phải ngày lịch (`0046`). Cửa sổ nhắc rộng đúng 24
+ *      giờ nên nó luôn vắt qua một nửa đêm, và khoá theo ngày mở lại đúng lúc
+ *      đó — người nhận được hai lá thư nói y hệt nhau. Đổi múi giờ không cứu
+ *      được: ranh giới chỉ dời đi chứ không biến mất.
  *
  *   2. **Chỉ một bản thực thi.** Chạy hai bản sla-worker để chịu tải hoặc trong
  *      lúc triển khai lăn là chuyện thường. Khoá phân tán Redis giữ cho chỉ một
@@ -117,7 +122,7 @@ export class SlaService {
     for (const p of rows) {
       if (p.sla_due_at.getTime() <= now.getTime()) {
         if (await this.markOverdue(p, now)) overdue++;
-      } else if (await this.remind(p, now)) {
+      } else if (await this.remind(p)) {
         reminded++;
       }
     }
@@ -126,18 +131,26 @@ export class SlaService {
 
   // --- Nhắc trước một ngày --------------------------------------------------
 
-  private async remind(p: WaitingRow, now: Date): Promise<boolean> {
-    const forDate = now.toISOString().slice(0, 10);
+  private async remind(p: WaitingRow): Promise<boolean> {
+    /*
+     * Khoá theo MỐC HẠN của chính lần chờ này (`0046`), không theo ngày gửi.
+     *
+     * `sla_due_at` chắc chắn không rỗng ở đây — vòng quét đã lọc `IS NOT NULL`.
+     *
+     * Nó nhận diện "lần chờ này", điều mà một ngày lịch không làm được: hồ sơ bị
+     * trả lại rồi gửi lại trong cùng một ngày có hai mốc hạn khác nhau (khác giờ,
+     * trùng ngày), và lần chờ thứ hai phải có thư nhắc riêng của nó.
+     */
     const claimed = await this.db.q<{ policy_id: string }>(
-      `INSERT INTO pol.sla_reminder (policy_id, kind, for_date)
-       VALUES ($1, 'SLA_REMINDER', $2::date)
+      `INSERT INTO pol.sla_reminder (policy_id, kind, due_at)
+       VALUES ($1, 'SLA_REMINDER', $2::timestamptz)
        ON CONFLICT DO NOTHING
        RETURNING policy_id`,
-      [p.id, forDate],
+      [p.id, p.sla_due_at.toISOString()],
     );
-    // Đã nhắc hồ sơ này hôm nay rồi. `ON CONFLICT DO NOTHING` là chốt chặn thật
-    // sự: kiểm bằng SELECT rồi INSERT thì hai bản chạy song song đều thấy "chưa
-    // có" — và khoá Redis ở trên cũng không cứu được nếu nó vừa hết TTL.
+    // Đã nhắc cho đúng cái hạn này rồi. `ON CONFLICT DO NOTHING` là chốt chặn
+    // thật sự: kiểm bằng SELECT rồi INSERT thì hai bản chạy song song đều thấy
+    // "chưa có" — và khoá Redis ở trên cũng không cứu được nếu nó vừa hết TTL.
     if (claimed.length === 0) return false;
 
     await this.emit(p, 'sla.reminder', 'SLA_REMINDER', {

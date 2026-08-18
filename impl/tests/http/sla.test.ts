@@ -307,6 +307,92 @@ describe('NTF-09 đẩy đồng hồ tới ngày thứ 13', () => {
     expect(row.status).toBe('CHO_TBP_DUYET'); // nhắc thôi, chưa quá hạn
   }, 90_000);
 
+  it('`0046` quét suốt 24 giờ cuối, đi qua nửa đêm, vẫn ĐÚNG MỘT thư nhắc', async () => {
+    /*
+     * Ca kiểm thử mà lỗi `0046` lọt qua được, và vì sao nó lọt.
+     *
+     * Bản cũ khoá chống trùng theo `(hồ sơ, loại, NGÀY GỬI)`. Ca ở trên quét bốn
+     * lần tại CÙNG một thời điểm nên bốn lần đều rơi vào một ngày lịch — khoá
+     * giữ đúng, và không ai thấy gì bất thường.
+     *
+     * Nhưng cửa sổ nhắc rộng đúng 24 giờ, nên nó luôn vắt qua một ranh giới
+     * ngày. Sang ngày mới là khoá mở lại, và người nhận có lá thư thứ hai nói y
+     * hệt lá thứ nhất. Đổi múi giờ không cứu được — ranh giới chỉ dời đi.
+     *
+     * Nên ca này quét ĐI QUA ranh giới ấy: từng giờ một, suốt 23 giờ cuối. Dù
+     * bộ test chạy vào giờ nào trong ngày thì cũng chắc chắn cắt qua ít nhất một
+     * nửa đêm — cả nửa đêm UTC lẫn nửa đêm giờ Việt Nam.
+     */
+    const id = await submitted();
+    clock.advanceDays(13);
+
+    expect((await sla.scan()).reminded).toBe(1);
+
+    let themNhac = 0;
+    for (let gio = 0; gio < 23; gio++) {
+      clock.advanceHours(1);
+      const r = await sla.scan();
+      themNhac += r.reminded;
+      // Chưa tới hạn thì chưa được chuyển Quá hạn duyệt — nếu đỏ ở đây thì cửa
+      // sổ nhắc và mốc hạn đã lệch nhau, chứ không phải chuyện chống trùng.
+      expect(r.overdue, `giờ thứ ${gio + 1} đã chuyển quá hạn`).toBe(0);
+    }
+    expect(themNhac, 'nhắc thêm sau khi qua nửa đêm').toBe(0);
+
+    const rows = await withAdminDb(async (c) => {
+      const r = await c.query(`SELECT 1 FROM pol.sla_reminder WHERE policy_id = $1`, [id]);
+      return r.rowCount;
+    });
+    expect(rows).toBe(1);
+
+    // Và chốt ở chỗ người dùng thật sự nhìn: hộp thư có đúng một lá.
+    const mails = await flush(1);
+    expect(mails.filter((m) => m.Subject.includes('sắp quá hạn')).length).toBe(1);
+  }, 120_000);
+
+  it('`0046` gửi lại trong cùng NGÀY thì lần chờ mới vẫn có thư nhắc riêng', async () => {
+    /*
+     * Mặt trái của cùng một quyết định, và là lý do khoá không phải là "ngày của
+     * mốc hạn" — cách sửa ấy chặn được thư trùng nhưng lại NUỐT MẤT thư thật.
+     *
+     * TBP trả lại lúc 10 giờ, TDV sửa xong gửi lại lúc 14 giờ cùng ngày: hai lần
+     * chờ có hai mốc hạn cách nhau 4 tiếng, nhưng TRÙNG NGÀY. Khoá theo ngày hạn
+     * sẽ coi lần chờ thứ hai là đã nhắc rồi, và hồ sơ ấy im lặng chạy tới lúc
+     * quá hạn.
+     *
+     * Mốc hạn là một timestamp nên hai lần chờ luôn khác khoá.
+     */
+    const id = await submitted();
+    clock.advanceDays(13);
+    expect((await sla.scan()).reminded).toBe(1);
+
+    // Lần chờ thứ hai: hạn muộn hơn vài giờ, vẫn cùng ngày lịch với hạn cũ.
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy
+            SET sla_started_at = sla_started_at + interval '4 hours',
+                sla_due_at = sla_due_at + interval '4 hours',
+                row_version = row_version + 1
+          WHERE id = $1`,
+        [id],
+      );
+    });
+
+    // Hạn lùi 4 tiếng thì hồ sơ tạm rời khỏi cửa sổ 24 giờ — đẩy đồng hồ theo cho
+    // nó vào lại. Không đẩy thì ca này đỏ vì cửa sổ, chứ không vì chuyện chống
+    // trùng, và nó sẽ nói sai chuyện nó đang kiểm.
+    expect((await sla.scan()).reminded, 'chưa tới cửa sổ mà đã nhắc').toBe(0);
+    clock.advanceHours(4);
+
+    expect((await sla.scan()).reminded, 'lần chờ mới bị nuốt mất thư nhắc').toBe(1);
+
+    const rows = await withAdminDb(async (c) => {
+      const r = await c.query(`SELECT 1 FROM pol.sla_reminder WHERE policy_id = $1`, [id]);
+      return r.rowCount;
+    });
+    expect(rows).toBe(2);
+  }, 120_000);
+
   it('NTF-14 worker restart giữa chừng cũng không gửi nhắc trùng', async () => {
     const id = await submitted();
     clock.advanceDays(13);

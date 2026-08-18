@@ -25,6 +25,17 @@ export class Clock {
     this.offsetMs += days * 24 * 60 * 60 * 1000;
   }
 
+  /**
+   * Đẩy theo GIỜ — cần để đi qua nửa đêm bên trong cửa sổ nhắc (`0046`).
+   *
+   * Nhảy theo ngày không bao giờ chạm được vào chỗ đã hỏng: cửa sổ nhắc rộng
+   * đúng 24 giờ, nên muốn thấy lá thư thứ hai thì phải quét ở CẢ HAI phía của
+   * một ranh giới ngày nằm giữa cửa sổ ấy.
+   */
+  advanceHours(hours: number): void {
+    this.offsetMs += hours * 60 * 60 * 1000;
+  }
+
   reset(): void {
     this.offsetMs = 0;
   }

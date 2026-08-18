@@ -5061,3 +5061,71 @@ theo bản khách hàng đọc, mọi thẻ bấm được, thẻ bước không
 lấy đúng một nửa B8) và 6 ca ở `tests/http/reporting.test.ts` (đặt và xoá mốc in lại, tách hai ô đếm,
 `reprint` sai thì 400, **hồ sơ quá hạn vẫn nằm trong thẻ của bước nó đang tắc**, và con số trên thẻ
 bằng đúng số dòng danh sách mở ra).
+
+---
+
+## P56 — Thư nhắc SLA gửi hai lần, và vì sao cách sửa đầu tiên của tôi sai
+
+Khách hàng hỏi *"khi nào hệ thống gửi mail thông báo hồ sơ quá hạn"*. Tra để trả lời thì lộ ra một
+lỗi: **thư nhắc "sắp quá hạn" gửi hai lần** ở gần như mọi hồ sơ.
+
+Khoá chống trùng là `(hồ sơ, loại, NGÀY GỬI)` với ngày lấy theo UTC, trong khi cửa sổ nhắc rộng đúng
+24 giờ. Cửa sổ ấy gần như luôn vắt qua nửa đêm UTC (07:00 giờ Việt Nam), và sang ngày mới thì khoá mở
+lại:
+
+```
+Hạn 15/08 15:00 giờ VN
+  14/08 15:05 → nhắc lần 1, khoá theo ngày UTC 14/08
+  15/08 07:05 → nhắc lần 2, khoá theo ngày UTC 15/08   ← thừa
+  15/08 15:05 → chuyển Quá hạn duyệt
+```
+
+### Cách sửa đầu tiên tôi đề xuất KHÔNG đủ, và tôi đã nói ra trước khi làm
+
+Ý đầu là lấy ngày theo `Asia/Ho_Chi_Minh` thay vì UTC, cùng cách `format.ts` làm với mọi ngày hiển
+thị. **Sai.** Cửa sổ rộng đúng 24 giờ thì nó luôn cắt qua một ranh giới ngày, dù ranh giới ấy đặt ở
+múi giờ nào — đổi múi giờ chỉ dời chỗ hỏng sang một khung giờ khác. Bất kỳ khoá nào theo NGÀY đều
+hỏng như nhau.
+
+### Khoá đúng là mốc hạn, không phải ngày lịch
+
+`0046` đổi khoá chính của `pol.sla_reminder` từ `for_date date` sang `due_at timestamptz`. Mốc hạn
+nhận diện được *"lần chờ này"*, điều mà một ngày lịch không làm được. Ba tình huống, cùng một khoá:
+
+| Tình huống | Khoá theo ngày | Khoá theo mốc hạn |
+|---|---|---|
+| Cửa sổ 24 giờ vắt qua nửa đêm | **2 thư** | 1 thư ✓ |
+| Trả lại rồi gửi lại trong cùng ngày | 1 thư — **nuốt mất** lần chờ thứ hai | 2 thư, mỗi lần chờ một ✓ |
+| Quản trị đổi số ngày SLA, hạn tính lại | 1 thư — nói về cái hạn đã biến mất | nhắc lại theo hạn mới ✓ |
+
+Cột thứ hai đáng chú ý: nếu chỉ đổi khoá sang **ngày của mốc hạn** (cách sửa gọn hơn, tôi có cân
+nhắc) thì chặn được thư trùng nhưng lại nuốt mất một lá thư THẬT. Hai lần chờ bắt đầu cùng ngày có
+hai mốc hạn cách nhau vài giờ mà trùng ngày lịch — mà trả lại lúc 10 giờ rồi sửa xong gửi lại lúc 14
+giờ là chuyện thường ngày.
+
+Backfill lấy `sla_due_at` hiện tại của hồ sơ còn đang chờ, nên hồ sơ đã được nhắc hôm nay không bị
+nhắc lại lúc triển khai. Có bước dọn những hàng do chính lỗi này sinh ra, nếu không khoá chính mới
+không tạo được.
+
+### Vì sao ca kiểm thử cũ không bắt được
+
+`NTF-09` quét bốn lần tại **cùng một thời điểm** — bốn lần đều rơi vào một ngày lịch, khoá giữ đúng,
+không ai thấy gì. Nhảy theo ngày (`advanceDays`) thì vĩnh viễn không chạm được vào chỗ hỏng.
+
+Thêm `Clock.advanceHours` và hai ca:
+
+1. **Quét từng giờ suốt 23 giờ cuối** — dù bộ test chạy vào giờ nào trong ngày cũng chắc chắn cắt qua
+   ít nhất một nửa đêm, cả UTC lẫn giờ Việt Nam. Khẳng định vẫn đúng một thư, và hộp thư thật cũng
+   chỉ có một lá.
+2. **Gửi lại trong cùng ngày** — chốt mặt trái, để không ai "sửa gọn" khoá về ngày của mốc hạn.
+
+Ca thứ hai tôi viết sai lần đầu: dời hạn thêm 4 tiếng thì hồ sơ rời khỏi cửa sổ 24 giờ, phải đẩy đồng
+hồ theo. Không đẩy thì nó đỏ vì cửa sổ chứ không vì chuyện chống trùng — một ca đỏ nói sai chuyện nó
+đang kiểm.
+
+### Trả lời cho câu hỏi ban đầu
+
+Thư *"Hồ sơ đã quá hạn duyệt"* gửi **một lần duy nhất**, ở vòng quét đầu tiên sau khi hạn trôi qua
+(chậm nhất 5 phút). Đúng một lần vì gửi xong thì trạng thái chuyển `QUA_HAN_DUYET`, mà trạng thái này
+không nằm trong danh sách chờ nên vòng quét sau không nhặt lại. Người nhận: người phải xử lý ở bước
+đang tắc, TDV lập hồ sơ, và mọi người đã từng thao tác (thư *để biết*, liên kết mở nhật ký).

@@ -697,7 +697,7 @@ phải một cách in khác của hồ sơ.
 - **Gộp một luồng email cho mỗi khách hàng.** Vì mỗi khách hàng chỉ có một CSBH còn hiệu lực nên
   gộp theo khách hàng hay theo CSBH là như nhau.
 - **Trang chủ** vẫn hiển thị danh sách CSBH đang chờ chính người đang đăng nhập xử lý.
-- SLA: 14 ngày cho mọi trạng thái chờ, **tính cả cuối tuần**. Email nhắc trước một ngày. Quá hạn thì
+- SLA: 14 ngày cho mọi trạng thái chờ, **tính cả cuối tuần**. **Đúng một** email nhắc trước một ngày `sửa 18/08`. Quá hạn thì
   hồ sơ chuyển sang trạng thái `Quá hạn duyệt`.
 
 ### 9.2. Bộ lọc và báo cáo
