@@ -54,6 +54,14 @@ type HoSo = {
   xoaDuoc: boolean;
   /** Chênh lệch so với danh mục hôm nay (`0050`). Rỗng là không lệch gì. */
   lech?: LechMuc[];
+  /**
+   * Ai đã duyệt bước nào, và lúc nào (`0056`). `null` = bước ấy chưa xảy ra.
+   *
+   * Tên có thể `null` dù mốc thời gian có: `userNames` nuốt lỗi và trả rỗng khi
+   * identity chết, nên mất tên chứ không mất cả màn hình.
+   */
+  nguoiDuyet?: Partial<Record<'tbp' | 'keToanL1' | 'keToanL2' | 'saleAdmin',
+    { ten: string | null; luc: string } | null>>;
   /*
    * Ba cờ `0048` khai là TUỲ CHỌN, và đọc kèm giá trị lùi an toàn ngay dưới.
    *
@@ -160,9 +168,23 @@ export function ChiTietHoSo({ id }: { id: string }) {
         <Nhan trangThai={hoSo.status} />
       </div>
 
+      {/*
+        AI ĐÃ DUYỆT (`0056`).
+
+        Trước đó đầu màn hình chỉ có mã, phiên bản, ngày áp dụng và trạng thái —
+        nên câu hỏi thường gặp nhất khi mở một hồ sơ đã đi được vài bước ("ai ký
+        cái này?") phải trả lời bằng cách sang màn hình *Nhật ký*. Một chuyến đi
+        cho một dòng thông tin.
+
+        Chỉ hiện bước ĐÃ XẢY RA. Bày sẵn bốn ô rỗng chờ điền là bốn dòng chữ
+        không nói gì trên mọi hồ sơ còn ở Nháp.
+      */}
+      <DaDuyet nguoiDuyet={hoSo.nguoiDuyet} />
+
       {hoSo.lastReason && (
         <div className="ghi-chu-tra-lai" role="note">
-          <strong>Lý do gần nhất:</strong> {hoSo.lastReason}
+          <span className="hop-tieu-de">Lý do gần nhất</span>
+          {hoSo.lastReason}
         </div>
       )}
 
@@ -181,7 +203,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       {(hoSo.lech ?? []).length > 0 && (
         <div className="canh-bao-lech" role="note">
-          <strong>Số trên hồ sơ này đã lệch so với danh mục hiện tại.</strong>
+          <span className="hop-tieu-de">Số trên hồ sơ này đã lệch so với danh mục hiện tại</span>
           <p className="ghi-chu">
             Hồ sơ đã <strong>đóng băng</strong> giá và ngưỡng lúc gửi duyệt — đó là chủ ý, không ai
             sửa một văn bản đang chờ chữ ký. Bảng dưới đây vẫn là con số đã đóng băng.
@@ -559,5 +581,46 @@ function HopThoaiHanhDong({
         </button>
       </div>
     </HopThoai>
+  );
+}
+
+/** Nhãn của từng bước duyệt, theo đúng thứ tự hồ sơ đi qua. */
+const BUOC_DUYET: { khoa: 'tbp' | 'keToanL1' | 'keToanL2' | 'saleAdmin'; nhan: string }[] = [
+  { khoa: 'tbp', nhan: 'Trưởng bộ phận ký' },
+  { khoa: 'keToanL1', nhan: 'KT duyệt bản mềm' },
+  { khoa: 'saleAdmin', nhan: 'Sale Admin bàn giao' },
+  { khoa: 'keToanL2', nhan: 'KT duyệt bản cứng' },
+];
+
+/**
+ * Dải "đã duyệt" ở đầu màn hình hồ sơ.
+ *
+ * MỐC THỜI GIAN đi kèm TÊN, không tách: "Trưởng bộ phận Nguyễn Văn A ký" mà
+ * thiếu ngày thì vẫn phải mở nhật ký ra mới biết hồ sơ nằm đó bao lâu — và đó
+ * chính là câu hỏi tiếp theo của người vừa đọc cái tên.
+ *
+ * Thứ tự theo LUỒNG, không theo thời gian: bốn bước luôn đi đúng trình tự ấy,
+ * nên xếp theo luồng thì mắt đọc được cả những bước CHƯA có mà không cần ô rỗng.
+ */
+function DaDuyet({ nguoiDuyet }: { nguoiDuyet: HoSo['nguoiDuyet'] }) {
+  const co = BUOC_DUYET.map((b) => ({ ...b, d: nguoiDuyet?.[b.khoa] })).filter(
+    (x): x is typeof x & { d: { ten: string | null; luc: string } } => !!x.d,
+  );
+  if (co.length === 0) return null;
+
+  return (
+    <dl className="da-duyet">
+      {co.map((x) => (
+        <div key={x.khoa}>
+          <dt>{x.nhan}</dt>
+          <dd>
+            {/* Tên tra không ra thì nói THÀNH LỜI. Một ô trống ở đây đọc ra là
+                "chưa ai ký", mà mốc thời gian ngay bên cạnh nói ngược lại. */}
+            <strong>{x.d.ten ?? 'không tra được tên'}</strong>
+            <span className="phu">{ngayGio(x.d.luc)}</span>
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }

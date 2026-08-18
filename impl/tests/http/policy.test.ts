@@ -457,6 +457,83 @@ describe('`0031` chọn người xử lý lúc gửi duyệt', () => {
   });
 });
 
+describe('`0056` hồ sơ mang theo AI ĐÃ DUYỆT bước nào', () => {
+  const duyet = async (id: string, who = 'tdv01') =>
+    (await get(`/policies/${id}`, who)).body.nguoiDuyet as Record<
+      string,
+      { ten: string | null; luc: string } | null
+    >;
+
+  it('hồ sơ chưa qua bước nào thì rỗng sạch — không bày ô chờ điền', async () => {
+    const d = await draft();
+    const n = await duyet(d.id);
+    expect(n.tbp).toBeNull();
+    expect(n.keToanL1).toBeNull();
+    expect(n.keToanL2).toBeNull();
+    expect(n.saleAdmin).toBeNull();
+  });
+
+  it('điền dần theo từng bước, và mốc thời gian đi KÈM tên', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await duyet(d.id)).tbp, 'chưa ký mà đã có người ký').toBeNull();
+
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    const sauKy = await duyet(d.id);
+    expect(sauKy.tbp).not.toBeNull();
+    expect(sauKy.tbp!.ten, 'thiếu tên người ký').toBeTruthy();
+    // Thiếu mốc thì người đọc vẫn phải mở nhật ký ra mới biết hồ sơ nằm đó bao
+    // lâu — đúng chuyến đi mà dải này sinh ra để khỏi phải làm.
+    expect(Number.isNaN(Date.parse(sauKy.tbp!.luc)), 'mốc thời gian không đọc được').toBe(false);
+    expect(sauKy.keToanL1, 'kế toán chưa nhận mà đã hiện').toBeNull();
+
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    expect((await duyet(d.id)).keToanL1!.ten).toBeTruthy();
+  });
+
+  it('đi hết luồng thì có đủ bốn bước', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const n = await duyet(d.id);
+    for (const k of ['tbp', 'keToanL1', 'saleAdmin', 'keToanL2']) {
+      expect(n[k], `thiếu bước ${k}`).not.toBeNull();
+      expect(n[k]!.ten, `bước ${k} thiếu tên`).toBeTruthy();
+    }
+  });
+
+  it('người ký lấy từ `tbp_signed_by`, không phải người được phân công', async () => {
+    /*
+     * Hai cột khác nhau khi có người duyệt thay: `tbp_user_id` là người ĐƯỢC
+     * CHỌN lúc gửi duyệt, `tbp_signed_by` là người THẬT SỰ đặt bút. Đọc cột đầu
+     * là ghi công sai người — và đó là loại sai không ai phát hiện ra được từ
+     * màn hình, vì cả hai đều là tên một Trưởng bộ phận có thật.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+
+    // Đổi người ĐƯỢC PHÂN CÔNG sang tbp02, giữ nguyên người đã ký là tbp01.
+    await withAdminDb((c) =>
+      c.query(
+        `UPDATE pol.policy SET tbp_user_id = (SELECT id FROM idn.app_user WHERE username = 'tbp02')
+          WHERE id = $1`,
+        [d.id],
+      ),
+    );
+
+    // Đọc bằng TDV phụ trách, không bằng `tbp01`: đổi người được phân công sang
+    // tbp02 làm tbp01 rơi ra khỏi phạm vi hồ sơ, và `GET /policies/:id` trả 403.
+    const n = await duyet(d.id, 'tdv01');
+    const ten01 = await withAdminDb(async (c) => {
+      const r = await c.query<{ full_name: string }>(
+        `SELECT full_name FROM idn.app_user WHERE username = 'tbp01'`,
+      );
+      return r.rows[0]!.full_name;
+    });
+    expect(n.tbp!.ten, 'ghi công cho người được phân công thay vì người đã ký').toBe(ten01);
+  });
+});
+
 describe('`0052` hộp việc của TDV gồm cả hồ sơ Nháp', () => {
   const hopViec = async (who: string) =>
     ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map((x) => x.id);

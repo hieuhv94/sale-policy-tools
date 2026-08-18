@@ -478,17 +478,49 @@ textarea.o-nhap { min-height: 6rem; }
 /* Khối cảnh báo lệch trên màn hình hồ sơ (`0050`). Vàng chứ không đỏ: hồ sơ lệch
    không phải hồ sơ sai — người đọc còn quyền duyệt tiếp nếu chênh lệch không
    đáng kể. Cùng bảng màu với nhãn `Ngưỡng`, để đọc quen một chỗ là quen chỗ kia. */
-.canh-bao-lech {
+/* Khối lưu ý: THẺ TRẮNG có vạch màu bên trái, không phải một mảng nền vàng
+   (`0056`).
+
+   Nền vàng kín khối có hai vấn đề. Thứ nhất, nó dùng cùng sắc độ cho cả cái
+   khung lẫn cái bảng nằm trong — chữ đen trên vàng nhạt, viền bảng trên vàng
+   nhạt, mọi thứ đục lại. Thứ hai, trên màn hình hồ sơ có tới hai khối vàng liền
+   nhau (lý do trả lại + chênh lệch danh mục), nên trang trông như đang báo lỗi.
+
+   Vạch màu bên trái mang đúng lượng tín hiệu ấy mà không nhuộm nền, và nó là
+   MẪU ĐÃ CÓ trong sản phẩm — `.chi-so` dùng đúng cách này. Chỉ dải tiêu đề giữ
+   màu để mắt bắt được ngay khối này nói chuyện gì. */
+.canh-bao-lech,
+.ghi-chu-tra-lai,
+.hop-canh-bao {
   margin: var(--k4) 0;
   padding: var(--k3) var(--k4);
-  border: 1px solid var(--mau-canh-bao);
-  border-left-width: 4px;
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-left: 4px solid var(--mau-canh-bao);
   border-radius: var(--bo-goc);
-  background: var(--mau-canh-bao-nen);
+  box-shadow: var(--bong-nho);
+}
+/* Dòng tiêu đề của khối — nơi DUY NHẤT còn mang màu.
+   
+   Lớp riêng chứ KHÔNG phải `> strong`: ở `hop-canh-bao` thẻ `strong` nằm giữa
+   câu ("**Chưa có quy định…** Không quy định nào phủ nó…"), và có chỗ dùng tới
+   hai cái. Bắt chúng thành `display: block` là cắt câu làm ba khúc. */
+.hop-tieu-de {
+  display: block;
+  margin-bottom: var(--k1);
+  font-weight: 700;
+  color: var(--mau-canh-bao);
 }
 .canh-bao-lech .ghi-chu { margin: var(--k1) 0 var(--k2); }
-.canh-bao-lech /* Bảng chênh lệch (`0054`) — gọn hơn `.bang` thường vì nó nằm LỒNG trong một
-   khối cảnh báo hoặc một hàng đang mở, không phải một bảng chiếm cả màn hình. */
+
+/* Bảng chênh lệch (`0054`) — gọn hơn `.bang` thường vì nó nằm LỒNG trong một
+   khối cảnh báo hoặc một hàng đang mở, không phải một bảng chiếm cả màn hình.
+
+   Dấu chấm đầu dòng KHÔNG phải chuyện nhỏ ở đây: `0054` để sót một
+   `.canh-bao-lech` lơ lửng ngay trên dòng này, và vì chú thích không cắt được
+   selector nên hai cái dính thành `.canh-bao-lech .bang-lech` — cả bộ kiểu này
+   chỉ áp trong khối cảnh báo, còn bảng trong box *Yêu cầu cập nhật* thì trần
+   trụi. Không lỗi nào nổi lên, chỉ một bảng trông khác bảng kia. */
 .bang-lech { font-size: var(--chu-nho); }
 .bang-lech th, .bang-lech td { padding: var(--k1) var(--k3); }
 .bang-lech th:first-child, .bang-lech td:first-child { padding-left: 0; }
@@ -1029,16 +1061,24 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .bao-loi-chinh { font-weight: 700; margin-bottom: var(--k1); }
 .bao-loi-phu, .bao-loi-ma { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
 
-/* Khối cảnh báo màu vàng dùng chung. `ghi-chu-tra-lai` là lý do trả lại hồ sơ,
-   `hop-canh-bao` là mọi cảnh báo khác — hai nghĩa khác nhau, một bộ màu. */
-.ghi-chu-tra-lai, .hop-canh-bao {
-  background: var(--mau-canh-bao-nen);
-  border: 1px solid var(--mau-canh-bao);
-  border-left-width: 4px;
-  border-radius: var(--bo-goc-nho);
+/* Dải "đã duyệt" ở đầu màn hình hồ sơ (`0056`).
+
+   Lưới tự giãn thay vì bốn cột cứng: số ô đổi theo bước hồ sơ đã đi qua — một ô
+   ở hồ sơ vừa được ký, bốn ô ở hồ sơ đã có hiệu lực — và bốn cột cứng thì hồ sơ
+   một ô có ba khoảng trống nằm chờ. */
+.da-duyet {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, max-content));
+  gap: var(--k2) var(--k5);
+  margin: 0 0 var(--k4);
   padding: var(--k3) var(--k4);
-  margin: var(--k3) 0;
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
 }
+.da-duyet dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+.da-duyet dd { margin: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.da-duyet .phu { font-family: var(--so-deu-cot); }
 
 .dang-tai { color: var(--mau-chu-phu); padding: var(--k5); text-align: center; }
 

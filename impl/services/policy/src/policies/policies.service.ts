@@ -61,6 +61,11 @@ type PolicyRow = {
   overdue_at: Date | null;
   pending_step: string | null;
   kt_l1_received_at: Date | null;
+  kt_l2_received_at: Date | null;
+  tbp_signed_at: Date | null;
+  /** Người THẬT SỰ ký — khác `tbp_user_id` khi có người duyệt thay. */
+  tbp_signed_by: string | null;
+  sa_handover_at: Date | null;
 };
 
 export const SUPPLEMENT_MESSAGE =
@@ -788,7 +793,8 @@ export class PoliciesService {
   async byId(policyId: string, me: AuthUser) {
     const so = await this.db.one<PolicyRow & { status: string }>(
       `SELECT tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
-              status::text AS status, kt_l1_received_at
+              status::text AS status, kt_l1_received_at, kt_l2_received_at,
+              tbp_signed_at, tbp_signed_by, sa_handover_at
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );
@@ -845,9 +851,64 @@ export class PoliciesService {
         )
       : [];
 
+    /*
+     * AI ĐÃ DUYỆT, và duyệt lúc nào (`0056`).
+     *
+     * Đầu màn hình hồ sơ chỉ có mã, phiên bản, ngày áp dụng và trạng thái — nên
+     * câu hỏi thường gặp nhất khi mở một hồ sơ đã đi được vài bước ("ai ký cái
+     * này?") phải trả lời bằng cách sang màn hình *Nhật ký*. Một chuyến đi cho
+     * một dòng thông tin.
+     *
+     * MỐC THỜI GIAN đi kèm TÊN, không tách. "Trưởng bộ phận Nguyễn Văn A ký"
+     * thiếu ngày thì vẫn phải mở nhật ký ra mới biết hồ sơ nằm đó bao lâu — và
+     * đó chính là câu hỏi tiếp theo của người vừa đọc cái tên.
+     *
+     * Người ký lấy từ `tbp_signed_by` chứ không từ `tbp_user_id`: cột sau là
+     * người ĐƯỢC PHÂN CÔNG, và hai cột ấy khác nhau khi có người duyệt thay.
+     *
+     * `userNames` nuốt lỗi và trả rỗng, nên identity chết thì mất tên chứ không
+     * mất cả màn hình hồ sơ — cùng cách `events()` đã làm.
+     */
+    const tenDuyet = await this.clients.userNames(
+      [so.tbp_signed_by, so.ke_toan_user_id, so.sale_admin_user_id].filter(
+        (x): x is string => !!x,
+      ),
+    );
+    const nguoiDuyet = {
+      tbp:
+        so.tbp_signed_at === null
+          ? null
+          : {
+              ten: (so.tbp_signed_by && tenDuyet[so.tbp_signed_by]) ?? null,
+              luc: so.tbp_signed_at,
+            },
+      keToanL1:
+        so.kt_l1_received_at === null
+          ? null
+          : {
+              ten: (so.ke_toan_user_id && tenDuyet[so.ke_toan_user_id]) ?? null,
+              luc: so.kt_l1_received_at,
+            },
+      keToanL2:
+        so.kt_l2_received_at === null
+          ? null
+          : {
+              ten: (so.ke_toan_user_id && tenDuyet[so.ke_toan_user_id]) ?? null,
+              luc: so.kt_l2_received_at,
+            },
+      saleAdmin:
+        so.sa_handover_at === null
+          ? null
+          : {
+              ten: (so.sale_admin_user_id && tenDuyet[so.sale_admin_user_id]) ?? null,
+              luc: so.sa_handover_at,
+            },
+    };
+
     return {
       ...p,
       lech,
+      nguoiDuyet,
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
       tepXoaDuoc: tepXoaDuoc(p.status),

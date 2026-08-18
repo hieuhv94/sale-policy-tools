@@ -5632,3 +5632,63 @@ và khối cảnh báo nằm ngay trên bảng số. Với hồ sơ **đang có 
 nó ra hằng ngày.
 
 Đã ghi rõ trong hướng dẫn sử dụng, kèm câu nhắc nhìn trang Tổng quan mỗi sáng.
+
+---
+
+## P66 — Khối lưu ý bỏ nền vàng, và dải "ai đã duyệt" ở đầu màn hình hồ sơ
+
+### Nền vàng đổi thành thẻ có vạch màu
+
+Nền vàng kín khối có hai vấn đề, và cái thứ hai mới là cái người dùng thấy:
+
+1. Nó dùng **cùng sắc độ** cho cả khung lẫn bảng nằm trong. Từ `0054` khối chênh lệch chứa một bảng,
+   nên viền bảng nằm trên vàng nhạt và mọi thứ đục lại.
+2. Trên màn hình hồ sơ có **hai khối vàng liền nhau** — *Lý do gần nhất* và *chênh lệch danh mục* —
+   nên trang trông như đang báo lỗi dù chẳng có gì hỏng.
+
+Thay bằng **thẻ nền thường + vạch màu 4px bên trái**, chỉ dòng tiêu đề giữ màu. Không phải sáng tạo
+gì: `.chi-so` đã dùng đúng mẫu ấy từ đầu, nên đọc quen một khối là quen mọi khối.
+
+Một chi tiết tôi định làm rồi bỏ: bắt `> strong` thành `display: block` để không phải sửa JSX. Ba chỗ
+dùng `hop-canh-bao` có `strong` **nằm giữa câu**, có chỗ tới hai cái — quy tắc ấy sẽ cắt câu làm ba
+khúc. Đổi sang một lớp `hop-tieu-de` tường minh ở hai chỗ tôi kiểm soát markup.
+
+### Và một lỗi CSS của chính tôi từ `0054`
+
+Lúc dọn CSS chết ở `0054` tôi để lại một `.canh-bao-lech` **lơ lửng** ngay trên một chú thích:
+
+```
+.canh-bao-lech
+(chú thích)
+.bang-lech { … }
+```
+
+Chú thích không cắt được selector, nên hai dòng dính thành `.canh-bao-lech .bang-lech`: cả bộ kiểu chỉ
+áp trong khối cảnh báo, còn bảng trong box *Yêu cầu cập nhật* thì trần trụi. **CSS vẫn hợp lệ, không
+lỗi nào nổi lên** — chỉ một bảng trông khác bảng kia, và chốt kiểm biến-CSS của `0050` không thấy gì.
+
+Thêm chốt `0056`: dò **selector lơ lửng** — một dòng chỉ chứa selector mà dòng có nghĩa kế tiếp lại mở
+khối mới. Đã thử bằng cách đặt lại đúng lỗi cũ: đỏ ngay dòng 457.
+
+Hai lần tự làm hỏng khi viết chính chốt ấy. Bản đầu soi từng dòng thô và báo mười hai chỗ sai — toàn
+là dòng kết thúc của chú thích nhiều dòng, vì chúng không chứa dấu ngoặc nhọn nên trông y hệt selector
+đứng một mình; sửa bằng cách cắt hết chú thích trước rồi mới quét. Rồi chính chú thích giải thích việc
+ấy lại chứa ký hiệu kết thúc chú thích và tự đóng sớm, làm cả tệp test không tải được.
+
+### Dải "ai đã duyệt"
+
+Trước đó đầu màn hình chỉ có mã, phiên bản, ngày áp dụng và trạng thái — nên câu hỏi thường gặp nhất
+khi mở một hồ sơ đã đi được vài bước, *"ai ký cái này?"*, phải trả lời bằng cách sang màn hình *Nhật
+ký*. Một chuyến đi cho một dòng thông tin.
+
+Bốn ô theo thứ tự luồng, **chỉ hiện bước đã xảy ra**. Mốc thời gian đi **kèm** tên: biết ai ký mà
+không biết lúc nào thì vẫn phải mở nhật ký để biết hồ sơ nằm đó bao lâu, mà đó chính là câu hỏi tiếp
+theo của người vừa đọc cái tên.
+
+**Người ký đọc từ `tbp_signed_by`, không từ `tbp_user_id`.** Cột sau là người ĐƯỢC PHÂN CÔNG, và hai
+cột khác nhau khi có người duyệt thay. Đọc cột sai là ghi công sai người — loại sai không ai phát hiện
+được từ màn hình, vì cả hai đều là tên một Trưởng bộ phận có thật. Có ca kiểm thử đổi người được phân
+công sang `tbp02` rồi khẳng định dải vẫn ghi `tbp01`.
+
+Ca ấy đỏ lần đầu vì tôi đọc bằng `tbp01`: đổi người phân công làm chính họ rơi khỏi phạm vi hồ sơ và
+`GET /policies/:id` trả 403. Đọc bằng TDV phụ trách — người luôn trong phạm vi hồ sơ của mình.

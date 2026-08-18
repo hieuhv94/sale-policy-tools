@@ -66,6 +66,51 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
     expect(thieu, thieu.join('\n')).toEqual([]);
   });
 
+  it('`0056` không selector nào bị chú thích cắt làm hai', () => {
+    /*
+     * Lỗi đã xảy ra thật ở `0054`, và không phép kiểm nào bắt được.
+     *
+     * Dọn CSS chết để lại một `.canh-bao-lech` lơ lửng ngay trên một chú thích:
+     *
+     *     .canh-bao-lech
+     *     (chú thích)
+     *     .bang-lech { … }
+     *
+     * Chú thích không cắt được selector, nên hai dòng dính thành
+     * `.canh-bao-lech .bang-lech` — cả bộ kiểu chỉ áp trong khối cảnh báo, còn
+     * bảng trong box *Yêu cầu cập nhật* thì trần trụi. CSS vẫn hợp lệ, không lỗi
+     * nào nổi lên; chỉ một bảng trông khác bảng kia.
+     *
+     * CẮT HẾT CHÚ THÍCH TRƯỚC rồi mới quét. Bản đầu tôi soi từng dòng thô và nó
+     * báo mười hai chỗ sai — toàn là DÒNG KẾT THÚC của chú thích nhiều dòng: nó
+     * không chứa dấu ngoặc nhọn nào nên trông y hệt một selector đứng một mình.
+     *
+     * (Và viết câu trên bằng ký hiệu thật thì chính chú thích này tự đóng sớm —
+     * đã dính một lượt.)
+     */
+    const khongChuThich = readFileSync(join(GOC, 'styles/app.css'), 'utf8').replace(
+      /\/\*[\s\S]*?\*\//g,
+      '',
+    );
+    const dong = khongChuThich.split('\n');
+    const lac: string[] = [];
+
+    for (const [i, tho] of dong.entries()) {
+      const d = tho.trim();
+      if (d === '' || /[{};]/.test(d) || d.endsWith(',')) continue;
+
+      // Dòng CÓ NGHĨA kế tiếp — chú thích đã bị cắt nên chỉ còn dòng trống.
+      let j = i + 1;
+      while (j < dong.length && dong[j]!.trim() === '') j += 1;
+
+      // Một selector đứng một mình mà dòng sau mở khối mới → nó bị bỏ rơi.
+      if ((dong[j]?.trim() ?? '').includes('{')) {
+        lac.push(`app.css: dòng ${i + 1} "${d}" — selector lơ lửng`);
+      }
+    }
+    expect(lac, lac.join('\n')).toEqual([]);
+  });
+
   it('tokens.css khai đủ nhóm màu có nghĩa nghiệp vụ', () => {
     const css = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
     for (const bien of [

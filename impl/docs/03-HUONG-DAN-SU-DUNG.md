@@ -510,6 +510,25 @@ cùng vai trò không thấy, không mở.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
 
+### Ai đã duyệt
+
+Ngay dưới tiêu đề hồ sơ là dải **đã duyệt**: mỗi bước đã đi qua một ô, ghi **tên người duyệt** và
+**thời điểm**.
+
+| Ô | Nghĩa |
+|---|---|
+| Trưởng bộ phận ký | Người **thật sự đặt bút** — khác người được phân công nếu có duyệt thay |
+| KT duyệt bản mềm | Kế toán tiếp nhận lần 1 |
+| Sale Admin bàn giao | Bàn giao bản cứng |
+| KT duyệt bản cứng | Kế toán tiếp nhận lần 2 — CSBH có hiệu lực từ đây |
+
+**Chỉ hiện bước đã xảy ra.** Hồ sơ còn ở *Nháp* thì không có dải này; hồ sơ vừa được ký thì có một ô.
+Bày sẵn bốn ô rỗng chờ điền là bốn dòng chữ không nói gì.
+
+Thời điểm đi **kèm** tên chứ không tách: biết ai ký mà không biết ký lúc nào thì vẫn phải mở *Nhật ký*
+ra mới biết hồ sơ nằm đó bao lâu — và đó thường là câu hỏi tiếp theo. Muốn xem đủ mọi bước, kể cả các
+bước bị trả lại, thì vào *Nhật ký*.
+
 ### Dải nút *Thao tác*
 
 Trên màn hình hồ sơ, khối *Thao tác* chỉ hiện **những việc bạn làm được ở bước hiện tại** — không
