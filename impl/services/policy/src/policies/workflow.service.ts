@@ -28,6 +28,7 @@ import {
 } from '@csbh/domain-policy';
 import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { emit } from '../infra/emit.js';
+import { vaiTroConLai, type BonNguoi } from '../infra/nguoi-nhan.js';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
 import { daTacDong, PoliciesService } from './policies.service.js';
@@ -261,18 +262,67 @@ export class WorkflowService {
       // câu lệnh vẫn nằm trong MỘT transaction nên không có khoảnh khắc nào
       // khách hàng không có chính sách nào (EFF-01, EFF-13).
       if (step.setsEffectiveFrom && before.supersedes_id) {
-        await c.query(
+        // `RETURNING` bốn người và mã của BẢN CŨ (`0066`): lá thư báo hết hiệu
+        // lực gửi cho người của bản cũ, không phải người của bản mới, và hai tập
+        // này khác nhau đúng ở ca đáng quan tâm — khách hàng vừa đổi TDV phụ
+        // trách. Lấy ngay trong câu UPDATE nên chỉ có thư khi thật sự có dòng
+        // đổi trạng thái.
+        const cu = await c.query<{ code: string } & BonNguoi>(
           `UPDATE pol.policy
               SET status = 'HET_HIEU_LUC', deactivated_at = now(),
                   superseded_by_id = $2, row_version = row_version + 1
-            WHERE id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
+            WHERE id = $1 AND status = 'DANG_CO_HIEU_LUC'
+          RETURNING code, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id`,
           [before.supersedes_id, policyId],
         );
+        const banCu = cu.rows[0];
+
+        /*
+         * Trừ đi bốn người của BẢN MỚI. Bước này (`KT_RECEIVE_L2`) đã gửi cho cả
+         * bốn người ấy lá thư "CSBH bắt đầu có hiệu lực" — cùng một khách hàng,
+         * cùng một giây. Không trừ thì phần lớn hồ sơ sinh ra hai lá thư nói hai
+         * nửa của cùng một chuyện.
+         *
+         * Còn lại thường là RỖNG, và rỗng mới là trạng thái bình thường: cùng
+         * một người giữ cả hai phiên bản thì họ đã biết rồi. Lá thư này sinh ra
+         * cho đúng ca hiếm mà nó có ích.
+         */
+        const nhan = banCu
+          ? vaiTroConLai(banCu, [
+              ctx.tdvUserId,
+              ctx.tbpUserId,
+              ctx.keToanUserId,
+              ctx.saleAdminUserId,
+            ])
+          : [];
+
         await emit(c, 'policy.superseded', {
           policyId: before.supersedes_id,
           replacedBy: policyId,
           actorId: me.id,
           at: new Date().toISOString(),
+          // Từ đây xuống là phần dành cho thư. `notification` bỏ qua sự kiện
+          // không có `recipients`, nên khi `nhan` rỗng thì mọi thứ dưới đây chỉ
+          // nằm trong nhật ký — không lá thư nào được gửi.
+          ...(nhan.length > 0 && banCu
+            ? {
+                recipients: nhan,
+                action: 'SUPERSEDE',
+                toStatus: 'HET_HIEU_LUC',
+                policyCode: banCu.code,
+                customerId: before.customer_id,
+                customerCode: cus.code,
+                customerName: cus.name,
+                // Bốn id của BẢN CŨ — `notification` dịch vai trò sang người
+                // bằng đúng bốn khoá này. Đưa nhầm id của bản mới vào đây là gửi
+                // thư cho đúng những người vừa bị loại ra ở trên.
+                tdvUserId: banCu.tdv_user_id,
+                tbpUserId: banCu.tbp_user_id,
+                keToanUserId: banCu.ke_toan_user_id,
+                saleAdminUserId: banCu.sale_admin_user_id,
+                extra: { 'Phiên bản thay thế': before.code },
+              }
+            : {}),
         });
       }
 

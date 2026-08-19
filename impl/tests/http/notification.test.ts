@@ -12,7 +12,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp as createPolicyApp, PolicyOutbox } from '@csbh/policy/testing';
+import { PolicyOutbox } from '@csbh/policy/testing';
 import { CatalogOutbox } from '@csbh/catalog/testing';
 import {
   createTestApp as createNotificationApp,
@@ -27,6 +27,7 @@ import {
   bootCatalogListening,
   bootCustomerListening,
   bootIdentityListening,
+  bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
   maDuyNhat,
@@ -242,7 +243,9 @@ beforeAll(async () => {
   await clearAccountCache();
   await clearScopeCache();
 
-  for (const u of ['tdv01', 'tbp01', 'kt01', 'sa01', 'admin01']) {
+  // `tbp02` cho ca `0066` M-08: bản 2 phải do một Trưởng bộ phận KHÁC duyệt thì
+  // mới có ai đó cần được báo rằng bản 1 vừa hết hiệu lực.
+  for (const u of ['tdv01', 'tbp01', 'tbp02', 'kt01', 'sa01', 'admin01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
 
@@ -253,7 +256,17 @@ beforeAll(async () => {
   customer = cu.app;
   restores.push(cu.restore);
 
-  policy = await createPolicyApp();
+  /*
+   * Policy phải NGHE THẬT, không chỉ dựng trong tiến trình (`0066`).
+   *
+   * Ca *ngừng hợp tác* đi customer → policy bằng HTTP, và `POLICY_URL` mặc định
+   * trỏ vào một container không có ở đây. `bootPolicyListening` mở cổng rồi trỏ
+   * biến môi trường vào đúng bản vừa dựng — nhờ đó sự kiện thư rơi vào CÙNG một
+   * `pol.outbox` mà `outbox.pumpOnce()` bên dưới đang bơm.
+   */
+  const po = await bootPolicyListening();
+  policy = po.app;
+  restores.push(po.restore);
   outbox = policy.get(PolicyOutbox);
   catOutbox = catalog.get(CatalogOutbox);
 
@@ -467,7 +480,10 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
     expect(m.Text).toContain(CUSTOMER_NAME);
     expect(m.Text).toContain('CSBH-');
     expect(m.Text).toContain('Chờ Trưởng bộ phận duyệt');
-    expect(m.Text).toContain('Bước 4 — Trưởng bộ phận duyệt và ký số');
+    // `0066`: nhãn bước KHÔNG còn số thứ tự. Khẳng định cả hai vế — có phần
+    // chữ, và không còn chữ "Bước 4" — vì bỏ số là cả điểm của thay đổi ấy.
+    expect(m.Text).toContain('Bước đang duyệt: Trưởng bộ phận duyệt và ký số');
+    expect(m.Text).not.toMatch(/Bước \d/);
     expect(m.Text).toMatch(/Thời điểm:\s+\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
     // `/ho-so/:id`, KHÔNG phải `/policies/:id` (`0036`). Đường cũ là đường của
     // API — `App.tsx` không bắt nó, nên mọi liên kết trong mọi lá thư từ trước
@@ -493,6 +509,137 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
     const sign = signed.find((x) => x.Subject.includes('đã ký số'))!;
     expect((await fullMail(sign.ID)).Text).not.toContain('Lý do:');
   });
+});
+
+// =============================================================================
+// `0066` M-08 — CSBH hết hiệu lực thì có thư, cả hai đường
+// =============================================================================
+
+describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
+  /** Chờ tới khi hộp thư có một lá mang tiêu đề chứa `khoa`, rồi trả về lá đó. */
+  async function doiThu(khoa: string) {
+    await outbox.pumpOnce();
+    await waitFor(
+      async () => (await listMail()).some((m) => m.Subject.includes(khoa)),
+      `thư có tiêu đề chứa "${khoa}"`,
+    );
+    return (await listMail()).find((m) => m.Subject.includes(khoa))!;
+  }
+
+  it('người của bản CŨ, không còn tên ở bản mới, được báo hết hiệu lực', async () => {
+    const d = await draft();
+    await runToActive(d.id);
+
+    /*
+     * Bản 2 gửi cho một Trưởng bộ phận KHÁC — và đó chính là ca duy nhất lá thư
+     * này có ích. tbp01 đã duyệt và ký bản 1, không có tên trong bản 2, nên
+     * không lá thư nào khác báo cho họ rằng chính sách họ từng ký vừa hết hiệu
+     * lực. Trước `0066` chuyện đó diễn ra hoàn toàn trong im lặng.
+     */
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'SUPPLEMENT',
+      lines: [line(await makeProduct())],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    const id2 = v2.body.id as string;
+
+    await act(id2, 'SUBMIT', 'tdv01', { tbpUserId: await idCua('tbp02') });
+    await act(id2, 'TBP_SIGN', 'tbp02');
+    await act(id2, 'KT_RECEIVE_L1', 'kt01');
+    await post(
+      `/policies/${id2}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id2}.pdf` },
+      'sa01',
+    );
+    await act(id2, 'SA_HANDOVER', 'sa01');
+    await act(id2, 'KT_RECEIVE_L2', 'kt01');
+
+    const thu = await doiThu('phiên bản mới');
+    // ĐÚNG tbp01. Ba người còn lại của bản cũ đều đang giữ bản mới, và họ vừa
+    // nhận lá "CSBH bắt đầu có hiệu lực" trong cùng một giây.
+    expect(thu.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
+
+    const m = await fullMail(thu.ID);
+    // Thư nói về hồ sơ CŨ: mã hồ sơ cũ, liên kết mở hồ sơ cũ.
+    expect(m.Text).toContain(d.code);
+    expect(m.Text).toContain(`/ho-so/${d.id}`);
+    expect(m.Text).toContain('Trạng thái:');
+    expect(m.Text).toContain('Hết hiệu lực');
+    expect(m.Text).toContain('Đã kết thúc — CSBH này không còn hiệu lực');
+    // Và chỉ ra bản thay thế — không có dòng này thì người nhận phải tự đi tìm.
+    expect(m.Text).toContain(`Phiên bản thay thế`);
+    expect(m.Text).toContain(v2.body.code as string);
+  }, 120_000);
+
+  it('cả bốn người vẫn giữ bản mới thì KHÔNG có lá thư nào thêm', async () => {
+    /*
+     * Ca bảo vệ trước chính lá thư vừa thêm.
+     *
+     * Đây là hình dạng THƯỜNG GẶP: cùng một TDV, cùng một Trưởng bộ phận, cùng
+     * một Kế toán giữ cả hai phiên bản. Cả bốn người vừa nhận lá "CSBH bắt đầu
+     * có hiệu lực", nên gửi thêm một lá nữa cho chính họ là hai thư trong một
+     * giây — đúng thứ đã phải gỡ bỏ một trạng thái khỏi máy trạng thái để dứt.
+     */
+    const d = await draft();
+    await runToActive(d.id);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'SUPPLEMENT',
+      lines: [line(await makeProduct())],
+    });
+    const id2 = v2.body.id as string;
+
+    await act(id2, 'SUBMIT', 'tdv01');
+    await act(id2, 'TBP_SIGN', 'tbp01');
+    await act(id2, 'KT_RECEIVE_L1', 'kt01');
+    await post(
+      `/policies/${id2}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id2}.pdf` },
+      'sa01',
+    );
+    await act(id2, 'SA_HANDOVER', 'sa01');
+    await donHopThuVaCho();
+    await act(id2, 'KT_RECEIVE_L2', 'kt01');
+
+    // Lá cuối của luồng là mốc: nó và lá "hết hiệu lực" phát ra trong CÙNG một
+    // transaction, nên thấy nó tới rồi mà vẫn chỉ có một thư nghĩa là lá kia
+    // thật sự không được gửi, không phải chưa kịp tới.
+    await doiThu('bắt đầu có hiệu lực');
+    const tat = await listMail();
+    expect(tat.filter((m) => m.Subject.includes('hết hiệu lực'))).toHaveLength(0);
+  }, 120_000);
+
+  it('khách hàng ngừng hợp tác — ba người còn lại của hồ sơ được báo', async () => {
+    const d = await draft();
+    await runToActive(d.id);
+    await donHopThuVaCho();
+
+    // TDV phụ trách bấm *Ngừng hợp tác*. customer gọi sang policy, policy cho
+    // mọi CSBH đang hiệu lực của khách này hết hiệu lực.
+    const r = await (await http(customer))
+      .delete(`/customers/${d.customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const thu = await doiThu('ngừng hợp tác');
+    // Không có tdv01: họ vừa bấm nút và vừa nhìn thấy kết quả trên màn hình.
+    expect(thu.To.map((x) => x.Address).sort()).toEqual([
+      'kt01@csbh.test',
+      'sa01@csbh.test',
+      'tbp01@csbh.test',
+    ]);
+
+    const m = await fullMail(thu.ID);
+    expect(m.Text).toContain(d.code);
+    expect(m.Text).toContain(CUSTOMER_NAME);
+    expect(m.Text).toContain('Hết hiệu lực');
+    // Lý do in ra chứ không để người nhận đoán vì sao chính sách biến mất.
+    expect(m.Text).toContain('Khách hàng ngừng hợp tác');
+    // KHÔNG có dòng "Phiên bản thay thế": ở đường này không có bản nào thay thế,
+    // và gợi ý ngược lại là bắt người đọc đi tìm một hồ sơ không tồn tại.
+    expect(m.Text).not.toContain('Phiên bản thay thế');
+  }, 120_000);
 });
 
 // =============================================================================

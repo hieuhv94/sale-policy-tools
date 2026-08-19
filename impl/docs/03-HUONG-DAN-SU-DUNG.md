@@ -667,6 +667,27 @@ Ba nhóm **không** nhận thư *để biết*: người vừa nhận thư chín
 nhanh nhất khiến người ta ngừng đọc cả hai), người **vừa bấm nút** (họ vừa nhìn thấy kết quả trên
 màn hình), và tài khoản **đã bị vô hiệu hoá**.
 
+### Thư báo CSBH hết hiệu lực
+
+Một CSBH đang hiệu lực mất hiệu lực theo **hai đường**, và cả hai giờ đều có thư báo.
+
+| Đường | Ai nhận thư |
+|---|---|
+| **Có phiên bản mới** được duyệt xong | Người của **bản cũ** mà **không còn tên trong bản mới** |
+| **Khách hàng ngừng hợp tác** | Cả ba người còn lại của hồ sơ — trừ chính TDV vừa bấm nút |
+
+Ở đường thứ nhất, thư thường **không được gửi**, và đó là đúng: cùng một Trình dược viên, cùng một
+Trưởng bộ phận, cùng một Kế toán giữ cả hai phiên bản thì cả bốn người vừa nhận lá *CSBH bắt đầu có
+hiệu lực* của bản mới rồi. Gửi thêm một lá nữa cho chính họ là hai thư trong một giây.
+
+Lá thư ấy sinh ra cho đúng ca hiếm mà nó có ích: **người đã ký bản cũ nhưng không tham gia bản mới**
+— Trưởng bộ phận đã duyệt phiên bản trước, hoặc người phụ trách cũ sau khi khách hàng đổi Trình dược
+viên. Không có thư thì chính sách họ từng ký hết hiệu lực trong im lặng.
+
+Thư của đường thứ nhất chỉ luôn **phiên bản thay thế** ở cuối. Thư của đường thứ hai **không có**
+dòng đó — ở đấy không có bản nào thay thế cả, và gợi ý ngược lại là bắt người đọc đi tìm một hồ sơ
+không tồn tại.
+
 ### Lịch sử hồ sơ
 
 **Mục cuối cùng** của màn hình hồ sơ, gập sẵn — bấm vào thanh *Lịch sử* thì sổ ra; mũi tên ở **mép

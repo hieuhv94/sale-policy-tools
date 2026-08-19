@@ -6153,3 +6153,100 @@ giữa theo hộp thì nó trông như bị tụt. `margin-top: -2px` khi gập,
 Hai ca mới ở `chi-tiet-ho-so.test.tsx`: `<summary>` có ĐÚNG một phần tử con và nó là `<h2>`; thân
 khối gập không còn `.ghi-chu` nào, và phần tử đầu tiên trong đó là khung cuộn của bảng chứ không phải
 một đoạn chữ. **1155/1155 xanh.**
+
+## P77 — Ba sửa trong nội dung thư, và thư báo CSBH hết hiệu lực
+
+Khách hàng review bản trình bày luồng email và chốt ba việc: sửa M-01, sửa M-03, và làm M-08. Kèm
+một yêu cầu thứ tư phát trong lúc đang làm — bỏ số thứ tự bước khỏi thân thư.
+
+### M-01 — dòng phụ in giờ UTC thô
+
+Hai lá thư SLA in `Hạn xử lý: 2026-09-03T07:00:00.000Z`, trong khi sáu dòng còn lại của **chính lá
+thư ấy** đã đổi sang giờ Việt Nam từ lâu. Người nhận đọc lệch 7 tiếng, và lệch theo hướng làm họ
+tưởng mình đã trễ.
+
+Sửa ở `bodyFor`, **không** ở nơi phát sự kiện. Thân sự kiện là dữ liệu máy đọc — nó nằm lại trong
+`pol.outbox`, trong hàng thư hỏng, và được đọc lại khi gửi bù. Giờ địa phương thuộc về *cách trình
+bày*, và lá thư là nơi duy nhất có người đọc. Đúng luật đang áp cho trường `at`.
+
+Nhận diện bằng một biểu thức chính quy ISO-8601 áp lên mọi giá trị trong `extra`. Không phải đoán mò:
+`extra` chỉ mang chuỗi, và một chuỗi khớp đúng khuôn ấy thì đích thị là dấu thời gian máy sinh —
+người dùng không gõ tay `2026-09-03T07:00:00.000Z` vào ô nào của phần mềm.
+
+### M-03 — dòng phụ lệch khỏi cột
+
+Bảy dòng cố định được **đệm tay** bằng khoảng trắng viết sẵn trong chuỗi, còn các dòng của `extra`
+in `${k}: ${v}`. Nên "Hạn xử lý" và "Số ngày quá hạn" nằm lệch hẳn, thân thư trông như bị vá thêm ở
+cuối.
+
+Giờ dựng danh sách CẶP nhãn–giá trị rồi mới căn theo nhãn **dài nhất thực tế có trong lá thư này**.
+Thêm một khoá `extra` dài hơn "Bước đang duyệt" thì cả khối tự giãn — không ai phải nhớ đi sửa lại
+bảy chuỗi đệm tay.
+
+Ca kiểm thử so **vị trí giá trị**, không so số khoảng trắng: đó là thứ mắt người nhìn thấy. Nó cũng
+là chốt chặn cho một lỗi âm thầm — nhãn tiếng Việt lưu ở dạng NFD thì `String.length` đếm thừa và cả
+khối lệch, mà mã nguồn nhìn vẫn y hệt.
+
+### Bỏ số thứ tự bước khỏi thân thư
+
+`Bước 4 — Trưởng bộ phận duyệt và ký số` → `Trưởng bộ phận duyệt và ký số`. Ba lý do, lý do thứ hai
+là lý do thật:
+
+1. Người nhận thư không thuộc bảng mười bước; "Bước 4" không thêm gì mà phần chữ chưa nói.
+2. Bốn con số ấy **nhảy cóc 4 · 6 · 8 · 10** — các bước lẻ là việc của người khác, không sinh thư.
+   Người đọc thấy hồ sơ "nhảy từ bước 4 sang bước 6" và tưởng mình bỏ lỡ mất một bước.
+3. Thêm hoặc bớt một bước trong quy trình là phải sửa lại toàn bộ các số, và không gì bắt lỗi nếu
+   quên.
+
+Ca kiểm thử khẳng định **cả hai vế**: có phần chữ, và không còn `/Bước \d/` nào. Bỏ số là cả điểm
+của thay đổi, nên phải có ca giữ nó bị bỏ.
+
+### M-08 — CSBH hết hiệu lực trong im lặng
+
+**HAI đường** làm một CSBH đang hiệu lực mất hiệu lực, và trước P77 cả hai đều không báo cho ai:
+
+| Đường | Sự kiện | Trạng thái trước P77 |
+|---|---|---|
+| Có phiên bản mới được duyệt | `policy.superseded` | Có sự kiện, **không có `recipients`** → notification bỏ qua |
+| Khách hàng ngừng hợp tác | `policy.customer_retired` | Sự kiện TỔNG KẾT về khách hàng, không dùng gửi thư được |
+
+#### Vì sao không gửi cho tất cả
+
+Bước `KT_RECEIVE_L2` đã gửi cho **cả bốn người của bản mới** lá *CSBH bắt đầu có hiệu lực* — cùng
+khách hàng, cùng một giây, cùng một transaction. Gửi thêm lá "bản cũ hết hiệu lực" cho chính họ là
+đúng thứ đã phải **gỡ hẳn một trạng thái khỏi máy trạng thái** ở P74 mới dứt được.
+
+Nên lọc ở **nơi phát sự kiện**, bằng `infra/nguoi-nhan.ts`: vai trò nào của bản cũ mà người giữ nó
+không nằm trong bốn người của bản mới. `notification` không lọc được — nó xử lý từng sự kiện độc
+lập, không có cách nào biết hai sự kiện vừa ghi cùng transaction sẽ tới cùng một hộp thư.
+
+Kết quả: **thường là rỗng, và rỗng mới là bình thường.** Lá thư sinh ra cho đúng ca hiếm mà nó có
+ích — người đã ký bản cũ nhưng không tham gia bản mới. Có một ca kiểm thử riêng khẳng định trường
+hợp thường gặp **không** sinh thêm thư nào.
+
+#### Đường ngừng hợp tác
+
+Một sự kiện thư cho **mỗi hồ sơ**, thêm bên cạnh sự kiện tổng kết chứ không thay nó: lá thư phải nói
+về một hồ sơ cụ thể — mã hồ sơ, liên kết mở nó, bốn người của riêng nó — còn sự kiện tổng kết là vết
+của một thao tác trên KHÁCH HÀNG, và nhật ký kiểm toán cần đúng câu đó.
+
+Mã và tên khách hàng do **customer đưa sang** trong thân request. `policy` không đọc được schema
+`cus`, mà gọi ngược lại `customer` để hỏi thì tệ hơn hẳn: `customer` đang chờ lời gọi này trả lời,
+nên đó là vòng gọi lồng nhau — với một pool kết nối nhỏ nó khoá chết cả hai. Bên kia vốn đã đọc sẵn
+dòng khách hàng trước khi gọi sang.
+
+Trừ người vừa bấm nút: chỉ TDV phụ trách bấm được *Ngừng hợp tác*, và họ vừa nhìn thấy kết quả trên
+màn hình.
+
+### Một sửa lộ ra trong lúc viết test
+
+`notification.test.ts` dựng policy bằng `createTestApp()` — **không nghe cổng nào**. Ca ngừng hợp
+tác đi customer → policy bằng HTTP, và `POLICY_URL` mặc định trỏ vào một container không có ở đó.
+Đổi sang `bootPolicyListening()` để sự kiện thư rơi vào **cùng một** `pol.outbox` mà `pumpOnce()`
+đang bơm.
+
+### Kiểm chứng
+
+Ba ca mới ở `notification.test.ts` (bản cũ khác người → có thư; bản cũ cùng người → **không** thư
+nào; ngừng hợp tác → ba người còn lại), hai nhóm khẳng định mới ở `sla.test.ts` cho M-01 và M-03,
+và hai vế của việc bỏ số bước ở cả hai tệp. **1158/1158 xanh.**

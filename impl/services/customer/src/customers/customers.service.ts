@@ -297,7 +297,7 @@ export class CustomersService {
       });
     }
 
-    const kq = await this.policies.ngung(id, me.id);
+    const kq = await this.policies.ngung(id, me.id, { code: cur.code, name: cur.name });
     if (kq.blocked) {
       throw new ConflictException({
         code: 'CUSTOMER_HAS_PENDING_POLICY',

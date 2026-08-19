@@ -42,7 +42,24 @@ export class PolicyClient {
     return this.goi(`/${encodeURIComponent(customerId)}/ho-so`, {});
   }
 
-  ngung(customerId: string, actorId: string): Promise<KetQuaNgung> {
-    return this.goi('/ngung-hop-tac', { customerId, actorId });
+  /**
+   * Mã và tên khách hàng đi kèm (`0066`): `policy` cần chúng để dựng thân thư
+   * báo CSBH hết hiệu lực, mà nó không đọc được schema `cus`.
+   *
+   * Đưa sang ở đây chứ không để bên kia hỏi ngược lại: lời gọi này đang giữ
+   * `customer` chờ, nên một lời gọi ngược từ `policy` về `customer` là vòng lồng
+   * nhau. Bên này vốn đã đọc dòng khách hàng ra rồi trước khi gọi.
+   */
+  ngung(
+    customerId: string,
+    actorId: string,
+    kh: { code: string; name: string },
+  ): Promise<KetQuaNgung> {
+    return this.goi('/ngung-hop-tac', {
+      customerId,
+      actorId,
+      customerCode: kh.code,
+      customerName: kh.name,
+    });
   }
 }

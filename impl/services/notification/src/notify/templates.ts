@@ -22,14 +22,32 @@ export const STATUS_LABEL: Record<string, string> = {
   DA_XOA: 'Đã xoá',
 };
 
-/** Tên bước đang chờ xử lý, theo đúng mười bước ở muc 3. */
+/**
+ * Việc đang chờ ai làm gì.
+ *
+ * KHÔNG CÒN SỐ THỨ TỰ BƯỚC (`0066`). Trước đó mỗi nhãn mở đầu bằng "Bước 4 —",
+ * "Bước 6 —"… theo đúng bảng mười bước ở muc 3, và chúng gây hại nhiều hơn lợi:
+ *
+ *   - Người nhận thư không thuộc bảng mười bước. Với họ "Bước 6" không thêm
+ *     thông tin nào mà phần chữ phía sau chưa nói.
+ *   - Bốn con số ấy nhảy cóc 4 · 6 · 8 · 10 (các bước lẻ là việc của người khác,
+ *     không sinh thư), nên người đọc thấy hồ sơ "nhảy từ bước 4 sang bước 6" và
+ *     tưởng mình bỏ lỡ mất một bước.
+ *   - Thêm hoặc bớt một bước trong quy trình là phải sửa lại toàn bộ các số ở
+ *     đây, và không có gì bắt lỗi nếu quên.
+ *
+ * `HET_HIEU_LUC` thêm ở `0066` cùng với hai lá thư hết hiệu lực. Thiếu nó thì
+ * hai lá thư ấy in dòng chung chung "Không còn bước nào phải xử lý" — đúng
+ * nhưng vô nghĩa, vì đó là câu dành cho hồ sơ vừa hoàn tất.
+ */
 export const STEP_LABEL: Record<string, string> = {
-  CHO_TBP_DUYET: 'Bước 4 — Trưởng bộ phận duyệt và ký số',
-  CHO_KT_L1: 'Bước 6 — KT duyệt bản mềm',
-  SA_DANG_XU_LY: 'Bước 8 — Sale Admin xử lý và bàn giao bản cứng',
-  CHO_KT_L2: 'Bước 10 — KT duyệt bản cứng',
-  YEU_CAU_CHINH_SUA: 'Bước 3 — Trình dược viên chỉnh sửa và gửi lại',
+  CHO_TBP_DUYET: 'Trưởng bộ phận duyệt và ký số',
+  CHO_KT_L1: 'Kế toán duyệt bản mềm',
+  SA_DANG_XU_LY: 'Sale Admin xử lý và bàn giao bản cứng',
+  CHO_KT_L2: 'Kế toán duyệt bản cứng',
+  YEU_CAU_CHINH_SUA: 'Trình dược viên chỉnh sửa và gửi lại',
   DANG_CO_HIEU_LUC: 'Đã hoàn tất — không còn bước nào phải xử lý',
+  HET_HIEU_LUC: 'Đã kết thúc — CSBH này không còn hiệu lực',
   TU_CHOI: 'Đã kết thúc — hồ sơ bị từ chối',
   QUA_HAN_DUYET: 'Quá hạn — vẫn chờ đúng bước cũ',
   DA_XOA: 'Đã kết thúc — người lập đã xoá hồ sơ',
@@ -54,6 +72,16 @@ const TITLE: Record<string, string> = {
   // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai. Thân thư đã ghi rõ
   // trạng thái và mã hồ sơ.
   DELETE: 'Trình dược viên đã xoá hồ sơ',
+  /*
+   * HAI đường làm một CSBH đang hiệu lực hết hiệu lực (`0066`). Cả hai trước đây
+   * đều diễn ra trong im lặng — không ai được báo.
+   *
+   * Tiêu đề nói luôn NGUYÊN NHÂN, không chỉ "đã hết hiệu lực": người nhận cần
+   * biết ngay có phải đi làm lại hồ sơ hay không. Có bản mới thay thế thì không;
+   * khách ngừng hợp tác thì cũng không, nhưng vì lý do ngược hẳn.
+   */
+  SUPERSEDE: 'CSBH đã hết hiệu lực do có phiên bản mới thay thế',
+  CUSTOMER_RETIRED: 'CSBH đã hết hiệu lực do khách hàng ngừng hợp tác',
   /*
    * BỐN nhãn `*_IMPACT` đã bị gỡ ở `0055` cùng với chính lá thư ấy.
    *
@@ -125,6 +153,21 @@ export const titleFor = (e: MailEvent): string =>
 export const subjectFor = (e: MailEvent): string =>
   `[CSBH] ${titleFor(e)} — ${e.customerName ?? 'Khách hàng'}`;
 
+/**
+ * Một chuỗi có phải MỐC THỜI GIAN dạng ISO-8601 không (`0066`, M-01).
+ *
+ * Dùng để nhận ra những giá trị trong `extra` cần đổi sang giờ Việt Nam. Đây
+ * không phải phép đoán mò: `extra` chỉ mang chuỗi, và một chuỗi khớp đúng khuôn
+ * này thì đích thị là dấu thời gian máy sinh ra — người dùng không gõ tay
+ * `2026-09-03T07:00:00.000Z` vào bất kỳ ô nào của phần mềm.
+ *
+ * VÌ SAO ĐỔI Ở ĐÂY chứ không ở nơi phát sự kiện: thân sự kiện là dữ liệu MÁY
+ * ĐỌC — nó nằm lại trong `pol.outbox`, trong hàng thư hỏng, và được đọc lại khi
+ * gửi bù. Giờ địa phương thuộc về CÁCH TRÌNH BÀY, và lá thư là nơi duy nhất có
+ * người đọc. Đúng luật đang áp cho trường `at`.
+ */
+const LA_MOC_THOI_GIAN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
 export function bodyFor(e: MailEvent, webBaseUrl: string): string {
   /*
    * `/ho-so/:id`, KHÔNG phải `/policies/:id`.
@@ -139,21 +182,36 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
   const status = STATUS_LABEL[e.toStatus ?? ''] ?? e.toStatus ?? '—';
   const step = STEP_LABEL[e.pendingStep ?? e.toStatus ?? ''] ?? 'Không còn bước nào phải xử lý';
 
-  const lines = [
-    titleFor(e),
-    '',
-    `Mã khách hàng:   ${e.customerCode ?? '—'}`,
-    `Tên khách hàng:  ${e.customerName ?? '—'}`,
-    `Mã hồ sơ CSBH:   ${e.policyCode ?? '—'}`,
-    `Trạng thái:      ${status}`,
-    `Bước đang duyệt: ${step}`,
-    `Thời điểm:       ${formatIct(e.at)}`,
+  /*
+   * Dựng danh sách CẶP nhãn–giá trị rồi mới căn cột, thay vì viết sẵn khoảng
+   * trắng vào từng chuỗi (`0066`, M-03).
+   *
+   * Bản cũ đệm tay đúng bảy dòng cố định, còn các dòng của `extra` thì in
+   * `${k}: ${v}` — nên "Hạn xử lý" và "Số ngày quá hạn" nằm lệch hẳn khỏi cột
+   * của bảy dòng trên, và thân thư trông như bị vá thêm ở cuối.
+   *
+   * Căn theo nhãn DÀI NHẤT THỰC TẾ CÓ trong lá thư này: thêm một khoá `extra`
+   * dài hơn "Bước đang duyệt" thì cả khối tự giãn ra, không ai phải nhớ đi sửa
+   * lại bảy chuỗi đệm tay.
+   */
+  const truong: [string, string][] = [
+    ['Mã khách hàng', e.customerCode ?? '—'],
+    ['Tên khách hàng', e.customerName ?? '—'],
+    ['Mã hồ sơ CSBH', e.policyCode ?? '—'],
+    ['Trạng thái', status],
+    ['Bước đang duyệt', step],
+    ['Thời điểm', formatIct(e.at)],
   ];
 
   // Lý do chỉ có mặt khi thật sự có — dòng "Lý do: —" trong thư báo ký số thành
   // công làm người đọc tưởng có chuyện.
-  if (e.reason) lines.push(`Lý do:           ${e.reason}`);
-  for (const [k, v] of Object.entries(e.extra ?? {})) lines.push(`${k}: ${v}`);
+  if (e.reason) truong.push(['Lý do', e.reason]);
+  for (const [k, v] of Object.entries(e.extra ?? {})) {
+    truong.push([k, LA_MOC_THOI_GIAN.test(v) ? formatIct(v) : v]);
+  }
+
+  const cot = Math.max(...truong.map(([k]) => k.length)) + 2;
+  const lines = [titleFor(e), '', ...truong.map(([k, v]) => `${`${k}:`.padEnd(cot)}${v}`)];
 
   if (e.chiDeBiet) {
     lines.push(

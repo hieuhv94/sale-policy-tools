@@ -322,7 +322,34 @@ describe('NTF-09 đẩy đồng hồ tới ngày thứ 13', () => {
      * Thư QUÁ HẠN vẫn gửi rộng: lúc ấy là tin phải báo, không còn là việc phải làm.
      */
     expect(mails[0]!.To.map((t) => t.Address).sort()).toEqual(['tbp01@csbh.test']);
-    expect(m.Text).toContain('Bước 4');
+    // `0066`: nhãn bước không còn số thứ tự.
+    expect(m.Text).toContain('Bước đang duyệt: Trưởng bộ phận duyệt và ký số');
+    expect(m.Text).not.toMatch(/Bước \d/);
+
+    /*
+     * `0066` M-01 — dòng "Hạn xử lý" phải là GIỜ VIỆT NAM, không phải ISO thô.
+     *
+     * Trước đó nó in `2026-09-03T07:00:00.000Z` trong khi mọi dòng khác của
+     * chính lá thư ấy đã đổi sang giờ Việt Nam. Người nhận đọc lệch 7 tiếng, và
+     * lệch theo đúng hướng làm họ tưởng mình đã trễ.
+     */
+    expect(m.Text).toMatch(/Hạn xử lý:\s+\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+    expect(m.Text).not.toContain('T00:00:00');
+    expect(m.Text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+
+    /*
+     * `0066` M-03 — MỌI dòng nhãn–giá trị bắt đầu giá trị ở cùng một cột.
+     *
+     * Kiểm bằng cách so vị trí của giá trị chứ không so số khoảng trắng: đó là
+     * thứ mắt người nhìn thấy. Ca này cũng là chốt chặn cho một lỗi âm thầm —
+     * nhãn tiếng Việt lưu ở dạng NFD thì `String.length` đếm thừa và cả khối
+     * lệch, mà mã nguồn nhìn vẫn y hệt.
+     */
+    const khoi = m.Text.replace(/\r\n/g, '\n').split('\n\n')[1]!.split('\n');
+    // Sáu trường bắt buộc cộng dòng "Hạn xử lý" của riêng thư nhắc.
+    expect(khoi, `khối trường sai: ${JSON.stringify(khoi)}`).toHaveLength(7);
+    const cot = khoi.map((d) => d.length - d.replace(/^[^:]+:\s+/, '').length);
+    expect(new Set(cot).size, `giá trị lệch cột: ${JSON.stringify(cot)}`).toBe(1);
 
     const row = await policyRow(id);
     expect(row.status).toBe('CHO_TBP_DUYET'); // nhắc thôi, chưa quá hạn

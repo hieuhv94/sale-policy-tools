@@ -12,9 +12,10 @@
  * không biết khách này còn hồ sơ nào đang chờ.
  */
 import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
-import { ServiceOnly, str, validate } from '@csbh/http-kit';
+import { opt, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { emit } from './infra/emit.js';
+import { vaiTroConLai, type BonNguoi } from './infra/nguoi-nhan.js';
 
 /**
  * Trạng thái KẾT THÚC — hồ sơ ở đây không chờ ai và không đi tiếp được nữa.
@@ -59,7 +60,25 @@ export class NgungHopTacController {
   @Post('ngung-hop-tac')
   @HttpCode(200)
   async ngung(@Body() body: unknown) {
-    const b = validate(body, { customerId: str(36, 36), actorId: str(36, 36) });
+    /*
+     * Mã và tên khách hàng do NGƯỜI GỌI đưa sang (`0066`) — chúng chỉ dùng để
+     * dựng thân thư báo hết hiệu lực.
+     *
+     * `policy` không đọc được schema `cus` (AD-02), mà gọi ngược lại `customer`
+     * để hỏi thì tệ hơn hẳn: `customer` đang chờ lời gọi này trả lời, nên đó là
+     * một vòng gọi lồng nhau — với một pool kết nối nhỏ nó khoá chết cả hai. Bên
+     * kia vốn đã đọc sẵn dòng khách hàng trước khi gọi sang đây.
+     *
+     * `opt` chứ không bắt buộc: sự kiện cũ nằm trong hàng đợi và bản `customer`
+     * chưa kịp triển khai lại vẫn gọi được đường này, chỉ là lá thư in "—" ở hai
+     * dòng ấy thay vì làm hỏng cả thao tác ngừng hợp tác.
+     */
+    const b = validate(body, {
+      customerId: str(36, 36),
+      actorId: str(36, 36),
+      customerCode: opt(str(1, 60)),
+      customerName: opt(str(1, 300)),
+    });
 
     return this.db.tx(async (c) => {
       const cur = await c.query<Hang>(
@@ -73,11 +92,12 @@ export class NgungHopTacController {
       }
 
       for (const p of dangHieuLuc) {
-        await c.query(
+        const upd = await c.query<BonNguoi>(
           `UPDATE pol.policy
               SET status = 'HET_HIEU_LUC', deactivated_at = now(),
                   row_version = row_version + 1
-            WHERE id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
+            WHERE id = $1 AND status = 'DANG_CO_HIEU_LUC'
+          RETURNING tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id`,
           [p.id],
         );
         // Vết nằm ở nhật ký CỦA CHÍNH HỒ SƠ, cùng chỗ với các bước duyệt.
@@ -94,8 +114,47 @@ export class NgungHopTacController {
                    'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'CUSTOMER_RETIRED', $2, 'TDV', $3)`,
           [p.id, b.actorId, 'Khách hàng ngừng hợp tác'],
         );
+
+        /*
+         * MỘT sự kiện thư cho MỖI hồ sơ (`0066`).
+         *
+         * Sự kiện tổng kết bên dưới không dùng gửi thư được: nó nói về khách
+         * hàng, còn lá thư phải nói về một hồ sơ cụ thể — mã hồ sơ, liên kết mở
+         * nó, và bốn người của riêng nó. Một khách hàng có nhiều CSBH hết hiệu
+         * lực cùng lúc thì mỗi hồ sơ là một lá thư, đúng như mọi bước khác.
+         *
+         * Trừ người vừa bấm nút: chỉ TDV phụ trách bấm được *Ngừng hợp tác*, và
+         * họ vừa nhìn thấy kết quả trên màn hình.
+         */
+        const nguoi = upd.rows[0];
+        const nhan = nguoi ? vaiTroConLai(nguoi, [b.actorId]) : [];
+        if (nguoi && nhan.length > 0) {
+          await emit(c, 'policy.het_hieu_luc', {
+            entity: 'policy',
+            policyId: p.id,
+            policyCode: p.code,
+            customerId: b.customerId,
+            customerCode: b.customerCode ?? null,
+            customerName: b.customerName ?? null,
+            action: 'CUSTOMER_RETIRED',
+            fromStatus: 'DANG_CO_HIEU_LUC',
+            toStatus: 'HET_HIEU_LUC',
+            recipients: nhan,
+            tdvUserId: nguoi.tdv_user_id,
+            tbpUserId: nguoi.tbp_user_id,
+            keToanUserId: nguoi.ke_toan_user_id,
+            saleAdminUserId: nguoi.sale_admin_user_id,
+            reason: 'Khách hàng ngừng hợp tác',
+            actorId: b.actorId,
+            at: new Date().toISOString(),
+          });
+        }
       }
 
+      // Sự kiện TỔNG KẾT, giữ nguyên: nó là vết của một thao tác trên KHÁCH
+      // HÀNG — "khách này ngừng hợp tác, kéo theo N hồ sơ" — và nhật ký kiểm
+      // toán cần đúng câu đó. Các sự kiện thư ở trên nói về từng hồ sơ, không
+      // thay thế được nó.
       if (dangHieuLuc.length > 0) {
         await emit(c, 'policy.customer_retired', {
           entity: 'policy',
