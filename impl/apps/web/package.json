@@ -34,7 +34,9 @@
     "./so-lieu": "./src/components/khoi/SoLieu.tsx",
     "./ho-so-ui": "./src/pages/DanhSachHoSo.tsx",
     "./chi-tiet-ho-so": "./src/pages/ChiTietHoSo.tsx",
-    "./lich-su": "./src/components/LichSu.tsx"
+    "./lich-su": "./src/components/LichSu.tsx",
+    "./xem-tep": "./src/components/XemTep.tsx",
+    "./tep-dinh-kem": "./src/components/TepDinhKem.tsx"
   },
   "scripts": {
     "build": "vite build",

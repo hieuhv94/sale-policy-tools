@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, HopThoai, HopThoaiXacNhan, Truong } from './Chung.js';
+import { XemTep } from './XemTep.js';
 
 export type TepDto = {
   id: string;
@@ -85,6 +86,30 @@ export function TepDinhKem({
   /** Tệp đang chờ xác nhận gỡ. */
   const [hoiGo, datHoiGo] = useState<TepDto | null>(null);
 
+  /**
+   * Tệp đang mở xem, kèm đường tải nội dung đã có token (`0051`).
+   *
+   * Phải xin liên kết TRƯỚC rồi mới mở hộp xem, chứ không để hộp tự xin: đường
+   * `/files/:id/content` đòi một token cấp riêng cho người đang gọi (DOC-09),
+   * và id của file thì phải tra từ `objectKey` — hai lời gọi mà hộp xem không
+   * nên biết. Nó chỉ nhận một đường và vẽ.
+   */
+  const [dangXem, datDangXem] = useState<{ duong: string; tenTep: string } | null>(null);
+
+  const xem = async (t: TepDto) => {
+    datLoi(null);
+    datDangChay(t.id);
+    try {
+      const fileId = await layFileId(t);
+      const link = await layJson<{ url: string; fileName: string }>(`/files/${fileId}/link`);
+      datDangXem({ duong: link.url, tenTep: link.fileName || t.fileName });
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangChay(null);
+    }
+  };
+
   const go = async (t: TepDto) => {
     datLoi(null);
     datDangChay(t.id);
@@ -125,6 +150,19 @@ export function TepDinhKem({
               <span>{t.fileName}</span>
               <span className="phu">{ngayGio(t.uploadedAt)}</span>
               <div className="nhom-nut nhom-nut-gon">
+                {/*
+                  *Xem* đứng TRƯỚC *Tải xuống* (`0051`): với bản scan thì xem là
+                  việc hay làm hơn hẳn — Kế toán mở ra đối chiếu chữ ký rồi đóng
+                  lại, không cần một bản sao nằm lại trong thư mục tải xuống.
+                */}
+                <button
+                  type="button"
+                  className="nut nut-nhe"
+                  disabled={dangChay === t.id}
+                  onClick={() => void xem(t)}
+                >
+                  Xem
+                </button>
                 <button
                   type="button"
                   className="nut nut-nhe"
@@ -147,6 +185,15 @@ export function TepDinhKem({
             </li>
           ))}
         </ul>
+      )}
+
+      {dangXem && (
+        <XemTep
+          tieuDe={dangXem.tenTep}
+          duong={dangXem.duong}
+          tenTep={dangXem.tenTep}
+          dong={() => datDangXem(null)}
+        />
       )}
 
       {hoiGo && (

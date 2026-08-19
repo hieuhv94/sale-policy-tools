@@ -14,6 +14,7 @@ import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
+import { XemTep } from '../components/XemTep.js';
 import {
   SuaNgayApDung,
   ThemDongSanPham,
@@ -154,6 +155,13 @@ export function ChiTietHoSo({ id }: { id: string }) {
     datLoi(null);
     taiVe(`/policies/${id}/render?size=${kho}`, `CSBH-${kho}.pdf`).catch(datLoi);
   };
+
+  /** Tệp đang mở xem trực tiếp — bản CSBH hoặc hợp đồng (`0051`). */
+  const [dangXem, datDangXem] = useState<{
+    tieuDe: string;
+    duong: string;
+    tenTep: string;
+  } | null>(null);
 
   if (loi !== null && hoSo === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!hoSo) return <DangTai />;
@@ -332,11 +340,30 @@ export function ChiTietHoSo({ id }: { id: string }) {
           tải một bản in ra xem KHÔNG phải thao tác ghi, nên không phạm `FE-23`.
           Hai khổ giấy vì bảng mười cột không vừa khổ dọc khi hồ sơ nhiều dòng.
         */}
+        {/*
+          *Xem* mở khổ DỌC (`0051`). Không bày hai nút xem cho hai khổ: khổ ngang
+          sinh ra để bảng mười cột không bị cắt khi IN RA GIẤY, còn trên màn hình
+          thì cuộn ngang được — hai nút xem chỉ thêm một lựa chọn không ai cần
+          cân nhắc. Tải xuống thì vẫn đủ hai khổ, vì đó mới là lúc khổ giấy có nghĩa.
+        */}
+        <button
+          type="button"
+          className="nut nut-nhe"
+          onClick={() =>
+            datDangXem({
+              tieuDe: `Bản CSBH ${hoSo.code}`,
+              duong: `/policies/${hoSo.id}/render?size=a4p`,
+              tenTep: `CSBH-${hoSo.code}.pdf`,
+            })
+          }
+        >
+          Xem bản CSBH
+        </button>
         <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4p')}>
-          Bản CSBH (A4 dọc)
+          Tải bản CSBH (A4 dọc)
         </button>
         <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4l')}>
-          Bản CSBH (A4 ngang)
+          Tải bản CSBH (A4 ngang)
         </button>
 
         {/*
@@ -349,16 +376,31 @@ export function ChiTietHoSo({ id }: { id: string }) {
           toán thấy nút này ở mọi hồ sơ, kể cả bản còn đang chờ TBP ký.
         */}
         {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
-          <button
-            type="button"
-            className="nut"
-            onClick={() => {
-              datLoi(null);
-              taiVe(`/policies/${hoSo.id}/contract.pdf`, `HopDong-${hoSo.code}.pdf`).catch(datLoi);
-            }}
-          >
-            Xuất hợp đồng (PDF)
-          </button>
+          <>
+            <button
+              type="button"
+              className="nut nut-nhe"
+              onClick={() =>
+                datDangXem({
+                  tieuDe: `Hợp đồng ${hoSo.code}`,
+                  duong: `/policies/${hoSo.id}/contract.pdf`,
+                  tenTep: `HopDong-${hoSo.code}.pdf`,
+                })
+              }
+            >
+              Xem hợp đồng
+            </button>
+            <button
+              type="button"
+              className="nut"
+              onClick={() => {
+                datLoi(null);
+                taiVe(`/policies/${hoSo.id}/contract.pdf`, `HopDong-${hoSo.code}.pdf`).catch(datLoi);
+              }}
+            >
+              Xuất hợp đồng (PDF)
+            </button>
+          </>
         )}
       </div>
 
@@ -391,6 +433,15 @@ export function ChiTietHoSo({ id }: { id: string }) {
         tiêu đề dẫn sang màn hình khác, và một liên kết như thế thì phần lớn
         người dùng không biết là có.
       */}
+      {dangXem && (
+        <XemTep
+          tieuDe={dangXem.tieuDe}
+          duong={dangXem.duong}
+          tenTep={dangXem.tenTep}
+          dong={() => datDangXem(null)}
+        />
+      )}
+
       <LichSuGap hoSoId={hoSo.id} />
 
       {suaDongCu && (
@@ -534,10 +585,10 @@ function HopThoaiHanhDong({
     let url: string | null = null;
     let song = true;
     xemTruoc(`/policies/${hoSoId}/render?size=a4p`)
-      .then((u) => {
-        url = u;
-        if (song) datXemUrl(u);
-        else URL.revokeObjectURL(u);
+      .then((x) => {
+        url = x.url;
+        if (song) datXemUrl(x.url);
+        else URL.revokeObjectURL(x.url);
       })
       .catch(datLoi);
     return () => {

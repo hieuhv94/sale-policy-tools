@@ -1605,6 +1605,33 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   background: var(--mau-nen-phu);
 }
 
+/* `0051` — hộp XEM TỆP.
+
+   Cao hơn hộp xem trước lúc gửi duyệt: ở đó bản CSBH chỉ để liếc lại trước khi
+   bấm, còn ở đây xem tệp LÀ việc đang làm — Kế toán soi chữ ký trên bản scan.
+   Vẫn chừa chỗ cho tiêu đề hộp thoại và hàng nút bên dưới, nên không dùng 100vh. */
+.khung-xem {
+  height: min(68vh, 760px);
+  margin-bottom: var(--k4);
+}
+
+/* Ảnh scan: vừa khung, giữ tỷ lệ, nền tối hơn để mép giấy trắng nhìn rõ. */
+.khung-anh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-phu);
+}
+
+.khung-anh img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 /* Ghi chú cảnh báo dưới một ô chọn rỗng — vàng, KÈM chữ (FE-28). */
 .ghi-chu.canh-bao {
   color: var(--mau-canh-bao);

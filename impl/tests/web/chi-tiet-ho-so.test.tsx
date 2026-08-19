@@ -298,3 +298,79 @@ describe('`0061` lịch sử là mục cuối, gập lại', () => {
     expect(document.body.textContent).not.toContain('Nhật ký');
   });
 });
+
+// =============================================================================
+// `0050` · `0051` — cảnh báo bản scan cũ, và xem tệp trực tiếp
+// =============================================================================
+
+describe('`0050` cảnh báo bản scan Kế toán đã yêu cầu in lại', () => {
+  it('có cờ thì nói rõ phải gỡ và thay, và nói rõ hệ thống KHÔNG chặn', async () => {
+    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', banScanCu: true });
+    const khoi = document.querySelector('.canh-bao-scan');
+    expect(khoi, 'phải có khối cảnh báo').not.toBeNull();
+    expect(khoi!.textContent).toContain('đã yêu cầu in lại');
+    // Hai câu này là cả lý do khối tồn tại: hồ sơ vẫn bàn giao lại được ngay,
+    // nên phải nói ra việc cần làm VÀ nói rõ không ai chặn nếu bỏ qua.
+    expect(khoi!.textContent).toContain('tải bản scan mới lên');
+    expect(khoi!.textContent).toContain('không chặn');
+  });
+
+  it('không có cờ thì KHÔNG có khối nào — đây là màn hình mở mỗi ngày', async () => {
+    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', banScanCu: false });
+    expect(document.querySelector('.canh-bao-scan')).toBeNull();
+  });
+
+  it('máy chủ cũ không gửi cờ thì cũng KHÔNG hiện — mặc định phía an toàn', async () => {
+    // Cùng luật với ba cờ của `0048`: thiếu một cờ thì mất một khối, không phải
+    // hiện một cảnh báo sai ở mọi hồ sơ.
+    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY' });
+    expect(document.querySelector('.canh-bao-scan')).toBeNull();
+  });
+});
+
+describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () => {
+  const nut = (ten: string) => screen.queryByRole('button', { name: ten });
+
+  it('có nút Xem bản CSBH, và nút tải vẫn còn đủ HAI khổ', async () => {
+    await mo();
+    expect(nut('Xem bản CSBH')).not.toBeNull();
+    // Khổ giấy chỉ có nghĩa lúc IN RA GIẤY, nên xem chỉ một khổ còn tải thì hai.
+    expect(nut('Tải bản CSBH (A4 dọc)')).not.toBeNull();
+    expect(nut('Tải bản CSBH (A4 ngang)')).not.toBeNull();
+  });
+
+  it('bấm Xem thì mở hộp thoại và tải nội dung qua `goi()`, không nhúng thẳng', async () => {
+    const f = await mo();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản CSBH' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
+    const duong = f.mock.calls.map((c) => String(c[0]));
+    expect(duong.some((d) => d.includes('/render?size=a4p'))).toBe(true);
+  });
+
+  it('Trưởng bộ phận KHÔNG thấy nút hợp đồng nào — cả xem lẫn xuất (FE-24)', async () => {
+    // Phiên đang đăng nhập là TBP. Nút *Xem hợp đồng* phải theo đúng cổng quyền
+    // của nút *Xuất hợp đồng*, nếu không thì nó thành đường vòng quanh FE-24.
+    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', xuatHopDongDuoc: true });
+    expect(nut('Xem hợp đồng')).toBeNull();
+    expect(nut('Xuất hợp đồng (PDF)')).toBeNull();
+  });
+
+  it('chưa tới lúc xuất được hợp đồng thì KHÔNG có nút xem', async () => {
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'KE_TOAN', username: 'kt01' } }),
+    );
+    await mo({ ...HO_SO, status: 'CHO_KT_L1', xuatHopDongDuoc: false });
+    expect(nut('Xem hợp đồng')).toBeNull();
+  });
+
+  it('Kế toán sau tiếp nhận L1 thấy CẢ HAI nút hợp đồng', async () => {
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'KE_TOAN', username: 'kt01' } }),
+    );
+    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', xuatHopDongDuoc: true });
+    expect(nut('Xem hợp đồng')).not.toBeNull();
+    expect(nut('Xuất hợp đồng (PDF)')).not.toBeNull();
+  });
+});

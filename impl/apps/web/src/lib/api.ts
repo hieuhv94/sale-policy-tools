@@ -279,10 +279,27 @@ export async function taiVe(duong: string, tenMacDinh: string): Promise<void> {
  * Người gọi PHẢI `URL.revokeObjectURL` khi đóng: một bản PDF hồ sơ vài MB nằm
  * lại trong bộ nhớ tới lúc đóng tab, và hộp xem trước này mở ra mỗi lần gửi duyệt.
  */
-export async function xemTruoc(duong: string): Promise<string> {
+export async function xemTruoc(duong: string): Promise<XemDuoc> {
   const res = await goi<Response>(duong, { tho: true });
-  return URL.createObjectURL(await res.blob());
+  const blob = await res.blob();
+  return {
+    url: URL.createObjectURL(blob),
+    // `blob.type` lấy từ `Content-Type` của phản hồi, KHÔNG từ đuôi tên file.
+    // Máy chủ biết kiểu thật; đoán theo đuôi là sai đúng ở những tệp người dùng
+    // đặt tên ẩu, mà đó cũng là những tệp hay mở nhầm nhất.
+    kieu: blob.type,
+    tenTep: tenTepTu(res.headers.get('content-disposition')),
+  };
 }
+
+export type XemDuoc = {
+  /** `blob:` URL — người gọi PHẢI thu hồi khi đóng. */
+  url: string;
+  /** MIME của nội dung, quyết định xem nhúng được hay phải mời tải về. */
+  kieu: string;
+  /** Tên máy chủ đặt, nếu có. */
+  tenTep: string | null;
+};
 
 /**
  * `document` lấy qua một kiểu CẤU TRÚC HẸP, không qua kiểu DOM toàn cục.

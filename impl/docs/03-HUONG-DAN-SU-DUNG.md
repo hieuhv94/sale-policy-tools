@@ -190,7 +190,7 @@ nghĩa của nó, đây là phần không cần bạn làm gì. Bấm vào thì 
 | Thẻ | Nghĩa |
 |---|---|
 | **Trình ký** | Kế toán vừa nhận bản mềm. In, trình Ban lãnh đạo ký, nhận lại, scan, tải lên (bước B8). |
-| **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ đã bị xoá khỏi hệ thống — phải làm lại từ đầu. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
+| **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ **vẫn còn** để bạn đối chiếu xem bản giấy hỏng ở đâu — in xong thì **gỡ nó và tải bản mới lên**. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
 
 **Thẻ *Sắp quá hạn*** đếm hồ sơ còn dưới 24 giờ là tới hạn, **ở bất kỳ bước nào** trong phạm vi của
 bạn — không riêng bước bạn phụ trách. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày
@@ -709,6 +709,21 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
   lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
 - Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được lịch sử của nó, không thấy thì
   không.
+
+### Xem tệp không cần tải về
+
+Mỗi tệp đính kèm có **hai nút**: *Xem* và *Tải xuống*. *Xem* mở tệp ngay trong phần mềm — PDF và
+ảnh hiện thẳng trong một hộp, có nút **Đóng** luôn nhìn thấy và nút *Tải xuống* nếu bạn vẫn cần bản
+về máy.
+
+Tệp Word, Excel và các định dạng khác **không xem trực tiếp được** — trình duyệt chỉ mở sẵn được PDF
+và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng.
+
+Mục *Tải văn bản* cũng có **Xem bản CSBH** và **Xem hợp đồng**. Nút *Xem* mở khổ **A4 dọc**; khổ
+ngang chỉ có ở nút tải, vì khổ giấy chỉ có nghĩa khi in ra giấy — trên màn hình thì cuộn ngang được.
+
+> **Vì sao nên xem thay vì tải.** Mỗi lần tải là một bản sao nằm lại trong thư mục tải xuống của
+> máy bạn, ngoài tầm kiểm soát của phần mềm. Mở ra đối chiếu rồi đóng thì không để lại gì.
 
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật.
 
