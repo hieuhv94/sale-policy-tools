@@ -1,0 +1,269 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * `0061` — đầu màn hình hồ sơ, và khối lịch sử ở cuối nó.
+ *
+ * Ba yêu cầu của khách hàng, và cả ba đều là chuyện BỐ CỤC chứ không phải chuyện
+ * dữ liệu — nên chúng chỉ kiểm được bằng cách dựng thật màn hình ra:
+ *
+ *   1. Thông tin hồ sơ mỗi thứ một dòng CÓ NHÃN, không dồn hết lên một dòng.
+ *   2. Nút thao tác ở góc trên bên phải, ngang hàng với mã hồ sơ.
+ *   3. Lịch sử là mục CUỐI CÙNG, gập lại, bấm mới sổ ra.
+ *
+ * Ca dễ hỏng nhất là số 3: một khối gập tải sẵn nội dung ngay lúc mở trang thì
+ * nhìn bằng mắt không thấy khác gì, mà mỗi lượt mở hồ sơ lại thêm một vòng mạng.
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
+import { PhienProvider } from '@csbh/web/auth';
+import { BoDinhTuyen } from '@csbh/web/router';
+
+const TBP = {
+  accessToken: 'a',
+  refreshToken: 'r',
+  user: {
+    id: '22222222-2222-2222-2222-222222222222',
+    username: 'tbp01',
+    fullName: 'Tran Thi Tbp',
+    email: 'tbp01@example.com',
+    role: 'TBP',
+    mustChangePassword: false,
+  },
+};
+
+const HO_SO = {
+  id: 'hs-1',
+  code: 'CSBH-2026-000123',
+  customerId: 'kh-1',
+  versionNo: 2,
+  status: 'CHO_TBP_DUYET',
+  createdAt: '2026-07-28T02:15:00.000Z',
+  appliedDate: '2026-08-01',
+  effectiveFrom: null,
+  lastReason: null,
+  nguoiDeNghi: { ten: 'Nguyen Van Tdv' },
+  khachHang: {
+    ma: 'KH-000123',
+    ten: 'Cong ty TNHH Duoc pham ABC',
+    loai: 2,
+    congNo: '4500000',
+    trangThai: 'DANG_HOP_TAC',
+  },
+  xoaDuoc: false,
+  lech: [],
+  nguoiDuyet: {},
+  loaiTepGhiDuoc: [],
+  tepXoaDuoc: false,
+  xuatHopDongDuoc: false,
+  rowVersion: 3,
+  lines: [],
+  attachments: [],
+};
+
+const LICH_SU = [
+  {
+    seq: 1,
+    fromStatus: null,
+    toStatus: 'NHAP',
+    action: 'CREATE',
+    actorId: '11111111-1111-1111-1111-111111111111',
+    actorRole: 'TDV',
+    actorName: 'Nguyen Van Tdv',
+    reason: null,
+    at: '2026-07-28T02:15:00.000Z',
+  },
+];
+
+const json = (body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+
+/**
+ * Chặn `fetch` theo ĐƯỜNG DẪN, không theo thứ tự lời gọi.
+ *
+ * Màn hình này gọi ba đường song song lúc mở (hồ sơ, hành động cho phép, tệp) và
+ * thêm một đường nữa khi người dùng sổ lịch sử ra. Trả theo thứ tự thì đổi thứ
+ * tự `Promise.all` một lần là test đỏ mà chẳng có gì hỏng.
+ */
+const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_REJECT']) => {
+  const f = vi.fn((duong: unknown) => {
+    const d = String(duong);
+    if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
+    if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: choPhep }));
+    if (d.includes('/files')) return Promise.resolve(json([]));
+    return Promise.resolve(json(hoSo));
+  });
+  vi.stubGlobal('fetch', f);
+  return f;
+};
+
+const mo = async (hoSo: unknown = HO_SO, choPhep?: string[]) => {
+  const f = chan(hoSo, choPhep);
+  render(
+    <PhienProvider>
+      <BoDinhTuyen>
+        <ChiTietHoSo id="hs-1" />
+      </BoDinhTuyen>
+    </PhienProvider>,
+  );
+  await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
+  return f;
+};
+
+/** Ô giá trị đứng cạnh nhãn này trong lưới thông tin. */
+const oCua = (nhan: string): string => {
+  const dt = [...document.querySelectorAll('.tom-tat-nhom dt')].find((e) => e.textContent === nhan);
+  expect(dt, `không có ô nào tên "${nhan}"`).toBeDefined();
+  return dt!.parentElement!.querySelector('dd')!.textContent ?? '';
+};
+
+beforeEach(() => localStorage.setItem('csbh:phien', JSON.stringify(TBP)));
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  vi.unstubAllGlobals();
+});
+
+describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () => {
+  it('sáu thứ đều có nhãn riêng, không dồn lên một dòng chữ xám', async () => {
+    /*
+     * Tới `0060` cả khối này là MỘT dòng: "Phiên bản 2 · Ngày áp dụng … · Có
+     * hiệu lực …". Ba con số ngày tháng nối nhau bằng dấu chấm giữa dòng thì mắt
+     * phải đọc cả câu mới tách được cái mình cần.
+     */
+    await mo();
+    expect(oCua('Phiên bản')).toBe('2');
+    expect(oCua('Trạng thái')).toBe('Chờ TBP duyệt');
+    expect(oCua('Ngày soạn thảo')).toBe('28/07/2026');
+    expect(oCua('Ngày áp dụng')).toBe('01/08/2026');
+    expect(oCua('Người đề nghị')).toBe('Nguyen Van Tdv');
+  });
+
+  it('ngày soạn thảo KHÁC ngày áp dụng — hai mốc, hai ô', async () => {
+    // Dễ lẫn nhất trong cả khối: hồ sơ soạn dần thì hai mốc cách nhau hàng tuần,
+    // và lấy nhầm mốc nào cũng ra một ngày trông có vẻ hợp lý.
+    await mo();
+    expect(oCua('Ngày soạn thảo')).not.toBe(oCua('Ngày áp dụng'));
+  });
+
+  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, công nợ', async () => {
+    await mo();
+    const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
+      (e) => e.querySelector('h2')?.textContent === 'Khách hàng',
+    );
+    expect(nhom, 'không có nhóm Khách hàng').toBeDefined();
+
+    expect(within(nhom as HTMLElement).getByText('KH-000123')).toBeDefined();
+    expect(oCua('Tên')).toBe('Cong ty TNHH Duoc pham ABC');
+    expect(oCua('Loại')).toBe('Loại 2');
+    // Công nợ đọc theo tiền, không phải một chuỗi bigint thô.
+    expect(oCua('Công nợ')).toBe('4.500.000 đ');
+  });
+
+  it('mã khách hàng bấm được, dẫn sang màn hình khách hàng đó', async () => {
+    await mo();
+    const a = screen.getByText('KH-000123').closest('a') as HTMLAnchorElement;
+    expect(a.getAttribute('href')).toBe('/khach-hang/kh-1');
+  });
+
+  it('"Có hiệu lực" chỉ hiện khi ĐÃ có hiệu lực', async () => {
+    // Một ô "Có hiệu lực —" trên mọi hồ sơ đang đi trong luồng là một dòng không
+    // nói gì, nằm ngay cạnh hai ô ngày tháng có thật.
+    await mo();
+    expect(document.body.textContent).not.toContain('Có hiệu lực');
+
+    cleanup();
+    await mo({ ...HO_SO, effectiveFrom: '2026-08-05T03:12:00.000Z' });
+    expect(oCua('Có hiệu lực')).toContain('05/08/2026');
+  });
+
+  it('`customer` chết thì mất KHỐI khách hàng, không mất cả màn hình', async () => {
+    await mo({ ...HO_SO, khachHang: null });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('CSBH-2026-000123');
+    expect(document.body.textContent).toContain('Chưa tải được thông tin khách hàng');
+  });
+
+  it('khách đã ngừng hợp tác thì nói ra ở ngay khối này', async () => {
+    // Hồ sơ cũ của họ vẫn mở được, và không có dòng này thì người đọc không thấy
+    // gì bất thường ở một chính sách dành cho khách không còn giao dịch.
+    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
+    expect(document.body.textContent).toContain('Đã ngừng hợp tác');
+  });
+});
+
+describe('`0061` thao tác ở góc trên bên phải', () => {
+  it('nút nằm TRONG khối tiêu đề, ngang hàng với mã hồ sơ', async () => {
+    /*
+     * Trước `0061` chúng ở đáy trang, sau bảng sản phẩm và sau tệp đính kèm.
+     * Người vào đây để KÝ phải cuộn qua toàn bộ nội dung mới tới việc của mình.
+     */
+    await mo();
+    const dau = document.querySelector('.dau-trang') as HTMLElement;
+    expect(dau).not.toBeNull();
+    expect(within(dau).getByRole('heading', { level: 1 })).toBeDefined();
+    expect(within(dau).getByRole('button', { name: /ký/i })).toBeDefined();
+  });
+
+  it('không còn mục "Thao tác" riêng ở cuối trang', async () => {
+    await mo();
+    expect(screen.queryByRole('heading', { name: 'Thao tác' })).toBeNull();
+  });
+
+  it('vai trò không làm được gì thì KHÔNG có nhóm nút rỗng ở tiêu đề', async () => {
+    // Một khối bo góc rỗng bám mép phải tiêu đề trông như giao diện hỏng.
+    await mo(HO_SO, []);
+    expect(document.querySelector('.nhom-nut-dau')).toBeNull();
+  });
+});
+
+describe('`0061` lịch sử là mục cuối, gập lại', () => {
+  it('gập sẵn lúc mở trang, và KHÔNG gọi `/events` trước khi người dùng bấm', async () => {
+    /*
+     * Đây là ca đáng giá nhất tệp này. Tải sẵn thì nhìn bằng mắt không thấy khác
+     * gì — chỉ khác ở chỗ mỗi lượt mở hồ sơ tốn thêm một vòng mạng, trên đúng
+     * màn hình được mở nhiều nhất của phần mềm.
+     */
+    const f = await mo();
+    const chiTiet = document.querySelector('details.khoi-gap') as HTMLDetailsElement;
+    expect(chiTiet, 'lịch sử không phải khối gập').not.toBeNull();
+    expect(chiTiet.open).toBe(false);
+
+    const goi = f.mock.calls.map((c) => String(c[0]));
+    expect(goi.some((d) => d.includes('/events')), 'đã gọi /events khi chưa ai bấm').toBe(false);
+  });
+
+  it('bấm vào thì sổ ra và mới đi lấy nội dung', async () => {
+    const f = await mo();
+    const chiTiet = document.querySelector('details.khoi-gap') as HTMLDetailsElement;
+
+    // jsdom không tự phát `toggle` khi đổi `open`, nên đặt cờ rồi phát tay —
+    // đúng thứ trình duyệt làm khi người dùng bấm vào `<summary>`.
+    chiTiet.open = true;
+    fireEvent(chiTiet, new Event('toggle'));
+
+    await waitFor(() => expect(document.body.textContent).toContain('Lập hồ sơ'));
+    expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/events'))).toBe(true);
+  });
+
+  it('nó là mục CUỐI CÙNG của trang', async () => {
+    await mo();
+    const trang = document.querySelector('.trang') as HTMLElement;
+    const muc = [...trang.querySelectorAll(':scope > h2, :scope > details.khoi-gap')];
+    expect(muc.at(-1)?.tagName).toBe('DETAILS');
+  });
+
+  it('đổi tên thành "Lịch sử" — không còn gọi là "Nhật ký"', async () => {
+    /*
+     * Phần mềm có hai thứ tên "Nhật ký": nhật ký kiểm toán toàn hệ thống (một
+     * mục menu của Quản trị) và lịch sử của một hồ sơ. Trùng tên ở hai thứ có
+     * phạm vi khác hẳn nhau là một câu hỏi lặp lại mãi trong mọi buổi hướng dẫn.
+     */
+    await mo();
+    expect(screen.getByRole('heading', { name: 'Lịch sử' })).toBeDefined();
+    expect(document.body.textContent).not.toContain('Nhật ký');
+  });
+});

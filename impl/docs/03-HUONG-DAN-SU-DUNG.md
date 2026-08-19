@@ -122,7 +122,7 @@ vai trò của bạn có thể không xem được.
 
 Hai ngoại lệ:
 
-- **Liên kết trong thư báo.** Bấm *Mở hồ sơ* hay *Xem nhật ký* trong email rồi đăng nhập thì bạn vào
+- **Liên kết trong thư báo.** Bấm *Mở hồ sơ* hay *Xem lịch sử hồ sơ* trong email rồi đăng nhập thì bạn vào
   thẳng hồ sơ đó, không bị đưa về đây — bạn bấm vào nó vì cần đúng nó.
 - **Phiên hết hạn giữa chừng.** Ô đăng nhập lại hiện đè lên màn hình cũ, và đăng nhập xong bạn ở
   nguyên chỗ đang làm với mọi thứ đang gõ dở còn nguyên.
@@ -319,7 +319,7 @@ Hộp thoại hỏi máy chủ trước rồi mới nói hậu quả, vì hậu 
 
 Sau khi xoá: khách **biến khỏi ô chọn lúc lập hồ sơ** và không lập CSBH mới được, nhưng **vẫn nằm
 trong danh sách khách hàng** kèm nhãn *Đã xoá* — hồ sơ cũ của họ phải tra lại được. Việc cho hết
-hiệu lực có vết trong **nhật ký của từng hồ sơ**.
+hiệu lực có vết trong **lịch sử của từng hồ sơ**.
 
 > **Vì sao bản ghi vẫn còn sau khi bấm Xoá.** Hồ sơ CSBH trỏ vào khách hàng bằng khoá ngoại; xoá
 > hẳn dòng là mất luôn tên khách trên mọi hồ sơ cũ, kể cả hồ sơ đã ký. Nhãn *Đã xoá* nói đúng điều
@@ -460,12 +460,12 @@ Hai kết cục, hệ thống tự chọn — bạn không phải quyết địn
 
 | Hồ sơ đang ở | Bấm *Xoá hồ sơ* thì |
 |---|---|
-| **Nháp** (chưa gửi duyệt) | Biến mất hẳn, không để lại dòng nhật ký nào |
+| **Nháp** (chưa gửi duyệt) | Biến mất hẳn, không để lại dòng lịch sử nào |
 | **Yêu cầu chỉnh sửa** | Chuyển sang **Đã xoá** — hồ sơ ở lại, giữ nguyên lịch sử và lý do trả lại, tra cứu được, nhưng không đi tiếp được nữa |
 | **Từ chối** | Cũng chuyển sang **Đã xoá**, giữ nguyên lịch sử và lý do từ chối |
 
 Sự khác nhau nằm ở chỗ **đã có ai khác đọc hồ sơ chưa**. Bản nháp chưa gửi thì chưa ai ngoài bạn
-nhìn thấy, nên giữ lại một dòng "đã xoá" cho mỗi lần lập nhầm chỉ làm rác nhật ký. Hồ sơ bị trả lại
+nhìn thấy, nên giữ lại một dòng "đã xoá" cho mỗi lần lập nhầm chỉ làm rác lịch sử. Hồ sơ bị trả lại
 thì đã qua tay người khác, họ đã đọc và đã viết lý do — xoá sạch dấu vết là làm biến mất luôn phần
 việc của họ. **Người đã trả hồ sơ lại sẽ nhận thư báo** khi bạn xoá, vì họ đang chờ một bản sửa sẽ
 không bao giờ tới.
@@ -510,9 +510,32 @@ cùng vai trò không thấy, không mở.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
 
+### Đầu màn hình hồ sơ
+
+Mã hồ sơ ở góc trên bên trái, **các nút thao tác ở góc trên bên phải ngang hàng với nó**. Dưới đó là
+hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
+
+| Thẻ **Hồ sơ** | Nghĩa |
+|---|---|
+| Trạng thái | Hồ sơ đang ở bước nào |
+| Phiên bản | Bản CSBH thứ mấy **của khách hàng này** — không phải phiên bản phần mềm |
+| Ngày soạn thảo | Lúc bản nháp ra đời |
+| Ngày áp dụng | Ngày người lập khai, và là ngày dùng để tra giá với ngưỡng |
+| Có hiệu lực | Chỉ hiện khi CSBH **đã** có hiệu lực |
+| Người đề nghị | TDV đã **lập** hồ sơ — không đổi khi khách hàng được bàn giao cho TDV khác |
+
+| Thẻ **Khách hàng** | Nghĩa |
+|---|---|
+| Mã | Bấm vào mở màn hình khách hàng đó |
+| Tên · Loại · Công nợ | Ba thứ quyết định ngưỡng chiết khấu và điều khoản thanh toán |
+| Trạng thái | **Chỉ hiện khi khách đã ngừng hợp tác** — hồ sơ cũ của họ vẫn mở được |
+
+Ba mốc ngày tháng nằm ở ba ô riêng chứ không nối nhau trên một dòng: *ngày soạn thảo* và *ngày áp
+dụng* cách nhau hàng tuần ở hồ sơ soạn dần, và đọc nhầm mốc nào cũng ra một ngày trông hợp lý.
+
 ### Ai đã duyệt
 
-Ngay dưới tiêu đề hồ sơ là dải **đã duyệt**: mỗi bước đã đi qua một ô, ghi **tên người duyệt** và
+Ngay dưới hai thẻ ấy là dải **đã duyệt**: mỗi bước đã đi qua một ô, ghi **tên người duyệt** và
 **thời điểm**.
 
 | Ô | Nghĩa |
@@ -525,19 +548,25 @@ Ngay dưới tiêu đề hồ sơ là dải **đã duyệt**: mỗi bước đã
 **Chỉ hiện bước đã xảy ra.** Hồ sơ còn ở *Nháp* thì không có dải này; hồ sơ vừa được ký thì có một ô.
 Bày sẵn bốn ô rỗng chờ điền là bốn dòng chữ không nói gì.
 
-Thời điểm đi **kèm** tên chứ không tách: biết ai ký mà không biết ký lúc nào thì vẫn phải mở *Nhật ký*
+Thời điểm đi **kèm** tên chứ không tách: biết ai ký mà không biết ký lúc nào thì vẫn phải mở *Lịch sử*
 ra mới biết hồ sơ nằm đó bao lâu — và đó thường là câu hỏi tiếp theo. Muốn xem đủ mọi bước, kể cả các
-bước bị trả lại, thì vào *Nhật ký*.
+bước bị trả lại, thì mở *Lịch sử* ở cuối màn hình.
 
-### Dải nút *Thao tác*
+### Nút thao tác
 
-Trên màn hình hồ sơ, khối *Thao tác* chỉ hiện **những việc bạn làm được ở bước hiện tại** — không
-phải mọi việc của bước ấy. Trưởng bộ phận mở một hồ sơ đang chờ mình thấy ba nút *Ký số duyệt · Trả
-lại chỉnh sửa · Từ chối hồ sơ*; Trình dược viên mở đúng hồ sơ đó **không thấy nút nào**, vì lúc này
-việc không thuộc về họ.
+Các nút thao tác nằm ở **góc trên bên phải, ngang hàng với mã hồ sơ** — không phải dưới đáy trang.
+Người mở màn hình này phần lớn là để ký; bắt họ cuộn qua bảng sản phẩm, tệp đính kèm và nhóm nút tải
+văn bản mới tới được việc của mình là đặt việc chính ở xa nhất.
 
-Khối biến mất hẳn khi bạn không có việc gì, không hiện ra rồi báo lỗi khi bấm. **Ban lãnh đạo** và
-**Quản trị hệ thống** không bao giờ thấy khối này — cả hai đứng ngoài luồng duyệt.
+Chúng chỉ hiện **những việc bạn làm được ở bước hiện tại** — không phải mọi việc của bước ấy. Trưởng
+bộ phận mở một hồ sơ đang chờ mình thấy ba nút *Ký số duyệt · Trả lại chỉnh sửa · Từ chối hồ sơ*;
+Trình dược viên mở đúng hồ sơ đó **không thấy nút nào**, vì lúc này việc không thuộc về họ.
+
+Nhóm nút biến mất hẳn khi bạn không có việc gì, không hiện ra rồi báo lỗi khi bấm. **Ban lãnh đạo**
+và **Quản trị hệ thống** không bao giờ thấy nó — cả hai đứng ngoài luồng duyệt.
+
+*Xoá hồ sơ* **không** nằm trong nhóm này: nó ở cuối trang, tách khỏi các nút của luồng duyệt, để
+không ai bấm nhầm nó khi đang định ký.
 
 **Luật này áp cho MỌI nút trên màn hình hồ sơ**, không riêng dải *Thao tác*:
 
@@ -561,34 +590,40 @@ Hệ quả với hồ sơ **Quá hạn duyệt**: mở ra thì **không còn nú
 | Nhóm | Nhận gì | Liên kết trong thư dẫn tới |
 |---|---|---|
 | Người **phải xử lý** bước tiếp theo | Thư chính | **Hồ sơ** — mở ra là bấm nút được ngay |
-| Người **đã từng thao tác** lên hồ sơ nhưng giờ không có việc | Thư *để biết* | **Nhật ký hồ sơ** |
+| Người **đã từng thao tác** lên hồ sơ nhưng giờ không có việc | Thư *để biết* | **Lịch sử hồ sơ** |
 
 Nhóm thứ hai là điểm khác so với trước: hồ sơ đi tiếp thì mọi người đã đi qua nó đều được báo, không
 chỉ người đang cầm nó. Trường hợp rõ nhất là **Trưởng bộ phận đã bị thay**: người thứ nhất trả hồ sơ
 về, người lập sửa rồi gửi cho một Trưởng bộ phận khác — người thứ nhất không còn liên quan tới hồ sơ
 theo bất kỳ ô nào trên màn hình, nhưng họ đã đọc nó và đã viết lý do trả lại, nên họ vẫn được báo.
 
-Thư *để biết* nói thẳng ở thân thư rằng bạn **không phải xử lý gì**, và liên kết của nó mở **nhật
-ký** chứ không mở hồ sơ: mở hồ sơ ra bạn chẳng có nút nào bấm được, còn thứ bạn muốn biết là hồ sơ đã
+Thư *để biết* nói thẳng ở thân thư rằng bạn **không phải xử lý gì**, và liên kết của nó mở **lịch
+sử** chứ không mở hồ sơ: mở hồ sơ ra bạn chẳng có nút nào bấm được, còn thứ bạn muốn biết là hồ sơ đã
 đi qua những đâu từ lúc bạn rời tay.
 
 Ba nhóm **không** nhận thư *để biết*: người vừa nhận thư chính (nhận hai thư cho một sự kiện là cách
 nhanh nhất khiến người ta ngừng đọc cả hai), người **vừa bấm nút** (họ vừa nhìn thấy kết quả trên
 màn hình), và tài khoản **đã bị vô hiệu hoá**.
 
-### Nhật ký hồ sơ
+### Lịch sử hồ sơ
 
-Liên kết **Nhật ký** nằm ngay dưới mã hồ sơ trên màn hình chi tiết. Nó liệt kê **toàn bộ** các bước
-hồ sơ đã đi qua, cũ nhất trước: thời điểm, việc gì, chuyển từ trạng thái nào sang trạng thái nào, ai
-làm, và lý do nếu bước đó có.
+**Mục cuối cùng** của màn hình hồ sơ, gập sẵn — bấm vào tiêu đề *Lịch sử* thì sổ ra. Nó liệt kê
+**toàn bộ** các bước hồ sơ đã đi qua, cũ nhất trước: thời điểm, việc gì, chuyển từ trạng thái nào
+sang trạng thái nào, ai làm, và lý do nếu bước đó có.
+
+> Trước đây mục này tên là *Nhật ký* và nằm ở một màn hình riêng, vào bằng một liên kết nhỏ dưới mã
+> hồ sơ. Đổi tên vì phần mềm còn một *Nhật ký* nữa — nhật ký kiểm toán toàn hệ thống của Quản trị —
+> và hai thứ khác hẳn phạm vi mà trùng tên thì luôn phải hỏi lại đang nói cái nào.
+>
+> Địa chỉ cũ **vẫn dùng được**: liên kết trong những lá thư *để biết* đã gửi đi vẫn mở đúng nơi.
 
 - **Có cả những bước không ai bấm** — hệ thống tự chuyển sang Kế toán sau khi Trưởng bộ phận ký, tự
   đánh dấu quá hạn, bàn giao khi một tài khoản bị vô hiệu hoá. Chúng ghi người thực hiện là *Hệ
   thống*.
-- **Nhật ký chỉ ghi thêm** — không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
+- **Lịch sử chỉ ghi thêm** — không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
 - **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Từ chối*, *Đã xoá* hay *Hết hiệu lực*. Đó chính là
   lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
-- Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được nhật ký của nó, không thấy thì
+- Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được lịch sử của nó, không thấy thì
   không.
 
 **Hạn xử lý**: mỗi bước chờ có hạn **14 ngày**, tính cả thứ bảy và chủ nhật.
@@ -607,7 +642,7 @@ Hệ thống quét **5 phút một lần**, nên thư đi trong vòng tối đa 
 > đúng bước. Mở hồ sơ ra thì **dải nút Thao tác trống rỗng** — không có nút nào để bấm, kể cả nút
 > đính kèm tệp hay nút gỡ tệp. Việc phải làm là **lập một CSBH mới** cho khách hàng đó.
 >
-> Ba ngày sau, hệ thống tự chuyển nó sang *Đã xoá*. **Nội dung và nhật ký còn nguyên** — tra lại
+> Ba ngày sau, hệ thống tự chuyển nó sang *Đã xoá*. **Nội dung và lịch sử còn nguyên** — tra lại
 > được mãi mãi bằng bộ lọc trạng thái ở màn hình Hồ sơ — nhưng nó rời khỏi mọi thẻ đếm việc.
 >
 > Vì vậy **24 giờ cuối là cơ hội cuối**, và đó là lý do có thẻ *Sắp quá hạn*.
@@ -789,7 +824,7 @@ duy nhất còn nhìn thấy thì vừa bị khoá tài khoản. Vì thế một
 **Trạng thái không đổi.** Chuyển giao là đổi người, không phải một bước của luồng duyệt: hồ sơ đang
 ở *Chờ TBP duyệt* thì vẫn ở đó, chỉ là chờ một Trưởng bộ phận khác.
 
-**Có vết trong nhật ký của từng hồ sơ.** Mở một hồ sơ vừa đổi tay ra là thấy dòng *Chuyển giao* kèm
+**Có vết trong lịch sử của từng hồ sơ.** Mở một hồ sơ vừa đổi tay ra là thấy dòng *Chuyển giao* kèm
 lý do, đúng chỗ với các bước duyệt khác — không phải đi tìm trong nhật ký hệ thống.
 
 **Bật lại** thì không hỏi gì: nó không làm hồ sơ nào kẹt.

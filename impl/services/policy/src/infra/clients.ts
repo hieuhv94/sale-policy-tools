@@ -15,6 +15,14 @@ export type CustomerInfo = {
   /** `DANG_HOP_TAC` | `NGUNG_HOP_TAC` (`0034`). */
   status?: string;
   tdvUserId: string;
+  /**
+   * Công nợ, bigint dạng CHUỖI (`0061`).
+   *
+   * Khai tuỳ chọn dù `customer` luôn trả: kiểu này cũng mô tả phần thân mà
+   * `create()` đọc, và ở đó công nợ không liên quan gì. Khai bắt buộc là ép mọi
+   * chỗ dựng `CustomerInfo` trong test phải bịa ra một con số vô nghĩa.
+   */
+  debt?: string;
 };
 
 export type ProductSnapshot = {

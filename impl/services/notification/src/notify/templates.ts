@@ -167,7 +167,10 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
 
   lines.push(
     '',
-    e.chiDeBiet ? `Xem nhật ký hồ sơ: ${link}` : `Mở hồ sơ: ${link}`,
+    // "Lịch sử" chứ không "nhật ký" (`0061`): phần mềm còn một *Nhật ký* nữa —
+    // nhật ký kiểm toán toàn hệ thống — và thư này gửi cho người không có việc,
+    // đúng nhóm dễ hiểu nhầm là mình được mời đi xem sổ kiểm toán nhất.
+    e.chiDeBiet ? `Xem lịch sử hồ sơ: ${link}` : `Mở hồ sơ: ${link}`,
     '',
     'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
   );

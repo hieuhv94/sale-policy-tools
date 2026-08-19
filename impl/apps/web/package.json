@@ -31,7 +31,9 @@
     "./phan-trang": "./src/lib/phan-trang.ts",
     "./phan-trang-ui": "./src/components/PhanTrang.tsx",
     "./so-lieu": "./src/components/khoi/SoLieu.tsx",
-    "./ho-so-ui": "./src/pages/DanhSachHoSo.tsx"
+    "./ho-so-ui": "./src/pages/DanhSachHoSo.tsx",
+    "./chi-tiet-ho-so": "./src/pages/ChiTietHoSo.tsx",
+    "./lich-su": "./src/components/LichSu.tsx"
   },
   "scripts": {
     "build": "vite build",

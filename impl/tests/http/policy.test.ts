@@ -534,6 +534,59 @@ describe('`0056` hồ sơ mang theo AI ĐÃ DUYỆT bước nào', () => {
   });
 });
 
+describe('`0061` hồ sơ mang theo đủ thứ đầu màn hình cần', () => {
+  it('ngày soạn thảo, người đề nghị và khách hàng đều có mặt', async () => {
+    /*
+     * Tới `0060` màn hình hồ sơ KHÔNG hiện khách hàng nào cả — chỉ có
+     * `customerId` trong dữ liệu, không vẽ ra đâu hết. Nghĩa là người sắp ký một
+     * chính sách bán hàng không đọc được nó dành cho ai, trừ khi tải bản A4 về.
+     */
+    const d = await draft();
+    const r = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r.status).toBe(200);
+
+    expect(Number.isNaN(Date.parse(r.body.createdAt)), 'ngày soạn thảo không đọc được').toBe(false);
+    expect(r.body.nguoiDeNghi?.ten, 'thiếu tên người đề nghị').toBeTruthy();
+
+    const kh = r.body.khachHang;
+    expect(kh, 'thiếu hẳn khối khách hàng').toBeTruthy();
+    expect(kh.ma).toBeTruthy();
+    expect(kh.ten).toBeTruthy();
+    expect([1, 2, 3]).toContain(kh.loai);
+    // Công nợ là bigint dạng CHUỖI: quá 2^53 thì chuyển sang số là mất chữ số
+    // trong im lặng, và đây là tiền.
+    expect(typeof kh.congNo).toBe('string');
+  });
+
+  it('người đề nghị là người LẬP, không phải TDV đang phụ trách khách hàng', async () => {
+    /*
+     * Hai cột khác nhau, và Sale Admin đổi được cột sau. Đọc nhầm sang đó thì
+     * đổi người phụ trách xong là hồ sơ cũ đổi luôn tên người đề nghị — viết lại
+     * lịch sử của một văn bản đã gửi đi.
+     */
+    const d = await draft();
+    const ten = await withAdminDb(async (c) => {
+      const r = await c.query<{ full_name: string }>(
+        `SELECT full_name FROM idn.app_user WHERE username = 'tdv01'`,
+      );
+      return r.rows[0]!.full_name;
+    });
+
+    await withAdminDb((c) =>
+      c.query(
+        `UPDATE pol.policy SET tdv_user_id = (SELECT id FROM idn.app_user WHERE username = 'tdv02')
+          WHERE id = $1`,
+        [d.id],
+      ),
+    );
+
+    // Đọc bằng tdv02: đổi cột phụ trách xong thì tdv01 rơi ra khỏi phạm vi hồ sơ.
+    const r = await get(`/policies/${d.id}`, 'tdv02');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.nguoiDeNghi.ten, 'đọc nhầm sang TDV đang phụ trách').toBe(ten);
+  });
+});
+
 describe('`0052` hộp việc của TDV gồm cả hồ sơ Nháp', () => {
   const hopViec = async (who: string) =>
     ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map((x) => x.id);

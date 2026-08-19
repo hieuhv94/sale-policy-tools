@@ -5835,3 +5835,71 @@ về chính nó.
 | `han=QUA_HAN` | 4 |
 | `status=QUA_HAN_DUYET` | 4 — khớp, đúng như mong đợi |
 | `han=SAI` | 400 |
+
+## P71 — Đầu màn hình hồ sơ dựng lại: thông tin tách dòng, thao tác lên đầu, lịch sử xuống cuối
+
+Ba yêu cầu cùng chạm một màn hình, và cả ba đều là chuyện BỐ CỤC:
+
+1. Thông tin hồ sơ **không dồn hết lên một dòng** — phiên bản, trạng thái, ngày soạn thảo, ngày áp
+   dụng, người đề nghị, và thông tin khách hàng.
+2. **Thao tác lên góc trên bên phải**, ngang hàng với mã hồ sơ.
+3. **Nhật ký → Lịch sử**, thành mục cuối cùng, kiểu sổ ra khi bấm.
+
+### Thứ đáng nói nhất: màn hình hồ sơ không hiện khách hàng
+
+Đi làm yêu cầu 1 thì mới thấy: tới `0060` màn hình chi tiết hồ sơ **không hiện khách hàng nào cả**.
+`customerId` có trong dữ liệu, nhưng không vẽ ra đâu hết. Nghĩa là người sắp ký một chính sách bán
+hàng không đọc được nó dành cho ai, trừ khi tải bản A4 về.
+
+Đây là lỗ hổng sống từ P7d, không phải hệ quả của đợt này. Nó lọt lưới vì mọi test đều đi từ danh
+sách hoặc từ hộp việc — hai chỗ đều có tên khách hàng ngay cạnh mã hồ sơ, nên đường vào nào cũng đã
+biết sẵn khách là ai.
+
+`byId` giờ gọi sang `customer` và trả kèm `khachHang`. Hai điểm cố ý:
+
+- **Hỏng thì trả `null`**, không ném. Mất khối khách hàng thì khó chịu; mất cả màn hình hồ sơ vì
+  `customer` đang khởi động lại thì người đang chờ ký không làm được gì. Cùng lẽ với `userNames`.
+- **Chấp nhận thêm một vòng mạng** ở đây, dù `0031` đã từ chối đúng chiều gọi này. Khác biệt: `0031`
+  là danh sách khách hàng — hot path, mỗi lượt mở màn hình một lời gọi cho N dòng. Đây là chi tiết
+  MỘT hồ sơ, và nó chạy song song với `userNames` chứ không nối tiếp.
+
+### Người đề nghị đọc từ `created_by`, không phải `tdv_user_id`
+
+Hai cột khác nhau, và Sale Admin đổi được cột sau (`doiTdvPhuTrach`). Đọc nhầm sang đó thì bàn giao
+khách hàng xong là hồ sơ cũ đổi luôn tên người đề nghị — viết lại lịch sử của một văn bản đã gửi đi.
+Cùng loại lỗi với `tbp_signed_by` ở `0056`, và cùng loại "không ai phát hiện ra được từ màn hình" vì
+cả hai giá trị đều là tên một TDV có thật.
+
+### Trạng thái rời khỏi góc phải
+
+Góc trên bên phải giờ là chỗ của nút thao tác, nên nhãn trạng thái chuyển vào lưới thông tin — vẫn là
+ô ĐẦU TIÊN và vẫn vẽ bằng `<Nhan>`, có màu, đọc được từ xa. Không nhân đôi: một nhãn ở góc và một
+dòng "Trạng thái: …" cách nhau 200px là hai chỗ nói cùng một điều.
+
+*Xoá hồ sơ* **không** lên theo. Nó ở lại cuối trang, tách khỏi nhóm nút của luồng duyệt: đặt một nút
+huỷ hoại cạnh nút ký là mời người ta bấm nhầm.
+
+### Lịch sử: `<details>` của trình duyệt, tải khi mở
+
+Không tự dựng nút gập bằng `useState` + `<button>`. `<details>` có sẵn phím tắt bàn phím,
+`aria-expanded`, và tìm-trong-trang của trình duyệt mở được nó ra — bản viết lại thường thiếu thứ ba.
+
+**Tải khi mở, không tải sẵn.** Phần lớn người mở hồ sơ là để xem số và bấm một nút. Đây cũng là ca
+kiểm thử đáng giá nhất tệp mới: tải sẵn thì nhìn bằng mắt không thấy khác gì, chỉ khác ở chỗ mỗi lượt
+mở màn hình được mở nhiều nhất của phần mềm lại tốn thêm một vòng mạng.
+
+### Màn hình `/ho-so/:id/nhat-ky` VẪN GIỮ
+
+Thư *để biết* dán thẳng liên kết vào đó. Gỡ địa chỉ này là làm chết liên kết trong mọi lá thư đã gửi.
+Bảng thì dùng chung — `components/LichSu.tsx` — vì hai bản dựng riêng sẽ lệch nhau sau lần sửa câu chữ
+đầu tiên. Nhãn trong thư đổi thành "Xem lịch sử hồ sơ" cho khớp.
+
+Đổi tên vì phần mềm có **hai** thứ tên *Nhật ký*: nhật ký kiểm toán toàn hệ thống (mục menu của Quản
+trị) và cái này. Trùng tên ở hai thứ khác hẳn phạm vi là một câu hỏi lặp lại mãi trong mọi buổi hướng
+dẫn sử dụng.
+
+### Kiểm chứng
+
+`tests/web/chi-tiet-ho-so.test.tsx` — 14 ca, dựng thật cả màn hình (`PhienProvider` + `BoDinhTuyen`,
+chặn `fetch` theo ĐƯỜNG DẪN chứ không theo thứ tự lời gọi). `tests/http/policy.test.ts` thêm hai ca
+`0061`: khối khách hàng có mặt và công nợ là chuỗi; người đề nghị không đổi khi đổi TDV phụ trách.

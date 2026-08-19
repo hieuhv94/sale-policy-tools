@@ -1110,6 +1110,84 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .da-duyet dd { margin: 0; display: flex; flex-direction: column; line-height: 1.35; }
 .da-duyet .phu { font-family: var(--so-deu-cot); }
 
+/* Hai nhóm thông tin ở đầu màn hình hồ sơ (`0061`): hồ sơ, và khách hàng.
+
+   `auto-fit` với đáy 260px chứ không hai cột cứng: dưới 640px hai nhóm phải nằm
+   trên nhau, và một `@media` riêng cho việc ấy là một quy tắc nữa phải nhớ sửa
+   mỗi lần đổi bố cục. */
+.tom-tat {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--k3);
+  margin-bottom: var(--k4);
+}
+.tom-tat-nhom {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  padding: var(--k3) var(--k4);
+}
+/* Tiêu đề trong thẻ: giữ vạch màu cho khớp phần còn lại của trang, nhưng bỏ cỡ
+   chữ và khoảng cách của một tiêu đề mục — nó đứng trong thẻ, không phải mở ra
+   một mục mới. */
+.tom-tat-nhom h2 {
+  font-size: var(--chu-thuong);
+  margin: 0 0 var(--k3);
+}
+.tom-tat-nhom dl { margin: 0; display: grid; gap: var(--k2); }
+/* Nhãn và giá trị trên MỘT dòng, nhãn cột trái rộng cố định. Xếp dọc thì sáu ô
+   thành mười hai dòng và thẻ cao gấp đôi thứ nó nói. */
+.tom-tat-nhom dl > div {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: var(--k3);
+  align-items: baseline;
+}
+.tom-tat-nhom dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
+.tom-tat-nhom dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+/* Nhóm nút ở góc trên bên phải, ngang hàng với mã hồ sơ (`0061`).
+
+   `justify-content: flex-end` để khi xuống dòng trên màn hình hẹp thì nút vẫn
+   bám mép phải, không nhảy sang trái thành một hàng lạc lõng dưới tiêu đề. */
+.nhom-nut-dau { justify-content: flex-end; margin: 0 0 var(--k2); }
+
+/* Khối gập — lịch sử hồ sơ (`0061`). */
+.khoi-gap {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  margin: var(--k6) 0 var(--k3);
+}
+.khoi-gap > summary {
+  /* Bỏ dấu tam giác mặc định của trình duyệt và tự vẽ, vì mặc định của mỗi
+     trình duyệt một khác và nó không đổi được màu theo giao diện tối. */
+  display: flex;
+  align-items: baseline;
+  gap: var(--k2);
+  list-style: none;
+  padding: var(--k3) var(--k4);
+  cursor: pointer;
+}
+.khoi-gap > summary::-webkit-details-marker { display: none; }
+.khoi-gap > summary::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--mau-chu-phu);
+  border-bottom: 2px solid var(--mau-chu-phu);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+}
+.khoi-gap[open] > summary::before { transform: rotate(45deg); }
+.khoi-gap > summary:hover { background: var(--mau-nen-hover); }
+.khoi-gap > summary:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
+.khoi-gap > summary h2 { margin: 0; font-size: var(--chu-thuong); }
+.khoi-gap-than { padding: 0 var(--k4) var(--k4); }
+.khoi-gap-than > :last-child { margin-bottom: 0; }
+
 .dang-tai { color: var(--mau-chu-phu); padding: var(--k5); text-align: center; }
 
 /* --- Hộp thoại ------------------------------------------------------------ */

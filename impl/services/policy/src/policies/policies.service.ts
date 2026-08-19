@@ -66,6 +66,8 @@ type PolicyRow = {
   /** Người THẬT SỰ ký — khác `tbp_user_id` khi có người duyệt thay. */
   tbp_signed_by: string | null;
   sa_handover_at: Date | null;
+  /** Lúc TDV lập bản nháp — "ngày soạn thảo" trên màn hình hồ sơ (`0061`). */
+  created_at: Date;
 };
 
 export const SUPPLEMENT_MESSAGE =
@@ -869,11 +871,32 @@ export class PoliciesService {
      * `userNames` nuốt lỗi và trả rỗng, nên identity chết thì mất tên chứ không
      * mất cả màn hình hồ sơ — cùng cách `events()` đã làm.
      */
-    const tenDuyet = await this.clients.userNames(
-      [so.tbp_signed_by, so.ke_toan_user_id, so.sale_admin_user_id].filter(
-        (x): x is string => !!x,
+    /*
+     * KHÁCH HÀNG gửi kèm hồ sơ (`0061`).
+     *
+     * Màn hình hồ sơ tới `0060` không hiện khách hàng nào cả — chỉ có `customerId`
+     * trong dữ liệu, không vẽ ra đâu hết. Nghĩa là người sắp ký một chính sách
+     * bán hàng không đọc được nó dành cho ai, trừ khi tải bản A4 về.
+     *
+     * Gọi sang `customer` chứ không đọc bảng: policy không được đọc schema `cus`
+     * (AD-02). Đây là màn hình CHI TIẾT một hồ sơ, mỗi lượt mở một khách hàng —
+     * không phải hot path như danh sách, nơi tôi đã từ chối đúng chiều gọi này
+     * ở `0031`.
+     *
+     * HỎNG THÌ TRẢ `null`, không ném: mất khối thông tin khách hàng thì khó chịu,
+     * còn mất cả màn hình hồ sơ vì `customer` đang khởi động lại thì người đang
+     * chờ ký không làm được gì. Cùng lẽ với `userNames` ngay dưới.
+     */
+    const [tenDuyet, khach] = await Promise.all([
+      this.clients.userNames(
+        // `createdBy` vào cùng lượt hỏi: người đề nghị là một cái tên nữa trên
+        // cùng màn hình, và hỏi riêng là thêm một vòng mạng cho một chuỗi.
+        [p.createdBy, so.tbp_signed_by, so.ke_toan_user_id, so.sale_admin_user_id].filter(
+          (x): x is string => !!x,
+        ),
       ),
-    );
+      this.clients.customer(p.customerId).catch(() => null),
+    ]);
     const nguoiDuyet = {
       tbp:
         so.tbp_signed_at === null
@@ -909,6 +932,25 @@ export class PoliciesService {
       ...p,
       lech,
       nguoiDuyet,
+      /*
+       * NGƯỜI ĐỀ NGHỊ (`0061`) — người LẬP hồ sơ, đọc từ `created_by`.
+       *
+       * Không phải `tdv_user_id`: cột kia là TDV đang phụ trách KHÁCH HÀNG, và
+       * Sale Admin đổi được nó (`doiTdvPhuTrach`). Đổi người phụ trách xong mà
+       * hồ sơ cũ đổi luôn tên người đề nghị là viết lại lịch sử — chữ ký đề nghị
+       * trên một văn bản đã gửi đi thuộc về người đã gửi nó.
+       */
+      nguoiDeNghi: { ten: tenDuyet[p.createdBy] ?? null },
+      khachHang:
+        khach === null
+          ? null
+          : {
+              ma: khach.code,
+              ten: khach.name,
+              loai: khach.customerType,
+              congNo: khach.debt ?? null,
+              trangThai: khach.status ?? null,
+            },
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
       tepXoaDuoc: tepXoaDuoc(p.status),
@@ -1199,6 +1241,10 @@ export class PoliciesService {
       supersededById: p.superseded_by_id,
       appliedDate: p.applied_date,
       effectiveFrom: p.effective_from,
+      // NGÀY SOẠN THẢO (`0061`) — lúc bản nháp ra đời, không phải lúc gửi duyệt.
+      // Hai mốc ấy cách nhau hàng tuần ở những hồ sơ soạn dần, và câu hỏi "hồ sơ
+      // này có từ bao giờ" hỏi về mốc đầu.
+      createdAt: p.created_at,
       tdvUserId: p.tdv_user_id ?? '',
       createdBy: (p as unknown as { created_by: string }).created_by,
       rowVersion: p.row_version,

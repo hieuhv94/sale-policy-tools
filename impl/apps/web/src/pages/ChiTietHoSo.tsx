@@ -5,11 +5,13 @@
  * máy trạng thái nằm ở đó. Bảng vai trò phía giao diện chỉ dùng để ẩn bớt trước
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
+import { nhanLoaiKhach } from '../lib/danh-muc.js';
+import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import {
@@ -40,9 +42,24 @@ type HoSo = {
   customerId: string;
   versionNo: number;
   status: string;
+  /** Lúc bản nháp ra đời — "ngày soạn thảo" (`0061`). */
+  createdAt?: string | null;
   appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
+  /** Người LẬP hồ sơ (`0061`). `ten` là `null` khi identity không tra được. */
+  nguoiDeNghi?: { ten: string | null };
+  /**
+   * Khách hàng của hồ sơ (`0061`). `null` khi `customer` không trả lời được —
+   * mất khối thông tin, không mất cả màn hình.
+   */
+  khachHang?: {
+    ma: string;
+    ten: string;
+    loai: number;
+    congNo: string | null;
+    trangThai: string | null;
+  } | null;
   /**
    * Bốn cờ MÁY CHỦ tính sẵn (`0039`, `0048`) — giao diện KHÔNG chép danh sách
    * trạng thái sang, vì bản sao thứ hai là bản sẽ có ngày lệch với máy trạng thái.
@@ -151,22 +168,60 @@ export function ChiTietHoSo({ id }: { id: string }) {
   // trả lại vẫn bày nút sửa cho họ.
   const dangSua = suaDuoc(choPhep) && can(nguoiDung?.role, 'suaHoSo');
 
+  /*
+    Lọc LẦN NỮA theo vai trò (`0038`), dù máy chủ đã lọc.
+
+    Máy chủ là chốt thật: `/allowed-actions` trả về đúng những hành động vai trò
+    này làm được. Giữ thêm phép lọc ở đây vì `FE-23` quét chính bảng quyền để
+    khẳng định Ban lãnh đạo không có nút ghi nào — và vì một danh sách cũ còn
+    nằm trong bộ nhớ trình duyệt sau khi đổi tài khoản thì đây là thứ chặn nó.
+  */
+  const thaoTac = choPhep.filter((a) => canHanhDong(nguoiDung?.role, a));
+
   return (
     <section className="trang">
+      {/*
+        THAO TÁC nằm ở GÓC TRÊN BÊN PHẢI, ngang hàng với mã hồ sơ (`0061`).
+
+        Trước đó chúng nằm dưới đáy trang, sau bảng sản phẩm, sau tệp đính kèm và
+        sau nhóm nút tải văn bản. Người vào đây để KÝ — phần lớn lượt mở màn hình
+        này — phải cuộn qua toàn bộ nội dung mới tới được việc của mình, và ở hồ
+        sơ hai chục dòng thì nút nằm ngoài màn hình đầu tiên.
+
+        Đặt cạnh mã hồ sơ vì hai thứ ấy trả lời cùng một câu: "đây là hồ sơ nào,
+        và tôi làm gì với nó".
+      */}
       <div className="dau-trang">
-        <div>
-          <h1>{hoSo.code}</h1>
-          <p className="mo-ta-trang">
-            Phiên bản {hoSo.versionNo} · Ngày áp dụng {ngay(hoSo.appliedDate)}
-            {hoSo.effectiveFrom && ` · Có hiệu lực ${ngayGio(hoSo.effectiveFrom)}`}
-            {' · '}
-            {/* Nhật ký ở màn hình RIÊNG (`0036`), không phải một khối gập ở
-                cuối trang này: nó cần một địa chỉ để dán vào thư báo. */}
-            <Lien den={`/ho-so/${hoSo.id}/nhat-ky`}>Nhật ký</Lien>
-          </p>
-        </div>
-        <Nhan trangThai={hoSo.status} />
+        <h1>{hoSo.code}</h1>
+        {thaoTac.length > 0 && (
+          <div className="nhom-nut nhom-nut-dau">
+            {thaoTac.map((a) => (
+              <button
+                key={a}
+                type="button"
+                className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
+                onClick={() => datHanhDong(a)}
+              >
+                {HANH_DONG_NHAN[a] ?? a}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/*
+        THÔNG TIN HỒ SƠ, mỗi thứ một dòng có nhãn (`0061`).
+
+        Tới `0060` cả khối này là MỘT dòng chữ xám dưới tiêu đề: "Phiên bản 2 ·
+        Ngày áp dụng 01/08/2026 · Có hiệu lực …". Ba con số ngày tháng nối nhau
+        bằng dấu chấm giữa dòng thì mắt phải đọc cả câu mới tách được cái mình
+        cần, và ngày soạn thảo, người đề nghị, khách hàng thì không có chỗ nào.
+
+        Khách hàng là NHÓM RIÊNG, không trộn vào cùng lưới: nó là một thực thể
+        khác, có màn hình riêng, và trộn chung thì "Loại" đứng cạnh "Phiên bản"
+        đọc ra như hai thuộc tính của cùng một thứ.
+      */}
+      <ThongTinHoSo hoSo={hoSo} />
 
       {/*
         AI ĐÃ DUYỆT (`0056`).
@@ -302,31 +357,15 @@ export function ChiTietHoSo({ id }: { id: string }) {
       )}
 
       {/*
-        Lọc LẦN NỮA theo vai trò (`0038`), dù máy chủ đã lọc.
+        LỊCH SỬ ở cuối cùng, gập lại (`0061`).
 
-        Máy chủ là chốt thật: `/allowed-actions` trả về đúng những hành động
-        vai trò này làm được. Giữ thêm phép lọc ở đây vì `FE-23` quét chính bảng
-        quyền để khẳng định Ban lãnh đạo không có nút ghi nào — và vì một danh
-        sách cũ còn nằm trong bộ nhớ trình duyệt sau khi đổi tài khoản thì đây
-        là thứ chặn nó.
+        Nó là thứ người ta tra CHỦ ĐỘNG — "ai trả hồ sơ này về, lý do gì" — chứ
+        không phải thứ cần đọc để làm việc hôm nay, nên nó không được chiếm chỗ
+        phía trên. Nhưng trước `0061` nó chỉ có một liên kết bé xíu trên dòng
+        tiêu đề dẫn sang màn hình khác, và một liên kết như thế thì phần lớn
+        người dùng không biết là có.
       */}
-      {choPhep.some((a) => canHanhDong(nguoiDung?.role, a)) && (
-        <>
-          <h2>Thao tác</h2>
-          <div className="nhom-nut">
-            {choPhep.filter((a) => canHanhDong(nguoiDung?.role, a)).map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
-                onClick={() => datHanhDong(a)}
-              >
-                {HANH_DONG_NHAN[a] ?? a}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <LichSuGap hoSoId={hoSo.id} />
 
       {suaDongCu && (
         <ThemDongSanPham
@@ -581,6 +620,84 @@ function HopThoaiHanhDong({
         </button>
       </div>
     </HopThoai>
+  );
+}
+
+/**
+ * Một ô "nhãn — giá trị" trong lưới thông tin.
+ *
+ * `<div>` bọc quanh cặp `<dt>/<dd>`: đó là cách hợp lệ duy nhất để gom một cặp
+ * trong `<dl>`, và không có nó thì lưới CSS xếp nhãn với giá trị thành hai ô rời
+ * nhau — nhãn của ô này nằm cạnh giá trị của ô kia.
+ */
+function O({ nhan, children }: { nhan: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt>{nhan}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Hai nhóm thông tin ở đầu màn hình hồ sơ (`0061`): hồ sơ, và khách hàng của nó.
+ *
+ * TRẠNG THÁI nằm trong lưới chứ không còn là một nhãn rời ở góc phải: góc ấy giờ
+ * là chỗ của các nút thao tác. Nó vẫn là ô ĐẦU TIÊN và vẫn vẽ bằng `<Nhan>` —
+ * có màu, đọc được từ xa — nên không mất gì ngoài chỗ đứng.
+ */
+function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
+  const kh = hoSo.khachHang;
+
+  return (
+    <div className="tom-tat">
+      <section className="tom-tat-nhom">
+        <h2>Hồ sơ</h2>
+        <dl>
+          <O nhan="Trạng thái">
+            <Nhan trangThai={hoSo.status} />
+          </O>
+          <O nhan="Phiên bản">{hoSo.versionNo}</O>
+          <O nhan="Ngày soạn thảo">{ngay(hoSo.createdAt)}</O>
+          <O nhan="Ngày áp dụng">{ngay(hoSo.appliedDate)}</O>
+          {/* Chỉ hiện khi ĐÃ có hiệu lực. Một ô "Có hiệu lực —" trên mọi hồ sơ
+              còn đang đi trong luồng là một dòng không nói gì, mà nó lại nằm
+              ngay cạnh hai ô ngày tháng có thật. */}
+          {hoSo.effectiveFrom && <O nhan="Có hiệu lực">{ngayGio(hoSo.effectiveFrom)}</O>}
+          <O nhan="Người đề nghị">{hoSo.nguoiDeNghi?.ten ?? 'không tra được tên'}</O>
+        </dl>
+      </section>
+
+      <section className="tom-tat-nhom">
+        <h2>Khách hàng</h2>
+        {kh === null || kh === undefined ? (
+          // Nói THÀNH LỜI. Một khối rỗng ở đây đọc ra là "hồ sơ này không có
+          // khách hàng", mà chuyện thật là tra không ra lúc này.
+          <p className="ghi-chu">Chưa tải được thông tin khách hàng. Tải lại trang để thử lại.</p>
+        ) : (
+          <dl>
+            <O nhan="Mã">
+              {/* Liên kết đặt ở MÃ chứ không ở tên: mã là thứ người dùng đối
+                  chiếu, và nó ngắn nên cả ô không biến thành một vùng bấm dài. */}
+              <Lien den={`/khach-hang/${hoSo.customerId}`} className="ma-phu">
+                {kh.ma}
+              </Lien>
+            </O>
+            <O nhan="Tên">{kh.ten}</O>
+            <O nhan="Loại">{nhanLoaiKhach(kh.loai)}</O>
+            <O nhan="Công nợ">{kh.congNo === null ? '—' : `${tien(kh.congNo)} đ`}</O>
+            {/* Khách đã ngừng hợp tác thì PHẢI nói ra ở đây. Hồ sơ cũ của họ vẫn
+                mở được, và không có dòng này thì người đọc không thấy gì bất
+                thường ở một chính sách dành cho khách không còn giao dịch. */}
+            {kh.trangThai === 'NGUNG_HOP_TAC' && (
+              <O nhan="Trạng thái">
+                <span className="nhan nhan-canh-bao">Đã ngừng hợp tác</span>
+              </O>
+            )}
+          </dl>
+        )}
+      </section>
+    </div>
   );
 }
 
