@@ -112,10 +112,18 @@ function MenuTaiKhoan({
         <span className="anh-dai-dien" aria-hidden="true">
           {chuDau(nguoiDung?.fullName)}
         </span>
-        <span className="nguoi-dung-chu">
-          <span className="ten">{nguoiDung?.fullName}</span>
-          <span className="vai-tro">{NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}</span>
-        </span>
+        {/*
+          TÊN ĐĂNG NHẬP, không phải họ tên (`0063`).
+
+          Thẻ này trả lời "máy đang chạy bằng tài khoản nào" — câu hỏi của người
+          dùng chung máy ở quầy, và của người vừa đổi tài khoản để thử một vai
+          trò khác. Họ tên không trả lời được câu ấy: hai tài khoản của cùng một
+          người mang y hệt một cái tên.
+
+          Họ tên vẫn còn ở chữ viết tắt trên ảnh đại diện và ở màn hình *Thông
+          tin tài khoản*.
+        */}
+        <span className="ten">{nguoiDung?.username}</span>
         <span className="mui-ten" aria-hidden="true" />
       </button>
 
@@ -227,6 +235,19 @@ export function BoCuc({ children }: { children: ReactNode }) {
 
           <div className="nguoi-dung">
             <NutGiaoDien />
+
+            {/*
+              VAI TRÒ đứng RIÊNG, bên trái thẻ tài khoản (`0063`).
+
+              Nó không phải thuộc tính của cái tên mà là thứ quyết định người
+              dùng thấy gì trên mọi màn hình — nhét làm dòng phụ dưới tên thì nó
+              đọc như một chú thích, mà đây là câu trả lời cho "vì sao menu của
+              tôi không có mục kia".
+            */}
+            <span className="vai-tro-rieng">
+              {NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}
+            </span>
+
             <MenuTaiKhoan nguoiDung={nguoiDung} dangXuat={dangXuat} />
           </div>
         </header>

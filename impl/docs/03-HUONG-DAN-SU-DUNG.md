@@ -73,12 +73,23 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
-**Thanh trên cùng** có hai thứ, từ phải sang: **thẻ tên** của bạn, và nút đổi **giao diện sáng /
-tối**.
+**Thanh trên cùng** có ba thứ, từ phải sang: **thẻ tài khoản** (ảnh đại diện + **tên đăng nhập** của
+bạn), **vai trò** của bạn, và nút đổi **giao diện sáng / tối**.
+
+Thẻ hiện **tên đăng nhập** chứ không hiện họ tên: nó trả lời câu *"máy này đang chạy bằng tài khoản
+nào"*, mà họ tên không trả lời được — hai tài khoản của cùng một người mang y hệt một cái tên. Họ tên
+còn ở chữ viết tắt trên ảnh đại diện và ở màn hình *Thông tin tài khoản*.
+
+Vai trò đứng **riêng bên trái**, không phải một dòng phụ dưới tên: nó quyết định bạn thấy gì trên mọi
+màn hình, nên nó là câu trả lời cho *"vì sao menu của tôi không có mục kia"*, chứ không phải một chú
+thích của cái tên.
+
+> Dưới 640px viên vai trò ẩn đi cho vừa thanh — nhãn như *"Quản trị hệ thống"* quá dài cho màn hình
+> điện thoại. Tên đăng nhập thì vẫn hiện.
 
 ### Menu tài khoản
 
-Bấm vào **tên mình** ở thanh trên cùng thì sổ xuống ba dòng:
+Bấm vào **thẻ tài khoản** ở thanh trên cùng thì sổ xuống ba dòng:
 
 | Dòng | Là gì |
 |---|---|
@@ -987,6 +998,9 @@ Bảng dòng sản phẩm dưới 640px chuyển thành **thẻ**, mỗi sản p
 bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
 
 Ô nhập tiền gọi **bàn phím số**. Xoay ngang máy giữa lúc đang gõ không làm mất nội dung.
+
+Thanh trên cùng dưới 640px **giữ tên đăng nhập** và bỏ viên vai trò — nhãn như *"Quản trị hệ thống"*
+quá dài cho bề ngang ấy. Muốn xem vai trò thì mở **menu tài khoản ▸ Thông tin tài khoản**.
 
 ## 15. Khi gặp lỗi
 

@@ -40,7 +40,7 @@ const mo = () => {
       </BoDinhTuyen>
     </PhienProvider>,
   );
-  return screen.getByRole('button', { expanded: false, name: /Nguyen Van Hung/ });
+  return screen.getByRole('button', { expanded: false, name: /tdv01/ });
 };
 
 beforeEach(() => {
@@ -65,6 +65,40 @@ describe('`0062` đăng xuất không còn bày sẵn trên thanh trên cùng', 
   it('bấm thẻ tên mới sổ ra, và đó là chỗ duy nhất có Đăng xuất', () => {
     fireEvent.click(mo());
     expect(screen.getByRole('button', { name: /Đăng xuất/ })).toBeDefined();
+  });
+});
+
+describe('`0063` thẻ tài khoản hiện tên đăng nhập, vai trò đứng riêng', () => {
+  it('thẻ hiện USERNAME, không hiện họ tên', () => {
+    /*
+     * Thẻ này trả lời "máy đang chạy bằng tài khoản nào" — câu hỏi của người
+     * dùng chung máy ở quầy. Họ tên không trả lời được câu ấy: hai tài khoản
+     * của cùng một người mang y hệt một cái tên.
+     */
+    const nut = mo();
+    expect(nut.textContent).toContain('tdv01');
+    expect(nut.textContent, 'vẫn còn họ tên trong thẻ').not.toContain('Nguyen Van Hung');
+  });
+
+  it('vai trò nằm NGOÀI thẻ, ở bên trái nó', () => {
+    const nut = mo();
+    const vaiTro = document.querySelector('.vai-tro-rieng')!;
+    expect(vaiTro.textContent).toBe('Trình dược viên');
+
+    // Ngoài thẻ: không phải một dòng phụ nhét dưới tên.
+    expect(nut.contains(vaiTro), 'vai trò vẫn nằm trong thẻ').toBe(false);
+    // Bên TRÁI: đứng trước thẻ trong DOM, mà thanh này xếp ngang từ trái sang.
+    expect(vaiTro.compareDocumentPosition(nut) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('ảnh đại diện vẫn là chữ tắt của họ tên, và nó `aria-hidden`', () => {
+    // Giữ lại vì đó là thứ duy nhất còn phân biệt được hai tài khoản của hai
+    // người khác nhau khi tên đăng nhập chỉ hơn kém một chữ số. Nó là hình, nên
+    // trình đọc màn hình bỏ qua — tên có thể đọc được vẫn là `tdv01`.
+    mo();
+    const anh = document.querySelector('.anh-dai-dien')!;
+    expect(anh.textContent).toBe('VH');
+    expect(anh.getAttribute('aria-hidden')).toBe('true');
   });
 });
 

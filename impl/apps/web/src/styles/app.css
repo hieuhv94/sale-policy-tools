@@ -316,9 +316,28 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   font-size: var(--chu-nho);
   font-weight: 700;
 }
-.nguoi-dung-chu { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
-.nguoi-dung .ten { font-weight: 600; font-size: var(--chu-nho); }
-.nguoi-dung .vai-tro { color: var(--mau-chu-phu); font-size: var(--chu-rat-nho); }
+.nguoi-dung .ten {
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--chu-nho);
+  /* Tên đăng nhập không có dấu cách nên nó không tự xuống dòng được; cắt bằng
+     dấu ba chấm để một tài khoản đặt tên dài không đẩy cả thanh trên cùng. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Vai trò đứng riêng, bên trái thẻ tài khoản (`0063`). Viên thuốc chứ không chữ
+   trần: nó nằm cạnh một thẻ cũng bo tròn, và chữ trần ở đó trôi lẫn vào nền. */
+.vai-tro-rieng {
+  padding: var(--k1) var(--k3);
+  border-radius: 999px;
+  background: var(--mau-thuong-hieu-nhat);
+  color: var(--mau-thuong-hieu);
+  font-size: var(--chu-rat-nho);
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 main { padding: var(--k5) var(--k4) var(--k6); }
 main:focus { outline: none; }
@@ -1379,10 +1398,17 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   main { padding: var(--k4) var(--k3) var(--k5); }
   .thanh-tieu-de { padding: var(--k2) var(--k3); }
 
-  /* Chỉ giữ ảnh đại diện, bỏ phần chữ (FE-15). Không thu nhỏ chữ — thu nhỏ thì
-     nó vẫn ở đó mà không ai đọc được. */
-  .nguoi-dung-chu { display: none; }
-  .the-nguoi-dung { padding: var(--k1); border: 0; background: none; }
+  /* Bỏ VIÊN VAI TRÒ, giữ tên đăng nhập (`0063`).
+
+     Trước đó chỗ này giấu cả tên lẫn vai trò và chỉ chừa ảnh đại diện, vì họ
+     tên tiếng Việt đủ dài để đẩy vỡ thanh trên cùng. Tên đăng nhập thì không —
+     "tdv01" là năm ký tự, vừa thoải mái. Nhãn vai trò mới là thứ dài ("Quản trị
+     hệ thống"), nên nó là thứ phải đi.
+
+     Đổi này lấp một lỗ hổng có từ trước: trên điện thoại KHÔNG màn hình nào cho
+     người dùng biết mình đang là ai, ngoài màn hình Thông tin tài khoản. */
+  .vai-tro-rieng { display: none; }
+  .the-nguoi-dung { padding: var(--k1) var(--k2) var(--k1) var(--k1); }
   /* Menu sổ xuống bám mép phải màn hình, không tràn ra ngoài (`0062`). */
   .menu-so { min-width: min(17rem, calc(100vw - var(--k5))); }
 

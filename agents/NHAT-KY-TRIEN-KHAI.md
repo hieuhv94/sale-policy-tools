@@ -5944,3 +5944,28 @@ tự nhiên để sửa nó nếu khách hàng thấy vướng.
 `tests/web/menu-tai-khoan.test.tsx` — 8 ca, dựng thật `BoCuc`. Ca chính: **lúc chưa bấm gì thì không
 có nút Đăng xuất nào trên màn hình**; email không phải liên kết; *Thông tin tài khoản* là thẻ neo
 thật (mở tab mới, sao chép địa chỉ, bấm chuột giữa — cả ba chỉ chạy trên liên kết).
+
+## P73 — Thẻ tài khoản hiện tên đăng nhập, vai trò tách ra đứng riêng
+
+Hai sửa nhỏ trên thanh trên cùng, cùng một lẽ: **thẻ tài khoản nói về TÀI KHOẢN, không về con người**.
+
+- Thẻ hiện `username` thay cho họ tên. Nó trả lời "máy đang chạy bằng tài khoản nào" — câu hỏi của
+  người dùng chung máy ở quầy, và của người vừa đổi tài khoản để thử một vai trò khác. Họ tên không
+  trả lời được: hai tài khoản của cùng một người mang y hệt một cái tên.
+- Vai trò ra khỏi thẻ, thành một viên riêng bên trái. Nó quyết định người dùng thấy gì trên MỌI màn
+  hình, nên nó là câu trả lời cho "vì sao menu của tôi không có mục kia" — nhét làm dòng phụ dưới tên
+  thì nó đọc như một chú thích của cái tên.
+
+### Ảnh đại diện GIỮ chữ tắt của họ tên
+
+Không đổi sang chữ tắt của `username`: `tdv01` và `tdv02` đều cho ra "TD", tức là ảnh đại diện thành
+vô nghĩa đúng ở chỗ nó có ích. Giữ "VH" cho *Nguyen Van Hung* thì nó vẫn phân biệt được hai người, mà
+vẫn không phạm yêu cầu — nó là hình, `aria-hidden`, và tên đọc được của nút vẫn đúng là `tdv01`.
+
+### Lấp một lỗ hổng có từ trước
+
+Dưới 640px, `.nguoi-dung-chu` bị ẩn hoàn toàn (FE-15) vì họ tên tiếng Việt đủ dài để đẩy vỡ thanh
+trên cùng — hệ quả là trên điện thoại **không màn hình nào cho người dùng biết mình đang là ai**.
+
+`tdv01` là năm ký tự nên nó ở lại được. Thứ phải đi là viên vai trò, và đó là đánh đổi đúng: tên đăng
+nhập là thứ đổi giữa các lần đăng nhập, còn vai trò thì suy được từ chính các mục menu đang hiện.
