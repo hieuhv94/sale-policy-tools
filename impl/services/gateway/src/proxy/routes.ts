@@ -49,6 +49,9 @@ export const UPSTREAMS: Upstream[] = [
   { prefix: '/sla', name: 'policy', url: env('POLICY_URL', 'http://policy:3004') },
   { prefix: '/files', name: 'document', url: env('DOCUMENT_URL', 'http://document:3005') },
   { prefix: '/contract-templates', name: 'document', url: env('DOCUMENT_URL', 'http://document:3005') },
+  // `0055` — mẫu HỒ SƠ CSBH, của Quản trị. Tiền tố riêng chứ không dùng chung
+  // với mẫu hợp đồng: hai vai trò khác nhau, và đường dẫn nói đúng thứ nó quản.
+  { prefix: '/policy-templates', name: 'document', url: env('DOCUMENT_URL', 'http://document:3005') },
   { prefix: '/notifications', name: 'notification', url: env('NOTIFICATION_URL', 'http://notification:3006') },
   { prefix: '/audit', name: 'audit', url: env('AUDIT_URL', 'http://audit:3007') },
   { prefix: '/reports', name: 'reporting', url: env('REPORTING_URL', 'http://reporting:3008') },

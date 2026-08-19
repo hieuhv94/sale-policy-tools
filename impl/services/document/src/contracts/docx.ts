@@ -233,18 +233,48 @@ const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main
 export const para = (text: string): string =>
   `<w:p><w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
 
-const CELL_WIDTH = 1800;
-
+/**
+ * Ô bảng rộng THEO TỶ LỆ, không theo số twip cố định (`0055`).
+ *
+ * Bản trước cho mỗi ô 1800 twip. Với bảng bốn cột của mẫu hợp đồng thì vừa; với
+ * bảng sản phẩm của bản CSBH — chín cột cố định cộng số cột CPBH của hồ sơ — thì
+ * 12 cột × 1800 = 21600 twip, gấp đôi bề rộng chữ của khổ A4 dọc. Cột bên phải
+ * chạy ra ngoài mép giấy và biến mất, và cột biến mất đầu tiên là *Ghi chú*.
+ *
+ * `auto` để LibreOffice tự chia theo bề rộng thật của trang, nên cùng một bảng
+ * vừa cả khổ dọc lẫn khổ ngang — điều bắt buộc, vì mẫu hai khổ dùng chung một
+ * hàm dựng bảng.
+ */
 const cell = (text: string): string =>
-  `<w:tc><w:tcPr><w:tcW w:w="${CELL_WIDTH}" w:type="dxa"/></w:tcPr>${para(text)}</w:tc>`;
+  `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${para(text)}</w:tc>`;
 
-export const tableRow = (cells: string[]): string => `<w:tr>${cells.map(cell).join('')}</w:tr>`;
+/**
+ * Một hàng bảng. `tieuDe` bật hai thuộc tính mà bản in nhiều trang cần:
+ *
+ *   - `w:tblHeader` — LẶP LẠI hàng này ở đầu mỗi trang. Đây là bản Word của
+ *     `thead { display: table-header-group }`; thiếu nó thì từ trang 2 trở đi
+ *     người đọc nhìn một bảng số không có tên cột.
+ *   - `w:cantSplit` — không cắt đôi một hàng qua hai trang. Nửa dòng ở cuối
+ *     trang này, nửa kia ở đầu trang sau, và người ký đối chiếu nhầm cột.
+ */
+export const tableRow = (cells: string[], tieuDe = false): string => {
+  const pr = tieuDe
+    ? '<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'
+    : '<w:trPr><w:cantSplit/></w:trPr>';
+  return `<w:tr>${pr}${cells.map(cell).join('')}</w:tr>`;
+};
+
+/** Bề rộng chữ của khổ A4 dọc, tính bằng twip: 11906 trừ hai lề 1134. */
+const RONG_CHU = 9638;
 
 export const table = (rowsXml: string[]): string => {
   const cols = (rowsXml[0]?.match(/<w:tc[ >]/g) ?? []).length || 1;
-  const grid = `<w:tblGrid>${`<w:gridCol w:w="${CELL_WIDTH}"/>`.repeat(cols)}</w:tblGrid>`;
+  // `tblGrid` chỉ là GỢI Ý khi bảng ở chế độ tự co; chia đều bề rộng chữ cho số
+  // cột để LibreOffice có điểm khởi đầu hợp lý thay vì dồn hết vào cột đầu.
+  const rong = Math.max(360, Math.floor(RONG_CHU / cols));
+  const grid = `<w:tblGrid>${`<w:gridCol w:w="${rong}"/>`.repeat(cols)}</w:tblGrid>`;
   return (
-    `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/>` +
+    `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="autofit"/>` +
     `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:left w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:bottom w:val="single" w:sz="4" w:color="999999"/>` +
@@ -256,9 +286,23 @@ export const table = (rowsXml: string[]): string => {
 };
 
 /** `body` là chuỗi XML gồm các `<w:p>` và `<w:tbl>` đã dựng bằng helper ở trên. */
-export function makeDocx(body: string): Buffer {
+/**
+ * Khổ giấy A4 tính bằng twip (1/1440 inch): 210×297mm.
+ *
+ * `w:orient` KHÔNG đủ một mình — LibreOffice đọc nó nhưng vẫn lấy kích thước từ
+ * `w:w`/`w:h`, nên khai `landscape` mà để nguyên hai số là ra một trang dọc có
+ * nhãn "ngang". Phải đảo cả hai số.
+ */
+const A4_W = 11906;
+const A4_H = 16838;
+
+export function makeDocx(body: string, kho: 'a4p' | 'a4l' = 'a4p'): Buffer {
+  const ngang = kho === 'a4l';
+  const pgSz = ngang
+    ? `<w:pgSz w:w="${A4_H}" w:h="${A4_W}" w:orient="landscape"/>`
+    : `<w:pgSz w:w="${A4_W}" w:h="${A4_H}"/>`;
   const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document ${W}><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`;
+<w:document ${W}><w:body>${body}<w:sectPr>${pgSz}<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`;
   return Buffer.from(
     zipSync({
       '[Content_Types].xml': strToU8(CONTENT_TYPES),

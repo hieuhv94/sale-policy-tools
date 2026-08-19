@@ -14,7 +14,12 @@ import { ConflictException, ForbiddenException, Injectable } from '@nestjs/commo
 import type { AuthUser } from '@csbh/http-kit';
 import { Clients } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
+import { Storage } from '../infra/storage.js';
 import { FilesService, type FileRow } from '../files/files.service.js';
+import { TemplatesService, NHAN_KHO } from '../contracts/templates.service.js';
+import { bangSanPhamXml } from '../contracts/bang-san-pham.js';
+import { mergeDocx } from '../contracts/docx.js';
+import { tron } from '../contracts/tron.js';
 import { sheetHtml, type Signature } from './sheet.js';
 
 export type Size = 'a4p' | 'a4l';
@@ -25,6 +30,8 @@ export class RenderService {
     private readonly clients: Clients,
     private readonly gotenberg: Gotenberg,
     private readonly files: FilesService,
+    private readonly templates: TemplatesService,
+    private readonly storage: Storage,
   ) {}
 
   private async collect(policyId: string, me: AuthUser) {
@@ -41,13 +48,6 @@ export class RenderService {
     return { policy, customer, people };
   }
 
-  /** Bản đang XEM trên màn hình. Chính chuỗi này đi qua Chromium thành PDF. */
-  async html(policyId: string, size: Size, me: AuthUser): Promise<string> {
-    const { policy, customer, people } = await this.collect(policyId, me);
-    const signature = signatureOf(policy.tbp_signed_at, people['TBP']);
-    return sheetHtml({ policy, customer, people, size, ...(signature ? { signature } : {}) });
-  }
-
   async pdf(
     policyId: string,
     size: Size,
@@ -56,9 +56,50 @@ export class RenderService {
     ghiLichSu = true,
   ): Promise<{ body: Buffer; code: string }> {
     const { policy, customer, people } = await this.collect(policyId, me);
-    const signature = signatureOf(policy.tbp_signed_at, people['TBP']);
-    const html = sheetHtml({ policy, customer, people, size, ...(signature ? { signature } : {}) });
-    const body = await this.gotenberg.htmlToPdf(html);
+
+    /*
+     * Bản mềm sinh từ MẪU do Quản trị tải lên (`0055`), không còn dựng cứng.
+     *
+     * Mẫu gắn với KHỔ GIẤY: file .docx tự mang khổ của nó và không xoay được
+     * lúc trộn, nên "mẫu phù hợp" nghĩa là mẫu đúng khổ đang xem.
+     */
+    const mau = await this.templates.active('HO_SO', size);
+    if (!mau) {
+      throw new ConflictException({
+        code: 'POLICY_TEMPLATE_MISSING',
+        message:
+          `Chưa có văn bản mẫu phù hợp cho hồ sơ CSBH ở khổ ${NHAN_KHO[size]}. ` +
+          'Đề nghị Quản trị hệ thống tải mẫu lên và phát hành ở màn hình Giấy tờ mẫu.',
+        paperSize: size,
+      });
+    }
+
+    const { values, lines, linePlaceholders, missingRequired } = tron(mau.fields, {
+      policy,
+      customer,
+      people,
+    });
+    if (missingRequired.length > 0) {
+      // Cùng luật với hợp đồng (DOC-13): không sinh một văn bản có ô trống rỗng
+      // rồi đưa đi ký. Khác ở người sửa được — ở đây là Quản trị, nên thông báo
+      // nói tên mục thiếu chứ không nói "liên hệ quản trị".
+      throw new ConflictException({
+        code: 'POLICY_FIELDS_MISSING',
+        message: 'Hồ sơ thiếu trường bắt buộc của mẫu, chưa dựng được bản mềm',
+        missing: missingRequired,
+      });
+    }
+
+    const file = await this.files.row(mau.template.file_id);
+    const docx = mergeDocx(await this.storage.get(file.object_key), {
+      values,
+      lines,
+      linePlaceholders,
+      // Bảng sản phẩm do HỆ THỐNG dựng, đúng số cột CPBH của chính hồ sơ này
+      // (muc 7.1) — xem `bang-san-pham.ts`.
+      banSanPham: bangSanPhamXml(policy),
+    });
+    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}-${size}.docx`);
 
     /*
      * Ghi vết SAU khi đã có PDF trong tay — cùng luật với lần xuất hợp đồng
@@ -127,7 +168,3 @@ export class RenderService {
   }
 }
 
-const signatureOf = (signedAt: string | null, name: string | undefined): Signature | undefined =>
-  signedAt
-    ? { signerName: name ?? 'Trưởng bộ phận', signerRole: 'Trưởng bộ phận', signedAt }
-    : undefined;

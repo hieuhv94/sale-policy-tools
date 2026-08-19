@@ -26,9 +26,9 @@ import { Clients } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { FilesService } from '../files/files.service.js';
 import { Storage } from '../infra/storage.js';
-import { TemplatesService, type FieldRow } from './templates.service.js';
+import { TemplatesService } from './templates.service.js';
 import { mergeDocx } from './docx.js';
-import { applyFormat, isLineSource, lineValue, scalarValue } from './sources.js';
+import { tron } from './tron.js';
 
 /** Đúng hai vai trò xuất được hợp đồng (muc 8, PLA.1 — sửa 06/08). */
 const EXPORTERS = ['KE_TOAN', 'SALE_ADMIN'];
@@ -105,31 +105,8 @@ export class ContractsService {
         saleAdmin: policy.sale_admin_user_id,
       }),
     ]);
-    const ctx = { policy, customer, people };
-
-    const values: Record<string, string> = {};
-    const missingRequired: { placeholder: string; source: string }[] = [];
-    const lineFields: FieldRow[] = [];
-
-    for (const f of active.fields) {
-      if (isLineSource(f.source)) {
-        lineFields.push(f);
-        continue;
-      }
-      const raw = scalarValue(f.source, ctx);
-      // Thiếu trường BẮT BUỘC thì chặn hẳn, không sinh file có ô trống rỗng đưa
-      // cho khách hàng ký (DOC-13).
-      if (f.required && (raw === null || raw === '')) {
-        missingRequired.push({ placeholder: f.placeholder, source: f.source });
-      }
-      values[f.placeholder] = applyFormat(raw, f.format);
-    }
-
-    const lines = policy.lines.map((l, i) => {
-      const row: Record<string, string> = {};
-      for (const f of lineFields) row[f.placeholder] = applyFormat(lineValue(f.source, l, i), f.format);
-      return row;
-    });
+    // Phép trộn dùng chung với bản mềm CSBH (`0055`) — xem `tron.ts`.
+    const { values, lines, missingRequired } = tron(active.fields, { policy, customer, people });
 
     return {
       policyId,

@@ -9,7 +9,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
-import { createTestApp as createDocumentApp, Storage } from '@csbh/document/testing';
+import { bangSanPhamXml, createTestApp as createDocumentApp, Storage } from '@csbh/document/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -106,6 +106,19 @@ async function pdfText(pdf: Buffer): Promise<string> {
  * trong bộ sinh PDF.
  */
 const lien = (x: string): string => x.replace(/\s+/g, '');
+
+/** Một dòng sản phẩm tối thiểu — chỉ dùng cho ca soi XML của bảng (`0055`). */
+const DONG_MAU = {
+  product_code_snap: 'SP-01',
+  product_name_snap: 'San pham',
+  company_price: '100000',
+  wholesale_price: '90000',
+  net_price: '87000',
+  discount_rate: '13.00',
+  threshold_snap: '15.00',
+  note: null,
+  cpbh: [] as string[],
+};
 
 // --- Dữ liệu nền -------------------------------------------------------------
 
@@ -248,15 +261,9 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
   }, 60_000);
 });
 
-describe('DOC-02 PDF khớp bản đang xem', () => {
-  it('chữ trong PDF khớp bản HTML, và PDF không có menu hay nút thao tác', async () => {
+describe('DOC-02 PDF là VĂN BẢN, không phải ảnh chụp màn hình', () => {
+  it('`0055` mọi giá trị của hồ sơ có trong PDF, và không có mảnh giao diện nào', async () => {
     const d = await draft(2);
-
-    const html = (
-      await (await http(doc))
-        .get(`/policies/${d.id}/render?format=html`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).text;
 
     const pdf = await (await http(doc))
       .get(`/policies/${d.id}/render?size=a4p`)
@@ -264,12 +271,19 @@ describe('DOC-02 PDF khớp bản đang xem', () => {
       .responseType('blob');
     const text = await pdfText(pdf.body as Buffer);
 
-    // Cùng một nguồn HTML nên mọi giá trị trên màn hình phải có mặt trong PDF.
-    // So sau khi bỏ hết khoảng trắng — lý do ở `lien`.
-    expect(html).toContain(d.code);
+    /*
+     * `0055` — không còn bản HTML để đối chiếu.
+     *
+     * Ca này từng so chữ trong PDF với chuỗi HTML mà PDF được dựng từ đó. Từ
+     * `0055` bản mềm sinh từ MẪU .docx của Quản trị, và `format=html` đã gỡ:
+     * chỉ còn MỘT đường dựng, nên không có hai bản để mà lệch. Điều cần khẳng
+     * định giờ là nội dung có mặt, và PDF không lẫn mảnh giao diện nào.
+     */
     expect(lien(text)).toContain(lien(d.code));
     expect(lien(text)).toContain(lien(CUSTOMER_NAME));
-    expect(text).toContain('Chính sách bán hàng');
+    // Không phân biệt hoa thường: mẫu mặc định viết hoa cả dòng tiêu đề, còn
+    // Quản trị sửa mẫu thì viết theo ý họ.
+    expect(text.toLowerCase()).toContain('chính sách bán hàng');
 
     // Bố cục văn bản riêng: không có phần điều hướng nào của ứng dụng.
     //
@@ -278,8 +292,10 @@ describe('DOC-02 PDF khớp bản đang xem', () => {
     // không phải cái nút.
     for (const junk of ['Đăng xuất', 'Trang chủ', 'Bộ lọc', '<nav', '<button', 'onclick']) {
       expect(text, `PDF không được chứa "${junk}"`).not.toContain(junk);
-      expect(html, `bản xem không được chứa "${junk}"`).not.toContain(junk);
     }
+    // Và KHÔNG còn ô trống nào chưa điền: một bản CSBH mang chuỗi `{{...}}` đi
+    // ký là hỏng nặng hơn thiếu một mục.
+    expect(text).not.toContain('{{');
   }, 60_000);
 });
 
@@ -331,9 +347,17 @@ describe('DOC-19 hồ sơ nhiều dòng sản phẩm', () => {
     expect(sizes.length).toBeGreaterThan(1);
 
     const t = await pdfText(pdf.body as Buffer);
-    // Dòng tiêu đề lặp ở mỗi trang — `thead { display: table-header-group }`.
+    /*
+     * Dòng tiêu đề lặp lại ở mỗi trang CÓ BẢNG — `w:tblHeader` trong Word, chỗ
+     * trước `0055` là `thead { display: table-header-group }` trong CSS.
+     *
+     * KHÔNG so bằng số trang nữa: mẫu có phần chữ đứng SAU bảng (thời gian
+     * duyệt, chỗ ký, file đính kèm), nên trang cuối có thể không còn hàng bảng
+     * nào. Điều cần chứng minh là tiêu đề lặp lại, không phải lặp đúng mấy lần.
+     */
     const headers = t.split('Giá bán Công ty').length - 1;
-    expect(headers).toBe(sizes.length);
+    expect(headers, 'tiêu đề bảng phải lặp lại qua các trang').toBeGreaterThan(1);
+    expect(headers).toBeLessThanOrEqual(sizes.length);
     // Dòng cuối cùng phải còn: số thứ tự 60 xuất hiện.
     expect(t).toContain(' 60 ');
   }, 180_000);
@@ -737,32 +761,40 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
     );
     expect(r.status, JSON.stringify(r.body)).toBe(201);
 
-    const html = (
-      await (await http(doc))
-        .get(`/policies/${r.body.id}/render?format=html`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).text;
+    const pdf = await (await http(doc))
+      .get(`/policies/${r.body.id}/render?size=a4p`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .responseType('blob');
+    const t = lien(await pdfText(pdf.body as Buffer));
 
-    expect(html).toContain('<th>Ghi chú</th>');
-    expect(html).toContain('Khách yêu cầu đóng thùng 12');
+    expect(t).toContain(lien('Ghi chú'));
+    expect(t).toContain(lien('Khách yêu cầu đóng thùng 12'));
   }, 60_000);
 
-  it('dòng không có ghi chú vẫn đủ số cột — ô rỗng chứ không thiếu ô', async () => {
-    // Bảng in ra giấy phải có số ô đều nhau ở mọi dòng; thiếu một ô là mọi cột
-    // bên phải nó trượt sang trái và người ký đối chiếu nhầm cột.
-    const d = await draft(1);
-    const html = (
-      await (await http(doc))
-        .get(`/policies/${d.id}/render?format=html`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).text;
+  it('`0055` mọi hàng có SỐ Ô BẰNG NHAU, kể cả dòng thiếu khoản CPBH', () => {
+    /*
+     * Soi thẳng XML của bảng thay vì đi qua PDF: số ô mỗi hàng là thứ PDF không
+     * nói ra được — chữ trích từ PDF không phân biệt nổi một ô rỗng với một ô
+     * không tồn tại. Mà đây đúng là chỗ hỏng đáng sợ nhất: thiếu một ô thì mọi
+     * cột bên phải nó trượt sang trái, và người ký đối chiếu nhầm cột.
+     *
+     * Dựng dữ liệu lệch hẳn: dòng đầu ba khoản CPBH, dòng sau không khoản nào.
+     */
+    const xml = bangSanPhamXml({
+      lines: [
+        { ...DONG_MAU, cpbh: ['1000', '2000', '3000'] },
+        { ...DONG_MAU, cpbh: [] },
+        { ...DONG_MAU, cpbh: ['500'] },
+      ],
+    } as never);
 
-    const bang = html.slice(html.indexOf('<table class="lines">'));
-    const soCotTieuDe = (bang.slice(0, bang.indexOf('</thead>')).match(/<th>/g) ?? []).length;
-    const hang = bang.slice(bang.indexOf('<tbody>'), bang.indexOf('</tbody>'));
-    const soO = (hang.match(/<td/g) ?? []).length;
-    expect(soO).toBe(soCotTieuDe);
-  }, 60_000);
+    const hang = xml.match(/<w:tr>[\s\S]*?<\/w:tr>/g) ?? [];
+    expect(hang.length, 'một hàng tiêu đề cộng ba dòng').toBe(4);
+    const soO = hang.map((h) => (h.match(/<w:tc>/g) ?? []).length);
+    expect(new Set(soO).size, `số ô lệch nhau: ${JSON.stringify(soO)}`).toBe(1);
+    // Số cột CPBH bằng dòng NHIỀU KHOẢN NHẤT (muc 7.1): 9 cột cố định + 3.
+    expect(soO[0]).toBe(12);
+  });
 });
 
 // =============================================================================

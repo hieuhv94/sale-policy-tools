@@ -15,6 +15,7 @@ import { ContractsService } from './contracts/contracts.service.js';
 import {
   ContractsController,
   ContractTemplatesController,
+  PolicyTemplatesController,
 } from './contracts/contracts.controller.js';
 import { TemplateBootstrap } from './contracts/bootstrap.js';
 
@@ -44,6 +45,7 @@ class HealthController {
     FilesController,
     RenderController,
     ContractTemplatesController,
+    PolicyTemplatesController,
     ContractsController,
   ],
   providers: [

@@ -64,10 +64,15 @@ export function bangSanPhamXml(p: PolicyFull): string {
    * trống ở giữa văn bản đọc ra như tài liệu bị lỗi khi in.
    */
   if (p.lines.length === 0) {
-    return table([tableRow(tieuDe(0)), tableRow(['—', 'Chưa có dòng sản phẩm nào', '', '', '', '', '', '', ''])]);
+    return table([
+      tableRow(tieuDe(0), true),
+      tableRow(['—', 'Chưa có dòng sản phẩm nào', '', '', '', '', '', '', '']),
+    ]);
   }
   return table([
-    tableRow(tieuDe(soCot)),
+    // Hàng tiêu đề LẶP LẠI ở mỗi trang — hồ sơ 60 dòng tràn sang sáu trang, và
+    // từ trang 2 mà không có tên cột thì bảng số đọc không ra gì (DOC-19).
+    tableRow(tieuDe(soCot), true),
     ...p.lines.map((l, i) => tableRow(dong(l, i, soCot))),
   ]);
 }

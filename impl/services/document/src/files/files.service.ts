@@ -90,9 +90,21 @@ export class FilesService {
    */
   async assertCanAccess(ownerKind: OwnerKind, ownerId: string | null, me: AuthUser): Promise<void> {
     if (ownerKind === 'TEMPLATE') {
-      // Mẫu hợp đồng thuộc Sale Admin, không thuộc cây phân quyền hồ sơ (DOC-26).
-      if (me.role !== 'SALE_ADMIN') {
-        throw new ForbiddenException({ code: 'FORBIDDEN_ROLE', message: 'Mẫu hợp đồng thuộc Sale Admin' });
+      /*
+       * File mẫu không thuộc cây phân quyền hồ sơ (DOC-26) — nó thuộc về người
+       * quản lý mẫu. Từ `0055` có HAI loại mẫu và HAI người quản lý: Sale Admin
+       * giữ mẫu hợp đồng (muc 8.2), Quản trị giữ mẫu hồ sơ CSBH (muc 6.4).
+       *
+       * Phép kiểm ở đây chỉ nói "ai được đụng vào file mẫu nói chung". Chốt thật
+       * — ai được đụng vào LOẠI nào — nằm ở `@Roles` của hai controller, nơi
+       * đường dẫn đã tách đôi. Nới ở đây không mở thêm cửa nào: Quản trị vẫn
+       * nhận 403 ở mọi đường `/contract-templates`.
+       */
+      if (me.role !== 'SALE_ADMIN' && me.role !== 'QUAN_TRI') {
+        throw new ForbiddenException({
+          code: 'FORBIDDEN_ROLE',
+          message: 'File mẫu thuộc Sale Admin (mẫu hợp đồng) hoặc Quản trị hệ thống (mẫu hồ sơ)',
+        });
       }
       return;
     }

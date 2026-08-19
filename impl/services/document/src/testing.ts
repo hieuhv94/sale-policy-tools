@@ -20,3 +20,6 @@ export { KNOWN_SOURCES, LINE_PREFIX } from './contracts/sources.js';
 export { makeDocx, para, table, tableRow, placeholdersOf, documentXml } from './contracts/docx.js';
 export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
 export { DocumentOutbox } from './infra/outbox.relay.js';
+
+/** `0055` — bảng sản phẩm dạng Word, để ca kiểm thử soi thẳng số ô mỗi hàng. */
+export { bangSanPhamXml } from './contracts/bang-san-pham.js';

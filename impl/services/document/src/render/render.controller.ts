@@ -10,11 +10,17 @@ export class RenderController {
   constructor(private readonly render: RenderService) {}
 
   /**
-   * `format=html` trả về CHÍNH chuỗi HTML mà bản PDF được dựng từ đó.
+   * `format=html` ĐÃ GỠ ở `0055`.
    *
-   * Đây không phải một endpoint gỡ lỗi. Nó là cách yêu cầu "file tải về khớp
-   * bản đang xem" được bảo đảm bằng cấu trúc thay vì bằng lời hứa: giao diện
-   * nhúng đúng chuỗi này, nên hai bản không thể lệch nhau (muc 11.1).
+   * Nó từng trả về chính chuỗi HTML mà bản PDF được dựng từ đó — cách bảo đảm
+   * "file tải về khớp bản đang xem" bằng cấu trúc thay vì bằng lời hứa. Từ
+   * `0055` bản mềm sinh từ MẪU .docx của Quản trị, và không có bản HTML nào để
+   * trả về nữa. Lời bảo đảm ấy giờ đúng theo cách mạnh hơn: chỉ còn MỘT đường
+   * dựng, nên không có hai bản để mà lệch.
+   *
+   * `sheetHtml` vẫn còn, nhưng chỉ phục vụ BẢN LƯU KÝ SỐ (`sign`) — bản ấy cần
+   * khối "ĐÃ KÝ SỐ" và cần khác bản nháp từng byte để đối chiếu trước–sau
+   * (DOC-05), hai điều một mẫu người dùng soạn không tả được.
    */
   @Roles(...READERS)
   @Get(':id/render')
@@ -26,7 +32,6 @@ export class RenderController {
   ): Promise<void> {
     const b = validate(q, {
       size: opt(oneOf('a4p', 'a4l')),
-      format: opt(oneOf('html', 'pdf')),
       /*
        * `xem=1` — mở trong phần mềm, KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
        *
@@ -37,12 +42,6 @@ export class RenderController {
       xem: opt(oneOf('1')),
     });
     const size = (b.size ?? 'a4p') as Size;
-
-    if ((b.format ?? 'pdf') === 'html') {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.end(await this.render.html(id, size, me));
-      return;
-    }
     const { body, code } = await this.render.pdf(id, size, me, b.xem !== '1');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}-${size}.pdf"`);

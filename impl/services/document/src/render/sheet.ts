@@ -27,7 +27,7 @@ export type SheetInput = {
   size: 'a4p' | 'a4l';
 };
 
-const STATUS_LABEL: Record<string, string> = {
+export const STATUS_LABEL: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
   CHO_KT_L1: 'KT duyệt bản mềm',

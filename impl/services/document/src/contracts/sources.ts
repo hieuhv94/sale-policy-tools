@@ -11,7 +11,7 @@
  * làm tròn hai chữ số đã chốt ở muc 7 (DOC-31).
  */
 import type { CustomerFull, PolicyFull, PolicyLine } from '../infra/clients.js';
-import { COMPANY, dmy, money, pct } from '../render/sheet.js';
+import { COMPANY, dmy, money, pct, STATUS_LABEL } from '../render/sheet.js';
 
 export type Format = 'text' | 'money_vnd' | 'date_dmy' | 'percent_2';
 export const FORMATS: Format[] = ['text', 'money_vnd', 'date_dmy', 'percent_2'];
@@ -42,6 +42,19 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'policy.effective_from': (c) => c.policy.effective_from,
   'policy.tbp_signed_at': (c) => c.policy.tbp_signed_at,
   'policy.kt_l1_received_at': (c) => c.policy.kt_l1_received_at,
+  'policy.kt_l2_received_at': (c) => c.policy.kt_l2_received_at,
+  /*
+   * Ba trường thêm ở `0055` cho MẪU HỒ SƠ CSBH — muc 11.1 liệt kê chúng trong
+   * 13 mục bắt buộc của bản A4, mà mẫu hợp đồng trước nay không cần.
+   *
+   * `policy.status` trả về NHÃN tiếng Việt, không phải mã enum: bản A4 là văn
+   * bản đưa cho người ký đọc, và "CHO_TBP_DUYET" không phải tiếng Việt.
+   */
+  'policy.status': (c) => STATUS_LABEL[c.policy.status] ?? c.policy.status,
+  'policy.attachments': (c) =>
+    c.policy.attachments.length === 0
+      ? 'Không có file đính kèm'
+      : c.policy.attachments.map((a) => `${a.file_name} (${a.kind})`).join('; '),
 
   'company.name': () => COMPANY.name,
   'company.address': () => COMPANY.address,
@@ -50,6 +63,7 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'person.tdv': (c) => c.people['TDV'] ?? null,
   'person.tbp': (c) => c.people['TBP'] ?? null,
   'person.ke_toan': (c) => c.people['KE_TOAN'] ?? null,
+  'person.sale_admin': (c) => c.people['SALE_ADMIN'] ?? null,
 
   today: () => new Date().toISOString(),
 };
@@ -70,6 +84,38 @@ const LINE: Record<string, (l: PolicyLine, i: number) => string | null> = {
 export const KNOWN_SOURCES: string[] = [
   ...Object.keys(SCALAR),
   ...Object.keys(LINE).map((k) => `${LINE_PREFIX}${k}`),
+];
+
+/**
+ * MƯỜI BA MỤC BẮT BUỘC của bản CSBH A4 (muc 11.1), dịch sang trường nguồn.
+ *
+ * Muc 6.4 từng để ngỏ đúng câu hỏi này: *"nếu mẫu do người dùng soạn, hệ thống
+ * không còn bảo đảm được 13 mục kia có mặt"*. Đây là câu trả lời — kiểm ở LÚC
+ * PHÁT HÀNH, không ở lúc xem.
+ *
+ * Kiểm lúc phát hành chứ không lúc xem vì hai lý do:
+ *   - Người sửa được là Quản trị, và họ đang đứng ở màn hình mẫu. Báo lúc kế
+ *     toán mở bản A4 là báo cho người không sửa được gì.
+ *   - Một mẫu thiếu mục chỉ hỏng khi có người xem, mà lúc đó thì đã muộn: bản
+ *     thiếu công nợ đã in ra và đã đưa đi ký.
+ *
+ * `policy.lines_table` gánh hai mục — *tên sản phẩm* và *CPBH* — vì cả hai nằm
+ * trong bảng do hệ thống dựng, không phải ô trống rời.
+ */
+export const NGUON_BAT_BUOC_HO_SO: string[] = [
+  'company.name',
+  'customer.code',
+  'customer.name',
+  'customer.debt',
+  'policy.code',
+  'policy.applied_date',
+  'policy.status',
+  'policy.attachments',
+  'person.tdv',
+  'person.tbp',
+  'person.ke_toan',
+  'policy.tbp_signed_at',
+  'policy.kt_l2_received_at',
 ];
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);
