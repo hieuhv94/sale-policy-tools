@@ -678,11 +678,26 @@ textarea.o-nhap { min-height: 6rem; }
   font-weight: 600;
   white-space: nowrap;
 }
+/* Bốn nhãn CHUNG — dùng cho những nhãn KHÔNG phải trạng thái hồ sơ: "Sắp quá
+   hạn" ở bảng hồ sơ, "Đã xoá" ở danh sách khách hàng, "Đã ngừng hợp tác" ở màn
+   hình hồ sơ. Trạng thái hồ sơ đã có bảng riêng ngay dưới (`0064`). */
 .nhan-tot { background: var(--mau-tot-nen); color: var(--mau-tot); }
 .nhan-cho { background: var(--mau-cho-nen); color: var(--mau-cho); }
 .nhan-loi { background: var(--mau-loi-nen); color: var(--mau-loi); }
 .nhan-canh-bao { background: var(--mau-canh-bao-nen); color: var(--mau-canh-bao); }
 .nhan-thuong { background: var(--mau-nen-hover); color: var(--mau-chu-phu); }
+
+/* Mười màu trạng thái (`0064`) — khoá lấy từ `nhomTrangThai()` ở `format.ts`. */
+.nhan-nhap { background: var(--mau-tt-nhap-nen); color: var(--mau-tt-nhap); }
+.nhan-tbp { background: var(--mau-tt-tbp-nen); color: var(--mau-tt-tbp); }
+.nhan-kt1 { background: var(--mau-tt-kt1-nen); color: var(--mau-tt-kt1); }
+.nhan-sa { background: var(--mau-tt-sa-nen); color: var(--mau-tt-sa); }
+.nhan-kt2 { background: var(--mau-tt-kt2-nen); color: var(--mau-tt-kt2); }
+.nhan-hieu-luc { background: var(--mau-tt-hieu-luc-nen); color: var(--mau-tt-hieu-luc); }
+.nhan-ket-thuc { background: var(--mau-tt-ket-thuc-nen); color: var(--mau-tt-ket-thuc); }
+.nhan-sua { background: var(--mau-tt-sua-nen); color: var(--mau-tt-sua); }
+.nhan-hong { background: var(--mau-tt-hong-nen); color: var(--mau-tt-hong); }
+.nhan-gap { background: var(--mau-tt-gap-nen); color: var(--mau-tt-gap); }
 
 /* --- Bảng ----------------------------------------------------------------- */
 
@@ -890,10 +905,20 @@ button.the-lien {
   width: 4px;
   background: var(--mau-vien-dam);
 }
-.chi-so-tot::before { background: var(--mau-tot); }
-.chi-so-cho::before { background: var(--mau-cho); }
-.chi-so-canh-bao::before { background: var(--mau-canh-bao); }
-.chi-so-loi::before { background: var(--mau-loi); }
+/* Mười màu thẻ (`0064`) — CÙNG bảng khoá với nhãn trạng thái ngay trên, nên
+   đọc quen một chỗ là đọc được chỗ kia. Thẻ *Đang chờ* (`thuong`) không có
+   dòng nào ở đây và giữ vạch xám mặc định: theo đúng định nghĩa nó là phần
+   không cần người dùng làm gì. */
+.chi-so-nhap::before { background: var(--mau-tt-nhap); }
+.chi-so-tbp::before { background: var(--mau-tt-tbp); }
+.chi-so-kt1::before { background: var(--mau-tt-kt1); }
+.chi-so-sa::before { background: var(--mau-tt-sa); }
+.chi-so-kt2::before { background: var(--mau-tt-kt2); }
+.chi-so-hieu-luc::before { background: var(--mau-tt-hieu-luc); }
+.chi-so-ket-thuc::before { background: var(--mau-tt-ket-thuc); }
+.chi-so-sua::before { background: var(--mau-tt-sua); }
+.chi-so-hong::before { background: var(--mau-tt-hong); }
+.chi-so-gap::before { background: var(--mau-tt-gap); }
 
 /* Thẻ bấm được: cả ô là liên kết, không chỉ con số (FE-08). */
 .chi-so-lien {
@@ -930,7 +955,12 @@ button.the-lien {
   font-weight: 800;
   line-height: 1.1;
 }
-.chi-so-loi .chi-so-gia-tri { color: var(--mau-loi); }
+/* Con số cũng đổi màu, nhưng CHỈ ở ba ô đòi người ta làm gì đó ngay (`0064`).
+   Tô màu cả mười ba con số thì dải thẻ thành một dải cầu vồng và không ô nào
+   nổi lên nữa — vạch bên trái đã đủ để phân biệt các ô còn lại. */
+.chi-so-gap .chi-so-gia-tri { color: var(--mau-tt-gap); }
+.chi-so-hong .chi-so-gia-tri { color: var(--mau-tt-hong); }
+.chi-so-sua .chi-so-gia-tri { color: var(--mau-tt-sua); }
 .chi-so-phu { font-size: var(--chu-rat-nho); color: var(--mau-chu-nhat); }
 /* Dòng "trong đó N quá hạn". Đậm hơn `.chi-so-phu` một bậc vì nó là thứ duy nhất
    trên thẻ đòi người ta làm gì đó ngay — xem `THE_THEO_VAI_TRO`. */

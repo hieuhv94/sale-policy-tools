@@ -192,7 +192,7 @@ describe('`0038` không bày nút bấm vào là 403', () => {
     // Thiếu nhãn thì nút hiện mã viết hoa; thiếu quyền thì nút biến mất với mọi
     // vai trò. Cả hai đều lặng lẽ.
     for (const a of ACTIONS) {
-      const cuaHeThong = a === 'PUBLISH_SIGNED' || a === 'SUPERSEDE';
+      const cuaHeThong = a === 'SUPERSEDE';
       expect(QUYEN_HANH_DONG[a] !== undefined, `${a} thiếu quyền`).toBe(!cuaHeThong);
       expect(HANH_DONG_NHAN[a] !== undefined, `${a} thiếu nhãn`).toBe(!cuaHeThong);
     }

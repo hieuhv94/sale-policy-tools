@@ -198,13 +198,14 @@ describe('AUD-01 các loại hành động đều sinh bản ghi nhật ký', ()
     await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Bản cứng mờ' });
 
     await flush();
-    const rows = await waitEntries(d.id, 6);
+    // NĂM dòng, không sáu: `PUBLISH_SIGNED` đã bị gỡ ở `0064` — ký số giờ là
+    // MỘT nước `CHO_TBP_DUYET -> CHO_KT_L1`.
+    const rows = await waitEntries(d.id, 5);
     const actions = rows.map((r) => r.action);
 
     for (const a of [
       'SUBMIT',
       'TBP_SIGN',
-      'PUBLISH_SIGNED',
       'KT_RECEIVE_L1',
       'SA_HANDOVER',
       'KT_REQUEST_REPRINT',
@@ -249,10 +250,10 @@ describe('AUD-06 cấu trúc một bản ghi nhật ký', () => {
   it('INT-11 tra lại toàn bộ chuỗi bằng MỘT truy vấn theo trace-id', async () => {
     const d = await draft();
     const trace = `trace-chain-${Date.now()}`;
-    // Một request → nhiều sự kiện: ký số phát cả TBP_SIGN lẫn PUBLISH_SIGNED.
     await act(d.id, 'SUBMIT', 'tdv01', {}, trace);
     await act(d.id, 'TBP_SIGN', 'tbp01', {}, trace);
     await flush();
+    // HAI dòng nghiệp vụ, cộng dòng CREATED lúc lập. `PUBLISH_SIGNED` gỡ ở `0064`.
     await waitEntries(d.id, 3);
 
     const chain = await aget(`/audit/entries?traceId=${trace}&limit=50`, 'bld01');
@@ -260,7 +261,6 @@ describe('AUD-06 cấu trúc một bản ghi nhật ký', () => {
     const actions = (chain.body.items as { action: string }[]).map((x) => x.action);
     expect(actions).toContain('SUBMIT');
     expect(actions).toContain('TBP_SIGN');
-    expect(actions).toContain('PUBLISH_SIGNED');
   }, 90_000);
 });
 
@@ -453,13 +453,14 @@ describe('AUD-10 · AUD-11 audit-service ngừng chạy', () => {
 
     // AUD-11: bật lại thì vết được ghi bù, không mất gì.
     //
-    // NĂM dòng chứ không bốn: từ P7b việc LẬP hồ sơ cũng phát sự kiện. Chờ đủ
-    // bốn rồi khẳng định là một cuộc đua — `waitEntries` trả về ngay khi đếm
-    // đủ, và dòng thứ năm có thể chưa kịp tới.
+    // BỐN dòng: `CREATED` (từ P7b việc lập hồ sơ cũng phát sự kiện) cộng ba
+    // bước. Chờ ít hơn số thật rồi khẳng định là một cuộc đua — `waitEntries`
+    // trả về ngay khi đếm đủ, và dòng cuối có thể chưa kịp tới.
+    // `PUBLISH_SIGNED` từng là dòng thứ năm, đã gỡ ở `0064`.
     audit = await createAuditApp();
-    const rows = await waitEntries(d.id, 5);
+    const rows = await waitEntries(d.id, 4);
     expect(rows.map((r) => r.action)).toEqual(
-      expect.arrayContaining(['CREATED', 'SUBMIT', 'TBP_SIGN', 'PUBLISH_SIGNED', 'KT_RECEIVE_L1']),
+      expect.arrayContaining(['CREATED', 'SUBMIT', 'TBP_SIGN', 'KT_RECEIVE_L1']),
     );
   }, 120_000);
 });

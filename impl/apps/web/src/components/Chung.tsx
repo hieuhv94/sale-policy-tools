@@ -81,7 +81,16 @@ export function ChiSo({
    * cái không cần.
    */
   canhBao?: string;
-  kieu?: 'thuong' | 'tot' | 'cho' | 'canh-bao' | 'loi';
+  /**
+   * Hậu tố lớp CSS của vạch màu — `chi-so-<kieu>` (`0064`).
+   *
+   * Kiểu `string` chứ không phải liên kết năm giá trị: từ `0064` mỗi trạng thái
+   * hồ sơ có một màu riêng, và danh sách ấy sống ở `tokens.css` với
+   * `nhomTrangThai()`. Chép nó thành một union thứ hai ở đây là dựng bản sao
+   * phải giữ đồng bộ, mà lệch thì chỉ mất màu chứ không ai biết.
+   * `nguon-giao-dien.test.ts` canh: mọi khoá `mauThe()` trả về đều có lớp thật.
+   */
+  kieu?: string;
   den?: string;
 }) {
   const trong = (

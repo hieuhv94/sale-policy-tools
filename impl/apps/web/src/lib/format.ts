@@ -91,17 +91,42 @@ export const NHAN_TRANG_THAI: Record<string, string> = {
 
 export const nhanTrangThai = (s: string): string => NHAN_TRANG_THAI[s] ?? s;
 
-/** Nhóm màu của trạng thái — dùng cho lớp CSS, không phải mã màu. */
-export function nhomTrangThai(s: string): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' {
-  if (s === 'DANG_CO_HIEU_LUC') return 'tot';
-  if (s === 'TU_CHOI') return 'loi';
-  if (s === 'QUA_HAN_DUYET' || s === 'YEU_CAU_CHINH_SUA') return 'canh-bao';
-  if (s.startsWith('CHO_') || s === 'SA_DANG_XU_LY' || s === 'TBP_DA_KY_SO') return 'cho';
-  // `DA_XOA` rơi vào nhánh này, KHÔNG vào `loi` cùng `TU_CHOI` (`0035`). Đỏ là
-  // màu của thứ hỏng hoặc bị người khác chặn; hồ sơ này do chính người lập bỏ,
-  // và tô đỏ một việc họ cố ý làm là bày ra một báo động giả.
-  return 'thuong';
-}
+/**
+ * Nhóm màu của trạng thái — tên lớp CSS, không phải mã màu (`0064`).
+ *
+ * Tới `0063` hàm này gom mười hai trạng thái vào NĂM nhóm chung, và bốn bước
+ * chờ rơi hết vào một nhóm. Hệ quả trên màn hình: dải thẻ của Ban lãnh đạo có
+ * năm ô cùng một màu, nên không ai đọc được hồ sơ đang tắc ở đâu nếu không đọc
+ * chữ trên từng ô.
+ *
+ * Giờ là một BẢNG TRA, mỗi trạng thái một dòng — không còn `if` nào suy màu từ
+ * tiền tố `CHO_`. Phép suy ấy chính là thứ đã trói bốn bước chờ vào một màu, và
+ * nó cũng sẽ lặng lẽ nuốt bất kỳ trạng thái mới nào bắt đầu bằng `CHO_`.
+ *
+ * BA cặp dùng chung màu, cả ba do khách hàng chốt ngày 19/08:
+ *   - `TU_CHOI` + `QUA_HAN_DUYET` → `hong`. Hai ngõ cụt khác nguyên nhân, nhưng
+ *     với người dùng cùng một kết cục: hồ sơ không đi tiếp được nữa.
+ *   - `HET_HIEU_LUC` + `DA_XOA` → `ket-thuc`. Đã rời khỏi luồng, không đòi ai gì.
+ *   - `TBP_DA_KY_SO` → `tbp`, cùng màu bước Trưởng bộ phận. Trạng thái này KHÔNG
+ *     còn tồn tại từ `0064`; dòng này chỉ để vẽ những dòng lịch sử cũ đã ghi nó.
+ */
+const NHOM_MAU: Record<string, string> = {
+  NHAP: 'nhap',
+  CHO_TBP_DUYET: 'tbp',
+  TBP_DA_KY_SO: 'tbp',
+  CHO_KT_L1: 'kt1',
+  SA_DANG_XU_LY: 'sa',
+  CHO_KT_L2: 'kt2',
+  DANG_CO_HIEU_LUC: 'hieu-luc',
+  HET_HIEU_LUC: 'ket-thuc',
+  YEU_CAU_CHINH_SUA: 'sua',
+  TU_CHOI: 'hong',
+  QUA_HAN_DUYET: 'hong',
+  DA_XOA: 'ket-thuc',
+};
+
+/** Trạng thái lạ vẫn vẽ được — xám trung tính, không phải một ô mất màu. */
+export const nhomTrangThai = (s: string): string => NHOM_MAU[s] ?? 'ket-thuc';
 
 /**
  * Nhãn cho MỘT DÒNG NHẬT KÝ, viết ở thì đã xảy ra (`0036`).

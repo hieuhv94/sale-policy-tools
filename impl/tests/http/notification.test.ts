@@ -311,16 +311,19 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
   // khẳng định tới lớp sự kiện outbox, còn thư có thật sự tới đúng người hay
   // không thì chưa có service nào gửi để mà kiểm.
   //
-  // Sáu thư chứ không phải mười hai như bản thiết kế ghi: một bước gửi MỘT thư
+  // NĂM thư chứ không phải mười hai như bản thiết kế ghi: một bước gửi MỘT thư
   // cho nhiều người nhận, không phải mỗi người một thư — đó cũng là điều kiện
   // để chúng gộp được vào một luồng (NTF-04). Con số 12 trong thiết kế đếm nhầm
   // theo lượt người nhận.
-  it('sáu bước sinh sáu thư, mỗi thư đúng tập người nhận', async () => {
+  //
+  // Sáu xuống năm ở `0064`: lá thư "B5 phát hành" đi cùng `PUBLISH_SIGNED`, mà
+  // Kế toán đã có tên trong lá B4 ngay trước nó. Hai thư về cùng một giây.
+  it('năm bước sinh năm thư, mỗi thư đúng tập người nhận', async () => {
     const d = await draft();
     await runToActive(d.id);
 
-    const mails = await flush(6);
-    expect(mails.length).toBe(6);
+    const mails = await flush(5);
+    expect(mails.length).toBe(5);
 
     // Mailpit trả thư mới nhất trước; đảo lại để so theo thứ tự nghiệp vụ.
     const byOrder = [...mails].reverse();
@@ -329,7 +332,6 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
     expect(to).toEqual([
       ['tbp01@csbh.test'], //                                     B3 gửi duyệt   -> TBP
       ['kt01@csbh.test', 'tdv01@csbh.test'], //                    B4 ký số       -> KT, TDV
-      ['kt01@csbh.test'], //                                       B5 phát hành   -> KT
       ['sa01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], //  B6 tiếp nhận 1 -> SA, TBP, TDV
       ['kt01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], //  B8 bàn giao    -> KT, TBP, TDV
       ['kt01@csbh.test', 'sa01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], // B10 -> đủ 4
@@ -424,9 +426,9 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
-    // Ba thư: gửi duyệt, ký số, và bước tự động sau ký. KHÔNG thư thứ tư.
-    const mails = await flush(3);
-    expect(mails).toHaveLength(3);
+    // HAI thư: gửi duyệt và ký số. Bước tự động sau ký đã gỡ ở `0064`.
+    const mails = await flush(2);
+    expect(mails).toHaveLength(2);
     for (const m of mails) {
       expect((await fullMail(m.ID)).Text).not.toContain('chỉ để bạn biết');
     }
@@ -487,7 +489,7 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
     await mailpitClear();
     await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
-    const signed = await flush(3);
+    const signed = await flush(2);
     const sign = signed.find((x) => x.Subject.includes('đã ký số'))!;
     expect((await fullMail(sign.ID)).Text).not.toContain('Lý do:');
   });
@@ -501,7 +503,7 @@ describe('NTF-04 mọi thư của một khách hàng nằm chung một luồng',
   it('cùng References, khác Message-ID', async () => {
     const d = await draft();
     await runToActive(d.id);
-    const mails = await flush(6);
+    const mails = await flush(5);
 
     const raws = await Promise.all(mails.map((m) => rawMail(m.ID)));
     const refs = raws.map((r) => /^References:\s*(.+)$/im.exec(r)?.[1]?.trim());
@@ -509,8 +511,8 @@ describe('NTF-04 mọi thư của một khách hàng nằm chung một luồng',
 
     expect(new Set(refs).size).toBe(1);
     expect(refs[0]).toMatch(/^<csbh\.thread\..+@nutricare\.test>$/);
-    // Sáu thư khác nhau: gộp luồng KHÔNG được làm chúng thành một thư.
-    expect(new Set(ids).size).toBe(6);
+    // Năm thư khác nhau: gộp luồng KHÔNG được làm chúng thành một thư.
+    expect(new Set(ids).size).toBe(5);
   });
 
   it('hai khách hàng khác nhau thì hai luồng khác nhau', async () => {
@@ -775,7 +777,7 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
   it('thư tới đúng TDV phụ trách, và hồ sơ đã ký KHÔNG bị ghi đè', async () => {
     const d = await draft();
     await runToActive(d.id);
-    await flush(6);
+    await flush(5);
     await mailpitClear();
 
     const before = await withAdminDb(async (c) => {
@@ -865,7 +867,7 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
     });
     expect(hs.status, JSON.stringify(hs.body)).toBe(201);
     await runToActive(hs.body.id as string);
-    await flush(6);
+    await flush(5);
     await mailpitClear();
 
     await withAdminDb(async (cc) => {
@@ -983,9 +985,9 @@ describe('INT-06 notification chết trong lúc duyệt hồ sơ', () => {
     expect(status).toBe('DANG_CO_HIEU_LUC');
     expect(consumer).toBeDefined();
 
-    // Bật lại: sáu thư tồn đọng được giao ngay.
+    // Bật lại: năm thư tồn đọng được giao ngay (`0064` bỏ lá thứ sáu).
     ntf = await createNotificationApp();
     notify = ntf.get(NotifyService);
-    expect((await waitMail(6)).length).toBe(6);
+    expect((await waitMail(5)).length).toBe(5);
   }, 60_000);
 });

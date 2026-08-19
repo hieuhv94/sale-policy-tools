@@ -5969,3 +5969,86 @@ trên cùng — hệ quả là trên điện thoại **không màn hình nào ch
 
 `tdv01` là năm ký tự nên nó ở lại được. Thứ phải đi là viên vai trò, và đó là đánh đổi đúng: tên đăng
 nhập là thứ đổi giữa các lần đăng nhập, còn vai trò thì suy được từ chính các mục menu đang hiện.
+
+## P74 — Mỗi trạng thái một màu, và gỡ hẳn trạng thái *TBP đã ký số*
+
+Khách hàng duyệt bảng màu (artifact `99bab873`) với bốn chỉnh sửa, và chỉnh sửa thứ tư là một quyết
+định nghiệp vụ chứ không phải chuyện màu sắc.
+
+### Màu
+
+Trước đợt này `nhomTrangThai()` gom mười hai trạng thái vào NĂM nhóm, và bốn bước chờ rơi hết vào
+một. Dải thẻ của Ban lãnh đạo có năm ô cùng màu — không ai đọc được hồ sơ đang tắc ở đâu nếu không
+đọc chữ trên từng ô.
+
+Giờ nó là một BẢNG TRA, mỗi trạng thái một dòng. Không còn `if (s.startsWith('CHO_'))` — chính phép
+suy ấy đã trói bốn bước chờ vào một màu, và nó cũng sẽ lặng lẽ nuốt bất kỳ trạng thái mới nào bắt
+đầu bằng `CHO_`.
+
+Bốn bước chờ đi thành chuỗi **chàm → lam → ngọc → mòng két**, đúng thứ tự hồ sơ đi qua. Ô đếm theo
+BƯỚC mượn màu của đúng trạng thái nó đại diện: bấm thẻ *Chờ TBP duyệt* rồi rơi vào danh sách toàn
+nhãn màu khác thì người dùng phải học bảng màu lần thứ hai.
+
+Mọi cặp chữ/nền đạt WCAG AA ở cả hai giao diện — thấp nhất 4,61. Tính bằng công thức, không ướm mắt;
+hai màu trong đề xuất đầu (xanh lá 4,42 và cam 4,45) đã phải chỉnh vì rớt ngưỡng.
+
+### Yêu cầu tự mâu thuẫn, và cách xử lý
+
+Yêu cầu gốc: *"không có 2 thẻ trùng màu nhau"*. Hai chỉ đạo sau đó — gộp *Từ chối* với *Quá hạn
+duyệt*, gộp *Hết hiệu lực* với *Đã xoá* — lật lại chính nó, vì **cả hai cặp đều đứng chung một dải
+thẻ** (cặp đầu ở TDV, TBP và BLĐ; cặp sau ở BLĐ).
+
+Guard mới bắt được ngay ở lần chạy đầu, và đó là lý do viết nó trước khi sửa xong. Bất biến còn giữ
+được là bản hẹp hơn: ngoài hai cặp ĐÃ CHỐT ra, không ô nào được trùng ô nào — và hai cặp ấy khai
+tường minh bằng tên thẻ, không phải bằng phép đếm. Đếm thì một cặp trùng MỚI vẫn lọt qua miễn tổng
+số không đổi.
+
+### Gỡ `TBP_DA_KY_SO`
+
+Khách hàng nói nó chỉ là trạng thái thoáng qua và gây nhận hai thư. **Cả hai vế đều đúng**, kiểm
+chứng được trong mã:
+
+- `TBP_SIGN` đặt trạng thái rồi một khối ngay dưới cập nhật lần thứ hai sang `CHO_KT_L1`, trong CÙNG
+  transaction. Không lời đọc nào ngoài transaction ấy từng thấy một hồ sơ đang ở đó.
+- `RECIPIENTS.TBP_SIGN = ['KE_TOAN','TDV']` và `policy.publish_signed → ['KE_TOAN']`. Kế toán có tên
+  trong cả hai. Chính test cũ cũng ghi nhận: *"Ba thư: gửi duyệt, ký số, và bước tự động sau ký."*
+
+Ghi chú cũ ở khối ấy CÓ lo đúng chuyện này, nhưng chỉ gỡ `observers` — người nhận CHÍNH vẫn trùng.
+Sửa nửa vời ấy sống được sáu đợt.
+
+Giờ `CHO_TBP_DUYET --TBP_SIGN--> CHO_KT_L1` là một nước. `sla_due_at` vẫn được đặt lại vì
+`CHO_KT_L1` nằm trong `WAITING`, nên câu lệnh UPDATE chung đã lo; `tbp_signed_at`/`tbp_signed_by`
+vẫn ghi theo `stamp`, nên dải "ai đã duyệt" không đổi một chữ.
+
+### Ranh giới: tập trạng thái ĐẾN ĐƯỢC hẹp lại, tập NHÃN thì không
+
+Postgres **không xoá được** một giá trị khỏi enum, mà `pol.policy_event` có hàng nghìn dòng ghi
+`TBP_DA_KY_SO` ở `from_status`/`to_status`. Nên:
+
+- `STATUSES`, `MOI_TRANG_THAI`, `BAN_CUA` — còn **11**.
+- `NHAN_TRANG_THAI`, `STATUS_LABEL`, `NHOM_MAU`, `TITLE.PUBLISH_SIGNED` — vẫn **12**, để màn hình
+  *Lịch sử* đọc được dòng cũ và để một sự kiện còn kẹt trong bảng thư hỏng gửi lại được đúng tiêu đề.
+
+Đây là ranh giới đáng nhớ: **cái gì đã ghi vào lịch sử thì phải đọc được mãi, dù không sinh ra nữa.**
+
+### Kiểm chứng
+
+13 ca đỏ sau lần chạy đầu, toàn bộ là test đếm cứng hai bước / ba thư — đúng tập đã lường. Luồng đầy
+đủ giờ sinh **5 thư** (trước là 6) và **6 dòng lịch sử** (trước là 7). Bốn ca mới ở
+`nguon-giao-dien.test.ts` canh bảng màu, trong đó có ca đòi mọi biến `--mau-tt-*` khai đủ ở CẢ BA
+khối của `tokens.css` — thiếu khối `[data-theme='toi']` thì chỉ người bật giao diện tối BẰNG TAY mới
+thấy hỏng, và đó là loại lỗi không ai báo.
+
+**1157/1157 xanh.**
+
+### Một quả mìn hẹn giờ gỡ tiện thể
+
+Lần chạy đầy đủ thứ hai đỏ đúng một ca chẳng liên quan gì tới màu: *"hồ sơ chưa gửi duyệt nằm trong
+hộp việc của người lập"*. Nó gọi `/policies/inbox?limit=200` — đúng trần của `pageOf` — rồi khẳng
+định hồ sơ vừa lập có mặt.
+
+Hộp việc xếp `sla_due_at NULLS LAST, created_at`, mà hồ sơ nháp không có hạn, nên hồ sơ MỚI NHẤT nằm
+ở CUỐI. Tệp `policy.test.ts` đã tự tích đủ 200 hồ sơ nháp cho `tdv01`, và cái vừa lập rơi khỏi trang
+đầu. Hai ca `0061` thêm ở P71 là giọt nước cuối; lần chạy trước còn qua, lần này thì không.
+
+Sửa bằng cách đọc HẾT các trang thay vì nâng trần. Nâng trần chỉ dời quả mìn sang một con số khác.

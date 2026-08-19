@@ -7,6 +7,8 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
+import { THE_THEO_VAI_TRO, mauThe } from '@csbh/web/tong-quan';
 
 const GOC = 'apps/web/src';
 
@@ -145,6 +147,108 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
       '--vung-cham',
     ]) {
       expect(css, `thiếu token ${bien}`).toContain(bien);
+    }
+  });
+});
+
+/**
+ * `0064` — mỗi trạng thái một màu, và không dải thẻ nào có hai ô trùng màu.
+ *
+ * Đây là bất biến khách hàng yêu cầu, và nó là loại bất biến KHÔNG tự giữ được:
+ * thêm một trạng thái hay một thẻ mới thì không có gì báo lỗi, chỉ có hai ô im
+ * lặng cùng màu. Nên nó phải có người canh.
+ *
+ * Ba cặp được phép trùng, và cả ba do khách hàng chốt ngày 19/08 — chúng khai
+ * tường minh dưới đây chứ không ẩn trong một phép trừ, để lần sau ai muốn thêm
+ * cặp thứ tư thì phải sửa đúng dòng này và đọc được vì sao ba cặp kia có mặt.
+ */
+describe('`0064` màu trạng thái và màu thẻ', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+  const token = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
+
+  /** Cặp trạng thái được phép dùng chung một màu, kèm lý do. */
+  const CHUNG_MAU: Record<string, string> = {
+    'TU_CHOI+QUA_HAN_DUYET': 'hai ngõ cụt, khác nguyên nhân nhưng cùng kết cục',
+    'HET_HIEU_LUC+DA_XOA': 'đều đã rời khỏi luồng, không đòi ai làm gì',
+    // Không còn là trạng thái sống từ `0064`; chỉ để vẽ dòng lịch sử cũ.
+    'CHO_TBP_DUYET+TBP_DA_KY_SO': 'cùng bước Trưởng bộ phận',
+  };
+
+  it('mỗi trạng thái có một khoá màu, và chỉ ba cặp được trùng', () => {
+    const theoMau = new Map<string, string[]>();
+    for (const t of Object.keys(NHAN_TRANG_THAI)) {
+      const m = nhomTrangThai(t);
+      theoMau.set(m, [...(theoMau.get(m) ?? []), t]);
+    }
+    const trung = [...theoMau.values()]
+      .filter((ds) => ds.length > 1)
+      .map((ds) => [...ds].sort().join('+'))
+      .sort();
+    expect(trung, 'có cặp trạng thái trùng màu ngoài danh sách đã chốt').toEqual(
+      Object.keys(CHUNG_MAU).map((k) => k.split('+').sort().join('+')).sort(),
+    );
+  });
+
+  it('trong một dải thẻ, chỉ ĐÚNG hai cặp đã chốt được trùng màu', () => {
+    /*
+     * Yêu cầu ban đầu là "không hai thẻ nào trùng màu". Hai chỉ đạo ngày 19/08
+     * — gộp *Từ chối* với *Quá hạn duyệt*, gộp *Hết hiệu lực* với *Đã xoá* —
+     * lật lại chính nó, vì cả hai cặp ấy ĐỨNG CHUNG một dải thẻ:
+     *
+     *   - *Từ chối* + *Quá hạn* cùng có mặt ở Trình dược viên, Trưởng bộ phận
+     *     và Ban lãnh đạo.
+     *   - *Hết hiệu lực* + *Đã xoá* cùng có mặt ở Ban lãnh đạo.
+     *
+     * Nên bất biến còn giữ được là bản hẹp hơn: ngoài hai cặp ấy ra, không ô
+     * nào được trùng ô nào. Khai tên thẻ tường minh chứ không đếm số cặp — đếm
+     * thì một cặp trùng MỚI vẫn lọt qua miễn tổng số không đổi.
+     */
+    const CAP_CHO_PHEP = [
+      ['TU_CHOI', 'QUA_HAN_DUYET'],
+      ['HET_HIEU_LUC', 'DA_XOA'],
+    ].map((c) => c.sort().join('+'));
+
+    for (const [vaiTro, ds] of Object.entries(THE_THEO_VAI_TRO)) {
+      const theoMau = new Map<string, string[]>();
+      for (const t of ds) {
+        const m = mauThe(t);
+        theoMau.set(m, [...(theoMau.get(m) ?? []), t.ma]);
+      }
+      for (const [m, ma] of theoMau) {
+        if (ma.length === 1) continue;
+        expect(
+          [...ma].sort().join('+'),
+          `${vaiTro}: ${ma.join(' và ')} cùng màu "${m}" mà không nằm trong danh sách đã chốt`,
+        ).toSatisfy((c: string) => CAP_CHO_PHEP.includes(c));
+      }
+    }
+  });
+
+  it('mọi khoá màu đều có lớp CSS thật, ở CẢ nhãn lẫn thẻ', () => {
+    // Khoá không có lớp thì nhãn mất màu và thẻ mất vạch — không lỗi, chỉ nhạt.
+    const khoa = new Set<string>([
+      ...Object.keys(NHAN_TRANG_THAI).map(nhomTrangThai),
+      ...Object.values(THE_THEO_VAI_TRO).flat().map(mauThe),
+    ]);
+    for (const k of khoa) {
+      expect(css.includes(`.nhan-${k} `), `thiếu lớp .nhan-${k}`).toBe(true);
+      // `thuong` là thẻ *Đang chờ* — cố ý không có vạch màu.
+      if (k !== 'thuong') {
+        expect(css.includes(`.chi-so-${k}::before`), `thiếu lớp .chi-so-${k}`).toBe(true);
+      }
+    }
+  });
+
+  it('mọi màu trạng thái khai đủ ở CẢ BA khối của tokens.css', () => {
+    /*
+     * Ba khối: `:root` (sáng), media query (theo máy), `[data-theme='toi']`
+     * (chọn tay). Thiếu ở khối thứ ba thì người bật giao diện tối bằng tay nhận
+     * màu của bảng SÁNG trên nền tối — chữ gần như không đọc được, và nó chỉ lộ
+     * ra với đúng những người đã chọn tay.
+     */
+    const ten = [...token.matchAll(/--mau-tt-[a-z0-9-]+/g)].map((m) => m[0]);
+    for (const t of new Set(ten)) {
+      expect(ten.filter((x) => x === t).length, `${t} không khai đủ ba khối`).toBe(3);
     }
   });
 });

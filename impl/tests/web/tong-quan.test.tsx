@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { DaiTheTrangThai } from '@csbh/web/so-lieu';
 import { KHOA_NHAN_TU_LIEN_KET } from '@csbh/web/ho-so-ui';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
-import { NHAN_TRANG_THAI } from '@csbh/web/format';
+import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
 import {
   BAN_CUA,
   BUOC_CUA,
@@ -117,8 +117,16 @@ describe('dải thẻ đúng bản đã chốt với khách hàng', () => {
 });
 
 describe('mã trạng thái và mã bước phải có thật', () => {
-  it('`MOI_TRANG_THAI` đúng bằng 12 trạng thái của muc 4 và `0035`', () => {
-    expect([...MOI_TRANG_THAI].sort()).toEqual(Object.keys(NHAN_TRANG_THAI).sort());
+  it('`MOI_TRANG_THAI` là 11 trạng thái SỐNG — hẹp hơn bảng nhãn', () => {
+    /*
+     * Hai tập này KHÔNG còn bằng nhau từ `0064`. `NHAN_TRANG_THAI` phải giữ
+     * `TBP_DA_KY_SO` để những dòng lịch sử cũ còn đọc được; `MOI_TRANG_THAI` là
+     * tập một hồ sơ CÓ THỂ ĐANG Ở, và không hồ sơ nào ở đó được nữa.
+     */
+    expect([...MOI_TRANG_THAI].sort()).toEqual(
+      Object.keys(NHAN_TRANG_THAI).filter((t) => t !== 'TBP_DA_KY_SO').sort(),
+    );
+    expect(MOI_TRANG_THAI).not.toContain('TBP_DA_KY_SO');
   });
 
   it('mọi thẻ đều trỏ tới một trạng thái hoặc một ô bước có thật', () => {
@@ -140,8 +148,8 @@ describe('mã trạng thái và mã bước phải có thật', () => {
     expect(Object.keys(BUOC_CUA).sort()).toEqual([...MOI_O_BUOC].sort());
   });
 
-  it('`BAN_CUA` phủ đủ 12 trạng thái', () => {
-    expect(Object.keys(BAN_CUA).sort()).toEqual(Object.keys(NHAN_TRANG_THAI).sort());
+  it('`BAN_CUA` phủ đủ 11 trạng thái sống', () => {
+    expect(Object.keys(BAN_CUA).sort()).toEqual([...MOI_TRANG_THAI].sort());
   });
 
   it('hai nửa của B8 cùng trỏ về một bước thật', () => {
@@ -177,12 +185,14 @@ describe('`0047` thẻ Sắp quá hạn', () => {
     expect(THE_THEO_VAI_TRO.QUAN_TRI).toEqual([]);
   });
 
-  it('màu ĐỎ, không phải vàng', () => {
-    // Vàng là "có việc tồn"; đỏ là "sắp mất". Sau 24 giờ nữa hồ sơ chết hẳn, và
-    // 3 ngày sau hệ thống xoá — đây là ô duy nhất trên trang báo một thứ sắp mất.
+  it('`0064` màu CAM riêng, khác đỏ của thẻ Quá hạn đứng ngay cạnh', () => {
+    // Hai ô này kề nhau trên MỌI dải thẻ và là hai chuyện khác hẳn nhau: cái này
+    // còn kịp cứu, cái kia đã mất. Cùng màu thì mất luôn phần "còn kịp".
     for (const v of CO_HO_SO) {
       const the = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'SAP_QUA_HAN')!;
-      expect(mauThe(the), v).toBe('loi');
+      expect(mauThe(the), v).toBe('gap');
+      const quaHan = THE_THEO_VAI_TRO[v].find((t) => t.ma === 'QUA_HAN_DUYET');
+      if (quaHan) expect(mauThe(quaHan), v).not.toBe('gap');
     }
   });
 
@@ -288,9 +298,9 @@ describe('`0047` thẻ Sắp quá hạn', () => {
       // đường cho ra cùng một tập, và đường này để lại đúng cái ô chọn mà người
       // dùng thấy trong biểu mẫu.
       expect(duongThe(the)).toBe('/ho-so?han=QUA_HAN');
-      // Đỏ như thẻ Sắp quá hạn: `nhomTrangThai` cho `QUA_HAN_DUYET` màu cảnh báo,
-      // nhưng ở đây nó KHÔNG còn là cảnh báo — nó là mất mát đã xảy ra.
-      expect(mauThe(the), v).toBe('canh-bao');
+      // `0064` đỏ, CÙNG màu *Từ chối* — khách hàng chốt ngày 19/08. Hai ngõ cụt
+      // khác nguyên nhân, nhưng với người dùng cùng một kết cục.
+      expect(mauThe(the), v).toBe('hong');
     }
   });
 });
@@ -425,13 +435,27 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
     }
   });
 
-  it('chỉ "Lỗi bản cứng" mang màu cảnh báo trong nhóm thẻ bước', () => {
-    // Bốn ô kia là việc bình thường đang tới lượt; ô này là việc PHẢI LÀM LẠI vì
-    // bản cứng đã in, đã trình ký, đã scan rồi bị bỏ hết. Tô vàng cả bốn ô kia
-    // là làm cái duy nhất đáng chú ý mất chỗ đứng.
-    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe('canh-bao');
-    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!)).toBe('cho');
-    expect(mauThe(THE_THEO_VAI_TRO.TBP[0]!)).toBe('cho');
+  it('`0064` thẻ của một bước mang đúng màu trạng thái của bước ấy', () => {
+    /*
+     * Bấm thẻ *Chờ TBP duyệt* rồi rơi vào một danh sách toàn nhãn màu khác thì
+     * người dùng phải học bảng màu lần thứ hai. Bốn ô bước mượn màu của bốn
+     * trạng thái tương ứng, nên hai màn hình đọc như một.
+     */
+    expect(mauThe(THE_THEO_VAI_TRO.TBP[0]!)).toBe(nhomTrangThai('CHO_TBP_DUYET'));
+    expect(mauThe(THE_THEO_VAI_TRO.KE_TOAN[0]!)).toBe(nhomTrangThai('CHO_KT_L1'));
+    expect(mauThe(THE_THEO_VAI_TRO.KE_TOAN[1]!)).toBe(nhomTrangThai('CHO_KT_L2'));
+    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!)).toBe(nhomTrangThai('SA_DANG_XU_LY'));
+
+    /*
+     * `B8_LOI_BAN_CUNG` là ngoại lệ DUY NHẤT, và nó không có trạng thái riêng
+     * để mượn: cả nó lẫn *Trình ký* đều là `SA_DANG_XU_LY`. Nó mượn màu của
+     * *Yêu cầu chỉnh sửa* — cùng một chuyện "có người trả việc về cho bạn" — và
+     * hai thẻ ấy không bao giờ đứng chung một dải.
+     */
+    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe(nhomTrangThai('YEU_CAU_CHINH_SUA'));
+    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).not.toBe(
+      mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!),
+    );
   });
 });
 

@@ -11,11 +11,16 @@
 import type { VaiTro } from './can.js';
 import { nhanTrangThai, nhomTrangThai } from './format.js';
 
-/** 12 trạng thái của muc 4 và `0035`. Cùng tập khoá với `NHAN_TRANG_THAI` ở `format.ts`. */
+/**
+ * 11 trạng thái SỐNG của muc 4, `0035` và `0064`.
+ *
+ * KHÔNG còn `TBP_DA_KY_SO` (`0064`) — nó đã bị gỡ khỏi máy trạng thái. Đây là
+ * tập trạng thái một hồ sơ CÓ THỂ ĐANG Ở, nên nó hẹp hơn `NHAN_TRANG_THAI` bên
+ * `format.ts`: bảng nhãn kia còn phải đọc được những dòng lịch sử cũ.
+ */
 export type TrangThai =
   | 'NHAP'
   | 'CHO_TBP_DUYET'
-  | 'TBP_DA_KY_SO'
   | 'CHO_KT_L1'
   | 'SA_DANG_XU_LY'
   | 'CHO_KT_L2'
@@ -29,7 +34,6 @@ export type TrangThai =
 export const MOI_TRANG_THAI: TrangThai[] = [
   'NHAP',
   'CHO_TBP_DUYET',
-  'TBP_DA_KY_SO',
   'CHO_KT_L1',
   'SA_DANG_XU_LY',
   'CHO_KT_L2',
@@ -57,7 +61,6 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
   NHAP: 'TDV',
   YEU_CAU_CHINH_SUA: 'TDV',
   CHO_TBP_DUYET: 'TBP',
-  TBP_DA_KY_SO: 'TBP',
   CHO_KT_L1: 'KE_TOAN',
   CHO_KT_L2: 'KE_TOAN',
   SA_DANG_XU_LY: 'SALE_ADMIN',
@@ -78,9 +81,9 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
  *   - `B8_LOI_BAN_CUNG` — kế toán nhận bản cứng rồi bắt in lại (B10C). Bản scan
  *     cũ đã bị xoá khỏi hệ thống, phải làm lại một việc tưởng đã xong.
  *
- * `TBP_DA_KY_SO` KHÔNG có ô nào ở đây, và không phải vì bỏ sót: hệ thống chuyển
- * nó sang `CHO_KT_L1` ngay trong CÙNG transaction với lần TBP ký
- * (`workflow.service.ts`, B5). Không hồ sơ nào từng nằm lại ở đó để mà đếm.
+ * `TBP_DA_KY_SO` không có ô nào ở đây, và từ `0064` nó không còn tồn tại: hệ
+ * thống vốn đã chuyển nó sang `CHO_KT_L1` ngay trong CÙNG transaction với lần
+ * TBP ký, nên không hồ sơ nào từng nằm lại ở đó để mà đếm.
  */
 export type OBuoc = 'B4_TBP_DUYET' | 'B6_KT_L1' | 'B8_TRINH_KY' | 'B8_LOI_BAN_CUNG' | 'B10_KT_L2';
 
@@ -285,22 +288,39 @@ export const nhanThe = (the: The): string =>
   the.nhan ?? (the.dem.tu === 'trangThai' ? nhanTrangThai(the.dem.trangThai) : the.ma);
 
 /**
+ * Ô đếm theo BƯỚC lấy màu của đúng trạng thái nó đại diện (`0064`).
+ *
+ * Thẻ *Chờ TBP duyệt* và nhãn *Chờ TBP duyệt* trong bảng hồ sơ phải là một màu —
+ * người dùng bấm thẻ rồi rơi vào một danh sách toàn nhãn màu khác thì phải học
+ * lại bảng màu lần thứ hai.
+ *
+ * `B8_LOI_BAN_CUNG` là ngoại lệ duy nhất, và nó KHÔNG có trạng thái riêng để
+ * mượn màu: cả nó lẫn `B8_TRINH_KY` đều là `SA_DANG_XU_LY`. Nó mượn màu của
+ * *Yêu cầu chỉnh sửa* vì hai thứ nói cùng một chuyện — có người trả việc về cho
+ * bạn — và chúng không bao giờ đứng chung một dải thẻ.
+ */
+const MAU_O_BUOC: Record<OBuoc, string> = {
+  B4_TBP_DUYET: 'tbp',
+  B6_KT_L1: 'kt1',
+  B8_TRINH_KY: 'sa',
+  B8_LOI_BAN_CUNG: 'sua',
+  B10_KT_L2: 'kt2',
+};
+
+/**
  * Màu của thẻ.
  *
- * `B8_LOI_BAN_CUNG` là ô DUY NHẤT tô vàng trong nhóm bước, và đó là chủ ý: bốn ô
- * kia là việc bình thường đang tới lượt, còn ô này là việc PHẢI LÀM LẠI — bản
- * cứng đã in, đã trình ký, đã scan, rồi bị bỏ đi hết. Nó tốn đúng bằng lần đầu
- * và lẽ ra không phải tốn.
- *
- * Thẻ "Đang chờ" thì không tô: theo định nghĩa nó là phần KHÔNG cần ai làm gì.
+ * Thẻ *Đang chờ* không tô: theo định nghĩa nó là phần KHÔNG cần ai làm gì, và
+ * một dải thẻ mà ô nào cũng có màu là một dải không có chỗ cho mắt nghỉ.
  */
-export function mauThe(the: The): 'tot' | 'cho' | 'loi' | 'canh-bao' | 'thuong' {
+export function mauThe(the: The): string {
   if (the.dem.tu === 'trangThai') return nhomTrangThai(the.dem.trangThai);
-  // Đỏ, không vàng: sau 24 giờ nữa hồ sơ chết hẳn và 3 ngày sau biến mất. Đây là
-  // ô duy nhất trên trang báo một thứ SẮP MẤT, chứ không phải một việc tồn đọng.
-  if (the.dem.tu === 'sapQuaHan') return 'loi';
+  // Cam riêng, không mượn đỏ của *Quá hạn*: hai ô này đứng cạnh nhau trên MỌI
+  // dải thẻ, và chúng là hai chuyện khác hẳn nhau — một cái còn kịp cứu.
+  if (the.dem.tu === 'sapQuaHan') return 'gap';
   if (the.ma === 'DANG_CHO') return 'thuong';
-  return the.ma === 'B8_LOI_BAN_CUNG' ? 'canh-bao' : 'cho';
+  // Thẻ gộp nhiều ô bước (chưa có ai dùng) thì lấy màu của ô đầu.
+  return MAU_O_BUOC[the.dem.o[0]!] ?? 'thuong';
 }
 
 /**

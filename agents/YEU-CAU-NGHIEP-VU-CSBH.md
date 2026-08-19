@@ -247,9 +247,9 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B1 | TDV | Nháp | — | Tạo hồ sơ: khách hàng, sản phẩm, CPBH, ngày áp dụng, file đính kèm |
 | B2 | Hệ thống | Nháp | — | Tự tính, đối chiếu danh mục, kiểm tra trùng sản phẩm và CSBH hiện có, cảnh báo lỗi |
 | B3 | TDV | Chờ TBP duyệt | TBP | Xem bản CSBH, chốt và gửi duyệt. Hồ sơ khóa sửa |
-| B4 | TBP — duyệt | TBP đã ký số | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký |
+| B4 | TBP — duyệt | **KT duyệt bản mềm** `sửa 19/08` | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký. Hồ sơ sang thẳng bàn kế toán |
 | B4B | TBP — không duyệt | Yêu cầu chỉnh sửa → B3 | TDV | Bắt buộc nhập lý do; hồ sơ mở khóa, tạo phiên bản mới |
-| B5 | Hệ thống | KT duyệt bản mềm | — | Phát hành liên kết “CSBH đã ký số” tại bàn kế toán |
+| ~~B5~~ | ~~Hệ thống~~ | — | — | **Bỏ `19/08`** — xem ghi chú dưới bảng |
 | B6A | Kế toán — nhận L1 | Sale Admin đang xử lý | SA, TBP, TDV | Tiếp nhận file mềm và **chọn Sale Admin xử lý bước sau** `sửa 16/08`; khách hàng đủ điều kiện xuất hàng và xuất VAT |
 | B6B | Kế toán — không nhận L1 | Yêu cầu chỉnh sửa → B3 | TBP, TDV | Bắt buộc nhập lý do; duyệt và ký lại từ đầu |
 | B7 | Kế toán **hoặc** Sale Admin | — | — | Xuất file hợp đồng (xem mục 8) |
@@ -258,6 +258,12 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
 | B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ bị xóa; Sale Admin làm lại bản cứng |
+
+**Bước B5 và trạng thái `TBP đã ký số` đã bỏ** `19/08`. Chúng chưa bao giờ hiện ra với người dùng:
+hệ thống chuyển tiếp ngay trong cùng một giao dịch với lần TBP ký, nên không hồ sơ nào từng dừng lại
+ở đó. Nhưng đó là **hai** lần chuyển bước, tức hai email, và **kế toán có tên trong cả hai** — mỗi
+lần Trưởng bộ phận ký, kế toán nhận hai thư trong cùng một giây. Nay B4 sang thẳng *KT duyệt bản
+mềm*: một bước, một thư, một dòng lịch sử. Chữ ký số và dấu thời gian vẫn được ghi y như cũ.
 
 **Mọi lần trả lại đều tạo phiên bản mới.** Trả về Bước 3 nghĩa là đi lại toàn bộ vòng duyệt,
 kể cả bước ký số của Trưởng bộ phận. File đã ký của phiên bản cũ giữ nguyên trong lịch sử.
@@ -270,7 +276,6 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 |---|---|---|
 | `Nháp` | Trạng thái đầu tiên, sửa tự do | — |
 | `Chờ TBP duyệt` | Đã gửi duyệt, hồ sơ khóa sửa | 14 ngày |
-| `TBP đã ký số` | Có file ký và dấu thời gian | — |
 | `KT duyệt bản mềm` | Chờ tiếp nhận file mềm — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L1* | 14 ngày |
 | `Sale Admin đang xử lý` | In, trình ký, scan | 14 ngày |
 | `KT duyệt bản cứng` | Chờ tiếp nhận bản cứng — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L2* | 14 ngày |

@@ -6,15 +6,36 @@
  * hành động được phép, đúng yêu cầu của WF-23.
  */
 
+/*
+ * `TBP_DA_KY_SO` ĐÃ BỊ GỠ ở `0064`, cùng với hành động `PUBLISH_SIGNED`.
+ *
+ * Nó chưa bao giờ là một trạng thái người dùng nhìn thấy: `TBP_SIGN` đặt nó rồi
+ * `PUBLISH_SIGNED` chuyển tiếp sang `CHO_KT_L1` ngay trong CÙNG transaction, nên
+ * không lời đọc nào ngoài transaction ấy từng thấy một hồ sơ đang ở đó.
+ *
+ * Cái giá của nó thì có thật: hai lần chuyển bước là hai sự kiện, và cả hai đều
+ * gửi thư cho Kế toán. Mỗi lần Trưởng bộ phận ký, kế toán nhận HAI lá thư trong
+ * cùng một giây — "Trưởng bộ phận đã ký số" và "Hồ sơ đã ký số, chuyển sang Kế
+ * toán tiếp nhận". Khách hàng chỉ ra chỗ này ngày 19/08.
+ *
+ * Giờ `CHO_TBP_DUYET --TBP_SIGN--> CHO_KT_L1` là MỘT nước. Mốc `tbp_signed_at`
+ * và `tbp_signed_by` vẫn được ghi y như cũ, nên dải "ai đã duyệt" không đổi.
+ *
+ * GIÁ TRỊ ENUM TRONG CSDL THÌ Ở LẠI, và không có cách nào khác: Postgres không
+ * xoá được một giá trị khỏi enum, mà `pol.policy_event` có hàng nghìn dòng lịch
+ * sử ghi `TBP_DA_KY_SO` ở `from_status`/`to_status`. Nhãn tiếng Việt của nó cũng
+ * ở lại bên `format.ts` để những dòng ấy còn đọc được — chỉ TẬP TRẠNG THÁI ĐẾN
+ * ĐƯỢC là hẹp lại.
+ */
 export const STATUSES = [
-  'NHAP', 'CHO_TBP_DUYET', 'TBP_DA_KY_SO', 'CHO_KT_L1', 'SA_DANG_XU_LY',
+  'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
   'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
   'TU_CHOI', 'QUA_HAN_DUYET', 'DA_XOA',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 
 export const ACTIONS = [
-  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT', 'PUBLISH_SIGNED',
+  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT',
   'KT_RECEIVE_L1', 'KT_RETURN_L1', 'SA_HANDOVER', 'KT_RECEIVE_L2',
   'KT_RETURN_L2', 'KT_REQUEST_REPRINT', 'RESUBMIT_AFTER_EDIT', 'SUPERSEDE',
 ] as const;
@@ -38,11 +59,11 @@ export interface Rule {
 const RULES: readonly Rule[] = [
   { from: 'NHAP',             to: 'CHO_TBP_DUYET',    by: 'TDV',        stamp: 'submitted' },
   { from: 'YEU_CAU_CHINH_SUA', to: 'CHO_TBP_DUYET',   by: 'TDV',        stamp: 'submitted' },
-  { from: 'CHO_TBP_DUYET',    to: 'TBP_DA_KY_SO',     by: 'TBP',        stamp: 'tbp_signed' },
+  // MỘT nước, không hai (`0064`) — xem khối ghi chú ở đầu tệp.
+  { from: 'CHO_TBP_DUYET',    to: 'CHO_KT_L1',        by: 'TBP',        stamp: 'tbp_signed' },
   { from: 'CHO_TBP_DUYET',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
   { from: 'CHO_TBP_DUYET',    to: 'TU_CHOI',          by: 'TBP',        requiresReason: true },
-  { from: 'TBP_DA_KY_SO',     to: 'CHO_KT_L1',        by: 'SYSTEM' },
   { from: 'CHO_KT_L1',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    stamp: 'kt_l1_received' },
   { from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
@@ -58,10 +79,9 @@ const RULES: readonly Rule[] = [
 const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
   SUBMIT:              { from: ['NHAP'],              to: 'CHO_TBP_DUYET' },
   RESUBMIT_AFTER_EDIT: { from: ['YEU_CAU_CHINH_SUA'], to: 'CHO_TBP_DUYET' },
-  TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'TBP_DA_KY_SO' },
+  TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'CHO_KT_L1' },
   TBP_RETURN:          { from: ['CHO_TBP_DUYET'],     to: 'YEU_CAU_CHINH_SUA' },
   TBP_REJECT:          { from: ['CHO_TBP_DUYET'],     to: 'TU_CHOI' },
-  PUBLISH_SIGNED:      { from: ['TBP_DA_KY_SO'],      to: 'CHO_KT_L1' },
   KT_RECEIVE_L1:       { from: ['CHO_KT_L1'],         to: 'SA_DANG_XU_LY' },
   KT_RETURN_L1:        { from: ['CHO_KT_L1'],         to: 'YEU_CAU_CHINH_SUA' },
   SA_HANDOVER:         { from: ['SA_DANG_XU_LY'],     to: 'CHO_KT_L2' },
@@ -182,9 +202,9 @@ export function allowedActions(current: Status): Action[] {
  *   1. **Nút của vai trò khác.** Trình dược viên mở hồ sơ của chính mình đang ở
  *      *Chờ TBP duyệt* thì thấy đủ "Ký số duyệt", "Trả lại chỉnh sửa", "Từ chối
  *      hồ sơ" — cả ba đều trả 403 `FORBIDDEN_ROLE`.
- *   2. **Nút của HỆ THỐNG.** `PUBLISH_SIGNED` và `SUPERSEDE` do máy chạy, không
- *      ai bấm; chúng vẫn hiện ra, và vì không có nhãn tiếng Việt nên hiện
- *      nguyên mã viết hoa.
+ *   2. **Nút của HỆ THỐNG.** `SUPERSEDE` do máy chạy, không ai bấm; nó vẫn hiện
+ *      ra, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+ *      (`PUBLISH_SIGNED` từng đứng cùng nhóm này, đã gỡ ở `0064`.)
  *   3. **Nút cho vai trò ngoài luồng.** Ban lãnh đạo chỉ đọc (muc 2.6) mà vẫn
  *      thấy nguyên dải nút của bước hiện tại.
  *

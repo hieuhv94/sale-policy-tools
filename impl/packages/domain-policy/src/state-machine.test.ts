@@ -10,9 +10,10 @@ const go = (current: Status, action: Action, role: Parameters<typeof transition>
             reason?: string) => transition({ current, action, role, reason });
 
 describe('WF-02/03 · bộ trạng thái là danh sách đóng', () => {
-  it('đúng 12 trạng thái', () => {
-    // 11 của muc 4, cộng `DA_XOA` từ `0035`.
-    expect(STATUSES).toHaveLength(12);
+  it('đúng 11 trạng thái ĐẾN ĐƯỢC', () => {
+    // 11 của muc 4, cộng `DA_XOA` từ `0035`, trừ `TBP_DA_KY_SO` gỡ ở `0064`.
+    expect(STATUSES).toHaveLength(11);
+    expect(STATUSES as readonly string[]).not.toContain('TBP_DA_KY_SO');
   });
   it('không còn nhãn cũ nào', () => {
     for (const cu of ['BAN_DEMO', 'DANG_DUYET', 'DA_CHUYEN_BUOC_SAU', 'DANG_AP_DUNG']) {
@@ -25,8 +26,8 @@ describe('WF-01/04/09/10/13/16 · đường đi chính của một hồ sơ', ()
   it('chạy trọn 10 bước từ Nháp tới Đang có hiệu lực', () => {
     let s: Status = 'NHAP';
     s = go(s, 'SUBMIT', 'TDV').next;                 expect(s).toBe('CHO_TBP_DUYET');
-    s = go(s, 'TBP_SIGN', 'TBP').next;               expect(s).toBe('TBP_DA_KY_SO');
-    s = go(s, 'PUBLISH_SIGNED', 'SYSTEM').next;      expect(s).toBe('CHO_KT_L1');
+    // MỘT nước, không hai (`0064`): `TBP_DA_KY_SO` và `PUBLISH_SIGNED` đã bị gỡ.
+    s = go(s, 'TBP_SIGN', 'TBP').next;               expect(s).toBe('CHO_KT_L1');
     s = go(s, 'KT_RECEIVE_L1', 'KE_TOAN').next;      expect(s).toBe('SA_DANG_XU_LY');
     s = go(s, 'SA_HANDOVER', 'SALE_ADMIN').next;     expect(s).toBe('CHO_KT_L2');
     const last = go(s, 'KT_RECEIVE_L2', 'KE_TOAN');

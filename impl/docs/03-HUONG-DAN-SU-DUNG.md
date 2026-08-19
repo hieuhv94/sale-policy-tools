@@ -171,7 +171,7 @@ lọc sẵn đúng bằng con số vừa bấm.
 | **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
 | **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
-| **Ban lãnh đạo** | **Cả 12 trạng thái** |
+| **Ban lãnh đạo** | **Cả 11 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
 Cố ý **không** bày cho bạn bước của người khác thành thẻ riêng: một Trình dược viên nhìn ô "KT duyệt
@@ -518,7 +518,10 @@ TDV lập  →  Gửi duyệt  →  TBP ký số  →  Kế toán tiếp nhận 
    →  Sale Admin bàn giao  →  Kế toán tiếp nhận L2  →  ĐANG CÓ HIỆU LỰC
 ```
 
-Ở mỗi bước, người phụ trách nhận **email** kèm liên kết mở thẳng hồ sơ.
+Ở mỗi bước, người phụ trách nhận **email** kèm liên kết mở thẳng hồ sơ — **đúng một thư cho một
+lần bấm nút**. Trước 19/08, lần Trưởng bộ phận ký số sinh hai thư về cùng một giây cho kế toán, vì
+hệ thống ghi thêm một bước trung gian *TBP đã ký số* mà không ai nhìn thấy. Bước ấy đã bỏ: ký xong
+là hồ sơ sang thẳng *KT duyệt bản mềm*.
 
 **Ai nhận hồ sơ ở bước sau là do người ở bước trước chọn**, không phải do một cấu hình nhân sự nào:
 
@@ -539,6 +542,35 @@ cùng vai trò không thấy, không mở.
   trị hệ thống.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
+
+### Màu của trạng thái
+
+Mỗi trạng thái một màu riêng, dùng chung ở **cả nhãn trong bảng hồ sơ lẫn vạch màu bên trái thẻ tổng
+quan** — quen một chỗ là đọc được chỗ kia.
+
+Bốn bước chờ đi thành một **chuỗi** theo đúng thứ tự hồ sơ đi qua, nên nhìn dải thẻ là biết đoạn nào
+đang tắc:
+
+| Chờ TBP duyệt | KT duyệt bản mềm | Sale Admin đang xử lý | KT duyệt bản cứng |
+|---|---|---|---|
+| chàm | lam | xanh ngọc | mòng két |
+
+Còn lại:
+
+| Màu | Trạng thái |
+|---|---|
+| Nâu xám | Nháp |
+| Xanh lá | Đang có hiệu lực |
+| Hổ phách | Yêu cầu chỉnh sửa · và thẻ *Lỗi bản cứng* của Sale Admin |
+| **Đỏ** | Từ chối · Quá hạn duyệt |
+| **Xám đá** | Hết hiệu lực · Đã xoá |
+| Cam | thẻ *Sắp quá hạn* — không phải trạng thái |
+
+Hai cặp in đậm **cố ý dùng chung màu**: *Từ chối* với *Quá hạn duyệt* khác nguyên nhân nhưng cùng một
+kết cục — hồ sơ không đi tiếp được nữa; *Hết hiệu lực* với *Đã xoá* đều đã rời khỏi luồng và không
+đòi ai làm gì.
+
+Thẻ *Đang chờ* **không có màu**: theo đúng định nghĩa nó là phần không cần bạn làm gì.
 
 ### Đầu màn hình hồ sơ
 

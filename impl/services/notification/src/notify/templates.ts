@@ -39,7 +39,20 @@ export const STEP_LABEL: Record<string, string> = {
 const TITLE: Record<string, string> = {
   SUBMIT: 'Hồ sơ CSBH mới chờ duyệt',
   RESUBMIT_AFTER_EDIT: 'Hồ sơ đã chỉnh sửa, chờ duyệt lại',
-  TBP_SIGN: 'Trưởng bộ phận đã ký số',
+  TBP_SIGN: 'Trưởng bộ phận đã ký số, chuyển sang Kế toán tiếp nhận',
+  /*
+   * `PUBLISH_SIGNED` là sự kiện ĐÃ GỠ ở `0064` — không mã nào phát nó nữa.
+   *
+   * Nhãn ở lại vì hai lý do rất cụ thể: một sự kiện cũ còn nằm trong bảng thư
+   * hỏng vẫn gửi lại được sau khi triển khai, và nó cần một tiêu đề; còn nếu
+   * gỡ, `titleFor` rơi về nhãn mặc định và lá thư gửi lại mang một tiêu đề khác
+   * hẳn lá thư gốc.
+   *
+   * Vì sao gỡ: Kế toán có tên trong danh sách nhận của CẢ `TBP_SIGN` lẫn
+   * `PUBLISH_SIGNED`, nên mỗi lần Trưởng bộ phận ký họ nhận hai lá thư trong
+   * cùng một giây. Tiêu đề của `TBP_SIGN` ngay trên đã nuốt luôn phần "chuyển
+   * sang Kế toán tiếp nhận" mà lá thư kia từng nói.
+   */
   PUBLISH_SIGNED: 'Hồ sơ đã ký số, chuyển sang Kế toán tiếp nhận',
   TBP_RETURN: 'Hồ sơ bị trả lại để chỉnh sửa',
   TBP_REJECT: 'Hồ sơ bị từ chối',

@@ -91,8 +91,11 @@
   --mau-thanh-ben-chu-dam: #ffffff;
   --mau-thanh-ben-hoat-dong: #2f7ed8;
 
-  /* --- Trạng thái --------------------------------------------------------- */
-  --mau-tot: #15803d;
+  /* --- Trạng thái, năm nhóm CHUNG ------------------------------------------
+     Không dùng cho nhãn trạng thái hồ sơ nữa (xem khối dưới) — chỉ còn cho
+     những nhãn KHÔNG phải trạng thái: "Sắp quá hạn" ở bảng hồ sơ, "Đã xoá" ở
+     danh sách khách hàng, "Đã ngừng hợp tác" ở màn hình hồ sơ. */
+  --mau-tot: #136c33;
   --mau-tot-nen: #e3f5e9;
   --mau-canh-bao: #a15c00;
   --mau-canh-bao-nen: #fdf3e2;
@@ -100,6 +103,48 @@
   --mau-loi-nen: #fdeceb;
   --mau-cho: #43539b;
   --mau-cho-nen: #eceffa;
+
+  /* --- Màu riêng cho từng trạng thái hồ sơ (`0064`) -------------------------
+   *
+   * Tới `0063` mười hai trạng thái dùng chung năm nhóm trên, nên bốn bước chờ
+   * trông y hệt nhau và không ai phân biệt được hồ sơ đang tắc ở đâu bằng mắt.
+   *
+   * Bốn bước chờ giờ đi thành một CHUỖI chàm → lam → ngọc → mòng két, đúng thứ
+   * tự hồ sơ đi qua: nhìn dải thẻ là đọc được đoạn nào của luồng đang tắc.
+   *
+   * BA cặp dùng chung màu, và cả ba đều do khách hàng chốt ngày 19/08:
+   *   - Từ chối + Quá hạn duyệt  → đỏ. Hai ngõ cụt, khác nguyên nhân nhưng cùng
+   *     một kết cục với người dùng: hồ sơ này không đi tiếp được nữa.
+   *   - Hết hiệu lực + Đã xoá    → xám đá. Cả hai đã rời khỏi luồng và không
+   *     đòi ai làm gì.
+   *   - TBP đã ký số             → chàm, cùng bước Trưởng bộ phận. Trạng thái
+   *     này KHÔNG còn tồn tại từ `0064`; màu giữ lại chỉ để vẽ những dòng lịch
+   *     sử cũ đã ghi nó.
+   *
+   * Mọi cặp chữ/nền đều đạt WCAG AA (>= 4,5) ở cả hai giao diện — thấp nhất là
+   * 4,61 ở nhóm ngọc. `nguon-giao-dien.test.ts` canh chỗ này.
+   */
+  --mau-tt-nhap: #6b5f56;
+  --mau-tt-nhap-nen: #f2eeea;
+  --mau-tt-tbp: #4338ca;
+  --mau-tt-tbp-nen: #e9e9fb;
+  --mau-tt-kt1: #1d4ed8;
+  --mau-tt-kt1-nen: #e4ecfd;
+  --mau-tt-sa: #0e7490;
+  --mau-tt-sa-nen: #dff1f7;
+  --mau-tt-kt2: #0f766e;
+  --mau-tt-kt2-nen: #dcf2ef;
+  --mau-tt-hieu-luc: #136c33;
+  --mau-tt-hieu-luc-nen: #e3f5e9;
+  --mau-tt-ket-thuc: #475569;
+  --mau-tt-ket-thuc-nen: #eef1f5;
+  --mau-tt-sua: #a15c00;
+  --mau-tt-sua-nen: #fdf3e2;
+  --mau-tt-hong: #b3261e;
+  --mau-tt-hong-nen: #fdeceb;
+  /* Chỉ dùng cho THẺ *Sắp quá hạn*, không có trạng thái nào mang màu này. */
+  --mau-tt-gap: #ad3a0a;
+  --mau-tt-gap-nen: #feeadf;
 
   /* --- Lớp phủ và bóng ----------------------------------------------------- */
   --mau-lop-phu: rgb(11 37 69 / 55%);
@@ -212,6 +257,30 @@
     --mau-cho: #a5b4fc;
     --mau-cho-nen: #1e2542;
 
+    /* Mười màu trạng thái ở bảng tối (`0064`), cùng một lẽ với khối trên: chữ
+       sáng lên, nền tối xuống. Chuỗi bốn bước chờ vẫn giữ nguyên thứ tự chàm →
+       lam → ngọc → mòng két, chỉ đổi độ sáng. */
+    --mau-tt-nhap: #b8a99c;
+    --mau-tt-nhap-nen: #2e2723;
+    --mau-tt-tbp: #a5b4fc;
+    --mau-tt-tbp-nen: #1e2542;
+    --mau-tt-kt1: #8ab4f8;
+    --mau-tt-kt1-nen: #16294a;
+    --mau-tt-sa: #67c6e3;
+    --mau-tt-sa-nen: #0e2f3b;
+    --mau-tt-kt2: #5ecfc0;
+    --mau-tt-kt2-nen: #0d3330;
+    --mau-tt-hieu-luc: #58d68d;
+    --mau-tt-hieu-luc-nen: #10331f;
+    --mau-tt-ket-thuc: #94a3b8;
+    --mau-tt-ket-thuc-nen: #1e293b;
+    --mau-tt-sua: #f0b352;
+    --mau-tt-sua-nen: #382a11;
+    --mau-tt-hong: #f28b82;
+    --mau-tt-hong-nen: #3b1b1a;
+    --mau-tt-gap: #f9a670;
+    --mau-tt-gap-nen: #3d2412;
+
     --mau-lop-phu: rgb(3 8 17 / 70%);
     --bong-nho: 0 1px 2px rgb(0 0 0 / 30%);
     --bong: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 30%);
@@ -264,6 +333,29 @@
   --mau-loi-nen: #3b1b1a;
   --mau-cho: #a5b4fc;
   --mau-cho-nen: #1e2542;
+
+  /* Mười màu trạng thái ở bảng tối (`0064`) — bản sao của khối trong media
+     query, để lựa chọn tay của người dùng thắng cả cài đặt hệ điều hành. */
+  --mau-tt-nhap: #b8a99c;
+  --mau-tt-nhap-nen: #2e2723;
+  --mau-tt-tbp: #a5b4fc;
+  --mau-tt-tbp-nen: #1e2542;
+  --mau-tt-kt1: #8ab4f8;
+  --mau-tt-kt1-nen: #16294a;
+  --mau-tt-sa: #67c6e3;
+  --mau-tt-sa-nen: #0e2f3b;
+  --mau-tt-kt2: #5ecfc0;
+  --mau-tt-kt2-nen: #0d3330;
+  --mau-tt-hieu-luc: #58d68d;
+  --mau-tt-hieu-luc-nen: #10331f;
+  --mau-tt-ket-thuc: #94a3b8;
+  --mau-tt-ket-thuc-nen: #1e293b;
+  --mau-tt-sua: #f0b352;
+  --mau-tt-sua-nen: #382a11;
+  --mau-tt-hong: #f28b82;
+  --mau-tt-hong-nen: #3b1b1a;
+  --mau-tt-gap: #f9a670;
+  --mau-tt-gap-nen: #3d2412;
 
   --mau-lop-phu: rgb(3 8 17 / 70%);
   --bong-nho: 0 1px 2px rgb(0 0 0 / 30%);

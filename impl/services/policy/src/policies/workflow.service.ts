@@ -242,11 +242,11 @@ export class WorkflowService {
       tdvUserId: before.tdv_user_id,
       // Bốn người của hồ sơ SAU bước này, trong MỌI sự kiện (`0031`).
       //
-      // Đặt ở `ctx` chứ không ở riêng sự kiện hành động: `policy.publish_signed`
-      // gửi cho Kế toán, và nó là một sự kiện TỰ ĐỘNG phát sau khi TBP ký — nếu
-      // nó thiếu ba khoá này thì `notify_targets` chỉ trả về người lập, `pick`
-      // không tìm thấy Kế toán nào, và lá thư ấy rơi vào bảng thư hỏng. Đã mất
-      // đúng một trong sáu thư vì chuyện này.
+      // Đặt ở `ctx` chứ không ở riêng từng sự kiện: thiếu ba khoá này thì
+      // `notify_targets` chỉ trả về người lập, `pick` không tìm thấy Kế toán
+      // nào, và lá thư rơi vào bảng thư hỏng. Đã mất đúng một trong sáu thư vì
+      // chuyện này — hồi ấy nạn nhân là `policy.publish_signed`, sự kiện đã
+      // được gỡ ở `0064`.
       tbpUserId: phanCong.tbp_user_id ?? before.tbp_user_id,
       keToanUserId: phanCong.ke_toan_user_id ?? before.ke_toan_user_id,
       saleAdminUserId: phanCong.sale_admin_user_id ?? before.sale_admin_user_id,
@@ -424,45 +424,22 @@ export class WorkflowService {
         });
       }
 
-      // Sau khi TBP ký số, hệ thống TỰ chuyển sang KT duyệt bản mềm và phát hành
-      // liên kết tại bàn kế toán — không có ai bấm nút ở bước này (WF-09, B5).
-      if (action === 'TBP_SIGN') {
-        await c.query(
-          `UPDATE pol.policy
-              SET status = 'CHO_KT_L1',
-                  sla_due_at = now() + ((SELECT days FROM pol.sla_config) || ' days')::interval,
-                  sla_started_at = now(),
-                  row_version = row_version + 1
-            WHERE id = $1`,
-          [policyId],
-        );
-        await this.policies.recordEvent(
-          c,
-          policyId,
-          'TBP_DA_KY_SO',
-          'CHO_KT_L1',
-          'PUBLISH_SIGNED',
-          { id: me.id, role: 'SYSTEM', mustChangePassword: false },
-          undefined,
-        );
-        await emit(c, 'policy.publish_signed', {
-          ...ctx,
-          toStatus: 'CHO_KT_L1',
-          action: 'PUBLISH_SIGNED',
-          recipients: ['KE_TOAN'],
-          /*
-           * KHÔNG có `observers` ở đây, khác mọi bước còn lại (`0036`).
-           *
-           * Đây không phải một lần đổi trạng thái do người làm — nó là bước hệ
-           * thống tự chạy ngay sau `TBP_SIGN`, trong cùng transaction. Lá thư
-           * của `TBP_SIGN` vừa bay đi một khoảnh khắc trước và đã nói đúng
-           * chuyện ấy; thêm một lá "để biết" nữa là hai thư về cùng một giây,
-           * và đó là cách nhanh nhất khiến người ta ngừng đọc cả hai.
-           */
-          actorId: null,
-          at: new Date().toISOString(),
-        });
-      }
+      /*
+       * KHỐI "TỰ CHUYỂN SAU KHI KÝ" ĐÃ BỊ GỠ Ở `0064`.
+       *
+       * Trước đó, `TBP_SIGN` đặt trạng thái `TBP_DA_KY_SO` rồi khối này lập tức
+       * cập nhật lần thứ hai sang `CHO_KT_L1`, ghi thêm một dòng lịch sử
+       * `PUBLISH_SIGNED` và phát thêm một sự kiện thư gửi Kế toán.
+       *
+       * Kế toán có tên trong CẢ HAI danh sách người nhận, nên mỗi lần Trưởng bộ
+       * phận ký họ nhận hai lá thư trong cùng một giây. Ghi chú cũ ở đây có lo
+       * đúng chuyện ấy, nhưng chỉ gỡ `observers` — người nhận CHÍNH vẫn trùng.
+       *
+       * Máy trạng thái giờ đi thẳng `CHO_TBP_DUYET -> CHO_KT_L1`, nên câu lệnh
+       * UPDATE phía trên đã đặt đúng trạng thái, đã ghi `tbp_signed_at` /
+       * `tbp_signed_by` theo `stamp`, và đã đặt lại `sla_due_at` vì `CHO_KT_L1`
+       * nằm trong `WAITING`. Không còn gì phải làm bù ở đây.
+       */
 
       return this.policies.load(policyId, c);
     });

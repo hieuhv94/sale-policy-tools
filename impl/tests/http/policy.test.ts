@@ -437,10 +437,7 @@ describe('`0031` chọn người xử lý lúc gửi duyệt', () => {
     expect(cot.kt).toBe(id['kt01']);
 
     // tbp01 được chọn → thấy trong hộp việc. tbp02 không → không thấy.
-    const cua = async (who: string) =>
-      ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map(
-        (x) => x.id,
-      );
+    const cua = (who: string) => hetHopViec(who);
     expect(await cua('tbp01')).toContain(d.id);
     expect(await cua('tbp02')).not.toContain(d.id);
   });
@@ -456,6 +453,27 @@ describe('`0031` chọn người xử lý lúc gửi duyệt', () => {
     expect(ngoai.body.code).toBe('OUT_OF_SCOPE');
   });
 });
+
+/**
+ * HỘP VIỆC ĐẦY ĐỦ — đọc hết mọi trang, không chỉ trang đầu (`0064`).
+ *
+ * Trước đó các ca gọi thẳng `?limit=200` — đúng trần của `pageOf` — rồi khẳng
+ * định hồ sơ vừa lập có mặt. Nó đúng cho tới hôm tệp test này tự tích đủ 200 hồ
+ * sơ nháp của `tdv01`: hộp việc xếp `sla_due_at NULLS LAST, created_at`, mà nháp
+ * không có hạn, nên hồ sơ MỚI NHẤT nằm ở cuối — đúng thứ bị cắt mất.
+ *
+ * Loại đỏ này chỉ xuất hiện khi tệp đủ dài, và nó trỏ vào một chỗ chẳng liên
+ * quan gì tới thứ vừa sửa. Đọc hết trang thì nó không bao giờ quay lại.
+ */
+const hetHopViec = async (who: string): Promise<string[]> => {
+  const ra: string[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const r = await get(`/policies/inbox?limit=200&offset=${offset}`, who);
+    const items = (r.body.items ?? []) as { id: string }[];
+    ra.push(...items.map((x) => x.id));
+    if (items.length < 200) return ra;
+  }
+};
 
 describe('`0056` hồ sơ mang theo AI ĐÃ DUYỆT bước nào', () => {
   const duyet = async (id: string, who = 'tdv01') =>
@@ -588,8 +606,7 @@ describe('`0061` hồ sơ mang theo đủ thứ đầu màn hình cần', () => 
 });
 
 describe('`0052` hộp việc của TDV gồm cả hồ sơ Nháp', () => {
-  const hopViec = async (who: string) =>
-    ((await get('/policies/inbox?limit=200', who)).body.items as { id: string }[]).map((x) => x.id);
+  const hopViec = (who: string) => hetHopViec(who);
 
   it('hồ sơ chưa gửi duyệt nằm trong hộp việc của người lập', async () => {
     /*
@@ -1430,17 +1447,31 @@ describe('`0036` nhật ký hồ sơ', () => {
     expect(ds[2]!.toStatus).toBe('YEU_CAU_CHINH_SUA');
   });
 
-  it('bước hệ thống tự chạy cũng có dòng riêng, vai trò SYSTEM', async () => {
-    // `PUBLISH_SIGNED` không ai bấm — nó chạy trong cùng transaction với ký số.
-    // Thiếu nó trong nhật ký thì hồ sơ "tự nhiên" nhảy sang bàn Kế toán.
+  it('`0064` một lần bấm nút để lại đúng MỘT dòng lịch sử', async () => {
+    /*
+     * Trước `0064` lần ký số để lại HAI dòng: `TBP_SIGN` của Trưởng bộ phận và
+     * `PUBLISH_SIGNED` của `SYSTEM`. Dòng thứ hai kể một bước không ai bấm và
+     * không ai thấy — nó chỉ nói lại đúng chuyện dòng trước vừa nói.
+     *
+     * Việc lịch sử vẫn ghi được dòng của `SYSTEM` thì không mất: `SLA_OVERDUE`,
+     * `SLA_DISCARDED` và `CUSTOMER_RETIRED` đều là bước hệ thống tự chạy, và
+     * chúng có test riêng ở `sla.test.ts`.
+     */
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
-    const ds = (await nk(d.id)).body as { action: string; actorRole: string }[];
-    const tu = ds.find((x) => x.action === 'PUBLISH_SIGNED');
-    expect(tu, 'bước tự động phải có dòng').toBeDefined();
-    expect(tu!.actorRole).toBe('SYSTEM');
+    const ds = (await nk(d.id)).body as {
+      action: string;
+      actorRole: string;
+      fromStatus: string | null;
+      toStatus: string;
+    }[];
+    const ky = ds.filter((x) => x.action === 'TBP_SIGN' || x.action === 'PUBLISH_SIGNED');
+    expect(ky).toHaveLength(1);
+    expect(ky[0]!.actorRole).toBe('TBP');
+    expect(ky[0]!.fromStatus).toBe('CHO_TBP_DUYET');
+    expect(ky[0]!.toStatus).toBe('CHO_KT_L1');
   });
 
   /*
@@ -1585,8 +1616,16 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
   }
 
   it('hành động của HỆ THỐNG không lọt ra cho vai trò nào', async () => {
-    // `PUBLISH_SIGNED` và `SUPERSEDE` do máy chạy. Trước `0038` chúng hiện thành
-    // nút, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+    /*
+     * `SUPERSEDE` do máy chạy. Trước `0038` nó hiện thành nút, và vì không có
+     * nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+     *
+     * Ca này đặt hồ sơ vào `TBP_DA_KY_SO` bằng SQL. Từ `0064` trạng thái ấy
+     * không còn trong máy trạng thái, nhưng GIÁ TRỊ ENUM vẫn nằm trong CSDL —
+     * Postgres không xoá được một giá trị khỏi enum khi `pol.policy_event` còn
+     * hàng nghìn dòng lịch sử ghi nó. Nên ca này giữ nguyên và đổi nghĩa: một
+     * dòng dữ liệu cũ hay một lần sửa tay vào CSDL cũng KHÔNG được mọc ra nút.
+     */
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
@@ -1603,7 +1642,7 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
     );
 
     for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
-      expect(await nut(d.id, who), `${who} không được thấy PUBLISH_SIGNED`).toEqual([]);
+      expect(await nut(d.id, who), `${who} không được thấy nút nào`).toEqual([]);
     }
   });
 
@@ -1814,20 +1853,29 @@ describe('WF-02 · WF-03 danh sách trạng thái là danh sách đóng', () => 
 });
 
 describe('WF-04 · WF-05 · WF-09 TBP ký số', () => {
-  it('ký xong thì hệ thống TỰ chuyển sang KT duyệt bản mềm', async () => {
+  it('`0064` ký xong sang thẳng KT duyệt bản mềm — MỘT nước, MỘT lá thư', async () => {
+    /*
+     * Trước `0064` đây là hai nước: `TBP_SIGN` đặt `TBP_DA_KY_SO`, rồi
+     * `PUBLISH_SIGNED` chuyển tiếp sang `CHO_KT_L1` trong cùng transaction.
+     * Trạng thái giữa không ai từng nhìn thấy, nhưng nó phát THÊM một sự kiện
+     * thư gửi Kế toán — mà Kế toán đã có tên trong lá thư của `TBP_SIGN`. Mỗi
+     * lần Trưởng bộ phận ký, kế toán nhận hai thư trong cùng một giây.
+     */
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     const r = await act(d.id, 'TBP_SIGN', 'tbp01');
     expect(r.status).toBe(200);
-    // Không ai bấm nút ở bước B5 — hệ thống tự phát hành liên kết tại bàn kế toán.
     expect(r.body.status).toBe('CHO_KT_L1');
 
     const keys = (await outboxFor(d.id)).map((e) => e.routing_key);
     expect(keys).toContain('policy.tbp_sign');
-    expect(keys).toContain('policy.publish_signed');
+    expect(keys, 'còn phát lá thư thứ hai').not.toContain('policy.publish_signed');
 
+    // Và đúng MỘT dòng lịch sử cho một lần bấm nút.
     const events = (await get(`/policies/${d.id}/events`)).body as { action: string }[];
-    expect(events.map((e) => e.action)).toContain('PUBLISH_SIGNED');
+    const ma = events.map((e) => e.action);
+    expect(ma).toContain('TBP_SIGN');
+    expect(ma).not.toContain('PUBLISH_SIGNED');
   });
 
   it('WF-05 ký lần thứ hai thì 409 ALREADY_SIGNED', async () => {
@@ -2166,24 +2214,23 @@ describe('WF-28 chạy hết luồng bằng 5 tài khoản mẫu', () => {
     const r = await runToActive(d);
     expect(r.body.status).toBe('DANG_CO_HIEU_LUC');
 
+    // SÁU dòng, không bảy: `PUBLISH_SIGNED` gỡ ở `0064`.
     const events = (await get(`/policies/${d.id}/events`)).body as { action: string }[];
     expect(events.map((e) => e.action)).toEqual([
       'CREATE',
       'SUBMIT',
       'TBP_SIGN',
-      'PUBLISH_SIGNED',
       'KT_RECEIVE_L1',
       'SA_HANDOVER',
       'KT_RECEIVE_L2',
     ]);
 
-    // Sáu sự kiện email, đúng danh sách người nhận của muc 3. Việc GỬI thư thuộc
+    // Năm sự kiện email, đúng danh sách người nhận của muc 3. Việc GỬI thư thuộc
     // notification (P6); ở đây khẳng định policy đã phát đủ và đúng.
     const mails = (await outboxFor(d.id)).filter((e) => e.payload.recipients);
     expect(mails.map((m) => m.routing_key)).toEqual([
       'policy.submit',
       'policy.tbp_sign',
-      'policy.publish_signed',
       'policy.kt_receive_l1',
       'policy.sa_handover',
       'policy.kt_receive_l2',
