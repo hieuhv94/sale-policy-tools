@@ -113,7 +113,24 @@ export type MergeInput = {
   lines: Record<string, string>[];
   /** Tập ô trống thuộc nhóm dòng sản phẩm, để nhận ra dòng bảng cần nhân bản. */
   linePlaceholders: Set<string>;
+  /**
+   * XML của CẢ MỘT BẢNG do hệ thống dựng, thay cho ô trống `{{policy.lines_table}}`
+   * (`0055`).
+   *
+   * Vì sao bảng sản phẩm của bản CSBH KHÔNG vẽ được trong Word như bảng của hợp
+   * đồng: muc 7.1 đòi số cột CPBH bằng dòng nhiều khoản nhất, mà mỗi dòng nhận
+   * tới 50 khoản. Một bảng vẽ sẵn có số cột CỐ ĐỊNH, nên nó chỉ đúng cho những
+   * hồ sơ tình cờ có đúng số khoản ấy.
+   *
+   * Nên người soạn mẫu đặt MỘT ô trống, và hệ thống trả về cả cái bảng. Ranh
+   * giới rơi đúng chỗ: người soạn nắm phần chữ và bố cục, hệ thống giữ bảo đảm
+   * về bảng số — thứ mà người ký đặt bút xuống dưới.
+   */
+  banSanPham?: string | undefined;
 };
+
+/** Ô trống được thay bằng cả bảng sản phẩm (`0055`). */
+export const O_BANG_SAN_PHAM = '{{policy.lines_table}}';
 
 const fill = (paragraph: string, values: Record<string, string>): string => {
   const before = textOf(paragraph);
@@ -123,6 +140,22 @@ const fill = (paragraph: string, values: Record<string, string>): string => {
 
 export function mergeDocx(buf: Buffer, input: MergeInput): Buffer {
   let xml = documentXml(buf);
+
+  /*
+   * BƯỚC 0 — thay ô trống bảng sản phẩm bằng cả một bảng (`0055`).
+   *
+   * Trước mọi bước khác, vì bảng dựng ra có thể chứa chữ trông giống ô trống
+   * (tên sản phẩm do người dùng đặt), và bước điền phía dưới sẽ đụng vào chúng.
+   *
+   * Thay cả ĐOẠN VĂN chứa ô trống, không chỉ thay chuỗi: một `<w:tbl>` nhét vào
+   * giữa một `<w:p>` là XML sai, và LibreOffice trả về tài liệu rỗng chứ không
+   * báo lỗi — hỏng im lặng, đúng kiểu tốn nhiều giờ nhất để tìm.
+   */
+  if (input.banSanPham !== undefined) {
+    for (const p of paragraphs(xml)) {
+      if (textOf(p).includes(O_BANG_SAN_PHAM)) xml = xml.replace(p, input.banSanPham);
+    }
+  }
 
   // BƯỚC 1 — nhân bản dòng bảng sản phẩm TRƯỚC.
   //
