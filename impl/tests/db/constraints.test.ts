@@ -222,16 +222,32 @@ describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
     });
   });
 
-  it('đủ đúng 12 trạng thái, không thừa không thiếu', async () => {
+  it('`0048` đủ đúng 11 trạng thái, không thừa không thiếu', async () => {
     const r = await db.query(
       `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
        WHERE t.typname='policy_status' ORDER BY e.enumsortorder`);
+    /*
+     * `0048` dựng LẠI cả kiểu, nên thứ tự giờ là thứ tự khai trong migration —
+     * `DA_XOA` không còn bị đẩy xuống cuối bởi `ADD VALUE` như hồi `0035`.
+     *
+     * Và `TBP_DA_KY_SO` đã đi hẳn: Postgres không có `ALTER TYPE ... DROP VALUE`,
+     * nên `0048` đổi tên kiểu cũ, dựng kiểu mới, chuyển ba cột sang rồi bỏ kiểu
+     * cũ. Ca này là chốt chặn: một migration sau vô tình `ADD VALUE` nó lại thì
+     * đỏ ngay.
+     */
     expect(r.rows.map((x) => x.enumlabel)).toEqual([
-      'NHAP','CHO_TBP_DUYET','TBP_DA_KY_SO','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2',
+      'NHAP','CHO_TBP_DUYET','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2',
       'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','TU_CHOI','QUA_HAN_DUYET',
-      // Thứ 12, thêm ở `0035`. `ADD VALUE` nối vào CUỐI dãy, nên thứ tự này cũng
-      // là thứ tự thật của enum — đổi chỗ nó là đỏ, và đúng ra phải đỏ.
       'DA_XOA']);
+  });
+
+  it('`0048` không cột nào còn dùng kiểu cũ, và kiểu cũ đã biến mất', async () => {
+    // Đổi tên kiểu rồi quên bỏ là để lại một kiểu mồ côi mang đúng giá trị vừa
+    // gỡ — lần sau ai đó khai cột theo nó thì giá trị quay lại mà không ai thấy.
+    const con = await db.query(
+      `SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
+        WHERE n.nspname = 'pol' AND t.typname = 'policy_status_cu'`);
+    expect(con.rowCount, 'kiểu cũ vẫn còn trong CSDL').toBe(0);
   });
 });
 

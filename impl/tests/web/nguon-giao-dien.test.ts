@@ -158,9 +158,9 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
  * thêm một trạng thái hay một thẻ mới thì không có gì báo lỗi, chỉ có hai ô im
  * lặng cùng màu. Nên nó phải có người canh.
  *
- * Ba cặp được phép trùng, và cả ba do khách hàng chốt ngày 19/08 — chúng khai
+ * Hai cặp được phép trùng, cả hai do khách hàng chốt ngày 19/08 — chúng khai
  * tường minh dưới đây chứ không ẩn trong một phép trừ, để lần sau ai muốn thêm
- * cặp thứ tư thì phải sửa đúng dòng này và đọc được vì sao ba cặp kia có mặt.
+ * cặp thứ ba thì phải sửa đúng dòng này và đọc được vì sao hai cặp kia có mặt.
  */
 describe('`0064` màu trạng thái và màu thẻ', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
@@ -170,11 +170,9 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
   const CHUNG_MAU: Record<string, string> = {
     'TU_CHOI+QUA_HAN_DUYET': 'hai ngõ cụt, khác nguyên nhân nhưng cùng kết cục',
     'HET_HIEU_LUC+DA_XOA': 'đều đã rời khỏi luồng, không đòi ai làm gì',
-    // Không còn là trạng thái sống từ `0064`; chỉ để vẽ dòng lịch sử cũ.
-    'CHO_TBP_DUYET+TBP_DA_KY_SO': 'cùng bước Trưởng bộ phận',
   };
 
-  it('mỗi trạng thái có một khoá màu, và chỉ ba cặp được trùng', () => {
+  it('mỗi trạng thái có một khoá màu, và chỉ hai cặp được trùng', () => {
     const theoMau = new Map<string, string[]>();
     for (const t of Object.keys(NHAN_TRANG_THAI)) {
       const m = nhomTrangThai(t);

@@ -112,14 +112,11 @@
    * Bốn bước chờ giờ đi thành một CHUỖI chàm → lam → ngọc → mòng két, đúng thứ
    * tự hồ sơ đi qua: nhìn dải thẻ là đọc được đoạn nào của luồng đang tắc.
    *
-   * BA cặp dùng chung màu, và cả ba đều do khách hàng chốt ngày 19/08:
+   * HAI cặp dùng chung màu, cả hai do khách hàng chốt ngày 19/08:
    *   - Từ chối + Quá hạn duyệt  → đỏ. Hai ngõ cụt, khác nguyên nhân nhưng cùng
    *     một kết cục với người dùng: hồ sơ này không đi tiếp được nữa.
    *   - Hết hiệu lực + Đã xoá    → xám đá. Cả hai đã rời khỏi luồng và không
    *     đòi ai làm gì.
-   *   - TBP đã ký số             → chàm, cùng bước Trưởng bộ phận. Trạng thái
-   *     này KHÔNG còn tồn tại từ `0064`; màu giữ lại chỉ để vẽ những dòng lịch
-   *     sử cũ đã ghi nó.
    *
    * Mọi cặp chữ/nền đều đạt WCAG AA (>= 4,5) ở cả hai giao diện — thấp nhất là
    * 4,61 ở nhóm ngọc. `nguon-giao-dien.test.ts` canh chỗ này.

@@ -21,11 +21,18 @@
  * Giờ `CHO_TBP_DUYET --TBP_SIGN--> CHO_KT_L1` là MỘT nước. Mốc `tbp_signed_at`
  * và `tbp_signed_by` vẫn được ghi y như cũ, nên dải "ai đã duyệt" không đổi.
  *
- * GIÁ TRỊ ENUM TRONG CSDL THÌ Ở LẠI, và không có cách nào khác: Postgres không
- * xoá được một giá trị khỏi enum, mà `pol.policy_event` có hàng nghìn dòng lịch
- * sử ghi `TBP_DA_KY_SO` ở `from_status`/`to_status`. Nhãn tiếng Việt của nó cũng
- * ở lại bên `format.ts` để những dòng ấy còn đọc được — chỉ TẬP TRẠNG THÁI ĐẾN
- * ĐƯỢC là hẹp lại.
+ * GIÁ TRỊ ENUM TRONG CSDL CŨNG ĐÃ GỠ, ở migration `0048`.
+ *
+ * `0064` để nó lại vì Postgres không có `ALTER TYPE ... DROP VALUE`, và
+ * `pol.policy_event` có thể còn dòng lịch sử ghi nó. Khách hàng chốt ngày 19/08
+ * là xoá luôn: phần mềm chưa chạy thật, dữ liệu duy nhất đang có là của
+ * `make demo-mau`, nên cái giá của việc dựng lại dữ liệu mẫu rẻ hơn cái giá của
+ * việc mang mãi một giá trị không ai dùng nữa.
+ *
+ * `0048` đổi tên kiểu cũ, dựng kiểu mới 11 giá trị, chuyển ba cột sang bằng mệnh
+ * đề `USING` ánh xạ `TBP_DA_KY_SO -> CHO_KT_L1`, rồi bỏ kiểu cũ. Nhãn tiếng Việt
+ * bên `format.ts` và `templates.ts` cũng đã gỡ theo — không còn dòng dữ liệu nào
+ * mang giá trị ấy để mà cần đọc.
  */
 export const STATUSES = [
   'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',

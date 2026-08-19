@@ -179,7 +179,6 @@ export const COT_CUA_VAI_TRO: Record<string, string> = {
 
 export const DA_DONG_BANG = [
   'CHO_TBP_DUYET',
-  'TBP_DA_KY_SO',
   'CHO_KT_L1',
   'SA_DANG_XU_LY',
   'CHO_KT_L2',

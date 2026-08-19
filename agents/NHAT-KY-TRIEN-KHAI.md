@@ -6052,3 +6052,76 @@ Hộp việc xếp `sla_due_at NULLS LAST, created_at`, mà hồ sơ nháp khôn
 đầu. Hai ca `0061` thêm ở P71 là giọt nước cuối; lần chạy trước còn qua, lần này thì không.
 
 Sửa bằng cách đọc HẾT các trang thay vì nâng trần. Nâng trần chỉ dời quả mìn sang một con số khác.
+
+## P75 — Xoá `TBP_DA_KY_SO` khỏi enum CSDL, và rà sạch mọi dấu vết
+
+`0064` gỡ trạng thái khỏi máy trạng thái nhưng để giá trị enum ở lại, lý do: Postgres không có
+`ALTER TYPE ... DROP VALUE`, và `pol.policy_event` có thể còn dòng lịch sử ghi nó. Khách hàng chốt:
+**xoá luôn, dựng lại CSDL**. Phần mềm chưa chạy thật, dữ liệu duy nhất là của `make demo-mau` — cái
+giá của việc dựng lại dữ liệu mẫu rẻ hơn cái giá của việc mang mãi một giá trị không ai dùng nữa.
+
+### Migration `0048`
+
+Không có lệnh xoá giá trị enum, nên phải đi vòng: đổi tên kiểu cũ → dựng kiểu mới 11 giá trị →
+chuyển ba cột sang → bỏ kiểu cũ. Ba chi tiết đáng ghi:
+
+- **Ba chỉ mục phải bỏ trước rồi dựng lại.** `ALTER COLUMN TYPE` tự dựng lại chỉ mục, nhưng vị từ của
+  hai chỉ mục riêng phần mang hằng số thuộc kiểu CŨ (`status = 'DANG_CO_HIEU_LUC'`). Sau bước đổi
+  tên, hằng số thuộc `policy_status_cu` còn cột thuộc kiểu mới, và Postgres dừng với "operator does
+  not exist".
+- **Ánh xạ nằm trong mệnh đề `USING`, không phải một câu `UPDATE`.** `ALTER` viết lại bảng mà KHÔNG
+  kích hoạt trigger dòng, nên không phải tắt chốt bảo vệ nào của `pol.policy_event`.
+- **Giá trị mặc định `'NHAP'` cũng mang kiểu cũ** — gỡ trước, đặt lại sau.
+
+Cả file chạy trong một transaction (`scripts/migrate.sh --single-transaction`), nên hỏng giữa chừng
+không để lại lược đồ nửa vời.
+
+### Rà sạch: cái gì đi theo, cái gì ở lại
+
+Vì giá trị enum đã đi, mọi nhãn giữ lại "để đọc dòng lịch sử cũ" mất luôn lý do tồn tại. Đã gỡ:
+
+| Chỗ | Thứ gỡ |
+|---|---|
+| `format.ts` | `NHAN_TRANG_THAI.TBP_DA_KY_SO`, `NHOM_MAU.TBP_DA_KY_SO`, `NHAN_HANH_DONG.PUBLISH_SIGNED` |
+| `templates.ts` | `STATUS_LABEL.TBP_DA_KY_SO`, `TITLE.PUBLISH_SIGNED` |
+| `sheet.ts` | nhãn trên bản A4 |
+| `policies.service.ts` | `DA_DONG_BANG` |
+| `tong-quan.test.tsx` · `nguon-giao-dien.test.ts` | phép trừ và cặp màu thứ ba, giờ thừa |
+| `policy.test.ts` | bốn vòng lặp phủ trạng thái, và ca dựng hồ sơ ở trạng thái ấy bằng SQL |
+
+**Ở lại**: mọi chú thích kể lại chuyện đã xảy ra. Chúng là thứ duy nhất trả lời được "vì sao bước B5
+biến mất" cho người đọc mã sau này.
+
+Hai ca kiểm thử mới ở `constraints.test.ts` canh giữ chỗ này: enum đúng 11 nhãn theo đúng thứ tự, và
+`policy_status_cu` **không còn tồn tại** — đổi tên kiểu rồi quên bỏ là để lại một kiểu mồ côi mang
+đúng giá trị vừa gỡ, và lần sau ai đó khai cột theo nó thì giá trị quay lại mà không ai thấy.
+
+### Ca `hành động của HỆ THỐNG không lọt ra` phải đổi chỗ đứng
+
+Nó dựng hồ sơ ở `TBP_DA_KY_SO` bằng SQL để kiểm `PUBLISH_SIGNED` không mọc thành nút. Cả hai đã đi,
+nên câu SQL ấy giờ **hỏng** chứ không chỉ vô nghĩa. Chuyển sang `DANG_CO_HIEU_LUC` — trạng thái duy
+nhất còn lại có một hành động HỆ THỐNG (`SUPERSEDE`) đi ra.
+
+### Kiểm chứng
+
+Cả hai đường đều chạy:
+
+- **Nâng cấp** — `make test` áp `0048` lên CSDL test đã có sẵn: **1153/1153 xanh**.
+- **Dựng mới** — `make demo` xoá sạch rồi migrate 38 file từ đầu, `make demo-mau` seed lại.
+
+Trên chồng demo mới, đếm trực tiếp trong CSDL: enum 11 nhãn · `policy_status_cu` = 0 · `pol.policy`,
+`pol.policy_event`, `rpt.policy_row` không dòng nào mang `TBP_DA_KY_SO` · không dòng nào mang
+`PUBLISH_SIGNED` · outbox không sự kiện `policy.publish_signed` · đủ 10 chỉ mục trên `pol.policy`.
+
+Rồi ký một hồ sơ thật bằng `tbp01`:
+
+```
+trang thai sau khi ky: CHO_KT_L1
+so dong lich su: 3
+    1 CREATE   None           -> NHAP           | TDV
+    2 SUBMIT   NHAP           -> CHO_TBP_DUYET  | TDV
+    3 TBP_SIGN CHO_TBP_DUYET  -> CHO_KT_L1      | TBP
+nguoi nhan thu tbp_sign: ["KE_TOAN", "TDV"]
+```
+
+Một lần bấm, một dòng lịch sử, một lá thư.

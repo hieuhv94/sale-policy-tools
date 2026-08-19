@@ -146,10 +146,10 @@ describe('`0038` không bày nút bấm vào là 403', () => {
   });
 
   it('hành động của HỆ THỐNG không vai trò nào bấm được', () => {
-    // `PUBLISH_SIGNED` tự chạy sau khi ký, `SUPERSEDE` tự chạy khi bản mới có
-    // hiệu lực. Trước `0038` cả hai hiện thành nút, và vì không có nhãn tiếng
-    // Việt nên hiện nguyên mã viết hoa.
-    for (const a of ['PUBLISH_SIGNED', 'SUPERSEDE']) {
+    // `SUPERSEDE` tự chạy khi bản mới có hiệu lực. Trước `0038` nó hiện thành
+    // nút, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+    // (`PUBLISH_SIGNED` từng đứng cùng nhóm, đã gỡ ở `0064`.)
+    for (const a of ['SUPERSEDE']) {
       for (const v of VAI_TRO) {
         expect(canHanhDong(v, a), `${v} không được bấm ${a}`).toBe(false);
       }

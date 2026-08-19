@@ -745,15 +745,15 @@ describe('POL-12 TDV không sửa được giá bán Công ty và ngưỡng', ()
 
 /**
  * Đưa một hồ sơ mới tới đúng một trạng thái, để ma trận xoá bên dưới thử được
- * CẢ MƯỜI HAI.
+ * CẢ MƯỜI MỘT.
  *
- * Hai trạng thái không tới được bằng lời gọi API và phải đặt thẳng bằng SQL:
+ * MỘT trạng thái không tới được bằng lời gọi API và phải đặt thẳng bằng SQL:
+ * `QUA_HAN_DUYET` — chỉ `sla-worker` đặt, sau 14 ngày. Nó là một NHÃN chồng lên
+ * trạng thái chờ, nên đặt kèm `pending_step` đúng như worker làm.
  *
- *   * `QUA_HAN_DUYET` — chỉ `sla-worker` đặt, sau 14 ngày. Nó là một NHÃN chồng
- *     lên trạng thái chờ, nên đặt kèm `pending_step` đúng như worker làm.
- *   * `TBP_DA_KY_SO` — trạng thái CHỚP NHOÁNG: `TBP_SIGN` tự chuyển tiếp sang
- *     `CHO_KT_L1` trong cùng transaction (WF-09), nên không lời gọi nào để hồ sơ
- *     đứng lại ở đó. Vẫn phải thử: hồ sơ có thể mắc ở đây nếu bước tự động hỏng.
+ * `TBP_DA_KY_SO` từng là trạng thái thứ hai phải đặt bằng SQL. Nó đã bị gỡ khỏi
+ * máy trạng thái ở `0064` và khỏi enum của CSDL ở `0048`, nên câu lệnh SQL ấy
+ * giờ hỏng chứ không chỉ vô nghĩa.
  */
 const datTrangThai = (id: string, tt: string, buoc: string | null = null) =>
   withAdminDb((c) =>
@@ -1067,7 +1067,6 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     it('tắt ở mọi trạng thái còn lại', async () => {
       for (const tt of [
         'CHO_TBP_DUYET',
-        'TBP_DA_KY_SO',
         'CHO_KT_L1',
         'SA_DANG_XU_LY',
         'CHO_KT_L2',
@@ -1148,13 +1147,6 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       CHO_TBP_DUYET: async () => {
         const d = await draft();
         await act(d.id, 'SUBMIT', 'tdv01');
-        return d.id;
-      },
-      TBP_DA_KY_SO: async () => {
-        const d = await draft();
-        await act(d.id, 'SUBMIT', 'tdv01');
-        await act(d.id, 'TBP_SIGN', 'tbp01');
-        await datTrangThai(d.id, 'TBP_DA_KY_SO');
         return d.id;
       },
       CHO_KT_L1: async () => {
@@ -1467,7 +1459,7 @@ describe('`0036` nhật ký hồ sơ', () => {
       fromStatus: string | null;
       toStatus: string;
     }[];
-    const ky = ds.filter((x) => x.action === 'TBP_SIGN' || x.action === 'PUBLISH_SIGNED');
+    const ky = ds.filter((x) => x.action === 'TBP_SIGN');
     expect(ky).toHaveLength(1);
     expect(ky[0]!.actorRole).toBe('TBP');
     expect(ky[0]!.fromStatus).toBe('CHO_TBP_DUYET');
@@ -1484,7 +1476,6 @@ describe('`0036` nhật ký hồ sơ', () => {
   for (const tt of [
     'NHAP',
     'CHO_TBP_DUYET',
-    'TBP_DA_KY_SO',
     'CHO_KT_L1',
     'SA_DANG_XU_LY',
     'CHO_KT_L2',
@@ -1573,8 +1564,6 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
   const MONG_DOI: Record<string, Record<string, string[]>> = {
     NHAP: { tdv01: ['SUBMIT'] },
     CHO_TBP_DUYET: { tbp01: ['TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT'] },
-    // `TBP_DA_KY_SO` chỉ có `PUBLISH_SIGNED`, mà đó là việc của HỆ THỐNG.
-    TBP_DA_KY_SO: {},
     CHO_KT_L1: { kt01: ['KT_RECEIVE_L1', 'KT_RETURN_L1'] },
     SA_DANG_XU_LY: { sa01: ['SA_HANDOVER'] },
     CHO_KT_L2: { kt01: ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT'] },
@@ -1617,29 +1606,18 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
 
   it('hành động của HỆ THỐNG không lọt ra cho vai trò nào', async () => {
     /*
-     * `SUPERSEDE` do máy chạy. Trước `0038` nó hiện thành nút, và vì không có
-     * nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+     * `SUPERSEDE` do máy chạy — không ai bấm cho một bản đang hiệu lực hết hạn.
+     * Trước `0038` nó hiện thành nút, và vì không có nhãn tiếng Việt nên hiện
+     * nguyên mã viết hoa.
      *
-     * Ca này đặt hồ sơ vào `TBP_DA_KY_SO` bằng SQL. Từ `0064` trạng thái ấy
-     * không còn trong máy trạng thái, nhưng GIÁ TRỊ ENUM vẫn nằm trong CSDL —
-     * Postgres không xoá được một giá trị khỏi enum khi `pol.policy_event` còn
-     * hàng nghìn dòng lịch sử ghi nó. Nên ca này giữ nguyên và đổi nghĩa: một
-     * dòng dữ liệu cũ hay một lần sửa tay vào CSDL cũng KHÔNG được mọc ra nút.
+     * Ca này từng dựng hồ sơ ở `TBP_DA_KY_SO` để thử `PUBLISH_SIGNED`. Cả hai
+     * đã đi: trạng thái gỡ khỏi máy trạng thái ở `0064`, giá trị enum gỡ khỏi
+     * CSDL ở `0048`. Nên nó chuyển sang thử `DANG_CO_HIEU_LUC` — trạng thái duy
+     * nhất còn lại có một hành động HỆ THỐNG đi ra.
      */
     const d = await draft();
-    await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_SIGN', 'tbp01');
-    // Gán cả Sale Admin: không có tên trên hồ sơ thì họ nhận 403 ở bước MỞ, và
-    // ca này không phân biệt được "không có nút" với "không thấy hồ sơ".
-    await withAdminDb((c) =>
-      c.query(
-        `UPDATE pol.policy
-            SET status = 'TBP_DA_KY_SO',
-                sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01')
-          WHERE id = $1`,
-        [d.id],
-      ),
-    );
+    const r = await runToActive(d);
+    expect(r.body.status).toBe('DANG_CO_HIEU_LUC');
 
     for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
       expect(await nut(d.id, who), `${who} không được thấy nút nào`).toEqual([]);
@@ -3723,16 +3701,15 @@ describe('0029 box Yêu cầu cập nhật', () => {
   });
 
   /*
-   * PHỦ ĐỦ MƯỜI HAI TRẠNG THÁI.
+   * PHỦ ĐỦ MƯỜI MỘT TRẠNG THÁI.
    *
-   * Câu hỏi thật của box: hồ sơ nào ĐÃ ĐÓNG BĂNG số của nó. Bảy trạng thái có,
+   * Câu hỏi thật của box: hồ sơ nào ĐÃ ĐÓNG BĂNG số của nó. Sáu trạng thái có,
    * năm trạng thái không — và cả hai vế đều đáng khẳng định. `NHAP` và
    * `YEU_CAU_CHINH_SUA` vắng mặt vì chúng tự tra lại mỗi lần mở, nên nhắc là
    * thừa; ba trạng thái kết thúc vắng mặt vì không ai làm gì được nữa.
    */
   const CHO_VAO_BOX = [
     'CHO_TBP_DUYET',
-    'TBP_DA_KY_SO',
     'CHO_KT_L1',
     'SA_DANG_XU_LY',
     'CHO_KT_L2',

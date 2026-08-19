@@ -117,15 +117,14 @@ describe('dải thẻ đúng bản đã chốt với khách hàng', () => {
 });
 
 describe('mã trạng thái và mã bước phải có thật', () => {
-  it('`MOI_TRANG_THAI` là 11 trạng thái SỐNG — hẹp hơn bảng nhãn', () => {
+  it('`MOI_TRANG_THAI` đúng bằng 11 trạng thái của muc 4, `0035` và `0064`', () => {
     /*
-     * Hai tập này KHÔNG còn bằng nhau từ `0064`. `NHAN_TRANG_THAI` phải giữ
-     * `TBP_DA_KY_SO` để những dòng lịch sử cũ còn đọc được; `MOI_TRANG_THAI` là
-     * tập một hồ sơ CÓ THỂ ĐANG Ở, và không hồ sơ nào ở đó được nữa.
+     * Hai tập này bằng nhau TRỞ LẠI từ `0048`. Ở `0064` chúng lệch một phần tử:
+     * `NHAN_TRANG_THAI` còn giữ `TBP_DA_KY_SO` để đọc dòng lịch sử cũ, vì giá trị
+     * enum vẫn nằm trong CSDL. `0048` gỡ luôn giá trị ấy khỏi enum, nên không dòng
+     * dữ liệu nào còn mang nó và bảng nhãn không phải chứa nó nữa.
      */
-    expect([...MOI_TRANG_THAI].sort()).toEqual(
-      Object.keys(NHAN_TRANG_THAI).filter((t) => t !== 'TBP_DA_KY_SO').sort(),
-    );
+    expect([...MOI_TRANG_THAI].sort()).toEqual(Object.keys(NHAN_TRANG_THAI).sort());
     expect(MOI_TRANG_THAI).not.toContain('TBP_DA_KY_SO');
   });
 

@@ -73,11 +73,16 @@ export function ngayGio(v: string | Date | null | undefined): string {
   return `${g('day')}/${g('month')}/${g('year')} ${HAI_SO(Number(g('hour')))}:${g('minute')}`;
 }
 
-/** Nhãn tiếng Việt của 12 trạng thái (muc 4, `0035`). Danh sách ĐÓNG. */
+/**
+ * Nhãn tiếng Việt của 11 trạng thái (muc 4, `0035`, `0064`). Danh sách ĐÓNG.
+ *
+ * `TBP_DA_KY_SO` rời khỏi đây ở `0064`, và giá trị enum trong CSDL cũng đã bị
+ * gỡ ở migration `0048` — không dòng dữ liệu nào còn mang nó, kể cả trong lịch
+ * sử, nên không cần giữ nhãn để đọc dòng cũ.
+ */
 export const NHAN_TRANG_THAI: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ TBP duyệt',
-  TBP_DA_KY_SO: 'TBP đã ký số',
   CHO_KT_L1: 'KT duyệt bản mềm',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
   CHO_KT_L2: 'KT duyệt bản cứng',
@@ -107,13 +112,10 @@ export const nhanTrangThai = (s: string): string => NHAN_TRANG_THAI[s] ?? s;
  *   - `TU_CHOI` + `QUA_HAN_DUYET` → `hong`. Hai ngõ cụt khác nguyên nhân, nhưng
  *     với người dùng cùng một kết cục: hồ sơ không đi tiếp được nữa.
  *   - `HET_HIEU_LUC` + `DA_XOA` → `ket-thuc`. Đã rời khỏi luồng, không đòi ai gì.
- *   - `TBP_DA_KY_SO` → `tbp`, cùng màu bước Trưởng bộ phận. Trạng thái này KHÔNG
- *     còn tồn tại từ `0064`; dòng này chỉ để vẽ những dòng lịch sử cũ đã ghi nó.
  */
 const NHOM_MAU: Record<string, string> = {
   NHAP: 'nhap',
   CHO_TBP_DUYET: 'tbp',
-  TBP_DA_KY_SO: 'tbp',
   CHO_KT_L1: 'kt1',
   SA_DANG_XU_LY: 'sa',
   CHO_KT_L2: 'kt2',
@@ -137,9 +139,8 @@ export const nhomTrangThai = (s: string): string => NHOM_MAU[s] ?? 'ket-thuc';
  *   1. Bảng kia là nhãn NÚT — mệnh lệnh, "Ký số duyệt". Đọc một dòng lịch sử
  *      ghi "Ký số duyệt" thì nghe như một việc đang chờ làm.
  *   2. Bảng kia chỉ có những hành động CÓ NÚT. Nhật ký còn chứa những việc
- *      không ai bấm: hệ thống tự chuyển bước sau khi ký (`PUBLISH_SIGNED`),
- *      quá hạn (`SLA_OVERDUE`), bàn giao khi một tài khoản bị vô hiệu hoá
- *      (`HANDOVER`), khách hàng bị xoá (`CUSTOMER_RETIRED`). Thiếu chúng thì
+ *      không ai bấm: quá hạn (`SLA_OVERDUE`), bàn giao khi một tài khoản bị vô
+ *      hiệu hoá (`HANDOVER`), khách hàng bị xoá (`CUSTOMER_RETIRED`). Thiếu chúng thì
  *      đúng những dòng khó hiểu nhất lại hiện ra dưới dạng mã viết hoa.
  */
 export const NHAN_HANH_DONG: Record<string, string> = {
@@ -147,7 +148,6 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   SUBMIT: 'Gửi duyệt',
   RESUBMIT_AFTER_EDIT: 'Gửi lại sau chỉnh sửa',
   TBP_SIGN: 'Trưởng bộ phận ký số',
-  PUBLISH_SIGNED: 'Hệ thống chuyển sang Kế toán',
   TBP_RETURN: 'Trưởng bộ phận trả lại để chỉnh sửa',
   TBP_REJECT: 'Trưởng bộ phận từ chối',
   KT_RECEIVE_L1: 'Kế toán tiếp nhận lần 1',

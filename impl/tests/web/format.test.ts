@@ -57,11 +57,11 @@ describe('Ngày theo múi giờ Việt Nam', () => {
 });
 
 describe('Nhãn trạng thái', () => {
-  it('phủ đủ 11 trạng thái của muc 4', () => {
+  it('phủ đủ 11 trạng thái của muc 4, `0035` và `0064`', () => {
     const tatCa = [
-      'NHAP', 'CHO_TBP_DUYET', 'TBP_DA_KY_SO', 'CHO_KT_L1', 'SA_DANG_XU_LY',
+      'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
       'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
-      'TU_CHOI', 'QUA_HAN_DUYET',
+      'TU_CHOI', 'QUA_HAN_DUYET', 'DA_XOA',
     ];
     for (const t of tatCa) {
       expect(nhanTrangThai(t), `thiếu nhãn cho ${t}`).not.toBe(t);

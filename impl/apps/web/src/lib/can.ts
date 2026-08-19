@@ -173,10 +173,10 @@ export const QUYEN_HANH_DONG: Record<string, Quyen> = {
 /**
  * Vai trò này có bấm được hành động ấy không.
  *
- * Hành động KHÔNG có trong bảng là hành động của HỆ THỐNG — `PUBLISH_SIGNED`
- * (tự chạy sau khi ký) và `SUPERSEDE` (tự chạy khi bản mới có hiệu lực). Không
- * ai bấm chúng, nên trả `false` cho mọi vai trò. Trước `0038` chúng hiện ra
- * thành nút, và vì không có nhãn tiếng Việt nên hiện nguyên mã viết hoa.
+ * Hành động KHÔNG có trong bảng là hành động của HỆ THỐNG — chỉ còn `SUPERSEDE`,
+ * tự chạy khi một bản mới có hiệu lực. Không ai bấm nó, nên trả `false` cho mọi
+ * vai trò. Trước `0038` nó hiện ra thành nút, và vì không có nhãn tiếng Việt nên
+ * hiện nguyên mã viết hoa. (`PUBLISH_SIGNED` từng đứng cùng nhóm, gỡ ở `0064`.)
  */
 export const canHanhDong = (vaiTro: string | undefined, hanhDong: string): boolean => {
   const q = QUYEN_HANH_DONG[hanhDong];

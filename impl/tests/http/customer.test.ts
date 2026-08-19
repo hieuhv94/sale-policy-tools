@@ -432,7 +432,6 @@ describe('`0034` CUST-16 ngừng hợp tác — một nút thay cho hai', () => 
     'NHAP',
     'YEU_CAU_CHINH_SUA',
     'CHO_TBP_DUYET',
-    'TBP_DA_KY_SO',
     'CHO_KT_L1',
     'SA_DANG_XU_LY',
     'CHO_KT_L2',

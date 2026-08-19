@@ -30,7 +30,6 @@ export type SheetInput = {
 const STATUS_LABEL: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
-  TBP_DA_KY_SO: 'Trưởng bộ phận đã ký số',
   CHO_KT_L1: 'KT duyệt bản mềm',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
   CHO_KT_L2: 'KT duyệt bản cứng',
