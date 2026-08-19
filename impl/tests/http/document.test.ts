@@ -355,7 +355,7 @@ describe('DOC-19 hồ sơ nhiều dòng sản phẩm', () => {
      * duyệt, chỗ ký, file đính kèm), nên trang cuối có thể không còn hàng bảng
      * nào. Điều cần chứng minh là tiêu đề lặp lại, không phải lặp đúng mấy lần.
      */
-    const headers = t.split('Giá bán Công ty').length - 1;
+    const headers = t.split('Giá công ty').length - 1;
     expect(headers, 'tiêu đề bảng phải lặp lại qua các trang').toBeGreaterThan(1);
     expect(headers).toBeLessThanOrEqual(sizes.length);
     // Dòng cuối cùng phải còn: số thứ tự 60 xuất hiện.

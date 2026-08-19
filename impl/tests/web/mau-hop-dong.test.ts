@@ -43,12 +43,12 @@ describe('bảng định dạng khớp máy chủ', () => {
 
 describe('nhóm nguồn dữ liệu cho ô chọn', () => {
   const nguon = [
-    'customer.code',
-    'customer.name',
-    'policy.code',
-    'company.name',
-    'policy.lines[].product_name',
-    'policy.lines[].net_price',
+    'ho_so.ma_khach_hang',
+    'ho_so.ten_khach_hang',
+    'ho_so.ma_ho_so',
+    'cong_ty.ten',
+    'san_pham.ten_san_pham',
+    'san_pham.gia_thu_ve',
   ];
 
   it('gom theo tiền tố, không bỏ sót nguồn nào', () => {
@@ -65,7 +65,7 @@ describe('nhóm nguồn dữ liệu cho ô chọn', () => {
     expect(dong!.nguon).toHaveLength(2);
     expect(dong!.nguon.every((s) => s.startsWith(TIEN_TO_DONG))).toBe(true);
 
-    const hoSo = nhom.find((n) => n.nguon.includes('policy.code'));
+    const hoSo = nhom.find((n) => n.nguon.includes('ho_so.ma_ho_so'));
     expect(hoSo!.nguon.some((s) => s.startsWith(TIEN_TO_DONG))).toBe(false);
   });
 

@@ -206,14 +206,14 @@ afterAll(async () => {
 const twelveSlotTemplate = () =>
   makeDocx(
     [
-      para('{{company.name}} — {{company.address}}'),
-      para('HỢP ĐỒNG với {{customer.name}} (mã {{customer.code}})'),
-      para('Địa chỉ: {{customer.registered_address}}'),
-      para('Đại diện: {{customer.owner_name}} — {{customer.owner_title}}'),
-      para('Công nợ: {{customer.debt}}'),
-      para('Hồ sơ {{policy.code}}, áp dụng {{policy.applied_date}}'),
-      para('Người lập: {{person.tdv}}'),
-      para('Ngày ký: {{today}}'),
+      para('{{cong_ty.ten}} — {{cong_ty.dia_chi}}'),
+      para('HỢP ĐỒNG với {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
+      para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
+      para('Đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
+      para('Công nợ: {{ho_so.cong_no}}'),
+      para('Hồ sơ {{ho_so.ma_ho_so}}, áp dụng {{ho_so.ngay_ap_dung}}'),
+      para('Người lập: {{ho_so.nguoi_de_nghi}}'),
+      para('Ngày ký: {{ngay_in}}'),
     ].join(''),
   );
 
@@ -232,7 +232,7 @@ describe('DOC-25 tải lên mẫu .docx và đọc ô trống', () => {
     const r = await uploadTemplate('sa01', twelveSlotTemplate());
     expect(r.status).toBe(201);
     expect(r.body.placeholders).toHaveLength(12);
-    expect(r.body.placeholders).toContain('{{customer.name}}');
+    expect(r.body.placeholders).toContain('{{ho_so.ten_khach_hang}}');
     expect(r.body.knownSources.length).toBeGreaterThan(10);
   }, 60_000);
 
@@ -240,10 +240,10 @@ describe('DOC-25 tải lên mẫu .docx và đọc ô trống', () => {
     // Word cắt một đoạn văn thành nhiều <w:r> bất cứ lúc nào nó muốn. Đây là
     // kiểu hỏng IM LẶNG: file vẫn sinh ra, chỉ là ô trống không được điền.
     const split =
-      '<w:p><w:r><w:t>Kính gửi {{cus</w:t></w:r>' +
-      '<w:r><w:t>tomer.</w:t></w:r>' +
-      '<w:r><w:t>name}}, xin chào</w:t></w:r></w:p>';
-    expect(placeholdersOf(makeDocx(split))).toEqual(['{{customer.name}}']);
+      '<w:p><w:r><w:t>Kính gửi {{ho_so.</w:t></w:r>' +
+      '<w:r><w:t>ten_khach</w:t></w:r>' +
+      '<w:r><w:t>_hang}}, xin chào</w:t></w:r></w:p>';
+    expect(placeholdersOf(makeDocx(split))).toEqual(['{{ho_so.ten_khach_hang}}']);
   });
 });
 
@@ -272,17 +272,17 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
   it('400 ngay lúc LƯU ánh xạ, không đợi tới lúc xuất', async () => {
     const t = await uploadTemplate('sa01', twelveSlotTemplate());
     const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
-      mapping: [{ placeholder: '{{customer.name}}', source: 'customer.ten_khong_co' }],
+      mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'customer.ten_khong_co' }],
     });
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('SOURCE_UNKNOWN');
-    expect(r.body.knownSources).toContain('customer.name');
+    expect(r.body.knownSources).toContain('ho_so.ten_khach_hang');
   }, 60_000);
 
   it('ánh xạ tới ô trống không có trong mẫu cũng bị chặn', async () => {
     const t = await uploadTemplate('sa01', twelveSlotTemplate());
     const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
-      mapping: [{ placeholder: '{{khong.co.trong.mau}}', source: 'customer.name' }],
+      mapping: [{ placeholder: '{{khong.co.trong.mau}}', source: 'ho_so.ten_khach_hang' }],
     });
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('PLACEHOLDER_NOT_IN_TEMPLATE');
@@ -293,14 +293,14 @@ describe('DOC-30 phát hành mẫu còn ô trống chưa ánh xạ', () => {
   it('chặn và chỉ rõ ô nào chưa ánh xạ', async () => {
     const t = await uploadTemplate('sa01', twelveSlotTemplate());
     await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
-      mapping: [{ placeholder: '{{customer.name}}', source: 'customer.name', required: true }],
+      mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true }],
     });
 
     const r = await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01');
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_INCOMPLETE');
     expect(r.body.missing).toHaveLength(11);
-    expect(r.body.missing).toContain('{{policy.code}}');
+    expect(r.body.missing).toContain('{{ho_so.ma_ho_so}}');
   }, 60_000);
 });
 
@@ -387,9 +387,9 @@ describe('DOC-14 xem trước hợp đồng', () => {
 
     const r = await dget(`/policies/${d.id}/contract/preview`, 'kt01');
     expect(r.status).toBe(200);
-    expect(r.body.values['{{customer.name}}']).toBe(CUSTOMER_NAME);
-    expect(r.body.values['{{customer.registered_address}}']).toBe(ADDRESS_1);
-    expect(r.body.values['{{policy.code}}']).toMatch(/^CSBH-/);
+    expect(r.body.values['{{ho_so.ten_khach_hang}}']).toBe(CUSTOMER_NAME);
+    expect(r.body.values['{{ho_so.dia_chi_dang_ky}}']).toBe(ADDRESS_1);
+    expect(r.body.values['{{ho_so.ma_ho_so}}']).toMatch(/^CSBH-/);
     expect(r.body.lines).toHaveLength(2);
     expect(r.body.missingRequired).toEqual([]);
 
@@ -417,7 +417,7 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
     }));
     const withTitle = [
       ...fields,
-      { placeholder: '{{customer.owner_title}}', source: 'customer.owner_title', required: true },
+      { placeholder: '{{ho_so.chuc_danh_dai_dien}}', source: 'ho_so.chuc_danh_dai_dien', required: true },
     ];
 
     // Ô trống phải có trong mẫu thì mới ánh xạ được, nên dùng mẫu 12 ô ở trên.
@@ -425,9 +425,9 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
     const mapping = (t.body.placeholders as string[]).map((p) => ({
       placeholder: p,
       source: p.slice(2, -2),
-      required: p === '{{customer.owner_title}}',
-      ...(p === '{{customer.debt}}' ? { format: 'money_vnd' } : {}),
-      ...(p === '{{policy.applied_date}}' || p === '{{today}}' ? { format: 'date_dmy' } : {}),
+      required: p === '{{ho_so.chuc_danh_dai_dien}}',
+      ...(p === '{{ho_so.cong_no}}' ? { format: 'money_vnd' } : {}),
+      ...(p === '{{ho_so.ngay_ap_dung}}' || p === '{{ngay_in}}' ? { format: 'date_dmy' } : {}),
     }));
     expect((await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', { mapping })).status).toBe(200);
     expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01')).status).toBe(200);
@@ -435,13 +435,13 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
     try {
       const prev = await dget(`/policies/${d.id}/contract/preview`, 'kt01');
       expect(prev.body.missingRequired).toEqual([
-        { placeholder: '{{customer.owner_title}}', source: 'customer.owner_title' },
+        { placeholder: '{{ho_so.chuc_danh_dai_dien}}', source: 'ho_so.chuc_danh_dai_dien' },
       ]);
 
       const exp = await dget(`/policies/${d.id}/contract.pdf`, 'kt01');
       expect(exp.status).toBe(422);
       expect(exp.body.code).toBe('CONTRACT_FIELDS_MISSING');
-      expect(exp.body.missing[0].source).toBe('customer.owner_title');
+      expect(exp.body.missing[0].source).toBe('ho_so.chuc_danh_dai_dien');
     } finally {
       // Trả mẫu mặc định về vị trí để test sau không phụ thuộc thứ tự.
       await dpost(`/contract-templates/${t.body.id}/deactivate`, 'sa01');
@@ -457,16 +457,16 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
     const prev = (await dget(`/policies/${d.id}/contract/preview`, 'kt01')).body;
 
     // Công nợ 4.500.000 — dấu phân nhóm nghìn kiểu Việt Nam.
-    expect(prev.values['{{customer.debt}}']).toBe('4.500.000');
-    expect(prev.values['{{today}}']).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(prev.values['{{ho_so.cong_no}}']).toBe('4.500.000');
+    expect(prev.values['{{ngay_in}}']).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
 
     // Tỷ lệ chiết khấu phải khớp TỪNG KÝ TỰ với con số trên hồ sơ CSBH: cùng
     // phép làm tròn hai chữ số đã chốt ở muc 7, không tính lại theo cách khác.
     const onPolicy = (
       await (await http(policy)).get(`/policies/${d.id}`).set('Authorization', `Bearer ${tok['tdv01']}`)
     ).body.lines[0].discountRate as string;
-    expect(prev.lines[0]['{{line.discount_rate}}']).toBe(`${Number(onPolicy).toFixed(2)}%`);
-    expect(prev.lines[0]['{{line.net_price}}']).toBe('87.000');
+    expect(prev.lines[0]['{{dong.ty_le_ck}}']).toBe(`${Number(onPolicy).toFixed(2)}%`);
+    expect(prev.lines[0]['{{dong.gia_thu_ve}}']).toBe('87.000');
   }, 90_000);
 
   it('DOC-32 mẫu có bảng lặp, hồ sơ 40 dòng thì sinh đủ 40 dòng', async () => {
@@ -481,8 +481,8 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
     // Đủ 40 dòng và không mất dòng cuối: mọi mã sản phẩm đều có mặt.
     const flat = packed(text);
     for (const l of prev.lines as Record<string, string>[]) {
-      expect(flat, `thiếu dòng ${l['{{line.product_code}}']}`).toContain(
-        packed(l['{{line.product_code}}']!),
+      expect(flat, `thiếu dòng ${l['{{dong.ma_san_pham}}']}`).toContain(
+        packed(l['{{dong.ma_san_pham}}']!),
       );
     }
     // Và không còn chuỗi {{...}} nào sót lại trong văn bản đưa cho khách hàng.
@@ -564,23 +564,23 @@ describe('DOC-12 hai hồ sơ của cùng một khách hàng', () => {
     await act(b.id, 'KT_RECEIVE_L1', 'kt01');
     const bPrev = (await dget(`/policies/${b.id}/contract/preview`, 'kt01')).body;
 
-    expect(aPrev.values['{{policy.code}}']).not.toBe(bPrev.values['{{policy.code}}']);
+    expect(aPrev.values['{{ho_so.ma_ho_so}}']).not.toBe(bPrev.values['{{ho_so.ma_ho_so}}']);
 
     const pdf = await pdfOf(`/policies/${b.id}/contract.pdf`, 'kt01');
     const flat = packed(await pdfText(pdf.body as Buffer));
 
     // Mã hồ sơ là thứ phân biệt hai bản hợp đồng: đúng mã của hồ sơ được bấm,
     // và KHÔNG có mã của hồ sơ kia.
-    expect(flat).toContain(packed(bPrev.values['{{policy.code}}']));
-    expect(flat).not.toContain(packed(aPrev.values['{{policy.code}}']));
+    expect(flat).toContain(packed(bPrev.values['{{ho_so.ma_ho_so}}']));
+    expect(flat).not.toContain(packed(aPrev.values['{{ho_so.ma_ho_so}}']));
 
     // Nhưng SẢN PHẨM thì có lẫn, và đó là ĐÚNG. B là bản chỉnh sửa của A, mà
     // "phiên bản mới phải chứa lại toàn bộ sản phẩm cũ" (muc 5.1) — nên sản
     // phẩm của A có mặt trong hợp đồng của B là nghiệp vụ, không phải rò rỉ dữ
     // liệu. Khẳng định ngược lại ở đây sẽ ép hệ thống vi phạm luật đó.
-    expect(flat).toContain(packed(bPrev.lines.at(-1)['{{line.product_code}}']));
+    expect(flat).toContain(packed(bPrev.lines.at(-1)['{{dong.ma_san_pham}}']));
     expect((bPrev.lines as unknown[]).length).toBe(2);
-    expect(flat).toContain(packed(aPrev.lines[0]['{{line.product_code}}']));
+    expect(flat).toContain(packed(aPrev.lines[0]['{{dong.ma_san_pham}}']));
   }, 180_000);
 });
 
@@ -666,13 +666,13 @@ describe('DOC-15 Sale Admin thay mẫu rồi xuất lại', () => {
     const MARK = 'PHU LUC HOP DONG PHIEN BAN MOI';
     const t = await uploadTemplate(
       'sa01',
-      makeDocx([para(MARK), para('Khách hàng: {{customer.name}}'), para('Hồ sơ {{policy.code}}')].join('')),
+      makeDocx([para(MARK), para('Khách hàng: {{ho_so.ten_khach_hang}}'), para('Hồ sơ {{ho_so.ma_ho_so}}')].join('')),
       'Mẫu mới',
     );
     await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
       mapping: [
-        { placeholder: '{{customer.name}}', source: 'customer.name', required: true },
-        { placeholder: '{{policy.code}}', source: 'policy.code', required: true },
+        { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
+        { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
       ],
     });
     expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01')).status).toBe(200);
@@ -720,7 +720,7 @@ describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp'
       await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer),
     );
     for (const l of prev.lines as Record<string, string>[]) {
-      expect(flat).toContain(packed(l['{{line.product_code}}']!));
+      expect(flat).toContain(packed(l['{{dong.ma_san_pham}}']!));
     }
   }, 180_000);
 });
@@ -1160,7 +1160,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .field('name', 'Mau thieu muc')
       .field('paperSize', 'a4p')
-      .attach('file', makeDocx(para('{{customer.name}}')), {
+      .attach('file', makeDocx(para('{{ho_so.ten_khach_hang}}')), {
         filename: 'thieu.docx',
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
@@ -1169,14 +1169,14 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     await (await http(doc))
       .put(`/policy-templates/${up.body.id}/mapping`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ mapping: [{ placeholder: '{{customer.name}}', source: 'customer.name' }] });
+      .send({ mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' }] });
 
     const r = await qpost(`/policy-templates/${up.body.id}/publish`, 'admin01');
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_MISSING_REQUIRED');
     // Nói RÕ thiếu gì, không chỉ nói "thiếu": Quản trị phải sửa được ngay.
-    expect(r.body.thieuTruong).toContain('policy.code');
-    expect(r.body.thieuBangSanPham).toBe('{{policy.lines_table}}');
+    expect(r.body.thieuTruong).toContain('ho_so.ma_ho_so');
+    expect(r.body.thieuBangSanPham).toBe('{{bang_san_pham}}');
   }, 120_000);
 
   it('ô bảng sản phẩm KHÔNG cần ánh xạ — nó không trỏ tới trường nào', async () => {
@@ -1204,13 +1204,13 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
         'file',
         makeDocx(
           [
-            para('{{company.name}}'),
-            para('{{policy.code}} — {{policy.status}}'),
-            para('{{customer.code}} {{customer.name}} {{customer.debt}}'),
-            para('{{policy.applied_date}} {{person.tdv}} {{person.tbp}} {{person.ke_toan}}'),
-            para('{{policy.tbp_signed_at}} {{policy.kt_l2_received_at}} {{policy.attachments}}'),
+            para('{{cong_ty.ten}}'),
+            para('{{ho_so.ma_ho_so}} — {{ho_so.trang_thai}}'),
+            para('{{ho_so.ma_khach_hang}} {{ho_so.ten_khach_hang}} {{ho_so.cong_no}}'),
+            para('{{ho_so.ngay_ap_dung}} {{ho_so.nguoi_de_nghi}} {{ho_so.truong_bo_phan}} {{ho_so.ke_toan}}'),
+            para('{{ho_so.ngay_tbp_ky}} {{ho_so.ngay_kt_nhan_l2}} {{ho_so.tep_dinh_kem}}'),
             para(CAU),
-            para('{{policy.lines_table}}'),
+            para('{{bang_san_pham}}'),
           ].join(''),
         ),
         {
@@ -1225,19 +1225,19 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({
         mapping: [
-          { placeholder: '{{company.name}}', source: 'company.name' },
-          { placeholder: '{{policy.code}}', source: 'policy.code' },
-          { placeholder: '{{policy.status}}', source: 'policy.status' },
-          { placeholder: '{{customer.code}}', source: 'customer.code' },
-          { placeholder: '{{customer.name}}', source: 'customer.name' },
-          { placeholder: '{{customer.debt}}', source: 'customer.debt', format: 'money_vnd' },
-          { placeholder: '{{policy.applied_date}}', source: 'policy.applied_date', format: 'date_dmy' },
-          { placeholder: '{{person.tdv}}', source: 'person.tdv' },
-          { placeholder: '{{person.tbp}}', source: 'person.tbp' },
-          { placeholder: '{{person.ke_toan}}', source: 'person.ke_toan' },
-          { placeholder: '{{policy.tbp_signed_at}}', source: 'policy.tbp_signed_at', format: 'date_dmy' },
-          { placeholder: '{{policy.kt_l2_received_at}}', source: 'policy.kt_l2_received_at', format: 'date_dmy' },
-          { placeholder: '{{policy.attachments}}', source: 'policy.attachments' },
+          { placeholder: '{{cong_ty.ten}}', source: 'cong_ty.ten' },
+          { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' },
+          { placeholder: '{{ho_so.trang_thai}}', source: 'ho_so.trang_thai' },
+          { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang' },
+          { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' },
+          { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no', format: 'money_vnd' },
+          { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung', format: 'date_dmy' },
+          { placeholder: '{{ho_so.nguoi_de_nghi}}', source: 'ho_so.nguoi_de_nghi' },
+          { placeholder: '{{ho_so.truong_bo_phan}}', source: 'ho_so.truong_bo_phan' },
+          { placeholder: '{{ho_so.ke_toan}}', source: 'ho_so.ke_toan' },
+          { placeholder: '{{ho_so.ngay_tbp_ky}}', source: 'ho_so.ngay_tbp_ky', format: 'date_dmy' },
+          { placeholder: '{{ho_so.ngay_kt_nhan_l2}}', source: 'ho_so.ngay_kt_nhan_l2', format: 'date_dmy' },
+          { placeholder: '{{ho_so.tep_dinh_kem}}', source: 'ho_so.tep_dinh_kem' },
         ],
       });
     /*
@@ -1264,7 +1264,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       // Câu chỉ có trong mẫu MỚI — chứng minh bản mềm đọc từ mẫu, không dựng cứng.
       expect(t.replace(/\s+/g, '')).toContain(CAU.replace(/\s+/g, ''));
       // Và bảng sản phẩm vẫn do hệ thống dựng, đủ cột.
-      expect(t.replace(/\s+/g, '')).toContain('GiábánCôngty');
+      expect(t.replace(/\s+/g, '')).toContain('Giácôngty');
     } finally {
       await qpost(`/policy-templates/${macDinh.id}/publish`, 'admin01');
     }

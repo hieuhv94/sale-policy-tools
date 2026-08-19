@@ -442,114 +442,108 @@ export class TemplatesService {
 }
 
 const DEFAULT_MAPPING: MappingInput[] = [
-  { placeholder: '{{company.name}}', source: 'company.name', required: true },
-  { placeholder: '{{company.address}}', source: 'company.address' },
-  { placeholder: '{{company.tax_code}}', source: 'company.tax_code' },
-  { placeholder: '{{customer.name}}', source: 'customer.name', required: true },
-  { placeholder: '{{customer.code}}', source: 'customer.code', required: true },
-  { placeholder: '{{customer.registered_address}}', source: 'customer.registered_address', required: true },
-  { placeholder: '{{customer.owner_name}}', source: 'customer.owner_name', required: true },
-  { placeholder: '{{customer.debt}}', source: 'customer.debt', format: 'money_vnd' },
-  { placeholder: '{{policy.code}}', source: 'policy.code', required: true },
-  { placeholder: '{{policy.applied_date}}', source: 'policy.applied_date', format: 'date_dmy' },
-  { placeholder: '{{today}}', source: 'today', format: 'date_dmy' },
-  { placeholder: '{{line.index}}', source: 'policy.lines[].index' },
-  { placeholder: '{{line.product_code}}', source: 'policy.lines[].product_code' },
-  { placeholder: '{{line.product_name}}', source: 'policy.lines[].product_name' },
-  { placeholder: '{{line.net_price}}', source: 'policy.lines[].net_price', format: 'money_vnd' },
-  { placeholder: '{{line.discount_rate}}', source: 'policy.lines[].discount_rate', format: 'percent_2' },
+  { placeholder: '{{cong_ty.ten}}', source: 'cong_ty.ten', required: true },
+  { placeholder: '{{cong_ty.dia_chi}}', source: 'cong_ty.dia_chi' },
+  { placeholder: '{{cong_ty.ma_so_thue}}', source: 'cong_ty.ma_so_thue' },
+  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
+  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang', required: true },
+  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky', required: true },
+  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien', required: true },
+  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no', format: 'money_vnd' },
+  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
+  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung', format: 'date_dmy' },
+  { placeholder: '{{ngay_in}}', source: 'ngay_in', format: 'date_dmy' },
+  { placeholder: '{{dong.stt}}', source: 'san_pham.stt' },
+  { placeholder: '{{dong.ma_san_pham}}', source: 'san_pham.ma_san_pham' },
+  { placeholder: '{{dong.ten_san_pham}}', source: 'san_pham.ten_san_pham' },
+  { placeholder: '{{dong.gia_thu_ve}}', source: 'san_pham.gia_thu_ve', format: 'money_vnd' },
+  { placeholder: '{{dong.ty_le_ck}}', source: 'san_pham.ty_le_ck', format: 'percent_2' },
 ];
 
-/**
- * Ánh xạ mặc định của mẫu hồ sơ — phủ ĐỦ 13 mục bắt buộc của muc 11.1.
- *
- * Nếu thiếu một mục thì chính `publish` từ chối mẫu mặc định, và service không
- * seed được gì lúc khởi động. Đó là chủ ý: bảng này và `NGUON_BAT_BUOC_HO_SO`
- * phải khớp nhau, và cách rẻ nhất để giữ chúng khớp là để cái sau canh cái trước.
- */
 const DEFAULT_HO_SO_MAPPING: MappingInput[] = [
-  { placeholder: '{{company.name}}', source: 'company.name', required: true },
-  { placeholder: '{{company.address}}', source: 'company.address' },
-  { placeholder: '{{company.tax_code}}', source: 'company.tax_code' },
-  { placeholder: '{{policy.code}}', source: 'policy.code', required: true },
-  { placeholder: '{{policy.version_no}}', source: 'policy.version_no' },
-  { placeholder: '{{policy.status}}', source: 'policy.status', required: true },
-  { placeholder: '{{policy.applied_date}}', source: 'policy.applied_date', format: 'date_dmy' },
-  { placeholder: '{{customer.code}}', source: 'customer.code', required: true },
-  { placeholder: '{{customer.name}}', source: 'customer.name', required: true },
-  { placeholder: '{{customer.registered_address}}', source: 'customer.registered_address' },
-  { placeholder: '{{customer.owner_name}}', source: 'customer.owner_name' },
-  { placeholder: '{{customer.debt}}', source: 'customer.debt', format: 'money_vnd' },
-  { placeholder: '{{person.tdv}}', source: 'person.tdv', required: true },
-  { placeholder: '{{person.tbp}}', source: 'person.tbp' },
-  { placeholder: '{{person.ke_toan}}', source: 'person.ke_toan' },
-  { placeholder: '{{policy.tbp_signed_at}}', source: 'policy.tbp_signed_at', format: 'date_dmy' },
-  { placeholder: '{{policy.kt_l2_received_at}}', source: 'policy.kt_l2_received_at', format: 'date_dmy' },
-  { placeholder: '{{policy.attachments}}', source: 'policy.attachments' },
+  { placeholder: '{{cong_ty.ten}}', source: 'cong_ty.ten', required: true },
+  { placeholder: '{{cong_ty.dia_chi}}', source: 'cong_ty.dia_chi' },
+  { placeholder: '{{cong_ty.ma_so_thue}}', source: 'cong_ty.ma_so_thue' },
+  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
+  { placeholder: '{{ho_so.phien_ban}}', source: 'ho_so.phien_ban' },
+  { placeholder: '{{ho_so.trang_thai}}', source: 'ho_so.trang_thai', required: true },
+  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung', format: 'date_dmy' },
+  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang', required: true },
+  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
+  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky' },
+  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien' },
+  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no', format: 'money_vnd' },
+  { placeholder: '{{ho_so.nguoi_de_nghi}}', source: 'ho_so.nguoi_de_nghi', required: true },
+  { placeholder: '{{ho_so.truong_bo_phan}}', source: 'ho_so.truong_bo_phan' },
+  { placeholder: '{{ho_so.ke_toan}}', source: 'ho_so.ke_toan' },
+  { placeholder: '{{ho_so.ngay_tbp_ky}}', source: 'ho_so.ngay_tbp_ky', format: 'date_dmy' },
+  { placeholder: '{{ho_so.ngay_kt_nhan_l2}}', source: 'ho_so.ngay_kt_nhan_l2', format: 'date_dmy' },
+  { placeholder: '{{ho_so.tep_dinh_kem}}', source: 'ho_so.tep_dinh_kem' },
+  { placeholder: '{{ho_so.chu_ky_so_TBP}}', source: 'ho_so.chu_ky_so_TBP' },
 ];
 
 /**
  * Thân mẫu hồ sơ mặc định — chép lại bố cục của bản A4 dựng cứng trước `0055`.
  *
- * Giữ nguyên thứ tự và cách gọi tên để người đang quen bản cũ mở ra không thấy
- * khác gì; khác biệt duy nhất là giờ Quản trị SỬA ĐƯỢC nó.
+ * `{{bang_san_pham}}` là chỗ hệ thống nhét cả bảng sản phẩm vào, với số cột CPBH
+ * đúng theo hồ sơ đang xem.
  *
- * Ô `{{policy.lines_table}}` là chỗ hệ thống nhét cả bảng sản phẩm vào, với số
- * cột CPBH đúng theo hồ sơ đang xem.
+ * `{{ho_so.chu_ky_so_TBP}}` đứng CUỐI, tách hẳn khỏi khối thời gian duyệt: nó là
+ * KHỐI CHỮ KÝ trên văn bản, chỗ mà người đọc bản giấy đưa mắt xuống tìm.
  */
 const defaultHoSoBody = (): string =>
   [
-    para('{{company.name}}'),
-    para('{{company.address}} — MST {{company.tax_code}}'),
+    para('{{cong_ty.ten}}'),
+    para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
     para(''),
     para('CHÍNH SÁCH BÁN HÀNG'),
-    para('Số {{policy.code}} · phiên bản {{policy.version_no}}'),
+    para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}'),
     para(''),
-    // NHÃN tường minh cho từng mục. Bản A4 là văn bản đưa cho người ký đọc —
-    // một con số đứng trơ không nói được nó là con số gì.
-    para('Trạng thái: {{policy.status}}'),
-    para('Mã khách hàng: {{customer.code}}'),
-    para('Tên khách hàng: {{customer.name}}'),
-    para('Địa chỉ: {{customer.registered_address}}'),
-    para('Người đại diện: {{customer.owner_name}}'),
-    para('Công nợ: {{customer.debt}} đồng'),
-    para('Người đề nghị: {{person.tdv}}'),
-    para('Thời gian áp dụng: {{policy.applied_date}}'),
+    para('Trạng thái: {{ho_so.trang_thai}}'),
+    para('Mã khách hàng: {{ho_so.ma_khach_hang}}'),
+    para('Tên khách hàng: {{ho_so.ten_khach_hang}}'),
+    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
+    para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
+    para('Công nợ: {{ho_so.cong_no}} đồng'),
+    para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
+    para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
     para(''),
-    para('{{policy.lines_table}}'),
+    para('{{bang_san_pham}}'),
     para(''),
     para('Thời gian duyệt'),
-    para('Trưởng bộ phận: {{person.tbp}} — ký ngày {{policy.tbp_signed_at}}'),
-    para('Kế toán: {{person.ke_toan}} — tiếp nhận ngày {{policy.kt_l2_received_at}}'),
-    para('File đính kèm: {{policy.attachments}}'),
+    para('Trưởng bộ phận: {{ho_so.truong_bo_phan}} — ký ngày {{ho_so.ngay_tbp_ky}}'),
+    para('Kế toán: {{ho_so.ke_toan}} — tiếp nhận ngày {{ho_so.ngay_kt_nhan_l2}}'),
+    para('File đính kèm: {{ho_so.tep_dinh_kem}}'),
+    para(''),
+    para('{{ho_so.chu_ky_so_TBP}}'),
   ].join('');
 
 const defaultTemplateBody = (): string =>
   [
-    para('{{company.name}}'),
-    para('{{company.address}} — MST {{company.tax_code}}'),
+    para('{{cong_ty.ten}}'),
+    para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
     para(''),
     para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
-    para('Số hồ sơ CSBH: {{policy.code}} — ngày áp dụng {{policy.applied_date}}'),
+    para('Số hồ sơ CSBH: {{ho_so.ma_ho_so}} — ngày áp dụng {{ho_so.ngay_ap_dung}}'),
     para(''),
-    para('BÊN MUA: {{customer.name}} (mã {{customer.code}})'),
-    para('Địa chỉ: {{customer.registered_address}}'),
-    para('Người đại diện: {{customer.owner_name}}'),
-    para('Công nợ hiện tại: {{customer.debt}} đồng'),
+    para('BÊN MUA: {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
+    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
+    para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
+    para('Công nợ hiện tại: {{ho_so.cong_no}} đồng'),
     para(''),
     para('Danh sách sản phẩm và chính sách giá:'),
     table([
-      tableRow(['#', 'Mã sản phẩm', 'Tên sản phẩm', 'Giá thu về', 'Tỷ lệ chiết khấu']),
+      tableRow(['#', 'Mã sản phẩm', 'Tên sản phẩm', 'Giá thu về', 'Tỷ lệ chiết khấu'], true),
       tableRow([
-        '{{line.index}}',
-        '{{line.product_code}}',
-        '{{line.product_name}}',
-        '{{line.net_price}}',
-        '{{line.discount_rate}}',
+        '{{dong.stt}}',
+        '{{dong.ma_san_pham}}',
+        '{{dong.ten_san_pham}}',
+        '{{dong.gia_thu_ve}}',
+        '{{dong.ty_le_ck}}',
       ]),
     ]),
     para(''),
-    para('Hà Nội, ngày {{today}}'),
+    para('Hà Nội, ngày {{ngay_in}}'),
   ].join('');
 
 const view = (r: TemplateRow) => ({

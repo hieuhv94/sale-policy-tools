@@ -17,7 +17,7 @@ export type Format = 'text' | 'money_vnd' | 'date_dmy' | 'percent_2';
 export const FORMATS: Format[] = ['text', 'money_vnd', 'date_dmy', 'percent_2'];
 
 /** Tiền tố của nhóm trường theo dòng sản phẩm — dòng bảng mang nó sẽ được nhân bản. */
-export const LINE_PREFIX = 'policy.lines[].';
+export const LINE_PREFIX = 'san_pham.';
 
 type Ctx = {
   policy: PolicyFull;
@@ -25,60 +25,88 @@ type Ctx = {
   people: Record<string, string>;
 };
 
-/** Trường đơn: một hồ sơ ra một giá trị. */
+/**
+ * Trường đơn: một hồ sơ ra một giá trị.
+ *
+ * KHOÁ VIẾT BẰNG TIẾNG VIỆT từ `0056`. Trước đó là `customer.name`,
+ * `policy.applied_date`, `person.tdv` — tên bảng dữ liệu, không phải tên thứ mà
+ * người soạn mẫu đang tìm.
+ *
+ * MỘT NHÓM `ho_so.` cho tất cả, kể cả thông tin khách hàng và người xử lý.
+ * Người soạn mẫu nghĩ theo câu hỏi "trong hồ sơ này có gì", không nghĩ theo
+ * lược đồ CSDL; tách `khach_hang.` ra riêng là bắt họ học một cách chia mà chỉ
+ * hệ thống mới cần.
+ *
+ * `cong_ty.` đứng riêng vì nó KHÔNG thuộc hồ sơ — nó giống nhau ở mọi hồ sơ.
+ */
 const SCALAR: Record<string, (c: Ctx) => string | null> = {
-  'customer.code': (c) => c.customer.code,
-  'customer.name': (c) => c.customer.name,
-  'customer.id_number': (c) => c.customer.idNumber,
-  'customer.registered_address': (c) => c.customer.registeredAddress,
-  'customer.delivery_address': (c) => c.customer.deliveryAddress ?? c.customer.registeredAddress,
-  'customer.owner_name': (c) => c.customer.ownerName,
-  'customer.owner_title': (c) => c.customer.ownerTitle,
-  'customer.debt': (c) => c.customer.debt,
-
-  'policy.code': (c) => c.policy.code,
-  'policy.version_no': (c) => String(c.policy.version_no),
-  'policy.applied_date': (c) => c.policy.applied_date ?? c.policy.effective_from,
-  'policy.effective_from': (c) => c.policy.effective_from,
-  'policy.tbp_signed_at': (c) => c.policy.tbp_signed_at,
-  'policy.kt_l1_received_at': (c) => c.policy.kt_l1_received_at,
-  'policy.kt_l2_received_at': (c) => c.policy.kt_l2_received_at,
-  /*
-   * Ba trường thêm ở `0055` cho MẪU HỒ SƠ CSBH — muc 11.1 liệt kê chúng trong
-   * 13 mục bắt buộc của bản A4, mà mẫu hợp đồng trước nay không cần.
-   *
-   * `policy.status` trả về NHÃN tiếng Việt, không phải mã enum: bản A4 là văn
-   * bản đưa cho người ký đọc, và "CHO_TBP_DUYET" không phải tiếng Việt.
-   */
-  'policy.status': (c) => STATUS_LABEL[c.policy.status] ?? c.policy.status,
-  'policy.attachments': (c) =>
+  // --- Thông tin chung của hồ sơ ---
+  'ho_so.ma_ho_so': (c) => c.policy.code,
+  'ho_so.phien_ban': (c) => String(c.policy.version_no),
+  'ho_so.trang_thai': (c) => STATUS_LABEL[c.policy.status] ?? c.policy.status,
+  'ho_so.ngay_ap_dung': (c) => c.policy.applied_date ?? c.policy.effective_from,
+  'ho_so.ngay_hieu_luc': (c) => c.policy.effective_from,
+  'ho_so.tep_dinh_kem': (c) =>
     c.policy.attachments.length === 0
       ? 'Không có file đính kèm'
       : c.policy.attachments.map((a) => `${a.file_name} (${a.kind})`).join('; '),
 
-  'company.name': () => COMPANY.name,
-  'company.address': () => COMPANY.address,
-  'company.tax_code': () => COMPANY.taxCode,
+  // --- Khách hàng TRONG hồ sơ ---
+  'ho_so.ma_khach_hang': (c) => c.customer.code,
+  'ho_so.ten_khach_hang': (c) => c.customer.name,
+  'ho_so.ma_so_thue': (c) => c.customer.idNumber,
+  'ho_so.dia_chi_dang_ky': (c) => c.customer.registeredAddress,
+  'ho_so.noi_nhan_hang': (c) => c.customer.deliveryAddress ?? c.customer.registeredAddress,
+  'ho_so.nguoi_dai_dien': (c) => c.customer.ownerName,
+  'ho_so.chuc_danh_dai_dien': (c) => c.customer.ownerTitle,
+  'ho_so.cong_no': (c) => c.customer.debt,
 
-  'person.tdv': (c) => c.people['TDV'] ?? null,
-  'person.tbp': (c) => c.people['TBP'] ?? null,
-  'person.ke_toan': (c) => c.people['KE_TOAN'] ?? null,
-  'person.sale_admin': (c) => c.people['SALE_ADMIN'] ?? null,
+  // --- Người xử lý hồ sơ ---
+  'ho_so.nguoi_de_nghi': (c) => c.people['TDV'] ?? null,
+  'ho_so.truong_bo_phan': (c) => c.people['TBP'] ?? null,
+  'ho_so.ke_toan': (c) => c.people['KE_TOAN'] ?? null,
+  'ho_so.sale_admin': (c) => c.people['SALE_ADMIN'] ?? null,
+  'ho_so.ngay_tbp_ky': (c) => c.policy.tbp_signed_at,
+  'ho_so.ngay_kt_nhan_l1': (c) => c.policy.kt_l1_received_at,
+  'ho_so.ngay_kt_nhan_l2': (c) => c.policy.kt_l2_received_at,
 
-  today: () => new Date().toISOString(),
+  /**
+   * KHỐI CHỮ KÝ SỐ của Trưởng bộ phận (`0056`) — HAI DÒNG.
+   *
+   * Trả về chuỗi có `\n`, và `setParagraphText` đã đổi nó thành `<w:br/>` từ
+   * trước, nên hai dòng ra đúng hai dòng trên giấy.
+   *
+   * CHƯA KÝ thì trả về RỖNG, không phải "chưa ký". Một khối chữ ký trên văn bản
+   * chưa ký là một tuyên bố sai — và bản CSBH ở trạng thái Nháp vẫn xem được,
+   * nên tình huống này xảy ra hằng ngày.
+   */
+  'ho_so.chu_ky_so_TBP': (c) =>
+    c.policy.tbp_signed_at === null ? '' : `TBP đã ký số\n${dmy(c.policy.tbp_signed_at)}`,
+
+  // --- Công ty, và ngày in ra giấy ---
+  'cong_ty.ten': () => COMPANY.name,
+  'cong_ty.dia_chi': () => COMPANY.address,
+  'cong_ty.ma_so_thue': () => COMPANY.taxCode,
+
+  ngay_in: () => new Date().toISOString(),
 };
 
-/** Trường theo dòng sản phẩm: một hồ sơ ra N giá trị. */
+/**
+ * Trường theo dòng sản phẩm: một hồ sơ ra N giá trị.
+ *
+ * Chỉ MẪU HỢP ĐỒNG dùng nhóm này — nơi bảng do người soạn vẽ tay với số cột cố
+ * định. Mẫu hồ sơ CSBH dùng `{{bang_san_pham}}`, và hệ thống dựng cả bảng với
+ * đúng số cột CPBH của từng hồ sơ (muc 7.1).
+ */
 const LINE: Record<string, (l: PolicyLine, i: number) => string | null> = {
-  index: (_l, i) => String(i + 1),
-  product_code: (l) => l.product_code_snap,
-  product_name: (l) => l.product_name_snap,
-  company_price: (l) => l.company_price,
-  wholesale_price: (l) => l.wholesale_price,
-  cpbh_total: (l) => l.cpbh_total,
-  net_price: (l) => l.net_price,
-  discount_rate: (l) => l.discount_rate,
-  threshold: (l) => l.threshold_snap,
+  stt: (_l, i) => String(i + 1),
+  ma_san_pham: (l) => l.product_code_snap,
+  ten_san_pham: (l) => l.product_name_snap,
+  gia_cong_ty: (l) => l.company_price,
+  gia_ban_buon: (l) => l.wholesale_price,
+  cpbh_tong: (l) => l.cpbh_total,
+  gia_thu_ve: (l) => l.net_price,
+  ty_le_ck: (l) => l.discount_rate,
 };
 
 export const KNOWN_SOURCES: string[] = [
@@ -103,19 +131,19 @@ export const KNOWN_SOURCES: string[] = [
  * trong bảng do hệ thống dựng, không phải ô trống rời.
  */
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
-  'company.name',
-  'customer.code',
-  'customer.name',
-  'customer.debt',
-  'policy.code',
-  'policy.applied_date',
-  'policy.status',
-  'policy.attachments',
-  'person.tdv',
-  'person.tbp',
-  'person.ke_toan',
-  'policy.tbp_signed_at',
-  'policy.kt_l2_received_at',
+  'cong_ty.ten',
+  'ho_so.ma_khach_hang',
+  'ho_so.ten_khach_hang',
+  'ho_so.cong_no',
+  'ho_so.ma_ho_so',
+  'ho_so.ngay_ap_dung',
+  'ho_so.trang_thai',
+  'ho_so.tep_dinh_kem',
+  'ho_so.nguoi_de_nghi',
+  'ho_so.truong_bo_phan',
+  'ho_so.ke_toan',
+  'ho_so.ngay_tbp_ky',
+  'ho_so.ngay_kt_nhan_l2',
 ];
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);

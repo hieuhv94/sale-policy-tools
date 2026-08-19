@@ -18,7 +18,7 @@ export const NHAN_DINH_DANG: Record<DinhDang, string> = {
 };
 
 /** Tiền tố của nhóm trường theo dòng sản phẩm — dòng bảng mang nó sẽ được nhân bản. */
-export const TIEN_TO_DONG = 'policy.lines[].';
+export const TIEN_TO_DONG = 'san_pham.';
 
 export type MauHopDong = {
   id: string;
@@ -108,10 +108,16 @@ export function nhomNguon(ds: string[]): { nhan: string; nguon: string[] }[] {
   return [...nhom].map(([nhan, nguon]) => ({ nhan: NHAN_NHOM[nhan] ?? nhan, nguon }));
 }
 
+/**
+ * Nhãn nhóm cho ô chọn. Khoá là tiền tố của trường nguồn (`0056`).
+ *
+ * `ho_so` gom TẤT CẢ — thông tin chung, khách hàng, người xử lý. Người soạn mẫu
+ * nghĩ theo câu hỏi "trong hồ sơ này có gì", không nghĩ theo lược đồ CSDL.
+ */
 const NHAN_NHOM: Record<string, string> = {
-  customer: 'Khách hàng',
-  policy: 'Hồ sơ CSBH',
-  company: 'Công ty',
+  ho_so: 'Hồ sơ CSBH',
+  cong_ty: 'Công ty',
+  ngay_in: 'Khác',
   'Dòng sản phẩm': 'Dòng sản phẩm (nhân bản theo dòng)',
 };
 

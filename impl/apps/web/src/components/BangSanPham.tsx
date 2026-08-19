@@ -117,6 +117,17 @@ export const COT_TRUOC = [
   { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
   { khoa: 'wholesalePrice', nhan: 'Giá bán buôn' },
+  /*
+   * CPBH TỔNG, đứng ngay TRƯỚC các khoản lẻ (`0056`).
+   *
+   * Con số cộng lại là thứ người đọc cần trước — nó là cái đi vào phép tính giá
+   * thu về. Từng khoản lẻ chỉ cần khi thấy tổng lạ và muốn soi. Đặt tổng sau
+   * dải CPBH1…CPBHn thì mắt phải lướt qua cả dải rồi mới tới thứ mình tìm.
+   *
+   * Bản in A4 xếp đúng thứ tự này — hai bảng phải đọc giống nhau, nếu không thì
+   * người đối chiếu màn hình với bản giấy phải dò lại từ đầu.
+   */
+  { khoa: 'cpbhTotal', nhan: 'CPBH tổng' },
 ] as const;
 
 export const COT_SAU = [
@@ -330,6 +341,7 @@ export function BangSanPham({
                 </th>
                 <td className="so">{tien(d.companyPrice)}</td>
                 <td className="so">{tien(d.wholesalePrice)}</td>
+                <td className="so">{tien(d.cpbhTotal)}</td>
                 {/* Ô TRỐNG cho dòng ít khoản hơn, không phải số 0 — xem chú
                     thích đầu tệp. */}
                 {Array.from({ length: soCotCpbh(dong) }, (_, k) => (

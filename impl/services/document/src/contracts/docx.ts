@@ -27,7 +27,15 @@ const DOCUMENT_XML = 'word/document.xml';
 export class NotADocxError extends Error {}
 
 /** Chuỗi ô trống hợp lệ: `{{ten.truong}}`, chỉ chữ thường, số, dấu chấm và gạch dưới. */
-export const PLACEHOLDER_RE = /\{\{\s*([a-z0-9_.[\]]+)\s*\}\}/g;
+/**
+ * Ô trống trong mẫu. Nhận CẢ CHỮ HOA từ `0056`.
+ *
+ * Bản trước chỉ nhận `[a-z0-9_.[\]]`, và khoá `{{ho_so.chu_ky_so_TBP}}` — do
+ * khách hàng đặt tên, viết hoa ba chữ cái của một chức danh — lọt qua không
+ * khớp. Hỏng IM LẶNG theo đúng kiểu tệ nhất: `placeholdersOf` không thấy nó nên
+ * bảng ánh xạ không có dòng ấy, và bản in ra mang nguyên chuỗi `{{...}}`.
+ */
+export const PLACEHOLDER_RE = /\{\{\s*([A-Za-z0-9_.[\]]+)\s*\}\}/g;
 
 const unzip = (buf: Buffer): Record<string, Uint8Array> => {
   let files;
@@ -130,7 +138,7 @@ export type MergeInput = {
 };
 
 /** Ô trống được thay bằng cả bảng sản phẩm (`0055`). */
-export const O_BANG_SAN_PHAM = '{{policy.lines_table}}';
+export const O_BANG_SAN_PHAM = '{{bang_san_pham}}';
 
 const fill = (paragraph: string, values: Record<string, string>): string => {
   const before = textOf(paragraph);
@@ -245,8 +253,13 @@ export const para = (text: string): string =>
  * vừa cả khổ dọc lẫn khổ ngang — điều bắt buộc, vì mẫu hai khổ dùng chung một
  * hàm dựng bảng.
  */
-const cell = (text: string): string =>
-  `<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>${para(text)}</w:tc>`;
+const cell = (text: string, phanTram?: number): string => {
+  const w =
+    phanTram === undefined
+      ? '<w:tcW w:w="0" w:type="auto"/>'
+      : `<w:tcW w:w="${Math.round(phanTram)}" w:type="pct"/>`;
+  return `<w:tc><w:tcPr>${w}</w:tcPr>${para(text)}</w:tc>`;
+};
 
 /**
  * Một hàng bảng. `tieuDe` bật hai thuộc tính mà bản in nhiều trang cần:
@@ -257,24 +270,41 @@ const cell = (text: string): string =>
  *   - `w:cantSplit` — không cắt đôi một hàng qua hai trang. Nửa dòng ở cuối
  *     trang này, nửa kia ở đầu trang sau, và người ký đối chiếu nhầm cột.
  */
-export const tableRow = (cells: string[], tieuDe = false): string => {
+export const tableRow = (cells: string[], tieuDe = false, trongSo?: number[]): string => {
   const pr = tieuDe
     ? '<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'
     : '<w:trPr><w:cantSplit/></w:trPr>';
-  return `<w:tr>${pr}${cells.map(cell).join('')}</w:tr>`;
+  const tong = trongSo?.reduce((a, b) => a + b, 0);
+  const o = cells.map((c, i) =>
+    trongSo === undefined || tong === undefined || tong === 0
+      ? cell(c)
+      : cell(c, (5000 * (trongSo[i] ?? 1)) / tong),
+  );
+  return `<w:tr>${pr}${o.join('')}</w:tr>`;
 };
 
 /** Bề rộng chữ của khổ A4 dọc, tính bằng twip: 11906 trừ hai lề 1134. */
 const RONG_CHU = 9638;
 
-export const table = (rowsXml: string[]): string => {
+/**
+ * Bảng chiếm trọn bề rộng chữ.
+ *
+ * `coDinh` bật bố cục CỐ ĐỊNH: bề rộng cột lấy đúng theo `w:tcW` của từng ô, và
+ * chữ dài hơn cột thì XUỐNG DÒNG, ô cao lên. Để `autofit` thì LibreOffice nong
+ * cột ra theo nội dung — một ghi chú dài đẩy cả bảng ra ngoài mép giấy, và cột
+ * cuối cùng biến mất khỏi bản in mà không báo gì (`0056`).
+ *
+ * Mẫu hợp đồng vẫn dùng `autofit`: bảng bốn cột chữ ngắn, tự co đọc đẹp hơn.
+ */
+export const table = (rowsXml: string[], coDinh = false): string => {
   const cols = (rowsXml[0]?.match(/<w:tc[ >]/g) ?? []).length || 1;
   // `tblGrid` chỉ là GỢI Ý khi bảng ở chế độ tự co; chia đều bề rộng chữ cho số
   // cột để LibreOffice có điểm khởi đầu hợp lý thay vì dồn hết vào cột đầu.
   const rong = Math.max(360, Math.floor(RONG_CHU / cols));
   const grid = `<w:tblGrid>${`<w:gridCol w:w="${rong}"/>`.repeat(cols)}</w:tblGrid>`;
   return (
-    `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="autofit"/>` +
+    `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>` +
+    `<w:tblLayout w:type="${coDinh ? 'fixed' : 'autofit'}"/>` +
     `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:left w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:bottom w:val="single" w:sz="4" w:color="999999"/>` +

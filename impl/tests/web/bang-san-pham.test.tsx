@@ -88,11 +88,20 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
     expect(o.some((x) => x.textContent === '0')).toBe(false);
   });
 
-  it('không dòng nào có khoản nào thì KHÔNG có cột CPBH', () => {
+  it('không dòng nào có khoản nào thì KHÔNG có cột CPBH ĐÁNH SỐ', () => {
+    /*
+     * `0056` — *CPBH tổng* là cột CỐ ĐỊNH, luôn có, như *Giá thu về*.
+     *
+     * Chỉ các cột CPBH1…CPBHn mới sinh theo dữ liệu, và chúng biến mất khi
+     * không dòng nào có khoản nào — bốn cột số 0 nói sai về một hồ sơ chẳng có
+     * khoản chi phí nào.
+     */
     const ds = [dong({ cpbh: [], cpbhTotal: '0', netPrice: '90000' })];
     expect(soCotCpbh(ds)).toBe(0);
     render(<BangSanPham dong={ds} />);
-    expect(within(screen.getByRole('table')).queryByText(/^CPBH/)).toBeNull();
+    const bang = within(screen.getByRole('table'));
+    expect(bang.queryByText(/^CPBH \d/)).toBeNull();
+    expect(bang.getByText('CPBH tổng')).toBeDefined();
   });
 });
 
