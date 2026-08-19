@@ -6522,3 +6522,67 @@ tải `.docx`, đọc ô trống, ánh xạ, ban hành — chỉ khác chủ s�
 hai màn hình 560 dòng là hai chỗ phải sửa mỗi lần đổi cơ chế.
 
 **1231/1231 xanh.**
+
+## P86–P87 — Khoá tiếng Việt, bảng A4 đổi cột, trang thêm mẫu
+
+Ba câu hỏi đặt ra ở bản thiết kế 19/08 đều được chốt, và cả ba đều chọn vế tốn công hơn.
+
+### C-01 — khoá tiếng Việt cho CẢ HAI loại mẫu
+
+`{{customer.name}}` → `{{ho_so.ten_khach_hang}}`. **Một nhóm `ho_so.` cho tất cả**, kể cả thông tin
+khách hàng và người xử lý: người soạn mẫu nghĩ theo câu hỏi *"trong hồ sơ này có gì"*, không nghĩ
+theo lược đồ CSDL. `cong_ty.` đứng riêng vì nó không thuộc hồ sơ.
+
+**Đổi tên, không thêm bí danh.** Giữ cả hai cách gọi nghĩa là hai bảng khoá cùng đúng, và người soạn
+mẫu thứ hai sẽ chép nhầm bảng của người thứ nhất — rồi hỏi vì sao mẫu của mình không ánh xạ được.
+
+Migration `0051` đổi tên nguồn tại chỗ cho mẫu đã tải lên. `placeholder` thì KHÔNG đổi được — nó là
+chuỗi nằm trong chính file `.docx`, và phần mềm không sửa file người dùng. Nên tên ô và tên nguồn
+hơi lệch nhau ở những mẫu cũ; đó là cái giá rẻ nhất, vì cách duy nhất để chúng khớp lại là bắt Sale
+Admin soạn lại mọi mẫu. Mẫu **mặc định** thì xoá hẳn để `ensureDefault` dựng lại với ô trống tiếng
+Việt — nó do hệ thống sinh ra nên không có gì để mất.
+
+### C-02 — bỏ hẳn cột *Ngưỡng*
+
+Bảng A4 giờ: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · **CPBH tổng** ·
+CPBH1…CPBHn · Giá thu về · Tỷ lệ CK · Ghi chú.
+
+Đã nêu hệ quả trước khi làm và khách hàng chấp nhận: bản giấy không còn nói mức chiết khấu tối đa
+cho phép, nên **hồ sơ vượt ngưỡng và hồ sơ đúng ngưỡng trông giống hệt nhau trên giấy**.
+
+**Ghi chú tự xuống dòng** đòi đổi bố cục bảng sang bề rộng CỐ ĐỊNH theo trọng số từng cột. Để
+`autofit` thì LibreOffice nong cột ra theo nội dung — một ghi chú dài đẩy cả bảng ra ngoài mép giấy,
+và cột cuối cùng biến mất khỏi bản in mà không báo gì. Mẫu hợp đồng vẫn `autofit`: bảng bốn cột chữ
+ngắn, tự co đọc đẹp hơn.
+
+### Khoá mới `{{ho_so.chu_ky_so_TBP}}`
+
+Khối hai dòng: *TBP đã ký số* và ngày ký. `setParagraphText` đã đổi `\n` thành `<w:br/>` từ trước
+nên không phải thêm gì.
+
+**Chưa ký thì trả về RỖNG**, không phải chữ "chưa ký": một khối chữ ký trên văn bản chưa ai ký là
+một tuyên bố sai, và bản CSBH ở trạng thái Nháp vẫn xem được nên tình huống này xảy ra hằng ngày.
+
+Khoá này làm lộ một lỗi im lặng: `PLACEHOLDER_RE` chỉ nhận **chữ thường**, nên `TBP` viết hoa lọt
+qua không khớp — `placeholdersOf` không thấy nó, bảng ánh xạ không có dòng ấy, và bản in mang nguyên
+chuỗi `{{...}}`.
+
+### C-03 — trang riêng, hướng dẫn nằm ngay trên trang
+
+Hộp thoại ba ô đổi thành một trang: biểu mẫu bên trái, danh sách khoá bên phải, **bấm một khoá là
+chép**. Hộp thoại cũ gỡ hẳn — mẫu hợp đồng cũng dùng trang này, nên chỉ còn MỘT đường tải mẫu lên.
+
+Ca kiểm thử đáng giá nhất là phép **đối chiếu hai phía**: bảng hướng dẫn phải liệt kê đúng những
+khoá máy chủ nhận. Thiếu một khoá thì người soạn mẫu không biết nó tồn tại; thừa một khoá thì họ gõ
+vào file, ánh xạ không được, và thông báo lỗi nói *"không có trường nguồn"* về đúng thứ phần mềm vừa
+mời họ dùng.
+
+### Hai bẫy môi trường
+
+- **Container `document` đang chạy mã cũ** vẫn seed mẫu mặc định lúc khởi động, bằng khoá cũ. Bộ
+  test dựng app trong tiến trình nên nó thấy "đã có mẫu" và bỏ qua — bản mềm ra thiếu bảng, và triệu
+  chứng là ba ca đỏ chẳng liên quan gì tới nhau. Xoá mẫu mặc định rồi chạy lại là xong.
+- **`userEvent.setup()` tự cài clipboard giả của riêng nó** lên `navigator`, đè mất bản giả của ca
+  kiểm thử. Dùng `fireEvent` cho ca chép khoá.
+
+**1241/1241 xanh.**

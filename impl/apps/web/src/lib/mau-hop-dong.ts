@@ -131,3 +131,60 @@ const NHAN_NHOM: Record<string, string> = {
  */
 export const banHanhDuoc = (oTrong: string[], daChon: Set<string>): boolean =>
   oTrong.every((p) => daChon.has(p));
+
+/**
+ * NHÃN tiếng Việt của từng khoá trộn — nội dung bảng hướng dẫn trên trang thêm
+ * mẫu (`0056`).
+ *
+ * Giữ ở giao diện chứ không lấy từ máy chủ: máy chủ trả về danh sách KHOÁ, còn
+ * đây là câu giải thích cho người đọc, và nó thuộc về chỗ có người đọc. Có một
+ * ca kiểm thử đối chiếu hai bên — thêm khoá ở máy chủ mà quên nhãn ở đây thì
+ * bảng hướng dẫn thiếu một dòng, và người soạn mẫu không biết khoá ấy tồn tại.
+ */
+export const NHAN_KHOA: Record<string, string> = {
+  'ho_so.ma_ho_so': 'Mã hồ sơ CSBH',
+  'ho_so.phien_ban': 'Số phiên bản',
+  'ho_so.trang_thai': 'Trạng thái hồ sơ',
+  'ho_so.ngay_ap_dung': 'Ngày áp dụng',
+  'ho_so.ngay_hieu_luc': 'Ngày bắt đầu có hiệu lực',
+  'ho_so.tep_dinh_kem': 'Danh sách tệp đính kèm',
+
+  'ho_so.ma_khach_hang': 'Mã khách hàng',
+  'ho_so.ten_khach_hang': 'Tên khách hàng',
+  'ho_so.ma_so_thue': 'Mã số thuế khách hàng',
+  'ho_so.dia_chi_dang_ky': 'Địa chỉ đăng ký',
+  'ho_so.noi_nhan_hang': 'Nơi nhận hàng — trống thì lấy địa chỉ đăng ký',
+  'ho_so.nguoi_dai_dien': 'Người đại diện',
+  'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
+  'ho_so.cong_no': 'Công nợ',
+
+  'ho_so.nguoi_de_nghi': 'Người đề nghị — Trình dược viên lập hồ sơ',
+  'ho_so.truong_bo_phan': 'Trưởng bộ phận đã ký',
+  'ho_so.ke_toan': 'Kế toán tiếp nhận',
+  'ho_so.sale_admin': 'Sale Admin xử lý',
+  'ho_so.ngay_tbp_ky': 'Ngày Trưởng bộ phận ký',
+  'ho_so.ngay_kt_nhan_l1': 'Ngày Kế toán tiếp nhận lần 1',
+  'ho_so.ngay_kt_nhan_l2': 'Ngày Kế toán tiếp nhận lần 2',
+  'ho_so.chu_ky_so_TBP': 'Khối chữ ký số — “TBP đã ký số” và ngày ký ở dòng dưới',
+
+  'cong_ty.ten': 'Tên Công ty',
+  'cong_ty.dia_chi': 'Địa chỉ Công ty',
+  'cong_ty.ma_so_thue': 'Mã số thuế Công ty',
+
+  ngay_in: 'Ngày in văn bản — không phải ngày của hồ sơ',
+
+  'san_pham.stt': 'Số thứ tự dòng',
+  'san_pham.ma_san_pham': 'Mã sản phẩm',
+  'san_pham.ten_san_pham': 'Tên sản phẩm',
+  'san_pham.gia_cong_ty': 'Giá công ty',
+  'san_pham.gia_ban_buon': 'Giá bán buôn',
+  'san_pham.cpbh_tong': 'CPBH tổng',
+  'san_pham.gia_thu_ve': 'Giá thu về',
+  'san_pham.ty_le_ck': 'Tỷ lệ chiết khấu',
+};
+
+/** Ô trống được thay bằng CẢ BẢNG sản phẩm — chỉ mẫu hồ sơ dùng tới. */
+export const O_BANG_SAN_PHAM = '{{bang_san_pham}}';
+
+/** Khoá viết thành ô trống để chép vào file Word. */
+export const oTrongCua = (khoa: string): string => `{{${khoa}}}`;

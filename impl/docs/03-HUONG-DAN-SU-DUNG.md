@@ -989,9 +989,19 @@ hành.
 - **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó, phần mềm không xoay được mẫu
   dọc thành ngang. Thiếu mẫu của một khổ thì người dùng chọn đúng khổ ấy ở *Xem bản mềm* sẽ nhận lỗi
   **“chưa có văn bản mẫu phù hợp”** — khổ kia vẫn chạy bình thường.
-- **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{policy.lines_table}}` ở chỗ muốn có bảng; phần mềm
-  thay nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**. Vẽ tay thì số cột cố định, mà
-  mỗi dòng sản phẩm có thể có tới 50 khoản CPBH.
+- **Trang thêm mẫu hiện luôn hướng dẫn.** Danh sách đầy đủ khoá kèm nhãn tiếng Việt nằm ngay cạnh
+  ô chọn tệp — **bấm một khoá là chép**, không phải gõ lại bằng tay.
+- **Khoá viết bằng tiếng Việt**, một nhóm `ho_so.` cho tất cả: `{{ho_so.ten_khach_hang}}`,
+  `{{ho_so.cong_no}}`, `{{ho_so.ngay_ap_dung}}`, `{{ho_so.nguoi_de_nghi}}`. Riêng `{{cong_ty.ten}}`
+  và mấy khoá công ty đứng nhóm khác vì chúng giống nhau ở mọi hồ sơ.
+- **Khối chữ ký số**: `{{ho_so.chu_ky_so_TBP}}` in ra hai dòng — *TBP đã ký số* và ngày ký ở dòng
+  dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**, không in một khối chữ ký cho văn bản chưa ai ký.
+- **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
+  nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**. Vẽ tay thì số cột cố định, mà mỗi
+  dòng sản phẩm có thể có tới 50 khoản CPBH.
+  > Cột: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · **CPBH tổng** · CPBH1…CPBHn
+  > · Giá thu về · Tỷ lệ CK · Ghi chú. Ghi chú dài thì **tự xuống dòng**, ô cao lên — cột không bị
+  > đẩy ra ngoài mép giấy.
 - **Ban hành bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ 13 mục ở phần *Yêu cầu hiển thị
   file*; màn hình liệt kê sẵn mục nào còn thiếu, ngay khi bạn đang ánh xạ.
 - **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem

@@ -558,9 +558,15 @@ nói rõ dòng nào hẹp hơn dòng nào.
 - **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó và không xoay được lúc trộn,
   mà mục 11.1 đòi đủ cả hai khổ. Vì thế *"chưa có văn bản mẫu phù hợp"* nghĩa là **chưa có mẫu đúng
   khổ đang xem** — khổ kia vẫn chạy bình thường.
-- **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{policy.lines_table}}`, và
-  hệ thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ
-  sẵn trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
+- **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{bang_san_pham}}`, và hệ
+  thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ sẵn
+  trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
+- **Khoá trộn viết bằng tiếng Việt** `sửa 19/08`, cho cả mẫu hồ sơ lẫn mẫu hợp đồng. Một nhóm
+  `ho_so.` gom tất cả — thông tin chung, khách hàng, người xử lý; `cong_ty.` đứng riêng vì nó không
+  thuộc hồ sơ. Ví dụ: `{{ho_so.ten_khach_hang}}`, `{{ho_so.ngay_ap_dung}}`, `{{cong_ty.ten}}`.
+- **Trang thêm mẫu hiện luôn hướng dẫn** `mới 19/08`: danh sách đầy đủ khoá kèm nhãn tiếng Việt,
+  bấm một khoá là chép. Là một **trang riêng**, không phải hộp thoại — hướng dẫn dài hơn biểu mẫu
+  vài lần.
 - **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
   lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
 
@@ -663,6 +669,12 @@ Thuộc **giai đoạn 1**.
 Mỗi dòng sản phẩm có số khoản CPBH riêng, nhưng một bảng in ra giấy phải có **số cột đều nhau** —
 cột so le thì không đọc theo hàng dọc được và người ký không đối chiếu nổi.
 
+- Cột của bảng, chốt `19/08`: **STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn ·
+  CPBH tổng · CPBH1…CPBHn · Giá thu về · Tỷ lệ CK · Ghi chú**. Cột *Ngưỡng* đã **bỏ hẳn** — bản giấy
+  không còn nói mức chiết khấu tối đa cho phép, nên hồ sơ vượt ngưỡng và hồ sơ đúng ngưỡng trông
+  giống nhau trên giấy; khách hàng biết và chấp nhận.
+- **Ghi chú tự xuống dòng**, ô cao lên theo. Bảng dùng bố cục bề rộng cố định: để cột tự co theo nội
+  dung thì một ghi chú dài đẩy cả bảng ra ngoài mép giấy, và cột cuối cùng biến mất khỏi bản in.
 - Số cột CPBH của cả bảng = **dòng nhiều khoản nhất**.
 - Dòng ít khoản hơn để **ô trống**, KHÔNG điền số 0. Số 0 là một con số có nghĩa ("khoản này bằng
   không"); ô trống nói đúng điều cần nói là dòng ấy không có khoản thứ mấy đó.

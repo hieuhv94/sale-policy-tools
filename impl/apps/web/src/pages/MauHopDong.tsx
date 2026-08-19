@@ -39,6 +39,7 @@ import {
   Truong,
 } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
+import { ThemMau } from './ThemMau.js';
 import { useTrangTaiCho } from '../lib/phan-trang.js';
 
 /** Mẫu hợp đồng — Sale Admin (muc 8.2). */
@@ -98,6 +99,30 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
 
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
+
+  /*
+   * Thêm mẫu là một TRANG RIÊNG, không phải hộp thoại (chốt C-03 ngày 19/08).
+   *
+   * Hướng dẫn đặt khoá dài hơn biểu mẫu vài lần; nhét vào hộp thoại thì phần
+   * cuộn được nằm trong chính cái đang che phần còn lại của ứng dụng.
+   *
+   * Vẫn nằm trong cùng thành phần chứ không thêm một đường dẫn: danh sách và
+   * trang thêm dùng chung `taiLai`, và tải lên xong là mở thẳng bảng ánh xạ —
+   * việc bắt buộc tiếp theo, không nên bắt người dùng tự đi tìm nút.
+   */
+  if (moTai) {
+    return (
+      <ThemMau
+        loai={loai}
+        quayLai={() => datMoTai(false)}
+        xong={(t) => {
+          datMoTai(false);
+          taiLai();
+          datAnhXa(t);
+        }}
+      />
+    );
+  }
 
   /*
    * "Đã đủ mẫu chưa" hỏi theo TỪNG KHỔ GIẤY với mẫu hồ sơ (`0055`).
@@ -274,20 +299,6 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
         />
       )}
 
-      {moTai && (
-        <HopThoaiTaiMau
-          loai={loai}
-          dong={() => datMoTai(false)}
-          xong={(t) => {
-            datMoTai(false);
-            taiLai();
-            // Mở thẳng màn hình ánh xạ: mẫu vừa tải lên chưa ánh xạ ô nào, và
-            // đó là việc bắt buộc tiếp theo. Đóng hộp thoại rồi để người dùng tự
-            // tìm nút là thêm một bước không cần thiết.
-            datAnhXa(t);
-          }}
-        />
-      )}
 
       {anhXa && (
         <HopThoaiAnhXa
@@ -301,115 +312,6 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
         />
       )}
     </section>
-  );
-}
-
-// --- Tải mẫu lên -------------------------------------------------------------
-
-function HopThoaiTaiMau({
-  loai,
-  dong,
-  xong,
-}: {
-  loai: LoaiMau;
-  dong: () => void;
-  xong: (t: MauDto) => void;
-}) {
-  const ch = CAU_HINH_MAU[loai];
-  const [ten, datTen] = useState('');
-  const [kho, datKho] = useState<KhoGiay>('a4p');
-  const [tep, datTep] = useState<File | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tep) return;
-    datLoi(null);
-    datDangGui(true);
-    try {
-      const form = new FormData();
-      form.append('file', tep);
-      form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
-      if (ch.theoKhoGiay) form.append('paperSize', kho);
-      const t = await guiTep<MauDto>(ch.duong, form);
-      xong(t);
-    } catch (err) {
-      datLoi(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
-
-  return (
-    <HopThoai tieuDe={ch.nhanTaiLen} dong={dong}>
-      <form onSubmit={gui}>
-        <ChuThichBatBuoc />
-
-        <p className="ghi-chu">
-          File <strong>.docx</strong> với các ô trống dạng <code>{'{{ten_o}}'}</code>. Hệ thống đọc
-          ô trống ngay lúc tải lên — file hỏng thì mẫu đang dùng không bị ảnh hưởng.
-        </p>
-
-        <Truong id="mhd-ten" nhan="Tên mẫu">
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              value={ten}
-              placeholder="Để trống thì lấy tên file"
-              onChange={(e) => datTen(e.target.value)}
-            />
-          )}
-        </Truong>
-        {ch.theoKhoGiay && (
-          <Truong id="mhd-kho" nhan="Khổ giấy" bắtBuộc>
-            {(p) => (
-              <select
-                {...p}
-                className="o-nhap"
-                value={kho}
-                onChange={(e) => datKho(e.target.value as KhoGiay)}
-              >
-                {KHO_GIAY.map((k) => (
-                  <option key={k} value={k}>
-                    {NHAN_KHO[k]}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Truong>
-        )}
-        {ch.theoKhoGiay && (
-          <p className="ghi-chu">
-            Khổ giấy phải khớp với chính file .docx — hệ thống không xoay được mẫu dọc thành ngang.
-            Đặt ô <code>{'{{policy.lines_table}}'}</code> ở chỗ muốn có bảng sản phẩm; hệ thống dựng
-            bảng ấy với <strong>đúng số cột CPBH của từng hồ sơ</strong>.
-          </p>
-        )}
-        <Truong id="mhd-tep" nhan="Tệp mẫu" bắtBuộc>
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              type="file"
-              accept=".docx"
-              onChange={(e) => datTep(e.target.files?.[0] ?? null)}
-            />
-          )}
-        </Truong>
-
-        {loi !== null && <BaoLoi loi={loi} />}
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || tep === null}>
-            {dangGui ? 'Đang tải…' : 'Tải lên'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Huỷ
-          </button>
-        </div>
-      </form>
-    </HopThoai>
   );
 }
 

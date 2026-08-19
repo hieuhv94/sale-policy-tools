@@ -1646,3 +1646,81 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   color: var(--mau-canh-bao);
   font-weight: 600;
 }
+
+/* `0056` — trang THÊM MẪU: biểu mẫu bên trái, hướng dẫn bên phải.
+
+   Hai cột trên màn hình rộng; dưới 60rem thì xếp chồng, biểu mẫu trước — người
+   dùng tới đây để tải một file lên, hướng dẫn là thứ đọc kèm. */
+.them-mau {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--k5);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .them-mau { grid-template-columns: 1fr; }
+}
+
+.them-mau-form,
+.them-mau-huong-dan {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  padding: var(--k4);
+}
+
+.them-mau-huong-dan h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.them-mau-huong-dan h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--mau-chu-phu);
+  margin: var(--k4) 0 var(--k2);
+}
+
+.bang-khoa {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.88rem;
+}
+
+.bang-khoa td {
+  padding: 0.15rem var(--k3) 0.15rem 0;
+  border-bottom: 1px solid var(--mau-vien);
+  vertical-align: middle;
+}
+
+.bang-khoa tr:last-child td { border-bottom: none; }
+
+/* Khoá bấm được để chép. Là `<button>` chứ không phải `<code>` có `onClick`:
+   bàn phím phải tới được nó, và trình đọc màn hình phải gọi nó là một nút. */
+.khoa-chep {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--k2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--bo-goc);
+  padding: 0.1rem 0.3rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.khoa-chep:hover,
+.khoa-chep:focus-visible {
+  border-color: var(--mau-vien);
+  background: var(--mau-nen-phu);
+}
+
+.khoa-chep .dau-chep {
+  font-size: 0.72rem;
+  color: var(--mau-chu-phu);
+  white-space: nowrap;
+}

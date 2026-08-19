@@ -38,6 +38,7 @@
     "./xem-tep": "./src/components/XemTep.tsx",
     "./xem-ban-mem": "./src/components/XemBanMem.tsx",
     "./mau-van-ban": "./src/pages/MauHopDong.tsx",
+    "./them-mau": "./src/pages/ThemMau.tsx",
     "./tep-dinh-kem": "./src/components/TepDinhKem.tsx"
   },
   "scripts": {
