@@ -10,13 +10,19 @@
  * dựng lại cây theo bề rộng là thứ `FE-06` cấm.
  */
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { usePhien } from '../lib/auth.js';
+import { useEffect, useRef, useState } from 'react';
+import { usePhien, type NguoiDung } from '../lib/auth.js';
 import { dieuHuongCho } from '../lib/can.js';
 import { NHAN_VAI_TRO } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import logo from '../logo.png';
-import { BieuTuongDangXuat, BieuTuongDong, BieuTuongMenu, bieuTuongMuc } from './BieuTuong.js';
+import {
+  BieuTuongDangXuat,
+  BieuTuongDong,
+  BieuTuongMenu,
+  BieuTuongTaiKhoan,
+  bieuTuongMuc,
+} from './BieuTuong.js';
 import { NutGiaoDien } from './NutGiaoDien.js';
 
 /**
@@ -31,6 +37,106 @@ function chuDau(ten: string | undefined): string {
   const cuoi = phan[phan.length - 1]!;
   if (phan.length === 1) return cuoi.slice(0, 2).toUpperCase();
   return (phan[phan.length - 2]![0]! + cuoi[0]!).toUpperCase();
+}
+
+/**
+ * Thẻ tên ở thanh trên cùng, bấm vào thì SỔ XUỐNG (`0062`).
+ *
+ * Trước đó thanh này có hai thứ đứng cạnh nhau: một thẻ tên dẫn thẳng sang
+ * *Thông tin của tôi*, và một nút *Đăng xuất* bày sẵn ngay bên phải nó. Hai vấn
+ * đề, và cái thứ hai nặng hơn:
+ *
+ *   1. Nút đăng xuất chiếm chỗ thường trực trên MỌI màn hình cho một việc người
+ *      ta làm mỗi ngày một lần.
+ *   2. Nó nằm sát ngay cạnh thẻ tên — chỗ người ta bấm để vào xem thông tin của
+ *      mình — nên bấm trượt một lần là mất phiên và mất cả biểu mẫu đang dở.
+ *
+ * Gom cả hai vào một menu sổ xuống thì việc nguy hiểm cần HAI cú bấm có chủ ý,
+ * và thanh trên cùng thưa ra một khối.
+ *
+ * KHÔNG dùng `role="menu"`: nội dung có một dòng chữ (email) không phải mục bấm
+ * được, mà `role="menu"` thì mọi con của nó phải là `menuitem`. Đây là mẫu
+ * *disclosure* — một nút `aria-expanded` mở ra một khối — và nó mô tả đúng thứ
+ * đang xảy ra hơn.
+ */
+function MenuTaiKhoan({
+  nguoiDung,
+  dangXuat,
+}: {
+  nguoiDung: NguoiDung | null;
+  dangXuat: () => void;
+}) {
+  const [mo, datMo] = useState(false);
+  const khung = useRef<HTMLDivElement>(null);
+  const nut = useRef<HTMLButtonElement>(null);
+  const { duong } = useDuong();
+
+  // Chuyển màn hình thì đóng. Bấm *Thông tin tài khoản* xong mà menu còn treo
+  // trên màn hình mới là một khối lơ lửng không ai gọi ra.
+  useEffect(() => datMo(false), [duong]);
+
+  useEffect(() => {
+    if (!mo) return;
+    /*
+     * `mousedown` chứ không `click`: bấm ra ngoài để đóng phải đóng ngay lúc
+     * ngón tay chạm xuống. Nghe `click` thì trên phần tử vừa bị đóng đè lên,
+     * thứ tự sự kiện đổi theo trình duyệt và có máy nuốt mất cú bấm đầu tiên.
+     */
+    const ngoai = (e: MouseEvent) => {
+      if (!khung.current?.contains(e.target as Node)) datMo(false);
+    };
+    const phim = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      datMo(false);
+      // Trả tiêu điểm về nút đã mở nó, nếu không người dùng bàn phím rơi về đầu
+      // trang và phải Tab lại từ đó.
+      nut.current?.focus();
+    };
+    document.addEventListener('mousedown', ngoai);
+    document.addEventListener('keydown', phim);
+    return () => {
+      document.removeEventListener('mousedown', ngoai);
+      document.removeEventListener('keydown', phim);
+    };
+  }, [mo]);
+
+  return (
+    <div className="menu-tai-khoan" ref={khung}>
+      <button
+        type="button"
+        ref={nut}
+        className="the-nguoi-dung"
+        aria-expanded={mo}
+        onClick={() => datMo((x) => !x)}
+      >
+        <span className="anh-dai-dien" aria-hidden="true">
+          {chuDau(nguoiDung?.fullName)}
+        </span>
+        <span className="nguoi-dung-chu">
+          <span className="ten">{nguoiDung?.fullName}</span>
+          <span className="vai-tro">{NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}</span>
+        </span>
+        <span className="mui-ten" aria-hidden="true" />
+      </button>
+
+      {mo && (
+        <div className="menu-so">
+          {/* Email ở dòng đầu, KHÔNG bấm được: nó trả lời "tôi đang đăng nhập
+              bằng tài khoản nào" — câu hỏi hay gặp nhất ở người dùng chung máy
+              — chứ không dẫn đi đâu. */}
+          <p className="menu-so-email">{nguoiDung?.email ?? '—'}</p>
+          <Lien den="/thong-tin" className="menu-so-muc">
+            <BieuTuongTaiKhoan />
+            Thông tin tài khoản
+          </Lien>
+          <button type="button" className="menu-so-muc menu-so-thoat" onClick={dangXuat}>
+            <BieuTuongDangXuat />
+            Đăng xuất
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function BoCuc({ children }: { children: ReactNode }) {
@@ -121,25 +227,7 @@ export function BoCuc({ children }: { children: ReactNode }) {
 
           <div className="nguoi-dung">
             <NutGiaoDien />
-
-            {/* Thẻ tên là ĐƯỜNG VÀO màn hình thông tin của mình. Chỗ người ta
-                bấm khi muốn sửa tên mình là chính chỗ hiện tên mình. */}
-            <Lien den="/thong-tin" className="the-nguoi-dung">
-              <span className="anh-dai-dien" aria-hidden="true">
-                {chuDau(nguoiDung?.fullName)}
-              </span>
-              <span className="nguoi-dung-chu">
-                <span className="ten">{nguoiDung?.fullName}</span>
-                <span className="vai-tro">
-                  {NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}
-                </span>
-              </span>
-            </Lien>
-
-            <button type="button" className="nut nut-nhe nut-thoat" onClick={dangXuat}>
-              <BieuTuongDangXuat />
-              <span className="thoat-chu">Đăng xuất</span>
-            </button>
+            <MenuTaiKhoan nguoiDung={nguoiDung} dangXuat={dangXuat} />
           </div>
         </header>
 

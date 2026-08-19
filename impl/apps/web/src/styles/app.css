@@ -223,6 +223,10 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   gap: var(--k2);
 }
 
+/* Menu tài khoản (`0062`). `position: relative` để khối sổ xuống neo vào thẻ
+   tên chứ không vào cả thanh tiêu đề. */
+.menu-tai-khoan { position: relative; }
+
 .the-nguoi-dung {
   display: flex;
   align-items: center;
@@ -231,12 +235,76 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   border: 1px solid var(--mau-vien);
   border-radius: 999px;
   background: var(--mau-nen-phu);
-  /* Là liên kết tới "Thông tin của tôi" nhưng KHÔNG trông như một liên kết chữ:
-     gạch chân với đổi màu ở đây làm thanh trên cùng thành một mớ nhấp nháy. */
+  /* Là nút mở menu nhưng KHÔNG trông như một cái nút: viền dày với chữ đậm ở
+     đây làm thanh trên cùng thành một mớ nhấp nháy. */
   color: inherit;
-  text-decoration: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 .the-nguoi-dung:hover { border-color: var(--mau-vien-dam); background: var(--mau-nen-hover); }
+.the-nguoi-dung:focus-visible { outline: var(--vong-tieu-diem); outline-offset: 2px; }
+
+/* Mũi tên sổ xuống — dấu hiệu DUY NHẤT cho biết thẻ tên bấm được. Thiếu nó thì
+   nó trông y hệt một nhãn tĩnh, và không ai bấm vào một nhãn. */
+.mui-ten {
+  flex: none;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: var(--k1);
+  border-right: 2px solid var(--mau-chu-phu);
+  border-bottom: 2px solid var(--mau-chu-phu);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 120ms ease;
+}
+.the-nguoi-dung[aria-expanded='true'] .mui-ten { transform: translateY(1px) rotate(-135deg); }
+
+.menu-so {
+  position: absolute;
+  top: calc(100% + var(--k2));
+  right: 0;
+  z-index: 40;
+  min-width: 15rem;
+  padding: var(--k2);
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  box-shadow: var(--bong-noi);
+}
+/* Email cắt bằng dấu ba chấm chứ không xuống dòng: địa chỉ dài làm khối rộng
+   gấp đôi, mà phần đuôi tên miền thì ai cũng đoán được. */
+.menu-so-email {
+  margin: 0 0 var(--k2);
+  padding: var(--k1) var(--k2) var(--k2);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--mau-vien);
+}
+.menu-so-muc {
+  display: flex;
+  align-items: center;
+  gap: var(--k2);
+  width: 100%;
+  min-height: var(--vung-cham);
+  padding: var(--k2);
+  border: 0;
+  border-radius: var(--bo-goc-nho);
+  background: none;
+  color: var(--mau-chu);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-so-muc:hover { background: var(--mau-nen-hover); }
+.menu-so-muc:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
+/* Đăng xuất mang màu cảnh báo: nó cắt phiên và xoá bản nháp đang giữ, không
+   cùng hạng với một mục điều hướng. */
+.menu-so-thoat { color: var(--mau-loi); }
+.menu-so-thoat:hover { background: var(--mau-loi-nen); }
 .anh-dai-dien {
   display: inline-grid;
   place-items: center;
@@ -1315,8 +1383,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
      nó vẫn ở đó mà không ai đọc được. */
   .nguoi-dung-chu { display: none; }
   .the-nguoi-dung { padding: var(--k1); border: 0; background: none; }
-  .thoat-chu { display: none; }
-  .nut-thoat { padding: 0 var(--k3); }
+  /* Menu sổ xuống bám mép phải màn hình, không tràn ra ngoài (`0062`). */
+  .menu-so { min-width: min(17rem, calc(100vw - var(--k5))); }
 
   /* Bảng sản phẩm → thẻ. KHÔNG cột nào biến mất (FE-03). */
   .khung-cuon:has(.bang-san-pham) { display: none; }

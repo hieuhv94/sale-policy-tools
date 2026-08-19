@@ -73,8 +73,27 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
-**Thanh trên cùng** có ba thứ, từ phải sang: nút **Đăng xuất**, tên và vai trò của bạn, và nút đổi
-**giao diện sáng / tối**.
+**Thanh trên cùng** có hai thứ, từ phải sang: **thẻ tên** của bạn, và nút đổi **giao diện sáng /
+tối**.
+
+### Menu tài khoản
+
+Bấm vào **tên mình** ở thanh trên cùng thì sổ xuống ba dòng:
+
+| Dòng | Là gì |
+|---|---|
+| `ten@nutricare.com.vn` | Email của tài khoản đang đăng nhập — **chỉ để đọc**, không bấm được |
+| **Thông tin tài khoản** | Mở màn hình *Thông tin của tôi*: sửa tên, email, đổi mật khẩu |
+| **Đăng xuất** | Cắt phiên |
+
+Đóng lại bằng cách bấm ra ngoài, bấm lại vào thẻ tên, hoặc nhấn **Esc**.
+
+> **Vì sao Đăng xuất không còn bày sẵn.** Trước đây nó là một nút đứng ngay cạnh thẻ tên — tức là sát
+> ngay chỗ người ta bấm để vào xem thông tin của mình. Bấm trượt một lần là mất phiên **và mất cả
+> biểu mẫu đang nhập dở**. Giờ nó cần hai cú bấm có chủ ý.
+>
+> Dòng email ở trên cùng trả lời câu hỏi hay gặp nhất trên máy dùng chung ở quầy: *"máy này đang đăng
+> nhập bằng tài khoản nào?"*
 
 ### Ô bắt buộc và ô tuỳ chọn
 

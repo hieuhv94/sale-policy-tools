@@ -5903,3 +5903,44 @@ dẫn sử dụng.
 `tests/web/chi-tiet-ho-so.test.tsx` — 14 ca, dựng thật cả màn hình (`PhienProvider` + `BoDinhTuyen`,
 chặn `fetch` theo ĐƯỜNG DẪN chứ không theo thứ tự lời gọi). `tests/http/policy.test.ts` thêm hai ca
 `0061`: khối khách hàng có mặt và công nợ là chuỗi; người đề nghị không đổi khi đổi TDV phụ trách.
+
+## P72 — Thẻ tên sổ xuống thành menu tài khoản, đăng xuất không còn bày sẵn
+
+Yêu cầu: bỏ nút *Đăng xuất* đứng cạnh thẻ tên; bấm vào tên mình thì sổ xuống — dòng đầu là email, hai
+dòng sau là *Thông tin tài khoản* và *Đăng xuất*.
+
+### Vấn đề thật nằm ở khoảng cách giữa hai nút
+
+Thanh trên cùng có hai thứ đứng SÁT nhau: thẻ tên dẫn sang *Thông tin của tôi*, và ngay bên phải nó
+là nút cắt phiên. Bấm trượt một lần thì mất phiên **và mất cả biểu mẫu đang nhập dở** — mà `dangXuat`
+xoá luôn bản nháp trong `sessionStorage`, khác hẳn với phiên hết hạn (thứ đã được `FE-33` lo cho).
+
+Gom vào menu thì việc nguy hiểm cần hai cú bấm có chủ ý, và thanh trên cùng thưa ra một khối.
+
+### Không dùng `role="menu"`
+
+Nội dung có một dòng chữ không bấm được (email), mà `role="menu"` thì mọi con của nó phải là
+`menuitem`. Đây là mẫu **disclosure** — một nút `aria-expanded` mở ra một khối — và nó mô tả đúng thứ
+đang xảy ra hơn. Kèm theo: Escape đóng và **trả tiêu điểm về nút đã mở**, nếu không người dùng bàn
+phím rơi về đầu trang.
+
+Đóng bằng `mousedown` chứ không `click`: bấm ra ngoài phải đóng ngay lúc ngón tay chạm xuống. Nghe
+`click` thì thứ tự sự kiện đổi theo trình duyệt và có máy nuốt mất cú bấm đầu tiên.
+
+### Mũi tên là dấu hiệu DUY NHẤT
+
+Thẻ tên trước đây là `<a>`, giờ là `<button>`. Không thêm mũi tên thì nó trông y hệt một nhãn tĩnh —
+và không ai bấm vào một nhãn. Nó xoay 180° khi mở.
+
+### Chỗ chưa tốt, nói trước
+
+Dưới 640px `.nguoi-dung-chu` bị ẩn (FE-15), nên thẻ tên chỉ còn ảnh đại diện, và menu sổ ra chỉ có
+email. Trên điện thoại **không màn hình nào hiện tên và vai trò của chính mình** ngoài
+*/thong-tin*. Đây là tình trạng có từ trước, không phải đợt này gây ra — nhưng menu tài khoản là chỗ
+tự nhiên để sửa nó nếu khách hàng thấy vướng.
+
+### Kiểm chứng
+
+`tests/web/menu-tai-khoan.test.tsx` — 8 ca, dựng thật `BoCuc`. Ca chính: **lúc chưa bấm gì thì không
+có nút Đăng xuất nào trên màn hình**; email không phải liên kết; *Thông tin tài khoản* là thẻ neo
+thật (mở tab mới, sao chép địa chỉ, bấm chuột giữa — cả ba chỉ chạy trên liên kết).

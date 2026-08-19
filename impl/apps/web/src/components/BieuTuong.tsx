@@ -177,6 +177,11 @@ export function BieuTuongMatTrang() {
   );
 }
 
+/** Dùng cho mục *Thông tin tài khoản* trong menu tài khoản (`0062`). */
+export function BieuTuongTaiKhoan() {
+  return HinhNguoiDung;
+}
+
 export function BieuTuongDangXuat() {
   return (
     <Hinh>
