@@ -6250,3 +6250,19 @@ tác đi customer → policy bằng HTTP, và `POLICY_URL` mặc định trỏ v
 Ba ca mới ở `notification.test.ts` (bản cũ khác người → có thư; bản cũ cùng người → **không** thư
 nào; ngừng hợp tác → ba người còn lại), hai nhóm khẳng định mới ở `sla.test.ts` cho M-01 và M-03,
 và hai vế của việc bỏ số bước ở cả hai tệp. **1158/1158 xanh.**
+
+### Sáu điểm còn lại — đã duyệt, giữ nguyên (19/08)
+
+Khách hàng xem xong và chốt **không sửa** sáu điểm còn mở. Ghi lại thành quyết định chứ không để
+chúng lơ lửng như câu hỏi chưa trả lời — ba tháng nữa đọc lại sẽ tưởng là việc bỏ quên:
+
+| Mã | Quyết định |
+|---|---|
+| M-02 | Tiêu đề thư **không** thêm mã hồ sơ. Tên khách hàng là thứ người nhận nhận ra nhanh hơn một dãy mã, và mã hồ sơ đã nằm ở dòng thứ ba của thân thư. |
+| M-04 | TDV **không** nhận thư xác nhận khi gửi duyệt — họ vừa thấy kết quả trên màn hình. |
+| M-05 | Thư nhắc trước hạn **chỉ** tới người đang phải xử lý, không kèm TDV. |
+| M-06 | Ban lãnh đạo và Quản trị **không** nhận thư nào — họ theo dõi trên màn hình. |
+| M-07 | Xoá hồ sơ vẫn báo cả TBP lẫn Kế toán, kể cả khi Kế toán chưa chạm vào hồ sơ. Thà báo thừa. |
+| M-09 | Thư *để biết* vẫn gửi ở **mọi** bước, không chặn trần theo mốc lớn. |
+
+Toàn bộ mười điểm của bản rà soát luồng email đã đóng. Không còn điểm nào chờ trả lời.
