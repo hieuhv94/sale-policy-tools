@@ -213,10 +213,20 @@ describe('`0061` thao tác ở góc trên bên phải', () => {
     expect(screen.queryByRole('heading', { name: 'Thao tác' })).toBeNull();
   });
 
-  it('vai trò không làm được gì thì KHÔNG có nhóm nút rỗng ở tiêu đề', async () => {
-    // Một khối bo góc rỗng bám mép phải tiêu đề trông như giao diện hỏng.
+  it('`0054` vai trò không làm được gì thì nhóm nút chỉ còn ĐÚNG nút xem', async () => {
+    /*
+     * Ca này đảo chiều ở `0054`, và đảo có lý do.
+     *
+     * Bản cũ khẳng định nhóm nút BIẾN MẤT khi vai trò không thao tác được gì —
+     * một khối bo góc rỗng bám mép phải tiêu đề trông như giao diện hỏng. Giờ
+     * nhóm ấy luôn có ít nhất *Xem bản mềm*, vốn không phải thao tác ghi, nên nó
+     * không bao giờ rỗng nữa. Điều cần giữ là **không có nút ghi nào lọt vào**.
+     */
     await mo(HO_SO, []);
-    expect(document.querySelector('.nhom-nut-dau')).toBeNull();
+    const dau = document.querySelector('.nhom-nut-dau');
+    expect(dau).not.toBeNull();
+    const ten = [...dau!.querySelectorAll('button')].map((b) => b.textContent);
+    expect(ten).toEqual(['Xem bản mềm']);
   });
 });
 
@@ -331,20 +341,69 @@ describe('`0050` cảnh báo bản scan Kế toán đã yêu cầu in lại', ()
 describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () => {
   const nut = (ten: string) => screen.queryByRole('button', { name: ten });
 
-  it('có nút Xem bản CSBH, và nút tải vẫn còn đủ HAI khổ', async () => {
+  it('`0054` MỘT nút *Xem bản mềm*, và nó nằm cùng hàng với mã hồ sơ', async () => {
     await mo();
-    expect(nut('Xem bản CSBH')).not.toBeNull();
-    // Khổ giấy chỉ có nghĩa lúc IN RA GIẤY, nên xem chỉ một khổ còn tải thì hai.
-    expect(nut('Tải bản CSBH (A4 dọc)')).not.toBeNull();
-    expect(nut('Tải bản CSBH (A4 ngang)')).not.toBeNull();
+    const n = nut('Xem bản mềm');
+    expect(n).not.toBeNull();
+    // Cùng hàng với `<h1>`, không phải một mục giữa trang.
+    expect(n!.closest('.nhom-nut-dau')).not.toBeNull();
+
+    // Ba nút cũ đã dồn hết vào nút trên.
+    expect(nut('Xem bản CSBH')).toBeNull();
+    expect(nut('Tải bản CSBH (A4 dọc)')).toBeNull();
+    expect(nut('Tải bản CSBH (A4 ngang)')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Tải văn bản' })).toBeNull();
   });
 
-  it('bấm Xem thì mở hộp thoại và tải nội dung qua `goi()`, không nhúng thẳng', async () => {
+  it('`0054` bấm vào thì hỏi KHỔ GIẤY trước, chưa tải gì cả', async () => {
+    /*
+     * Thứ tự này là cả điểm của `0054`: bản cũ bắt chọn khổ TRƯỚC khi nhìn thấy
+     * nội dung, trong khi chính nội dung mới nói được khổ nào vừa. Giờ hộp mở ra
+     * là một câu hỏi, và chưa gọi máy chủ lần nào.
+     */
     const f = await mo();
-    fireEvent.click(screen.getByRole('button', { name: 'Xem bản CSBH' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
-    const duong = f.mock.calls.map((c) => String(c[0]));
-    expect(duong.some((d) => d.includes('/render?size=a4p'))).toBe(true);
+    expect(screen.getByRole('button', { name: 'A4 dọc' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'A4 ngang' })).toBeDefined();
+    expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
+  });
+
+  it('`0054` chọn khổ rồi mới tải nội dung, và đường xem mang `xem=1`', async () => {
+    const f = await mo();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    await waitFor(() => screen.getByRole('button', { name: 'A4 ngang' }));
+    fireEvent.click(screen.getByRole('button', { name: 'A4 ngang' }));
+
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
+      expect(d.length).toBeGreaterThan(0);
+      expect(d.every((x) => x.includes('size=a4l'))).toBe(true);
+      // Xem thì KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
+      expect(d.every((x) => x.includes('xem=1'))).toBe(true);
+    });
+  });
+
+  it('`0054` gợi ý khổ theo SỐ DÒNG, nhưng vẫn cho chọn khổ kia', async () => {
+    // Hồ sơ nhiều dòng thì bảng mười cột ép chữ trên khổ dọc. Gợi ý, không ép.
+    await mo({ ...HO_SO, lines: [1, 2, 3, 4, 5, 6].map(() => ({})) });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    await waitFor(() => screen.getByRole('button', { name: 'A4 ngang' }));
+    expect(screen.getByRole('button', { name: 'A4 ngang' }).className).toContain('nut-chinh');
+    expect(screen.getByRole('button', { name: 'A4 dọc' })).toBeDefined();
+  });
+
+  it('`0054` Ban lãnh đạo — không có nút thao tác nào nhưng VẪN xem được bản mềm', async () => {
+    /*
+     * Trước `0054` cả nhóm nút ở tiêu đề ẩn khi `thaoTac` rỗng, nên vai trò
+     * chỉ-đọc không thấy nút nào. Xem bản mềm không phải thao tác ghi.
+     */
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'BAN_LANH_DAO', username: 'bld01' } }),
+    );
+    await mo(HO_SO, []);
+    expect(nut('Xem bản mềm')).not.toBeNull();
   });
 
   it('Trưởng bộ phận KHÔNG thấy nút hợp đồng nào — cả xem lẫn xuất (FE-24)', async () => {

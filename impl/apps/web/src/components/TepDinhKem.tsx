@@ -1,5 +1,10 @@
 /**
- * Tệp đính kèm: tải lên, tải xuống, gỡ.
+ * **Bản cứng** — tệp đính kèm của hồ sơ: tải lên, xem, tải xuống, gỡ.
+ *
+ * Nhãn trên màn hình đổi từ *Tệp đính kèm* sang *Bản cứng* ở `0054`. Tên cũ tả
+ * cơ chế ("đây là mấy file đính vào"), tên mới tả THỨ NGƯỜI DÙNG NHÌN THẤY: bản
+ * giấy đã ký, đã scan lại. Đứng cạnh nút *Xem bản mềm* thì cặp mềm–cứng nói
+ * ngay ra hai thứ khác nhau ở chỗ nào.
  *
  * Tải xuống là HAI BƯỚC ở phía máy chủ (`DOC-09`): `GET /files/:id/link` cấp một
  * token gắn với đúng người đang gọi, rồi mới tải nội dung. Không có URL công
@@ -139,7 +144,7 @@ export function TepDinhKem({
 
   return (
     <>
-      <h2>Tệp đính kèm</h2>
+      <h2>Bản cứng</h2>
 
       {loaiGhiDuoc.length > 0 && (
         <div className="nhom-nut">

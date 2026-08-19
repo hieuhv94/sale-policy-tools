@@ -1626,6 +1626,15 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   background: var(--mau-nen-phu);
 }
 
+/* `0054` — hàng chọn khổ giấy, đứng ngay trên khung xem bản mềm. */
+.hang-kho-giay {
+  display: flex;
+  align-items: center;
+  gap: var(--k3);
+  flex-wrap: wrap;
+  margin-bottom: var(--k3);
+}
+
 .khung-anh img {
   max-width: 100%;
   max-height: 100%;

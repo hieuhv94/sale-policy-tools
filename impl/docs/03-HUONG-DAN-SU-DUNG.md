@@ -718,15 +718,22 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
 
 ### Xem tệp không cần tải về
 
-Mỗi tệp đính kèm có **hai nút**: *Xem* và *Tải xuống*. *Xem* mở tệp ngay trong phần mềm — PDF và
+Mục **Bản cứng** liệt kê tệp đính kèm của hồ sơ. Mỗi tệp có **hai nút**: *Xem* và *Tải xuống*. *Xem* mở tệp ngay trong phần mềm — PDF và
 ảnh hiện thẳng trong một hộp, có nút **Đóng** luôn nhìn thấy và nút *Tải xuống* nếu bạn vẫn cần bản
 về máy.
 
 Tệp Word, Excel và các định dạng khác **không xem trực tiếp được** — trình duyệt chỉ mở sẵn được PDF
 và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng.
 
-Mục *Tải văn bản* cũng có **Xem bản CSBH** và **Xem hợp đồng**. Nút *Xem* mở khổ **A4 dọc**; khổ
-ngang chỉ có ở nút tải, vì khổ giấy chỉ có nghĩa khi in ra giấy — trên màn hình thì cuộn ngang được.
+**Xem bản mềm** là một nút ở **góc trên bên phải**, ngang hàng với mã hồ sơ — mọi vai trò đọc được
+hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì hộp thoại hỏi **khổ giấy** trước, rồi mới hiện nội
+dung; dưới bản xem có nút *Tải xuống* và *Đóng*, và đổi khổ được ngay trong hộp.
+
+> Hỏi khổ giấy **trước khi** hiện nội dung nghe như thừa một bước, nhưng nó thay ba nút rời trước
+> đây bằng một nút. Và khổ nào vừa thì chính nội dung mới nói được: hồ sơ ít dòng đọc khổ dọc dễ
+> hơn, hồ sơ nhiều dòng thì khổ ngang mới không ép chữ. Hộp gợi ý sẵn khổ hợp với số dòng của hồ sơ.
+
+Mục **Hợp đồng** đứng riêng, chỉ Kế toán và Sale Admin thấy và chỉ sau khi tiếp nhận lần 1.
 
 > **Vì sao nên xem thay vì tải.** Mỗi lần tải là một bản sao nằm lại trong thư mục tải xuống của
 > máy bạn, ngoài tầm kiểm soát của phần mềm. Mở ra đối chiếu rồi đóng thì không để lại gì.

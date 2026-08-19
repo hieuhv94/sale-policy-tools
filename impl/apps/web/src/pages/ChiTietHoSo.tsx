@@ -15,6 +15,7 @@ import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { XemTep } from '../components/XemTep.js';
+import { XemBanMem } from '../components/XemBanMem.js';
 import {
   SuaNgayApDung,
   ThemDongSanPham,
@@ -151,12 +152,10 @@ export function ChiTietHoSo({ id }: { id: string }) {
     }
   };
 
-  const taiBan = (kho: 'a4p' | 'a4l') => {
-    datLoi(null);
-    taiVe(`/policies/${id}/render?size=${kho}`, `CSBH-${kho}.pdf`).catch(datLoi);
-  };
+  /** Hộp *Xem bản mềm* đang mở hay không (`0054`). */
+  const [moBanMem, datMoBanMem] = useState(false);
 
-  /** Tệp đang mở xem trực tiếp — bản CSBH hoặc hợp đồng (`0051`). */
+  /** Tệp đang mở xem trực tiếp — hợp đồng (`0051`). */
   const [dangXem, datDangXem] = useState<{
     tieuDe: string;
     duong: string;
@@ -204,20 +203,29 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       <div className="dau-trang">
         <h1>{hoSo.code}</h1>
-        {thaoTac.length > 0 && (
-          <div className="nhom-nut nhom-nut-dau">
-            {thaoTac.map((a) => (
-              <button
-                key={a}
-                type="button"
-                className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
-                onClick={() => datHanhDong(a)}
-              >
-                {HANH_DONG_NHAN[a] ?? a}
-              </button>
-            ))}
-          </div>
-        )}
+        {/*
+          *Xem bản mềm* đứng CÙNG HÀNG với các nút thao tác (`0054`).
+
+          Nó không phải thao tác ghi nên không phạm `FE-23`, và nó mở cho cả năm
+          vai trò đọc được hồ sơ — kể cả Ban lãnh đạo, vốn không có nút nào khác.
+          Vì thế nhóm nút này KHÔNG còn điều kiện `thaoTac.length > 0`: trước
+          `0054` vai trò chỉ-đọc không thấy nhóm nút nào cả.
+        */}
+        <div className="nhom-nut nhom-nut-dau">
+          <button type="button" className="nut nut-nhe" onClick={() => datMoBanMem(true)}>
+            Xem bản mềm
+          </button>
+          {thaoTac.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
+              onClick={() => datHanhDong(a)}
+            >
+              {HANH_DONG_NHAN[a] ?? a}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/*
@@ -334,52 +342,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
         taiLai={taiLai}
       />
 
-      <h2>Tải văn bản</h2>
-      <div className="nhom-nut">
-        {/*
-          Bản CSBH A4 mở cho cả năm vai trò đọc được hồ sơ, kể cả Ban lãnh đạo:
-          tải một bản in ra xem KHÔNG phải thao tác ghi, nên không phạm `FE-23`.
-          Hai khổ giấy vì bảng mười cột không vừa khổ dọc khi hồ sơ nhiều dòng.
-        */}
-        {/*
-          *Xem* mở khổ DỌC (`0051`). Không bày hai nút xem cho hai khổ: khổ ngang
-          sinh ra để bảng mười cột không bị cắt khi IN RA GIẤY, còn trên màn hình
-          thì cuộn ngang được — hai nút xem chỉ thêm một lựa chọn không ai cần
-          cân nhắc. Tải xuống thì vẫn đủ hai khổ, vì đó mới là lúc khổ giấy có nghĩa.
-        */}
-        <button
-          type="button"
-          className="nut nut-nhe"
-          onClick={() =>
-            datDangXem({
-              tieuDe: `Bản CSBH ${hoSo.code}`,
-              // `xem=1`: mở ra đọc thì KHÔNG ghi một dòng tải xuống (`0052`).
-              duong: `/policies/${hoSo.id}/render?size=a4p&xem=1`,
-              duongTai: `/policies/${hoSo.id}/render?size=a4p`,
-              tenTep: `CSBH-${hoSo.code}.pdf`,
-            })
-          }
-        >
-          Xem bản CSBH
-        </button>
-        <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4p')}>
-          Tải bản CSBH (A4 dọc)
-        </button>
-        <button type="button" className="nut nut-nhe" onClick={() => taiBan('a4l')}>
-          Tải bản CSBH (A4 ngang)
-        </button>
+      {/*
+        Mục này CHỈ CÒN HỢP ĐỒNG (`0054`).
 
-        {/*
-          Nút xuất hợp đồng chỉ hiện với Kế toán và Sale Admin (FE-24, muc 8.3).
-          Trưởng bộ phận KHÔNG thấy — YCNV ghi sai chỗ này và bản hợp nhất đã sửa.
-        */}
-        {/*
-          `xuatHopDongDuoc` là CỔNG THỜI ĐIỂM của muc 8.3 — chỉ xuất được sau khi
-          kế toán tiếp nhận lần 1. Trước `0048` giao diện chỉ xét vai trò, nên Kế
-          toán thấy nút này ở mọi hồ sơ, kể cả bản còn đang chờ TBP ký.
-        */}
-        {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
-          <>
+        Ba nút của bản CSBH — xem khổ dọc, tải khổ dọc, tải khổ ngang — đã dồn
+        vào một nút *Xem bản mềm* ở góc trên bên phải, và khổ giấy chọn ngay
+        trong hộp. Hợp đồng ở lại đây vì nó là văn bản KHÁC, chỉ Kế toán và Sale
+        Admin thấy, và chỉ sau khi tiếp nhận lần 1.
+      */}
+      {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
+        <>
+          <h2>Hợp đồng</h2>
+          <div className="nhom-nut">
             <button
               type="button"
               className="nut nut-nhe"
@@ -404,9 +378,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
             >
               Xuất hợp đồng (PDF)
             </button>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/*
         Xoá đọc thẳng cờ `xoaDuoc` MÁY CHỦ tính (`0039`).
@@ -437,6 +411,15 @@ export function ChiTietHoSo({ id }: { id: string }) {
         tiêu đề dẫn sang màn hình khác, và một liên kết như thế thì phần lớn
         người dùng không biết là có.
       */}
+      {moBanMem && (
+        <XemBanMem
+          hoSoId={hoSo.id}
+          maHoSo={hoSo.code}
+          soDong={hoSo.lines.length}
+          dong={() => datMoBanMem(false)}
+        />
+      )}
+
       {dangXem && (
         <XemTep
           tieuDe={dangXem.tieuDe}

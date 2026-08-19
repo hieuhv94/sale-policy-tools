@@ -12,7 +12,7 @@
  * bị thu hồi. Hộp này thu hồi ở nhánh dọn của `useEffect` — mở rồi đóng vài chục
  * tệp scan trong một phiên mà không thu hồi là vài trăm MB không ai đòi lại.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { taiVe, xemTruoc, type XemDuoc } from '../lib/api.js';
 import { BaoLoi, DangTai, HopThoai } from './Chung.js';
 
@@ -34,6 +34,7 @@ export function XemTep({
   duong,
   duongTai,
   tenTep,
+  truoc,
   dong,
 }: {
   tieuDe: string;
@@ -51,6 +52,15 @@ export function XemTep({
   duongTai?: string;
   /** Tên dùng khi bấm Tải xuống, nếu máy chủ không đặt tên nào. */
   tenTep: string;
+  /**
+   * Khối đứng NGAY TRÊN vùng xem — chỗ cho những lựa chọn đổi được nội dung
+   * đang xem (`0054`), ví dụ khổ giấy của bản CSBH.
+   *
+   * Đặt trên chứ không dưới: đổi lựa chọn là tải lại nội dung, và một điều
+   * khiển nằm dưới khung xem cao 68vh thì người dùng phải cuộn xuống mới thấy
+   * thứ điều khiển chính cái họ đang nhìn.
+   */
+  truoc?: ReactNode;
   dong: () => void;
 }) {
   const [tep, datTep] = useState<XemDuoc | null>(null);
@@ -91,6 +101,8 @@ export function XemTep({
 
   return (
     <HopThoai tieuDe={tieuDe} dong={dong}>
+      {truoc}
+
       {loi !== null && <BaoLoi loi={loi} />}
 
       {tep === null && loi === null && <DangTai />}

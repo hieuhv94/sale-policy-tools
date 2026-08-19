@@ -36,6 +36,7 @@
     "./chi-tiet-ho-so": "./src/pages/ChiTietHoSo.tsx",
     "./lich-su": "./src/components/LichSu.tsx",
     "./xem-tep": "./src/components/XemTep.tsx",
+    "./xem-ban-mem": "./src/components/XemBanMem.tsx",
     "./tep-dinh-kem": "./src/components/TepDinhKem.tsx"
   },
   "scripts": {
