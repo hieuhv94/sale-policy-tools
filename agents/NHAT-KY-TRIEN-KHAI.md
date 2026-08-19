@@ -6426,8 +6426,12 @@ Thêm một ca riêng khẳng định năm lượt song song ra đủ **năm dò
 
 ### Còn nợ sau ba đợt
 
-- **Xem tệp vẫn chưa ghi vết.** Muc 10 đòi lưu cả *"xem file"*; khách hàng chỉ yêu cầu ghi tải
-  xuống, và tôi làm đúng phần ấy. Nên **N-01 đóng một nửa**: tải có vết, xem thì chưa.
+- ~~Xem tệp chưa ghi vết~~ — **khách hàng bỏ hẳn yêu cầu ấy ngày 19/08**, không phải hoãn. Muc 10
+  và muc 9.2 đã sửa theo: bỏ *"xem file"* khỏi danh sách phải lưu, và bỏ *"số lần xem"* khỏi báo cáo
+  nhật ký người dùng — hệ quả trực tiếp, vì không chỗ nào ghi lượt xem thì một cột đếm lượt xem
+  vĩnh viễn bằng không.
+- **Tải TỆP ĐÍNH KÈM vẫn chưa ghi vết** — muc 10 vẫn liệt kê *"tải scan"*. Hai đường khách hàng nêu
+  đích danh (bản mềm CSBH, hợp đồng) đã xong; đường thứ ba chưa ai yêu cầu.
 - Hồ sơ pháp lý của khách hàng (`HoSoPhapLy`) vẫn chỉ có nút tải — chưa nối hộp xem vào, vì yêu cầu
   chỉ nêu bản scan, hồ sơ và hợp đồng.
 - Ba đợt này **chưa mở lần nào trong trình duyệt thật** (N-08). Hộp xem là màn hình đầu tiên của

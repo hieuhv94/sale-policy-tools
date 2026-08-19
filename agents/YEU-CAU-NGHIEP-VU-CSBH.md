@@ -733,8 +733,12 @@ trong phiên làm việc:
 > thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
 > mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
 
-Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần xem,
-ký, tiếp nhận, xuất file và tải tài liệu.
+Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần ký,
+tiếp nhận, xuất file và tải tài liệu.
+
+> **Bỏ "số lần xem"** `sửa 19/08` — hệ quả trực tiếp của quyết định ở muc 10. Không chỗ nào trong hệ
+> thống ghi lại việc xem, nên một cột đếm lượt xem sẽ vĩnh viễn bằng không; giữ nó lại chỉ khiến
+> người đọc báo cáo tưởng là không ai xem gì.
 
 ### 9.3. Box "Yêu cầu cập nhật" trên trang Tổng quan `mới 16/08`
 
@@ -781,7 +785,12 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 
 ## 10. Nhật ký, phiên bản và bảo mật
 
-- Lưu người tạo, sửa, xem file, ký số, tiếp nhận, trả lại, xuất hợp đồng, in và tải scan.
+- Lưu người tạo, sửa, ký số, tiếp nhận, trả lại, xuất hợp đồng, in và tải scan.
+- **KHÔNG lưu việc XEM file** `sửa 19/08`. Bỏ hẳn khỏi yêu cầu, không phải hoãn.
+  > Xem là mở tệp trong phần mềm rồi đóng; tải là đưa một bản sao ra khỏi hệ thống. Chỉ việc thứ hai
+  > đáng ghi. Ghi cả hai thì mỗi lần liếc màn hình thành một dòng, và những dòng nói về bước duyệt
+  > bị dìm mất — lịch sử hồ sơ sinh ra để kể chuyện hồ sơ đã đi qua tay ai, không phải để đếm lượt
+  > mở màn hình.
 - **Lịch sử của hồ sơ ghi luôn hai loại TẢI XUỐNG** `mới 19/08`: *tải bản mềm CSBH* và *tải bản hợp
   đồng*, kèm người tải và thời điểm. Chúng nằm cùng chỗ với các bước duyệt vì cùng trả lời một câu:
   hồ sơ này đã đi qua tay ai.
