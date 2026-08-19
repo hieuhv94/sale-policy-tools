@@ -6125,3 +6125,31 @@ nguoi nhan thu tbp_sign: ["KE_TOAN", "TDV"]
 ```
 
 Một lần bấm, một dòng lịch sử, một lá thư.
+
+## P76 — Dọn thanh gập *Lịch sử*: bỏ chữ nhỏ, mũi tên ra mép phải
+
+Khách hàng chê khối *Lịch sử* xấu. Hai thứ bị bỏ, một thứ đổi chỗ.
+
+### Hai dòng chữ nhỏ màu xám
+
+- Trên thanh gập: *"Từng bước hồ sơ đã đi qua, do ai, vì sao"*. Một mục tên *Lịch sử* trên màn hình
+  hồ sơ thì không cần ai giải thích.
+- Trên bảng: *"Toàn bộ các bước hồ sơ đã đi qua, cũ nhất trước. Lịch sử chỉ ghi thêm — không dòng nào
+  sửa hay xoá được."* Câu này nói hai thứ bảng đã tự nói: thứ tự đọc ra được từ cột `#`, còn tính bất
+  biến thì **không ai kiểm được bằng mắt** — nó là một lời hứa, và chỗ hứa đúng là tài liệu hướng
+  dẫn, nơi nó vẫn còn nguyên.
+
+### Mũi tên ra mép phải
+
+Trước đó nó là `::before`, đứng ngay trước tên mục. Hệ quả: vị trí của nó **trôi theo độ dài tên**,
+nên mắt phải đi tìm ở một chỗ khác nhau trên mỗi khối gập. Giờ là `::after` với
+`justify-content: space-between` — luôn ở đúng một chỗ.
+
+Kèm một chỉnh nhỏ đáng ghi: hình vuông xoay 45° có **tâm thị giác thấp hơn tâm hình học**, nên căn
+giữa theo hộp thì nó trông như bị tụt. `margin-top: -2px` khi gập, `+2px` khi mở.
+
+### Kiểm chứng
+
+Hai ca mới ở `chi-tiet-ho-so.test.tsx`: `<summary>` có ĐÚNG một phần tử con và nó là `<h2>`; thân
+khối gập không còn `.ghi-chu` nào, và phần tử đầu tiên trong đó là khung cuộn của bảng chứ không phải
+một đoạn chữ. **1155/1155 xanh.**

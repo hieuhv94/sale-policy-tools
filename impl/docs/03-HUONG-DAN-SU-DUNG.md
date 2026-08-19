@@ -669,7 +669,8 @@ màn hình), và tài khoản **đã bị vô hiệu hoá**.
 
 ### Lịch sử hồ sơ
 
-**Mục cuối cùng** của màn hình hồ sơ, gập sẵn — bấm vào tiêu đề *Lịch sử* thì sổ ra. Nó liệt kê
+**Mục cuối cùng** của màn hình hồ sơ, gập sẵn — bấm vào thanh *Lịch sử* thì sổ ra; mũi tên ở **mép
+phải** thanh cho biết đang gập hay đang mở. Nó liệt kê
 **toàn bộ** các bước hồ sơ đã đi qua, cũ nhất trước: thời điểm, việc gì, chuyển từ trạng thái nào
 sang trạng thái nào, ai làm, và lý do nếu bước đó có.
 

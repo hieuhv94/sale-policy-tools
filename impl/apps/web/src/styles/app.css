@@ -1280,25 +1280,31 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   /* Bỏ dấu tam giác mặc định của trình duyệt và tự vẽ, vì mặc định của mỗi
      trình duyệt một khác và nó không đổi được màu theo giao diện tối. */
   display: flex;
-  align-items: baseline;
-  gap: var(--k2);
+  align-items: center;
+  /* Tên mục bám mép trái, mũi tên bám mép PHẢI (`0065`). Đặt mũi tên cạnh tên
+     thì nó trôi theo độ dài của tên, và mắt phải đi tìm nó ở một chỗ khác nhau
+     trên mỗi khối gập. Ở mép phải thì nó luôn ở đúng một chỗ. */
+  justify-content: space-between;
+  gap: var(--k3);
   list-style: none;
   padding: var(--k3) var(--k4);
   cursor: pointer;
 }
 .khoi-gap > summary::-webkit-details-marker { display: none; }
-.khoi-gap > summary::before {
+.khoi-gap > summary::after {
   content: '';
   flex: none;
-  align-self: center;
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  /* Lùi lên 2px: hình vuông xoay 45° có tâm thị giác thấp hơn tâm hình học, nên
+     căn giữa theo hộp thì nó trông như bị tụt xuống. */
+  margin-top: -2px;
   border-right: 2px solid var(--mau-chu-phu);
   border-bottom: 2px solid var(--mau-chu-phu);
-  transform: rotate(-45deg);
+  transform: rotate(45deg);
   transition: transform 120ms ease;
 }
-.khoi-gap[open] > summary::before { transform: rotate(45deg); }
+.khoi-gap[open] > summary::after { transform: rotate(-135deg); margin-top: 2px; }
 .khoi-gap > summary:hover { background: var(--mau-nen-hover); }
 .khoi-gap > summary:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
 .khoi-gap > summary h2 { margin: 0; font-size: var(--chu-thuong); }

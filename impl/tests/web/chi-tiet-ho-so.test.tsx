@@ -256,6 +256,37 @@ describe('`0061` lịch sử là mục cuối, gập lại', () => {
     expect(muc.at(-1)?.tagName).toBe('DETAILS');
   });
 
+  it('`0065` thanh gập chỉ có TÊN MỤC, không có dòng chú thích nào', async () => {
+    /*
+     * Một mục tên *Lịch sử* trên màn hình hồ sơ thì không cần ai giải thích, và
+     * dòng chữ nhỏ màu xám đứng đó đẩy mũi tên tụt xuống giữa thanh — chỗ mắt
+     * không tìm. Mũi tên vẽ bằng CSS ở mép phải, nên phần tử duy nhất trong
+     * `<summary>` phải là tiêu đề.
+     */
+    await mo();
+    const tom = document.querySelector('details.khoi-gap > summary') as HTMLElement;
+    expect(tom.children).toHaveLength(1);
+    expect(tom.children[0]!.tagName).toBe('H2');
+    expect(tom.textContent).toBe('Lịch sử');
+  });
+
+  it('`0065` bảng sổ ra KHÔNG kèm câu chú thích nào phía trên', async () => {
+    // Câu cũ nói hai thứ bảng đã tự nói: thứ tự đọc ra từ cột `#`, còn "chỉ ghi
+    // thêm" thì không ai kiểm được bằng mắt — nó là lời hứa, chỗ của nó là tài
+    // liệu hướng dẫn.
+    const f = await mo();
+    const chiTiet = document.querySelector('details.khoi-gap') as HTMLDetailsElement;
+    chiTiet.open = true;
+    fireEvent(chiTiet, new Event('toggle'));
+    await waitFor(() => expect(document.body.textContent).toContain('Lập hồ sơ'));
+
+    const than = document.querySelector('.khoi-gap-than') as HTMLElement;
+    expect(than.querySelector('.ghi-chu'), 'còn dòng chú thích trong khối gập').toBeNull();
+    // Phần tử đầu tiên trong thân là khung cuộn của bảng, không phải một đoạn chữ.
+    expect(than.firstElementChild?.className).toContain('khung-cuon');
+    expect(f).toBeDefined();
+  });
+
   it('đổi tên thành "Lịch sử" — không còn gọi là "Nhật ký"', async () => {
     /*
      * Phần mềm có hai thứ tên "Nhật ký": nhật ký kiểm toán toàn hệ thống (một

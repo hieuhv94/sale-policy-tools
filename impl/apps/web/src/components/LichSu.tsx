@@ -49,50 +49,50 @@ export function nguoiLam(m: MucLichSu): string {
  *
  * KHÔNG PHÂN TRANG: đây là toàn bộ đời của một hồ sơ, mười bước là nhiều rồi.
  * Cắt trang một dòng thời gian là bắt người đọc lật để hiểu một câu chuyện.
+ *
+ * KHÔNG có dòng chú thích nào trên bảng (`0065`). Trước đó ở đây có một câu chữ
+ * nhỏ màu xám — "cũ nhất trước, lịch sử chỉ ghi thêm" — và nó nói hai thứ bảng
+ * đã tự nói: thứ tự đọc ra được từ cột `#`, còn tính bất biến thì không ai kiểm
+ * được bằng mắt, nên câu ấy chỉ là một lời hứa. Chỗ hứa đúng là tài liệu hướng
+ * dẫn, và nó đã có ở đó.
  */
 export function BangLichSu({ muc }: { muc: MucLichSu[] }) {
   if (muc.length === 0) return <p className="ghi-chu">Chưa có bước nào được ghi.</p>;
 
   return (
-    <>
-      <p className="ghi-chu">
-        Toàn bộ các bước hồ sơ đã đi qua, cũ nhất trước. Lịch sử <strong>chỉ ghi thêm</strong> —
-        không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
-      </p>
-      <div className="khung-cuon" role="region" aria-label="Lịch sử hồ sơ" tabIndex={0}>
-        <table className="bang">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Thời điểm</th>
-              <th>Việc</th>
-              <th>Chuyển sang</th>
-              <th>Người thực hiện</th>
-              <th>Lý do</th>
+    <div className="khung-cuon" role="region" aria-label="Lịch sử hồ sơ" tabIndex={0}>
+      <table className="bang">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Thời điểm</th>
+            <th>Việc</th>
+            <th>Chuyển sang</th>
+            <th>Người thực hiện</th>
+            <th>Lý do</th>
+          </tr>
+        </thead>
+        <tbody>
+          {muc.map((m) => (
+            <tr key={m.seq}>
+              <td>{m.seq}</td>
+              <td>{ngayGio(m.at)}</td>
+              <td>{nhanHanhDong(m.action)}</td>
+              {/* Cả hai đầu, không chỉ đầu đến: "Chờ TBP duyệt" một mình
+                  không nói được hồ sơ vừa đi tới hay vừa quay lại. */}
+              <td>
+                {m.fromStatus !== null && (
+                  <span className="ma-phu">{nhanTrangThai(m.fromStatus)} → </span>
+                )}
+                <Nhan trangThai={m.toStatus} />
+              </td>
+              <td>{nguoiLam(m)}</td>
+              <td>{m.reason ?? '—'}</td>
             </tr>
-          </thead>
-          <tbody>
-            {muc.map((m) => (
-              <tr key={m.seq}>
-                <td>{m.seq}</td>
-                <td>{ngayGio(m.at)}</td>
-                <td>{nhanHanhDong(m.action)}</td>
-                {/* Cả hai đầu, không chỉ đầu đến: "Chờ TBP duyệt" một mình
-                    không nói được hồ sơ vừa đi tới hay vừa quay lại. */}
-                <td>
-                  {m.fromStatus !== null && (
-                    <span className="ma-phu">{nhanTrangThai(m.fromStatus)} → </span>
-                  )}
-                  <Nhan trangThai={m.toStatus} />
-                </td>
-                <td>{nguoiLam(m)}</td>
-                <td>{m.reason ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -128,9 +128,15 @@ export function LichSuGap({ hoSoId }: { hoSoId: string }) {
 
   return (
     <details className="khoi-gap" onToggle={(e) => datMo(e.currentTarget.open)}>
+      {/*
+        Thanh gập chỉ có TÊN MỤC và mũi tên (`0065`).
+
+        Trước đó nó còn một dòng chữ nhỏ màu xám giải thích "Lịch sử" nghĩa là
+        gì. Một mục tên *Lịch sử* trên màn hình hồ sơ thì không cần ai giải thích,
+        và dòng ấy đẩy mũi tên tụt xuống giữa thanh — chỗ mắt không tìm.
+      */}
       <summary>
         <h2>Lịch sử</h2>
-        <span className="ghi-chu">Từng bước hồ sơ đã đi qua, do ai, vì sao</span>
       </summary>
       <div className="khoi-gap-than">
         {loi !== null ? (
