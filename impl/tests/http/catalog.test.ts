@@ -1184,3 +1184,200 @@ describe('`0036` xác nhận bằng cách gõ lại mã', () => {
     });
   });
 });
+
+// =============================================================================
+// `0049` — tìm và lọc PHÍA MÁY CHỦ (N-05, muc 11.3)
+// =============================================================================
+
+describe('`0049` tìm sản phẩm theo TÊN, lọc theo nhóm', () => {
+  /** Một nhóm riêng cộng ba sản phẩm có dấu, để không lẫn với dữ liệu ca khác. */
+  const dungBoBa = async () => {
+    const groupCode = code('GT');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom tim kiem' });
+    const ten = ['Sữa Nutricare Gold', 'Bột dinh dưỡng Metacare', 'Ngũ cốc Đường ăn kiêng'];
+    for (const t of ten) {
+      await post('/catalog/products', { code: code('PT'), name: t, groupCode });
+    }
+    return { groupCode, ten };
+  };
+
+  const tenCua = (r: { body: { items: { name: string }[] } }) => r.body.items.map((x) => x.name);
+
+  it('gõ KHÔNG DẤU vẫn ra chuỗi có dấu', async () => {
+    const { groupCode } = await dungBoBa();
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=sua`);
+    expect(r.status).toBe(200);
+    expect(tenCua(r)).toEqual(['Sữa Nutricare Gold']);
+  });
+
+  it('chữ đ tìm được bằng d — chỗ extension unaccent làm sai', async () => {
+    const { groupCode } = await dungBoBa();
+    // "Đường" → "duong". Đây là ca duy nhất chứng minh vì sao phép chuẩn hoá
+    // phải tự viết thay vì gọi `unaccent`: extension ấy để nguyên chữ đ.
+    //
+    // Gõ ĐỦ CỤM chứ không mỗi "duong": "dinh dưỡng" cũng chuẩn hoá thành
+    // "dinh duong", nên một từ khoá "duong" khớp hai sản phẩm — đúng, nhưng
+    // không phân biệt được nhánh đ→d với nhánh bỏ dấu thường.
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=duong%20an%20kieng`);
+    expect(tenCua(r)).toEqual(['Ngũ cốc Đường ăn kiêng']);
+  });
+
+  it('khớp CHUỖI CON, không phải chỉ đầu chuỗi', async () => {
+    const { groupCode } = await dungBoBa();
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=care`);
+    expect(tenCua(r).sort()).toEqual(['Bột dinh dưỡng Metacare', 'Sữa Nutricare Gold']);
+  });
+
+  it('KHÔNG khớp mã vật tư — khách hàng chốt ô tìm chỉ ăn tên', async () => {
+    const { groupCode } = await dungBoBa();
+    const ds = await get(`/catalog/products?groupCode=${groupCode}`);
+    const ma = ds.body.items[0].code as string;
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=${encodeURIComponent(ma)}`);
+    expect(r.body.items).toHaveLength(0);
+  });
+
+  it('lọc theo nhóm KHÔNG kèm từ khoá', async () => {
+    const { groupCode } = await dungBoBa();
+    const r = await get(`/catalog/products?groupCode=${groupCode}`);
+    expect(r.body.items).toHaveLength(3);
+    expect(r.body.total).toBe(3);
+  });
+
+  it('nhóm không tồn tại thì rỗng, không phải lỗi', async () => {
+    const r = await get('/catalog/products?groupCode=KHONG-CO-NHOM-NAY');
+    expect(r.status).toBe(200);
+    expect(r.body.items).toHaveLength(0);
+  });
+
+  it('`q` rỗng KHÔNG phải điều kiện lọc — màn hình gửi nó khi vừa xoá ô tìm', async () => {
+    const { groupCode } = await dungBoBa();
+    for (const rong of ['', '%20%20']) {
+      const r = await get(`/catalog/products?groupCode=${groupCode}&q=${rong}`);
+      expect(r.body.items, `q=${JSON.stringify(rong)} phải trả về cả ba`).toHaveLength(3);
+    }
+  });
+
+  it('ký tự % của người dùng bị thoát, không khớp cả bảng', async () => {
+    const { groupCode } = await dungBoBa();
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=%25`);
+    expect(r.body.items).toHaveLength(0);
+  });
+
+  it('`total` là tổng SAU KHI LỌC, không phải tổng cả bảng', async () => {
+    const { groupCode } = await dungBoBa();
+    const r = await get(`/catalog/products?groupCode=${groupCode}&q=sua&limit=20`);
+    expect(r.body.total).toBe(1);
+  });
+});
+
+describe('`0049` lọc quy định chiết khấu bằng hai ô chọn', () => {
+  /*
+   * Một nhóm riêng, hai quy định trong nhóm ấy: một dòng riêng cho khách loại 2,
+   * một dòng cho MỌI LOẠI khách.
+   *
+   * KHÔNG dựng quy định "mọi nhóm · mọi loại" ở đây, vì hai lý do đều đắt:
+   *
+   *   1. `uq_rule_pham_vi` là UNIQUE với `NULLS NOT DISTINCT` — cả tệp chỉ tồn
+   *      tại được ĐÚNG MỘT dòng như vậy cho mỗi ngày hiệu lực, nên lần dựng thứ
+   *      hai nhận 409.
+   *   2. Nguy hơn: một dòng như thế khớp MỌI sản phẩm, nên nó đổi kết quả của
+   *      các ca tra ngưỡng ở phía trên tệp — và vì dữ liệu test không bị dọn
+   *      giữa các lượt chạy, nó còn đổi kết quả của LƯỢT CHẠY SAU.
+   *
+   * Nhánh `product_group_id IS NULL` có ca riêng bên dưới, tự dọn bằng `finally`.
+   */
+  const dungQuyDinh = async () => {
+    const groupCode = code('GQ');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom quy dinh' });
+    const rieng = code('CKR');
+    const moiLoai = code('CKL');
+    await post('/catalog/discount-rules', {
+      code: rieng,
+      productGroupCode: groupCode,
+      customerType: 2,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 2500,
+    });
+    await post('/catalog/discount-rules', {
+      code: moiLoai,
+      productGroupCode: groupCode,
+      effectiveFrom: '2020-01-01',
+      thresholdRate2: 1000,
+    });
+    return { groupCode, rieng, moiLoai };
+  };
+
+  const maCua = (r: { body: { items: { code: string }[] } }) => r.body.items.map((x) => x.code);
+
+  it('lọc theo nhóm giữ cả dòng riêng lẫn dòng cho mọi loại khách', async () => {
+    const { groupCode, rieng, moiLoai } = await dungQuyDinh();
+    const ma = maCua(await get(`/catalog/discount-rules?groupCode=${groupCode}&limit=200`));
+    expect(ma).toContain(rieng);
+    expect(ma).toContain(moiLoai);
+  });
+
+  it('lọc theo nhóm LOẠI quy định của nhóm khác', async () => {
+    const a = await dungQuyDinh();
+    const b = await dungQuyDinh();
+    const ma = maCua(await get(`/catalog/discount-rules?groupCode=${a.groupCode}&limit=200`));
+    expect(ma).not.toContain(b.rieng);
+  });
+
+  it('lọc theo loại khách giữ dòng của loại đó và dòng cho mọi loại', async () => {
+    const { rieng, moiLoai } = await dungQuyDinh();
+    const loai2 = maCua(await get('/catalog/discount-rules?customerType=2&limit=200'));
+    expect(loai2).toContain(rieng);
+    expect(loai2).toContain(moiLoai);
+
+    const loai1 = maCua(await get('/catalog/discount-rules?customerType=1&limit=200'));
+    expect(loai1, 'dòng riêng của loại 2 không được lọt sang loại 1').not.toContain(rieng);
+    expect(loai1, 'dòng cho mọi loại vẫn áp cho loại 1').toContain(moiLoai);
+  });
+
+  it('hai ô chọn kết hợp được', async () => {
+    const { groupCode, rieng } = await dungQuyDinh();
+    const ma = maCua(
+      await get(`/catalog/discount-rules?groupCode=${groupCode}&customerType=2&limit=200`),
+    );
+    expect(ma).toContain(rieng);
+  });
+
+  it('loại khách ngoài 1·2·3 bị chặn ở đây, không để CSDL ném lỗi kiểu', async () => {
+    const r = await get('/catalog/discount-rules?customerType=9');
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('VALIDATION_FAILED');
+    expect(r.body.field).toBe('customerType');
+  });
+
+  it('không ô chọn nào thì trả về tất cả', async () => {
+    const { rieng, moiLoai } = await dungQuyDinh();
+    const ma = maCua(await get('/catalog/discount-rules?limit=200'));
+    expect(ma).toContain(rieng);
+    expect(ma).toContain(moiLoai);
+  });
+
+  it('quy định cho MỌI NHÓM vẫn hiện khi lọc theo một nhóm cụ thể', async () => {
+    /*
+     * Nhánh `product_group_id IS NULL`, và là ca DUY NHẤT dựng một quy định
+     * toàn cục. Nó khớp mọi sản phẩm nên phải dọn ngay trong `finally`, kể cả
+     * khi phần khẳng định hỏng — để lại là mọi ca tra ngưỡng của lượt chạy sau
+     * nhận `source: 'RULE'` thay vì `'DEFAULT'`, mà không gì chỉ ra vì sao.
+     */
+    const { groupCode } = await dungQuyDinh();
+    const toanCuc = code('CKG');
+    const tao = await post('/catalog/discount-rules', {
+      code: toanCuc,
+      // Ngày hiệu lực riêng: `uq_rule_pham_vi` dùng NULLS NOT DISTINCT, nên hai
+      // dòng toàn cục chỉ khác nhau được ở ngày.
+      effectiveFrom: '2019-02-02',
+      thresholdRate2: 500,
+    });
+    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
+    try {
+      const ma = maCua(await get(`/catalog/discount-rules?groupCode=${groupCode}&limit=200`));
+      expect(ma, 'quy định cho mọi nhóm vẫn áp cho nhóm này').toContain(toanCuc);
+    } finally {
+      await del(`/catalog/discount-rules/${toanCuc}`, { confirm: toanCuc });
+    }
+  });
+});

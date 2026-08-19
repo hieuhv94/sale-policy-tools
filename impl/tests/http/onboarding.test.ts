@@ -35,7 +35,15 @@ const newUser = () => {
 };
 
 const createUser = async (
-  over: Partial<{ username: string; email: string; role: string; defaultPassword: string }> = {},
+  // `fullName` thêm ở `0049`: ô tìm mới khớp theo họ tên, nên ca kiểm thử phải
+  // đặt được tên cụ thể thay vì nhận chuỗi mặc định của mọi tài khoản.
+  over: Partial<{
+    username: string;
+    email: string;
+    role: string;
+    defaultPassword: string;
+    fullName: string;
+  }> = {},
 ) => {
   const base = newUser();
   const agent = await http(app);
@@ -459,5 +467,72 @@ describe('ONB-15 không lưu bí mật dạng thô', () => {
       }
     });
     expect(err?.constraint).toBe('token_hash_must_be_sha256_hex');
+  });
+});
+
+// =============================================================================
+// `0049` — tìm tài khoản theo HỌ TÊN, ở phía máy chủ (N-05, muc 11.3)
+// =============================================================================
+
+describe('`0049` GET /admin/users?q= tìm theo họ tên', () => {
+  const tenCua = (r: { body: { items: { fullName: string }[] } }) =>
+    r.body.items.map((x) => x.fullName);
+
+  const timKiem = async (q: string) =>
+    (await http(app))
+      .get(`/admin/users?q=${encodeURIComponent(q)}&limit=200`)
+      .set('Authorization', `Bearer ${adminToken}`);
+
+  it('gõ KHÔNG DẤU vẫn ra tên có dấu', async () => {
+    const ten = `Nguyễn Thị Bưởi ${Date.now()}`;
+    await createUser({ fullName: ten });
+    expect(tenCua(await timKiem('nguyen thi buoi'))).toContain(ten);
+  });
+
+  it('chữ đ tìm được bằng d', async () => {
+    const ten = `Đỗ Đình Đạt ${Date.now()}`;
+    await createUser({ fullName: ten });
+    expect(tenCua(await timKiem('do dinh dat'))).toContain(ten);
+  });
+
+  it('khớp CHUỖI CON — gõ mỗi tên riêng cũng ra', async () => {
+    const ten = `Trần Mỹ Hạnh ${Date.now()}`;
+    await createUser({ fullName: ten });
+    expect(tenCua(await timKiem('my hanh'))).toContain(ten);
+  });
+
+  it('KHÔNG khớp tên tài khoản và KHÔNG khớp email', async () => {
+    /*
+     * Khách hàng chốt ô tìm chỉ ăn họ tên. Khớp cả email thì màn hình quản trị
+     * thành chỗ dò địa chỉ thư của cả công ty — một đường rò dữ liệu mở ra bằng
+     * một dòng SQL, và không ai nhận ra vì nó chỉ làm ô tìm "tiện hơn".
+     */
+    const { username, email } = await createUser({ fullName: 'Khong Trung Gi Ca' });
+    expect((await timKiem(username)).body.items).toHaveLength(0);
+    expect((await timKiem(email)).body.items).toHaveLength(0);
+  });
+
+  it('`q` rỗng KHÔNG phải điều kiện lọc', async () => {
+    await createUser();
+    for (const rong of ['', '   ']) {
+      const r = await timKiem(rong);
+      expect(r.body.items.length, `q=${JSON.stringify(rong)}`).toBeGreaterThan(0);
+    }
+  });
+
+  it('`total` là tổng SAU KHI LỌC, và phân trang cắt trên tổng ấy', async () => {
+    const dau = `Zz${Date.now()}`;
+    for (const i of [1, 2, 3]) await createUser({ fullName: `${dau} Nguoi ${i}` });
+
+    const het = await timKiem(dau);
+    expect(het.body.total).toBe(3);
+
+    const trang1 = await (await http(app))
+      .get(`/admin/users?q=${encodeURIComponent(dau)}&limit=2&offset=0`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(trang1.body.items).toHaveLength(2);
+    // `total` KHÔNG đổi theo cỡ trang — thanh phân trang đọc con số này để nói
+    // "trang 1/2", và nó phải là tổng của cả kết quả lọc chứ không phải của trang.
+    expect(trang1.body.total).toBe(3);
   });
 });

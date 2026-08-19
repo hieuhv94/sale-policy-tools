@@ -16,4 +16,4 @@ export { ExportsService, EXPORT_MAX_ROWS } from './exports/exports.service.js';
 export { ReportingConsumer } from './reports/consumer.js';
 export { COLUMNS } from './exports/sheet.js';
 export { FILTER_KEYS } from './reports/filter.js';
-export { norm } from './reports/normalize.js';
+export { norm } from '@csbh/http-kit';

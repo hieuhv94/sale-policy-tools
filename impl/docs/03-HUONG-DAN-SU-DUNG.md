@@ -445,9 +445,9 @@ thùng 12". Nhập trong hộp thoại thêm hoặc sửa dòng, tối đa 500 k
 Mã của **đúng quy định chiết khấu** đã cho ra ngưỡng của dòng đó. Ô trống nghĩa là không có quy định
 nào — đúng những dòng có Tỷ lệ CK màu vàng.
 
-Dùng để làm gì: chép mã, sang mục **Chiết khấu**, dán vào ô tìm kiếm. Ra ngay dòng quy định đang chi
-phối con số ngưỡng của dòng hồ sơ ấy. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia
-30%"*.
+Dùng để làm gì: chép mã, sang mục **Chiết khấu**, lọc theo đúng **nhóm sản phẩm** và **loại khách
+hàng** của dòng ấy. Danh sách còn lại rất ngắn, và dòng mang mã bạn vừa chép chính là quy định đang
+chi phối con số ngưỡng. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia 30%"*.
 
 Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạn muốn **Bổ sung** (thêm sản phẩm mới)
 hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
@@ -839,6 +839,18 @@ File kết xuất **chỉ người bấm xuất tải được**, và hết hạ
 
 *Người dùng* — hai thẻ: **Người dùng** và **Hệ thống**.
 
+### Tìm tài khoản
+
+Ô tìm phía trên bảng khớp **họ tên**, không cần gõ dấu — gõ `do thi huong` ra "Đỗ Thị Hường".
+
+Nó **không khớp tên tài khoản và không khớp email**, và đó là chủ ý: một ô tìm ăn cả email biến màn
+hình quản trị thành chỗ tra địa chỉ thư của cả công ty. Cần tìm theo tên tài khoản thì cột *Tài
+khoản* đứng ngay cạnh cột *Họ tên*, đọc theo hàng là ra.
+
+Nhãn thẻ **không còn con số đếm**. Danh sách do máy chủ cắt trang nên con số duy nhất màn hình biết
+là tổng *sau khi lọc* — dán nó lên nhãn thẻ thì nó tụt xuống mỗi lần bạn gõ vào ô tìm. Tổng vẫn nói
+ra, ở thanh phân trang dưới bảng.
+
 ### Biểu mẫu tạo tài khoản chỉ có bốn ô
 
 Họ tên, tên tài khoản, email, vai trò — **giống hệt nhau cho cả sáu vai trò**. Không có ô "Trưởng bộ
@@ -945,8 +957,17 @@ thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Giấy tờ mẫu**
 Quản trị hệ thống thấy **hai thẻ**: *Sản phẩm* và *Nhóm sản phẩm*. Vai trò khác chỉ thấy bảng sản
 phẩm, ở dạng chỉ đọc.
 
-Ô **tìm kiếm** phía trên bảng sản phẩm khớp cả **tên lẫn mã**, và **không cần gõ dấu** — gõ `sua` ra
-"Sữa", gõ `dem` ra "Metacare Đêm".
+Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng chung hoặc riêng.
+
+- Ô tìm khớp **tên sản phẩm** — đúng như nhãn của nó ghi. Nó **không khớp mã vật tư**; mã đã nằm ở
+  cột đầu bảng và lọc theo nhóm thu hẹp nhanh hơn.
+- **Không cần gõ dấu**: gõ `sua` ra "Sữa", gõ `dem` ra "Metacare Đêm", gõ `duong` ra "Đường".
+- Khớp theo **chuỗi con**, nên nhớ mỗi chữ giữa tên cũng tìm được: gõ `care` ra cả "Nutricare Gold"
+  lẫn "Metacare Đêm".
+
+> Cả hai ô lọc chạy **ở máy chủ, trên toàn bộ danh mục**. Trước đây màn hình chỉ tải 200 sản phẩm
+> đầu rồi lọc tại chỗ, nên vượt con số ấy là gõ đúng tên một mặt hàng có thật vẫn ra "không tìm
+> thấy" — mà không gì báo cho bạn biết mình chỉ đang tìm trong một phần.
 
 **Thẻ Sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
 
@@ -1002,10 +1023,16 @@ dòng hồ sơ.
 - **Mã không sửa được** sau khi tạo: hồ sơ đã lập ghi lại mã này để truy vết. Đặt nhầm thì xoá dòng
   rồi khai lại.
 
-**Cột Id và ô tìm kiếm.** Mã hiện ở cột *Id*. Ô tìm kiếm phía trên bảng khớp
-**cả mã** — dán nguyên mã ở cột *QĐCK* của một dòng hồ sơ là ra thẳng quy định đã cho ra ngưỡng của
-dòng ấy; dán một phần đầu của mã cũng ra. Ô tìm còn khớp phạm vi áp dụng (gõ không dấu được) và con
-số ngưỡng đang hiện trên màn hình (`25,00`).
+**Cột Id và hai ô lọc.** Mã hiện ở cột *Id*. Phía trên bảng có **hai ô chọn** — *Nhóm sản phẩm* và
+*Loại khách hàng* — thay cho ô gõ tự do trước đây.
+
+Hai ô ấy **giữ lại cả quy định chung**: chọn nhóm SUA thì danh sách gồm cả dòng riêng của SUA lẫn
+dòng áp cho *mọi nhóm sản phẩm*, vì dòng chung ấy vẫn đang áp cho sản phẩm nhóm SUA. Giấu nó đi là
+đưa ra một bức tranh thiếu đúng dòng đang có hiệu lực.
+
+> Ô gõ tự do cũ khớp cả mã, cả phạm vi, cả con số ngưỡng đang hiện — nhưng nó chỉ tìm trong **200
+> dòng đầu**, nên vượt con số đó là gõ đúng mã vẫn ra "không tìm thấy". Hai ô chọn lọc trên **toàn
+> bộ** bảng quy định.
 
 Cột **"Độ cụ thể"** đã bỏ. Nó là con số nội bộ để xếp thứ tự ưu tiên; cột *Áp dụng cho* ngay bên
 cạnh đã nói rõ dòng nào hẹp hơn dòng nào, và câu hỏi *"hồ sơ này lấy ngưỡng từ đâu"* giờ trả lời

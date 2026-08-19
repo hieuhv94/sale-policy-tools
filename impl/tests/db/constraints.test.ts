@@ -12,6 +12,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
 import { admin, expectSqlErrorInTx, inRollback, mkCustomer } from './helpers';
+import { norm } from '@csbh/http-kit';
 
 let db: Client;
 
@@ -650,5 +651,73 @@ describe('0027 · ghi_chu_khong_rong — ghi chú rỗng thì không phải ghi 
         expect(err.message).toContain('ghi_chu_khong_rong');
       });
     }
+  });
+});
+
+// =============================================================================
+// `0049` — phép bỏ dấu ở TypeScript và ở SQL phải cho CÙNG một kết quả
+// =============================================================================
+
+describe('`0049` sys.khong_dau khớp từng ký tự với norm() của TypeScript', () => {
+  /*
+   * Phép chuẩn hoá này có HAI bản cài đặt, và không tránh được:
+   *
+   *   - `norm()` ở `packages/http-kit` — dùng cho từ khoá lúc truy vấn.
+   *   - `sys.khong_dau()` trong CSDL — dùng cho cột sinh `name_norm` và
+   *     `full_name_norm`, vì cột sinh phải tính được bằng SQL.
+   *
+   * Hai bản lệch nhau là kiểu hỏng TỆ NHẤT của cả tính năng tìm kiếm: tìm được
+   * vài chuỗi, không tìm được vài chuỗi khác, và không có thông báo lỗi nào. Ca
+   * này là thứ duy nhất giữ chúng bằng nhau.
+   */
+  const MAU = [
+    'Sữa Nutricare Gold 900g',
+    'Đà Nẵng',
+    'ĐƯỜNG ăn kiêng',
+    'Bột dinh dưỡng cho người tiểu đường',
+    'Ngũ cốc HG',
+    'Nutricare  Metabolic', // hai khoảng trắng — norm() gộp lại thành một
+    '  lề trước và sau  ',
+    'ĂÂÊÔƠƯăâêôơư',
+    'Trần Thị Mỹ Hạnh',
+    'abc-123',
+  ];
+
+  it('mười chuỗi tiếng Việt cho ra cùng kết quả ở hai bên', async () => {
+    const r = await db.query<{ sql: string }>(
+      `SELECT sys.khong_dau(x) AS sql FROM unnest($1::text[]) AS t(x)`,
+      [MAU],
+    );
+    // So CẢ MẢNG một lần thay vì vòng lặp `expect` từng dòng: lệch ở đâu thì
+    // báo lỗi in ra cả hai mảng cạnh nhau, đọc ra ngay chuỗi nào hỏng.
+    expect(r.rows.map((x) => x.sql)).toEqual(MAU.map((x) => norm(x)));
+  });
+
+  it('chữ đ — chỗ mà extension unaccent làm sai và vì sao không dùng nó', async () => {
+    const r = await db.query<{ sql: string }>(`SELECT sys.khong_dau('Đà Nẵng') AS sql`);
+    expect(r.rows[0]!.sql).toBe('da nang');
+    expect(norm('Đà Nẵng')).toBe('da nang');
+  });
+
+  it('cột sinh của sản phẩm và người dùng đều đi qua đúng hàm ấy', async () => {
+    await inRollback(db, async () => {
+      const g = await db.query<{ id: string }>(
+        `INSERT INTO cat.product_group (code, name) VALUES ($1,'Nhom KD') RETURNING id`,
+        [`KD-${Date.now()}`],
+      );
+      const p = await db.query<{ name_norm: string }>(
+        `INSERT INTO cat.product (code, name, group_id) VALUES ($1,'Sữa Đặc Ông Thọ',$2)
+         RETURNING name_norm`,
+        [`KD-${Date.now()}`, g.rows[0]!.id],
+      );
+      expect(p.rows[0]!.name_norm).toBe('sua dac ong tho');
+
+      const u = await db.query<{ full_name_norm: string }>(
+        `INSERT INTO idn.app_user (username, email, full_name, role, password_hash)
+         VALUES ($1,$2,'Đỗ Thị Hường','TDV','x') RETURNING full_name_norm`,
+        [`kd${Date.now()}`, `kd${Date.now()}@csbh.test`],
+      );
+      expect(u.rows[0]!.full_name_norm).toBe('do thi huong');
+    });
   });
 });

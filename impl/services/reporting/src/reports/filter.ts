@@ -20,7 +20,7 @@
  * để một tiêu chí "quên" nó.
  */
 import { BadRequestException } from '@nestjs/common';
-import { contains, norm } from './normalize.js';
+import { contains, norm } from '@csbh/http-kit';
 
 export type Filter = {
   appliedFrom?: string | undefined;

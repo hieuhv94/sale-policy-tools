@@ -11,11 +11,9 @@ import { DIEU_HUONG, VAI_TRO, xem } from '@csbh/web/can';
 import {
   LOAI_GIA,
   THE_SAN_PHAM,
-  locSanPham,
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
-  locQuyDinh,
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
@@ -144,90 +142,26 @@ describe('các bảng tra cố định', () => {
   });
 });
 
-describe('tìm sản phẩm', () => {
-  const ds = [
-    { code: 'SP-01', name: 'Nutricare Gold' },
-    { code: 'SP-02', name: 'Sữa non ColosCare' },
-    { code: 'MET-09', name: 'Metacare Đêm' },
-  ];
-
-  it('từ khoá rỗng trả về nguyên danh sách', () => {
-    expect(locSanPham(ds, '')).toHaveLength(3);
-    expect(locSanPham(ds, '   ')).toHaveLength(3);
-  });
-
-  it('gõ KHÔNG DẤU vẫn ra chữ có dấu', () => {
-    // Đây là lý do có hàm này thay vì `includes` thẳng: gõ đủ dấu trên bàn phím
-    // điện thoại giữa lúc ngồi với khách hàng là thứ không ai làm.
-    expect(locSanPham(ds, 'sua').map((x) => x.code)).toEqual(['SP-02']);
-    expect(locSanPham(ds, 'dem').map((x) => x.code)).toEqual(['MET-09']);
-  });
-
-  it('khớp cả MÃ, không riêng tên', () => {
-    // Người dùng đọc mã từ hoá đơn giấy nhiều hơn là nhớ tên đầy đủ.
-    expect(locSanPham(ds, 'met-09').map((x) => x.name)).toEqual(['Metacare Đêm']);
-  });
-
-  it('không phân biệt hoa thường', () => {
-    expect(locSanPham(ds, 'NUTRICARE')).toHaveLength(1);
-  });
-
-  it('không khớp thì trả về rỗng, không trả về tất cả', () => {
-    // Lỗi kinh điển của ô tìm kiếm: không khớp gì thì bỏ qua bộ lọc, và người
-    // dùng tưởng mọi sản phẩm đều khớp từ khoá của mình.
-    expect(locSanPham(ds, 'khong-co-gi')).toEqual([]);
-  });
-});
-
-/**
- * 0023 — tìm quy định chiết khấu, đặc biệt là TÌM THEO MÃ.
+/*
+ * `locSanPham` và `locQuyDinh` ĐÃ BỊ GỠ ở `0049`, cùng với hai khối kiểm thử của
+ * chúng.
  *
- * Đường đi thật của người dùng: mở một hồ sơ, thấy cột *QĐCK* của một dòng, chép
- * mã đó, dán vào ô tìm ở màn hình Chiết khấu để xem quy định nào đã cho ra ngưỡng
- * ấy. Cả chuỗi đó gãy nếu ô tìm không khớp mã.
+ * Cả hai lọc trên mảng ĐÃ TẢI VỀ, và màn hình chỉ tải 200 dòng đầu — nên vượt
+ * 200 sản phẩm thì gõ tên một mặt hàng có thật vẫn ra "không tìm thấy", trái
+ * muc 11.3 ("ô tìm kiếm tìm trên toàn bộ dữ liệu"). Việc lọc chuyển hẳn sang máy
+ * chủ: `?q=` cho sản phẩm và người dùng, hai ô chọn cho chiết khấu.
+ *
+ * Chỗ kiểm thử mới:
+ *   - `tests/http/catalog.test.ts` — tìm sản phẩm, lọc quy định chiết khấu.
+ *   - `tests/http/onboarding.test.ts` — tìm người dùng theo họ tên.
+ *   - `tests/db/constraints.test.ts` — phép bỏ dấu ở TypeScript và ở SQL cho
+ *     cùng một kết quả. Đây là ca thay thế cho các ca "gõ không dấu vẫn ra chữ
+ *     có dấu" ở đây: cùng một khẳng định, chỉ khác là giờ nó bảo vệ CẢ HAI bản
+ *     cài đặt thay vì một.
+ *
+ * `khongDau` cũng gỡ theo: sau khi hai hàm lọc biến mất thì không chỗ nào ở giao
+ * diện gọi nó nữa, và giữ lại một phép chuẩn hoá thứ ba — chạy ở trình duyệt,
+ * không ai kiểm nó có khớp máy chủ hay không — chỉ tạo ra hai kết quả khác nhau
+ * cho cùng một từ khoá.
  */
-describe('0023 lọc quy định chiết khấu', () => {
-  const ba = [
-    qd({ code: 'CK-SUA-L1', productGroupCode: 'SUA', thresholdRate2: 2500 }),
-    qd({ code: 'CK-BOT-CHUNG', productGroupCode: 'BOT', thresholdRate2: 3000 }),
-    qd({ code: 'CK-MOI-NHOM-L2', customerType: 2, thresholdRate2: 1000 }),
-  ];
 
-  it('từ khoá rỗng trả nguyên danh sách', () => {
-    expect(locQuyDinh(ba, '')).toHaveLength(3);
-    expect(locQuyDinh(ba, '   ')).toHaveLength(3);
-  });
-
-  it('khớp NGUYÊN mã quy định', () => {
-    const r = locQuyDinh(ba, 'CK-BOT-CHUNG');
-    expect(r).toHaveLength(1);
-    expect(r[0]!.productGroupCode).toBe('BOT');
-  });
-
-  it('khớp cả MỘT PHẦN mã — dán hụt vài ký tự vẫn ra', () => {
-    // Cột QĐCK trên bảng hồ sơ hẹp, và người ta hay bôi đen thiếu đuôi.
-    expect(locQuyDinh(ba, 'CK-MOI-NHOM')).toHaveLength(1);
-  });
-
-  it('khớp mã KHÔNG phân biệt hoa thường', () => {
-    expect(locQuyDinh(ba, 'ck-sua-l1')).toHaveLength(1);
-  });
-
-  it('khớp theo phạm vi áp dụng, bỏ dấu', () => {
-    expect(locQuyDinh(ba, 'SUA')).toHaveLength(1);
-    // "khách loại 2" — gõ không dấu vẫn ra.
-    expect(locQuyDinh(ba, 'khach loai 2')).toHaveLength(1);
-  });
-
-  it('khớp theo con số ĐANG HIỆN trên màn hình, không phải giá trị lưu', () => {
-    // Màn hình hiện "25,00%", máy lưu 2500. Người dùng gõ cái họ nhìn thấy.
-    expect(locQuyDinh(ba, '25,00')).toHaveLength(1);
-    expect(locQuyDinh(ba, '2500')).toHaveLength(0);
-  });
-
-  it('không khớp gì thì trả danh sách rỗng, không trả nguyên danh sách', () => {
-    // Trả nguyên danh sách khi không khớp là kiểu lỗi tệ nhất của một ô tìm
-    // kiếm: người dùng tưởng mọi dòng đều khớp và đọc nhầm cả bảng.
-    expect(locQuyDinh(ba, 'khong-co-gi-khop')).toHaveLength(0);
-  });
-});

@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { hashPassword, newSecretToken } from '@csbh/identity-core';
-import { paged, xacNhanGoLai, type Page } from '@csbh/http-kit';
+import { contains, paged, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { CONFIG } from '../infra/config.js';
 import { Mailer } from '../infra/mailer.js';
@@ -446,16 +446,27 @@ export class UsersService {
    * tên cấp trên, vì biểu mẫu sửa phải mở ra thấy giá trị đang có. Hai ô ấy
    * không còn, nên ba phép nối cũng không còn.
    */
-  async list(page: Page) {
+  /**
+   * Danh sách tài khoản, tìm theo HỌ TÊN (`0049`).
+   *
+   * Chỉ họ tên — không tên tài khoản, không email. Người quản trị đi tìm "chị
+   * Hạnh kế toán", không đi tìm "kt01"; và một ô tìm khớp cả email biến màn hình
+   * quản trị thành chỗ dò địa chỉ thư của cả công ty.
+   *
+   * Tìm bỏ dấu, khớp chuỗi con, chạy ở MÁY CHỦ. Trước `0049` màn hình này không
+   * có ô tìm nào cả: nó lấy 200 dòng đầu rồi phân trang tại chỗ.
+   */
+  async list(page: Page, q?: string) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT u.id, u.username, u.email, u.full_name AS "fullName", u.role::text AS role,
               u.is_active AS "isActive", u.must_change_password AS "mustChangePassword",
               u.activated_at AS "activatedAt", u.email_verified_at AS "emailVerifiedAt",
               count(*) OVER() AS total_count
          FROM idn.app_user u
+        WHERE ($3::text IS NULL OR u.full_name_norm LIKE $3)
         ORDER BY u.username
         LIMIT $1 OFFSET $2`,
-      [page.limit, page.offset],
+      [page.limit, page.offset, q ? contains(q) : null],
     );
     return paged(rows, page);
   }

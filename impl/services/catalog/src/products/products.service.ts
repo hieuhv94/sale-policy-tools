@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http-kit';
+import { contains, paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http-kit';
 import type { PoolClient } from 'pg';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
@@ -181,16 +181,40 @@ export class ProductsService {
    * tra theo id thì vẫn trả về sản phẩm vô hiệu hoá, vì hồ sơ cũ còn tham chiếu
    * tới nó và phải mở xem được (CAT-08).
    */
-  async list(opts: { forNewPolicy?: boolean | undefined }, page: Page) {
-    const where = opts.forNewPolicy ? `WHERE p.status = 'DANG_AP_DUNG'` : '';
+  async list(
+    opts: {
+      forNewPolicy?: boolean | undefined;
+      /** Tìm theo TÊN sản phẩm, bỏ dấu, khớp chuỗi con (`0049`). */
+      q?: string | undefined;
+      /** Lọc theo mã nhóm sản phẩm — ô chọn đứng cạnh ô tìm. */
+      groupCode?: string | undefined;
+    },
+    page: Page,
+  ) {
+    /*
+     * Ba điều kiện, MỘT hình dạng truy vấn (`0049`).
+     *
+     * Điều kiện vắng mặt đi vào câu lệnh dưới dạng `NULL` và tự vô hiệu, thay vì
+     * dựng câu lệnh động theo tổ hợp. Tám tổ hợp của ba điều kiện là tám câu
+     * lệnh phải đọc và phải tối ưu riêng — cùng lý do đã ghi ở `customers.search`.
+     *
+     * `forNewPolicy` vẫn ghép chuỗi vì nó là hằng, không phải dữ liệu người dùng.
+     */
+    const where = opts.forNewPolicy ? `AND p.status = 'DANG_AP_DUNG'` : '';
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status,
               count(*) OVER() AS total_count
          FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
-         ${where}
+        WHERE ($3::text IS NULL OR p.name_norm LIKE $3)
+          AND ($4::text IS NULL OR g.code = $4)
+          ${where}
+        -- Thứ tự GIỮ NGUYÊN theo mã. Đổi sang sắp theo tên thì hợp với ô tìm
+        -- theo tên hơn, nhưng đó là một thay đổi không ai yêu cầu — và mã là duy
+        -- nhất nên nó cũng là khoá sắp xếp không bao giờ hoà, thứ mà phân trang
+        -- LIMIT/OFFSET cần để trang 2 không lặp lại một dòng của trang 1.
         ORDER BY p.code
         LIMIT $1 OFFSET $2`,
-      [page.limit, page.offset],
+      [page.limit, page.offset, opts.q ? contains(opts.q) : null, opts.groupCode ?? null],
     );
     return paged(rows, page);
   }

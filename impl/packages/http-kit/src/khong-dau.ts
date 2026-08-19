@@ -16,6 +16,15 @@
  * lúc đồng bộ read-model và từ khoá lúc truy vấn đều đi qua hàm này. Hai bên
  * chuẩn hoá theo hai kiểu khác nhau là kiểu hỏng tệ nhất — tìm được vài chuỗi,
  * không tìm được vài chuỗi khác, không có thông báo lỗi nào.
+ *
+ * TỪ `0049` TỆP NÀY NẰM Ở `packages/`, không còn là mảnh riêng của reporting.
+ * Ô tìm sản phẩm và ô tìm người dùng cũng cần đúng phép chuẩn hoá ấy, và chép
+ * sang catalog với identity là dựng thêm hai bản sao chắc chắn sẽ trôi.
+ *
+ * BẢN SAO THỨ HAI vẫn tồn tại và không tránh được: `sys.khong_dau()` trong CSDL
+ * (`0049`), vì cột sinh phải tính được bằng SQL. Hai bản buộc phải cho ra cùng
+ * kết quả, và có một ca kiểm thử so chúng trên cùng một bộ chuỗi tiếng Việt —
+ * xem `tests/db/constraints.test.ts`.
  */
 
 /** Ký tự Unicode độc lập, không phân rã được bằng NFD. */

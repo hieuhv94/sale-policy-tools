@@ -19,14 +19,13 @@ import { can } from '../lib/can.js';
 import {
   NHAN_TRANG_THAI_SAN_PHAM,
   THE_SAN_PHAM,
-  locSanPham,
   type NhomSanPham,
   type SanPham,
   type TheSanPhamKhoa,
 } from '../lib/danh-muc.js';
-import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong } from '../components/Chung.js';
+import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
-import { useTrangTaiCho } from '../lib/phan-trang.js';
+import { useTrangMay } from '../lib/phan-trang.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
@@ -35,17 +34,18 @@ import { TheGiayToMau } from '../components/danh-muc/GiayToMau.js';
 /**
  * Danh sách nhóm sản phẩm, tải một lần cho cả màn hình.
  *
- * Chỉ tải khi là Quản trị: vai trò khác không có ô chọn nhóm nào, và gọi một API
- * họ không có quyền chỉ để bỏ kết quả đi là tự tạo ra 403 trong log.
+ * TẢI CHO MỌI VAI TRÒ từ `0049`. Trước đó chỉ Quản trị tải, vì chỉ họ mới có ô
+ * chọn nhóm — trên biểu mẫu tạo sản phẩm. Giờ nhóm sản phẩm còn là nguồn của Ô
+ * LỌC đứng cạnh ô tìm, và ô lọc ấy có ở cả bảng chỉ-xem. Đường này không gắn
+ * `@Roles` nên mọi vai trò đăng nhập đều đọc được.
  */
-function useNhom(quanTri: boolean) {
+function useNhom() {
   const [nhom, datNhom] = useState<NhomSanPham[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
   useEffect(() => {
-    if (!quanTri) return;
     const huy = new AbortController();
     datLoi(null);
     layJson<NhomSanPham[]>('/catalog/product-groups', huy.signal)
@@ -54,7 +54,7 @@ function useNhom(quanTri: boolean) {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [lan, quanTri]);
+  }, [lan]);
 
   return { nhom, loi, taiLai };
 }
@@ -75,11 +75,11 @@ function DauTrang({ tieuDe, moTa }: { tieuDe: string; moTa: string }) {
 export function TrangSanPham() {
   const { nguoiDung } = usePhien();
   const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
-  const { nhom, loi, taiLai } = useNhom(quanTri);
+  const { nhom, loi, taiLai } = useNhom();
   const [the, datThe] = useState<TheSanPhamKhoa>('san-pham');
 
-  if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLai} />;
-  if (quanTri && !nhom) return <DangTai />;
+  if (loi !== null && nhom === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
+  if (!nhom) return <DangTai />;
 
   return (
     <section className="trang">
@@ -105,7 +105,7 @@ export function TrangSanPham() {
           {the === 'nhom' && <TheNhom nhom={nhom} taiLai={taiLai} />}
         </>
       ) : (
-        <BangSanPhamChiXem />
+        <BangSanPhamChiXem nhom={nhom} />
       )}
     </section>
   );
@@ -116,10 +116,18 @@ export function TrangSanPham() {
 export function TrangChietKhau() {
   const { nguoiDung } = usePhien();
   const quanTri = can(nguoiDung?.role, 'quanTriDanhMuc');
-  const { nhom, loi, taiLai } = useNhom(quanTri);
+  /*
+   * `useNhom()` KHÔNG còn nhận cờ Quản trị (`0049`), và điều đó sửa luôn một lỗi
+   * đã nằm sẵn ở đây: bản cũ gọi `useNhom(quanTri)`, nên với mọi vai trò KHÔNG
+   * phải Quản trị thì hook không tải gì, `nhom` mãi là `null`, và dòng ngay dưới
+   * trả về vòng quay chờ VĨNH VIỄN. Màn hình Chiết khấu hỏng với năm trên sáu vai
+   * trò. Không ca kiểm thử nào bắt được vì phần này chưa từng được vẽ ra thật —
+   * đúng loại lỗi mà món nợ "chưa có test trình duyệt" đã hứa sẽ có.
+   */
+  const { nhom, loi, taiLai } = useNhom();
 
-  if (loi !== null && nhom === null && quanTri) return <BaoLoi loi={loi} thuLai={taiLai} />;
-  if (quanTri && !nhom) return <DangTai />;
+  if (loi !== null && nhom === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
+  if (!nhom) return <DangTai />;
 
   return (
     <section className="trang">
@@ -148,50 +156,70 @@ export function TrangGiayToMau() {
   );
 }
 
-function BangSanPhamChiXem() {
-  const [ds, datDs] = useState<SanPham[] | null>(null);
+function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {
   const [tim, datTim] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
+  const [locNhom, datLocNhom] = useState('');
 
-  useEffect(() => {
-    const huy = new AbortController();
-    layJson<{ items: SanPham[] }>('/catalog/products?limit=200', huy.signal)
-      .then((r) => datDs(r.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, []);
+  // Cùng phép sửa như thẻ Sản phẩm của Quản trị (`0049`): máy chủ tìm, máy chủ
+  // cắt trang. Bảng này là màn hình Sản phẩm của NĂM vai trò còn lại, nên bỏ sót
+  // nó là vá nợ cho một người và để nguyên cho tất cả những người khác.
+  const truyVan = new URLSearchParams();
+  if (tim.trim() !== '') truyVan.set('q', tim.trim());
+  if (locNhom !== '') truyVan.set('groupCode', locNhom);
+  const duoi = truyVan.toString();
 
-  // Lọc và cắt trang TRÊN mọi `return` sớm — `useTrangTaiCho` là hook.
-  const loc = locSanPham(ds ?? [], tim);
-  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
+  const {
+    muc: ds,
+    tong,
+    loi,
+    trang,
+    soTrang,
+    doiTrang,
+    taiLai,
+  } = useTrangMay<SanPham>(`/catalog/products${duoi ? `?${duoi}` : ''}`);
 
-  if (loi !== null) return <BaoLoi loi={loi} />;
+  const dangLoc = tim.trim() !== '' || locNhom !== '';
+
+  if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
-  if (ds.length === 0) return <Trong tieuDe="Danh mục chưa có sản phẩm nào" />;
 
   return (
     <>
       <div className="hang-tim">
-        <OTimKiem
-          id="tim-san-pham"
-          nhan="Tìm theo tên hoặc mã sản phẩm"
-          giaTri={tim}
-          doi={datTim}
-        />
-        {tim.trim() !== '' && (
+        <OTimKiem id="tim-san-pham" nhan="Tìm theo tên sản phẩm" giaTri={tim} doi={datTim} />
+        <Truong id="loc-nhom-sp-xem" nhan="Nhóm sản phẩm">
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={locNhom}
+              onChange={(e) => datLocNhom(e.target.value)}
+            >
+              <option value="">— Mọi nhóm —</option>
+              {nhom.map((x) => (
+                <option key={x.id} value={x.code}>
+                  {x.name} ({x.code})
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        {dangLoc && (
           <span className="ghi-chu" role="status">
-            {loc.length} sản phẩm khớp
+            {tong} sản phẩm khớp
           </span>
         )}
-    </div>
+      </div>
 
-      {loc.length === 0 ? (
-        <Trong
-          tieuDe="Không có sản phẩm nào khớp"
-          moTa="Thử bỏ bớt chữ, hoặc gõ mã vật tư thay vì tên."
-        />
+      {ds.length === 0 ? (
+        dangLoc ? (
+          <Trong
+            tieuDe="Không có sản phẩm nào khớp"
+            moTa="Ô tìm chỉ khớp TÊN sản phẩm, không khớp mã vật tư. Thử bỏ bớt chữ, hoặc mở lại nhóm về “Mọi nhóm”."
+          />
+        ) : (
+          <Trong tieuDe="Danh mục chưa có sản phẩm nào" />
+        )
       ) : (
         <div className="khung-cuon" role="region" aria-label="Danh mục sản phẩm" tabIndex={0}>
           <table className="bang">
@@ -204,7 +232,7 @@ function BangSanPhamChiXem() {
               </tr>
             </thead>
             <tbody>
-              {cuaTrang.map((s) => (
+              {ds.map((s) => (
                 <tr key={s.id}>
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
@@ -216,7 +244,7 @@ function BangSanPhamChiXem() {
           </table>
         </div>
       )}
-      <PhanTrang trang={trang} soTrang={soTrang} tong={loc.length} doiTrang={doiTrang} nhan="sản phẩm" />
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="sản phẩm" />
     </>
   );
 }

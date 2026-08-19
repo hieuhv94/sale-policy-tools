@@ -15,13 +15,12 @@
  * cột **Id**: mỗi dòng hồ sơ mang mã của đúng quy định đã cho ra ngưỡng của nó,
  * dán mã ấy vào ô tìm kiếm ở đây là ra thẳng dòng cần xem.
  */
-import { useCallback, useEffect, useState } from 'react';
-import { dang, layJson, va, xoa } from '../../lib/api.js';
+import { useState } from 'react';
+import { dang, va, xoa } from '../../lib/api.js';
 import { ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
   doiSoThapPhan,
-  locQuyDinh,
   nguongTuPhanTram,
   phamViChietKhau,
   phanTramTuNguong,
@@ -35,55 +34,62 @@ import {
   HopThoai,
   HopThoaiXacNhan,
   ONhapPhanTram,
-  OTimKiem,
   Trong,
   Truong,
 } from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { PhanTrang } from '../PhanTrang.js';
-import { useTrangTaiCho } from '../../lib/phan-trang.js';
+import { useTrangMay } from '../../lib/phan-trang.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
-  const [ds, datDs] = useState<QuyDinhChietKhau[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-  const [lan, datLan] = useState(0);
   const [moTao, datMoTao] = useState(false);
   const [sua, datSua] = useState<QuyDinhChietKhau | null>(null);
   const [dangXoa, datDangXoa] = useState<string | null>(null);
   const [hoiXoa, datHoiXoa] = useState<QuyDinhChietKhau | null>(null);
-  const [tim, datTim] = useState('');
+  const [locNhom, datLocNhom] = useState('');
+  const [locLoai, datLocLoai] = useState('');
+  const [loiGo, datLoiGo] = useState<unknown>(null);
 
-  const taiLai = useCallback(() => datLan((x) => x + 1), []);
+  /*
+   * HAI Ô CHỌN thay cho ô gõ tự do (`0049`).
+   *
+   * Ô tìm chữ cũ khớp trên bốn thứ, và hai trong số đó là chuỗi do chính màn
+   * hình dựng ra: câu mô tả phạm vi, và con số phần trăm đang hiển thị. Không
+   * đưa xuống máy chủ được, mà giữ ở màn hình thì nó chỉ tìm trong 200 dòng đầu.
+   *
+   * Hai ô chọn hợp với dữ liệu hơn hẳn: nhóm sản phẩm và loại khách hàng đều là
+   * tập giá trị ĐÓNG, người dùng chọn từ danh sách chứ không phải nhớ để gõ
+   * đúng. Cả hai là cột thật, lọc bằng phép so bằng, chạy trên toàn bảng.
+   */
+  const truyVan = new URLSearchParams();
+  if (locNhom !== '') truyVan.set('groupCode', locNhom);
+  if (locLoai !== '') truyVan.set('customerType', locLoai);
+  const duoi = truyVan.toString();
+
+  const {
+    muc: ds,
+    tong,
+    loi,
+    trang,
+    soTrang,
+    doiTrang,
+    taiLai,
+  } = useTrangMay<QuyDinhChietKhau>(`/catalog/discount-rules${duoi ? `?${duoi}` : ''}`);
+
+  const dangLoc = locNhom !== '' || locLoai !== '';
 
   const go = async (q: QuyDinhChietKhau) => {
-    datLoi(null);
+    datLoiGo(null);
     datDangXoa(q.code);
     try {
       await xoa(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, { confirm: q.code });
       taiLai();
     } catch (e) {
-      datLoi(e);
+      datLoiGo(e);
     } finally {
       datDangXoa(null);
     }
   };
-
-  useEffect(() => {
-    const huy = new AbortController();
-    datLoi(null);
-    layJson<{ items: QuyDinhChietKhau[] }>('/catalog/discount-rules?limit=200', huy.signal)
-      .then((q) => datDs(q.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [lan]);
-
-  // Lọc trước, cắt trang sau, và cả hai TRÊN mọi `return` sớm — `useTrangTaiCho`
-  // là hook. Cắt tại chỗ để ô tìm kiếm vẫn tìm trên toàn bộ bảng quy định, không
-  // chỉ trong 20 dòng đang hiện.
-  const loc = locQuyDinh(ds ?? [], tim);
-  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
 
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
@@ -106,34 +112,71 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
       </p>
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
+      {loiGo !== null && <BaoLoi loi={loiGo} />}
+
+      <div className="hang-tim">
+        <Truong id="loc-nhom-ck" nhan="Nhóm sản phẩm">
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={locNhom}
+              onChange={(e) => datLocNhom(e.target.value)}
+            >
+              <option value="">— Mọi nhóm —</option>
+              {nhom.map((x) => (
+                <option key={x.id} value={x.code}>
+                  {x.name} ({x.code})
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        <Truong id="loc-loai-ck" nhan="Loại khách hàng">
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={locLoai}
+              onChange={(e) => datLocLoai(e.target.value)}
+            >
+              <option value="">— Mọi loại —</option>
+              {LOAI_KHACH_HANG.map((l) => (
+                <option key={l} value={String(l)}>
+                  Loại {l}
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        {dangLoc && (
+          <span className="ghi-chu" role="status">
+            {tong} quy định khớp
+          </span>
+        )}
+      </div>
+
+      {dangLoc && (
+        <p className="ghi-chu">
+          Danh sách gồm cả quy định <strong>chung</strong> — dòng áp cho mọi nhóm hoặc mọi loại
+          khách vẫn áp cho lựa chọn này, nên giấu chúng đi là đưa ra một bức tranh thiếu đúng
+          dòng đang có hiệu lực.
+        </p>
+      )}
 
       {ds.length === 0 ? (
-        <Trong
-          tieuDe="Chưa có quy định chiết khấu nào"
-          moTa="Chưa có quy định thì không dòng sản phẩm nào bị đánh dấu vượt ngưỡng."
-        />
+        dangLoc ? (
+          <Trong
+            tieuDe="Không có quy định nào khớp"
+            moTa="Không quy định nào áp cho nhóm và loại khách đang chọn. Mở một trong hai ô về “Mọi …” để xem rộng hơn."
+          />
+        ) : (
+          <Trong
+            tieuDe="Chưa có quy định chiết khấu nào"
+            moTa="Chưa có quy định thì không dòng sản phẩm nào bị đánh dấu vượt ngưỡng."
+          />
+        )
       ) : (
-        <>
-          <div className="hang-tim">
-            <OTimKiem
-              id="tim-quy-dinh"
-              nhan="Tìm theo mã quy định, phạm vi hoặc ngưỡng"
-              giaTri={tim}
-              doi={datTim}
-            />
-            {tim.trim() !== '' && (
-              <span className="ghi-chu" role="status">
-                {loc.length} quy định khớp
-              </span>
-            )}
-          </div>
-
-          {loc.length === 0 ? (
-            <Trong
-              tieuDe="Không có quy định nào khớp"
-              moTa="Thử dán nguyên mã ở cột QĐCK của dòng hồ sơ, hoặc gõ mã nhóm sản phẩm."
-            />
-          ) : (
         <div className="khung-cuon" role="region" aria-label="Quy định chiết khấu" tabIndex={0}>
           <table className="bang">
             <thead>
@@ -146,7 +189,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
               </tr>
             </thead>
             <tbody>
-              {cuaTrang.map((q) => (
+              {ds.map((q) => (
                 <tr key={q.code}>
                   <td className="ma-quy-dinh">{q.code}</td>
                   <td>{phamViChietKhau(q)}</td>
@@ -178,16 +221,14 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
             </tbody>
           </table>
         </div>
-          )}
-          <PhanTrang
-            trang={trang}
-            soTrang={soTrang}
-            tong={loc.length}
-            doiTrang={doiTrang}
-            nhan="quy định"
-          />
-        </>
       )}
+      <PhanTrang
+        trang={trang}
+        soTrang={soTrang}
+        tong={tong}
+        doiTrang={doiTrang}
+        nhan="quy định"
+      />
 
       {hoiXoa && (
         /* `goLai` — gõ lại MÃ quy định (`0036`). Máy chủ đòi đúng chuỗi ấy

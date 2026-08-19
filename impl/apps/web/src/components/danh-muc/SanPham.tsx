@@ -6,11 +6,10 @@
  * KHÔNG ở tương lai (`CAT-05`). Nên màn hình không có ô "sửa giá"; nó có nút
  * "Đặt giá mới", và bảng lịch sử để thấy giá nào áp dụng từ bao giờ.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dang, guiTep, layJson, va } from '../../lib/api.js';
 import { ngay, tien } from '../../lib/format.js';
 import {
-  locSanPham,
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
   TRANG_THAI_SAN_PHAM,
@@ -31,41 +30,45 @@ import {
 } from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { PhanTrang } from '../PhanTrang.js';
-import { useTrangTaiCho } from '../../lib/phan-trang.js';
+import { useTrangMay } from '../../lib/phan-trang.js';
 
 export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
-  const [ds, datDs] = useState<SanPham[] | null>(null);
   const [tim, datTim] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
-  const [lan, datLan] = useState(0);
+  const [locNhom, datLocNhom] = useState('');
   const [mo, datMo] = useState<
     { kieu: 'tao' } | { kieu: 'sua'; sp: SanPham } | { kieu: 'gia'; sp: SanPham } | { kieu: 'excel' } | null
   >(null);
 
-  const taiLai = useCallback(() => datLan((x) => x + 1), []);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    datLoi(null);
-    layJson<{ items: SanPham[] }>('/catalog/products?limit=200', huy.signal)
-      .then((r) => datDs(r.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [lan]);
-
   /*
-   * Lọc TRƯỚC, cắt trang SAU — và cả hai phải nằm TRÊN mọi lệnh `return` sớm,
-   * vì `useTrangTaiCho` là một hook: gọi nó sau một `return` có điều kiện là đổi
-   * số hook giữa hai lần vẽ, và React sẽ ném.
+   * TÌM VÀ LỌC Ở MÁY CHỦ, nên phân trang cũng ở máy chủ (`0049`).
    *
-   * Cắt trang TẠI CHỖ chứ không nhờ máy chủ: ô tìm kiếm bỏ dấu ở đây chạy trên
-   * dữ liệu đã tải, nên cắt ở máy chủ là biến nó thành "tìm trong 20 dòng đang
-   * hiện" — gãy đúng cái việc nó sinh ra để làm.
+   * Trước đó màn hình lấy 200 dòng đầu rồi lọc bằng `locSanPham` ngay trên trình
+   * duyệt. Chú thích cũ ở chỗ này lập luận rằng cắt ở máy chủ sẽ biến ô tìm
+   * thành "tìm trong 20 dòng đang hiện" — đúng với một máy chủ KHÔNG biết tìm,
+   * và đó mới là chỗ phải sửa. Giờ `?q=` và `?groupCode=` chạy trên toàn bảng,
+   * máy chủ trả về đúng một trang, và ô tìm phủ mọi sản phẩm chứ không phải 200
+   * dòng đầu (muc 11.3).
+   *
+   * Đổi từ khoá hay đổi nhóm là đổi `duongCoSo`, và `useTrangMay` tự đưa về
+   * trang 1 — luật "đổi bộ lọc thì về trang 1" của muc 11.3, không phải nhớ làm.
    */
-  const loc = locSanPham(ds ?? [], tim);
-  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(loc);
+  const truyVan = new URLSearchParams();
+  if (tim.trim() !== '') truyVan.set('q', tim.trim());
+  if (locNhom !== '') truyVan.set('groupCode', locNhom);
+  const duoi = truyVan.toString();
+
+  const {
+    muc: ds,
+    tong,
+    loi,
+    trang,
+    soTrang,
+    doiTrang,
+    taiLai,
+  } = useTrangMay<SanPham>(`/catalog/products${duoi ? `?${duoi}` : ''}`);
+
+  /** Có đang lọc gì không — quyết định câu nói khi bảng rỗng. */
+  const dangLoc = tim.trim() !== '' || locNhom !== '';
 
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
@@ -101,29 +104,49 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 
-      {ds.length > 0 && (
-        <div className="hang-tim">
-          <OTimKiem
-            id="tim-san-pham-qt"
-            nhan="Tìm theo tên hoặc mã sản phẩm"
-            giaTri={tim}
-            doi={datTim}
-          />
-          {tim.trim() !== '' && (
-            <span className="ghi-chu" role="status">
-              {loc.length} sản phẩm khớp
-            </span>
+      <div className="hang-tim">
+        <OTimKiem
+          id="tim-san-pham-qt"
+          // Nhãn nói ĐÚNG phạm vi tìm. Ô này không khớp mã vật tư nữa, và một ô
+          // tìm im lặng về phạm vi của nó là ô tìm khiến người dùng kết luận sai
+          // rằng sản phẩm không tồn tại.
+          nhan="Tìm theo tên sản phẩm"
+          giaTri={tim}
+          doi={datTim}
+        />
+        <Truong id="loc-nhom-sp" nhan="Nhóm sản phẩm">
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={locNhom}
+              onChange={(e) => datLocNhom(e.target.value)}
+            >
+              <option value="">— Mọi nhóm —</option>
+              {nhom.map((x) => (
+                <option key={x.id} value={x.code}>
+                  {x.name} ({x.code})
+                </option>
+              ))}
+            </select>
           )}
-        </div>
-      )}
+        </Truong>
+        {dangLoc && (
+          <span className="ghi-chu" role="status">
+            {tong} sản phẩm khớp
+          </span>
+        )}
+      </div>
 
       {ds.length === 0 ? (
-        <Trong tieuDe="Danh mục chưa có sản phẩm nào" />
-      ) : loc.length === 0 ? (
-        <Trong
-          tieuDe="Không có sản phẩm nào khớp"
-          moTa="Thử bỏ bớt chữ, hoặc gõ mã vật tư thay vì tên."
-        />
+        dangLoc ? (
+          <Trong
+            tieuDe="Không có sản phẩm nào khớp"
+            moTa="Ô tìm chỉ khớp TÊN sản phẩm, không khớp mã vật tư. Thử bỏ bớt chữ, hoặc mở lại nhóm về “Mọi nhóm”."
+          />
+        ) : (
+          <Trong tieuDe="Danh mục chưa có sản phẩm nào" />
+        )
       ) : (
         <div className="khung-cuon" role="region" aria-label="Danh mục sản phẩm" tabIndex={0}>
           <table className="bang">
@@ -137,7 +160,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
               </tr>
             </thead>
             <tbody>
-              {cuaTrang.map((s) => (
+              {ds.map((s) => (
                 <tr key={s.id}>
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
@@ -159,7 +182,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
           </table>
         </div>
       )}
-      <PhanTrang trang={trang} soTrang={soTrang} tong={loc.length} doiTrang={doiTrang} nhan="sản phẩm" />
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="sản phẩm" />
 
       {mo?.kieu === 'tao' && <HopThoaiTao nhom={nhom} dong={dong} xong={xong} />}
       {mo?.kieu === 'sua' && <HopThoaiSua sp={mo.sp} dong={dong} xong={xong} />}

@@ -73,14 +73,31 @@ export class CatalogController {
 
   // --- Sản phẩm -------------------------------------------------------------
 
+  /**
+   * `q` tìm theo TÊN sản phẩm, `groupCode` lọc theo nhóm (`0049`).
+   *
+   * Cả hai chạy Ở MÁY CHỦ. Trước `0049` màn hình lấy 200 dòng đầu rồi lọc trên
+   * trình duyệt, nên vượt 200 sản phẩm là gõ tên một mặt hàng CÓ THẬT vẫn ra
+   * "không tìm thấy" — và không gì báo cho người dùng biết họ chỉ tìm trong một
+   * phần (muc 11.3).
+   */
   @Get('products')
   list(
     @Query('forNewPolicy') forNewPolicy?: string,
+    @Query('q') q?: string,
+    @Query('groupCode') groupCode?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
     return this.products.list(
-      { forNewPolicy: forNewPolicy === 'true' },
+      {
+        forNewPolicy: forNewPolicy === 'true',
+        // Chuỗi rỗng KHÔNG phải một điều kiện lọc. Màn hình gửi `q=` khi người
+        // dùng vừa xoá hết ô tìm; hiểu nó là "tên bằng rỗng" thì kết quả rỗng và
+        // họ thấy màn hình trắng ngay sau khi xoá từ khoá (cùng bẫy như RPT-03).
+        q: q?.trim() || undefined,
+        groupCode: groupCode?.trim() || undefined,
+      },
       pageOf({ limit, offset }),
     );
   }
@@ -171,9 +188,32 @@ export class CatalogController {
 
   // --- Chiết khấu quy định --------------------------------------------------
 
+  /**
+   * Hai Ô CHỌN, không ô tìm chữ (`0049`).
+   *
+   * Khách hàng chốt màn hình Chiết khấu lọc bằng nhóm sản phẩm và loại khách
+   * hàng, bỏ hẳn ô gõ tự do. Hợp với dữ liệu: cả hai đều là tập giá trị đóng và
+   * người dùng chọn từ danh sách, không ai phải nhớ để gõ đúng.
+   *
+   * `customerType` nhận đúng 1 · 2 · 3 và không nhận gì khác — nó đi thẳng vào
+   * một cột `smallint`, nên chuỗi lạ phải bị chặn ở đây chứ không để Postgres
+   * ném lỗi kiểu ra thành lỗi 500.
+   */
   @Get('discount-rules')
-  listRules(@Query('limit') limit?: string, @Query('offset') offset?: string) {
-    return this.rules.list(pageOf({ limit, offset }));
+  listRules(
+    @Query('groupCode') groupCode?: string,
+    @Query('customerType') customerType?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const b = validate(
+      { groupCode: groupCode?.trim() || undefined, customerType: customerType?.trim() || undefined },
+      { groupCode: opt(str(1, 60)), customerType: opt(oneOf('1', '2', '3')) },
+    );
+    return this.rules.list(pageOf({ limit, offset }), {
+      groupCode: b.groupCode,
+      customerType: b.customerType === undefined ? undefined : Number(b.customerType),
+    });
   }
 
   @Roles('QUAN_TRI')

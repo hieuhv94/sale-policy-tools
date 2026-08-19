@@ -38,35 +38,18 @@ export const THE_SAN_PHAM: { khoa: TheSanPhamKhoa; nhan: string }[] = [
   { khoa: 'nhom', nhan: 'Nhóm sản phẩm' },
 ];
 
-/**
- * Bỏ dấu tiếng Việt để tìm kiếm.
+/*
+ * `khongDau`, `locSanPham` và `locQuyDinh` ĐÃ GỠ ở `0049`.
  *
- * Người dùng gõ "sua" phải ra "Sữa" — gõ đủ dấu trên bàn phím điện thoại giữa
- * lúc đang ngồi với khách hàng là thứ không ai làm. `NFD` tách dấu thành ký tự
- * riêng rồi xoá dải dấu đi; `đ` không có dạng tách nên phải thay tay.
- */
-export const khongDau = (s: string): string =>
-  s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase();
-
-/**
- * Lọc sản phẩm theo từ khoá — khớp cả TÊN và MÃ.
+ * Cả ba lọc trên mảng ĐÃ TẢI VỀ, mà màn hình chỉ tải 200 dòng đầu — nên vượt 200
+ * dòng là gõ tên một thứ có thật vẫn ra "không tìm thấy", trái muc 11.3. Việc
+ * tìm chuyển hẳn sang máy chủ (`?q=`), và phép bỏ dấu giờ có hai bản: `norm()`
+ * ở `@csbh/http-kit` cho từ khoá, `sys.khong_dau()` trong CSDL cho cột chuẩn
+ * hoá. Một ca kiểm thử giữ hai bản bằng nhau.
  *
- * Khớp cả mã vì người dùng đọc mã từ hoá đơn giấy nhiều hơn là nhớ tên đầy đủ,
- * và một ô tìm kiếm chỉ ăn tên thì họ gõ mã vào rồi tưởng sản phẩm không tồn tại.
+ * Giao diện KHÔNG còn bản thứ ba: một phép chuẩn hoá chạy ở trình duyệt mà lệch
+ * với máy chủ chỉ tạo ra kết quả khác nhau ở hai nơi cho cùng một từ khoá.
  */
-export const locSanPham = <T extends { code: string; name: string }>(
-  ds: T[],
-  tuKhoa: string,
-): T[] => {
-  const k = khongDau(tuKhoa.trim());
-  if (k === '') return ds;
-  return ds.filter((s) => khongDau(s.name).includes(k) || khongDau(s.code).includes(k));
-};
 
 export const LOAI_GIA = ['GIA_BAN_CONG_TY'] as const;
 export type LoaiGia = (typeof LOAI_GIA)[number];
@@ -160,24 +143,3 @@ export function phamViChietKhau(q: QuyDinhChietKhau): string {
   ].join(' · ');
 }
 
-/**
- * Lọc quy định chiết khấu theo từ khoá — khớp cả **mã quy định**.
- *
- * Khớp mã là công dụng chính, không phải công dụng phụ: bảng dòng sản phẩm của
- * mỗi hồ sơ có cột *QĐCK* mang đúng mã ấy, và đường đi tự nhiên là chép mã từ hồ
- * sơ rồi dán vào đây để xem quy định nào đã cho ra ngưỡng. Khớp theo **chuỗi
- * con** nên dán một phần đầu của mã cũng ra.
- *
- * Hai trường phạm vi khớp theo câu mô tả — người dùng nhớ "nhóm SUA" chứ
- * không nhớ ba ô rời. Ngưỡng khớp theo con số phần trăm đang hiện trên màn hình
- * (`25,00`), không theo giá trị lưu trong máy (`2500`): gõ cái mình đang nhìn
- * thấy mới là điều người ta làm.
- */
-export const locQuyDinh = (ds: QuyDinhChietKhau[], tuKhoa: string): QuyDinhChietKhau[] => {
-  const k = khongDau(tuKhoa.trim());
-  if (k === '') return ds;
-  return ds.filter((q) =>
-    [q.code, phamViChietKhau(q), phanTramTuNguong(q.thresholdRate2), q.effectiveFrom]
-      .some((x) => khongDau(x).includes(k)),
-  );
-};

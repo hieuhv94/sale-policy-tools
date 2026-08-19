@@ -6266,3 +6266,85 @@ chúng lơ lửng như câu hỏi chưa trả lời — ba tháng nữa đọc l
 | M-09 | Thư *để biết* vẫn gửi ở **mọi** bước, không chặn trần theo mốc lớn. |
 
 Toàn bộ mười điểm của bản rà soát luồng email đã đóng. Không còn điểm nào chờ trả lời.
+
+## P78 — N-05: tìm và lọc chuyển hẳn sang máy chủ
+
+Khách hàng cụ thể hoá yêu cầu, và cụ thể hoá theo hướng **đơn giản hơn** hẳn bản tôi đề xuất:
+
+| Màn hình | Chốt |
+|---|---|
+| Sản phẩm | Ô tìm chỉ khớp **tên**, nhãn nói đúng điều đó; thêm **ô chọn nhóm sản phẩm** bên cạnh |
+| Người dùng | Chỉ tìm theo **họ tên** |
+| Chiết khấu | **Bỏ hẳn ô gõ tự do**, thay bằng hai ô chọn: nhóm sản phẩm · loại khách hàng |
+
+Chốt thứ ba gỡ đúng mảnh khó nhất. Ô tìm cũ của Chiết khấu khớp trên bốn thứ, trong đó **hai thứ là
+chuỗi do giao diện dựng ra** — câu mô tả phạm vi và con số phần trăm đang hiển thị. Không có cột nào
+mang chúng, nên đưa xuống SQL là phải dựng lại cả hai bằng join và phép định dạng. Hai ô chọn hợp
+với dữ liệu hơn hẳn: cả hai chiều đều là **tập giá trị đóng**, người dùng chọn từ danh sách chứ
+không phải nhớ để gõ đúng.
+
+### Bỏ dấu ở phía SQL, và vì sao không dùng `unaccent`
+
+`ILIKE '%sua%'` không ra "Sữa". Extension `unaccent` thì **không bỏ được dấu chữ đ** — `đ` là ký tự
+Unicode độc lập U+0111, `normalize(..., NFD)` không tách ra được. Người gõ "Da Nang" không tìm thấy
+"Đà Nẵng", còn mọi chuỗi khác vẫn tìm được nên không ai nghi ngờ gì. `reporting/normalize.ts` đã ghi
+đúng lý do ấy từ lâu và tự viết `norm()`.
+
+Nên `0049` đưa cùng phép chuẩn hoá xuống SQL: `sys.khong_dau()`, cộng **cột sinh** `name_norm` và
+`full_name_norm` với index GIN trigram.
+
+**Cột sinh chứ không index biểu thức**: index biểu thức bắt câu lệnh nhắc lại nguyên văn biểu thức,
+lệch một ký tự là Postgres bỏ index và quay về quét toàn bảng — không lỗi, chỉ chậm dần. Repo đã
+dính đúng bẫy ấy một lần, ghi ở `customers.service.ts`.
+
+### Ca kiểm thử đối chiếu bắt lỗi ngay lượt chạy đầu
+
+Phép chuẩn hoá giờ có **hai bản cài đặt** và không tránh được — một ở TypeScript cho từ khoá, một ở
+SQL cho cột sinh. Ca `0049` ở `tests/db/constraints.test.ts` chạy mười chuỗi tiếng Việt qua cả hai
+và so mảng.
+
+Nó đỏ ngay: `norm()` **gộp khoảng trắng và cắt lề**, hàm SQL bản đầu thì không. Hậu quả nếu lọt: một
+sản phẩm lỡ gõ hai dấu cách lưu cột chuẩn hoá hai dấu cách, người dùng gõ một dấu cách thì mẫu tìm
+có một — **không khớp, không lỗi, người dùng kết luận sản phẩm không tồn tại**. Đúng loại hỏng mà ca
+này sinh ra để bắt, và nó bắt được ở lượt chạy đầu tiên.
+
+### Ba thứ lộ ra khi sửa
+
+**Màn hình Chiết khấu hỏng với năm trên sáu vai trò.** `TrangChietKhau` gọi `useNhom(quanTri)` —
+hook không tải gì khi không phải Quản trị — rồi `if (!nhom) return <DangTai />`. Vòng quay chờ
+**vĩnh viễn**. Không ca kiểm thử nào bắt được vì phần này chưa từng được vẽ ra thật; đúng thứ món nợ
+*chưa có test trình duyệt* đã hứa sẽ có. Sửa kèm, vì `0049` cần nhóm sản phẩm cho mọi vai trò.
+
+**`locTbp` và hai prop `ds` đã chết từ `0031`.** Chú thích ở màn hình Người dùng viện đúng chúng làm
+lý do không được cắt trang ở máy chủ. Gỡ cả ba — để lại là người đọc sau tin rằng ràng buộc vẫn còn.
+
+**Một `<th>` mồ côi**: bảng người dùng khai sáu cột tiêu đề, thân bảng chỉ vẽ năm ô. Cột *Trưởng bộ
+phận quản lý* rụng nội dung từ `0031` mà tiêu đề nằm lại.
+
+### Bẫy đã dính, ghi để lần sau khỏi mất thì giờ
+
+- **Sửa file migration sau khi nó đã áp dụng** → `migrate` từ chối vì checksum lệch, và triệu chứng
+  là cả bộ test không khởi động được. Migration này chưa phát hành nên gỡ dòng sổ rồi chạy lại; file
+  viết idempotent (`DROP COLUMN IF EXISTS` rồi `ADD`) nên chạy lại luôn cho ra giá trị khớp hàm
+  hiện hành.
+- **Backtick trong SQL comment nằm trong template literal** làm gãy biên dịch. Lần thứ hai dính.
+- **`uq_rule_pham_vi` là UNIQUE với `NULLS NOT DISTINCT`** — mỗi ngày hiệu lực chỉ tồn tại ĐÚNG MỘT
+  quy định "mọi nhóm · mọi loại". Ca kiểm thử dựng hai dòng như vậy nhận 409. Nguy hơn: một dòng như
+  thế khớp **mọi sản phẩm**, nên nó đổi kết quả các ca tra ngưỡng ở phía trên tệp — và vì dữ liệu
+  test không dọn giữa các lượt, nó đổi cả **lượt chạy sau**. Ca duy nhất cần nó tự dọn bằng `finally`.
+- **Tiền đề của một ca kiểm thử sai, không phải mã sai**: `q=duong` khớp cả "dinh dưỡng", vì "dưỡng"
+  cũng chuẩn hoá thành "duong". Phải gõ đủ cụm mới tách được nhánh đ→d khỏi nhánh bỏ dấu thường.
+
+### Cố ý KHÔNG làm
+
+Ô chọn sản phẩm trong màn hình lập/sửa hồ sơ vẫn chặn ở 200 dòng. Muc 11.3 miễn phân trang cho ô
+chọn, và cách đúng cho nó là tìm-theo-phím-gõ kèm câu "còn N kết quả nữa" chứ không phải phân trang
+— một việc khác, không nằm trong yêu cầu lượt này.
+
+### Kiểm chứng
+
+`0049` một migration; `?q=` và `?groupCode=` cho sản phẩm, hai ô chọn cho chiết khấu, `?q=` cho
+người dùng; bốn màn hình đổi sang `useTrangMay`. Test mới: 9 ca sản phẩm và 7 ca chiết khấu ở
+`catalog.test.ts`, 6 ca người dùng ở `onboarding.test.ts`, 3 ca đối chiếu TS↔SQL ở
+`constraints.test.ts`, 10 ca hai ô chọn ở `bang-chiet-khau.test.tsx`. Hai khối test cũ của
+`locSanPham`/`locQuyDinh` gỡ theo chính hai hàm ấy. **1177/1177 xanh.**

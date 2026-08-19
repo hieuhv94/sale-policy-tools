@@ -8,9 +8,9 @@
  * ba thao tác quản trị cho một quan hệ mà nghiệp vụ chỉ nhìn thấy là "TDV này do
  * ai duyệt". Giờ nó là một ô chọn trên chính biểu mẫu tạo TDV.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dang, layJson, va } from '../lib/api.js';
-import { VAI_TRO, can, type VaiTro } from '../lib/can.js';
+import { VAI_TRO, type VaiTro } from '../lib/can.js';
 import {
   NHAN_VAI_TRO,
   trangThaiTaiKhoan,
@@ -23,38 +23,20 @@ import {
   ChuThichBatBuoc,
   DaiThe,
   DangTai,
+  OTimKiem,
   HopThoai,
   HopThoaiXacNhan,
   ThanhHoanTac,
   Truong,
 } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
-import { useTrangTaiCho } from '../lib/phan-trang.js';
+import { useTrangMay } from '../lib/phan-trang.js';
 import { TheHeThong } from '../components/quan-tri/HeThong.js';
 
 type The = 'nguoi-dung' | 'he-thong';
 
 export function NguoiDung() {
   const [the, datThe] = useState<The>('nguoi-dung');
-  const [ds, datDs] = useState<NguoiDungDto[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-  const [lan, datLan] = useState(0);
-
-  const taiLai = useCallback(() => datLan((x) => x + 1), []);
-
-  useEffect(() => {
-    const huy = new AbortController();
-    datLoi(null);
-    layJson<{ items: NguoiDungDto[] }>('/admin/users?limit=200', huy.signal)
-      .then((u) => datDs(u.items))
-      .catch((e) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [lan]);
-
-  if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
-  if (!ds) return <DangTai />;
 
   return (
     <section className="trang">
@@ -65,19 +47,24 @@ export function NguoiDung() {
         </div>
       </div>
 
+      {/*
+        Thẻ *Người dùng* KHÔNG còn ô đếm (`0049`).
+        Danh sách giờ do máy chủ cắt trang, nên màn hình chỉ cầm 20 dòng và con
+        số duy nhất nó biết là TỔNG SAU KHI LỌC. Dán con số ấy lên nhãn thẻ thì
+        nó tụt xuống mỗi lần gõ vào ô tìm, và đọc ra như "công ty vừa mất mấy
+        chục tài khoản". Tổng vẫn nói ra, ở thanh phân trang — chỗ nó đúng nghĩa.
+      */}
       <DaiThe
         nhanVung="Nhóm nội dung"
         dangChon={the}
         chon={datThe}
         muc={[
-          { khoa: 'nguoi-dung', nhan: 'Người dùng', dem: ds.length },
+          { khoa: 'nguoi-dung', nhan: 'Người dùng' },
           { khoa: 'he-thong', nhan: 'Hệ thống' },
         ]}
       />
 
-      {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
-
-      {the === 'nguoi-dung' && <TheNguoiDung ds={ds} taiLai={taiLai} />}
+      {the === 'nguoi-dung' && <TheNguoiDung />}
       {the === 'he-thong' && <TheHeThong />}
     </section>
   );
@@ -85,16 +72,33 @@ export function NguoiDung() {
 
 // --- Thẻ Người dùng ---------------------------------------------------------
 
-function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }) {
+function TheNguoiDung() {
+  const [tim, datTim] = useState('');
+
   /*
-   * Cắt trang TẠI CHỖ, và ở đây lý do khác hai màn hình danh mục.
+   * TÌM VÀ CẮT TRANG Ở MÁY CHỦ (`0049`).
    *
-   * `ds` không chỉ nuôi cái bảng: mọi hộp thoại tạo và sửa người dùng đều lấy ô
-   * chọn "Trưởng bộ phận quản lý" từ chính nó (`locTbp(ds)`). Cắt ở máy chủ thì
-   * ô chọn ấy chỉ còn thấy 20 tài khoản đầu — một TDV sẽ không gán được vào
-   * Trưởng bộ phận thứ 21, và không có gì trên màn hình nói vì sao.
+   * Chú thích cũ ở đây bảo phải cắt tại chỗ vì các hộp thoại lấy ô chọn "Trưởng
+   * bộ phận quản lý" từ chính danh sách này. LÝ DO ẤY ĐÃ CHẾT TỪ `0031` — ô chọn
+   * đó không còn tồn tại, `locTbp` không nơi nào gọi, và cả hai hộp thoại vẫn
+   * nhận `ds` chỉ vì chưa ai gỡ. Ba thứ đó bị gỡ cùng lượt này, nếu không người
+   * đọc sau sẽ tin rằng ràng buộc vẫn còn.
+   *
+   * Trước `0049` màn hình này KHÔNG có ô tìm nào: nó lấy 200 tài khoản đầu rồi
+   * phân trang tại chỗ. Nên đây vừa vá nợ vừa thêm chức năng.
    */
-  const { trang, soTrang, doiTrang, cuaTrang } = useTrangTaiCho(ds);
+  const {
+    muc: ds,
+    tong,
+    loi: loiTai,
+    trang,
+    soTrang,
+    doiTrang,
+    taiLai,
+  } = useTrangMay<NguoiDungDto>(
+    tim.trim() === '' ? '/admin/users' : `/admin/users?q=${encodeURIComponent(tim.trim())}`,
+  );
+
   const [mo, datMo] = useState<
     | { kieu: 'tao' }
     | { kieu: 'xem'; u: NguoiDungDto }
@@ -126,6 +130,9 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
     }
   };
 
+  if (loiTai !== null && ds === null) return <BaoLoi loi={loiTai} thuLai={taiLai} />;
+  if (!ds) return <DangTai />;
+
   return (
     <>
       <div className="nhom-nut">
@@ -134,6 +141,24 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
         </button>
       </div>
 
+      <div className="hang-tim">
+        <OTimKiem
+          id="tim-nguoi-dung"
+          // Chỉ họ tên. Khớp cả email thì màn hình quản trị thành chỗ dò địa chỉ
+          // thư của cả công ty, và nhãn phải nói ra phạm vi để không ai kết luận
+          // sai rằng tài khoản không tồn tại.
+          nhan="Tìm theo họ tên"
+          giaTri={tim}
+          doi={datTim}
+        />
+        {tim.trim() !== '' && (
+          <span className="ghi-chu" role="status">
+            {tong} tài khoản khớp
+          </span>
+        )}
+      </div>
+
+      {loiTai !== null && <BaoLoi loi={loiTai} thuLai={taiLai} />}
       {loi !== null && <BaoLoi loi={loi} />}
       {thuHong !== null && (
         <div className="ghi-chu-tra-lai" role="status">
@@ -155,13 +180,12 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
               <th>Họ tên</th>
               <th>Tài khoản</th>
               <th>Vai trò</th>
-              <th>Trưởng bộ phận quản lý</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {cuaTrang.map((u) => (
+            {ds.map((u) => (
               <tr key={u.id}>
                 <td>{u.fullName}</td>
                 <td className="ma-phu">{u.username}</td>
@@ -220,7 +244,7 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
           </tbody>
         </table>
       </div>
-      <PhanTrang trang={trang} soTrang={soTrang} tong={ds.length} doiTrang={doiTrang} nhan="tài khoản" />
+      <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="tài khoản" />
 
       {hoi?.viec === 'moi' && (
         <HopThoaiXacNhan
@@ -250,7 +274,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
 
       {mo?.kieu === 'tao' && (
         <HopThoaiTao
-          ds={ds}
           dong={() => datMo(null)}
           xong={(daGuiThu) => {
             datMo(null);
@@ -264,7 +287,6 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
       {mo?.kieu === 'xem' && (
         <HopThoaiXem
           u={mo.u}
-          ds={ds}
           dong={() => datMo(null)}
           xong={() => {
             datMo(null);
@@ -287,23 +309,12 @@ function TheNguoiDung({ ds, taiLai }: { ds: NguoiDungDto[]; taiLai: () => void }
   );
 }
 
-/**
- * Danh sách tài khoản chọn được làm người duyệt.
- *
- * Suy ra từ BẢNG QUYỀN, không so chuỗi vai trò: người duyệt là đúng người ký số
- * được. Máy chủ chặn vai trò khác ở `users.service.ts:resolveApprover`, và
- * `quyen.test.ts` cấm mọi so sánh vai trò viết thẳng ngoài `can.ts`.
- */
-const locTbp = (ds: NguoiDungDto[]) => ds.filter((u) => can(u.role, 'kySo') && u.isActive);
-
 // --- Hộp thoại tạo ----------------------------------------------------------
 
 function HopThoaiTao({
-  ds,
   dong,
   xong,
 }: {
-  ds: NguoiDungDto[];
   dong: () => void;
   /** `daGuiThu` false = tài khoản đã tạo nhưng thư mời không đi được. */
   xong: (daGuiThu: boolean) => void;
@@ -589,12 +600,10 @@ function HopThoaiVoHieu({
 
 function HopThoaiXem({
   u,
-  ds,
   dong,
   xong,
 }: {
   u: NguoiDungDto;
-  ds: NguoiDungDto[];
   dong: () => void;
   xong: () => void;
 }) {

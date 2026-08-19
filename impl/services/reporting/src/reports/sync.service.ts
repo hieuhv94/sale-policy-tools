@@ -17,7 +17,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Db } from '../infra/db.js';
 import { Clients, type CustomerSrc, type PolicySrc } from '../infra/clients.js';
-import { norm, normAll } from './normalize.js';
+import { norm, normAll } from '@csbh/http-kit';
 
 export type SyncOutcome = 'synced' | 'deleted' | 'gone' | 'stale' | 'ignored';
 

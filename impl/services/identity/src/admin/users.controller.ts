@@ -28,8 +28,10 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
-  list(@Query('limit') limit?: string, @Query('offset') offset?: string) {
-    return this.users.list(pageOf({ limit, offset }));
+  list(@Query('q') q?: string, @Query('limit') limit?: string, @Query('offset') offset?: string) {
+    // Chuỗi rỗng không phải điều kiện lọc — màn hình gửi `q=` khi người dùng vừa
+    // xoá hết ô tìm, và hiểu nó là "họ tên bằng rỗng" thì kết quả rỗng.
+    return this.users.list(pageOf({ limit, offset }), q?.trim() || undefined);
   }
 
   @Post()

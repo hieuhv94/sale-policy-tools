@@ -44,19 +44,34 @@ const phanHoi = (body: unknown) =>
     headers: { 'content-type': 'application/json' },
   });
 
-const chanFetch = () =>
+/** Mọi đường đã gọi, theo thứ tự — dùng để khẳng định ĐIỀU KIỆN LỌC gửi lên. */
+let daGoi: string[] = [];
+
+const chanFetch = (loc?: (d: string) => unknown) =>
   vi.stubGlobal(
     'fetch',
     vi.fn((duong: unknown) => {
       const d = String(duong);
-      if (d.includes('/discount-rules')) return Promise.resolve(phanHoi({ items: QUY_DINH }));
+      if (d.includes('/discount-rules')) {
+        daGoi.push(d);
+        const items = (loc?.(d) as typeof QUY_DINH | undefined) ?? QUY_DINH;
+        // `total` là thật, không phải `items.length`: từ `0049` máy chủ cắt trang
+        // nên hai con số khác nhau, và thanh phân trang đọc `total`.
+        return Promise.resolve(phanHoi({ items, total: items.length }));
+      }
       return Promise.resolve(phanHoi({}));
     }),
   );
 
-const bay = async () => {
-  chanFetch();
-  render(<TheChietKhau nhom={[]} />);
+const NHOM = [
+  { id: 'n1', code: 'SUA', name: 'Sữa nước' },
+  { id: 'n2', code: 'BOT', name: 'Bột dinh dưỡng' },
+];
+
+const bay = async (loc?: (d: string) => unknown) => {
+  daGoi = [];
+  chanFetch(loc);
+  render(<TheChietKhau nhom={NHOM} />);
   return waitFor(() => screen.getByRole('table'));
 };
 
@@ -94,51 +109,104 @@ describe('0023 cột Id thay cho Độ cụ thể', () => {
   });
 });
 
-describe('0023 tìm kiếm quy định chiết khấu', () => {
-  const go = async (chu: string) => {
-    const nguoi = userEvent.setup();
-    await nguoi.type(screen.getByRole('searchbox'), chu);
-  };
+/**
+ * `0049` — hai Ô CHỌN thay cho ô gõ tự do.
+ *
+ * Ô tìm chữ cũ khớp trên bốn thứ, trong đó hai thứ là chuỗi do chính màn hình
+ * dựng ra: câu mô tả phạm vi, và con số phần trăm đang hiển thị. Không đưa xuống
+ * máy chủ được — mà giữ ở màn hình thì nó chỉ tìm trong 200 dòng đầu, trái
+ * muc 11.3. Khách hàng chốt đổi sang hai ô chọn, và cả hai là cột thật.
+ */
+describe('`0049` lọc bằng hai ô chọn, không còn ô gõ tự do', () => {
+  const oNhom = () => screen.getByLabelText(/Nhóm sản phẩm/);
+  const oLoai = () => screen.getByLabelText(/Loại khách hàng/);
 
-  it('dán nguyên mã thì còn đúng một dòng', async () => {
+  it('KHÔNG còn ô tìm chữ nào', async () => {
     await bay();
-    await go('CK-BOT-CHUNG');
+    expect(screen.queryByRole('searchbox')).toBeNull();
+  });
+
+  it('có đủ hai ô chọn, mỗi ô mở đầu bằng lựa chọn "mọi"', async () => {
+    await bay();
+    // Lựa chọn đầu KHÔNG lọc gì. Thiếu nó thì người dùng chọn xong không có
+    // đường quay lại xem toàn bộ, ngoài việc tải lại trang.
+    expect(within(oNhom()).getByRole('option', { name: /Mọi nhóm/ })).toBeDefined();
+    expect(within(oLoai()).getByRole('option', { name: /Mọi loại/ })).toBeDefined();
+  });
+
+  it('ô nhóm liệt kê đúng các nhóm được truyền vào', async () => {
+    await bay();
+    expect(within(oNhom()).getByRole('option', { name: /Sữa nước/ })).toBeDefined();
+    expect(within(oNhom()).getByRole('option', { name: /Bột dinh dưỡng/ })).toBeDefined();
+  });
+
+  it('chọn một nhóm thì gửi `groupCode` LÊN MÁY CHỦ', async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.selectOptions(oNhom(), 'SUA');
+    // Đây là cả điểm của `0049`: điều kiện lọc đi lên máy chủ, không chạy trên
+    // 200 dòng đã tải. Khẳng định trên ĐƯỜNG GỌI chứ không trên bảng — bảng chỉ
+    // vẽ lại thứ máy chủ trả về, nên nó không chứng minh được phép lọc ở đâu.
+    await waitFor(() => expect(daGoi.at(-1)).toContain('groupCode=SUA'), { timeout: 3000 });
+  });
+
+  it('chọn loại khách thì gửi `customerType`', async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.selectOptions(oLoai(), '2');
+    await waitFor(() => expect(daGoi.at(-1)).toContain('customerType=2'), { timeout: 3000 });
+  });
+
+  it('hai ô chọn kết hợp trong CÙNG một lời gọi', async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.selectOptions(oNhom(), 'BOT');
+    await nguoi.selectOptions(oLoai(), '3');
     await waitFor(() => {
-      const bang = screen.getByRole('table');
-      expect(within(bang).queryByText('CK-SUA-L1')).toBeNull();
-      expect(within(bang).getByText('CK-BOT-CHUNG')).toBeDefined();
+      expect(daGoi.at(-1)).toContain('groupCode=BOT');
+      expect(daGoi.at(-1)).toContain('customerType=3');
     }, { timeout: 3000 });
   });
 
-  it('nói rõ còn bao nhiêu dòng khớp', async () => {
-    // Không có con số này thì lọc xong người dùng không biết mình đang nhìn một
-    // bảng đã bị cắt hay là bảng đầy đủ.
+  it('mở lại về "mọi" thì bỏ hẳn điều kiện, không gửi chuỗi rỗng', async () => {
+    const nguoi = userEvent.setup();
     await bay();
-    await go('SUA');
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('1 quy định'), {
+    await nguoi.selectOptions(oNhom(), 'SUA');
+    await waitFor(() => expect(daGoi.at(-1)).toContain('groupCode=SUA'), { timeout: 3000 });
+    await nguoi.selectOptions(oNhom(), '');
+    // `groupCode=` rỗng cũng bị máy chủ bỏ qua, nhưng gửi nó lên là để lại một
+    // đường gọi đọc như thể có điều kiện lọc — và đó là thứ người sau đi tìm khi
+    // gỡ lỗi "vì sao danh sách không đổi".
+    await waitFor(() => expect(daGoi.at(-1)).not.toContain('groupCode'), { timeout: 3000 });
+  });
+
+  it('đang lọc thì nói rõ danh sách VẪN GỒM quy định chung', async () => {
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.selectOptions(oNhom(), 'SUA');
+    // Không nói ra thì người dùng thấy một dòng "mọi nhóm sản phẩm" nằm trong
+    // kết quả lọc theo nhóm SUA và tưởng bộ lọc hỏng.
+    await waitFor(() => expect(document.body.textContent).toContain('vẫn áp cho lựa chọn này'), {
       timeout: 3000,
     });
   });
 
-  it('không khớp gì thì nói KHÔNG KHỚP, không bày lại cả bảng', async () => {
-    await bay();
-    await go('zzz-khong-co');
+  it('không dòng nào khớp thì nói KHÔNG KHỚP, không bày lại cả bảng', async () => {
+    const nguoi = userEvent.setup();
+    await bay((d) => (d.includes('groupCode=SUA') ? [] : QUY_DINH));
+    await nguoi.selectOptions(oNhom(), 'SUA');
     await waitFor(() => {
       expect(screen.queryByRole('table')).toBeNull();
       expect(screen.getByText(/Không có quy định nào khớp/)).toBeDefined();
     }, { timeout: 3000 });
   });
 
-  it('xoá hết từ khoá thì bảng trở lại đủ dòng', async () => {
-    const nguoi = userEvent.setup();
-    await bay();
-    await go('SUA');
-    await waitFor(() => expect(screen.getByRole('status')).toBeDefined(), { timeout: 3000 });
-    await nguoi.clear(screen.getByRole('searchbox'));
-    await waitFor(() => {
-      const bang = screen.getByRole('table');
-      expect(within(bang).getAllByRole('row')).toHaveLength(3); // 1 tiêu đề + 2 dòng
-    }, { timeout: 3000 });
+  it('chưa lọc gì mà bảng rỗng thì nói CHƯA CÓ, không nói KHÔNG KHỚP', async () => {
+    // Hai câu cho hai tình huống khác hẳn nhau: "danh mục còn trống" bảo người
+    // quản trị đi tạo quy định, "không khớp" bảo họ nới bộ lọc.
+    chanFetch(() => []);
+    render(<TheChietKhau nhom={NHOM} />);
+    await waitFor(() => expect(screen.getByText(/Chưa có quy định chiết khấu nào/)).toBeDefined());
   });
 });
 

@@ -190,15 +190,36 @@ export class RulesService {
     });
   }
 
-  async list(page: Page) {
+  /**
+   * Danh sách quy định, lọc theo nhóm sản phẩm và loại khách hàng (`0049`).
+   *
+   * HAI Ô TRỐNG CÓ NGHĨA KHÁC NHAU, và đây là chỗ dễ làm sai nhất ở đây:
+   *
+   *   - Ô chọn để trống = **không lọc**, trả về mọi quy định.
+   *   - Dòng quy định có `product_group_id` rỗng = quy định áp cho **mọi nhóm**.
+   *
+   * Nên lọc theo nhóm SUA phải trả về cả quy định riêng của SUA lẫn quy định
+   * chung cho mọi nhóm — quy định chung vẫn áp cho sản phẩm nhóm SUA, và giấu nó
+   * đi là để người dùng nhìn một bức tranh thiếu đúng dòng đang có hiệu lực.
+   * Cùng lý do với `customer_type`.
+   */
+  async list(
+    page: Page,
+    loc: { groupCode?: string | undefined; customerType?: number | undefined } = {},
+  ) {
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT r.code, g.code AS "productGroupCode", r.customer_type AS "customerType",
               r.effective_from AS "effectiveFrom", r.threshold_rate2 AS "thresholdRate2",
               r.specificity, count(*) OVER() AS total_count
          FROM cat.discount_rule r LEFT JOIN cat.product_group g ON g.id = r.product_group_id
-        ORDER BY r.specificity DESC, r.effective_from DESC
+        WHERE ($3::text IS NULL OR g.code = $3 OR r.product_group_id IS NULL)
+          AND ($4::int IS NULL OR r.customer_type = $4 OR r.customer_type IS NULL)
+        -- Mã là khoá phá hoà: cột specificity chỉ có bốn giá trị và nhiều quy
+        -- định trùng ngày hiệu lực, nên thiếu nó là hai lần gọi cho hai thứ tự
+        -- khác nhau, và trang 2 lặp lại một dòng của trang 1.
+        ORDER BY r.specificity DESC, r.effective_from DESC, r.code
         LIMIT $1 OFFSET $2`,
-      [page.limit, page.offset],
+      [page.limit, page.offset, loc.groupCode ?? null, loc.customerType ?? null],
     );
     return paged(rows, page);
   }
