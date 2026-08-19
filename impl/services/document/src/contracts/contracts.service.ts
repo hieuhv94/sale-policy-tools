@@ -150,7 +150,12 @@ export class ContractsService {
    * Sinh PDF và trả về NGAY. Không ghi file lên MinIO, không tạo bản ghi hợp
    * đồng — `DOC-28` quét kho lưu trữ để giữ điều đó đúng.
    */
-  async export(policyId: string, me: AuthUser): Promise<{ pdf: Buffer; fileName: string }> {
+  async export(
+    policyId: string,
+    me: AuthUser,
+    /** Chỉ XEM trong phần mềm — vẫn đóng dấu xuất, nhưng không ghi lịch sử (`0052`). */
+    chiXem = false,
+  ): Promise<{ pdf: Buffer; fileName: string }> {
     const built = await this.build(policyId, me);
 
     if (built.missingRequired.length > 0) {
@@ -179,7 +184,7 @@ export class ContractsService {
 
     // Ghi dấu vết SAU khi đã có PDF trong tay. Ghi trước rồi Gotenberg chết là
     // hồ sơ mang dấu "đã xuất hợp đồng" cho một lần xuất không hề xảy ra (DOC-34).
-    await this.clients.markContractIssued(policyId, me.id);
+    await this.clients.daSinhVanBan(policyId, 'HOP_DONG', me, !chiXem);
     await this.db.tx(async (c) => this.audit(c, built, me));
 
     return { pdf, fileName: `hop-dong-${built.policyCode}.pdf` };

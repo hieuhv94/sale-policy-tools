@@ -82,16 +82,33 @@ export class Clients implements OnModuleDestroy {
     return (await r.json()) as PolicyFull;
   }
 
-  async markContractIssued(policyId: string, actorId: string): Promise<void> {
+  /**
+   * Báo `policy` rằng vừa sinh xong một văn bản của hồ sơ (`0052`).
+   *
+   * `loai` quyết định có đóng dấu xuất hợp đồng hay không; `ghiLichSu` quyết
+   * định có một dòng trong *Lịch sử* hay không — xem chú thích ở
+   * `policy/internal.controller.ts`.
+   */
+  async daSinhVanBan(
+    policyId: string,
+    loai: 'HO_SO' | 'HOP_DONG',
+    me: { id: string; role: string },
+    ghiLichSu: boolean,
+  ): Promise<void> {
     const r = await fetch(
-      `${policyUrl()}/internal/policies/${encodeURIComponent(policyId)}/contract-issued`,
+      `${policyUrl()}/internal/policies/${encodeURIComponent(policyId)}/da-sinh-van-ban`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...svc() },
-        body: JSON.stringify({ actorId }),
+        body: JSON.stringify({
+          loai,
+          actorId: me.id,
+          actorRole: me.role,
+          ghiLichSu: ghiLichSu ? 'co' : 'khong',
+        }),
       },
     );
-    if (!r.ok) throw new Error(`policy trả ${r.status} khi ghi lần xuất hợp đồng`);
+    if (!r.ok) throw new Error(`policy trả ${r.status} khi ghi lần sinh văn bản`);
   }
 
   async customer(id: string): Promise<CustomerFull> {

@@ -48,11 +48,30 @@ export class RenderService {
     return sheetHtml({ policy, customer, people, size, ...(signature ? { signature } : {}) });
   }
 
-  async pdf(policyId: string, size: Size, me: AuthUser): Promise<{ body: Buffer; code: string }> {
+  async pdf(
+    policyId: string,
+    size: Size,
+    me: AuthUser,
+    /** Ghi một dòng *Lịch sử* rằng người này đã TẢI bản mềm (`0052`, N-01). */
+    ghiLichSu = true,
+  ): Promise<{ body: Buffer; code: string }> {
     const { policy, customer, people } = await this.collect(policyId, me);
     const signature = signatureOf(policy.tbp_signed_at, people['TBP']);
     const html = sheetHtml({ policy, customer, people, size, ...(signature ? { signature } : {}) });
-    return { body: await this.gotenberg.htmlToPdf(html), code: policy.code };
+    const body = await this.gotenberg.htmlToPdf(html);
+
+    /*
+     * Ghi vết SAU khi đã có PDF trong tay — cùng luật với lần xuất hợp đồng
+     * (DOC-34): ghi trước rồi Gotenberg chết là lịch sử mang một lượt tải không
+     * hề xảy ra.
+     *
+     * Hỏng ở bước ghi thì KHÔNG nuốt: một lượt tải không để lại vết đúng là thứ
+     * N-01 sinh ra để dẹp, và người dùng bấm lại được. Đổi lại, `policy` chết
+     * thì không ai tải được bản mềm — chấp nhận, vì `collect()` ngay đầu hàm
+     * cũng đã gọi `policy` rồi.
+     */
+    if (ghiLichSu) await this.clients.daSinhVanBan(policyId, 'HO_SO', me, true);
+    return { body, code: policy.code };
   }
 
   /**

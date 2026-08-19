@@ -160,6 +160,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [dangXem, datDangXem] = useState<{
     tieuDe: string;
     duong: string;
+    duongTai: string;
     tenTep: string;
   } | null>(null);
 
@@ -352,7 +353,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
           onClick={() =>
             datDangXem({
               tieuDe: `Bản CSBH ${hoSo.code}`,
-              duong: `/policies/${hoSo.id}/render?size=a4p`,
+              // `xem=1`: mở ra đọc thì KHÔNG ghi một dòng tải xuống (`0052`).
+              duong: `/policies/${hoSo.id}/render?size=a4p&xem=1`,
+              duongTai: `/policies/${hoSo.id}/render?size=a4p`,
               tenTep: `CSBH-${hoSo.code}.pdf`,
             })
           }
@@ -383,7 +386,8 @@ export function ChiTietHoSo({ id }: { id: string }) {
               onClick={() =>
                 datDangXem({
                   tieuDe: `Hợp đồng ${hoSo.code}`,
-                  duong: `/policies/${hoSo.id}/contract.pdf`,
+                  duong: `/policies/${hoSo.id}/contract.pdf?xem=1`,
+                  duongTai: `/policies/${hoSo.id}/contract.pdf`,
                   tenTep: `HopDong-${hoSo.code}.pdf`,
                 })
               }
@@ -437,6 +441,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
         <XemTep
           tieuDe={dangXem.tieuDe}
           duong={dangXem.duong}
+          duongTai={dangXem.duongTai}
           tenTep={dangXem.tenTep}
           dong={() => datDangXem(null)}
         />
@@ -584,7 +589,8 @@ function HopThoaiHanhDong({
     if (!canXem) return;
     let url: string | null = null;
     let song = true;
-    xemTruoc(`/policies/${hoSoId}/render?size=a4p`)
+    // Bản xem trước trong hộp xác nhận cũng là XEM, không phải tải.
+    xemTruoc(`/policies/${hoSoId}/render?size=a4p&xem=1`)
       .then((x) => {
         url = x.url;
         if (song) datXemUrl(x.url);

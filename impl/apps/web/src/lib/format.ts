@@ -161,6 +161,18 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   HANDOVER: 'Bàn giao do tài khoản bị vô hiệu hoá',
   CUSTOMER_RETIRED: 'Khách hàng bị xoá',
   DELETE: 'Người lập xoá hồ sơ',
+  /*
+   * Hai dòng TẢI XUỐNG (`0052`, N-01).
+   *
+   * Chúng không phải bước duyệt — hồ sơ không đi đâu cả — nhưng chúng thuộc về
+   * lịch sử của hồ sơ đúng nghĩa: muc 10 đòi lưu ai đã xem file, in và tải scan,
+   * và trước `0052` không đường tải nào để lại vết nào.
+   *
+   * XEM thì KHÔNG ghi. Một dòng cho mỗi lần liếc màn hình sẽ dìm chết những
+   * dòng nói về bước duyệt — thứ mà lịch sử sinh ra để kể.
+   */
+  TAI_HO_SO: 'Tải bản mềm CSBH',
+  TAI_HOP_DONG: 'Tải bản hợp đồng',
 };
 
 export const nhanHanhDong = (a: string): string => NHAN_HANH_DONG[a] ?? a;

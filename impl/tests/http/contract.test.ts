@@ -891,3 +891,157 @@ describe('DOC-16 đã bị DOC-28 thay thế', () => {
     expect(polCols).toEqual(['contract_issued_at', 'contract_issued_by']);
   });
 });
+
+// =============================================================================
+// `0052` — N-01: ai đã TẢI bản mềm và ai đã TẢI hợp đồng
+// =============================================================================
+
+describe('`0052` N-01 lịch sử ghi lại người tải văn bản', () => {
+  /** Các dòng lịch sử của một hồ sơ, mới nhất sau cùng. */
+  const lichSu = (id: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ action: string; actor_role: string; to_status: string; from_status: string | null }>(
+        `SELECT action, actor_role, to_status::text AS to_status,
+                from_status::text AS from_status
+           FROM pol.policy_event WHERE policy_id = $1 ORDER BY seq`,
+        [id],
+      );
+      return r.rows;
+    });
+
+  const dem = (rows: { action: string }[], a: string) => rows.filter((r) => r.action === a).length;
+
+  it('tải hợp đồng ghi một dòng TAI_HOP_DONG kèm người và vai trò', async () => {
+    const d = await toReceivedL1();
+    const r = await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
+    expect(r.status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    const dong = rows.filter((x) => x.action === 'TAI_HOP_DONG');
+    expect(dong, 'phải có đúng một dòng').toHaveLength(1);
+    expect(dong[0]!.actor_role).toBe('KE_TOAN');
+    /*
+     * KHÔNG phải một bước chuyển: `from_status` để trống, `to_status` là trạng
+     * thái ĐANG CÓ. Cột `to_status` là NOT NULL nên phải điền gì đó, và điền
+     * trạng thái hiện tại là câu đúng duy nhất — dòng này nói "lúc ấy hồ sơ đang
+     * ở đây, và người này lấy văn bản ra".
+     */
+    expect(dong[0]!.from_status).toBeNull();
+    expect(dong[0]!.to_status).toBe('SA_DANG_XU_LY');
+  }, 90_000);
+
+  it('tải bản mềm CSBH ghi một dòng TAI_HO_SO', async () => {
+    const d = await toReceivedL1();
+    expect((await pdfOf(`/policies/${d.id}/render?size=a4p`, 'kt01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(dem(rows, 'TAI_HO_SO')).toBe(1);
+    expect(rows.find((x) => x.action === 'TAI_HO_SO')!.actor_role).toBe('KE_TOAN');
+  }, 90_000);
+
+  it('mỗi lượt tải một dòng — hai người tải thì hai dòng', async () => {
+    const d = await toReceivedL1();
+    await pdfOf(`/policies/${d.id}/render?size=a4p`, 'kt01');
+    await pdfOf(`/policies/${d.id}/render?size=a4l`, 'sa01');
+
+    const rows = await lichSu(d.id);
+    expect(dem(rows, 'TAI_HO_SO')).toBe(2);
+    const vaiTro = rows.filter((x) => x.action === 'TAI_HO_SO').map((x) => x.actor_role);
+    expect(vaiTro.sort()).toEqual(['KE_TOAN', 'SALE_ADMIN']);
+  }, 90_000);
+
+  it('XEM (`xem=1`) thì KHÔNG ghi dòng nào — cả bản mềm lẫn hợp đồng', async () => {
+    /*
+     * Một dòng cho mỗi lần liếc màn hình sẽ dìm chết những dòng nói về bước
+     * duyệt — thứ mà lịch sử sinh ra để kể. Khách hàng cũng chỉ yêu cầu ghi lại
+     * việc TẢI XUỐNG.
+     */
+    const d = await toReceivedL1();
+    expect((await pdfOf(`/policies/${d.id}/render?size=a4p&xem=1`, 'kt01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'kt01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(dem(rows, 'TAI_HO_SO')).toBe(0);
+    expect(dem(rows, 'TAI_HOP_DONG')).toBe(0);
+  }, 90_000);
+
+  it('XEM hợp đồng VẪN đóng dấu đã xuất — muc 8.3 hỏi "có hợp đồng chưa"', async () => {
+    /*
+     * Hai cờ tách rời, và tách là có chủ ý. Xem hay tải thì máy chủ đều đã trộn
+     * xong bản hợp đồng đầy đủ và đưa nó tới mắt người ấy; câu hỏi của muc 8.3
+     * là "hồ sơ này đã có hợp đồng chưa", không phải "ai giữ file".
+     */
+    const d = await toReceivedL1();
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'kt01')).status).toBe(200);
+
+    const p = await withAdminDb(async (c) => {
+      const r = await c.query<{ contract_issued_at: Date | null; contract_issued_by: string | null }>(
+        `SELECT contract_issued_at, contract_issued_by FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
+      return r.rows[0]!;
+    });
+    expect(p.contract_issued_at).not.toBeNull();
+    expect(p.contract_issued_by).not.toBeNull();
+  }, 90_000);
+
+  it('bản HTML xem trước KHÔNG ghi dòng nào', async () => {
+    // `format=html` là đường giao diện nhúng để bảo đảm "file tải về khớp bản
+    // đang xem". Nó không phải một lượt tải.
+    const d = await toReceivedL1();
+    expect((await dget(`/policies/${d.id}/render?format=html`, 'kt01')).status).toBe(200);
+    expect(dem(await lichSu(d.id), 'TAI_HO_SO')).toBe(0);
+  }, 90_000);
+
+  it('dòng tải xuống KHÔNG phá số thứ tự của các bước duyệt sau đó', async () => {
+    /*
+     * `seq` là UNIQUE trên mỗi hồ sơ, và dòng tải xuống chen vào giữa chuỗi ấy.
+     * Ca này chứng minh bước duyệt tiếp theo vẫn ghi được — nếu `seq` tính sai
+     * thì nó vỡ ở ràng buộc CSDL, không phải ở một khẳng định mềm.
+     */
+    const d = await toReceivedL1();
+    await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
+    await pdfOf(`/policies/${d.id}/render?size=a4p`, 'kt01');
+
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}-lichsu.pdf` },
+      'sa01',
+    );
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(rows.map((x) => x.action)).toContain('SA_HANDOVER');
+    expect(new Set(rows.map((_, i) => i)).size).toBe(rows.length);
+  }, 90_000);
+});
+
+describe('`0052` năm lượt tải song song cùng một hồ sơ', () => {
+  it('cả năm ra PDF, và lịch sử có ĐỦ năm dòng liên tiếp', async () => {
+    /*
+     * Ca này là ca đã bắt được lỗi thật.
+     *
+     * Bản đầu cấp `seq` bằng `coalesce(max(seq), 0) + 1` ngay trong câu INSERT —
+     * nhìn như đã đủ an toàn, nhưng `max(seq)` chỉ thấy dòng ĐÃ COMMIT. Năm lượt
+     * song song đọc ra cùng một con số và bốn lượt vỡ ở ràng buộc UNIQUE, trả về
+     * 500 cho một thao tác đọc thuần tuý.
+     */
+    const d = await toReceivedL1();
+    const runs = await Promise.all(
+      [0, 1, 2, 3, 4].map(() => pdfOf(`/policies/${d.id}/render?size=a4p`, 'kt01')),
+    );
+    for (const r of runs) expect(r.status).toBe(200);
+
+    const seq = await withAdminDb(async (c) => {
+      const r = await c.query<{ seq: number }>(
+        `SELECT seq FROM pol.policy_event
+          WHERE policy_id = $1 AND action = 'TAI_HO_SO' ORDER BY seq`,
+        [d.id],
+      );
+      return r.rows.map((x) => x.seq);
+    });
+    expect(seq, 'không lượt nào bị nuốt').toHaveLength(5);
+    // Liên tiếp: `seq` là số thứ tự của lịch sử, thủng một số là thủng một dòng.
+    expect(seq.every((v, i) => i === 0 || v === seq[i - 1]! + 1)).toBe(true);
+  }, 120_000);
+});

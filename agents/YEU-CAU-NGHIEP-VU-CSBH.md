@@ -782,6 +782,12 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 ## 10. Nhật ký, phiên bản và bảo mật
 
 - Lưu người tạo, sửa, xem file, ký số, tiếp nhận, trả lại, xuất hợp đồng, in và tải scan.
+- **Lịch sử của hồ sơ ghi luôn hai loại TẢI XUỐNG** `mới 19/08`: *tải bản mềm CSBH* và *tải bản hợp
+  đồng*, kèm người tải và thời điểm. Chúng nằm cùng chỗ với các bước duyệt vì cùng trả lời một câu:
+  hồ sơ này đã đi qua tay ai.
+  > **Mở ra XEM thì không ghi.** Phần mềm phân biệt xem với tải: xem là mở trong phần mềm rồi đóng,
+  > tải là đưa một bản sao ra khỏi hệ thống. Ghi cả hai thì mỗi lần liếc màn hình thành một dòng, và
+  > những dòng nói về bước duyệt bị dìm mất.
 - Lưu giá trị **trước và sau** của dữ liệu quan trọng, kèm lý do thay đổi.
 - **Nhật ký chỉ ghi thêm** — chặn sửa và xóa ở tầng cơ sở dữ liệu, không chỉ ở ứng dụng.
 - Mỗi mốc thời gian là **một cột riêng** trên hồ sơ kèm người thực hiện; báo cáo và SLA truy vấn

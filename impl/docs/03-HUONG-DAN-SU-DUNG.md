@@ -705,6 +705,11 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
   đánh dấu quá hạn, bàn giao khi một tài khoản bị vô hiệu hoá. Chúng ghi người thực hiện là *Hệ
   thống*.
 - **Lịch sử chỉ ghi thêm** — không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
+- **Có cả dòng TẢI XUỐNG**: *Tải bản mềm CSBH* và *Tải bản hợp đồng*, kèm người tải và thời điểm.
+  Chúng không phải bước duyệt nên không có mũi tên chuyển trạng thái — chỉ nói ai đã lấy văn bản ra
+  khỏi hệ thống, lúc hồ sơ đang ở trạng thái nào.
+  > **Xem thì không ghi.** Mở tệp bằng nút *Xem* không để lại dòng nào — một dòng cho mỗi lần liếc
+  > màn hình sẽ dìm chết những dòng nói về bước duyệt. Chỉ bấm *Tải xuống* mới ghi.
 - **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Từ chối*, *Đã xoá* hay *Hết hiệu lực*. Đó chính là
   lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
 - Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được lịch sử của nó, không thấy thì

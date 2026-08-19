@@ -15,6 +15,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -122,14 +123,22 @@ export class ContractsController {
     return this.contracts.preview(id, me);
   }
 
+  /**
+   * `xem=1` — mở trong phần mềm, KHÔNG ghi một dòng tải xuống vào Lịch sử (`0052`).
+   *
+   * Mặc định là TẢI, không phải xem: một đường tải mà mặc định không để lại vết
+   * thì mọi lời gọi quên đặt cờ đều lọt, và cái lọt ấy im lặng. Đặt ngược lại
+   * thì quên cờ chỉ làm dư một dòng lịch sử — nhìn thấy được, sửa được.
+   */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get(':id/contract.pdf')
   async pdf(
     @CurrentUser() me: AuthUser,
     @Param('id') id: string,
+    @Query('xem') xem: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const { pdf, fileName } = await this.contracts.export(id, me);
+    const { pdf, fileName } = await this.contracts.export(id, me, xem === '1');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.end(pdf);

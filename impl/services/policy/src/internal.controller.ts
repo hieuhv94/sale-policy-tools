@@ -7,7 +7,7 @@
  * sẵn ở đây thì hai service cùng định dạng tiền theo hai kiểu.
  */
 import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/common';
-import { ServiceOnly, str, validate } from '@csbh/http-kit';
+import { oneOf, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 
 @ServiceOnly()
@@ -55,21 +55,93 @@ export class PolicyInternalController {
   }
 
   /**
-   * Ghi lại lần xuất hợp đồng gần nhất. `document` gọi sau khi đã sinh xong PDF.
+   * `document` báo về: vừa sinh xong một văn bản của hồ sơ này cho ai đó (`0052`).
    *
-   * Hai cột này là DẤU VẾT duy nhất của việc xuất hợp đồng — không có bảng hợp
-   * đồng nào cả (muc 8.3). Cột nằm ở pol chứ không ở doc vì chúng thuộc về hồ
-   * sơ: mở hồ sơ ra là thấy ngay "đã xuất hợp đồng lúc nào, ai xuất".
+   * Gộp HAI việc từng nằm hai chỗ, vì chúng luôn xảy ra cùng lúc và cùng lý do:
+   *
+   *   1. **Đóng dấu lần xuất hợp đồng** — hai cột `contract_issued_*`. Đây là
+   *      dấu vết DUY NHẤT của việc xuất hợp đồng: không có bảng hợp đồng nào cả
+   *      (muc 8.3). Cột nằm ở `pol` chứ không ở `doc` vì chúng thuộc về hồ sơ —
+   *      mở hồ sơ ra là thấy ngay "đã xuất hợp đồng lúc nào, ai xuất".
+   *   2. **Ghi một dòng LỊCH SỬ** khi có người TẢI XUỐNG (N-01, muc 10). Trước
+   *      `0052` không đường tải nào để lại vết nào cả, nên câu "ai đã tải bản
+   *      hợp đồng của khách hàng này" không trả lời được.
+   *
+   * HAI CỜ TÁCH RỜI, và tách là có chủ ý:
+   *
+   *   - `ghiLichSu=false` khi người dùng chỉ XEM trong phần mềm. Xem không phải
+   *     tải, và một dòng lịch sử cho mỗi lần liếc màn hình thì dìm chết những
+   *     dòng nói về bước duyệt — thứ mà lịch sử sinh ra để kể.
+   *   - Dấu xuất hợp đồng thì đóng ở CẢ HAI đường. Xem hay tải thì máy chủ đều
+   *     đã trộn xong bản hợp đồng đầy đủ và đưa nó tới mắt người ấy; câu hỏi của
+   *     muc 8.3 là "hồ sơ này đã có hợp đồng chưa", không phải "ai giữ file".
    */
-  @Post(':id/contract-issued')
-  async contractIssued(@Param('id') id: string, @Body() body: unknown) {
-    const b = validate(body, { actorId: str(36, 36) });
-    const r = await this.db.q<{ id: string }>(
-      `UPDATE pol.policy SET contract_issued_at = now(), contract_issued_by = $2
-        WHERE id = $1 RETURNING id`,
-      [id, b.actorId],
+  @Post(':id/da-sinh-van-ban')
+  async daSinhVanBan(@Param('id') id: string, @Body() body: unknown) {
+    const b = validate(body, {
+      loai: oneOf('HO_SO', 'HOP_DONG'),
+      actorId: str(36, 36),
+      actorRole: str(1, 40),
+      ghiLichSu: opt(oneOf('co', 'khong')),
+    });
+
+    const p = await this.db.one<{ status: string }>(
+      `SELECT status::text AS status FROM pol.policy WHERE id = $1`,
+      [id],
     );
-    if (r.length === 0) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
+    if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
+
+    if (b.loai === 'HOP_DONG') {
+      await this.db.q(
+        `UPDATE pol.policy SET contract_issued_at = now(), contract_issued_by = $2 WHERE id = $1`,
+        [id, b.actorId],
+      );
+    }
+
+    if (b.ghiLichSu !== 'khong') {
+      /*
+       * `from_status` NULL, `to_status` = trạng thái ĐANG CÓ.
+       *
+       * Đây không phải một bước chuyển — hồ sơ không đi đâu cả. Cột `to_status`
+       * là NOT NULL nên phải điền gì đó, và điền trạng thái hiện tại là câu đúng
+       * duy nhất: dòng lịch sử nói "lúc ấy hồ sơ đang ở đây, và người này lấy
+       * văn bản ra". `from_status` để trống thì màn hình không vẽ mũi tên
+       * chuyển trạng thái cho dòng này.
+       *
+       * KHOÁ DÒNG HỒ SƠ TRƯỚC KHI CẤP `seq`, và đây là chỗ bản đầu làm sai.
+       *
+       * `coalesce(max(seq), 0) + 1` nằm ngay trong câu INSERT nhìn như đã đủ an
+       * toàn — nhưng `max(seq)` chỉ thấy dòng ĐÃ COMMIT. Năm lượt tải song song
+       * cùng một hồ sơ thì cả năm đọc ra cùng một con số, và bốn lượt vỡ ở ràng
+       * buộc `UNIQUE (policy_id, seq)` — người dùng nhận 500 cho một thao tác
+       * đọc thuần tuý. Ca `DOC-20` bắt được đúng chuyện này.
+       *
+       * `FOR UPDATE` xếp chúng thành hàng. Khoá giữ trong đúng một lệnh INSERT
+       * nên không cản bước duyệt nào: bước duyệt cũng khoá cùng dòng ấy, và
+       * phần chậm của việc tải (Gotenberg dựng PDF) đã xong từ trước khi gọi
+       * tới đây.
+       *
+       * Không dùng vòng thử lại: nó biến một phép xếp hàng tất định thành một
+       * phép may rủi, và với năm lượt cùng lúc thì lượt cuối phải thử năm lần.
+       */
+      await this.db.tx(async (c) => {
+        await c.query(`SELECT 1 FROM pol.policy WHERE id = $1 FOR UPDATE`, [id]);
+        await c.query(
+          `INSERT INTO pol.policy_event
+             (policy_id, seq, from_status, to_status, action, actor_id, actor_role)
+           VALUES ($1,
+                   coalesce((SELECT max(seq) FROM pol.policy_event WHERE policy_id = $1), 0) + 1,
+                   NULL, $2::pol.policy_status, $3, $4, $5)`,
+          [
+            id,
+            p.status,
+            b.loai === 'HOP_DONG' ? 'TAI_HOP_DONG' : 'TAI_HO_SO',
+            b.actorId,
+            b.actorRole,
+          ],
+        );
+      });
+    }
     return { ok: true };
   }
 }

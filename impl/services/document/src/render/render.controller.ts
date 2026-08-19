@@ -24,7 +24,18 @@ export class RenderController {
     @Query() q: Record<string, string>,
     @Res() res: Response,
   ): Promise<void> {
-    const b = validate(q, { size: opt(oneOf('a4p', 'a4l')), format: opt(oneOf('html', 'pdf')) });
+    const b = validate(q, {
+      size: opt(oneOf('a4p', 'a4l')),
+      format: opt(oneOf('html', 'pdf')),
+      /*
+       * `xem=1` — mở trong phần mềm, KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
+       *
+       * Mặc định là TẢI, không phải xem. Đặt ngược lại thì mọi lời gọi quên đặt
+       * cờ đều lọt qua không để lại vết, và cái lọt ấy im lặng; còn theo chiều
+       * này thì quên cờ chỉ làm dư một dòng lịch sử — nhìn thấy được, sửa được.
+       */
+      xem: opt(oneOf('1')),
+    });
     const size = (b.size ?? 'a4p') as Size;
 
     if ((b.format ?? 'pdf') === 'html') {
@@ -32,7 +43,7 @@ export class RenderController {
       res.end(await this.render.html(id, size, me));
       return;
     }
-    const { body, code } = await this.render.pdf(id, size, me);
+    const { body, code } = await this.render.pdf(id, size, me, b.xem !== '1');
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}-${size}.pdf"`);
     res.end(body);

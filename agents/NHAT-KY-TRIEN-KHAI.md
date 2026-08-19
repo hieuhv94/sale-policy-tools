@@ -6348,3 +6348,90 @@ người dùng; bốn màn hình đổi sang `useTrangMay`. Test mới: 9 ca s�
 `catalog.test.ts`, 6 ca người dùng ở `onboarding.test.ts`, 3 ca đối chiếu TS↔SQL ở
 `constraints.test.ts`, 10 ca hai ô chọn ở `bang-chiet-khau.test.tsx`. Hai khối test cũ của
 `locSanPham`/`locQuyDinh` gỡ theo chính hai hàm ấy. **1177/1177 xanh.**
+
+## P79–P81 — Bản scan, xem tệp trực tiếp, và vết tải xuống (N-01, N-02)
+
+Bốn yêu cầu của khách hàng, chia làm ba đợt vì chúng chồng lên nhau: đợt sau dùng lại thứ đợt trước
+dựng ra.
+
+### P79 — Yêu cầu in lại KHÔNG còn xoá bản scan
+
+Luật cũ (muc 10): kế toán bấm *yêu cầu in lại* thì bản scan biến mất khỏi cả `pol` lẫn kho lưu trữ.
+Khách hàng đảo ngược, và **lý do của họ đứng vững hơn luật cũ**: kế toán chê bản **giấy**, mà nhiều
+khi chỉ so với bản scan đang có mới thấy hỏng ở đâu. Xoá ngay là lấy mất vật đối chiếu của đúng
+người sắp phải sửa.
+
+Gỡ theo: sự kiện `policy.scan_discarded`, `ScanDiscardConsumer`, binding của nó, và
+`FilesService.discardByObjectKey`. Đường vào `discard()` giờ chỉ còn một — `DELETE /files/:id` do
+người dùng bấm.
+
+**Khe mở ra, và cách bịt.** Hồ sơ quay về `SA_DANG_XU_LY` mà WF-14 chỉ đòi CÓ bản scan, nên bấm bàn
+giao ngay là gửi lại đúng bản vừa bị chê. Thêm cờ `banScanCu` + khối cảnh báo: **nói ra, không
+chặn** — chặn là đi ngược yêu cầu "Sale Admin chủ động", và có lần bản giấy hỏng lúc chuyển phát chứ
+không phải bản in sai.
+
+Cờ suy từ **mốc tải lên so với lần yêu cầu in lại gần nhất**, không phải một cờ lưu trên hồ sơ: cờ
+lưu thì phải nhớ xoá đúng lúc Sale Admin tải bản mới, và quên xoá là cảnh báo dính vĩnh viễn.
+
+### P80 — Xem tệp trong phần mềm (N-02)
+
+Hộp `XemTep` dùng chung. Mảnh quan trọng nhất đã có sẵn từ `0031`: `xemTruoc()` tải nội dung qua
+`goi()` rồi dựng `blob:` URL. Nhúng thẳng `<iframe src="/api/...">` là **401** — thẻ ấy không gửi
+header `Authorization`, đúng lỗi mà nút *Xuất hợp đồng* từng mắc với `<a href>`.
+
+- PDF → `<iframe>`, ảnh → `<img>`, kiểu khác → **nói thẳng** là không xem trực tiếp được. Word trong
+  iframe cho ra trang trắng hoặc âm thầm kích hoạt tải xuống; cả hai tệ hơn một câu nói rõ.
+- Nút **Đóng** luôn hiện, kể cả lúc đang tải và lúc lỗi (muc 11.1). `HopThoai` chỉ đóng bằng Escape
+  và bấm ra ngoài — hai đường không ai nhìn thấy.
+- `blob:` thu hồi ở nhánh dọn của `useEffect`: mở vài chục bản scan trong một phiên mà không thu hồi
+  là vài trăm MB nằm lại trong bộ nhớ tab.
+- Nút *Xem hợp đồng* theo **đúng cổng quyền** của nút *Xuất hợp đồng* (FE-24). Không thì nó thành
+  một đường vòng quanh phép kiểm đó.
+
+### P81 — Ai đã tải bản mềm, ai đã tải hợp đồng (N-01)
+
+Gộp hai việc vào một đường nội bộ `POST /internal/policies/:id/da-sinh-van-ban`, vì chúng luôn xảy
+ra cùng lúc: đóng dấu lần xuất hợp đồng, và ghi một dòng *Lịch sử*.
+
+**Hai cờ tách rời, và tách là có chủ ý:**
+
+| | Xem (`xem=1`) | Tải |
+|---|---|---|
+| Dòng Lịch sử | không | **có** |
+| Dấu đã xuất hợp đồng | **có** | có |
+
+Xem không ghi vì một dòng cho mỗi lần liếc màn hình sẽ dìm chết những dòng nói về bước duyệt — thứ
+mà lịch sử sinh ra để kể. Dấu xuất hợp đồng thì đóng ở cả hai đường: xem hay tải thì máy chủ đều đã
+trộn xong bản đầy đủ và đưa tới mắt người ấy, và câu hỏi của muc 8.3 là *"hồ sơ này đã có hợp đồng
+chưa"*, không phải *"ai giữ file"*.
+
+**Mặc định là TẢI, không phải xem.** Đặt ngược lại thì mọi lời gọi quên đặt cờ đều lọt qua không để
+lại vết, và cái lọt ấy im lặng; theo chiều này thì quên cờ chỉ làm dư một dòng — nhìn thấy được.
+
+Kèm một lỗ suýt lọt: nút *Tải xuống* **bên trong** hộp xem lúc đầu dùng lại chính đường có `xem=1`,
+tức là một lối tải không để lại vết nào — đúng cái lỗ N-01 sinh ra để bịt. Thêm prop `duongTai`.
+
+### Lỗi tương tranh mà bộ test bắt được
+
+`DOC-20` (năm lượt render song song) đỏ với **500**. `coalesce(max(seq), 0) + 1` viết ngay trong câu
+INSERT nhìn như đã đủ an toàn, nhưng `max(seq)` **chỉ thấy dòng đã COMMIT**: năm lượt song song đọc
+ra cùng một con số và bốn lượt vỡ ở `UNIQUE (policy_id, seq)`.
+
+Sửa bằng `SELECT … FOR UPDATE` trên dòng hồ sơ trong cùng transaction. Không dùng vòng thử lại: nó
+biến một phép xếp hàng tất định thành phép may rủi, và với năm lượt cùng lúc thì lượt cuối phải thử
+năm lần. Khoá giữ trong đúng một lệnh INSERT — phần chậm (Gotenberg dựng PDF) đã xong từ trước.
+
+Thêm một ca riêng khẳng định năm lượt song song ra đủ **năm dòng `seq` liên tiếp**, vì "không lỗi
+500" chưa đủ: nuốt mất một dòng cũng là hỏng, mà nó im lặng.
+
+### Còn nợ sau ba đợt
+
+- **Xem tệp vẫn chưa ghi vết.** Muc 10 đòi lưu cả *"xem file"*; khách hàng chỉ yêu cầu ghi tải
+  xuống, và tôi làm đúng phần ấy. Nên **N-01 đóng một nửa**: tải có vết, xem thì chưa.
+- Hồ sơ pháp lý của khách hàng (`HoSoPhapLy`) vẫn chỉ có nút tải — chưa nối hộp xem vào, vì yêu cầu
+  chỉ nêu bản scan, hồ sơ và hợp đồng.
+- Ba đợt này **chưa mở lần nào trong trình duyệt thật** (N-08). Hộp xem là màn hình đầu tiên của
+  phần mềm có `<iframe>` chiếm gần hết chiều cao — đúng loại bố cục mà test cấu trúc không nói được
+  gì về nó.
+
+**1208/1208 xanh.**

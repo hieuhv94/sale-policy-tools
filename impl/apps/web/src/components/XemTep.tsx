@@ -32,12 +32,23 @@ function cachHien(kieu: string): 'pdf' | 'anh' | 'khong' {
 export function XemTep({
   tieuDe,
   duong,
+  duongTai,
   tenTep,
   dong,
 }: {
   tieuDe: string;
-  /** Đường API trả về nội dung tệp. */
+  /** Đường API trả về nội dung tệp để XEM. */
   duong: string;
+  /**
+   * Đường dùng khi bấm *Tải xuống*, nếu khác đường xem (`0052`).
+   *
+   * Bản CSBH và hợp đồng mở ra xem bằng `?xem=1` — cờ ấy bảo máy chủ ĐỪNG ghi
+   * một dòng tải xuống vào Lịch sử. Dùng lại đúng đường ấy cho nút tải là mở
+   * một lối tải không để lại vết nào, đúng cái lỗ mà N-01 sinh ra để bịt.
+   *
+   * Tệp đính kèm không có phân biệt này nên bỏ trống, và nó rơi về `duong`.
+   */
+  duongTai?: string;
   /** Tên dùng khi bấm Tải xuống, nếu máy chủ không đặt tên nào. */
   tenTep: string;
   dong: () => void;
@@ -71,7 +82,7 @@ export function XemTep({
     // Tải lại TỪ MÁY CHỦ chứ không lưu `blob:` đang cầm: từ `0052` đường tải
     // ghi một dòng lịch sử, còn đường xem thì không. Lưu blob ra file là một
     // lượt tải không để lại vết nào.
-    taiVe(duong, tenTep)
+    taiVe(duongTai ?? duong, tenTep)
       .catch(datLoi)
       .finally(() => datDangTai(false));
   };
