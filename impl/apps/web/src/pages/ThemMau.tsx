@@ -17,12 +17,9 @@ import { useState } from 'react';
 import { guiTep } from '../lib/api.js';
 import {
   CAU_HINH_MAU,
-  KHO_GIAY,
   NHAN_KHOA,
-  NHAN_KHO,
   O_BANG_SAN_PHAM,
   oTrongCua,
-  type KhoGiay,
   type LoaiMau,
   type MauHopDong as MauDto,
 } from '../lib/mau-hop-dong.js';
@@ -138,7 +135,6 @@ export function ThemMau({
 }) {
   const ch = CAU_HINH_MAU[loai];
   const [ten, datTen] = useState('');
-  const [kho, datKho] = useState<KhoGiay>('a4p');
   const [tep, datTep] = useState<File | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -152,7 +148,6 @@ export function ThemMau({
       const form = new FormData();
       form.append('file', tep);
       form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
-      if (ch.theoKhoGiay) form.append('paperSize', kho);
       xong(await guiTep<MauDto>(ch.duong, form));
     } catch (err) {
       datLoi(err);
@@ -195,25 +190,6 @@ export function ThemMau({
             )}
           </Truong>
 
-          {ch.theoKhoGiay && (
-            <Truong id="tm-kho" nhan="Khổ giấy" bắtBuộc>
-              {(p) => (
-                <select
-                  {...p}
-                  className="o-nhap"
-                  value={kho}
-                  onChange={(e) => datKho(e.target.value as KhoGiay)}
-                >
-                  {KHO_GIAY.map((k) => (
-                    <option key={k} value={k}>
-                      {NHAN_KHO[k]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-          )}
-
           <Truong id="tm-tep" nhan="Tệp mẫu" bắtBuộc>
             {(p) => (
               <input
@@ -226,12 +202,18 @@ export function ThemMau({
             )}
           </Truong>
 
-          {ch.theoKhoGiay && (
-            <p className="ghi-chu">
-              Khổ giấy phải khớp với chính file <code>.docx</code> — phần mềm không xoay được mẫu
-              dọc thành ngang.
-            </p>
-          )}
+          {/*
+            Ô "Khổ giấy" ĐÃ BỎ (`0058`).
+
+            Nó từng bắt buộc vì khổ giấy là khoá tra mẫu: người xem chọn khổ, hệ
+            thống tìm mẫu khai đúng khổ ấy. Giờ người xem chọn thẳng mẫu, nên ô
+            ấy không còn hậu quả gì — và một ô nhập tay không hậu quả là một ô sẽ
+            nói dối. Phần mềm đọc khổ từ chính file.
+          */}
+          <p className="ghi-chu">
+            Khổ giấy lấy từ chính file <code>.docx</code> — soạn ngang thì bản mềm ra ngang. Phần
+            mềm không hỏi và không xoay được mẫu dọc thành ngang.
+          </p>
 
           {loi !== null && <BaoLoi loi={loi} />}
 
@@ -252,7 +234,7 @@ export function ThemMau({
             nhọn, ví dụ <code>{'{{ho_so.ten_khach_hang}}'}</code>. Bấm một khoá dưới đây để chép.
           </p>
 
-          {ch.theoKhoGiay && (
+          {ch.bangDoHeThongDung && (
             <div className="hop-canh-bao" role="note">
               <p>
                 <strong>Bảng sản phẩm: đặt {O_BANG_SAN_PHAM}, đừng vẽ bảng bằng tay.</strong>

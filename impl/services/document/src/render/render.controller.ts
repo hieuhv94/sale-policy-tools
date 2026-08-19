@@ -1,7 +1,7 @@
 import { Controller, Get, Header, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, oneOf, opt, Roles, validate, type AuthUser } from '@csbh/http-kit';
-import { RenderService, type Size } from './render.service.js';
+import { CurrentUser, oneOf, opt, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { RenderService } from './render.service.js';
 
 const READERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
 
@@ -31,7 +31,14 @@ export class RenderController {
     @Res() res: Response,
   ): Promise<void> {
     const b = validate(q, {
-      size: opt(oneOf('a4p', 'a4l')),
+      /*
+       * `mauId` — MẪU người xem chọn (`0058`), thay cho `size` cũ.
+       *
+       * Bỏ trống được: hộp xác nhận ký số dựng bản xem trước mà không có ô chọn
+       * nào, và mọi liên kết cũ còn sót cũng phải ra được một bản đọc được chứ
+       * không phải một lỗi. Máy chủ lấy mẫu đầu danh sách.
+       */
+      mauId: opt(uuid()),
       /*
        * `xem=1` — mở trong phần mềm, KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
        *
@@ -41,10 +48,9 @@ export class RenderController {
        */
       xem: opt(oneOf('1')),
     });
-    const size = (b.size ?? 'a4p') as Size;
-    const { body, code } = await this.render.pdf(id, size, me, b.xem !== '1');
+    const { body, code } = await this.render.pdf(id, b.mauId, me, b.xem !== '1');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}-${size}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}.pdf"`);
     res.end(body);
   }
 

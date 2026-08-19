@@ -23,9 +23,15 @@ const bay = (loai: 'HO_SO' | 'HOP_DONG' = 'HO_SO') =>
   render(<ThemMau loai={loai} quayLai={() => undefined} xong={() => undefined} />);
 
 describe('`0056` hướng dẫn hiện ngay trên trang', () => {
-  it('mẫu hồ sơ: có ô khổ giấy, và nói rõ luật bảng sản phẩm', () => {
+  it('`0058` mẫu hồ sơ: KHÔNG hỏi khổ giấy nữa, và nói rõ luật bảng sản phẩm', () => {
     bay('HO_SO');
-    expect(screen.getByLabelText(/Khổ giấy/)).toBeDefined();
+    /*
+     * Ô "Khổ giấy" đã bỏ: nó từng là khoá tra mẫu, giờ khổ giấy đọc từ chính
+     * file. Một ô nhập tay không còn hậu quả gì là một ô sẽ nói dối — Quản trị
+     * tải file ngang lên rồi chọn nhầm "A4 dọc" và không gì phát hiện ra.
+     */
+    expect(screen.queryByLabelText(/Khổ giấy/)).toBeNull();
+    expect(document.body.textContent).toContain('Khổ giấy lấy từ chính file');
     expect(document.body.textContent).toContain('{{bang_san_pham}}');
     expect(document.body.textContent).toContain('đừng vẽ bảng bằng tay');
     // Cột của bảng nói ra ngay tại đây — người soạn mẫu cần biết bảng sẽ trông
@@ -33,9 +39,9 @@ describe('`0056` hướng dẫn hiện ngay trên trang', () => {
     expect(document.body.textContent).toContain('CPBH tổng');
   });
 
-  it('mẫu hợp đồng: KHÔNG có ô khổ giấy, KHÔNG có luật bảng sản phẩm', () => {
-    // File .docx của hợp đồng tự mang khổ của nó và phần mềm không hỏi; bảng
-    // thì do người soạn vẽ tay bằng nhóm khoá `san_pham.`.
+  it('mẫu hợp đồng: KHÔNG có luật bảng sản phẩm', () => {
+    // Bảng của hợp đồng do người soạn vẽ tay bằng nhóm khoá `san_pham.` — bốn
+    // cột chữ ngắn, không có luật nào đổi theo hồ sơ.
     bay('HOP_DONG');
     expect(screen.queryByLabelText(/Khổ giấy/)).toBeNull();
     expect(document.body.textContent).not.toContain('{{bang_san_pham}}');

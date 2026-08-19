@@ -6648,3 +6648,90 @@ lúc ai đó chạy `make demo-mau`. Bốn ca ở `contract.test.ts` canh chỗ 
 `!impl/templates/*.docx`. Không có nó thì thư mục trông như đã commit mà máy khác clone về lại trống.
 
 **1245/1245 xanh.**
+
+## P89 — Chọn MẪU thay vì chọn khổ giấy
+
+Khách hàng chốt sáu điểm ngày 20/08. Năm điểm là gỡ bỏ, một điểm là làm thật — và điểm ấy đổi một
+giả định nằm sâu trong lược đồ từ `0050`.
+
+### Câu hỏi sai đã hỏi suốt ba chặng
+
+Hộp *Xem bản mềm* hỏi **khổ giấy**. Nó hỏi thế vì lược đồ được dựng quanh câu hỏi ấy: mỗi khổ một
+mẫu, tra mẫu theo khổ, và "chưa có văn bản mẫu phù hợp" nghĩa là *chưa có mẫu đúng khổ đang xem*.
+
+Nhưng khổ giấy chưa bao giờ là thứ người dùng muốn chọn. Họ muốn chọn **bản trình bày** — và khổ
+giấy chỉ là một thuộc tính của bản trình bày ấy, nằm sẵn trong file `.docx` do Quản trị soạn. Hỏi
+khổ giấy là bắt người dùng ghép hai mảnh mà phần mềm ghép được.
+
+Từ `0058`: ô chọn liệt kê **mẫu đang dùng**, mẫu đầu danh sách mở sẵn, đổi mẫu là xem lại ngay. Cùng
+một hộp dùng cho cả hồ sơ lẫn hợp đồng.
+
+### Ba thứ ở tầng dưới phải đổi theo
+
+**Bỏ hai partial unique index.** `0050` giữ đúng MỘT mẫu đang dùng cho mỗi (loại × khổ) — luật đúng
+khi hệ thống tự tra mẫu, vì hai mẫu cùng đang dùng thì `LIMIT 1` chọn bừa một cái. Giờ người dùng
+chọn, nên nhiều mẫu cùng dùng được **không còn là mập mờ — nó LÀ cái danh sách**. Giữ index lại thì
+ban hành mẫu thứ hai lặng lẽ hạ mẫu thứ nhất, và Quản trị không bao giờ có nổi hai mẫu để chọn.
+
+Nghĩa của hai nút đổi theo, và đây là chỗ dễ quên nhất: *Ban hành* từ "đặt làm mẫu duy nhất" thành
+"đưa vào danh sách chọn"; *Ngừng dùng* từ "bỏ trống chỗ ấy" thành "rút khỏi danh sách". Câu chữ hộp
+xác nhận viết lại hẳn, và **bắt gõ lại tên mẫu chỉ còn khi rút mẫu CUỐI CÙNG** — thao tác không lùi
+được duy nhất còn lại.
+
+**Khổ giấy đọc từ file, không hỏi người tải lên.** Ô ấy từng bắt buộc vì nó là khoá tra mẫu. Giờ nó
+chỉ còn là cái nhãn cạnh tên mẫu — và *một ô nhập tay không còn hậu quả gì là một ô sẽ nói dối*:
+Quản trị tải file ngang lên rồi chọn nhầm "A4 dọc", không gì trên đời phát hiện ra. `khoGiayCua()`
+đọc `w:orient` từ chính file, cho cả hai loại mẫu.
+
+**Mẫu mở sẵn phải là một câu trả lời xác định.** Thứ tự danh sách là
+`is_default ASC, published_at DESC, paper_size, id`. `is_default` xếp **sau cùng**, không phải
+trước: mẫu mặc định là bản sơ sài hệ thống tự seed để chạy được từ phút đầu, nên ngày Quản trị ban
+hành một mẫu thật thì mẫu thật phải là cái mở ra sẵn.
+
+Hai mẫu mặc định A4 dọc và ngang trước đây seed trong **hai giao dịch riêng**, chênh nhau vài mili
+giây — vô hại khi mẫu tra theo khổ, nhưng từ `0058` nó quyết định mẫu nào mở sẵn, và cái seed sau
+(khổ ngang) luôn thắng. Sửa hai đầu: `ensureDefault` seed cả hai trong **một** giao dịch để
+`published_at` bằng nhau, và migration hoà lại mốc của những cài đặt đã chạy.
+
+### Cái giá phải trả: trạng thái mẫu là TOÀN CỤC
+
+Phần khó nhất của lượt này không phải viết mã mà là **dọn sau các ca kiểm thử**. Trước đây phát hành
+tự hạ mẫu cũ, nên một ca ban hành mẫu riêng của nó cũng tự dọn hộ. Giờ không còn thế, và các tệp
+kiểm thử dùng chung một CSDL.
+
+Ba lần đỏ, lần nào triệu chứng cũng ở nơi khác hẳn nguyên nhân:
+
+- `DOC-20` đỏ với *"expected 842 to be 595"* — bản mềm mặc định bỗng ra khổ ngang, vì một ca ở tệp
+  khác mượn tạm mẫu ngang rồi phát hành lại.
+- `DOC-02`/`DOC-03` đỏ vì bản mềm mặc định thiếu tiêu đề — một mẫu cụt của ca khác đang đứng đầu.
+- *"seed sẵn mỗi khổ một mẫu"* đỏ ở **lượt chạy thứ hai** chứ không phải lượt đầu.
+
+Ba cách chữa, và cả ba đều là quy tắc chứ không phải vá:
+
+1. Ca nào khẳng định về **nội dung** bản mềm thì gọi kèm `mauId`, không dựa vào mẫu mở sẵn.
+2. Ca nào ban hành mẫu thì `finally` phải **gỡ nó xuống**, và hoà lại mốc của hai mẫu mặc định.
+3. Ca "không chọn mẫu" so với **đầu danh sách**, không so với một khổ giấy cố định — *"mẫu mở sẵn là
+   mẫu đứng đầu ô chọn"* mới là bất biến thật.
+
+### Năm điểm gỡ bỏ
+
+| Mã | Chốt |
+|---|---|
+| **N-04** QĐCK trên bản A4 | Bỏ. Cột *Ngưỡng* đã gỡ ở `0056`; bản giấy không nói mức tối đa cho phép. |
+| **N-06** phân trang danh sách mẫu | Không cần, cho cả hai loại mẫu. |
+| **N-07** logo trên A4 và hợp đồng | Không cần — **định dạng nằm sẵn trong file .docx** người dùng soạn. Đây là hệ quả đẹp nhất của việc chuyển sang mẫu tải lên: cả một nhóm yêu cầu trình bày biến mất vì người dùng tự làm được. |
+| **N-09** quét lại danh mục O(n) · **N-10** va chạm `version_no` | Vẫn để lại. |
+
+### Mẫu hợp đồng trong `templates/`
+
+File thứ tư: `mau-hop-dong-a4-doc.docx`. Khác ba mẫu hồ sơ ở đúng một chỗ cốt lõi — **bảng vẽ tay**.
+Mẫu hồ sơ đặt `{{bang_san_pham}}` vì số cột CPBH đổi theo từng hồ sơ; hợp đồng nêu bốn cột cố định
+nên người soạn vẽ bảng trong Word và đặt `{{san_pham.*}}` vào một dòng thân, hệ thống nhân bản đúng
+dòng ấy.
+
+**KHÔNG nạp vào `make demo-mau`** theo yêu cầu: nó thuộc Sale Admin, người khác và màn hình khác, và
+bản demo đã có mẫu hợp đồng riêng. Ca kiểm thử canh cả hai chiều — mẫu hợp đồng không được mang
+`{{bang_san_pham}}`, và không mẫu hồ sơ nào được lẫn khoá `{{san_pham.*}}`; lẫn thì bản in ra mang
+nguyên chuỗi `{{...}}` mà không có thông báo lỗi nào.
+
+**1259/1259 xanh.**

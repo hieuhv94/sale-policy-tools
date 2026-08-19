@@ -726,14 +726,23 @@ Tệp Word, Excel và các định dạng khác **không xem trực tiếp đư�
 và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng.
 
 **Xem bản mềm** là một nút ở **góc trên bên phải**, ngang hàng với mã hồ sơ — mọi vai trò đọc được
-hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì hộp thoại hỏi **khổ giấy** trước, rồi mới hiện nội
-dung; dưới bản xem có nút *Tải xuống* và *Đóng*, và đổi khổ được ngay trong hộp.
+hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào là **hiện nội dung ngay**; dưới bản xem có nút *Tải
+xuống* và *Đóng*.
 
-> Hỏi khổ giấy **trước khi** hiện nội dung nghe như thừa một bước, nhưng nó thay ba nút rời trước
-> đây bằng một nút. Và khổ nào vừa thì chính nội dung mới nói được: hồ sơ ít dòng đọc khổ dọc dễ
-> hơn, hồ sơ nhiều dòng thì khổ ngang mới không ép chữ. Hộp gợi ý sẵn khổ hợp với số dòng của hồ sơ.
+Trên bản đang xem có ô **Mẫu** `mới 20/08` để chọn bản trình bày khác — ô này chỉ hiện khi có từ hai
+mẫu trở lên. Mẫu mở sẵn là **mẫu ban hành gần nhất**; đổi mẫu là xem lại ngay, đổi bao nhiêu lần
+cũng được và không lần nào bị tính là một lượt tải.
 
-Mục **Hợp đồng** đứng riêng, chỉ Kế toán và Sale Admin thấy và chỉ sau khi tiếp nhận lần 1.
+> **Không còn hỏi khổ giấy nữa** `sửa 20/08`. Khổ giấy nằm sẵn trong file mẫu mà Quản trị soạn: mẫu
+> ngang thì bản mềm ra ngang. Hỏi riêng khổ giấy là bắt bạn ghép hai mảnh mà phần mềm ghép được —
+> bạn chọn *bản trình bày*, còn khổ giấy đi theo nó. Tên mẫu trong ô chọn có kèm nhãn khổ giấy để
+> biết trước mình sắp in ra tờ nằm ngang hay tờ đứng.
+
+Mục **Hợp đồng** đứng riêng, chỉ Kế toán và Sale Admin thấy và chỉ sau khi tiếp nhận lần 1. Nó cũng
+là **một nút duy nhất** `sửa 20/08` — *Xuất hợp đồng* — và nó mở đúng hộp xem như trên, có ô chọn
+mẫu hợp đồng. Trước đây có hai nút, trong đó nút xuất tải thẳng về máy: nghĩa là đường duy nhất để
+biết hợp đồng trông thế nào lại là đường không cho nhìn trước, nên người ta tải, mở ra, thấy sai
+mẫu, rồi tải lại — mỗi lượt là một dòng trong *Lịch sử*.
 
 > **Vì sao nên xem thay vì tải.** Mỗi lần tải là một bản sao nằm lại trong thư mục tải xuống của
 > máy bạn, ngoài tầm kiểm soát của phần mềm. Mở ra đối chiếu rồi đóng thì không để lại gì.
@@ -790,25 +799,33 @@ tải lên.
 bước, theo đúng thứ tự:
 
 1. **Tải mẫu lên** — file `.docx` với ô trống dạng `{{ten_o}}`. Hệ thống đọc ô trống ngay lúc tải;
-   file hỏng thì mẫu đang dùng không bị ảnh hưởng.
-2. **Ánh xạ trường** — mỗi ô trống trỏ tới một trường dữ liệu. Ô có tiền tố `policy.lines[].` làm
+   file hỏng thì mẫu đang dùng không bị ảnh hưởng. Trang thêm mẫu bày sẵn danh sách khoá, bấm một
+   khoá là chép.
+2. **Ánh xạ trường** — mỗi ô trống trỏ tới một trường dữ liệu. Trường có tiền tố `san_pham.` làm
    **dòng bảng chứa nó được nhân bản theo từng dòng sản phẩm**; đây là chỗ hay chọn nhầm, và chọn
    nhầm thì hợp đồng ra thiếu dòng.
-3. **Ban hành** — chỉ được khi đã ánh xạ hết. Ban hành mẫu mới **tự động hạ mẫu cũ**; luôn có nhiều
-   nhất một mẫu đang áp dụng.
+   > Bảng của hợp đồng **vẽ tay trong Word** — bốn cột cố định. Đừng dùng `{{bang_san_pham}}`: ô ấy
+   > chỉ có nghĩa với mẫu hồ sơ CSBH, nơi số cột CPBH đổi theo từng hồ sơ.
+3. **Ban hành** — chỉ được khi đã ánh xạ hết. Từ 20/08, ban hành nghĩa là **đưa mẫu vào danh sách
+   chọn** chứ không thay mẫu cũ: bao nhiêu mẫu cùng áp dụng cũng được, và Kế toán chọn mẫu nào lúc
+   bấm *Xuất hợp đồng*. Mẫu ban hành gần nhất là mẫu mở sẵn.
 
 > **Không có mẫu nào đang áp dụng thì mọi lần Kế toán bấm *Xuất hợp đồng* đều hỏng** — và Kế toán
-> không vào được mục này để sửa. Màn hình hiện cảnh báo đỏ khi rơi vào tình trạng đó.
+> không vào được mục này để sửa. Màn hình hiện cảnh báo đỏ khi rơi vào tình trạng đó, và khi bạn
+> ngừng dùng **mẫu cuối cùng** thì hộp xác nhận bắt gõ lại tên mẫu.
 
-### Tải văn bản trên màn hình hồ sơ
+Có sẵn một file mẫu hợp đồng để sửa: `templates/mau-hop-dong-a4-doc.docx` trong bộ mã.
 
-Mở một hồ sơ, mục **Tải văn bản**:
+### Xem và tải văn bản trên màn hình hồ sơ
 
-- **Bản CSBH (A4 dọc / A4 ngang)** — mọi vai trò xem được hồ sơ đều tải được, kể cả Ban lãnh đạo.
-  Chọn khổ ngang khi hồ sơ nhiều dòng: bảng mười cột không vừa khổ dọc.
-- **Xuất hợp đồng (PDF)** — chỉ Kế toán và Sale Admin.
+Mở một hồ sơ:
 
-### Tệp đính kèm
+- **Xem bản mềm** — nút ở góc trên bên phải. Mọi vai trò xem được hồ sơ đều dùng được, kể cả Ban
+  lãnh đạo. Chọn mẫu trong ô *Mẫu*, xem, rồi tải nếu cần.
+- **Xuất hợp đồng** — chỉ Kế toán và Sale Admin, và chỉ sau tiếp nhận lần 1. Cũng mở ra xem trước,
+  có ô chọn mẫu hợp đồng.
+
+### Bản cứng (tệp đính kèm)
 
 Tải lên, tải xuống và gỡ tệp của hồ sơ. Bốn vai trò trong luồng đều làm được, không riêng Trình dược
 viên — bản scan có chữ ký thường do người tiếp nhận đính vào.
@@ -986,9 +1003,13 @@ Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải
 mềm. Màn hình này là chỗ quản mẫu ấy: tải lên → ánh xạ từng ô trống tới một trường dữ liệu → ban
 hành.
 
-- **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó, phần mềm không xoay được mẫu
-  dọc thành ngang. Thiếu mẫu của một khổ thì người dùng chọn đúng khổ ấy ở *Xem bản mềm* sẽ nhận lỗi
-  **“chưa có văn bản mẫu phù hợp”** — khổ kia vẫn chạy bình thường.
+- **Bao nhiêu mẫu cùng dùng cũng được** `sửa 20/08`. Người xem chọn mẫu nào trong ô *Mẫu* của hộp
+  *Xem bản mềm*, nên *Ban hành* nghĩa là **đưa vào danh sách chọn** chứ không phải thay mẫu cũ, và
+  *Ngừng dùng* là **rút khỏi danh sách**. Chỉ khi rút mẫu **cuối cùng** thì chức năng mới hỏng — và
+  đúng lúc ấy màn hình bắt gõ lại tên mẫu để xác nhận.
+- **Khổ giấy không phải khai** `sửa 20/08`. Phần mềm đọc nó từ chính file `.docx` và hiện làm nhãn
+  cạnh tên mẫu. File `.docx` tự mang khổ của nó và phần mềm không xoay được mẫu dọc thành ngang, nên
+  muốn có cả hai khổ thì soạn hai file.
 - **Trang thêm mẫu hiện luôn hướng dẫn.** Danh sách đầy đủ khoá kèm nhãn tiếng Việt nằm ngay cạnh
   ô chọn tệp — **bấm một khoá là chép**, không phải gõ lại bằng tay.
 - **Khoá viết bằng tiếng Việt**, một nhóm `ho_so.` cho tất cả: `{{ho_so.ten_khach_hang}}`,
@@ -1005,12 +1026,15 @@ hành.
 - **Ban hành bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ 13 mục ở phần *Yêu cầu hiển thị
   file*; màn hình liệt kê sẵn mục nào còn thiếu, ngay khi bạn đang ánh xạ.
 - **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
-  được bản mềm.
-- **Ba file mẫu soạn sẵn** nằm trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
+  được bản mềm. Chúng luôn nằm **cuối** ô chọn: ngày bạn ban hành một mẫu thật thì mẫu thật là cái
+  mở sẵn, còn hai bản sơ sài này lùi xuống.
+- **Bộ file mẫu soạn sẵn** nằm trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
   `mau-ho-so-a4-ngang.docx` và một bản **rút gọn** chỉ có đúng 13 mục bắt buộc — mở nó ra là thấy
   ngay *ít nhất phải có những gì thì mới ban hành được*. Tải một file về, sửa câu chữ trong Word, rồi
   tải lên: nhanh hơn soạn từ trang giấy trắng và không phải nhớ hai mươi khoá. Bản demo
   (`make demo-mau`) nạp sẵn đúng ba file này.
+  > Thư mục ấy còn một file thứ tư, `mau-hop-dong-a4-doc.docx` `mới 20/08` — **mẫu hợp đồng**, thuộc
+  > Sale Admin và tải lên ở màn hình khác. Bản demo **không** nạp nó; ai cần thì tự tải lên.
 
 > Đây **không phải** mẫu hợp đồng. Mẫu hợp đồng do **Sale Admin** soạn ở màn hình riêng, và Quản trị
 > hệ thống không sửa được nó.

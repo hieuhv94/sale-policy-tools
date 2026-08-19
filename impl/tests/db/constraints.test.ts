@@ -721,3 +721,61 @@ describe('`0049` sys.khong_dau khớp từng ký tự với norm() của TypeScr
     });
   });
 });
+
+// =============================================================================
+// `0058` — nhiều mẫu cùng đang dùng, vì đó mới là cái danh sách để chọn
+// =============================================================================
+
+describe('`0058` CSDL cho phép hai mẫu cùng đang dùng', () => {
+  /*
+   * Luật này ĐẢO NGƯỢC so với `0050`, nên nó cần một ca canh giữ đúng chiều mới.
+   *
+   * `0050` dựng hai partial unique index để giữ đúng MỘT mẫu đang dùng cho mỗi
+   * (loại × khổ giấy) — luật đúng khi hệ thống tự tra mẫu. Từ `0058` người dùng
+   * chọn thẳng mẫu, nên index ấy quay ra chống lại chính chức năng: ban hành mẫu
+   * thứ hai sẽ vi phạm ràng buộc, và người quản trị không bao giờ có nổi hai mẫu
+   * để chọn.
+   *
+   * Kiểm bằng cách CHÈN THẬT trong một giao dịch rồi cuộn lại, không phải bằng
+   * cách đọc `pg_indexes` cho vắng tên: một index tương đương đặt tên khác ở lần
+   * migration sau sẽ lọt qua phép đọc tên, còn phép chèn thì không.
+   */
+  it('hai mẫu HO_SO cùng khổ, cùng is_active — chèn được', async () => {
+    await inRollback(db, async () => {
+      const f = await db.query<{ id: string }>(
+        `SELECT id FROM doc.stored_file LIMIT 1`,
+      );
+      const fileId = f.rows[0]?.id;
+      expect(fileId, 'cần ít nhất một file trong kho để mượn khoá ngoại').toBeDefined();
+      const u = await db.query<{ id: string }>(`SELECT id FROM idn.app_user LIMIT 1`);
+
+      for (const ten of ['Mẫu một', 'Mẫu hai']) {
+        await db.query(
+          `INSERT INTO doc.contract_template
+             (name, file_id, is_active, published_at, updated_by, kind, paper_size)
+           VALUES ($1,$2,true,now(),$3,'HO_SO','a4p')`,
+          [ten, fileId, u.rows[0]!.id],
+        );
+      }
+      const n = await db.query<{ c: string }>(
+        `SELECT count(*) AS c FROM doc.contract_template
+          WHERE is_active AND kind = 'HO_SO' AND paper_size = 'a4p'`,
+      );
+      expect(Number(n.rows[0]!.c)).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('mẫu HỢP ĐỒNG khai khổ giấy — không còn bị CHECK chặn', async () => {
+    // `0050` cấm mẫu hợp đồng có khổ giấy vì cột ấy chỉ dùng để tra mẫu hồ sơ.
+    // Từ `0058` nó là nhãn đọc từ file, và hợp đồng cũng in ra giấy.
+    await inRollback(db, async () => {
+      const f = await db.query<{ id: string }>(`SELECT id FROM doc.stored_file LIMIT 1`);
+      const u = await db.query<{ id: string }>(`SELECT id FROM idn.app_user LIMIT 1`);
+      await db.query(
+        `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size)
+         VALUES ('Hợp đồng khổ ngang',$1,$2,'HOP_DONG','a4l')`,
+        [f.rows[0]!.id, u.rows[0]!.id],
+      );
+    });
+  });
+});

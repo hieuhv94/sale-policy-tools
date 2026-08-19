@@ -53,8 +53,15 @@ export const CAU_HINH_MAU: Record<
     duong: string;
     tieuDe: string;
     moTa: string;
-    /** Mỗi khổ giấy một mẫu riêng — chỉ đúng với mẫu hồ sơ. */
-    theoKhoGiay: boolean;
+    /**
+     * Bảng sản phẩm do HỆ THỐNG dựng — chỉ đúng với mẫu hồ sơ (`0055`).
+     *
+     * Tới `0057` cờ này tên là `theoKhoGiay` và gánh hai việc chẳng liên quan
+     * nhau: "mỗi khổ giấy một mẫu" và "bảng do hệ thống dựng, có 13 mục bắt
+     * buộc". Việc thứ nhất mất hẳn ở `0058` — người xem chọn mẫu chứ không chọn
+     * khổ — nên cái tên cũ giờ chỉ còn tả sai việc thứ hai.
+     */
+    bangDoHeThongDung: boolean;
     nhanTaiLen: string;
   }
 > = {
@@ -62,16 +69,23 @@ export const CAU_HINH_MAU: Record<
     duong: '/contract-templates',
     tieuDe: 'Mẫu hợp đồng',
     moTa: 'Mẫu Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng.',
-    theoKhoGiay: false,
+    bangDoHeThongDung: false,
     nhanTaiLen: 'Tải mẫu hợp đồng',
   },
   HO_SO: {
     duong: '/policy-templates',
     tieuDe: 'Giấy tờ mẫu',
-    moTa: 'Mẫu Word dựng bản CSBH A4. Mỗi khổ giấy một mẫu riêng.',
-    theoKhoGiay: true,
+    moTa: 'Mẫu Word dựng bản CSBH A4. Người xem chọn mẫu nào lúc xem bản mềm.',
+    bangDoHeThongDung: true,
     nhanTaiLen: 'Tải mẫu hồ sơ CSBH',
   },
+};
+
+/** Một mẫu ĐANG DÙNG, đúng những gì ô chọn cần (`0058`). */
+export type MauChon = {
+  id: string;
+  ten: string;
+  khoGiay: KhoGiay | null;
 };
 
 export type TruongAnhXa = {

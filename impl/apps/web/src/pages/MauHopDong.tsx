@@ -17,7 +17,6 @@ import { ngayGio } from '../lib/format.js';
 import {
   CAU_HINH_MAU,
   DINH_DANG,
-  KHO_GIAY,
   NHAN_DINH_DANG,
   NHAN_KHO,
   TIEN_TO_DONG,
@@ -125,16 +124,14 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
   }
 
   /*
-   * "Đã đủ mẫu chưa" hỏi theo TỪNG KHỔ GIẤY với mẫu hồ sơ (`0055`).
+   * "Đã đủ mẫu chưa" giờ là MỘT câu hỏi, không phải một câu cho mỗi khổ (`0058`).
    *
-   * Mẫu hợp đồng chỉ có một bản đang dùng; mẫu hồ sơ có một bản cho mỗi khổ, và
-   * thiếu một khổ thì đúng khổ ấy hỏng còn khổ kia vẫn chạy. Một câu "chưa có
-   * mẫu nào" chung cho cả hai là câu sai ở nửa số trường hợp.
+   * `0055` hỏi theo từng khổ giấy vì mỗi khổ cần một mẫu riêng và thiếu một khổ
+   * thì đúng khổ ấy hỏng. Từ `0058` người xem chọn thẳng mẫu trong danh sách,
+   * nên câu hỏi đúng chỉ còn là: danh sách ấy có rỗng không.
    */
-  const khoThieu = ch.theoKhoGiay
-    ? KHO_GIAY.filter((k) => !ds.some((t) => t.isActive && t.paperSize === k))
-    : [];
-  const dangDung = ch.theoKhoGiay ? khoThieu.length === 0 : ds.some((t) => t.isActive);
+  const soDangDung = ds.filter((t) => t.isActive).length;
+  const dangDung = soDangDung > 0;
 
   return (
     <section className="trang">
@@ -153,17 +150,13 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
       */}
       {!dangDung && (
         <div className="bao-loi" role="alert">
-          <p className="bao-loi-chinh">
-            {ch.theoKhoGiay
-              ? `Chưa có mẫu đang áp dụng cho khổ ${khoThieu.map((k) => NHAN_KHO[k]).join(' và ')}.`
-              : 'Chưa có mẫu nào đang áp dụng.'}
-          </p>
+          <p className="bao-loi-chinh">Chưa có mẫu nào đang áp dụng.</p>
           <p className="bao-loi-phu">
-            {ch.theoKhoGiay ? (
+            {ch.bangDoHeThongDung ? (
               <>
-                Người dùng bấm <strong>Xem bản mềm</strong> và chọn khổ ấy sẽ nhận lỗi{' '}
-                <em>chưa có văn bản mẫu phù hợp</em>, và họ không sửa được — chỉ bạn ban hành mẫu
-                được.
+                Người dùng bấm <strong>Xem bản mềm</strong> sẽ nhận lỗi{' '}
+                <em>chưa có văn bản mẫu nào đang dùng</em>, và họ không sửa được — chỉ bạn ban hành
+                mẫu được.
               </>
             ) : (
               <>
@@ -194,7 +187,7 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
             <thead>
               <tr>
                 <th>Tên mẫu</th>
-                {ch.theoKhoGiay && <th>Khổ giấy</th>}
+                <th>Khổ giấy</th>
                 <th>Trạng thái</th>
                 <th>Ban hành lúc</th>
                 <th>Sửa lần cuối</th>
@@ -205,7 +198,7 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
               {cuaTrang.map((t) => (
                 <tr key={t.id}>
                   <td>{t.name}</td>
-                  {ch.theoKhoGiay && <td>{t.paperSize ? NHAN_KHO[t.paperSize] : '—'}</td>}
+                  <td>{t.paperSize ? NHAN_KHO[t.paperSize] : '—'}</td>
                   <td>
                     {t.isActive ? (
                       <strong>Đang áp dụng</strong>
@@ -261,35 +254,48 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
         <HopThoaiXacNhan
           tieuDe={hoi.viec === 'publish' ? `Ban hành mẫu "${hoi.mau.name}"` : `Ngừng dùng mẫu "${hoi.mau.name}"`}
           hauQua={
+            /*
+              Cả hai câu này ĐỔI HẲN nghĩa ở `0058`.
+
+              Trước đó ban hành là thay thế: mỗi khổ đúng một mẫu, nên bấm Ban
+              hành là đá mẫu cũ ra ngay lập tức. Giờ ban hành chỉ THÊM một lựa
+              chọn vào ô chọn, và ngừng dùng chỉ RÚT một lựa chọn ra — mẫu cuối
+              cùng mới là cái đáng cảnh báo.
+            */
             hoi.viec === 'publish' ? (
-              <>
-                <p>
-                  Từ lúc bấm,{' '}
-                  <strong>
-                    {ch.theoKhoGiay
-                      ? `mọi bản mềm khổ ${hoi.mau.paperSize ? NHAN_KHO[hoi.mau.paperSize] : ''}`
-                      : 'mọi lượt xuất hợp đồng'}
-                  </strong>{' '}
-                  đều dùng mẫu này. Mẫu đang áp dụng bị thay ngay lập tức.
-                </p>
-                <p>
-                  Hệ thống không lưu lại hợp đồng đã xuất, nên không có bản cũ để đối chiếu và không
-                  có phiên bản để quay lại — muốn về mẫu cũ thì phải ban hành lại mẫu đó.
-                </p>
-              </>
+              <p>
+                Từ lúc bấm, mẫu này <strong>vào danh sách chọn</strong> của{' '}
+                {ch.bangDoHeThongDung ? 'người xem bản mềm' : 'người xuất hợp đồng'}, và nó là mẫu
+                mở sẵn cho lần sau. Mẫu đang áp dụng <strong>vẫn ở nguyên trong danh sách</strong>.
+              </p>
+            ) : soDangDung > 1 ? (
+              <p>
+                Mẫu này bị <strong>rút khỏi danh sách chọn</strong>. Còn {soDangDung - 1} mẫu khác
+                đang áp dụng, nên{' '}
+                {ch.bangDoHeThongDung ? 'bản mềm vẫn xem được' : 'hợp đồng vẫn xuất được'} — chỉ là
+                không còn chọn được mẫu này nữa.
+              </p>
             ) : (
               <p>
-                Sau khi ngừng, <strong>không còn mẫu nào đang áp dụng</strong>
-                {ch.theoKhoGiay ? ' cho khổ giấy này' : ''}:{' '}
-                {ch.theoKhoGiay
-                  ? 'người dùng chọn khổ ấy ở Xem bản mềm sẽ nhận lỗi chưa có văn bản mẫu phù hợp'
+                Đây là <strong>mẫu cuối cùng đang áp dụng</strong>. Ngừng nó thì{' '}
+                {ch.bangDoHeThongDung
+                  ? 'mọi lượt bấm Xem bản mềm đều nhận lỗi chưa có văn bản mẫu'
                   : 'kế toán và Sale Admin bấm Xuất hợp đồng sẽ không xuất được'}
                 , cho tới khi có người ban hành một mẫu khác.
               </p>
             )
           }
           nhanNut={hoi.viec === 'publish' ? 'Ban hành' : 'Ngừng dùng'}
-          goLai={hoi.mau.name}
+          /*
+            Gõ lại tên mẫu CHỈ khi rút mẫu CUỐI CÙNG (`0058`).
+
+            Mức nặng dành cho thao tác không lùi được, và từ `0058` chỉ còn một
+            thao tác như thế: ngừng mẫu cuối làm cả chức năng ngừng chạy. Ban
+            hành thì chỉ thêm một lựa chọn, còn ngừng khi vẫn còn mẫu khác thì
+            bấm lại Ban hành là xong. Bắt gõ tên cho những lượt ấy là dựng rào
+            trước một cánh cửa mở — và người dùng học được rằng cứ gõ cho xong.
+          */
+          {...(hoi.viec === 'deactivate' && soDangDung === 1 ? { goLai: hoi.mau.name } : {})}
           dangChay={dangChay === hoi.mau.id}
           dong={() => datHoi(null)}
           // `chay` tự nuốt lỗi và đặt `loi` của trang, nên đóng hộp thoại ở cả
@@ -457,7 +463,7 @@ function HopThoaiAnhXa({
         luật thì bản ở giao diện sẽ trôi, và nó trôi theo hướng nói "đủ rồi" cho
         một mẫu mà máy chủ sắp từ chối.
       */}
-      {ch.theoKhoGiay && (tt.thieu?.length ?? 0) > 0 && (
+      {ch.bangDoHeThongDung && (tt.thieu?.length ?? 0) > 0 && (
         <div className="hop-canh-bao" role="status">
           <p>
             <strong>Còn thiếu {tt.thieu!.length} mục bắt buộc của bản CSBH.</strong>
@@ -471,7 +477,7 @@ function HopThoaiAnhXa({
         </div>
       )}
 
-      {ch.theoKhoGiay && tt.coBangSanPham === false && (
+      {ch.bangDoHeThongDung && tt.coBangSanPham === false && (
         <div className="hop-canh-bao" role="status">
           <p>
             <strong>Mẫu chưa có ô bảng sản phẩm.</strong>

@@ -22,7 +22,17 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CurrentUser, oneOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, oneOf, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
+
+/**
+ * Ai được XEM bản mềm CSBH — và vì thế ai được thấy danh sách mẫu để chọn (`0058`).
+ *
+ * Cùng danh sách với `render.controller.ts`. Chép sang đây thay vì nhập từ đó
+ * vì hai controller nằm hai mô-đun và chiều phụ thuộc đang là render → contracts;
+ * đảo lại để dùng chung một hằng số là đổi kiến trúc cho một mảng năm chuỗi.
+ * `document.test.ts` đối chiếu hai danh sách để chúng không lệch nhau.
+ */
+export const NGUOI_XEM_HO_SO = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
 import { MAX_BYTES } from '../files/files.service.js';
 import { TemplatesService, type MappingInput } from './templates.service.js';
 import { ContractsService } from './contracts.service.js';
@@ -80,6 +90,18 @@ export class ContractTemplatesController {
   @Get()
   list() {
     return this.templates.list();
+  }
+
+  /**
+   * Mẫu đang dùng, cho ô chọn lúc xuất hợp đồng (`0058`).
+   *
+   * Kế toán thấy được dù mẫu hợp đồng thuộc Sale Admin: chính kế toán là người
+   * bấm xuất, nên họ phải chọn được mẫu nào. Thấy danh sách ≠ sửa được mẫu.
+   */
+  @Roles('KE_TOAN', 'SALE_ADMIN')
+  @Get('available')
+  available() {
+    return this.templates.khaDung('HOP_DONG');
   }
 
   @Roles('SALE_ADMIN')
@@ -147,20 +169,36 @@ export class PolicyTemplatesController {
   async upload(
     @CurrentUser() me: AuthUser,
     @UploadedFile() file: { buffer: Buffer } | undefined,
-    @Body() body: { name?: string; paperSize?: string },
+    @Body() body: { name?: string },
   ) {
     if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
-    const b = validate(
-      { name: body?.name ?? 'Mẫu hồ sơ CSBH', paperSize: body?.paperSize },
-      { name: str(1, 200), paperSize: oneOf('a4p', 'a4l') },
-    );
-    return this.templates.upload(b.name, file.buffer, me, 'HO_SO', b.paperSize);
+    // `paperSize` ĐÃ BỎ khỏi đầu vào (`0058`): khổ giấy đọc từ chính file — xem
+    // `khoGiayCua`. Một ô người tải lên tự khai mà không còn hậu quả gì là một ô
+    // sẽ nói dối, và không có gì trên đời phát hiện ra.
+    const b = validate({ name: body?.name ?? 'Mẫu hồ sơ CSBH' }, { name: str(1, 200) });
+    return this.templates.upload(b.name, file.buffer, me, 'HO_SO');
   }
 
   @Roles('QUAN_TRI')
   @Get()
   list() {
     return this.templates.list('HO_SO');
+  }
+
+  /**
+   * Mẫu đang dùng, cho Ô CHỌN lúc xem bản mềm (`0058`).
+   *
+   * MỞ CHO NĂM VAI TRÒ ĐỌC, không riêng Quản trị — và đó là chủ ý, không phải
+   * lỗ hổng: người chọn mẫu là kế toán, TDV, Trưởng bộ phận. Họ cần biết có
+   * những mẫu nào để chọn, chứ không cần quyền tải lên hay phát hành mẫu nào.
+   *
+   * Trả về đúng ba trường (`id`, `ten`, `khoGiay`) chứ không dùng lại `list()`:
+   * đường đọc càng mở rộng thì càng ít thứ nên lọt ra theo.
+   */
+  @Roles(...NGUOI_XEM_HO_SO)
+  @Get('available')
+  available() {
+    return this.templates.khaDung('HO_SO');
   }
 
   @Roles('QUAN_TRI')
@@ -217,8 +255,12 @@ export class ContractsController {
   /** Xem trước: trả về dữ liệu đã trộn, KHÔNG sinh file và không ghi gì (DOC-14). */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get(':id/contract/preview')
-  preview(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.contracts.preview(id, me);
+  preview(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Query() q: Record<string, string>,
+  ) {
+    return this.contracts.preview(id, me, validate(q, { mauId: opt(uuid()) }).mauId);
   }
 
   /**
@@ -233,10 +275,11 @@ export class ContractsController {
   async pdf(
     @CurrentUser() me: AuthUser,
     @Param('id') id: string,
-    @Query('xem') xem: string | undefined,
+    @Query() q: Record<string, string>,
     @Res() res: Response,
   ): Promise<void> {
-    const { pdf, fileName } = await this.contracts.export(id, me, xem === '1');
+    const b = validate(q, { mauId: opt(uuid()), xem: opt(oneOf('1')) });
+    const { pdf, fileName } = await this.contracts.export(id, me, b.xem === '1', b.mauId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.end(pdf);

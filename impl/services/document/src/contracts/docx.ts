@@ -111,6 +111,21 @@ export function placeholdersOf(buf: Buffer): string[] {
   return out;
 }
 
+/**
+ * Khổ giấy ĐỌC TỪ chính file, không hỏi người tải lên (`0058`).
+ *
+ * Tới `0057` khổ giấy là một ô người tải mẫu tự khai, vì nó là KHOÁ TRA MẪU:
+ * người xem chọn khổ, hệ thống tìm mẫu khai đúng khổ ấy. Từ `0058` người xem
+ * chọn thẳng mẫu, nên ô ấy không còn hậu quả gì — và một ô nhập tay không còn
+ * hậu quả là một ô sẽ nói dối. Đọc từ file thì nhãn không sai được.
+ *
+ * `w:orient="landscape"` là dấu hiệu duy nhất cần tìm: khổ dọc là mặc định của
+ * OOXML và Word không ghi thuộc tính ấy ra. Nghĩa là "không thấy" = dọc, chứ
+ * không phải "không biết" — nên hàm này luôn trả về một trong hai giá trị.
+ */
+export const khoGiayCua = (buf: Buffer): 'a4p' | 'a4l' =>
+  /<w:pgSz[^>]*w:orient="landscape"/.test(documentXml(buf)) ? 'a4l' : 'a4p';
+
 export type MergeInput = {
   /** Giá trị cho ô trống đơn: khoá là `{{customer.name}}`. */
   values: Record<string, string>;

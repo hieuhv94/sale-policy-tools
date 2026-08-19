@@ -555,9 +555,13 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
-- **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó và không xoay được lúc trộn,
-  mà mục 11.1 đòi đủ cả hai khổ. Vì thế *"chưa có văn bản mẫu phù hợp"* nghĩa là **chưa có mẫu đúng
-  khổ đang xem** — khổ kia vẫn chạy bình thường.
+- **Người xem CHỌN MẪU, không chọn khổ giấy** `sửa 20/08`. Ô chọn liệt kê mọi mẫu đang dùng; mẫu
+  ban hành gần nhất mở sẵn. Khổ giấy đi theo file `.docx` của mẫu — phần mềm đọc nó từ `w:orient`
+  chứ không hỏi người tải lên, vì một ô nhập tay không còn hậu quả gì là một ô sẽ nói dối.
+  > Kéo theo: *Ban hành* nghĩa là **thêm vào danh sách chọn**, không phải thay mẫu cũ. Nhiều mẫu
+  > cùng áp dụng là trạng thái bình thường, và *"chưa có văn bản mẫu"* chỉ còn nghĩa là danh sách
+  > RỖNG. Bản trước chốt "mỗi khổ giấy một mẫu riêng" — luật ấy sinh ra từ việc hệ thống tự tra mẫu
+  > theo khổ, và nó mất nghĩa khi chính người dùng chọn.
 - **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{bang_san_pham}}`, và hệ
   thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ sẵn
   trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
@@ -569,8 +573,9 @@ nói rõ dòng nào hẹp hơn dòng nào.
   vài lần.
 - **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
   lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
-- **Bàn giao kèm ba file `.docx` soạn sẵn** `mới 20/08`, trong thư mục `templates/`: A4 dọc, A4
-  ngang, và một bản **rút gọn** chứa đúng 13 mục bắt buộc. Chúng là điểm khởi đầu để Quản trị sửa
+- **Bàn giao kèm bốn file `.docx` soạn sẵn** `mới 20/08`, trong thư mục `templates/`: mẫu hồ sơ A4
+  dọc, A4 ngang, một bản **rút gọn** chứa đúng 13 mục bắt buộc, và một **mẫu hợp đồng** (của Sale
+  Admin, bản demo không nạp sẵn). Chúng là điểm khởi đầu để Quản trị sửa
   câu chữ chứ không phải soạn lại từ đầu, và bản rút gọn trả lời bằng chính nó câu hỏi *"tối thiểu
   phải có gì mới ban hành được"*. Bản demo nạp sẵn cả ba.
 
@@ -598,7 +603,7 @@ giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước n�
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
 | **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
-| **Giấy tờ mẫu** | Chỉ Quản trị | Mẫu hồ sơ CSBH, mỗi khổ giấy một mẫu — xem 6.4 |
+| **Giấy tờ mẫu** | Chỉ Quản trị | Mẫu hồ sơ CSBH; người xem chọn mẫu lúc xem bản mềm — xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
 "Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở

@@ -75,6 +75,12 @@ const LICH_SU = [
   },
 ];
 
+/** Hai mẫu đang dùng — đủ để ô chọn hiện ra (`0058`). */
+const MAU = [
+  { id: '00000000-0000-4000-8000-000000000001', ten: 'Mẫu A4 dọc', khoGiay: 'a4p' },
+  { id: '00000000-0000-4000-8000-000000000002', ten: 'Mẫu A4 ngang', khoGiay: 'a4l' },
+];
+
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
     status: 200,
@@ -94,6 +100,8 @@ const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_REJEC
     if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
     if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: choPhep }));
     if (d.includes('/files')) return Promise.resolve(json([]));
+    // Danh sách mẫu cho ô chọn của hộp *Xem bản mềm* / *Xuất hợp đồng* (`0058`).
+    if (d.includes('/available')) return Promise.resolve(json(MAU));
     return Promise.resolve(json(hoSo));
   });
   vi.stubGlobal('fetch', f);
@@ -355,42 +363,77 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(screen.queryByRole('heading', { name: 'Tải văn bản' })).toBeNull();
   });
 
-  it('`0054` bấm vào thì hỏi KHỔ GIẤY trước, chưa tải gì cả', async () => {
+  it('`0058` mở ra là XEM NGAY bằng mẫu đầu danh sách, không hỏi trước', async () => {
     /*
-     * Thứ tự này là cả điểm của `0054`: bản cũ bắt chọn khổ TRƯỚC khi nhìn thấy
-     * nội dung, trong khi chính nội dung mới nói được khổ nào vừa. Giờ hộp mở ra
-     * là một câu hỏi, và chưa gọi máy chủ lần nào.
+     * Đổi so với `0054`, và đổi có chủ ý: hộp cũ hỏi khổ giấy TRƯỚC khi cho nhìn
+     * thấy gì. Câu hỏi ấy chặn đường của mọi người dùng, kể cả người chỉ muốn
+     * liếc qua nội dung — mà phần lớn thì đúng là như thế.
+     *
+     * Giờ mẫu đầu danh sách mở ngay, và ô chọn nằm ngay trên bản đang xem cho
+     * ai muốn bản khác. Máy chủ đã xếp mẫu mới ban hành lên đầu.
      */
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
-    expect(screen.getByRole('button', { name: 'A4 dọc' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'A4 ngang' })).toBeDefined();
-    expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
-  });
-
-  it('`0054` chọn khổ rồi mới tải nội dung, và đường xem mang `xem=1`', async () => {
-    const f = await mo();
-    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    await waitFor(() => screen.getByRole('button', { name: 'A4 ngang' }));
-    fireEvent.click(screen.getByRole('button', { name: 'A4 ngang' }));
 
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
       expect(d.length).toBeGreaterThan(0);
-      expect(d.every((x) => x.includes('size=a4l'))).toBe(true);
+      expect(d.every((x) => x.includes(`mauId=${MAU[0]!.id}`))).toBe(true);
       // Xem thì KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
       expect(d.every((x) => x.includes('xem=1'))).toBe(true);
     });
   });
 
-  it('`0054` gợi ý khổ theo SỐ DÒNG, nhưng vẫn cho chọn khổ kia', async () => {
-    // Hồ sơ nhiều dòng thì bảng mười cột ép chữ trên khổ dọc. Gợi ý, không ép.
-    await mo({ ...HO_SO, lines: [1, 2, 3, 4, 5, 6].map(() => ({})) });
+  it('`0058` ô chọn liệt kê ĐỦ mẫu đang dùng, kèm khổ giấy đọc từ file', async () => {
+    await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    await waitFor(() => screen.getByRole('button', { name: 'A4 ngang' }));
-    expect(screen.getByRole('button', { name: 'A4 ngang' }).className).toContain('nut-chinh');
-    expect(screen.getByRole('button', { name: 'A4 dọc' })).toBeDefined();
+    const o = (await screen.findByLabelText('Mẫu')) as HTMLSelectElement;
+    expect([...o.options].map((x) => x.textContent)).toEqual([
+      'Mẫu A4 dọc · A4 dọc',
+      'Mẫu A4 ngang · A4 ngang',
+    ]);
+  });
+
+  it('`0058` đổi mẫu thì tải lại theo ĐÚNG mẫu vừa chọn', async () => {
+    const f = await mo();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    const o = await screen.findByLabelText('Mẫu');
+    fireEvent.change(o, { target: { value: MAU[1]!.id } });
+
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
+      expect(d.some((x) => x.includes(`mauId=${MAU[1]!.id}`))).toBe(true);
+    });
+  });
+
+  it('`0058` chưa có mẫu nào đang dùng thì nói AI chữa được, không chỉ báo lỗi', async () => {
+    /*
+     * Người đứng đây không sửa được — chỉ Quản trị ban hành mẫu. Câu "chưa có
+     * mẫu" mà không nói ai chữa là đẩy một việc không làm được sang cho họ.
+     */
+    const f = vi.fn((duong: unknown) => {
+      const d = String(duong);
+      if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
+      if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: [] }));
+      if (d.includes('/files')) return Promise.resolve(json([]));
+      if (d.includes('/available')) return Promise.resolve(json([]));
+      return Promise.resolve(json(HO_SO));
+    });
+    vi.stubGlobal('fetch', f);
+    render(
+      <PhienProvider>
+        <BoDinhTuyen>
+          <ChiTietHoSo id="hs-1" />
+        </BoDinhTuyen>
+      </PhienProvider>,
+    );
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('dialog').textContent).toContain('Quản trị hệ thống'),
+    );
+    expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
   });
 
   it('`0054` Ban lãnh đạo — không có nút thao tác nào nhưng VẪN xem được bản mềm', async () => {
@@ -406,12 +449,10 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(nut('Xem bản mềm')).not.toBeNull();
   });
 
-  it('Trưởng bộ phận KHÔNG thấy nút hợp đồng nào — cả xem lẫn xuất (FE-24)', async () => {
-    // Phiên đang đăng nhập là TBP. Nút *Xem hợp đồng* phải theo đúng cổng quyền
-    // của nút *Xuất hợp đồng*, nếu không thì nó thành đường vòng quanh FE-24.
+  it('Trưởng bộ phận KHÔNG thấy nút hợp đồng nào (FE-24)', async () => {
     await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', xuatHopDongDuoc: true });
+    expect(nut('Xuất hợp đồng')).toBeNull();
     expect(nut('Xem hợp đồng')).toBeNull();
-    expect(nut('Xuất hợp đồng (PDF)')).toBeNull();
   });
 
   it('chưa tới lúc xuất được hợp đồng thì KHÔNG có nút xem', async () => {
@@ -420,16 +461,32 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
       JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'KE_TOAN', username: 'kt01' } }),
     );
     await mo({ ...HO_SO, status: 'CHO_KT_L1', xuatHopDongDuoc: false });
-    expect(nut('Xem hợp đồng')).toBeNull();
+    expect(nut('Xuất hợp đồng')).toBeNull();
   });
 
-  it('Kế toán sau tiếp nhận L1 thấy CẢ HAI nút hợp đồng', async () => {
+  it('`0058` Kế toán bấm *Xuất hợp đồng* thì XEM TRƯỚC, chưa tải về', async () => {
+    /*
+     * Trước `0058` đây là hai nút: *Xem hợp đồng* mở hộp xem, *Xuất hợp đồng
+     * (PDF)* tải thẳng về. Nút tải thẳng ấy có một tác dụng phụ không ai muốn:
+     * đường duy nhất để BIẾT hợp đồng trông thế nào lại là đường không đi qua
+     * bước nhìn — nên người ta bấm tải, mở file, thấy sai mẫu, rồi bấm lại. Mỗi
+     * lượt như thế là một dòng "đã tải hợp đồng" trong Lịch sử.
+     */
     localStorage.setItem(
       'csbh:phien',
       JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'KE_TOAN', username: 'kt01' } }),
     );
-    await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', xuatHopDongDuoc: true });
-    expect(nut('Xem hợp đồng')).not.toBeNull();
-    expect(nut('Xuất hợp đồng (PDF)')).not.toBeNull();
+    const f = await mo({ ...HO_SO, status: 'SA_DANG_XU_LY', xuatHopDongDuoc: true });
+    expect(nut('Xuất hợp đồng')).not.toBeNull();
+    // Một nút, không phải hai.
+    expect(nut('Xem hợp đồng')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất hợp đồng' }));
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('contract.pdf'));
+      expect(d.length).toBeGreaterThan(0);
+      // Mở ra XEM: không một lời gọi nào thiếu `xem=1`, nên không dòng lịch sử nào.
+      expect(d.every((x) => x.includes('xem=1'))).toBe(true);
+    });
   });
 });

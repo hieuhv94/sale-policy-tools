@@ -154,6 +154,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
 
   /** Hộp *Xem bản mềm* đang mở hay không (`0054`). */
   const [moBanMem, datMoBanMem] = useState(false);
+  const [moHopDong, datMoHopDong] = useState(false);
 
   /** Tệp đang mở xem trực tiếp — hợp đồng (`0051`). */
   const [dangXem, datDangXem] = useState<{
@@ -346,37 +347,22 @@ export function ChiTietHoSo({ id }: { id: string }) {
         Mục này CHỈ CÒN HỢP ĐỒNG (`0054`).
 
         Ba nút của bản CSBH — xem khổ dọc, tải khổ dọc, tải khổ ngang — đã dồn
-        vào một nút *Xem bản mềm* ở góc trên bên phải, và khổ giấy chọn ngay
-        trong hộp. Hợp đồng ở lại đây vì nó là văn bản KHÁC, chỉ Kế toán và Sale
-        Admin thấy, và chỉ sau khi tiếp nhận lần 1.
+        vào một nút *Xem bản mềm* ở góc trên bên phải. Hợp đồng ở lại đây vì nó
+        là văn bản KHÁC, chỉ Kế toán và Sale Admin thấy, và chỉ sau khi tiếp
+        nhận lần 1.
+
+        MỘT NÚT, không phải hai (`0058`). Trước đó *Xem* và *Xuất* là hai nút
+        cạnh nhau, và nút *Xuất* tải thẳng về mà không cho nhìn trước — nghĩa là
+        đường duy nhất để biết hợp đồng trông thế nào lại là đường KHÔNG để lại
+        vết trong Lịch sử. Giờ cả hai nằm trong một hộp: xem trước, chọn mẫu, rồi
+        mới bấm tải.
       */}
       {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
         <>
           <h2>Hợp đồng</h2>
           <div className="nhom-nut">
-            <button
-              type="button"
-              className="nut nut-nhe"
-              onClick={() =>
-                datDangXem({
-                  tieuDe: `Hợp đồng ${hoSo.code}`,
-                  duong: `/policies/${hoSo.id}/contract.pdf?xem=1`,
-                  duongTai: `/policies/${hoSo.id}/contract.pdf`,
-                  tenTep: `HopDong-${hoSo.code}.pdf`,
-                })
-              }
-            >
-              Xem hợp đồng
-            </button>
-            <button
-              type="button"
-              className="nut"
-              onClick={() => {
-                datLoi(null);
-                taiVe(`/policies/${hoSo.id}/contract.pdf`, `HopDong-${hoSo.code}.pdf`).catch(datLoi);
-              }}
-            >
-              Xuất hợp đồng (PDF)
+            <button type="button" className="nut" onClick={() => datMoHopDong(true)}>
+              Xuất hợp đồng
             </button>
           </div>
         </>
@@ -412,11 +398,15 @@ export function ChiTietHoSo({ id }: { id: string }) {
         người dùng không biết là có.
       */}
       {moBanMem && (
+        <XemBanMem hoSoId={hoSo.id} maHoSo={hoSo.code} dong={() => datMoBanMem(false)} />
+      )}
+
+      {moHopDong && (
         <XemBanMem
+          loai="HOP_DONG"
           hoSoId={hoSo.id}
           maHoSo={hoSo.code}
-          soDong={hoSo.lines.length}
-          dong={() => datMoBanMem(false)}
+          dong={() => datMoHopDong(false)}
         />
       )}
 
@@ -573,7 +563,10 @@ function HopThoaiHanhDong({
     let url: string | null = null;
     let song = true;
     // Bản xem trước trong hộp xác nhận cũng là XEM, không phải tải.
-    xemTruoc(`/policies/${hoSoId}/render?size=a4p&xem=1`)
+    // KHÔNG kèm `mauId`: hộp xác nhận ký số không có ô chọn mẫu, và máy chủ lấy
+    // mẫu đầu danh sách (`0058`). Bản xem trước ở đây để TBP đối chiếu nội dung
+    // trước khi ký, không phải để chọn bản trình bày.
+    xemTruoc(`/policies/${hoSoId}/render?xem=1`)
       .then((x) => {
         url = x.url;
         if (song) datXemUrl(x.url);

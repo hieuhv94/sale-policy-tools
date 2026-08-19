@@ -6,6 +6,7 @@
  * khổ giấy. Khẳng định "PDF đúng khổ A4" mà không mở file ra đo thì chỉ là
  * khẳng định rằng lời gọi đã trả về 200.
  */
+import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
@@ -235,12 +236,49 @@ afterAll(async () => {
 // DOC-01 · DOC-02 · DOC-03 — bản CSBH A4
 // =============================================================================
 
+/**
+ * Định danh mẫu hồ sơ mặc định khổ DỌC (`0058`).
+ *
+ * Ca nào khẳng định về NỘI DUNG bản mềm đều phải gọi kèm mẫu, không dựa vào mẫu
+ * mở sẵn: "mẫu mở sẵn" là mẫu ban hành gần nhất, và bảng mẫu dùng chung cho mọi
+ * tệp kiểm thử. Một ca ở `contract.test.ts` ban hành mẫu riêng của nó là mọi
+ * khẳng định về nội dung ở đây đổi nghĩa — và đã đổi thật một lần.
+ */
+const mauDoc = async (): Promise<string> => {
+  const r = await (await http(doc))
+    .get('/policy-templates/available')
+    .set('Authorization', `Bearer ${tok['tdv01']}`);
+  const m = (r.body as { id: string; ten: string; khoGiay: string }[]).find(
+    (x) => x.khoGiay === 'a4p' && x.ten.includes('mặc định'),
+  );
+  expect(m, 'thiếu mẫu hồ sơ mặc định khổ dọc').toBeDefined();
+  return m!.id;
+};
+
 describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
-  it('đúng khổ, không co méo ở cả hai hướng', async () => {
+  /*
+   * `0058` — khổ giấy đi theo MẪU ĐƯỢC CHỌN, không còn là tham số của lời gọi.
+   *
+   * Ca này vì thế mạnh hơn bản cũ chứ không yếu đi: bản cũ chứng minh máy chủ
+   * hiểu `?size=a4l`, bản này chứng minh **khổ giấy trong file .docx của mẫu đi
+   * hết đường tới trang PDF** — qua bảng mẫu, qua Gotenberg, ra đúng số đo.
+   */
+  it('đúng khổ theo mẫu được chọn, không co méo ở cả hai hướng', async () => {
     const d = await draft(3);
 
+    const ds = await (await http(doc))
+      .get('/policy-templates/available')
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(ds.status, 'người xem bản mềm phải đọc được danh sách mẫu').toBe(200);
+    const mau = ds.body as { id: string; ten: string; khoGiay: string }[];
+
+    const doc_ = mau.find((m) => m.khoGiay === 'a4p');
+    const ngang = mau.find((m) => m.khoGiay === 'a4l');
+    expect(doc_, 'thiếu mẫu mặc định khổ dọc').toBeDefined();
+    expect(ngang, 'thiếu mẫu mặc định khổ ngang').toBeDefined();
+
     const p = await (await http(doc))
-      .get(`/policies/${d.id}/render?size=a4p`)
+      .get(`/policies/${d.id}/render?mauId=${doc_!.id}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     expect(p.status).toBe(200);
@@ -251,7 +289,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     }
 
     const l = await (await http(doc))
-      .get(`/policies/${d.id}/render?size=a4l`)
+      .get(`/policies/${d.id}/render?mauId=${ngang!.id}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     for (const s of await pageSizes(l.body as Buffer)) {
@@ -259,6 +297,109 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
       expect(s.h).toBe(595);
     }
   }, 60_000);
+
+  it('KHÔNG chọn mẫu thì ra mẫu mặc định — và nó là khổ DỌC, mọi lần cài đặt', async () => {
+    /*
+     * Hộp xác nhận ký số dựng bản xem trước mà không có ô chọn nào, nên đường
+     * "không tham số" phải ra một bản đọc được chứ không phải lỗi.
+     *
+     * Và nó phải ra CÙNG MỘT MẪU ở mọi lần cài đặt: hai mẫu mặc định seed cùng
+     * một giao dịch nên `published_at` bằng nhau, và nếu thứ tự rơi xuống `id`
+     * — uuid ngẫu nhiên — thì bản xem trước lúc ký là dọc hay ngang tuỳ máy.
+     */
+    const d = await draft(1);
+    const goi = async (q: string) =>
+      (await http(doc))
+        .get(`/policies/${d.id}/render${q}`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+        .responseType('blob');
+
+    const khong = await goi('');
+    expect(khong.status).toBe(200);
+
+    /*
+      So với ĐẦU DANH SÁCH chứ không với một khổ giấy cố định.
+
+      "Mẫu mở sẵn là mẫu đứng đầu ô chọn" mới là bất biến thật, và nó đúng dù ai
+      vừa ban hành mẫu gì. Khẳng định thẳng "phải ra khổ dọc" thì đúng trên một
+      CSDL mới tinh và sai ngay khi một ca ở tệp khác ban hành mẫu ngang của
+      riêng nó — mà các tệp kiểm thử dùng chung một CSDL.
+    */
+    const dau = (
+      await (await http(doc))
+        .get('/policy-templates/available')
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).body[0] as { id: string };
+    const theoDau = await goi(`?mauId=${dau.id}`);
+    expect((await pageSizes(khong.body as Buffer))[0]).toEqual(
+      (await pageSizes(theoDau.body as Buffer))[0],
+    );
+
+    // Và trên CSDL vừa cài xong, mẫu đứng đầu là khổ DỌC: hai mẫu mặc định seed
+    // cùng một giao dịch nên `published_at` bằng nhau, thứ tự rơi xuống
+    // `paper_size`, và thứ tự khai enum cho a4p đứng trước. Không có phép hoà ấy
+    // thì mẫu mở sẵn là dọc hay ngang tuỳ từng lần cài đặt.
+    const macDinh = (
+      await (await http(doc))
+        .get('/policy-templates/available')
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).body as { ten: string; khoGiay: string }[];
+    const chiMacDinh = macDinh.filter((m) => m.ten.includes('mặc định'));
+    expect(chiMacDinh[0]!.khoGiay, 'mẫu mặc định khổ dọc phải đứng trước khổ ngang').toBe('a4p');
+  }, 60_000);
+
+  it('mẫu ĐÃ NGỪNG DÙNG thì từ chối, không âm thầm rơi về mẫu khác', async () => {
+    /*
+     * Tình huống có thật: người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy
+     * Quản trị ngừng dùng mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản
+     * không phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
+     */
+    const d = await draft(1);
+    const ds = await (await http(doc))
+      .get('/policy-templates/available')
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    const bo = (ds.body as { id: string; khoGiay: string }[]).find((m) => m.khoGiay === 'a4l')!;
+
+    await (await http(doc))
+      .post(`/policy-templates/${bo.id}/deactivate`)
+      .set('Authorization', `Bearer ${tok['admin01']}`);
+    try {
+      const r = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${bo.id}`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`);
+      expect(r.status).toBe(404);
+      expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
+    } finally {
+      await (await http(doc))
+        .post(`/policy-templates/${bo.id}/publish`)
+        .set('Authorization', `Bearer ${tok['admin01']}`);
+      /*
+        TRẢ LẠI CẢ MỐC BAN HÀNH, không chỉ trạng thái.
+
+        `publish` đặt `published_at = now()`, nên mẫu vừa khôi phục nhảy lên đầu
+        danh sách và thành mẫu MỞ SẴN cho mọi lời gọi không kèm `mauId` sau đó —
+        kể cả của những ca kiểm thử khác trong tệp này. Đã thấy đúng chuyện ấy:
+        DOC-20 đỏ với "expected 842 to be 595", tức bản mềm mặc định bỗng ra khổ
+        ngang, vì một ca chẳng liên quan đã mượn tạm mẫu ngang.
+      */
+      await withAdminDb(async (c) => {
+        await c.query(
+          `UPDATE doc.contract_template t SET published_at = m.som_nhat
+             FROM (SELECT min(published_at) AS som_nhat FROM doc.contract_template
+                    WHERE is_default AND kind = 'HO_SO' AND published_at IS NOT NULL) AS m
+            WHERE t.is_default AND t.kind = 'HO_SO'`,
+        );
+      });
+    }
+  }, 60_000);
+
+  it('`mauId` không phải định danh hợp lệ thì 400, không phải 500', async () => {
+    const d = await draft(1);
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render?mauId=khong-phai-uuid`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(r.status).toBe(400);
+  }, 30_000);
 });
 
 describe('DOC-02 PDF là VĂN BẢN, không phải ảnh chụp màn hình', () => {
@@ -266,7 +407,7 @@ describe('DOC-02 PDF là VĂN BẢN, không phải ảnh chụp màn hình', () 
     const d = await draft(2);
 
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render?size=a4p`)
+      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     const text = await pdfText(pdf.body as Buffer);
@@ -306,7 +447,7 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render?size=a4l`)
+      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     const t = await pdfText(pdf.body as Buffer);
@@ -339,7 +480,7 @@ describe('DOC-19 hồ sơ nhiều dòng sản phẩm', () => {
     // sang trang thứ hai.
     const d = await draft(60);
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render?size=a4l`)
+      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
 
@@ -367,10 +508,11 @@ describe('DOC-20 nhiều yêu cầu render cùng lúc', () => {
   it('năm lượt song song đều ra PDF hợp lệ', async () => {
     const d = await draft(2);
     const agent = await http(doc);
+    const mau = await mauDoc();
     const runs = await Promise.all(
       Array.from({ length: 5 }, () =>
         agent
-          .get(`/policies/${d.id}/render?size=a4p`)
+          .get(`/policies/${d.id}/render?mauId=${mau}`)
           .set('Authorization', `Bearer ${tok['tdv01']}`)
           .responseType('blob'),
       ),
@@ -762,7 +904,7 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(201);
 
     const pdf = await (await http(doc))
-      .get(`/policies/${r.body.id}/render?size=a4p`)
+      .get(`/policies/${r.body.id}/render?mauId=${await mauDoc()}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     const t = lien(await pdfText(pdf.body as Buffer));
@@ -919,4 +1061,29 @@ describe('`0053` N-01 lịch sử ghi lại người tải tệp của hồ sơ'
     // mang id của khách hàng.
     expect((await dget(url, 'tdv01')).status).toBe(200);
   }, 120_000);
+});
+
+// =============================================================================
+// `0058` — hai danh sách vai trò phải nói cùng một câu
+// =============================================================================
+
+describe('`0058` ai xem được bản mềm thì thấy được danh sách mẫu', () => {
+  it('READERS của render khớp NGUOI_XEM_HO_SO của danh sách mẫu', () => {
+    /*
+     * Hai hằng số nằm ở hai mô-đun, và chiều phụ thuộc hiện tại là render →
+     * contracts, nên không nhập chung được mà không đảo kiến trúc cho một mảng
+     * năm chuỗi. Bản sao thì phải có ca đối chiếu, nếu không nó sẽ lệch — và lệch
+     * theo chiều nào cũng hỏng: rộng hơn là một vai trò thấy danh sách mẫu của
+     * thứ họ không xem được, hẹp hơn là ô chọn trả 403 ngay khi hộp mở ra.
+     */
+    const doc_ = (f: string) => readFileSync(`services/document/src/${f}`, 'utf8');
+    const lay = (ma: string, ten: string): string[] => {
+      const m = ma.match(new RegExp(ten + '\\s*=\\s*\\[([^\\]]*)\\]'));
+      expect(m, `không tìm thấy ${ten}`).not.toBeNull();
+      return [...m![1]!.matchAll(/'([A-Z_]+)'/g)].map((x) => x[1]!).sort();
+    };
+    expect(lay(doc_('contracts/contracts.controller.ts'), 'NGUOI_XEM_HO_SO')).toEqual(
+      lay(doc_('render/render.controller.ts'), 'READERS'),
+    );
+  });
 });

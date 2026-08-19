@@ -11,6 +11,7 @@ import { Db } from '../infra/db.js';
 import { Storage } from '../infra/storage.js';
 import { FilesService } from '../files/files.service.js';
 import {
+  khoGiayCua,
   makeDocx,
   NotADocxError,
   O_BANG_SAN_PHAM,
@@ -60,6 +61,22 @@ export type MappingInput = {
   format?: string | undefined;
 };
 
+/**
+ * Thứ tự mẫu trong ô chọn — và mẫu đầu danh sách là mẫu mặc định (`0058`).
+ *
+ * `is_default` xếp SAU CÙNG, không phải trước. Mẫu mặc định là cái sơ sài do hệ
+ * thống tự seed để phần mềm chạy được từ phút đầu (DOC-35); ngày Quản trị phát
+ * hành một mẫu thật thì mẫu thật phải là cái mở ra sẵn, còn cái sơ sài lùi
+ * xuống cuối. Xếp ngược lại thì công soạn mẫu của họ chỉ tới được người nào
+ * chịu khó mở ô chọn ra.
+ *
+ * `paper_size` đứng trước `id` để phá hoà DỨT KHOÁT chứ không ngẫu nhiên: hai
+ * mẫu mặc định seed cùng một giao dịch có `published_at` bằng nhau, và `id` là
+ * uuid ngẫu nhiên — bỏ nó ra thì mẫu mở sẵn là khổ dọc hay khổ ngang tuỳ từng
+ * lần cài đặt. Thứ tự khai enum cho A4 dọc đứng trước.
+ */
+const THU_TU_MAU = 'is_default ASC, published_at DESC NULLS LAST, paper_size, id';
+
 @Injectable()
 export class TemplatesService {
   private readonly log = new Logger(TemplatesService.name);
@@ -72,13 +89,7 @@ export class TemplatesService {
 
   // --- Tải lên --------------------------------------------------------------
 
-  async upload(
-    name: string,
-    buffer: Buffer,
-    me: AuthUser,
-    kind: Loai = 'HOP_DONG',
-    paperSize?: KhoGiay,
-  ) {
+  async upload(name: string, buffer: Buffer, me: AuthUser, kind: Loai = 'HOP_DONG') {
     // Đọc ô trống TRƯỚC khi ghi bất cứ thứ gì: file hỏng thì mẫu đang dùng không
     // bị ảnh hưởng và kho không có object thừa (DOC-33).
     let placeholders: string[];
@@ -102,7 +113,10 @@ export class TemplatesService {
     const row = await this.db.one<TemplateRow>(
       `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size)
        VALUES ($1,$2,$3,$4::doc.template_kind,$5::doc.paper_size) RETURNING *`,
-      [name, file.id, me.id, kind, paperSize ?? null],
+      // Khổ giấy ĐỌC TỪ FILE (`0058`), không phải một ô người tải lên tự khai —
+      // xem `khoGiayCua`. Đọc cho CẢ mẫu hợp đồng: nó cũng in ra giấy, và cái
+      // nhãn ấy giúp người chọn biết mình sắp in ra tờ nằm ngang hay tờ đứng.
+      [name, file.id, me.id, kind, khoGiayCua(buffer)],
     );
     return { ...view(row!), placeholders, knownSources: KNOWN_SOURCES };
   }
@@ -247,32 +261,25 @@ export class TemplatesService {
       }
     }
 
-    return this.db.tx(async (c) => {
-      /*
-       * Hạ mẫu cũ TRƯỚC, và CHỈ TRONG CÙNG PHẠM VI.
-       *
-       * Bản trước hạ mọi mẫu đang dùng của cả bảng — đúng khi chỉ có một loại
-       * mẫu. Từ `0055` mà giữ nguyên thì phát hành mẫu hồ sơ khổ dọc sẽ đá mẫu
-       * hợp đồng ra, và triệu chứng là kế toán mất khả năng xuất hợp đồng ngay
-       * lúc Quản trị làm một việc chẳng liên quan gì.
-       *
-       * Thứ tự hạ-trước-nâng-sau thì giữ: partial unique index kiểm ngay sau
-       * từng câu lệnh chứ không hoãn tới COMMIT.
-       */
-      await c.query(
-        `UPDATE doc.contract_template SET is_active = false
-          WHERE is_active AND kind = $1::doc.template_kind
-            AND paper_size IS NOT DISTINCT FROM $2::doc.paper_size`,
-        [t.kind, t.paper_size],
-      );
-      await c.query(
-        `UPDATE doc.contract_template
-            SET is_active = true, published_at = now(), updated_by = $2, updated_at = now()
-          WHERE id = $1`,
-        [id, me.id],
-      );
-      return { id, isActive: true };
-    });
+    /*
+     * KHÔNG hạ mẫu nào xuống nữa (`0058`).
+     *
+     * Tới `0057`, phát hành nghĩa là "đặt làm mẫu DUY NHẤT của khổ này", nên nó
+     * phải hạ mẫu cũ trước — hai mẫu cùng đang dùng thì `LIMIT 1` chọn bừa một
+     * cái và không ai biết bản in ra dựng từ mẫu nào.
+     *
+     * Từ `0058` chính người xem chọn mẫu, nên nhiều mẫu cùng dùng được KHÔNG
+     * còn là mập mờ — nó LÀ cái danh sách để chọn. Giữ bước hạ ấy thì phát hành
+     * mẫu thứ hai sẽ lặng lẽ gỡ mẫu thứ nhất khỏi ô chọn, và Quản trị không bao
+     * giờ có nổi hai mẫu.
+     */
+    await this.db.q(
+      `UPDATE doc.contract_template
+          SET is_active = true, published_at = now(), updated_by = $2, updated_at = now()
+        WHERE id = $1`,
+      [id, me.id],
+    );
+    return { id, isActive: true };
   }
 
   async deactivate(id: string, me: AuthUser) {
@@ -286,23 +293,63 @@ export class TemplatesService {
   }
 
   /**
-   * Mẫu đang dùng của một loại (và một khổ giấy, với mẫu hồ sơ).
+   * Danh sách mẫu ĐANG DÙNG của một loại — cái để dựng ô chọn (`0058`).
    *
-   * `undefined` nghĩa là chưa có mẫu phù hợp — với hợp đồng thì Sale Admin đã vô
-   * hiệu hết, với hồ sơ thì Quản trị chưa phát hành mẫu cho khổ giấy ấy.
+   * Mở cho mọi vai trò đọc được văn bản tương ứng, không riêng người quản lý
+   * mẫu: người chọn mẫu lúc xem bản mềm là kế toán, TDV, Trưởng bộ phận — họ
+   * cần biết có những mẫu nào, chứ không cần quyền sửa mẫu nào.
+   *
+   * Trả về đúng bốn thứ ô chọn cần. KHÔNG dùng lại `view()` của màn hình quản
+   * lý: `fileId`, `updatedAt`, `isDefault` là chuyện nội bộ của mẫu, và một
+   * đường đọc mở rộng cho năm vai trò thì càng ít cột lọt ra càng tốt.
    */
-  async active(
-    kind: Loai = 'HOP_DONG',
-    paperSize?: KhoGiay,
-  ): Promise<{ template: TemplateRow; fields: FieldRow[] } | undefined> {
-    const t = await this.db.one<TemplateRow>(
+  async khaDung(kind: Loai): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
+    const rows = await this.db.q<TemplateRow>(
       `SELECT * FROM doc.contract_template
         WHERE is_active AND kind = $1::doc.template_kind
-          AND paper_size IS NOT DISTINCT FROM $2::doc.paper_size
-        LIMIT 1`,
-      [kind, paperSize ?? null],
+        ORDER BY ${THU_TU_MAU}`,
+      [kind],
     );
-    if (!t) return undefined;
+    return rows.map((r) => ({ id: r.id, ten: r.name, khoGiay: r.paper_size }));
+  }
+
+  /**
+   * Mẫu để dựng văn bản: cái người dùng CHỌN, hoặc mẫu mặc định nếu không chọn.
+   *
+   * `undefined` nghĩa là chưa có mẫu nào đang dùng — người quản lý mẫu chưa phát
+   * hành cái nào, hoặc đã rút hết khỏi danh sách.
+   *
+   * MẪU ĐÃ RÚT KHỎI DANH SÁCH THÌ TỪ CHỐI, không âm thầm rơi về mẫu mặc định.
+   * Tình huống có thật: người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy
+   * Quản trị ngừng dùng mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản
+   * không phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
+   */
+  async chon(
+    kind: Loai,
+    mauId?: string,
+  ): Promise<{ template: TemplateRow; fields: FieldRow[] } | undefined> {
+    const t = mauId
+      ? await this.db.one<TemplateRow>(
+          `SELECT * FROM doc.contract_template
+            WHERE id = $1 AND is_active AND kind = $2::doc.template_kind`,
+          [mauId, kind],
+        )
+      : await this.db.one<TemplateRow>(
+          `SELECT * FROM doc.contract_template
+            WHERE is_active AND kind = $1::doc.template_kind
+            ORDER BY ${THU_TU_MAU} LIMIT 1`,
+          [kind],
+        );
+    if (!t) {
+      if (mauId) {
+        throw new NotFoundException({
+          code: 'TEMPLATE_NOT_USABLE',
+          message: 'Mẫu vừa chọn không còn trong danh sách mẫu đang dùng. Hãy chọn lại.',
+          templateId: mauId,
+        });
+      }
+      return undefined;
+    }
     return { template: t, fields: await this.fields(t.id) };
   }
 
@@ -333,6 +380,7 @@ export class TemplatesService {
    * đầu, không bảo đảm nó luôn có mẫu.
    */
   private async ensureDefaultHoSo(systemUserId: string): Promise<void> {
+    const thieu: { kho: KhoGiay; fileId: string }[] = [];
     for (const kho of KHO_GIAY) {
       const co = await this.db.one<{ id: string }>(
         `SELECT id FROM doc.contract_template
@@ -340,7 +388,6 @@ export class TemplatesService {
         [kho],
       );
       if (co) continue;
-
       const file = await this.files.store({
         fileName: `mau-ho-so-csbh-${kho}.docx`,
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -350,13 +397,30 @@ export class TemplatesService {
         purpose: 'MAU_HD',
         uploadedBy: systemUserId,
       });
+      thieu.push({ kho, fileId: file.id });
+    }
+    if (thieu.length === 0) return;
 
-      await this.db.tx(async (c) => {
+    /*
+     * CẢ HAI KHỔ TRONG MỘT GIAO DỊCH — để `published_at` của chúng BẰNG NHAU.
+     *
+     * `now()` của Postgres là thời điểm mở giao dịch, nên hai câu INSERT ở đây
+     * nhận đúng một giá trị. Trước `0058` mỗi khổ một giao dịch riêng, chênh nhau
+     * vài mili giây, và điều đó không hại gì khi mẫu được tra theo khổ.
+     *
+     * Từ `0058` thứ tự ấy QUYẾT ĐỊNH mẫu nào mở sẵn khi không ai chọn — bản xem
+     * trước trong hộp ký số chẳng hạn. Chênh mili giây thì mẫu mặc định là khổ
+     * nào tuỳ vào thứ tự vòng lặp, một chi tiết không ai nghĩ là mình đang quyết
+     * định. Bằng nhau thì `THU_TU_MAU` rơi xuống `paper_size`, và A4 dọc — thứ
+     * tự khai enum — luôn là bản mở sẵn.
+     */
+    await this.db.tx(async (c) => {
+      for (const { kho, fileId } of thieu) {
         const t = await c.query<{ id: string }>(
           `INSERT INTO doc.contract_template
              (name, file_id, is_default, is_active, published_at, updated_by, kind, paper_size)
            VALUES ($1,$2,true,true,now(),$3,'HO_SO',$4::doc.paper_size) RETURNING id`,
-          [`Mẫu hồ sơ CSBH mặc định — ${NHAN_KHO[kho]}`, file.id, systemUserId, kho],
+          [`Mẫu hồ sơ CSBH mặc định — ${NHAN_KHO[kho]}`, fileId, systemUserId, kho],
         );
         const id = t.rows[0]!.id;
         for (const m of DEFAULT_HO_SO_MAPPING) {
@@ -366,8 +430,8 @@ export class TemplatesService {
             [id, m.placeholder, m.source, m.required ?? false, m.format ?? null],
           );
         }
-      });
-    }
+      }
+    });
   }
 
   private async ensureDefaultHopDong(systemUserId: string): Promise<void> {

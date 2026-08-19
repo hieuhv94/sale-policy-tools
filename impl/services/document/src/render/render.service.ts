@@ -16,7 +16,7 @@ import { Clients } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { Storage } from '../infra/storage.js';
 import { FilesService, type FileRow } from '../files/files.service.js';
-import { TemplatesService, NHAN_KHO } from '../contracts/templates.service.js';
+import { TemplatesService } from '../contracts/templates.service.js';
 import { bangSanPhamXml } from '../contracts/bang-san-pham.js';
 import { mergeDocx } from '../contracts/docx.js';
 import { tron } from '../contracts/tron.js';
@@ -50,7 +50,8 @@ export class RenderService {
 
   async pdf(
     policyId: string,
-    size: Size,
+    /** Mẫu người xem CHỌN (`0058`). Bỏ trống thì lấy mẫu đầu danh sách. */
+    mauId: string | undefined,
     me: AuthUser,
     /** Ghi một dòng *Lịch sử* rằng người này đã TẢI bản mềm (`0052`, N-01). */
     ghiLichSu = true,
@@ -60,17 +61,17 @@ export class RenderService {
     /*
      * Bản mềm sinh từ MẪU do Quản trị tải lên (`0055`), không còn dựng cứng.
      *
-     * Mẫu gắn với KHỔ GIẤY: file .docx tự mang khổ của nó và không xoay được
-     * lúc trộn, nên "mẫu phù hợp" nghĩa là mẫu đúng khổ đang xem.
+     * Tới `0057` mẫu được tra theo KHỔ GIẤY người xem chọn. Từ `0058` người xem
+     * chọn thẳng mẫu — khổ giấy là chuyện của chính file .docx, và bản mềm dựng
+     * ra mang đúng khổ của mẫu vừa chọn.
      */
-    const mau = await this.templates.active('HO_SO', size);
+    const mau = await this.templates.chon('HO_SO', mauId);
     if (!mau) {
       throw new ConflictException({
         code: 'POLICY_TEMPLATE_MISSING',
         message:
-          `Chưa có văn bản mẫu phù hợp cho hồ sơ CSBH ở khổ ${NHAN_KHO[size]}. ` +
+          'Chưa có văn bản mẫu nào đang dùng cho hồ sơ CSBH. ' +
           'Đề nghị Quản trị hệ thống tải mẫu lên và phát hành ở màn hình Giấy tờ mẫu.',
-        paperSize: size,
       });
     }
 
@@ -99,7 +100,7 @@ export class RenderService {
       // (muc 7.1) — xem `bang-san-pham.ts`.
       banSanPham: bangSanPhamXml(policy),
     });
-    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}-${size}.docx`);
+    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
 
     /*
      * Ghi vết SAU khi đã có PDF trong tay — cùng luật với lần xuất hợp đồng

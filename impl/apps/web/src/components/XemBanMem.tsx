@@ -1,65 +1,98 @@
 /**
- * *Xem bản mềm* — bản CSBH A4, chọn khổ giấy rồi xem trước (`0054`).
+ * *Xem bản mềm* và *Xem hợp đồng* — chọn MẪU rồi xem trước (`0058`).
  *
- * Trước `0054` đây là một mục *Tải văn bản* nằm giữa trang với ba nút rời: xem
- * khổ dọc, tải khổ dọc, tải khổ ngang. Ba nút cho một việc, và người dùng phải
- * quyết định khổ giấy **trước khi** nhìn thấy nội dung — trong khi chính nội
- * dung mới nói được khổ nào vừa: hồ sơ ít dòng thì khổ dọc đọc dễ hơn, hồ sơ
- * mười cột CPBH thì khổ ngang mới không bị ép chữ.
+ * Ba đời của cùng một hộp, và mỗi lần đổi đều là bỏ bớt một câu hỏi sai:
  *
- * Giờ là MỘT nút ở góc trên bên phải, và khổ giấy chọn ngay trong hộp — đổi
- * được bao nhiêu lần tuỳ ý, mỗi lần là một lượt xem chứ không phải một lượt tải.
+ *   - Tới `0053`: ba nút rời giữa trang — xem khổ dọc, tải khổ dọc, tải khổ
+ *     ngang. Ba nút cho một việc.
+ *   - `0054`: một nút, hộp hỏi **khổ giấy** trước khi xem.
+ *   - `0058`: hộp hỏi **mẫu nào**, vì khổ giấy chưa bao giờ là thứ người dùng
+ *     thật sự muốn chọn. Họ muốn chọn *bản trình bày* — và khổ giấy chỉ là một
+ *     thuộc tính của bản trình bày ấy, nằm sẵn trong file .docx do Quản trị
+ *     soạn. Hỏi khổ giấy là bắt người dùng ghép hai mảnh mà phần mềm ghép được.
+ *
+ * Dùng chung cho CẢ hồ sơ lẫn hợp đồng: cùng một việc — chọn một mẫu trong danh
+ * sách mẫu đang dùng rồi xem thử — chỉ khác đường API và cách gọi tên.
  */
-import { useState } from 'react';
-import { HopThoai } from './Chung.js';
+import { useEffect, useState } from 'react';
+import { layJson } from '../lib/api.js';
+import { NHAN_KHO, type MauChon } from '../lib/mau-hop-dong.js';
+import { BaoLoi, DangTai, HopThoai } from './Chung.js';
 import { XemTep } from './XemTep.js';
 
-type Kho = 'a4p' | 'a4l';
+export type LoaiVanBan = 'HO_SO' | 'HOP_DONG';
 
-const NHAN: Record<Kho, string> = { a4p: 'A4 dọc', a4l: 'A4 ngang' };
+const CAU_HINH: Record<
+  LoaiVanBan,
+  { duongMau: string; nhan: string; nguoiSoan: string; duong: (id: string) => string }
+> = {
+  HO_SO: {
+    duongMau: '/policy-templates/available',
+    nhan: 'bản mềm',
+    nguoiSoan: 'Quản trị hệ thống',
+    duong: (id) => `/policies/${id}/render`,
+  },
+  HOP_DONG: {
+    duongMau: '/contract-templates/available',
+    nhan: 'hợp đồng',
+    nguoiSoan: 'Sale Admin',
+    duong: (id) => `/policies/${id}/contract.pdf`,
+  },
+};
 
-/**
- * Khổ nào hợp với hồ sơ nào — nói ra chứ không để người dùng thử cả hai.
- *
- * Con số 4 không phải luật nghiệp vụ, chỉ là chỗ bảng bắt đầu chật trên khổ
- * dọc. Nó là GỢI Ý, không phải ràng buộc: hộp vẫn cho chọn khổ kia.
- */
-const goiY = (soDong: number): Kho => (soDong > 4 ? 'a4l' : 'a4p');
+/** Nhãn phụ của một mẫu: khổ giấy đọc từ chính file, hoặc không nói gì. */
+const phuDe = (m: MauChon): string => (m.khoGiay ? NHAN_KHO[m.khoGiay] : '');
 
 export function XemBanMem({
+  loai = 'HO_SO',
   hoSoId,
   maHoSo,
-  soDong,
   dong,
 }: {
+  loai?: LoaiVanBan;
   hoSoId: string;
   maHoSo: string;
-  /** Số dòng sản phẩm — chỉ dùng để gợi ý khổ giấy. */
-  soDong: number;
   dong: () => void;
 }) {
-  const [kho, datKho] = useState<Kho | null>(null);
+  const ch = CAU_HINH[loai];
+  const [ds, datDs] = useState<MauChon[] | null>(null);
+  const [loi, datLoi] = useState<unknown>(null);
+  const [chon, datChon] = useState<string | null>(null);
 
-  if (kho === null) {
-    const y = goiY(soDong);
+  useEffect(() => {
+    const huy = new AbortController();
+    layJson<MauChon[]>(ch.duongMau, huy.signal)
+      .then((x) => {
+        datDs(x);
+        // Mẫu ĐẦU danh sách mở sẵn — máy chủ đã xếp mẫu mới ban hành lên trước
+        // và đẩy mẫu mặc định sơ sài xuống cuối. Người dùng bấm một nút là xem
+        // được; ô chọn chỉ dành cho người muốn bản khác.
+        datChon(x[0]?.id ?? null);
+      })
+      .catch((e: unknown) => {
+        if (!huy.signal.aborted) datLoi(e);
+      });
+    return () => huy.abort();
+  }, [ch.duongMau]);
+
+  if (chon === null) {
     return (
-      <HopThoai tieuDe={`Xem bản mềm ${maHoSo}`} dong={dong}>
-        <p className="ghi-chu">
-          Chọn khổ giấy để xem trước. Hồ sơ này có <strong>{soDong}</strong> dòng sản phẩm —{' '}
-          <strong>{NHAN[y]}</strong> thường vừa hơn. Đổi lại được sau khi xem.
-        </p>
-        <div className="nhom-nut">
-          {(['a4p', 'a4l'] as const).map((k) => (
-            <button
-              key={k}
-              type="button"
-              className={k === y ? 'nut nut-chinh' : 'nut nut-nhe'}
-              onClick={() => datKho(k)}
-            >
-              {NHAN[k]}
-            </button>
-          ))}
-        </div>
+      <HopThoai tieuDe={`Xem ${ch.nhan} ${maHoSo}`} dong={dong}>
+        {loi !== null ? (
+          <BaoLoi loi={loi} />
+        ) : ds === null ? (
+          <DangTai />
+        ) : (
+          /*
+            Danh sách rỗng KHÔNG phải lỗi của người đang đứng đây, và câu chữ
+            phải nói ra điều đó: chỉ người soạn mẫu chữa được. Nói "chưa có mẫu"
+            rồi để họ tự đoán là đẩy một việc không làm được sang cho họ.
+          */
+          <p className="ghi-chu">
+            Chưa có văn bản mẫu nào đang dùng cho {ch.nhan}. Đề nghị <strong>{ch.nguoiSoan}</strong>{' '}
+            ban hành một mẫu, rồi mở lại.
+          </p>
+        )}
         <div className="nhom-nut">
           <button type="button" className="nut nut-nhe" onClick={dong}>
             Đóng
@@ -69,33 +102,40 @@ export function XemBanMem({
     );
   }
 
+  const mau = ds?.find((m) => m.id === chon);
+  const q = `mauId=${chon}`;
+
   return (
     <XemTep
-      tieuDe={`Bản mềm ${maHoSo} — ${NHAN[kho]}`}
+      tieuDe={`${loai === 'HO_SO' ? 'Bản mềm' : 'Hợp đồng'} ${maHoSo}${
+        mau ? ` — ${mau.ten}` : ''
+      }`}
       // `xem=1`: mở ra đọc thì KHÔNG ghi một dòng tải xuống vào Lịch sử (`0052`).
-      duong={`/policies/${hoSoId}/render?size=${kho}&xem=1`}
-      duongTai={`/policies/${hoSoId}/render?size=${kho}`}
-      tenTep={`CSBH-${maHoSo}-${kho}.pdf`}
+      duong={`${ch.duong(hoSoId)}?${q}&xem=1`}
+      duongTai={`${ch.duong(hoSoId)}?${q}`}
+      tenTep={`${loai === 'HO_SO' ? 'CSBH' : 'HopDong'}-${maHoSo}.pdf`}
       truoc={
-        <div className="hang-kho-giay">
-          <span className="ghi-chu">Khổ giấy</span>
-          <div className="nhom-nut nhom-nut-gon">
-            {(['a4p', 'a4l'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={k === kho ? 'nut nut-chinh' : 'nut nut-nhe'}
-                // Bấm lại đúng khổ đang xem thì KHÔNG làm gì: `XemTep` tải lại
-                // theo `duong`, và đổi `duong` về chính nó vẫn kích hoạt một
-                // lượt tải nữa — một lượt gọi máy chủ cho một cú bấm vô nghĩa.
-                onClick={() => k !== kho && datKho(k)}
-                aria-pressed={k === kho}
-              >
-                {NHAN[k]}
-              </button>
-            ))}
+        // MỘT mẫu thì không có gì để chọn — ô chọn một dòng là một câu hỏi giả.
+        ds && ds.length > 1 ? (
+          <div className="hang-kho-giay">
+            <label className="ghi-chu" htmlFor="chon-mau">
+              Mẫu
+            </label>
+            <select
+              id="chon-mau"
+              className="o-nhap"
+              value={chon}
+              onChange={(e) => datChon(e.target.value)}
+            >
+              {ds.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.ten}
+                  {phuDe(m) ? ` · ${phuDe(m)}` : ''}
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
+        ) : undefined
       }
       dong={dong}
     />

@@ -70,7 +70,12 @@ export class ContractsService {
    * Cả xem trước lẫn xuất thật đều đi qua đây, nên "xem trước thấy gì thì xuất
    * ra đúng thế" là đúng theo cấu trúc. Xem trước KHÔNG tạo bản ghi nào (DOC-14).
    */
-  async build(policyId: string, me: AuthUser): Promise<Preview> {
+  async build(
+    policyId: string,
+    me: AuthUser,
+    /** Mẫu người dùng CHỌN (`0058`). Bỏ trống thì lấy mẫu đầu danh sách. */
+    mauId?: string,
+  ): Promise<Preview> {
     this.assertRole(me);
 
     const policy = await this.clients.policy(policyId);
@@ -87,7 +92,7 @@ export class ContractsService {
       });
     }
 
-    const active = await this.templates.active();
+    const active = await this.templates.chon('HOP_DONG', mauId);
     if (!active) {
       throw new ConflictException({
         code: 'NO_ACTIVE_TEMPLATE',
@@ -119,8 +124,8 @@ export class ContractsService {
     };
   }
 
-  async preview(policyId: string, me: AuthUser): Promise<Preview> {
-    return this.build(policyId, me);
+  async preview(policyId: string, me: AuthUser, mauId?: string): Promise<Preview> {
+    return this.build(policyId, me, mauId);
   }
 
   /**
@@ -132,8 +137,10 @@ export class ContractsService {
     me: AuthUser,
     /** Chỉ XEM trong phần mềm — vẫn đóng dấu xuất, nhưng không ghi lịch sử (`0052`). */
     chiXem = false,
+    /** Mẫu người dùng CHỌN (`0058`). */
+    mauId?: string,
   ): Promise<{ pdf: Buffer; fileName: string }> {
-    const built = await this.build(policyId, me);
+    const built = await this.build(policyId, me, mauId);
 
     if (built.missingRequired.length > 0) {
       throw new UnprocessableEntityException({

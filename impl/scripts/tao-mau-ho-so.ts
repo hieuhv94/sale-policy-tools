@@ -17,7 +17,7 @@
  * dù `ls` vẫn thấy file — khác biệt chuẩn hoá NFC/NFD giữa hai lớp.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { makeDocx, para } from '../services/document/src/contracts/docx.js';
+import { makeDocx, para, table, tableRow } from '../services/document/src/contracts/docx.js';
 
 /** Khối đầu trang — giống nhau ở cả ba mẫu. */
 const dauTrang = [
@@ -89,7 +89,69 @@ const rutGon = [
   ...chuKy,
 ];
 
-export const BO_MAU: { tep: string; ten: string; kho: 'a4p' | 'a4l'; than: string[] }[] = [
+/**
+ * Mẫu HỢP ĐỒNG — bố cục khác hẳn ba mẫu trên, và khác ở đúng một chỗ cốt lõi:
+ * **bảng sản phẩm vẽ tay** (`0058`).
+ *
+ * Mẫu hồ sơ đặt `{{bang_san_pham}}` và hệ thống dựng cả cái bảng, vì số cột CPBH
+ * đổi theo từng hồ sơ (muc 7.1). Hợp đồng thì không cần luật ấy: nó nêu giá thu
+ * về và tỷ lệ chiết khấu, bốn cột chữ ngắn, cố định. Nên người soạn vẽ bảng
+ * trong Word và đặt khoá `{{san_pham.*}}` vào MỘT dòng thân — hệ thống nhân bản
+ * đúng dòng ấy cho từng sản phẩm.
+ *
+ * Đặt khoá `{{san_pham.*}}` vào mẫu HỒ SƠ thì không có gì nhân bản chúng, và bản
+ * in ra mang nguyên chuỗi `{{...}}`. Đó là lý do trang thêm mẫu chỉ bày nhóm
+ * khoá ấy ra khi đang soạn mẫu hợp đồng.
+ */
+const hopDong = [
+  para('{{cong_ty.ten}}'),
+  para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
+  para(''),
+  para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
+  para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}, áp dụng từ {{ho_so.ngay_ap_dung}}.'),
+  para(''),
+  para('BÊN BÁN (Bên A): {{cong_ty.ten}}'),
+  para('Địa chỉ: {{cong_ty.dia_chi}}'),
+  para('Mã số thuế: {{cong_ty.ma_so_thue}}'),
+  para(''),
+  para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
+  para('Mã số thuế: {{ho_so.ma_so_thue}}'),
+  para('Địa chỉ đăng ký: {{ho_so.dia_chi_dang_ky}}'),
+  para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),
+  para('Người đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
+  para('Công nợ tại thời điểm ký: {{ho_so.cong_no}} đồng'),
+  para(''),
+  para('Điều 1. Danh mục sản phẩm và giá áp dụng'),
+  table([
+    tableRow(['STT', 'Mã sản phẩm', 'Tên sản phẩm', 'Giá thu về', 'Tỷ lệ CK'], true),
+    // MỘT dòng thân duy nhất. Hệ thống nhân bản nó cho từng sản phẩm của hồ sơ;
+    // vẽ sẵn hai dòng là in ra thừa một dòng rỗng ở mọi hợp đồng.
+    tableRow([
+      '{{san_pham.stt}}',
+      '{{san_pham.ma_san_pham}}',
+      '{{san_pham.ten_san_pham}}',
+      '{{san_pham.gia_thu_ve}}',
+      '{{san_pham.ty_le_ck}}',
+    ]),
+  ]),
+  para(''),
+  para('Điều 2. Giá tại Điều 1 là giá đã bao gồm các khoản hỗ trợ bán hàng theo hồ sơ CSBH nêu trên.'),
+  para('Điều 3. Hợp đồng có hiệu lực kể từ ngày ký và thay thế các thoả thuận trước đó về giá.'),
+  para(''),
+  para('Ngày in: {{ngay_in}}'),
+  para(''),
+  para('ĐẠI DIỆN BÊN BÁN                                        ĐẠI DIỆN BÊN MUA'),
+  para('(ký, ghi rõ họ tên, đóng dấu)                           (ký, ghi rõ họ tên, đóng dấu)'),
+];
+
+export const BO_MAU: {
+  tep: string;
+  ten: string;
+  kho: 'a4p' | 'a4l';
+  than: string[];
+  /** Bỏ trống là CÓ nạp — chỉ mẫu hợp đồng đứng ngoài `make demo-mau` (`0058`). */
+  napDemo?: boolean;
+}[] = [
   {
     tep: 'mau-ho-so-a4-doc.docx',
     ten: 'Mẫu hồ sơ CSBH — A4 dọc',
@@ -107,6 +169,22 @@ export const BO_MAU: { tep: string; ten: string; kho: 'a4p' | 'a4l'; than: strin
     ten: 'Mẫu hồ sơ CSBH rút gọn — A4 dọc',
     kho: 'a4p',
     than: rutGon,
+  },
+  /*
+   * MẪU HỢP ĐỒNG — sinh ra file, nhưng KHÔNG nạp vào CSDL demo (`0058`).
+   *
+   * Ba mẫu trên thuộc Quản trị hệ thống và `make demo-mau` nạp sẵn, vì không có
+   * chúng thì không xem được bản mềm nào. Mẫu hợp đồng thuộc **Sale Admin** —
+   * người khác, màn hình khác — và bản demo đã có mẫu hợp đồng riêng của nó.
+   * Nạp thêm cái này vào là đặt hai mẫu vào ô chọn của kế toán mà không ai yêu
+   * cầu; nó ở đây để người dùng tự tải lên khi cần.
+   */
+  {
+    tep: 'mau-hop-dong-a4-doc.docx',
+    ten: 'Mẫu hợp đồng nguyên tắc — A4 dọc',
+    kho: 'a4p',
+    than: hopDong,
+    napDemo: false,
   },
 ];
 

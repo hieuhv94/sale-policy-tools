@@ -108,6 +108,22 @@ export const oneOf = <T extends string>(...vals: readonly T[]): Check<T> => ({
   },
 });
 
+/**
+ * Định danh dạng UUID (`0058`).
+ *
+ * Có mặt vì một id không hợp lệ đi thẳng vào `WHERE id = $1` cho Postgres báo
+ * `22P02` — và cái đó ra ngoài thành HTTP 500, tức là "lỗi máy chủ" cho một
+ * chuỗi người gọi tự gõ sai. Chặn ở cửa thì nó là 400, đúng bản chất.
+ */
+export const uuid = (): Check<string> => ({
+  parse: (v, field) => {
+    if (typeof v !== 'string' || !/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(v)) {
+      throw bad(field, 'phải là một định danh hợp lệ');
+    }
+    return v;
+  },
+});
+
 export const opt = <T>(c: Check<T>): Check<T | undefined> => ({
   parse: (v, field) => (v === undefined || v === null || v === '' ? undefined : c.parse(v, field)),
 });

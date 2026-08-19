@@ -107,13 +107,14 @@ describe('`0055` cấu hình hai loại mẫu', () => {
     expect(CAU_HINH_MAU.HO_SO.duong).toBe('/policy-templates');
   });
 
-  it('CHỈ mẫu hồ sơ đi theo khổ giấy', () => {
+  it('CHỈ mẫu hồ sơ có bảng do hệ thống dựng', () => {
     /*
-     * File .docx tự mang khổ giấy của nó, nên mẫu hồ sơ cần một bản cho mỗi khổ.
-     * Hợp đồng thì không: khổ nào là việc của chính file ấy, phần mềm không hỏi.
+     * Bảng của bản CSBH có số cột CPBH đổi theo từng hồ sơ, nên hệ thống dựng nó
+     * và mẫu chỉ đặt một ô trống. Bảng của hợp đồng do người soạn vẽ tay bằng
+     * nhóm khoá `san_pham.` — bốn cột chữ ngắn, không có luật nào đổi theo hồ sơ.
      */
-    expect(CAU_HINH_MAU.HO_SO.theoKhoGiay).toBe(true);
-    expect(CAU_HINH_MAU.HOP_DONG.theoKhoGiay).toBe(false);
+    expect(CAU_HINH_MAU.HO_SO.bangDoHeThongDung).toBe(true);
+    expect(CAU_HINH_MAU.HOP_DONG.bangDoHeThongDung).toBe(false);
   });
 
   it('hai khổ giấy khớp đúng enum của máy chủ', () => {

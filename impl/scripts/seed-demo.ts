@@ -518,6 +518,10 @@ async function namMauHoSo(): Promise<void> {
   };
 
   for (const m of BO_MAU) {
+    // Mẫu HỢP ĐỒNG trong `templates/` đứng ngoài (`0058`): nó thuộc Sale Admin,
+    // và bản demo đã có mẫu hợp đồng riêng. Xem `tao-mau-ho-so.ts`.
+    if (m.napDemo === false) continue;
+
     const form = new FormData();
     form.append('name', m.ten);
     form.append('paperSize', m.kho);
