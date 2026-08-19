@@ -29,7 +29,7 @@ import { useTrangMay } from '../lib/phan-trang.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
-import { TheGiayToMau } from '../components/danh-muc/GiayToMau.js';
+import { GiayToMau } from './MauHopDong.js';
 
 /**
  * Danh sách nhóm sản phẩm, tải một lần cho cả màn hình.
@@ -147,13 +147,18 @@ export function TrangChietKhau() {
 
 // --- Giấy tờ mẫu ------------------------------------------------------------
 
+/**
+ * *Giấy tờ mẫu* — mẫu hồ sơ CSBH của Quản trị (`0055`).
+ *
+ * Tới `0054` đây là một chỗ trống ghi "chưa làm": bản A4 dựng cứng trong mã.
+ * Giờ nó là màn hình thật, và dùng lại nguyên thành phần của *Mẫu hợp đồng* —
+ * cùng cơ chế, khác chủ sở hữu và khác đường API.
+ *
+ * KHÔNG có `DauTrang` riêng nữa: `MauVanBan` tự dựng tiêu đề của nó, và hai
+ * tiêu đề chồng nhau là một màn hình nói tên mình hai lần.
+ */
 export function TrangGiayToMau() {
-  return (
-    <section className="trang">
-      <DauTrang tieuDe="Giấy tờ mẫu" moTa="Mẫu văn bản dùng để xuất PDF." />
-      <TheGiayToMau />
-    </section>
-  );
+  return <GiayToMau />;
 }
 
 function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {

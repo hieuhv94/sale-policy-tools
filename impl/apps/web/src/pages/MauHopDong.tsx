@@ -15,12 +15,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { dang, dat, guiTep, layJson } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import {
+  CAU_HINH_MAU,
   DINH_DANG,
+  KHO_GIAY,
   NHAN_DINH_DANG,
+  NHAN_KHO,
   TIEN_TO_DONG,
   banHanhDuoc,
   nhomNguon,
   type DinhDang,
+  type KhoGiay,
+  type LoaiMau,
   type MauHopDong as MauDto,
   type ThongTinOTrong,
 } from '../lib/mau-hop-dong.js';
@@ -36,7 +41,18 @@ import {
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangTaiCho } from '../lib/phan-trang.js';
 
+/** Mẫu hợp đồng — Sale Admin (muc 8.2). */
 export function MauHopDong() {
+  return <MauVanBan loai="HOP_DONG" />;
+}
+
+/** Giấy tờ mẫu — mẫu hồ sơ CSBH, Quản trị hệ thống (muc 6.4, `0055`). */
+export function GiayToMau() {
+  return <MauVanBan loai="HO_SO" />;
+}
+
+function MauVanBan({ loai }: { loai: LoaiMau }) {
+  const ch = CAU_HINH_MAU[loai];
   const [ds, datDs] = useState<MauDto[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
@@ -52,13 +68,13 @@ export function MauHopDong() {
   useEffect(() => {
     const huy = new AbortController();
     datLoi(null);
-    layJson<MauDto[]>('/contract-templates', huy.signal)
+    layJson<MauDto[]>(ch.duong, huy.signal)
       .then(datDs)
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [lan]);
+  }, [lan, ch.duong]);
 
   // `/contract-templates` trả về MẢNG TRẦN, không phân trang ở máy chủ — và đó
   // là endpoint duy nhất còn như vậy. Khối cảnh báo trên trang Tổng quan đọc
@@ -71,7 +87,7 @@ export function MauHopDong() {
     datLoi(null);
     datDangChay(t.id);
     try {
-      await dang(`/contract-templates/${t.id}/${duong}`);
+      await dang(`${ch.duong}/${t.id}/${duong}`);
       taiLai();
     } catch (e) {
       datLoi(e);
@@ -83,16 +99,24 @@ export function MauHopDong() {
   if (loi !== null && ds === null) return <BaoLoi loi={loi} thuLai={taiLai} />;
   if (!ds) return <DangTai />;
 
-  const dangDung = ds.find((t) => t.isActive);
+  /*
+   * "Đã đủ mẫu chưa" hỏi theo TỪNG KHỔ GIẤY với mẫu hồ sơ (`0055`).
+   *
+   * Mẫu hợp đồng chỉ có một bản đang dùng; mẫu hồ sơ có một bản cho mỗi khổ, và
+   * thiếu một khổ thì đúng khổ ấy hỏng còn khổ kia vẫn chạy. Một câu "chưa có
+   * mẫu nào" chung cho cả hai là câu sai ở nửa số trường hợp.
+   */
+  const khoThieu = ch.theoKhoGiay
+    ? KHO_GIAY.filter((k) => !ds.some((t) => t.isActive && t.paperSize === k))
+    : [];
+  const dangDung = ch.theoKhoGiay ? khoThieu.length === 0 : ds.some((t) => t.isActive);
 
   return (
     <section className="trang">
       <div className="dau-trang">
         <div>
-          <h1>Mẫu hợp đồng</h1>
-          <p className="mo-ta-trang">
-            Mẫu Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng.
-          </p>
+          <h1>{ch.tieuDe}</h1>
+          <p className="mo-ta-trang">{ch.moTa}</p>
         </div>
       </div>
 
@@ -104,10 +128,24 @@ export function MauHopDong() {
       */}
       {!dangDung && (
         <div className="bao-loi" role="alert">
-          <p className="bao-loi-chinh">Chưa có mẫu nào đang áp dụng.</p>
+          <p className="bao-loi-chinh">
+            {ch.theoKhoGiay
+              ? `Chưa có mẫu đang áp dụng cho khổ ${khoThieu.map((k) => NHAN_KHO[k]).join(' và ')}.`
+              : 'Chưa có mẫu nào đang áp dụng.'}
+          </p>
           <p className="bao-loi-phu">
-            Kế toán bấm <strong>Xuất hợp đồng</strong> sẽ hỏng, và họ không sửa được — chỉ bạn ban
-            hành mẫu được.
+            {ch.theoKhoGiay ? (
+              <>
+                Người dùng bấm <strong>Xem bản mềm</strong> và chọn khổ ấy sẽ nhận lỗi{' '}
+                <em>chưa có văn bản mẫu phù hợp</em>, và họ không sửa được — chỉ bạn ban hành mẫu
+                được.
+              </>
+            ) : (
+              <>
+                Kế toán bấm <strong>Xuất hợp đồng</strong> sẽ hỏng, và họ không sửa được — chỉ bạn
+                ban hành mẫu được.
+              </>
+            )}
           </p>
         </div>
       )}
@@ -122,15 +160,16 @@ export function MauHopDong() {
 
       {ds.length === 0 ? (
         <Trong
-          tieuDe="Chưa có mẫu hợp đồng nào"
+          tieuDe={`Chưa có ${ch.tieuDe.toLowerCase()} nào`}
           moTa="Tải lên một file .docx có các ô trống dạng {{ten_o}}, rồi ánh xạ từng ô tới một trường dữ liệu."
         />
       ) : (
-        <div className="khung-cuon" role="region" aria-label="Mẫu hợp đồng" tabIndex={0}>
+        <div className="khung-cuon" role="region" aria-label={ch.tieuDe} tabIndex={0}>
           <table className="bang">
             <thead>
               <tr>
                 <th>Tên mẫu</th>
+                {ch.theoKhoGiay && <th>Khổ giấy</th>}
                 <th>Trạng thái</th>
                 <th>Ban hành lúc</th>
                 <th>Sửa lần cuối</th>
@@ -141,6 +180,7 @@ export function MauHopDong() {
               {cuaTrang.map((t) => (
                 <tr key={t.id}>
                   <td>{t.name}</td>
+                  {ch.theoKhoGiay && <td>{t.paperSize ? NHAN_KHO[t.paperSize] : '—'}</td>}
                   <td>
                     {t.isActive ? (
                       <strong>Đang áp dụng</strong>
@@ -199,8 +239,13 @@ export function MauHopDong() {
             hoi.viec === 'publish' ? (
               <>
                 <p>
-                  Từ lúc bấm, <strong>mọi lượt xuất hợp đồng</strong> đều dùng mẫu này. Mẫu đang áp
-                  dụng bị thay ngay lập tức.
+                  Từ lúc bấm,{' '}
+                  <strong>
+                    {ch.theoKhoGiay
+                      ? `mọi bản mềm khổ ${hoi.mau.paperSize ? NHAN_KHO[hoi.mau.paperSize] : ''}`
+                      : 'mọi lượt xuất hợp đồng'}
+                  </strong>{' '}
+                  đều dùng mẫu này. Mẫu đang áp dụng bị thay ngay lập tức.
                 </p>
                 <p>
                   Hệ thống không lưu lại hợp đồng đã xuất, nên không có bản cũ để đối chiếu và không
@@ -209,8 +254,12 @@ export function MauHopDong() {
               </>
             ) : (
               <p>
-                Sau khi ngừng, <strong>không còn mẫu nào đang áp dụng</strong>: kế toán và Sale Admin
-                bấm Xuất hợp đồng sẽ không xuất được, cho tới khi có người ban hành một mẫu khác.
+                Sau khi ngừng, <strong>không còn mẫu nào đang áp dụng</strong>
+                {ch.theoKhoGiay ? ' cho khổ giấy này' : ''}:{' '}
+                {ch.theoKhoGiay
+                  ? 'người dùng chọn khổ ấy ở Xem bản mềm sẽ nhận lỗi chưa có văn bản mẫu phù hợp'
+                  : 'kế toán và Sale Admin bấm Xuất hợp đồng sẽ không xuất được'}
+                , cho tới khi có người ban hành một mẫu khác.
               </p>
             )
           }
@@ -227,6 +276,7 @@ export function MauHopDong() {
 
       {moTai && (
         <HopThoaiTaiMau
+          loai={loai}
           dong={() => datMoTai(false)}
           xong={(t) => {
             datMoTai(false);
@@ -241,6 +291,7 @@ export function MauHopDong() {
 
       {anhXa && (
         <HopThoaiAnhXa
+          loai={loai}
           mau={anhXa}
           dong={() => datAnhXa(null)}
           xong={() => {
@@ -256,13 +307,17 @@ export function MauHopDong() {
 // --- Tải mẫu lên -------------------------------------------------------------
 
 function HopThoaiTaiMau({
+  loai,
   dong,
   xong,
 }: {
+  loai: LoaiMau;
   dong: () => void;
   xong: (t: MauDto) => void;
 }) {
+  const ch = CAU_HINH_MAU[loai];
   const [ten, datTen] = useState('');
+  const [kho, datKho] = useState<KhoGiay>('a4p');
   const [tep, datTep] = useState<File | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -276,7 +331,8 @@ function HopThoaiTaiMau({
       const form = new FormData();
       form.append('file', tep);
       form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
-      const t = await guiTep<MauDto>('/contract-templates', form);
+      if (ch.theoKhoGiay) form.append('paperSize', kho);
+      const t = await guiTep<MauDto>(ch.duong, form);
       xong(t);
     } catch (err) {
       datLoi(err);
@@ -286,7 +342,7 @@ function HopThoaiTaiMau({
   };
 
   return (
-    <HopThoai tieuDe="Tải mẫu hợp đồng" dong={dong}>
+    <HopThoai tieuDe={ch.nhanTaiLen} dong={dong}>
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
 
@@ -306,6 +362,31 @@ function HopThoaiTaiMau({
             />
           )}
         </Truong>
+        {ch.theoKhoGiay && (
+          <Truong id="mhd-kho" nhan="Khổ giấy" bắtBuộc>
+            {(p) => (
+              <select
+                {...p}
+                className="o-nhap"
+                value={kho}
+                onChange={(e) => datKho(e.target.value as KhoGiay)}
+              >
+                {KHO_GIAY.map((k) => (
+                  <option key={k} value={k}>
+                    {NHAN_KHO[k]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Truong>
+        )}
+        {ch.theoKhoGiay && (
+          <p className="ghi-chu">
+            Khổ giấy phải khớp với chính file .docx — hệ thống không xoay được mẫu dọc thành ngang.
+            Đặt ô <code>{'{{policy.lines_table}}'}</code> ở chỗ muốn có bảng sản phẩm; hệ thống dựng
+            bảng ấy với <strong>đúng số cột CPBH của từng hồ sơ</strong>.
+          </p>
+        )}
         <Truong id="mhd-tep" nhan="Tệp mẫu" bắtBuộc>
           {(p) => (
             <input
@@ -337,14 +418,17 @@ function HopThoaiTaiMau({
 type Dong = { placeholder: string; source: string; required: boolean; format: DinhDang | '' };
 
 function HopThoaiAnhXa({
+  loai,
   mau,
   dong,
   xong,
 }: {
+  loai: LoaiMau;
   mau: MauDto;
   dong: () => void;
   xong: () => void;
 }) {
+  const ch = CAU_HINH_MAU[loai];
   const [tt, datTt] = useState<ThongTinOTrong | null>(null);
   const [bang, datBang] = useState<Dong[]>([]);
   const [loi, datLoi] = useState<unknown>(null);
@@ -353,7 +437,7 @@ function HopThoaiAnhXa({
 
   useEffect(() => {
     const huy = new AbortController();
-    layJson<ThongTinOTrong>(`/contract-templates/${mau.id}/placeholders`, huy.signal)
+    layJson<ThongTinOTrong>(`${ch.duong}/${mau.id}/placeholders`, huy.signal)
       .then((r) => {
         datTt(r);
         // Một dòng cho MỌI ô trống trong file, kể cả ô chưa ánh xạ — bảng phải
@@ -381,7 +465,7 @@ function HopThoaiAnhXa({
     datBang((cu) => cu.map((d, j) => (j === i ? { ...d, ...p } : d)));
 
   const guiAnhXa = () =>
-    dat(`/contract-templates/${mau.id}/mapping`, {
+    dat(`${ch.duong}/${mau.id}/mapping`, {
       // Chỉ gửi dòng đã chọn nguồn. Gửi cả dòng rỗng thì máy chủ từ chối cả lô
       // vì `source` không nằm trong danh sách nguồn hợp lệ.
       mapping: bang
@@ -421,7 +505,7 @@ function HopThoaiAnhXa({
     datDangGui(true);
     try {
       await guiAnhXa();
-      await dang(`/contract-templates/${mau.id}/publish`);
+      await dang(`${ch.duong}/${mau.id}/publish`);
       xong();
     } catch (e) {
       datLoi(e);
@@ -461,6 +545,41 @@ function HopThoaiAnhXa({
         </p>
       ) : (
         <p className="giai-thich">Đã ánh xạ hết — ban hành được.</p>
+      )}
+
+      {/*
+        Mẫu hồ sơ còn một điều kiện NỮA: đủ 13 mục bắt buộc của muc 11.1 (`0055`).
+
+        Nói ra ngay ở đây thay vì để người dùng bấm Ban hành rồi nhận 409. Danh
+        sách đến từ máy chủ, không khai lại ở giao diện: hai bản sao của cùng một
+        luật thì bản ở giao diện sẽ trôi, và nó trôi theo hướng nói "đủ rồi" cho
+        một mẫu mà máy chủ sắp từ chối.
+      */}
+      {ch.theoKhoGiay && (tt.thieu?.length ?? 0) > 0 && (
+        <div className="hop-canh-bao" role="status">
+          <p>
+            <strong>Còn thiếu {tt.thieu!.length} mục bắt buộc của bản CSBH.</strong>
+          </p>
+          <p className="ghi-chu">
+            Bản A4 phải có đủ 13 mục ở muc 11.1. Ánh xạ thêm các trường:{' '}
+            {tt.thieu!.map((n) => (
+              <code key={n}>{n} </code>
+            ))}
+          </p>
+        </div>
+      )}
+
+      {ch.theoKhoGiay && tt.coBangSanPham === false && (
+        <div className="hop-canh-bao" role="status">
+          <p>
+            <strong>Mẫu chưa có ô bảng sản phẩm.</strong>
+          </p>
+          <p className="ghi-chu">
+            Thêm <code>{'{{policy.lines_table}}'}</code> vào file .docx ở chỗ muốn đặt bảng. Đây là
+            ô DUY NHẤT không cần ánh xạ — hệ thống thay nó bằng cả cái bảng, với đúng số cột CPBH
+            của từng hồ sơ.
+          </p>
+        </div>
       )}
 
       <div className="khung-cuon" role="region" aria-label="Bảng ánh xạ trường" tabIndex={0}>

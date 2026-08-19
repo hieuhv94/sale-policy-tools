@@ -6452,3 +6452,73 @@ Thêm một ca riêng khẳng định năm lượt song song ra đủ **năm dò
   gì về nó.
 
 **1208/1208 xanh.**
+
+## P83–P85 — Xem bản mềm, và mẫu hồ sơ CSBH do Quản trị soạn
+
+Ba yêu cầu, và yêu cầu thứ ba hoá ra là một hạng mục mà bản yêu cầu đã ghi "chưa làm" từ 15/08.
+
+### P83 — Đổi nhãn, và dồn ba nút thành một
+
+*Tệp đính kèm* → **Bản cứng**, *Tải văn bản* → **Xem bản mềm**. Tên cũ tả cơ chế, tên mới tả thứ
+người dùng nhìn thấy — và cặp *mềm · cứng* nói ngay ra hai thứ khác nhau ở chỗ nào.
+
+Ba nút của bản CSBH dồn thành **một nút ở góc trên bên phải**. Hộp thoại hỏi khổ giấy trước rồi mới
+hiện nội dung, và đảo thứ tự ấy là cả điểm: bản cũ bắt chọn khổ **trước khi** nhìn thấy nội dung,
+trong khi chính nội dung mới nói được khổ nào vừa. Hộp gợi ý khổ theo số dòng sản phẩm.
+
+Nhóm nút ở tiêu đề **bỏ điều kiện `thaoTac.length > 0`** — trước đó vai trò chỉ-đọc không thấy nút
+nào. Ca kiểm thử cũ khẳng định nhóm nút biến mất; giờ nó khẳng định nhóm chỉ chứa đúng nút xem,
+không lọt nút ghi nào.
+
+### P84–P85 — Bản mềm sinh từ mẫu
+
+Muc 6.4 để ngỏ đúng một câu khi chốt rằng bản A4 chưa nhận mẫu tải lên: *"nếu mẫu do người dùng
+soạn, hệ thống không còn bảo đảm được 13 mục kia có mặt"*. Câu trả lời là **kiểm lúc PHÁT HÀNH** —
+báo cho người sửa được, ở màn hình họ đang đứng, chứ không báo lúc kế toán mở bản A4.
+
+**Ba quyết định định hình cả thiết kế:**
+
+| | Quyết định | Vì sao |
+|---|---|---|
+| Bảng mẫu | Dùng lại `doc.contract_template`, thêm `kind` | Hai bảng song sinh là hai chỗ phải sửa mỗi lần đổi cơ chế, và cái thứ hai luôn là cái bị quên |
+| Khổ giấy | Mỗi khổ MỘT mẫu | `.docx` tự mang khổ của nó, không xoay được lúc trộn — nên "mẫu **phù hợp**" nghĩa là đúng khổ |
+| Bảng sản phẩm | Hệ thống dựng, mẫu chỉ đặt `{{policy.lines_table}}` | Muc 7.1 đòi số cột CPBH bằng dòng nhiều khoản nhất, mà mỗi dòng nhận tới 50 khoản; bảng vẽ sẵn trong Word có số cột cố định |
+
+Ranh giới của quyết định thứ ba rơi đúng chỗ: người soạn mẫu nắm phần chữ, đầu trang, khối công ty
+và chỗ ký; hệ thống giữ bảo đảm về **bảng số** — thứ mà người ký đặt bút xuống dưới.
+
+### Bốn thứ lộ ra khi làm, cả bốn đều im lặng
+
+- **Index "đang dùng" cũ cho đúng MỘT mẫu trong toàn bảng.** Giữ nguyên thì Quản trị phát hành mẫu
+  hồ sơ là kế toán mất khả năng xuất hợp đồng ngay lúc ấy — một hệ quả không đường nào đoán ra. Tách
+  theo `(kind, paper_size)`, và tách thành HAI index vì `coalesce(paper_size::text, '-')` bị Postgres
+  từ chối: phép ép enum sang text không IMMUTABLE.
+- **`makeDocx` không khai khổ giấy**, nên mẫu khổ ngang ra trang dọc. `w:orient` không đủ một mình —
+  LibreOffice vẫn lấy kích thước từ `w:w`/`w:h`, phải đảo cả hai số.
+- **Ô bảng rộng 1800 twip cố định.** Với bảng bốn cột của hợp đồng thì vừa; với bảng sản phẩm 12 cột
+  thì gấp đôi bề rộng khổ A4 dọc, và cột bên phải chạy ra ngoài mép giấy. Cột biến mất đầu tiên là
+  *Ghi chú*. Đổi sang tự co theo bề rộng trang.
+- **Hàng tiêu đề không lặp lại qua trang** — `w:tblHeader` là bản Word của
+  `thead { display: table-header-group }`. Hồ sơ 60 dòng tràn sáu trang, và từ trang 2 người đọc
+  nhìn một bảng số không có tên cột.
+
+### `format=html` gỡ hẳn
+
+Nó từng trả về chính chuỗi HTML mà PDF được dựng từ đó — cách bảo đảm *"file tải về khớp bản đang
+xem"* bằng cấu trúc. Từ `0055` bản mềm sinh từ `.docx` nên không còn bản HTML nào, và lời bảo đảm ấy
+đúng theo cách mạnh hơn: **chỉ còn một đường dựng**. `sheetHtml` ở lại, chỉ phục vụ bản lưu ký số —
+bản ấy cần khối "ĐÃ KÝ SỐ" và cần khác bản nháp từng byte (DOC-05).
+
+### Một ca kiểm thử tự làm hỏng lượt chạy sau
+
+Ca *"sửa mẫu thì bản mềm đổi theo"* phát hành một mẫu mới, và mẫu đang dùng là trạng thái **toàn
+cục**. Dữ liệu test không dọn giữa các lượt, nên nó để lại một mẫu cụt cho mọi ca sau — và ca "seed
+sẵn mỗi khổ một mẫu" đỏ ở **lượt chạy thứ hai**, không phải lượt đầu. Trả nguyên trạng bằng `finally`.
+
+### Màn hình
+
+*Giấy tờ mẫu* dùng lại nguyên thành phần của *Mẫu hợp đồng*, tham số hoá theo loại: cùng cơ chế —
+tải `.docx`, đọc ô trống, ánh xạ, ban hành — chỉ khác chủ sở hữu, đường API và cách nói. Chép thành
+hai màn hình 560 dòng là hai chỗ phải sửa mỗi lần đổi cơ chế.
+
+**1231/1231 xanh.**

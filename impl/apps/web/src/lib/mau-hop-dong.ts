@@ -28,6 +28,50 @@ export type MauHopDong = {
   isDefault: boolean;
   publishedAt: string | null;
   updatedAt: string;
+  /** `0055` — HOP_DONG của Sale Admin, HO_SO của Quản trị hệ thống. */
+  kind?: LoaiMau;
+  /** Chỉ mẫu hồ sơ: khổ giấy của chính file .docx. */
+  paperSize?: KhoGiay | null;
+};
+
+export type LoaiMau = 'HOP_DONG' | 'HO_SO';
+export type KhoGiay = 'a4p' | 'a4l';
+
+export const KHO_GIAY: KhoGiay[] = ['a4p', 'a4l'];
+export const NHAN_KHO: Record<KhoGiay, string> = { a4p: 'A4 dọc', a4l: 'A4 ngang' };
+
+/**
+ * Cấu hình riêng của từng loại mẫu (`0055`).
+ *
+ * Hai màn hình dùng CHUNG một thành phần: cơ chế trùng khít — tải .docx lên, đọc
+ * ô trống, ánh xạ, ban hành — chỉ khác chủ sở hữu, đường API và cách nói. Chép
+ * thành hai màn hình 560 dòng là hai chỗ phải sửa mỗi lần đổi cơ chế.
+ */
+export const CAU_HINH_MAU: Record<
+  LoaiMau,
+  {
+    duong: string;
+    tieuDe: string;
+    moTa: string;
+    /** Mỗi khổ giấy một mẫu riêng — chỉ đúng với mẫu hồ sơ. */
+    theoKhoGiay: boolean;
+    nhanTaiLen: string;
+  }
+> = {
+  HOP_DONG: {
+    duong: '/contract-templates',
+    tieuDe: 'Mẫu hợp đồng',
+    moTa: 'Mẫu Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng.',
+    theoKhoGiay: false,
+    nhanTaiLen: 'Tải mẫu hợp đồng',
+  },
+  HO_SO: {
+    duong: '/policy-templates',
+    tieuDe: 'Giấy tờ mẫu',
+    moTa: 'Mẫu Word dựng bản CSBH A4. Mỗi khổ giấy một mẫu riêng.',
+    theoKhoGiay: true,
+    nhanTaiLen: 'Tải mẫu hồ sơ CSBH',
+  },
 };
 
 export type TruongAnhXa = {
@@ -42,6 +86,10 @@ export type ThongTinOTrong = {
   mapped: TruongAnhXa[];
   unmapped: string[];
   knownSources: string[];
+  /** `0055`, chỉ mẫu hồ sơ: trường nguồn bắt buộc còn THIẾU. */
+  thieu?: string[];
+  /** `0055`, chỉ mẫu hồ sơ: mẫu có ô bảng sản phẩm chưa. */
+  coBangSanPham?: boolean;
 };
 
 /**

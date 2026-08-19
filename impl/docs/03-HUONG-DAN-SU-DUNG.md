@@ -980,6 +980,26 @@ thư được đánh dấu đã xử lý.
 Ba mục menu riêng. **Sản phẩm** và **Chiết khấu** mọi vai trò vào được — vai trò không phải Quản trị
 thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Giấy tờ mẫu** chỉ Quản trị hệ thống thấy.
 
+### 13.0. Giấy tờ mẫu — mẫu hồ sơ CSBH `mới 19/08`
+
+Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không còn dựng cứng trong phần
+mềm. Màn hình này là chỗ quản mẫu ấy: tải lên → ánh xạ từng ô trống tới một trường dữ liệu → ban
+hành.
+
+- **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó, phần mềm không xoay được mẫu
+  dọc thành ngang. Thiếu mẫu của một khổ thì người dùng chọn đúng khổ ấy ở *Xem bản mềm* sẽ nhận lỗi
+  **“chưa có văn bản mẫu phù hợp”** — khổ kia vẫn chạy bình thường.
+- **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{policy.lines_table}}` ở chỗ muốn có bảng; phần mềm
+  thay nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**. Vẽ tay thì số cột cố định, mà
+  mỗi dòng sản phẩm có thể có tới 50 khoản CPBH.
+- **Ban hành bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ 13 mục ở phần *Yêu cầu hiển thị
+  file*; màn hình liệt kê sẵn mục nào còn thiếu, ngay khi bạn đang ánh xạ.
+- **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
+  được bản mềm.
+
+> Đây **không phải** mẫu hợp đồng. Mẫu hợp đồng do **Sale Admin** soạn ở màn hình riêng, và Quản trị
+> hệ thống không sửa được nó.
+
 ### 13.1. Sản phẩm
 
 Quản trị hệ thống thấy **hai thẻ**: *Sản phẩm* và *Nhóm sản phẩm*. Vai trò khác chỉ thấy bảng sản

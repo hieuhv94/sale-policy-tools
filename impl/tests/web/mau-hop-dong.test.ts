@@ -10,8 +10,11 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  CAU_HINH_MAU,
   DINH_DANG,
+  KHO_GIAY,
   NHAN_DINH_DANG,
+  NHAN_KHO,
   TIEN_TO_DONG,
   banHanhDuoc,
   nhomNguon,
@@ -91,5 +94,41 @@ describe('điều kiện ban hành', () => {
     // nguyên. Tính theo nó là nút Ban hành mãi xám dù bảng đã đầy.
     const oTrong = ['a', 'b', 'c'];
     expect(banHanhDuoc(oTrong, new Set(oTrong))).toBe(true);
+  });
+});
+
+// =============================================================================
+// `0055` — hai loại mẫu dùng CHUNG một màn hình
+// =============================================================================
+
+describe('`0055` cấu hình hai loại mẫu', () => {
+  it('mỗi loại một đường API riêng, không loại nào dùng nhầm của loại kia', () => {
+    expect(CAU_HINH_MAU.HOP_DONG.duong).toBe('/contract-templates');
+    expect(CAU_HINH_MAU.HO_SO.duong).toBe('/policy-templates');
+  });
+
+  it('CHỈ mẫu hồ sơ đi theo khổ giấy', () => {
+    /*
+     * File .docx tự mang khổ giấy của nó, nên mẫu hồ sơ cần một bản cho mỗi khổ.
+     * Hợp đồng thì không: khổ nào là việc của chính file ấy, phần mềm không hỏi.
+     */
+    expect(CAU_HINH_MAU.HO_SO.theoKhoGiay).toBe(true);
+    expect(CAU_HINH_MAU.HOP_DONG.theoKhoGiay).toBe(false);
+  });
+
+  it('hai khổ giấy khớp đúng enum của máy chủ', () => {
+    // Bản sao thứ hai của một danh sách đóng — cùng loại rủi ro với `DINH_DANG`
+    // ở đầu tệp, nên cùng cách canh: đọc thẳng mã nguồn máy chủ.
+    const ma = readFileSync('db/migrations/0050_mau_ho_so_csbh.sql', 'utf8');
+    for (const k of KHO_GIAY) {
+      expect(ma, `enum doc.paper_size thiếu ${k}`).toContain(`'${k}'`);
+    }
+    expect(KHO_GIAY).toHaveLength(2);
+  });
+
+  it('mỗi khổ có nhãn tiếng Việt, không bày mã ra màn hình', () => {
+    for (const k of KHO_GIAY) {
+      expect(NHAN_KHO[k]).toMatch(/^A4 /);
+    }
   });
 });

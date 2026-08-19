@@ -550,13 +550,25 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 | Loại mẫu | Ai quản lý | Tình trạng |
 |---|---|---|
-| **Mẫu hồ sơ CSBH** | Quản trị hệ thống | **Chưa làm** — bản A4 hiện do hệ thống tự dựng bố cục, xem dưới |
+| **Mẫu hồ sơ CSBH** | Quản trị hệ thống | **Đã làm** `19/08` — màn hình *Giấy tờ mẫu* |
 | **Mẫu hợp đồng** | **Sale Admin** | Đã làm. Văn bản riêng, soạn sẵn, có ô trống ánh xạ tới trường dữ liệu — mục 8 |
 
-**Bản CSBH A4 hiện KHÔNG sinh từ mẫu tải lên** `làm rõ 15/08`. Hệ thống tự dựng bố cục trong mã, vì
-mục 8.2 chốt 13 mục bắt buộc và bố cục ấy do hệ thống định nghĩa. Cho tải mẫu lên là một hạng mục
-riêng chưa làm — và khi làm thì phải trả lời trước một câu: **nếu mẫu do người dùng soạn, hệ thống
-không còn bảo đảm được 13 mục kia có mặt.**
+**Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
+
+- **Mỗi khổ giấy một mẫu riêng.** File `.docx` tự mang khổ giấy của nó và không xoay được lúc trộn,
+  mà mục 11.1 đòi đủ cả hai khổ. Vì thế *"chưa có văn bản mẫu phù hợp"* nghĩa là **chưa có mẫu đúng
+  khổ đang xem** — khổ kia vẫn chạy bình thường.
+- **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{policy.lines_table}}`, và
+  hệ thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ
+  sẵn trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
+- **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
+  lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
+
+> **Câu hỏi bỏ ngỏ trước đây đã có lời giải.** Bản trước ghi: *"nếu mẫu do người dùng soạn, hệ thống
+> không còn bảo đảm được 13 mục kia có mặt"*. Giải bằng phép kiểm **lúc PHÁT HÀNH**: mẫu thiếu mục
+> bắt buộc thì không ban hành được, và thông báo nói rõ thiếu mục nào. Kiểm lúc phát hành chứ không
+> lúc xem, vì người sửa được là Quản trị và họ đang đứng ở màn hình mẫu — báo lúc kế toán mở bản A4
+> là báo cho người không sửa được gì.
 
 **Người ký — ĐÃ XOÁ HẲN** `sửa 16/08`. Bản trước gỡ màn hình nhập liệu (15/08) nhưng giữ lược đồ và
 API, chờ làm rõ yêu cầu. Trạng thái nửa vời ấy có hệ quả thật: **không màn hình nào tạo được người
@@ -576,7 +588,7 @@ giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước n�
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
 | **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
-| **Giấy tờ mẫu** | Chỉ Quản trị | Xem 6.4 |
+| **Giấy tờ mẫu** | Chỉ Quản trị | Mẫu hồ sơ CSBH, mỗi khổ giấy một mẫu — xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
 "Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở
