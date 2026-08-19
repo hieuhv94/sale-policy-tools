@@ -31,7 +31,9 @@
  * "Gửi lại" trên màn hình Quản trị chạy được chứ không báo lỗi.
  */
 import { Client } from 'pg';
+import { readFileSync } from 'node:fs';
 import { makeDocx, para } from '../services/document/src/contracts/docx.js';
+import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('seed-demo: TỪ CHỐI chạy ở môi trường production');
@@ -492,6 +494,59 @@ async function xoaDuLieuCu(): Promise<void> {
 }
 
 /**
+ * Nạp ba mẫu hồ sơ CSBH từ `templates/` (`0057`).
+ *
+ * Đi qua API THẬT như mọi thứ khác trong bộ nạp: máy chủ đọc ô trống ngay lúc
+ * tải lên, kiểm 13 mục bắt buộc lúc ban hành, và chèn thẳng SQL là bỏ qua cả hai
+ * — dữ liệu demo sẽ ở trạng thái mà phần mềm không tạo ra được.
+ *
+ * ÁNH XẠ SUY TỪ CHÍNH Ô TRỐNG, không khai tay: mẫu đặt tên ô trùng luôn tên
+ * trường (`{{ho_so.cong_no}}`), nên `placeholders` máy chủ trả về đã là danh
+ * sách nguồn. Khai tay một bảng ánh xạ thứ hai ở đây là một bản sao sẽ trôi
+ * khỏi file mẫu ngay lần đầu ai đó thêm một ô.
+ *
+ * HAI mẫu đầu ban hành, mẫu RÚT GỌN để nguyên chưa ban hành: bản demo cần một
+ * mẫu sẵn sàng để bấm *Ban hành* — nếu không thì màn hình Giấy tờ mẫu chỉ có
+ * những dòng không làm gì được.
+ */
+async function namMauHoSo(): Promise<void> {
+  /** Định dạng suy từ tên trường: tiền, ngày, còn lại là chữ. */
+  const dinhDang = (nguon: string): string | undefined => {
+    if (nguon === 'ho_so.cong_no') return 'money_vnd';
+    if (nguon.startsWith('ho_so.ngay_')) return 'date_dmy';
+    return undefined;
+  };
+
+  for (const m of BO_MAU) {
+    const form = new FormData();
+    form.append('name', m.ten);
+    form.append('paperSize', m.kho);
+    form.append('file', new Blob([readFileSync(`${THU_MUC}/${m.tep}`)]), m.tep);
+    const mau = await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
+
+    const tt = await goi<{ placeholders: string[] }>(
+      `/policy-templates/${mau.id}/placeholders`,
+      'admin01',
+      undefined,
+      'GET',
+    );
+
+    const mapping = tt.placeholders
+      // `{{bang_san_pham}}` KHÔNG ánh xạ — hệ thống thay nó bằng cả một bảng.
+      .filter((o) => o !== '{{bang_san_pham}}')
+      .map((o) => {
+        const nguon = o.slice(2, -2);
+        const dd = dinhDang(nguon);
+        return { placeholder: o, source: nguon, required: false, ...(dd ? { format: dd } : {}) };
+      });
+    await goi(`/policy-templates/${mau.id}/mapping`, 'admin01', { mapping }, 'PUT');
+
+    if (m.tep.includes('rut-gon')) continue;
+    await goi(`/policy-templates/${mau.id}/publish`, 'admin01', {});
+  }
+}
+
+/**
  * Chèn thẳng SQL — ngoại lệ DUY NHẤT của "nạp qua API thật".
  *
  * Không có API nào tạo được thư hỏng, và đúng như vậy: thư hỏng là hậu quả của
@@ -914,17 +969,54 @@ async function main(): Promise<void> {
   // (`DOC-33`), nên một file giả sẽ hỏng ở đúng bước này.
   const than = [
     para('HỢP ĐỒNG PHÂN PHỐI SẢN PHẨM'),
-    para('Bên A: Công ty TNHH Dược phẩm Nutricare'),
-    para('Bên B: {{customer.name}} — mã {{customer.code}}'),
-    para('Địa chỉ: {{customer.registeredAddress}}'),
-    para('Áp dụng theo hồ sơ CSBH số {{policy.code}}'),
+    para('Bên A: {{cong_ty.ten}}'),
+    para('Bên B: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
+    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
+    para('Áp dụng theo hồ sơ CSBH số {{ho_so.ma_ho_so}}'),
   ].join('');
+  let mauHopDongDau: string | undefined;
   for (const ten of MAU_HOP_DONG) {
     const form = new FormData();
     form.append('name', ten);
     form.append('file', new Blob([makeDocx(than)]), `${ten}.docx`);
-    await guiTep('/contract-templates', 'sa01', form);
+    const t = await guiTep<{ id: string }>('/contract-templates', 'sa01', form);
+    mauHopDongDau ??= t.id;
   }
+
+  /*
+   * BAN HÀNH mẫu đầu tiên. Trước `0057` bộ nạp chỉ tải lên chứ không ban hành,
+   * mà nó cũng xoá sạch `doc.contract_template` ở đầu — kể cả mẫu mặc định do
+   * service tự seed lúc khởi động. Kết quả: bản demo KHÔNG có mẫu hợp đồng nào
+   * đang dùng, và mọi lần bấm *Xuất hợp đồng* trả 409.
+   *
+   * Không ai báo vì lỗi ấy chỉ hiện ra khi có người bấm đúng nút đó trên đúng
+   * một hồ sơ đã qua tiếp nhận lần 1.
+   */
+  if (mauHopDongDau) {
+    const tt = await goi<{ placeholders: string[] }>(
+      `/contract-templates/${mauHopDongDau}/placeholders`,
+      'sa01',
+      undefined,
+      'GET',
+    );
+    await goi(
+      `/contract-templates/${mauHopDongDau}/mapping`,
+      'sa01',
+      { mapping: tt.placeholders.map((o) => ({ placeholder: o, source: o.slice(2, -2) })) },
+      'PUT',
+    );
+    await goi(`/contract-templates/${mauHopDongDau}/publish`, 'sa01', {});
+  }
+
+  // === Mẫu hồ sơ CSBH ========================================================
+  //
+  // Nạp từ FILE THẬT trong `templates/`, không dựng lại thân mẫu ở đây (`0057`).
+  //
+  // Đây là điểm khác biệt đáng giá: bản demo dùng đúng ba file mà Quản trị tải
+  // về sửa được. Dựng lại thân mẫu trong bộ nạp thì demo chạy trên một bố cục
+  // chỉ tồn tại trong mã seed, và ngày ai đó sửa file trong `templates/` mà quên
+  // sửa ở đây thì hai bên lệch nhau mà không gì báo.
+  await namMauHoSo();
 
   // === Thư hỏng ==============================================================
   await namThuHong();
@@ -976,7 +1068,7 @@ async function main(): Promise<void> {
     `seed-demo: xong — ${NHOM.length} nhóm, ${SAN_PHAM.length} sản phẩm, ` +
       `${QUY_DINH_CK.length} quy định chiết khấu, ${KHACH.length} khách hàng, ` +
       `${daLap} hồ sơ (${SAP_QUA_HAN.length} sắp quá hạn, ${DA_QUA_HAN.length} đã quá hạn), ` +
-      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${SO_THU_HONG} thư hỏng, ` +
+      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${BO_MAU.length} mẫu hồ sơ, ${SO_THU_HONG} thư hỏng, ` +
       `${lech} hồ sơ cần cập nhật`,
   );
 }

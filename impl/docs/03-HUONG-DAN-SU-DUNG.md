@@ -1006,6 +1006,11 @@ hành.
   file*; màn hình liệt kê sẵn mục nào còn thiếu, ngay khi bạn đang ánh xạ.
 - **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
   được bản mềm.
+- **Ba file mẫu soạn sẵn** nằm trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
+  `mau-ho-so-a4-ngang.docx` và một bản **rút gọn** chỉ có đúng 13 mục bắt buộc — mở nó ra là thấy
+  ngay *ít nhất phải có những gì thì mới ban hành được*. Tải một file về, sửa câu chữ trong Word, rồi
+  tải lên: nhanh hơn soạn từ trang giấy trắng và không phải nhớ hai mươi khoá. Bản demo
+  (`make demo-mau`) nạp sẵn đúng ba file này.
 
 > Đây **không phải** mẫu hợp đồng. Mẫu hợp đồng do **Sale Admin** soạn ở màn hình riêng, và Quản trị
 > hệ thống không sửa được nó.
@@ -1118,8 +1123,7 @@ bằng cột *Id* cộng cột *QĐCK*.
 
 ### 13.3. Giấy tờ mẫu (chỉ Quản trị hệ thống)
 
-Nơi nhập mẫu văn bản để xuất PDF. **Hiện chưa nhập được gì** — mẫu hồ sơ CSBH đang được làm; bản A4
-hiện do hệ thống tự dựng bố cục theo 13 mục bắt buộc.
+Đã nhập được — xem **13.0** ở trên để biết cách soạn và ban hành một mẫu hồ sơ CSBH.
 
 **Mẫu hợp đồng không nằm ở đây.** Nó thuộc **Sale Admin**, ở mục menu *Mẫu hợp đồng* riêng.
 

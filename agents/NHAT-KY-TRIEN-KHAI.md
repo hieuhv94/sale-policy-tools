@@ -6586,3 +6586,65 @@ mời họ dùng.
   kiểm thử. Dùng `fireEvent` cho ca chép khoá.
 
 **1241/1241 xanh.**
+
+## P88 — Bộ mẫu hồ sơ soạn sẵn trong `templates/`
+
+Trang thêm mẫu ở P87 đã trả lời câu *"gõ khoá nào vào đâu"*. Còn một câu nữa nó không trả lời được:
+**trang giấy trắng**. Quản trị mở Word ra, biết đủ hai mươi khoá, và vẫn phải tự bày ra một bố cục
+hồ sơ CSBH trông thế nào — thứ mà chính họ chưa từng thấy bao giờ.
+
+Nên bàn giao kèm **ba file `.docx` thật**, nằm trong `templates/` ở gốc bộ mã:
+
+| File | Khổ | Vai trò |
+|---|---|---|
+| `mau-ho-so-a4-doc.docx` | A4 dọc | Bố cục đầy đủ — mọi khoá, cả khối duyệt |
+| `mau-ho-so-a4-ngang.docx` | A4 ngang | Cùng bố cục, cho hồ sơ nhiều cột CPBH |
+| `mau-ho-so-a4-doc-rut-gon.docx` | A4 dọc | **Đúng 13 mục bắt buộc, không hơn** |
+
+Bản rút gọn không phải để dùng thẳng. Nó trả lời bằng chính nó câu hỏi *"ít nhất phải có gì thì mới
+ban hành được"* — mở file ra là thấy đáp án, thay vì đọc một danh sách trong tài liệu rồi đối chiếu
+bằng mắt.
+
+### Vì sao là FILE trong repo, không phải dựng lúc chạy
+
+Hai lý do, cái thứ hai mới là cái quyết định:
+
+- Quản trị **tải về sửa được**. Sửa câu chữ trên một mẫu có sẵn không cần nhớ khoá nào cả.
+- Chúng là **đầu vào của `make demo-mau`**. Bản demo vì thế chạy đúng thứ người dùng thật sẽ dùng,
+  không phải một bố cục chỉ tồn tại trong mã seed. Bố cục hỏng thì hỏng ở nơi có người nhìn thấy.
+
+Sinh lại bằng `scripts/tao-mau-ho-so.ts`, dùng chính `makeDocx`/`para` của service `document` — nên
+file mẫu và bộ trộn không bao giờ lệch nhau về cách dựng OOXML.
+
+### `namMauHoSo()` trong seed demo
+
+Nạp theo đúng đường người dùng đi, không cắm thẳng vào CSDL: tải file lên `/policy-templates` với tư
+cách `admin01` → đọc `/placeholders` → **suy ánh xạ từ chính tên ô trống** → ban hành. Đường tắt qua
+`INSERT` sẽ bỏ qua đúng những phép kiểm mà bản demo có nghĩa vụ chứng minh là chạy được.
+
+Hai mẫu đầy đủ được ban hành; bản rút gọn để **chưa ban hành** — mỗi khổ chỉ một mẫu hiệu lực, và
+đây cũng là cách bản demo có sẵn một mẫu ở trạng thái nháp để xem.
+
+### Một lỗi cũ lộ ra khi làm
+
+Bản demo **chưa từng ban hành mẫu hợp đồng nào**: seed tải file lên rồi dừng, không ánh xạ, không
+phát hành. Nghĩa là mọi lần bấm *Xuất hợp đồng* trên chồng demo đều trả 409 — từ lâu, và không ai
+bắt được vì bộ test dùng mẫu riêng của nó. Sửa luôn trong lượt này.
+
+### Ca canh giữ
+
+File `.docx` là **binary trong git**. Một lượt commit hỏng, hay một trình soạn thảo lỡ mở ra rồi lưu
+lại dạng text, biến chúng thành file mà máy chủ từ chối ở bước tải lên — và triệu chứng chỉ hiện ra
+lúc ai đó chạy `make demo-mau`. Bốn ca ở `contract.test.ts` canh chỗ đó:
+
+- Bốn byte đầu phải là `PK\x03\x04`.
+- Mọi ô trống trong cả ba file phải là một khoá máy chủ **nhận** — một ô lạ là một mẫu không ban
+  hành được.
+- Bản rút gọn phải có **đủ 13 mục bắt buộc**. Nó mà thiếu một mục thì chính nó là câu trả lời sai.
+- Mẫu ngang phải khai khổ ngang **cả bằng `w:orient` lẫn bằng `w:w`/`w:h`**. Thiếu một trong hai thì
+  LibreOffice vẫn in ra dọc — đúng lỗi đã gặp ở P86.
+
+`.gitignore` gốc chặn `*.docx` (ba tài liệu nguồn của khách hàng), nên phải thêm ngoại lệ
+`!impl/templates/*.docx`. Không có nó thì thư mục trông như đã commit mà máy khác clone về lại trống.
+
+**1245/1245 xanh.**

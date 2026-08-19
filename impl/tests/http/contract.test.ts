@@ -16,9 +16,12 @@ import {
   TemplatesService,
   makeDocx,
   para,
+  placeholdersOf,
+  documentXml,
+  KNOWN_SOURCES,
+  NGUON_BAT_BUOC_HO_SO,
   table,
   tableRow,
-  placeholdersOf,
 } from '@csbh/document/testing';
 import {
   accessTokenFor,
@@ -1269,4 +1272,68 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       await qpost(`/policy-templates/${macDinh.id}/publish`, 'admin01');
     }
   }, 180_000);
+});
+
+// =============================================================================
+// `0057` — bộ mẫu hồ sơ trong `templates/`
+// =============================================================================
+
+describe('`0057` ba file mẫu trong templates/', () => {
+  const BO = [
+    'mau-ho-so-a4-doc.docx',
+    'mau-ho-so-a4-ngang.docx',
+    'mau-ho-so-a4-doc-rut-gon.docx',
+  ];
+
+  it('cả ba file có mặt và là .docx thật', () => {
+    /*
+     * File .docx là một file zip — bốn byte đầu là `PK\x03\x04`. Kiểm ở đây vì
+     * chúng là BINARY trong git: một lượt commit hỏng, hay một trình soạn thảo
+     * lỡ mở ra rồi lưu lại dạng text, đều biến chúng thành file mà máy chủ từ
+     * chối ở bước tải lên — và triệu chứng chỉ hiện ra lúc ai đó chạy
+     * `make demo-mau`.
+     */
+    for (const f of BO) {
+      const buf = readFileSync(`templates/${f}`);
+      expect(buf.length, `${f} rỗng`).toBeGreaterThan(500);
+      expect([...buf.subarray(0, 4)], `${f} không phải zip`).toEqual([0x50, 0x4b, 0x03, 0x04]);
+    }
+  });
+
+  it('mẫu nào cũng có ô bảng sản phẩm và đọc được ô trống', () => {
+    for (const f of BO) {
+      const o = placeholdersOf(readFileSync(`templates/${f}`));
+      expect(o, `${f} thiếu ô bảng sản phẩm`).toContain('{{bang_san_pham}}');
+      // Mọi ô trống phải là một trường máy chủ NHẬN — trừ ô bảng, vốn không trỏ
+      // tới trường nào. Một ô lạ trong file mẫu là một mẫu không ban hành được.
+      for (const x of o) {
+        if (x === '{{bang_san_pham}}') continue;
+        expect(KNOWN_SOURCES, `${f} có ô lạ ${x}`).toContain(x.slice(2, -2));
+      }
+    }
+  });
+
+  it('mẫu RÚT GỌN có đủ 13 mục bắt buộc — nếu không thì không ban hành được', () => {
+    /*
+     * Mẫu rút gọn tồn tại để trả lời câu "ít nhất phải có những gì". Nó mà thiếu
+     * một mục thì chính nó là câu trả lời SAI, và người soạn theo nó bị chặn ở
+     * bước ban hành.
+     */
+    const o = new Set(placeholdersOf(readFileSync('templates/mau-ho-so-a4-doc-rut-gon.docx')));
+    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 13 mục').toBe(13);
+    for (const n of NGUON_BAT_BUOC_HO_SO) {
+      expect(o.has(`{{${n}}}`), `mẫu rút gọn thiếu {{${n}}}`).toBe(true);
+    }
+  });
+
+  it('mẫu A4 ngang thật sự khai khổ NGANG trong file', () => {
+    // `w:orient` không đủ một mình — LibreOffice vẫn lấy kích thước từ w:w/w:h.
+    // Cả hai phải cùng nói một chuyện, nên kiểm cả nhãn lẫn con số.
+    const ngang = documentXml(readFileSync('templates/mau-ho-so-a4-ngang.docx'));
+    const doc = documentXml(readFileSync('templates/mau-ho-so-a4-doc.docx'));
+    expect(ngang).toContain('w:orient="landscape"');
+    expect(ngang).toContain('w:w="16838"');
+    expect(doc).not.toContain('w:orient="landscape"');
+    expect(doc).toContain('w:w="11906"');
+  });
 });

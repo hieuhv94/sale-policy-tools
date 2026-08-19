@@ -1,6 +1,14 @@
 # Word documents
 *.docx
 ~$*.docx
+
+# NGOẠI LỆ — bộ mẫu hồ sơ CSBH của phần mềm (`0057`).
+#
+# Luật `*.docx` ở trên nhắm vào ba tài liệu yêu cầu nguồn của khách hàng. Ba file
+# này là chuyện khác hẳn: chúng là ĐẦU VÀO của `make demo-mau`, và là thứ Quản
+# trị tải về sửa. Không commit thì bản demo không có mẫu nào để nạp, và người
+# clone repo về phải tự sinh lại. Mỗi file ~2,5KB.
+!impl/templates/*.docx
 venv/
 __pycache__/
 

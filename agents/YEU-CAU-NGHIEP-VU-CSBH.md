@@ -569,6 +569,10 @@ nói rõ dòng nào hẹp hơn dòng nào.
   vài lần.
 - **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
   lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
+- **Bàn giao kèm ba file `.docx` soạn sẵn** `mới 20/08`, trong thư mục `templates/`: A4 dọc, A4
+  ngang, và một bản **rút gọn** chứa đúng 13 mục bắt buộc. Chúng là điểm khởi đầu để Quản trị sửa
+  câu chữ chứ không phải soạn lại từ đầu, và bản rút gọn trả lời bằng chính nó câu hỏi *"tối thiểu
+  phải có gì mới ban hành được"*. Bản demo nạp sẵn cả ba.
 
 > **Câu hỏi bỏ ngỏ trước đây đã có lời giải.** Bản trước ghi: *"nếu mẫu do người dùng soạn, hệ thống
 > không còn bảo đảm được 13 mục kia có mặt"*. Giải bằng phép kiểm **lúc PHÁT HÀNH**: mẫu thiếu mục
