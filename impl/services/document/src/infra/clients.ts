@@ -91,7 +91,7 @@ export class Clients implements OnModuleDestroy {
    */
   async daSinhVanBan(
     policyId: string,
-    loai: 'HO_SO' | 'HOP_DONG',
+    loai: 'HO_SO' | 'HOP_DONG' | 'BAN_SCAN' | 'TEP_DINH_KEM',
     me: { id: string; role: string },
     ghiLichSu: boolean,
   ): Promise<void> {

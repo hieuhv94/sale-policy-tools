@@ -705,7 +705,8 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
   đánh dấu quá hạn, bàn giao khi một tài khoản bị vô hiệu hoá. Chúng ghi người thực hiện là *Hệ
   thống*.
 - **Lịch sử chỉ ghi thêm** — không dòng nào sửa hay xoá được, kể cả bởi Quản trị hệ thống.
-- **Có cả dòng TẢI XUỐNG**: *Tải bản mềm CSBH* và *Tải bản hợp đồng*, kèm người tải và thời điểm.
+- **Có cả dòng TẢI XUỐNG**: *Tải bản mềm CSBH*, *Tải bản hợp đồng*, *Tải bản scan bản cứng* và
+  *Tải tệp đính kèm* — kèm người tải và thời điểm.
   Chúng không phải bước duyệt nên không có mũi tên chuyển trạng thái — chỉ nói ai đã lấy văn bản ra
   khỏi hệ thống, lúc hồ sơ đang ở trạng thái nào.
   > **Xem thì không ghi.** Mở tệp bằng nút *Xem* không để lại dòng nào — một dòng cho mỗi lần liếc

@@ -6430,8 +6430,21 @@ Thêm một ca riêng khẳng định năm lượt song song ra đủ **năm dò
   và muc 9.2 đã sửa theo: bỏ *"xem file"* khỏi danh sách phải lưu, và bỏ *"số lần xem"* khỏi báo cáo
   nhật ký người dùng — hệ quả trực tiếp, vì không chỗ nào ghi lượt xem thì một cột đếm lượt xem
   vĩnh viễn bằng không.
-- **Tải TỆP ĐÍNH KÈM vẫn chưa ghi vết** — muc 10 vẫn liệt kê *"tải scan"*. Hai đường khách hàng nêu
-  đích danh (bản mềm CSBH, hợp đồng) đã xong; đường thứ ba chưa ai yêu cầu.
+- ~~Tải tệp đính kèm chưa ghi vết~~ — **làm nốt ở `0053`** theo yêu cầu khách hàng. Mọi lượt tải
+  tệp thuộc hồ sơ đều vào Lịch sử, hai nhãn tách nhau: *Tải bản scan bản cứng* (`purpose = SCAN`) và
+  *Tải tệp đính kèm*. Tách vì bản scan là bản mang chữ ký khách hàng — đúng tệp mà câu "ai đã tải nó
+  về" có giá trị nhất.
+
+  Ba chi tiết đáng ghi:
+  - Chỉ tệp `owner_kind = POLICY`. Tệp của khách hàng và mẫu hợp đồng không có màn hình lịch sử nào
+    để ghi vào; có một ca kiểm thử giữ phép lọc ấy khỏi bị nới thành "mọi tệp", vốn sẽ đâm vào một
+    `owner_id` không phải id hồ sơ.
+  - Ghi **trước** khi trả nội dung, ngược với hai đường kia. Bản CSBH và hợp đồng ghi sau vì phần
+    đắt nhất là dựng PDF và nó hỏng được; ở đây nội dung đã nằm sẵn trong tay.
+  - Bảng tra `HANH_DONG_TAI` thay cho chuỗi `?:`: bốn loại rồi, và thêm loại thứ năm mà quên sửa
+    nhánh cuối thì nó âm thầm rơi vào nhãn của loại khác — một dòng lịch sử SAI tệ hơn không có dòng.
+
+  **N-01 đóng hoàn toàn.**
 - Hồ sơ pháp lý của khách hàng (`HoSoPhapLy`) vẫn chỉ có nút tải — chưa nối hộp xem vào, vì yêu cầu
   chỉ nêu bản scan, hồ sơ và hợp đồng.
 - Ba đợt này **chưa mở lần nào trong trình duyệt thật** (N-08). Hộp xem là màn hình đầu tiên của

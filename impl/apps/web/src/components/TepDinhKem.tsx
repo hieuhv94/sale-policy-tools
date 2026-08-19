@@ -94,7 +94,11 @@ export function TepDinhKem({
    * và id của file thì phải tra từ `objectKey` — hai lời gọi mà hộp xem không
    * nên biết. Nó chỉ nhận một đường và vẽ.
    */
-  const [dangXem, datDangXem] = useState<{ duong: string; tenTep: string } | null>(null);
+  const [dangXem, datDangXem] = useState<{
+    duong: string;
+    duongTai: string;
+    tenTep: string;
+  } | null>(null);
 
   const xem = async (t: TepDto) => {
     datLoi(null);
@@ -102,7 +106,14 @@ export function TepDinhKem({
     try {
       const fileId = await layFileId(t);
       const link = await layJson<{ url: string; fileName: string }>(`/files/${fileId}/link`);
-      datDangXem({ duong: link.url, tenTep: link.fileName || t.fileName });
+      // `xem=1` cho đường XEM, đường TẢI thì không — chỉ lượt tải mới vào Lịch
+      // sử (`0053`). Dùng chung một đường cho cả hai là mở một lối tải không để
+      // lại vết nào.
+      datDangXem({
+        duong: `${link.url}&xem=1`,
+        duongTai: link.url,
+        tenTep: link.fileName || t.fileName,
+      });
     } catch (e) {
       datLoi(e);
     } finally {
@@ -191,6 +202,7 @@ export function TepDinhKem({
         <XemTep
           tieuDe={dangXem.tenTep}
           duong={dangXem.duong}
+          duongTai={dangXem.duongTai}
           tenTep={dangXem.tenTep}
           dong={() => datDangXem(null)}
         />

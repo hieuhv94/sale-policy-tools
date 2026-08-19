@@ -21,6 +21,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { CurrentUser, oneOf, opt, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
 import { FilesService, MAX_BYTES, type OwnerKind, type Purpose } from './files.service.js';
+import { Clients } from '../infra/clients.js';
 import { checkFileToken, FILE_LINK_TTL_SEC, mintFileToken } from './file-link.js';
 import { UploadErrorFilter } from './upload-error.filter.js';
 
@@ -29,7 +30,10 @@ const READERS = [...WRITERS, 'BAN_LANH_DAO'];
 
 @Controller('files')
 export class FilesController {
-  constructor(private readonly files: FilesService) {}
+  constructor(
+    private readonly files: FilesService,
+    private readonly clients: Clients,
+  ) {}
 
   @Roles(...WRITERS)
   @Post()
@@ -100,6 +104,8 @@ export class FilesController {
     @CurrentUser() me: AuthUser,
     @Param('id') id: string,
     @Query('t') t: string | undefined,
+    /** `xem=1` — mở trong phần mềm, KHÔNG ghi dòng tải xuống (`0053`). */
+    @Query('xem') xem: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     if (!t) throw new BadRequestException({ code: 'LINK_TOKEN_MISSING' });
@@ -114,6 +120,28 @@ export class FilesController {
       });
     }
     const { row, body } = await this.files.read(id, me);
+
+    /*
+     * Ghi một dòng *Lịch sử* cho mỗi lượt TẢI tệp của hồ sơ (`0053`, N-01).
+     *
+     * Chỉ tệp thuộc HỒ SƠ. Tệp của khách hàng (`CUSTOMER`) và mẫu hợp đồng
+     * (`TEMPLATE`) không có màn hình lịch sử nào để ghi vào — vết của chúng nằm
+     * ở nhật ký kiểm toán toàn hệ thống.
+     *
+     * Ghi TRƯỚC khi trả nội dung, khác hai đường kia. Bản CSBH và hợp đồng ghi
+     * sau vì phần đắt nhất là dựng PDF và nó có thể hỏng; ở đây nội dung đã nằm
+     * sẵn trong tay, nên ghi trước là bảo đảm không có lượt tải nào chui lọt vì
+     * lỗi xảy ra giữa hai bước.
+     */
+    if (row.owner_kind === 'POLICY' && row.owner_id && xem !== '1') {
+      await this.clients.daSinhVanBan(
+        row.owner_id,
+        row.purpose === 'SCAN' ? 'BAN_SCAN' : 'TEP_DINH_KEM',
+        me,
+        true,
+      );
+    }
+
     res.setHeader('Content-Type', row.content_type);
     res.setHeader(
       'Content-Disposition',

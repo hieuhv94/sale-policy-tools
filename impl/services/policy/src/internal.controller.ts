@@ -10,6 +10,20 @@ import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/c
 import { oneOf, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 
+/**
+ * Loại văn bản vừa sinh ra → tên hành động trong *Lịch sử* (`0052`, `0053`).
+ *
+ * BẢNG TRA chứ không phải một chuỗi `?:` nối nhau: bốn loại rồi, và mỗi lần
+ * thêm một loại mà quên sửa nhánh cuối thì nó âm thầm rơi vào nhãn của loại
+ * khác — một dòng lịch sử SAI còn tệ hơn không có dòng nào.
+ */
+const HANH_DONG_TAI: Record<string, string> = {
+  HO_SO: 'TAI_HO_SO',
+  HOP_DONG: 'TAI_HOP_DONG',
+  BAN_SCAN: 'TAI_BAN_SCAN',
+  TEP_DINH_KEM: 'TAI_TEP_DINH_KEM',
+};
+
 @ServiceOnly()
 @Controller('internal/policies')
 export class PolicyInternalController {
@@ -79,7 +93,7 @@ export class PolicyInternalController {
   @Post(':id/da-sinh-van-ban')
   async daSinhVanBan(@Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
-      loai: oneOf('HO_SO', 'HOP_DONG'),
+      loai: oneOf('HO_SO', 'HOP_DONG', 'BAN_SCAN', 'TEP_DINH_KEM'),
       actorId: str(36, 36),
       actorRole: str(1, 40),
       ghiLichSu: opt(oneOf('co', 'khong')),
@@ -132,13 +146,7 @@ export class PolicyInternalController {
            VALUES ($1,
                    coalesce((SELECT max(seq) FROM pol.policy_event WHERE policy_id = $1), 0) + 1,
                    NULL, $2::pol.policy_status, $3, $4, $5)`,
-          [
-            id,
-            p.status,
-            b.loai === 'HOP_DONG' ? 'TAI_HOP_DONG' : 'TAI_HO_SO',
-            b.actorId,
-            b.actorRole,
-          ],
+          [id, p.status, HANH_DONG_TAI[b.loai], b.actorId, b.actorRole],
         );
       });
     }

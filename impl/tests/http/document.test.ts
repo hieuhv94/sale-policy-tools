@@ -764,3 +764,127 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
     expect(soO).toBe(soCotTieuDe);
   }, 60_000);
 });
+
+// =============================================================================
+// `0053` — N-01: ai đã TẢI bản scan
+// =============================================================================
+
+describe('`0053` N-01 lịch sử ghi lại người tải tệp của hồ sơ', () => {
+  const lichSu = (id: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ action: string; actor_role: string; from_status: string | null }>(
+        `SELECT action, actor_role, from_status::text AS from_status
+           FROM pol.policy_event WHERE policy_id = $1 ORDER BY seq`,
+        [id],
+      );
+      return r.rows;
+    });
+
+  const dem = (rows: { action: string }[], a: string) => rows.filter((r) => r.action === a).length;
+
+  /** Hồ sơ tới `SA_DANG_XU_LY`, đã có một bản scan trên kho và trên hồ sơ. */
+  const coBanScan = async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    // Dùng `upload()` như mọi ca khác: nó đặt `contentType` tường minh. Không
+    // đặt thì supertest gửi `application/octet-stream` và máy chủ từ chối 400.
+    const up = await upload(
+      'sa01',
+      { ownerKind: 'POLICY', ownerId: d.id, purpose: 'SCAN' },
+      PDF,
+      'ban-cung.pdf',
+    );
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: up.body.fileName, objectKey: up.body.objectKey },
+      'sa01',
+    );
+    return { d, fileId: up.body.id as string };
+  };
+
+  const lienKet = async (fileId: string, who: string) => {
+    const r = await dget(`/files/${fileId}/link`, who);
+    expect(r.status).toBe(200);
+    return r.body.url as string;
+  };
+
+  it('tải bản scan ghi một dòng TAI_BAN_SCAN kèm người và vai trò', async () => {
+    const { d, fileId } = await coBanScan();
+    const url = await lienKet(fileId, 'kt01');
+    expect((await dget(url, 'kt01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    const dong = rows.filter((x) => x.action === 'TAI_BAN_SCAN');
+    expect(dong).toHaveLength(1);
+    expect(dong[0]!.actor_role).toBe('KE_TOAN');
+    // Không phải bước chuyển — hồ sơ không đi đâu cả.
+    expect(dong[0]!.from_status).toBeNull();
+  }, 120_000);
+
+  it('XEM (`xem=1`) thì KHÔNG ghi dòng nào', async () => {
+    const { d, fileId } = await coBanScan();
+    const url = await lienKet(fileId, 'kt01');
+    expect((await dget(`${url}&xem=1`, 'kt01')).status).toBe(200);
+    expect(dem(await lichSu(d.id), 'TAI_BAN_SCAN')).toBe(0);
+  }, 120_000);
+
+  it('mỗi lượt tải một dòng — hai người tải thì hai dòng, đúng vai trò', async () => {
+    const { d, fileId } = await coBanScan();
+    expect((await dget(await lienKet(fileId, 'kt01'), 'kt01')).status).toBe(200);
+    expect((await dget(await lienKet(fileId, 'sa01'), 'sa01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(dem(rows, 'TAI_BAN_SCAN')).toBe(2);
+    expect(
+      rows.filter((x) => x.action === 'TAI_BAN_SCAN').map((x) => x.actor_role).sort(),
+    ).toEqual(['KE_TOAN', 'SALE_ADMIN']);
+  }, 120_000);
+
+  it('tệp HỒ SƠ đính kèm ghi nhãn khác bản scan', async () => {
+    /*
+     * Hai nhãn chứ không một: "Tải bản scan bản cứng" và "Tải tệp đính kèm" nói
+     * hai chuyện khác nhau về mức nhạy cảm — bản scan là bản mang chữ ký khách
+     * hàng, và đó chính là tệp mà câu "ai đã tải nó về" có giá trị nhất.
+     */
+    const d = await draft();
+    const up = await upload(
+      'tdv01',
+      { ownerKind: 'POLICY', ownerId: d.id, purpose: 'HO_SO' },
+      PDF,
+      'giay-phep.pdf',
+    );
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+
+    const url = await lienKet(up.body.id as string, 'tdv01');
+    expect((await dget(url, 'tdv01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(dem(rows, 'TAI_TEP_DINH_KEM')).toBe(1);
+    expect(dem(rows, 'TAI_BAN_SCAN')).toBe(0);
+  }, 120_000);
+
+  it('tệp của KHÁCH HÀNG không ghi vào lịch sử hồ sơ nào', async () => {
+    /*
+     * Hồ sơ pháp lý thuộc về khách hàng, không thuộc hồ sơ nào — không có màn
+     * hình lịch sử để ghi vào. Ca này giữ cho phép lọc theo `owner_kind` không
+     * bị nới ra thành "mọi tệp", vốn sẽ đâm vào một `owner_id` không phải id hồ
+     * sơ và làm hỏng cả lượt tải.
+     */
+    const cus = await makeCustomer();
+    const up = await upload(
+      'tdv01',
+      { ownerKind: 'CUSTOMER', ownerId: cus.id, purpose: 'PHAP_LY' },
+      PDF,
+      'dkkd.pdf',
+    );
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+
+    const url = await lienKet(up.body.id as string, 'tdv01');
+    // Điều cần chứng minh: tải được BÌNH THƯỜNG, không 500 vì đi tìm một hồ sơ
+    // mang id của khách hàng.
+    expect((await dget(url, 'tdv01')).status).toBe(200);
+  }, 120_000);
+});

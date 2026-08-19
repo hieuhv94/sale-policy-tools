@@ -15,7 +15,7 @@
  * ấy vào trong nó là bắt một hộp thoại dùng chung biết luật đính kèm của hồ sơ.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TepDinhKem } from '@csbh/web/tep-dinh-kem';
 
@@ -89,6 +89,42 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     expect(duong.some((d) => d.includes('/link')), 'thiếu bước xin token').toBe(true);
     // Và nội dung tải qua chính đường có token, chứ không phải một URL đoán ra.
     expect(duong.some((d) => d.includes('/files/f-9/content?t=tok'))).toBe(true);
+  });
+
+  it('`0053` đường XEM kèm `xem=1`, đường TẢI thì KHÔNG', async () => {
+    /*
+     * Chỉ lượt TẢI mới vào Lịch sử của hồ sơ. Dùng chung một đường cho cả hai là
+     * mở một lối tải không để lại vết nào — đúng cái lỗ N-01 sinh ra để bịt, và
+     * là lỗi đã suýt lọt một lần ở nút Tải xuống bên trong hộp xem.
+     */
+    const nguoi = userEvent.setup();
+    const f = chan();
+    bay();
+
+    await nguoi.click(screen.getByRole('button', { name: 'Xem' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
+    const khiXem = f.mock.calls.map((c) => String(c[0])).filter((d) => d.includes('/content'));
+    expect(khiXem.every((d) => d.includes('xem=1')), khiXem.join(' · ')).toBe(true);
+
+    // Nút trong HỘP XEM, không phải nút cùng tên ở danh sách phía sau.
+    const hop = screen.getByRole('dialog');
+    await nguoi.click(within(hop).getByRole('button', { name: 'Tải xuống' }));
+    await waitFor(() => {
+      const sau = f.mock.calls.map((c) => String(c[0])).filter((d) => d.includes('/content'));
+      expect(sau.some((d) => !d.includes('xem=1')), 'đường tải không được mang xem=1').toBe(true);
+    });
+  });
+
+  it('`0053` nút Tải xuống trong DANH SÁCH cũng không mang `xem=1`', async () => {
+    const nguoi = userEvent.setup();
+    const f = chan();
+    bay();
+    await nguoi.click(screen.getByRole('button', { name: 'Tải xuống' }));
+    await waitFor(() => {
+      const goi = f.mock.calls.map((c) => String(c[0])).filter((d) => d.includes('/content'));
+      expect(goi.length).toBeGreaterThan(0);
+      expect(goi.every((d) => !d.includes('xem=1'))).toBe(true);
+    });
   });
 
   it('hộp xem mang TÊN TỆP làm tiêu đề', async () => {

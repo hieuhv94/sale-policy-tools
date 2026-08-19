@@ -173,6 +173,8 @@ export const NHAN_HANH_DONG: Record<string, string> = {
    */
   TAI_HO_SO: 'Tải bản mềm CSBH',
   TAI_HOP_DONG: 'Tải bản hợp đồng',
+  TAI_BAN_SCAN: 'Tải bản scan bản cứng',
+  TAI_TEP_DINH_KEM: 'Tải tệp đính kèm',
 };
 
 export const nhanHanhDong = (a: string): string => NHAN_HANH_DONG[a] ?? a;
