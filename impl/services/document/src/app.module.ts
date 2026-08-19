@@ -10,7 +10,6 @@ import { FilesService } from './files/files.service.js';
 import { FilesController } from './files/files.controller.js';
 import { RenderService } from './render/render.service.js';
 import { RenderController } from './render/render.controller.js';
-import { ScanDiscardConsumer } from './consumers/scan-discard.consumer.js';
 import { TemplatesService } from './contracts/templates.service.js';
 import { ContractsService } from './contracts/contracts.service.js';
 import {
@@ -58,7 +57,6 @@ class HealthController {
     TemplatesService,
     ContractsService,
     TemplateBootstrap,
-    ScanDiscardConsumer,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

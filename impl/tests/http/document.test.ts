@@ -9,7 +9,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
-import { createTestApp as createDocumentApp, Storage, ScanDiscardConsumer } from '@csbh/document/testing';
+import { createTestApp as createDocumentApp, Storage } from '@csbh/document/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -44,6 +44,12 @@ const dpost = async (path: string, who: string) =>
   (await http(doc)).post(path).set('Authorization', `Bearer ${tok[who]}`);
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
+const pget = async (path: string, who: string) =>
+  (await http(policy)).get(path).set('Authorization', `Bearer ${tok[who]}`);
+const pdel = async (path: string, who: string) =>
+  (await http(policy)).delete(path).set('Authorization', `Bearer ${tok[who]}`);
+const ddel = async (path: string, who: string) =>
+  (await http(doc)).delete(path).set('Authorization', `Bearer ${tok[who]}`);
 /**
  * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
  *
@@ -626,8 +632,8 @@ describe('CUST-12 file sai định dạng hoặc quá lớn', () => {
 // DOC-17 · WF-13 · WF-18 — bản scan và yêu cầu in lại
 // =============================================================================
 
-describe('DOC-17 · WF-13 · WF-18 bản scan bị huỷ khi kế toán yêu cầu in lại', () => {
-  it('object bị xoá THẬT khỏi MinIO, vết huỷ vẫn còn trong CSDL', async () => {
+describe('`0050` DOC-17 · WF-13 · WF-18 bản scan GIỮ LẠI khi yêu cầu in lại', () => {
+  it('object CÒN NGUYÊN sau yêu cầu in lại; Sale Admin gỡ thì mới xoá thật', async () => {
     const d = await draft(1);
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
@@ -658,29 +664,44 @@ describe('DOC-17 · WF-13 · WF-18 bản scan bị huỷ khi kế toán yêu c�
 
     await act(d.id, 'SA_HANDOVER', 'sa01');
 
-    // WF-18: kế toán không tiếp nhận L2 và yêu cầu in lại.
+    // `0050` WF-18: kế toán yêu cầu in lại, và bản scan Ở LẠI.
     const reprint = await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', {
       reason: 'Bản cứng mờ, không đọc được chữ ký',
     });
     expect(reprint.status).toBe(200);
 
+    /*
+     * KHÔNG còn sự kiện huỷ, và object trên kho còn nguyên.
+     *
+     * Đây là ca đảo ngược hẳn so với bản trước: nó từng khẳng định object đã bị
+     * xoá thật khỏi MinIO. Khách hàng chốt giữ lại để Sale Admin chủ động thay —
+     * nên khẳng định phải lật, không phải xoá đi.
+     */
     const ev = await withAdminDb(async (c) => {
-      const r = await c.query<{ payload: Record<string, unknown> }>(
-        `SELECT payload FROM pol.outbox WHERE routing_key = 'policy.scan_discarded'
-          AND payload->>'policyId' = $1 ORDER BY seq DESC LIMIT 1`,
+      const r = await c.query(
+        `SELECT 1 FROM pol.outbox WHERE routing_key = 'policy.scan_discarded'
+          AND payload->>'policyId' = $1`,
         [d.id],
       );
-      return r.rows[0]!;
+      return r.rowCount;
     });
-    expect(ev.payload['objectKey']).toBe(up.body.objectKey);
+    expect(ev, 'policy.scan_discarded đã gỡ hẳn khỏi hệ thống').toBe(0);
+    expect(await storage.exists(up.body.objectKey)).toBe(true);
 
-    const consumer = doc.get(ScanDiscardConsumer);
-    expect(await consumer.handle(ev.payload)).toBe(1);
+    // Và liên kết cũ vẫn mở được — Sale Admin phải xem lại được bản bị chê.
+    expect((await dget(`/files/${up.body.id}/link`, 'sa01')).status).toBe(200);
 
-    // Xoá THẬT: không còn bản sao ảnh nào trên kho.
+    /*
+     * Sale Admin CHỦ ĐỘNG gỡ. Hai bước, và cả hai đều cần: gỡ con trỏ khỏi hồ
+     * sơ, rồi xoá file trên kho. Đường thứ hai chỉ mở cho TDV và Sale Admin.
+     */
+    const dinhKem = (await pget(`/policies/${d.id}`, 'sa01')).body.attachments[0];
+    expect((await pdel(`/policies/${d.id}/attachments/${dinhKem.id}`, 'sa01')).status).toBe(200);
+    expect((await ddel(`/files/${up.body.id}`, 'sa01')).status).toBe(200);
+
     expect(await storage.exists(up.body.objectKey)).toBe(false);
 
-    // Nhưng vết huỷ còn nguyên — ai huỷ, lúc nào, vì sao.
+    // Vết huỷ còn nguyên — ai huỷ, lúc nào, vì sao.
     const row = await withAdminDb(async (c) => {
       const r = await c.query<{ deleted_at: Date; delete_reason: string }>(
         `SELECT deleted_at, delete_reason FROM doc.stored_file WHERE id = $1`,
@@ -689,9 +710,9 @@ describe('DOC-17 · WF-13 · WF-18 bản scan bị huỷ khi kế toán yêu c�
       return r.rows[0]!;
     });
     expect(row.deleted_at).not.toBeNull();
-    expect(row.delete_reason).toContain('mờ');
+    expect(row.delete_reason).toContain('SALE_ADMIN');
 
-    // Và file đã huỷ thì không mở lại được bằng liên kết cũ.
+    // File đã huỷ thì không mở lại được bằng liên kết cũ.
     const gone = await dget(`/files/${up.body.id}/link`, 'sa01');
     expect(gone.status).toBe(404);
     expect(gone.body.code).toBe('FILE_DISCARDED');

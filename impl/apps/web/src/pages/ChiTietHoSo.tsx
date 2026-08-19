@@ -90,6 +90,8 @@ type HoSo = {
   loaiTepGhiDuoc?: string[];
   tepXoaDuoc?: boolean;
   xuatHopDongDuoc?: boolean;
+  /** `0050` — bản scan đang đính kèm là bản Kế toán đã yêu cầu in lại. */
+  banScanCu?: boolean;
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
@@ -284,6 +286,30 @@ export function ChiTietHoSo({ id }: { id: string }) {
           ? { xoaDong: datXoaDongId, suaDong: datSuaDongCu, dangXoa: dangXoaDong }
           : {})}
       />
+
+      {/*
+        Bản scan đang đính kèm là bản Kế toán đã chê (`0050`).
+
+        Từ `0050` yêu cầu in lại KHÔNG còn tự xoá bản scan — Sale Admin chủ động
+        gỡ và thay. Khối này là thứ giữ cho việc "chủ động" ấy không thành việc
+        "quên": hồ sơ vẫn đủ điều kiện bàn giao ngay, nên bấm bàn giao mà chưa
+        thay là gửi lại đúng bản vừa bị từ chối.
+
+        CẢNH BÁO, không chặn — có lần in lại mà bản scan cũ vẫn dùng được, ví dụ
+        bản giấy hỏng lúc chuyển phát chứ không phải bản in sai.
+      */}
+      {hoSo.banScanCu === true && (
+        <div className="canh-bao-scan" role="status">
+          <p>
+            <strong>Bản scan dưới đây là bản Kế toán đã yêu cầu in lại.</strong>
+          </p>
+          <p className="ghi-chu">
+            Nó được giữ lại để bạn đối chiếu xem bản giấy hỏng ở đâu. In bản mới xong thì{' '}
+            <strong>gỡ tệp này và tải bản scan mới lên</strong> trước khi bàn giao — hệ thống không
+            chặn bạn bàn giao lại bản cũ.
+          </p>
+        </div>
+      )}
 
       <TepDinhKem
         hoSoId={hoSo.id}

@@ -2081,18 +2081,65 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     expect(r.body.status).toBe('YEU_CAU_CHINH_SUA');
   });
 
-  it('WF-18 yêu cầu in lại thì bản scan cũ BỊ XOÁ, nhật ký vẫn ghi lại việc huỷ', async () => {
+  it('`0050` WF-18 yêu cầu in lại thì bản scan cũ Ở LẠI, không bị xoá', async () => {
+    /*
+     * Đảo ngược luật cũ theo yêu cầu khách hàng 19/08.
+     *
+     * Trước đó bản scan bị xoá khỏi cả `pol` lẫn kho lưu trữ ngay khi Kế toán
+     * bấm yêu cầu in lại. Giờ nó ở lại để Sale Admin chủ động gỡ và thay — Kế
+     * toán chê bản GIẤY, mà nhiều khi chỉ so với bản scan đang có mới thấy hỏng
+     * ở đâu.
+     */
     const d = await toL2();
     const r = await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
     expect(r.status).toBe(200);
     expect(r.body.status).toBe('SA_DANG_XU_LY');
-    expect(r.body.attachments).toHaveLength(0);
+    expect(r.body.attachments, 'bản scan phải còn nguyên').toHaveLength(1);
+    expect(r.body.attachments[0].fileName).toBe('ban-cung.pdf');
 
+    // Và KHÔNG còn sự kiện huỷ nào được phát.
     const ev = (await outboxFor(d.id)).find((e) => e.routing_key === 'policy.scan_discarded');
-    expect(ev).toBeDefined();
-    expect(ev!.payload.reason).toBe('Ban in mo');
-    expect(ev!.payload.actorId).toBeTruthy();
-    expect(ev!.payload.fileName).toBe('ban-cung.pdf');
+    expect(ev, 'policy.scan_discarded đã gỡ hẳn').toBeUndefined();
+  });
+
+  it('`0050` bản scan cũ được ĐÁNH DẤU là bản đã bị chê', async () => {
+    const d = await toL2();
+    const truoc = await get(`/policies/${d.id}`, 'sa01');
+    expect(truoc.body.banScanCu, 'chưa yêu cầu in lại thì không cảnh báo gì').toBe(false);
+
+    await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
+    const sau = await get(`/policies/${d.id}`, 'sa01');
+    // Cờ này KHÔNG chặn bàn giao — nó để màn hình nói ra. Chặn là đi ngược yêu
+    // cầu "Sale Admin chủ động": có lần in lại mà bản scan cũ vẫn dùng được.
+    expect(sau.body.banScanCu).toBe(true);
+  });
+
+  it('`0050` tải bản scan MỚI lên thì cảnh báo tự tắt', async () => {
+    const d = await toL2();
+    await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
+
+    // Gỡ bản cũ rồi tải bản mới — đúng đường Sale Admin phải đi.
+    const cu = (await get(`/policies/${d.id}`, 'sa01')).body.attachments[0];
+    expect((await del(`/policies/${d.id}/attachments/${cu.id}`, 'sa01')).status).toBe(200);
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung-2.pdf', objectKey: `scan/${d.id}-moi.pdf` },
+      'sa01',
+    );
+
+    const sau = await get(`/policies/${d.id}`, 'sa01');
+    expect(sau.body.attachments).toHaveLength(1);
+    // Cảnh báo suy từ MỐC TẢI LÊN chứ không từ một cờ phải nhớ xoá — nên nó tự
+    // đúng, không có trạng thái nào để quên dọn.
+    expect(sau.body.banScanCu).toBe(false);
+  });
+
+  it('`0050` bàn giao lại mà KHÔNG thay scan vẫn đi được — cảnh báo, không chặn', async () => {
+    const d = await toL2();
+    await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
+    const r = await act(d.id, 'SA_HANDOVER', 'sa01');
+    expect(r.status, 'không chặn: quyết định là của Sale Admin').toBe(200);
+    expect(r.body.status).toBe('CHO_KT_L2');
   });
 
   it('WF-19 in lại và bàn giao lần hai thì KHÔNG phải ký số lại', async () => {

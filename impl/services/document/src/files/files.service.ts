@@ -305,9 +305,13 @@ export class FilesService {
   /**
    * Xoá object khỏi MinIO, giữ lại dòng CSDL làm vết.
    *
-   * Kế toán yêu cầu in lại thì bản scan cũ phải biến mất THẬT — giữ một bản sao
-   * "cho chắc" là còn tồn tại hai bản cứng khác nhau cùng hiệu lực trong hệ
-   * thống. Nhưng vết "ai huỷ, lúc nào, vì sao" thì phải còn (DOC-17, muc 10).
+   * Gỡ một bản scan là gỡ THẬT — giữ một bản sao "cho chắc" là để tồn tại hai
+   * bản cứng khác nhau cùng hiệu lực trong hệ thống. Nhưng vết "ai huỷ, lúc nào,
+   * vì sao" thì phải còn (DOC-17, muc 10).
+   *
+   * Từ `0050` đường vào đây CHỈ CÒN MỘT: `DELETE /files/:id`, do người dùng bấm.
+   * Trước đó còn một đường tự động — yêu cầu in lại xoá luôn bản scan — và đường
+   * ấy đã gỡ theo yêu cầu khách hàng: Sale Admin chủ động gỡ và thay.
    */
   async discard(id: string, reason: string): Promise<void> {
     const row = await this.db.one<FileRow>(`SELECT * FROM doc.stored_file WHERE id = $1`, [id]);
@@ -317,14 +321,5 @@ export class FilesService {
       `UPDATE doc.stored_file SET deleted_at = now(), delete_reason = $2 WHERE id = $1`,
       [id, reason],
     );
-  }
-
-  async discardByObjectKey(objectKey: string, reason: string): Promise<number> {
-    const rows = await this.db.q<{ id: string }>(
-      `SELECT id FROM doc.stored_file WHERE object_key = $1 AND deleted_at IS NULL`,
-      [objectKey],
-    );
-    for (const r of rows) await this.discard(r.id, reason);
-    return rows.length;
   }
 }

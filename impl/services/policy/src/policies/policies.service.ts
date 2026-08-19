@@ -954,7 +954,39 @@ export class PoliciesService {
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
       tepXoaDuoc: tepXoaDuoc(p.status),
       xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
+      banScanCu: await this.banScanCu(policyId, p.status),
     };
+  }
+
+  /**
+   * Bản scan đang đính kèm có phải BẢN KẾ TOÁN ĐÃ CHÊ không (`0050`).
+   *
+   * Từ `0050`, yêu cầu in lại KHÔNG còn xoá bản scan cũ — Sale Admin chủ động
+   * gỡ và thay. Điều đó mở ra một khe: hồ sơ quay về `SA_DANG_XU_LY` mà vẫn đủ
+   * điều kiện bàn giao, nên bấm bàn giao ngay là gửi lại đúng bản vừa bị chê, và
+   * Kế toán nhận lại y nguyên thứ họ vừa từ chối.
+   *
+   * Cờ này KHÔNG chặn gì — nó chỉ để màn hình nói ra. Chặn là đi ngược yêu cầu
+   * "Sale Admin CHỦ ĐỘNG": có những lần in lại mà bản scan cũ vẫn dùng được, ví
+   * dụ bản giấy hỏng lúc chuyển phát chứ không phải bản in sai.
+   *
+   * So MỐC TẢI LÊN với lần yêu cầu in lại GẦN NHẤT, không so với một cờ đánh dấu
+   * trên hồ sơ: một cờ phải nhớ xoá đúng lúc Sale Admin tải bản mới, và quên xoá
+   * là cảnh báo dính vĩnh viễn. Mốc thời gian thì tự đúng.
+   */
+  private async banScanCu(policyId: string, status: string): Promise<boolean> {
+    if (status !== 'SA_DANG_XU_LY') return false;
+    const r = await this.db.one<{ cu: boolean }>(
+      `SELECT EXISTS (
+                SELECT 1 FROM pol.policy_attachment a
+                 WHERE a.policy_id = $1 AND a.kind = 'SCAN'
+                   AND a.uploaded_at < (SELECT max(e.at) FROM pol.policy_event e
+                                         WHERE e.policy_id = $1
+                                           AND e.action = 'KT_REQUEST_REPRINT')
+              ) AS cu`,
+      [policyId],
+    );
+    return r?.cu === true;
   }
 
   /**

@@ -212,8 +212,15 @@ describe('AUD-01 các loại hành động đều sinh bản ghi nhật ký', ()
     ]) {
       expect(actions, `thiếu nhật ký cho ${a}`).toContain(a);
     }
-    // AUD-07: bản scan bị huỷ nhưng nhật ký vẫn giữ vết việc huỷ.
-    expect(actions).toContain('SCAN_DISCARDED');
+    /*
+     * `0050` — KHÔNG còn `SCAN_DISCARDED` ở đây.
+     *
+     * Dòng ấy do sự kiện `policy.scan_discarded` sinh ra, và sự kiện ấy gỡ theo
+     * luật mới: yêu cầu in lại giữ nguyên bản scan để Sale Admin chủ động thay.
+     * Vết huỷ vẫn còn — nhưng ở LẦN GỠ THẬT, do người bấm, chứ không phải ở lần
+     * kế toán yêu cầu in lại.
+     */
+    expect(actions).not.toContain('SCAN_DISCARDED');
   }, 120_000);
 });
 

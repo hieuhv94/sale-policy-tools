@@ -579,6 +579,10 @@ textarea.o-nhap { min-height: 6rem; }
    MẪU ĐÃ CÓ trong sản phẩm — `.chi-so` dùng đúng cách này. Chỉ dải tiêu đề giữ
    màu để mắt bắt được ngay khối này nói chuyện gì. */
 .canh-bao-lech,
+/* `0050` — cảnh báo bản scan Kế toán đã chê. Dùng lại nguyên bố cục của hai
+   khối kia thay vì dựng kiểu thứ ba: ba khối nói cùng một loại việc (một câu
+   phải đọc trước khi bấm tiếp) mà trông khác nhau là ba thứ phải học riêng. */
+.canh-bao-scan,
 .ghi-chu-tra-lai,
 .hop-canh-bao {
   margin: var(--k4) 0;

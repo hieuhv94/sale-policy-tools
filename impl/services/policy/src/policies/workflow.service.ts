@@ -406,26 +406,25 @@ export class WorkflowService {
         ]);
       }
 
-      // Yêu cầu in lại: bản scan cũ BỊ XOÁ khỏi hệ thống, không giữ bản sao ảnh.
-      // Nhật ký vẫn ghi đã có một bản scan bị huỷ, ai huỷ và vì sao (WF-18, muc 10).
-      if (action === 'KT_REQUEST_REPRINT') {
-        const removed = await c.query<{ id: string; file_name: string; object_key: string }>(
-          `DELETE FROM pol.policy_attachment WHERE policy_id = $1 AND kind = 'SCAN'
-           RETURNING id, file_name, object_key`,
-          [policyId],
-        );
-        for (const r of removed.rows) {
-          await emit(c, 'policy.scan_discarded', {
-            ...ctx,
-            attachmentId: r.id,
-            fileName: r.file_name,
-            objectKey: r.object_key,
-            actorId: me.id,
-            reason: opts.reason,
-            at: new Date().toISOString(),
-          });
-        }
-      }
+      /*
+       * KHỐI "XOÁ BẢN SCAN KHI YÊU CẦU IN LẠI" ĐÃ GỠ Ở `0050`.
+       *
+       * Trước đó `KT_REQUEST_REPRINT` xoá con trỏ tệp trong `pol` rồi phát
+       * `policy.scan_discarded` để `document` xoá luôn object trên kho — bản
+       * scan biến mất khỏi hệ thống, không giữ bản sao ảnh.
+       *
+       * Khách hàng chốt ngày 19/08: **giữ nguyên bản scan**, để Sale Admin chủ
+       * động gỡ và thay bản khác. Lý do của họ đứng vững hơn luật cũ: Kế toán
+       * yêu cầu in lại vì bản GIẤY hỏng, mà cái hỏng ấy nhiều khi chỉ nhìn được
+       * khi so với bản scan đang có. Xoá ngay là lấy mất vật đối chiếu của đúng
+       * người sắp phải sửa.
+       *
+       * Đổi lại có một khe: hồ sơ quay về `SA_DANG_XU_LY` mà vẫn đủ điều kiện
+       * bàn giao (WF-14 chỉ đòi CÓ bản scan), nên bấm bàn giao ngay là gửi lại
+       * đúng bản Kế toán vừa chê. `banScanCu` bên dưới đóng khe ấy bằng một lời
+       * cảnh báo trên màn hình — không chặn, vì "chủ động" là điều khách hàng
+       * yêu cầu.
+       */
 
       await this.policies.recordEvent(
         c,

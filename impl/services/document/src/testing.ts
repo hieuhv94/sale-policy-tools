@@ -12,7 +12,6 @@ export async function createTestApp(): Promise<INestApplication> {
 
 export { Storage, sha256, BUCKET } from './infra/storage.js';
 export { FilesService, sniff, MAX_BYTES } from './files/files.service.js';
-export { ScanDiscardConsumer } from './consumers/scan-discard.consumer.js';
 export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
 export { sheetHtml, money, pct, dmy } from './render/sheet.js';
 export { TemplatesService } from './contracts/templates.service.js';

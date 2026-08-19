@@ -121,7 +121,7 @@ lần 1. Tiếp nhận thì CSBH chuyển **Đang có hiệu lực** ngay lúc �
 trong hai:
 
 1. **Trả về Bước 3** — mặc định, khi lỗi thuộc về dữ liệu hoặc chính sách.
-2. **Yêu cầu in lại bản cứng** — hồ sơ về Sale Admin, bản scan trước đó bị xóa khỏi hệ thống.
+2. **Yêu cầu in lại bản cứng** — hồ sơ về Sale Admin, **bản scan trước đó được giữ nguyên** `sửa 19/08`.
 
 **Ngoài phần mềm** — cấp mã khách hàng cho TDV.
 
@@ -139,7 +139,8 @@ trong hai:
   lần 1. Xuất được nhiều lần; hệ thống không lưu lại hợp đồng.
 - In bản cứng, trình Ban lãnh đạo ký, nhận lại, scan và tải file lên hệ thống.
 - Bấm bàn giao bản cứng để chuyển sang kế toán lần 2.
-- Khi kế toán yêu cầu in lại: nhận lại hồ sơ và làm lại bản cứng.
+- Khi kế toán yêu cầu in lại: nhận lại hồ sơ, in lại bản cứng, rồi **gỡ bản scan cũ và tải bản
+  scan mới lên** `sửa 19/08`. Hệ thống giữ bản cũ lại để đối chiếu chứ không tự xóa.
 - Không sửa nội dung CSBH, không bỏ qua bước tiếp nhận lần 1.
 
 ### 2.6. Ban lãnh đạo
@@ -257,7 +258,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B9 | Sale Admin | KT duyệt bản cứng | KT, TBP, TDV | Bàn giao bản cứng |
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
-| B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ bị xóa; Sale Admin làm lại bản cứng |
+| B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ **giữ nguyên**; Sale Admin chủ động gỡ và thay `sửa 19/08` |
 
 **Bước B5 và trạng thái `TBP đã ký số` đã bỏ** `19/08`. Chúng chưa bao giờ hiện ra với người dùng:
 hệ thống chuyển tiếp ngay trong cùng một giao dịch với lần TBP ký, nên không hồ sơ nào từng dừng lại
@@ -787,8 +788,15 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   trực tiếp từ các cột này, nhật ký chỉ dùng để truy vết.
 - Mỗi lần trả lại, bổ sung sản phẩm, chỉnh sửa sản phẩm hoặc thay đổi giá đều tạo phiên bản mới;
   không ghi đè file đã ký.
-- Khi kế toán yêu cầu in lại, **bản scan cũ bị xóa khỏi hệ thống**, không giữ bản sao ảnh. Nhật ký
-  vẫn ghi lại việc đã có một bản scan bị hủy: ai hủy, lúc nào, lý do gì.
+- Khi kế toán yêu cầu in lại, **bản scan cũ được GIỮ NGUYÊN** `sửa 19/08`. Sale Admin **chủ động gỡ
+  và tải bản mới lên**. Màn hình đánh dấu rõ bản scan đang đính kèm là bản đã bị yêu cầu in lại, và
+  **không chặn** bàn giao — quyết định thuộc về Sale Admin, vì có lần bản giấy hỏng lúc chuyển phát
+  chứ không phải bản in sai.
+  > Luật cũ xóa bản scan ngay khi kế toán bấm. Đổi vì kế toán chê **bản giấy**, mà nhiều khi chỉ so
+  > với bản scan đang có mới thấy hỏng ở đâu — xóa ngay là lấy mất vật đối chiếu của đúng người sắp
+  > phải sửa.
+- Gỡ một bản scan là **gỡ thật** khỏi kho lưu trữ, không giữ bản sao ảnh. Nhật ký vẫn ghi lại việc
+  đã có một bản scan bị hủy: ai hủy, lúc nào, lý do gì.
 - Cơ chế ký: **chữ ký điện tử nội bộ**. Không dùng chứng thư số pháp lý.
 - Phân quyền theo vai trò, bộ phận và trạng thái hồ sơ; không cho thao tác vượt bước.
 
@@ -937,7 +945,7 @@ Sale Admin lúc tiếp nhận lần 1 · tiếp nhận lần 2 về đúng ngư�
 vi đọc suy từ bốn ô người trên chính hồ sơ · gửi duyệt phải xem bản CSBH A4 dạng PDF rồi mới xác nhận.
 
 **Luồng** — tuần tự, không song song · kế toán từ chối lần 2 có hai lựa chọn · quy tắc bổ sung và
-chỉnh sửa CSBH · trả lại bắt buộc nhập lý do · bản scan cũ bị xóa khi yêu cầu in lại.
+chỉnh sửa CSBH · trả lại bắt buộc nhập lý do · bản scan cũ **giữ nguyên** khi yêu cầu in lại `sửa 19/08`.
 
 **Trạng thái** — dùng bộ đã hợp nhất · Từ chối là trạng thái kết thúc · không cho xóa hồ sơ bị từ
 chối · “Quá hạn duyệt” là trạng thái riêng · đổi tên “Đang áp dụng” thành “Đang có hiệu lực”.
