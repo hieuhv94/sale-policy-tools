@@ -181,7 +181,17 @@ function TheNguoiDung() {
               <th>Tài khoản</th>
               <th>Vai trò</th>
               <th>Trạng thái</th>
-              <th>Thao tác</th>
+              {/*
+                BA CỘT cho ba thao tác, không phải một ô chứa cả ba (`0070`).
+
+                Nút *Gửi lại thư mời* chỉ có ở tài khoản chưa kích hoạt. Nhét cả
+                ba vào một ô thì dòng nào thiếu nút ấy sẽ đẩy *Vô hiệu hoá* sang
+                trái, và cột thao tác thành một hàng răng cưa — mắt phải đọc chữ
+                trên từng nút mới biết mình sắp bấm cái gì.
+                Cột bảng thì thẳng hàng theo định nghĩa; một `<div>` bên trong ô
+                thì không, vì mỗi ô tự căn theo nội dung của chính nó.
+              */}
+              <th colSpan={3}>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -191,25 +201,32 @@ function TheNguoiDung() {
                 <td className="ma-phu">{u.username}</td>
                 <td>{NHAN_VAI_TRO[u.role] ?? u.role}</td>
                 <td>{trangThaiTaiKhoan(u)}</td>
-                <td>
-                  <div className="nhom-nut nhom-nut-gon">
+                <td className="o-thao-tac">
+                  <button
+                    type="button"
+                    className="nut nut-nhe"
+                    onClick={() => datMo({ kieu: 'xem', u })}
+                  >
+                    Xem
+                  </button>
+                </td>
+                <td className="o-thao-tac">
+                  {/*
+                    Ô TRỐNG khi tài khoản đã kích hoạt, chứ không bỏ ô đi: cột
+                    vẫn còn thì hai nút hai bên không bị xô chỗ.
+                  */}
+                  {u.activatedAt === null && (
                     <button
                       type="button"
                       className="nut nut-nhe"
-                      onClick={() => datMo({ kieu: 'xem', u })}
+                      disabled={dangChay === u.id}
+                      onClick={() => datHoi({ u, viec: 'moi' })}
                     >
-                      Xem
+                      Gửi lại thư mời
                     </button>
-                    {u.activatedAt === null && (
-                      <button
-                        type="button"
-                        className="nut nut-nhe"
-                        disabled={dangChay === u.id}
-                        onClick={() => datHoi({ u, viec: 'moi' })}
-                      >
-                        Gửi lại thư mời
-                      </button>
-                    )}
+                  )}
+                </td>
+                <td className="o-thao-tac">
                     <button
                       type="button"
                       className={u.isActive ? 'nut nut-canh-bao' : 'nut nut-nhe'}
@@ -237,7 +254,6 @@ function TheNguoiDung() {
                     >
                       {u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt lại'}
                     </button>
-                  </div>
                 </td>
               </tr>
             ))}

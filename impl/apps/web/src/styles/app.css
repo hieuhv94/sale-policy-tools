@@ -1977,3 +1977,53 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   white-space: nowrap;
   border: 0;
 }
+
+/* --- Cột thao tác trong bảng (`0070`) ------------------------------------- */
+
+/* Mỗi thao tác một CỘT riêng, và ô trống vẫn giữ chỗ.
+
+   Nhét cả nhóm nút vào một ô thì dòng nào thiếu một nút sẽ đẩy những nút sau nó
+   sang trái — cột thao tác thành hàng răng cưa, và mắt phải đọc chữ trên từng
+   nút mới biết mình sắp bấm cái gì. Cột bảng thì thẳng hàng theo định nghĩa. */
+.o-thao-tac {
+  width: 1%;
+  white-space: nowrap;
+  padding-right: var(--k2);
+}
+
+.o-thao-tac + .o-thao-tac { padding-left: 0; }
+
+/* --- Ô CÂU CHỮ trong bảng (`0070`) ---------------------------------------- */
+
+/* `th, td` đặt `white-space: nowrap` cho MỌI ô — đúng với mã, ngày và tiền, sai
+   với câu chữ: một ghi chú dài nong bảng ra theo chiều ngang, và người đọc phải
+   cuộn ngang để đọc hết một câu.
+
+   Ở đây đảo lại cho đúng những ô là CÂU CHỮ: xuống dòng, và chặn bề rộng để nó
+   thật sự xuống dòng chứ không nong cột. Chấp nhận ô cao lên — chiều cao thì mắt
+   đọc được liền mạch, còn chiều ngang thì không.
+
+   `break-word` chứ không `anywhere`: tiếng Việt ngắt theo từ đọc mới xuôi. Ô nào
+   chứa mã dài không dấu cách thì tự khai `anywhere` cho riêng nó — `.loi-goc` và
+   `.bang-anh-xa` làm đúng thế.
+
+   `.loi-goc` nằm trong danh sách này vì nó là chỗ lỗi ấy đã xảy ra thật: nó khai
+   `max-width: 28rem` và `overflow-wrap: anywhere` từ lâu, nhưng `nowrap` thừa
+   hưởng từ `td` nuốt cả hai — một chuỗi lỗi kỹ thuật dài kéo bảng thư hỏng rộng
+   gấp mấy lần màn hình, và không ai đọc được cột nào khác nữa. */
+td.ghi-chu,
+td .ghi-chu,
+td.o-cau-chu,
+td.loi-goc {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+td.ghi-chu,
+td .ghi-chu,
+td.o-cau-chu { max-width: 32ch; }
+
+/* Bảng có `table-layout: fixed` thì bề rộng cột do lưới quyết định, nên trần
+   32ch vừa thừa vừa gây hiểu nhầm — bỏ đi cho khỏi có hai luật cùng nói một thứ. */
+.bang-khoa td.ghi-chu,
+.bang-anh-xa td.ghi-chu { max-width: none; }

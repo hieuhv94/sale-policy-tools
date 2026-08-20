@@ -39,7 +39,8 @@
     "./xem-ban-mem": "./src/components/XemBanMem.tsx",
     "./mau-van-ban": "./src/pages/MauHopDong.tsx",
     "./them-mau": "./src/pages/ThemMau.tsx",
-    "./tep-dinh-kem": "./src/components/TepDinhKem.tsx"
+    "./tep-dinh-kem": "./src/components/TepDinhKem.tsx",
+    "./nguoi-dung-ui": "./src/pages/NguoiDung.tsx"
   },
   "scripts": {
     "build": "vite build",

@@ -7132,3 +7132,47 @@ loại giấy tờ, file bên `document` mang mã để XEM và TẢI. Không c�
 trong hai việc — và bản trước đã chọn: nó đọc từ `document` nên không gỡ được gì.
 
 **1291/1291 xanh.**
+
+## P97 — Cột thao tác thẳng hàng, và ô câu chữ tự xuống dòng
+
+Hai lỗi trình bày, và cả hai đều có cùng một hình dạng: **một luật đúng cho phần
+lớn trường hợp, áp cho tất cả**.
+
+### Cột thao tác răng cưa
+
+Nút *Gửi lại thư mời* chỉ có ở tài khoản chưa kích hoạt. Cả ba nút nằm trong MỘT ô, nên dòng nào
+thiếu nút ấy sẽ đẩy *Vô hiệu hoá* sang trái — cột thao tác thành một hàng răng cưa, và mắt phải đọc
+chữ trên từng nút mới biết mình sắp bấm cái gì.
+
+Chữa bằng cách tách thành **ba cột bảng thật**, `<th colSpan={3}>` cho tiêu đề. Cột bảng thẳng hàng
+theo định nghĩa; một `<div>` bên trong ô thì không, vì mỗi ô tự căn theo nội dung của chính nó. Dòng
+đã kích hoạt để **ô trống giữ chỗ** — đó là cả điểm của việc tách cột.
+
+> Cách khác là đặt bề rộng cứng cho từng nút. Nó cũng thẳng hàng, cho tới ngày ai đó đổi câu chữ
+> trên một nút.
+
+### `white-space: nowrap` áp cho mọi ô
+
+`th, td { white-space: nowrap }` đúng với mã, ngày và tiền — ba thứ chiếm phần lớn số ô, và ngắt
+dòng giữa một con số thì đọc còn tệ hơn. Nhưng nó cũng áp cho **câu chữ**: một ghi chú dài nong bảng
+ra theo chiều ngang, và người đọc phải cuộn ngang để đọc hết một câu.
+
+Đảo lại cho đúng ba loại ô là câu chữ — `.ghi-chu`, `.o-cau-chu` (lý do trả hồ sơ), `.loi-goc` — kèm
+**trần bề rộng**: xuống dòng thôi chưa đủ, vì bảng ở chế độ tự co vẫn nong cột ra hết chỗ rồi mới
+ngắt. Chấp nhận ô cao lên; chiều cao thì mắt đọc được liền mạch, chiều ngang thì không.
+
+`break-word` chứ không `anywhere`: tiếng Việt ngắt theo từ mới đọc xuôi. Ô nào chứa mã dài không dấu
+cách thì tự khai `anywhere` cho riêng nó.
+
+### Một lỗi cũ lộ ra khi làm
+
+`.loi-goc` — cột lỗi gốc của bảng *Thư hỏng* — khai `max-width: 28rem` và `overflow-wrap: anywhere`
+từ lâu. **Cả hai chưa bao giờ có tác dụng**: `nowrap` thừa hưởng từ `td` nuốt chúng, nên một chuỗi
+lỗi kỹ thuật dài kéo bảng rộng gấp mấy lần màn hình và không ai đọc được cột nào khác. Hai khai báo
+đứng đó suốt, trông như đã lo xong việc.
+
+Ca kiểm thử đọc **CSS thật** chứ không kiểm tên lớp có mặt trên DOM: một quy tắc bị xoá thì tên lớp
+vẫn còn nguyên, và ca kiểm thử vẫn xanh trong khi ô đã hết xuống dòng. Trong jsdom không có bố cục để
+đo, nên đọc nguồn là cách duy nhất còn lại — và nó đủ để bắt đúng lỗi vừa kể.
+
+**1297/1297 xanh.**

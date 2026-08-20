@@ -87,7 +87,12 @@ export function BangLichSu({ muc }: { muc: MucLichSu[] }) {
                 <Nhan trangThai={m.toStatus} />
               </td>
               <td>{nguoiLam(m)}</td>
-              <td>{m.reason ?? '—'}</td>
+              {/*
+                Lý do do người trả hồ sơ TỰ GÕ, nên nó là câu chữ chứ không phải
+                một giá trị ngắn — `o-cau-chu` cho nó xuống dòng thay vì nong cả
+                bảng lịch sử ra theo chiều ngang (`0070`).
+              */}
+              <td className="o-cau-chu">{m.reason ?? '—'}</td>
             </tr>
           ))}
         </tbody>
