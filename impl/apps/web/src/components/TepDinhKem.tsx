@@ -15,10 +15,12 @@
  * thành một là bắt `policy` đụng vào MinIO, và `document` phải biết luật nghiệp
  * vụ của hồ sơ.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
-import { BaoLoi, HopThoai, HopThoaiXacNhan, Truong } from './Chung.js';
+import { BaoLoi, HopThoaiXacNhan } from './Chung.js';
+import { TheTep } from './TheTep.js';
+import { VungTaiLen } from './VungTaiLen.js';
 import { XemTep } from './XemTep.js';
 
 export type TepDto = {
@@ -58,7 +60,9 @@ export function TepDinhKem({
 }) {
   const [loi, datLoi] = useState<unknown>(null);
   const [dangChay, datDangChay] = useState<string | null>(null);
-  const [moTai, datMoTai] = useState(false);
+  const [dangTaiLen, datDangTaiLen] = useState(false);
+  /** Đường xem của từng tệp, xin dần để dựng ảnh thu nhỏ (`0069`). */
+  const [duongAnh, datDuongAnh] = useState<Record<string, string>>({});
 
   /**
    * Đổi `objectKey` của dòng đính kèm sang `fileId` của `document`.
@@ -126,6 +130,81 @@ export function TepDinhKem({
     }
   };
 
+  /*
+   * Xin đường xem cho ẢNH, và chỉ cho ảnh (`0069`).
+   *
+   * Ảnh thu nhỏ chỉ dựng được từ nội dung thật, mà nội dung thật đòi hai lời gọi
+   * (tra `fileId` rồi xin liên kết có token). Với bản scan PDF — phần lớn tệp ở
+   * đây — thẻ hiện đuôi file, nên KHÔNG gọi gì cả.
+   *
+   * Danh sách file xin MỘT LẦN cho cả nhóm chứ không mỗi tệp một lần: nó là cùng
+   * một lời gọi trả về mọi tệp của hồ sơ.
+   */
+  useEffect(() => {
+    const anh = tep.filter((t) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(t.fileName));
+    if (anh.length === 0) return;
+    const huy = new AbortController();
+    void (async () => {
+      try {
+        const ds = await layJson<FileDto[]>(
+          `/files?ownerKind=POLICY&ownerId=${hoSoId}`,
+          huy.signal,
+        );
+        for (const t of anh) {
+          const f = ds.find((x) => x.objectKey === t.objectKey);
+          if (!f || huy.signal.aborted) continue;
+          const link = await layJson<{ url: string }>(`/files/${f.id}/link`, huy.signal);
+          // `xem=1`: dựng ảnh thu nhỏ KHÔNG phải một lượt tải, nên nó không được
+          // để lại dòng nào trong *Lịch sử* (`0053`).
+          if (!huy.signal.aborted) {
+            datDuongAnh((cu) => ({ ...cu, [t.id]: `${link.url}&xem=1` }));
+          }
+        }
+      } catch {
+        // Hỏng thì thẻ hiện đuôi file — ảnh thu nhỏ là thứ trang trí, không phải
+        // đường vào duy nhất. Báo lỗi đỏ ở đây là dựng một cảnh báo cho một việc
+        // không ai yêu cầu.
+      }
+    })();
+    return () => huy.abort();
+  }, [hoSoId, tep]);
+
+  /**
+   * Tải một tệp lên — hai bước ở HAI service, đúng như trước (`0069`).
+   *
+   * Loại tệp KHÔNG hỏi nữa: `loaiGhiDuoc` do máy chủ tính theo trạng thái hồ sơ
+   * và vai trò người đang xem, và ở mọi trạng thái nó chỉ ra đúng MỘT loại. Hộp
+   * thoại cũ hỏi loại là hỏi một câu chỉ có một đáp án.
+   */
+  const taiLen = async (f: File) => {
+    const loai = loaiGhiDuoc[0];
+    if (!loai) return;
+    datLoi(null);
+    datDangTaiLen(true);
+    try {
+      const form = new FormData();
+      form.append('file', f);
+      // Tên file đi kèm ĐÃ MÃ HOÁ URL: multer giải mã theo latin1, nên tên tiếng
+      // Việt qua đường `originalname` thành ký tự lạ (DOC-18).
+      const x = await guiTep<{ objectKey: string; sizeBytes: string }>(
+        `/files?ownerKind=POLICY&ownerId=${hoSoId}&purpose=${loai}` +
+          `&fileName=${encodeURIComponent(f.name)}`,
+        form,
+      );
+      await dang(`/policies/${hoSoId}/attachments`, {
+        kind: loai,
+        fileName: f.name,
+        objectKey: x.objectKey,
+        sizeBytes: x.sizeBytes,
+      });
+      taiLai();
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangTaiLen(false);
+    }
+  };
+
   const go = async (t: TepDto) => {
     datLoi(null);
     datDangChay(t.id);
@@ -146,61 +225,50 @@ export function TepDinhKem({
     <>
       <h2>Bản cứng</h2>
 
-      {loaiGhiDuoc.length > 0 && (
-        <div className="nhom-nut">
-          <button type="button" className="nut nut-nhe" onClick={() => datMoTai(true)}>
-            Tải tệp lên
-          </button>
-        </div>
-      )}
-
       {loi !== null && <BaoLoi loi={loi} />}
 
-      {tep.length === 0 ? (
+      {/*
+        MỘT LƯỚI cho cả tệp đã có lẫn chỗ thêm tệp (`0069`).
+
+        Bản trước là một nút *Tải tệp lên* ở trên, rồi một danh sách gạch đầu
+        dòng ở dưới, mỗi dòng ba nút chữ. Người dùng phải đọc tên file để biết
+        đó là cái gì — mà tệp ở đây gần như luôn là bản scan giấy tờ, tên kiểu
+        `IMG_4821.jpg`.
+      */}
+      {tep.length === 0 && loaiGhiDuoc.length === 0 ? (
         <p className="trong">Chưa có tệp nào.</p>
       ) : (
-        <ul className="danh-sach-tep">
+        <div className="luoi-tep">
           {tep.map((t) => (
-            <li key={t.id}>
-              <span className="loai">{NHAN_LOAI[t.kind] ?? t.kind}</span>
-              <span>{t.fileName}</span>
-              <span className="phu">{ngayGio(t.uploadedAt)}</span>
-              <div className="nhom-nut nhom-nut-gon">
-                {/*
-                  *Xem* đứng TRƯỚC *Tải xuống* (`0051`): với bản scan thì xem là
-                  việc hay làm hơn hẳn — Kế toán mở ra đối chiếu chữ ký rồi đóng
-                  lại, không cần một bản sao nằm lại trong thư mục tải xuống.
-                */}
-                <button
-                  type="button"
-                  className="nut nut-nhe"
-                  disabled={dangChay === t.id}
-                  onClick={() => void xem(t)}
-                >
-                  Xem
-                </button>
-                <button
-                  type="button"
-                  className="nut nut-nhe"
-                  disabled={dangChay === t.id}
-                  onClick={() => tai(t)}
-                >
-                  {dangChay === t.id ? 'Đang tải…' : 'Tải xuống'}
-                </button>
-                {choPhepXoa && (
-                  <button
-                    type="button"
-                    className="nut nut-canh-bao"
-                    disabled={dangChay === t.id}
-                    onClick={() => datHoiGo(t)}
-                  >
-                    Gỡ
-                  </button>
-                )}
-              </div>
-            </li>
+            <TheTep
+              key={t.id}
+              tenTep={t.fileName}
+              phu={`${NHAN_LOAI[t.kind] ?? t.kind} · ${ngayGio(t.uploadedAt)}`}
+              duongXem={duongAnh[t.id] ?? null}
+              dangChay={dangChay === t.id}
+              choPhepGo={choPhepXoa}
+              xem={() => void xem(t)}
+              tai={() => void tai(t)}
+              go={() => datHoiGo(t)}
+            />
           ))}
-        </ul>
+
+          {/*
+            Vùng tải lên đứng CUỐI, cạnh những tệp đã có — chỗ để thêm nằm ngay
+            sau chỗ đang có, nên không phải đi tìm nút ở đâu khác rồi quay lại.
+
+            Chỉ hiện cho người CÓ QUYỀN: `loaiGhiDuoc` do máy chủ tính theo cả
+            trạng thái hồ sơ lẫn vai trò (`0069`), nên bản cứng chỉ Sale Admin
+            thấy vùng này, còn giấy tờ hồ sơ thì chỉ TDV.
+          */}
+          {loaiGhiDuoc.length > 0 && (
+            <VungTaiLen
+              nhan={`Thêm ${NHAN_LOAI[loaiGhiDuoc[0]!]?.toLowerCase() ?? 'tệp'}`}
+              dangTai={dangTaiLen}
+              chon={(f: File) => void taiLen(f)}
+            />
+          )}
+        </div>
       )}
 
       {dangXem && (
@@ -230,117 +298,6 @@ export function TepDinhKem({
         />
       )}
 
-      {moTai && (
-        <HopThoaiTaiTep
-          hoSoId={hoSoId}
-          loaiGhiDuoc={loaiGhiDuoc}
-          dong={() => datMoTai(false)}
-          xong={() => {
-            datMoTai(false);
-            taiLai();
-          }}
-        />
-      )}
     </>
-  );
-}
-
-function HopThoaiTaiTep({
-  hoSoId,
-  loaiGhiDuoc,
-  dong,
-  xong,
-}: {
-  hoSoId: string;
-  loaiGhiDuoc: string[];
-  dong: () => void;
-  xong: () => void;
-}) {
-  // Mặc định là loại ĐẦU TIÊN máy chủ cho phép, không phải `HO_SO` cứng: ở bước
-  // Sale Admin thì chỉ `SCAN` tải lên được, và mở hộp thoại ra đã chọn sẵn một
-  // loại sẽ hỏng là mời người dùng bấm Gửi rồi nhận 409.
-  const [loai, datLoai] = useState<string>(loaiGhiDuoc[0] ?? 'HO_SO');
-  const [tep, datTep] = useState<File | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tep) return;
-    datLoi(null);
-    datDangGui(true);
-    try {
-      const form = new FormData();
-      form.append('file', tep);
-      // Tên file đi kèm ĐÃ MÃ HOÁ URL: multer giải mã theo latin1, nên tên tiếng
-      // Việt qua đường `originalname` thành ký tự lạ (DOC-18).
-      const f = await guiTep<{ objectKey: string; sizeBytes: string }>(
-        `/files?ownerKind=POLICY&ownerId=${hoSoId}&purpose=${loai}` +
-          `&fileName=${encodeURIComponent(tep.name)}`,
-        form,
-      );
-      await dang(`/policies/${hoSoId}/attachments`, {
-        kind: loai,
-        fileName: tep.name,
-        objectKey: f.objectKey,
-        sizeBytes: f.sizeBytes,
-      });
-      xong();
-    } catch (err) {
-      datLoi(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
-
-  return (
-    <HopThoai tieuDe="Tải tệp lên" dong={dong}>
-      <form onSubmit={gui}>
-          {/*
-            Chỉ bày ô chọn khi thật sự CÓ gì để chọn (`0048`). Ở bước Sale Admin
-            chỉ tải được bản scan, ở hồ sơ nháp chỉ tải được tệp hồ sơ — một ô
-            chọn với đúng một lựa chọn hợp lệ và một lựa chọn trả 409 thì không
-            phải lựa chọn, mà là một cái bẫy.
-          */}
-          {loaiGhiDuoc.length > 1 ? (
-            <Truong id="tep-loai" nhan="Loại tệp" bắtBuộc>
-              {(p) => (
-                <select {...p} className="o-nhap" value={loai} onChange={(e) => datLoai(e.target.value)}>
-                  {loaiGhiDuoc.map((k) => (
-                    <option key={k} value={k}>
-                      {NHAN_LOAI[k] ?? k}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Truong>
-          ) : (
-            <p className="mo-ta-truong">
-              Loại tệp: <strong>{NHAN_LOAI[loai] ?? loai}</strong>
-            </p>
-          )}
-          <Truong id="tep-file" nhan="Tệp" bắtBuộc>
-            {(p) => (
-              <input
-                {...p}
-                className="o-nhap"
-                type="file"
-                onChange={(e) => datTep(e.target.files?.[0] ?? null)}
-              />
-            )}
-          </Truong>
-          <p className="ghi-chu">Tối đa 20MB mỗi tệp.</p>
-
-        {loi !== null && <BaoLoi loi={loi} />}
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || tep === null}>
-            {dangGui ? 'Đang tải…' : 'Tải lên'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Huỷ
-          </button>
-        </div>
-      </form>
-    </HopThoai>
   );
 }

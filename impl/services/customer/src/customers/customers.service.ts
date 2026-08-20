@@ -378,7 +378,7 @@ export class CustomersService {
     if (cur.tdv_user_id !== me.id) {
       throw new ForbiddenException({
         code: 'NOT_OWNING_TDV',
-        message: 'Chỉ Trình dược viên phụ trách khách hàng này mới xoá được.',
+        message: 'Chỉ Trình dược viên phụ trách khách hàng này mới làm được việc này.',
       });
     }
   }
@@ -388,8 +388,11 @@ export class CustomersService {
   async listDocuments(customerId: string, me: AuthUser) {
     await this.byId(customerId, me);
     return this.db.q(
-      `SELECT id, kind, file_name AS "fileName", size_bytes::text AS "sizeBytes",
-              uploaded_at AS "uploadedAt"
+      // `objectKey` đi kèm từ `0069`: giao diện cần nó để nối dòng này với file
+      // thật bên `document` — dòng ở đây mang mã để GỠ, còn file bên kia mang mã
+      // để XEM và TẢI. Thiếu nó thì màn hình phải chọn một trong hai việc.
+      `SELECT id, kind, file_name AS "fileName", object_key AS "objectKey",
+              size_bytes::text AS "sizeBytes", uploaded_at AS "uploadedAt"
          FROM cus.customer_document WHERE customer_id = $1 ORDER BY uploaded_at DESC`,
       [customerId],
     );
@@ -408,13 +411,52 @@ export class CustomersService {
     input: { kind: string; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
   ) {
-    await this.byId(customerId, me);
+    await this.assertTdvPhuTrach(customerId, me);
     const r = await this.db.one<{ id: string }>(
       `INSERT INTO cus.customer_document (customer_id, kind, file_name, object_key, size_bytes, uploaded_by)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
       [customerId, input.kind, input.fileName, input.objectKey, input.sizeBytes.toString(), me.id],
     );
     return { id: r!.id, ...input, sizeBytes: input.sizeBytes.toString() };
+  }
+
+  /**
+   * XOÁ một hồ sơ pháp lý (`0069`).
+   *
+   * Chưa từng có đường này: giấy tờ tải nhầm nằm lại vĩnh viễn, và cách duy nhất
+   * để sửa là tải thêm bản đúng rồi để hai bản cạnh nhau — người đọc sau không
+   * biết bản nào là bản dùng được.
+   *
+   * Chỉ xoá con trỏ ở `cus.customer_document`, KHÔNG xoá file trên kho: file có
+   * vòng đời riêng do `document` giữ, và `sys.run_retention()` dọn theo vòng đời
+   * chung. Cùng cách làm với việc gỡ tệp đính kèm của hồ sơ.
+   */
+  async removeDocument(customerId: string, documentId: string, me: AuthUser) {
+    await this.assertTdvPhuTrach(customerId, me);
+    const r = await this.db.q(
+      `DELETE FROM cus.customer_document WHERE id = $1 AND customer_id = $2 RETURNING id`,
+      [documentId, customerId],
+    );
+    if (r.length === 0) throw new NotFoundException({ code: 'DOCUMENT_NOT_FOUND' });
+    return { ok: true };
+  }
+
+  /**
+   * Chỉ TDV PHỤ TRÁCH khách hàng ấy mới thêm và gỡ hồ sơ pháp lý (`0069`).
+   *
+   * Tới `0068` mọi vai trò ghi đều tải lên được cho MỌI khách trong phạm vi của
+   * mình — Trưởng bộ phận, Kế toán, Sale Admin. Giấy tờ pháp lý là thứ TDV xin
+   * của khách và mang về; ba vai trò kia không cầm bản gốc bao giờ, và họ tải
+   * lên được nghĩa là không ai biết bản trên hệ thống đến từ đâu.
+   *
+   * Dùng lại `assertChinhTdv` — phép kiểm đã có sẵn cho việc xoá khách hàng, và
+   * nó trả về đúng mã lỗi `NOT_OWNING_TDV` mà giao diện đã biết đọc.
+   */
+  private async assertTdvPhuTrach(customerId: string, me: AuthUser): Promise<void> {
+    const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [customerId]);
+    if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
+    await this.assertInScope(cur.tdv_user_id, me, customerId);
+    this.assertChinhTdv(cur, me);
   }
 
   // --- Trợ giúp -------------------------------------------------------------

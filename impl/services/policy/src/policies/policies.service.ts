@@ -132,15 +132,47 @@ export const xoaDuoc = (status: string, tdvUserId: string | null, me: AuthUser):
  * Rỗng nghĩa là không hiện nút *Tải tệp lên* — thẳng thắn hơn hẳn việc hiện nút
  * rồi trả 409 khi người ta đã chọn xong file.
  */
-export const loaiTepGhiDuoc = (status: string): string[] => {
-  if (EDITABLE.includes(status)) return ['HO_SO'];
-  if (status === 'SA_DANG_XU_LY') return ['SCAN'];
+export const loaiTepGhiDuoc = (status: string, role?: string): string[] => {
+  /*
+   * VAI TRÒ, không chỉ trạng thái (`0069`).
+   *
+   * Tới `0068` hàm này chỉ xét trạng thái, nên ở bước *Sale Admin xử lý* thì
+   * MỌI vai trò trong luồng đều thấy nút tải bản scan lên — kể cả kế toán, và
+   * máy chủ nhận thật. Bản scan là bản giấy có chữ ký khách hàng, do chính Sale
+   * Admin in ra, trình ký, rồi scan lại; không ai khác cầm nó trong tay.
+   *
+   * Cặp khoá ở đây phải khớp từng dòng với phép kiểm trong `WorkflowService`:
+   * đây là thứ QUYẾT ĐỊNH nút có hiện hay không, còn kia là thứ chặn thật.
+   */
+  if (EDITABLE.includes(status)) return NGUOI_GHI_TEP.HO_SO === role ? ['HO_SO'] : [];
+  if (status === 'SA_DANG_XU_LY') return NGUOI_GHI_TEP.SCAN === role ? ['SCAN'] : [];
   return [];
 };
 
-/** Gỡ tệp được không — cùng luật với `WorkflowService.detach`. */
-export const tepXoaDuoc = (status: string): boolean =>
-  [...EDITABLE, 'SA_DANG_XU_LY'].includes(status);
+/**
+ * Ai được tải lên và gỡ TỪNG LOẠI tệp của hồ sơ (`0069`).
+ *
+ * `HO_SO` — giấy tờ kèm theo hồ sơ, đính lúc lập: việc của Trình dược viên.
+ * `SCAN`  — bản cứng đã ký, scan lại: việc của Sale Admin.
+ *
+ * Bảng tra chứ không phải hai câu `if` rải trong ba tệp: cùng một luật đang được
+ * đọc ở ba chỗ (nút trên màn hình, phép chặn lúc tải lên, phép chặn lúc gỡ), và
+ * ba bản chép sẽ lệch nhau vào ngày ai đó đổi một chỗ.
+ */
+export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
+  HO_SO: 'TDV',
+  SCAN: 'SALE_ADMIN',
+};
+
+/**
+ * Gỡ tệp được không — cùng luật với `WorkflowService.detach`.
+ *
+ * Suy từ `loaiTepGhiDuoc`: gỡ được đúng khi tải lên được. Hai luật tách rời là
+ * hai luật sẽ lệch, mà lệch ở đây nghĩa là có người gỡ được thứ họ không đặt
+ * vào — hoặc đặt vào rồi không gỡ ra được.
+ */
+export const tepXoaDuoc = (status: string, role?: string): boolean =>
+  loaiTepGhiDuoc(status, role).length > 0;
 
 /**
  * Xuất hợp đồng được chưa (muc 8.3).
@@ -951,8 +983,8 @@ export class PoliciesService {
               trangThai: khach.status ?? null,
             },
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
-      loaiTepGhiDuoc: loaiTepGhiDuoc(p.status),
-      tepXoaDuoc: tepXoaDuoc(p.status),
+      loaiTepGhiDuoc: loaiTepGhiDuoc(p.status, me.role),
+      tepXoaDuoc: tepXoaDuoc(p.status, me.role),
       xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
       banScanCu: await this.banScanCu(policyId, p.status),
     };

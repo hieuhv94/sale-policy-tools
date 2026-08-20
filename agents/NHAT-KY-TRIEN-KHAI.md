@@ -7065,3 +7065,70 @@ trong hướng dẫn giờ trỏ tới một khoá không tồn tại, và ngư�
 với `SOURCE_UNKNOWN`. Đã nêu trước khi làm và khách hàng chọn như vậy.
 
 **1282/1282 xanh.**
+
+## P96 — Thẻ tệp có ảnh thu nhỏ, vùng kéo thả, và ai được đụng vào tệp nào
+
+Yêu cầu 20/08 về mọi chỗ có tệp đính kèm. Hai phần: hình thức, và quyền.
+
+### Thẻ thay cho dòng danh sách
+
+Bản trước: danh sách gạch đầu dòng, mỗi dòng ba nút **chữ** — *Xem*, *Tải xuống*, *Gỡ*. Vấn đề không
+nằm ở số nút mà ở chỗ **người dùng phải đọc tên file để biết đó là cái gì**, trong khi tệp ở đây gần
+như luôn là bản scan giấy tờ tên kiểu `IMG_4821.jpg`.
+
+Giờ mỗi tệp là một thẻ có ảnh thu nhỏ. Ảnh thì hiện chính nó (tải qua `blob:`, vì thẻ `<img>` không
+gửi được header `Authorization`); PDF và Word hiện đuôi file bằng chữ — `PDF` đọc được ở 40 pixel,
+còn một biểu tượng tài liệu chung chung thì không phân biệt được ba loại.
+
+Ảnh thu nhỏ **chỉ xin liên kết cho tệp ảnh**: mỗi ảnh tốn hai lời gọi (tra `fileId`, xin token), và
+với bản scan PDF — phần lớn tệp ở đây — thì không gọi gì cả.
+
+Ba thao tác đặt theo **mức nguy hiểm**: xem và tải nằm giữa thẻ, hiện khi rê chuột; gỡ nằm ở góc
+trên bên phải, **luôn hiện**. Một thao tác phá huỷ mà phải mò mới thấy thì càng dễ bấm nhầm; và nó
+tách hẳn khỏi chỗ tay đang bấm hai việc lành kia.
+
+> `:focus-within` là nửa dễ quên của "hiện khi rê chuột": thiếu nó thì người đi bằng bàn phím Tab tới
+> nút Xem mà nút ấy vẫn trong suốt — tiêu điểm nằm ở một chỗ không nhìn thấy. Và `@media (hover:
+> none)` cho màn hình cảm ứng, nơi không có "rê" nào cả.
+
+### Vùng kéo thả đứng CẠNH tệp đã có
+
+Không phải một nút *Tải lên* ở trên rồi danh sách ở dưới: chỗ để thêm nằm ngay sau chỗ đang có, cùng
+kích thước, cùng hàng. Ba đường vào một việc — kéo thả, bấm vào giữa, và bàn phím (vùng là một
+`<button>` thật, nên Tab rồi Enter là mở hộp chọn file).
+
+Hộp thoại tải lên của bản cứng **bỏ hẳn**: nó hỏi *loại tệp*, mà `loaiTepGhiDuoc` chỉ trả về đúng
+một loại ở mọi trạng thái — một câu hỏi có một đáp án. Hồ sơ pháp lý thì GIỮ hộp hỏi loại, vì bốn
+loại giấy tờ đều hợp lệ và chỉ người tải mới biết mình đang cầm cái gì.
+
+### Quyền: một lỗ hổng thật, không chỉ chuyện hiển thị
+
+Yêu cầu *"chỉ người có quyền mới hiện biểu tượng gỡ và vùng upload"* nghe như việc của giao diện.
+Nhưng phép kiểm phía máy chủ khi ấy **chỉ xét TRẠNG THÁI hồ sơ**, nên ở bước *Sale Admin xử lý* thì
+kế toán tải được bản scan lên — và **gỡ được bản scan đi, chặn luôn bước bàn giao**.
+
+| Tệp | Ai được thêm và gỡ |
+|---|---|
+| Bản cứng đã scan | **Sale Admin** |
+| Giấy tờ của hồ sơ | **TDV**, khi hồ sơ còn sửa được |
+| Hồ sơ pháp lý khách hàng | **TDV phụ trách chính khách hàng ấy** |
+
+Luật nằm ở **một bảng tra** `NGUOI_GHI_TEP`, đọc từ ba chỗ: cờ quyết định nút có hiện hay không,
+phép chặn lúc tải lên, phép chặn lúc gỡ. Ba bản chép sẽ lệch nhau vào ngày ai đó đổi một chỗ — và
+lệch chiều nào cũng tệ: nút hiện rồi trả 403, hoặc nút ẩn mà đường vẫn mở. Có ca kiểm thử đối chiếu
+đúng hai vế ấy.
+
+Gỡ theo **loại của chính tệp ấy**, không theo trạng thái hồ sơ: một hồ sơ ở bước Sale Admin vẫn còn
+giấy tờ do TDV đính lúc lập, và Sale Admin không có việc gì với chúng.
+
+### Một đường còn thiếu
+
+`DELETE /customers/:id/documents/:documentId` **chưa từng tồn tại**. Giấy tờ pháp lý tải nhầm nằm lại
+vĩnh viễn, và cách duy nhất để sửa là tải thêm bản đúng rồi để hai bản cạnh nhau — người đọc sau
+không biết bản nào dùng được. Thêm cùng lượt này, cùng luật "chỉ TDV phụ trách".
+
+`GET /customers/:id/documents` cũng trả thêm `objectKey`: dòng ở `customer` mang mã để GỠ và mang
+loại giấy tờ, file bên `document` mang mã để XEM và TẢI. Không có nó thì màn hình phải chọn một
+trong hai việc — và bản trước đã chọn: nó đọc từ `document` nên không gỡ được gì.
+
+**1291/1291 xanh.**

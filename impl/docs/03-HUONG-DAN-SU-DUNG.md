@@ -307,6 +307,22 @@ khách hàng ra.
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
 không riêng Trình dược viên.
 
+### Hồ sơ pháp lý `sửa 20/08`
+
+Giấy phép kinh doanh, chứng chỉ hành nghề, giấy tờ tuỳ thân. Hiển thị giống hệt phần *Bản cứng* của
+hồ sơ: mỗi giấy tờ một **thẻ có ảnh thu nhỏ**, rê chuột hiện **con mắt** để xem và **mũi tên xuống**
+để tải, dấu **✕** ở góc để gỡ. Thêm bằng **vùng kéo thả** ở cuối hàng; chọn xong file thì phần mềm
+hỏi *loại giấy tờ* rồi mới tải lên.
+
+**Chỉ Trình dược viên phụ trách khách hàng ấy** mới thêm và gỡ được. Người khác vẫn xem và tải bình
+thường, chỉ không thấy dấu ✕ và vùng kéo thả.
+
+> Trước 20/08 mọi vai trò ghi đều tải lên được, cho mọi khách trong phạm vi của mình. Giấy tờ pháp lý
+> là thứ TDV xin của khách và mang về — ba vai trò kia không cầm bản gốc bao giờ.
+>
+> **Gỡ giấy tờ** là việc mới. Trước đó tải nhầm là nằm lại vĩnh viễn, và cách duy nhất để sửa là tải
+> thêm bản đúng rồi để hai bản cạnh nhau — người đọc sau không biết bản nào dùng được.
+
 > **Ba ô Tỉnh/thành · Bệnh viện–điểm bán · Kênh bán đã bỏ.** Ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
 > phẩm và loại khách hàng, nên ba ô ấy không còn ảnh hưởng tới bất kỳ con số nào. Dữ liệu đã nhập của
 > chúng không còn nữa; muốn lọc theo địa bàn thì dùng ô **Địa chỉ đăng ký**.
@@ -837,8 +853,27 @@ Mở một hồ sơ:
 
 ### Bản cứng (tệp đính kèm)
 
-Tải lên, tải xuống và gỡ tệp của hồ sơ. Bốn vai trò trong luồng đều làm được, không riêng Trình dược
-viên — bản scan có chữ ký thường do người tiếp nhận đính vào.
+Mỗi tệp là một **thẻ có ảnh thu nhỏ** `sửa 20/08`. Rê chuột lên thẻ thì hiện hai nút ở giữa: **con
+mắt** để xem ngay trong phần mềm, **mũi tên xuống** để tải về. Dấu **✕** ở góc trên bên phải là gỡ
+tệp.
+
+> Tệp ở đây gần như luôn là bản scan giấy tờ, mà người ta nhận ra chúng bằng cách nhìn chứ không
+> bằng cách đọc tên `IMG_4821.jpg`. Ảnh thì hiện chính nó; PDF và Word hiện đuôi file.
+
+Thêm tệp bằng **vùng kéo thả** ở cuối hàng: kéo file vào, hoặc bấm vào giữa để chọn từ máy.
+
+**Ai làm được gì** `sửa 20/08`:
+
+| Việc | Ai |
+|---|---|
+| Xem và tải | Mọi vai trò đọc được hồ sơ |
+| Thêm và gỡ **bản cứng đã scan** | **Chỉ Sale Admin** |
+| Thêm và gỡ **giấy tờ của hồ sơ** | **Chỉ Trình dược viên**, và chỉ khi hồ sơ còn sửa được |
+
+> Trước 20/08 cả bốn vai trò trong luồng đều tải lên và gỡ được. Bản scan là bản giấy có chữ ký
+> khách hàng, do chính Sale Admin in ra, trình ký rồi scan lại — không ai khác cầm nó trong tay, nên
+> không ai khác có gì để mà tải lên. Ai không có quyền thì **không thấy dấu ✕ và không thấy vùng kéo
+> thả**; thẻ vẫn xem và tải bình thường.
 
 Mỗi tệp tối đa **20MB**. Đường tải cấp riêng cho từng người và **hết hạn sau vài phút**; hết hạn thì
 mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi hồ sơ.

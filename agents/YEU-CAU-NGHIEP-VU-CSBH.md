@@ -70,7 +70,8 @@ thường chưa có hồ sơ nào nên không đường nào khác với tới.
 
 **Được làm**
 
-- Tạo khách hàng, nhập thông tin và tải hồ sơ pháp lý. Mã khách hàng do kế toán cấp bên ngoài
+- Tạo khách hàng, nhập thông tin và tải hồ sơ pháp lý — **chỉ TDV phụ trách khách hàng ấy mới thêm
+  và gỡ được giấy tờ** `sửa 20/08`; vai trò khác xem và tải. Mã khách hàng do kế toán cấp bên ngoài
   phần mềm; hệ thống chỉ chặn tạo mới trùng mã đã có.
 - Lập CSBH: chọn khách hàng, chọn sản phẩm từ danh mục, nhập giá bán buôn và các khoản chi phí bán
   hàng. **Số khoản CPBH tuỳ từng dòng sản phẩm**, không cố định bốn `sửa 15/08`.
@@ -392,7 +393,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
 | **Trạng thái** `16/08` | Bình thường · **Đã xoá**. Khách đã xoá biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
-| Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác; bấm tên file để xem |
+| Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác. Hiện thành **thẻ có ảnh thu nhỏ**, rê chuột ra nút xem và tải, dấu ✕ để gỡ `sửa 20/08` |
 
 > **Ba trường Tỉnh/thành · Bệnh viện–điểm bán · Kênh đã BỎ HẲN** `sửa 16/08`. Chúng từng là danh
 > mục có mã, phục vụ lọc và báo cáo, và kênh còn là một chiều của quy định chiết khấu. Nghiệp vụ chốt
@@ -848,6 +849,12 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   > đáng ghi. Ghi cả hai thì mỗi lần liếc màn hình thành một dòng, và những dòng nói về bước duyệt
   > bị dìm mất — lịch sử hồ sơ sinh ra để kể chuyện hồ sơ đã đi qua tay ai, không phải để đếm lượt
   > mở màn hình.
+- **Ai được đụng vào tệp nào** `mới 20/08`: bản cứng đã scan — **chỉ Sale Admin**; giấy tờ của hồ sơ
+  — **chỉ TDV**, và chỉ khi hồ sơ còn sửa được; hồ sơ pháp lý khách hàng — **chỉ TDV phụ trách khách
+  hàng ấy**. Vai trò khác xem và tải bình thường, nhưng không thấy nút gỡ lẫn vùng tải lên.
+  > Bản trước cho cả bốn vai trò trong luồng. Bản scan là bản giấy có chữ ký khách hàng, do chính
+  > Sale Admin in ra, trình ký rồi scan lại — không ai khác cầm nó trong tay. Và gỡ nó ra thì chặn
+  > luôn bước bàn giao.
 - **Lịch sử của hồ sơ ghi lượt TẢI XUỐNG BẢN CỨNG** `sửa 20/08`: bản scan và tệp đính kèm — kèm
   người tải và thời điểm. Chúng nằm cùng chỗ với các bước duyệt vì cùng trả lời một câu: hồ sơ này
   đã đi qua tay ai.

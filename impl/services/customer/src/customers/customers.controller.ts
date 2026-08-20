@@ -46,6 +46,23 @@ export class CustomersController {
     });
     return this.customers.attachDocument(id, b, me);
   }
+  /**
+   * Gỡ một hồ sơ pháp lý (`0069`).
+   *
+   * `@Roles(...WRITERS)` chỉ là cửa ngoài; phép kiểm thật — **đúng TDV phụ
+   * trách khách hàng ấy** — nằm ở service, vì nó cần đọc dòng khách hàng ra mới
+   * trả lời được.
+   */
+  @Roles(...WRITERS)
+  @Delete(':id/documents/:documentId')
+  removeDocument(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.customers.removeDocument(id, documentId, me);
+  }
+
 
   @Roles(...WRITERS)
   @Post()

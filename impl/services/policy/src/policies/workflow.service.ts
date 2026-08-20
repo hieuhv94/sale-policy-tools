@@ -31,7 +31,7 @@ import { emit } from '../infra/emit.js';
 import { vaiTroConLai, type BonNguoi } from '../infra/nguoi-nhan.js';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
-import { daTacDong, PoliciesService } from './policies.service.js';
+import { daTacDong, NGUOI_GHI_TEP, PoliciesService } from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
 const RECIPIENTS: Partial<Record<Action, string[]>> = {
@@ -622,6 +622,7 @@ export class WorkflowService {
         status: p.status,
       });
     }
+    this.assertNguoiGhiTep(input.kind, me);
 
     const r = await this.db.one<{ id: string }>(
       `INSERT INTO pol.policy_attachment (policy_id, kind, file_name, object_key, size_bytes, uploaded_by)
@@ -648,11 +649,46 @@ export class WorkflowService {
     if (!['NHAP', 'YEU_CAU_CHINH_SUA', 'SA_DANG_XU_LY'].includes(p.status)) {
       throw new ConflictException({ code: 'POLICY_LOCKED' });
     }
+
+    // Gỡ theo LOẠI của chính tệp ấy, không theo trạng thái hồ sơ: một hồ sơ ở
+    // bước Sale Admin vẫn còn giấy tờ do TDV đính lúc lập, và Sale Admin không
+    // có việc gì với chúng.
+    const t = await this.db.one<{ kind: 'HO_SO' | 'SCAN' }>(
+      `SELECT kind::text AS kind FROM pol.policy_attachment WHERE id = $1 AND policy_id = $2`,
+      [attachmentId, policyId],
+    );
+    if (!t) throw new NotFoundException({ code: 'ATTACHMENT_NOT_FOUND' });
+    this.assertNguoiGhiTep(t.kind, me);
+
     await this.db.q(`DELETE FROM pol.policy_attachment WHERE id = $1 AND policy_id = $2`, [
       attachmentId,
       policyId,
     ]);
     return { ok: true };
+  }
+
+  /**
+   * Chỉ đúng vai trò được đụng vào từng LOẠI tệp (`0069`).
+   *
+   * Tới `0068` cả hai đường chỉ xét trạng thái hồ sơ, nên ở bước *Sale Admin xử
+   * lý* thì kế toán tải được bản scan lên và gỡ được bản scan đi. Bản scan là
+   * bản giấy có chữ ký khách hàng do chính Sale Admin cầm trong tay — không ai
+   * khác có nó để mà tải lên, và việc gỡ nó ra chặn cả bước bàn giao.
+   *
+   * Bảng tra dùng chung với `loaiTepGhiDuoc`, thứ quyết định nút có hiện hay
+   * không. Một bản chép thứ hai ở đây là chỗ để hai bên lệch nhau — và lệch theo
+   * chiều nào cũng tệ: nút hiện rồi trả 403, hoặc nút ẩn mà đường vẫn mở.
+   */
+  private assertNguoiGhiTep(kind: 'HO_SO' | 'SCAN', me: AuthUser): void {
+    if (me.role !== NGUOI_GHI_TEP[kind]) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN_ROLE',
+        message:
+          kind === 'SCAN'
+            ? 'Chỉ Sale Admin tải lên và gỡ bản cứng đã scan'
+            : 'Chỉ Trình dược viên đính và gỡ giấy tờ của hồ sơ',
+      });
+    }
   }
 }
 

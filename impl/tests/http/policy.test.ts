@@ -970,10 +970,19 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       );
 
     it('`loaiTepGhiDuoc` khớp đúng loại tệp máy chủ nhận', async () => {
+      /*
+       * Bảng này đọc bằng CON MẮT CỦA `tdv01`, và từ `0069` điều đó có nghĩa.
+       *
+       * Cờ giờ xét cả VAI TRÒ: `SCAN` chỉ Sale Admin, `HO_SO` chỉ TDV. Nên với
+       * `tdv01` thì `SA_DANG_XU_LY` cho ra danh sách RỖNG — đúng, vì bản scan
+       * không phải việc của họ. Nửa còn lại (Sale Admin thấy `['SCAN']`) nằm ở
+       * ca `0069` phía dưới, nơi hồ sơ đi hết luồng thật nên `sa01` mới trong
+       * phạm vi.
+       */
       const MONG: Record<string, string[]> = {
         NHAP: ['HO_SO'],
         YEU_CAU_CHINH_SUA: ['HO_SO'],
-        SA_DANG_XU_LY: ['SCAN'],
+        SA_DANG_XU_LY: [],
         CHO_TBP_DUYET: [],
         CHO_KT_L1: [],
         CHO_KT_L2: [],
@@ -3806,4 +3815,87 @@ describe('0029 box Yêu cầu cập nhật', () => {
       );
     });
   }
+});
+
+// =============================================================================
+// `0069` — mỗi loại tệp một người, không phải mọi vai trò trong luồng
+// =============================================================================
+
+describe('`0069` ai được đụng vào tệp nào', () => {
+  /*
+   * Tới `0068` phép kiểm chỉ xét TRẠNG THÁI hồ sơ. Nghĩa là ở bước *Sale Admin
+   * xử lý*, kế toán tải được bản scan lên — và gỡ được bản scan đi, chặn luôn
+   * bước bàn giao.
+   *
+   * Bản scan là bản giấy có chữ ký khách hàng, do chính Sale Admin in ra, trình
+   * ký rồi scan lại. Không ai khác cầm nó trong tay, nên không ai khác có gì để
+   * mà tải lên.
+   */
+  const toiBuocSaleAdmin = async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    return d;
+  };
+
+  const banScan = (d: { id: string }) => ({
+    kind: 'SCAN',
+    fileName: 'ban-cung.pdf',
+    objectKey: `scan/${d.id}-0069.pdf`,
+  });
+
+  it('BẢN SCAN: Sale Admin tải lên được, ba vai trò kia đều 403', async () => {
+    const d = await toiBuocSaleAdmin();
+    for (const who of ['tdv01', 'tbp01', 'kt01']) {
+      const r = await post(`/policies/${d.id}/attachments`, banScan(d), who);
+      expect(r.status, `${who} không được tải bản scan`).toBe(403);
+      expect(r.body.code).toBe('FORBIDDEN_ROLE');
+    }
+    expect((await post(`/policies/${d.id}/attachments`, banScan(d), 'sa01')).status).toBe(201);
+  }, 60_000);
+
+  it('BẢN SCAN: chỉ Sale Admin gỡ được — kế toán gỡ là chặn cả bước bàn giao', async () => {
+    const d = await toiBuocSaleAdmin();
+    const t = await post(`/policies/${d.id}/attachments`, banScan(d), 'sa01');
+    expect(t.status).toBe(201);
+
+    const kt = await del(`/policies/${d.id}/attachments/${t.body.id}`, 'kt01');
+    expect(kt.status).toBe(403);
+    expect(kt.body.code).toBe('FORBIDDEN_ROLE');
+    expect((await del(`/policies/${d.id}/attachments/${t.body.id}`, 'sa01')).status).toBe(200);
+  }, 60_000);
+
+  it('GIẤY TỜ HỒ SƠ: chỉ TDV, kể cả khi hồ sơ còn Nháp', async () => {
+    const d = await draft();
+    const tep = { kind: 'HO_SO', fileName: 'giay-phep.pdf', objectKey: `hs/${d.id}-0069.pdf` };
+    for (const who of ['tbp01', 'kt01', 'sa01']) {
+      expect((await post(`/policies/${d.id}/attachments`, tep, who)).status, who).toBe(403);
+    }
+    expect((await post(`/policies/${d.id}/attachments`, tep, 'tdv01')).status).toBe(201);
+  }, 60_000);
+
+  it('cờ trên MÀN HÌNH khớp đúng phép chặn — không bày nút chắc chắn 403', async () => {
+    /*
+     * `loaiTepGhiDuoc` quyết định vùng tải lên có hiện hay không, còn
+     * `assertNguoiGhiTep` là thứ chặn thật. Hai bên lệch nhau theo chiều nào
+     * cũng tệ: nút hiện rồi trả 403, hoặc nút ẩn mà đường vẫn mở.
+     */
+    const d = await toiBuocSaleAdmin();
+    const cua = async (who: string) =>
+      (await get(`/policies/${d.id}`, who)).body as {
+        loaiTepGhiDuoc: string[];
+        tepXoaDuoc: boolean;
+      };
+
+    const sa = await cua('sa01');
+    expect(sa.loaiTepGhiDuoc).toEqual(['SCAN']);
+    expect(sa.tepXoaDuoc).toBe(true);
+
+    for (const who of ['tdv01', 'tbp01', 'kt01']) {
+      const x = await cua(who);
+      expect(x.loaiTepGhiDuoc, `${who} không được thấy vùng tải lên`).toEqual([]);
+      expect(x.tepXoaDuoc, `${who} không được thấy nút gỡ`).toBe(false);
+    }
+  }, 60_000);
 });

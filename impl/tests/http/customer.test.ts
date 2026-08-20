@@ -776,3 +776,82 @@ describe('0023 sửa loại khách hàng', () => {
     expect(ev?.after.customerType).toBe(2);
   });
 });
+
+// =============================================================================
+// `0069` — hồ sơ pháp lý: chỉ TDV phụ trách khách hàng ấy
+// =============================================================================
+
+describe('`0069` hồ sơ pháp lý chỉ của TDV phụ trách', () => {
+  /*
+   * Tới `0068` mọi vai trò GHI đều tải lên được, cho mọi khách trong phạm vi của
+   * mình — Trưởng bộ phận, Kế toán, Sale Admin.
+   *
+   * Giấy tờ pháp lý là thứ TDV xin của khách và mang về. Ba vai trò kia không
+   * cầm bản gốc bao giờ, nên họ tải lên được nghĩa là không ai biết bản trên hệ
+   * thống đến từ đâu.
+   */
+  const giayTo = (i: number) => ({
+    kind: 'GIAY_PHEP_KINH_DOANH',
+    fileName: `giay-phep-${i}.pdf`,
+    objectKey: `phap_ly/0069-${i}-${Date.now()}.pdf`,
+    sizeBytes: '2048',
+  });
+
+  /** Ba vai trò GHI khác — `tbp01` không có token trong tệp này. */
+  const NGUOI_KHAC = ['kt01', 'sa01'];
+
+  it('TDV phụ trách thêm được; ba vai trò kia đều 403', async () => {
+    const c = await post('/customers', base());
+    expect(c.status).toBe(201);
+
+    for (const who of NGUOI_KHAC) {
+      const r = await post(`/customers/${c.body.id}/documents`, giayTo(1), who);
+      expect(r.status, `${who} không được thêm giấy tờ`).toBe(403);
+      /*
+       * HAI mã lỗi đều đúng, và thứ tự giữa chúng là chi tiết cài đặt.
+       *
+       * Khách vừa lập thì kế toán và Sale Admin còn NGOÀI PHẠM VI — họ chỉ thấy
+       * khách của những hồ sơ mình đã xử lý — nên phép kiểm phạm vi nổ trước và
+       * trả `OUT_OF_SCOPE`. Xử xong một hồ sơ của khách ấy thì họ vào được phạm
+       * vi, và lúc đó mới tới `NOT_OWNING_TDV`.
+       *
+       * Khẳng định đúng một mã là buộc chặt ca này vào thứ tự hai phép kiểm —
+       * đảo thứ tự vì lý do khác là ca đỏ mà chẳng có gì hỏng.
+       */
+      expect(['OUT_OF_SCOPE', 'NOT_OWNING_TDV']).toContain(r.body.code);
+    }
+    expect((await post(`/customers/${c.body.id}/documents`, giayTo(2), 'tdv01')).status).toBe(201);
+  });
+
+  it('`0069` GỠ được — và cũng chỉ TDV phụ trách', async () => {
+    /*
+     * Đường xoá này CHƯA TỪNG CÓ. Giấy tờ tải nhầm nằm lại vĩnh viễn, và cách
+     * duy nhất để sửa là tải thêm bản đúng rồi để hai bản cạnh nhau — người đọc
+     * sau không biết bản nào dùng được.
+     */
+    const c = await post('/customers', base());
+    const t = await post(`/customers/${c.body.id}/documents`, giayTo(3), 'tdv01');
+    expect(t.status).toBe(201);
+
+    for (const who of NGUOI_KHAC) {
+      expect((await del(`/customers/${c.body.id}/documents/${t.body.id}`, who)).status, who).toBe(403);
+    }
+    expect((await del(`/customers/${c.body.id}/documents/${t.body.id}`, 'tdv01')).status).toBe(200);
+
+    const con = await get(`/customers/${c.body.id}/documents`);
+    expect((con.body as { id: string }[]).some((x) => x.id === t.body.id)).toBe(false);
+  });
+
+  it('danh sách trả kèm `objectKey` — màn hình cần nó để nối với file thật', () => {
+    // Dòng ở `customer` mang mã để GỠ và mang loại giấy tờ; file bên `document`
+    // mang mã để XEM và TẢI. Không có `objectKey` thì màn hình phải chọn một
+    // trong hai việc.
+    return post('/customers', base())
+      .then((c) => post(`/customers/${c.body.id}/documents`, giayTo(4), 'tdv01').then(() => c))
+      .then((c) => get(`/customers/${c.body.id}/documents`))
+      .then((r) => {
+        expect(r.status).toBe(200);
+        expect((r.body as { objectKey?: string }[])[0]?.objectKey).toBeDefined();
+      });
+  });
+});

@@ -66,14 +66,49 @@ afterEach(() => {
 });
 
 describe('`0051` xem tệp đính kèm không cần tải về', () => {
-  it('mỗi tệp có nút Xem, và nó đứng TRƯỚC nút Tải xuống', async () => {
+  it('`0069` mỗi tệp là một THẺ, hai thao tác nằm giữa ảnh thu nhỏ', async () => {
+    /*
+     * Bản trước là danh sách gạch đầu dòng với ba nút CHỮ mỗi dòng. Tệp ở đây
+     * gần như luôn là bản scan giấy tờ, mà người ta nhận ra chúng bằng cách
+     * nhìn chứ không bằng cách đọc tên `IMG_4821.jpg`.
+     *
+     * *Xem* đứng TRƯỚC *Tải xuống*: với bản scan thì xem là việc hay làm hơn
+     * hẳn — Kế toán mở ra đối chiếu chữ ký rồi đóng, không cần một bản sao nằm
+     * lại trong thư mục tải xuống.
+     */
     chan();
     bay();
-    const nut = [...document.querySelectorAll('.danh-sach-tep button')].map((b) => b.textContent);
-    // Với bản scan thì xem là việc hay làm hơn hẳn — Kế toán mở ra đối chiếu
-    // chữ ký rồi đóng, không cần một bản sao nằm lại trong thư mục tải xuống.
-    expect(nut[0]).toBe('Xem');
-    expect(nut[1]).toBe('Tải xuống');
+    const the = document.querySelector('.the-tep');
+    expect(the, 'phải là thẻ tệp, không phải dòng danh sách').not.toBeNull();
+    const nhan = [...the!.querySelectorAll('.the-tep-thao-tac button')].map((b) =>
+      b.getAttribute('aria-label'),
+    );
+    expect(nhan[0]).toBe('Xem ban-cung-da-ky.pdf');
+    expect(nhan[1]).toBe('Tải xuống ban-cung-da-ky.pdf');
+  });
+
+  it('`0069` KHÔNG có quyền thì không có nút gỡ và không có vùng tải lên', async () => {
+    // Thẻ vẫn xem và tải được — chỉ hai thứ GHI mới ẩn đi.
+    chan();
+    bay();
+    expect(document.querySelector('.the-tep-go'), 'không được có nút gỡ').toBeNull();
+    expect(document.querySelector('.vung-tai-len'), 'không được có vùng tải lên').toBeNull();
+    expect(document.querySelector('.the-tep-thao-tac')).not.toBeNull();
+  });
+
+  it('`0069` CÓ quyền thì hiện cả nút gỡ lẫn vùng tải lên', async () => {
+    chan();
+    render(
+      <TepDinhKem
+        hoSoId="hs-1"
+        tep={TEP}
+        loaiGhiDuoc={['SCAN']}
+        choPhepXoa
+        taiLai={() => undefined}
+      />,
+    );
+    expect(document.querySelector('.the-tep-go')).not.toBeNull();
+    expect(document.querySelector('.vung-tai-len')).not.toBeNull();
   });
 
   it('bấm Xem thì đi qua ĐỦ hai bước rồi mới mở hộp', async () => {
@@ -81,7 +116,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     const f = chan();
     bay();
 
-    await nguoi.click(screen.getByRole('button', { name: 'Xem' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Xem ban-cung-da-ky.pdf' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
 
     const duong = f.mock.calls.map((c) => String(c[0]));
@@ -101,7 +136,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     const f = chan();
     bay();
 
-    await nguoi.click(screen.getByRole('button', { name: 'Xem' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Xem ban-cung-da-ky.pdf' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
     const khiXem = f.mock.calls.map((c) => String(c[0])).filter((d) => d.includes('/content'));
     expect(khiXem.every((d) => d.includes('xem=1')), khiXem.join(' · ')).toBe(true);
@@ -119,7 +154,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     const nguoi = userEvent.setup();
     const f = chan();
     bay();
-    await nguoi.click(screen.getByRole('button', { name: 'Tải xuống' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Tải xuống ban-cung-da-ky.pdf' }));
     await waitFor(() => {
       const goi = f.mock.calls.map((c) => String(c[0])).filter((d) => d.includes('/content'));
       expect(goi.length).toBeGreaterThan(0);
@@ -131,7 +166,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     const nguoi = userEvent.setup();
     chan();
     bay();
-    await nguoi.click(screen.getByRole('button', { name: 'Xem' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Xem ban-cung-da-ky.pdf' }));
     // Mở ba bản scan liền nhau thì tiêu đề là thứ duy nhất phân biệt được chúng.
     await waitFor(() =>
       expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('ban-cung-da-ky.pdf'),
@@ -149,7 +184,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
       ),
     );
     bay();
-    await nguoi.click(screen.getByRole('button', { name: 'Xem' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Xem ban-cung-da-ky.pdf' }));
     await waitFor(() => expect(document.querySelector('.bao-loi')).not.toBeNull());
     expect(screen.queryByRole('dialog')).toBeNull();
   });

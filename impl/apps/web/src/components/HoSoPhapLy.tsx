@@ -1,41 +1,75 @@
 /**
  * Hồ sơ pháp lý của khách hàng — giấy phép kinh doanh, chứng chỉ hành nghề…
  *
- * Danh sách đọc từ `document` (`GET /files?ownerKind=CUSTOMER&ownerId=`) chứ
- * không từ `GET /customers/:id/documents`: bản của `customer` không trả về mã
- * file, mà không có mã file thì không xin được đường tải. Hai bảng vẫn được ghi
- * đủ khi tải lên — `customer` giữ siêu dữ liệu nghiệp vụ, `document` giữ file
- * thật (`customers.service.ts:263`).
+ * Danh sách đọc từ `customer` (`GET /customers/:id/documents`) chứ không từ
+ * `document`: dòng ở đây mang mã để GỠ và mang loại giấy tờ, hai thứ chỉ
+ * `customer` biết. Mã file để XEM và TẢI thì tra thêm từ `document` khi cần —
+ * hai bảng nối nhau bằng `objectKey` (`0069`).
  *
  * Hệ thống KHÔNG cảnh báo giấy tờ hết hạn — đó là điểm đã chốt là không làm
  * (muc 16 của hướng dẫn sử dụng). Màn hình này chỉ lưu và lấy lại.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { dang, guiTep, layJson, taiVe } from '../lib/api.js';
+import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
-import { BaoLoi, DangTai, HopThoai, Truong } from './Chung.js';
+import { BaoLoi, DangTai, HopThoai, HopThoaiXacNhan, Truong } from './Chung.js';
+import { TheTep } from './TheTep.js';
+import { VungTaiLen } from './VungTaiLen.js';
+import { XemTep } from './XemTep.js';
 
 type TepPhapLy = {
   id: string;
+  kind: string;
   fileName: string;
-  purpose: string;
+  objectKey: string;
   sizeBytes: string;
   uploadedAt: string;
 };
 
-export function HoSoPhapLy({ khachHangId, choPhepGhi }: { khachHangId: string; choPhepGhi: boolean }) {
+type FileDto = { id: string; objectKey: string };
+
+const NHAN_LOAI: Record<string, string> = {
+  GIAY_PHEP_KINH_DOANH: 'Giấy phép kinh doanh',
+  CHUNG_CHI_HANH_NGHE: 'Chứng chỉ hành nghề',
+  GIAY_TO_TUY_THAN: 'Giấy tờ tuỳ thân',
+  KHAC: 'Khác',
+};
+
+const laAnh = (ten: string): boolean => /\.(png|jpe?g|gif|webp|bmp)$/i.test(ten);
+
+export function HoSoPhapLy({
+  khachHangId,
+  choPhepGhi,
+}: {
+  khachHangId: string;
+  /**
+   * Thêm và gỡ được không — CHỈ TDV phụ trách chính khách hàng này (`0069`).
+   *
+   * Tới `0068` là mọi vai trò ghi, cho mọi khách trong phạm vi của mình. Giấy tờ
+   * pháp lý là thứ TDV xin của khách và mang về; ba vai trò kia không cầm bản
+   * gốc bao giờ. Máy chủ cũng chặn đúng luật ấy, nên cờ này chỉ để không bày ra
+   * một vùng tải lên chắc chắn trả 403.
+   */
+  choPhepGhi: boolean;
+}) {
   const [ds, datDs] = useState<TepPhapLy[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
-  const [moTai, datMoTai] = useState(false);
   const [dangChay, datDangChay] = useState<string | null>(null);
+  const [dangTaiLen, datDangTaiLen] = useState(false);
+  const [tepMoi, datTepMoi] = useState<File | null>(null);
+  const [hoiGo, datHoiGo] = useState<TepPhapLy | null>(null);
+  const [duongAnh, datDuongAnh] = useState<Record<string, string>>({});
+  const [dangXem, datDangXem] = useState<{ duong: string; duongTai: string; tenTep: string } | null>(
+    null,
+  );
 
   const taiLai = useCallback(() => datLan((x) => x + 1), []);
 
   useEffect(() => {
     const huy = new AbortController();
     datLoi(null);
-    layJson<TepPhapLy[]>(`/files?ownerKind=CUSTOMER&ownerId=${khachHangId}`, huy.signal)
+    layJson<TepPhapLy[]>(`/customers/${khachHangId}/documents`, huy.signal)
       .then(datDs)
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
@@ -43,12 +77,86 @@ export function HoSoPhapLy({ khachHangId, choPhepGhi }: { khachHangId: string; c
     return () => huy.abort();
   }, [khachHangId, lan]);
 
+  /**
+   * Mã file bên `document`, tra từ `objectKey`.
+   *
+   * Hỏi ĐÚNG LÚC BẤM chứ không tải sẵn: phần lớn lượt mở màn hình khách hàng
+   * không đụng tới giấy tờ nào.
+   */
+  const layFileId = async (t: TepPhapLy): Promise<string> => {
+    const fs = await layJson<FileDto[]>(`/files?ownerKind=CUSTOMER&ownerId=${khachHangId}`);
+    const f = fs.find((x) => x.objectKey === t.objectKey);
+    if (!f) throw new Error('Không tìm thấy tệp trên kho lưu trữ.');
+    return f.id;
+  };
+
+  // Ảnh thu nhỏ: chỉ xin liên kết cho TỆP ẢNH, và chỉ khi có — xem `TepDinhKem`.
+  useEffect(() => {
+    const anh = (ds ?? []).filter((t) => laAnh(t.fileName));
+    if (anh.length === 0) return;
+    const huy = new AbortController();
+    void (async () => {
+      try {
+        const fs = await layJson<FileDto[]>(
+          `/files?ownerKind=CUSTOMER&ownerId=${khachHangId}`,
+          huy.signal,
+        );
+        for (const t of anh) {
+          const f = fs.find((x) => x.objectKey === t.objectKey);
+          if (!f || huy.signal.aborted) continue;
+          const link = await layJson<{ url: string }>(`/files/${f.id}/link`, huy.signal);
+          if (!huy.signal.aborted) datDuongAnh((cu) => ({ ...cu, [t.id]: `${link.url}&xem=1` }));
+        }
+      } catch {
+        // Hỏng thì thẻ hiện đuôi file. Ảnh thu nhỏ là thứ trang trí.
+      }
+    })();
+    return () => huy.abort();
+  }, [khachHangId, ds]);
+
   const tai = async (t: TepPhapLy) => {
     datLoi(null);
     datDangChay(t.id);
     try {
-      const link = await layJson<{ url: string; fileName: string }>(`/files/${t.id}/link`);
+      const link = await layJson<{ url: string; fileName: string }>(
+        `/files/${await layFileId(t)}/link`,
+      );
       await taiVe(link.url, link.fileName || t.fileName);
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangChay(null);
+    }
+  };
+
+  const xem = async (t: TepPhapLy) => {
+    datLoi(null);
+    datDangChay(t.id);
+    try {
+      const link = await layJson<{ url: string; fileName: string }>(
+        `/files/${await layFileId(t)}/link`,
+      );
+      // `xem=1` cho đường XEM, đường TẢI thì không — chỉ lượt tải mới vào Lịch sử.
+      datDangXem({
+        duong: `${link.url}&xem=1`,
+        duongTai: link.url,
+        tenTep: link.fileName || t.fileName,
+      });
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangChay(null);
+    }
+  };
+
+  const go = async (t: TepPhapLy) => {
+    datLoi(null);
+    datDangChay(t.id);
+    try {
+      // Chỉ gỡ con trỏ ở `customer`; file bên `document` có vòng đời riêng và
+      // `sys.run_retention()` dọn theo vòng đời chung.
+      await xoa(`/customers/${khachHangId}/documents/${t.id}`);
+      taiLai();
     } catch (e) {
       datLoi(e);
     } finally {
@@ -60,46 +168,102 @@ export function HoSoPhapLy({ khachHangId, choPhepGhi }: { khachHangId: string; c
     <>
       <h2>Hồ sơ pháp lý</h2>
 
-      {choPhepGhi && (
-        <div className="nhom-nut">
-          <button type="button" className="nut nut-nhe" onClick={() => datMoTai(true)}>
-            Tải hồ sơ lên
-          </button>
-        </div>
-      )}
-
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 
       {!ds ? (
         <DangTai />
-      ) : ds.length === 0 ? (
+      ) : ds.length === 0 && !choPhepGhi ? (
         <p className="trong">Chưa có hồ sơ pháp lý nào.</p>
       ) : (
-        <ul className="danh-sach-tep">
+        <div className="luoi-tep">
           {ds.map((t) => (
-            <li key={t.id}>
-              <span>{t.fileName}</span>
-              <span className="phu">{ngayGio(t.uploadedAt)}</span>
-              <button
-                type="button"
-                className="nut nut-nhe"
-                disabled={dangChay === t.id}
-                onClick={() => tai(t)}
-              >
-                {dangChay === t.id ? 'Đang tải…' : 'Tải xuống'}
-              </button>
-            </li>
+            <TheTep
+              key={t.id}
+              tenTep={t.fileName}
+              phu={`${NHAN_LOAI[t.kind] ?? t.kind} · ${ngayGio(t.uploadedAt)}`}
+              duongXem={duongAnh[t.id] ?? null}
+              dangChay={dangChay === t.id}
+              choPhepGo={choPhepGhi}
+              xem={() => void xem(t)}
+              tai={() => void tai(t)}
+              go={() => datHoiGo(t)}
+            />
           ))}
-        </ul>
+          {choPhepGhi && (
+            <VungTaiLen
+              nhan="Thêm giấy tờ"
+              dangTai={dangTaiLen}
+              chon={(f: File) => datTepMoi(f)}
+            />
+          )}
+        </div>
       )}
 
-      {moTai && (
-        <HopThoaiTaiPhapLy
-          khachHangId={khachHangId}
-          dong={() => datMoTai(false)}
-          xong={() => {
-            datMoTai(false);
-            taiLai();
+      {dangXem && (
+        <XemTep
+          tieuDe={dangXem.tenTep}
+          duong={dangXem.duong}
+          duongTai={dangXem.duongTai}
+          tenTep={dangXem.tenTep}
+          dong={() => datDangXem(null)}
+        />
+      )}
+
+      {hoiGo && (
+        <HopThoaiXacNhan
+          tieuDe={`Gỡ "${hoiGo.fileName}"`}
+          hauQua={
+            <p>
+              Giấy tờ này không còn trong hồ sơ khách hàng nữa. Tải lại được, nhưng phải có bản gốc
+              trong tay.
+            </p>
+          }
+          nhanNut="Gỡ giấy tờ"
+          dangChay={dangChay === hoiGo.id}
+          dong={() => datHoiGo(null)}
+          xacNhan={() => void go(hoiGo).then(() => datHoiGo(null))}
+        />
+      )}
+
+      {/*
+        Chọn xong file thì HỎI LOẠI GIẤY TỜ rồi mới tải.
+
+        Khác `TepDinhKem`: ở đó loại tệp do trạng thái hồ sơ quyết định nên chỉ
+        có một đáp án, còn ở đây bốn loại đều hợp lệ và chỉ người tải mới biết
+        mình đang cầm cái gì. Đoán hộ thì giấy tờ vào nhầm mục, và không màn hình
+        nào sửa lại được.
+      */}
+      {tepMoi && (
+        <HoiLoaiGiayTo
+          tep={tepMoi}
+          dangTai={dangTaiLen}
+          dong={() => datTepMoi(null)}
+          gui={async (loai) => {
+            datLoi(null);
+            datDangTaiLen(true);
+            try {
+              const form = new FormData();
+              form.append('file', tepMoi);
+              const f = await guiTep<{ objectKey: string; sizeBytes: string }>(
+                `/files?ownerKind=CUSTOMER&ownerId=${khachHangId}&purpose=PHAP_LY` +
+                  `&fileName=${encodeURIComponent(tepMoi.name)}`,
+                form,
+              );
+              // Ghi con trỏ ở `customer` nữa: file thật do `document` giữ, còn
+              // phân loại nghiệp vụ thuộc về hồ sơ khách hàng.
+              await dang(`/customers/${khachHangId}/documents`, {
+                kind: loai,
+                fileName: tepMoi.name,
+                objectKey: f.objectKey,
+                sizeBytes: f.sizeBytes,
+              });
+              datTepMoi(null);
+              taiLai();
+            } catch (err) {
+              datLoi(err);
+            } finally {
+              datDangTaiLen(false);
+            }
           }}
         />
       )}
@@ -107,86 +271,48 @@ export function HoSoPhapLy({ khachHangId, choPhepGhi }: { khachHangId: string; c
   );
 }
 
-function HopThoaiTaiPhapLy({
-  khachHangId,
+function HoiLoaiGiayTo({
+  tep,
+  dangTai,
   dong,
-  xong,
+  gui,
 }: {
-  khachHangId: string;
+  tep: File;
+  dangTai: boolean;
   dong: () => void;
-  xong: () => void;
+  gui: (loai: string) => void;
 }) {
   const [loai, datLoai] = useState('GIAY_PHEP_KINH_DOANH');
-  const [tep, datTep] = useState<File | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tep) return;
-    datLoi(null);
-    datDangGui(true);
-    try {
-      const form = new FormData();
-      form.append('file', tep);
-      const f = await guiTep<{ objectKey: string; sizeBytes: string }>(
-        `/files?ownerKind=CUSTOMER&ownerId=${khachHangId}&purpose=PHAP_LY` +
-          `&fileName=${encodeURIComponent(tep.name)}`,
-        form,
-      );
-      // Ghi con trỏ ở `customer` nữa: file thật do `document` giữ, còn phân loại
-      // nghiệp vụ thuộc về hồ sơ khách hàng.
-      await dang(`/customers/${khachHangId}/documents`, {
-        kind: loai,
-        fileName: tep.name,
-        objectKey: f.objectKey,
-        sizeBytes: f.sizeBytes,
-      });
-      xong();
-    } catch (err) {
-      datLoi(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
-
   return (
-    <HopThoai tieuDe="Tải hồ sơ pháp lý" dong={dong}>
-      <form onSubmit={gui}>
-        <Truong id="pl-loai" nhan="Loại giấy tờ" bắtBuộc>
-          {(p) => (
-            <select {...p} className="o-nhap" value={loai} onChange={(e) => datLoai(e.target.value)}>
-              <option value="GIAY_PHEP_KINH_DOANH">Giấy phép kinh doanh</option>
-              <option value="CHUNG_CHI_HANH_NGHE">Chứng chỉ hành nghề</option>
-              <option value="GIAY_TO_TUY_THAN">Giấy tờ tuỳ thân</option>
-              <option value="KHAC">Khác</option>
-            </select>
-          )}
-        </Truong>
-        <Truong id="pl-tep" nhan="Tệp" bắtBuộc>
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              type="file"
-              onChange={(e) => datTep(e.target.files?.[0] ?? null)}
-            />
-          )}
-        </Truong>
-        <p className="ghi-chu">
-          Tối đa 20MB. Hệ thống <strong>không</strong> cảnh báo giấy tờ hết hạn — phải tự theo dõi.
-        </p>
-
-        {loi !== null && <BaoLoi loi={loi} />}
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || tep === null}>
-            {dangGui ? 'Đang tải…' : 'Tải lên'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Huỷ
-          </button>
-        </div>
-      </form>
+    <HopThoai tieuDe="Loại giấy tờ" dong={dong}>
+      <p className="ghi-chu">
+        Tệp: <strong>{tep.name}</strong>
+      </p>
+      <Truong id="pl-loai" nhan="Loại giấy tờ" bắtBuộc>
+        {(p) => (
+          <select {...p} className="o-nhap" value={loai} onChange={(e) => datLoai(e.target.value)}>
+            {Object.entries(NHAN_LOAI).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </select>
+        )}
+      </Truong>
+      <p className="ghi-chu">Tối đa 20MB mỗi tệp.</p>
+      <div className="nhom-nut">
+        <button
+          type="button"
+          className="nut nut-chinh"
+          disabled={dangTai}
+          onClick={() => gui(loai)}
+        >
+          {dangTai ? 'Đang tải…' : 'Tải lên'}
+        </button>
+        <button type="button" className="nut nut-nhe" onClick={dong}>
+          Huỷ
+        </button>
+      </div>
     </HopThoai>
   );
 }

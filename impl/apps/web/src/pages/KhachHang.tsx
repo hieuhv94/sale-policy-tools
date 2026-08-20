@@ -222,7 +222,15 @@ export function ChiTietKhachHang({ id }: { id: string }) {
         </div>
       )}
 
-      <HoSoPhapLy khachHangId={id} choPhepGhi={can(nguoiDung?.role, 'taiTepDinhKem')} />
+      {/*
+        CHỈ TDV PHỤ TRÁCH khách hàng này (`0069`).
+
+        Trước đó là `can(role, 'taiTepDinhKem')` — mọi vai trò ghi, cho mọi khách
+        trong phạm vi của mình. Giấy tờ pháp lý là thứ TDV xin của khách và mang
+        về; máy chủ giờ chặn đúng luật ấy, nên bày vùng tải lên cho người khác là
+        bày một thứ chắc chắn trả 403.
+      */}
+      <HoSoPhapLy khachHangId={id} choPhepGhi={nguoiDung?.id === kh.tdvUserId} />
 
       {mo === 'sua' && (
         <BieuMauKhachHang
