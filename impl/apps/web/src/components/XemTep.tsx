@@ -41,13 +41,14 @@ export function XemTep({
   /** Đường API trả về nội dung tệp để XEM. */
   duong: string;
   /**
-   * Đường dùng khi bấm *Tải xuống*, nếu khác đường xem (`0052`).
+   * Đường dùng khi bấm *Tải xuống*, nếu khác đường xem (`0052`, thu hẹp `0059`).
    *
-   * Bản CSBH và hợp đồng mở ra xem bằng `?xem=1` — cờ ấy bảo máy chủ ĐỪNG ghi
-   * một dòng tải xuống vào Lịch sử. Dùng lại đúng đường ấy cho nút tải là mở
-   * một lối tải không để lại vết nào, đúng cái lỗ mà N-01 sinh ra để bịt.
+   * Bản SCAN và tệp đính kèm mở ra xem bằng `?xem=1` — cờ ấy bảo máy chủ ĐỪNG
+   * ghi một dòng tải xuống vào Lịch sử. Dùng lại đúng đường ấy cho nút tải là
+   * mở một lối tải không để lại vết nào, đúng cái lỗ mà N-01 sinh ra để bịt.
    *
-   * Tệp đính kèm không có phân biệt này nên bỏ trống, và nó rơi về `duong`.
+   * Bản mềm CSBH và hợp đồng KHÔNG còn phân biệt này (`0059`): chúng không ghi
+   * lịch sử nữa, nên chỉ truyền `duong` và bỏ trống chỗ này — nó rơi về `duong`.
    */
   duongTai?: string;
   /** Tên dùng khi bấm Tải xuống, nếu máy chủ không đặt tên nào. */

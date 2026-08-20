@@ -908,10 +908,10 @@ describe('DOC-16 đã bị DOC-28 thay thế', () => {
 });
 
 // =============================================================================
-// `0052` — N-01: ai đã TẢI bản mềm và ai đã TẢI hợp đồng
+// `0059` — N-01 thu hẹp: bản mềm và hợp đồng KHÔNG ghi lịch sử nữa
 // =============================================================================
 
-describe('`0052` N-01 lịch sử ghi lại người tải văn bản', () => {
+describe('`0059` bản mềm và hợp đồng không để lại dòng lịch sử nào', () => {
   /** Các dòng lịch sử của một hồ sơ, mới nhất sau cùng. */
   const lichSu = (id: string) =>
     withAdminDb(async (c) => {
@@ -926,65 +926,41 @@ describe('`0052` N-01 lịch sử ghi lại người tải văn bản', () => {
 
   const dem = (rows: { action: string }[], a: string) => rows.filter((r) => r.action === a).length;
 
-  it('tải hợp đồng ghi một dòng TAI_HOP_DONG kèm người và vai trò', async () => {
-    const d = await toReceivedL1();
-    const r = await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
-    expect(r.status).toBe(200);
-
-    const rows = await lichSu(d.id);
-    const dong = rows.filter((x) => x.action === 'TAI_HOP_DONG');
-    expect(dong, 'phải có đúng một dòng').toHaveLength(1);
-    expect(dong[0]!.actor_role).toBe('KE_TOAN');
+  it('TẢI cũng như XEM — không dòng nào, cho cả hai loại văn bản', async () => {
     /*
-     * KHÔNG phải một bước chuyển: `from_status` để trống, `to_status` là trạng
-     * thái ĐANG CÓ. Cột `to_status` là NOT NULL nên phải điền gì đó, và điền
-     * trạng thái hiện tại là câu đúng duy nhất — dòng này nói "lúc ấy hồ sơ đang
-     * ở đây, và người này lấy văn bản ra".
+     * ĐẢO NGƯỢC `0052`, theo yêu cầu 20/08.
+     *
+     * `0052` ghi mỗi lượt tải một dòng cho cả bốn loại văn bản (N-01). Khách
+     * hàng bỏ hai loại đầu — và bỏ bằng chính lý do đã dùng để loại lượt XEM ở
+     * `0052`: bản mềm và hợp đồng là thứ người ta mở ra ĐỌC, mỗi hồ sơ vài lần
+     * một buổi, nên những dòng ấy chỉ làm dày lịch sử và dìm mất thứ nó sinh ra
+     * để kể — ai duyệt, ai trả về, vì sao.
+     *
+     * Kiểm CẢ BỐN đường trong một ca: tải và xem, bản mềm và hợp đồng. Tách ra
+     * bốn ca thì mỗi ca dựng một hồ sơ mới và chạy thêm một lượt Gotenberg cho
+     * cùng một khẳng định.
      */
-    expect(dong[0]!.from_status).toBeNull();
-    expect(dong[0]!.to_status).toBe('SA_DANG_XU_LY');
-  }, 90_000);
-
-  it('tải bản mềm CSBH ghi một dòng TAI_HO_SO', async () => {
     const d = await toReceivedL1();
     expect((await pdfOf(`/policies/${d.id}/render`, 'kt01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/render?xem=1`, 'sa01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'sa01')).status).toBe(200);
 
     const rows = await lichSu(d.id);
-    expect(dem(rows, 'TAI_HO_SO')).toBe(1);
-    expect(rows.find((x) => x.action === 'TAI_HO_SO')!.actor_role).toBe('KE_TOAN');
-  }, 90_000);
+    expect(dem(rows, 'TAI_HO_SO'), 'bản mềm không được ghi gì').toBe(0);
+    expect(dem(rows, 'TAI_HOP_DONG'), 'hợp đồng không được ghi gì').toBe(0);
+    // Và không ghi dưới một cái tên nào khác: lịch sử chỉ còn các bước duyệt.
+    expect(rows.every((x) => !x.action.startsWith('TAI_'))).toBe(true);
+  }, 150_000);
 
-  it('mỗi lượt tải một dòng — hai người tải thì hai dòng', async () => {
-    const d = await toReceivedL1();
-    await pdfOf(`/policies/${d.id}/render`, 'kt01');
-    await pdfOf(`/policies/${d.id}/render`, 'sa01');
-
-    const rows = await lichSu(d.id);
-    expect(dem(rows, 'TAI_HO_SO')).toBe(2);
-    const vaiTro = rows.filter((x) => x.action === 'TAI_HO_SO').map((x) => x.actor_role);
-    expect(vaiTro.sort()).toEqual(['KE_TOAN', 'SALE_ADMIN']);
-  }, 90_000);
-
-  it('XEM (`xem=1`) thì KHÔNG ghi dòng nào — cả bản mềm lẫn hợp đồng', async () => {
+  it('XUẤT hợp đồng VẪN đóng dấu đã xuất — kể cả khi chỉ xem', async () => {
     /*
-     * Một dòng cho mỗi lần liếc màn hình sẽ dìm chết những dòng nói về bước
-     * duyệt — thứ mà lịch sử sinh ra để kể. Khách hàng cũng chỉ yêu cầu ghi lại
-     * việc TẢI XUỐNG.
-     */
-    const d = await toReceivedL1();
-    expect((await pdfOf(`/policies/${d.id}/render?xem=1`, 'kt01')).status).toBe(200);
-    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'kt01')).status).toBe(200);
-
-    const rows = await lichSu(d.id);
-    expect(dem(rows, 'TAI_HO_SO')).toBe(0);
-    expect(dem(rows, 'TAI_HOP_DONG')).toBe(0);
-  }, 90_000);
-
-  it('XEM hợp đồng VẪN đóng dấu đã xuất — muc 8.3 hỏi "có hợp đồng chưa"', async () => {
-    /*
-     * Hai cờ tách rời, và tách là có chủ ý. Xem hay tải thì máy chủ đều đã trộn
-     * xong bản hợp đồng đầy đủ và đưa nó tới mắt người ấy; câu hỏi của muc 8.3
-     * là "hồ sơ này đã có hợp đồng chưa", không phải "ai giữ file".
+     * Con dấu KHÔNG đi theo dòng lịch sử, và đây là chỗ dễ gỡ nhầm nhất của lượt
+     * này: cả hai từng nằm trong CÙNG một lời gọi sang `policy`.
+     *
+     * Chúng trả lời hai câu khác nhau. Dòng lịch sử nói *"ai đã lấy file ra"* —
+     * câu khách hàng vừa bỏ. Con dấu nói *"hồ sơ này đã có hợp đồng chưa"* —
+     * một trạng thái của hồ sơ mà muc 8.3 hỏi, và báo cáo tiến độ đọc.
      */
     const d = await toReceivedL1();
     expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'kt01')).status).toBe(200);
@@ -1018,56 +994,25 @@ describe('`0052` N-01 lịch sử ghi lại người tải văn bản', () => {
     expect(dem(await lichSu(d.id), 'TAI_HO_SO')).toBe(0);
   }, 90_000);
 
-  it('dòng tải xuống KHÔNG phá số thứ tự của các bước duyệt sau đó', async () => {
+  it('năm lượt dựng bản mềm song song vẫn ra PDF — không còn `seq` để mà đụng', async () => {
     /*
-     * `seq` là UNIQUE trên mỗi hồ sơ, và dòng tải xuống chen vào giữa chuỗi ấy.
-     * Ca này chứng minh bước duyệt tiếp theo vẫn ghi được — nếu `seq` tính sai
-     * thì nó vỡ ở ràng buộc CSDL, không phải ở một khẳng định mềm.
-     */
-    const d = await toReceivedL1();
-    await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
-    await pdfOf(`/policies/${d.id}/render`, 'kt01');
-
-    await ppost(
-      `/policies/${d.id}/attachments`,
-      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}-lichsu.pdf` },
-      'sa01',
-    );
-    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
-
-    const rows = await lichSu(d.id);
-    expect(rows.map((x) => x.action)).toContain('SA_HANDOVER');
-    expect(new Set(rows.map((_, i) => i)).size).toBe(rows.length);
-  }, 90_000);
-});
-
-describe('`0052` năm lượt tải song song cùng một hồ sơ', () => {
-  it('cả năm ra PDF, và lịch sử có ĐỦ năm dòng liên tiếp', async () => {
-    /*
-     * Ca này là ca đã bắt được lỗi thật.
+     * Ca này từng là ca bắt được lỗi thật: `seq` cấp bằng
+     * `coalesce(max(seq),0)+1` ngay trong câu INSERT chỉ thấy dòng ĐÃ COMMIT,
+     * nên năm lượt tải song song đọc ra cùng một số và bốn lượt vỡ ở ràng buộc
+     * UNIQUE — 500 cho một thao tác đọc thuần tuý.
      *
-     * Bản đầu cấp `seq` bằng `coalesce(max(seq), 0) + 1` ngay trong câu INSERT —
-     * nhìn như đã đủ an toàn, nhưng `max(seq)` chỉ thấy dòng ĐÃ COMMIT. Năm lượt
-     * song song đọc ra cùng một con số và bốn lượt vỡ ở ràng buộc UNIQUE, trả về
-     * 500 cho một thao tác đọc thuần tuý.
+     * Bản mềm không ghi dòng nào nữa nên nó không còn chạm tới `seq`. Phép khoá
+     * `FOR UPDATE` vẫn nguyên và vẫn được canh — ở `document.test.ts`, trên
+     * đường TẢI BẢN SCAN, nơi lịch sử vẫn ghi.
+     *
+     * Giữ lại nửa còn giá trị: năm lượt dựng PDF song song không lượt nào hỏng.
      */
     const d = await toReceivedL1();
     const runs = await Promise.all(
       [0, 1, 2, 3, 4].map(() => pdfOf(`/policies/${d.id}/render`, 'kt01')),
     );
     for (const r of runs) expect(r.status).toBe(200);
-
-    const seq = await withAdminDb(async (c) => {
-      const r = await c.query<{ seq: number }>(
-        `SELECT seq FROM pol.policy_event
-          WHERE policy_id = $1 AND action = 'TAI_HO_SO' ORDER BY seq`,
-        [d.id],
-      );
-      return r.rows.map((x) => x.seq);
-    });
-    expect(seq, 'không lượt nào bị nuốt').toHaveLength(5);
-    // Liên tiếp: `seq` là số thứ tự của lịch sử, thủng một số là thủng một dòng.
-    expect(seq.every((v, i) => i === 0 || v === seq[i - 1]! + 1)).toBe(true);
+    expect(dem(await lichSu(d.id), 'TAI_HO_SO')).toBe(0);
   }, 120_000);
 });
 

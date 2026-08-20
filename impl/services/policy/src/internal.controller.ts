@@ -7,7 +7,7 @@
  * sẵn ở đây thì hai service cùng định dạng tiền theo hai kiểu.
  */
 import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/common';
-import { oneOf, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
+import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 
 /**
@@ -17,9 +17,16 @@ import { Db } from './infra/db.js';
  * thêm một loại mà quên sửa nhánh cuối thì nó âm thầm rơi vào nhãn của loại
  * khác — một dòng lịch sử SAI còn tệ hơn không có dòng nào.
  */
+/**
+ * Loại văn bản → hành động ghi vào *Lịch sử*.
+ *
+ * Chỉ còn hai (`0059`). `HO_SO` và `HOP_DONG` rời khỏi bảng này cùng lúc với
+ * yêu cầu ghi lịch sử cho chúng — xem `daSinhVanBan` phía dưới. Bảng tra thay
+ * cho `'TAI_' + loai`: một phép suy như thế đúng cho tới ngày ai đó thêm một
+ * loại có tên khác, và khi ấy nó sai IM LẶNG — dòng lịch sử mang một mã hành
+ * động không có nhãn nào, và màn hình in ra chính cái mã ấy.
+ */
 const HANH_DONG_TAI: Record<string, string> = {
-  HO_SO: 'TAI_HO_SO',
-  HOP_DONG: 'TAI_HOP_DONG',
   BAN_SCAN: 'TAI_BAN_SCAN',
   TEP_DINH_KEM: 'TAI_TEP_DINH_KEM',
 };
@@ -77,26 +84,34 @@ export class PolicyInternalController {
    *      dấu vết DUY NHẤT của việc xuất hợp đồng: không có bảng hợp đồng nào cả
    *      (muc 8.3). Cột nằm ở `pol` chứ không ở `doc` vì chúng thuộc về hồ sơ —
    *      mở hồ sơ ra là thấy ngay "đã xuất hợp đồng lúc nào, ai xuất".
-   *   2. **Ghi một dòng LỊCH SỬ** khi có người TẢI XUỐNG (N-01, muc 10). Trước
-   *      `0052` không đường tải nào để lại vết nào cả, nên câu "ai đã tải bản
-   *      hợp đồng của khách hàng này" không trả lời được.
+   *   2. **Ghi một dòng LỊCH SỬ** khi có người tải BẢN CỨNG xuống (N-01, muc 10).
+   *      Trước `0052` không đường tải nào để lại vết nào cả, nên câu "ai đã lấy
+   *      bản scan có chữ ký của khách hàng này ra khỏi hệ thống" không trả lời
+   *      được.
    *
-   * HAI CỜ TÁCH RỜI, và tách là có chủ ý:
+   * `loai` QUYẾT ĐỊNH TẤT CẢ (`0059`) — mỗi loại làm đúng một trong hai việc:
    *
-   *   - `ghiLichSu=false` khi người dùng chỉ XEM trong phần mềm. Xem không phải
-   *     tải, và một dòng lịch sử cho mỗi lần liếc màn hình thì dìm chết những
-   *     dòng nói về bước duyệt — thứ mà lịch sử sinh ra để kể.
-   *   - Dấu xuất hợp đồng thì đóng ở CẢ HAI đường. Xem hay tải thì máy chủ đều
-   *     đã trộn xong bản hợp đồng đầy đủ và đưa nó tới mắt người ấy; câu hỏi của
-   *     muc 8.3 là "hồ sơ này đã có hợp đồng chưa", không phải "ai giữ file".
+   *   - `HOP_DONG` → chỉ đóng dấu. Xem hay tải thì máy chủ đều đã trộn xong bản
+   *     hợp đồng đầy đủ và đưa nó tới mắt người ấy; câu hỏi của muc 8.3 là "hồ
+   *     sơ này đã có hợp đồng chưa", không phải "ai giữ file".
+   *   - `BAN_SCAN` · `TEP_DINH_KEM` → chỉ ghi lịch sử.
+   *
+   * `HO_SO` và cờ `ghiLichSu` ĐÃ BỎ (`0059`). Khách hàng bỏ yêu cầu ghi lịch sử
+   * cho bản mềm và hợp đồng ngày 20/08, và bỏ có lý: chúng là thứ người ta mở ra
+   * ĐỌC — kế toán xem lại hồ sơ ba lần một buổi là chuyện thường, nên những dòng
+   * ấy chỉ làm dày lịch sử và dìm mất thứ nó sinh ra để kể. Bản scan thì khác:
+   * nó là bản cứng có chữ ký, và "ai đã lấy nó ra" là một câu hỏi khác hẳn.
+   *
+   * Những dòng `TAI_HO_SO`/`TAI_HOP_DONG` đã ghi thì Ở LẠI — lịch sử chỉ ghi
+   * thêm (AUD-03/04), và những lượt tải ấy có thật. Giao diện vẫn giữ nhãn cho
+   * chúng.
    */
   @Post(':id/da-sinh-van-ban')
   async daSinhVanBan(@Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
-      loai: oneOf('HO_SO', 'HOP_DONG', 'BAN_SCAN', 'TEP_DINH_KEM'),
+      loai: oneOf('HOP_DONG', 'BAN_SCAN', 'TEP_DINH_KEM'),
       actorId: str(36, 36),
       actorRole: str(1, 40),
-      ghiLichSu: opt(oneOf('co', 'khong')),
     });
 
     const p = await this.db.one<{ status: string }>(
@@ -110,9 +125,10 @@ export class PolicyInternalController {
         `UPDATE pol.policy SET contract_issued_at = now(), contract_issued_by = $2 WHERE id = $1`,
         [id, b.actorId],
       );
+      return { ok: true };
     }
 
-    if (b.ghiLichSu !== 'khong') {
+    {
       /*
        * `from_status` NULL, `to_status` = trạng thái ĐANG CÓ.
        *

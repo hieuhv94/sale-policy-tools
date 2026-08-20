@@ -566,7 +566,7 @@ function HopThoaiHanhDong({
     // KHÔNG kèm `mauId`: hộp xác nhận ký số không có ô chọn mẫu, và máy chủ lấy
     // mẫu đầu danh sách (`0058`). Bản xem trước ở đây để TBP đối chiếu nội dung
     // trước khi ký, không phải để chọn bản trình bày.
-    xemTruoc(`/policies/${hoSoId}/render?xem=1`)
+    xemTruoc(`/policies/${hoSoId}/render`)
       .then((x) => {
         url = x.url;
         if (song) datXemUrl(x.url);

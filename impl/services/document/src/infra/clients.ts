@@ -83,29 +83,31 @@ export class Clients implements OnModuleDestroy {
   }
 
   /**
-   * Báo `policy` rằng vừa sinh xong một văn bản của hồ sơ (`0052`).
+   * Báo `policy` rằng vừa sinh xong một văn bản của hồ sơ (`0052`, sửa `0059`).
    *
-   * `loai` quyết định có đóng dấu xuất hợp đồng hay không; `ghiLichSu` quyết
-   * định có một dòng trong *Lịch sử* hay không — xem chú thích ở
-   * `policy/internal.controller.ts`.
+   * `loai` quyết định TẤT CẢ, và mỗi loại làm đúng một việc:
+   *
+   *   - `HOP_DONG`  → đóng dấu xuất hợp đồng, KHÔNG ghi lịch sử
+   *   - `BAN_SCAN` · `TEP_DINH_KEM` → ghi một dòng *Lịch sử*, không đóng dấu gì
+   *
+   * `HO_SO` đã rời khỏi danh sách: bản mềm không ghi lịch sử nữa nên nó không
+   * còn lý do nào để gọi sang `policy`.
+   *
+   * Tham số `ghiLichSu` cũng đi cùng (`0059`). Nó tồn tại để phân biệt xem với
+   * tải, mà phép phân biệt ấy chỉ có nghĩa cho hai loại vừa bị bỏ — giữ lại là
+   * một công tắc mà cả hai đường gọi đều truyền cùng một giá trị.
    */
   async daSinhVanBan(
     policyId: string,
-    loai: 'HO_SO' | 'HOP_DONG' | 'BAN_SCAN' | 'TEP_DINH_KEM',
+    loai: 'HOP_DONG' | 'BAN_SCAN' | 'TEP_DINH_KEM',
     me: { id: string; role: string },
-    ghiLichSu: boolean,
   ): Promise<void> {
     const r = await fetch(
       `${policyUrl()}/internal/policies/${encodeURIComponent(policyId)}/da-sinh-van-ban`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...svc() },
-        body: JSON.stringify({
-          loai,
-          actorId: me.id,
-          actorRole: me.role,
-          ghiLichSu: ghiLichSu ? 'co' : 'khong',
-        }),
+        body: JSON.stringify({ loai, actorId: me.id, actorRole: me.role }),
       },
     );
     if (!r.ok) throw new Error(`policy trả ${r.status} khi ghi lần sinh văn bản`);

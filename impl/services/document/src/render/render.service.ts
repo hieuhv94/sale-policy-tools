@@ -53,8 +53,6 @@ export class RenderService {
     /** Mẫu người xem CHỌN (`0058`). Bỏ trống thì lấy mẫu đầu danh sách. */
     mauId: string | undefined,
     me: AuthUser,
-    /** Ghi một dòng *Lịch sử* rằng người này đã TẢI bản mềm (`0052`, N-01). */
-    ghiLichSu = true,
   ): Promise<{ body: Buffer; code: string }> {
     const { policy, customer, people } = await this.collect(policyId, me);
 
@@ -103,16 +101,20 @@ export class RenderService {
     const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
 
     /*
-     * Ghi vết SAU khi đã có PDF trong tay — cùng luật với lần xuất hợp đồng
-     * (DOC-34): ghi trước rồi Gotenberg chết là lịch sử mang một lượt tải không
-     * hề xảy ra.
+     * KHÔNG ghi dòng *Lịch sử* nào cho bản mềm (`0059`).
      *
-     * Hỏng ở bước ghi thì KHÔNG nuốt: một lượt tải không để lại vết đúng là thứ
-     * N-01 sinh ra để dẹp, và người dùng bấm lại được. Đổi lại, `policy` chết
-     * thì không ai tải được bản mềm — chấp nhận, vì `collect()` ngay đầu hàm
-     * cũng đã gọi `policy` rồi.
+     * `0052` ghi mỗi lượt tải một dòng, theo N-01. Khách hàng bỏ yêu cầu ấy
+     * ngày 20/08 — và bỏ có lý: bản mềm là thứ người ta mở ra ĐỌC. Kế toán xem
+     * lại hồ sơ ba lần trong một buổi là chuyện thường, nên những dòng ấy chỉ
+     * làm dày lịch sử và dìm mất thứ lịch sử sinh ra để kể — ai duyệt, ai trả
+     * về, vì sao.
+     *
+     * Bản SCAN thì vẫn ghi: nó là bản cứng có chữ ký, và "ai đã lấy nó ra khỏi
+     * hệ thống" là một câu hỏi khác hẳn.
+     *
+     * Kéo theo: `pdf()` không còn gọi sang `policy` ở đường này nữa. Cờ `xem=1`
+     * cũng mất nghĩa và đã gỡ khỏi controller.
      */
-    if (ghiLichSu) await this.clients.daSinhVanBan(policyId, 'HO_SO', me, true);
     return { body, code: policy.code };
   }
 

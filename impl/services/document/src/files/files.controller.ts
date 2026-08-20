@@ -138,7 +138,6 @@ export class FilesController {
         row.owner_id,
         row.purpose === 'SCAN' ? 'BAN_SCAN' : 'TEP_DINH_KEM',
         me,
-        true,
       );
     }
 

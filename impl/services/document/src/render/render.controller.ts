@@ -40,15 +40,18 @@ export class RenderController {
        */
       mauId: opt(uuid()),
       /*
-       * `xem=1` — mở trong phần mềm, KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
+       * `xem` VẪN NHẬN nhưng KHÔNG còn tác dụng gì (`0059`).
        *
-       * Mặc định là TẢI, không phải xem. Đặt ngược lại thì mọi lời gọi quên đặt
-       * cờ đều lọt qua không để lại vết, và cái lọt ấy im lặng; còn theo chiều
-       * này thì quên cờ chỉ làm dư một dòng lịch sử — nhìn thấy được, sửa được.
+       * Nó từng phân biệt xem với tải, để chỉ lượt tải mới ghi vào *Lịch sử*.
+       * Bản mềm không ghi lịch sử nữa nên phép phân biệt ấy hết việc.
+       *
+       * Nhận mà bỏ qua chứ không TỪ CHỐI: `validate` gạt mọi khoá lạ, nên xoá
+       * hẳn khoá này là mọi liên kết cũ — thư đã gửi đi, tab người dùng còn mở —
+       * đổi từ "xem được" thành lỗi 400. Một tham số thừa không hại ai.
        */
       xem: opt(oneOf('1')),
     });
-    const { body, code } = await this.render.pdf(id, b.mauId, me, b.xem !== '1');
+    const { body, code } = await this.render.pdf(id, b.mauId, me);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}.pdf"`);
     res.end(body);

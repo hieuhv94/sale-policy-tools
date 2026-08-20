@@ -264,11 +264,14 @@ export class ContractsController {
   }
 
   /**
-   * `xem=1` — mở trong phần mềm, KHÔNG ghi một dòng tải xuống vào Lịch sử (`0052`).
+   * `xem` VẪN NHẬN nhưng KHÔNG còn tác dụng gì (`0059`).
    *
-   * Mặc định là TẢI, không phải xem: một đường tải mà mặc định không để lại vết
-   * thì mọi lời gọi quên đặt cờ đều lọt, và cái lọt ấy im lặng. Đặt ngược lại
-   * thì quên cờ chỉ làm dư một dòng lịch sử — nhìn thấy được, sửa được.
+   * Nó từng phân biệt xem với tải, để chỉ lượt tải mới ghi vào *Lịch sử*. Hợp
+   * đồng không ghi lịch sử nữa nên phép phân biệt ấy hết việc — còn con dấu
+   * *đã xuất hợp đồng* thì vốn đã đóng ở cả hai đường.
+   *
+   * Nhận mà bỏ qua chứ không TỪ CHỐI: `validate` gạt mọi khoá lạ, nên xoá hẳn
+   * khoá này là mọi liên kết cũ còn sót đổi từ "xem được" thành lỗi 400.
    */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get(':id/contract.pdf')
@@ -279,7 +282,7 @@ export class ContractsController {
     @Res() res: Response,
   ): Promise<void> {
     const b = validate(q, { mauId: opt(uuid()), xem: opt(oneOf('1')) });
-    const { pdf, fileName } = await this.contracts.export(id, me, b.xem === '1', b.mauId);
+    const { pdf, fileName } = await this.contracts.export(id, me, b.mauId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.end(pdf);

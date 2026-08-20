@@ -379,8 +379,9 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
       expect(d.length).toBeGreaterThan(0);
       expect(d.every((x) => x.includes(`mauId=${MAU[0]!.id}`))).toBe(true);
-      // Xem thì KHÔNG ghi dòng tải xuống vào Lịch sử (`0052`).
-      expect(d.every((x) => x.includes('xem=1'))).toBe(true);
+      // `xem=1` ĐÃ BỎ khỏi đường bản mềm (`0059`): nó chỉ tồn tại để máy chủ
+      // phân biệt xem với tải cho *Lịch sử*, mà bản mềm không ghi lịch sử nữa.
+      expect(d.every((x) => !x.includes('xem=1')), 'không cần cờ xem nữa').toBe(true);
     });
   });
 
@@ -485,8 +486,9 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('contract.pdf'));
       expect(d.length).toBeGreaterThan(0);
-      // Mở ra XEM: không một lời gọi nào thiếu `xem=1`, nên không dòng lịch sử nào.
-      expect(d.every((x) => x.includes('xem=1'))).toBe(true);
+      // MỘT đường cho cả xem lẫn tải (`0059`) — hợp đồng không ghi lịch sử nữa.
+      expect(d.every((x) => !x.includes('xem=1'))).toBe(true);
+      expect(d.every((x) => x.includes('mauId='))).toBe(true);
     });
   });
 });

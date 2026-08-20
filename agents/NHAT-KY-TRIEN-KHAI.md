@@ -6735,3 +6735,61 @@ bản demo đã có mẫu hợp đồng riêng. Ca kiểm thử canh cả hai ch
 nguyên chuỗi `{{...}}` mà không có thông báo lỗi nào.
 
 **1259/1259 xanh.**
+
+## P90 — Bỏ lịch sử tải bản mềm và hợp đồng (N-01 thu hẹp)
+
+Khách hàng đảo lại một phần yêu cầu ngày 20/08: **không lưu lịch sử tải xuống bản mềm và hợp đồng
+nữa**. Bản scan và tệp đính kèm thì giữ.
+
+Điều đáng ghi lại là **lý do đảo trùng khít với lý do đã dùng để loại lượt XEM** ở `0052`. Khi ấy
+tôi viết: *"một dòng lịch sử cho mỗi lần liếc màn hình thì dìm chết những dòng nói về bước duyệt —
+thứ mà lịch sử sinh ra để kể"*. Lập luận ấy đúng, chỉ là dừng lại sớm một bước: bản mềm và hợp đồng
+**bản thân chúng** là thứ người ta mở ra ĐỌC, và kế toán tải lại hồ sơ ba lần trong một buổi cũng
+bình thường như xem nó ba lần. Ranh giới đúng không nằm giữa *xem* và *tải*, mà nằm giữa **văn bản
+hệ thống tự dựng lại được bất cứ lúc nào** và **bản cứng mang chữ ký khách hàng**.
+
+### Con dấu KHÔNG đi theo dòng lịch sử
+
+Đây là chỗ dễ gỡ nhầm nhất, vì tới `0058` cả hai nằm trong **cùng một lời gọi** sang `policy` và
+được điều khiển bằng hai cờ.
+
+| | Trả lời câu gì | Số phận |
+|---|---|---|
+| Dòng *Tải bản hợp đồng* | "ai đã lấy file ra" | **Bỏ** |
+| `contract_issued_at/by` | "hồ sơ này đã có hợp đồng chưa" (muc 8.3) | **Giữ**, vẫn đóng ở cả đường xem lẫn đường tải |
+
+Cái thứ hai không phải lịch sử mà là **trạng thái của hồ sơ**, và báo cáo tiến độ đọc nó.
+
+### Một tham số biến mất vì nó hết việc
+
+`daSinhVanBan(policyId, loai, me, ghiLichSu)` mất cờ cuối. Sau khi bỏ hai loại, `loai` quyết định
+tất cả và mỗi loại làm đúng **một** việc: `HOP_DONG` → đóng dấu; `BAN_SCAN`/`TEP_DINH_KEM` → ghi
+lịch sử. Giữ cờ lại là giữ một công tắc mà mọi đường gọi đều truyền cùng một giá trị. `HO_SO` rời
+khỏi cả kiểu dữ liệu: bản mềm không còn lý do nào để gọi sang `policy`.
+
+Cờ `?xem=1` trên hai đường ấy cũng hết nghĩa. **Vẫn nhận nhưng bỏ qua**, không từ chối: `validate`
+gạt mọi khoá lạ, nên xoá hẳn là đổi mọi liên kết cũ còn sót — thư đã gửi, tab đang mở — từ "xem
+được" thành lỗi 400.
+
+### Dữ liệu cũ ở lại
+
+Những dòng `TAI_HO_SO` và `TAI_HOP_DONG` đã ghi **không xoá**: nhật ký chỉ ghi thêm (AUD-03/04), và
+những lượt tải ấy có thật. Giao diện giữ nguyên hai nhãn để hồ sơ cũ vẫn đọc được. `action` là cột
+`text` chứ không phải enum nên không có gì phải sửa ở lược đồ — `0059` không có migration.
+
+### Một ca kiểm thử phải chuyển nhà
+
+Ca *"năm lượt tải song song, `seq` liên tiếp"* là ca **đã bắt được lỗi thật**: `coalesce(max(seq),0)+1`
+trong câu INSERT chỉ thấy dòng đã commit, nên năm lượt song song đọc cùng một số và bốn lượt vỡ ở
+ràng buộc UNIQUE. Đường tải bản mềm không chạm tới `seq` nữa, nên ca ấy chuyển sang
+`document.test.ts`, trên **đường tải bản scan** — nơi lịch sử vẫn ghi và phép khoá `FOR UPDATE` vẫn
+phải đúng. Bỏ nó đi thì mất một ca canh giữ cho một lỗi đã xảy ra một lần.
+
+### Bẫy môi trường gặp giữa chừng
+
+`S3Error: The specified key does not exist` ở mọi lượt dựng bản mềm: MinIO mất object trong khi CSDL
+vẫn giữ dòng mẫu. `ensureDefaultHopDong` tự chữa được tình huống này, nhưng **chỉ cho mẫu hợp đồng**
+— mẫu hồ sơ không có nhánh tự chữa. Xoá sạch `doc.contract_template*` rồi để service seed lại là
+xong. Ghi lại vì triệu chứng (500 ở đường xem bản mềm) không chỉ về phía nguyên nhân chút nào.
+
+**1257/1257 xanh.**

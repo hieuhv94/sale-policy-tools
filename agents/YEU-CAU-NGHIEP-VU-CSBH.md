@@ -824,12 +824,21 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   > đáng ghi. Ghi cả hai thì mỗi lần liếc màn hình thành một dòng, và những dòng nói về bước duyệt
   > bị dìm mất — lịch sử hồ sơ sinh ra để kể chuyện hồ sơ đã đi qua tay ai, không phải để đếm lượt
   > mở màn hình.
-- **Lịch sử của hồ sơ ghi luôn MỌI lượt TẢI XUỐNG** `mới 19/08`: bản mềm CSBH, bản hợp đồng, bản
-  scan bản cứng và tệp đính kèm — kèm người tải và thời điểm. Chúng nằm cùng chỗ với các bước duyệt vì cùng trả lời một câu:
-  hồ sơ này đã đi qua tay ai.
+- **Lịch sử của hồ sơ ghi lượt TẢI XUỐNG BẢN CỨNG** `sửa 20/08`: bản scan và tệp đính kèm — kèm
+  người tải và thời điểm. Chúng nằm cùng chỗ với các bước duyệt vì cùng trả lời một câu: hồ sơ này
+  đã đi qua tay ai.
   > **Mở ra XEM thì không ghi.** Phần mềm phân biệt xem với tải: xem là mở trong phần mềm rồi đóng,
-  > tải là đưa một bản sao ra khỏi hệ thống. Ghi cả hai thì mỗi lần liếc màn hình thành một dòng, và
-  > những dòng nói về bước duyệt bị dìm mất.
+  > tải là đưa một bản sao ra khỏi hệ thống.
+  > **Bản mềm CSBH và hợp đồng KHÔNG ghi gì cả** `sửa 20/08` — kể cả lượt tải. Bản trước ghi cả
+  > bốn loại (19/08); khách hàng bỏ hai loại đầu ngày 20/08. Lý do là chính lý do đã dùng để loại
+  > lượt XEM: bản mềm và hợp đồng là thứ người ta mở ra ĐỌC, mỗi hồ sơ vài lần một buổi, nên những
+  > dòng ấy chỉ làm dày lịch sử. Bản scan thì khác — nó mang chữ ký khách hàng, và *"ai đã lấy nó ra
+  > khỏi hệ thống"* là một câu hỏi kiểm soát thật.
+  >
+  > Dấu **đã xuất hợp đồng** thì GIỮ: nó không phải một dòng lịch sử mà là một trạng thái của hồ sơ
+  > (muc 8.3 hỏi *"hồ sơ này đã có hợp đồng chưa"*), và nó vẫn đóng ở cả đường xem lẫn đường tải.
+  > Những dòng *Tải bản mềm CSBH* / *Tải bản hợp đồng* đã ghi trước 20/08 **ở lại** — nhật ký chỉ
+  > ghi thêm.
 - Lưu giá trị **trước và sau** của dữ liệu quan trọng, kèm lý do thay đổi.
 - **Nhật ký chỉ ghi thêm** — chặn sửa và xóa ở tầng cơ sở dữ liệu, không chỉ ở ứng dụng.
 - Mỗi mốc thời gian là **một cột riêng** trên hồ sơ kèm người thực hiện; báo cáo và SLA truy vấn

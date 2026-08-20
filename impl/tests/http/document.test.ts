@@ -946,8 +946,8 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
 describe('`0053` N-01 lịch sử ghi lại người tải tệp của hồ sơ', () => {
   const lichSu = (id: string) =>
     withAdminDb(async (c) => {
-      const r = await c.query<{ action: string; actor_role: string; from_status: string | null }>(
-        `SELECT action, actor_role, from_status::text AS from_status
+      const r = await c.query<{ seq: number; action: string; actor_role: string; from_status: string | null }>(
+        `SELECT seq, action, actor_role, from_status::text AS from_status
            FROM pol.policy_event WHERE policy_id = $1 ORDER BY seq`,
         [id],
       );
@@ -1016,6 +1016,51 @@ describe('`0053` N-01 lịch sử ghi lại người tải tệp của hồ sơ'
       rows.filter((x) => x.action === 'TAI_BAN_SCAN').map((x) => x.actor_role).sort(),
     ).toEqual(['KE_TOAN', 'SALE_ADMIN']);
   }, 120_000);
+
+  it('`0059` NĂM lượt tải song song: đủ năm dòng, `seq` liên tiếp', async () => {
+    /*
+     * Ca này bắt được một lỗi thật, và nó chuyển từ `contract.test.ts` sang đây
+     * ở `0059` — đường tải bản mềm không ghi lịch sử nữa nên không còn chạm tới
+     * `seq`, còn đường tải bản scan thì vẫn.
+     *
+     * Lỗi: `seq` cấp bằng `coalesce(max(seq),0)+1` ngay trong câu INSERT nhìn
+     * như đã đủ an toàn, nhưng `max(seq)` chỉ thấy dòng ĐÃ COMMIT. Năm lượt
+     * song song đọc ra cùng một con số, bốn lượt vỡ ở ràng buộc
+     * `UNIQUE (policy_id, seq)`, và người dùng nhận 500 cho một thao tác đọc
+     * thuần tuý. `SELECT ... FOR UPDATE` trên dòng hồ sơ xếp chúng thành hàng.
+     */
+    const { d, fileId } = await coBanScan();
+    const url = await lienKet(fileId, 'kt01');
+    const runs = await Promise.all([0, 1, 2, 3, 4].map(() => dget(url, 'kt01')));
+    for (const r of runs) expect(r.status).toBe(200);
+
+    const seq = await withAdminDb(async (c) => {
+      const r = await c.query<{ seq: number }>(
+        `SELECT seq FROM pol.policy_event
+          WHERE policy_id = $1 AND action = 'TAI_BAN_SCAN' ORDER BY seq`,
+        [d.id],
+      );
+      return r.rows.map((x) => x.seq);
+    });
+    expect(seq, 'không lượt nào bị nuốt').toHaveLength(5);
+    // Liên tiếp: `seq` là số thứ tự của lịch sử, thủng một số là thủng một dòng.
+    expect(seq.every((v, i) => i === 0 || v === seq[i - 1]! + 1)).toBe(true);
+  }, 150_000);
+
+  it('`0059` dòng tải xuống KHÔNG phá số thứ tự của bước duyệt sau đó', async () => {
+    /*
+     * `seq` là UNIQUE trên mỗi hồ sơ, và dòng tải xuống chen vào giữa chuỗi ấy.
+     * Bước duyệt tiếp theo phải ghi được — tính sai thì nó vỡ ở ràng buộc CSDL
+     * chứ không phải ở một khẳng định mềm.
+     */
+    const { d, fileId } = await coBanScan();
+    expect((await dget(await lienKet(fileId, 'kt01'), 'kt01')).status).toBe(200);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+
+    const rows = await lichSu(d.id);
+    expect(rows.map((x) => x.action)).toContain('SA_HANDOVER');
+    expect(new Set(rows.map((x) => x.seq)).size, 'seq không được trùng').toBe(rows.length);
+  }, 150_000);
 
   it('tệp HỒ SƠ đính kèm ghi nhãn khác bản scan', async () => {
     /*

@@ -110,9 +110,14 @@ export function XemBanMem({
       tieuDe={`${loai === 'HO_SO' ? 'Bản mềm' : 'Hợp đồng'} ${maHoSo}${
         mau ? ` — ${mau.ten}` : ''
       }`}
-      // `xem=1`: mở ra đọc thì KHÔNG ghi một dòng tải xuống vào Lịch sử (`0052`).
-      duong={`${ch.duong(hoSoId)}?${q}&xem=1`}
-      duongTai={`${ch.duong(hoSoId)}?${q}`}
+      /*
+        MỘT đường cho cả xem lẫn tải (`0059`).
+
+        Tới `0058` đường xem mang `xem=1` để máy chủ đừng ghi một dòng tải xuống
+        vào *Lịch sử*. Bản mềm và hợp đồng không ghi lịch sử nữa, nên hai đường
+        gộp lại làm một. Bản scan thì VẪN tách — xem `TepDinhKem`.
+      */
+      duong={`${ch.duong(hoSoId)}?${q}`}
       tenTep={`${loai === 'HO_SO' ? 'CSBH' : 'HopDong'}-${maHoSo}.pdf`}
       truoc={
         // MỘT mẫu thì không có gì để chọn — ô chọn một dòng là một câu hỏi giả.

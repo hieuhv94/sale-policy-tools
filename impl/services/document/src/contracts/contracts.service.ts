@@ -135,8 +135,6 @@ export class ContractsService {
   async export(
     policyId: string,
     me: AuthUser,
-    /** Chỉ XEM trong phần mềm — vẫn đóng dấu xuất, nhưng không ghi lịch sử (`0052`). */
-    chiXem = false,
     /** Mẫu người dùng CHỌN (`0058`). */
     mauId?: string,
   ): Promise<{ pdf: Buffer; fileName: string }> {
@@ -166,9 +164,21 @@ export class ContractsService {
 
     const pdf = await this.gotenberg.docxToPdf(merged, `hop-dong-${built.policyCode}.docx`);
 
-    // Ghi dấu vết SAU khi đã có PDF trong tay. Ghi trước rồi Gotenberg chết là
-    // hồ sơ mang dấu "đã xuất hợp đồng" cho một lần xuất không hề xảy ra (DOC-34).
-    await this.clients.daSinhVanBan(policyId, 'HOP_DONG', me, !chiXem);
+    /*
+     * Đóng dấu XUẤT HỢP ĐỒNG — và CHỈ đóng dấu (`0059`).
+     *
+     * Tới `0058` lời gọi này làm hai việc: đóng dấu, và ghi một dòng *Lịch sử*
+     * "đã tải hợp đồng" khi không phải chỉ xem. Khách hàng bỏ việc thứ hai ngày
+     * 20/08, nên tham số `ghiLichSu` biến mất khỏi cả đường gọi: giờ `loai`
+     * quyết định tất cả, và HỢP ĐỒNG nghĩa là đóng dấu chứ không ghi lịch sử.
+     *
+     * Con dấu thì KHÔNG bỏ, và nó cũng không phải chuyện lịch sử: muc 8.3 hỏi
+     * "hồ sơ này đã có hợp đồng chưa", một trạng thái của hồ sơ.
+     *
+     * Ghi SAU khi đã có PDF trong tay. Ghi trước rồi Gotenberg chết là hồ sơ
+     * mang dấu "đã xuất hợp đồng" cho một lần xuất không hề xảy ra (DOC-34).
+     */
+    await this.clients.daSinhVanBan(policyId, 'HOP_DONG', me);
     await this.db.tx(async (c) => this.audit(c, built, me));
 
     return { pdf, fileName: `hop-dong-${built.policyCode}.pdf` };
