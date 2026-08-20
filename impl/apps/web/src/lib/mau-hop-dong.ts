@@ -140,8 +140,11 @@ export const luuDuoc = (oTrong: string[], daChon: Set<string>): boolean =>
   oTrong.every((p) => p === O_BANG_SAN_PHAM || daChon.has(p));
 
 /**
- * NHÃN tiếng Việt của từng khoá trộn — nội dung bảng hướng dẫn trên trang thêm
- * mẫu (`0056`).
+ * NHÃN tiếng Việt của từng khoá trộn — cột chú thích của bảng hướng dẫn (`0056`).
+ *
+ * NGẮN GỌN (`0068`): nhãn đứng cạnh chính tên khoá, nên nó chỉ cần nói phần mà
+ * tên khoá không nói. Câu dài ở đây làm cột chú thích xuống dòng và hai cột lệch
+ * nhau — mà bảng này người ta liếc chứ không đọc.
  *
  * Giữ ở giao diện chứ không lấy từ máy chủ: máy chủ trả về danh sách KHOÁ, còn
  * đây là câu giải thích cho người đọc, và nó thuộc về chỗ có người đọc. Có một
@@ -149,32 +152,32 @@ export const luuDuoc = (oTrong: string[], daChon: Set<string>): boolean =>
  * bảng hướng dẫn thiếu một dòng, và người soạn mẫu không biết khoá ấy tồn tại.
  */
 export const NHAN_KHOA: Record<string, string> = {
-  'ho_so.ma_ho_so': 'Mã hồ sơ CSBH',
-  'ho_so.phien_ban': 'Số phiên bản',
-  'ho_so.trang_thai': 'Trạng thái hồ sơ',
+  'ho_so.ma_ho_so': 'Mã hồ sơ',
+  'ho_so.phien_ban': 'Phiên bản',
+  'ho_so.trang_thai': 'Trạng thái',
   'ho_so.ngay_ap_dung': 'Ngày áp dụng',
-  'ho_so.ngay_hieu_luc': 'Ngày bắt đầu có hiệu lực',
-  'ho_so.tep_dinh_kem': 'Danh sách tệp đính kèm',
+  'ho_so.ngay_hieu_luc': 'Ngày hiệu lực',
+  'ho_so.tep_dinh_kem': 'Tệp đính kèm',
 
   'ho_so.ma_khach_hang': 'Mã khách hàng',
   'ho_so.ten_khach_hang': 'Tên khách hàng',
-  'ho_so.ma_so_thue': 'Mã số thuế khách hàng',
+  'ho_so.ma_so_thue': 'Mã số thuế',
   'ho_so.dia_chi_dang_ky': 'Địa chỉ đăng ký',
-  'ho_so.noi_nhan_hang': 'Nơi nhận hàng — trống thì lấy địa chỉ đăng ký',
+  'ho_so.noi_nhan_hang': 'Nơi nhận hàng',
   'ho_so.nguoi_dai_dien': 'Người đại diện',
   'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
   'ho_so.cong_no': 'Công nợ',
 
-  'ho_so.nguoi_de_nghi': 'Người đề nghị — Trình dược viên lập hồ sơ',
-  'ho_so.truong_bo_phan': 'Trưởng bộ phận đã ký',
-  'ho_so.ke_toan': 'Kế toán tiếp nhận',
-  'ho_so.sale_admin': 'Sale Admin xử lý',
-  'ho_so.ngay_tbp_ky': 'Ngày Trưởng bộ phận ký',
-  'ho_so.ngay_kt_nhan_l1': 'Ngày Kế toán tiếp nhận lần 1',
-  'ho_so.ngay_kt_nhan_l2': 'Ngày Kế toán tiếp nhận lần 2',
-  'ho_so.chu_ky_so_TBP': 'Khối chữ ký số — “TBP đã ký số” và ngày ký ở dòng dưới',
+  'ho_so.nguoi_de_nghi': 'Người đề nghị',
+  'ho_so.truong_bo_phan': 'Trưởng bộ phận',
+  'ho_so.ke_toan': 'Kế toán',
+  'ho_so.sale_admin': 'Sale Admin',
+  'ho_so.ngay_tbp_ky': 'Ngày TBP ký',
+  'ho_so.ngay_kt_nhan_l1': 'Ngày KT nhận lần 1',
+  'ho_so.ngay_kt_nhan_l2': 'Ngày KT nhận lần 2',
+  'ho_so.chu_ky_so_TBP': 'Khối chữ ký số của TBP',
 
-  ngay_in: 'Ngày in văn bản — không phải ngày của hồ sơ',
+  ngay_in: 'Ngày in văn bản',
 };
 
 /** Ô trống được thay bằng CẢ BẢNG sản phẩm — chỉ mẫu hồ sơ dùng tới. */

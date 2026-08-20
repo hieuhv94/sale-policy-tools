@@ -72,8 +72,12 @@ const chonTep = async () => {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
   fireEvent.change(o, { target: { files: [f] } });
-  await waitFor(() => expect(screen.getByText('Ô trống trong file → trường dữ liệu')).toBeDefined());
+  // Bảng ánh xạ mở ra trong HỘP THOẠI riêng từ `0068`, ngay khi đọc xong ô trống.
+  await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
 };
+
+/** Đóng hộp ánh xạ để thấy lại phần còn lại của trang. */
+const dongAnhXa = () => fireEvent.click(screen.getByRole('button', { name: 'Xong' }));
 
 describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
   it('nút LƯU ở góc trên bên phải, và xám khi chưa chọn file', () => {
@@ -84,11 +88,10 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     expect((nut as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('chọn file thì bảng ánh xạ hiện NGAY DƯỚI, và ánh xạ được đoán sẵn', async () => {
+  it('`0068` chọn file thì hộp ánh xạ MỞ NGAY, và ánh xạ được đoán sẵn', async () => {
     /*
-     * Bản trước bảng ánh xạ là một hộp thoại ở bước sau: tải lên xong, đóng lại,
-     * tìm dòng của mình trong danh sách, rồi bấm *Ánh xạ*. Ba bước cho một việc
-     * mà file vừa mới nằm trong tay người dùng.
+     * Đọc xong ô trống mà không bày ra thì người dùng phải đoán rằng có một bước
+     * nữa và tự đi tìm nút mở nó.
      */
     chan(DU_MUC);
     bay('HO_SO');
@@ -98,7 +101,32 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     expect(o.value, 'máy chủ đoán sẵn theo tên ô trống').toBe('ho_so.ma_ho_so');
     // Ô bảng sản phẩm KHÔNG có ô chọn — nó không trỏ tới trường nào.
     expect(screen.queryByLabelText('Trường dữ liệu cho {{bang_san_pham}}')).toBeNull();
-    expect(document.body.textContent).toContain('Cả bảng sản phẩm');
+    expect(screen.getByRole('dialog').textContent).toContain('Cả bảng sản phẩm');
+  });
+
+  it('`0068` ô chọn trường hiện TÊN KHOÁ, không hiện chú thích tiếng Việt', async () => {
+    /*
+     * Người dùng vừa đọc tên ô trống ở cột bên trái và đang đi tìm cái trùng với
+     * nó. Bày chú thích tiếng Việt ra đây là bắt họ dịch hai chiều giữa hai cách
+     * gọi tên cho từng dòng một.
+     */
+    chan(DU_MUC);
+    bay('HO_SO');
+    await chonTep();
+
+    const o = screen.getByLabelText('Trường dữ liệu cho {{ho_so.ma_ho_so}}') as HTMLSelectElement;
+    const muc = [...o.options].map((x) => x.textContent);
+    expect(muc).toContain('ho_so.ten_khach_hang');
+    expect(muc).not.toContain('Tên khách hàng');
+  });
+
+  it('`0068` đóng hộp rồi thì trang nói còn bao nhiêu ô chưa chọn', async () => {
+    chan({ placeholders: ['{{ho_so.ma_ho_so}}', '{{con_thieu}}'], goiY: [] });
+    bay('HO_SO');
+    await chonTep();
+    dongAnhXa();
+    expect(document.body.textContent).toContain('0/2 đã chọn trường');
+    expect(screen.getByRole('button', { name: /Chọn trường cho các ô còn lại/ })).toBeDefined();
   });
 
   it('LƯU hỏi lại một lần, và chỉ gửi khi xác nhận', async () => {
@@ -106,6 +134,7 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     bay('HO_SO');
     await chonTep();
 
+    dongAnhXa();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
     // Chưa gửi gì cả: hộp thoại là một câu hỏi, không phải một thông báo.
@@ -123,6 +152,7 @@ describe('`0067` một lượt lưu, không bước nào ở giữa', () => {
     chan({ placeholders: ['{{ho_so.ma_ho_so}}', '{{khong_doan_duoc}}'], goiY: [] });
     bay('HO_SO');
     await chonTep();
+    dongAnhXa();
     expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
@@ -133,6 +163,7 @@ describe('`0067` chọn cột bảng sản phẩm', () => {
     chan({ placeholders: ['{{ho_so.ma_ho_so}}'], goiY: [] });
     bay('HO_SO');
     await chonTep();
+    dongAnhXa();
     expect(screen.queryByText('Cột của bảng sản phẩm')).toBeNull();
   });
 
@@ -140,6 +171,7 @@ describe('`0067` chọn cột bảng sản phẩm', () => {
     chan(DU_MUC);
     bay('HO_SO');
     await chonTep();
+    dongAnhXa();
 
     const buoc = screen.getByLabelText('Tên sản phẩm') as HTMLInputElement;
     expect(buoc.checked).toBe(true);
@@ -158,6 +190,7 @@ describe('`0067` chọn cột bảng sản phẩm', () => {
     chan(DU_MUC);
     bay('HO_SO');
     await chonTep();
+    dongAnhXa();
     expect(screen.getByLabelText(/Từng khoản CPBH/)).toBeDefined();
     expect(screen.queryByLabelText('CPBH1')).toBeNull();
   });
@@ -168,7 +201,33 @@ describe('`0067` hướng dẫn', () => {
     chan(DU_MUC);
     bay('HO_SO');
     expect(screen.queryByRole('button', { name: /ho_so\.ten_khach_hang/ })).toBeNull();
-    expect(document.body.textContent).toContain('{{ho_so.ten_khach_hang}}');
+    expect(document.body.textContent).toContain('ho_so.ten_khach_hang');
+  });
+
+  it('`0068` khoá trong hướng dẫn KHÔNG bọc ngoặc, và nằm trong thẻ nền xám', () => {
+    /*
+     * Hai cặp ngoặc lặp lại ở hai mươi dòng chỉ làm cột đầu dài thêm mà không
+     * nói gì mới — câu ngay trên đã dạy cách viết chúng rồi.
+     */
+    chan(DU_MUC);
+    bay('HO_SO');
+    // CHỈ trong bảng khoá: câu ví dụ ngay phía trên cố ý có ngoặc, vì nó đang
+    // dạy cách viết chúng.
+    const the = [...document.querySelectorAll('.bang-khoa .the-khoa')].map((e) => e.textContent);
+    expect(the).toContain('ho_so.ten_khach_hang');
+    expect(the.filter((t) => t?.startsWith('{{')), 'khoá trong bảng không bọc ngoặc').toEqual([]);
+  });
+
+  it('`0068` câu ví dụ dùng dạng NGẮN, đúng như khách hàng chốt', () => {
+    chan(DU_MUC);
+    bay('HO_SO');
+    expect(document.body.textContent).toContain('{{ten_khach_hang}}');
+  });
+
+  it('`0068` KHÔNG còn chú thích về thông tin Công ty', () => {
+    chan(DU_MUC);
+    bay('HO_SO');
+    expect(document.body.textContent).not.toContain('gõ thẳng vào file');
   });
 
   it('KHÔNG còn dòng chú thích về việc Word cắt rời khoá', () => {
@@ -182,9 +241,8 @@ describe('`0067` hướng dẫn', () => {
     // bảng do hệ thống dựng. Bày chúng ra là mời gõ một khoá máy chủ không nhận.
     chan(DU_MUC);
     bay('HO_SO');
-    expect(document.body.textContent).not.toContain('{{cong_ty.ten}}');
-    expect(document.body.textContent).not.toContain('{{san_pham.ma_san_pham}}');
-    expect(document.body.textContent).toContain('gõ thẳng vào file');
+    expect(document.body.textContent).not.toContain('cong_ty.ten');
+    expect(document.body.textContent).not.toContain('san_pham.ma_san_pham');
   });
 
   it('hộp hướng dẫn TỰ CUỘN, không kéo cả trang', () => {

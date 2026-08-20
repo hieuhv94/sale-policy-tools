@@ -7019,3 +7019,49 @@ Bộ nạp demo cũng đổi theo: mẫu rút gọn nạp kèm tập cột gọn
 cột trên màn hình thêm mẫu là một chức năng không ai thấy hoạt động.
 
 **1277/1277 xanh.**
+
+## P95 — Hộp ánh xạ tách riêng, và khoá đọc bằng chính tên nó
+
+Sáu điểm sửa giao diện sau khi khách hàng dùng thử trang thêm mẫu của `0067`.
+
+### Bảng ánh xạ ra hộp thoại riêng
+
+`0067` đặt nó thẳng vào cột trái, ngay dưới ô chọn tệp — đúng như yêu cầu lúc ấy. Nhưng với mẫu hai
+mươi ô trống thì cột ấy **dài gấp ba phần còn lại**, và hai thứ đáng chú ý nhất — ô chọn cột bảng và
+nút *Lưu* — bị đẩy khỏi tầm mắt.
+
+Giờ nó là một hộp thoại rộng, mở **ngay** khi đọc xong ô trống (đọc xong mà không bày ra thì người
+dùng phải đoán rằng có một bước nữa). Chỗ cũ còn một dòng tóm tắt — *"3/5 đã chọn trường"* — kèm nút
+mở lại.
+
+**Không cho tràn khung**, và chặn ở CSS chứ không ở chỗ dựng giao diện, vì hai nguyên nhân đều thuộc
+về trình duyệt: khoá dài không có khoảng trắng (`{{ho_so.chuc_danh_dai_dien}}`) thì không tìm được
+chỗ ngắt nên nó nong ô ra, còn `<select>` thì mặc định rộng bằng `<option>` dài nhất.
+
+### Khoá đọc bằng chính tên nó
+
+Ba đổi nhỏ cùng một hướng — **cái người dùng cần đối chiếu phải là cái hiện ra**:
+
+| Chỗ | Trước | Sau |
+|---|---|---|
+| Bảng hướng dẫn | `{{ho_so.ten_khach_hang}}` | `ho_so.ten_khach_hang` trong thẻ nền xám |
+| Ô chọn trường | *Tên khách hàng* | `ho_so.ten_khach_hang` |
+| Cột chú thích | *Người đề nghị — Trình dược viên lập hồ sơ* | *Người đề nghị* |
+
+Ô chọn là chỗ rõ nhất: người dùng vừa đọc tên ô trống ở cột bên trái và đang đi tìm cái trùng với nó.
+Bày chú thích tiếng Việt ra đó là bắt họ **dịch hai chiều** giữa hai cách gọi tên, từng dòng một.
+
+Hai cặp ngoặc thì bỏ khỏi bảng — lặp lại ở hai mươi dòng mà không nói gì mới, vì câu ngay trên đã dạy
+cách viết chúng. Thẻ nền xám thay chúng để mắt vẫn nhận ra đây là thứ phải gõ y nguyên.
+
+### Một chỗ tôi hỏi lại trước khi làm
+
+Câu ví dụ đổi thành `{{ten_khach_hang}}`, nhưng khoá thật là `{{ho_so.ten_khach_hang}}`. Hai cách
+hiểu, khối lượng khác hẳn: bỏ tiền tố `ho_so.` khỏi mọi khoá (hợp lý vì sau khi bỏ `cong_ty.` và
+`san_pham.` thì chỉ còn MỘT nhóm, tiền tố không phân biệt gì nữa) — hay chỉ sửa câu chữ.
+
+Khách hàng chốt: **giữ `ho_so.`, chỉ sửa câu ví dụ**. Ghi lại ở đây vì hệ quả có thật — câu ví dụ
+trong hướng dẫn giờ trỏ tới một khoá không tồn tại, và người soạn gõ theo nó sẽ bị máy chủ từ chối
+với `SOURCE_UNKNOWN`. Đã nêu trước khi làm và khách hàng chọn như vậy.
+
+**1282/1282 xanh.**

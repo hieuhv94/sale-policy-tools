@@ -1,9 +1,13 @@
 /**
  * Trang **thêm văn bản mẫu** — một lượt lưu, không có bước nào ở giữa (`0067`).
  *
- * Bố cục: chọn file → bảng ánh xạ hiện ra ngay dưới nó → hướng dẫn đứng cạnh,
- * tự cuộn trong hộp của nó. Nút **Lưu** ở góc trên bên phải, và nó hỏi lại một
- * lần trước khi ghi.
+ * Bố cục: chọn file → bảng ánh xạ mở ra trong một **hộp thoại riêng** (`0068`) →
+ * hướng dẫn đứng cạnh, tự cuộn trong hộp của nó. Nút **Lưu** ở góc trên bên
+ * phải, và nó hỏi lại một lần trước khi ghi.
+ *
+ * Bảng ánh xạ tách ra hộp riêng vì với mẫu hai mươi ô trống, để thẳng vào cột
+ * trái thì cột ấy dài gấp ba phần còn lại — và hai thứ đáng chú ý nhất, ô chọn
+ * cột bảng và nút Lưu, bị đẩy khỏi tầm mắt.
  *
  * BA THỨ ĐÃ BỎ so với `0056`, và cả ba đều là bỏ một câu hỏi sai:
  *
@@ -22,7 +26,6 @@ import {
   NHAN_KHOA,
   O_BANG_SAN_PHAM,
   luuDuoc,
-  oTrongCua,
   type CotBang,
   type DanhMucNguon,
   type LoaiMau,
@@ -30,7 +33,7 @@ import {
   type ThongTinOTrong,
   type TruongAnhXa,
 } from '../lib/mau-hop-dong.js';
-import { BaoLoi, ChuThichBatBuoc, HopThoaiXacNhan, Truong } from '../components/Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Truong } from '../components/Chung.js';
 
 /**
  * Nhóm khoá hiện trên hướng dẫn, theo đúng thứ tự người soạn mẫu cần tới.
@@ -107,6 +110,7 @@ export function ThemMau({
   const [dangDoc, datDangDoc] = useState(false);
   const [dangLuu, datDangLuu] = useState(false);
   const [hoi, datHoi] = useState(false);
+  const [moAnhXa, datMoAnhXa] = useState(false);
 
   /*
    * Danh mục nguồn tải MỘT LẦN, lúc trang mở — không đợi chọn file.
@@ -139,6 +143,9 @@ export function ThemMau({
       datOTrong(tt);
       datAnhXa(Object.fromEntries(tt.goiY.map((g) => [g.placeholder, g.source])));
       if (ten.trim() === '') datTen(f.name.replace(/\.docx$/i, ''));
+      // Mở bảng ánh xạ NGAY: đọc xong ô trống mà không bày ra thì người dùng
+      // phải đoán rằng có một bước nữa và phải tự đi tìm nút mở nó.
+      datMoAnhXa(tt.placeholders.length > 0);
     } catch (e) {
       datLoi(e);
     } finally {
@@ -172,6 +179,11 @@ export function ThemMau({
   const duLuu = tep !== null && oTrong !== null && luuDuoc(oTrong.placeholders, daChon);
   const coBang = oTrong?.placeholders.includes(O_BANG_SAN_PHAM) ?? false;
   const cotBatBuoc = new Set(danhMuc?.cotBatBuoc ?? []);
+
+  /** Ô trống PHẢI ánh xạ — ô bảng sản phẩm không trỏ tới trường nào nên đứng ngoài. */
+  const phaiAnhXa = (oTrong?.placeholders ?? []).filter((o) => o !== O_BANG_SAN_PHAM);
+  const soPhaiAnhXa = phaiAnhXa.length;
+  const thieu = phaiAnhXa.filter((o) => !daChon.has(o));
 
   return (
     <section className="trang">
@@ -242,64 +254,25 @@ export function ThemMau({
           {dangDoc && <p className="ghi-chu">Đang đọc ô trống trong file…</p>}
 
           {/*
-            BẢNG ÁNH XẠ nằm ngay dưới ô chọn tệp (`0067`).
+            BẢNG ÁNH XẠ nằm trong HỘP THOẠI RIÊNG (`0068`).
 
-            Bản trước nó là một hộp thoại mở ra ở bước sau, nên người dùng phải
-            tải lên xong, đóng lại, tìm dòng của mình trong danh sách, rồi bấm
-            *Ánh xạ*. Ba bước cho một việc mà file vừa mới nằm trong tay họ.
+            `0067` đặt nó thẳng vào cột trái, ngay dưới ô chọn tệp. Với mẫu hai
+            mươi ô trống thì cột ấy dài gấp ba phần còn lại, và hai thứ đáng chú
+            ý nhất — ô chọn cột bảng, nút Lưu — bị đẩy khỏi tầm mắt.
+
+            Ở đây chỉ còn một dòng TÓM TẮT: đã ánh xạ mấy trên mấy, và một nút mở
+            lại hộp. Dòng ấy đủ để biết còn việc hay đã xong.
           */}
           {oTrong && (
-            <>
-              <h2 className="tieu-de-nho">Ô trống trong file → trường dữ liệu</h2>
-              {oTrong.placeholders.length === 0 && (
-                <p className="ghi-chu canh-bao">
-                  File này không có ô trống nào. Bản in ra sẽ giống hệt file mẫu, không điền gì cả.
-                </p>
-              )}
-              <table className="bang">
-                <thead>
-                  <tr>
-                    <th>Ô trống</th>
-                    <th>Lấy dữ liệu từ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {oTrong.placeholders.map((o) =>
-                    o === O_BANG_SAN_PHAM ? (
-                      <tr key={o}>
-                        <td>
-                          <code>{o}</code>
-                        </td>
-                        <td className="ghi-chu">Cả bảng sản phẩm — không cần chọn trường</td>
-                      </tr>
-                    ) : (
-                      <tr key={o}>
-                        <td>
-                          <code>{o}</code>
-                        </td>
-                        <td>
-                          <select
-                            className="o-nhap"
-                            aria-label={`Trường dữ liệu cho ${o}`}
-                            value={anhXa[o] ?? ''}
-                            onChange={(e) =>
-                              datAnhXa((cu) => ({ ...cu, [o]: e.target.value }))
-                            }
-                          >
-                            <option value="">— chưa chọn —</option>
-                            {(danhMuc?.knownSources ?? []).map((s) => (
-                              <option key={s} value={s}>
-                                {NHAN_KHOA[s] ?? s}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                      </tr>
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </>
+            <div className="tom-tat-anh-xa">
+              <p className={thieu.length > 0 ? 'ghi-chu canh-bao' : 'ghi-chu'}>
+                Ô trống: <strong>{daChon.size}</strong>/{soPhaiAnhXa} đã chọn trường
+                {thieu.length > 0 ? ` — còn ${thieu.length} ô chưa chọn` : ''}
+              </p>
+              <button type="button" className="nut nut-nhe" onClick={() => datMoAnhXa(true)}>
+                {thieu.length > 0 ? 'Chọn trường cho các ô còn lại' : 'Xem lại ánh xạ'}
+              </button>
+            </div>
           )}
 
           {/*
@@ -347,7 +320,7 @@ export function ThemMau({
           <h2>Cách đặt chỗ điền dữ liệu</h2>
           <p className="ghi-chu">
             Trong file Word, gõ khoá vào đúng chỗ muốn phần mềm điền. Khoá viết trong hai cặp ngoặc
-            nhọn, ví dụ <code>{'{{ho_so.ten_khach_hang}}'}</code>.
+            nhọn, ví dụ <code className="the-khoa">{'{{ten_khach_hang}}'}</code>.
           </p>
 
           <div className="hop-canh-bao" role="note">
@@ -361,13 +334,6 @@ export function ThemMau({
             </p>
           </div>
 
-          <div className="hop-canh-bao" role="note">
-            <p className="ghi-chu">
-              <strong>Tên, địa chỉ và mã số thuế của Công ty gõ thẳng vào file.</strong> Ba giá trị
-              ấy giống nhau ở mọi hồ sơ nên không có khoá nào cho chúng.
-            </p>
-          </div>
-
           {NHOM_HUONG_DAN.map((n) => (
             <div key={n.nhan} className="nhom-khoa">
               <h3>{n.nhan}</h3>
@@ -377,7 +343,15 @@ export function ThemMau({
                     {n.khoa.map((k) => (
                       <tr key={k}>
                         <td>
-                          <code>{oTrongCua(k)}</code>
+                          {/*
+                            TÊN KHOÁ TRẦN, không có `{{ }}` (`0068`).
+
+                            Hai cặp ngoặc lặp lại ở hai mươi dòng chỉ làm cột đầu
+                            dài thêm mà không nói gì mới — câu ngay trên đã dạy
+                            cách viết chúng rồi. Thẻ nền xám thay ngoặc để mắt
+                            vẫn nhận ra đây là thứ phải gõ y nguyên.
+                          */}
+                          <code className="the-khoa">{k}</code>
                         </td>
                         <td className="ghi-chu">{NHAN_KHOA[k] ?? k}</td>
                       </tr>
@@ -389,6 +363,80 @@ export function ThemMau({
           ))}
         </div>
       </div>
+
+      {/*
+        HỘP ÁNH XẠ (`0068`) — rộng, và nội dung KHÔNG tràn ra ngoài khung.
+
+        Hai thứ gây tràn ở một hộp thoại hẹp, và cả hai đã chặn ở CSS chứ không
+        ở đây: khoá dài không có khoảng trắng thì trình duyệt không tìm được chỗ
+        ngắt, còn `<select>` thì mặc định rộng bằng mục dài nhất của nó.
+      */}
+      {moAnhXa && oTrong && (
+        <HopThoai tieuDe="Ánh xạ ô trống với trường dữ liệu" rong dong={() => datMoAnhXa(false)}>
+          <p className="ghi-chu">
+            Mỗi ô trống trong file lấy dữ liệu từ một trường của hồ sơ. Phần mềm đã đoán sẵn theo
+            tên ô; soát lại và chọn nốt những ô còn trống.
+          </p>
+
+          <div className="khung-cuon">
+            <table className="bang bang-anh-xa">
+              <thead>
+                <tr>
+                  <th>Ô trống trong file</th>
+                  <th>Lấy dữ liệu từ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {oTrong.placeholders.map((o) =>
+                  o === O_BANG_SAN_PHAM ? (
+                    <tr key={o}>
+                      <td>
+                        <code className="the-khoa">{o}</code>
+                      </td>
+                      <td className="ghi-chu">Cả bảng sản phẩm — không cần chọn trường</td>
+                    </tr>
+                  ) : (
+                    <tr key={o}>
+                      <td>
+                        <code className="the-khoa">{o}</code>
+                      </td>
+                      <td>
+                        <select
+                          className="o-nhap"
+                          aria-label={`Trường dữ liệu cho ${o}`}
+                          value={anhXa[o] ?? ''}
+                          onChange={(e) => datAnhXa((cu) => ({ ...cu, [o]: e.target.value }))}
+                        >
+                          <option value="">— chưa chọn —</option>
+                          {/*
+                            Hiện TÊN KHOÁ, không hiện chú thích (`0068`).
+
+                            Người dùng vừa đọc tên ô trống ở cột bên trái và đang
+                            đi tìm cái trùng với nó. Bày chú thích tiếng Việt ra
+                            đây là bắt họ dịch hai chiều giữa hai cách gọi tên
+                            cho từng dòng một.
+                          */}
+                          {(danhMuc?.knownSources ?? []).map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="nhom-nut">
+            <button type="button" className="nut nut-chinh" onClick={() => datMoAnhXa(false)}>
+              Xong
+            </button>
+          </div>
+        </HopThoai>
+      )}
 
       {hoi && (
         <HopThoaiXacNhan

@@ -1365,6 +1365,40 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   padding: 0 var(--k5) var(--k5);
 }
 
+/* Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường (`0068`).
+
+   `min()` với `100%` chứ không đặt bề rộng cứng: lớp phủ đã có lề hai bên, nên
+   trên màn hình hẹp hộp phải co lại theo chứ không đẩy nội dung ra ngoài mép. */
+.hop-thoai-rong { width: min(760px, 100%); }
+
+/* Bảng ánh xạ trong hộp thoại: KHÔNG cho tràn ra ngoài khung (`0068`).
+
+   Hai thứ gây tràn, và cả hai đều phải chặn:
+     - khoá dài không có khoảng trắng (`{{ho_so.chuc_danh_dai_dien}}`) — trình
+       duyệt không tìm được chỗ ngắt nên nó nong ô ra;
+     - `<select>` có `<option>` dài — bề rộng mặc định của nó theo mục dài nhất. */
+.bang-anh-xa { table-layout: fixed; width: 100%; }
+
+.bang-anh-xa td,
+.bang-anh-xa th { overflow-wrap: anywhere; }
+
+.bang-anh-xa select { width: 100%; max-width: 100%; }
+
+/* Tên khoá trong hướng dẫn và trong bảng ánh xạ: một thẻ NỀN XÁM (`0068`).
+
+   Nổi bật lên khỏi câu chữ xung quanh, và nói cho người đọc biết đây là thứ
+   phải gõ y nguyên chứ không phải một cụm từ đọc hiểu. */
+.the-khoa {
+  display: inline-block;
+  background: var(--mau-nen-phu);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  padding: 0.05rem 0.35rem;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
 /* --- Đăng nhập ------------------------------------------------------------ */
 
 .dang-nhap {
@@ -1769,3 +1803,15 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   justify-content: flex-start;
   text-align: left;
 }
+
+/* Dòng tóm tắt ánh xạ trên trang thêm mẫu (`0068`). */
+.tom-tat-anh-xa {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--k3);
+  flex-wrap: wrap;
+  margin: var(--k3) 0;
+}
+
+.tom-tat-anh-xa p { margin: 0; }

@@ -373,10 +373,13 @@ export function OTimKiem({
 export function HopThoai({
   tieuDe,
   dong,
+  rong = false,
   children,
 }: {
   tieuDe: string;
   dong: () => void;
+  /** Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường chẳng hạn (`0068`). */
+  rong?: boolean;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -419,7 +422,13 @@ export function HopThoai({
 
   return (
     <div className="lop-phu" onMouseDown={(e) => e.target === e.currentTarget && dong()}>
-      <div className="hop-thoai" role="dialog" aria-modal="true" aria-label={tieuDe} ref={khung}>
+      <div
+        className={rong ? 'hop-thoai hop-thoai-rong' : 'hop-thoai'}
+        role="dialog"
+        aria-modal="true"
+        aria-label={tieuDe}
+        ref={khung}
+      >
         {/*
           Tiêu đề nằm NGOÀI vùng cuộn, nội dung nằm trong. Biểu mẫu tạo Trình
           dược viên có bảy ô nên nó cao hơn màn hình laptop; để cả hộp thoại
