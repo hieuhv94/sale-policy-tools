@@ -64,13 +64,7 @@ export function XemBanMem({
   useEffect(() => {
     const huy = new AbortController();
     layJson<MauChon[]>(ch.duongMau, huy.signal)
-      .then((x) => {
-        datDs(x);
-        // Mẫu ĐẦU danh sách mở sẵn — máy chủ đã xếp mẫu mới ban hành lên trước
-        // và đẩy mẫu mặc định sơ sài xuống cuối. Người dùng bấm một nút là xem
-        // được; ô chọn chỉ dành cho người muốn bản khác.
-        datChon(x[0]?.id ?? null);
-      })
+      .then(datDs)
       .catch((e: unknown) => {
         if (!huy.signal.aborted) datLoi(e);
       });
@@ -78,22 +72,53 @@ export function XemBanMem({
   }, [ch.duongMau]);
 
   if (chon === null) {
+    /*
+      HỎI MẪU TRƯỚC KHI XEM (`0067`).
+
+      `0058` mở sẵn mẫu đầu danh sách để bấm một nút là thấy nội dung. Khách hàng
+      chốt lại ngày 20/08: bắt chọn mẫu trước.
+
+      Lý do đứng về phía họ. Từ `0067` mỗi mẫu có TẬP CỘT riêng, nên hai mẫu của
+      cùng một hồ sơ ra hai bản giấy khác hẳn nhau — bản đủ mười cột cho nội bộ
+      và bản bốn cột đưa khách hàng. Mở sẵn một cái nghĩa là phần lớn người dùng
+      không bao giờ biết cái kia tồn tại, và họ gửi đi bản đầu tiên phần mềm đưa
+      ra chứ không phải bản họ định gửi.
+    */
     return (
       <HopThoai tieuDe={`Xem ${ch.nhan} ${maHoSo}`} dong={dong}>
         {loi !== null ? (
           <BaoLoi loi={loi} />
         ) : ds === null ? (
           <DangTai />
-        ) : (
+        ) : ds.length === 0 ? (
           /*
             Danh sách rỗng KHÔNG phải lỗi của người đang đứng đây, và câu chữ
             phải nói ra điều đó: chỉ người soạn mẫu chữa được. Nói "chưa có mẫu"
             rồi để họ tự đoán là đẩy một việc không làm được sang cho họ.
           */
           <p className="ghi-chu">
-            Chưa có văn bản mẫu nào đang dùng cho {ch.nhan}. Đề nghị <strong>{ch.nguoiSoan}</strong>{' '}
-            ban hành một mẫu, rồi mở lại.
+            Chưa có văn bản mẫu nào cho {ch.nhan}. Đề nghị <strong>{ch.nguoiSoan}</strong> thêm một
+            mẫu, rồi mở lại.
           </p>
+        ) : (
+          <>
+            <p className="ghi-chu">
+              Chọn văn bản mẫu để xem trước. Mỗi mẫu có bố cục và tập cột riêng.
+            </p>
+            <div className="chon-mau-truoc">
+              {ds.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="nut nut-nhe"
+                  onClick={() => datChon(m.id)}
+                >
+                  {m.ten}
+                  {phuDe(m) ? ` · ${phuDe(m)}` : ''}
+                </button>
+              ))}
+            </div>
+          </>
         )}
         <div className="nhom-nut">
           <button type="button" className="nut nut-nhe" onClick={dong}>
@@ -122,7 +147,8 @@ export function XemBanMem({
       duong={`${ch.duong(hoSoId)}?${q}`}
       tenTep={`${loai === 'HO_SO' ? 'CSBH' : 'HopDong'}-${maHoSo}.pdf`}
       truoc={
-        // MỘT mẫu thì không có gì để chọn — ô chọn một dòng là một câu hỏi giả.
+        // Ô chọn để ĐỔI mẫu mà không phải đóng hộp ra chọn lại. Một mẫu thì
+        // không có gì để đổi — ô chọn một dòng là một câu hỏi giả.
         ds && ds.length > 1 ? (
           <div className="hang-kho-giay">
             <label className="ghi-chu" htmlFor="chon-mau">

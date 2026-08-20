@@ -6992,3 +6992,30 @@ Triệu chứng: mười ca đỏ ở những chỗ chẳng liên quan gì tới
 vì thấy có mẫu, và ta xoá nốt thứ nó nhìn thấy), và mọi ca tạo mẫu đều `finally` xoá.
 
 **1276/1276 xanh.**
+
+## P94 — Chọn mẫu TRƯỚC khi xem, và phần còn lại của danh sách 20/08
+
+Điểm cuối của danh sách: *"khi xem một file phải yêu cầu người dùng chọn văn bản mẫu trước khi
+preview"*. `0058` làm đúng ngược lại — mở sẵn mẫu đầu danh sách để bấm một nút là thấy nội dung.
+
+Đảo lại là đúng, và lý do nằm ở chính `0067`: từ khi mỗi mẫu có **tập cột riêng**, hai mẫu của cùng
+một hồ sơ ra hai bản giấy khác hẳn nhau — bản đủ mười cột để đối chiếu nội bộ, bản bốn cột để đưa
+khách hàng. Mở sẵn một cái nghĩa là phần lớn người dùng **không bao giờ biết cái kia tồn tại**, và họ
+gửi đi bản phần mềm đưa ra trước chứ không phải bản họ định gửi.
+
+Ô chọn *Mẫu* trên bản đang xem thì giữ: nó để **đổi** mà không phải đóng hộp ra chọn lại.
+
+### Kiểm trên chồng demo thật
+
+Cùng một hồ sơ, hai mẫu, đọc cột ra từ chính PDF:
+
+```
+gọn → STT · Tên sản phẩm · CPBH tổng · Giá thu về
+đầy → STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · CPBH tổng · CPBH1 ·
+      Giá thu về · Tỷ lệ CK · Ghi chú
+```
+
+Bộ nạp demo cũng đổi theo: mẫu rút gọn nạp kèm tập cột gọn. Không có mẫu nào khai tập cột thì ô chọn
+cột trên màn hình thêm mẫu là một chức năng không ai thấy hoạt động.
+
+**1277/1277 xanh.**

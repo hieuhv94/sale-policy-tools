@@ -1753,3 +1753,19 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 .chon-cot input { margin: 0; }
 
+
+/* Danh sách mẫu để chọn trước khi xem (`0067`).
+
+   Mỗi mẫu một nút chiếm trọn bề ngang, xếp dọc: tên mẫu do Quản trị đặt nên nó
+   dài ngắn tuỳ ý, và xếp ngang thì hàng vỡ ra chỗ không đoán được. */
+.chon-mau-truoc {
+  display: grid;
+  gap: var(--k2);
+  margin: var(--k3) 0;
+}
+
+.chon-mau-truoc .nut {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}

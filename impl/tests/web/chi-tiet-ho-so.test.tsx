@@ -363,31 +363,42 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(screen.queryByRole('heading', { name: 'Tải văn bản' })).toBeNull();
   });
 
-  it('`0058` mở ra là XEM NGAY bằng mẫu đầu danh sách, không hỏi trước', async () => {
+  it('`0067` HỎI MẪU TRƯỚC, chưa tải nội dung gì cả', async () => {
     /*
-     * Đổi so với `0054`, và đổi có chủ ý: hộp cũ hỏi khổ giấy TRƯỚC khi cho nhìn
-     * thấy gì. Câu hỏi ấy chặn đường của mọi người dùng, kể cả người chỉ muốn
-     * liếc qua nội dung — mà phần lớn thì đúng là như thế.
-     *
-     * Giờ mẫu đầu danh sách mở ngay, và ô chọn nằm ngay trên bản đang xem cho
-     * ai muốn bản khác. Máy chủ đã xếp mẫu mới ban hành lên đầu.
+     * `0058` mở sẵn mẫu đầu danh sách. Khách hàng chốt lại ngày 20/08: bắt chọn
+     * mẫu trước — và lý do đứng về phía họ. Từ `0067` mỗi mẫu có TẬP CỘT riêng,
+     * nên hai mẫu của cùng một hồ sơ ra hai bản giấy khác hẳn nhau. Mở sẵn một
+     * cái nghĩa là phần lớn người dùng không bao giờ biết cái kia tồn tại.
      */
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
 
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
+    expect(screen.getByRole('button', { name: /Mẫu A4 dọc/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Mẫu A4 ngang/ })).toBeDefined();
+    // CHƯA gọi máy chủ dựng bản mềm lần nào.
+    expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
+  });
+
+  it('`0067` chọn mẫu rồi mới tải, và đường tải mang đúng mẫu vừa chọn', async () => {
+    const f = await mo();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 ngang/ }));
+
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
       expect(d.length).toBeGreaterThan(0);
-      expect(d.every((x) => x.includes(`mauId=${MAU[0]!.id}`))).toBe(true);
+      expect(d.every((x) => x.includes(`mauId=${MAU[1]!.id}`))).toBe(true);
       // `xem=1` ĐÃ BỎ khỏi đường bản mềm (`0059`): nó chỉ tồn tại để máy chủ
       // phân biệt xem với tải cho *Lịch sử*, mà bản mềm không ghi lịch sử nữa.
       expect(d.every((x) => !x.includes('xem=1')), 'không cần cờ xem nữa').toBe(true);
     });
   });
 
-  it('`0058` ô chọn liệt kê ĐỦ mẫu đang dùng, kèm khổ giấy đọc từ file', async () => {
+  it('`0058` ô chọn liệt kê ĐỦ mẫu, kèm khổ giấy đọc từ file', async () => {
     await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
     const o = (await screen.findByLabelText('Mẫu')) as HTMLSelectElement;
     expect([...o.options].map((x) => x.textContent)).toEqual([
       'Mẫu A4 dọc · A4 dọc',
@@ -398,6 +409,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   it('`0058` đổi mẫu thì tải lại theo ĐÚNG mẫu vừa chọn', async () => {
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
     const o = await screen.findByLabelText('Mẫu');
     fireEvent.change(o, { target: { value: MAU[1]!.id } });
 
@@ -483,6 +495,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(nut('Xem hợp đồng')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xuất hợp đồng' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('contract.pdf'));
       expect(d.length).toBeGreaterThan(0);

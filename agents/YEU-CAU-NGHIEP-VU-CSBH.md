@@ -555,8 +555,8 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
-- **Người xem CHỌN MẪU, không chọn khổ giấy** `sửa 20/08`. Ô chọn liệt kê mọi mẫu đang dùng; mẫu
-  ban hành gần nhất mở sẵn. Khổ giấy đi theo file `.docx` của mẫu — phần mềm đọc nó từ `w:orient`
+- **Người xem CHỌN MẪU, không chọn khổ giấy** `sửa 20/08`, và **phải chọn trước khi xem** — mỗi mẫu
+  có tập cột riêng, nên mở sẵn một cái nghĩa là phần lớn người dùng không biết cái kia tồn tại. Khổ giấy đi theo file `.docx` của mẫu — phần mềm đọc nó từ `w:orient`
   chứ không hỏi người tải lên, vì một ô nhập tay không còn hậu quả gì là một ô sẽ nói dối.
   > Kéo theo: *Ban hành* nghĩa là **thêm vào danh sách chọn**, không phải thay mẫu cũ. Nhiều mẫu
   > cùng áp dụng là trạng thái bình thường, và *"chưa có văn bản mẫu"* chỉ còn nghĩa là danh sách
@@ -568,9 +568,22 @@ nói rõ dòng nào hẹp hơn dòng nào.
 - **Khoá trộn viết bằng tiếng Việt** `sửa 19/08`, cho cả mẫu hồ sơ lẫn mẫu hợp đồng. Một nhóm
   `ho_so.` gom tất cả — thông tin chung, khách hàng, người xử lý; `cong_ty.` đứng riêng vì nó không
   thuộc hồ sơ. Ví dụ: `{{ho_so.ten_khach_hang}}`, `{{ho_so.ngay_ap_dung}}`, `{{cong_ty.ten}}`.
-- **Trang thêm mẫu hiện luôn hướng dẫn** `mới 19/08`: danh sách đầy đủ khoá kèm nhãn tiếng Việt,
-  bấm một khoá là chép. Là một **trang riêng**, không phải hộp thoại — hướng dẫn dài hơn biểu mẫu
-  vài lần.
+- **Trang thêm mẫu hiện luôn hướng dẫn** `mới 19/08`, trong một hộp **tự cuộn** để nút *Lưu* ở góc
+  trên bên phải luôn trong tầm mắt `sửa 20/08`.
+- **Một lượt lưu, không vòng đời** `sửa 20/08`: chọn file → soát bảng ánh xạ (phần mềm đoán sẵn) →
+  chọn cột bảng → *Lưu*. Không còn *ban hành*, không còn *nháp*, không còn *sửa* — **lưu được là
+  dùng được**, và muốn đổi thì **xoá đi rồi thêm mẫu mới**.
+- **Chọn cột bảng sản phẩm theo từng mẫu** `mới 20/08`. Tập cột là thuộc tính của bản trình bày, nên
+  nó đi theo mẫu: Quản trị soạn được *"bản đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"*. *Tên
+  sản phẩm* và *CPBH tổng* không tắt được (muc 11.1); *từng khoản CPBH* là **một** lựa chọn nở ra
+  thành CPBH1…CPBHn.
+- **Bỏ nhóm khoá `cong_ty.`** `sửa 20/08` — ba giá trị ấy cố định ở mọi hồ sơ, người soạn gõ thẳng
+  vào file Word. Kéo theo: phép kiểm mục bắt buộc còn **12 trên 13**; mục *thông tin công ty* do
+  người soạn tự chịu trách nhiệm.
+- **Bỏ nhóm khoá `san_pham.`** `sửa 20/08` — mẫu hợp đồng cũng dùng `{{bang_san_pham}}`, nên cơ chế
+  nhân bản dòng bảng không còn ai dùng.
+- **Định dạng không phải chọn** `sửa 20/08`: nó gắn theo TRƯỜNG, không theo mẫu. Cờ *bắt buộc* theo
+  từng ô trống cũng bỏ — nó chỉ đổi thời điểm báo lỗi, và báo cho người không sửa được.
 - **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
   lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
 - **Bàn giao kèm bốn file `.docx` soạn sẵn** `mới 20/08`, trong thư mục `templates/`: mẫu hồ sơ A4

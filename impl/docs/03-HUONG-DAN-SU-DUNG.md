@@ -733,12 +733,16 @@ Tệp Word, Excel và các định dạng khác **không xem trực tiếp đư�
 và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng.
 
 **Xem bản mềm** là một nút ở **góc trên bên phải**, ngang hàng với mã hồ sơ — mọi vai trò đọc được
-hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào là **hiện nội dung ngay**; dưới bản xem có nút *Tải
-xuống* và *Đóng*.
+hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì hộp thoại **hỏi bạn chọn văn bản mẫu** `sửa 20/08`,
+rồi mới hiện nội dung; dưới bản xem có nút *Tải xuống* và *Đóng*.
 
-Trên bản đang xem có ô **Mẫu** `mới 20/08` để chọn bản trình bày khác — ô này chỉ hiện khi có từ hai
-mẫu trở lên. Mẫu mở sẵn là **mẫu ban hành gần nhất**; đổi mẫu là xem lại ngay, đổi bao nhiêu lần
-cũng được và không lần nào bị tính là một lượt tải.
+> **Vì sao phải chọn trước.** Mỗi mẫu có bố cục và **tập cột riêng** — một mẫu đủ mười cột để đối
+> chiếu nội bộ, một mẫu bốn cột để đưa khách hàng. Mở sẵn một cái thì phần lớn người dùng không bao
+> giờ biết cái kia tồn tại, và họ gửi đi bản phần mềm đưa ra trước chứ không phải bản họ định gửi.
+
+Sau khi đã xem, trên bản đang xem có ô **Mẫu** để đổi sang mẫu khác mà không phải đóng hộp ra chọn
+lại — ô này chỉ hiện khi có từ hai mẫu trở lên. Đổi bao nhiêu lần cũng được và không lần nào bị tính
+là một lượt tải.
 
 > **Không còn hỏi khổ giấy nữa** `sửa 20/08`. Khổ giấy nằm sẵn trong file mẫu mà Quản trị soạn: mẫu
 > ngang thì bản mềm ra ngang. Hỏi riêng khổ giấy là bắt bạn ghép hai mảnh mà phần mềm ghép được —
@@ -746,8 +750,8 @@ cũng được và không lần nào bị tính là một lượt tải.
 > biết trước mình sắp in ra tờ nằm ngang hay tờ đứng.
 
 Mục **Hợp đồng** đứng riêng, chỉ Kế toán và Sale Admin thấy và chỉ sau khi tiếp nhận lần 1. Nó cũng
-là **một nút duy nhất** `sửa 20/08` — *Xuất hợp đồng* — và nó mở đúng hộp xem như trên, có ô chọn
-mẫu hợp đồng. Trước đây có hai nút, trong đó nút xuất tải thẳng về máy: nghĩa là đường duy nhất để
+là **một nút duy nhất** `sửa 20/08` — *Xuất hợp đồng* — và nó mở đúng hộp xem như trên: chọn mẫu
+hợp đồng trước, rồi xem, rồi tải. Trước đây có hai nút, trong đó nút xuất tải thẳng về máy: nghĩa là đường duy nhất để
 biết hợp đồng trông thế nào lại là đường không cho nhìn trước, nên người ta tải, mở ra, thấy sai
 mẫu, rồi tải lại — mỗi lượt là một dòng trong *Lịch sử*.
 
@@ -808,23 +812,17 @@ nằm ở **thẻ thứ hai của màn hình *Văn bản mẫu***, cùng chỗ v
 > **Đổi chủ.** Trước 20/08 mục này thuộc Sale Admin. Sale Admin không mất gì trong công việc hằng
 > ngày: họ vẫn xuất hợp đồng và vẫn chọn mẫu nào lúc xuất — chỉ không tải mẫu lên nữa.
 
-Ba bước, theo đúng thứ tự:
+Cách làm **giống hệt thẻ mẫu hồ sơ** (mục 13.0): chọn file → soát bảng ánh xạ → chọn cột bảng sản
+phẩm → **Lưu**. Khác đúng một chỗ: mẫu hợp đồng **không có mục bắt buộc nào**, vì muc 11.1 chỉ nói
+về bản CSBH A4.
 
-1. **Tải mẫu lên** — file `.docx` với ô trống dạng `{{ten_o}}`. Hệ thống đọc ô trống ngay lúc tải;
-   file hỏng thì mẫu đang dùng không bị ảnh hưởng. Trang thêm mẫu bày sẵn danh sách khoá, bấm một
-   khoá là chép.
-2. **Ánh xạ trường** — mỗi ô trống trỏ tới một trường dữ liệu. Trường có tiền tố `san_pham.` làm
-   **dòng bảng chứa nó được nhân bản theo từng dòng sản phẩm**; đây là chỗ hay chọn nhầm, và chọn
-   nhầm thì hợp đồng ra thiếu dòng.
-   > Bảng của hợp đồng **vẽ tay trong Word** — bốn cột cố định. Đừng dùng `{{bang_san_pham}}`: ô ấy
-   > chỉ có nghĩa với mẫu hồ sơ CSBH, nơi số cột CPBH đổi theo từng hồ sơ.
-3. **Ban hành** — chỉ được khi đã ánh xạ hết. Từ 20/08, ban hành nghĩa là **đưa mẫu vào danh sách
-   chọn** chứ không thay mẫu cũ: bao nhiêu mẫu cùng áp dụng cũng được, và Kế toán chọn mẫu nào lúc
-   bấm *Xuất hợp đồng*. Mẫu ban hành gần nhất là mẫu mở sẵn.
+> **Bảng sản phẩm của hợp đồng cũng do hệ thống dựng** `sửa 20/08`. Trước đó nó là một bảng vẽ tay
+> bốn cột với nhóm khoá `san_pham.`; giờ đặt `{{bang_san_pham}}` và **chọn cột** như mẫu hồ sơ. Cùng
+> một cách làm cho cả hai loại mẫu, và tập cột đổi được mà không phải vẽ lại bảng.
 
-> **Không có mẫu nào đang áp dụng thì mọi lần Kế toán bấm *Xuất hợp đồng* đều hỏng** — và Kế toán
-> không vào được mục này để sửa. Màn hình hiện cảnh báo đỏ khi rơi vào tình trạng đó, và khi bạn
-> ngừng dùng **mẫu cuối cùng** thì hộp xác nhận bắt gõ lại tên mẫu.
+> **Không có mẫu nào thì mọi lần bấm *Xuất hợp đồng* đều hỏng** — và Kế toán không vào được mục này
+> để sửa. Màn hình hiện cảnh báo đỏ khi rơi vào tình trạng đó, và khi bạn xoá **mẫu cuối cùng** thì
+> hộp xác nhận bắt gõ lại tên mẫu.
 
 Có sẵn một file mẫu hợp đồng để sửa: `templates/mau-hop-dong-a4-doc.docx` trong bộ mã.
 
@@ -1017,46 +1015,70 @@ hợp đồng* xem mục 7.
 
 #### Thẻ *Mẫu hồ sơ CSBH* `mới 19/08`
 
-Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không còn dựng cứng trong phần
-mềm. Màn hình này là chỗ quản mẫu ấy: tải lên → ánh xạ từng ô trống tới một trường dữ liệu → ban
-hành.
+Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không dựng cứng trong phần mềm.
+Thẻ này là chỗ quản mẫu ấy.
 
-- **Bao nhiêu mẫu cùng dùng cũng được** `sửa 20/08`. Người xem chọn mẫu nào trong ô *Mẫu* của hộp
-  *Xem bản mềm*, nên *Ban hành* nghĩa là **đưa vào danh sách chọn** chứ không phải thay mẫu cũ, và
-  *Ngừng dùng* là **rút khỏi danh sách**. Chỉ khi rút mẫu **cuối cùng** thì chức năng mới hỏng — và
-  đúng lúc ấy màn hình bắt gõ lại tên mẫu để xác nhận.
-- **Khổ giấy không phải khai** `sửa 20/08`. Phần mềm đọc nó từ chính file `.docx` và hiện làm nhãn
-  cạnh tên mẫu. File `.docx` tự mang khổ của nó và phần mềm không xoay được mẫu dọc thành ngang, nên
-  muốn có cả hai khổ thì soạn hai file.
-- **Trang thêm mẫu hiện luôn hướng dẫn.** Danh sách đầy đủ khoá kèm nhãn tiếng Việt nằm ngay cạnh
-  ô chọn tệp — **bấm một khoá là chép**, không phải gõ lại bằng tay.
+**Chỉ có hai thao tác** `sửa 20/08`: **Thêm mẫu** ở góc trên bên phải, và **Xoá** ở từng dòng.
+
+> **Không sửa được mẫu.** Muốn đổi thì xoá đi rồi thêm mẫu mới. Nghe như thêm việc, nhưng sửa một
+> mẫu đang được dùng nghĩa là bản mềm hôm nay và bản mềm hôm qua khác nhau mà không chỗ nào ghi lại
+> điều đó. Thêm mẫu mới thì mẫu cũ vẫn nằm đó cho tới khi bạn chủ động bỏ nó đi.
+
+> **Không còn ban hành, không còn nháp.** Mọi mẫu trong danh sách đều dùng được ngay — lưu được là
+> dùng được. Mọi phép kiểm dồn về lúc bấm *Lưu*, tức là lúc bạn còn đang mở file Word ra và sửa thêm
+> một ô trống là xong.
+
+**Trang thêm mẫu** làm một lượt, không có bước nào ở giữa:
+
+1. **Chọn file `.docx`.** Phần mềm đọc ô trống ngay và **đoán sẵn** trường dữ liệu cho từng ô — khoá
+   viết bằng tiếng Việt trùng luôn tên trường, nên phần lớn mẫu ánh xạ xong trước khi bạn chạm vào.
+2. **Soát bảng ánh xạ** hiện ngay dưới ô chọn tệp. Ô nào phần mềm không đoán được thì tự chọn.
+3. **Chọn cột của bảng sản phẩm** `mới 20/08` — xem dưới.
+4. **Lưu** ở góc trên bên phải. Nó hỏi lại một lần, vì mẫu không sửa được sau khi lưu.
+
+Hướng dẫn đặt khoá nằm ở cột bên phải và **tự cuộn trong hộp của nó**, không kéo cả trang — nút *Lưu*
+luôn ở trong tầm mắt.
+
 - **Khoá viết bằng tiếng Việt**, một nhóm `ho_so.` cho tất cả: `{{ho_so.ten_khach_hang}}`,
-  `{{ho_so.cong_no}}`, `{{ho_so.ngay_ap_dung}}`, `{{ho_so.nguoi_de_nghi}}`. Riêng `{{cong_ty.ten}}`
-  và mấy khoá công ty đứng nhóm khác vì chúng giống nhau ở mọi hồ sơ.
+  `{{ho_so.cong_no}}`, `{{ho_so.ngay_ap_dung}}`, `{{ho_so.nguoi_de_nghi}}`.
+- **Tên, địa chỉ và mã số thuế Công ty gõ thẳng vào file** `sửa 20/08`. Ba giá trị ấy giống nhau ở
+  mọi hồ sơ nên không còn khoá nào cho chúng — một ô trống cho một giá trị không bao giờ đổi chỉ
+  thêm đúng một bước có thể quên.
+- **Định dạng không phải chọn** `sửa 20/08`. Tiền ra kiểu tiền, ngày ra `31/12/2026`, phần trăm hai
+  chữ số — đi theo từng trường, không theo từng mẫu.
 - **Khối chữ ký số**: `{{ho_so.chu_ky_so_TBP}}` in ra hai dòng — *TBP đã ký số* và ngày ký ở dòng
-  dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**, không in một khối chữ ký cho văn bản chưa ai ký.
+  dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**.
 - **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
-  nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**. Vẽ tay thì số cột cố định, mà mỗi
-  dòng sản phẩm có thể có tới 50 khoản CPBH.
-  > Cột: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · **CPBH tổng** · CPBH1…CPBHn
-  > · Giá thu về · Tỷ lệ CK · Ghi chú. Ghi chú dài thì **tự xuống dòng**, ô cao lên — cột không bị
-  > đẩy ra ngoài mép giấy.
-- **Ban hành bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ 13 mục ở phần *Yêu cầu hiển thị
-  file*; màn hình liệt kê sẵn mục nào còn thiếu, ngay khi bạn đang ánh xạ.
+  nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**.
+- **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **12 mục** `sửa 20/08` ở phần *Yêu cầu
+  hiển thị file*; thông báo nói rõ thiếu mục nào. (Trước 20/08 là 13 — mục *thông tin công ty* rời
+  khỏi danh sách cùng lúc với khoá của nó, và giờ do người soạn tự chịu trách nhiệm.)
 - **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
-  được bản mềm. Chúng luôn nằm **cuối** ô chọn: ngày bạn ban hành một mẫu thật thì mẫu thật là cái
-  mở sẵn, còn hai bản sơ sài này lùi xuống.
-- **Bộ file mẫu soạn sẵn** nằm trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
-  `mau-ho-so-a4-ngang.docx` và một bản **rút gọn** chỉ có đúng 13 mục bắt buộc — mở nó ra là thấy
-  ngay *ít nhất phải có những gì thì mới ban hành được*. Tải một file về, sửa câu chữ trong Word, rồi
-  tải lên: nhanh hơn soạn từ trang giấy trắng và không phải nhớ hai mươi khoá. Bản demo
-  (`make demo-mau`) nạp sẵn đúng ba file này.
-  > Thư mục ấy còn một file thứ tư, `mau-hop-dong-a4-doc.docx` `mới 20/08` — **mẫu hợp đồng**, thuộc
-  > Sale Admin và tải lên ở màn hình khác. Bản demo **không** nạp nó; ai cần thì tự tải lên.
+  được bản mềm. Chúng luôn nằm **cuối** danh sách.
+- **Bộ file mẫu soạn sẵn** trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
+  `mau-ho-so-a4-ngang.docx`, một bản **rút gọn** chỉ có đúng các mục bắt buộc, và
+  `mau-hop-dong-a4-doc.docx`. Tải một file về, sửa câu chữ trong Word, rồi tải lên. Bản demo
+  (`make demo-mau`) nạp sẵn ba file đầu; mẫu hợp đồng thì không, ai cần tự tải lên.
 
-> Đây **không phải** mẫu hợp đồng — nó là **thẻ bên cạnh**, cùng màn hình, cùng người quản lý
-> `sửa 20/08`. Khác nhau ở luật: mẫu hồ sơ có 13 mục bắt buộc và bảng do hệ thống dựng; mẫu hợp đồng
-> không có mục bắt buộc nào và bảng thì vẽ tay.
+##### Chọn cột của bảng sản phẩm `mới 20/08`
+
+Mỗi mẫu tự khai muốn hiện cột nào. Đây là cách soạn **"bản đầy đủ cho nội bộ"** và **"bản gọn đưa
+khách hàng"** mà không cần ai lập trình — người xem chọn mẫu nào thì được bảng ấy.
+
+| Cột | Ghi chú |
+|---|---|
+| STT · Mã sản phẩm · Giá công ty · Giá bán buôn · Giá thu về · Tỷ lệ CK · Ghi chú | Tuỳ chọn |
+| **Tên sản phẩm** · **CPBH tổng** | **Không tắt được** — muc 11.1 đòi bản A4 phải có |
+| **Từng khoản CPBH** | Một lựa chọn duy nhất, bật thì hiện **hết** CPBH1…CPBHn |
+
+> *Từng khoản CPBH* không tách ra chọn lẻ được: số cột bằng dòng nhiều khoản nhất của **từng hồ sơ**,
+> mà bạn khai tập cột lúc soạn mẫu — trước khi biết hồ sơ nào sẽ dùng nó.
+
+> Bỏ bớt cột làm bảng hẹp lại và **vừa khổ dọc dễ hơn nhiều**. Đủ mười cột thì gần như phải dùng A4
+> ngang.
+
+> Đây **không phải** mẫu hợp đồng — nó là **thẻ bên cạnh**, cùng màn hình, cùng người quản lý. Khác
+> nhau ở luật: mẫu hồ sơ có mục bắt buộc theo muc 11.1, mẫu hợp đồng thì không có mục nào.
 
 ### 13.1. Sản phẩm
 
