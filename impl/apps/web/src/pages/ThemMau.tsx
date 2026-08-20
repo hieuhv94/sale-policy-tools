@@ -1,29 +1,36 @@
 /**
- * Trang **thêm mẫu văn bản** — biểu mẫu bên trái, hướng dẫn bên phải (`0056`).
+ * Trang **thêm văn bản mẫu** — một lượt lưu, không có bước nào ở giữa (`0067`).
  *
- * Trước `0056` đây là một hộp thoại nhỏ chỉ có ba ô, còn cách đặt khoá trộn nằm
- * ở một tài liệu khác. Người soạn mẫu phải nhớ tên khoá, hoặc mở tài liệu ra ở
- * cửa sổ thứ hai — và khoá gõ sai thì không có gì báo cho tới lúc bảng ánh xạ
- * hiện ra thiếu mất một dòng.
+ * Bố cục: chọn file → bảng ánh xạ hiện ra ngay dưới nó → hướng dẫn đứng cạnh,
+ * tự cuộn trong hộp của nó. Nút **Lưu** ở góc trên bên phải, và nó hỏi lại một
+ * lần trước khi ghi.
  *
- * Giờ danh sách khoá nằm ngay cạnh ô chọn tệp, và **bấm một khoá là chép** —
- * không ai phải gõ lại `{{ho_so.ngay_kt_nhan_l2}}` bằng tay.
+ * BA THỨ ĐÃ BỎ so với `0056`, và cả ba đều là bỏ một câu hỏi sai:
  *
- * TRANG chứ không phải hộp thoại (chốt C-03 ngày 19/08): hướng dẫn dài hơn biểu
- * mẫu vài lần, và một hộp thoại cao hơn màn hình thì phần cuộn được nằm trong
- * cái đang che phần còn lại của ứng dụng.
+ *   - **Ô chọn định dạng** cho từng dòng ánh xạ. *"Công nợ hiển thị kiểu tiền
+ *     hay kiểu chữ?"* chỉ có một câu trả lời đúng, và nó đi theo TRƯỜNG chứ
+ *     không theo mẫu — giờ gắn cứng ở `sources.ts`.
+ *   - **Cột "bắt buộc"**. Nó chỉ đổi thời điểm báo lỗi, và báo cho người không
+ *     sửa được. Mục bắt buộc của muc 11.1 kiểm ngay lúc lưu.
+ *   - **Bấm khoá để chép**. Người soạn gõ khoá trong Word chứ không dán từ
+ *     trình duyệt, nên nút chép chỉ là một thứ bấm được mà không dẫn tới đâu.
  */
 import { useState } from 'react';
-import { guiTep } from '../lib/api.js';
+import { guiTep, layJson } from '../lib/api.js';
 import {
   CAU_HINH_MAU,
   NHAN_KHOA,
   O_BANG_SAN_PHAM,
+  luuDuoc,
   oTrongCua,
+  type CotBang,
+  type DanhMucNguon,
   type LoaiMau,
   type MauHopDong as MauDto,
+  type ThongTinOTrong,
+  type TruongAnhXa,
 } from '../lib/mau-hop-dong.js';
-import { BaoLoi, ChuThichBatBuoc, Truong } from '../components/Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoaiXacNhan, Truong } from '../components/Chung.js';
 
 /**
  * Nhóm khoá hiện trên hướng dẫn, theo đúng thứ tự người soạn mẫu cần tới.
@@ -32,8 +39,11 @@ import { BaoLoi, ChuThichBatBuoc, Truong } from '../components/Chung.js';
  * khách hàng, người xử lý — và đổ chúng thành một danh sách hai mươi dòng thì
  * mắt không tìm được gì. Có ca kiểm thử đối chiếu danh sách này với danh sách
  * khoá của máy chủ, nên bỏ sót một khoá là test đỏ chứ không phải im lặng.
+ *
+ * Hai nhóm `cong_ty.` và `san_pham.` đã bỏ ở `0067`: thông tin Công ty cố định
+ * nên gõ thẳng vào file, còn dòng sản phẩm thì nằm trong bảng do hệ thống dựng.
  */
-const NHOM_HUONG_DAN: { nhan: string; khoa: string[]; loai?: LoaiMau }[] = [
+const NHOM_HUONG_DAN: { nhan: string; khoa: string[] }[] = [
   {
     nhan: 'Thông tin chung của hồ sơ',
     khoa: [
@@ -71,58 +81,11 @@ const NHOM_HUONG_DAN: { nhan: string; khoa: string[]; loai?: LoaiMau }[] = [
       'ho_so.chu_ky_so_TBP',
     ],
   },
-  {
-    nhan: 'Công ty và ngày in',
-    khoa: ['cong_ty.ten', 'cong_ty.dia_chi', 'cong_ty.ma_so_thue', 'ngay_in'],
-  },
-  {
-    // Chỉ mẫu HỢP ĐỒNG: bảng ở đó do người soạn vẽ tay, dòng bảng chứa khoá này
-    // được nhân bản theo từng dòng sản phẩm. Mẫu hồ sơ dùng `{{bang_san_pham}}`
-    // và không đụng tới nhóm này — bày ra là mời chọn nhầm.
-    nhan: 'Dòng sản phẩm — nhân bản theo từng dòng',
-    loai: 'HOP_DONG',
-    khoa: [
-      'san_pham.stt',
-      'san_pham.ma_san_pham',
-      'san_pham.ten_san_pham',
-      'san_pham.gia_cong_ty',
-      'san_pham.gia_ban_buon',
-      'san_pham.cpbh_tong',
-      'san_pham.gia_thu_ve',
-      'san_pham.ty_le_ck',
-    ],
-  },
+  { nhan: 'Khác', khoa: ['ngay_in'] },
 ];
 
 /** Mọi khoá bảng hướng dẫn nêu ra — dùng cho ca kiểm thử đối chiếu máy chủ. */
 export const KHOA_HUONG_DAN = NHOM_HUONG_DAN.flatMap((n) => n.khoa);
-
-function KhoaChep({ khoa }: { khoa: string }) {
-  const [daChep, datDaChep] = useState(false);
-  const o = oTrongCua(khoa);
-
-  const chep = () => {
-    // `navigator.clipboard` không có ở mọi ngữ cảnh (http, trình duyệt cũ). Hỏng
-    // thì KHÔNG báo lỗi đỏ: khoá vẫn hiện nguyên trên màn hình để bôi đen chép
-    // tay, nên đây là tiện ích chứ không phải đường duy nhất.
-    void navigator.clipboard
-      ?.writeText(o)
-      .then(() => {
-        datDaChep(true);
-        setTimeout(() => datDaChep(false), 1200);
-      })
-      .catch(() => undefined);
-  };
-
-  return (
-    <button type="button" className="khoa-chep" onClick={chep} title="Bấm để chép">
-      <code>{o}</code>
-      <span className="dau-chep" aria-hidden="true">
-        {daChep ? 'đã chép' : 'chép'}
-      </span>
-    </button>
-  );
-}
 
 export function ThemMau({
   loai,
@@ -136,27 +99,79 @@ export function ThemMau({
   const ch = CAU_HINH_MAU[loai];
   const [ten, datTen] = useState('');
   const [tep, datTep] = useState<File | null>(null);
+  const [oTrong, datOTrong] = useState<ThongTinOTrong | null>(null);
+  const [anhXa, datAnhXa] = useState<Record<string, string>>({});
+  const [danhMuc, datDanhMuc] = useState<DanhMucNguon | null>(null);
+  const [cot, datCot] = useState<string[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
+  const [dangDoc, datDangDoc] = useState(false);
+  const [dangLuu, datDangLuu] = useState(false);
+  const [hoi, datHoi] = useState(false);
 
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tep) return;
+  /*
+   * Danh mục nguồn tải MỘT LẦN, lúc trang mở — không đợi chọn file.
+   *
+   * Nó là thứ dựng nên cả ô chọn trường lẫn danh sách cột, nên tải muộn thì bảng
+   * ánh xạ hiện ra với những ô chọn rỗng đúng vào lúc người dùng bắt đầu điền.
+   */
+  useState(() => {
+    layJson<DanhMucNguon>(`${ch.duong}/sources`)
+      .then((d) => {
+        datDanhMuc(d);
+        datCot((c) => c ?? (d.cotBang ?? []).map((x) => x.khoa));
+      })
+      .catch(datLoi);
+    return undefined;
+  });
+
+  /** Chọn file → đọc ô trống ngay, và điền sẵn ánh xạ máy chủ đoán được. */
+  const chonTep = async (f: File | null) => {
+    datTep(f);
+    datOTrong(null);
+    datAnhXa({});
     datLoi(null);
-    datDangGui(true);
+    if (!f) return;
+    datDangDoc(true);
     try {
       const form = new FormData();
-      form.append('file', tep);
-      form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
-      xong(await guiTep<MauDto>(ch.duong, form));
-    } catch (err) {
-      datLoi(err);
+      form.append('file', f);
+      const tt = await guiTep<ThongTinOTrong>(`${ch.duong}/o-trong`, form);
+      datOTrong(tt);
+      datAnhXa(Object.fromEntries(tt.goiY.map((g) => [g.placeholder, g.source])));
+      if (ten.trim() === '') datTen(f.name.replace(/\.docx$/i, ''));
+    } catch (e) {
+      datLoi(e);
     } finally {
-      datDangGui(false);
+      datDangDoc(false);
     }
   };
 
-  const nhom = NHOM_HUONG_DAN.filter((n) => n.loai === undefined || n.loai === loai);
+  const luu = async () => {
+    if (!tep) return;
+    datLoi(null);
+    datDangLuu(true);
+    try {
+      const mapping: TruongAnhXa[] = Object.entries(anhXa)
+        .filter(([, source]) => source !== '')
+        .map(([placeholder, source]) => ({ placeholder, source }));
+      const form = new FormData();
+      form.append('file', tep);
+      form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
+      form.append('mapping', JSON.stringify(mapping));
+      if (cot) form.append('cotBang', JSON.stringify(cot));
+      xong(await guiTep<MauDto>(ch.duong, form));
+    } catch (e) {
+      datLoi(e);
+    } finally {
+      datDangLuu(false);
+      datHoi(false);
+    }
+  };
+
+  const daChon = new Set(Object.entries(anhXa).filter(([, v]) => v !== '').map(([k]) => k));
+  const duLuu = tep !== null && oTrong !== null && luuDuoc(oTrong.placeholders, daChon);
+  const coBang = oTrong?.placeholders.includes(O_BANG_SAN_PHAM) ?? false;
+  const cotBatBuoc = new Set(danhMuc?.cotBatBuoc ?? []);
 
   return (
     <section className="trang">
@@ -167,7 +182,23 @@ export function ThemMau({
             Soạn văn bản trong Word, đặt khoá vào đúng chỗ muốn phần mềm điền dữ liệu.
           </p>
         </div>
+        {/*
+          NÚT LƯU Ở GÓC TRÊN BÊN PHẢI (`0067`) — cùng chỗ với mọi nút chính khác
+          của phần mềm, nên mắt tìm nó ở đúng nơi đã quen.
+
+          Nó xám cho tới khi mọi ô trống đều đã chọn trường: máy chủ chặn lưu
+          (`TEMPLATE_INCOMPLETE`), và một nút bấm được rồi mới báo lỗi thì tệ hơn
+          một nút nói trước rằng chưa tới lượt.
+        */}
         <div className="nhom-nut nhom-nut-dau">
+          <button
+            type="button"
+            className="nut nut-chinh"
+            disabled={!duLuu || dangLuu}
+            onClick={() => datHoi(true)}
+          >
+            {dangLuu ? 'Đang lưu…' : 'Lưu'}
+          </button>
           <button type="button" className="nut nut-nhe" onClick={quayLai}>
             Quay lại danh sách
           </button>
@@ -175,7 +206,7 @@ export function ThemMau({
       </div>
 
       <div className="them-mau">
-        <form className="them-mau-form" onSubmit={gui}>
+        <div className="them-mau-form">
           <ChuThichBatBuoc />
 
           <Truong id="tm-ten" nhan="Tên mẫu">
@@ -197,58 +228,147 @@ export function ThemMau({
                 className="o-nhap"
                 type="file"
                 accept=".docx"
-                onChange={(e) => datTep(e.target.files?.[0] ?? null)}
+                onChange={(e) => void chonTep(e.target.files?.[0] ?? null)}
               />
             )}
           </Truong>
 
-          {/*
-            Ô "Khổ giấy" ĐÃ BỎ (`0058`).
-
-            Nó từng bắt buộc vì khổ giấy là khoá tra mẫu: người xem chọn khổ, hệ
-            thống tìm mẫu khai đúng khổ ấy. Giờ người xem chọn thẳng mẫu, nên ô
-            ấy không còn hậu quả gì — và một ô nhập tay không hậu quả là một ô sẽ
-            nói dối. Phần mềm đọc khổ từ chính file.
-          */}
           <p className="ghi-chu">
             Khổ giấy lấy từ chính file <code>.docx</code> — soạn ngang thì bản mềm ra ngang. Phần
             mềm không hỏi và không xoay được mẫu dọc thành ngang.
           </p>
 
           {loi !== null && <BaoLoi loi={loi} />}
+          {dangDoc && <p className="ghi-chu">Đang đọc ô trống trong file…</p>}
 
-          <div className="nhom-nut">
-            <button type="submit" className="nut nut-chinh" disabled={dangGui || tep === null}>
-              {dangGui ? 'Đang tải…' : 'Tải lên'}
-            </button>
-            <button type="button" className="nut nut-nhe" onClick={quayLai}>
-              Huỷ
-            </button>
-          </div>
-        </form>
+          {/*
+            BẢNG ÁNH XẠ nằm ngay dưới ô chọn tệp (`0067`).
+
+            Bản trước nó là một hộp thoại mở ra ở bước sau, nên người dùng phải
+            tải lên xong, đóng lại, tìm dòng của mình trong danh sách, rồi bấm
+            *Ánh xạ*. Ba bước cho một việc mà file vừa mới nằm trong tay họ.
+          */}
+          {oTrong && (
+            <>
+              <h2 className="tieu-de-nho">Ô trống trong file → trường dữ liệu</h2>
+              {oTrong.placeholders.length === 0 && (
+                <p className="ghi-chu canh-bao">
+                  File này không có ô trống nào. Bản in ra sẽ giống hệt file mẫu, không điền gì cả.
+                </p>
+              )}
+              <table className="bang">
+                <thead>
+                  <tr>
+                    <th>Ô trống</th>
+                    <th>Lấy dữ liệu từ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {oTrong.placeholders.map((o) =>
+                    o === O_BANG_SAN_PHAM ? (
+                      <tr key={o}>
+                        <td>
+                          <code>{o}</code>
+                        </td>
+                        <td className="ghi-chu">Cả bảng sản phẩm — không cần chọn trường</td>
+                      </tr>
+                    ) : (
+                      <tr key={o}>
+                        <td>
+                          <code>{o}</code>
+                        </td>
+                        <td>
+                          <select
+                            className="o-nhap"
+                            aria-label={`Trường dữ liệu cho ${o}`}
+                            value={anhXa[o] ?? ''}
+                            onChange={(e) =>
+                              datAnhXa((cu) => ({ ...cu, [o]: e.target.value }))
+                            }
+                          >
+                            <option value="">— chưa chọn —</option>
+                            {(danhMuc?.knownSources ?? []).map((s) => (
+                              <option key={s} value={s}>
+                                {NHAN_KHOA[s] ?? s}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/*
+            CHỌN CỘT chỉ hiện khi file THẬT SỰ có ô bảng — hỏi về một cái bảng
+            không tồn tại trong mẫu là hỏi một câu không có hệ quả nào.
+          */}
+          {coBang && danhMuc?.cotBang && (
+            <>
+              <h2 className="tieu-de-nho">Cột của bảng sản phẩm</h2>
+              <p className="ghi-chu">
+                Bỏ bớt cột thì bảng hẹp lại và vừa khổ dọc dễ hơn. Cột{' '}
+                <strong>Tên sản phẩm</strong> và <strong>CPBH tổng</strong> không tắt được — muc
+                11.1 đòi bản A4 phải có.
+              </p>
+              <div className="chon-cot">
+                {danhMuc.cotBang.map((c: CotBang) => {
+                  const buoc = cotBatBuoc.has(c.khoa);
+                  return (
+                    <label key={c.khoa}>
+                      <input
+                        type="checkbox"
+                        checked={buoc || (cot ?? []).includes(c.khoa)}
+                        disabled={buoc}
+                        onChange={(e) =>
+                          datCot((cu) => {
+                            const co = new Set(cu ?? []);
+                            if (e.target.checked) co.add(c.khoa);
+                            else co.delete(c.khoa);
+                            return (danhMuc.cotBang ?? [])
+                              .map((x) => x.khoa)
+                              .filter((k) => co.has(k));
+                          })
+                        }
+                      />
+                      {c.nhan}
+                    </label>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="them-mau-huong-dan">
           <h2>Cách đặt chỗ điền dữ liệu</h2>
           <p className="ghi-chu">
             Trong file Word, gõ khoá vào đúng chỗ muốn phần mềm điền. Khoá viết trong hai cặp ngoặc
-            nhọn, ví dụ <code>{'{{ho_so.ten_khach_hang}}'}</code>. Bấm một khoá dưới đây để chép.
+            nhọn, ví dụ <code>{'{{ho_so.ten_khach_hang}}'}</code>.
           </p>
 
-          {ch.bangDoHeThongDung && (
-            <div className="hop-canh-bao" role="note">
-              <p>
-                <strong>Bảng sản phẩm: đặt {O_BANG_SAN_PHAM}, đừng vẽ bảng bằng tay.</strong>
-              </p>
-              <p className="ghi-chu">
-                Phần mềm thay khoá ấy bằng <strong>cả cái bảng</strong>, với đúng số cột CPBH của
-                từng hồ sơ. Cột: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn ·
-                CPBH tổng · CPBH1…CPBHn · Giá thu về · Tỷ lệ CK · Ghi chú. Ghi chú dài thì tự xuống
-                dòng, ô cao lên. Khoá này <strong>không cần ánh xạ</strong>.
-              </p>
-            </div>
-          )}
+          <div className="hop-canh-bao" role="note">
+            <p>
+              <strong>Bảng sản phẩm: đặt {O_BANG_SAN_PHAM}, đừng vẽ bảng bằng tay.</strong>
+            </p>
+            <p className="ghi-chu">
+              Phần mềm thay khoá ấy bằng <strong>cả cái bảng</strong>, với đúng số cột CPBH của từng
+              hồ sơ và đúng những cột bạn chọn bên trái. Ghi chú dài thì tự xuống dòng, ô cao lên.
+              Khoá này <strong>không cần ánh xạ</strong>.
+            </p>
+          </div>
 
-          {nhom.map((n) => (
+          <div className="hop-canh-bao" role="note">
+            <p className="ghi-chu">
+              <strong>Tên, địa chỉ và mã số thuế của Công ty gõ thẳng vào file.</strong> Ba giá trị
+              ấy giống nhau ở mọi hồ sơ nên không có khoá nào cho chúng.
+            </p>
+          </div>
+
+          {NHOM_HUONG_DAN.map((n) => (
             <div key={n.nhan} className="nhom-khoa">
               <h3>{n.nhan}</h3>
               <div className="khung-cuon">
@@ -257,7 +377,7 @@ export function ThemMau({
                     {n.khoa.map((k) => (
                       <tr key={k}>
                         <td>
-                          <KhoaChep khoa={k} />
+                          <code>{oTrongCua(k)}</code>
                         </td>
                         <td className="ghi-chu">{NHAN_KHOA[k] ?? k}</td>
                       </tr>
@@ -267,13 +387,31 @@ export function ThemMau({
               </div>
             </div>
           ))}
-
-          <p className="ghi-chu">
-            Word có thể tự cắt một khoá thành nhiều mảnh khi bạn sửa chữ giữa chừng. Khoá nào không
-            xuất hiện ở bảng ánh xạ sau khi tải lên thì <strong>xoá đi và gõ lại liền một mạch</strong>.
-          </p>
         </div>
       </div>
+
+      {hoi && (
+        <HopThoaiXacNhan
+          tieuDe={`Lưu mẫu "${ten.trim() || tep?.name}"`}
+          nguyHiem={false}
+          hauQua={
+            <>
+              <p>
+                Mẫu vào <strong>ngay danh sách chọn</strong> của người xem — không có bước ban hành
+                nào nữa.
+              </p>
+              <p>
+                Mẫu <strong>không sửa được</strong> sau khi lưu. Muốn đổi thì xoá đi và thêm mẫu
+                mới, nên hãy soát lại bảng ánh xạ trước khi bấm.
+              </p>
+            </>
+          }
+          nhanNut="Lưu mẫu"
+          dangChay={dangLuu}
+          dong={() => datHoi(false)}
+          xacNhan={() => void luu()}
+        />
+      )}
     </section>
   );
 }

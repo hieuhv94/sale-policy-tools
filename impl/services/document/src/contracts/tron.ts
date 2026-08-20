@@ -8,7 +8,7 @@
  */
 import type { FieldRow } from './templates.service.js';
 import type { CustomerFull, PolicyFull } from '../infra/clients.js';
-import { applyFormat, isLineSource, lineValue, scalarValue } from './sources.js';
+import { applyFormat, dinhDangCua, scalarValue } from './sources.js';
 
 export type NguCanh = {
   policy: PolicyFull;
@@ -18,41 +18,27 @@ export type NguCanh = {
 
 export type KetQuaTron = {
   values: Record<string, string>;
-  lines: Record<string, string>[];
-  linePlaceholders: Set<string>;
-  /** Ô trống BẮT BUỘC mà dữ liệu nguồn đang rỗng. */
-  missingRequired: { placeholder: string; source: string }[];
 };
 
+/**
+ * `0067` gỡ hai thứ khỏi hàm này, và cả hai đều là gỡ một câu hỏi sai.
+ *
+ * **Nhóm trường theo dòng** — dùng cho bảng vẽ tay trong mẫu hợp đồng. Từ `0067`
+ * mẫu hợp đồng cũng đặt `{{bang_san_pham}}`, nên không còn dòng bảng nào để
+ * nhân bản.
+ *
+ * **Cờ `required` theo từng ô trống** — nó chỉ đổi thời điểm báo lỗi: xuất được
+ * hay không xuất được. Mà mục bắt buộc của muc 11.1 đã kiểm ở lúc LƯU MẪU rồi,
+ * nên cờ này chỉ cho người soạn một cách tự chặn chính mình về sau, ở màn hình
+ * của người khác.
+ *
+ * Định dạng cũng không đọc từ dòng ánh xạ nữa mà tra từ chính TRƯỜNG NGUỒN —
+ * xem `dinhDangCua`.
+ */
 export function tron(fields: FieldRow[], ctx: NguCanh): KetQuaTron {
   const values: Record<string, string> = {};
-  const missingRequired: { placeholder: string; source: string }[] = [];
-  const lineFields: FieldRow[] = [];
-
   for (const f of fields) {
-    if (isLineSource(f.source)) {
-      lineFields.push(f);
-      continue;
-    }
-    const raw = scalarValue(f.source, ctx);
-    // Thiếu trường BẮT BUỘC thì người gọi chặn hẳn, không sinh file có ô trống
-    // rỗng đưa cho khách hàng ký (DOC-13).
-    if (f.required && (raw === null || raw === '')) {
-      missingRequired.push({ placeholder: f.placeholder, source: f.source });
-    }
-    values[f.placeholder] = applyFormat(raw, f.format);
+    values[f.placeholder] = applyFormat(scalarValue(f.source, ctx), dinhDangCua(f.source));
   }
-
-  const lines = ctx.policy.lines.map((l, i) => {
-    const row: Record<string, string> = {};
-    for (const f of lineFields) row[f.placeholder] = applyFormat(lineValue(f.source, l, i), f.format);
-    return row;
-  });
-
-  return {
-    values,
-    lines,
-    linePlaceholders: new Set(lineFields.map((f) => f.placeholder)),
-    missingRequired,
-  };
+  return { values };
 }

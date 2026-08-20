@@ -1,72 +1,59 @@
 /**
- * Mẫu hợp đồng — bảng định dạng và phép nhóm nguồn dữ liệu.
+ * Văn bản mẫu — cấu hình hai loại mẫu, phép nhóm nguồn, điều kiện lưu.
  *
- * Khẳng định quan trọng nhất ở đây là một phép ĐỐI CHIẾU HAI PHÍA: danh sách
- * định dạng phía giao diện phải khớp `FORMATS` của máy chủ. Máy chủ không có
- * endpoint nào trả danh sách này ra nên giao diện phải giữ một bản sao, và bản
- * sao là chỗ lệch. Thêm một định dạng ở máy chủ mà quên ở đây thì Sale Admin
- * không chọn được nó — không lỗi nào báo, chỉ là một mục vắng mặt trong ô chọn.
+ * Khẳng định đáng giá nhất ở đây là các phép ĐỐI CHIẾU HAI PHÍA giữa giao diện
+ * và máy chủ: khổ giấy, và bảng định dạng theo trường. Chỗ nào giao diện phải
+ * giữ một bản sao thì chỗ ấy sẽ lệch, và lệch trong im lặng.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   CAU_HINH_MAU,
-  DINH_DANG,
   KHO_GIAY,
-  NHAN_DINH_DANG,
   NHAN_KHO,
-  TIEN_TO_DONG,
-  banHanhDuoc,
+  O_BANG_SAN_PHAM,
+  luuDuoc,
   nhomNguon,
 } from '@csbh/web/mau-hop-dong';
 
-describe('bảng định dạng khớp máy chủ', () => {
-  it('DINH_DANG trùng đúng FORMATS trong sources.ts', () => {
-    const ma = readFileSync('services/document/src/contracts/sources.ts', 'utf8');
-    const m = /export const FORMATS: Format\[\] = \[([^\]]*)\]/.exec(ma);
-    expect(m, 'không tìm thấy FORMATS trong sources.ts').not.toBeNull();
-    const cua_may_chu = [...m![1]!.matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]);
-    expect([...DINH_DANG].sort()).toEqual(cua_may_chu.sort());
+describe('`0067` định dạng và nhóm khoá không còn là lựa chọn của người dùng', () => {
+  it('giao diện KHÔNG giữ bản sao nào của bảng định dạng nữa', () => {
+    /*
+     * Tới `0066` giao diện giữ `DINH_DANG` — bản sao của `FORMATS` phía máy chủ
+     * — để dựng ô chọn định dạng cho từng dòng ánh xạ. Bản sao ấy là chỗ dễ
+     * lệch, và ca kiểm thử cũ tồn tại chỉ để canh nó.
+     *
+     * `0067` bỏ cả ô chọn lẫn bản sao: định dạng gắn cứng vào TRƯỜNG NGUỒN. Ca
+     * này thay ca cũ và canh chiều ngược lại — không ai được dựng lại bản sao
+     * ấy, vì nó sẽ lệch mà không có gì báo.
+     */
+    const ma = readFileSync('apps/web/src/lib/mau-hop-dong.ts', 'utf8');
+    expect(ma).not.toMatch(/export const DINH_DANG\b/);
+    expect(ma).not.toMatch(/export const TIEN_TO_DONG\b/);
   });
 
-  it('TIEN_TO_DONG trùng LINE_PREFIX của máy chủ', () => {
+  it('máy chủ giữ định dạng theo TRƯỜNG, và mọi giá trị đều nằm trong kiểu Format', () => {
+    // Đối chiếu hai phía vẫn còn, chỉ đổi chỗ: bảng `DINH_DANG_NGUON` phải chỉ
+    // dùng những giá trị mà `applyFormat` biết xử lý — một giá trị lạ ở đó thì
+    // trường ấy in ra nguyên chuỗi thô, không lỗi nào báo.
     const ma = readFileSync('services/document/src/contracts/sources.ts', 'utf8');
-    const m = /export const LINE_PREFIX = '([^']+)'/.exec(ma);
-    expect(m).not.toBeNull();
-    expect(TIEN_TO_DONG).toBe(m![1]);
-  });
+    const kieu = /export type Format = ([^;]+);/.exec(ma);
+    expect(kieu, 'không tìm thấy kiểu Format').not.toBeNull();
+    const chapNhan = [...kieu![1]!.matchAll(/'([a-z_0-9]+)'/g)].map((x) => x[1]!);
 
-  it('mọi định dạng đều có nhãn tiếng Việt', () => {
-    expect(Object.keys(NHAN_DINH_DANG).sort()).toEqual([...DINH_DANG].sort());
+    const bang = ma.slice(ma.indexOf('DINH_DANG_NGUON'));
+    const dung = [...bang.slice(0, bang.indexOf('};')).matchAll(/: '([a-z_0-9]+)'/g)].map((x) => x[1]!);
+    expect(dung.length, 'bảng định dạng không được rỗng').toBeGreaterThan(0);
+    for (const d of dung) expect(chapNhan, `định dạng lạ: ${d}`).toContain(d);
   });
 });
 
 describe('nhóm nguồn dữ liệu cho ô chọn', () => {
-  const nguon = [
-    'ho_so.ma_khach_hang',
-    'ho_so.ten_khach_hang',
-    'ho_so.ma_ho_so',
-    'cong_ty.ten',
-    'san_pham.ten_san_pham',
-    'san_pham.gia_thu_ve',
-  ];
+  const nguon = ['ho_so.ma_khach_hang', 'ho_so.ten_khach_hang', 'ho_so.ma_ho_so', 'ngay_in'];
 
   it('gom theo tiền tố, không bỏ sót nguồn nào', () => {
     const nhom = nhomNguon(nguon);
     expect(nhom.flatMap((n) => n.nguon).sort()).toEqual([...nguon].sort());
-  });
-
-  it('trường theo dòng tách thành nhóm riêng, không lẫn vào nhóm hồ sơ', () => {
-    // Hai thứ khác hẳn nhau: trường đơn cho ra một giá trị, trường theo dòng làm
-    // NHÂN BẢN cả dòng bảng trong file Word. Trộn chung là mời người dùng chọn
-    // nhầm và nhận về một hợp đồng thiếu dòng.
-    const nhom = nhomNguon(nguon);
-    const dong = nhom.find((n) => n.nguon.some((s) => s.startsWith(TIEN_TO_DONG)));
-    expect(dong!.nguon).toHaveLength(2);
-    expect(dong!.nguon.every((s) => s.startsWith(TIEN_TO_DONG))).toBe(true);
-
-    const hoSo = nhom.find((n) => n.nguon.includes('ho_so.ma_ho_so'));
-    expect(hoSo!.nguon.some((s) => s.startsWith(TIEN_TO_DONG))).toBe(false);
   });
 
   it('nhóm nào cũng có nhãn đọc được, không phải mã trần', () => {
@@ -76,24 +63,23 @@ describe('nhóm nguồn dữ liệu cho ô chọn', () => {
   });
 });
 
-describe('điều kiện ban hành', () => {
-  it('còn một ô chưa ánh xạ thì chưa ban hành được', () => {
-    expect(banHanhDuoc(['a', 'b'], new Set(['a']))).toBe(false);
+describe('`0067` điều kiện LƯU', () => {
+  it('còn một ô chưa ánh xạ thì chưa lưu được', () => {
+    expect(luuDuoc(['a', 'b'], new Set(['a']))).toBe(false);
   });
 
-  it('ánh xạ hết thì ban hành được', () => {
-    expect(banHanhDuoc(['a', 'b'], new Set(['a', 'b']))).toBe(true);
+  it('ánh xạ hết thì lưu được', () => {
+    expect(luuDuoc(['a', 'b'], new Set(['a', 'b']))).toBe(true);
   });
 
-  it('mẫu không có ô trống nào cũng ban hành được', () => {
-    expect(banHanhDuoc([], new Set())).toBe(true);
+  it('mẫu không có ô trống nào cũng lưu được', () => {
+    expect(luuDuoc([], new Set())).toBe(true);
   });
 
-  it('đọc TẬP ĐANG CHỌN trên bảng, không đọc ảnh chụp lúc mở', () => {
-    // Người dùng vừa điền xong cả bảng thì `unmapped` của lần tải đầu vẫn còn
-    // nguyên. Tính theo nó là nút Ban hành mãi xám dù bảng đã đầy.
-    const oTrong = ['a', 'b', 'c'];
-    expect(banHanhDuoc(oTrong, new Set(oTrong))).toBe(true);
+  it('ô BẢNG SẢN PHẨM không tính — nó không trỏ tới trường nào', () => {
+    // Bắt người dùng chọn một trường cho ô bảng là bắt họ chọn một nguồn không
+    // tồn tại; máy chủ cũng bỏ qua nó khi kiểm.
+    expect(luuDuoc(['a', O_BANG_SAN_PHAM], new Set(['a']))).toBe(true);
   });
 });
 
@@ -107,11 +93,11 @@ describe('`0055` cấu hình hai loại mẫu', () => {
     expect(CAU_HINH_MAU.HO_SO.duong).toBe('/policy-templates');
   });
 
-  it('CHỈ mẫu hồ sơ có bảng do hệ thống dựng', () => {
+  it('`0067` CHỈ mẫu hồ sơ có mục bắt buộc theo muc 11.1', () => {
     /*
-     * Bảng của bản CSBH có số cột CPBH đổi theo từng hồ sơ, nên hệ thống dựng nó
-     * và mẫu chỉ đặt một ô trống. Bảng của hợp đồng do người soạn vẽ tay bằng
-     * nhóm khoá `san_pham.` — bốn cột chữ ngắn, không có luật nào đổi theo hồ sơ.
+     * Cả hai loại mẫu đều dùng `{{bang_san_pham}}` từ `0067`, nên cờ này không
+     * còn nói về bảng. Cái còn khác nhau thật là phép kiểm lúc lưu: bản A4 phải
+     * có đủ mục của muc 11.1, hợp đồng thì không có mục nào bắt buộc.
      */
     expect(CAU_HINH_MAU.HO_SO.bangDoHeThongDung).toBe(true);
     expect(CAU_HINH_MAU.HOP_DONG.bangDoHeThongDung).toBe(false);

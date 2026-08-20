@@ -1697,30 +1697,59 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 .bang-khoa tr:last-child td { border-bottom: none; }
 
-/* Khoá bấm được để chép. Là `<button>` chứ không phải `<code>` có `onClick`:
-   bàn phím phải tới được nó, và trình đọc màn hình phải gọi nó là một nút. */
-.khoa-chep {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--k2);
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--bo-goc);
-  padding: 0.1rem 0.3rem;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-}
+/* `0067` — KHOÁ CHỈ ĐỂ ĐỌC, không bấm chép nữa.
 
-.khoa-chep:hover,
-.khoa-chep:focus-visible {
-  border-color: var(--mau-vien);
-  background: var(--mau-nen-phu);
-}
+   Bản trước mỗi khoá là một `<button>` bấm để chép. Khách hàng bỏ chức năng ấy
+   ngày 20/08: người soạn mẫu gõ khoá trong Word chứ không dán từ trình duyệt,
+   nên nút chép chỉ thêm một thứ bấm được mà không dẫn tới đâu.
 
-.khoa-chep .dau-chep {
-  font-size: 0.72rem;
-  color: var(--mau-chu-phu);
+   Hai cột của bảng khoá phải THẲNG HÀNG giữa các nhóm: `table-layout: fixed`
+   cộng bề rộng cột đầu cố định, nếu không thì mỗi nhóm tự căn theo khoá dài
+   nhất của riêng nó và cột chú thích nhảy chỗ mỗi lần xuống một nhóm mới. */
+.bang-khoa { table-layout: fixed; }
+
+.bang-khoa td:first-child {
+  width: 15rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.bang-khoa code {
+  font-size: 0.82rem;
+  color: var(--mau-chu);
+}
+
+/* Hộp hướng dẫn TỰ CUỘN, không kéo cả trang (`0067`).
+
+   Danh sách khoá dài hơn biểu mẫu vài lần. Để nó nong trang ra thì người dùng
+   phải cuộn cả màn hình xuống mới thấy nút Lưu — mà nút ấy nằm ở đầu trang.
+   Giới hạn chiều cao rồi cho hộp tự cuộn thì hai phần đứng cạnh nhau, và mỗi
+   phần cuộn theo nhu cầu của chính nó. */
+.them-mau-huong-dan {
+  max-height: calc(100vh - 14rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 60rem) {
+  /* Xếp chồng thì hộp không còn đứng cạnh gì cả — giới hạn chiều cao lúc ấy chỉ
+     tạo ra một vùng cuộn lồng trong một trang cuộn, kiểu khó dùng nhất. */
+  .them-mau-huong-dan { max-height: none; overflow-y: visible; }
+}
+
+/* Ô đánh dấu chọn cột bảng sản phẩm (`0067`). */
+.chon-cot {
+  display: grid;
+  gap: var(--k2);
+  margin: var(--k2) 0 var(--k3);
+}
+
+.chon-cot label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--k2);
+  font-size: 0.9rem;
+}
+
+.chon-cot input { margin: 0; }
+

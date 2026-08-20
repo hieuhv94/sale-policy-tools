@@ -10,11 +10,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
   Post,
-  Put,
   Query,
   Res,
   UploadedFile,
@@ -38,15 +38,29 @@ import { TemplatesService, type MappingInput } from './templates.service.js';
 import { ContractsService } from './contracts.service.js';
 import { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
 import { O_BANG_SAN_PHAM } from './docx.js';
+import { COT_BANG, COT_BAT_BUOC } from './bang-san-pham.js';
 
 /**
- * Đọc và kiểm thân request của đường lưu ánh xạ — dùng chung cho hai loại mẫu.
+ * Đọc bảng ánh xạ từ một trường FORM (chuỗi JSON) — dùng chung hai loại mẫu.
  *
- * Tách ra vì hai controller cùng nhận đúng một hình dạng dữ liệu; chép sang chỗ
- * thứ hai là chép luôn cả ba phép kiểm, và bản chép sẽ trôi.
+ * Đi trong multipart cùng file, vì từ `0067` cả mẫu và ánh xạ lưu MỘT LƯỢT: một
+ * lời gọi, một giao dịch, không có trạng thái nửa vời nào ở giữa.
+ *
+ * Mỗi dòng chỉ còn HAI trường. `format` và `required` đã bỏ — định dạng đi theo
+ * trường nguồn, còn mục bắt buộc thì kiểm theo muc 11.1 chứ không theo cờ người
+ * dùng tự đánh.
  */
-function doiAnhXa<T>(body: unknown, tiep: (m: MappingInput[]) => T): T {
-  const list = (body as { mapping?: unknown })?.mapping;
+function docAnhXa(raw: string | undefined): MappingInput[] {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw ?? '[]');
+  } catch {
+    throw new BadRequestException({
+      code: 'VALIDATION_FAILED',
+      field: 'mapping',
+      message: 'mapping phải là JSON hợp lệ',
+    });
+  }
   if (!Array.isArray(list)) {
     throw new BadRequestException({
       code: 'VALIDATION_FAILED',
@@ -54,16 +68,21 @@ function doiAnhXa<T>(body: unknown, tiep: (m: MappingInput[]) => T): T {
       message: 'mapping phải là một mảng',
     });
   }
-  const mapping: MappingInput[] = list.map((raw) => {
-    const m = validate(raw, { placeholder: str(1, 200), source: str(1, 200) }) as MappingInput;
-    const extra = raw as { required?: unknown; format?: unknown };
-    return {
-      ...m,
-      required: extra.required === true,
-      ...(typeof extra.format === 'string' ? { format: extra.format } : {}),
-    };
-  });
-  return tiep(mapping);
+  return list.map((m) => validate(m, { placeholder: str(1, 200), source: str(1, 200) }));
+}
+
+/** Tập cột bảng sản phẩm, cũng đi trong form dưới dạng JSON. `undefined` = mặc định. */
+function docCotBang(raw: string | undefined): unknown {
+  if (raw === undefined || raw === '') return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new BadRequestException({
+      code: 'VALIDATION_FAILED',
+      field: 'cotBang',
+      message: 'cotBang phải là JSON hợp lệ',
+    });
+  }
 }
 
 @Controller('contract-templates')
@@ -87,17 +106,35 @@ export class ContractTemplatesController {
    * CHỌN mẫu nào lúc xuất — xem `available` phía dưới.
    */
   @Roles('QUAN_TRI')
+  @Post('o-trong')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES + 1 } }))
+  oTrong(@UploadedFile() file: { buffer: Buffer } | undefined) {
+    if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
+    return this.templates.doOTrong(file.buffer);
+  }
+
+  @Roles('QUAN_TRI')
   @Post()
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES + 1 } }))
-  async upload(
+  async luu(
     @CurrentUser() me: AuthUser,
     @UploadedFile() file: { buffer: Buffer } | undefined,
-    @Body() body: { name?: string },
+    @Body() body: { name?: string; mapping?: string; cotBang?: string },
   ) {
     if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
     const b = validate({ name: body?.name ?? 'Mẫu hợp đồng' }, { name: str(1, 200) });
-    return this.templates.upload(b.name, file.buffer, me);
+    return this.templates.luu(
+      {
+        name: b.name,
+        buffer: file.buffer,
+        kind: 'HOP_DONG',
+        mapping: docAnhXa(body?.mapping),
+        cotBang: docCotBang(body?.cotBang),
+      },
+      me,
+    );
   }
 
   @Roles('QUAN_TRI')
@@ -107,13 +144,12 @@ export class ContractTemplatesController {
   }
 
   /**
-   * Mẫu đang dùng, cho ô chọn lúc xuất hợp đồng (`0058`).
+   * Mẫu dùng được, cho ô chọn lúc xuất hợp đồng (`0058`).
    *
    * Đây là đường DUY NHẤT của `/contract-templates` mà Quản trị KHÔNG vào được,
    * và ngược lại là đường duy nhất Kế toán với Sale Admin vào được (`0060`).
    * Không mâu thuẫn: nó phục vụ người XUẤT hợp đồng, không phục vụ người quản lý
-   * mẫu — Quản trị không xuất hợp đồng bao giờ. Giống hệt cách `policy-templates/
-   * available` mở cho năm vai trò đọc hồ sơ mà không mở cho chính Quản trị.
+   * mẫu — Quản trị không xuất hợp đồng bao giờ.
    */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get('available')
@@ -127,38 +163,16 @@ export class ContractTemplatesController {
     return { knownSources: KNOWN_SOURCES };
   }
 
+  /**
+   * XOÁ, và không có đường SỬA nào bên cạnh (`0067`).
+   *
+   * Muốn đổi một mẫu thì xoá đi rồi thêm mẫu mới — xem `TemplatesService.xoa`.
+   */
   @Roles('QUAN_TRI')
-  @Get(':id/placeholders')
-  async placeholders(@Param('id') id: string) {
-    const declared = await this.templates.placeholders(id);
-    const mapped = await this.templates.fields(id);
-    const mappedSet = new Set(mapped.map((m) => m.placeholder));
-    return {
-      placeholders: declared,
-      mapped,
-      unmapped: declared.filter((p) => !mappedSet.has(p)),
-      knownSources: KNOWN_SOURCES,
-    };
-  }
-
-  @Roles('QUAN_TRI')
-  @Put(':id/mapping')
-  mapping(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
-    return doiAnhXa(body, (mapping) => this.templates.setMapping(id, mapping, me));
-  }
-
-  @Roles('QUAN_TRI')
-  @Post(':id/publish')
+  @Delete(':id')
   @HttpCode(200)
-  publish(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.templates.publish(id, me);
-  }
-
-  @Roles('QUAN_TRI')
-  @Post(':id/deactivate')
-  @HttpCode(200)
-  deactivate(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.templates.deactivate(id, me);
+  xoa(@Param('id') id: string) {
+    return this.templates.xoa(id);
   }
 }
 
@@ -182,20 +196,35 @@ export class PolicyTemplatesController {
   constructor(private readonly templates: TemplatesService) {}
 
   @Roles('QUAN_TRI')
+  @Post('o-trong')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES + 1 } }))
+  oTrong(@UploadedFile() file: { buffer: Buffer } | undefined) {
+    if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
+    return this.templates.doOTrong(file.buffer);
+  }
+
+  @Roles('QUAN_TRI')
   @Post()
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES + 1 } }))
-  async upload(
+  async luu(
     @CurrentUser() me: AuthUser,
     @UploadedFile() file: { buffer: Buffer } | undefined,
-    @Body() body: { name?: string },
+    @Body() body: { name?: string; mapping?: string; cotBang?: string },
   ) {
     if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
-    // `paperSize` ĐÃ BỎ khỏi đầu vào (`0058`): khổ giấy đọc từ chính file — xem
-    // `khoGiayCua`. Một ô người tải lên tự khai mà không còn hậu quả gì là một ô
-    // sẽ nói dối, và không có gì trên đời phát hiện ra.
     const b = validate({ name: body?.name ?? 'Mẫu hồ sơ CSBH' }, { name: str(1, 200) });
-    return this.templates.upload(b.name, file.buffer, me, 'HO_SO');
+    return this.templates.luu(
+      {
+        name: b.name,
+        buffer: file.buffer,
+        kind: 'HO_SO',
+        mapping: docAnhXa(body?.mapping),
+        cotBang: docCotBang(body?.cotBang),
+      },
+      me,
+    );
   }
 
   @Roles('QUAN_TRI')
@@ -205,14 +234,11 @@ export class PolicyTemplatesController {
   }
 
   /**
-   * Mẫu đang dùng, cho Ô CHỌN lúc xem bản mềm (`0058`).
+   * Mẫu dùng được, cho Ô CHỌN lúc xem bản mềm (`0058`).
    *
-   * MỞ CHO NĂM VAI TRÒ ĐỌC, không riêng Quản trị — và đó là chủ ý, không phải
-   * lỗ hổng: người chọn mẫu là kế toán, TDV, Trưởng bộ phận. Họ cần biết có
-   * những mẫu nào để chọn, chứ không cần quyền tải lên hay phát hành mẫu nào.
-   *
-   * Trả về đúng ba trường (`id`, `ten`, `khoGiay`) chứ không dùng lại `list()`:
-   * đường đọc càng mở rộng thì càng ít thứ nên lọt ra theo.
+   * MỞ CHO NĂM VAI TRÒ ĐỌC, không riêng Quản trị — và đó là chủ ý: người chọn
+   * mẫu là kế toán, TDV, Trưởng bộ phận. Họ cần biết có những mẫu nào, chứ không
+   * cần quyền thêm hay xoá mẫu nào.
    */
   @Roles(...NGUOI_XEM_HO_SO)
   @Get('available')
@@ -223,47 +249,22 @@ export class PolicyTemplatesController {
   @Roles('QUAN_TRI')
   @Get('sources')
   sources() {
-    // Kèm danh sách mục BẮT BUỘC: màn hình ánh xạ phải đánh dấu được chúng
-    // trước khi Quản trị bấm phát hành và nhận 409.
-    return { knownSources: KNOWN_SOURCES, batBuoc: NGUON_BAT_BUOC_HO_SO, oBangSanPham: O_BANG_SAN_PHAM };
-  }
-
-  @Roles('QUAN_TRI')
-  @Get(':id/placeholders')
-  async placeholders(@Param('id') id: string) {
-    const declared = await this.templates.placeholders(id);
-    const mapped = await this.templates.fields(id);
-    const mappedSet = new Set(mapped.map((m) => m.placeholder));
+    // Kèm danh sách mục BẮT BUỘC và danh mục CỘT của bảng sản phẩm: màn hình
+    // thêm mẫu cần cả hai để dựng hướng dẫn và ô chọn cột.
     return {
-      placeholders: declared,
-      mapped,
-      // Ô bảng sản phẩm KHÔNG cần ánh xạ — hệ thống thay nó bằng cả một bảng.
-      unmapped: declared.filter((p) => p !== O_BANG_SAN_PHAM && !mappedSet.has(p)),
       knownSources: KNOWN_SOURCES,
       batBuoc: NGUON_BAT_BUOC_HO_SO,
-      thieu: NGUON_BAT_BUOC_HO_SO.filter((n) => !mapped.some((m) => m.source === n)),
-      coBangSanPham: declared.includes(O_BANG_SAN_PHAM),
+      oBangSanPham: O_BANG_SAN_PHAM,
+      cotBang: COT_BANG,
+      cotBatBuoc: COT_BAT_BUOC,
     };
   }
 
   @Roles('QUAN_TRI')
-  @Put(':id/mapping')
-  mapping(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
-    return doiAnhXa(body, (mapping) => this.templates.setMapping(id, mapping, me));
-  }
-
-  @Roles('QUAN_TRI')
-  @Post(':id/publish')
+  @Delete(':id')
   @HttpCode(200)
-  publish(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.templates.publish(id, me);
-  }
-
-  @Roles('QUAN_TRI')
-  @Post(':id/deactivate')
-  @HttpCode(200)
-  deactivate(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    return this.templates.deactivate(id, me);
+  xoa(@Param('id') id: string) {
+    return this.templates.xoa(id);
   }
 }
 

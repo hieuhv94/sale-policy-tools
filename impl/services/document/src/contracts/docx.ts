@@ -92,7 +92,6 @@ function setParagraphText(paragraph: string, text: string): string {
 }
 
 const paragraphs = (xml: string): string[] => xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
-const rows = (xml: string): string[] => xml.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) ?? [];
 
 /** Mọi ô trống tìm thấy trong mẫu, không trùng lặp, theo thứ tự xuất hiện (DOC-25). */
 export function placeholdersOf(buf: Buffer): string[] {
@@ -127,27 +126,20 @@ export const khoGiayCua = (buf: Buffer): 'a4p' | 'a4l' =>
   /<w:pgSz[^>]*w:orient="landscape"/.test(documentXml(buf)) ? 'a4l' : 'a4p';
 
 export type MergeInput = {
-  /** Giá trị cho ô trống đơn: khoá là `{{customer.name}}`. */
+  /** Giá trị cho ô trống đơn: khoá là `{{ho_so.ten_khach_hang}}`. */
   values: Record<string, string>;
   /**
-   * Giá trị theo DÒNG SẢN PHẨM. Mỗi phần tử là một bản đồ ô trống → giá trị.
-   * Dòng bảng nào chứa ô trống thuộc nhóm này sẽ được NHÂN BẢN cho mỗi dòng (DOC-32).
-   */
-  lines: Record<string, string>[];
-  /** Tập ô trống thuộc nhóm dòng sản phẩm, để nhận ra dòng bảng cần nhân bản. */
-  linePlaceholders: Set<string>;
-  /**
-   * XML của CẢ MỘT BẢNG do hệ thống dựng, thay cho ô trống `{{policy.lines_table}}`
+   * XML của CẢ MỘT BẢNG do hệ thống dựng, thay cho ô trống `{{bang_san_pham}}`
    * (`0055`).
    *
-   * Vì sao bảng sản phẩm của bản CSBH KHÔNG vẽ được trong Word như bảng của hợp
-   * đồng: muc 7.1 đòi số cột CPBH bằng dòng nhiều khoản nhất, mà mỗi dòng nhận
-   * tới 50 khoản. Một bảng vẽ sẵn có số cột CỐ ĐỊNH, nên nó chỉ đúng cho những
-   * hồ sơ tình cờ có đúng số khoản ấy.
+   * Vì sao bảng sản phẩm KHÔNG vẽ được trong Word: muc 7.1 đòi số cột CPBH bằng
+   * dòng nhiều khoản nhất, mà mỗi dòng nhận tới 50 khoản. Một bảng vẽ sẵn có số
+   * cột CỐ ĐỊNH, nên nó chỉ đúng cho những hồ sơ tình cờ có đúng số khoản ấy.
    *
-   * Nên người soạn mẫu đặt MỘT ô trống, và hệ thống trả về cả cái bảng. Ranh
-   * giới rơi đúng chỗ: người soạn nắm phần chữ và bố cục, hệ thống giữ bảo đảm
-   * về bảng số — thứ mà người ký đặt bút xuống dưới.
+   * Nên người soạn mẫu đặt MỘT ô trống, và hệ thống trả về cả cái bảng — với
+   * đúng tập cột mà chính mẫu ấy khai (`0067`). Ranh giới rơi đúng chỗ: người
+   * soạn nắm phần chữ, bố cục và tập cột; hệ thống giữ bảo đảm về bảng số —
+   * thứ mà người ký đặt bút xuống dưới.
    */
   banSanPham?: string | undefined;
 };
@@ -180,24 +172,17 @@ export function mergeDocx(buf: Buffer, input: MergeInput): Buffer {
     }
   }
 
-  // BƯỚC 1 — nhân bản dòng bảng sản phẩm TRƯỚC.
-  //
-  // Phải trước bước điền: sau khi điền thì ô trống không còn để mà nhận ra dòng
-  // nào là dòng mẫu.
-  for (const row of rows(xml)) {
-    const text = textOf(row);
-    const isLineRow = [...text.matchAll(PLACEHOLDER_RE)].some((m) =>
-      input.linePlaceholders.has(`{{${m[1]}}}`),
-    );
-    if (!isLineRow) continue;
-
-    const built = input.lines
-      .map((lineValues) => paragraphs(row).reduce((acc, p) => acc.replace(p, fill(p, lineValues)), row))
-      .join('');
-    // Không có dòng sản phẩm nào thì bỏ hẳn dòng mẫu, không để lại một hàng đầy
-    // `{{...}}` trong hợp đồng đưa cho khách hàng.
-    xml = xml.replace(row, built);
-  }
+  /*
+   * BƯỚC NHÂN BẢN DÒNG BẢNG ĐÃ GỠ (`0067`).
+   *
+   * Nó tìm dòng `<w:tr>` nào mang khoá thuộc nhóm `san_pham.` rồi nhân bản dòng
+   * ấy cho từng sản phẩm — cơ chế của bảng VẼ TAY trong mẫu hợp đồng.
+   *
+   * Từ `0067` mẫu hợp đồng cũng đặt `{{bang_san_pham}}` và hệ thống dựng cả
+   * bảng, nên không còn dòng mẫu nào để nhân bản. Giữ lại một cơ chế không ai
+   * dùng nghĩa là giữ một nhánh mã mà không ca kiểm thử nào của người dùng thật
+   * đi qua — và nó sẽ hỏng lặng lẽ vào ngày có người vô tình chạm phải.
+   */
 
   // BƯỚC 2 — điền ô trống đơn trên toàn tài liệu.
   for (const p of paragraphs(xml)) xml = xml.replace(p, fill(p, input.values));

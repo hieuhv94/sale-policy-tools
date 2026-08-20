@@ -723,46 +723,67 @@ describe('`0049` sys.khong_dau khớp từng ký tự với norm() của TypeScr
 });
 
 // =============================================================================
-// `0058` — nhiều mẫu cùng đang dùng, vì đó mới là cái danh sách để chọn
+// `0067` — mọi mẫu trong bảng đều dùng được
 // =============================================================================
 
-describe('`0058` CSDL cho phép hai mẫu cùng đang dùng', () => {
+describe('`0067` CSDL không còn khái niệm mẫu "đang dùng"', () => {
   /*
-   * Luật này ĐẢO NGƯỢC so với `0050`, nên nó cần một ca canh giữ đúng chiều mới.
+   * Luật này đi qua ba đời, và ca kiểm thử đi theo:
    *
-   * `0050` dựng hai partial unique index để giữ đúng MỘT mẫu đang dùng cho mỗi
-   * (loại × khổ giấy) — luật đúng khi hệ thống tự tra mẫu. Từ `0058` người dùng
-   * chọn thẳng mẫu, nên index ấy quay ra chống lại chính chức năng: ban hành mẫu
-   * thứ hai sẽ vi phạm ràng buộc, và người quản trị không bao giờ có nổi hai mẫu
-   * để chọn.
+   *   `0050` — mỗi (loại × khổ giấy) đúng MỘT mẫu đang dùng, giữ bằng hai
+   *            partial unique index.
+   *   `0058` — bỏ hai index ấy: người xem chọn thẳng mẫu, nên nhiều mẫu cùng
+   *            đang dùng KHÔNG còn là mập mờ mà chính là cái danh sách.
+   *   `0067` — bỏ luôn cột `is_active` và `published_at`: nếu mọi mẫu đều dùng
+   *            được thì một cột nói "có dùng được không" chỉ còn một giá trị.
    *
-   * Kiểm bằng cách CHÈN THẬT trong một giao dịch rồi cuộn lại, không phải bằng
-   * cách đọc `pg_indexes` cho vắng tên: một index tương đương đặt tên khác ở lần
-   * migration sau sẽ lọt qua phép đọc tên, còn phép chèn thì không.
+   * Kiểm bằng cách CHÈN THẬT rồi cuộn lại, không phải bằng cách đọc `pg_indexes`
+   * cho vắng tên: một index tương đương đặt tên khác ở lần migration sau sẽ lọt
+   * qua phép đọc tên, còn phép chèn thì không.
    */
-  it('hai mẫu HO_SO cùng khổ, cùng is_active — chèn được', async () => {
+  it('hai mẫu HO_SO cùng khổ giấy — chèn được, không ràng buộc nào chặn', async () => {
     await inRollback(db, async () => {
-      const f = await db.query<{ id: string }>(
-        `SELECT id FROM doc.stored_file LIMIT 1`,
-      );
-      const fileId = f.rows[0]?.id;
-      expect(fileId, 'cần ít nhất một file trong kho để mượn khoá ngoại').toBeDefined();
+      const f = await db.query<{ id: string }>(`SELECT id FROM doc.stored_file LIMIT 1`);
+      expect(f.rows[0]?.id, 'cần ít nhất một file trong kho để mượn khoá ngoại').toBeDefined();
       const u = await db.query<{ id: string }>(`SELECT id FROM idn.app_user LIMIT 1`);
 
       for (const ten of ['Mẫu một', 'Mẫu hai']) {
         await db.query(
-          `INSERT INTO doc.contract_template
-             (name, file_id, is_active, published_at, updated_by, kind, paper_size)
-           VALUES ($1,$2,true,now(),$3,'HO_SO','a4p')`,
-          [ten, fileId, u.rows[0]!.id],
+          `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size)
+           VALUES ($1,$2,$3,'HO_SO','a4p')`,
+          [ten, f.rows[0]!.id, u.rows[0]!.id],
         );
       }
       const n = await db.query<{ c: string }>(
         `SELECT count(*) AS c FROM doc.contract_template
-          WHERE is_active AND kind = 'HO_SO' AND paper_size = 'a4p'`,
+          WHERE kind = 'HO_SO' AND paper_size = 'a4p'`,
       );
       expect(Number(n.rows[0]!.c)).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it('hai cột vòng đời ĐÃ BIẾN MẤT khỏi lược đồ', async () => {
+    // Đọc lược đồ chứ không chèn: `is_active` còn đó mà không ai đọc thì mã vẫn
+    // chạy đúng, nhưng dòng mẫu mang một cột nói dối — và người đọc CSDL sau này
+    // sẽ tin nó.
+    const r = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'doc' AND table_name = 'contract_template'
+          AND column_name IN ('is_active','published_at')`,
+    );
+    expect(r.rows.map((x) => x.column_name)).toEqual([]);
+  });
+
+  it('bảng ánh xạ chỉ còn "ô trống nào → trường nào"', async () => {
+    // `format` và `required` cùng đi ở `0067`: định dạng gắn cứng vào TRƯỜNG
+    // nguồn, còn mục bắt buộc kiểm theo muc 11.1 chứ không theo cờ người dùng
+    // tự đánh cho từng ô.
+    const r = await db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'doc' AND table_name = 'contract_template_field'
+          AND column_name IN ('format','required')`,
+    );
+    expect(r.rows.map((x) => x.column_name)).toEqual([]);
   });
 
   it('mẫu HỢP ĐỒNG khai khổ giấy — không còn bị CHECK chặn', async () => {

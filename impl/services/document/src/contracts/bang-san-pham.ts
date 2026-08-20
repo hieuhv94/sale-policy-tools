@@ -29,44 +29,98 @@ import { table, tableRow } from './docx.js';
 import { money, pct, soCotCpbh } from '../render/sheet.js';
 
 /**
+ * Danh mục CỘT của bảng sản phẩm — mẫu nào chọn cột nấy (`0067`).
+ *
+ * Tới `0066` tập cột cố định trong mã: mười cột, mọi mẫu như nhau. Khách hàng
+ * chốt ngày 20/08 cho khai theo từng mẫu, và đây là chỗ đúng để đặt nó — từ
+ * `0058` người xem CHỌN MẪU, tức là chọn bản trình bày, mà tập cột là một thuộc
+ * tính của bản trình bày.
+ *
+ * BA ĐIỀU CỦA BẢNG NÀY ĐÁNG ĐỌC KỸ:
+ *
+ *   1. `cpbh` là MỘT lựa chọn nở ra thành N CỘT — CPBH1…CPBHn, số cột bằng dòng
+ *      nhiều khoản nhất (muc 7.1). Không tách được thành từng cột để chọn lẻ vì
+ *      số ấy chỉ biết lúc dựng bảng cho một hồ sơ cụ thể, còn tập cột thì khai
+ *      lúc soạn mẫu — trước khi biết hồ sơ nào sẽ dùng nó.
+ *   2. `ten_san_pham` và `cpbh_tong` KHÔNG TẮT ĐƯỢC. Muc 11.1 đòi bản A4 có tên
+ *      sản phẩm và CPBH; bảng này gánh đúng hai mục ấy, nên tắt chúng là ban
+ *      hành một mẫu vi phạm muc 11.1 mà không phép kiểm nào bắt được.
+ *   3. `trongSo` là TỶ LỆ bề rộng, không phải số đo. Hai cột CHỮ — tên sản phẩm
+ *      và ghi chú — rộng gấp đôi cột số, nếu không thì tên xuống bốn dòng còn
+ *      cột STT thừa chỗ.
+ */
+export const COT_BANG = [
+  { khoa: 'stt', nhan: 'STT', trongSo: 3 },
+  { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm', trongSo: 6 },
+  { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', trongSo: 14, batBuoc: true },
+  { khoa: 'gia_cong_ty', nhan: 'Giá công ty', trongSo: 7 },
+  { khoa: 'gia_ban_buon', nhan: 'Giá bán buôn', trongSo: 7 },
+  { khoa: 'cpbh_tong', nhan: 'CPBH tổng', trongSo: 7, batBuoc: true },
+  { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)', trongSo: 6 },
+  { khoa: 'gia_thu_ve', nhan: 'Giá thu về', trongSo: 7 },
+  { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK', trongSo: 6 },
+  { khoa: 'ghi_chu', nhan: 'Ghi chú', trongSo: 14 },
+] as const;
+
+export type KhoaCot = (typeof COT_BANG)[number]['khoa'];
+
+/** Tập cột mặc định: đủ cả mười — đúng hành vi trước `0067`. */
+export const COT_MAC_DINH: KhoaCot[] = COT_BANG.map((c) => c.khoa);
+
+export const COT_BAT_BUOC: KhoaCot[] = COT_BANG.filter((c) => 'batBuoc' in c).map((c) => c.khoa);
+
+/**
+ * Chuẩn hoá tập cột người dùng khai: bỏ khoá lạ, thêm lại cột bắt buộc, và giữ
+ * ĐÚNG THỨ TỰ của `COT_BANG`.
+ *
+ * Thứ tự do danh mục quyết định chứ không do người dùng gõ vào: thứ tự cột trên
+ * bản A4 là chuyện bố cục đã chốt (CPBH tổng đứng trước các khoản lẻ — `0056`),
+ * không phải một lựa chọn. Cho khai thứ tự là mở ra một tập vô hạn bố cục mà
+ * không ai kiểm được cái nào đọc được.
+ */
+export const chuanHoaCot = (khai: unknown): KhoaCot[] => {
+  const co = new Set(Array.isArray(khai) ? khai.map(String) : COT_MAC_DINH);
+  for (const k of COT_BAT_BUOC) co.add(k);
+  return COT_BANG.map((c) => c.khoa).filter((k) => co.has(k));
+};
+
+/**
  * Tiêu đề bảng. Số cột CPBH suy từ dữ liệu, nên tiêu đề cũng vậy.
  *
  * Không dòng nào có khoản nào thì bảng KHÔNG có cột CPBH — bốn cột số 0 nói sai
  * về một hồ sơ chẳng có khoản chi phí nào.
  */
-const tieuDe = (soCot: number): string[] => [
-  'STT',
-  'Mã sản phẩm',
-  'Tên sản phẩm',
-  'Giá công ty',
-  'Giá bán buôn',
-  // CPBH TỔNG đứng TRƯỚC các khoản lẻ (`0056`): người đọc bản giấy cần con số
-  // cộng lại trước, rồi mới soi từng khoản nếu thấy lạ. Đặt sau thì mắt phải
-  // lướt qua cả dải CPBH1…CPBHn rồi mới tới thứ mình đi tìm.
-  'CPBH tổng',
-  ...Array.from({ length: soCot }, (_, k) => `CPBH${k + 1}`),
-  'Giá thu về',
-  'Tỷ lệ CK',
-  'Ghi chú',
-];
+const tieuDe = (soCot: number, cot: KhoaCot[]): string[] =>
+  cot.flatMap((k) =>
+    // CPBH TỔNG đứng TRƯỚC các khoản lẻ (`0056`): người đọc bản giấy cần con số
+    // cộng lại trước, rồi mới soi từng khoản nếu thấy lạ. Đặt sau thì mắt phải
+    // lướt qua cả dải CPBH1…CPBHn rồi mới tới thứ mình đi tìm.
+    k === 'cpbh'
+      ? Array.from({ length: soCot }, (_, i) => `CPBH${i + 1}`)
+      : [COT_BANG.find((c) => c.khoa === k)!.nhan],
+  );
 
-const dong = (l: PolicyLine, i: number, soCot: number): string[] => [
-  String(i + 1),
-  l.product_code_snap,
-  l.product_name_snap,
-  money(l.company_price),
-  money(l.wholesale_price),
-  money(l.cpbh_total),
-  // Ô TRỐNG, không phải số 0: số 0 là một con số có nghĩa ("khoản này bằng
-  // không"), còn ô trống nói đúng điều cần nói là dòng ấy không có khoản thứ
-  // mấy đó.
-  ...Array.from({ length: soCot }, (_, k) =>
-    l.cpbh?.[k] === undefined ? '' : money(l.cpbh[k]),
-  ),
-  money(l.net_price),
-  pct(l.discount_rate),
-  l.note ?? '',
-];
+const O: Record<Exclude<KhoaCot, 'cpbh'>, (l: PolicyLine, i: number) => string> = {
+  stt: (_l, i) => String(i + 1),
+  ma_san_pham: (l) => l.product_code_snap,
+  ten_san_pham: (l) => l.product_name_snap,
+  gia_cong_ty: (l) => money(l.company_price),
+  gia_ban_buon: (l) => money(l.wholesale_price),
+  cpbh_tong: (l) => money(l.cpbh_total),
+  gia_thu_ve: (l) => money(l.net_price),
+  ty_le_ck: (l) => pct(l.discount_rate),
+  ghi_chu: (l) => l.note ?? '',
+};
+
+const dong = (l: PolicyLine, i: number, soCot: number, cot: KhoaCot[]): string[] =>
+  cot.flatMap((k) =>
+    k === 'cpbh'
+      ? // Ô TRỐNG, không phải số 0: số 0 là một con số có nghĩa ("khoản này bằng
+        // không"), còn ô trống nói đúng điều cần nói là dòng ấy không có khoản
+        // thứ mấy đó.
+        Array.from({ length: soCot }, (_, j) => (l.cpbh?.[j] === undefined ? '' : money(l.cpbh[j])))
+      : [O[k](l, i)],
+  );
 
 /**
  * Trọng số bề rộng từng cột. Tổng bao nhiêu không quan trọng — chỉ TỶ LỆ.
@@ -74,22 +128,18 @@ const dong = (l: PolicyLine, i: number, soCot: number): string[] => [
  * *Tên sản phẩm* và *Ghi chú* rộng gấp ba bốn lần cột số vì chúng là hai cột
  * CHỮ; chia đều thì tên sản phẩm xuống bốn dòng còn cột STT thừa chỗ.
  */
-const trongSoCot = (soCot: number): number[] => [
-  3, // STT
-  6, // Mã sản phẩm
-  14, // Tên sản phẩm
-  7, // Giá công ty
-  7, // Giá bán buôn
-  7, // CPBH tổng
-  ...Array.from({ length: soCot }, () => 6),
-  7, // Giá thu về
-  6, // Tỷ lệ CK
-  14, // Ghi chú — cột chữ, phải đủ rộng để xuống dòng chứ không nong bảng ra
-];
+const trongSoCot = (soCot: number, cot: KhoaCot[]): number[] =>
+  cot.flatMap((k) => {
+    const ts = COT_BANG.find((c) => c.khoa === k)!.trongSo;
+    return k === 'cpbh' ? Array.from({ length: soCot }, () => ts) : [ts];
+  });
 
-export function bangSanPhamXml(p: PolicyFull): string {
-  const soCot = soCotCpbh(p.lines);
-  const ts = trongSoCot(soCot);
+export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
+  const cot = chuanHoaCot(cotKhai);
+  // Không chọn cột CPBH lẻ thì KHÔNG tính số cột: `soCotCpbh` quét mọi dòng, và
+  // quét để rồi vứt đi là việc thừa trên đường nóng của mọi lượt xem bản mềm.
+  const soCot = cot.includes('cpbh') ? soCotCpbh(p.lines) : 0;
+  const ts = trongSoCot(soCot, cot);
   /*
    * Hồ sơ CHƯA CÓ DÒNG NÀO vẫn phải ra một cái bảng, không phải một khoảng
    * trống. Bảng chỉ có hàng tiêu đề nói rõ "chưa có dòng sản phẩm"; một khoảng
@@ -98,8 +148,14 @@ export function bangSanPhamXml(p: PolicyFull): string {
   if (p.lines.length === 0) {
     return table(
       [
-        tableRow(tieuDe(0), true, ts),
-        tableRow(['—', 'Chưa có dòng sản phẩm nào', '', '', '', '', '', ''], false, ts),
+        tableRow(tieuDe(0, cot), true, ts),
+        // Ô đầu là dấu gạch, ô thứ hai là câu giải thích, còn lại để trống —
+        // dựng theo SỐ CỘT THẬT chứ không đếm tay, vì số cột giờ đổi theo mẫu.
+        tableRow(
+          ts.map((_, i) => (i === 0 ? '—' : i === 1 ? 'Chưa có dòng sản phẩm nào' : '')),
+          false,
+          ts,
+        ),
       ],
       true,
     );
@@ -108,8 +164,8 @@ export function bangSanPhamXml(p: PolicyFull): string {
     [
       // Hàng tiêu đề LẶP LẠI ở mỗi trang — hồ sơ 60 dòng tràn sang sáu trang, và
       // từ trang 2 mà không có tên cột thì bảng số đọc không ra gì (DOC-19).
-      tableRow(tieuDe(soCot), true, ts),
-      ...p.lines.map((l, i) => tableRow(dong(l, i, soCot), false, ts)),
+      tableRow(tieuDe(soCot, cot), true, ts),
+      ...p.lines.map((l, i) => tableRow(dong(l, i, soCot, cot), false, ts)),
     ],
     // Bố cục CỐ ĐỊNH: ghi chú dài thì xuống dòng, ô cao lên — chứ không nong
     // cột ra và đẩy cột cuối khỏi mép giấy.

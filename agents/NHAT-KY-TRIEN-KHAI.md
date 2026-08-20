@@ -6910,3 +6910,85 @@ và Kế toán **vẫn** chọn được mẫu lúc xuất.
   hai cái bẫy này cắn; nó đã có trong CLAUDE.md.
 
 **1268/1268 xanh.**
+
+## P93 — Văn bản mẫu làm lại: một lượt lưu, không vòng đời, chọn cột theo mẫu
+
+Khách hàng chốt lại toàn bộ cách nhập mẫu ngày 20/08 — mười bốn điểm. Đợt này làm phần lõi; đặc
+điểm chung của gần hết danh sách là **bỏ bớt**, và mỗi thứ bỏ đi đều là một câu hỏi sai.
+
+### Ba bước thành một
+
+| Trước | Sau |
+|---|---|
+| Tải lên → mẫu **nháp** | Chọn file → đọc ô trống, **không tạo dòng nào** |
+| Ánh xạ ở một hộp thoại mở sau | Bảng ánh xạ ngay dưới ô chọn tệp |
+| Ban hành | *(không còn)* — lưu được là dùng được |
+| Ngừng dùng · Sửa | *(không còn)* — chỉ còn **Xoá** |
+
+Vòng đời cũ sinh ra khi mỗi khổ giấy chỉ được có MỘT mẫu đang dùng: ban hành mẫu này nghĩa là hạ mẫu
+kia. `0058` bỏ luật ấy, và từ đó *ban hành* chỉ còn nghĩa là "đưa vào danh sách chọn" — mà một mẫu đã
+ánh xạ xong thì còn lý do gì để nằm ngoài danh sách? Trạng thái **nháp** vì thế là một phòng chờ
+không dẫn tới đâu, và **đã ngừng** là một cách xoá nửa vời.
+
+Hệ quả được nhất: **không còn trạng thái nửa vời**. Trước `0067` một lượt hỏng giữa chừng để lại mẫu
+nháp hoặc mẫu đã ánh xạ mà chưa ban hành, và không màn hình nào nói cho người dùng biết họ đang đứng
+ở đâu. Có ca kiểm thử canh đúng điều đó: lưu hỏng thì bảng KHÔNG thêm dòng nào.
+
+*Sửa* bỏ đi vì lý do khác: sửa một mẫu **đang được dùng** nghĩa là bản mềm hôm nay và bản mềm hôm qua
+khác nhau mà không chỗ nào ghi lại. Xoá-rồi-thêm để lại dấu vết đúng như nó vốn là.
+
+### Hai nhóm khoá biến mất
+
+**`cong_ty.`** — tên, địa chỉ, mã số thuế Công ty là **cố định ở mọi hồ sơ**. Người soạn gõ thẳng vào
+Word. Một ô trống cho một giá trị không bao giờ đổi chỉ thêm đúng một bước có thể quên, và quên thì
+bản in mang chuỗi `{{cong_ty.ten}}` ở ngay dòng đầu — chỗ dễ thấy nhất của một văn bản đem đi ký.
+
+> Hệ quả phải nói ra: phép kiểm mục bắt buộc của muc 11.1 **từ 13 xuống 12**. Mục *thông tin công ty*
+> giờ do người soạn tự chịu trách nhiệm — đây là chỗ DUY NHẤT của muc 11.1 mà bảo đảm tự động không
+> với tới. Một bảo đảm 12/13 mà tưởng là 13/13 tệ hơn hẳn một bảo đảm 12/13 đã biết.
+
+**`san_pham.`** — nhóm trường theo dòng, phục vụ bảng **vẽ tay** trong mẫu hợp đồng. Bỏ nó kéo theo
+việc mẫu hợp đồng cũng dùng `{{bang_san_pham}}`, và cơ chế nhân bản dòng bảng trong `mergeDocx` gỡ
+hẳn. Một cơ chế không ai dùng mà vẫn chạy là một cơ chế sẽ hỏng lặng lẽ — không ca kiểm thử nào của
+người dùng thật đi qua nó nữa.
+
+### Chọn cột bảng sản phẩm — phương án A
+
+`cot_bang jsonb` trên từng mẫu. Đây là chỗ đúng để đặt nó: từ `0058` người xem **chọn mẫu**, tức là
+chọn bản trình bày, mà tập cột là một thuộc tính của bản trình bày. Quản trị soạn được *"bản đầy đủ
+cho nội bộ"* và *"bản gọn đưa khách hàng"* mà không cần ai lập trình.
+
+Ba luật của tính năng này, cả ba đều đáng ghi:
+
+1. **`cpbh` là MỘT lựa chọn nở ra thành N cột.** Số cột bằng dòng nhiều khoản nhất (muc 7.1), và con
+   số ấy chỉ biết lúc dựng bảng cho một hồ sơ cụ thể — còn tập cột thì khai lúc soạn mẫu, trước khi
+   biết hồ sơ nào sẽ dùng nó.
+2. **`ten_san_pham` và `cpbh_tong` không tắt được.** Bảng gánh đúng hai mục của muc 11.1; tắt chúng
+   là lưu một mẫu vi phạm mà không phép kiểm nào bắt được. Hệ thống **thêm lại** thay vì báo lỗi —
+   người dùng không làm gì sai, họ chỉ không biết luật.
+3. **Thứ tự cột do danh mục quyết định**, không do người dùng gõ vào. Cho khai thứ tự là mở ra một
+   tập vô hạn bố cục mà không ai kiểm được cái nào đọc được.
+
+### Định dạng và cờ bắt buộc: hai ô hỏi sai
+
+`format` hỏi *"công nợ hiển thị kiểu tiền hay kiểu chữ?"* — câu ấy chỉ có một đáp án đúng, và đáp án
+đi theo TRƯỜNG chứ không theo mẫu. Hỏi hai mươi lần cho hai mươi ô là mời người dùng trả lời sai ở
+đúng một trong số đó, và cái sai chỉ lộ ra trên bản in. Giờ nó gắn cứng trong `sources.ts`.
+
+`required` chỉ đổi **thời điểm** báo lỗi, và báo cho người KHÔNG sửa được: kế toán bấm xuất rồi nhận
+*"hồ sơ khách hàng thiếu chức danh người đại diện"*, trong khi sửa hồ sơ khách hàng là việc của TDV
+còn sửa mẫu là việc của Quản trị. Bỏ nó thì trường rỗng in ra rỗng — nhìn thấy ngay trên bản xem
+trước, mà từ `0060` bản xem trước là đường DUY NHẤT dẫn tới nút tải.
+
+### Cái bẫy của lượt này: mẫu bỏ quên
+
+Bỏ vòng đời làm lộ ra một chuyện bộ kiểm thử vốn đã sai mà không ai thấy: **các ca không dọn mẫu
+chúng tạo ra**. Trước `0067` mẫu bỏ quên nằm ở trạng thái nháp hoặc đã ngừng nên vô hại; giờ nó là
+mẫu MỚI NHẤT, tức là mẫu mặc định của mọi lời gọi không kèm `mauId`.
+
+Triệu chứng: mười ca đỏ ở những chỗ chẳng liên quan gì tới nhau, tất cả với dạng
+*"expected 'đứng dọc' to contain …"* — nội dung của một mẫu do ca khác bỏ lại. Chữa bằng hai quy tắc:
+`beforeAll` xoá mẫu của lượt chạy trước **trước khi dựng app** (dọn sau thì `ensureDefault` đã bỏ qua
+vì thấy có mẫu, và ta xoá nốt thứ nó nhìn thấy), và mọi ca tạo mẫu đều `finally` xoá.
+
+**1276/1276 xanh.**

@@ -17,12 +17,18 @@
  * dù `ls` vẫn thấy file — khác biệt chuẩn hoá NFC/NFD giữa hai lớp.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { makeDocx, para, table, tableRow } from '../services/document/src/contracts/docx.js';
+import { makeDocx, para } from '../services/document/src/contracts/docx.js';
 
-/** Khối đầu trang — giống nhau ở cả ba mẫu. */
+/**
+ * Khối đầu trang — giống nhau ở cả ba mẫu.
+ *
+ * Tên và địa chỉ Công ty gõ THẲNG, không còn ô trống (`0067`): ba giá trị ấy cố
+ * định ở mọi hồ sơ, nên một ô trống cho chúng chỉ thêm một bước có thể quên —
+ * và quên thì bản in ra mang chuỗi `{{cong_ty.ten}}` ngay dòng đầu.
+ */
 const dauTrang = [
-  para('{{cong_ty.ten}}'),
-  para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
+  para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
   para(''),
   para('CHÍNH SÁCH BÁN HÀNG'),
 ];
@@ -44,7 +50,7 @@ const dayDu = [
   ...dauTrang,
   para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}} · {{ho_so.trang_thai}}'),
   para(''),
-  para('BÊN BÁN: {{cong_ty.ten}}'),
+  para('BÊN BÁN: CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
   para('BÊN MUA: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   para('Mã số thuế: {{ho_so.ma_so_thue}}'),
   para('Địa chỉ đăng ký: {{ho_so.dia_chi_dang_ky}}'),
@@ -90,29 +96,24 @@ const rutGon = [
 ];
 
 /**
- * Mẫu HỢP ĐỒNG — bố cục khác hẳn ba mẫu trên, và khác ở đúng một chỗ cốt lõi:
- * **bảng sản phẩm vẽ tay** (`0058`).
+ * Mẫu HỢP ĐỒNG — cùng cơ chế bảng với mẫu hồ sơ từ `0067`.
  *
- * Mẫu hồ sơ đặt `{{bang_san_pham}}` và hệ thống dựng cả cái bảng, vì số cột CPBH
- * đổi theo từng hồ sơ (muc 7.1). Hợp đồng thì không cần luật ấy: nó nêu giá thu
- * về và tỷ lệ chiết khấu, bốn cột chữ ngắn, cố định. Nên người soạn vẽ bảng
- * trong Word và đặt khoá `{{san_pham.*}}` vào MỘT dòng thân — hệ thống nhân bản
- * đúng dòng ấy cho từng sản phẩm.
+ * `0058` cho nó một bảng VẼ TAY bốn cột, vì hợp đồng chỉ nêu giá thu về và tỷ
+ * lệ chiết khấu — không cần luật số cột CPBH đổi theo hồ sơ của muc 7.1.
  *
- * Đặt khoá `{{san_pham.*}}` vào mẫu HỒ SƠ thì không có gì nhân bản chúng, và bản
- * in ra mang nguyên chuỗi `{{...}}`. Đó là lý do trang thêm mẫu chỉ bày nhóm
- * khoá ấy ra khi đang soạn mẫu hợp đồng.
+ * `0067` đảo lại: cả hai loại mẫu đều đặt `{{bang_san_pham}}`, vì bảng do hệ
+ * thống dựng cho phép **chọn cột theo từng mẫu**. Một hợp đồng gọn bốn cột giờ
+ * là một tập cột đã khai, không phải một bố cục nằm cứng trong file — và người
+ * soạn đổi được nó mà không phải vẽ lại bảng.
  */
 const hopDong = [
-  para('{{cong_ty.ten}}'),
-  para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
+  para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
   para(''),
   para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
   para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}, áp dụng từ {{ho_so.ngay_ap_dung}}.'),
   para(''),
-  para('BÊN BÁN (Bên A): {{cong_ty.ten}}'),
-  para('Địa chỉ: {{cong_ty.dia_chi}}'),
-  para('Mã số thuế: {{cong_ty.ma_so_thue}}'),
+  para('BÊN BÁN (Bên A): CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
   para(''),
   para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   para('Mã số thuế: {{ho_so.ma_so_thue}}'),
@@ -122,18 +123,15 @@ const hopDong = [
   para('Công nợ tại thời điểm ký: {{ho_so.cong_no}} đồng'),
   para(''),
   para('Điều 1. Danh mục sản phẩm và giá áp dụng'),
-  table([
-    tableRow(['STT', 'Mã sản phẩm', 'Tên sản phẩm', 'Giá thu về', 'Tỷ lệ CK'], true),
-    // MỘT dòng thân duy nhất. Hệ thống nhân bản nó cho từng sản phẩm của hồ sơ;
-    // vẽ sẵn hai dòng là in ra thừa một dòng rỗng ở mọi hợp đồng.
-    tableRow([
-      '{{san_pham.stt}}',
-      '{{san_pham.ma_san_pham}}',
-      '{{san_pham.ten_san_pham}}',
-      '{{san_pham.gia_thu_ve}}',
-      '{{san_pham.ty_le_ck}}',
-    ]),
-  ]),
+  /*
+   * MỘT ô trống, hệ thống dựng cả bảng (`0067`).
+   *
+   * Tới `0066` chỗ này là một bảng VẼ TAY bốn cột, với một dòng thân mang khoá
+   * `{{san_pham.*}}` được nhân bản cho từng sản phẩm. Cả nhóm khoá ấy lẫn cơ
+   * chế nhân bản đã gỡ: bảng do hệ thống dựng cho phép CHỌN CỘT theo từng mẫu,
+   * mà một bảng vẽ tay thì tập cột nằm cứng trong file.
+   */
+  para('{{bang_san_pham}}'),
   para(''),
   para('Điều 2. Giá tại Điều 1 là giá đã bao gồm các khoản hỗ trợ bán hàng theo hồ sơ CSBH nêu trên.'),
   para('Điều 3. Hợp đồng có hiệu lực kể từ ngày ký và thay thế các thoả thuận trước đó về giá.'),

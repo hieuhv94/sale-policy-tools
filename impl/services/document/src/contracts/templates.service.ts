@@ -17,10 +17,10 @@ import {
   O_BANG_SAN_PHAM,
   para,
   placeholdersOf,
-  table,
-  tableRow,
 } from './docx.js';
-import { FORMATS, isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
+import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
+import { chuanHoaCot } from './bang-san-pham.js';
+import { COMPANY } from '../render/sheet.js';
 
 /**
  * Hai loại mẫu, hai chủ sở hữu khác nhau (`0055`).
@@ -39,27 +39,21 @@ export type TemplateRow = {
   id: string;
   name: string;
   file_id: string;
-  is_active: boolean;
   is_default: boolean;
-  published_at: Date | null;
   updated_at: Date;
   kind: Loai;
   paper_size: KhoGiay | null;
+  /** Tập cột bảng sản phẩm của riêng mẫu này (`0067`). NULL = tập mặc định. */
+  cot_bang: string[] | null;
 };
 
 export type FieldRow = {
   placeholder: string;
   source: string;
-  required: boolean;
-  format: string | null;
 };
 
-export type MappingInput = {
-  placeholder: string;
-  source: string;
-  required?: boolean | undefined;
-  format?: string | undefined;
-};
+/** Một dòng ánh xạ: ô trống nào lấy trường nào. Không còn gì khác (`0067`). */
+export type MappingInput = { placeholder: string; source: string };
 
 /**
  * Thứ tự mẫu trong ô chọn — và mẫu đầu danh sách là mẫu mặc định (`0058`).
@@ -75,7 +69,7 @@ export type MappingInput = {
  * uuid ngẫu nhiên — bỏ nó ra thì mẫu mở sẵn là khổ dọc hay khổ ngang tuỳ từng
  * lần cài đặt. Thứ tự khai enum cho A4 dọc đứng trước.
  */
-const THU_TU_MAU = 'is_default ASC, published_at DESC NULLS LAST, paper_size, id';
+const THU_TU_MAU = 'is_default ASC, updated_at DESC, paper_size, id';
 
 @Injectable()
 export class TemplatesService {
@@ -89,85 +83,52 @@ export class TemplatesService {
 
   // --- Tải lên --------------------------------------------------------------
 
-  async upload(name: string, buffer: Buffer, me: AuthUser, kind: Loai = 'HOP_DONG') {
-    // Đọc ô trống TRƯỚC khi ghi bất cứ thứ gì: file hỏng thì mẫu đang dùng không
-    // bị ảnh hưởng và kho không có object thừa (DOC-33).
-    let placeholders: string[];
-    try {
-      placeholders = placeholdersOf(buffer);
-    } catch (e) {
-      if (e instanceof NotADocxError) {
-        throw new BadRequestException({ code: 'TEMPLATE_NOT_DOCX', message: e.message });
-      }
-      throw e;
-    }
-
-    // `purpose` vẫn là `MAU_HD` cho cả hai loại: nó nói FILE NÀY LÀ GÌ — một
-    // mẫu .docx — chứ không nói ai sở hữu. Thêm một giá trị enum thứ hai là
-    // thêm một nhánh vào bảng `ALLOWED` kiểm kiểu nội dung, cho cùng một câu
-    // trả lời. Loại mẫu nằm ở cột `kind` của chính bảng mẫu.
-    const file = await this.files.upload(
-      { ownerKind: 'TEMPLATE', ownerId: null, purpose: 'MAU_HD', fileName: `${name}.docx`, buffer },
-      me,
-    );
-    const row = await this.db.one<TemplateRow>(
-      `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size)
-       VALUES ($1,$2,$3,$4::doc.template_kind,$5::doc.paper_size) RETURNING *`,
-      // Khổ giấy ĐỌC TỪ FILE (`0058`), không phải một ô người tải lên tự khai —
-      // xem `khoGiayCua`. Đọc cho CẢ mẫu hợp đồng: nó cũng in ra giấy, và cái
-      // nhãn ấy giúp người chọn biết mình sắp in ra tờ nằm ngang hay tờ đứng.
-      [name, file.id, me.id, kind, khoGiayCua(buffer)],
-    );
-    return { ...view(row!), placeholders, knownSources: KNOWN_SOURCES };
+  /**
+   * ĐỌC ô trống của một file, KHÔNG lưu gì (`0067`).
+   *
+   * Bước đầu của màn hình thêm mẫu: người dùng chọn file, giao diện gọi đây để
+   * dựng bảng ánh xạ, rồi mới bấm *Lưu*.
+   *
+   * Không tạo dòng nào ở bước này, và đó là cả điểm của nó. Trước `0067` việc
+   * tải lên đã tạo ngay một mẫu ở trạng thái "nháp", nên mỗi lần người dùng đổi
+   * ý giữa chừng lại để lại một dòng rác mà chỉ họ mới biết là rác.
+   */
+  async doOTrong(buffer: Buffer): Promise<{ placeholders: string[]; goiY: MappingInput[] }> {
+    const placeholders = this.docOTrong(buffer);
+    /*
+     * GỢI Ý ánh xạ theo TÊN Ô TRỐNG.
+     *
+     * Khoá trộn viết bằng tiếng Việt từ `0051` và trùng luôn tên trường nguồn
+     * (`{{ho_so.cong_no}}` ↔ `ho_so.cong_no`), nên phần lớn mẫu ánh xạ xong
+     * trước khi người dùng chạm vào bảng. Ô nào không đoán được thì để trống —
+     * gợi ý sai còn tệ hơn không gợi ý, vì người ta tin nó.
+     */
+    const goiY = placeholders
+      .filter((o) => o !== O_BANG_SAN_PHAM)
+      .map((o) => ({ placeholder: o, source: isKnownSource(o.slice(2, -2)) ? o.slice(2, -2) : '' }))
+      .filter((m) => m.source !== '');
+    return { placeholders, goiY };
   }
-
-  async byId(id: string): Promise<TemplateRow> {
-    const r = await this.db.one<TemplateRow>(`SELECT * FROM doc.contract_template WHERE id = $1`, [
-      id,
-    ]);
-    if (!r) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
-    return r;
-  }
-
-  async list(kind: Loai = 'HOP_DONG') {
-    // Lọc theo loại, KHÔNG trả cả hai rồi để màn hình tự lọc: hai màn hình khác
-    // nhau, hai vai trò khác nhau, và Sale Admin không có việc gì với mẫu hồ sơ.
-    const rows = await this.db.q<TemplateRow>(
-      `SELECT * FROM doc.contract_template WHERE kind = $1::doc.template_kind
-        ORDER BY is_active DESC, paper_size, updated_at DESC`,
-      [kind],
-    );
-    return rows.map(view);
-  }
-
-  /** Ô trống đọc lại từ chính file .docx, không từ CSDL — mẫu là nguồn sự thật. */
-  async placeholders(id: string): Promise<string[]> {
-    const t = await this.byId(id);
-    const file = await this.files.row(t.file_id);
-    return placeholdersOf(await this.storage.get(file.object_key));
-  }
-
-  async fields(id: string): Promise<FieldRow[]> {
-    return this.db.q<FieldRow>(
-      `SELECT placeholder, source, required, format FROM doc.contract_template_field
-        WHERE template_id = $1 ORDER BY placeholder`,
-      [id],
-    );
-  }
-
-  // --- Ánh xạ ---------------------------------------------------------------
 
   /**
-   * Lưu bảng ánh xạ. Kiểm ngay tại đây chứ không đợi lúc xuất: Sale Admin phải
-   * biết mình gõ sai tên trường ngay ở màn hình đang gõ, không phải hai tuần sau
-   * khi kế toán bấm xuất và nhận lỗi (DOC-29).
+   * LƯU một mẫu — file, ánh xạ và tập cột bảng, trong MỘT lượt (`0067`).
+   *
+   * Gộp ba bước cũ (tải lên → ánh xạ → ban hành) làm một, vì cả ba chỉ có nghĩa
+   * khi đủ cả ba: một mẫu chưa ánh xạ thì không dùng được, mà "dùng được" giờ
+   * là điều kiện để tồn tại — mọi mẫu trong danh sách đều dùng được.
+   *
+   * Hệ quả đáng giá nhất: KHÔNG CÒN TRẠNG THÁI NỬA VỜI. Trước `0067` một lượt
+   * chạy hỏng giữa chừng để lại mẫu nháp hoặc mẫu đã ánh xạ mà chưa ban hành,
+   * và không màn hình nào nói cho người dùng biết họ đang đứng ở đâu.
    */
-  async setMapping(id: string, mapping: MappingInput[], me: AuthUser) {
-    await this.byId(id);
-    const known = new Set(await this.placeholders(id));
+  async luu(
+    input: { name: string; buffer: Buffer; kind: Loai; mapping: MappingInput[]; cotBang?: unknown },
+    me: AuthUser,
+  ) {
+    const declared = new Set(this.docOTrong(input.buffer));
 
-    for (const m of mapping) {
-      if (!known.has(m.placeholder)) {
+    for (const m of input.mapping) {
+      if (!declared.has(m.placeholder)) {
         throw new BadRequestException({
           code: 'PLACEHOLDER_NOT_IN_TEMPLATE',
           message: `Mẫu không có ô trống ${m.placeholder}`,
@@ -183,114 +144,150 @@ export class TemplatesService {
           knownSources: KNOWN_SOURCES,
         });
       }
-      if (m.format && !FORMATS.includes(m.format as never)) {
-        throw new BadRequestException({
-          code: 'FORMAT_UNKNOWN',
-          message: `Không có định dạng "${m.format}"`,
-          allowed: FORMATS,
-        });
-      }
     }
 
-    return this.db.tx(async (c) => {
-      await c.query(`DELETE FROM doc.contract_template_field WHERE template_id = $1`, [id]);
-      for (const m of mapping) {
-        await c.query(
-          `INSERT INTO doc.contract_template_field (template_id, placeholder, source, required, format)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [id, m.placeholder, m.source, m.required ?? false, m.format ?? null],
-        );
-      }
-      await c.query(`UPDATE doc.contract_template SET updated_by = $2, updated_at = now() WHERE id = $1`, [
-        id,
-        me.id,
-      ]);
-      return { templateId: id, mapped: mapping.length };
-    });
-  }
-
-  // --- Phát hành ------------------------------------------------------------
-
-  /**
-   * Đặt mẫu này thành mẫu đang dùng. Chặn nếu còn ô trống chưa ánh xạ (DOC-30):
-   * phát hành một mẫu thiếu ánh xạ nghĩa là hợp đồng in ra mang nguyên chuỗi
-   * `{{...}}` gửi cho khách hàng.
-   */
-  async publish(id: string, me: AuthUser) {
-    const t = await this.byId(id);
-    const declared = await this.placeholders(id);
-    const fields = await this.fields(id);
-    const mapped = new Set(fields.map((f) => f.placeholder));
-
-    /*
-     * Ô trống bảng sản phẩm KHÔNG cần ánh xạ (`0055`).
-     *
-     * Nó không trỏ tới một trường dữ liệu nào — hệ thống thay nó bằng cả một
-     * bảng. Bắt Quản trị ánh xạ nó là bắt họ chọn một nguồn không tồn tại.
-     */
-    const missing = declared.filter((p) => p !== O_BANG_SAN_PHAM && !mapped.has(p));
-
-    if (missing.length > 0) {
+    // Ô trống bảng sản phẩm KHÔNG ánh xạ tới trường nào — hệ thống thay nó bằng
+    // cả một bảng (`0055`). Mọi ô CÒN LẠI thì phải có, nếu không bản in ra mang
+    // nguyên chuỗi `{{...}}` gửi cho khách hàng (DOC-30).
+    const daAnhXa = new Set(input.mapping.map((m) => m.placeholder));
+    const thieuAnhXa = [...declared].filter((o) => o !== O_BANG_SAN_PHAM && !daAnhXa.has(o));
+    if (thieuAnhXa.length > 0) {
       throw new ConflictException({
         code: 'TEMPLATE_INCOMPLETE',
         message: 'Còn ô trống chưa ánh xạ tới trường dữ liệu nào',
-        missing,
+        missing: thieuAnhXa,
       });
     }
 
-    if (t.kind === 'HO_SO') {
-      /*
-       * MƯỜI BA MỤC BẮT BUỘC của muc 11.1 — kiểm ở đây, một lần, lúc phát hành.
-       *
-       * Muc 6.4 để ngỏ đúng câu hỏi này khi chốt rằng bản A4 chưa nhận mẫu tải
-       * lên: *"nếu mẫu do người dùng soạn, hệ thống không còn bảo đảm được 13
-       * mục kia có mặt"*. Phép kiểm này là câu trả lời.
-       */
-      const daCo = new Set(fields.map((f) => f.source));
-      const thieu = NGUON_BAT_BUOC_HO_SO.filter((n) => !daCo.has(n));
-      const thieuBang = !declared.includes(O_BANG_SAN_PHAM);
+    const cot = chuanHoaCot(input.cotBang);
 
+    if (input.kind === 'HO_SO') {
+      // MỤC BẮT BUỘC của muc 11.1 — kiểm ở đây, một lần, lúc LƯU. Trước `0067`
+      // phép kiểm này nằm ở bước ban hành; bỏ ban hành thì nó về đúng chỗ duy
+      // nhất còn lại, và cũng là chỗ người sửa được đang đứng.
+      const daCo = new Set(input.mapping.map((m) => m.source));
+      const thieu = NGUON_BAT_BUOC_HO_SO.filter((n) => !daCo.has(n));
+      const thieuBang = !declared.has(O_BANG_SAN_PHAM);
       if (thieu.length > 0 || thieuBang) {
         throw new ConflictException({
           code: 'TEMPLATE_MISSING_REQUIRED',
           message:
-            'Mẫu hồ sơ CSBH còn thiếu mục bắt buộc. Bản A4 phải có đủ 13 mục ở muc 11.1.',
+            'Mẫu hồ sơ CSBH còn thiếu mục bắt buộc. Bản A4 phải có đủ các mục ở muc 11.1.',
           thieuTruong: thieu,
           ...(thieuBang ? { thieuBangSanPham: O_BANG_SAN_PHAM } : {}),
         });
       }
     }
 
-    /*
-     * KHÔNG hạ mẫu nào xuống nữa (`0058`).
-     *
-     * Tới `0057`, phát hành nghĩa là "đặt làm mẫu DUY NHẤT của khổ này", nên nó
-     * phải hạ mẫu cũ trước — hai mẫu cùng đang dùng thì `LIMIT 1` chọn bừa một
-     * cái và không ai biết bản in ra dựng từ mẫu nào.
-     *
-     * Từ `0058` chính người xem chọn mẫu, nên nhiều mẫu cùng dùng được KHÔNG
-     * còn là mập mờ — nó LÀ cái danh sách để chọn. Giữ bước hạ ấy thì phát hành
-     * mẫu thứ hai sẽ lặng lẽ gỡ mẫu thứ nhất khỏi ô chọn, và Quản trị không bao
-     * giờ có nổi hai mẫu.
-     */
-    await this.db.q(
-      `UPDATE doc.contract_template
-          SET is_active = true, published_at = now(), updated_by = $2, updated_at = now()
-        WHERE id = $1`,
-      [id, me.id],
+    // Ghi FILE trước, rồi mới ghi CSDL. Ngược lại thì một lượt hỏng để lại dòng
+    // mẫu trỏ tới một object không tồn tại — đúng cái lệch mà `0059` phải đi vá.
+    const file = await this.files.upload(
+      {
+        ownerKind: 'TEMPLATE',
+        ownerId: null,
+        purpose: 'MAU_HD',
+        fileName: `${input.name}.docx`,
+        buffer: input.buffer,
+      },
+      me,
     );
-    return { id, isActive: true };
+
+    return this.db.tx(async (c) => {
+      const t = await c.query<TemplateRow>(
+        `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size, cot_bang)
+         VALUES ($1,$2,$3,$4::doc.template_kind,$5::doc.paper_size,$6::jsonb) RETURNING *`,
+        [input.name, file.id, me.id, input.kind, khoGiayCua(input.buffer), JSON.stringify(cot)],
+      );
+      const id = t.rows[0]!.id;
+      for (const m of input.mapping) {
+        await c.query(
+          `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
+           VALUES ($1,$2,$3)`,
+          [id, m.placeholder, m.source],
+        );
+      }
+      return view(t.rows[0]!);
+    });
   }
 
-  async deactivate(id: string, me: AuthUser) {
-    await this.byId(id);
-    await this.db.q(
-      `UPDATE doc.contract_template SET is_active = false, updated_by = $2, updated_at = now()
-        WHERE id = $1`,
-      [id, me.id],
-    );
-    return { id, isActive: false };
+  /** Đọc ô trống, đổi lỗi "không phải .docx" thành 400 thay vì 500. */
+  private docOTrong(buffer: Buffer): string[] {
+    try {
+      return placeholdersOf(buffer);
+    } catch (e) {
+      if (e instanceof NotADocxError) {
+        throw new BadRequestException({ code: 'TEMPLATE_NOT_DOCX', message: e.message });
+      }
+      throw e;
+    }
   }
+
+  /**
+   * XOÁ hẳn một mẫu (`0067`) — thay cho *sửa* và *ngừng dùng*.
+   *
+   * Muốn đổi một mẫu thì xoá đi rồi thêm mẫu mới. Nghe như thêm việc, nhưng nó
+   * gỡ đúng thứ khó nhất của bản cũ: sửa một mẫu ĐANG ĐƯỢC DÙNG nghĩa là bản
+   * mềm của hôm nay và bản mềm của hôm qua khác nhau mà không ai ghi lại điều
+   * đó ở đâu cả. Thêm mẫu mới thì mẫu cũ vẫn nằm đó cho tới khi có người chủ
+   * động bỏ nó đi.
+   *
+   * KHÔNG xoá `doc.stored_file`: file ở lại như mọi file đã thay thế khác, và
+   * `sys.run_retention()` dọn theo vòng đời chung.
+   */
+  async xoa(id: string): Promise<{ id: string }> {
+    await this.byId(id);
+    return this.db.tx(async (c) => {
+      await c.query(`DELETE FROM doc.contract_template_field WHERE template_id = $1`, [id]);
+      await c.query(`DELETE FROM doc.contract_template WHERE id = $1`, [id]);
+      return { id };
+    });
+  }
+
+  async byId(id: string): Promise<TemplateRow> {
+    const r = await this.db.one<TemplateRow>(`SELECT * FROM doc.contract_template WHERE id = $1`, [
+      id,
+    ]);
+    if (!r) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
+    return r;
+  }
+
+  async list(kind: Loai = 'HOP_DONG') {
+    // Lọc theo loại, KHÔNG trả cả hai rồi để màn hình tự lọc: hai màn hình khác
+    // nhau, hai vai trò khác nhau, và Sale Admin không có việc gì với mẫu hồ sơ.
+    const rows = await this.db.q<TemplateRow>(
+      `SELECT * FROM doc.contract_template WHERE kind = $1::doc.template_kind
+        ORDER BY ${THU_TU_MAU}`,
+      [kind],
+    );
+    return rows.map(view);
+  }
+
+  /** Ô trống đọc lại từ chính file .docx, không từ CSDL — mẫu là nguồn sự thật. */
+  async placeholders(id: string): Promise<string[]> {
+    const t = await this.byId(id);
+    const file = await this.files.row(t.file_id);
+    return placeholdersOf(await this.storage.get(file.object_key));
+  }
+
+  async fields(id: string): Promise<FieldRow[]> {
+    return this.db.q<FieldRow>(
+      `SELECT placeholder, source FROM doc.contract_template_field
+        WHERE template_id = $1 ORDER BY placeholder`,
+      [id],
+    );
+  }
+
+  /*
+   * `setMapping`, `publish` và `deactivate` ĐÃ GỠ (`0067`).
+   *
+   * Ba hàm ấy là ba bước của một vòng đời không còn tồn tại: tải lên (nháp) →
+   * ánh xạ → ban hành, cộng đường lui *ngừng dùng*. Từ `0067` chỉ có `luu` và
+   * `xoa` — lưu được là dùng được, muốn đổi thì xoá đi và thêm mẫu mới.
+   *
+   * Phép kiểm của chúng KHÔNG mất: "còn ô trống chưa ánh xạ" và "thiếu mục bắt
+   * buộc của muc 11.1" chuyển hết vào `luu`, tức là sớm hơn một bước và ở đúng
+   * màn hình người soạn đang đứng.
+   */
 
   /**
    * Danh sách mẫu ĐANG DÙNG của một loại — cái để dựng ô chọn (`0058`).
@@ -306,7 +303,7 @@ export class TemplatesService {
   async khaDung(kind: Loai): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
     const rows = await this.db.q<TemplateRow>(
       `SELECT * FROM doc.contract_template
-        WHERE is_active AND kind = $1::doc.template_kind
+        WHERE kind = $1::doc.template_kind
         ORDER BY ${THU_TU_MAU}`,
       [kind],
     );
@@ -314,15 +311,14 @@ export class TemplatesService {
   }
 
   /**
-   * Mẫu để dựng văn bản: cái người dùng CHỌN, hoặc mẫu mặc định nếu không chọn.
+   * Mẫu để dựng văn bản: cái người dùng CHỌN, hoặc mẫu mới nhất nếu không chọn.
    *
-   * `undefined` nghĩa là chưa có mẫu nào đang dùng — người quản lý mẫu chưa phát
-   * hành cái nào, hoặc đã rút hết khỏi danh sách.
+   * `undefined` nghĩa là chưa có mẫu nào — chưa ai thêm, hoặc đã xoá hết.
    *
-   * MẪU ĐÃ RÚT KHỎI DANH SÁCH THÌ TỪ CHỐI, không âm thầm rơi về mẫu mặc định.
-   * Tình huống có thật: người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy
-   * Quản trị ngừng dùng mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản
-   * không phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
+   * MẪU ĐÃ XOÁ THÌ TỪ CHỐI, không âm thầm rơi về mẫu khác. Tình huống có thật:
+   * người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy Quản trị xoá mẫu kia.
+   * Dựng bằng mẫu khác thì họ nhận về một văn bản không phải thứ họ vừa chọn,
+   * và không có gì trên màn hình nói ra điều đó.
    */
   async chon(
     kind: Loai,
@@ -331,12 +327,12 @@ export class TemplatesService {
     const t = mauId
       ? await this.db.one<TemplateRow>(
           `SELECT * FROM doc.contract_template
-            WHERE id = $1 AND is_active AND kind = $2::doc.template_kind`,
+            WHERE id = $1 AND kind = $2::doc.template_kind`,
           [mauId, kind],
         )
       : await this.db.one<TemplateRow>(
           `SELECT * FROM doc.contract_template
-            WHERE is_active AND kind = $1::doc.template_kind
+            WHERE kind = $1::doc.template_kind
             ORDER BY ${THU_TU_MAU} LIMIT 1`,
           [kind],
         );
@@ -344,7 +340,7 @@ export class TemplatesService {
       if (mauId) {
         throw new NotFoundException({
           code: 'TEMPLATE_NOT_USABLE',
-          message: 'Mẫu vừa chọn không còn trong danh sách mẫu đang dùng. Hãy chọn lại.',
+          message: 'Mẫu vừa chọn không còn trong danh sách. Hãy chọn lại.',
           templateId: mauId,
         });
       }
@@ -465,7 +461,7 @@ export class TemplatesService {
     for (const kho of KHO_GIAY) {
       const co = await this.db.one<{ id: string }>(
         `SELECT id FROM doc.contract_template
-          WHERE is_active AND kind = 'HO_SO' AND paper_size = $1::doc.paper_size LIMIT 1`,
+          WHERE kind = 'HO_SO' AND paper_size = $1::doc.paper_size LIMIT 1`,
         [kho],
       );
       if (co) continue;
@@ -499,16 +495,16 @@ export class TemplatesService {
       for (const { kho, fileId } of thieu) {
         const t = await c.query<{ id: string }>(
           `INSERT INTO doc.contract_template
-             (name, file_id, is_default, is_active, published_at, updated_by, kind, paper_size)
-           VALUES ($1,$2,true,true,now(),$3,'HO_SO',$4::doc.paper_size) RETURNING id`,
+             (name, file_id, is_default, updated_by, kind, paper_size)
+           VALUES ($1,$2,true,$3,'HO_SO',$4::doc.paper_size) RETURNING id`,
           [`Mẫu hồ sơ CSBH mặc định — ${NHAN_KHO[kho]}`, fileId, systemUserId, kho],
         );
         const id = t.rows[0]!.id;
         for (const m of DEFAULT_HO_SO_MAPPING) {
           await c.query(
-            `INSERT INTO doc.contract_template_field (template_id, placeholder, source, required, format)
-             VALUES ($1,$2,$3,$4,$5)`,
-            [id, m.placeholder, m.source, m.required ?? false, m.format ?? null],
+            `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
+             VALUES ($1,$2,$3)`,
+            [id, m.placeholder, m.source],
           );
         }
       }
@@ -523,7 +519,7 @@ export class TemplatesService {
     // thấy "đã có mẫu" và không làm gì — mọi lần xuất hợp đồng sau đó đều 409,
     // vĩnh viễn, và khởi động lại service cũng không chữa được.
     const existing = await this.db.one<{ id: string }>(
-      `SELECT id FROM doc.contract_template WHERE is_active AND kind = 'HOP_DONG' LIMIT 1`,
+      `SELECT id FROM doc.contract_template WHERE kind = 'HOP_DONG' LIMIT 1`,
     );
     // Phép tự chữa "có dòng mẫu nhưng mất file" KHÔNG còn ở đây (`0059`): nó là
     // `vaFileMacDinh`, chạy cho CẢ BẢNG sau hai bước seed. Nằm lẫn trong nhánh
@@ -543,16 +539,16 @@ export class TemplatesService {
 
     await this.db.tx(async (c) => {
       const t = await c.query<{ id: string }>(
-        `INSERT INTO doc.contract_template (name, file_id, is_default, is_active, published_at, updated_by)
-         VALUES ($1,$2,true,true,now(),$3) RETURNING id`,
+        `INSERT INTO doc.contract_template (name, file_id, is_default, updated_by)
+         VALUES ($1,$2,true,$3) RETURNING id`,
         ['Mẫu hợp đồng mặc định', file.id, systemUserId],
       );
       const id = t.rows[0]!.id;
       for (const m of DEFAULT_MAPPING) {
         await c.query(
-          `INSERT INTO doc.contract_template_field (template_id, placeholder, source, required, format)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [id, m.placeholder, m.source, m.required ?? false, m.format ?? null],
+          `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
+           VALUES ($1,$2,$3)`,
+          [id, m.placeholder, m.source],
         );
       }
     });
@@ -560,42 +556,32 @@ export class TemplatesService {
 }
 
 const DEFAULT_MAPPING: MappingInput[] = [
-  { placeholder: '{{cong_ty.ten}}', source: 'cong_ty.ten', required: true },
-  { placeholder: '{{cong_ty.dia_chi}}', source: 'cong_ty.dia_chi' },
-  { placeholder: '{{cong_ty.ma_so_thue}}', source: 'cong_ty.ma_so_thue' },
-  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
-  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang', required: true },
-  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky', required: true },
-  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien', required: true },
-  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no', format: 'money_vnd' },
-  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
-  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung', format: 'date_dmy' },
-  { placeholder: '{{ngay_in}}', source: 'ngay_in', format: 'date_dmy' },
-  { placeholder: '{{dong.stt}}', source: 'san_pham.stt' },
-  { placeholder: '{{dong.ma_san_pham}}', source: 'san_pham.ma_san_pham' },
-  { placeholder: '{{dong.ten_san_pham}}', source: 'san_pham.ten_san_pham' },
-  { placeholder: '{{dong.gia_thu_ve}}', source: 'san_pham.gia_thu_ve', format: 'money_vnd' },
-  { placeholder: '{{dong.ty_le_ck}}', source: 'san_pham.ty_le_ck', format: 'percent_2' },
+  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' },
+  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang' },
+  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky' },
+  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien' },
+  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no' },
+  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' },
+  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung' },
+  { placeholder: '{{ngay_in}}', source: 'ngay_in' },
 ];
 
 const DEFAULT_HO_SO_MAPPING: MappingInput[] = [
-  { placeholder: '{{cong_ty.ten}}', source: 'cong_ty.ten', required: true },
   { placeholder: '{{cong_ty.dia_chi}}', source: 'cong_ty.dia_chi' },
-  { placeholder: '{{cong_ty.ma_so_thue}}', source: 'cong_ty.ma_so_thue' },
-  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
+  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' },
   { placeholder: '{{ho_so.phien_ban}}', source: 'ho_so.phien_ban' },
-  { placeholder: '{{ho_so.trang_thai}}', source: 'ho_so.trang_thai', required: true },
-  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung', format: 'date_dmy' },
-  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang', required: true },
-  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
+  { placeholder: '{{ho_so.trang_thai}}', source: 'ho_so.trang_thai' },
+  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung' },
+  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang' },
+  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' },
   { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky' },
   { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien' },
-  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no', format: 'money_vnd' },
-  { placeholder: '{{ho_so.nguoi_de_nghi}}', source: 'ho_so.nguoi_de_nghi', required: true },
+  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no' },
+  { placeholder: '{{ho_so.nguoi_de_nghi}}', source: 'ho_so.nguoi_de_nghi' },
   { placeholder: '{{ho_so.truong_bo_phan}}', source: 'ho_so.truong_bo_phan' },
   { placeholder: '{{ho_so.ke_toan}}', source: 'ho_so.ke_toan' },
-  { placeholder: '{{ho_so.ngay_tbp_ky}}', source: 'ho_so.ngay_tbp_ky', format: 'date_dmy' },
-  { placeholder: '{{ho_so.ngay_kt_nhan_l2}}', source: 'ho_so.ngay_kt_nhan_l2', format: 'date_dmy' },
+  { placeholder: '{{ho_so.ngay_tbp_ky}}', source: 'ho_so.ngay_tbp_ky' },
+  { placeholder: '{{ho_so.ngay_kt_nhan_l2}}', source: 'ho_so.ngay_kt_nhan_l2' },
   { placeholder: '{{ho_so.tep_dinh_kem}}', source: 'ho_so.tep_dinh_kem' },
   { placeholder: '{{ho_so.chu_ky_so_TBP}}', source: 'ho_so.chu_ky_so_TBP' },
 ];
@@ -611,8 +597,10 @@ const DEFAULT_HO_SO_MAPPING: MappingInput[] = [
  */
 const defaultHoSoBody = (): string =>
   [
-    para('{{cong_ty.ten}}'),
-    para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
+    // Khối công ty gõ THẲNG, không còn ô trống (`0067`): ba giá trị ấy cố định
+    // ở mọi hồ sơ, nên một ô trống cho chúng chỉ thêm một bước có thể quên.
+    para(COMPANY.name),
+    para(`${COMPANY.address} — MST ${COMPANY.taxCode}`),
     para(''),
     para('CHÍNH SÁCH BÁN HÀNG'),
     para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}'),
@@ -638,8 +626,8 @@ const defaultHoSoBody = (): string =>
 
 const defaultTemplateBody = (): string =>
   [
-    para('{{cong_ty.ten}}'),
-    para('{{cong_ty.dia_chi}} — MST {{cong_ty.ma_so_thue}}'),
+    para(COMPANY.name),
+    para(`${COMPANY.address} — MST ${COMPANY.taxCode}`),
     para(''),
     para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
     para('Số hồ sơ CSBH: {{ho_so.ma_ho_so}} — ngày áp dụng {{ho_so.ngay_ap_dung}}'),
@@ -650,16 +638,10 @@ const defaultTemplateBody = (): string =>
     para('Công nợ hiện tại: {{ho_so.cong_no}} đồng'),
     para(''),
     para('Danh sách sản phẩm và chính sách giá:'),
-    table([
-      tableRow(['#', 'Mã sản phẩm', 'Tên sản phẩm', 'Giá thu về', 'Tỷ lệ chiết khấu'], true),
-      tableRow([
-        '{{dong.stt}}',
-        '{{dong.ma_san_pham}}',
-        '{{dong.ten_san_pham}}',
-        '{{dong.gia_thu_ve}}',
-        '{{dong.ty_le_ck}}',
-      ]),
-    ]),
+    // MỘT ô trống, hệ thống dựng cả bảng (`0067`). Trước đó đây là một bảng vẽ
+    // tay bốn cột với nhóm khoá `san_pham.` và cơ chế nhân bản dòng — cả hai đã
+    // gỡ, vì bảng do hệ thống dựng cho phép chọn cột theo từng mẫu.
+    para(O_BANG_SAN_PHAM),
     para(''),
     para('Hà Nội, ngày {{ngay_in}}'),
   ].join('');
@@ -670,8 +652,7 @@ const view = (r: TemplateRow) => ({
   kind: r.kind,
   paperSize: r.paper_size,
   fileId: r.file_id,
-  isActive: r.is_active,
   isDefault: r.is_default,
-  publishedAt: r.published_at,
   updatedAt: r.updated_at,
+  cotBang: r.cot_bang,
 });

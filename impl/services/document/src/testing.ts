@@ -16,10 +16,10 @@ export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
 export { sheetHtml, money, pct, dmy } from './render/sheet.js';
 export { TemplatesService } from './contracts/templates.service.js';
 export { ContractsService } from './contracts/contracts.service.js';
-export { KNOWN_SOURCES, LINE_PREFIX, NGUON_BAT_BUOC_HO_SO } from './contracts/sources.js';
+export { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO, dinhDangCua } from './contracts/sources.js';
 export { makeDocx, para, table, tableRow, placeholdersOf, documentXml, khoGiayCua, O_BANG_SAN_PHAM } from './contracts/docx.js';
 export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
 export { DocumentOutbox } from './infra/outbox.relay.js';
 
 /** `0055` — bảng sản phẩm dạng Word, để ca kiểm thử soi thẳng số ô mỗi hàng. */
-export { bangSanPhamXml } from './contracts/bang-san-pham.js';
+export { bangSanPhamXml, COT_BANG, COT_BAT_BUOC, COT_MAC_DINH, chuanHoaCot } from './contracts/bang-san-pham.js';

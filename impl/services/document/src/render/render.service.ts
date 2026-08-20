@@ -68,36 +68,29 @@ export class RenderService {
       throw new ConflictException({
         code: 'POLICY_TEMPLATE_MISSING',
         message:
-          'Chưa có văn bản mẫu nào đang dùng cho hồ sơ CSBH. ' +
-          'Đề nghị Quản trị hệ thống tải mẫu lên và phát hành ở màn hình Giấy tờ mẫu.',
+          'Chưa có văn bản mẫu nào cho hồ sơ CSBH. ' +
+          'Đề nghị Quản trị hệ thống thêm mẫu ở màn hình Văn bản mẫu.',
       });
     }
 
-    const { values, lines, linePlaceholders, missingRequired } = tron(mau.fields, {
-      policy,
-      customer,
-      people,
-    });
-    if (missingRequired.length > 0) {
-      // Cùng luật với hợp đồng (DOC-13): không sinh một văn bản có ô trống rỗng
-      // rồi đưa đi ký. Khác ở người sửa được — ở đây là Quản trị, nên thông báo
-      // nói tên mục thiếu chứ không nói "liên hệ quản trị".
-      throw new ConflictException({
-        code: 'POLICY_FIELDS_MISSING',
-        message: 'Hồ sơ thiếu trường bắt buộc của mẫu, chưa dựng được bản mềm',
-        missing: missingRequired,
-      });
-    }
+    /*
+      KHÔNG còn phép kiểm "thiếu trường bắt buộc" ở đây (`0067`).
+
+      Nó dựa trên cờ `required` mà người soạn đánh dấu cho từng ô trống — một cờ
+      chỉ đổi thời điểm báo lỗi, và báo cho người KHÔNG sửa được. Mục bắt buộc
+      của muc 11.1 giờ kiểm lúc LƯU MẪU, ở màn hình người sửa được đang đứng.
+
+      Trường rỗng thì ô trống ra rỗng, đúng như dữ liệu đang có.
+    */
+    const { values } = tron(mau.fields, { policy, customer, people });
 
     // `docxCua` chứ không đọc thẳng kho: object mất thì nó ném một lỗi CÓ TÊN
     // thay vì để `S3Error` chui ra thành 500 (`0059`).
     const docx = mergeDocx(await this.templates.docxCua(mau.template), {
       values,
-      lines,
-      linePlaceholders,
       // Bảng sản phẩm do HỆ THỐNG dựng, đúng số cột CPBH của chính hồ sơ này
-      // (muc 7.1) — xem `bang-san-pham.ts`.
-      banSanPham: bangSanPhamXml(policy),
+      // (muc 7.1), và đúng tập cột của CHÍNH MẪU NÀY (`0067`).
+      banSanPham: bangSanPhamXml(policy, mau.template.cot_bang),
     });
     const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
 

@@ -1,5 +1,5 @@
 /**
- * Tập trường nguồn mà Sale Admin được phép ánh xạ tới, và cách định dạng chúng.
+ * Tập trường nguồn mà người soạn mẫu được phép ánh xạ tới, và định dạng của chúng.
  *
  * Danh sách ĐÓNG, khai ở một chỗ, và dùng cho cả hai việc: kiểm lúc lưu ánh xạ
  * (DOC-29) và trộn lúc xuất. Một danh sách dùng cho cả hai là cách duy nhất bảo
@@ -10,14 +10,10 @@
  * Riêng phần trăm phải khớp từng ký tự với con số trên hồ sơ CSBH — cùng phép
  * làm tròn hai chữ số đã chốt ở muc 7 (DOC-31).
  */
-import type { CustomerFull, PolicyFull, PolicyLine } from '../infra/clients.js';
-import { COMPANY, dmy, money, pct, STATUS_LABEL } from '../render/sheet.js';
+import type { CustomerFull, PolicyFull } from '../infra/clients.js';
+import { dmy, money, pct, STATUS_LABEL } from '../render/sheet.js';
 
 export type Format = 'text' | 'money_vnd' | 'date_dmy' | 'percent_2';
-export const FORMATS: Format[] = ['text', 'money_vnd', 'date_dmy', 'percent_2'];
-
-/** Tiền tố của nhóm trường theo dòng sản phẩm — dòng bảng mang nó sẽ được nhân bản. */
-export const LINE_PREFIX = 'san_pham.';
 
 type Ctx = {
   policy: PolicyFull;
@@ -83,55 +79,86 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'ho_so.chu_ky_so_TBP': (c) =>
     c.policy.tbp_signed_at === null ? '' : `TBP đã ký số\n${dmy(c.policy.tbp_signed_at)}`,
 
-  // --- Công ty, và ngày in ra giấy ---
-  'cong_ty.ten': () => COMPANY.name,
-  'cong_ty.dia_chi': () => COMPANY.address,
-  'cong_ty.ma_so_thue': () => COMPANY.taxCode,
-
+  /*
+   * NHÓM `cong_ty.` ĐÃ BỎ (`0067`).
+   *
+   * Tên, địa chỉ và mã số thuế của Công ty là CỐ ĐỊNH — giống nhau ở mọi hồ sơ,
+   * mọi mẫu, mọi thời điểm. Người soạn mẫu gõ thẳng vào file Word là xong.
+   *
+   * Một ô trống cho một giá trị không bao giờ đổi chỉ thêm đúng một bước có thể
+   * sai: quên ánh xạ nó thì bản in ra mang chuỗi `{{cong_ty.ten}}` ở ngay dòng
+   * đầu tiên — chỗ dễ thấy nhất của một văn bản đem đi ký.
+   *
+   * Hệ quả đã chấp nhận: phép kiểm 13 mục bắt buộc của muc 11.1 giờ chỉ tự kiểm
+   * được 12; mục *thông tin công ty* do người soạn tự chịu trách nhiệm.
+   */
   ngay_in: () => new Date().toISOString(),
 };
 
-/**
- * Trường theo dòng sản phẩm: một hồ sơ ra N giá trị.
+/*
+ * NHÓM `san_pham.` ĐÃ BỎ (`0067`).
  *
- * Chỉ MẪU HỢP ĐỒNG dùng nhóm này — nơi bảng do người soạn vẽ tay với số cột cố
- * định. Mẫu hồ sơ CSBH dùng `{{bang_san_pham}}`, và hệ thống dựng cả bảng với
- * đúng số cột CPBH của từng hồ sơ (muc 7.1).
+ * Nó là nhóm trường THEO DÒNG, phục vụ bảng do người soạn VẼ TAY trong mẫu hợp
+ * đồng: dòng bảng nào mang khoá thuộc nhóm này thì `mergeDocx` nhân bản nó ra
+ * cho từng sản phẩm.
+ *
+ * Từ `0067` mẫu hợp đồng cũng đặt `{{bang_san_pham}}` như mẫu hồ sơ, và hệ
+ * thống dựng cả bảng — kèm quyền chọn cột cho riêng từng mẫu. Nên cơ chế nhân
+ * bản dòng không còn ai dùng, và nó đi cùng nhóm khoá này.
+ *
+ * Bỏ chứ không để lại: một cơ chế không ai dùng mà vẫn chạy là một cơ chế sẽ
+ * hỏng lặng lẽ — không ca kiểm thử nào của người dùng thật đi qua nó nữa.
  */
-const LINE: Record<string, (l: PolicyLine, i: number) => string | null> = {
-  stt: (_l, i) => String(i + 1),
-  ma_san_pham: (l) => l.product_code_snap,
-  ten_san_pham: (l) => l.product_name_snap,
-  gia_cong_ty: (l) => l.company_price,
-  gia_ban_buon: (l) => l.wholesale_price,
-  cpbh_tong: (l) => l.cpbh_total,
-  gia_thu_ve: (l) => l.net_price,
-  ty_le_ck: (l) => l.discount_rate,
+
+export const KNOWN_SOURCES: string[] = Object.keys(SCALAR);
+
+/**
+ * Định dạng CỐ ĐỊNH của từng trường — người soạn mẫu không chọn (`0067`).
+ *
+ * Trước `0067` mỗi dòng ánh xạ mang một ô chọn định dạng. Đó là một câu hỏi sai:
+ * *"công nợ hiển thị kiểu tiền hay kiểu chữ?"* chỉ có một câu trả lời đúng, và
+ * câu trả lời ấy đi theo TRƯỜNG chứ không theo mẫu. Hỏi hai mươi lần cho hai
+ * mươi ô là mời người dùng trả lời sai ở đúng một trong số đó — và cái sai ấy
+ * chỉ lộ ra trên bản in.
+ *
+ * Trường nào không có tên ở đây thì giữ nguyên chữ (`text`).
+ */
+export const DINH_DANG_NGUON: Record<string, Format> = {
+  'ho_so.cong_no': 'money_vnd',
+  'ho_so.ngay_ap_dung': 'date_dmy',
+  'ho_so.ngay_hieu_luc': 'date_dmy',
+  'ho_so.ngay_tbp_ky': 'date_dmy',
+  'ho_so.ngay_kt_nhan_l1': 'date_dmy',
+  'ho_so.ngay_kt_nhan_l2': 'date_dmy',
+  ngay_in: 'date_dmy',
 };
 
-export const KNOWN_SOURCES: string[] = [
-  ...Object.keys(SCALAR),
-  ...Object.keys(LINE).map((k) => `${LINE_PREFIX}${k}`),
-];
+export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?? 'text';
 
 /**
- * MƯỜI BA MỤC BẮT BUỘC của bản CSBH A4 (muc 11.1), dịch sang trường nguồn.
+ * Mục BẮT BUỘC của bản CSBH A4 (muc 11.1), dịch sang trường nguồn.
  *
  * Muc 6.4 từng để ngỏ đúng câu hỏi này: *"nếu mẫu do người dùng soạn, hệ thống
  * không còn bảo đảm được 13 mục kia có mặt"*. Đây là câu trả lời — kiểm ở LÚC
- * PHÁT HÀNH, không ở lúc xem.
+ * LƯU, không ở lúc xem.
  *
- * Kiểm lúc phát hành chứ không lúc xem vì hai lý do:
+ * Kiểm lúc lưu chứ không lúc xem vì hai lý do:
  *   - Người sửa được là Quản trị, và họ đang đứng ở màn hình mẫu. Báo lúc kế
  *     toán mở bản A4 là báo cho người không sửa được gì.
  *   - Một mẫu thiếu mục chỉ hỏng khi có người xem, mà lúc đó thì đã muộn: bản
  *     thiếu công nợ đã in ra và đã đưa đi ký.
  *
- * `policy.lines_table` gánh hai mục — *tên sản phẩm* và *CPBH* — vì cả hai nằm
- * trong bảng do hệ thống dựng, không phải ô trống rời.
+ * MƯỜI HAI, không phải mười ba (`0067`). Mục *thông tin công ty* rời khỏi danh
+ * sách cùng lúc với nhóm khoá `cong_ty.`: nó là giá trị cố định, người soạn gõ
+ * thẳng vào file Word, nên phần mềm không có ô trống nào để mà kiểm. Đây là chỗ
+ * DUY NHẤT của muc 11.1 mà bảo đảm tự động không với tới — nói ra ở đây vì một
+ * bảo đảm 12/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 12/13 đã biết.
+ *
+ * `{{bang_san_pham}}` gánh hai mục — *tên sản phẩm* và *CPBH* — vì cả hai nằm
+ * trong bảng do hệ thống dựng, không phải ô trống rời. Chúng được kiểm qua tập
+ * cột của bảng, xem `bang-san-pham.ts`.
  */
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
-  'cong_ty.ten',
   'ho_so.ma_khach_hang',
   'ho_so.ten_khach_hang',
   'ho_so.cong_no',
@@ -147,7 +174,6 @@ export const NGUON_BAT_BUOC_HO_SO: string[] = [
 ];
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);
-export const isLineSource = (s: string): boolean => s.startsWith(LINE_PREFIX);
 
 export function applyFormat(raw: string | null, format: string | null): string {
   if (raw === null || raw === '') return '';
@@ -166,7 +192,4 @@ export function applyFormat(raw: string | null, format: string | null): string {
 export const scalarValue = (source: string, ctx: Ctx): string | null =>
   SCALAR[source] ? (SCALAR[source] as (c: Ctx) => string | null)(ctx) : null;
 
-export const lineValue = (source: string, line: PolicyLine, i: number): string | null => {
-  const fn = LINE[source.slice(LINE_PREFIX.length)];
-  return fn ? fn(line, i) : null;
-};
+

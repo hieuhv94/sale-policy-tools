@@ -496,57 +496,54 @@ async function xoaDuLieuCu(): Promise<void> {
 /**
  * Nạp các mẫu HỒ SƠ từ `templates/` (`0057`) — bỏ qua mẫu hợp đồng (`0058`).
  *
- * Đi qua API THẬT như mọi thứ khác trong bộ nạp: máy chủ đọc ô trống ngay lúc
- * tải lên, kiểm 13 mục bắt buộc lúc ban hành, và chèn thẳng SQL là bỏ qua cả hai
- * — dữ liệu demo sẽ ở trạng thái mà phần mềm không tạo ra được.
+ * Đi qua API THẬT như mọi thứ khác trong bộ nạp: máy chủ đọc ô trống, kiểm mục
+ * bắt buộc của muc 11.1, và chèn thẳng SQL là bỏ qua cả hai — dữ liệu demo sẽ ở
+ * trạng thái mà phần mềm không tạo ra được.
+ *
+ * MỘT LƯỢT GỌI cho cả file lẫn ánh xạ (`0067`). Ba bước cũ — tải lên, ánh xạ,
+ * ban hành — gộp làm một, nên bộ nạp cũng ngắn đi đúng chỗ ấy.
  *
  * ÁNH XẠ SUY TỪ CHÍNH Ô TRỐNG, không khai tay: mẫu đặt tên ô trùng luôn tên
- * trường (`{{ho_so.cong_no}}`), nên `placeholders` máy chủ trả về đã là danh
- * sách nguồn. Khai tay một bảng ánh xạ thứ hai ở đây là một bản sao sẽ trôi
- * khỏi file mẫu ngay lần đầu ai đó thêm một ô.
- *
- * HAI mẫu đầu ban hành, mẫu RÚT GỌN để nguyên chưa ban hành: bản demo cần một
- * mẫu sẵn sàng để bấm *Ban hành* — nếu không thì màn hình Giấy tờ mẫu chỉ có
- * những dòng không làm gì được.
+ * trường (`{{ho_so.cong_no}}`). Khai tay một bảng ánh xạ thứ hai ở đây là một
+ * bản sao sẽ trôi khỏi file mẫu ngay lần đầu ai đó thêm một ô.
  */
 async function namMauHoSo(): Promise<void> {
-  /** Định dạng suy từ tên trường: tiền, ngày, còn lại là chữ. */
-  const dinhDang = (nguon: string): string | undefined => {
-    if (nguon === 'ho_so.cong_no') return 'money_vnd';
-    if (nguon.startsWith('ho_so.ngay_')) return 'date_dmy';
-    return undefined;
-  };
-
   for (const m of BO_MAU) {
-    // Mẫu HỢP ĐỒNG trong `templates/` đứng ngoài (`0058`): nó thuộc Sale Admin,
-    // và bản demo đã có mẫu hợp đồng riêng. Xem `tao-mau-ho-so.ts`.
+    // Mẫu HỢP ĐỒNG trong `templates/` đứng ngoài (`0058`): bản demo đã có mẫu
+    // hợp đồng riêng. Xem `tao-mau-ho-so.ts`.
     if (m.napDemo === false) continue;
+
+    const buf = readFileSync(`${THU_MUC}/${m.tep}`);
+    const oTrong = await guiTep<{ placeholders: string[] }>(
+      '/policy-templates/o-trong',
+      'admin01',
+      (() => {
+        const f = new FormData();
+        f.append('file', new Blob([buf]), m.tep);
+        return f;
+      })(),
+    );
+
+    const mapping = oTrong.placeholders
+      // `{{bang_san_pham}}` KHÔNG ánh xạ — hệ thống thay nó bằng cả một bảng.
+      .filter((o) => o !== '{{bang_san_pham}}')
+      .map((o) => ({ placeholder: o, source: o.slice(2, -2) }));
 
     const form = new FormData();
     form.append('name', m.ten);
-    form.append('paperSize', m.kho);
-    form.append('file', new Blob([readFileSync(`${THU_MUC}/${m.tep}`)]), m.tep);
-    const mau = await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
-
-    const tt = await goi<{ placeholders: string[] }>(
-      `/policy-templates/${mau.id}/placeholders`,
-      'admin01',
-      undefined,
-      'GET',
-    );
-
-    const mapping = tt.placeholders
-      // `{{bang_san_pham}}` KHÔNG ánh xạ — hệ thống thay nó bằng cả một bảng.
-      .filter((o) => o !== '{{bang_san_pham}}')
-      .map((o) => {
-        const nguon = o.slice(2, -2);
-        const dd = dinhDang(nguon);
-        return { placeholder: o, source: nguon, required: false, ...(dd ? { format: dd } : {}) };
-      });
-    await goi(`/policy-templates/${mau.id}/mapping`, 'admin01', { mapping }, 'PUT');
-
-    if (m.tep.includes('rut-gon')) continue;
-    await goi(`/policy-templates/${mau.id}/publish`, 'admin01', {});
+    form.append('mapping', JSON.stringify(mapping));
+    /*
+     * Mẫu RÚT GỌN nạp kèm TẬP CỘT GỌN (`0067`).
+     *
+     * Bản demo cần bày ra chính thứ vừa làm được: hai mẫu đủ mười cột cho nội
+     * bộ, một mẫu bốn cột để đưa khách hàng. Không có mẫu nào khai tập cột thì
+     * ô chọn cột trên màn hình thêm mẫu là một chức năng không ai thấy hoạt động.
+     */
+    if (m.tep.includes('rut-gon')) {
+      form.append('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'cpbh_tong', 'gia_thu_ve']));
+    }
+    form.append('file', new Blob([buf]), m.tep);
+    await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
   }
 }
 
@@ -972,44 +969,41 @@ async function main(): Promise<void> {
   // máy chủ đọc ô trống ngay lúc tải lên và từ chối file không phải docx
   // (`DOC-33`), nên một file giả sẽ hỏng ở đúng bước này.
   const than = [
+    // Tên Công ty gõ THẲNG (`0067`): nhóm khoá `cong_ty.` đã bỏ vì ba giá trị ấy
+    // cố định ở mọi hồ sơ.
+    para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
     para('HỢP ĐỒNG PHÂN PHỐI SẢN PHẨM'),
-    para('Bên A: {{cong_ty.ten}}'),
     para('Bên B: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
     para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
     para('Áp dụng theo hồ sơ CSBH số {{ho_so.ma_ho_so}}'),
+    para(''),
+    para('{{bang_san_pham}}'),
   ].join('');
-  let mauHopDongDau: string | undefined;
   for (const ten of MAU_HOP_DONG) {
+    /*
+     * Ánh xạ đi CÙNG file trong một lượt (`0067`) — không còn bước ánh xạ riêng
+     * và không còn bước ban hành. Mẫu lưu được là mẫu dùng được, nên bản demo
+     * KHÔNG còn dòng mẫu nào ở trạng thái nửa vời.
+     *
+     * Trước `0067` bộ nạp chỉ tải lên chứ không ánh xạ và không ban hành, mà nó
+     * cũng xoá sạch `doc.contract_template` ở đầu — kể cả mẫu mặc định do service
+     * tự seed. Kết quả: bản demo không có mẫu hợp đồng nào dùng được, và mọi lần
+     * bấm *Xuất hợp đồng* trả 409. Không ai báo, vì lỗi ấy chỉ hiện ra khi có
+     * người bấm đúng nút đó trên đúng một hồ sơ đã qua tiếp nhận lần 1.
+     */
     const form = new FormData();
     form.append('name', ten);
+    form.append(
+      'mapping',
+      JSON.stringify(
+        [...than.matchAll(/\{\{([a-zA-Z0-9_.]+)\}\}/g)]
+          .map((x) => `{{${x[1]}}}`)
+          .filter((o, i, a) => a.indexOf(o) === i && o !== '{{bang_san_pham}}')
+          .map((o) => ({ placeholder: o, source: o.slice(2, -2) })),
+      ),
+    );
     form.append('file', new Blob([makeDocx(than)]), `${ten}.docx`);
-    const t = await guiTep<{ id: string }>('/contract-templates', 'sa01', form);
-    mauHopDongDau ??= t.id;
-  }
-
-  /*
-   * BAN HÀNH mẫu đầu tiên. Trước `0057` bộ nạp chỉ tải lên chứ không ban hành,
-   * mà nó cũng xoá sạch `doc.contract_template` ở đầu — kể cả mẫu mặc định do
-   * service tự seed lúc khởi động. Kết quả: bản demo KHÔNG có mẫu hợp đồng nào
-   * đang dùng, và mọi lần bấm *Xuất hợp đồng* trả 409.
-   *
-   * Không ai báo vì lỗi ấy chỉ hiện ra khi có người bấm đúng nút đó trên đúng
-   * một hồ sơ đã qua tiếp nhận lần 1.
-   */
-  if (mauHopDongDau) {
-    const tt = await goi<{ placeholders: string[] }>(
-      `/contract-templates/${mauHopDongDau}/placeholders`,
-      'sa01',
-      undefined,
-      'GET',
-    );
-    await goi(
-      `/contract-templates/${mauHopDongDau}/mapping`,
-      'sa01',
-      { mapping: tt.placeholders.map((o) => ({ placeholder: o, source: o.slice(2, -2) })) },
-      'PUT',
-    );
-    await goi(`/contract-templates/${mauHopDongDau}/publish`, 'sa01', {});
+    await guiTep('/contract-templates', 'admin01', form);
   }
 
   // === Mẫu hồ sơ CSBH ========================================================

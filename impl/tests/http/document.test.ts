@@ -314,8 +314,8 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
      * "không tham số" phải ra một bản đọc được chứ không phải lỗi.
      *
      * Và nó phải ra CÙNG MỘT MẪU ở mọi lần cài đặt: hai mẫu mặc định seed cùng
-     * một giao dịch nên `published_at` bằng nhau, và nếu thứ tự rơi xuống `id`
-     * — uuid ngẫu nhiên — thì bản xem trước lúc ký là dọc hay ngang tuỳ máy.
+     * một giao dịch nên `updated_at` bằng nhau, và nếu thứ tự rơi xuống `id` —
+     * uuid ngẫu nhiên — thì bản xem trước lúc ký là dọc hay ngang tuỳ máy.
      */
     const d = await draft(1);
     const goi = async (q: string) =>
@@ -346,7 +346,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     );
 
     // Và trên CSDL vừa cài xong, mẫu đứng đầu là khổ DỌC: hai mẫu mặc định seed
-    // cùng một giao dịch nên `published_at` bằng nhau, thứ tự rơi xuống
+    // cùng một giao dịch nên `updated_at` bằng nhau, thứ tự rơi xuống
     // `paper_size`, và thứ tự khai enum cho a4p đứng trước. Không có phép hoà ấy
     // thì mẫu mở sẵn là dọc hay ngang tuỳ từng lần cài đặt.
     const macDinh = (
@@ -358,49 +358,43 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     expect(chiMacDinh[0]!.khoGiay, 'mẫu mặc định khổ dọc phải đứng trước khổ ngang').toBe('a4p');
   }, 60_000);
 
-  it('mẫu ĐÃ NGỪNG DÙNG thì từ chối, không âm thầm rơi về mẫu khác', async () => {
+  it('`0067` mẫu ĐÃ BỊ XOÁ thì từ chối, không âm thầm rơi về mẫu khác', async () => {
     /*
      * Tình huống có thật: người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy
-     * Quản trị ngừng dùng mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản
-     * không phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
+     * Quản trị xoá mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản không
+     * phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
+     *
+     * `0058` dùng *ngừng dùng* cho tình huống này; `0067` bỏ nút ấy nên chỉ còn
+     * XOÁ — và câu trả lời của máy chủ phải giống hệt: 404 nói rõ hãy chọn lại.
+     *
+     * Xoá một mẫu do CHÍNH ca này thêm vào, không mượn mẫu mặc định: mượn rồi
+     * trả lại là đổi thứ tự danh sách, và mẫu mở sẵn của mọi ca phía sau đổi
+     * theo. Đúng cái bẫy đã làm DOC-20 đỏ với "expected 842 to be 595".
      */
     const d = await draft(1);
-    const ds = await (await http(doc))
-      .get('/policy-templates/available')
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
-    const bo = (ds.body as { id: string; khoGiay: string }[]).find((m) => m.khoGiay === 'a4l')!;
+    const than = makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para(O_BANG_SAN_PHAM)].join(''),
+    );
+    const up = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', 'Mẫu sắp bị xoá')
+      .field('mapping', JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))))
+      .attach('file', than, {
+        filename: 'sap-xoa.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
 
     await (await http(doc))
-      .post(`/policy-templates/${bo.id}/deactivate`)
+      .delete(`/policy-templates/${up.body.id}`)
       .set('Authorization', `Bearer ${tok['admin01']}`);
-    try {
-      const r = await (await http(doc))
-        .get(`/policies/${d.id}/render?mauId=${bo.id}`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`);
-      expect(r.status).toBe(404);
-      expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
-    } finally {
-      await (await http(doc))
-        .post(`/policy-templates/${bo.id}/publish`)
-        .set('Authorization', `Bearer ${tok['admin01']}`);
-      /*
-        TRẢ LẠI CẢ MỐC BAN HÀNH, không chỉ trạng thái.
 
-        `publish` đặt `published_at = now()`, nên mẫu vừa khôi phục nhảy lên đầu
-        danh sách và thành mẫu MỞ SẴN cho mọi lời gọi không kèm `mauId` sau đó —
-        kể cả của những ca kiểm thử khác trong tệp này. Đã thấy đúng chuyện ấy:
-        DOC-20 đỏ với "expected 842 to be 595", tức bản mềm mặc định bỗng ra khổ
-        ngang, vì một ca chẳng liên quan đã mượn tạm mẫu ngang.
-      */
-      await withAdminDb(async (c) => {
-        await c.query(
-          `UPDATE doc.contract_template t SET published_at = m.som_nhat
-             FROM (SELECT min(published_at) AS som_nhat FROM doc.contract_template
-                    WHERE is_default AND kind = 'HO_SO' AND published_at IS NOT NULL) AS m
-            WHERE t.is_default AND t.kind = 'HO_SO'`,
-        );
-      });
-    }
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(r.status).toBe(404);
+    expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
   }, 60_000);
 
   it('`mauId` không phải định danh hợp lệ thì 400, không phải 500', async () => {
@@ -1226,20 +1220,14 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       .post('/policy-templates')
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .field('name', 'Mau se mat file')
+      // `0067`: ánh xạ đi CÙNG file trong một lượt lưu — không còn bước ánh xạ
+      // riêng, và cũng không còn mẫu nào tồn tại mà chưa ánh xạ xong.
+      .field('mapping', JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))))
       .attach('file', mauDuMuc(), {
         filename: 'mat-file.docx',
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
-
-    await (await http(doc))
-      .put(`/policy-templates/${up.body.id}/mapping`)
-      .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ mapping: NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n })) });
-    const pub = await (await http(doc))
-      .post(`/policy-templates/${up.body.id}/publish`)
-      .set('Authorization', `Bearer ${tok['admin01']}`);
-    expect(pub.status, JSON.stringify(pub.body)).toBe(200);
 
     try {
       await storage.remove((await doiFile(up.body.id)).object_key);
@@ -1257,7 +1245,7 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       expect(await storage.exists((await doiFile(up.body.id)).object_key)).toBe(false);
     } finally {
       await (await http(doc))
-        .post(`/policy-templates/${up.body.id}/deactivate`)
+        .delete(`/policy-templates/${up.body.id}`)
         .set('Authorization', `Bearer ${tok['admin01']}`);
     }
   }, 120_000);

@@ -22,12 +22,13 @@ import {
 import type { PoolClient } from 'pg';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
-import { Clients } from '../infra/clients.js';
+import { Clients, type PolicyFull } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { FilesService } from '../files/files.service.js';
 import { Storage } from '../infra/storage.js';
 import { TemplatesService } from './templates.service.js';
 import { mergeDocx } from './docx.js';
+import { bangSanPhamXml } from './bang-san-pham.js';
 import { tron } from './tron.js';
 
 /** Đúng hai vai trò xuất được hợp đồng (muc 8, PLA.1 — sửa 06/08). */
@@ -39,8 +40,8 @@ export type Preview = {
   templateId: string;
   templateName: string;
   values: Record<string, string>;
-  lines: Record<string, string>[];
-  missingRequired: { placeholder: string; source: string }[];
+  /** Hồ sơ đầy đủ — `export` cần nó để dựng bảng sản phẩm (`0067`). */
+  policy: PolicyFull;
 };
 
 @Injectable()
@@ -111,7 +112,7 @@ export class ContractsService {
       }),
     ]);
     // Phép trộn dùng chung với bản mềm CSBH (`0055`) — xem `tron.ts`.
-    const { values, lines, missingRequired } = tron(active.fields, { policy, customer, people });
+    const { values } = tron(active.fields, { policy, customer, people });
 
     return {
       policyId,
@@ -119,8 +120,7 @@ export class ContractsService {
       templateId: active.template.id,
       templateName: active.template.name,
       values,
-      lines,
-      missingRequired,
+      policy,
     };
   }
 
@@ -140,25 +140,30 @@ export class ContractsService {
   ): Promise<{ pdf: Buffer; fileName: string }> {
     const built = await this.build(policyId, me, mauId);
 
-    if (built.missingRequired.length > 0) {
-      throw new UnprocessableEntityException({
-        code: 'CONTRACT_FIELDS_MISSING',
-        message: 'Hồ sơ khách hàng thiếu trường bắt buộc, chưa xuất được hợp đồng',
-        missing: built.missingRequired,
-      });
-    }
+    /*
+      PHÉP KIỂM "thiếu trường bắt buộc" ĐÃ GỠ (`0067`, DOC-13).
 
-    // Mẫu đọc từ kho ở ĐÚNG thời điểm bấm. Sale Admin thay mẫu thì lần xuất sau
+      Nó dựa trên cờ `required` mà người soạn đánh dấu cho từng ô trống — và cờ
+      ấy không còn: nó chỉ đổi thời điểm báo lỗi, và báo cho KẾ TOÁN, người
+      không sửa được hồ sơ khách hàng lẫn mẫu.
+
+      Trường rỗng thì ô trống ra rỗng. Đổi lại là một hợp đồng có thể in ra
+      thiếu tên người đại diện nếu hồ sơ khách hàng thiếu — nhìn thấy được ngay
+      trên bản xem trước, và người xuất chủ động dừng lại.
+    */
+
+    // Mẫu đọc từ kho ở ĐÚNG thời điểm bấm. Đổi mẫu thì lần xuất sau
     // dùng mẫu mới — không có ràng buộc phiên bản nào vì lần xuất trước không
     // được lưu lại (DOC-15).
     const template = await this.templates.byId(built.templateId);
     const docx = await this.templates.docxCua(template);
 
-    const linePlaceholders = new Set(built.lines.flatMap((l) => Object.keys(l)));
     const merged = mergeDocx(docx, {
       values: built.values,
-      lines: built.lines,
-      linePlaceholders,
+      // Bảng sản phẩm của HỢP ĐỒNG cũng do hệ thống dựng từ `0067`, với đúng tập
+      // cột mà mẫu ấy khai — trước đó nó là một bảng người soạn vẽ tay bằng
+      // nhóm khoá `san_pham.`, số cột cố định.
+      banSanPham: bangSanPhamXml(built.policy, template.cot_bang),
     });
 
     const pdf = await this.gotenberg.docxToPdf(merged, `hop-dong-${built.policyCode}.docx`);

@@ -1,33 +1,26 @@
 /**
- * Kiểu dữ liệu của mẫu hợp đồng, và bảng định dạng trường.
- *
- * `DINH_DANG` là bản sao của `FORMATS` trong `services/document/src/contracts/
- * sources.ts` — máy chủ không có endpoint nào trả danh sách này ra, chỉ trả
- * `knownSources`. Bản sao là chỗ dễ lệch, nên `mau-hop-dong.test.ts` đọc thẳng
- * tệp nguồn của máy chủ và đối chiếu: thêm một định dạng ở máy chủ mà quên ở đây
- * thì test đỏ, chứ không phải người soạn mẫu phát hiện ra khi ô chọn thiếu mục.
+ * Kiểu dữ liệu và nhãn của **văn bản mẫu** — dùng chung cho cả hai loại mẫu.
  */
-export const DINH_DANG = ['text', 'money_vnd', 'date_dmy', 'percent_2'] as const;
-export type DinhDang = (typeof DINH_DANG)[number];
-
-export const NHAN_DINH_DANG: Record<DinhDang, string> = {
-  text: 'Chữ, giữ nguyên',
-  money_vnd: 'Tiền (1.234.567)',
-  date_dmy: 'Ngày (31/12/2026)',
-  percent_2: 'Phần trăm, hai chữ số',
-};
-
-/** Tiền tố của nhóm trường theo dòng sản phẩm — dòng bảng mang nó sẽ được nhân bản. */
-export const TIEN_TO_DONG = 'san_pham.';
+/*
+ * `DINH_DANG`, `NHAN_DINH_DANG` và `TIEN_TO_DONG` ĐÃ GỠ (`0067`).
+ *
+ * Định dạng không còn là một ô người soạn mẫu chọn: nó gắn cứng vào TRƯỜNG
+ * NGUỒN ở `services/document/src/contracts/sources.ts`. Câu hỏi *"công nợ hiển
+ * thị kiểu tiền hay kiểu chữ?"* chỉ có một câu trả lời đúng, và hỏi hai mươi
+ * lần cho hai mươi ô là mời người dùng trả lời sai ở đúng một trong số đó.
+ *
+ * `TIEN_TO_DONG` là tiền tố của nhóm khoá theo dòng sản phẩm — cả nhóm ấy đã bỏ
+ * cùng cơ chế nhân bản dòng bảng.
+ */
 
 export type MauHopDong = {
   id: string;
   name: string;
   fileId: string;
-  isActive: boolean;
   isDefault: boolean;
-  publishedAt: string | null;
   updatedAt: string;
+  /** Tập cột bảng sản phẩm của riêng mẫu này (`0067`). NULL = tập mặc định. */
+  cotBang?: string[] | null;
   /** `0055` — hai loại mẫu; từ `0060` cả hai đều của Quản trị hệ thống. */
   kind?: LoaiMau;
   /** Chỉ mẫu hồ sơ: khổ giấy của chính file .docx. */
@@ -54,12 +47,11 @@ export const CAU_HINH_MAU: Record<
     tieuDe: string;
     moTa: string;
     /**
-     * Bảng sản phẩm do HỆ THỐNG dựng — chỉ đúng với mẫu hồ sơ (`0055`).
+     * Có MỤC BẮT BUỘC theo muc 11.1 hay không — chỉ mẫu hồ sơ (`0067`).
      *
-     * Tới `0057` cờ này tên là `theoKhoGiay` và gánh hai việc chẳng liên quan
-     * nhau: "mỗi khổ giấy một mẫu" và "bảng do hệ thống dựng, có 13 mục bắt
-     * buộc". Việc thứ nhất mất hẳn ở `0058` — người xem chọn mẫu chứ không chọn
-     * khổ — nên cái tên cũ giờ chỉ còn tả sai việc thứ hai.
+     * Cả hai loại mẫu đều dùng `{{bang_san_pham}}` từ `0067`, nên cờ này không
+     * còn nói về bảng nữa. Cái còn khác nhau thật là phép kiểm lúc lưu: bản A4
+     * phải có đủ mục của muc 11.1, hợp đồng thì không có mục nào bắt buộc.
      */
     bangDoHeThongDung: boolean;
     nhanTaiLen: string;
@@ -88,22 +80,26 @@ export type MauChon = {
   khoGiay: KhoGiay | null;
 };
 
-export type TruongAnhXa = {
-  placeholder: string;
-  source: string;
-  required: boolean;
-  format: string | null;
-};
+/** Một dòng ánh xạ. Hai trường, không hơn (`0067`). */
+export type TruongAnhXa = { placeholder: string; source: string };
 
+/** Kết quả đọc ô trống của một file — bước đầu của trang thêm mẫu (`0067`). */
 export type ThongTinOTrong = {
   placeholders: string[];
-  mapped: TruongAnhXa[];
-  unmapped: string[];
+  /** Ánh xạ máy chủ ĐOÁN SẴN theo tên ô trống. Ô nào không đoán được thì vắng. */
+  goiY: TruongAnhXa[];
+};
+
+/** Một cột của bảng sản phẩm, đọc từ máy chủ (`0067`). */
+export type CotBang = { khoa: string; nhan: string; batBuoc?: boolean };
+
+/** Danh mục nguồn và cột, máy chủ trả về ở `GET :loai/sources` (`0067`). */
+export type DanhMucNguon = {
   knownSources: string[];
-  /** `0055`, chỉ mẫu hồ sơ: trường nguồn bắt buộc còn THIẾU. */
-  thieu?: string[];
-  /** `0055`, chỉ mẫu hồ sơ: mẫu có ô bảng sản phẩm chưa. */
-  coBangSanPham?: boolean;
+  batBuoc?: string[];
+  oBangSanPham?: string;
+  cotBang?: CotBang[];
+  cotBatBuoc?: string[];
 };
 
 /**
@@ -114,7 +110,7 @@ export type ThongTinOTrong = {
 export function nhomNguon(ds: string[]): { nhan: string; nguon: string[] }[] {
   const nhom = new Map<string, string[]>();
   for (const s of ds) {
-    const khoa = s.startsWith(TIEN_TO_DONG) ? 'Dòng sản phẩm' : (s.split('.')[0] ?? 'khác');
+    const khoa = s.split('.')[0] ?? 'khác';
     const cu = nhom.get(khoa);
     if (cu) cu.push(s);
     else nhom.set(khoa, [s]);
@@ -130,21 +126,18 @@ export function nhomNguon(ds: string[]): { nhan: string; nguon: string[] }[] {
  */
 const NHAN_NHOM: Record<string, string> = {
   ho_so: 'Hồ sơ CSBH',
-  cong_ty: 'Công ty',
   ngay_in: 'Khác',
-  'Dòng sản phẩm': 'Dòng sản phẩm (nhân bản theo dòng)',
 };
 
 /**
- * Mẫu đã ánh xạ hết ô trống thì mới ban hành được — máy chủ chặn
- * (`TEMPLATE_INCOMPLETE`), giao diện nói trước.
+ * Mẫu ánh xạ hết ô trống thì mới LƯU được — máy chủ chặn
+ * (`TEMPLATE_INCOMPLETE`), giao diện nói trước để nút Lưu xám đi.
  *
- * Nhận danh sách ô trống và tập ô ĐÃ CHỌN NGUỒN trên bảng đang mở, không đọc
- * `unmapped` của lần tải đầu: người dùng vừa điền xong cả bảng thì `unmapped`
- * còn là ảnh chụp lúc mở, và nút Ban hành sẽ vẫn xám.
+ * Ô bảng sản phẩm KHÔNG tính: nó không trỏ tới trường nào, hệ thống thay nó bằng
+ * cả một bảng.
  */
-export const banHanhDuoc = (oTrong: string[], daChon: Set<string>): boolean =>
-  oTrong.every((p) => daChon.has(p));
+export const luuDuoc = (oTrong: string[], daChon: Set<string>): boolean =>
+  oTrong.every((p) => p === O_BANG_SAN_PHAM || daChon.has(p));
 
 /**
  * NHÃN tiếng Việt của từng khoá trộn — nội dung bảng hướng dẫn trên trang thêm
@@ -181,20 +174,7 @@ export const NHAN_KHOA: Record<string, string> = {
   'ho_so.ngay_kt_nhan_l2': 'Ngày Kế toán tiếp nhận lần 2',
   'ho_so.chu_ky_so_TBP': 'Khối chữ ký số — “TBP đã ký số” và ngày ký ở dòng dưới',
 
-  'cong_ty.ten': 'Tên Công ty',
-  'cong_ty.dia_chi': 'Địa chỉ Công ty',
-  'cong_ty.ma_so_thue': 'Mã số thuế Công ty',
-
   ngay_in: 'Ngày in văn bản — không phải ngày của hồ sơ',
-
-  'san_pham.stt': 'Số thứ tự dòng',
-  'san_pham.ma_san_pham': 'Mã sản phẩm',
-  'san_pham.ten_san_pham': 'Tên sản phẩm',
-  'san_pham.gia_cong_ty': 'Giá công ty',
-  'san_pham.gia_ban_buon': 'Giá bán buôn',
-  'san_pham.cpbh_tong': 'CPBH tổng',
-  'san_pham.gia_thu_ve': 'Giá thu về',
-  'san_pham.ty_le_ck': 'Tỷ lệ chiết khấu',
 };
 
 /** Ô trống được thay bằng CẢ BẢNG sản phẩm — chỉ mẫu hồ sơ dùng tới. */
