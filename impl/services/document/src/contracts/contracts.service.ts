@@ -152,8 +152,7 @@ export class ContractsService {
     // dùng mẫu mới — không có ràng buộc phiên bản nào vì lần xuất trước không
     // được lưu lại (DOC-15).
     const template = await this.templates.byId(built.templateId);
-    const templateFile = await this.files.row(template.file_id);
-    const docx = await this.storage.get(templateFile.object_key);
+    const docx = await this.templates.docxCua(template);
 
     const linePlaceholders = new Set(built.lines.flatMap((l) => Object.keys(l)));
     const merged = mergeDocx(docx, {

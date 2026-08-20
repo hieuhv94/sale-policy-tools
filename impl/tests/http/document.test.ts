@@ -10,7 +10,17 @@ import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
-import { bangSanPhamXml, createTestApp as createDocumentApp, Storage } from '@csbh/document/testing';
+import {
+  bangSanPhamXml,
+  createTestApp as createDocumentApp,
+  makeDocx,
+  NGUON_BAT_BUOC_HO_SO,
+  O_BANG_SAN_PHAM,
+  para,
+  Storage,
+  SYSTEM_USER_ID,
+  TemplatesService,
+} from '@csbh/document/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -1131,4 +1141,124 @@ describe('`0058` ai xem được bản mềm thì thấy được danh sách m�
       lay(doc_('render/render.controller.ts'), 'READERS'),
     );
   });
+});
+
+// =============================================================================
+// `0059` — CSDL còn dòng mẫu, kho lưu trữ mất object
+// =============================================================================
+
+describe('`0059` mẫu mất file trên kho lưu trữ', () => {
+  /** Mẫu hồ sơ hợp lệ tối thiểu: đủ 13 mục bắt buộc và có ô bảng sản phẩm. */
+  const mauDuMuc = (): Buffer =>
+    makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para(O_BANG_SAN_PHAM)].join(''),
+    );
+
+  /*
+   * Tình huống này ĐÃ XẢY RA THẬT trong lúc phát triển, và triệu chứng của nó
+   * không chỉ về phía nguyên nhân chút nào: mọi lượt xem bản mềm trả HTTP 500
+   * kèm `S3Error: The specified key does not exist`, còn màn hình *Giấy tờ mẫu*
+   * vẫn hiển thị mẫu ấy đang dùng bình thường.
+   *
+   * CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được: phục hồi CSDL từ
+   * một bản sao lưu mới hơn MinIO, dựng lại MinIO từ đầu, hoặc xoá nhầm một
+   * object. Hai đường xử lý, tuỳ mẫu ai làm ra.
+   */
+  const doiFile = async (templateId: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ object_key: string; file_id: string }>(
+        `SELECT f.object_key, f.id AS file_id FROM doc.contract_template t
+           JOIN doc.stored_file f ON f.id = t.file_id WHERE t.id = $1`,
+        [templateId],
+      );
+      return r.rows[0]!;
+    });
+
+  it('mẫu MẶC ĐỊNH tự dựng lại file — không cần ai đụng tay', async () => {
+    /*
+     * Tự chữa được vì mẫu mặc định do CHÍNH hệ thống sinh ra: dựng lại cho ra
+     * đúng file cũ, không có gì để mất.
+     *
+     * Tới `0058` phép chữa này chỉ có cho mẫu HỢP ĐỒNG, nằm lẫn trong
+     * `ensureDefaultHopDong` — nên mẫu hồ sơ, thứ mọi vai trò mở hằng ngày, lại
+     * là thứ không tự chữa được. Ca này canh đúng chỗ ấy.
+     */
+    const ds = (await (await http(doc))
+      .get('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)).body as {
+      id: string;
+      isDefault: boolean;
+      paperSize: string;
+    }[];
+    const mau = ds.find((x) => x.isDefault && x.paperSize === 'a4p')!;
+    const truoc = await doiFile(mau.id);
+
+    // Xoá object đi, giữ nguyên dòng trong CSDL — đúng hình dạng của sự cố.
+    await storage.remove(truoc.object_key);
+    expect(await storage.exists(truoc.object_key)).toBe(false);
+
+    // `ensureDefault` chạy lúc service khởi động; gọi thẳng cho nhanh.
+    await doc.get(TemplatesService).ensureDefault(SYSTEM_USER_ID);
+
+    const sau = await doiFile(mau.id);
+    expect(sau.file_id, 'phải trỏ sang một file MỚI').not.toBe(truoc.file_id);
+    expect(await storage.exists(sau.object_key)).toBe(true);
+
+    // Và bản mềm dựng được trở lại — phép thử duy nhất chứng minh nó thật sự chữa.
+    const d = await draft(1);
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render?mauId=${mau.id}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .responseType('blob');
+    expect(r.status).toBe(200);
+  }, 120_000);
+
+  it('mẫu NGƯỜI DÙNG tải lên: 409 nói rõ ai sửa được, KHÔNG phải 500', async () => {
+    /*
+     * Ranh giới cố ý: mẫu người dùng soạn thì hệ thống KHÔNG dựng lại. Thay thầm
+     * nội dung một văn bản nghiệp vụ bằng bố cục mặc định tệ hơn nhiều so với
+     * báo lỗi — người ký sẽ đặt bút xuống dưới một thứ không phải thứ họ soạn.
+     *
+     * Nhưng báo lỗi phải là báo lỗi ĐÚNG: 409 với câu chữ nói ai tải lại được,
+     * chứ không phải 500 kèm vết ngăn xếp của thư viện minio.
+     */
+    const up = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', 'Mau se mat file')
+      .attach('file', mauDuMuc(), {
+        filename: 'mat-file.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+
+    await (await http(doc))
+      .put(`/policy-templates/${up.body.id}/mapping`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ mapping: NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n })) });
+    const pub = await (await http(doc))
+      .post(`/policy-templates/${up.body.id}/publish`)
+      .set('Authorization', `Bearer ${tok['admin01']}`);
+    expect(pub.status, JSON.stringify(pub.body)).toBe(200);
+
+    try {
+      await storage.remove((await doiFile(up.body.id)).object_key);
+
+      const d = await draft(1);
+      const r = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`);
+      expect(r.status, 'phải là 409 chứ không phải 500').toBe(409);
+      expect(r.body.code).toBe('TEMPLATE_FILE_MISSING');
+      expect(r.body.message).toContain('Quản trị hệ thống');
+
+      // Và `ensureDefault` KHÔNG được lặng lẽ dựng lại mẫu của người dùng.
+      await doc.get(TemplatesService).ensureDefault(SYSTEM_USER_ID);
+      expect(await storage.exists((await doiFile(up.body.id)).object_key)).toBe(false);
+    } finally {
+      await (await http(doc))
+        .post(`/policy-templates/${up.body.id}/deactivate`)
+        .set('Authorization', `Bearer ${tok['admin01']}`);
+    }
+  }, 120_000);
 });

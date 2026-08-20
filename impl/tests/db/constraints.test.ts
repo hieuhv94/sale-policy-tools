@@ -779,3 +779,38 @@ describe('`0058` CSDL cho phép hai mẫu cùng đang dùng', () => {
     });
   });
 });
+
+// =============================================================================
+// `0059` — nhật ký tải bản mềm và hợp đồng đã xoá hẳn
+// =============================================================================
+
+describe('`0059` không còn dòng lịch sử tải bản mềm hay hợp đồng', () => {
+  /*
+   * Ca này canh HAI thứ cùng lúc, và cả hai đều cần:
+   *
+   *   1. Migration `0059` đã dọn sạch những dòng cũ.
+   *   2. Không đường nào trong mã còn ghi thêm — bộ kiểm thử vừa chạy qua hàng
+   *      trăm lượt dựng bản mềm và xuất hợp đồng ngay trước ca này, nên nếu một
+   *      đường nào còn sót thì đây là nơi nó lộ ra.
+   *
+   * Điểm thứ hai là lý do ca này nằm ở tầng CSDL chứ không ở tầng HTTP: nó nhìn
+   * TOÀN BỘ bảng, không nhìn một hồ sơ do chính nó dựng.
+   */
+  it('bảng pol.policy_event sạch mã TAI_HO_SO và TAI_HOP_DONG', async () => {
+    const r = await db.query<{ action: string; n: string }>(
+      `SELECT action, count(*) AS n FROM pol.policy_event
+        WHERE action IN ('TAI_HO_SO','TAI_HOP_DONG') GROUP BY action`,
+    );
+    expect(r.rows, `còn sót: ${JSON.stringify(r.rows)}`).toEqual([]);
+  });
+
+  it('nhưng nhật ký tải BẢN CỨNG thì vẫn ghi — không dọn nhầm', async () => {
+    // Phép đối chứng. Không có nó thì một câu DELETE quét sạch mọi mã `TAI_%`
+    // cũng làm ca trên xanh, và cả tính năng biến mất mà không ai biết.
+    const r = await db.query<{ n: string }>(
+      `SELECT count(*) AS n FROM pol.policy_event
+        WHERE action IN ('TAI_BAN_SCAN','TAI_TEP_DINH_KEM')`,
+    );
+    expect(Number(r.rows[0]!.n), 'bộ kiểm thử vừa tải bản scan vài lượt').toBeGreaterThan(0);
+  });
+});

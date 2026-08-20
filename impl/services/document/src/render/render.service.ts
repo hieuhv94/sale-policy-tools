@@ -89,8 +89,9 @@ export class RenderService {
       });
     }
 
-    const file = await this.files.row(mau.template.file_id);
-    const docx = mergeDocx(await this.storage.get(file.object_key), {
+    // `docxCua` chứ không đọc thẳng kho: object mất thì nó ném một lỗi CÓ TÊN
+    // thay vì để `S3Error` chui ra thành 500 (`0059`).
+    const docx = mergeDocx(await this.templates.docxCua(mau.template), {
       values,
       lines,
       linePlaceholders,

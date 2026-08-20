@@ -837,8 +837,9 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   >
   > Dấu **đã xuất hợp đồng** thì GIỮ: nó không phải một dòng lịch sử mà là một trạng thái của hồ sơ
   > (muc 8.3 hỏi *"hồ sơ này đã có hợp đồng chưa"*), và nó vẫn đóng ở cả đường xem lẫn đường tải.
-  > Những dòng *Tải bản mềm CSBH* / *Tải bản hợp đồng* đã ghi trước 20/08 **ở lại** — nhật ký chỉ
-  > ghi thêm.
+  > Những dòng *Tải bản mềm CSBH* / *Tải bản hợp đồng* đã ghi trước đó thì **xoá hẳn** — phần mềm
+  > chưa bàn giao nên chúng đều do bộ nạp demo và các lượt chạy kiểm thử sinh ra, và để lại là bày
+  > ra ở bản demo một loại dòng mà phần mềm không còn sinh nữa.
 - Lưu giá trị **trước và sau** của dữ liệu quan trọng, kèm lý do thay đổi.
 - **Nhật ký chỉ ghi thêm** — chặn sửa và xóa ở tầng cơ sở dữ liệu, không chỉ ở ứng dụng.
 - Mỗi mốc thời gian là **một cột riêng** trên hồ sơ kèm người thực hiện; báo cáo và SLA truy vấn

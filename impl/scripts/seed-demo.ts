@@ -494,7 +494,7 @@ async function xoaDuLieuCu(): Promise<void> {
 }
 
 /**
- * Nạp ba mẫu hồ sơ CSBH từ `templates/` (`0057`).
+ * Nạp các mẫu HỒ SƠ từ `templates/` (`0057`) — bỏ qua mẫu hợp đồng (`0058`).
  *
  * Đi qua API THẬT như mọi thứ khác trong bộ nạp: máy chủ đọc ô trống ngay lúc
  * tải lên, kiểm 13 mục bắt buộc lúc ban hành, và chèn thẳng SQL là bỏ qua cả hai
@@ -1072,7 +1072,10 @@ async function main(): Promise<void> {
     `seed-demo: xong — ${NHOM.length} nhóm, ${SAN_PHAM.length} sản phẩm, ` +
       `${QUY_DINH_CK.length} quy định chiết khấu, ${KHACH.length} khách hàng, ` +
       `${daLap} hồ sơ (${SAP_QUA_HAN.length} sắp quá hạn, ${DA_QUA_HAN.length} đã quá hạn), ` +
-      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${BO_MAU.length} mẫu hồ sơ, ${SO_THU_HONG} thư hỏng, ` +
+      // ĐẾM SỐ NẠP THẬT, không phải số file trong thư mục (`0059`): mẫu hợp đồng
+      // trong `templates/` cố ý đứng ngoài, và một con số đếm cả nó thì mỗi lần
+      // ai đó soi CSDL lại phải đi tìm xem mình vừa mất một mẫu ở đâu.
+      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${BO_MAU.filter((m) => m.napDemo !== false).length} mẫu hồ sơ, ${SO_THU_HONG} thư hỏng, ` +
       `${lech} hồ sơ cần cập nhật`,
   );
 }

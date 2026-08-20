@@ -102,9 +102,13 @@ export class PolicyInternalController {
    * ấy chỉ làm dày lịch sử và dìm mất thứ nó sinh ra để kể. Bản scan thì khác:
    * nó là bản cứng có chữ ký, và "ai đã lấy nó ra" là một câu hỏi khác hẳn.
    *
-   * Những dòng `TAI_HO_SO`/`TAI_HOP_DONG` đã ghi thì Ở LẠI — lịch sử chỉ ghi
-   * thêm (AUD-03/04), và những lượt tải ấy có thật. Giao diện vẫn giữ nhãn cho
-   * chúng.
+   * Những dòng `TAI_HO_SO`/`TAI_HOP_DONG` đã ghi thì migration `0059` XOÁ HẲN,
+   * và nhãn của chúng cũng gỡ khỏi giao diện. Cân nhắc ban đầu là để lại vì
+   * "nhật ký chỉ ghi thêm" — đúng cho một hệ thống đang chạy thật, nhưng phần
+   * mềm này chưa bàn giao nên mọi dòng như thế đều do bộ nạp demo hoặc các lượt
+   * chạy kiểm thử sinh ra. Giữ lại là bày ra ở bản demo một loại dòng mà phần
+   * mềm không còn sinh nữa. Ràng buộc chỉ-ghi-thêm của AUD-03/04 nằm ở
+   * `aud.audit_log`, không nằm ở bảng này.
    */
   @Post(':id/da-sinh-van-ban')
   async daSinhVanBan(@Param('id') id: string, @Body() body: unknown) {

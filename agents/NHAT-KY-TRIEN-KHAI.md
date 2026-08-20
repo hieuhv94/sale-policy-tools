@@ -6793,3 +6793,65 @@ vẫn giữ dòng mẫu. `ensureDefaultHopDong` tự chữa được tình huố
 xong. Ghi lại vì triệu chứng (500 ở đường xem bản mềm) không chỉ về phía nguyên nhân chút nào.
 
 **1257/1257 xanh.**
+
+## P91 — Dọn sạch nhật ký cũ, và vá lỗ hổng MinIO mất object
+
+Ba việc, và việc thứ ba đổi cách làm hai việc đầu: **coi hệ thống được dựng từ dữ liệu sạch**. Phần
+mềm chưa bàn giao, nên mọi dòng dữ liệu đang có đều do bộ nạp demo hoặc các lượt chạy kiểm thử sinh
+ra — không có gì để bảo tồn.
+
+### Xoá thay vì giữ
+
+P90 để lại những dòng `TAI_HO_SO`/`TAI_HOP_DONG` đã ghi, với lý do *"nhật ký chỉ ghi thêm, và những
+lượt tải ấy có thật"*. Lý do ấy đúng cho một hệ thống **đang chạy thật**. Ở đây nó sai theo một cách
+cụ thể: màn hình *Lịch sử* của bản demo bày ra một loại dòng mà phần mềm không còn sinh nữa, và
+người xem demo không có cách nào biết đó là dấu vết của một yêu cầu đã bỏ.
+
+Migration `0059` xoá hẳn, nhãn gỡ khỏi `format.ts`, và cờ `?xem=1` — vốn giữ lại vì "liên kết cũ
+trong thư đã gửi" — cũng bỏ hẳn khỏi hai đường ấy, vì không có liên kết cũ nào đang sống.
+
+> Ràng buộc chỉ-ghi-thêm của AUD-03/04 nằm ở `aud.audit_log`, **không** ở `pol.policy_event`. Nhật
+> ký kiểm toán toàn hệ thống vẫn nguyên vẹn — câu DELETE không phá lời hứa nào.
+
+`seq` sau khi xoá thủng lỗ, và để nguyên là đúng: nó là số để SẮP XẾP và để chống chen ngang, không
+phải một phép đếm ai đó đọc ra. Đánh số lại thì phải UPDATE mọi dòng của mọi hồ sơ — nhiều rủi ro
+hơn hẳn cái nó chữa.
+
+### Lỗ hổng MinIO: hai đường, tuỳ mẫu ai làm ra
+
+Sự cố gặp ở P90: `S3Error: The specified key does not exist` → HTTP 500 kèm vết ngăn xếp của thư
+viện minio, trong khi màn hình *Giấy tờ mẫu* vẫn hiển thị mẫu ấy đang dùng bình thường. Triệu chứng
+không chỉ về phía nguyên nhân chút nào.
+
+| Mẫu | Xử lý |
+|---|---|
+| **Mặc định** (hệ thống sinh) | `vaFileMacDinh` **dựng lại file** lúc khởi động — dựng ra đúng file cũ nên không có gì để mất |
+| **Người dùng tải lên** | `docxCua` ném **409 `TEMPLATE_FILE_MISSING`**, nói rõ ai tải lại được |
+
+Ranh giới ấy vốn đã có, nhưng nó **nằm lẫn trong `ensureDefaultHopDong`** — nên mẫu hồ sơ, thứ mọi
+vai trò mở hằng ngày, lại là thứ duy nhất không tự chữa được. Tách thành một bước riêng chạy cho cả
+bảng thì không loại mẫu nào bị bỏ quên.
+
+Và không dựng lại mẫu người dùng soạn là quyết định giữ nguyên, có lý do: thay thầm nội dung một văn
+bản nghiệp vụ bằng bố cục mặc định thì **người ký sẽ đặt bút xuống dưới một thứ không phải thứ họ
+soạn**. Nhưng báo lỗi phải là báo lỗi ĐÚNG — 409 với câu chữ chỉ đúng người sửa được, không phải 500.
+
+`Storage.get` bắt mã lỗi `NoSuchKey`/`NotFound` rồi ném `ObjectMissingError`. Bắt theo **mã** chứ
+không theo chuỗi thông báo: thông báo đổi theo phiên bản thư viện, mã thì không.
+
+### Dữ liệu demo dựng lại từ đầu
+
+`make demo` rồi `make demo-mau`. Kết quả kiểm trên chồng demo thật, qua gateway, bằng tài khoản
+`kt01`:
+
+- Tải **bản mềm** (27KB) và **hợp đồng** (20KB) → lịch sử hồ sơ chỉ có `CREATE`, `SUBMIT`,
+  `TBP_SIGN`, `KT_RECEIVE_L1`. **Không dòng tải nào.**
+- `contract_issued_at`/`_by` **đã đóng dấu** — thứ phải giữ thì giữ.
+- Ba mẫu hồ sơ nạp đúng (2 đang dùng, bản rút gọn để nháp), mẫu hợp đồng trong `templates/` đúng là
+  **không** nạp.
+
+Một lỗi nhỏ lộ ra ở đây: dòng tổng kết của bộ nạp đếm `BO_MAU.length` nên báo *"4 mẫu hồ sơ"* trong
+khi CSDL có 3. Đếm số **nạp thật**, vì một con số kể cả mẫu cố ý đứng ngoài thì mỗi lần ai đó soi
+CSDL lại phải đi tìm xem mình vừa mất một mẫu ở đâu.
+
+**1261/1261 xanh** (chạy trước khi dựng demo — `make test` từ chối chạy khi chồng demo đang bật).

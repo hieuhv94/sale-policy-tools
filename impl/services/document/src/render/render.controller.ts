@@ -1,6 +1,6 @@
 import { Controller, Get, Header, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, oneOf, opt, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, opt, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { RenderService } from './render.service.js';
 
 const READERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
@@ -38,18 +38,17 @@ export class RenderController {
        * nào, và mọi liên kết cũ còn sót cũng phải ra được một bản đọc được chứ
        * không phải một lỗi. Máy chủ lấy mẫu đầu danh sách.
        */
-      mauId: opt(uuid()),
       /*
-       * `xem` VẪN NHẬN nhưng KHÔNG còn tác dụng gì (`0059`).
-       *
-       * Nó từng phân biệt xem với tải, để chỉ lượt tải mới ghi vào *Lịch sử*.
-       * Bản mềm không ghi lịch sử nữa nên phép phân biệt ấy hết việc.
-       *
-       * Nhận mà bỏ qua chứ không TỪ CHỐI: `validate` gạt mọi khoá lạ, nên xoá
-       * hẳn khoá này là mọi liên kết cũ — thư đã gửi đi, tab người dùng còn mở —
-       * đổi từ "xem được" thành lỗi 400. Một tham số thừa không hại ai.
-       */
-      xem: opt(oneOf('1')),
+        `xem` ĐÃ BỎ HẲN (`0059`).
+
+        Nó tồn tại để máy chủ phân biệt xem với tải, và chỉ ghi *Lịch sử* cho
+        lượt tải. Bản mềm không ghi lịch sử nữa nên nó hết việc.
+
+        Bỏ hẳn chứ không giữ lại cho tương thích: phần mềm chưa bàn giao nên
+        không có liên kết cũ nào đang sống. `validate` bỏ qua khoá lạ chứ không
+        từ chối, nên một địa chỉ còn mang `?xem=1` vẫn trả về đúng bản PDF.
+      */
+      mauId: opt(uuid()),
     });
     const { body, code } = await this.render.pdf(id, b.mauId, me);
     res.setHeader('Content-Type', 'application/pdf');

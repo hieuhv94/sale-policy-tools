@@ -22,7 +22,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CurrentUser, oneOf, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
 
 /**
  * Ai được XEM bản mềm CSBH — và vì thế ai được thấy danh sách mẫu để chọn (`0058`).
@@ -264,14 +264,10 @@ export class ContractsController {
   }
 
   /**
-   * `xem` VẪN NHẬN nhưng KHÔNG còn tác dụng gì (`0059`).
-   *
-   * Nó từng phân biệt xem với tải, để chỉ lượt tải mới ghi vào *Lịch sử*. Hợp
-   * đồng không ghi lịch sử nữa nên phép phân biệt ấy hết việc — còn con dấu
-   * *đã xuất hợp đồng* thì vốn đã đóng ở cả hai đường.
-   *
-   * Nhận mà bỏ qua chứ không TỪ CHỐI: `validate` gạt mọi khoá lạ, nên xoá hẳn
-   * khoá này là mọi liên kết cũ còn sót đổi từ "xem được" thành lỗi 400.
+   * `xem` ĐÃ BỎ HẲN (`0059`) — hợp đồng không ghi *Lịch sử* nữa nên phép phân
+   * biệt xem với tải hết việc, còn con dấu *đã xuất hợp đồng* thì vốn đã đóng ở
+   * cả hai đường. Một địa chỉ còn mang `?xem=1` vẫn trả về đúng bản PDF:
+   * `validate` bỏ qua khoá lạ chứ không từ chối.
    */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get(':id/contract.pdf')
@@ -281,7 +277,7 @@ export class ContractsController {
     @Query() q: Record<string, string>,
     @Res() res: Response,
   ): Promise<void> {
-    const b = validate(q, { mauId: opt(uuid()), xem: opt(oneOf('1')) });
+    const b = validate(q, { mauId: opt(uuid()) });
     const { pdf, fileName } = await this.contracts.export(id, me, b.mauId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

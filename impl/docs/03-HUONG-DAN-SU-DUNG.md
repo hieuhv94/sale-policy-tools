@@ -712,10 +712,12 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
   > **Xem thì không ghi.** Mở tệp bằng nút *Xem* không để lại dòng nào — một dòng cho mỗi lần liếc
   > màn hình sẽ dìm chết những dòng nói về bước duyệt. Chỉ bấm *Tải xuống* mới ghi.
   > **Bản mềm CSBH và hợp đồng không ghi gì cả** `sửa 20/08`, kể cả lượt tải: chúng là thứ mở ra
-  > đọc, mỗi hồ sơ vài lần một buổi. Bản scan thì khác — nó mang chữ ký khách hàng.
+  > đọc, mỗi hồ sơ vài lần một buổi, và phần mềm dựng lại chúng bất cứ lúc nào từ dữ liệu hồ sơ. Bản
+  > scan thì khác — nó mang chữ ký khách hàng, và *"ai đã lấy nó ra khỏi hệ thống"* là một câu hỏi
+  > kiểm soát thật.
   >
-  > Dòng *Tải bản mềm CSBH* và *Tải bản hợp đồng* ghi **trước 20/08** vẫn còn nguyên trên những hồ
-  > sơ cũ: lịch sử chỉ ghi thêm, không xoá gì.
+  > Hai loại dòng *Tải bản mềm CSBH* và *Tải bản hợp đồng* ghi trước 20/08 đã **xoá hẳn**: phần mềm
+  > chưa bàn giao nên chúng đều là dấu vết của bản demo và của các lượt chạy thử.
 - **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Từ chối*, *Đã xoá* hay *Hết hiệu lực*. Đó chính là
   lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
 - Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được lịch sử của nó, không thấy thì

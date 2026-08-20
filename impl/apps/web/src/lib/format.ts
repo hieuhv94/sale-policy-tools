@@ -162,17 +162,19 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   CUSTOMER_RETIRED: 'Khách hàng bị xoá',
   DELETE: 'Người lập xoá hồ sơ',
   /*
-   * Hai dòng TẢI XUỐNG (`0052`, N-01).
+   * Hai dòng TẢI BẢN CỨNG (`0052`, N-01, thu hẹp ở `0059`).
    *
    * Chúng không phải bước duyệt — hồ sơ không đi đâu cả — nhưng chúng thuộc về
-   * lịch sử của hồ sơ đúng nghĩa: muc 10 đòi lưu ai đã xem file, in và tải scan,
-   * và trước `0052` không đường tải nào để lại vết nào.
+   * lịch sử của hồ sơ đúng nghĩa: muc 10 đòi lưu ai đã tải bản scan, và trước
+   * `0052` không đường tải nào để lại vết nào.
    *
    * XEM thì KHÔNG ghi. Một dòng cho mỗi lần liếc màn hình sẽ dìm chết những
    * dòng nói về bước duyệt — thứ mà lịch sử sinh ra để kể.
+   *
+   * `TAI_HO_SO` và `TAI_HOP_DONG` ĐÃ GỠ (`0059`): khách hàng bỏ yêu cầu ghi
+   * lịch sử cho bản mềm và hợp đồng, và migration `0059` xoá luôn những dòng đã
+   * ghi — không còn dòng nào để mà đặt nhãn.
    */
-  TAI_HO_SO: 'Tải bản mềm CSBH',
-  TAI_HOP_DONG: 'Tải bản hợp đồng',
   TAI_BAN_SCAN: 'Tải bản scan bản cứng',
   TAI_TEP_DINH_KEM: 'Tải tệp đính kèm',
 };

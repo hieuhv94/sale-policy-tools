@@ -26,6 +26,26 @@ export const sha256 = (b: Buffer): string => createHash('sha256').update(b).dige
 const LIET_KE_HET_GIO_MS = 15_000;
 
 @Injectable()
+/** Object có trong CSDL nhưng KHÔNG có trên kho lưu trữ (`0059`). */
+export class ObjectMissingError extends Error {
+  constructor(readonly key: string) {
+    super(`Object ${key} không có trên kho lưu trữ`);
+  }
+}
+
+/**
+ * Nhận ra lỗi "không có khoá ấy" của S3, không nhận nhầm lỗi mạng.
+ *
+ * MinIO trả `NoSuchKey`; một số bản trả `NotFound` cho `statObject`. Bắt cả
+ * hai, và bắt theo MÃ chứ không theo chuỗi thông báo — thông báo đổi theo phiên
+ * bản, mã thì không.
+ */
+const laKhongCoObject = (e: unknown): boolean =>
+  typeof e === 'object' &&
+  e !== null &&
+  'code' in e &&
+  (e.code === 'NoSuchKey' || e.code === 'NotFound');
+
 export class Storage implements OnModuleInit {
   private readonly log = new Logger(Storage.name);
   private readonly client = new Client({
@@ -55,7 +75,26 @@ export class Storage implements OnModuleInit {
   }
 
   async get(key: string): Promise<Buffer> {
-    const stream = await this.client.getObject(BUCKET, key);
+    let stream;
+    try {
+      stream = await this.client.getObject(BUCKET, key);
+    } catch (e) {
+      /*
+       * OBJECT KHÔNG CÓ TRÊN KHO là một tình huống NGHIỆP VỤ, không phải sự cố
+       * hạ tầng (`0059`).
+       *
+       * CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được, và lệch trong
+       * im lặng: phục hồi CSDL từ một bản sao lưu mới hơn MinIO, dựng lại MinIO
+       * từ đầu, hoặc xoá nhầm một object. Đã gặp thật.
+       *
+       * Để nguyên thì lỗi `S3Error: The specified key does not exist` chui ra
+       * thành HTTP 500 kèm vết ngăn xếp của thư viện minio — người dùng đọc
+       * không hiểu gì, và người trực hệ thống thì đi tìm nhầm phía. Ném một lỗi
+       * CÓ TÊN để tầng trên nói được câu đúng và chỉ đúng người sửa được.
+       */
+      if (laKhongCoObject(e)) throw new ObjectMissingError(key);
+      throw e;
+    }
     const chunks: Buffer[] = [];
     for await (const c of stream) chunks.push(c as Buffer);
     return Buffer.concat(chunks);

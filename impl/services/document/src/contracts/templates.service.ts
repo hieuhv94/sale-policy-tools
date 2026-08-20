@@ -8,7 +8,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
-import { Storage } from '../infra/storage.js';
+import { ObjectMissingError, Storage } from '../infra/storage.js';
 import { FilesService } from '../files/files.service.js';
 import {
   khoGiayCua,
@@ -353,6 +353,35 @@ export class TemplatesService {
     return { template: t, fields: await this.fields(t.id) };
   }
 
+  /**
+   * File `.docx` của một mẫu, đọc từ kho (`0059`).
+   *
+   * Một chỗ duy nhất cho cả bản mềm lẫn hợp đồng, vì cả hai cần đúng câu trả lời
+   * này khi object đã biến mất: KHÔNG phải 500 kèm vết ngăn xếp của minio, mà là
+   * một câu nói rõ chuyện gì xảy ra và AI sửa được.
+   *
+   * Mẫu MẶC ĐỊNH thì lẽ ra không tới được đây: `ensureDefault` dựng lại file cho
+   * chúng lúc khởi động. Còn tới được thì service vừa khởi động xong đã mất
+   * object — hiếm, nhưng câu thông báo vẫn phải đúng.
+   */
+  async docxCua(t: TemplateRow): Promise<Buffer> {
+    const file = await this.files.row(t.file_id);
+    try {
+      return await this.storage.get(file.object_key);
+    } catch (e) {
+      if (!(e instanceof ObjectMissingError)) throw e;
+      this.log.error(`mẫu ${t.id} (${t.name}) mất file trên kho lưu trữ: ${file.object_key}`);
+      throw new ConflictException({
+        code: 'TEMPLATE_FILE_MISSING',
+        message:
+          `File của mẫu "${t.name}" không còn trên kho lưu trữ. ` +
+          `Đề nghị ${t.kind === 'HO_SO' ? 'Quản trị hệ thống' : 'Sale Admin'} tải mẫu lên lại ` +
+          'rồi ban hành, hoặc chọn một mẫu khác.',
+        templateId: t.id,
+      });
+    }
+  }
+
   // --- Mẫu mặc định ---------------------------------------------------------
 
   /**
@@ -365,6 +394,58 @@ export class TemplatesService {
   async ensureDefault(systemUserId: string): Promise<void> {
     await this.ensureDefaultHopDong(systemUserId);
     await this.ensureDefaultHoSo(systemUserId);
+    await this.vaFileMacDinh(systemUserId);
+  }
+
+  /**
+   * Dựng lại FILE của mẫu mặc định nào mất object trên kho (`0059`).
+   *
+   * CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được, và lệch trong im
+   * lặng: phục hồi CSDL từ một bản sao lưu mới hơn MinIO, dựng lại MinIO từ
+   * đầu, hoặc xoá nhầm một object. Đã gặp thật — triệu chứng là mọi lượt xem
+   * bản mềm trả 500 với `S3Error`, còn màn hình quản trị vẫn hiển thị mẫu ấy
+   * đang dùng bình thường.
+   *
+   * Tới `0058` phép tự chữa này CHỈ có cho mẫu hợp đồng, và nó nằm lẫn trong
+   * `ensureDefaultHopDong` — nên mẫu hồ sơ, thứ mọi vai trò đều mở hằng ngày,
+   * lại là thứ không tự chữa được. Tách ra thành một bước riêng chạy cho cả
+   * bảng thì không loại mẫu nào bị bỏ quên nữa.
+   *
+   * CHỈ CHỮA MẪU MẶC ĐỊNH, và đây là ranh giới cố ý: chúng do chính hệ thống
+   * sinh ra nên dựng lại được y hệt. Mẫu người dùng tải lên thì KHÔNG — thay
+   * thầm nội dung một văn bản nghiệp vụ bằng bố cục khác tệ hơn nhiều so với
+   * báo lỗi, và `docxCua` lo phần báo lỗi ấy.
+   */
+  private async vaFileMacDinh(systemUserId: string): Promise<void> {
+    const ds = await this.db.q<TemplateRow>(
+      `SELECT * FROM doc.contract_template WHERE is_default`,
+    );
+    for (const t of ds) {
+      if (await this.files.objectExists(t.file_id)) continue;
+      this.log.warn(`mẫu mặc định ${t.id} (${t.name}) mất file trên kho lưu trữ — đang dựng lại`);
+
+      // Dựng lại đúng bố cục của chính loại và khổ ấy. `paper_size` của mẫu hợp
+      // đồng mặc định là null với hàng cũ trước `0058`, và `makeDocx` lấy khổ
+      // dọc khi không nói gì — đúng bố cục nó vốn có.
+      const buffer =
+        t.kind === 'HO_SO'
+          ? makeDocx(defaultHoSoBody(), t.paper_size ?? 'a4p')
+          : makeDocx(defaultTemplateBody(), t.paper_size ?? 'a4p');
+
+      const rebuilt = await this.files.store({
+        fileName: t.kind === 'HO_SO' ? `mau-ho-so-csbh-${t.paper_size ?? 'a4p'}.docx` : 'mau-hop-dong-mac-dinh.docx',
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        buffer,
+        ownerKind: 'TEMPLATE',
+        ownerId: null,
+        purpose: 'MAU_HD',
+        uploadedBy: systemUserId,
+      });
+      await this.db.q(
+        `UPDATE doc.contract_template SET file_id = $2, updated_at = now() WHERE id = $1`,
+        [t.id, rebuilt.id],
+      );
+    }
   }
 
   /**
@@ -444,37 +525,10 @@ export class TemplatesService {
     const existing = await this.db.one<{ id: string }>(
       `SELECT id FROM doc.contract_template WHERE is_active AND kind = 'HOP_DONG' LIMIT 1`,
     );
-    if (existing) {
-      // Có dòng mẫu rồi, nhưng dòng đó CÓ CÒN FILE KHÔNG lại là câu hỏi khác.
-      // CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được: phục hồi CSDL
-      // từ một bản sao lưu cũ hơn MinIO, dựng lại MinIO từ đầu, hoặc xoá nhầm
-      // một object. Khi đó mọi lần xuất hợp đồng đều 409 và thông báo lại nói
-      // "chưa có mẫu nào" — trong khi màn hình quản trị hiển thị rõ ràng là có.
-      //
-      // Tự chữa CHỈ cho mẫu mặc định, vì nó do chính hệ thống sinh ra và dựng
-      // lại được y hệt. Mẫu do Sale Admin tải lên thì KHÔNG: thay thầm nội dung
-      // hợp đồng bằng một mẫu khác tệ hơn nhiều so với báo lỗi.
-      const def = await this.db.one<{ id: string; file_id: string }>(
-        `SELECT id, file_id FROM doc.contract_template
-          WHERE is_default AND kind = 'HOP_DONG' ORDER BY updated_at DESC LIMIT 1`,
-      );
-      if (!def || (await this.files.objectExists(def.file_id))) return;
-      this.log.warn(`mẫu mặc định ${def.id} mất file trên kho lưu trữ — đang dựng lại`);
-      const rebuilt = await this.files.store({
-        fileName: 'mau-hop-dong-mac-dinh.docx',
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer: makeDocx(defaultTemplateBody()),
-        ownerKind: 'TEMPLATE',
-        ownerId: null,
-        purpose: 'MAU_HD',
-        uploadedBy: systemUserId,
-      });
-      await this.db.q(
-        `UPDATE doc.contract_template SET file_id = $2, updated_at = now() WHERE id = $1`,
-        [def.id, rebuilt.id],
-      );
-      return;
-    }
+    // Phép tự chữa "có dòng mẫu nhưng mất file" KHÔNG còn ở đây (`0059`): nó là
+    // `vaFileMacDinh`, chạy cho CẢ BẢNG sau hai bước seed. Nằm lẫn trong nhánh
+    // này thì mẫu hồ sơ không được chữa, mà đó mới là thứ mọi vai trò mở hằng ngày.
+    if (existing) return;
 
     const buffer = makeDocx(defaultTemplateBody());
     const file = await this.files.store({
