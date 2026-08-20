@@ -108,18 +108,18 @@ describe('các bảng tra cố định', () => {
     const duong = DIEU_HUONG.map((m) => m.duong);
     expect(duong).toContain('/san-pham');
     expect(duong).toContain('/chiet-khau');
-    expect(duong).toContain('/giay-to-mau');
+    expect(duong).toContain('/van-ban-mau');
     expect(duong).not.toContain('/danh-muc');
   });
 
-  it('Giấy tờ mẫu CHỈ Quản trị thấy, hai màn kia mọi vai trò', () => {
+  it('`0060` Văn bản mẫu CHỈ Quản trị thấy, hai màn kia mọi vai trò', () => {
     // Bày một mục menu cho vai trò không làm được gì trong đó là bắt họ bấm vào
     // một màn hình trống mới hiểu ra.
     for (const v of VAI_TRO) {
       expect(xem(v, 'sanPham'), `${v} phải xem được Sản phẩm`).toBe(true);
       expect(xem(v, 'chietKhau'), `${v} phải xem được Chiết khấu`).toBe(true);
     }
-    expect(VAI_TRO.filter((v) => xem(v, 'giayToMau'))).toEqual(['QUAN_TRI']);
+    expect(VAI_TRO.filter((v) => xem(v, 'vanBanMau'))).toEqual(['QUAN_TRI']);
   });
 
   it('màn hình Sản phẩm có hai thẻ, Sản phẩm đứng trước', () => {

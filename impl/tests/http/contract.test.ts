@@ -232,7 +232,7 @@ const uploadTemplate = async (who: string, buf: Buffer, name = 'Mẫu thử') =>
 
 describe('DOC-25 tải lên mẫu .docx và đọc ô trống', () => {
   it('liệt kê đúng 12 ô trống, không bắt Sale Admin gõ tay', async () => {
-    const r = await uploadTemplate('sa01', twelveSlotTemplate());
+    const r = await uploadTemplate('admin01', twelveSlotTemplate());
     expect(r.status).toBe(201);
     expect(r.body.placeholders).toHaveLength(12);
     expect(r.body.placeholders).toContain('{{ho_so.ten_khach_hang}}');
@@ -254,7 +254,7 @@ describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
   it('400 và mẫu đang dùng KHÔNG bị ảnh hưởng', async () => {
     const activeBefore = await templates.chon('HOP_DONG');
 
-    const notZip = await uploadTemplate('sa01', Buffer.from('day khong phai file docx'));
+    const notZip = await uploadTemplate('admin01', Buffer.from('day khong phai file docx'));
     expect(notZip.status).toBe(400);
     expect(notZip.body.code).toBe('TEMPLATE_NOT_DOCX');
 
@@ -262,7 +262,7 @@ describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
     // tài liệu Word. Hai đường hỏng khác nhau và phải chặn được cả hai.
     const { zipSync, strToU8 } = await import('fflate');
     const zipNoDoc = Buffer.from(zipSync({ 'ghi-chu.txt': strToU8('khong phai docx') }));
-    const corrupt = await uploadTemplate('sa01', zipNoDoc);
+    const corrupt = await uploadTemplate('admin01', zipNoDoc);
     expect(corrupt.status).toBe(400);
     expect(corrupt.body.code).toBe('TEMPLATE_NOT_DOCX');
 
@@ -273,8 +273,8 @@ describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
 
 describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
   it('400 ngay lúc LƯU ánh xạ, không đợi tới lúc xuất', async () => {
-    const t = await uploadTemplate('sa01', twelveSlotTemplate());
-    const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
+    const t = await uploadTemplate('admin01', twelveSlotTemplate());
+    const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', {
       mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'customer.ten_khong_co' }],
     });
     expect(r.status).toBe(400);
@@ -283,8 +283,8 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
   }, 60_000);
 
   it('ánh xạ tới ô trống không có trong mẫu cũng bị chặn', async () => {
-    const t = await uploadTemplate('sa01', twelveSlotTemplate());
-    const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
+    const t = await uploadTemplate('admin01', twelveSlotTemplate());
+    const r = await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', {
       mapping: [{ placeholder: '{{khong.co.trong.mau}}', source: 'ho_so.ten_khach_hang' }],
     });
     expect(r.status).toBe(400);
@@ -294,12 +294,12 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
 
 describe('DOC-30 phát hành mẫu còn ô trống chưa ánh xạ', () => {
   it('chặn và chỉ rõ ô nào chưa ánh xạ', async () => {
-    const t = await uploadTemplate('sa01', twelveSlotTemplate());
-    await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
+    const t = await uploadTemplate('admin01', twelveSlotTemplate());
+    await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', {
       mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true }],
     });
 
-    const r = await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01');
+    const r = await dpost(`/contract-templates/${t.body.id}/publish`, 'admin01');
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_INCOMPLETE');
     expect(r.body.missing).toHaveLength(11);
@@ -307,11 +307,40 @@ describe('DOC-30 phát hành mẫu còn ô trống chưa ánh xạ', () => {
   }, 60_000);
 });
 
-describe('DOC-26 mẫu hợp đồng thuộc Sale Admin', () => {
-  it('Quản trị hệ thống gọi API quản lý mẫu thì 403', async () => {
-    expect((await dget('/contract-templates', 'admin01')).status).toBe(403);
-    expect((await uploadTemplate('admin01', twelveSlotTemplate())).status).toBe(403);
-    expect((await dget('/contract-templates', 'sa01')).status).toBe(200);
+describe('`0060` DOC-26 ĐẢO CHIỀU — mẫu hợp đồng về tay Quản trị hệ thống', () => {
+  /*
+   * DOC-26 giao mẫu hợp đồng cho Sale Admin vì nó là "văn bản nghiệp vụ của
+   * người bán". Khách hàng chốt lại ngày 20/08: gộp về Quản trị, cùng chỗ với
+   * mẫu hồ sơ CSBH, thành hai thẻ của một trang *Văn bản mẫu*.
+   *
+   * Ca này giữ nguyên hình dạng của ca cũ nhưng ĐỔI CHIỀU mọi khẳng định — đó
+   * là cách duy nhất để một lượt "nới quyền" không lặng lẽ bỏ sót nửa còn lại:
+   * mở cho Quản trị mà quên đóng cho Sale Admin thì cả hai cùng vào được, và
+   * không có gì đỏ.
+   */
+  it('Quản trị quản lý được mẫu hợp đồng', async () => {
+    expect((await dget('/contract-templates', 'admin01')).status).toBe(200);
+    expect((await uploadTemplate('admin01', twelveSlotTemplate())).status).toBe(201);
+  }, 60_000);
+
+  it('Sale Admin KHÔNG còn quản lý được — mọi đường quản lý đều 403', async () => {
+    expect((await dget('/contract-templates', 'sa01')).status).toBe(403);
+    expect((await uploadTemplate('sa01', twelveSlotTemplate())).status).toBe(403);
+    expect((await dget('/contract-templates/sources', 'sa01')).status).toBe(403);
+  }, 60_000);
+
+  it('nhưng Sale Admin và Kế toán VẪN chọn được mẫu lúc xuất hợp đồng', async () => {
+    /*
+     * Nửa quan trọng nhất của lượt này: đổi chủ sở hữu KHÔNG được lấy đi thứ gì
+     * trong luồng nghiệp vụ. Sale Admin và Kế toán vẫn là người bấm xuất hợp
+     * đồng, nên họ vẫn phải thấy danh sách mẫu để chọn.
+     *
+     * Và Quản trị — người quản lý chính những mẫu ấy — thì KHÔNG thấy đường này,
+     * vì họ không xuất hợp đồng bao giờ. Bất đối xứng ấy là cố ý, không phải sót.
+     */
+    expect((await dget('/contract-templates/available', 'sa01')).status).toBe(200);
+    expect((await dget('/contract-templates/available', 'kt01')).status).toBe(200);
+    expect((await dget('/contract-templates/available', 'admin01')).status).toBe(403);
   }, 60_000);
 });
 
@@ -424,7 +453,7 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
     ];
 
     // Ô trống phải có trong mẫu thì mới ánh xạ được, nên dùng mẫu 12 ô ở trên.
-    const t = await uploadTemplate('sa01', twelveSlotTemplate(), 'Mẫu có chức danh');
+    const t = await uploadTemplate('admin01', twelveSlotTemplate(), 'Mẫu có chức danh');
     const mapping = (t.body.placeholders as string[]).map((p) => ({
       placeholder: p,
       source: p.slice(2, -2),
@@ -432,8 +461,8 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
       ...(p === '{{ho_so.cong_no}}' ? { format: 'money_vnd' } : {}),
       ...(p === '{{ho_so.ngay_ap_dung}}' || p === '{{ngay_in}}' ? { format: 'date_dmy' } : {}),
     }));
-    expect((await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', { mapping })).status).toBe(200);
-    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01')).status).toBe(200);
+    expect((await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', { mapping })).status).toBe(200);
+    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'admin01')).status).toBe(200);
 
     try {
       const prev = await dget(`/policies/${d.id}/contract/preview`, 'kt01');
@@ -447,8 +476,8 @@ describe('DOC-13 hồ sơ khách hàng thiếu trường bắt buộc', () => {
       expect(exp.body.missing[0].source).toBe('ho_so.chuc_danh_dai_dien');
     } finally {
       // Trả mẫu mặc định về vị trí để test sau không phụ thuộc thứ tự.
-      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'sa01');
-      await dpost(`/contract-templates/${active!.template.id}/publish`, 'sa01');
+      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'admin01');
+      await dpost(`/contract-templates/${active!.template.id}/publish`, 'admin01');
     }
     expect(withTitle.length).toBeGreaterThan(fields.length);
   }, 120_000);
@@ -657,7 +686,7 @@ describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => 
   }, 150_000);
 });
 
-describe('DOC-15 Sale Admin thay mẫu rồi xuất lại', () => {
+describe('DOC-15 thay mẫu rồi xuất lại', () => {
   it('lần xuất mới dùng MẪU MỚI, không có ràng buộc phiên bản nào', async () => {
     const d = await toReceivedL1();
     const active = await templates.chon('HOP_DONG');
@@ -668,17 +697,17 @@ describe('DOC-15 Sale Admin thay mẫu rồi xuất lại', () => {
 
     const MARK = 'PHU LUC HOP DONG PHIEN BAN MOI';
     const t = await uploadTemplate(
-      'sa01',
+      'admin01',
       makeDocx([para(MARK), para('Khách hàng: {{ho_so.ten_khach_hang}}'), para('Hồ sơ {{ho_so.ma_ho_so}}')].join('')),
       'Mẫu mới',
     );
-    await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
+    await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', {
       mapping: [
         { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang', required: true },
         { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so', required: true },
       ],
     });
-    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01')).status).toBe(200);
+    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'admin01')).status).toBe(200);
 
     try {
       const secondText = await pdfText(
@@ -696,8 +725,8 @@ describe('DOC-15 Sale Admin thay mẫu rồi xuất lại', () => {
         hiệu đúng một mẫu rồi chờ 409, sẽ đỏ vì một lý do chẳng liên quan gì tới
         nó.
       */
-      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'sa01');
-      await dpost(`/contract-templates/${active!.template.id}/publish`, 'sa01');
+      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'admin01');
+      await dpost(`/contract-templates/${active!.template.id}/publish`, 'admin01');
     }
   }, 180_000);
 });
@@ -742,7 +771,7 @@ describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp'
 // DOC-35 — chưa có mẫu nào đang dùng
 // =============================================================================
 
-describe('DOC-35 Sale Admin vô hiệu hết mẫu', () => {
+describe('DOC-35 vô hiệu hết mẫu hợp đồng', () => {
   it('409 kèm hướng dẫn, không sinh file rỗng', async () => {
     const d = await toReceivedL1();
     // HẾT mẫu, không phải một mẫu (`0058`): nhiều mẫu cùng đang dùng được rồi,
@@ -750,14 +779,14 @@ describe('DOC-35 Sale Admin vô hiệu hết mẫu', () => {
     const dangDung = await templates.khaDung('HOP_DONG');
     expect(dangDung.length, 'phải có mẫu mặc định seed sẵn lúc khởi động').toBeGreaterThan(0);
 
-    for (const m of dangDung) await dpost(`/contract-templates/${m.id}/deactivate`, 'sa01');
+    for (const m of dangDung) await dpost(`/contract-templates/${m.id}/deactivate`, 'admin01');
     try {
       const r = await dget(`/policies/${d.id}/contract.pdf`, 'kt01');
       expect(r.status).toBe(409);
       expect(r.body.code).toBe('NO_ACTIVE_TEMPLATE');
-      expect(r.body.message).toContain('Sale Admin');
+      expect(r.body.message).toContain('Quản trị hệ thống');
     } finally {
-      for (const m of dangDung) await dpost(`/contract-templates/${m.id}/publish`, 'sa01');
+      for (const m of dangDung) await dpost(`/contract-templates/${m.id}/publish`, 'admin01');
     }
   }, 90_000);
 });
@@ -1089,14 +1118,19 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     }
   }, 90_000);
 
-  it('Quản trị KHÔNG đụng được vào mẫu hợp đồng, và ngược lại', async () => {
-    expect((await qget('/contract-templates', 'admin01')).status).toBe(403);
+  it('`0060` Quản trị đụng được vào CẢ HAI loại mẫu, Sale Admin thì không loại nào', async () => {
+    // Đảo chiều so với `0055`: khi ấy hai loại mẫu là của hai người, và ca này
+    // canh đúng bức tường giữa họ. Giờ tường ấy không còn — nhưng bức tường với
+    // các vai trò KHÁC thì vẫn phải còn, nên ca này canh đúng chỗ mới.
+    expect((await qget('/contract-templates', 'admin01')).status).toBe(200);
+    expect((await qget('/policy-templates', 'admin01')).status).toBe(200);
+    expect((await qget('/contract-templates', 'sa01')).status).toBe(403);
     expect((await qget('/policy-templates', 'sa01')).status).toBe(403);
   }, 90_000);
 
   it('danh sách hai loại mẫu KHÔNG lẫn vào nhau', async () => {
     const hoSo = (await qget('/policy-templates', 'admin01')).body as { kind: string }[];
-    const hopDong = (await qget('/contract-templates', 'sa01')).body as { kind: string }[];
+    const hopDong = (await qget('/contract-templates', 'admin01')).body as { kind: string }[];
     expect(hoSo.every((t) => t.kind === 'HO_SO')).toBe(true);
     expect(hopDong.every((t) => t.kind === 'HOP_DONG')).toBe(true);
   }, 90_000);
@@ -1352,19 +1386,19 @@ describe('`0057` bộ file mẫu trong templates/', () => {
      * đọc ô trống, ánh xạ theo tên ô, phát hành. Một khoá gõ sai trong file chỉ
      * lộ ra ở bước này.
      */
-    const up = await uploadTemplate('sa01', readFileSync(`templates/${HOP_DONG}`), 'Mẫu bàn giao');
+    const up = await uploadTemplate('admin01', readFileSync(`templates/${HOP_DONG}`), 'Mẫu bàn giao');
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     try {
       const o = (up.body.placeholders as string[]).map((x) => ({
         placeholder: x,
         source: x.slice(2, -2),
       }));
-      expect((await dput(`/contract-templates/${up.body.id}/mapping`, 'sa01', { mapping: o })).status)
+      expect((await dput(`/contract-templates/${up.body.id}/mapping`, 'admin01', { mapping: o })).status)
         .toBe(200);
-      const pub = await dpost(`/contract-templates/${up.body.id}/publish`, 'sa01');
+      const pub = await dpost(`/contract-templates/${up.body.id}/publish`, 'admin01');
       expect(pub.status, JSON.stringify(pub.body)).toBe(200);
     } finally {
-      await dpost(`/contract-templates/${up.body.id}/deactivate`, 'sa01');
+      await dpost(`/contract-templates/${up.body.id}/deactivate`, 'admin01');
     }
   }, 90_000);
 
@@ -1420,7 +1454,7 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
      * bắt buộc chưa được đối chiếu. Cho nó vào ô chọn là mời người dùng in ra
      * một bản mang nguyên chuỗi `{{...}}`.
      */
-    const t = await uploadTemplate('sa01', makeDocx(para('Mẫu chưa ban hành')), 'Nháp chưa ban hành');
+    const t = await uploadTemplate('admin01', makeDocx(para('Mẫu chưa ban hành')), 'Nháp chưa ban hành');
     const ds = await dget('/contract-templates/available', 'sa01');
     expect((ds.body as { id: string }[]).some((m) => m.id === t.body.id)).toBe(false);
   }, 60_000);
@@ -1435,11 +1469,11 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
     const truoc = (await dget('/contract-templates/available', 'sa01')).body as { id: string }[];
     expect(truoc.length).toBeGreaterThan(0);
 
-    const t = await uploadTemplate('sa01', makeDocx(para('Bản thứ hai — {{ho_so.ma_ho_so}}')), 'Mẫu thứ hai');
-    await dput(`/contract-templates/${t.body.id}/mapping`, 'sa01', {
+    const t = await uploadTemplate('admin01', makeDocx(para('Bản thứ hai — {{ho_so.ma_ho_so}}')), 'Mẫu thứ hai');
+    await dput(`/contract-templates/${t.body.id}/mapping`, 'admin01', {
       mapping: [{ placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' }],
     });
-    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'sa01')).status).toBe(200);
+    expect((await dpost(`/contract-templates/${t.body.id}/publish`, 'admin01')).status).toBe(200);
 
     try {
       const sau = (await dget('/contract-templates/available', 'sa01')).body as { id: string }[];
@@ -1450,15 +1484,15 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
       // Mẫu vừa ban hành đứng ĐẦU: nó là bản mở sẵn cho lần xem sau.
       expect(sau[0]!.id).toBe(t.body.id);
     } finally {
-      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'sa01');
+      await dpost(`/contract-templates/${t.body.id}/deactivate`, 'admin01');
     }
   }, 90_000);
 
   it('khổ giấy ĐỌC TỪ FILE, không phải từ lời khai của người tải lên', async () => {
     // Tải hai file cùng một lượt gọi, cùng một tham số — chỉ khác nội dung .docx.
     // Nhãn khổ giấy phải theo file, vì không còn ô nào để khai.
-    const ngang = await uploadTemplate('sa01', makeDocx(para('nằm ngang'), 'a4l'), 'Tự khai gì cũng thế');
-    const doc_ = await uploadTemplate('sa01', makeDocx(para('đứng dọc'), 'a4p'), 'Bản dọc');
+    const ngang = await uploadTemplate('admin01', makeDocx(para('nằm ngang'), 'a4l'), 'Tự khai gì cũng thế');
+    const doc_ = await uploadTemplate('admin01', makeDocx(para('đứng dọc'), 'a4p'), 'Bản dọc');
     expect(ngang.body.paperSize).toBe('a4l');
     expect(doc_.body.paperSize).toBe('a4p');
   }, 60_000);

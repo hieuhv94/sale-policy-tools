@@ -35,7 +35,9 @@ const CAU_HINH: Record<
   HOP_DONG: {
     duongMau: '/contract-templates/available',
     nhan: 'hợp đồng',
-    nguoiSoan: 'Sale Admin',
+    // Từ `0060` cả hai loại mẫu đều của Quản trị hệ thống — người xuất hợp đồng
+    // chọn mẫu, nhưng không tải mẫu lên được nữa.
+    nguoiSoan: 'Quản trị hệ thống',
     duong: (id) => `/policies/${id}/contract.pdf`,
   },
 };

@@ -1,5 +1,5 @@
 /**
- * API mẫu hợp đồng (Sale Admin) và xuất hợp đồng (Kế toán · Sale Admin).
+ * API văn bản mẫu (Quản trị hệ thống) và xuất hợp đồng (Kế toán · Sale Admin).
  *
  * CHÚ Ý VỚI NGƯỜI SỬA VỀ SAU: ở đây KHÔNG có và không được thêm
  * `GET /contracts/:id`. Hợp đồng không phải một tài nguyên có định danh — nó là
@@ -70,9 +70,23 @@ function doiAnhXa<T>(body: unknown, tiep: (m: MappingInput[]) => T): T {
 export class ContractTemplatesController {
   constructor(private readonly templates: TemplatesService) {}
 
-  // Quản trị hệ thống KHÔNG có quyền ở đây: mẫu hợp đồng là văn bản nghiệp vụ
-  // của Sale Admin, khác với mẫu bản CSBH và biểu mẫu scan (DOC-26).
-  @Roles('SALE_ADMIN')
+  /*
+   * QUẢN TRỊ HỆ THỐNG, không phải Sale Admin (`0060`).
+   *
+   * DOC-26 giao mẫu hợp đồng cho Sale Admin vì nó là "văn bản nghiệp vụ của
+   * người bán". Khách hàng chốt lại ngày 20/08: gộp về Quản trị, cùng chỗ với
+   * mẫu hồ sơ CSBH.
+   *
+   * Lý do gộp không phải là "cho gọn". Hai loại mẫu dùng CHUNG một bộ máy — tải
+   * .docx lên, đọc ô trống, ánh xạ trường, ban hành — và bộ máy ấy là việc kỹ
+   * thuật: nó đòi hiểu khoá trộn, hiểu vì sao Word cắt rời một ô trống, hiểu
+   * `{{bang_san_pham}}` khác gì `{{san_pham.*}}`. Chia đôi cho hai vai trò nghĩa
+   * là hai người phải học cùng một thứ, và người học ít dùng hơn sẽ quên.
+   *
+   * Sale Admin KHÔNG mất gì trong luồng nghiệp vụ: họ vẫn xuất hợp đồng, và vẫn
+   * CHỌN mẫu nào lúc xuất — xem `available` phía dưới.
+   */
+  @Roles('QUAN_TRI')
   @Post()
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES + 1 } }))
@@ -86,7 +100,7 @@ export class ContractTemplatesController {
     return this.templates.upload(b.name, file.buffer, me);
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Get()
   list() {
     return this.templates.list();
@@ -95,8 +109,11 @@ export class ContractTemplatesController {
   /**
    * Mẫu đang dùng, cho ô chọn lúc xuất hợp đồng (`0058`).
    *
-   * Kế toán thấy được dù mẫu hợp đồng thuộc Sale Admin: chính kế toán là người
-   * bấm xuất, nên họ phải chọn được mẫu nào. Thấy danh sách ≠ sửa được mẫu.
+   * Đây là đường DUY NHẤT của `/contract-templates` mà Quản trị KHÔNG vào được,
+   * và ngược lại là đường duy nhất Kế toán với Sale Admin vào được (`0060`).
+   * Không mâu thuẫn: nó phục vụ người XUẤT hợp đồng, không phục vụ người quản lý
+   * mẫu — Quản trị không xuất hợp đồng bao giờ. Giống hệt cách `policy-templates/
+   * available` mở cho năm vai trò đọc hồ sơ mà không mở cho chính Quản trị.
    */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get('available')
@@ -104,13 +121,13 @@ export class ContractTemplatesController {
     return this.templates.khaDung('HOP_DONG');
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Get('sources')
   sources() {
     return { knownSources: KNOWN_SOURCES };
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Get(':id/placeholders')
   async placeholders(@Param('id') id: string) {
     const declared = await this.templates.placeholders(id);
@@ -124,20 +141,20 @@ export class ContractTemplatesController {
     };
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Put(':id/mapping')
   mapping(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     return doiAnhXa(body, (mapping) => this.templates.setMapping(id, mapping, me));
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Post(':id/publish')
   @HttpCode(200)
   publish(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     return this.templates.publish(id, me);
   }
 
-  @Roles('SALE_ADMIN')
+  @Roles('QUAN_TRI')
   @Post(':id/deactivate')
   @HttpCode(200)
   deactivate(@CurrentUser() me: AuthUser, @Param('id') id: string) {
@@ -148,15 +165,17 @@ export class ContractTemplatesController {
 /**
  * Mẫu HỒ SƠ CSBH — của **Quản trị hệ thống** (muc 6.4, `0055`).
  *
- * Cùng bộ máy với mẫu hợp đồng, khác ba chỗ và cả ba đều đáng để tách controller
- * riêng thay vì thêm một tham số `kind` vào controller kia:
+ * VẪN TÁCH CONTROLLER dù từ `0060` cả hai loại mẫu cùng một chủ, và hai lý do
+ * cũ mất đi một:
  *
- *   1. **Vai trò khác** — `QUAN_TRI`, không phải `SALE_ADMIN`. Gộp lại là một
- *      `@Roles` mang cả hai vai trò rồi kiểm tay ở thân hàm, và mọi phép kiểm
- *      tay đều là một phép kiểm có thể quên.
- *   2. **Mỗi khổ giấy một mẫu** — đường tải lên bắt buộc có `paperSize`, đường
- *      của hợp đồng thì cấm.
- *   3. Đường dẫn nói đúng thứ nó quản: `/policy-templates`.
+ *   1. ~~Vai trò khác~~ — không còn: cả hai là `QUAN_TRI`.
+ *   2. **Luật khác nhau, không phải cấu hình khác nhau.** Mẫu hồ sơ có 13 mục
+ *      bắt buộc kiểm lúc ban hành, và có `{{bang_san_pham}}` do hệ thống dựng.
+ *      Mẫu hợp đồng không có mục bắt buộc nào và vẽ bảng bằng tay. Gộp lại là
+ *      một controller đầy nhánh `if (kind === 'HO_SO')`.
+ *   3. **Đường dẫn nói đúng thứ nó quản.** Và đó không chỉ là chuyện thẩm mỹ:
+ *      `available` của hai loại mở cho hai tập vai trò khác hẳn nhau, nên gộp
+ *      đường dẫn là gộp luôn hai phép kiểm quyền không gộp được.
  */
 @Controller('policy-templates')
 export class PolicyTemplatesController {

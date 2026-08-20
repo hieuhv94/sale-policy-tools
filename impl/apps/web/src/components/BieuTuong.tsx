@@ -78,18 +78,17 @@ const HinhChietKhau = (
   </Hinh>
 );
 
-/** Hai tờ giấy chồng nhau — mẫu để nhân bản, không phải một văn bản cụ thể. */
+/**
+ * Hai tờ giấy chồng nhau — mẫu để nhân bản, không phải một văn bản cụ thể.
+ *
+ * Dùng cho cả *Văn bản mẫu* (`0060`). Hình riêng của mục *Mẫu hợp đồng* đã gỡ
+ * cùng lúc với mục menu ấy — hai loại mẫu giờ là hai thẻ trong một trang, và
+ * một trang thì có một biểu tượng.
+ */
 const HinhGiayToMau = (
   <Hinh>
     <path d="M8 3h7l3 3v10H8z" />
     <path d="M15 3v3h3M16 16v5H6V8h2" />
-  </Hinh>
-);
-
-const HinhMauHopDong = (
-  <Hinh>
-    <path d="M6 3h9l4 4v14H6z" />
-    <path d="M15 3v4h4M9 12h6M9 16h6" />
   </Hinh>
 );
 
@@ -131,10 +130,12 @@ export function bieuTuongMuc(duong: string): ReactNode {
       return HinhDanhMuc;
     case '/chiet-khau':
       return HinhChietKhau;
+    // Hai mục menu cũ gộp thành một ở `0060`. Giữ cả ba đường vì hai đường cũ
+    // vẫn dẫn tới cùng màn hình — xem `App.tsx`.
+    case '/van-ban-mau':
     case '/giay-to-mau':
-      return HinhGiayToMau;
     case '/mau-hop-dong':
-      return HinhMauHopDong;
+      return HinhGiayToMau;
     case '/nguoi-dung':
       return HinhNguoiDung;
     case '/nhat-ky':

@@ -5,7 +5,7 @@
  * sources.ts` — máy chủ không có endpoint nào trả danh sách này ra, chỉ trả
  * `knownSources`. Bản sao là chỗ dễ lệch, nên `mau-hop-dong.test.ts` đọc thẳng
  * tệp nguồn của máy chủ và đối chiếu: thêm một định dạng ở máy chủ mà quên ở đây
- * thì test đỏ, chứ không phải Sale Admin phát hiện ra khi ô chọn thiếu mục.
+ * thì test đỏ, chứ không phải người soạn mẫu phát hiện ra khi ô chọn thiếu mục.
  */
 export const DINH_DANG = ['text', 'money_vnd', 'date_dmy', 'percent_2'] as const;
 export type DinhDang = (typeof DINH_DANG)[number];
@@ -28,7 +28,7 @@ export type MauHopDong = {
   isDefault: boolean;
   publishedAt: string | null;
   updatedAt: string;
-  /** `0055` — HOP_DONG của Sale Admin, HO_SO của Quản trị hệ thống. */
+  /** `0055` — hai loại mẫu; từ `0060` cả hai đều của Quản trị hệ thống. */
   kind?: LoaiMau;
   /** Chỉ mẫu hồ sơ: khổ giấy của chính file .docx. */
   paperSize?: KhoGiay | null;

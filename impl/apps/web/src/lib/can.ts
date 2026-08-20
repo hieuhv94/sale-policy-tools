@@ -85,7 +85,8 @@ export const QUYEN_GHI = {
    */
   xoaKhachHang: ['TDV'],
   quanTriDanhMuc: ['QUAN_TRI'],
-  quanTriMauHopDong: ['SALE_ADMIN'],
+  /** Cả hai loại văn bản mẫu — hồ sơ CSBH và hợp đồng (`0060`). */
+  quanTriVanBanMau: ['QUAN_TRI'],
   quanTriNguoiDung: ['QUAN_TRI'],
   taiTepDinhKem: ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'],
 } as const satisfies Record<string, readonly VaiTro[]>;
@@ -104,15 +105,19 @@ export const QUYEN_XEM = {
   // trò đọc được — đó là hai thứ phải tra khi lập và khi duyệt hồ sơ.
   sanPham: VAI_TRO,
   chietKhau: VAI_TRO,
-  // Giấy tờ mẫu CHỈ Quản trị. Bày cho vai trò khác là một mục menu dẫn tới màn
-  // hình họ không làm được gì.
-  giayToMau: ['QUAN_TRI'],
+  /*
+   * Văn bản mẫu CHỈ Quản trị — cả hai loại (`0060`).
+   *
+   * Tới `0059` là hai mục: `giayToMau` của Quản trị và `mauHopDong` của Sale
+   * Admin. Khách hàng gộp chủ sở hữu về một người ngày 20/08, nên hai mục thành
+   * hai thẻ trong một trang.
+   *
+   * Sale Admin KHÔNG còn mục menu nào ở đây, và cũng không mất gì: họ vẫn xuất
+   * hợp đồng và vẫn chọn mẫu nào lúc xuất, ngay trên màn hình hồ sơ.
+   */
+  vanBanMau: ['QUAN_TRI'],
   /** Nhật ký chỉ Ban lãnh đạo và Quản trị đọc; các vai trò trong luồng thì không. */
   nhatKy: ['BAN_LANH_DAO', 'QUAN_TRI'],
-  // CHỈ Sale Admin. Mẫu hợp đồng là văn bản nghiệp vụ của họ, khác với mẫu bản
-  // CSBH và biểu mẫu scan (DOC-26) — máy chủ cũng chỉ cho `SALE_ADMIN`, nên để
-  // `QUAN_TRI` ở đây là bày ra một mục menu luôn dẫn tới 403.
-  mauHopDong: ['SALE_ADMIN'],
   nguoiDung: ['QUAN_TRI'],
 } as const satisfies Record<string, readonly VaiTro[]>;
 
@@ -131,8 +136,7 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/bao-cao', nhan: 'Báo cáo', muc: 'baoCao' },
   { duong: '/san-pham', nhan: 'Sản phẩm', muc: 'sanPham' },
   { duong: '/chiet-khau', nhan: 'Chiết khấu', muc: 'chietKhau' },
-  { duong: '/giay-to-mau', nhan: 'Giấy tờ mẫu', muc: 'giayToMau' },
-  { duong: '/mau-hop-dong', nhan: 'Mẫu hợp đồng', muc: 'mauHopDong' },
+  { duong: '/van-ban-mau', nhan: 'Văn bản mẫu', muc: 'vanBanMau' },
   { duong: '/nguoi-dung', nhan: 'Người dùng', muc: 'nguoiDung' },
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },
 ];

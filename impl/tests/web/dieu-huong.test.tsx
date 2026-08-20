@@ -82,3 +82,40 @@ describe('mọi mục điều hướng dẫn tới một màn hình', () => {
     expect(kieu(noiDung('/nguoi-dung', 'TDV'))).toBe(KhongCoQuyen);
   });
 });
+
+// =============================================================================
+// `0060` — hai mục menu mẫu gộp thành một trang hai thẻ
+// =============================================================================
+
+describe('`0060` Văn bản mẫu — một mục menu, một chủ', () => {
+  it('CHỈ Quản trị có mục ấy, và chỉ có MỘT mục về văn bản mẫu', () => {
+    /*
+     * Tới `0059` là hai mục cạnh nhau của hai vai trò khác nhau: *Giấy tờ mẫu*
+     * của Quản trị và *Mẫu hợp đồng* của Sale Admin. Gộp chủ sở hữu về một người
+     * mà để nguyên hai mục thì thành hai chỗ cho một việc, trên cùng một menu.
+     */
+    const cuaQuanTri = dieuHuongCho('QUAN_TRI').filter((m) => m.duong.includes('mau'));
+    expect(cuaQuanTri.map((m) => m.duong)).toEqual(['/van-ban-mau']);
+    expect(cuaQuanTri[0]!.nhan).toBe('Văn bản mẫu');
+  });
+
+  it('Sale Admin KHÔNG còn mục menu nào về mẫu', () => {
+    // Họ vẫn xuất hợp đồng và vẫn chọn mẫu lúc xuất — nhưng ngay trên màn hình
+    // hồ sơ, không phải ở một mục menu riêng.
+    expect(dieuHuongCho('SALE_ADMIN').filter((m) => m.duong.includes('mau'))).toEqual([]);
+  });
+
+  it('hai địa chỉ CŨ vẫn mở đúng trang ấy, không rơi vào "không có màn hình"', () => {
+    /*
+     * `/giay-to-mau` và `/mau-hop-dong` nằm trong tài liệu hướng dẫn và trong
+     * kịch bản chạy demo. Chết một địa chỉ đang được viết ra giấy thì người đọc
+     * tài liệu gặp "Không có màn hình nào ở địa chỉ này" và không đoán được đi
+     * đâu — mà lỗi ấy trông y hệt một lỗi lập trình.
+     */
+    for (const d of ['/van-ban-mau', '/giay-to-mau', '/mau-hop-dong']) {
+      expect(kieu(noiDung(d, 'QUAN_TRI')), d).not.toBe(KhongCoManHinh);
+      // Và vai trò khác vẫn bị chặn ở tầng định tuyến, không chỉ bị ẩn menu.
+      expect(kieu(noiDung(d, 'SALE_ADMIN')), `${d} phải chặn Sale Admin`).toBe(KhongCoQuyen);
+    }
+  });
+});

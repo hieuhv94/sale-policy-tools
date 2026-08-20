@@ -132,9 +132,8 @@ trong hai:
 | **Phạm vi** | Những hồ sơ được Kế toán giao cho mình ở bước tiếp nhận lần 1 `sửa 16/08` |
 
 - Nhận hồ sơ **sau khi** kế toán tiếp nhận lần 1.
-- **Tạo và duy trì mẫu hợp đồng** — soạn sẵn văn bản mẫu, tải lên hệ thống, đặt ánh xạ giữa các ô
-  trống trên mẫu với trường dữ liệu trong hồ sơ CSBH và hồ sơ khách hàng. Tại một thời điểm chỉ có
-  một mẫu đang dùng.
+- ~~Tạo và duy trì mẫu hợp đồng~~ **đã chuyển sang Quản trị hệ thống** `sửa 20/08` — xem mục 8.2.
+  Sale Admin vẫn **chọn mẫu nào** lúc xuất hợp đồng, chỉ không tải mẫu lên và không ban hành nữa.
 - **Xuất hợp đồng** — quyền dùng chung với kế toán, cùng điều kiện: chỉ xuất được sau tiếp nhận
   lần 1. Xuất được nhiều lần; hệ thống không lưu lại hợp đồng.
 - In bản cứng, trình Ban lãnh đạo ký, nhận lại, scan và tải file lên hệ thống.
@@ -154,8 +153,9 @@ Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ
 ### 2.7. Quản trị hệ thống
 
 - Nhập và duy trì danh mục sản phẩm và giá, nhóm sản phẩm, chiết khấu quy định, danh mục tra cứu.
-  **Mẫu hợp đồng không thuộc vai trò này** — xem mục 2.5. Mẫu hồ sơ CSBH thuộc vai trò này nhưng
-  **chưa làm**, và *Người ký* đã xoá hẳn — xem mục 6.4.
+  **Cả hai loại văn bản mẫu thuộc vai trò này** `sửa 20/08` — mẫu hồ sơ CSBH và mẫu hợp đồng, ở màn
+  hình *Văn bản mẫu*, hai thẻ. Bản trước giao mẫu hợp đồng cho Sale Admin (mục 8.2); khách hàng gộp
+  về một chủ ngày 20/08. *Người ký* đã xoá hẳn — xem mục 6.4.
 - Quản lý tài khoản, vai trò và cây phân quyền ở mục 2.1 — quy trình tạo tài khoản ở mục 2.8.
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
@@ -546,12 +546,12 @@ Cột **“Độ cụ thể”** đã **gỡ khỏi bảng** quy định. Nó l�
 người đọc phải tự học luật trọng số mới hiểu — trong khi cột *Áp dụng cho* ngay bên cạnh đã
 nói rõ dòng nào hẹp hơn dòng nào.
 
-### 6.4. Giấy tờ mẫu và người ký
+### 6.4. Văn bản mẫu và người ký
 
 | Loại mẫu | Ai quản lý | Tình trạng |
 |---|---|---|
-| **Mẫu hồ sơ CSBH** | Quản trị hệ thống | **Đã làm** `19/08` — màn hình *Giấy tờ mẫu* |
-| **Mẫu hợp đồng** | **Sale Admin** | Đã làm. Văn bản riêng, soạn sẵn, có ô trống ánh xạ tới trường dữ liệu — mục 8 |
+| **Mẫu hồ sơ CSBH** | Quản trị hệ thống | **Đã làm** `19/08` — màn hình *Văn bản mẫu*, thẻ đầu |
+| **Mẫu hợp đồng** | Quản trị hệ thống `sửa 20/08` | Đã làm — cùng màn hình, thẻ thứ hai. Văn bản riêng, có ô trống ánh xạ tới trường dữ liệu — mục 8 |
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
@@ -603,7 +603,7 @@ giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước n�
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
 | **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
-| **Giấy tờ mẫu** | Chỉ Quản trị | Mẫu hồ sơ CSBH; người xem chọn mẫu lúc xem bản mềm — xem 6.4 |
+| **Văn bản mẫu** | Chỉ Quản trị | Cả hai loại mẫu, hai thẻ; người xem chọn mẫu lúc xem bản mềm — xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
 "Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở
@@ -709,14 +709,25 @@ bản người dùng xem khác bản đem ký.
 Hợp đồng **lấy dữ liệu từ** hồ sơ CSBH và hồ sơ khách hàng để điền vào ô trống trên mẫu. Nó không
 phải một cách in khác của hồ sơ.
 
-### 8.2. Mẫu hợp đồng — do Sale Admin tạo sẵn
+### 8.2. Mẫu hợp đồng — do Quản trị hệ thống tạo sẵn `sửa 20/08`
 
-- Sale Admin soạn văn bản mẫu bên ngoài, tải lên hệ thống, rồi **ánh xạ** từng ô trống trên mẫu với
+> **Đổi chủ sở hữu.** Bản trước giao mục này cho Sale Admin, vì mẫu hợp đồng là "văn bản nghiệp vụ
+> của người bán". Khách hàng chốt ngày 20/08: gộp về Quản trị hệ thống, cùng màn hình với mẫu hồ sơ
+> CSBH. Lý do là **bộ máy giống hệt nhau** — tải `.docx` lên, đọc ô trống, ánh xạ trường, ban hành —
+> và bộ máy ấy là việc kỹ thuật: nó đòi hiểu khoá trộn, hiểu vì sao Word cắt rời một ô trống, hiểu
+> `{{bang_san_pham}}` khác gì `{{san_pham.*}}`. Chia đôi cho hai vai trò là bắt hai người học cùng
+> một thứ, và người ít dùng hơn sẽ quên.
+>
+> Sale Admin **không mất gì trong luồng nghiệp vụ**: họ vẫn xuất hợp đồng, và vẫn chọn mẫu nào lúc
+> xuất, ngay trên màn hình hồ sơ.
+
+- Quản trị soạn văn bản mẫu bên ngoài, tải lên hệ thống, rồi **ánh xạ** từng ô trống trên mẫu với
   một trường dữ liệu: tên và mã khách hàng, người đại diện, địa chỉ đăng ký, nơi nhận hàng, mã số
   thuế, công nợ, danh sách sản phẩm và giá trong CSBH, mã CSBH, ngày duyệt.
 - Hệ thống **cảnh báo trường thiếu** trước khi xuất và cho **xem trước** bản đã trộn.
-- Tại một thời điểm chỉ có **một mẫu đang dùng**. Sửa mẫu là thay mẫu đang dùng; file mẫu cũ giữ lại
-  để quay lui khi cần, ngoài ra không có ràng buộc phiên bản nào.
+- **Nhiều mẫu cùng đang dùng được** `sửa 20/08`: người xuất hợp đồng chọn mẫu nào trong ô chọn.
+  *Ban hành* là đưa vào danh sách chọn, không phải thay mẫu cũ. File mẫu cũ giữ lại, và không có
+  ràng buộc phiên bản nào.
 - Khi triển khai, hệ thống **có sẵn một mẫu hợp đồng mặc định** để chạy thử ngay, không phải chờ
   Sale Admin soạn mẫu thật.
 - Quản trị hệ thống không quản lý mẫu này (xem mục 6.4).

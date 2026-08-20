@@ -800,10 +800,15 @@ tải lên.
   địa chỉ khách hàng vừa đổi thì bản mới mang địa chỉ mới — đúng theo thiết kế.
 - Trưởng bộ phận **không** thấy nút này.
 
-### Mẫu hợp đồng (Sale Admin)
+### Mẫu hợp đồng (Quản trị hệ thống) `sửa 20/08`
 
-*Mẫu hợp đồng* — file Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng. Ba
-bước, theo đúng thứ tự:
+*Mẫu hợp đồng* — file Word có ô trống, được trộn dữ liệu hồ sơ vào lúc Kế toán xuất hợp đồng. Nó
+nằm ở **thẻ thứ hai của màn hình *Văn bản mẫu***, cùng chỗ với mẫu hồ sơ CSBH.
+
+> **Đổi chủ.** Trước 20/08 mục này thuộc Sale Admin. Sale Admin không mất gì trong công việc hằng
+> ngày: họ vẫn xuất hợp đồng và vẫn chọn mẫu nào lúc xuất — chỉ không tải mẫu lên nữa.
+
+Ba bước, theo đúng thứ tự:
 
 1. **Tải mẫu lên** — file `.docx` với ô trống dạng `{{ten_o}}`. Hệ thống đọc ô trống ngay lúc tải;
    file hỏng thì mẫu đang dùng không bị ảnh hưởng. Trang thêm mẫu bày sẵn danh sách khoá, bấm một
@@ -999,12 +1004,18 @@ kể cả hồ sơ nộp từ trước — rút ngắn hạn có thể làm mộ
 lý cũ. Kết quả *"đã gửi thành công trước đó"* không phải lỗi — sự kiện đã đi lọt ở một lượt khác, và
 thư được đánh dấu đã xử lý.
 
-## 13. Sản phẩm, Chiết khấu, Giấy tờ mẫu
+## 13. Sản phẩm, Chiết khấu, Văn bản mẫu
 
 Ba mục menu riêng. **Sản phẩm** và **Chiết khấu** mọi vai trò vào được — vai trò không phải Quản trị
-thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Giấy tờ mẫu** chỉ Quản trị hệ thống thấy.
+thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Văn bản mẫu** chỉ Quản trị hệ thống thấy.
 
-### 13.0. Giấy tờ mẫu — mẫu hồ sơ CSBH `mới 19/08`
+### 13.0. Văn bản mẫu — hai thẻ `sửa 20/08`
+
+Màn hình có **hai thẻ**: *Mẫu hồ sơ CSBH* và *Mẫu hợp đồng*. Cùng một cách làm việc — tải `.docx`
+lên, ánh xạ ô trống, ban hành — nên chúng ở cùng một chỗ. Phần dưới nói về thẻ thứ nhất; thẻ *Mẫu
+hợp đồng* xem mục 7.
+
+#### Thẻ *Mẫu hồ sơ CSBH* `mới 19/08`
 
 Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không còn dựng cứng trong phần
 mềm. Màn hình này là chỗ quản mẫu ấy: tải lên → ánh xạ từng ô trống tới một trường dữ liệu → ban
@@ -1043,8 +1054,9 @@ hành.
   > Thư mục ấy còn một file thứ tư, `mau-hop-dong-a4-doc.docx` `mới 20/08` — **mẫu hợp đồng**, thuộc
   > Sale Admin và tải lên ở màn hình khác. Bản demo **không** nạp nó; ai cần thì tự tải lên.
 
-> Đây **không phải** mẫu hợp đồng. Mẫu hợp đồng do **Sale Admin** soạn ở màn hình riêng, và Quản trị
-> hệ thống không sửa được nó.
+> Đây **không phải** mẫu hợp đồng — nó là **thẻ bên cạnh**, cùng màn hình, cùng người quản lý
+> `sửa 20/08`. Khác nhau ở luật: mẫu hồ sơ có 13 mục bắt buộc và bảng do hệ thống dựng; mẫu hợp đồng
+> không có mục bắt buộc nào và bảng thì vẽ tay.
 
 ### 13.1. Sản phẩm
 
@@ -1152,11 +1164,9 @@ bằng cột *Id* cộng cột *QĐCK*.
 > ngưỡng chỉ khớp theo **nhóm sản phẩm × loại khách hàng**, và ba danh mục ấy không còn ô nào để điền
 > vào.
 
-### 13.3. Giấy tờ mẫu (chỉ Quản trị hệ thống)
+### 13.3. Văn bản mẫu (chỉ Quản trị hệ thống)
 
-Đã nhập được — xem **13.0** ở trên để biết cách soạn và ban hành một mẫu hồ sơ CSBH.
-
-**Mẫu hợp đồng không nằm ở đây.** Nó thuộc **Sale Admin**, ở mục menu *Mẫu hợp đồng* riêng.
+Xem **13.0** ở trên: một màn hình, hai thẻ — *Mẫu hồ sơ CSBH* và *Mẫu hợp đồng*.
 
 > **Người ký đã gỡ khỏi phần mềm.** Yêu cầu cho chức năng này chưa đủ rõ: chưa xác định người ký
 > dùng ở đâu trong luồng và ai gán cho hồ sơ nào. Sẽ dựng lại sau khi chốt yêu cầu.

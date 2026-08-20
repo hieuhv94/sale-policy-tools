@@ -92,18 +92,18 @@ export class FilesService {
     if (ownerKind === 'TEMPLATE') {
       /*
        * File mẫu không thuộc cây phân quyền hồ sơ (DOC-26) — nó thuộc về người
-       * quản lý mẫu. Từ `0055` có HAI loại mẫu và HAI người quản lý: Sale Admin
-       * giữ mẫu hợp đồng (muc 8.2), Quản trị giữ mẫu hồ sơ CSBH (muc 6.4).
+       * quản lý mẫu, và từ `0060` chỉ còn MỘT người: Quản trị hệ thống giữ cả
+       * hai loại mẫu.
        *
-       * Phép kiểm ở đây chỉ nói "ai được đụng vào file mẫu nói chung". Chốt thật
-       * — ai được đụng vào LOẠI nào — nằm ở `@Roles` của hai controller, nơi
-       * đường dẫn đã tách đôi. Nới ở đây không mở thêm cửa nào: Quản trị vẫn
-       * nhận 403 ở mọi đường `/contract-templates`.
+       * `0055` mở cho cả Sale Admin vì khi ấy họ giữ mẫu hợp đồng (muc 8.2).
+       * Khách hàng gộp về Quản trị ngày 20/08, nên để Sale Admin ở đây là để
+       * lại một cửa không còn ai đi qua — và một cửa như thế thì không ai nhớ
+       * để đóng lúc nó thành vấn đề.
        */
-      if (me.role !== 'SALE_ADMIN' && me.role !== 'QUAN_TRI') {
+      if (me.role !== 'QUAN_TRI') {
         throw new ForbiddenException({
           code: 'FORBIDDEN_ROLE',
-          message: 'File mẫu thuộc Sale Admin (mẫu hợp đồng) hoặc Quản trị hệ thống (mẫu hồ sơ)',
+          message: 'File văn bản mẫu thuộc Quản trị hệ thống',
         });
       }
       return;

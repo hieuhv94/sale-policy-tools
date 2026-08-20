@@ -6855,3 +6855,58 @@ khi CSDL có 3. Đếm số **nạp thật**, vì một con số kể cả mẫu
 CSDL lại phải đi tìm xem mình vừa mất một mẫu ở đâu.
 
 **1261/1261 xanh** (chạy trước khi dựng demo — `make test` từ chối chạy khi chồng demo đang bật).
+
+## P92 — Mẫu hợp đồng về tay Quản trị: một trang *Văn bản mẫu*, hai thẻ
+
+DOC-26 giao mẫu hợp đồng cho Sale Admin vì nó là *"văn bản nghiệp vụ của người bán"*. Khách hàng
+chốt lại ngày 20/08: gộp về Quản trị hệ thống.
+
+Lý do gộp không phải là cho gọn. Hai loại mẫu dùng **chung một bộ máy** — tải `.docx` lên, đọc ô
+trống, ánh xạ trường, ban hành — và bộ máy ấy là **việc kỹ thuật**: nó đòi hiểu khoá trộn, hiểu vì
+sao Word cắt rời một ô trống thành ba mảnh XML, hiểu `{{bang_san_pham}}` khác gì `{{san_pham.*}}`.
+Chia đôi cho hai vai trò nghĩa là hai người phải học cùng một thứ, và người ít dùng hơn sẽ quên.
+
+Sale Admin **không mất gì trong luồng**: vẫn xuất hợp đồng, vẫn chọn mẫu nào lúc xuất.
+
+### Một bất đối xứng cố ý
+
+`/contract-templates/available` là đường DUY NHẤT của nhóm mà **Quản trị không vào được**, và là
+đường duy nhất Kế toán với Sale Admin vào được. Không mâu thuẫn: nó phục vụ người **xuất** hợp đồng,
+không phục vụ người **quản lý** mẫu — Quản trị không xuất hợp đồng bao giờ. Đúng hình dạng mà
+`policy-templates/available` đã có từ `0058`: mở cho năm vai trò đọc hồ sơ, đóng với chính Quản trị.
+
+### Vì sao KHÔNG gộp luôn hai controller
+
+Sau lượt này hai controller chỉ còn khác nhau ở `available`. Vẫn tách, và lý do cũ mất đi một:
+
+1. ~~Vai trò khác nhau~~ — không còn.
+2. **Luật khác nhau, không phải cấu hình khác nhau.** Mẫu hồ sơ có 13 mục bắt buộc kiểm lúc ban
+   hành và `{{bang_san_pham}}` do hệ thống dựng; mẫu hợp đồng không có mục bắt buộc nào và vẽ bảng
+   bằng tay. Gộp lại là một controller đầy nhánh `if (kind === 'HO_SO')`.
+3. **`available` của hai loại mở cho hai tập vai trò khác hẳn nhau** — gộp đường dẫn là gộp luôn hai
+   phép kiểm quyền không gộp được.
+
+### Ca kiểm thử: đổi chiều chứ không xoá
+
+Ca `DOC-26` cũ khẳng định *"Quản trị gọi API mẫu hợp đồng thì 403"*. Cách nhanh là xoá nó đi. Cách
+đúng là **giữ nguyên hình dạng và đảo mọi khẳng định**, rồi thêm nửa còn lại — vì một lượt "nới
+quyền" rất dễ bỏ quên nửa kia: mở cho Quản trị mà quên đóng cho Sale Admin thì cả hai cùng vào được,
+và không có gì đỏ.
+
+Ba ca thay cho một: Quản trị quản lý được · Sale Admin **không** còn quản lý được · nhưng Sale Admin
+và Kế toán **vẫn** chọn được mẫu lúc xuất.
+
+### Hai cái bẫy gặp trong lượt này
+
+- **Phép quét theo dòng bỏ sót lời gọi trải nhiều dòng.** Đổi `'sa01'` → `'admin01'` cho mọi dòng
+  chứa `/contract-templates`, nhưng một lời gọi `uploadTemplate(` xuống dòng nên tham số `'sa01'`
+  nằm một mình ở dòng sau. Kết quả: upload trả 403, `t.body.id` là `undefined`, `WHERE id =
+  undefined` cho Postgres nổ, và triệu chứng là **HTTP 500 ở bước publish** — cách xa nguyên nhân ba
+  bước.
+- **`make demo` để lại dữ liệu mẫu của demo trong CSDL của bộ test.** Sau `make demo-down`, `make
+  test` seed lại tài khoản nhưng KHÔNG động vào `doc.contract_template`, nên bộ test chạy trên 22
+  mẫu hợp đồng của demo và không có mẫu mặc định nào — sáu ca đỏ với `409 NO_ACTIVE_TEMPLATE` và
+  *"thiếu mẫu mặc định cho khổ a4l"*. Xoá bảng mẫu rồi để service seed lại là xong. Đây là lần thứ
+  hai cái bẫy này cắn; nó đã có trong CLAUDE.md.
+
+**1268/1268 xanh.**

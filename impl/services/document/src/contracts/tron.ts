@@ -2,7 +2,7 @@
  * Trộn dữ liệu hồ sơ vào bảng ánh xạ của một mẫu (`0055`).
  *
  * Tách khỏi `contracts.service` vì từ `0055` có HAI thứ dùng chung phép trộn
- * này: hợp đồng (mẫu của Sale Admin) và bản mềm CSBH (mẫu của Quản trị). Chép
+ * này: hợp đồng và bản mềm CSBH — từ `0060` cả hai mẫu đều của Quản trị. Chép
  * vòng lặp sang chỗ thứ hai là chép luôn cả luật "thiếu trường bắt buộc thì
  * chặn" — và bản chép sẽ trôi khỏi bản gốc ở đúng lúc không ai để ý.
  */

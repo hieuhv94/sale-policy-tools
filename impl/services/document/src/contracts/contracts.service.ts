@@ -97,8 +97,8 @@ export class ContractsService {
       throw new ConflictException({
         code: 'NO_ACTIVE_TEMPLATE',
         message:
-          'Chưa có mẫu hợp đồng nào đang dùng. Đề nghị Sale Admin phát hành một mẫu ' +
-          'ở màn hình Mẫu hợp đồng rồi xuất lại.',
+          'Chưa có mẫu hợp đồng nào đang dùng. Đề nghị Quản trị hệ thống phát hành ' +
+          'một mẫu ở màn hình Văn bản mẫu rồi xuất lại.',
       });
     }
 

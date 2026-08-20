@@ -9,7 +9,7 @@ import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
 import { QuenMatKhau } from './pages/QuenMatKhau.js';
 import { NguoiDung } from './pages/NguoiDung.js';
 import { ThongTin } from './pages/ThongTin.js';
-import { MauHopDong } from './pages/MauHopDong.js';
+import { VanBanMau } from './pages/MauHopDong.js';
 import { LapHoSo } from './pages/LapHoSo.js';
 import { TongQuan } from './pages/TongQuan.js';
 import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
@@ -18,7 +18,7 @@ import { NhatKyHoSo } from './pages/NhatKyHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
 import { BaoCao } from './pages/BaoCao.js';
 import { NhatKy } from './pages/NhatKy.js';
-import { TrangChietKhau, TrangGiayToMau, TrangSanPham } from './pages/DanhMuc.js';
+import { TrangChietKhau, TrangSanPham } from './pages/DanhMuc.js';
 
 export function App() {
   const { nguoiDung, hetHan, dangTai } = usePhien();
@@ -99,15 +99,20 @@ export function noiDung(duong: string, vaiTro: string) {
   // kết đã lưu trong trình duyệt và trong tài liệu chạy demo vẫn còn dùng nó.
   if (duong === '/danh-muc' || duong === '/san-pham') return <TrangSanPham />;
   if (duong === '/chiet-khau') return <TrangChietKhau />;
-  if (duong === '/giay-to-mau') {
-    return xem(vaiTro, 'giayToMau') ? <TrangGiayToMau /> : <KhongCoQuyen />;
+  /*
+    Hai đường CŨ trỏ về cùng một trang (`0060`).
+
+    `/giay-to-mau` và `/mau-hop-dong` đã gộp thành `/van-ban-mau` với hai thẻ.
+    Giữ hai đường cũ sống vì chúng nằm trong tài liệu hướng dẫn và trong kịch
+    bản chạy demo — chết một địa chỉ đang được viết ra giấy thì người đọc tài
+    liệu gặp "Không có màn hình nào ở địa chỉ này" và không đoán được đi đâu.
+  */
+  if (duong === '/van-ban-mau' || duong === '/giay-to-mau' || duong === '/mau-hop-dong') {
+    return xem(vaiTro, 'vanBanMau') ? <VanBanMau /> : <KhongCoQuyen />;
   }
 
   if (duong === '/nguoi-dung') {
     return xem(vaiTro, 'nguoiDung') ? <NguoiDung /> : <KhongCoQuyen />;
-  }
-  if (duong === '/mau-hop-dong') {
-    return xem(vaiTro, 'mauHopDong') ? <MauHopDong /> : <KhongCoQuyen />;
   }
 
   // Chặn ở cả tầng định tuyến, không chỉ ẩn mục menu: gõ thẳng địa chỉ vào thanh

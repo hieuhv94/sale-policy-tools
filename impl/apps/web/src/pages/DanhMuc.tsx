@@ -29,7 +29,6 @@ import { useTrangMay } from '../lib/phan-trang.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
 import { TheNhom } from '../components/danh-muc/Nhom.js';
 import { TheChietKhau } from '../components/danh-muc/ChietKhau.js';
-import { GiayToMau } from './MauHopDong.js';
 
 /**
  * Danh sách nhóm sản phẩm, tải một lần cho cả màn hình.
@@ -145,21 +144,14 @@ export function TrangChietKhau() {
   );
 }
 
-// --- Giấy tờ mẫu ------------------------------------------------------------
-
-/**
- * *Giấy tờ mẫu* — mẫu hồ sơ CSBH của Quản trị (`0055`).
- *
- * Tới `0054` đây là một chỗ trống ghi "chưa làm": bản A4 dựng cứng trong mã.
- * Giờ nó là màn hình thật, và dùng lại nguyên thành phần của *Mẫu hợp đồng* —
- * cùng cơ chế, khác chủ sở hữu và khác đường API.
- *
- * KHÔNG có `DauTrang` riêng nữa: `MauVanBan` tự dựng tiêu đề của nó, và hai
- * tiêu đề chồng nhau là một màn hình nói tên mình hai lần.
- */
-export function TrangGiayToMau() {
-  return <GiayToMau />;
-}
+// --- Văn bản mẫu ------------------------------------------------------------
+//
+// Màn hình ấy KHÔNG còn ở tệp này (`0060`). Nó là `VanBanMau` trong
+// `MauHopDong.tsx`, cùng chỗ với thành phần nó bọc — một trang, hai thẻ, cả hai
+// loại mẫu thuộc Quản trị hệ thống.
+//
+// Trước `0060` chỗ này là một hàm bọc một dòng, chỉ để `App.tsx` nhập từ tệp
+// "Danh mục" cho hợp với tên mục menu cũ. Tên mục menu đổi rồi thì lý do ấy hết.
 
 function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {
   const [tim, datTim] = useState('');

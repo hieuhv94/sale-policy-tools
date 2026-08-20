@@ -1,10 +1,8 @@
 /**
- * Mẫu hợp đồng — chỉ Sale Admin (DOC-26).
+ * **Văn bản mẫu** — chỉ Quản trị hệ thống, cả hai loại mẫu (`0060`).
  *
- * Mục menu này khai từ P7d mà `App.tsx` chưa bao giờ bắt đường dẫn, nên suốt bốn
- * chặng Sale Admin bấm vào mục riêng của mình và nhận "Không có màn hình nào ở
- * địa chỉ này". P11a tạm gỡ mục menu; đây là màn hình thật, và mục menu đặt lại
- * cùng lượt này — `dieu-huong.test.tsx` bắt buộc hai thứ đó đi cùng nhau.
+ * DOC-26 từng giao mẫu hợp đồng cho Sale Admin. Khách hàng gộp về Quản trị ngày
+ * 20/08: một trang, hai thẻ — *Mẫu hồ sơ CSBH* và *Mẫu hợp đồng*.
  *
  * Ba việc, theo đúng thứ tự phải làm: tải mẫu lên → ánh xạ từng ô trống tới một
  * trường dữ liệu → ban hành. Ban hành khi còn ô chưa ánh xạ bị máy chủ chặn
@@ -31,6 +29,7 @@ import {
 import {
   BaoLoi,
   ChuThichBatBuoc,
+  DaiThe,
   DangTai,
   HopThoai,
   HopThoaiXacNhan,
@@ -41,14 +40,42 @@ import { PhanTrang } from '../components/PhanTrang.js';
 import { ThemMau } from './ThemMau.js';
 import { useTrangTaiCho } from '../lib/phan-trang.js';
 
-/** Mẫu hợp đồng — Sale Admin (muc 8.2). */
-export function MauHopDong() {
-  return <MauVanBan loai="HOP_DONG" />;
-}
+/**
+ * **Văn bản mẫu** — MỘT trang, hai thẻ, chỉ Quản trị hệ thống (`0060`).
+ *
+ * Tới `0059` đây là hai mục menu của hai vai trò khác nhau: *Giấy tờ mẫu* của
+ * Quản trị và *Mẫu hợp đồng* của Sale Admin. Khách hàng gộp chủ sở hữu về một
+ * người ngày 20/08, và khi ấy hai mục menu cạnh nhau, cùng một người, cùng một
+ * cách làm việc — tải .docx lên, ánh xạ ô trống, ban hành — trở thành hai chỗ
+ * cho một việc.
+ *
+ * THẺ chứ không phải hai địa chỉ: hai thẻ của cùng một trang là cùng một màn
+ * hình, nên nút Quay lại của trình duyệt đưa người dùng RA KHỎI màn hình chứ
+ * không đi ngược qua từng thẻ họ đã bấm.
+ */
+export function VanBanMau() {
+  const [the, datThe] = useState<LoaiMau>('HO_SO');
+  return (
+    <>
+      <DaiThe
+        nhanVung="Loại văn bản mẫu"
+        dangChon={the}
+        chon={datThe}
+        muc={[
+          { khoa: 'HO_SO' as LoaiMau, nhan: 'Mẫu hồ sơ CSBH' },
+          { khoa: 'HOP_DONG' as LoaiMau, nhan: 'Mẫu hợp đồng' },
+        ]}
+      />
+      {/*
+        `key` bắt React DỰNG LẠI hẳn khi đổi thẻ, không tái dùng cây cũ.
 
-/** Giấy tờ mẫu — mẫu hồ sơ CSBH, Quản trị hệ thống (muc 6.4, `0055`). */
-export function GiayToMau() {
-  return <MauVanBan loai="HO_SO" />;
+        Không có nó thì trạng thái trong `MauVanBan` — danh sách đang tải, hộp
+        ánh xạ đang mở, trang thứ mấy — sống sót qua lần đổi thẻ, và người dùng
+        thấy mẫu hợp đồng trong bảng ánh xạ vừa mở cho mẫu hồ sơ.
+      */}
+      <MauVanBan key={the} loai={the} />
+    </>
+  );
 }
 
 function MauVanBan({ loai }: { loai: LoaiMau }) {
@@ -144,9 +171,9 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
 
       {/*
         Cảnh báo này quan trọng hơn mọi thứ khác trên màn hình: không có mẫu đang
-        áp dụng thì MỌI lần Kế toán bấm Xuất hợp đồng đều hỏng, mà Kế toán không
-        có quyền vào đây và cũng không đoán ra nguyên nhân. Chỉ Sale Admin chữa
-        được, nên nó phải nằm ở đây và phải nằm trên đầu.
+        áp dụng thì MỌI lần người dùng bấm Xem bản mềm hay Xuất hợp đồng đều
+        hỏng, mà họ không có quyền vào đây và cũng không đoán ra nguyên nhân. Chỉ
+        Quản trị chữa được, nên nó phải nằm ở đây và phải nằm trên đầu.
       */}
       {!dangDung && (
         <div className="bao-loi" role="alert">

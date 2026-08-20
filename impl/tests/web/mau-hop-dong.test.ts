@@ -133,3 +133,28 @@ describe('`0055` cấu hình hai loại mẫu', () => {
     }
   });
 });
+
+// =============================================================================
+// `0060` — cả hai loại mẫu về một chủ
+// =============================================================================
+
+describe('`0060` hai loại mẫu, một người quản lý', () => {
+  it('hai đường API vẫn TÁCH RIÊNG dù chung chủ', () => {
+    /*
+     * Gộp chủ sở hữu KHÔNG có nghĩa là gộp đường API. Luật của hai loại khác
+     * nhau thật: mẫu hồ sơ có 13 mục bắt buộc và `{{bang_san_pham}}` do hệ thống
+     * dựng; mẫu hợp đồng không có mục bắt buộc nào và vẽ bảng bằng tay. Gộp lại
+     * là một controller đầy nhánh `if (kind === ...)`.
+     */
+    expect(CAU_HINH_MAU.HO_SO.duong).toBe('/policy-templates');
+    expect(CAU_HINH_MAU.HOP_DONG.duong).toBe('/contract-templates');
+    expect(CAU_HINH_MAU.HO_SO.duong).not.toBe(CAU_HINH_MAU.HOP_DONG.duong);
+  });
+
+  it('mỗi loại có tiêu đề riêng để làm nhãn thẻ', () => {
+    // Hai thẻ của một trang thì nhãn phải nói được loại nào — "Mẫu hợp đồng" và
+    // "Giấy tờ mẫu" cạnh nhau thì cái thứ hai không nói lên điều gì.
+    expect(CAU_HINH_MAU.HOP_DONG.tieuDe).toBe('Mẫu hợp đồng');
+    expect(CAU_HINH_MAU.HO_SO.tieuDe).not.toBe(CAU_HINH_MAU.HOP_DONG.tieuDe);
+  });
+});
