@@ -50,7 +50,27 @@ export function BaoCao() {
 
   return (
     <section className="trang">
-      <h1>Báo cáo</h1>
+      <div className="dau-trang">
+        <h1>Báo cáo</h1>
+        {/*
+          Nút XUẤT lên góc trên bên phải (`0071`).
+
+          Nó vốn nằm trong thẻ *Xuất Excel* ở cuối trang, sau ba khối số liệu —
+          người dùng phải cuộn qua hết mới tới việc duy nhất họ LÀM trên màn hình
+          này; ba khối kia chỉ để đọc.
+
+          Chỉ NÚT lên trên; phần báo tiến độ và liên kết tải về ở lại trong thẻ.
+          Nút là thứ khởi động một việc, còn thẻ là chỗ việc ấy kể nó đang tới
+          đâu — hai vai trò khác nhau, và cái thứ hai cần chỗ để nói.
+        */}
+        {!viec && (
+          <div className="nhom-nut nhom-nut-dau">
+            <button type="button" className="nut nut-chinh" onClick={xuat}>
+              Xuất danh sách hồ sơ
+            </button>
+          </div>
+        )}
+      </div>
       <p className="mo-ta-trang">
         {tienDo.total} hồ sơ trong phạm vi dữ liệu của bạn, tính tại thời điểm mở màn hình.
       </p>
@@ -123,11 +143,7 @@ export function BaoCao() {
           File dựng ở máy chủ và tải về khi xong, nên đóng màn hình này giữa chừng cũng không hỏng.
         </p>
         {loi !== null && <BaoLoi loi={loi} />}
-        {!viec && (
-          <button type="button" className="nut nut-chinh" onClick={xuat}>
-            Xuất danh sách hồ sơ
-          </button>
-        )}
+        {!viec && <p className="ghi-chu">Bấm <strong>Xuất danh sách hồ sơ</strong> ở góc trên.</p>}
         {viec && viec.status !== 'XONG' && viec.status !== 'LOI' && (
           <p role="status" aria-live="polite">Đang dựng file…</p>
         )}

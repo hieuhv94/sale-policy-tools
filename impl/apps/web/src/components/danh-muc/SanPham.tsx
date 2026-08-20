@@ -81,7 +81,12 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
 
   return (
     <>
-      <div className="nhom-nut">
+      {/* Góc trên bên phải của THẺ (`0071`): tiêu đề trang bị dải thẻ ngăn cách,
+          nên hàng thao tác đứng ngay đầu phần nội dung mà nó tác động. */}
+      <div className="hang-thao-tac">
+        <button type="button" className="nut nut-nhe" onClick={() => datMo({ kieu: 'excel' })}>
+          Nhập từ Excel
+        </button>
         <button
           type="button"
           className="nut nut-chinh"
@@ -89,9 +94,6 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
           onClick={() => datMo({ kieu: 'tao' })}
         >
           Thêm sản phẩm
-        </button>
-        <button type="button" className="nut nut-nhe" onClick={() => datMo({ kieu: 'excel' })}>
-          Nhập từ Excel
         </button>
       </div>
 

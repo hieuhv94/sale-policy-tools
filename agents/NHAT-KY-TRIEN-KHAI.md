@@ -7176,3 +7176,67 @@ vẫn còn nguyên, và ca kiểm thử vẫn xanh trong khi ô đã hết xuố
 đo, nên đọc nguồn là cách duy nhất còn lại — và nó đủ để bắt đúng lỗi vừa kể.
 
 **1297/1297 xanh.**
+
+## P98 — Nút hành động về một chỗ: góc trên bên phải
+
+Quy ước chỉ có giá trị khi nó đúng ở **mọi** màn hình. Người dùng học nó một lần rồi thôi không đọc
+nữa, và một màn hình lệch khỏi quy ước là một màn hình họ đứng nhìn mà không thấy nút mình biết chắc
+là có.
+
+### Hai chỗ đúng, không phải một
+
+| Chỗ | Khi nào |
+|---|---|
+| `.dau-trang` | Trang có tiêu đề riêng — nút nằm cùng hàng với `<h1>` |
+| `.hang-thao-tac` | Nội dung nằm trong một THẺ của dải thẻ |
+
+Vế thứ hai là chỗ dễ làm sai: ở *Sản phẩm*, *Người dùng*, *Chiết khấu*, dải thẻ **ngăn cách** tiêu đề
+trang với nội dung. Đẩy nút của thẻ lên hàng tiêu đề nghĩa là nút phải đổi theo thẻ đang mở — một
+trạng thái phải nâng lên trên chỉ để phục vụ chỗ đứng của cái nút. Cho nó đứng đầu chính thẻ ấy,
+cũng căn phải, thì mắt vẫn tìm ở mép phải và mã vẫn nằm cạnh thứ nó tác động.
+
+### Đã chuyển
+
+| Màn hình | Nút | Trước |
+|---|---|---|
+| Chi tiết hồ sơ | **Xuất hợp đồng** | Một mục `<h2>Hợp đồng` riêng, dưới bảng sản phẩm |
+| Chi tiết hồ sơ | **Xoá hồ sơ** | Một dòng riêng ở gần cuối trang |
+| Người dùng | **Tạo người dùng** | Hàng nút giữa trang, trên ô tìm |
+| Sản phẩm | **Thêm sản phẩm**, **Nhập từ Excel** | Hàng nút giữa trang |
+| Nhóm sản phẩm | **Thêm nhóm** | Hàng nút giữa trang |
+| Chiết khấu | **Thêm quy định** | Hàng nút giữa trang |
+| Báo cáo | **Xuất danh sách hồ sơ** | Trong thẻ *Xuất Excel* ở CUỐI trang, sau ba khối số liệu |
+| Thông tin của tôi | **Lưu** | Chân biểu mẫu |
+
+Hai chỗ đáng nói thêm:
+
+**Báo cáo** — chỉ NÚT lên trên; phần báo tiến độ và liên kết tải về ở lại trong thẻ. Nút khởi động
+một việc, thẻ kể việc ấy đang tới đâu — hai vai trò khác nhau, và cái thứ hai cần chỗ để nói.
+
+**Thông tin của tôi** — nút đứng ngoài thẻ `<form>` nhưng vẫn gửi đúng biểu mẫu ấy nhờ
+`form="thong-tin"`, nên phím Enter trong ô nhập và `onSubmit` giữ nguyên đường cũ.
+
+### Đã đúng sẵn
+
+*Lập khách hàng* · *Lập hồ sơ* và *Bộ lọc* (danh sách hồ sơ) · *Sửa* / *Đổi TDV phụ trách* / *Xoá*
+(chi tiết khách hàng) · *Xem bản mềm* và các nút thao tác duyệt (chi tiết hồ sơ) · *Thêm mẫu* (Văn
+bản mẫu) · *Lưu* và *Quay lại danh sách* (Thêm mẫu).
+
+### Cố ý KHÔNG chuyển
+
+- **Chân hộp thoại** (*Lưu*/*Huỷ*): thuộc về hộp thoại, không phải màn hình.
+- **Trang xác thực**: một thẻ giữa màn hình, không có tiêu đề trang để mà căn.
+- **Nút trên từng dòng bảng** và **thao tác trên thẻ tệp**: chúng tác động lên một dòng, không phải
+  cả màn hình.
+- **Cấu hình SLA**: biểu mẫu một ô, nút đứng ngay cạnh ô. Đẩy lên góc là tách nút khỏi đúng cái ô nó
+  lưu.
+- **"Bạn muốn làm gì?" ở Lập hồ sơ** (*Bổ sung* / *Chỉnh sửa*): hai nút trả lời một câu hỏi viết
+  ngay trên chúng. Tách ra là bỏ mất câu hỏi.
+
+### Giới hạn của ca kiểm thử — nói ra thay vì để người sau tưởng nhầm
+
+Ca `0071` quét **mã nguồn**, không dựng mười bảy màn hình. Nó bắt được màn hình đã có bị sửa lệch đi;
+nó **không** bắt được một màn hình mới thêm mà quên hàng thao tác. Đó là giới hạn thật, viết thẳng
+trong tệp kiểm thử.
+
+**1300/1300 xanh.**

@@ -216,6 +216,19 @@ export function ChiTietHoSo({ id }: { id: string }) {
           <button type="button" className="nut nut-nhe" onClick={() => datMoBanMem(true)}>
             Xem bản mềm
           </button>
+          {/*
+            *Xuất hợp đồng* và *Xoá hồ sơ* LÊN ĐÂY từ `0071`.
+
+            Chúng vốn nằm giữa trang, mỗi cái một mục có tiêu đề riêng — nên hai
+            việc tác động lên CẢ hồ sơ lại nằm dưới bảng sản phẩm, còn nút *Xem
+            bản mềm* thì ở trên cùng. Người dùng phải cuộn để tìm một nút mà họ
+            biết chắc là có.
+          */}
+          {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
+            <button type="button" className="nut nut-nhe" onClick={() => datMoHopDong(true)}>
+              Xuất hợp đồng
+            </button>
+          )}
           {thaoTac.map((a) => (
             <button
               key={a}
@@ -226,6 +239,13 @@ export function ChiTietHoSo({ id }: { id: string }) {
               {HANH_DONG_NHAN[a] ?? a}
             </button>
           ))}
+          {/* Xoá đứng CUỐI nhóm và mang màu cảnh báo: nó là thao tác không lùi
+              được duy nhất ở đây, nên nó không nằm cạnh chỗ tay hay bấm. */}
+          {hoSo.xoaDuoc && can(nguoiDung?.role, 'xoaHoSo') && (
+            <button type="button" className="nut nut-canh-bao" onClick={() => datMoSua('xoa')}>
+              Xoá hồ sơ
+            </button>
+          )}
         </div>
       </div>
 
@@ -344,49 +364,17 @@ export function ChiTietHoSo({ id }: { id: string }) {
       />
 
       {/*
-        Mục này CHỈ CÒN HỢP ĐỒNG (`0054`).
+        MỤC *Hợp đồng* VÀ NÚT *Xoá hồ sơ* ĐÃ LÊN ĐẦU TRANG (`0071`).
 
-        Ba nút của bản CSBH — xem khổ dọc, tải khổ dọc, tải khổ ngang — đã dồn
-        vào một nút *Xem bản mềm* ở góc trên bên phải. Hợp đồng ở lại đây vì nó
-        là văn bản KHÁC, chỉ Kế toán và Sale Admin thấy, và chỉ sau khi tiếp
-        nhận lần 1.
+        Cả hai tác động lên CẢ hồ sơ, nên chúng thuộc về nhóm nút ở góc trên bên
+        phải cùng với *Xem bản mềm* và các thao tác duyệt — không phải hai mục
+        riêng nằm dưới bảng sản phẩm, nơi người dùng phải cuộn xuống mới thấy.
 
-        MỘT NÚT, không phải hai (`0058`). Trước đó *Xem* và *Xuất* là hai nút
-        cạnh nhau, và nút *Xuất* tải thẳng về mà không cho nhìn trước — nghĩa là
-        đường duy nhất để biết hợp đồng trông thế nào lại là đường KHÔNG để lại
-        vết trong Lịch sử. Giờ cả hai nằm trong một hộp: xem trước, chọn mẫu, rồi
-        mới bấm tải.
+        Điều kiện hiện nút thì giữ nguyên từng chữ: `xuatHopDongDuoc` do máy chủ
+        tính theo mốc tiếp nhận lần 1 (muc 8.3), `xoaDuoc` cũng do máy chủ tính —
+        hồ sơ *Từ chối* xoá được mà không có hành động nào đi ra, nên không suy
+        ra được từ `allowed-actions` (`0039`).
       */}
-      {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
-        <>
-          <h2>Hợp đồng</h2>
-          <div className="nhom-nut">
-            <button type="button" className="nut" onClick={() => datMoHopDong(true)}>
-              Xuất hợp đồng
-            </button>
-          </div>
-        </>
-      )}
-
-      {/*
-        Xoá đọc thẳng cờ `xoaDuoc` MÁY CHỦ tính (`0039`).
-
-        Tới `0035` điều kiện là `dangSua` — xoá được đúng những hồ sơ sửa được.
-        `0039` cắt đứt phép suy ấy: hồ sơ *Từ chối* xoá được mà không có hành
-        động nào đi ra, nên không suy ra được từ `allowed-actions`.
-
-        Chép danh sách trạng thái sang đây là dựng bản sao thứ hai phải giữ đồng
-        bộ, và lệch về phía nào cũng sai: thừa thì bày ra một nút chắc chắn 403,
-        thiếu thì giấu mất đường bỏ hồ sơ. Một cờ boolean thì máy chủ vẫn là nơi
-        duy nhất biết luật — kể cả phần "đúng TDV đang phụ trách".
-      */}
-      {hoSo.xoaDuoc && can(nguoiDung?.role, 'xoaHoSo') && (
-        <p>
-          <button type="button" className="nut nut-canh-bao" onClick={() => datMoSua('xoa')}>
-            Xoá hồ sơ
-          </button>
-        </p>
-      )}
 
       {/*
         LỊCH SỬ ở cuối cùng, gập lại (`0061`).

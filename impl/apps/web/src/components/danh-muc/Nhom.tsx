@@ -49,7 +49,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
 
   return (
     <>
-      <div className="nhom-nut">
+      <div className="hang-thao-tac">
         <button type="button" className="nut nut-chinh" onClick={() => datMoTao(true)}>
           Thêm nhóm
         </button>

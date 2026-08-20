@@ -97,7 +97,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
   return (
     <>
       {!chiXem && (
-        <div className="nhom-nut">
+        <div className="hang-thao-tac">
           <button type="button" className="nut nut-chinh" onClick={() => datMoTao(true)}>
             Thêm quy định
           </button>

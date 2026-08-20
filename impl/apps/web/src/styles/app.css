@@ -2027,3 +2027,20 @@ td.o-cau-chu { max-width: 32ch; }
    32ch vừa thừa vừa gây hiểu nhầm — bỏ đi cho khỏi có hai luật cùng nói một thứ. */
 .bang-khoa td.ghi-chu,
 .bang-anh-xa td.ghi-chu { max-width: none; }
+
+/* --- Hàng thao tác của một KHỐI nội dung (`0071`) -------------------------- */
+
+/* Nút hành động của cả màn hình nằm ở góc trên bên phải — với trang có tiêu đề
+   thì đó là `.dau-trang`, với nội dung bên trong một THẺ (dải thẻ Sản phẩm /
+   Nhóm / Chiết khấu) thì tiêu đề trang đã bị dải thẻ ngăn cách, nên hàng thao
+   tác của thẻ đứng ngay đầu thẻ ấy và cũng căn phải.
+
+   Cùng một quy ước cho hai chỗ: mắt luôn tìm nút hành động ở mép phải, ngay
+   trên phần nội dung mà nó tác động. */
+.hang-thao-tac {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--k2);
+  margin-bottom: var(--k3);
+}

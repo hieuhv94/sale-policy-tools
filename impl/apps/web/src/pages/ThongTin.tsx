@@ -54,9 +54,29 @@ export function ThongTin() {
 
   return (
     <section className="trang trang-hep">
-      <h1>Thông tin của tôi</h1>
+      <div className="dau-trang">
+        <h1>Thông tin của tôi</h1>
+        {/*
+          Nút LƯU ở góc trên bên phải (`0071`), như mọi màn hình khác.
+
+          `form="thong-tin"` thay cho việc nằm trong thẻ `<form>`: nút gửi biểu
+          mẫu vẫn gửi đúng biểu mẫu ấy dù đứng ngoài nó, nên phím Enter trong ô
+          nhập và cả `onSubmit` đều giữ nguyên đường cũ.
+        */}
+        <div className="nhom-nut nhom-nut-dau">
+          <button
+            type="submit"
+            form="thong-tin"
+            className="nut nut-chinh"
+            disabled={dangGui || !daDoi}
+          >
+            {dangGui ? 'Đang lưu…' : 'Lưu'}
+          </button>
+        </div>
+      </div>
 
       <form
+        id="thong-tin"
         className="the"
         onSubmit={(e) => {
           e.preventDefault();
@@ -110,11 +130,6 @@ export function ThongTin() {
           </p>
         )}
 
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || !daDoi}>
-            {dangGui ? 'Đang lưu…' : 'Lưu'}
-          </button>
-        </div>
       </form>
 
       {hoi && (

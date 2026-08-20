@@ -135,12 +135,14 @@ function TheNguoiDung() {
 
   return (
     <>
-      <div className="nhom-nut">
+      {/* Góc trên bên phải của THẺ (`0071`). Tiêu đề trang bị dải thẻ ngăn cách,
+          nên hàng thao tác đứng ngay đầu phần nội dung mà nó tác động — cùng quy
+          ước với thẻ Sản phẩm, Nhóm và Chiết khấu. */}
+      <div className="hang-thao-tac">
         <button type="button" className="nut nut-chinh" onClick={() => datMo({ kieu: 'tao' })}>
           Tạo người dùng
         </button>
       </div>
-
       <div className="hang-tim">
         <OTimKiem
           id="tim-nguoi-dung"
