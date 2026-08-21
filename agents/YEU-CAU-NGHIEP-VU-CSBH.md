@@ -644,9 +644,17 @@ hàng là thứ không ai làm.
 
 ### 6.6. Nhập số tiền và tỷ lệ `mới 15/08`
 
-- Mọi ô nhập tiền ghi rõ **đơn vị ngay trên ô** ("Tiền tệ đơn vị đồng"), và hiện **dấu phân nhóm
-  nghìn ngay khi đang gõ**. Đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó sai theo bội số
-  của mười.
+- Mọi ô nhập tiền ghi rõ **đơn vị ngay trên ô** ("Tiền tệ đơn vị đồng"), và số đã **phân nhóm nghìn
+  luôn đọc được ngay trong lúc gõ**. Đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó sai theo
+  bội số của mười.
+- **Nhưng ô nhập KHÔNG tự chèn dấu phân nhóm vào chữ người dùng đang gõ** `sửa 22/08`. Đang gõ thì ô
+  hiện đúng chuỗi số trần, con số phân nhóm nằm ở dòng chú thích ngay dưới ô; rời ô thì chính ô hiện
+  số đã phân nhóm.
+  > Bản trước chèn dấu chấm ngay giữa lúc gõ, và nó **hỏng khi người dùng bật bộ gõ tiếng Việt**: bộ
+  > gõ giữ bộ đệm riêng cho chữ đang gõ và sửa chữ bằng phím xoá lùi, nên ô nhập chèn thêm ký tự vào
+  > giữa là bộ đệm lệch khỏi màn hình và lượt xoá lùi kế tiếp ăn nhầm **chữ số** — người dùng gõ đủ
+  > bảy phím mà số tiền ra thiếu hoặc thừa số, ở mọi ô tiền. Việc cần bảo vệ vẫn được bảo vệ, chỉ
+  > đổi CHỖ ĐẶT con số đã phân nhóm.
 - Ô nhập tỷ lệ cắt còn **hai chữ số thập phân ngay lúc gõ**, dấu thập phân là **dấu phẩy**. Nhận cả
   dấu chấm vì bàn phím số trên laptop chỉ có dấu chấm.
 

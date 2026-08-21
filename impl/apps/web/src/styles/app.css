@@ -468,6 +468,9 @@ main:focus { outline: none; }
 }
 textarea.o-nhap { min-height: 6rem; }
 .truong-loi { color: var(--mau-loi); font-size: var(--chu-nho); margin: 0; }
+/* Dòng đọc số dưới ô nhập tiền (`0087`): chỗ đặt con số đã phân nhóm trong lúc
+   người dùng đang gõ, thay cho việc chèn dấu chấm vào chính chữ họ vừa gõ. */
+.doc-so { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
 /* Đơn vị đứng cùng dòng nhãn, nhạt hơn — nó là chú thích cho con số, không phải
    một phần của tên trường. */
 .don-vi { color: var(--mau-chu-nhat); font-weight: 400; }

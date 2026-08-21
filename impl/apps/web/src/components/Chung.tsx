@@ -229,6 +229,29 @@ export function Truong({
  * `type="number"`: trên di động nó cho gõ `e`, dấu trừ và dấu chấm thập phân,
  * còn trên máy tính thì con lăn chuột vô tình đổi số tiền — cả hai đều là lỗi
  * âm thầm ở đúng chỗ không được sai một đồng.
+ *
+ * KHÔNG ĐỘNG VÀO CHỮ NGƯỜI DÙNG ĐANG GÕ (`0087`). Tới `0087` ô này chèn dấu
+ * phân nhóm ngay giữa lúc gõ: gõ `1000` thì ô tự thành `1.000`, tức là mỗi vài
+ * phím lại có một ký tự lạ mọc ra giữa chuỗi. Bộ gõ tiếng Việt giữ một bộ đệm
+ * riêng cho từ đang gõ và sửa chữ bằng cách gửi phím xoá lùi; ô nhập tự chèn
+ * thêm ký tự là bộ đệm ấy lệch khỏi thứ đang nằm trên màn hình, nên lượt xoá
+ * lùi kế tiếp ăn nhầm **chữ số** thay vì dấu chấm — người dùng gõ đủ bảy phím
+ * mà số tiền ra thiếu hoặc thừa chữ số, và không cách nào đoán ra vì sao.
+ *
+ * Nên chia đôi theo trạng thái:
+ *
+ *   - **Đang gõ** (ô có con trỏ): hiện đúng chuỗi số trần người dùng gõ, không
+ *     chèn gì. Con số phân nhóm nằm ở dòng chú thích ngay dưới ô.
+ *   - **Rời ô**: ô hiện số đã phân nhóm.
+ *
+ * Điều `0009` bảo vệ vẫn còn: người nhập 90000 vẫn đọc được ngay là chín mươi
+ * nghìn chứ không phải chín trăm nghìn — đếm số 0 bằng mắt là chỗ sai tiền
+ * nhiều nhất và nó sai theo bội số của mười. Chỉ khác chỗ ĐẶT con số ấy: một
+ * dòng chú thích cạnh ô, thay vì viết đè lên thứ người dùng đang gõ.
+ *
+ * Bộ gõ còn được đối xử như ở `OTimKiem` (`FE-31`): trong lúc `compositionstart`
+ * → `compositionend` thì không lọc, không định dạng, không báo ra ngoài. Lọc
+ * giữa chừng là cắt mất ký tự trung gian mà bộ gõ cần để bỏ dấu.
  */
 export function ONhapTien({
   id,
@@ -240,21 +263,78 @@ export function ONhapTien({
   giaTri: string;
   doi: (v: string) => void;
 } & Record<string, unknown>) {
+  const [dangGo, datDangGo] = useState(false);
+  /** Chuỗi thô trong lúc bộ gõ đang soạn — `null` là không soạn dở gì. */
+  const [dangSoanChu, datDangSoanChu] = useState<string | null>(null);
+  const dangSoan = useRef(false);
+
+  const nhom = tien(giaTri) === '—' ? '' : tien(giaTri);
+  const hienThi = dangSoanChu ?? (dangGo ? giaTri : nhom);
+
+  const bao = (v: string) => doi(v.replace(/[^\d]/g, ''));
+
+  /**
+   * Gọi tiếp trình xử lý mà nơi dùng truyền vào, nếu có.
+   *
+   * Bốn chỗ đang dùng ô này đều không truyền `onFocus`/`onBlur`, nhưng chúng
+   * nằm trong `{...rest}` nên nếu có thì bản này ghi đè và nuốt mất — đúng loại
+   * hỏng không ai thấy cho tới khi một biểu mẫu cần `onBlur` để kiểm dữ liệu.
+   */
+  const goiThem = (ten: string, e: unknown) => {
+    const f = rest[ten];
+    if (typeof f === 'function') (f as (x: unknown) => void)(e);
+  };
+
   return (
-    <input
-      {...rest}
-      id={id}
-      className="o-nhap so"
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      // HIỂN THỊ có dấu chấm phân nhóm, GIÁ TRỊ gửi đi vẫn là chuỗi số trần.
-      // Người nhập 90000 phải đọc được ngay là chín mươi nghìn chứ không phải
-      // chín trăm nghìn — đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó
-      // sai theo bội số của mười.
-      value={tien(giaTri) === '—' ? '' : tien(giaTri)}
-      onChange={(e) => doi(e.target.value.replace(/[^\d]/g, ''))}
-    />
+    <>
+      <input
+        {...rest}
+        id={id}
+        className="o-nhap so"
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={hienThi}
+        onFocus={(e) => {
+          datDangGo(true);
+          goiThem('onFocus', e);
+        }}
+        onBlur={(e) => {
+          datDangGo(false);
+          datDangSoanChu(null);
+          goiThem('onBlur', e);
+        }}
+        onCompositionStart={() => {
+          dangSoan.current = true;
+        }}
+        onCompositionEnd={(e) => {
+          dangSoan.current = false;
+          datDangSoanChu(null);
+          bao(e.currentTarget.value);
+        }}
+        onChange={(e) => {
+          if (dangSoan.current) {
+            datDangSoanChu(e.target.value);
+            return;
+          }
+          bao(e.target.value);
+        }}
+      />
+      {/*
+        Dòng đọc số, chỉ hiện lúc đang gõ — rời ô là chính ô đã phân nhóm rồi,
+        để lại thì thành hai lần cùng một con số.
+
+        `aria-hidden` vì nó phục vụ MẮT: trình đọc màn hình đọc `90000` trong ô
+        ra thành "chín mươi nghìn" sẵn, thêm một dòng nữa là đọc lặp.
+      */}
+      {dangGo && giaTri !== '' && (
+        // Không kèm chữ "đ": nhãn của `Truong` đã nói đơn vị, và lặp lại ở đây
+        // là hai lần cùng một thông tin trên hai dòng liền nhau.
+        <p className="doc-so" aria-hidden="true">
+          {nhom}
+        </p>
+      )}
+    </>
   );
 }
 

@@ -3,6 +3,7 @@
  *
  * FE-09 · FE-31 · FE-34 · FE-35 — ô nhập, bộ gõ tiếng Việt, nhãn, hộp thoại.
  */
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -194,8 +195,14 @@ describe('FE-35 hộp thoại dùng được bằng bàn phím', () => {
 // Định dạng số NGAY KHI ĐANG GÕ
 // =============================================================================
 
+/** Ô tiền có nơi dùng thật: giá trị do cha giữ, đúng như bốn chỗ đang dùng. */
+function OTienCoTrangThai({ ban = '' }: { ban?: string }) {
+  const [v, datV] = useState(ban);
+  return <ONhapTien id="t" giaTri={v} doi={datV} />;
+}
+
 describe('ô nhập tiền', () => {
-  it('hiện dấu phân nhóm nghìn ngay khi gõ, nhưng báo ra chuỗi số trần', async () => {
+  it('rời ô thì hiện dấu phân nhóm nghìn, và báo ra chuỗi số trần', async () => {
     // Đếm số 0 bằng mắt là chỗ sai tiền nhiều nhất, và nó sai theo bội số của
     // mười. Nhưng giá trị gửi lên máy chủ phải là số trần — gửi "90.000" thì
     // `money()` bên máy chủ từ chối.
@@ -206,6 +213,63 @@ describe('ô nhập tiền', () => {
 
     await userEvent.type(o, '5');
     expect(doi).toHaveBeenLastCalledWith('900005');
+  });
+
+  /*
+   * `0087` — LỖI GÕ SỐ TIỀN BẰNG BỘ GÕ TIẾNG VIỆT.
+   *
+   * Bộ gõ giữ bộ đệm riêng cho từ đang gõ và sửa chữ bằng phím xoá lùi. Ô nhập
+   * tự chèn dấu chấm vào giữa chuỗi là bộ đệm ấy lệch khỏi thứ trên màn hình,
+   * và lượt xoá lùi kế tiếp ăn nhầm chữ số — gõ đủ bảy phím mà ra thiếu hoặc
+   * thừa số.
+   *
+   * Nên bất biến là: **trong lúc ô có con trỏ, chữ trong ô đúng bằng chữ người
+   * dùng đã gõ**. Ca này không nhắc tới bộ gõ nào cả — nó chốt chính cái bất
+   * biến ấy, nên bộ gõ khác về sau cũng nằm trong phạm vi.
+   */
+  it('`0087` đang gõ thì KHÔNG chèn gì vào chuỗi người dùng vừa gõ', async () => {
+    const nguoi = userEvent.setup();
+    render(<OTienCoTrangThai />);
+    const o = screen.getByRole('textbox') as HTMLInputElement;
+
+    await nguoi.click(o);
+    for (const [da, phim] of [
+      ['1', '1'],
+      ['10', '0'],
+      ['100', '0'],
+      ['1000', '0'],
+      ['10000', '0'],
+      ['100000', '0'],
+      ['1000000', '0'],
+    ] as const) {
+      await nguoi.keyboard(phim);
+      expect(o.value, `gõ tới ${da} mà ô hiện ${o.value}`).toBe(da);
+    }
+
+    // Con số phân nhóm vẫn đọc được ngay, chỉ nằm ở dòng chú thích cạnh ô.
+    expect(document.querySelector('.doc-so')!.textContent).toBe('1.000.000');
+
+    // Rời ô thì chính ô hiện số đã phân nhóm, và dòng chú thích thôi lặp lại.
+    await nguoi.tab();
+    expect(o.value).toBe('1.000.000');
+    expect(document.querySelector('.doc-so')).toBeNull();
+  });
+
+  it('`0087` không lọc giữa lúc bộ gõ đang soạn', () => {
+    /*
+     * Telex đi qua các trạng thái trung gian có chữ cái. Lọc `[^\d]` ngay lúc
+     * ấy là xoá đúng ký tự bộ gõ cần để bỏ dấu, và ô nhập thành chỗ không gõ
+     * nổi. Soạn xong mới lọc — lúc đó cái gì không phải chữ số thì bỏ, y như cũ.
+     */
+    render(<OTienCoTrangThai />);
+    const o = screen.getByRole('textbox') as HTMLInputElement;
+
+    fireEvent.compositionStart(o);
+    fireEvent.change(o, { target: { value: '12ows' } });
+    expect(o.value).toBe('12ows');
+
+    fireEvent.compositionEnd(o, { target: { value: '12ơ' } });
+    expect(o.value).toBe('12');
   });
 
   it('ô rỗng hiện rỗng, không hiện dấu gạch ngang', () => {

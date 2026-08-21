@@ -8205,3 +8205,65 @@ mất sự kiện trên hàng đợi dùng chung, đúng thứ `check-demo-down`
 `vitest` nên đi vòng qua chốt ấy. `make demo-down` rồi chạy lại: xanh.
 
 **1389/1389 xanh.**
+
+---
+
+## P113 — Gõ số tiền bằng bộ gõ tiếng Việt ra thiếu chữ số
+
+**Ngày 22/08/2026** · thay đổi `0087`
+
+Người dùng báo một câu: *"lỗi khi gõ số tiền bằng unikey"* — số ra sai, thiếu hoặc thừa chữ số, ở
+**mọi ô tiền**.
+
+### Nguyên nhân: ô nhập viết đè lên chữ người dùng đang gõ
+
+`ONhapTien` là ô có kiểm soát, và giá trị hiển thị của nó là `tien(giaTri)` — **định dạng lại sau
+mỗi phím**. Gõ `1000` thì ngay tại phím thứ tư ô tự thành `1.000`: một ký tự người dùng không gõ mọc
+ra giữa chuỗi.
+
+Bộ gõ tiếng Việt giữ **bộ đệm riêng** cho từ đang gõ và sửa chữ bằng cách gửi phím xoá lùi rồi gõ
+lại. Nó đếm theo bộ đệm của nó, không đọc lại ô nhập. Ô tự chèn thêm một ký tự là bộ đệm lệch khỏi
+thứ đang nằm trên màn hình — và lượt xoá lùi kế tiếp ăn nhầm **chữ số** thay vì dấu chấm. Người dùng
+gõ đủ bảy phím, nhìn xuống thấy sáu số, và không có cách nào đoán ra vì sao.
+
+Đáng ghi vì hai điều:
+
+- **Lỗi không nằm trong mã bộ gõ, cũng không nằm trong phép định dạng.** Nó nằm ở chỗ hai bên cùng
+  ghi vào một ô mà không bên nào biết bên kia. Đọc riêng `tien()` hay riêng `onChange` thì cả hai
+  đều đúng.
+- **`OTimKiem` đã gặp đúng lớp vấn đề này ở `FE-31`** và đã có `compositionstart`/`compositionend`.
+  Ô tiền thì không — vì lúc viết nó, "ô số thì làm gì có chữ tiếng Việt nào mà lo". Câu ấy đúng về
+  ký tự và sai về cơ chế: thứ va nhau là bộ đệm của bộ gõ với ô nhập, không phải chữ với số.
+
+### Cách chữa: không đụng vào chữ đang gõ, chuyển con số ra chỗ khác
+
+Chia đôi theo trạng thái. **Đang gõ** (ô có con trỏ) thì ô hiện đúng chuỗi số trần, không chèn gì;
+con số đã phân nhóm nằm ở **dòng chú thích ngay dưới ô**. **Rời ô** thì chính ô hiện số đã phân nhóm.
+
+Điều muc 6.6 bảo vệ vẫn còn nguyên — người nhập 90000 vẫn đọc được ngay là chín mươi nghìn, và đó là
+chỗ sai tiền theo bội số của mười. Chỉ đổi **chỗ đặt** con số ấy: một dòng cạnh ô, thay vì viết đè
+lên thứ người dùng đang gõ. Đây là chỗ dễ chọn sai: bỏ hẳn việc phân nhóm thì hết lỗi bộ gõ nhưng
+mất luôn thứ `0009` dựng ra để chặn.
+
+Thêm `compositionstart`/`compositionend` như `OTimKiem`: trong lúc bộ gõ đang soạn thì **không lọc,
+không định dạng, không báo ra ngoài**. Lọc `[^\d]` giữa chừng là cắt mất đúng ký tự trung gian mà bộ
+gõ cần để bỏ dấu.
+
+`goiThem()` gọi tiếp `onFocus`/`onBlur` mà nơi dùng truyền vào. Bốn chỗ đang dùng đều không truyền,
+nhưng chúng đi qua `{...rest}` nên bản này ghi đè và **nuốt mất** — loại hỏng không ai thấy cho tới
+ngày một biểu mẫu cần `onBlur` để kiểm dữ liệu.
+
+### Ca kiểm, và phép phá lại
+
+Ca chính **không nhắc tới bộ gõ nào cả**. Nó chốt đúng bất biến đứng sau: *trong lúc ô có con trỏ,
+chữ trong ô đúng bằng chữ người dùng đã gõ* — kiểm sau từng phím một, từ `1` tới `1000000`. Bộ gõ
+khác về sau tự nằm trong phạm vi, và ca kiểm không phải mô phỏng một thứ nó không mô phỏng nổi:
+jsdom không có bộ gõ, mà bất biến thì kiểm được bằng bàn phím thường.
+
+Phá lại bằng cách trả `hienThi` về `nhom`: đỏ ngay tại phím thứ tư — *"gõ tới 1000 mà ô hiện
+1.000"*, đúng chỗ dấu chấm đầu tiên xuất hiện.
+
+> Ca *"không lọc giữa lúc bộ gõ đang soạn"* vẫn XANH ở lượt phá ấy, và đó là đúng: nó gác nhánh
+> `composition`, không gác việc định dạng. Hai ca cho hai nửa của cùng một lỗi.
+
+**1391/1391 xanh.**
