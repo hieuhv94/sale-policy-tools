@@ -41,7 +41,25 @@
 		# `style-src` phải có 'unsafe-inline': Ant Design tiêm CSS lúc chạy. Đây
 		# là nới lỏng CÓ Ý THỨC và hẹp nhất có thể — script vẫn bị khoá chặt, mà
 		# script mới là thứ chạy được mã.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		#
+		# `frame-src blob:` và `img-src blob:` (`0072`) — BẮT BUỘC cho việc xem
+		# tệp trong phần mềm, và đây là chỗ đã hỏng thật.
+		#
+		# Mọi lượt xem đều phải đi qua `blob:`: đường tải nội dung đòi header
+		# `Authorization`, mà `<iframe src>` và `<img src>` không gửi header nào —
+		# nên `XemTep` tải nội dung bằng `fetch` rồi dựng một `blob:` URL để nhúng.
+		# Không khai `frame-src` thì nó rơi về `default-src 'self'`, và `blob:`
+		# KHÔNG thuộc `'self'`: trình duyệt chặn, hiện đúng một dòng "This content
+		# is blocked" mà không nói vì sao.
+		#
+		# Vì sao chuyện này lọt qua cả bộ kiểm thử: CSP là header của Caddy, còn
+		# test chạy thẳng vào service và jsdom thì không thi hành CSP. Chỉ chồng
+		# demo — nơi có Caddy thật và trình duyệt thật — mới lộ ra.
+		#
+		# `blob:` hẹp hơn hẳn `*`: nó chỉ cho phép nội dung do CHÍNH trang này tạo
+		# ra trong bộ nhớ tab, không mở cửa cho một nguồn ngoài nào. `object-src`
+		# vẫn `'none'` — `<object>` và `<embed>` không có việc gì ở đây.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 		# Không tiết lộ máy chủ nào đang chạy.
 		-Server

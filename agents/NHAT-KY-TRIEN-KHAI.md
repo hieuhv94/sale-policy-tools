@@ -7240,3 +7240,57 @@ nó **không** bắt được một màn hình mới thêm mà quên hàng thao 
 trong tệp kiểm thử.
 
 **1300/1300 xanh.**
+
+## P99 — "This content is blocked": CSP chặn `blob:`, và cả một lớp không ai kiểm
+
+Mọi lượt xem bản mềm, hợp đồng và bản scan trên chồng demo đều ra một dòng của trình duyệt:
+*"This content is blocked. Contact the site owner to fix the issue."* Không có lỗi nào ở service,
+không có gì trong log, và **1300 ca kiểm thử đều xanh**.
+
+### Nguyên nhân
+
+CSP trong `Caddyfile` **không khai `frame-src`**, nên nó rơi về `default-src 'self'` — mà `blob:`
+không thuộc `'self'`. Trình duyệt chặn `<iframe src="blob:…">`.
+
+Mà `blob:` là đường DUY NHẤT xem được: đường tải nội dung đòi header `Authorization`, còn
+`<iframe src>` và `<img src>` không gửi header nào — nên `XemTep` phải `fetch` nội dung rồi dựng một
+`blob:` URL để nhúng. Chính lời chú thích ở đầu `XemTep.tsx` đã nói ra điều đó từ `0051`; cấu hình
+thì chưa bao giờ biết.
+
+`img-src 'self' data:` cũng thiếu `blob:` — nên ảnh thu nhỏ trên thẻ tệp (`0069`) hỏng theo, mà chưa
+ai kịp báo.
+
+### Vì sao không ca nào bắt được
+
+**CSP là header của Caddy.** Bộ kiểm thử gọi thẳng vào service, và jsdom không thi hành CSP. Chỉ
+chồng demo — Caddy thật, trình duyệt thật — mới lộ ra. Cả một lớp cấu hình đứng ngoài tầm với của
+mọi phép kiểm tự động đang có, và đây là lần đầu nó cắn.
+
+### Chứng minh bằng trình duyệt thật, không bằng suy luận
+
+Máy có sẵn Chrome. Dựng một trang thử phát ra đúng hai thứ giao diện dùng (`blob:` trong `<iframe>`
+và trong `<img>`), phục vụ nó bằng một máy chủ tạm gắn **đúng chuỗi CSP** — lần lượt bản cũ và bản
+mới — rồi đọc sự kiện `securitypolicyviolation`:
+
+| CSP | Kết quả |
+|---|---|
+| Cũ | `CSP-CHAN[frame-src ← blob]` · `CSP-CHAN[img-src ← blob]` |
+| Mới | không vi phạm nào · `IFRAME-LOAD-OK` |
+
+Phép thử này còn trả lời một câu tôi định đoán bừa: `frame-ancestors 'none'` được **kế thừa** vào tài
+liệu `blob:`, nên tôi đã lo nó tự chặn chính mình. Chrome cho thấy KHÔNG — nhưng đó là điều đo được,
+không phải điều tôi suy ra.
+
+> Nó cũng bắt được một chi tiết vui: trang thử đầu tiên viết script nội tuyến, và CSP chặn thẳng —
+> bằng chứng phụ rằng header đang có hiệu lực thật.
+
+### Nới đúng mức
+
+`blob:` chỉ cho phép nội dung do CHÍNH trang này tạo ra trong bộ nhớ tab; nó không mở cửa cho nguồn
+ngoài nào. `script-src` vẫn `'self'`, `object-src` vẫn `'none'`, `frame-ancestors` vẫn `'none'`.
+
+Ca `0072` canh cả hai chiều: CSP phải cho phép `blob:` ở `frame-src` và `img-src`, và **không** được
+xuất hiện `*` hay `'unsafe-eval'` ở bất kỳ chỉ thị nào. Kèm một vế đối chứng — giao diện phải thật
+sự còn dùng `URL.createObjectURL`; ngày nó thôi dùng thì phải xem lại CSP chứ không nới mãi.
+
+**1305/1305 xanh.**
