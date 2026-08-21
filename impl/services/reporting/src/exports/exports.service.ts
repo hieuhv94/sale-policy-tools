@@ -24,6 +24,38 @@ import { buildSheet } from './sheet.js';
 /** Trần cứng. Quá số này thì bộ lọc chưa đủ hẹp, và người dùng cần biết điều đó. */
 export const EXPORT_MAX_ROWS = 20_000;
 
+/**
+ * Tên file: `CSBH_20260821_143012.xlsx` (`0078`).
+ *
+ * GIỜ VIỆT NAM, không phải UTC. `toISOString()` là đường ngắn nhất tới đây và
+ * cũng là đường sai: nó lệch 7 tiếng, nên file xuất lúc 6 giờ sáng mang tên
+ * `23...` của NGÀY HÔM TRƯỚC. Sai kiểu ấy không ai báo — người ta chỉ thấy thư
+ * mục tải về sắp lộn xộn và không hiểu vì sao.
+ *
+ * `YYYYMMDD_HHMMSS` chứ không phải `dd-mm-yyyy` quen mắt hơn: người ta xuất
+ * nhiều lần trong ngày, và thứ tự tên file trong thư mục CHÍNH LÀ thứ tự thời
+ * gian chỉ khi năm đứng trước. Đó là lý do duy nhất, và nó đủ.
+ *
+ * Tới từng GIÂY vì hai lượt xuất cách nhau vài chục giây là chuyện thường —
+ * đổi bộ lọc rồi xuất lại. Trùng tên thì trình duyệt tự thêm `(1)`, và người
+ * dùng mất luôn manh mối file nào là file nào.
+ */
+export function tenTepXuat(luc: Date): string {
+  const p = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+    .formatToParts(luc)
+    .reduce<Record<string, string>>((a, x) => ({ ...a, [x.type]: x.value }), {});
+  return `CSBH_${p['year']}${p['month']}${p['day']}_${p['hour']}${p['minute']}${p['second']}.xlsx`;
+}
+
 export type JobRow = {
   id: string;
   requested_by: string;
@@ -93,7 +125,7 @@ export class ExportsService {
         );
       }
       const buf = await buildSheet(rows);
-      const name = `ho-so-csbh-${new Date().toISOString().slice(0, 10)}-${rows.length}.xlsx`;
+      const name = tenTepXuat(new Date());
       await this.db.q(
         `UPDATE rpt.export_job
             SET status = 'XONG', finished_at = now(), row_count = $2,

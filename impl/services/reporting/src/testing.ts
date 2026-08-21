@@ -12,7 +12,7 @@ export async function createTestApp(): Promise<INestApplication> {
 
 export { SyncService } from './reports/sync.service.js';
 export { ReportsService } from './reports/reports.service.js';
-export { ExportsService, EXPORT_MAX_ROWS } from './exports/exports.service.js';
+export { ExportsService, EXPORT_MAX_ROWS, tenTepXuat } from './exports/exports.service.js';
 export { ReportingConsumer } from './reports/consumer.js';
 export { COLUMNS } from './exports/sheet.js';
 export {

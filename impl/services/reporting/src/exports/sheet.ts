@@ -20,7 +20,7 @@ type Col = {
   header: string;
   key: string;
   width: number;
-  kind?: 'money' | 'date' | 'datetime' | 'rate' | 'list';
+  kind?: 'money' | 'date' | 'datetime' | 'rate' | 'list' | 'ds';
 };
 
 /** THỨ TỰ CỘT — hợp đồng với người dùng, chỉ được thêm vào CUỐI. */
@@ -41,6 +41,19 @@ export const COLUMNS: Col[] = [
   { header: 'Tổng giá thu về', key: 'totalNet', width: 18, kind: 'money' },
   { header: 'Chiết khấu cao nhất (%)', key: 'maxDiscount', width: 20, kind: 'rate' },
   { header: 'Ngày tạo', key: 'createdAt', width: 18, kind: 'datetime' },
+  /*
+   * Danh sách SẢN PHẨM CỤ THỂ của hồ sơ (`0078`).
+   *
+   * Trước đợt này file chỉ nói *"Số dòng sản phẩm: 5"* và *"Nhóm sản phẩm: SUA,
+   * BOT"* — biết hồ sơ có năm mặt hàng thuộc hai nhóm, nhưng không biết là những
+   * mặt hàng nào. Muốn biết thì phải mở từng hồ sơ ra xem, đúng việc mà một file
+   * xuất ra sinh ra để khỏi phải làm.
+   *
+   * ĐỨNG CUỐI dù nó thuộc về chỗ cạnh *Nhóm sản phẩm*. Thứ tự cột là hợp đồng —
+   * người dùng đã dựng công thức tham chiếu cột N, cột O; chèn vào giữa là làm
+   * hỏng file của họ trong im lặng. Xem chú thích đầu tệp.
+   */
+  { header: 'Sản phẩm', key: 'productNames', width: 60, kind: 'ds' },
 ];
 
 const MONEY_FMT = '#,##0';
@@ -89,6 +102,18 @@ export async function buildSheet(rows: Record<string, unknown>[]): Promise<Buffe
           break;
         case 'list':
           cells[c.key] = Array.isArray(v) ? v.join(', ') : (v ?? null);
+          break;
+        /*
+         * Ngăn bằng DẤU CHẤM PHẨY, không bằng dấu phẩy (`0078`).
+         *
+         * Tên sản phẩm là câu chữ tự do và có thể chứa dấu phẩy ("Sữa non 120g,
+         * hộp giấy"); ngăn bằng dấu phẩy thì người dùng bấm *Text to Columns*
+         * trong Excel sẽ cắt đúng giữa một cái tên. Mã nhóm thì không bao giờ
+         * chứa dấu phẩy, nên cột ấy giữ nguyên `list` — đổi định dạng một cột
+         * đã bàn giao là chuyện phải có lý do, và ở đó không có lý do nào.
+         */
+        case 'ds':
+          cells[c.key] = Array.isArray(v) ? v.join('; ') : (v ?? null);
           break;
         default:
           cells[c.key] = v ?? null;

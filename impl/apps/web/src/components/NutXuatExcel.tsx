@@ -26,10 +26,17 @@ type ViecXuat = {
 
 export function NutXuatExcel({
   boLoc,
-  tenTep = 'ho-so-csbh.xlsx',
+  tenTep = 'CSBH.xlsx',
 }: {
   /** Bộ lọc gửi lên máy chủ. Rỗng nghĩa là cả phạm vi dữ liệu của người dùng. */
   boLoc: Record<string, string>;
+  /**
+   * Tên dùng khi máy chủ KHÔNG đặt tên — đường lùi, không phải tên thật.
+   *
+   * Tên thật là `CSBH_20260821_143012.xlsx` do máy chủ đặt trong
+   * `Content-Disposition` lúc dựng xong file (`0078`); `taiVe()` đọc header ấy
+   * trước, và chỉ rơi về đây khi header vắng mặt.
+   */
   tenTep?: string;
 }) {
   const [viec, datViec] = useState<ViecXuat | null>(null);

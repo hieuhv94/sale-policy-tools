@@ -7619,3 +7619,59 @@ số `11` ghi cứng trước đây là thứ phải nhớ sửa mỗi lần th�
 sách nằm ngay cạnh nó.
 
 **1352/1352 xanh.**
+
+## P104 — Ba việc nhỏ quanh bộ lọc và file Excel
+
+### `0078` — bỏ dòng "Gõ vài chữ để tìm"
+
+Hai ô nguồn-máy-chủ mở ra một khung chứa đúng một dòng chữ ấy. Nó nói lại điều mà chỗ gợi ý ngay
+trong ô nhập đã nói (*"Gõ mã hoặc tên khách hàng…"*), và cái khung rỗng thì che mất ô nằm dưới.
+
+Sửa đúng một dòng điều kiện: **chưa có gì để bày thì đừng bày gì cả**. Ô nguồn nạp sẵn vẫn xoè ngay
+— quy tắc là "không có gì thì thôi", không phải "luôn bắt gõ trước" — và có một ca đối chứng cho
+đúng vế ấy, để lần sau ai đó không siết nhầm cả hai loại ô.
+
+### `0078` — tên file `CSBH_<ngày><giờ>.xlsx`
+
+`ho-so-csbh-2026-08-21-43.xlsx` → `CSBH_20260821_121417.xlsx`.
+
+**Múi giờ là chỗ duy nhất đáng viết ca kiểm.** `toISOString()` là đường ngắn nhất tới đây và cũng là
+đường sai: nó là UTC, lệch 7 tiếng, nên file xuất lúc 6 giờ sáng mang tên `23…` của **ngày hôm
+trước**. Không ai báo lỗi kiểu đó — người ta chỉ thấy thư mục tải về sắp lộn xộn và không hiểu vì
+sao. Ca kiểm chọn đúng một mốc nằm hai phía ranh giới ngày (17:30 UTC = 00:30 hôm sau giờ Việt Nam)
+để bắt được.
+
+`YYYYMMDD_HHMMSS` chứ không phải `dd-mm-yyyy` quen mắt hơn, và chỉ vì một lý do: người ta xuất nhiều
+lần trong ngày, mà thứ tự tên file trong thư mục **chính là** thứ tự thời gian chỉ khi năm đứng
+trước. Tới từng giây vì hai lượt xuất cách nhau vài chục giây là chuyện thường — đổi bộ lọc rồi xuất
+lại — và trùng tên thì trình duyệt tự thêm `(1)`, người dùng mất luôn manh mối file nào là file nào.
+
+### `0078` — file liệt kê cụ thể từng sản phẩm
+
+Thêm cột **Sản phẩm**. Trước đó file chỉ nói *"Số dòng sản phẩm: 2"* và *"Nhóm sản phẩm: SUA-BOT,
+DAU-AN"* — biết hồ sơ có hai mặt hàng thuộc hai nhóm, nhưng không biết là mặt hàng nào. Muốn biết
+phải mở từng hồ sơ ra xem, đúng việc mà một file xuất ra sinh ra để khỏi phải làm.
+
+Hai quyết định nhỏ, cả hai đều để **không làm hỏng file cũ của người dùng**:
+
+- **Đứng CUỐI**, dù nó thuộc về chỗ cạnh *Nhóm sản phẩm*. Chú thích đầu `sheet.ts` đã ghi từ đầu:
+  thứ tự cột là hợp đồng, người dùng dựng công thức tham chiếu cột N, cột O. Chèn vào giữa là làm
+  hỏng file của họ trong im lặng.
+- **Ngăn bằng dấu chấm phẩy**, không bằng dấu phẩy. Tên sản phẩm là câu chữ tự do và có thể chứa dấu
+  phẩy; ngăn bằng dấu phẩy thì *Text to Columns* cắt đúng giữa một cái tên. Cột *Nhóm sản phẩm* giữ
+  nguyên dấu phẩy — mã nhóm không bao giờ chứa dấu phẩy, và đổi định dạng một cột đã bàn giao là
+  chuyện phải có lý do.
+
+### Đo trên demo, không chỉ chạy test
+
+```
+TEN FILE: CSBH_20260821_121417.xlsx   (dong ho may: 12:13:53 — dung gio Viet Nam)
+Q. Sản phẩm
+   CSBH-2026-000146 | so dong=2 | nhom=SUA-BOT, DAU-AN
+      san pham: Nutricare Gold 900g; Dầu óc chó Nutricare 250ml
+```
+
+Và trong Chrome: ô khách hàng chưa gõ gì thì **không** xoè hộp nào, chữ "Gõ vài chữ" đã hết, gõ
+`duoc` ra 7 kết quả; ô nhóm sản phẩm vẫn xoè ngay với 24 mục.
+
+**1356/1356 xanh.**

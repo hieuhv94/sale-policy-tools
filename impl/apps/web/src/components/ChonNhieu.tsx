@@ -192,14 +192,17 @@ export function ChonNhieu({
         }}
       />
 
-      {mo && (
+      {/*
+        Chưa gõ gì mà nguồn ở máy chủ thì KHÔNG mở hộp rỗng ra (`0078`).
+
+        Bản trước mở một hộp chứa đúng một dòng chữ *"Gõ vài chữ để tìm"* — một
+        khung trống nói lại điều mà chỗ gợi ý trong ô nhập đã nói, và nó che mất
+        ô ngay bên dưới. Không có gì để bày thì đừng bày gì cả.
+      */}
+      {mo && !(typeof nguon === 'function' && tim.trim() === '') && (
         <ul className="chon-nhieu-ds" id={maDs} role="listbox" aria-multiselectable="true">
           {ketQua.filter((t) => !giaTri.includes(t.gia)).length === 0 ? (
-            <li className="chon-nhieu-trong">
-              {typeof nguon === 'function' && tim.trim() === ''
-                ? 'Gõ vài chữ để tìm'
-                : 'Không có mục nào khớp'}
-            </li>
+            <li className="chon-nhieu-trong">Không có mục nào khớp</li>
           ) : (
             ketQua
               .filter((t) => !giaTri.includes(t.gia))

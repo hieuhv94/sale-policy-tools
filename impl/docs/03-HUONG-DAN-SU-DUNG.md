@@ -989,6 +989,17 @@ Báo cáo, cách bộ lọc một màn hình, nên nó chỉ xuất được **t
 Xuất chạy **chạy nền**: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng nút đổi thành
 *Tải file (N dòng)*. Cột tiền là **số** nên cộng và lọc được ngay trong Excel.
 
+**Tên file** `sửa 21/08` có dạng `CSBH_20260821_143012.xlsx` — chữ số là **ngày tháng và giờ phút
+giây lúc file được dựng**, theo giờ Việt Nam. Năm đứng trước nên xếp thư mục tải về theo tên là ra
+đúng thứ tự thời gian, và hai lần xuất cách nhau vài giây vẫn là hai file khác tên.
+
+File có **cột *Sản phẩm*** ở cuối `mới 21/08`, liệt kê **cụ thể từng mặt hàng** của hồ sơ, ngăn nhau
+bằng dấu chấm phẩy. Trước đây file chỉ nói *"Số dòng sản phẩm: 5"* và *"Nhóm sản phẩm: SUA, BOT"* —
+biết có năm mặt hàng thuộc hai nhóm nhưng không biết là những mặt hàng nào.
+
+> Cột mới đứng **ở cuối**, không chen vào cạnh *Nhóm sản phẩm*. Thứ tự cột giữ nguyên để công thức
+> Excel bạn đã dựng trên file cũ không hỏng.
+
 **Đổi bộ lọc thì phải bấm xuất lại** — nút quay về *Xuất Excel*. Đây là chủ ý: giữ liên kết cũ thì
 bạn tải về một file của bộ lọc trước, mang số dòng của một danh sách không còn trên màn hình.
 

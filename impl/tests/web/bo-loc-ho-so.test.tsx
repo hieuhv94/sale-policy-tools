@@ -156,17 +156,37 @@ describe('`0077` ô chọn nhiều', () => {
     expect(document.querySelector('#a')?.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('nguồn ở MÁY CHỦ: chưa gõ thì chưa gọi mạng', async () => {
-    // Danh mục khách hàng và sản phẩm có thể lên hàng nghìn dòng. Nạp sẵn cả
-    // danh mục lúc mở bộ lọc là một lượt tải lớn cho một ô người dùng có thể
-    // không đụng tới.
+  it('nguồn ở MÁY CHỦ: chưa gõ thì chưa gọi mạng, và KHÔNG mở hộp rỗng', async () => {
+    /*
+     * Hai chuyện trong một ca, vì chúng cùng một nguyên nhân — chưa có gì để bày.
+     *
+     * Không gọi mạng: danh mục khách hàng và sản phẩm có thể lên hàng nghìn
+     * dòng, nạp sẵn cả danh mục là một lượt tải lớn cho một ô có thể không ai
+     * đụng tới.
+     *
+     * Không mở hộp: bản `0077` mở một khung chứa đúng một dòng chữ *"Gõ vài chữ
+     * để tìm"* — nói lại điều mà chỗ gợi ý trong ô nhập đã nói, và che mất ô ngay
+     * bên dưới (`0078`).
+     */
     const nguoi = userEvent.setup();
     const tim = vi.fn(() => Promise.resolve([{ gia: 'KH01', nhan: 'KH01 — Nhà thuốc A' }]));
     render(<ChonNhieu id="t" nhan="Mã khách hàng" giaTri={[]} nguon={tim} doi={() => undefined} />);
 
     await nguoi.click(screen.getByLabelText('Mã khách hàng'));
     expect(tim).not.toHaveBeenCalled();
-    expect(screen.getByText('Gõ vài chữ để tìm')).toBeDefined();
+    expect(document.querySelector('.chon-nhieu-ds'), 'mở một hộp rỗng').toBeNull();
+    expect(screen.queryByText(/Gõ vài chữ/)).toBeNull();
+  });
+
+  it('nguồn NẠP SẴN thì vẫn mở ngay — không có gì phải chờ gõ', async () => {
+    // Vế đối chứng của ca trên: quy tắc là "chưa có gì để bày thì đừng bày", chứ
+    // không phải "luôn bắt gõ trước". Danh sách nạp sẵn thì bày được ngay.
+    const nguoi = userEvent.setup();
+    render(
+      <ChonNhieu id="t" nhan="Nhóm sản phẩm" giaTri={[]} nguon={NHOM} doi={() => undefined} />,
+    );
+    await nguoi.click(screen.getByLabelText('Nhóm sản phẩm'));
+    await waitFor(() => expect(document.querySelector('.chon-nhieu-ds')).not.toBeNull());
   });
 
   it('nguồn ở MÁY CHỦ: gõ xong mới hỏi, và hỏi MỘT lần cho cả từ khoá', async () => {

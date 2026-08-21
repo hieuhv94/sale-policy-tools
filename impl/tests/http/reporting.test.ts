@@ -20,6 +20,7 @@ import {
   SO_GIA_TRI_TOI_DA,
   SO_TIEU_CHI,
   SyncService,
+  tenTepXuat,
 } from '@csbh/reporting/testing';
 import { Bus, BUS } from '@csbh/bus';
 import {
@@ -1126,6 +1127,77 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
     const done = await waitExport(req.body.jobId);
     expect(done.status).toBe('XONG');
     expect(done.rowCount, 'số dòng file khác con số trên màn hình').toBe(dem.body.total);
+  });
+
+  it('`0078` tên file là `CSBH_<ngày giờ>.xlsx`, theo GIỜ VIỆT NAM', async () => {
+    /*
+     * Múi giờ là chỗ duy nhất đáng kiểm ở đây, và nó sai một cách im lặng:
+     * `toISOString()` là UTC, lệch 7 tiếng, nên file xuất lúc 6 giờ sáng mang
+     * tên `23…` của NGÀY HÔM TRƯỚC. Không ai báo lỗi — người ta chỉ thấy thư mục
+     * tải về sắp lộn xộn.
+     *
+     * Chọn đúng một mốc nằm ở hai phía của ranh giới ngày để bắt được: 2026-08-21
+     * lúc 17:30 UTC là 2026-08-22 lúc 00:30 giờ Việt Nam.
+     */
+    expect(tenTepXuat(new Date('2026-08-21T17:30:45Z'))).toBe('CSBH_20260822_003045.xlsx');
+    // Và một mốc giữa ngày, để chắc phần giờ không bị lệch theo hướng ngược lại.
+    expect(tenTepXuat(new Date('2026-08-21T03:05:09Z'))).toBe('CSBH_20260821_100509.xlsx');
+  });
+
+  it('`0078` file thật mang đúng tên ấy, và tên đi ra tới header tải về', async () => {
+    const truoc = new Date();
+    await draft();
+    const req = await rpost('/reports/exports', {});
+    const done = await waitExport(req.body.jobId);
+    expect(done.status).toBe('XONG');
+
+    // Tên khớp KHUÔN, không khớp một chuỗi cứng: giây trôi giữa lúc dựng và lúc
+    // kiểm, nên so bằng nhau là một ca đỏ ngẫu nhiên chờ ngày xảy ra.
+    expect(done.fileName).toMatch(/^CSBH_\d{8}_\d{6}\.xlsx$/);
+
+    // Nằm trong khoảng thời gian của phép thử — đủ chặt để bắt lệch múi giờ
+    // (7 tiếng), đủ lỏng để không quan tâm mất mấy giây dựng file.
+    const nay = tenTepXuat(truoc).slice(0, 14);
+    expect(String(done.fileName).slice(0, 14)).toBe(nay);
+
+    const file = await (await http(reporting))
+      .get(`/reports/exports/${req.body.jobId}/file`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    // `taiVe()` ở giao diện đọc đúng header này để đặt tên file tải xuống.
+    expect(file.headers['content-disposition']).toContain(encodeURIComponent(done.fileName));
+  });
+
+  it('`0078` file liệt kê CỤ THỂ từng sản phẩm của hồ sơ', async () => {
+    /*
+     * Trước đợt này file chỉ nói "Số dòng sản phẩm: 1" và "Nhóm sản phẩm: X" —
+     * biết hồ sơ có mấy mặt hàng thuộc nhóm nào, nhưng không biết là mặt hàng
+     * nào. Muốn biết phải mở từng hồ sơ ra xem, đúng việc mà file xuất ra sinh
+     * ra để khỏi phải làm.
+     */
+    const ten = 'Nutricare Xuat File Liet Ke';
+    const d = await draft({ productName: ten });
+
+    const req = await rpost('/reports/exports', { customerCode: d.customerCode });
+    await waitExport(req.body.jobId);
+    const file = await (await http(reporting))
+      .get(`/reports/exports/${req.body.jobId}/file`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+
+    const ws = await readSheet(file.body as Buffer);
+    const cot = COLUMNS.findIndex((c) => c.key === 'productNames') + 1;
+    expect(cot, 'thiếu cột Sản phẩm').toBeGreaterThan(0);
+    expect(COLUMNS[cot - 1]!.header).toBe('Sản phẩm');
+    expect(String(ws.getRow(2).getCell(cot).value)).toContain(ten);
+
+    // ĐỨNG CUỐI: thứ tự cột là hợp đồng với người dùng, cột mới chỉ được thêm
+    // vào cuối — chèn vào giữa là làm hỏng công thức trong file của họ.
+    expect(cot).toBe(COLUMNS.length);
   });
 
   it('người khác không tải được file của mình, kể cả cấp trên', async () => {

@@ -809,6 +809,9 @@ gõ để tìm, bấm để chọn, mỗi thứ đã chọn thành một thẻ b
 *Hồ sơ CSBH* — màn hình duy nhất có bộ lọc — nên số dòng trong file luôn bằng con số hiện trên màn
 hình. Trước đó nút nằm ở trang *Báo cáo*, cách bộ lọc một màn hình, nên nó chỉ xuất được tất cả.
 
+Tên file `CSBH_<yyyymmdd>_<hhmmss>.xlsx` theo giờ Việt Nam, và file **liệt kê cụ thể từng sản phẩm**
+của mỗi hồ sơ ở cột cuối.
+
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần ký,
 tiếp nhận, xuất file và tải tài liệu.
 
