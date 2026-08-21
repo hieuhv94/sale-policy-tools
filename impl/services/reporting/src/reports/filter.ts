@@ -1,9 +1,15 @@
 /**
- * Mười một tiêu chí lọc ở muc 9.2, dịch sang SQL.
+ * Chín tiêu chí lọc ở muc 9.2, dịch sang SQL.
  *
- * Từng là mười bốn. Tỉnh/thành, bệnh viện và kênh rời khỏi phần mềm ở `0026`
- * cùng ba cột nguồn của chúng bên khách hàng — ba tiêu chí ấy không còn gì để
- * lọc theo.
+ * Từng là mười bốn, rồi mười một. Tỉnh/thành, bệnh viện và kênh rời khỏi phần
+ * mềm ở `0026` cùng ba cột nguồn của chúng bên khách hàng. `0077` bỏ tiếp **địa
+ * chỉ đăng ký** và **mã số thuế** — hai ô không ai lọc theo, và gộp **người đề
+ * nghị** vào **TDV phụ trách** (xem `tdvUserId` bên dưới). Đổi lại, *hạn xử lý*
+ * vào hẳn muc 9.2 thay vì đứng ngoài.
+ *
+ * NĂM TIÊU CHÍ NHẬN NHIỀU GIÁ TRỊ (`0077`) — xem `KHOA_NHIEU_GIA_TRI`. Trước đó
+ * chỉ `status` nhận, và cũng chỉ qua liên kết: biểu mẫu không có cách nào chọn
+ * hai trạng thái, nên muốn xem hồ sơ của ba khách hàng là phải lọc ba lần.
  *
  * MỘT LUẬT KHÔNG ĐƯỢC PHÉP LÁCH: phạm vi dữ liệu áp TRƯỚC bộ lọc và không tiêu
  * chí nào ghi đè được nó (RPT-09). Vì thế `tdv_user_id` xuất hiện ở HAI chỗ với
@@ -11,17 +17,31 @@
  *
  *   - `scopeUserIds` — do identity trả về, người dùng không đụng vào được. Luôn
  *     là điều kiện đầu tiên trong mệnh đề WHERE.
- *   - `tdvUserId` — tiêu chí lọc số 10, do người dùng gõ. Nó chỉ THU HẸP thêm
- *     trong phạm vi đã có; gõ id của người ngoài phạm vi thì kết quả rỗng, chứ
- *     không mở rộng ra được.
+ *   - `tdvUserId` — tiêu chí lọc số 7, do người dùng chọn. Nó chỉ THU HẸP thêm
+ *     trong phạm vi đã có; chọn người ngoài phạm vi thì kết quả rỗng, chứ không
+ *     mở rộng ra được. Từ `0077` ô chọn ấy lấy danh sách từ
+ *     `GET /reports/handlers` — vốn đã lọc theo phạm vi — nên chuyện ngoài phạm
+ *     vi gần như không còn xảy ra; luật trên vẫn đứng đó vì nó bảo vệ đường API,
+ *     không bảo vệ cái ô chọn.
  *
  * Cách dựng câu lệnh cũng chọn theo hướng đó: điều kiện phạm vi được nối cứng
  * trong `build()` chứ không nằm trong danh sách tiêu chí, nên không có đường nào
  * để một tiêu chí "quên" nó.
  */
 import { BadRequestException } from '@nestjs/common';
-import { contains, norm } from '@csbh/http-kit';
+import { contains, norm, normAll } from '@csbh/http-kit';
 
+/**
+ * Giá trị vẫn là CHUỖI, kể cả với tiêu chí nhiều giá trị — nối bằng dấu phẩy.
+ *
+ * Không đổi sang `string[]`, và đó là một lựa chọn chứ không phải lười: cả đường
+ * ống đều là chuỗi — query string của trình duyệt, JSON trong Redis
+ * (`filter-store.ts`), cột `filter jsonb` của `rpt.export_job`. Đổi kiểu ở đây
+ * là sửa bốn chỗ để được đúng một chỗ gọn hơn, và mỗi chỗ ấy là một dịp lệch.
+ *
+ * `tach()` là ranh giới: mọi nơi cần từng giá trị đều đi qua nó, nên không có
+ * hai cách hiểu một chuỗi.
+ */
 export type Filter = {
   appliedFrom?: string | undefined;
   appliedTo?: string | undefined;
@@ -29,16 +49,24 @@ export type Filter = {
   approvedTo?: string | undefined;
   customerCode?: string | undefined;
   customerName?: string | undefined;
-  address?: string | undefined;
-  taxId?: string | undefined;
   productName?: string | undefined;
-  requesterId?: string | undefined;
-  status?: string | undefined;
-  tdvUserId?: string | undefined;
   productGroupCode?: string | undefined;
+  /**
+   * TDV phụ trách KHÁCH HÀNG — không phải người lập hồ sơ (`0077`).
+   *
+   * Trước `0077` có thêm `requesterId` (người lập). Hai cột chỉ lệch nhau sau
+   * khi Sale Admin **bàn giao khách hàng**: hồ sơ cũ giữ nguyên người lập, còn
+   * TDV phụ trách đổi. Khi ấy chỉ một trong hai trả lời đúng câu *"hồ sơ của TDV
+   * này"*, và đó là cột này — cũng chính là cột `sync.service.ts` dùng để quyết
+   * định ai NHÌN THẤY hồ sơ, và là cột khối *Theo trình dược viên* trên trang
+   * Tổng quan đếm theo. Giữ cả hai là bày ra hai ô gần giống nhau cho một câu
+   * hỏi, rồi để người dùng chọn nhầm.
+   */
+  tdvUserId?: string | undefined;
+  status?: string | undefined;
+  han?: string | undefined;
   pendingStep?: string | undefined;
   reprint?: string | undefined;
-  han?: string | undefined;
 };
 
 /** Hai giá trị của tiêu chí *Hạn xử lý* (`0060`). */
@@ -96,7 +124,7 @@ export const SAP_QUA_HAN = `(status <> 'QUA_HAN_DUYET'
     AND sla_due_at IS NOT NULL
     AND sla_due_at <= now() + interval '1 day')`;
 
-/** Tên tham số nhận từ query string, theo đúng thứ tự 11 tiêu chí ở muc 9.2. */
+/** Tên tham số nhận từ query string, theo đúng thứ tự 9 tiêu chí ở muc 9.2. */
 export const FILTER_KEYS = [
   'appliedFrom',
   'appliedTo',
@@ -104,29 +132,93 @@ export const FILTER_KEYS = [
   'approvedTo',
   'customerCode',
   'customerName',
-  'address',
-  'taxId',
   'productName',
-  'requesterId',
-  'status',
-  'tdvUserId',
   'productGroupCode',
+  'tdvUserId',
+  'status',
+  'han',
 ] as const;
 
 /**
- * Tiêu chí NGOÀI mười một tiêu chí của muc 9.2.
+ * Số TIÊU CHÍ nghiệp vụ — 9, không phải 11 (`0077`).
+ *
+ * Mỗi cặp `…From`/`…To` là MỘT tiêu chí *"thời gian áp dụng"*, không phải hai:
+ * muc 9.2 kể một khoảng thời gian, còn hai khoá kia là cách một khoảng đi qua
+ * query string.
+ *
+ * Suy ra từ chính `FILTER_KEYS` chứ không viết tay. Bản trước ghi cứng `11` ở
+ * controller, và một con số phải nhớ sửa mỗi lần thêm bớt tiêu chí là con số sẽ
+ * có ngày nói dối về danh sách nằm ngay cạnh nó.
+ */
+export const SO_TIEU_CHI = FILTER_KEYS.filter((k) => !k.endsWith('To')).length;
+
+/**
+ * Tiêu chí NGOÀI muc 9.2 — chỉ sinh ra từ một cú bấm ở màn hình khác.
  *
  * Để RIÊNG khỏi `FILTER_KEYS` chứ không nối vào cuối: danh sách kia là bản chép
  * của muc 9.2 và `GET /reports/filter-keys` công bố đúng con số ấy. Trộn vào là
  * làm một tài liệu nghiệp vụ nói sai về chính nó.
  *
- * `pendingStep` và `reprint` chỉ sinh ra khi bấm một thẻ trên trang tổng quan —
- * "bước đang chờ" là mã viết hoa, `reprint` nhận 0 hoặc 1, không phải thứ người
- * ta gõ. `han` thì KHÁC (`0060`): nó có một ô chọn thật trong biểu mẫu lọc, vì
- * "hồ sơ nào sắp hết giờ" là câu người dùng tự hỏi chứ không phải hệ quả của một
- * cú bấm ở màn hình khác.
+ * Cả hai đều không phải thứ người ta gõ ra được: "bước đang chờ" là mã viết hoa,
+ * `reprint` nhận 0 hoặc 1. `han` từng đứng ở đây (`0060`) và **đã chuyển vào**
+ * `FILTER_KEYS` ở `0077` — khách hàng kể nó trong danh sách trường của bộ lọc,
+ * nên nó là một tiêu chí nghiệp vụ chứ không còn là phụ lục kỹ thuật.
  */
-export const KHOA_NGOAI_MUC_92 = ['pendingStep', 'reprint', 'han'] as const;
+export const KHOA_NGOAI_MUC_92 = ['pendingStep', 'reprint'] as const;
+
+/**
+ * Tiêu chí nhận NHIỀU giá trị, nối bằng dấu phẩy (`0077`).
+ *
+ * Một bảng tra, dùng cho cả phép kiểm lẫn phép dựng SQL. Rải `if` ở hai chỗ là
+ * mở đường cho một tiêu chí được kiểm như nhiều giá trị nhưng dựng SQL như một
+ * giá trị — và triệu chứng của nó là kết quả rỗng, thứ không ai báo lỗi giúp.
+ *
+ * Năm tiêu chí này đều có ô CHỌN ở giao diện, nên giá trị đến từ danh mục chứ
+ * không do người dùng gõ. Bốn tiêu chí còn lại không có mặt ở đây vì lý do
+ * riêng: hai cặp ngày là khoảng chứ không phải tập; *Tên KH* tìm gần đúng nên
+ * hai từ khoá cùng lúc là câu hỏi không có nghĩa; *Hạn xử lý* chỉ có hai giá trị
+ * và chúng loại trừ nhau.
+ */
+export const KHOA_NHIEU_GIA_TRI = [
+  'customerCode',
+  'productName',
+  'productGroupCode',
+  'tdvUserId',
+  'status',
+] as const;
+
+const laNhieuGiaTri = (k: string): boolean =>
+  (KHOA_NHIEU_GIA_TRI as readonly string[]).includes(k);
+
+/**
+ * Trần số giá trị mỗi tiêu chí.
+ *
+ * Không có trần thì một bộ lọc dán vào 5.000 mã khách hàng là một câu truy vấn
+ * không ai chặn — và nó đi qua đúng cái đường mà mọi người dùng đều gọi được.
+ * 50 đủ rộng cho mọi thao tác thật: ô chọn hiện chip, và không ai chọn tay quá
+ * vài chục chip mà vẫn đọc được cái mình vừa chọn.
+ */
+export const SO_GIA_TRI_TOI_DA = 50;
+
+/** Trần độ dài của MỘT giá trị đơn lẻ. Uuid dài 36, tên sản phẩm dài nhất ~120. */
+const DAI_TOI_DA = 200;
+
+/**
+ * Cắt một chuỗi nhiều giá trị thành danh sách: bỏ khoảng trắng, bỏ rỗng, khử trùng.
+ *
+ * KHỬ TRÙNG là phần dễ quên nhất. Chọn cùng một mã hai lần — chuyện thường gặp
+ * khi bộ lọc đến từ liên kết rồi người dùng chọn thêm — thì `= ANY` vẫn đúng,
+ * nhưng con số "đang lọc theo mấy giá trị" hiện sai và chip mọc lên hai cái
+ * giống hệt nhau.
+ */
+export const tach = (v: string): string[] => [
+  ...new Set(
+    v
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+  ),
+];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -146,14 +238,41 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
     if (typeof v !== 'string') continue;
     const t = v.trim();
     if (t === '') continue;
-    if (t.length > 200) throw bad(k, 'dài quá 200 ký tự');
+
+    /*
+     * Tiêu chí nhiều giá trị: kiểm TỪNG PHẦN TỬ, không kiểm cả chuỗi (`0077`).
+     *
+     * Trần 200 ký tự áp cho cả chuỗi vỡ ngay với 5 uuid — 185 ký tự cho 5 giá
+     * trị, và người dùng chọn giá trị thứ sáu thì nhận về một lỗi 400 nói mình
+     * gõ dài quá, trong khi họ không gõ gì cả.
+     */
+    if (laNhieuGiaTri(k)) {
+      const ds = tach(t);
+      if (ds.length === 0) continue;
+      if (ds.length > SO_GIA_TRI_TOI_DA) {
+        throw bad(k, `nhiều nhất ${SO_GIA_TRI_TOI_DA} giá trị, đang có ${ds.length}`);
+      }
+      for (const x of ds) {
+        if (x.length > DAI_TOI_DA) throw bad(k, `mỗi giá trị dài quá ${DAI_TOI_DA} ký tự`);
+      }
+      // Ghi lại BẢN ĐÃ CHUẨN HOÁ, không ghi nguyên văn: bản lưu trong Redis và
+      // bản đi vào việc xuất file phải giống hệt bản dùng để truy vấn.
+      out[k] = ds.join(',');
+      continue;
+    }
+
+    if (t.length > DAI_TOI_DA) throw bad(k, `dài quá ${DAI_TOI_DA} ký tự`);
     out[k] = t;
   }
   for (const k of ['appliedFrom', 'appliedTo', 'approvedFrom', 'approvedTo'] as const) {
     if (out[k] && !DATE.test(out[k]!)) throw bad(k, 'phải có dạng YYYY-MM-DD');
   }
-  for (const k of ['requesterId', 'tdvUserId'] as const) {
-    if (out[k] && !UUID.test(out[k]!)) throw bad(k, 'phải là uuid');
+  // Uuid kiểm từng phần tử. Một phần tử hỏng làm hỏng cả tiêu chí, và nói ra là
+  // đúng: `= ANY` với một uuid rác thì Postgres ném lỗi kiểu, không phải bỏ qua.
+  if (out['tdvUserId']) {
+    for (const x of tach(out['tdvUserId'])) {
+      if (!UUID.test(x)) throw bad('tdvUserId', `"${x}" không phải uuid`);
+    }
   }
   // `reprint` KHÔNG được im lặng bỏ qua khi sai. Nó chỉ nhận hai giá trị, và
   // "bỏ qua tiêu chí không hiểu" ở đây nghĩa là mở rộng kết quả ra cả hai nhóm —
@@ -204,42 +323,52 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
   if (f.approvedFrom) add((i) => `approved_at >= $${i}::date`, f.approvedFrom);
   if (f.approvedTo) add((i) => `approved_at < ($${i}::date + 1)`, f.approvedTo);
 
-  // 3. Mã khách hàng — khớp CHÍNH XÁC sau chuẩn hoá hoa thường và khoảng trắng,
-  //    giống hệt cách cus.customer chống trùng mã.
-  if (f.customerCode) add((i) => `upper(btrim(customer_code)) = upper(btrim($${i}))`, f.customerCode);
-
-  // 4, 5. Tên khách hàng và địa chỉ — "có chứa", bỏ dấu, không phân biệt hoa thường.
-  if (f.customerName) add((i) => `customer_name_norm LIKE $${i}`, contains(f.customerName));
-  if (f.address) add((i) => `address_norm LIKE $${i}`, contains(f.address));
-
-  // 6. Mã số thuế / CCCD.
-  if (f.taxId) add((i) => `btrim(tax_id) = btrim($${i})`, f.taxId);
-
-  // 7. Tên sản phẩm — khớp nếu BẤT KỲ dòng nào của hồ sơ có tên chứa từ khoá.
-  if (f.productName) {
+  /*
+   * 3. Mã khách hàng — khớp CHÍNH XÁC sau chuẩn hoá hoa thường và khoảng trắng,
+   *    giống hệt cách `cus.customer` chống trùng mã. Nhiều mã một lúc (`0077`).
+   *
+   * Chuẩn hoá vế phải Ở NODE (`toUpperCase`) chứ không gọi `upper()` trên mảng
+   * trong SQL: `upper(btrim(customer_code)) = ANY($i)` dùng được chỉ mục biểu
+   * thức `ix_rpt_customer_norm`, còn bọc thêm hàm quanh tham số thì không.
+   */
+  if (f.customerCode) {
     add(
-      (i) => `EXISTS (SELECT 1 FROM unnest(product_names_norm) n WHERE n LIKE $${i})`,
-      contains(f.productName),
+      (i) => `upper(btrim(customer_code)) = ANY($${i}::text[])`,
+      tach(f.customerCode).map((s) => s.toUpperCase()),
     );
   }
 
-  // 8. Người đề nghị.
-  if (f.requesterId) add((i) => `requester_id = $${i}::uuid`, f.requesterId);
-
-  // 9. Trạng thái. Nhận nhiều giá trị cách nhau bằng dấu phẩy — màn hình báo cáo
-  //    thường hỏi "đang chờ ai đó xử lý", tức là bốn trạng thái một lúc.
-  if (f.status) {
-    add((i) => `status = ANY($${i}::text[])`, f.status.split(',').map((s) => s.trim()).filter(Boolean));
-  }
-
-  // 10. TDV phụ trách — CHỈ thu hẹp trong phạm vi, xem chú thích đầu file.
-  if (f.tdvUserId) add((i) => `tdv_user_id = $${i}::uuid`, f.tdvUserId);
-
-  // 11. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
-  if (f.productGroupCode) add((i) => `product_group_codes && ARRAY[$${i}]::text[]`, f.productGroupCode);
+  // 4. Tên khách hàng — "có chứa", bỏ dấu, không phân biệt hoa thường. MỘT từ
+  //    khoá: hai từ khoá gần đúng cùng lúc là câu hỏi không có nghĩa rõ ràng.
+  if (f.customerName) add((i) => `customer_name_norm LIKE $${i}`, contains(f.customerName));
 
   /*
-   * 12. Bước đang chờ (`0045`) — cách DUY NHẤT để một liên kết mở ra đúng tập hồ
+   * 5. Tên sản phẩm — khớp nếu hồ sơ CÓ bất kỳ sản phẩm nào trong danh sách đã
+   *    chọn (`0077`).
+   *
+   * Đổi từ "có chứa" sang khớp ĐÚNG TÊN trên mảng đã bỏ dấu. Ô nhập giờ là ô
+   * chọn: người dùng gõ để TÌM, rồi chọn ra từng sản phẩm cụ thể, nên thứ gửi
+   * lên là tên đầy đủ chứ không phải mảnh từ khoá. Đổi lại được hai thứ — `&&`
+   * dùng được chỉ mục GIN `ix_rpt_pnames`, còn `LIKE '%…%'` trên từng phần tử
+   * thì không; và chọn ba sản phẩm ra đúng ba sản phẩm ấy, không kèm theo mọi
+   * mặt hàng khác có tên chứa cùng một chữ.
+   */
+  if (f.productName) add((i) => `product_names_norm && $${i}::text[]`, normAll(tach(f.productName)));
+
+  // 6. Nhóm sản phẩm — `&&` (hai mảng có phần tử chung) dùng được chỉ mục GIN.
+  if (f.productGroupCode) {
+    add((i) => `product_group_codes && $${i}::text[]`, tach(f.productGroupCode));
+  }
+
+  // 7. TDV phụ trách — CHỈ thu hẹp trong phạm vi, xem chú thích đầu file.
+  if (f.tdvUserId) add((i) => `tdv_user_id = ANY($${i}::uuid[])`, tach(f.tdvUserId));
+
+  // 8. Trạng thái. Màn hình báo cáo thường hỏi "đang chờ ai đó xử lý", tức là
+  //    bốn trạng thái một lúc.
+  if (f.status) add((i) => `status = ANY($${i}::text[])`, tach(f.status));
+
+  /*
+   * 9. Bước đang chờ (`0045`) — cách DUY NHẤT để một liên kết mở ra đúng tập hồ
    * sơ mà thẻ trên trang tổng quan đã đếm.
    *
    * Không thay được bằng `status`: thẻ "Chờ TBP duyệt" đếm cả hồ sơ quá hạn ở
@@ -254,13 +383,13 @@ export function build(f: Filter, scopeUserIds: string[]): Built {
     );
   }
 
-  // 13. Lý do hồ sơ nằm ở Sale Admin (`0045`): `1` = đang phải in lại bản cứng,
-  //     `0` = trình ký lần đầu. Chỉ có nghĩa khi đi kèm tiêu chí 12.
+  // 10. Lý do hồ sơ nằm ở Sale Admin (`0045`): `1` = đang phải in lại bản cứng,
+  //     `0` = trình ký lần đầu. Chỉ có nghĩa khi đi kèm tiêu chí 9.
   if (f.reprint === '1') cond.push('reprint_requested_at IS NOT NULL');
   if (f.reprint === '0') cond.push('reprint_requested_at IS NULL');
 
   /*
-   * 14. Hạn xử lý (`0060`) — một ô chọn gom hai câu hỏi về hạn vào một chỗ.
+   * 11. Hạn xử lý (`0060`) — một ô chọn gom hai câu hỏi về hạn vào một chỗ.
    *
    * Thay cho `dueSoon=1` của `0047`. Hai tiêu chí cho hai nửa của cùng một câu
    * hỏi là hai chỗ phải nhớ, và người dùng thì hỏi "hồ sơ nào đang có vấn đề về

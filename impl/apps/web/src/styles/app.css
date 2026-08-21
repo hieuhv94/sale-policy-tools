@@ -2118,3 +2118,76 @@ td.o-cau-chu { max-width: 32ch; }
   align-items: center;
   justify-content: center;
 }
+
+/* --- Ô chọn nhiều (`0077`) ------------------------------------------------- */
+
+/* `position: relative` để danh sách xoè ra neo vào đúng ô này, không neo vào
+   trang. Neo vào trang thì mở ô thứ ba trong lưới lọc là danh sách nhảy lên góc. */
+.chon-nhieu { position: relative; }
+
+.chon-nhieu-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k1);
+  margin-bottom: var(--k1);
+}
+
+/* Chip trong ô lọc nhỏ hơn chip "đang lọc thêm theo…" ở đầu trang: ở đây có thể
+   có sáu bảy cái cùng lúc, và chúng nằm TRONG một ô chứ không phải trên một dải
+   riêng. Vẫn giữ vùng chạm tối thiểu theo chiều cao (`FE-08`). */
+.chon-nhieu .the-loc {
+  max-width: 100%;
+  padding: 0 var(--k2);
+  gap: var(--k1);
+}
+
+/* Tên dài thì cắt bằng ba chấm chứ không nong chip ra: một tên sản phẩm 60 ký tự
+   kéo cả lưới lọc rộng ra, và người dùng vốn đã biết mình vừa chọn gì. */
+.chon-nhieu .the-loc > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chon-nhieu-ds {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  /* KHÔNG đặt `top`, và đó là cả mẹo: một khối tuyệt đối không có `top` lẫn
+     `bottom` đứng nguyên ở chỗ nó vốn nằm trong dòng chảy — tức là ngay dưới ô
+     nhập — chỉ khác là không chiếm chỗ nữa. Đặt `top` bằng một con số thì phải
+     tính cả chiều cao dải chip, mà dải ấy cao thấp theo số chip đang có. */
+  margin: var(--k1) 0 0;
+  padding: var(--k1);
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  box-shadow: var(--bong-noi);
+}
+
+.chon-nhieu-muc {
+  display: block;
+  width: 100%;
+  min-height: var(--vung-cham);
+  padding: var(--k2) var(--k3);
+  border: 0;
+  border-radius: var(--bo-goc);
+  background: none;
+  color: var(--mau-chu);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chon-nhieu-muc:hover,
+.chon-nhieu-muc:focus-visible { background: var(--mau-nen-hover); }
+
+.chon-nhieu-trong {
+  padding: var(--k2) var(--k3);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+}

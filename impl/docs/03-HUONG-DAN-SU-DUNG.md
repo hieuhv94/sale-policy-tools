@@ -910,12 +910,35 @@ mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi h�
 
 ## 10. Tìm kiếm và bộ lọc
 
-*Hồ sơ CSBH* → **Bộ lọc** — 11 tiêu chí của yêu cầu nghiệp vụ, kết hợp được với nhau:
+*Hồ sơ CSBH* → **Bộ lọc** — **9 tiêu chí** `sửa 21/08`, kết hợp được với nhau:
 
-> thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
-> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
+| Tiêu chí | Cách nhập |
+|---|---|
+| Áp dụng từ / đến · Duyệt từ / đến | Chọn ngày |
+| **Mã khách hàng** | **Chọn nhiều** — gõ mã hoặc tên để tìm |
+| Tên khách hàng | Gõ chữ, tìm gần đúng |
+| **Tên sản phẩm** | **Chọn nhiều** — gõ tên để tìm |
+| **Nhóm sản phẩm** | **Chọn nhiều** |
+| **TDV phụ trách** | **Chọn nhiều** |
+| **Trạng thái** | **Chọn nhiều** |
+| Hạn xử lý | Chọn một |
 
-Cộng thêm một ô **Hạn xử lý**, đứng ngay sau *Trạng thái*:
+**Năm tiêu chí chọn được nhiều thứ cùng lúc** `mới 21/08`. Gõ vài chữ, danh sách hiện ra, bấm để
+chọn — mỗi thứ đã chọn thành một **thẻ** bấm vào là gỡ. Chọn ba khách hàng thì ra hồ sơ của **cả
+ba**; thêm hai trạng thái thì ra hồ sơ của ba khách hàng ấy **và** đang ở một trong hai trạng thái.
+Trong một ô là *hoặc*, giữa hai ô là *và*.
+
+> **Vì sao chọn thay vì gõ.** Mã khách hàng và nhóm sản phẩm là mã có thật trong danh mục. Trước đây
+> phải nhớ và gõ đúng; gõ sai một ký tự thì kết quả rỗng, và không có gì phân biệt *"không có hồ sơ
+> nào"* với *"bạn gõ sai mã"*.
+>
+> **Ô chọn TDV phụ trách chỉ liệt kê những người có hồ sơ trong phạm vi của bạn** — nên chọn ai
+> trong đó cũng chắc chắn ra kết quả.
+>
+> Ba tiêu chí cũ đã bỏ: **địa chỉ đăng ký**, **mã số thuế**, và **người đề nghị** (gộp vào *TDV phụ
+> trách*).
+
+Ô **Hạn xử lý** đứng cuối, ngay sau *Trạng thái*:
 
 | Chọn | Ra hồ sơ nào |
 |---|---|
@@ -926,14 +949,19 @@ Cộng thêm một ô **Hạn xử lý**, đứng ngay sau *Trạng thái*:
 Đây cũng là chỗ hai thẻ *Sắp quá hạn* và *Quá hạn* trên trang Tổng quan dẫn tới: bấm thẻ rồi mở *Bộ
 lọc* ra là thấy đúng ô này đang được chọn, và đổi sang nửa kia bằng một cú chọn.
 
-- **Địa chỉ đăng ký** chỉ tìm kiểu *"có chứa"*, và **không phân biệt dấu**: gõ `da nang` vẫn ra
-  `Đà Nẵng`. Đây là cách lọc theo địa bàn duy nhất — ba tiêu chí tỉnh/thành, bệnh viện và kênh đã bỏ
-  cùng ba trường tương ứng bên khách hàng.
+- **Tên khách hàng** tìm kiểu *"có chứa"* và **không phân biệt dấu**: gõ `minh chau` ra "Minh Châu".
+  Đây là ô cho lúc bạn chưa biết mình đang tìm ai; biết rồi thì dùng ô *Mã khách hàng* ở trên, chính
+  xác hơn và chọn được nhiều người.
+- **Tên sản phẩm** thì ngược lại — nó khớp **đúng sản phẩm bạn chọn**, không phải "có chứa". Muốn
+  gom nhiều mặt hàng cùng dòng thì gõ từ khoá chung rồi chọn hết những gì hiện ra, hoặc lọc theo
+  *Nhóm sản phẩm*.
 - **Thời gian duyệt** là lúc hồ sơ **có hiệu lực** (sau bước tiếp nhận L2), không phải lúc TBP ký.
   Hồ sơ đang chờ chưa có thời gian duyệt nên không lọt vào kết quả lọc theo tiêu chí này.
 - Điều kiện lọc **được giữ trong phiên làm việc**: chuyển màn hình rồi quay lại vẫn còn. Bấm
   **Xoá bộ lọc** để về danh sách đầy đủ.
 - Trên điện thoại, bộ lọc nằm trong tấm trượt lên từ đáy màn hình.
+
+**Xuất Excel** nằm ở góc trên bên phải màn hình này `mới 21/08` — xem mục 11.
 
 Cột cuối bảng là **Hạn xử lý**: hồ sơ nào còn **dưới 24 giờ** là tới hạn mang nhãn đỏ *Sắp quá hạn*,
 còn lại để trống. Đây là cột thay cho *Số dòng* — số dòng sản phẩm là thứ phải mở hồ sơ ra mới dùng
@@ -950,8 +978,19 @@ hạn, và tỷ lệ trả lại. Ô *Quá hạn* chuyển đỏ khi khác 0.
 Bên dưới là **tiến độ hồ sơ** theo trạng thái (sắp giảm dần, kèm thanh so sánh độ dài), **tỷ lệ hồ
 sơ bị trả lại** (tính cả hồ sơ bị từ chối), và **hạn xử lý (SLA)**.
 
-**Xuất Excel** chạy nền: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng sẽ hiện liên kết
-tải. File chứa **đúng tập đang lọc**, cột tiền là **số** nên cộng và lọc được ngay trong Excel.
+### Xuất Excel `sửa 21/08`
+
+Nút **Xuất Excel** nằm ở màn hình **Hồ sơ CSBH**, góc trên bên phải — không phải ở trang Báo cáo.
+
+Đặt ở đó vì đó là màn hình có bộ lọc: file xuất ra chứa **đúng kết quả bạn đang xem**, nên số dòng
+trong file bằng đúng con số *"N hồ sơ khớp điều kiện"* ngay dưới tiêu đề. Trước đây nút nằm ở trang
+Báo cáo, cách bộ lọc một màn hình, nên nó chỉ xuất được **tất cả** hồ sơ trong phạm vi.
+
+Xuất chạy **chạy nền**: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng nút đổi thành
+*Tải file (N dòng)*. Cột tiền là **số** nên cộng và lọc được ngay trong Excel.
+
+**Đổi bộ lọc thì phải bấm xuất lại** — nút quay về *Xuất Excel*. Đây là chủ ý: giữ liên kết cũ thì
+bạn tải về một file của bộ lọc trước, mang số dòng của một danh sách không còn trên màn hình.
 
 File kết xuất **chỉ người bấm xuất tải được**, và hết hạn lưu sau 24 giờ.
 

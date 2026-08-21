@@ -1,20 +1,30 @@
 /**
- * Danh sách hồ sơ, có bộ lọc 11 tiêu chí (muc 9.2).
+ * Danh sách hồ sơ, có bộ lọc 9 tiêu chí (muc 9.2, dựng lại ở `0077`).
  *
  * Ba tiêu chí tỉnh/thành · bệnh viện · kênh rời khỏi phần mềm ở `0026` cùng ba
- * cột nguồn của chúng bên khách hàng.
+ * cột nguồn của chúng bên khách hàng. `0077` bỏ tiếp *địa chỉ đăng ký* và *mã số
+ * thuế*, gộp *người đề nghị* vào *TDV phụ trách*, và đưa *hạn xử lý* vào hẳn
+ * muc 9.2.
+ *
+ * ĐỔI LỚN NHẤT CỦA `0077`: **năm tiêu chí nhận nhiều giá trị**, và bốn trong số
+ * đó có ô CHỌN thay cho ô gõ. Trước đợt này mã khách hàng và nhóm sản phẩm phải
+ * gõ tay đúng mã có thật trong danh mục — gõ sai một ký tự thì kết quả rỗng, và
+ * không có gì phân biệt "không có hồ sơ nào" với "bạn gõ sai mã".
  *
  * Trên điện thoại bộ lọc nằm trong TẤM TRƯỢT LÊN, và đóng lại vẫn giữ điều kiện
  * đã chọn cùng số kết quả (`FE-10`). Điều kiện lưu ở máy chủ theo phiên, nên
  * chuyển màn hình rồi quay lại vẫn còn (`RPT-04`).
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { dang, dat, layJson } from '../lib/api.js';
-import { ngay } from '../lib/format.js';
+import { ngay, nhanTrangThai } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { ChonNhieu, type NguonChon, type TuyChon } from '../components/ChonNhieu.js';
+import { NutXuatExcel } from '../components/NutXuatExcel.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { MOI_TRANG, soTrangCua } from '../lib/phan-trang.js';
+import { MOI_TRANG_THAI } from '../lib/tong-quan.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 
@@ -50,23 +60,55 @@ const HAN_XU_LY: { gia: string; nhan: string }[] = [
   { gia: 'QUA_HAN', nhan: 'Đã quá hạn' },
 ];
 
-const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' | 'chon' }[] = [
+/** Nguồn tuỳ chọn nạp ở máy chủ theo từ khoá — dùng cho hai danh mục lớn. */
+type TimO = 'khach-hang' | 'san-pham';
+
+type TieuChi = {
+  khoa: string;
+  nhan: string;
+  kieu?: 'date' | 'chon' | 'nhieu';
+  /** Chỉ ô `nhieu`: lấy tuỳ chọn ở đâu. */
+  tim?: TimO;
+  goiY?: string;
+};
+
+/**
+ * Chín tiêu chí của muc 9.2, đúng thứ tự hiện trên biểu mẫu (`0077`).
+ *
+ * Thứ tự không tuỳ tiện: hai khoảng thời gian trước (câu hỏi thu hẹp mạnh nhất),
+ * rồi khách hàng, rồi sản phẩm, rồi người, rồi tình trạng. Đi từ "kỳ nào" tới
+ * "của ai" tới "đang ở đâu" — cùng thứ tự người ta nói ra khi hỏi miệng.
+ */
+const TIEU_CHI: TieuChi[] = [
   { khoa: 'appliedFrom', nhan: 'Áp dụng từ', kieu: 'date' },
   { khoa: 'appliedTo', nhan: 'Áp dụng đến', kieu: 'date' },
   { khoa: 'approvedFrom', nhan: 'Duyệt từ', kieu: 'date' },
   { khoa: 'approvedTo', nhan: 'Duyệt đến', kieu: 'date' },
-  { khoa: 'customerCode', nhan: 'Mã khách hàng' },
+  {
+    khoa: 'customerCode',
+    nhan: 'Mã khách hàng',
+    kieu: 'nhieu',
+    tim: 'khach-hang',
+    goiY: 'Gõ mã hoặc tên khách hàng…',
+  },
+  // Ô GÕ CHỮ, cố ý đứng cạnh ô chọn ở trên. Ô chọn trả lời "đúng những khách
+  // hàng này"; ô này trả lời "mọi khách hàng có chữ Minh trong tên" — câu hỏi
+  // của người chưa biết mình đang tìm ai.
   { khoa: 'customerName', nhan: 'Tên khách hàng' },
-  { khoa: 'address', nhan: 'Địa chỉ đăng ký' },
-  { khoa: 'taxId', nhan: 'Mã số thuế' },
-  { khoa: 'productName', nhan: 'Tên sản phẩm' },
-  { khoa: 'status', nhan: 'Trạng thái' },
-  { khoa: 'productGroupCode', nhan: 'Nhóm sản phẩm' },
+  {
+    khoa: 'productName',
+    nhan: 'Tên sản phẩm',
+    kieu: 'nhieu',
+    tim: 'san-pham',
+    goiY: 'Gõ tên sản phẩm…',
+  },
+  { khoa: 'productGroupCode', nhan: 'Nhóm sản phẩm', kieu: 'nhieu' },
+  { khoa: 'tdvUserId', nhan: 'TDV phụ trách', kieu: 'nhieu' },
+  { khoa: 'status', nhan: 'Trạng thái', kieu: 'nhieu' },
   /*
    * Đứng NGAY SAU *Trạng thái* (`0060`), và đó là chỗ của nó: hai ô cùng trả lời
    * "hồ sơ đang ở tình trạng nào", chỉ khác một cái theo bước còn một cái theo
-   * đồng hồ. Đặt cuối danh sách thì người đi tìm hồ sơ sắp hết giờ phải quét qua
-   * mã số thuế và tên sản phẩm trước khi gặp nó.
+   * đồng hồ.
    */
   { khoa: 'han', nhan: 'Hạn xử lý', kieu: 'chon' },
 ];
@@ -74,17 +116,20 @@ const TIEU_CHI: { khoa: string; nhan: string; kieu?: 'date' | 'chon' }[] = [
 /**
  * Tiêu chí đặt được TỪ LIÊN KẾT nhưng KHÔNG có ô nhập trong biểu mẫu.
  *
- * `tdvUserId` nhận một uuid, không phải chuỗi người ta gõ ra được — nó chỉ đến
- * từ việc bấm vào một dòng trên trang tổng quan. Vì không có ô nào để bỏ nó đi,
- * màn hình phải hiện một dải "đang lọc thêm theo…" có nút gỡ; thiếu dải đó thì
- * người dùng thấy danh sách ngắn bất thường mà không biết vì sao.
+ * Cả hai đến từ một cú bấm ở trang Tổng quan (`0045`), không phải thứ gõ ra
+ * được. Vì không có ô nào để bỏ chúng đi, màn hình hiện một dải "đang lọc thêm
+ * theo…" có nút gỡ; thiếu dải đó thì người dùng thấy danh sách ngắn bất thường
+ * mà không biết vì sao.
+ *
+ * `pendingStep` là cách DUY NHẤT để một thẻ mở ra đúng tập hồ sơ nó vừa đếm: thẻ
+ * đếm cả hồ sơ quá hạn ở bước ấy, mà chúng mang `QUA_HAN_DUYET` nên `status` lọc
+ * không ra.
+ *
+ * `tdvUserId` ĐÃ RỜI KHỎI ĐÂY ở `0077`. Nó có ô chọn thật rồi, nên bấm một dòng
+ * ở khối *Theo trình dược viên* giờ hiện thành chip trong đúng cái ô người dùng
+ * sửa được — thay vì một dải chữ chỉ bỏ đi được chứ không đổi được.
  */
 const TIEU_CHI_AN: Record<string, string> = {
-  tdvUserId: 'Trình dược viên',
-  requesterId: 'Người đề nghị',
-  // Hai tiêu chí của trang tổng quan (`0045`). `pendingStep` là cách DUY NHẤT để
-  // một thẻ mở ra đúng tập hồ sơ nó vừa đếm: thẻ đếm cả hồ sơ quá hạn ở bước ấy,
-  // mà chúng mang `QUA_HAN_DUYET` nên `status` lọc không ra.
   pendingStep: 'Bước đang chờ',
   reprint: 'Việc của Sale Admin',
 };
@@ -97,6 +142,79 @@ export const KHOA_NHAN_TU_LIEN_KET = [
   ...TIEU_CHI.map((t) => t.khoa),
   ...Object.keys(TIEU_CHI_AN),
 ];
+
+/** Khoá nhận nhiều giá trị — phải khớp `KHOA_NHIEU_GIA_TRI` của máy chủ (`0077`). */
+export const KHOA_NHIEU = TIEU_CHI.filter((t) => t.kieu === 'nhieu').map((t) => t.khoa);
+
+/**
+ * Nạp hai danh mục nhỏ MỘT LẦN lúc mở màn hình: nhóm sản phẩm và TDV phụ trách.
+ *
+ * Cả hai chỉ vài chục dòng, và người dùng gần như chắc chắn sẽ mở bộ lọc ra —
+ * nạp sẵn thì ô chọn xoè ra là có ngay danh sách, không có khoảnh khắc trống.
+ * Hỏng thì trả về danh sách rỗng chứ không báo lỗi: một ô chọn không nạp được
+ * vẫn để người dùng lọc bằng tám tiêu chí còn lại.
+ */
+function useDanhMucLoc() {
+  const [nhom, datNhom] = useState<TuyChon[]>([]);
+  const [tdv, datTdv] = useState<TuyChon[]>([]);
+
+  useEffect(() => {
+    const huy = new AbortController();
+    void layJson<{ code: string; name: string }[]>('/catalog/product-groups', huy.signal)
+      .then((ds) => datNhom(ds.map((g) => ({ gia: g.code, nhan: `${g.code} — ${g.name}` }))))
+      .catch(() => undefined);
+    void layJson<{ userId: string; name: string | null }[]>('/reports/handlers', huy.signal)
+      .then((ds) => datTdv(ds.map((n) => ({ gia: n.userId, nhan: n.name ?? 'Chưa rõ tên' }))))
+      .catch(() => undefined);
+    return () => huy.abort();
+  }, []);
+
+  return { nhom, tdv };
+}
+
+/** Trạng thái: danh sách cố định, nhãn lấy từ `format.ts` để một trạng thái một tên. */
+const TUY_CHON_TRANG_THAI: TuyChon[] = MOI_TRANG_THAI.map((t) => ({
+  gia: t,
+  nhan: nhanTrangThai(t),
+}));
+
+/**
+ * Tìm khách hàng và sản phẩm Ở MÁY CHỦ.
+ *
+ * Không kéo cả danh mục về rồi lọc trên trình duyệt — đó đúng là lỗi `0049` đã
+ * sửa một lần ở màn hình danh mục: vượt 200 dòng thì gõ tên một thứ CÓ THẬT vẫn
+ * ra "không tìm thấy", và không gì báo cho người dùng biết họ chỉ tìm trong một
+ * phần.
+ *
+ * Khách hàng gửi lên MÃ, sản phẩm gửi lên TÊN — đúng thứ máy chủ lọc theo, và
+ * cũng đúng thứ đọc được trên chip mà không phải tra lại ở đâu.
+ *
+ * HAI ĐƯỜNG KHÁC NHAU, và khác có lý do đo được:
+ *
+ *   - Sản phẩm hỏi `catalog`, vì ô tìm ở đó đã bỏ dấu — gõ `sua` ra `sữa`.
+ *   - Khách hàng hỏi `reports`, KHÔNG hỏi `GET /customers?q=`. Đường kia khớp
+ *     tên, địa chỉ và mã số thuế nhưng **không khớp MÃ** — đúng thứ ô này mang
+ *     tên — và nó dùng `ILIKE` nên phân biệt dấu: gõ `duoc` ra rỗng. Thử trên
+ *     chồng demo mới lộ; đọc tên endpoint thì không thấy gì sai.
+ */
+const TIM: Record<TimO, (q: string) => Promise<TuyChon[]>> = {
+  'khach-hang': async (q) => {
+    const ds = await layJson<{ code: string; name: string }[]>(
+      `/reports/customers?q=${encodeURIComponent(q)}`,
+    );
+    return ds.map((k) => ({ gia: k.code, nhan: `${k.code} — ${k.name}` }));
+  },
+  'san-pham': async (q) => {
+    const r = await layJson<{ items: { name: string }[] }>(
+      `/catalog/products?limit=20&q=${encodeURIComponent(q)}`,
+    );
+    // Khử trùng theo TÊN: hai mã sản phẩm khác nhau có thể mang cùng một tên, và
+    // bộ lọc khớp theo tên nên hai dòng giống hệt nhau trong ô chọn là hai dòng
+    // làm cùng một việc.
+    const thay = new Map(r.items.map((s) => [s.name, s.name]));
+    return [...thay.keys()].map((n) => ({ gia: n, nhan: n }));
+  },
+};
 
 export function DanhSachHoSo() {
   const { nguoiDung } = usePhien();
@@ -220,6 +338,21 @@ export function DanhSachHoSo() {
   const soDieuKien = Object.values(boLoc).filter(Boolean).length;
   const locAn = Object.keys(TIEU_CHI_AN).filter((k) => boLoc[k]);
 
+  const { nhom, tdv } = useDanhMucLoc();
+  /*
+   * Nguồn của từng ô chọn. `useMemo` là bắt buộc, không phải tối ưu: `ChonNhieu`
+   * có `nguon` trong danh sách phụ thuộc của `useEffect`, nên một hàm dựng lại
+   * ở mỗi lượt vẽ sẽ kích hoạt lại phép tìm vô tận.
+   */
+  const nguonCua = useMemo(() => {
+    const bang: Record<string, NguonChon> = {
+      productGroupCode: nhom,
+      tdvUserId: tdv,
+      status: TUY_CHON_TRANG_THAI,
+    };
+    return (t: TieuChi): NguonChon => (t.tim ? TIM[t.tim] : (bang[t.khoa] ?? []));
+  }, [nhom, tdv]);
+
   return (
     <section className="trang">
       <div className="dau-trang">
@@ -237,6 +370,15 @@ export function DanhSachHoSo() {
         >
           Bộ lọc{soDieuKien > 0 && <span className="dem-loc">{soDieuKien}</span>}
         </button>
+        {/*
+          Xuất Excel đứng ở ĐÂY chứ không ở trang Báo cáo (`0077`).
+
+          Đây là màn hình duy nhất có bộ lọc, nên cũng là màn hình duy nhất xuất
+          được *kết quả tìm kiếm*. Nút cũ ở trang Báo cáo gửi lên một bộ lọc rỗng
+          và xuất cả phạm vi — một việc khác hẳn, đứng ở một chỗ không có gì để
+          xuất theo.
+        */}
+        <NutXuatExcel boLoc={boLoc} />
       </div>
 
       <p className="mo-ta-trang" aria-live="polite">
@@ -275,6 +417,21 @@ export function DanhSachHoSo() {
           <h2>Bộ lọc</h2>
           <div className="luoi-loc">
             {TIEU_CHI.map((t) => {
+              if (t.kieu === 'nhieu') {
+                return (
+                  <ChonNhieu
+                    key={t.khoa}
+                    id={`loc-${t.khoa}`}
+                    nhan={t.nhan}
+                    giaTri={boLoc[t.khoa] ? boLoc[t.khoa]!.split(',') : []}
+                    nguon={nguonCua(t)}
+                    {...(t.goiY === undefined ? {} : { goiY: t.goiY })}
+                    // Nối bằng dấu phẩy: `datMot` và cả đường ống bên dưới nó
+                    // vẫn làm việc với chuỗi, đúng như máy chủ nhận.
+                    doi={(v) => datMot(t.khoa, v.join(','))}
+                  />
+                );
+              }
               if (t.kieu === 'date' || t.kieu === 'chon') {
                 return (
                   <div className="truong" key={t.khoa}>

@@ -7,7 +7,7 @@
  * không lộ nội dung hồ sơ nào, nhưng vẫn là lộ dữ liệu.
  */
 import { BadRequestException, Injectable } from '@nestjs/common';
-import type { AuthUser } from '@csbh/http-kit';
+import { contains, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
 import { build, BUOC_DANG_CHO, SAP_QUA_HAN, type Filter } from './filter.js';
@@ -26,6 +26,23 @@ const KHOA_THE = `CASE
   END`;
 
 export const LIST_LIMIT_MAX = 200;
+
+/**
+ * Trần số TDV trả về cho ô chọn (`0077`).
+ *
+ * Một ô chọn 500 dòng đã là ô không ai cuộn hết — nó có ô tìm ngay trên đầu. Trần
+ * ở đây là để một phạm vi bất thường không kéo cả bảng về, không phải để phân
+ * trang: quá 500 TDV trong phạm vi một người thì vấn đề nằm ở cây phân quyền.
+ */
+export const HANDLERS_MAX = 500;
+
+/**
+ * Trần số dòng trả về cho một ô chọn có tìm kiếm (`0077`).
+ *
+ * Nhỏ hơn `HANDLERS_MAX` vì đây là kết quả của một từ khoá, không phải cả danh
+ * sách: quá 20 dòng thì người dùng nên gõ thêm chữ chứ không nên cuộn.
+ */
+export const CHON_MAX = 20;
 
 /** Cột trả về cho màn hình danh sách, và cũng là thứ tự cột của file Excel. */
 export const LIST_COLUMNS = `
@@ -119,6 +136,72 @@ export class ReportsService {
             })
           : null,
     };
+  }
+
+  /**
+   * Danh sách TDV phụ trách để dựng ô chọn của bộ lọc (`0077`).
+   *
+   * Chỉ những người **có hồ sơ trong phạm vi** người đang hỏi, không phải toàn
+   * bộ TDV của công ty. Danh sách đầy đủ thì ngắn hơn nhiều, và quan trọng hơn:
+   * chọn ai trong đó cũng chắc chắn ra kết quả. Bày cả những người ngoài phạm vi
+   * là mời người dùng chọn một cái tên rồi nhận về danh sách rỗng, mà không có
+   * gì nói cho họ biết vì sao — đúng cái bẫy `RPT-09` mở ra.
+   *
+   * Dùng lại `build({}, ids)` chứ không viết lại mệnh đề phạm vi: ô chọn và
+   * danh sách kết quả phải nói về cùng một tập hồ sơ.
+   */
+  async handlers(me: AuthUser): Promise<{ userId: string; name: string | null }[]> {
+    const ids = await this.scope.userIdsFor(me);
+    const { where, params } = build({}, ids);
+    const rows = await this.db.q<{ id: string; name: string | null }>(
+      `SELECT tdv_user_id::text AS id, max(tdv_name) AS name
+         FROM rpt.policy_row
+        WHERE ${where}
+        GROUP BY tdv_user_id
+        ORDER BY max(tdv_name) NULLS LAST
+        LIMIT ${HANDLERS_MAX}`,
+      params,
+    );
+    return rows.map((r) => ({ userId: r.id, name: r.name }));
+  }
+
+  /**
+   * Danh sách KHÁCH HÀNG để dựng ô chọn *Mã khách hàng* (`0077`).
+   *
+   * Đọc từ read-model chứ không gọi sang service khách hàng, và đó không phải
+   * chuyện tiện tay — `GET /customers?q=` **không tìm được** thứ ô này cần:
+   *
+   *   - nó khớp `name || địa chỉ || mã số thuế`, **không khớp MÃ** — đúng cái ô
+   *     này mang tên;
+   *   - nó dùng `ILIKE`, phân biệt dấu: gõ `duoc` không ra "Dược".
+   *
+   * `rpt.policy_row` có sẵn `customer_name_norm` — đã bỏ dấu, đã có chỉ mục GIN
+   * trigram — nên tìm không dấu là miễn phí, và mã nằm ngay cạnh để khớp luôn.
+   *
+   * Thêm một cái được, cùng lý do với `handlers()`: chỉ khách hàng **có hồ sơ
+   * trong phạm vi** mới hiện ra, nên không có lựa chọn nào bấm vào ra rỗng.
+   */
+  async customers(
+    me: AuthUser,
+    q: string,
+  ): Promise<{ code: string; name: string }[]> {
+    const ids = await this.scope.userIdsFor(me);
+    const { where, params } = build({}, ids);
+    const tuKhoa = q.trim();
+    if (tuKhoa === '') return [];
+    params.push(contains(tuKhoa), `%${tuKhoa.toUpperCase()}%`);
+    const i = params.length;
+    const rows = await this.db.q<{ code: string; name: string }>(
+      `SELECT customer_code AS code, max(customer_name) AS name
+         FROM rpt.policy_row
+        WHERE ${where}
+          AND (customer_name_norm LIKE $${i - 1} OR upper(customer_code) LIKE $${i})
+        GROUP BY customer_code
+        ORDER BY max(customer_name)
+        LIMIT ${CHON_MAX}`,
+      params,
+    );
+    return rows;
   }
 
   /** Tổng số hồ sơ khớp bộ lọc — hỏi riêng vì màn hình chỉ cần nó khi cần. */

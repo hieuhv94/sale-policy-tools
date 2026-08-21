@@ -15,7 +15,10 @@ import {
   createTestApp as createReportingApp,
   COLUMNS,
   FILTER_KEYS,
+  KHOA_NHIEU_GIA_TRI,
   norm,
+  SO_GIA_TRI_TOI_DA,
+  SO_TIEU_CHI,
   SyncService,
 } from '@csbh/reporting/testing';
 import { Bus, BUS } from '@csbh/bus';
@@ -357,17 +360,26 @@ describe('RPT-14 read-model trễ hơn nguồn nhưng hội tụ', () => {
 });
 
 // =============================================================================
-// RPT-01 — mười bốn tiêu chí, mỗi tiêu chí một test
+// RPT-01 — chín tiêu chí, mỗi tiêu chí một test
 // =============================================================================
 
-describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
-  it('có đúng 11 tiêu chí, khai báo ở một chỗ', async () => {
+describe('RPT-01 từng tiêu chí trong 9 tiêu chí ở muc 9.2', () => {
+  it('có đúng 9 tiêu chí, khai báo ở một chỗ', async () => {
+    /*
+     * `0077` bỏ *địa chỉ đăng ký* và *mã số thuế* — hai ô không ai lọc theo — và
+     * gộp *người đề nghị* vào *TDV phụ trách*; đổi lại *hạn xử lý* vào hẳn muc
+     * 9.2 thay vì đứng ngoài như từ `0060`.
+     */
     const r = await rget('/reports/filter-keys');
     expect(r.status).toBe(200);
-    expect(r.body.criteria).toBe(11);
-    // 13 tham số cho 11 tiêu chí: hai tiêu chí thời gian mỗi cái có hai đầu.
-    expect(r.body.keys).toHaveLength(13);
-    expect(FILTER_KEYS).toHaveLength(13);
+    expect(r.body.criteria).toBe(9);
+    expect(SO_TIEU_CHI).toBe(9);
+    // 11 tham số cho 9 tiêu chí: hai tiêu chí thời gian mỗi cái có hai đầu.
+    expect(r.body.keys).toHaveLength(11);
+    expect(FILTER_KEYS).toHaveLength(11);
+    for (const bo of ['address', 'taxId', 'requesterId']) {
+      expect(FILTER_KEYS as readonly string[], `${bo} phải đã bị gỡ`).not.toContain(bo);
+    }
   });
 
   it('1. thời gian áp dụng — bao gồm cả hai ngày biên', async () => {
@@ -434,53 +446,57 @@ describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
     expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
   });
 
-  it('5. địa chỉ đăng ký — chỉ "có chứa", không phân biệt dấu (RPT-05)', async () => {
-    const d = await draft({ address: 'Số 12 Nguyễn Văn Linh, Quận Hải Châu, Đà Nẵng' });
+  it('5. tên sản phẩm — khớp ĐÚNG TÊN, không phải "có chứa" (`0077`)', async () => {
+    /*
+     * Đổi nghĩa ở `0077`. Ô nhập giờ là ô CHỌN: người dùng gõ để tìm rồi chọn ra
+     * từng sản phẩm cụ thể, nên thứ gửi lên là tên đầy đủ chứ không phải mảnh từ
+     * khoá. Đổi lại được hai thứ — `&&` dùng được chỉ mục GIN `ix_rpt_pnames`,
+     * và chọn ba sản phẩm ra đúng ba sản phẩm ấy chứ không kèm mọi mặt hàng khác
+     * có tên chứa cùng một chữ.
+     */
+    const ten = 'Nutricare Metaligold Đặc Biệt';
+    const d = await draft({ productName: ten });
 
-    // "da nang" không dấu phải tìm ra "Đà Nẵng" — chữ đ là chỗ dễ hỏng nhất và
-    // hỏng trong im lặng, vì mọi tỉnh thành khác vẫn tìm được.
-    for (const term of ['da nang', 'ĐÀ NẴNG', 'nguyen van linh', 'Hải Châu']) {
-      const r = await rget(`/reports/policies?address=${encodeURIComponent(term)}&limit=200`);
-      const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
-      expect(ids, `từ khoá "${term}"`).toContain(d.id);
-    }
+    const dung = await rget(`/reports/policies?productName=${encodeURIComponent(ten)}&limit=200`);
+    expect(dung.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
 
-    // Khớp giữa chuỗi, không chỉ từ đầu.
-    const mid = await rget('/reports/policies?address=van%20linh&limit=200');
-    expect(mid.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
+    // Bỏ dấu và đổi hoa thường vẫn khớp — hai bên cùng đi qua `norm`.
+    const khongDau = await rget(
+      '/reports/policies?productName=nutricare%20metaligold%20dac%20biet&limit=200',
+    );
+    expect(khongDau.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
+
+    // Một MẢNH của tên thì KHÔNG còn khớp — đây chính là chỗ đổi nghĩa.
+    const manh = await rget('/reports/policies?productName=metaligold&limit=200');
+    expect(manh.body.items.map((x: { policyId: string }) => x.policyId)).not.toContain(d.id);
   });
 
-  it('6. mã số thuế', async () => {
-    // `padStart(9)` là bắt buộc, không phải cho đẹp: `Date.now() % 1e9` rơi
-    // xuống 8 chữ số suốt ~28 giờ trong mỗi chu kỳ 11,6 ngày, và khi ấy mã số
-    // thuế chỉ còn 9 ký tự — máy chủ từ chối, ca này đỏ mà chẳng dính gì tới
-    // điều đang kiểm. Một quả bom hẹn giờ nổ khoảng 10% số ngày.
-    const tax = `0${String(Date.now() % 1_000_000_000).padStart(9, '0')}`;
-    const d = await draft({ taxId: tax });
-    const r = await rget(`/reports/policies?taxId=${tax}&limit=200`);
-    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toEqual([d.id]);
+  it('6. nhóm sản phẩm', async () => {
+    const a = await draft({ groupCode: groupA });
+    const b = await draft({ groupCode: groupB });
+    const r = await rget(`/reports/policies?productGroupCode=${groupB}&limit=200`);
+    const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
+    expect(ids).toContain(b.id);
+    expect(ids).not.toContain(a.id);
   });
-
-  it('7. tên sản phẩm — khớp nếu bất kỳ dòng nào của hồ sơ chứa từ khoá', async () => {
-    const d = await draft({ productName: 'Nutricare Metaligold Đặc Biệt' });
-    const r = await rget('/reports/policies?productName=metaligold&limit=200');
-    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
-  });
-
-  it('8. người đề nghị', async () => {
-    const d = await draft({ who: 'tdv02' });
+  it('7. TDV phụ trách', async () => {
+    const mine = await draft({ who: 'tdv01' });
+    const other = await draft({ who: 'tdv02' });
     // Đọc bằng `bld01` (`0031`): ca này kiểm TIÊU CHÍ LỌC, không kiểm phạm vi.
     // Hồ sơ còn Nháp thì chưa giao cho kế toán nào, nên đọc bằng `kt01` là kiểm
     // nhầm sang phạm vi và che mất thứ đang muốn kiểm.
-    const r = await rget(`/reports/policies?requesterId=${userId['tdv02']}&limit=200`, 'bld01');
+    const r = await rget(`/reports/policies?tdvUserId=${userId['tdv01']}&limit=200`, 'bld01');
     const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
-    expect(ids).toContain(d.id);
-    expect(r.body.items.every((x: { requesterId: string }) => x.requesterId === userId['tdv02'])).toBe(
-      true,
-    );
+    expect(ids).toContain(mine.id);
+    expect(ids).not.toContain(other.id);
   });
 
-  it('9. trạng thái — nhận nhiều giá trị cách nhau bằng dấu phẩy', async () => {
+  /*
+   * Ba tiêu chí 11 · 12 · 13 cũ — tỉnh/thành, bệnh viện, kênh — đã xoá cùng
+   * `0026`. Bộ lọc gửi lên vẫn không gãy (`cleanFilter` bỏ khoá lạ), nhưng
+   * không còn cột nào để lọc theo nên không còn gì để kiểm.
+   */
+  it('8. trạng thái — nhận nhiều giá trị cách nhau bằng dấu phẩy', async () => {
     const nhap = await draft();
     const cho = await draft();
     expect((await act(cho.id, 'SUBMIT', 'tdv01')).status).toBe(200);
@@ -495,29 +511,6 @@ describe('RPT-01 từng tiêu chí trong 11 tiêu chí ở muc 9.2', () => {
     expect(ids).toContain(cho.id);
   });
 
-  it('10. TDV phụ trách', async () => {
-    const mine = await draft({ who: 'tdv01' });
-    const other = await draft({ who: 'tdv02' });
-    // `bld01` vì cùng lý do với tiêu chí 8 (`0031`).
-    const r = await rget(`/reports/policies?tdvUserId=${userId['tdv01']}&limit=200`, 'bld01');
-    const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
-    expect(ids).toContain(mine.id);
-    expect(ids).not.toContain(other.id);
-  });
-
-  /*
-   * Ba tiêu chí 11 · 12 · 13 cũ — tỉnh/thành, bệnh viện, kênh — đã xoá cùng
-   * `0026`. Bộ lọc gửi lên vẫn không gãy (`cleanFilter` bỏ khoá lạ), nhưng
-   * không còn cột nào để lọc theo nên không còn gì để kiểm.
-   */
-  it('11. nhóm sản phẩm', async () => {
-    const a = await draft({ groupCode: groupA });
-    const b = await draft({ groupCode: groupB });
-    const r = await rget(`/reports/policies?productGroupCode=${groupB}&limit=200`);
-    const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
-    expect(ids).toContain(b.id);
-    expect(ids).not.toContain(a.id);
-  });
 });
 
 // =============================================================================
@@ -528,35 +521,236 @@ describe('RPT-02 kết hợp 5 điều kiện cùng lúc', () => {
   it('trả đúng giao của các điều kiện', async () => {
     const hit = await draft({
       name: 'Công ty Dược Hoàng Long',
-      address: '55 Lê Duẩn, Hải Phòng',
-      taxId: '5566778899',
       groupCode: groupB,
-      productName: 'Nutricare Bone',
+      productName: 'Nutricare Bone Loang Xuong',
       appliedDate: '2026-05-05',
+      who: 'tdv01',
     });
-    // Khác đúng MỘT điều kiện (mã số thuế) — phải bị loại.
+    // Khác đúng MỘT điều kiện (nhóm sản phẩm) — phải bị loại.
     const miss = await draft({
       name: 'Công ty Dược Hoàng Long',
-      address: '55 Lê Duẩn, Hải Phòng',
-      taxId: '1199887766',
-      groupCode: groupB,
-      productName: 'Nutricare Bone',
+      groupCode: groupA,
+      productName: 'Nutricare Bone Loang Xuong',
       appliedDate: '2026-05-05',
+      who: 'tdv01',
     });
 
     const qs = [
       `customerName=${encodeURIComponent('hoang long')}`,
-      `address=${encodeURIComponent('le duan')}`,
-      'taxId=5566778899',
-      `productName=${encodeURIComponent('bone')}`,
+      `productName=${encodeURIComponent('Nutricare Bone Loang Xuong')}`,
       `productGroupCode=${groupB}`,
+      `tdvUserId=${userId['tdv01']}`,
+      'appliedFrom=2026-05-05',
       'limit=200',
     ].join('&');
-    const r = await rget(`/reports/policies?${qs}`);
+    const r = await rget(`/reports/policies?${qs}`, 'bld01');
     const ids = r.body.items.map((x: { policyId: string }) => x.policyId);
     expect(ids).toContain(hit.id);
     expect(ids).not.toContain(miss.id);
     expect(r.body.appliedCriteria).toBe(5);
+  });
+});
+
+// =============================================================================
+// `0077` — NHIỀU GIÁ TRỊ trên cùng một tiêu chí
+// =============================================================================
+
+describe('`0077` mỗi tiêu chí kết hợp được nhiều giá trị', () => {
+  /**
+   * Tập hồ sơ khớp một chuỗi truy vấn. Trả về `Set` để so bằng phép tập, không
+   * so bằng số đếm chép tay — bộ test dùng chung một CSDL với mọi tệp khác, nên
+   * một con số cứng ở đây là một ca đỏ ngẫu nhiên chờ ngày xảy ra.
+   */
+  const tap = async (qs: string, who = 'bld01'): Promise<Set<string>> => {
+    const r = await rget(`/reports/policies?${qs}&limit=200`, who);
+    expect(r.status, qs).toBe(200);
+    return new Set(r.body.items.map((x: { policyId: string }) => x.policyId));
+  };
+
+  it('nhiều giá trị cho ra đúng HỢP của từng giá trị đơn lẻ', async () => {
+    /*
+     * Bất biến của cả tính năng, và nó đúng cho MỌI tiêu chí nhiều giá trị: lọc
+     * `a,b` phải bằng lọc `a` cộng lọc `b`. Kiểm bằng phép tập nên nó không phụ
+     * thuộc vào dữ liệu các tệp test khác để lại.
+     */
+    const a = await draft({ who: 'tdv01' });
+    const b = await draft({ who: 'tdv02' });
+
+    const rieng = await Promise.all([
+      tap(`tdvUserId=${userId['tdv01']}`),
+      tap(`tdvUserId=${userId['tdv02']}`),
+    ]);
+    const chung = await tap(`tdvUserId=${userId['tdv01']},${userId['tdv02']}`);
+
+    expect(chung).toEqual(new Set([...rieng[0]!, ...rieng[1]!]));
+    expect(chung.has(a.id)).toBe(true);
+    expect(chung.has(b.id)).toBe(true);
+  });
+
+  it('mã khách hàng — nhiều mã, không phân biệt hoa thường', async () => {
+    const a = await draft();
+    const b = await draft();
+    const ids = await tap(
+      `customerCode=${a.customerCode.toLowerCase()},${b.customerCode.toUpperCase()}`,
+    );
+    expect(ids.has(a.id)).toBe(true);
+    expect(ids.has(b.id)).toBe(true);
+  });
+
+  it('tên sản phẩm — nhiều sản phẩm', async () => {
+    const x = await draft({ productName: 'Nutricare Gold Kim Cuong' });
+    const y = await draft({ productName: 'Nutricare Smarta Grow Plus' });
+    const ids = await tap(
+      'productName=' +
+        encodeURIComponent('Nutricare Gold Kim Cuong') +
+        ',' +
+        encodeURIComponent('Nutricare Smarta Grow Plus'),
+    );
+    expect(ids.has(x.id)).toBe(true);
+    expect(ids.has(y.id)).toBe(true);
+  });
+
+  it('nhóm sản phẩm — nhiều nhóm', async () => {
+    const a = await draft({ groupCode: groupA });
+    const b = await draft({ groupCode: groupB });
+    const ids = await tap(`productGroupCode=${groupA},${groupB}`);
+    expect(ids.has(a.id)).toBe(true);
+    expect(ids.has(b.id)).toBe(true);
+  });
+
+  it('HAI tiêu chí nhiều giá trị đứng cạnh nhau thì GIAO, không phải hợp', async () => {
+    /*
+     * Chỗ dễ làm sai nhất của cả đợt. Trong MỘT tiêu chí, nhiều giá trị là
+     * "hoặc"; giữa HAI tiêu chí thì vẫn là "và". Dựng nhầm thành "hoặc" ở tầng
+     * trên là bộ lọc càng thêm điều kiện càng ra nhiều kết quả — một hành vi
+     * không ai nghĩ tới nên cũng không ai đi kiểm.
+     */
+    const hit = await draft({ who: 'tdv01', groupCode: groupB });
+    const lechNhom = await draft({ who: 'tdv01', groupCode: groupA });
+    const lechNguoi = await draft({ who: 'tdv02', groupCode: groupB });
+
+    const ids = await tap(
+      `tdvUserId=${userId['tdv01']},${userId['tdv03']}&productGroupCode=${groupB}`,
+    );
+    expect(ids.has(hit.id)).toBe(true);
+    expect(ids.has(lechNhom.id), 'khác nhóm mà vẫn lọt — hai tiêu chí đang là HOẶC').toBe(false);
+    expect(ids.has(lechNguoi.id), 'khác người mà vẫn lọt').toBe(false);
+  });
+
+  it('giá trị TRÙNG bị khử, và `appliedCriteria` không đếm nhầm', async () => {
+    // Bộ lọc đến từ liên kết rồi người dùng chọn thêm đúng cái đã có — chip mọc
+    // lên hai cái giống hệt nhau nếu không khử.
+    const r = await rget(`/reports/policies?status=NHAP,NHAP,NHAP&limit=200`);
+    expect(r.status).toBe(200);
+    expect(r.body.filter.status).toBe('NHAP');
+    expect(r.body.appliedCriteria).toBe(1);
+  });
+
+  it('mọi tiêu chí trong `KHOA_NHIEU_GIA_TRI` đều thật sự nhận dấu phẩy', async () => {
+    /*
+     * Đối chiếu BẢNG với HÀNH VI. `KHOA_NHIEU_GIA_TRI` là một danh sách khai
+     * tay; thêm một khoá vào đó mà quên đổi `build()` thì tiêu chí ấy vẫn qua
+     * được phép kiểm nhưng dựng SQL như một giá trị đơn — và triệu chứng là kết
+     * quả rỗng, thứ không ai báo lỗi giúp.
+     */
+    for (const k of KHOA_NHIEU_GIA_TRI) {
+      const v = k === 'tdvUserId' ? `${userId['tdv01']},${userId['tdv02']}` : 'AAA,BBB';
+      const r = await rget(`/reports/policies?${k}=${encodeURIComponent(v)}&limit=5`);
+      expect(r.status, `${k} không nhận nhiều giá trị`).toBe(200);
+      expect(r.body.filter[k], `${k} bị cắt mất một giá trị`).toBe(v);
+    }
+  });
+
+  it('quá trần số giá trị thì 400, không âm thầm cắt bớt', async () => {
+    // Cắt bớt trong im lặng là trả về một tập HẸP HƠN thứ người dùng hỏi, và
+    // không có gì nói cho họ biết. Nói thẳng vẫn hơn.
+    const nhieu = Array.from({ length: SO_GIA_TRI_TOI_DA + 1 }, (_, i) => `KH${i}`).join(',');
+    const r = await rget(`/reports/policies?customerCode=${nhieu}&limit=5`);
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('VALIDATION_FAILED');
+    expect(r.body.field).toBe('customerCode');
+  });
+
+  it('đúng trần thì vẫn qua — trần là 50, không phải 49', async () => {
+    const vua = Array.from({ length: SO_GIA_TRI_TOI_DA }, (_, i) => `KH${i}`).join(',');
+    expect((await rget(`/reports/policies?customerCode=${vua}&limit=5`)).status).toBe(200);
+  });
+
+  it('MỘT phần tử uuid hỏng làm cả tiêu chí bị từ chối', async () => {
+    /*
+     * Không bỏ qua phần tử hỏng: `= ANY` với một uuid rác thì Postgres ném lỗi
+     * kiểu ở tận tầng CSDL, và người dùng nhận về một lỗi 500 không nhắc gì tới
+     * cái ô họ vừa sửa.
+     */
+    const r = await rget(`/reports/policies?tdvUserId=${userId['tdv01']},khong-phai-uuid&limit=5`);
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('tdvUserId');
+  });
+});
+
+// =============================================================================
+// `0077` — nguồn của ô chọn *TDV phụ trách*
+// =============================================================================
+
+describe('`0077` GET /reports/handlers', () => {
+  it('chỉ trả người CÓ hồ sơ trong phạm vi người gọi', async () => {
+    /*
+     * Cả điểm của endpoint này. Bày cả những TDV ngoài phạm vi là mời người dùng
+     * chọn một cái tên rồi nhận về danh sách rỗng, mà không có gì nói vì sao —
+     * đúng cái bẫy `RPT-09` mở ra khi phạm vi áp trước bộ lọc.
+     */
+    await draft({ who: 'tdv01' });
+    await draft({ who: 'tdv03' });
+
+    const r = await rget('/reports/handlers', 'tdv01');
+    expect(r.status).toBe(200);
+    const ids = r.body.map((x: { userId: string }) => x.userId);
+    expect(ids).toContain(userId['tdv01']);
+    // tdv03 thuộc nhánh kế toán khác — tdv01 không thấy hồ sơ của họ, nên cũng
+    // không được thấy tên họ trong ô chọn.
+    expect(ids).not.toContain(userId['tdv03']);
+  });
+
+  it('`0077` ô chọn khách hàng tìm được cả MÃ lẫn TÊN KHÔNG DẤU', async () => {
+    /*
+     * Vì sao ô này không dùng `GET /customers?q=` — đo trên chồng demo mới lộ:
+     * đường ấy khớp `tên || địa chỉ || mã số thuế`, **không khớp MÃ** (đúng thứ
+     * ô này mang tên), và dùng `ILIKE` nên phân biệt dấu — gõ `duoc` ra rỗng.
+     *
+     * `rpt.policy_row` có `customer_name_norm` đã bỏ dấu và có chỉ mục GIN, nên
+     * cả hai phép tìm đều rẻ.
+     */
+    const d = await draft({ name: 'Công ty Dược phẩm Hoàng Kim' });
+
+    const theoMa = await rget(`/reports/customers?q=${d.customerCode}`);
+    expect(theoMa.status).toBe(200);
+    expect(theoMa.body.map((x: { code: string }) => x.code)).toContain(d.customerCode);
+
+    // Không dấu, chữ thường — đúng cách người ta gõ nhanh.
+    const theoTen = await rget('/reports/customers?q=duoc%20pham%20hoang%20kim');
+    expect(theoTen.body.map((x: { code: string }) => x.code)).toContain(d.customerCode);
+
+    // Từ khoá rỗng KHÔNG trả về cả bảng: ô chọn chờ người dùng gõ đã.
+    expect((await rget('/reports/customers?q=')).body).toEqual([]);
+  });
+
+  it('`0077` ô chọn khách hàng cũng chỉ trong PHẠM VI', async () => {
+    const cuaToi = await draft({ who: 'tdv01', name: 'Nha thuoc Trong Pham Vi' });
+    await draft({ who: 'tdv03', name: 'Nha thuoc Ngoai Pham Vi' });
+    const r = await rget('/reports/customers?q=nha%20thuoc', 'tdv01');
+    const ten = r.body.map((x: { name: string }) => x.name);
+    expect(r.body.map((x: { code: string }) => x.code)).toContain(cuaToi.customerCode);
+    expect(ten).not.toContain('Nha thuoc Ngoai Pham Vi');
+  });
+
+  it('mọi id trả về đều lọc ra ÍT NHẤT một hồ sơ — không có lựa chọn chết', async () => {
+    await draft({ who: 'tdv01' });
+    const r = await rget('/reports/handlers', 'tdv01');
+    expect(r.body.length).toBeGreaterThan(0);
+    for (const x of r.body as { userId: string }[]) {
+      const ds = await rget(`/reports/policies?tdvUserId=${x.userId}&limit=1`, 'tdv01');
+      expect(ds.body.items.length, `${x.userId} là một lựa chọn chết`).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -591,7 +785,7 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
   it('đặt bộ lọc, chuyển màn hình rồi quay lại thì điều kiện còn nguyên', async () => {
     const saved = await rput('/reports/filters/ho-so', {
       status: 'NHAP',
-      taxId: '0101234567',
+      productGroupCode: groupB,
       customerName: 'Minh Châu',
     });
     expect(saved.status).toBe(200);
@@ -603,7 +797,7 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
     const back = await rget('/reports/filters/ho-so');
     expect(back.body.filter).toEqual({
       status: 'NHAP',
-      taxId: '0101234567',
+      productGroupCode: groupB,
       customerName: 'Minh Châu',
     });
   });
@@ -859,15 +1053,12 @@ const readSheet = async (buf: Buffer) => {
 
 describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
   it('file chứa đúng tập đã lọc, đúng thứ tự cột, tiền là SỐ chứ không phải chuỗi', async () => {
-    // `padStart(9)` là bắt buộc, không phải cho đẹp: `Date.now() % 1e9` rơi
-    // xuống 8 chữ số suốt ~28 giờ trong mỗi chu kỳ 11,6 ngày, và khi ấy mã số
-    // thuế chỉ còn 9 ký tự — máy chủ từ chối, ca này đỏ mà chẳng dính gì tới
-    // điều đang kiểm. Một quả bom hẹn giờ nổ khoảng 10% số ngày.
-    const tax = `0${String(Date.now() % 1_000_000_000).padStart(9, '0')}`;
-    const wanted = await draft({ taxId: tax, name: 'Nhà thuốc Thiên Ân' });
+    // Lọc theo MÃ KHÁCH HÀNG: `draft()` sinh mã duy nhất cho mỗi hồ sơ, nên nó
+    // khoanh đúng một dòng — vai trò mà mã số thuế giữ trước `0077`.
+    const wanted = await draft({ name: 'Nhà thuốc Thiên Ân' });
     await draft({ name: 'Không nằm trong bộ lọc' });
 
-    const req = await rpost('/reports/exports', { taxId: tax });
+    const req = await rpost('/reports/exports', { customerCode: wanted.customerCode });
     expect(req.status).toBe(202);
     const done = await waitExport(req.body.jobId);
     expect(done.status).toBe('XONG');
@@ -906,6 +1097,35 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
     // Ngày: phải là Date, không phải chuỗi — chuỗi thì tháng 12 sắp trước tháng 2.
     const createdCol = COLUMNS.findIndex((c) => c.key === 'createdAt') + 1;
     expect(row.getCell(createdCol).value).toBeInstanceOf(Date);
+  });
+
+  it('`0077` số dòng trong file KHỚP con số màn hình đang hiện', async () => {
+    /*
+     * Bất biến đáng giá nhất của `0077`, và là lý do nút xuất chuyển sang màn
+     * hình Hồ sơ: người dùng đọc "27 hồ sơ khớp điều kiện", bấm xuất, rồi mở
+     * file ra và ĐẾM. Hai con số ấy phải là một.
+     *
+     * Chúng có thể lệch rất dễ: `count` và việc xuất là hai đường khác nhau, hai
+     * lần chốt phạm vi khác nhau, và cùng đọc một bộ lọc do người dùng gửi. Chỉ
+     * cần một bên quên `cleanFilter` hoặc hiểu khác một chuỗi nhiều giá trị là
+     * lệch — mà không có gì báo, chỉ có một file thiếu vài dòng.
+     */
+    const a = await draft({ who: 'tdv01', groupCode: groupB });
+    const b = await draft({ who: 'tdv01', groupCode: groupB });
+    await draft({ who: 'tdv01', groupCode: groupA });
+
+    const loc = { productGroupCode: groupB, customerCode: `${a.customerCode},${b.customerCode}` };
+    const qs = new URLSearchParams(loc).toString();
+
+    const dem = await rget(`/reports/policies/count?${qs}`);
+    expect(dem.status).toBe(200);
+    expect(dem.body.total).toBe(2);
+
+    const req = await rpost('/reports/exports', loc);
+    expect(req.status).toBe(202);
+    const done = await waitExport(req.body.jobId);
+    expect(done.status).toBe('XONG');
+    expect(done.rowCount, 'số dòng file khác con số trên màn hình').toBe(dem.body.total);
   });
 
   it('người khác không tải được file của mình, kể cả cấp trên', async () => {

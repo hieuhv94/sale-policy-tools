@@ -148,7 +148,7 @@ trong hai:
 Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ**.
 
 - Xem mọi CSBH ở mọi trạng thái, lịch sử duyệt, file đã ký và nhật ký.
-- Lọc và xuất Excel theo mọi tiêu chí ở mục 9.2.
+- Lọc và xuất Excel theo mọi tiêu chí ở mục 9.2 — xuất ra đúng kết quả bộ lọc đang xem.
 - Ký bản cứng là thao tác giấy do Sale Admin trình lên — phần mềm không có bước nào cho việc này.
 
 ### 2.7. Quản trị hệ thống
@@ -785,11 +785,29 @@ phải một cách in khác của hồ sơ.
 
 ### 9.2. Bộ lọc và báo cáo
 
-Bộ lọc tối thiểu, cho phép kết hợp nhiều điều kiện, xóa bộ lọc, xuất Excel và giữ điều kiện lọc
-trong phiên làm việc:
+Bộ lọc **9 tiêu chí** `sửa 21/08`, cho phép kết hợp nhiều điều kiện, xóa bộ lọc, xuất Excel và giữ
+điều kiện lọc trong phiên làm việc:
 
-> thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · địa chỉ đăng ký ·
-> mã số thuế · tên sản phẩm · người đề nghị · trạng thái · TDV phụ trách · nhóm sản phẩm
+> thời gian áp dụng · thời gian duyệt · mã khách hàng · tên khách hàng · tên sản phẩm ·
+> nhóm sản phẩm · TDV phụ trách · trạng thái · hạn xử lý
+
+**Năm tiêu chí nhận NHIỀU giá trị cùng lúc** `mới 21/08` — mã khách hàng, tên sản phẩm, nhóm sản
+phẩm, TDV phụ trách và trạng thái. Trong một tiêu chí, nhiều giá trị là **hoặc**; giữa hai tiêu chí
+vẫn là **và**. Bốn tiêu chí ấy hiện dưới dạng **ô chọn** lấy thẳng từ danh mục, không phải ô gõ tay:
+gõ để tìm, bấm để chọn, mỗi thứ đã chọn thành một thẻ bấm được để gỡ. Tối đa 50 giá trị mỗi tiêu chí.
+
+> **Ba tiêu chí bỏ đi** `sửa 21/08`: **địa chỉ đăng ký** và **mã số thuế** — không ai lọc theo, và
+> hai ô ấy chiếm chỗ ngay giữa biểu mẫu. **Người đề nghị** gộp vào **TDV phụ trách**: bình thường
+> hai người là một, và chúng chỉ lệch nhau sau khi bàn giao khách hàng — lúc ấy câu hỏi *"hồ sơ của
+> TDV này"* chỉ có một câu trả lời đúng, là TDV **đang phụ trách khách hàng**. Đó cũng chính là
+> người quyết định ai nhìn thấy hồ sơ, và là con số mà khối *Theo trình dược viên* trên trang Tổng
+> quan đếm — nên bấm một dòng ở đó ra đúng con số vừa bấm.
+>
+> **Hạn xử lý** đi ngược chiều: từ một tham số kỹ thuật (`0060`) thành một tiêu chí chính thức.
+
+**Xuất Excel theo KẾT QUẢ TÌM KIẾM** `sửa 21/08`, không phải toàn bộ phạm vi. Nút đứng ở màn hình
+*Hồ sơ CSBH* — màn hình duy nhất có bộ lọc — nên số dòng trong file luôn bằng con số hiện trên màn
+hình. Trước đó nút nằm ở trang *Báo cáo*, cách bộ lọc một màn hình, nên nó chỉ xuất được tất cả.
 
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần ký,
 tiếp nhận, xuất file và tải tài liệu.
@@ -1122,7 +1140,7 @@ thoi `◆`** cạnh con số, và **bỏ khối chú thích màu** dưới bản
 **Hai yếu tố, và ba danh mục địa lý biến mất** (16/08) — **ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
 phẩm và loại khách hàng**; chiều **kênh bán** rời khỏi quy định · **bỏ hẳn ba trường Tỉnh/thành ·
 Bệnh viện–điểm bán · Kênh** khỏi khách hàng, cùng ba danh mục tra cứu, ba tiêu chí lọc và ba cột
-trong file Excel — bộ lọc còn **11 tiêu chí** · dữ liệu đã nhập của ba trường ấy **mất theo**, có chủ
+trong file Excel — bộ lọc còn **11 tiêu chí**, và còn **9** sau lần rà 21/08 · dữ liệu đã nhập của ba trường ấy **mất theo**, có chủ
 ý: giữ lại cột là giữ lại màn hình nhập, và dữ liệu nhập vào sẽ có người tin là có nghĩa.
 
 **Khác** — chữ ký điện tử nội bộ · SLA 14 ngày tính cả cuối tuần · một luồng email cho mỗi khách hàng.

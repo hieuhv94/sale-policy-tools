@@ -7511,3 +7511,111 @@ mọi nút gắn quyền biến mất. Sửa ở stub chứ không thêm lớp p
 để ca kiểm thử xanh*.
 
 **1325/1325 xanh.**
+
+## P103 — Dựng lại bộ lọc CSBH: chọn nhiều, và xuất đúng thứ đang xem
+
+Ba chỗ không dùng được, và cả ba đều không phải lỗi — chỉ là chưa ai làm:
+
+1. **Không chọn được nhiều thứ.** Chỉ `status` nhận nhiều giá trị, và cũng chỉ qua liên kết. Muốn
+   xem hồ sơ của ba khách hàng là phải lọc ba lần.
+2. **Gõ tay những thứ có sẵn danh sách.** Mã khách hàng và nhóm sản phẩm là mã có thật trong danh
+   mục; gõ sai một ký tự thì kết quả rỗng, và không có gì phân biệt *"không có hồ sơ nào"* với
+   *"bạn gõ sai mã"*.
+3. **Xuất Excel không theo bộ lọc.** Nút nằm ở trang *Báo cáo* và gửi lên `{}`. Mà máy chủ vốn nhận
+   và tôn trọng một bộ lọc từ ngày đầu — cả khả năng ấy nằm đó không ai gọi tới, vì nút duy nhất
+   trong phần mềm đứng cách bộ lọc một màn hình.
+
+### Bộ trường: 11 tiêu chí → 9
+
+| Bỏ | Vì sao |
+|---|---|
+| Địa chỉ đăng ký · Mã số thuế | Không ai lọc theo, mà hai ô chiếm chỗ ngay giữa biểu mẫu |
+| Người đề nghị | Gộp vào *TDV phụ trách* |
+
+*Hạn xử lý* đi ngược chiều: từ một tham số kỹ thuật (`0060`) thành tiêu chí chính thức của muc 9.2.
+
+**Chỗ phải cân nhắc thật là chuyện gộp người.** Khách hàng nói *"TDV chính là người đề nghị"* — đúng
+trong đời thường, nhưng đó là **hai cột khác nhau**: `requester_id` là người LẬP, `tdv_user_id` là
+TDV phụ trách KHÁCH HÀNG. Chúng lệch nhau sau khi Sale Admin **bàn giao khách hàng**, và đó là một
+nghiệp vụ có thật. Nêu ra rồi hỏi lại, và câu trả lời chọn `tdv_user_id` — đúng cột quyết định ai
+nhìn thấy hồ sơ, và đúng cột khối *Theo trình dược viên* đếm theo, nên bấm một dòng ở đó ra đúng con
+số vừa bấm. `tdvUserId` nhờ vậy rời khỏi nhóm "tiêu chí ẩn": nó có ô thật, sửa được, thay cho một dải
+chữ chỉ bỏ đi được.
+
+### Năm tiêu chí nhận nhiều giá trị
+
+`KHOA_NHIEU_GIA_TRI` là **một bảng tra dùng cho cả phép kiểm lẫn phép dựng SQL**. Rải `if` ở hai chỗ
+là mở đường cho một tiêu chí được kiểm như nhiều giá trị nhưng dựng SQL như một giá trị — triệu chứng
+của nó là kết quả rỗng, thứ không ai báo lỗi giúp. Có một ca đi từ bảng ra hành vi để canh đúng chuyện
+đó.
+
+Ba chỗ dễ sai, đều đã có ca riêng:
+
+- **Trần 200 ký tự vỡ ngay với 5 uuid** (185 ký tự). Khoá nhiều giá trị phải kiểm TỪNG PHẦN TỬ, nếu
+  không người dùng chọn giá trị thứ sáu và nhận về một lỗi nói mình gõ dài quá — trong khi họ không
+  gõ gì cả.
+- **Trong một tiêu chí là *hoặc*, giữa hai tiêu chí vẫn là *và*.** Dựng nhầm thành *hoặc* ở tầng trên
+  là bộ lọc càng thêm điều kiện càng ra nhiều kết quả — hành vi không ai nghĩ tới nên cũng không ai
+  đi kiểm.
+- **Trần 50 giá trị.** Không có trần thì một bộ lọc dán vào 5.000 mã là một câu truy vấn không ai
+  chặn, đi qua đúng đường mọi người dùng đều gọi được.
+
+*Tên sản phẩm* đổi nghĩa từ *"có chứa"* sang **khớp đúng tên** trên `product_names_norm`: ô giờ là ô
+chọn nên thứ gửi lên là tên đầy đủ. Đổi lại `&&` dùng được chỉ mục GIN, và chọn ba sản phẩm ra đúng
+ba sản phẩm ấy.
+
+Migration `0077` chỉ có một dòng, và nó vá một lỗ **có sẵn từ `0016`**: điều kiện lọc mã khách hàng
+viết `upper(btrim(customer_code)) = …` nhưng chỉ mục là `(customer_code)` — Postgres không dùng được
+nó cho biểu thức bọc hàm, nên mọi lượt lọc theo mã đều quét toàn bảng. Không ai thấy vì hai mươi
+nghìn dòng quét vẫn trả về trong vài chục mili giây; `0077` làm nó nặng thêm nên vá luôn.
+
+### Hai thứ chỉ ĐO mới thấy
+
+Chồng demo có 146 hồ sơ thật, và Chrome lái bằng CDP.
+
+**Một, `GET /customers?q=` không dùng được cho ô "Mã khách hàng".** Plan ghi nó làm nguồn, và đọc tên
+endpoint thì chẳng có gì sai. Thử mới thấy nó khớp `tên || địa chỉ || mã số thuế` — **không khớp MÃ**,
+đúng thứ ô ấy mang tên — và dùng `ILIKE` nên phân biệt dấu: gõ `duoc` ra **0 kết quả**. Thay bằng
+`GET /reports/customers`, đọc `customer_name_norm` (đã bỏ dấu, đã có GIN trigram) và khớp cả mã. Được
+thêm đúng cái mà `/reports/handlers` được: chỉ khách hàng **có hồ sơ trong phạm vi** mới hiện, nên
+không có lựa chọn nào bấm vào ra rỗng. Đo lại: `KH-0016` · `kh-0016` · `duoc` · `Dược` · `mien trung`
+— cả năm cách gõ đều ra đúng.
+
+> Ô sản phẩm thì KHÔNG phải đổi: `catalog` vốn đã tìm không dấu. Hai đường khác nhau, và khác vì đo
+> được chứ không vì tiện tay.
+
+**Hai, hai danh sách xoè cùng lúc.** `ChonNhieu` chỉ đóng khi `mousedown` ra ngoài. Với chuột thì mọi
+thứ trông ổn — cú bấm vào ô sau đã dọn hộ ô trước. Đi bằng **bàn phím** thì không có cú bấm nào, và
+hai danh sách chồng lên nhau. Nghe thêm `focusin`.
+
+### Phép thử cuối
+
+Chọn hai nhóm sản phẩm + một TDV, đọc con số trên màn hình, bấm xuất, **mở file ra đếm**:
+
+```
+Man hinh hien : 43 ho so khop dieu kien
+May chu bao   : 43 dong
+Mo file ra dem: 44 dong = 1 tieu de + 43 ho so   ==> KHOP
+```
+
+Bất biến ấy có ca riêng ở `reporting.test.ts`, và nó đáng giá nhất đợt này: `count` và việc xuất là
+hai đường khác nhau, hai lần chốt phạm vi khác nhau, cùng đọc một bộ lọc do người dùng gửi. Lệch thì
+không có gì báo — chỉ có một file thiếu vài dòng.
+
+Nhân tiện bịt một lỗ cùng họ: liên kết *Tải file* dùng `<a href={GOC_API + downloadUrl}>`, mà thẻ neo
+không gửi header `Authorization` và đường tải nằm sau `@Roles(...)`. Đúng lỗi nút *Xuất hợp đồng* từng
+mắc và `taiVe()` sinh ra để bịt; nó lọt lại vì bộ kiểm thử gọi đường ấy từ phía máy chủ, nơi header
+luôn có sẵn.
+
+### Đối chiếu hai chiều, lần đầu có
+
+Chú thích ở `reports.controller.ts` nói *"màn hình dựng form từ đây"*, còn màn hình thì chép tay danh
+sách khoá. Không gì bắt được lúc hai bên lệch: hoặc có một ô lọc mà máy chủ bỏ qua trong im lặng,
+hoặc có một tiêu chí không ô nào chạm tới. Ca `0077` khoá cả hai chiều — tập khoá của biểu mẫu phải
+khớp `FILTER_KEYS + KHOA_NGOAI_MUC_92`, và tập ô chọn nhiều phải khớp `KHOA_NHIEU_GIA_TRI`.
+
+`criteria` cũng thôi viết tay: nó suy từ `FILTER_KEYS` (mỗi cặp `…From`/`…To` là MỘT tiêu chí). Con
+số `11` ghi cứng trước đây là thứ phải nhớ sửa mỗi lần thêm bớt, và sai thì nó nói dối về chính danh
+sách nằm ngay cạnh nó.
+
+**1352/1352 xanh.**

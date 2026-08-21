@@ -32,6 +32,8 @@
     "./phan-trang": "./src/lib/phan-trang.ts",
     "./phan-trang-ui": "./src/components/PhanTrang.tsx",
     "./so-lieu": "./src/components/khoi/SoLieu.tsx",
+    "./chon-nhieu": "./src/components/ChonNhieu.tsx",
+    "./nut-xuat-excel": "./src/components/NutXuatExcel.tsx",
     "./hop-viec": "./src/components/khoi/HopViec.tsx",
     "./ho-so-ui": "./src/pages/DanhSachHoSo.tsx",
     "./chi-tiet-ho-so": "./src/pages/ChiTietHoSo.tsx",

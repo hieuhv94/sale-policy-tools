@@ -13,7 +13,7 @@ import type { Response } from 'express';
 import { CurrentUser, Roles, type AuthUser } from '@csbh/http-kit';
 import { ReportsService } from './reports.service.js';
 import { FilterStore } from './filter-store.js';
-import { cleanFilter, FILTER_KEYS, type Filter } from './filter.js';
+import { cleanFilter, FILTER_KEYS, SO_TIEU_CHI, type Filter } from './filter.js';
 import { ExportsService } from '../exports/exports.service.js';
 
 /** Ai cũng xem được báo cáo — nhưng chỉ trong phạm vi dữ liệu của mình. */
@@ -45,13 +45,38 @@ export class ReportsController {
     return { total: await this.reports.count(me, cleanFilter(q)) };
   }
 
-  /** Danh sách tên tham số lọc — màn hình dựng form từ đây, không gõ lại 13 chuỗi. */
+  /**
+   * Danh sách tên tham số lọc — nguồn để đối chiếu với biểu mẫu ở giao diện.
+   *
+   * `criteria` suy TỪ chính `FILTER_KEYS` chứ không viết tay con số (`0077`).
+   * Bản trước ghi cứng `11`, và đó là một con số phải nhớ sửa mỗi lần thêm bớt
+   * tiêu chí — thứ không ai nhớ, và sai thì nó nói dối về chính danh sách nó
+   * vừa trả về ngay bên cạnh.
+   */
   @Roles(...VIEWERS)
   @Get('filter-keys')
   filterKeys() {
-    // 11 tiêu chí kể từ `0026`: tỉnh/thành, bệnh viện và kênh rời khỏi phần mềm
-    // cùng ba cột nguồn của chúng bên khách hàng.
-    return { keys: FILTER_KEYS, criteria: 11 };
+    return { keys: FILTER_KEYS, criteria: SO_TIEU_CHI };
+  }
+
+  /** Ô chọn *TDV phụ trách* của bộ lọc — chỉ người có hồ sơ trong phạm vi (`0077`). */
+  @Roles(...VIEWERS)
+  @Get('handlers')
+  handlers(@CurrentUser() me: AuthUser) {
+    return this.reports.handlers(me);
+  }
+
+  /**
+   * Ô chọn *Mã khách hàng* của bộ lọc (`0077`).
+   *
+   * Đứng ở reporting chứ không dùng `GET /customers?q=`: đường kia khớp tên, địa
+   * chỉ và mã số thuế nhưng **không khớp MÃ**, lại phân biệt dấu. Xem
+   * `ReportsService.customers`.
+   */
+  @Roles(...VIEWERS)
+  @Get('customers')
+  khachHang(@CurrentUser() me: AuthUser, @Query('q') q?: string) {
+    return this.reports.customers(me, q ?? '');
   }
 
   @Roles(...VIEWERS)

@@ -1,43 +1,21 @@
 /**
- * Ba báo cáo và việc xuất Excel chạy nền.
+ * Ba báo cáo tổng hợp. CHỈ ĐỂ ĐỌC — không có thao tác nào trên màn hình này.
  *
- * Xuất file KHÔNG chặn màn hình: bấm xong nhận mã việc, rồi hỏi lại trạng thái
- * cho tới khi có liên kết tải (`RPT-08`).
+ * VIỆC XUẤT EXCEL ĐÃ CHUYỂN ĐI (`0077`), sang màn hình *Hồ sơ*. Nút ở đây gửi
+ * lên một bộ lọc rỗng nên nó xuất cả phạm vi dữ liệu — trong khi thứ người ta
+ * muốn xuất gần như luôn là *kết quả vừa tìm được*, mà bộ lọc thì nằm ở màn hình
+ * kia. Một nút xuất đứng cách bộ lọc một màn hình là một nút không xuất được cái
+ * người dùng đang nhìn.
  */
-import { useEffect, useState } from 'react';
-import { dang, layJson, GOC_API } from '../lib/api.js';
 import { useBaoCao } from '../lib/bao-cao.js';
 import { nhanTrangThai } from '../lib/format.js';
+import { Lien } from '../lib/router.js';
 import { BaoLoi, ChiSo, DangTai } from '../components/Chung.js';
-
-type ViecXuat = { jobId: string; status: string; rowCount: number | null; downloadUrl: string | null };
 
 export function BaoCao() {
   // Cùng ba endpoint mà trang Tổng quan đọc — kiểu và cách nạp khai một chỗ ở
   // `lib/bao-cao.ts`, xem lý do ở đầu tệp đó.
   const { bo, loi: loiBaoCao } = useBaoCao();
-  const [loi, datLoi] = useState<unknown>(null);
-  const [viec, datViec] = useState<ViecXuat | null>(null);
-
-  // Hỏi lại trạng thái việc xuất cho tới khi xong.
-  useEffect(() => {
-    if (!viec || viec.status === 'XONG' || viec.status === 'LOI') return;
-    const h = setTimeout(() => {
-      void layJson<ViecXuat>(`/reports/exports/${viec.jobId}`)
-        .then(datViec)
-        .catch(() => undefined);
-    }, 700);
-    return () => clearTimeout(h);
-  }, [viec]);
-
-  const xuat = async () => {
-    datLoi(null);
-    try {
-      datViec(await dang<ViecXuat>('/reports/exports', {}));
-    } catch (e) {
-      datLoi(e);
-    }
-  };
 
   if (loiBaoCao !== null) return <BaoLoi loi={loiBaoCao} />;
   if (bo === null) return <DangTai />;
@@ -52,24 +30,6 @@ export function BaoCao() {
     <section className="trang">
       <div className="dau-trang">
         <h1>Báo cáo</h1>
-        {/*
-          Nút XUẤT lên góc trên bên phải (`0071`).
-
-          Nó vốn nằm trong thẻ *Xuất Excel* ở cuối trang, sau ba khối số liệu —
-          người dùng phải cuộn qua hết mới tới việc duy nhất họ LÀM trên màn hình
-          này; ba khối kia chỉ để đọc.
-
-          Chỉ NÚT lên trên; phần báo tiến độ và liên kết tải về ở lại trong thẻ.
-          Nút là thứ khởi động một việc, còn thẻ là chỗ việc ấy kể nó đang tới
-          đâu — hai vai trò khác nhau, và cái thứ hai cần chỗ để nói.
-        */}
-        {!viec && (
-          <div className="nhom-nut nhom-nut-dau">
-            <button type="button" className="nut nut-chinh" onClick={xuat}>
-              Xuất danh sách hồ sơ
-            </button>
-          </div>
-        )}
       </div>
       <p className="mo-ta-trang">
         {tienDo.total} hồ sơ trong phạm vi dữ liệu của bạn, tính tại thời điểm mở màn hình.
@@ -139,22 +99,18 @@ export function BaoCao() {
 
       <h2>Xuất Excel</h2>
       <div className="the">
+        {/*
+          Chỉ đường, không dựng lại nút (`0077`).
+
+          Bỏ hẳn mục này thì người đã quen bấm xuất ở đây sẽ đi tìm, không thấy,
+          rồi kết luận là chức năng bị gỡ. Một câu chỉ chỗ rẻ hơn nhiều so với
+          một cuộc gọi hỏi.
+        */}
         <p className="trong-mo-ta">
-          File dựng ở máy chủ và tải về khi xong, nên đóng màn hình này giữa chừng cũng không hỏng.
+          Xuất Excel nằm ở màn hình <Lien den="/ho-so">Hồ sơ CSBH</Lien>, góc trên bên phải. Đặt ở
+          đó để file xuất ra đúng <strong>kết quả bộ lọc</strong> bạn đang xem, thay vì toàn bộ hồ
+          sơ trong phạm vi.
         </p>
-        {loi !== null && <BaoLoi loi={loi} />}
-        {!viec && <p className="ghi-chu">Bấm <strong>Xuất danh sách hồ sơ</strong> ở góc trên.</p>}
-        {viec && viec.status !== 'XONG' && viec.status !== 'LOI' && (
-          <p role="status" aria-live="polite">Đang dựng file…</p>
-        )}
-        {viec?.status === 'LOI' && <p className="bao-loi" role="alert">Xuất file hỏng. Thử lại.</p>}
-        {viec?.status === 'XONG' && viec.downloadUrl && (
-          <p>
-            <a className="nut nut-chinh" href={`${GOC_API}${viec.downloadUrl}`}>
-              Tải file ({viec.rowCount} dòng)
-            </a>
-          </p>
-        )}
       </div>
     </section>
   );
