@@ -127,6 +127,48 @@ export type MailEvent = {
 };
 
 /**
+ * Thư BÀN GIAO KHÁCH HÀNG (`0085`) — lá thư duy nhất không nói về một hồ sơ.
+ *
+ * Nên nó cũng là lá thư duy nhất KHÔNG đi qua `bodyFor`. Khung sáu trường của
+ * NTF-02 là khung của một hồ sơ; ép lá thư này vào đó thì người nhận đọc được
+ * "Mã hồ sơ CSBH: —", "Trạng thái: —", "Bước đang duyệt: Không còn bước nào phải
+ * xử lý" — ba dòng vô nghĩa đứng trên đúng thứ họ cần biết.
+ */
+export type BanGiaoMail = {
+  fromName?: string | null | undefined;
+  count: number;
+  customers: { code: string; name: string }[];
+  at?: string | undefined;
+};
+
+export const subjectBanGiao = (e: BanGiaoMail): string =>
+  `[CSBH] Bạn được bàn giao ${e.count} khách hàng`;
+
+export function bodyBanGiao(e: BanGiaoMail, webBaseUrl: string): string {
+  const tu = e.fromName ? ` từ ${e.fromName}` : '';
+  const lines = [
+    `Bạn vừa được bàn giao ${e.count} khách hàng${tu}.`,
+    '',
+    `Thời điểm: ${formatIct(e.at)}`,
+    '',
+    'Danh sách khách hàng:',
+  ];
+  for (const k of e.customers) lines.push(`  · ${k.code} — ${k.name}`);
+  // Nói ra phần bị cắt. Một danh sách dừng ở dòng thứ 100 mà không giải thích
+  // đọc ra là "đúng 100 khách", và người nhận đi đối chiếu thiếu mất phần đuôi.
+  if (e.count > e.customers.length) {
+    lines.push(`  … và ${e.count - e.customers.length} khách nữa`);
+  }
+  lines.push(
+    '',
+    `Xem danh sách khách hàng: ${webBaseUrl}/khach-hang`,
+    '',
+    'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
+  );
+  return lines.join('\n');
+}
+
+/**
  * Giờ Việt Nam trong thân thư. Dấu thời gian trong CSDL vẫn là UTC — chỉ CÁCH
  * ĐỌC là đổi. Người nhận thư lúc 6 giờ sáng mà thấy ghi 23 giờ hôm trước thì
  * không tin được thông báo nào nữa (OPS-09).

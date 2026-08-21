@@ -1036,6 +1036,26 @@ hàng chuyển cùng hồ sơ**, kể cả khách chưa có hồ sơ nào · **K
 người phụ trách vẫn đang làm việc — đổi người chỉ có ở hai chỗ: lúc chọn người trong luồng, và lúc
 vô hiệu hoá tài khoản.
 
+**Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
+lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay
+cùng**, kể cả *Từ chối* và *Hết hiệu lực*; chỉ hồ sơ *Đã xoá* đứng ngoài.
+
+> **Vì sao rộng hơn luật bàn giao ở trên.** Phạm vi đọc hồ sơ có hai bản cài đặt phải trả lời giống
+> hệt nhau: màn hình *Hồ sơ CSBH* đọc read-model báo cáo, màn hình chi tiết đọc thẳng hồ sơ. Tới
+> `20/08` bản thứ nhất tính phạm vi theo **TDV phụ trách khách hàng** còn bản thứ hai theo **cột
+> người trên chính hồ sơ** — nên đổi tay khách hàng làm hai bên tách đôi, và tách theo hướng tệ
+> nhất: **danh sách bày hồ sơ ra, bấm vào thì báo không có quyền**. Đo được: đổi TDV phụ trách một
+> khách có 7 hồ sơ thì người nhận thấy đủ 7 dòng — gồm một bản *Đang có hiệu lực* — và cả 7 đều bị
+> từ chối khi mở, còn *Lịch sử CSBH* của khách thì rỗng trơn.
+>
+> Cũng vì thế mà người tiếp quản một khách hàng **đọc được lịch sử chính sách** của khách đó, thay
+> vì thấy một khách hàng không có quá khứ.
+
+**Thư báo người nhận bàn giao** `mới 21/08` — **một** lá cho cả lượt: *bạn được bàn giao bao nhiêu
+khách hàng, từ ai*, kèm danh sách mã và tên khách. Không kể hồ sơ; số hồ sơ phải xử lý thì khối
+*Việc của tôi* trên trang Tổng quan nói chính xác hơn và luôn cập nhật. Trước đó người nhận **không
+được báo gì cả** — họ chỉ phát hiện ra khi mở hộp việc và thấy thêm hàng trăm hồ sơ lạ.
+
 **Xoá đối tượng trong danh mục** `17/08` — mọi thao tác phá huỷ đòi **gõ lại mã nghiệp vụ** của
 chính đối tượng ấy: mã nhóm khi xoá nhóm sản phẩm, mã quy định khi xoá quy định chiết khấu, mã vật tư
 khi **vô hiệu hoá** sản phẩm (sản phẩm không có đường xoá hẳn, nên vô hiệu hoá là thao tác phá huỷ

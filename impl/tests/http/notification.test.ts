@@ -14,6 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PolicyOutbox } from '@csbh/policy/testing';
 import { CatalogOutbox } from '@csbh/catalog/testing';
+import { CustomerOutbox } from '@csbh/customer/testing';
 import {
   createTestApp as createNotificationApp,
   NotifyService,
@@ -30,6 +31,7 @@ import {
   bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
+  idNguoiDung,
   maDuyNhat,
   http,
   mailpitClear,
@@ -51,6 +53,7 @@ const tok: Record<string, string> = {};
 
 let outbox: PolicyOutbox;
 let catOutbox: CatalogOutbox;
+let cusOutbox: CustomerOutbox;
 let notify: NotifyService;
 
 const uniq = (k: string) => maDuyNhat(P, k);
@@ -269,6 +272,7 @@ beforeAll(async () => {
   restores.push(po.restore);
   outbox = policy.get(PolicyOutbox);
   catOutbox = catalog.get(CatalogOutbox);
+  cusOutbox = customer.get(CustomerOutbox);
 
   // Dọn sạch hàng đợi TRƯỚC khi bật consumer. Queue là bền, nên sự kiện còn sót
   // từ lần chạy trước sẽ được giao ngay khi notification khởi động và làm sai
@@ -290,6 +294,7 @@ beforeAll(async () => {
   await withAdminDb(async (db) => {
     await db.query(`UPDATE pol.outbox SET published_at = now() WHERE published_at IS NULL`);
     await db.query(`UPDATE cat.outbox SET published_at = now() WHERE published_at IS NULL`);
+    await db.query(`UPDATE cus.outbox SET published_at = now() WHERE published_at IS NULL`);
   });
 
   ntf = await createNotificationApp();
@@ -1137,4 +1142,103 @@ describe('INT-06 notification chết trong lúc duyệt hồ sơ', () => {
     notify = ntf.get(NotifyService);
     expect((await waitMail(5)).length).toBe(5);
   }, 60_000);
+});
+
+// =============================================================================
+// `0085` — thư báo cho người NHẬN BÀN GIAO
+// =============================================================================
+
+/**
+ * Người nhận bàn giao trước `0085` **không được báo gì cả**.
+ *
+ * Đo trên chồng demo: bàn giao 23 khách hàng và 140 hồ sơ từ `tdv01` sang
+ * `tdv02`, số dòng trong `ntf.sent_mail` đứng yên ở 342. Sự kiện
+ * `policy.handover` có bay đi thật, nhưng nó không mang `recipients` lẫn
+ * `tdvUserId` nên `NotifyService.handle` bỏ qua trong im lặng — đúng nhánh dành
+ * cho sự kiện của service khác. Người nhận sáng hôm sau mở hộp việc lên và thấy
+ * thêm 140 hồ sơ lạ, có cái sắp quá hạn, không ai nói gì.
+ */
+describe('`0085` thư bàn giao khách hàng', () => {
+  /** Vô hiệu hoá một tài khoản kèm người nhận — đường duy nhất sinh ra bàn giao. */
+  const banGiao = async (fromId: string, username: string, toId: string) =>
+    (await http(identity))
+      .post(`/admin/users/${fromId}/deactivate`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ confirmUsername: username, successorId: toId });
+
+  it('gửi ĐÚNG MỘT thư cho người nhận, kèm danh sách khách hàng', async () => {
+    const ids = await idNguoiDung();
+
+    // Một TDV dùng riêng cho ca này: vô hiệu hoá `tdv01` là kéo theo mọi ca kiểm
+    // thử khác của cả bộ.
+    const u = await (await http(identity))
+      .post('/admin/users')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({
+        username: uniq('tdvbg').toLowerCase().replace(/[^a-z0-9_]/g, ''),
+        email: `${uniq('bg').toLowerCase().replace(/[^a-z0-9]/g, '')}@csbh.test`,
+        fullName: 'Nguoi Ban Giao',
+        role: 'TDV',
+      });
+    expect(u.status, JSON.stringify(u.body)).toBe(201);
+    const nghi = u.body.id as string;
+
+    // Hai khách hàng của người sắp nghỉ. Ghi thẳng để không phải đăng nhập bằng
+    // một tài khoản chưa kích hoạt.
+    const ma = [uniq('KHA'), uniq('KHB')];
+    await withAdminDb(async (c) => {
+      for (const code of ma) {
+        await c.query(
+          `INSERT INTO cus.customer (code, name, customer_type, registered_address,
+                                     owner_name, tdv_user_id, created_by)
+           VALUES ($1, $2, 1, 'Ha Noi', 'Chu ho', $3, $3)`,
+          [code, `Nha thuoc ${code}`, nghi],
+        );
+      }
+    });
+
+    await donHopThuVaCho();
+    const r = await banGiao(nghi, u.body.username as string, ids['tdv02']!);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.customersHandedOver).toBe(2);
+
+    await cusOutbox.pumpOnce();
+    const thu = await waitMail(1);
+    // ĐÚNG MỘT thư, không phải một thư cho mỗi khách: người vừa nhận 200 khách
+    // không đọc 200 lá thư, họ chỉ ngừng đọc.
+    expect(thu.length, 'gửi hơn một thư cho một lượt bàn giao').toBe(1);
+
+    const t = thu[0]!;
+    const dayDu = await fullMail(t.ID);
+    expect(dayDu.To.map((x) => x.Address)).toContain('tdv02@csbh.test');
+    expect(dayDu.Subject).toContain('2 khách hàng');
+    // Nói rõ TỪ AI — người nhận cần biết mình đang tiếp quản việc của ai.
+    expect(dayDu.Text).toContain('Nguoi Ban Giao');
+    for (const code of ma) expect(dayDu.Text, `thiếu ${code} trong danh sách`).toContain(code);
+    // Và KHÔNG lẫn khung thư của một hồ sơ: ba dòng ấy vô nghĩa ở đây.
+    expect(dayDu.Text, 'lọt khung thư hồ sơ vào thư bàn giao').not.toContain('Mã hồ sơ CSBH');
+  }, 60_000);
+
+  it('sự kiện tới HAI LẦN vẫn chỉ một thư', async () => {
+    // Hàng đợi giao ít nhất một lần. Chốt chặn là `claim` theo `event_id`, cùng
+    // cơ chế với mọi thư khác — ca này khẳng định nhánh mới cũng đi qua nó.
+    await donHopThuVaCho();
+    const ev = {
+      eventId: crypto.randomUUID(),
+      routingKey: 'customer.handover',
+      payload: {
+        entity: 'customer',
+        action: 'HANDOVER',
+        recipients: ['TDV'],
+        tdvUserId: (await idNguoiDung())['tdv02']!,
+        fromName: 'Nguoi Cu',
+        count: 1,
+        customers: [{ code: 'KH-TEST', name: 'Nha thuoc Test' }],
+        at: new Date().toISOString(),
+      },
+    };
+    expect(await notify.handle(ev)).toBe('sent');
+    expect(await notify.handle(ev), 'lần thứ hai vẫn gửi').toBe('duplicate');
+    expect((await waitMail(1)).length).toBe(1);
+  }, 30_000);
 });

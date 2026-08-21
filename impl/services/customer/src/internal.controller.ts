@@ -5,11 +5,15 @@
 import { Body, Controller, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
 import { ServiceOnly } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
+import { PolicyClient } from './infra/policy.client.js';
 
 @ServiceOnly()
 @Controller('internal/customers')
 export class CustomerInternalController {
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly policies: PolicyClient,
+  ) {}
 
   /**
    * Cấp quyền xem một khách hàng cho những người vừa được giao hồ sơ (`0031`).
@@ -76,11 +80,34 @@ export class CustomerInternalController {
    */
   @Post('chuyen-tdv')
   @HttpCode(200)
-  async chuyenTdv(@Body() body: { fromUserId?: unknown; toUserId?: unknown; actorId?: unknown }) {
+  async chuyenTdv(@Body() body: {
+    fromUserId?: unknown;
+    toUserId?: unknown;
+    actorId?: unknown;
+    fromName?: unknown;
+  }) {
     const from = String(body?.fromUserId ?? '');
     const to = String(body?.toUserId ?? '');
     const actor = String(body?.actorId ?? '') || null;
+    const fromName = String(body?.fromName ?? '') || null;
     if (!from || !to || from === to) return { count: 0, customers: [] };
+
+    /*
+     * ĐỌC TRƯỚC, GỌI policy, RỒI MỚI GHI (`0085`) — và thứ tự này có lý do.
+     *
+     * Hồ sơ phải đi theo khách hàng, mà hai bên nằm ở hai service nên không có
+     * transaction nào bọc được cả hai. Ghi `cus` trước rồi gọi `policy` thì một
+     * lượt hỏng ở giữa để lại đúng cái lệch đang đi chữa: khách đã sang tay, hồ
+     * sơ thì chưa. Gọi `policy` trước thì lượt bấm lại đọc lại đúng tập khách
+     * ấy (vì `cus` chưa đổi), lời gọi thứ hai không khớp dòng nào — nó guard
+     * bằng `tdv_user_id <> $to` — và câu ghi `cus` chạy nốt.
+     */
+    const dsKhach = await this.db.q<{ id: string; code: string; name: string }>(
+      `SELECT id, code, name FROM cus.customer WHERE tdv_user_id = $1 ORDER BY code`,
+      [from],
+    );
+    if (dsKhach.length === 0) return { count: 0, customers: [] };
+    await this.policies.theoKhachHang(dsKhach.map((x) => x.id), to, actor ?? to);
 
     return this.db.tx(async (c) => {
       const r = await c.query<{ id: string; code: string; name: string }>(
@@ -105,6 +132,43 @@ export class CustomerInternalController {
           }),
         ]);
       }
+
+      /*
+       * MỘT sự kiện nữa, chỉ để GỬI THƯ cho người nhận bàn giao (`0085`).
+       *
+       * Không dùng lại N dòng `customer.changed` ở trên: chúng là vết kiểm toán
+       * cho từng khách, và biến chúng thành thư là gửi cho người ta 23 lá cho
+       * một lần bàn giao. Thứ người nhận cần là MỘT câu — "bạn vừa được giao
+       * chừng này khách, từ ai" — kèm danh sách để đối chiếu.
+       *
+       * `fromName` là ẢNH CHỤP tên người cũ, do `identity` đưa sang. Không tra
+       * lại lúc gửi thư được: tài khoản kia bị vô hiệu hoá ngay sau lời gọi
+       * này, mà `users/mail-targets` lọc bỏ tài khoản đã khoá — nên lúc thư
+       * được dựng thì không còn đường nào hỏi ra tên nữa.
+       */
+      if (r.rows.length > 0) {
+        await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+          'customer.handover',
+          JSON.stringify({
+            entity: 'customer',
+            action: 'HANDOVER',
+            // Hai khoá này là thứ `notification` đòi có mới gửi thư: vai trò
+            // người nhận, và id để tra địa chỉ.
+            recipients: ['TDV'],
+            tdvUserId: to,
+            fromUserId: from,
+            fromName,
+            actorId: actor,
+            count: r.rows.length,
+            // Cắt bớt để một lần bàn giao 400 khách không đẻ ra một dòng outbox
+            // khổng lồ; `count` vẫn nói đúng con số thật, và thân thư nói ra
+            // phần bị cắt thay vì im lặng.
+            customers: r.rows.slice(0, 100).map((x) => ({ code: x.code, name: x.name })),
+            at: new Date().toISOString(),
+          }),
+        ]);
+      }
+
       return { count: r.rows.length, customers: r.rows.map((x) => ({ code: x.code, name: x.name })) };
     });
   }

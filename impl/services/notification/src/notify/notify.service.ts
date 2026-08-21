@@ -18,7 +18,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Db } from '../infra/db.js';
 import { Mailer } from '../infra/mailer.js';
 import { RecipientsClient } from './recipients.js';
-import { bodyFor, subjectFor, type MailEvent } from './templates.js';
+import {
+  bodyBanGiao,
+  bodyFor,
+  subjectBanGiao,
+  subjectFor,
+  type MailEvent,
+} from './templates.js';
 
 export type Incoming = {
   eventId: string;
@@ -42,6 +48,10 @@ export class NotifyService {
 
   async handle(ev: Incoming): Promise<Outcome> {
     const p = ev.payload;
+    // Bàn giao khách hàng rẽ NGAY ở đây (`0085`): nó là sự kiện duy nhất không
+    // nói về một hồ sơ, nên cả khung thư lẫn cách tra người nhận đều khác.
+    if (ev.routingKey === 'customer.handover') return this.banGiao(ev);
+
     const roles = Array.isArray(p['recipients']) ? (p['recipients'] as string[]) : [];
     const tdvUserId = s(p['tdvUserId']);
 
@@ -135,6 +145,89 @@ export class NotifyService {
         ],
       );
       this.log.error(`sự kiện ${ev.eventId} vào DLQ: ${String(e)}`);
+      return 'dead';
+    }
+  }
+
+  /**
+   * Thư BÀN GIAO KHÁCH HÀNG (`0085`).
+   *
+   * Người nhận bàn giao trước đây **không được báo gì cả**. Đo trên chồng demo
+   * trước khi sửa: bàn giao 23 khách hàng và 140 hồ sơ từ `tdv01` sang `tdv02`,
+   * số thư trong `ntf.sent_mail` đứng yên ở 342. Sự kiện `policy.handover` có
+   * bay đi, nhưng nó không mang `recipients` lẫn `tdvUserId` nên `handle` bỏ qua
+   * trong im lặng — đúng nhánh dành cho sự kiện của service khác. Người nhận
+   * sáng hôm sau mở hộp việc lên và thấy thêm 140 hồ sơ lạ, có cái sắp quá hạn.
+   *
+   * MỘT lá thư cho MỘT lượt bàn giao, không phải một lá cho mỗi khách. Và nội
+   * dung dừng ở đúng chỗ khách hàng đã chốt: *bạn được bàn giao chừng này khách,
+   * từ ai*, kèm danh sách. Không kể hồ sơ — người vừa nhận 140 hồ sơ không đọc
+   * hết một danh sách 140 mã trong thư, còn hộp việc thì nói con số ấy chính xác
+   * và luôn cập nhật.
+   *
+   * KHÔNG có thư "để biết" đi kèm: người bàn giao vừa bị vô hiệu hoá tài khoản,
+   * và Quản trị thì vừa tự tay bấm nút.
+   */
+  private async banGiao(ev: Incoming): Promise<Outcome> {
+    const p = ev.payload;
+    const nhan = s(p['tdvUserId']);
+    const count = typeof p['count'] === 'number' ? p['count'] : 0;
+    if (!nhan || count === 0) return 'ignored';
+
+    if (!(await this.claim(ev))) return 'duplicate';
+
+    try {
+      // `byIds` chứ không `targetsFor`: người nhận đã biết đích danh, không có
+      // vai trò nào phải dịch. Nó cũng lọc sẵn tài khoản đã vô hiệu hoá — người
+      // nhận bàn giao thì không thể ở trạng thái đó, nhưng để identity trả lời
+      // vẫn hơn là ở đây tự tin rằng không thể.
+      const targets = await this.recipients.byIds([nhan]);
+      if (targets.length === 0) throw new Error(`không tra được địa chỉ thư của ${nhan}`);
+
+      const thu = {
+        fromName: s(p['fromName']) ?? null,
+        count,
+        customers: Array.isArray(p['customers'])
+          ? (p['customers'] as { code: string; name: string }[])
+          : [],
+        at: s(p['at']),
+      };
+      const subject = subjectBanGiao(thu);
+      const sent = await this.withRetry(ev, () =>
+        this.mailer.send({
+          eventId: ev.eventId,
+          to: targets.map((t) => t.email),
+          subject,
+          text: bodyBanGiao(thu, this.mailer.cfg.webBaseUrl),
+          // Không gộp vào luồng thư của khách hàng nào: một lượt bàn giao nói
+          // về cả tập khách, gộp nó vào hộp thoại của một khách là chôn nó ở
+          // giữa một chuỗi thư về hồ sơ.
+          threadKey: ev.eventId,
+        }),
+      );
+      await this.db.q(
+        `UPDATE ntf.sent_mail
+            SET message_id = $2, to_addresses = $3, subject = $4, attempts = $5
+          WHERE event_id = $1 AND kind = 'CHINH'`,
+        [ev.eventId, sent.messageId, sent.to, subject, sent.attempts],
+      );
+      return 'sent';
+    } catch (e) {
+      await this.db
+        .q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'CHINH'`, [ev.eventId])
+        .catch(() => undefined);
+      await this.db.q(
+        `INSERT INTO ntf.dead_letter (event_id, routing_key, payload, attempts, last_error)
+         VALUES ($1,$2,$3::jsonb,$4,$5)`,
+        [
+          ev.eventId,
+          ev.routingKey,
+          JSON.stringify(ev.payload),
+          this.mailer.cfg.retryBackoffMs.length + 1,
+          String(e instanceof Error ? e.message : e).slice(0, 2000),
+        ],
+      );
+      this.log.error(`thư bàn giao ${ev.eventId} vào DLQ: ${String(e)}`);
       return 'dead';
     }
   }

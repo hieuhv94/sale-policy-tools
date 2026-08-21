@@ -194,6 +194,25 @@ export class CustomersService {
       });
     }
 
+    /*
+     * ĐỔI TAY KHÁCH HÀNG THÌ HỒ SƠ ĐI THEO (`0085`).
+     *
+     * Trước tệp này, đường này đổi đúng một cột `cus.customer.tdv_user_id` rồi
+     * dừng — và đó là chỗ hỏng nặng nhất của cả luồng bàn giao. Đo trên chồng
+     * demo: đổi TDV phụ trách KH-0006 xong, người nhận thấy đủ **7 hồ sơ** của
+     * khách ấy trong danh sách (read-model tính phạm vi theo TDV của khách), và
+     * cả 7 đều trả **403** khi bấm vào (policy tính phạm vi theo cột trên chính
+     * hồ sơ). Trong đó có một bản *Đang có hiệu lực* và một bản *Sale Admin đang
+     * xử lý* — hồ sơ sống, người phụ trách mới không mở nổi.
+     *
+     * GỌI TRƯỚC khi ghi, cùng lý do đã ghi ở `chuyen-tdv`: hai bên ở hai service
+     * nên không transaction nào bọc được cả hai, và hỏng ở giữa theo thứ tự này
+     * thì lượt bấm lại chữa được.
+     */
+    if (patch.tdvUserId !== undefined && patch.tdvUserId !== cur.tdv_user_id) {
+      await this.policies.theoKhachHang([id], patch.tdvUserId, me.id);
+    }
+
     return this.db.tx(async (c) => {
       const r = await c.query<Row>(
         `UPDATE cus.customer SET

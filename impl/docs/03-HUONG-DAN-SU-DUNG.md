@@ -354,8 +354,8 @@ bản cũ chết.
 > hiệu lực khi phiên bản kế tiếp được duyệt xong, và có thể không bao giờ. Muốn biết **ai** thao tác
 > ở từng mốc thì mở hồ sơ đó ra xem *Lịch sử hồ sơ*.
 
-> **Bảng chỉ gồm hồ sơ bạn xem được.** Sau một lần bàn giao khách hàng, Trình dược viên mới thấy
-> khách nhưng không thấy các hồ sơ cũ do người trước lập — lịch sử với họ sẽ ngắn hơn thực tế.
+> **Bảng chỉ gồm hồ sơ bạn xem được** — nhưng nhận bàn giao một khách hàng là nhận **luôn toàn bộ
+> hồ sơ** của khách ấy `sửa 21/08`, nên lịch sử của khách không còn bị cắt ngắn sau một lần đổi tay.
 
 ### Hồ sơ pháp lý `sửa 20/08`
 
@@ -1129,7 +1129,7 @@ Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
 **Chuyển những hồ sơ nào**: mọi hồ sơ **chưa kết thúc** mà người đó đang giữ ở vai trò của mình —
 kể cả bản **Nháp**, và kể cả hồ sơ **Đang có hiệu lực** (người phụ trách nó là người nhận thư khi
 giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối**, **Đã xoá** và **Hết hiệu lực** thì không, vì không ai còn
-phải làm gì với chúng.
+phải làm gì với chúng — trừ khi chúng thuộc một khách hàng vừa đổi tay, xem ngay dưới.
 
 **Khách hàng đi cùng hồ sơ** — chỉ với Trình dược viên, vì *TDV phụ trách* là liên kết duy nhất giữa
 khách hàng và người. Chuyển **mọi** khách của người đó, **kể cả khách chưa có hồ sơ nào**: đó chính
@@ -1137,13 +1137,26 @@ là loại khách dễ mồ côi nhất — không hồ sơ nào trỏ tới nê
 duy nhất còn nhìn thấy thì vừa bị khoá tài khoản. Vì thế một TDV chỉ có khách mà chưa lập hồ sơ nào
 **cũng phải chọn người nhận**.
 
+**Hồ sơ của một khách hàng đi theo khách hàng ấy** `mới 21/08` — **mọi** hồ sơ, kể cả *Từ chối* và
+*Hết hiệu lực*. Người tiếp quản một khách hàng cần đọc được lịch sử chính sách của khách đó; và
+không cho họ đọc thì màn hình *Hồ sơ CSBH* vẫn **bày hồ sơ ra** (nó tính phạm vi theo TDV phụ trách
+khách hàng) trong khi bấm vào lại báo *không có quyền*. Chỉ hồ sơ **Đã xoá** đứng ngoài.
+
+> Điều này áp dụng cho **cả hai** đường đổi tay: bàn giao lúc vô hiệu hoá tài khoản, và đổi *TDV phụ
+> trách* của một khách hàng ở màn hình khách hàng.
+
+**Người nhận được báo bằng email** `mới 21/08`: **một** lá thư cho cả lượt bàn giao, nói bạn vừa
+được bàn giao bao nhiêu khách hàng và từ ai, kèm danh sách mã và tên khách. Thư không kể hồ sơ —
+số hồ sơ phải xử lý thì *Việc của tôi* trên trang Tổng quan nói chính xác và luôn cập nhật.
+
 **Trạng thái không đổi.** Chuyển giao là đổi người, không phải một bước của luồng duyệt: hồ sơ đang
 ở *Chờ TBP duyệt* thì vẫn ở đó, chỉ là chờ một Trưởng bộ phận khác.
 
 **Có vết trong lịch sử của từng hồ sơ.** Mở một hồ sơ vừa đổi tay ra là thấy dòng *Chuyển giao* kèm
 lý do, đúng chỗ với các bước duyệt khác — không phải đi tìm trong nhật ký hệ thống.
 
-**Bật lại** thì không hỏi gì: nó không làm hồ sơ nào kẹt.
+**Bật lại** thì không hỏi gì: nó không làm hồ sơ nào kẹt — nhưng nó **không** trả lại hồ sơ hay
+khách hàng nào. Bàn giao là một chiều.
 
 ### Không có mật khẩu mặc định
 

@@ -106,10 +106,21 @@ export class SyncService {
         ? null
         : lines.reduce((a, l) => Math.max(a, Number(l.discount_rate)), 0).toFixed(2);
 
-    // Phạm vi dữ liệu bám theo TDV phụ trách KHÁCH HÀNG, không theo cột
-    // `tdv_user_id` chép sẵn trên hồ sơ: chuyển khách hàng sang TDV khác phải
-    // đổi luôn ai nhìn thấy hồ sơ cũ của khách đó.
-    const tdv = cus.tdvUserId || src.tdv_user_id || '';
+    /*
+     * TDV LẤY TỪ HỒ SƠ, không từ khách hàng (`0085`).
+     *
+     * Tới `0084` dòng này là `cus.tdvUserId || src.tdv_user_id`, với lý do đúng
+     * nhưng cách làm sai: *"chuyển khách hàng sang TDV khác phải đổi luôn ai
+     * nhìn thấy hồ sơ cũ của khách đó"*. Đúng — nhưng sửa ở đây là sửa CÁI
+     * BÓNG. Read-model là bản sao của nguồn; nó ghi một giá trị khác nguồn là
+     * nó thôi làm bản sao, và phạm vi đọc tách làm hai bản cài đặt trả lời khác
+     * nhau — danh sách bày hồ sơ ra, chi tiết trả 403 (đo được, xem
+     * `ban-giao.controller.ts`).
+     *
+     * Từ `0085` nguồn tự lo: đổi tay khách hàng thì `pol.policy.tdv_user_id` đi
+     * theo, nên chép thẳng là đủ và là cách duy nhất không thể lệch.
+     */
+    const tdv = src.tdv_user_id || '';
 
 /*
      * Ghi CẢ CỤM trong một transaction (`0080`).

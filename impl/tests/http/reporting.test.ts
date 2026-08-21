@@ -1794,3 +1794,133 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(dem).toBeGreaterThan(0);
   });
 });
+
+// =============================================================================
+// `0085` — đổi tay khách hàng: hai bản cài đặt phạm vi phải trả lời GIỐNG NHAU
+// =============================================================================
+
+/**
+ * Phạm vi đọc hồ sơ có HAI bản cài đặt: `thuocPhamVi` bên policy và mệnh đề
+ * cùng hình dạng trong `filter.ts` bên reporting. Chú thích ở `filter.ts` đã ghi
+ * thẳng luật: *"hai chỗ phải trả lời giống hệt nhau, nếu không thì một hồ sơ mở
+ * được ở màn hình Hồ sơ mà biến mất khỏi Báo cáo"*.
+ *
+ * Mệnh đề giống hệt thật. Thứ lệch là MỘT GIÁ TRỊ: tới `0084` read-model ghi
+ * `tdv_user_id` lấy từ TDV của KHÁCH HÀNG, còn `pol.policy` giữ TDV chép trên
+ * chính hồ sơ. Đổi tay khách hàng mà hồ sơ đứng yên là hai con số ấy tách đôi —
+ * và lệch theo hướng tệ nhất: **danh sách bày hồ sơ ra, chi tiết trả 403**.
+ *
+ * Đo được trên chồng demo trước khi sửa: đổi TDV phụ trách một khách có 7 hồ sơ
+ * thì người nhận thấy đủ 7 dòng, cả 7 đều `403 OUT_OF_SCOPE`, và *Lịch sử CSBH*
+ * của khách rỗng trơn. Trong 7 có một bản *Đang có hiệu lực*.
+ */
+describe('`0085` hồ sơ đi theo khách hàng', () => {
+  /** Đổi TDV phụ trách một khách hàng, đường Quản trị dùng trên màn hình. */
+  const doiTdv = async (customerId: string, tdvUserId: string) =>
+    (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ tdvUserId });
+
+  it('MỌI hồ sơ trong danh sách của người nhận đều MỞ ĐƯỢC', async () => {
+    /*
+     * Đây là bất biến đáng giá nhất của đợt này, và nó được viết ở dạng mạnh
+     * nhất: không liệt kê trạng thái nào phải theo, mà quét TOÀN BỘ danh sách
+     * người nhận nhìn thấy rồi mở từng cái. Một trạng thái mới thêm về sau tự
+     * động nằm trong phạm vi phép kiểm này.
+     */
+    const d = await draft({ who: 'tdv01' });
+    const dangHieuLuc = await activated({ who: 'tdv01' });
+
+    // Dồn hai hồ sơ về CÙNG một khách hàng thì phép kiểm mới nói đúng điều cần
+    // nói — nếu không, hai hồ sơ hai khách và ca này chỉ kiểm được một nửa.
+    const kh = await withAdminDb(async (c) => {
+      const r = await c.query<{ customer_id: string }>(
+        `SELECT customer_id FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
+      await c.query(`UPDATE pol.policy SET customer_id = $1 WHERE id = $2`, [
+        r.rows[0]!.customer_id,
+        dangHieuLuc,
+      ]);
+      return r.rows[0]!.customer_id;
+    });
+    await sync.refreshPolicy(dangHieuLuc);
+
+    expect((await doiTdv(kh, userId['tdv02']!)).status).toBe(200);
+    /*
+     * Đồng bộ THẲNG, không qua `flushSync`.
+     *
+     * `flushSync` chờ tới khi TRẠNG THÁI ở hai bên khớp nhau — mà đổi tay không
+     * đổi trạng thái, nên nó thấy khớp ngay từ vòng đầu và trả về trước khi sự
+     * kiện `customer.changed` kịp đi hết đường. Ca này đỏ đúng vì lẽ đó ở lượt
+     * chạy đầu tiên: một hồ sơ kịp, một hồ sơ không.
+     */
+    for (const id of [d.id, dangHieuLuc]) await sync.refreshPolicy(id);
+
+    const ds = (await rget('/reports/policies?limit=200', 'tdv02')).body.items as {
+      policyId: string;
+      code: string;
+      status: string;
+    }[];
+    const cuaKhach = ds.filter((x) => [d.id, dangHieuLuc].includes(x.policyId));
+    expect(cuaKhach.length, 'người nhận không thấy hồ sơ nào của khách vừa nhận').toBe(2);
+
+    for (const x of cuaKhach) {
+      const r = await (await http(policy))
+        .get(`/policies/${x.policyId}`)
+        .set('Authorization', `Bearer ${tok['tdv02']}`);
+      expect(r.status, `${x.code} (${x.status}) bày ra trong danh sách mà không mở được`).toBe(200);
+    }
+  });
+
+  it('*Lịch sử CSBH* của khách hiện đủ, không rỗng', async () => {
+    // Cùng một gốc, biểu hiện khác: màn hình khách hàng đọc `/policies?customerId=`
+    // của policy, nên trước `0085` nó trả về danh sách RỖNG cho người vừa nhận
+    // khách — lịch sử ngắn hơn sự thật mà không có gì nói ra.
+    const d = await draft({ who: 'tdv01' });
+    const kh = await withAdminDb(async (c) => {
+      const r = await c.query<{ customer_id: string }>(
+        `SELECT customer_id FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
+      return r.rows[0]!.customer_id;
+    });
+
+    expect((await doiTdv(kh, userId['tdv02']!)).status).toBe(200);
+    const r = await (await http(policy))
+      .get(`/policies?customerId=${kh}&limit=50`)
+      .set('Authorization', `Bearer ${tok['tdv02']}`);
+    expect(r.status).toBe(200);
+    expect((r.body.items as { id: string }[]).map((x) => x.id)).toContain(d.id);
+  });
+
+  it('read-model chép TDV của hồ sơ, không tự suy từ khách hàng', async () => {
+    /*
+     * Phép kiểm chống lại việc ai đó "sửa nhanh" bằng cách cho `sync` đọc lại
+     * `cus.tdvUserId` — đúng dòng vừa gỡ ở `0085`. Nó chữa được triệu chứng ở
+     * màn hình danh sách và để nguyên 403 ở màn hình chi tiết, tức là đưa lỗi
+     * trở về đúng hình dạng cũ.
+     */
+    const d = await draft({ who: 'tdv01' });
+
+    // Đổi TDV của KHÁCH HÀNG thẳng trong CSDL, không qua API — nên hồ sơ KHÔNG
+    // đi theo. Read-model phải nói theo hồ sơ.
+    const kh = await withAdminDb(async (c) => {
+      const r = await c.query<{ customer_id: string }>(
+        `SELECT customer_id FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
+      await c.query(`UPDATE cus.customer SET tdv_user_id = $1 WHERE id = $2`, [
+        userId['tdv02'],
+        r.rows[0]!.customer_id,
+      ]);
+      return r.rows[0]!.customer_id;
+    });
+    expect(kh).toBeTruthy();
+
+    await sync.refreshPolicy(d.id);
+    const row = (await rptRow(d.id)) as { tdv_user_id: string };
+    expect(row.tdv_user_id, 'read-model tự suy TDV từ khách hàng').toBe(userId['tdv01']);
+  });
+});

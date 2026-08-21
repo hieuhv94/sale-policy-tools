@@ -11,12 +11,16 @@
  * duyệt xong (muc 5.2). Nên cột *Hết hiệu lực* và cột *Bị thay bởi* luôn đi
  * cùng nhau: có mốc thời gian thì phải có bản đã thay nó, và ngược lại.
  *
- * PHẠM VI — một giới hạn phải nói ra. Danh sách này đi qua `thuocPhamVi` như mọi
- * đường đọc hồ sơ khác, nên nó chỉ gồm những hồ sơ NGƯỜI ĐANG XEM có liên quan.
- * Sau một lần **bàn giao khách hàng**, TDV mới thấy khách nhưng KHÔNG thấy các
- * hồ sơ cũ do TDV trước lập — lịch sử với họ sẽ ngắn hơn sự thật. Đó là hệ quả
- * của luật phạm vi, không phải lỗi ở đây; nói thẳng ngay dưới bảng còn hơn để
- * người dùng đếm thiếu mà tưởng là đủ.
+ * PHẠM VI. Danh sách này đi qua `thuocPhamVi` như mọi đường đọc hồ sơ khác, nên
+ * nó chỉ gồm những hồ sơ NGƯỜI ĐANG XEM có liên quan.
+ *
+ * `0082` đã ghi ở đây một giới hạn: *"sau một lần bàn giao khách hàng, TDV mới
+ * thấy khách nhưng KHÔNG thấy các hồ sơ cũ do TDV trước lập — lịch sử với họ sẽ
+ * ngắn hơn sự thật"*. **`0085` đã chữa nó**: đổi tay khách hàng thì mọi hồ sơ
+ * của khách đi theo, nên bảng này đầy đủ ngay cả sau bàn giao.
+ *
+ * Giữ lại đoạn ghi chú cũ chứ không xoá, vì nó là thứ duy nhất tra ngược ra
+ * được rằng màn hình này từng đếm thiếu — và đếm thiếu trong im lặng.
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';

@@ -8045,3 +8045,107 @@ và nó là ca duy nhất ở tầng giao diện bắt được lượt phá. Gh
 kiểm dựng trên stub chỉ đúng chừng nào có một ca khác giữ cho stub không trôi.
 
 **1381/1381 xanh.**
+
+---
+
+## P111 — Bàn giao TDV: người nhận không được báo, và phạm vi tách làm đôi
+
+**Ngày 21/08/2026** · thay đổi `0085`
+
+Câu hỏi của người dùng — *"TDV nghỉ và bàn giao cho TDV khác thì hệ thống làm gì"* — hoá ra là một
+lượt rà soát, không phải một lượt tra cứu. Đọc mã ra hai chỗ nghi, dựng lại **cả hai trên chồng
+demo thật**, và cả hai đều đúng, cái thứ hai nặng hơn tôi mô tả lúc đầu.
+
+### Chỗ thứ nhất: không ai báo cho người nhận
+
+Bàn giao 23 khách hàng và 140 hồ sơ từ `tdv01` sang `tdv02`. Số dòng trong `ntf.sent_mail`: **342 →
+342**. Không một lá thư nào.
+
+`policy.handover` có bay đi thật, nhưng nó không mang `recipients` lẫn `tdvUserId`, mà
+`NotifyService.handle` bỏ qua mọi sự kiện thiếu hai khoá ấy — nhánh dành cho sự kiện của service
+khác. Im lặng đúng theo thiết kế, chỉ là thiết kế chưa ai nghĩ tới lá thư này.
+
+Sửa: `customer` phát thêm `customer.handover`, và `notification` rẽ nhánh riêng cho nó. **Một** lá
+cho cả lượt, nội dung dừng đúng chỗ khách hàng chốt — *bạn được bàn giao bao nhiêu khách, từ ai* —
+kèm danh sách mã và tên. Không kể hồ sơ: người vừa nhận 140 hồ sơ không đọc hết 140 mã trong thư,
+còn hộp việc thì nói con số ấy chính xác và luôn cập nhật.
+
+Ba chi tiết đáng ghi:
+
+- **Không đi qua `bodyFor`.** Khung sáu trường của NTF-02 là khung của một hồ sơ; ép lá thư này vào
+  đó thì người nhận đọc được "Mã hồ sơ CSBH: —", "Trạng thái: —", "Bước đang duyệt: Không còn bước
+  nào phải xử lý" — ba dòng vô nghĩa đứng trên đúng thứ họ cần biết.
+- **`fromName` là ẢNH CHỤP**, do `identity` đưa sang. Không tra lại lúc dựng thư được: tài khoản kia
+  bị vô hiệu hoá ngay sau lời gọi, và `users/mail-targets` lọc bỏ tài khoản đã khoá — lúc thư được
+  dựng thì không còn đường nào hỏi ra tên.
+- **Cắt danh sách ở 100 và NÓI RA phần bị cắt.** Một danh sách dừng ở dòng 100 mà im lặng đọc ra là
+  "đúng 100 khách", và người nhận đối chiếu thiếu mất phần đuôi.
+
+### Chỗ thứ hai: danh sách bày hồ sơ ra, chi tiết trả 403
+
+Chú thích trong `filter.ts` đã ghi thẳng luật từ `0031`: *"Cùng phép lọc với `thuocPhamVi` bên
+policy — hai chỗ phải trả lời giống hệt nhau, nếu không thì một hồ sơ mở được ở màn hình Hồ sơ mà
+biến mất khỏi Báo cáo."*
+
+Mệnh đề SQL giống hệt nhau thật. Thứ lệch là **một giá trị**: `sync.service.ts` ghi
+`tdv_user_id = cus.tdvUserId || src.tdv_user_id` — TDV của KHÁCH HÀNG — còn `pol.policy` giữ TDV
+chép trên chính hồ sơ. Đổi tay khách hàng mà hồ sơ đứng yên là hai con số tách đôi.
+
+Đo được, đường Quản trị đổi *TDV phụ trách* của KH-0006 (7 hồ sơ):
+
+```
+tdv03 thay 7 ho so cua KH-0006 trong DANH SACH
+   CSBH-2026-000130 (DANG_CO_HIEU_LUC) mo chi tiet -> 403 OUT_OF_SCOPE
+   CSBH-2026-000125 (TU_CHOI)          mo chi tiet -> 403 OUT_OF_SCOPE
+   CSBH-2026-000102 (SA_DANG_XU_LY)    mo chi tiet -> 403 OUT_OF_SCOPE
+lich su CSBH (policy service) -> 200 []
+```
+
+Bảy dòng bày ra, bảy dòng từ chối mở — gồm **một bản đang có hiệu lực** và **một bản Sale Admin đang
+xử lý**. Hồ sơ sống, người vừa được giao phụ trách không mở nổi. Và *Lịch sử CSBH* của khách rỗng
+trơn: đúng khoảng hụt `0082` đã ghi ra ở đầu tệp `LichSuCsbh.tsx` mà chưa ai chữa.
+
+**Sửa ở NGUỒN, không sửa cái bóng.** Cách nhanh là cho read-model tiếp tục suy TDV từ khách hàng —
+đúng dòng vừa gỡ. Nó chữa được màn hình danh sách và để nguyên 403 ở màn hình chi tiết, tức là đưa
+lỗi trở về đúng hình dạng cũ. Luật mới đặt ở nguồn: **đổi tay khách hàng thì mọi hồ sơ của khách đi
+theo** (trừ `DA_XOA`), và read-model chép thẳng `src.tdv_user_id` — cách duy nhất không thể lệch.
+
+Ba điều của bản cài đặt:
+
+- Luật áp cho **cả hai** đường đổi `cus.customer.tdv_user_id`: bàn giao hàng loạt và đổi tay một
+  khách. Chỉ vá đường bàn giao là để nguyên đường thứ hai, vốn là đường hỏng nặng hơn.
+- **Gọi `policy` TRƯỚC, ghi `cus` sau.** Hai bên ở hai service, không transaction nào bọc được cả
+  hai. Ghi `cus` trước thì một lượt hỏng ở giữa để lại đúng cái lệch đang đi chữa; gọi `policy`
+  trước thì lượt bấm lại đọc lại đúng tập khách ấy, lời gọi thứ hai không khớp dòng nào (guard
+  `tdv_user_id <> $to`), và câu ghi `cus` chạy nốt.
+- **Guard cho `chuyen` cũ.** Từ nay hai đường cùng đổi `tdv_user_id`, nên giữa SELECT và UPDATE của
+  `internal/ban-giao` một hồ sơ có thể đã sang tay. Thêm `AND ${cot} = $3 RETURNING` để chỉ hồ sơ
+  THẬT SỰ đổi mới nhận dòng nhật ký — không thì một lần đổi tay đẻ ra hai dòng "đã chuyển giao".
+
+### Ca kiểm, và phép phá lại
+
+Ca mạnh nhất không liệt kê trạng thái nào phải theo: nó **quét toàn bộ danh sách người nhận nhìn
+thấy rồi mở từng cái**. Một trạng thái thêm về sau tự nằm trong phạm vi phép kiểm.
+
+Phá lại — gỡ lời gọi "hồ sơ theo khách hàng" và trả `sync` về `cus.tdvUserId ||` — cho **đúng hình
+dạng đã đo trên demo**: `CSBH-2026-000636 (DANG_CO_HIEU_LUC) bày ra trong danh sách mà không mở
+được: expected 403 to be 200`. Gỡ nhánh thư bàn giao thì ca thư đỏ.
+
+> Ca *"sự kiện tới HAI LẦN vẫn chỉ một thư"* vẫn XANH lúc phá — nó gác `claim`, không gác nhánh mới,
+> và bỏ nhánh đi thì sự kiện rơi vào đường thư thường vốn cũng chống trùng. Ghi ra để không ai đọc
+> nhầm nó thành hai lớp bảo vệ.
+
+Một ca của tôi đỏ ở lượt đầu vì chính nó: dùng `flushSync`, mà hàm ấy chờ tới khi **trạng thái** hai
+bên khớp — bàn giao không đổi trạng thái nên nó thấy khớp ngay vòng đầu và trả về trước khi sự kiện
+đi hết đường. Đổi sang gọi thẳng `sync.refreshPolicy`.
+
+### Đo lại trên demo sau khi sửa
+
+```
+so thu     : 342 -> 343
+             [CSBH] Bạn được bàn giao 23 khách hàng  ->  tdv02@csbh.test
+tdv02 thay 146 ho so trong danh sach; 0 cai KHONG mo duoc
+tdv03 (doi tay 1 khach): 7/7 mo duoc, lich su CSBH du 7 ban
+```
+
+**1386/1386 xanh.**

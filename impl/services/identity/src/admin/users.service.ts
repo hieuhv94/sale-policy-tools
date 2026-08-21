@@ -320,6 +320,10 @@ export class UsersService {
           fromUserId: userId,
           toUserId: nguoiNhan,
           actorId: opts.actorId,
+          // Tên người bàn giao, để lá thư báo cho người nhận nói được "từ ai".
+          // Chụp ở đây vì vài dòng nữa tài khoản này sẽ bị khoá và tên biến mất
+          // khỏi mọi đường tra của `notification` — xem `CustomerClient.chuyen`.
+          fromName: u.full_name,
         });
         banGiao = await this.policies.chuyen({
           fromUserId: userId,

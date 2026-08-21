@@ -38,8 +38,14 @@ export class CustomerClient {
 
   /**
    * Chuyển hết sang TDV khác. KHÔNG nuốt lỗi — xem `PolicyClient.chuyen`.
+   *
+   * `fromName` đi kèm từ `0085`: thư báo cho người nhận phải nói *"bàn giao từ
+   * ai"*, mà tên ấy chỉ tra được Ở ĐÂY. Lá thư dựng sau, không đồng bộ, và lúc
+   * ấy tài khoản kia đã `is_active = false` — `users/mail-targets` lọc bỏ tài
+   * khoản đã khoá, nên không còn đường nào hỏi ra tên nữa. Đây là ảnh chụp tại
+   * thời điểm bàn giao, và đó cũng là giá trị đúng để lưu.
    */
-  chuyen(input: { fromUserId: string; toUserId: string; actorId: string }) {
+  chuyen(input: { fromUserId: string; toUserId: string; actorId: string; fromName: string }) {
     return this.goi('/chuyen-tdv', input);
   }
 }
