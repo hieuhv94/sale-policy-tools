@@ -16,7 +16,7 @@
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
-import { NHAN_KHO, type MauChon } from '../lib/mau-hop-dong.js';
+import { NHAN_KHO, TY_LE_KHO, type MauChon } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DangTai, HopThoai } from './Chung.js';
 import { XemTep } from './XemTep.js';
 
@@ -146,6 +146,17 @@ export function XemBanMem({
       */
       duong={`${ch.duong(hoSoId)}?${q}`}
       tenTep={`${loai === 'HO_SO' ? 'CSBH' : 'HopDong'}-${maHoSo}.pdf`}
+      /*
+        Khổ giấy của MẪU ĐANG CHỌN, để khung xem mang đúng hình tờ giấy (`0073`).
+
+        Không phải một lời gọi mới: `khoGiay` đã đi kèm mỗi mẫu trong danh sách
+        chọn từ `0058`, đọc từ chính file .docx lúc Quản trị lưu mẫu. Đổi mẫu
+        giữa chừng thì khung đổi hình theo — dọc sang ngang thấy ngay.
+
+        Đây cũng là chỗ DUY NHẤT biết được khổ của một PDF: nội dung nằm trong
+        trình xem PDF của trình duyệt, không hỏi được từ JavaScript.
+      */
+      tyLe={mau?.khoGiay ? TY_LE_KHO[mau.khoGiay] : undefined}
       truoc={
         // Ô chọn để ĐỔI mẫu mà không phải đóng hộp ra chọn lại. Một mẫu thì
         // không có gì để đổi — ô chọn một dòng là một câu hỏi giả.

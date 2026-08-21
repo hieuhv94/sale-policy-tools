@@ -6,7 +6,7 @@
  * — mà mọi thư viện component đều mang bảng màu riêng của nó.
  */
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { LoiApi } from '../lib/api.js';
 import { nhanTrangThai, nhomTrangThai, tien } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
@@ -374,12 +374,28 @@ export function HopThoai({
   tieuDe,
   dong,
   rong = false,
+  tyLe = null,
   children,
 }: {
   tieuDe: string;
   dong: () => void;
   /** Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường chẳng hạn (`0068`). */
   rong?: boolean;
+  /**
+   * Tỷ lệ **rộng / cao** của khung xem bên trong — hộp tự khớp theo (`0073`).
+   *
+   * Bề rộng của hộp phải suy ra TỪ ĐÂY chứ không đặt cứng: khung xem chiếm gần
+   * hết hộp, nên một hộp rộng 520px cố định vẽ tờ A4 ngang thành một dải bẹp có
+   * hai vệt xám trên dưới, còn tờ A4 dọc thì chữ nhỏ tới mức phải phóng to.
+   *
+   * Tính bằng CSS chứ không bằng JavaScript: `--ty-le` đi vào `calc()` ở
+   * `.hop-thoai-xem`, nên hộp tự co giãn theo cửa sổ mà không cần ai nghe sự
+   * kiện `resize` — một vòng đo-rồi-đặt trong JavaScript ở đây là chỗ sinh ra
+   * nhấp nháy và vòng lặp bố cục.
+   *
+   * `null` là hộp thoại thường.
+   */
+  tyLe?: number | null;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -423,11 +439,14 @@ export function HopThoai({
   return (
     <div className="lop-phu" onMouseDown={(e) => e.target === e.currentTarget && dong()}>
       <div
-        className={rong ? 'hop-thoai hop-thoai-rong' : 'hop-thoai'}
+        className={
+          tyLe !== null ? 'hop-thoai hop-thoai-xem' : rong ? 'hop-thoai hop-thoai-rong' : 'hop-thoai'
+        }
         role="dialog"
         aria-modal="true"
         aria-label={tieuDe}
         ref={khung}
+        style={tyLe !== null ? ({ '--ty-le': String(tyLe) } as CSSProperties) : undefined}
       >
         {/*
           Tiêu đề nằm NGOÀI vùng cuộn, nội dung nằm trong. Biểu mẫu tạo Trình

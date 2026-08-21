@@ -7294,3 +7294,100 @@ xuất hiện `*` hay `'unsafe-eval'` ở bất kỳ chỉ thị nào. Kèm mộ
 sự còn dùng `URL.createObjectURL`; ngày nó thôi dùng thì phải xem lại CSP chứ không nới mãi.
 
 **1305/1305 xanh.**
+
+## P100 — Khung xem khớp theo nội dung, không đóng khuôn cứng
+
+Người dùng báo: khung xem hồ sơ, hợp đồng và bản scan **cố định một cỡ**, không co theo kích thước
+ảnh hay tờ văn bản.
+
+Đúng, và cụ thể là hai con số đặt cứng: hộp thoại rộng `min(520px, 100%)`, khung bên trong cao
+`min(68vh, 760px)`. Không con số nào đọc gì từ nội dung. Hệ quả thấy bằng mắt: tờ **A4 ngang** thành
+một dải bẹp kẹp giữa hai vệt xám, ảnh chụp bằng điện thoại nằm lọt thỏm, còn tờ A4 dọc thì vừa chiều
+cao nhưng chữ nhỏ tới mức phải phóng to.
+
+### Ba loại nội dung, ba mức làm được khác nhau
+
+Đây là chỗ phải nói thẳng trước khi code, vì không phải cả ba đều làm được như nhau:
+
+| Nội dung | Biết kích thước bằng cách nào | Làm được |
+|---|---|---|
+| **Ảnh** | `naturalWidth`/`naturalHeight` — ảnh nằm trong DOM của chính trang | Trọn vẹn, tới từng pixel |
+| **Bản mềm · hợp đồng** | Khổ giấy của mẫu đang chọn, đọc từ file .docx lúc lưu | Trọn vẹn, không thêm lời gọi nào |
+| **Bản scan PDF tải lên** | Không có đường nào | Rơi về A4 dọc |
+
+Ca giữa là ca đáng nói. Khung `<iframe>` chứa trình xem PDF của chính trình duyệt — một tài liệu
+riêng, JavaScript không hỏi được nó "trang này khổ gì". Nhưng với PDF do **chính phần mềm sinh ra**
+thì **không cần hỏi**: `khoGiayCua()` đã đọc khổ từ file .docx lúc Quản trị lưu mẫu, `paper_size` đã
+nằm trong CSDL, và `/available` đã trả `khoGiay` về cho ô chọn mẫu từ `0058`. Con số vốn nằm sẵn
+trong tay giao diện suốt hai đợt vừa rồi, chỉ là bị vứt đi không dùng.
+
+Ca thứ ba còn một đường chưa đi: đọc `MediaBox` của trang đầu **lúc tải lên** rồi lưu lại — máy chủ
+đang cầm file trong tay. Chưa làm; A4 dọc đúng với gần như mọi bản scan giấy tờ, và sai thì trình
+xem PDF vẫn có thanh phóng to của riêng nó.
+
+### Tính bằng CSS, không bằng JavaScript
+
+Hai biến, và cả khối suy ra từ chúng:
+
+```css
+.hop-thoai-xem {
+  --cao-khung: clamp(300px, calc(100dvh - 15rem), 900px);
+  --ty-le: 0.7071;                       /* React đặt đè bằng style nội tuyến */
+  width: min(max(calc(var(--cao-khung) * var(--ty-le) + var(--k5) * 2), 520px), 100%);
+}
+.khung-xem {
+  width: min(100%, calc(var(--cao-khung) * var(--ty-le)));
+  aspect-ratio: var(--ty-le);
+}
+```
+
+Không có vòng đo-rồi-đặt trong JavaScript, nên không cần nghe `resize` và không có nhấp nháy. React
+chỉ đặt một con số vào `--ty-le`; phần còn lại là việc của trình duyệt.
+
+**Ba cái bẫy nằm trong bốn dòng ấy**, cả ba đều đã đo:
+
+1. **`max-height` làm méo khung.** Cách hiển nhiên là `aspect-ratio` cộng `max-height`, nhưng trình
+   duyệt cắt chiều cao mà **không tính lại chiều rộng** — `aspect-ratio` không đẩy ngược ràng buộc
+   sang chiều kia. Khung méo đúng vào lúc màn hình thấp. Cách đúng là chặn ngay ở bề rộng:
+   `min(100%, cao × tỷ lệ)`.
+2. **Sàn 520px.** Một bản scan hoá đơn cao và hẹp cho tỷ lệ cỡ 0.3; nhân với chiều cao khung ra một
+   hộp rộng chừng 200px, không đủ chỗ cho tiêu đề và hai nút. Sàn đặt đúng bằng hộp thoại thường,
+   và khung hẹp hơn thân hộp thì `margin-inline: auto` giữ nó ở giữa.
+3. **Mặc định cho `--ty-le`.** `calc()` gặp một biến không có giá trị thì cả khai báo bề rộng thành
+   vô nghĩa và hộp co về bề rộng nội dung — hỏng ở một chỗ trông chẳng liên quan gì tới nguyên nhân.
+   Một dòng mặc định giữ tệp CSS tự đứng được; đo trong Chrome xác nhận style nội tuyến thắng nó.
+
+### Đo, không đoán
+
+Dựng lại đúng khối CSS này thành một trang rời, chạy Chrome thật ở bốn cỡ màn hình, đọc
+`getBoundingClientRect`. Tỷ lệ đo lại khớp **chính xác** ở cả sáu hình dáng thử (A4 dọc, A4 ngang,
+ảnh 4:3, ảnh dọc, hoá đơn 0.3, panorama 5.0), không ca nào tràn khỏi tầm nhìn.
+
+Phép đo còn sửa một con số tôi chọn bằng ước lượng. Dự trữ `15rem` cho phần khung hộp: đo ra phần ấy
+cao **126px**, hoặc **157px** khi có ô chọn mẫu — thừa 83px. Thử hạ xuống 11rem thì ca có ô chọn mẫu
+chạm trần `max-height` và khung bắt đầu bị cắt. Giữ 15rem, nhưng **giữ vì đã đo**: đổi 5% chiều cao
+lấy nguy cơ hàng nút trôi khỏi tầm nhìn là không đáng, nhất là khi đó đúng là lỗi `.khung-pdf` đã
+mắc một lần và bị bắt.
+
+### Một ca đỏ, và nó đúng
+
+`FE-19`/`0050` bắt ngay: *mọi biến CSS được dùng đều phải CÓ THẬT trong `tokens.css`* — mà
+`--cao-khung` với `--ty-le` là đại lượng cục bộ, thay đổi theo từng lần mở hộp. Đưa chúng vào bảng
+token là nói dối về vai trò của chúng.
+
+Nới đúng một nấc: chỗ khai hợp lệ giờ là "bảng token, **hoặc chính tệp đang xét**". Bất biến ca ấy
+giữ vẫn nguyên vẹn — không `var()` nào trỏ tới một cái tên chẳng ai khai ở đâu cả, đúng lỗi
+`--mau-chinh` đã lọt suốt từ `0029`. Vế cấm mã màu viết thẳng nằm ở ca trên, không đụng tới.
+
+### Việc kèm theo
+
+`.khung-pdf` **giữ nguyên**: đó là khung xem trước lúc gửi duyệt, cố ý thấp để hai nút Xác nhận/Huỷ
+không trôi khỏi tầm nhìn. Nhân tiện gỡ nó khỏi `XemTep` — hai lớp chồng nhau ở đó khiến chiều cao
+phụ thuộc vào **thứ tự dòng trong tệp CSS**, thứ không ai nhìn thấy khi sửa.
+
+Mười hai ca mới ở `khung-xem.test.tsx`, chia hai nửa: nửa React kiểm tỷ lệ đi đúng đường (khai trước
+→ đo được đè lên → mặc định), nửa CSS **đọc nguồn**. Ca đáng giá nhất là ca canh `.khung-xem` không
+có `height` cố định: một dòng `height` quay lại đây là đủ vô hiệu hoá `aspect-ratio` — trình duyệt
+có cả rộng lẫn cao thì nó bỏ qua tỷ lệ — mà giao diện vẫn chạy, chỉ là khung lại méo như cũ.
+
+**1317/1317 xanh.**

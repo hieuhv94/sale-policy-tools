@@ -52,16 +52,33 @@ describe('FE-19 mọi màu đến từ bảng token', () => {
      * Quét ngược từ chỗ DÙNG về chỗ KHAI là cách duy nhất bắt được.
      */
     const tokens = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
-    const daKhai = new Set([...tokens.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]!));
+    const KHAI = /(--[a-z0-9-]+)\s*:/g;
+    const daKhai = new Set([...tokens.matchAll(KHAI)].map((m) => m[1]!));
 
     const thieu: string[] = [];
     for (const tep of moiTep(GOC, ['.css', '.tsx'])) {
       if (tep.endsWith('tokens.css')) continue;
-      for (const [i, dong] of readFileSync(tep, 'utf8').split('\n').entries()) {
+      const noiDung = readFileSync(tep, 'utf8');
+      /*
+       * Biến khai NGAY TRONG tệp đang xét cũng tính (`0073`).
+       *
+       * Không phải mọi biến CSS đều là một token thiết kế. `.hop-thoai-xem` tính
+       * `--cao-khung` và `--ty-le` để dựng một khung xem khớp tỷ lệ nội dung —
+       * hai đại lượng cục bộ, thay đổi theo từng lần mở hộp, và đưa chúng vào
+       * bảng token là nói dối về vai trò của chúng.
+       *
+       * Bất biến ca này giữ vẫn còn nguyên: KHÔNG `var()` nào trỏ tới một cái
+       * tên chẳng ai khai ở đâu cả — đúng lỗi `--mau-chinh` đã lọt suốt từ
+       * `0029`. Chỗ khai chỉ nới từ "bảng token" ra "bảng token, hoặc chính tệp
+       * này". Vế cấm mã màu viết thẳng nằm ở ca trên, không đụng tới.
+       */
+      const cuaTep = new Set([...noiDung.matchAll(KHAI)].map((m) => m[1]!));
+      for (const [i, dong] of noiDung.split('\n').entries()) {
         for (const m of dong.matchAll(/var\(\s*(--[a-z0-9-]+)/g)) {
           // `var(--x, giá-trị-lùi)` thì thiếu cũng không sao — đã có đường lùi.
           const coDuongLui = dong.slice(m.index ?? 0).includes(',');
-          if (!daKhai.has(m[1]!) && !coDuongLui) thieu.push(`${tep}:${i + 1} ${m[1]}`);
+          const co = daKhai.has(m[1]!) || cuaTep.has(m[1]!);
+          if (!co && !coDuongLui) thieu.push(`${tep}:${i + 1} ${m[1]}`);
         }
       }
     }

@@ -14,6 +14,7 @@
  */
 import { useEffect, useState, type ReactNode } from 'react';
 import { taiVe, xemTruoc, type XemDuoc } from '../lib/api.js';
+import { TY_LE_MAC_DINH } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DangTai, HopThoai } from './Chung.js';
 
 /**
@@ -35,6 +36,7 @@ export function XemTep({
   duongTai,
   tenTep,
   truoc,
+  tyLe,
   dong,
 }: {
   tieuDe: string;
@@ -58,20 +60,42 @@ export function XemTep({
    * đang xem (`0054`), ví dụ khổ giấy của bản CSBH.
    *
    * Đặt trên chứ không dưới: đổi lựa chọn là tải lại nội dung, và một điều
-   * khiển nằm dưới khung xem cao 68vh thì người dùng phải cuộn xuống mới thấy
-   * thứ điều khiển chính cái họ đang nhìn.
+   * khiển nằm dưới khung xem — thứ chiếm gần hết chiều cao hộp — thì người dùng
+   * phải cuộn xuống mới thấy cái điều khiển chính thứ họ đang nhìn.
    */
   truoc?: ReactNode;
+  /**
+   * Tỷ lệ **rộng / cao** biết trước của nội dung — khung xem khớp theo (`0073`).
+   *
+   * Chỉ có ý nghĩa với PDF, và chỉ với PDF do CHÍNH phần mềm sinh ra: bản mềm
+   * CSBH và hợp đồng, nơi khổ giấy nằm sẵn ở mẫu đang chọn. Ảnh thì không cần
+   * truyền — hộp tự đo lấy, chính xác hơn mọi con số khai trước.
+   *
+   * Bỏ trống là A4 dọc (`TY_LE_MAC_DINH`) — xem lý do ở đó.
+   */
+  tyLe?: number | undefined;
   dong: () => void;
 }) {
   const [tep, datTep] = useState<XemDuoc | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangTai, datDangTai] = useState(false);
+  /*
+   * Tỷ lệ ĐO ĐƯỢC của ảnh. Chỉ ảnh mới có: `naturalWidth`/`naturalHeight` là
+   * kích thước thật của tệp, và trình duyệt biết nó ngay khi giải mã xong.
+   *
+   * Đây là chỗ khác nhau căn bản giữa ảnh và PDF trong hộp này. Ảnh nằm trong
+   * DOM của chính trang nên đo được tới từng pixel; PDF nằm trong một tài liệu
+   * riêng của trình xem PDF, và không có cách nào hỏi nó.
+   */
+  const [tyLeAnh, datTyLeAnh] = useState<number | null>(null);
 
   useEffect(() => {
     let song = true;
     let url: string | null = null;
     datLoi(null);
+    // Đổi tệp là quên số đo cũ: giữ lại thì khung mang tỷ lệ của tệp TRƯỚC
+    // trong khoảnh khắc tệp mới chưa giải mã xong.
+    datTyLeAnh(null);
     xemTruoc(duong)
       .then((x) => {
         url = x.url;
@@ -100,8 +124,20 @@ export function XemTep({
 
   const cach = tep === null ? null : cachHien(tep.kieu);
 
+  /*
+   * Tỷ lệ của khung, theo thứ tự tin cậy giảm dần: số ĐO ĐƯỢC từ ảnh → số khai
+   * trước từ khổ giấy của mẫu → A4 dọc.
+   *
+   * `cach === null` là lúc đang tải, và nó vẫn nhận tỷ lệ: hộp mở ra đúng cỡ
+   * ngay từ đầu rồi đứng yên, thay vì mở nhỏ rồi giật ra to khi nội dung tới.
+   *
+   * Riêng `'khong'` — tệp Word, Excel — trả `null` để hộp về đúng cỡ hộp thoại
+   * thường: ở đó không có khung xem nào, chỉ có một câu nhắn tải về.
+   */
+  const tyLeKhung = cach === 'khong' ? null : (tyLeAnh ?? tyLe ?? TY_LE_MAC_DINH);
+
   return (
-    <HopThoai tieuDe={tieuDe} dong={dong}>
+    <HopThoai tieuDe={tieuDe} dong={dong} tyLe={tyLeKhung}>
       {truoc}
 
       {loi !== null && <BaoLoi loi={loi} />}
@@ -109,12 +145,24 @@ export function XemTep({
       {tep === null && loi === null && <DangTai />}
 
       {tep !== null && cach === 'pdf' && (
-        <iframe className="khung-pdf khung-xem" src={tep.url} title={tieuDe} />
+        <iframe className="khung-xem" src={tep.url} title={tieuDe} />
       )}
 
       {tep !== null && cach === 'anh' && (
         <div className="khung-xem khung-anh">
-          <img src={tep.url} alt={tieuDe} />
+          <img
+            src={tep.url}
+            alt={tieuDe}
+            onLoad={(e) => {
+              const a = e.currentTarget;
+              // Chặn phép chia cho 0: ảnh hỏng vẫn kích hoạt `load` ở vài trình
+              // duyệt, với hai số đo bằng 0 — và `0/0` là `NaN`, thứ lọt thẳng
+              // vào `calc()` rồi làm sập cả bề rộng của hộp thoại.
+              if (a.naturalWidth > 0 && a.naturalHeight > 0) {
+                datTyLeAnh(a.naturalWidth / a.naturalHeight);
+              }
+            }}
+          />
         </div>
       )}
 

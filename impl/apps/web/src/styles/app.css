@@ -1365,6 +1365,51 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   padding: 0 var(--k5) var(--k5);
 }
 
+/* Hộp XEM TỆP: bề rộng SUY RA TỪ nội dung, không đặt cứng (`0073`).
+
+   Hai biến điều khiển cả khối này:
+     - `--cao-khung`: chiều cao tối đa dành cho khung xem;
+     - `--ty-le`: tỷ lệ rộng/cao của nội dung, do React đặt vào (khổ giấy của
+       mẫu, hoặc số đo thật của ảnh).
+
+   Bề rộng hộp = bề rộng khung ở chiều cao tối đa (`cao × tỷ lệ`) cộng đệm hai
+   bên, kẹp giữa hai đầu:
+     - SÀN 520px, đúng bằng hộp thoại thường: một bản scan hoá đơn cao và hẹp
+       cho ra tỷ lệ 0.3, và hộp rộng 200px thì tiêu đề với hai nút vỡ hết;
+     - TRẦN 100%, vì lớp phủ đã có lề — vượt qua là nội dung chạy ra ngoài mép.
+
+   `--cao-khung` trừ đi một khoản CỐ ĐỊNH cho phần khung hộp (tiêu đề, hàng nút,
+   ô chọn mẫu) chứ không lấy một phần trăm chiều cao: những thứ ấy cao bằng chữ,
+   không co theo màn hình. Lấy `68vh` như bản cũ thì trên laptop 13" hàng nút bị
+   đẩy khỏi tầm nhìn, còn trên màn hình 27" thì thừa ra một dải trống.
+
+   15rem = 240px, và đó là con số ĐO ĐƯỢC chứ không ước lượng: dựng lại đúng khối
+   này trong Chrome rồi đọc `getBoundingClientRect` ở bốn cỡ màn hình cho phần
+   khung hộp cao **126px**, hoặc **157px** khi có thêm ô chọn mẫu. Biên 83px là
+   chỗ hấp thụ khác biệt phông chữ và tiêu đề dài hai dòng. Hạ xuống 11rem thì ca
+   có ô chọn mẫu chạm trần `max-height` và khung bắt đầu bị cắt — đo thấy. Đổi
+   5% chiều cao lấy nguy cơ hàng nút trôi khỏi tầm nhìn là không đáng, nhất là
+   khi đó đúng là lỗi `.khung-pdf` bên dưới đã mắc một lần rồi.
+
+   Hai dòng `--cao-khung`: `dvh` là đơn vị đúng trên di động (thanh địa chỉ trượt
+   đi trượt lại), nhưng trình duyệt không hiểu `dvh` sẽ bỏ CẢ dòng và biến thành
+   rỗng — nên dòng `vh` đứng trước làm nền. Cùng lối với `max-height` ở trên. */
+.hop-thoai-xem {
+  --cao-khung: clamp(300px, calc(100vh - 15rem), 900px);
+  --cao-khung: clamp(300px, calc(100dvh - 15rem), 900px);
+  /*
+     A4 dọc là giá trị mặc định, và React đặt ĐÈ lên bằng style nội tuyến — style
+     nội tuyến thắng mọi luật trong tệp này.
+
+     Khai ở đây chứ không để trống: `calc()` gặp một biến không có giá trị thì cả
+     khai báo bề rộng thành vô nghĩa, và hộp thoại co về bề rộng nội dung. Một
+     dòng mặc định giữ cho tệp CSS này tự đứng được, không phụ thuộc vào việc
+     JavaScript có kịp chạy hay không.
+  */
+  --ty-le: 0.7071;
+  width: min(max(calc(var(--cao-khung) * var(--ty-le) + var(--k5) * 2), 520px), 100%);
+}
+
 /* Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường (`0068`).
 
    `min()` với `100%` chứ không đặt bề rộng cứng: lớp phủ đã có lề hai bên, nên
@@ -1639,25 +1684,42 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   background: var(--mau-nen-phu);
 }
 
-/* `0051` — hộp XEM TỆP.
+/* `0051` — khung XEM TỆP, `0073` — khớp đúng hình dáng nội dung.
 
-   Cao hơn hộp xem trước lúc gửi duyệt: ở đó bản CSBH chỉ để liếc lại trước khi
-   bấm, còn ở đây xem tệp LÀ việc đang làm — Kế toán soi chữ ký trên bản scan.
-   Vẫn chừa chỗ cho tiêu đề hộp thoại và hàng nút bên dưới, nên không dùng 100vh. */
+   KHÔNG có `height` ở đây, và đó là cả điểm của khối này. Trước `0073` khung
+   cao cứng `min(68vh, 760px)` trong một hộp rộng cứng 520px, nên mọi thứ đều
+   phải tự xoay xở trong một cái khuôn không liên quan gì tới nó: tờ A4 ngang
+   thành một dải bẹp kẹp giữa hai vệt xám, ảnh chụp bằng điện thoại cũng vậy.
+
+   Cách tính, đọc từ trong ra:
+     - `aspect-ratio` giữ khung ĐÚNG hình tờ giấy hay tấm ảnh;
+     - bề rộng lấy `min()` của hai giới hạn — chỗ trống theo chiều ngang, và bề
+       rộng ứng với chiều cao tối đa. Vế thứ hai là thứ thay cho `max-height`:
+       đặt `max-height` thì trình duyệt cắt chiều cao mà KHÔNG tính lại chiều
+       rộng, và khung méo đi đúng lúc màn hình thấp — `aspect-ratio` không đẩy
+       ngược ràng buộc sang chiều kia.
+
+   `margin-inline: auto` cho ca hộp bị SÀN 520px giữ lại: khung hẹp hơn thân
+   hộp thì nó đứng giữa, chứ không dạt sang trái để lại một khoảng trống lệch. */
 .khung-xem {
-  height: min(68vh, 760px);
+  width: min(100%, calc(var(--cao-khung) * var(--ty-le)));
+  aspect-ratio: var(--ty-le);
+  margin-inline: auto;
   margin-bottom: var(--k4);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen-phu);
 }
 
-/* Ảnh scan: vừa khung, giữ tỷ lệ, nền tối hơn để mép giấy trắng nhìn rõ. */
+/* Ảnh scan: vừa khung, giữ tỷ lệ, nền tối hơn để mép giấy trắng nhìn rõ.
+
+   Vẫn căn giữa dù khung đã đúng tỷ lệ ảnh: giữa lúc ảnh chưa giải mã xong,
+   khung mang tỷ lệ đoán trước, và ảnh phải nằm giữa chứ không dính mép trên. */
 .khung-anh {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: auto;
-  border: 1px solid var(--mau-vien);
-  border-radius: var(--bo-goc);
-  background: var(--mau-nen-phu);
+  overflow: hidden;
 }
 
 /* `0054` — hàng chọn khổ giấy, đứng ngay trên khung xem bản mềm. */

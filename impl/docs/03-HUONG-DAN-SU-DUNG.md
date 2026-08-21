@@ -748,6 +748,16 @@ về máy.
 Tệp Word, Excel và các định dạng khác **không xem trực tiếp được** — trình duyệt chỉ mở sẵn được PDF
 và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng.
 
+> **Hộp xem tự khớp theo hình dáng tệp** `sửa 21/08`. Trước đây hộp có một cỡ cố định cho mọi thứ,
+> nên tờ A4 ngang thành một dải bẹp kẹp giữa hai vệt xám, còn ảnh chụp thì nằm lọt thỏm. Nay hộp
+> mang đúng hình của thứ bên trong: bản mềm khổ ngang thì hộp rộng ra, ảnh dọc thì hộp cao lên, và
+> hộp giãn tới hết chỗ màn hình cho phép.
+>
+> Với **ảnh** thì phần mềm đo đúng kích thước thật của tệp. Với **bản mềm và hợp đồng** thì nó lấy
+> khổ giấy của mẫu bạn đang chọn — đổi mẫu dọc sang mẫu ngang là thấy hộp đổi hình theo. Riêng
+> **bản scan dạng PDF** bạn tải lên thì phần mềm chưa đọc được khổ trang, nên nó dựng khung theo A4
+> dọc; scan lệch khổ thì dùng thanh phóng to của trình xem PDF như bình thường.
+
 **Xem bản mềm** là một nút ở **góc trên bên phải**, ngang hàng với mã hồ sơ — mọi vai trò đọc được
 hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì hộp thoại **hỏi bạn chọn văn bản mẫu** `sửa 20/08`,
 rồi mới hiện nội dung; dưới bản xem có nút *Tải xuống* và *Đóng*.

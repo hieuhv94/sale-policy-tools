@@ -34,6 +34,32 @@ export const KHO_GIAY: KhoGiay[] = ['a4p', 'a4l'];
 export const NHAN_KHO: Record<KhoGiay, string> = { a4p: 'A4 dọc', a4l: 'A4 ngang' };
 
 /**
+ * Tỷ lệ **rộng / cao** của từng khổ giấy — để khung xem mang đúng hình dáng của
+ * tờ giấy sắp in ra (`0073`).
+ *
+ * Đây là đường đi vòng qua một chỗ ĐO KHÔNG ĐƯỢC. Khung `<iframe>` chứa trình
+ * xem PDF của chính trình duyệt, là một tài liệu riêng: JavaScript không hỏi
+ * được nó "trang này khổ gì". Nhưng với bản mềm và hợp đồng thì **không cần
+ * hỏi** — khổ giấy đã đọc từ file .docx của mẫu lúc lưu (`khoGiayCua`) và đi
+ * kèm mỗi mẫu trong danh sách chọn. Con số vốn đã nằm sẵn trong tay giao diện.
+ *
+ * 210×297 là kích thước A4 theo ISO 216, tính bằng milimét.
+ */
+export const TY_LE_KHO: Record<KhoGiay, number> = { a4p: 210 / 297, a4l: 297 / 210 };
+
+/**
+ * Tỷ lệ dùng khi KHÔNG biết gì về nội dung — bản scan PDF do người dùng tải lên.
+ *
+ * A4 dọc, vì gần như mọi bản scan giấy tờ đều là A4 dọc. Đoán sai thì trình xem
+ * PDF của trình duyệt vẫn có thanh phóng to của riêng nó; đoán đúng phần lớn
+ * lượt xem vẫn hơn là bày một khung vuông không giống tờ giấy nào.
+ *
+ * Muốn chính xác cả với bản scan thì phải đọc `MediaBox` của trang đầu LÚC TẢI
+ * LÊN rồi lưu lại — máy chủ đang cầm file trong tay, chỗ ấy làm được. Chưa làm.
+ */
+export const TY_LE_MAC_DINH = TY_LE_KHO.a4p;
+
+/**
  * Cấu hình riêng của từng loại mẫu (`0055`).
  *
  * Hai màn hình dùng CHUNG một thành phần: cơ chế trùng khít — tải .docx lên, đọc
