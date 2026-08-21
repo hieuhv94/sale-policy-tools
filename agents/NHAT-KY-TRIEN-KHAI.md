@@ -7867,3 +7867,65 @@ CSBH-2026-000146 — 2 dong:
 > người khác; hỏi lại và họ tự nhường cổng.
 
 **1359/1359 xanh.**
+
+## P108 — Nút dồn sát mép phải, và lịch sử CSBH của khách hàng
+
+### `0082` — ba nút dàn đều cả hàng thay vì dồn phải
+
+`.dau-trang` là flex `justify-content: space-between`, và `space-between` **dàn đều các con trực
+tiếp ra cả hàng**. Với hai con — tiêu đề và một nhóm nút — đó đúng là "tiêu đề trái, nút phải". Màn
+hình *Hồ sơ CSBH* có **bốn** con: tiêu đề, *Lập hồ sơ*, *Bộ lọc*, *Xuất Excel*. Chúng rải ra giữa
+trang, và không nút nào còn sát mép phải.
+
+Lỗi vào từ `0077`, lúc thêm nút *Xuất Excel* — trước đó đã có ba con và đã lệch, chỉ là ít lộ hơn.
+Bọc cả ba vào `.nhom-nut.nhom-nut-dau`, đúng cách `ChiTietHoSo` làm từ `0071`.
+
+**Vì sao ca `0071` không bắt được.** Nó hỏi *"nút có nằm trong `.dau-trang` không"*, và câu trả lời
+luôn là có. Nó không hỏi *"`.dau-trang` có mấy con"* — mà đó mới là thứ quyết định vị trí. Ca `0082`
+hỏi câu thứ hai, quét cả mười một màn hình. Đã rà thủ công trước: chỉ đúng màn hình này sai.
+
+Phép đếm **theo thụt lề**, và giới hạn ấy viết thẳng trong tệp kiểm. Bẫy đầu tiên gặp ngay: chú thích
+JSX `{/* … */}` mở đầu bằng `{` ở đúng mức thụt lề của các con, nên mọi khối có chú thích đều báo
+thừa — phải bỏ chú thích trước khi đếm. Kèm một ca đối chứng để phép đếm không thể "luôn trả về 0",
+và đã **thử phá**: thêm một con thứ ba thì ca đỏ đúng chỗ.
+
+Đo trong Chrome sau khi sửa: `.dau-trang` có 2 con, mép phải nhóm nút **lệch 0px** khỏi mép khung.
+
+### `0082` — lịch sử CSBH ở màn hình khách hàng
+
+Màn hình khách hàng tới giờ chỉ có *CSBH đang áp dụng*: đúng một hồ sơ, đúng hiện tại. Câu hỏi
+*"khách này từng áp dụng những chính sách nào, bản nào thay bản nào lúc nào"* không có chỗ nào trả
+lời — phải sang màn hình Hồ sơ, lọc theo mã khách, rồi tự ghép các phiên bản bằng mắt.
+
+**Không thêm endpoint nào.** `GET /policies?customerId=` đã có và đã lọc đúng; nó chỉ thiếu ba cột
+`deactivatedAt`, `supersedesId`, `supersededById` trong phép chiếu — ba cột nằm trong bảng từ `0001`.
+Một đường mới trả gần hệt đường cũ là hai chỗ phải giữ đồng bộ.
+
+Cân nhắc rồi bỏ `GET /policies/:id/versions`: nó đi theo chuỗi `supersedes`, nên một phiên bản **bị
+từ chối** — có `supersedes_id` trỏ về bản đang hiệu lực nhưng không bao giờ thay được nó — rơi ra
+ngoài chuỗi. Lịch sử của một khách hàng phải là **mọi hồ sơ của khách ấy**, kể cả những bản không đi
+tới đâu.
+
+Bốn quyết định nhỏ ở phần vẽ:
+
+- **Hai cột mốc hiện cả GIỜ.** Hai phiên bản thay nhau trong cùng một ngày là chuyện thường — bản mới
+  có hiệu lực đúng lúc kế toán tiếp nhận lần 2, bản cũ chết cùng giây. Chỉ hiện ngày thì hai dòng
+  trông như cùng lúc.
+- **Cột *Bị thay bởi* hiện MÃ, không hiện uuid**, tra ngược ngay trong danh sách đã tải.
+- **Gạch ngang, không phải ô trống.** Ô trống đọc ra là "chưa có dữ liệu"; gạch ngang đọc ra là
+  "không có, và đúng là không có" — với một CSBH đang hiệu lực thì vế thứ hai mới đúng.
+- **Nói thẳng CSBH không có ngày hết hạn**, ngay dưới bảng. Người đọc thấy cột *Hết hiệu lực* trống ở
+  bản mới nhất sẽ đi tìm "hạn" của nó, mà không có hạn nào cả (muc 5.2).
+
+**Một giới hạn phải nói ra, và đã nói cả trong mã lẫn trong tài liệu người dùng:** danh sách đi qua
+`thuocPhamVi` như mọi đường đọc hồ sơ khác, nên sau một lần **bàn giao khách hàng**, TDV mới thấy
+khách nhưng không thấy hồ sơ cũ do người trước lập — lịch sử với họ ngắn hơn sự thật.
+
+### Một ca đỏ ngẫu nhiên, không phải do đợt này
+
+`policy.test.ts` › *"rà theo MỘT sản phẩm KHÔNG xoá dấu vết của sản phẩm khác cùng hồ sơ"* đỏ một
+lần rồi xanh lại. Đã kiểm: xanh khi chạy riêng trên **cả mã cũ lẫn mã mới**, và xanh khi chạy lại cả
+tệp (230/230). Không phải hệ quả của thay đổi ở đây — nhưng là một ca **chập chờn** đang nằm đó, và
+ca chập chờn thì ăn mòn lòng tin vào cả bộ kiểm. Ghi lại để xử lý riêng.
+
+**1368/1368 xanh.**

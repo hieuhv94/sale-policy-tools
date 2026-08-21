@@ -11,6 +11,7 @@ import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
+import { LichSuCsbh } from '../components/LichSuCsbh.js';
 import {
   BieuMauKhachHang,
   DoiTdvPhuTrach,
@@ -221,6 +222,17 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           <p className="phu">{hoSo.lines.length} dòng sản phẩm</p>
         </div>
       )}
+
+      {/*
+        LỊCH SỬ CSBH (`0082`) — đứng ngay dưới *CSBH đang áp dụng*.
+
+        Hai khối trả lời hai câu hỏi kề nhau: "bây giờ khách này đang áp dụng
+        cái gì" và "trước đó thì sao". Đặt cạnh nhau vì người mở màn hình khách
+        hàng ra thường hỏi cả hai trong cùng một lượt — và câu thứ hai tới giờ
+        chưa có chỗ nào trả lời.
+      */}
+      <h2>Lịch sử CSBH</h2>
+      <LichSuCsbh khachHangId={id} />
 
       {/*
         CHỈ TDV PHỤ TRÁCH khách hàng này (`0069`).

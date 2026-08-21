@@ -2303,6 +2303,49 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
     expect(old.superseded_by_id).toBe(v2.body.id);
   });
 
+  it('`0082` danh sách theo khách hàng mang đủ MỐC THAY THẾ, dựng được lịch sử', async () => {
+    /*
+     * Màn hình khách hàng vẽ *Lịch sử CSBH* từ chính đường này. Trước `0082` nó
+     * chỉ trả mã, phiên bản, trạng thái và hai ngày — không có `deactivatedAt`
+     * lẫn `supersededById`, nên câu hỏi "bản nào thay bản nào, lúc mấy giờ"
+     * không có dữ liệu để trả lời.
+     *
+     * Ba cột ấy nằm trong bảng từ `0001`; thiếu ở đây là thiếu ở phép chiếu.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'AMEND',
+      lines: [line(d.productId, { cpbh: ['7000'] })],
+    });
+    await runToActive({ id: v2.body.id });
+
+    const r = await get(`/policies?customerId=${d.customerId}&limit=50`);
+    expect(r.status).toBe(200);
+    const theo = (id: string) =>
+      (r.body.items as Record<string, unknown>[]).find((x) => x['id'] === id)!;
+
+    const cu = theo(d.id);
+    const moi = theo(v2.body.id);
+
+    // Bản cũ: có mốc hết hiệu lực, và trỏ tới ĐÚNG bản đã thay nó.
+    expect(cu['status']).toBe('HET_HIEU_LUC');
+    expect(cu['deactivatedAt']).not.toBeNull();
+    expect(cu['supersededById']).toBe(v2.body.id);
+
+    // Bản mới: chưa bị thay, và trỏ NGƯỢC về bản gốc — hai chiều của cùng một
+    // quan hệ, và màn hình cần cả hai để nối chuỗi mà không phải gọi thêm.
+    expect(moi['status']).toBe('DANG_CO_HIEU_LUC');
+    expect(moi['deactivatedAt']).toBeNull();
+    expect(moi['supersededById']).toBeNull();
+    expect(moi['supersedesId']).toBe(d.id);
+
+    // Mốc thay thế phải là MỘT thời điểm có thật, không phải cờ boolean: hai
+    // phiên bản thay nhau trong cùng một ngày là chuyện thường.
+    expect(Number.isNaN(new Date(String(cu['deactivatedAt'])).getTime())).toBe(false);
+  });
+
   it('EFF-09 chuỗi ba phiên bản tra ngược được toàn bộ', async () => {
     const d = await draft();
     await runToActive(d);

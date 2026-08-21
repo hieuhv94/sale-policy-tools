@@ -357,28 +357,42 @@ export function DanhSachHoSo() {
     <section className="trang">
       <div className="dau-trang">
         <h1>Hồ sơ CSBH</h1>
-        {can(nguoiDung?.role, 'lapHoSo') && (
-          <Lien den="/ho-so/moi" className="nut nut-chinh">
-            Lập hồ sơ
-          </Lien>
-        )}
-        <button
-          type="button"
-          className="nut nut-loc"
-          aria-expanded={moLoc}
-          onClick={() => datMoLoc((x) => !x)}
-        >
-          Bộ lọc{soDieuKien > 0 && <span className="dem-loc">{soDieuKien}</span>}
-        </button>
         {/*
-          Xuất Excel đứng ở ĐÂY chứ không ở trang Báo cáo (`0077`).
+          Ba nút BỌC TRONG MỘT nhóm, không nằm rời trong `.dau-trang` (`0082`).
 
-          Đây là màn hình duy nhất có bộ lọc, nên cũng là màn hình duy nhất xuất
-          được *kết quả tìm kiếm*. Nút cũ ở trang Báo cáo gửi lên một bộ lọc rỗng
-          và xuất cả phạm vi — một việc khác hẳn, đứng ở một chỗ không có gì để
-          xuất theo.
+          `.dau-trang` là flex `space-between`, và `space-between` dàn ĐỀU các
+          con trực tiếp ra cả hàng. Với hai con — tiêu đề và một nhóm nút — đó
+          đúng là "tiêu đề trái, nút phải". Với bốn con thì nó rải chúng ra giữa
+          trang, và không nút nào còn sát mép phải.
+
+          Màn hình này có ba nút nên nó lộ ra rõ nhất, nhưng luật thì chung: mọi
+          `.dau-trang` phải có ĐÚNG hai con. `ChiTietHoSo` vốn đã làm thế từ
+          `0071` — chỗ này là chỗ bị bỏ sót.
         */}
-        <NutXuatExcel boLoc={boLoc} />
+        <div className="nhom-nut nhom-nut-dau">
+          {can(nguoiDung?.role, 'lapHoSo') && (
+            <Lien den="/ho-so/moi" className="nut nut-chinh">
+              Lập hồ sơ
+            </Lien>
+          )}
+          <button
+            type="button"
+            className="nut nut-loc"
+            aria-expanded={moLoc}
+            onClick={() => datMoLoc((x) => !x)}
+          >
+            Bộ lọc{soDieuKien > 0 && <span className="dem-loc">{soDieuKien}</span>}
+          </button>
+          {/*
+            Xuất Excel đứng ở ĐÂY chứ không ở trang Báo cáo (`0077`).
+
+            Đây là màn hình duy nhất có bộ lọc, nên cũng là màn hình duy nhất
+            xuất được *kết quả tìm kiếm*. Nút cũ ở trang Báo cáo gửi lên một bộ
+            lọc rỗng và xuất cả phạm vi — một việc khác hẳn, đứng ở một chỗ
+            không có gì để xuất theo.
+          */}
+          <NutXuatExcel boLoc={boLoc} />
+        </div>
       </div>
 
       <p className="mo-ta-trang" aria-live="polite">

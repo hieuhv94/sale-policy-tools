@@ -114,3 +114,92 @@ describe('`0071` nút hành động ở góc trên bên phải', () => {
     expect(khoi).toMatch(/Trang xác thực/);
   });
 });
+
+// =============================================================================
+// `0082` — `.dau-trang` phải có ĐÚNG hai con
+// =============================================================================
+
+describe('`0082` nút hành động dồn sát mép phải, không dàn đều', () => {
+  /*
+   * `.dau-trang` là flex `justify-content: space-between`, và `space-between`
+   * dàn ĐỀU các con trực tiếp ra cả hàng. Với hai con — tiêu đề và một nhóm nút
+   * — đó đúng là "tiêu đề trái, nút phải". Với BA con trở lên thì nó rải chúng
+   * ra giữa trang, và không nút nào còn sát mép phải.
+   *
+   * Màn hình *Hồ sơ CSBH* mắc đúng lỗi này sau `0077`: thêm nút *Xuất Excel* vào
+   * thành con thứ tư, và ba nút dàn ngang cả màn hình. Ca `0071` không bắt được
+   * vì nó chỉ hỏi "nút có nằm trong `.dau-trang` không", không hỏi "có mấy con".
+   *
+   * ĐẾM THEO THỤT LỀ, và đó là giới hạn thật của phép đếm này: nó tin vào cách
+   * tệp được xuống dòng. Đổi lại nó chạy trên cả mười bảy màn hình mà không phải
+   * dựng cái nào — dựng thì cần mười bảy bộ dữ liệu giả, xem ghi chú đầu tệp.
+   */
+  /**
+   * Bỏ chú thích JSX trước khi đếm.
+   *
+   * `{/* … *\/}` bắt đầu bằng `{` ở đúng mức thụt lề của các con, nên phép đếm
+   * thô tính nó là một con — và mọi khối có chú thích đều báo thừa. Thay bằng
+   * khoảng trắng chứ không xoá hẳn để số dòng không xê dịch, còn giữ được vị
+   * trí báo lỗi.
+   */
+  const boChuThich = (s: string): string =>
+    s.replace(/\{\/\*[\s\S]*?\*\/\}/g, (m) => m.replace(/[^\n]/g, ' '));
+
+  const soCon = (nguonGoc: string, tu: number): number => {
+    const nguon = boChuThich(nguonGoc);
+    const dong = nguon.slice(tu).split('\n');
+    let base: number | null = null;
+    let con = 0;
+    for (const ln of dong.slice(1)) {
+      const t = ln.trim();
+      if (t === '') continue;
+      const thut = ln.length - ln.trimStart().length;
+      if (base === null) base = thut;
+      if (thut < base) break;
+      if (thut === base && !t.startsWith('</') && (t.startsWith('<') || t.startsWith('{'))) con++;
+    }
+    return con;
+  };
+
+  const TRANG = [
+    'pages/DanhSachHoSo.tsx',
+    'pages/ChiTietHoSo.tsx',
+    'pages/KhachHang.tsx',
+    'pages/NguoiDung.tsx',
+    'pages/ThongTin.tsx',
+    'pages/NhatKyHoSo.tsx',
+    'pages/DanhMuc.tsx',
+    'pages/LapHoSo.tsx',
+    'pages/ThemMau.tsx',
+    'pages/BaoCao.tsx',
+    'pages/MauHopDong.tsx',
+  ];
+
+  it('không màn hình nào có `.dau-trang` quá hai con trực tiếp', () => {
+    const qua: string[] = [];
+    for (const t of TRANG) {
+      const nguon = doc(t);
+      const re = /<div className="dau-trang">/g;
+      for (let m = re.exec(nguon); m !== null; m = re.exec(nguon)) {
+        const n = soCon(nguon, m.index);
+        const dong = nguon.slice(0, m.index).split('\n').length;
+        if (n > 2) qua.push(`${t}:${dong} có ${n} con`);
+      }
+    }
+    expect(
+      qua,
+      `bọc các nút vào một <div className="nhom-nut nhom-nut-dau">:\n${qua.join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('phép đếm ấy CHẠY THẬT — nó đếm ra đúng số con của một khối đã biết', () => {
+    /*
+     * Vế đối chứng. Một phép đếm luôn trả về 0 cũng làm ca trên xanh vĩnh viễn,
+     * và không có gì phân biệt "mọi màn hình đều đúng" với "phép đếm hỏng".
+     */
+    const nguon = doc('pages/DanhSachHoSo.tsx');
+    const i = nguon.indexOf('<div className="dau-trang">');
+    expect(i).toBeGreaterThan(0);
+    expect(soCon(nguon, i), 'tiêu đề + một nhóm nút').toBe(2);
+  });
+});

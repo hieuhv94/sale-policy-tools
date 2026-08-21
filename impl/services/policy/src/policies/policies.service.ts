@@ -1100,9 +1100,23 @@ export class PoliciesService {
   ) {
     const ids = await this.scope.userIdsFor(me);
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
+      /*
+       * Ba cột `0082` thêm vào: `deactivatedAt`, `supersedesId`, `supersededById`.
+       *
+       * Chúng dựng nên phần LỊCH SỬ CSBH ở màn hình khách hàng — câu hỏi "khách
+       * này từng áp dụng những chính sách nào, và bản nào thay bản nào lúc mấy
+       * giờ". Ba cột ấy đã nằm sẵn trong bảng từ `0001`; thiếu ở đây nên màn
+       * hình không có gì để vẽ ngoài mã hồ sơ và trạng thái.
+       *
+       * Thêm vào `list()` chứ không dựng một đường riêng: đây đúng là "danh sách
+       * hồ sơ của một khách hàng", và `list()` đã lọc theo `customerId` sẵn. Một
+       * endpoint thứ hai trả gần hệt endpoint này là hai chỗ phải giữ đồng bộ.
+       */
       `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
               status::text AS status, applied_date AS "appliedDate",
               effective_from AS "effectiveFrom", row_version AS "rowVersion",
+              deactivated_at AS "deactivatedAt",
+              supersedes_id AS "supersedesId", superseded_by_id AS "supersededById",
               count(*) OVER() AS total_count
          FROM pol.policy
         WHERE ${thuocPhamVi(1)}

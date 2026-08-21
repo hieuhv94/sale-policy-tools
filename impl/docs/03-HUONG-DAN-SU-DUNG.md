@@ -327,6 +327,29 @@ khách hàng ra.
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
 không riêng Trình dược viên.
 
+### Lịch sử CSBH `mới 21/08`
+
+Dưới khối *CSBH đang áp dụng* là bảng **mọi phiên bản CSBH** khách hàng này từng có — không chỉ bản
+đang hiệu lực:
+
+| Cột | Nội dung |
+|---|---|
+| Mã hồ sơ · Phiên bản · Trạng thái | Bấm mã để mở chính hồ sơ đó |
+| Ngày áp dụng | Ngày ghi trên văn bản |
+| Có hiệu lực từ | Lúc kế toán tiếp nhận lần 2 — thời điểm CSBH bắt đầu có giá trị |
+| Hết hiệu lực lúc · Bị thay bởi | **Thời điểm bản mới thay bản này**, và mã của bản mới ấy |
+
+Hai cột cuối luôn đi cùng nhau: có mốc thì phải có bản đã thay. Chúng hiện **cả giờ** chứ không chỉ
+ngày, vì hai phiên bản thay nhau trong cùng một ngày là chuyện thường — bản mới có hiệu lực đúng lúc
+bản cũ chết.
+
+> **Một CSBH không có ngày hết hạn.** Cột *Hết hiệu lực* để trống ở bản mới nhất là đúng: nó chỉ hết
+> hiệu lực khi phiên bản kế tiếp được duyệt xong, và có thể không bao giờ. Muốn biết **ai** thao tác
+> ở từng mốc thì mở hồ sơ đó ra xem *Lịch sử hồ sơ*.
+
+> **Bảng chỉ gồm hồ sơ bạn xem được.** Sau một lần bàn giao khách hàng, Trình dược viên mới thấy
+> khách nhưng không thấy các hồ sơ cũ do người trước lập — lịch sử với họ sẽ ngắn hơn thực tế.
+
 ### Hồ sơ pháp lý `sửa 20/08`
 
 Giấy phép kinh doanh, chứng chỉ hành nghề, giấy tờ tuỳ thân. Hiển thị giống hệt phần *Bản cứng* của
