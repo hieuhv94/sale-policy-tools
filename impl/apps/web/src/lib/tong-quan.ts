@@ -386,10 +386,27 @@ export type TenKhoi =
  * liệu của họ không chứa hồ sơ nào (Quản trị) hoặc chỉ để xem (Ban lãnh đạo) —
  * bày một danh sách việc-phải-làm cho người không làm được việc ấy là nhiễu.
  */
+/*
+ * BA VAI TRÒ TRONG LUỒNG cùng kết thúc bằng `theo-tdv` (`0074`, chốt 21/08).
+ *
+ * TBP và Kế toán đổi `suc-khoe-luong` lấy `theo-tdv`; Sale Admin vốn đã đúng.
+ *
+ * Hai khối trả lời hai câu hỏi khác hẳn nhau, và chỉ một câu là của người đang
+ * đứng đây. *Sức khoẻ luồng duyệt* hỏi "cả luồng chạy nhanh hay chậm" — câu của
+ * người quản lý cả luồng, và đó là Ban lãnh đạo, vai trò vẫn giữ khối này. Người
+ * ký hồ sơ không đổi được nhịp của cả luồng bằng cách nhìn một con số trung bình.
+ *
+ * *Theo trình dược viên* hỏi "chỗ ùn trên bàn tôi là của ai" — và câu ấy có
+ * người để gọi ngay cuối câu trả lời. Bấm vào một dòng là ra đúng danh sách hồ
+ * sơ của người đó.
+ *
+ * Đứng CUỐI, sau *Yêu cầu cập nhật*: nó là khối để tra, không phải khối để làm.
+ * Ba khối trên nó đều là việc phải xử lý hôm nay.
+ */
 export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
   TDV: ['hop-viec', 'yeu-cau-cap-nhat'],
-  TBP: ['hop-viec', 'yeu-cau-cap-nhat', 'suc-khoe-luong'],
-  KE_TOAN: ['hop-viec-ke-toan', 'yeu-cau-cap-nhat', 'suc-khoe-luong'],
+  TBP: ['hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
+  KE_TOAN: ['hop-viec-ke-toan', 'yeu-cau-cap-nhat', 'theo-tdv'],
   SALE_ADMIN: ['canh-bao-mau-hop-dong', 'hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   BAN_LANH_DAO: [
     'vi-sao-khong-co-viec',

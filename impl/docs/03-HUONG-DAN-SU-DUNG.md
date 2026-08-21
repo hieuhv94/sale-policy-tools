@@ -275,7 +275,8 @@ có hồ sơ nào… — xem tiếp ở trang sau"* thay vì báo là hết vi�
 
 ### Từng vai trò còn thấy gì thêm
 
-- **Trưởng bộ phận và Kế toán** — tỷ lệ trả lại, số ngày chờ trung bình, số hồ sơ đến hạn hôm nay.
+- **Trưởng bộ phận và Kế toán** — bảng **hồ sơ theo từng trình dược viên** `sửa 21/08`, đứng cuối
+  trang. Bấm một dòng là ra đúng danh sách hồ sơ của người đó.
 - **Sale Admin** — cảnh báo đỏ khi **chưa có mẫu hợp đồng nào đang áp dụng** (lúc đó Kế toán không
   xuất được hợp đồng, và chỉ bạn sửa được), cùng bảng hồ sơ theo từng trình dược viên.
 - **Ban lãnh đạo** — sức khoẻ luồng duyệt, hồ sơ đang tắc ở bước nào, top 5 trình dược viên, và

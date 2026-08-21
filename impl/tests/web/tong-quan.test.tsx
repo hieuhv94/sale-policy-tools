@@ -505,6 +505,31 @@ describe('khối và câu giải thích khớp nhau', () => {
     }
   });
 
+  it('`0074` và ngược lại: mọi khối KHAI RA đều có ít nhất một vai trò dùng', () => {
+    /*
+     * Chiều còn thiếu của phép đối chiếu trên. Ca kia đi từ BẢNG về MÀN HÌNH:
+     * dùng một khối thì phải dựng được nó. Ca này đi từ KIỂU về BẢNG: khai một
+     * tên khối thì phải có người nhìn thấy nó.
+     *
+     * Chỗ hổng ấy vừa suýt cắn ở `0074`. `suc-khoe-luong` có ba vai trò dùng,
+     * đợt này gỡ khỏi hai — còn đúng một. Gỡ nốt cái thứ ba thì cả một khối
+     * cùng nhánh `case` dựng nó nằm lại trong mã, không ai gọi, không ca nào
+     * đỏ, và người sửa sau đọc nó tưởng là màn hình đang có thật.
+     *
+     * Đọc thẳng danh sách từ kiểu `TenKhoi`: nó là kiểu chuỗi hợp, không tồn tại
+     * lúc chạy, nên không có cách nào khác ngoài quét nguồn.
+     */
+    const nguon = readFileSync('apps/web/src/lib/tong-quan.ts', 'utf8');
+    const hop = /export type TenKhoi =([\s\S]*?);/.exec(nguon);
+    expect(hop, 'không tìm thấy khai báo `TenKhoi`').not.toBeNull();
+    const khai = [...hop![1]!.matchAll(/'([a-z-]+)'/g)].map((m) => m[1]!);
+    expect(khai.length, 'đọc hụt danh sách khối').toBeGreaterThan(5);
+
+    const dangDung = new Set(Object.values(KHOI_THEO_VAI_TRO).flat());
+    const boRoi = khai.filter((k) => !dangDung.has(k as never));
+    expect(boRoi, `khối khai ra mà không vai trò nào dùng: ${boRoi.join(', ')}`).toEqual([]);
+  });
+
   it('`0059` MỌI tham số thẻ sinh ra đều được màn hình hồ sơ chấp nhận', () => {
     /*
      * Bản trước liệt kê tay hai khoá (`pendingStep`, `reprint`) và quét mã nguồn

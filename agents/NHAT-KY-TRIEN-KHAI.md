@@ -7391,3 +7391,45 @@ có `height` cố định: một dòng `height` quay lại đây là đủ vô h
 có cả rộng lẫn cao thì nó bỏ qua tỷ lệ — mà giao diện vẫn chạy, chỉ là khung lại méo như cũ.
 
 **1317/1317 xanh.**
+
+## P101 — Ba vai trò trong luồng cùng kết thúc bằng *Theo trình dược viên*
+
+Khách hàng chốt 21/08: trang tổng quan của **TBP và Kế toán** lấy *Theo trình dược viên* làm mục
+cuối, và các mục khác đứng sau *Yêu cầu cập nhật* bỏ đi.
+
+Cụ thể là đổi `suc-khoe-luong` lấy `theo-tdv` ở hai vai trò ấy. Sale Admin vốn đã đúng dạng này từ
+`0045` nên không đụng tới; TDV không có mục nào sau *Yêu cầu cập nhật* nên cũng không.
+
+Đổi đúng một bảng tra — `KHOI_THEO_VAI_TRO` là nguồn duy nhất của bố cục trang tổng quan, màn hình
+không tự quyết gì.
+
+### Vì sao đổi này hợp lý
+
+Hai khối trả lời hai câu hỏi khác hẳn nhau, và chỉ một câu là của người đang đứng đây.
+
+*Sức khoẻ luồng duyệt* hỏi **"cả luồng chạy nhanh hay chậm"** — tỷ lệ trả lại, số ngày chờ trung
+bình. Đó là câu của người quản lý cả luồng, và Ban lãnh đạo vẫn giữ khối này. Người ký hồ sơ không
+đổi được nhịp của cả luồng bằng cách nhìn một con số trung bình.
+
+*Theo trình dược viên* hỏi **"chỗ ùn trên bàn tôi là của ai"** — và câu ấy có người để gọi ngay cuối
+câu trả lời. Bấm một dòng là ra đúng danh sách hồ sơ của người đó.
+
+Khối này chạy được cho TBP và Kế toán mà không cần sửa gì ở máy chủ: `byTdv` nhóm theo `tdv_user_id`
+trên tập hồ sơ đã lọc theo phạm vi, mà phạm vi của bốn vai trò trong luồng là "id của tôi ở một
+trong bốn cột người" (`0031`) — nên bảng ra đúng những TDV có hồ sơ đi qua tay mình.
+
+### Chiều còn thiếu của một phép đối chiếu
+
+`0074` thêm một ca mà lẽ ra phải có từ lâu. Ca cũ đi từ **bảng về màn hình**: dùng một khối thì màn
+hình phải dựng được nó. Không ca nào đi chiều ngược lại — khai một tên khối thì phải có vai trò nào
+đó nhìn thấy nó.
+
+Chỗ hổng ấy vừa suýt cắn. `suc-khoe-luong` có ba vai trò dùng, đợt này gỡ khỏi hai, còn đúng một.
+Gỡ nốt cái thứ ba thì cả khối `SucKhoeLuong` cùng nhánh `case` dựng nó nằm lại trong mã, không ai
+gọi, không ca nào đỏ, và người sửa sau đọc nó tưởng màn hình đang có thật.
+
+Ca mới đọc danh sách thẳng từ kiểu `TenKhoi` — kiểu chuỗi hợp, không tồn tại lúc chạy, nên phải quét
+nguồn. **Đã thử phá để chắc nó bắt được**: gỡ `suc-khoe-luong` khỏi Ban lãnh đạo thì ca đỏ đúng
+thông điệp *"khối khai ra mà không vai trò nào dùng: suc-khoe-luong"*, rồi trả lại nguyên trạng.
+
+**1318/1318 xanh.**
