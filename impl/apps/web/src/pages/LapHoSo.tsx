@@ -27,11 +27,32 @@ type KhachHang = { id: string; code: string; name: string };
 type HoSoHienHanh = { id: string; code: string; appliedDate: string | null };
 
 export function LapHoSo() {
-  const { di } = useDuong();
+  const { di, truyVan } = useDuong();
   const [tim, datTim] = useState('');
   const [ds, datDs] = useState<KhachHang[] | null>(null);
   const [chon, datChon] = useState<KhachHang | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
+
+  /*
+   * `?khachHang=<id>` — vào thẳng bước chọn cách lập, bỏ qua bước tìm (`0083`).
+   *
+   * Nút *Lập hồ sơ CSBH* ở màn hình khách hàng dẫn tới đây. Người dùng vừa đứng
+   * ở đúng khách ấy; bắt họ gõ lại tên rồi chọn trong danh sách là ba bước để
+   * quay về chỗ cũ, và bước cuối còn có khả năng chọn nhầm một khách trùng tên.
+   *
+   * Tra hụt thì KHÔNG báo lỗi, chỉ rơi về bước tìm như thường: id trong địa chỉ
+   * có thể cũ, có thể sai, có thể của một khách ngoài phạm vi. Một màn hình lỗi
+   * ở đây chặn cả việc lập hồ sơ cho khách khác, mà bước tìm vẫn dùng được.
+   */
+  const tuDuong = truyVan.get('khachHang');
+  useEffect(() => {
+    if (!tuDuong) return;
+    const huy = new AbortController();
+    layJson<KhachHang>(`/customers/${encodeURIComponent(tuDuong)}`, huy.signal)
+      .then(datChon)
+      .catch(() => undefined);
+    return () => huy.abort();
+  }, [tuDuong]);
 
   useEffect(() => {
     const huy = new AbortController();

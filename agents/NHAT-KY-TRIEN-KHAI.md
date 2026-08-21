@@ -7929,3 +7929,68 @@ tệp (230/230). Không phải hệ quả của thay đổi ở đây — nhưng
 ca chập chờn thì ăn mòn lòng tin vào cả bộ kiểm. Ghi lại để xử lý riêng.
 
 **1368/1368 xanh.**
+
+## P109 — Truy ra ca chập chờn, và lập hồ sơ ngay từ màn hình khách hàng
+
+### `0083` — ca chập chờn hoá ra là một lỗi nặng hơn nhiều
+
+Ca đỏ ngẫu nhiên ở P108: *"rà theo MỘT sản phẩm KHÔNG xoá dấu vết của sản phẩm khác cùng hồ sơ"*.
+Dấu vết lệch giá của sản phẩm A biến mất, thay bằng một dòng `PRODUCT / newValue: null` — nghĩa là
+*"sản phẩm đã bị xoá khỏi danh mục"*. Nhưng A không hề bị xoá.
+
+Lần theo `newValue: null` về tới `traAnhChup`:
+
+```ts
+try   { return await this.clients.productSnapshots(ids, loai); }
+catch { /* lùi về hỏi từng cái, cái nào lỗi thì VẮNG MẶT trong map */ }
+```
+
+`catch` nuốt **mọi** loại lỗi, và `.catch(() => undefined)` ở vòng lùi cũng vậy. Người gọi thì đọc
+"vắng mặt trong map" = "đã xoá khỏi danh mục". Nên **một lời gọi hỏng chớp nhoáng biến thành một sự
+kiện nghiệp vụ sai** — và tệ hơn: nhánh "đã xoá" `continue`, không so giá nữa, nên dấu vết lệch giá
+THẬT bị xoá theo.
+
+**Ca chập chờn chỉ là triệu chứng nhẹ nhất.** Ở môi trường thật, một lần catalog khởi động lại là
+mọi hồ sơ đã đóng băng bị ghi đè dấu vết thành "sản phẩm đã bị xoá", và mọi cảnh báo lệch giá đang
+có biến mất. Không có gì báo; con số trên box *Yêu cầu cập nhật* chỉ đổi, và đổi sang một lời nói dối
+về danh mục.
+
+Sửa: `traAnhChup` trả về **hai** thứ — `anh` và `hong`. Chỉ mã lỗi `PRODUCT_NOT_FOUND` mới là "đã
+xoá"; mọi lỗi khác vào `hong`, và hồ sơ có id trong `hong` thì **bỏ qua cả lượt** — không ghi, không
+xoá, không nhớ tạm. Thứ đã biết hôm qua vẫn đúng hơn một phỏng đoán rút từ một lời gọi vừa hỏng.
+
+> Một cái bẫy phụ nằm ngay đó và đã tránh: `nhoAnh.set(key, undefined)` rồi `nhoAnh.has(key)` vẫn trả
+> `true`. Ghi tạm một lần hụt vào bộ nhớ đệm là id ấy KHÔNG được hỏi lại trong suốt lượt rà — một lần
+> hụt thành hụt cho tới hết.
+
+**Chứng minh bằng cách phá lại.** Ca `0083` chặn cả hai đường tra danh mục cho hỏng (không phải 404)
+rồi rà lại; dấu vết cũ phải còn nguyên. Trả `traAnhChup` về bản cũ thì ca đỏ với **đúng dạng của lần
+chập chờn**: `[{"kind":"PRODUCT","newValue":null,…}]` và mất dấu vết giá. Kèm ca đối chứng: 404 THẬT
+thì vẫn phải kết luận đã xoá — nới tay quá là mở lại đúng cái lỗ `0036` sinh ra để bịt.
+
+### `0083` — nút *Lập hồ sơ CSBH* ở màn hình khách hàng
+
+Đường cũ: *Hồ sơ CSBH* → *Lập hồ sơ* → gõ lại tên khách vừa xem → chọn trong danh sách. Ba bước để
+quay lại đúng chỗ đang đứng, và bước cuối còn có khả năng chọn nhầm một khách trùng tên.
+
+Nút mang theo `?khachHang=<id>`; `LapHoSo` đọc tham số ấy và vào **thẳng** bước chọn *Bổ sung /
+Chỉnh sửa*. Tra hụt thì **không** báo lỗi, chỉ rơi về bước tìm như thường: id có thể cũ, có thể sai,
+có thể của một khách ngoài phạm vi — một màn hình lỗi ở đó chặn cả việc lập hồ sơ cho khách khác.
+
+Điều kiện hiện nút khớp đúng luật máy chủ, không xấp xỉ: `lapHoSo` (chỉ TDV) **và** đúng TDV đang
+phụ trách khách ấy — `create()` gọi `assertInScope(customer.tdvUserId, me)`, mà phạm vi của một TDV
+là chính họ. Khách đã ngừng hợp tác thì ẩn, vì máy chủ trả `CUSTOMER_RETIRED`.
+
+### Hai stub nói sai hình dạng máy chủ
+
+Ca kiểm mới đỏ hai lần, cả hai lần đều do stub chứ không do mã sản phẩm — và cả hai đều đáng ghi:
+
+- `/policies/current` trả `null` thay vì **404**. Máy chủ ném `NO_ACTIVE_POLICY`, và màn hình bắt
+  đúng 404 ấy; trả `null` thì màn hình đứng ở vòng quay mãi mãi.
+- `/customers/:id/documents` trả `{ items }` thay vì **mảng trần**, và `HoSoPhapLy` gọi `ds.map`
+  thẳng nên nó nổ giữa lúc dựng — mà ca kiểm vẫn xanh, chỉ có một dòng lỗi ngoài lề.
+
+Cùng một bài học đã ghi ở `dang-nhap.test.tsx`: stub phải nói đúng hình dạng máy chủ trả, không phải
+hình dạng tối thiểu để ca kiểm thử xanh.
+
+**1377/1377 xanh.**

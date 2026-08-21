@@ -23,6 +23,8 @@
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
+    "./khach-hang-ui": "./src/pages/KhachHang.tsx",
+    "./lap-ho-so": "./src/pages/LapHoSo.tsx",
     "./chung": "./src/components/Chung.tsx",
     "./bo-cuc": "./src/components/BoCuc.tsx",
     "./tong-quan-ui": "./src/pages/TongQuan.tsx",

@@ -9,9 +9,13 @@
  * WF-01/04/28 (số thư trong Mailpit) nằm ở `notification.test.ts`; phần FILE
  * của WF-13/18/21 (object trên MinIO) thuộc `document`, chặng P6b.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp as createPolicyApp, CatalogImpactConsumer } from '@csbh/policy/testing';
+import {
+  createTestApp as createPolicyApp,
+  CatalogImpactConsumer,
+  Clients,
+} from '@csbh/policy/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -3726,6 +3730,77 @@ describe('0029 box Yêu cầu cập nhật', () => {
     const gia = h!.lech.find((l) => l.kind === 'PRICE');
     expect(gia, 'dòng còn lại vẫn phải được so').toBeDefined();
     expect(gia!.newValue).toBe('175000');
+  });
+
+  it('`0083` lời gọi danh mục HỎNG thì giữ nguyên dấu vết, không kết luận "đã xoá"', async () => {
+    /*
+     * ĐÂY LÀ GỐC CỦA MỘT CA CHẬP CHỜN, và là một lỗi thật nặng hơn nhiều so với
+     * cái ca chập chờn ấy.
+     *
+     * `traAnhChup` từng nuốt MỌI loại lỗi rồi coi id vắng mặt trong kết quả là
+     * *"sản phẩm đã bị xoá khỏi danh mục"*. Một lần catalog khởi động lại, một
+     * lần mạng chớp — và mọi hồ sơ đã đóng băng bị ghi đè dấu vết thành "sản
+     * phẩm đã bị xoá". Tệ hơn: nhánh ấy `continue`, không so giá nữa, nên dấu
+     * vết **lệch giá thật** bị xoá theo.
+     *
+     * Không có gì báo. Con số trên box *Yêu cầu cập nhật* chỉ đổi, và đổi sang
+     * một lời nói dối về danh mục.
+     *
+     * Dựng lại đúng tình huống ấy: chặn cả hai đường tra danh mục cho hỏng
+     * KHÔNG PHẢI 404, rồi rà lại. Dấu vết cũ phải còn nguyên.
+     */
+    const a = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(a.productId)] });
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    await datGia(a.productId, '155000', '2020-02-01');
+    await raSoat(a.productId);
+    const truoc = (await lech()).find((x) => x.id === d.body.id)!.lech;
+    expect(truoc.some((l) => l.kind === 'PRICE'), 'chưa dựng được dấu vết nền').toBe(true);
+
+    // Cả hai đường tra danh mục cùng hỏng — đúng như lúc catalog đang khởi động lại.
+    const clients = app.get(Clients);
+    const loi = new Error('catalog trả 503');
+    const g1 = vi.spyOn(clients, 'productSnapshots').mockRejectedValue(loi);
+    const g2 = vi.spyOn(clients, 'productSnapshot').mockRejectedValue(loi);
+    try {
+      await raSoat(a.productId);
+    } finally {
+      g1.mockRestore();
+      g2.mockRestore();
+    }
+
+    const sau = (await lech()).find((x) => x.id === d.body.id);
+    expect(sau, 'hồ sơ biến mất khỏi box vì một lời gọi hỏng').toBeDefined();
+    expect(
+      sau!.lech.some((l) => l.kind === 'PRICE'),
+      `dấu vết lệch giá bị xoá; còn lại: ${JSON.stringify(sau!.lech)}`,
+    ).toBe(true);
+    expect(
+      sau!.lech.some((l) => l.kind === 'PRODUCT'),
+      'kết luận "đã xoá khỏi danh mục" từ một lời gọi hỏng',
+    ).toBe(false);
+  });
+
+  it('`0083` 404 THẬT thì vẫn kết luận đã xoá — không nới tay quá', async () => {
+    /*
+     * Vế đối chứng. Nếu `0083` chặn cả ca này thì sản phẩm bị xoá khỏi danh mục
+     * lại lọt qua im lặng, đúng cái lỗ mà `0036` mở ra để bịt.
+     */
+    const a = await sanPhamNhomRieng('100000');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(a.productId)] });
+    await act(d.body.id, 'SUBMIT', 'tdv01');
+
+    await withAdminDb((c) => c.query(`DELETE FROM cat.product WHERE id = $1`, [a.productId]));
+    await raSoat(a.productId);
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h, 'hồ sơ có sản phẩm đã xoá phải hiện trong box').toBeDefined();
+    const sp = h!.lech.find((l) => l.kind === 'PRODUCT');
+    expect(sp, 'sản phẩm đã xoá mà không có dấu vết nào').toBeDefined();
+    expect(sp!.newValue, 'đã xoá khỏi danh mục thì không có trạng thái mới').toBeNull();
   });
 
   it('rà theo MỘT sản phẩm KHÔNG xoá dấu vết của sản phẩm khác cùng hồ sơ', async () => {

@@ -159,6 +159,30 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           </p>
         </div>
         <div className="nhom-nut nhom-nut-gon">
+          {/*
+            LẬP HỒ SƠ NGAY TỪ ĐÂY (`0083`) — đi thẳng, không phải tìm lại khách.
+
+            Đường cũ: *Hồ sơ CSBH* → *Lập hồ sơ* → gõ lại tên khách vừa xem →
+            chọn trong danh sách. Ba bước để quay lại đúng chỗ đang đứng, và
+            bước thứ ba còn có khả năng chọn nhầm một khách trùng tên.
+
+            HAI ĐIỀU KIỆN, và cả hai đều khớp đúng luật máy chủ:
+              - `lapHoSo` — chỉ TDV;
+              - đúng TDV ĐANG PHỤ TRÁCH khách này. `create()` gọi
+                `assertInScope(customer.tdvUserId, me)`, mà phạm vi của một TDV
+                là chính họ — nên TDV khác bấm vào chắc chắn nhận 403.
+
+            Khách đã ngừng hợp tác thì ẩn, cùng lý do với nút *Xoá* bên dưới:
+            máy chủ trả `CUSTOMER_RETIRED`, và một nút bấm vào chỉ để nhận lỗi
+            là một nút không nên có.
+          */}
+          {can(nguoiDung?.role, 'lapHoSo') &&
+            nguoiDung?.id === kh.tdvUserId &&
+            kh.status !== 'NGUNG_HOP_TAC' && (
+              <Lien den={`/ho-so/moi?khachHang=${kh.id}`} className="nut nut-chinh">
+                Lập hồ sơ CSBH
+              </Lien>
+            )}
           {can(nguoiDung?.role, 'suaKhachHang') && (
             <button type="button" className="nut nut-nhe" onClick={() => datMo('sua')}>
               Sửa

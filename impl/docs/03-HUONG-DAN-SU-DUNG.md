@@ -327,6 +327,13 @@ khách hàng ra.
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
 không riêng Trình dược viên.
 
+**Lập hồ sơ ngay từ đây** `mới 21/08` — nút **Lập hồ sơ CSBH** ở góc trên bên phải màn hình chi tiết
+khách hàng. Bấm vào là sang thẳng bước chọn *Bổ sung / Chỉnh sửa* với khách hàng ấy **đã chọn sẵn**,
+không phải sang mục Hồ sơ CSBH rồi gõ lại tên khách.
+
+> Nút chỉ hiện với **Trình dược viên đang phụ trách** khách hàng đó, và chỉ khi khách **chưa bị xoá**
+> — đúng bằng những trường hợp máy chủ cho phép lập.
+
 ### Lịch sử CSBH `mới 21/08`
 
 Dưới khối *CSBH đang áp dụng* là bảng **mọi phiên bản CSBH** khách hàng này từng có — không chỉ bản
