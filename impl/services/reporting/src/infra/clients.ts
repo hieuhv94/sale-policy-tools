@@ -48,12 +48,25 @@ export type PolicySrc = {
   ke_toan_user_id: string | null;
   sale_admin_user_id: string | null;
   row_version: number;
+  /**
+   * Dòng sản phẩm — khai ĐỦ những gì nguồn vốn đã trả về (`0080`).
+   *
+   * `internal.controller.ts` bên policy trả về cả giá bán Công ty, giá bán buôn,
+   * CPBH và ngưỡng từ lâu; kiểu ở đây chỉ khai 5 trường nên phần còn lại bị bỏ
+   * đi ngay tại ranh giới, và không có gì nói ra rằng chúng có sẵn. Mở rộng kiểu
+   * là đủ — không phải sửa gì ở service policy.
+   */
   lines: {
     product_id: string;
     product_code_snap: string;
     product_name_snap: string;
+    company_price: string | null;
+    wholesale_price: string | null;
+    cpbh_total: string | null;
     net_price: string;
     discount_rate: string;
+    threshold_snap: string | null;
+    over_threshold: boolean | null;
   }[];
 };
 

@@ -111,7 +111,16 @@ export class SyncService {
     // đổi luôn ai nhìn thấy hồ sơ cũ của khách đó.
     const tdv = cus.tdvUserId || src.tdv_user_id || '';
 
-    const r = await this.db.q<{ policy_id: string }>(
+/*
+     * Ghi CẢ CỤM trong một transaction (`0080`).
+     *
+     * Từ `0080` một lượt đồng bộ chạm hai bảng: hồ sơ và các dòng sản phẩm của
+     * nó. Ghi rời nhau thì một lần chết máy giữa chừng để lại một hồ sơ mang
+     * đúng số dòng nhưng không có dòng nào — và không sự kiện nào về sau sửa hộ,
+     * vì `src_row_version` đã nhảy lên rồi.
+     */
+    return this.db.tx(async (c) => {
+    const r = await c.query<{ policy_id: string }>(
       `INSERT INTO rpt.policy_row (
          policy_id, code, version_no, status, pending_step, source,
          applied_date, approved_at, tbp_signed_at, created_at, submitted_at,
@@ -204,7 +213,54 @@ export class SyncService {
         src.row_version,
       ],
     );
-    return r.length > 0 ? 'synced' : 'stale';
+
+    /*
+     * Dòng sản phẩm chỉ ghi khi bản upsert KHÔNG bị bỏ qua vì cũ.
+     *
+     * `r.rows.length === 0` nghĩa là sự kiện này mang dữ liệu cũ hơn thứ đang
+     * có, và mệnh đề `WHERE src_row_version <=` đã chặn nó lại. Ghi tiếp dòng
+     * sản phẩm ở đó là làm đúng cái việc mệnh đề kia vừa ngăn: đè dữ liệu mới
+     * bằng dữ liệu cũ, chỉ khác là ở một bảng không có phép chặn nào.
+     */
+    if (r.rows.length === 0) return 'stale';
+
+    // XOÁ RỒI GHI LẠI cả cụm, không cố tìm dòng nào đổi: một hồ sơ hiếm khi quá
+    // vài chục dòng, và phép so từng dòng để tiết kiệm vài lượt ghi là chỗ đẻ ra
+    // dòng mồ côi khi ai đó sửa thiếu một nhánh.
+    await c.query(`DELETE FROM rpt.policy_line WHERE policy_id = $1`, [src.id]);
+    if (lines.length > 0) {
+      const cot = 12;
+      const cho = lines
+        .map((_, i) => `(${Array.from({ length: cot }, (_, k) => `$${i * cot + k + 1}`).join(',')})`)
+        .join(',');
+      await c.query(
+        `INSERT INTO rpt.policy_line
+           (policy_id, seq, product_code, product_name, group_code,
+            company_price, wholesale_price, cpbh_total, net_price,
+            discount_rate, threshold, over_threshold)
+         VALUES ${cho}`,
+        lines.flatMap((l, i) => [
+          src.id,
+          i,
+          l.product_code_snap,
+          l.product_name_snap,
+          groups[l.product_id] ?? null,
+          l.company_price,
+          l.wholesale_price,
+          l.cpbh_total,
+          l.net_price,
+          l.discount_rate,
+          l.threshold_snap,
+          // CHÉP NGUYÊN, không suy lại từ `discount_rate > threshold`. Nguồn có
+          // sẵn cột này và nó là cột GENERATED ở đó, tức là một định nghĩa duy
+          // nhất; dựng lại phép so ở đây là dựng định nghĩa thứ hai, và hai
+          // định nghĩa song song là hai thứ sẽ có ngày lệch nhau.
+          l.over_threshold,
+        ]),
+      );
+    }
+    return 'synced';
+    });
   }
 }
 

@@ -44,19 +44,26 @@ export const HANDLERS_MAX = 500;
  */
 export const CHON_MAX = 20;
 
-/** Cột trả về cho màn hình danh sách, và cũng là thứ tự cột của file Excel. */
+/**
+ * Cột trả về cho màn hình danh sách, và cũng là thứ tự cột của file Excel.
+ *
+ * Định danh bằng `r.` từ `0080`: việc xuất file nối thêm `rpt.policy_line`, và
+ * `policy_id` có mặt ở CẢ HAI bảng. Không định danh thì Postgres từ chối với
+ * `column reference "policy_id" is ambiguous` — may là nó từ chối thẳng, chứ
+ * một cột trùng tên mà đoán nhầm bảng thì im lặng hơn nhiều.
+ */
 export const LIST_COLUMNS = `
-  policy_id AS "policyId", code, version_no AS "versionNo", status,
-  pending_step AS "pendingStep", source,
-  applied_date AS "appliedDate", approved_at AS "approvedAt",
-  customer_code AS "customerCode", customer_name AS "customerName",
-  registered_address AS "registeredAddress", tax_id AS "taxId",
-  requester_name AS "requesterName", tdv_name AS "tdvName",
-  tdv_user_id AS "tdvUserId", requester_id AS "requesterId",
-  line_count AS "lineCount", total_net AS "totalNet",
-  max_discount AS "maxDiscount", product_names AS "productNames",
-  product_group_codes AS "productGroupCodes",
-  created_at AS "createdAt", synced_at AS "syncedAt",
+  r.policy_id AS "policyId", r.code, r.version_no AS "versionNo", r.status,
+  r.pending_step AS "pendingStep", r.source,
+  r.applied_date AS "appliedDate", r.approved_at AS "approvedAt",
+  r.customer_code AS "customerCode", r.customer_name AS "customerName",
+  r.registered_address AS "registeredAddress", r.tax_id AS "taxId",
+  r.requester_name AS "requesterName", r.tdv_name AS "tdvName",
+  r.tdv_user_id AS "tdvUserId", r.requester_id AS "requesterId",
+  r.line_count AS "lineCount", r.total_net AS "totalNet",
+  r.max_discount AS "maxDiscount", r.product_names AS "productNames",
+  r.product_group_codes AS "productGroupCodes",
+  r.created_at AS "createdAt", r.synced_at AS "syncedAt",
   -- Cột TÍNH RA, không có trong bảng (0053). Dùng lại đúng biểu thức mà thẻ
   -- "Sắp quá hạn" và tiêu chí "han" đang dùng: ba chỗ hiện cùng một khái niệm
   -- thì phải đọc từ cùng một định nghĩa, nếu không sẽ có ngày một hồ sơ được
@@ -65,6 +72,22 @@ export const LIST_COLUMNS = `
   -- KHÔNG vào file Excel: COLUMNS bên exports/sheet.ts khai riêng theo tên khoá,
   -- nên thêm ở đây không đụng tới bảng tính.
   ${SAP_QUA_HAN} AS "sapQuaHan"`;
+
+/**
+ * Cột của MỘT DÒNG SẢN PHẨM — chỉ việc xuất file dùng tới (`0080`).
+ *
+ * Tất cả đều `NULL` với hồ sơ chưa có dòng nào, vì phép nối là `LEFT JOIN`.
+ * Bảng tính để trống mấy ô ấy, và đó là câu trả lời đúng: hồ sơ Nháp chưa nhập
+ * sản phẩm thì không có gì để ghi, nhưng bản thân hồ sơ vẫn phải có mặt.
+ */
+export const LINE_COLUMNS = `
+  l.seq AS "lineSeq",
+  l.product_code AS "productCode", l.product_name AS "productName",
+  l.group_code AS "groupCode",
+  l.company_price AS "companyPrice", l.wholesale_price AS "wholesalePrice",
+  l.cpbh_total AS "cpbhTotal", l.net_price AS "netPrice",
+  l.discount_rate AS "discountRate", l.threshold AS "threshold",
+  l.over_threshold AS "overThreshold"`;
 
 export type Cursor = { createdAt: string; policyId: string };
 
@@ -104,15 +127,15 @@ export class ReportsService {
     if (opts.cursor) {
       const cur = decodeCursor(opts.cursor);
       params.push(cur.createdAt, cur.policyId);
-      cursorSql = ` AND (created_at, policy_id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
+      cursorSql = ` AND (r.created_at, r.policy_id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
     }
 
     params.push(opts.limit + 1);
     const rows = await this.db.q<Record<string, unknown>>(
       `SELECT ${LIST_COLUMNS}
-         FROM rpt.policy_row
+         FROM rpt.policy_row r
         WHERE ${where}${cursorSql}
-        ORDER BY created_at DESC, policy_id DESC
+        ORDER BY r.created_at DESC, r.policy_id DESC
         LIMIT $${params.length}`,
       params,
     );
@@ -219,11 +242,25 @@ export class ReportsService {
   async all(scopeIds: string[], filter: Filter, cap: number): Promise<Record<string, unknown>[]> {
     const { where, params } = build(filter, scopeIds);
     params.push(cap);
+    /*
+     * MỘT DÒNG CHO MỖI SẢN PHẨM (`0080`), không phải một dòng cho mỗi hồ sơ.
+     *
+     * `LEFT JOIN` chứ không `JOIN`, và đó là cả một quyết định: hồ sơ **chưa có
+     * dòng sản phẩm nào** — hồ sơ Nháp vừa lập — vẫn phải có mặt trong file, với
+     * các cột sản phẩm để trống. `JOIN` thường thì chúng biến mất, và một hồ sơ
+     * biến mất khỏi báo cáo là kiểu sai không ai đi tìm: người dùng chỉ thấy con
+     * số nhỏ hơn mình tưởng, và không có gì nói vì sao.
+     *
+     * Sắp theo `(created_at, policy_id, seq)`: hai lần xuất cùng một bộ lọc phải
+     * cho ra hai file giống hệt nhau, kể cả thứ tự dòng — không thì không ai so
+     * được hai file với nhau. `seq` giữ đúng thứ tự sản phẩm như trong hồ sơ.
+     */
     return this.db.q<Record<string, unknown>>(
-      `SELECT ${LIST_COLUMNS}
-         FROM rpt.policy_row
+      `SELECT ${LIST_COLUMNS}, ${LINE_COLUMNS}
+         FROM rpt.policy_row r
+         LEFT JOIN rpt.policy_line l ON l.policy_id = r.policy_id
         WHERE ${where}
-        ORDER BY created_at DESC, policy_id DESC
+        ORDER BY r.created_at DESC, r.policy_id DESC, l.seq
         LIMIT $${params.length}`,
       params,
     );

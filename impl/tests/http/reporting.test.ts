@@ -184,6 +184,8 @@ async function makeCustomer(o: CustomerOpts = {}): Promise<{ id: string; code: s
 
 type PolicyOpts = CustomerOpts & {
   productName?: string;
+  /** Tên sản phẩm THỨ HAI — dựng hồ sơ nhiều dòng cho `0080`. */
+  themSanPham?: string;
   groupCode?: string;
   appliedDate?: string;
 };
@@ -192,12 +194,20 @@ type PolicyOpts = CustomerOpts & {
 async function draft(o: PolicyOpts = {}): Promise<{ id: string; customerCode: string }> {
   const cus = await makeCustomer(o);
   const productId = await makeProduct(o.productName ?? 'Nutricare Gold', o.groupCode ?? groupA);
+  // `themSanPham` dựng hồ sơ NHIỀU DÒNG — cần cho `0080`, nơi mỗi sản phẩm là
+  // một dòng riêng trong file Excel và "số hồ sơ" khác hẳn "số dòng".
+  const them = o.themSanPham
+    ? [await makeProduct(o.themSanPham, o.groupCode ?? groupA)]
+    : [];
   const r = await ppost(
     '/policies',
     {
       customerId: cus.id,
       ...(o.appliedDate ? { appliedDate: o.appliedDate } : {}),
-      lines: [{ productId, wholesalePrice: '90000', cpbh: ['3000'] }],
+      lines: [
+        { productId, wholesalePrice: '90000', cpbh: ['3000'] },
+        ...them.map((id) => ({ productId: id, wholesalePrice: '80000', cpbh: ['2000'] })),
+      ],
     },
     o.who ?? 'tdv01',
   );
@@ -1046,6 +1056,23 @@ async function waitExport(jobId: string, who = 'tdv01', timeoutMs = 10_000) {
   }
 }
 
+/** Xuất theo một bộ lọc rồi mở bảng tính ra — ba ca `0078`/`0080` đều cần. */
+const xuatRoiDoc = async (loc: Record<string, string>) => {
+  const req = await rpost('/reports/exports', loc);
+  const done = await waitExport(req.body.jobId);
+  expect(done.status, `xuất hỏng: ${done.error}`).toBe('XONG');
+  const file = await (await http(reporting))
+    .get(`/reports/exports/${req.body.jobId}/file`)
+    .set('Authorization', `Bearer ${tok['tdv01']}`)
+    .buffer(true)
+    .parse((res, cb) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => cb(null, Buffer.concat(chunks)));
+    });
+  return readSheet(file.body as Buffer);
+};
+
 const readSheet = async (buf: Buffer) => {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buf as unknown as ArrayBuffer);
@@ -1111,7 +1138,19 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
      * cần một bên quên `cleanFilter` hoặc hiểu khác một chuỗi nhiều giá trị là
      * lệch — mà không có gì báo, chỉ có một file thiếu vài dòng.
      */
-    const a = await draft({ who: 'tdv01', groupCode: groupB });
+    /*
+     * `0080` đổi nghĩa của phép so này, và đổi theo hướng khiến nó DỄ XANH GIẢ.
+     *
+     * Trước đó mỗi hồ sơ là một dòng, nên `rowCount === count` là bất biến
+     * thẳng. Nay mỗi SẢN PHẨM là một dòng — hai con số khác nhau, và chúng chỉ
+     * tình cờ bằng nhau khi mọi hồ sơ đều có đúng một mặt hàng. Hồ sơ mẫu vốn
+     * đúng như thế, nên ca cũ vẫn xanh mà không còn kiểm gì cả.
+     *
+     * Nên dựng một hồ sơ HAI dòng, và tách bất biến làm hai vế:
+     *   - file phủ ĐÚNG tập hồ sơ mà màn hình đang đếm — không thừa, không thiếu;
+     *   - số dòng file bằng tổng số dòng sản phẩm.
+     */
+    const a = await draft({ who: 'tdv01', groupCode: groupB, themSanPham: 'Nutricare Bo Sung' });
     const b = await draft({ who: 'tdv01', groupCode: groupB });
     await draft({ who: 'tdv01', groupCode: groupA });
 
@@ -1120,13 +1159,22 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
 
     const dem = await rget(`/reports/policies/count?${qs}`);
     expect(dem.status).toBe(200);
-    expect(dem.body.total).toBe(2);
+    expect(dem.body.total, 'hai hồ sơ khớp bộ lọc').toBe(2);
 
     const req = await rpost('/reports/exports', loc);
     expect(req.status).toBe(202);
     const done = await waitExport(req.body.jobId);
     expect(done.status).toBe('XONG');
-    expect(done.rowCount, 'số dòng file khác con số trên màn hình').toBe(dem.body.total);
+
+    // 2 dòng của hồ sơ `a` + 1 dòng của hồ sơ `b`.
+    expect(done.rowCount, 'số dòng file phải bằng tổng số dòng sản phẩm').toBe(3);
+    expect(done.rowCount).toBeGreaterThan(dem.body.total);
+
+    const ws = await xuatRoiDoc(loc);
+    const cotMa = COLUMNS.findIndex((c) => c.key === 'code') + 1;
+    const ma = new Set<string>();
+    for (let i = 2; i <= ws.rowCount; i++) ma.add(String(ws.getRow(i).getCell(cotMa).value));
+    expect(ma.size, 'file phủ đúng số hồ sơ màn hình đang đếm').toBe(dem.body.total);
   });
 
   it('`0078` tên file là `CSBH_<ngày giờ>.xlsx`, theo GIỜ VIỆT NAM', async () => {
@@ -1178,37 +1226,60 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
     );
   });
 
-  it('`0078` file liệt kê CỤ THỂ từng sản phẩm của hồ sơ', async () => {
+  it('`0080` MỖI SẢN PHẨM một DÒNG riêng, cột hồ sơ lặp lại', async () => {
     /*
-     * Trước đợt này file chỉ nói "Số dòng sản phẩm: 1" và "Nhóm sản phẩm: X" —
-     * biết hồ sơ có mấy mặt hàng thuộc nhóm nào, nhưng không biết là mặt hàng
-     * nào. Muốn biết phải mở từng hồ sơ ra xem, đúng việc mà file xuất ra sinh
-     * ra để khỏi phải làm.
+     * `0078` gộp tên các mặt hàng vào một ô. Đọc được, nhưng không lọc được,
+     * không cộng được, không dựng được pivot — mà đó mới là việc người ta xuất
+     * Excel để làm.
      */
-    const ten = 'Nutricare Xuat File Liet Ke';
-    const d = await draft({ productName: ten });
+    const a = 'Nutricare Dong Mot';
+    const b = 'Nutricare Dong Hai';
+    const d = await draft({ productName: a, themSanPham: b });
 
-    const req = await rpost('/reports/exports', { customerCode: d.customerCode });
-    await waitExport(req.body.jobId);
-    const file = await (await http(reporting))
-      .get(`/reports/exports/${req.body.jobId}/file`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .buffer(true)
-      .parse((res, cb) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => cb(null, Buffer.concat(chunks)));
-      });
+    const ws = await xuatRoiDoc({ customerCode: d.customerCode });
+    const o = (dong: number, khoa: string) =>
+      String(ws.getRow(dong).getCell(COLUMNS.findIndex((c) => c.key === khoa) + 1).value ?? '');
 
-    const ws = await readSheet(file.body as Buffer);
-    const cot = COLUMNS.findIndex((c) => c.key === 'productNames') + 1;
-    expect(cot, 'thiếu cột Sản phẩm').toBeGreaterThan(0);
-    expect(COLUMNS[cot - 1]!.header).toBe('Sản phẩm');
-    expect(String(ws.getRow(2).getCell(cot).value)).toContain(ten);
+    // MỘT hồ sơ, HAI sản phẩm → hai dòng dữ liệu (cộng dòng tiêu đề).
+    expect(ws.rowCount).toBe(3);
+    expect([o(2, 'productName'), o(3, 'productName')].sort()).toEqual([b, a].sort());
 
-    // ĐỨNG CUỐI: thứ tự cột là hợp đồng với người dùng, cột mới chỉ được thêm
-    // vào cuối — chèn vào giữa là làm hỏng công thức trong file của họ.
-    expect(cot).toBe(COLUMNS.length);
+    // Cột của HỒ SƠ lặp lại y nguyên trên cả hai dòng — đó là cái giá của bảng
+    // phẳng, và là lý do *Tổng giá thu về* không cộng được cả cột.
+    expect(o(2, 'code')).toBe(o(3, 'code'));
+    expect(o(2, 'customerCode')).toBe(d.customerCode);
+    expect(o(2, 'totalNet')).toBe(o(3, 'totalNet'));
+
+    // Con số THEO DÒNG thì khác nhau, và mang cái tên khác.
+    expect(o(2, 'netPrice')).not.toBe(o(3, 'netPrice'));
+    expect(Number(o(2, 'netPrice')) + Number(o(3, 'netPrice'))).toBe(Number(o(2, 'totalNet')));
+
+    // Khối dòng sản phẩm ĐỨNG CUỐI: thứ tự cột là hợp đồng với người dùng.
+    const dau = COLUMNS.findIndex((c) => c.key === 'productCode');
+    expect(dau).toBeGreaterThan(0);
+    expect(COLUMNS.slice(dau).map((c) => c.key)).toContain('overThreshold');
+    expect(COLUMNS[COLUMNS.length - 1]!.key).toBe('overThreshold');
+  });
+
+  it('`0080` hồ sơ CHƯA CÓ sản phẩm nào vẫn có mặt, cột sản phẩm để trống', async () => {
+    /*
+     * `LEFT JOIN` chứ không `JOIN`. Hồ sơ Nháp vừa lập chưa có dòng nào; phép
+     * nối thường làm nó biến mất khỏi file — và một hồ sơ biến mất khỏi báo cáo
+     * là kiểu sai không ai đi tìm, vì người dùng chỉ thấy con số nhỏ hơn mình
+     * tưởng và không có gì nói vì sao.
+     */
+    const cus = await makeCustomer({});
+    const r = await ppost('/policies', { customerId: cus.id, lines: [] }, 'tdv01');
+    expect(r.status).toBe(201);
+    await flushSync([r.body.id]);
+
+    const ws = await xuatRoiDoc({ customerCode: cus.code });
+    const o = (khoa: string) =>
+      ws.getRow(2).getCell(COLUMNS.findIndex((c) => c.key === khoa) + 1).value;
+    expect(ws.rowCount, 'hồ sơ rỗng biến mất khỏi file').toBe(2);
+    expect(String(o('customerCode'))).toBe(cus.code);
+    expect(o('productName'), 'phải để TRỐNG, không phải chuỗi rỗng hay số 0').toBeNull();
+    expect(o('netPrice')).toBeNull();
   });
 
   it('người khác không tải được file của mình, kể cả cấp trên', async () => {

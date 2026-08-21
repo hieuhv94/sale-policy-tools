@@ -21,7 +21,14 @@ import { ReportsService } from '../reports/reports.service.js';
 import type { Filter } from '../reports/filter.js';
 import { buildSheet } from './sheet.js';
 
-/** Trần cứng. Quá số này thì bộ lọc chưa đủ hẹp, và người dùng cần biết điều đó. */
+/**
+ * Trần cứng. Quá số này thì bộ lọc chưa đủ hẹp, và người dùng cần biết điều đó.
+ *
+ * Từ `0080` đây là số DÒNG SẢN PHẨM, không phải số hồ sơ: mỗi hồ sơ chiếm một
+ * dòng cho mỗi mặt hàng của nó. Với hồ sơ trung bình 5 mặt hàng thì trần này
+ * ứng với chừng 4.000 hồ sơ. Giữ nguyên con số vì thứ nó bảo vệ là bộ nhớ và
+ * thời gian dựng file, mà cả hai đều tính theo dòng.
+ */
 export const EXPORT_MAX_ROWS = 20_000;
 
 /**
@@ -121,7 +128,7 @@ export class ExportsService {
       const rows = await this.reports.all(scopeIds, filter, EXPORT_MAX_ROWS + 1);
       if (rows.length > EXPORT_MAX_ROWS) {
         throw new Error(
-          `Bộ lọc khớp hơn ${EXPORT_MAX_ROWS} hồ sơ. Hãy thu hẹp bộ lọc rồi xuất lại.`,
+          `Bộ lọc khớp hơn ${EXPORT_MAX_ROWS} dòng sản phẩm. Hãy thu hẹp bộ lọc rồi xuất lại.`,
         );
       }
       const buf = await buildSheet(rows);

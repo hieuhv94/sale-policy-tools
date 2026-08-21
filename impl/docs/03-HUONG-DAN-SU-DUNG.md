@@ -993,12 +993,28 @@ Xuất chạy **chạy nền**: bấm xong bạn dùng tiếp màn hình khác, 
 giây lúc file được dựng**, theo giờ Việt Nam. Năm đứng trước nên xếp thư mục tải về theo tên là ra
 đúng thứ tự thời gian, và hai lần xuất cách nhau vài giây vẫn là hai file khác tên.
 
-File có **cột *Sản phẩm*** ở cuối `mới 21/08`, liệt kê **cụ thể từng mặt hàng** của hồ sơ, ngăn nhau
-bằng dấu chấm phẩy. Trước đây file chỉ nói *"Số dòng sản phẩm: 5"* và *"Nhóm sản phẩm: SUA, BOT"* —
-biết có năm mặt hàng thuộc hai nhóm nhưng không biết là những mặt hàng nào.
+**Mỗi sản phẩm là một dòng riêng** `sửa 21/08`. Hồ sơ có 5 mặt hàng chiếm 5 dòng trong file; các
+cột thông tin hồ sơ (mã hồ sơ, khách hàng, trạng thái…) **lặp lại y nguyên** trên cả 5 dòng, còn
+khối cột cuối là số liệu của **riêng dòng đó**:
 
-> Cột mới đứng **ở cuối**, không chen vào cạnh *Nhóm sản phẩm*. Thứ tự cột giữ nguyên để công thức
-> Excel bạn đã dựng trên file cũ không hỏng.
+| Cột | Nội dung |
+|---|---|
+| Mã sản phẩm · Tên sản phẩm · Nhóm SP | Mặt hàng của dòng này |
+| Giá bán Công ty · Giá bán buôn · CPBH · Giá thu về (dòng) | Bốn con số của riêng dòng |
+| Chiết khấu dòng (%) · Ngưỡng (%) · Vượt ngưỡng | Chiết khấu của dòng và ngưỡng áp cho nó |
+
+> **Một chỗ dễ cộng nhầm.** *Tổng giá thu về* và *Số dòng sản phẩm* là con số của **cả hồ sơ**, nên
+> chúng lặp lại trên mọi dòng của hồ sơ ấy — cộng cả cột là cộng thừa. Con số theo dòng nằm ở
+> ***Giá thu về (dòng)***, và hai cột mang hai cái tên khác nhau đúng vì lý do đó.
+
+> Hồ sơ **chưa nhập sản phẩm nào** (Nháp mới lập) vẫn có một dòng trong file, các ô sản phẩm để
+> trống — để không hồ sơ nào biến mất khỏi báo cáo mà bạn không biết.
+
+> Khối cột này đứng **ở cuối**. Thứ tự 16 cột cũ giữ nguyên để công thức Excel bạn đã dựng trên file
+> cũ không hỏng.
+
+Vì vậy **số dòng trong file lớn hơn số hồ sơ**: màn hình ghi *"58 hồ sơ khớp điều kiện"* còn nút ghi
+*"Tải file (312 dòng)"* — 312 là số dòng sản phẩm của 58 hồ sơ đó.
 
 **Đổi bộ lọc thì phải bấm xuất lại** — nút quay về *Xuất Excel*. Đây là chủ ý: giữ liên kết cũ thì
 bạn tải về một file của bộ lọc trước, mang số dòng của một danh sách không còn trên màn hình.

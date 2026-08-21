@@ -7747,3 +7747,77 @@ ba đều không phải "connect". Ghi vào `Caddyfile` vì nó tốn của tôi
 đọc ngược blob bằng `fetch` báo lỗi, và trông hệt như lượt tải file đang hỏng.
 
 **1358/1358 xanh.**
+
+## P106 — File Excel ở mức DÒNG SẢN PHẨM
+
+`0078` gộp tên các mặt hàng vào một ô. Đọc được, nhưng không lọc được, không cộng được, không dựng
+được pivot — mà đó mới là việc người ta xuất Excel để làm. Khách hàng chốt: **mỗi sản phẩm một dòng
+riêng**.
+
+### Dữ liệu vốn đã có sẵn, chỉ là bị vứt ở ranh giới
+
+Tưởng phải sửa cả service policy để lấy giá từng dòng. Hoá ra không:
+`internal.controller.ts` bên policy **đã trả về** `company_price`, `wholesale_price`, `cpbh`,
+`cpbh_total`, `net_price`, `discount_rate`, `threshold_snap`, `over_threshold` từ lâu. Kiểu
+`PolicySrc.lines` bên reporting chỉ khai **5 trường**, nên phần còn lại bị bỏ đi ngay tại ranh giới
+và không có gì nói ra rằng chúng có sẵn. Mở rộng kiểu là đủ — không đụng một dòng nào ở policy.
+
+### Bảng con, không phải mảng song song
+
+`rpt.policy_row` đã có `product_codes[]` và `product_names[]` khớp chỉ số với nhau, nên thêm
+`product_net_prices[]`, `product_discounts[]`… là đường ngắn hơn. Và là đường đã có một vết xe:
+**`product_group_codes[]` nằm ngay cạnh hai mảng kia nhưng nó đã KHỬ TRÙNG**, nên nó KHÔNG khớp chỉ
+số — một hồ sơ 5 dòng thuộc 2 nhóm có mảng dài 2. Ai đọc lướt sẽ tưởng ba mảng đi cùng nhau và ghép
+nhầm nhóm cho sản phẩm. `rpt.policy_line` không có chỗ cho hiểu nhầm ấy.
+
+Ghi cả cụm trong **một transaction**: từ nay một lượt đồng bộ chạm hai bảng, và ghi rời nhau thì một
+lần chết máy giữa chừng để lại hồ sơ mang đúng `line_count` mà không có dòng nào — không sự kiện nào
+về sau sửa hộ, vì `src_row_version` đã nhảy lên rồi. Dòng sản phẩm cũng chỉ ghi khi bản upsert
+KHÔNG bị chặn vì cũ; ghi tiếp ở đó là làm đúng cái việc mà mệnh đề `WHERE src_row_version <=` vừa
+ngăn, chỉ khác là ở một bảng không có phép chặn nào.
+
+### Ba chỗ phải nghĩ, không chỗ nào hiển nhiên
+
+**`LEFT JOIN` chứ không `JOIN`.** Hồ sơ Nháp chưa có dòng nào; phép nối thường làm nó biến mất khỏi
+file. Một hồ sơ biến mất khỏi báo cáo là kiểu sai không ai đi tìm — người dùng chỉ thấy con số nhỏ
+hơn mình tưởng. Có ca riêng canh, và nó khẳng định ô sản phẩm là **rỗng** chứ không phải chuỗi rỗng
+hay số 0.
+
+**Cột hồ sơ lặp lại trên mọi dòng.** Đó là cái giá của bảng phẳng, và nó có bẫy: *Tổng giá thu về*
+là số của cả hồ sơ, cộng cả cột là cộng thừa. Nên con số theo dòng mang một cái tên khác hẳn —
+*Giá thu về (dòng)* — và tài liệu nói thẳng chuyện này.
+
+**`LIST_COLUMNS` phải định danh `r.`.** `policy_id` giờ có ở cả hai bảng. May là Postgres từ chối
+thẳng với `column reference is ambiguous`; một cột trùng tên mà đoán nhầm bảng thì im lặng hơn nhiều.
+
+### Một ca đang xanh GIẢ
+
+Ca `0077` *"số dòng trong file khớp con số màn hình"* vẫn xanh sau khi đổi — và đó là tin xấu. Trước
+đó mỗi hồ sơ một dòng nên `rowCount === count` là bất biến thẳng; nay hai con số khác nhau, và chúng
+chỉ tình cờ bằng nhau **vì hồ sơ mẫu nào cũng có đúng một mặt hàng**. Ca ấy đã thôi kiểm gì cả mà
+không ai biết.
+
+Sửa: `draft()` nhận thêm `themSanPham` để dựng hồ sơ hai dòng, và bất biến tách làm hai vế — file
+phủ **đúng tập hồ sơ** màn hình đang đếm, và số dòng bằng **tổng số dòng sản phẩm**. Nay
+`rowCount (3) > count (2)`, tức là phép so thật sự có nội dung.
+
+### Đo trên demo
+
+```
+MAN HINH : 22 ho so          FILE: CSBH_20260821_141512.xlsx | 43 dong
+SO HO SO TRONG FILE: 22      26 cot (16 cot ho so + 10 cot dong san pham)
+
+HO SO CSBH-2026-000146 — 2 dong:
+   Nutricare Gold 900g          gia thu ve 521000  CK 15.28%
+   Dau oc cho Nutricare 250ml   gia thu ve 163800  CK 16%
+   cong lai 684800 == Tong gia thu ve 684800  -> True
+```
+
+### Món nợ ghi lại
+
+**Không có lệnh nạp lại read-model.** Hồ sơ đã nằm trong `rpt.policy_row` trước `0080` chưa có dòng
+nào trong bảng mới, và chúng chỉ tự lấp khi có sự kiện đồng bộ tiếp theo — cho tới lúc ấy chúng xuất
+ra với các ô sản phẩm để trống, không có gì báo. Hệ chưa bàn giao và `make demo` dựng lại CSDL từ
+đầu nên hiện không cắn ai; nhưng ngày lên thật thì cần một lệnh quét lại toàn bộ.
+
+**1359/1359 xanh.**

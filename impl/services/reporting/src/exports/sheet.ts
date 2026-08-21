@@ -20,7 +20,7 @@ type Col = {
   header: string;
   key: string;
   width: number;
-  kind?: 'money' | 'date' | 'datetime' | 'rate' | 'list' | 'ds';
+  kind?: 'money' | 'date' | 'datetime' | 'rate' | 'list' | 'co-khong';
 };
 
 /** THỨ TỰ CỘT — hợp đồng với người dùng, chỉ được thêm vào CUỐI. */
@@ -42,18 +42,32 @@ export const COLUMNS: Col[] = [
   { header: 'Chiết khấu cao nhất (%)', key: 'maxDiscount', width: 20, kind: 'rate' },
   { header: 'Ngày tạo', key: 'createdAt', width: 18, kind: 'datetime' },
   /*
-   * Danh sách SẢN PHẨM CỤ THỂ của hồ sơ (`0078`).
+   * KHỐI DÒNG SẢN PHẨM (`0080`) — mỗi sản phẩm một DÒNG riêng.
    *
-   * Trước đợt này file chỉ nói *"Số dòng sản phẩm: 5"* và *"Nhóm sản phẩm: SUA,
-   * BOT"* — biết hồ sơ có năm mặt hàng thuộc hai nhóm, nhưng không biết là những
-   * mặt hàng nào. Muốn biết thì phải mở từng hồ sơ ra xem, đúng việc mà một file
-   * xuất ra sinh ra để khỏi phải làm.
+   * `0078` gộp tên các mặt hàng vào một ô. Đọc được, nhưng không lọc được, không
+   * cộng được, không dựng được pivot — mà đó mới là việc người ta xuất Excel để
+   * làm. Nay mỗi dòng của bảng tính là MỘT dòng sản phẩm của MỘT hồ sơ, và các
+   * cột hồ sơ ở trên lặp lại trên mỗi dòng.
    *
-   * ĐỨNG CUỐI dù nó thuộc về chỗ cạnh *Nhóm sản phẩm*. Thứ tự cột là hợp đồng —
-   * người dùng đã dựng công thức tham chiếu cột N, cột O; chèn vào giữa là làm
-   * hỏng file của họ trong im lặng. Xem chú thích đầu tệp.
+   * MỘT BẪY PHẢI BIẾT: *Tổng giá thu về* và *Số dòng sản phẩm* là con số của CẢ
+   * HỒ SƠ, nên chúng lặp lại y nguyên trên mọi dòng của hồ sơ ấy — cộng cả cột
+   * là cộng thừa. Con số theo dòng nằm ở *Giá thu về (dòng)* bên dưới, và hai
+   * cái mang hai cái tên khác nhau đúng vì lý do đó.
+   *
+   * Cả khối ĐỨNG CUỐI: thứ tự cột là hợp đồng, người dùng đã dựng công thức
+   * tham chiếu cột N, cột O. Cột `Sản phẩm` của `0078` bị khối này thay thế —
+   * nó nằm ở vị trí cuối cùng, nên gỡ đi không xê dịch cột nào khác.
    */
-  { header: 'Sản phẩm', key: 'productNames', width: 60, kind: 'ds' },
+  { header: 'Mã sản phẩm', key: 'productCode', width: 16 },
+  { header: 'Tên sản phẩm', key: 'productName', width: 40 },
+  { header: 'Nhóm SP', key: 'groupCode', width: 16 },
+  { header: 'Giá bán Công ty', key: 'companyPrice', width: 16, kind: 'money' },
+  { header: 'Giá bán buôn', key: 'wholesalePrice', width: 16, kind: 'money' },
+  { header: 'CPBH', key: 'cpbhTotal', width: 14, kind: 'money' },
+  { header: 'Giá thu về (dòng)', key: 'netPrice', width: 16, kind: 'money' },
+  { header: 'Chiết khấu dòng (%)', key: 'discountRate', width: 18, kind: 'rate' },
+  { header: 'Ngưỡng (%)', key: 'threshold', width: 12, kind: 'rate' },
+  { header: 'Vượt ngưỡng', key: 'overThreshold', width: 12, kind: 'co-khong' },
 ];
 
 const MONEY_FMT = '#,##0';
@@ -104,16 +118,14 @@ export async function buildSheet(rows: Record<string, unknown>[]): Promise<Buffe
           cells[c.key] = Array.isArray(v) ? v.join(', ') : (v ?? null);
           break;
         /*
-         * Ngăn bằng DẤU CHẤM PHẨY, không bằng dấu phẩy (`0078`).
+         * Boolean ghi thành CHỮ, không thành `TRUE`/`FALSE` (`0080`).
          *
-         * Tên sản phẩm là câu chữ tự do và có thể chứa dấu phẩy ("Sữa non 120g,
-         * hộp giấy"); ngăn bằng dấu phẩy thì người dùng bấm *Text to Columns*
-         * trong Excel sẽ cắt đúng giữa một cái tên. Mã nhóm thì không bao giờ
-         * chứa dấu phẩy, nên cột ấy giữ nguyên `list` — đổi định dạng một cột
-         * đã bàn giao là chuyện phải có lý do, và ở đó không có lý do nào.
+         * `Có`/`—` đọc được ngay và lọc được bằng bộ lọc của Excel; `TRUE` thì
+         * người đọc phải nhớ cột này hỏi điều gì mới suy ra nghĩa. Ô trống dành
+         * cho hồ sơ chưa có dòng sản phẩm nào — khác hẳn với "không vượt".
          */
-        case 'ds':
-          cells[c.key] = Array.isArray(v) ? v.join('; ') : (v ?? null);
+        case 'co-khong':
+          cells[c.key] = v === null || v === undefined ? null : v ? 'Có' : '—';
           break;
         default:
           cells[c.key] = v ?? null;
