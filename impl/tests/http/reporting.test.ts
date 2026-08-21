@@ -1163,8 +1163,19 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
     const file = await (await http(reporting))
       .get(`/reports/exports/${req.body.jobId}/file`)
       .set('Authorization', `Bearer ${tok['tdv01']}`);
-    // `taiVe()` ở giao diện đọc đúng header này để đặt tên file tải xuống.
+    /*
+     * `taiVe()` ở giao diện đọc đúng header này để đặt tên file tải xuống.
+     *
+     * Cả HAI dạng phải mang cùng một tên (`0079`). Bản trước để dạng lùi là
+     * `export.xlsx` cố định, và biểu thức đọc header ở giao diện khớp lần đầu
+     * tiên — tức là luôn luôn bản lùi. Mọi file rơi xuống máy với tên
+     * `export.xlsx`, còn tên thật nằm ngay đó trong cùng một dòng header.
+     */
     expect(file.headers['content-disposition']).toContain(encodeURIComponent(done.fileName));
+    expect(file.headers['content-disposition']).toContain(`filename="${done.fileName}"`);
+    expect(file.headers['content-disposition'], 'tên chung chung đã quay lại').not.toContain(
+      'export.xlsx',
+    );
   });
 
   it('`0078` file liệt kê CỤ THỂ từng sản phẩm của hồ sơ', async () => {

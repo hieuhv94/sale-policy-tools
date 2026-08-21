@@ -159,11 +159,21 @@ export class ReportsController {
       'content-type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
-    // `filename*` dạng RFC 5987: tên file có dấu tiếng Việt, và `filename=`
-    // thuần thì trình duyệt đọc ra ký tự lạ (FE-18 cùng loại lỗi).
+    /*
+     * Bản lùi ASCII mang ĐÚNG cái tên thật, không phải `export.xlsx` (`0079`).
+     *
+     * Từ `0078` tên file là `CSBH_20260821_121417.xlsx` — chỉ có chữ, số và gạch
+     * dưới, tức là đã thuần ASCII. Nên hai dạng trong header nói cùng một điều,
+     * và không còn khe nào để một trình duyệt hay một thư viện đọc nhầm sang cái
+     * tên chung chung.
+     *
+     * Vẫn giữ `filename*` dạng RFC 5987: nó là dạng ĐÚNG, và ngày nào tên file
+     * mang dấu tiếng Việt thì nó đã sẵn ở đó. Đó cũng chính là chỗ `0079` vừa
+     * sửa ở phía giao diện — biểu thức đọc header khớp nhầm bản lùi.
+     */
     res.setHeader(
       'content-disposition',
-      `attachment; filename="export.xlsx"; filename*=UTF-8''${encodeURIComponent(f.name)}`,
+      `attachment; filename="${f.name}"; filename*=UTF-8''${encodeURIComponent(f.name)}`,
     );
     res.end(f.content);
   }

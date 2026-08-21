@@ -56,6 +56,14 @@
 		# test chạy thẳng vào service và jsdom thì không thi hành CSP. Chỉ chồng
 		# demo — nơi có Caddy thật và trình duyệt thật — mới lộ ra.
 		#
+		# `connect-src` KHÔNG có `blob:`, và đó là cố ý (`0079`, đo được).
+		#
+		# Nghĩa là `fetch()` hay `XMLHttpRequest` tới một `blob:` URL bị chặn.
+		# Giao diện không cần: nó NHÚNG blob (`<iframe src>`, `<img src>`) và TẢI
+		# blob (`<a download href>`) — cả ba đều không phải "connect". Ghi ra đây
+		# vì nó tốn của tôi một lượt chẩn đoán nhầm: một phép đo đọc ngược blob
+		# bằng `fetch` báo lỗi, và trông hệt như lượt tải file đang hỏng.
+		#
 		# `blob:` hẹp hơn hẳn `*`: nó chỉ cho phép nội dung do CHÍNH trang này tạo
 		# ra trong bộ nhớ tab, không mở cửa cho một nguồn ngoài nào. `object-src`
 		# vẫn `'none'` — `<object>` và `<embed>` không có việc gì ở đây.

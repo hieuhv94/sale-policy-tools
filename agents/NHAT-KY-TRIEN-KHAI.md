@@ -7675,3 +7675,75 @@ Và trong Chrome: ô khách hàng chưa gõ gì thì **không** xoè hộp nào,
 `duoc` ra 7 kết quả; ô nhóm sản phẩm vẫn xoè ngay với 24 mục.
 
 **1356/1356 xanh.**
+
+## P105 — File tải về mang tên `export.xlsx`, và một chẩn đoán tôi không chứng minh được
+
+Người dùng báo hai chuyện: file tải xuống vẫn tên `export.xlsx`, và file Excel tải về bị lỗi.
+
+### Lỗi tên — tìm ra, sửa, chứng minh được
+
+Header của đường xuất mang **cả hai** dạng theo RFC 6266 — dạng sao là tên thật, dạng thường là bản
+lùi ASCII cho phần mềm cũ:
+
+```
+attachment; filename="export.xlsx"; filename*=UTF-8''CSBH_20260821_121417.xlsx
+```
+
+Biểu thức đọc header ở giao diện là `/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i` — dấu `\*?` khiến nó
+khớp được **cả hai** dạng, và `exec` trả về **lần khớp đầu tiên**. Tức là luôn luôn bản lùi. Mọi file
+rơi xuống máy với cái tên `export.xlsx`, còn tên thật thì nằm ngay đó trong cùng một dòng header,
+không ai đọc tới.
+
+Sửa hai đầu: giao diện thử `filename*=` **trước**, tách hẳn thành hai lần thử chứ không gộp thành một
+biểu thức "thông minh" — gộp là lại phụ thuộc vào thứ tự các mảnh trong header, đúng thứ vừa làm hỏng
+nó. Máy chủ thì bỏ cái tên `export.xlsx` cố định: từ `0078` tên thật đã thuần ASCII nên hai dạng nói
+cùng một điều, không còn khe nào để đọc nhầm.
+
+Đo trong Chrome trước và sau:
+
+```
+truoc:  suggestedFilename: 'export.xlsx'
+sau  :  suggestedFilename: 'CSBH_20260821_131928.xlsx'
+```
+
+### File lỗi — sửa một cuộc đua có thật, nhưng KHÔNG chứng minh được nó là nguyên nhân
+
+`taiVe()` gọi `URL.revokeObjectURL(url)` trong khối `finally`, tức là **ngay sau** `a.click()`, kèm
+một lời giải thích tự tin rằng *"trình duyệt đã giữ tham chiếu riêng cho lượt tải đang chạy"*. Lời
+giải thích ấy sai: `a.click()` chỉ ĐẶT LỆNH tải, trình duyệt đọc blob ở lượt sau của vòng lặp. Thu
+hồi trước lúc nó đọc xong là rút nội dung khỏi tay nó giữa chừng — và đây là nguyên nhân kinh điển
+của đúng triệu chứng "file tải về hỏng". Đã hoãn việc thu hồi lại 60 giây.
+
+**Nhưng tôi không chứng minh được đó là nguyên nhân người dùng gặp, và phải nói thẳng.** Chrome
+headless ở máy này **không hoàn tất được bất kỳ lượt tải blob nào**: một blob tự tạo, không dính gì
+tới API, **không thu hồi URL bao giờ**, cũng cho ra `state: canceled`. Phép đối chứng ấy vô hiệu hoá
+mọi kết luận rút từ trạng thái tải xuống trong môi trường này. Không có Xvfb, và mở Chrome thật lên
+màn hình `:0` là màn hình người dùng đang ngồi — không tự ý làm.
+
+Thứ đo được, và nó khoanh vùng lỗi lại rất hẹp:
+
+| Phép đo | Kết quả |
+|---|---|
+| Blob giao diện nhận được | 10552 byte, chữ ký `50 4b 03 04`, MIME đúng |
+| SHA-256 blob vs file máy chủ | **khớp tuyệt đối** |
+| Zip | hợp lệ, 16 mục |
+| Vi phạm CSP lúc tải | không có |
+| Tên `taiVe` đặt | `CSBH_20260821_133225.xlsx` |
+| Thời điểm thu hồi | chưa thu hồi (đúng — hoãn 60s) |
+
+Nghĩa là **nội dung tới trình duyệt hoàn toàn nguyên vẹn**, và bước duy nhất còn lại chưa quan sát
+được là lúc trình duyệt ghi ra đĩa. Ca kiểm thử cũ *"thu hồi object URL sau khi tải"* chính là thứ
+khoá lỗi vào chỗ — nó khẳng định đúng cái hành vi sai; nay nó khẳng định điều ngược lại.
+
+Lỗi này là của **mọi đường tải file**, không riêng Excel: `taiVe()` dùng chung cho bản CSBH, hợp
+đồng và tệp đính kèm. File càng nhỏ càng dễ thắng cuộc đua, nên các bản PDF vài chục KB gần như luôn
+qua được — hai bên chỉ khác nhau ở may rủi, không ở cơ chế.
+
+### Một ràng buộc phát hiện nhân tiện
+
+`connect-src 'self'` **không có `blob:`**, nên `fetch()` và `XMLHttpRequest` tới một `blob:` URL bị
+chặn. Giao diện không cần: nó NHÚNG blob (`frame-src`, `img-src`) và TẢI blob (`<a download>`) — cả
+ba đều không phải "connect". Ghi vào `Caddyfile` vì nó tốn của tôi một lượt chẩn đoán nhầm: phép đo
+đọc ngược blob bằng `fetch` báo lỗi, và trông hệt như lượt tải file đang hỏng.
+
+**1358/1358 xanh.**

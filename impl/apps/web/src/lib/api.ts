@@ -253,20 +253,39 @@ export async function taiVe(duong: string, tenMacDinh: string): Promise<void> {
   const res = await goi<Response>(duong, { tho: true });
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  try {
-    const a = tep.createElement('a');
-    a.href = url;
-    a.download = tenTepTu(res.headers.get('content-disposition')) ?? tenMacDinh;
-    tep.body.appendChild(a);
-    a.click();
-    a.remove();
-  } finally {
-    // Thu hồi NGAY sau khi bấm. Trình duyệt đã giữ tham chiếu riêng cho lượt tải
-    // đang chạy; không thu hồi thì blob nằm lại trong bộ nhớ tới lúc đóng tab —
-    // với vài bản PDF hợp đồng là vài chục MB không ai đòi lại.
-    URL.revokeObjectURL(url);
-  }
+  const a = tep.createElement('a');
+  a.href = url;
+  a.download = tenTepTu(res.headers.get('content-disposition')) ?? tenMacDinh;
+  tep.body.appendChild(a);
+  a.click();
+  a.remove();
+  /*
+   * Thu hồi TRỄ, không thu hồi ngay (`0079`).
+   *
+   * Bản trước gọi `revokeObjectURL` trong khối `finally`, tức là ngay sau
+   * `a.click()`, kèm một lời giải thích tự tin rằng "trình duyệt đã giữ tham
+   * chiếu riêng cho lượt tải đang chạy". Lời giải thích ấy SAI, và đo được:
+   *
+   *     downloadProgress  13644 / 13644  inProgress
+   *     downloadProgress      0 / 13644  canceled     ← file không bao giờ tới đĩa
+   *
+   * `a.click()` chỉ ĐẶT LỆNH tải; trình duyệt đọc blob ở lượt sau của vòng lặp.
+   * Thu hồi trước lúc nó đọc xong là rút nội dung khỏi tay nó giữa chừng.
+   *
+   * Vì sao mãi mới lộ: file càng nhỏ càng dễ thắng cuộc đua, nên các bản PDF vài
+   * chục KB gần như luôn qua được. File Excel 13KB thì thua — và cả hai chỉ khác
+   * nhau ở may rủi, không ở cơ chế. Đây là lỗi của MỌI đường tải file, không
+   * riêng Excel.
+   *
+   * Vẫn thu hồi, vì mối lo ban đầu là thật: không thu hồi thì blob nằm lại tới
+   * lúc đóng tab. Chỉ là nó phải xếp sau tính đúng đắn. Một phút thừa sức cho
+   * trình duyệt ghi xong ra đĩa, kể cả file lớn trên máy chậm.
+   */
+  setTimeout(() => URL.revokeObjectURL(url), THU_HOI_SAU_MS);
 }
+
+/** Xem `taiVe`. Đủ dài để lượt ghi ra đĩa xong hẳn, đủ ngắn để không giữ bộ nhớ mãi. */
+const THU_HOI_SAU_MS = 60_000;
 
 /**
  * Tải một file về BỘ NHỚ và trả về `blob:` URL để nhúng vào `<iframe>` (`0031`).
@@ -317,9 +336,28 @@ type TaiLieu = {
 const taiLieu = (): TaiLieu | undefined =>
   (globalThis as { document?: TaiLieu }).document;
 
-/** Lấy tên file máy chủ đặt, nếu có. Máy chủ biết tên đúng hơn giao diện. */
+/**
+ * Lấy tên file máy chủ đặt, nếu có. Máy chủ biết tên đúng hơn giao diện.
+ *
+ * `filename*=` ĐỌC TRƯỚC `filename=`, theo đúng RFC 6266 (`0079`).
+ *
+ * Một header có thể mang CẢ HAI dạng — dạng sao là tên thật, dạng thường là bản
+ * lùi thuần ASCII cho phần mềm cũ:
+ *
+ *     attachment; filename="export.xlsx"; filename*=UTF-8''CSBH_20260821_121417.xlsx
+ *
+ * Biểu thức cũ có `\*?` nên nó khớp được cả hai, và `exec` trả về LẦN KHỚP ĐẦU
+ * TIÊN — tức là luôn luôn bản lùi. Mọi file xuất ra đều rơi xuống máy với cái
+ * tên `export.xlsx`, còn cái tên thật thì nằm ngay đó trong cùng một dòng header,
+ * không ai đọc tới.
+ *
+ * Hai lần thử tách nhau, không gộp thành một biểu thức "thông minh": gộp lại là
+ * lại phụ thuộc vào thứ tự các mảnh trong header, đúng thứ vừa làm hỏng nó.
+ */
 function tenTepTu(cd: string | null): string | null {
   if (!cd) return null;
-  const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
-  return m?.[1] ? decodeURIComponent(m[1]) : null;
+  const sao = /filename\*=\s*(?:UTF-8|utf-8)''([^;]+)/i.exec(cd);
+  if (sao?.[1]) return decodeURIComponent(sao[1].trim());
+  const thuong = /filename=\s*"?([^";]+)"?/i.exec(cd);
+  return thuong?.[1] ? decodeURIComponent(thuong[1].trim()) : null;
 }

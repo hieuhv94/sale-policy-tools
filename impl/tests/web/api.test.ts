@@ -186,6 +186,29 @@ describe('tải file xuống — mang theo token', () => {
     return { tao, thuHoi };
   };
 
+  /**
+   * `document` GIẢ, đúng khuôn hẹp mà `taiVe` đòi hỏi.
+   *
+   * Không đụng vào `document` thật, và không phải để tránh phiền: tệp này được
+   * dự án TypeScript của MÁY CHỦ biên dịch, mà dự án ấy không có `lib: dom` —
+   * viết thẳng `document.createElement` là `error TS2584`. Cùng lý do đã ghi cho
+   * kiểu `TaiLieu` trong `api.ts`.
+   */
+  const nenTaiLieu = () => {
+    let ten = '';
+    vi.stubGlobal('document', {
+      createElement: () => ({
+        href: '',
+        set download(v: string) { ten = v; },
+        get download() { return ten; },
+        click: () => undefined,
+        remove: () => undefined,
+      }),
+      body: { appendChild: () => undefined },
+    });
+    return { ten: () => ten };
+  };
+
   it('gọi qua fetch có Authorization, KHÔNG dùng thẻ neo', async () => {
     // Thẻ `<a href="/api/…">` không gửi header `Authorization`, và không nơi nào
     // trong gateway hay http-kit đọc cookie — một liên kết như vậy luôn nhận 401.
@@ -206,14 +229,87 @@ describe('tải file xuống — mang theo token', () => {
     expect(headers['authorization']).toBe('Bearer abc');
   });
 
-  it('thu hồi object URL sau khi tải, không để rò bộ nhớ', async () => {
-    const { thuHoi } = nenTai();
+  it('`0079` KHÔNG thu hồi object URL ngay — thu hồi ngay là huỷ lượt tải', async () => {
+    /*
+     * Ca này từng khẳng định điều NGƯỢC LẠI, và chính nó khoá lỗi vào chỗ.
+     *
+     * `a.click()` chỉ ĐẶT LỆNH tải; trình duyệt đọc blob ở lượt sau của vòng
+     * lặp. Thu hồi trước lúc nó đọc xong là rút nội dung khỏi tay nó giữa chừng.
+     * Đo trong Chrome thật:
+     *
+     *     downloadProgress  13644 / 13644  inProgress
+     *     downloadProgress      0 / 13644  canceled    ← file không tới đĩa
+     *
+     * jsdom không tải file thật nên nó không bao giờ thấy được chuyện này — đó
+     * là lý do lỗi sống sót qua cả một bộ kiểm thử xanh. Thứ kiểm được ở đây là
+     * THỜI ĐIỂM thu hồi, và chỉ cần thế.
+     */
+    vi.useFakeTimers();
+    try {
+      const { thuHoi } = nenTai();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response('x', { status: 200, headers: { 'content-type': 'application/pdf' } })),
+      );
+      await taiVe('/policies/p1/contract.pdf', 'HopDong.pdf');
+      expect(thuHoi, 'thu hồi ngay sau click — lượt tải bị huỷ').not.toHaveBeenCalled();
+
+      // Nhưng VẪN phải thu hồi: mối lo rò bộ nhớ của bản cũ là thật, chỉ là nó
+      // phải xếp sau tính đúng đắn.
+      vi.advanceTimersByTime(60_000);
+      expect(thuHoi).toHaveBeenCalledWith('blob:test');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('`0079` tên file lấy từ `filename*=`, KHÔNG phải bản lùi `filename=`', async () => {
+    /*
+     * Header của đường xuất Excel mang CẢ HAI dạng — dạng sao là tên thật, dạng
+     * thường là bản lùi ASCII cho phần mềm cũ (RFC 6266). Biểu thức cũ có `\*?`
+     * nên khớp được cả hai, và `exec` trả về lần khớp ĐẦU TIÊN — tức là luôn
+     * luôn bản lùi. Mọi file xuất ra rơi xuống máy với tên `export.xlsx`, còn
+     * tên thật thì nằm ngay đó trong cùng một dòng header.
+     */
+    nenTai();
+    const neo = nenTaiLieu();
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(new Response('x', { status: 200, headers: { 'content-type': 'application/pdf' } })),
+      vi.fn().mockResolvedValue(
+        new Response('x', {
+          status: 200,
+          headers: {
+            'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'content-disposition':
+              `attachment; filename="export.xlsx"; filename*=UTF-8''CSBH_20260821_121417.xlsx`,
+          },
+        }),
+      ),
     );
-    await taiVe('/policies/p1/contract.pdf', 'HopDong.pdf');
-    expect(thuHoi).toHaveBeenCalledWith('blob:test');
+
+    await taiVe('/reports/exports/j1/file', 'CSBH.xlsx');
+    expect(neo.ten()).toBe('CSBH_20260821_121417.xlsx');
+  });
+
+  it('`0079` chỉ có `filename=` thì vẫn đọc được — đường tải tệp đính kèm', async () => {
+    // Không phải đường nào cũng gửi hai dạng: `files.controller` chỉ gửi dạng
+    // sao, `render.controller` chỉ gửi dạng thường. Cả hai phải chạy.
+    nenTai();
+    const neo = nenTaiLieu();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('%PDF', {
+          status: 200,
+          headers: {
+            'content-type': 'application/pdf',
+            'content-disposition': 'attachment; filename="CSBH-2026-000001.pdf"',
+          },
+        }),
+      ),
+    );
+    await taiVe('/policies/p1/render', 'x.pdf');
+    expect(neo.ten()).toBe('CSBH-2026-000001.pdf');
   });
 
   it('lỗi nghiệp vụ khi tải vẫn là LoiApi đọc được, không phải file rỗng', async () => {
