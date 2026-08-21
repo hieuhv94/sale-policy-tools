@@ -11,7 +11,7 @@
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dang, dangKyHetPhien, dangKyLuuPhien, datPhien, goi, layPhien } from './api.js';
+import { dang, dangKyHetPhien, dangKyLuuPhien, datPhien, goi, layPhien, LoiApi } from './api.js';
 import { xoaHetNhap } from './nhap-tam.js';
 
 export type NguoiDung = {
@@ -77,18 +77,86 @@ export function PhienProvider({ children }: { children: ReactNode }) {
   const [hetHan, datHetHan] = useState(false);
   const [dangTai, datDangTai] = useState(true);
 
+  /*
+   * KHÔI PHỤC phiên, rồi HỎI MÁY CHỦ xem nó còn sống không (`0076`).
+   *
+   * Trước đợt này bước thứ hai không có: đọc `localStorage` ra là tin luôn. Với
+   * một phiên đã chết thì màn hình dựng đủ *Tổng quan*, gọi báo cáo, ăn 401, làm
+   * mới hỏng — và người dùng nhận một lớp phủ "phiên hết hạn" ĐÈ LÊN một trang
+   * tổng quan trống rỗng mà họ chưa hề đăng nhập để vào. Mở phần mềm sau vài
+   * ngày nghỉ là gặp đúng cảnh ấy.
+   *
+   * Thứ chặn màn hình là `dangTai`, KHÔNG phải việc để `nguoiDung` rỗng. Phiên
+   * cũ vẫn nạp vào ngay và đồng bộ như trước — `App` không dựng gì chừng nào
+   * `dangTai` còn bật, nên không ai nhìn thấy trạng thái chưa xác thực ấy. Để
+   * `nguoiDung` rỗng cho tới lúc máy chủ trả lời thì mọi thành phần đọc phiên
+   * đều phải chịu thêm một khoảnh khắc "chưa có ai đăng nhập" — một trạng thái
+   * mới, ở khắp nơi, chỉ để giải quyết một chuyện của riêng màn hình đầu tiên.
+   *
+   * Ba nhánh, và nhánh thứ ba mới là chỗ dễ làm sai:
+   *
+   *   1. `/auth/me` trả về → phiên sống. Lấy luôn hồ sơ MỚI của máy chủ thay cho
+   *      bản đã lưu: vai trò đổi hay bị buộc đổi mật khẩu thì có hiệu lực ngay
+   *      lần mở tiếp theo, không phải đợi tới lần đăng nhập lại.
+   *   2. 401 → phiên chết thật. Xoá sạch, hiện bảng đăng nhập.
+   *   3. **Lỗi mạng** → chưa biết gì cả. KHÔNG xoá phiên: máy chủ đang khởi động
+   *      lại hay mạng chập là chuyện của máy chủ, mà đá người dùng ra và xoá
+   *      token của họ là biến một sự cố vài giây thành một lần đăng nhập lại.
+   *      Vào bằng hồ sơ đã lưu; lời gọi sau sẽ tự phát hiện nếu phiên hỏng thật.
+   */
   useEffect(() => {
+    let song = true;
+    let luuTru: KetQuaDangNhap | null = null;
     try {
       const s = KHO().getItem(KHOA);
-      if (s) {
-        const p = JSON.parse(s) as KetQuaDangNhap;
-        datPhien({ accessToken: p.accessToken, refreshToken: p.refreshToken });
-        datNguoiDung(p.user);
-      }
+      if (s) luuTru = JSON.parse(s) as KetQuaDangNhap;
     } catch {
       /* phiên hỏng thì coi như chưa đăng nhập */
     }
-    datDangTai(false);
+
+    if (!luuTru) {
+      datDangTai(false);
+      return;
+    }
+
+    const cu = luuTru;
+    datPhien({ accessToken: cu.accessToken, refreshToken: cu.refreshToken });
+    datNguoiDung(cu.user);
+
+    void goi<NguoiDung>('/auth/me')
+      .then((me) => {
+        if (!song) return;
+        datNguoiDung(me);
+        // Ghi đè bản đã lưu bằng hồ sơ vừa lấy: lần mở sau nếu gặp lỗi mạng thì
+        // nhánh 3 vào bằng bản MỚI NHẤT chứ không bằng bản của lần đăng nhập.
+        try {
+          KHO().setItem(KHOA, JSON.stringify({ ...cu, ...layPhien(), user: me }));
+        } catch {
+          /* không sao */
+        }
+      })
+      .catch((e: unknown) => {
+        if (!song) return;
+        // Lỗi mạng: giữ nguyên hồ sơ đã nạp ở trên, không đụng gì.
+        if (e instanceof LoiApi && e.laLoiMang) return;
+        datPhien(null);
+        datNguoiDung(null);
+        // `goi()` đã bắn `khiHetPhien` trên đường ra. Đặt lại, nếu không thì màn
+        // hình đăng nhập mọc thêm một lớp phủ đăng nhập chồng lên chính nó.
+        datHetHan(false);
+        try {
+          KHO().removeItem(KHOA);
+        } catch {
+          /* không sao */
+        }
+      })
+      .finally(() => {
+        if (song) datDangTai(false);
+      });
+
+    return () => {
+      song = false;
+    };
   }, []);
 
   useEffect(() => {

@@ -88,6 +88,17 @@ const json = (body: unknown) =>
   });
 
 /**
+ * `/auth/me` trả về chính người dùng đang nằm trong `localStorage` (`0076`).
+ *
+ * Từ `0076` `PhienProvider` hỏi máy chủ xem phiên còn sống không ngay lúc khởi
+ * động. Không chặn đường này thì nó rơi vào nhánh cuối và nhận về một HỒ SƠ —
+ * thứ không có `role` — nên vai trò của người dùng thành rỗng và mọi nút gắn
+ * quyền biến mất. Triệu chứng ("không tìm thấy nút Ký") không nhắc gì tới phiên.
+ */
+const toiLaAi = (): Response =>
+  json(JSON.parse(localStorage.getItem('csbh:phien') ?? '{}').user ?? {});
+
+/**
  * Chặn `fetch` theo ĐƯỜNG DẪN, không theo thứ tự lời gọi.
  *
  * Màn hình này gọi ba đường song song lúc mở (hồ sơ, hành động cho phép, tệp) và
@@ -97,6 +108,7 @@ const json = (body: unknown) =>
 const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_REJECT']) => {
   const f = vi.fn((duong: unknown) => {
     const d = String(duong);
+    if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());
     if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
     if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: choPhep }));
     if (d.includes('/files')) return Promise.resolve(json([]));
@@ -426,6 +438,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
      */
     const f = vi.fn((duong: unknown) => {
       const d = String(duong);
+      if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());
       if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
       if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: [] }));
       if (d.includes('/files')) return Promise.resolve(json([]));

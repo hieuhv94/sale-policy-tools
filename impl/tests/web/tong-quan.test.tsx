@@ -14,6 +14,8 @@ import { createElement } from 'react';
 import { cleanup, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { DaiTheTrangThai } from '@csbh/web/so-lieu';
+import { DanhSachViec } from '@csbh/web/hop-viec';
+import { BoDinhTuyen } from '@csbh/web/router';
 import { KHOA_NHAN_TU_LIEN_KET } from '@csbh/web/ho-so-ui';
 import { VAI_TRO, type VaiTro } from '@csbh/web/can';
 import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
@@ -503,6 +505,55 @@ describe('khối và câu giải thích khớp nhau', () => {
     for (const k of moiKhoi) {
       expect(nguon, `màn hình không dựng khối "${k}"`).toContain(`case '${k}'`);
     }
+  });
+
+  it('`0075` Kế toán dùng CHUNG hộp việc, không còn khối tách riêng', () => {
+    /*
+     * Hai lần tiếp nhận gộp vào một danh sách. Điều kiện để gộp được là mỗi dòng
+     * TỰ NÓI bước của nó — ca dưới kiểm chính điều ấy trên `DanhSachViec`.
+     */
+    expect(KHOI_THEO_VAI_TRO.KE_TOAN).toContain('hop-viec');
+    const rieng = Object.values(KHOI_THEO_VAI_TRO)
+      .flat()
+      .filter((k) => k.startsWith('hop-viec') && k !== 'hop-viec');
+    expect(rieng, `còn khối hộp việc riêng: ${rieng.join(', ')}`).toEqual([]);
+  });
+
+  it('`0075` một danh sách gộp vẫn phân biệt được hai lần tiếp nhận', () => {
+    /*
+     * Lý do tách hồi `0045` là "trộn chung thì phải đọc nhãn trạng thái từng
+     * dòng mới biết dòng đó thuộc bước nào". Ca này chốt vế còn lại của câu ấy:
+     * nhãn NẰM SẴN trên mỗi dòng, nên không phải đọc gì thêm — chỉ nhìn.
+     *
+     * Ngày nào `DanhSachViec` bỏ nhãn đi thì ca này đỏ, và đó đúng là ngày việc
+     * gộp hai danh sách trở thành sai.
+     */
+    const muc = (id: string, status: string) => ({
+      id,
+      code: `CSBH-2026-00000${id}`,
+      customerId: 'kh-1',
+      versionNo: 1,
+      status,
+      pendingStep: null,
+      slaDueAt: '2026-09-01T00:00:00.000Z',
+      sapQuaHan: false,
+    });
+
+    render(
+      createElement(BoDinhTuyen, {
+        children: createElement(DanhSachViec, {
+          muc: [muc('1', 'CHO_KT_L1'), muc('2', 'CHO_KT_L2')],
+          trongTieuDe: 'trống',
+        }),
+      }),
+    );
+
+    const chu = document.body.textContent ?? '';
+    expect(chu).toContain(NHAN_TRANG_THAI.CHO_KT_L1);
+    expect(chu).toContain(NHAN_TRANG_THAI.CHO_KT_L2);
+    // Và hai nhãn ấy KHÁC nhau — cùng tên thì có hiện cũng không phân biệt được.
+    expect(NHAN_TRANG_THAI.CHO_KT_L1).not.toBe(NHAN_TRANG_THAI.CHO_KT_L2);
+    cleanup();
   });
 
   it('`0074` và ngược lại: mọi khối KHAI RA đều có ít nhất một vai trò dùng', () => {

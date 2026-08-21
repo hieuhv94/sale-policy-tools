@@ -355,7 +355,6 @@ export type TenKhoi =
   | 'canh-bao-thu-hong'
   | 'yeu-cau-cap-nhat'
   | 'hop-viec'
-  | 'hop-viec-ke-toan'
   | 'suc-khoe-luong'
   | 'theo-buoc'
   | 'theo-tdv'
@@ -403,10 +402,28 @@ export type TenKhoi =
  * Đứng CUỐI, sau *Yêu cầu cập nhật*: nó là khối để tra, không phải khối để làm.
  * Ba khối trên nó đều là việc phải xử lý hôm nay.
  */
+/*
+ * Kế toán dùng CHUNG `hop-viec` với ba vai trò kia (`0075`, chốt 21/08).
+ *
+ * Bỏ `hop-viec-ke-toan` — khối tách *Tiếp nhận lần 1* và *Tiếp nhận lần 2* thành
+ * hai danh sách con dưới cùng một tiêu đề.
+ *
+ * Lý do tách hồi `0045` là "trộn chung thì phải đọc nhãn trạng thái từng dòng
+ * mới biết dòng đó thuộc bước nào". Nhìn lại thì chính lý do ấy tự bác nó:
+ * **nhãn trạng thái NẰM SẴN trên mỗi dòng** (`DanhSachViec` vẽ `<Nhan>` có màu
+ * riêng cho từng bước). Người dùng không phải đọc gì thêm, chỉ nhìn.
+ *
+ * Đổi lại, việc tách kéo theo một chỗ hỏng thật. Máy chủ cắt trang trên hộp việc
+ * CHUNG rồi màn hình mới tách đôi, nên một trang có thể toàn hồ sơ lần 1 trong
+ * khi lần 2 nằm ở trang sau — và nửa dưới hiện "không có hồ sơ nào chờ tiếp nhận
+ * lần 2", một câu SAI. `0052` phải viết riêng một hàm đổi câu chữ theo việc còn
+ * trang sau hay không, tức là dựng thêm cơ chế để vá hệ quả của chính nó. Gộp
+ * lại thì cả lớp lỗi ấy biến mất cùng hàm vá.
+ */
 export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
   TDV: ['hop-viec', 'yeu-cau-cap-nhat'],
   TBP: ['hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
-  KE_TOAN: ['hop-viec-ke-toan', 'yeu-cau-cap-nhat', 'theo-tdv'],
+  KE_TOAN: ['hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   SALE_ADMIN: ['canh-bao-mau-hop-dong', 'hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   BAN_LANH_DAO: [
     'vi-sao-khong-co-viec',

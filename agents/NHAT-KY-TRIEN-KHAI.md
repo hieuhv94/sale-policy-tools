@@ -7433,3 +7433,81 @@ nguồn. **Đã thử phá để chắc nó bắt được**: gỡ `suc-khoe-luo
 thông điệp *"khối khai ra mà không vai trò nào dùng: suc-khoe-luong"*, rồi trả lại nguyên trạng.
 
 **1318/1318 xanh.**
+
+## P102 — Gộp hộp việc của Kế toán, và xác thực phiên trước khi dựng màn hình
+
+Hai việc, không liên quan gì nhau.
+
+### `0075` — Kế toán chỉ còn MỘT danh sách việc
+
+Bỏ khối `hop-viec-ke-toan`, thứ tách *Tiếp nhận lần 1* và *Tiếp nhận lần 2* thành hai danh sách con
+dưới cùng một tiêu đề. Kế toán dùng chung `hop-viec` với ba vai trò kia.
+
+Lý do tách hồi `0045` là *"trộn chung thì phải đọc nhãn trạng thái từng dòng mới biết dòng đó thuộc
+bước nào"*. Nhìn lại thì chính lý do ấy tự bác nó: **nhãn trạng thái nằm sẵn trên mỗi dòng** —
+`DanhSachViec` vẽ một `<Nhan>` có màu riêng cho từng bước. Không phải đọc gì thêm, chỉ nhìn.
+
+Đổi lại, việc tách kéo theo một chỗ hỏng thật. Máy chủ cắt trang trên hộp việc CHUNG rồi màn hình
+mới tách đôi, nên một trang có thể toàn hồ sơ lần 1 trong khi lần 2 nằm ở trang sau — và nửa dưới
+hiện *"không có hồ sơ nào chờ tiếp nhận lần 2"*, một câu SAI. `0052` phải viết riêng một hàm đổi câu
+chữ theo việc còn trang sau hay không: dựng thêm cơ chế để vá hệ quả của chính mình. Gộp lại thì cả
+lớp lỗi ấy biến mất cùng hàm vá, và thứ tự theo hạn đúng trên toàn danh sách — việc gấp nhất luôn ở
+đầu, bất kể nó thuộc lần nào.
+
+Ca `0075` chốt đúng điều kiện để gộp được: hai nhãn phải hiện, và phải KHÁC nhau. Ngày nào
+`DanhSachViec` bỏ nhãn đi thì ca đỏ, và đó đúng là ngày việc gộp trở thành sai.
+
+### `0076` — "phiên hết hạn" đè lên một trang chưa ai đăng nhập để vào
+
+Người dùng báo: vào địa chỉ gốc khi chưa đăng nhập thì hiện **nền trang tổng quan** với một lớp phủ
+*phiên hết hạn* đè lên.
+
+Đường đi tới cảnh ấy, và không bước nào là lỗi rõ ràng:
+
+1. `localStorage` còn phiên của lần dùng trước → khôi phục, **tin luôn**.
+2. Màn hình dựng đủ *Tổng quan*, gọi báo cáo và hộp việc.
+3. Token chết → 401 → làm mới hỏng → `hetHan`.
+4. `FE-33` nói phiên hết hạn KHÔNG được dỡ màn hình đang mở, nên lớp phủ nằm đè lên — **đúng như
+   thiết kế**, nhưng thứ nằm dưới là một trang mà người dùng chưa hề đăng nhập để vào.
+
+Chỗ sai là bước 1. Nay `PhienProvider` hỏi `/auth/me` ngay lúc khởi động, và `dangTai` chỉ tắt sau
+khi có câu trả lời. Ba nhánh:
+
+| Kết quả | Xử lý |
+|---|---|
+| 200 | Phiên sống. Lấy hồ sơ MỚI của máy chủ — đổi vai trò có hiệu lực ngay lần mở sau |
+| 401 | Phiên chết. Xoá sạch, hiện bảng đăng nhập và chỉ bảng đăng nhập |
+| Lỗi mạng | **Chưa biết gì cả.** Vào bằng hồ sơ đã lưu, KHÔNG xoá phiên |
+
+Nhánh thứ ba là chỗ dễ làm sai nhất: máy chủ khởi động lại vài giây mà coi như phiên chết rồi xoá
+token là biến một sự cố thoáng qua thành một lần đăng nhập lại.
+
+**Thứ chặn màn hình là `dangTai`, không phải việc để `nguoiDung` rỗng.** Bản đầu tôi làm ngược — chỉ
+đặt `nguoiDung` sau khi máy chủ trả lời — và **13 ca đỏ**: mọi tệp kiểm thử dựng thẳng `BoCuc` đều
+mất người dùng ở tích đầu tiên. Đó là phản hồi đúng. Sửa hẹp lại: phiên cũ vẫn nạp vào ngay và đồng
+bộ như trước, `App` không dựng gì chừng nào `dangTai` còn bật. Cách kia bắt mọi thành phần đọc phiên
+phải chịu thêm một trạng thái "chưa có ai đăng nhập" — một trạng thái mới, ở khắp nơi, chỉ để giải
+quyết chuyện của riêng màn hình đầu tiên.
+
+Màn hình chờ nói *"Đang kiểm tra phiên đăng nhập…"* chứ không để trắng: từ nay bước này là một lượt
+gọi mạng thật, và vài giây trắng trơn đọc ra là phần mềm hỏng.
+
+### Hai ca đối chứng
+
+Ca *phiên đã chết* khẳng định cả ba: có bảng đăng nhập, **không** có trang tổng quan phía sau,
+**không** có lớp phủ. Đã trả `auth.tsx` về bản cũ để chắc nó bắt được — đỏ đúng ca ấy, xanh lại sau
+khi khôi phục.
+
+Ca còn lại canh chiều ngược: `FE-33` không được sửa hỏng theo. Hai hành vi trông giống nhau — cùng
+là "phiên chết, hiện bảng đăng nhập" — nhưng chết LÚC KHỞI ĐỘNG thì chưa có gì để giữ, còn chết GIỮA
+CHỪNG thì có thể đang dở một hồ sơ 20 dòng. Gộp nhầm làm một là hỏng một trong hai.
+
+### Một stub nói sai hình dạng
+
+Hai ca ở `chi-tiet-ho-so.test.tsx` đỏ với *"không tìm thấy nút Ký"* — không nhắc gì tới phiên. Nhánh
+cuối của stub trả về một HỒ SƠ cho `/auth/me`, mà hồ sơ không có `role`, nên vai trò thành rỗng và
+mọi nút gắn quyền biến mất. Sửa ở stub chứ không thêm lớp phòng vệ trong mã: đúng nguyên tắc đã ghi
+ở `dang-nhap.test.tsx` — *stub phải nói đúng hình dạng máy chủ trả, không phải hình dạng tối thiểu
+để ca kiểm thử xanh*.
+
+**1325/1325 xanh.**

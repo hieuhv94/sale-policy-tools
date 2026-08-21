@@ -2106,3 +2106,15 @@ td.o-cau-chu { max-width: 32ch; }
   gap: var(--k2);
   margin-bottom: var(--k3);
 }
+
+/* Màn hình chờ lúc kiểm tra phiên đăng nhập (`0076`).
+
+   Căn giữa theo cả hai chiều: lúc này chưa có khung ứng dụng nào — không thanh
+   bên, không tiêu đề — nên một dòng chữ dính mép trên trông như trang lỗi. */
+.trang-dang-tai {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

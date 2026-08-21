@@ -2,7 +2,7 @@ import { usePhien } from './lib/auth.js';
 import { khop, useDuong } from './lib/router.js';
 import { can, xem } from './lib/can.js';
 import { BoCuc } from './components/BoCuc.js';
-import { Trong } from './components/Chung.js';
+import { DangTai, Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
@@ -24,7 +24,20 @@ export function App() {
   const { nguoiDung, hetHan, dangTai } = usePhien();
   const { duong } = useDuong();
 
-  if (dangTai) return null;
+  /*
+    Chưa xác thực xong thì KHÔNG dựng gì của ứng dụng (`0076`).
+
+    Một dòng "Đang kiểm tra phiên…" chứ không phải màn hình trắng: từ `0076`
+    bước này là một lượt gọi mạng thật, nên trên đường truyền chậm nó kéo dài
+    tới vài giây — và vài giây trắng trơn đọc ra là phần mềm hỏng.
+  */
+  if (dangTai) {
+    return (
+      <div className="trang-dang-tai">
+        <DangTai nhan="Đang kiểm tra phiên đăng nhập…" />
+      </div>
+    );
+  }
 
   /*
     Ba màn hình công khai phải đứng TRƯỚC lớp kiểm phiên.

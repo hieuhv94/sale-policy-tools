@@ -36,6 +36,20 @@ Bốn việc cắt phiên **ngay lập tức**, kể cả phiên đang mở ở 
 > **Máy dùng chung**: phiên sống qua việc đóng trình duyệt, nên trên máy ở quầy hãy bấm **Đăng xuất**
 > thay vì chỉ đóng cửa sổ.
 
+Mỗi lần mở phần mềm, nó **kiểm tra phiên với máy chủ trước khi hiện màn hình** `sửa 21/08` — bạn sẽ
+thấy dòng *"Đang kiểm tra phiên đăng nhập…"* trong chớp mắt. Phiên còn sống thì vào thẳng trang Tổng
+quan; phiên đã hết hạn thì hiện **bảng đăng nhập, và chỉ bảng đăng nhập**.
+
+> Trước đây phần mềm tin ngay phiên cũ lưu trên máy: nó dựng trang Tổng quan lên rồi mới phát hiện
+> phiên đã chết, và bạn nhận một ô báo *phiên hết hạn* đè lên một trang trống mà mình chưa hề đăng
+> nhập để vào. Nghỉ vài ngày rồi mở lại là gặp đúng cảnh ấy.
+>
+> Bước kiểm tra này còn lấy về **thông tin mới nhất** của tài khoản. Quản trị đổi vai trò hay đặt lại
+> mật khẩu cho bạn thì có hiệu lực ngay lần mở tiếp theo, không phải đợi tới lần đăng nhập lại.
+>
+> Nếu **mất mạng hoặc máy chủ chưa sẵn sàng**, phần mềm vẫn cho bạn vào bằng thông tin đã lưu và
+> không xoá phiên — một sự cố mạng vài giây không đáng để bắt bạn đăng nhập lại.
+
 ### Quên mật khẩu
 
 Bấm **Quên mật khẩu?** ngay dưới nút Đăng nhập, nhập tên tài khoản hoặc email. Hệ thống gửi liên kết
@@ -269,9 +283,14 @@ Với **Trình dược viên**, danh sách này gồm cả hồ sơ **Nháp** ch
 lại — hồ sơ bạn đang viết dở cũng là việc của bạn. Vì vậy dải thẻ không còn ô *Nháp* riêng: một con số
 ở trên rồi lại chính danh sách ấy ở dưới là bắt bạn đọc hai lần cùng một chuyện.
 
-Riêng **Kế toán** thấy hai danh sách tách rời: *Tiếp nhận lần 1* và *Tiếp nhận lần 2*. Hai danh sách
-dùng **chung một thanh phân trang**, nên khi còn trang sau, danh sách rỗng sẽ nói rõ *"trang này không
-có hồ sơ nào… — xem tiếp ở trang sau"* thay vì báo là hết việc.
+**Kế toán** thấy **một danh sách duy nhất** `sửa 21/08` gồm cả *Tiếp nhận lần 1* lẫn *Tiếp nhận lần
+2*, xếp chung theo hạn gần nhất trước. Mỗi dòng có nhãn trạng thái riêng màu nên nhìn là biết dòng
+đó thuộc lần nào.
+
+> **Vì sao gộp lại.** Trước đây đây là hai danh sách tách rời dùng chung một thanh phân trang — nên
+> một trang có thể toàn hồ sơ lần 1 trong khi lần 2 nằm ở trang sau, và nửa dưới báo *"không có hồ
+> sơ nào chờ tiếp nhận lần 2"* dù thật ra vẫn còn. Gộp lại thì thứ tự theo hạn đúng trên toàn danh
+> sách, và việc gấp nhất luôn nằm ở đầu bất kể nó thuộc lần nào.
 
 ### Từng vai trò còn thấy gì thêm
 

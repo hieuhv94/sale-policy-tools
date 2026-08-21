@@ -38,7 +38,7 @@ import {
 /** Khối nào cần tới ba báo cáo tổng hợp. */
 const CAN_BAO_CAO: TenKhoi[] = ['suc-khoe-luong', 'theo-buoc', 'theo-tdv'];
 /** Khối nào cần hộp việc. */
-const CAN_HOP_VIEC: TenKhoi[] = ['hop-viec', 'hop-viec-ke-toan'];
+const CAN_HOP_VIEC: TenKhoi[] = ['hop-viec'];
 
 export function TongQuan() {
   const { nguoiDung } = usePhien();
@@ -91,51 +91,6 @@ export function TongQuan() {
               trongTieuDe="Không có hồ sơ nào đang chờ bạn"
               trongMoTa="Hồ sơ sẽ hiện ở đây khi tới bước bạn phụ trách."
             />
-            <PhanTrang
-              trang={trangViec}
-              soTrang={soTrangViec}
-              tong={tongViec}
-              doiTrang={doiTrangViec}
-              nhan="hồ sơ"
-            />
-          </Khoi>
-        );
-
-      /*
-        Kế toán xử lý HAI lần tiếp nhận, và đó là hai việc khác nhau ở hai màn
-        hình khác nhau (muc 2.3). Trộn chung một danh sách thì họ phải đọc nhãn
-        trạng thái từng dòng mới biết dòng đó thuộc bước nào.
-      */
-      case 'hop-viec-ke-toan':
-        return (
-          <Khoi
-            key={ten}
-            tieuDe="Việc của tôi"
-            loi={loiViec}
-            dangTai={viec === null && loiViec === null}
-          >
-            {/*
-              Câu rỗng đổi theo việc CÒN TRANG SAU hay không (`0052`).
-
-              Một thanh phân trang cho hai danh sách, mà mỗi trang giờ chỉ 5 hồ
-              sơ: trang này có thể toàn hồ sơ lần 1 trong khi lần 2 đang chờ ở
-              trang sau. Nói "không có hồ sơ nào chờ tiếp nhận lần 2" lúc ấy là
-              nói sai — người dùng đọc xong rồi thôi không bấm sang trang nữa.
-            */}
-            <h3 className="tieu-de-phu">Tiếp nhận lần 1</h3>
-            <DanhSachViec
-              muc={(viec ?? []).filter((v) => buoc(v) === 'CHO_KT_L1')}
-              trongTieuDe={trongViec(soTrangViec, 'chờ tiếp nhận lần 1')}
-            />
-            <h3 className="tieu-de-phu">Tiếp nhận lần 2</h3>
-            <DanhSachViec
-              muc={(viec ?? []).filter((v) => buoc(v) === 'CHO_KT_L2')}
-              trongTieuDe={trongViec(soTrangViec, 'chờ tiếp nhận lần 2')}
-            />
-            {/* MỘT thanh cho cả hai danh sách: máy chủ cắt trang trên hộp việc
-                CHUNG rồi màn hình mới tách đôi theo bước, nên hai nửa không có
-                số trang riêng. Tách trang riêng cho mỗi nửa cần hai lượt gọi và
-                hai bộ đếm — không đáng cho một màn hình chỉ để xem. */}
             <PhanTrang
               trang={trangViec}
               soTrang={soTrangViec}
@@ -208,30 +163,6 @@ export function TongQuan() {
       {khoi.map(veKhoi)}
     </section>
   );
-}
-
-/**
- * Câu cho một danh sách con rỗng, xét theo việc còn trang sau hay không (`0052`).
- *
- * Hai danh sách của Kế toán dùng CHUNG một thanh phân trang, nên "rỗng ở trang
- * này" và "rỗng hẳn" là hai chuyện khác nhau — và chỉ một trong hai là lý do để
- * người dùng ngừng bấm sang trang.
- */
-function trongViec(soTrang: number, viec: string): string {
-  return soTrang > 1
-    ? `Trang này không có hồ sơ nào ${viec} — xem tiếp ở trang sau`
-    : `Không có hồ sơ nào ${viec}`;
-}
-
-/**
- * Bước đang chờ của một mục trong hộp việc.
- *
- * Chỉ còn đọc `status` (`0047`). Bản trước phải gỡ nhãn `QUA_HAN_DUYET` ra để
- * hồ sơ quá hạn của Kế toán không rơi khỏi cả hai danh sách; giờ hộp việc không
- * chứa hồ sơ quá hạn nữa, vì không ai thao tác được lên chúng.
- */
-function buoc(v: MucViec): string {
-  return v.status;
 }
 
 const gio = (d: Date): string =>
