@@ -47,10 +47,21 @@ describe('FE-23 Ban lãnh đạo chỉ đọc', () => {
     }
   });
 
-  it('vẫn đọc được hồ sơ, khách hàng, báo cáo và nhật ký', () => {
-    for (const m of ['hoSo', 'khachHang', 'baoCao', 'nhatKy'] as const) {
+  it('vẫn đọc được hồ sơ, khách hàng và báo cáo', () => {
+    for (const m of ['hoSo', 'khachHang', 'baoCao'] as const) {
       expect(xem('BAN_LANH_DAO', m), `phải xem được ${m}`).toBe(true);
     }
+  });
+
+  it('`0086` KHÔNG đọc nhật ký hệ thống', () => {
+    /*
+     * "Chỉ đọc" không có nghĩa là "đọc được mọi thứ". Nhật ký ghi IP,
+     * `trace_id` và giá trị trước/sau của từng lần sửa — vết kiểm soát của
+     * Quản trị, không phải dữ liệu điều hành. Chuyện hồ sơ đã đi qua tay ai thì
+     * *Lịch sử hồ sơ* kể, và Ban lãnh đạo vẫn đọc được nó.
+     */
+    expect(xem('BAN_LANH_DAO', 'nhatKy')).toBe(false);
+    expect(xem('QUAN_TRI', 'nhatKy')).toBe(true);
   });
 });
 

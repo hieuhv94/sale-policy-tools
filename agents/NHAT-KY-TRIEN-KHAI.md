@@ -8149,3 +8149,59 @@ tdv03 (doi tay 1 khach): 7/7 mo duoc, lich su CSBH du 7 ban
 ```
 
 **1386/1386 xanh.**
+
+---
+
+## P112 — Ban lãnh đạo rời khỏi nhật ký hệ thống
+
+**Ngày 21/08/2026** · thay đổi `0086`
+
+Khách hàng chốt hai việc, và chúng là một việc: bỏ mục menu *Nhật ký* của Ban lãnh đạo, bỏ luôn khối
+*Hoạt động gần đây* trên trang tổng quan của họ.
+
+Lý do đứng vững hơn câu "toàn quyền đọc" ở muc 2.6. Nhật ký hệ thống không phải dữ liệu nghiệp vụ mà
+là **vết kiểm soát**: nó ghi IP, `trace_id`, và giá trị TRƯỚC/SAU của từng lần sửa — thứ để truy vết
+sự cố, không phải để điều hành. Còn câu Ban lãnh đạo thật sự hỏi — *"hồ sơ này đã đi qua tay ai"* —
+thì *Lịch sử hồ sơ* nằm trong chính hồ sơ trả lời đủ, và họ vẫn mở được mọi hồ sơ. Nên muc 2.6 từ
+nay đọc là toàn quyền đọc **dữ liệu nghiệp vụ**.
+
+### Hai việc phải đi cùng nhau, và vì sao
+
+Bỏ quyền mà để lại khối là để một khối **chắc chắn 403** nằm giữa trang đầu tiên họ nhìn thấy sau khi
+đăng nhập — `NhatKyGon` gọi `/audit/entries?limit=8`. Một khối báo lỗi đọc ra là "phần mềm hỏng";
+không có khối nào thì đọc ra là "bạn không còn xem mục này". Cùng một thay đổi, hai kết quả khác hẳn.
+
+Mà quyền nằm ở `can.ts` còn bố cục nằm ở `tong-quan.ts` — hai tệp, và không có gì buộc chúng đi cùng.
+Nên lượt này thêm `KHOI_DOC_NHAT_KY` cùng một ca kiểm **quét mọi vai trò**: vai trò nào có một khối
+đọc `/audit/*` thì phải xem được mục `nhatKy`. Ca ấy không nêu tên `BAN_LANH_DAO` ở đâu cả, nên lượt
+đổi quyền lần sau tự nằm trong phạm vi của nó.
+
+### Đóng cả ba cửa, không riêng cửa trước
+
+`READERS` trong `audit.controller.ts` gác **cả ba** route bằng một danh sách. Đáng ghi vì
+`/user-activity` trả về thống kê dựng từ chính những dòng ấy: đóng `/entries` mà quên nó thì Ban lãnh
+đạo vẫn đếm được ai làm gì bao nhiêu lần, và câu "đã bỏ quyền đọc nhật ký" thành sai mà không ai
+thấy. Ca kiểm quét cả ba đường chứ không chỉ đường đầu.
+
+Hai ca kiểm cũ đang **đọc nhật ký bằng `bld01`** (INT-11 tra chuỗi theo `trace_id`, AUD-09 báo cáo
+hoạt động) — đổi sang `admin01`. Chúng không kiểm chuyện phân quyền, chỉ tiện tay mượn một tài khoản
+đọc được.
+
+### Phá lại, và ca vẫn xanh
+
+Trả `READERS`, `nhatKy` và bảng khối về chỗ cũ: **ba ca đỏ ở hai tầng khác nhau** — máy chủ trả 200
+chỗ phải 403, và bảng quyền giao diện nói ngược lại chính nó.
+
+> Ca đối chiếu hai bảng vẫn **XANH** ở lượt phá ấy, và đó là điều đúng: nó gác sự KHỚP NHAU giữa
+> quyền và bố cục, không gác quyết định. Phá riêng một bên — trả `nhat-ky-gon` về cho Ban lãnh đạo
+> trong khi quyền đã bỏ — thì nó đỏ ngay: *"BAN_LANH_DAO có khối nhat-ky-gon mà không đọc được nhật
+> ký"*. Ghi ra để không ai đọc nhầm nó thành ca gác quyết định.
+
+### Một lượt đỏ giả, và nguyên nhân đã ghi sẵn trong Makefile
+
+Ca AUD-11 (*audit-service ngừng chạy thì sự kiện dồn ở hàng đợi và được ghi bù*) đỏ với `0/4 dòng
+nhật ký` — không liên quan gì tới lượt sửa này. Chồng demo đang chạy, và `csbh-audit-1` của nó giành
+mất sự kiện trên hàng đợi dùng chung, đúng thứ `check-demo-down` sinh ra để chặn. Tôi chạy thẳng
+`vitest` nên đi vòng qua chốt ấy. `make demo-down` rồi chạy lại: xanh.
+
+**1389/1389 xanh.**

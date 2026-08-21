@@ -145,9 +145,16 @@ trong hai:
 
 ### 2.6. Ban lãnh đạo
 
-Một người. Toàn quyền đọc, **không có thao tác nào trên hồ sơ**.
+Một người. Toàn quyền đọc **dữ liệu nghiệp vụ** `sửa 21/08`, **không có thao tác nào trên hồ sơ**.
 
-- Xem mọi CSBH ở mọi trạng thái, lịch sử duyệt, file đã ký và nhật ký.
+- Xem mọi CSBH ở mọi trạng thái, lịch sử duyệt và file đã ký.
+- **KHÔNG xem nhật ký hệ thống** `sửa 21/08`. Bản trước cho xem, theo đúng câu "toàn quyền đọc" ở
+  ngay trên. Bỏ vì nhật ký hệ thống là **vết kiểm soát** — IP, mã tra cứu, giá trị trước và sau của
+  từng lần sửa — phục vụ việc truy vết sự cố, không phục vụ việc điều hành. Khối *Hoạt động gần đây*
+  trên trang tổng quan của vai trò này cũng gỡ cùng lượt.
+  > Điều Ban lãnh đạo cần thì không mất: *Lịch sử hồ sơ* nằm trong từng hồ sơ, kể đủ ai đã ký, ai đã
+  > tiếp nhận, ai đã trả lại và vì sao — và họ vẫn mở được mọi hồ sơ. Nhật ký hệ thống chỉ còn của
+  > Quản trị hệ thống (mục 2.7).
 - Lọc và xuất Excel theo mọi tiêu chí ở mục 9.2 — xuất ra đúng kết quả bộ lọc đang xem.
 - Ký bản cứng là thao tác giấy do Sale Admin trình lên — phần mềm không có bước nào cho việc này.
 
@@ -902,6 +909,9 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   > ra ở bản demo một loại dòng mà phần mềm không còn sinh nữa.
 - Lưu giá trị **trước và sau** của dữ liệu quan trọng, kèm lý do thay đổi.
 - **Nhật ký chỉ ghi thêm** — chặn sửa và xóa ở tầng cơ sở dữ liệu, không chỉ ở ứng dụng.
+- **Nhật ký hệ thống chỉ Quản trị hệ thống đọc** `mới 21/08`. Bốn vai trò trong luồng duyệt không
+  đọc được, và Ban lãnh đạo cũng thôi từ ngày này — xem mục 2.6. *Lịch sử hồ sơ* thì khác: ai mở
+  được hồ sơ thì đọc được lịch sử của chính hồ sơ ấy.
 - Mỗi mốc thời gian là **một cột riêng** trên hồ sơ kèm người thực hiện; báo cáo và SLA truy vấn
   trực tiếp từ các cột này, nhật ký chỉ dùng để truy vết.
 - Mỗi lần trả lại, bổ sung sản phẩm, chỉnh sửa sản phẩm hoặc thay đổi giá đều tạo phiên bản mới;
@@ -1055,6 +1065,13 @@ cùng**, kể cả *Từ chối* và *Hết hiệu lực*; chỉ hồ sơ *Đã 
 khách hàng, từ ai*, kèm danh sách mã và tên khách. Không kể hồ sơ; số hồ sơ phải xử lý thì khối
 *Việc của tôi* trên trang Tổng quan nói chính xác hơn và luôn cập nhật. Trước đó người nhận **không
 được báo gì cả** — họ chỉ phát hiện ra khi mở hộp việc và thấy thêm hàng trăm hồ sơ lạ.
+
+**Ban lãnh đạo thôi đọc nhật ký hệ thống** `mới 21/08` — bỏ cả mục menu *Nhật ký* lẫn khối *Hoạt
+động gần đây* trên trang tổng quan của vai trò này; nhật ký hệ thống chỉ còn của Quản trị hệ thống.
+Lý do: nhật ký là **vết kiểm soát** (IP, mã tra cứu, giá trị trước/sau của từng lần sửa) phục vụ
+truy vết sự cố, không phải dữ liệu điều hành — còn thứ Ban lãnh đạo cần, *"hồ sơ này đã đi qua tay
+ai"*, thì *Lịch sử hồ sơ* trong chính hồ sơ kể đủ và họ vẫn mở được mọi hồ sơ. "Toàn quyền đọc" ở
+mục 2.6 từ nay hiểu là toàn quyền đọc **dữ liệu nghiệp vụ**.
 
 **Xoá đối tượng trong danh mục** `17/08` — mọi thao tác phá huỷ đòi **gõ lại mã nghiệp vụ** của
 chính đối tượng ấy: mã nhóm khi xoá nhóm sản phẩm, mã quy định khi xoá quy định chiết khấu, mã vật tư

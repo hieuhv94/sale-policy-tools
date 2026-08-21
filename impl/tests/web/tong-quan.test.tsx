@@ -17,7 +17,7 @@ import { DaiTheTrangThai } from '@csbh/web/so-lieu';
 import { DanhSachViec } from '@csbh/web/hop-viec';
 import { BoDinhTuyen } from '@csbh/web/router';
 import { KHOA_NHAN_TU_LIEN_KET } from '@csbh/web/ho-so-ui';
-import { VAI_TRO, type VaiTro } from '@csbh/web/can';
+import { VAI_TRO, xem, type VaiTro } from '@csbh/web/can';
 import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
 import {
   BAN_CUA,
@@ -25,6 +25,7 @@ import {
   BUOC_THAT,
   duongThe,
   KHOI_CO_NUT_GHI,
+  KHOI_DOC_NHAT_KY,
   KHOI_THEO_VAI_TRO,
   LY_DO_KHONG_CO_VIEC,
   MOI_O_BUOC,
@@ -472,6 +473,27 @@ describe('FE-23 Ban lãnh đạo chỉ đọc', () => {
     // với người ĐANG chờ đến lượt mình.
     for (const v of ['BAN_LANH_DAO', 'QUAN_TRI'] as VaiTro[]) {
       expect(THE_THEO_VAI_TRO[v].map((t) => t.ma)).not.toContain('DANG_CHO');
+    }
+  });
+});
+
+describe('`0086` khối đọc nhật ký và quyền đọc nhật ký', () => {
+  it('vai trò nào có khối đọc nhật ký thì phải xem được mục Nhật ký', () => {
+    /*
+     * KHÔNG nêu tên vai trò nào. Quyền nằm ở `can.ts`, bố cục nằm ở
+     * `tong-quan.ts` — hai tệp, và `0086` sinh ra đúng từ việc chỉ một bên được
+     * sửa: bỏ mục menu *Nhật ký* của Ban lãnh đạo mà để lại khối *Hoạt động gần
+     * đây* thì trang đầu tiên sau khi đăng nhập có một khối 403.
+     *
+     * Quét mọi vai trò nên lượt đổi quyền lần sau tự nằm trong phạm vi phép
+     * kiểm, không cần ai nhớ sửa ca này.
+     */
+    for (const v of VAI_TRO) {
+      const khoi = KHOI_THEO_VAI_TRO[v].filter((k) => KHOI_DOC_NHAT_KY.includes(k));
+      if (khoi.length === 0) continue;
+      expect(xem(v, 'nhatKy'), `${v} có khối ${khoi.join(', ')} mà không đọc được nhật ký`).toBe(
+        true,
+      );
     }
   });
 });

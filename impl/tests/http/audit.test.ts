@@ -263,7 +263,7 @@ describe('AUD-06 cấu trúc một bản ghi nhật ký', () => {
     // HAI dòng nghiệp vụ, cộng dòng CREATED lúc lập. `PUBLISH_SIGNED` gỡ ở `0064`.
     await waitEntries(d.id, 3);
 
-    const chain = await aget(`/audit/entries?traceId=${trace}&limit=50`, 'bld01');
+    const chain = await aget(`/audit/entries?traceId=${trace}&limit=50`, 'admin01');
     expect(chain.status).toBe(200);
     const actions = (chain.body.items as { action: string }[]).map((x) => x.action);
     expect(actions).toContain('SUBMIT');
@@ -348,11 +348,26 @@ describe('AUD-05 audit-service không có đường ghi', () => {
     }
   });
 
-  it('vai trò trong luồng duyệt không đọc được nhật ký', async () => {
+  it('`0086` chỉ Quản trị hệ thống đọc được nhật ký', async () => {
     expect((await aget('/audit/entries', 'tdv01')).status).toBe(403);
     expect((await aget('/audit/entries', 'kt01')).status).toBe(403);
-    expect((await aget('/audit/entries', 'bld01')).status).toBe(200);
+    // Ban lãnh đạo mất quyền này ở `0086` — nhật ký là vết kiểm soát, không
+    // phải dữ liệu điều hành. Họ vẫn đọc mọi hồ sơ và mọi lịch sử hồ sơ.
+    expect((await aget('/audit/entries', 'bld01')).status).toBe(403);
     expect((await aget('/audit/entries', 'admin01')).status).toBe(200);
+  }, 60_000);
+
+  /*
+   * CẢ BA route, không riêng `/entries`.
+   *
+   * `/user-activity` trả về thống kê dựng từ chính những dòng ấy — đóng cửa
+   * trước mà để cửa sau mở thì Ban lãnh đạo vẫn đếm được ai làm gì bao nhiêu
+   * lần, và câu "đã bỏ quyền đọc nhật ký" thành sai mà không ai thấy.
+   */
+  it('`0086` Ban lãnh đạo bị chặn ở MỌI đường của audit', async () => {
+    for (const duong of ['/audit/entries', '/audit/user-activity', '/audit/trace/x']) {
+      expect((await aget(duong, 'bld01')).status, duong).toBe(403);
+    }
   }, 60_000);
 });
 
@@ -377,7 +392,9 @@ describe('AUD-09 báo cáo nhật ký người dùng', () => {
     await flush();
     await waitEntries(b.id, 3);
 
-    const rpt = await aget(`/audit/user-activity?actorId=${tbpId}&from=${from}`, 'bld01');
+    // `admin01` chứ không phải `bld01` từ `0086`: Ban lãnh đạo không còn đọc
+    // được đường này nữa.
+    const rpt = await aget(`/audit/user-activity?actorId=${tbpId}&from=${from}`, 'admin01');
     expect(rpt.status).toBe(200);
     // Hai lần ký số, không hơn không kém — đây chính là con số mà việc ghi trùng
     // sẽ làm sai, và là lý do khoá chống trùng ở migration 0015 tồn tại.

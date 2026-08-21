@@ -9,8 +9,20 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { pageOf, paged, pageSql, Roles } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 
-/** Ban lãnh đạo và Quản trị đọc nhật ký; các vai trò trong luồng thì không. */
-const READERS = ['BAN_LANH_DAO', 'QUAN_TRI'];
+/**
+ * CHỈ Quản trị hệ thống đọc nhật ký (`0086`, chốt 21/08).
+ *
+ * Ban lãnh đạo đọc được cho tới `0086`. Bỏ vì nhật ký là vết KIỂM SOÁT — IP,
+ * `trace_id`, giá trị trước/sau của từng lần sửa — chứ không phải dữ liệu điều
+ * hành; chuyện một hồ sơ đã đi qua tay ai thì *Lịch sử hồ sơ* kể, và đường ấy
+ * không đi qua đây.
+ *
+ * Một danh sách cho CẢ BA route, không phải ba lần khai: `/entries`,
+ * `/user-activity` và `/trace` đều đọc cùng một bảng, nên nới một cái mà quên
+ * hai cái kia là mở đúng cánh cửa vừa đóng — `user-activity` trả về thống kê
+ * của chính những dòng ấy.
+ */
+const READERS = ['QUAN_TRI'];
 
 @Controller('audit')
 export class AuditController {

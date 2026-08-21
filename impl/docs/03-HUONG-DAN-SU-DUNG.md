@@ -75,7 +75,7 @@ cái khác nhau.
 | **Trưởng bộ phận (TBP)** | Ký số duyệt · trả lại để chỉnh sửa · từ chối hồ sơ |
 | **Kế toán** | Tiếp nhận lần 1 · **xuất hợp đồng** · tiếp nhận lần 2 · yêu cầu in lại |
 | **Sale Admin** | Bàn giao hồ sơ · quản lý mẫu hợp đồng |
-| **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, nhật ký. Không có nút ghi ở bất kỳ đâu |
+| **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08` |
 | **Quản trị hệ thống** | Danh mục sản phẩm, giá, người dùng. **Không** tham gia duyệt hồ sơ |
 
 Bạn chỉ nhìn thấy dữ liệu **trong phạm vi của mình**: TDV thấy khách hàng mình phụ trách, Kế toán
@@ -298,8 +298,9 @@ lại — hồ sơ bạn đang viết dở cũng là việc của bạn. Vì v�
   trang. Bấm một dòng là ra đúng danh sách hồ sơ của người đó.
 - **Sale Admin** — cảnh báo đỏ khi **chưa có mẫu hợp đồng nào đang áp dụng** (lúc đó Kế toán không
   xuất được hợp đồng, và chỉ bạn sửa được), cùng bảng hồ sơ theo từng trình dược viên.
-- **Ban lãnh đạo** — sức khoẻ luồng duyệt, hồ sơ đang tắc ở bước nào, top 5 trình dược viên, và
-  hoạt động gần đây. Không có nút ghi nào.
+- **Ban lãnh đạo** — sức khoẻ luồng duyệt, hồ sơ đang tắc ở bước nào, top 5 trình dược viên. Không
+  có nút ghi nào. Khối *Hoạt động gần đây* đã gỡ `sửa 21/08` cùng lượt với mục menu *Nhật ký* —
+  chuyện một hồ sơ đã đi qua tay ai thì *Lịch sử hồ sơ* trong chính hồ sơ ấy kể.
 - **Quản trị hệ thống** — thư hỏng chưa xử lý, số người dùng, số tài khoản chưa kích hoạt hoặc đang
   bị khoá, số sản phẩm đang áp dụng, hoạt động hôm nay và nhật ký gần đây.
 

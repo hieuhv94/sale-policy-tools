@@ -420,18 +420,22 @@ export type TenKhoi =
  * trang sau hay không, tức là dựng thêm cơ chế để vá hệ quả của chính nó. Gộp
  * lại thì cả lớp lỗi ấy biến mất cùng hàm vá.
  */
+/*
+ * BAN LÃNH ĐẠO MẤT KHỐI *Hoạt động gần đây* (`0086`, chốt 21/08).
+ *
+ * Đi cùng lượt với việc bỏ mục menu *Nhật ký* của họ, và phải đi cùng: khối ấy
+ * gọi `/audit/entries?limit=8`, nên để lại là để một khối chắc chắn 403 nằm
+ * giữa trang đầu tiên họ nhìn thấy sau khi đăng nhập. Một khối báo lỗi đọc ra
+ * là "phần mềm hỏng", không đọc ra là "bạn không còn xem mục này".
+ *
+ * `KHOI_DOC_NHAT_KY` dưới đây giữ cho hai bảng khỏi lệch lần nữa.
+ */
 export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
   TDV: ['hop-viec', 'yeu-cau-cap-nhat'],
   TBP: ['hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   KE_TOAN: ['hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
   SALE_ADMIN: ['canh-bao-mau-hop-dong', 'hop-viec', 'yeu-cau-cap-nhat', 'theo-tdv'],
-  BAN_LANH_DAO: [
-    'vi-sao-khong-co-viec',
-    'suc-khoe-luong',
-    'theo-buoc',
-    'theo-tdv',
-    'nhat-ky-gon',
-  ],
+  BAN_LANH_DAO: ['vi-sao-khong-co-viec', 'suc-khoe-luong', 'theo-buoc', 'theo-tdv'],
   QUAN_TRI: [
     'vi-sao-khong-co-viec',
     'canh-bao-thu-hong',
@@ -453,6 +457,16 @@ export const MOI_TRANG_TONG_QUAN = 5;
 
 /** Khối nào có nút ghi — `FE-23` cấm `BAN_LANH_DAO` chạm vào bất kỳ cái nào. */
 export const KHOI_CO_NUT_GHI: TenKhoi[] = ['canh-bao-mau-hop-dong', 'canh-bao-thu-hong'];
+
+/**
+ * Khối nào đọc `/audit/*` (`0086`).
+ *
+ * Vai trò nào có một khối ở đây thì phải xem được mục `nhatKy`, và test đối
+ * chiếu đúng hai bảng ấy với nhau. Không có nó thì một lượt đổi quyền đọc nhật
+ * ký về sau lại để sót một khối trên trang tổng quan — đúng cách `0086` phát
+ * sinh: quyền và bố cục nằm ở hai tệp, và chỉ một bên được sửa.
+ */
+export const KHOI_DOC_NHAT_KY: TenKhoi[] = ['hoat-dong-hom-nay', 'nhat-ky-gon'];
 
 /** Câu giải thích vì sao vai trò này không có hộp việc. Nói thẳng, không vòng vo. */
 export const LY_DO_KHONG_CO_VIEC: Partial<Record<VaiTro, string>> = {

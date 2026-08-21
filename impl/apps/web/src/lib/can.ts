@@ -96,7 +96,10 @@ export type Quyen = keyof typeof QUYEN_GHI;
 export const can = (vaiTro: string | undefined, quyen: Quyen): boolean =>
   vaiTro !== undefined && (QUYEN_GHI[quyen] as readonly string[]).includes(vaiTro);
 
-/** Quyền ĐỌC. Ban lãnh đạo đọc được gần hết — chỉ không ghi được gì. */
+/**
+ * Quyền ĐỌC. Ban lãnh đạo đọc được gần hết — chỉ không ghi được gì, và từ
+ * `0086` cũng không đọc nhật ký hệ thống nữa.
+ */
 export const QUYEN_XEM = {
   hoSo: VAI_TRO,
   khachHang: VAI_TRO,
@@ -116,8 +119,19 @@ export const QUYEN_XEM = {
    * hợp đồng và vẫn chọn mẫu nào lúc xuất, ngay trên màn hình hồ sơ.
    */
   vanBanMau: ['QUAN_TRI'],
-  /** Nhật ký chỉ Ban lãnh đạo và Quản trị đọc; các vai trò trong luồng thì không. */
-  nhatKy: ['BAN_LANH_DAO', 'QUAN_TRI'],
+  /*
+   * Nhật ký hệ thống CHỈ Quản trị hệ thống (`0086`, chốt 21/08).
+   *
+   * Ban lãnh đạo rời khỏi đây. Tới `0086` họ đọc được, theo đúng câu "toàn
+   * quyền đọc" ở muc 2.6 — nhưng nhật ký không phải dữ liệu nghiệp vụ mà là vết
+   * kiểm soát: nó ghi IP, `trace_id`, và giá trị TRƯỚC/SAU của từng lần sửa.
+   * Thứ ấy phục vụ việc truy vết sự cố, không phục vụ việc điều hành.
+   *
+   * Cái Ban lãnh đạo cần thì họ vẫn có, và có ở chỗ đúng hơn: *Lịch sử hồ sơ*
+   * nằm trong từng hồ sơ, kể đúng chuyện hồ sơ ấy đã đi qua tay ai — và nó
+   * không đi qua đường `/audit` nào cả.
+   */
+  nhatKy: ['QUAN_TRI'],
   nguoiDung: ['QUAN_TRI'],
 } as const satisfies Record<string, readonly VaiTro[]>;
 
