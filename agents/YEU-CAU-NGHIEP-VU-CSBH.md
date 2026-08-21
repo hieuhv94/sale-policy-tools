@@ -575,12 +575,18 @@ nói rõ dòng nào hẹp hơn dòng nào.
   chọn cột bảng → *Lưu*. Không còn *ban hành*, không còn *nháp*, không còn *sửa* — **lưu được là
   dùng được**, và muốn đổi thì **xoá đi rồi thêm mẫu mới**.
 - **Chọn cột bảng sản phẩm theo từng mẫu** `mới 20/08`. Tập cột là thuộc tính của bản trình bày, nên
-  nó đi theo mẫu: Quản trị soạn được *"bản đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"*. *Tên
-  sản phẩm* và *CPBH tổng* không tắt được (muc 11.1); *từng khoản CPBH* là **một** lựa chọn nở ra
-  thành CPBH1…CPBHn.
+  nó đi theo mẫu: Quản trị soạn được *"bản đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"*. Chỉ
+  *Tên sản phẩm* không tắt được — một bảng giá không nói mình đang nói về mặt hàng nào thì không còn
+  là bảng giá; *từng khoản CPBH* là **một** lựa chọn nở ra thành CPBH1…CPBHn.
+- **CPBH tổng TẮT ĐƯỢC** `sửa 21/08`. CPBH là chi phí bán hàng — con số **nội bộ**, và *"bản gọn đưa
+  khách hàng"* chính là chỗ không muốn đưa nó ra ngoài. Khoá cột ấy lại là dùng muc 11.1 chặn đúng
+  việc mà tập cột theo mẫu vốn sinh ra để làm. Kéo theo: mục *CPBH* của muc 11.1 do **người soạn mẫu
+  tự chịu trách nhiệm**, và một mẫu ra bản A4 không có chữ CPBH nào là **hợp lệ**.
 - **Bỏ nhóm khoá `cong_ty.`** `sửa 20/08` — ba giá trị ấy cố định ở mọi hồ sơ, người soạn gõ thẳng
-  vào file Word. Kéo theo: phép kiểm mục bắt buộc còn **12 trên 13**; mục *thông tin công ty* do
-  người soạn tự chịu trách nhiệm.
+  vào file Word. Kéo theo: mục *thông tin công ty* do người soạn tự chịu trách nhiệm.
+  > Cộng cả hai mục tự chịu trách nhiệm ấy, phép kiểm tự động lúc lưu mẫu còn **11 trên 13 mục**
+  > `sửa 21/08`. Nói ra vì một bảo đảm 11/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 11/13 đã
+  > biết — cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
 - **Bỏ nhóm khoá `san_pham.`** `sửa 20/08` — mẫu hợp đồng cũng dùng `{{bang_san_pham}}`, nên cơ chế
   nhân bản dòng bảng không còn ai dùng.
 - **Định dạng không phải chọn** `sửa 20/08`: nó gắn theo TRƯỜNG, không theo mẫu. Cờ *bắt buộc* theo

@@ -89,8 +89,9 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
    * sai: quên ánh xạ nó thì bản in ra mang chuỗi `{{cong_ty.ten}}` ở ngay dòng
    * đầu tiên — chỗ dễ thấy nhất của một văn bản đem đi ký.
    *
-   * Hệ quả đã chấp nhận: phép kiểm 13 mục bắt buộc của muc 11.1 giờ chỉ tự kiểm
-   * được 12; mục *thông tin công ty* do người soạn tự chịu trách nhiệm.
+   * Hệ quả đã chấp nhận: mục *thông tin công ty* do người soạn tự chịu trách
+   * nhiệm — mục đầu tiên của muc 11.1 rơi ra khỏi phép kiểm tự động, và `0084`
+   * thêm mục thứ hai. Con số hiện thời ghi ở `NGUON_BAT_BUOC_HO_SO` bên dưới.
    */
   ngay_in: () => new Date().toISOString(),
 };
@@ -148,15 +149,19 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
  *   - Một mẫu thiếu mục chỉ hỏng khi có người xem, mà lúc đó thì đã muộn: bản
  *     thiếu công nợ đã in ra và đã đưa đi ký.
  *
- * MƯỜI HAI, không phải mười ba (`0067`). Mục *thông tin công ty* rời khỏi danh
- * sách cùng lúc với nhóm khoá `cong_ty.`: nó là giá trị cố định, người soạn gõ
- * thẳng vào file Word, nên phần mềm không có ô trống nào để mà kiểm. Đây là chỗ
- * DUY NHẤT của muc 11.1 mà bảo đảm tự động không với tới — nói ra ở đây vì một
- * bảo đảm 12/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 12/13 đã biết.
+ * MƯỜI MỘT TRÊN MƯỜI BA, và hai mục đứng ngoài đều là chuyện đã chốt:
  *
- * `{{bang_san_pham}}` gánh hai mục — *tên sản phẩm* và *CPBH* — vì cả hai nằm
- * trong bảng do hệ thống dựng, không phải ô trống rời. Chúng được kiểm qua tập
- * cột của bảng, xem `bang-san-pham.ts`.
+ *   - *thông tin công ty* rời danh sách ở `0067` cùng nhóm khoá `cong_ty.` — giá
+ *     trị cố định, người soạn gõ thẳng vào file Word, nên phần mềm không có ô
+ *     trống nào để mà kiểm.
+ *   - *CPBH* rời ở `0084`: nó nằm trong bảng do hệ thống dựng, và cột `cpbh_tong`
+ *     giờ TẮT ĐƯỢC vì CPBH là con số nội bộ (xem `bang-san-pham.ts`).
+ *
+ * Nói ra ở đây vì một bảo đảm 11/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo
+ * đảm 11/13 đã biết — và cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
+ *
+ * `{{bang_san_pham}}` vẫn gánh mục *tên sản phẩm*, kiểm qua tập cột bắt buộc của
+ * bảng chứ không qua danh sách này.
  */
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
   'ho_so.ma_khach_hang',

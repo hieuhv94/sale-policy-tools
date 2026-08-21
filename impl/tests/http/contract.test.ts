@@ -1396,10 +1396,12 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
 
   it('`0067` cột BẮT BUỘC không tắt được — khai thiếu thì hệ thống thêm lại', async () => {
     /*
-     * Muc 11.1 đòi bản A4 có tên sản phẩm và CPBH; bảng gánh đúng hai mục ấy.
-     * Cho tắt chúng là cho lưu một mẫu vi phạm muc 11.1 mà không phép kiểm nào
-     * bắt được — nên hệ thống THÊM LẠI thay vì báo lỗi: người dùng không làm gì
-     * sai, họ chỉ không biết luật.
+     * Một bảng giá không nói mình đang nói về mặt hàng nào thì không còn là bảng
+     * giá, nên *Tên sản phẩm* ở lại cùng muc 11.1. Hệ thống THÊM LẠI thay vì báo
+     * lỗi: người dùng không làm gì sai, họ chỉ không biết luật.
+     *
+     * `0084` — và giờ nó là cột DUY NHẤT như vậy; CPBH tổng không còn được thêm
+     * lại nữa. Ca ngay dưới kiểm nửa kia của chuyện đó.
      */
     const d = await toReceivedL1(1);
     const than = makeDocx(
@@ -1413,14 +1415,52 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .field('cotBang', JSON.stringify(['stt']))
       .attach('file', than, { filename: 'motcot.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
-    expect(up.body.cotBang).toEqual(['stt', 'ten_san_pham', 'cpbh_tong']);
+    expect(up.body.cotBang).toEqual(['stt', 'ten_san_pham']);
 
     try {
       const chu = packed(
         await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
-      expect(chu).toContain('CPBHtổng');
+    } finally {
+      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+    }
+  }, 180_000);
+
+  it('`0084` TẮT ĐƯỢC cả hai cột CPBH — bản đưa khách hàng không lộ chi phí nội bộ', async () => {
+    /*
+     * Khách hàng chốt 21/08: CPBH tổng rời khỏi tập cột bắt buộc. Lý do là chính
+     * cái mà tập cột theo mẫu được đẻ ra để làm — soạn *"bản gọn đưa khách
+     * hàng"* — mà CPBH là chi phí NỘI BỘ.
+     *
+     * Ca này kiểm chiều KHÓ HỎNG THẦM: không phải "lưu được", mà là **bản in ra
+     * thật sự không còn chữ CPBH nào**. Một phép "thêm lại cột bắt buộc" viết
+     * sót sẽ vẫn cho lưu đúng tập cột đã khai rồi lặng lẽ in ra cột đã tắt, và
+     * cái lộ ra là con số chi phí trên một văn bản đã gửi cho khách hàng.
+     */
+    const d = await toReceivedL1(1);
+    const than = makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
+    );
+    const up = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', 'Ban dua khach hang')
+      .field('mapping', JSON.stringify(anhXaTu(than)))
+      .field('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'gia_ban_buon']))
+      .attach('file', than, { filename: 'khongcpbh.docx', contentType: DOCX });
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    expect(up.body.cotBang, 'CPBH tổng bị thêm lại').toEqual(['stt', 'ten_san_pham', 'gia_ban_buon']);
+
+    try {
+      const chu = packed(
+        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01')).body as Buffer),
+      );
+      expect(chu).toContain('Tênsảnphẩm');
+      expect(chu, 'CPBH tổng vẫn in ra dù đã tắt').not.toContain('CPBHtổng');
+      // Cả cột lẻ cũng phải vắng: hai lựa chọn tách nhau, và tắt một mà lộ cái
+      // kia thì con số chi phí vẫn nằm trên giấy.
+      expect(chu, 'cột CPBH lẻ vẫn in ra').not.toContain('CPBH1');
     } finally {
       await ddel(`/policy-templates/${up.body.id}`, 'admin01');
     }

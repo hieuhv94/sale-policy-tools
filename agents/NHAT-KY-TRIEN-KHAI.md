@@ -7994,3 +7994,54 @@ Cùng một bài học đã ghi ở `dang-nhap.test.tsx`: stub phải nói đún
 hình dạng tối thiểu để ca kiểm thử xanh.
 
 **1377/1377 xanh.**
+
+---
+
+## P110 — CPBH tổng thôi là cột bắt buộc
+
+**Ngày 21/08/2026** · thay đổi `0084`
+
+Khách hàng chốt: bỏ *CPBH tổng* khỏi tập cột **không tắt được** khi soạn mẫu hồ sơ và hợp đồng.
+
+Lý do đứng vững, và nó chính là lý do `0067` sinh ra tính năng chọn cột theo mẫu: Quản trị soạn được
+*"bản đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"*. Mà **CPBH là chi phí bán hàng — con số nội
+bộ**. Khoá cột ấy lại là dùng muc 11.1 chặn đúng cái việc mà tính năng kia được đẻ ra để làm.
+
+`ten_san_pham` ở lại một mình: một bảng giá không nói mình đang nói về mặt hàng nào thì không còn là
+bảng giá.
+
+**Hệ quả phải nói ra, không được để ngầm.** Muc 11.1 liệt kê *CPBH* trong 13 mục tối thiểu của bản
+A4. Từ nay mục ấy do **người soạn mẫu tự chịu trách nhiệm** — y như mục *thông tin công ty* đã tự
+chịu từ `0067`. Phép kiểm tự động lúc lưu mẫu còn **11 trên 13**. Một mẫu ra bản A4 không có chữ
+CPBH nào giờ là hợp lệ và lưu được; đó là điều đã chốt, không phải một lỗ hổng — nhưng một bảo đảm
+11/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 11/13 đã biết, nên nó được ghi ở cả ba chỗ:
+`sources.ts`, YCNV muc 6.4 và hướng dẫn sử dụng.
+
+### Nửa dễ quên: câu chữ giải thích cái ô
+
+Ô chọn cột bật/tắt theo `cotBatBuoc` máy chủ trả về, nên nó tự đúng ngay sau khi sửa một dòng. Câu
+chú thích ngay trên nó thì là **chữ viết tay**, nêu đích danh *"Tên sản phẩm và CPBH tổng không tắt
+được"*. Sửa xong mà bỏ quên nó thì ô chọn ngoan ngoãn bật lên còn câu chữ vẫn dạy điều ngược lại —
+và người dùng tin câu chữ, vì câu chữ mới là thứ giải thích. Họ để nguyên cột CPBH vì tưởng không
+tắt được.
+
+Nên câu ấy giờ **dựng từ chính `cotBatBuoc`**, cùng một nguồn với cái ô. Thêm một câu nói cho người
+soạn mẫu biết họ vừa được trao quyền gì: bản đưa khách hàng thì tắt cả *CPBH tổng* lẫn *từng khoản
+CPBH*.
+
+### Ba ca kiểm, và phép phá lại
+
+Phá lại bằng cách gắn `batBuoc: true` về chỗ cũ — hai ca đỏ, và **đỏ ở đúng hai tầng khác nhau**:
+
+- `contract.test.ts` `0084` — bản PDF in ra **không còn chữ CPBH nào** khi mẫu tắt cả hai cột. Đây
+  là chiều khó hỏng thầm: một phép "thêm lại cột bắt buộc" viết sót vẫn cho lưu đúng tập cột đã khai
+  rồi lặng lẽ in ra cột đã tắt — và thứ lộ ra là con số chi phí trên văn bản đã gửi khách hàng.
+- `them-mau.test.tsx` `0084` — **stub nói đúng tập cột bắt buộc của máy chủ**, đọc thẳng `COT_BANG`
+  từ mã nguồn.
+
+Hai ca hành vi giao diện (*ô CPBH tắt được*, *câu chú thích không nêu đích danh*) vẫn **XANH** lúc
+phá lại, vì chúng chạy trên stub. Đó không phải thiếu sót — đó đúng là lý do ca đối chiếu tồn tại,
+và nó là ca duy nhất ở tầng giao diện bắt được lượt phá. Ghi lại vì cùng một hình dạng sẽ lặp: ca
+kiểm dựng trên stub chỉ đúng chừng nào có một ca khác giữ cho stub không trôi.
+
+**1381/1381 xanh.**

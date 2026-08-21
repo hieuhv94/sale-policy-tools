@@ -42,9 +42,20 @@ import { money, pct, soCotCpbh } from '../render/sheet.js';
  *      nhiều khoản nhất (muc 7.1). Không tách được thành từng cột để chọn lẻ vì
  *      số ấy chỉ biết lúc dựng bảng cho một hồ sơ cụ thể, còn tập cột thì khai
  *      lúc soạn mẫu — trước khi biết hồ sơ nào sẽ dùng nó.
- *   2. `ten_san_pham` và `cpbh_tong` KHÔNG TẮT ĐƯỢC. Muc 11.1 đòi bản A4 có tên
- *      sản phẩm và CPBH; bảng này gánh đúng hai mục ấy, nên tắt chúng là ban
- *      hành một mẫu vi phạm muc 11.1 mà không phép kiểm nào bắt được.
+ *   2. `ten_san_pham` KHÔNG TẮT ĐƯỢC — và từ `0084` nó là cột duy nhất như vậy.
+ *      Một bảng giá không nói mình đang nói về mặt hàng nào thì không còn là
+ *      bảng giá, nên cột ấy ở lại cùng muc 11.1.
+ *
+ *      **`cpbh_tong` MỞ RA CHO TẮT** `sửa 21/08`. CPBH là chi phí bán hàng —
+ *      con số NỘI BỘ, và mẫu *"bản gọn đưa khách hàng"* mà `0067` sinh ra chính
+ *      là chỗ người ta không muốn đưa nó ra ngoài. Khoá cột ấy lại là dùng muc
+ *      11.1 để chặn đúng cái việc mà tập cột theo mẫu vốn được đẻ ra để làm.
+ *
+ *      Hệ quả nói thẳng: mục *CPBH* của muc 11.1 giờ do người soạn mẫu tự chịu
+ *      trách nhiệm, y như mục *thông tin công ty* đã tự chịu từ `0067`. Phép
+ *      kiểm tự động còn 11 trên 13 mục. Cả hai khoản CPBH — cột tổng và các cột
+ *      lẻ — đều tắt được, nên một mẫu ra bản A4 không có chữ CPBH nào là hợp lệ
+ *      và lưu được; đó là điều khách hàng đã chốt, không phải một lỗ hổng.
  *   3. `trongSo` là TỶ LỆ bề rộng, không phải số đo. Hai cột CHỮ — tên sản phẩm
  *      và ghi chú — rộng gấp đôi cột số, nếu không thì tên xuống bốn dòng còn
  *      cột STT thừa chỗ.
@@ -55,7 +66,7 @@ export const COT_BANG = [
   { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', trongSo: 14, batBuoc: true },
   { khoa: 'gia_cong_ty', nhan: 'Giá công ty', trongSo: 7 },
   { khoa: 'gia_ban_buon', nhan: 'Giá bán buôn', trongSo: 7 },
-  { khoa: 'cpbh_tong', nhan: 'CPBH tổng', trongSo: 7, batBuoc: true },
+  { khoa: 'cpbh_tong', nhan: 'CPBH tổng', trongSo: 7 },
   { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)', trongSo: 6 },
   { khoa: 'gia_thu_ve', nhan: 'Giá thu về', trongSo: 7 },
   { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK', trongSo: 6 },

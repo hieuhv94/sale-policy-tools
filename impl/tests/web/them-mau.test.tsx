@@ -27,11 +27,11 @@ const NGUON = {
   cotBang: [
     { khoa: 'stt', nhan: 'STT' },
     { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', batBuoc: true },
-    { khoa: 'cpbh_tong', nhan: 'CPBH tổng', batBuoc: true },
+    { khoa: 'cpbh_tong', nhan: 'CPBH tổng' },
     { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)' },
     { khoa: 'ghi_chu', nhan: 'Ghi chú' },
   ],
-  cotBatBuoc: ['ten_san_pham', 'cpbh_tong'],
+  cotBatBuoc: ['ten_san_pham'],
 };
 
 const json = (body: unknown) =>
@@ -179,6 +179,56 @@ describe('`0067` chọn cột bảng sản phẩm', () => {
 
     const tuy = screen.getByLabelText('Ghi chú') as HTMLInputElement;
     expect(tuy.disabled).toBe(false);
+  });
+
+  it('`0084` CPBH TỔNG tắt được — nó là con số nội bộ', async () => {
+    /*
+     * Khách hàng chốt 21/08. Tập cột theo mẫu sinh ra để soạn được *"bản gọn đưa
+     * khách hàng"*, mà CPBH là chi phí nội bộ — khoá cột ấy lại là dùng muc 11.1
+     * chặn đúng cái việc tính năng ấy được đẻ ra để làm.
+     */
+    chan(DU_MUC);
+    bay('HO_SO');
+    await chonTep();
+    dongAnhXa();
+
+    const o = screen.getByLabelText('CPBH tổng') as HTMLInputElement;
+    expect(o.disabled, 'CPBH tổng phải tắt được').toBe(false);
+    // Và tắt được THẬT: bấm một cái là nó tắt, không bị bật lại ngay.
+    fireEvent.click(o);
+    expect((screen.getByLabelText('CPBH tổng') as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('`0084` câu chú thích ĐỌC TỪ máy chủ, không nêu đích danh cột đã mở', async () => {
+    /*
+     * Đây là nửa dễ quên của lượt sửa này: ô chọn bật lên theo `cotBatBuoc` của
+     * máy chủ, còn câu giải thích ngay trên nó là chữ viết tay. Hai thứ lệch nhau
+     * thì người dùng tin câu chữ — nó mới là thứ giải thích — và họ để nguyên
+     * cột CPBH vì tưởng không tắt được.
+     */
+    chan(DU_MUC);
+    bay('HO_SO');
+    await chonTep();
+    dongAnhXa();
+
+    const cau = [...document.querySelectorAll('.ghi-chu')]
+      .map((e) => e.textContent ?? '')
+      .find((t) => t.includes('không tắt được'))!;
+    expect(cau, 'câu chú thích biến mất').toBeDefined();
+    expect(cau).toContain('Tên sản phẩm');
+    expect(cau, 'vẫn dạy rằng CPBH tổng không tắt được').not.toContain('CPBH tổng');
+  });
+
+  it('`0084` stub nói ĐÚNG tập cột bắt buộc của máy chủ', () => {
+    /*
+     * Ca kiểm thử ở tệp này dựng trên một stub, nên nó chỉ đúng chừng nào stub
+     * còn nói đúng hình dạng máy chủ trả về. Không có phép đối chiếu này thì ngày
+     * ai đó khoá thêm một cột, hai ca ở trên vẫn xanh trong khi màn hình thật đã
+     * hiện một ô chọn không bấm được mà chẳng nói vì sao.
+     */
+    const ma = readFileSync('services/document/src/contracts/bang-san-pham.ts', 'utf8');
+    const mayChu = [...ma.matchAll(/\{\s*khoa:\s*'([a-z_]+)'[^}]*batBuoc:\s*true/g)].map((m) => m[1]!);
+    expect(mayChu, 'máy chủ đổi tập cột bắt buộc mà stub chưa theo').toEqual(NGUON.cotBatBuoc);
   });
 
   it('CPBH là MỘT lựa chọn, không phải từng cột lẻ', async () => {

@@ -180,6 +180,18 @@ export function ThemMau({
   const coBang = oTrong?.placeholders.includes(O_BANG_SAN_PHAM) ?? false;
   const cotBatBuoc = new Set(danhMuc?.cotBatBuoc ?? []);
 
+  /*
+   * Câu "cột nào không tắt được" ĐỌC TỪ MÁY CHỦ, không viết cứng (`0084`).
+   *
+   * Trước đó nó là một câu chữ chép tay nêu đích danh *Tên sản phẩm* và *CPBH
+   * tổng*. Lúc khách hàng mở CPBH tổng ra cho tắt, ô chọn ngoan ngoãn bật lên
+   * còn câu chữ ngay trên nó vẫn dạy điều ngược lại — và người dùng tin câu chữ
+   * chứ không tin cái ô, vì câu chữ mới là thứ giải thích.
+   */
+  const nhanBatBuoc = (danhMuc?.cotBang ?? [])
+    .filter((c) => cotBatBuoc.has(c.khoa))
+    .map((c) => c.nhan);
+
   /** Ô trống PHẢI ánh xạ — ô bảng sản phẩm không trỏ tới trường nào nên đứng ngoài. */
   const phaiAnhXa = (oTrong?.placeholders ?? []).filter((o) => o !== O_BANG_SAN_PHAM);
   const soPhaiAnhXa = phaiAnhXa.length;
@@ -283,9 +295,29 @@ export function ThemMau({
             <>
               <h2 className="tieu-de-nho">Cột của bảng sản phẩm</h2>
               <p className="ghi-chu">
-                Bỏ bớt cột thì bảng hẹp lại và vừa khổ dọc dễ hơn. Cột{' '}
-                <strong>Tên sản phẩm</strong> và <strong>CPBH tổng</strong> không tắt được — muc
-                11.1 đòi bản A4 phải có.
+                Bỏ bớt cột thì bảng hẹp lại và vừa khổ dọc dễ hơn.{' '}
+                {nhanBatBuoc.length > 0 && (
+                  <>
+                    Cột{' '}
+                    {nhanBatBuoc.map((n, i) => (
+                      <span key={n}>
+                        {i > 0 ? ' và ' : ''}
+                        <strong>{n}</strong>
+                      </span>
+                    ))}{' '}
+                    không tắt được — muc 11.1 đòi bản A4 phải có.
+                  </>
+                )}
+              </p>
+              {/*
+                CPBH là con số NỘI BỘ, và đây là câu nói cho người soạn mẫu biết
+                họ vừa được trao quyền gì (`0084`): tắt hai cột CPBH đi là ra
+                đúng bản đưa cho khách hàng xem.
+              */}
+              <p className="ghi-chu">
+                CPBH là chi phí nội bộ. Bản đưa khách hàng thì tắt cả{' '}
+                <strong>CPBH tổng</strong> lẫn <strong>từng khoản CPBH</strong>; bản lưu nội bộ thì
+                bật.
               </p>
               <div className="chon-cot">
                 {danhMuc.cotBang.map((c: CotBang) => {

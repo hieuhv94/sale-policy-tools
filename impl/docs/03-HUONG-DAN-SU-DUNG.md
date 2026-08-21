@@ -1232,9 +1232,13 @@ khách hàng"** mà không cần ai lập trình — người xem chọn mẫu n
 
 | Cột | Ghi chú |
 |---|---|
-| STT · Mã sản phẩm · Giá công ty · Giá bán buôn · Giá thu về · Tỷ lệ CK · Ghi chú | Tuỳ chọn |
-| **Tên sản phẩm** · **CPBH tổng** | **Không tắt được** — muc 11.1 đòi bản A4 phải có |
+| STT · Mã sản phẩm · Giá công ty · Giá bán buôn · **CPBH tổng** · Giá thu về · Tỷ lệ CK · Ghi chú | Tuỳ chọn |
+| **Tên sản phẩm** | **Không tắt được** — bảng giá phải nói nó đang nói về mặt hàng nào |
 | **Từng khoản CPBH** | Một lựa chọn duy nhất, bật thì hiện **hết** CPBH1…CPBHn |
+
+> **CPBH tổng tắt được** `sửa 21/08`. CPBH là chi phí **nội bộ**: bản đưa khách hàng thì tắt cả
+> *CPBH tổng* lẫn *từng khoản CPBH*, bản lưu nội bộ thì bật. Đổi lại, phần mềm **không còn tự bảo
+> đảm** mục *CPBH* của muc 11.1 có mặt trên bản A4 — bạn soạn mẫu, bạn quyết.
 
 > *Từng khoản CPBH* không tách ra chọn lẻ được: số cột bằng dòng nhiều khoản nhất của **từng hồ sơ**,
 > mà bạn khai tập cột lúc soạn mẫu — trước khi biết hồ sơ nào sẽ dùng nó.
