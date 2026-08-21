@@ -13,6 +13,12 @@
  *   3. **Thứ tự cột phải cố định.** Người dùng dựng công thức tham chiếu cột E;
  *      chèn một cột vào giữa ở bản sau là làm hỏng file của họ trong im lặng.
  *      Danh sách dưới đây là hợp đồng, không phải chi tiết cài đặt.
+ *
+ *      `0081` GỠ hai cột ở GIỮA, và đó là một lần phá hợp đồng có chủ ý: mọi
+ *      cột sau chúng dịch sang trái hai ô. Chấp nhận vì `0080` vừa đổi hẳn ý
+ *      nghĩa của một dòng — từ một hồ sơ thành một mặt hàng — nên file cũ và
+ *      file mới vốn đã không dùng chung công thức được nữa. Gộp hai lần phá vào
+ *      cùng một đợt tốt hơn là rải ra hai lần.
  */
 import ExcelJS from 'exceljs';
 
@@ -36,9 +42,23 @@ export const COLUMNS: Col[] = [
   { header: 'Thời gian duyệt', key: 'approvedAt', width: 18, kind: 'datetime' },
   { header: 'Người đề nghị', key: 'requesterName', width: 24 },
   { header: 'TDV phụ trách', key: 'tdvName', width: 24 },
-  { header: 'Số dòng sản phẩm', key: 'lineCount', width: 14 },
+  /*
+   * *Số dòng sản phẩm* và *Tổng giá thu về* ĐÃ GỠ (`0081`).
+   *
+   * Từ `0080` mỗi dòng bảng tính là một mặt hàng, nên hai con số của CẢ HỒ SƠ
+   * lặp lại y nguyên trên mọi dòng của hồ sơ ấy — và cộng cả cột là cộng thừa
+   * gấp mấy lần. `0080` phải viết hẳn một đoạn chú thích cảnh báo chuyện đó;
+   * gỡ hai cột đi thì cái bẫy biến mất, không cần cảnh báo nữa.
+   *
+   * Không mất dữ liệu nào: số dòng là số dòng của hồ sơ trong file, còn tổng
+   * giá thu về là tổng cột *Giá thu về* — Excel cộng hộ, chính xác hơn và không
+   * nhân đôi.
+   *
+   * *Chiết khấu cao nhất* thì Ở LẠI, và không phải vì bỏ sót: nó là một phép
+   * MAX chứ không phải phép cộng, nên lặp lại bao nhiêu lần thì `MAX` của cột
+   * vẫn ra đúng con số ấy. Cái bẫy chỉ có ở phép cộng.
+   */
   { header: 'Nhóm sản phẩm', key: 'productGroupCodes', width: 20, kind: 'list' },
-  { header: 'Tổng giá thu về', key: 'totalNet', width: 18, kind: 'money' },
   { header: 'Chiết khấu cao nhất (%)', key: 'maxDiscount', width: 20, kind: 'rate' },
   { header: 'Ngày tạo', key: 'createdAt', width: 18, kind: 'datetime' },
   /*
@@ -49,14 +69,7 @@ export const COLUMNS: Col[] = [
    * làm. Nay mỗi dòng của bảng tính là MỘT dòng sản phẩm của MỘT hồ sơ, và các
    * cột hồ sơ ở trên lặp lại trên mỗi dòng.
    *
-   * MỘT BẪY PHẢI BIẾT: *Tổng giá thu về* và *Số dòng sản phẩm* là con số của CẢ
-   * HỒ SƠ, nên chúng lặp lại y nguyên trên mọi dòng của hồ sơ ấy — cộng cả cột
-   * là cộng thừa. Con số theo dòng nằm ở *Giá thu về (dòng)* bên dưới, và hai
-   * cái mang hai cái tên khác nhau đúng vì lý do đó.
-   *
-   * Cả khối ĐỨNG CUỐI: thứ tự cột là hợp đồng, người dùng đã dựng công thức
-   * tham chiếu cột N, cột O. Cột `Sản phẩm` của `0078` bị khối này thay thế —
-   * nó nằm ở vị trí cuối cùng, nên gỡ đi không xê dịch cột nào khác.
+   * Cả khối ĐỨNG CUỐI, sau mọi cột của hồ sơ.
    */
   { header: 'Mã sản phẩm', key: 'productCode', width: 16 },
   { header: 'Tên sản phẩm', key: 'productName', width: 40 },
@@ -64,8 +77,8 @@ export const COLUMNS: Col[] = [
   { header: 'Giá bán Công ty', key: 'companyPrice', width: 16, kind: 'money' },
   { header: 'Giá bán buôn', key: 'wholesalePrice', width: 16, kind: 'money' },
   { header: 'CPBH', key: 'cpbhTotal', width: 14, kind: 'money' },
-  { header: 'Giá thu về (dòng)', key: 'netPrice', width: 16, kind: 'money' },
-  { header: 'Chiết khấu dòng (%)', key: 'discountRate', width: 18, kind: 'rate' },
+  { header: 'Giá thu về', key: 'netPrice', width: 16, kind: 'money' },
+  { header: 'Chiết khấu (%)', key: 'discountRate', width: 16, kind: 'rate' },
   { header: 'Ngưỡng (%)', key: 'threshold', width: 12, kind: 'rate' },
   { header: 'Vượt ngưỡng', key: 'overThreshold', width: 12, kind: 'co-khong' },
 ];

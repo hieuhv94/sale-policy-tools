@@ -1000,12 +1000,16 @@ khối cột cuối là số liệu của **riêng dòng đó**:
 | Cột | Nội dung |
 |---|---|
 | Mã sản phẩm · Tên sản phẩm · Nhóm SP | Mặt hàng của dòng này |
-| Giá bán Công ty · Giá bán buôn · CPBH · Giá thu về (dòng) | Bốn con số của riêng dòng |
-| Chiết khấu dòng (%) · Ngưỡng (%) · Vượt ngưỡng | Chiết khấu của dòng và ngưỡng áp cho nó |
+| Giá bán Công ty · Giá bán buôn · CPBH · Giá thu về | Bốn con số của riêng dòng |
+| Chiết khấu (%) · Ngưỡng (%) · Vượt ngưỡng | Chiết khấu của dòng và ngưỡng áp cho nó |
 
-> **Một chỗ dễ cộng nhầm.** *Tổng giá thu về* và *Số dòng sản phẩm* là con số của **cả hồ sơ**, nên
-> chúng lặp lại trên mọi dòng của hồ sơ ấy — cộng cả cột là cộng thừa. Con số theo dòng nằm ở
-> ***Giá thu về (dòng)***, và hai cột mang hai cái tên khác nhau đúng vì lý do đó.
+> **Bỏ hai cột *Số dòng sản phẩm* và *Tổng giá thu về*** `sửa 21/08`. Chúng là con số của cả hồ sơ
+> nên lặp lại y nguyên trên mọi dòng của hồ sơ ấy, và cộng cả cột là cộng thừa gấp mấy lần. Không
+> mất gì: số dòng là số dòng của hồ sơ trong file, còn tổng giá thu về là tổng cột *Giá thu về* —
+> để Excel cộng hộ thì chính xác hơn.
+>
+> *Chiết khấu cao nhất (%)* vẫn còn, vì nó là một phép **lớn nhất** chứ không phải phép cộng: lặp
+> lại bao nhiêu lần thì giá trị lớn nhất của cột vẫn đúng.
 
 > Hồ sơ **chưa nhập sản phẩm nào** (Nháp mới lập) vẫn có một dòng trong file, các ô sản phẩm để
 > trống — để không hồ sơ nào biến mất khỏi báo cáo mà bạn không biết.

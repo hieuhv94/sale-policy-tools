@@ -811,8 +811,8 @@ hình. Trước đó nút nằm ở trang *Báo cáo*, cách bộ lọc một m�
 
 Tên file `CSBH_<yyyymmdd>_<hhmmss>.xlsx` theo giờ Việt Nam. File ở mức **DÒNG SẢN PHẨM**: mỗi mặt
 hàng của mỗi hồ sơ là một dòng riêng, kèm giá bán Công ty, giá bán buôn, CPBH, giá thu về, chiết
-khấu và ngưỡng của chính dòng đó. Các cột thông tin hồ sơ lặp lại trên mọi dòng của hồ sơ ấy — nên
-*Tổng giá thu về* là số của cả hồ sơ và không cộng được cả cột.
+khấu và ngưỡng của chính dòng đó. Các cột thông tin hồ sơ lặp lại trên mọi dòng của hồ sơ ấy, nên
+file **không có cột tổng nào của hồ sơ** — số dòng và tổng giá thu về để Excel tự cộng.
 
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần ký,
 tiếp nhận, xuất file và tải tài liệu.

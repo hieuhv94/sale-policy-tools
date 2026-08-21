@@ -1116,7 +1116,7 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
 
     // Tiền: ô phải là số và có định dạng phân cách nghìn. Ghi "87.000 đ" thì file
     // mở ra vẫn đẹp nhưng không cộng được — đúng thứ người ta xuất Excel để làm.
-    const netCol = COLUMNS.findIndex((c) => c.key === 'totalNet') + 1;
+    const netCol = COLUMNS.findIndex((c) => c.key === 'netPrice') + 1;
     const netCell = row.getCell(netCol);
     expect(typeof netCell.value).toBe('number');
     expect(netCell.value).toBe(87_000);
@@ -1245,14 +1245,27 @@ describe('RPT-07 xuất Excel khi đang áp bộ lọc', () => {
     expect([o(2, 'productName'), o(3, 'productName')].sort()).toEqual([b, a].sort());
 
     // Cột của HỒ SƠ lặp lại y nguyên trên cả hai dòng — đó là cái giá của bảng
-    // phẳng, và là lý do *Tổng giá thu về* không cộng được cả cột.
+    // phẳng, và người dùng phải đọc được nó ở mọi dòng.
     expect(o(2, 'code')).toBe(o(3, 'code'));
     expect(o(2, 'customerCode')).toBe(d.customerCode);
-    expect(o(2, 'totalNet')).toBe(o(3, 'totalNet'));
 
-    // Con số THEO DÒNG thì khác nhau, và mang cái tên khác.
+    // Con số THEO DÒNG thì khác nhau ở từng dòng.
     expect(o(2, 'netPrice')).not.toBe(o(3, 'netPrice'));
-    expect(Number(o(2, 'netPrice')) + Number(o(3, 'netPrice'))).toBe(Number(o(2, 'totalNet')));
+
+    /*
+     * `0081` — KHÔNG còn cột tổng nào của hồ sơ cộng được.
+     *
+     * *Số dòng sản phẩm* và *Tổng giá thu về* lặp lại y nguyên trên mọi dòng của
+     * một hồ sơ, nên cộng cả cột là cộng thừa gấp mấy lần. `0080` phải viết một
+     * đoạn chú thích để cảnh báo; gỡ hai cột đi thì cái bẫy biến mất.
+     *
+     * *Chiết khấu cao nhất* Ở LẠI có chủ ý: nó là phép MAX chứ không phải phép
+     * cộng, nên lặp lại bao nhiêu lần thì `MAX` của cột vẫn ra đúng con số ấy.
+     */
+    for (const bo of ['totalNet', 'lineCount']) {
+      expect(COLUMNS.map((c) => c.key), `cột ${bo} vẫn còn`).not.toContain(bo);
+    }
+    expect(COLUMNS.map((c) => c.key)).toContain('maxDiscount');
 
     // Khối dòng sản phẩm ĐỨNG CUỐI: thứ tự cột là hợp đồng với người dùng.
     const dau = COLUMNS.findIndex((c) => c.key === 'productCode');

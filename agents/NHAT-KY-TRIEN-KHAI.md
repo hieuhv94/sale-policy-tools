@@ -7821,3 +7821,49 @@ ra với các ô sản phẩm để trống, không có gì báo. Hệ chưa bà
 đầu nên hiện không cắn ai; nhưng ngày lên thật thì cần một lệnh quét lại toàn bộ.
 
 **1359/1359 xanh.**
+
+## P107 — Gỡ hai cột tổng khỏi file Excel
+
+Bỏ *Số dòng sản phẩm* và *Tổng giá thu về*. Còn 24 cột.
+
+Đây là hệ quả thẳng của `0080`: từ lúc mỗi dòng bảng tính là một mặt hàng, hai con số của CẢ HỒ SƠ
+lặp lại y nguyên trên mọi dòng của hồ sơ ấy — và **cộng cả cột là cộng thừa gấp mấy lần**. `0080`
+phải viết hẳn một đoạn chú thích cảnh báo chuyện đó, cả trong mã lẫn trong tài liệu hướng dẫn. Gỡ
+hai cột đi thì cái bẫy biến mất, và cả đoạn cảnh báo cũng biến mất theo.
+
+Không mất dữ liệu nào: số dòng là số dòng của hồ sơ trong file, tổng giá thu về là tổng cột *Giá thu
+về*. Để Excel cộng hộ thì chính xác hơn và không nhân đôi.
+
+**Chiết khấu cao nhất Ở LẠI, và không phải vì bỏ sót.** Nó là phép **MAX** chứ không phải phép cộng,
+nên lặp lại bao nhiêu lần thì `MAX` của cột vẫn ra đúng con số ấy. Cái bẫy chỉ có ở phép cộng. Ca
+kiểm thử nói thẳng điều này — nó khẳng định hai cột kia đã hết VÀ cột này còn, để lần sau không ai
+"dọn nốt cho gọn".
+
+Nhân tiện bỏ hai cái đuôi giờ đã vô nghĩa: *Giá thu về (dòng)* → **Giá thu về**, *Chiết khấu dòng
+(%)* → **Chiết khấu (%)**. Chữ "(dòng)" sinh ra chỉ để phân biệt với cột tổng vừa gỡ.
+
+### Một lần phá hợp đồng có chủ ý
+
+Chú thích đầu `sheet.ts` ghi từ lâu rằng thứ tự cột là hợp đồng và chỉ được thêm vào CUỐI — người
+dùng dựng công thức tham chiếu cột E. Gỡ hai cột ở GIỮA làm mọi cột sau chúng dịch sang trái hai ô.
+
+Chấp nhận, và ghi rõ lý do vào chính chỗ đặt ra luật ấy: `0080` vừa đổi hẳn ý nghĩa của một dòng —
+từ một hồ sơ thành một mặt hàng — nên file cũ và file mới vốn đã không dùng chung công thức được
+nữa. Gộp hai lần phá vào cùng một đợt tốt hơn là rải ra hai lần.
+
+### Đo trên demo
+
+```
+MAN HINH: 22 ho so     FILE: CSBH_20260821_144006.xlsx | 43 dong | 24 cot
+Cot tong cua ho so con lai: KHONG CON
+
+CSBH-2026-000146 — 2 dong:
+   Nutricare Gold 900g            521,000
+   Dau oc cho Nutricare 250ml     163,800
+   Excel tu cong                  684,800
+```
+
+> Cổng 8080 lúc dựng lại demo đang bị `mkdocs` của người dùng giữ. Không tự ý tắt tiến trình của
+> người khác; hỏi lại và họ tự nhường cổng.
+
+**1359/1359 xanh.**
