@@ -586,6 +586,9 @@ Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo *hiệu năng
 | **Mất toàn bộ dữ liệu** khi hỏng ổ hoặc gõ nhầm lệnh | `pg_dump -Fc` hằng ngày, giữ 14 bản, tự kiểm mục lục ngay sau khi ghi; cộng lưu trữ WAL liên tục cho phục hồi theo thời điểm | `OPS-02`, `OPS-06` |
 | Sao lưu **chưa từng phục hồi thử** | `make restore-drill` phục hồi vào CSDL nháp rồi đối chiếu số dòng và kiểm lại bốn bất biến. Mặc định **không** đè lên CSDL đang chạy | `OPS-06` |
 | Bảng nhật ký phình vô hạn, **không xoá được** vì chính bất biến chỉ-ghi-thêm | Phân vùng theo tháng; vùng cũ đem `DETACH` ra lưu trữ, dữ liệu vẫn còn nhưng rời bảng nóng | `OPS-03` |
+| **Log của service bị Docker xoá theo vòng xoay** — `json-file` giữ `max-size × max-file` rồi vứt phần cũ, nên "lưu đầy đủ để debug" không có gì để dựa vào | `make luu-log` hằng ngày thu vào kho ngoài `workspace/`, dùng **con trỏ mốc** nên chạy trễ hay chạy bù đều không trùng không hụt; đệm rotation nới lên 50m × 10 chỉ để job kịp chạy | `OPS-12` |
+| Bản nén hỏng mà chỉ biết lúc cần đọc | `make nen-log` tự `gzip -t` và đối chiếu số dòng ngay sau khi nén; hỏng thì **giữ nguyên bản chưa nén**. Kèm `.sha256` và `manifest.json` mỗi tháng | `OPS-13` |
+| Nhật ký kiểm toán là **bảng**, không phải thư mục — không có gì để lưu trữ theo tháng | `make luu-audit` trích mỗi tháng ra `audit-YYYY-MM.jsonl.gz` + `.sha256`, **không `DETACH`, không xoá dòng nào** | `OPS-13` |
 | Token và outbox chỉ tăng | `sys.run_retention()` xoá token hết hạn và sự kiện **đã gửi**; sla-worker gọi mỗi ngày | `OPS-04` |
 | Danh sách trả về cả bảng — chậm dần đều, không có cảnh báo | Phân trang bắt buộc ở mọi endpoint danh sách: mặc định 50, trần 200, kèm tổng số thật | `OPS-07` |
 | Tìm khách hàng quét toàn bảng | Index GIN trigram trên biểu thức ghép — biểu thức phải khớp **từng ký tự** với truy vấn, lệch là index không bao giờ được chọn | `OPS-05` |
@@ -1340,6 +1343,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
+| OPS-12 | Thu log hai lượt liền nhau, và một lượt chạy bù sau khi lỡ | Không dòng trùng, không dòng hụt — con trỏ mốc cộng một nano giây vì `--since` của Docker là "lớn hơn hoặc bằng" | §15 | `P1` |
+| OPS-13 | Nén một tháng đã đóng, rồi ép nén tháng đang chạy | Bản nén đọc lại được và đủ số dòng; tháng đang chạy bị **từ chối** vì nó còn được ghi thêm | §15 | `P1` |
 | OPS-01 | Đọc `max_connections` và bộ nhớ Postgres | Đủ cho 10 service × 8 kết nối cộng biên quản trị; bộ đệm và `work_mem` đã rời mặc định của ảnh Docker | §11 | `P0` |
 | OPS-02 | Ép cắt WAL rồi đọc `pg_stat_archiver` | `archive_mode=on`, `failed_count = 0` — lưu trữ hỏng lặng lẽ là mất khả năng phục hồi theo thời điểm mà không ai biết | §11 | `P0` |
 | OPS-03 | Kiểm bảng nhật ký | Là bảng **phân vùng theo tháng**, có sẵn vùng cho 3 tháng tới, vùng mặc định **rỗng**, bất biến chỉ-ghi-thêm vẫn giữ | §10 | `P0` |

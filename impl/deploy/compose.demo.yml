@@ -17,7 +17,7 @@ x-node: &node
   restart: unless-stopped
   logging:
     driver: json-file
-    options: { max-size: "10m", max-file: "5" }
+    options: { max-size: "50m", max-file: "10" }
   depends_on:
     postgres: { condition: service_healthy }
     redis:    { condition: service_healthy }
@@ -171,7 +171,7 @@ services:
     restart: unless-stopped
     logging:
       driver: json-file
-      options: { max-size: "10m", max-file: "5" }
+      options: { max-size: "50m", max-file: "10" }
     # CHỖ DUY NHẤT mở cổng ra ngoài trong cả hệ (SEC-10).
     ports:
       - "${DEMO_PORT:-8080}:80"

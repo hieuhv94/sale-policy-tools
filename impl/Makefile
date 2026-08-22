@@ -8,8 +8,11 @@ COMPOSE  := docker compose -f deploy/compose.yml -f deploy/compose.test.yml
 DEMO     := docker compose --env-file deploy/.env -f deploy/compose.yml -f deploy/compose.demo.yml
 RUN      := $(COMPOSE) run --rm -T test
 WORKSPACE := ../workspace
+KHO_LOG   ?= ../logarchive
+export KHO_LOG
 
 .PHONY: help up down migrate install typecheck test seed clean ps logs psql version \
+        luu-log nen-log luu-audit luu-thang \
         backup restore restore-drill retention secrets demo demo-down demo-logs demo-seed \
         demo-env demo-mail demo-mail-down check-demo-down demo-data demo-reset \
         demo-admin demo-mau demo-reset-files
@@ -23,6 +26,8 @@ help:
 	@echo "backup    sao lưu CSDL vào volume pgbackup, tự kiểm mục lục"
 	@echo "restore-drill  phục hồi thử vào CSDL nháp rồi đối chiếu số dòng"
 	@echo "retention xoá dữ liệu hết vòng đời (token, outbox đã gửi)"
+	@echo "luu-log   thu log mọi container vào $(KHO_LOG) — chạy HẰNG NGÀY"
+	@echo "luu-thang nén log tháng trước + trích nhật ký kiểm toán — chạy ĐẦU THÁNG"
 	@echo ""
 	@echo "demo      dựng hệ chạy thử ở http://localhost:8080 — CSDL TRỐNG, chỉ có tài khoản quản trị"
 	@echo "demo-mau  nạp thêm 10 tài khoản mẫu và dữ liệu nghiệp vụ mẫu vào bản đang chạy"
@@ -117,6 +122,28 @@ restore:
 
 retention:
 	$(COMPOSE) exec -T postgres psql -U postgres -d csbh -c "SELECT sys.run_retention()"
+	$(COMPOSE) exec -T postgres psql -U postgres -d csbh -c "SELECT sys.don_idn_outbox()"
+
+# --- Kho lưu trữ log (`0092`) ------------------------------------------------
+#
+# `KHO_LOG` mặc định là `../logarchive` — NGOÀI `workspace/`, và đó là chủ ý:
+# `make clean` xoá sạch `workspace/`, nên để kho lưu trữ ở đó là dựng một cái
+# kho mà một lệnh dọn thường ngày xoá mất.
+#
+# Ba lệnh, ba nhịp: `luu-log` hằng ngày, hai lệnh còn lại đầu mỗi tháng.
+luu-log:
+	@mkdir -p $(KHO_LOG)
+	sh scripts/luu-log.sh
+
+nen-log:
+	sh scripts/nen-log-thang.sh
+
+luu-audit:
+	$(COMPOSE) run --rm -T -e KHO_LOG=/logarchive -e THANG_TRICH --entrypoint /bin/sh migrate /luu-audit-thang.sh
+
+# Cả ba việc của đầu tháng, đúng thứ tự: thu nốt phần còn lại của tháng cũ rồi
+# mới nén, và trích audit sau cùng vì nó không phụ thuộc hai bước kia.
+luu-thang: luu-log nen-log luu-audit
 
 version:
 	@echo "APP_VERSION=$(APP_VERSION) GIT_SHA=$(GIT_SHA)"

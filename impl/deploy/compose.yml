@@ -3,11 +3,23 @@ name: csbh
 # Log Docker mặc định KHÔNG giới hạn dung lượng. Mười service cộng Postgres ghi
 # cả truy vấn chậm sẽ làm đầy ổ sau vài tháng — cùng hậu quả với việc WAL không
 # được dọn: ổ đầy thì Postgres dừng ghi và hệ thống chết.
+#
+# `0092` NỚI từ 10m×5 lên 50m×10, và con số này KHÔNG phải để lưu trữ.
+#
+# Vòng xoay của Docker vẫn XOÁ phần cũ — không cấu hình nào làm nó giữ lại được.
+# Kho lưu trữ là việc của `make luu-log`, chạy hằng ngày. Chỗ này chỉ là ĐỆM:
+# đủ rộng để một ngày sự cố ghi log dày gấp trăm lần bình thường vẫn không tràn
+# ra ngoài trước khi job thu gom kịp chạy.
+#
+# Đo trên chồng demo ngày 22/08: cả chồng 15 container ghi ~0,33 MB/ngày lúc
+# nghỉ, và một lượt nạp 146 hồ sơ sinh thêm ~0,4 MB. Đệm 500MB mỗi container do
+# đó là dư ba con số — và dư là đúng: rẻ hơn nhiều so với một khoảng trống
+# trong vết mà chỉ lộ ra lúc cần điều tra.
 x-logging: &logging
   driver: json-file
   options:
-    max-size: "10m"
-    max-file: "5"
+    max-size: "50m"
+    max-file: "10"
 
 
 services:
@@ -171,9 +183,15 @@ services:
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
       - ../scripts/basebackup.sh:/basebackup.sh:ro
+      - ../scripts/luu-audit-thang.sh:/luu-audit-thang.sh:ro
       - pgarchive:/archive
       - ../../workspace/backup-mirror:/mirror
       - pgbackup:/backup
+      # Kho lưu trữ log NẰM NGOÀI `workspace/` (`0092`): `make clean` xoá sạch
+      # thư mục đó, nên để kho ở đấy là dựng một cái kho mà lệnh dọn thường ngày
+      # xoá mất. Cùng chế độ bảo vệ với bản sao lưu CSDL — không vào git, quyền
+      # hạn chế, vì log có chứa email và tên khách hàng.
+      - ../../logarchive:/logarchive
     entrypoint: ["/bin/sh","/migrate.sh"]
     restart: "no"
     networks: [ internal ]
