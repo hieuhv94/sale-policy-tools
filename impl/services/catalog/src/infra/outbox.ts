@@ -10,6 +10,7 @@
  * đúng kiến trúc: một transaction, một nguồn sự thật, không có ghi hai nơi.
  */
 import type { PoolClient } from 'pg';
+import { kemNguCanh } from '@csbh/http-kit';
 
 export type Change = { before: unknown; after: unknown };
 
@@ -20,7 +21,7 @@ export async function emit(
 ): Promise<void> {
   await c.query(`INSERT INTO cat.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
     routingKey,
-    JSON.stringify(payload),
+    JSON.stringify(kemNguCanh(payload)),
   ]);
 }
 

@@ -8434,3 +8434,81 @@ có CSBH nào"*, *"KHÔNG còn nói Không có mục nào khớp"*) và một ca
 > xử lý thật; ca thứ ba đòi ghi chú mang mã `0089` ở một tệp tôi rà rồi mà quên đánh dấu.
 
 **1418/1418 xanh.**
+
+---
+
+## P116 — Nhật ký: từ danh sách để nhìn thành công cụ để tra
+
+**Ngày 22/08/2026** · thay đổi `0090`
+
+Bước một của bản rà nhật ký kiểm toán (duyệt 22/08). Không thêm sự kiện nào — chỉ làm cho thứ đã ghi
+suốt bao lâu nay **đọc được**.
+
+### Cột "ai", và vì sao nó không có ở đó suốt từ đầu
+
+Nhật ký lưu `actor_id` dạng UUID; màn hình hiện **vai trò**, không hiện người. Nên câu hỏi đầu tiên
+của mọi cuộc kiểm toán là câu duy nhất nhật ký không trả lời được.
+
+Chỗ khó không phải cột — mà là **tên lấy ở đâu**. Ba đường, và hai đường sai:
+
+- Tra bảng tài khoản lúc ĐỌC: tài khoản đã vô hiệu hoá bị lọc khỏi mọi đường tra (đúng cái bẫy
+  `0085` gặp với `fromName`), tên đổi được, người bị xoá thì mất hẳn. Và nó đưa **tên hôm nay** vào
+  một sự việc của quá khứ.
+- Thêm claim vào JWT: tên đóng băng tới lần đăng nhập sau.
+- **Đường đã chọn:** `AccountState` — bản ghi mà mọi service đã tra trên MỖI request, đã có cache
+  dùng chung 60 giây — mang thêm `full_name` và `username`. Tên tới nơi mà không tốn thêm lời gọi
+  nào, và chậm nhất 60 giây là đúng.
+
+### Một khoảng hụt tìm ra dọc đường
+
+Rà tới nơi phát sự kiện mới thấy: **chỉ `policy` gắn `traceId` và `actorIp`**. Catalog, customer và
+document ghi outbox thẳng, nên mọi dòng nhật ký về đổi giá, đổi khách hàng hay xuất hợp đồng đều
+**không có IP và không nối được chuỗi** — vô hình, vì dòng nhật ký vẫn hiện ra bình thường.
+
+`kemNguCanh()` ở `http-kit` gom cả bốn trường vào một chỗ, và cả bốn service dùng chung.
+
+### Luật gắn tên, viết sai ở lượt đầu
+
+Bản đầu: *"nơi gọi đã đặt `actorId` thì không lấy tên từ ngữ cảnh"* — để tránh ghép tên người đang
+bấm vào id người khác. Nghe đúng, và **sai với gần như mọi sự kiện**: chúng đều đặt `actorId: me.id`,
+tức là chính người đang gọi, nên tất cả đều mất tên.
+
+Luật đúng có ba nhánh: không có `actorId` → lấy cả id lẫn tên; `actorId` **trùng** người đang gọi →
+gắn tên; `actorId` của người khác — bàn giao lúc vô hiệu hoá tài khoản là ví dụ duy nhất — → không
+gắn gì.
+
+### Cửa sổ sáu tháng chặn ở MÁY CHỦ
+
+Khách hàng chốt 22/08. Chặn ở API chứ không chỉ ẩn ô trên màn hình: một cửa sổ chặn ở giao diện mà
+API vẫn nhận là cửa sổ chỉ chặn người dùng thật thà. `user-activity` chặn cùng cửa sổ — một con số
+thống kê vượt ra ngoài sáu tháng là cửa sau cho đúng thứ vừa đóng ở cửa trước.
+
+Hai chi tiết:
+
+- **Từ chối, không im lặng cắt bớt.** Cắt về mép cửa sổ cũng cho ra danh sách đúng, nhưng người dùng
+  tưởng mình đang xem cả năm — một câu trả lời đúng cho một câu hỏi khác.
+- **Trừ hao một ngày.** Màn hình dựng mốc "sáu tháng trước" ở máy người dùng, máy chủ dựng lại ở
+  phía nó, hai đồng hồ lệch vài giây là chuyện thường — không trừ hao thì đúng cái mốc giao diện vừa
+  bày ra lại bị chính máy chủ từ chối.
+
+`/audit/facets` dựng ô chọn từ giá trị **có thật trong cửa sổ**, không khai cứng danh sách hành động
+ở giao diện: mã hành động sinh từ khoá định tuyến, nên một danh sách chép tay lệch ngay lượt thêm sự
+kiện tiếp theo — và lệch im lặng, vì ô chọn vẫn đầy.
+
+### Chốt chặn của `0088` tự chạy
+
+Thêm `AUDIT_WINDOW_EXCEEDED` ở máy chủ thì `loi.test.tsx` đỏ ngay vì bảng tra thiếu câu. Đúng thứ
+`0088` dựng ra để làm, và lần này nó bắt chính tôi.
+
+### Phá lại
+
+Ba lượt, và lượt thứ ba mới là lượt đáng ghi:
+
+- Bỏ chặn cửa sổ → 2 ca đỏ (`AUDIT_WINDOW_EXCEEDED` không ném; dòng 200 ngày trước lọt vào).
+- Gỡ `AuthGuard` ghi người gọi vào ngữ cảnh → **ba ca `kemNguCanh` vẫn XANH**, vì chúng gọi thẳng
+  `runWithContext`. Đó là lỗ hổng thật của bộ kiểm, không phải của mã.
+- Nên có ca **ĐỐI CHIẾU đi qua HTTP thật**: đăng nhập, lập một khách hàng, đọc chính dòng
+  `cus.outbox` mà request ấy sinh ra. Ca này đỏ ở lượt phá thứ hai — và chính nó bắt được lỗi luật
+  gắn tên ở trên, thứ mà ba ca kia bỏ qua.
+
+**1432/1432 xanh.**

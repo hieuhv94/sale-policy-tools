@@ -22,6 +22,7 @@ import { TokenExpiredError, verifyJwt, type JwtPayload } from '@csbh/identity-co
 import { getKeyPair } from './keys.js';
 import { JWT } from './jwt-config.js';
 import { ACCOUNT_SOURCE, type AccountSource } from './account-source.js';
+import { currentContext } from './request-context.js';
 import { PUBLIC, PWD_RESET_OK, ROLES, SERVICE_ONLY, type AuthUser } from './decorators.js';
 
 type Req = { headers: Record<string, string | string[] | undefined>; user?: AuthUser };
@@ -81,7 +82,30 @@ export class AuthGuard implements CanActivate {
       id: String(payload.sub),
       role: state.role,
       mustChangePassword: state.mustChangePassword,
+      name: state.name,
+      username: state.username,
     };
+
+    /*
+     * Ghi người gọi vào NGỮ CẢNH request (`0090`).
+     *
+     * Đây là chỗ duy nhất trong cả hệ vừa biết danh tính vừa còn nằm ở tầng
+     * HTTP. Nơi phát sự kiện — sâu trong service, sau nhiều lớp `await` — đọc
+     * lại từ ngữ cảnh, đúng cách `traceId` và `actorIp` đã đi.
+     *
+     * Sửa TẠI CHỖ đối tượng ngữ cảnh chứ không mở một `storage.run` mới: guard
+     * chạy BÊN TRONG phạm vi mà middleware đã mở, nên một `run` lồng thêm sẽ
+     * chết cùng lúc guard trả về và phần còn lại của request đọc lại thấy rỗng.
+     */
+    const nguCanh = currentContext();
+    if (nguCanh) {
+      nguCanh.actor = {
+        id: req.user.id,
+        role: req.user.role,
+        name: req.user.name,
+        username: req.user.username,
+      };
+    }
 
     const roles = this.reflector.getAllAndOverride<string[]>(ROLES, targets);
     if (roles && roles.length > 0 && !roles.includes(state.role)) {

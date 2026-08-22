@@ -15,6 +15,8 @@ type Row = {
   is_active: boolean;
   must_change_password: boolean;
   password_changed_at: Date;
+  full_name: string;
+  username: string;
 };
 
 @Injectable()
@@ -28,7 +30,8 @@ export class AccountCache implements AccountSource, OnModuleDestroy {
     if (hit) return JSON.parse(hit) as AccountState;
 
     const row = await this.db.one<Row>(
-      `SELECT id, role::text AS role, is_active, must_change_password, password_changed_at
+      `SELECT id, role::text AS role, is_active, must_change_password, password_changed_at,
+              full_name, username
          FROM idn.app_user WHERE id = $1`,
       [userId],
     );
@@ -40,6 +43,8 @@ export class AccountCache implements AccountSource, OnModuleDestroy {
       isActive: row.is_active,
       mustChangePassword: row.must_change_password,
       passwordChangedAt: row.password_changed_at.getTime(),
+      name: row.full_name,
+      username: row.username,
     };
     await this.redis.set(accountCacheKey(userId), JSON.stringify(state), 'EX', JWT.accountCacheTtlSec);
     return state;

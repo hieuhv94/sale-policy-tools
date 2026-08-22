@@ -25,6 +25,9 @@ export type AuthUser = {
   id: string;
   role: string;
   mustChangePassword: boolean;
+  /** Ảnh chụp danh tính cho nhật ký (`0090`) — xem `AccountState`. */
+  name?: string | undefined;
+  username?: string | undefined;
 };
 
 export const CurrentUser = createParamDecorator(

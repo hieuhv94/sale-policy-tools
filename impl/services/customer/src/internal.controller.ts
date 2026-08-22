@@ -3,7 +3,7 @@
  * chiết khấu, và cần TDV phụ trách để kiểm phạm vi — không đọc thẳng schema cus.
  */
 import { Body, Controller, Get, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
-import { ServiceOnly } from '@csbh/http-kit';
+import { ServiceOnly, kemNguCanh } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { PolicyClient } from './infra/policy.client.js';
 
@@ -121,7 +121,7 @@ export class CustomerInternalController {
       for (const x of r.rows) {
         await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
           'customer.changed',
-          JSON.stringify({
+          JSON.stringify(kemNguCanh({
             entity: 'customer',
             id: x.id,
             actorId: actor,
@@ -129,7 +129,7 @@ export class CustomerInternalController {
             before: { tdvUserId: from },
             after: { tdvUserId: to },
             at: new Date().toISOString(),
-          }),
+          })),
         ]);
       }
 

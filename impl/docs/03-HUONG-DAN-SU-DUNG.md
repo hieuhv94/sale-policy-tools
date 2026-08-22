@@ -176,6 +176,18 @@ trong nhật ký.
 > **Lỗi mạng khác lỗi dữ liệu.** Mất kết nối thì phần mềm nói rõ *"dữ liệu bạn đã nhập vẫn được giữ
 > nguyên"* — đóng hộp thoại và bấm lại là xong, **không phải nhập lại từ đầu**.
 
+### Nhật ký hệ thống `sửa 22/08`
+
+Màn hình *Nhật ký* của Quản trị hệ thống tra được **6 tháng gần nhất**, mở ra mặc định là **tháng
+này**. Sáu ô lọc: từ ngày · đến ngày · người thực hiện · hành động · đối tượng · địa chỉ IP.
+
+- Cột **Người thực hiện** hiện họ tên, dòng nhỏ dưới là tên đăng nhập và vai trò. Dòng cũ ghi trước
+  ngày 22/08 để trống ô này — phần mềm **không tra bù** tên hiện tại vào một việc của quá khứ.
+- Bấm **Xem thay đổi** ở những dòng có sửa dữ liệu để đọc giá trị **trước và sau**, kèm lý do.
+- Bấm **mã tra cứu** để xem cả chuỗi: một thao tác của bạn thường sinh ra nhiều dòng ở nhiều phần
+  khác nhau của hệ thống, và mã này nối chúng lại.
+- **Không có nút xuất file.** Nhật ký đọc tại chỗ; đó là lý do bộ lọc ở trên đầy đủ tới vậy.
+
 **Phần mềm không nói bừa khi chưa hỏi được máy chủ** `mới 22/08`. Trước đây vài chỗ tra hỏng mà màn
 hình vẫn trả lời dứt khoát — *"khách hàng chưa có CSBH nào"*, *"không có mục nào khớp"* — trong khi
 sự thật chỉ là lượt gọi ấy hỏng. Nay những chỗ đó nói đúng là chưa tra được, kèm nút thử lại.

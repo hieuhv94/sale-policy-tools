@@ -30,6 +30,7 @@ import { TemplatesService } from './templates.service.js';
 import { mergeDocx } from './docx.js';
 import { bangSanPhamXml } from './bang-san-pham.js';
 import { tron } from './tron.js';
+import { kemNguCanh } from '@csbh/http-kit';
 
 /** Đúng hai vai trò xuất được hợp đồng (muc 8, PLA.1 — sửa 06/08). */
 const EXPORTERS = ['KE_TOAN', 'SALE_ADMIN'];
@@ -197,7 +198,7 @@ export class ContractsService {
   private async audit(c: PoolClient, built: Preview, me: AuthUser): Promise<void> {
     await c.query(`INSERT INTO doc.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
       'document.contract_issued',
-      JSON.stringify({
+      JSON.stringify(kemNguCanh({
         entity: 'policy',
         id: built.policyId,
         policyCode: built.policyCode,
@@ -205,7 +206,7 @@ export class ContractsService {
         actorId: me.id,
         actorRole: me.role,
         at: new Date().toISOString(),
-      }),
+      })),
     ]);
   }
 }

@@ -5,7 +5,8 @@
   "main": "src/main.ts",
   "exports": {
     ".": "./src/app.module.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./window": "./src/log/audit.controller.ts"
   },
   "dependencies": {
     "@csbh/bus": "workspace:*",

@@ -62,9 +62,11 @@ export class AuditService {
       await this.db.q(
         `INSERT INTO aud.audit_log
            (event_id, occurred_at, actor_id, actor_role, actor_ip, action, entity, entity_id,
-            before_data, after_data, reason, trace_id, app_version)
+            before_data, after_data, reason, trace_id, app_version,
+            actor_name, actor_username, outcome, target_label)
          VALUES ($1, $2::timestamptz, $3, $4, $5::inet, $6, $7, $8,
-                 $9::jsonb, $10::jsonb, $11, $12, $13)`,
+                 $9::jsonb, $10::jsonb, $11, $12, $13,
+                 $14, $15, $16, $17)`,
         [
           e.eventId,
           occurredAt,
@@ -79,6 +81,12 @@ export class AuditService {
           s(p['reason']) ?? null,
           s(p['traceId']) ?? null,
           process.env.APP_VERSION ?? null,
+          // Bốn trường của `0090`. Không tra bù từ đâu cả: sự kiện nào không
+          // mang thì dòng ấy để trống, và đó là câu trả lời trung thực.
+          s(p['actorName']) ?? null,
+          s(p['actorUsername']) ?? null,
+          s(p['outcome']) ?? null,
+          s(p['targetLabel']) ?? null,
         ],
       );
       return 'written';

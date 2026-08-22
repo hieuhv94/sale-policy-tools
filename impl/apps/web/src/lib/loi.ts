@@ -379,6 +379,11 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Nội dung gửi lên quá lớn. Bớt số dòng hoặc tách làm nhiều lần.',
   },
+  AUDIT_WINDOW_EXCEEDED: {
+    dang: 'o-nhap',
+    truong: 'from',
+    cau: 'Nhật ký chỉ tra được 6 tháng gần nhất. Chọn lại mốc bắt đầu.',
+  },
   DEAD_LETTER_NOT_FOUND: {
     dang: 'thanh-noi',
     cau: 'Thư hỏng này không còn trong hàng đợi. Tải lại danh sách.',

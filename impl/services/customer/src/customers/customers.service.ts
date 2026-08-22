@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
+import { PG, paged, pgCode, type AuthUser, type Page, kemNguCanh } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
 import { PolicyClient } from '../infra/policy.client.js';
@@ -103,14 +103,14 @@ export class CustomersService {
       const created = r.rows[0]!;
       await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
         'customer.created',
-        JSON.stringify({
+        JSON.stringify(kemNguCanh({
           entity: 'customer',
           id: created.id,
           customerId: created.id,
           actorId: me.id,
           after: toDto(created),
           at: new Date().toISOString(),
-        }),
+        })),
       ]);
       return created;
     });
@@ -247,14 +247,14 @@ export class CustomersService {
       // csbh_cus không có quyền ghi vào schema aud.
       await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
         'customer.changed',
-        JSON.stringify({
+        JSON.stringify(kemNguCanh({
           entity: 'customer',
           id,
           actorId: me.id,
           before: toDto(cur),
           after: toDto(after),
           at: new Date().toISOString(),
-        }),
+        })),
       ]);
       return toDto(after);
     });
@@ -333,13 +333,13 @@ export class CustomersService {
       await this.db.tx(async (c) => {
         await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
           'customer.deleted',
-          JSON.stringify({
+          JSON.stringify(kemNguCanh({
             entity: 'customer',
             id,
             actorId: me.id,
             before: toDto(cur),
             at: new Date().toISOString(),
-          }),
+          })),
         ]);
         // Khoá ngoại vẫn là chốt chặn cuối: một hồ sơ lập xen vào giữa hai câu
         // lệnh thì CSDL từ chối, và người dùng nhận đúng câu "khách đã có hồ sơ".
@@ -367,7 +367,7 @@ export class CustomersService {
       );
       await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
         'customer.changed',
-        JSON.stringify({
+        JSON.stringify(kemNguCanh({
           entity: 'customer',
           id,
           actorId: me.id,
@@ -375,7 +375,7 @@ export class CustomersService {
           before: toDto(cur),
           after: toDto(r.rows[0]!),
           at: new Date().toISOString(),
-        }),
+        })),
       ]);
     });
     return { ok: true, deleted: false, expired: kq.expired.length };

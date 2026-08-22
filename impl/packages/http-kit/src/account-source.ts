@@ -17,6 +17,19 @@ export type AccountState = {
   mustChangePassword: boolean;
   /** epoch MILI giây — giây là quá thô, xem ghi chú ở AuthGuard. */
   passwordChangedAt: number;
+  /**
+   * Họ tên và tên đăng nhập, để NHẬT KÝ ghi được "ai" (`0090`).
+   *
+   * Đi kèm ở đây chứ không đặt thêm một claim vào JWT: bản ghi này đã được mọi
+   * service tra trên MỖI request và đã có cache dùng chung 60 giây, nên hai
+   * trường này tới nơi mà không tốn thêm lời gọi nào. Nhét vào token thì tên
+   * đóng băng tới lần đăng nhập sau, còn ở đây thì chậm nhất 60 giây là đúng.
+   *
+   * Không bắt buộc: bản ghi cũ còn trong cache Redis lúc triển khai chưa có hai
+   * trường này, và một nhật ký thiếu tên vẫn tốt hơn một request bị từ chối.
+   */
+  name?: string | undefined;
+  username?: string | undefined;
 };
 
 export interface AccountSource {

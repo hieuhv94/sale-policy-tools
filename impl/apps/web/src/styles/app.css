@@ -471,6 +471,56 @@ textarea.o-nhap { min-height: 6rem; }
 /* Dòng đọc số dưới ô nhập tiền (`0087`): chỗ đặt con số đã phân nhóm trong lúc
    người dùng đang gõ, thay cho việc chèn dấu chấm vào chính chữ họ vừa gõ. */
 .doc-so { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
+
+/* --- Nhật ký: bộ lọc và khối trước/sau (`0090`) --------------------------- */
+
+/* Lưới tự giãn thay vì số cột cứng: sáu ô lọc ở màn hình rộng nằm hai hàng, ở
+   điện thoại xếp dọc, mà không phải khai ba điểm ngắt. */
+.bo-loc-nhat-ky {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 var(--k3);
+  align-items: end;
+  margin-bottom: var(--k4);
+}
+.bo-loc-nhat-ky .nut { margin-bottom: var(--k3); }
+
+/* Dòng phụ dưới tên người và dưới nhãn đối tượng: tên đăng nhập, vai trò, loại
+   đối tượng — thứ cần khi đối chiếu, không phải thứ đọc trước. */
+.phu.duoi { display: block; font-size: var(--chu-nho); }
+
+.nk-thanh { color: var(--mau-tot); }
+.nk-bai { color: var(--mau-loi); font-weight: 600; }
+
+.nk-chi-tiet {
+  margin-top: var(--k2);
+  padding: var(--k2) var(--k3);
+  background: var(--mau-nen-phu);
+  border-radius: var(--bo-goc-nho);
+}
+.nk-ly-do { margin: 0 0 var(--k2); font-size: var(--chu-nho); }
+/* Hai cột trước/sau nằm cạnh nhau để mắt so theo hàng; màn hình hẹp thì xếp
+   dọc, vì hai cột 90px không so được gì. */
+.nk-truoc-sau { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--k3); }
+.nk-nhan {
+  display: block;
+  font-size: var(--chu-nho);
+  font-weight: 600;
+  color: var(--mau-chu-phu);
+  margin-bottom: var(--k1);
+}
+.nk-truoc-sau pre {
+  margin: 0;
+  padding: var(--k2);
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc-nho);
+  font-size: var(--chu-nho);
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 /* Đơn vị đứng cùng dòng nhãn, nhạt hơn — nó là chú thích cho con số, không phải
    một phần của tên trường. */
 .don-vi { color: var(--mau-chu-nhat); font-weight: 400; }
