@@ -8567,3 +8567,77 @@ lần nữa: hai ca cùng đỏ.
 > xanh nhờ dữ liệu của lượt trước, và lượt phá lại là cách duy nhất phát hiện.
 
 **1437/1437 xanh.**
+
+---
+
+## P118 — Kho lưu trữ log: thu hằng ngày, nén theo tháng
+
+**Ngày 22/08/2026** · thay đổi `0092`
+
+Yêu cầu phi chức năng mới: log của các service phải **lưu lại đầy đủ** để bảo trì và gỡ lỗi, và
+**nén theo từng tháng, có dấu thời gian rõ ràng**.
+
+### Bước 0 — đo trước, và con số nói ra một điều bất ngờ
+
+Dựng chồng demo, nạp 146 hồ sơ, đo bằng chính `docker compose logs`:
+
+```
+ca chong 15 container, luc nghi : 414 byte / 109 giay  (~0,33 MB/ngay)
+mot luot nap 146 ho so + danh muc: ~0,4 MB
+nen gzip tren log that           : 28.226 -> 3.559 byte (~8 lan)
+```
+
+Ước lượng: **~0,5 MB/ngày**, ~15 MB/tháng trước khi nén, ~2 MB/tháng sau khi nén. Nhỏ hơn nhiều so
+với dự đoán ban đầu — nên câu hỏi "giữ 12 tháng hay lâu hơn" gần như không còn là câu hỏi về dung
+lượng. Ghi con số ra để lần sau ai đó lo về đĩa thì có cái để đối chiếu, thay vì lo theo cảm giác.
+
+> Cảnh báo phải đi kèm: chồng demo **không có tải người dùng thật**, và một đợt sự cố ghi log dày
+> gấp trăm lần bình thường. Con số trên là SÀN, không phải trần. Trần do đệm rotation quyết định.
+
+### Hiện trạng: log đang bị vứt đi
+
+`json-file` giữ `max-size × max-file` rồi **xoá phần cũ** — 10m × 5 trước `0092`, tức một cửa sổ
+trượt vài ngày ở service bận nhất. Không cấu hình nào của Docker làm nó giữ lại được. Nên đây không
+phải việc thêm một bước nén vào thứ đang có, mà là **dựng một kho lưu trữ chưa từng có**.
+
+Nới lên 50m × 10 là đệm, không phải lưu trữ: đủ rộng để một ngày sự cố không tràn trước khi job thu
+gom kịp chạy.
+
+### Con trỏ mốc, không phải `--since 24h`
+
+Một mốc cố định hỏng theo cả hai chiều: job chạy trễ mười phút thì mười phút ấy bị thu **hai lần**,
+job lỡ hẳn một lượt thì cả ngày ấy **biến mất**. Con trỏ ghi lại dòng cuối đã thu nên chạy trễ, chạy
+bù, chạy hai lần liền đều ra cùng một kết quả.
+
+Chi tiết suýt lọt: `--since` của Docker là *"lớn hơn HOẶC BẰNG"*. Lưu thẳng mốc dòng cuối thì lượt
+sau thu lại đúng dòng ấy — **đo trên chồng demo thật: đúng một dòng trùng ở MỌI service**. Phải cộng
+một nano giây. Chú thích trong bản đầu đã viết là "cộng một nano giây" trong khi mã thì không làm —
+loại lệch mà đọc mã không thấy vì chú thích nói đúng.
+
+### Bộ kiểm bắt một lỗi khả chuyển thật
+
+`printf "%0*d"` của awk chạy trên gawk của máy chủ rồi **chết ở container alpine** (`%*x formats are
+not supported`). Ba ca kiểm đỏ ngay, và chúng đỏ vì chúng chạy trong đúng cái container mà script sẽ
+chạy ở production. Đệm số 0 bằng vòng lặp thay cho `%0*d`.
+
+### Ba quyết định về chỗ đặt
+
+- **Kho nằm NGOÀI `workspace/`.** `make clean` xoá sạch thư mục đó — để kho ở đấy là dựng một cái
+  kho mà lệnh dọn thường ngày xoá mất. Có một ca kiểm riêng cho chuyện này ở mức tài liệu, và
+  `.gitignore` ghi lý do ngay tại chỗ.
+- **Cùng chế độ bảo vệ với bản sao lưu CSDL.** Log chứa email và tên khách hàng trong thông báo lỗi,
+  nên nó là dữ liệu cá nhân.
+- **Bản trích audit không `DETACH`, không xoá dòng nào.** Bảng đã phân vùng theo tháng từ `0008` nên
+  bản trích chính là một partition — nhưng nó là bản SAO để soi ngoài giờ, không phải cách dọn bảng.
+  Quyết định 22/08 nói rõ: sáu tháng là *bảo đảm tra được*, không phải *giới hạn lưu trữ*.
+
+Và nó **không mâu thuẫn** với "nhật ký không có đường xuất file": điều đó nói về một tính năng trên
+màn hình cho người dùng bấm. Đây là việc của máy chủ, chạy theo lịch, ra một tệp nằm lại trên máy
+chủ — cùng loại với `pg_dump`.
+
+### Phá lại
+
+- Gỡ con trỏ mốc → 2 ca đỏ (dòng trùng ở lượt hai; lượt chạy bù thu thừa).
+- Bỏ chốt "từ chối nén tháng đang chạy" → 1 ca đỏ.
+
+**1442/1442 xanh.**
