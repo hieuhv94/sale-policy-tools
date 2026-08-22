@@ -20,6 +20,7 @@ import {
 } from '../components/SuaKhachHang.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
+import { la404 } from '../lib/loi.js';
 
 type KhachHangDto = {
   id: string;
@@ -120,6 +121,8 @@ export function ChiTietKhachHang({ id }: { id: string }) {
   const { nguoiDung } = usePhien();
   const [kh, datKh] = useState<KhachHangDayDu | null>(null);
   const [hoSo, datHoSo] = useState<HoSoHienHanh | null | 'khong-co'>(null);
+  /** Lỗi của riêng khối *CSBH đang áp dụng* — không dỡ cả màn hình khách hàng. */
+  const [loiHoSo, datLoiHoSo] = useState<unknown>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [mo, datMo] = useState<'sua' | 'tdv' | 'ngung' | null>(null);
   const [lan, datLan] = useState(0);
@@ -133,8 +136,14 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       });
     layJson<HoSoHienHanh>(`/policies/current?customerId=${encodeURIComponent(id)}`, huy.signal)
       .then(datHoSo)
-      // 404 nghĩa là khách chưa có CSBH nào — trạng thái bình thường, không phải lỗi.
-      .catch(() => datHoSo('khong-co'));
+      .catch((e: unknown) => {
+        if (huy.signal.aborted) return;
+        // 404 nghĩa là khách chưa có CSBH nào — câu trả lời bình thường.
+        // Mọi lỗi KHÁC thì nói ra (`0089`): nuốt chúng vào cùng nhánh này là
+        // khẳng định "chưa có CSBH nào" trong khi thật ra chưa hỏi được.
+        if (la404(e)) datHoSo('khong-co');
+        else datLoiHoSo(e);
+      });
     return () => huy.abort();
   }, [id, lan]);
 
@@ -227,7 +236,8 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       </dl>
 
       <h2>CSBH đang áp dụng</h2>
-      {hoSo === null && <DangTai />}
+      {loiHoSo !== null && <BaoLoi loi={loiHoSo} thuLai={taiLai} />}
+      {hoSo === null && loiHoSo === null && <DangTai />}
       {hoSo === 'khong-co' && (
         <Trong
           tieuDe="Khách hàng chưa có CSBH nào đang hiệu lực"

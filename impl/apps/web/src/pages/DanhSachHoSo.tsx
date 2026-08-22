@@ -15,7 +15,7 @@
  * đã chọn cùng số kết quả (`FE-10`). Điều kiện lưu ở máy chủ theo phiên, nên
  * chuyển màn hình rồi quay lại vẫn còn (`RPT-04`).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dang, dat, layJson } from '../lib/api.js';
 import { ngay, nhanTrangThai } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
@@ -27,6 +27,8 @@ import { MOI_TRANG, soTrangCua } from '../lib/phan-trang.js';
 import { MOI_TRANG_THAI } from '../lib/tong-quan.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
+import { la404 } from '../lib/loi.js';
 
 type Dong = {
   policyId: string;
@@ -158,16 +160,29 @@ function useDanhMucLoc() {
   const [nhom, datNhom] = useState<TuyChon[]>([]);
   const [tdv, datTdv] = useState<TuyChon[]>([]);
 
+  const { bao } = useBaoLoi();
+
+  /*
+   * Hai danh mục của bộ lọc (`0089`).
+   *
+   * Nuốt lỗi ở đây cho ra hai ô chọn RỖNG, và một ô chọn rỗng đọc ra là "hệ
+   * thống không có nhóm sản phẩm nào" — người dùng bỏ luôn ý định lọc theo nhóm
+   * thay vì thử lại. Thanh nổi vì việc chính (xem danh sách hồ sơ) vẫn chạy
+   * bình thường, chỉ hai ô lọc là thiếu lựa chọn.
+   */
   useEffect(() => {
     const huy = new AbortController();
+    const hong = (e: unknown) => {
+      if (!huy.signal.aborted) bao(e);
+    };
     void layJson<{ code: string; name: string }[]>('/catalog/product-groups', huy.signal)
       .then((ds) => datNhom(ds.map((g) => ({ gia: g.code, nhan: `${g.code} — ${g.name}` }))))
-      .catch(() => undefined);
+      .catch(hong);
     void layJson<{ userId: string; name: string | null }[]>('/reports/handlers', huy.signal)
       .then((ds) => datTdv(ds.map((n) => ({ gia: n.userId, nhan: n.name ?? 'Chưa rõ tên' }))))
-      .catch(() => undefined);
+      .catch(hong);
     return () => huy.abort();
-  }, []);
+  }, [bao]);
 
   return { nhom, tdv };
 }
@@ -219,7 +234,26 @@ const TIM: Record<TimO, (q: string) => Promise<TuyChon[]>> = {
 export function DanhSachHoSo() {
   const { nguoiDung } = usePhien();
   const { truyVan } = useDuong();
+  const { bao } = useBaoLoi();
   const tuLienKet = truyVan.toString();
+
+  /*
+   * Lưu bộ lọc hỏng thì BÁO MỘT LẦN cho cả màn hình (`0089`).
+   *
+   * Trước `0089` việc này nuốt lỗi hoàn toàn: người dùng dựng một bộ lọc sáu
+   * điều kiện, mai mở lại thấy trống trơn, và không hiểu vì sao. Nhưng mỗi lần
+   * đổi MỘT ô lọc là một lời gọi lưu, nên báo mỗi lượt là mưa thanh nổi —
+   * `daBao` chặn đúng chỗ đó.
+   */
+  const daBao = useRef(false);
+  const baoLuuHong = useCallback(
+    (e: unknown) => {
+      if (daBao.current) return;
+      daBao.current = true;
+      bao(e);
+    },
+    [bao],
+  );
 
   const [boLoc, datBoLoc] = useState<BoLoc>({});
   const [dong, datDong] = useState<Dong[] | null>(null);
@@ -262,13 +296,17 @@ export function DanhSachHoSo() {
 
     if (Object.keys(tuDuong).length > 0) {
       datBoLoc(tuDuong);
-      void dat('/reports/filters/ho-so', tuDuong).catch(() => undefined);
+      void dat('/reports/filters/ho-so', tuDuong).catch(baoLuuHong);
       return;
     }
 
     layJson<{ filter: BoLoc }>('/reports/filters/ho-so')
       .then((r) => datBoLoc(r.filter ?? {}))
-      .catch(() => undefined);
+      // 404 nghĩa là CHƯA từng lưu bộ lọc nào — câu trả lời bình thường của
+      // lần mở màn hình đầu tiên, không phải lỗi (`0089`).
+      .catch((e: unknown) => {
+        if (!la404(e)) baoLuuHong(e);
+      });
   }, [tuLienKet]);
 
   const chuoiTruyVan = useCallback(
@@ -327,12 +365,12 @@ export function DanhSachHoSo() {
     const moi = { ...boLoc, [k]: v };
     if (!v) delete moi[k];
     datBoLoc(moi);
-    void dat('/reports/filters/ho-so', moi).catch(() => undefined);
+    void dat('/reports/filters/ho-so', moi).catch(baoLuuHong);
   };
 
   const xoaLoc = async () => {
     datBoLoc({});
-    await dang('/reports/filters/ho-so/clear', {}).catch(() => undefined);
+    await dang('/reports/filters/ho-so/clear', {}).catch(baoLuuHong);
   };
 
   const soDieuKien = Object.values(boLoc).filter(Boolean).length;

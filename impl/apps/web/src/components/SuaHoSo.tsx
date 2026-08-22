@@ -42,7 +42,8 @@ type XemTruocNguong = {
  * lại từ đầu. Biết trước thì người lập chọn được — vẫn lập và chấp nhận dòng
  * không có ngưỡng đối chiếu, hay dừng lại hỏi trước.
  *
- * Mọi lỗi ở đây KHÔNG hiện gì. Đây là thông tin thêm, không phải điều kiện để
+ * Mọi lỗi ở đây KHÔNG hiện gì, và `0089` rà lại rồi giữ nguyên. Đây là thông
+ * tin thêm, không phải điều kiện để
  * lưu; một khối đỏ "không tra được ngưỡng" cạnh biểu mẫu đang gõ dở chỉ làm
  * người dùng tưởng mình vừa làm hỏng thứ gì. Máy chủ vẫn tra lại lúc lưu, và từ
  * `0023` thì thiếu ngưỡng KHÔNG còn là lý do từ chối.

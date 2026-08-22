@@ -65,6 +65,17 @@ export function ChonNhieu({
 }) {
   const [tim, datTim] = useState('');
   const [ketQua, datKetQua] = useState<TuyChon[]>([]);
+  /*
+   * Tra danh sách hỏng (`0089`).
+   *
+   * Nuốt lỗi ở đây cho ra một câu NÓI DỐI: hộp gợi ý hiện *"Không có mục nào
+   * khớp"* trong khi sự thật là chưa hỏi được máy chủ. Người dùng kết luận mã
+   * họ đang tìm không tồn tại và đi tạo một mã trùng.
+   *
+   * Không dùng thanh nổi: ô này gọi lại sau mỗi 250ms gõ, nên một thanh nổi
+   * cho mỗi lượt hỏng là mưa thông báo. Câu này thay đúng chỗ câu sai kia.
+   */
+  const [loiTra, datLoiTra] = useState(false);
   const [mo, datMo] = useState(false);
   const maDs = useId();
   const khung = useRef<HTMLDivElement>(null);
@@ -102,8 +113,13 @@ export function ChonNhieu({
           if (!song) return;
           for (const t of ds) daBiet.current.set(t.gia, t.nhan);
           datKetQua(ds);
+          datLoiTra(false);
         })
-        .catch(() => undefined);
+        .catch(() => {
+          if (!song) return;
+          datKetQua([]);
+          datLoiTra(true);
+        });
     }, 250);
     return () => {
       song = false;
@@ -202,7 +218,9 @@ export function ChonNhieu({
       {mo && !(typeof nguon === 'function' && tim.trim() === '') && (
         <ul className="chon-nhieu-ds" id={maDs} role="listbox" aria-multiselectable="true">
           {ketQua.filter((t) => !giaTri.includes(t.gia)).length === 0 ? (
-            <li className="chon-nhieu-trong">Không có mục nào khớp</li>
+            <li className="chon-nhieu-trong">
+              {loiTra ? 'Không tra được danh sách. Kiểm tra kết nối rồi gõ lại.' : 'Không có mục nào khớp'}
+            </li>
           ) : (
             ketQua
               .filter((t) => !giaTri.includes(t.gia))

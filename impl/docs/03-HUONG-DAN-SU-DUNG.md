@@ -176,6 +176,10 @@ trong nhật ký.
 > **Lỗi mạng khác lỗi dữ liệu.** Mất kết nối thì phần mềm nói rõ *"dữ liệu bạn đã nhập vẫn được giữ
 > nguyên"* — đóng hộp thoại và bấm lại là xong, **không phải nhập lại từ đầu**.
 
+**Phần mềm không nói bừa khi chưa hỏi được máy chủ** `mới 22/08`. Trước đây vài chỗ tra hỏng mà màn
+hình vẫn trả lời dứt khoát — *"khách hàng chưa có CSBH nào"*, *"không có mục nào khớp"* — trong khi
+sự thật chỉ là lượt gọi ấy hỏng. Nay những chỗ đó nói đúng là chưa tra được, kèm nút thử lại.
+
 ## 4. Trang tổng quan
 
 **Đăng nhập xong bạn vào đây**, dù trước đó thanh địa chỉ đang ở màn hình nào. Mở lại một tab cũ đang

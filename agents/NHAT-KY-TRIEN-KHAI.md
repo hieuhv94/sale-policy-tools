@@ -8363,3 +8363,74 @@ nào phải nhớ.
 > ghi ra đây vì mọi ca kiểm giao diện thêm sau này chạm tới lỗi đều gặp lại đúng chỗ ấy.
 
 **1412/1412 xanh.**
+
+---
+
+## P115 — Mười lăm chỗ nuốt lỗi im lặng, và ba câu nói dối
+
+**Ngày 22/08/2026** · thay đổi `0089`
+
+Phần còn lại của `0088`. Chặng trước chuẩn hoá câu chữ cho mọi lỗi **được báo**; lớp này là những
+lỗi chưa bao giờ được báo — `.catch(() => undefined)` rải trên các đường phụ.
+
+(Đếm lại cho đúng: **15 chỗ**, không phải 16 như tôi nói lúc rà. Con số cũ tính nhầm cả
+`res.json().catch(() => ({}))` trong `api.ts`, vốn là chuyện khác — thân lỗi không phải JSON thì mã
+lỗi vẫn suy được từ HTTP status.)
+
+### Thứ đáng sửa không phải sự im lặng
+
+Đa số 15 chỗ im lặng là đúng. Thứ thật sự hỏng là **ba chỗ trả lời dứt khoát một câu hỏi mà phần
+mềm chưa hỏi được**:
+
+| Lượt gọi hỏng | Màn hình khẳng định | Người dùng làm gì tiếp |
+|---|---|---|
+| `/policies/current` | *"Khách hàng chưa có CSBH nào đang hiệu lực"* | Lập bản "đầu tiên" cho khách **đang có** CSBH |
+| Danh sách gợi ý ở ô lọc | *"Không có mục nào khớp"* | Kết luận mã mình tìm không tồn tại |
+| Ứng viên bàn giao (`.catch(() => [])`) | *"không có ai cùng vai trò"* | Đi tạo thêm một tài khoản, trong khi chọn người nhận là **bắt buộc** |
+
+Ba câu ấy tệ hơn im lặng: im lặng để người dùng tự thấy có gì không ổn, còn một câu sai dứt khoát
+thì đóng luôn đường nghi ngờ.
+
+**Luật rút ra: 404 là CÂU TRẢ LỜI, mọi lỗi khác thì không.** Hỏi "khách này đang áp dụng CSBH nào"
+mà nhận 404 nghĩa là *chưa có bản nào* — đó là dữ liệu. `catch` bắt tất thì mất mạng, 500 và token
+hỏng cũng thành cùng một câu. Thêm `la404()` ở `lib/loi.ts` và tách hai nhánh ở cả ba chỗ.
+
+### Hai chỗ hỏng theo kiểu khác
+
+- **Vòng hỏi tiến độ xuất Excel** nuốt lỗi thì nút quay tròn **vĩnh viễn**: vòng vẫn chạy, mỗi lượt
+  vẫn hỏng, người dùng ngồi chờ một file không bao giờ tới. Nay đếm ba lượt hỏng liên tiếp — đủ để
+  loại trừ một cú vấp mạng — rồi dừng và báo.
+- **Lưu bộ lọc** hỏng thì mai mở lại mất sạch bộ lọc sáu điều kiện, không ai hiểu vì sao. Nhưng mỗi
+  lần đổi MỘT ô là một lời gọi lưu, nên báo mỗi lượt là mưa thanh nổi. Một cờ `daBao` cho cả màn
+  hình.
+
+### Bốn chỗ giữ nguyên, và lý do đi vào mã
+
+Ảnh thu nhỏ (thẻ tệp vẫn còn tên và hai nút), xem trước ngưỡng (máy chủ tra lại lúc lưu), lời gọi
+đăng xuất (trình duyệt đã đăng xuất xong), tra khách theo id trên địa chỉ (rơi về bước tìm như
+thường). Cả bốn nay mang một đoạn ghi chú nói rõ **người dùng không mất gì** — vì thứ phân biệt "cố
+ý" với "quên" khi đọc lại sau sáu tháng chỉ là đoạn ghi chú ấy.
+
+### Phép quét, và giới hạn của nó
+
+Cùng hình dạng với `0088`: `nuot-loi.test.tsx` quét `apps/web/src`, và mọi `.catch(() => …)` **trả
+về một giá trị trơ** phải nằm trong danh sách bốn chỗ đã duyệt. Thêm một chỗ nuốt mới là đỏ, và lượt
+sửa cho xanh buộc người viết trả lời câu *"người dùng mất gì khi việc này hỏng mà không ai nói"*.
+
+**Giới hạn phải nói ra:** phép quét KHÔNG bắt được dạng thứ hai của cùng một bệnh — một `.catch` ánh
+xạ mọi lỗi về một trạng thái bình thường, đúng như `.catch(() => datHoSo('khong-co'))` vừa gỡ. Không
+mẫu chữ nào nhận ra nó; ba ca kiểm hành vi ở trên là thứ duy nhất gác chỗ ấy. Ghi ra để không ai đọc
+phép quét thành một bảo đảm rộng hơn thực tế.
+
+### Phá lại
+
+Trả hai chỗ về kiểu nuốt cũ — `datHoSo('khong-co')` cho mọi lỗi, và `.catch(() => undefined)` ở ô
+gợi ý — cho **3 ca đỏ ở hai tầng**: hai ca hành vi (*"máy chủ hỏng thì KHÔNG được nói là khách chưa
+có CSBH nào"*, *"KHÔNG còn nói Không có mục nào khớp"*) và một ca quét.
+
+> Ba ca của chính bộ kiểm đỏ ở lượt đầu, và cả ba đều là lỗi của tôi chứ không phải của mã sản
+> phẩm: ca thứ nhất bắt cả chữ *"Chưa có CSBH"* của khối *Lịch sử CSBH* nằm ngay dưới — hai khối
+> khác nhau nói hai câu gần giống; ca thứ hai dùng mẫu chữ quá rộng nên tính luôn `.catch` mới có
+> xử lý thật; ca thứ ba đòi ghi chú mang mã `0089` ở một tệp tôi rà rồi mà quên đánh dấu.
+
+**1418/1418 xanh.**

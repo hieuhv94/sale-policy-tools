@@ -23,6 +23,7 @@ import { ngay } from '../lib/format.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
+import { la404 } from '../lib/loi.js';
 
 type KhachHang = { id: string; code: string; name: string };
 type HoSoHienHanh = { id: string; code: string; appliedDate: string | null };
@@ -122,6 +123,8 @@ function ChonCachLap({
 }) {
   const { bao } = useBaoLoi();
   const [hienHanh, datHienHanh] = useState<HoSoHienHanh | null | 'khong-co'>(null);
+  /** Lỗi TRA bản đang hiệu lực — khác hẳn với "khách chưa có bản nào". */
+  const [loiTra, datLoiTra] = useState<unknown>(null);
   const [ngayApDung, datNgayApDung] = useState(() => new Date().toISOString().slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -133,8 +136,14 @@ function ChonCachLap({
       huy.signal,
     )
       .then(datHienHanh)
-      // 404 nghĩa là khách chưa có CSBH nào — trạng thái bình thường, không phải lỗi.
-      .catch(() => datHienHanh('khong-co'));
+      .catch((e: unknown) => {
+        if (huy.signal.aborted) return;
+        // 404 nghĩa là khách chưa có CSBH nào — câu trả lời bình thường. Lỗi
+        // khác thì phải nói ra (`0089`): màn hình này quyết định giữa "lập bản
+        // đầu tiên" và "lập phiên bản mới", và đoán sai vế là lập nhầm loại.
+        if (la404(e)) datHienHanh('khong-co');
+        else datLoiTra(e);
+      });
     return () => huy.abort();
   }, [khachHang.id]);
 
@@ -156,6 +165,7 @@ function ChonCachLap({
     }
   };
 
+  if (loiTra !== null) return <BaoLoi loi={loiTra} />;
   if (hienHanh === null) return <DangTai />;
 
   // Ô ngày có sẵn giá trị hôm nay nên nhìn như đã điền, mà xoá trắng đi thì

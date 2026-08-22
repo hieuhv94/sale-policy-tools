@@ -13,7 +13,7 @@
  * KHÔNG CHẶN MÀN HÌNH (`RPT-08`): bấm xong nhận mã việc, file dựng ở máy chủ,
  * đóng màn hình giữa chừng cũng không hỏng.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { dang, layJson, taiVe } from '../lib/api.js';
 import { BaoLoi } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
@@ -43,16 +43,38 @@ export function NutXuatExcel({
   const { bao } = useBaoLoi();
   const [viec, datViec] = useState<ViecXuat | null>(null);
   const [dangTai, datDangTai] = useState(false);
+  /*
+   * Đếm số lượt hỏi tiến độ hỏng liên tiếp (`0089`).
+   *
+   * Nuốt lỗi ở đây để lại một nút quay tròn VĨNH VIỄN: vòng hỏi vẫn chạy, mỗi
+   * lượt vẫn hỏng, và người dùng ngồi chờ một file không bao giờ tới. Ba lượt
+   * là đủ để loại trừ một cú vấp mạng; quá đó thì dừng hỏi và nói ra.
+   */
+  const hong = useRef(0);
 
   useEffect(() => {
     if (!viec || viec.status === 'XONG' || viec.status === 'LOI') return;
     const h = setTimeout(() => {
       void layJson<ViecXuat>(`/reports/exports/${viec.jobId}`)
-        .then(datViec)
-        .catch(() => undefined);
+        .then((v) => {
+          hong.current = 0;
+          datViec(v);
+        })
+        .catch((e: unknown) => {
+          hong.current += 1;
+          if (hong.current < 3) {
+            // Đụng lại chính `viec` để `useEffect` chạy vòng sau — hỏng một lượt
+            // giữa chừng thì thử tiếp, đó là chuyện thường của một vòng hỏi.
+            datViec({ ...viec });
+            return;
+          }
+          hong.current = 0;
+          datViec({ ...viec, status: 'LOI' });
+          bao(e);
+        });
     }, 700);
     return () => clearTimeout(h);
-  }, [viec]);
+  }, [viec, bao]);
 
   /*
    * Đổi bộ lọc là VỨT việc đang có.

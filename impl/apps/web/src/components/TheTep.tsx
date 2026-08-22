@@ -47,6 +47,11 @@ function AnhThuNho({ tenTep, duong }: { tenTep: string; duong: string | null }) 
    *
    * Chỉ tải khi ĐÃ CÓ đường: `duong` là `null` cho tới lúc thẻ cha xin xong liên
    * kết, và với tệp không phải ảnh thì mãi mãi `null` — không tải gì cả.
+   *
+   * ẢNH HỎNG THÌ IM LẶNG, và đây là một trong ba chỗ `0089` cố ý giữ nguyên:
+   * thẻ tệp đã có biểu tượng thay ảnh, tên tệp và cả hai nút *Xem* / *Tải
+   * xuống* vẫn dùng được. Người dùng không mất việc gì, nên một thanh nổi ở đây
+   * chỉ báo về một thứ trang trí.
    */
   useEffect(() => {
     if (duong === null || !laAnh(tenTep)) return;

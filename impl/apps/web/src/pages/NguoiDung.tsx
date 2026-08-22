@@ -480,7 +480,15 @@ function HopThoaiVoHieu({
     const huy = new AbortController();
     Promise.all([
       layJson<XemTruocBanGiao>(`/admin/users/${u.id}/ban-giao`, huy.signal),
-      layJson<NguoiChon[]>(`/auth/nguoi-theo-vai-tro/${u.role}`, huy.signal).catch(() => []),
+      /*
+       * KHÔNG nuốt lỗi ở đây nữa (`0089`).
+       *
+       * Trả về mảng rỗng thì hộp thoại nói "không có tài khoản nào cùng vai
+       * trò để bàn giao" — mà chọn người nhận là điều kiện BẮT BUỘC để vô hiệu
+       * hoá một tài khoản. Quản trị đọc câu ấy rồi kết luận sai rằng phải tạo
+       * thêm một tài khoản trước, trong khi thật ra chỉ là một lượt gọi hỏng.
+       */
+      layJson<NguoiChon[]>(`/auth/nguoi-theo-vai-tro/${u.role}`, huy.signal),
     ])
       .then(([hs, ds]) => {
         datHoSo(hs);

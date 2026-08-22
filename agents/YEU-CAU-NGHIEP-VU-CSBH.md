@@ -682,6 +682,18 @@ không khai câu cho nó là **ca kiểm đỏ**, không phải một thiếu s�
 > xong còn lại trang trắng; lỗi của một ô mà hiện hộp thoại thì đóng xong người dùng vẫn phải tự đi
 > tìm ô sai; còn mã nội bộ giữa các service thì không nói được gì cho người dùng.
 
+**Việc hỏng thì không được im lặng nếu người dùng mất gì.** `sửa 22/08` Một lượt gọi phụ hỏng mà
+màn hình vẫn trả lời dứt khoát là câu **sai sự thật**, và người dùng không có cách nào nghi ngờ:
+tra CSBH đang áp dụng hỏng thì màn hình nói *"khách hàng chưa có CSBH nào"*; tra danh sách gợi ý
+hỏng thì nói *"không có mục nào khớp"*; tra danh sách người nhận bàn giao hỏng thì nói *"không có
+ai cùng vai trò"* — trong khi việc chọn người nhận là bắt buộc.
+
+> **404 là câu trả lời, mọi lỗi khác thì không.** Hỏi "khách này đang áp dụng CSBH nào" mà nhận 404
+> nghĩa là *chưa có bản nào* — đó là dữ liệu, không phải lỗi. Mất mạng hay 500 thì phải nói ra.
+>
+> Chỗ nào **cố ý** im lặng thì phải nói được người dùng không mất gì: ảnh thu nhỏ hỏng vẫn còn tên
+> tệp và hai nút xem/tải; lời gọi đăng xuất hỏng thì trình duyệt đã đăng xuất xong rồi.
+
 **Không câu lỗi nào được lộ tên trường trong mã, mã trạng thái, hay chữ không dấu.** Bản trước hiện
 nguyên văn *"wholesalePrice: phải là số nguyên không âm"* và *"Khong the thuc hien "TBP_SIGN" khi ho
 so dang o "CHO_KT_L1""* — câu thứ hai là câu dùng cho log, đi thẳng ra màn hình.

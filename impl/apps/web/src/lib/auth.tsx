@@ -214,6 +214,13 @@ export function PhienProvider({ children }: { children: ReactNode }) {
   const dangXuat = useCallback(() => {
     // Đăng xuất CÓ CHỦ Ý thì xoá cả bản nháp — khác hẳn với phiên hết hạn.
     const p = layPhien();
+    /*
+     * Lời gọi này hỏng thì IM LẶNG, cố ý (`0089`).
+     *
+     * Phía trình duyệt đã đăng xuất xong ngay dưới đây dù máy chủ trả gì; báo
+     * lỗi là bắt người vừa bấm Đăng xuất đọc một hộp thoại về việc họ đang rời
+     * đi. Token còn sống ở máy chủ thì tự hết hạn theo cửa sổ phiên.
+     */
     if (p) void dang('/auth/logout', { refreshToken: p.refreshToken }).catch(() => undefined);
     datPhien(null);
     datNguoiDung(null);

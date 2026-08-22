@@ -393,6 +393,17 @@ export const BANG_LOI: Record<string, Muc> = {
   KHONG_CO_TRINH_DUYET: { dang: 'thanh-noi', cau: 'Chỉ tải được tệp từ trình duyệt.' },
 };
 
+/**
+ * Lỗi này có phải "không tìm thấy" không (`0089`).
+ *
+ * Vài đường đọc coi 404 là một CÂU TRẢ LỜI hợp lệ chứ không phải lỗi — hỏi
+ * "khách này đang áp dụng CSBH nào" mà nhận 404 nghĩa là *chưa có bản nào*.
+ * Nhưng `catch` bắt tất: mất mạng, 500, hay token hỏng cũng rơi vào cùng nhánh
+ * ấy và màn hình khẳng định "khách hàng chưa có CSBH nào" — một câu SAI, và sai
+ * ở chỗ người dùng không có cách nào nghi ngờ.
+ */
+export const la404 = (e: unknown): boolean => e instanceof LoiApi && e.status === 404;
+
 export type LoiDaDoc = {
   cau: string;
   dang: Dang;
