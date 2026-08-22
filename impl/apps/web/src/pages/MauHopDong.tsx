@@ -25,6 +25,7 @@ import {
 } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DaiThe, DangTai, HopThoaiXacNhan, Trong } from '../components/Chung.js';
 import { ThemMau } from './ThemMau.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 export function VanBanMau() {
   const [the, datThe] = useState<LoaiMau>('HO_SO');
@@ -52,6 +53,7 @@ export function VanBanMau() {
 }
 
 function MauVanBan({ loai }: { loai: LoaiMau }) {
+  const { bao } = useBaoLoi();
   const ch = CAU_HINH_MAU[loai];
   const [ds, datDs] = useState<MauDto[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
@@ -80,7 +82,7 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
       await xoaApi(`${ch.duong}/${m.id}`);
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangXoa(null);
     }

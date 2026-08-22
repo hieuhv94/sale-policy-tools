@@ -658,6 +658,34 @@ hàng là thứ không ai làm.
 - Ô nhập tỷ lệ cắt còn **hai chữ số thập phân ngay lúc gõ**, dấu thập phân là **dấu phẩy**. Nhận cả
   dấu chấm vì bàn phím số trên laptop chỉ có dấu chấm.
 
+### 6.7. Báo lỗi trên giao diện `mới 22/08`
+
+**Mọi lỗi phải nói đúng việc vừa hỏng, và hiện ở chỗ hợp với việc người dùng phải làm tiếp.** Câu
+chữ của từng mã lỗi khai ở **một bảng tra duy nhất** trong giao diện; thêm một mã lỗi ở máy chủ mà
+không khai câu cho nó là **ca kiểm đỏ**, không phải một thiếu sót âm thầm.
+
+| Dạng | Dùng khi | Ví dụ |
+|---|---|---|
+| **Hộp thoại** | Thao tác vừa bấm không thành, phải biết trước khi làm tiếp | Hồ sơ vừa bị người khác cập nhật · Chưa tải bản scan |
+| **Thanh nổi** | Việc phụ hỏng, không mất dữ liệu, không phải quyết định gì | File Excel đang dựng · Thao tác quá nhanh |
+| **Dưới ô nhập** | Lỗi thuộc đúng **một trường** | Sai mật khẩu · Mã khách hàng trùng |
+| **Ở lại trên trang** | Không tải được dữ liệu để dựng màn hình | Hồ sơ không tồn tại · Ngoài phạm vi |
+| **Không hiện** | Lỗi giữa các service, hoặc lớp phủ phiên đã lo | Thiếu token nội bộ |
+
+> Bản trước để mỗi màn hình tự vẽ một khối đỏ ở chỗ nó thấy tiện — 60 chỗ, 15 trong số đó thay hẳn
+> cả trang. Hai hệ quả đo được ngày 22/08: **35 trên 96 mã lỗi không có câu nào**, nên chúng rơi vào
+> bảy câu mặc định suy từ mã HTTP (gõ sai mật khẩu ra *"Yêu cầu không hợp lệ."*, mười bốn mã "không
+> tìm thấy" khác nhau ra **cùng một câu**); và khối đỏ nằm cuối một biểu mẫu dài thì người dùng bấm
+> Lưu, không thấy gì đổi, tưởng phần mềm treo.
+>
+> Ba dạng không phải hộp thoại đều có lý do đứng vững: lỗi tải trang mà hiện hộp thoại thì đóng nó
+> xong còn lại trang trắng; lỗi của một ô mà hiện hộp thoại thì đóng xong người dùng vẫn phải tự đi
+> tìm ô sai; còn mã nội bộ giữa các service thì không nói được gì cho người dùng.
+
+**Không câu lỗi nào được lộ tên trường trong mã, mã trạng thái, hay chữ không dấu.** Bản trước hiện
+nguyên văn *"wholesalePrice: phải là số nguyên không âm"* và *"Khong the thuc hien "TBP_SIGN" khi ho
+so dang o "CHO_KT_L1""* — câu thứ hai là câu dùng cho log, đi thẳng ra màn hình.
+
 ---
 
 ## 7. Quy tắc tính toán

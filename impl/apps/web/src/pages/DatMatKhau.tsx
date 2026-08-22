@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { dang } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
 import { BaoLoi, Truong } from '../components/Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type CheDo = {
   duong: string;
@@ -55,11 +56,11 @@ export const KichHoat = () => <DatMatKhau che={KICH_HOAT} />;
 export const DatLaiMatKhau = () => <DatMatKhau che={DAT_LAI} />;
 
 function DatMatKhau({ che }: { che: CheDo }) {
+  const { bao } = useBaoLoi();
   const { truyVan, di } = useDuong();
   const token = truyVan.get('token') ?? '';
   const [moi, datMoi] = useState('');
   const [lai, datLai] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const [xong, datXong] = useState(false);
 
@@ -67,13 +68,12 @@ function DatMatKhau({ che }: { che: CheDo }) {
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       await dang(che.duong, { token, newPassword: moi });
       datXong(true);
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -130,7 +130,6 @@ function DatMatKhau({ che }: { che: CheDo }) {
           )}
         </Truong>
 
-        {loi !== null && <BaoLoi loi={loi} />}
 
         <button type="submit" className="nut nut-chinh nut-rong" disabled={dangGui || !khopNhau}>
           {dangGui ? che.dangLam : che.nhanNut}

@@ -40,6 +40,7 @@ import {
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
+import { useBaoLoi } from '../../lib/bao-loi.js';
 
 export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; chiXem?: boolean }) {
   const [moTao, datMoTao] = useState(false);
@@ -299,12 +300,12 @@ function HopThoaiSuaQuyDinh({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [nguong, datNguong] = useState(phanTramTuNguong(q.thresholdRate2));
   // `<input type="date">` chỉ nhận `yyyy-mm-dd`. Máy chủ trả về `date` của
   // Postgres, mà `pg` dựng nó thành chuỗi ISO có cả phần giờ — cắt lấy mười ký
   // tự đầu, nếu không ô ngày mở ra RỖNG và người dùng tưởng dữ liệu hỏng.
   const [tuNgay, datTuNgay] = useState(String(q.effectiveFrom).slice(0, 10));
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
@@ -312,7 +313,6 @@ function HopThoaiSuaQuyDinh({
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       await va(`/catalog/discount-rules/${encodeURIComponent(q.code)}`, {
@@ -321,7 +321,7 @@ function HopThoaiSuaQuyDinh({
       });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -365,7 +365,6 @@ function HopThoaiSuaQuyDinh({
           đã lập: mỗi dòng hồ sơ giữ ngưỡng đã chụp lúc lập.
         </p>
 
-        {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
           <button type="submit" className="nut nut-chinh" disabled={dangGui || !hopLe}>
             {dangGui ? 'Đang lưu…' : 'Lưu'}
@@ -388,12 +387,12 @@ function HopThoaiTaoQuyDinh({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [ma, datMa] = useState('');
   const [maNhom, datMaNhom] = useState('');
   const [loaiKhach, datLoaiKhach] = useState('');
   const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
   const [nguong, datNguong] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const n = doiSoThapPhan(nguong);
@@ -406,7 +405,6 @@ function HopThoaiTaoQuyDinh({
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       await dang('/catalog/discount-rules', {
@@ -418,7 +416,7 @@ function HopThoaiTaoQuyDinh({
       });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -501,7 +499,6 @@ function HopThoaiTaoQuyDinh({
           CSBH. Muốn dừng thì xoá dòng, hoặc khai một dòng cụ thể hơn đè lên.
         </p>
 
-        {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
           <button type="submit" className="nut nut-chinh" disabled={dangGui || !hopLe}>
             {dangGui ? 'Đang tạo…' : 'Tạo'}

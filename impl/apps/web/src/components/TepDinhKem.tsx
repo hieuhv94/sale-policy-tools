@@ -22,6 +22,7 @@ import { BaoLoi, HopThoaiXacNhan } from './Chung.js';
 import { TheTep } from './TheTep.js';
 import { VungTaiLen } from './VungTaiLen.js';
 import { XemTep } from './XemTep.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 export type TepDto = {
   id: string;
@@ -58,7 +59,7 @@ export function TepDinhKem({
   choPhepXoa: boolean;
   taiLai: () => void;
 }) {
-  const [loi, datLoi] = useState<unknown>(null);
+  const { bao } = useBaoLoi();
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [dangTaiLen, datDangTaiLen] = useState(false);
   /** Đường xem của từng tệp, xin dần để dựng ảnh thu nhỏ (`0069`). */
@@ -79,14 +80,13 @@ export function TepDinhKem({
   };
 
   const tai = async (t: TepDto) => {
-    datLoi(null);
     datDangChay(t.id);
     try {
       const fileId = await layFileId(t);
       const link = await layJson<{ url: string; fileName: string }>(`/files/${fileId}/link`);
       await taiVe(link.url, link.fileName || t.fileName);
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -110,7 +110,6 @@ export function TepDinhKem({
   } | null>(null);
 
   const xem = async (t: TepDto) => {
-    datLoi(null);
     datDangChay(t.id);
     try {
       const fileId = await layFileId(t);
@@ -124,7 +123,7 @@ export function TepDinhKem({
         tenTep: link.fileName || t.fileName,
       });
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -179,7 +178,6 @@ export function TepDinhKem({
   const taiLen = async (f: File) => {
     const loai = loaiGhiDuoc[0];
     if (!loai) return;
-    datLoi(null);
     datDangTaiLen(true);
     try {
       const form = new FormData();
@@ -199,14 +197,13 @@ export function TepDinhKem({
       });
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangTaiLen(false);
     }
   };
 
   const go = async (t: TepDto) => {
-    datLoi(null);
     datDangChay(t.id);
     try {
       // Gỡ con trỏ ở hồ sơ. File trên kho do `document` giữ và có vòng đời
@@ -215,7 +212,7 @@ export function TepDinhKem({
       await xoa(`/policies/${hoSoId}/attachments/${t.id}`);
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -225,7 +222,6 @@ export function TepDinhKem({
     <>
       <h2>Bản cứng</h2>
 
-      {loi !== null && <BaoLoi loi={loi} />}
 
       {/*
         MỘT LƯỚI cho cả tệp đã có lẫn chỗ thêm tệp (`0069`).

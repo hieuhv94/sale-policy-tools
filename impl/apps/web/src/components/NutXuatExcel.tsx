@@ -16,6 +16,7 @@
 import { useEffect, useState } from 'react';
 import { dang, layJson, taiVe } from '../lib/api.js';
 import { BaoLoi } from './Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type ViecXuat = {
   jobId: string;
@@ -39,8 +40,8 @@ export function NutXuatExcel({
    */
   tenTep?: string;
 }) {
+  const { bao } = useBaoLoi();
   const [viec, datViec] = useState<ViecXuat | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangTai, datDangTai] = useState(false);
 
   useEffect(() => {
@@ -63,21 +64,18 @@ export function NutXuatExcel({
   const khoa = JSON.stringify(boLoc);
   useEffect(() => {
     datViec(null);
-    datLoi(null);
   }, [khoa]);
 
   const xuat = async () => {
-    datLoi(null);
     try {
       datViec(await dang<ViecXuat>('/reports/exports', boLoc));
     } catch (e) {
-      datLoi(e);
+      bao(e);
     }
   };
 
   const tai = () => {
     if (!viec?.downloadUrl) return;
-    datLoi(null);
     datDangTai(true);
     /*
      * Tải qua `taiVe()`, KHÔNG phải `<a href={GOC_API + downloadUrl}>`.
@@ -89,7 +87,7 @@ export function NutXuatExcel({
      * đường ấy từ phía máy chủ, nơi header luôn có sẵn.
      */
     taiVe(viec.downloadUrl, tenTep)
-      .catch(datLoi)
+      .catch(bao)
       .finally(() => datDangTai(false));
   };
 
@@ -109,7 +107,6 @@ export function NutXuatExcel({
 
       {/* Lỗi hiện NGAY CẠNH nút, không ở cuối trang: nút nằm ở góc trên bên
           phải, và một dòng lỗi ở cuối trang thì người vừa bấm không nhìn thấy. */}
-      {loi !== null && <BaoLoi loi={loi} />}
       {viec?.status === 'LOI' && (
         <p className="bao-loi" role="alert">
           Dựng file hỏng. Bấm <strong>Xuất Excel</strong> để thử lại.

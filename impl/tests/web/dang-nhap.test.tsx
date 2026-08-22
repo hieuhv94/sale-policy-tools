@@ -19,6 +19,7 @@ import userEvent from '@testing-library/user-event';
 import { App } from '@csbh/web/app';
 import { PhienProvider } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
+import { BaoLoiProvider } from '@csbh/web/bao-loi';
 import { VAI_TRO } from '@csbh/web/can';
 import { duongSauDangNhap } from '@csbh/web/sau-dang-nhap';
 
@@ -126,11 +127,13 @@ const dangNhap = async () => {
 const mo = (duongBanDau: string) => {
   window.history.replaceState(null, '', duongBanDau);
   render(
-    <BoDinhTuyen>
-      <PhienProvider>
-        <App />
-      </PhienProvider>
-    </BoDinhTuyen>,
+    <BaoLoiProvider>
+      <BoDinhTuyen>
+        <PhienProvider>
+          <App />
+        </PhienProvider>
+      </BoDinhTuyen>
+    </BaoLoiProvider>,
   );
 };
 

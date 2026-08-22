@@ -22,6 +22,7 @@ import { useDuong } from '../lib/router.js';
 import { ngay } from '../lib/format.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type KhachHang = { id: string; code: string; name: string };
 type HoSoHienHanh = { id: string; code: string; appliedDate: string | null };
@@ -119,6 +120,7 @@ function ChonCachLap({
   doiKhach: () => void;
   xong: (id: string) => void;
 }) {
+  const { bao } = useBaoLoi();
   const [hienHanh, datHienHanh] = useState<HoSoHienHanh | null | 'khong-co'>(null);
   const [ngayApDung, datNgayApDung] = useState(() => new Date().toISOString().slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
@@ -148,7 +150,7 @@ function ChonCachLap({
       });
       xong(hs.id);
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangGui(false);
     }

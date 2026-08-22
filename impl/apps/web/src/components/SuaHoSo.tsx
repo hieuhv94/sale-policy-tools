@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import type { DongSanPham } from './BangSanPham.js';
 
@@ -100,6 +101,9 @@ export function ThemDongSanPham({
     dongCu && dongCu.cpbh.length > 0 ? [...dongCu.cpbh] : [''],
   );
   const [ghiChu, datGhiChu] = useState(dongCu?.note ?? '');
+  const { bao } = useBaoLoi();
+  // `loi` chỉ còn giữ lỗi TẢI danh mục sản phẩm — hộp thoại này không dựng nổi
+  // nếu thiếu nó, nên đó là dạng `trang` chứ không phải lỗi của một lần bấm.
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const xem = useXemTruocNguong(hoSoId, sanPham);
@@ -124,7 +128,6 @@ export function ThemDongSanPham({
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       const than = {
@@ -143,7 +146,7 @@ export function ThemDongSanPham({
       else await dang(`/policies/${hoSoId}/lines`, { productId: sanPham, ...than });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -295,19 +298,18 @@ export function SuaNgayApDung({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [ngayMoi, datNgayMoi] = useState(ngayHienTai ?? new Date().toISOString().slice(0, 10));
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       await va(`/policies/${hoSoId}`, { appliedDate: ngayMoi });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -329,7 +331,6 @@ export function SuaNgayApDung({
             />
           )}
         </Truong>
-        {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
           <button
             type="submit"
@@ -375,18 +376,17 @@ export function XoaHoSo({
 }) {
   /** Chưa gửi duyệt thì chưa ai ngoài người lập thấy hồ sơ này — xoá hẳn. */
   const xoaHan = trangThai === 'NHAP';
+  const { bao } = useBaoLoi();
   const [go, datGo] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const gui = async () => {
-    datLoi(null);
     datDangGui(true);
     try {
       await xoa(`/policies/${hoSoId}`);
       xong();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangGui(false);
     }
@@ -427,7 +427,6 @@ export function XoaHoSo({
           />
         )}
       </Truong>
-      {loi !== null && <BaoLoi loi={loi} />}
       <div className="nhom-nut">
         <button
           type="button"

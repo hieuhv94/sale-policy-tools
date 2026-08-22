@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { LOAI_KHACH_HANG, nhanLoaiKhach } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 export type KhachHangDayDu = {
   id: string;
@@ -78,6 +79,7 @@ export function BieuMauKhachHang({
   dong: () => void;
   xong: (id: string) => void;
 }) {
+  const { bao } = useBaoLoi();
   const [g, datG] = useState<Gia>(khach ? tuDto(khach) : rong);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -124,7 +126,7 @@ export function BieuMauKhachHang({
         xong(moi.id);
       }
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -299,6 +301,7 @@ export function DoiTdvPhuTrach({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [ds, datDs] = useState<Tdv[] | null>(null);
   const [chon, datChon] = useState(tdvHienTai ?? '');
   const [loi, datLoi] = useState<unknown>(null);
@@ -322,7 +325,7 @@ export function DoiTdvPhuTrach({
       await va(`/customers/${khachHangId}`, { tdvUserId: chon });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -393,6 +396,7 @@ export function HopThoaiNgungHopTac({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [xem, datXem] = useState<XemTruocNgung | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -414,7 +418,7 @@ export function HopThoaiNgungHopTac({
       await xoa(`/customers/${kh.id}`);
       xong();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangGui(false);
     }

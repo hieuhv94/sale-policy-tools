@@ -1665,6 +1665,82 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .thanh-hoan-tac .nut { white-space: nowrap; }
 .nut-dong-thanh { padding: 0 var(--k2); font-size: var(--chu-to); line-height: 1; }
 
+/* --- Báo lỗi dùng chung (`0088`) ------------------------------------------ */
+
+/*
+ * Hộp thoại lỗi. Hẹp hơn hộp thoại thường vì nó chỉ chứa một câu — một hộp rộng
+ * 520px cho hai dòng chữ trông như còn thiếu nội dung chưa tải xong.
+ *
+ * `z-index` cao hơn `.lop-phu` thường (50): lỗi phát sinh TRONG một hộp thoại
+ * đang mở là chuyện thường — chọn người xử lý, gỡ tệp, xoá khách hàng — và nó
+ * phải nằm trên hộp thoại ấy chứ không phải dưới.
+ */
+.lop-phu-loi { z-index: 70; }
+.hop-loi {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-loi);
+  border-top: 4px solid var(--mau-loi);
+  border-radius: var(--bo-goc-to);
+  box-shadow: var(--bong-noi);
+  width: min(420px, 100%);
+  padding: var(--k4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--k2);
+}
+.hop-loi-cau { margin: 0; font-weight: 600; line-height: 1.5; }
+.hop-loi-phu { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+.hop-loi-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k3);
+  margin-top: var(--k2);
+}
+/* Mã tra cứu nhỏ và nhạt: nó là thứ đọc cho Quản trị qua điện thoại, không phải
+   thứ người dùng đọc trước. Tới `0088` nó đứng ngang hàng với câu lỗi. */
+.hop-loi-ma {
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-nhat);
+  word-break: break-all;
+}
+
+/* Thanh nổi xếp chồng ở góc dưới bên phải — KHÔNG giữa màn hình như thanh hoàn
+   tác: hai thứ này hiện được cùng lúc, và chồng lên nhau thì cái sau che cái
+   trước. */
+.vung-noi {
+  position: fixed;
+  right: var(--k4);
+  bottom: var(--k4);
+  z-index: 65;
+  display: flex;
+  flex-direction: column;
+  gap: var(--k2);
+  max-width: min(380px, calc(100vw - 2 * var(--k3)));
+}
+.thanh-noi {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k2);
+  padding: var(--k2) var(--k3);
+  border: 1px solid var(--mau-loi);
+  border-left: 4px solid var(--mau-loi);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  box-shadow: var(--bong-noi);
+}
+.thanh-noi-cau { font-size: var(--chu-nho); line-height: 1.45; }
+.thanh-noi-dong {
+  border: none;
+  background: none;
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-to);
+  line-height: 1;
+  padding: 0 var(--k1);
+  cursor: pointer;
+}
+.thanh-noi-dong:hover { color: var(--mau-chu); }
+
 /* --- Xem trước bản CSBH A4 trước khi gửi duyệt (`0031`) -------------------- */
 
 /*

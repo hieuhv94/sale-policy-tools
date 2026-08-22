@@ -8267,3 +8267,99 @@ Phá lại bằng cách trả `hienThi` về `nhom`: đỏ ngay tại phím th�
 > `composition`, không gác việc định dạng. Hai ca cho hai nửa của cùng một lỗi.
 
 **1391/1391 xanh.**
+
+---
+
+## P114 — Chuẩn hoá báo lỗi: một bảng tra, bốn dạng, và một phép quét
+
+**Ngày 22/08/2026** · thay đổi `0088`
+
+Yêu cầu của khách hàng có hai vế, và vế thứ hai mới là vế nặng: *"lỗi hiện dưới dạng pop up"* và
+**"nội dung lỗi phải chính xác"**.
+
+### Đo trước khi sửa
+
+Quét `services/`, `packages/` và `apps/web/`:
+
+```
+96 mã lỗi máy chủ · 56 luôn kèm câu · 35 KHÔNG BAO GIỜ kèm câu · 4 lúc có lúc không
+60 chỗ hiện lỗi trong giao diện · 15 trong số đó thay hẳn cả trang
+0  mã được giao diện ánh xạ
+16 chỗ nuốt lỗi im lặng
+```
+
+35 mã không kèm câu rơi vào **bảy câu mặc định** suy từ mã HTTP ở `api.ts`. Hệ quả đọc được trên màn
+hình, và không dòng nào trong số này là suy diễn — tôi dựng lại từng cái:
+
+- Gõ sai mật khẩu → *"Yêu cầu không hợp lệ."* (`INVALID_CREDENTIALS` là 401, mà `moTaLoi()` không có
+  nhánh 401 nên nó rơi xuống câu cuối hàm)
+- Mã khách hàng trùng → *"Dữ liệu vừa được người khác thay đổi. Hãy tải lại rồi thử lại."* (409)
+- File Excel đang dựng → *"Không tìm thấy dữ liệu."* (`EXPORT_NOT_READY` là 404)
+- **Mười bốn mã 404 khác nhau → cùng một câu.** Người dùng không biết *cái gì* không tìm thấy.
+
+### Thứ tệ hơn cả 35 mã kia
+
+Ba lớp lỗi ở `packages/domain-policy/src/state-machine.ts` viết câu bằng **tiếng Việt không dấu** —
+đúng cho chỗ chúng phục vụ, vì cùng câu ấy đi vào log và nhật ký. Nhưng `mapDomainError` gắn nguyên
+câu đó vào `message`, và giao diện in thẳng `message`. Trưởng bộ phận bấm *Ký số* trên hồ sơ vừa
+sang bước Kế toán đọc được:
+
+```
+Khong the thuc hien "TBP_SIGN" khi ho so dang o "CHO_KT_L1". Hanh dong duoc phep: KT_RECEIVE_L1, KT_RETURN_L1
+```
+
+Không sửa `domain-policy`: câu ấy đúng với log. Máy chủ đã kèm sẵn `status` và `allowed` trong thân
+lỗi, nên giao diện dựng câu riêng bằng đúng tên tiếng Việt đang hiện trên màn hình. Cùng cách cho
+`POLICY_LOCKED`, `ROLE_FORBIDDEN` và `VALIDATION_FAILED` — mã cuối cùng trước đó lộ nguyên
+*"wholesalePrice: phải là số nguyên không âm"*.
+
+### Không phải mọi lỗi đều hợp với pop up
+
+Khách hàng chốt bốn dạng sau khi tôi trình bảng duyệt, và ba dạng không-hộp-thoại đều có lý do
+đứng vững:
+
+| Dạng | Vì sao không dùng hộp thoại được |
+|---|---|
+| `trang` — lỗi tải màn hình | Đóng hộp thoại xong thì phía sau là **trang trắng** |
+| `o-nhap` — lỗi của một trường | Đóng hộp thoại xong người dùng vẫn phải **tự đi tìm ô sai** |
+| `im` — lỗi giữa các service | `SERVICE_TOKEN_MISSING` không nói được gì cho người dùng |
+
+### Ba chỗ đáng ghi của bản cài đặt
+
+- **`BaoLoiProvider` bọc NGOÀI `PhienProvider`.** Việc đăng nhập và việc khôi phục phiên cũng báo
+  lỗi; đặt bên trong thì đúng những lỗi sớm nhất lại không có chỗ nào hiện ra.
+- **Hộp thoại lỗi KHÔNG dùng `HopThoai` chung.** Hộp ấy đóng được bằng cách bấm ra ngoài, mà một câu
+  lỗi đóng bằng cú bấm vô ý là một câu chưa ai đọc. Và `z-index` của nó cao hơn lớp phủ thường: lỗi
+  phát sinh *trong* một hộp thoại đang mở là chuyện thường.
+- **`vaoO` không nhận thì lùi về hộp thoại.** Một biểu mẫu chưa nối `vaoO` mà lỗi lại thuộc dạng
+  `o-nhap` thì câu ấy rơi vào khoảng không — người dùng bấm Lưu, không có gì xảy ra, và họ bấm tiếp.
+  Đặt sai chỗ còn hơn mất hẳn.
+
+### Ca kiểm: phép quét là thứ đáng giá nhất
+
+Ca chính không kiểm một câu chữ nào. Nó **đọc mã nguồn `services/` và `packages/`**, gom mọi
+`code: '…'`, và đòi từng mã phải có trong `BANG_LOI`. Chiều ngược lại cũng có: mã đã gỡ khỏi máy chủ
+mà còn nằm trong bảng cũng đỏ.
+
+Vì sao cần: cả 35 mã trước `0088` đều **vẫn hiện ra một câu gì đó**, nên không ca kiểm nào bắt được.
+Chỉ có phép đối chiếu hai danh sách mới thấy. Từ nay thêm một mã lỗi ở máy chủ mà quên khai câu là
+đỏ ngay trong cùng lượt — ghi vào `CLAUDE.md` thành một bước của mỗi chặng.
+
+Phá lại hai lượt, đỏ ở hai tầng khác nhau:
+
+- Thêm một mã mới ở `policies.service.ts` mà không khai câu → *"mã lỗi chưa có câu trong BANG_LOI:
+  MOT_MA_MOI_AI_DO_VUA_THEM"*. Đúng hình dạng của lượt hỏng thật sẽ xảy ra.
+- Trả `docLoi` về kiểu cũ (in thẳng `message`) → **5 ca đỏ**, gồm cả ba ca câu không dấu và hai ca
+  tên trường.
+
+Một ca của chính tôi bắt tôi làm ẩu: `VALIDATION_FAILED` lúc đầu dựng câu bằng một nhánh `if` riêng
+trong `docLoi` thay vì khai nguồn như mọi mã khác, và ca *"mọi mục đều khai một dạng hợp lệ, và câu
+không rỗng"* đỏ. Gộp về một cơ chế (`tuThan` + `DUNG_CAU`) thì hết — và bảng tra không còn ngoại lệ
+nào phải nhớ.
+
+> `tep-dinh-kem.test.tsx` đỏ một ca sau khi chuyển đổi, và nó chỉ đúng ra một khoảng thật: bộ kiểm
+> dựng `TepDinhKem` **ngoài** provider, nên `useBaoLoi()` rơi vào bản lùi không hiện gì. Trong sản
+> phẩm thì provider luôn có ở gốc, nhưng ca kiểm dựng lẻ một component thì phải tự bọc — đã bọc, và
+> ghi ra đây vì mọi ca kiểm giao diện thêm sau này chạm tới lỗi đều gặp lại đúng chỗ ấy.
+
+**1412/1412 xanh.**

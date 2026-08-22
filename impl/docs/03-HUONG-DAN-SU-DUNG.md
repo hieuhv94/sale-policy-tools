@@ -158,6 +158,24 @@ Nút hình mặt trăng (hoặc mặt trời) ở thanh trên cùng, và ở gó
 Lựa chọn giao diện là **của riêng từng máy**, không đi theo tài khoản: cùng một người đăng nhập ở
 máy bàn và ở điện thoại có thể để hai giao diện khác nhau.
 
+### Khi có lỗi `mới 22/08`
+
+Phần mềm báo lỗi ở **bốn chỗ**, và chỗ nào là theo việc bạn phải làm tiếp:
+
+| Bạn thấy | Nghĩa là | Việc phải làm |
+|---|---|---|
+| **Hộp thoại giữa màn hình** | Thao tác vừa bấm không thành | Đọc câu lỗi, bấm *Đã hiểu*, làm theo câu ấy |
+| **Thanh nhỏ ở góc dưới bên phải** | Một việc phụ hỏng, dữ liệu của bạn không mất gì | Thường chỉ cần bấm lại sau vài giây; thanh tự tắt |
+| **Dòng đỏ ngay dưới một ô** | Đúng ô đó chưa hợp lệ | Sửa ngay ô đang đứng, không cần bấm gì khác |
+| **Khối đỏ ở lại trên trang** | Không tải được dữ liệu để dựng màn hình | Bấm *Thử lại*; nếu vẫn vậy thì báo Quản trị hệ thống |
+
+Mọi câu lỗi đều nói **việc gì vừa hỏng và làm gì tiếp**, không phải mã lỗi. Hộp thoại còn có
+**Mã tra cứu** ở dòng cuối — đọc mã đó cho Quản trị hệ thống thì họ tìm ra đúng lượt bấm của bạn
+trong nhật ký.
+
+> **Lỗi mạng khác lỗi dữ liệu.** Mất kết nối thì phần mềm nói rõ *"dữ liệu bạn đã nhập vẫn được giữ
+> nguyên"* — đóng hộp thoại và bấm lại là xong, **không phải nhập lại từ đầu**.
+
 ## 4. Trang tổng quan
 
 **Đăng nhập xong bạn vào đây**, dù trước đó thanh địa chỉ đang ở màn hình nào. Mở lại một tab cũ đang

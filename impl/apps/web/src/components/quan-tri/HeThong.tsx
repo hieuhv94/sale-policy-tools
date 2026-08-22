@@ -12,6 +12,7 @@ import { ngayGio } from '../../lib/format.js';
 import { BaoLoi, DangTai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
+import { useBaoLoi } from '../../lib/bao-loi.js';
 
 type CauHinhSla = {
   days: number;
@@ -42,6 +43,7 @@ export function TheHeThong() {
 // --- Hạn xử lý ---------------------------------------------------------------
 
 function CauHinhHanXuLy() {
+  const { bao } = useBaoLoi();
   const [ch, datCh] = useState<CauHinhSla | null>(null);
   const [so, datSo] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
@@ -71,7 +73,7 @@ function CauHinhHanXuLy() {
       datCh(r);
       datDaLuu(true);
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }

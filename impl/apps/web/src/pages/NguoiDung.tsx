@@ -32,6 +32,7 @@ import {
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 import { TheHeThong } from '../components/quan-tri/HeThong.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type The = 'nguoi-dung' | 'he-thong';
 
@@ -73,6 +74,7 @@ export function NguoiDung() {
 // --- Thẻ Người dùng ---------------------------------------------------------
 
 function TheNguoiDung() {
+  const { bao } = useBaoLoi();
   const [tim, datTim] = useState('');
 
   /*
@@ -124,7 +126,7 @@ function TheNguoiDung() {
       }
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -337,6 +339,7 @@ function HopThoaiTao({
   /** `daGuiThu` false = tài khoản đã tạo nhưng thư mời không đi được. */
   xong: (daGuiThu: boolean) => void;
 }) {
+  const { bao } = useBaoLoi();
   const [vaiTro, datVaiTro] = useState<VaiTro>('TDV');
   const [hoTen, datHoTen] = useState('');
   const [taiKhoan, datTaiKhoan] = useState('');
@@ -357,7 +360,7 @@ function HopThoaiTao({
       });
       xong(kq.inviteMailSent);
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -465,6 +468,7 @@ function HopThoaiVoHieu({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [ten, datTen] = useState('');
   const [nguoiNhan, datNguoiNhan] = useState('');
   const [hoSo, datHoSo] = useState<XemTruocBanGiao | null>(null);
@@ -503,7 +507,7 @@ function HopThoaiVoHieu({
       });
       xong();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangGui(false);
     }

@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { LoiApi } from '../lib/api.js';
+import { docLoi } from '../lib/loi.js';
 import { nhanTrangThai, nhomTrangThai, tien } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
 
@@ -136,21 +136,31 @@ export function Trong({ tieuDe, moTa, children }: { tieuDe: string; moTa?: strin
 }
 
 /**
- * Hiển thị lỗi. Phân biệt lỗi MẠNG với lỗi nghiệp vụ (`FE-32`).
+ * Lỗi Ở LẠI TRÊN TRANG — dạng `trang` của `0088`.
  *
- * Lỗi mạng thì dữ liệu đang nhập vẫn đúng và chỉ cần bấm thử lại — phải nói rõ
- * điều đó, nếu không người dùng sẽ tự nhập lại từ đầu cho chắc.
+ * Dùng đúng một việc: **không tải được thứ để dựng màn hình**. Hộp thoại sai ở
+ * đây vì đóng nó xong thì phía sau là trang trắng; khối này ở lại, và mang theo
+ * nút *Thử lại*.
+ *
+ * Lỗi của một lần BẤM thì không đi qua đây nữa — nó gọi `useBaoLoi().bao()` và
+ * bảng tra quyết định hộp thoại hay thanh nổi.
+ *
+ * Câu chữ lấy từ `docLoi()`, cùng bảng tra với hộp thoại và thanh nổi. Trước
+ * `0088` chỗ này in thẳng `l.message`, nên nó là một trong những đường đưa
+ * *"Yêu cầu không hợp lệ."* ra màn hình.
+ *
+ * Phân biệt lỗi MẠNG với lỗi nghiệp vụ vẫn giữ (`FE-32`): lỗi mạng thì dữ liệu
+ * đang nhập vẫn đúng và chỉ cần bấm thử lại — không nói rõ thì người dùng tự
+ * nhập lại từ đầu cho chắc.
  */
 export function BaoLoi({ loi, thuLai }: { loi: unknown; thuLai?: () => void }) {
-  const l = loi instanceof LoiApi ? loi : null;
-  const mang = l?.laLoiMang ?? false;
+  const d = docLoi(loi);
   return (
-    <div className={mang ? 'bao-loi mang' : 'bao-loi'} role="alert">
-      <p className="bao-loi-chinh">
-        {l ? l.message : 'Có lỗi không xác định. Hãy thử lại.'}
-      </p>
-      {mang && <p className="bao-loi-phu">Dữ liệu bạn đã nhập vẫn được giữ nguyên.</p>}
-      {l?.traceId && <p className="bao-loi-ma">Mã tra cứu: {l.traceId}</p>}
+    <div className={d.laLoiMang ? 'bao-loi mang' : 'bao-loi'} role="alert">
+      <p className="bao-loi-chinh">{d.cau}</p>
+      {d.laLoiMang && <p className="bao-loi-phu">Dữ liệu bạn đã nhập vẫn được giữ nguyên.</p>}
+      {d.chiTiet && <p className="bao-loi-phu">{d.chiTiet}</p>}
+      {d.traceId && <p className="bao-loi-ma">Mã tra cứu: {d.traceId}</p>}
       {thuLai && (
         <button type="button" className="nut" onClick={thuLai}>
           Thử lại

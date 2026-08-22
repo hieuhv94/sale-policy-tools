@@ -8,26 +8,26 @@ import { useState } from 'react';
 import { dang } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { BaoLoi, Truong } from '../components/Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 export function DoiMatKhau() {
+  const { bao } = useBaoLoi();
   const { capNhatNguoiDung, dangXuat } = usePhien();
   const [cu, datCu] = useState('');
   const [moi, datMoi] = useState('');
   const [lai, datLai] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const khopNhau = moi.length > 0 && moi === lai;
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
     datDangGui(true);
     try {
       await dang('/auth/change-password', { currentPassword: cu, newPassword: moi });
       capNhatNguoiDung({ mustChangePassword: false });
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -65,7 +65,6 @@ export function DoiMatKhau() {
           )}
         </Truong>
 
-        {loi !== null && <BaoLoi loi={loi} />}
 
         <button type="submit" className="nut nut-chinh nut-rong" disabled={dangGui || !khopNhau}>
           {dangGui ? 'Đang lưu…' : 'Đổi mật khẩu'}

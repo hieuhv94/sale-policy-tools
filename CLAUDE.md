@@ -70,17 +70,20 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
    đối chiếu giữ cho stub không trôi.
 3. Nếu luật nghiệp vụ đổi: đồng bộ `agents/YEU-CAU-NGHIEP-VU-CSBH.md` (thân bài **và** Phụ lục B) và
    `impl/docs/03-HUONG-DAN-SU-DUNG.md`.
-4. Thêm một mục `## P<số> — …` vào `agents/NHAT-KY-TRIEN-KHAI.md`, kết bằng dòng `**N/N xanh.**`.
+4. **Thêm một mã lỗi ở máy chủ thì khai câu cho nó ở `impl/apps/web/src/lib/loi.ts`** trong cùng
+   lượt — câu tiếng Việt và dạng hiển thị (`0088`). `tests/web/loi.test.tsx` quét mã nguồn máy chủ
+   nên bỏ sót là đỏ; mã nội bộ không dành cho người dùng thì khai `dang: 'im'`.
+5. Thêm một mục `## P<số> — …` vào `agents/NHAT-KY-TRIEN-KHAI.md`, kết bằng dòng `**N/N xanh.**`.
    Ghi thứ mà sáu tháng sau đọc mã nguồn sẽ không tự suy ra được, không phải danh sách công việc.
-5. Commit sau khi test xanh, thông điệp `P<số>: <mô tả không dấu>`. Nhánh `v1.0`, **không push**.
+6. Commit sau khi test xanh, thông điệp `P<số>: <mô tả không dấu>`. Nhánh `v1.0`, **không push**.
 
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (21/08/2026)
+## Trạng thái hiện tại (22/08/2026)
 
-Chặng gần nhất **P111** (`0085`): bàn giao TDV nay có thư báo cho người nhận, và đổi *TDV phụ trách*
-của khách hàng thì mọi hồ sơ của khách đi theo. **1386/1386 xanh**, cây làm việc sạch.
+Chặng gần nhất **P114** (`0088`): chuẩn hoá báo lỗi — một bảng tra câu chữ cho 96 mã lỗi, bốn dạng
+hiển thị, và một phép quét bắt mọi mã máy chủ phải có câu. **1412/1412 xanh**, cây làm việc sạch.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -105,6 +108,9 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   **sau khi** làm tròn để con số hiển thị và con số dùng so sánh là một.
 - SLA 14 ngày cho mọi trạng thái chờ, tính cả cuối tuần. *Quá hạn duyệt* là **trạng thái kết thúc**
   (`18/08`) — không ai thao tác được nữa, sau 3 ngày tự chuyển *Đã xoá*.
+- **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
+  hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
+  câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.
 
 ## Bẫy kỹ thuật
 

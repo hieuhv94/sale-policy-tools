@@ -13,6 +13,7 @@ import type { NhomSanPham } from '../../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Trong, Truong } from '../Chung.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangTaiCho } from '../../lib/phan-trang.js';
+import { useBaoLoi } from '../../lib/bao-loi.js';
 
 export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => void }) {
   const [moTao, datMoTao] = useState(false);
@@ -136,6 +137,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
 }
 
 function HopThoaiTaoNhom({ dong, xong }: { dong: () => void; xong: () => void }) {
+  const { bao } = useBaoLoi();
   const [ma, datMa] = useState('');
   const [ten, datTen] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
@@ -149,7 +151,7 @@ function HopThoaiTaoNhom({ dong, xong }: { dong: () => void; xong: () => void })
       await dang('/catalog/product-groups', { code: ma.trim(), name: ten.trim() });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }

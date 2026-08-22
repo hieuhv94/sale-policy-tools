@@ -1,22 +1,31 @@
 import { useState } from 'react';
 import { usePhien } from '../lib/auth.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 import { useDuong } from '../lib/router.js';
 import { duongSauDangNhap } from '../lib/sau-dang-nhap.js';
-import { BaoLoi, Truong } from '../components/Chung.js';
+import { Truong } from '../components/Chung.js';
 import { NutGiaoDien } from '../components/NutGiaoDien.js';
 import logo from '../logo.png';
 
 export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
   const { dangNhap } = usePhien();
   const { di } = useDuong();
+  const { bao } = useBaoLoi();
   const [login, datLogin] = useState('');
   const [matKhau, datMatKhau] = useState('');
-  const [loi, datLoi] = useState<unknown>(null);
+  /*
+   * Lỗi đăng nhập hiện NGAY DƯỚI Ô, không phải hộp thoại (`0088`).
+   *
+   * Sai mật khẩu là lỗi của một ô người dùng đang gõ, và việc phải làm tiếp là
+   * gõ lại chính ô ấy. Một hộp thoại chen vào giữa hai lần gõ bắt họ bấm thêm
+   * một nút để quay lại đúng chỗ vừa đứng.
+   */
+  const [loiO, datLoiO] = useState<string | null>(null);
   const [dangGui, datDangGui] = useState(false);
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
-    datLoi(null);
+    datLoiO(null);
     datDangGui(true);
     try {
       await dangNhap(login.trim(), matKhau);
@@ -41,7 +50,10 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
        */
       if (!lopPhu) di(duongSauDangNhap(window.location.pathname));
     } catch (err) {
-      datLoi(err);
+      // `vaoO` nhận hai mã của màn hình này — sai mật khẩu và tài khoản bị khoá.
+      // Mọi lỗi khác (mất mạng, máy chủ hỏng) không có ô nào để gắn vào, nên
+      // bảng tra đưa chúng ra hộp thoại và nhánh này không chạm tới.
+      bao(err, { vaoO: (d) => datLoiO(d.cau) });
     } finally {
       datDangGui(false);
     }
@@ -75,7 +87,7 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
           </p>
         )}
 
-        <Truong id="login" nhan="Tên đăng nhập hoặc email" bắtBuộc>
+        <Truong id="login" nhan="Tên đăng nhập hoặc email" bắtBuộc {...(loiO ? { loi: loiO } : {})}>
           {(p) => (
             <input
               {...p}
@@ -99,8 +111,6 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
             />
           )}
         </Truong>
-
-        {loi !== null && <BaoLoi loi={loi} />}
 
         <button type="submit" className="nut nut-chinh nut-rong" disabled={dangGui}>
           {dangGui ? 'Đang đăng nhập…' : 'Đăng nhập'}

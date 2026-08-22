@@ -34,6 +34,7 @@ import {
   type TruongAnhXa,
 } from '../lib/mau-hop-dong.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, HopThoaiXacNhan, Truong } from '../components/Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 /**
  * Nhóm khoá hiện trên hướng dẫn, theo đúng thứ tự người soạn mẫu cần tới.
@@ -99,14 +100,22 @@ export function ThemMau({
   quayLai: () => void;
   xong: (t: MauDto) => void;
 }) {
+  const { bao } = useBaoLoi();
   const ch = CAU_HINH_MAU[loai];
   const [ten, datTen] = useState('');
   const [tep, datTep] = useState<File | null>(null);
   const [oTrong, datOTrong] = useState<ThongTinOTrong | null>(null);
   const [anhXa, datAnhXa] = useState<Record<string, string>>({});
   const [danhMuc, datDanhMuc] = useState<DanhMucNguon | null>(null);
+  /*
+   * Chỉ giữ lỗi TẢI danh mục nguồn (`0088`).
+   *
+   * Không có nó thì cả trang không dựng nổi bảng ánh xạ, nên đây là dạng
+   * `trang`: khối ở lại trên màn hình. Lỗi của các nút bấm trong trang này đi
+   * qua `bao()` và bảng tra.
+   */
+  const [loiTai, datLoiTai] = useState<unknown>(null);
   const [cot, datCot] = useState<string[] | null>(null);
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangDoc, datDangDoc] = useState(false);
   const [dangLuu, datDangLuu] = useState(false);
   const [hoi, datHoi] = useState(false);
@@ -124,7 +133,7 @@ export function ThemMau({
         datDanhMuc(d);
         datCot((c) => c ?? (d.cotBang ?? []).map((x) => x.khoa));
       })
-      .catch(datLoi);
+      .catch(datLoiTai);
     return undefined;
   });
 
@@ -133,7 +142,6 @@ export function ThemMau({
     datTep(f);
     datOTrong(null);
     datAnhXa({});
-    datLoi(null);
     if (!f) return;
     datDangDoc(true);
     try {
@@ -147,7 +155,7 @@ export function ThemMau({
       // phải đoán rằng có một bước nữa và phải tự đi tìm nút mở nó.
       datMoAnhXa(tt.placeholders.length > 0);
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangDoc(false);
     }
@@ -155,7 +163,6 @@ export function ThemMau({
 
   const luu = async () => {
     if (!tep) return;
-    datLoi(null);
     datDangLuu(true);
     try {
       const mapping: TruongAnhXa[] = Object.entries(anhXa)
@@ -168,7 +175,7 @@ export function ThemMau({
       if (cot) form.append('cotBang', JSON.stringify(cot));
       xong(await guiTep<MauDto>(ch.duong, form));
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangLuu(false);
       datHoi(false);
@@ -229,6 +236,8 @@ export function ThemMau({
         </div>
       </div>
 
+      {loiTai !== null && <BaoLoi loi={loiTai} />}
+
       <div className="them-mau">
         <div className="them-mau-form">
           <ChuThichBatBuoc />
@@ -262,7 +271,6 @@ export function ThemMau({
             mềm không hỏi và không xoay được mẫu dọc thành ngang.
           </p>
 
-          {loi !== null && <BaoLoi loi={loi} />}
           {dangDoc && <p className="ghi-chu">Đang đọc ô trống trong file…</p>}
 
           {/*

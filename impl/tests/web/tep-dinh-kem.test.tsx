@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TepDinhKem } from '@csbh/web/tep-dinh-kem';
+import { BaoLoiProvider } from '@csbh/web/bao-loi';
 
 const TEP = [
   {
@@ -57,8 +58,16 @@ const chan = () => {
   return f;
 };
 
+/*
+ * Bọc `BaoLoiProvider` từ `0088`: lỗi của một lần bấm không còn dán vào trong
+ * thẻ tệp nữa mà đi ra hộp thoại dùng chung, và hộp ấy sống ở provider.
+ */
 const bay = () =>
-  render(<TepDinhKem hoSoId="hs-1" tep={TEP} loaiGhiDuoc={[]} choPhepXoa={false} taiLai={() => undefined} />);
+  render(
+    <BaoLoiProvider>
+      <TepDinhKem hoSoId="hs-1" tep={TEP} loaiGhiDuoc={[]} choPhepXoa={false} taiLai={() => undefined} />
+    </BaoLoiProvider>,
+  );
 
 afterEach(() => {
   cleanup();
@@ -185,7 +194,9 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     );
     bay();
     await nguoi.click(screen.getByRole('button', { name: 'Xem ban-cung-da-ky.pdf' }));
-    await waitFor(() => expect(document.querySelector('.bao-loi')).not.toBeNull());
+    // `0088`: hộp thoại lỗi dùng chung, không còn khối đỏ dán trong thẻ tệp.
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeNull());
+    // Và KHÔNG mở khung xem: một hộp trắng không nội dung tệ hơn một câu lỗi.
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

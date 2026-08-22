@@ -1,0 +1,454 @@
+/**
+ * **BẢNG TRA LỖI — nguồn duy nhất của câu báo lỗi và dạng hiển thị** (`0088`).
+ *
+ * Tới `0088` giao diện không ánh xạ một mã lỗi nào: câu hiện ra là `message` của
+ * máy chủ, hoặc — khi máy chủ không gửi — một trong bảy câu mặc định suy từ mã
+ * HTTP. Đo được ở P114: **35 trên 96 mã** không bao giờ kèm câu, nên chúng rơi
+ * hết vào bảy câu ấy. Hệ quả đọc thấy trên màn hình:
+ *
+ *   - Gõ sai mật khẩu → *"Yêu cầu không hợp lệ."*
+ *   - Mã khách hàng trùng → *"Dữ liệu vừa được người khác thay đổi."*
+ *   - File Excel đang dựng → *"Không tìm thấy dữ liệu. Có thể nó vừa bị xoá."*
+ *   - Mười bốn mã 404 khác nhau → **cùng một câu**.
+ *
+ * Bảng này chữa cả lớp ấy, và `loi.test.ts` **quét mã nguồn máy chủ**: mọi
+ * `code:` ném ra từ `services/` hay `packages/` mà thiếu ở đây là ca kiểm đỏ.
+ * Đó là chốt để mã lỗi thêm về sau không lặng lẽ rơi lại về câu mặc định — thêm
+ * một mã ở máy chủ thì bảng này phải cập nhật trong cùng lượt.
+ *
+ * ---------------------------------------------------------------------------
+ * NĂM DẠNG, và thứ quyết định dạng là NGƯỜI DÙNG PHẢI LÀM GÌ TIẾP
+ * ---------------------------------------------------------------------------
+ *
+ *   `hop-thoai`  Thao tác vừa bấm không thành, phải biết trước khi làm tiếp.
+ *   `thanh-noi`  Việc phụ hỏng, không mất dữ liệu, không phải quyết định gì.
+ *   `o-nhap`     Lỗi thuộc đúng MỘT trường — người dùng sửa ngay tại ô đó.
+ *   `trang`      Không tải được thứ để dựng màn hình. KHÔNG dùng hộp thoại:
+ *                đóng nó xong thì phía sau là trang trắng.
+ *   `im`         Lỗi giữa các service, hoặc lớp phủ phiên đã lo. Không hiện.
+ *
+ * `dang` khai ở đây là dạng khi lỗi đến từ MỘT THAO TÁC. Đường tải màn hình có
+ * dạng riêng theo cấu trúc — nó dựng `TrangLoi` tại chỗ — nên không tra bảng.
+ */
+import { LoiApi } from './api.js';
+import { nhanHanhDong, nhanTrangThai, NHAN_VAI_TRO } from './format.js';
+
+export type Dang = 'hop-thoai' | 'thanh-noi' | 'o-nhap' | 'trang' | 'im';
+
+type Muc = {
+  dang: Dang;
+  /** Câu cố định của giao diện. Thắng `message` máy chủ khi cả hai cùng có. */
+  cau?: string;
+  /**
+   * Lấy câu từ `message` của máy chủ.
+   *
+   * Dùng cho những mã mà câu chỉ dựng được ở máy chủ vì nó mang số liệu của
+   * chính lần gọi ấy: *"Dòng 12: thiếu cột Giá bán"*, *"Sản phẩm SP-014 đã có
+   * trong hồ sơ"*. Chép một câu tĩnh vào đây là mất đúng phần nói lên sự việc.
+   */
+  tuMayChu?: true;
+  /** Câu dựng tại giao diện từ thân lỗi — xem `DUNG_CAU`. */
+  tuThan?: true;
+  /** Ô nhập mà lỗi này thuộc về, khi máy chủ không nói qua `field`. */
+  truong?: string;
+};
+
+/**
+ * Ba lớp lỗi của `domain-policy` viết câu bằng **tiếng Việt KHÔNG DẤU** vì cùng
+ * một câu ấy đi vào log và nhật ký hệ thống. Giao diện tới `0088` lấy nguyên
+ * câu đó ra màn hình, nên Trưởng bộ phận bấm *Ký số* trên hồ sơ đã sang bước
+ * khác đọc được:
+ *
+ *   Khong the thuc hien "TBP_SIGN" khi ho so dang o "CHO_KT_L1".
+ *   Hanh dong duoc phep: KT_RECEIVE_L1, KT_RETURN_L1
+ *
+ * Không sửa câu ở `domain-policy` — nó đúng cho chỗ nó phục vụ. Máy chủ đã kèm
+ * `status` và `allowed` trong thân lỗi, nên giao diện dựng câu riêng bằng đúng
+ * tên tiếng Việt đang hiện trên màn hình.
+ */
+const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = {
+  INVALID_TRANSITION: (b) => {
+    const tt = typeof b['status'] === 'string' ? nhanTrangThai(b['status']) : null;
+    if (!tt) return null;
+    const duoc = Array.isArray(b['allowed']) ? (b['allowed'] as string[]) : [];
+    const con = duoc.length > 0 ? ` Việc còn làm được: ${duoc.map(nhanHanhDong).join(', ')}.` : '';
+    return `Hồ sơ đã sang trạng thái ${tt} nên không thực hiện được thao tác vừa bấm.${con}`;
+  },
+  POLICY_LOCKED: (b) => {
+    const tt = typeof b['status'] === 'string' ? nhanTrangThai(b['status']) : null;
+    return tt === null ? null : `Hồ sơ đang ở ${tt} nên đã khoá sửa.`;
+  },
+  ROLE_FORBIDDEN: (b) => {
+    const ds = Array.isArray(b['roles']) ? (b['roles'] as string[]) : [];
+    const ten = ds.map((r) => NHAN_VAI_TRO[r] ?? r).filter(Boolean);
+    return ten.length === 0
+      ? null
+      : `Việc này chỉ dành cho ${ten.join(' và ')}, vai trò của bạn không thao tác được.`;
+  },
+  VALIDATION_FAILED: (b) => {
+    const t = typeof b['field'] === 'string' ? NHAN_TRUONG[b['field'] as string] : undefined;
+    return t ? `Ô ${t} chưa hợp lệ.` : 'Có ô nhập chưa hợp lệ.';
+  },
+};
+
+/**
+ * Tên trường trong mã → nhãn người dùng đọc trên màn hình.
+ *
+ * `VALIDATION_FAILED` dựng câu theo `${field}: ${why}`, nên tới `0088` người
+ * dùng đọc nguyên văn *"wholesalePrice: phải là số nguyên không âm"*. Máy chủ có
+ * gửi kèm `field`, và bảng này đổi nó sang chữ trên nhãn ô nhập.
+ *
+ * Trường lạ thì KHÔNG đoán: câu lùi về "Có ô nhập chưa hợp lệ" và câu gốc của
+ * máy chủ đi kèm ở dòng phụ. Đoán một cái tên tiếng Việt cho trường mình không
+ * biết là tự tin sai chỗ người dùng đang cần chính xác.
+ */
+export const NHAN_TRUONG: Record<string, string> = {
+  amount: 'Số tiền',
+  appliedDate: 'Ngày áp dụng',
+  code: 'Mã',
+  confirm: 'Ô xác nhận',
+  cpbh: 'CPBH',
+  customerCode: 'Mã khách hàng',
+  customerName: 'Tên khách hàng',
+  customerType: 'Loại khách hàng',
+  days: 'Số ngày',
+  debt: 'Công nợ',
+  deliveryAddress: 'Địa chỉ giao hàng',
+  fileName: 'Tên tệp',
+  fullName: 'Họ và tên',
+  groupCode: 'Mã nhóm sản phẩm',
+  login: 'Tên đăng nhập',
+  name: 'Tên',
+  note: 'Ghi chú',
+  ownerIdNumber: 'CCCD/MST',
+  ownerName: 'Người đại diện',
+  ownerTitle: 'Chức vụ người đại diện',
+  placeholder: 'Ô trống trong mẫu',
+  priceType: 'Loại giá',
+  productGroupCode: 'Nhóm sản phẩm',
+  registeredAddress: 'Địa chỉ đăng ký',
+  role: 'Vai trò',
+  status: 'Trạng thái',
+  thresholdRate2: 'Ngưỡng chiết khấu',
+  username: 'Tên đăng nhập',
+  wholesalePrice: 'Giá bán buôn',
+};
+
+/**
+ * **96 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
+ * người duyệt bảng câu chữ đọc theo màn hình họ dùng, không theo sơ đồ kiến trúc.
+ */
+export const BANG_LOI: Record<string, Muc> = {
+  // --- Đăng nhập và phiên làm việc ----------------------------------------
+  INVALID_CREDENTIALS: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau: 'Tên đăng nhập hoặc mật khẩu không đúng.',
+  },
+  ACCOUNT_DISABLED: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau: 'Tài khoản này đã bị vô hiệu hoá. Liên hệ Quản trị hệ thống.',
+  },
+  PASSWORD_CHANGE_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  PASSWORD_WEAK: { dang: 'o-nhap', truong: 'matKhauMoi', tuMayChu: true },
+  // Ba mã dưới đây do lớp phủ đăng nhập lại lo — nó đã hiện trước khi ai kịp
+  // đọc một câu lỗi, và hiện thêm một hộp thoại nữa là báo hai lần một việc.
+  TOKEN_MISSING: { dang: 'im' },
+  REFRESH_INVALID: { dang: 'im' },
+  REFRESH_EXPIRED: { dang: 'im' },
+  PHIEN_HET_HAN: { dang: 'im' },
+  TOKEN_STALE: {
+    dang: 'hop-thoai',
+    cau: 'Mật khẩu vừa đổi nên phiên này đã kết thúc. Đăng nhập lại.',
+  },
+  REFRESH_REUSED: {
+    dang: 'hop-thoai',
+    cau:
+      'Phiên của bạn đã bị thu hồi vì lý do an toàn. Đăng nhập lại; ' +
+      'nếu bạn không tự đăng xuất, hãy báo Quản trị hệ thống.',
+  },
+  // Bốn mã của ĐƯỜNG LIÊN KẾT đặt mật khẩu. Chúng là ngõ cụt của cả một trang,
+  // không phải lỗi của một lần bấm — nên `trang`, và câu phải nói lối ra.
+  TOKEN_INVALID: {
+    dang: 'trang',
+    cau: 'Đường liên kết không đúng. Hãy mở lại thư mời, hoặc yêu cầu Quản trị gửi thư mới.',
+  },
+  TOKEN_EXPIRED: {
+    dang: 'trang',
+    cau: 'Đường liên kết đã hết hạn. Bấm Quên mật khẩu để nhận thư mới.',
+  },
+  TOKEN_USED: {
+    dang: 'trang',
+    cau:
+      'Đường liên kết này đã dùng rồi. Đăng nhập bằng mật khẩu vừa đặt, ' +
+      'hoặc bấm Quên mật khẩu.',
+  },
+  TOKEN_REVOKED: {
+    dang: 'trang',
+    cau: 'Đường liên kết này đã bị thay bằng thư mới hơn. Dùng thư mới nhất trong hộp thư của bạn.',
+  },
+
+  // --- Tài khoản người dùng ------------------------------------------------
+  USER_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy tài khoản này. Tải lại danh sách người dùng.',
+  },
+  ALREADY_ACTIVATED: {
+    dang: 'thanh-noi',
+    cau: 'Tài khoản này đã kích hoạt rồi, không cần gửi lại thư mời.',
+  },
+  SUCCESSOR_NOT_FOUND: {
+    dang: 'o-nhap',
+    truong: 'successorId',
+    cau: 'Không tìm thấy tài khoản nhận bàn giao. Chọn người khác.',
+  },
+  SUCCESSOR_REQUIRED: { dang: 'o-nhap', truong: 'successorId', tuMayChu: true },
+  SUCCESSOR_INACTIVE: { dang: 'o-nhap', truong: 'successorId', tuMayChu: true },
+  SUCCESSOR_INVALID: { dang: 'o-nhap', truong: 'successorId', tuMayChu: true },
+  SUCCESSOR_WRONG_ROLE: { dang: 'o-nhap', truong: 'successorId', tuMayChu: true },
+  ROLE_FORBIDDEN: {
+    dang: 'hop-thoai',
+    tuThan: true,
+    cau: 'Việc này không thuộc vai trò của bạn.',
+  },
+
+  // --- Hồ sơ CSBH ----------------------------------------------------------
+  POLICY_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy hồ sơ này. Có thể nó vừa bị xoá, hoặc bạn không còn phụ trách.',
+  },
+  LINE_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Dòng sản phẩm này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',
+  },
+  ATTACHMENT_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Tệp này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',
+  },
+  OUT_OF_SCOPE: {
+    dang: 'trang',
+    cau: 'Hồ sơ này nằm ngoài phạm vi dữ liệu của bạn.',
+  },
+  NOT_OWNER: {
+    dang: 'hop-thoai',
+    cau: 'Chỉ trình dược viên đang phụ trách hồ sơ này mới xoá được.',
+  },
+  NOT_OWNING_TDV: { dang: 'hop-thoai', tuMayChu: true },
+  ONLY_EDITABLE_DELETABLE: { dang: 'hop-thoai', tuMayChu: true },
+  POLICY_LOCKED: {
+    dang: 'hop-thoai',
+    tuThan: true,
+    cau: 'Hồ sơ đã gửi duyệt nên không sửa được nữa.',
+  },
+  INVALID_TRANSITION: {
+    dang: 'hop-thoai',
+    tuThan: true,
+    cau: 'Hồ sơ đã sang bước khác nên không thực hiện được thao tác vừa bấm. Tải lại hồ sơ.',
+  },
+  CONCURRENT_UPDATE: { dang: 'hop-thoai', tuMayChu: true },
+  ALREADY_SIGNED: { dang: 'hop-thoai', tuMayChu: true },
+  ALREADY_ACTIVE_POLICY: { dang: 'hop-thoai', tuMayChu: true },
+  POLICY_OVERDUE: { dang: 'hop-thoai', tuMayChu: true },
+  NO_LINES: { dang: 'hop-thoai', tuMayChu: true },
+  NO_ACTIVE_POLICY: {
+    dang: 'hop-thoai',
+    cau: 'Khách hàng chưa có CSBH nào để bổ sung. Lập hồ sơ mới thay vì bổ sung.',
+  },
+  MISSING_INHERITED_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
+  STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
+  SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  DUPLICATE_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
+  PRODUCT_DISABLED: { dang: 'hop-thoai', tuMayChu: true },
+  REASON_REQUIRED: {
+    dang: 'o-nhap',
+    truong: 'lyDo',
+    cau: 'Phải nhập lý do thì mới thực hiện được thao tác này.',
+  },
+  FORBIDDEN_ROLE: { dang: 'hop-thoai', tuMayChu: true },
+  FIELD_NOT_ALLOWED: { dang: 'thanh-noi', tuMayChu: true },
+  ASSIGNEE_REQUIRED: { dang: 'o-nhap', truong: 'nguoiXuLy', tuMayChu: true },
+  ASSIGNEE_INACTIVE: { dang: 'o-nhap', truong: 'nguoiXuLy', tuMayChu: true },
+  ASSIGNEE_WRONG_ROLE: { dang: 'o-nhap', truong: 'nguoiXuLy', tuMayChu: true },
+
+  // --- Khách hàng ----------------------------------------------------------
+  CUSTOMER_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy khách hàng này. Có thể khách vừa bị xoá.',
+  },
+  CUSTOMER_CODE_DUPLICATE: {
+    dang: 'o-nhap',
+    truong: 'customerCode',
+    cau: 'Mã khách hàng này đã có trong hệ thống. Dùng mã khác.',
+  },
+  DOCUMENT_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Giấy tờ này không còn trong hồ sơ khách hàng. Tải lại rồi thử lại.',
+  },
+  CUSTOMER_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
+  CUSTOMER_ALREADY_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
+  CUSTOMER_HAS_POLICY: { dang: 'hop-thoai', tuMayChu: true },
+  CUSTOMER_HAS_PENDING_POLICY: { dang: 'hop-thoai', tuMayChu: true },
+  REASSIGN_FORBIDDEN: { dang: 'hop-thoai', tuMayChu: true },
+
+  // --- Danh mục sản phẩm và chiết khấu -------------------------------------
+  PRICE_NOT_SET: {
+    dang: 'hop-thoai',
+    cau:
+      'Sản phẩm này chưa có giá bán Công ty nên chưa đưa vào hồ sơ được. ' +
+      'Báo Quản trị hệ thống nhập giá.',
+  },
+  PRODUCT_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy sản phẩm này trong danh mục. Tải lại rồi chọn lại.',
+  },
+  GROUP_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy nhóm sản phẩm này. Tải lại danh sách nhóm.',
+  },
+  RULE_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy quy định chiết khấu này. Tải lại danh sách.',
+  },
+  EMPTY_SHEET: {
+    dang: 'hop-thoai',
+    cau: 'File Excel không có trang tính nào. Kiểm tra lại file rồi tải lên.',
+  },
+  RULE_CODE_DUPLICATE: { dang: 'o-nhap', truong: 'code', tuMayChu: true },
+  RULE_SCOPE_DUPLICATE: { dang: 'hop-thoai', tuMayChu: true },
+  IMPORT_FAILED: { dang: 'hop-thoai', tuMayChu: true },
+  BAD_HEADER: { dang: 'hop-thoai', tuMayChu: true },
+
+  // --- Tệp, văn bản mẫu và hợp đồng ----------------------------------------
+  FILE_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Tệp này không còn trên hệ thống. Nếu bạn vừa tải lên, thử tải lại trang.',
+  },
+  TEMPLATE_NOT_FOUND: {
+    dang: 'hop-thoai',
+    cau: 'Không tìm thấy văn bản mẫu này. Tải lại danh sách mẫu rồi chọn lại.',
+  },
+  LINK_TOKEN_MISSING: {
+    dang: 'thanh-noi',
+    cau: 'Không mở được tệp. Đóng khung xem rồi mở lại từ hồ sơ.',
+  },
+  FILE_MISSING: { dang: 'o-nhap', truong: 'tep', tuMayChu: true },
+  FILE_EMPTY: { dang: 'o-nhap', truong: 'tep', tuMayChu: true },
+  FILE_TOO_LARGE: { dang: 'o-nhap', truong: 'tep', tuMayChu: true },
+  FILE_TYPE_NOT_ALLOWED: { dang: 'o-nhap', truong: 'tep', tuMayChu: true },
+  FILE_DISCARDED: { dang: 'hop-thoai', tuMayChu: true },
+  FILE_INTEGRITY_FAILED: { dang: 'hop-thoai', tuMayChu: true },
+  TEMPLATE_NOT_DOCX: {
+    dang: 'o-nhap',
+    truong: 'tep',
+    cau: 'Tệp này không phải file Word (.docx). Chọn lại tệp mẫu.',
+  },
+  TEMPLATE_NOT_USABLE: { dang: 'hop-thoai', tuMayChu: true },
+  TEMPLATE_INCOMPLETE: { dang: 'hop-thoai', tuMayChu: true },
+  TEMPLATE_MISSING_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  TEMPLATE_FILE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
+  POLICY_TEMPLATE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
+  NO_ACTIVE_TEMPLATE: { dang: 'hop-thoai', tuMayChu: true },
+  PLACEHOLDER_NOT_IN_TEMPLATE: { dang: 'o-nhap', truong: 'placeholder', tuMayChu: true },
+  SOURCE_UNKNOWN: { dang: 'o-nhap', truong: 'source', tuMayChu: true },
+  CONTRACT_NOT_READY: { dang: 'hop-thoai', tuMayChu: true },
+  NOT_SIGNED_YET: { dang: 'hop-thoai', tuMayChu: true },
+  PDF_ENGINE_UNAVAILABLE: { dang: 'hop-thoai', tuMayChu: true },
+  PDF_RENDER_FAILED: { dang: 'hop-thoai', tuMayChu: true },
+
+  // --- Báo cáo và kết xuất Excel -------------------------------------------
+  EXPORT_NOT_READY: {
+    dang: 'thanh-noi',
+    cau: 'File Excel đang được dựng. Chờ vài giây rồi bấm tải lại.',
+  },
+  EXPORT_NOT_FOUND: {
+    dang: 'thanh-noi',
+    cau: 'Không tìm thấy file kết xuất này. Hãy xuất lại.',
+  },
+  EXPORT_EXPIRED: { dang: 'thanh-noi', tuMayChu: true },
+
+  // --- Hạ tầng và màn hình quản trị ----------------------------------------
+  RATE_LIMITED: { dang: 'thanh-noi', tuMayChu: true },
+  UPSTREAM_UNAVAILABLE: {
+    dang: 'hop-thoai',
+    cau:
+      'Một phần của hệ thống đang không phản hồi. ' +
+      'Dữ liệu bạn nhập vẫn được giữ nguyên — thử lại sau ít phút.',
+  },
+  BODY_TOO_LARGE: {
+    dang: 'hop-thoai',
+    cau: 'Nội dung gửi lên quá lớn. Bớt số dòng hoặc tách làm nhiều lần.',
+  },
+  DEAD_LETTER_NOT_FOUND: {
+    dang: 'thanh-noi',
+    cau: 'Thư hỏng này không còn trong hàng đợi. Tải lại danh sách.',
+  },
+  SERVICE_TOKEN_MISSING: { dang: 'im' },
+  VALIDATION_FAILED: { dang: 'o-nhap', tuThan: true },
+  CONFIRM_MISMATCH: { dang: 'o-nhap', truong: 'confirm', tuMayChu: true },
+  MAT_KET_NOI: {
+    dang: 'hop-thoai',
+    cau: 'Không kết nối được máy chủ. Dữ liệu bạn nhập vẫn được giữ nguyên.',
+  },
+  KHONG_CO_TRINH_DUYET: { dang: 'thanh-noi', cau: 'Chỉ tải được tệp từ trình duyệt.' },
+};
+
+export type LoiDaDoc = {
+  cau: string;
+  dang: Dang;
+  /** Ô nhập mà lỗi thuộc về, nếu có. */
+  truong?: string;
+  /** Câu gốc của máy chủ, chỉ đặt khi nó KHÁC câu chính — hiện ở dòng phụ. */
+  chiTiet?: string;
+  traceId?: string | null;
+  /** Lỗi mạng thì dữ liệu đang nhập vẫn đúng, chỉ cần bấm lại (`FE-32`). */
+  laLoiMang: boolean;
+  ma: string;
+};
+
+const CAU_LUI = 'Có lỗi không xác định. Hãy thử lại.';
+
+/**
+ * Đọc một lỗi bất kỳ ra câu chữ và dạng hiển thị.
+ *
+ * Thứ tự tra, và thứ tự này có lý do: câu của BẢNG TRA thắng câu của máy chủ ở
+ * những mã ta đã viết câu (`cau`), vì đó chính là việc đang làm — thống nhất
+ * câu chữ ở một chỗ. Ngược lại `tuMayChu` nhường hẳn cho máy chủ, dành cho câu
+ * mang số liệu của chính lần gọi ấy mà giao diện không dựng lại được.
+ */
+export function docLoi(loi: unknown): LoiDaDoc {
+  if (!(loi instanceof LoiApi)) {
+    return { cau: CAU_LUI, dang: 'hop-thoai', laLoiMang: false, ma: 'KHONG_RO' };
+  }
+
+  const muc = BANG_LOI[loi.code];
+  const cauMayChu = loi.message.trim();
+
+  // Trường: máy chủ nói qua `field` thì tin nó — nó biết chính xác ô nào hỏng.
+  const truong =
+    typeof loi.body['field'] === 'string' ? (loi.body['field'] as string) : muc?.truong;
+
+  let cau: string | null = null;
+  let chiTiet: string | undefined;
+
+  if (muc?.tuThan) cau = DUNG_CAU[loi.code]?.(loi.body) ?? null;
+  if (cau === null && muc?.tuMayChu && cauMayChu) cau = cauMayChu;
+  if (cau === null && muc?.cau) cau = muc.cau;
+
+  // Câu gốc của `VALIDATION_FAILED` mang tên trường trong mã — không đưa lên
+  // làm câu chính, nhưng cũng không vứt: Quản trị đọc nó lúc gỡ lỗi qua điện
+  // thoại, và nó là thứ duy nhất nói ra trường ấy sai KIỂU GÌ.
+  if (loi.code === 'VALIDATION_FAILED' && cauMayChu) chiTiet = cauMayChu;
+
+  if (cau === null) cau = cauMayChu || CAU_LUI;
+
+  return {
+    cau,
+    dang: muc?.dang ?? 'hop-thoai',
+    ...(truong ? { truong } : {}),
+    ...(chiTiet ? { chiTiet } : {}),
+    traceId: loi.traceId,
+    laLoiMang: loi.laLoiMang,
+    ma: loi.code,
+  };
+}

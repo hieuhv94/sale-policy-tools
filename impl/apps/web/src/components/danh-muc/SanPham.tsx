@@ -31,6 +31,7 @@ import {
 import { thieuTruong } from '../../lib/bat-buoc.js';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
+import { useBaoLoi } from '../../lib/bao-loi.js';
 
 export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
   const [tim, datTim] = useState('');
@@ -205,6 +206,7 @@ function HopThoaiTao({
   dong: () => void;
   xong: () => void;
 }) {
+  const { bao } = useBaoLoi();
   const [ma, datMa] = useState('');
   const [ten, datTen] = useState('');
   const [maNhom, datMaNhom] = useState(nhom[0]?.code ?? '');
@@ -219,7 +221,7 @@ function HopThoaiTao({
       await dang('/catalog/products', { code: ma.trim(), name: ten.trim(), groupCode: maNhom });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -269,6 +271,7 @@ function HopThoaiTao({
 // --- Sửa ---------------------------------------------------------------------
 
 function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: () => void }) {
+  const { bao } = useBaoLoi();
   const [ten, datTen] = useState(sp.name);
   const [trangThai, datTrangThai] = useState<TrangThaiSanPham>(sp.status);
   const [go, datGo] = useState('');
@@ -297,7 +300,7 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
       });
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -384,6 +387,7 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
 // --- Giá ---------------------------------------------------------------------
 
 function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
+  const { bao } = useBaoLoi();
   const [ls, datLs] = useState<DongGia[] | null>(null);
   const [soTien, datSoTien] = useState('');
   const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
@@ -417,7 +421,7 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
       datSoTien('');
       datLan((x) => x + 1);
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -491,6 +495,7 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
 // --- Nhập Excel --------------------------------------------------------------
 
 function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
+  const { bao } = useBaoLoi();
   const [tep, datTep] = useState<File | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
@@ -506,7 +511,7 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
       await guiTep('/catalog/products/import', form);
       xong();
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }

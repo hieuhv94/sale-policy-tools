@@ -12,12 +12,13 @@ import { usePhien } from '../lib/auth.js';
 // `VaiTro`, mà vai trò trong phiên đăng nhập chỉ là `string`.
 import { NHAN_VAI_TRO } from '../lib/format.js';
 import { BaoLoi, HopThoaiXacNhan, Truong } from '../components/Chung.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 
 export function ThongTin() {
+  const { bao } = useBaoLoi();
   const { nguoiDung, capNhatNguoiDung } = usePhien();
   const [ten, datTen] = useState(nguoiDung?.fullName ?? '');
-  const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const [xong, datXong] = useState(false);
   const [hoi, datHoi] = useState(false);
@@ -38,7 +39,6 @@ export function ThongTin() {
   const daDoi = ten.trim() !== nguoiDung.fullName && ten.trim().length >= 2;
 
   const gui = async () => {
-    datLoi(null);
     datXong(false);
     datDangGui(true);
     try {
@@ -46,7 +46,7 @@ export function ThongTin() {
       capNhatNguoiDung({ fullName: moi.fullName });
       datXong(true);
     } catch (err) {
-      datLoi(err);
+      bao(err);
     } finally {
       datDangGui(false);
     }
@@ -123,7 +123,6 @@ export function ThongTin() {
           kiểm toán, phải đối chiếu được với hồ sơ giấy.
         </p>
 
-        {loi !== null && <BaoLoi loi={loi} />}
         {xong && (
           <p className="ghi-chu" role="status">
             Đã lưu.

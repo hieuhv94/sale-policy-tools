@@ -16,6 +16,7 @@ import { BaoLoi, DangTai, HopThoai, HopThoaiXacNhan, Truong } from './Chung.js';
 import { TheTep } from './TheTep.js';
 import { VungTaiLen } from './VungTaiLen.js';
 import { XemTep } from './XemTep.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type TepPhapLy = {
   id: string;
@@ -52,6 +53,7 @@ export function HoSoPhapLy({
    */
   choPhepGhi: boolean;
 }) {
+  const { bao } = useBaoLoi();
   const [ds, datDs] = useState<TepPhapLy[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
@@ -123,7 +125,7 @@ export function HoSoPhapLy({
       );
       await taiVe(link.url, link.fileName || t.fileName);
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -143,7 +145,7 @@ export function HoSoPhapLy({
         tenTep: link.fileName || t.fileName,
       });
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -158,7 +160,7 @@ export function HoSoPhapLy({
       await xoa(`/customers/${khachHangId}/documents/${t.id}`);
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangChay(null);
     }
@@ -260,7 +262,7 @@ export function HoSoPhapLy({
               datTepMoi(null);
               taiLai();
             } catch (err) {
-              datLoi(err);
+              bao(err);
             } finally {
               datDangTaiLen(false);
             }

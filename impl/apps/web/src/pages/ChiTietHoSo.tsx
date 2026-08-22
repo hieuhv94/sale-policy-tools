@@ -37,6 +37,7 @@ import {
   Truong,
 } from '../components/Chung.js';
 import { DanhSachLech, type LechMuc } from '../components/Lech.js';
+import { useBaoLoi } from '../lib/bao-loi.js';
 
 type HoSo = {
   id: string;
@@ -100,6 +101,7 @@ type HoSo = {
 };
 
 export function ChiTietHoSo({ id }: { id: string }) {
+  const { bao } = useBaoLoi();
   const { nguoiDung } = usePhien();
   const [hoSo, datHoSo] = useState<HoSo | null>(null);
   const [choPhep, datChoPhep] = useState<string[]>([]);
@@ -146,7 +148,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
       await xoa(`/policies/${id}/lines/${lineId}`);
       taiLai();
     } catch (e) {
-      datLoi(e);
+      bao(e);
     } finally {
       datDangXoaDong(null);
     }
