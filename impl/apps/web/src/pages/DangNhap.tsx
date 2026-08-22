@@ -79,7 +79,7 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         <div className="dang-nhap-dau">
           <img src={logo} alt="Nutricare" className="logo-lon" />
           <h1>{lopPhu ? 'Phiên đã hết hạn' : 'Chính sách bán hàng'}</h1>
-          {!lopPhu && <p className="dang-nhap-phu">Công ty TNHH Dược phẩm Nutricare</p>}
+          {!lopPhu && <p className="dang-nhap-phu">Công Ty Cổ Phần Dinh Dưỡng Nutricare</p>}
         </div>
         {lopPhu && (
           <p className="ghi-chu">

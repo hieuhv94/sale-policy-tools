@@ -42,7 +42,7 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 export const COMPANY = {
-  name: 'CÔNG TY TNHH DƯỢC PHẨM NUTRICARE',
+  name: 'CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE',
   address: 'Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội',
   taxCode: '0102345678',
 } as const;

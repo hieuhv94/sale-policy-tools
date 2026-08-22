@@ -183,7 +183,7 @@ export class WorkflowService {
       if (lines.length === 0) {
         throw new UnprocessableEntityException({
           code: 'NO_LINES',
-          message: 'Hồ sơ chưa có dòng sản phẩm nào',
+          message: 'Hồ sơ chưa có sản phẩm nào',
         });
       }
       await this.policies.assertNoMissingInheritedProduct(policyId);
@@ -208,7 +208,7 @@ export class WorkflowService {
           message:
             `Không lấy được giá hoặc ngưỡng hiện hành cho: ${hong.join(', ')}. ` +
             'Sản phẩm có thể đã vô hiệu hoá, hoặc chưa khai giá tại ngày áp dụng. ' +
-            'Xoá dòng đó hoặc đổi ngày áp dụng rồi gửi lại.',
+            'Xoá sản phẩm đó hoặc đổi ngày áp dụng rồi gửi lại.',
         });
       }
     }

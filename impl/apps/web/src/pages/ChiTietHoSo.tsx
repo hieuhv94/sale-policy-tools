@@ -309,11 +309,11 @@ export function ChiTietHoSo({ id }: { id: string }) {
         </div>
       )}
 
-      <h2>Dòng sản phẩm</h2>
+      <h2>Sản phẩm</h2>
       {dangSua && (
         <div className="nhom-nut">
           <button type="button" className="nut nut-chinh" onClick={() => datMoSua('dong')}>
-            Thêm dòng sản phẩm
+            Thêm sản phẩm
           </button>
           <button type="button" className="nut nut-nhe" onClick={() => datMoSua('ngay')}>
             Sửa ngày áp dụng
@@ -457,7 +457,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
 
       {xoaDongId && (
         <HopThoaiXacNhan
-          tieuDe="Xoá dòng sản phẩm"
+          tieuDe="Xoá sản phẩm"
           hauQua={
             <p>
               Dòng này biến mất khỏi hồ sơ và <strong>không lấy lại được</strong>. Nếu đây là dòng
@@ -465,7 +465,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
               toàn bộ sản phẩm cũ.
             </p>
           }
-          nhanNut="Xoá dòng"
+          nhanNut="Xoá"
           dangChay={dangXoaDong === xoaDongId}
           dong={() => datXoaDongId(null)}
           xacNhan={() => void xoaDong(xoaDongId).then(() => datXoaDongId(null))}

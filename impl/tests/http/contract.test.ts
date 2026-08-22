@@ -242,7 +242,7 @@ afterAll(async () => {
 const twelveSlotTemplate = () =>
   makeDocx(
     [
-      para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+      para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
       para('HỢP ĐỒNG với {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
       para('Địa chỉ: {{ho_so.dia_chi_dang_ky}} — nhận hàng {{ho_so.noi_nhan_hang}}'),
       para('Đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
@@ -648,7 +648,7 @@ describe('DOC-34 chuyển hợp đồng đã trộn sang PDF', () => {
     expect(text).toContain(CUSTOMER_NAME); //          dấu tiếng Việt nguyên vẹn
     expect(text).toContain('Nhà thuốc');
     expect(text).toContain(ADDRESS_1);
-    expect(text).toContain('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE');
+    expect(text).toContain('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE');
     expect(text).not.toContain('{{');
 
     const { PDFDocument } = await import('pdf-lib');

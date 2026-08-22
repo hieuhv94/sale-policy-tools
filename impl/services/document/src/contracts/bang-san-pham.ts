@@ -163,7 +163,7 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
         // Ô đầu là dấu gạch, ô thứ hai là câu giải thích, còn lại để trống —
         // dựng theo SỐ CỘT THẬT chứ không đếm tay, vì số cột giờ đổi theo mẫu.
         tableRow(
-          ts.map((_, i) => (i === 0 ? '—' : i === 1 ? 'Chưa có dòng sản phẩm nào' : '')),
+          ts.map((_, i) => (i === 0 ? '—' : i === 1 ? 'Chưa có sản phẩm nào' : '')),
           false,
           ts,
         ),

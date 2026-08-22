@@ -155,7 +155,7 @@ export function ThemDongSanPham({
 
   return (
     <HopThoai
-      tieuDe={sua ? `Sửa dòng ${dongCu.productCode}` : 'Thêm dòng sản phẩm'}
+      tieuDe={sua ? `Sửa ${dongCu.productCode}` : 'Thêm sản phẩm'}
       dong={dong}
     >
       <form onSubmit={gui}>
@@ -253,7 +253,7 @@ export function ThemDongSanPham({
           )}
         </Truong>
         <p className="ghi-chu">
-          Ghi chú riêng cho dòng sản phẩm này — <strong>in ra bản CSBH A4</strong> và hiện trong bảng
+          Ghi chú riêng cho sản phẩm này — <strong>in ra bản CSBH A4</strong> và hiện trong bảng
           cho mọi người duyệt. Tối đa 500 ký tự. Để trống thì không có ghi chú.
         </p>
 
@@ -397,7 +397,7 @@ export function XoaHoSo({
     <HopThoai tieuDe={`Xoá hồ sơ ${ma}`} dong={dong}>
       {xoaHan ? (
         <p className="giai-thich">
-          Hồ sơ này <strong>chưa gửi duyệt</strong> nên nó biến mất hẳn cùng mọi dòng sản phẩm, và{' '}
+          Hồ sơ này <strong>chưa gửi duyệt</strong> nên nó biến mất hẳn cùng mọi sản phẩm, và{' '}
           <strong>không lùi được</strong>. Lịch sử của riêng hồ sơ cũng mất theo — chưa ai ngoài bạn
           nhìn thấy nó.
         </p>

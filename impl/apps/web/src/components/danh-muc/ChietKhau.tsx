@@ -174,7 +174,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
         ) : (
           <Trong
             tieuDe="Chưa có quy định chiết khấu nào"
-            moTa="Chưa có quy định thì không dòng sản phẩm nào bị đánh dấu vượt ngưỡng."
+            moTa="Chưa có quy định thì không sản phẩm nào bị đánh dấu vượt ngưỡng."
           />
         )
       ) : (

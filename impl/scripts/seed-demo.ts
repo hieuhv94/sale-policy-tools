@@ -971,7 +971,7 @@ async function main(): Promise<void> {
   const than = [
     // Tên Công ty gõ THẲNG (`0067`): nhóm khoá `cong_ty.` đã bỏ vì ba giá trị ấy
     // cố định ở mọi hồ sơ.
-    para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+    para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
     para('HỢP ĐỒNG PHÂN PHỐI SẢN PHẨM'),
     para('Bên B: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
     para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),

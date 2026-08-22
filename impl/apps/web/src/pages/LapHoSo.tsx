@@ -77,7 +77,7 @@ export function LapHoSo() {
       <div className="dau-trang">
         <div>
           <h1>Lập hồ sơ CSBH</h1>
-          <p className="mo-ta-trang">Chọn khách hàng, rồi thêm dòng sản phẩm ở bước sau.</p>
+          <p className="mo-ta-trang">Chọn khách hàng, rồi thêm sản phẩm ở bước sau.</p>
         </div>
       </div>
 

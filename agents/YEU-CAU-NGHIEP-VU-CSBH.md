@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
+| **Đơn vị yêu cầu** | Công Ty Cổ Phần Dinh Dưỡng Nutricare |
 | **Phiên bản** | 4.2 — hợp nhất sau ba phiên rà soát, bổ sung quy trình tạo tài khoản ngày 07/08 |
 | **Ngày** | 07/08/2026 |
 | **Nguồn** | `01.08. QUY TRÌNH CSBH.docx` (QT) · `01.08. Yêu cầu nghiệp vụ.docx` (v3.0) · `05.08. Yêu cầu nghiệp vụ.docx` (v3.1) · 42 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08 |

@@ -27,7 +27,7 @@ import { makeDocx, para } from '../services/document/src/contracts/docx.js';
  * và quên thì bản in ra mang chuỗi `{{cong_ty.ten}}` ngay dòng đầu.
  */
 const dauTrang = [
-  para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
   para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
   para(''),
   para('CHÍNH SÁCH BÁN HÀNG'),
@@ -50,7 +50,7 @@ const dayDu = [
   ...dauTrang,
   para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}} · {{ho_so.trang_thai}}'),
   para(''),
-  para('BÊN BÁN: CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('BÊN BÁN: CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
   para('BÊN MUA: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   para('Mã số thuế: {{ho_so.ma_so_thue}}'),
   para('Địa chỉ đăng ký: {{ho_so.dia_chi_dang_ky}}'),
@@ -107,13 +107,13 @@ const rutGon = [
  * soạn đổi được nó mà không phải vẽ lại bảng.
  */
 const hopDong = [
-  para('CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
   para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
   para(''),
   para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
   para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}, áp dụng từ {{ho_so.ngay_ap_dung}}.'),
   para(''),
-  para('BÊN BÁN (Bên A): CÔNG TY TNHH DƯỢC PHẨM NUTRICARE'),
+  para('BÊN BÁN (Bên A): CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
   para(''),
   para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   para('Mã số thuế: {{ho_so.ma_so_thue}}'),

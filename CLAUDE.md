@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo này là gì
 
-Phần mềm **Chính sách bán hàng (CSBH)** của Công ty TNHH Dược phẩm Nutricare: trình dược viên lập hồ
+Phần mềm **Chính sách bán hàng (CSBH)** của Công Ty Cổ Phần Dinh Dưỡng Nutricare: trình dược viên lập hồ
 sơ CSBH cho từng khách hàng, hồ sơ đi qua **luồng duyệt 10 bước** rồi có hiệu lực vô thời hạn.
 
 Bản 1.0.0 đã viết xong (chặng P1–P8) và đang trong **vòng sửa theo phản hồi khách hàng** — mỗi lượt

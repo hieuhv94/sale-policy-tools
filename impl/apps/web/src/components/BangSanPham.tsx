@@ -320,7 +320,7 @@ export function BangSanPham({
   return (
     <>
       {/* ≥640px: bảng thật, cuộn ngang trong khung riêng ở 640–1023px. */}
-      <div className="khung-cuon" role="region" aria-label="Bảng dòng sản phẩm" tabIndex={0}>
+      <div className="khung-cuon" role="region" aria-label="Bảng sản phẩm" tabIndex={0}>
         <table className="bang-san-pham">
           <thead>
             <tr>
@@ -370,7 +370,7 @@ export function BangSanPham({
                           disabled={dangXoa === d.id}
                           onClick={() => xoaDong(d.id)}
                         >
-                          Xoá dòng
+                          Xoá
                         </button>
                       )}
                     </div>
@@ -441,7 +441,7 @@ export function BangSanPham({
                     disabled={dangXoa === d.id}
                     onClick={() => xoaDong(d.id)}
                   >
-                    Xoá dòng
+                    Xoá
                   </button>
                 )}
               </div>

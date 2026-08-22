@@ -253,7 +253,7 @@ export function ChiTietKhachHang({ id }: { id: string }) {
             <Nhan trangThai={hoSo.status} />
           </div>
           <p className="phu">Ngày áp dụng {ngay(hoSo.appliedDate)}</p>
-          <p className="phu">{hoSo.lines.length} dòng sản phẩm</p>
+          <p className="phu">{hoSo.lines.length} sản phẩm</p>
         </div>
       )}
 

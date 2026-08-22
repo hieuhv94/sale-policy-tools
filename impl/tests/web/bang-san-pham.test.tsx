@@ -203,7 +203,7 @@ describe('sửa một dòng đã có', () => {
     render(<BangSanPham dong={[dong()]} suaDong={() => undefined} xoaDong={() => undefined} />);
     const bang = screen.getByRole('table');
     expect(within(bang).getAllByRole('button', { name: 'Sửa' }).length).toBeGreaterThan(0);
-    expect(within(bang).getAllByRole('button', { name: 'Xoá dòng' }).length).toBeGreaterThan(0);
+    expect(within(bang).getAllByRole('button', { name: 'Xoá' }).length).toBeGreaterThan(0);
   });
 });
 

@@ -220,7 +220,7 @@ export const BANG_LOI: Record<string, Muc> = {
   },
   LINE_NOT_FOUND: {
     dang: 'hop-thoai',
-    cau: 'Dòng sản phẩm này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',
+    cau: 'Sản phẩm này không còn trong hồ sơ. Tải lại hồ sơ rồi thử lại.',
   },
   ATTACHMENT_NOT_FOUND: {
     dang: 'hop-thoai',

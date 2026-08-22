@@ -142,7 +142,7 @@ không có thanh nào — không cần.
 - **Ô tìm kiếm luôn tìm trên toàn bộ**, không phải chỉ trong 20 dòng đang hiện.
 - **Xoá dòng cuối cùng của trang cuối** thì phần mềm tự lùi bạn về trang trước.
 
-Ba thứ **không** phân trang, và đó là chủ ý: bảng dòng sản phẩm bên trong một hồ sơ CSBH, lịch sử giá
+Ba thứ **không** phân trang, và đó là chủ ý: bảng *Sản phẩm* bên trong một hồ sơ CSBH, lịch sử giá
 của một sản phẩm, và tệp đính kèm của một hồ sơ. Chúng là nội dung của **một** hồ sơ chứ không phải
 danh sách để duyệt — và bản A4 in ra phải khớp đúng bản trên màn hình.
 
@@ -587,8 +587,8 @@ Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: b
 > Đổi người phụ trách chỉ xảy ra ở đúng hai chỗ: **lúc chọn người** trong luồng, và **lúc vô hiệu
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
 
-**Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng dòng sản
-phẩm có thêm nút *Xoá dòng*, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
+**Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
+có thêm nút *Xoá* ở từng dòng, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
 muốn sửa phải chờ người duyệt trả lại.
 
 **Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:

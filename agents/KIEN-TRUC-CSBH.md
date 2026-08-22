@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
+| **Đơn vị yêu cầu** | Công Ty Cổ Phần Dinh Dưỡng Nutricare |
 | **Phiên bản phần mềm** | **1.0.0** — bản đầu tiên, xem mục 16 |
 | **Phiên bản tài liệu** | 1.1 · 06/08/2026 |
 | **Nguồn nghiệp vụ** | `YEU-CAU-NGHIEP-VU-CSBH.md` v4.1 — khi mâu thuẫn, **tài liệu nghiệp vụ có hiệu lực cao hơn** |

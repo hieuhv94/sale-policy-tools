@@ -251,7 +251,7 @@ describe('`0050` cùng thông tin ấy có mặt trên màn hình hồ sơ', () 
 
     // Và nó phải đứng TRƯỚC bảng số. Đọc sau khi đã quét hết mười cột thì đã
     // muộn — người ta đã tin vào những con số ấy rồi.
-    expect(nguon.indexOf('canh-bao-lech')).toBeLessThan(nguon.indexOf('<h2>Dòng sản phẩm</h2>'));
+    expect(nguon.indexOf('canh-bao-lech')).toBeLessThan(nguon.indexOf('<h2>Sản phẩm</h2>'));
   });
 });
 
