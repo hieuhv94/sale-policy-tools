@@ -8512,3 +8512,58 @@ Ba lượt, và lượt thứ ba mới là lượt đáng ghi:
   gắn tên ở trên, thứ mà ba ca kia bỏ qua.
 
 **1432/1432 xanh.**
+
+---
+
+## P117 — `idn.outbox`: ba câu hỏi kiểm toán hỏng vì cùng một chỗ
+
+**Ngày 22/08/2026** · thay đổi `0091`
+
+Bước hai của bản rà nhật ký. Ba trong sáu câu hỏi không trả lời được — *"ai đã đăng nhập"*, *"ai
+tạo và ai vô hiệu hoá tài khoản này"*, *"có ai dò mật khẩu không"* — và cả ba hỏng vì **một** chỗ:
+`identity` không phát sự kiện nào, schema `idn` không có bảng `outbox`. Chín service kia đều có.
+
+Hệ thống **có** đếm số lần đăng nhập sai và **có** khoá tạm tài khoản. Việc ấy cũng vô hình.
+
+### Hai đường ghi, và sự khác nhau là điều đáng nhớ nhất
+
+- `emit()` — **trong cùng transaction** với thay đổi nghiệp vụ. Tạo tài khoản, vô hiệu hoá. Cấp và
+  thu quyền truy cập là câu hỏi đầu tiên của mọi cuộc kiểm toán, nên vết phải sống chết cùng chính
+  tài khoản ấy: ghi ngoài transaction thì một lượt hỏng giữa chừng để lại tài khoản không có vết,
+  hoặc vết không có tài khoản.
+- `emitNgoai()` — **ngoài transaction**, tự mở kết nối. Dành cho việc KHÔNG ghi dữ liệu gì mà vẫn
+  phải để lại vết: **đăng nhập thất bại là chính nó**. Không có đường này thì đúng loại sự kiện an
+  ninh quan trọng nhất lại không có chỗ nào ghi.
+
+Đường thứ hai nuốt lỗi có chủ ý — một lượt đăng nhập không được hỏng chỉ vì không ghi nổi dòng nhật
+ký — nhưng ghi log, đúng ranh giới `0089` đã chốt.
+
+### Nhật ký nói thật, câu trả lời thì không
+
+Người gọi nhận đúng một mã cho mọi nhánh đăng nhập hỏng (AUTH-02): phân biệt ra là xác nhận giúp
+người dò rằng tài khoản đó có thật. **Nhật ký thì ngược lại** — nó chỉ Quản trị đọc, và *"sai mật
+khẩu"* với *"tài khoản đang bị khoá"* là hai câu chuyện an ninh khác hẳn. Giấu cả hai như nhau ở đó
+là bỏ đi đúng thứ người điều tra cần.
+
+Gõ vào một tên **không tồn tại** vẫn ghi lại chính tên đã gõ: một chuỗi thử liên tiếp vào những tên
+không có thật là hình dạng của một lượt dò, và không ghi tên thì không nhận ra hình dạng ấy.
+
+### Đăng xuất: danh tính tra từ chính token
+
+Đường `/auth/logout` là `@Public()` — người dùng gọi nó với access token đã hết hạn là chuyện
+thường — nên ngữ cảnh không có ai. Token làm mới thì luôn trỏ đúng một tài khoản, và đó là danh
+tính duy nhất chắc chắn ở đó.
+
+### Phá lại, và một lỗ hổng của chính bộ kiểm
+
+Gỡ hẳn sự kiện đăng nhập hỏng → **chỉ MỘT trong hai ca đỏ**. Ca còn lại xanh vì nó đọc "dòng mới
+nhất của hành động này" trên một CSDL không dọn giữa các lượt chạy — và trúng một dòng của lần chạy
+trước.
+
+Chữa bằng cách neo mọi phép đọc vào một **mốc thời gian** lấy ngay trước thao tác. Sau đó phá lại
+lần nữa: hai ca cùng đỏ.
+
+> Ghi ra vì hình dạng này sẽ lặp: mọi ca kiểm đọc "bản ghi mới nhất" trên CSDL dùng chung đều có thể
+> xanh nhờ dữ liệu của lượt trước, và lượt phá lại là cách duy nhất phát hiện.
+
+**1437/1437 xanh.**

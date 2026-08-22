@@ -15,6 +15,8 @@ import { CONFIG } from './infra/config.js';
  * dựng một máy chủ SMTP hỏng thật.
  */
 export { Mailer } from './infra/mailer.js';
+/** Bơm `idn.outbox` bằng tay trong test — cùng nếp với bốn service kia (`0091`). */
+export { IdentityOutbox } from './infra/outbox.relay.js';
 
 export async function createTestApp(): Promise<INestApplication> {
   const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();

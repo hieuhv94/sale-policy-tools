@@ -12,6 +12,8 @@ import { UsersService } from './admin/users.service.js';
 import { UsersController } from './admin/users.controller.js';
 import { InternalController } from './internal/internal.controller.js';
 import { ACCOUNT_SOURCE, AuthGuard, Public, TraceMiddleware } from '@csbh/http-kit';
+import { SuKienIdn } from './infra/outbox.js';
+import { IdentityOutbox } from './infra/outbox.relay.js';
 
 @Controller()
 class HealthController {
@@ -49,6 +51,8 @@ class HealthController {
     Db,
     Mailer,
     AccountCache,
+    SuKienIdn,
+    IdentityOutbox,
     PolicyClient,
     CustomerClient,
     AuthService,

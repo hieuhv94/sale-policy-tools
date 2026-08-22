@@ -967,6 +967,18 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   > *giới hạn*. Xoá khỏi bảng nhật ký đòi tắt chính cái chốt chặn "chỉ ghi thêm" ở tầng CSDL — mở
   > đúng cánh cửa mà điều khoản trên vừa khoá, và đổi lấy một chút dung lượng đĩa thì không đáng.
   > Ngày dung lượng thật sự thành vấn đề thì bàn tới việc chuyển sang kho lạnh, không phải xoá.
+- **Nhật ký ghi cả việc TÀI KHOẢN và PHIÊN ĐĂNG NHẬP** `mới 22/08`: đăng nhập thành công · đăng nhập
+  thất bại kèm **lý do thật** · khoá tạm sau nhiều lần sai · đăng xuất · tạo tài khoản · vô hiệu hoá
+  và mở lại · đổi mật khẩu (nói rõ tự đổi, kích hoạt qua thư mời, hay đặt lại sau khi quên).
+  > Người gọi vẫn nhận **đúng một mã lỗi** cho mọi nhánh đăng nhập hỏng — phân biệt ra là xác nhận
+  > giúp người dò rằng tài khoản đó có thật. Nhật ký thì ngược lại: nó chỉ Quản trị đọc được, và
+  > *"sai mật khẩu"* với *"tài khoản đã khoá"* là hai câu chuyện an ninh khác hẳn nhau.
+  >
+  > Gõ vào một tên **không tồn tại** cũng ghi lại chính tên đã gõ: một chuỗi thử liên tiếp vào những
+  > tên không có thật chính là hình dạng của một lượt dò.
+  >
+  > **Không ghi mật khẩu, không ghi token, không ghi thân request.** Nhật ký trả lời "ai làm gì lúc
+  > nào", không phải "họ đã gõ gì".
 - **Nhật ký KHÔNG có đường xuất ra file** `mới 22/08`. Đọc trên màn hình, nên bộ lọc và phân trang
   phải đủ để tra tại chỗ: khoảng thời gian, người thực hiện, hành động, đối tượng, địa chỉ IP và mã
   tra cứu. Việc ghi lại **lượt xuất Excel của báo cáo hồ sơ** thì vẫn giữ — đó là một tập dữ liệu

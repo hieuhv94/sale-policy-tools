@@ -19,6 +19,7 @@ import { Mailer } from '../infra/mailer.js';
 import { AccountCache } from '../infra/account-cache.js';
 import { PolicyClient } from '../infra/policy.client.js';
 import { CustomerClient } from '../infra/customer.client.js';
+import { emit, suKienTaiKhoan } from '../infra/outbox.js';
 
 export const ROLE_VALUES = [
   'TDV',
@@ -130,6 +131,23 @@ export class UsersService {
         `INSERT INTO idn.activation_token (user_id, token_hash, expires_at, created_by, purpose)
          VALUES ($1,$2, now() + ($3 || ' hours')::interval, $4, 'ACTIVATE')`,
         [id, token.hash, String(CONFIG.activationTtlHours), createdBy],
+      );
+      /*
+       * Sự kiện đi TRONG transaction (`0091`): cấp quyền truy cập vào hệ thống
+       * là câu hỏi đầu tiên của mọi cuộc kiểm toán, nên vết của nó phải sống
+       * chết cùng chính tài khoản ấy. Ghi ngoài transaction thì một lượt hỏng ở
+       * giữa để lại tài khoản không có vết, hoặc vết không có tài khoản.
+       */
+      await emit(
+        c,
+        'identity.user_created',
+        suKienTaiKhoan({
+          action: 'USER_CREATED',
+          userId: id,
+          username: input.username,
+          outcome: 'OK',
+          after: { username: input.username, email: input.email, role: input.role },
+        }),
       );
       return id;
     });
@@ -275,6 +293,7 @@ export class UsersService {
       [userId],
     );
     if (!u) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
+    const truocDo = u.is_active;
 
     let banGiao: { count: number; policies: { code: string; status: string }[] } = {
       count: 0,
@@ -334,10 +353,38 @@ export class UsersService {
       }
     }
 
-    const r = await this.db.q(
-      `UPDATE idn.app_user SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id`,
-      [userId, isActive],
-    );
+    const r = await this.db.tx(async (c) => {
+      const kq = await c.query<{ id: string }>(
+        `UPDATE idn.app_user SET is_active = $2, updated_at = now() WHERE id = $1 RETURNING id`,
+        [userId, isActive],
+      );
+      if (kq.rowCount === 0) return kq.rows;
+      /*
+       * THU quyền truy cập — vế còn lại của `USER_CREATED`, và là vế mà một
+       * cuộc kiểm toán hỏi trước (`0091`).
+       *
+       * `before`/`after` chỉ mang đúng trường đã đổi. Đổ cả bản ghi tài khoản
+       * vào đây là đưa email và vai trò vào nhật ký ở một sự kiện không liên
+       * quan gì tới chúng, rồi mỗi lần đọc lại phải tự tìm xem cái gì đã đổi.
+       */
+      await emit(
+        c,
+        isActive ? 'identity.user_enabled' : 'identity.user_disabled',
+        suKienTaiKhoan({
+          action: isActive ? 'USER_ENABLED' : 'USER_DISABLED',
+          userId,
+          username: u.username,
+          outcome: 'OK',
+          before: { isActive: truocDo },
+          after: { isActive },
+          reason:
+            !isActive && banGiao.count + chuyenKhach.count > 0
+              ? `Bàn giao ${banGiao.count} hồ sơ và ${chuyenKhach.count} khách hàng`
+              : null,
+        }),
+      );
+      return kq.rows;
+    });
     if (r.length === 0) throw new NotFoundException({ code: 'USER_NOT_FOUND' });
     // Xoá cache ngay để không phải chờ hết TTL — 60 giây chỉ là trần cho thay
     // đổi đi vòng ngoài API (AUTH-07).

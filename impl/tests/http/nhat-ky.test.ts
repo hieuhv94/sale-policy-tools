@@ -16,12 +16,14 @@ import {
   accessTokenFor,
   bootCustomerListening,
   bootIdentityListening,
+  bootPolicyListening,
   http,
   withAdminDb,
 } from './app.js';
 
 let identity: INestApplication;
 let customer: INestApplication;
+let policy: INestApplication;
 const khoiPhuc: (() => void)[] = [];
 let audit: INestApplication;
 const tok: Record<string, string> = {};
@@ -80,6 +82,11 @@ beforeAll(async () => {
   const cus = await bootCustomerListening();
   customer = cus.app;
   khoiPhuc.push(cus.restore);
+  // `identity` gọi sang `policy` và `customer` trong luồng vô hiệu hoá tài
+  // khoản (bàn giao hồ sơ và khách hàng), nên hai service ấy phải đứng thật.
+  const pol = await bootPolicyListening();
+  policy = pol.app;
+  khoiPhuc.push(pol.restore);
   for (const u of ['admin01', 'bld01', 'tdv01']) {
     tok[u] = await accessTokenFor(identity, u, 'Test@1234');
   }
@@ -93,6 +100,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await audit?.close();
+  await policy?.close();
   await customer?.close();
   for (const f of khoiPhuc) f();
   await identity?.close();
@@ -232,6 +240,119 @@ describe('`0090` tên người đi TỪ NGỮ CẢNH vào sự kiện', () => {
     expect(payload, 'không thấy sự kiện customer.created').toBeTruthy();
     expect(payload!['actorName'], 'sự kiện thiếu tên người thực hiện').toBeTruthy();
     expect(payload!['traceId'], 'sự kiện thiếu mã tra cứu').toBeTruthy();
+  }, 60_000);
+});
+
+// =============================================================================
+// `0091` — nhóm sự kiện tài khoản và phiên đăng nhập
+// =============================================================================
+
+/**
+ * Đọc sự kiện `idn.outbox` mới nhất của một hành động, TỪ MỘT MỐC trở đi.
+ *
+ * `moc` không phải chuyện thừa: bộ kiểm chạy trên CSDL thật và không dọn giữa
+ * các lượt, nên "dòng mới nhất của hành động này" có thể là dòng của lần chạy
+ * trước. Đo được ở lượt phá lại `0091`: gỡ hẳn sự kiện đăng nhập hỏng mà ca
+ * kiểm vẫn XANH, vì nó đọc trúng một dòng cũ.
+ */
+const suKien = (action: string, moc: Date) =>
+  withAdminDb(async (c) => {
+    const r = await c.query<{ payload: Record<string, unknown> }>(
+      `SELECT payload FROM idn.outbox
+        WHERE payload->>'action' = $1 AND created_at >= $2 ORDER BY seq DESC LIMIT 1`,
+      [action, moc],
+    );
+    return r.rows[0]?.payload;
+  });
+
+describe('`0091` đăng nhập để lại vết', () => {
+  it('đăng nhập ĐÚNG ghi LOGIN_OK kèm tên người', async () => {
+    const moc = new Date();
+    await accessTokenFor(identity, 'tdv01', 'Test@1234');
+    const e = await suKien('LOGIN_OK', moc);
+    expect(e, 'không có sự kiện LOGIN_OK nào').toBeTruthy();
+    expect(e!['outcome']).toBe('OK');
+    expect(e!['actorName'], 'thiếu tên người đăng nhập').toBeTruthy();
+    expect(e!['targetLabel']).toBeTruthy();
+  }, 30_000);
+
+  it('đăng nhập SAI ghi LOGIN_FAILED kèm lý do THẬT', async () => {
+    /*
+     * Người gọi chỉ nhận đúng một mã lỗi cho mọi nhánh hỏng (AUTH-02) — phân
+     * biệt ra là xác nhận giúp người dò rằng tài khoản đó có thật. Nhật ký thì
+     * ngược lại: nó chỉ Quản trị đọc, và "sai mật khẩu" với "tài khoản đã khoá"
+     * là hai câu chuyện an ninh khác hẳn nhau.
+     */
+    const moc = new Date();
+    const r = await (await http(identity))
+      .post('/auth/login')
+      .send({ login: 'tdv01', password: 'SaiHoanToan@9' });
+    expect(r.status).toBe(401);
+
+    const e = await suKien('LOGIN_FAILED', moc);
+    expect(e).toBeTruthy();
+    expect(e!['outcome']).toBe('FAILED');
+    expect(e!['reason']).toBe('Sai mật khẩu');
+    expect(e!['targetLabel']).toBe('tdv01');
+  }, 30_000);
+
+  it('gõ vào một tên KHÔNG TỒN TẠI vẫn ghi lại chính tên đã gõ', async () => {
+    // Một chuỗi thử liên tiếp vào những tên không có thật chính là hình dạng
+    // của một lượt dò — mà không ghi tên đã gõ thì không nhận ra hình dạng ấy.
+    const ten = `khongcothat${Date.now()}`;
+    const moc = new Date();
+    await (await http(identity)).post('/auth/login').send({ login: ten, password: 'X@123456' });
+    const e = await suKien('LOGIN_FAILED', moc);
+    expect(e!['targetLabel']).toBe(ten);
+    expect(e!['reason']).toBe('Không có tài khoản nào khớp');
+  }, 30_000);
+
+  it('KHÔNG ghi mật khẩu vào bất kỳ đâu', async () => {
+    const mk = `RatBiMat${Date.now()}@9`;
+    await (await http(identity)).post('/auth/login').send({ login: 'tdv01', password: mk });
+    const co = await withAdminDb(async (c) => {
+      const r = await c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM idn.outbox WHERE payload::text LIKE $1`,
+        [`%${mk}%`],
+      );
+      return Number(r.rows[0]!.n);
+    });
+    expect(co, 'mật khẩu lọt vào outbox').toBe(0);
+  }, 30_000);
+});
+
+describe('`0091` vòng đời tài khoản để lại vết', () => {
+  it('vô hiệu hoá tài khoản ghi USER_DISABLED kèm trước/sau', async () => {
+    const ten = `nk91${Date.now().toString().slice(-9)}`;
+    const moc = new Date();
+    const tao = await (await http(identity))
+      .post('/admin/users')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ username: ten, email: `${ten}@csbh.test`, fullName: 'Nguoi kiem thu 0091', role: 'TDV' });
+    expect(tao.status, JSON.stringify(tao.body)).toBe(201);
+
+    const eTao = await suKien('USER_CREATED', moc);
+    expect(eTao!['targetLabel']).toBe(ten);
+    expect((eTao!['after'] as Record<string, unknown>)['role']).toBe('TDV');
+
+    const nguoiNhan = await withAdminDb(async (c) => {
+      const r = await c.query<{ id: string }>(
+        `SELECT id FROM idn.app_user WHERE username = 'tdv01'`,
+      );
+      return r.rows[0]!.id;
+    });
+    const tat = await (await http(identity))
+      .post(`/admin/users/${tao.body.id}/deactivate`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ confirmUsername: ten, successorId: nguoiNhan });
+    expect(tat.status, JSON.stringify(tat.body)).toBe(200);
+
+    const e = await suKien('USER_DISABLED', moc);
+    expect(e!['targetLabel']).toBe(ten);
+    expect((e!['before'] as Record<string, unknown>)['isActive']).toBe(true);
+    expect((e!['after'] as Record<string, unknown>)['isActive']).toBe(false);
+    // Người THỰC HIỆN là Quản trị đang bấm, không phải tài khoản bị tắt.
+    expect(e!['actorName']).toBeTruthy();
   }, 60_000);
 });
 

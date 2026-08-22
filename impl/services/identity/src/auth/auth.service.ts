@@ -20,6 +20,7 @@ import { getKeyPair } from '@csbh/http-kit';
 import { AccountCache } from '../infra/account-cache.js';
 import type { RoleValue } from '../admin/users.service.js';
 import { randomBytes } from 'node:crypto';
+import { SuKienIdn, suKienTaiKhoan, emit } from '../infra/outbox.js';
 
 type UserRow = {
   id: string;
@@ -56,6 +57,7 @@ export class AuthService {
     private readonly db: Db,
     private readonly accounts: AccountCache,
     private readonly mailer: Mailer,
+    private readonly suKien: SuKienIdn,
   ) {}
 
   // --- Đăng nhập ------------------------------------------------------------
@@ -71,19 +73,45 @@ export class AuthService {
     // giúp người dò rằng địa chỉ đó có thật (AUTH-02).
     const deny = () => new UnauthorizedException({ code: 'INVALID_CREDENTIALS' });
 
+    /*
+     * Ghi nhật ký MỌI nhánh hỏng, kèm lý do THẬT (`0091`).
+     *
+     * Câu trả lời cho người gọi vẫn là một mã duy nhất — phân biệt ra là xác
+     * nhận giúp người dò rằng địa chỉ đó có thật (AUTH-02). Nhưng NHẬT KÝ thì
+     * ngược lại: nó chỉ Quản trị đọc được, và "sai mật khẩu" với "tài khoản đã
+     * khoá" là hai câu chuyện an ninh khác hẳn nhau. Giấu cả hai như nhau ở đây
+     * là bỏ đi đúng thứ người điều tra cần.
+     */
+    const hong = async (lyDo: string) => {
+      await this.suKien.ngoai(
+        'identity.login_failed',
+        suKienTaiKhoan({
+          action: 'LOGIN_FAILED',
+          userId: user?.id ?? null,
+          // Tên đăng nhập NGƯỜI TA ĐÃ GÕ, kể cả khi không có tài khoản nào khớp:
+          // một chuỗi thử liên tiếp vào những tên không tồn tại chính là hình
+          // dạng của một lượt dò.
+          username: user?.username ?? login,
+          outcome: 'FAILED',
+          reason: lyDo,
+        }),
+      );
+      return deny();
+    };
+
     if (!user) {
       await verifyPassword(password, DUMMY_HASH);
-      throw deny();
+      throw await hong('Không có tài khoản nào khớp');
     }
     if (user.locked_until && user.locked_until.getTime() > Date.now()) {
       this.log.warn(`đăng nhập vào tài khoản đang bị khoá: ${user.id}`);
-      throw deny();
+      throw await hong('Tài khoản đang bị khoá tạm');
     }
-    if (!user.is_active) throw deny();
+    if (!user.is_active) throw await hong('Tài khoản đã bị vô hiệu hoá');
 
     if (!(await verifyPassword(password, user.password_hash))) {
       await this.registerFailure(user);
-      throw deny();
+      throw await hong('Sai mật khẩu');
     }
 
     await this.db.q(
@@ -91,6 +119,20 @@ export class AuthService {
       [user.id],
     );
     await this.accounts.invalidate(user.id);
+    await this.suKien.ngoai(
+      'identity.login_ok',
+      suKienTaiKhoan({
+        action: 'LOGIN_OK',
+        userId: user.id,
+        username: user.username,
+        outcome: 'OK',
+        // Người thực hiện CHÍNH LÀ người vừa đăng nhập — ngữ cảnh chưa có ai vì
+        // guard chưa chạy (đường này `@Public()`), nên phải nói ra ở đây.
+        actorId: user.id,
+        actorName: user.full_name,
+        actorRole: user.role,
+      }),
+    );
 
     const tokens = await this.issue(user);
     return {
@@ -116,7 +158,18 @@ export class AuthService {
         WHERE id = $1`,
       [user.id, lock ? 0 : next, lock, String(CONFIG.lockMinutes)],
     );
-    if (lock) this.log.warn(`khoá tài khoản ${user.id} sau ${CONFIG.maxFailedAttempts} lần sai`);
+    if (lock) {
+      this.log.warn(`khoá tài khoản ${user.id} sau ${CONFIG.maxFailedAttempts} lần sai`);
+      await this.suKien.ngoai(
+        'identity.account_locked',
+        suKienTaiKhoan({
+          action: 'ACCOUNT_LOCKED',
+          userId: user.id,
+          username: user.username,
+          reason: `Khoá ${CONFIG.lockMinutes} phút sau ${CONFIG.maxFailedAttempts} lần đăng nhập sai`,
+        }),
+      );
+    }
   }
 
   // --- Phát hành và xoay vòng token ----------------------------------------
@@ -222,6 +275,20 @@ export class AuthService {
   async logout(presented: string): Promise<void> {
     const dot = presented.indexOf('.');
     const raw = dot < 0 ? presented : presented.slice(dot + 1);
+
+    /*
+     * Tra người dùng TỪ CHÍNH token, không nhận từ nơi gọi (`0091`).
+     *
+     * Đường đăng xuất là `@Public()` — người dùng có thể gọi nó với access
+     * token đã hết hạn — nên ngữ cảnh không có ai. Token làm mới thì luôn trỏ
+     * đúng một tài khoản, và đó là danh tính duy nhất chắc chắn ở đây.
+     */
+    const chu = await this.db.one<{ user_id: string; username: string }>(
+      `SELECT t.user_id, u.username
+         FROM idn.refresh_token t JOIN idn.app_user u ON u.id = t.user_id
+        WHERE t.token_hash = $1`,
+      [hashSecretToken(raw)],
+    );
     // Thu hồi cả họ chứ không riêng token đang cầm, nếu không thì token kế tiếp
     // đã xoay vòng ra vẫn dùng được sau khi bấm đăng xuất (AUTH-06).
     await this.db.q(
@@ -230,6 +297,20 @@ export class AuthService {
           AND revoked_at IS NULL`,
       [hashSecretToken(raw)],
     );
+    // Phiên không có điểm kết là phiên đáng hỏi: một chuỗi đăng nhập không kèm
+    // đăng xuất nào trông giống hệt một phiên bị bỏ ngỏ trên máy dùng chung.
+    if (chu) {
+      await this.suKien.ngoai(
+        'identity.logout',
+        suKienTaiKhoan({
+          action: 'LOGOUT',
+          userId: chu.user_id,
+          username: chu.username,
+          outcome: 'OK',
+          actorId: chu.user_id,
+        }),
+      );
+    }
   }
 
   async revokeAllSessions(userId: string): Promise<void> {
@@ -328,7 +409,7 @@ export class AuthService {
     }
     // Đổi mật khẩu qua đường này KÍCH HOẠT tài khoản nhưng KHÔNG đánh dấu email
     // đã xác nhận — người dùng chưa chứng minh hộp thư là có thật (ONB-14).
-    await this.applyNewPassword(userId, newPassword, { verifyEmail: false });
+    await this.applyNewPassword(userId, newPassword, { verifyEmail: false, cach: 'Tự đổi' });
     return { ok: true, emailVerified: false };
   }
 
@@ -485,10 +566,15 @@ export class AuthService {
     await this.applyNewPassword(row.user_id, newPassword, { verifyEmail: true });
   }
 
+  /**
+   * Một chỗ duy nhất cho cả BA đường đổi mật khẩu — tự đổi, kích hoạt qua thư
+   * mời, và đặt lại sau khi quên. Nên nhật ký cũng ghi ở đây, một lần (`0091`),
+   * và `cach` nói ra đường nào: ba việc ấy có ý nghĩa an ninh khác hẳn nhau.
+   */
   private async applyNewPassword(
     userId: string,
     newPassword: string,
-    opt: { verifyEmail: boolean },
+    opt: { verifyEmail: boolean; cach?: string },
   ): Promise<void> {
     const hash = await hashPassword(newPassword);
     await this.db.q(
@@ -509,6 +595,23 @@ export class AuthService {
     // phải cắt được phiên của kẻ đang dùng, không chỉ tạo thêm phiên mới (ONB-13).
     await this.revokeAllSessions(userId);
     await this.accounts.invalidate(userId);
+
+    const u = await this.db.one<{ username: string; full_name: string }>(
+      `SELECT username, full_name FROM idn.app_user WHERE id = $1`,
+      [userId],
+    );
+    await this.suKien.ngoai(
+      'identity.password_changed',
+      suKienTaiKhoan({
+        action: 'PASSWORD_CHANGED',
+        userId,
+        username: u?.username ?? null,
+        outcome: 'OK',
+        reason: opt.cach ?? 'Tự đổi',
+        // KHÔNG ghi mật khẩu cũ lẫn mới, kể cả dạng băm. Nhật ký trả lời "ai
+        // làm gì lúc nào", không phải "họ đã gõ gì".
+      }),
+    );
   }
 }
 
