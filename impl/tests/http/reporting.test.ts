@@ -1426,6 +1426,37 @@ describe('Read-model đồng bộ đúng khi sự kiện giao lại hoặc hồ 
  * thì không có lỗi nào nổi lên — người dùng chỉ thấy một ô ghi 12 mở ra 9 dòng,
  * và tự nghi ngờ mình đếm sai.
  */
+describe('`0093` ba mốc theo bước chép sang read-model', () => {
+  it('kế toán nhận L1, Sale Admin bàn giao và lần xuất hợp đồng đều có mốc', async () => {
+    /*
+     * Trang *Thống kê* đếm hoạt động theo kỳ, và một hoạt động chỉ đếm được khi
+     * có mốc neo nó vào một kỳ. Ba mốc này nằm sẵn ở `pol.policy` từ `0001` và
+     * nguồn đã trả về từ P7b — chỉ read-model là chưa chép, nên tới `0092` ba
+     * vai trò GIỮA luồng không có con số nào nói về việc của chính họ.
+     *
+     * Kiểm ở ĐÂY chứ không ở `thong-ke.test.ts`: ca kiểm bên ấy chèn dòng
+     * read-model thẳng bằng SQL, nên nó không bao giờ thấy được `SyncService`
+     * quên một cột.
+     */
+    const id = await activated();
+
+    const row = await rptRow(id);
+    expect(row?.['kt_l1_received_at'], 'B6 đã xong nên phải có mốc tiếp nhận L1').not.toBeNull();
+    expect(row?.['sa_handover_at'], 'B9 đã xong nên phải có mốc bàn giao').not.toBeNull();
+
+    // Hợp đồng chưa xuất thì mốc để trống — đó là câu trả lời đúng, và cũng là
+    // chỗ mà chỉ số "đã có hiệu lực mà chưa có hợp đồng" sẽ đọc về sau.
+    expect(row?.['contract_issued_at']).toBeNull();
+
+    await withAdminDb(async (c) => {
+      await c.query(`UPDATE pol.policy SET contract_issued_at = now(), row_version = row_version + 1
+                      WHERE id = $1`, [id]);
+    });
+    await sync.refreshPolicy(id);
+    expect((await rptRow(id))?.['contract_issued_at']).not.toBeNull();
+  });
+});
+
 describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', () => {
   /** Hồ sơ đang nằm trên bàn Sale Admin ở bước B8, chưa ai bắt in lại. */
   async function toiSaleAdmin(): Promise<string> {

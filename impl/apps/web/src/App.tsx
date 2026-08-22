@@ -16,7 +16,7 @@ import { DanhSachHoSo } from './pages/DanhSachHoSo.js';
 import { ChiTietHoSo } from './pages/ChiTietHoSo.js';
 import { NhatKyHoSo } from './pages/NhatKyHoSo.js';
 import { ChiTietKhachHang, DanhSachKhachHang } from './pages/KhachHang.js';
-import { BaoCao } from './pages/BaoCao.js';
+import { ThongKe } from './pages/ThongKe.js';
 import { NhatKy } from './pages/NhatKy.js';
 import { TrangChietKhau, TrangSanPham } from './pages/DanhMuc.js';
 
@@ -106,7 +106,14 @@ export function noiDung(duong: string, vaiTro: string) {
   // phải một mục menu thứ chín.
   if (duong === '/thong-tin') return <ThongTin />;
 
-  if (duong === '/bao-cao') return <BaoCao />;
+  /*
+    Đường CŨ `/bao-cao` vẫn sống (`0093`).
+
+    Trang *Báo cáo* đổi tên thành *Thống kê* và đổi hẳn nội dung, nhưng địa chỉ
+    cũ nằm trong tài liệu hướng dẫn, trong kịch bản chạy demo, và trong dấu trang
+    của người đã dùng — cùng cách `/danh-muc` và `/giay-to-mau` được giữ lại.
+  */
+  if (duong === '/thong-ke' || duong === '/bao-cao') return <ThongKe />;
 
   // "Danh mục" tách làm ba mục menu ở P22. Giữ đường cũ trỏ về Sản phẩm: liên
   // kết đã lưu trong trình duyệt và trong tài liệu chạy demo vẫn còn dùng nó.

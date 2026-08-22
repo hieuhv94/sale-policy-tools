@@ -1,9 +1,14 @@
 /**
  * Kiểu dữ liệu và cách nạp ba báo cáo tổng hợp.
  *
- * Cả màn hình *Báo cáo* lẫn trang *Tổng quan* đều đọc đúng ba endpoint này. Khai
- * kiểu hai lần thì đến lúc máy chủ thêm một trường, một bên được cập nhật còn
- * bên kia thì không — và trình biên dịch không kêu, vì cả hai đều vẫn hợp lệ.
+ * CHỈ trang *Tổng quan* đọc ba endpoint này (`0093`). Tới `0092` màn hình *Báo
+ * cáo* cũng đọc đúng chúng — và đó chính là chẩn đoán khiến trang ấy thành
+ * *Thống kê*: hai màn hình bày cùng một bộ số thì màn hình thứ hai không nói
+ * thêm được gì.
+ *
+ * Kiểu vẫn khai ở đây chứ không dời vào `pages/TongQuan.tsx`: các khối con của
+ * trang tổng quan (`components/khoi/SoLieu.tsx`) nhận `BoBaoCao` làm tham số,
+ * nên nó là kiểu chung của nhiều tệp chứ không của riêng một màn hình.
  *
  * Ba lời gọi đi CÙNG NHAU trong một `Promise.all`: chúng đọc cùng một
  * read-model tại cùng một thời điểm, nên tách ra thành ba lần chờ chỉ làm màn

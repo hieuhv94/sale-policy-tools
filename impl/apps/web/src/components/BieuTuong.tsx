@@ -57,7 +57,7 @@ const HinhKhachHang = (
   </Hinh>
 );
 
-const HinhBaoCao = (
+const HinhThongKe = (
   <Hinh>
     <path d="M4 20h16" />
     <path d="M7 20v-6M12 20V6M17 20v-9" />
@@ -123,8 +123,9 @@ export function bieuTuongMuc(duong: string): ReactNode {
       return HinhHoSo;
     case '/khach-hang':
       return HinhKhachHang;
+    case '/thong-ke':
     case '/bao-cao':
-      return HinhBaoCao;
+      return HinhThongKe;
     case '/danh-muc':
     case '/san-pham':
       return HinhDanhMuc;

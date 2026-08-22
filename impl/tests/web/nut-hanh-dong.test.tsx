@@ -61,7 +61,7 @@ describe('`0071` nút hành động ở góc trên bên phải', () => {
       'pages/ChiTietHoSo.tsx',
       'pages/MauHopDong.tsx',
       'pages/ThemMau.tsx',
-      'pages/BaoCao.tsx',
+      'pages/ThongKe.tsx',
       'pages/ThongTin.tsx',
       'components/danh-muc/SanPham.tsx',
       'components/danh-muc/Nhom.tsx',
@@ -90,7 +90,7 @@ describe('`0071` nút hành động ở góc trên bên phải', () => {
     const con: string[] = [];
     for (const f of [
       'pages/NguoiDung.tsx',
-      'pages/BaoCao.tsx',
+      'pages/ThongKe.tsx',
       'pages/ThongTin.tsx',
       'components/danh-muc/SanPham.tsx',
       'components/danh-muc/Nhom.tsx',
@@ -171,7 +171,7 @@ describe('`0082` nút hành động dồn sát mép phải, không dàn đều',
     'pages/DanhMuc.tsx',
     'pages/LapHoSo.tsx',
     'pages/ThemMau.tsx',
-    'pages/BaoCao.tsx',
+    'pages/ThongKe.tsx',
     'pages/MauHopDong.tsx',
   ];
 

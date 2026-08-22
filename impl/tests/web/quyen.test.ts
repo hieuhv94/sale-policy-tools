@@ -47,8 +47,8 @@ describe('FE-23 Ban lãnh đạo chỉ đọc', () => {
     }
   });
 
-  it('vẫn đọc được hồ sơ, khách hàng và báo cáo', () => {
-    for (const m of ['hoSo', 'khachHang', 'baoCao'] as const) {
+  it('vẫn đọc được hồ sơ, khách hàng và thống kê', () => {
+    for (const m of ['hoSo', 'khachHang', 'thongKe'] as const) {
       expect(xem('BAN_LANH_DAO', m), `phải xem được ${m}`).toBe(true);
     }
   });

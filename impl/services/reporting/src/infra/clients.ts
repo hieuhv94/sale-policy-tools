@@ -42,6 +42,15 @@ export type PolicySrc = {
   sla_started_at: string | null;
   /** Kế toán đòi in lại bản cứng và Sale Admin chưa bàn giao lại (`0045`). */
   reprint_requested_at: string | null;
+  /**
+   * Ba mốc theo bước, neo của các chỉ số trong trang *Thống kê* (`0093`).
+   *
+   * Nguồn đã trả về chúng từ P7b; tới `0092` kiểu ở đây không khai nên chúng bị
+   * bỏ đi ngay tại ranh giới — cùng kiểu bỏ sót mà `0080` đã gặp với bốn cột giá.
+   */
+  kt_l1_received_at: string | null;
+  sa_handover_at: string | null;
+  contract_issued_at: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */
   tbp_user_id: string | null;

@@ -8641,3 +8641,110 @@ chủ — cùng loại với `pg_dump`.
 - Bỏ chốt "từ chối nén tháng đang chạy" → 1 ca đỏ.
 
 **1442/1442 xanh.**
+
+## P120 — *Báo cáo* thành *Thống kê*: từ ảnh chụp sang dòng chảy
+
+**Ngày 22/08/2026** · thay đổi `0093`
+
+Yêu cầu: *"quay lại các mục trong trang báo cáo, đổi tên trang thành Thống kê, tập trung thống kê
+phân tích hoạt động theo tuần tháng quý năm, chứ không phải hiện trạng CSBH — cái đã có trong trang
+tổng quan."*
+
+Câu cuối là chẩn đoán, không phải yêu cầu bố cục: trang *Báo cáo* cũ bày **bốn ô đếm + tiến độ theo
+trạng thái + khối SLA**, tức là đúng những con số của *Tổng quan* dưới một cái tên khác. Mở nó ra
+sau khi vừa xem Tổng quan thì không có gì mới, nên lần sau không ai mở nữa.
+
+### Quy tắc chia đôi hai màn hình
+
+**Tồn tại thời điểm** (đang chờ, quá hạn, đang có hiệu lực) **không cộng theo kỳ được**: ba tháng mỗi
+tháng "40 hồ sơ đang chờ" không thành 120, phần lớn vẫn là cùng những hồ sơ ấy. **Dòng chảy trong
+kỳ** (lập mới, gửi duyệt, ký, tiếp nhận, bàn giao, có hiệu lực, trả lại, từ chối, quá hạn, hết hiệu
+lực) mới cộng được, so được, vẽ đường được.
+
+Nên *Tổng quan* giữ nguyên nhóm thứ nhất, *Thống kê* chỉ chứa nhóm thứ hai — và bảng `NEO` bên
+`thong-ke.service.ts` là chỗ luật ấy sống: mười một chỉ số, mỗi cái một cột mốc. Cột nào không có mốc
+thì không vào được bảng, nên không có đường nào để một chỉ số tồn-tại-thời-điểm lọt vào.
+
+Một ca kiểm giao diện canh vế còn lại (`KHÔNG cột nào đếm tồn tại thời điểm`), vì bảng `COT` là chuỗi
+tự do — thêm `dangCho` vào đó thì máy chủ trả `null` chứ không nổ.
+
+### Ba mốc còn thiếu ở read-model
+
+Ba vai trò GIỮA luồng không có con số nào nói về việc của **chính họ**: kế toán tiếp nhận L1, Sale
+Admin bàn giao, và lần xuất hợp đồng đều không có mốc trong `rpt.policy_row`. Cả ba nằm sẵn ở
+`pol.policy` từ `0001` và `internal.controller.ts` đã trả về từ P7b — chỉ `SyncService` là chưa chép.
+`0093` thêm ba cột kèm một lượt chép cho dữ liệu cũ.
+
+Không thêm `kt_l2_received_at`: `approved_at` chính là `effective_from`, và hồ sơ có hiệu lực đúng
+lúc kế toán tiếp nhận lần 2. Hai cột cho một mốc là hai cột sẽ có ngày lệch nhau.
+
+### Phá lại KHÔNG đỏ — và ca kiểm sinh ra từ đó
+
+Gỡ `AT TIME ZONE 'Asia/Ho_Chi_Minh'` khỏi truy vấn gom nhóm mà **cả 17 ca vẫn xanh**.
+
+Lý do: `deploy/postgres/postgresql.conf` đặt `timezone = 'Asia/Ho_Chi_Minh'`, nên `date_trunc` trên
+`timestamptz` vốn đã cắt theo giờ ta. Phép cắt kỳ đang được **một dòng cấu hình ở tệp khác** bảo
+lãnh — và một máy chủ dựng lại bằng ảnh Postgres mặc định (UTC) sẽ lệch bảy tiếng ở MỌI ranh giới
+kỳ, im lặng.
+
+Ca kiểm đối chiếu: đặt phiên về `UTC` rồi gọi **chính hàm dựng khoá kỳ** của service. Nó đỏ ngay khi
+ai đó gỡ phép đổi múi giờ — `expected '2026-07-01' to be '2026-08-01'`. Cùng nếp với ca "ĐỐI CHIẾU"
+của `0091`: ba ca gọi thẳng hàm không bắt được thứ mà một ca đi qua đường thật bắt được.
+
+### Kỳ đang chạy: so cùng số ngày
+
+Hôm nay ngày 22 mà đặt tháng này cạnh **cả** tháng trước là so 22 ngày với 31 ngày — mọi chỉ số đều
+"giảm" mà không ai làm gì sai. Kỳ trước bị cắt đúng chỗ kỳ này đang đứng, và cách cắt là **chạy lại
+đúng bộ truy vấn trên một khoảng hẹp hơn**, không phải trừ số: `soNgayDuyetTb` và `chietKhauTb` là
+trung bình, không trừ được, mà một bộ số nửa tính lại nửa trừ ra thì không ai kiểm được.
+
+### Quản trị hệ thống: khối riêng, không phải bảng số 0
+
+Phạm vi dữ liệu của vai trò này rỗng (`0031`), nên mọi chỉ số hồ sơ đều bằng 0 — đúng về kỹ thuật,
+đọc ra là "hệ thống không có hoạt động nào". Khối của họ đếm dòng **nhật ký** theo kỳ, qua một
+endpoint mới ở service `audit`.
+
+Hai chỗ phải quyết ở đó:
+
+- **Cắt kỳ dùng chung một hàm với reporting** (`@csbh/http-kit/ky`). Hai phép cắt viết riêng ở hai
+  service thì đến ngày chúng lệch nhau một giờ, và người xem thấy "Tháng 8" của khối trên không khớp
+  "Tháng 8" của khối dưới.
+- **Cửa sổ sáu tháng CẮT chuỗi, không từ chối lời gọi.** `soKy=8` với nhịp quý là hai năm; trả 400 ở
+  đó là chặn đúng một thao tác hợp lý (bấm nút *Quý*). Chuỗi bị cắt ngắn và **số kỳ bị cắt được nói
+  ra** ngay dưới bảng.
+
+Số người thao tác trong kỳ trả về dưới dạng **"≥ N"**: nó gom theo đối tượng, mà cùng một người chạm
+hai đối tượng thì cộng lại là đếm hai lần. Cận dưới đúng, nói ra là cận dưới, còn hơn in một con số
+cao hơn sự thật.
+
+### Vụn nhưng đáng ghi
+
+- **Nhịp mặc định theo vai trò**, không phải một hằng số chung: TDV theo tháng (hồ sơ một người
+  không đủ dày để đọc theo tuần), TBP/KT/SA theo tuần (khối lượng dồn theo tuần), Ban lãnh đạo theo
+  quý (chiết khấu bình quân theo tuần thì nhảy loạn).
+- **Ca kiểm giao diện phải dựng màn hình ĐÚNG NHƯ `App.tsx` dựng.** Gắn `ThongKe` thẳng vào cây thì
+  nó mount lúc `nguoiDung` còn rỗng và chốt nhịp mặc định theo một vai trò rỗng — cảnh không xảy ra
+  trong phần mềm thật (App chặn bằng `dangTai` từ `0076`), nhưng đủ để ca kiểm đỏ và dẫn người đọc
+  đi sai đường. Thêm một cổng chờ phiên trong test.
+- **Chặn `fetch` phải trả `/auth/me` ra người dùng thật.** Trả cùng một thân cho mọi đường thì
+  `PhienProvider` ghi đè vai trò bằng thân ấy, và màn hình rỗng đi sau lượt vẽ thứ hai.
+- **Mốc trong ca kiểm HTTP tính LÙI TỪ HIỆN TẠI.** Ca neo vào `2026-03-02` xanh cho tới ngày nó trôi
+  ra khỏi cửa sổ 12 kỳ rồi đỏ mà không ai đụng vào mã nguồn.
+- Trang *Thống kê* **không nhận bộ lọc 9 tiêu chí**: "hoạt động của quý 3" chỉ có nghĩa trên toàn bộ
+  phạm vi người xem.
+- Đường cũ `/bao-cao` vẫn sống, trỏ về màn hình mới — cùng cách `/danh-muc` và `/giay-to-mau` được
+  giữ.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| Gỡ `AT TIME ZONE` khỏi khoá kỳ | 1 ca — ca đối chiếu UTC nêu trên (**17 ca kia không bắt được**) |
+| `mocCungKhoang` trả về hết kỳ trước thay vì cắt cùng số ngày | 3 ca — 2 HTTP, 1 bảng số |
+| Bỏ điều kiện `status = 'QUA_HAN_DUYET'` khỏi mốc quá hạn | 1 ca |
+| Bỏ `source <> 'LEGACY'` khỏi phép đếm | 1 ca |
+| `SyncService` thôi chép ba mốc mới | 1 ca ở `reporting.test.ts` |
+| Đổi nhịp mặc định của Ban lãnh đạo, cho Quản trị một khối số hồ sơ | 4 ca giao diện |
+| Bỏ phép cắt cửa sổ sáu tháng của khối nhật ký | 1 ca |
+
+**1497/1497 xanh.**

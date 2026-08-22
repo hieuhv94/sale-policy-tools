@@ -10,8 +10,9 @@
  */
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, Roles, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, docKy, docSoKy, Roles, type AuthUser } from '@csbh/http-kit';
 import { ReportsService } from './reports.service.js';
+import { ThongKeService } from './thong-ke.service.js';
 import { FilterStore } from './filter-store.js';
 import { cleanFilter, FILTER_KEYS, SO_TIEU_CHI, type Filter } from './filter.js';
 import { ExportsService } from '../exports/exports.service.js';
@@ -23,6 +24,7 @@ const VIEWERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TR
 export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
+    private readonly thongke: ThongKeService,
     private readonly store: FilterStore,
     private readonly exports: ExportsService,
   ) {}
@@ -95,6 +97,30 @@ export class ReportsController {
   @Get('sla')
   sla(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {
     return this.reports.sla(me, cleanFilter(q));
+  }
+
+  // --- Thống kê hoạt động theo kỳ (`0093`) -----------------------------------
+  //
+  // KHÔNG nhận bộ lọc 9 tiêu chí, khác hẳn ba báo cáo ở trên.
+  //
+  // Trang *Thống kê* trả lời "công việc trong kỳ vừa rồi đi thế nào", và câu ấy
+  // chỉ có nghĩa trên TOÀN BỘ phạm vi của người xem. Cho lọc theo một khách hàng
+  // hay một nhóm sản phẩm rồi vẫn gọi kết quả là "hoạt động của quý 3" là mời
+  // người ta so hai con số của hai tập hồ sơ khác nhau — mà trên màn hình thì
+  // chúng nằm cạnh nhau, không có gì phân biệt.
+
+  @Roles(...VIEWERS)
+  @Get('thong-ke')
+  thongKe(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {
+    const ky = docKy(q['ky']);
+    return this.thongke.chuoi(me, ky, docSoKy(q['soKy'], ky));
+  }
+
+  @Roles(...VIEWERS)
+  @Get('thong-ke/nhom')
+  thongKeNhom(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {
+    const ky = docKy(q['ky']);
+    return this.thongke.theoNhom(me, ky, docSoKy(q['soKy'], ky));
   }
 
   // --- Bộ lọc đã lưu trong phiên (RPT-04) ------------------------------------

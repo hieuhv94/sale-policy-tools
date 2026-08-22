@@ -1044,21 +1044,55 @@ còn lại để trống. Đây là cột thay cho *Số dòng* — số dòng s
 Nhãn ấy dùng đúng một định nghĩa với thẻ *Sắp quá hạn* trên trang Tổng quan, nên bấm vào thẻ rồi đếm
 số dòng có nhãn đỏ sẽ ra đúng con số vừa bấm.
 
-## 11. Báo cáo và xuất Excel
+## 11. Thống kê và xuất Excel
 
-Đầu màn hình là **bốn con số** trả lời bốn câu hỏi thường gặp nhất: tổng hồ sơ, đang chờ xử lý, quá
-hạn, và tỷ lệ trả lại. Ô *Quá hạn* chuyển đỏ khi khác 0.
+### Màn hình *Thống kê* `sửa 22/08`
 
-Bên dưới là **tiến độ hồ sơ** theo trạng thái (sắp giảm dần, kèm thanh so sánh độ dài), **tỷ lệ hồ
-sơ bị trả lại** (tính cả hồ sơ bị từ chối), và **hạn xử lý (SLA)**.
+Trang này trước mang tên *Báo cáo* và bày lại chính những con số của trang **Tổng quan**. Từ 22/08
+nó trả lời một câu hỏi khác hẳn:
+
+| Bạn muốn biết | Mở màn hình |
+|---|---|
+| Bây giờ có bao nhiêu hồ sơ đang chờ, cái nào sắp quá hạn | **Tổng quan** |
+| Tuần vừa rồi làm được bao nhiêu, quý này so với quý trước | **Thống kê** |
+
+Đầu màn hình là **bốn nút nhịp**: Tuần · Tháng · Quý · Năm. Mở lên là đã đúng nhịp của vai trò bạn —
+trình dược viên theo tháng, Trưởng bộ phận, Kế toán và Sale Admin theo tuần, Ban lãnh đạo theo quý —
+đổi lúc nào cũng được bằng một cú bấm.
+
+**Kỳ này so với kỳ trước.** Ba ô đầu tiên đặt con số của kỳ đang chạy cạnh con số kỳ trước. Kỳ đang
+chạy chưa đủ ngày, nên **kỳ trước cũng chỉ tính tới đúng chỗ kỳ này đang đứng**: hôm nay ngày 22 thì
+so ngày 1–22 với ngày 1–22, không phải với cả tháng trước. Câu chú thích ngay dưới nói rõ mốc cắt.
+
+**Bảng theo kỳ.** Mỗi dòng một kỳ, mới nhất lên đầu, kỳ đang chạy có chữ *đang chạy* và để nhạt hơn.
+Thanh nền sau tên kỳ vẽ theo cột đầu tiên, để nhìn ra hình dạng của xu hướng mà không phải đọc số.
+
+Mở **"Mỗi cột tính theo mốc nào"** dưới bảng để biết từng cột neo vào đâu. Đây không phải chi tiết
+kỹ thuật: *"tháng này có bao nhiêu CSBH"* là câu chưa đủ nghĩa — **lập** trong tháng, **gửi duyệt**
+trong tháng và **có hiệu lực** trong tháng là ba con số khác nhau, và bảng chọn đúng một mốc cho mỗi
+cột.
+
+Vài điều nên biết khi đọc con số:
+
+- **Kỳ cắt theo giờ Việt Nam.** Hồ sơ có hiệu lực lúc 23:30 ngày cuối tháng thuộc tháng ấy. Tuần bắt
+  đầu **thứ Hai**, nhãn ghi kèm khoảng ngày (*Tuần 34 · 17/08–23/08*).
+- **Hồ sơ nhập từ dữ liệu cũ bị loại** khỏi mọi con số, vì chúng không đi qua luồng duyệt nên không
+  có mốc nào để tính vào kỳ. Số bị loại ghi ngay dưới bảng.
+- **Ban lãnh đạo** có thêm bảng *Chiết khấu bình quân theo nhóm sản phẩm* — sáu kỳ gần nhất, kèm số
+  dòng vượt ngưỡng của từng nhóm.
+- **Quản trị hệ thống** không thấy con số hồ sơ nào, vì hồ sơ không thuộc phạm vi dữ liệu của vai
+  trò này — mọi ô sẽ là 0 và đọc ra nghĩa sai. Thay vào đó là **hoạt động của hệ thống theo kỳ**,
+  đếm từ nhật ký, trong cửa sổ **6 tháng** gần nhất.
+
+Địa chỉ cũ `/bao-cao` vẫn mở được và dẫn tới đúng màn hình này.
 
 ### Xuất Excel `sửa 21/08`
 
-Nút **Xuất Excel** nằm ở màn hình **Hồ sơ CSBH**, góc trên bên phải — không phải ở trang Báo cáo.
+Nút **Xuất Excel** nằm ở màn hình **Hồ sơ CSBH**, góc trên bên phải — không phải ở trang Thống kê.
 
 Đặt ở đó vì đó là màn hình có bộ lọc: file xuất ra chứa **đúng kết quả bạn đang xem**, nên số dòng
 trong file bằng đúng con số *"N hồ sơ khớp điều kiện"* ngay dưới tiêu đề. Trước đây nút nằm ở trang
-Báo cáo, cách bộ lọc một màn hình, nên nó chỉ xuất được **tất cả** hồ sơ trong phạm vi.
+Thống kê, cách bộ lọc một màn hình, nên nó chỉ xuất được **tất cả** hồ sơ trong phạm vi.
 
 Xuất chạy **chạy nền**: bấm xong bạn dùng tiếp màn hình khác, khi file sẵn sàng nút đổi thành
 *Tải file (N dòng)*. Cột tiền là **số** nên cộng và lọc được ngay trong Excel.

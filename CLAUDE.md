@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 46 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 49 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -82,11 +82,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (22/08/2026)
 
-Chặng gần nhất **P115** (`0089`): rà 15 chỗ nuốt lỗi im lặng — ba trong số đó khiến màn hình nói
-một câu sai sự thật. **1418/1418 xanh**, cây làm việc sạch.
+Chặng gần nhất **P120** (`0093`): trang *Báo cáo* thành *Thống kê* — bỏ hẳn phần lặp lại trang Tổng
+quan, thay bằng hoạt động theo tuần/tháng/quý/năm, mỗi vai trò một nhịp và một bộ chỉ số.
+**1497/1497 xanh**, cây làm việc sạch.
 
-Trước đó **P114** (`0088`): chuẩn hoá báo lỗi — một bảng tra câu chữ cho 96 mã lỗi, bốn dạng hiển
-thị, và một phép quét bắt mọi mã máy chủ phải có câu.
+Trước đó **P118** (`0092`): kho lưu trữ log — thu hằng ngày bằng con trỏ mốc, nén theo tháng kèm
+băm và manifest, và một bản trích nhật ký kiểm toán mỗi tháng.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -114,6 +115,11 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.
+- **Hai màn hình số liệu, hai loại con số** (`0093`). *Tổng quan* nói **tồn tại thời điểm** (đang
+  chờ, quá hạn, đang hiệu lực) — không cộng theo kỳ được. *Thống kê* nói **dòng chảy trong kỳ**, gom
+  theo tuần/tháng/quý/năm. Mỗi chỉ số neo vào đúng một cột mốc (bảng `NEO`), kỳ cắt theo giờ Việt
+  Nam, và kỳ đang chạy chỉ so với **cùng số ngày** của kỳ trước. Phép cắt kỳ dùng chung
+  `packages/http-kit/src/ky.ts` cho cả `reporting` lẫn `audit`.
 - **404 là câu trả lời, mọi lỗi khác thì không** (`0089`). Vài đường đọc coi 404 là dữ liệu ("khách
   chưa có CSBH nào"); `catch` bắt tất thì mất mạng cũng thành cùng câu ấy — dùng `la404()`. Thêm
   một chỗ nuốt lỗi thì phải khai ở `NUOT_CO_LY_DO` trong `tests/web/nuot-loi.test.tsx`.

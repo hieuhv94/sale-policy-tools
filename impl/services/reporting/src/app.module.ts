@@ -13,6 +13,7 @@ import { ScopeClient } from './infra/scope.client.js';
 import { SyncService } from './reports/sync.service.js';
 import { ReportingConsumer } from './reports/consumer.js';
 import { ReportsService } from './reports/reports.service.js';
+import { ThongKeService } from './reports/thong-ke.service.js';
 import { ReportsController } from './reports/reports.controller.js';
 import { FilterStore } from './reports/filter-store.js';
 import { ExportsService } from './exports/exports.service.js';
@@ -46,6 +47,7 @@ class HealthController {
     SyncService,
     ReportingConsumer,
     ReportsService,
+    ThongKeService,
     FilterStore,
     ExportsService,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },

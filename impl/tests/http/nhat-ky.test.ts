@@ -384,5 +384,54 @@ describe('`0090` bộ lọc thật sự lọc', () => {
   it('vai trò khác vẫn KHÔNG đọc được gì, kể cả với bộ lọc', async () => {
     expect((await aget('/audit/entries?action=X', 'bld01')).status).toBe(403);
     expect((await aget('/audit/facets', 'bld01')).status).toBe(403);
+    expect((await aget('/audit/thong-ke', 'bld01')).status).toBe(403);
+  }, 30_000);
+});
+
+describe('`0093` hoạt động hệ thống theo kỳ', () => {
+  it('gom dòng nhật ký vào đúng kỳ, và đếm cả số người', async () => {
+    /*
+     * Khối duy nhất của Quản trị hệ thống trên trang *Thống kê*: phạm vi dữ
+     * liệu của họ rỗng nên mọi chỉ số hồ sơ đều là 0, còn nhật ký thì họ có
+     * toàn bộ.
+     */
+    const r = await aget('/audit/thong-ke?ky=thang&soKy=3', 'admin01');
+    expect(r.status).toBe(200);
+    const kyNay = r.body.chuoi[r.body.chuoi.length - 1];
+    expect(kyNay.dangChay).toBe(true);
+    expect(kyNay.tong).toBeGreaterThan(0);
+    expect(kyNay.nguoi).toBeGreaterThan(0);
+    // Gom theo đối tượng để đọc được "hệ thống đang bận ở đâu".
+    expect(Object.keys(kyNay.theoDoiTuong).length).toBeGreaterThan(0);
+  }, 30_000);
+
+  it('CẮT ở mép cửa sổ sáu tháng thay vì từ chối cả lời gọi', async () => {
+    /*
+     * `soKy=8` với nhịp quý là hai năm — vượt xa cửa sổ. Trả 400 ở đây là chặn
+     * đúng một thao tác hợp lý (đổi nhịp sang quý), nên chuỗi bị cắt ngắn và
+     * phần bị cắt phải được NÓI RA.
+     */
+    const r = await aget('/audit/thong-ke?ky=quy&soKy=8', 'admin01');
+    expect(r.status).toBe(200);
+    expect(r.body.kyBiCat).toBeGreaterThan(0);
+    expect(r.body.chuoi.length).toBeLessThan(8);
+    expect(r.body.window.months).toBe(6);
+    for (const k of r.body.chuoi as { den: string }[]) {
+      expect(new Date(k.den).getTime()).toBeGreaterThan(somNhat().getTime());
+    }
+  }, 30_000);
+
+  it('CẮT KỲ CÙNG MỘT HÀM với reporting — nhãn tuần giống hệt', async () => {
+    // Hai service, hai khối trên cùng một màn hình. Hai phép cắt viết riêng thì
+    // đến ngày chúng lệch nhau một giờ, và người xem thấy "Tháng 8" của khối
+    // này không khớp "Tháng 8" của khối kia.
+    const r = await aget('/audit/thong-ke?ky=tuan&soKy=2', 'admin01');
+    expect(r.body.chuoi[0].nhan).toMatch(/^Tuần \d+ · \d\d\/\d\d–\d\d\/\d\d$/);
+  }, 30_000);
+
+  it('nhịp lạ bị TỪ CHỐI', async () => {
+    const r = await aget('/audit/thong-ke?ky=ngay', 'admin01');
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('ky');
   }, 30_000);
 });

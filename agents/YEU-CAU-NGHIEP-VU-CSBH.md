@@ -876,11 +876,64 @@ khấu và ngưỡng của chính dòng đó. Các cột thông tin hồ sơ l�
 file **không có cột tổng nào của hồ sơ** — số dòng và tổng giá thu về để Excel tự cộng.
 
 Báo cáo: tiến độ hồ sơ theo trạng thái, bước và người xử lý; nhật ký người dùng theo số lần ký,
-tiếp nhận, xuất file và tải tài liệu.
+tiếp nhận, xuất file và tải tài liệu. Ba báo cáo này đọc ở **trang Tổng quan**.
 
 > **Bỏ "số lần xem"** `sửa 19/08` — hệ quả trực tiếp của quyết định ở muc 10. Không chỗ nào trong hệ
 > thống ghi lại việc xem, nên một cột đếm lượt xem sẽ vĩnh viễn bằng không; giữ nó lại chỉ khiến
 > người đọc báo cáo tưởng là không ai xem gì.
+
+### 9.2b. Màn hình *Thống kê* `mới 22/08`
+
+Đổi tên từ *Báo cáo*, và đổi cả nội dung. Bản cũ bày lại chính những con số của trang *Tổng quan*
+dưới một cái tên khác, nên mở ra không thấy gì mới.
+
+**Hai màn hình, hai câu hỏi:**
+
+| Màn hình | Trả lời | Loại con số |
+|---|---|---|
+| *Tổng quan* | Bây giờ đang thế nào — bao nhiêu hồ sơ chờ, cái nào sắp quá hạn | **Tồn tại thời điểm** |
+| *Thống kê* | Kỳ vừa rồi đi thế nào — lập bao nhiêu, duyệt xong bao nhiêu, nhanh hơn hay chậm đi | **Dòng chảy trong kỳ** |
+
+Hai loại ấy **không được trộn**: "40 hồ sơ đang chờ" của ba tháng liền không cộng thành 120, vì phần
+lớn vẫn là cùng những hồ sơ ấy. Chỉ nhóm dòng chảy mới vẽ được đường xu hướng.
+
+**Bốn nhịp**: tuần · tháng · quý · năm. Mỗi vai trò mở màn hình ra ở nhịp của mình — TDV theo tháng;
+Trưởng bộ phận, Kế toán và Sale Admin theo tuần; Ban lãnh đạo theo quý — rồi đổi được bằng một cú
+bấm.
+
+**Bốn quy tắc số liệu:**
+
+1. **Mỗi chỉ số neo vào đúng một mốc, và nói ra mốc ấy.** *"Tháng này có bao nhiêu CSBH"* là câu
+   chưa đủ nghĩa: lập trong tháng, gửi duyệt trong tháng, hay có hiệu lực trong tháng là ba con số
+   khác nhau. Bảng chú giải dưới mỗi bảng số nói rõ từng cột tính theo mốc nào.
+2. **Đếm theo mốc, không theo trạng thái hiện tại** — cùng nguyên tắc mà tỷ lệ trả lại đã theo từ
+   `18/08`. Trạng thái đổi được, mốc thì không.
+3. **Kỳ cắt theo giờ Việt Nam.** Hồ sơ duyệt lúc 23:30 ngày cuối tháng thuộc tháng ấy. Tuần bắt đầu
+   thứ Hai, nhãn kèm khoảng ngày (*Tuần 34 · 17/08–23/08*).
+4. **Kỳ đang chạy so cùng số ngày.** Hôm nay ngày 22 mà đặt tháng này cạnh cả tháng trước là so 22
+   ngày với 31 ngày — mọi chỉ số đều "giảm" mà không ai làm gì sai. Kỳ trước chỉ tính tới đúng mốc
+   kỳ này đang đứng, và màn hình nói ra điều đó. Hồ sơ `LEGACY` loại khỏi mọi chỉ số **và được đếm
+   ra**.
+
+**Chỉ số theo vai trò** — việc của chính họ trước, kết quả sau:
+
+| Vai trò | Cột |
+|---|---|
+| TDV | Lập mới · Gửi duyệt · Có hiệu lực · Bị trả lại · Tỷ lệ trả lại · Số ngày duyệt TB |
+| Trưởng bộ phận | Gửi duyệt · TBP ký · Bị trả lại · Bị từ chối · Quá hạn · Tỷ lệ trả lại |
+| Kế toán | KT nhận L1 · Xuất hợp đồng · Có hiệu lực · Giá trị · Quá hạn · Số ngày duyệt TB |
+| Sale Admin | Bàn giao · Xuất hợp đồng · Có hiệu lực · Quá hạn · Số ngày duyệt TB |
+| Ban lãnh đạo | Lập mới · Có hiệu lực · Bị từ chối · Quá hạn · Giá trị · Chiết khấu TB · Vượt ngưỡng · Số ngày duyệt TB, **cộng khối chiết khấu bình quân theo nhóm sản phẩm** |
+| Quản trị hệ thống | **Không con số hồ sơ nào** — thay bằng hoạt động hệ thống theo kỳ, đếm từ nhật ký |
+
+> **Quản trị hệ thống không có chỉ số hồ sơ nào**, và đó là quyết định chứ không phải thiếu sót:
+> phạm vi dữ liệu của vai trò này rỗng (`16/08`), nên mọi con số hồ sơ sẽ bằng 0 — đúng về kỹ thuật,
+> đọc ra nghĩa hoàn toàn sai. Khối của họ đếm dòng nhật ký, và **chỉ trong cửa sổ sáu tháng** như
+> mọi đường đọc nhật ký khác (`22/08`); chuỗi kỳ dài hơn thì bị cắt và số kỳ bị cắt được nói ra.
+
+Màn hình này **không nhận bộ lọc 9 tiêu chí**. "Hoạt động của quý 3" chỉ có nghĩa trên toàn bộ phạm
+vi của người xem; lọc thêm rồi vẫn gọi tên như cũ là đặt hai con số của hai tập hồ sơ khác nhau cạnh
+nhau mà không gì phân biệt.
 
 ### 9.3. Box "Yêu cầu cập nhật" trên trang Tổng quan `mới 16/08`
 
@@ -1120,6 +1173,18 @@ vô hiệu hoá tài khoản.
 **Nhật ký kiểm toán** `mới 22/08` — cửa sổ audit **6 tháng gần nhất**, máy chủ chặn ở tầng API; dữ
 liệu cũ hơn **giữ nguyên, không xoá** vì xoá đòi tắt chốt "chỉ ghi thêm" · **không có đường xuất ra
 file**, đọc trên màn hình bằng bộ lọc.
+
+**Trang *Báo cáo* thành trang *Thống kê*** `mới 22/08` — đổi tên và đổi hẳn nội dung. Trang cũ bày
+lại chính những con số của *Tổng quan* (tổng hồ sơ, đang chờ, quá hạn, tiến độ theo trạng thái, khối
+SLA) nên mở ra không thấy gì mới. Trang mới chỉ nói về **hoạt động theo kỳ**: tuần · tháng · quý ·
+năm, mỗi vai trò một nhịp mặc định và một bộ chỉ số riêng. Bốn quy tắc số liệu ở muc 9.2b —
+tồn-tại-thời-điểm không trộn với dòng-chảy-trong-kỳ; mỗi chỉ số neo vào một mốc và nói ra mốc ấy; kỳ
+cắt theo giờ Việt Nam; kỳ đang chạy so **cùng số ngày** với kỳ trước. Đường dẫn cũ `/bao-cao` vẫn
+sống, trỏ về màn hình mới.
+
+> **Quản trị hệ thống không có chỉ số hồ sơ nào** trên trang này — phạm vi dữ liệu của họ rỗng nên
+> mọi con số sẽ là 0. Khối của họ đếm **hoạt động hệ thống theo kỳ** từ nhật ký, trong đúng cửa sổ
+> sáu tháng nêu ngay ở trên.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay

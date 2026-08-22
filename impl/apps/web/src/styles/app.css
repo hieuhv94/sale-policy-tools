@@ -925,7 +925,7 @@ button.the-lien {
 }
 .danh-sach-so li:last-child { border-bottom: 0; }
 
-/* --- Ô số liệu và thanh tỷ lệ (màn hình Báo cáo) --------------------------- */
+/* --- Ô số liệu và thanh tỷ lệ (Tổng quan và Thống kê) --------------------- */
 
 /**
  * `minmax(170px, …)` chứ không phải 200px.
@@ -2319,4 +2319,96 @@ td.o-cau-chu { max-width: 32ch; }
   padding: var(--k2) var(--k3);
   color: var(--mau-chu-phu);
   font-size: var(--chu-nho);
+}
+
+
+/* --- Trang Thống kê (`0093`) ---------------------------------------------- */
+
+/*
+ * Bốn nút nhịp dính liền thành một dải, không phải bốn nút rời.
+ *
+ * Chúng là BỐN LỰA CHỌN CỦA MỘT Ô, không phải bốn thao tác khác nhau — hình
+ * dạng phải nói ra điều đó, nếu không người dùng đọc "Tuần" và "Tháng" như hai
+ * nút bấm được cùng lúc.
+ */
+.chon-nhip {
+  display: inline-flex;
+  margin-bottom: var(--k5);
+  border-radius: var(--bo-goc-nho);
+  overflow: hidden;
+}
+.nut-nhip {
+  border-radius: 0;
+  margin-left: -1px;
+}
+.nut-nhip:first-child { margin-left: 0; }
+.nut-nhip-chon,
+.nut-nhip-chon:hover {
+  background: var(--mau-nut-chinh);
+  border-color: var(--mau-nut-chinh);
+  color: var(--mau-chu-nguoc);
+}
+
+/*
+ * Vạch màu của thẻ so sánh — CHỈ hai hướng có màu.
+ *
+ * `chi-so-thuong` cố ý không có luật nào: phần lớn chỉ số ở đây là khối lượng
+ * công việc, và "lập mới nhiều hơn kỳ trước" tự nó không tốt cũng không xấu. Tô
+ * màu cả ba là biến bảng màu thành trang trí.
+ */
+.chi-so-canh-bao::before { background: var(--mau-tt-hong); }
+.chi-so-tot::before { background: var(--mau-tt-hieu-luc); }
+
+/* Số của bảng thống kê đọc theo CỘT, nên chữ số phải đều bề ngang — cùng lý do
+   với `.bang-lech .so`. */
+.bang-thong-ke .so { font-family: var(--so-deu-cot); text-align: right; }
+.bang-thong-ke th[scope='row'] {
+  position: relative;
+  min-width: 12rem;
+  font-weight: 600;
+}
+
+/*
+ * Thanh nền chạy SAU chữ, không thành một cột riêng.
+ *
+ * Bảng đã sáu tới tám cột số; thêm một cột đồ hoạ nữa là đẩy phần bên phải ra
+ * ngoài màn hình. Thanh nằm dưới nhãn kỳ cho thấy hình dạng của xu hướng mà
+ * không tốn thêm chiều ngang nào.
+ */
+.thanh-nen {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  border-radius: var(--bo-goc-nho);
+  background: var(--mau-thuong-hieu-nhat);
+}
+.thanh-nen-chu { position: relative; }
+
+/* Kỳ đang chạy chưa đủ ngày — làm nhạt để nó không bị đọc ngang hàng với các kỳ
+   đã đóng. */
+.dong-dang-chay { color: var(--mau-chu-phu); }
+.ghi-chu-nho {
+  font-size: var(--chu-rat-nho);
+  font-style: normal;
+  color: var(--mau-chu-phu);
+}
+
+.chu-giai {
+  margin-top: var(--k3);
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+}
+.chu-giai > summary { cursor: pointer; }
+.chu-giai-moc { margin: var(--k3) 0 0; }
+.chu-giai-moc > div {
+  display: flex;
+  gap: var(--k3);
+  padding: var(--k1) 0;
+}
+.chu-giai-moc dt { flex: 0 0 clamp(7rem, 22%, 12rem); font-weight: 600; }
+.chu-giai-moc dd { margin: 0; }
+
+@media (max-width: 640px) {
+  .chu-giai-moc > div { display: block; }
 }

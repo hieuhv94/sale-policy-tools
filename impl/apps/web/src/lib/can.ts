@@ -103,7 +103,7 @@ export const can = (vaiTro: string | undefined, quyen: Quyen): boolean =>
 export const QUYEN_XEM = {
   hoSo: VAI_TRO,
   khachHang: VAI_TRO,
-  baoCao: VAI_TRO,
+  thongKe: VAI_TRO,
   // "Danh mục" tách làm ba mục menu riêng ở P22. Sản phẩm và Chiết khấu mọi vai
   // trò đọc được — đó là hai thứ phải tra khi lập và khi duyệt hồ sơ.
   sanPham: VAI_TRO,
@@ -147,7 +147,7 @@ export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/', nhan: 'Tổng quan', muc: 'hoSo' },
   { duong: '/ho-so', nhan: 'Hồ sơ CSBH', muc: 'hoSo' },
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
-  { duong: '/bao-cao', nhan: 'Báo cáo', muc: 'baoCao' },
+  { duong: '/thong-ke', nhan: 'Thống kê', muc: 'thongKe' },
   { duong: '/san-pham', nhan: 'Sản phẩm', muc: 'sanPham' },
   { duong: '/chiet-khau', nhan: 'Chiết khấu', muc: 'chietKhau' },
   { duong: '/van-ban-mau', nhan: 'Văn bản mẫu', muc: 'vanBanMau' },
