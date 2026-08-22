@@ -960,6 +960,17 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **Nhật ký hệ thống chỉ Quản trị hệ thống đọc** `mới 21/08`. Bốn vai trò trong luồng duyệt không
   đọc được, và Ban lãnh đạo cũng thôi từ ngày này — xem mục 2.6. *Lịch sử hồ sơ* thì khác: ai mở
   được hồ sơ thì đọc được lịch sử của chính hồ sơ ấy.
+- **Cửa sổ audit: 6 tháng gần nhất** `mới 22/08`. Phần mềm phải tra ngược được sáu tháng; ô chọn
+  khoảng thời gian không nhận mốc xa hơn, và **máy chủ từ chối ở tầng API** chứ không chỉ ẩn ô trên
+  màn hình.
+  > **Dữ liệu cũ hơn sáu tháng thì GIỮ NGUYÊN, không xoá.** Sáu tháng là *bảo đảm*, không phải
+  > *giới hạn*. Xoá khỏi bảng nhật ký đòi tắt chính cái chốt chặn "chỉ ghi thêm" ở tầng CSDL — mở
+  > đúng cánh cửa mà điều khoản trên vừa khoá, và đổi lấy một chút dung lượng đĩa thì không đáng.
+  > Ngày dung lượng thật sự thành vấn đề thì bàn tới việc chuyển sang kho lạnh, không phải xoá.
+- **Nhật ký KHÔNG có đường xuất ra file** `mới 22/08`. Đọc trên màn hình, nên bộ lọc và phân trang
+  phải đủ để tra tại chỗ: khoảng thời gian, người thực hiện, hành động, đối tượng, địa chỉ IP và mã
+  tra cứu. Việc ghi lại **lượt xuất Excel của báo cáo hồ sơ** thì vẫn giữ — đó là một tập dữ liệu
+  nghiệp vụ rời khỏi hệ thống, chuyện khác hẳn.
 - Mỗi mốc thời gian là **một cột riêng** trên hồ sơ kèm người thực hiện; báo cáo và SLA truy vấn
   trực tiếp từ các cột này, nhật ký chỉ dùng để truy vết.
 - Mỗi lần trả lại, bổ sung sản phẩm, chỉnh sửa sản phẩm hoặc thay đổi giá đều tạo phiên bản mới;
@@ -1093,6 +1104,10 @@ hiệu lực, giữ nguyên trạng thái, và ghi vết vào **nhật ký của
 hàng chuyển cùng hồ sơ**, kể cả khách chưa có hồ sơ nào · **KHÔNG hỗ trợ giao lại một hồ sơ lẻ** khi
 người phụ trách vẫn đang làm việc — đổi người chỉ có ở hai chỗ: lúc chọn người trong luồng, và lúc
 vô hiệu hoá tài khoản.
+
+**Nhật ký kiểm toán** `mới 22/08` — cửa sổ audit **6 tháng gần nhất**, máy chủ chặn ở tầng API; dữ
+liệu cũ hơn **giữ nguyên, không xoá** vì xoá đòi tắt chốt "chỉ ghi thêm" · **không có đường xuất ra
+file**, đọc trên màn hình bằng bộ lọc.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay
