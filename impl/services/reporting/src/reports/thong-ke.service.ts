@@ -103,9 +103,127 @@ export type BoThongKe = {
     daQua: number;
     denKyTruoc: string;
   };
+  /**
+   * Hồ sơ nằm ở bàn ai bao lâu — trung bình số ngày của TỪNG BƯỚC, theo kỳ.
+   *
+   * Một truy vấn nuôi BA khối trên màn hình, và đó là lý do nó tính theo kỳ chứ
+   * không chỉ cho kỳ đang xem: Ban lãnh đạo đọc thanh ngưỡng của kỳ này, Sale
+   * Admin đọc đường "số ngày làm bản cứng" qua các kỳ, Trưởng bộ phận đọc riêng
+   * quãng nằm trên bàn mình.
+   *
+   * Neo vào `approved_at`: chỉ hồ sơ ĐÃ ĐI HẾT mới có đủ bốn quãng. Neo vào lúc
+   * gửi thì hồ sơ đang dở dang kéo trung bình xuống, và kỳ nào cũng "nhanh hơn"
+   * chỉ vì phần chậm chưa xong.
+   */
+  buoc: Record<string, ThoiGianBuoc>;
   /** Số hồ sơ `LEGACY` bị loại khỏi mọi con số ở trên. */
   loaiTruLegacy: number;
+  /**
+   * TRUNG VỊ số CSBH có hiệu lực của MỘT trình dược viên, từng kỳ.
+   *
+   * Để một TDV biết mình đứng ở đâu mà **không phải bày tên ai khác ra**. Đây là
+   * ngoại lệ có chủ ý của luật phạm vi: nó tính trên toàn công ty, không theo
+   * phạm vi người gọi — nhưng nó là một con số gộp, không kèm tên, không kèm mã
+   * hồ sơ, nên nó không lộ dữ liệu của ai.
+   *
+   * TRUNG VỊ chứ không phải trung bình: một người làm gấp năm lần kéo trung bình
+   * lên và mọi người còn lại đều thành "dưới mức", một kết luận sai về chín
+   * người để mô tả đúng một người.
+   */
+  trungVi: Record<string, number>;
 };
+
+export type DongTdv = {
+  guiDuyet?: number;
+  coHieuLuc?: number;
+  traLai?: number;
+  tuChoi?: number;
+  giaTri?: number;
+};
+
+/** Cơ cấu kết cục của hồ sơ một người GỬI TRONG KỲ — năm ô, cộng lại là 100%. */
+export type ChatLuong = {
+  kyThang: number;
+  traLai1: number;
+  traLaiNhieu: number;
+  tuChoi: number;
+  dangXuLy: number;
+};
+
+export type MaXuHuong = 'len' | 'ngang' | 'chung' | 'xuong';
+
+/** Bốn quãng chờ của một hồ sơ, tính bằng ngày. `null` khi kỳ không có hồ sơ nào. */
+export type ThoiGianBuoc = {
+  choTbp: number | null;
+  choKtL1: number | null;
+  saLamBanCung: number | null;
+  choKtL2: number | null;
+};
+
+/** Kỳ không có hồ sơ nào — năm ô đều 0, và tỷ lệ suy ra là không xác định. */
+const RONG: ChatLuong = { kyThang: 0, traLai1: 0, traLaiNhieu: 0, tuChoi: 0, dangXuLy: 0 };
+
+export type NguoiThongKe = {
+  userId: string;
+  ten: string;
+  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; tuChoi: number; giaTri: number };
+  /** Chuỗi theo kỳ để vẽ đường nhỏ — cùng trục thời gian với `chuoi`. */
+  chuoiHieuLuc: number[];
+  chuoiGui: number[];
+  xuHuong: MaXuHuong;
+  xuHuongGui: MaXuHuong;
+  tyLeTraLai: number | null;
+  chatLuong: ChatLuong;
+  chatLuongTheoKy: ChatLuong[];
+  suaLaiNgay: number | null;
+};
+
+export type BoTheoTdv = {
+  ky: Ky;
+  soKy: number;
+  chuoi: { ma: string; nhan: string; tu: string; den: string; dangChay: boolean }[];
+  nguoi: NguoiThongKe[];
+};
+
+/**
+ * Ngưỡng đổi nhãn xu hướng.
+ *
+ * Không đối xứng, và cố ý: đi xuống 15% đáng chú ý hơn đi lên 15%, còn sụt quá
+ * một phần ba thì là chuyện khác hẳn — nên nó có nhãn riêng.
+ */
+export const NGUONG_LEN = 0.15;
+export const NGUONG_CHUNG = -0.15;
+export const NGUONG_SUT = -0.3;
+
+/**
+ * Xu hướng của một chuỗi: trung bình 3 kỳ ĐÃ ĐÓNG gần nhất so với 3 kỳ trước đó.
+ *
+ * KỲ ĐANG CHẠY BỊ LOẠI khỏi phép so — nó chưa đủ ngày, và tính nó vào thì đầu
+ * mỗi kỳ ai cũng "đang xuống". Đây là hệ quả trực tiếp của quy tắc "kỳ đang chạy
+ * so cùng số ngày" ở `0093`: chỗ nào so hai kỳ với nhau thì chỗ ấy phải cùng độ
+ * dài, mà cách rẻ nhất để bảo đảm điều đó là chỉ dùng kỳ đã đóng.
+ *
+ * Tính ở MÁY CHỦ, không ở giao diện — cùng nguyên tắc "giao diện không tính
+ * toán" (`FE-27`). Hai màn hình dùng chung một luật, không phải hai bản cài đặt.
+ */
+export function xuHuong(chuoi: number[]): MaXuHuong {
+  const d = chuoi.slice(0, -1);
+  if (d.length < 4) return 'ngang';
+  const n = Math.min(3, Math.floor(d.length / 2));
+  const tb = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+  const truoc = tb(d.slice(-2 * n, -n));
+  const sau = tb(d.slice(-n));
+  if (truoc === 0) return sau > 0 ? 'len' : 'ngang';
+  const lech = (sau - truoc) / truoc;
+  if (lech >= NGUONG_LEN) return 'len';
+  if (lech <= NGUONG_SUT) return 'xuong';
+  if (lech <= NGUONG_CHUNG) return 'chung';
+  return 'ngang';
+}
+
+/** Cộng một chỉ số qua mọi kỳ của một người. */
+const chuoiTong = (maKyDs: string[], theoKy: Record<string, DongTdv>, khoa: keyof DongTdv): number =>
+  maKyDs.reduce((a, m) => a + (theoKy[m]?.[khoa] ?? 0), 0);
 
 /** Làm tròn hai chữ số như mọi tỷ lệ khác trong hệ (muc 7). */
 const phanTram = (tu: number, mau: number): number | null =>
@@ -124,11 +242,13 @@ export class ThongKeService {
     const tu = cacKy[0]!.tu;
     const den = cacKy[cacKy.length - 1]!.den;
 
-    const [dem, tien, dong, legacy] = await Promise.all([
+    const [dem, tien, dong, legacy, trungVi, buoc] = await Promise.all([
       this.dem(ids, ky, tu, den),
       this.tien(ids, ky, tu, den),
       this.dong(ids, ky, tu, den),
       this.legacy(ids, tu),
+      this.trungVi(ky, tu, den),
+      this.theoBuoc(ids, ky, tu, den),
     ]);
 
     const chuoi = cacKy.map((k) => gop(k, dem, tien, dong));
@@ -175,7 +295,148 @@ export class ThongKeService {
         denKyTruoc,
       },
       loaiTruLegacy: legacy,
+      trungVi,
+      buoc,
     };
+  }
+
+  /** Bốn quãng chờ, trung bình theo kỳ — xem chú thích của `buoc` ở `BoThongKe`. */
+  private async theoBuoc(
+    ids: string[],
+    ky: Ky,
+    tu: string,
+    den: string,
+  ): Promise<Record<string, ThoiGianBuoc>> {
+    const { where, params } = build({}, ids);
+    params.push(tu, den);
+    const i = params.length;
+    const ngay = (a: string, b: string) =>
+      `avg(EXTRACT(EPOCH FROM (${a} - ${b})) / 86400)
+         FILTER (WHERE ${a} IS NOT NULL AND ${b} IS NOT NULL)::numeric(10,2)::text`;
+
+    const rows = await this.db.q<Record<string, string | null>>(
+      `SELECT ${maSql(ky, 'approved_at')} AS ky,
+              ${ngay('tbp_signed_at', 'submitted_at')} AS cho_tbp,
+              ${ngay('kt_l1_received_at', 'tbp_signed_at')} AS cho_kt1,
+              ${ngay('sa_handover_at', 'kt_l1_received_at')} AS sa_lam,
+              ${ngay('approved_at', 'sa_handover_at')} AS cho_kt2
+         FROM rpt.policy_row
+        WHERE ${where} AND source <> 'LEGACY'
+          AND approved_at >= $${i - 1}::timestamptz AND approved_at < $${i}::timestamptz
+        GROUP BY 1`,
+      params,
+    );
+
+    const so = (v: string | null) => (v === null ? null : Number(v));
+    return Object.fromEntries(
+      rows.map((r) => [
+        String(r['ky']),
+        {
+          choTbp: so(r['cho_tbp'] ?? null),
+          choKtL1: so(r['cho_kt1'] ?? null),
+          saLamBanCung: so(r['sa_lam'] ?? null),
+          choKtL2: so(r['cho_kt2'] ?? null),
+        },
+      ]),
+    );
+  }
+
+  /**
+   * Trung vị số CSBH có hiệu lực trên MỘT trình dược viên, theo từng kỳ.
+   *
+   * KHÔNG lọc phạm vi — xem chú thích của `trungVi` ở kiểu `BoThongKe`. Chỉ đếm
+   * người CÓ ít nhất một hồ sơ có hiệu lực trong kỳ ấy: gộp cả người không có gì
+   * vào mẫu thì trung vị tụt về 0 ngay khi công ty tuyển thêm người, và con số
+   * đọc ra thành "mặt bằng chung đang giảm".
+   */
+  private async trungVi(ky: Ky, tu: string, den: string): Promise<Record<string, number>> {
+    const rows = await this.db.q<{ ky: string; giua: string }>(
+      `WITH theo_nguoi AS (
+         SELECT ${maSql(ky, 'approved_at')} AS ky, tdv_user_id, count(*) AS n
+           FROM rpt.policy_row
+          WHERE source <> 'LEGACY'
+            AND approved_at >= $1::timestamptz AND approved_at < $2::timestamptz
+          GROUP BY 1, 2
+       )
+       SELECT ky, percentile_cont(0.5) WITHIN GROUP (ORDER BY n)::numeric(10,2)::text AS giua
+         FROM theo_nguoi GROUP BY ky`,
+      [tu, den],
+    );
+    return Object.fromEntries(rows.map((r) => [r.ky, Number(r.giua)]));
+  }
+
+  /**
+   * Tách chỉ số THEO TỪNG TRÌNH DƯỢC VIÊN (`0094`, chốt 23/08).
+   *
+   * MỘT endpoint cho HAI vai trò, và khác biệt nằm ở phạm vi chứ không ở mã:
+   *
+   *   - **Ban lãnh đạo** có phạm vi toàn hệ thống, nên nhận về mọi TDV.
+   *   - **Trưởng bộ phận** có phạm vi là hồ sơ mang tên mình ở cột TBP, nên nhận
+   *     về đúng những người đã gửi hồ sơ tới bàn họ — chính là *phương án A* đã
+   *     chốt cho câu hỏi "TDV nào thuộc quản lý của tôi". Hệ thống KHÔNG có cây
+   *     tổ chức (`16/08`), nên đây là câu trả lời duy nhất đọc được từ dữ liệu.
+   *
+   * `build({}, ids)` lo cả hai — cùng mệnh đề phạm vi mà mọi báo cáo khác dùng,
+   * không phải một luật thứ hai chạy song song.
+   *
+   * DANH SÁCH NGƯỜI LẤY THEO CẢ CỬA SỔ, KHÔNG THEO KỲ ĐANG XEM. Lấy theo kỳ thì
+   * người **ngừng gửi hẳn biến mất khỏi bảng** — mà đó đúng là ca "chững" nặng
+   * nhất, ca cần thấy nhất. Ai không có hồ sơ nào trong kỳ này vẫn hiện, với số 0.
+   */
+  async theoTdv(me: AuthUser, ky: Ky, soKy: number, bayGio = new Date()): Promise<BoTheoTdv> {
+    const ids = await this.scope.userIdsFor(me);
+    const cacKy = chuoiKy(ky, soKy, bayGio);
+    const tu = cacKy[0]!.tu;
+    const den = cacKy[cacKy.length - 1]!.den;
+    const maKyDs = cacKy.map((k) => k.ma);
+
+    const [dem, chatLuong, suaLai] = await Promise.all([
+      this.demTheoTdv(ids, ky, tu, den),
+      this.chatLuongTheoTdv(ids, ky, tu, den),
+      this.suaLaiTheoTdv(ids, tu, den),
+    ]);
+
+    const nguoi = [...dem.values()]
+      .map((n) => {
+        const chuoiHieuLuc = maKyDs.map((m) => n.theoKy[m]?.coHieuLuc ?? 0);
+        const chuoiGui = maKyDs.map((m) => n.theoKy[m]?.guiDuyet ?? 0);
+        const cuoi = n.theoKy[maKyDs[maKyDs.length - 1]!] ?? {};
+        const clTheoKy = chatLuong.get(n.userId) ?? {};
+        const cl = clTheoKy[maKyDs[maKyDs.length - 1]!];
+        return {
+          userId: n.userId,
+          ten: n.ten,
+          kyNay: {
+            guiDuyet: cuoi.guiDuyet ?? 0,
+            coHieuLuc: cuoi.coHieuLuc ?? 0,
+            traLai: cuoi.traLai ?? 0,
+            tuChoi: cuoi.tuChoi ?? 0,
+            giaTri: cuoi.giaTri ?? 0,
+          },
+          chuoiHieuLuc,
+          chuoiGui,
+          /* Hai nhãn xu hướng cho hai màn hình: Ban lãnh đạo đếm hồ sơ có hiệu
+             lực, Trưởng bộ phận đếm hồ sơ gửi tới bàn mình. Tính cả hai ở đây
+             thay vì để giao diện chọn — giao diện không tính toán. */
+          xuHuong: xuHuong(chuoiHieuLuc),
+          xuHuongGui: xuHuong(chuoiGui),
+          tyLeTraLai: phanTram(
+            chuoiTong(maKyDs, n.theoKy, 'traLai') + chuoiTong(maKyDs, n.theoKy, 'tuChoi'),
+            chuoiTong(maKyDs, n.theoKy, 'guiDuyet'),
+          ),
+          chatLuong: cl ?? RONG,
+          /* Cả chuỗi chất lượng, để vẽ đường "tỷ lệ ký thẳng" qua các kỳ. Không
+             tính sẵn tỷ lệ ở đây: kỳ không có hồ sơ nào thì tỷ lệ là KHÔNG XÁC
+             ĐỊNH, và một số 0 ở giữa đường đọc ra là "kỳ ấy hỏng hết". */
+          chatLuongTheoKy: maKyDs.map((m) => clTheoKy[m] ?? RONG),
+          suaLaiNgay: suaLai.get(n.userId) ?? null,
+        };
+      })
+      // Sắp giảm dần theo việc của kỳ đang xem; màn hình nào cần thứ tự khác thì
+      // tự sắp — nhưng thứ tự mặc định phải là thứ tự người ta đọc trước.
+      .sort((a, b) => b.kyNay.coHieuLuc - a.kyNay.coHieuLuc || b.kyNay.guiDuyet - a.kyNay.guiDuyet);
+
+    return { ky, soKy, chuoi: cacKy, nguoi };
   }
 
   /**
@@ -237,6 +498,168 @@ export class ThongKeService {
         vuotNguong: Number(r.vuot),
       })),
     };
+  }
+
+  /**
+   * Bốn phép đếm và một phép cộng tiền, gom theo (người × kỳ).
+   *
+   * Bốn chỉ số chứ không phải mười một của `NEO`: đây là bảng người, và một
+   * bảng mười một cột theo người thì quay về đúng cái bảng số mà `0094` vừa bỏ.
+   * Bốn cái này là bốn cái vẽ được thành hình — gửi lên, xong, bị trả, bị từ chối.
+   */
+  private async demTheoTdv(
+    ids: string[],
+    ky: Ky,
+    tu: string,
+    den: string,
+  ): Promise<Map<string, { userId: string; ten: string; theoKy: Record<string, DongTdv> }>> {
+    const NEO_TDV: Record<string, string> = {
+      guiDuyet: 'submitted_at',
+      coHieuLuc: 'approved_at',
+      traLai: 'returned_at',
+      tuChoi: 'rejected_at',
+    };
+    const { where, params } = build({}, ids);
+    params.push(tu, den);
+    const i = params.length;
+
+    const nhanh = Object.entries(NEO_TDV).map(
+      ([ten, cot]) => `SELECT '${ten}' AS chi_so, tdv_user_id::text AS nguoi,
+              max(tdv_name) AS ten, ${maSql(ky, cot)} AS ky,
+              count(*)::text AS n, '0' AS tien
+         FROM rpt.policy_row
+        WHERE ${where} AND source <> 'LEGACY'
+          AND ${cot} >= $${i - 1}::timestamptz AND ${cot} < $${i}::timestamptz
+        GROUP BY 2, 4`,
+    );
+    // Tiền đi cùng một câu lệnh, cùng neo `approved_at` — để nó không bao giờ
+    // đọc một ảnh chụp dữ liệu khác với phép đếm nằm ngay cạnh trên màn hình.
+    nhanh.push(`SELECT 'giaTri' AS chi_so, tdv_user_id::text AS nguoi,
+              max(tdv_name) AS ten, ${maSql(ky, 'approved_at')} AS ky,
+              '0' AS n, sum(total_net)::text AS tien
+         FROM rpt.policy_row
+        WHERE ${where} AND source <> 'LEGACY'
+          AND approved_at >= $${i - 1}::timestamptz AND approved_at < $${i}::timestamptz
+        GROUP BY 2, 4`);
+
+    const rows = await this.db.q<{
+      chi_so: string;
+      nguoi: string;
+      ten: string | null;
+      ky: string;
+      n: string;
+      tien: string;
+    }>(nhanh.join('\nUNION ALL\n'), params);
+
+    const ra = new Map<string, { userId: string; ten: string; theoKy: Record<string, DongTdv> }>();
+    for (const r of rows) {
+      const nguoi = ra.get(r.nguoi) ?? {
+        userId: r.nguoi,
+        // Tên trống thì hiện mã rút gọn chứ không để trống hẳn: một dòng không
+        // tên trong bảng xếp hạng là một dòng không ai tra lại được.
+        ten: r.ten ?? `#${r.nguoi.slice(0, 8)}`,
+        theoKy: {},
+      };
+      if (r.ten) nguoi.ten = r.ten;
+      const o = (nguoi.theoKy[r.ky] ?? {}) as DongTdv;
+      if (r.chi_so === 'giaTri') o.giaTri = Number(r.tien);
+      else (o as Record<string, number>)[r.chi_so] = Number(r.n);
+      nguoi.theoKy[r.ky] = o;
+      ra.set(r.nguoi, nguoi);
+    }
+    return ra;
+  }
+
+  /**
+   * Cơ cấu chất lượng hồ sơ của KỲ ĐANG XEM, theo từng người (`0094`).
+   *
+   * Neo vào `submitted_at`: câu hỏi là *"hồ sơ gửi tới bàn tôi trong kỳ này đi về
+   * đâu"*, nên tập hồ sơ phải cố định theo lúc GỬI, không theo lúc kết thúc. Neo
+   * vào lúc kết thúc thì hồ sơ gửi cuối kỳ trước mà ký đầu kỳ này lại đếm vào kỳ
+   * này, và tổng của một người không còn khớp với số họ đã gửi.
+   *
+   * NĂM ô chứ không bốn: `dangXuLy` là hồ sơ chưa ngã ngũ. Bỏ nó đi thì thanh
+   * 100% của kỳ đang chạy nói dối — nó sẽ chia hết phần trăm cho những hồ sơ đã
+   * xong, trong khi nửa số hồ sơ còn đang nằm đâu đó trong luồng.
+   *
+   * Thứ tự phân loại có ý: **từ chối thắng**. Một hồ sơ bị trả lại hai lần rồi
+   * bị từ chối thì kết cục của nó là từ chối; đếm nó vào ô "trả lại từ 2 lần" là
+   * giấu mất cái kết cục nặng hơn.
+   */
+  private async chatLuongTheoTdv(
+    ids: string[],
+    ky: Ky,
+    tu: string,
+    den: string,
+  ): Promise<Map<string, Record<string, ChatLuong>>> {
+    const { where, params } = build({}, ids);
+    params.push(tu, den);
+    const i = params.length;
+
+    const rows = await this.db.q<Record<string, string | null>>(
+      `SELECT tdv_user_id::text AS nguoi, ${maSql(ky, 'submitted_at')} AS ky,
+              count(*) FILTER (WHERE rejected_at IS NOT NULL)::text AS tu_choi,
+              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai >= 2)::text AS tra_nhieu,
+              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 1)::text AS tra_1,
+              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 0
+                                 AND tbp_signed_at IS NOT NULL)::text AS ky_thang,
+              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 0
+                                 AND tbp_signed_at IS NULL)::text AS dang_xu_ly
+         FROM rpt.policy_row
+        WHERE ${where} AND source <> 'LEGACY'
+          AND submitted_at >= $${i - 1}::timestamptz AND submitted_at < $${i}::timestamptz
+        GROUP BY 1, 2`,
+      params,
+    );
+
+    const ra = new Map<string, Record<string, ChatLuong>>();
+    for (const r of rows) {
+      const nguoi = String(r['nguoi']);
+      const o = ra.get(nguoi) ?? {};
+      o[String(r['ky'])] = {
+        kyThang: Number(r['ky_thang'] ?? 0),
+        traLai1: Number(r['tra_1'] ?? 0),
+        traLaiNhieu: Number(r['tra_nhieu'] ?? 0),
+        tuChoi: Number(r['tu_choi'] ?? 0),
+        dangXuLy: Number(r['dang_xu_ly'] ?? 0),
+      };
+      ra.set(nguoi, o);
+    }
+    return ra;
+  }
+
+  /**
+   * Trả lại rồi bao lâu TDV mới gửi lại — trung bình trên CẢ CỬA SỔ.
+   *
+   * Truy vấn RIÊNG chứ không phải một cột trong câu trên, và đó là một lần sửa
+   * lỗi chứ không phải chuyện gọn gàng: bản đầu viết nó thành truy vấn con
+   * `SELECT … FROM rpt.policy_row s WHERE s.tdv_user_id = r.tdv_user_id` — mà
+   * truy vấn con ấy **không mang mệnh đề phạm vi**. Một Trưởng bộ phận sẽ đọc
+   * được số ngày sửa của TDV tính trên MỌI hồ sơ của người đó, kể cả hồ sơ chưa
+   * bao giờ đi qua bàn mình.
+   *
+   * Cửa sổ rộng hơn kỳ đang xem vì mẫu số ở đây mỏng: một người bị trả lại vài
+   * lần một quý là bình thường, và trung bình của hai con số thì nói được rất ít.
+   */
+  private async suaLaiTheoTdv(
+    ids: string[],
+    tu: string,
+    den: string,
+  ): Promise<Map<string, number>> {
+    const { where, params } = build({}, ids);
+    params.push(tu, den);
+    const i = params.length;
+    const rows = await this.db.q<{ nguoi: string; ngay: string | null }>(
+      `SELECT tdv_user_id::text AS nguoi, avg(sua_lai_ngay)::numeric(6,2)::text AS ngay
+         FROM rpt.policy_row
+        WHERE ${where} AND source <> 'LEGACY' AND sua_lai_ngay IS NOT NULL
+          AND submitted_at >= $${i - 1}::timestamptz AND submitted_at < $${i}::timestamptz
+        GROUP BY tdv_user_id`,
+      params,
+    );
+    return new Map(
+      rows.filter((r) => r.ngay !== null).map((r) => [r.nguoi, Number(r.ngay)]),
+    );
   }
 
   /** Mười một phép đếm dòng chảy trong MỘT câu lệnh — xem `NEO`. */

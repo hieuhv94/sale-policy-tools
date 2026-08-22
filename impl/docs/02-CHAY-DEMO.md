@@ -200,8 +200,11 @@ make demo-data
    đồng (PDF)**.
 5. **`sa01`** → tải bản scan lên → **Bàn giao**.
 6. **`kt01`** → **Tiếp nhận lần 2** → hồ sơ chuyển *Đang có hiệu lực*.
-7. **`bld01`** → *Tổng quan* → xem tiến độ, tỷ lệ trả lại, SLA → *Thống kê* → đổi nhịp **Quý**,
-   xem chiết khấu bình quân theo nhóm sản phẩm → *Hồ sơ CSBH* → thử **Xuất Excel**.
+7. **`bld01`** → *Tổng quan* → xem tiến độ, tỷ lệ trả lại, SLA → *Thống kê* → đổi nhịp **Quý**, xem
+   phễu duyệt và chiết khấu theo nhóm → cuộn xuống **Ai đang chạy tốt, ai đang chững**, bấm một
+   trình dược viên để lọc tại chỗ → *Hồ sơ CSBH* → thử **Xuất Excel**.
+8. **`tbp01`** → *Thống kê* → xem **cơ cấu chất lượng hồ sơ** của từng TDV gửi tới bàn mình, và
+   **số ngày họ sửa lại** sau khi bị trả.
 
 ## Email: cơ chế gửi
 

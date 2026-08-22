@@ -1457,6 +1457,61 @@ describe('`0093` ba mốc theo bước chép sang read-model', () => {
   });
 });
 
+describe('`0094` chất lượng hồ sơ chép sang read-model', () => {
+  it('đếm đúng số lần TBP trả lại, và số ngày TDV sửa xong', async () => {
+    /*
+     * Hai con số này suy từ `pol.policy_event` — bảng của service `policy`, mà
+     * `csbh_rpt` không có quyền đọc (AD-02). Nên nguồn phải tính sẵn và trả về
+     * qua `/internal/policies/:id`; ca kiểm này đi hết đường ấy bằng sự kiện
+     * thật, không giả lập chỗ nào.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thiếu giấy phép' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sai giá bán buôn' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    const row = await rptRow(d.id);
+    expect(Number(row?.['so_lan_tbp_tra_lai'])).toBe(2);
+    // Cả hai lần sửa đều xong trong vài giây, nên trung bình là một số dương rất
+    // nhỏ — điều cần khẳng định là NÓ CÓ, không phải nó bằng bao nhiêu.
+    expect(row?.['sua_lai_ngay']).not.toBeNull();
+    expect(Number(row?.['sua_lai_ngay'])).toBeGreaterThanOrEqual(0);
+  });
+
+  it('hồ sơ ký thẳng thì đếm 0 và KHÔNG có số ngày sửa', async () => {
+    // Ô "ký thẳng lần đầu" của thanh cơ cấu đọc đúng hai giá trị này. `null` chứ
+    // không phải 0: không có lần sửa nào thì trung bình là KHÔNG XÁC ĐỊNH, còn 0
+    // ngày đọc ra là "sửa xong ngay lập tức".
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    await flushSync([d.id]);
+
+    const row = await rptRow(d.id);
+    expect(Number(row?.['so_lan_tbp_tra_lai'])).toBe(0);
+    expect(row?.['sua_lai_ngay']).toBeNull();
+  });
+
+  it('lần trả lại của KẾ TOÁN không lọt vào con số của Trưởng bộ phận', async () => {
+    /*
+     * Màn hình dùng con số này là màn hình của Trưởng bộ phận, và câu hỏi là
+     * "hồ sơ gửi tới bàn TÔI phải trả lại mấy lần". Gộp thêm lần trả của Kế toán
+     * là trộn công của người khác vào một con số mang tên mình — mà người đọc
+     * không có cách nào biết.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thiếu bản mềm' })).status).toBe(200);
+    await flushSync([d.id]);
+
+    expect(Number((await rptRow(d.id))?.['so_lan_tbp_tra_lai'])).toBe(0);
+  });
+});
+
 describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', () => {
   /** Hồ sơ đang nằm trên bàn Sale Admin ở bước B8, chưa ai bắt in lại. */
   async function toiSaleAdmin(): Promise<string> {

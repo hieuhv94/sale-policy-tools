@@ -55,6 +55,38 @@ export class PolicyInternalController {
     );
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
 
+    /*
+     * Hai con số CHẤT LƯỢNG, suy từ nhật ký hồ sơ (`0094`).
+     *
+     * Trả về từ ĐÂY chứ không để read-model tự tính, vì `pol.policy_event` là
+     * bảng của service này và `csbh_rpt` không có quyền đọc nó (AD-02). Đây cũng
+     * là chỗ đúng theo nghĩa nghiệp vụ: số lần trả lại là chuyện đã xảy ra với
+     * hồ sơ, không phải một chỉ số báo cáo.
+     *
+     * `soLanTbpTraLai` CHỈ đếm lần trả của Trưởng bộ phận. Màn hình dùng nó là
+     * màn hình của họ, và gộp thêm lần trả của Kế toán là trộn công của người
+     * khác vào một con số mang tên mình.
+     */
+    const cl = await this.db.one<{ so_lan: string; sua_lai_ngay: string | null }>(
+      `WITH cap AS (
+         SELECT EXTRACT(EPOCH FROM (g.at - e.at)) / 86400 AS ngay
+           FROM pol.policy_event e
+           JOIN LATERAL (
+             SELECT at FROM pol.policy_event g2
+              WHERE g2.policy_id = e.policy_id
+                AND g2.action = 'RESUBMIT_AFTER_EDIT'
+                AND g2.at > e.at
+              ORDER BY g2.at
+              LIMIT 1
+           ) g ON true
+          WHERE e.policy_id = $1 AND e.action = 'TBP_RETURN'
+       )
+       SELECT (SELECT count(*)::text FROM pol.policy_event
+                WHERE policy_id = $1 AND action = 'TBP_RETURN') AS so_lan,
+              (SELECT avg(ngay)::numeric(6,2)::text FROM cap) AS sua_lai_ngay`,
+      [id],
+    );
+
     const lines = await this.db.q<Record<string, unknown>>(
       `SELECT product_id, product_code_snap, product_name_snap,
               company_price_snap::text AS company_price, wholesale_price::text AS wholesale_price,
@@ -72,7 +104,13 @@ export class PolicyInternalController {
       [id],
     );
 
-    return { ...p, lines, attachments };
+    return {
+      ...p,
+      so_lan_tbp_tra_lai: Number(cl?.so_lan ?? 0),
+      sua_lai_ngay: cl?.sua_lai_ngay ?? null,
+      lines,
+      attachments,
+    };
   }
 
   /**

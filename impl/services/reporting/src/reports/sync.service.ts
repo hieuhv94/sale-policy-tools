@@ -143,10 +143,11 @@ export class SyncService {
          product_codes, product_names, product_names_norm, product_group_codes,
          line_count, total_net, max_discount, reprint_requested_at,
          kt_l1_received_at, sa_handover_at, contract_issued_at,
+         so_lan_tbp_tra_lai, sua_lai_ngay,
          src_row_version, synced_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,
                $17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-               $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42, now())
+               $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44, now())
        ON CONFLICT (policy_id) DO UPDATE SET
          code = EXCLUDED.code, version_no = EXCLUDED.version_no,
          status = EXCLUDED.status, pending_step = EXCLUDED.pending_step,
@@ -175,6 +176,8 @@ export class SyncService {
          kt_l1_received_at = EXCLUDED.kt_l1_received_at,
          sa_handover_at = EXCLUDED.sa_handover_at,
          contract_issued_at = EXCLUDED.contract_issued_at,
+         so_lan_tbp_tra_lai = EXCLUDED.so_lan_tbp_tra_lai,
+         sua_lai_ngay = EXCLUDED.sua_lai_ngay,
          src_row_version = EXCLUDED.src_row_version, synced_at = now()
        -- Bỏ qua bản GHI ĐÈ BẰNG DỮ LIỆU CŨ. Sự kiện giao lại lần hai đọc nguồn
        -- ở một thời điểm sớm hơn lần đồng bộ đang có thì row_version của nó nhỏ
@@ -231,6 +234,11 @@ export class SyncService {
         src.kt_l1_received_at ?? null,
         src.sa_handover_at ?? null,
         src.contract_issued_at ?? null,
+        // `0094` — chất lượng hồ sơ, nguồn đã đếm sẵn từ nhật ký. Chép nguyên:
+        // đếm lại ở đây thì read-model phải đọc `pol.policy_event`, đúng ranh
+        // giới mà nó sinh ra để khỏi phải mở.
+        src.so_lan_tbp_tra_lai ?? 0,
+        src.sua_lai_ngay ?? null,
         src.row_version,
       ],
     );

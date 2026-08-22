@@ -116,6 +116,22 @@ export class ReportsController {
     return this.thongke.chuoi(me, ky, docSoKy(q['soKy'], ky));
   }
 
+  /**
+   * Tách theo từng TDV — CHỈ Ban lãnh đạo và Trưởng bộ phận (`0094`).
+   *
+   * Không mở cho bốn vai trò kia, và không phải vì phạm vi: phạm vi đã tự lo
+   * việc ấy — một TDV gọi vào thì chỉ thấy chính mình, vô hại. Lý do là NGHIỆP
+   * VỤ: bảng này bày tên đồng nghiệp cạnh nhau kèm con số hiệu quả, và quyết
+   * định 23/08 nói rõ chỉ hai vai trò ấy cần nó. Bày ra cho người không cần là
+   * một quyết định về con người mà không ai yêu cầu.
+   */
+  @Roles('BAN_LANH_DAO', 'TBP')
+  @Get('thong-ke/tdv')
+  thongKeTdv(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {
+    const ky = docKy(q['ky']);
+    return this.thongke.theoTdv(me, ky, docSoKy(q['soKy'], ky));
+  }
+
   @Roles(...VIEWERS)
   @Get('thong-ke/nhom')
   thongKeNhom(@CurrentUser() me: AuthUser, @Query() q: Record<string, string>) {

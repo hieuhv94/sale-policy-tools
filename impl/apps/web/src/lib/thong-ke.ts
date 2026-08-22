@@ -1,19 +1,21 @@
 /**
- * Trang *Thống kê* gồm những gì, cho vai trò nào (`0093`).
+ * Trang *Thống kê* gồm những HÌNH gì, cho vai trò nào (`0094`).
  *
- * Cùng cơ chế với `tong-quan.ts`: BẢNG TRA là nguồn duy nhất, màn hình chỉ đọc
- * và dựng. Rải `if (vaiTro === …)` trong JSX là cách chắc chắn để có ngày một
- * vai trò sót một cột — mà cột sót thì không báo lỗi, nó chỉ vắng mặt.
+ * BẢNG TRA là nguồn duy nhất, màn hình chỉ đọc và dựng — cùng cơ chế với
+ * `tong-quan.ts`. Rải `if (vaiTro === …)` trong JSX là cách chắc chắn để có ngày
+ * một vai trò sót một khối, mà khối sót thì không báo lỗi: nó chỉ vắng mặt.
  *
- * HAI TRANG, HAI CÂU HỎI KHÁC NHAU, và đây là lý do trang này đổi tên (22/08):
+ * HAI TRANG, HAI CÂU HỎI (chốt 22/08, giữ nguyên ở `0094`):
  *
- *   - *Tổng quan* hỏi **bây giờ đang thế nào**: bao nhiêu hồ sơ đang chờ, cái
- *     nào sắp quá hạn, việc của tôi hôm nay là gì. Con số TỒN TẠI THỜI ĐIỂM.
- *   - *Thống kê* hỏi **kỳ vừa rồi đi thế nào**: lập bao nhiêu, duyệt xong bao
- *     nhiêu, nhanh hơn hay chậm đi. Con số DÒNG CHẢY TRONG KỲ.
+ *   - *Tổng quan* hỏi **bây giờ đang thế nào** — con số tồn tại thời điểm.
+ *   - *Thống kê* hỏi **kỳ vừa rồi đi thế nào** — con số dòng chảy trong kỳ.
  *
- * Bản *Báo cáo* cũ bày lại chính những con số của Tổng quan dưới một cái tên
- * khác — mở ra là thấy đúng thứ vừa xem xong, chỉ khác cách sắp xếp.
+ * VÀ TỪ `0094`: nhìn bằng HÌNH, không đọc bằng bảng số. Bản `0093` bày mỗi vai
+ * trò một bảng 6–8 cột × 12 dòng; thứ người ta mở màn hình ra để hỏi — *đang lên
+ * hay đang xuống* — lại là thứ duy nhất một bảng 96 ô không nói được.
+ *
+ * AI SOI ĐƯỢC TỪNG NGƯỜI (chốt 23/08): Ban lãnh đạo trên toàn công ty, Trưởng bộ
+ * phận trong phạm vi của mình. Bốn vai trò còn lại chỉ nhìn việc của chính họ.
  */
 import { useEffect, useState } from 'react';
 import { layJson } from './api.js';
@@ -33,170 +35,23 @@ export const NHAN_KY: Record<Ky, string> = {
 /**
  * NHỊP MẶC ĐỊNH của từng vai trò — mở màn hình ra là đã đúng nhịp của mình.
  *
- * Không phải chuyện thẩm mỹ: nhịp sai làm bảng số vô nghĩa theo hai hướng ngược
- * nhau. Một TDV xem theo tuần thì phần lớn ô là 0 vì hồ sơ của một người không
- * nhiều đến thế; Ban lãnh đạo xem theo tuần thì chiết khấu bình quân nhảy loạn
- * vì mỗi tuần chỉ vài hồ sơ có hiệu lực.
- *
- * Người dùng đổi được ngay trên màn hình — đây là điểm BẮT ĐẦU, không phải giới
- * hạn.
+ * Không phải chuyện thẩm mỹ: nhịp sai làm hình vô nghĩa theo hai hướng ngược
+ * nhau. Một TDV xem theo tuần thì phần lớn điểm nằm ở 0 vì hồ sơ của một người
+ * không nhiều đến thế; Ban lãnh đạo xem theo tuần thì chiết khấu bình quân nhảy
+ * loạn vì mỗi tuần chỉ vài hồ sơ có hiệu lực.
  */
 export const KY_MAC_DINH: Record<VaiTro, Ky> = {
-  // Đủ dài để có mẫu số. Hồ sơ của một trình dược viên không nhiều.
   TDV: 'thang',
-  // Khối lượng ký dồn theo tuần, và một tuần dồn việc phải thấy ngay.
+  // Khối lượng ký dồn theo tuần, và một tuần dồn việc phải hiện ra ngay.
   TBP: 'tuan',
   KE_TOAN: 'tuan',
   SALE_ADMIN: 'tuan',
   // Chiết khấu bình quân và tỷ lệ vượt ngưỡng chỉ có nghĩa ở nhịp dài.
   BAN_LANH_DAO: 'quy',
-  // Không đọc số hồ sơ nào — xem `KHOI_THEO_VAI_TRO`. Nhịp này áp cho khối
-  // hoạt động hệ thống, và tháng là nhịp cửa sổ nhật ký chịu được (6 tháng).
   QUAN_TRI: 'thang',
 };
 
-export type DangSo = 'dem' | 'tien' | 'ngay' | 'tyLe';
-
-/**
- * MỖI CỘT NÓI RA MỐC CỦA NÓ.
- *
- * "Tháng này có bao nhiêu CSBH" là câu chưa đủ nghĩa: lập trong tháng, gửi duyệt
- * trong tháng, hay có hiệu lực trong tháng? Ba con số khác nhau. `neo` là câu
- * trả lời, và nó hiện thành một chú giải dưới bảng chứ không nằm trong đầu người
- * viết mã.
- */
-export const COT: Record<
-  string,
-  { nhan: string; neo: string; dang: DangSo; tot?: 'cao' | 'thap' }
-> = {
-  lapMoi: { nhan: 'Lập mới', neo: 'tính theo ngày lập hồ sơ', dang: 'dem' },
-  guiDuyet: { nhan: 'Gửi duyệt', neo: 'tính theo ngày TDV bấm gửi duyệt', dang: 'dem' },
-  tbpKy: { nhan: 'TBP ký', neo: 'tính theo ngày Trưởng bộ phận ký số', dang: 'dem' },
-  ktNhanL1: { nhan: 'KT nhận L1', neo: 'tính theo ngày kế toán tiếp nhận bản mềm', dang: 'dem' },
-  banGiao: { nhan: 'Bàn giao', neo: 'tính theo ngày Sale Admin bàn giao bản cứng', dang: 'dem' },
-  hopDong: { nhan: 'Xuất hợp đồng', neo: 'tính theo lần xuất hợp đồng gần nhất', dang: 'dem' },
-  coHieuLuc: {
-    nhan: 'Có hiệu lực',
-    neo: 'tính theo ngày hồ sơ có hiệu lực — lúc kế toán tiếp nhận bản cứng xong',
-    dang: 'dem',
-  },
-  traLai: { nhan: 'Bị trả lại', neo: 'tính theo ngày bị trả lại', dang: 'dem', tot: 'thap' },
-  tuChoi: { nhan: 'Bị từ chối', neo: 'tính theo ngày bị từ chối', dang: 'dem', tot: 'thap' },
-  quaHan: {
-    nhan: 'Quá hạn',
-    neo: 'tính theo ngày hết hạn 14 ngày — hạn trôi qua chính là lúc hồ sơ chết',
-    dang: 'dem',
-    tot: 'thap',
-  },
-  hetHieuLuc: {
-    nhan: 'Hết hiệu lực',
-    neo: 'tính theo ngày bị bản mới của cùng khách hàng thay',
-    dang: 'dem',
-  },
-  giaTri: {
-    nhan: 'Giá trị',
-    neo: 'tổng giá thu về của hồ sơ có hiệu lực trong kỳ',
-    dang: 'tien',
-  },
-  soNgayDuyetTb: {
-    nhan: 'Số ngày duyệt TB',
-    neo: 'từ lúc gửi duyệt tới lúc có hiệu lực, của hồ sơ có hiệu lực trong kỳ',
-    dang: 'ngay',
-    tot: 'thap',
-  },
-  chietKhauTb: {
-    nhan: 'Chiết khấu TB',
-    neo: 'bình quân trên từng dòng sản phẩm của hồ sơ có hiệu lực trong kỳ',
-    dang: 'tyLe',
-  },
-  tyLeVuotNguong: {
-    nhan: 'Vượt ngưỡng',
-    neo: 'tỷ lệ dòng sản phẩm vượt ngưỡng, trên hồ sơ có hiệu lực trong kỳ',
-    dang: 'tyLe',
-    tot: 'thap',
-  },
-  tyLeTraLai: {
-    nhan: 'Tỷ lệ trả lại',
-    neo: 'số lượt trả lại và từ chối trong kỳ, chia số lượt gửi duyệt trong kỳ',
-    dang: 'tyLe',
-    tot: 'thap',
-  },
-};
-
-/**
- * Cột nào cho vai trò nào — **việc của chính họ trước, kết quả sau**.
- *
- * Cùng quy tắc với dải thẻ ở Tổng quan: một Sale Admin nhìn cột "TBP ký" thì
- * không làm được gì với con số ấy, mà nó vẫn chiếm chỗ và vẫn bắt phải đọc.
- *
- * `QUAN_TRI` KHÔNG có cột nào, và đây là chỗ dễ làm sai nhất của cả màn hình:
- * `idn.scope_user_ids` trả về RỖNG cho họ, nên mọi con số hồ sơ đều là 0. Bày
- * một bảng toàn số 0 là nói với người xem rằng hệ thống không có hoạt động nào.
- */
-export const COT_THEO_VAI_TRO: Record<VaiTro, string[]> = {
-  TDV: ['lapMoi', 'guiDuyet', 'coHieuLuc', 'traLai', 'tyLeTraLai', 'soNgayDuyetTb'],
-  TBP: ['guiDuyet', 'tbpKy', 'traLai', 'tuChoi', 'quaHan', 'tyLeTraLai'],
-  KE_TOAN: ['ktNhanL1', 'hopDong', 'coHieuLuc', 'giaTri', 'quaHan', 'soNgayDuyetTb'],
-  SALE_ADMIN: ['banGiao', 'hopDong', 'coHieuLuc', 'quaHan', 'soNgayDuyetTb'],
-  BAN_LANH_DAO: [
-    'lapMoi',
-    'coHieuLuc',
-    'tuChoi',
-    'quaHan',
-    'giaTri',
-    'chietKhauTb',
-    'tyLeVuotNguong',
-    'soNgayDuyetTb',
-  ],
-  QUAN_TRI: [],
-};
-
-/**
- * Chỉ số nào lên DẢI THẺ so sánh "kỳ này với kỳ trước".
- *
- * Ba, không hơn: dải thẻ là chỗ trả lời trong ba giây, và bảy con số có mũi tên
- * tăng giảm thì không con số nào nổi lên được. Phần còn lại nằm trong bảng.
- */
-export const THE_THEO_VAI_TRO: Record<VaiTro, string[]> = {
-  TDV: ['guiDuyet', 'coHieuLuc', 'tyLeTraLai'],
-  TBP: ['tbpKy', 'traLai', 'quaHan'],
-  KE_TOAN: ['ktNhanL1', 'coHieuLuc', 'giaTri'],
-  SALE_ADMIN: ['banGiao', 'coHieuLuc', 'quaHan'],
-  BAN_LANH_DAO: ['coHieuLuc', 'giaTri', 'chietKhauTb'],
-  QUAN_TRI: [],
-};
-
-export type TenKhoiTk = 'vi-sao-khong-co-so' | 'so-sanh' | 'chuoi-ky' | 'theo-nhom' | 'hoat-dong';
-
-export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoiTk[]> = {
-  TDV: ['so-sanh', 'chuoi-ky'],
-  TBP: ['so-sanh', 'chuoi-ky'],
-  KE_TOAN: ['so-sanh', 'chuoi-ky'],
-  SALE_ADMIN: ['so-sanh', 'chuoi-ky'],
-  /*
-   * Ban lãnh đạo có thêm khối CHIẾT KHẤU THEO NHÓM SẢN PHẨM.
-   *
-   * Đây là con số quan trọng nhất của cả trang với họ, và là con số duy nhất
-   * trong phần mềm nói về chính sách giá ở mức toàn công ty: một quý nhích nửa
-   * điểm phần trăm trên toàn danh mục thì không ai thấy được bằng cách mở từng
-   * hồ sơ.
-   */
-  BAN_LANH_DAO: ['so-sanh', 'chuoi-ky', 'theo-nhom'],
-  QUAN_TRI: ['vi-sao-khong-co-so', 'hoat-dong'],
-};
-
-/** Khối nào đọc `/audit/*` — đối chiếu với quyền `nhatKy`, cùng lý do như `0086`. */
-export const KHOI_DOC_NHAT_KY: TenKhoiTk[] = ['hoat-dong'];
-
-/** Khối nào cần `/reports/thong-ke`. Vai trò không có khối nào thì không gọi. */
-export const KHOI_CAN_SO_LIEU: TenKhoiTk[] = ['so-sanh', 'chuoi-ky'];
-
-export const LY_DO_KHONG_CO_SO: Partial<Record<VaiTro, string>> = {
-  QUAN_TRI:
-    'Quản trị hệ thống không nằm trong luồng duyệt nên không hồ sơ nào thuộc phạm vi dữ liệu ' +
-    'của bạn — mọi chỉ số hồ sơ sẽ là 0 và đọc ra nghĩa hoàn toàn sai. ' +
-    'Màn hình này thống kê hoạt động của chính hệ thống.',
-};
+export type MaXuHuong = 'len' | 'ngang' | 'chung' | 'xuong';
 
 // --- Kiểu dữ liệu máy chủ trả về ---------------------------------------------
 
@@ -216,6 +71,13 @@ export type SoLieuKy = {
   tyLeTraLai: number | null;
 };
 
+export type ThoiGianBuoc = {
+  choTbp: number | null;
+  choKtL1: number | null;
+  saLamBanCung: number | null;
+  choKtL2: number | null;
+};
+
 export type BoThongKe = {
   ky: Ky;
   soKy: number;
@@ -228,6 +90,38 @@ export type BoThongKe = {
     denKyTruoc: string;
   };
   loaiTruLegacy: number;
+  /** Trung vị số CSBH có hiệu lực của MỘT trình dược viên, theo kỳ. */
+  trungVi: Record<string, number>;
+  buoc: Record<string, ThoiGianBuoc>;
+};
+
+export type ChatLuong = {
+  kyThang: number;
+  traLai1: number;
+  traLaiNhieu: number;
+  tuChoi: number;
+  dangXuLy: number;
+};
+
+export type NguoiThongKe = {
+  userId: string;
+  ten: string;
+  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; tuChoi: number; giaTri: number };
+  chuoiHieuLuc: number[];
+  chuoiGui: number[];
+  xuHuong: MaXuHuong;
+  xuHuongGui: MaXuHuong;
+  tyLeTraLai: number | null;
+  chatLuong: ChatLuong;
+  chatLuongTheoKy: ChatLuong[];
+  suaLaiNgay: number | null;
+};
+
+export type BoTheoTdv = {
+  ky: Ky;
+  soKy: number;
+  chuoi: { ma: string; nhan: string; tu: string; den: string; dangChay: boolean }[];
+  nguoi: NguoiThongKe[];
 };
 
 export type BoTheoNhom = {
@@ -239,8 +133,6 @@ export type BoTheoNhom = {
 export type KyHoatDong = {
   ma: string;
   nhan: string;
-  tu: string;
-  den: string;
   dangChay: boolean;
   tong: number;
   nguoi: number;
@@ -254,19 +146,127 @@ export type BoHoatDong = {
   kyBiCat?: number;
 };
 
+// --- Khối nào cho vai trò nào ------------------------------------------------
+
+export type TenKhoiTk =
+  | 'vi-sao-khong-co-so'
+  | 'luong'
+  | 'ket-cuc'
+  | 'pheu'
+  | 'chiet-khau'
+  | 'thoi-gian-buoc'
+  | 'tdv-hieu-qua'
+  | 'tdv-gui-len'
+  | 'tdv-chat-luong'
+  | 'tdv-sua-lai'
+  | 'viec-tbp'
+  | 'toi-so-voi-chung'
+  | 'hai-hang-doi'
+  | 'gia-tri'
+  | 'ban-cung'
+  | 'hoat-dong';
+
 /**
- * Lấy MỘT con số của một kỳ, dù nó nằm ở `dem` hay ở thân dòng.
+ * Thứ tự trong mảng là thứ tự trên màn hình, và nó là thứ tự NGƯỜI TA HỎI.
  *
- * Mười một chỉ số dòng chảy nằm trong `dem` vì chúng sinh ra từ cùng một bảng
- * `NEO` ở máy chủ; năm chỉ số còn lại là trường riêng. Màn hình không nên biết
- * khác biệt ấy — nó chỉ có tên cột.
+ * Ban lãnh đạo: khối lượng có tăng không → kết cục có xấu đi không → tắc ở đâu →
+ * giá có trôi không → ai đang chạy tốt, ai đang chững.
+ *
+ * Trưởng bộ phận mở ra là thấy NGƯỜI trước, việc của mình sau: câu hỏi thường
+ * trực của họ ở màn hình này là về TDV, còn khối lượng ký của chính mình thì
+ * trang *Tổng quan* đã nói mỗi ngày.
  */
-export function soCua(k: SoLieuKy | null, cot: string): number | null {
-  if (k === null) return null;
-  if (cot in k.dem) return k.dem[cot] ?? 0;
-  const v = (k as unknown as Record<string, unknown>)[cot];
-  return typeof v === 'number' ? v : null;
+export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoiTk[]> = {
+  TDV: ['toi-so-voi-chung', 'ket-cuc'],
+  TBP: ['tdv-gui-len', 'tdv-chat-luong', 'tdv-sua-lai', 'viec-tbp'],
+  KE_TOAN: ['hai-hang-doi', 'gia-tri'],
+  SALE_ADMIN: ['ban-cung'],
+  BAN_LANH_DAO: ['luong', 'ket-cuc', 'pheu', 'chiet-khau', 'thoi-gian-buoc', 'tdv-hieu-qua'],
+  /*
+   * Quản trị hệ thống KHÔNG có một con số hồ sơ nào.
+   *
+   * `idn.scope_user_ids` trả RỖNG cho vai trò này (`0031`), nên mọi chỉ số hồ sơ
+   * đều bằng 0 — đúng về kỹ thuật, đọc ra là "hệ thống không có hoạt động nào".
+   */
+  QUAN_TRI: ['vi-sao-khong-co-so', 'hoat-dong'],
+};
+
+/** Khối nào cần `/reports/thong-ke`. */
+export const KHOI_CAN_SO_LIEU: TenKhoiTk[] = [
+  'luong',
+  'ket-cuc',
+  'pheu',
+  'thoi-gian-buoc',
+  'toi-so-voi-chung',
+  'viec-tbp',
+  'hai-hang-doi',
+  'gia-tri',
+  'ban-cung',
+];
+
+/** Khối nào cần `/reports/thong-ke/tdv` — chỉ hai vai trò có (`0094`). */
+export const KHOI_CAN_TDV: TenKhoiTk[] = [
+  'tdv-hieu-qua',
+  'tdv-gui-len',
+  'tdv-chat-luong',
+  'tdv-sua-lai',
+];
+
+/** Khối nào cần `/reports/thong-ke/nhom`. */
+export const KHOI_CAN_NHOM: TenKhoiTk[] = ['chiet-khau'];
+
+/** Khối nào đọc `/audit/*` — đối chiếu với quyền `nhatKy`, cùng lý do như `0086`. */
+export const KHOI_DOC_NHAT_KY: TenKhoiTk[] = ['hoat-dong'];
+
+export const LY_DO_KHONG_CO_SO: Partial<Record<VaiTro, string>> = {
+  QUAN_TRI:
+    'Quản trị hệ thống không nằm trong luồng duyệt nên không hồ sơ nào thuộc phạm vi dữ liệu ' +
+    'của bạn — mọi chỉ số hồ sơ sẽ là 0 và đọc ra nghĩa hoàn toàn sai. ' +
+    'Màn hình này thống kê hoạt động của chính hệ thống.',
+};
+
+/**
+ * Mỗi đường, mỗi cột NÓI RA MỐC của nó.
+ *
+ * "Tháng này có bao nhiêu CSBH" là câu chưa đủ nghĩa: lập trong tháng, gửi duyệt
+ * trong tháng, hay có hiệu lực trong tháng là ba con số khác nhau. Chú thích
+ * dưới mỗi hình đọc bảng này.
+ */
+export const NEO: Record<string, { nhan: string; moc: string }> = {
+  lapMoi: { nhan: 'Lập mới', moc: 'theo ngày lập hồ sơ' },
+  guiDuyet: { nhan: 'Gửi duyệt', moc: 'theo ngày TDV bấm gửi duyệt' },
+  tbpKy: { nhan: 'TBP ký', moc: 'theo ngày Trưởng bộ phận ký số' },
+  ktNhanL1: { nhan: 'KT nhận L1', moc: 'theo ngày kế toán tiếp nhận bản mềm' },
+  banGiao: { nhan: 'Bàn giao', moc: 'theo ngày Sale Admin bàn giao bản cứng' },
+  hopDong: { nhan: 'Xuất hợp đồng', moc: 'theo lần xuất hợp đồng gần nhất' },
+  coHieuLuc: { nhan: 'Có hiệu lực', moc: 'theo ngày kế toán tiếp nhận bản cứng xong' },
+  traLai: { nhan: 'Bị trả lại', moc: 'theo ngày bị trả lại' },
+  tuChoi: { nhan: 'Bị từ chối', moc: 'theo ngày bị từ chối' },
+  quaHan: { nhan: 'Quá hạn', moc: 'theo ngày hết hạn 14 ngày' },
+  hetHieuLuc: { nhan: 'Hết hiệu lực', moc: 'theo ngày bị bản mới thay' },
+  giaTri: { nhan: 'Giá trị', moc: 'tổng giá thu về của hồ sơ có hiệu lực trong kỳ' },
+};
+
+/** Lấy một chuỗi số theo tên chỉ số, xuyên suốt các kỳ. */
+export const chuoiChiSo = (bo: BoThongKe, ten: string): number[] =>
+  bo.chuoi.map((k) => k.dem[ten] ?? 0);
+
+/** Nhãn kỳ của cả chuỗi — trục hoành dùng chung cho mọi hình trên trang. */
+export const mocKy = (bo: BoThongKe): string[] => bo.chuoi.map((k) => k.nhan);
+
+/**
+ * Tỷ lệ ký thẳng của một kỳ. `null` khi kỳ ấy không có hồ sơ nào.
+ *
+ * `null` chứ không phải 0, và đây là chỗ dễ sai: một kỳ không gửi hồ sơ nào mà
+ * vẽ thành 0% thì đường tụt xuống đáy và đọc ra là "kỳ ấy hỏng hết".
+ */
+export function tyLeKyThang(c: ChatLuong): number | null {
+  const tong = c.kyThang + c.traLai1 + c.traLaiNhieu + c.tuChoi + c.dangXuLy;
+  if (tong === 0) return null;
+  return Number(((c.kyThang / tong) * 100).toFixed(2));
 }
+
+// --- Nạp dữ liệu -------------------------------------------------------------
 
 const useGoi = <T,>(duong: string | null): { du: T | null; loi: unknown } => {
   const [du, datDu] = useState<T | null>(null);
@@ -276,11 +276,9 @@ const useGoi = <T,>(duong: string | null): { du: T | null; loi: unknown } => {
     const huy = new AbortController();
     datLoi(null);
     /*
-     * KHÔNG xoá dữ liệu cũ khi đổi nhịp.
-     *
-     * Đổi từ Tháng sang Quý là một lần gọi mạng, và dọn bảng trong lúc chờ làm
-     * cả màn hình nhảy lên rồi tụt xuống. Bảng cũ đứng yên thêm nửa giây rồi
-     * đổi số là thứ đọc được; một khoảng trắng rồi một bảng mới thì không.
+     * KHÔNG xoá dữ liệu cũ khi đổi nhịp: đổi từ Tháng sang Quý là một lượt gọi
+     * mạng, và dọn sạch hình trong lúc chờ làm cả màn hình nhảy lên rồi tụt
+     * xuống. Hình cũ đứng yên thêm nửa giây rồi đổi số thì đọc được.
      */
     layJson<T>(duong, huy.signal)
       .then(datDu)
@@ -294,6 +292,9 @@ const useGoi = <T,>(duong: string | null): { du: T | null; loi: unknown } => {
 
 export const useThongKe = (ky: Ky, bat: boolean) =>
   useGoi<BoThongKe>(bat ? `/reports/thong-ke?ky=${ky}` : null);
+
+export const useThongKeTdv = (ky: Ky, bat: boolean) =>
+  useGoi<BoTheoTdv>(bat ? `/reports/thong-ke/tdv?ky=${ky}` : null);
 
 export const useThongKeNhom = (ky: Ky, bat: boolean) =>
   useGoi<BoTheoNhom>(bat ? `/reports/thong-ke/nhom?ky=${ky}` : null);

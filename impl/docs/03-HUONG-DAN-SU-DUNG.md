@@ -1060,17 +1060,35 @@ nó trả lời một câu hỏi khác hẳn:
 trình dược viên theo tháng, Trưởng bộ phận, Kế toán và Sale Admin theo tuần, Ban lãnh đạo theo quý —
 đổi lúc nào cũng được bằng một cú bấm.
 
-**Kỳ này so với kỳ trước.** Ba ô đầu tiên đặt con số của kỳ đang chạy cạnh con số kỳ trước. Kỳ đang
-chạy chưa đủ ngày, nên **kỳ trước cũng chỉ tính tới đúng chỗ kỳ này đang đứng**: hôm nay ngày 22 thì
-so ngày 1–22 với ngày 1–22, không phải với cả tháng trước. Câu chú thích ngay dưới nói rõ mốc cắt.
+**Toàn biểu đồ, không có bảng số** `sửa 23/08`. Sáu dạng hình, mỗi dạng trả lời một câu: đường
+(*đang lên hay đang xuống*), cột chồng (*cơ cấu đổi thế nào*), phễu (*rơi rụng ở bước nào*), thanh
+xếp hạng (*ai nhiều nhất*), phân tán (*ai lệch khỏi đám đông*), thanh ngưỡng (*còn cách hạn bao
+xa*).
 
-**Bảng theo kỳ.** Mỗi dòng một kỳ, mới nhất lên đầu, kỳ đang chạy có chữ *đang chạy* và để nhạt hơn.
-Thanh nền sau tên kỳ vẽ theo cột đầu tiên, để nhìn ra hình dạng của xu hướng mà không phải đọc số.
+Dưới mỗi hình là **chú thích màu kèm mốc** của từng đường. Đây không phải chi tiết kỹ thuật:
+*"tháng này có bao nhiêu CSBH"* là câu chưa đủ nghĩa — **lập** trong tháng, **gửi duyệt** trong
+tháng và **có hiệu lực** trong tháng là ba con số khác nhau.
 
-Mở **"Mỗi cột tính theo mốc nào"** dưới bảng để biết từng cột neo vào đâu. Đây không phải chi tiết
-kỹ thuật: *"tháng này có bao nhiêu CSBH"* là câu chưa đủ nghĩa — **lập** trong tháng, **gửi duyệt**
-trong tháng và **có hiệu lực** trong tháng là ba con số khác nhau, và bảng chọn đúng một mốc cho mỗi
-cột.
+**Kỳ đang chạy** phủ một dải mờ trên đường, và cột của nó nhạt hơn. Nó chưa đủ ngày, nên điểm cuối
+luôn thấp hơn thực tế — không đánh dấu thì mọi đường đều trông như đang rơi ở đoạn cuối.
+
+### Theo dõi từng trình dược viên `mới 23/08`
+
+Có ở **Ban lãnh đạo** (toàn công ty) và **Trưởng bộ phận** (những người đã gửi hồ sơ tới bàn bạn).
+
+- **Xếp hạng** — mỗi dòng một người: số hồ sơ, nhãn xu hướng, và đường nhỏ sáu kỳ gần nhất. Nhãn xu
+  hướng so *trung bình 3 kỳ đã đóng gần nhất với 3 kỳ trước đó*, lệch từ 15% mới đổi nhãn; **kỳ đang
+  chạy không tham gia phép so**.
+- **Bấm một dòng** để lọc cả màn hình theo người đó, bấm lại để bỏ chọn. Không mở màn hình mới.
+- **Phân tán** (Ban lãnh đạo) — trục ngang số CSBH có hiệu lực, trục dọc tỷ lệ bị trả lại. Vùng xanh
+  nhạt là nơi nên nằm.
+- **Cơ cấu chất lượng** (Trưởng bộ phận) — mỗi thanh là **100% hồ sơ của người đó**: ký thẳng · trả
+  lại 1 lần · trả lại từ 2 lần · từ chối · đang xử lý. Xếp theo phần *ký thẳng* giảm dần.
+- **Số ngày sửa lại** (Trưởng bộ phận) — từ lúc bạn trả lại tới lúc TDV gửi lại. Quãng này ăn thẳng
+  vào hạn 14 ngày của chính hồ sơ ấy.
+
+> Bốn chỉ số hiệu quả — số CSBH có hiệu lực, tỷ lệ bị trả lại, số ngày duyệt, tổng giá thu về — đo
+> **việc chạy hồ sơ CSBH**, **không đo doanh số bán hàng**. Phần mềm không có dữ liệu bán hàng.
 
 Vài điều nên biết khi đọc con số:
 

@@ -915,16 +915,64 @@ bấm.
    kỳ này đang đứng, và màn hình nói ra điều đó. Hồ sơ `LEGACY` loại khỏi mọi chỉ số **và được đếm
    ra**.
 
-**Chỉ số theo vai trò** — việc của chính họ trước, kết quả sau:
+**BIỂU ĐỒ, KHÔNG PHẢI BẢNG SỐ** `sửa 23/08`. Bản đầu bày mỗi vai trò một bảng 6–8 cột × 12 dòng;
+khách hàng bác thẳng: *"thể hiện dưới dạng biểu đồ, để nhìn được tổng quan chứ không dùng số
+liệu"*. Sáu dạng hình, mỗi dạng gắn với một câu hỏi — **không dùng biểu đồ tròn**, vì nó chỉ đọc
+được với 2–3 phần và không so được giữa hai kỳ:
 
-| Vai trò | Cột |
+| Dạng | Câu hỏi |
 |---|---|
-| TDV | Lập mới · Gửi duyệt · Có hiệu lực · Bị trả lại · Tỷ lệ trả lại · Số ngày duyệt TB |
-| Trưởng bộ phận | Gửi duyệt · TBP ký · Bị trả lại · Bị từ chối · Quá hạn · Tỷ lệ trả lại |
-| Kế toán | KT nhận L1 · Xuất hợp đồng · Có hiệu lực · Giá trị · Quá hạn · Số ngày duyệt TB |
-| Sale Admin | Bàn giao · Xuất hợp đồng · Có hiệu lực · Quá hạn · Số ngày duyệt TB |
-| Ban lãnh đạo | Lập mới · Có hiệu lực · Bị từ chối · Quá hạn · Giá trị · Chiết khấu TB · Vượt ngưỡng · Số ngày duyệt TB, **cộng khối chiết khấu bình quân theo nhóm sản phẩm** |
-| Quản trị hệ thống | **Không con số hồ sơ nào** — thay bằng hoạt động hệ thống theo kỳ, đếm từ nhật ký |
+| Đường | Đang lên hay đang xuống? |
+| Cột chồng | Cơ cấu kết cục đổi thế nào? |
+| Phễu | Rơi rụng ở bước nào? |
+| Thanh xếp hạng | Ai nhiều nhất, ai ít nhất? |
+| Phân tán | Ai lệch khỏi đám đông? |
+| Thanh ngưỡng | Còn cách hạn bao xa? |
+
+**Khối theo vai trò:**
+
+| Vai trò | Hình |
+|---|---|
+| TDV | Đường *hồ sơ của tôi* kèm **trung vị công ty** để so · cột chồng kết cục |
+| Trưởng bộ phận | **Xếp hạng TDV gửi hồ sơ tới bàn mình** · cơ cấu chất lượng hồ sơ · số ngày sửa lại · khối lượng ký của chính mình |
+| Kế toán | Hai hàng đợi L1/L2 · giá trị CSBH có hiệu lực theo kỳ |
+| Sale Admin | Bàn giao và xuất hợp đồng · số ngày làm bản cứng |
+| Ban lãnh đạo | Vào/ra luồng · kết cục · phễu duyệt · chiết khấu theo nhóm · thời gian từng bước · **xếp hạng và phân tán theo từng TDV** |
+| Quản trị hệ thống | **Không con số hồ sơ nào** — hoạt động hệ thống theo kỳ, đếm từ nhật ký |
+
+### 9.2c. Theo dõi từng trình dược viên `mới 23/08`
+
+Ban lãnh đạo theo dõi hiệu quả của **cả công ty lẫn từng TDV**; Trưởng bộ phận cũng vậy, trong phạm
+vi của mình. Bốn vai trò còn lại **không** có chiều người.
+
+**Phạm vi "TDV của tôi" — phương án A đã chốt.** Hệ thống không có cây tổ chức (`16/08`), nên "TDV
+thuộc quản lý" đọc từ dữ liệu là: **người có hồ sơ trong phạm vi của người xem**. Ban lãnh đạo thấy
+toàn bộ, Trưởng bộ phận thấy những người đã gửi hồ sơ tới bàn mình. Không thêm bảng nào, không mở
+lại quyết định về cây phân quyền.
+
+> **Danh sách người lấy theo CẢ CỬA SỔ, không theo kỳ đang xem.** Lấy theo kỳ thì người ngừng gửi
+> hẳn biến mất khỏi bảng — mà đó đúng là ca *chững* nặng nhất. Ai không có hồ sơ nào trong kỳ này
+> vẫn hiện, với số 0.
+
+**"Hiệu quả" đo bằng đúng dữ liệu phần mềm đang có** `chốt 23/08`: số CSBH có hiệu lực · tỷ lệ bị
+trả lại · số ngày từ gửi duyệt tới có hiệu lực · tổng giá thu về. Bốn chỉ số ấy đo **việc chạy hồ
+sơ CSBH**, **không đo doanh số bán hàng** — phần mềm không có dữ liệu bán hàng — và câu giới hạn
+này in ngay dưới tiêu đề khối, không nằm trong chú thích gấp lại.
+
+**Nhãn xu hướng** — *đang lên · đi ngang · chững lại · sụt mạnh* — tính ở máy chủ theo một luật duy
+nhất cho cả hai vai trò: so trung bình **3 kỳ đã đóng** gần nhất với 3 kỳ trước đó, lệch từ 15% mới
+đổi nhãn, từ 30% trở xuống là *sụt mạnh*. **Kỳ đang chạy không tham gia phép so** — nó chưa đủ
+ngày, và tính nó vào thì đầu mỗi kỳ ai cũng "đang xuống". Nhãn hiện bằng **chữ** kèm mũi tên, không
+chỉ bằng màu.
+
+**Trưởng bộ phận hỏi thêm một câu của riêng họ**: *hồ sơ của ai làm tôi mất công nhất*. Trả lời
+bằng thanh **100% chia đoạn** — ký thẳng lần đầu · trả lại 1 lần · trả lại từ 2 lần · từ chối ·
+đang xử lý — chứ không bằng một cột xếp hạng ngược, và cơ cấu chứ không phải số tuyệt đối: để số
+tuyệt đối thì người gửi nhiều luôn có vệt đỏ dài nhất. Kèm **số ngày từ lúc bị trả lại tới lúc gửi
+lại**, quãng ăn thẳng vào SLA 14 ngày mà không ai để ý vì lúc đó hồ sơ nằm ở bàn TDV.
+
+**Bấm một người thì lọc tại chỗ** `chốt 23/08`, không mở màn hình riêng; **không có chức năng đặt
+hai TDV cạnh nhau để so**.
 
 > **Quản trị hệ thống không có chỉ số hồ sơ nào**, và đó là quyết định chứ không phải thiếu sót:
 > phạm vi dữ liệu của vai trò này rỗng (`16/08`), nên mọi con số hồ sơ sẽ bằng 0 — đúng về kỹ thuật,
@@ -1185,6 +1233,12 @@ sống, trỏ về màn hình mới.
 > **Quản trị hệ thống không có chỉ số hồ sơ nào** trên trang này — phạm vi dữ liệu của họ rỗng nên
 > mọi con số sẽ là 0. Khối của họ đếm **hoạt động hệ thống theo kỳ** từ nhật ký, trong đúng cửa sổ
 > sáu tháng nêu ngay ở trên.
+
+**Thống kê là BIỂU ĐỒ, và soi được từng TDV** `mới 23/08` — bản bảng số bị bác, làm lại bằng sáu
+dạng hình. Ban lãnh đạo và Trưởng bộ phận theo dõi được hiệu quả **từng trình dược viên**; phạm vi
+"TDV của tôi" đọc từ chính phạm vi dữ liệu (*phương án A*), không dựng lại cây tổ chức. "Hiệu quả"
+chỉ gồm những gì phần mềm đang có, và màn hình nói rõ **đây không phải doanh số**. Bấm một người thì
+lọc tại chỗ; không có chức năng so hai người cạnh nhau. Chi tiết ở muc 9.2c.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay

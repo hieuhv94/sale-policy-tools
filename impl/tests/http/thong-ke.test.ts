@@ -18,7 +18,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp as createReportingApp, maSql } from '@csbh/reporting/testing';
+import { createTestApp as createReportingApp, maSql, xuHuong } from '@csbh/reporting/testing';
 import {
   accessTokenFor,
   bootIdentityListening,
@@ -77,6 +77,11 @@ type HoSoOpts = {
   quaHan?: string;
   /** Ai nhìn thấy hồ sơ này. Mặc định `tdv01`. */
   tdv?: string;
+  /** Trưởng bộ phận được phân công — quyết định hồ sơ có trong phạm vi TBP không. */
+  tbp?: string;
+  /** `0094` — số lần Trưởng bộ phận trả lại, và số ngày TDV sửa xong. */
+  soLanTraLai?: number;
+  suaLaiNgay?: number;
   status?: string;
   source?: string;
   tongTien?: number;
@@ -99,10 +104,12 @@ async function hoSo(o: HoSoOpts = {}): Promise<void> {
          policy_id, code, version_no, status, source,
          created_at, submitted_at, tbp_signed_at, kt_l1_received_at, sa_handover_at,
          contract_issued_at, approved_at, returned_at, rejected_at, sla_due_at,
-         customer_id, customer_code, customer_name, tdv_user_id, total_net, line_count)
+         customer_id, customer_code, customer_name, tdv_user_id, total_net, line_count,
+         tbp_user_id, so_lan_tbp_tra_lai, sua_lai_ngay)
        VALUES (gen_random_uuid(), $1, 1, $2, $3,
                $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-               gen_random_uuid(), $14, 'Khách kiểm thử', $15, $16, $17)
+               gen_random_uuid(), $14, 'Khách kiểm thử', $15, $16, $17,
+               $18, $19, $20)
        RETURNING policy_id`,
       [
         maDuyNhat(P, 'HS'),
@@ -122,6 +129,9 @@ async function hoSo(o: HoSoOpts = {}): Promise<void> {
         uid[o.tdv ?? 'tdv01'],
         String(o.tongTien ?? 0),
         (o.dong ?? []).length,
+        o.tbp === undefined ? null : uid[o.tbp],
+        o.soLanTraLai ?? 0,
+        o.suaLaiNgay ?? null,
       ],
     );
     const pid = r.rows[0]!.policy_id;
@@ -154,13 +164,13 @@ beforeAll(async () => {
   restores.push(i.restore);
   await clearAccountCache();
   await clearScopeCache();
-  for (const u of ['tdv01', 'tdv02', 'bld01', 'admin01']) {
+  for (const u of ['tdv01', 'tdv02', 'tbp01', 'bld01', 'admin01', 'kt01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
   await withAdminDb(async (c) => {
     const r = await c.query<{ id: string; username: string }>(
       `SELECT id, username FROM idn.app_user WHERE username = ANY($1::text[])`,
-      [['tdv01', 'tdv02']],
+      [['tdv01', 'tdv02', 'tdv03', 'tbp01']],
     );
     for (const u of r.rows) uid[u.username] = u.id;
   });
@@ -450,5 +460,180 @@ describe('`0093` tham số', () => {
     const ma = ky('thang', 1).ma;
     expect(kyCo(b.body, ma)?.dem.coHieuLuc).toBe(kyCo(a.body, ma)?.dem.coHieuLuc);
     expect(kyCo(a.body, ma)?.dem.coHieuLuc).toBe(1);
+  });
+});
+
+// --- `0094` tách theo từng trình dược viên ------------------------------------
+
+/** Lấy một người trong kết quả `/reports/thong-ke/tdv`. */
+const nguoiCo = (bo: { nguoi: { ten: string }[] }, ten: string) =>
+  bo.nguoi.find((n) => n.ten === ten) as Record<string, never> | undefined;
+
+describe('`0094` một endpoint, hai vai trò, phạm vi tự lo', () => {
+  it('Ban lãnh đạo thấy MỌI TDV; Trưởng bộ phận chỉ thấy người gửi tới bàn mình', async () => {
+    /*
+     * Đây là *phương án A* đã chốt 23/08 cho câu "TDV nào thuộc quản lý của
+     * Trưởng bộ phận". Hệ thống không có cây tổ chức (`16/08`), nên câu trả lời
+     * duy nhất đọc được từ dữ liệu là: người có hồ sơ trong phạm vi của họ.
+     */
+    await hoSo({ tdv: 'tdv01', tbp: 'tbp01', approved: tai('thang', 1, NGAY) });
+    await hoSo({ tdv: 'tdv02', approved: tai('thang', 1, 2 * NGAY) });
+
+    const bld = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'bld01');
+    expect(bld.status).toBe(200);
+    expect(bld.body.nguoi.length).toBe(2);
+
+    const tbp = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
+    expect(tbp.status).toBe(200);
+    // tdv02 gửi hồ sơ cho một Trưởng bộ phận khác — không có trong phạm vi này.
+    expect(tbp.body.nguoi.length).toBe(1);
+    expect(tbp.body.nguoi[0].userId).toBe(uid['tdv01']);
+  });
+
+  it('CHỈ hai vai trò ấy gọi được', async () => {
+    // Phạm vi đã tự lo việc lộ dữ liệu — một TDV gọi vào chỉ thấy chính mình.
+    // Chặn ở đây là quyết định NGHIỆP VỤ: bảng này bày tên đồng nghiệp cạnh nhau
+    // kèm con số hiệu quả, và chỉ hai vai trò được xem.
+    for (const ai of ['tdv01', 'kt01', 'admin01']) {
+      expect((await rget('/reports/thong-ke/tdv?ky=thang', ai)).status, ai).toBe(403);
+    }
+    expect((await rget('/reports/thong-ke/tdv?ky=thang', 'bld01')).status).toBe(200);
+    expect((await rget('/reports/thong-ke/tdv?ky=thang', 'tbp01')).status).toBe(200);
+  });
+
+  it('người NGỪNG GỬI HẲN vẫn hiện ra, với số 0', async () => {
+    /*
+     * Nếu danh sách người lấy theo KỲ ĐANG XEM thì người ngừng gửi biến mất —
+     * mà đó đúng là ca "chững" nặng nhất, ca cần thấy nhất. Danh sách phải lấy
+     * theo cả cửa sổ.
+     */
+    await hoSo({ tdv: 'tdv02', approved: tai('thang', 5, NGAY) });
+    await hoSo({ tdv: 'tdv01', approved: tai('thang', 0, GIO) });
+
+    const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'bld01');
+    const ten = r.body.nguoi.map((n: { userId: string }) => n.userId);
+    expect(ten).toContain(uid['tdv02']);
+    const cu = r.body.nguoi.find((n: { userId: string }) => n.userId === uid['tdv02']);
+    expect(cu.kyNay.coHieuLuc).toBe(0);
+    // …và chuỗi của họ vẫn mang con số của kỳ cũ, để vẽ được đường đi xuống.
+    expect(cu.chuoiHieuLuc.some((v: number) => v > 0)).toBe(true);
+  });
+
+  it('mỗi người một chuỗi, khớp trục thời gian chung', async () => {
+    await hoSo({ tdv: 'tdv01', approved: tai('thang', 2, NGAY) });
+    await hoSo({ tdv: 'tdv01', approved: tai('thang', 1, NGAY) });
+    await hoSo({ tdv: 'tdv01', approved: tai('thang', 1, 2 * NGAY) });
+
+    const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'bld01');
+    const n = r.body.nguoi[0];
+    expect(n.chuoiHieuLuc.length).toBe(r.body.chuoi.length);
+    const iTruoc = r.body.chuoi.findIndex((k: { ma: string }) => k.ma === ky('thang', 1).ma);
+    expect(n.chuoiHieuLuc[iTruoc]).toBe(2);
+    expect(n.chuoiHieuLuc[iTruoc - 1]).toBe(1);
+  });
+});
+
+describe('`0094` cơ cấu chất lượng hồ sơ', () => {
+  const kyNay = (l: number) => tai('thang', 0, l * GIO);
+
+  it('năm ô, và TỪ CHỐI thắng khi một hồ sơ vừa bị trả vừa bị từ chối', async () => {
+    /*
+     * Một hồ sơ bị trả lại hai lần rồi bị từ chối thì kết cục của nó là từ chối.
+     * Đếm nó vào ô "trả lại từ 2 lần" là giấu mất cái kết cục nặng hơn.
+     */
+    await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(2) });
+    await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(3), soLanTraLai: 1 });
+    await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(4), soLanTraLai: 3 });
+    await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tuChoi: kyNay(5), soLanTraLai: 2 });
+    // Chưa ngã ngũ: đã gửi, chưa ký, chưa trả, chưa từ chối.
+    await hoSo({ tbp: 'tbp01', submitted: kyNay(1), status: 'CHO_TBP_DUYET' });
+
+    const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
+    expect(r.body.nguoi[0].chatLuong).toEqual({
+      kyThang: 1,
+      traLai1: 1,
+      traLaiNhieu: 1,
+      tuChoi: 1,
+      dangXuLy: 1,
+    });
+  });
+
+  it('neo vào lúc GỬI, không phải lúc kết thúc', async () => {
+    // Hồ sơ gửi kỳ trước mà ký kỳ này KHÔNG được tính vào cơ cấu của kỳ này —
+    // nếu không thì tổng của một người không còn khớp số họ đã gửi trong kỳ.
+    await hoSo({ tbp: 'tbp01', submitted: tai('thang', 1, NGAY), tbpKy: kyNay(2) });
+    const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
+    const cl = r.body.nguoi[0].chatLuong;
+    expect(cl.kyThang + cl.traLai1 + cl.traLaiNhieu + cl.tuChoi + cl.dangXuLy).toBe(0);
+  });
+
+  it('số ngày sửa lại LỌC THEO PHẠM VI, không lấy cả hồ sơ ngoài bàn mình', async () => {
+    /*
+     * ĐỐI CHIẾU cho một lỗi đã suýt lọt: bản đầu tính trung bình này bằng một
+     * truy vấn con `WHERE s.tdv_user_id = r.tdv_user_id` KHÔNG mang mệnh đề phạm
+     * vi. Trưởng bộ phận sẽ đọc được số ngày sửa của TDV tính trên MỌI hồ sơ của
+     * người đó, kể cả hồ sơ chưa bao giờ đi qua bàn mình.
+     */
+    await hoSo({ tdv: 'tdv01', tbp: 'tbp01', submitted: kyNay(1), soLanTraLai: 1, suaLaiNgay: 2 });
+    // Cùng TDV, nhưng gửi cho Trưởng bộ phận khác — và sửa rất chậm.
+    await hoSo({ tdv: 'tdv01', submitted: kyNay(1), soLanTraLai: 1, suaLaiNgay: 40 });
+
+    const tbp = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
+    expect(tbp.body.nguoi[0].suaLaiNgay).toBe(2);
+
+    // Ban lãnh đạo thấy cả hai nên trung bình là 21.
+    const bld = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'bld01');
+    expect(bld.body.nguoi[0].suaLaiNgay).toBe(21);
+  });
+});
+
+describe('`0094` nhãn xu hướng', () => {
+  it('so 3 kỳ đã đóng gần nhất với 3 kỳ trước đó', () => {
+    expect(xuHuong([10, 10, 10, 20, 20, 20, 0])).toBe('len');
+    expect(xuHuong([20, 20, 20, 10, 10, 10, 0])).toBe('xuong');
+    expect(xuHuong([20, 20, 20, 17, 17, 17, 0])).toBe('chung');
+    expect(xuHuong([10, 10, 10, 10, 10, 10, 0])).toBe('ngang');
+  });
+
+  it('KỲ ĐANG CHẠY không tham gia phép so', () => {
+    /*
+     * Kỳ cuối luôn là kỳ đang chạy, và nó chưa đủ ngày. Tính nó vào thì đầu mỗi
+     * kỳ ai cũng "đang xuống" — một cái sai xảy ra đều đặn mỗi tháng.
+     */
+    const day = [10, 10, 10, 12, 12, 12];
+    expect(xuHuong([...day, 0])).toBe(xuHuong([...day, 999]));
+  });
+
+  it('chuỗi quá ngắn thì KHÔNG đoán bừa', () => {
+    expect(xuHuong([5, 9])).toBe('ngang');
+    expect(xuHuong([1, 2, 3])).toBe('ngang');
+  });
+});
+
+describe('`0094` trung vị công ty', () => {
+  it('là TRUNG VỊ, không phải trung bình', async () => {
+    /*
+     * Một người làm gấp năm lần kéo trung bình lên và mọi người còn lại đều
+     * thành "dưới mức" — một kết luận sai về chín người để mô tả đúng một người.
+     *
+     * Bộ số phải PHÂN BIỆT ĐƯỢC hai phép tính, nếu không thì ca kiểm xanh với cả
+     * hai. Ba người với 5 · 1 · 1 hồ sơ: trung vị 1, trung bình 2,33.
+     */
+    for (let i = 0; i < 5; i++) await hoSo({ tdv: 'tdv01', approved: tai('thang', 1, i * GIO) });
+    await hoSo({ tdv: 'tdv02', approved: tai('thang', 1, 9 * GIO) });
+    await hoSo({ tdv: 'tdv03', approved: tai('thang', 1, 10 * GIO) });
+
+    const r = await rget('/reports/thong-ke?ky=thang&soKy=12', 'tdv01');
+    expect(r.body.trungVi[ky('thang', 1).ma]).toBe(1);
+  });
+
+  it('TDV đọc được trung vị mà KHÔNG thấy tên ai', async () => {
+    await hoSo({ tdv: 'tdv02', approved: tai('thang', 1, NGAY) });
+    const r = await rget('/reports/thong-ke?ky=thang&soKy=12', 'tdv01');
+    // Hồ sơ của tdv02 không thuộc phạm vi tdv01…
+    expect(kyCo(r.body, ky('thang', 1).ma)?.dem.coHieuLuc).toBe(0);
+    // …nhưng mặt bằng chung thì đọc được, vì nó là một con số gộp không kèm tên.
+    expect(r.body.trungVi[ky('thang', 1).ma]).toBe(1);
+    expect(JSON.stringify(r.body)).not.toContain(uid['tdv02']);
   });
 });

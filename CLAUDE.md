@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 49 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 50 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -82,12 +82,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (22/08/2026)
 
-Chặng gần nhất **P120** (`0093`): trang *Báo cáo* thành *Thống kê* — bỏ hẳn phần lặp lại trang Tổng
-quan, thay bằng hoạt động theo tuần/tháng/quý/năm, mỗi vai trò một nhịp và một bộ chỉ số.
-**1497/1497 xanh**, cây làm việc sạch.
+Chặng gần nhất **P121** (`0094`): *Thống kê* vẽ lại bằng **biểu đồ** (bảng số bị khách hàng bác), và
+Ban lãnh đạo cùng Trưởng bộ phận soi được hiệu quả **từng trình dược viên**. **1538/1538 xanh**, cây
+làm việc sạch.
 
-Trước đó **P118** (`0092`): kho lưu trữ log — thu hằng ngày bằng con trỏ mốc, nén theo tháng kèm
-băm và manifest, và một bản trích nhật ký kiểm toán mỗi tháng.
+Trước đó **P120** (`0093`): trang *Báo cáo* thành *Thống kê* — bỏ phần lặp lại trang Tổng quan, thay
+bằng hoạt động theo tuần/tháng/quý/năm.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -115,6 +115,11 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.
+- **Thống kê là BIỂU ĐỒ, không phải bảng số** (`0094`). Sáu dạng hình, mỗi dạng một câu hỏi; không
+  có biểu đồ tròn. Phép toán vẽ tách ở `apps/web/src/components/bieu-do/ve.ts` — đó là chỗ duy nhất
+  sai được im lặng. Ban lãnh đạo và Trưởng bộ phận soi được **từng TDV**; phạm vi "TDV của tôi" đọc
+  từ chính phạm vi dữ liệu (*phương án A*, chốt 23/08) vì hệ thống không có cây tổ chức. Danh sách
+  người lấy theo **cả cửa sổ** để người ngừng gửi hẳn vẫn hiện với số 0.
 - **Hai màn hình số liệu, hai loại con số** (`0093`). *Tổng quan* nói **tồn tại thời điểm** (đang
   chờ, quá hạn, đang hiệu lực) — không cộng theo kỳ được. *Thống kê* nói **dòng chảy trong kỳ**, gom
   theo tuần/tháng/quý/năm. Mỗi chỉ số neo vào đúng một cột mốc (bảng `NEO`), kỳ cắt theo giờ Việt

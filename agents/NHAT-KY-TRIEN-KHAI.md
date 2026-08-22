@@ -8748,3 +8748,116 @@ cao hơn sự thật.
 | Bỏ phép cắt cửa sổ sáu tháng của khối nhật ký | 1 ca |
 
 **1497/1497 xanh.**
+
+## P121 — Thống kê vẽ lại bằng biểu đồ, và soi được từng trình dược viên
+
+**Ngày 23/08/2026** · thay đổi `0094`
+
+Khách hàng bác thẳng bản `0093`: *"thiết kế như trên không được, làm lại"* — thể hiện bằng **biểu
+đồ** chứ không bằng số liệu, và **Ban lãnh đạo phải theo dõi được hiệu quả của cả công ty lẫn từng
+TDV**; hai lượt sau thêm: Trưởng bộ phận cũng vậy.
+
+Chặng này **duyệt thiết kế trước khi viết mã** — ba vòng sửa bản đề xuất (artifact), rồi mới code.
+Đáng ghi vì nó tiết kiệm đúng thứ đắt nhất: `0093` viết xong cả tầng hiển thị rồi bỏ.
+
+### Ba chỗ hỏng của bảng số, không chỗ nào sửa được bằng cách thêm cột
+
+1. **Không nhìn ra xu hướng.** 96 ô buộc người đọc tự dựng đường trong đầu — mà *đang lên hay đang
+   xuống* mới là thứ người ta mở màn hình ra để hỏi.
+2. **Không soi được ai.** Mọi con số là tổng của cả phạm vi.
+3. **Sáu bảng vẫn là bảng.** Tách cột theo vai trò làm đúng nội dung nhưng không đổi cách đọc.
+
+Bản mới: sáu dạng hình, mỗi dạng gắn một câu hỏi, và dạng nào không trả lời câu nào thì không có
+mặt. **Không có biểu đồ tròn** — nó chỉ đọc được với 2–3 phần và không so được giữa hai kỳ, mà cả
+trang này là để so giữa các kỳ.
+
+### "TDV thuộc quản lý của Trưởng bộ phận" — một câu hỏi không có dữ liệu
+
+Hệ thống **không có cây tổ chức**: quyết định `16/08` bỏ hẳn, *"người dùng không quản lý lẫn nhau"*.
+Nên câu hỏi ấy không có câu trả lời sẵn. Hai phương án đưa cho khách hàng chọn, và họ chốt **A**:
+
+- **A** — "TDV của tôi" = người **có hồ sơ trong phạm vi của tôi**. Không thêm bảng nào, không mở
+  lại `16/08`, và `build({}, ids)` — mệnh đề phạm vi đang chạy ở mọi báo cáo khác — lo luôn việc
+  lọc. Một endpoint phục vụ cả hai vai trò; khác biệt nằm ở phạm vi chứ không ở mã.
+- **B** — thêm trường *Trưởng bộ phận phụ trách* cho từng tài khoản, cần màn hình quản trị mới.
+
+**Lỗ của A phải bịt ngay trong thiết kế**: lấy người theo *kỳ đang xem* thì người **ngừng gửi hẳn
+biến mất khỏi bảng** — mà đó đúng là ca "chững" nặng nhất, ca cần thấy nhất. Nên danh sách lấy theo
+**cả cửa sổ**, ai không gửi gì trong kỳ vẫn hiện với số 0.
+
+### Nhãn xu hướng: tính ở máy chủ, hiện bằng chữ
+
+Đường nhỏ sáu kỳ bắt người đọc tự suy, nên có thêm nhãn *đang lên · đi ngang · chững lại · sụt
+mạnh*. Hai quyết định nhỏ mà đáng ghi:
+
+- **Tính ở máy chủ**, đúng nguyên tắc "giao diện không tính toán" (`FE-27`). Một luật, hai màn hình
+  dùng chung — không phải hai bản cài đặt sẽ có ngày lệch nhau.
+- **Kỳ đang chạy bị loại khỏi phép so.** Nó chưa đủ ngày; tính nó vào thì **đầu mỗi kỳ ai cũng
+  "đang xuống"** — một cái sai xảy ra đều đặn mỗi tháng. Đây là hệ quả trực tiếp của quy tắc "so
+  cùng số ngày" ở `0093`.
+- Nhãn hiện bằng **chữ** kèm mũi tên. Màu và hình không phải là thông tin cho người không phân biệt
+  được màu, và bản in đen trắng thì mất sạch.
+
+### Hai con số chất lượng phải lấy từ nhật ký hồ sơ
+
+Thanh cơ cấu của Trưởng bộ phận cần *bị trả lại mấy lần* — mà read-model tới `0093` chỉ có mốc
+`returned_at`: biết hồ sơ ĐÃ TỪNG bị trả, không biết một lần hay bốn lần. Số lần nằm ở
+`pol.policy_event`, bảng của service `policy`, và `csbh_rpt` không có quyền đọc (AD-02).
+
+Nên nguồn tính sẵn rồi trả về qua `/internal/policies/:id`, read-model chép như mọi cột khác. Ba
+điều đã cân nhắc:
+
+- **Chỉ đếm lần trả của Trưởng bộ phận**, không gộp lần trả của Kế toán: màn hình dùng nó là màn
+  hình của TBP, và gộp vào là trộn công của người khác vào một con số mang tên mình.
+- `sua_lai_ngay` ghép **mỗi lần trả lại với lần gửi lại kế tiếp** bằng `JOIN LATERAL`; lần trả cuối
+  chưa gửi lại thì không ghép được và bị loại — đúng nghĩa, nó chưa kết thúc.
+- Hồ sơ chưa từng bị trả lại thì `sua_lai_ngay` là **NULL**, không phải 0: 0 ngày đọc ra là "sửa
+  xong ngay lập tức".
+
+### Một lỗ phạm vi suýt lọt
+
+Bản đầu của `chatLuongTheoTdv` tính số ngày sửa bằng một **truy vấn con** `SELECT … FROM
+rpt.policy_row s WHERE s.tdv_user_id = r.tdv_user_id` — và truy vấn con ấy **không mang mệnh đề
+phạm vi**. Một Trưởng bộ phận sẽ đọc được số ngày sửa của TDV tính trên MỌI hồ sơ của người đó, kể
+cả hồ sơ chưa bao giờ đi qua bàn mình.
+
+Tách thành truy vấn riêng có phạm vi, và để lại một ca đối chiếu: cùng một TDV, hai hồ sơ — một gửi
+cho `tbp01` sửa 2 ngày, một gửi cho người khác sửa 40 ngày. TBP phải thấy **2**, Ban lãnh đạo thấy
+**21**.
+
+### Vẽ tay, không thư viện
+
+`FE-38` chốt cả gói web dưới 250KB nén, mà thư viện biểu đồ nhỏ nhất cũng ~40KB. Sáu dạng hình vẽ
+tay hết chưa tới 300 dòng SVG. Ba điều rút ra:
+
+- **Phép toán tách khỏi component** (`ve.ts`). Đây là chỗ duy nhất sai được IM LẶNG: một cột cao sai
+  8% thì không ai nhìn ra, còn một cột không hiện ra thì ai cũng thấy.
+- **Bước chia trục chỉ nhận 1 · 2 · 5 · 10.** Bản đầu chia trần làm ba phần và trần 10 cho ra
+  `0 · 3,33 · 6,67 · 10`, làm tròn lại thành những vạch **trông cách đều mà không cách đều**. Bỏ cả
+  2,5 dù nó "đẹp" theo thông lệ: mọi con số ở đây là số hồ sơ, và một vạch ghi 2,5 hồ sơ thì vô
+  nghĩa.
+- **Cỡ chữ trong hình khai bằng thuộc tính SVG, không bằng CSS.** `FE-11` cấm `font-size` theo `px`
+  và phép quét bắt đúng — mà chữ trong `viewBox` là **toạ độ**, cùng loại với lề trái, không phải cỡ
+  chữ trên màn hình. Ca kiểm đúng, chỗ khai sai.
+
+### Bẫy cũ, mất nửa giờ lần thứ hai
+
+11 ca ở `reporting.test.ts` đỏ với *"read-model chưa đuổi kịp nguồn"*. Không phải lỗi mã: **chồng
+demo còn chạy**, và `csbh-reporting-1` của nó ăn mất hàng đợi. `make test` có chốt chặn, nhưng lượt
+này tôi gọi thẳng `docker compose run test` nên đi vòng qua chốt. Đã ghi ở CLAUDE.md từ trước; ghi
+lại đây vì nó tái diễn theo đúng đường ấy.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| Danh sách người lấy theo kỳ đang xem thay vì cả cửa sổ | 4 ca |
+| Mở endpoint theo-TDV cho mọi vai trò | 1 ca |
+| Bỏ luật "từ chối thắng" khi phân loại kết cục | 1 ca |
+| Bỏ mệnh đề phạm vi khỏi truy vấn số ngày sửa | 3 ca |
+| Cột chồng quên mốc đáy (mọi lớp mọc từ đáy) | 1 ca |
+| Cho TDV một khối soi đồng nghiệp | 2 ca |
+| Bấm người thứ hai KHÔNG bỏ chọn người thứ nhất | 1 ca |
+| Nhãn xu hướng chỉ còn mũi tên, bỏ chữ | 2 ca |
+
+**1538/1538 xanh.**

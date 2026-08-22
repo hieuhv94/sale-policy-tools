@@ -2322,7 +2322,7 @@ td.o-cau-chu { max-width: 32ch; }
 }
 
 
-/* --- Trang Thống kê (`0093`) ---------------------------------------------- */
+/* --- Trang Thống kê (`0093`, vẽ lại ở `0094`) ------------------------------ */
 
 /*
  * Bốn nút nhịp dính liền thành một dải, không phải bốn nút rời.
@@ -2333,14 +2333,11 @@ td.o-cau-chu { max-width: 32ch; }
  */
 .chon-nhip {
   display: inline-flex;
-  margin-bottom: var(--k5);
+  margin-bottom: var(--k4);
   border-radius: var(--bo-goc-nho);
   overflow: hidden;
 }
-.nut-nhip {
-  border-radius: 0;
-  margin-left: -1px;
-}
+.nut-nhip { border-radius: 0; margin-left: -1px; }
 .nut-nhip:first-child { margin-left: 0; }
 .nut-nhip-chon,
 .nut-nhip-chon:hover {
@@ -2349,66 +2346,230 @@ td.o-cau-chu { max-width: 32ch; }
   color: var(--mau-chu-nguoc);
 }
 
-/*
- * Vạch màu của thẻ so sánh — CHỈ hai hướng có màu.
- *
- * `chi-so-thuong` cố ý không có luật nào: phần lớn chỉ số ở đây là khối lượng
- * công việc, và "lập mới nhiều hơn kỳ trước" tự nó không tốt cũng không xấu. Tô
- * màu cả ba là biến bảng màu thành trang trí.
- */
-.chi-so-canh-bao::before { background: var(--mau-tt-hong); }
-.chi-so-tot::before { background: var(--mau-tt-hieu-luc); }
+/* --- Ô chứa một biểu đồ --------------------------------------------------- */
 
-/* Số của bảng thống kê đọc theo CỘT, nên chữ số phải đều bề ngang — cùng lý do
-   với `.bang-lech .so`. */
-.bang-thong-ke .so { font-family: var(--so-deu-cot); text-align: right; }
-.bang-thong-ke th[scope='row'] {
-  position: relative;
-  min-width: 12rem;
-  font-weight: 600;
+.o {
+  background: var(--mau-nen);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  box-shadow: var(--bong);
+  padding: var(--k4);
+  min-width: 0;
 }
-
-/*
- * Thanh nền chạy SAU chữ, không thành một cột riêng.
- *
- * Bảng đã sáu tới tám cột số; thêm một cột đồ hoạ nữa là đẩy phần bên phải ra
- * ngoài màn hình. Thanh nằm dưới nhãn kỳ cho thấy hình dạng của xu hướng mà
- * không tốn thêm chiều ngang nào.
- */
-.thanh-nen {
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  border-radius: var(--bo-goc-nho);
-  background: var(--mau-thuong-hieu-nhat);
+.o-chon { border-color: var(--mau-thuong-hieu); }
+.o-dau {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--k3);
+  margin-bottom: var(--k2);
 }
-.thanh-nen-chu { position: relative; }
-
-/* Kỳ đang chạy chưa đủ ngày — làm nhạt để nó không bị đọc ngang hàng với các kỳ
-   đã đóng. */
-.dong-dang-chay { color: var(--mau-chu-phu); }
-.ghi-chu-nho {
-  font-size: var(--chu-rat-nho);
-  font-style: normal;
-  color: var(--mau-chu-phu);
-}
-
-.chu-giai {
-  margin-top: var(--k3);
+.o-ten { font-weight: 600; }
+.o-hoi { font-size: var(--chu-nho); color: var(--mau-chu-nhat); }
+.o-phu {
+  margin: 0 0 var(--k3);
   font-size: var(--chu-nho);
   color: var(--mau-chu-phu);
 }
-.chu-giai > summary { cursor: pointer; }
-.chu-giai-moc { margin: var(--k3) 0 0; }
-.chu-giai-moc > div {
-  display: flex;
-  gap: var(--k3);
-  padding: var(--k1) 0;
+/* Câu giới hạn — "đo việc chạy hồ sơ, không đo doanh số". Phải đọc được ngay,
+   không nằm trong một chú thích gấp lại: hiểu nhầm ở đây dẫn tới quyết định về
+   con người. */
+.o-phu-canh {
+  color: var(--mau-canh-bao);
+  font-weight: 500;
 }
-.chu-giai-moc dt { flex: 0 0 clamp(7rem, 22%, 12rem); font-weight: 600; }
-.chu-giai-moc dd { margin: 0; }
 
-@media (max-width: 640px) {
-  .chu-giai-moc > div { display: block; }
+.luoi-o { display: grid; gap: var(--k4); }
+@media (min-width: 900px) {
+  .luoi-o { grid-template-columns: 1fr 1fr; }
+  .luoi-o-2-3 { grid-template-columns: 3fr 2fr; }
+}
+
+/* --- Bộ vẽ biểu đồ (`0094`) ----------------------------------------------- */
+
+/*
+ * MÀU ĐI QUA `currentColor`.
+ *
+ * Mỗi nhóm hình bọc trong một phần tử mang lớp `.bd-1`…`.bd-mo`, và mọi nét bên
+ * trong tô bằng `currentColor`. Nhờ thế một mã màu chỉ khai MỘT lần cho cả nét,
+ * vùng phủ, chấm cuối và ô cột — và giao diện tối đổi màu bằng cách đổi đúng
+ * một dòng token.
+ */
+.bd-1 { color: var(--mau-thuong-hieu); }
+.bd-2 { color: var(--mau-tt-kt2); }
+.bd-3 { color: var(--mau-tt-tbp); }
+.bd-4 { color: var(--mau-tt-sa); }
+.bd-tot { color: var(--mau-tot); }
+.bd-canh { color: var(--mau-canh-bao); }
+.bd-xau { color: var(--mau-loi); }
+.bd-mo { color: var(--mau-chu-nhat); }
+
+svg.bd { display: block; width: 100%; height: auto; margin-top: var(--k2); }
+/* Cỡ chữ trong hình khai bằng THUỘC TÍNH SVG (xem `CHU` ở `ve.ts`) — nó là toạ
+   độ trong `viewBox`, không phải cỡ chữ trên màn hình. */
+svg.bd text {
+  font-family: var(--so-deu-cot);
+  fill: var(--mau-chu-nhat);
+}
+.bd-luoi { stroke: var(--mau-vien); stroke-width: 1; }
+.bd-truc { stroke: var(--mau-vien-dam); stroke-width: 1; }
+.bd-net {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+/* Đường ĐỨT NÉT cho mặt bằng chung: nó là thứ để so, không phải thứ để đọc —
+   và nét đứt nói ra điều đó mà không cần chú thích. */
+.bd-net-mo {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+  opacity: 0.75;
+}
+.bd-cham { fill: currentColor; }
+.bd-vung { fill: currentColor; opacity: 0.1; }
+.bd-o { fill: currentColor; }
+.bd-o-mo { fill: currentColor; opacity: 0.85; }
+.bd-nen { fill: var(--mau-nen-hover); }
+.bd-quang { fill: currentColor; opacity: 0.22; }
+.bd-vung-tot { fill: var(--mau-tot); opacity: 0.07; }
+
+/* Kỳ đang chạy: một dải mờ, không phải một màu khác. Đổi màu là nói "cột này
+   thuộc loại khác"; làm mờ là nói "cột này chưa xong". */
+.bd-dang-chay { fill: var(--mau-chu-nhat); opacity: 0.07; }
+.bd-cot-dang-chay { opacity: 0.45; }
+
+.bd-ten { fill: var(--mau-chu); }
+.bd-ten-nho { fill: var(--mau-chu-phu); }
+
+.bd-hut { fill: var(--mau-loi); }
+.bd-trong-o { fill: var(--mau-chu-nguoc); font-weight: 600; }
+.bd-vach-nguong { stroke: var(--mau-loi); stroke-width: 2; stroke-dasharray: 4 3; }
+.bd-nhan-nguong { fill: var(--mau-loi); font-weight: 600; }
+
+svg.bd-nho { width: 62px; margin: 0; }
+.bd-net-nho { fill: none; stroke: var(--mau-chu-nhat); stroke-width: 1.6; stroke-linejoin: round; }
+
+/* Thanh 100% chia đoạn — cơ cấu, không phải số tuyệt đối. */
+.bd-thanh-chia {
+  display: flex;
+  gap: 1.5px;
+  height: 12px;
+  min-width: 0;
+}
+.bd-thanh-chia i { display: block; height: 100%; background: currentColor; border-radius: 2px; }
+.bd-thanh-trong { font-size: var(--chu-rat-nho); color: var(--mau-chu-nhat); }
+
+/* --- Chú thích: màu, tên, VÀ MỐC ------------------------------------------ */
+
+.chu-thich {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--k2) var(--k4);
+  margin: var(--k3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--chu-nho);
+}
+.chu-thich li { display: flex; align-items: baseline; gap: 6px; }
+.chu-thich i { flex: none; width: 11px; height: 11px; border-radius: 3px; background: currentColor; }
+.chu-thich i.dau-duong { width: 16px; height: 3px; border-radius: 2px; }
+.chu-thich-ten { color: var(--mau-chu); font-weight: 500; }
+.chu-thich-moc { color: var(--mau-chu-nhat); font-size: var(--chu-rat-nho); }
+
+/* --- Bảng xếp hạng người --------------------------------------------------- */
+
+.xep-hang-dau,
+.xep-hang-dong {
+  display: grid;
+  grid-template-columns: minmax(104px, 1.2fr) minmax(70px, 3fr) 46px 96px 62px;
+  align-items: center;
+  gap: var(--k3);
+}
+.xep-hang-dau {
+  padding: 0 var(--k2) 6px;
+  font-size: var(--chu-rat-nho);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mau-chu-nhat);
+}
+.xep-hang-dau span:nth-child(3) { text-align: right; }
+.xep-hang-than { list-style: none; margin: 0; padding: 0; }
+.xep-hang-dong {
+  width: 100%;
+  padding: 7px var(--k2);
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.xep-hang-dong:hover { background: var(--mau-nen-hover); }
+.xep-hang-dong[aria-pressed='true'] { background: var(--mau-thuong-hieu-nhat); }
+.xep-hang-ten {
+  font-size: var(--chu-nho);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xep-hang-thanh {
+  height: 11px;
+  border-radius: 3px;
+  background: var(--mau-nen-hover);
+  overflow: hidden;
+}
+.xep-hang-thanh b { display: block; height: 100%; border-radius: 3px; background: var(--mau-thuong-hieu); }
+.xep-hang-so {
+  font-family: var(--so-deu-cot);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Nhãn xu hướng: mũi tên ĐI KÈM chữ, không thay chữ — màu và hình không phải là
+   thông tin cho người không phân biệt được màu. */
+.xu-huong { font-size: var(--chu-rat-nho); font-weight: 600; white-space: nowrap; }
+.xu-huong-len { color: var(--mau-tot); }
+.xu-huong-ngang { color: var(--mau-chu-nhat); }
+.xu-huong-chung { color: var(--mau-canh-bao); }
+.xu-huong-xuong { color: var(--mau-loi); }
+
+/* --- Cơ cấu chất lượng hồ sơ ----------------------------------------------- */
+
+.chat-luong { list-style: none; margin: 0; padding: 0; }
+.chat-luong li {
+  display: grid;
+  grid-template-columns: minmax(104px, 1.2fr) minmax(80px, 4fr) 46px;
+  align-items: center;
+  gap: var(--k3);
+  padding: 7px var(--k2);
+  border-radius: 7px;
+}
+.chat-luong li.chon { background: var(--mau-thuong-hieu-nhat); }
+.chat-luong-ten {
+  font-size: var(--chu-nho);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chat-luong-so {
+  font-family: var(--so-deu-cot);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--mau-chu-phu);
+}
+
+@media (max-width: 700px) {
+  .xep-hang-dau,
+  .xep-hang-dong { grid-template-columns: minmax(88px, 1fr) 1.6fr 40px 92px; }
+  .xep-hang-dau span:nth-child(5),
+  svg.bd-nho { display: none; }
+  .chat-luong li { grid-template-columns: minmax(88px, 1fr) 3fr 36px; }
 }

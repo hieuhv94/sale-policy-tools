@@ -51,6 +51,14 @@ export type PolicySrc = {
   kt_l1_received_at: string | null;
   sa_handover_at: string | null;
   contract_issued_at: string | null;
+  /**
+   * Hai con số CHẤT LƯỢNG do nguồn tính sẵn từ nhật ký hồ sơ (`0094`).
+   *
+   * `sua_lai_ngay` là chuỗi vì nguồn trả `numeric` — cùng cách mọi con số thập
+   * phân khác đi qua ranh giới này, để không mất chữ số ở tầng JSON.
+   */
+  so_lan_tbp_tra_lai: number;
+  sua_lai_ngay: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */
   tbp_user_id: string | null;
