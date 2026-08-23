@@ -91,7 +91,6 @@ type HoSo = {
    * nút, chứ không hiện một nút sẽ trả 409.
    */
   loaiTepGhiDuoc?: string[];
-  tepXoaDuoc?: boolean;
   xuatHopDongDuoc?: boolean;
   /** `0050` — bản scan đang đính kèm là bản Kế toán đã yêu cầu in lại. */
   banScanCu?: boolean;
@@ -361,7 +360,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
           hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
         */
         loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
-        choPhepXoa={can(nguoiDung?.role, 'taiTepDinhKem') && hoSo.tepXoaDuoc === true}
         taiLai={taiLai}
       />
 

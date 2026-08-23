@@ -89,7 +89,6 @@ const chanMang = (role: string) => {
           // stub phải nói đúng hình dạng máy chủ trả, không phải hình dạng tối
           // thiểu để ca kiểm thử xanh.
           loaiTepGhiDuoc: [],
-          tepXoaDuoc: false,
           xuatHopDongDuoc: false,
         }),
       );

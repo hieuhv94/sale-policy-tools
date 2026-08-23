@@ -9064,3 +9064,64 @@ vì `--mau-chu-nguoc`: màu nền trang luôn tương phản với màu nội du
 trong CSS — nhưng nó chỉ gác *màu có nằm trong bảng token không*, không gác *token nào đúng*.
 
 **1595/1595 xanh.**
+
+## P124 — Tách *Giấy tờ hồ sơ* khỏi *Bản cứng*
+
+`0097`. Khách hàng: *"TDV không được upload bản cứng ở trạng thái Nháp của hồ sơ"*.
+
+### Máy chủ chưa từng hở, cái nhãn mới hở
+
+Phản xạ đầu là đi tìm lỗ phân quyền. Không có: `workflow.attach` chặn `SCAN` khi hồ sơ không ở
+`SA_DANG_XU_LY`, và `NGUOI_GHI_TEP.SCAN = 'SALE_ADMIN'` chặn theo vai trò — TDV gọi thẳng API cũng
+ăn 403.
+
+Cái hở là **một cái tên phải phủ hai thứ**. Khối tệp trên màn hình hồ sơ mang tiêu đề *Bản cứng*
+(`0054` đổi từ *Tệp đính kèm* sang, có lý: tên cũ tả cơ chế, tên mới tả thứ người dùng nhìn thấy) —
+nhưng nó chứa cả `HO_SO` lẫn `SCAN`. Ở hồ sơ Nháp, `loaiTepGhiDuoc` trả `['HO_SO']`, nên TDV thấy
+một vùng *Thêm hồ sơ* nằm dưới tiêu đề **Bản cứng**. Thứ họ đọc được là "tôi đang tải bản cứng lên
+lúc hồ sơ còn nháp", và họ báo lại đúng câu ấy.
+
+Đáng ghi vì lớp lỗi: **quyền đúng, luật đúng, và màn hình vẫn nói sai** — không có ca kiểm phân
+quyền nào bắt được, vì không phép chặn nào sai cả.
+
+### Đổi phạm vi giữa chừng
+
+Tôi đã hỏi một câu trước khi sửa, và câu trả lời đổi hướng bản sửa. Đọc thô yêu cầu thì cách nhanh
+nhất là bỏ hẳn `HO_SO` khỏi hồ sơ — giấy tờ khách hàng vốn đã có chỗ riêng ở *Hồ sơ pháp lý*. Nhưng
+`HO_SO` cấp hồ sơ là một mục **đã ghi trong YCNV** (B1 và luật `20/08`), nên bỏ nó là đảo một quyết
+định có ngày chốt vì một câu nói về bố cục. Chốt: giữ khả năng ấy, cho nó một khối riêng.
+
+Hai khối, xếp theo chiều hồ sơ đi: *Giấy tờ hồ sơ* (có từ lúc lập) rồi *Bản cứng* (chỉ có từ B8).
+
+**Khối rỗng vẫn hiện, kèm một câu nói AI tải lên và LÚC NÀO.** Ẩn đi thì câu hỏi "bản cứng đâu"
+không có chỗ nào trả lời; để rỗng không lời thì người xem tưởng đang thiếu thứ gì đó. Câu "Chưa có
+tệp nào" của bản trước đúng mà vô dụng — nó không nói tệp ấy do ai đưa vào.
+
+### Một lỗi thật rơi ra khi tách
+
+Tách khối xong thì lộ ra `tepXoaDuoc` — một `boolean` máy chủ trả về, suy từ chính
+`loaiTepGhiDuoc(...).length > 0`. Nó ép một câu trả lời **theo loại** xuống thành một cờ cho **cả
+hai loại**, nên ở bước *Sale Admin xử lý*, Sale Admin thấy dấu ✕ trên cả giấy tờ TDV đính từ lúc
+lập; bấm vào thì `detach` — vốn gỡ theo loại của từng tệp — trả 403.
+
+Đó đúng là "nút hiện rồi trả 403" mà chú thích ở `assertNguoiGhiTep` nói nó sinh ra để chặn, và ca
+kiểm `0069` mang đúng tên ấy cũng không bắt được: nó chỉ so đường **tải lên**.
+
+Chú thích cũ ở `tepXoaDuoc` viết *"hai luật tách rời là hai luật sẽ lệch"* — đúng, và chính nó đã
+lệch. Đường sửa không phải thêm luật thứ ba mà là **bớt đi một**: gỡ hẳn trường ấy, giao diện đọc
+`loaiTepGhiDuoc` cho cả nút tải lên lẫn nút gỡ.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| Vùng tải lên không lọc theo loại (`loaiGhiDuoc.length > 0`) | 4 ca |
+| Khối không lọc tệp theo loại | **6 ca** — 5 ca `0051`/`0053` cũ đỏ vì tệp nhân đôi, tên nút thành mơ hồ |
+| Nút gỡ trở lại dùng một cờ chung | 1 ca |
+| Trả `tepXoaDuoc` về phản hồi | 1 ca |
+
+Phép phá thứ hai đáng chú ý: nó làm đỏ **năm ca kiểm không thuộc `0097`**, vì tệp hiện hai lần thì
+`getByRole('button', { name: 'Xem …' })` gặp hai phần tử. Ca kiểm cũ vô tình gác luôn phép lọc mới
+— dấu hiệu tốt rằng hai khối thật sự tách rời chứ không chỉ đổi nhãn.
+
+**1603/1603 xanh.**

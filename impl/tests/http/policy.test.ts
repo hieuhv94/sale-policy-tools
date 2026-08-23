@@ -962,7 +962,6 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     const co = async (policyId: string, who = 'tdv01') =>
       (await get(`/policies/${policyId}`, who)).body as {
         loaiTepGhiDuoc: string[];
-        tepXoaDuoc: boolean;
         xuatHopDongDuoc: boolean;
         xoaDuoc: boolean;
       };
@@ -1045,8 +1044,8 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       const d = await draft();
       await dat(d.id, 'QUA_HAN_DUYET');
       const c = await co(d.id);
+      // Một trường cho cả nút tải lên lẫn nút gỡ từ `0097` — rỗng là tắt cả hai.
       expect(c.loaiTepGhiDuoc).toEqual([]);
-      expect(c.tepXoaDuoc).toBe(false);
       expect(c.xoaDuoc).toBe(false);
       expect((await get(`/policies/${d.id}/allowed-actions`, 'tdv01')).body.allowed).toEqual([]);
     });
@@ -3999,21 +3998,46 @@ describe('`0069` ai được đụng vào tệp nào', () => {
      * `assertNguoiGhiTep` là thứ chặn thật. Hai bên lệch nhau theo chiều nào
      * cũng tệ: nút hiện rồi trả 403, hoặc nút ẩn mà đường vẫn mở.
      */
-    const d = await toiBuocSaleAdmin();
+    const d = await draft();
+    // Đính một giấy tờ NGAY LÚC CÒN NHÁP rồi mới đẩy hồ sơ đi — đó là tình
+    // huống thật, và là tình huống làm lộ ra lỗi cờ gỡ ở `0097`.
+    const gt = await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'HO_SO', fileName: 'gpkd.pdf', objectKey: uniq('gt') },
+      'tdv01',
+    );
+    expect(gt.status).toBe(201);
+    const giayTo = gt.body.id as string;
+
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
     const cua = async (who: string) =>
-      (await get(`/policies/${d.id}`, who)).body as {
-        loaiTepGhiDuoc: string[];
-        tepXoaDuoc: boolean;
-      };
+      (await get(`/policies/${d.id}`, who)).body as { loaiTepGhiDuoc: string[] };
 
     const sa = await cua('sa01');
     expect(sa.loaiTepGhiDuoc).toEqual(['SCAN']);
-    expect(sa.tepXoaDuoc).toBe(true);
 
     for (const who of ['tdv01', 'tbp01', 'kt01']) {
       const x = await cua(who);
       expect(x.loaiTepGhiDuoc, `${who} không được thấy vùng tải lên`).toEqual([]);
-      expect(x.tepXoaDuoc, `${who} không được thấy nút gỡ`).toBe(false);
     }
+
+    /*
+     * `0097` — CỜ CHỈ CÓ MỘT, và nó nói theo LOẠI tệp.
+     *
+     * Trước đó có thêm `tepXoaDuoc: boolean` suy từ chính `loaiTepGhiDuoc`, nên
+     * ở đúng bước này Sale Admin nhận `true` cho CẢ HAI loại — giao diện bày dấu
+     * ✕ lên cả giấy tờ TDV đính từ lúc lập, và `detach` trả 403. Đó là "nút hiện
+     * rồi trả 403" mà chính ca kiểm này sinh ra để chặn, lọt qua vì nó chỉ so
+     * đường TẢI LÊN.
+     */
+    expect((await cua('sa01')) as Record<string, unknown>).not.toHaveProperty('tepXoaDuoc');
+
+    // Và phép chặn THẬT ở đường gỡ: giấy tờ do TDV đính từ lúc lập vẫn nằm đó ở
+    // bước này, Sale Admin không có việc gì với chúng.
+    const r = await del(`/policies/${d.id}/attachments/${giayTo}`, 'sa01');
+    expect(r.status, 'Sale Admin không được gỡ giấy tờ của TDV').toBe(403);
+    expect(r.body.code).toBe('FORBIDDEN_ROLE');
   }, 60_000);
 });

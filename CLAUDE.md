@@ -82,11 +82,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (23/08/2026)
 
-Chặng gần nhất **P123** (`0096`): **thông báo trên web** — chuông ở thanh trên cùng mang con số chưa
-đọc (`99+` khi vượt trần), hộp thông báo soi gương hộp thư. **1595/1595 xanh**, cây làm việc sạch.
+Chặng gần nhất **P124** (`0097`): màn hình hồ sơ tách **hai khối tệp** — *Giấy tờ hồ sơ* và *Bản
+cứng*; vùng tải lên và dấu gỡ chỉ hiện ở đúng khối của loại tệp. **1603/1603 xanh**, cây làm việc
+sạch.
 
-Trước đó **P122** (`0095`): bố cục lại phần Thống kê — lưới hai cột, nhãn trục ngắn và tự thưa, chú
-thích gom về một khối *Cách tính*; cộng **ba năm dữ liệu** cho `make demo-mau`.
+Trước đó **P123** (`0096`): **thông báo trên web** — chuông ở thanh trên cùng mang con số chưa đọc
+(`99+` khi vượt trần), hộp thông báo soi gương hộp thư.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 

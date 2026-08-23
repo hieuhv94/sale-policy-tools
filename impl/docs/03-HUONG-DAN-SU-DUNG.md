@@ -990,7 +990,23 @@ Mở một hồ sơ:
 - **Xuất hợp đồng** — chỉ Kế toán và Sale Admin, và chỉ sau tiếp nhận lần 1. Cũng mở ra xem trước,
   có ô chọn mẫu hợp đồng.
 
-### Bản cứng (tệp đính kèm)
+### Giấy tờ hồ sơ và Bản cứng
+
+**HAI KHỐI RIÊNG** `sửa 23/08`, vì chúng là hai thứ khác nhau và do hai người đưa vào ở hai thời
+điểm khác nhau:
+
+| Khối | Là gì | Ai tải lên | Lúc nào |
+|---|---|---|---|
+| **Giấy tờ hồ sơ** | Giấy tờ đính kèm hồ sơ CSBH | Trình dược viên | Khi hồ sơ còn sửa được — *Nháp* hoặc *Yêu cầu chỉnh sửa* |
+| **Bản cứng** | Bản giấy đã ký, scan lại | Sale Admin | Bước *Sale Admin đang xử lý* |
+
+> **Vì sao tách.** Trước đó cả hai nằm chung một khối tên *Bản cứng*, nên Trình dược viên mở một hồ
+> sơ **Nháp** ra là thấy vùng kéo thả nằm dưới đúng cái tiêu đề ấy — đọc ra là *"tôi đang tải bản
+> cứng lên lúc hồ sơ còn nháp"*, một câu vô lý: bản cứng là bản giấy đã ký, nó chưa tồn tại cho tới
+> khi Sale Admin trình ký xong ở bước B8.
+
+Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai tải lên và lúc nào — để câu hỏi *"bản cứng
+đâu"* luôn có chỗ trả lời.
 
 Mỗi tệp là một **thẻ có ảnh thu nhỏ** `sửa 20/08`. Rê chuột lên thẻ thì hiện hai nút ở giữa: **con
 mắt** để xem ngay trong phần mềm, **mũi tên xuống** để tải về. Dấu **✕** ở góc trên bên phải là gỡ
@@ -1013,6 +1029,10 @@ Thêm tệp bằng **vùng kéo thả** ở cuối hàng: kéo file vào, hoặc
 > khách hàng, do chính Sale Admin in ra, trình ký rồi scan lại — không ai khác cầm nó trong tay, nên
 > không ai khác có gì để mà tải lên. Ai không có quyền thì **không thấy dấu ✕ và không thấy vùng kéo
 > thả**; thẻ vẫn xem và tải bình thường.
+>
+> Luật này đọc **theo từng khối** `sửa 23/08`. Ở bước *Sale Admin đang xử lý*, Sale Admin thấy vùng
+> kéo thả và dấu ✕ trong khối *Bản cứng*, nhưng **không** thấy dấu ✕ trên giấy tờ Trình dược viên đã
+> đính từ lúc lập.
 
 Mỗi tệp tối đa **20MB**. Đường tải cấp riêng cho từng người và **hết hạn sau vài phút**; hết hạn thì
 mở lại hồ sơ để lấy đường mới. Gỡ tệp chỉ gỡ khỏi hồ sơ.

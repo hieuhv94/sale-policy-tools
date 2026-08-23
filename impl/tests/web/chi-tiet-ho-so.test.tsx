@@ -54,7 +54,6 @@ const HO_SO = {
   lech: [],
   nguoiDuyet: {},
   loaiTepGhiDuoc: [],
-  tepXoaDuoc: false,
   xuatHopDongDuoc: false,
   rowVersion: 3,
   lines: [],

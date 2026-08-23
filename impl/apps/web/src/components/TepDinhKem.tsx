@@ -1,10 +1,25 @@
 /**
- * **Bản cứng** — tệp đính kèm của hồ sơ: tải lên, xem, tải xuống, gỡ.
+ * Tệp của hồ sơ: tải lên, xem, tải xuống, gỡ. **HAI KHỐI, không phải một**.
  *
  * Nhãn trên màn hình đổi từ *Tệp đính kèm* sang *Bản cứng* ở `0054`. Tên cũ tả
  * cơ chế ("đây là mấy file đính vào"), tên mới tả THỨ NGƯỜI DÙNG NHÌN THẤY: bản
  * giấy đã ký, đã scan lại. Đứng cạnh nút *Xem bản mềm* thì cặp mềm–cứng nói
  * ngay ra hai thứ khác nhau ở chỗ nào.
+ *
+ * NHƯNG MỘT CÁI TÊN PHẢI PHỦ HAI THỨ, VÀ NÓ PHỦ SAI (`0097`, chốt 23/08). Khối
+ * ấy chứa cả hai loại tệp, nên ở hồ sơ **Nháp** người dùng thấy một vùng *Thêm
+ * hồ sơ* nằm dưới tiêu đề **Bản cứng** — và đọc ra là "tôi đang tải bản cứng lên
+ * lúc hồ sơ còn nháp", một câu vô lý với chính người vừa làm việc đó. Bản cứng
+ * là bản giấy đã ký, chưa tồn tại cho tới bước B8.
+ *
+ * Hai khối, mỗi khối một loại tệp:
+ *
+ *   *Giấy tờ hồ sơ* — `HO_SO`, TDV đính lúc lập, chỉ khi hồ sơ còn sửa được.
+ *   *Bản cứng*      — `SCAN`, Sale Admin tải lên ở bước *Sale Admin đang xử lý*.
+ *
+ * Khối rỗng vẫn hiện, kèm một câu nói **ai** tải lên và **lúc nào**. Ẩn nó đi
+ * thì câu hỏi "bản cứng đâu" không có chỗ nào trả lời; để nó rỗng không lời thì
+ * người xem tưởng có thứ gì đó đang thiếu.
  *
  * Tải xuống là HAI BƯỚC ở phía máy chủ (`DOC-09`): `GET /files/:id/link` cấp một
  * token gắn với đúng người đang gọi, rồi mới tải nội dung. Không có URL công
@@ -36,11 +51,35 @@ type FileDto = { id: string; objectKey: string };
 
 const NHAN_LOAI: Record<string, string> = { HO_SO: 'Hồ sơ', SCAN: 'Bản scan' };
 
+/**
+ * Hai khối, theo thứ tự thời gian của hồ sơ (`0097`).
+ *
+ * *Giấy tờ hồ sơ* đứng trước vì nó có từ lúc lập; *Bản cứng* đứng sau vì nó chỉ
+ * xuất hiện ở bước B8. Đọc từ trên xuống là đọc đúng chiều hồ sơ đi.
+ *
+ * `trong` nói AI tải lên và LÚC NÀO — đó là cả lý do khối rỗng vẫn hiện. Câu
+ * "Chưa có tệp nào" của bản trước đúng mà vô dụng: nó không cho biết tệp ấy do
+ * ai đưa vào, nên người đang thiếu nó không biết phải hỏi ai.
+ */
+const KHOI: { loai: string; tieuDe: string; trong: string; them: string }[] = [
+  {
+    loai: 'HO_SO',
+    tieuDe: 'Giấy tờ hồ sơ',
+    trong: 'Chưa có giấy tờ nào. Trình dược viên đính kèm khi hồ sơ còn sửa được.',
+    them: 'Thêm giấy tờ',
+  },
+  {
+    loai: 'SCAN',
+    tieuDe: 'Bản cứng',
+    trong: 'Chưa có bản cứng. Sale Admin scan bản đã ký rồi tải lên ở bước Sale Admin đang xử lý.',
+    them: 'Thêm bản scan',
+  },
+];
+
 export function TepDinhKem({
   hoSoId,
   tep,
   loaiGhiDuoc,
-  choPhepXoa,
   taiLai,
 }: {
   hoSoId: string;
@@ -54,9 +93,17 @@ export function TepDinhKem({
    *
    * Rỗng thì không có nút. Một phần tử thì hộp thoại không hỏi loại nữa — chỉ có
    * một lựa chọn thì bày ra một ô chọn là bắt người dùng xác nhận điều hiển nhiên.
+   *
+   * ĐÂY CŨNG LÀ NGUỒN DUY NHẤT CHO NÚT GỠ (`0097`). Trước đó có thêm một cờ
+   * `choPhepXoa` suy từ `tepXoaDuoc` của máy chủ — một `boolean` cho CẢ HAI loại
+   * tệp — nên ở bước *Sale Admin xử lý*, Sale Admin thấy dấu ✕ trên cả giấy tờ
+   * do TDV đính từ lúc lập, bấm vào thì 403. Chính cái hỏng mà chú thích ở
+   * `assertNguoiGhiTep` nói nó sinh ra để chặn: *nút hiện rồi trả 403*.
+   *
+   * Máy chủ vốn đã gỡ theo LOẠI của từng tệp (`workflow.detach`), nên câu trả
+   * lời đúng nằm sẵn ở đây: gỡ được đúng những loại tải lên được.
    */
   loaiGhiDuoc: string[];
-  choPhepXoa: boolean;
   taiLai: () => void;
 }) {
   const { bao } = useBaoLoi();
@@ -220,52 +267,63 @@ export function TepDinhKem({
 
   return (
     <>
-      <h2>Bản cứng</h2>
+      {KHOI.map((k) => {
+        const cua = tep.filter((t) => t.kind === k.loai);
+        const ghiDuoc = loaiGhiDuoc.includes(k.loai);
 
+        return (
+          <section key={k.loai} className="khoi-tep">
+            <h2>{k.tieuDe}</h2>
 
-      {/*
-        MỘT LƯỚI cho cả tệp đã có lẫn chỗ thêm tệp (`0069`).
+            {/*
+              MỘT LƯỚI cho cả tệp đã có lẫn chỗ thêm tệp (`0069`).
 
-        Bản trước là một nút *Tải tệp lên* ở trên, rồi một danh sách gạch đầu
-        dòng ở dưới, mỗi dòng ba nút chữ. Người dùng phải đọc tên file để biết
-        đó là cái gì — mà tệp ở đây gần như luôn là bản scan giấy tờ, tên kiểu
-        `IMG_4821.jpg`.
-      */}
-      {tep.length === 0 && loaiGhiDuoc.length === 0 ? (
-        <p className="trong">Chưa có tệp nào.</p>
-      ) : (
-        <div className="luoi-tep">
-          {tep.map((t) => (
-            <TheTep
-              key={t.id}
-              tenTep={t.fileName}
-              phu={`${NHAN_LOAI[t.kind] ?? t.kind} · ${ngayGio(t.uploadedAt)}`}
-              duongXem={duongAnh[t.id] ?? null}
-              dangChay={dangChay === t.id}
-              choPhepGo={choPhepXoa}
-              xem={() => void xem(t)}
-              tai={() => void tai(t)}
-              go={() => datHoiGo(t)}
-            />
-          ))}
+              Bản trước là một nút *Tải tệp lên* ở trên, rồi một danh sách gạch
+              đầu dòng ở dưới, mỗi dòng ba nút chữ. Người dùng phải đọc tên file
+              để biết đó là cái gì — mà tệp ở đây gần như luôn là bản scan giấy
+              tờ, tên kiểu `IMG_4821.jpg`.
+            */}
+            {cua.length === 0 && !ghiDuoc ? (
+              <p className="trong">{k.trong}</p>
+            ) : (
+              <div className="luoi-tep">
+                {cua.map((t) => (
+                  <TheTep
+                    key={t.id}
+                    tenTep={t.fileName}
+                    /*
+                      Chỉ còn MỐC THỜI GIAN. Loại tệp đã nằm ở tiêu đề khối, và
+                      lặp lại nó trên từng thẻ là in một chữ giống hệt nhau lên
+                      mọi thẻ trong cùng một khối (`0097`).
+                    */
+                    phu={ngayGio(t.uploadedAt)}
+                    duongXem={duongAnh[t.id] ?? null}
+                    dangChay={dangChay === t.id}
+                    choPhepGo={ghiDuoc}
+                    xem={() => void xem(t)}
+                    tai={() => void tai(t)}
+                    go={() => datHoiGo(t)}
+                  />
+                ))}
 
-          {/*
-            Vùng tải lên đứng CUỐI, cạnh những tệp đã có — chỗ để thêm nằm ngay
-            sau chỗ đang có, nên không phải đi tìm nút ở đâu khác rồi quay lại.
+                {/*
+                  Vùng tải lên đứng CUỐI, cạnh những tệp đã có — chỗ để thêm nằm
+                  ngay sau chỗ đang có, nên không phải đi tìm nút ở đâu khác rồi
+                  quay lại.
 
-            Chỉ hiện cho người CÓ QUYỀN: `loaiGhiDuoc` do máy chủ tính theo cả
-            trạng thái hồ sơ lẫn vai trò (`0069`), nên bản cứng chỉ Sale Admin
-            thấy vùng này, còn giấy tờ hồ sơ thì chỉ TDV.
-          */}
-          {loaiGhiDuoc.length > 0 && (
-            <VungTaiLen
-              nhan={`Thêm ${NHAN_LOAI[loaiGhiDuoc[0]!]?.toLowerCase() ?? 'tệp'}`}
-              dangTai={dangTaiLen}
-              chon={(f: File) => void taiLen(f)}
-            />
-          )}
-        </div>
-      )}
+                  Chỉ hiện cho người CÓ QUYỀN, và chỉ ở ĐÚNG KHỐI của loại tệp
+                  ấy: `loaiGhiDuoc` do máy chủ tính theo cả trạng thái hồ sơ lẫn
+                  vai trò (`0069`). Ở hồ sơ Nháp nó là `['HO_SO']`, nên vùng này
+                  hiện dưới *Giấy tờ hồ sơ* và KHÔNG hiện dưới *Bản cứng*.
+                */}
+                {ghiDuoc && (
+                  <VungTaiLen nhan={k.them} dangTai={dangTaiLen} chon={(f: File) => void taiLen(f)} />
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
 
       {dangXem && (
         <XemTep
@@ -280,12 +338,22 @@ export function TepDinhKem({
       {hoiGo && (
         <HopThoaiXacNhan
           tieuDe={`Gỡ tệp "${hoiGo.fileName}"`}
+          /*
+            Hậu quả nói ĐÚNG loại tệp đang gỡ (`0097`). Bản trước mở đầu bằng
+            "Nếu đây là bản scan thì…" — một câu điều kiện mà người đọc phải tự
+            trả lời, trong khi màn hình biết thừa câu trả lời.
+          */
           hauQua={
-            <p>
-              Tệp không còn gắn với hồ sơ này nữa. Nếu đây là <strong>bản scan</strong> thì bước bàn
-              giao bị chặn lại cho tới khi có bản scan mới — mà tải lại thì phải có bản giấy trong
-              tay.
-            </p>
+            hoiGo.kind === 'SCAN' ? (
+              <p>
+                Tệp không còn gắn với hồ sơ này nữa, và <strong>bước bàn giao bị chặn lại</strong>{' '}
+                cho tới khi có bản scan mới — mà tải lại thì phải có bản giấy trong tay.
+              </p>
+            ) : (
+              <p>
+                Giấy tờ này không còn gắn với hồ sơ nữa. Đính lại được chừng nào hồ sơ còn sửa được.
+              </p>
+            )
           }
           nhanNut="Gỡ tệp"
           dangChay={dangChay === hoiGo.id}

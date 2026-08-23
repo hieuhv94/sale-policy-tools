@@ -65,7 +65,7 @@ const chan = () => {
 const bay = () =>
   render(
     <BaoLoiProvider>
-      <TepDinhKem hoSoId="hs-1" tep={TEP} loaiGhiDuoc={[]} choPhepXoa={false} taiLai={() => undefined} />
+      <TepDinhKem hoSoId="hs-1" tep={TEP} loaiGhiDuoc={[]} taiLai={() => undefined} />
     </BaoLoiProvider>,
   );
 
@@ -108,13 +108,7 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
   it('`0069` CÓ quyền thì hiện cả nút gỡ lẫn vùng tải lên', async () => {
     chan();
     render(
-      <TepDinhKem
-        hoSoId="hs-1"
-        tep={TEP}
-        loaiGhiDuoc={['SCAN']}
-        choPhepXoa
-        taiLai={() => undefined}
-      />,
+      <TepDinhKem hoSoId="hs-1" tep={TEP} loaiGhiDuoc={['SCAN']} taiLai={() => undefined} />,
     );
     expect(document.querySelector('.the-tep-go')).not.toBeNull();
     expect(document.querySelector('.vung-tai-len')).not.toBeNull();
@@ -198,5 +192,120 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeNull());
     // Và KHÔNG mở khung xem: một hộp trắng không nội dung tệ hơn một câu lỗi.
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+const GIAY_TO = {
+  id: 'dk-2',
+  kind: 'HO_SO',
+  fileName: 'gpkd.pdf',
+  objectKey: 'hoso/hs-1.pdf',
+  uploadedAt: '2026-08-01T03:00:00.000Z',
+};
+
+/** Dựng màn hình với đúng bộ tệp và đúng quyền ghi của một vai trò ở một bước. */
+const bayVoi = (tep: unknown[], loaiGhiDuoc: string[]) =>
+  render(
+    <BaoLoiProvider>
+      <TepDinhKem
+        hoSoId="hs-1"
+        tep={tep as never}
+        loaiGhiDuoc={loaiGhiDuoc}
+        taiLai={() => undefined}
+      />
+    </BaoLoiProvider>,
+  );
+
+/** Khối mang tiêu đề này, để soi bên trong nó. */
+const khoi = (tieuDe: string): HTMLElement => {
+  const h = screen.getByRole('heading', { name: tieuDe });
+  return h.closest('.khoi-tep') as HTMLElement;
+};
+
+describe('`0097` hai khối tệp, mỗi khối một loại', () => {
+  it('hồ sơ NHÁP: vùng tải lên nằm ở *Giấy tờ hồ sơ*, KHÔNG ở *Bản cứng*', () => {
+    /*
+     * Đúng lời khách hàng, chốt 23/08: "khối bản cứng trên màn hình hồ sơ Nháp,
+     * không cho TDV upload gì lên ở trong khối đó cả".
+     *
+     * Trước `0097` cả hai loại chung một khối tên *Bản cứng*, nên TDV ở hồ sơ
+     * Nháp thấy một vùng *Thêm hồ sơ* nằm dưới tiêu đề ấy — và đọc ra là "tôi
+     * đang tải bản cứng lên lúc hồ sơ còn nháp".
+     */
+    chan();
+    bayVoi([], ['HO_SO']);
+    expect(khoi('Giấy tờ hồ sơ').querySelector('.vung-tai-len')).not.toBeNull();
+    expect(khoi('Bản cứng').querySelector('.vung-tai-len')).toBeNull();
+  });
+
+  it('bước Sale Admin xử lý: ngược lại — vùng tải lên chỉ ở *Bản cứng*', () => {
+    chan();
+    bayVoi([GIAY_TO], ['SCAN']);
+    expect(khoi('Bản cứng').querySelector('.vung-tai-len')).not.toBeNull();
+    expect(khoi('Giấy tờ hồ sơ').querySelector('.vung-tai-len')).toBeNull();
+  });
+
+  it('tệp về ĐÚNG khối của loại nó', () => {
+    chan();
+    bayVoi([GIAY_TO, ...TEP], []);
+    expect(within(khoi('Giấy tờ hồ sơ')).getByText('gpkd.pdf')).toBeDefined();
+    expect(within(khoi('Bản cứng')).getByText('ban-cung-da-ky.pdf')).toBeDefined();
+    expect(within(khoi('Bản cứng')).queryByText('gpkd.pdf')).toBeNull();
+  });
+
+  it('nút GỠ theo loại tệp, không theo một cờ chung', () => {
+    /*
+     * LỖI THẬT, tìm ra khi tách khối (`0097`). Cờ cũ `tepXoaDuoc` là một
+     * `boolean` cho cả hai loại, nên ở bước này Sale Admin thấy dấu ✕ trên cả
+     * giấy tờ do TDV đính từ lúc lập — bấm vào thì `detach` trả 403, đúng cái
+     * "nút hiện rồi trả 403" mà `assertNguoiGhiTep` sinh ra để chặn.
+     */
+    chan();
+    bayVoi([GIAY_TO, ...TEP], ['SCAN']);
+    expect(khoi('Bản cứng').querySelector('.the-tep-go')).not.toBeNull();
+    expect(
+      khoi('Giấy tờ hồ sơ').querySelector('.the-tep-go'),
+      'Sale Admin không gỡ được giấy tờ của TDV',
+    ).toBeNull();
+  });
+
+  it('khối rỗng nói AI tải lên và LÚC NÀO, không chỉ "chưa có tệp nào"', () => {
+    // Đây là lý do khối rỗng vẫn hiện. Ẩn đi thì câu hỏi "bản cứng đâu" không có
+    // chỗ nào trả lời.
+    chan();
+    bayVoi([], ['HO_SO']);
+    const trong = khoi('Bản cứng').querySelector('.trong')!.textContent ?? '';
+    expect(trong).toContain('Sale Admin');
+    expect(trong).toContain('Sale Admin đang xử lý');
+  });
+
+  it('thẻ tệp KHÔNG lặp lại tên loại — tiêu đề khối đã nói rồi', () => {
+    chan();
+    bayVoi([...TEP], ['SCAN']);
+    const the = khoi('Bản cứng').querySelector('.the-tep')!;
+    expect(the.textContent).not.toContain('Bản scan');
+  });
+});
+
+describe('`0097` hộp thoại gỡ nói đúng loại tệp đang gỡ', () => {
+  it('gỡ BẢN SCAN thì cảnh báo chặn bàn giao', async () => {
+    const nguoi = userEvent.setup();
+    chan();
+    bayVoi([...TEP], ['SCAN']);
+    await nguoi.click(screen.getByRole('button', { name: 'Gỡ ban-cung-da-ky.pdf' }));
+    const hop = await screen.findByRole('dialog');
+    expect(hop.textContent).toContain('bàn giao');
+  });
+
+  it('gỡ GIẤY TỜ thì KHÔNG nhắc gì tới bàn giao', async () => {
+    // Bản trước mở đầu bằng "Nếu đây là bản scan thì…" — một câu điều kiện mà
+    // người đọc phải tự trả lời, trong khi màn hình biết thừa câu trả lời.
+    const nguoi = userEvent.setup();
+    chan();
+    bayVoi([GIAY_TO], ['HO_SO']);
+    await nguoi.click(screen.getByRole('button', { name: 'Gỡ gpkd.pdf' }));
+    const hop = await screen.findByRole('dialog');
+    expect(hop.textContent).not.toContain('bàn giao');
+    expect(hop.textContent).toContain('còn sửa được');
   });
 });

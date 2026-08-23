@@ -164,15 +164,19 @@ export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
   SCAN: 'SALE_ADMIN',
 };
 
-/**
- * Gỡ tệp được không — cùng luật với `WorkflowService.detach`.
+/*
+ * `tepXoaDuoc()` ĐÃ GỠ Ở `0097`, cùng với trường cùng tên trong phản hồi.
  *
- * Suy từ `loaiTepGhiDuoc`: gỡ được đúng khi tải lên được. Hai luật tách rời là
- * hai luật sẽ lệch, mà lệch ở đây nghĩa là có người gỡ được thứ họ không đặt
- * vào — hoặc đặt vào rồi không gỡ ra được.
+ * Nó là `loaiTepGhiDuoc(...).length > 0` — đúng luật, nhưng ép một câu trả lời
+ * THEO LOẠI xuống thành một `boolean` cho cả hai loại. Giao diện chỉ có mỗi cờ
+ * ấy nên nó bật dấu ✕ trên MỌI thẻ tệp: ở bước *Sale Admin xử lý*, Sale Admin
+ * thấy nút gỡ trên cả giấy tờ TDV đính từ lúc lập, bấm vào thì `detach` trả 403.
+ *
+ * Chú thích cũ ở đây viết "hai luật tách rời là hai luật sẽ lệch" — đúng, và
+ * chính nó đã lệch: `detach` gỡ theo loại của từng tệp, cờ này thì không có khái
+ * niệm loại. Đường sửa không phải thêm luật thứ ba mà là **bớt đi một**: giao
+ * diện đọc thẳng `loaiTepGhiDuoc` cho cả nút tải lên lẫn nút gỡ.
  */
-export const tepXoaDuoc = (status: string, role?: string): boolean =>
-  loaiTepGhiDuoc(status, role).length > 0;
 
 /**
  * Xuất hợp đồng được chưa (muc 8.3).
@@ -983,8 +987,8 @@ export class PoliciesService {
               trangThai: khach.status ?? null,
             },
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
+      // Một trường cho CẢ nút tải lên lẫn nút gỡ, theo loại tệp (`0097`).
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status, me.role),
-      tepXoaDuoc: tepXoaDuoc(p.status, me.role),
       xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
       banScanCu: await this.banScanCu(policyId, p.status),
     };

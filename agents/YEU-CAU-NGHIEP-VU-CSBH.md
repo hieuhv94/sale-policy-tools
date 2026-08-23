@@ -1069,6 +1069,12 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **Ai được đụng vào tệp nào** `mới 20/08`: bản cứng đã scan — **chỉ Sale Admin**; giấy tờ của hồ sơ
   — **chỉ TDV**, và chỉ khi hồ sơ còn sửa được; hồ sơ pháp lý khách hàng — **chỉ TDV phụ trách khách
   hàng ấy**. Vai trò khác xem và tải bình thường, nhưng không thấy nút gỡ lẫn vùng tải lên.
+- **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08`: *Giấy tờ hồ sơ* (TDV đính lúc lập) và *Bản cứng*
+  (Sale Admin scan ở B8). Vùng tải lên và dấu gỡ chỉ hiện ở **đúng khối của loại tệp** người ấy được
+  đụng vào — ở hồ sơ *Nháp*, khối *Bản cứng* không cho TDV tải gì lên.
+  > Một khối tên *Bản cứng* chứa cả hai loại thì ở hồ sơ Nháp, TDV thấy vùng kéo thả nằm dưới đúng
+  > cái tiêu đề ấy — đọc ra là "tôi đang tải bản cứng lên lúc hồ sơ còn nháp". Bản cứng là bản giấy
+  > đã ký, chưa tồn tại cho tới B8.
   > Bản trước cho cả bốn vai trò trong luồng. Bản scan là bản giấy có chữ ký khách hàng, do chính
   > Sale Admin in ra, trình ký rồi scan lại — không ai khác cầm nó trong tay. Và gỡ nó ra thì chặn
   > luôn bước bàn giao.
