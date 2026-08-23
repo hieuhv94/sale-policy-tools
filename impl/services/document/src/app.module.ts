@@ -46,7 +46,7 @@ class HealthController {
     RenderController,
     ContractTemplatesController,
     PolicyTemplatesController,
-    ContractsController,
+      ContractsController,
   ],
   providers: [
     Db,

@@ -16,6 +16,7 @@ import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
+import { NHAN_KHO, type MauChon } from '../lib/mau-hop-dong.js';
 import {
   SuaNgayApDung,
   ThemDongSanPham,
@@ -50,6 +51,14 @@ type HoSo = {
   appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
+  /**
+   * Mẫu bản mềm đã đóng băng lúc gửi duyệt (`0098`).
+   *
+   * `null` mang HAI nghĩa, phân biệt bằng chính trạng thái hồ sơ: hồ sơ còn sửa
+   * được thì là "TDV chưa chọn, và còn chọn được"; hồ sơ đã gửi duyệt thì là
+   * "lập trước `0098`, không có bản mềm".
+   */
+  mauHoSoId?: string | null;
   /** Người LẬP hồ sơ (`0061`). `ten` là `null` khi identity không tra được. */
   nguoiDeNghi?: { ten: string | null };
   /**
@@ -386,7 +395,13 @@ export function ChiTietHoSo({ id }: { id: string }) {
         người dùng không biết là có.
       */}
       {moBanMem && (
-        <XemBanMem hoSoId={hoSo.id} maHoSo={hoSo.code} dong={() => datMoBanMem(false)} />
+        <XemBanMem
+          hoSoId={hoSo.id}
+          maHoSo={hoSo.code}
+          // `0098` — hồ sơ đã gửi duyệt thì mẫu đã đóng băng, không hỏi lại nữa.
+          mauDaGan={hoSo.mauHoSoId}
+          dong={() => datMoBanMem(false)}
+        />
       )}
 
       {moHopDong && (
@@ -523,6 +538,9 @@ function HopThoaiHanhDong({
   const [xemUrl, datXemUrl] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+  /** Mẫu bản mềm TDV chọn, chỉ ở hai bước gửi duyệt (`0098`). */
+  const [dsMau, datDsMau] = useState<MauChon[] | null>(null);
+  const [mauId, datMauId] = useState('');
 
   // Danh sách người cho từng ô. Tải MỘT lượt cho cả hộp thoại; hai ô của bước
   // gửi duyệt hỏi hai vai trò khác nhau nên vẫn là hai lời gọi, nhưng chúng chạy
@@ -545,16 +563,36 @@ function HopThoaiHanhDong({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hanhDong]);
 
-  // Bản A4 tải về bộ nhớ rồi nhúng. Thu hồi `blob:` khi đóng — xem `xemTruoc`.
+  // Danh sách mẫu cho ô chọn — chỉ tải ở hai bước có xem trước (`0098`).
   useEffect(() => {
     if (!canXem) return;
+    const huy = new AbortController();
+    layJson<MauChon[]>('/policy-templates/available', huy.signal)
+      .then(datDsMau)
+      .catch((e: unknown) => {
+        if (!huy.signal.aborted) datLoi(e);
+      });
+    return () => huy.abort();
+  }, [canXem]);
+
+  /*
+   * Bản A4 tải về bộ nhớ rồi nhúng. Thu hồi `blob:` khi đóng — xem `xemTruoc`.
+   *
+   * KÈM `mauId` từ `0098`, và dựng LẠI mỗi lần đổi mẫu: mỗi mẫu có tập cột
+   * riêng, nên đổi mẫu mà giữ nguyên bản đang hiện là bày ra một bản không phải
+   * bản sắp gửi. Chưa chọn mẫu thì không gọi gì cả — máy chủ sẽ từ chối, và một
+   * lỗi đỏ hiện ra trước khi người dùng kịp làm gì sai là một lỗi nói dối.
+   *
+   * `TBP_SIGN` KHÔNG nằm trong `CAN_XEM_TRUOC` nên không đi qua đây; hộp ký số
+   * của Trưởng bộ phận không có ô chọn mẫu, và bản mềm họ mở dựng bằng đúng mẫu
+   * hồ sơ đã gắn.
+   */
+  useEffect(() => {
+    if (!canXem || mauId === '') return;
     let url: string | null = null;
     let song = true;
-    // Bản xem trước trong hộp xác nhận cũng là XEM, không phải tải.
-    // KHÔNG kèm `mauId`: hộp xác nhận ký số không có ô chọn mẫu, và máy chủ lấy
-    // mẫu đầu danh sách (`0058`). Bản xem trước ở đây để TBP đối chiếu nội dung
-    // trước khi ký, không phải để chọn bản trình bày.
-    xemTruoc(`/policies/${hoSoId}/render`)
+    datXemUrl(null);
+    xemTruoc(`/policies/${hoSoId}/render?mauId=${mauId}`)
       .then((x) => {
         url = x.url;
         if (song) datXemUrl(x.url);
@@ -565,9 +603,12 @@ function HopThoaiHanhDong({
       song = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [canXem, hoSoId]);
+  }, [canXem, hoSoId, mauId]);
 
   const thieuNguoi = oChon.some((o) => !chon[o.truong]);
+  // Chưa chọn mẫu thì chưa có bản xem trước, nên `chuaXem` đã gánh luôn phần
+  // chặn ấy — nút Gửi vẫn xám cho tới khi người dùng thật sự đọc được bản mình
+  // sắp gửi. Máy chủ chặn lần thứ hai bằng `TEMPLATE_REQUIRED`.
   const chuaXem = canXem && xemUrl === null;
 
   const gui = async () => {
@@ -577,6 +618,10 @@ function HopThoaiHanhDong({
       await dang(`/policies/${hoSoId}/actions/${hanhDong}`, {
         rowVersion,
         ...(canLyDo ? { reason: lyDo.trim() } : {}),
+        // `canXem` là đúng tập hai hành động gửi duyệt (`CAN_XEM_TRUOC`), tức
+        // đúng hai chỗ máy chủ đóng băng mẫu. Gửi kèm ở hành động khác thì máy
+        // chủ bỏ qua, nhưng gửi thừa vẫn là nói một điều không có nghĩa.
+        ...(canXem ? { mauHoSoId: mauId } : {}),
         ...chon,
       });
       xong();
@@ -592,17 +637,63 @@ function HopThoaiHanhDong({
   return (
     <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
       {canXem && (
-        <div className="xem-truoc">
-          <p className="ghi-chu">
-            Đọc lại bản CSBH dưới đây trước khi gửi. Sau bước này{' '}
-            <strong>giá và ngưỡng đóng băng</strong>, và mọi chỉnh sửa đều phải đi một vòng trả lại.
-          </p>
-          {xemUrl === null ? (
-            <DangTai />
-          ) : (
-            <iframe className="khung-pdf" src={xemUrl} title="Bản CSBH A4" />
-          )}
-        </div>
+        <>
+          {/*
+            Ô CHỌN MẪU ĐỨNG TRƯỚC BẢN XEM TRƯỚC (`0098`).
+
+            Thứ tự này là cả nội dung của bước: chọn bản trình bày, rồi ĐỌC ĐÚNG
+            bản ấy, rồi mới gửi. Đặt ô chọn xuống dưới thì người dùng đọc xong
+            bản mẫu A rồi mới thấy có thể đổi sang B — và cái họ vừa duyệt bằng
+            mắt không phải cái họ sắp gửi đi.
+          */}
+          <Truong id="chon-mau-ho-so" nhan="Văn bản mẫu cho bản mềm" bắtBuộc>
+            {(p) => (
+              <>
+                <select
+                  {...p}
+                  className="o-nhap"
+                  value={mauId}
+                  onChange={(e) => datMauId(e.target.value)}
+                >
+                  <option value="">— Chọn mẫu —</option>
+                  {(dsMau ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.ten}
+                      {m.khoGiay ? ` · ${NHAN_KHO[m.khoGiay]}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <span className="ghi-chu">
+                  Mẫu này <strong>gắn với hồ sơ</strong> từ lúc gửi. Người duyệt xem đúng bản bạn
+                  chọn ở đây và không đổi được.
+                </span>
+                {dsMau !== null && dsMau.length === 0 && (
+                  <span className="ghi-chu canh-bao">
+                    Chưa có văn bản mẫu nào đang dùng được. Đề nghị Quản trị hệ thống thêm một mẫu ở
+                    màn hình Văn bản mẫu.
+                  </span>
+                )}
+              </>
+            )}
+          </Truong>
+
+          <div className="xem-truoc">
+            <p className="ghi-chu">
+              Đọc lại bản CSBH dưới đây trước khi gửi. Sau bước này{' '}
+              <strong>giá, ngưỡng và văn bản mẫu đóng băng</strong>, và mọi chỉnh sửa đều phải đi
+              một vòng trả lại.
+            </p>
+            {mauId === '' ? (
+              // KHÔNG dựng bản xem trước bằng một mẫu đoán sẵn: bản người dùng
+              // đọc phải là bản họ sắp gửi, nên chưa chọn thì chưa có gì để đọc.
+              <p className="ghi-chu">Chọn một văn bản mẫu ở trên để xem trước bản CSBH.</p>
+            ) : xemUrl === null ? (
+              <DangTai />
+            ) : (
+              <iframe className="khung-pdf" src={xemUrl} title="Bản CSBH A4" />
+            )}
+          </div>
+        </>
       )}
 
       {oChon.map((o) => (

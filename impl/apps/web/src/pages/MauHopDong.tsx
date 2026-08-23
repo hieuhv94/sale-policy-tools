@@ -1,21 +1,23 @@
 /**
  * **Văn bản mẫu** — một trang, hai thẻ, chỉ Quản trị hệ thống (`0060`).
  *
- * Màn hình này chỉ còn HAI việc (`0067`): xem danh sách, và xoá một mẫu. Việc
- * thứ ba — thêm mẫu — mở sang một trang riêng, vì nó cần cả hướng dẫn dài lẫn
- * bảng ánh xạ (`ThemMau.tsx`).
+ * BA VIỆC: xem danh sách, vô hiệu hoá một mẫu, dùng lại một mẫu đã vô hiệu. Việc
+ * thêm mẫu mở sang một trang riêng vì nó cần cả hướng dẫn dài lẫn bảng ánh xạ
+ * (`ThemMau.tsx`).
  *
- * KHÔNG CÒN SỬA, và đó là chốt của khách hàng ngày 20/08: muốn đổi một mẫu thì
- * xoá đi rồi thêm mẫu mới. Nghe như thêm việc, nhưng nó gỡ đúng thứ khó nhất của
- * bản cũ — sửa một mẫu ĐANG ĐƯỢC DÙNG nghĩa là bản mềm hôm nay và bản mềm hôm
- * qua khác nhau mà không chỗ nào ghi lại điều đó.
+ * KHÔNG CÒN XOÁ (`0098`). Từ khi mẫu hồ sơ đóng băng vào hồ sơ lúc gửi duyệt,
+ * xoá một mẫu nghĩa là làm hỏng vĩnh viễn bản mềm của mọi hồ sơ đã gắn nó — mà
+ * hồ sơ thì khoá sửa ngay từ lúc ấy, nên không ai chữa được. Vô hiệu hoá làm
+ * đúng phần việc mà người dùng thật sự cần: rút mẫu khỏi ô chọn.
  *
- * KHÔNG CÒN TRẠNG THÁI: mọi mẫu trong danh sách đều dùng được. Vòng đời cũ
- * (nháp → đang dùng → đã ngừng) sinh ra khi mỗi khổ giấy chỉ được có một mẫu
- * đang dùng; `0058` bỏ luật ấy, và `0067` bỏ nốt phần vòng đời còn lại.
+ * VẪN KHÔNG CÓ SỬA, và lý do đã đổi. `0067` bỏ sửa vì "bản mềm hôm nay khác bản
+ * mềm hôm qua mà không chỗ nào ghi lại"; `0098` trả lời được câu ấy bằng cột
+ * `mau_ho_so_id`, nhưng cũng làm cho việc sửa thành vô nghĩa — sửa một mẫu đã
+ * gắn vào hồ sơ đã ký là sửa chính văn bản đã duyệt. Thêm mẫu mới, vô hiệu mẫu
+ * cũ: hồ sơ cũ giữ nguyên bản của nó, hồ sơ mới dùng bản mới.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { layJson, xoa as xoaApi } from '../lib/api.js';
+import { dang, layJson } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import {
   CAU_HINH_MAU,
@@ -59,8 +61,8 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [dangThem, datDangThem] = useState(false);
-  const [hoiXoa, datHoiXoa] = useState<MauDto | null>(null);
-  const [dangXoa, datDangXoa] = useState<string | null>(null);
+  const [hoiVoHieu, datHoiVoHieu] = useState<MauDto | null>(null);
+  const [dangChay, datDangChay] = useState<string | null>(null);
 
   const taiLai = useCallback(() => datLan((n) => n + 1), []);
 
@@ -75,16 +77,23 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
     return () => huy.abort();
   }, [ch.duong, lan]);
 
-  const xoa = async (m: MauDto) => {
+  /**
+   * Một hàm cho cả hai chiều: `confirm` chỉ đi kèm chiều vô hiệu hoá.
+   *
+   * Máy chủ đòi gõ lại tên khi vô hiệu và không đòi gì khi bật lại (luật
+   * `17/08`: chỉ thao tác PHÁ HUỶ mới phải nói ra thứ mình định làm). Giao diện
+   * soi đúng luật ấy chứ không tự thêm một hộp xác nhận cho chiều bật lại.
+   */
+  const doiTrangThai = async (m: MauDto, viec: 'vo-hieu' | 'mo-lai') => {
     datLoi(null);
-    datDangXoa(m.id);
+    datDangChay(m.id);
     try {
-      await xoaApi(`${ch.duong}/${m.id}`);
+      await dang(`${ch.duong}/${m.id}/${viec}`, viec === 'vo-hieu' ? { confirm: m.name } : {});
       taiLai();
     } catch (e) {
       bao(e);
     } finally {
-      datDangXoa(null);
+      datDangChay(null);
     }
   };
 
@@ -131,13 +140,21 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
         hỏng, mà người bấm không có quyền vào đây và cũng không đoán ra nguyên
         nhân. Chỉ Quản trị chữa được, nên câu ấy phải nằm ở đây.
       */}
-      {ds.length === 0 && (
+      {/*
+        Điều kiện là "KHÔNG CÒN MẪU NÀO DÙNG ĐƯỢC", không phải "bảng rỗng"
+        (`0098`). Vô hiệu hết mẫu thì bảng vẫn đầy dòng, mà phần mềm thì đã hỏng
+        đúng y như lúc chưa có mẫu nào — và người duy nhất chữa được đang đứng ở
+        chính màn hình này.
+      */}
+      {ds.filter((t) => !t.voHieuHoaLuc).length === 0 && (
         <div className="bao-loi" role="alert">
-          <p className="bao-loi-chinh">Chưa có mẫu nào.</p>
+          <p className="bao-loi-chinh">
+            {ds.length === 0 ? 'Chưa có mẫu nào.' : 'Không còn mẫu nào đang dùng được.'}
+          </p>
           <p className="bao-loi-phu">
             {ch.bangDoHeThongDung
-              ? 'Mọi lượt bấm Xem bản mềm đều báo lỗi cho tới khi bạn thêm một mẫu.'
-              : 'Kế toán và Sale Admin không xuất được hợp đồng cho tới khi bạn thêm một mẫu.'}
+              ? 'Trình dược viên không gửi duyệt được hồ sơ nào cho tới khi có ít nhất một mẫu dùng được.'
+              : 'Kế toán và Sale Admin không xuất được hợp đồng cho tới khi có ít nhất một mẫu dùng được.'}
           </p>
         </div>
       )}
@@ -157,61 +174,93 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
                 <th>Tên mẫu</th>
                 <th>Khổ giấy</th>
                 <th>Thêm lúc</th>
+                <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {ds.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.name}</td>
-                  <td>{t.paperSize ? NHAN_KHO[t.paperSize] : '—'}</td>
-                  <td>{ngayGio(t.updatedAt)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="nut nut-nhe nut-canh-bao"
-                      disabled={dangXoa === t.id}
-                      onClick={() => datHoiXoa(t)}
-                    >
-                      Xoá
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {ds.map((t) => {
+                const voHieu = Boolean(t.voHieuHoaLuc);
+                return (
+                  <tr key={t.id}>
+                    <td>{t.name}</td>
+                    <td>{t.paperSize ? NHAN_KHO[t.paperSize] : '—'}</td>
+                    <td>{ngayGio(t.updatedAt)}</td>
+                    {/*
+                      Trạng thái bằng CHỮ, không chỉ bằng màu hay bằng việc dòng
+                      mờ đi — cùng luật với cảnh báo vượt ngưỡng (muc 11.2).
+                    */}
+                    <td>
+                      {voHieu ? (
+                        <span className="nhan nhan-thuong">Đã vô hiệu</span>
+                      ) : (
+                        <span className="nhan nhan-tot">Đang dùng</span>
+                      )}
+                    </td>
+                    <td>
+                      {voHieu ? (
+                        <button
+                          type="button"
+                          className="nut nut-nhe"
+                          disabled={dangChay === t.id}
+                          onClick={() => void doiTrangThai(t, 'mo-lai')}
+                        >
+                          Dùng lại
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="nut nut-nhe nut-canh-bao"
+                          disabled={dangChay === t.id}
+                          onClick={() => datHoiVoHieu(t)}
+                        >
+                          Vô hiệu hoá
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {hoiXoa && (
+      {hoiVoHieu && (
         <HopThoaiXacNhan
-          tieuDe={`Xoá mẫu "${hoiXoa.name}"`}
+          tieuDe={`Vô hiệu hoá mẫu "${hoiVoHieu.name}"`}
           hauQua={
-            ds.length > 1 ? (
+            <>
               <p>
-                Mẫu này biến mất khỏi ô chọn của người xem. Còn <strong>{ds.length - 1}</strong> mẫu
-                khác, nên{' '}
-                {ch.bangDoHeThongDung ? 'bản mềm vẫn xem được' : 'hợp đồng vẫn xuất được'} — chỉ là
-                không chọn được mẫu này nữa. <strong>Không khôi phục lại được</strong>: muốn dùng
-                lại thì thêm mẫu mới từ chính file ấy.
-              </p>
-            ) : (
-              <p>
-                Đây là <strong>mẫu cuối cùng</strong>. Xoá nó thì{' '}
+                Mẫu này biến khỏi ô chọn.{' '}
                 {ch.bangDoHeThongDung
-                  ? 'mọi lượt bấm Xem bản mềm đều báo lỗi'
-                  : 'kế toán và Sale Admin không xuất được hợp đồng'}
-                , cho tới khi bạn thêm một mẫu khác.
+                  ? 'Trình dược viên không chọn được nó khi gửi duyệt nữa.'
+                  : 'Kế toán và Sale Admin không chọn được nó khi xuất hợp đồng nữa.'}
               </p>
-            )
+              {/*
+                CÂU QUAN TRỌNG NHẤT của hộp này, và nó phải nói điều NGƯỢC với thứ
+                người dùng đang sợ. "Vô hiệu hoá" nghe như tắt: người quản trị dễ
+                tưởng những hồ sơ đang dùng mẫu này sẽ hỏng, nên họ sẽ không dám
+                bấm — rồi giữ mãi một danh sách mẫu cũ mà không ai dọn.
+              */}
+              {ch.bangDoHeThongDung && (
+                <p>
+                  Hồ sơ <strong>đã gắn mẫu này vẫn xem được bản mềm bình thường</strong>. Mẫu chỉ
+                  rời khỏi ô chọn, không rời khỏi những hồ sơ đã dùng nó.
+                </p>
+              )}
+              <p>
+                Bấm <strong>Dùng lại</strong> ở dòng ấy là mẫu trở vào ô chọn — không mất gì.
+              </p>
+            </>
           }
-          nhanNut="Xoá mẫu"
-          // Gõ lại TÊN MẪU: xoá là thao tác không lùi được duy nhất còn lại của
-          // màn hình này, và với mẫu cuối cùng thì nó làm cả chức năng ngừng chạy.
-          goLai={hoiXoa.name}
-          dangChay={dangXoa === hoiXoa.id}
-          dong={() => datHoiXoa(null)}
-          xacNhan={() => void xoa(hoiXoa).then(() => datHoiXoa(null))}
+          nhanNut="Vô hiệu hoá"
+          // Vẫn gõ lại TÊN MẪU dù bật lại được: giữa hai lần bấm ấy, cả công ty
+          // mất một lựa chọn — và với mẫu cuối cùng thì không ai gửi duyệt được.
+          goLai={hoiVoHieu.name}
+          dangChay={dangChay === hoiVoHieu.id}
+          dong={() => datHoiVoHieu(null)}
+          xacNhan={() => void doiTrangThai(hoiVoHieu, 'vo-hieu').then(() => datHoiVoHieu(null))}
         />
       )}
     </section>

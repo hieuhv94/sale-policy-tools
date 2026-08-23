@@ -122,6 +122,17 @@ export const WAITING: readonly Status[] = [
   'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2',
 ];
 
+/**
+ * Hồ sơ còn SỬA ĐƯỢC — hai trạng thái, và đó là cùng một quãng thời gian mà
+ * TDV còn chọn được văn bản mẫu (`0098`).
+ *
+ * Kéo lên đây vì tới `0097` danh sách này được gõ lại ở bốn chỗ trong `policy`,
+ * và từ `0098` thì `document` cũng cần đúng nó để biết khi nào ô chọn mẫu còn
+ * mở. Năm bản chép của một luật là năm chỗ để chúng lệch nhau, mà lệch ở đây
+ * nghĩa là một hồ sơ sửa được nhưng không chọn được mẫu, hoặc ngược lại.
+ */
+export const SUA_DUOC: readonly Status[] = ['NHAP', 'YEU_CAU_CHINH_SUA'];
+
 export const STEPS = [
   'B3_GUI_DUYET', 'B4_TBP_DUYET', 'B6_KT_L1', 'B8_SA_XU_LY', 'B10_KT_L2',
 ] as const;

@@ -80,6 +80,9 @@ const MAU = [
   { id: '00000000-0000-4000-8000-000000000002', ten: 'Mẫu A4 ngang', khoGiay: 'a4l' },
 ];
 
+/** Người để chọn ở bước gửi duyệt — hộp thoại đòi cả Trưởng bộ phận lẫn Kế toán. */
+const NGUOI = [{ id: 'nguoi-1', username: 'tbp01', fullName: 'Tran Thi Tbp' }];
+
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), {
     status: 200,
@@ -113,6 +116,10 @@ const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_REJEC
     if (d.includes('/files')) return Promise.resolve(json([]));
     // Danh sách mẫu cho ô chọn của hộp *Xem bản mềm* / *Xuất hợp đồng* (`0058`).
     if (d.includes('/available')) return Promise.resolve(json(MAU));
+    // Người xử lý bước sau, cho hộp *Gửi duyệt* (`0031`).
+    if (d.includes('/nguoi-theo-vai-tro/')) return Promise.resolve(json(NGUOI));
+    // Bản A4 xem trước tải về dạng blob (`0098` kèm `mauId`).
+    if (d.includes('/render')) return Promise.resolve(new Response(new Blob(['%PDF-1.4'])));
     return Promise.resolve(json(hoSo));
   });
   vi.stubGlobal('fetch', f);
@@ -515,5 +522,97 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
       expect(d.every((x) => !x.includes('xem=1'))).toBe(true);
       expect(d.every((x) => x.includes('mauId='))).toBe(true);
     });
+  });
+});
+
+describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau chỉ xem', () => {
+  const TDV = {
+    ...TBP,
+    user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
+  };
+
+  it('hộp GỬI DUYỆT có ô chọn mẫu, và nút Gửi xám cho tới khi chọn', async () => {
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
+    expect(oMau).toBeDefined();
+
+    /*
+     * CHƯA CHỌN thì KHÔNG gọi `render` lần nào.
+     *
+     * Không phải chuyện tiết kiệm một vòng mạng: máy chủ trả 409 khi thiếu mẫu,
+     * nên gọi trước là bày một khối đỏ ra trước khi người dùng kịp làm gì sai.
+     */
+    expect(f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'))).toEqual([]);
+    expect(screen.getByRole('button', { name: /^Xác nhận/ }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('đổi mẫu thì bản xem trước DỰNG LẠI bằng đúng mẫu vừa chọn', async () => {
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+
+    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
+    fireEvent.change(oMau, { target: { value: MAU[0]!.id } });
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
+      expect(d.some((x) => x.includes(`mauId=${MAU[0]!.id}`))).toBe(true);
+    });
+
+    // Mẫu thứ hai có TẬP CỘT khác, nên bản đang hiện không còn là bản sắp gửi.
+    fireEvent.change(oMau, { target: { value: MAU[1]!.id } });
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
+      expect(d.some((x) => x.includes(`mauId=${MAU[1]!.id}`))).toBe(true);
+    });
+  });
+
+  it('gửi duyệt thì `mauHoSoId` đi kèm thân yêu cầu', async () => {
+    // jsdom không có `URL.createObjectURL`, mà bản xem trước dựng `blob:` từ nó
+    // — thiếu thì `xemUrl` mãi là null và nút *Xác nhận* xám vĩnh viễn.
+    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+
+    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), {
+      target: { value: MAU[1]!.id },
+    });
+    for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
+      const o = screen.queryByLabelText(nhan);
+      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
+    }
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Xác nhận/ }).hasAttribute('disabled')).toBe(false),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Xác nhận/ }));
+
+    await waitFor(() => {
+      const goi = f.mock.calls.find((c) => String(c[0]).includes('/actions/SUBMIT'));
+      expect(goi, 'chưa gọi SUBMIT').toBeDefined();
+      const than = JSON.parse(String((goi![1] as { body?: string })?.body ?? '{}'));
+      expect(than.mauHoSoId).toBe(MAU[1]!.id);
+    });
+  });
+
+  it('hồ sơ ĐÃ GẮN MẪU: hộp xem bản mềm KHÔNG hỏi mẫu nào nữa', async () => {
+    /*
+     * Đây là câu yêu cầu nói thẳng: sau khi TDV gửi duyệt thì mọi vai trò khác
+     * chỉ XEM, không chọn. Trưởng bộ phận mở bản mềm ra phải thấy ngay nội dung,
+     * không thấy một danh sách mẫu để bấm.
+     */
+    const f = await mo({ ...HO_SO, status: 'CHO_TBP_DUYET', mauHoSoId: MAU[0]!.id });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
+
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0]));
+      // Không hỏi danh sách mẫu, và đường xem KHÔNG mang `mauId` — máy chủ đọc
+      // mẫu từ chính hồ sơ, và nó từ chối một `mauId` khác (`TEMPLATE_LOCKED`).
+      expect(d.some((x) => x.includes('/policy-templates/available'))).toBe(false);
+      expect(d.some((x) => x.includes('/render') && x.includes('mauId='))).toBe(false);
+    });
+    expect(screen.queryByRole('button', { name: /Mẫu A4 dọc/ })).toBeNull();
   });
 });

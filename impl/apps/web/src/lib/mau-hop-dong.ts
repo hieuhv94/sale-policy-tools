@@ -25,6 +25,13 @@ export type MauHopDong = {
   kind?: LoaiMau;
   /** Chỉ mẫu hồ sơ: khổ giấy của chính file .docx. */
   paperSize?: KhoGiay | null;
+  /**
+   * Lúc mẫu bị rút khỏi ô chọn (`0098`). `null` = còn dùng được.
+   *
+   * Mẫu đã vô hiệu VẪN nằm trong bảng của màn hình quản trị — nếu không thì
+   * "vô hiệu hoá" chính là "xoá", chỉ khác cái tên, vì không ai bật lại được.
+   */
+  voHieuHoaLuc?: string | null;
 };
 
 export type LoaiMau = 'HOP_DONG' | 'HO_SO';
@@ -93,7 +100,9 @@ export const CAU_HINH_MAU: Record<
   HO_SO: {
     duong: '/policy-templates',
     tieuDe: 'Giấy tờ mẫu',
-    moTa: 'Mẫu Word dựng bản CSBH A4. Người xem chọn mẫu nào lúc xem bản mềm.',
+    // `0098` đổi câu này: người xem không còn chọn mẫu nữa. TDV chọn một lần
+    // lúc gửi duyệt, rồi mẫu đóng băng vào hồ sơ.
+    moTa: 'Mẫu Word dựng bản CSBH A4. Trình dược viên chọn mẫu lúc gửi duyệt, và mẫu ấy gắn với hồ sơ.',
     bangDoHeThongDung: true,
     nhanTaiLen: 'Tải mẫu hồ sơ CSBH',
   },

@@ -348,7 +348,29 @@ export const BANG_LOI: Record<string, Muc> = {
   TEMPLATE_MISSING_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   TEMPLATE_FILE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_TEMPLATE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
-  NO_ACTIVE_TEMPLATE: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `NO_ACTIVE_TEMPLATE` ĐÃ GỠ (`0098`) — máy chủ không còn ném nó.
+   *
+   * Nó trả lời cho "không truyền mẫu, mà danh sách cũng rỗng", một nhánh biến
+   * mất khi `mauId` thành bắt buộc ở đường xuất hợp đồng. Danh sách rỗng thì
+   * người xuất không có gì để bấm, và hộp chọn nói câu ấy trước khi có lượt gọi
+   * nào.
+   */
+  /*
+   * Ba mã của `0098`, và dạng của chúng khác nhau vì việc người dùng phải làm
+   * tiếp khác nhau.
+   *
+   * `TEMPLATE_REQUIRED` là lỗi của MỘT Ô trong hộp gửi duyệt — chưa chọn mẫu —
+   * nên nó nằm ngay dưới ô ấy. Hiện hộp thoại thì đóng xong người dùng vẫn phải
+   * tự đi tìm ô nào còn trống.
+   *
+   * Hai mã kia là lỗi của THAO TÁC vừa bấm, và cả hai đều lấy câu từ máy chủ:
+   * câu của chúng nói về đúng hồ sơ này (đã gắn mẫu nào, lập trước hay sau
+   * `0098`), không phải một câu chung.
+   */
+  TEMPLATE_REQUIRED: { dang: 'o-nhap', truong: 'mauHoSoId', tuMayChu: true },
+  TEMPLATE_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
+  POLICY_TEMPLATE_NOT_SET: { dang: 'hop-thoai', tuMayChu: true },
   PLACEHOLDER_NOT_IN_TEMPLATE: { dang: 'o-nhap', truong: 'placeholder', tuMayChu: true },
   SOURCE_UNKNOWN: { dang: 'o-nhap', truong: 'source', tuMayChu: true },
   CONTRACT_NOT_READY: { dang: 'hop-thoai', tuMayChu: true },

@@ -49,7 +49,10 @@ export class PolicyInternalController {
               contract_issued_at, contract_issued_by, last_reason, row_version,
               pending_step::text AS pending_step, source::text AS source,
               created_by, returned_at, rejected_at, deactivated_at,
-              sla_due_at, sla_started_at, reprint_requested_at
+              sla_due_at, sla_started_at, reprint_requested_at,
+              -- 0098: mẫu đã đóng băng lúc gửi duyệt. document dựng bản mềm
+              -- bằng đúng cột này chứ không hỏi người xem nữa.
+              mau_ho_so_id
          FROM pol.policy WHERE id = $1`,
       [id],
     );

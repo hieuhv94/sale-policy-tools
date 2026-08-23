@@ -16,7 +16,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { computeLine, InvalidLineError, STEP_OF_STATUS, type Status } from '@csbh/domain-policy';
+import {
+  computeLine,
+  InvalidLineError,
+  STEP_OF_STATUS,
+  SUA_DUOC,
+  type Status,
+} from '@csbh/domain-policy';
 import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { emit } from '../infra/emit.js';
@@ -74,8 +80,13 @@ export const SUPPLEMENT_MESSAGE =
   'CSBH cho sản phẩm này chưa có. Bạn có muốn BỔ SUNG không?';
 export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có muốn CHỈNH SỬA không?';
 
-/** Chỉ hồ sơ đang ở hai trạng thái này mới sửa được nội dung (POL-11). */
-const EDITABLE = ['NHAP', 'YEU_CAU_CHINH_SUA'];
+/**
+ * Chỉ hồ sơ đang ở hai trạng thái này mới sửa được nội dung (POL-11).
+ *
+ * Lấy từ `domain-policy` từ `0098`, không khai lại: `document` cũng cần đúng
+ * danh sách này để biết khi nào ô chọn văn bản mẫu còn mở.
+ */
+const EDITABLE: readonly string[] = SUA_DUOC;
 
 /**
  * Trạng thái TDV phụ trách xoá được (`0039`).
@@ -1330,6 +1341,17 @@ export class PoliciesService {
       createdBy: (p as unknown as { created_by: string }).created_by,
       rowVersion: p.row_version,
       lastReason: p.last_reason,
+      /*
+       * Mẫu bản mềm đã đóng băng (`0098`). `null` có HAI nghĩa, và giao diện
+       * phân biệt được bằng chính trạng thái hồ sơ: hồ sơ còn sửa được thì đây
+       * là "TDV chưa chọn, và còn chọn được"; hồ sơ đã gửi duyệt thì là "lập
+       * trước `0098`, không có bản mềm".
+       *
+       * Trả về ID chứ không kèm TÊN: tên nằm bên `document`, và gọi sang đó ở
+       * mỗi lượt mở hồ sơ là một vòng mạng cho một chuỗi mà phần lớn màn hình
+       * không dùng tới. Màn hình nào cần tên thì hỏi `/policy-templates/:id`.
+       */
+      mauHoSoId: (p as unknown as { mau_ho_so_id: string | null }).mau_ho_so_id,
       lines,
       attachments,
     };

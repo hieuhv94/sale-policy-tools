@@ -49,19 +49,51 @@ export function XemBanMem({
   loai = 'HO_SO',
   hoSoId,
   maHoSo,
+  mauDaGan,
   dong,
 }: {
   loai?: LoaiVanBan;
   hoSoId: string;
   maHoSo: string;
+  /**
+   * Mẫu đã ĐÓNG BĂNG vào hồ sơ (`0098`) — chỉ bản mềm CSBH mới có.
+   *
+   * Có giá trị thì hộp này KHÔNG hỏi mẫu nào cả: nó mở thẳng bản mềm dựng bằng
+   * đúng mẫu ấy, và chỉ nói ra tên mẫu. Đó là cả nội dung của yêu cầu — sau khi
+   * TDV gửi duyệt thì không vai trò nào chọn lại bản trình bày nữa.
+   *
+   * Hợp đồng KHÔNG BAO GIỜ truyền trường này: nó không lưu bản ghi nào (muc
+   * 8.3) nên không có gì để đóng băng vào, và người xuất vẫn chọn ở mỗi lượt.
+   */
+  mauDaGan?: string | null | undefined;
   dong: () => void;
 }) {
   const ch = CAU_HINH[loai];
   const [ds, datDs] = useState<MauChon[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [chon, datChon] = useState<string | null>(null);
+  /** Mẫu đã gắn — chỉ để hiện tên và lấy khổ giấy, không để chọn. */
+  const [mauGan, datMauGan] = useState<MauChon | null>(null);
 
   useEffect(() => {
+    if (!mauDaGan) return;
+    const huy = new AbortController();
+    /*
+     * Tên mẫu HỎNG THÌ IM LẶNG, và người dùng không mất gì (`0089`).
+     *
+     * Bản mềm vẫn dựng được — máy chủ đọc mẫu từ chính cột trên hồ sơ, không
+     * cần lời gọi này. Thứ mất đi chỉ là một dòng chữ nói tên mẫu ở tiêu đề.
+     * Ném lỗi ở đây là chặn cả bản mềm vì một cái nhãn.
+     */
+    layJson<MauChon>(`/policy-templates/${mauDaGan}`, huy.signal)
+      .then(datMauGan)
+      .catch(() => undefined);
+    return () => huy.abort();
+  }, [mauDaGan]);
+
+  useEffect(() => {
+    // Hồ sơ đã gắn mẫu thì không có ô chọn nào để dựng, nên không hỏi danh sách.
+    if (mauDaGan) return;
     const huy = new AbortController();
     layJson<MauChon[]>(ch.duongMau, huy.signal)
       .then(datDs)
@@ -69,9 +101,9 @@ export function XemBanMem({
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [ch.duongMau]);
+  }, [ch.duongMau, mauDaGan]);
 
-  if (chon === null) {
+  if (chon === null && !mauDaGan) {
     /*
       HỎI MẪU TRƯỚC KHI XEM (`0067`).
 
@@ -130,12 +162,22 @@ export function XemBanMem({
   }
 
   const mau = ds?.find((m) => m.id === chon);
-  const q = `mauId=${chon}`;
+  /*
+   * Hồ sơ đã gắn mẫu thì KHÔNG gửi `mauId` (`0098`).
+   *
+   * Máy chủ đọc mẫu từ chính cột trên hồ sơ, và nó TỪ CHỐI một `mauId` khác
+   * (`TEMPLATE_LOCKED`). Gửi kèm cho "chắc" là dựng ra một đường mà mỗi lần đổi
+   * cột mẫu ở máy chủ lại phải nhớ sửa theo — trong khi đúng ở đây là không nói
+   * gì cả, để một chỗ duy nhất biết câu trả lời.
+   */
+  const q = mauDaGan ? '' : `mauId=${chon}`;
+  const dangDung = mauDaGan ? mauGan : (mau ?? null);
+  const tenMau = dangDung?.ten ?? null;
 
   return (
     <XemTep
       tieuDe={`${loai === 'HO_SO' ? 'Bản mềm' : 'Hợp đồng'} ${maHoSo}${
-        mau ? ` — ${mau.ten}` : ''
+        tenMau ? ` — ${tenMau}` : ''
       }`}
       /*
         MỘT đường cho cả xem lẫn tải (`0059`).
@@ -144,7 +186,7 @@ export function XemBanMem({
         vào *Lịch sử*. Bản mềm và hợp đồng không ghi lịch sử nữa, nên hai đường
         gộp lại làm một. Bản scan thì VẪN tách — xem `TepDinhKem`.
       */
-      duong={`${ch.duong(hoSoId)}?${q}`}
+      duong={q ? `${ch.duong(hoSoId)}?${q}` : ch.duong(hoSoId)}
       tenTep={`${loai === 'HO_SO' ? 'CSBH' : 'HopDong'}-${maHoSo}.pdf`}
       /*
         Khổ giấy của MẪU ĐANG CHỌN, để khung xem mang đúng hình tờ giấy (`0073`).
@@ -156,11 +198,14 @@ export function XemBanMem({
         Đây cũng là chỗ DUY NHẤT biết được khổ của một PDF: nội dung nằm trong
         trình xem PDF của trình duyệt, không hỏi được từ JavaScript.
       */
-      tyLe={mau?.khoGiay ? TY_LE_KHO[mau.khoGiay] : undefined}
+      tyLe={dangDung?.khoGiay ? TY_LE_KHO[dangDung.khoGiay] : undefined}
       truoc={
         // Ô chọn để ĐỔI mẫu mà không phải đóng hộp ra chọn lại. Một mẫu thì
         // không có gì để đổi — ô chọn một dòng là một câu hỏi giả.
-        ds && ds.length > 1 ? (
+        //
+        // Hồ sơ đã gắn mẫu thì cũng không có gì để đổi, và đó là điểm của
+        // `0098`: ô chọn biến mất ở mọi vai trò sau bước gửi duyệt.
+        !mauDaGan && ds && ds.length > 1 ? (
           <div className="hang-kho-giay">
             <label className="ghi-chu" htmlFor="chon-mau">
               Mẫu
@@ -168,7 +213,7 @@ export function XemBanMem({
             <select
               id="chon-mau"
               className="o-nhap"
-              value={chon}
+              value={chon ?? ''}
               onChange={(e) => datChon(e.target.value)}
             >
               {ds.map((m) => (

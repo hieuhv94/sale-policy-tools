@@ -600,19 +600,23 @@ không cần nhập lại.
 
 ### Gửi duyệt: chọn người, đọc lại, rồi mới xác nhận
 
-Bấm **Gửi duyệt** thì hộp thoại mở ra ba phần, theo đúng thứ tự này:
+Bấm **Gửi duyệt** thì hộp thoại mở ra bốn phần, theo đúng thứ tự này:
 
-1. **Bản CSBH A4** hiện ngay trong hộp thoại, đủ 13 mục và toàn bộ bảng dòng sản phẩm. Đọc lại đi —
-   đây là **lần cuối nội dung còn sửa được**. Sau bước này giá và ngưỡng đóng băng, và mọi chỉnh sửa
-   đều phải đi một vòng trả lại.
-2. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
+1. **Văn bản mẫu** `mới 23/08` — chọn bố cục cho bản mềm CSBH. Mỗi mẫu có tập cột riêng, nên *"bản
+   đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"* ra hai tờ giấy khác hẳn nhau. **Mẫu này gắn với
+   hồ sơ**: người duyệt xem đúng bản bạn chọn ở đây và không đổi được.
+2. **Bản CSBH A4** hiện ngay dưới ô chọn, dựng bằng **chính mẫu vừa chọn** — đổi mẫu thì nó dựng
+   lại. Đọc lại đi: đây là **lần cuối nội dung còn sửa được**. Sau bước này giá, ngưỡng và mẫu đóng
+   băng, và mọi chỉnh sửa đều phải đi một vòng trả lại.
+3. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
    của họ; Trưởng bộ phận khác không thấy, và cũng không mở được.
-3. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
+4. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
 
-Nút *Xác nhận* khoá tới khi bản A4 tải xong và cả hai ô đã chọn. Ô chọn rỗng nghĩa là chưa có tài
+Nút *Xác nhận* khoá tới khi đã chọn mẫu, bản A4 tải xong và cả hai ô người đã chọn. Ô chọn rỗng nghĩa là chưa có tài
 khoản vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
 
-Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu**: bạn có quyền gửi cho một Trưởng bộ phận khác.
+Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu** — cả người lẫn văn bản mẫu: bạn có quyền gửi
+cho một Trưởng bộ phận khác, và đổi luôn bố cục bản mềm nếu bảng sản phẩm đã khác đi.
 
 > **Chọn xong là không đổi được.** Hệ thống **không có** chức năng giao lại một hồ sơ cho người
 > khác. Chọn nhầm người thì hồ sơ nằm ở hộp việc của người đó và không ai gỡ ra được — người lập
@@ -888,12 +892,23 @@ và ảnh. Hộp xem nói thẳng điều đó thay vì bày một khung trắng
 > dọc; scan lệch khổ thì dùng thanh phóng to của trình xem PDF như bình thường.
 
 **Xem bản mềm** là một nút ở **góc trên bên phải**, ngang hàng với mã hồ sơ — mọi vai trò đọc được
-hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì hộp thoại **hỏi bạn chọn văn bản mẫu** `sửa 20/08`,
-rồi mới hiện nội dung; dưới bản xem có nút *Tải xuống* và *Đóng*.
+hồ sơ đều thấy, kể cả Ban lãnh đạo. Bấm vào thì **nội dung hiện ra ngay** `sửa 23/08`, dựng bằng
+đúng văn bản mẫu mà người lập đã chọn lúc gửi duyệt; tên mẫu ghi trên tiêu đề hộp. Dưới bản xem có
+nút *Tải xuống* và *Đóng*.
 
-> **Vì sao phải chọn trước.** Mỗi mẫu có bố cục và **tập cột riêng** — một mẫu đủ mười cột để đối
-> chiếu nội bộ, một mẫu bốn cột để đưa khách hàng. Mở sẵn một cái thì phần lớn người dùng không bao
-> giờ biết cái kia tồn tại, và họ gửi đi bản phần mềm đưa ra trước chứ không phải bản họ định gửi.
+> **Không ai chọn mẫu ở đây nữa** `sửa 23/08`. Trước đó hộp này hỏi bạn chọn mẫu trước khi xem. Mẫu
+> giờ là một phần của hồ sơ: Trình dược viên chọn một lần lúc gửi duyệt, và từ đó **mọi người xem
+> đúng một bản**.
+>
+> Vì sao đổi: mỗi mẫu có bố cục và **tập cột riêng** — một mẫu đủ mười cột để đối chiếu nội bộ, một
+> mẫu bốn cột để đưa khách hàng. Khi ai xem cũng tự chọn thì hai người mở cùng một hồ sơ có thể thấy
+> hai bảng giá khác nhau, và bản đem đi ký không nhất thiết là bản người lập đã đọc.
+>
+> **Hồ sơ còn Nháp thì khác**: nó chưa gắn mẫu nào, nên người lập vẫn chọn mẫu mỗi lần xem thử — đó
+> đúng là quãng họ đang cân nhắc dùng bố cục nào.
+>
+> **Hợp đồng vẫn hỏi chọn mẫu** mỗi lượt xuất, và **phải chọn** mới xem được: hệ thống không lưu hợp
+> đồng nên không có gì để gắn mẫu vào.
 
 Sau khi đã xem, trên bản đang xem có ô **Mẫu** để đổi sang mẫu khác mà không phải đóng hộp ra chọn
 lại — ô này chỉ hiện khi có từ hai mẫu trở lên. Đổi bao nhiêu lần cũng được và không lần nào bị tính
@@ -1348,11 +1363,21 @@ hợp đồng* xem mục 7.
 Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không dựng cứng trong phần mềm.
 Thẻ này là chỗ quản mẫu ấy.
 
-**Chỉ có hai thao tác** `sửa 20/08`: **Thêm mẫu** ở góc trên bên phải, và **Xoá** ở từng dòng.
+**Ba thao tác** `sửa 23/08`: **Thêm mẫu** ở góc trên bên phải, **Vô hiệu hoá** và **Dùng lại** ở
+từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng được.
 
-> **Không sửa được mẫu.** Muốn đổi thì xoá đi rồi thêm mẫu mới. Nghe như thêm việc, nhưng sửa một
-> mẫu đang được dùng nghĩa là bản mềm hôm nay và bản mềm hôm qua khác nhau mà không chỗ nào ghi lại
-> điều đó. Thêm mẫu mới thì mẫu cũ vẫn nằm đó cho tới khi bạn chủ động bỏ nó đi.
+> **Không xoá được mẫu nữa** `sửa 23/08`. Từ khi mẫu hồ sơ gắn vào hồ sơ lúc gửi duyệt, xoá một mẫu
+> nghĩa là làm hỏng vĩnh viễn bản mềm của mọi hồ sơ đã dùng nó — mà hồ sơ thì khoá sửa từ lúc ấy, nên
+> không ai chữa được.
+>
+> **Vô hiệu hoá làm đúng phần việc bạn cần**: mẫu biến khỏi ô chọn, không ai chọn nó nữa. **Hồ sơ đã
+> gắn mẫu ấy vẫn xem được bản mềm bình thường.** Đổi ý thì bấm *Dùng lại* — không mất gì.
+>
+> Vô hiệu hoá đòi **gõ lại tên mẫu**; *Dùng lại* thì không đòi gì, vì nó không phá huỷ gì.
+
+> **Không sửa được mẫu.** Muốn đổi câu chữ thì thêm mẫu mới rồi vô hiệu mẫu cũ: hồ sơ cũ giữ nguyên
+> bản của nó, hồ sơ mới dùng bản mới. Sửa thẳng một mẫu đã gắn vào hồ sơ đã ký là sửa chính văn bản
+> đã duyệt.
 
 > **Không còn ban hành, không còn nháp.** Mọi mẫu trong danh sách đều dùng được ngay — lưu được là
 > dùng được. Mọi phép kiểm dồn về lúc bấm *Lưu*, tức là lúc bạn còn đang mở file Word ra và sửa thêm
@@ -1365,6 +1390,11 @@ Thẻ này là chỗ quản mẫu ấy.
 2. **Soát bảng ánh xạ** hiện ngay dưới ô chọn tệp. Ô nào phần mềm không đoán được thì tự chọn.
 3. **Chọn cột của bảng sản phẩm** `mới 20/08` — xem dưới.
 4. **Lưu** ở góc trên bên phải. Nó hỏi lại một lần, vì mẫu không sửa được sau khi lưu.
+
+> **Ai chọn mẫu nào, và lúc nào** `sửa 23/08`. **Mẫu hồ sơ CSBH**: Trình dược viên chọn một lần
+> trong hộp *Gửi duyệt*, và mẫu ấy gắn với hồ sơ — mọi người xem sau đó đều thấy đúng bản ấy, không
+> đổi được. **Mẫu hợp đồng**: Kế toán hoặc Sale Admin chọn ở từng lượt xuất, vì hệ thống không lưu
+> hợp đồng nên không có gì để gắn mẫu vào.
 
 Hướng dẫn đặt khoá nằm ở cột bên phải và **tự cuộn trong hộp của nó**, không kéo cả trang — nút *Lưu*
 luôn ở trong tầm mắt.

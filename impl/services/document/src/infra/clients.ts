@@ -51,6 +51,13 @@ export type PolicyFull = {
   sa_handover_at: string | null;
   kt_l2_received_at: string | null;
   contract_issued_at: string | null;
+  /**
+   * Mẫu bản mềm đã đóng băng lúc gửi duyệt (`0098`).
+   *
+   * `null` = hồ sơ chưa gửi duyệt lần nào, hoặc lập trước `0098`. Hai nghĩa ấy
+   * phân biệt bằng trạng thái — xem `RenderService.mauCua`.
+   */
+  mau_ho_so_id: string | null;
   lines: PolicyLine[];
   attachments: { id: string; kind: string; file_name: string; object_key: string }[];
 };

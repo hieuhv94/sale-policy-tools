@@ -255,7 +255,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 |---|---|---|---|---|
 | B1 | TDV | Nháp | — | Tạo hồ sơ: khách hàng, sản phẩm, CPBH, ngày áp dụng, file đính kèm |
 | B2 | Hệ thống | Nháp | — | Tự tính, đối chiếu danh mục, kiểm tra trùng sản phẩm và CSBH hiện có, cảnh báo lỗi |
-| B3 | TDV | Chờ TBP duyệt | TBP | Xem bản CSBH, chốt và gửi duyệt. Hồ sơ khóa sửa |
+| B3 | TDV | Chờ TBP duyệt | TBP | **Chọn văn bản mẫu** `sửa 23/08`, xem bản CSBH dựng bằng chính mẫu ấy, chốt và gửi duyệt. Hồ sơ khóa sửa; giá, ngưỡng và **mẫu** đóng băng |
 | B4 | TBP — duyệt | **KT duyệt bản mềm** `sửa 19/08` | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký. Hồ sơ sang thẳng bàn kế toán |
 | B4B | TBP — không duyệt | Yêu cầu chỉnh sửa → B3 | TDV | Bắt buộc nhập lý do; hồ sơ mở khóa, tạo phiên bản mới |
 | ~~B5~~ | ~~Hệ thống~~ | — | — | **Bỏ `19/08`** — xem ghi chú dưới bảng |
@@ -361,6 +361,9 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 5. **CSBH cũ vẫn giữ hiệu lực trong lúc bản mới chờ duyệt.** Hệ thống lưu quan hệ bản cũ – bản thay
    thế, thời điểm và người thao tác.
 6. Mã phiên bản tự sinh theo số lần cập nhật CSBH của khách hàng đó và hiển thị trên bản in.
+
+7. **Văn bản mẫu của bản mềm cũng đóng băng lúc gửi duyệt** `mới 23/08`, cùng lằn ranh với giá và
+   ngưỡng. Xem mục 6.4.
 
 **Sửa một dòng sản phẩm** `mới 15/08` — khi hồ sơ còn ở trạng thái sửa được, người lập đổi được
 **giá bán buôn** và **các khoản chi phí** của một dòng đã có, không phải xoá rồi thêm lại.
@@ -563,13 +566,42 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
-- **Người xem CHỌN MẪU, không chọn khổ giấy** `sửa 20/08`, và **phải chọn trước khi xem** — mỗi mẫu
-  có tập cột riêng, nên mở sẵn một cái nghĩa là phần lớn người dùng không biết cái kia tồn tại. Khổ giấy đi theo file `.docx` của mẫu — phần mềm đọc nó từ `w:orient`
-  chứ không hỏi người tải lên, vì một ô nhập tay không còn hậu quả gì là một ô sẽ nói dối.
-  > Kéo theo: *Ban hành* nghĩa là **thêm vào danh sách chọn**, không phải thay mẫu cũ. Nhiều mẫu
+- **TDV chọn mẫu MỘT LẦN lúc gửi duyệt, rồi mẫu ĐÓNG BĂNG vào hồ sơ** `sửa 23/08`. Ô chọn nằm trong
+  hộp *Gửi duyệt*, ngay trên bản A4 xem trước; đổi mẫu thì bản xem trước dựng lại. Từ lúc bấm gửi,
+  **không vai trò nào chọn lại được** — Trưởng bộ phận, Kế toán, Sale Admin và Ban lãnh đạo mở bản
+  mềm ra là thấy đúng bản người gửi đã chọn, kèm tên mẫu ở tiêu đề. Khổ giấy đi theo file `.docx` của
+  mẫu — phần mềm đọc nó từ `w:orient` chứ không hỏi người tải lên, vì một ô nhập tay không còn hậu
+  quả gì là một ô sẽ nói dối.
+  > **Đảo quyết định `20/08`** — *"người xem chọn mẫu, phải chọn trước khi xem"*. Luật ấy đúng chừng
+  > nào mẫu chỉ là bản trình bày của người đang đọc. Nhưng bản mềm CSBH là **thứ đem đi ký**, nên bản
+  > trình bày của nó là một phần của cái được duyệt, không phải sở thích của từng người mở ra xem —
+  > và mỗi mẫu có tập cột riêng, nên hai người mở cùng một hồ sơ có thể thấy hai bảng giá khác nhau.
+  > Lý do cũ (*"mở sẵn một cái thì phần lớn người dùng không biết cái kia tồn tại"*) vẫn được giữ, chỉ
+  > dời chỗ: nó thành lý do buộc **TDV** phải chọn, chứ không còn là lý do hỏi lại mọi người xem.
+  >
+  > Kéo theo: **gửi duyệt bắt buộc chọn mẫu**, chặn ở máy chủ — chưa chọn thì không gửi được, và hồ
+  > sơ vẫn là bản nháp nên chưa mất gì (cùng lối với *TDV chưa gán Trưởng bộ phận thì không gửi
+  > được*, mục 2.9). Hồ sơ bị trả lại rồi gửi lại thì **chọn lại**, ghi đè mẫu cũ.
+  >
+  > **Hợp đồng KHÔNG đóng băng** — Kế toán và Sale Admin vẫn chọn mẫu ở mỗi lượt xuất, vì hệ thống
+  > không lưu hợp đồng (mục 8.3) nên không có gì để gắn mẫu vào. Nhưng họ cũng **phải chọn**: không
+  > còn mẫu mặc định ngầm ở bất kỳ đâu, và nút *Xem* xám cho tới khi chọn.
+  > *Ban hành* nghĩa là **thêm vào danh sách chọn**, không phải thay mẫu cũ. Nhiều mẫu
   > cùng áp dụng là trạng thái bình thường, và *"chưa có văn bản mẫu"* chỉ còn nghĩa là danh sách
   > RỖNG. Bản trước chốt "mỗi khổ giấy một mẫu riêng" — luật ấy sinh ra từ việc hệ thống tự tra mẫu
   > theo khổ, và nó mất nghĩa khi chính người dùng chọn.
+- **KHÔNG xoá và KHÔNG sửa một mẫu — chỉ VÔ HIỆU HOÁ** `sửa 23/08`, và bật lại được bất cứ lúc nào.
+  Vô hiệu hoá rút mẫu khỏi ô chọn, **không đụng tới hồ sơ đã gắn nó**: những hồ sơ ấy vẫn xem được
+  bản mềm bình thường. Vô hiệu hoá đòi **gõ lại tên mẫu**; bật lại thì không đòi gì.
+  > Đây là **hệ quả bắt buộc** của việc đóng băng, không phải một yêu cầu rời. Một mẫu xoá được là
+  > bản mềm của mọi hồ sơ đã gắn nó hỏng vĩnh viễn — mà hồ sơ thì khoá sửa ngay từ lúc gửi duyệt, nên
+  > không ai chữa được, và người bấm xoá cũng không có màn hình nào cho biết mẫu ấy đang được bao
+  > nhiêu hồ sơ dùng.
+  >
+  > Lý do `20/08` bỏ *sửa* — *"sửa một mẫu đang dùng thì bản mềm hôm nay và hôm qua khác nhau mà
+  > không chỗ nào ghi lại"* — nay được chính cột mẫu trên hồ sơ trả lời. Nhưng *sửa* vẫn không quay
+  > lại, vì lý do đã đổi: sửa một mẫu đã gắn vào hồ sơ đã ký là **sửa chính văn bản đã duyệt**. Cách
+  > đúng là thêm mẫu mới rồi vô hiệu mẫu cũ — hồ sơ cũ giữ nguyên bản của nó, hồ sơ mới dùng bản mới.
 - **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{bang_san_pham}}`, và hệ
   thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ sẵn
   trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
@@ -1287,6 +1319,20 @@ chỗ, không có bảng tra thứ hai. Bấm vào một thông báo thì tới 
 > **Hai lá thư tài khoản đứng ngoài, và không phải vì thẩm mỹ.** Thư kích hoạt và thư đặt lại mật
 > khẩu mang **token thô** trong thân — thứ `ONB-15` chỉ cho phép tồn tại trong bộ nhớ tiến trình và
 > trong email, còn CSDL chỉ giữ bản băm. Bảng thông báo thì đọc được qua API. Chi tiết ở muc 9.1b.
+
+**Mẫu bản mềm đóng băng vào hồ sơ, và mẫu chỉ vô hiệu chứ không xoá** `mới 23/08` — hai quyết định
+KHOÁ LẪN NHAU, bỏ một cái thì cái kia thành lỗi. TDV chọn mẫu trong hộp *Gửi duyệt*, ngay trên bản
+A4 xem trước; từ lúc bấm gửi thì **không vai trò nào chọn lại**, mọi người xem đúng bản người gửi đã
+chọn. Kéo theo: gửi duyệt **bắt buộc** chọn mẫu, chặn ở máy chủ; gửi lại sau khi bị trả về thì chọn
+lại và ghi đè. Mẫu **không xoá được nữa** — chỉ vô hiệu hoá (gõ lại tên mẫu) và bật lại; vô hiệu hoá
+rút mẫu khỏi ô chọn mà **không đụng tới hồ sơ đã gắn nó**. Hợp đồng giữ nguyên đường cũ — Kế toán và
+Sale Admin vẫn chọn mẫu ở mỗi lượt xuất — nhưng cũng **phải chọn**: không còn mẫu mặc định ngầm ở bất
+kỳ đâu. Chi tiết ở mục 6.4.
+
+> **Vì sao hai quyết định không tách rời được.** Xoá một mẫu đang có hồ sơ trỏ tới là làm hỏng vĩnh
+> viễn bản mềm của những hồ sơ ấy, mà chúng đã khoá sửa từ lúc gửi duyệt — không ai chữa được, và
+> người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
+> yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay

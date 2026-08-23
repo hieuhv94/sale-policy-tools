@@ -20,6 +20,7 @@ import {
   documentXml,
   KNOWN_SOURCES,
   NGUON_BAT_BUOC_HO_SO,
+  O_BANG_SAN_PHAM,
   SYSTEM_USER_ID,
   table,
   tableRow,
@@ -32,6 +33,7 @@ import {
   bootPolicyListening,
   clearAccountCache,
   clearScopeCache,
+  idNguoiDung,
   maDuyNhat,
   http,
   withAdminDb,
@@ -71,8 +73,43 @@ const ppost = async (path: string, body: object, who: string) =>
 const act = async (id: string, action: string, who: string, body: object = {}) =>
   ppost(`/policies/${id}/actions/${action}`, { ...(await phanCongMacDinh(action)), ...body }, who);
 
+
+/**
+ * Dọn một mẫu do ca kiểm dựng ra (`0098`).
+ *
+ * Không còn đường xoá nào, nên "dọn" nghĩa là VÔ HIỆU HOÁ: mẫu rời khỏi ô chọn
+ * của mọi ca chạy sau, đúng việc mà `ddel` vẫn làm ở đây. Dòng ở lại trong bảng
+ * là chấp nhận được — bộ test không đếm số dòng mẫu.
+ *
+ * Phải đọc TÊN trước vì máy chủ đòi gõ lại tên để xác nhận (luật `17/08`), và
+ * ca kiểm đi qua đúng cửa mà người dùng đi.
+ */
+const donMau = async (goc: string, id: string, who = 'admin01') => {
+  const ds = (await dget(goc, who)).body as { id: string; name: string }[];
+  const m = ds?.find?.((x) => x.id === id);
+  if (!m) return { status: 404, body: {} };
+  return dpost(`${goc}/${id}/vo-hieu`, who, { confirm: m.name });
+};
+
 const pdfOf = async (path: string, who: string) =>
   (await http(doc)).get(path).set('Authorization', `Bearer ${tok[who]}`).responseType('blob');
+
+/**
+ * Một mẫu hợp đồng CÒN DÙNG ĐƯỢC, cho những ca không quan tâm mẫu nào (`0098`).
+ *
+ * Từ `0098` cả hai đường hợp đồng đòi `mauId` — không còn "bỏ trống thì lấy mẫu
+ * đầu danh sách". Hàm này thay chỗ cho ô chọn mà Kế toán và Sale Admin sẽ bấm.
+ *
+ * KHÔNG nhớ lại giữa các ca: nhiều ca ở tệp này thêm mẫu mới, và mẫu mới nhất
+ * đứng đầu danh sách — nhớ một id cũ là bịa ra một hành vi mà người dùng thật
+ * không có.
+ */
+const mauHD = async (): Promise<string> => {
+  const r = await dget('/contract-templates/available', 'kt01');
+  const ds = r.body as { id: string }[];
+  if (!ds?.length) throw new Error('không còn mẫu hợp đồng nào dùng được');
+  return ds[0]!.id;
+};
 
 /**
  * Bỏ HẾT khoảng trắng để so.
@@ -160,6 +197,24 @@ async function draft(lineCount = 1, customerId?: string) {
 async function toReceivedL1(lineCount = 1) {
   const d = await draft(lineCount);
   await act(d.id, 'SUBMIT', 'tdv01');
+  await act(d.id, 'TBP_SIGN', 'tbp01');
+  await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+  return d;
+}
+
+/**
+ * Như trên, nhưng GỬI DUYỆT BẰNG MỘT MẪU CỤ THỂ (`0098`).
+ *
+ * Ca nào muốn kiểm bản mềm dựng ra trông thế nào thì phải dùng hàm này: từ
+ * `0098` mẫu đóng băng lúc gửi duyệt, nên thêm một mẫu SAU khi hồ sơ đã gửi rồi
+ * mới truyền `?mauId=` là 409 `TEMPLATE_LOCKED` — đúng như thiết kế.
+ *
+ * Kéo theo một đổi thay về thứ tự dựng dữ liệu, và nó phản ánh đúng đời thật:
+ * mẫu phải có TRƯỚC khi người ta gửi hồ sơ đi.
+ */
+async function toReceivedL1Voi(mauHoSoId: string, lineCount = 1) {
+  const d = await draft(lineCount);
+  await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId });
   await act(d.id, 'TBP_SIGN', 'tbp01');
   await act(d.id, 'KT_RECEIVE_L1', 'kt01');
   return d;
@@ -335,7 +390,9 @@ describe('DOC-25 đọc ô trống của một file .docx', () => {
 
 describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
   it('400 và mẫu đang có KHÔNG bị ảnh hưởng', async () => {
-    const activeBefore = await templates.chon('HOP_DONG');
+    // `khaDung` chứ không `chon()` từ `0098`: `chon` đòi một id cụ thể, còn câu
+    // ca này hỏi là "danh sách mẫu dùng được có đổi không".
+    const activeBefore = await templates.khaDung('HOP_DONG');
 
     // `mapping: []` khai tay: `anhXaTu` đọc ô trống ngay tại tiến trình test, và
     // với một file hỏng thì nó nổ TRƯỚC khi kịp gửi đi — che mất chính phép kiểm
@@ -352,8 +409,8 @@ describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
     expect(corrupt.status).toBe(400);
     expect(corrupt.body.code).toBe('TEMPLATE_NOT_DOCX');
 
-    const activeAfter = await templates.chon('HOP_DONG');
-    expect(activeAfter?.template.id).toBe(activeBefore?.template.id);
+    const activeAfter = await templates.khaDung('HOP_DONG');
+    expect(activeAfter.map((m) => m.id)).toEqual(activeBefore.map((m) => m.id));
   }, 60_000);
 });
 
@@ -425,7 +482,7 @@ describe('`0060` DOC-26 ĐẢO CHIỀU — mẫu hợp đồng về tay Quản t
     // Dọn ngay: từ `0067` mẫu mới nhất là mẫu mặc định của mọi lời gọi không kèm
     // `mauId`, nên một mẫu bỏ quên ở đây làm đổi nghĩa mọi ca nói về NỘI DUNG
     // hợp đồng phía sau.
-    expect((await ddel(`/contract-templates/${t.body.id}`, 'admin01')).status).toBe(200);
+    expect((await donMau('/contract-templates', t.body.id, 'admin01')).status).toBe(200);
   }, 60_000);
 
   it('Sale Admin KHÔNG còn quản lý được — mọi đường quản lý đều 403', async () => {
@@ -457,7 +514,7 @@ describe('DOC-10 · DOC-21 cổng thời điểm giống nhau cho cả hai vai t
   it('kế toán xuất khi chưa tiếp nhận L1 thì 409', async () => {
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
-    const r = await dget(`/policies/${d.id}/contract/preview`, 'kt01');
+    const r = await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'kt01');
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('CONTRACT_NOT_READY');
   }, 60_000);
@@ -474,7 +531,7 @@ describe('DOC-10 · DOC-21 cổng thời điểm giống nhau cho cả hai vai t
     // ấy đang ở bước nào.
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
-    const r = await dget(`/policies/${d.id}/contract/preview`, 'sa01');
+    const r = await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'sa01');
     expect(r.status).toBe(403);
     expect(r.body.code).toBe('OUT_OF_SCOPE');
   }, 60_000);
@@ -486,7 +543,7 @@ describe('DOC-10 · DOC-21 cổng thời điểm giống nhau cho cả hai vai t
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
     await act(d.id, 'KT_RECEIVE_L1', 'kt01');
-    const r = await dget(`/policies/${d.id}/contract/preview`, 'sa01');
+    const r = await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'sa01');
     expect(r.status, JSON.stringify(r.body)).toBe(200);
   }, 60_000);
 });
@@ -496,12 +553,12 @@ describe('DOC-11 gọi API xuất hợp đồng bằng cả 6 vai trò', () => {
     const d = await toReceivedL1();
 
     for (const who of ['kt01', 'sa01']) {
-      const r = await pdfOf(`/policies/${d.id}/contract.pdf`, who);
+      const r = await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, who);
       expect(r.status, `${who} phải xuất được`).toBe(200);
       expect(r.headers['content-type']).toBe('application/pdf');
     }
     for (const who of ['tbp01', 'tdv01', 'bld01', 'admin01']) {
-      const r = await dget(`/policies/${d.id}/contract.pdf`, who);
+      const r = await dget(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, who);
       expect(r.status, `${who} không được xuất`).toBe(403);
     }
   }, 120_000);
@@ -522,7 +579,7 @@ describe('DOC-14 xem trước hợp đồng', () => {
       return r.rows[0]!.n;
     });
 
-    const r = await dget(`/policies/${d.id}/contract/preview`, 'kt01');
+    const r = await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'kt01');
     expect(r.status).toBe(200);
     expect(r.body.values['{{ho_so.ten_khach_hang}}']).toBe(CUSTOMER_NAME);
     expect(r.body.values['{{ho_so.dia_chi_dang_ky}}']).toBe(ADDRESS_1);
@@ -576,7 +633,7 @@ describe('`0067` DOC-13 ĐỔI LUẬT — hồ sơ thiếu trường thì ô tr�
       // Không mang nguyên chuỗi `{{...}}` — rỗng khác hẳn chưa-thay.
       expect(chu).not.toContain('{{');
     } finally {
-      await ddel(`/contract-templates/${t.body.id}`, 'admin01');
+      await donMau('/contract-templates', t.body.id, 'admin01');
     }
   }, 150_000);
 });
@@ -584,7 +641,7 @@ describe('`0067` DOC-13 ĐỔI LUẬT — hồ sơ thiếu trường thì ô tr�
 describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
   it('tiền có phân nhóm nghìn, ngày dd/mm/yyyy, tỷ lệ khớp số trên hồ sơ CSBH', async () => {
     const d = await toReceivedL1(1);
-    const prev = (await dget(`/policies/${d.id}/contract/preview`, 'kt01')).body;
+    const prev = (await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'kt01')).body;
 
     // Công nợ 4.500.000 — dấu phân nhóm nghìn kiểu Việt Nam.
     expect(prev.values['{{ho_so.cong_no}}']).toBe('4.500.000');
@@ -601,7 +658,7 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
       await (await http(policy)).get(`/policies/${d.id}`).set('Authorization', `Bearer ${tok['tdv01']}`)
     ).body.lines[0].discountRate as string;
 
-    const chu = packed(await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer));
+    const chu = packed(await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer));
     expect(chu).toContain(packed(`${Number(onPolicy).toFixed(2)}%`));
     expect(chu).toContain(packed('87.000'));
   }, 120_000);
@@ -621,7 +678,7 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
     ).body.lines as { productCode: string }[];
     expect(linesOf).toHaveLength(40);
 
-    const pdf = await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
+    const pdf = await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01');
     expect(pdf.status).toBe(200);
     const text = await pdfText(pdf.body as Buffer);
 
@@ -641,7 +698,7 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
 describe('DOC-34 chuyển hợp đồng đã trộn sang PDF', () => {
   it('đúng khổ, dấu tiếng Việt hiển thị đúng', async () => {
     const d = await toReceivedL1(2);
-    const pdf = await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
+    const pdf = await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01');
     expect(pdf.status).toBe(200);
 
     const text = await pdfText(pdf.body as Buffer);
@@ -662,7 +719,7 @@ describe('DOC-34 chuyển hợp đồng đã trộn sang PDF', () => {
     const saved = process.env.GOTENBERG_URL;
     process.env.GOTENBERG_URL = 'http://127.0.0.1:1';
     try {
-      const r = await dget(`/policies/${d.id}/contract.pdf`, 'kt01');
+      const r = await dget(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01');
       expect(r.status).toBe(503);
       expect(r.body.code).toBe('PDF_ENGINE_UNAVAILABLE');
     } finally {
@@ -689,7 +746,7 @@ describe('DOC-34 chuyển hợp đồng đã trộn sang PDF', () => {
 describe('DOC-12 hai hồ sơ của cùng một khách hàng', () => {
   it('PDF chứa đúng dữ liệu của hồ sơ được bấm, không lẫn hồ sơ khác', async () => {
     const a = await toReceivedL1(1);
-    const aPrev = (await dget(`/policies/${a.id}/contract/preview`, 'kt01')).body;
+    const aPrev = (await dget(`/policies/${a.id}/contract/preview?mauId=${await mauHD()}`, 'kt01')).body;
 
     // Đưa A đi hết luồng: bản CHỈNH SỬA chỉ lập được khi khách hàng đã có một
     // CSBH đang hiệu lực để mà chỉnh sửa.
@@ -706,11 +763,11 @@ describe('DOC-12 hai hồ sơ của cùng một khách hàng', () => {
     await act(b.id, 'SUBMIT', 'tdv01');
     await act(b.id, 'TBP_SIGN', 'tbp01');
     await act(b.id, 'KT_RECEIVE_L1', 'kt01');
-    const bPrev = (await dget(`/policies/${b.id}/contract/preview`, 'kt01')).body;
+    const bPrev = (await dget(`/policies/${b.id}/contract/preview?mauId=${await mauHD()}`, 'kt01')).body;
 
     expect(aPrev.values['{{ho_so.ma_ho_so}}']).not.toBe(bPrev.values['{{ho_so.ma_ho_so}}']);
 
-    const pdf = await pdfOf(`/policies/${b.id}/contract.pdf`, 'kt01');
+    const pdf = await pdfOf(`/policies/${b.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01');
     const flat = packed(await pdfText(pdf.body as Buffer));
 
     // Mã hồ sơ là thứ phân biệt hai bản hợp đồng: đúng mã của hồ sơ được bấm,
@@ -738,8 +795,8 @@ describe('DOC-22 · DOC-23 hai người cùng bấm xuất', () => {
     });
 
     const [kt, sa] = await Promise.all([
-      pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01'),
-      pdfOf(`/policies/${d.id}/contract.pdf`, 'sa01'),
+      pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01'),
+      pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'sa01'),
     ]);
     // Không ghi đè gì nên không có xung đột nào để mà thua.
     expect(kt.status).toBe(200);
@@ -785,7 +842,7 @@ describe('DOC-22 · DOC-23 hai người cùng bấm xuất', () => {
 describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => {
   it('bản thứ hai mang địa chỉ MỚI — đúng theo thiết kế, không phải lỗi', async () => {
     const d = await toReceivedL1();
-    const first = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer);
+    const first = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer);
     expect(first).toContain(ADDRESS_1);
 
     const upd = await (await http(customer))
@@ -794,7 +851,7 @@ describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => 
       .send({ registeredAddress: ADDRESS_2 });
     expect(upd.status).toBe(200);
 
-    const second = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer);
+    const second = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer);
     expect(second).toContain(ADDRESS_2);
     expect(second).not.toContain(ADDRESS_1);
   }, 150_000);
@@ -804,7 +861,7 @@ describe('DOC-15 thay mẫu rồi xuất lại', () => {
   it('lần xuất mới dùng MẪU MỚI, không có ràng buộc phiên bản nào', async () => {
     const d = await toReceivedL1();
     const firstText = await pdfText(
-      (await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer,
+      (await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer,
     );
     expect(firstText).toContain('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG');
 
@@ -818,7 +875,7 @@ describe('DOC-15 thay mẫu rồi xuất lại', () => {
 
     try {
       const secondText = await pdfText(
-        (await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer,
+        (await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer,
       );
       expect(secondText).toContain(MARK);
       expect(secondText).not.toContain('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG');
@@ -834,7 +891,7 @@ describe('DOC-15 thay mẫu rồi xuất lại', () => {
         mặc định của mọi lời gọi không kèm `mauId` — kể cả ở những ca phía sau
         chẳng liên quan gì. DOC-24 đã đỏ đúng vì chuyện đó.
       */
-      await ddel(`/contract-templates/${t.body.id}`, 'admin01');
+      await donMau('/contract-templates', t.body.id, 'admin01');
     }
   }, 180_000);
 });
@@ -842,7 +899,7 @@ describe('DOC-15 thay mẫu rồi xuất lại', () => {
 describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp', () => {
   it('lần xuất sau lấy dữ liệu phiên bản mới, không có bản ghi hợp đồng cũ nào', async () => {
     const d = await toReceivedL1();
-    await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01');
+    await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01');
 
     // Đường trả về ĐÚNG theo máy trạng thái: sau khi tiếp nhận L1 hồ sơ đã ở
     // bước Sale Admin xử lý, nên `KT_RETURN_L1` không còn hợp lệ. Kịch bản thật
@@ -863,11 +920,11 @@ describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp'
     await act(d.id, 'TBP_SIGN', 'tbp01');
     await act(d.id, 'KT_RECEIVE_L1', 'kt01');
 
-    const prev = (await dget(`/policies/${d.id}/contract/preview`, 'kt01')).body;
+    const prev = (await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'kt01')).body;
     expect(prev.values['{{ho_so.ma_ho_so}}']).toBeDefined();
 
     const flat = packed(
-      await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).body as Buffer),
+      await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer),
     );
     // Hai dòng: sản phẩm cũ và sản phẩm vừa bổ sung. "Phiên bản mới phải chứa
     // lại toàn bộ sản phẩm cũ" (muc 5.1), nên cả hai đều phải có mặt.
@@ -883,31 +940,76 @@ describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp'
 // DOC-35 — chưa có mẫu nào đang dùng
 // =============================================================================
 
-describe('DOC-35 xoá hết mẫu hợp đồng', () => {
-  it('409 kèm hướng dẫn, không sinh file rỗng', async () => {
-    /*
-     * `0067` bỏ *ngừng dùng*, nên cách duy nhất để không còn mẫu nào là XOÁ hết.
-     * Ca này vì thế cũng là ca canh giữ cho việc xoá: xoá xong thì mẫu biến mất
-     * khỏi mọi đường, không phải chỉ khỏi danh sách quản lý.
-     *
-     * Dựng lại một mẫu ở `finally` chứ không "phát hành lại" — không có gì để
-     * phát hành lại nữa, và đó chính là ý của "xoá đi rồi thêm mẫu mới".
-     */
+describe('DOC-35 vô hiệu hết mẫu hợp đồng', () => {
+  /*
+   * `0098` VIẾT LẠI ca này, vì cái nó gác đã đổi bản chất.
+   *
+   * Bản cũ XOÁ hết mẫu rồi kiểm `NO_ACTIVE_TEMPLATE`. Từ `0098` không còn đường
+   * xoá nào — mẫu chỉ vô hiệu hoá được — nên câu hỏi đổi thành: vô hiệu hết mẫu
+   * thì đường xuất hợp đồng nói gì?
+   *
+   * Và câu trả lời cũng đổi. `NO_ACTIVE_TEMPLATE` là câu cho "không truyền mẫu,
+   * mà danh sách cũng rỗng"; nhánh ấy biến mất khi `mauId` thành bắt buộc. Giờ
+   * người xuất cầm trong tay một id vừa bị vô hiệu, nên câu đúng là câu nói về
+   * CHÍNH CÁI MẪU ẤY.
+   */
+  it('mẫu vừa bị vô hiệu thì từ chối, và nói rõ phải chọn lại', async () => {
     const d = await toReceivedL1();
     const dangCo = await templates.khaDung('HOP_DONG');
     expect(dangCo.length, 'phải có mẫu mặc định seed sẵn lúc khởi động').toBeGreaterThan(0);
+    const mau = dangCo[0]!.id;
 
-    for (const m of dangCo) expect((await ddel(`/contract-templates/${m.id}`, 'admin01')).status).toBe(200);
+    for (const m of dangCo) {
+      expect(
+        (await dpost(`/contract-templates/${m.id}/vo-hieu`, 'admin01', { confirm: m.ten })).status,
+      ).toBe(200);
+    }
     try {
       expect(await templates.khaDung('HOP_DONG')).toEqual([]);
-      const r = await dget(`/policies/${d.id}/contract.pdf`, 'kt01');
-      expect(r.status).toBe(409);
-      expect(r.body.code).toBe('NO_ACTIVE_TEMPLATE');
-      expect(r.body.message).toContain('Quản trị hệ thống');
+      const r = await dget(`/policies/${d.id}/contract.pdf?mauId=${mau}`, 'kt01');
+      expect(r.status).toBe(404);
+      expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
+      expect(r.body.message).toContain('chọn lại');
     } finally {
-      await templates.ensureDefault(SYSTEM_USER_ID);
+      for (const m of dangCo) await dpost(`/contract-templates/${m.id}/mo-lai`, 'admin01');
     }
   }, 90_000);
+
+  /**
+   * Dòng mẫu vẫn còn nguyên — "vô hiệu" khác "xoá" ở đúng chỗ này.
+   *
+   * Nếu vô hiệu hoá làm dòng biến mất khỏi màn hình quản trị thì không ai bật
+   * lại được, và nó chính là xoá dưới một cái tên dễ nghe hơn.
+   */
+  it('mẫu đã vô hiệu VẪN nằm trong danh sách của Quản trị, và bật lại được', async () => {
+    const truoc = await templates.khaDung('HOP_DONG');
+    const mau = truoc[0]!;
+    await dpost(`/contract-templates/${mau.id}/vo-hieu`, 'admin01', { confirm: mau.ten });
+    try {
+      const ds = (await dget('/contract-templates', 'admin01')).body as {
+        id: string;
+        voHieuHoaLuc: string | null;
+      }[];
+      const dong = ds.find((x) => x.id === mau.id);
+      expect(dong, 'mẫu đã vô hiệu phải còn trong bảng quản trị').toBeTruthy();
+      expect(dong!.voHieuHoaLuc).not.toBeNull();
+      expect((await templates.khaDung('HOP_DONG')).map((x) => x.id)).not.toContain(mau.id);
+    } finally {
+      expect((await dpost(`/contract-templates/${mau.id}/mo-lai`, 'admin01')).status).toBe(200);
+    }
+    expect((await templates.khaDung('HOP_DONG')).map((x) => x.id)).toContain(mau.id);
+  }, 60_000);
+
+  /** Gõ sai tên mẫu thì máy chủ chặn, không phải chỉ hộp thoại chặn (luật `17/08`). */
+  it('vô hiệu hoá đòi gõ đúng tên mẫu, kiểm ở MÁY CHỦ', async () => {
+    const mau = (await templates.khaDung('HOP_DONG'))[0]!;
+    const r = await dpost(`/contract-templates/${mau.id}/vo-hieu`, 'admin01', {
+      confirm: 'gõ đại cho xong',
+    });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('CONFIRM_MISMATCH');
+    expect((await templates.khaDung('HOP_DONG')).map((x) => x.id)).toContain(mau.id);
+  }, 60_000);
 });
 
 // =============================================================================
@@ -968,7 +1070,7 @@ describe('DOC-28 quét lược đồ, bảng định tuyến và kho lưu trữ'
 
     const d = await toReceivedL1();
     const truoc = await anhChup();
-    expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).status).toBe(200);
 
     // PDF trả thẳng về người bấm và không đi qua kho. Chỉ có thể y nguyên.
     expect(await anhChup()).toEqual(truoc);
@@ -1091,8 +1193,12 @@ describe('`0059` bản mềm và hợp đồng không để lại dòng lịch s
     const d = await toReceivedL1();
     expect((await pdfOf(`/policies/${d.id}/render`, 'kt01')).status).toBe(200);
     expect((await pdfOf(`/policies/${d.id}/render?xem=1`, 'sa01')).status).toBe(200);
-    expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
-    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'sa01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).status).toBe(200);
+    // `xem=1` là khoá thừa còn sót từ `0058`; `validate` bỏ qua khoá lạ. Nhưng
+    // `mauId` thì KHÔNG thừa nữa (`0098`), nên nó phải đi kèm.
+    expect(
+      (await pdfOf(`/policies/${d.id}/contract.pdf?xem=1&mauId=${await mauHD()}`, 'sa01')).status,
+    ).toBe(200);
 
     const rows = await lichSu(d.id);
     expect(dem(rows, 'TAI_HO_SO'), 'bản mềm không được ghi gì').toBe(0);
@@ -1111,7 +1217,9 @@ describe('`0059` bản mềm và hợp đồng không để lại dòng lịch s
      * một trạng thái của hồ sơ mà muc 8.3 hỏi, và báo cáo tiến độ đọc.
      */
     const d = await toReceivedL1();
-    expect((await pdfOf(`/policies/${d.id}/contract.pdf?xem=1`, 'kt01')).status).toBe(200);
+    expect(
+      (await pdfOf(`/policies/${d.id}/contract.pdf?xem=1&mauId=${await mauHD()}`, 'kt01')).status,
+    ).toBe(200);
 
     const p = await withAdminDb(async (c) => {
       const r = await c.query<{ contract_issued_at: Date | null; contract_issued_by: string | null }>(
@@ -1203,7 +1311,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
    */
   const xoaHet = async () => {
     const ds = (await qget('/policy-templates', 'admin01')).body as { id: string }[];
-    for (const t of ds) await ddel(`/policy-templates/${t.id}`, 'admin01');
+    for (const t of ds) await donMau('/policy-templates', t.id, 'admin01');
     return async () => {
       await templates.ensureDefault(SYSTEM_USER_ID);
     };
@@ -1254,31 +1362,35 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     expect(hopDong.every((t) => t.kind === 'HOP_DONG')).toBe(true);
   }, 90_000);
 
-  it('CHƯA CÓ MẪU NÀO thì báo lỗi, và nói ai chữa được', async () => {
+  it('`0098` VÔ HIỆU HẾT MẪU không đụng tới hồ sơ đã gửi duyệt', async () => {
     /*
-     * Đây là yêu cầu khách hàng nêu đích danh: *"nếu chưa có hồ sơ mẫu do Quản
-     * trị hệ thống tải lên hãy báo lỗi"*.
+     * `0098` ĐẢO NGƯỢC ca này, và chỗ đảo là điều đáng nhớ nhất của cả chặng.
      *
-     * `0055` hiểu "phù hợp" là ĐÚNG KHỔ GIẤY, nên ca này từng vô hiệu mẫu khổ
-     * dọc rồi khẳng định khổ ngang vẫn chạy. Từ `0058` không còn khái niệm mẫu
-     * phù hợp theo khổ — người xem chọn mẫu trong danh sách, và điều kiện hỏng
-     * duy nhất là danh sách RỖNG. Còn một mẫu bất kỳ thì vẫn xem được.
+     * Yêu cầu gốc của khách hàng — *"chưa có hồ sơ mẫu thì hãy báo lỗi"* — vẫn
+     * đúng, nhưng nó nói về NGƯỜI ĐANG CHỌN MẪU. Tới `0097` mọi người xem đều
+     * đang chọn mẫu, nên danh sách rỗng làm hỏng mọi lượt xem, kể cả hồ sơ đã
+     * duyệt xong từ năm ngoái.
+     *
+     * Từ `0098` chỉ TDV chọn, và chỉ một lần. Hồ sơ đã gửi duyệt mang sẵn mẫu
+     * của nó, nên danh sách rỗng KHÔNG chạm tới được — đó là cả lý do để bỏ
+     * đường xoá. Người còn bị chặn là người còn phải chọn: TDV với một hồ sơ
+     * Nháp.
      */
     const d = await toReceivedL1();
-
-    // Còn MỘT mẫu thì vẫn xem được — xoá bớt một mẫu là chuyện thường ngày, và
-    // điều kiện hỏng phải là danh sách RỖNG chứ không phải "thiếu một mẫu nào đó".
-    const ds = (await qget('/policy-templates', 'admin01')).body as { id: string }[];
-    expect(ds.length, 'cần ít nhất hai mẫu để xoá bớt một').toBeGreaterThan(1);
-    expect((await ddel(`/policy-templates/${ds[0]!.id}`, 'admin01')).status).toBe(200);
-    expect((await pdfOf(`/policies/${d.id}/render`, 'kt01')).status).toBe(200);
+    const nhap = await draft();
 
     const khoiPhuc = await xoaHet();
     try {
-      const r = await dget(`/policies/${d.id}/render`, 'kt01');
+      // Hồ sơ ĐÃ ĐÓNG BĂNG: vẫn xem được, dù không mẫu nào còn trong ô chọn.
+      expect(
+        (await pdfOf(`/policies/${d.id}/render`, 'kt01')).status,
+        'hồ sơ đã gắn mẫu không được phụ thuộc vào ô chọn',
+      ).toBe(200);
+
+      // Hồ sơ NHÁP: không còn gì để chọn, nên đây mới là chỗ báo lỗi.
+      const r = await dget(`/policies/${nhap.id}/render`, 'tdv01');
       expect(r.status).toBe(409);
-      expect(r.body.code).toBe('POLICY_TEMPLATE_MISSING');
-      expect(r.body.message).toContain('Quản trị hệ thống');
+      expect(r.body.code).toBe('TEMPLATE_REQUIRED');
     } finally {
       await khoiPhuc();
     }
@@ -1298,9 +1410,9 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     try {
       expect(await templates.khaDung('HOP_DONG')).toEqual(truoc);
-      expect((await pdfOf(`/policies/${d.id}/contract.pdf`, 'kt01')).status).toBe(200);
+      expect((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).status).toBe(200);
     } finally {
-      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+      await donMau('/policy-templates', up.body.id, 'admin01');
     }
   }, 120_000);
 
@@ -1327,11 +1439,10 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     // nó không trỏ tới trường dữ liệu, hệ thống thay nó bằng cả một bảng.
     const r = await luuMauHoSo('Mẫu đủ mục, không ánh xạ ô bảng');
     expect(r.status, JSON.stringify(r.body)).toBe(201);
-    await ddel(`/policy-templates/${r.body.id}`, 'admin01');
+    await donMau('/policy-templates', r.body.id, 'admin01');
   }, 90_000);
 
   it('bản mềm dựng từ MẪU: thêm mẫu khác thì bản mềm đổi theo', async () => {
-    const d = await toReceivedL1();
     const CAU = 'Dieu khoan rieng cua Nutricare';
     const than = makeDocx(
       [
@@ -1343,8 +1454,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     const up = await luuMauHoSo('Mau moi cua quan tri', than);
     expect(up.status, JSON.stringify(up.body)).toBe(201);
 
+    // `0098`: gửi duyệt BẰNG mẫu này, rồi mới xem — mẫu đóng băng lúc gửi.
+    const d = await toReceivedL1Voi(up.body.id as string);
+
     try {
-      const pdf = await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01');
+      const pdf = await pdfOf(`/policies/${d.id}/render`, 'kt01');
       expect(pdf.status).toBe(200);
       const t = await pdfText(pdf.body as Buffer);
       // Câu chỉ có trong mẫu MỚI — chứng minh bản mềm đọc từ mẫu, không dựng cứng.
@@ -1352,7 +1466,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       // Và bảng sản phẩm vẫn do hệ thống dựng, đủ cột.
       expect(t.replace(/\s+/g, '')).toContain('Giácôngty');
     } finally {
-      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+      await donMau('/policy-templates', up.body.id, 'admin01');
     }
   }, 180_000);
 
@@ -1366,7 +1480,6 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
      * chọn thì KHÔNG — chiều thứ hai mới dễ hỏng, vì một phép lọc viết sai
      * thường bỏ sót theo hướng "hiện tất".
      */
-    const d = await toReceivedL1(1);
     const than = makeDocx(
       [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
     );
@@ -1378,10 +1491,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .field('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'cpbh_tong', 'gia_thu_ve']))
       .attach('file', than, { filename: 'gon.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
+    const d = await toReceivedL1Voi(up.body.id as string, 1);
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
       );
       for (const co of ['STT', 'Tênsảnphẩm', 'CPBHtổng', 'Giáthuvề']) {
         expect(chu, `thiếu cột ${co}`).toContain(co);
@@ -1390,7 +1504,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
         expect(chu, `cột ${khong} KHÔNG được in ra`).not.toContain(khong);
       }
     } finally {
-      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+      await donMau('/policy-templates', up.body.id, 'admin01');
     }
   }, 180_000);
 
@@ -1403,7 +1517,6 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
      * `0084` — và giờ nó là cột DUY NHẤT như vậy; CPBH tổng không còn được thêm
      * lại nữa. Ca ngay dưới kiểm nửa kia của chuyện đó.
      */
-    const d = await toReceivedL1(1);
     const than = makeDocx(
       [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
     );
@@ -1416,14 +1529,15 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .attach('file', than, { filename: 'motcot.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     expect(up.body.cotBang).toEqual(['stt', 'ten_san_pham']);
+    const d = await toReceivedL1Voi(up.body.id as string, 1);
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
     } finally {
-      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+      await donMau('/policy-templates', up.body.id, 'admin01');
     }
   }, 180_000);
 
@@ -1438,7 +1552,6 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
      * sót sẽ vẫn cho lưu đúng tập cột đã khai rồi lặng lẽ in ra cột đã tắt, và
      * cái lộ ra là con số chi phí trên một văn bản đã gửi cho khách hàng.
      */
-    const d = await toReceivedL1(1);
     const than = makeDocx(
       [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
     );
@@ -1451,10 +1564,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .attach('file', than, { filename: 'khongcpbh.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     expect(up.body.cotBang, 'CPBH tổng bị thêm lại').toEqual(['stt', 'ten_san_pham', 'gia_ban_buon']);
+    const d = await toReceivedL1Voi(up.body.id as string, 1);
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
       expect(chu, 'CPBH tổng vẫn in ra dù đã tắt').not.toContain('CPBHtổng');
@@ -1462,7 +1576,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       // kia thì con số chi phí vẫn nằm trên giấy.
       expect(chu, 'cột CPBH lẻ vẫn in ra').not.toContain('CPBH1');
     } finally {
-      await ddel(`/policy-templates/${up.body.id}`, 'admin01');
+      await donMau('/policy-templates', up.body.id, 'admin01');
     }
   }, 180_000);
 });
@@ -1562,7 +1676,7 @@ describe('`0057` bộ file mẫu trong templates/', () => {
         .field('mapping', JSON.stringify(anhXaTu(buf)))
         .attach('file', buf, { filename: f, contentType: DOCX });
       expect(up.status, `${f}: ${JSON.stringify(up.body)}`).toBe(201);
-      expect((await ddel(`${duong}/${up.body.id}`, 'admin01')).status).toBe(200);
+      expect((await donMau(duong, up.body.id)).status).toBe(200);
     }
   }, 120_000);
 
@@ -1629,7 +1743,7 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
       // để mà nằm ngoài danh sách.
       expect((ds.body as { id: string }[]).some((m) => m.id === t.body.id)).toBe(true);
     } finally {
-      await ddel(`/contract-templates/${t.body.id}`, 'admin01');
+      await donMau('/contract-templates', t.body.id, 'admin01');
     }
   }, 60_000);
 
@@ -1655,7 +1769,7 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
       // Mẫu vừa thêm đứng ĐẦU: nó là bản mở sẵn cho lần xem sau.
       expect(sau[0]!.id).toBe(t.body.id);
     } finally {
-      await ddel(`/contract-templates/${t.body.id}`, 'admin01');
+      await donMau('/contract-templates', t.body.id, 'admin01');
     }
   }, 90_000);
 
@@ -1671,8 +1785,187 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
       // Dọn: từ `0067` mẫu nào cũng dùng được và lời gọi không kèm `mauId` lấy
       // mẫu MỚI NHẤT, nên một mẫu bỏ quên ở đây sẽ thành mẫu mặc định của mọi
       // ca phía sau — và của cả lượt chạy sau nữa.
-      await ddel(`/contract-templates/${ngang.body.id}`, 'admin01');
-      await ddel(`/contract-templates/${doc_.body.id}`, 'admin01');
+      await donMau('/contract-templates', ngang.body.id, 'admin01');
+      await donMau('/contract-templates', doc_.body.id, 'admin01');
     }
+  }, 60_000);
+});
+
+// =============================================================================
+// `0098` — Mẫu hồ sơ đóng băng vào hồ sơ lúc gửi duyệt
+// =============================================================================
+
+describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
+  /** Một mẫu hồ sơ riêng của ca kiểm, đủ mục bắt buộc nên lưu được. */
+  const themMauHoSo = async (ten: string) => {
+    const than = makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para(O_BANG_SAN_PHAM)].join(''),
+    );
+    const r = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', ten)
+      .field(
+        'mapping',
+        JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))),
+      )
+      .attach('file', than, { filename: 'ca-kiem.docx', contentType: DOCX });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    return r.body.id as string;
+  };
+
+  const mauCuaHoSo = async (id: string): Promise<string | null> =>
+    ((await ppost(`/policies/${id}/actions/NOOP`, {}, 'tdv01'), null),
+    (
+      (await (await http(policy)).get(`/policies/${id}`).set('Authorization', `Bearer ${tok['tdv01']}`))
+        .body as { mauHoSoId: string | null }
+    ).mauHoSoId);
+
+  it('GỬI DUYỆT thiếu mẫu thì chặn, và hồ sơ VẪN ở Nháp', async () => {
+    const d = await draft();
+    const id = await idNguoiDung();
+    // Gọi thẳng, KHÔNG qua `act` — `act` tự kèm mẫu mặc định, nên nó che mất
+    // đúng phép chặn mà ca này canh.
+    const r = await ppost(
+      `/policies/${d.id}/actions/SUBMIT`,
+      { tbpUserId: id['tbp01'], keToanUserId: id['kt01'] },
+      'tdv01',
+    );
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
+
+    // Chặn TRƯỚC khi đổi trạng thái: hỏng nửa chừng thì hồ sơ khoá sửa mà không
+    // có mẫu, và không đường nào ghi cột ấy nữa.
+    const sau = (
+      await (await http(policy)).get(`/policies/${d.id}`).set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).body as { status: string; mauHoSoId: string | null };
+    expect(sau.status).toBe('NHAP');
+    expect(sau.mauHoSoId ?? null).toBeNull();
+  }, 60_000);
+
+  it('gửi duyệt xong thì cột `mauHoSoId` mang đúng mẫu vừa chọn', async () => {
+    const mau = await themMauHoSo('Mẫu đóng băng A');
+    try {
+      const d = await draft();
+      expect((await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mau })).status).toBe(200);
+      expect(await mauCuaHoSo(d.id)).toBe(mau);
+    } finally {
+      await donMau('/policy-templates', mau);
+    }
+  }, 90_000);
+
+  it('SAU khi đóng băng, truyền mẫu KHÁC thì 409 — và truyền ĐÚNG mẫu vẫn qua', async () => {
+    const mauA = await themMauHoSo('Mẫu đóng băng B');
+    const mauB = await themMauHoSo('Mẫu đóng băng C');
+    try {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
+
+      const khac = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${mauB}`)
+        .set('Authorization', `Bearer ${tok['tbp01']}`);
+      expect(khac.status).toBe(409);
+      expect(khac.body.code).toBe('TEMPLATE_LOCKED');
+
+      // KHÔNG phạt người truyền đúng: cùng một mẫu thì không có gì mâu thuẫn để
+      // mà từ chối, và một địa chỉ cũ còn mang `?mauId=` vẫn phải mở được.
+      const dung = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${mauA}`)
+        .set('Authorization', `Bearer ${tok['tbp01']}`)
+        .responseType('blob');
+      expect(dung.status).toBe(200);
+
+      // Và không truyền gì thì lấy đúng mẫu đã gắn — đường mà giao diện đi.
+      const trong = await (await http(doc))
+        .get(`/policies/${d.id}/render`)
+        .set('Authorization', `Bearer ${tok['kt01']}`)
+        .responseType('blob');
+      expect(trong.status).toBe(200);
+    } finally {
+      await donMau('/policy-templates', mauA);
+      await donMau('/policy-templates', mauB);
+    }
+  }, 120_000);
+
+  /**
+   * CA QUAN TRỌNG NHẤT của cả chặng.
+   *
+   * Cả điểm của việc bỏ *xoá* và thay bằng *vô hiệu hoá* nằm ở đây: mẫu rời khỏi
+   * ô chọn mà những hồ sơ đã gắn nó vẫn dựng được bản mềm. Nếu ca này đỏ thì
+   * "vô hiệu hoá" chỉ là cái tên khác của "xoá", và `0098` không giải quyết gì.
+   */
+  it('VÔ HIỆU mẫu đã gắn: hồ sơ ấy VẪN xem được bản mềm', async () => {
+    const mau = await themMauHoSo('Mẫu sắp vô hiệu');
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mau });
+
+    expect((await donMau('/policy-templates', mau)).status).toBe(200);
+
+    // Rời khỏi ô chọn…
+    const oChon = (
+      await (await http(doc))
+        .get('/policy-templates/available')
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+    ).body as { id: string }[];
+    expect(oChon.map((m) => m.id)).not.toContain(mau);
+
+    // …nhưng KHÔNG rời khỏi hồ sơ đã dùng nó.
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
+      .set('Authorization', `Bearer ${tok['tbp01']}`)
+      .responseType('blob');
+    expect(r.status, 'vô hiệu hoá không được làm hỏng hồ sơ đã gắn mẫu').toBe(200);
+    expect((r.body as Buffer).length).toBeGreaterThan(1000);
+
+    // Và tên mẫu vẫn đọc được, để màn hình nói được bản này dựng bằng gì.
+    const ten = await (await http(doc))
+      .get(`/policy-templates/${mau}`)
+      .set('Authorization', `Bearer ${tok['tbp01']}`);
+    expect(ten.status).toBe(200);
+    expect(ten.body.ten).toBe('Mẫu sắp vô hiệu');
+    expect(ten.body.voHieu).toBe(true);
+  }, 120_000);
+
+  it('GỬI LẠI sau khi bị trả về thì GHI ĐÈ mẫu, không kế thừa lần trước', async () => {
+    const mauA = await themMauHoSo('Mẫu lần đầu');
+    const mauB = await themMauHoSo('Mẫu lần hai');
+    try {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
+      await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'sửa lại giá' });
+      expect(await mauCuaHoSo(d.id)).toBe(mauA);
+
+      await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01', { mauHoSoId: mauB });
+      expect(await mauCuaHoSo(d.id)).toBe(mauB);
+    } finally {
+      await donMau('/policy-templates', mauA);
+      await donMau('/policy-templates', mauB);
+    }
+  }, 120_000);
+
+  it('hành động KHÁC không ghi đè được mẫu, dù có gửi kèm `mauHoSoId`', async () => {
+    const mauA = await themMauHoSo('Mẫu của người gửi');
+    const mauB = await themMauHoSo('Mẫu người khác gửi kèm');
+    try {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
+      // Trưởng bộ phận ký, kèm một mẫu khác. Bước này không được phép chọn mẫu.
+      await act(d.id, 'TBP_SIGN', 'tbp01', { mauHoSoId: mauB });
+      expect(await mauCuaHoSo(d.id), 'mẫu của người gửi phải còn nguyên').toBe(mauA);
+    } finally {
+      await donMau('/policy-templates', mauA);
+      await donMau('/policy-templates', mauB);
+    }
+  }, 120_000);
+
+  it('hồ sơ CHƯA gắn mẫu và người xem KHÔNG phải TDV của nó thì không xem được', async () => {
+    // Ban lãnh đạo mở được hồ sơ Nháp (phạm vi cho qua vì TDV nằm trong đó),
+    // nên phép chặn phải ở MÁY CHỦ chứ không ở chỗ giao diện ẩn ô chọn.
+    const d = await draft();
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
+      .set('Authorization', `Bearer ${tok['bld01']}`);
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_TEMPLATE_NOT_SET');
   }, 60_000);
 });

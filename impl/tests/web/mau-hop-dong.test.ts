@@ -144,3 +144,40 @@ describe('`0060` hai loại mẫu, một người quản lý', () => {
     expect(CAU_HINH_MAU.HO_SO.tieuDe).not.toBe(CAU_HINH_MAU.HOP_DONG.tieuDe);
   });
 });
+
+describe('`0098` vô hiệu hoá thay cho xoá', () => {
+  it('giao diện KHÔNG còn gọi đường xoá mẫu nào', () => {
+    /*
+     * Máy chủ đã gỡ `@Delete`, nhưng một nút cũ còn sót lại thì người dùng bấm
+     * vào và nhận 404 — đúng loại "nút hiện rồi trả lỗi" mà `0048` cấm.
+     *
+     * Quét cả hai tệp của màn hình này, tìm cả lời gọi lẫn nhãn nút.
+     */
+    for (const t of ['apps/web/src/pages/MauHopDong.tsx', 'apps/web/src/pages/ThemMau.tsx']) {
+      const ma = readFileSync(t, 'utf8');
+      expect(ma, `${t} còn gọi xoá mẫu`).not.toMatch(/xoa\w*\(`\$\{[^}]*duong[^}]*\}\/\$\{/);
+      expect(ma, `${t} còn nhãn nút Xoá`).not.toMatch(/>\s*Xoá mẫu\s*</);
+    }
+  });
+
+  it('màn hình quản trị gọi đúng hai đường vô hiệu và mở lại', () => {
+    const ma = readFileSync('apps/web/src/pages/MauHopDong.tsx', 'utf8');
+    // Đường dựng bằng biến (`${ch.duong}/${id}/${viec}`) nên tìm chính hai TÊN
+    // VIỆC, không tìm chuỗi đường dẫn.
+    expect(ma).toContain("'vo-hieu'");
+    expect(ma).toContain("'mo-lai'");
+    // Gõ lại TÊN MẪU đi kèm chiều vô hiệu, và CHỈ chiều ấy (luật `17/08`: chỉ
+    // thao tác phá huỷ mới phải nói ra thứ mình định làm).
+    expect(ma).toMatch(/'vo-hieu'\s*\?\s*\{\s*confirm/);
+  });
+
+  it('câu chữ nói rõ hồ sơ đã gắn mẫu KHÔNG bị ảnh hưởng', () => {
+    /*
+     * Câu quan trọng nhất của hộp xác nhận, và là câu dễ bị bỏ nhất vì nó nói
+     * điều KHÔNG xảy ra. Thiếu nó thì "vô hiệu hoá" đọc ra như "tắt", và người
+     * quản trị sẽ không dám bấm — rồi giữ mãi một danh sách mẫu cũ không ai dọn.
+     */
+    const ma = readFileSync('apps/web/src/pages/MauHopDong.tsx', 'utf8');
+    expect(ma).toContain('vẫn xem được bản mềm bình thường');
+  });
+});

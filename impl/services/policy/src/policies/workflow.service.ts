@@ -20,6 +20,7 @@ import {
   ForbiddenRoleError,
   InvalidTransitionError,
   ReasonRequiredError,
+  SUA_DUOC,
   transition,
   type Action,
   type Role,
@@ -102,6 +103,8 @@ export class WorkflowService {
       tbpUserId?: string | undefined;
       keToanUserId?: string | undefined;
       saleAdminUserId?: string | undefined;
+      /** Mẫu bản mềm TDV chọn, đóng băng lúc gửi duyệt (`0098`). */
+      mauHoSoId?: string | undefined;
     },
   ) {
     const before = await this.db.one<{
@@ -187,6 +190,60 @@ export class WorkflowService {
         });
       }
       await this.policies.assertNoMissingInheritedProduct(policyId);
+
+      /*
+       * VĂN BẢN MẪU ĐÓNG BĂNG VÀO HỒ SƠ, ngay tại đây (`0098`).
+       *
+       * Cùng một lằn ranh với giá và ngưỡng ở khối ngay dưới, và đó là chủ ý:
+       * bản trình bày của một văn bản sắp đem đi ký là một phần của thứ được
+       * duyệt, không phải sở thích của từng người mở nó ra xem. Sau lằn này TDV
+       * không đổi được nữa, và không vai trò nào sau trong luồng chọn được.
+       *
+       * BẮT BUỘC, không rơi về mẫu đầu danh sách. Mỗi mẫu có tập cột riêng
+       * (`0067`), nên mặc định ngầm nghĩa là người gửi ký một bản họ chưa từng
+       * chọn — và với "bản gọn đưa khách hàng" thì khác biệt là có hay không có
+       * cột CPBH, tức con số nội bộ của Công ty.
+       *
+       * Chặn ở ĐÂY chứ không ở lúc xem: hồ sơ vẫn đang là bản nháp nên chưa mất
+       * gì, đúng lối đã dùng cho "TDV chưa gán Trưởng bộ phận thì không gửi
+       * được" (muc 2.9).
+       *
+       * `RESUBMIT_AFTER_EDIT` cũng phải chọn lại chứ không kế thừa lần trước:
+       * hồ sơ bị trả về rồi sửa thì bảng sản phẩm có thể đã khác, mà tập cột phù
+       * hợp với bảng cũ chưa chắc còn hợp — đúng lối mà `PHAN_CONG` đã chọn cho
+       * người xử lý.
+       */
+      if (!opts.mauHoSoId) {
+        throw new UnprocessableEntityException({
+          code: 'TEMPLATE_REQUIRED',
+          message: 'Chọn văn bản mẫu cho bản mềm CSBH trước khi gửi duyệt.',
+        });
+      }
+
+      /*
+       * `policy` KHÔNG gọi sang `document` để hỏi mẫu này có thật không.
+       *
+       * Tôi đã viết lời gọi ấy rồi gỡ đi, nên ghi lại để người sau khỏi viết lại.
+       *
+       * Nó có vẻ đúng: `policy` vẫn xác minh tham chiếu logic bằng REST đồng bộ
+       * (`customer()`, `productSnapshots()`), nên mẫu là cái thứ ba. Nhưng hai
+       * cái kia là lời gọi mà `policy` DÙ SAO CŨNG PHẢI GỌI — nó cần dữ liệu
+       * khách hàng cho sự kiện, cần giá cho dòng hồ sơ; phép xác minh là thứ đi
+       * kèm miễn phí. Lời gọi này thì chỉ để xác minh, không lấy gì.
+       *
+       * Cái giá thì có thật, và đo được: `document` là service nặng nhất
+       * (Chromium, Gotenberg), nên buộc nó vào đường gửi duyệt nghĩa là nó chết
+       * thì không ai gửi được hồ sơ nào — trong khi trước đây nó chết chỉ chặn
+       * việc xem và xuất file. Nó cũng là lời gọi ĐẦU TIÊN đi vào `document`,
+       * đảo chiều phụ thuộc vốn chỉ có một hướng.
+       *
+       * Còn thứ nó bảo vệ thì gần như rỗng. Giao diện chỉ bày mẫu lấy từ
+       * `/policy-templates/available`, nên một id sai chỉ đến từ lượt gọi tay.
+       * Mẫu bị VÔ HIỆU giữa chừng lại càng không phải lỗi: hồ sơ đã gắn mẫu vẫn
+       * dựng được bản mềm bình thường — đó chính là điều `0098` bảo đảm. Và một
+       * id bịa ra thì `render` bắt được, bằng một câu nói rõ chuyện gì hỏng, ở
+       * đúng chỗ biết câu trả lời.
+       */
 
       /*
        * LÀM MỚI LẦN CUỐI, rồi mới đóng băng (`0029`).
@@ -364,10 +421,33 @@ export class WorkflowService {
             ? 'reprint_requested_at = NULL,'
             : '';
 
+      /*
+       * ĐÓNG BĂNG MẪU, trong CÙNG câu lệnh đổi trạng thái (`0098`).
+       *
+       * Không phải một `UPDATE` thứ hai sau đó: hồ sơ đã sang *Chờ TBP duyệt*
+       * mà cột mẫu chưa kịp ghi là một hồ sơ khoá sửa và không xem được bản mềm
+       * — không ai chữa được, vì cả hai đường ghi cột đều chỉ mở lúc gửi duyệt.
+       * Cùng một câu lệnh thì hai thứ ấy hoặc cùng đúng, hoặc cùng không xảy ra.
+       *
+       * Ghi ĐÈ ở mỗi lượt gửi, kể cả `RESUBMIT_AFTER_EDIT` — xem khối kiểm ở
+       * trên về việc vì sao không kế thừa lần trước.
+       *
+       * Điều kiện là HÀNH ĐỘNG, không phải "có gửi `mauHoSoId` không". Hai câu
+       * ấy khác nhau ở đúng chỗ nguy hiểm: Trưởng bộ phận bấm *Ký số* mà kèm
+       * theo một `mauHoSoId` — dù do một màn hình viết sau này gửi thừa, hay do
+       * một lượt gọi tay — sẽ ghi đè mẫu mà người gửi đã chọn, ở đúng bước mà
+       * yêu cầu nói là không ai được chọn nữa.
+       */
+      let mauSql = '';
+      if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
+        params.push(opts.mauHoSoId);
+        mauSql = `mau_ho_so_id = $${params.length},`;
+      }
+
       const upd = await c.query<{ id: string }>(
         `UPDATE pol.policy SET
             status = $2::pol.policy_status,
-            ${stampSql}${reprintSql}
+            ${stampSql}${reprintSql}${mauSql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
             sla_due_at = CASE WHEN $${slaIdx}
@@ -609,7 +689,7 @@ export class WorkflowService {
 
     // Hồ sơ đính kèm chỉ sửa được khi còn Nháp; bản scan thì ngược lại, chỉ tải
     // lên ở bước Sale Admin xử lý (POL-18, WF-13).
-    if (input.kind === 'HO_SO' && !['NHAP', 'YEU_CAU_CHINH_SUA'].includes(p.status)) {
+    if (input.kind === 'HO_SO' && !SUA_DUOC.includes(p.status as Status)) {
       throw new ConflictException({
         code: 'POLICY_LOCKED',
         message: 'Hồ sơ đã gửi duyệt, file đính kèm chỉ đọc',

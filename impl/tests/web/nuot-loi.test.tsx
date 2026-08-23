@@ -190,6 +190,7 @@ const NUOT_CO_LY_DO = [
   'apps/web/src/pages/LapHoSo.tsx', // tra khách theo id trên địa chỉ — rơi về bước tìm
   'apps/web/src/lib/thong-bao.ts', // đếm chưa đọc mỗi 60 giây — lượt sau tự chữa (`0096`)
   'apps/web/src/components/ChuongThongBao.tsx', // đánh dấu đã đọc — màn hình đang rời đi (`0096`)
+  'apps/web/src/components/XemBanMem.tsx', // tên mẫu đã gắn — bản mềm vẫn dựng được (`0098`)
 ];
 
 describe('`0089` không lọt một chỗ nuốt lỗi nào', () => {

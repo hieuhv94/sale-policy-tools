@@ -9125,3 +9125,104 @@ Phép phá thứ hai đáng chú ý: nó làm đỏ **năm ca kiểm không thu�
 — dấu hiệu tốt rằng hai khối thật sự tách rời chứ không chỉ đổi nhãn.
 
 **1603/1603 xanh.**
+
+## P125 — Mẫu bản mềm đóng băng vào hồ sơ, và mẫu thôi xoá được
+
+`0098`. Khách hàng chốt ba điều: mẫu hồ sơ gắn vào hồ sơ lúc TDV gửi duyệt và chỉ TDV được chọn; hợp
+đồng thì Sale Admin và Kế toán vẫn chọn ở từng lượt xuất; và không xoá hay sửa mẫu nữa, chỉ vô hiệu
+hoá.
+
+### Hai yêu cầu khoá lẫn nhau
+
+Đọc rời thì đây là hai việc. Chúng không rời được: xoá một mẫu đang có hồ sơ trỏ tới là làm hỏng
+**vĩnh viễn** bản mềm của những hồ sơ ấy — hồ sơ khoá sửa từ lúc gửi duyệt, mẫu không dựng lại được,
+và màn hình mẫu không có cách nào biết mẫu này đang được bao nhiêu hồ sơ dùng. Nên bỏ đường xoá
+không phải yêu cầu thứ hai, nó là **điều kiện để yêu cầu thứ nhất an toàn**. Ghi vào YCNV theo cặp,
+không phải hai gạch đầu dòng.
+
+Điều đó cũng trả lời câu hỏi *"sao không cho sửa mẫu, giờ đã truy được hồ sơ nào dùng mẫu nào rồi?"*
+— câu mà lượt trước tôi tưởng là lý do duy nhất của `0067`. Truy được không làm việc sửa thành đúng:
+sửa một mẫu đã gắn vào hồ sơ đã ký là sửa chính văn bản đã duyệt.
+
+### Chỗ dễ sai nhất: một hàm trả lời hai câu hỏi
+
+`chon()` cũ phục vụ hai câu khác hẳn nhau bằng một đường:
+
+| Câu hỏi | Mẫu đã vô hiệu |
+|---|---|
+| *ô chọn bày ra những mẫu nào* | phải LOẠI |
+| *dựng văn bản này bằng mẫu nào* | phải LẤY ĐƯỢC |
+
+Trộn lại thì vô hiệu hoá một mẫu làm hỏng mọi hồ sơ đã gắn nó — đúng cái hậu quả mà việc bỏ đường
+xoá sinh ra để tránh, chỉ khác cái tên. Tách thành `khaDung` (lọc) và `theoId` (không lọc). Phá lại
+xác nhận: cho `theoId` gọi `chon` thì đỏ **hai ca**, và cả hai đều là ca nói thẳng về việc ấy.
+
+### Ba lần tôi quyết sai, và thứ sửa tôi lại
+
+Đáng ghi vì cả ba đều là quyết định nghe hợp lý cho tới lúc đo.
+
+**Một — `policy` gọi `document` để xác minh mẫu lúc gửi duyệt.** Lý luận: `policy` vốn đã xác minh
+tham chiếu logic bằng REST đồng bộ (`customer()`, `productSnapshots()`), nên mẫu là cái thứ ba. Viết
+xong, chạy `policy.test.ts`: **132 ca đỏ với 500**, vì mọi tệp test gửi duyệt giờ phải dựng thêm cả
+service `document`. Con số ấy chỉ ra thứ lý luận bỏ sót — hai lời gọi kia là lời gọi `policy` **dù
+sao cũng phải gọi** để lấy dữ liệu; phép xác minh đi kèm miễn phí. Lời gọi này chỉ để xác minh.
+
+Và thứ nó bảo vệ gần như rỗng: giao diện chỉ bày mẫu lấy từ `available`; mẫu bị vô hiệu giữa chừng
+lại càng **không** phải lỗi — hồ sơ đã gắn vẫn dựng được, đó chính là điều `0098` bảo đảm. Gỡ cả
+client lẫn controller nội bộ. `document` trở lại là lá: không service nào gọi vào nó.
+
+**Hai — giữ điều kiện `ensureDefault` là "bảng có dòng nào không".** Lý do tôi viết ra: seed lại mẫu
+mặc định là âm thầm huỷ quyết định của Quản trị. Lý do ấy hình dung cảnh hệ thống seed đè lên một bộ
+mẫu đang chạy tốt — cảnh mà chính điều kiện *"còn dùng được"* đã loại trừ, vì còn một mẫu dùng được
+thì nó không seed gì cả. Nhánh seed chỉ chạy khi **không còn mẫu nào dùng được**, tức lúc phần mềm
+đã hỏng. Bộ test chỉ ra ngay: một ca vô hiệu hết mẫu, `ensureDefault` thấy "đã có mẫu" và ngồi im,
+mọi ca sau nhận ô chọn rỗng — đúng hình dạng sự cố mà chú thích cũ ở chính hàm ấy đã kể.
+
+**Ba — ca gác "không ai khai lại `SUA_DUOC` bằng chữ" quét quá rộng.** Nó bắt được hộp việc của TDV,
+nơi hai trạng thái ấy trùng nhau vì một câu hỏi khác — *hồ sơ nào đang ở bàn tôi*, không phải *hồ sơ
+nào sửa được*. Hôm nay cùng đáp án, ngày mai có thể không. Gộp lại là buộc hai luật rời nhau vào một
+dây, đúng lỗi mà `0097` vừa gỡ ở `tepXoaDuoc`. Cho vào danh sách có lý do, theo nếp `NUOT_CO_LY_DO`.
+
+### `SUA_DUOC` lên `domain-policy`
+
+`document` cần biết khi nào ô chọn mẫu còn mở, mà câu trả lời — *hồ sơ còn sửa được không* — đang
+được gõ lại bằng chữ ở bốn chỗ trong `policy`. Kéo lên `domain-policy` thay vì chép bản thứ năm. Ca
+kiểm cũ đọc mảng chữ ấy bằng biểu thức chính quy để so với `SUA_DUOC`; giờ không còn bản sao nào để
+canh, nên nó đổi câu hỏi thành *"còn ai khai lại bằng chữ không"*.
+
+### Một lỗ chỉ chồng demo thật mới lộ
+
+`GET /policy-templates/:id` mở cho năm vai trò xem hồ sơ, và tôi chép nguyên danh sách ấy từ
+`available` — nơi Quản trị bị loại có lý do (họ không phải người chọn mẫu). Lý do ấy không áp được
+cho đường chỉ trả về một cái tên, mà Quản trị lại chính là người quản mẫu. Không ca kiểm nào bắt
+được, vì màn hình quản trị đọc tên từ danh sách chứ không từ đây; nó lộ ra lúc tôi gọi `curl` trên
+bản demo và ăn 403.
+
+### Đo trên chồng demo
+
+| Đo | Kết quả |
+|---|---|
+| Hồ sơ đã gửi duyệt thiếu mẫu | **0** trên 177 |
+| Ba mẫu xoay vòng | 60 · 59 · 58 hồ sơ |
+| Bản mềm, không kèm `mauId` | 200 · 26 983 byte PDF thật |
+| Kèm `mauId` của mẫu khác | 409 `TEMPLATE_LOCKED` |
+| **Vô hiệu mẫu đang 59 hồ sơ dùng** | ô chọn 3 → 2 mẫu; bản mềm vẫn **200 · đúng 26 983 byte** |
+| Dùng lại | ô chọn về 3 mẫu |
+
+Dòng áp chót là cả chặng này gói vào một phép đo.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| `theoId` gọi `chon` (lọc cả đường đọc theo id) | 2 ca |
+| Điều kiện ghi cột theo *"có gửi `mauHoSoId`"* thay vì theo HÀNH ĐỘNG | 1 ca |
+| `khaDung` thôi lọc mẫu đã vô hiệu | **15 ca** |
+| Bỏ `TEMPLATE_LOCKED` | 1 ca |
+| Bỏ `TEMPLATE_REQUIRED` lúc gửi duyệt | 1 ca |
+
+Phép phá thứ hai đáng chú ý vì lỗ nó mở ra rất kín: điều kiện `if (opts.mauHoSoId)` cho phép Trưởng
+bộ phận bấm *Ký số* kèm một `mauHoSoId` — do một màn hình viết sau này gửi thừa, hay một lượt gọi
+tay — và ghi đè mẫu người gửi đã chọn, ở đúng bước mà yêu cầu nói là không ai được chọn nữa.
+
+**1621/1621 xanh.**

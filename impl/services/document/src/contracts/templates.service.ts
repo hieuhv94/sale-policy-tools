@@ -1,12 +1,15 @@
 /**
- * Mẫu hợp đồng: tải lên, đọc ô trống, ánh xạ trường, phát hành.
+ * Văn bản mẫu: tải lên, đọc ô trống, ánh xạ trường, vô hiệu hoá.
  *
- * Thuộc **Sale Admin**, không thuộc Quản trị hệ thống (muc 8.2, DOC-26). Đây là
- * chỗ dễ nhầm vì Quản trị nắm mọi danh mục khác — nhưng mẫu hợp đồng là văn bản
- * nghiệp vụ do người bán soạn, không phải cấu hình hệ thống.
+ * Cả hai loại đều thuộc **Quản trị hệ thống** từ `0060` (muc 6.4). Bản trước ghi
+ * mẫu hợp đồng thuộc Sale Admin theo DOC-26; khách hàng gộp về một chủ ngày
+ * 20/08 vì hai loại dùng chung một bộ máy, và bộ máy ấy là việc kỹ thuật.
+ *
+ * BA VIỆC, KHÔNG BỐN (`0098`): thêm · vô hiệu hoá · dùng lại. Không có sửa, và
+ * không còn xoá — xem `voHieu`.
  */
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import type { AuthUser } from '@csbh/http-kit';
+import { kemNguCanh, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ObjectMissingError, Storage } from '../infra/storage.js';
 import { FilesService } from '../files/files.service.js';
@@ -23,11 +26,13 @@ import { chuanHoaCot } from './bang-san-pham.js';
 import { COMPANY } from '../render/sheet.js';
 
 /**
- * Hai loại mẫu, hai chủ sở hữu khác nhau (`0055`).
+ * Hai loại mẫu, cùng một chủ sở hữu từ `0060` — nhưng KHÁC nhau ở chỗ ai chọn.
  *
- * `HOP_DONG` do **Sale Admin** soạn (muc 8.2) — văn bản nghiệp vụ của người bán.
- * `HO_SO` do **Quản trị hệ thống** (muc 6.4) — bố cục bản CSBH A4, thứ trước
- * `0055` nằm cứng trong mã.
+ * `HO_SO`    — bố cục bản CSBH A4. Từ `0098` **TDV chọn một lần lúc gửi duyệt**
+ *              rồi nó đóng băng vào hồ sơ; các vai trò sau chỉ xem.
+ * `HOP_DONG` — văn bản pháp lý riêng. **Kế toán hoặc Sale Admin chọn ở mỗi lượt
+ *              xuất**, vì hợp đồng không lưu bản ghi nào (muc 8.3) nên không có
+ *              gì để đóng băng vào.
  */
 export type Loai = 'HOP_DONG' | 'HO_SO';
 export type KhoGiay = 'a4p' | 'a4l';
@@ -45,6 +50,9 @@ export type TemplateRow = {
   paper_size: KhoGiay | null;
   /** Tập cột bảng sản phẩm của riêng mẫu này (`0067`). NULL = tập mặc định. */
   cot_bang: string[] | null;
+  /** Lúc bị rút khỏi ô chọn (`0098`). NULL = còn dùng được. */
+  vo_hieu_hoa_luc: Date | null;
+  vo_hieu_hoa_boi: string | null;
 };
 
 export type FieldRow = {
@@ -223,24 +231,81 @@ export class TemplatesService {
   }
 
   /**
-   * XOÁ hẳn một mẫu (`0067`) — thay cho *sửa* và *ngừng dùng*.
+   * VÔ HIỆU HOÁ — rút một mẫu khỏi ô chọn, và đó là tất cả (`0098`).
    *
-   * Muốn đổi một mẫu thì xoá đi rồi thêm mẫu mới. Nghe như thêm việc, nhưng nó
-   * gỡ đúng thứ khó nhất của bản cũ: sửa một mẫu ĐANG ĐƯỢC DÙNG nghĩa là bản
-   * mềm của hôm nay và bản mềm của hôm qua khác nhau mà không ai ghi lại điều
-   * đó ở đâu cả. Thêm mẫu mới thì mẫu cũ vẫn nằm đó cho tới khi có người chủ
-   * động bỏ nó đi.
+   * Thay hẳn cho `xoa()`. Xoá được là một lỗ hổng kể từ khi mẫu hồ sơ đóng băng
+   * vào hồ sơ: xoá một mẫu đang có hồ sơ trỏ tới thì bản mềm của những hồ sơ ấy
+   * hỏng vĩnh viễn, và KHÔNG AI chữa được — mẫu không dựng lại được vì file cũ
+   * đã rời khỏi vòng đời, còn hồ sơ thì khoá sửa từ lúc gửi duyệt. Người gây ra
+   * cũng không biết mình vừa làm gì: màn hình mẫu không có cách nào biết mẫu này
+   * đang được bao nhiêu hồ sơ dùng.
    *
-   * KHÔNG xoá `doc.stored_file`: file ở lại như mọi file đã thay thế khác, và
-   * `sys.run_retention()` dọn theo vòng đời chung.
+   * Nên phép chặn không phải là đếm hồ sơ trước khi cho xoá — nó là BỎ HẲN
+   * đường xoá. Mẫu sống mãi; cái tắt được chỉ là sự có mặt của nó trong ô chọn.
+   *
+   * Vô hiệu hoá một mẫu ĐÃ vô hiệu thì không lỗi và không ghi đè mốc cũ: hai
+   * người cùng bấm không được phép làm mốc "ai vô hiệu, lúc nào" nhảy sang
+   * người bấm sau.
    */
-  async xoa(id: string): Promise<{ id: string }> {
-    await this.byId(id);
-    return this.db.tx(async (c) => {
-      await c.query(`DELETE FROM doc.contract_template_field WHERE template_id = $1`, [id]);
-      await c.query(`DELETE FROM doc.contract_template WHERE id = $1`, [id]);
-      return { id };
-    });
+  async voHieu(id: string, me: AuthUser): Promise<{ id: string; voHieuHoaLuc: Date | null }> {
+    const truoc = await this.byId(id);
+    if (truoc.vo_hieu_hoa_luc) {
+      return { id, voHieuHoaLuc: truoc.vo_hieu_hoa_luc };
+    }
+    const r = await this.db.one<TemplateRow>(
+      `UPDATE doc.contract_template
+          SET vo_hieu_hoa_luc = now(), vo_hieu_hoa_boi = $2
+        WHERE id = $1 AND vo_hieu_hoa_luc IS NULL
+        RETURNING *`,
+      [id, me.id],
+    );
+    await this.ghiNhatKy(truoc, r ?? truoc, me);
+    return { id, voHieuHoaLuc: r?.vo_hieu_hoa_luc ?? truoc.vo_hieu_hoa_luc };
+  }
+
+  /**
+   * DÙNG LẠI — đưa mẫu trở vào ô chọn.
+   *
+   * KHÔNG đòi gõ lại tên, khác với lúc vô hiệu hoá. Luật `17/08` buộc gõ lại mã
+   * nghiệp vụ cho thao tác PHÁ HUỶ; bật lại một mẫu không phá huỷ gì, đúng như
+   * bật lại một sản phẩm đã vô hiệu hoá cũng không đòi gì.
+   */
+  async moLai(id: string, me: AuthUser): Promise<{ id: string }> {
+    const truoc = await this.byId(id);
+    if (!truoc.vo_hieu_hoa_luc) return { id };
+    const r = await this.db.one<TemplateRow>(
+      `UPDATE doc.contract_template
+          SET vo_hieu_hoa_luc = NULL, vo_hieu_hoa_boi = NULL
+        WHERE id = $1 RETURNING *`,
+      [id],
+    );
+    await this.ghiNhatKy(truoc, r ?? truoc, me);
+    return { id };
+  }
+
+  /**
+   * Một dòng nhật ký kèm GIÁ TRỊ TRƯỚC VÀ SAU (YCNV muc 10).
+   *
+   * Đi qua outbox vì role `csbh_doc` không có quyền ghi vào schema `aud` — cùng
+   * đường mà lượt xuất hợp đồng đã đi.
+   */
+  private async ghiNhatKy(truoc: TemplateRow, sau: TemplateRow, me: AuthUser): Promise<void> {
+    const anh = (r: TemplateRow) => ({ ten: r.name, voHieuHoaLuc: r.vo_hieu_hoa_luc });
+    await this.db.q(`INSERT INTO doc.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
+      'document.template_changed',
+      JSON.stringify(
+        kemNguCanh({
+          entity: 'contract_template',
+          id: truoc.id,
+          action: sau.vo_hieu_hoa_luc ? 'TEMPLATE_DISABLED' : 'TEMPLATE_ENABLED',
+          actorId: me.id,
+          actorRole: me.role,
+          before: anh(truoc),
+          after: anh(sau),
+          at: new Date().toISOString(),
+        }),
+      ),
+    ]);
   }
 
   async byId(id: string): Promise<TemplateRow> {
@@ -251,12 +316,20 @@ export class TemplatesService {
     return r;
   }
 
+  /**
+   * Danh sách cho MÀN HÌNH QUẢN TRỊ — gồm cả mẫu đã vô hiệu hoá.
+   *
+   * Không lọc, và đó là điểm khác với `khaDung`: người quản mẫu phải nhìn thấy
+   * cái mình đã tắt thì mới bật lại được. Một mẫu vô hiệu hoá xong biến mất khỏi
+   * cả màn hình quản trị là một mẫu không ai dùng lại được nữa — tức là đã xoá,
+   * chỉ khác cái tên.
+   */
   async list(kind: Loai = 'HOP_DONG') {
     // Lọc theo loại, KHÔNG trả cả hai rồi để màn hình tự lọc: hai màn hình khác
-    // nhau, hai vai trò khác nhau, và Sale Admin không có việc gì với mẫu hồ sơ.
+    // nhau, và mỗi thẻ chỉ có việc với loại của nó.
     const rows = await this.db.q<TemplateRow>(
       `SELECT * FROM doc.contract_template WHERE kind = $1::doc.template_kind
-        ORDER BY ${THU_TU_MAU}`,
+        ORDER BY vo_hieu_hoa_luc IS NOT NULL, ${THU_TU_MAU}`,
       [kind],
     );
     return rows.map(view);
@@ -303,7 +376,7 @@ export class TemplatesService {
   async khaDung(kind: Loai): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
     const rows = await this.db.q<TemplateRow>(
       `SELECT * FROM doc.contract_template
-        WHERE kind = $1::doc.template_kind
+        WHERE kind = $1::doc.template_kind AND vo_hieu_hoa_luc IS NULL
         ORDER BY ${THU_TU_MAU}`,
       [kind],
     );
@@ -311,42 +384,77 @@ export class TemplatesService {
   }
 
   /**
-   * Mẫu để dựng văn bản: cái người dùng CHỌN, hoặc mẫu mới nhất nếu không chọn.
+   * Tên một mẫu cho người XEM hồ sơ — kể cả mẫu đã vô hiệu hoá.
    *
-   * `undefined` nghĩa là chưa có mẫu nào — chưa ai thêm, hoặc đã xoá hết.
-   *
-   * MẪU ĐÃ XOÁ THÌ TỪ CHỐI, không âm thầm rơi về mẫu khác. Tình huống có thật:
-   * người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy Quản trị xoá mẫu kia.
-   * Dựng bằng mẫu khác thì họ nhận về một văn bản không phải thứ họ vừa chọn,
-   * và không có gì trên màn hình nói ra điều đó.
+   * Hồ sơ đã gắn mẫu thì màn hình phải nói được nó dựng bằng mẫu nào, và cái tên
+   * ấy vẫn phải đọc ra được sau khi Quản trị vô hiệu mẫu — nếu không thì đúng
+   * lúc người ta thắc mắc "sao bản này khác bản kia" lại là lúc không còn câu
+   * trả lời. Trả về ĐÚNG ba thứ màn hình cần, không hơn.
    */
-  async chon(
+  async ten(id: string, kind: Loai) {
+    const t = await this.theoId(id, kind);
+    if (!t) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
+    return {
+      id: t.template.id,
+      ten: t.template.name,
+      khoGiay: t.template.paper_size,
+      voHieu: t.template.vo_hieu_hoa_luc !== null,
+    };
+  }
+
+  /**
+   * Mẫu để DỰNG văn bản — tra thẳng theo id, **kể cả mẫu đã vô hiệu hoá**.
+   *
+   * Đây là một nửa của `chon()` cũ, và việc tách đôi nó là thay đổi quan trọng
+   * nhất của `0098`. Hàm cũ trả lời hai câu hỏi khác hẳn nhau bằng một đường:
+   *
+   *   *"ô chọn bày ra những mẫu nào"*  — phải LOẠI mẫu đã vô hiệu.
+   *   *"dựng văn bản này bằng mẫu nào"* — phải LẤY ĐƯỢC mẫu đã vô hiệu.
+   *
+   * Trộn hai câu ấy làm một thì vô hiệu hoá một mẫu sẽ làm hỏng mọi hồ sơ đã
+   * gắn nó — đúng cái hậu quả mà việc bỏ đường xoá sinh ra để tránh, chỉ khác
+   * cái tên. Nên `khaDung` lọc, còn hàm này thì không, và sự khác nhau ấy là cố
+   * ý chứ không phải một chỗ quên `WHERE`.
+   *
+   * `undefined` = không có mẫu nào mang id ấy. Người gọi quyết định đó là 404
+   * hay là một câu khác — hai đường gọi có hai câu khác nhau.
+   */
+  async theoId(
+    id: string,
     kind: Loai,
-    mauId?: string,
   ): Promise<{ template: TemplateRow; fields: FieldRow[] } | undefined> {
-    const t = mauId
-      ? await this.db.one<TemplateRow>(
-          `SELECT * FROM doc.contract_template
-            WHERE id = $1 AND kind = $2::doc.template_kind`,
-          [mauId, kind],
-        )
-      : await this.db.one<TemplateRow>(
-          `SELECT * FROM doc.contract_template
-            WHERE kind = $1::doc.template_kind
-            ORDER BY ${THU_TU_MAU} LIMIT 1`,
-          [kind],
-        );
-    if (!t) {
-      if (mauId) {
-        throw new NotFoundException({
-          code: 'TEMPLATE_NOT_USABLE',
-          message: 'Mẫu vừa chọn không còn trong danh sách. Hãy chọn lại.',
-          templateId: mauId,
-        });
-      }
-      return undefined;
-    }
+    const t = await this.db.one<TemplateRow>(
+      `SELECT * FROM doc.contract_template
+        WHERE id = $1 AND kind = $2::doc.template_kind`,
+      [id, kind],
+    );
+    if (!t) return undefined;
     return { template: t, fields: await this.fields(t.id) };
+  }
+
+  /**
+   * Mẫu người dùng vừa CHỌN trong ô chọn — dùng ở đường xuất hợp đồng và ở lúc
+   * TDV gửi duyệt.
+   *
+   * Khác `theoId` ở đúng một chỗ: mẫu đã vô hiệu thì **từ chối**. Người đang
+   * đứng trước ô chọn phải chọn được một mẫu còn dùng được; tình huống có thật
+   * là họ mở hộp chọn, đi pha cà phê, và trong lúc ấy Quản trị vô hiệu mẫu kia.
+   *
+   * KHÔNG CÒN NHÁNH "không chọn thì lấy mẫu đầu danh sách" (`0098`). Mẫu mặc
+   * định ngầm là thứ làm người dùng gửi đi bản trình bày đầu tiên phần mềm đưa
+   * ra chứ không phải bản họ định gửi — và với bản mềm CSBH thì bản ấy đem đi
+   * ký. Thiếu `mauId` giờ là lỗi của người gọi, không phải một chỗ để đoán.
+   */
+  async chon(kind: Loai, mauId: string): Promise<{ template: TemplateRow; fields: FieldRow[] }> {
+    const t = await this.theoId(mauId, kind);
+    if (!t || t.template.vo_hieu_hoa_luc) {
+      throw new NotFoundException({
+        code: 'TEMPLATE_NOT_USABLE',
+        message: 'Mẫu vừa chọn không còn trong danh sách. Hãy chọn lại.',
+        templateId: mauId,
+      });
+    }
+    return t;
   }
 
   /**
@@ -459,9 +567,11 @@ export class TemplatesService {
   private async ensureDefaultHoSo(systemUserId: string): Promise<void> {
     const thieu: { kho: KhoGiay; fileId: string }[] = [];
     for (const kho of KHO_GIAY) {
+      // `vo_hieu_hoa_luc IS NULL` từ `0098` — xem lý do dài ở `ensureDefaultHopDong`.
       const co = await this.db.one<{ id: string }>(
         `SELECT id FROM doc.contract_template
-          WHERE kind = 'HO_SO' AND paper_size = $1::doc.paper_size LIMIT 1`,
+          WHERE kind = 'HO_SO' AND paper_size = $1::doc.paper_size
+            AND vo_hieu_hoa_luc IS NULL LIMIT 1`,
         [kho],
       );
       if (co) continue;
@@ -512,14 +622,30 @@ export class TemplatesService {
   }
 
   private async ensureDefaultHopDong(systemUserId: string): Promise<void> {
-    // Điều kiện là "có mẫu nào ĐANG DÙNG không", KHÔNG phải "bảng có dòng nào
-    // không". Hai câu ấy khác nhau ở đúng tình huống đã xảy ra thật: một lượt
-    // chạy vô hiệu hết mẫu rồi chết giữa chừng trước khi phát hành lại, để lại
-    // 54 dòng mẫu mà không dòng nào đang dùng. Với điều kiện cũ thì `ensureDefault`
-    // thấy "đã có mẫu" và không làm gì — mọi lần xuất hợp đồng sau đó đều 409,
-    // vĩnh viễn, và khởi động lại service cũng không chữa được.
+    /*
+     * Điều kiện là "CÓ MẪU NÀO CÒN DÙNG ĐƯỢC KHÔNG", không phải "bảng có dòng
+     * nào không" — `0098` trả nó về đúng câu mà `0058` từng hỏi.
+     *
+     * `0067` đổi sang "có dòng nào" là hợp lý vào lúc ấy: bỏ vòng đời rồi thì
+     * mọi dòng đều dùng được, nên hai câu là một. `0098` dựng lại cờ vô hiệu
+     * hoá, và hai câu tách đôi trở lại.
+     *
+     * Tôi đã định giữ nguyên "có dòng nào", với lý do: Quản trị vô hiệu cái mẫu
+     * mặc định sơ sài này là quyết định có chủ ý, seed lại là âm thầm huỷ nó.
+     * Lý do ấy sai, và sai theo một cách đáng ghi. Nó hình dung cảnh hệ thống
+     * seed đè lên một bộ mẫu đang chạy tốt — cảnh mà chính điều kiện này đã loại
+     * trừ: còn MỘT mẫu dùng được thì không seed gì cả. Nhánh seed chỉ chạy khi
+     * KHÔNG CÒN mẫu nào dùng được, tức là lúc phần mềm đã hỏng. Dựng lại một
+     * mẫu tối thiểu ở đó không đè lên lựa chọn nào; nó trả lại khả năng làm việc.
+     *
+     * Đo được ngay trong bộ test: đổi `ddel` thành vô hiệu hoá mà giữ điều kiện
+     * cũ thì một ca vô hiệu hết mẫu, `ensureDefault` thấy "đã có mẫu" và không
+     * làm gì — mọi ca chạy sau nhận ô chọn RỖNG. Đúng hình dạng sự cố mà chú
+     * thích cũ ở đây đã kể.
+     */
     const existing = await this.db.one<{ id: string }>(
-      `SELECT id FROM doc.contract_template WHERE kind = 'HOP_DONG' LIMIT 1`,
+      `SELECT id FROM doc.contract_template
+        WHERE kind = 'HOP_DONG' AND vo_hieu_hoa_luc IS NULL LIMIT 1`,
     );
     // Phép tự chữa "có dòng mẫu nhưng mất file" KHÔNG còn ở đây (`0059`): nó là
     // `vaFileMacDinh`, chạy cho CẢ BẢNG sau hai bước seed. Nằm lẫn trong nhánh
@@ -655,4 +781,6 @@ const view = (r: TemplateRow) => ({
   isDefault: r.is_default,
   updatedAt: r.updated_at,
   cotBang: r.cot_bang,
+  /** `0098` — mẫu đã vô hiệu vẫn nằm trong bảng quản trị, mang dấu này. */
+  voHieuHoaLuc: r.vo_hieu_hoa_luc,
 });

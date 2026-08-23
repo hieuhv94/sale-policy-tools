@@ -10,7 +10,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   Param,
@@ -22,7 +21,15 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CurrentUser, opt, Roles, str, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import {
+  CurrentUser,
+  Roles,
+  str,
+  uuid,
+  validate,
+  xacNhanGoLai,
+  type AuthUser,
+} from '@csbh/http-kit';
 
 /**
  * Ai được XEM bản mềm CSBH — và vì thế ai được thấy danh sách mẫu để chọn (`0058`).
@@ -164,15 +171,33 @@ export class ContractTemplatesController {
   }
 
   /**
-   * XOÁ, và không có đường SỬA nào bên cạnh (`0067`).
+   * VÔ HIỆU HOÁ — và KHÔNG có `@Delete` nào bên cạnh (`0098`).
    *
-   * Muốn đổi một mẫu thì xoá đi rồi thêm mẫu mới — xem `TemplatesService.xoa`.
+   * Đường xoá đã gỡ hẳn, không phải giấu đi: một mẫu xoá được là một hồ sơ đã
+   * gắn nó hỏng được, mà hồ sơ thì khoá sửa từ lúc gửi duyệt. `DOC-28` quét bảng
+   * định tuyến; thêm lại một `DELETE /contract-templates/:id` là ca kiểm đỏ.
+   *
+   * Gõ lại TÊN MẪU, kiểm ở máy chủ chứ không chỉ ở hộp thoại (luật `17/08`).
    */
   @Roles('QUAN_TRI')
-  @Delete(':id')
+  @Post(':id/vo-hieu')
   @HttpCode(200)
-  xoa(@Param('id') id: string) {
-    return this.templates.xoa(id);
+  async voHieu(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { confirm?: string },
+  ) {
+    const t = await this.templates.byId(id);
+    xacNhanGoLai(body?.confirm, t.name, { viec: 'vô hiệu hoá mẫu này' });
+    return this.templates.voHieu(id, me);
+  }
+
+  /** Dùng lại — không đòi gõ gì, vì bật lại không phá huỷ gì (`0098`). */
+  @Roles('QUAN_TRI')
+  @Post(':id/mo-lai')
+  @HttpCode(200)
+  moLai(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.templates.moLai(id, me);
   }
 }
 
@@ -260,11 +285,55 @@ export class PolicyTemplatesController {
     };
   }
 
+  /**
+   * Tên mẫu ĐÃ ĐÓNG BĂNG vào một hồ sơ, cho người xem hồ sơ đọc (`0098`).
+   *
+   * Mở cho năm vai trò như `available`, và trả cả mẫu ĐÃ VÔ HIỆU: hồ sơ gắn mẫu
+   * nào thì màn hình phải nói được tên mẫu ấy, kể cả sau khi Quản trị rút nó
+   * khỏi ô chọn. Giấu đi thì đúng lúc người ta hỏi "sao bản này khác bản kia"
+   * lại là lúc không còn câu trả lời.
+   *
+   * ĐỨNG SAU `available` trong tệp này là bắt buộc: Nest khớp route theo thứ tự
+   * khai, nên `:id` đặt trước sẽ nuốt luôn đường `/available`.
+   *
+   * KÈM CẢ `QUAN_TRI`, khác `available` ngay trên. `available` loại Quản trị ra
+   * có lý — họ không phải người chọn mẫu để xem. Lý do ấy không áp được cho
+   * đường này: nó chỉ trả một cái tên, và Quản trị là người QUẢN mẫu. Đo được
+   * trên chồng demo: thiếu vai trò này thì chính họ gọi `/policy-templates/:id`
+   * ăn 403 — một lỗ không màn hình nào lộ ra, vì màn hình quản trị đọc tên từ
+   * danh sách chứ không từ đây.
+   */
+  @Roles(...NGUOI_XEM_HO_SO, 'QUAN_TRI')
+  @Get(':id')
+  ten(@Param('id') id: string) {
+    return this.templates.ten(id, 'HO_SO');
+  }
+
+  /**
+   * Vô hiệu hoá — cùng luật với mẫu hợp đồng, hệ quả thì khác hẳn.
+   *
+   * Mẫu hợp đồng rút khỏi ô chọn thì lần xuất sau chọn cái khác là xong. Mẫu HỒ
+   * SƠ thì đã đóng băng vào những hồ sơ đã gửi duyệt, nên vô hiệu hoá KHÔNG đụng
+   * được tới chúng — và đó là điều phải bảo đảm, không phải điều phải chặn.
+   */
   @Roles('QUAN_TRI')
-  @Delete(':id')
+  @Post(':id/vo-hieu')
   @HttpCode(200)
-  xoa(@Param('id') id: string) {
-    return this.templates.xoa(id);
+  async voHieu(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { confirm?: string },
+  ) {
+    const t = await this.templates.byId(id);
+    xacNhanGoLai(body?.confirm, t.name, { viec: 'vô hiệu hoá mẫu này' });
+    return this.templates.voHieu(id, me);
+  }
+
+  @Roles('QUAN_TRI')
+  @Post(':id/mo-lai')
+  @HttpCode(200)
+  moLai(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.templates.moLai(id, me);
   }
 }
 
@@ -272,6 +341,16 @@ export class PolicyTemplatesController {
 export class ContractsController {
   constructor(private readonly contracts: ContractsService) {}
 
+  /*
+   * `mauId` BẮT BUỘC ở cả hai đường hợp đồng (`0098`).
+   *
+   * Tới `0097` nó là tuỳ chọn, và thiếu thì `chon()` lấy mẫu đầu danh sách. Cái
+   * mặc định ngầm ấy đã bỏ: mỗi mẫu có tập cột riêng, nên "bản đầy đủ nội bộ" và
+   * "bản gọn đưa khách hàng" là hai văn bản khác hẳn nhau — và người xuất hợp
+   * đồng không được nhận về bản đầu tiên phần mềm nghĩ ra, mà phải nhận đúng bản
+   * họ chọn. Giao diện chặn trước bằng nút xám; đây là chốt thứ hai, cho lượt
+   * gọi thẳng API.
+   */
   /** Xem trước: trả về dữ liệu đã trộn, KHÔNG sinh file và không ghi gì (DOC-14). */
   @Roles('KE_TOAN', 'SALE_ADMIN')
   @Get(':id/contract/preview')
@@ -280,7 +359,7 @@ export class ContractsController {
     @Param('id') id: string,
     @Query() q: Record<string, string>,
   ) {
-    return this.contracts.preview(id, me, validate(q, { mauId: opt(uuid()) }).mauId);
+    return this.contracts.preview(id, me, validate(q, { mauId: uuid() }).mauId);
   }
 
   /**
@@ -297,7 +376,7 @@ export class ContractsController {
     @Query() q: Record<string, string>,
     @Res() res: Response,
   ): Promise<void> {
-    const b = validate(q, { mauId: opt(uuid()) });
+    const b = validate(q, { mauId: uuid() });
     const { pdf, fileName } = await this.contracts.export(id, me, b.mauId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

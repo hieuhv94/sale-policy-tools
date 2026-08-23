@@ -12,6 +12,7 @@
  */
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
+import { SUA_DUOC } from '@csbh/domain-policy';
 import { Clients } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { Storage } from '../infra/storage.js';
@@ -55,23 +56,7 @@ export class RenderService {
     me: AuthUser,
   ): Promise<{ body: Buffer; code: string }> {
     const { policy, customer, people } = await this.collect(policyId, me);
-
-    /*
-     * Bản mềm sinh từ MẪU do Quản trị tải lên (`0055`), không còn dựng cứng.
-     *
-     * Tới `0057` mẫu được tra theo KHỔ GIẤY người xem chọn. Từ `0058` người xem
-     * chọn thẳng mẫu — khổ giấy là chuyện của chính file .docx, và bản mềm dựng
-     * ra mang đúng khổ của mẫu vừa chọn.
-     */
-    const mau = await this.templates.chon('HO_SO', mauId);
-    if (!mau) {
-      throw new ConflictException({
-        code: 'POLICY_TEMPLATE_MISSING',
-        message:
-          'Chưa có văn bản mẫu nào cho hồ sơ CSBH. ' +
-          'Đề nghị Quản trị hệ thống thêm mẫu ở màn hình Văn bản mẫu.',
-      });
-    }
+    const mau = await this.mauCua(policy, mauId, me);
 
     /*
       KHÔNG còn phép kiểm "thiếu trường bắt buộc" ở đây (`0067`).
@@ -110,6 +95,72 @@ export class RenderService {
      * cũng mất nghĩa và đã gỡ khỏi controller.
      */
     return { body, code: policy.code };
+  }
+
+  /**
+   * MẪU NÀO DỰNG BẢN MỀM NÀY — toàn bộ luật của `0098`, ở đúng một chỗ.
+   *
+   * Ba nhánh, và thứ tự giữa chúng là cả nội dung của yêu cầu:
+   *
+   *   1. Hồ sơ ĐÃ ĐÓNG BĂNG mẫu → dùng đúng mẫu ấy, kể cả khi nó đã bị vô hiệu
+   *      hoá. Ai truyền `mauId` khác thì bị TỪ CHỐI, không bị bỏ qua im lặng —
+   *      im lặng ở đây nghĩa là người gọi tin mình đang xem mẫu A trong khi
+   *      nhận về mẫu B (`0089`).
+   *   2. CHƯA đóng băng, người gọi là TDV của hồ sơ và hồ sơ còn sửa được → mẫu
+   *      họ chọn. Đây là quãng duy nhất còn được chọn, và nó kết thúc đúng lúc
+   *      bấm *Gửi duyệt*.
+   *   3. Còn lại → không dựng được. Hồ sơ lập trước `0098` rơi vào đây.
+   *
+   * PHẢI Ở MÁY CHỦ, không phải ở chỗ giao diện ẩn ô chọn: Ban lãnh đạo mở được
+   * hồ sơ *Nháp* của người khác (`assertPolicyInScope` cho qua vì TDV nằm trong
+   * phạm vi họ), nên "web không bày ô chọn" không chặn được gì.
+   */
+  private async mauCua(
+    policy: { id: string; status: string; mau_ho_so_id: string | null; tdv_user_id: string | null },
+    mauId: string | undefined,
+    me: AuthUser,
+  ) {
+    if (policy.mau_ho_so_id) {
+      if (mauId && mauId !== policy.mau_ho_so_id) {
+        throw new ConflictException({
+          code: 'TEMPLATE_LOCKED',
+          message:
+            'Hồ sơ này đã gắn văn bản mẫu từ lúc gửi duyệt, không đổi mẫu khi xem được.',
+          templateId: policy.mau_ho_so_id,
+        });
+      }
+      const mau = await this.templates.theoId(policy.mau_ho_so_id, 'HO_SO');
+      if (!mau) {
+        // Mẫu đã gắn mà không tra ra được: chỉ xảy ra khi có người xoá thẳng
+        // dưới CSDL, vì `0098` đã gỡ hết đường xoá qua API.
+        throw new ConflictException({
+          code: 'POLICY_TEMPLATE_MISSING',
+          message:
+            'Văn bản mẫu đã gắn với hồ sơ này không còn trong hệ thống. ' +
+            'Đề nghị Quản trị hệ thống kiểm tra lại danh sách văn bản mẫu.',
+          templateId: policy.mau_ho_so_id,
+        });
+      }
+      return mau;
+    }
+
+    const suaDuoc = SUA_DUOC.includes(policy.status as never);
+    if (suaDuoc && policy.tdv_user_id === me.id) {
+      if (!mauId) {
+        throw new ConflictException({
+          code: 'TEMPLATE_REQUIRED',
+          message: 'Chọn một văn bản mẫu để xem bản mềm.',
+        });
+      }
+      return this.templates.chon('HO_SO', mauId);
+    }
+
+    throw new ConflictException({
+      code: 'POLICY_TEMPLATE_NOT_SET',
+      message:
+        'Hồ sơ này lập trước khi phần mềm gắn văn bản mẫu vào hồ sơ, nên không có bản mềm. ' +
+        'Lập một CSBH mới cho khách hàng này để có bản mềm.',
+    });
   }
 
   /**

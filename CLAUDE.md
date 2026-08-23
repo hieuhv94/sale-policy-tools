@@ -82,12 +82,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (23/08/2026)
 
-Chặng gần nhất **P124** (`0097`): màn hình hồ sơ tách **hai khối tệp** — *Giấy tờ hồ sơ* và *Bản
-cứng*; vùng tải lên và dấu gỡ chỉ hiện ở đúng khối của loại tệp. **1603/1603 xanh**, cây làm việc
-sạch.
+Chặng gần nhất **P125** (`0098`): **mẫu bản mềm đóng băng vào hồ sơ** lúc TDV gửi duyệt — chỉ TDV
+chọn, các vai trò sau chỉ xem; và **mẫu thôi xoá được, chỉ vô hiệu hoá**. **1621/1621 xanh**, cây
+làm việc sạch.
 
-Trước đó **P123** (`0096`): **thông báo trên web** — chuông ở thanh trên cùng mang con số chưa đọc
-(`99+` khi vượt trần), hộp thông báo soi gương hộp thư.
+Trước đó **P124** (`0097`): màn hình hồ sơ tách **hai khối tệp** — *Giấy tờ hồ sơ* và *Bản cứng*.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -118,6 +117,13 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `templates.duongDan()`, một hàm cho cả thư lẫn chuông. Hai lá thư của `identity` (kích hoạt, đặt
   lại mật khẩu) **không** sinh thông báo: chúng mang token thô, mà `ONB-15` cấm token thô nằm trong
   CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
+- **Mẫu bản mềm CSBH đóng băng vào hồ sơ lúc gửi duyệt** (`0098`) — cột `pol.policy.mau_ho_so_id`,
+  tham chiếu logic sang `doc`, không FK. Chỉ TDV chọn, đúng hai hành động `SUBMIT` và
+  `RESUBMIT_AFTER_EDIT` ghi cột ấy; mọi vai trò sau chỉ xem. Kéo theo hai luật khoá lẫn nhau: **mẫu
+  không xoá được nữa, chỉ vô hiệu hoá** — và vô hiệu hoá **không đụng tới hồ sơ đã gắn**, nên
+  `templates.khaDung()` (ô chọn, có lọc) và `templates.theoId()` (dựng văn bản, không lọc) phải
+  tách rời. **Hợp đồng KHÔNG đóng băng** — không lưu bản ghi nào thì không có gì để gắn vào — nhưng
+  người xuất vẫn **bắt buộc chọn**: không còn mẫu mặc định ngầm ở bất kỳ đâu.
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.

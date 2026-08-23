@@ -73,6 +73,37 @@ export async function cleanupTestUsers(): Promise<void> {
   }
 }
 
+/**
+ * Một mẫu hồ sơ CÒN DÙNG ĐƯỢC, để các ca kiểm gửi duyệt được (`0098`).
+ *
+ * Từ `0098` mọi lượt `SUBMIT` và `RESUBMIT_AFTER_EDIT` phải kèm `mauHoSoId` —
+ * hàm này thay chỗ cho ô chọn mà người dùng thật sẽ bấm.
+ *
+ * Đọc THẲNG CSDL chứ không qua `/policy-templates/available`: đường API cần một
+ * token và một trong năm vai trò xem hồ sơ, mà phần lớn ca gọi hàm này chỉ cần
+ * "một id hợp lệ bất kỳ". Mẫu luôn có sẵn vì `TemplateBootstrap` seed hai mẫu
+ * mặc định lúc `document` khởi động.
+ *
+ * Nhớ MỘT LẦN cho cả lượt chạy: nó không đổi giữa chừng, và mỗi ca một lượt kết
+ * nối CSDL riêng là chỗ chậm không cần thiết trong một bộ test vốn đã chạy tuần
+ * tự.
+ */
+let mauNho: string | undefined;
+export async function mauHoSoMacDinh(): Promise<string> {
+  if (mauNho) return mauNho;
+  const id = await withAdminDb(async (c) => {
+    const r = await c.query<{ id: string }>(
+      `SELECT id FROM doc.contract_template
+        WHERE kind = 'HO_SO' AND vo_hieu_hoa_luc IS NULL
+        ORDER BY is_default ASC, updated_at DESC, paper_size, id LIMIT 1`,
+    );
+    return r.rows[0]?.id;
+  });
+  if (!id) throw new Error('chưa có mẫu hồ sơ nào — document đã khởi động chưa?');
+  mauNho = id;
+  return id;
+}
+
 export async function withAdminDb<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = admin();
   await c.connect();
@@ -293,11 +324,20 @@ export async function idNguoiDung(): Promise<Record<string, string>> {
  * Nên: mặc định `tbp01`/`kt01`/`sa01` — đúng những người mà cây tổ chức cũ vẫn
  * chọn cho `tdv01`, nên hành vi của các ca cũ không đổi. Ca nào QUAN TÂM tới
  * người cụ thể thì truyền thẳng trong `body`, và nó ghi đè (xem `act` từng tệp).
+ *
+ * `0098` thêm `mauHoSoId` vào đúng hai bước gửi duyệt, cùng một lẽ: gần một trăm
+ * chỗ gọi `act(id, 'SUBMIT', 'tdv01')` và không chỗ nào quan tâm bản mềm dựng
+ * bằng mẫu nào. Ca nào quan tâm — chính những ca của `0098` — thì truyền thẳng
+ * trong `body` và nó ghi đè.
  */
 export async function phanCongMacDinh(action: string): Promise<Record<string, string>> {
   const id = await idNguoiDung();
   if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
-    return { tbpUserId: id['tbp01']!, keToanUserId: id['kt01']! };
+    return {
+      tbpUserId: id['tbp01']!,
+      keToanUserId: id['kt01']!,
+      mauHoSoId: await mauHoSoMacDinh(),
+    };
   }
   if (action === 'KT_RECEIVE_L1') return { saleAdminUserId: id['sa01']! };
   return {};

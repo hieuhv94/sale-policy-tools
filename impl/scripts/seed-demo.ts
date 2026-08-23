@@ -101,9 +101,27 @@ async function guiTep<T>(duong: string, ai: string, form: FormData): Promise<T> 
  */
 const idNguoiDung: Record<string, string> = {};
 
+/**
+ * Mẫu hồ sơ đã nạp, theo thứ tự `namMauHoSo` tải lên (`0098`).
+ *
+ * Từ `0098` gửi duyệt BẮT BUỘC kèm mẫu, và mẫu ấy đóng băng vào hồ sơ. Bộ nạp
+ * XOAY VÒNG qua cả ba mẫu thay vì dùng mãi một cái: bản demo cần bày ra chính
+ * thứ vừa làm được — mở hai hồ sơ khác nhau ra thì thấy hai bố cục khác nhau,
+ * và một trong ba mẫu là bản rút gọn bốn cột. Dùng một mẫu cho tất cả thì tính
+ * năng này vô hình y như lúc chưa có.
+ */
+const mauHoSoDaNap: string[] = [];
+let luotMau = 0;
+
 const phanCong = (hanhDong: string): Record<string, string> => {
   if (hanhDong === 'SUBMIT' || hanhDong === 'RESUBMIT_AFTER_EDIT') {
-    return { tbpUserId: idNguoiDung['tbp01']!, keToanUserId: idNguoiDung['kt01']! };
+    return {
+      tbpUserId: idNguoiDung['tbp01']!,
+      keToanUserId: idNguoiDung['kt01']!,
+      ...(mauHoSoDaNap.length > 0
+        ? { mauHoSoId: mauHoSoDaNap[luotMau++ % mauHoSoDaNap.length]! }
+        : {}),
+    };
   }
   if (hanhDong === 'KT_RECEIVE_L1') return { saleAdminUserId: idNguoiDung['sa01']! };
   return {};
@@ -544,7 +562,8 @@ async function namMauHoSo(): Promise<void> {
       form.append('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'cpbh_tong', 'gia_thu_ve']));
     }
     form.append('file', new Blob([buf]), m.tep);
-    await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
+    const mau = await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
+    mauHoSoDaNap.push(mau.id);
   }
 }
 
@@ -924,6 +943,21 @@ async function main(): Promise<void> {
       })
     ).id;
 
+  // === Mẫu hồ sơ CSBH ========================================================
+  //
+  // Nạp từ FILE THẬT trong `templates/`, không dựng lại thân mẫu ở đây (`0057`).
+  //
+  // Đây là điểm khác biệt đáng giá: bản demo dùng đúng ba file mà Quản trị tải
+  // về sửa được. Dựng lại thân mẫu trong bộ nạp thì demo chạy trên một bố cục
+  // chỉ tồn tại trong mã seed, và ngày ai đó sửa file trong `templates/` mà quên
+  // sửa ở đây thì hai bên lệch nhau mà không gì báo.
+  await namMauHoSo();
+
+  // PHẢI đứng TRƯỚC mọi lượt lập hồ sơ (`0098`): gửi duyệt bắt buộc kèm mẫu, và
+  // `phanCong()` xoay vòng qua chính mảng mà `namMauHoSo` vừa điền. Đặt sau thì
+  // mảng còn rỗng lúc hồ sơ đầu tiên đi qua, và mọi hồ sơ của bản demo gửi duyệt
+  // mà không có mẫu — hỏng ở đúng chỗ khó đoán nhất là màn hình xem bản mềm.
+
   // === PHẦN VIẾT TAY: năm hồ sơ được chọn, đứng đầu danh sách =================
 
   // 1. NHÁP — tdv01 mở phần mềm là có ngay việc dở dang để xem và sửa.
@@ -1253,16 +1287,6 @@ async function main(): Promise<void> {
     form.append('file', new Blob([makeDocx(than)]), `${ten}.docx`);
     await guiTep('/contract-templates', 'admin01', form);
   }
-
-  // === Mẫu hồ sơ CSBH ========================================================
-  //
-  // Nạp từ FILE THẬT trong `templates/`, không dựng lại thân mẫu ở đây (`0057`).
-  //
-  // Đây là điểm khác biệt đáng giá: bản demo dùng đúng ba file mà Quản trị tải
-  // về sửa được. Dựng lại thân mẫu trong bộ nạp thì demo chạy trên một bố cục
-  // chỉ tồn tại trong mã seed, và ngày ai đó sửa file trong `templates/` mà quên
-  // sửa ở đây thì hai bên lệch nhau mà không gì báo.
-  await namMauHoSo();
 
   // === Thư hỏng ==============================================================
   await namThuHong();

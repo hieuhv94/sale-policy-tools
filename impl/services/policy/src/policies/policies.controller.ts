@@ -22,6 +22,7 @@ import {
   pageOf,
   Roles,
   str,
+  uuid,
   validate,
   type AuthUser,
 } from '@csbh/http-kit';
@@ -269,6 +270,10 @@ export class PoliciesController {
       tbpUserId: opt(str(36, 36)),
       keToanUserId: opt(str(36, 36)),
       saleAdminUserId: opt(str(36, 36)),
+      // Mẫu bản mềm, đóng băng lúc gửi duyệt (`0098`). `opt()` cùng lý do như
+      // ba ô trên: chỉ hai hành động cần nó. Bắt buộc thật sự thì `workflow`
+      // đòi, kèm câu nói rõ phải chọn cái gì.
+      mauHoSoId: opt(uuid()),
     });
     return this.workflow.act(id, a.action as Action, me, b);
   }

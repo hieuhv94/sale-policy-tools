@@ -75,8 +75,8 @@ export class ContractsService {
   async build(
     policyId: string,
     me: AuthUser,
-    /** Mẫu người dùng CHỌN (`0058`). Bỏ trống thì lấy mẫu đầu danh sách. */
-    mauId?: string,
+    /** Mẫu người xuất CHỌN (`0058`), BẮT BUỘC từ `0098` — không còn mặc định ngầm. */
+    mauId: string,
   ): Promise<Preview> {
     this.assertRole(me);
 
@@ -94,15 +94,16 @@ export class ContractsService {
       });
     }
 
+    /*
+     * `NO_ACTIVE_TEMPLATE` KHÔNG còn ném ở đây (`0098`).
+     *
+     * Nó là câu trả lời cho "không truyền mẫu, mà danh sách cũng rỗng" — một
+     * nhánh không còn tồn tại từ khi `mauId` bắt buộc. Danh sách rỗng thì người
+     * xuất không chọn được gì để bấm, và màn hình nói câu ấy trước khi có lượt
+     * gọi nào. Mẫu vừa bị vô hiệu giữa chừng thì `chon` ném `TEMPLATE_NOT_USABLE`
+     * — đúng câu hơn, vì nó nói về CÁI MẪU VỪA CHỌN chứ không về cả danh sách.
+     */
     const active = await this.templates.chon('HOP_DONG', mauId);
-    if (!active) {
-      throw new ConflictException({
-        code: 'NO_ACTIVE_TEMPLATE',
-        message:
-          'Chưa có mẫu hợp đồng nào đang dùng. Đề nghị Quản trị hệ thống phát hành ' +
-          'một mẫu ở màn hình Văn bản mẫu rồi xuất lại.',
-      });
-    }
 
     const [customer, people] = await Promise.all([
       this.clients.customer(policy.customer_id),
@@ -125,7 +126,7 @@ export class ContractsService {
     };
   }
 
-  async preview(policyId: string, me: AuthUser, mauId?: string): Promise<Preview> {
+  async preview(policyId: string, me: AuthUser, mauId: string): Promise<Preview> {
     return this.build(policyId, me, mauId);
   }
 
@@ -136,8 +137,8 @@ export class ContractsService {
   async export(
     policyId: string,
     me: AuthUser,
-    /** Mẫu người dùng CHỌN (`0058`). */
-    mauId?: string,
+    /** Mẫu người xuất CHỌN (`0058`), bắt buộc từ `0098`. */
+    mauId: string,
   ): Promise<{ pdf: Buffer; fileName: string }> {
     const built = await this.build(policyId, me, mauId);
 

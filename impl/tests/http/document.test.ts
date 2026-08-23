@@ -308,47 +308,38 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     }
   }, 60_000);
 
-  it('KHÔNG chọn mẫu thì ra mẫu mặc định — và nó là khổ DỌC, mọi lần cài đặt', async () => {
+  it('`0098` hồ sơ NHÁP: không chọn mẫu thì TỪ CHỐI, không rơi về mẫu mặc định', async () => {
     /*
-     * Hộp xác nhận ký số dựng bản xem trước mà không có ô chọn nào, nên đường
-     * "không tham số" phải ra một bản đọc được chứ không phải lỗi.
+     * ĐẢO NGƯỢC ca cũ, và đảo có chủ ý.
      *
-     * Và nó phải ra CÙNG MỘT MẪU ở mọi lần cài đặt: hai mẫu mặc định seed cùng
-     * một giao dịch nên `updated_at` bằng nhau, và nếu thứ tự rơi xuống `id` —
-     * uuid ngẫu nhiên — thì bản xem trước lúc ký là dọc hay ngang tuỳ máy.
+     * Bản trước khẳng định đường "không tham số" phải ra một bản đọc được, vì
+     * hộp xác nhận ký số dựng bản xem trước mà không có ô chọn nào. Từ `0098`
+     * hộp ấy không cần đoán nữa: hồ sơ đã gửi duyệt thì mẫu nằm sẵn trên chính
+     * hồ sơ, và bản xem trước lúc GỬI thì mang `mauId` người gửi vừa chọn.
+     *
+     * Nên mẫu mặc định ngầm mất chỗ đứng cuối cùng của nó. Với hồ sơ còn Nháp —
+     * chưa gắn mẫu nào — câu trả lời đúng là hỏi lại, không phải đưa ra một bản
+     * trình bày mà người xem không chọn: hai mẫu có hai tập cột khác nhau, nên
+     * "một bản đọc được" chưa chắc là bản họ định đọc.
      */
     const d = await draft(1);
-    const goi = async (q: string) =>
-      (await http(doc))
-        .get(`/policies/${d.id}/render${q}`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-        .responseType('blob');
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
+  }, 60_000);
 
-    const khong = await goi('');
-    expect(khong.status).toBe(200);
-
+  it('`0098` thứ tự ô chọn vẫn ổn định: mẫu mặc định khổ DỌC đứng trước khổ ngang', async () => {
     /*
-      So với ĐẦU DANH SÁCH chứ không với một khổ giấy cố định.
-
-      "Mẫu mở sẵn là mẫu đứng đầu ô chọn" mới là bất biến thật, và nó đúng dù ai
-      vừa ban hành mẫu gì. Khẳng định thẳng "phải ra khổ dọc" thì đúng trên một
-      CSDL mới tinh và sai ngay khi một ca ở tệp khác ban hành mẫu ngang của
-      riêng nó — mà các tệp kiểm thử dùng chung một CSDL.
-    */
-    const dau = (
-      await (await http(doc))
-        .get('/policy-templates/available')
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).body[0] as { id: string };
-    const theoDau = await goi(`?mauId=${dau.id}`);
-    expect((await pageSizes(khong.body as Buffer))[0]).toEqual(
-      (await pageSizes(theoDau.body as Buffer))[0],
-    );
-
-    // Và trên CSDL vừa cài xong, mẫu đứng đầu là khổ DỌC: hai mẫu mặc định seed
-    // cùng một giao dịch nên `updated_at` bằng nhau, thứ tự rơi xuống
-    // `paper_size`, và thứ tự khai enum cho a4p đứng trước. Không có phép hoà ấy
-    // thì mẫu mở sẵn là dọc hay ngang tuỳ từng lần cài đặt.
+     * Phần CÒN GIÁ TRỊ của ca cũ, tách ra đứng riêng.
+     *
+     * Hai mẫu mặc định seed trong cùng một giao dịch nên `updated_at` bằng nhau;
+     * không có phép phá hoà theo `paper_size` thì thứ tự rơi xuống `id` — uuid
+     * ngẫu nhiên — và mẫu đứng đầu ô chọn là dọc hay ngang tuỳ từng lần cài đặt.
+     * Nó thôi quyết định bản xem trước, nhưng vẫn quyết định thứ người dùng thấy
+     * đầu tiên trong ô chọn.
+     */
     const macDinh = (
       await (await http(doc))
         .get('/policy-templates/available')
@@ -358,16 +349,17 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     expect(chiMacDinh[0]!.khoGiay, 'mẫu mặc định khổ dọc phải đứng trước khổ ngang').toBe('a4p');
   }, 60_000);
 
-  it('`0067` mẫu ĐÃ BỊ XOÁ thì từ chối, không âm thầm rơi về mẫu khác', async () => {
+  it('`0098` mẫu ĐÃ VÔ HIỆU thì từ chối, không âm thầm rơi về mẫu khác', async () => {
     /*
      * Tình huống có thật: người dùng mở hộp chọn, đi pha cà phê, trong lúc ấy
      * Quản trị xoá mẫu kia. Dựng bằng mẫu khác thì họ nhận về một văn bản không
      * phải thứ họ vừa chọn, và không có gì trên màn hình nói ra điều đó.
      *
-     * `0058` dùng *ngừng dùng* cho tình huống này; `0067` bỏ nút ấy nên chỉ còn
-     * XOÁ — và câu trả lời của máy chủ phải giống hệt: 404 nói rõ hãy chọn lại.
+     * `0058` dùng *ngừng dùng* cho tình huống này, `0067` đổi sang XOÁ, và
+     * `0098` quay về vô hiệu hoá — câu trả lời của máy chủ giữ nguyên qua cả ba
+     * đời: 404 nói rõ hãy chọn lại.
      *
-     * Xoá một mẫu do CHÍNH ca này thêm vào, không mượn mẫu mặc định: mượn rồi
+     * Vô hiệu một mẫu do CHÍNH ca này thêm vào, không mượn mẫu mặc định: mượn rồi
      * trả lại là đổi thứ tự danh sách, và mẫu mở sẵn của mọi ca phía sau đổi
      * theo. Đúng cái bẫy đã làm DOC-20 đỏ với "expected 842 to be 595".
      */
@@ -387,8 +379,9 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     expect(up.status, JSON.stringify(up.body)).toBe(201);
 
     await (await http(doc))
-      .delete(`/policy-templates/${up.body.id}`)
-      .set('Authorization', `Bearer ${tok['admin01']}`);
+      .post(`/policy-templates/${up.body.id}/vo-hieu`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ confirm: 'Mẫu sắp bị xoá' });
 
     const r = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
@@ -1244,9 +1237,12 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       await doc.get(TemplatesService).ensureDefault(SYSTEM_USER_ID);
       expect(await storage.exists((await doiFile(up.body.id)).object_key)).toBe(false);
     } finally {
+      // `0098`: không còn đường xoá. Vô hiệu hoá là đủ cho việc dọn dẹp ở đây —
+      // mẫu hỏng file rời khỏi ô chọn của mọi ca chạy sau.
       await (await http(doc))
-        .delete(`/policy-templates/${up.body.id}`)
-        .set('Authorization', `Bearer ${tok['admin01']}`);
+        .post(`/policy-templates/${up.body.id}/vo-hieu`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+        .send({ confirm: 'Mau se mat file' });
     }
   }, 120_000);
 });
