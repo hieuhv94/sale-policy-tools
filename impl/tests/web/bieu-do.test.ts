@@ -8,6 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  buocNhan,
+  CHU,
   chong,
   duongGap,
   inNhan,
@@ -126,6 +128,47 @@ describe('`0094` nhãn trục hoành', () => {
 
   it('in mọi nhãn khi bước bằng 1', () => {
     for (let i = 0; i < 6; i++) expect(inNhan(i, 6, 1)).toBe(true);
+  });
+});
+
+describe('`0095` nhãn trục hoành KHÔNG đè lên nhau', () => {
+  /** Bề rộng ước lượng của một nhãn, cùng công thức mà `buocNhan` dùng. */
+  const rongNhan = (dai: number) => dai * 0.58 * CHU.nhan;
+  const rongVe = KHUNG.rong - KHUNG.leTrai - KHUNG.lePhai;
+
+  /** Tổng bề rộng của những nhãn THẬT SỰ được in. */
+  const tongRong = (n: number, dai: number) => {
+    const buoc = buocNhan(n, dai);
+    const soIn = [...Array(n).keys()].filter((i) => i === n - 1 || (n - 1 - i) % buoc === 0).length;
+    return soIn * rongNhan(dai);
+  };
+
+  it('nhãn ngắn 12 kỳ vẫn vừa, và in dày hơn nhãn dài', () => {
+    // `T34` in được gần hết; `Tuần 34 · 17/08–23/08` thì phải thưa hẳn.
+    expect(buocNhan(12, 3)).toBeLessThan(buocNhan(12, 21));
+    expect(tongRong(12, 3)).toBeLessThanOrEqual(rongVe);
+    expect(tongRong(12, 21)).toBeLessThanOrEqual(rongVe);
+  });
+
+  it('mọi tổ hợp số kỳ × độ dài nhãn đều vừa bề ngang', () => {
+    /*
+     * Đây là ca thay cho con mắt: bản trước để mỗi chỗ gọi tự truyền `moiN`, và
+     * con số ấy đúng cho một bề rộng với một độ dài nhãn CỤ THỂ. Đổi nhãn hay
+     * xếp hình vào lưới hai cột là nó sai — mà sai thì không có gì báo, chỉ có
+     * chữ chồng lên chữ.
+     */
+    for (const n of [2, 5, 8, 12, 16, 24]) {
+      for (const dai of [2, 4, 6, 10, 21]) {
+        expect(tongRong(n, dai), `${n} kỳ, nhãn ${dai} ký tự`).toBeLessThanOrEqual(rongVe);
+      }
+    }
+  });
+
+  it('luôn in ÍT NHẤT nhãn cuối, dù nhãn dài tới đâu', () => {
+    // Kỳ đang chạy là thứ người ta tìm trước; bỏ nó là bỏ đúng cái nhãn cần.
+    const buoc = buocNhan(24, 30);
+    expect([...Array(24).keys()].some((i) => i === 23)).toBe(true);
+    expect(buoc).toBeGreaterThan(1);
   });
 });
 

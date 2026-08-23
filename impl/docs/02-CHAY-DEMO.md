@@ -206,6 +206,12 @@ make demo-data
 8. **`tbp01`** → *Thống kê* → xem **cơ cấu chất lượng hồ sơ** của từng TDV gửi tới bàn mình, và
    **số ngày họ sửa lại** sau khi bị trả.
 
+> **Dữ liệu mẫu trải ba năm** (`0095`). `make demo-mau` dựng cho một phần khách hàng cả một chuỗi
+> CSBH từ 2024 tới nay — mỗi bản sau thay bản trước, đúng bất biến *một khách một CSBH hiệu lực*.
+> Nhờ vậy đổi nhịp sang **Năm** ở trang *Thống kê* là thấy ngay khối lượng tăng dần và chiết khấu
+> bình quân nhích lên qua từng năm. Mọi hồ sơ vẫn đi qua API và đủ mười bước; chỉ **mốc thời gian**
+> là vặn tay — cùng cách bộ nạp đã làm với hồ sơ quá hạn.
+
 ## Email: cơ chế gửi
 
 **Ở bản demo, không thư nào ra Internet.** Tất cả đi vào **Mailpit** chạy trong máy. Mở nó ra:

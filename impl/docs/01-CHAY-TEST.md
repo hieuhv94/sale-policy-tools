@@ -20,7 +20,7 @@ Lần chạy đầu mất khoảng 3–5 phút vì phải kéo ảnh Docker và 
 
 ```
  Test Files  68 passed (68)
-      Tests  1538 passed (1538)
+      Tests  1541 passed (1541)
 ```
 
 Báo cáo JUnit ghi ra `workspace/reports/junit.xml`. Thư mục `workspace/` nằm ngoài mã nguồn và

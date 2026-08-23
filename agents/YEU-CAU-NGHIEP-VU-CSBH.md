@@ -929,6 +929,20 @@ liệu"*. Sáu dạng hình, mỗi dạng gắn với một câu hỏi — **kh�
 | Phân tán | Ai lệch khỏi đám đông? |
 | Thanh ngưỡng | Còn cách hạn bao xa? |
 
+**BỐ CỤC LƯỚI** `sửa 23/08`. Hình xếp **hai cột** trên màn hình rộng, không phải mười hai khối kéo
+hết bề ngang: một hình chiếm trọn chiều ngang thì phải cuộn mới thấy hình kế tiếp, mà mắt không so
+được hai hình không cùng nằm trong tầm nhìn. Chỉ khối có **dòng người** (tên · thanh · nhãn xu
+hướng) mới chiếm trọn.
+
+**Chú thích gom về MỘT chỗ** `sửa 23/08`. Dưới mỗi hình chỉ còn chú thích màu; phần *mốc của từng
+chỉ số*, *luật nhãn xu hướng* và *cách xử lý kỳ đang chạy* nằm trong khối **Cách tính** gấp lại ở
+cuối trang. In chúng dưới từng hình thì mỗi khối gánh thêm bốn dòng chữ xám, và cả trang thành trang
+chữ có hình xen kẽ.
+
+**Nhãn trục ngắn** `mới 23/08` — `T34` · `8/26` · `Q3/26` · `2026`. Nhãn đầy đủ (*"Tuần 34 ·
+17/08–23/08"*) vẫn dùng ở câu tóm tắt cho trình đọc màn hình. Bước nhảy giữa các nhãn **tự tính**
+theo bề rộng còn trống và độ dài nhãn, nên chúng không bao giờ đè lên nhau.
+
 **Khối theo vai trò:**
 
 | Vai trò | Hình |

@@ -1065,9 +1065,10 @@ trình dược viên theo tháng, Trưởng bộ phận, Kế toán và Sale Adm
 xếp hạng (*ai nhiều nhất*), phân tán (*ai lệch khỏi đám đông*), thanh ngưỡng (*còn cách hạn bao
 xa*).
 
-Dưới mỗi hình là **chú thích màu kèm mốc** của từng đường. Đây không phải chi tiết kỹ thuật:
-*"tháng này có bao nhiêu CSBH"* là câu chưa đủ nghĩa — **lập** trong tháng, **gửi duyệt** trong
-tháng và **có hiệu lực** trong tháng là ba con số khác nhau.
+Hình xếp **hai cột** để so được bằng mắt mà không phải cuộn. Dưới mỗi hình là **chú thích màu**;
+muốn biết từng chỉ số tính theo mốc nào thì mở khối **Cách tính** ở cuối trang — *"tháng này có bao
+nhiêu CSBH"* là câu chưa đủ nghĩa, vì **lập** trong tháng, **gửi duyệt** trong tháng và **có hiệu
+lực** trong tháng là ba con số khác nhau.
 
 **Kỳ đang chạy** phủ một dải mờ trên đường, và cột của nó nhạt hơn. Nó chưa đủ ngày, nên điểm cuối
 luôn thấp hơn thực tế — không đánh dấu thì mọi đường đều trông như đang rơi ở đoạn cuối.

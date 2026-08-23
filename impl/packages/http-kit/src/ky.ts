@@ -160,6 +160,23 @@ export function nhanKy(ky: Ky, d: Date): string {
   }
 }
 
+/** Nhãn ngắn cho trục biểu đồ. Xem `nhanNgan` ở `MotKy`. */
+export function nhanNganKy(ky: Ky, d: Date): string {
+  const dau = dauKy(ky, d);
+  const l = lich(dau);
+  const namNgan = String(l.nam).slice(2);
+  switch (ky) {
+    case 'tuan':
+      return `T${soTuanIso(dau).tuan}`;
+    case 'thang':
+      return `${l.thang + 1}/${namNgan}`;
+    case 'quy':
+      return `Q${Math.floor(l.thang / 3) + 1}/${namNgan}`;
+    case 'nam':
+      return String(l.nam);
+  }
+}
+
 /**
  * Mã kỳ — khoá để ghép dòng SQL với dòng trên màn hình.
  *
@@ -174,6 +191,15 @@ export const maKy = (ky: Ky, d: Date): string => {
 export type MotKy = {
   ma: string;
   nhan: string;
+  /**
+   * Nhãn NGẮN cho trục biểu đồ — `T34` · `8/26` · `Q3/26` · `2026` (`0095`).
+   *
+   * Nhãn đầy đủ của tuần là *"Tuần 34 · 17/08–23/08"*: đọc rất rõ trong một
+   * dòng chữ, và chồng lên nhau ngay từ nhãn thứ hai khi nằm trên trục hoành.
+   * Hai nhãn cho hai chỗ, không phải một nhãn cắt bớt — chỗ nào cũng cần bản
+   * đúng của nó, và `nhan` vẫn là thứ trình đọc màn hình nghe.
+   */
+  nhanNgan: string;
   /** Nửa mở `[tu, den)`, dạng ISO — đúng cách mọi truy vấn ở đây so sánh. */
   tu: string;
   den: string;
@@ -194,6 +220,7 @@ export function chuoiKy(ky: Ky, soKy: number, bayGio = new Date()): MotKy[] {
     ra.push({
       ma: maKy(ky, dau),
       nhan: nhanKy(ky, dau),
+      nhanNgan: nhanNganKy(ky, dau),
       tu: dau.toISOString(),
       den: kyKe(ky, dau).toISOString(),
       dangChay: i === 0,

@@ -23,6 +23,7 @@ import {
   mocCungKhoang,
   MUI_GIO,
   nhanKy,
+  nhanNganKy,
   type AuthUser,
   type Ky,
 } from '@csbh/http-kit';
@@ -66,6 +67,7 @@ export type TenChiSo = keyof typeof NEO;
 export type SoLieuKy = {
   ma: string;
   nhan: string;
+  nhanNgan: string;
   tu: string;
   den: string;
   dangChay: boolean;
@@ -181,7 +183,7 @@ export type NguoiThongKe = {
 export type BoTheoTdv = {
   ky: Ky;
   soKy: number;
-  chuoi: { ma: string; nhan: string; tu: string; den: string; dangChay: boolean }[];
+  chuoi: { ma: string; nhan: string; nhanNgan: string; tu: string; den: string; dangChay: boolean }[];
   nguoi: NguoiThongKe[];
 };
 
@@ -274,6 +276,7 @@ export class ThongKeService {
       {
         ma: maKy(ky, dauTruoc),
         nhan: nhanKy(ky, dauTruoc),
+        nhanNgan: nhanNganKy(ky, dauTruoc),
         tu: dauTruoc.toISOString(),
         den: denKyTruoc,
         dangChay: false,
@@ -455,7 +458,7 @@ export class ThongKeService {
     bayGio = new Date(),
   ): Promise<{
     ky: Ky;
-    chuoi: { ma: string; nhan: string }[];
+    chuoi: { ma: string; nhan: string; nhanNgan: string }[];
     dong: { nhom: string; maKy: string; chietKhauTb: number; soDong: number; vuotNguong: number }[];
   }> {
     const ids = await this.scope.userIdsFor(me);
@@ -486,7 +489,7 @@ export class ThongKeService {
 
     return {
       ky,
-      chuoi: cacKy.map((k) => ({ ma: k.ma, nhan: k.nhan })),
+      chuoi: cacKy.map((k) => ({ ma: k.ma, nhan: k.nhan, nhanNgan: k.nhanNgan })),
       dong: rows.map((r) => ({
         // Sản phẩm chưa gán nhóm vẫn phải hiện ra, và hiện dưới đúng cái tên
         // nó có: một dòng biến mất khỏi bảng chiết khấu là một dòng không ai đi
@@ -812,7 +815,7 @@ export const maSql = (ky: Ky, cot: string): string =>
 
 /** Ghép ba nguồn số liệu vào một dòng kỳ. Kỳ không có gì thì mọi ô là 0, không phải trống. */
 function gop(
-  k: { ma: string; nhan: string; tu: string; den: string; dangChay: boolean },
+  k: { ma: string; nhan: string; nhanNgan: string; tu: string; den: string; dangChay: boolean },
   dem: Map<string, Record<string, number>>,
   tien: Map<string, { giaTri: number; ngay: number | null }>,
   dong: Map<string, { soDong: number; ck: number | null; vuot: number }>,

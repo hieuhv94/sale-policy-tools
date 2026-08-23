@@ -26,10 +26,11 @@
  */
 import type { ReactNode } from 'react';
 import {
+  buocNhan,
+  CHU,
   chong,
   duongGap,
   inNhan,
-  CHU,
   KHUNG,
   mocTruc,
   oCot,
@@ -91,14 +92,31 @@ function Luoi({ max, cao, dinhDang }: { max: number; cao: number; dinhDang?: (v:
   );
 }
 
-function NhanTruc({ moc, cao, moiN, giua }: { moc: string[]; cao: number; moiN: number; giua?: boolean }) {
+/**
+ * Nhãn trục hoành — bước nhảy TỰ TÍNH, không nhận từ chỗ gọi.
+ *
+ * Xem `buocNhan`: chỗ gọi không biết nhãn dài bao nhiêu ký tự, mà đó lại là thứ
+ * quyết định có đè nhau hay không.
+ */
+function NhanTruc({ moc, cao, giua }: { moc: string[]; cao: number; giua?: boolean }) {
   const o = oCot(moc.length);
+  /*
+   * `m ?? ''` chứ không tin thẳng vào mảng nhãn.
+   *
+   * Máy chủ luôn gửi nhãn (kiểu bắt buộc), nên thiếu một cái là vi phạm hợp
+   * đồng — nhưng cái giá của việc tin tuyệt đối là **cả trang trắng**: một
+   * `undefined.length` ném ra giữa lượt vẽ và React gỡ bỏ toàn bộ cây. Một trục
+   * thiếu chữ vẫn đọc được hình; một trang trắng thì không.
+   */
+  const nhan = moc.map((m) => m ?? '');
+  const daiNhat = Math.max(1, ...nhan.map((m) => m.length));
+  const moiN = buocNhan(nhan.length, daiNhat);
   return (
     <g aria-hidden="true">
-      {moc.map((m, i) =>
-        inNhan(i, moc.length, moiN) ? (
+      {nhan.map((m, i) =>
+        inNhan(i, nhan.length, moiN) ? (
           <text
-            key={m}
+            key={`${i}-${m}`}
             fontSize={CHU.nhan}
             x={giua ? KHUNG.leTrai + o * i + o / 2 : toaDoX(i, moc.length)}
             y={cao - 7}
@@ -136,8 +154,7 @@ const DaiDangChay = ({ n, cao }: { n: number; cao: number }) => {
 export function Duong({
   moc,
   chuoi,
-  cao = 210,
-  moiN = 2,
+  cao = 180,
   moTa,
   dinhDang,
   dangChay = true,
@@ -145,7 +162,6 @@ export function Duong({
   moc: string[];
   chuoi: Chuoi[];
   cao?: number;
-  moiN?: number;
   moTa: string;
   dinhDang?: (v: number) => string;
   dangChay?: boolean;
@@ -176,7 +192,7 @@ export function Duong({
         x2={KHUNG.rong - KHUNG.lePhai}
         y2={cao - KHUNG.leDuoi}
       />
-      <NhanTruc moc={moc} cao={cao} moiN={moiN} />
+      <NhanTruc moc={moc} cao={cao} />
     </KhungVe>
   );
 }
@@ -184,8 +200,7 @@ export function Duong({
 export function Cot({
   moc,
   lop,
-  cao = 210,
-  moiN = 1,
+  cao = 180,
   nhom = false,
   moTa,
   dinhDang,
@@ -194,7 +209,6 @@ export function Cot({
   moc: string[];
   lop: Chuoi[];
   cao?: number;
-  moiN?: number;
   /** Cột đứng cạnh nhau thay vì chồng lên nhau. */
   nhom?: boolean;
   moTa: string;
@@ -246,7 +260,7 @@ export function Cot({
         );
       })}
       <line className="bd-truc" x1={KHUNG.leTrai} y1={day} x2={KHUNG.rong - KHUNG.lePhai} y2={day} />
-      <NhanTruc moc={moc} cao={cao} moiN={moiN} giua />
+      <NhanTruc moc={moc} cao={cao} giua />
     </KhungVe>
   );
 }

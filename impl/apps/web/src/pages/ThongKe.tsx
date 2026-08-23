@@ -18,13 +18,14 @@ import type { VaiTro } from '../lib/can.js';
 import { ngay, tien, tyLe } from '../lib/format.js';
 import {
   chuoiChiSo,
+  mocNgan,
   KHOI_CAN_NHOM,
   KHOI_CAN_SO_LIEU,
   KHOI_CAN_TDV,
+  KHOI_RONG,
   KHOI_THEO_VAI_TRO,
   KY_MAC_DINH,
   LY_DO_KHONG_CO_SO,
-  mocKy,
   MOI_KY,
   NEO,
   NHAN_KY,
@@ -79,11 +80,8 @@ export function ThongKe() {
           <O key={ten} tieuDe="Vào luồng và ra khỏi luồng" hoi={`${bo?.chuoi.length ?? 0} kỳ gần nhất`} loi={loi} co={bo}>
             {bo && (
               <>
-                <p className="o-phu">
-                  Khoảng cách giữa hai đường chính là lượng hồ sơ đang nằm trong luồng.
-                </p>
                 <Duong
-                  moc={mocKy(bo)}
+                  moc={mocNgan(bo)}
                   moTa={`Hồ sơ lập mới và hồ sơ có hiệu lực qua ${bo.chuoi.length} kỳ`}
                   chuoi={[
                     { nhan: 'Lập mới', diem: chuoiChiSo(bo, 'lapMoi'), mau: 'bd-1', vung: true },
@@ -101,11 +99,8 @@ export function ThongKe() {
           <O key={ten} tieuDe="Kết cục của hồ sơ" hoi="cột chồng theo kỳ" loi={loi} co={bo}>
             {bo && (
               <>
-                <p className="o-phu">
-                  Phần đỏ dày lên là dấu hiệu sớm — nó hiện trước khi tổng số kịp giảm.
-                </p>
                 <Cot
-                  moc={mocKy(bo)}
+                  moc={mocNgan(bo)}
                   moTa="Cơ cấu kết cục hồ sơ theo từng kỳ"
                   lop={[
                     { nhan: 'Có hiệu lực', diem: chuoiChiSo(bo, 'coHieuLuc'), mau: 'bd-tot' },
@@ -182,10 +177,6 @@ export function ThongKe() {
                 <Trong tieuDe="Kỳ này chưa có hồ sơ nào đi hết luồng" />
               ) : (
                 <>
-                  <p className="o-phu">
-                    Chỉ tính hồ sơ <strong>đã đi hết luồng</strong> trong kỳ — hồ sơ đang dở dang
-                    chưa có đủ bốn quãng để cộng.
-                  </p>
                   <ThanhNguong
                     moTa="Số ngày trung bình hồ sơ nằm ở từng bước, so với hạn 14 ngày"
                     nguong={SLA_NGAY}
@@ -223,11 +214,6 @@ export function ThongKe() {
           <Khoi key={ten} tieuDe="Ai đang chạy tốt, ai đang chững" loi={loiTdv} dangTai={tdv === null}>
             {tdv && (
               <div className="o">
-                <p className="o-phu">
-                  Đếm <strong>hồ sơ gửi tới bàn bạn</strong>, và chỉ những người có hồ sơ trong phạm
-                  vi của bạn. Ai không gửi gì trong kỳ này vẫn hiện với số 0 — đó là ca chững nặng
-                  nhất, và giấu nó đi thì không ai thấy.
-                </p>
                 <XepHang
                   nhanCot="Hồ sơ gửi lên"
                   dangChon={aiDo}
@@ -240,7 +226,6 @@ export function ThongKe() {
                     xuHuong: n.xuHuongGui,
                   }))}
                 />
-                <LuatXuHuong />
               </div>
             )}
           </Khoi>
@@ -277,9 +262,8 @@ export function ThongKe() {
                     <span className="o-ten">Tôi ký bao nhiêu, trả lại bao nhiêu</span>
                   </div>
                   <Cot
-                    moc={mocKy(bo)}
+                    moc={mocNgan(bo)}
                     nhom
-                    moiN={2}
                     moTa="Số hồ sơ đã ký, bị trả lại và bị từ chối theo từng kỳ"
                     lop={[
                       { nhan: 'Đã ký', diem: chuoiChiSo(bo, 'tbpKy'), mau: 'bd-1' },
@@ -317,12 +301,8 @@ export function ThongKe() {
           <O key={ten} tieuDe="Hồ sơ của tôi" hoi="so với mặt bằng chung" loi={loi} co={bo}>
             {bo && (
               <>
-                <p className="o-phu">
-                  Đường đứt nét là <strong>trung vị của một trình dược viên</strong> trên toàn công
-                  ty — biết mình đứng ở đâu mà không phải bày tên ai khác ra.
-                </p>
                 <Duong
-                  moc={mocKy(bo)}
+                  moc={mocNgan(bo)}
                   moTa="Hồ sơ có hiệu lực và bị trả lại của tôi, so với trung vị công ty"
                   chuoi={[
                     { nhan: 'Có hiệu lực', diem: chuoiChiSo(bo, 'coHieuLuc'), mau: 'bd-1', vung: true },
@@ -350,14 +330,9 @@ export function ThongKe() {
           <O key={ten} tieuDe="Hai lần tiếp nhận" hoi="theo kỳ" loi={loi} co={bo}>
             {bo && (
               <>
-                <p className="o-phu">
-                  Hai hàng đợi vẽ riêng: chúng lệch pha nhau khoảng một kỳ vì bản cứng phải đi qua
-                  giấy.
-                </p>
                 <Cot
-                  moc={mocKy(bo)}
+                  moc={mocNgan(bo)}
                   nhom
-                  moiN={2}
                   moTa="Số hồ sơ tiếp nhận lần 1 và lần 2 theo từng kỳ"
                   lop={[
                     { nhan: 'Tiếp nhận L1', diem: chuoiChiSo(bo, 'ktNhanL1'), mau: 'bd-1' },
@@ -376,7 +351,7 @@ export function ThongKe() {
             {bo && (
               <>
                 <Cot
-                  moc={mocKy(bo)}
+                  moc={mocNgan(bo)}
                   moTa="Tổng giá thu về của hồ sơ có hiệu lực theo từng kỳ"
                   dinhDang={(v) => String(Math.round(v))}
                   lop={[
@@ -409,9 +384,8 @@ export function ThongKe() {
                     <span className="o-hoi">theo kỳ</span>
                   </div>
                   <Cot
-                    moc={mocKy(bo)}
+                    moc={mocNgan(bo)}
                     nhom
-                    moiN={2}
                     moTa="Số bản cứng bàn giao và số hợp đồng xuất theo từng kỳ"
                     lop={[
                       { nhan: 'Bàn giao', diem: chuoiChiSo(bo, 'banGiao'), mau: 'bd-2' },
@@ -425,12 +399,8 @@ export function ThongKe() {
                     <span className="o-ten">Số ngày làm bản cứng</span>
                     <span className="o-hoi">trung bình mỗi kỳ</span>
                   </div>
-                  <p className="o-phu">
-                    Quãng dài nhất của cả luồng vì nó đi qua giấy — và là quãng duy nhất bạn tự rút
-                    ngắn được.
-                  </p>
                   <Duong
-                    moc={mocKy(bo)}
+                    moc={mocNgan(bo)}
                     moTa="Số ngày trung bình từ lúc kế toán nhận bản mềm tới lúc bàn giao bản cứng"
                     dinhDang={(v) => `${Math.round(v)}n`}
                     chuoi={[
@@ -479,7 +449,24 @@ export function ThongKe() {
         </p>
       )}
 
-      {khoi.map(veKhoi)}
+      {/*
+        LƯỚI HAI CỘT, không phải mười hai khối xếp dọc.
+        Xem `KHOI_RONG`: khối nào cần trọn bề ngang thì tự khai, còn lại nằm
+        nửa lưới để hai hình đứng cạnh nhau mà so được.
+      */}
+      <div className="luoi-thong-ke">
+        {khoi.map((ten) => {
+          const noi = veKhoi(ten);
+          if (noi === null || noi === undefined) return null;
+          return (
+            <div key={ten} className={KHOI_RONG.includes(ten) ? 'o-luoi o-luoi-rong' : 'o-luoi'}>
+              {noi}
+            </div>
+          );
+        })}
+      </div>
+
+      <CachTinh khoi={khoi} />
     </section>
   );
 }
@@ -537,11 +524,12 @@ function O({
 }
 
 /**
- * Chú thích màu — và NÓI RA MỐC của từng đường.
+ * Chú thích màu — CHỈ màu và tên, không kèm mốc.
  *
- * Bắt buộc, không phải trang trí: "tháng này có bao nhiêu CSBH" là câu chưa đủ
- * nghĩa, và một cái tên cột như *Có hiệu lực* không tự nói ra nó đếm theo mốc
- * nào. Chú thích là chỗ duy nhất còn lại để nói.
+ * Mốc vẫn phải nói ra ("tháng này có bao nhiêu CSBH" là câu chưa đủ nghĩa),
+ * nhưng in nó dưới MỌI hình thì mỗi khối gánh thêm bốn dòng chữ xám, và mười
+ * hai khối thành một trang chữ có hình xen kẽ. Nó chuyển xuống khối *Cách tính*
+ * gấp lại ở cuối trang, và nằm trong `title` của từng mục để rê chuột là thấy.
  */
 function ChuThich({
   muc,
@@ -562,8 +550,9 @@ function ChuThich({
         return (
           <li key={m} className={mau[i]}>
             <i className={duong ? 'dau-duong' : 'dau-o'} aria-hidden="true" />
-            <span className="chu-thich-ten">{n?.nhan ?? m}</span>
-            {n && <span className="chu-thich-moc">{n.moc}</span>}
+            <span className="chu-thich-ten" title={n?.moc ?? ''}>
+              {n?.nhan ?? m}
+            </span>
           </li>
         );
       })}
@@ -571,15 +560,46 @@ function ChuThich({
   );
 }
 
-/** Luật tính nhãn xu hướng — in ra màn hình, không giấu trong mã. */
-const LuatXuHuong = () => (
-  <p className="ghi-chu">
-    Nhãn xu hướng so <strong>trung bình 3 kỳ đã đóng gần nhất với 3 kỳ trước đó</strong>, lệch từ
-    15% trở lên mới đổi nhãn. Kỳ đang chạy không tham gia phép so — nó chưa đủ ngày. Cột số vẫn là
-    kỳ đang chạy: so người với người thì công bằng vì ai cũng cùng chừng ấy ngày, chỉ so với quá
-    khứ mới không.
-  </p>
-);
+/**
+ * *Cách tính* — MỘT khối gấp lại ở cuối trang, thay cho chú thích rải khắp hình.
+ *
+ * Mọi câu ở đây đều cần: mốc của từng chỉ số, luật nhãn xu hướng, và cách xử lý
+ * kỳ đang chạy. Nhưng in chúng dưới từng hình thì mỗi khối gánh thêm bốn dòng
+ * chữ xám, và mười hai khối biến trang thành một trang chữ có hình xen kẽ —
+ * đúng thứ mà lần vẽ lại này đang bỏ đi.
+ *
+ * Gấp lại chứ không bỏ hẳn: người đọc quen rồi thì không mở, người mới hoặc
+ * người đang nghi ngờ một con số thì mở ra là có.
+ */
+function CachTinh({ khoi }: { khoi: TenKhoiTk[] }) {
+  const coNguoi = khoi.some((k) => KHOI_CAN_TDV.includes(k));
+  return (
+    <details className="cach-tinh">
+      <summary>Cách tính các chỉ số</summary>
+      <dl className="cach-tinh-moc">
+        {Object.entries(NEO).map(([ten, n]) => (
+          <div key={ten}>
+            <dt>{n.nhan}</dt>
+            <dd>{n.moc}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="ghi-chu">
+        Kỳ cắt theo giờ Việt Nam; tuần bắt đầu thứ Hai. <strong>Kỳ đang chạy</strong> phủ dải mờ
+        trên hình — nó chưa đủ ngày nên điểm cuối luôn thấp hơn thực tế. Hồ sơ nhập từ dữ liệu cũ
+        không có mốc nào để tính vào kỳ nên bị loại khỏi mọi hình.
+      </p>
+      {coNguoi && (
+        <p className="ghi-chu">
+          <strong>Nhãn xu hướng</strong> so trung bình 3 kỳ đã đóng gần nhất với 3 kỳ trước đó, lệch
+          từ 15% trở lên mới đổi nhãn. Kỳ đang chạy không tham gia phép so. Cột số vẫn là kỳ đang
+          chạy: so người với người thì công bằng vì ai cũng cùng chừng ấy ngày, chỉ so với quá khứ
+          mới không.
+        </p>
+      )}
+    </details>
+  );
+}
 
 const tongBuoc = (b: { choTbp: number | null; choKtL1: number | null; saLamBanCung: number | null; choKtL2: number | null }) =>
   Number(((b.choTbp ?? 0) + (b.choKtL1 ?? 0) + (b.saLamBanCung ?? 0) + (b.choKtL2 ?? 0)).toFixed(2));
@@ -628,17 +648,12 @@ function HieuQuaTdv({
               xuHuong: n.xuHuong,
             }))}
           />
-          <LuatXuHuong />
         </div>
         <div className="o">
           <div className="o-dau">
             <span className="o-ten">Làm nhiều và làm chuẩn</span>
             <span className="o-hoi">kỳ này</span>
           </div>
-          <p className="o-phu">
-            Trục ngang: số CSBH có hiệu lực. Trục dọc: tỷ lệ hồ sơ bị trả lại. Vùng xanh nhạt là nơi
-            nên nằm; chấm to là giá trị hồ sơ lớn.
-          </p>
           {bo.nguoi.length === 0 ? (
             <Trong tieuDe="Chưa có trình dược viên nào trong phạm vi của bạn" />
           ) : (
@@ -665,13 +680,8 @@ function HieuQuaTdv({
               Bỏ chọn
             </button>
           </div>
-          <p className="o-phu">
-            Cùng nhịp <strong>{NHAN_KY[ky].toLowerCase()}</strong>, đường đứt nét là trung vị công
-            ty.
-          </p>
           <Duong
-            moc={bo.chuoi.map((k) => k.nhan)}
-            moiN={1}
+            moc={bo.chuoi.map((k) => k.nhanNgan)}
             moTa={`CSBH có hiệu lực của ${nguoi.ten} so với trung vị công ty`}
             chuoi={[
               { nhan: nguoi.ten, diem: nguoi.chuoiHieuLuc, mau: 'bd-1', vung: true },
@@ -774,13 +784,8 @@ function TheoNhom({ bo }: { bo: BoTheoNhom }) {
 
   return (
     <>
-      <p className="o-phu">
-        Một kỳ nhích nửa điểm phần trăm trên toàn danh mục là con số không ai thấy được bằng cách
-        mở từng hồ sơ.
-      </p>
       <Duong
-        moc={bo.chuoi.map((k) => k.nhan)}
-        moiN={1}
+        moc={bo.chuoi.map((k) => k.nhanNgan)}
         dinhDang={(v) => `${Math.round(v)}%`}
         moTa="Chiết khấu bình quân theo nhóm sản phẩm qua các kỳ"
         chuoi={chon.map((n, i) => ({
@@ -826,12 +831,8 @@ function HoatDong({ bo }: { bo: BoHoatDong }) {
 
   return (
     <>
-      <p className="o-phu">
-        Đếm việc đã ghi trong nhật ký, tách theo đối tượng. Phạm vi dữ liệu của bạn không có hồ sơ
-        nào, nên đây là thứ duy nhất nói được hệ thống đang bận ở đâu.
-      </p>
       <Cot
-        moc={bo.chuoi.map((k) => k.nhan)}
+        moc={bo.chuoi.map((k) => k.nhanNgan)}
         moTa="Số việc đã ghi trong nhật ký theo từng kỳ, tách theo đối tượng"
         lop={[
           ...chinh.map((d, i) => ({

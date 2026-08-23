@@ -231,6 +231,8 @@ const phien = (role: VaiTro) => ({
 const KY = (ma: string, nhan: string, dangChay = false) => ({
   ma,
   nhan,
+  // Nhãn NGẮN cho trục (`0095`) — máy chủ gửi cả hai, và trục dùng bản ngắn.
+  nhanNgan: nhan.replace('Tháng ', '').replace('/2026', '/26'),
   tu: '2026-07-31T17:00:00.000Z',
   den: '2026-08-31T17:00:00.000Z',
   dangChay,
@@ -312,6 +314,7 @@ const HOAT_DONG = {
     {
       ma: '2026-08-01',
       nhan: 'Tháng 8/2026',
+      nhanNgan: '8/26',
       dangChay: true,
       tong: 42,
       nguoi: 3,
@@ -324,7 +327,7 @@ const HOAT_DONG = {
 
 const NHOM = {
   ky: 'thang',
-  chuoi: [{ ma: '2026-08-01', nhan: 'Tháng 8/2026' }],
+  chuoi: [{ ma: '2026-08-01', nhan: 'Tháng 8/2026', nhanNgan: '8/26' }],
   dong: [{ nhom: 'SUA', maKy: '2026-08-01', chietKhauTb: 12.5, soDong: 8, vuotNguong: 2 }],
 };
 
@@ -396,7 +399,9 @@ describe('`0094` màn hình dựng theo bảng tra', () => {
     mo('TDV');
     await doiHinh();
     expect(daGoi.some((d) => d.includes('/thong-ke/tdv'))).toBe(false);
-    expect(screen.getByText(/trung vị của một trình dược viên/i)).toBeTruthy();
+    // Mặt bằng chung vẫn phải đọc ra được — sau `0095` nó nằm ở chú thích của
+    // đường đứt nét, không còn là một đoạn văn dưới hình.
+    expect(screen.getByText('Trung vị công ty')).toBeTruthy();
   });
 
   it('Quản trị hệ thống KHÔNG gọi `/reports`, chỉ gọi nhật ký', async () => {

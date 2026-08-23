@@ -82,12 +82,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (22/08/2026)
 
-Chặng gần nhất **P121** (`0094`): *Thống kê* vẽ lại bằng **biểu đồ** (bảng số bị khách hàng bác), và
-Ban lãnh đạo cùng Trưởng bộ phận soi được hiệu quả **từng trình dược viên**. **1538/1538 xanh**, cây
-làm việc sạch.
+Chặng gần nhất **P122** (`0095`): bố cục lại phần Thống kê — lưới hai cột, nhãn trục ngắn và tự
+thưa, chú thích gom về một khối *Cách tính*; cộng **ba năm dữ liệu** cho `make demo-mau`.
+**1541/1541 xanh**, cây làm việc sạch.
 
-Trước đó **P120** (`0093`): trang *Báo cáo* thành *Thống kê* — bỏ phần lặp lại trang Tổng quan, thay
-bằng hoạt động theo tuần/tháng/quý/năm.
+Trước đó **P121** (`0094`): *Thống kê* vẽ lại bằng **biểu đồ** và soi được hiệu quả **từng trình
+dược viên** (Ban lãnh đạo toàn công ty, Trưởng bộ phận trong phạm vi của mình).
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -115,6 +115,10 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.
+- **`make demo-mau` dựng ba năm lịch sử** (`0095`) — chuỗi phiên bản THẬT qua API rồi vặn đồng hồ về
+  quá khứ. Hệ quả phải nhớ khi sửa bộ nạp: giá và quy định chiết khấu hiệu lực từ `2024-01-01`; hồ
+  sơ lập cho khách đã có CSBH hiệu lực phải khai *bổ sung* hay *chỉnh sửa*; `cpbh_total`,
+  `net_price`, `over_threshold` là **cột sinh**, chỉ ghi được `cpbh` và `discount_rate`.
 - **Thống kê là BIỂU ĐỒ, không phải bảng số** (`0094`). Sáu dạng hình, mỗi dạng một câu hỏi; không
   có biểu đồ tròn. Phép toán vẽ tách ở `apps/web/src/components/bieu-do/ve.ts` — đó là chỗ duy nhất
   sai được im lặng. Ban lãnh đạo và Trưởng bộ phận soi được **từng TDV**; phạm vi "TDV của tôi" đọc

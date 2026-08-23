@@ -103,11 +103,40 @@ export function mocTruc(max: number): number[] {
 }
 
 /**
+ * Bao nhiêu nhãn thì in một cái, để chúng KHÔNG BAO GIỜ đè lên nhau (`0095`).
+ *
+ * Tính từ chỗ trống thật có, không phải một con số chọn tay: bề rộng vẽ chia cho
+ * bề rộng một nhãn. Bề rộng nhãn ước lượng bằng `số ký tự × 0,58 × cỡ chữ` —
+ * đúng cho phông chữ không đều bề ngang ở mức cần thiết, vì kết quả chỉ dùng để
+ * chọn bước nhảy, và chọn dư một nấc thì thưa hơn một chút chứ không hỏng.
+ *
+ * Bản trước để `moiN` cho từng chỗ gọi tự truyền. Sai ở chỗ: con số ấy đúng cho
+ * một bề rộng và một độ dài nhãn CỤ THỂ, nên đổi nhãn `Tháng 8/2026` thành
+ * `8/26`, hay xếp hình vào lưới hai cột, là nó sai ngay — mà sai thì không có
+ * gì báo, chỉ có chữ chồng lên chữ.
+ */
+export function buocNhan(soNhan: number, daiNhat: number): number {
+  const rongVe = KHUNG.rong - KHUNG.leTrai - KHUNG.lePhai;
+  const chuaVua = Math.floor(rongVe / (daiNhat * 0.58 * CHU.nhan + 8));
+  // Không đủ chỗ cho hai nhãn thì in đúng MỘT — và nhãn ấy là nhãn cuối, xem
+  // `inNhan`. Trả về `soNhan` khiến mọi chỉ số khác đều rớt.
+  if (chuaVua <= 1) return Math.max(soNhan, 1);
+  /*
+   * Với bước `k`, số nhãn in ra là `floor((n-1)/k) + 1` — KHÔNG phải `n/k`.
+   *
+   * Bản đầu dùng `n/k` và ca kiểm bắt được ngay: 5 kỳ với nhãn 21 ký tự cho ra
+   * bước 1, tức in cả 5 nhãn trên chỗ chỉ chứa nổi 4. Sai một đơn vị ở đây
+   * không hỏng to, nó chỉ làm hai nhãn chồng lên nhau — thứ mà đọc mã không
+   * thấy, nhìn màn hình mới thấy.
+   */
+  return Math.max(1, Math.ceil((soNhan - 1) / (chuaVua - 1)));
+}
+
+/**
  * Nhãn nào được in trên trục hoành.
  *
- * Mười hai tuần mà in đủ mười hai nhãn thì chúng đè lên nhau; in thưa quá thì
- * không định vị được. Luật: luôn in nhãn CUỐI (kỳ đang chạy — thứ người ta tìm
- * trước), rồi lùi đều về trước.
+ * Luôn in nhãn CUỐI (kỳ đang chạy — thứ người ta tìm trước), rồi lùi đều về
+ * trước, để nhãn quan trọng nhất không bao giờ là cái bị bỏ.
  */
 export const inNhan = (i: number, n: number, moiN: number): boolean =>
   i === n - 1 || (n - 1 - i) % moiN === 0;

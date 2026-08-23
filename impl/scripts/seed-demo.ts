@@ -683,6 +683,138 @@ async function vanDongHoSla(
   }
 }
 
+/**
+ * BA NĂM LỊCH SỬ — để trang *Thống kê* có gì mà so giữa các năm (`0095`).
+ *
+ * Không có phần này thì mọi hồ sơ của bản demo đều sinh ra trong vài phút chạy
+ * `demo-mau`, và mọi biểu đồ theo kỳ chỉ có **một cột duy nhất**: đúng về dữ
+ * liệu, vô dụng để xem. Chiều thời gian là thứ cả màn hình ấy nói về.
+ *
+ * MỖI HỒ SƠ VẪN ĐI QUA API và qua đủ mười bước — dòng sản phẩm, nhật ký, người
+ * được phân công đều là dữ liệu thật. Chỉ **mốc thời gian** là vặn tay, đúng
+ * cách `vanDongHoSla` đã làm với hồ sơ quá hạn, và vì đúng một lý do: không API
+ * nào lập được hồ sơ của năm ngoái.
+ *
+ * Chuỗi phiên bản là chuỗi THẬT: bản sau lập ở chế độ *chỉnh sửa*, và khi nó có
+ * hiệu lực thì bản trước tự chuyển *Hết hiệu lực* — đúng bất biến "mỗi khách
+ * hàng chỉ có một CSBH còn hiệu lực".
+ */
+const MOC_LICH_SU: { ngay: string; heSoCpbh: number; nhan: string }[] = [
+  // `heSoCpbh` nhân vào chi phí bán hàng đã đóng băng, nên tỷ lệ chiết khấu
+  // nhích dần qua các năm — đó chính là đường mà Ban lãnh đạo mở màn hình ra để
+  // nhìn. Giá bán Công ty giữ nguyên: đổi cả hai thì không còn đọc ra được cái
+  // gì đang đẩy tỷ lệ lên.
+  { ngay: '2024-05-16', heSoCpbh: 0.62, nhan: 'giữa 2024' },
+  { ngay: '2024-11-14', heSoCpbh: 0.71, nhan: 'cuối 2024' },
+  { ngay: '2025-04-17', heSoCpbh: 0.8, nhan: 'giữa 2025' },
+  { ngay: '2025-10-16', heSoCpbh: 0.89, nhan: 'cuối 2025' },
+  { ngay: '2026-03-19', heSoCpbh: 0.96, nhan: 'đầu 2026' },
+];
+
+/**
+ * Vặn đồng hồ của MỘT hồ sơ đã có hiệu lực về một mốc trong quá khứ.
+ *
+ * Đặt mốc THẲNG cho từng bước thay vì dịch cả chuỗi đi một khoảng: hồ sơ do bộ
+ * nạp đẩy qua mười bước trong vài giây, nên dịch cả chuỗi cho ra những hồ sơ
+ * "duyệt xong trong 4 giây" — và biểu đồ *số ngày duyệt trung bình* thành một
+ * đường phẳng bằng 0.
+ */
+async function luiHoSo(
+  db: Client,
+  id: string,
+  moc: { ngay: string; heSoCpbh: number },
+  suaNgay = 0,
+): Promise<void> {
+  await db.query(
+    `UPDATE pol.policy
+        SET created_at        = ($2::date - interval '19 days'),
+            submitted_at      = ($2::date - interval '15 days'),
+            tbp_signed_at     = ($2::date - interval '11 days'),
+            kt_l1_received_at = ($2::date - interval '9 days'),
+            contract_issued_at = ($2::date - interval '8 days'),
+            sa_handover_at    = ($2::date - interval '3 days'),
+            kt_l2_received_at = $2::date,
+            effective_from    = $2::date,
+            applied_date      = $2::date,
+            sla_started_at    = NULL,
+            sla_due_at        = NULL,
+            row_version       = row_version + 1
+      WHERE id = $1`,
+    [id, moc.ngay],
+  );
+
+  // Nhật ký hồ sơ phải khớp với những mốc vừa đặt. Không sửa thì màn hình *Lịch
+  // sử* của một hồ sơ năm 2024 kể lại rằng nó đi hết mười bước vào hôm nay.
+  await db.query(
+    `UPDATE pol.policy_event e
+        SET at = CASE e.action
+                   WHEN 'SUBMIT'         THEN p.submitted_at
+                   -- Vòng trả lại nằm GIỮA gửi duyệt và ký: hai mốc này nuôi
+                   -- khối "trả lại rồi bao lâu mới quay lại" của Trưởng bộ phận,
+                   -- nên khoảng cách giữa chúng phải là một con số thật.
+                   WHEN 'TBP_RETURN'     THEN p.submitted_at + interval '1 day'
+                   WHEN 'RESUBMIT_AFTER_EDIT'
+                     THEN p.submitted_at + interval '1 day' + ($2 || ' days')::interval
+                   WHEN 'TBP_SIGN'       THEN p.tbp_signed_at
+                   WHEN 'KT_RECEIVE_L1'  THEN p.kt_l1_received_at
+                   WHEN 'SA_HANDOVER'    THEN p.sa_handover_at
+                   WHEN 'KT_RECEIVE_L2'  THEN p.kt_l2_received_at
+                   ELSE p.created_at
+                 END
+       FROM pol.policy p
+      WHERE p.id = e.policy_id AND e.policy_id = $1`,
+    [id, String(suaNgay)],
+  );
+
+  /*
+   * Chi phí bán hàng đóng băng nhân theo hệ số của mốc, rồi TÍNH LẠI tỷ lệ chiết
+   * khấu từ chính nó.
+   *
+   * HAI CÂU LỆNH, không phải một, vì `cpbh_total` · `net_price` ·
+   * `over_threshold` là **cột sinh** (`GENERATED ALWAYS`): ghi thẳng vào chúng
+   * thì Postgres từ chối cả câu lệnh. Câu đầu đổi mảng `cpbh` — ba cột kia tự
+   * tính lại theo. Câu sau đọc `net_price` MỚI để đặt `discount_rate`, cột duy
+   * nhất còn lại phải tính tay, và `over_threshold` lại tự theo nó.
+   *
+   * Không đặt thẳng một tỷ lệ mong muốn: bốn con số ấy phải khớp nhau, vì màn
+   * hình hồ sơ bày cả bốn cột cạnh nhau và người xem cộng trừ được bằng mắt.
+   */
+  await db.query(
+    `UPDATE pol.policy_line
+        -- Ép kiểu numeric cho tham số chứ không để Postgres tự đoán: cột cpbh
+        -- là bigint[], nên tham số không ép kiểu bị suy thành bigint và chuỗi
+        -- 0.62 chết ngay ở khâu đọc số. Ép về bigint ở ngoài để kết quả đúng
+        -- kiểu phần tử của mảng.
+        SET cpbh = ARRAY(SELECT round(x * $2::numeric)::bigint FROM unnest(cpbh) AS x)
+      WHERE policy_id = $1`,
+    [id, String(moc.heSoCpbh)],
+  );
+  await db.query(
+    `UPDATE pol.policy_line
+        SET discount_rate = round((1 - net_price::numeric / company_price_snap) * 100, 2)
+      WHERE policy_id = $1 AND company_price_snap IS NOT NULL`,
+    [id],
+  );
+
+  // Read-model nghe qua outbox như mọi thay đổi khác — xem `vanDongHoSla`.
+  await db.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
+    'policy.updated',
+    JSON.stringify({ policyId: id }),
+  ]);
+}
+
+/** Bản trước trong chuỗi hết hiệu lực ĐÚNG LÚC bản sau có hiệu lực. */
+async function luiHetHieuLuc(db: Client, id: string, ngay: string): Promise<void> {
+  await db.query(
+    `UPDATE pol.policy SET deactivated_at = $2::date, row_version = row_version + 1 WHERE id = $1`,
+    [id, ngay],
+  );
+  await db.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
+    'policy.updated',
+    JSON.stringify({ policyId: id }),
+  ]);
+}
+
 // --- Nạp --------------------------------------------------------------------
 
 type CoId = { id: string };
@@ -727,7 +859,11 @@ async function main(): Promise<void> {
     await goi('/catalog/product-groups', 'admin01', { code: n.code, name: n.name });
   }
   for (const q of QUY_DINH_CK) {
-    await goi('/catalog/discount-rules', 'admin01', { ...q, effectiveFrom: '2026-01-01' });
+    // Hiệu lực từ 2024, không phải 2026 (`0095`): bộ nạp dựng ba năm lịch sử hồ
+    // sơ, và một hồ sơ áp dụng từ 2024 phải đóng băng được NGƯỠNG của thời điểm
+    // ấy. Không có quy định nào hiệu lực khi đó thì ngưỡng đóng băng là rỗng, và
+    // cột *Vượt ngưỡng* của cả ba năm đầu trống trơn.
+    await goi('/catalog/discount-rules', 'admin01', { ...q, effectiveFrom: '2024-01-01' });
   }
 
   const sanPham: Record<string, string> = {};
@@ -741,7 +877,10 @@ async function main(): Promise<void> {
     await goi(`/catalog/products/${r.id}/prices`, 'admin01', {
       priceType: 'GIA_BAN_CONG_TY',
       amount: String(p.gia),
-      effectiveFrom: '2026-01-01',
+      // Cùng lý do với quy định chiết khấu: hồ sơ năm 2024 phải tìm được giá
+      // bán Công ty có hiệu lực lúc ấy, nếu không `POST /policies` trả
+      // `PRODUCT_NOT_FOUND` ngay ở bản lịch sử đầu tiên.
+      effectiveFrom: '2024-01-01',
     });
   }
 
@@ -769,12 +908,18 @@ async function main(): Promise<void> {
     cpbh: cpbh.map(String),
   });
 
-  const lapHoSo = async (khachHang: string, lines: object[], ai = 'tdv01') =>
+  const lapHoSo = async (
+    khachHang: string,
+    lines: object[],
+    ai = 'tdv01',
+    them: { mode?: string; appliedDate?: string } = {},
+  ) =>
     (
       await goi<CoId>('/policies', ai, {
         customerId: khach[khachHang]!,
         lines,
-        appliedDate: '2026-08-01',
+        appliedDate: them.appliedDate ?? '2026-08-01',
+        ...(them.mode ? { mode: them.mode } : {}),
       })
     ).id;
 
@@ -844,8 +989,10 @@ async function main(): Promise<void> {
    * Bảng bước ở muc 3, viết đúng MỘT lần. Đẩy một hồ sơ Nháp tới trạng thái đích
    * bằng chính những hành động mà giao diện gọi.
    */
-  const CHUOI: { dich: string; chay: (id: string) => Promise<unknown> }[] = [
-    { dich: 'CHO_TBP_DUYET', chay: (id) => act(id, 'SUBMIT', 'tdv01') },
+  const CHUOI: { dich: string; chay: (id: string, ai: string) => Promise<unknown> }[] = [
+    // Người GỬI phải là TDV phụ trách chính khách hàng ấy — `0095` dựng lịch sử
+    // cho cả khách của tdv02 và tdv03, và gửi hộ thì máy chủ trả `OUT_OF_SCOPE`.
+    { dich: 'CHO_TBP_DUYET', chay: (id, ai) => act(id, 'SUBMIT', ai) },
     { dich: 'CHO_KT_L1', chay: (id) => act(id, 'TBP_SIGN', 'tbp01') },
     { dich: 'SA_DANG_XU_LY', chay: (id) => act(id, 'KT_RECEIVE_L1', 'kt01') },
     {
@@ -858,9 +1005,21 @@ async function main(): Promise<void> {
     { dich: 'DANG_CO_HIEU_LUC', chay: (id) => act(id, 'KT_RECEIVE_L2', 'kt01') },
   ];
 
-  async function dayToi(id: string, dich: string): Promise<void> {
+  async function dayToi(id: string, dich: string, ai = 'tdv01', traLai = false): Promise<void> {
     for (const b of CHUOI) {
-      await b.chay(id);
+      await b.chay(id, ai);
+      /*
+       * Vòng TRẢ LẠI RỒI GỬI LẠI (`0095`).
+       *
+       * Không có nó thì hai khối của Trưởng bộ phận trống trơn trên bản demo:
+       * *cơ cấu chất lượng* chỉ có một màu "ký thẳng", và *trả lại rồi bao lâu
+       * mới quay lại* không có dòng nào — vì `sua_lai_ngay` chỉ có giá trị khi
+       * một hồ sơ đi trọn cặp trả-lại → gửi-lại.
+       */
+      if (traLai && b.dich === 'CHO_TBP_DUYET') {
+        await act(id, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
+        await act(id, 'RESUBMIT_AFTER_EDIT', ai);
+      }
       if (b.dich === dich) return;
     }
   }
@@ -879,6 +1038,30 @@ async function main(): Promise<void> {
       dong('NC-GOLD-900', 535_000 + (i % 7) * 2_000, 16_000),
       dong(phu.code, Math.round(phu.gia * 0.86), Math.round(phu.gia * 0.02)),
     ];
+  };
+
+  /** Mã sản phẩm của hồ sơ thứ `i` — cùng phép chọn với `dongCuaHoSo`. */
+  const maCuaHoSo = (i: number): string[] => [
+    'NC-GOLD-900',
+    SAN_PHAM[6 + (i % (SAN_PHAM.length - 6))]!.code,
+  ];
+
+  /**
+   * Khách nào đang có CSBH hiệu lực, và CSBH ấy gồm những sản phẩm nào (`0095`).
+   *
+   * Từ khi bộ nạp dựng ba năm lịch sử, phần lớn khách đã có một CSBH hiệu lực
+   * TRƯỚC khi vòng `KE_HOACH` chạy tới. `POST /policies` khi ấy đòi khai rõ đây
+   * là bản *bổ sung* hay *chỉnh sửa* (POL-04) — và chọn nhầm một trong hai thì
+   * máy chủ trả 409 chứ không đoán hộ.
+   *
+   * Luật đúng bằng luật của máy chủ: có sản phẩm MỚI so với bản đang hiệu lực
+   * thì là *bổ sung*, không thì là *chỉnh sửa*.
+   */
+  const spDangHieuLuc = new Map<string, Set<string>>();
+  const cheDo = (kh: string, ma: string[]): { mode?: string } => {
+    const dang = spDangHieuLuc.get(kh);
+    if (!dang) return {};
+    return { mode: ma.some((m) => !dang.has(m)) ? 'SUPPLEMENT' : 'AMEND' };
   };
 
   /**
@@ -901,7 +1084,8 @@ async function main(): Promise<void> {
   const idSapQuaHan: string[] = [];
   for (const h of SAP_QUA_HAN) {
     stt += 1;
-    const id = await lapHoSo(cuaTdv01[stt % cuaTdv01.length]!, dongCuaHoSo(stt));
+    const khSap = cuaTdv01[stt % cuaTdv01.length]!;
+    const id = await lapHoSo(khSap, dongCuaHoSo(stt), 'tdv01', cheDo(khSap, maCuaHoSo(stt)));
     await dayToi(id, h.buoc);
     idSapQuaHan.push(id);
     daLap += 1;
@@ -910,7 +1094,8 @@ async function main(): Promise<void> {
   const idDaQuaHan: { id: string; buoc: string; quaHanNgay: number }[] = [];
   for (const h of DA_QUA_HAN) {
     stt += 1;
-    const id = await lapHoSo(cuaTdv01[stt % cuaTdv01.length]!, dongCuaHoSo(stt));
+    const khQua = cuaTdv01[stt % cuaTdv01.length]!;
+    const id = await lapHoSo(khQua, dongCuaHoSo(stt), 'tdv01', cheDo(khQua, maCuaHoSo(stt)));
     await dayToi(id, h.buoc);
     idDaQuaHan.push({ id, buoc: h.buoc, quaHanNgay: h.quaHanNgay });
     daLap += 1;
@@ -936,6 +1121,66 @@ async function main(): Promise<void> {
     );
   }
 
+  /*
+   * === BA NĂM LỊCH SỬ =======================================================
+   *
+   * Dựng TRƯỚC vòng `KE_HOACH`, và thứ tự ấy bắt buộc: chuỗi phiên bản phải đi
+   * theo thời gian thật — bản 2024 có hiệu lực trước, rồi bản 2025 thay nó, rồi
+   * mới tới bản của hôm nay do vòng dưới lập. Lập ngược lại thì hồ sơ của hôm
+   * nay bị một bản đề ngày 2024 thay thế, và cả chuỗi đọc ra vô nghĩa.
+   *
+   * Chỉ một PHẦN khách hàng có lịch sử — người thật cũng thế: có khách mới ký
+   * năm nay, có khách theo từ 2024. Một bản demo mà khách nào cũng có đúng năm
+   * đời hồ sơ trông như dữ liệu sinh bằng máy, vì nó đúng là thế.
+   */
+  {
+    const db = moKetNoi();
+    await db.connect();
+    try {
+      const coLichSu: { kh: string; ai: string; soDoi: number }[] = [
+        ...cuaTdv01.slice(0, 10).map((kh, i) => ({ kh, ai: 'tdv01', soDoi: 5 - (i % 3) })),
+        { kh: 'KH-0025', ai: 'tdv02', soDoi: 4 },
+        { kh: 'KH-0026', ai: 'tdv02', soDoi: 3 },
+        { kh: 'KH-0027', ai: 'tdv03', soDoi: 3 },
+        { kh: 'KH-0028', ai: 'tdv03', soDoi: 2 },
+      ];
+
+      /*
+       * Mỗi trình dược viên sửa lại NHANH CHẬM khác nhau — đó là cả nội dung của
+       * khối *trả lại rồi bao lâu mới quay lại*. Ba người, ba con số, và một
+       * người vượt hẳn mốc "quá 5 ngày là chậm" để thanh ấy có ít nhất một dòng
+       * đổi màu.
+       */
+      const suaLaiCua: Record<string, number> = { tdv01: 2, tdv02: 6, tdv03: 9 };
+
+      for (const { kh, ai, soDoi } of coLichSu) {
+        // Lấy các mốc GẦN NHẤT: khách có ít đời hồ sơ thì là khách mới, không
+        // phải khách bỏ giữa chừng từ 2024.
+        const moc = MOC_LICH_SU.slice(-soDoi);
+        let truoc: string | null = null;
+        for (const [i, m] of moc.entries()) {
+          stt += 1;
+          const ma = maCuaHoSo(stt);
+          const id = await lapHoSo(kh, dongCuaHoSo(stt), ai, {
+            appliedDate: m.ngay,
+            ...cheDo(kh, ma),
+          });
+          // Cứ hai đời thì một đời bị trả lại — vượt ngưỡng ấy là bản demo trông
+          // như một bộ phận không ai duyệt nổi hồ sơ của ai.
+          const coTraLai = i % 2 === 1;
+          await dayToi(id, 'DANG_CO_HIEU_LUC', ai, coTraLai);
+          spDangHieuLuc.set(kh, new Set(ma));
+          await luiHoSo(db, id, m, coTraLai ? (suaLaiCua[ai] ?? 3) : 0);
+          if (truoc) await luiHetHieuLuc(db, truoc, m.ngay);
+          truoc = id;
+          daLap += 1;
+        }
+      }
+    } finally {
+      await db.end();
+    }
+  }
+
   for (const [dich, soLuong] of KE_HOACH) {
     for (let i = 0; i < soLuong; i += 1) {
       // Hồ sơ hiệu lực lấy khách theo CHỈ SỐ THẲNG, không xoay vòng: xoay vòng
@@ -943,8 +1188,10 @@ async function main(): Promise<void> {
       // giữa chừng bằng một lỗi 409 chẳng liên quan gì tới phân trang.
       const kh = dich === 'DANG_CO_HIEU_LUC' ? cuaTdv01[i]! : cuaTdv01[stt % cuaTdv01.length]!;
       stt += 1;
-      const id = await lapHoSo(kh, dongCuaHoSo(stt));
+      const ma = maCuaHoSo(stt);
+      const id = await lapHoSo(kh, dongCuaHoSo(stt), 'tdv01', cheDo(kh, ma));
       daLap += 1;
+      if (dich === 'DANG_CO_HIEU_LUC') spDangHieuLuc.set(kh, new Set(ma));
 
       if (dich === 'NHAP') continue;
       if (dich === 'YEU_CAU_CHINH_SUA') {

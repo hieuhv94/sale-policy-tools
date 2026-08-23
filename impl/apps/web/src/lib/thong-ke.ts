@@ -58,6 +58,7 @@ export type MaXuHuong = 'len' | 'ngang' | 'chung' | 'xuong';
 export type SoLieuKy = {
   ma: string;
   nhan: string;
+  nhanNgan: string;
   tu: string;
   den: string;
   dangChay: boolean;
@@ -120,19 +121,20 @@ export type NguoiThongKe = {
 export type BoTheoTdv = {
   ky: Ky;
   soKy: number;
-  chuoi: { ma: string; nhan: string; tu: string; den: string; dangChay: boolean }[];
+  chuoi: { ma: string; nhan: string; nhanNgan: string; tu: string; den: string; dangChay: boolean }[];
   nguoi: NguoiThongKe[];
 };
 
 export type BoTheoNhom = {
   ky: Ky;
-  chuoi: { ma: string; nhan: string }[];
+  chuoi: { ma: string; nhan: string; nhanNgan: string }[];
   dong: { nhom: string; maKy: string; chietKhauTb: number; soDong: number; vuotNguong: number }[];
 };
 
 export type KyHoatDong = {
   ma: string;
   nhan: string;
+  nhanNgan: string;
   dangChay: boolean;
   tong: number;
   nguoi: number;
@@ -190,6 +192,22 @@ export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoiTk[]> = {
    */
   QUAN_TRI: ['vi-sao-khong-co-so', 'hoat-dong'],
 };
+
+/**
+ * Khối nào chiếm TRỌN bề ngang, khối nào nằm nửa lưới (`0095`).
+ *
+ * Mặc định là nửa: hai hình cạnh nhau thì mắt so được, còn một hình kéo hết
+ * 1100 điểm ảnh thì phải cuộn mới thấy hình kế tiếp — và cả trang này là để
+ * nhìn tổng quan. Chỉ những khối có DÒNG NGƯỜI (tên · thanh · nhãn xu hướng ·
+ * đường nhỏ) mới cần trọn bề ngang; ép chúng vào nửa lưới thì tên bị cắt.
+ */
+export const KHOI_RONG: TenKhoiTk[] = [
+  'tdv-hieu-qua',
+  'tdv-gui-len',
+  'tdv-chat-luong',
+  'viec-tbp',
+  'ban-cung',
+];
 
 /** Khối nào cần `/reports/thong-ke`. */
 export const KHOI_CAN_SO_LIEU: TenKhoiTk[] = [
@@ -251,8 +269,14 @@ export const NEO: Record<string, { nhan: string; moc: string }> = {
 export const chuoiChiSo = (bo: BoThongKe, ten: string): number[] =>
   bo.chuoi.map((k) => k.dem[ten] ?? 0);
 
-/** Nhãn kỳ của cả chuỗi — trục hoành dùng chung cho mọi hình trên trang. */
-export const mocKy = (bo: BoThongKe): string[] => bo.chuoi.map((k) => k.nhan);
+/**
+ * Nhãn NGẮN của cả chuỗi — trục hoành dùng chung cho mọi hình trên trang.
+ *
+ * `nhanNgan` chứ không `nhan`: nhãn đầy đủ của tuần là *"Tuần 34 · 17/08–23/08"*,
+ * đọc rất rõ trong một dòng chữ và chồng lên nhau ngay từ nhãn thứ hai khi nằm
+ * trên trục. Bản đầy đủ vẫn dùng ở câu tóm tắt cho trình đọc màn hình.
+ */
+export const mocNgan = (bo: BoThongKe): string[] => bo.chuoi.map((k) => k.nhanNgan);
 
 /**
  * Tỷ lệ ký thẳng của một kỳ. `null` khi kỳ ấy không có hồ sơ nào.

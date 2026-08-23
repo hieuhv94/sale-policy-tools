@@ -2346,6 +2346,48 @@ td.o-cau-chu { max-width: 32ch; }
   color: var(--mau-chu-nguoc);
 }
 
+/* --- Lưới hình (`0095`) ---------------------------------------------------- */
+
+/*
+ * HAI CỘT trên màn hình rộng, không phải mười hai khối xếp dọc.
+ *
+ * Một hình kéo hết bề ngang thì phải cuộn mới thấy hình kế tiếp, và mắt không
+ * so được hai hình không cùng nằm trong tầm nhìn — trong khi cả trang này sinh
+ * ra để nhìn tổng quan. Khối nào có dòng người (tên · thanh · xu hướng · đường
+ * nhỏ) thì tự khai `o-luoi-rong`, xem `KHOI_RONG`.
+ */
+.luoi-thong-ke { display: grid; gap: var(--k4); align-items: start; }
+@media (min-width: 1000px) {
+  .luoi-thong-ke { grid-template-columns: 1fr 1fr; }
+  .o-luoi-rong { grid-column: 1 / -1; }
+}
+.luoi-thong-ke .khoi { margin-top: 0; }
+/* Tiêu đề khối nhỏ lại một bậc: mười hai khối mà tiêu đề nào cũng to bằng tiêu
+   đề mục thì không còn thứ bậc nào để đọc. */
+.luoi-thong-ke .khoi > h2 { font-size: 1.02rem; letter-spacing: -0.01em; }
+
+/* --- Cách tính: một khối gấp lại ở cuối trang ------------------------------ */
+
+.cach-tinh {
+  margin-top: var(--k5);
+  padding: var(--k3) var(--k4);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+}
+.cach-tinh > summary { cursor: pointer; font-weight: 600; color: var(--mau-chu); }
+.cach-tinh-moc {
+  display: grid;
+  gap: 2px var(--k4);
+  margin: var(--k3) 0 var(--k3);
+}
+@media (min-width: 700px) { .cach-tinh-moc { grid-template-columns: 1fr 1fr; } }
+.cach-tinh-moc > div { display: flex; gap: var(--k2); }
+.cach-tinh-moc dt { flex: 0 0 9rem; font-weight: 600; color: var(--mau-chu); }
+.cach-tinh-moc dd { margin: 0; }
+
 /* --- Ô chứa một biểu đồ --------------------------------------------------- */
 
 .o {
@@ -2381,8 +2423,8 @@ td.o-cau-chu { max-width: 32ch; }
 
 .luoi-o { display: grid; gap: var(--k4); }
 @media (min-width: 900px) {
-  .luoi-o { grid-template-columns: 1fr 1fr; }
-  .luoi-o-2-3 { grid-template-columns: 3fr 2fr; }
+  .o-luoi-rong .luoi-o { grid-template-columns: 1fr 1fr; }
+  .o-luoi-rong .luoi-o-2-3 { grid-template-columns: 3fr 2fr; }
 }
 
 /* --- Bộ vẽ biểu đồ (`0094`) ----------------------------------------------- */
@@ -2478,7 +2520,6 @@ svg.bd-nho { width: 62px; margin: 0; }
 .chu-thich i { flex: none; width: 11px; height: 11px; border-radius: 3px; background: currentColor; }
 .chu-thich i.dau-duong { width: 16px; height: 3px; border-radius: 2px; }
 .chu-thich-ten { color: var(--mau-chu); font-weight: 500; }
-.chu-thich-moc { color: var(--mau-chu-nhat); font-size: var(--chu-rat-nho); }
 
 /* --- Bảng xếp hạng người --------------------------------------------------- */
 

@@ -8861,3 +8861,104 @@ lại đây vì nó tái diễn theo đúng đường ấy.
 | Nhãn xu hướng chỉ còn mũi tên, bỏ chữ | 2 ca |
 
 **1538/1538 xanh.**
+
+## P122 — Bố cục lại phần Thống kê, và ba năm dữ liệu cho bản demo
+
+**Ngày 23/08/2026** · thay đổi `0095`
+
+Phản hồi sau khi xem bản `0094` chạy thật: bỏ chú thích thừa ở mỗi hình, thu nhỏ hình và xếp vào
+lưới, và **nhãn trục không được đè lên nhau**. Kèm một yêu cầu về dữ liệu: bản demo phải trải qua
+nhiều năm mới thấy được khác biệt giữa các năm.
+
+### Nhãn trục: lỗi nằm ở NHÃN, không ở chỗ vẽ
+
+Nhãn kỳ của tuần là *"Tuần 34 · 17/08–23/08"* — 21 ký tự. Đọc rất rõ trong một dòng chữ (nó sinh ra
+cho bảng số của `0093`), và chồng lên nhau ngay từ nhãn thứ hai khi nằm trên trục hoành. Nên có
+`nhanNgan` ở `ky.ts`: `T34` · `8/26` · `Q3/26` · `2026`. **Hai nhãn cho hai chỗ**, không phải một
+nhãn cắt bớt — bản đầy đủ vẫn là thứ trình đọc màn hình nghe.
+
+Vế thứ hai: bước nhảy giữa các nhãn. Bản `0094` để mỗi chỗ gọi tự truyền `moiN`, và con số ấy chỉ
+đúng cho **một** bề rộng với **một** độ dài nhãn. Đổi nhãn, hay xếp hình vào lưới hai cột, là nó sai
+— mà sai thì không có gì báo, chỉ có chữ chồng lên chữ. Giờ `buocNhan()` tự tính từ bề rộng còn
+trống chia cho bề rộng một nhãn.
+
+**Ca kiểm bắt được một lỗi thật ngay lúc viết**: 5 kỳ với nhãn 21 ký tự cho ra bước 1, tức in cả 5
+nhãn lên chỗ chỉ chứa nổi 4. Nguyên nhân là công thức đếm — với bước `k`, số nhãn in ra là
+`floor((n−1)/k) + 1`, không phải `n/k`. Sai một đơn vị, và hậu quả đúng bằng thứ cả mục này sinh ra
+để chặn.
+
+### Chú thích: bỏ thì mất, để thì rối
+
+Mỗi hình ở `0094` mang theo hai tới ba dòng giải thích cộng một chú thích màu có kèm mốc. Đọc từng
+hình một thì đúng; nhìn cả trang thì đó là một trang chữ có hình xen kẽ.
+
+Cách chia: **màu ở lại dưới hình** (không có nó thì không đọc được hình), còn *mốc của từng chỉ số*,
+*luật nhãn xu hướng* và *cách xử lý kỳ đang chạy* gom vào một khối **Cách tính** gấp lại ở cuối
+trang, cộng `title` trên từng mục chú thích. Ba câu KHÔNG bỏ, vì bỏ là để người đọc hiểu sai: "đo
+việc chạy hồ sơ, không đo doanh số", "mỗi bước của phễu neo mốc riêng nên đây không phải một lô hồ
+sơ", và "thanh 100% là cơ cấu, không phải số tuyệt đối".
+
+### Lưới hai cột
+
+`KHOI_RONG` khai khối nào cần trọn bề ngang — chỉ những khối có **dòng người** (tên · thanh · nhãn
+xu hướng · đường nhỏ); ép chúng vào nửa lưới thì tên bị cắt. Còn lại nằm nửa lưới, và hình thấp
+xuống 180 đơn vị. Hệ quả nhỏ mà dễ quên: lưới hai cột BÊN TRONG một khối chỉ được bật ở khối rộng,
+nếu không thì hai hình chen vào nửa màn hình.
+
+### Một chỗ giòn lộ ra nhờ ca kiểm cũ
+
+Ca kiểm giao diện đỏ hàng loạt với `Cannot read properties of undefined (reading 'length')`: dữ liệu
+mẫu trong ca kiểm chưa có `nhanNgan`. Đó là ca kiểm cũ, và nó nói đúng một điều: **thiếu một nhãn
+thì cả trang trắng**. Máy chủ luôn gửi nhãn (kiểu bắt buộc), nhưng cái giá của việc tin tuyệt đối là
+React gỡ bỏ toàn bộ cây khi một `undefined.length` ném ra giữa lượt vẽ. Một trục thiếu chữ vẫn đọc
+được hình; một trang trắng thì không.
+
+### Ba năm dữ liệu demo: bốn lần vấp
+
+Chuỗi phiên bản là chuỗi THẬT — mỗi bản lập ở chế độ *chỉnh sửa*, đi đủ mười bước, rồi mới vặn đồng
+hồ về quá khứ; bản trước tự chuyển *Hết hiệu lực* đúng lúc bản sau có hiệu lực. Bốn chỗ vấp, cả bốn
+đều đáng ghi:
+
+1. **`PRODUCT_NOT_FOUND`** — hồ sơ áp dụng từ 2024 không tìm được giá bán Công ty, vì bộ nạp khai
+   giá và quy định chiết khấu hiệu lực từ `2026-01-01`. Đổi cả hai về `2024-01-01`.
+2. **Cột sinh** — `cpbh_total`, `net_price`, `over_threshold` là `GENERATED ALWAYS`; ghi thẳng vào
+   chúng thì Postgres từ chối cả câu lệnh. Phải hai câu: đổi mảng `cpbh` (ba cột kia tự theo), rồi
+   đọc `net_price` MỚI để đặt `discount_rate`.
+3. **Tham số không ép kiểu** — `cpbh` là `bigint[]`, nên hệ số `0.62` bị suy thành `bigint` và chết
+   ở khâu đọc số.
+4. **Backtick trong chú thích SQL** nằm trong một chuỗi mẫu JS — đóng luôn chuỗi, và lỗi báo ra là
+   một lỗi cú pháp cách đó mấy dòng.
+
+Cộng hai chỗ về nghiệp vụ: người **gửi duyệt phải là TDV phụ trách chính khách hàng ấy**
+(`OUT_OF_SCOPE` với khách của tdv02), và từ khi có lịch sử thì mọi hồ sơ lập sau đều phải khai
+*bổ sung* hay *chỉnh sửa* — bộ nạp tự suy đúng bằng luật của máy chủ: có sản phẩm mới thì bổ sung,
+không thì chỉnh sửa.
+
+### Đo trên chồng demo thật
+
+```
+nam   so dong  chiet khau TB
+2024      28        14,60%
+2025      91        15,00%
+2026     150        15,33%
+```
+
+Và hai khối của Trưởng bộ phận, trước đó rỗng trơn trên bản demo vì **không hồ sơ nào đi trọn cặp
+trả-lại → gửi-lại**: giờ mỗi TDV có một nhịp sửa riêng — 2 · 6 · 9 ngày — nên thanh ngưỡng "quá 5
+ngày là chậm" có hai dòng đổi màu, và cơ cấu chất lượng có đủ năm ô.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| Đếm nhãn bằng `n/k` thay vì `floor((n−1)/k)+1` | 1 ca (`5 kỳ, nhãn 21 ký tự`) |
+| Trả trục về nhãn đầy đủ (`nhan` thay cho `nhanNgan`) | **KHÔNG ca nào đỏ** — xem dưới |
+
+**Phép phá thứ hai xanh, và nó nói đúng một điều về thiết kế.** `buocNhan()` tự thưa nhãn theo độ
+dài thật, nên trục dùng nhãn 21 ký tự vẫn KHÔNG chồng chữ — nó chỉ in ra ít nhãn hơn hẳn (12 kỳ còn
+2–3 mốc). Nghĩa là hai thứ giải quyết hai vấn đề khác nhau: `buocNhan` lo **chồng chữ**, `nhanNgan`
+lo **mật độ**. Không có ca kiểm nào gác mật độ được, vì "bao nhiêu mốc thì đủ để định vị" là một
+phán đoán thị giác, không phải một bất biến. Ghi ra đây để lần sau không ai tưởng ca kiểm đang giữ
+cả hai.
+
+**1541/1541 xanh.**
