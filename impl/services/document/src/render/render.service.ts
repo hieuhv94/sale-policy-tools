@@ -51,7 +51,11 @@ export class RenderService {
 
   async pdf(
     policyId: string,
-    /** Mẫu người xem CHỌN (`0058`). Bỏ trống thì lấy mẫu đầu danh sách. */
+    /**
+     * Mẫu người gọi truyền kèm. Từ `0098` nó chỉ còn nghĩa với NGƯỜI LẬP đang
+     * soạn hồ sơ của mình; mọi trường hợp khác đọc mẫu từ chính hồ sơ. Không còn
+     * nhánh "bỏ trống thì lấy mẫu đầu danh sách" — xem `mauCua`.
+     */
     mauId: string | undefined,
     me: AuthUser,
   ): Promise<{ body: Buffer; code: string }> {
@@ -100,16 +104,27 @@ export class RenderService {
   /**
    * MẪU NÀO DỰNG BẢN MỀM NÀY — toàn bộ luật của `0098`, ở đúng một chỗ.
    *
-   * Ba nhánh, và thứ tự giữa chúng là cả nội dung của yêu cầu:
+   * Ba nhánh, và THỨ TỰ giữa chúng là cả nội dung của yêu cầu:
    *
-   *   1. Hồ sơ ĐÃ ĐÓNG BĂNG mẫu → dùng đúng mẫu ấy, kể cả khi nó đã bị vô hiệu
+   *   1. NGƯỜI LẬP, hồ sơ CÒN SỬA ĐƯỢC → mẫu họ chọn. Đây là quãng duy nhất còn
+   *      chọn được, và nó khép lại đúng lúc bấm *Gửi duyệt*.
+   *   2. Hồ sơ ĐÃ ĐÓNG BĂNG mẫu → dùng đúng mẫu ấy, kể cả khi nó đã bị vô hiệu
    *      hoá. Ai truyền `mauId` khác thì bị TỪ CHỐI, không bị bỏ qua im lặng —
    *      im lặng ở đây nghĩa là người gọi tin mình đang xem mẫu A trong khi
    *      nhận về mẫu B (`0089`).
-   *   2. CHƯA đóng băng, người gọi là TDV của hồ sơ và hồ sơ còn sửa được → mẫu
-   *      họ chọn. Đây là quãng duy nhất còn được chọn, và nó kết thúc đúng lúc
-   *      bấm *Gửi duyệt*.
    *   3. Còn lại → không dựng được. Hồ sơ lập trước `0098` rơi vào đây.
+   *
+   * NHÁNH 1 PHẢI ĐỨNG TRƯỚC, và tôi đã xếp ngược ở bản đầu. Hồ sơ *Yêu cầu
+   * chỉnh sửa* VẪN mang mẫu của lần gửi trước, nên nhánh 2 đứng trước sẽ nuốt
+   * nó: TDV mở hộp *Gửi lại duyệt*, chọn mẫu khác, bản xem trước ăn 409
+   * `TEMPLATE_LOCKED` — và vì nút *Xác nhận* chờ bản xem trước tải xong, họ
+   * không bao giờ gửi lại được bằng mẫu mới. Máy chủ vẫn nhận `mauHoSoId` mới ở
+   * `RESUBMIT_AFTER_EDIT`, nên lỗi này chỉ đóng đúng đường giao diện đi.
+   *
+   * Đảo lại KHÔNG nới lỏng gì: điều kiện của nhánh 1 là "còn sửa được VÀ chính
+   * người lập". Vai trò khác mở cùng hồ sơ ấy vẫn rơi xuống nhánh 2 và vẫn thấy
+   * đúng mẫu đang gắn — hồ sơ sửa được không có nghĩa ai cũng đổi được bản
+   * trình bày của nó.
    *
    * PHẢI Ở MÁY CHỦ, không phải ở chỗ giao diện ẩn ô chọn: Ban lãnh đạo mở được
    * hồ sơ *Nháp* của người khác (`assertPolicyInScope` cho qua vì TDV nằm trong
@@ -120,6 +135,10 @@ export class RenderService {
     mauId: string | undefined,
     me: AuthUser,
   ) {
+    const dangSoan = SUA_DUOC.includes(policy.status as never) && policy.tdv_user_id === me.id;
+
+    if (dangSoan && mauId) return this.templates.chon('HO_SO', mauId);
+
     if (policy.mau_ho_so_id) {
       if (mauId && mauId !== policy.mau_ho_so_id) {
         throw new ConflictException({
@@ -144,15 +163,11 @@ export class RenderService {
       return mau;
     }
 
-    const suaDuoc = SUA_DUOC.includes(policy.status as never);
-    if (suaDuoc && policy.tdv_user_id === me.id) {
-      if (!mauId) {
-        throw new ConflictException({
-          code: 'TEMPLATE_REQUIRED',
-          message: 'Chọn một văn bản mẫu để xem bản mềm.',
-        });
-      }
-      return this.templates.chon('HO_SO', mauId);
+    if (dangSoan) {
+      throw new ConflictException({
+        code: 'TEMPLATE_REQUIRED',
+        message: 'Chọn một văn bản mẫu để xem bản mềm.',
+      });
     }
 
     throw new ConflictException({

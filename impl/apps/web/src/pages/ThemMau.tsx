@@ -489,8 +489,9 @@ export function ThemMau({
                 nào nữa.
               </p>
               <p>
-                Mẫu <strong>không sửa được</strong> sau khi lưu. Muốn đổi thì xoá đi và thêm mẫu
-                mới, nên hãy soát lại bảng ánh xạ trước khi bấm.
+                Mẫu <strong>không sửa được</strong> sau khi lưu, và cũng không xoá được. Muốn đổi
+                thì thêm mẫu mới rồi <strong>vô hiệu hoá</strong> mẫu cũ; hồ sơ đã gắn mẫu cũ vẫn
+                giữ nguyên bản của nó. Hãy soát lại bảng ánh xạ trước khi bấm.
               </p>
             </>
           }

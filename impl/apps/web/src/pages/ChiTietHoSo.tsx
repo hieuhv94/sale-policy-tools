@@ -398,8 +398,16 @@ export function ChiTietHoSo({ id }: { id: string }) {
         <XemBanMem
           hoSoId={hoSo.id}
           maHoSo={hoSo.code}
-          // `0098` — hồ sơ đã gửi duyệt thì mẫu đã đóng băng, không hỏi lại nữa.
-          mauDaGan={hoSo.mauHoSoId}
+          /*
+            `0098` — hồ sơ đã gửi duyệt thì mẫu đã đóng băng, không hỏi lại nữa.
+
+            `dangSua` chứ không phải `hoSo.mauHoSoId != null`: hồ sơ *Yêu cầu
+            chỉnh sửa* VẪN mang mẫu của lần gửi trước, nhưng người lập đang soạn
+            lại nó và có quyền đổi. Đọc mỗi cột mẫu thì họ mất ô chọn ở đây trong
+            khi máy chủ vẫn cho đổi — giao diện hẹp hơn luật, và hẹp ở đúng chỗ
+            người dùng cần.
+          */
+          mauDaGan={dangSua ? null : hoSo.mauHoSoId}
           dong={() => datMoBanMem(false)}
         />
       )}

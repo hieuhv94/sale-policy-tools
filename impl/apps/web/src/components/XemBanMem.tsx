@@ -11,8 +11,14 @@
  *     thuộc tính của bản trình bày ấy, nằm sẵn trong file .docx do Quản trị
  *     soạn. Hỏi khổ giấy là bắt người dùng ghép hai mảnh mà phần mềm ghép được.
  *
- * Dùng chung cho CẢ hồ sơ lẫn hợp đồng: cùng một việc — chọn một mẫu trong danh
- * sách mẫu đang dùng rồi xem thử — chỉ khác đường API và cách gọi tên.
+ *   - `0098`: HAI LOẠI RẼ ĐÔI. Hợp đồng giữ nguyên bước chọn mẫu; bản mềm CSBH
+ *     thì mẫu đã gắn vào hồ sơ từ lúc gửi duyệt, nên hộp mở thẳng nội dung và
+ *     chỉ NÓI RA tên mẫu.
+ *
+ * Vẫn dùng chung một thành phần, và ranh giới là `mauDaGan`: có giá trị thì
+ * không hỏi gì, không có thì hỏi như cũ. Hai loại thôi cùng một việc, nhưng phần
+ * còn lại — khung xem, tỷ lệ khổ giấy, nút tải — vẫn giống hệt nhau; tách đôi là
+ * chép lại chúng để khác nhau đúng một câu hỏi.
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';

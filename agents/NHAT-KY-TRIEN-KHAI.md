@@ -9225,4 +9225,41 @@ Phép phá thứ hai đáng chú ý vì lỗ nó mở ra rất kín: điều ki�
 bộ phận bấm *Ký số* kèm một `mauHoSoId` — do một màn hình viết sau này gửi thừa, hay một lượt gọi
 tay — và ghi đè mẫu người gửi đã chọn, ở đúng bước mà yêu cầu nói là không ai được chọn nữa.
 
-**1621/1621 xanh.**
+### Lượt rà sau khi commit — một lỗi thật lọt qua cả bộ test
+
+Rà lại đường người dùng đi thì thấy `mauCua` xếp sai thứ tự nhánh: nhánh *"đã đóng băng"* đứng
+trước, vô điều kiện. Hồ sơ *Yêu cầu chỉnh sửa* **vẫn mang mẫu của lần gửi trước**, nên nó rơi vào
+nhánh ấy — TDV mở hộp *Gửi lại duyệt*, chọn mẫu khác, bản xem trước ăn 409 `TEMPLATE_LOCKED`, và vì
+nút *Xác nhận* chờ bản xem trước tải xong nên **họ không bao giờ gửi lại được bằng mẫu mới**.
+
+Vì sao cả bộ test không bắt: ca *"gửi lại thì ghi đè mẫu"* gọi thẳng API `RESUBMIT_AFTER_EDIT`, và
+đường ấy **đúng**. Lỗi chỉ nằm ở đường xem trước mà giao diện phải đi qua trước khi bấm được nút.
+Một lần nữa cùng một lớp lỗi với `0097`: luật đúng, quyền đúng, và màn hình vẫn kẹt.
+
+Sửa bằng cách đảo nhánh 1 lên trước, điều kiện *"còn sửa được VÀ chính người lập"* — không nới lỏng
+gì, vì vai trò khác mở cùng hồ sơ ấy vẫn rơi xuống nhánh 2. Giao diện sửa theo: `mauDaGan` đọc
+`dangSua` chứ không đọc mỗi cột mẫu, nếu không thì web hẹp hơn luật ở đúng chỗ người dùng cần.
+
+Ba chỗ câu chữ lỗi thời cũng gỡ trong lượt này, và một chỗ tự tôi vừa tạo ra: chuỗi `` `0098` `` lọt
+vào **câu người dùng đọc** trong hộp xác nhận lưu mẫu.
+
+### Món nợ cũ, nay đo được bằng con số
+
+Trên CSDL sau một lượt `make test` đầy đủ:
+
+| Đo | Số |
+|---|---|
+| Hồ sơ đã qua bước TBP ký số | **197** |
+| File `BAN_DA_KY` thật sự lưu trong kho | **3** |
+
+Ba file ấy đến từ `document.test.ts`, tệp duy nhất gọi `POST /policies/:id/sign-file`. **Giao diện
+không gọi, `policy` không gọi, không consumer nào nghe `policy.signed` để gọi** — nên trong luồng
+thật, không hồ sơ nào từng có bản lưu đã ký. Cơ chế có đủ mã, có ca kiểm (DOC-05, DOC-07), và không
+ai nối dây.
+
+`0098` làm nhẹ bớt một nửa hậu quả: hồ sơ giờ nói được nó dựng bằng mẫu nào, nên bản in ra hôm nay
+giống bản hôm qua chừng nào dữ liệu không đổi. Nửa còn lại vẫn hở — không có bản byte-for-byte của
+thứ đã đem đi ký, và `signed_from_id` cùng SHA-256 chưa từng bảo vệ gì. Chưa sửa ở chặng này vì nó
+không thuộc `0098` và cần khách hàng chốt: ký số có sinh bản lưu hay không.
+
+**1623/1623 xanh.**

@@ -60,8 +60,6 @@ const dpost = async (path: string, who: string, body: object = {}) =>
   (await http(doc)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 const dput = async (path: string, who: string, body: object) =>
   (await http(doc)).put(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
-const ddel = async (path: string, who: string) =>
-  (await http(doc)).delete(path).set('Authorization', `Bearer ${tok[who]}`);
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 /**
@@ -104,6 +102,30 @@ const pdfOf = async (path: string, who: string) =>
  * đứng đầu danh sách — nhớ một id cũ là bịa ra một hành vi mà người dùng thật
  * không có.
  */
+/** Đợi nhật ký (đi qua outbox → RabbitMQ → audit) có đủ số dòng cho một mẫu. */
+type DongNhatKy = {
+  action: string;
+  before_data: { voHieuHoaLuc: string | null } | null;
+  after_data: { voHieuHoaLuc: string | null } | null;
+};
+const doiNhatKy = async (id: string, can: number, hanMs = 30_000): Promise<DongNhatKy[]> => {
+  const het = Date.now() + hanMs;
+  let rows: DongNhatKy[] = [];
+  while (Date.now() < het) {
+    rows = await withAdminDb(async (c) => {
+      const r = await c.query<DongNhatKy>(
+        `SELECT action, before_data, after_data FROM aud.audit_log
+          WHERE entity_id = $1 ORDER BY occurred_at, id`,
+        [id],
+      );
+      return r.rows;
+    });
+    if (rows.length >= can) return rows;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`chỉ có ${rows.length}/${can} dòng nhật ký cho mẫu ${id}`);
+};
+
 const mauHD = async (): Promise<string> => {
   const r = await dget('/contract-templates/available', 'kt01');
   const ds = r.body as { id: string }[];
@@ -1000,6 +1022,35 @@ describe('DOC-35 vô hiệu hết mẫu hợp đồng', () => {
     expect((await templates.khaDung('HOP_DONG')).map((x) => x.id)).toContain(mau.id);
   }, 60_000);
 
+  /**
+   * NHẬT KÝ ghi giá trị TRƯỚC và SAU (YCNV muc 10).
+   *
+   * Vô hiệu hoá một mẫu là thao tác phá huỷ duy nhất còn lại của màn hình Văn
+   * bản mẫu, và nó đổi thứ cả công ty nhìn thấy trong ô chọn. Không có dòng nhật
+   * ký thì câu *"ai rút mẫu này đi, lúc nào"* không có chỗ nào trả lời — cột
+   * `vo_hieu_hoa_boi` nói được người, nhưng nó bị ghi đè ở lượt vô hiệu kế tiếp.
+   */
+  it('vô hiệu và mở lại đều để lại dòng nhật ký kèm trước–sau', async () => {
+    const mau = (await templates.khaDung('HOP_DONG'))[0]!;
+    await dpost(`/contract-templates/${mau.id}/vo-hieu`, 'admin01', { confirm: mau.ten });
+    try {
+      const rows = await doiNhatKy(mau.id, 1);
+      const tat = rows.find((r) => r.action === 'TEMPLATE_DISABLED');
+      expect(tat, 'thiếu dòng nhật ký cho lượt vô hiệu hoá').toBeTruthy();
+      // TRƯỚC còn dùng được, SAU thì không — con số đọc được, không phải chỉ một
+      // cái tên hành động.
+      expect(tat!.before_data?.voHieuHoaLuc ?? null).toBeNull();
+      expect(tat!.after_data?.voHieuHoaLuc ?? null).not.toBeNull();
+    } finally {
+      await dpost(`/contract-templates/${mau.id}/mo-lai`, 'admin01');
+    }
+
+    const sau = await doiNhatKy(mau.id, 2);
+    const bat = sau.find((r) => r.action === 'TEMPLATE_ENABLED');
+    expect(bat, 'thiếu dòng nhật ký cho lượt dùng lại').toBeTruthy();
+    expect(bat!.after_data?.voHieuHoaLuc ?? null).toBeNull();
+  }, 90_000);
+
   /** Gõ sai tên mẫu thì máy chủ chặn, không phải chỉ hộp thoại chặn (luật `17/08`). */
   it('vô hiệu hoá đòi gõ đúng tên mẫu, kiểm ở MÁY CHỦ', async () => {
     const mau = (await templates.khaDung('HOP_DONG'))[0]!;
@@ -1303,11 +1354,14 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     (await http(doc)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 
   /**
-   * XOÁ MỌI mẫu hồ sơ, trả về hàm dựng lại (`0067`).
+   * VÔ HIỆU MỌI mẫu hồ sơ, trả về hàm dựng lại (`0098`).
    *
-   * `0058` vô hiệu rồi phát hành lại. `0067` bỏ cả hai nút ấy, nên cách duy nhất
-   * để danh sách rỗng là xoá — và cách duy nhất để có lại mẫu là `ensureDefault`
-   * dựng lại bộ mặc định, đúng như lúc hệ thống mới triển khai.
+   * `0058` vô hiệu rồi phát hành lại; `0067` đổi sang xoá; `0098` quay về vô
+   * hiệu hoá — lần này không có đường lui nào khác, vì xoá đã gỡ hẳn.
+   *
+   * Hàm dựng lại vẫn là `ensureDefault`, và nó chạy được CHÍNH VÌ điều kiện của
+   * nó là "có mẫu nào còn DÙNG ĐƯỢC không". Đổi về "bảng có dòng nào không" thì
+   * hàm này im lặng không dựng lại gì, và mọi ca chạy sau nhận ô chọn rỗng.
    */
   const xoaHet = async () => {
     const ds = (await qget('/policy-templates', 'admin01')).body as { id: string }[];
@@ -1952,6 +2006,40 @@ describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
       // Trưởng bộ phận ký, kèm một mẫu khác. Bước này không được phép chọn mẫu.
       await act(d.id, 'TBP_SIGN', 'tbp01', { mauHoSoId: mauB });
       expect(await mauCuaHoSo(d.id), 'mẫu của người gửi phải còn nguyên').toBe(mauA);
+    } finally {
+      await donMau('/policy-templates', mauA);
+      await donMau('/policy-templates', mauB);
+    }
+  }, 120_000);
+
+  it('hồ sơ BỊ TRẢ LẠI: TDV xem trước được bằng MẪU KHÁC để còn gửi lại', async () => {
+    /*
+     * Đường mà hộp *Gửi lại duyệt* đi, và là chỗ luật "đã gắn thì khoá" dễ bắt
+     * nhầm nhất: hồ sơ bị trả về VẪN mang mẫu của lần gửi trước, nhưng nó đang
+     * sửa được và TDV có quyền đổi mẫu. Hộp gửi lại dựng bản xem trước kèm
+     * `?mauId=` của mẫu mới chọn — chặn ở đây là chặn luôn cả nút *Xác nhận*,
+     * vì nút ấy chờ bản xem trước tải xong.
+     */
+    const mauA = await themMauHoSo('Mẫu lần đầu — xem trước');
+    const mauB = await themMauHoSo('Mẫu định đổi sang');
+    try {
+      const d = await draft();
+      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
+      await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'đổi bố cục' });
+
+      const r = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${mauB}`)
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+        .responseType('blob');
+      expect(r.status, 'TDV phải xem trước được bằng mẫu định đổi sang').toBe(200);
+
+      // Nhưng NGƯỜI KHÁC vẫn thấy đúng mẫu đang gắn: hồ sơ sửa được không có
+      // nghĩa là ai cũng đổi được bản trình bày của nó.
+      const tbp = await (await http(doc))
+        .get(`/policies/${d.id}/render?mauId=${mauB}`)
+        .set('Authorization', `Bearer ${tok['tbp01']}`);
+      expect(tbp.status).toBe(409);
+      expect(tbp.body.code).toBe('TEMPLATE_LOCKED');
     } finally {
       await donMau('/policy-templates', mauA);
       await donMau('/policy-templates', mauB);
