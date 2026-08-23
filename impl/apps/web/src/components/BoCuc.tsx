@@ -23,6 +23,7 @@ import {
   BieuTuongTaiKhoan,
   bieuTuongMuc,
 } from './BieuTuong.js';
+import { ChuongThongBao } from './ChuongThongBao.js';
 import { NutGiaoDien } from './NutGiaoDien.js';
 
 /**
@@ -247,6 +248,16 @@ export function BoCuc({ children }: { children: ReactNode }) {
             <span className="vai-tro-rieng">
               {NHAN_VAI_TRO[nguoiDung?.role ?? ''] ?? nguoiDung?.role}
             </span>
+
+            {/*
+              Chuông đứng SÁT TRÁI thẻ tài khoản (`0096`, chốt 23/08).
+
+              Không đặt cạnh nút đổi giao diện ở đầu nhóm: hai thứ ấy khác hạng.
+              Nút giao diện là một tuỳ chọn người ta bấm một lần rồi quên; chuông
+              là chỗ có VIỆC MỚI, và nó thuộc về cụm "của tôi" — cùng cụm với tên
+              tài khoản và vai trò.
+            */}
+            <ChuongThongBao />
 
             <MenuTaiKhoan nguoiDung={nguoiDung} dangXuat={dangXuat} />
           </div>

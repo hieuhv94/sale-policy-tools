@@ -8962,3 +8962,105 @@ phán đoán thị giác, không phải một bất biến. Ghi ra đây để l
 cả hai.
 
 **1541/1541 xanh.**
+
+## P123 — Thông báo trên web: cái chuông soi gương hộp thư
+
+`0096`. Khách hàng chốt ba điều kiện, và điều kiện thứ hai định hình toàn bộ bản cài đặt: *mọi hành
+động dẫn tới gửi email cho một người đều là một thông báo của người ấy, ngoài ra không có thông báo
+nào khác — trừ các hành động về tài khoản*.
+
+### Vì sao không có bảng tra hành động nào
+
+Câu ấy có một cách cài đặt đúng và một cách sai, và cách sai trông hợp lý hơn: liệt kê ở đâu đó 17
+hành động sinh thông báo, rồi ghi một dòng cho mỗi cái. Nó trôi khỏi danh sách thư ngay lần đầu ai
+thêm một lá thư mới, và **không có gì báo** — một lá thư thiếu thông báo trông y hệt một lá thư
+không đáng có thông báo.
+
+Cách đã chọn: ghi thông báo **ngay tại chỗ đã tính ra người nhận thư**, trong `notify.service`, dùng
+chính mảng `targets` mà `mailer.send` sắp lấy địa chỉ ra. `ghiThongBao()` không biết `action` là gì
+— nó chỉ nhận một danh sách người và một cái nhan đề. Không tồn tại đường nào gửi được thư mà không
+đi qua đó, nên quy tắc thành **bất biến chứ không phải quy ước**.
+
+Cùng lối ấy áp cho liên kết. Trước đợt này `bodyFor` tự dựng `/ho-so/:id` ngay trong thân nó; giờ có
+`duongDan()` và cả hai bên gọi nó. Đó là chỗ mà yêu cầu "bấm vào thông báo phải tới đúng chỗ thư dẫn
+tới" ngừng là một lời hứa. Phá lại xác nhận: đổi `duongDan` về `/policies/:id` làm đỏ **cả hai
+tầng** — ba ca cũ trong `notification.test.ts` (thân thư) và hai ca mới (cột `duong_dan`). Hai bên
+hàn vào một hàm thì không tách ra được.
+
+### Hai lá thư tài khoản đứng ngoài — vì `ONB-15`, không vì thẩm mỹ
+
+Khách hàng loại chúng ra, và may là yêu cầu ấy trùng với một ràng buộc đã có. Thư kích hoạt và thư
+đặt lại mật khẩu đi qua `identity`, không qua `notification`, và [`identity/infra/mailer.ts`] ghi rõ
+lý do: token thô chỉ được tồn tại trong bộ nhớ tiến trình và trong thân email, CSDL chỉ giữ bản băm.
+`ntf.thong_bao` đọc được qua API. Nên đây không phải một lựa chọn — nó là điều kiện, và ca kiểm gác
+nó bằng cách **quét mã nguồn** `services/identity` tìm chữ `thong_bao`, chứ không bằng cách đếm dòng
+trong bảng: đếm dòng chỉ chứng minh lượt chạy này không ghi gì, quét thì chặn cả ý định.
+
+### Bốn quyết định, và cái thứ hai đáng nhớ nhất
+
+| Câu hỏi | Chốt |
+|---|---|
+| Người vừa bấm nút có nhận thông báo của chính mình? | **Có** — soi gương email. `KT_RECEIVE_L2` gửi cho `KE_TOAN`, tức chính người vừa bấm. Thấy nhiễu thì sửa `RECIPIENTS` ở policy, đừng thêm bộ lọc riêng cho chuông |
+| Thư gửi hỏng (SMTP chết → DLQ) thì sao? | **Vẫn ghi thông báo** — nên `ghiThongBao` đứng TRƯỚC `mailer.send` |
+| Người bị `MAIL_ALLOWLIST` cắt? | **Vẫn ghi** — allowlist là van về thư ra ngoài, không phải câu trả lời cho "việc này liên quan tới ai" |
+| Giữ bao lâu? | **6 tháng**, khớp cửa sổ *Nhật ký* |
+
+Quyết định thứ hai là cái đáng nhớ: buộc thông báo vào kết quả của SMTP nghe hợp lý cho tới lúc nghĩ
+xem nó hỏng khi nào. Đúng lúc email chết là lúc cái chuông thành đường duy nhất còn lại để người ta
+thấy việc.
+
+### Một ca kiểm suýt không gác gì
+
+Ca *"gửi lại từ DLQ không nhân đôi"* bản đầu chỉ đếm dòng, và tôi đã định dừng ở đó. Chạy phá lại
+mới thấy: bỏ `ON CONFLICT DO NOTHING` đi thì ca **vẫn xanh**. Câu `INSERT` ném lỗi trùng khoá, cả
+lượt xử lý rơi vào `catch`, sự kiện vào DLQ — và bảng vẫn đúng một dòng. Thứ mất đi là **lá thư**:
+lượt gửi lại không bao giờ đi nổi qua dòng đầu.
+
+Sửa lại thành `expect(ketQua).toEqual(['sent','sent','sent'])` thì phá lại đỏ. Bài học không phải về
+SQL: một ca kiểm khẳng định *trạng thái cuối đúng* mà không khẳng định *đường đi tới đó chạy được*
+sẽ bỏ lọt đúng lớp lỗi mà cơ chế nó định gác sinh ra để chặn.
+
+### Một ca kiểm đỏ vì lý do đúng
+
+Ca đầu tiên — "mỗi người nhận thư được đúng một dòng" — đỏ ngay lượt chạy đầu: 2 dòng thay vì 3. Sự
+kiện tôi dựng tay thiếu `saleAdminUserId`, nên `targetsFor` không có ai mang vai trò ấy để dịch.
+Nghĩa là **lá thư cũng thiếu đúng người ấy**. Một minh chứng nhỏ rằng hai bên đi chung một đường: dữ
+liệu vào thiếu thì cả hai cùng thiếu, không có bên nào tự bù.
+
+### `sys.don_idn_outbox()` chưa từng được gọi
+
+Tìm ra khi dựng `sys.don_thong_bao()` theo đúng khuôn của nó. Migration `0091` viết rõ *"Chọn:
+sla-worker gọi `sys.don_idn_outbox()` ngay sau `run_retention()`"* — và không lượt nào nối dây. Hàm
+nằm im trong CSDL từ đó, `idn.outbox` chưa được dọn một dòng nào. Nối cả hai vào `runRetention()`
+trong cùng lượt này; sửa một dòng, nhưng nếu không sửa thì tôi vừa chép lại một tài liệu nói dối.
+
+### Chuyện của bộ nạp demo
+
+Thông báo do `notification` ghi lúc nó tiêu thụ sự kiện, mà `luiHoSo()` vặn `pol.policy` và
+`pol.policy_event` chứ không chạm tới `ntf`. Không xử lý thì mở bản demo lên là vài trăm thông báo,
+**tất cả đề "vừa xong"**, kể cả thông báo của hồ sơ mang mốc 2024. `donThongBao()` chờ hàng đợi lặng
+(hai lượt đo cho cùng một con số), kéo `xay_ra_luc` về đúng sự kiện sinh ra nó qua
+`DISTINCT ON (policy_id, action)`, rồi đánh dấu đã đọc phần cũ và chừa 8 dòng mới nhất mỗi người —
+hộp 300 chưa đọc và hộp 0 chưa đọc đều không cho người xem demo thấy cái huy hiệu làm việc gì.
+
+### Phá lại
+
+| Phá | Đỏ ở |
+|---|---|
+| Bỏ lời gọi `ghiThongBao` ở đường chính | 13 ca |
+| `duongDan()` trả `/policies/:id` | **5 ca ở 2 tệp** — 3 ca thư cũ + 2 ca thông báo mới |
+| Bỏ `ON CONFLICT DO NOTHING` | 1 ca (sau khi siết ca kiểm — xem trên) |
+| Bỏ `AND user_id = $2` khỏi `UPDATE` một dòng | 3 ca |
+| Bỏ phạm vi khỏi `UPDATE` *đã đọc hết* | 1 ca |
+| `xay_ra_luc` lấy `now()` thay vì `event.at` | 1 ca |
+| Trần huy hiệu 99 → 9 | 3 ca |
+
+### Một chỗ suýt sai màu
+
+Huy hiệu đỏ với chữ trắng đúng ở giao diện sáng (`--mau-loi` = `#b3261e`). Ở giao diện tối
+`--mau-loi` là đỏ **nhạt** `#f28b82`, và chữ trắng trên nó chỉ đạt ~2:1. Chữ lấy `--mau-nen` thay
+vì `--mau-chu-nguoc`: màu nền trang luôn tương phản với màu nội dung của chính bảng ấy, nên con số
+"đục lỗ" qua huy hiệu và đọc được ở cả hai. `FE-19` bắt được bước trung gian — `#fff` viết thẳng
+trong CSS — nhưng nó chỉ gác *màu có nằm trong bảng token không*, không gác *token nào đúng*.
+
+**1595/1595 xanh.**

@@ -327,6 +327,156 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   white-space: nowrap;
 }
 
+/* --- Chuông thông báo (`0096`) --------------------------------------------- */
+
+/* `position: relative` để bảng sổ xuống neo vào cái chuông, và để huy hiệu đếm
+   neo vào chính cái nút. Cùng lối với `.menu-tai-khoan`. */
+.chuong { position: relative; }
+.nut-chuong { position: relative; overflow: visible; }
+
+/* Huy hiệu đếm — con số THẬT, không phải một dấu chấm (chốt 23/08).
+   `min-width` bằng chiều cao để `3` vẫn tròn, còn `99+` thì giãn thành viên
+   thuốc thay vì bị cắt. */
+.tb-huy-hieu {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  /* Viền cùng màu nền thanh tiêu đề: huy hiệu đè lên nét vẽ của chuông, và
+     không có vòng ngăn này thì hai hình dính vào nhau thành một vệt. */
+  border: 2px solid var(--mau-nen);
+  background: var(--mau-loi);
+  /* Chữ mang màu NỀN TRANG, không phải `--mau-chu-nguoc`. Ở bảng tối
+     `--mau-loi` là một sắc đỏ NHẠT, và chữ trắng trên nó chỉ đạt chừng 2:1 —
+     không đọc nổi. Màu nền trang thì luôn tương phản với màu nội dung của chính
+     bảng ấy, nên con số "đục lỗ" qua huy hiệu và đọc được ở cả hai giao diện. */
+  color: var(--mau-nen);
+  font-size: var(--chu-rat-nho);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bảng sổ xuống mượn `.menu-so` (nền, viền, bóng, vị trí) rồi chỉ nới bề ngang.
+   Dựng lại từ đầu là có hai khối cạnh nhau trên cùng một thanh mà lệch nhau vài
+   pixel. */
+.tb-bang {
+  width: min(24rem, calc(100vw - var(--k5)));
+  padding: 0;
+}
+
+.tb-dau {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k2);
+  padding: var(--k3);
+  border-bottom: 1px solid var(--mau-vien);
+}
+.tb-doc-het {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--mau-thuong-hieu);
+  font: inherit;
+  font-size: var(--chu-nho);
+  cursor: pointer;
+}
+.tb-doc-het:hover { text-decoration: underline; }
+.tb-doc-het:focus-visible { outline: var(--vong-tieu-diem); outline-offset: 2px; }
+
+.tb-trong {
+  margin: 0;
+  padding: var(--k5) var(--k3);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+  text-align: center;
+}
+
+.tb-danh-sach {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Trần cao chứ không để bảng dài bằng dữ liệu: nó neo vào thanh trên cùng, và
+     mười dòng dài quá màn hình thì phần chân bảng nằm ngoài tầm với. */
+  max-height: min(24rem, 60vh);
+  overflow-y: auto;
+}
+
+.tb-dong {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k2);
+  padding: var(--k3);
+  color: var(--mau-chu);
+  text-decoration: none;
+  border-bottom: 1px solid var(--mau-vien);
+}
+.tb-danh-sach > li:last-child .tb-dong { border-bottom: 0; }
+.tb-dong:hover { background: var(--mau-nen-hover); }
+.tb-dong:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
+
+/* Chấm chỉ đánh dấu DÒNG chưa đọc. Giữ ô trống khi đã đọc thay vì bỏ hẳn phần
+   tử: bỏ đi thì cả cột chữ của dòng đã đọc thụt sang trái và danh sách trông
+   như bị so le. */
+.tb-cham {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+.tb-chua-doc .tb-cham { background: var(--mau-thuong-hieu); }
+.tb-chua-doc .tb-tieu-de { font-weight: 700; }
+
+.tb-than { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tb-tieu-de { display: flex; align-items: center; gap: var(--k2); flex-wrap: wrap; }
+.tb-mo-ta {
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-luc { color: var(--mau-chu-nhat); font-size: var(--chu-rat-nho); }
+
+/* Nhãn *để biết* (`0036`) — người nhận KHÔNG phải xử lý gì ở bước này. Màu
+   trung tính, không mượn màu cảnh báo: nó phân loại, không báo động. */
+.tb-de-biet {
+  padding: 1px var(--k2);
+  border-radius: 999px;
+  background: var(--mau-nen-hover);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-rat-nho);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tb-chan {
+  padding: var(--k2) var(--k3);
+  border-top: 1px solid var(--mau-vien);
+  text-align: center;
+}
+.tb-xem-tat-ca { color: var(--mau-thuong-hieu); font-size: var(--chu-nho); }
+
+/* Trang đầy đủ: cùng dòng, chỉ thêm khung ngoài. */
+.tb-loc { margin: var(--k4) 0 var(--k3); }
+.tb-danh-sach-trang {
+  max-height: none;
+  overflow: visible;
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+}
+.tb-danh-sach-trang .tb-dong { padding: var(--k3) var(--k4); }
+
 /* Vai trò đứng riêng, bên trái thẻ tài khoản (`0063`). Viên thuốc chứ không chữ
    trần: nó nằm cạnh một thẻ cũng bo tròn, và chữ trần ở đó trôi lẫn vào nền. */
 .vai-tro-rieng {

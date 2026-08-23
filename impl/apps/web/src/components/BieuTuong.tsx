@@ -179,6 +179,21 @@ export function BieuTuongMatTrang() {
   );
 }
 
+/**
+ * Chuông thông báo (`0096`).
+ *
+ * Hình chuông ĐẶC TẢ, không có chấm đỏ vẽ sẵn trong đường path: con số chưa đọc
+ * là một phần tử riêng chồng lên, vì nó đổi theo dữ liệu còn hình thì không.
+ */
+export function BieuTuongChuong() {
+  return (
+    <Hinh>
+      <path d="M18 16v-5a6 6 0 1 0-12 0v5l-1.5 2.5h15z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </Hinh>
+  );
+}
+
 /** Dùng cho mục *Thông tin tài khoản* trong menu tài khoản (`0062`). */
 export function BieuTuongTaiKhoan() {
   return HinhNguoiDung;

@@ -87,8 +87,8 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
-**Thanh trên cùng** có ba thứ, từ phải sang: **thẻ tài khoản** (ảnh đại diện + **tên đăng nhập** của
-bạn), **vai trò** của bạn, và nút đổi **giao diện sáng / tối**.
+**Thanh trên cùng** có bốn thứ, từ phải sang: **thẻ tài khoản** (ảnh đại diện + **tên đăng nhập** của
+bạn), **chuông thông báo** `mới 23/08`, **vai trò** của bạn, và nút đổi **giao diện sáng / tối**.
 
 Thẻ hiện **tên đăng nhập** chứ không hiện họ tên: nó trả lời câu *"máy này đang chạy bằng tài khoản
 nào"*, mà họ tên không trả lời được — hai tài khoản của cùng một người mang y hệt một cái tên. Họ tên
@@ -100,6 +100,41 @@ thích của cái tên.
 
 > Dưới 640px viên vai trò ẩn đi cho vừa thanh — nhãn như *"Quản trị hệ thống"* quá dài cho màn hình
 > điện thoại. Tên đăng nhập thì vẫn hiện.
+
+### Chuông thông báo `mới 23/08`
+
+Cái chuông đứng sát trái thẻ tài khoản. Khi có việc chưa xem, nó mang một **con số đỏ** — số thông
+báo bạn chưa đọc. Quá 99 thì ghi **`99+`**.
+
+**Quy tắc gọn một câu: mỗi email hệ thống gửi cho bạn là một thông báo ở đây, và không có gì khác.**
+Không có loại thông báo nào chỉ hiện trên web mà không có thư, và không có lá thư nghiệp vụ nào
+không để lại một dòng.
+
+> Trừ **hai lá thư về tài khoản** — *kích hoạt tài khoản* và *đặt lại mật khẩu*. Chúng mang liên kết
+> dùng một lần, và liên kết ấy chỉ được tồn tại trong hộp thư của bạn.
+
+Bấm vào chuông thì sổ xuống **10 thông báo gần nhất**. Mỗi dòng có:
+
+| Phần | Là gì |
+|---|---|
+| Dòng đậm | Việc vừa xảy ra — *"Hồ sơ bị trả lại để chỉnh sửa"* |
+| Dòng mờ | Mã và tên khách hàng, mã hồ sơ |
+| Dòng nhỏ | *3 giờ trước* — rê chuột lên thì hiện ngày giờ đầy đủ |
+| Chấm xanh bên trái | Dòng này bạn **chưa đọc** |
+| Nhãn **để biết** | Bạn **không phải xử lý gì** — bạn nhận nó vì đã từng thao tác trên hồ sơ |
+
+**Bấm vào một dòng thì tới đúng chỗ mà liên kết trong email dẫn tới**, và dòng đó thành đã đọc. Dòng
+*để biết* mở *Lịch sử hồ sơ* thay vì mở hồ sơ — ở đó không có nút nào cho bạn bấm, còn lịch sử thì
+trả lời đúng câu *"từ lúc tôi rời tay, hồ sơ này đã đi qua những đâu"*. Thông báo bàn giao khách hàng
+mở danh sách khách hàng.
+
+Chân bảng có **Xem tất cả** → trang *Thông báo* đầy đủ, phân trang và lọc được **chỉ chưa đọc**. Nút
+**Đánh dấu đã đọc hết** chỉ hiện khi còn dòng chưa đọc.
+
+Đóng bảng bằng cách bấm ra ngoài, bấm lại vào chuông, hoặc nhấn **Esc**.
+
+> Thông báo giữ **6 tháng gần nhất**, cùng cửa sổ với *Nhật ký hệ thống*. Con số trên chuông tự làm
+> mới mỗi phút; chuyển sang tab khác thì nó dừng và hỏi lại ngay khi bạn quay về.
 
 ### Menu tài khoản
 

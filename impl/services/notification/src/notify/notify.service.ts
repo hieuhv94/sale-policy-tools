@@ -21,8 +21,15 @@ import { RecipientsClient } from './recipients.js';
 import {
   bodyBanGiao,
   bodyFor,
+  duongDan,
+  DUONG_BAN_GIAO,
+  moTaBanGiao,
+  moTaNgan,
   subjectBanGiao,
+  titleBanGiao,
+  titleFor,
   subjectFor,
+  type BanGiaoMail,
   type MailEvent,
 } from './templates.js';
 
@@ -96,6 +103,26 @@ export class NotifyService {
         extra: isRecord(p['extra']) ? (p['extra'] as Record<string, string>) : {},
       };
 
+      // GHI THÔNG BÁO TRƯỚC KHI GỬI THƯ (`0096`).
+      //
+      // Thứ tự này là một quyết định, không phải tình cờ. SMTP chết thì sự kiện
+      // vào DLQ và không ai nhận được thư — nhưng hành động thì ĐÃ xảy ra, hồ sơ
+      // đã chuyển bước thật. Đúng lúc email hỏng là lúc cái chuông thành đường
+      // duy nhất còn lại để người ta thấy việc, nên buộc nó vào kết quả của
+      // SMTP là làm hỏng nó ở đúng lúc cần nhất.
+      //
+      // Chạy lại từ DLQ thì `uq_thong_bao_event_kind_user` chặn bản sao.
+      await this.ghiThongBao(ev, targets, {
+        kind: 'CHINH',
+        action: mail.action ?? null,
+        tieuDe: titleFor(mail),
+        moTa: moTaNgan(mail),
+        duongDan: duongDan(mail),
+        policyId: mail.policyId ?? null,
+        customerId: mail.customerId ?? null,
+        xayRaLuc: mail.at ?? null,
+      });
+
       const threadKey = s(p['customerCode']) ?? s(p['customerId']) ?? ev.eventId;
       const subject = subjectFor(mail);
       const sent = await this.withRetry(ev, () =>
@@ -150,6 +177,66 @@ export class NotifyService {
   }
 
   /**
+   * Ghi thông báo trên web cho đúng những người sắp nhận lá thư này (`0096`).
+   *
+   * Hàm này KHÔNG có bảng tra hành động nào, và đó là điều kiện để luật của
+   * khách hàng đứng vững: *mọi hành động dẫn tới gửi email cho một người đều là
+   * một thông báo của người ấy, ngoài ra không có gì khác*. Nó nhận thẳng
+   * `targets` — chính mảng mà `mailer.send` sắp lấy địa chỉ ra — nên không tồn
+   * tại đường nào gửi được thư mà không sinh thông báo, và ngược lại.
+   *
+   * Ghi cho NGƯỜI ĐÁNG LẼ NHẬN THƯ, không phải cho danh sách sau khi lọc:
+   * `mailer.allowed()` cắt bớt người nhận theo `MAIL_ALLOWLIST`, nhưng đó là van
+   * an toàn về việc thư có được đi ra ngoài hay không, không phải câu trả lời
+   * cho *việc này liên quan tới ai*. Người bị van ấy cắt vẫn phải thấy việc của
+   * mình khi đăng nhập.
+   *
+   * Người vừa bấm nút cũng nhận, nếu vai trò của họ có trong `RECIPIENTS` của
+   * bước ấy (`KT_RECEIVE_L2` là một ví dụ thật). Cố ý không lọc: lọc ở đây là
+   * dựng một luật thứ hai chỉ đúng cho cái chuông, và cái chuông lệch khỏi hộp
+   * thư. Thấy nhiễu thì sửa `RECIPIENTS` ở policy — thư cũng bớt nhiễu theo.
+   */
+  private async ghiThongBao(
+    ev: Incoming,
+    targets: { userId: string }[],
+    t: {
+      kind: 'CHINH' | 'THEO_DOI';
+      action: string | null;
+      tieuDe: string;
+      moTa: string | null;
+      duongDan: string;
+      policyId?: string | null;
+      customerId?: string | null;
+      xayRaLuc: string | null;
+    },
+  ): Promise<void> {
+    const ids = [...new Set(targets.map((x) => x.userId).filter(Boolean))];
+    if (ids.length === 0) return;
+
+    await this.db.q(
+      `INSERT INTO ntf.thong_bao
+         (user_id, event_id, kind, action, tieu_de, mo_ta, duong_dan,
+          policy_id, customer_id, xay_ra_luc)
+       SELECT u, $1::uuid, $2, $3, $4, $5, $6, $7::uuid, $8::uuid,
+              coalesce($9::timestamptz, now())
+         FROM unnest($10::uuid[]) AS u
+       ON CONFLICT (event_id, kind, user_id) DO NOTHING`,
+      [
+        ev.eventId,
+        t.kind,
+        t.action,
+        t.tieuDe,
+        t.moTa,
+        t.duongDan,
+        t.policyId ?? null,
+        t.customerId ?? null,
+        t.xayRaLuc,
+        ids,
+      ],
+    );
+  }
+
+  /**
    * Thư BÀN GIAO KHÁCH HÀNG (`0085`).
    *
    * Người nhận bàn giao trước đây **không được báo gì cả**. Đo trên chồng demo
@@ -184,7 +271,7 @@ export class NotifyService {
       const targets = await this.recipients.byIds([nhan]);
       if (targets.length === 0) throw new Error(`không tra được địa chỉ thư của ${nhan}`);
 
-      const thu = {
+      const thu: BanGiaoMail = {
         fromName: s(p['fromName']) ?? null,
         count,
         customers: Array.isArray(p['customers'])
@@ -192,6 +279,17 @@ export class NotifyService {
           : [],
         at: s(p['at']),
       };
+
+      // Thông báo duy nhất KHÔNG trỏ về một hồ sơ, đúng như lá thư sinh ra nó.
+      await this.ghiThongBao(ev, targets, {
+        kind: 'CHINH',
+        action: 'HANDOVER',
+        tieuDe: titleBanGiao(thu),
+        moTa: moTaBanGiao(thu),
+        duongDan: DUONG_BAN_GIAO,
+        xayRaLuc: thu.at ?? null,
+      });
+
       const subject = subjectBanGiao(thu);
       const sent = await this.withRetry(ev, () =>
         this.mailer.send({
@@ -285,6 +383,24 @@ export class NotifyService {
       // nếu không trình khách gộp hai thư thành một.
       const eventId = `${ev.eventId}:theo-doi`;
       const theoDoi: MailEvent = { ...mail, eventId, chiDeBiet: true };
+
+      // `ev.eventId` chứ không phải `eventId` có hậu tố: cột là kiểu `uuid`, và
+      // cặp phân biệt hai loại đã là `(event_id, kind)` — đúng khoá mà
+      // `sent_mail` dùng ngay dưới đây. Hậu tố kia chỉ dành cho `Message-ID`.
+      //
+      // `duongDan(theoDoi)` trả `/ho-so/:id/nhat-ky` vì `chiDeBiet` — cùng một
+      // hàm, nên thông báo và thư không thể dẫn đi hai chỗ khác nhau.
+      await this.ghiThongBao(ev, targets, {
+        kind: 'THEO_DOI',
+        action: theoDoi.action ?? null,
+        tieuDe: titleFor(theoDoi),
+        moTa: moTaNgan(theoDoi),
+        duongDan: duongDan(theoDoi),
+        policyId: theoDoi.policyId ?? null,
+        customerId: theoDoi.customerId ?? null,
+        xayRaLuc: theoDoi.at ?? null,
+      });
+
       const subject = subjectFor(theoDoi);
       const sent = await this.mailer.send({
         eventId,

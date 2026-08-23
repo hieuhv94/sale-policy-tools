@@ -53,7 +53,13 @@ export const STEP_LABEL: Record<string, string> = {
   DA_XOA: 'Đã kết thúc — người lập đã xoá hồ sơ',
 };
 
-const TITLE: Record<string, string> = {
+/**
+ * Xuất ra để ca kiểm DUYỆT HẾT (`0096`): mọi hành động sinh thư phải có một
+ * thông báo trỏ đúng chỗ. Ca kiểm lặp trên chính bảng này chứ không chép lại
+ * danh sách — chép lại là dựng một bảng thứ hai để hai bên trôi khỏi nhau, đúng
+ * bệnh mà cả `0096` sinh ra để tránh.
+ */
+export const TITLE: Record<string, string> = {
   SUBMIT: 'Hồ sơ CSBH mới chờ duyệt',
   RESUBMIT_AFTER_EDIT: 'Hồ sơ đã chỉnh sửa, chờ duyệt lại',
   TBP_SIGN: 'Trưởng bộ phận đã ký số, chuyển sang Kế toán tiếp nhận',
@@ -141,8 +147,21 @@ export type BanGiaoMail = {
   at?: string | undefined;
 };
 
-export const subjectBanGiao = (e: BanGiaoMail): string =>
-  `[CSBH] Bạn được bàn giao ${e.count} khách hàng`;
+/**
+ * Đường dẫn của thư bàn giao. Danh sách khách, không phải một khách cụ thể — lá
+ * thư này nói về cả một TẬP khách hàng, và tên từng người đã nằm trong thân thư.
+ */
+export const DUONG_BAN_GIAO = '/khach-hang';
+
+/** Tiêu đề trần, không có tiền tố `[CSBH]`. Cái chuông dùng lại đúng câu này. */
+export const titleBanGiao = (e: BanGiaoMail): string =>
+  `Bạn được bàn giao ${e.count} khách hàng`;
+
+export const subjectBanGiao = (e: BanGiaoMail): string => `[CSBH] ${titleBanGiao(e)}`;
+
+/** Dòng phụ của thông báo bàn giao. `null` khi không biết người bàn giao là ai. */
+export const moTaBanGiao = (e: BanGiaoMail): string | null =>
+  e.fromName ? `từ ${e.fromName}` : null;
 
 export function bodyBanGiao(e: BanGiaoMail, webBaseUrl: string): string {
   const tu = e.fromName ? ` từ ${e.fromName}` : '';
@@ -161,7 +180,7 @@ export function bodyBanGiao(e: BanGiaoMail, webBaseUrl: string): string {
   }
   lines.push(
     '',
-    `Xem danh sách khách hàng: ${webBaseUrl}/khach-hang`,
+    `Xem danh sách khách hàng: ${webBaseUrl}${DUONG_BAN_GIAO}`,
     '',
     'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
   );
@@ -210,17 +229,44 @@ export const subjectFor = (e: MailEvent): string =>
  */
 const LA_MOC_THOI_GIAN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
+/**
+ * Lá thư này dẫn đi ĐÂU — đường dẫn tương đối, không kèm gốc.
+ *
+ * `/ho-so/:id`, KHÔNG phải `/policies/:id`. Đường cũ là đường của API, không
+ * phải của giao diện — `App.tsx` không bắt nó, nên mọi liên kết trong mọi lá thư
+ * từ trước tới nay đều dẫn tới màn hình "Không có màn hình nào ở địa chỉ này".
+ * Sửa ở `0036`.
+ *
+ * TÁCH RA KHỎI `bodyFor` ở `0096`, và đó là cả điểm của hàm này. Khách hàng
+ * chốt rằng bấm vào một thông báo trên web phải tới ĐÚNG chỗ mà liên kết trong
+ * thư dẫn tới. Nếu thư tự dựng đường của nó còn cái chuông tự dựng đường của
+ * cái chuông thì hai bên khớp nhau bằng lời hứa, và lời hứa ấy hỏng ở lượt sửa
+ * thứ hai — im lặng, vì không màn hình nào báo rằng mình vừa mở nhầm hồ sơ.
+ * Một hàm, hai nơi gọi, một ca kiểm so hai bên với nhau.
+ *
+ * Trả `/` khi thiếu `policyId` — sự kiện cũ trong DLQ có thể thiếu, và một liên
+ * kết về trang chủ vẫn dùng được, khác hẳn một liên kết `/ho-so/undefined`.
+ */
+export function duongDan(e: MailEvent): string {
+  if (!e.policyId) return '/';
+  // Người chỉ cần BIẾT thì mở hồ sơ ra chẳng có nút nào bấm được; thứ họ muốn
+  // là "từ lúc tôi rời tay, hồ sơ đã đi qua những đâu" — và đó là nhật ký (`0036`).
+  return e.chiDeBiet ? `/ho-so/${e.policyId}/nhat-ky` : `/ho-so/${e.policyId}`;
+}
+
+/**
+ * Dòng phụ của một thông báo: khách hàng, rồi mã hồ sơ.
+ *
+ * Khách hàng đứng TRƯỚC vì đó là thứ người nhận nhận ra — cùng lý do khiến tên
+ * khách hàng nằm trong tiêu đề thư. Mã hồ sơ đứng sau, cho người cần đối chiếu.
+ */
+export function moTaNgan(e: MailEvent): string | null {
+  const khach = [e.customerCode, e.customerName].filter(Boolean).join(' — ');
+  return [khach, e.policyCode].filter(Boolean).join(' · ') || null;
+}
+
 export function bodyFor(e: MailEvent, webBaseUrl: string): string {
-  /*
-   * `/ho-so/:id`, KHÔNG phải `/policies/:id`.
-   *
-   * Đường cũ là đường của API, không phải của giao diện — `App.tsx` không bắt
-   * nó, nên mọi liên kết trong mọi lá thư từ trước tới nay đều dẫn tới màn hình
-   * "Không có màn hình nào ở địa chỉ này". Sửa cùng đợt `0036` vì chính đợt này
-   * thêm một liên kết thứ hai, và thêm một liên kết hỏng nữa thì thôi.
-   */
-  const hoSo = e.policyId ? `${webBaseUrl}/ho-so/${e.policyId}` : webBaseUrl;
-  const link = e.chiDeBiet && e.policyId ? `${hoSo}/nhat-ky` : hoSo;
+  const link = `${webBaseUrl}${duongDan(e)}`;
   const status = STATUS_LABEL[e.toStatus ?? ''] ?? e.toStatus ?? '—';
   const step = STEP_LABEL[e.pendingStep ?? e.toStatus ?? ''] ?? 'Không còn bước nào phải xử lý';
 

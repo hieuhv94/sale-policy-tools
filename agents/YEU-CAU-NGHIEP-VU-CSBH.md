@@ -844,6 +844,24 @@ phải một cách in khác của hồ sơ.
   dưới 24 giờ là tới hạn, ở **bất kỳ bước nào** trong phạm vi người đang xem — không riêng bước của
   chính họ. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày qua.
 
+### 9.1b. Thông báo trên web `mới 23/08`
+
+Một **biểu tượng chuông** ở thanh trên cùng, sát trái thẻ tài khoản, mang **con số** thông báo chưa
+đọc — không phải một dấu chấm. Quá 99 thì ghi `99+`.
+
+- **Mọi hành động dẫn tới gửi email cho một người đều là một thông báo của người ấy, và ngoài ra
+  không có thông báo nào khác.** Danh sách người nhận thông báo là chính danh sách người nhận thư,
+  lấy ở cùng một chỗ.
+- **Trừ hai lá thư về tài khoản** — kích hoạt tài khoản và đặt lại mật khẩu. Chúng mang liên kết
+  dùng một lần, và liên kết ấy không được phép nằm trong bảng nào đọc lại được.
+- Nội dung **ngắn gọn**: tên việc vừa xảy ra, khách hàng và mã hồ sơ, thời điểm. Lý do trả lại
+  không hiện ở đây — bấm vào là mở đúng hồ sơ có nó.
+- **Bấm vào thì tới đúng địa chỉ mà liên kết trong email dẫn tới.** Thư "để biết" dẫn tới *Lịch sử
+  hồ sơ*, thư bàn giao khách hàng dẫn tới danh sách khách hàng.
+- Bảng sổ xuống giữ **10 dòng gần nhất**, kèm *Đánh dấu đã đọc hết* và *Xem tất cả*. Trang đầy đủ
+  lọc được **chỉ chưa đọc**.
+- Thông báo giữ **6 tháng**, cùng cửa sổ với *Nhật ký*.
+
 ### 9.2. Bộ lọc và báo cáo
 
 Bộ lọc **9 tiêu chí** `sửa 21/08`, cho phép kết hợp nhiều điều kiện, xóa bộ lọc, xuất Excel và giữ
@@ -1253,6 +1271,16 @@ dạng hình. Ban lãnh đạo và Trưởng bộ phận theo dõi được hi�
 "TDV của tôi" đọc từ chính phạm vi dữ liệu (*phương án A*), không dựng lại cây tổ chức. "Hiệu quả"
 chỉ gồm những gì phần mềm đang có, và màn hình nói rõ **đây không phải doanh số**. Bấm một người thì
 lọc tại chỗ; không có chức năng so hai người cạnh nhau. Chi tiết ở muc 9.2c.
+
+**Thông báo trên web soi gương hộp thư** `mới 23/08` — một cái chuông ở thanh trên cùng, mang **con
+số** chưa đọc (`99+` khi vượt trần), sát trái thẻ tài khoản. Quy tắc phạm vi chốt gọn một câu: *mọi
+hành động dẫn tới gửi email cho một người đều là một thông báo của người ấy, ngoài ra không có gì
+khác* — nên danh sách người nhận thông báo **là chính** danh sách người nhận thư, đọc ở cùng một
+chỗ, không có bảng tra thứ hai. Bấm vào một thông báo thì tới **đúng địa chỉ mà thư dẫn tới**.
+
+> **Hai lá thư tài khoản đứng ngoài, và không phải vì thẩm mỹ.** Thư kích hoạt và thư đặt lại mật
+> khẩu mang **token thô** trong thân — thứ `ONB-15` chỉ cho phép tồn tại trong bộ nhớ tiến trình và
+> trong email, còn CSDL chỉ giữ bản băm. Bảng thông báo thì đọc được qua API. Chi tiết ở muc 9.1b.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay

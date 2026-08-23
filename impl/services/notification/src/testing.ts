@@ -14,3 +14,16 @@ export { NotifyService } from './notify/notify.service.js';
 export { NotifyConsumer } from './notify/consumer.js';
 export { Mailer } from './infra/mailer.js';
 export { assertSafeMailConfig, UnsafeMailConfigError, loadMailConfig } from './infra/config.js';
+export {
+  bodyBanGiao,
+  bodyFor,
+  duongDan,
+  DUONG_BAN_GIAO,
+  subjectBanGiao,
+  subjectFor,
+  TITLE,
+  titleBanGiao,
+  titleFor,
+  type BanGiaoMail,
+  type MailEvent,
+} from './notify/templates.js';

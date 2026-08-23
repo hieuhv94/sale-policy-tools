@@ -80,14 +80,13 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (22/08/2026)
+## Trạng thái hiện tại (23/08/2026)
 
-Chặng gần nhất **P122** (`0095`): bố cục lại phần Thống kê — lưới hai cột, nhãn trục ngắn và tự
-thưa, chú thích gom về một khối *Cách tính*; cộng **ba năm dữ liệu** cho `make demo-mau`.
-**1541/1541 xanh**, cây làm việc sạch.
+Chặng gần nhất **P123** (`0096`): **thông báo trên web** — chuông ở thanh trên cùng mang con số chưa
+đọc (`99+` khi vượt trần), hộp thông báo soi gương hộp thư. **1595/1595 xanh**, cây làm việc sạch.
 
-Trước đó **P121** (`0094`): *Thống kê* vẽ lại bằng **biểu đồ** và soi được hiệu quả **từng trình
-dược viên** (Ban lãnh đạo toàn công ty, Trưởng bộ phận trong phạm vi của mình).
+Trước đó **P122** (`0095`): bố cục lại phần Thống kê — lưới hai cột, nhãn trục ngắn và tự thưa, chú
+thích gom về một khối *Cách tính*; cộng **ba năm dữ liệu** cho `make demo-mau`.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -112,6 +111,12 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   **sau khi** làm tròn để con số hiển thị và con số dùng so sánh là một.
 - SLA 14 ngày cho mọi trạng thái chờ, tính cả cuối tuần. *Quá hạn duyệt* là **trạng thái kết thúc**
   (`18/08`) — không ai thao tác được nữa, sau 3 ngày tự chuyển *Đã xoá*.
+- **Thông báo trên web = người nhận thư, không hơn không kém** (`0096`). Dòng thông báo ghi ngay
+  trong `notify.service.handle()`, dùng chính mảng `targets` mà `mailer.send` sắp lấy địa chỉ ra —
+  không có bảng tra hành động nào, nên không lá thư nào lỡ thiếu thông báo. Liên kết dựng bằng
+  `templates.duongDan()`, một hàm cho cả thư lẫn chuông. Hai lá thư của `identity` (kích hoạt, đặt
+  lại mật khẩu) **không** sinh thông báo: chúng mang token thô, mà `ONB-15` cấm token thô nằm trong
+  CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.

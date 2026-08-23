@@ -1,6 +1,17 @@
 /**
- * API xem hàng đợi lỗi. Thư hỏng phải NHÌN THẤY ĐƯỢC, nếu không thì "đã gửi
- * thông báo rồi" là câu không ai kiểm chứng được (NTF-05).
+ * API xem hàng đợi lỗi, và hộp thông báo của chính mình.
+ *
+ * Thư hỏng phải NHÌN THẤY ĐƯỢC, nếu không thì "đã gửi thông báo rồi" là câu
+ * không ai kiểm chứng được (NTF-05).
+ *
+ * BỐN ĐƯỜNG `cua-toi` của `0096` KHÔNG có `@Roles`, khác hẳn ba đường trên
+ * chúng. Đó không phải sơ sót: **chính dòng dữ liệu là quyền**. Một thông báo
+ * thuộc về đúng một người, nên câu hỏi "vai trò nào được xem" không có nghĩa —
+ * Ban lãnh đạo cũng chỉ xem được hộp của Ban lãnh đạo.
+ *
+ * Đổi lại, mệnh đề `user_id = $me` thành thứ DUY NHẤT chặn người này đọc hộp
+ * người kia, nên nó phải có mặt ở cả bốn — kể cả hai câu `UPDATE`, chỗ dễ quên
+ * nhất. `tests/http/thong-bao.test.ts` có ca đối chiếu riêng cho từng câu.
  */
 import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { CurrentUser, Roles, pageOf, paged, pageSql, type AuthUser } from '@csbh/http-kit';
@@ -13,6 +24,97 @@ export class NotifyController {
     private readonly db: Db,
     private readonly notify: NotifyService,
   ) {}
+
+  /**
+   * Hộp thông báo của người đang đăng nhập (`0096`).
+   *
+   * Sắp theo `xay_ra_luc`, không theo lúc ghi dòng: một sự kiện nằm trong DLQ ba
+   * tiếng rồi mới gửi lại vẫn phải đứng đúng chỗ của nó trong dòng thời gian.
+   * `id DESC` đi kèm để một hành động sinh thư cho bốn người — bốn dòng cùng
+   * `xay_ra_luc` — có thứ tự ổn định giữa các trang.
+   *
+   * `soChuaDoc` trả về CẢ HỘP, không phải số chưa đọc trong trang này. Cái
+   * chuông cần con số thật; một huy hiệu đếm theo trang thì mở sang trang hai là
+   * nó đổi số mà chẳng có gì xảy ra.
+   */
+  @Get('cua-toi')
+  async cuaToi(
+    @CurrentUser() me: AuthUser,
+    @Query() q: { limit?: string; offset?: string; chuaDoc?: string },
+  ) {
+    const p = pageOf(q);
+    const rows = await this.db.q<Record<string, unknown>>(
+      `SELECT id, kind, action, tieu_de AS "tieuDe", mo_ta AS "moTa",
+              duong_dan AS "duongDan", policy_id AS "policyId", customer_id AS "customerId",
+              xay_ra_luc AS "xayRaLuc", da_doc_luc AS "daDocLuc",
+              count(*) OVER() AS total_count
+         FROM ntf.thong_bao
+        WHERE user_id = $1
+          AND ($2::boolean IS NOT TRUE OR da_doc_luc IS NULL)
+        ORDER BY xay_ra_luc DESC, id DESC ${pageSql(3)}`,
+      [me.id, q.chuaDoc === 'true', p.limit, p.offset],
+    );
+    return { ...paged(rows, p), soChuaDoc: await this.demChuaDocCua(me.id) };
+  }
+
+  /**
+   * Chỉ con số trên huy hiệu — đường NÓNG NHẤT của cả service.
+   *
+   * Mọi phiên đang mở hỏi lại mỗi 60 giây, nên nó tách riêng khỏi `cua-toi`:
+   * kéo về 10 dòng dữ liệu chỉ để lấy một con số là nhân lưu lượng ấy lên vài
+   * chục lần mà không ai đọc phần còn lại.
+   *
+   * KHÔNG chặn trên ở 99. Giao diện hiện `99+`, nhưng đó là chuyện của giao
+   * diện; một API trả số đã bị cắt là một API mà chỗ gọi thứ hai sẽ đọc sai.
+   * Chỉ mục một phần `ix_thong_bao_chua_doc` làm phép đếm này không chạm tới
+   * dòng đã đọc.
+   */
+  @Get('cua-toi/dem')
+  async demCuaToi(@CurrentUser() me: AuthUser) {
+    return { soChuaDoc: await this.demChuaDocCua(me.id) };
+  }
+
+  /**
+   * Đánh dấu một thông báo đã đọc. Gọi lúc người dùng bấm vào nó.
+   *
+   * `coalesce(da_doc_luc, now())` chứ không `SET da_doc_luc = now()`: bấm lại
+   * một thông báo đã đọc là chuyện thường (mở lại hồ sơ từ danh sách đầy đủ), và
+   * nó không được phép dời mốc đã đọc.
+   *
+   * Không tìm thấy và không phải của mình trả về CÙNG một 404. Cố ý: tách hai
+   * câu ra là để lộ rằng một id nào đó có tồn tại trong hệ thống.
+   */
+  @Post(':id/da-doc')
+  async daDoc(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() _b: unknown) {
+    const row = await this.db.one<{ id: string }>(
+      `UPDATE ntf.thong_bao SET da_doc_luc = coalesce(da_doc_luc, now())
+        WHERE id = $1 AND user_id = $2
+        RETURNING id`,
+      [id, me.id],
+    );
+    if (!row) throw new NotFoundException({ code: 'THONG_BAO_NOT_FOUND' });
+    return { soChuaDoc: await this.demChuaDocCua(me.id) };
+  }
+
+  /** Đánh dấu đã đọc CẢ HỘP, không riêng phần đang hiện trên màn hình. */
+  @Post('da-doc-het')
+  async daDocHet(@CurrentUser() me: AuthUser, @Body() _b: unknown) {
+    const rows = await this.db.q<{ id: string }>(
+      `UPDATE ntf.thong_bao SET da_doc_luc = now()
+        WHERE user_id = $1 AND da_doc_luc IS NULL
+        RETURNING id`,
+      [me.id],
+    );
+    return { soDaDanhDau: rows.length, soChuaDoc: 0 };
+  }
+
+  private async demChuaDocCua(userId: string): Promise<number> {
+    const r = await this.db.one<{ so: string }>(
+      `SELECT count(*) AS so FROM ntf.thong_bao WHERE user_id = $1 AND da_doc_luc IS NULL`,
+      [userId],
+    );
+    return Number(r?.so ?? 0);
+  }
 
   @Roles('QUAN_TRI')
   @Get('dead-letters')

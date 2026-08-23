@@ -53,7 +53,10 @@
     "./mau-van-ban": "./src/pages/MauHopDong.tsx",
     "./them-mau": "./src/pages/ThemMau.tsx",
     "./tep-dinh-kem": "./src/components/TepDinhKem.tsx",
-    "./nguoi-dung-ui": "./src/pages/NguoiDung.tsx"
+    "./nguoi-dung-ui": "./src/pages/NguoiDung.tsx",
+    "./thong-bao": "./src/lib/thong-bao.ts",
+    "./chuong": "./src/components/ChuongThongBao.tsx",
+    "./thong-bao-ui": "./src/pages/ThongBao.tsx"
   },
   "scripts": {
     "build": "vite build",

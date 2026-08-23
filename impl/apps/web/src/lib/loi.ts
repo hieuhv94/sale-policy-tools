@@ -388,6 +388,18 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'thanh-noi',
     cau: 'Thư hỏng này không còn trong hàng đợi. Tải lại danh sách.',
   },
+  /*
+   * `0096` — đánh dấu đã đọc một thông báo không còn (hoặc không phải của mình).
+   *
+   * `thanh-noi` chứ không `hop-thoai`: người dùng vừa bấm vào một dòng để ĐI
+   * SANG hồ sơ, và màn hình đang chuyển. Một hộp thoại lúc ấy chặn ngang đúng
+   * việc họ định làm, cho một lỗi không mất gì — thông báo là bản sao của lá thư
+   * đã nằm trong hộp thư của họ.
+   */
+  THONG_BAO_NOT_FOUND: {
+    dang: 'thanh-noi',
+    cau: 'Thông báo này không còn nữa. Tải lại danh sách.',
+  },
   SERVICE_TOKEN_MISSING: { dang: 'im' },
   VALIDATION_FAILED: { dang: 'o-nhap', tuThan: true },
   CONFIRM_MISMATCH: { dang: 'o-nhap', truong: 'confirm', tuMayChu: true },

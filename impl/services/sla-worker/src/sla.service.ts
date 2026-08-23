@@ -387,12 +387,29 @@ export class SlaService {
   /**
    * Gọi `sys.run_retention()`. Hàm là SECURITY DEFINER nên nó xoá được ở cả bốn
    * schema mà role csbh_pol không có quyền — xem chú thích ở migration 0013.
+   *
+   * HAI HÀM CON gọi kèm ngay sau, vì `CREATE OR REPLACE` của Postgres đòi cả
+   * thân hàm nên `run_retention()` không nối thêm được từ một migration sau
+   * (`0091` giải thích đầy đủ). Cả hai đều SECURITY DEFINER và đều cấp EXECUTE
+   * riêng cho `csbh_pol`.
+   *
+   * `sys.don_idn_outbox()` đáng lẽ đã phải nằm ở đây từ `0091` — migration ấy
+   * viết rõ "sla-worker gọi ngay sau `run_retention()`" và không lượt nào nối
+   * dây. Hàm nằm im trong CSDL suốt từ đó, và `idn.outbox` chưa từng được dọn
+   * một dòng nào. Tìm ra khi dựng `sys.don_thong_bao()` theo đúng khuôn ấy.
    */
   async runRetention(): Promise<Record<string, unknown>> {
     const r = await this.db.one<{ run_retention: Record<string, unknown> }>(
       `SELECT sys.run_retention()`,
     );
-    return r?.run_retention ?? {};
+    const them = await this.db.one<{ idn_outbox: string; thong_bao: string }>(
+      `SELECT sys.don_idn_outbox() AS idn_outbox, sys.don_thong_bao() AS thong_bao`,
+    );
+    return {
+      ...(r?.run_retention ?? {}),
+      idn_outbox: Number(them?.idn_outbox ?? 0),
+      thong_bao: Number(them?.thong_bao ?? 0),
+    };
   }
 
   async close(): Promise<void> {

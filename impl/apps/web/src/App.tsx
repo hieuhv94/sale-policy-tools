@@ -8,6 +8,7 @@ import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
 import { QuenMatKhau } from './pages/QuenMatKhau.js';
 import { NguoiDung } from './pages/NguoiDung.js';
+import { ThongBao } from './pages/ThongBao.js';
 import { ThongTin } from './pages/ThongTin.js';
 import { VanBanMau } from './pages/MauHopDong.js';
 import { LapHoSo } from './pages/LapHoSo.js';
@@ -105,6 +106,10 @@ export function noiDung(duong: string, vaiTro: string) {
   // đều vào được, và chỗ tìm nó tự nhiên là thẻ tên ở thanh trên cùng chứ không
   // phải một mục menu thứ chín.
   if (duong === '/thong-tin') return <ThongTin />;
+
+  // Cũng không nằm trong `DIEU_HUONG`, cùng lý do với `/thong-tin`: màn hình của
+  // chính mình, và chỗ tìm nó là cái chuông ở thanh trên cùng (`0096`).
+  if (duong === '/thong-bao') return <ThongBao />;
 
   /*
     Đường CŨ `/bao-cao` vẫn sống (`0093`).

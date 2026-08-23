@@ -483,6 +483,7 @@ async function xoaDuLieuCu(): Promise<void> {
       DELETE FROM cat.product_group;
       DELETE FROM ntf.sent_mail;
       DELETE FROM ntf.dead_letter;
+      DELETE FROM ntf.thong_bao;
       ALTER TABLE aud.audit_log DISABLE TRIGGER trg_audit_immutable;
       DELETE FROM aud.audit_log;
       ALTER TABLE aud.audit_log ENABLE TRIGGER trg_audit_immutable;
@@ -1308,6 +1309,7 @@ async function main(): Promise<void> {
   );
 
   const lech = await choDauVet();
+  const tb = await donThongBao();
 
   console.log(
     `seed-demo: xong — ${NHOM.length} nhóm, ${SAN_PHAM.length} sản phẩm, ` +
@@ -1317,8 +1319,77 @@ async function main(): Promise<void> {
       // trong `templates/` cố ý đứng ngoài, và một con số đếm cả nó thì mỗi lần
       // ai đó soi CSDL lại phải đi tìm xem mình vừa mất một mẫu ở đâu.
       `${MAU_HOP_DONG.length} mẫu hợp đồng, ${BO_MAU.filter((m) => m.napDemo !== false).length} mẫu hồ sơ, ${SO_THU_HONG} thư hỏng, ` +
-      `${lech} hồ sơ cần cập nhật`,
+      `${lech} hồ sơ cần cập nhật, ${tb.tong} thông báo (${tb.chuaDoc} chưa đọc)`,
   );
+}
+
+/**
+ * Vặn đồng hồ của hộp THÔNG BÁO cho khớp với lịch sử vừa dựng (`0096`).
+ *
+ * Không có bước này thì mở bản demo lên là một cái chuông báo vài trăm thông
+ * báo, tất cả đề *vừa xong* — kể cả thông báo của những hồ sơ mang mốc 2024.
+ * Lý do: thông báo do service `notification` ghi lúc nó tiêu thụ sự kiện, mà
+ * `luiHoSo()` vặn `pol.policy` và `pol.policy_event` chứ không chạm tới `ntf`.
+ *
+ * BA VIỆC, theo đúng thứ tự này:
+ *
+ *   1. **Chờ hàng đợi lặng.** Đường đi qua RabbitMQ là bất đồng bộ thật; dừng
+ *      sớm thì phần thông báo tới sau vẫn mang mốc hôm nay.
+ *   2. **Kéo mốc về đúng sự kiện sinh ra nó.** Ghép theo `(policy_id, action)`,
+ *      lấy lần GẦN NHẤT khi một hành động lặp lại — một hồ sơ bị trả lại hai lần
+ *      có hai `TBP_RETURN`, và thông báo thuộc về lần sau.
+ *   3. **Đánh dấu đã đọc phần cũ**, chừa 8 dòng mới nhất mỗi người. Một hộp chưa
+ *      đọc 300 dòng và một hộp chưa đọc 0 dòng đều không cho người xem demo thấy
+ *      cái huy hiệu làm việc gì.
+ */
+async function donThongBao(): Promise<{ tong: number; chuaDoc: number }> {
+  const db = moKetNoi();
+  await db.connect();
+  try {
+    const dem = async () =>
+      Number(
+        (await db.query<{ n: string }>(`SELECT count(*) AS n FROM ntf.thong_bao`)).rows[0]!.n,
+      );
+
+    // Lặng nghĩa là hai lượt đo liên tiếp cho cùng một con số — dấu hiệu đáng
+    // tin duy nhất rằng không còn sự kiện nào trên đường.
+    let truoc = -1;
+    for (let i = 0; i < 40; i += 1) {
+      const nay = await dem();
+      if (nay > 0 && nay === truoc) break;
+      truoc = nay;
+      await new Promise((ok) => setTimeout(ok, 1_500));
+    }
+
+    await db.query(`
+      UPDATE ntf.thong_bao t
+         SET xay_ra_luc = m.at
+        FROM (SELECT DISTINCT ON (policy_id, action) policy_id, action, at
+                FROM pol.policy_event
+               ORDER BY policy_id, action, at DESC) m
+       WHERE m.policy_id = t.policy_id AND m.action = t.action
+    `);
+
+    await db.query(`
+      WITH giu AS (
+        SELECT id FROM (
+          SELECT id, row_number() OVER (PARTITION BY user_id
+                                            ORDER BY xay_ra_luc DESC, id DESC) AS hang
+            FROM ntf.thong_bao) x
+         WHERE hang <= 8)
+      UPDATE ntf.thong_bao
+         SET da_doc_luc = xay_ra_luc + interval '2 hours'
+       WHERE id NOT IN (SELECT id FROM giu)
+    `);
+
+    const r = await db.query<{ tong: string; chua: string }>(
+      `SELECT count(*) AS tong, count(*) FILTER (WHERE da_doc_luc IS NULL) AS chua
+         FROM ntf.thong_bao`,
+    );
+    return { tong: Number(r.rows[0]!.tong), chuaDoc: Number(r.rows[0]!.chua) };
+  } finally {
+    await db.end();
+  }
 }
 
 /**

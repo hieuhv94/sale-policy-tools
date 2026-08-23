@@ -73,11 +73,23 @@ export function Lien({
   den,
   children,
   className,
+  truocKhiDi,
   ...rest
 }: {
   den: string;
   children: ReactNode;
   className?: string;
+  /**
+   * Chạy TRƯỚC khi điều hướng (`0096`).
+   *
+   * Không nhận `onClick` qua `...rest` được: hàm này tự đặt `onClick` của riêng
+   * nó ngay bên dưới, nên một `onClick` truyền vào sẽ bị đè và biến mất trong im
+   * lặng — kiểu hỏng không có thông báo nào.
+   *
+   * Chạy cả khi người dùng Ctrl+bấm để mở tab mới. Đúng: họ vẫn vừa đọc thông
+   * báo ấy, chỉ là đọc ở tab khác.
+   */
+  truocKhiDi?: () => void;
   /**
    * Mục điều hướng đang mở đặt `aria-current="page"`.
    *
@@ -94,6 +106,7 @@ export function Lien({
       href={den}
       className={className}
       onClick={(e) => {
+        truocKhiDi?.();
         // Giữ nguyên hành vi mặc định khi người dùng CỐ Ý mở tab mới.
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
         e.preventDefault();
