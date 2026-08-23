@@ -372,6 +372,12 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
   ý nghĩa nghiệp vụ khác nhau và để lại vết khác nhau trong nhật ký.
 - Giá bán Công ty và ngưỡng chiết khấu **chụp lại theo danh mục tại thời điểm sửa**, đúng như lúc
   thêm dòng. Hồ sơ chưa gửi duyệt thì con số của nó phải là con số hiện hành.
+- **Chỉ TDV đang phụ trách hồ sơ** thêm, sửa, xoá được một dòng sản phẩm, và đổi được ngày áp dụng
+  `nói rõ 23/08`. Luật này không mới — nó là mặt còn lại của quy tắc xoá hồ sơ ở mục 4 — nhưng
+  trước đây chỉ ghi ngầm bằng chữ *"người lập"*, và phần mềm đã hiểu ngầm sai một chỗ (xem Phụ lục B,
+  `0099`). Nói rõ vì ba vai trò khác **có tên trên hồ sơ**: hồ sơ bị trả lại vẫn mang tên Trưởng bộ
+  phận và Kế toán đã xử lý nó, mà "có tên trên hồ sơ" chỉ cho quyền **xem lại việc mình đã làm** —
+  không cho quyền sửa nội dung người khác đang chịu trách nhiệm.
 
 ### 5.1. Kiểm tra khi thêm sản phẩm
 
@@ -1333,6 +1339,18 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > viễn bản mềm của những hồ sơ ấy, mà chúng đã khoá sửa từ lúc gửi duyệt — không ai chữa được, và
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
+
+**Chỉ TDV phụ trách sửa được nội dung hồ sơ** `nói rõ 23/08` — **không phải một quyết định mới**, mà
+là một luật cũ được viết ra sau khi phần mềm bị bắt gặp làm khác. Đợt rà tìm thấy và dựng lại được
+trên bản chạy thật: **Ban lãnh đạo — vai trò chỉ đọc — xoá được một dòng sản phẩm khỏi hồ sơ *Nháp*
+của người khác**, và **Kế toán hoặc Trưởng bộ phận xoá được dòng khỏi hồ sơ họ vừa trả về** cho TDV
+sửa. Từ nay: thêm, sửa, xoá dòng sản phẩm và đổi ngày áp dụng đều đòi **đúng TDV đang phụ trách hồ
+sơ ấy**; có tên trên hồ sơ chỉ cho quyền xem lại việc mình đã làm. Xem mục 5.
+
+> **Vì sao lỗi này sống lâu mà không ai thấy.** Màn hình chưa bao giờ bày cái nút ấy ra cho vai trò
+> nào khác, và bảng quyền của giao diện vẫn đúng suốt thời gian đó — nên không có triệu chứng nào để
+> nhìn thấy. Lỗ hổng chỉ mở với người gọi thẳng API. Đó cũng là lý do phép kiểm mới không kiểm màn
+> hình mà **quét toàn bộ đường ghi của máy chủ** và gọi thật từng đường bằng tài khoản Ban lãnh đạo.
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay

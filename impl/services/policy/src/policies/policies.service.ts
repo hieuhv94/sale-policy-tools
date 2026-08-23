@@ -1357,11 +1357,40 @@ export class PoliciesService {
     };
   }
 
-  /** Hồ sơ đã gửi duyệt thì khoá sửa (POL-11). */
+  /**
+   * Hồ sơ đã gửi duyệt thì khoá sửa (POL-11), và **chỉ TDV đang phụ trách sửa**.
+   *
+   * VẾ THỨ HAI THÊM Ở `0099`, sau khi dựng lại được trên chồng demo thật: Kế
+   * toán xoá được một dòng sản phẩm khỏi hồ sơ *Yêu cầu chỉnh sửa* mà TDV đang
+   * sửa dở, và Ban lãnh đạo — vai trò CHỈ ĐỌC — xoá được dòng khỏi hồ sơ *Nháp*
+   * của người khác. Nguyên nhân ở `policies.controller.ts`: một `@Roles('TDV')`
+   * mồ côi sau khi P26 chèn phương thức mới ngay dưới nó, để lại đường xoá dòng
+   * không khai vai trò nào.
+   *
+   * Vì sao chữa Ở ĐÂY chứ không chỉ dán lại cái `@Roles` đã rơi: `assertPolicyInScope`
+   * trả lời câu *"tôi có liên quan tới hồ sơ này không"* — đúng cho quyền ĐỌC,
+   * và bốn cột người đều tính, kể cả những bước đã qua. Nó chưa bao giờ trả lời
+   * câu *"tôi có được SỬA hồ sơ này không"*, mà cả bốn đường ghi ở đây đều hỏi
+   * câu thứ hai. Đặt luật ở nguồn thì một đường ghi viết sau này quên khai vai
+   * trò vẫn an toàn; dán `@Roles` là để câu trả lời nằm ở chỗ dễ rơi nhất.
+   *
+   * Cùng một luật, cùng một mã lỗi với `remove()` — xoá hồ sơ vốn đã so
+   * `tdv_user_id` từ `0035`. Hai đường ghi cùng một hồ sơ mà trả lời khác nhau
+   * về cùng một câu hỏi là chỗ lỗi này sinh ra.
+   */
   private async mustEdit(policyId: string, me: AuthUser): Promise<PolicyRow> {
     const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.assertPolicyInScope(p, me);
+    // NGƯỜI PHỤ TRÁCH HIỆN TẠI, không phải người đã lập — hồ sơ sang tay qua bàn
+    // giao thì người kế nhiệm sửa được, còn `created_by` trỏ vào tài khoản đã vô
+    // hiệu hoá (cùng lý do đã ghi ở `remove()`).
+    if (p.tdv_user_id !== me.id) {
+      throw new ForbiddenException({
+        code: 'NOT_OWNER',
+        message: 'Chỉ TDV đang phụ trách hồ sơ này mới sửa được.',
+      });
+    }
     if (!EDITABLE.includes(p.status)) {
       throw new ConflictException({
         code: 'POLICY_LOCKED',

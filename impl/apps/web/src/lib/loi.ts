@@ -232,7 +232,10 @@ export const BANG_LOI: Record<string, Muc> = {
   },
   NOT_OWNER: {
     dang: 'hop-thoai',
-    cau: 'Chỉ trình dược viên đang phụ trách hồ sơ này mới xoá được.',
+    // Từ `0099` mã này trả lời cho CẢ hai đường — sửa và xoá. Trước đó chỉ có
+    // đường xoá dùng nó, và câu cũ nói "mới xoá được"; để nguyên thì người bị
+    // chặn lúc sửa đọc được một câu nói về việc họ không làm.
+    cau: 'Chỉ trình dược viên đang phụ trách hồ sơ này mới sửa hoặc xoá được.',
   },
   NOT_OWNING_TDV: { dang: 'hop-thoai', tuMayChu: true },
   ONLY_EDITABLE_DELETABLE: { dang: 'hop-thoai', tuMayChu: true },

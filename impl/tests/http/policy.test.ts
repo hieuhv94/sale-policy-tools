@@ -704,6 +704,88 @@ describe('POL-11 hồ sơ đã gửi duyệt thì khoá sửa', () => {
   });
 });
 
+describe('`0099` chỉ TDV ĐANG PHỤ TRÁCH sửa được hồ sơ', () => {
+  /*
+   * Dựng lại trên chồng demo trước khi viết ca này, và cả ba đều là 200:
+   *
+   *   bld01 xoá dòng khỏi hồ sơ NHÁP của tdv01     -> 200, còn 1 dòng
+   *   tbp01 xoá dòng khỏi hồ sơ YEU_CAU_CHINH_SUA  -> 200, còn 1 dòng
+   *   kt01  xoá dòng khỏi hồ sơ YEU_CAU_CHINH_SUA  -> 200, 7 dòng còn 6
+   *
+   * Hai nguyên nhân chồng lên nhau, và phải kiểm CẢ HAI:
+   *
+   *   1. `@Roles('TDV')` rơi mất khỏi đường xoá dòng (P26). Cái này bld01 dùng —
+   *      phạm vi dữ liệu của Ban lãnh đạo chứa mọi TDV, nên `assertPolicyInScope`
+   *      cho họ qua ở hồ sơ Nháp của bất kỳ ai.
+   *   2. `mustEdit` hỏi "tôi có LIÊN QUAN tới hồ sơ này không" thay vì "tôi có
+   *      được SỬA nó không". Cái này tbp01 và kt01 dùng: hồ sơ bị trả lại vẫn
+   *      giữ tên họ ở `tbp_user_id`/`ke_toan_user_id`, nên họ nằm trong phạm vi
+   *      của chính hồ sơ ấy — dán lại `@Roles` KHÔNG chặn được đường này.
+   *
+   * Nên hai ca dưới đây phải cùng xanh: gỡ bản sửa ở `mustEdit` thì ca thứ hai
+   * đỏ, gỡ `@Roles` thì ca thứ nhất đỏ.
+   */
+  it('Ban lãnh đạo KHÔNG xoá được dòng sản phẩm khỏi hồ sơ Nháp của người khác', async () => {
+    const d = await draft();
+    const truoc = await get(`/policies/${d.id}`);
+    const lineId = truoc.body.lines[0].id as string;
+
+    const r = await del(`/policies/${d.id}/lines/${lineId}`, 'bld01');
+    expect(r.status).toBe(403);
+
+    const sau = await get(`/policies/${d.id}`);
+    expect(sau.body.lines).toHaveLength(truoc.body.lines.length);
+  });
+
+  it('Trưởng bộ phận và Kế toán KHÔNG sửa được hồ sơ họ vừa trả lại', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    // Trả lại: hồ sơ về YEU_CAU_CHINH_SUA và VẪN mang tên tbp01, kt01 ở bốn cột
+    // người — đó là điều kiện làm `assertPolicyInScope` cho họ qua.
+    expect(
+      (await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thiếu giấy tờ, đề nghị bổ sung' })).status,
+    ).toBe(200);
+
+    const truoc = await get(`/policies/${d.id}`);
+    expect(truoc.body.status).toBe('YEU_CAU_CHINH_SUA');
+    const lineId = truoc.body.lines[0].id as string;
+
+    for (const who of ['tbp01', 'kt01']) {
+      const r = await del(`/policies/${d.id}/lines/${lineId}`, who);
+      expect(r.status, `${who} xoá được dòng của hồ sơ đang chờ TDV sửa`).toBe(403);
+      // `ROLE_FORBIDDEN` chứ không `NOT_OWNER`: LỚP NGOÀI bắt trước. Cả hai lớp
+      // đều chặn được ca này — gỡ `@Roles` thì `mustEdit` trả `NOT_OWNER`, gỡ
+      // `mustEdit` thì chốt vai trò trả `ROLE_FORBIDDEN`, gỡ cả hai mới ra 200.
+      // Khẳng định lớp ngoài vì đó là thứ người gọi thật sự nhận được.
+      expect(r.body.code).toBe('ROLE_FORBIDDEN');
+    }
+
+    const sau = await get(`/policies/${d.id}`);
+    expect(sau.body.lines).toHaveLength(truoc.body.lines.length);
+  });
+
+  it('chính TDV đang phụ trách thì vẫn xoá được — bản sửa không khoá nhầm người', async () => {
+    const d = await draft({ productId: await makeProduct() });
+    const them = await post(`/policies/${d.id}/lines`, line(await makeProduct()));
+    expect(them.status).toBe(201);
+
+    const truoc = await get(`/policies/${d.id}`);
+    expect(truoc.body.lines.length).toBe(2);
+    const r = await del(`/policies/${d.id}/lines/${truoc.body.lines[1].id}`);
+    expect(r.status).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines).toHaveLength(1);
+  });
+
+  it('TDV KHÁC cũng không sửa được, dù cùng vai trò', async () => {
+    const d = await draft();
+    const lineId = (await get(`/policies/${d.id}`)).body.lines[0].id as string;
+    // tdv02 không có tên ở cột nào của hồ sơ này, nên họ dừng sớm hơn một bước:
+    // ở phạm vi dữ liệu, không phải ở phép so người phụ trách.
+    const r = await del(`/policies/${d.id}/lines/${lineId}`, 'tdv02');
+    expect(r.status).toBe(403);
+  });
+});
+
 describe('POL-12 TDV không sửa được giá bán Công ty và ngưỡng', () => {
   it('gửi kèm companyPrice thì 400', async () => {
     const r = await post('/policies', {

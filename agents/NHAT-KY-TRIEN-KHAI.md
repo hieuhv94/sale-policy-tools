@@ -9263,3 +9263,142 @@ thứ đã đem đi ký, và `signed_from_id` cùng SHA-256 chưa từng bảo v
 không thuộc `0098` và cần khách hàng chốt: ký số có sinh bản lưu hay không.
 
 **1623/1623 xanh.**
+
+## P126 — Lượt rà toàn hệ thống: một lỗ phân quyền, và ca kiểm lẽ ra đã bắt nó
+
+Yêu cầu là *"rà soát lại toàn bộ hệ thống xem còn nợ yêu cầu gì, hoặc có lỗi nào bạn nghi ngờ rủi
+ro"*. Không phải một chặng thêm chức năng, nên phần đáng ghi ở đây là **đường đi tới chỗ tìm ra**,
+chứ không phải bản sửa — bản sửa chỉ có hai dòng.
+
+### Lỗ hổng: `DELETE /policies/:id/lines/:lineId` không khai vai trò nào
+
+Bắt đầu từ một phép quét thô: liệt kê mọi route của mười service rồi lọc route không có `@Roles` ở
+gần. Đa số là dương tính giả (`@Roles` khai ở cấp lớp, hoặc đường đọc). Còn lại đúng một chỗ đáng
+ngờ, và `git log -L` trả lời ngay:
+
+```
+7bd3211 P26: sua duoc dong san pham, khong chi xoa
+   @Roles('TDV')
++  /** Sửa một dòng đã có. … */
++  @Roles(...WRITERS)
++  @Patch(':id/lines/:lineId')
++  suaDong(
+```
+
+P26 chèn `suaDong` **ngay dưới** cái `@Roles('TDV')` vốn thuộc về `removeLine`. Decorator ấy sang tay
+phương thức mới, ghi đè `@Roles(...WRITERS)` mà chính phương thức mới vừa khai — và `removeLine` còn
+lại tay không. Hai hệ quả, cả hai đều im lặng: một `@Roles` chết không ai đọc, và một đường ghi không
+chốt chặn.
+
+Dựng lại trên chồng demo thật, `make demo-mau`, đo bằng số:
+
+| Ai | Hồ sơ | Kết quả |
+|---|---|---|
+| `bld01` (Ban lãnh đạo) | `NHAP` của tdv01 | **200**, 2 dòng còn 1 |
+| `tbp01` | `YEU_CAU_CHINH_SUA` | **200**, 2 dòng còn 1 |
+| `kt01` | `YEU_CAU_CHINH_SUA` | **200**, 7 dòng còn 6 |
+| `sa01`, `admin01`, `tdv02` | như trên | 403 |
+
+**Hai nguyên nhân chồng nhau, và đó là chỗ dễ sửa hụt.** Ban lãnh đạo lọt vì phạm vi dữ liệu của họ
+chứa mọi TDV, nên `assertPolicyInScope` cho qua ở hồ sơ Nháp của bất kỳ ai. Trưởng bộ phận và Kế toán
+lọt vì lý do khác hẳn: hồ sơ bị trả lại **vẫn mang tên họ** ở `tbp_user_id`/`ke_toan_user_id`, nên họ
+nằm trong phạm vi của chính hồ sơ ấy. Dán lại `@Roles` chặn được cả hai, nhưng chỉ vì cả hai tình cờ
+không phải TDV — nó không trả lời câu hỏi thật.
+
+Câu hỏi thật là: `assertPolicyInScope` trả lời *"tôi có LIÊN QUAN tới hồ sơ này không"*, đúng cho
+quyền **đọc**, và cố ý tính cả bốn cột người kể cả những bước đã qua — Kế toán đã tiếp nhận L1 vẫn
+phải mở lại được hồ sơ mình đã xử lý. Nó chưa bao giờ trả lời *"tôi có được SỬA không"*. Mà cả bốn
+đường ghi đi qua `mustEdit` đều hỏi câu thứ hai.
+
+Nên sửa **hai lớp**, và luật thật đặt ở lớp trong:
+
+1. `mustEdit` so `tdv_user_id` với người gọi, cùng mã lỗi `NOT_OWNER` mà `remove()` đã dùng từ
+   `0035`. Hai đường ghi lên cùng một hồ sơ trả lời khác nhau về cùng một câu hỏi — đó là chỗ lỗi
+   này sinh ra.
+2. `@Roles('TDV')` về lại đường xoá dòng, và `@Roles` chết trên `suaDong` gỡ đi.
+
+### Phá lại: bốn lượt, và một lượt vẫn xanh
+
+| Phá | Kết quả |
+|---|---|
+| Gỡ **cả hai** lớp | SEC-13 tĩnh đỏ · SEC-13 động đỏ: `DELETE /policies/…/lines/… -> 404` |
+| Gỡ `@Roles`, giữ `mustEdit` | SEC-13 đỏ · hai ca hành vi **vẫn chặn**, mã đổi thành `NOT_OWNER` |
+| Giữ `@Roles`, gỡ `mustEdit` | **280/280 xanh** |
+| Không gỡ gì | xanh |
+
+Lượt thứ ba xanh, và phải nói thẳng vì sao: **luật ở `mustEdit` hiện KHÔNG đường nào chạm tới**. Cả
+bốn đường ghi đều `@Roles('TDV')`, mà một hồ sơ chỉ có đúng một TDV trong phạm vi — chính người phụ
+trách. Không có vai trò TDV nào khác đứng trong phạm vi một hồ sơ không phải của mình. Nên lớp trong
+là **phòng xa**, không phải bản vá đang gánh việc: nó chỉ ra tay khi có ai đó, ngày nào đó, thêm một
+đường ghi mà quên khai vai trò — đúng việc P26 đã làm.
+
+Giữ nó dù không phá được, vì lớp ngoài nằm ở chỗ đã chứng minh là dễ rơi. Nhưng ghi ra đây để lần
+sau không ai tưởng nó đang chặn cái gì.
+
+### SEC-13: một ca kiểm `P0` chưa từng được viết
+
+Danh mục kiến trúc có sẵn dòng này từ đầu:
+
+> **SEC-13** — Quét toàn bộ endpoint ghi bằng tài khoản `bld01` → 403 ở **mọi** endpoint, kiểm bằng
+> bảng quét tự động, không kiểm tay từng cái. `P0`
+
+Nó chưa từng được viết. Và lỗ hổng nó sinh ra để bịt đã mở suốt từ P26 — nghĩa là món nợ ca kiểm và
+lỗ hổng không phải hai chuyện, chúng là một chuyện nhìn từ hai phía.
+
+Viết thành **bốn ca**, ba tĩnh một động:
+
+- **`@Roles` khai hai lần trong một khối** — đúng cơ chế đã sinh ra lỗi. Phép quét cắt mã nguồn theo
+  KHỐI DECORATOR, và **chú thích không cắt khối** — vì chính chỗ chú thích chen vào giữa đã nuốt mất
+  một `@Roles`.
+- **Mọi đường ghi đều khai vai trò**, trừ `KHONG_PHAI_GHI_NGHIEP_VU` — danh sách trắng kèm lý do,
+  cùng lối `NUOT_CO_LY_DO`.
+- **Không đường ghi nào liệt kê `BAN_LANH_DAO`**.
+- **Gọi THẬT từng đường bằng `bld01`** qua gateway, đòi đúng 403. Chốt vai trò chạy trước cả phép
+  kiểm dữ liệu, nên **404 hay 400 cũng là đỏ**: chúng nghĩa là bld01 đã đi qua chốt và đang đứng
+  trong thân nghiệp vụ. Đó chính là dấu hiệu bắt được lỗi lúc phá lại — `-> 404`, không phải `-> 200`.
+
+Ca động chỉ quét năm service tệp này dựng; phần còn lại do ba ca tĩnh canh. Ba ca tĩnh phủ cả mười
+service mà không đòi service nào chạy, và ca động giữ cho phép quét tĩnh không trôi — nó khẳng định
+"có khai `@Roles`" thật sự dẫn tới 403, chứ không chỉ là một chuỗi khớp trong mã nguồn.
+
+**Danh sách trắng lộ ra ba đường không ai nghĩ tới**: `POST /reports/exports`,
+`PUT /reports/filters/:screen`, `POST /reports/filters/:screen/clear`. Ban lãnh đạo đi qua được cả
+ba, và đúng như vậy — xuất Excel là ĐỌC viết bằng POST, bộ lọc đã lưu là trạng thái màn hình của
+riêng người dùng. Cả hai đều đi qua đúng phạm vi dữ liệu của người gọi. Nên SEC-13 nói chính xác hơn
+bản gốc: *ghi **dữ liệu nghiệp vụ***, không phải mọi động từ HTTP.
+
+### Ca kiểm nhật ký của `0098` xanh do may, không do đúng
+
+Cũng lượt rà này bắt được: ca *"vô hiệu và mở lại đều để lại dòng nhật ký"* — viết ở lượt rà cuối
+`0098`, xanh lúc ấy — nay đỏ với `chỉ có 0/1 dòng nhật ký` sau 30 giây đợi. Hai thứ thiếu, và mỗi
+thứ đủ để làm hỏng:
+
+- `deploy/compose.test.yml` đặt `OUTBOX_AUTO_PUMP=0`, nên **không relay nào tự chạy trong bộ test**.
+  Ca ấy đợi một lá thư chưa ai gửi.
+- `contract.test.ts` **không dựng bản audit nào**, nên kể cả có gửi thì cũng không ai tiêu thụ.
+
+Nó xanh một lượt vì một tệp chạy trước tình cờ để lại đủ hai thứ ấy. Chữa bằng cách đóng trọn chuỗi
+trong chính tệp: dựng `createAuditApp()`, lấy `DocumentOutbox` rồi `pumpOnce()` ngay đầu `doiNhatKy`.
+
+Bài học đáng giữ hơn bản sửa: **một ca kiểm bất đồng bộ xanh ở lượt đầu chưa nói lên gì** khi bộ test
+chạy tuần tự trong một tiến trình và dùng chung hạ tầng. Thứ phải hỏi là *"tệp này có tự dựng đủ hai
+đầu của đường dây không"*, chứ không phải *"nó có xanh không"*.
+
+### Câu lỗi `NOT_OWNER` nói được cả hai việc
+
+Mã ấy trước chỉ có đường xoá dùng, nên câu khai ở `loi.ts` là *"…mới xoá được"*. Từ `0099` nó trả lời
+cho cả sửa. Để nguyên thì người bị chặn lúc sửa đọc một câu nói về việc họ không làm.
+
+### Còn nợ, đo được chứ không đoán
+
+| Món | Đo | Vì sao chưa làm |
+|---|---|---|
+| **Ký số không sinh bản lưu** | 197 hồ sơ đã qua bước TBP ký · **3** file `BAN_DA_KY` trong kho, cả 3 từ `document.test.ts` | `POST /policies/:id/sign-file` không có người gọi ở web, ở `policy`, hay ở consumer nào. Cần khách hàng chốt: ký số có sinh bản lưu hay không |
+| **Không có lệnh nạp lại read-model** | ghi từ P106 | hệ chưa bàn giao, `make demo` dựng lại từ đầu |
+| **N-09** rà danh mục O(n) | đổi **một** quy định chiết khấu ⇒ quét **mọi** hồ sơ đã đóng băng × mọi dòng, kèm lời gọi REST sang `customer` và `catalog` | có chia lô `SONG_SONG`; ở quy mô hiện tại chưa cắn |
+| **N-10** va chạm `version_no` | `pol.policy` có 10 chỉ mục, **không cái nào** trên `(customer_id, version_no)`; số lấy bằng `active.version_no + 1` | chỉ với hai lượt lập song song cho cùng khách — mà một khách chỉ có một TDV |
+| **`0098` không backfill** | `mau_ho_so_id` NULL ⇒ `POLICY_TEMPLATE_NOT_SET` | đúng trên CSDL trắng. **Lên thật trên CSDL đã có dữ liệu thì mọi hồ sơ cũ mất bản mềm** — cần một lượt gán mẫu mặc định trước khi chạy `0098` |
+| `vo_hieu_hoa_boi` | ghi nhưng không màn hình nào đọc | tra được qua nhật ký hệ thống |
+| Ba đường không người gọi | `GET /files/:id/verify`, `GET /audit/trace/:traceId`, `GET /reports/filter-keys` | có mã, có ca kiểm, không màn hình nào gọi |
+
+**1632/1632 xanh.**

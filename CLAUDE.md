@@ -82,11 +82,14 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (23/08/2026)
 
-Chặng gần nhất **P125** (`0098`): **mẫu bản mềm đóng băng vào hồ sơ** lúc TDV gửi duyệt — chỉ TDV
-chọn, các vai trò sau chỉ xem; và **mẫu thôi xoá được, chỉ vô hiệu hoá**. **1621/1621 xanh**, cây
-làm việc sạch.
+Chặng gần nhất **P126** (`0099`), lượt rà toàn hệ thống: bịt một **lỗ phân quyền** đã mở từ P26 —
+`DELETE /policies/:id/lines/:lineId` mất `@Roles('TDV')`, nên Ban lãnh đạo xoá được dòng sản phẩm
+khỏi hồ sơ *Nháp* của người khác, còn Kế toán và Trưởng bộ phận xoá được khỏi hồ sơ họ vừa trả về.
+Kèm theo: viết **SEC-13**, ca kiểm `P0` trong danh mục kiến trúc chưa từng được viết — quét mọi
+đường ghi của mười service và gọi thật bằng `bld01`. **1632/1632 xanh**, cây làm việc sạch.
 
-Trước đó **P124** (`0097`): màn hình hồ sơ tách **hai khối tệp** — *Giấy tờ hồ sơ* và *Bản cứng*.
+Trước đó **P125** (`0098`): **mẫu bản mềm đóng băng vào hồ sơ** lúc TDV gửi duyệt — chỉ TDV chọn,
+các vai trò sau chỉ xem; và **mẫu thôi xoá được, chỉ vô hiệu hoá**.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -146,6 +149,19 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   một chỗ nuốt lỗi thì phải khai ở `NUOT_CO_LY_DO` trong `tests/web/nuot-loi.test.tsx`.
 
 ## Bẫy kỹ thuật
+
+**Chèn một phương thức vào giữa khối decorator là cướp decorator của phương thức bên dưới.** P26
+thêm `suaDong` ngay dưới `@Roles('TDV')` của `removeLine`; decorator sang tay phương thức mới, ghi
+đè lặng lẽ cái `@Roles` mà phương thức mới vừa khai, và đường xoá dòng còn lại không chốt chặn nào —
+mở suốt tới `0099`. **SEC-13** ở `tests/http/security.test.ts` canh cả lớp lỗi này: `@Roles` khai
+hai lần trong một khối là đỏ, đường ghi không khai vai trò là đỏ, và `bld01` nhận gì khác 403 cũng
+đỏ. Thêm một đường ghi công khai có lý do thì khai vào `KHONG_PHAI_GHI_NGHIEP_VU` kèm lý do.
+
+**Ca kiểm bất đồng bộ xanh ở lượt đầu chưa nói lên gì.** Bộ test chạy tuần tự trong một tiến trình
+và dùng chung Postgres/RabbitMQ, nên một tệp có thể xanh nhờ hạ tầng tệp khác để lại. `OUTBOX_AUTO_PUMP=0`
+trong `deploy/compose.test.yml` — **không relay nào tự chạy trong bộ test**, phải `pumpOnce()` tay —
+và tệp nào đợi một dòng nhật ký thì phải tự dựng `createAuditApp()`. Ca nhật ký của `0098` thiếu cả
+hai và vẫn xanh một lượt (`0099` bắt được nó đỏ).
 
 **Tên file tiếng Việt không truyền được qua bash.** Ba `.docx` trong `tai-lieu-goc/` có dấu trong
 tên; truyền tên đó làm tham số cho lệnh bash luôn báo `FileNotFoundError` dù `ls` vẫn thấy file

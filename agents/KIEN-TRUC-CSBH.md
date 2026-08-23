@@ -1251,7 +1251,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | SEC-10 | Quét cổng máy chủ từ bên ngoài | Chỉ 80 và 443 mở; Postgres, Rabbit, MinIO, Redis không truy cập được | §10 | `P0` |
 | SEC-11 | Quét ảnh Docker và mã nguồn tìm bí mật | Không có mật khẩu hay khóa nào nằm trong image; tất cả đến từ file secret | §10 | `P0` |
 | SEC-12 | Gọi API từ một origin lạ | CORS chặn; chỉ cho phép origin của ứng dụng web | §10 | `P1` |
-| SEC-13 | Quét toàn bộ endpoint ghi bằng tài khoản bld01 | 403 ở **mọi** endpoint — kiểm bằng bảng quét tự động, không kiểm tay từng cái | §2.6 | `P0` |
+| SEC-13 | Quét toàn bộ endpoint ghi bằng tài khoản bld01 | 403 ở **mọi** endpoint ghi **dữ liệu nghiệp vụ** — bảng quét tự động, không kiểm tay từng cái. Ba đường mang động từ ghi mà không ghi dữ liệu nghiệp vụ (xuất Excel, bộ lọc đã lưu) khai ở danh sách trắng kèm lý do. Viết ở `0099`; trước đó chưa từng được viết, và lỗ hổng nó sinh ra để bịt đã mở từ P26 | §2.6 | `P0` |
 | SEC-14 | Chạy script seed tài khoản mẫu với `NODE_ENV=production` | Script tự thoát, không tạo tài khoản nào | — | `P0` |
 | SEC-15 | Dùng token của service này gọi API của service khác | Bị từ chối — token có `audience` ràng buộc | §10 | `P1` |
 

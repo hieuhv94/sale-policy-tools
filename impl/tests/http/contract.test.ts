@@ -11,8 +11,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
+import { createTestApp as createAuditApp } from '@csbh/audit/testing';
 import {
   createTestApp as createDocumentApp,
+  DocumentOutbox,
   TemplatesService,
   makeDocx,
   para,
@@ -48,6 +50,10 @@ let catalog: INestApplication;
 let customer: INestApplication;
 let policy: INestApplication;
 let doc: INestApplication;
+/** Chỉ để TIÊU THỤ hàng đợi nhật ký — tệp này không gọi API nào của audit. */
+let auditApp: INestApplication;
+/** Bơm tay `doc.outbox`: bộ test đặt `OUTBOX_AUTO_PUMP=0` nên relay không tự chạy. */
+let docOutbox: DocumentOutbox;
 let templates: TemplatesService;
 const restores: (() => void)[] = [];
 const tok: Record<string, string> = {};
@@ -109,6 +115,11 @@ type DongNhatKy = {
   after_data: { voHieuHoaLuc: string | null } | null;
 };
 const doiNhatKy = async (id: string, can: number, hanMs = 30_000): Promise<DongNhatKy[]> => {
+  // BƠM TRƯỚC KHI ĐỢI. `deploy/compose.test.yml` đặt `OUTBOX_AUTO_PUMP=0`, nên
+  // trong bộ test không relay nào tự chạy — đợi suông là đợi một lá thư chưa ai
+  // gửi. Ca viết ở `0098` thiếu đúng bước này (và thiếu cả bản audit tiêu thụ);
+  // nó xanh một lượt rồi đỏ ở lượt sau, tuỳ tệp nào chạy trước còn để lại gì.
+  await docOutbox.pumpOnce();
   const het = Date.now() + hanMs;
   let rows: DongNhatKy[] = [];
   while (Date.now() < het) {
@@ -289,6 +300,22 @@ beforeAll(async () => {
   doc = await createDocumentApp();
   templates = doc.get(TemplatesService);
 
+  /*
+   * AUDIT PHẢI CHẠY TRONG CHÍNH TỆP NÀY (`0099`).
+   *
+   * `document` tự bơm `doc.outbox` sang RabbitMQ, nhưng lá thư nằm trong hàng
+   * đợi `audit` cho tới khi có ai đó tiêu thụ. Ca "vô hiệu để lại dòng nhật ký"
+   * viết ở `0098` không dựng audit, nên nó đọc `aud.audit_log` và chỉ xanh khi
+   * một tệp test CHẠY TRƯỚC tình cờ còn để một bản audit sống — nghĩa là nó
+   * xanh hay đỏ tuỳ thứ tự tệp. Lượt rà `0099` bắt được nó đỏ: `0/1 dòng` sau
+   * 30 giây đợi.
+   *
+   * Dựng ở đây thì chuỗi outbox → RabbitMQ → `aud.audit_log` đóng trọn trong
+   * tệp này, và ca kiểm nói đúng thứ nó khẳng định.
+   */
+  auditApp = await createAuditApp();
+  docOutbox = doc.get(DocumentOutbox);
+
   const g = await (await http(catalog))
     .post('/catalog/product-groups')
     .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -297,6 +324,7 @@ beforeAll(async () => {
 }, 120_000);
 
 afterAll(async () => {
+  await auditApp?.close();
   await doc?.close();
   await policy?.close();
   await customer?.close();
@@ -1034,8 +1062,7 @@ describe('DOC-35 vô hiệu hết mẫu hợp đồng', () => {
     const mau = (await templates.khaDung('HOP_DONG'))[0]!;
     await dpost(`/contract-templates/${mau.id}/vo-hieu`, 'admin01', { confirm: mau.ten });
     try {
-      const rows = await doiNhatKy(mau.id, 1);
-      const tat = rows.find((r) => r.action === 'TEMPLATE_DISABLED');
+      const tat = (await doiNhatKy(mau.id, 1)).find((r) => r.action === 'TEMPLATE_DISABLED');
       expect(tat, 'thiếu dòng nhật ký cho lượt vô hiệu hoá').toBeTruthy();
       // TRƯỚC còn dùng được, SAU thì không — con số đọc được, không phải chỉ một
       // cái tên hành động.
@@ -1045,8 +1072,7 @@ describe('DOC-35 vô hiệu hết mẫu hợp đồng', () => {
       await dpost(`/contract-templates/${mau.id}/mo-lai`, 'admin01');
     }
 
-    const sau = await doiNhatKy(mau.id, 2);
-    const bat = sau.find((r) => r.action === 'TEMPLATE_ENABLED');
+    const bat = (await doiNhatKy(mau.id, 2)).find((r) => r.action === 'TEMPLATE_ENABLED');
     expect(bat, 'thiếu dòng nhật ký cho lượt dùng lại').toBeTruthy();
     expect(bat!.after_data?.voHieuHoaLuc ?? null).toBeNull();
   }, 90_000);

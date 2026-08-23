@@ -196,12 +196,11 @@ export class PoliciesController {
     return this.policies.addLine(id, validate(body, lineShape) as LineInput, me);
   }
 
-  @Roles('TDV')
   /**
    * Sửa một dòng đã có. Sản phẩm KHÔNG nằm trong DTO — đổi sản phẩm là xoá dòng
    * rồi thêm dòng khác, xem chú thích ở `PoliciesService.updateLine`.
    */
-  @Roles(...WRITERS)
+  @Roles('TDV')
   @Patch(':id/lines/:lineId')
   suaDong(
     @CurrentUser() me: AuthUser,
@@ -220,6 +219,17 @@ export class PoliciesController {
     return this.policies.updateLine(id, lineId, b, me);
   }
 
+  /**
+   * `@Roles('TDV')` ở đây RƠI MẤT suốt từ P26 tới `0099`: nó vốn đứng trên
+   * đường này, rồi `suaDong` được chèn vào ngay dưới nó nên nó thành decorator
+   * của phương thức mới — và `suaDong` sẵn có `@Roles(...WRITERS)` của riêng
+   * mình, bị cái rơi xuống ghi đè lặng lẽ. Đường xoá dòng còn lại không khai vai
+   * trò nào, tức mọi vai trò đã đăng nhập đều qua được chốt chặn.
+   *
+   * Luật thật giờ nằm ở `mustEdit`; dòng này là lớp thứ hai, và SEC-13 canh cho
+   * không đường ghi nào của `policies` lại rơi mất lần nữa.
+   */
+  @Roles('TDV')
   @Delete(':id/lines/:lineId')
   removeLine(
     @CurrentUser() me: AuthUser,

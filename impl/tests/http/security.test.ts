@@ -820,3 +820,201 @@ describe('Gateway chuyển tiếp', () => {
     }
   });
 });
+
+// =============================================================================
+// SEC-13 — Ban lãnh đạo KHÔNG ghi được gì
+//
+// Ca kiểm này nằm trong danh mục kiến trúc từ đầu (`P0`, muc 2.6) và CHƯA TỪNG
+// được viết. `0099` viết nó, sau khi lỗ nó sinh ra để bịt đã mở thật:
+// `DELETE /policies/:id/lines/:lineId` mất `@Roles('TDV')` từ P26, và trên chồng
+// demo, bld01 xoá được một dòng sản phẩm khỏi hồ sơ Nháp của tdv01 — 200, dòng
+// biến mất. Kế toán và Trưởng bộ phận cũng xoá được, ở hồ sơ *Yêu cầu chỉnh sửa*
+// mà họ có tên trong bốn cột người.
+//
+// Bảng quyền của giao diện ĐÚNG suốt thời gian ấy (`tests/web/quyen.test.ts`,
+// FE-23), nên không màn hình nào bày ra cái nút. Đó chính là lý do ca kiểm này
+// phải quét MÁY CHỦ: chốt chặn nằm ở đó, còn giao diện chỉ là chỗ không mời.
+// =============================================================================
+
+type DuongGhi = {
+  tep: string;
+  method: string;
+  path: string;
+  vaiTro: string[] | null;
+  noiBo: boolean;
+  congKhai: boolean;
+  trung: boolean;
+};
+
+/**
+ * Đường mang phương thức GHI mà **không ghi dữ liệu nghiệp vụ**, nên Ban lãnh đạo
+ * đi qua được mà không mâu thuẫn gì với "chỉ đọc" (muc 2.6).
+ *
+ * Hai nhóm, và ranh giới giữa chúng là thứ đáng đọc kỹ:
+ *
+ *   1. **Tài khoản của chính người gọi.** Không ai bị cấm tự đổi mật khẩu mình.
+ *   2. **ĐỌC nhưng viết bằng POST/PUT.** Xuất Excel tạo một *việc* rồi trả file;
+ *      bộ lọc đã lưu là trạng thái màn hình của riêng người dùng. Cả hai đều đi
+ *      qua đúng phạm vi dữ liệu của người gọi, nên chúng không mở thêm gì.
+ *
+ * Danh sách TRẮNG chứ không phải một mệnh đề `if`: thêm một đường ghi không khai
+ * vai trò thì phải khai ở đây kèm lý do, và người đọc thấy ngay có bao nhiêu
+ * ngoại lệ. Cùng lối với `NUOT_CO_LY_DO` ở `tests/web/nuot-loi.test.tsx`.
+ */
+const KHONG_PHAI_GHI_NGHIEP_VU: Record<string, string> = {
+  // 1 — tài khoản của chính mình
+  'PATCH /auth/me': 'tự sửa họ tên của chính mình',
+  'POST /auth/change-password': 'tự đổi mật khẩu của chính mình',
+  'POST /auth/logout': 'tự kết thúc phiên của chính mình',
+  'POST /auth/login': 'công khai — chưa đăng nhập thì chưa có vai trò',
+  'POST /auth/refresh': 'công khai',
+  'POST /auth/activate': 'công khai — kích hoạt bằng token trong thư',
+  'POST /auth/forgot-password': 'công khai',
+  'POST /auth/reset-password': 'công khai — đặt lại bằng token trong thư',
+  'POST /notifications/:id/da-doc': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
+  'POST /notifications/da-doc-het': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
+
+  // 2 — đọc, nhưng viết bằng POST/PUT
+  'POST /reports/exports': 'XUẤT Excel danh sách hồ sơ — đọc, và đọc trong đúng phạm vi của người gọi',
+  'PUT /reports/filters/:screen': 'bộ lọc đã lưu của RIÊNG người dùng, không phải dữ liệu nghiệp vụ',
+  'POST /reports/filters/:screen/clear': 'xoá bộ lọc đã lưu của RIÊNG người dùng',
+};
+
+const timControllers = (d: string): string[] =>
+  readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory()
+      ? timControllers(join(d, e.name))
+      : e.name.endsWith('.controller.ts')
+        ? [join(d, e.name)]
+        : [],
+  );
+
+const vaiTroTrong = (khoi: string[]): string[] | null => {
+  const r = khoi.filter((d) => d.startsWith('@Roles('));
+  if (r.length === 0) return null;
+  return r.flatMap((d) => [...d.matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]!));
+};
+
+/**
+ * Mọi đường GHI của mười service, đọc từ mã nguồn.
+ *
+ * Đọc nguồn chứ không hỏi Nest: bảng định tuyến của Nest chỉ có những service
+ * đang chạy trong chính tệp test này, mà lỗ hổng thì không chờ service nào khởi
+ * động. Phép quét theo KHỐI DECORATOR — cùng đơn vị mà lỗi `0099` sinh ra ở đó.
+ */
+const quetDuongGhi = (): DuongGhi[] => {
+  const ra: DuongGhi[] = [];
+  for (const tep of timControllers('services')) {
+    let cho: string[] = [];
+    let tienTo = '';
+    let lopVaiTro: string[] | null = null;
+    let lopNoiBo = false;
+    for (const l of readFileSync(tep, 'utf8').split('\n')) {
+      const s = l.trim();
+      if (s.startsWith('@')) {
+        cho.push(s);
+        continue;
+      }
+      // Chú thích và dòng trắng KHÔNG cắt khối: chúng nằm giữa hai decorator là
+      // chuyện thường, và chính chỗ ấy đã nuốt mất một `@Roles`.
+      if (s === '' || s.startsWith('*') || s.startsWith('/*') || s.startsWith('//')) continue;
+
+      const khoi = cho;
+      cho = [];
+      if (khoi.length === 0) continue;
+
+      const ctrl = khoi.find((d) => d.startsWith('@Controller('));
+      if (ctrl) {
+        tienTo = /@Controller\('([^']*)'\)/.exec(ctrl)?.[1] ?? '';
+        lopVaiTro = vaiTroTrong(khoi);
+        lopNoiBo = khoi.some((d) => d.startsWith('@ServiceOnly'));
+        continue;
+      }
+
+      const ghi = khoi
+        .map((d) => /^@(Post|Patch|Put|Delete)\(\s*'?([^')]*)'?/.exec(d))
+        .find((m) => m !== null);
+      if (!ghi) continue;
+
+      const duoi = ghi[2] ?? '';
+      const vaiTro = vaiTroTrong(khoi) ?? lopVaiTro;
+      ra.push({
+        tep,
+        method: ghi[1]!.toUpperCase(),
+        path: `/${[tienTo, duoi].filter((x) => x !== '').join('/')}`,
+        vaiTro,
+        noiBo: lopNoiBo || khoi.some((d) => d.startsWith('@ServiceOnly')),
+        congKhai: khoi.some((d) => d.startsWith('@Public')),
+        trung: khoi.filter((d) => d.startsWith('@Roles(')).length > 1,
+      });
+    }
+  }
+  return ra;
+};
+
+describe('SEC-13 Ban lãnh đạo và mọi đường ghi', () => {
+  it('quét ra được bề mặt ghi của cả mười service', () => {
+    const ds = quetDuongGhi();
+    // Ngưỡng thô, chỉ để phép quét không âm thầm trả về rỗng rồi mọi khẳng định
+    // dưới đây đều xanh vì không có gì để kiểm.
+    expect(ds.length).toBeGreaterThan(50);
+    expect(ds.some((d) => d.path === '/policies/:id/lines/:lineId' && d.method === 'DELETE')).toBe(
+      true,
+    );
+  });
+
+  it('KHÔNG khối decorator nào khai `@Roles` hai lần', () => {
+    // Đúng cơ chế đã sinh ra lỗ hổng: `@Roles` thứ hai ghi đè cái thứ nhất trong
+    // im lặng, nên hai dòng cùng đứng đó mà chỉ một dòng có tác dụng — và đường
+    // bên cạnh, vốn sở hữu cái bị đẩy đi, còn lại tay không.
+    const trung = quetDuongGhi().filter((d) => d.trung);
+    expect(trung.map((d) => `${d.method} ${d.path} (${d.tep})`)).toEqual([]);
+  });
+
+  it('MỌI đường ghi đều khai vai trò, trừ danh sách trắng có lý do', () => {
+    const thieu = quetDuongGhi()
+      .filter((d) => !d.noiBo && !d.congKhai && d.vaiTro === null)
+      .filter((d) => KHONG_PHAI_GHI_NGHIEP_VU[`${d.method} ${d.path}`] === undefined);
+    expect(
+      thieu.map((d) => `${d.method} ${d.path} (${d.tep})`),
+      'đường ghi không khai @Roles — khai vai trò, hoặc khai vào KHONG_PHAI_GHI_NGHIEP_VU kèm lý do',
+    ).toEqual([]);
+  });
+
+  it('KHÔNG đường ghi nào cho Ban lãnh đạo vào, kể cả gián tiếp', () => {
+    const hong = quetDuongGhi().filter((d) => d.vaiTro?.includes('BAN_LANH_DAO'));
+    expect(hong.map((d) => `${d.method} ${d.path}`)).toEqual([]);
+  });
+
+  it('gọi THẬT từng đường ghi bằng bld01 thì 403, không đường nào lọt', async () => {
+    // Chỉ quét service đang chạy trong tệp này; phần còn lại do ba ca tĩnh ở
+    // trên canh. Ca này là lớp đối chiếu giữ cho phép quét tĩnh không trôi —
+    // nó khẳng định "khai @Roles" thật sự dẫn tới 403, chứ không chỉ là một
+    // chuỗi khớp trong mã nguồn.
+    const DANG_CHAY = ['services/identity/', 'services/catalog/', 'services/customer/', 'services/policy/', 'services/reporting/'];
+    const NGAU_NHIEN = '11111111-2222-3333-4444-555555555555';
+
+    const ds = quetDuongGhi().filter(
+      (d) =>
+        !d.noiBo &&
+        !d.congKhai &&
+        DANG_CHAY.some((s) => d.tep.startsWith(s)) &&
+        KHONG_PHAI_GHI_NGHIEP_VU[`${d.method} ${d.path}`] === undefined,
+    );
+    expect(ds.length).toBeGreaterThan(20);
+
+    const lot: string[] = [];
+    for (const d of ds) {
+      const path = d.path.replace(/:[A-Za-z]+/g, NGAU_NHIEN);
+      const req = (await gw())[d.method.toLowerCase() as 'post'](path)
+        .set('Authorization', `Bearer ${tok['bld01']}`)
+        .send({});
+      const r = await req;
+      // 403 CHỨ KHÔNG PHẢI 400/404/409: chốt chặn vai trò chạy trước cả phép
+      // kiểm dữ liệu, nên bất kỳ mã nào khác nghĩa là bld01 đã đi qua nó và
+      // đang đứng trong thân nghiệp vụ.
+      if (r.status !== 403) lot.push(`${d.method} ${path} -> ${r.status}`);
+    }
+    expect(lot, 'Ban lãnh đạo lọt qua chốt chặn ở những đường này').toEqual([]);
+  }, 120_000);
+});
