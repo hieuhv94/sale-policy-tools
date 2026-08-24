@@ -1,0 +1,128 @@
+#!/bin/sh
+# Lệnh vận hành hằng ngày trên MÁY CHỦ KHÁCH HÀNG (`0105`).
+#
+# Trên máy phát triển những việc này là `make ...`. Máy chủ khách không có
+# Makefile, không có mã nguồn, và người vận hành ở đó không nhất thiết biết
+# docker compose — nên đây là lớp mỏng bọc lại, với đúng những việc họ cần và
+# đúng những câu cảnh báo đi kèm.
+#
+# Đặt cạnh `.env` và thư mục `deploy/`. Chạy từ chính thư mục đó.
+set -eu
+
+cd "$(dirname "$0")"
+
+[ -f .env ] || { echo "Không thấy .env. Chạy ./cai-dat.sh trước." >&2; exit 1; }
+
+DC="docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml"
+
+usage() {
+  cat <<'HET'
+csbh — vận hành Chính sách bán hàng
+
+  Chạy hệ thống
+    len              Kéo ảnh theo thẻ trong .env rồi dựng. An toàn khi chạy lại.
+    xuong            Dừng toàn hệ. Dữ liệu giữ nguyên.
+    trang-thai       Service nào đang sống, healthcheck ra sao.
+    log [service]    Xem log, mặc định 200 dòng cuối của tất cả.
+    phien-ban        Thẻ ảnh đang chạy.
+
+  Nâng cấp
+    nang-cap <thẻ>   Đổi CSBH_TAG trong .env, kéo ảnh, chạy migration, dựng lại.
+
+  Dữ liệu
+    sao-luu          pg_dump + bản nền. Chạy hằng đêm qua cron.
+    dien-tap         DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng dữ liệu thật.
+    phuc-hoi <tệp>   Phục hồi ĐÈ lên dữ liệu đang chạy. Hỏi lại trước khi làm.
+    don-du-lieu      Dọn dữ liệu quá hạn lưu trữ. Chạy hằng tháng qua cron.
+    luu-audit        Trích nhật ký kiểm toán một tháng ra kho lưu trữ.
+
+  Cài đặt ban đầu
+    mo-tai-khoan     Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được một lần.
+    thu-thu          Gửi một lá thư thử tới địa chỉ truyền vào.
+
+  psql [...]         Mở psql vào CSDL.
+HET
+}
+
+ops() { $DC run --rm -T ops "$@"; }
+
+case "${1:-help}" in
+  len)
+    $DC pull
+    # `migrate` chạy TRƯỚC, và là điều kiện của mọi service — `depends_on` đã khai
+    # `service_completed_successfully`, nên `up -d` tự chờ. Gọi riêng ở đây để
+    # người vận hành thấy kết quả migration thay vì thấy nó trôi trong log chung.
+    $DC run --rm -T ops migrate
+    $DC up -d --wait
+    echo ""
+    echo "  Xong. Mở $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
+    ;;
+  xuong)        $DC down ;;
+  trang-thai)   $DC ps ;;
+  log)          shift; $DC logs --tail=200 -f "$@" ;;
+  phien-ban)    grep -E '^CSBH_TAG=' .env | cut -d= -f2- ;;
+
+  nang-cap)
+    the="${2:-}"
+    [ -n "$the" ] || { echo "dùng: ./csbh nang-cap <thẻ>   ví dụ 1.0.1-9f3ab2c" >&2; exit 2; }
+    # Sao lưu TRƯỚC khi đổi bất cứ thứ gì. Một lượt nâng cấp hỏng mà không có
+    # bản sao lưu ngay trước đó là một lượt không lùi lại được.
+    echo "==> sao lưu trước khi nâng cấp"
+    ops backup
+    cu="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+    sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${the}|" .env
+    echo "==> ${cu} -> ${the}"
+    $DC pull
+    $DC run --rm -T ops migrate
+    $DC up -d --wait
+    echo "  Xong. Lùi lại: ./csbh nang-cap ${cu}"
+    ;;
+
+  sao-luu)      ops backup ;;
+  dien-tap)     ops restore-drill ;;
+  phuc-hoi)
+    tep="${2:-}"
+    [ -n "$tep" ] || { echo "dùng: ./csbh phuc-hoi <tệp sao lưu>" >&2; exit 2; }
+    cat <<HET
+
+  CẢNH BÁO — việc này GHI ĐÈ toàn bộ dữ liệu đang chạy bằng nội dung của
+  ${tep}. Mọi hồ sơ lập sau thời điểm sao lưu sẽ MẤT.
+
+  Muốn kiểm tra bản sao lưu mà không đụng dữ liệu: ./csbh dien-tap
+
+HET
+    printf '  Gõ "PHUC-HOI" để tiếp tục: '
+    read -r xn
+    [ "$xn" = "PHUC-HOI" ] || { echo "  Đã huỷ."; exit 1; }
+    $DC run --rm -T -e RESTORE_DB=csbh ops restore "$tep"
+    ;;
+  don-du-lieu)  ops retention ;;
+  luu-audit)    shift; ops luu-audit "$@" ;;
+
+  mo-tai-khoan)
+    printf 'Tên đăng nhập: '; read -r u
+    printf 'Địa chỉ thư:   '; read -r e
+    printf 'Họ tên:        '; read -r n
+    # Mật khẩu KHÔNG hiện ra màn hình và KHÔNG vào lịch sử shell.
+    stty -echo 2>/dev/null || true
+    printf 'Mật khẩu (tối thiểu 10 ký tự, có chữ và số): '; read -r p; echo ""
+    stty echo 2>/dev/null || true
+    $DC run --rm -T \
+      -e ADMIN_USERNAME="$u" -e ADMIN_EMAIL="$e" -e ADMIN_FULL_NAME="$n" \
+      -e ADMIN_PASSWORD="$p" ops bootstrap-admin
+    ;;
+
+  thu-thu)
+    dia="${2:-}"
+    [ -n "$dia" ] || { echo "dùng: ./csbh thu-thu <địa chỉ>" >&2; exit 2; }
+    echo "Gửi thư thử tới ${dia} bằng đường ĐẶT LẠI MẬT KHẨU của tài khoản quản trị."
+    echo "Không có thư nào tới trong 2 phút thì xem tai-lieu/05-VAN-HANH.md, mục Thư."
+    $DC exec -T gateway sh -c \
+      "curl -fsS -X POST http://identity:3001/auth/forgot-password \
+        -H 'content-type: application/json' -d '{\"username\":\"${dia}\"}' || true"
+    ;;
+
+  psql)         shift; $DC run --rm ops psql "$@" ;;
+  help|-h|--help) usage ;;
+  *) echo "csbh: không có lệnh \"$1\"." >&2; echo "" >&2; usage >&2; exit 2 ;;
+esac

@@ -10,6 +10,8 @@
  * thời điểm bắt đầu transaction, và thư trùng khi cùng sự kiện tới hai lần —
  * đều KHÔNG lộ ra ở bất kỳ bản giả nào.
  */
+import { rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
 import { PolicyOutbox } from '@csbh/policy/testing';
@@ -20,6 +22,10 @@ import {
   NotifyService,
   Mailer,
   assertSafeMailConfig,
+  chuanHoaMienThu,
+  loadMailConfig,
+  thuocMienThu,
+  tuyChonSmtp,
   UnsafeMailConfigError,
 } from '@csbh/notification/testing';
 import { Bus, BUS } from '@csbh/bus';
@@ -883,10 +889,26 @@ describe('NTF-16 cấu hình thư nguy hiểm thì service từ chối khởi đ
     ).not.toThrow();
   });
 
-  it('production trỏ vào SMTP thật — cho qua', () => {
+  it('production trỏ vào SMTP thật VÀ có khai tên miền nhận thư — cho qua', () => {
+    expect(() =>
+      assertSafeMailConfig({
+        NODE_ENV: 'production',
+        MAIL_HOST: 'smtp.nutricare.vn',
+        // `0105` thêm điều kiện thứ hai cho nhánh này. Xem ca ngay dưới.
+        MAIL_ALLOWLIST: 'nutricare.vn',
+      }),
+    ).not.toThrow();
+  });
+
+  it('`0105` production KHÔNG khai MAIL_ALLOWLIST — chặn', () => {
+    /*
+     * Trước `0105` danh sách rỗng nghĩa là "gửi cho tất cả", mà giá trị mặc định
+     * của một biến không ai đặt chính là rỗng — nên chốt chặn ấy chỉ tồn tại ở
+     * nơi có người nhớ bật.
+     */
     expect(() =>
       assertSafeMailConfig({ NODE_ENV: 'production', MAIL_HOST: 'smtp.nutricare.vn' }),
-    ).not.toThrow();
+    ).toThrow(UnsafeMailConfigError);
   });
 
   it('tên máy chủ chưa từng gặp bị coi là relay THẬT, không phải hộp thư giả', () => {
@@ -925,9 +947,32 @@ describe('NTF-19 MAIL_REDIRECT_ALL dồn thư về hộp QA', () => {
   it('MAIL_ALLOWLIST loại địa chỉ ngoài tên miền công ty', () => {
     const mailer = ntf.get(Mailer);
     const saved = mailer.cfg.allowlist;
-    (mailer.cfg as { allowlist: string[] }).allowlist = ['@nutricare.vn'];
+    /*
+     * Dựng danh sách QUA `chuanHoaMienThu`, không tiêm thẳng chuỗi (`0105`).
+     *
+     * Bản trước tiêm `['@nutricare.vn']` — dạng của thời `allowed()` còn so bằng
+     * `address.endsWith(mục)`. Từ `0105` danh sách chứa TÊN MIỀN đã chuẩn hoá,
+     * và dấu `@` bị cắt ngay lúc đọc biến môi trường. Tiêm một giá trị mà đường
+     * thật không bao giờ sinh ra là kiểm một thứ không tồn tại.
+     */
+    (mailer.cfg as { allowlist: string[] }).allowlist = chuanHoaMienThu('@nutricare.vn');
     try {
       expect(mailer.allowed(['a@nutricare.vn', 'b@gmail.com'])).toEqual(['a@nutricare.vn']);
+
+      /*
+       * TÊN MIỀN NHÁI phải bị loại — kiểm qua chính `allowed()` (`0105`).
+       *
+       * Phép so cũ là `address.endsWith(mục)`, và nó khớp cả
+       * `ke-toan@gia-nutricare.vn`: một tên miền do người khác đăng ký, chỉ cần
+       * kết thúc đúng chữ ấy.
+       *
+       * Dòng này thêm vào sau một lượt phá lại KHÔNG đỏ. Ca kiểm của `0105` cho
+       * chuyện này nằm ở tầng hàm thuần (`thuocMienThu`), nên hoàn tác riêng
+       * `Mailer.allowed()` về `endsWith` vẫn xanh — tức là chỗ người dùng thật
+       * đi qua thì không ai canh.
+       */
+      expect(mailer.allowed(['x@gia-nutricare.vn'])).toEqual([]);
+      expect(mailer.allowed(['x@hn.nutricare.vn'])).toEqual(['x@hn.nutricare.vn']);
     } finally {
       (mailer.cfg as { allowlist: string[] }).allowlist = saved;
     }
@@ -1254,4 +1299,115 @@ describe('`0085` thư bàn giao khách hàng', () => {
     expect(await notify.handle(ev), 'lần thứ hai vẫn gửi').toBe('duplicate');
     expect((await waitMail(1)).length).toBe(1);
   }, 30_000);
+});
+
+// =============================================================================
+// `0105` — tên miền nhận thư khai lúc chạy, và SMTP có xác thực
+// =============================================================================
+
+describe('`0105` tên miền nhận thư: nhiều miền, khai lúc chạy', () => {
+  it('chịu mọi cách gõ mà người vận hành thật sự gõ', () => {
+    // Dấu @, khoảng trắng, chữ hoa, chấm phẩy, xuống dòng, trùng lặp.
+    expect(chuanHoaMienThu(' @Nutricare.VN , nutricare.com.vn ;\n nutricare.vn ')).toEqual([
+      'nutricare.vn',
+      'nutricare.com.vn',
+    ]);
+    expect(chuanHoaMienThu(undefined)).toEqual([]);
+    expect(chuanHoaMienThu('')).toEqual([]);
+  });
+
+  it('mục KHÔNG ra hình tên miền thì NÉM, không im lặng bỏ qua', () => {
+    /*
+     * Bỏ qua lặng lẽ một mục sai chính tả nghĩa là cả một phòng ban thôi nhận
+     * được thư, và triệu chứng hiện ra nhiều ngày sau ở một chỗ không liên quan.
+     */
+    for (const xau of ['nutricare', 'ke-toan@nutricare.vn', 'http://nutricare.vn', '.vn']) {
+      expect(() => chuanHoaMienThu(xau), xau).toThrow(UnsafeMailConfigError);
+    }
+  });
+
+  it('so trên PHẦN SAU dấu @, không so trên cả chuỗi', () => {
+    /*
+     * Lỗi thật của bản trước: `address.endsWith('nutricare.vn')` khớp cả
+     * `ke-toan@gia-nutricare.vn` — một tên miền do người khác đăng ký, chỉ cần
+     * kết thúc đúng chữ ấy. Chốt chặn đọc như thể đang chặn mà không chặn.
+     */
+    const mien = chuanHoaMienThu('nutricare.vn');
+    expect(thuocMienThu('ke-toan@nutricare.vn', mien)).toBe(true);
+    expect(thuocMienThu('ke-toan@gia-nutricare.vn', mien)).toBe(false);
+    expect(thuocMienThu('ke-toan@nutricare.vn.evil.com', mien)).toBe(false);
+  });
+
+  it('MIỀN CON thì qua — công ty nhiều chi nhánh là chuyện thường', () => {
+    const mien = chuanHoaMienThu('nutricare.vn');
+    expect(thuocMienThu('tdv@hn.nutricare.vn', mien)).toBe(true);
+    expect(thuocMienThu('tdv@sg.chi-nhanh.nutricare.vn', mien)).toBe(true);
+  });
+
+  it('NHIỀU miền cùng lúc, và địa chỉ ngoài mọi miền thì loại', () => {
+    const mien = chuanHoaMienThu('nutricare.vn, nutricare.com.vn');
+    expect(thuocMienThu('a@nutricare.vn', mien)).toBe(true);
+    expect(thuocMienThu('a@nutricare.com.vn', mien)).toBe(true);
+    expect(thuocMienThu('a@gmail.com', mien)).toBe(false);
+  });
+
+  it('danh sách RỖNG thì không lọc — và production không được phép rỗng', () => {
+    expect(thuocMienThu('ai-cung-duoc@gmail.com', [])).toBe(true);
+  });
+});
+
+describe('`0105` transport SMTP dựng từ cấu hình', () => {
+  const cfg = (env: Record<string, string | undefined>) =>
+    loadMailConfig({ MAIL_REDIRECT_ALL: 'qa@nutricare.vn', ...env } as NodeJS.ProcessEnv);
+
+  it('hộp thư GIẢ: không TLS, không xác thực — Mailpit không nói TLS', () => {
+    const o = tuyChonSmtp(cfg({ MAIL_HOST: 'mailpit', MAIL_PORT: '1025' }));
+    expect(o).toMatchObject({ host: 'mailpit', port: 1025, secure: false, ignoreTLS: true });
+    expect(o).not.toHaveProperty('auth');
+  });
+
+  it('relay THẬT: STARTTLS bật SẴN, không cần ai nhớ đặt biến', () => {
+    /*
+     * Mặc định nghiêng về phía an toàn. Gửi mật khẩu SMTP qua một kết nối chưa
+     * mã hoá là chuyện không nên xảy ra chỉ vì ai đó quên một biến môi trường.
+     */
+    const o = tuyChonSmtp(cfg({ MAIL_HOST: 'smtp.nutricare.vn', MAIL_PORT: '587' }));
+    expect(o).toMatchObject({ requireTLS: true, secure: false });
+    expect(o).not.toHaveProperty('ignoreTLS');
+  });
+
+  it('relay nội bộ KHÔNG hỗ trợ TLS thì tắt được, nhưng phải tắt TƯỜNG MINH', () => {
+    const o = tuyChonSmtp(cfg({ MAIL_HOST: 'relay.noi-bo', MAIL_STARTTLS: 'false' }));
+    expect(o).not.toHaveProperty('requireTLS');
+  });
+
+  it('cổng 465: TLS ngay từ đầu, và KHÔNG kèm STARTTLS', () => {
+    const o = tuyChonSmtp(cfg({ MAIL_HOST: 'smtp.nutricare.vn', MAIL_PORT: '465', MAIL_SECURE: '1' }));
+    expect(o).toMatchObject({ secure: true, port: 465 });
+    expect(o).not.toHaveProperty('requireTLS');
+  });
+
+  it('có MAIL_USER thì kèm auth; không có thì KHÔNG kèm khoá auth rỗng', () => {
+    /*
+     * `auth: { user: undefined }` không phải là "không xác thực" — nodemailer
+     * vẫn vào nhánh xác thực và relay trả 5xx. Khác biệt phải nằm ở CÓ hay
+     * KHÔNG CÓ khoá, không nằm ở giá trị bên trong nó.
+     */
+    const co = tuyChonSmtp(
+      cfg({ MAIL_HOST: 'smtp.nutricare.vn', MAIL_USER: 'csbh', MAIL_PASSWORD: 'x' }),
+    );
+    expect(co).toMatchObject({ auth: { user: 'csbh', pass: 'x' } });
+    expect(tuyChonSmtp(cfg({ MAIL_HOST: 'smtp.nutricare.vn' }))).not.toHaveProperty('auth');
+  });
+
+  it('mật khẩu đọc được từ FILE — cùng quy ước với mọi bí mật khác', () => {
+    const f = `${tmpdir()}/csbh-mail-pw-${process.pid}`;
+    writeFileSync(f, 'mat-khau-that\n');
+    try {
+      const o = tuyChonSmtp(cfg({ MAIL_HOST: 'smtp.nutricare.vn', MAIL_USER: 'csbh', MAIL_PASSWORD_FILE: f }));
+      expect(o).toMatchObject({ auth: { pass: 'mat-khau-that' } });
+    } finally {
+      rmSync(f, { force: true });
+    }
+  });
 });

@@ -46,6 +46,11 @@ make typecheck
 make demo        # http://localhost:8080 — CSDL trống, chỉ có admin01
 make demo-mau    # nạp thêm 10 tài khoản mẫu + dữ liệu nghiệp vụ; mật khẩu Test@1234
 make demo-down
+
+make anh          # dựng ba ảnh bản giao
+make day-anh      # đẩy lên registry (cần docker login)
+make goi          # gói tệp nén -> workspace/dong-goi/
+make dong-goi     # dựng ảnh + gói, một lượt
 ```
 
 **Bọc mọi lệnh docker trong `sg docker -c '…'`.** Phiên shell không tương tác không kế thừa nhóm
@@ -82,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P131** (`0104`): **đủ trường mới gửi duyệt được**. Đọc yêu cầu theo nghĩa đen thì
+Chặng gần nhất **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
+`csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên
+máy chủ khách (compose + `.env.mau` + `cai-dat.sh` + `csbh` + cron + bốn tài liệu; **không chứa
+ảnh**). Bốn việc chặn cứng đã xong: lệnh mồi tài khoản quản trị chạy được ở `production`, SMTP có
+xác thực và TLS, `compose.prod.yml` không có `build:` nào, cron sao lưu. Tên miền nhận thư khai lúc
+chạy, **nhiều miền**, và **bắt buộc ở production**. Đã dựng thử toàn chồng production đầu-cuối.
+**1679/1679 xanh**, cây làm việc sạch.
+
+Trước đó **P131** (`0104`): **đủ trường mới gửi duyệt được**. Đọc yêu cầu theo nghĩa đen thì
 nó chặn MỌI lượt gửi — bảy trong hai mươi ba trường của bảng ánh xạ do chính các bước B3…B10 sinh
 ra. Nên sản phẩm chính là **bảng phân loại `NHOM_TRUONG`** (`document/contracts/sources.ts`), và
 `policy` chỉ chặn 3 trường: MST · chức danh người đại diện · thời gian áp dụng. Bảy trường *điền
@@ -195,6 +208,15 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   trường mà mẫu vừa chọn có in"* — nên nó không phụ thuộc mẫu. Giữ nguyên quyết định `0098`: buộc
   service nặng nhất vào đường gửi duyệt là nó chết thì không ai gửi được hồ sơ nào, và còn dựng ra
   vòng đồng bộ `policy → document → policy` giữa transaction.
+- **Mười service chạy từ MỘT ảnh** (`0105`). `ARG SERVICE`/`ENV SERVICE` là hai lớp cuối của
+  `Dockerfile`, còn `CMD` đọc `${SERVICE}` bằng shell lúc chạy — nên compose chọn service bằng biến
+  môi trường. Đo được: `csbh-audit` và `csbh-policy` trùng hoàn toàn từng lớp. `csbh-ops` dựng TỪ
+  `csbh-service` (chỉ +10MB); dựng lại từ `node:alpine` là tạo bản sao thứ hai của cùng những tệp,
+  và hai bản sẽ lệch nhau.
+- **Đường dẫn tương đối trong compose tính theo thư mục của TỆP COMPOSE**, không theo nơi gõ lệnh
+  (`0105`). Hai tệp compose ở `deploy/`, bộ cài ở thư mục cha — nên `../secrets`, không phải
+  `./secrets`. Và compose **gộp** danh sách `volumes` chứ không thay thế: ghi đè một service để bỏ
+  bind mount là không làm được, phải tắt nó bằng `profiles` rồi đặt service tên khác.
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.

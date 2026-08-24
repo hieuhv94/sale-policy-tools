@@ -1,0 +1,32 @@
+# Ảnh VẬN HÀNH: migration, sao lưu, phục hồi, dọn dữ liệu, mồi tài khoản (`0105`).
+#
+# Tới `0104` những việc này chạy bằng ảnh `postgres:16-alpine` cộng BẢY bind mount
+# đọc từ cây mã nguồn (`db/migrations/`, `scripts/*.sh`). Trên máy chủ khách chỉ
+# có `docker compose pull` thì không có cây mã nguồn nào — nghĩa là "chỉ pull" chỉ
+# đúng với lúc CHẠY, còn sao lưu và phục hồi lại đòi mã nguồn. Đúng vào lúc cần
+# nhất thì không có.
+#
+# DỰNG TỪ CHÍNH ẢNH SERVICE, không dựng lại từ `node:alpine`.
+#
+# Ảnh service đã `COPY . .` nên nó đã mang sẵn `db/migrations/` và `scripts/`, và
+# đã cài xong toàn bộ phụ thuộc. Kế thừa nó nghĩa là ảnh ops dùng lại TOÀN BỘ lớp
+# của ảnh service — máy chủ pull thêm ảnh này gần như không tốn gì. Dựng lại từ
+# đầu thì nó là một bản sao 533MB thứ hai của cùng một thứ, và hai bản sao ấy sẽ
+# lệch nhau vào ngày ai đó sửa một script mà chỉ dựng lại một bên.
+ARG BASE=csbh-service:dev
+FROM ${BASE}
+
+# `postgresql16-client` cho psql · pg_dump · pg_restore · pg_isready ·
+# pg_basebackup. `openssl` cho `gen-secrets.sh`.
+USER root
+RUN apk add --no-cache postgresql16-client openssl
+
+# Vá lỗi cùng lớp với `NODE_ENV`: các script vận hành gọi `tsx`, mà `tsx` là
+# devDependency — ảnh service cài đầy đủ nên nó có sẵn.
+WORKDIR /app
+
+COPY docker/ops-entrypoint.sh /usr/local/bin/csbh-ops
+RUN chmod +x /usr/local/bin/csbh-ops
+
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/csbh-ops"]
+CMD ["help"]

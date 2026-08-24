@@ -7,9 +7,12 @@
  */
 export {
   assertSafeMailConfig,
+  chuanHoaMienThu,
   isExternalRelay,
   isFakeRelay,
   loadMailConfig,
+  thuocMienThu,
+  tuyChonSmtp,
   UnsafeMailConfigError,
   type MailConfig,
   type MailEnv,

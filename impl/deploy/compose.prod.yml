@@ -1,0 +1,241 @@
+# =============================================================================
+# Chồng dịch vụ cho MÁY CHỦ THẬT (`0105`).
+#
+# Khác `compose.demo.yml` ở một chỗ quyết định tất cả: **không có `build:` nào**.
+# Mọi service dùng `image:` ghim một thẻ bất biến, nên máy chủ khách hàng chỉ cần
+#
+#   docker compose pull && docker compose up -d
+#
+# và không cần mã nguồn, không cần git, không cần trình biên dịch.
+#
+# Dùng cùng compose.yml (hạ tầng):
+#   docker compose -f compose.yml -f compose.prod.yml up -d
+#
+# CHỈ `caddy` mở cổng ra ngoài (SEC-10). Ca kiểm SEC-10 quét CẢ file này, không
+# chỉ file demo — một bất biến chỉ được canh ở bản demo là một bất biến không
+# được canh ở nơi nó có ý nghĩa.
+#
+# THẺ ẢNH KHÔNG BAO GIỜ LÀ `latest`. `CSBH_TAG` trong `.env` là một phiên bản cụ
+# thể (`1.0.0-a1b2c3d`). Với `latest` thì `docker compose pull` một tháng sau đổi
+# thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy
+# bản nào — `make version` in ra một con số, còn ảnh thì là một con số khác.
+# =============================================================================
+
+x-node: &node
+  image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-service:${CSBH_TAG:?thiếu CSBH_TAG}
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "50m", max-file: "10" }
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis:    { condition: service_healthy }
+    rabbitmq: { condition: service_healthy }
+    ops:      { condition: service_completed_successfully }
+  environment: &node-env
+    # `production` — và ở đây nó là sự thật, không phải một nhãn.
+    #
+    # Bốn chốt chặn chỉ sống ở giá trị này: thiếu file bí mật thì DỪNG thay vì
+    # dùng mật khẩu mặc định; thiếu khoá JWT thì DỪNG thay vì mỗi service tự sinh
+    # một khoá; SMTP trỏ vào hộp thư giả thì DỪNG; chưa khai tên miền nhận thư
+    # thì DỪNG (`0105`).
+    NODE_ENV: production
+
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGDATABASE: csbh
+    ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
+    REDIS_URL: redis://redis:6379
+    RABBITMQ_URL: amqp://rabbitmq:5672
+
+    # --- Thư -----------------------------------------------------------------
+    # Xem `docs/04-TRIEN-KHAI.md`. `MAIL_ALLOWLIST` BẮT BUỘC ở production và nhận
+    # nhiều tên miền, ngăn bằng dấu phẩy; miền con tự động được chấp nhận.
+    MAIL_HOST: ${MAIL_HOST:?thiếu MAIL_HOST}
+    MAIL_PORT: ${MAIL_PORT:-587}
+    MAIL_FROM: ${MAIL_FROM:?thiếu MAIL_FROM}
+    MAIL_ALLOWLIST: ${MAIL_ALLOWLIST:?thiếu MAIL_ALLOWLIST}
+    MAIL_USER: ${MAIL_USER:-}
+    MAIL_PASSWORD_FILE: ${MAIL_PASSWORD_FILE:-}
+    MAIL_SECURE: ${MAIL_SECURE:-}
+    MAIL_STARTTLS: ${MAIL_STARTTLS:-}
+
+    MINIO_HOST: minio
+    MINIO_PORT: "9000"
+    MINIO_ACCESS_KEY: csbh
+    MINIO_PASSWORD_FILE: /run/secrets/minio_password.txt
+    MINIO_BUCKET: csbh
+    GOTENBERG_URL: http://gotenberg:3000
+    JWT_PRIVATE_KEY_FILE: /run/secrets/jwt-private.pem
+
+    APP_VERSION: ${CSBH_TAG}
+    # Địa chỉ trong LIÊN KẾT của email. Sai ở đây thì thư mời vẫn gửi đi và vẫn
+    # đẹp, nhưng liên kết trong đó không dẫn tới đâu.
+    APP_BASE_URL: ${SITE_URL:?thiếu SITE_URL}
+    WEB_BASE_URL: ${SITE_URL}
+  volumes:
+    # `../secrets`, KHÔNG phải `./secrets`.
+    #
+    # Đường dẫn tương đối trong compose tính theo thư mục của TỆP COMPOSE, không
+    # theo nơi gõ lệnh. Hai tệp compose nằm trong `deploy/`, còn bộ cài đặt
+    # secrets · .env · csbh ở thư mục cha. Viết `./secrets` thì container gắn
+    # `deploy/secrets` — một thư mục không tồn tại — và triệu chứng là mười
+    # service cùng chết với `ENOENT /run/secrets/role_password.txt`, một câu
+    # không nhắc gì tới đường dẫn tương đối. Đã dính đúng lỗi này lúc chạy thử.
+    - ../secrets:/run/secrets:ro
+  networks: [ internal ]
+
+services:
+  # Mailpit của `compose.yml` KHÔNG chạy ở đây. Nó không bị gỡ khỏi file hạ tầng
+  # (bản demo cần), mà bị vô hiệu bằng profile — một service không nằm trong
+  # profile nào đang bật thì `up` bỏ qua nó.
+  mailpit:
+    profiles: ["khong-dung"]
+
+  # `migrate` của compose.yml là ảnh `postgres:16-alpine` kèm BẢY bind mount đọc
+  # từ cây mã nguồn — thứ máy chủ khách không có. Tắt bằng profile chứ không xoá:
+  # bản demo vẫn dùng nó, và compose GỘP danh sách volumes chứ không thay thế,
+  # nên ghi đè service ấy sẽ kéo theo cả bảy bind mount hỏng.
+  migrate:
+    profiles: ["khong-dung"]
+
+  # --- Vận hành --------------------------------------------------------------
+  #
+  # Thay chỗ `migrate`, và làm luôn mọi việc vận hành về sau: sao lưu, phục hồi,
+  # dọn dữ liệu, mồi tài khoản. Xem `docker compose run --rm ops help`.
+  ops:
+    image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-ops:${CSBH_TAG:?thiếu CSBH_TAG}
+    command: ["migrate"]
+    restart: "no"
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "10" }
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      PGHOST: postgres
+      PGUSER: postgres
+      # Cùng một giá trị mà `compose.yml` đặt cho POSTGRES_PASSWORD. `.env` sinh
+      # ra từ `secrets/pg_password.txt` lúc cài — xem `docs/04-TRIEN-KHAI.md`.
+      PGPASSWORD: ${PG_PASSWORD:?thiếu PG_PASSWORD}
+      PGDATABASE: csbh
+      ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
+      BACKUP_MIRROR_DIR: /mirror
+      APP_VERSION: ${CSBH_TAG}
+    volumes:
+      - ../secrets:/run/secrets:ro
+      - pgarchive:/archive
+      - pgbackup:/backup
+      - ${CSBH_BACKUP_MIRROR:-../backup-mirror}:/mirror
+      - ${CSBH_LOG_ARCHIVE:-../logarchive}:/logarchive
+    networks: [ internal ]
+
+  identity:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3001/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: identity
+
+  catalog:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3002/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: catalog
+
+  customer:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3003/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: customer
+
+  policy:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3004/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: policy
+
+  document:
+    <<: *node
+    depends_on:
+      postgres:  { condition: service_healthy }
+      redis:     { condition: service_healthy }
+      rabbitmq:  { condition: service_healthy }
+      minio:     { condition: service_healthy }
+      gotenberg: { condition: service_healthy }
+      ops:       { condition: service_completed_successfully }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3005/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: document
+
+  notification:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3006/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: notification
+
+  audit:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3007/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: audit
+
+  reporting:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3008/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: reporting
+
+  # Không mở cổng nào nên không có healthcheck HTTP — xem chú thích ở main.ts.
+  sla-worker:
+    <<: *node
+    environment:
+      <<: *node-env
+      SERVICE: sla-worker
+
+  gateway:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3000/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: gateway
+      CORS_ORIGINS: ${SITE_URL}
+
+  # --- Biên mạng -------------------------------------------------------------
+  #
+  # Giao diện nằm TRONG ảnh, không đọc từ thư mục nào của máy chủ. Caddyfile cũng
+  # vậy. Hai biến còn để ngoài vì chúng khác nhau ở từng nơi cài.
+  caddy:
+    image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-web:${CSBH_TAG:?thiếu CSBH_TAG}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "10" }
+    # CHỖ DUY NHẤT mở cổng ra ngoài trong cả hệ (SEC-10).
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Tên miền thật. Caddy tự xin và tự gia hạn chứng chỉ theo giá trị này.
+      SITE_ADDRESS: ${SITE_ADDRESS:?thiếu SITE_ADDRESS}
+      ACME_EMAIL: ${ACME_EMAIL:?thiếu ACME_EMAIL}
+    volumes:
+      # Chứng chỉ phải SỐNG QUA mọi lượt nâng cấp. Mất volume này là mỗi lần
+      # `up -d` lại xin chứng chỉ mới, và Let's Encrypt có hạn mức theo tuần.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      gateway: { condition: service_healthy }
+    networks: [ internal ]
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

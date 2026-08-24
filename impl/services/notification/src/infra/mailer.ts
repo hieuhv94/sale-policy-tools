@@ -9,7 +9,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
-import { loadMailConfig, type MailConfig } from './config.js';
+import { loadMailConfig, thuocMienThu, tuyChonSmtp, type MailConfig } from './config.js';
 
 export type OutgoingMail = {
   eventId: string;
@@ -31,12 +31,7 @@ export class Mailer {
     // Chốt an toàn chạy ở constructor: cấu hình nguy hiểm thì service KHÔNG
     // khởi động nổi, thay vì chạy êm rồi gửi thư nhầm chỗ (NTF-16).
     this.cfg = loadMailConfig();
-    this.tx = createTransport({
-      host: this.cfg.host,
-      port: this.cfg.port,
-      secure: false,
-      ignoreTLS: true,
-    });
+    this.tx = createTransport(tuyChonSmtp(this.cfg));
   }
 
   /** Gốc luồng của một khách hàng. Không phải id thư thật, chỉ là mỏ neo cố định. */
@@ -52,8 +47,7 @@ export class Mailer {
    * nghiệp vụ vào hộp thư ngoài mà không ai để ý.
    */
   allowed(to: string[]): string[] {
-    if (this.cfg.allowlist.length === 0) return to;
-    return to.filter((a) => this.cfg.allowlist.some((d) => a.toLowerCase().endsWith(d)));
+    return to.filter((a) => thuocMienThu(a, this.cfg.allowlist));
   }
 
   async send(m: OutgoingMail): Promise<{ messageId: string; to: string[] }> {

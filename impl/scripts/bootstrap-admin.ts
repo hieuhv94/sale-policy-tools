@@ -1,0 +1,119 @@
+/**
+ * TÀI KHOẢN QUẢN TRỊ ĐẦU TIÊN trên máy chủ thật (`0105`).
+ *
+ * Đây là lỗ hổng lộ ra ở lượt rà đóng gói: `seed.ts` và `seed-admin.ts` đều tự
+ * thoát khi `NODE_ENV=production` (SEC-14), và chốt ấy ĐÚNG — quá nhiều hệ thống
+ * lên máy chủ thật kèm `admin/Test@1234`. Nhưng không có đường thay thế nào, nên
+ * một bản cài mới với CSDL trắng ở production là một hệ thống **không ai đăng
+ * nhập được**, và cũng không có màn hình nào để tạo tài khoản đầu tiên.
+ *
+ * Script này là đường ấy. Nó khác `seed-admin.ts` ở bốn chỗ, và cả bốn đều là
+ * điều kiện để nó được phép chạy ở production:
+ *
+ *   1. **Không có giá trị mặc định nào.** Thiếu một biến thì dừng. `seed-admin`
+ *      có sẵn `admin01/Test@1234` — tiện cho demo, và đúng thứ SEC-14 cấm.
+ *   2. **Mật khẩu phải qua đúng luật của phần mềm** (`checkNewPassword`, muc
+ *      2.8). Một script mồi nới lỏng luật mật khẩu là một cửa sau.
+ *   3. **Từ chối khi CSDL đã có tài khoản.** Nó là lệnh MỒI, không phải lệnh
+ *      tạo người dùng — chạy lại lần hai trên hệ đang sống là một cách đặt lại
+ *      mật khẩu quản trị mà không để lại dấu vết ở màn hình nào.
+ *   4. **Bắt buộc đổi mật khẩu ở lần đăng nhập đầu.** Mật khẩu này đi qua dòng
+ *      lệnh và nằm lại trong lịch sử shell của người cài đặt.
+ *
+ * Cách gọi (xem `docs/04-TRIEN-KHAI.md`):
+ *
+ *   docker compose run --rm -e ADMIN_USERNAME=... -e ADMIN_EMAIL=... \
+ *     -e ADMIN_PASSWORD=... ops bootstrap-admin
+ */
+import { readFileSync } from 'node:fs';
+import { Client } from 'pg';
+import { checkNewPassword, describePasswordProblems } from '../packages/identity-core/src/password-policy.js';
+import { hashPassword } from '../packages/identity-core/src/password.js';
+
+const doc = (ten: string): string => {
+  const tepBM = process.env[`${ten}_FILE`];
+  if (tepBM) {
+    // Mật khẩu qua FILE thì nó không nằm lại trong lịch sử shell hay trong
+    // `docker inspect` của container — đường được khuyến nghị.
+    return readFileSync(tepBM, 'utf8').trim();
+  }
+  const v = process.env[ten]?.trim();
+  if (!v) {
+    console.error(
+      `bootstrap-admin: thiếu ${ten}. Không có giá trị mặc định nào — ` +
+        `đặt ${ten} hoặc ${ten}_FILE.`,
+    );
+    process.exit(1);
+  }
+  return v;
+};
+
+const HINH_THU = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const main = async () => {
+  const taiKhoan = doc('ADMIN_USERNAME');
+  const thu = doc('ADMIN_EMAIL');
+  const matKhau = doc('ADMIN_PASSWORD');
+  const hoTen = process.env.ADMIN_FULL_NAME?.trim() || 'Quản trị hệ thống';
+
+  if (!HINH_THU.test(thu)) {
+    console.error(`bootstrap-admin: ADMIN_EMAIL "${thu}" không phải địa chỉ thư hợp lệ.`);
+    process.exit(1);
+  }
+
+  const loi = checkNewPassword(matKhau);
+  if (loi.length > 0) {
+    console.error(`bootstrap-admin: mật khẩu chưa đạt — ${describePasswordProblems(loi)}.`);
+    process.exit(1);
+  }
+
+  const db = new Client({
+    host: process.env.PGHOST ?? 'postgres',
+    port: Number(process.env.PGPORT ?? 5432),
+    database: process.env.PGDATABASE ?? 'csbh',
+    user: process.env.PG_SUPERUSER ?? process.env.PGUSER ?? 'postgres',
+    password: process.env.PG_PASSWORD ?? process.env.PGPASSWORD,
+  });
+  await db.connect();
+
+  try {
+    /*
+     * ĐẾM TRƯỚC, và đếm TẤT CẢ — kể cả tài khoản đã vô hiệu hoá.
+     *
+     * Đếm mỗi tài khoản đang hoạt động thì một hệ có đúng một quản trị vừa bị
+     * vô hiệu hoá sẽ cho chạy lại script này, và lượt ấy dựng một quản trị mới
+     * mà không ai phê duyệt. Đường đúng cho tình huống đó là phục hồi từ bản
+     * sao lưu, không phải mồi lại.
+     */
+    const { rows } = await db.query<{ n: string }>('SELECT count(*)::text AS n FROM idn.app_user');
+    const n = Number(rows[0]?.n ?? '0');
+    if (n > 0) {
+      console.error(
+        `bootstrap-admin: TỪ CHỐI — CSDL đã có ${n} tài khoản. ` +
+          'Lệnh này chỉ dùng cho lần cài đặt đầu tiên. ' +
+          'Quên mật khẩu quản trị thì dùng đường "Quên mật khẩu" trên màn hình đăng nhập.',
+      );
+      process.exit(1);
+    }
+
+    const hash = await hashPassword(matKhau);
+    const r = await db.query<{ id: string }>(
+      `INSERT INTO idn.app_user
+         (username, email, full_name, role, password_hash,
+          must_change_password, activated_at, email_verified_at)
+       VALUES ($1, $2, $3, 'QUAN_TRI', $4, true, now(), now())
+       RETURNING id`,
+      [taiKhoan, thu, hoTen, hash],
+    );
+
+    console.log(`bootstrap-admin: đã tạo ${taiKhoan} (${r.rows[0]?.id}).`);
+    console.log('bootstrap-admin: lần đăng nhập đầu tiên sẽ BẮT BUỘC đổi mật khẩu.');
+  } finally {
+    await db.end();
+  }
+};
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

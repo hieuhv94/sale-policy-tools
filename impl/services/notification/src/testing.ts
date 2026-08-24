@@ -13,7 +13,14 @@ export async function createTestApp(): Promise<INestApplication> {
 export { NotifyService } from './notify/notify.service.js';
 export { NotifyConsumer } from './notify/consumer.js';
 export { Mailer } from './infra/mailer.js';
-export { assertSafeMailConfig, UnsafeMailConfigError, loadMailConfig } from './infra/config.js';
+export {
+  assertSafeMailConfig,
+  chuanHoaMienThu,
+  loadMailConfig,
+  thuocMienThu,
+  tuyChonSmtp,
+  UnsafeMailConfigError,
+} from './infra/config.js';
 export {
   bodyBanGiao,
   bodyFor,

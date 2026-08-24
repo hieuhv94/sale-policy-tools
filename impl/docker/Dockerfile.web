@@ -1,0 +1,42 @@
+# Ảnh GIAO DIỆN: dựng SPA rồi phục vụ bằng chính Caddy (`0105`).
+#
+# Tới `0104` giao diện không có ảnh nào. Service `web-build` gắn CẢ CÂY MÃ NGUỒN
+# vào container (`..:/app`), chạy `pnpm install` rồi `pnpm build:web`, và Caddy
+# phục vụ `../apps/web/dist` đọc thẳng từ máy thật. Cách ấy chạy tốt trên máy có
+# mã nguồn — và không chạy được gì trên máy chủ khách hàng, nơi chỉ có
+# `docker compose pull`. Triệu chứng sẽ là màn hình trắng, không log nào nói vì sao.
+#
+# Caddyfile NƯỚNG LUÔN vào ảnh, không gắn từ ngoài, vì cùng lý do: máy chủ khách
+# không có thư mục `deploy/caddy/`. Thứ còn để ngoài là hai biến `SITE_ADDRESS`
+# và `ACME_EMAIL` — chúng khác nhau ở từng nơi cài, và chúng là biến chứ không
+# phải file.
+
+# --- Tầng dựng ---------------------------------------------------------------
+FROM node:22.9-alpine AS dung
+
+RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+WORKDIR /app
+
+# Cùng nếp hai bước với `Dockerfile`: `pnpm fetch` chỉ cần lockfile, nên tầng
+# phụ thuộc chỉ mất hiệu lực khi lockfile đổi.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+RUN pnpm fetch --config.store-dir=/pnpm-store
+
+COPY . .
+RUN pnpm install --offline --frozen-lockfile --config.store-dir=/pnpm-store
+
+# Số phiên bản in ra màn hình *Thông tin* phải là số của BẢN ĐANG CHẠY, nên nó
+# vào lúc dựng chứ không lúc chạy: sau khi `vite build` thì không còn chỗ nào
+# đọc biến môi trường nữa.
+ARG APP_VERSION=0.0.0-dev
+ENV APP_VERSION=${APP_VERSION}
+RUN pnpm build:web
+
+# --- Tầng chạy ---------------------------------------------------------------
+FROM caddy:2.8-alpine
+
+COPY deploy/caddy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=dung /app/apps/web/dist /srv
+
+# Mặc định hợp lý cho lần chạy thử tại chỗ; máy chủ thật đặt tên miền qua biến.
+ENV SITE_ADDRESS=:80

@@ -3,6 +3,10 @@
 # Chạy trong container, không chạy native.
 set -eu
 : "${PGHOST:=postgres}" "${PGUSER:=postgres}" "${PGDATABASE:=csbh}"
+# Thư mục migration KHÁC NHAU giữa hai cách chạy (`0105`): chồng dev gắn
+# `db/migrations` vào `/migrations`, còn ảnh vận hành đã mang sẵn chúng ở
+# `/app/db/migrations`. Một biến, hai chỗ, không phải hai bản script.
+: "${MIGRATIONS_DIR:=/migrations}"
 export PGHOST PGUSER PGDATABASE PGPASSWORD
 
 echo "migrate: chờ Postgres tại $PGHOST..."
@@ -19,7 +23,7 @@ psql -v ON_ERROR_STOP=1 -q -c "
     applied_at timestamptz NOT NULL DEFAULT now());"
 
 applied=0; skipped=0
-for f in /migrations/*.sql; do
+for f in "$MIGRATIONS_DIR"/*.sql; do
   name=$(basename "$f")
   sum=$(md5sum "$f" | cut -d' ' -f1)
   prev=$(psql -tAc "SELECT checksum FROM sys.schema_migration WHERE filename='$name'")

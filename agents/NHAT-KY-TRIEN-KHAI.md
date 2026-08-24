@@ -9909,3 +9909,140 @@ chỉ đỏ khi ai đó xếp nhầm một trường `dien-sau` sang `chan-moi` 
 loại đỏ trước.
 
 **1661/1661 xanh.**
+
+## P132 — `0105` đóng gói bản giao: ba ảnh, một tệp nén, và bốn chốt chặn
+
+Bốn việc chặn cứng của lượt rà đóng gói, cộng hai yêu cầu mới: bước đóng gói phải
+ra **một tệp nén** chép thẳng lên máy chủ khách, và **tên miền nhận thư phải khai
+được lúc chạy, nhiều miền**.
+
+### Chuyện đáng nhớ nhất: mười service, MỘT ảnh
+
+`Dockerfile` đặt `ARG SERVICE` và `ENV SERVICE` ở **hai lớp cuối cùng**, còn `CMD`
+đọc `${SERVICE}` bằng shell lúc chạy. Nghĩa là biến môi trường của compose ghi đè
+được nó — và mười service chạy từ **cùng một ảnh**. Đo lại để chắc:
+
+```
+csbh-audit  : 11 lớp   csbh-policy : 11 lớp   → TRÙNG HOÀN TOÀN từng lớp
+```
+
+Chồng demo dựng mười ảnh vì nó dựng từ mã nguồn và không tốn gì thêm. Bản giao thì
+đẩy **một** ảnh service. Tổng tải về của máy chủ khách:
+
+| Ảnh | Cỡ | Thực tế thêm |
+|---|---|---|
+| `csbh-service` | 532 MB | 532 MB |
+| `csbh-ops` | 542 MB | **+10 MB** — dựng TỪ `csbh-service` |
+| `csbh-web` | 50 MB | 50 MB |
+
+`csbh-ops` kế thừa `csbh-service` chứ không dựng lại từ `node:alpine`, và đó là
+quyết định chứ không phải mẹo tiết kiệm: ảnh service đã `COPY . .` nên nó mang sẵn
+`db/migrations/` và `scripts/`. Dựng lại từ đầu là tạo ra một bản sao thứ hai của
+cùng những tệp ấy, và hai bản sao sẽ lệch nhau vào ngày ai đó sửa một script mà
+chỉ dựng lại một bên.
+
+### Ba lỗi chỉ lộ ra khi CHẠY THẬT
+
+Tôi dựng cả chồng production lên một thư mục trắng và đi hết đường cài đặt. Ba lỗi,
+không lỗi nào bộ test bắt được, và cả ba đều làm hệ **không chạy**:
+
+**1. Bí mật sinh trong container thuộc `root`.** `cai-dat.sh` gọi `gen-secrets`
+qua `docker run`, rồi đọc `pg_password.txt` để điền vào `.env`. Container chạy
+`root` nên file ra `-rw------- root root`, và bước đọc hỏng với `Permission
+denied`. Sửa bằng `--user "$(id -u):$(id -g)"`.
+
+**2. Đường dẫn tương đối trong compose tính theo thư mục của TỆP COMPOSE.** Tôi
+viết `./secrets:/run/secrets`, mà hai tệp compose nằm trong `deploy/` còn `secrets/`
+ở thư mục cha. Kết quả: mười service cùng chết với
+
+```
+ENOENT: no such file or directory, open '/run/secrets/role_password.txt'
+```
+
+một câu không nhắc gì tới đường dẫn tương đối. Phải là `../secrets`.
+
+**3. `compose.prod.yml` không ghi đè được `migrate` của `compose.yml`.** Compose
+**gộp** danh sách `volumes` chứ không thay thế, nên service ấy vẫn kéo theo bảy
+bind mount đọc từ cây mã nguồn — thứ máy chủ khách không có. Không sửa được bằng
+ghi đè; phải tắt nó bằng `profiles: ["khong-dung"]` và đặt một service `ops` tên khác.
+
+Sau ba lượt sửa, chồng production lên sạch: trang chủ 200, `/api/healthz` 200,
+`bootstrap-admin` tạo được tài khoản, đăng nhập trả `mustChangePassword: true`,
+và cả hai chốt của lệnh mồi đều từ chối đúng lúc.
+
+### Tài khoản quản trị đầu tiên
+
+`seed-admin.ts` tự thoát ở `production` (SEC-14) và không có đường thay thế — một
+bản cài mới ở production là hệ thống **không ai đăng nhập được**.
+`bootstrap-admin.ts` là đường ấy, và nó khác `seed-admin` ở bốn chỗ mà cả bốn đều
+là điều kiện để được phép chạy ở production: không giá trị mặc định · mật khẩu
+phải qua đúng `checkNewPassword` · **từ chối khi CSDL đã có tài khoản** · bắt buộc
+đổi mật khẩu ở lần đăng nhập đầu.
+
+Chốt thứ ba đếm **tất cả** tài khoản, kể cả đã vô hiệu hoá. Đếm mỗi tài khoản đang
+hoạt động thì một hệ có đúng một quản trị vừa bị vô hiệu hoá sẽ cho chạy lại lệnh
+này — và lượt ấy dựng một quản trị mới mà không ai phê duyệt.
+
+### Thư: xác thực, TLS, và chốt chặn thứ ba
+
+Tới `0104` cả hai service gửi thư dựng transport bằng `{ secure: false, ignoreTLS:
+true }` viết cứng, **không có `auth`**. Chạy được với Mailpit và với relay nội bộ
+mở; SMTP đòi xác thực thì mọi thư hỏng — mà từ P13 thư kích hoạt là đường duy nhất
+để một tài khoản có mật khẩu, nên triệu chứng là không ai đăng nhập được vào hệ
+vừa triển khai.
+
+`tuyChonSmtp()` dựng tuỳ chọn từ cấu hình, ở một chỗ cho cả hai service.
+**STARTTLS bật sẵn** với mọi relay thật: gửi mật khẩu SMTP qua kết nối chưa mã hoá
+là chuyện không nên xảy ra vì ai đó quên một biến. Tắt được, nhưng phải tắt tường
+minh. `auth` chỉ có mặt khi có `MAIL_USER` — `auth: { user: undefined }` không phải
+"không xác thực", nodemailer vẫn vào nhánh xác thực và relay trả 5xx.
+
+**Chốt chặn thứ ba**: production **bắt buộc** khai `MAIL_ALLOWLIST`. Trước đó rỗng
+nghĩa là "gửi cho tất cả", mà giá trị mặc định của một biến không ai đặt chính là
+rỗng — nên chốt chặn ấy chỉ tồn tại ở nơi có người nhớ bật.
+
+Và một lỗi thật trong phép so cũ: `address.endsWith('nutricare.vn')` khớp cả
+`ke-toan@gia-nutricare.vn`, một tên miền do người khác đăng ký chỉ cần kết thúc
+đúng chữ ấy. Giờ so trên **phần sau dấu `@`**, và miền con thì qua — công ty nhiều
+chi nhánh là chuyện thường, bắt liệt kê từng miền con là dựng một danh sách sẽ lạc
+hậu ngay lần mở chi nhánh sau.
+
+### Ca kiểm cho một bước chạy mỗi quý một lần
+
+Bước đóng gói hỏng theo kiểu tệ nhất: một tệp bị đổi tên ba tháng trước, `cp` báo
+"No such file", và người chuẩn bị giao hàng phát hiện ra vào đúng hôm giao.
+`tests/http/dong-goi.test.ts` đọc chính `dong-goi.sh`, rút mọi đường dẫn nó chép và
+kiểm chúng tồn tại — cộng hai bất biến của mô hình: `compose.prod.yml` **không có
+`build:` nào**, và `.env.mau` khai đủ mọi biến mà compose đánh dấu bắt buộc bằng
+`${X:?}`. Ca cuối bắt đúng cái khoảng cách giữa "hệ thống từ chối khởi động vì
+thiếu biến" và "người cài đặt biết phải điền vào đâu".
+
+SEC-10 mở rộng sang `compose.prod.yml`. Canh bất biến "chỉ biên mạng mở cổng" ở ba
+tệp kia mà bỏ tệp DUY NHẤT chạy trên máy khách là canh ở mọi nơi trừ nơi có nghĩa.
+
+### Phá lại
+
+| Phá | Đỏ |
+|---|---|
+| Bỏ `MAIL_ALLOWLIST` khỏi chốt production | NTF-16 · *production KHÔNG khai — chặn* |
+| Bỏ `auth` khỏi `tuyChonSmtp` | 2 ca transport |
+| Thêm một `build:` vào `compose.prod.yml` | `dong-goi` · *máy chủ khách chỉ pull* |
+| Đổi tên một tệp mà `dong-goi.sh` chép | `dong-goi` · *mọi tệp chép đều có thật* |
+| **Trả `Mailer.allowed()` về `endsWith`** | **KHÔNG ĐỎ** — xem dưới |
+
+### Vế thứ năm không đỏ, và đó là một lỗ hổng thật
+
+Ca kiểm `0105` cho phép so tên miền nằm ở **tầng hàm thuần** (`thuocMienThu`), nên
+hoàn tác riêng `Mailer.allowed()` về `endsWith` vẫn xanh — tức là chỗ người dùng
+thật đi qua thì không ai canh. Ca NTF-19 có gọi `allowed()`, nhưng nó chỉ thử
+`a@nutricare.vn` và `b@gmail.com`, hai địa chỉ mà **cả hai phép so đều trả lời
+giống nhau**.
+
+Thêm hai dòng vào chính ca ấy: `x@gia-nutricare.vn` phải bị loại,
+`x@hn.nutricare.vn` phải qua. Phá lại lần nữa thì đỏ với
+`expected [ 'x@gia-nutricare.vn' ] to deeply equal []`.
+
+Đáng ghi vì đây là lớp sai dễ lặp: kiểm một hàm thuần rồi tin rằng đường gọi nó
+cũng được kiểm theo. Lượt phá lại là thứ duy nhất phân biệt được hai chuyện đó.
+
+**1679/1679 xanh.**

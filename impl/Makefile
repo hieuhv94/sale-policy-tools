@@ -107,6 +107,25 @@ check-demo-up:
 secrets:
 	sh scripts/gen-secrets.sh deploy/secrets
 
+# --- Đóng gói bản giao (`0105`) ----------------------------------------------
+#
+# Ba ảnh — `csbh-service`, `csbh-web`, `csbh-ops` — và MỘT tệp nén để chép lên
+# máy chủ khách. Tệp nén KHÔNG chứa ảnh: máy chủ kéo chúng từ registry.
+#
+# `anh` dựng, `day` đẩy lên registry, `goi` gói tệp nén. `dong-goi` làm cả dựng
+# và gói; đẩy thì tách riêng vì nó cần đăng nhập và không nên chạy nhầm.
+anh:
+	sh scripts/dong-goi.sh anh
+
+day-anh:
+	sh scripts/dong-goi.sh day
+
+goi:
+	sh scripts/dong-goi.sh goi
+
+dong-goi:
+	sh scripts/dong-goi.sh tat-ca
+
 backup:
 	@mkdir -p $(WORKSPACE)/backup-mirror
 	$(COMPOSE) run --rm -T --entrypoint /bin/sh migrate /backup.sh

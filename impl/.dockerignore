@@ -3,3 +3,17 @@ node_modules
 apps/web/dist
 .git
 deploy/secrets
+
+# `0105` — thứ KHÔNG được đi lên máy chủ khách hàng.
+#
+# Ảnh dựng bằng `COPY . .` nên mọi thứ trong `impl/` đi theo, và từ khi ảnh được
+# đẩy lên registry rồi kéo về máy khách thì "mọi thứ" ấy nằm trên máy của họ.
+#
+# Bộ test là phần lớn nhất: 70 tệp, và chúng mang theo dữ liệu dựng sẵn cùng
+# những chú thích mô tả chính xác chỗ nào của hệ thống từng hỏng. Không có lý do
+# nghiệp vụ nào để chúng có mặt ở đó, và có lý do rõ ràng để chúng không.
+tests
+vitest.config.ts
+
+# Dấu vết của những lượt dựng trên máy phát triển.
+tsconfig.tsbuildinfo

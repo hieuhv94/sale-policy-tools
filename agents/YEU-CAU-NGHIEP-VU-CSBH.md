@@ -1381,6 +1381,17 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Tên miền nhận thư khai lúc chạy, nhiều miền** `mới 25/08` — người vận hành khai danh sách tên
+miền được phép **nhận** thư nghiệp vụ; nhiều miền thì ngăn bằng dấu phẩy, và **miền con tự động
+được chấp nhận** (khai `nutricare.vn` thì `tdv@hn.nutricare.vn` cũng nhận được). Địa chỉ ngoài mọi
+miền đã khai bị loại khỏi danh sách người nhận. Đổi danh sách chỉ cần sửa cấu hình rồi dựng lại,
+không phải ra bản mới.
+
+> **Ở máy chủ thật, khai danh sách này là BẮT BUỘC.** Trước đó bỏ trống nghĩa là "gửi cho tất cả",
+> mà bỏ trống chính là giá trị của một cấu hình không ai đặt — nên chốt chặn ấy chỉ tồn tại ở nơi
+> có người nhớ bật. Nó chặn một địa chỉ cá nhân gõ nhầm vào hồ sơ tài khoản rồi nhận toàn bộ thông
+> báo nghiệp vụ: công nợ, giá thu về, tên khách hàng.
+
 **Đủ trường mới gửi duyệt được** `mới 24/08` — trước khi hồ sơ rời trạng thái *Nháp*, phần mềm kiểm
 các trường sẽ in ra bản CSBH. Thiếu thì **chặn gửi**, và báo rõ thiếu mục nào cùng chỗ phải đi sửa.
 Ba trường bị chặn: **Mã số thuế** · **Chức danh người đại diện** (cả hai ở hồ sơ khách hàng) và

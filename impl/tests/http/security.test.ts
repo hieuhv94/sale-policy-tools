@@ -385,9 +385,19 @@ describe('SEC-10 cổng mở ra ngoài', () => {
   };
 
   it('không service nào trong compose publish cổng, trừ caddy', () => {
-    // Quét CẢ chồng demo: đó là nơi mười service ứng dụng được khai, tức là
-    // nơi dễ vô tình mở một cổng ra ngoài nhất.
-    for (const f of ['deploy/compose.yml', 'deploy/compose.test.yml', 'deploy/compose.demo.yml']) {
+    // Quét CẢ chồng demo VÀ chồng production (`0105`): đó là nơi mười service
+    // ứng dụng được khai, tức là nơi dễ vô tình mở một cổng ra ngoài nhất.
+    //
+    // `compose.prod.yml` là tệp DUY NHẤT thật sự chạy trên máy khách hàng. Canh
+    // bất biến này ở ba tệp kia mà bỏ nó ra ngoài là canh ở mọi nơi trừ nơi có
+    // ý nghĩa — và tệp ấy đã có một `ports:` hợp lệ (80 và 443 của caddy), nên
+    // "không có ports nào" không phải là cách kiểm thay thế.
+    for (const f of [
+      'deploy/compose.yml',
+      'deploy/compose.test.yml',
+      'deploy/compose.demo.yml',
+      'deploy/compose.prod.yml',
+    ]) {
       const withPorts = composeServicesWithPorts(f);
       const illegal = withPorts.filter((s) => s !== 'caddy');
       expect(illegal, `${f} có service publish cổng ngoài caddy: ${illegal.join(', ')}`).toEqual([]);

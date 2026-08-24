@@ -19,6 +19,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
+import { tuyChonSmtp } from '@csbh/http-kit';
 import { CONFIG, MAIL } from './config.js';
 
 /** Giãn cách giữa các lần thử lại, tính bằng mili-giây. */
@@ -27,12 +28,7 @@ const CHO_THU_LAI = [200, 1000, 3000];
 @Injectable()
 export class Mailer {
   private readonly log = new Logger(Mailer.name);
-  private readonly tx: Transporter = createTransport({
-    host: MAIL.host,
-    port: MAIL.port,
-    secure: false,
-    ignoreTLS: true,
-  });
+  private readonly tx: Transporter = createTransport(tuyChonSmtp(MAIL));
 
   async sendInvite(to: string, fullName: string, activationUrl: string): Promise<void> {
     // KHÔNG có mật khẩu nào trong thư — từ P13 hệ thống không sinh ra mật khẩu
