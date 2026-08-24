@@ -82,11 +82,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P128** (`0101`): **thông tin khách hàng và hai cái tên đóng băng vào hồ sơ** lúc
+Chặng gần nhất **P129** (`0102`): **mẫu bản mềm thôi bị ép có *trạng thái* và *thời gian duyệt***.
+Hai mục ấy còn ĐANG ĐỔI lúc dựng văn bản, nên ép có mặt là ép in một câu sai ở mọi hồ sơ chưa tới
+B10. Gốc rễ: mười ba mục của muc 11.1 là yêu cầu của **bảng XEM do hệ thống dựng** (`sheet.ts`, vẫn
+đủ cả mười ba), `0067` đem áp sang **mẫu do Quản trị vẽ**. Bỏ ÉP chứ không bỏ TRƯỜNG — hai khoá vẫn
+trong `SCALAR`. Phép kiểm lúc lưu mẫu còn **9/13**. Kèm **DOC-36**, ca kiểm chưa từng có.
+**1647/1647 xanh**, cây làm việc sạch.
+
+Trước đó **P128** (`0101`): **thông tin khách hàng và hai cái tên đóng băng vào hồ sơ** lúc
 gửi duyệt — tám trường khách hàng (kể cả công nợ) cộng *người đề nghị*; *TBP đã ký* chụp lúc ký.
 Ảnh chụp làm mới ở mỗi lượt gửi, nên hồ sơ bị trả lại vẫn sửa được. Trên đường lộ ra một lỗ hổng
 `P0`: **hồ sơ bị trả về SAU khi TBP ký thì không ký lại được** (`ALREADY_SIGNED`) và chết ở *Chờ TBP
-duyệt* — `tbp_signed_at` chưa bao giờ được xoá. **1645/1645 xanh**, cây làm việc sạch.
+duyệt* — `tbp_signed_at` chưa bao giờ được xoá.
 
 Trước đó **P127** (`0100`): tách `POLICY_TEMPLATE_PENDING` khỏi `POLICY_TEMPLATE_NOT_SET` —
 `0098` gộp hai chuyện vào một câu, nên Ban lãnh đạo mở hồ sơ *Nháp* của người khác bị báo rằng hồ sơ
@@ -146,6 +153,11 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `templates.khaDung()` (ô chọn, có lọc) và `templates.theoId()` (dựng văn bản, không lọc) phải
   tách rời. **Hợp đồng KHÔNG đóng băng** — không lưu bản ghi nào thì không có gì để gắn vào — nhưng
   người xuất vẫn **bắt buộc chọn**: không còn mẫu mặc định ngầm ở bất kỳ đâu.
+- **Bảng CSBH XEM và MẪU bản mềm là hai thứ khác nhau** (`0102`). Mười ba mục tối thiểu của muc 11.1
+  là yêu cầu của bảng do hệ thống dựng (`render/sheet.ts`) — nó luôn đủ cả mười ba. Mẫu do Quản trị
+  vẽ chỉ bị ép **9/13**: *thông tin công ty* cố định, *CPBH* do người soạn quyết, còn *trạng thái* và
+  *thời gian duyệt* thì **còn đang đổi** lúc dựng văn bản. Bỏ ÉP không phải bỏ TRƯỜNG — hai khoá vẫn
+  trong `SCALAR`, và gỡ nhầm chúng ở đó thì ba mẫu bàn giao trả `400 SOURCE_UNKNOWN` lúc lưu.
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
   hộp thoại hoặc thanh nổi; lỗi của một Ô nằm dưới ô ấy; lỗi TẢI màn hình ở lại trên trang. Không
   câu nào được lộ tên trường trong mã, mã trạng thái, hay chữ tiếng Việt không dấu.

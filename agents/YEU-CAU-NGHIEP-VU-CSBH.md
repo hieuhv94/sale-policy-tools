@@ -650,9 +650,19 @@ nói rõ dòng nào hẹp hơn dòng nào.
   tự chịu trách nhiệm**, và một mẫu ra bản A4 không có chữ CPBH nào là **hợp lệ**.
 - **Bỏ nhóm khoá `cong_ty.`** `sửa 20/08` — ba giá trị ấy cố định ở mọi hồ sơ, người soạn gõ thẳng
   vào file Word. Kéo theo: mục *thông tin công ty* do người soạn tự chịu trách nhiệm.
-  > Cộng cả hai mục tự chịu trách nhiệm ấy, phép kiểm tự động lúc lưu mẫu còn **11 trên 13 mục**
-  > `sửa 21/08`. Nói ra vì một bảo đảm 11/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 11/13 đã
+- **Mẫu bản mềm KHÔNG bắt buộc có *trạng thái* và *thời gian duyệt*** `mới 24/08`. Hai mục này khác
+  hẳn những mục còn lại: chúng **còn đang đổi**. Bản mềm dựng lúc TBP ký in ra *Chờ kế toán duyệt
+  lần 1* và một ô *thời gian duyệt* rỗng — ép có mặt tức là ép in ra một câu sai ở mọi hồ sơ chưa
+  tới B10. *Ngày KT nhận lần 1* cũng vậy, và nó vốn chưa bao giờ bắt buộc.
+  Hai trường vẫn **đặt ô được**: mẫu nào muốn in thì in, hệ thống chỉ thôi ép — và ba mẫu bàn giao
+  kèm phần mềm vẫn in cả hai.
+  > Cộng bốn mục tự chịu trách nhiệm ấy, phép kiểm tự động lúc lưu mẫu còn **9 trên 13 mục**
+  > `sửa 24/08`. Nói ra vì một bảo đảm 9/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 9/13 đã
   > biết — cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
+  >
+  > **13 mục của muc 11.1 là yêu cầu của bảng CSBH XEM**, tức bảng do hệ thống dựng — bảng ấy vẫn
+  > đủ cả mười ba, kể cả năm cột mốc thời gian duyệt. Đem nguyên yêu cầu của bản hệ thống dựng áp
+  > sang bản người dùng vẽ là chỗ `20/08` đọc quá lời.
 - **Bỏ nhóm khoá `san_pham.`** `sửa 20/08` — mẫu hợp đồng cũng dùng `{{bang_san_pham}}`, nên cơ chế
   nhân bản dòng bảng không còn ai dùng.
 - **Định dạng không phải chọn** `sửa 20/08`: nó gắn theo TRƯỜNG, không theo mẫu. Cờ *bắt buộc* theo
@@ -660,10 +670,14 @@ nói rõ dòng nào hẹp hơn dòng nào.
 - **Hệ thống seed sẵn một mẫu mặc định cho mỗi khổ**, để chạy được ngay từ khi triển khai. Đường báo
   lỗi vẫn tới được: Quản trị ngừng dùng mẫu của một khổ là khổ ấy báo lỗi.
 - **Bàn giao kèm bốn file `.docx` soạn sẵn** `mới 20/08`, trong thư mục `templates/`: mẫu hồ sơ A4
-  dọc, A4 ngang, một bản **rút gọn** chứa đúng 13 mục bắt buộc, và một **mẫu hợp đồng** (của Sale
+  dọc, A4 ngang, một bản **rút gọn** chứa đúng các mục bắt buộc, và một **mẫu hợp đồng** (của Sale
   Admin, bản demo không nạp sẵn). Chúng là điểm khởi đầu để Quản trị sửa
   câu chữ chứ không phải soạn lại từ đầu, và bản rút gọn trả lời bằng chính nó câu hỏi *"tối thiểu
-  phải có gì mới ban hành được"*. Bản demo nạp sẵn cả ba.
+  phải có gì mới lưu được"*. Bản demo nạp sẵn cả ba.
+  > Từ `24/08` bản rút gọn **rộng hơn mức tối thiểu đúng hai ô**: nó vẫn in *trạng thái* và *thời
+  > gian duyệt*, hai mục vừa thôi bị ép. Giữ nguyên file chứ không cắt bớt — một bản rút gọn in
+  > thừa hai dòng vẫn lưu được và vẫn dùng được, còn cắt đi là bỏ mất bằng chứng duy nhất kèm theo
+  > phần mềm rằng hai trường ấy còn dựng được thật.
 
 > **Câu hỏi bỏ ngỏ trước đây đã có lời giải.** Bản trước ghi: *"nếu mẫu do người dùng soạn, hệ thống
 > không còn bảo đảm được 13 mục kia có mặt"*. Giải bằng phép kiểm **lúc PHÁT HÀNH**: mẫu thiếu mục
@@ -1212,6 +1226,10 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - Bấm trực tiếp tên file để mở xem.
 - Bảng CSBH xem tối thiểu có: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và
   tên khách hàng, tên sản phẩm, CPBH, trạng thái, file đính kèm, Trưởng bộ phận, kế toán, thời gian duyệt.
+  > **Mười ba mục này là yêu cầu của bảng XEM — bảng do hệ thống dựng** `làm rõ 24/08`, và bảng ấy
+  > luôn đủ cả mười ba. **Mẫu bản mềm do Quản trị soạn là một thứ khác**: nó chỉ bị ép **9 trên
+  > 13**, vì bốn mục kia hoặc cố định (*thông tin công ty*), hoặc do người soạn quyết (*CPBH*),
+  > hoặc **còn đang đổi** lúc dựng văn bản (*trạng thái*, *thời gian duyệt*). Xem mục 6.4.
 
 ### 11.3. Phân trang `mới 16/08`
 
@@ -1360,6 +1378,17 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > viễn bản mềm của những hồ sơ ấy, mà chúng đã khoá sửa từ lúc gửi duyệt — không ai chữa được, và
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
+
+**Mẫu bản mềm thôi bắt buộc có *trạng thái* và *thời gian duyệt*** `mới 24/08` — hai mục ấy rời khỏi
+danh sách ép lúc lưu mẫu; *ngày KT nhận lần 1* vốn chưa bao giờ bị ép. Lý do không phải nới lỏng cho
+dễ soạn: chúng là hai mục **còn đang đổi** trong lúc hồ sơ đi qua luồng duyệt, nên một bản mềm dựng
+lúc Trưởng bộ phận ký buộc phải in ra *Chờ kế toán duyệt lần 1* và một ô *thời gian duyệt* rỗng — ép
+có mặt là ép in một câu sai ở mọi hồ sơ chưa tới B10. Hai trường **vẫn đặt ô được**, hệ thống chỉ
+thôi ép, và ba mẫu bàn giao kèm phần mềm vẫn in cả hai. Chi tiết ở mục 6.4.
+
+> **Mười ba mục của mục 11.1 là yêu cầu của bảng CSBH XEM**, tức bảng do hệ thống dựng — bảng ấy
+> vẫn đủ cả mười ba. Đem nguyên yêu cầu ấy áp sang **mẫu do Quản trị vẽ** là chỗ `20/08` đọc quá
+> lời. Cộng bốn mục nay tự chịu trách nhiệm, phép kiểm lúc lưu mẫu còn **9 trên 13**.
 
 **Thông tin khách hàng đóng băng vào hồ sơ, và chữ ký huỷ khi trả lại** `mới 24/08` — tám trường
 khách hàng in trên bản CSBH (kể cả **công nợ**) cùng **họ tên người đề nghị** chụp lại vào hồ sơ lúc

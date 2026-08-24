@@ -1430,13 +1430,18 @@ luôn ở trong tầm mắt.
   dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**.
 - **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
   nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**.
-- **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **12 mục** `sửa 20/08` ở phần *Yêu cầu
+- **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **10 mục** `sửa 24/08` ở phần *Yêu cầu
   hiển thị file*; thông báo nói rõ thiếu mục nào. (Trước 20/08 là 13 — mục *thông tin công ty* rời
   khỏi danh sách cùng lúc với khoá của nó, và giờ do người soạn tự chịu trách nhiệm.)
+  > **Bỏ ép *Trạng thái* và *Thời gian duyệt*** `mới 24/08`. Hai mục ấy **còn đổi** trong lúc hồ sơ
+  > đi qua luồng duyệt: bản mềm xem ở bước Trưởng bộ phận ký sẽ in ra *Chờ kế toán duyệt lần 1* và
+  > một ô *Thời gian duyệt* trống — ép mẫu phải có chúng là ép in ra một câu sai. Bạn **vẫn đặt ô
+  > được** nếu muốn, và ba mẫu soạn sẵn kèm phần mềm vẫn in cả hai.
 - **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
   được bản mềm. Chúng luôn nằm **cuối** danh sách.
 - **Bộ file mẫu soạn sẵn** trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
-  `mau-ho-so-a4-ngang.docx`, một bản **rút gọn** chỉ có đúng các mục bắt buộc, và
+  `mau-ho-so-a4-ngang.docx`, một bản **rút gọn** gần sát mức tối thiểu (từ 24/08 nó rộng hơn đúng
+  hai ô: *Trạng thái* và *Thời gian duyệt*, hai mục vừa thôi bị ép), và
   `mau-hop-dong-a4-doc.docx`. Tải một file về, sửa câu chữ trong Word, rồi tải lên. Bản demo
   (`make demo-mau`) nạp sẵn ba file đầu; mẫu hợp đồng thì không, ai cần tự tải lên.
 

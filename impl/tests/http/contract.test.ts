@@ -1525,6 +1525,41 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     expect(r.body.thieuBangSanPham).toBe('{{bang_san_pham}}');
   }, 120_000);
 
+  it('`0102` mẫu KHÔNG có *trạng thái* và *thời gian duyệt* vẫn LƯU được', async () => {
+    /*
+     * Chốt 24/08: hai mục ấy thôi bắt buộc. Lý do không phải "cho dễ" mà là
+     * chúng CÒN ĐANG ĐỔI — bản mềm dựng lúc TBP ký in ra `Chờ kế toán duyệt lần
+     * 1` và một ô *thời gian duyệt* rỗng, nên ép có mặt là ép in một câu sai ở
+     * mọi hồ sơ chưa tới B10.
+     *
+     * Thân mẫu dựng từ danh sách ép rồi **TRỪ ĐI hai ô** — chứ không gõ tay mười
+     * ô, và cũng không lấy nguyên danh sách. Cả hai cách kia đều làm ca này im
+     * lặng lúc quan trọng nhất:
+     *
+     *   - Gõ tay mười ô: thêm một mục bắt buộc về sau thì ca vẫn xanh, mà cái
+     *     xanh ấy không còn kiểm chuyện gì.
+     *   - Lấy nguyên danh sách: đưa hai ô trở lại danh sách ép thì thân mẫu cũng
+     *     có lại chúng, máy chủ vẫn nhận 201, và ca vẫn xanh — đỏ ở dòng tự kiểm
+     *     chứ không đỏ ở MÁY CHỦ, tức đỏ sai tầng.
+     *
+     * Trừ đi rồi thì đưa hai ô trở lại danh sách ép là mẫu này thiếu hai mục bắt
+     * buộc, và máy chủ trả 409 — đúng tầng đặt luật.
+     */
+    const BO_EP = ['ho_so.trang_thai', 'ho_so.ngay_kt_nhan_l2'];
+    const than = makeDocx(
+      [
+        ...NGUON_BAT_BUOC_HO_SO.filter((n) => !BO_EP.includes(n)).map((n) => para(`{{${n}}}`)),
+        para('{{bang_san_pham}}'),
+      ].join(''),
+    );
+    const o = placeholdersOf(than);
+    for (const n of BO_EP) expect(o).not.toContain(`{{${n}}}`);
+
+    const r = await luuMauHoSo('Mau khong trang thai, khong ngay duyet', than);
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    await donMau('/policy-templates', r.body.id, 'admin01');
+  }, 120_000);
+
   it('ô bảng sản phẩm KHÔNG cần ánh xạ — nó không trỏ tới trường nào', async () => {
     // Mẫu hồ sơ đầy đủ lưu được dù `{{bang_san_pham}}` không có dòng ánh xạ nào:
     // nó không trỏ tới trường dữ liệu, hệ thống thay nó bằng cả một bảng.
@@ -1713,18 +1748,45 @@ describe('`0057` bộ file mẫu trong templates/', () => {
     }
   });
 
-  it('mẫu RÚT GỌN có đủ 13 mục bắt buộc — nếu không thì không ban hành được', () => {
+  it('mẫu RÚT GỌN có đủ mục bắt buộc — nếu không thì không lưu được', () => {
     /*
      * Mẫu rút gọn tồn tại để trả lời câu "ít nhất phải có những gì". Nó mà thiếu
      * một mục thì chính nó là câu trả lời SAI, và người soạn theo nó bị chặn ở
-     * bước ban hành.
+     * bước lưu.
      */
     const o = new Set(placeholdersOf(readFileSync('templates/mau-ho-so-a4-doc-rut-gon.docx')));
-    // MƯỜI HAI từ `0067`: mục *thông tin công ty* rời khỏi danh sách cùng nhóm
-    // khoá `cong_ty.` — nó là giá trị cố định, người soạn gõ thẳng vào file.
-    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 12 mục').toBe(12);
+    // MƯỜI HAI từ `0067` (mục *thông tin công ty* rời cùng nhóm khoá `cong_ty.`),
+    // MƯỜI từ `0102` — *trạng thái* và *thời gian duyệt* thôi bị ép.
+    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 10 mục').toBe(10);
     for (const n of NGUON_BAT_BUOC_HO_SO) {
       expect(o.has(`{{${n}}}`), `mẫu rút gọn thiếu {{${n}}}`).toBe(true);
+    }
+  });
+
+  it('`0102` *trạng thái* và *thời gian duyệt* thôi bắt buộc, nhưng vẫn ĐẶT được', () => {
+    /*
+     * Hai chiều của cùng một quyết định, kiểm ở tầng danh sách vì đây là chỗ duy
+     * nhất phát biểu nó:
+     *
+     *   - KHÔNG còn trong danh sách ép → mẫu thiếu chúng vẫn lưu được (ca HTTP
+     *     bên dưới đi đường thật).
+     *   - VẪN trong `KNOWN_SOURCES` → mẫu nào muốn in vẫn đặt ô được, và ba mẫu
+     *     kèm theo phần mềm vẫn in.
+     *
+     * Chiều thứ hai mới dễ mất: gỡ một trường khỏi danh sách ép và gỡ luôn khỏi
+     * `SCALAR` là hai việc chỉ cách nhau vài dòng, mà hệ quả thì trái ngược —
+     * cái sau biến mọi mẫu đang có sẵn ô ấy thành mẫu KHÔNG LƯU LẠI ĐƯỢC.
+     */
+    for (const n of ['ho_so.trang_thai', 'ho_so.ngay_kt_nhan_l2', 'ho_so.ngay_kt_nhan_l1']) {
+      expect(NGUON_BAT_BUOC_HO_SO, `${n} không được ép nữa`).not.toContain(n);
+      expect(KNOWN_SOURCES, `${n} vẫn phải đặt ô được`).toContain(n);
+    }
+    // Ba mẫu hồ sơ kèm phần mềm VẪN in — bỏ ép không phải bỏ hiển thị, và giữ
+    // chúng lại là cách duy nhất chứng minh hai trường ấy còn dựng được thật.
+    for (const f of HO_SO) {
+      const o = new Set(placeholdersOf(readFileSync(`templates/${f}`)));
+      expect(o.has('{{ho_so.trang_thai}}'), `${f} nên vẫn in trạng thái`).toBe(true);
+      expect(o.has('{{ho_so.ngay_kt_nhan_l2}}'), `${f} nên vẫn in ngày duyệt`).toBe(true);
     }
   });
 

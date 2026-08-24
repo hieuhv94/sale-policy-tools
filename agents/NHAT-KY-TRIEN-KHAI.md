@@ -9632,3 +9632,67 @@ rỗng, vế đọc hỏng thì cột đúng mà tờ giấy vẫn sai. Một b�
 hai chuyện ấy.
 
 **1645/1645 xanh.**
+
+## P129 — `0102` mẫu bản mềm thôi ép *trạng thái* và *thời gian duyệt*
+
+Phản hồi một câu: *"bản mềm không yêu cầu phải lưu cả trạng thái và ngày KT nhận lần 1 và 2"*. Nó
+bác đúng cái tiền đề tôi vừa dùng ở P128 để nói món *ký số không sinh bản lưu* còn mở.
+
+### Chuyện này là sửa một chỗ ĐỌC QUÁ LỜI, không phải nới lỏng cho dễ
+
+Câu của muc 11.1 viết: *"Bảng CSBH **xem** tối thiểu có: … trạng thái … thời gian duyệt"*. Bảng
+"xem" ấy là bảng do hệ thống dựng — `render/sheet.ts` — và nó vẫn đủ cả mười ba mục, kể cả năm cột
+mốc của dòng *Thời gian duyệt*. `0067` đem nguyên danh sách ấy áp sang **mẫu do Quản trị vẽ trong
+Word**, một thứ khác hẳn. Không ai chốt bước đó; nó trôi vào cùng lúc phép kiểm dời từ *ban hành*
+sang *lưu*.
+
+Và cái giá của nó không phải lý thuyết. Hai mục ấy **còn đang đổi** trong lúc hồ sơ đi qua luồng:
+
+| Xem bản mềm ở bước | `{{ho_so.trang_thai}}` in ra | `{{ho_so.ngay_kt_nhan_l2}}` in ra |
+|---|---|---|
+| TBP sắp ký | Chờ TBP duyệt | *(rỗng)* |
+| Kế toán nhận L1 | Chờ kế toán duyệt lần 1 | *(rỗng)* |
+| Sale Admin bàn giao | Chờ Sale Admin | *(rỗng)* |
+
+Ép mẫu phải có hai ô ấy tức là ép in ra một câu sai ở **mọi** hồ sơ chưa tới B10 — mà B10 là bước
+cuối. Một ô bảo đảm có mặt mà bảo đảm sai thì tệ hơn một ô không có: người đọc tờ giấy không có cách
+nào biết ô ấy đang nói về lúc nào.
+
+*Ngày KT nhận lần 1* nằm trong câu phản hồi nhưng **chưa bao giờ** bị ép — nói ra để không ai đi tìm
+bản sửa cho nó.
+
+### Bỏ ÉP, không bỏ TRƯỜNG
+
+Hai khoá vẫn nguyên trong `SCALAR`, nên mẫu nào muốn in vẫn đặt ô được, và ba mẫu bàn giao kèm phần
+mềm vẫn in cả hai. Ranh giới này mỏng hơn vẻ ngoài của nó: `NGUON_BAT_BUOC_HO_SO` và `SCALAR` cách
+nhau vài chục dòng trong cùng một tệp, mà hệ quả thì ngược nhau — gỡ khỏi cái thứ hai biến **mọi
+mẫu đang có sẵn ô ấy** thành mẫu không lưu lại được. Đo được ở lượt phá thứ hai bên dưới: ba file
+`.docx` bàn giao đều trả `400 SOURCE_UNKNOWN`.
+
+Bản **rút gọn** vì thế rộng hơn mức tối thiểu đúng hai ô. Giữ nguyên file chứ không cắt: một bản rút
+gọn in thừa hai dòng vẫn lưu được và vẫn dùng được, còn cắt đi là bỏ mất bằng chứng duy nhất đi kèm
+phần mềm rằng hai trường ấy còn dựng được thật.
+
+Phép kiểm tự động lúc lưu mẫu còn **9 trên 13 mục**, và con số ấy được ghi ở cả ba chỗ — `sources.ts`,
+YCNV mục 6.4, hướng dẫn sử dụng — theo đúng nếp `0084` đã đặt: một bảo đảm 9/13 mà tưởng là 13/13 thì
+tệ hơn hẳn một bảo đảm 9/13 đã biết.
+
+### DOC-36, ca kiểm chưa từng có
+
+Danh mục kiến trúc không có ca nào cho phép kiểm mục bắt buộc của **mẫu** — DOC-03 nói về bảng xem,
+và tôi đã sửa nó nói rõ ranh giới ấy thay vì để hai thứ đội chung một mã. DOC-36 mang cả hai chiều
+của quyết định, vì chiều thứ hai (*vẫn đặt ô được*) là chiều dễ mất.
+
+### Phá lại: hai lượt, hai vế ngược nhau
+
+| Phá | Đỏ |
+|---|---|
+| Đưa hai mục **trở lại** danh sách ép | 3 ca — dẫn đầu là ca HTTP: `409 TEMPLATE_MISSING_REQUIRED`, `thieuTruong: ["ho_so.trang_thai","ho_so.ngay_kt_nhan_l2"]` |
+| Gỡ hai khoá khỏi `SCALAR` | 3 ca — dẫn đầu là ba mẫu bàn giao: `400 SOURCE_UNKNOWN` lúc lưu |
+
+Ca HTTP dựng thân mẫu bằng cách **lấy danh sách ép rồi TRỪ ĐI hai ô**, chứ không lấy nguyên danh
+sách. Khác biệt nhỏ ấy quyết định tầng nào đỏ: lấy nguyên thì đưa hai ô trở lại danh sách cũng làm
+thân mẫu có lại chúng, máy chủ vẫn nhận 201, và ca chỉ đỏ ở dòng tự kiểm của chính nó — đỏ sai tầng,
+tức là không chứng minh được gì về luật đang kiểm.
+
+**1647/1647 xanh.**

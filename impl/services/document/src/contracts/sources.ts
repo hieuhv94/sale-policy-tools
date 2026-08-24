@@ -90,8 +90,9 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
    * đầu tiên — chỗ dễ thấy nhất của một văn bản đem đi ký.
    *
    * Hệ quả đã chấp nhận: mục *thông tin công ty* do người soạn tự chịu trách
-   * nhiệm — mục đầu tiên của muc 11.1 rơi ra khỏi phép kiểm tự động, và `0084`
-   * thêm mục thứ hai. Con số hiện thời ghi ở `NGUON_BAT_BUOC_HO_SO` bên dưới.
+   * nhiệm — mục đầu tiên của muc 11.1 rơi ra khỏi phép kiểm tự động, `0084` thêm
+   * mục thứ hai, `0102` thêm hai mục nữa. Con số hiện thời ghi ở
+   * `NGUON_BAT_BUOC_HO_SO` bên dưới.
    */
   ngay_in: () => new Date().toISOString(),
 };
@@ -149,16 +150,30 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
  *   - Một mẫu thiếu mục chỉ hỏng khi có người xem, mà lúc đó thì đã muộn: bản
  *     thiếu công nợ đã in ra và đã đưa đi ký.
  *
- * MƯỜI MỘT TRÊN MƯỜI BA, và hai mục đứng ngoài đều là chuyện đã chốt:
+ * CHÍN TRÊN MƯỜI BA, và bốn mục đứng ngoài đều là chuyện đã chốt:
  *
  *   - *thông tin công ty* rời danh sách ở `0067` cùng nhóm khoá `cong_ty.` — giá
  *     trị cố định, người soạn gõ thẳng vào file Word, nên phần mềm không có ô
  *     trống nào để mà kiểm.
  *   - *CPBH* rời ở `0084`: nó nằm trong bảng do hệ thống dựng, và cột `cpbh_tong`
  *     giờ TẮT ĐƯỢC vì CPBH là con số nội bộ (xem `bang-san-pham.ts`).
+ *   - *trạng thái* và *thời gian duyệt* rời ở `0102` (chốt 24/08). Hai mục này
+ *     KHÁC hẳn mười một mục kia: chúng còn ĐANG ĐỔI. Bản mềm dựng lúc TBP ký in
+ *     ra `Chờ kế toán duyệt lần 1` và một ô *thời gian duyệt* RỖNG — bắt buộc
+ *     phải có mặt tức là bắt buộc phải in ra một câu sai ở mọi hồ sơ chưa tới
+ *     B10. Một ô bảo đảm có mặt mà bảo đảm sai thì tệ hơn một ô không có.
  *
- * Nói ra ở đây vì một bảo đảm 11/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo
- * đảm 11/13 đã biết — và cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
+ * Câu của muc 11.1 nói *"bảng CSBH XEM tối thiểu có…"*, và bảng ấy là bảng do hệ
+ * thống dựng ở `render/sheet.ts` — nó vẫn đủ cả mười ba mục, kể cả năm cột mốc
+ * thời gian duyệt. Danh sách dưới đây áp lên MẪU do Quản trị soạn, một thứ khác:
+ * đem nguyên yêu cầu của bản hệ thống dựng sang bản người dùng vẽ là chỗ `0067`
+ * đọc quá lời.
+ *
+ * Hai trường KHÔNG bị gỡ khỏi `SCALAR` — mẫu nào muốn in vẫn đặt ô được. Gỡ khỏi
+ * đây chỉ có nghĩa: hệ thống thôi ÉP.
+ *
+ * Nói ra ở đây vì một bảo đảm 9/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo
+ * đảm 9/13 đã biết — và cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
  *
  * `{{bang_san_pham}}` vẫn gánh mục *tên sản phẩm*, kiểm qua tập cột bắt buộc của
  * bảng chứ không qua danh sách này.
@@ -169,13 +184,11 @@ export const NGUON_BAT_BUOC_HO_SO: string[] = [
   'ho_so.cong_no',
   'ho_so.ma_ho_so',
   'ho_so.ngay_ap_dung',
-  'ho_so.trang_thai',
   'ho_so.tep_dinh_kem',
   'ho_so.nguoi_de_nghi',
   'ho_so.truong_bo_phan',
   'ho_so.ke_toan',
   'ho_so.ngay_tbp_ky',
-  'ho_so.ngay_kt_nhan_l2',
 ];
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);

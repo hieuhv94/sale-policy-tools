@@ -1133,7 +1133,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 |---|---|---|---|---|
 | DOC-01 | Sinh PDF bản CSBH ở khổ A4 dọc và A4 ngang | Đúng khổ và tỷ lệ, không co méo, không cắt nội dung ở cả hai | §11.1 | `P0` |
 | DOC-02 | So nội dung PDF với bản đang xem trên màn hình | Khớp nhau; PDF không chứa menu, thanh điều hướng hay nút thao tác vì dùng bố cục văn bản riêng | §11.1 | `P0` |
-| DOC-03 | Kiểm nội dung bảng CSBH xem | Có đủ 13 mục tối thiểu: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và tên KH, tên sản phẩm, CPBH, trạng thái, file đính kèm, TBP, kế toán, thời gian duyệt | §11.1 | `P0` |
+| DOC-03 | Kiểm nội dung bảng CSBH xem — **bảng do hệ thống dựng** (`render/sheet.ts`), KHÔNG phải mẫu do Quản trị soạn | Có đủ 13 mục tối thiểu: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và tên KH, tên sản phẩm, CPBH, trạng thái, file đính kèm, TBP, kế toán, thời gian duyệt. Mẫu do Quản trị soạn chỉ bị ép **9/13** — xem DOC-36 | §11.1 | `P0` |
 | DOC-04 | TBP ký số | File kết quả hiện chữ ký, họ tên, vai trò người ký và dấu thời gian | §11.1 | `P0` |
 | DOC-05 | So file trước và sau khi ký | Hai object khác nhau trên MinIO — bản đã ký không ghi đè bản nháp | §11.1 | `P0` |
 | DOC-06 | Sửa nội dung file trên storage rồi gọi API xác minh | Phát hiện sai SHA-256 và báo lỗi toàn vẹn | §10 | `P1` |
@@ -1166,6 +1166,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | DOC-33 | Tải lên file mẫu hỏng hoặc không phải `.docx` | 400 kèm thông báo rõ; mẫu đang dùng không bị ảnh hưởng | §8.2 | `P1` |
 | DOC-34 | Chuyển hợp đồng đã trộn sang PDF qua Gotenberg | Đúng khổ, đủ trang, dấu tiếng Việt hiển thị đúng; Gotenberg chết thì báo lỗi rõ và không tạo bản ghi hợp đồng nửa vời | §8.3 | `P0` |
 | DOC-35 | Chưa có mẫu nào đang dùng, kế toán bấm xuất hợp đồng | Không xảy ra ở bản triển khai vì đã seed sẵn mẫu mặc định; nếu Sale Admin vô hiệu hết mẫu thì trả 409 kèm hướng dẫn, không sinh file rỗng | §8.2 | `P1` |
+| DOC-36 `mới 24/08` | Lưu mẫu hồ sơ CSBH thiếu mục bắt buộc, và lưu mẫu thiếu *trạng thái* / *thời gian duyệt* | Thiếu một trong **9/13** mục còn bị ép thì 409 `TEMPLATE_MISSING_REQUIRED` kèm danh sách thiếu; thiếu *trạng thái* hoặc *thời gian duyệt* thì **lưu được** — hai mục ấy còn đang đổi lúc dựng văn bản, ép có mặt là ép in một câu sai. Hai trường vẫn phải nằm trong `KNOWN_SOURCES` để mẫu nào muốn in thì đặt ô được | §6.4 §11.1 | `P1` |
 
 ### NTF — Thông báo và SLA
 
