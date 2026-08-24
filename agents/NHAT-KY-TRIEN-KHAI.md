@@ -9402,3 +9402,84 @@ cho cả sửa. Để nguyên thì người bị chặn lúc sửa đọc một 
 | Ba đường không người gọi | `GET /files/:id/verify`, `GET /audit/trace/:traceId`, `GET /reports/filter-keys` | có mã, có ca kiểm, không màn hình nào gọi |
 
 **1632/1632 xanh.**
+
+## P127 — Một mã lỗi trả lời hai câu hỏi khác nhau
+
+Ra từ câu hỏi của người dùng ở cuối lượt rà P126: *"nếu làm sạch và tạo lại một CSDL mới cho
+`make demo-mau` thì có xảy ra lỗi nữa không"*. Câu trả lời là **không** — và đúng lúc đo để chứng
+minh điều đó thì lòi ra một lỗi khác, nằm ngay cạnh.
+
+### Đo trước: món nợ backfill KHÔNG sống trên CSDL dựng mới
+
+`make demo` + `make demo-mau` trên CSDL xoá sạch, 199 hồ sơ:
+
+| Nhóm | Hồ sơ | Thiếu mẫu | Mẫu trỏ lạc |
+|---|---|---|---|
+| `NHAP` | 22 | **22** | 0 |
+| Chín trạng thái sau gửi duyệt | 177 | **0** | 0 |
+
+Mở thật bằng API, `bld01` (không phải TDV của hồ sơ nào, nên mọi lượt rơi vào nhánh "đã đóng băng"):
+cả chín trạng thái đều **200 kèm `%PDF`**, 24–28 KB. Không một `POLICY_TEMPLATE_NOT_SET` nào.
+
+Kết luận đóng lại được: cột rỗng ngoài `NHAP` **không sinh ra được nữa** — `NHAP` có đúng một lối ra
+(`SUBMIT`), `YEU_CAU_CHINH_SUA` có đúng một lối ra (`RESUBMIT_AFTER_EDIT`), và cả hai ghi cột mẫu
+trong **cùng câu `UPDATE`** với việc đổi trạng thái. Món nợ backfill chỉ sống trên một CSDL đi qua
+được lần cài `0098`.
+
+### Lỗi lòi ra: câu chữ đúng mã, sai nội dung
+
+Cùng phép đo ấy, hồ sơ `NHAP` của tdv01:
+
+| Ai mở | Nhận được |
+|---|---|
+| `bld01` | 409 `POLICY_TEMPLATE_NOT_SET` |
+| `tdv01`, không chọn mẫu | 409 `TEMPLATE_REQUIRED` |
+| `tdv01`, có chọn mẫu | 200, 23 726 bytes `%PDF` |
+
+Hai dòng dưới đúng. Dòng đầu nói:
+
+> *"Hồ sơ này lập trước khi phần mềm gắn văn bản mẫu vào hồ sơ, nên không có bản mềm. Lập một CSBH
+> mới cho khách hàng này để có bản mềm."*
+
+Trên bản cài mới tinh, **cả hai vế đều sai**. Hồ sơ không lập trước `0098` — nó chỉ còn đang Nháp. Và
+*"lập một CSBH mới"* là lời khuyên hỏng: hồ sơ ấy vẫn sống, TDV của nó chỉ chưa gửi duyệt. Người đọc
+làm theo thì tạo ra một hồ sơ thừa để chữa một thứ không hỏng.
+
+Đây là lỗi tôi tạo ra ở `0098`: viết nhánh cuối, tôi chỉ nghĩ tới dữ liệu cũ và không thấy hồ sơ
+Nháp của người khác cũng rơi xuống đó. Nút *Xem bản mềm* thì **không có điều kiện nào** — cố ý từ
+`0054`, vì Ban lãnh đạo không có nút nào khác — nên đường tới câu ấy là một cú bấm.
+
+### Tách bằng TRẠNG THÁI, không bằng vai trò
+
+Hai tình huống phân biệt được mà không cần thêm dữ liệu nào, đúng vì cái chốt ở trên: **còn `SUA_DUOC`
+mà cột rỗng là chuyện bình thường của một hồ sơ chưa gửi; ngoài `SUA_DUOC` mà vẫn rỗng thì mới là dữ
+liệu lập trước `0098`.**
+
+Nên nhánh mới `POLICY_TEMPLATE_PENDING` viết theo trạng thái, dù trên thực tế chỉ Ban lãnh đạo đọc
+được nó — bốn vai trò kia không nằm trong phạm vi một hồ sơ Nháp của người khác (hồ sơ Nháp mới có
+mỗi `tdv_user_id`) nên dừng ở 403 trước đó. Viết theo vai trò thì luật thành một câu về người, trong
+khi nó là một câu về hồ sơ — và vai trò thì đổi được, trạng thái thì không.
+
+### Phá lại
+
+| Phá | Kết quả |
+|---|---|
+| Gỡ nhánh `POLICY_TEMPLATE_PENDING` | `contract.test.ts` đỏ ở MÁY CHỦ (`nhận NOT_SET, chờ PENDING`) **và** `loi.test.tsx` đỏ: *"bảng tra không giữ mã đã biến mất khỏi máy chủ"* |
+
+Hai tầng đỏ cùng lúc, và tầng thứ hai đáng ghi: chốt `0088` bắt được **cả chiều ngược** — không chỉ
+"thêm mã ở máy chủ mà quên khai câu", mà cả "gỡ mã ở máy chủ mà bỏ quên một dòng mồ côi trong bảng
+tra". Trước lượt này tôi chỉ biết nó canh một chiều.
+
+Ca thứ ba — *"hồ sơ đã gửi duyệt mà cột mẫu rỗng"* — **vẫn xanh** lúc phá, đúng như phải thế: nhánh
+ấy không đụng tới. Nó có mặt để giữ cho nhánh cũ khỏi bị nhánh mới nuốt, và nó là ca duy nhất canh
+câu chữ của `POLICY_TEMPLATE_NOT_SET` — dựng bằng cách **vặn CSDL**, vì không API nào tạo ra tình
+huống ấy được nữa.
+
+### Dọn kèm
+
+Chú thích của tham số `mauId` ở `render.controller.ts` còn ghi *"Máy chủ lấy mẫu đầu danh sách"* —
+câu ấy đúng tới `0067` và **đã sai từ `0098`**. Bỏ trống `mauId` giờ nghĩa là *đọc mẫu từ chính hồ
+sơ*, và hồ sơ chưa có mẫu thì ném lỗi có tên chứ không đoán một bố cục. Loại chú thích nguy hiểm nhất
+không phải chú thích thiếu, mà là chú thích từng đúng.
+
+**1634/1634 xanh.**

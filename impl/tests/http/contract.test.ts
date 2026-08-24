@@ -2080,6 +2080,46 @@ describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
       .get(`/policies/${d.id}/render`)
       .set('Authorization', `Bearer ${tok['bld01']}`);
     expect(r.status).toBe(409);
+    // `0100`: hồ sơ CÒN NHÁP là chuyện bình thường, không phải dữ liệu cũ.
+    expect(r.body.code).toBe('POLICY_TEMPLATE_PENDING');
+    expect(r.body.message).toContain('chưa gửi duyệt');
+    // Câu này KHÔNG được bảo người ta lập một CSBH mới: hồ sơ ấy vẫn sống.
+    expect(r.body.message).not.toContain('lập một CSBH mới');
+    expect(r.body.message).not.toContain('trước khi phần mềm');
+  }, 60_000);
+
+  it('`0100` hồ sơ ĐÃ GỬI DUYỆT mà cột mẫu rỗng thì mới là dữ liệu lập trước `0098`', async () => {
+    /*
+     * Dựng bằng cách VẶN CSDL, vì không API nào tạo ra được tình huống này nữa:
+     * từ `0098`, hai lối ra duy nhất của `NHAP` và `YEU_CAU_CHINH_SUA` đều bắt
+     * buộc ghi cột mẫu, trong cùng câu lệnh đổi trạng thái.
+     *
+     * Đó cũng chính là lý do phải có ca này. Trên CSDL dựng mới, số hồ sơ rơi
+     * vào nhánh ấy là 0 — đo trên chồng demo: 199 hồ sơ, 22 hồ sơ thiếu mẫu và
+     * cả 22 đều ở `NHAP`. Không lượt chạy nào tái hiện được nó, nên không có gì
+     * canh câu chữ của nó ngoài ca kiểm này.
+     */
+    const d = await toReceivedL1();
+    await withAdminDb(async (c) => {
+      await c.query(`UPDATE pol.policy SET mau_ho_so_id = NULL WHERE id = $1`, [d.id]);
+    });
+
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
+      .set('Authorization', `Bearer ${tok['bld01']}`);
+    expect(r.status).toBe(409);
     expect(r.body.code).toBe('POLICY_TEMPLATE_NOT_SET');
+    expect(r.body.message).toContain('trước khi phần mềm');
+  }, 90_000);
+
+  it('`0100` chính TDV mở hồ sơ Nháp CỦA MÌNH vẫn nhận câu bảo chọn mẫu', async () => {
+    // Nhánh `TEMPLATE_REQUIRED` không đổi, và ca này giữ cho nó khỏi bị nhánh
+    // mới nuốt: cùng một hồ sơ, hai người, hai câu trả lời khác nhau.
+    const d = await draft();
+    const r = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
   }, 60_000);
 });

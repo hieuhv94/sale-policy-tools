@@ -112,7 +112,8 @@ export class RenderService {
    *      hoá. Ai truyền `mauId` khác thì bị TỪ CHỐI, không bị bỏ qua im lặng —
    *      im lặng ở đây nghĩa là người gọi tin mình đang xem mẫu A trong khi
    *      nhận về mẫu B (`0089`).
-   *   3. Còn lại → không dựng được. Hồ sơ lập trước `0098` rơi vào đây.
+   *   3. Còn lại → không dựng được, và có HAI lý do khác hẳn nhau. Xem `0100`
+   *      ở khối ngay trên câu lệnh ném lỗi.
    *
    * NHÁNH 1 PHẢI ĐỨNG TRƯỚC, và tôi đã xếp ngược ở bản đầu. Hồ sơ *Yêu cầu
    * chỉnh sửa* VẪN mang mẫu của lần gửi trước, nên nhánh 2 đứng trước sẽ nuốt
@@ -167,6 +168,35 @@ export class RenderService {
       throw new ConflictException({
         code: 'TEMPLATE_REQUIRED',
         message: 'Chọn một văn bản mẫu để xem bản mềm.',
+      });
+    }
+
+    /*
+     * HAI LÝ DO, HAI CÂU (`0100`).
+     *
+     * `0098` gộp cả hai vào một câu — *"hồ sơ này lập trước khi phần mềm gắn
+     * văn bản mẫu"* — vì lúc viết nhánh này tôi chỉ nghĩ tới dữ liệu cũ. Nhưng
+     * hồ sơ NHÁP của người khác cũng rơi xuống đây, và với nó thì cả hai vế của
+     * câu ấy đều sai: nó không lập trước `0098`, và lời khuyên *"lập một CSBH
+     * mới"* đẩy người đọc đi làm một việc vô ích — hồ sơ ấy vẫn sống, TDV của
+     * nó chỉ chưa gửi duyệt.
+     *
+     * Phân biệt được bằng chính TRẠNG THÁI, không cần thêm dữ liệu nào: còn sửa
+     * được thì cột mẫu rỗng là chuyện BÌNH THƯỜNG của một hồ sơ chưa gửi; ngoài
+     * `SUA_DUOC` mà vẫn rỗng thì mới là dữ liệu lập trước `0098` — vì từ `0098`
+     * hai lối ra duy nhất của hai trạng thái ấy đều bắt buộc ghi cột.
+     *
+     * Ai đọc câu thứ nhất: trên thực tế chỉ Ban lãnh đạo. Bốn vai trò kia không
+     * nằm trong phạm vi một hồ sơ Nháp của người khác (hồ sơ Nháp mới có mỗi
+     * `tdv_user_id`), nên họ dừng ở 403 trước khi tới đây. Viết điều kiện theo
+     * trạng thái chứ không theo vai trò: luật là về hồ sơ, không về người.
+     */
+    if (SUA_DUOC.includes(policy.status as never)) {
+      throw new ConflictException({
+        code: 'POLICY_TEMPLATE_PENDING',
+        message:
+          'Hồ sơ này chưa gửi duyệt nên chưa có bản mềm. ' +
+          'Trình dược viên phụ trách sẽ chọn văn bản mẫu khi gửi duyệt.',
       });
     }
 

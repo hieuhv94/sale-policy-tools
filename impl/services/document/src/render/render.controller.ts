@@ -34,9 +34,15 @@ export class RenderController {
       /*
        * `mauId` — MẪU người xem chọn (`0058`), thay cho `size` cũ.
        *
-       * Bỏ trống được: hộp xác nhận ký số dựng bản xem trước mà không có ô chọn
-       * nào, và mọi liên kết cũ còn sót cũng phải ra được một bản đọc được chứ
-       * không phải một lỗi. Máy chủ lấy mẫu đầu danh sách.
+       * Bỏ trống được, và từ `0098` đó là trường hợp THƯỜNG chứ không phải
+       * ngoại lệ: hồ sơ đã gửi duyệt mang sẵn mẫu của nó, nên mọi vai trò sau
+       * bước ấy — kể cả hộp ký số của Trưởng bộ phận, vốn không có ô chọn nào —
+       * đều gọi không kèm tham số này.
+       *
+       * KHÔNG còn nhánh "bỏ trống thì lấy mẫu đầu danh sách" (câu ấy đúng tới
+       * `0067` và đã sai từ `0098`). Bỏ trống nghĩa là *đọc mẫu từ chính hồ sơ*,
+       * và hồ sơ chưa có mẫu thì `mauCua` ném lỗi CÓ TÊN chứ không đoán bừa một
+       * bố cục.
        */
       /*
         `xem` ĐÃ BỎ HẲN (`0059`).

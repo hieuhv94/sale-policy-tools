@@ -905,7 +905,10 @@ nút *Tải xuống* và *Đóng*.
 > hai bảng giá khác nhau, và bản đem đi ký không nhất thiết là bản người lập đã đọc.
 >
 > **Hồ sơ còn Nháp thì khác**: nó chưa gắn mẫu nào, nên người lập vẫn chọn mẫu mỗi lần xem thử — đó
-> đúng là quãng họ đang cân nhắc dùng bố cục nào.
+> đúng là quãng họ đang cân nhắc dùng bố cục nào. **Người khác mở hồ sơ Nháp** — trên thực tế là Ban
+> lãnh đạo, vai trò duy nhất đọc được hồ sơ Nháp của người khác — sẽ được báo rằng *hồ sơ chưa gửi
+> duyệt nên chưa có bản mềm* `sửa 24/08`. Không phải lỗi, và không phải làm gì cả: bản mềm có ngay
+> khi Trình dược viên phụ trách gửi duyệt.
 >
 > **Hợp đồng vẫn hỏi chọn mẫu** mỗi lượt xuất, và **phải chọn** mới xem được: hệ thống không lưu hợp
 > đồng nên không có gì để gắn mẫu vào.

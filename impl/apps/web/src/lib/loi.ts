@@ -374,6 +374,15 @@ export const BANG_LOI: Record<string, Muc> = {
   TEMPLATE_REQUIRED: { dang: 'o-nhap', truong: 'mauHoSoId', tuMayChu: true },
   TEMPLATE_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_TEMPLATE_NOT_SET: { dang: 'hop-thoai', tuMayChu: true },
+  /**
+   * Hồ sơ CÒN NHÁP, người xem không phải TDV của nó (`0100`).
+   *
+   * Tách khỏi `POLICY_TEMPLATE_NOT_SET` vì hai chuyện khác hẳn nhau và lời
+   * khuyên đi kèm cũng khác: ở đây không có gì hỏng và không phải làm gì cả —
+   * chờ người phụ trách gửi duyệt. Gộp vào mã kia thì Ban lãnh đạo mở một hồ sơ
+   * Nháp bất kỳ sẽ đọc rằng hồ sơ ấy lập trước `0098` và nên lập lại cái mới.
+   */
+  POLICY_TEMPLATE_PENDING: { dang: 'hop-thoai', tuMayChu: true },
   PLACEHOLDER_NOT_IN_TEMPLATE: { dang: 'o-nhap', truong: 'placeholder', tuMayChu: true },
   SOURCE_UNKNOWN: { dang: 'o-nhap', truong: 'source', tuMayChu: true },
   CONTRACT_NOT_READY: { dang: 'hop-thoai', tuMayChu: true },

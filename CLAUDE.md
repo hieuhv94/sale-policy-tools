@@ -80,9 +80,14 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (23/08/2026)
+## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P126** (`0099`), lượt rà toàn hệ thống: bịt một **lỗ phân quyền** đã mở từ P26 —
+Chặng gần nhất **P127** (`0100`): tách `POLICY_TEMPLATE_PENDING` khỏi `POLICY_TEMPLATE_NOT_SET` —
+`0098` gộp hai chuyện vào một câu, nên Ban lãnh đạo mở hồ sơ *Nháp* của người khác bị báo rằng hồ sơ
+lập trước `0098` và nên lập lại cái mới. Phân biệt bằng **trạng thái**: còn `SUA_DUOC` mà cột mẫu
+rỗng là bình thường; ngoài `SUA_DUOC` mới là dữ liệu cũ. **1634/1634 xanh**, cây làm việc sạch.
+
+Trước đó **P126** (`0099`), lượt rà toàn hệ thống: bịt một **lỗ phân quyền** đã mở từ P26 —
 `DELETE /policies/:id/lines/:lineId` mất `@Roles('TDV')`, nên Ban lãnh đạo xoá được dòng sản phẩm
 khỏi hồ sơ *Nháp* của người khác, còn Kế toán và Trưởng bộ phận xoá được khỏi hồ sơ họ vừa trả về.
 Kèm theo: viết **SEC-13**, ca kiểm `P0` trong danh mục kiến trúc chưa từng được viết — quét mọi
