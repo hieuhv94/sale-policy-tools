@@ -25,6 +25,15 @@ import {
   phanCongMacDinh,
 } from './app.js';
 
+/**
+ * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
+ *
+ * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
+ * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
+ * cùng bắt đầu chạm ngưỡng quá giờ.
+ */
+let nMst = 0;
+
 const SEED_PW = 'Test@1234';
 const P = 'ZZAUD';
 
@@ -107,6 +116,10 @@ const makeCustomer = async () => {
       customerType: 1,
       registeredAddress: 'Số 8 Tôn Thất Thuyết, Hà Nội',
       ownerName: 'Trần Thị Mỹ Hạnh',
+      // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
+      // của bộ test phải giống khách hàng thật.
+      ownerTitle: 'Chu ho',
+      idNumber: String(5100000000 + ++nMst),
     });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;

@@ -16,7 +16,13 @@ export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
 export { money, pct, dmy } from './contracts/dinh-dang.js';
 export { TemplatesService } from './contracts/templates.service.js';
 export { ContractsService } from './contracts/contracts.service.js';
-export { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO, dinhDangCua } from './contracts/sources.js';
+export {
+  KNOWN_SOURCES,
+  NGUON_BAT_BUOC_HO_SO,
+  NHOM_TRUONG,
+  dinhDangCua,
+  type NhomTruong,
+} from './contracts/sources.js';
 export { makeDocx, para, table, tableRow, placeholdersOf, documentXml, khoGiayCua, O_BANG_SAN_PHAM } from './contracts/docx.js';
 export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
 export { DocumentOutbox } from './infra/outbox.relay.js';

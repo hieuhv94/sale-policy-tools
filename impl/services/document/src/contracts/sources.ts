@@ -115,6 +115,75 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
 export const KNOWN_SOURCES: string[] = Object.keys(SCALAR);
 
 /**
+ * TRƯỜNG NÀO PHẢI CÓ DỮ LIỆU LÚC GỬI DUYỆT (`0104`, chốt 24/08).
+ *
+ * Khách hàng đặt yêu cầu bằng một câu: *"lúc duyệt hồ sơ kiểm tra đủ tất cả các
+ * trường trong bảng hướng dẫn ánh xạ, chưa đủ thì chưa cho gửi duyệt"*. Đọc theo
+ * nghĩa đen thì nó CHẶN MỌI LƯỢT GỬI, vì bảy trường dưới đây chưa tồn tại lúc
+ * gửi — chúng do các bước B3…B10 sinh ra. Bảng này là chỗ phân biệt.
+ *
+ * Bốn nhóm, và mỗi khoá của `SCALAR` phải nằm trong đúng một nhóm:
+ *
+ *   `luon-co`     Không thể rỗng — cột `NOT NULL` ở nguồn, hoặc có câu thay thế
+ *                 (`tep_dinh_kem` in *"Không có file đính kèm"*; `noi_nhan_hang`
+ *                 rơi về địa chỉ đăng ký). Không cần chặn, và chặn cũng vô nghĩa.
+ *   `chan-moi`    Có thể rỗng, TDV sửa được, và rỗng thì bản CSBH in ra một ô
+ *                 trắng. Đây là thứ `0104` thêm chốt chặn — xem `workflow.service`.
+ *   `chan-san`    Đã có chốt chặn từ trước `0104`, ở chỗ khác. Chỉ `truong_bo_phan`
+ *                 (muc 2.9: chưa gán TBP thì không gửi được).
+ *   `dien-sau`    Rỗng lúc gửi là ĐÚNG. Bước nào sinh ra thì ghi trong bảng dưới.
+ *
+ * BẢY TRƯỜNG `dien-sau` VẪN Ở LẠI TRONG `SCALAR` (chốt 24/08). Đã cân nhắc gỡ
+ * chúng khỏi danh mục ánh xạ cho gọn, rồi bỏ ý ấy: chúng chính là KHỐI PHÊ DUYỆT
+ * của tờ CSBH — tên kế toán, ngày duyệt, khối chữ ký số. Gỡ đi thì bản đã duyệt
+ * in ra không còn chỗ nào nói ai duyệt và duyệt lúc nào, ba mẫu bàn giao thành
+ * mẫu không lưu lại được (`400 SOURCE_UNKNOWN`), và `0103` mất luôn chỗ dựa của
+ * nó — nó bỏ bản lưu ký số VÌ chữ ký vẫn hiện trên bản mềm.
+ *
+ * Nói cách khác: *"chưa biết lúc gửi"* và *"không được phép in"* là hai câu hỏi
+ * khác nhau, và bảng này chỉ trả lời câu thứ nhất.
+ *
+ * `tests/http/policy.test.ts` đối chiếu bảng này với `KNOWN_SOURCES` cả hai
+ * chiều, và đối chiếu nhóm `chan-moi` với danh sách mà `policy` thật sự chặn.
+ * Thêm một khoá vào `SCALAR` mà quên xếp nhóm là ĐỎ — tức là bị buộc phải trả
+ * lời "trường này bắt buộc lúc gửi, hay điền sau?".
+ */
+export type NhomTruong = 'luon-co' | 'chan-moi' | 'chan-san' | 'dien-sau';
+
+export const NHOM_TRUONG: Record<string, NhomTruong> = {
+  // --- Luôn có -------------------------------------------------------------
+  'ho_so.ma_ho_so': 'luon-co', //           pol.policy.code NOT NULL
+  'ho_so.phien_ban': 'luon-co', //          version_no NOT NULL
+  'ho_so.trang_thai': 'luon-co', //         luôn là một trạng thái
+  'ho_so.tep_dinh_kem': 'luon-co', //       rỗng thì in "Không có file đính kèm"
+  'ho_so.ma_khach_hang': 'luon-co', //      cus.customer.code NOT NULL
+  'ho_so.ten_khach_hang': 'luon-co', //     name NOT NULL
+  'ho_so.dia_chi_dang_ky': 'luon-co', //    registered_address NOT NULL
+  'ho_so.noi_nhan_hang': 'luon-co', //      rỗng thì rơi về địa chỉ đăng ký
+  'ho_so.nguoi_dai_dien': 'luon-co', //     owner_name NOT NULL
+  'ho_so.cong_no': 'luon-co', //            debt NOT NULL DEFAULT 0
+  'ho_so.nguoi_de_nghi': 'luon-co', //      hồ sơ luôn có TDV phụ trách
+  ngay_in: 'luon-co', //                    now()
+
+  // --- Chặn lúc gửi duyệt --------------------------------------------------
+  'ho_so.ma_so_thue': 'chan-moi', //        cus.customer.id_number NULL được
+  'ho_so.chuc_danh_dai_dien': 'chan-moi', //owner_title NULL được
+  'ho_so.ngay_ap_dung': 'chan-moi', //      applied_date NULL được ở máy chủ
+
+  // --- Đã chặn sẵn ---------------------------------------------------------
+  'ho_so.truong_bo_phan': 'chan-san', //    muc 2.9, chặn từ P5
+
+  // --- Điền sau ------------------------------------------------------------
+  'ho_so.ngay_tbp_ky': 'dien-sau', //       B3 — TBP ký
+  'ho_so.chu_ky_so_TBP': 'dien-sau', //     B3 — khối chữ ký số
+  'ho_so.ke_toan': 'dien-sau', //           B4 — kế toán nhận bản mềm
+  'ho_so.ngay_kt_nhan_l1': 'dien-sau', //   B4
+  'ho_so.sale_admin': 'dien-sau', //        B6 — Sale Admin nhận việc
+  'ho_so.ngay_kt_nhan_l2': 'dien-sau', //   B10 — cũng là NGÀY DUYỆT
+  'ho_so.ngay_hieu_luc': 'dien-sau', //     B10 — đặt lúc duyệt xong
+};
+
+/**
  * Định dạng CỐ ĐỊNH của từng trường — người soạn mẫu không chọn (`0067`).
  *
  * Trước `0067` mỗi dòng ánh xạ mang một ô chọn định dạng. Đó là một câu hỏi sai:

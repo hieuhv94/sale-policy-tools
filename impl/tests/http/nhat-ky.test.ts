@@ -21,6 +21,15 @@ import {
   withAdminDb,
 } from './app.js';
 
+/**
+ * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
+ *
+ * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
+ * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
+ * cùng bắt đầu chạm ngưỡng quá giờ.
+ */
+let nMst = 0;
+
 let identity: INestApplication;
 let customer: INestApplication;
 let policy: INestApplication;
@@ -226,6 +235,10 @@ describe('`0090` tên người đi TỪ NGỮ CẢNH vào sự kiện', () => {
         name: 'Nha thuoc kiem thu 0090',
         registeredAddress: 'Ha Noi',
         ownerName: 'Chu ho',
+        // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
+        // của bộ test phải giống khách hàng thật.
+        ownerTitle: 'Chu ho',
+        idNumber: String(5100666666 + ++nMst),
       });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
 

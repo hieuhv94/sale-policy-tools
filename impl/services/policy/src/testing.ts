@@ -13,3 +13,4 @@ export async function createTestApp(): Promise<INestApplication> {
 export { PolicyOutbox } from './infra/outbox.relay.js';
 export { CatalogImpactConsumer } from './consumers/catalog-impact.consumer.js';
 export { Clients } from './infra/clients.js';
+export { TRUONG_CHAN_LUC_GUI } from './policies/workflow.service.js';

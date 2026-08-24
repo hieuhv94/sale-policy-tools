@@ -49,11 +49,14 @@ export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
  * sao, và cách duy nhất đi tiếp là điền bừa. Nên `bat-buoc.test.ts` bắt mọi
  * khác biệt, và chỉ những mục khai ở đây mới được đi qua.
  *
- * `ho-so.appliedDate` — `POST /policies` nhận hồ sơ không có ngày áp dụng
+ * `ho-so.appliedDate` — `POST /policies` vẫn NHẬN hồ sơ không khai ngày áp dụng
  * (`0001_init.sql:53` cho phép NULL), vì nó dựng để tạo bản nháp rồi điền dần.
- * Nhưng màn hình Lập hồ sơ điền sẵn ngày hôm nay và tạo hồ sơ ngay tại chỗ, nên
- * ô trống ở đây chỉ xảy ra khi người dùng xoá nó đi — và kết quả là một hồ sơ
- * chạy qua cả bốn bước duyệt với ô ngày áp dụng để trống trên bản CSBH A4.
+ * Màn hình Lập hồ sơ thì đòi, và tạo hồ sơ ngay tại chỗ.
+ *
+ * `0104` bịt hậu quả cũ ở hai chỗ khác, nên dòng này không còn là lưới duy nhất:
+ * máy chủ MẶC ĐỊNH hôm nay lúc tạo, và CHẶN lúc gửi duyệt nếu ô ấy trống. Trước
+ * đó nó là lưới duy nhất — và hồ sơ tạo qua đường khác chạy hết vòng duyệt với ô
+ * ngày áp dụng để trống trên bản CSBH A4.
  */
 export const CHAT_HON: Partial<Record<TenBieuMau, readonly string[]>> = {
   'ho-so': ['appliedDate'],

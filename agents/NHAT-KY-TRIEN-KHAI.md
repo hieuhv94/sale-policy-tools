@@ -9775,3 +9775,137 @@ của `createUser` là rơi lại đúng cái bẫy vừa thoát — mọi tài 
 | Gỡ `{{ho_so.chu_ky_so_TBP}}` khỏi nhánh đã ký | *"bước KÝ trong luồng duyệt thì KHÔNG bỏ"* — bản mềm không còn chữ *TBP đã ký số* |
 
 **1646/1646 xanh.**
+
+## P131 — `0104` đủ trường mới gửi duyệt được, và hai chỗ im lặng ở màn hình mẫu
+
+Hai việc từ lượt rà: món **màn hình soạn mẫu không nói mục nào bắt buộc**, và một luật mới khách
+hàng đặt thêm — *"lúc duyệt hồ sơ kiểm tra đủ tất cả các trường trong bảng hướng dẫn ánh xạ, chưa đủ
+thì chưa cho gửi duyệt"*.
+
+### Đọc theo nghĩa đen thì luật này CHẶN MỌI LƯỢT GỬI
+
+Bảng hướng dẫn có hai mươi ba trường. Bảy trong số đó do chính các bước SAU sinh ra: *Ngày TBP ký* và
+*Khối chữ ký số* (B3), *Kế toán* và *Ngày KT nhận lần 1* (B4), *Sale Admin* (B6), *Ngày KT nhận lần
+2* và *Ngày hiệu lực* (B10). Không hồ sơ nào có chúng lúc gửi, và không bao giờ có.
+
+Nên chặng này thực chất là một lượt **phân loại**, và bảng phân loại là sản phẩm chính:
+
+| Nhóm | Bao nhiêu | Nghĩa |
+|---|---|---|
+| `luon-co` | 12 | cột `NOT NULL` ở nguồn, hoặc có câu thay thế |
+| `chan-moi` | 3 | có thể rỗng, TDV sửa được → `0104` chặn |
+| `chan-san` | 1 | `truong_bo_phan`, đã chặn từ muc 2.9 |
+| `dien-sau` | 7 | rỗng lúc gửi là ĐÚNG |
+
+Đo lại từ lược đồ thì diện lộ thật **rất hẹp**: trong tám trường khách hàng in ra bản CSBH, chỉ
+`id_number` và `owner_title` cho phép NULL. `delivery_address` cũng NULL được nhưng rơi về địa chỉ
+đăng ký, `tep_dinh_kem` có câu *"Không có file đính kèm"*, sáu cột còn lại `NOT NULL`. Cộng
+`applied_date` là ba.
+
+### Chỗ khách hàng và tôi suýt nói lệch nhau
+
+Phản hồi đầu tiên là *"bỏ 7 trường điền sau ra khỏi ánh xạ trường của văn bản mẫu"*. Bảng tôi đưa
+trả lời câu *"lúc GỬI thì trường nào đã biết"*; gỡ chúng khỏi ánh xạ lại trả lời câu *"mẫu được
+phép in ra cái gì, ở BẤT KỲ lúc nào"*. Hai câu khác nhau, và trả lời câu thứ hai bằng bảng của câu
+thứ nhất thì mất ba thứ đo được:
+
+- cả ba mẫu bàn giao thành mẫu **không lưu lại được** (`400 SOURCE_UNKNOWN`) — chúng dùng 4–6 trong
+  bảy trường ấy;
+- `ho_so.ke_toan` là **một trong mười ba mục** của muc 11.1, và cả nó lẫn `ngay_tbp_ky` đang nằm
+  trong danh sách bắt buộc lúc lưu mẫu — hai danh sách sẽ chỏi nhau;
+- bản CSBH đã duyệt in ra **không còn khối phê duyệt**: không tên kế toán, không ngày duyệt, không
+  khối chữ ký số — trong khi `0103` vừa bỏ bản lưu ký số VÌ *"chữ ký vẫn hiện trên bản mềm"*.
+
+Nói ra ba con số ấy thì khách hàng chốt giữ nguyên bảy trường trong ánh xạ, chỉ miễn chúng khỏi chốt
+chặn. Ghi lại đây vì cái bẫy nằm ở chỗ hai câu hỏi **nghe giống nhau**.
+
+### `policy` KHÔNG gọi sang `document`
+
+Vì luật là *"đủ trường"* chứ không phải *"đủ trường mà mẫu vừa chọn có in"*, chốt chặn không phụ
+thuộc mẫu — nên `policy` tự kiểm bằng dữ liệu nó đã cầm. Giữ nguyên được quyết định của `0098`, thứ
+đã cân nhắc và bỏ lời gọi ấy: `document` là service nặng nhất, buộc nó vào đường gửi duyệt nghĩa là
+nó chết thì không ai gửi được hồ sơ nào. Nếu luật là "theo mẫu" thì lời gọi ấy **bắt buộc** phải có,
+và còn kéo theo một vòng đồng bộ `policy → document → policy` ngay giữa transaction gửi duyệt.
+
+Cái giá: bảng phân loại ở `document`, chốt chặn ở `policy`. Hai chỗ, một sự thật — nên có một ca
+đứng giữa đối chiếu `chan-moi` với `TRUONG_CHAN_LUC_GUI`, cả hai chiều.
+
+### Sửa ở nguồn: ngày áp dụng mặc định thuộc về máy chủ
+
+`POST /policies` để `applied_date` NULL khi người gọi không khai, còn màn hình *Lập hồ sơ* tự điền
+hôm nay. Hai chỗ trả lời khác nhau cho cùng một câu hỏi, và chỗ trả lời *"không biết"* là chỗ có
+thẩm quyền. Chú thích ở `bat-buoc.ts` đã tả đúng hậu quả từ lâu mà chưa ai chữa: *"một hồ sơ chạy qua
+cả bốn bước duyệt với ô ngày áp dụng để trống trên bản CSBH A4"*.
+
+Giờ máy chủ mặc định hôm nay **theo giờ Việt Nam** — `applied_date` là cột `date`, và một hồ sơ lập
+lúc 8 giờ sáng thứ Hai ở Hà Nội mà mang ngày Chủ nhật là sai theo cách không ai đi tìm. Chốt chặn
+vẫn giữ: `PATCH` xoá trắng ngày được.
+
+### Diện lộ của chốt chặn: mười tệp test phải sửa
+
+`makeCustomer` của mười tệp `tests/http` tạo khách hàng **không có MST, không có chức danh** — tức
+là những khách hàng mà từ `0104` không gửi duyệt được. Chúng phải khai đủ, và điều đó đúng: chúng
+đang dựng một tình huống mà giao diện thật không dựng nổi.
+
+Kéo theo **DOC-13 phải đổi neo**. Ca ấy dựng trên một khách hàng bỏ trống *chức danh người đại diện*
+để chứng minh "ô trống của trường rỗng ra chuỗi rỗng, không chặn xuất" — đúng tình huống `0104` vừa
+bịt. Neo mới là *ngày KT nhận lần 2*, và nó **chặt hơn hẳn**: hợp đồng xuất ở B7 còn trường ấy do
+B10 sinh ra, nên nó rỗng không phải vì ai quên nhập mà vì **chưa tới lúc** — không ai sửa được, và
+chặn xuất ở đó là chặn vĩnh viễn.
+
+### Hai chỗ im lặng ở màn hình soạn mẫu
+
+Ba tầng đều tưởng người soạn mẫu được biết mục nào bắt buộc, không tầng nào tới được mắt họ:
+`contracts.controller.ts` chú thích *"màn hình thêm mẫu cần cả hai để dựng hướng dẫn"* và trả
+`batBuoc` — web chỉ đọc `cotBang`; máy chủ trả `thieuTruong` — web không đọc; ca kiểm `0067` ghi
+*"Nói RÕ thiếu gì… Quản trị phải sửa được ngay"* — nó kiểm cái payload, không kiểm màn hình.
+
+Thứ Quản trị thật sự thấy: *"Mẫu hồ sơ CSBH còn thiếu mục bắt buộc. Bản A4 phải có đủ các mục ở muc
+11.1."* — không danh sách, và một mã hiệu tài liệu họ không có trong tay.
+
+Câu mới dựng **ở giao diện** chứ không ở máy chủ: `thieuTruong` mang tên trường trong mã, mà `0088`
+cấm những cái tên ấy ra màn hình — bảng nhãn nằm ở web. Dấu *bắt buộc* chỉ gắn ở thẻ **mẫu hồ sơ**;
+mẫu hợp đồng không có mục nào bắt buộc, và gắn dấu ở đó là dạy một luật không tồn tại.
+
+### Bẫy: ca kiểm giao diện đọc trước khi dữ liệu về
+
+Ca đầu tiên tôi viết cho dấu *bắt buộc* đỏ với `expected 'ho_so.ma_ho_soMã hồ sơ' to contain 'bắt
+buộc'`. Danh mục trường về theo `/sources`, một vòng bất đồng bộ sau lần vẽ đầu.
+
+Vế NGƯỢC LẠI mới là chỗ nguy: ca *"mẫu hợp đồng không có dấu nào"* sẽ **xanh nhờ đọc quá sớm** — nó
+không thấy dấu vì trang chưa vẽ xong, chứ không vì luật đúng. Nên nó phải đợi một mốc chứng minh
+`/sources` đã về, và mốc ấy là ô chọn cột — thứ chỉ dựng được từ `danhMuc.cotBang`.
+
+### Bẫy tôi tự dựng ra: một MST dùng chung cho cả tệp
+
+Lượt vá `makeCustomer` đầu tiên gán cho mỗi tệp test **một hằng MST**, và mọi khách hàng của tệp ấy
+dùng chung. `POST /customers` tra trùng MST ở **mỗi lượt tạo** (`findByIdNumber`, CUST-05), nên danh
+sách trả về lớn dần theo số khách hàng tệp ấy đã tạo — O(n²).
+
+Triệu chứng không hề nói ra điều đó: **bốn ca `0029 box Yêu cầu cập nhật` quá giờ ở 30 giây**, trong
+khi chạy riêng lẻ mỗi ca hết 500ms. Chúng chỉ tình cờ là những ca nằm cuối một tệp tạo nhiều khách
+hàng nhất. Cả lượt chạy đi từ 443 giây lên **957 giây**.
+
+| | Toàn bộ bộ test |
+|---|---|
+| Trước `0104` | 443s |
+| Một MST dùng chung | **957s**, 4 ca quá giờ |
+| Mỗi khách một MST | **537s**, 1661/1661 xanh |
+
+Đáng ghi vì hai lẽ. Thứ nhất, một ca quá giờ **không trỏ vào chỗ chậm** — nó trỏ vào ca xui xẻo chạy
+cuối. Thứ hai, tôi suýt kết luận "máy đang tải nặng" và chạy lại: ca ấy xanh khi chạy riêng, đúng
+kiểu bằng chứng dễ nhất để tự thuyết phục mình là không có gì sai.
+
+### Phá lại: ba vế, ba tầng
+
+| Phá | Đỏ |
+|---|---|
+| Gỡ `thieuTruongLucGui` khỏi đường gửi duyệt | 5 ca `policy` — `expected 200 to be 422` |
+| Gỡ dấu bắt buộc ở màn hình mẫu | 1 ca `them-mau` |
+| Trả `TEMPLATE_MISSING_REQUIRED` về `tuMayChu` | 2 ca `loi` — câu lùi về *"còn thiếu mục bắt buộc"* |
+
+Ca *"bảy trường điền sau KHÔNG chặn"* xanh ở cả ba lượt phá, có chủ ý: nó canh chiều ngược lại. Nó
+chỉ đỏ khi ai đó xếp nhầm một trường `dien-sau` sang `chan-moi` — và lúc ấy ca đối chiếu bảng phân
+loại đỏ trước.
+
+**1661/1661 xanh.**

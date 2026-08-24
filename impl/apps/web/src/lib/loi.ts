@@ -32,6 +32,7 @@
  */
 import { LoiApi } from './api.js';
 import { nhanHanhDong, nhanTrangThai, NHAN_VAI_TRO } from './format.js';
+import { NHAN_KHOA } from './mau-hop-dong.js';
 
 export type Dang = 'hop-thoai' | 'thanh-noi' | 'o-nhap' | 'trang' | 'im';
 
@@ -88,6 +89,29 @@ const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = 
   VALIDATION_FAILED: (b) => {
     const t = typeof b['field'] === 'string' ? NHAN_TRUONG[b['field'] as string] : undefined;
     return t ? `Ô ${t} chưa hợp lệ.` : 'Có ô nhập chưa hợp lệ.';
+  },
+  /*
+   * `0104` — NÓI RÕ THIẾU MỤC NÀO.
+   *
+   * Máy chủ gửi `thieuTruong: ['ho_so.ma_ho_so', …]` từ `0067`, và ca kiểm ở đó
+   * ghi *"Nói RÕ thiếu gì, không chỉ nói 'thiếu': Quản trị phải sửa được ngay"*.
+   * Nhưng giao diện chưa bao giờ đọc trường ấy — nó lấy `message` máy chủ, một
+   * câu nói *"còn thiếu mục bắt buộc"* rồi trỏ sang muc 11.1, tức một mã hiệu
+   * tài liệu mà người soạn mẫu không có trong tay.
+   *
+   * Dựng câu ở ĐÂY chứ không ở máy chủ: `thieuTruong` mang TÊN TRƯỜNG TRONG MÃ,
+   * mà `0088` cấm những cái tên ấy ra màn hình. Bảng nhãn nằm ở giao diện.
+   */
+  TEMPLATE_MISSING_REQUIRED: (b) => {
+    const ds = Array.isArray(b['thieuTruong']) ? (b['thieuTruong'] as string[]) : [];
+    const nhan = ds.map((k) => NHAN_KHOA[k]).filter((n): n is string => Boolean(n));
+    const bang = b['thieuBangSanPham'] === undefined ? [] : ['Bảng sản phẩm'];
+    const het = [...nhan, ...bang];
+    if (het.length === 0) return null;
+    return (
+      `Mẫu hồ sơ CSBH còn thiếu ${het.length} mục bắt buộc: ${het.join(', ')}. ` +
+      'Thêm ô trống cho các mục ấy vào file Word rồi tải lên lại.'
+    );
   },
 };
 
@@ -254,6 +278,7 @@ export const BANG_LOI: Record<string, Muc> = {
   ALREADY_ACTIVE_POLICY: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_OVERDUE: { dang: 'hop-thoai', tuMayChu: true },
   NO_LINES: { dang: 'hop-thoai', tuMayChu: true },
+  POLICY_FIELDS_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   NO_ACTIVE_POLICY: {
     dang: 'hop-thoai',
     cau: 'Khách hàng chưa có CSBH nào để bổ sung. Lập hồ sơ mới thay vì bổ sung.',
@@ -348,7 +373,7 @@ export const BANG_LOI: Record<string, Muc> = {
   },
   TEMPLATE_NOT_USABLE: { dang: 'hop-thoai', tuMayChu: true },
   TEMPLATE_INCOMPLETE: { dang: 'hop-thoai', tuMayChu: true },
-  TEMPLATE_MISSING_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  TEMPLATE_MISSING_REQUIRED: { dang: 'hop-thoai', tuThan: true, tuMayChu: true },
   TEMPLATE_FILE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   POLICY_TEMPLATE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   /*

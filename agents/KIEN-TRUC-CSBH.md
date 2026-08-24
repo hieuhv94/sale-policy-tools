@@ -1108,6 +1108,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | WF-26 | Quét toàn bộ máy trạng thái | Không trạng thái nào cho phép hai bước chạy song song — luồng hoàn toàn tuần tự | §3 | `P0` |
 | WF-27 | Mỗi lần trả lại đều nhập lý do | Lý do lưu vào hồ sơ, hiện trong email và trong lịch sử phiên bản | §3 | `P0` |
 | WF-28 | Chạy hết luồng 10 bước bằng 5 tài khoản mẫu, không bỏ bước | Hồ sơ kết thúc ở *Đang có hiệu lực*, đủ 8 mốc thời gian, đủ 12 email trong Mailpit | §3 | `P0` |
+| WF-29 `mới 24/08` | Gửi duyệt hồ sơ mà khách hàng thiếu MST hoặc chức danh người đại diện, hoặc hồ sơ thiếu thời gian áp dụng | 422 `POLICY_FIELDS_MISSING`, kể ĐỦ mọi mục thiếu (không dừng ở cái đầu), nói rõ sửa ở hồ sơ khách hàng hay ở hồ sơ, và KHÔNG lộ tên trường trong mã. Bổ sung rồi gửi lại thì đi tiếp. **Bảy trường do bước B3…B10 sinh ra KHÔNG chặn** — hồ sơ Nháp chưa có chữ ký, chưa có Sale Admin vẫn gửi được | §3 §6.4 | `P0` |
 
 ### EFF — Hiệu lực và phiên bản
 
@@ -1166,6 +1167,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | DOC-33 | Tải lên file mẫu hỏng hoặc không phải `.docx` | 400 kèm thông báo rõ; mẫu đang dùng không bị ảnh hưởng | §8.2 | `P1` |
 | DOC-34 | Chuyển hợp đồng đã trộn sang PDF qua Gotenberg | Đúng khổ, đủ trang, dấu tiếng Việt hiển thị đúng; Gotenberg chết thì báo lỗi rõ và không tạo bản ghi hợp đồng nửa vời | §8.3 | `P0` |
 | DOC-35 | Chưa có mẫu nào đang dùng, kế toán bấm xuất hợp đồng | Không xảy ra ở bản triển khai vì đã seed sẵn mẫu mặc định; nếu Sale Admin vô hiệu hết mẫu thì trả 409 kèm hướng dẫn, không sinh file rỗng | §8.2 | `P1` |
+| DOC-37 `mới 24/08` | Bảng phân loại `NHOM_TRUONG` đối chiếu với danh mục trường và với chốt chặn của `policy` | Mọi khoá của `KNOWN_SOURCES` phải nằm trong đúng một nhóm và ngược lại; nhóm `chan-moi` khớp ĐÚNG `TRUONG_CHAN_LUC_GUI`; bảy trường `dien-sau` vẫn còn trong danh mục (không bị gỡ) | §6.4 | `P1` |
 | DOC-36 `mới 24/08` | Lưu mẫu hồ sơ CSBH thiếu mục bắt buộc, và lưu mẫu thiếu *trạng thái* / *thời gian duyệt* | Thiếu một trong **9/13** mục còn bị ép thì 409 `TEMPLATE_MISSING_REQUIRED` kèm danh sách thiếu; thiếu *trạng thái* hoặc *thời gian duyệt* thì **lưu được** — hai mục ấy còn đang đổi lúc dựng văn bản, ép có mặt là ép in một câu sai. Hai trường vẫn phải nằm trong `KNOWN_SOURCES` để mẫu nào muốn in thì đặt ô được | §6.4 §11.1 | `P1` |
 
 ### NTF — Thông báo và SLA

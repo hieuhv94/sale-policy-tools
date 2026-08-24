@@ -186,6 +186,14 @@ export function ThemMau({
   const duLuu = tep !== null && oTrong !== null && luuDuoc(oTrong.placeholders, daChon);
   const coBang = oTrong?.placeholders.includes(O_BANG_SAN_PHAM) ?? false;
   const cotBatBuoc = new Set(danhMuc?.cotBatBuoc ?? []);
+  /*
+   * Mục bắt buộc CHỈ áp cho mẫu hồ sơ (`0104`).
+   *
+   * Mẫu hợp đồng không có mục nào bắt buộc — muc 11.1 chỉ nói về bản CSBH. Gắn
+   * dấu ở cả hai thẻ là nói với người soạn mẫu hợp đồng một luật không tồn tại,
+   * rồi để họ tự phát hiện điều đó bằng cách lưu thành công một mẫu "thiếu".
+   */
+  const khoaBatBuoc = new Set(loai === 'HO_SO' ? (danhMuc?.batBuoc ?? []) : []);
 
   /*
    * Câu "cột nào không tắt được" ĐỌC TỪ MÁY CHỦ, không viết cứng (`0084`).
@@ -393,7 +401,24 @@ export function ThemMau({
                           */}
                           <code className="the-khoa">{k}</code>
                         </td>
-                        <td className="ghi-chu">{NHAN_KHOA[k] ?? k}</td>
+                        <td className="ghi-chu">
+                          {NHAN_KHOA[k] ?? k}
+                          {/*
+                            DẤU BẮT BUỘC (`0104`).
+
+                            Máy chủ gửi kèm `batBuoc` từ `0067` và chú thích cạnh
+                            nó viết rằng "màn hình thêm mẫu cần cả hai để dựng
+                            hướng dẫn" — nhưng màn hình chưa bao giờ đọc trường
+                            ấy. Người soạn mẫu chỉ biết mục nào bắt buộc sau khi
+                            tải file lên và ăn một lượt 409.
+                          */}
+                          {khoaBatBuoc.has(k) && (
+                            <span className="dau-buoc" title="Mẫu hồ sơ CSBH bắt buộc có mục này">
+                              {' '}
+                              · bắt buộc
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

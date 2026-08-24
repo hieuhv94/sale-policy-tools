@@ -299,3 +299,44 @@ describe('`0088` dạng hiển thị', () => {
     expect(screen.getByRole('alertdialog').textContent).toContain('vẫn được giữ nguyên');
   });
 });
+
+describe('`0104` TEMPLATE_MISSING_REQUIRED nói RÕ thiếu mục nào', () => {
+  /*
+   * Máy chủ gửi `thieuTruong` từ `0067`, và ca kiểm ở đó ghi *"Nói RÕ thiếu gì,
+   * không chỉ nói 'thiếu': Quản trị phải sửa được ngay"*. Nhưng giao diện chưa
+   * bao giờ đọc trường ấy — Quản trị đọc được đúng một câu *"còn thiếu mục bắt
+   * buộc"* kèm một mã hiệu tài liệu họ không có trong tay.
+   */
+  it('đổi tên trường trong mã thành nhãn tiếng Việt và kể ra hết', () => {
+    const d = docLoi(
+      new LoiApi(409, 'TEMPLATE_MISSING_REQUIRED', 'Mẫu hồ sơ CSBH còn thiếu mục bắt buộc.', {
+        thieuTruong: ['ho_so.ma_ho_so', 'ho_so.cong_no'],
+      }),
+    );
+    expect(d.cau).toContain('Mã hồ sơ');
+    expect(d.cau).toContain('Công nợ');
+    // `0088`: không tên trường trong mã, không mã hiệu tài liệu.
+    expect(d.cau).not.toContain('ho_so.');
+    expect(d.cau).not.toContain('11.1');
+    // Và nói LÀM GÌ tiếp, không chỉ nói cái gì sai.
+    expect(d.cau).toContain('file Word');
+  });
+
+  it('thiếu cả BẢNG SẢN PHẨM thì kể luôn — nó cũng là một mục bắt buộc', () => {
+    const d = docLoi(
+      new LoiApi(409, 'TEMPLATE_MISSING_REQUIRED', 'Mẫu hồ sơ CSBH còn thiếu mục bắt buộc.', {
+        thieuTruong: ['ho_so.ma_ho_so'],
+        thieuBangSanPham: '{{bang_san_pham}}',
+      }),
+    );
+    expect(d.cau).toContain('Bảng sản phẩm');
+    expect(d.cau).toContain('2 mục');
+  });
+
+  it('thân lỗi KHÔNG kèm danh sách thì lùi về câu máy chủ, không ra câu rỗng', () => {
+    // Máy chủ cũ, hay một đường ném khác. Câu cụt "còn thiếu 0 mục bắt buộc:"
+    // tệ hơn hẳn câu chung chung.
+    const d = docLoi(new LoiApi(409, 'TEMPLATE_MISSING_REQUIRED', 'Mẫu còn thiếu mục bắt buộc.', {}));
+    expect(d.cau).toBe('Mẫu còn thiếu mục bắt buộc.');
+  });
+});

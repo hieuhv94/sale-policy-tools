@@ -30,6 +30,15 @@ import {
   idNguoiDung,
 } from './app.js';
 
+/**
+ * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
+ *
+ * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
+ * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
+ * cùng bắt đầu chạm ngưỡng quá giờ.
+ */
+let nMst = 0;
+
 const SEED_PW = 'Test@1234';
 const P = 'ZZPOL';
 
@@ -91,6 +100,10 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
       customerType: 1,
       registeredAddress: 'Ha Noi',
       ownerName: 'Chu ho',
+      // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
+      // của bộ test phải giống khách hàng thật.
+      ownerTitle: 'Chu ho',
+      idNumber: String(5100999999 + ++nMst),
     });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;
@@ -4128,5 +4141,127 @@ describe('`0069` ai được đụng vào tệp nào', () => {
     const r = await del(`/policies/${d.id}/attachments/${giayTo}`, 'sa01');
     expect(r.status, 'Sale Admin không được gỡ giấy tờ của TDV').toBe(403);
     expect(r.body.code).toBe('FORBIDDEN_ROLE');
+  }, 60_000);
+});
+
+// =============================================================================
+// `0104` — đủ trường mới gửi duyệt được
+// =============================================================================
+
+describe('`0104` đủ trường mới gửi duyệt được', () => {
+  /**
+   * Khách hàng THIẾU một trường, để dựng đúng cái hồ sơ không gửi được.
+   *
+   * `makeCustomer` khai đủ từ `0104`, nên ca nào muốn thấy chốt chặn phải tự
+   * tạo một khách thiếu — chứ không sửa `makeCustomer`, thứ mọi ca khác dựa vào.
+   */
+  const khachThieu = async (bo: 'idNumber' | 'ownerTitle'): Promise<string> => {
+    const than: Record<string, unknown> = {
+      code: uniq('KHT'),
+      name: 'Nha thuoc thieu truong',
+      customerType: 1,
+      registeredAddress: 'Ha Noi',
+      ownerName: 'Chu ho',
+      ownerTitle: 'Chu nha thuoc',
+      idNumber: String(5100999999 + ++nMst),
+    };
+    delete than[bo];
+    const r = await (await http(customer))
+      .post('/customers')
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send(than);
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    return r.body.id as string;
+  };
+
+  it('thiếu MÃ SỐ THUẾ thì không gửi duyệt được', async () => {
+    const d = await draft({ customerId: await khachThieu('idNumber') });
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status).toBe(422);
+    expect(r.body.code).toBe('POLICY_FIELDS_MISSING');
+    expect(r.body.thieu).toEqual(['Mã số thuế']);
+    // Câu phải nói ĐI ĐÂU MÀ SỬA. Người đọc đang đứng ở màn hình hồ sơ, còn
+    // trường thiếu thì nằm ở hồ sơ khách hàng.
+    expect(r.body.message).toContain('hồ sơ khách hàng');
+    // Và KHÔNG được lộ tên trường trong mã (`0088`).
+    expect(r.body.message).not.toContain('idNumber');
+    expect(r.body.message).not.toContain('ho_so.');
+  }, 60_000);
+
+  it('thiếu CHỨC DANH người đại diện thì không gửi duyệt được', async () => {
+    const d = await draft({ customerId: await khachThieu('ownerTitle') });
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status).toBe(422);
+    expect(r.body.thieu).toEqual(['Chức danh người đại diện']);
+  }, 60_000);
+
+  it('thiếu THỜI GIAN ÁP DỤNG thì không gửi duyệt được, và câu nói đúng chỗ khác', async () => {
+    /*
+     * Xoá trắng ngày TRỰC TIẾP trên CSDL, không qua API: từ `0104` lệnh tạo hồ
+     * sơ mặc định hôm nay, nên đường tạo không còn dựng được tình huống này.
+     * Đường còn lại là `PATCH` — nhưng ca này muốn kiểm CHỐT CHẶN, không kiểm
+     * `PATCH`, nên nó dựng thẳng trạng thái cần kiểm.
+     */
+    const d = await draft();
+    await withAdminDb((c) => c.query(`UPDATE pol.policy SET applied_date = NULL WHERE id = $1`, [d.id]));
+
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status).toBe(422);
+    expect(r.body.thieu).toEqual(['Thời gian áp dụng']);
+    // Trường này của HỒ SƠ, nên câu không được bảo người ta sang màn hình khách hàng.
+    expect(r.body.message).toContain('Thời gian áp dụng của hồ sơ');
+    expect(r.body.message).not.toContain('hồ sơ khách hàng');
+  }, 60_000);
+
+  it('thiếu NHIỀU trường thì kể hết, không dừng ở cái đầu tiên', async () => {
+    // Báo từng cái một là bắt người dùng đi ba vòng cho một lần sửa.
+    const d = await draft({ customerId: await khachThieu('idNumber') });
+    await withAdminDb((c) => c.query(`UPDATE pol.policy SET applied_date = NULL WHERE id = $1`, [d.id]));
+
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.body.thieu).toEqual(['Mã số thuế', 'Thời gian áp dụng']);
+    expect(r.body.message).toContain('hồ sơ khách hàng');
+    expect(r.body.message).toContain('Thời gian áp dụng của hồ sơ');
+  }, 60_000);
+
+  it('BỔ SUNG rồi gửi lại thì đi tiếp — chốt chặn không phải ngõ cụt', async () => {
+    const khId = await khachThieu('idNumber');
+    const d = await draft({ customerId: khId });
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(422);
+
+    await (await http(customer))
+      .patch(`/customers/${khId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ idNumber: '5100999998' });
+
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+  }, 90_000);
+
+  it('BẢY trường điền sau KHÔNG chặn — hồ sơ chưa ai duyệt vẫn gửi được', async () => {
+    /*
+     * Vế quan trọng nhất của `0104`, và là vế dễ mất nhất.
+     *
+     * Đọc yêu cầu theo nghĩa đen — *"đủ tất cả các trường trong bảng hướng dẫn
+     * ánh xạ"* — thì KHÔNG hồ sơ nào gửi duyệt được, vì bảy trường ấy do chính
+     * các bước SAU sinh ra. Ca này canh cho lằn ranh đó: một hồ sơ Nháp chưa có
+     * ngày TBP ký, chưa có kế toán, chưa có Sale Admin, chưa có ngày hiệu lực
+     * vẫn phải gửi được.
+     */
+    const d = await draft();
+    const truoc = await withAdminDb((c) =>
+      c.query(
+        `SELECT tbp_signed_at, ke_toan_user_id, sale_admin_user_id,
+                kt_l1_received_at, kt_l2_received_at, effective_from
+           FROM pol.policy WHERE id = $1`,
+        [d.id],
+      ),
+    );
+    const row = truoc.rows[0] as Record<string, unknown>;
+    // Chứng minh chúng THẬT SỰ rỗng — nếu không, ca này không kiểm gì cả.
+    for (const k of ['tbp_signed_at', 'sale_admin_user_id', 'kt_l1_received_at', 'kt_l2_received_at', 'effective_from']) {
+      expect(row[k], `${k} phải rỗng ở hồ sơ Nháp`).toBeNull();
+    }
+
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
   }, 60_000);
 });

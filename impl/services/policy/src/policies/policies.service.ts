@@ -346,6 +346,26 @@ export class PoliciesService {
       });
     }
 
+    /*
+     * NGÀY ÁP DỤNG mặc định HÔM NAY, đặt ở MÁY CHỦ (`0104`).
+     *
+     * Trước đây cột này để NULL khi người gọi không khai, và màn hình *Lập hồ sơ*
+     * tự điền sẵn ngày hôm nay. Hai chỗ trả lời khác nhau cho cùng một câu hỏi
+     * *"hồ sơ không khai ngày thì áp dụng từ bao giờ?"* — và chỗ trả lời "không
+     * biết" là chỗ có thẩm quyền. Hệ quả đo được: một hồ sơ tạo qua API chạy hết
+     * bốn bước duyệt với ô *Thời gian áp dụng* để TRỐNG trên bản CSBH A4.
+     *
+     * Ngày hôm nay theo GIỜ VIỆT NAM, không theo giờ máy chủ: `applied_date` là
+     * một cột `date`, và một hồ sơ lập lúc 8 giờ sáng thứ Hai ở Hà Nội mà mang
+     * ngày Chủ nhật là sai theo cách không ai đi tìm.
+     *
+     * Chốt chặn lúc GỬI DUYỆT vẫn giữ (`thieuTruongLucGui`): mặc định này bịt
+     * đường tạo mới, còn `PATCH` vẫn xoá trắng ngày được.
+     */
+    const homNay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(
+      new Date(),
+    );
+
     return this.db.tx(async (c) => {
       const created = await c.query<PolicyRow>(
         `INSERT INTO pol.policy
@@ -356,7 +376,7 @@ export class PoliciesService {
         [
           input.customerId,
           active ? active.version_no + 1 : 1,
-          input.appliedDate ?? null,
+          input.appliedDate ?? homNay,
           active?.id ?? null,
           me.id,
           customer.tdvUserId,

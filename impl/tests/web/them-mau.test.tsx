@@ -348,3 +348,50 @@ describe('`0056` bảng khoá khớp đúng máy chủ', () => {
     }
   });
 });
+
+describe('`0104` hướng dẫn nói rõ mục nào BẮT BUỘC', () => {
+  /*
+   * Máy chủ gửi kèm `batBuoc` từ `0067`, và chú thích cạnh nó ở
+   * `contracts.controller.ts` viết rằng *"màn hình thêm mẫu cần cả hai để dựng
+   * hướng dẫn"*. Màn hình chưa bao giờ đọc trường ấy. Người soạn mẫu chỉ biết
+   * mục nào bắt buộc SAU KHI tải file lên và ăn một lượt 409 — trong khi họ
+   * đang mở file Word ra và sửa thêm một ô là xong.
+   */
+  const dongCua = (khoa: string): string => {
+    const o = [...document.querySelectorAll('.bang-khoa tr')].find(
+      (tr) => tr.querySelector('.the-khoa')?.textContent === khoa,
+    );
+    return o?.textContent ?? '';
+  };
+
+  it('mẫu HỒ SƠ: mục bắt buộc có dấu, mục không bắt buộc thì không', async () => {
+    chan(DU_MUC);
+    bay('HO_SO');
+    // Danh mục trường về theo `/sources`, tức một vòng bất đồng bộ sau khi vẽ
+    // lần đầu. Đọc ngay là đọc bản chưa có dấu nào — và ca sẽ đỏ vì lý do sai.
+    await waitFor(() => expect(dongCua('ho_so.ma_ho_so')).toContain('bắt buộc'));
+    // `NGUON.batBuoc` chỉ có `ho_so.ma_ho_so`.
+    expect(dongCua('ho_so.ma_ho_so')).toContain('bắt buộc');
+    // Chiều thứ hai mới dễ hỏng: gắn dấu cho tất cả cũng làm vế trên xanh.
+    expect(dongCua('ho_so.ten_khach_hang')).not.toContain('bắt buộc');
+  });
+
+  it('mẫu HỢP ĐỒNG: KHÔNG mục nào có dấu — muc 11.1 chỉ nói về bản CSBH', async () => {
+    /*
+     * Cùng một danh mục trường, hai luật khác nhau. Gắn dấu ở cả hai thẻ là nói
+     * với người soạn mẫu hợp đồng một luật không tồn tại, rồi để họ tự phát hiện
+     * bằng cách lưu thành công một mẫu "thiếu".
+     */
+    chan(DU_MUC);
+    bay('HOP_DONG');
+    /*
+     * Đợi ĐÚNG thứ sẽ chứng minh `/sources` đã về: ô chọn cột chỉ dựng được từ
+     * `danhMuc.cotBang`. Không có mốc ấy thì ca này xanh nhờ đọc quá sớm — nó
+     * "không thấy dấu" vì trang chưa vẽ xong, chứ không vì luật đúng.
+     */
+    await chonTep();
+    dongAnhXa();
+    await waitFor(() => expect(screen.getByText('Cột của bảng sản phẩm')).toBeDefined());
+    expect(dongCua('ho_so.ma_ho_so')).not.toContain('bắt buộc');
+  });
+});

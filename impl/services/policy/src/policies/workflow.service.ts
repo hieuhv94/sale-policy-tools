@@ -84,6 +84,68 @@ const PHAN_CONG: Record<string, { truong: 'tbpUserId' | 'keToanUserId' | 'saleAd
   ],
 };
 
+/**
+ * ĐỦ TRƯỜNG MỚI GỬI DUYỆT ĐƯỢC (`0104`, chốt 24/08).
+ *
+ * Khách hàng: *"lúc duyệt hồ sơ kiểm tra đủ tất cả các trường trong bảng hướng
+ * dẫn ánh xạ, chưa đủ thì chưa cho gửi duyệt"*. Bảng hướng dẫn có hai mươi ba
+ * trường; bảy trong số đó do các bước B3…B10 sinh ra nên rỗng lúc gửi là đúng.
+ * Phân loại đầy đủ nằm ở `NHOM_TRUONG` trong `document/contracts/sources.ts` —
+ * MỘT bảng, và `tests/http/policy.test.ts` đối chiếu danh sách dưới đây với
+ * chính nó, nên hai bên không trôi khỏi nhau được.
+ *
+ * KHÔNG hỏi `document` xem mẫu nào in trường nào. Luật là *"đủ trường"*, không
+ * phải *"đủ trường mà mẫu vừa chọn có in"* — nên nó không phụ thuộc mẫu, và
+ * `policy` tự kiểm bằng dữ liệu nó đã cầm trong tay. Đó cũng là cách giữ nguyên
+ * quyết định của `0098`: `policy` không gọi sang `document` trên đường gửi duyệt,
+ * vì buộc service nặng nhất vào đường ấy nghĩa là nó chết thì không ai gửi được
+ * hồ sơ nào.
+ *
+ * Kiểm ở LÚC GỬI chứ không lúc xem: hồ sơ còn là bản nháp, người sửa được đang
+ * đứng ngay đó, và bản CSBH chưa đi đâu cả. Đúng lối `0067` đã chọn cho mẫu và
+ * muc 2.9 đã chọn cho Trưởng bộ phận.
+ */
+export const TRUONG_CHAN_LUC_GUI = [
+  'ho_so.ma_so_thue',
+  'ho_so.chuc_danh_dai_dien',
+  'ho_so.ngay_ap_dung',
+] as const;
+
+/** Nhãn người dùng đọc. Câu báo lỗi KHÔNG được lộ tên trường trong mã (`0088`). */
+const NHAN_CHAN: Record<(typeof TRUONG_CHAN_LUC_GUI)[number], string> = {
+  'ho_so.ma_so_thue': 'Mã số thuế',
+  'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
+  'ho_so.ngay_ap_dung': 'Thời gian áp dụng',
+};
+
+const rong = (v: unknown): boolean =>
+  v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+
+export function thieuTruongLucGui(
+  ho: { applied_date: unknown },
+  kh: { idNumber?: string | null; ownerTitle?: string | null },
+): void {
+  const thieu: string[] = [];
+  if (rong(kh.idNumber)) thieu.push('ho_so.ma_so_thue');
+  if (rong(kh.ownerTitle)) thieu.push('ho_so.chuc_danh_dai_dien');
+  if (rong(ho.applied_date)) thieu.push('ho_so.ngay_ap_dung');
+  if (thieu.length === 0) return;
+
+  const nhan = thieu.map((t) => NHAN_CHAN[t as (typeof TRUONG_CHAN_LUC_GUI)[number]]);
+  // Nói RÕ phải đi đâu mà sửa: hai nguồn khác nhau, và người đọc đang đứng ở
+  // màn hình hồ sơ chứ không phải màn hình khách hàng.
+  const cuaKhach = thieu.filter((t) => t !== 'ho_so.ngay_ap_dung').length > 0;
+  const cuaHoSo = thieu.includes('ho_so.ngay_ap_dung');
+  throw new UnprocessableEntityException({
+    code: 'POLICY_FIELDS_MISSING',
+    thieu: nhan,
+    message:
+      `Chưa gửi duyệt được: bản CSBH sẽ in ra ô trống ở ${nhan.join(', ')}.` +
+      (cuaKhach ? ' Bổ sung ở hồ sơ khách hàng rồi gửi lại.' : '') +
+      (cuaHoSo ? ' Điền Thời gian áp dụng của hồ sơ rồi gửi lại.' : ''),
+  });
+}
+
 @Injectable()
 export class WorkflowService {
   constructor(
@@ -118,6 +180,8 @@ export class WorkflowService {
       sale_admin_user_id: string | null;
       customer_id: string;
       supersedes_id: string | null;
+      /** `0104` — chốt chặn "đủ trường lúc gửi duyệt" đọc cột này. `SELECT *` vốn đã lấy. */
+      applied_date: Date | null;
       tbp_signed_at: Date | null;
       pending_step: Step | null;
       overdue_at: Date | null;
@@ -178,6 +242,16 @@ export class WorkflowService {
       throw mapDomainError(e, current);
     }
 
+    /*
+     * Khách hàng lấy Ở ĐÂY, trước mọi điều kiện riêng của từng hành động.
+     *
+     * `0104` cần nó cho chốt chặn "đủ trường lúc gửi duyệt", và `0101` cần nó
+     * cho ảnh chụp — cùng một lượt đọc, dùng cho cả ba việc kể cả dựng sự kiện.
+     * Lấy hai lần thì hai lần ấy đọc hai thời điểm khác nhau, và ảnh chụp có thể
+     * khác đúng cái vừa được kiểm.
+     */
+    const cus = await this.clients.customer(before.customer_id);
+
     // Điều kiện riêng của từng hành động, không thuộc máy trạng thái thuần.
     if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
       const lines = await this.db.q(`SELECT 1 FROM pol.policy_line WHERE policy_id = $1`, [
@@ -219,6 +293,8 @@ export class WorkflowService {
           message: 'Chọn văn bản mẫu cho bản mềm CSBH trước khi gửi duyệt.',
         });
       }
+
+      thieuTruongLucGui(before, cus);
 
       /*
        * `policy` KHÔNG gọi sang `document` để hỏi mẫu này có thật không.
@@ -284,13 +360,12 @@ export class WorkflowService {
       }
     }
 
-    // Mã và tên khách hàng lấy TRƯỚC transaction và nhét thẳng vào sự kiện.
+    // Mã và tên khách hàng nhét THẲNG vào sự kiện (`cus` lấy ở đầu hàm).
     //
     // notification không đọc được schema cus, và bắt nó gọi ngược lại customer
     // lúc gửi thư thì một sự kiện chỉ gửi được khi customer đang sống — đúng thứ
     // mẫu outbox sinh ra để tránh. Sự kiện phải TỰ NÓ đủ nghĩa: đọc nó ba tháng
     // sau, khi khách hàng đã đổi tên, vẫn thấy đúng tên tại thời điểm gửi thư.
-    const cus = await this.clients.customer(before.customer_id);
     const ctx = {
       policyId,
       policyCode: before.code,

@@ -615,6 +615,25 @@ Bấm **Gửi duyệt** thì hộp thoại mở ra bốn phần, theo đúng th�
 Nút *Xác nhận* khoá tới khi đã chọn mẫu, bản A4 tải xong và cả hai ô người đã chọn. Ô chọn rỗng nghĩa là chưa có tài
 khoản vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
 
+> **Thiếu thông tin thì chưa gửi được** `mới 24/08`. Bấm *Xác nhận* mà hồ sơ hoặc khách hàng còn
+> trống một trường sẽ in ra bản CSBH thì phần mềm **chặn lại và kể tên từng mục**:
+>
+> | Mục còn thiếu | Sửa ở đâu |
+> |---|---|
+> | **Mã số thuế** | Màn hình *Khách hàng* → mở khách hàng của hồ sơ → Sửa |
+> | **Chức danh người đại diện** | cùng chỗ trên |
+> | **Thời gian áp dụng** | ngay trên màn hình hồ sơ |
+>
+> Chặn ở đây chứ không ở lúc xem, vì đây là lúc bạn còn sửa được: hồ sơ vẫn là bản nháp và bản CSBH
+> chưa đi đâu cả. Sửa xong quay lại bấm *Gửi duyệt* là đi tiếp — không phải lập hồ sơ khác.
+>
+> **Những mục do các bước sau sinh ra thì KHÔNG bị đòi**: *Ngày TBP ký*, *Kế toán*, *Sale Admin*,
+> *Ngày KT nhận lần 1* và *lần 2*, *Ngày hiệu lực*, *Khối chữ ký số*. Chúng còn trống trên bản A4
+> lúc bạn gửi là **đúng** — chưa tới lượt ai điền chúng.
+>
+> *Thời gian áp dụng* nay **điền sẵn hôm nay** ngay từ lúc lập hồ sơ, nên mục này chỉ thiếu khi bạn
+> chủ động xoá nó đi.
+
 Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu** — cả người lẫn văn bản mẫu: bạn có quyền gửi
 cho một Trưởng bộ phận khác, và đổi luôn bố cục bản mềm nếu bảng sản phẩm đã khác đi.
 
@@ -1431,7 +1450,8 @@ luôn ở trong tầm mắt.
 - **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
   nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**.
 - **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **10 mục** `sửa 24/08` ở phần *Yêu cầu
-  hiển thị file*; thông báo nói rõ thiếu mục nào. (Trước 20/08 là 13 — mục *thông tin công ty* rời
+  hiển thị file*; thông báo **kể tên từng mục còn thiếu** `sửa 24/08`, và bảng hướng dẫn bên phải
+  gắn sẵn dấu *bắt buộc* vào đúng những mục ấy — không phải tải file lên rồi mới biết. (Trước 20/08 là 13 — mục *thông tin công ty* rời
   khỏi danh sách cùng lúc với khoá của nó, và giờ do người soạn tự chịu trách nhiệm.)
   > **Bỏ ép *Trạng thái* và *Thời gian duyệt*** `mới 24/08`. Hai mục ấy **còn đổi** trong lúc hồ sơ
   > đi qua luồng duyệt: bản mềm xem ở bước Trưởng bộ phận ký sẽ in ra *Chờ kế toán duyệt lần 1* và

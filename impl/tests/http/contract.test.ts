@@ -22,11 +22,13 @@ import {
   documentXml,
   KNOWN_SOURCES,
   NGUON_BAT_BUOC_HO_SO,
+  NHOM_TRUONG,
   O_BANG_SAN_PHAM,
   SYSTEM_USER_ID,
   table,
   tableRow,
 } from '@csbh/document/testing';
+import { TRUONG_CHAN_LUC_GUI } from '@csbh/policy/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -41,6 +43,15 @@ import {
   withAdminDb,
   phanCongMacDinh,
 } from './app.js';
+
+/**
+ * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
+ *
+ * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
+ * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
+ * cùng bắt đầu chạm ngưỡng quá giờ.
+ */
+let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZHD';
@@ -215,6 +226,10 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
       customerType: 1,
       registeredAddress: ADDRESS_1,
       ownerName: 'Trần Thị Mỹ Hạnh',
+      // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
+      // của bộ test phải giống khách hàng thật.
+      ownerTitle: 'Chu ho',
+      idNumber: String(5100333333 + ++nMst),
       debt: '4500000',
       ...over,
     });
@@ -673,19 +688,33 @@ describe('`0067` DOC-13 ĐỔI LUẬT — hồ sơ thiếu trường thì ô tr�
    * Cái giá đã chấp nhận: hợp đồng in ra CÓ THỂ thiếu một dòng thông tin. Đổi
    * lại nó nhìn thấy được ngay trên bản xem trước — mà từ `0060` bản xem trước
    * là đường DUY NHẤT dẫn tới nút tải, nên không ai xuất mà chưa nhìn.
+   *
+   * `0104` ĐỔI NEO CỦA CA NÀY. Bản trước dựng trên một khách hàng bỏ trống *chức
+   * danh người đại diện* — tình huống mà `0104` vừa bịt: hồ sơ ấy không gửi duyệt
+   * được nữa, nên nó không bao giờ tới bước xuất hợp đồng.
+   *
+   * Neo mới là *ngày KT nhận lần 2*, và nó neo CHẶT HƠN: hợp đồng xuất ở B7 còn
+   * trường ấy do B10 sinh ra, nên nó rỗng KHÔNG PHẢI vì ai đó quên nhập mà vì
+   * chưa tới lúc. Không ai sửa được, và chặn xuất ở đây là chặn vĩnh viễn. Đó
+   * đúng là điều `0102` đã nói khi gỡ hai mục ấy khỏi danh sách bắt buộc.
    */
-  it('xuất được, và ô trống của trường rỗng ra chuỗi rỗng', async () => {
+  it('xuất được, và ô trống của trường CHƯA TỚI LÚC ra chuỗi rỗng', async () => {
     const d = await toReceivedL1();
 
-    // Mẫu 12 ô có `{{ho_so.chuc_danh_dai_dien}}` — trường mà khách hàng này để trống.
-    const buf = twelveSlotTemplate();
-    const t = await luuMau('admin01', buf, { name: 'Mẫu có chức danh' });
+    const buf = makeDocx(
+      [
+        para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+        para('HỢP ĐỒNG với {{ho_so.ten_khach_hang}}'),
+        para('Duyệt ngày {{ho_so.ngay_kt_nhan_l2}}'),
+      ].join(''),
+    );
+    const t = await luuMau('admin01', buf, { name: 'Mẫu có ngày duyệt' });
     expect(t.status, JSON.stringify(t.body)).toBe(201);
 
     try {
       const prev = await dget(`/policies/${d.id}/contract/preview?mauId=${t.body.id}`, 'kt01');
       expect(prev.status).toBe(200);
-      expect(prev.body.values['{{ho_so.chuc_danh_dai_dien}}']).toBe('');
+      expect(prev.body.values['{{ho_so.ngay_kt_nhan_l2}}']).toBe('');
 
       // Và KHÔNG còn 422: bản PDF sinh ra bình thường, chỗ ấy để trống.
       const exp = await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${t.body.id}`, 'kt01');
@@ -2493,4 +2522,71 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
       });
     }
   }, 120_000);
+});
+
+// =============================================================================
+// `0104` — bảng phân loại trường phải phủ hết danh mục
+// =============================================================================
+
+describe('`0104` NHOM_TRUONG phủ hết bảng hướng dẫn ánh xạ', () => {
+  /*
+   * Bảng phân loại nằm ở `document` (nó sở hữu danh mục trường), còn chốt chặn
+   * chạy ở `policy` (nó sở hữu bước gửi duyệt). Hai chỗ, một sự thật — nên phải
+   * có một ca đứng giữa, nếu không chúng trôi khỏi nhau vào đúng ngày ai đó
+   * thêm một trường mới.
+   */
+  it('mọi khoá của danh mục đều được xếp nhóm, và không có nhóm thừa', () => {
+    for (const k of KNOWN_SOURCES) {
+      expect(NHOM_TRUONG[k], `trường ${k} chưa xếp nhóm — bắt buộc lúc gửi, hay điền sau?`)
+        .toBeDefined();
+    }
+    // Chiều ngược lại: xếp nhóm cho một khoá đã gỡ khỏi danh mục là để lại một
+    // dòng nói về thứ không tồn tại, và nó sẽ được đọc như thể còn đúng.
+    for (const k of Object.keys(NHOM_TRUONG)) {
+      expect(KNOWN_SOURCES, `${k} có nhóm nhưng không còn trong danh mục`).toContain(k);
+    }
+  });
+
+  it('nhóm `chan-moi` khớp ĐÚNG danh sách mà `policy` thật sự chặn', () => {
+    const theoBang = Object.entries(NHOM_TRUONG)
+      .filter(([, n]) => n === 'chan-moi')
+      .map(([k]) => k)
+      .sort();
+    expect([...TRUONG_CHAN_LUC_GUI].sort()).toEqual(theoBang);
+  });
+
+  it('BẢY trường `dien-sau` — con số này là một quyết định, không phải phép đếm', () => {
+    /*
+     * Chốt 24/08. Đã cân nhắc GỠ bảy trường này khỏi danh mục ánh xạ rồi bỏ ý
+     * ấy: chúng là khối phê duyệt của tờ CSBH — tên kế toán, ngày duyệt, khối
+     * chữ ký số. Ghim con số ở đây để một lượt thêm hay bớt phải đi qua ca này.
+     */
+    const dienSau = Object.entries(NHOM_TRUONG)
+      .filter(([, n]) => n === 'dien-sau')
+      .map(([k]) => k)
+      .sort();
+    expect(dienSau).toEqual(
+      [
+        'ho_so.chu_ky_so_TBP',
+        'ho_so.ke_toan',
+        'ho_so.ngay_hieu_luc',
+        'ho_so.ngay_kt_nhan_l1',
+        'ho_so.ngay_kt_nhan_l2',
+        'ho_so.ngay_tbp_ky',
+        'ho_so.sale_admin',
+      ].sort(),
+    );
+  });
+
+  it('mọi trường `dien-sau` VẪN dựng được văn bản — chúng ở lại danh mục, không bị gỡ', () => {
+    /*
+     * Vế "không gỡ" của quyết định. Gỡ khỏi `SCALAR` thì ba mẫu bàn giao thành
+     * mẫu không lưu lại được (`400 SOURCE_UNKNOWN`), và bản CSBH đã duyệt in ra
+     * không còn chỗ nào nói ai duyệt, duyệt lúc nào. Đo được ở lượt phá `0102`.
+     */
+    for (const [k, n] of Object.entries(NHOM_TRUONG)) {
+      if (n !== 'dien-sau') continue;
+      expect(KNOWN_SOURCES, `${k} phải còn đặt ô được`).toContain(k);
+    }
+  });
 });

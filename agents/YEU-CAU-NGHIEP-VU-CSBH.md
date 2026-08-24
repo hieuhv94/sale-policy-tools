@@ -1381,6 +1381,23 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Đủ trường mới gửi duyệt được** `mới 24/08` — trước khi hồ sơ rời trạng thái *Nháp*, phần mềm kiểm
+các trường sẽ in ra bản CSBH. Thiếu thì **chặn gửi**, và báo rõ thiếu mục nào cùng chỗ phải đi sửa.
+Ba trường bị chặn: **Mã số thuế** · **Chức danh người đại diện** (cả hai ở hồ sơ khách hàng) và
+**Thời gian áp dụng** (ở hồ sơ). Kèm theo, *Thời gian áp dụng* nay **mặc định là hôm nay** ngay ở máy
+chủ — trước đó chỉ màn hình *Lập hồ sơ* điền sẵn, nên hồ sơ tạo qua đường khác chạy hết vòng duyệt
+với ô ấy để trống trên bản A4.
+
+> **Bảy trường KHÔNG bị chặn**, vì chúng chưa tồn tại lúc gửi: *Ngày TBP ký* · *Khối chữ ký số* (B3),
+> *Kế toán* · *Ngày KT nhận lần 1* (B4), *Sale Admin* (B6), *Ngày KT nhận lần 2* · *Ngày hiệu lực*
+> (B10). Đọc yêu cầu theo nghĩa đen — *"đủ tất cả các trường trong bảng hướng dẫn ánh xạ"* — thì
+> không hồ sơ nào gửi duyệt được. Bảy trường ấy **vẫn ở lại** danh mục ánh xạ: chúng là khối phê
+> duyệt của tờ CSBH, và gỡ đi thì bản đã duyệt in ra không còn chỗ nào nói ai duyệt và duyệt lúc nào.
+
+**Màn hình soạn mẫu nói rõ mục nào bắt buộc** `mới 24/08` — bảng hướng dẫn ánh xạ gắn dấu *bắt buộc*
+vào đúng những mục muc 11.1 đòi, và chỉ ở thẻ **mẫu hồ sơ**; mẫu hợp đồng không có mục nào bắt buộc.
+Khi lưu bị chặn, thông báo **kể tên từng mục còn thiếu** thay vì chỉ nói *"còn thiếu mục bắt buộc"*.
+
 **Bỏ bản lưu ký số** `mới 24/08` — phần mềm KHÔNG còn sinh và giữ một file PDF riêng cho lượt ký của
 Trưởng bộ phận. Đường `POST /policies/:id/sign-file` gỡ hẳn, cùng hai mục đích file `BAN_CSBH` và
 `BAN_DA_KY`. Bước **ký trong luồng duyệt không đổi**: TBP vẫn ký, `tbp_signed_at` vẫn là mốc thật,
