@@ -9483,3 +9483,45 @@ sơ*, và hồ sơ chưa có mẫu thì ném lỗi có tên chứ không đoán 
 không phải chú thích thiếu, mà là chú thích từng đúng.
 
 **1634/1634 xanh.**
+
+### Chốt `24/08` — món nợ backfill `0098` ĐÓNG LẠI
+
+Người dùng trả lời câu hỏi treo từ P126: **chưa có bản cài nào giữ dữ liệu thật trước `0098`.**
+
+Vậy là món nợ ghi ở bảng cuối P126 (*"`0098` không backfill — lên thật trên CSDL đã có dữ liệu thì
+mọi hồ sơ cũ mất bản mềm"*) **không còn đối tượng**, và tôi gỡ nó khỏi danh sách. Không viết
+`gan-mau-ho-so-cu.ts` nữa.
+
+Lý do nó đóng hẳn chứ không phải hoãn: từ nay mọi lần cài đều áp **toàn bộ** migration lên một CSDL
+trắng, nên `0098` không bao giờ rơi xuống dữ liệu có sẵn. Nó chỉ sống lại ở đúng một kịch bản —
+**có người phục hồi một bản dump cũ hơn `0098` rồi chạy migrate lên đó**.
+
+Kịch bản ấy nhận ra bằng một câu, không cần nhớ lịch sử triển khai:
+
+```sql
+SELECT count(*) FROM pol.policy
+ WHERE mau_ho_so_id IS NULL AND status NOT IN ('NHAP','YEU_CAU_CHINH_SUA');
+```
+
+`0` là sạch. Lớn hơn `0` chính là số hồ sơ đã mất bản mềm, và lượt chữa là gán cho chúng một mẫu
+`HO_SO` còn dùng được — **không mất mát gì**, vì trước `0098` bản mềm chưa bao giờ được ghim: mỗi
+người xem tự chọn mẫu ở mỗi lượt mở, nên không có sự thật lịch sử nào bị đè lên.
+
+Báo `column mau_ho_so_id does not exist` thì `0098` chưa chạy ở đó — còn kịp, chữa ngay sau migration.
+
+### Và câu chẩn đoán ấy suýt nói dối
+
+Chạy thử nó ngay trên CSDL test sau lượt `make test` của P127: **trả về 3**.
+
+Cả ba do chính ca kiểm `0100` để lại — nó vặn `mau_ho_so_id` về `NULL` để dựng ra đúng loại dòng ấy,
+rồi bỏ nguyên đó. Mỗi lượt `make test` cộng thêm một, **trên chính CSDL mà người ta sẽ chạy câu chẩn
+đoán để thử**.
+
+Sửa ở `finally`: đọc cột trước, trả về sau. Cùng luật đã đặt ở `0067` cho ca ban hành mẫu — ca nào
+bày ra một trạng thái TOÀN CỤC thì phải tự dọn.
+
+Đáng ghi vì nó là một lớp lỗi chứ không phải một lần sơ ý: **công cụ chẩn đoán và bộ test dùng chung
+một CSDL, nên một ca kiểm bẩn làm hỏng thước đo chứ không chỉ làm bẩn dữ liệu.** Ba món cùng loại đã
+gặp — mẫu đã vô hiệu tích luỹ, mẫu ban hành không gỡ xuống, và lần này.
+
+**1634/1634 xanh.**
