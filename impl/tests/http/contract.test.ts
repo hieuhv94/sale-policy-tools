@@ -2100,16 +2100,42 @@ describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
      * canh câu chữ của nó ngoài ca kiểm này.
      */
     const d = await toReceivedL1();
-    await withAdminDb(async (c) => {
+    const cu = await withAdminDb(async (c) => {
+      // Đọc TRƯỚC rồi mới xoá — không lồng sub-select vào `RETURNING`: ở đó nó
+      // đọc theo ảnh chụp của chính câu lệnh, một luật dễ nhớ sai.
+      const r = await c.query<{ mau_ho_so_id: string | null }>(
+        `SELECT mau_ho_so_id FROM pol.policy WHERE id = $1`,
+        [d.id],
+      );
       await c.query(`UPDATE pol.policy SET mau_ho_so_id = NULL WHERE id = $1`, [d.id]);
+      return r.rows[0]?.mau_ho_so_id ?? null;
     });
 
-    const r = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['bld01']}`);
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('POLICY_TEMPLATE_NOT_SET');
-    expect(r.body.message).toContain('trước khi phần mềm');
+    try {
+      const r = await (await http(doc))
+        .get(`/policies/${d.id}/render`)
+        .set('Authorization', `Bearer ${tok['bld01']}`);
+      expect(r.status).toBe(409);
+      expect(r.body.code).toBe('POLICY_TEMPLATE_NOT_SET');
+      expect(r.body.message).toContain('trước khi phần mềm');
+    } finally {
+      /*
+       * TRẢ CỘT VỀ CHỖ CŨ, và không phải chỉ cho gọn.
+       *
+       * Câu chẩn đoán bàn giao cho người vận hành — *"đếm hồ sơ ngoài `SUA_DUOC`
+       * mà cột mẫu rỗng"* — là cách duy nhất biết một CSDL có cần lượt gán mẫu
+       * cho dữ liệu cũ hay không. Ca này cố ý dựng ra đúng loại dòng ấy, nên bỏ
+       * lại là mỗi lượt `make test` cộng thêm một vào con số đó, trên chính CSDL
+       * mà người ta sẽ chạy câu chẩn đoán để thử. Đo được: sau ba lượt chạy, câu
+       * ấy trả về 3 — cả ba đều do đây.
+       *
+       * Cùng luật đã đặt ở `0067` cho ca ban hành mẫu: ca nào bày ra một trạng
+       * thái TOÀN CỤC thì `finally` phải dọn nó.
+       */
+      await withAdminDb(async (c) => {
+        await c.query(`UPDATE pol.policy SET mau_ho_so_id = $2 WHERE id = $1`, [d.id, cu]);
+      });
+    }
   }, 90_000);
 
   it('`0100` chính TDV mở hồ sơ Nháp CỦA MÌNH vẫn nhận câu bảo chọn mẫu', async () => {
