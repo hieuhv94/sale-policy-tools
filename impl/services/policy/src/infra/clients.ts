@@ -23,6 +23,18 @@ export type CustomerInfo = {
    * chỗ dựng `CustomerInfo` trong test phải bịa ra một con số vô nghĩa.
    */
   debt?: string;
+  /**
+   * Bảy trường còn lại của khối "Khách hàng TRONG hồ sơ" (`0101`).
+   *
+   * `customer` vẫn trả đủ chúng từ đầu — `document` đọc chính chúng để dựng bản
+   * mềm. Khai ở đây vì từ `0101` `policy` cũng cần: nó CHỤP LẠI chúng vào hồ sơ
+   * lúc gửi duyệt. Tuỳ chọn cùng lý do với `debt` ở ngay trên.
+   */
+  idNumber?: string | null;
+  registeredAddress?: string | null;
+  deliveryAddress?: string | null;
+  ownerName?: string | null;
+  ownerTitle?: string | null;
 };
 
 export type ProductSnapshot = {

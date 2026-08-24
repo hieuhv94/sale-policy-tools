@@ -58,6 +58,17 @@ export type PolicyFull = {
    * phân biệt bằng trạng thái — xem `RenderService.mauCua`.
    */
   mau_ho_so_id: string | null;
+  /** Ảnh chụp khách hàng và hai cái tên, ghi lúc gửi duyệt / ký (`0101`). */
+  kh_ma_snap: string | null;
+  kh_ten_snap: string | null;
+  kh_ma_so_thue_snap: string | null;
+  kh_dia_chi_dang_ky_snap: string | null;
+  kh_noi_nhan_hang_snap: string | null;
+  kh_nguoi_dai_dien_snap: string | null;
+  kh_chuc_danh_dai_dien_snap: string | null;
+  kh_cong_no_snap: string | null;
+  nguoi_de_nghi_snap: string | null;
+  tbp_ky_ten_snap: string | null;
   lines: PolicyLine[];
   attachments: { id: string; kind: string; file_name: string; object_key: string }[];
 };

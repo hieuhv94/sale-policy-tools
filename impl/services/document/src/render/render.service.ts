@@ -13,7 +13,7 @@
 import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { SUA_DUOC } from '@csbh/domain-policy';
-import { Clients } from '../infra/clients.js';
+import { Clients, type CustomerFull, type PolicyFull } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { Storage } from '../infra/storage.js';
 import { FilesService, type FileRow } from '../files/files.service.js';
@@ -24,6 +24,76 @@ import { tron } from '../contracts/tron.js';
 import { sheetHtml, type Signature } from './sheet.js';
 
 export type Size = 'a4p' | 'a4l';
+
+/**
+ * KHÁCH HÀNG NÀO DỰNG VĂN BẢN NÀY — toàn bộ luật của `0101`, ở đúng một chỗ.
+ *
+ * Hai nhánh, và cái quyết định là ẢNH CHỤP CÓ MẶT HAY KHÔNG, không phải trạng
+ * thái hồ sơ:
+ *
+ *   1. Có ảnh chụp → dùng nó. Hồ sơ đã gửi duyệt.
+ *   2. Không có   → đọc sống. Hồ sơ còn *Nháp* (chưa ai chụp), hoặc lập trước
+ *      `0101`. Hai chuyện khác nhau nhưng cùng một cách xử: bày ra dữ liệu
+ *      đang có, vì không có gì khác để bày.
+ *
+ * Xét theo ẢNH CHỤP chứ không theo trạng thái vì một lý do rất cụ thể: hồ sơ
+ * *Yêu cầu chỉnh sửa* thì đã gửi duyệt một lần rồi, nên xét trạng thái sẽ bắt
+ * nó dùng ảnh chụp CŨ — trong khi TDV đang sửa chính thông tin ấy và cần thấy
+ * số mới. Đây đúng là cái bẫy đã cắn ở `0098` (xem `mauCua`, nhánh 1 phải đứng
+ * trước), và lần này nó tự tránh: ảnh chụp có mặt thì nó là ảnh của lần gửi
+ * gần nhất, còn lượt gửi lại ghi đè nó ngay trong câu lệnh đổi trạng thái.
+ *
+ * LẤY CẢ CỤM hoặc không lấy gì — không trộn từng trường. Một văn bản nửa số cũ
+ * nửa số mới không mô tả bất kỳ thời điểm nào có thật.
+ */
+export const khachHangCua = (
+  p: Pick<
+    PolicyFull,
+    | 'kh_ma_snap'
+    | 'kh_ten_snap'
+    | 'kh_ma_so_thue_snap'
+    | 'kh_dia_chi_dang_ky_snap'
+    | 'kh_noi_nhan_hang_snap'
+    | 'kh_nguoi_dai_dien_snap'
+    | 'kh_chuc_danh_dai_dien_snap'
+    | 'kh_cong_no_snap'
+  >,
+  song: CustomerFull,
+): CustomerFull =>
+  p.kh_ten_snap === null
+    ? song
+    : {
+        ...song,
+        code: p.kh_ma_snap ?? song.code,
+        name: p.kh_ten_snap,
+        idNumber: p.kh_ma_so_thue_snap,
+        registeredAddress: p.kh_dia_chi_dang_ky_snap ?? song.registeredAddress,
+        deliveryAddress: p.kh_noi_nhan_hang_snap,
+        ownerName: p.kh_nguoi_dai_dien_snap ?? song.ownerName,
+        ownerTitle: p.kh_chuc_danh_dai_dien_snap,
+        debt: p.kh_cong_no_snap ?? song.debt,
+      };
+
+/**
+ * HAI cái tên đóng băng, hai cái đọc sống (`0101`).
+ *
+ * `TDV` là người ĐỀ NGHỊ — một việc đã xảy ra, nên bàn giao về sau không đổi nó.
+ * `TBP` là người ĐÃ KÝ, và tên chụp lúc ký; hồ sơ bị trả về thì cột ấy bị xoá
+ * cùng `tbp_signed_at`, nên ở đây nó tự quay lại đọc sống mà không cần điều
+ * kiện riêng.
+ *
+ * `KE_TOAN` và `SALE_ADMIN` KHÔNG đóng băng, có chủ ý: câu chúng trả lời là "ai
+ * đang giữ hồ sơ", và sau một lượt bàn giao thì câu trả lời đúng là người kế
+ * nhiệm. Xem đầu tệp `0101_dong_bang_khach_hang_va_nguoi.sql`.
+ */
+export const nguoiCua = (
+  p: Pick<PolicyFull, 'nguoi_de_nghi_snap' | 'tbp_ky_ten_snap'>,
+  song: Record<string, string>,
+): Record<string, string> => ({
+  ...song,
+  ...(p.nguoi_de_nghi_snap ? { TDV: p.nguoi_de_nghi_snap } : {}),
+  ...(p.tbp_ky_ten_snap ? { TBP: p.tbp_ky_ten_snap } : {}),
+});
 
 @Injectable()
 export class RenderService {
@@ -46,7 +116,13 @@ export class RenderService {
         saleAdmin: policy.sale_admin_user_id,
       }),
     ]);
-    return { policy, customer, people };
+    // Đổi chỗ NGAY Ở ĐÂY, không ở `sources.ts`: cả hai đường dựng văn bản
+    // (`pdf` và `sign`) đi qua `collect`, nên đây là chỗ duy nhất phải đúng.
+    return {
+      policy,
+      customer: khachHangCua(policy, customer),
+      people: nguoiCua(policy, people),
+    };
   }
 
   async pdf(

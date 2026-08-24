@@ -365,6 +365,27 @@ kể cả bước ký số của Trưởng bộ phận. File đã ký của phi�
 7. **Văn bản mẫu của bản mềm cũng đóng băng lúc gửi duyệt** `mới 23/08`, cùng lằn ranh với giá và
    ngưỡng. Xem mục 6.4.
 
+8. **Thông tin khách hàng và hai cái tên cũng đóng băng lúc gửi duyệt** `mới 24/08`, vẫn cùng lằn
+   ranh ấy. Tám trường của khách hàng in trên bản CSBH — mã, tên, mã số thuế, địa chỉ đăng ký, nơi
+   nhận hàng, người đại diện, chức danh, **công nợ** — chụp lại vào hồ sơ, cùng với **họ tên người
+   đề nghị**. Họ tên **Trưởng bộ phận đã ký** chụp lúc ký. Từ đó, sửa hồ sơ khách hàng hay đổi họ
+   tên tài khoản **không làm đổi nội dung một hồ sơ đã gửi duyệt**.
+
+   > **Vì sao cần.** Trước đó những trường ấy đọc trực tiếp từ hồ sơ khách hàng ở mỗi lần mở, nên
+   > sửa công nợ hôm nay là đổi con số trên bản CSBH đã ký từ tuần trước — lặng lẽ, và không ai
+   > đối chiếu lại được. Giá và ngưỡng vốn đã đóng băng từ đầu; đây là nốt phần còn lại của cùng
+   > một tờ giấy.
+
+   **Hồ sơ bị trả lại thì mở ra sửa được.** Ảnh chụp làm mới ở **mỗi lượt gửi duyệt**, kể cả lượt
+   gửi lại — nên trả lại vì *sai thông tin khách hàng* là một việc chữa được: TDV sửa hồ sơ khách
+   hàng rồi gửi lại, bản CSBH mang số mới. Cùng lúc ấy **chữ ký của Trưởng bộ phận bị huỷ** và hồ
+   sơ phải ký lại từ đầu, đúng như quy trình đã quy định.
+
+   **Hai trường KHÔNG đóng băng, có chủ ý**: họ tên *Kế toán* và *Sale Admin* vẫn đọc theo người
+   đang phụ trách, vì câu chúng trả lời là *"ai đang giữ hồ sơ"*. *Loại khách hàng* và nhãn *đã
+   ngừng hợp tác* cũng đọc theo hiện tại — nhãn ấy là tin của hôm nay, và nó có mặt để người mở một
+   hồ sơ cũ nhìn thấy.
+
 **Sửa một dòng sản phẩm** `mới 15/08` — khi hồ sơ còn ở trạng thái sửa được, người lập đổi được
 **giá bán buôn** và **các khoản chi phí** của một dòng đã có, không phải xoá rồi thêm lại.
 
@@ -1339,6 +1360,23 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > viễn bản mềm của những hồ sơ ấy, mà chúng đã khoá sửa từ lúc gửi duyệt — không ai chữa được, và
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
+
+**Thông tin khách hàng đóng băng vào hồ sơ, và chữ ký huỷ khi trả lại** `mới 24/08` — tám trường
+khách hàng in trên bản CSBH (kể cả **công nợ**) cùng **họ tên người đề nghị** chụp lại vào hồ sơ lúc
+gửi duyệt; **họ tên Trưởng bộ phận đã ký** chụp lúc ký. Sửa hồ sơ khách hàng hay đổi họ tên tài
+khoản từ nay không làm đổi nội dung một hồ sơ đã gửi duyệt. Ảnh chụp **làm mới ở mỗi lượt gửi**, nên
+hồ sơ bị trả lại vì sai thông tin khách hàng vẫn chữa được: sửa rồi gửi lại là có số mới. Chi tiết ở
+mục 5, ý 8.
+
+> **Đo được trước khi sửa.** Trên bản chạy thật: 317 hồ sơ đã qua bước Trưởng bộ phận ký, và tám
+> trường khách hàng của cả 317 hồ sơ ấy đọc sống từ hồ sơ khách hàng ở **mỗi** lần mở. Đổi một dòng
+> địa chỉ là đổi nội dung của hàng chục tờ giấy đã ký, không cảnh báo, không dấu vết.
+>
+> **Và nó lộ ra một lỗ hổng khác của quy trình.** Quy trình đã quy định hồ sơ bị trả về phải đi lại
+> **toàn bộ** vòng duyệt *kể cả bước ký số*. Nhưng dấu ký của Trưởng bộ phận chưa bao giờ được xoá,
+> nên hồ sơ bị Kế toán trả về **sau khi đã ký** thì gửi lại xong **không ký lại được** — nó nằm lại
+> ở *Chờ TBP duyệt*, quá hạn sau 14 ngày rồi tự xoá sau 3 ngày nữa. Từ `24/08`, quay về *Yêu cầu
+> chỉnh sửa* là chữ ký mất hiệu lực và hồ sơ ký lại được bình thường.
 
 **Chỉ TDV phụ trách sửa được nội dung hồ sơ** `nói rõ 23/08` — **không phải một quyết định mới**, mà
 là một luật cũ được viết ra sau khi phần mềm bị bắt gặp làm khác. Đợt rà tìm thấy và dựng lại được

@@ -606,8 +606,8 @@ Bấm **Gửi duyệt** thì hộp thoại mở ra bốn phần, theo đúng th�
    đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"* ra hai tờ giấy khác hẳn nhau. **Mẫu này gắn với
    hồ sơ**: người duyệt xem đúng bản bạn chọn ở đây và không đổi được.
 2. **Bản CSBH A4** hiện ngay dưới ô chọn, dựng bằng **chính mẫu vừa chọn** — đổi mẫu thì nó dựng
-   lại. Đọc lại đi: đây là **lần cuối nội dung còn sửa được**. Sau bước này giá, ngưỡng và mẫu đóng
-   băng, và mọi chỉnh sửa đều phải đi một vòng trả lại.
+   lại. Đọc lại đi: đây là **lần cuối nội dung còn sửa được**. Sau bước này giá, ngưỡng, mẫu **và
+   thông tin khách hàng** đóng băng, và mọi chỉnh sửa đều phải đi một vòng trả lại.
 3. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
    của họ; Trưởng bộ phận khác không thấy, và cũng không mở được.
 4. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
@@ -617,6 +617,13 @@ khoản vai trò đó nào đang hoạt động — màn hình nói thẳng đi�
 
 Hồ sơ bị trả lại rồi gửi lại thì **chọn lại từ đầu** — cả người lẫn văn bản mẫu: bạn có quyền gửi
 cho một Trưởng bộ phận khác, và đổi luôn bố cục bản mềm nếu bảng sản phẩm đã khác đi.
+
+> **Bị trả lại vì sai thông tin khách hàng thì sửa được** `mới 24/08`. Tên, địa chỉ, công nợ… in
+> trên bản CSBH được chụp lại ở **mỗi lượt gửi duyệt**. Nên cách chữa là: mở màn hình khách hàng,
+> sửa cho đúng, quay lại hồ sơ và **gửi lại** — bản CSBH mang số mới. Không phải lập hồ sơ khác.
+>
+> Gửi lại cũng **huỷ chữ ký số** của Trưởng bộ phận: hồ sơ đi lại toàn bộ vòng duyệt và phải được
+> ký lại, đúng như quy trình. Dấu ký cũ vẫn nằm trong *Lịch sử hồ sơ*.
 
 > **Chọn xong là không đổi được.** Hệ thống **không có** chức năng giao lại một hồ sơ cho người
 > khác. Chọn nhầm người thì hồ sơ nằm ở hộp việc của người đó và không ai gỡ ra được — người lập
@@ -733,13 +740,23 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 | Ngày soạn thảo | Lúc bản nháp ra đời |
 | Ngày áp dụng | Ngày người lập khai, và là ngày dùng để tra giá với ngưỡng |
 | Có hiệu lực | Chỉ hiện khi CSBH **đã** có hiệu lực |
-| Người đề nghị | TDV đã **lập** hồ sơ — không đổi khi khách hàng được bàn giao cho TDV khác |
+| Người đề nghị | TDV đã **gửi** hồ sơ đi duyệt — không đổi khi khách hàng được bàn giao cho TDV khác |
 
 | Thẻ **Khách hàng** | Nghĩa |
 |---|---|
 | Mã | Bấm vào mở màn hình khách hàng đó |
 | Tên · Loại · Công nợ | Ba thứ quyết định ngưỡng chiết khấu và điều khoản thanh toán |
 | Trạng thái | **Chỉ hiện khi khách đã ngừng hợp tác** — hồ sơ cũ của họ vẫn mở được |
+
+> **Tên và công nợ ở thẻ này là số LÚC GỬI DUYỆT, không phải số hôm nay** `sửa 24/08`. Hồ sơ đã gửi
+> duyệt thì thông tin khách hàng in trên bản CSBH được **giữ nguyên** — sửa hồ sơ khách hàng về sau
+> không làm đổi một tờ giấy đã đưa đi ký. Thẻ này hiện đúng con số ấy để **màn hình và bản mềm luôn
+> nói cùng một điều**.
+>
+> Muốn xem công nợ **hiện tại** thì bấm vào **Mã** để sang màn hình khách hàng.
+>
+> Hồ sơ còn *Nháp* thì chưa có gì được giữ, nên thẻ hiện số hiện tại — đúng quãng người lập còn
+> đang cân nhắc. *Loại khách hàng* và nhãn *đã ngừng hợp tác* luôn là tin của hôm nay.
 
 Ba mốc ngày tháng nằm ở ba ô riêng chứ không nối nhau trên một dòng: *ngày soạn thảo* và *ngày áp
 dụng* cách nhau hàng tuần ở hồ sơ soạn dần, và đọc nhầm mốc nào cũng ra một ngày trông hợp lý.

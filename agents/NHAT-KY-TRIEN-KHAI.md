@@ -9525,3 +9525,110 @@ một CSDL, nên một ca kiểm bẩn làm hỏng thước đo chứ không ch�
 gặp — mẫu đã vô hiệu tích luỹ, mẫu ban hành không gỡ xuống, và lần này.
 
 **1634/1634 xanh.**
+
+## P128 — Đóng băng khách hàng và hai cái tên, và một lỗ hổng `P0` lộ ra trên đường
+
+Khách hàng chốt phương án **A+B** sau khi đọc bảng ba mức ở P127: đóng băng thông tin khách hàng,
+cộng hai cái tên — *người đề nghị* và *Trưởng bộ phận đã ký*. Kèm một điều kiện, và điều kiện ấy hoá
+ra là phần khó nhất: **dữ liệu đóng băng vẫn phải sửa được khi hồ sơ bị trả lại**, kể cả trả lại từ
+các bước sau khi TBP đã ký.
+
+### Vì sao chỉ hai tên, không phải bốn
+
+`sources.ts` phơi ra bốn trường người, và bản đề xuất đầu của tôi nói "thêm bốn tên người" — con số
+lấy từ số trường có sẵn chứ không từ việc cân xem trường nào **cần**. Người dùng hỏi lại đúng chỗ
+ấy. Cân lại thì rơi ba:
+
+- **`sale_admin`** — `sale_admin_user_id` ghi ở `KT_RECEIVE_L1`, tức là **sau** khi TBP ký. Lúc gửi
+  duyệt cột ấy còn rỗng, đóng băng nó là đóng băng một chuỗi rỗng. Nó thuộc cùng nhóm với
+  `ngay_kt_nhan_l2`: nội dung **đến sau** chữ ký — mà bản mềm vốn được đặc tả là còn phải kể tiếp,
+  vì `ho_so.trang_thai` và `ho_so.ngay_kt_nhan_l2` đều nằm trong `NGUON_BAT_BUOC_HO_SO`.
+- **`ke_toan`** — câu nó trả lời là *"ai đang giữ hồ sơ"*. Bàn giao đổi `ke_toan_user_id` sang người
+  kế nhiệm để người ấy nhận được thư; in tên một tài khoản đã vô hiệu hoá là chỉ vào chỗ không ai
+  ngồi.
+- **`nguoi_de_nghi`** thì NGƯỢC LẠI — *"ai đã đề nghị"* là việc đã xảy ra.
+
+Hệ quả trái trực giác, phải nói ra: sau một lượt bàn giao, **màn hình chỉ TDV kế nhiệm còn tờ giấy
+vẫn ghi người đề nghị ban đầu**. Hai chỗ nói hai điều vì chúng trả lời hai câu khác nhau. Luật `0035`
+(*"người phụ trách HIỆN TẠI, không phải người đã lập"*) vẫn nguyên: nó nói về quyền thao tác, không
+nói về nội dung văn bản.
+
+### Vạch đóng băng là GỬI DUYỆT, và đó là cái làm yêu cầu thứ hai thành dễ
+
+Đặt vạch ở *ký số* thì "sửa được khi bị trả lại" phải xử riêng. Đặt ở *gửi duyệt* — cùng vạch với
+giá, ngưỡng (`0022`) và mẫu (`0098`) — thì nó **tự đúng**: `RESUBMIT_AFTER_EDIT` ghi đè ảnh chụp
+trong chính câu lệnh đổi trạng thái, y như `mau_ho_so_id`. TDV sửa hồ sơ khách hàng rồi gửi lại là
+có số mới, không cần một đường nào khác.
+
+Ngoại lệ đúng một cột: `tbp_ky_ten_snap` chụp lúc KÝ, vì nó mô tả chính sự kiện ấy.
+
+Không thêm một vòng mạng nào: `clients.customer()` đã được gọi cho **mọi** hành động từ trước
+transaction (nó dựng `ctx` cho các sự kiện), và tên người lấy từ `AuthUser.name` — ảnh chụp danh
+tính mà `0090` dựng cho nhật ký. `SUBMIT` do chính TDV bấm, `TBP_SIGN` do chính TBP bấm, nên tên ghi
+xuống là tên của người vừa làm việc ấy, không phải một lượt tra theo id.
+
+### Lỗ hổng `P0` lộ ra: hồ sơ bị trả lại sau khi ký thì CHẾT
+
+Yêu cầu "trả lại thì sửa được" buộc tôi xoá `tbp_ky_ten_snap` lúc hồ sơ quay về *Yêu cầu chỉnh sửa*.
+Xoá cái tên mà để `tbp_signed_at` ở lại là dựng ra một hồ sơ "đã ký bởi không ai" — nên ba cột phải
+đi cùng nhau. Và lúc kiểm xem `tbp_signed_at` hiện đang bị xoá ở đâu, câu trả lời là: **không ở đâu
+cả**.
+
+Hệ quả, đo được:
+
+```
+SUBMIT → TBP_SIGN → KT_RETURN_L1 → RESUBMIT_AFTER_EDIT → TBP_SIGN
+                                                          409 ALREADY_SIGNED
+```
+
+Hồ sơ nằm lại ở *Chờ TBP duyệt* **vĩnh viễn**, rồi SLA cho nó quá hạn sau 14 ngày và xoá sau 3 ngày
+nữa. WF-20 (`P0`) đòi *"đi lại toàn bộ vòng duyệt, kể cả bước ký số của TBP"* — vế sau chưa bao giờ
+chạy được.
+
+**Ca kiểm WF-20 dừng đúng một bước trước chỗ ấy.** Nó chứng minh không nhảy cóc sang Kế toán được,
+rồi kết thúc. Chứng minh *chặn được* mà không chứng minh *đi tiếp được* — cùng lớp thiếu sót với ca
+`0098` chỉ kiểm đường API mà không kiểm đường giao diện đi qua.
+
+Xoá theo **trạng thái đích** (`step.next === 'YEU_CAU_CHINH_SUA'`) chứ không liệt kê ba hành động
+trả về: thêm một nhánh trả về thứ tư về sau mà quên sửa danh sách thì chữ ký cũ sống sót lặng lẽ.
+
+### Màn hình phải đọc cùng nguồn với tờ giấy
+
+Đóng băng phía văn bản mà để `GET /policies/:id` đọc sống là dựng ra đúng cái mà nếp làm việc cấm:
+Kế toán nhìn màn hình thấy công nợ 8.888.888, mở bản mềm thấy 5.555.555, và không có gì nói cho họ
+biết cái nào đúng. Nên thẻ *Khách hàng* trên màn hình hồ sơ cũng đọc ảnh chụp.
+
+Đây không phải cái mới — **dòng sản phẩm đã thế từ `0022`**: màn hình hiện giá đã đóng băng chứ
+không phải giá danh mục hôm nay, còn chuyện danh mục đã trôi thì khối *Yêu cầu cập nhật* nói riêng.
+`0101` chỉ đưa khối khách hàng về cùng nếp ấy. Muốn xem công nợ hiện tại thì bấm sang trang khách
+hàng — liên kết nằm sẵn ở ô *Mã*.
+
+Hai trường **không** đóng băng ở thẻ ấy: *loại khách* (ngưỡng đã chụp vào từng dòng rồi) và nhãn
+*đã ngừng hợp tác* — nhãn ấy là tin của HÔM NAY, và nó có mặt đúng để người mở một hồ sơ cũ nhìn
+thấy.
+
+Đi kèm, một chỗ lệch có từ `0061` được dọn: màn hình đọc *người đề nghị* từ `created_by` trong khi
+chú thích ngay trên nó viết *"chữ ký đề nghị thuộc về người đã GỬI nó"*. Hai câu khác nhau, và chúng
+lệch thật ở một ca: hồ sơ còn Nháp mà sang tay thì người gửi không phải người lập. Giờ cả màn hình
+lẫn văn bản đọc `nguoi_de_nghi_snap`, và `created_by` chỉ còn là bản lùi cho hồ sơ cũ.
+
+### Tám cột rời, không phải một jsonb
+
+Cùng nếp với `pol.policy_line`. Nhưng lý do thật nằm chỗ khác: thêm một trường khách hàng vào bản
+mềm về sau thì với cột rời, người sửa **buộc phải viết một migration** — tức là buộc phải trả lời
+*"trường này đóng băng hay đọc sống?"*. Với một jsonb thì trường mới lặng lẽ rơi vào nhánh đọc sống
+và không có gì trên đường đi hỏi câu ấy. Đó đúng là cách `0098` để lọt một nửa văn bản.
+
+### Phá lại: ba lượt, ba tầng
+
+| Phá | Đỏ |
+|---|---|
+| Gỡ nhánh xoá chữ ký lúc trả về | WF-20 (`policy`) · *"ba cột chữ ký bị XOÁ"* · *"gửi lại thì KÝ LẠI ĐƯỢC"* |
+| Gỡ vế GHI ảnh chụp (`khSql`) | 4 ca: chụp lúc gửi · sửa khách không đổi văn bản · gửi lại làm mới · bàn giao không đổi người đề nghị |
+| Gỡ vế ĐỌC (`khachHangCua`/`nguoiCua`) | 3 ca dựng văn bản: khách hàng · tên TBP · tên người đề nghị |
+
+Lượt thứ hai và thứ ba đỏ ở hai tập ca **khác nhau**, và đó là điều đáng giữ: vế ghi hỏng thì cột
+rỗng, vế đọc hỏng thì cột đúng mà tờ giấy vẫn sai. Một bộ ca chỉ kiểm đầu ra sẽ không phân biệt được
+hai chuyện ấy.
+
+**1645/1645 xanh.**

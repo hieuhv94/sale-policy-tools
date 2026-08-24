@@ -52,7 +52,15 @@ export class PolicyInternalController {
               sla_due_at, sla_started_at, reprint_requested_at,
               -- 0098: mẫu đã đóng băng lúc gửi duyệt. document dựng bản mềm
               -- bằng đúng cột này chứ không hỏi người xem nữa.
-              mau_ho_so_id
+              mau_ho_so_id,
+              -- 0101: khách hàng và hai cái tên, đóng băng lúc gửi duyệt.
+              -- Rỗng nghĩa là chưa gửi duyệt hoặc lập trước 0101 — khi ấy
+              -- document đọc sống, xem khachHangCua.
+              kh_ma_snap, kh_ten_snap, kh_ma_so_thue_snap, kh_dia_chi_dang_ky_snap,
+              kh_noi_nhan_hang_snap, kh_nguoi_dai_dien_snap, kh_chuc_danh_dai_dien_snap,
+              -- bigint qua JSON mất chữ số, nên trả về dạng CHUOI (0061).
+              kh_cong_no_snap::text AS kh_cong_no_snap,
+              nguoi_de_nghi_snap, tbp_ky_ten_snap
          FROM pol.policy WHERE id = $1`,
       [id],
     );

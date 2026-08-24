@@ -444,10 +444,68 @@ export class WorkflowService {
         mauSql = `mau_ho_so_id = $${params.length},`;
       }
 
+      /*
+       * ĐÓNG BĂNG KHÁCH HÀNG VÀ NGƯỜI ĐỀ NGHỊ (`0101`) — cùng vạch với mẫu.
+       *
+       * `cus` đã nằm sẵn trong tay từ trước transaction (nó dựng `ctx` cho các
+       * sự kiện), nên chỗ này KHÔNG thêm một vòng mạng nào. Tên người lấy từ
+       * `me.name` — ảnh chụp danh tính của `0090`: `SUBMIT` do chính TDV bấm nên
+       * đó là tên người đề nghị, không cần hỏi identity.
+       *
+       * `me.name` vắng mặt được (ảnh chụp trong Redis hết hạn giữa chừng). Khi
+       * ấy ghi NULL, và bản mềm rơi về đọc sống — cùng nhánh với hồ sơ lập trước
+       * `0101`. Thà một trường đọc sống còn hơn một cái tên bịa.
+       */
+      let khSql = '';
+      if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
+        params.push(
+          cus.code,
+          cus.name,
+          cus.idNumber ?? null,
+          cus.registeredAddress ?? null,
+          cus.deliveryAddress ?? null,
+          cus.ownerName ?? null,
+          cus.ownerTitle ?? null,
+          cus.debt ?? null,
+          me.name ?? null,
+        );
+        const i = params.length - 8;
+        khSql =
+          `kh_ma_snap = $${i}, kh_ten_snap = $${i + 1}, kh_ma_so_thue_snap = $${i + 2}, ` +
+          `kh_dia_chi_dang_ky_snap = $${i + 3}, kh_noi_nhan_hang_snap = $${i + 4}, ` +
+          `kh_nguoi_dai_dien_snap = $${i + 5}, kh_chuc_danh_dai_dien_snap = $${i + 6}, ` +
+          `kh_cong_no_snap = $${i + 7}::bigint, nguoi_de_nghi_snap = $${i + 8},`;
+      }
+
+      /*
+       * CHỮ KÝ: ghi lúc ký, XOÁ khi hồ sơ quay về *Yêu cầu chỉnh sửa* (`0101`).
+       *
+       * Ba cột `tbp_signed_at` / `tbp_signed_by` / `tbp_ky_ten_snap` nói CÙNG
+       * MỘT sự thật — *"có chữ ký nào đang có hiệu lực trên hồ sơ này không"* —
+       * nên chúng phải đi cùng nhau. Để `tbp_signed_at` ở lại mà xoá cái tên là
+       * dựng ra một hồ sơ "đã ký bởi không ai".
+       *
+       * Xoá theo TRẠNG THÁI ĐÍCH chứ không liệt kê ba hành động trả về: thêm một
+       * nhánh trả về thứ tư về sau mà quên sửa danh sách thì chữ ký cũ sống sót
+       * lặng lẽ, và không có gì trên màn hình nói ra.
+       *
+       * Đây cũng là bản vá cho một lỗ hổng `P0` mở từ P5 — xem đầu tệp
+       * `0101_dong_bang_khach_hang_va_nguoi.sql`: `tbp_signed_at` không bao giờ
+       * được xoá, nên hồ sơ bị Kế toán trả về sau khi đã ký thì gửi lại xong
+       * KHÔNG ký lại được (`ALREADY_SIGNED`), và nằm chết ở *Chờ TBP duyệt*.
+       */
+      let kySql = '';
+      if (action === 'TBP_SIGN') {
+        params.push(me.name ?? null);
+        kySql = `tbp_ky_ten_snap = $${params.length},`;
+      } else if (step.next === 'YEU_CAU_CHINH_SUA') {
+        kySql = 'tbp_signed_at = NULL, tbp_signed_by = NULL, tbp_ky_ten_snap = NULL,';
+      }
+
       const upd = await c.query<{ id: string }>(
         `UPDATE pol.policy SET
             status = $2::pol.policy_status,
-            ${stampSql}${reprintSql}${mauSql}
+            ${stampSql}${reprintSql}${mauSql}${khSql}${kySql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
             sla_due_at = CASE WHEN $${slaIdx}

@@ -986,17 +986,55 @@ export class PoliciesService {
        * hồ sơ cũ đổi luôn tên người đề nghị là viết lại lịch sử — chữ ký đề nghị
        * trên một văn bản đã gửi đi thuộc về người đã gửi nó.
        */
-      nguoiDeNghi: { ten: tenDuyet[p.createdBy] ?? null },
-      khachHang:
-        khach === null
-          ? null
-          : {
-              ma: khach.code,
-              ten: khach.name,
-              loai: khach.customerType,
-              congNo: khach.debt ?? null,
-              trangThai: khach.status ?? null,
-            },
+      /*
+       * `0101`: ảnh chụp trước, `created_by` sau.
+       *
+       * Hai nguồn gần như luôn cho cùng một tên, và lệch nhau ở đúng một chỗ:
+       * hồ sơ còn Nháp mà sang tay, thì người GỬI không phải người LẬP. Chú
+       * thích trên đã nói ý đúng — *"chữ ký đề nghị thuộc về người đã GỬI nó"* —
+       * còn `created_by` trả lời "ai đã lập". Ảnh chụp mới đúng câu ấy.
+       *
+       * Và nó làm màn hình khớp với tờ giấy: `document` cũng đọc chính cột này.
+       */
+      nguoiDeNghi: {
+        ten:
+          (p as unknown as { nguoiDeNghiSnap: string | null }).nguoiDeNghiSnap ??
+          tenDuyet[p.createdBy] ??
+          null,
+      },
+      /*
+       * KHỐI KHÁCH HÀNG ĐỌC CÙNG NGUỒN VỚI BẢN MỀM (`0101`).
+       *
+       * Ảnh chụp có mặt thì lấy ảnh chụp. Nếu không thì màn hình và tờ giấy nói
+       * hai con số công nợ khác nhau cho cùng một hồ sơ, và người đọc không có
+       * cách nào biết cái nào đúng — đúng thứ mà nếp "một câu hỏi, một chỗ trả
+       * lời" cấm.
+       *
+       * Cùng lối với DÒNG SẢN PHẨM, vốn đã thế từ `0022`: màn hình hiện giá đã
+       * đóng băng chứ không phải giá danh mục hôm nay, còn chuyện danh mục đã
+       * trôi đi thì khối *Yêu cầu cập nhật* nói riêng. Muốn xem công nợ hiện tại
+       * thì bấm sang trang khách hàng — liên kết nằm ngay ở ô Mã.
+       *
+       * `loai` và `trangThai` KHÔNG đóng băng: loại khách quyết định ngưỡng và
+       * ngưỡng đã chụp vào từng dòng rồi; còn "đã ngừng hợp tác" là tin tức của
+       * HÔM NAY, và đó chính là điều người mở hồ sơ cũ cần thấy.
+       */
+      khachHang: (() => {
+        const s = p as unknown as { khTenSnap?: string | null };
+        if (khach === null && !s.khTenSnap) return null;
+        const anh = p as unknown as {
+          khMaSnap: string | null;
+          khTenSnap: string | null;
+          khCongNoSnap: string | null;
+        };
+        return {
+          ma: anh.khMaSnap ?? khach?.code ?? '',
+          ten: anh.khTenSnap ?? khach?.name ?? '',
+          loai: khach?.customerType ?? 0,
+          congNo: anh.khCongNoSnap ?? khach?.debt ?? null,
+          trangThai: khach?.status ?? null,
+        };
+      })(),
       xoaDuoc: xoaDuoc(p.status, so.tdv_user_id, me),
       // Một trường cho CẢ nút tải lên lẫn nút gỡ, theo loại tệp (`0097`).
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status, me.role),
@@ -1352,6 +1390,16 @@ export class PoliciesService {
        * không dùng tới. Màn hình nào cần tên thì hỏi `/policy-templates/:id`.
        */
       mauHoSoId: (p as unknown as { mau_ho_so_id: string | null }).mau_ho_so_id,
+      /*
+       * Ảnh chụp khách hàng và người đề nghị (`0101`), ba trường mà MÀN HÌNH
+       * dùng tới. Năm trường còn lại chỉ có nghĩa với bản mềm, và `document`
+       * đọc thẳng chúng qua `internal/policies/:id` — không đẩy lên đây để một
+       * màn hình không cần chúng phải chở chúng đi.
+       */
+      khMaSnap: (p as unknown as { kh_ma_snap: string | null }).kh_ma_snap,
+      khTenSnap: (p as unknown as { kh_ten_snap: string | null }).kh_ten_snap,
+      khCongNoSnap: (p as unknown as { kh_cong_no_snap: string | null }).kh_cong_no_snap,
+      nguoiDeNghiSnap: (p as unknown as { nguoi_de_nghi_snap: string | null }).nguoi_de_nghi_snap,
       lines,
       attachments,
     };

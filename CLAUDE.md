@@ -82,7 +82,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P127** (`0100`): tách `POLICY_TEMPLATE_PENDING` khỏi `POLICY_TEMPLATE_NOT_SET` —
+Chặng gần nhất **P128** (`0101`): **thông tin khách hàng và hai cái tên đóng băng vào hồ sơ** lúc
+gửi duyệt — tám trường khách hàng (kể cả công nợ) cộng *người đề nghị*; *TBP đã ký* chụp lúc ký.
+Ảnh chụp làm mới ở mỗi lượt gửi, nên hồ sơ bị trả lại vẫn sửa được. Trên đường lộ ra một lỗ hổng
+`P0`: **hồ sơ bị trả về SAU khi TBP ký thì không ký lại được** (`ALREADY_SIGNED`) và chết ở *Chờ TBP
+duyệt* — `tbp_signed_at` chưa bao giờ được xoá. **1645/1645 xanh**, cây làm việc sạch.
+
+Trước đó **P127** (`0100`): tách `POLICY_TEMPLATE_PENDING` khỏi `POLICY_TEMPLATE_NOT_SET` —
 `0098` gộp hai chuyện vào một câu, nên Ban lãnh đạo mở hồ sơ *Nháp* của người khác bị báo rằng hồ sơ
 lập trước `0098` và nên lập lại cái mới. Phân biệt bằng **trạng thái**: còn `SUA_DUOC` mà cột mẫu
 rỗng là bình thường; ngoài `SUA_DUOC` mới là dữ liệu cũ. **1634/1634 xanh**, cây làm việc sạch.
@@ -125,6 +131,14 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `templates.duongDan()`, một hàm cho cả thư lẫn chuông. Hai lá thư của `identity` (kích hoạt, đặt
   lại mật khẩu) **không** sinh thông báo: chúng mang token thô, mà `ONB-15` cấm token thô nằm trong
   CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
+- **Khách hàng và hai cái tên đóng băng lúc gửi duyệt** (`0101`) — tám cột `kh_*_snap` cộng
+  `nguoi_de_nghi_snap` trên `pol.policy`; `tbp_ky_ten_snap` chụp lúc KÝ. Cột rời chứ không jsonb, để
+  thêm một trường về sau **buộc** phải viết migration, tức buộc phải trả lời "đóng băng hay đọc
+  sống?". Vế đọc ở `khachHangCua`/`nguoiCua` (`render.service.ts`), quyết định theo **ảnh chụp có
+  mặt hay không**, không theo trạng thái. *Kế toán* và *Sale Admin* KHÔNG đóng băng — câu chúng trả
+  lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
+  một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
+  thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
 - **Mẫu bản mềm CSBH đóng băng vào hồ sơ lúc gửi duyệt** (`0098`) — cột `pol.policy.mau_ho_so_id`,
   tham chiếu logic sang `doc`, không FK. Chỉ TDV chọn, đúng hai hành động `SUBMIT` và
   `RESUBMIT_AFTER_EDIT` ghi cột ấy; mọi vai trò sau chỉ xem. Kéo theo hai luật khoá lẫn nhau: **mẫu

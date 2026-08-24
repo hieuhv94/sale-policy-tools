@@ -2266,6 +2266,13 @@ describe('WF-20 trả về Bước 3 thì đi lại toàn bộ vòng duyệt', (
 
     // Không nhảy thẳng sang kế toán được — phải qua TBP ký lại.
     expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(409);
+
+    // …và KÝ LẠI PHẢI ĐƯỢC. Ca này thiếu tới `0101`, nên vế thứ hai của WF-20
+    // — *"đi lại toàn bộ vòng duyệt, KỂ CẢ bước ký số"* — chưa từng được kiểm:
+    // ca cũ chỉ chứng minh không nhảy cóc được, không chứng minh đi tiếp được.
+    const ky = await act(d.id, 'TBP_SIGN', 'tbp01');
+    expect(ky.status, 'ký lại sau khi gửi lại phải được — WF-20').toBe(200);
+    expect(ky.body.status).toBe('CHO_KT_L1');
   });
 });
 

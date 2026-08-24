@@ -68,6 +68,9 @@ const dput = async (path: string, who: string, body: object) =>
   (await http(doc)).put(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 const ppost = async (path: string, body: object, who: string) =>
   (await http(policy)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
+/** Đọc hồ sơ đúng đường mà MÀN HÌNH chi tiết đi (`0101`). */
+const pget = async (path: string, who: string) =>
+  (await http(policy)).get(path).set('Authorization', `Bearer ${tok[who]}`);
 /**
  * MỌI hành động đi qua đây tự kèm người được phân công (`0031`).
  *
@@ -141,6 +144,14 @@ const mauHD = async (): Promise<string> => {
   const r = await dget('/contract-templates/available', 'kt01');
   const ds = r.body as { id: string }[];
   if (!ds?.length) throw new Error('không còn mẫu hợp đồng nào dùng được');
+  return ds[0]!.id;
+};
+
+/** Mẫu HỒ SƠ còn dùng được — cho ca nào cần xem trước lúc hồ sơ còn Nháp. */
+const mauHoSo = async (): Promise<string> => {
+  const r = await dget('/policy-templates/available', 'tdv01');
+  const ds = r.body as { id: string }[];
+  if (!ds?.length) throw new Error('không còn mẫu hồ sơ nào dùng được');
   return ds[0]!.id;
 };
 
@@ -2148,4 +2159,276 @@ describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_REQUIRED');
   }, 60_000);
+});
+
+// =============================================================================
+// `0101` — khách hàng và hai cái tên ĐÓNG BĂNG vào hồ sơ
+//
+// Trước `0101`, tám trường khách hàng và bốn tên người đọc SỐNG ở mỗi lượt dựng
+// văn bản. Sửa công nợ hôm nay thì bản CSBH đã ký tuần trước đổi nội dung theo,
+// lặng lẽ và ngược thời gian. Khối này kiểm cả hai vế: đóng băng đúng chỗ, và
+// **vẫn mở ra được** khi hồ sơ bị trả lại để sửa.
+// =============================================================================
+
+type AnhChup = {
+  kh_ma_snap: string | null;
+  kh_ten_snap: string | null;
+  kh_dia_chi_dang_ky_snap: string | null;
+  kh_cong_no_snap: string | null;
+  nguoi_de_nghi_snap: string | null;
+  tbp_ky_ten_snap: string | null;
+  tbp_signed_at: Date | null;
+  tbp_signed_by: string | null;
+};
+
+const anhChup = (id: string): Promise<AnhChup> =>
+  withAdminDb(async (c) => {
+    const r = await c.query<AnhChup>(
+      `SELECT kh_ma_snap, kh_ten_snap, kh_dia_chi_dang_ky_snap,
+              kh_cong_no_snap::text AS kh_cong_no_snap,
+              nguoi_de_nghi_snap, tbp_ky_ten_snap, tbp_signed_at, tbp_signed_by
+         FROM pol.policy WHERE id = $1`,
+      [id],
+    );
+    return r.rows[0]!;
+  });
+
+/** Sửa khách hàng — đúng đường mà TDV dùng trên màn hình. */
+const suaKhach = async (id: string, than: Record<string, unknown>) => {
+  const r = await (await http(customer))
+    .patch(`/customers/${id}`)
+    .set('Authorization', `Bearer ${tok['tdv01']}`)
+    .send(than);
+  if (r.status !== 200) throw new Error(`sửa khách hàng hỏng: ${JSON.stringify(r.body)}`);
+};
+
+const banMem = async (policyId: string, who = 'bld01', mauId?: string): Promise<string> => {
+  const q = mauId ? `?mauId=${mauId}` : '';
+  const r = await pdfOf(`/policies/${policyId}/render${q}`, who);
+  if (r.status !== 200) throw new Error(`dựng bản mềm hỏng: ${r.status} ${JSON.stringify(r.body)}`);
+  return pdfText(r.body as Buffer);
+};
+
+describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () => {
+  it('hồ sơ NHÁP CHƯA chụp gì — và bản xem thử đọc SỐNG', async () => {
+    const d = await draft();
+    const mau = await mauHoSo();
+    expect((await anhChup(d.id)).kh_ten_snap).toBeNull();
+    expect((await anhChup(d.id)).nguoi_de_nghi_snap).toBeNull();
+
+    // Đọc sống là ĐÚNG ở quãng này: người lập đang cân nhắc, họ phải thấy số
+    // hiện tại chứ không phải một ảnh chụp chưa ai chụp.
+    expect(await banMem(d.id, 'tdv01', mau)).toContain(CUSTOMER_NAME);
+    await suaKhach(d.customerId, { name: 'Nhà thuốc Nháp Vừa Sửa' });
+    expect(await banMem(d.id, 'tdv01', mau)).toContain('Nhà thuốc Nháp Vừa Sửa');
+    expect((await anhChup(d.id)).kh_ten_snap).toBeNull();
+  }, 120_000);
+
+  it('GỬI DUYỆT thì chụp đủ tám trường khách hàng và tên người đề nghị', async () => {
+    const d = await draft();
+    await suaKhach(d.customerId, { name: 'Nhà thuốc Trước Khi Gửi', debt: '7777777' });
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const a = await anhChup(d.id);
+    expect(a.kh_ten_snap).toBe('Nhà thuốc Trước Khi Gửi');
+    expect(a.kh_cong_no_snap).toBe('7777777');
+    expect(a.kh_ma_snap).toBe(d.code);
+    expect(a.kh_dia_chi_dang_ky_snap).toBe(ADDRESS_1);
+    // `AuthUser.name` — ảnh chụp danh tính của `0090`, chính người vừa bấm gửi.
+    expect(a.nguoi_de_nghi_snap).toBeTruthy();
+  }, 90_000);
+
+  it('SỬA KHÁCH HÀNG sau khi gửi duyệt thì bản mềm KHÔNG đổi', async () => {
+    const d = await draft();
+    await suaKhach(d.customerId, { name: 'Nhà thuốc Đã Duyệt', debt: '1234567' });
+    await act(d.id, 'SUBMIT', 'tdv01');
+
+    const truoc = await banMem(d.id);
+    expect(truoc).toContain('Nhà thuốc Đã Duyệt');
+
+    // Đổi cả tên lẫn công nợ — đúng kịch bản đã đo được ở lượt rà `0099`.
+    await suaKhach(d.customerId, { name: 'TÊN MỚI SAU KHI KÝ', debt: '9999999' });
+
+    const sau = await banMem(d.id);
+    expect(sau, 'tên mới KHÔNG được lọt vào văn bản đã gửi duyệt').not.toContain(
+      'TÊN MỚI SAU KHI KÝ',
+    );
+    expect(sau).toContain('Nhà thuốc Đã Duyệt');
+    // Công nợ in ra có định dạng tiền, nên so bằng chuỗi đã bỏ khoảng trắng.
+    expect(packed(sau)).not.toContain(packed('9.999.999'));
+  }, 120_000);
+
+  it('TBP KÝ thì chụp tên người ký, và tên ấy in ra bản mềm', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+
+    const a = await anhChup(d.id);
+    expect(a.tbp_ky_ten_snap).toBeTruthy();
+    expect(a.tbp_signed_at).not.toBeNull();
+    expect(await banMem(d.id)).toContain(a.tbp_ky_ten_snap!);
+  }, 120_000);
+
+  it('TBP TỰ ĐỔI HỌ TÊN thì tên trên bản ĐÃ KÝ vẫn nguyên', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    const tenLucKy = (await anhChup(d.id)).tbp_ky_ten_snap!;
+
+    const doiTen = async (ten: string) =>
+      (await http(identity))
+        .patch('/auth/me')
+        .set('Authorization', `Bearer ${tok['tbp01']}`)
+        .send({ fullName: ten });
+
+    await doiTen('Nguyễn Văn Đổi Tên Sau Khi Ký');
+    try {
+      const chu = await banMem(d.id);
+      expect(chu, 'bản đã ký phải giữ tên lúc ký').toContain(tenLucKy);
+      expect(chu).not.toContain('Đổi Tên Sau Khi Ký');
+    } finally {
+      // Tài khoản mẫu là TOÀN CỤC với cả bộ test — trả tên về chỗ cũ.
+      await doiTen(tenLucKy);
+    }
+  }, 120_000);
+
+  it('TRẢ VỀ sau khi đã ký thì ba cột chữ ký bị XOÁ cùng lúc', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    expect((await anhChup(d.id)).tbp_ky_ten_snap).toBeTruthy();
+
+    await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Sai thông tin khách hàng' });
+
+    const a = await anhChup(d.id);
+    // Ba cột nói CÙNG một sự thật, nên phải cùng rỗng — để sót một cột là dựng
+    // ra một hồ sơ "đã ký bởi không ai".
+    expect(a.tbp_ky_ten_snap).toBeNull();
+    expect(a.tbp_signed_at).toBeNull();
+    expect(a.tbp_signed_by).toBeNull();
+  }, 120_000);
+
+  it('BỊ TRẢ LẠI: TDV sửa khách hàng rồi gửi lại thì ảnh chụp LÀM MỚI', async () => {
+    const d = await draft();
+    await suaKhach(d.customerId, { name: 'Tên SAI lúc gửi lần đầu' });
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Sai tên khách hàng' });
+    expect((await anhChup(d.id)).kh_ten_snap).toBe('Tên SAI lúc gửi lần đầu');
+
+    // Đây là cả nội dung của yêu cầu: đóng băng KHÔNG được khoá chết việc sửa.
+    await suaKhach(d.customerId, { name: 'Tên ĐÚNG sau khi sửa', debt: '2024' });
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+
+    const a = await anhChup(d.id);
+    expect(a.kh_ten_snap).toBe('Tên ĐÚNG sau khi sửa');
+    expect(a.kh_cong_no_snap).toBe('2024');
+
+    const chu = await banMem(d.id);
+    expect(chu).toContain('Tên ĐÚNG sau khi sửa');
+    expect(chu).not.toContain('Tên SAI lúc gửi lần đầu');
+  }, 150_000);
+
+  it('BỊ TRẢ LẠI rồi gửi lại thì KÝ LẠI ĐƯỢC, và chụp tên người ký lần này', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Tra lai' });
+    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
+
+    // Tới `0101` đường này trả 409 `ALREADY_SIGNED` — hồ sơ nằm chết ở *Chờ TBP
+    // duyệt* rồi bị SLA xoá. Xem đầu tệp migration `0101`.
+    const ky = await act(d.id, 'TBP_SIGN', 'tbp01');
+    expect(ky.status, 'WF-20: gửi lại thì phải ký lại được').toBe(200);
+    expect((await anhChup(d.id)).tbp_ky_ten_snap).toBeTruthy();
+  }, 150_000);
+
+  it('BÀN GIAO đổi TDV phụ trách nhưng NGƯỜI ĐỀ NGHỊ trên văn bản không đổi', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    const nguoiDeNghi = (await anhChup(d.id)).nguoi_de_nghi_snap!;
+
+    // Bàn giao thật đi qua đường vô hiệu hoá tài khoản (`vai-tro.test.ts` kiểm
+    // trọn đường ấy); ở đây chỉ cần đúng HỆ QUẢ của nó lên hồ sơ.
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy SET tdv_user_id = (SELECT id FROM idn.app_user WHERE username = 'tdv02')
+          WHERE id = $1`,
+        [d.id],
+      );
+    });
+
+    const a = await anhChup(d.id);
+    expect(a.nguoi_de_nghi_snap, 'người ĐỀ NGHỊ là việc đã xảy ra, bàn giao không đổi nó').toBe(
+      nguoiDeNghi,
+    );
+    expect(await banMem(d.id)).toContain(nguoiDeNghi);
+  }, 120_000);
+
+  it('MÀN HÌNH hồ sơ và BẢN MỀM nói cùng một con số công nợ', async () => {
+    /*
+     * Không phải một ca thừa của ca "sửa khách hàng thì bản mềm không đổi".
+     *
+     * Ca kia canh tờ giấy; ca này canh chỗ mà tờ giấy và màn hình có thể tách
+     * đôi. `0101` đóng băng phía văn bản, và nếu `GET /policies/:id` vẫn đọc
+     * sống thì Kế toán nhìn màn hình thấy một số, mở bản mềm thấy số khác, và
+     * không có gì nói cho họ biết cái nào đúng.
+     */
+    const d = await draft();
+    await suaKhach(d.customerId, { name: 'Nhà thuốc Khớp Nhau', debt: '5555555' });
+    await act(d.id, 'SUBMIT', 'tdv01');
+
+    await suaKhach(d.customerId, { name: 'Tên đổi sau khi gửi', debt: '8888888' });
+
+    const man = await pget(`/policies/${d.id}`, 'kt01');
+    expect(man.body.khachHang.congNo).toBe('5555555');
+    expect(man.body.khachHang.ten).toBe('Nhà thuốc Khớp Nhau');
+    expect(man.body.nguoiDeNghi.ten).toBe((await anhChup(d.id)).nguoi_de_nghi_snap);
+
+    const chu = await banMem(d.id);
+    expect(chu).toContain('Nhà thuốc Khớp Nhau');
+    expect(packed(chu)).toContain(packed('5.555.555'));
+  }, 120_000);
+
+  it('hồ sơ lập TRƯỚC `0101` vẫn dựng được — đọc sống, không vỡ', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    const a = await anhChup(d.id);
+
+    // Vặn CSDL để giả dữ liệu cũ: không API nào tạo ra được nữa.
+    await withAdminDb(async (c) => {
+      await c.query(
+        `UPDATE pol.policy SET kh_ma_snap = NULL, kh_ten_snap = NULL,
+                kh_ma_so_thue_snap = NULL, kh_dia_chi_dang_ky_snap = NULL,
+                kh_noi_nhan_hang_snap = NULL, kh_nguoi_dai_dien_snap = NULL,
+                kh_chuc_danh_dai_dien_snap = NULL, kh_cong_no_snap = NULL,
+                nguoi_de_nghi_snap = NULL
+          WHERE id = $1`,
+        [d.id],
+      );
+    });
+
+    try {
+      const chu = await banMem(d.id);
+      // Đọc sống thì ra đúng tên đang có trong `cus.customer`.
+      expect(chu).toContain(CUSTOMER_NAME);
+    } finally {
+      await withAdminDb(async (c) => {
+        await c.query(
+          `UPDATE pol.policy SET kh_ma_snap = $2, kh_ten_snap = $3,
+                  kh_dia_chi_dang_ky_snap = $4, kh_cong_no_snap = $5::bigint,
+                  nguoi_de_nghi_snap = $6
+            WHERE id = $1`,
+          [
+            d.id,
+            a.kh_ma_snap,
+            a.kh_ten_snap,
+            a.kh_dia_chi_dang_ky_snap,
+            a.kh_cong_no_snap,
+            a.nguoi_de_nghi_snap,
+          ],
+        );
+      });
+    }
+  }, 120_000);
 });
