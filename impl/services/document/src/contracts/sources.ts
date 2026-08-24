@@ -11,7 +11,7 @@
  * làm tròn hai chữ số đã chốt ở muc 7 (DOC-31).
  */
 import type { CustomerFull, PolicyFull } from '../infra/clients.js';
-import { dmy, money, pct, STATUS_LABEL } from '../render/sheet.js';
+import { dmy, money, pct, STATUS_LABEL } from './dinh-dang.js';
 
 export type Format = 'text' | 'money_vnd' | 'date_dmy' | 'percent_2';
 
@@ -163,11 +163,16 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
  *     phải có mặt tức là bắt buộc phải in ra một câu sai ở mọi hồ sơ chưa tới
  *     B10. Một ô bảo đảm có mặt mà bảo đảm sai thì tệ hơn một ô không có.
  *
- * Câu của muc 11.1 nói *"bảng CSBH XEM tối thiểu có…"*, và bảng ấy là bảng do hệ
- * thống dựng ở `render/sheet.ts` — nó vẫn đủ cả mười ba mục, kể cả năm cột mốc
- * thời gian duyệt. Danh sách dưới đây áp lên MẪU do Quản trị soạn, một thứ khác:
- * đem nguyên yêu cầu của bản hệ thống dựng sang bản người dùng vẽ là chỗ `0067`
- * đọc quá lời.
+ * Câu của muc 11.1 nói *"bảng CSBH XEM tối thiểu có…"*, tức MÀN HÌNH chi tiết hồ
+ * sơ (`ChiTietHoSo.tsx`) — nó bày đủ cả mười ba mục và không mẫu nào chi phối nó.
+ * Danh sách dưới đây áp lên MẪU do Quản trị soạn, một thứ khác: đem nguyên yêu
+ * cầu của màn hình sang bản người dùng vẽ là chỗ `0067` đọc quá lời.
+ *
+ * `0102` bản đầu viết rằng bảng xem ấy là `render/sheet.ts`. SAI, theo hai đường:
+ * tệp ấy chỉ phục vụ bản lưu ký số — thứ chưa ai gọi bao giờ và `0103` đã gỡ —
+ * còn DOC-03 thì đọc mười ba mục ra từ PDF dựng bằng MẪU `mau-ho-so-a4-doc.docx`.
+ * Nên bảo đảm mười ba mục nằm ở màn hình cộng một mẫu bàn giao có ca kiểm, không
+ * ở một đường dựng văn bản thứ hai nào.
  *
  * Hai trường KHÔNG bị gỡ khỏi `SCALAR` — mẫu nào muốn in vẫn đặt ô được. Gỡ khỏi
  * đây chỉ có nghĩa: hệ thống thôi ÉP.

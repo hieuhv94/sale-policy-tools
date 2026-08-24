@@ -13,7 +13,7 @@ export async function createTestApp(): Promise<INestApplication> {
 export { Storage, sha256, BUCKET } from './infra/storage.js';
 export { FilesService, sniff, MAX_BYTES } from './files/files.service.js';
 export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
-export { sheetHtml, money, pct, dmy } from './render/sheet.js';
+export { money, pct, dmy } from './contracts/dinh-dang.js';
 export { TemplatesService } from './contracts/templates.service.js';
 export { ContractsService } from './contracts/contracts.service.js';
 export { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO, dinhDangCua } from './contracts/sources.js';

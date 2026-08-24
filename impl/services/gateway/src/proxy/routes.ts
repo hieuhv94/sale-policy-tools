@@ -43,7 +43,7 @@ export const UPSTREAMS: Upstream[] = [
     prefix: '/policies',
     name: 'document',
     url: env('DOCUMENT_URL', 'http://document:3005'),
-    chiTiet: /^\/policies\/[^/]+\/(contract\.pdf|contract\/preview|render|sign-file)$/,
+    chiTiet: /^\/policies\/[^/]+\/(contract\.pdf|contract\/preview|render)$/,
   },
   { prefix: '/policies', name: 'policy', url: env('POLICY_URL', 'http://policy:3004') },
   { prefix: '/sla', name: 'policy', url: env('POLICY_URL', 'http://policy:3004') },

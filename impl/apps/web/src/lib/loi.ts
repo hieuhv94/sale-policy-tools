@@ -386,7 +386,6 @@ export const BANG_LOI: Record<string, Muc> = {
   PLACEHOLDER_NOT_IN_TEMPLATE: { dang: 'o-nhap', truong: 'placeholder', tuMayChu: true },
   SOURCE_UNKNOWN: { dang: 'o-nhap', truong: 'source', tuMayChu: true },
   CONTRACT_NOT_READY: { dang: 'hop-thoai', tuMayChu: true },
-  NOT_SIGNED_YET: { dang: 'hop-thoai', tuMayChu: true },
   PDF_ENGINE_UNAVAILABLE: { dang: 'hop-thoai', tuMayChu: true },
   PDF_RENDER_FAILED: { dang: 'hop-thoai', tuMayChu: true },
 

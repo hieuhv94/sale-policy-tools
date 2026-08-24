@@ -9640,6 +9640,12 @@ bác đúng cái tiền đề tôi vừa dùng ở P128 để nói món *ký s�
 
 ### Chuyện này là sửa một chỗ ĐỌC QUÁ LỜI, không phải nới lỏng cho dễ
 
+> **`0103` sửa câu ngay dưới đây.** Bảng "xem" KHÔNG phải `render/sheet.ts` — tệp ấy chỉ phục vụ
+> bản lưu ký số, thứ chưa ai gọi bao giờ và `0103` đã gỡ. Bảng xem thật là **màn hình chi tiết hồ
+> sơ**, và DOC-03 đọc mười ba mục ra từ PDF dựng bằng mẫu `mau-ho-so-a4-doc.docx`. Lập luận của
+> `0102` không đổi; chỉ chỗ neo là sai. Giữ nguyên đoạn dưới để thấy cái sai đã trôi vào bằng đường
+> nào.
+
 Câu của muc 11.1 viết: *"Bảng CSBH **xem** tối thiểu có: … trạng thái … thời gian duyệt"*. Bảng
 "xem" ấy là bảng do hệ thống dựng — `render/sheet.ts` — và nó vẫn đủ cả mười ba mục, kể cả năm cột
 mốc của dòng *Thời gian duyệt*. `0067` đem nguyên danh sách ấy áp sang **mẫu do Quản trị vẽ trong
@@ -9696,3 +9702,76 @@ thân mẫu có lại chúng, máy chủ vẫn nhận 201, và ca chỉ đỏ �
 tức là không chứng minh được gì về luật đang kiểm.
 
 **1647/1647 xanh.**
+
+## P130 — `0103` gỡ bản lưu ký số
+
+Khách hàng chốt sau lượt rà: *"không cần lưu bản ký số kiểu đó, dữ liệu đóng băng là đủ rồi"*.
+
+### Món nợ này đóng bằng cách XOÁ, và đó là kết cục đúng
+
+`POST /policies/:id/sign-file` sinh hai object PDF cho mỗi lượt ký — bản chưa ký và bản đã ký, nối
+qua `signed_from_id`, kèm `signature` jsonb. Nó viết xong từ P5, có DOC-04 và DOC-05 canh, và
+**chưa ai gọi bao giờ**: không màn hình nào, không `policy`, không consumer nào. Đo ở `0099`: 197
+hồ sơ đã qua bước TBP ký, **3** file `BAN_DA_KY` trong kho, cả ba do `document.test.ts` sinh ra.
+
+Câu nó sinh ra để trả lời là *"văn bản lúc ký nói gì"*. Từ `0101` hồ sơ đã giữ ảnh chụp tám trường
+khách hàng, người đề nghị và tên TBP đã ký — nên câu ấy trả lời được **từ dữ liệu**, rẻ hơn và nói
+nhiều hơn một tờ giấy đông cứng. Giữ cả hai thì thừa; giữ mỗi tờ giấy thì kém hơn.
+
+Ranh giới phải nói rõ vì rất dễ trượt: **bỏ BẢN LƯU, không bỏ KÝ**. `tbp_signed_at` vẫn là mốc thật,
+bước ký vẫn là một trong mười bước, và `{{ho_so.chu_ky_so_TBP}}` vẫn in khối *TBP đã ký số* lên bản
+mềm. Có hẳn một ca kiểm canh riêng ranh giới ấy.
+
+### Kéo theo: `render/sheet.ts` biến mất, và một câu tôi viết sai ở `0102`
+
+`sheetHtml` là đường dựng văn bản **thứ hai** của service — HTML qua Chromium, song song với mẫu
+`.docx` qua Gotenberg. Sau `0067` nó chỉ còn phục vụ `sign()`, nên nó đi theo. Còn lại `STATUS_LABEL`,
+`COMPANY` và ba phép định dạng, dời sang `contracts/dinh-dang.ts` — mọi người dùng chúng đều nằm
+trong `contracts/`, và một tệp tên `render/sheet.ts` không dựng `sheet` nào là một cái tên nói dối.
+
+Nhân đó phải sửa một câu của `0102`. Tôi viết rằng mười ba mục của muc 11.1 được bảo đảm bởi *"bảng
+do hệ thống dựng ở `render/sheet.ts`"*. **Sai theo hai đường**: tệp ấy chỉ phục vụ bản lưu ký số —
+thứ chưa ai gọi — còn DOC-03 thì đọc mười ba mục ra từ PDF dựng bằng MẪU `mau-ho-so-a4-doc.docx`.
+Bảo đảm thật nằm ở **màn hình chi tiết hồ sơ** cộng một mẫu bàn giao có ca kiểm. Lập luận của `0102`
+không đổi — *trạng thái* và *thời gian duyệt* vẫn là hai mục còn đang đổi — nhưng vế "bảng xem vẫn đủ
+mười ba" thì phải chỉ đúng chỗ, nếu không người đọc sau sẽ đi tìm một bảo đảm ở tệp vừa bị xoá.
+
+### Bẫy: `tsc` xanh vì `Storage` là kiểu có sẵn của DOM
+
+Gỡ `import { Storage }` khỏi `render.service.ts` nhưng để nguyên `private readonly storage: Storage`
+trong constructor. `tsc -b` **xanh**: `Storage` là một interface toàn cục của `lib.dom`, nên tên ấy
+vẫn phân giải được — thành một kiểu chẳng liên quan gì. Chỉ DI của Nest bắt được, lúc chạy:
+
+```
+Nest can't resolve dependencies of the RenderService (…, ?). Argument Object at index [4]
+```
+
+Bài học chung: **gỡ một import mà quên chỗ dùng thì typecheck không phải lưới an toàn**, chừng nào
+tên bị gỡ trùng một kiểu toàn cục. `Storage`, `Response`, `Request`, `Event`, `File` đều là bẫy cùng
+loại trong repo này.
+
+### Hai giá trị enum ở lại
+
+`doc.file_purpose` giữ nguyên `BAN_CSBH` và `BAN_DA_KY`. Postgres không có `DROP VALUE`, và đổi kiểu
+của một cột đang dùng chỉ để bỏ hai nhãn chết là lượt migration rủi ro hơn hẳn thứ nó dọn. Chốt chặn
+đặt ở kiểu `Purpose` trong TypeScript: không đường nào ghi được hai giá trị ấy nữa. Hai cột
+`signed_from_id` và `signature` thì **bỏ hẳn** — chúng chỉ có một người ghi, và người ấy vừa đi.
+
+### Một ca kiểm cũ hỏng sẵn, lộ ra đúng lúc
+
+ONB-14 lấy `/admin/users` trần rồi `find` tài khoản vừa tạo. Từ `0092` mọi danh sách cắt **20 dòng
+một trang**, mà bộ test thì mỗi chặng lại thêm vài tài khoản — nên nó xanh nhờ tài khoản mới tình cờ
+còn nằm trong trang đầu. Ở `0103` số tài khoản chạm ngưỡng: **đỏ một lượt, xanh lượt sau, không đổi
+dòng mã nào ở giữa**. Câu báo lỗi không nhắc gì tới phân trang.
+
+Sửa bằng cách đặt cho tài khoản của ca ấy một HỌ TÊN RIÊNG rồi tìm theo tên. Tìm theo tên mặc định
+của `createUser` là rơi lại đúng cái bẫy vừa thoát — mọi tài khoản nó tạo đều mang chung một tên.
+
+### Phá lại
+
+| Phá | Đỏ |
+|---|---|
+| Dán lại `@Post(':id/sign-file')` | *"không còn là một đường của máy chủ"* — nhận 201 thay vì 404 |
+| Gỡ `{{ho_so.chu_ky_so_TBP}}` khỏi nhánh đã ký | *"bước KÝ trong luồng duyệt thì KHÔNG bỏ"* — bản mềm không còn chữ *TBP đã ký số* |
+
+**1646/1646 xanh.**

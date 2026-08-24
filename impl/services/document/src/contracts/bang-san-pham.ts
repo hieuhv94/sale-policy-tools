@@ -26,7 +26,7 @@
  */
 import type { PolicyFull, PolicyLine } from '../infra/clients.js';
 import { table, tableRow } from './docx.js';
-import { money, pct, soCotCpbh } from '../render/sheet.js';
+import { money, pct, soCotCpbh } from './dinh-dang.js';
 
 /**
  * Danh mục CỘT của bảng sản phẩm — mẫu nào chọn cột nấy (`0067`).

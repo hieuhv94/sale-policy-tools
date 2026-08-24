@@ -522,50 +522,55 @@ describe('DOC-20 nhiều yêu cầu render cùng lúc', () => {
 });
 
 // =============================================================================
-// DOC-04 · DOC-05 · DOC-07 — ký số nội bộ
+// `0103` DOC-07 — ký nội bộ, và BẢN LƯU đã gỡ
 // =============================================================================
 
-describe('DOC-04 · DOC-05 · DOC-07 ký số', () => {
-  it('bản ký hiện chữ ký, họ tên, vai trò và dấu thời gian', async () => {
+describe('`0103` bản lưu ký số đã gỡ', () => {
+  /*
+   * DOC-04 và DOC-05 NGHỈ ở `0103`. Cả hai kiểm bản lưu ký số — bản chưa ký và
+   * bản đã ký là hai object khác nhau trên MinIO, nối qua `signed_from_id`. Khách
+   * hàng chốt 24/08 là không cần bản lưu ấy: từ `0101` hồ sơ đã giữ ảnh chụp
+   * khách hàng, người đề nghị và tên TBP đã ký, nên câu hỏi hai ca kia sinh ra để
+   * trả lời nay trả lời được bằng chính hồ sơ.
+   *
+   * Ca dưới đây thay chỗ chúng, và nó kiểm chuyện NGƯỢC LẠI: đường ấy không còn.
+   * Có ca này thì một lượt khôi phục nhầm — dán lại phương thức, hay bật lại
+   * đường trong gateway — không đi qua được im lặng.
+   */
+  it('POST /policies/:id/sign-file không còn là một đường của máy chủ', async () => {
     const d = await draft(1);
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
+    // 404 chứ không phải 403: đường không tồn tại, chứ không phải TBP hết quyền.
     const r = await dpost(`/policies/${d.id}/sign-file`, 'tbp01');
-    expect(r.status).toBe(201);
+    expect(r.status, JSON.stringify(r.body)).toBe(404);
+  }, 60_000);
 
-    const link = await dget(`/files/${r.body.signedFileId}/link`, 'tbp01');
-    const signed = await (await http(doc))
-      .get(link.body.url)
+  it('bước KÝ trong luồng duyệt thì KHÔNG bỏ — chỉ bản lưu bỏ', async () => {
+    /*
+     * Ranh giới dễ trượt nhất của `0103`. "Bỏ bản lưu ký số" mà đọc thành "bỏ ký
+     * số" là bỏ luôn một bước của luồng mười bước.
+     */
+    const d = await draft(1);
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+
+    const pdf = await (await http(doc))
+      .get(`/policies/${d.id}/render`)
       .set('Authorization', `Bearer ${tok['tbp01']}`)
       .responseType('blob');
-    const t = await pdfText(signed.body as Buffer);
-
-    expect(t).toContain('ĐÃ KÝ SỐ');
-    expect(t).toContain('Truong bo phan 01');
-    expect(t).toContain('Trưởng bộ phận');
-    expect(t).toMatch(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
-  }, 90_000);
-
-  it('DOC-05 bản nháp và bản đã ký là HAI object khác nhau trên MinIO', async () => {
-    const d = await draft(1);
-    await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_SIGN', 'tbp01');
-    const r = await dpost(`/policies/${d.id}/sign-file`, 'tbp01');
-
-    const draftMeta = (await dget(`/files/${r.body.draftFileId}`, 'tbp01')).body;
-    const signedMeta = (await dget(`/files/${r.body.signedFileId}`, 'tbp01')).body;
-
-    expect(draftMeta.objectKey).not.toBe(signedMeta.objectKey);
-    expect(draftMeta.sha256).not.toBe(signedMeta.sha256);
-    expect(signedMeta.signedFromId).toBe(draftMeta.id);
-
-    // Cả hai object CÙNG tồn tại: bản nháp không bị ghi đè.
-    expect(await storage.exists(draftMeta.objectKey)).toBe(true);
-    expect(await storage.exists(signedMeta.objectKey)).toBe(true);
+    expect(pdf.status).toBe(200);
+    // Khối chữ ký vẫn in ra bản mềm qua `{{ho_so.chu_ky_so_TBP}}`.
+    expect(lien(await pdfText(pdf.body as Buffer))).toContain(lien('TBP đã ký số'));
   }, 90_000);
 
   it('DOC-07 cơ chế ký không gọi HSM, CA hay dịch vụ chứng thư số nào', async () => {
+    /*
+     * Nửa còn lại của DOC-07. Nửa kia — "chữ ký chỉ gồm ba trường" — đi cùng bản
+     * lưu; lời hứa "ký điện tử NỘI BỘ, không phải chứng thư số pháp lý" thì vẫn
+     * đứng, và đây là chỗ duy nhất canh nó.
+     */
     const pkg = await import('../../services/document/package.json', {
       with: { type: 'json' },
     }).then((m) => m.default as { dependencies: Record<string, string> });
@@ -574,26 +579,7 @@ describe('DOC-04 · DOC-05 · DOC-07 ký số', () => {
     for (const dep of Object.keys(pkg.dependencies)) {
       expect(dep, `phụ thuộc ${dep} gợi ý chứng thư số pháp lý`).not.toMatch(forbidden);
     }
-
-    // Chữ ký chỉ gồm ba trường, không có chứng thư, không có chuỗi tin cậy.
-    const d = await draft(1);
-    await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_SIGN', 'tbp01');
-    const r = await dpost(`/policies/${d.id}/sign-file`, 'tbp01');
-    expect(Object.keys(r.body.signature as object).sort()).toEqual([
-      'signedAt',
-      'signerName',
-      'signerRole',
-    ]);
-  }, 90_000);
-
-  it('vai trò khác TBP không ký được', async () => {
-    const d = await draft(1);
-    await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_SIGN', 'tbp01');
-    expect((await dpost(`/policies/${d.id}/sign-file`, 'kt01')).status).toBe(403);
-    expect((await dpost(`/policies/${d.id}/sign-file`, 'tdv01')).status).toBe(403);
-  }, 60_000);
+  });
 });
 
 // =============================================================================

@@ -1,27 +1,31 @@
 /**
- * Sinh bản CSBH A4 và ký số nội bộ lên nó.
+ * Dựng bản mềm CSBH từ MẪU `.docx` của Quản trị.
  *
- * "Ký" ở đây là **ký điện tử nội bộ** (muc 10): họ tên, vai trò, dấu thời gian
- * in vào chính văn bản, cộng SHA-256 của file lưu trong CSDL để phát hiện sửa
- * file. Không HSM, không CA, không chứng thư số — và đó là quyết định nghiệp vụ
- * đã chốt, không phải chỗ chưa làm xong (DOC-07).
+ * BẢN LƯU KÝ SỐ ĐÃ GỠ (`0103`). `POST /policies/:id/sign-file` sinh hai object
+ * PDF — bản nháp và bản đã ký — nối nhau qua `signed_from_id`, có ca kiểm
+ * DOC-04/DOC-05, và KHÔNG AI GỌI: không màn hình nào, không `policy`, không
+ * consumer nào. Đo ở `0099`: 197 hồ sơ đã qua bước TBP ký, ba file `BAN_DA_KY`
+ * trong kho, cả ba do bộ test sinh ra.
  *
- * Ký KHÔNG ghi đè bản nháp: bản đã ký là một object MỚI trỏ ngược về bản nháp
- * qua `signed_from_id`. Ghi đè thì câu hỏi "văn bản đã đổi gì so với lúc chưa
- * ký" vĩnh viễn không trả lời được (DOC-05).
+ * Khách hàng chốt 24/08: **dữ liệu đóng băng là đủ**. Từ `0101` hồ sơ giữ ảnh
+ * chụp khách hàng, người đề nghị và tên TBP đã ký, nên câu "văn bản lúc ký nói
+ * gì" trả lời được bằng chính hồ sơ — không cần một object PDF thứ hai để đối
+ * chiếu. Chữ ký vẫn hiện trên bản mềm qua `{{ho_so.chu_ky_so_TBP}}`, và
+ * `tbp_signed_at` vẫn là mốc thật; chỉ có BẢN LƯU là không còn.
+ *
+ * Gỡ chứ không để lại: một cơ chế không ai dùng mà vẫn chạy là một cơ chế sẽ
+ * hỏng lặng lẽ — đúng lý do `0067` đã dùng để gỡ nhóm khoá `san_pham.`.
  */
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import type { AuthUser } from '@csbh/http-kit';
 import { SUA_DUOC } from '@csbh/domain-policy';
 import { Clients, type CustomerFull, type PolicyFull } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
-import { Storage } from '../infra/storage.js';
-import { FilesService, type FileRow } from '../files/files.service.js';
+import { FilesService } from '../files/files.service.js';
 import { TemplatesService } from '../contracts/templates.service.js';
 import { bangSanPhamXml } from '../contracts/bang-san-pham.js';
 import { mergeDocx } from '../contracts/docx.js';
 import { tron } from '../contracts/tron.js';
-import { sheetHtml, type Signature } from './sheet.js';
 
 export type Size = 'a4p' | 'a4l';
 
@@ -102,7 +106,6 @@ export class RenderService {
     private readonly gotenberg: Gotenberg,
     private readonly files: FilesService,
     private readonly templates: TemplatesService,
-    private readonly storage: Storage,
   ) {}
 
   private async collect(policyId: string, me: AuthUser) {
@@ -283,57 +286,4 @@ export class RenderService {
         'Lập một CSBH mới cho khách hàng này để có bản mềm.',
     });
   }
-
-  /**
-   * Ký số: sinh bản CHƯA ký, lưu lại, rồi sinh bản CÓ ký và lưu thành object thứ
-   * hai. Hai object cùng tồn tại là điều kiện để đối chiếu trước–sau (DOC-05).
-   */
-  async sign(policyId: string, me: AuthUser): Promise<{ draft: FileRow; signed: FileRow }> {
-    if (me.role !== 'TBP') {
-      throw new ForbiddenException({
-        code: 'FORBIDDEN_ROLE',
-        message: 'Chỉ Trưởng bộ phận ký số bản CSBH',
-      });
-    }
-    const { policy, customer, people } = await this.collect(policyId, me);
-    if (!policy.tbp_signed_at) {
-      throw new ConflictException({
-        code: 'NOT_SIGNED_YET',
-        message: 'Hồ sơ chưa qua bước ký số ở luồng duyệt',
-        status: policy.status,
-      });
-    }
-
-    const base = { policy, customer, people, size: 'a4p' as const };
-    const draftPdf = await this.gotenberg.htmlToPdf(sheetHtml(base));
-    const draft = await this.files.store({
-      fileName: `CSBH-${policy.code}.pdf`,
-      contentType: 'application/pdf',
-      buffer: draftPdf,
-      ownerKind: 'POLICY',
-      ownerId: policyId,
-      purpose: 'BAN_CSBH',
-      uploadedBy: me.id,
-    });
-
-    const signature: Signature = {
-      signerName: people['TBP'] ?? 'Trưởng bộ phận',
-      signerRole: 'Trưởng bộ phận',
-      signedAt: policy.tbp_signed_at,
-    };
-    const signedPdf = await this.gotenberg.htmlToPdf(sheetHtml({ ...base, signature }));
-    const signed = await this.files.store({
-      fileName: `CSBH-${policy.code}-da-ky.pdf`,
-      contentType: 'application/pdf',
-      buffer: signedPdf,
-      ownerKind: 'POLICY',
-      ownerId: policyId,
-      purpose: 'BAN_DA_KY',
-      uploadedBy: me.id,
-      signedFromId: draft.id,
-      signature,
-    });
-    return { draft, signed };
-  }
 }
-

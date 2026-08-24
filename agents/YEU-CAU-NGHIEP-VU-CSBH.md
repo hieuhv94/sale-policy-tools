@@ -275,7 +275,7 @@ lần Trưởng bộ phận ký, kế toán nhận hai thư trong cùng một gi
 mềm*: một bước, một thư, một dòng lịch sử. Chữ ký số và dấu thời gian vẫn được ghi y như cũ.
 
 **Mọi lần trả lại đều tạo phiên bản mới.** Trả về Bước 3 nghĩa là đi lại toàn bộ vòng duyệt,
-kể cả bước ký số của Trưởng bộ phận. File đã ký của phiên bản cũ giữ nguyên trong lịch sử.
+kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ nguyên trong lịch sử, kèm dữ liệu đã đóng băng của nó.
 
 ---
 
@@ -660,9 +660,10 @@ nói rõ dòng nào hẹp hơn dòng nào.
   > `sửa 24/08`. Nói ra vì một bảo đảm 9/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 9/13 đã
   > biết — cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
   >
-  > **13 mục của muc 11.1 là yêu cầu của bảng CSBH XEM**, tức bảng do hệ thống dựng — bảng ấy vẫn
-  > đủ cả mười ba, kể cả năm cột mốc thời gian duyệt. Đem nguyên yêu cầu của bản hệ thống dựng áp
-  > sang bản người dùng vẽ là chỗ `20/08` đọc quá lời.
+  > **13 mục của muc 11.1 là yêu cầu của bảng CSBH XEM**, tức MÀN HÌNH chi tiết hồ sơ — nó bày đủ
+  > cả mười ba và không mẫu nào chi phối. Đem nguyên yêu cầu của màn hình áp sang bản người dùng vẽ
+  > là chỗ `20/08` đọc quá lời. `sửa 24/08`: bản trước ghi bảng ấy là *"bảng do hệ thống dựng"*, một
+  > đường dựng HTML chỉ phục vụ bản lưu ký số — thứ `0103` đã gỡ.
 - **Bỏ nhóm khoá `san_pham.`** `sửa 20/08` — mẫu hợp đồng cũng dùng `{{bang_san_pham}}`, nên cơ chế
   nhân bản dòng bảng không còn ai dùng.
 - **Định dạng không phải chọn** `sửa 20/08`: nó gắn theo TRƯỜNG, không theo mẫu. Cờ *bắt buộc* theo
@@ -1217,17 +1218,18 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 
 ### 11.1. Bản CSBH
 
-- Bản xem và bản đã ký hỗ trợ đúng khổ A4 ngang và A4 dọc, không co sai tỷ lệ, không cắt nội dung.
+- Bản mềm hỗ trợ đúng khổ A4 ngang và A4 dọc, không co sai tỷ lệ, không cắt nội dung.
 - **Phần mềm không có chức năng in.** Chỉ có nút **Tải PDF**; máy chủ sinh file rồi trả về. Muốn có
   bản giấy thì người dùng tự mở file và in bằng máy in của mình — thao tác ngoài phần mềm.
 - File PDF tải về phải **khớp đúng bản đang xem** trên màn hình. Nút Đóng luôn hiển thị ở màn hình xem.
-- File đã ký hiện chữ ký, họ tên và vai trò người ký, dấu thời gian.
-- File sau khi TBP ký lưu thành phiên bản riêng, không ghi đè bản nháp.
+- **Không lưu bản ký số thành file riêng** `sửa 24/08`. Bản mềm in khối *TBP đã ký số* kèm ngày ký;
+  còn câu hỏi *"văn bản lúc ký nói gì"* trả lời bằng **dữ liệu đã đóng băng trong hồ sơ** (mục 5, ý
+  8), không bằng một file PDF thứ hai giữ lại để đối chiếu.
 - Bấm trực tiếp tên file để mở xem.
 - Bảng CSBH xem tối thiểu có: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và
   tên khách hàng, tên sản phẩm, CPBH, trạng thái, file đính kèm, Trưởng bộ phận, kế toán, thời gian duyệt.
-  > **Mười ba mục này là yêu cầu của bảng XEM — bảng do hệ thống dựng** `làm rõ 24/08`, và bảng ấy
-  > luôn đủ cả mười ba. **Mẫu bản mềm do Quản trị soạn là một thứ khác**: nó chỉ bị ép **9 trên
+  > **Mười ba mục này là yêu cầu của bảng XEM — MÀN HÌNH chi tiết hồ sơ** `làm rõ 24/08`, và màn
+  > hình ấy luôn đủ cả mười ba. **Mẫu bản mềm do Quản trị soạn là một thứ khác**: nó chỉ bị ép **9 trên
   > 13**, vì bốn mục kia hoặc cố định (*thông tin công ty*), hoặc do người soạn quyết (*CPBH*),
   > hoặc **còn đang đổi** lúc dựng văn bản (*trạng thái*, *thời gian duyệt*). Xem mục 6.4.
 
@@ -1379,6 +1381,17 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Bỏ bản lưu ký số** `mới 24/08` — phần mềm KHÔNG còn sinh và giữ một file PDF riêng cho lượt ký của
+Trưởng bộ phận. Đường `POST /policies/:id/sign-file` gỡ hẳn, cùng hai mục đích file `BAN_CSBH` và
+`BAN_DA_KY`. Bước **ký trong luồng duyệt không đổi**: TBP vẫn ký, `tbp_signed_at` vẫn là mốc thật,
+và bản mềm vẫn in khối *TBP đã ký số* kèm ngày ký.
+
+> **Vì sao bỏ được.** Bản lưu sinh ra để trả lời *"văn bản lúc ký nói gì"* — bằng cách giữ lại một
+> object PDF và so nó với bản chưa ký. Từ `0101` chính hồ sơ đã giữ ảnh chụp tám trường khách hàng,
+> người đề nghị và tên TBP đã ký, nên câu ấy trả lời được từ dữ liệu, rẻ hơn và nói nhiều hơn một
+> tờ giấy đông cứng. Đo trước khi bỏ: **197** hồ sơ đã qua bước TBP ký, **3** file `BAN_DA_KY` trong
+> kho — cả ba do bộ test sinh ra, không lượt nào của người dùng thật. Đường ấy chưa từng có ai gọi.
+
 **Mẫu bản mềm thôi bắt buộc có *trạng thái* và *thời gian duyệt*** `mới 24/08` — hai mục ấy rời khỏi
 danh sách ép lúc lưu mẫu; *ngày KT nhận lần 1* vốn chưa bao giờ bị ép. Lý do không phải nới lỏng cho
 dễ soạn: chúng là hai mục **còn đang đổi** trong lúc hồ sơ đi qua luồng duyệt, nên một bản mềm dựng
@@ -1386,9 +1399,8 @@ lúc Trưởng bộ phận ký buộc phải in ra *Chờ kế toán duyệt l�
 có mặt là ép in một câu sai ở mọi hồ sơ chưa tới B10. Hai trường **vẫn đặt ô được**, hệ thống chỉ
 thôi ép, và ba mẫu bàn giao kèm phần mềm vẫn in cả hai. Chi tiết ở mục 6.4.
 
-> **Mười ba mục của mục 11.1 là yêu cầu của bảng CSBH XEM**, tức bảng do hệ thống dựng — bảng ấy
-> vẫn đủ cả mười ba. Đem nguyên yêu cầu ấy áp sang **mẫu do Quản trị vẽ** là chỗ `20/08` đọc quá
-> lời. Cộng bốn mục nay tự chịu trách nhiệm, phép kiểm lúc lưu mẫu còn **9 trên 13**.
+> **Mười ba mục của mục 11.1 là yêu cầu của bảng CSBH XEM**, tức MÀN HÌNH chi tiết hồ sơ — nó vẫn
+> đủ cả mười ba. Đem nguyên yêu cầu ấy áp sang **mẫu do Quản trị vẽ** là chỗ `20/08` đọc quá lời. Cộng bốn mục nay tự chịu trách nhiệm, phép kiểm lúc lưu mẫu còn **9 trên 13**.
 
 **Thông tin khách hàng đóng băng vào hồ sơ, và chữ ký huỷ khi trả lại** `mới 24/08` — tám trường
 khách hàng in trên bản CSBH (kể cả **công nợ**) cùng **họ tên người đề nghị** chụp lại vào hồ sơ lúc

@@ -363,11 +363,26 @@ describe('ONB-14 không còn đường kích hoạt nào ngoài email', () => {
     // đăng nhập rồi tự đổi — tài khoản hoạt động mà email chưa từng được xác
     // nhận. Bỏ mật khẩu mặc định là bỏ luôn nhánh đó: KHÔNG có cách nào vào
     // được tài khoản mà không đi qua hộp thư.
-    const { username, res } = await createUser();
+    const TEN = 'Nguoi dung ONB muoi bon';
+    const { username, res } = await createUser({ fullName: TEN });
     expect((await login(app, username, 'MacDinh@2026')).status).toBe(401);
 
+    /*
+     * TÌM theo tên, không lấy trang đầu (`0103`).
+     *
+     * Bản trước gọi `/admin/users` trần rồi `find` trong kết quả. Nó xanh suốt
+     * vì tài khoản vừa tạo tình cờ nằm trong trang đầu — mà từ `0092` mọi danh
+     * sách cắt 20 dòng một trang, và bộ test thì mỗi chặng lại thêm vài tài
+     * khoản. Đủ tài khoản thì `find` trả `undefined`, `row!` ném, và ca đỏ với
+     * một câu không nhắc gì tới phân trang. Bắt được ở `0103`: đỏ một lượt, xanh
+     * lượt sau, không đổi dòng mã nào ở giữa.
+     *
+     * Tên phải RIÊNG của ca này: `createUser` đặt mặc định
+     * *"Nguoi dung thu nghiem"* cho mọi tài khoản nó tạo, nên tìm theo tên mặc
+     * định là rơi lại đúng cái bẫy vừa thoát, chỉ chậm hơn vài chặng.
+     */
     const listed = await http(app).then((a) =>
-      a.get('/admin/users').set('Authorization', `Bearer ${adminToken}`),
+      a.get(`/admin/users?q=${encodeURIComponent(TEN)}`).set('Authorization', `Bearer ${adminToken}`),
     );
     const row = (
       listed.body.items as { id: string; activatedAt: string | null; emailVerifiedAt: string | null }[]

@@ -18,7 +18,14 @@ import { Clients } from '../infra/clients.js';
 import { Storage, sha256 } from '../infra/storage.js';
 
 export type OwnerKind = 'POLICY' | 'CUSTOMER' | 'TEMPLATE';
-export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'BAN_CSBH' | 'BAN_DA_KY' | 'MAU_HD';
+/**
+ * `BAN_CSBH` và `BAN_DA_KY` ĐÃ GỠ (`0103`) — hai mục đích của bản lưu ký số, thứ
+ * không ai gọi bao giờ. Hai GIÁ TRỊ ENUM vẫn còn trong `doc.file_purpose`:
+ * Postgres không có `DROP VALUE`, và đổi kiểu của một cột đang dùng chỉ để bỏ hai
+ * nhãn chết là một lượt migration rủi ro hơn hẳn thứ nó dọn. Kiểu TypeScript này
+ * mới là chốt chặn — không đường nào ghi được hai giá trị ấy nữa.
+ */
+export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'MAU_HD';
 
 export const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -43,8 +50,6 @@ const ALLOWED: Record<Purpose, string[]> = {
   HO_SO: ['application/pdf', 'image/jpeg', 'image/png'],
   SCAN: ['application/pdf', 'image/jpeg', 'image/png'],
   PHAP_LY: ['application/pdf', 'image/jpeg', 'image/png'],
-  BAN_CSBH: ['application/pdf'],
-  BAN_DA_KY: ['application/pdf'],
   MAU_HD: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
 };
 
@@ -65,8 +70,6 @@ export type FileRow = {
   owner_kind: OwnerKind;
   owner_id: string | null;
   purpose: Purpose;
-  signed_from_id: string | null;
-  signature: { signerName: string; signerRole: string; signedAt: string } | null;
   uploaded_by: string;
   uploaded_at: Date;
   deleted_at: Date | null;
@@ -191,7 +194,7 @@ export class FilesService {
     }
   }
 
-  /** Dùng cho file do chính hệ thống sinh (bản A4, bản đã ký) — đã có sẵn buffer. */
+  /** Dùng cho file do chính hệ thống sinh (mẫu bàn giao) — đã có sẵn buffer. */
   async store(input: {
     fileName: string;
     contentType: string;
@@ -200,8 +203,6 @@ export class FilesService {
     ownerId: string | null;
     purpose: Purpose;
     uploadedBy: string;
-    signedFromId?: string;
-    signature?: { signerName: string; signerRole: string; signedAt: string };
   }): Promise<FileRow> {
     const key = Storage.keyFor(input.purpose, input.ownerId ?? undefined);
     await this.storage.put(key, input.buffer, input.contentType);
@@ -217,14 +218,12 @@ export class FilesService {
     ownerId: string | null;
     purpose: Purpose;
     uploadedBy: string;
-    signedFromId?: string | undefined;
-    signature?: { signerName: string; signerRole: string; signedAt: string } | undefined;
   }): Promise<FileRow> {
     const row = await this.db.one<FileRow>(
       `INSERT INTO doc.stored_file
          (object_key, file_name, content_type, size_bytes, sha256,
-          owner_kind, owner_id, purpose, uploaded_by, signed_from_id, signature)
-       VALUES ($1,$2,$3,$4,$5,$6::doc.owner_kind,$7,$8::doc.file_purpose,$9,$10,$11::jsonb)
+          owner_kind, owner_id, purpose, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6::doc.owner_kind,$7,$8::doc.file_purpose,$9)
        RETURNING *`,
       [
         input.objectKey,
@@ -236,8 +235,6 @@ export class FilesService {
         input.ownerId,
         input.purpose,
         input.uploadedBy,
-        input.signedFromId ?? null,
-        input.signature ? JSON.stringify(input.signature) : null,
       ],
     );
     return row!;

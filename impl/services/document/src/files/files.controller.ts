@@ -187,8 +187,6 @@ const view = (r: {
   owner_id: string | null;
   purpose: string;
   object_key: string;
-  signed_from_id: string | null;
-  signature: unknown;
   uploaded_at: Date;
 }) => ({
   id: r.id,
@@ -200,7 +198,5 @@ const view = (r: {
   ownerId: r.owner_id,
   purpose: r.purpose,
   objectKey: r.object_key,
-  signedFromId: r.signed_from_id,
-  signature: r.signature,
   uploadedAt: r.uploaded_at,
 });

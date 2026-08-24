@@ -1,4 +1,4 @@
-import { Controller, Get, Header, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, opt, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { RenderService } from './render.service.js';
@@ -18,9 +18,9 @@ export class RenderController {
    * trả về nữa. Lời bảo đảm ấy giờ đúng theo cách mạnh hơn: chỉ còn MỘT đường
    * dựng, nên không có hai bản để mà lệch.
    *
-   * `sheetHtml` vẫn còn, nhưng chỉ phục vụ BẢN LƯU KÝ SỐ (`sign`) — bản ấy cần
-   * khối "ĐÃ KÝ SỐ" và cần khác bản nháp từng byte để đối chiếu trước–sau
-   * (DOC-05), hai điều một mẫu người dùng soạn không tả được.
+   * `0103` gỡ nốt `sheetHtml`: nó chỉ còn phục vụ bản lưu ký số, mà bản lưu ấy
+   * đã bỏ. Giờ CHỈ CÒN MỘT đường dựng văn bản trong cả service — mẫu `.docx` đi
+   * qua Gotenberg — nên "bản tải về khớp bản đang xem" đúng theo cấu trúc.
    */
   @Roles(...READERS)
   @Get(':id/render')
@@ -60,20 +60,5 @@ export class RenderController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}.pdf"`);
     res.end(body);
-  }
-
-  @Roles('TBP')
-  @Post(':id/sign-file')
-  @HttpCode(201)
-  @Header('Cache-Control', 'no-store')
-  async sign(@CurrentUser() me: AuthUser, @Param('id') id: string) {
-    const { draft, signed } = await this.render.sign(id, me);
-    return {
-      draftFileId: draft.id,
-      signedFileId: signed.id,
-      draftSha256: draft.sha256,
-      signedSha256: signed.sha256,
-      signature: signed.signature,
-    };
   }
 }

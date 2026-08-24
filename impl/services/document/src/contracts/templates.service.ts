@@ -23,7 +23,7 @@ import {
 } from './docx.js';
 import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
 import { chuanHoaCot } from './bang-san-pham.js';
-import { COMPANY } from '../render/sheet.js';
+import { COMPANY } from './dinh-dang.js';
 
 /**
  * Hai loại mẫu, cùng một chủ sở hữu từ `0060` — nhưng KHÁC nhau ở chỗ ai chọn.

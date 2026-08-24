@@ -82,10 +82,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P129** (`0102`): **mẫu bản mềm thôi bị ép có *trạng thái* và *thời gian duyệt***.
+Chặng gần nhất **P130** (`0103`): **gỡ bản lưu ký số**. `POST /policies/:id/sign-file` sinh hai
+object PDF nối qua `signed_from_id`, có DOC-04/DOC-05 canh, và **chưa ai gọi bao giờ** — 197 hồ sơ
+đã ký, 3 file `BAN_DA_KY`, cả ba của bộ test. Khách hàng chốt 24/08: **dữ liệu đóng băng `0101` là
+đủ**. Bỏ BẢN LƯU, **không** bỏ KÝ. Kéo theo `render/sheet.ts` biến mất (đường dựng văn bản thứ hai),
+còn lại dời sang `contracts/dinh-dang.ts`. **1646/1646 xanh**, cây làm việc sạch.
+
+Trước đó **P129** (`0102`): **mẫu bản mềm thôi bị ép có *trạng thái* và *thời gian duyệt***.
 Hai mục ấy còn ĐANG ĐỔI lúc dựng văn bản, nên ép có mặt là ép in một câu sai ở mọi hồ sơ chưa tới
-B10. Gốc rễ: mười ba mục của muc 11.1 là yêu cầu của **bảng XEM do hệ thống dựng** (`sheet.ts`, vẫn
-đủ cả mười ba), `0067` đem áp sang **mẫu do Quản trị vẽ**. Bỏ ÉP chứ không bỏ TRƯỜNG — hai khoá vẫn
+B10. Gốc rễ: mười ba mục của muc 11.1 là yêu cầu của **bảng XEM** — màn hình chi tiết hồ sơ —
+`0067` đem áp sang **mẫu do Quản trị vẽ**. Bỏ ÉP chứ không bỏ TRƯỜNG — hai khoá vẫn
 trong `SCALAR`. Phép kiểm lúc lưu mẫu còn **9/13**. Kèm **DOC-36**, ca kiểm chưa từng có.
 **1647/1647 xanh**, cây làm việc sạch.
 
@@ -154,8 +160,10 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   tách rời. **Hợp đồng KHÔNG đóng băng** — không lưu bản ghi nào thì không có gì để gắn vào — nhưng
   người xuất vẫn **bắt buộc chọn**: không còn mẫu mặc định ngầm ở bất kỳ đâu.
 - **Bảng CSBH XEM và MẪU bản mềm là hai thứ khác nhau** (`0102`). Mười ba mục tối thiểu của muc 11.1
-  là yêu cầu của bảng do hệ thống dựng (`render/sheet.ts`) — nó luôn đủ cả mười ba. Mẫu do Quản trị
-  vẽ chỉ bị ép **9/13**: *thông tin công ty* cố định, *CPBH* do người soạn quyết, còn *trạng thái* và
+  là yêu cầu của **màn hình chi tiết hồ sơ** (`ChiTietHoSo.tsx`) — DOC-03 đọc chúng ra từ PDF dựng
+  bằng `mau-ho-so-a4-doc.docx`, không từ một đường dựng nào của hệ thống (`0103` sửa lại câu này:
+  bản `0102` chỉ sai chỗ `render/sheet.ts`, thứ chỉ phục vụ bản lưu ký số). Mẫu do Quản trị vẽ chỉ
+  bị ép **9/13**: *thông tin công ty* cố định, *CPBH* do người soạn quyết, còn *trạng thái* và
   *thời gian duyệt* thì **còn đang đổi** lúc dựng văn bản. Bỏ ÉP không phải bỏ TRƯỜNG — hai khoá vẫn
   trong `SCALAR`, và gỡ nhầm chúng ở đó thì ba mẫu bàn giao trả `400 SOURCE_UNKNOWN` lúc lưu.
 - **Câu báo lỗi khai ở một chỗ** (`0088`): `impl/apps/web/src/lib/loi.ts`. Lỗi của một THAO TÁC ra
@@ -180,6 +188,11 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   một chỗ nuốt lỗi thì phải khai ở `NUOT_CO_LY_DO` trong `tests/web/nuot-loi.test.tsx`.
 
 ## Bẫy kỹ thuật
+
+**`tsc` không bắt được một import bị gỡ, nếu tên ấy trùng một kiểu toàn cục.** `0103` gỡ
+`import { Storage }` khỏi `render.service.ts` nhưng để nguyên `private readonly storage: Storage`
+trong constructor. Typecheck **xanh** — `Storage` là interface của `lib.dom` — và chỉ DI của Nest bắt
+được lúc chạy. `Response`, `Request`, `Event`, `File` là bẫy cùng loại.
 
 **Chèn một phương thức vào giữa khối decorator là cướp decorator của phương thức bên dưới.** P26
 thêm `suaDong` ngay dưới `@Roles('TDV')` của `removeLine`; decorator sang tay phương thức mới, ghi

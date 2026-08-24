@@ -1133,11 +1133,11 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 |---|---|---|---|---|
 | DOC-01 | Sinh PDF bản CSBH ở khổ A4 dọc và A4 ngang | Đúng khổ và tỷ lệ, không co méo, không cắt nội dung ở cả hai | §11.1 | `P0` |
 | DOC-02 | So nội dung PDF với bản đang xem trên màn hình | Khớp nhau; PDF không chứa menu, thanh điều hướng hay nút thao tác vì dùng bố cục văn bản riêng | §11.1 | `P0` |
-| DOC-03 | Kiểm nội dung bảng CSBH xem — **bảng do hệ thống dựng** (`render/sheet.ts`), KHÔNG phải mẫu do Quản trị soạn | Có đủ 13 mục tối thiểu: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và tên KH, tên sản phẩm, CPBH, trạng thái, file đính kèm, TBP, kế toán, thời gian duyệt. Mẫu do Quản trị soạn chỉ bị ép **9/13** — xem DOC-36 | §11.1 | `P0` |
-| DOC-04 | TBP ký số | File kết quả hiện chữ ký, họ tên, vai trò người ký và dấu thời gian | §11.1 | `P0` |
-| DOC-05 | So file trước và sau khi ký | Hai object khác nhau trên MinIO — bản đã ký không ghi đè bản nháp | §11.1 | `P0` |
+| DOC-03 | Kiểm nội dung bảng CSBH xem — **màn hình chi tiết hồ sơ**, và bản A4 dựng bằng mẫu bàn giao `mau-ho-so-a4-doc.docx`. KHÔNG phải mọi mẫu do Quản trị soạn | Có đủ 13 mục tối thiểu: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và tên KH, tên sản phẩm, CPBH, trạng thái, file đính kèm, TBP, kế toán, thời gian duyệt. Mẫu do Quản trị soạn chỉ bị ép **9/13** — xem DOC-36 | §11.1 | `P0` |
+| ~~DOC-04~~ `nghỉ 24/08` | TBP ký số, file kết quả hiện chữ ký | **Không còn bản lưu ký số** (`0103`). Chữ ký vẫn hiện trên bản mềm qua `{{ho_so.chu_ky_so_TBP}}`; câu "văn bản lúc ký nói gì" trả lời bằng ảnh chụp `0101` chứ không bằng một object PDF thứ hai | §11.1 | — |
+| ~~DOC-05~~ `nghỉ 24/08` | So file trước và sau khi ký | Cùng lý do DOC-04. Ca thay chỗ: `POST /policies/:id/sign-file` phải trả **404** — đường đã gỡ, và một lượt khôi phục nhầm không đi qua im lặng | §11.1 | `P1` |
 | DOC-06 | Sửa nội dung file trên storage rồi gọi API xác minh | Phát hiện sai SHA-256 và báo lỗi toàn vẹn | §10 | `P1` |
-| DOC-07 | Kiểm phụ thuộc của cơ chế ký | Không gọi HSM, CA hay dịch vụ chứng thư số nào — chữ ký điện tử nội bộ | §10 | `P0` |
+| DOC-07 | Kiểm phụ thuộc của cơ chế ký | Không gọi HSM, CA hay dịch vụ chứng thư số nào — chữ ký điện tử nội bộ. `sửa 24/08`: nửa "chữ ký chỉ gồm ba trường" đi cùng bản lưu đã gỡ; nửa quét phụ thuộc vẫn đứng | §10 | `P0` |
 | DOC-08 | Bấm tên file để xem | Mở trực tiếp qua link có hạn 5 phút gắn với người dùng, không phải URL công khai | §11.1 | `P0` |
 | DOC-09 | Người ngoài phạm vi dùng đúng link file | 403 — link không thay thế được việc kiểm quyền | §10 | `P0` |
 | DOC-10 | Xuất hợp đồng khi kế toán *chưa* tiếp nhận lần 1 | 409 | §8.3 | `P0` |
