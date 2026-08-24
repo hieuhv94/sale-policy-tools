@@ -123,6 +123,18 @@ Kèm theo: viết **SEC-13**, ca kiểm `P0` trong danh mục kiến trúc chưa
 Trước đó **P125** (`0098`): **mẫu bản mềm đóng băng vào hồ sơ** lúc TDV gửi duyệt — chỉ TDV chọn,
 các vai trò sau chỉ xem; và **mẫu thôi xoá được, chỉ vô hiệu hoá**.
 
+## Nợ đã HOÃN có chủ ý
+
+Chốt 24/08 — **không đụng tới trước khi bản dùng thử tới tay khách hàng**:
+
+| Món | Vì sao hoãn được |
+|---|---|
+| **N-09** rà danh mục O(n) — đổi một quy định chiết khấu quét mọi hồ sơ đã đóng băng × mọi dòng, kèm gọi REST sang `customer` và `catalog` | có chia lô `SONG_SONG`; ở quy mô hiện tại chưa cắn |
+| **N-10** không có unique index `(customer_id, version_no)` — số lấy bằng `active.version_no + 1` | chỉ va khi hai lượt lập song song cho CÙNG khách, mà một khách chỉ có một TDV |
+
+Cả hai **có thật và đã đo**, không phải nghi ngờ. Đừng gỡ chúng khỏi danh sách nợ, và đừng lặng lẽ
+sửa nửa vời — N-10 sửa đúng là một migration thêm unique index cộng đường xử lý va chạm.
+
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
 Trái trực giác, dễ làm sai nếu không nhớ:
