@@ -204,6 +204,17 @@ trước tiên.
 `./csbh log caddy`. Caddy tự gia hạn chứng chỉ; nó chỉ hỏng khi cổng 80 bị chặn
 — Let's Encrypt cần cổng ấy để xác minh.
 
+**`relation "idn.app_user" does not exist`** khi chạy `./csbh mo-tai-khoan`. CSDL
+chưa chạy migration. `docker compose run` tự khởi động Postgres, nên gọi lệnh mồi
+trước `./csbh len` sẽ dựng một CSDL trống rồi chạy luôn. Tra:
+
+```sh
+./csbh psql -c "SELECT count(*) FROM sys.schema_migration"
+```
+
+Báo `does not exist` thì chạy `./csbh len` rồi gọi lại. Ra một con số thì lệnh mồi
+đang nối tới CSDL **khác** — kiểm `COMPOSE_PROJECT_NAME` trong `.env`.
+
 **`password authentication failed for user "postgres"`.** Volume `pgdata` được
 khởi tạo bởi một chồng khác với mật khẩu khác. Postgres đặt mật khẩu **chỉ ở lần
 khởi tạo đầu tiên** — đổi `secrets/pg_password.txt` về sau không đụng tới CSDL đã

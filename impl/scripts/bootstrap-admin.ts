@@ -85,7 +85,34 @@ const main = async () => {
      * mà không ai phê duyệt. Đường đúng cho tình huống đó là phục hồi từ bản
      * sao lưu, không phải mồi lại.
      */
-    const { rows } = await db.query<{ n: string }>('SELECT count(*)::text AS n FROM idn.app_user');
+    /*
+     * CHƯA CHẠY MIGRATION là tình huống có thật, không phải chuyện hiếm (`0110`).
+     *
+     * `docker compose run ops` tự khởi động Postgres theo `depends_on`, nên gọi
+     * lệnh này trước `./csbh len` sẽ dựng một CSDL TRỐNG rồi chạy luôn — không
+     * có gì báo rằng lược đồ chưa có. Bản trước ném nguyên vết ngăn xếp của `pg`:
+     *
+     *   error: relation "idn.app_user" does not exist
+     *
+     * — đúng về mặt kỹ thuật, và không nói cho người cài đặt biết phải gõ gì.
+     */
+    let rows: { n: string }[];
+    try {
+      ({ rows } = await db.query<{ n: string }>('SELECT count(*)::text AS n FROM idn.app_user'));
+    } catch (e) {
+      // 42P01 = undefined_table. Bắt theo MÃ chứ không theo câu chữ: câu chữ của
+      // Postgres đổi theo ngôn ngữ máy chủ, mã thì không.
+      if ((e as { code?: string }).code !== '42P01') throw e;
+      console.error(
+        'bootstrap-admin: CSDL chưa chạy migration — chưa có lược đồ nào. ' +
+          'Chạy "./csbh len" trước, rồi gọi lại lệnh này.',
+      );
+      console.error(
+        '  Nếu "./csbh len" đã chạy rồi: lệnh này đang nối tới một CSDL KHÁC. ' +
+          'Kiểm COMPOSE_PROJECT_NAME trong .env — nó quyết định volume dữ liệu nào được dùng.',
+      );
+      process.exit(1);
+    }
     const n = Number(rows[0]?.n ?? '0');
     if (n > 0) {
       console.error(

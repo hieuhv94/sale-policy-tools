@@ -723,6 +723,41 @@ describe('SEC-04 tên khách hàng chứa công thức', () => {
 // phải đường gọi.
 // =============================================================================
 
+describe('`0110` lệnh mồi nói ra khi CSDL chưa chạy migration', () => {
+  /*
+   * `docker compose run ops` tự khởi động Postgres theo `depends_on`, nên gọi
+   * `mo-tai-khoan` TRƯỚC `len` sẽ dựng một CSDL trống rồi chạy luôn. Bản trước
+   * ném nguyên vết ngăn xếp của `pg`:
+   *
+   *   error: relation "idn.app_user" does not exist
+   *
+   * — đúng về mặt kỹ thuật, và không nói cho người cài đặt biết phải gõ gì.
+   */
+  const nguon = readFileSync('scripts/bootstrap-admin.ts', 'utf8');
+
+  it('bắt theo MÃ lỗi Postgres, không theo câu chữ', () => {
+    // Câu chữ của Postgres đổi theo `lc_messages` của máy chủ; mã thì không.
+    expect(nguon).toContain("'42P01'");
+    expect(nguon).not.toMatch(/does not exist['"]/);
+  });
+
+  it('câu báo nói ĐÚNG hai đường dẫn tới lỗi, và việc phải làm cho mỗi đường', () => {
+    expect(nguon).toContain('chưa chạy migration');
+    expect(nguon).toContain('./csbh len');
+    // Đường thứ hai: migration đã chạy, nhưng ở một CSDL khác.
+    expect(nguon).toContain('COMPOSE_PROJECT_NAME');
+  });
+
+  it('lỗi KHÁC 42P01 vẫn được ném lên nguyên vẹn', () => {
+    /*
+     * Nuốt mọi lỗi ở đây là biến một sự cố kết nối, một mật khẩu sai, hay một
+     * quyền thiếu thành cùng một câu "chưa chạy migration" — và người đọc sẽ đi
+     * chạy migration, thấy nó chạy được, rồi không hiểu gì nữa.
+     */
+    expect(nguon).toMatch(/!==\s*'42P01'\)\s*throw e/);
+  });
+});
+
 describe('`0109` bộ nạp danh mục ĐƯỢC phép chạy ở production — và vì sao', () => {
   /*
    * `nap-danh-muc.ts` là script nạp dữ liệu DUY NHẤT không có chốt `NODE_ENV`,

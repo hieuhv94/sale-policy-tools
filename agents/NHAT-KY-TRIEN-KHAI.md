@@ -10283,3 +10283,34 @@ lại (được), rồi chạy lần hai (từ chối đúng). Đối chiếu CS
 `nhom=3 sanpham=9 gia=9 qdck=3`.
 
 **1688/1688 xanh.**
+
+## P137 — `0110` lệnh mồi nói ra khi CSDL chưa chạy migration
+
+Người dùng gọi `./csbh mo-tai-khoan` và nhận nguyên vết ngăn xếp của `pg`:
+
+```
+error: relation "idn.app_user" does not exist
+```
+
+Đúng về mặt kỹ thuật, và **không nói cho người cài đặt biết phải gõ gì**.
+
+`docker compose run ops` tự khởi động Postgres theo `depends_on`, nên gọi lệnh mồi
+TRƯỚC `./csbh len` sẽ dựng một CSDL trống rồi chạy luôn. Không có gì trên đường đi
+báo rằng lược đồ chưa có — đây là bước 7 chạy trước bước 6, và bảng trình tự vừa
+viết ở `P136c` nói ra thứ tự ấy nhưng không có gì **thi hành** nó.
+
+Bắt theo **mã** `42P01` chứ không theo câu chữ: câu chữ của Postgres đổi theo
+`lc_messages` của máy chủ, mã thì không.
+
+Câu mới nói ra **hai** đường dẫn tới lỗi, vì chúng cần hai việc khác nhau: chưa
+chạy migration (chạy `./csbh len`), hoặc đã chạy nhưng ở một CSDL khác (kiểm
+`COMPOSE_PROJECT_NAME`). Đường thứ hai có thật — nó chính là lỗi `0106`, và không
+nói ra thì người đọc chạy `len`, thấy nó chạy được, rồi không hiểu gì nữa.
+
+Mọi mã lỗi khác vẫn ném lên nguyên vẹn. Nuốt tất ở đây là biến một sự cố kết nối,
+một mật khẩu sai hay một quyền thiếu thành cùng một câu "chưa chạy migration".
+
+Dựng lại tình huống thật bằng một Postgres trắng trong mạng riêng, chạy ảnh `ops`
+vào đó, và đọc đúng câu mới trước khi tin.
+
+**1691/1691 xanh.**
