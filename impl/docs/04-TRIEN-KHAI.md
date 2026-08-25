@@ -13,6 +13,48 @@ quyết, và thiếu một thứ là dừng ở giữa chừng.
 
 ---
 
+## Trình tự — làm từ trên xuống, không đảo
+
+Mười ba bước. Cột cuối nói bước ấy **bắt buộc phải sau bước nào**, và vì sao —
+đảo thứ tự ở những chỗ ấy thì hỏng, chứ không phải chỉ bất tiện.
+
+### Trước khi đụng tới máy chủ
+
+| # | Bước | Phải sau | Vì sao |
+| --- | --- | --- | --- |
+| 1 | Chốt sáu thứ ở [mục 1](#1-chuẩn-bị) | — | mỗi thứ thiếu là dừng ở một chỗ khác nhau |
+| 2 | Trỏ **DNS** về IP máy chủ | 1 | Caddy xin chứng chỉ ở bước 6; DNS chưa trỏ thì không có HTTPS, và Let's Encrypt có hạn mức theo tuần nên thử lại nhiều lần là bị khoá |
+| 3 | Dựng máy chủ: Docker, múi giờ, NTP, tường lửa, đĩa | — | có thể làm song song với 2 |
+
+### Trên máy chủ
+
+| # | Bước | Lệnh | Phải sau | Vì sao |
+| --- | --- | --- | --- | --- |
+| 4 | Giải nén, đăng nhập registry | `docker login` | 3 | |
+| 5 | Khai cấu hình và sinh bí mật | `./cai-dat.sh` | 4 | hỏi tên miền, SMTP, tên miền nhận thư |
+| 6 | Kéo ảnh, migration, dựng hệ | *(bước 5 tự gọi)* | **2**, 5 | cấu hình thư sai thì service **không khởi động** — sửa `.env` rồi `./csbh len` |
+| 7 | Tài khoản Quản trị đầu tiên | `./csbh mo-tai-khoan` | 6 | **chỉ chạy được một lần**: nó từ chối khi CSDL đã có tài khoản |
+| 8 | Đăng nhập giao diện, **đổi mật khẩu** | *(trên màn hình)* | 7 | cho tới lúc này **mọi đường API trả 403** — bước 9 và 10 đều chặn |
+| 9 | Kiểm thư đầu-cuối: tạo một tài khoản thật, nhận thư mời, kích hoạt | *(trên màn hình)* | 8 | bước hay bị bỏ nhất và hỏng nhiều nhất |
+| 10 | Nạp dữ liệu ban đầu | tự khai, **hoặc** `./csbh nap-danh-muc` | 8 | lệnh nạp đòi tài khoản đã đổi mật khẩu, và từ chối khi danh mục đã có sản phẩm |
+| 11 | Nghiệm thu: vòng mười bước, xuất hợp đồng, `pg_stat_archiver`, `dien-tap` | | 10 | phải có sản phẩm mới lập được hồ sơ |
+| 12 | Cài lịch tự động | `cp deploy/cron.mau /etc/cron.d/csbh` | 6 | làm được sớm hơn, nhưng **đừng giao khi chưa làm** |
+| 13 | *(tuỳ chọn)* mở đường hầm cho người khác xem | `./csbh mo-thu-nghiem` | 10 | hệ trống trơn thì không có gì để xem |
+
+### Bốn chỗ đảo thứ tự là hỏng
+
+- **DNS sau khi dựng** (2 sau 6) — Caddy đã thử xin chứng chỉ và thất bại; mỗi
+  lần dựng lại là một lần thử nữa vào hạn mức của Let's Encrypt
+- **Nạp dữ liệu trước khi đổi mật khẩu** (10 trước 8) — `nap-danh-muc` dừng và
+  nói ra, nhưng nếu tự khai bằng tay thì mọi thao tác trả 403 mà màn hình chỉ nói
+  "không có quyền"
+- **Tạo tài khoản quản trị lần hai** (7 sau khi đã có tài khoản) — lệnh từ chối;
+  quên mật khẩu thì dùng *Quên mật khẩu*, không phải chạy lại lệnh mồi
+- **Giao cho người dùng trước khi cài cron** (giao trước 12) — hệ chạy bình
+  thường, và bản sao lưu không chạy suốt nhiều tháng mà không ai biết
+
+---
+
 ## 1. Chuẩn bị
 
 ### Sáu thứ phải có trước
