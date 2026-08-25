@@ -109,6 +109,13 @@ services:
     environment:
       POSTGRES_DB: csbh
       POSTGRES_USER: postgres
+      # ĐẶT RỖNG, không phải bỏ đi — compose GỘP map `environment` chứ không thay
+      # thế, nên `POSTGRES_PASSWORD` của `compose.yml` vẫn còn đó dù lớp phủ này
+      # không nhắc tới nó. Cả hai cùng có giá trị thì entrypoint của Postgres
+      # DỪNG: "both POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE are set (but are
+      # exclusive)". Nó kiểm bằng `[ "${!var:-}" ]`, tức CHUỖI RỖNG được coi là
+      # chưa đặt — nên một dòng rỗng ở đây là cách duy nhất "gỡ" một khoá.
+      POSTGRES_PASSWORD: ""
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_password.txt
     volumes:
       - ../secrets:/run/secrets:ro
@@ -116,6 +123,11 @@ services:
   minio:
     environment:
       MINIO_ROOT_USER: csbh
+      # Cùng lý do với Postgres ngay trên. MinIO không dừng khi cả hai cùng có —
+      # nó lặng lẽ dùng biến trực tiếp, tức mật khẩu `csbh_dev_pw` mặc định của
+      # `compose.yml`, trong khi mười service đọc file. Hỏng theo kiểu tệ hơn:
+      # MinIO xanh, và mọi lượt tải tệp trả một lỗi chữ ký không nhắc tới mật khẩu.
+      MINIO_ROOT_PASSWORD: ""
       MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password.txt
     volumes:
       - ../secrets:/run/secrets:ro

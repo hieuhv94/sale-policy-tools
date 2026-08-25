@@ -68,7 +68,29 @@ ops() { $DC run --rm -T ops "$@"; }
 
 case "${1:-help}" in
   len)
-    $DC pull
+    # KÉO ẢNH hỏng thì chưa chắc đã phải dừng (`0107`).
+    #
+    # Hai tình huống thật: máy chủ không ra được registry (mạng cách ly, ảnh nạp
+    # bằng `docker load`), và bản chạy thử tại chỗ nơi ảnh vừa dựng xong còn nằm
+    # trên máy. Dừng cứng ở đây là bắt cả hai đi đường vòng.
+    #
+    # Nhưng chỉ đi tiếp khi ĐỦ ẢNH. Bỏ qua lỗi rồi `up` với một ảnh thiếu thì
+    # docker báo "manifest unknown" ở giữa lượt dựng, sau khi vài service đã lên.
+    if ! $DC pull; then
+      echo ""
+      echo "  Không kéo được ảnh từ registry. Kiểm ảnh có sẵn trên máy chưa..."
+      thieu=""
+      for a in $($DC config --images | sort -u); do
+        docker image inspect "$a" >/dev/null 2>&1 || thieu="$thieu $a"
+      done
+      [ -z "$thieu" ] || {
+        echo "  THIẾU ảnh:$thieu" >&2
+        echo "  Đăng nhập registry (docker login) rồi thử lại." >&2
+        exit 1
+      }
+      echo "  Đủ ảnh trên máy, đi tiếp."
+      echo ""
+    fi
     # `migrate` chạy TRƯỚC, và là điều kiện của mọi service — `depends_on` đã khai
     # `service_completed_successfully`, nên `up -d` tự chờ. Gọi riêng ở đây để
     # người vận hành thấy kết quả migration thay vì thấy nó trôi trong log chung.

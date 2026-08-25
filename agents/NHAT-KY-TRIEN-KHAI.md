@@ -10179,3 +10179,43 @@ cất nguyên văn hai dòng `SITE_ADDRESS`/`SITE_URL` cũ, vì người mở đ
 người đóng nó có thể là hai người, cách nhau vài ngày.
 
 **1682/1682 xanh.**
+
+## P135 — `0108` bẫy gộp map, lần thứ ba
+
+Dựng bản chạy thử thật qua đường hầm thì Postgres chết ngay lượt đầu:
+
+```
+error: both POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE are set (but are exclusive)
+```
+
+`0106` cho `compose.prod.yml` khai `POSTGRES_PASSWORD_FILE` để `.env` thôi mang
+mật khẩu. Nhưng compose **GỘP** map `environment` chứ không thay thế, nên
+`POSTGRES_PASSWORD` của `compose.yml` vẫn còn nguyên ở đó — y hệt chuyện đã xảy
+ra với `volumes` ở `0105` và với `migrate` ở `0106`. **Không có cách nào gỡ một
+khoá bằng một lớp phủ.**
+
+Lối thoát duy nhất là ĐẶT RỖNG: entrypoint của Postgres kiểm bằng
+`[ "${!var:-}" ]`, tức chuỗi rỗng được coi là chưa đặt.
+
+### MinIO là kiểu hỏng nguy hơn hẳn
+
+Cùng lỗi cấu hình, hai hành vi khác nhau. Postgres **dừng** và nói ra. MinIO
+**không dừng** — nó lặng lẽ dùng biến trực tiếp, tức mật khẩu mặc định
+`csbh_dev_pw` của `compose.yml`, trong khi mười service đọc từ
+`secrets/minio_password.txt`. MinIO xanh, healthcheck xanh, và triệu chứng duy
+nhất là mọi lượt tải tệp trả một lỗi chữ ký S3 không nhắc gì tới mật khẩu.
+
+Kiểm rỗng-cộng-`_FILE` trên chính hai ảnh đang dùng trước khi sửa, không đọc tài
+liệu rồi tin.
+
+### Vì sao ba lượt dựng thử trước không bắt được
+
+`0105` dựng thử trên thư mục trắng và xanh, vì lúc ấy chưa có `POSTGRES_PASSWORD_FILE`
+— `.env` vẫn mang mật khẩu. `0106` thêm `_FILE` nhưng **không dựng lại**: nó chỉ
+sửa cấu hình rồi chạy bộ test, mà bộ test không dựng chồng production. Lỗi nằm im
+đúng hai chặng, và chỉ lộ ra ở lượt `docker compose up` thật đầu tiên sau đó.
+
+Bài học: một thay đổi ở tệp compose **không được kiểm bởi bộ test**. Chỉ có một
+lượt dựng thật mới nói được nó đúng hay sai.
+
+**1683/1683 xanh.**

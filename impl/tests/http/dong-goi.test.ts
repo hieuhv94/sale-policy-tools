@@ -79,6 +79,31 @@ describe('`0105` bản đóng gói', () => {
     expect(prod).toContain('MINIO_ROOT_PASSWORD_FILE');
   });
 
+  it('`0108` khai `*_FILE` thì PHẢI đặt biến trực tiếp về RỖNG', () => {
+    /*
+     * Compose GỘP map `environment` chứ không thay thế, nên `POSTGRES_PASSWORD`
+     * và `MINIO_ROOT_PASSWORD` của `compose.yml` vẫn còn dù lớp phủ production
+     * không nhắc tới chúng. Không có cách nào gỡ một khoá bằng lớp phủ — chỉ
+     * ĐẶT RỖNG được, và cả hai ảnh đều coi chuỗi rỗng là chưa đặt.
+     *
+     * Hai kiểu hỏng khác hẳn nhau, và kiểu thứ hai mới nguy:
+     *
+     *   Postgres DỪNG hẳn — "both POSTGRES_PASSWORD and POSTGRES_PASSWORD_FILE
+     *   are set (but are exclusive)". Thấy ngay.
+     *
+     *   MinIO KHÔNG dừng. Nó lặng lẽ dùng biến trực tiếp, tức mật khẩu mặc định
+     *   `csbh_dev_pw` của compose.yml, trong khi mười service đọc từ file. MinIO
+     *   xanh, healthcheck xanh, và mọi lượt tải tệp trả một lỗi chữ ký không
+     *   nhắc gì tới mật khẩu.
+     */
+    const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
+    for (const v of ['POSTGRES_PASSWORD', 'MINIO_ROOT_PASSWORD']) {
+      expect(prod, `${v} phải được đặt rỗng cạnh ${v}_FILE`).toMatch(
+        new RegExp(`^\\s+${v}: ""$`, 'm'),
+      );
+    }
+  });
+
   it('`compose.prod.yml` KHÔNG có `build:` nào — máy chủ khách chỉ pull', () => {
     /*
      * Bất biến trung tâm của cả mô hình. Một `build:` lọt vào đây thì lệnh dựng

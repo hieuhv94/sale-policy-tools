@@ -93,7 +93,9 @@ production dùng chung volume với demo (`COMPOSE_PROJECT_NAME=csbh-prod`) — 
 CHỈ ở lần khởi tạo đầu tiên**; và ba ảnh phải chung MỘT repo phân biệt bằng thẻ vì registry chỉ có
 hai cấp. `0107` thêm **đường hầm Cloudflare** để chạy thử qua Internet, ở một tệp compose riêng —
 kèm việc bịt một lỗ hổng của chính SEC-10: nó quét `ports:`, mà `cloudflared` không mở cổng nào.
-**1682/1682 xanh**, cây làm việc sạch.
+`0108` sửa **bẫy gộp map lần thứ ba**: khai `*_FILE` mà không đặt biến trực tiếp về rỗng thì Postgres
+DỪNG, còn MinIO **âm thầm dùng mật khẩu mặc định** trong khi mười service đọc từ file. Đã chạy thử
+đầu-cuối qua đường hầm Cloudflare với Gmail SMTP thật. **1683/1683 xanh**, cây làm việc sạch.
 
 Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên
@@ -221,6 +223,14 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   môi trường. Đo được: `csbh-audit` và `csbh-policy` trùng hoàn toàn từng lớp. `csbh-ops` dựng TỪ
   `csbh-service` (chỉ +10MB); dựng lại từ `node:alpine` là tạo bản sao thứ hai của cùng những tệp,
   và hai bản sẽ lệch nhau.
+- **Compose GỘP `volumes` và `environment`, không thay thế** (`0105`, `0106`, `0108` — ba lần dính).
+  Không có cách nào GỠ một mục bằng lớp phủ: bind mount thì phải tắt service bằng `profiles` rồi đặt
+  service tên khác; biến môi trường thì phải **đặt rỗng** (`POSTGRES_PASSWORD: ""`), và cả Postgres
+  lẫn MinIO đều coi chuỗi rỗng là chưa đặt. Postgres dừng hẳn khi lệch; **MinIO thì không** — nó
+  lặng lẽ dùng mật khẩu mặc định và chỉ lộ ra ở một lỗi chữ ký S3.
+- **Một thay đổi ở tệp compose KHÔNG được bộ test kiểm.** `0106` sửa cấu hình rồi chạy 1682 ca xanh;
+  lỗi chỉ lộ ở lượt `docker compose up` thật đầu tiên, hai chặng sau đó. Đụng `deploy/*.yml` thì phải
+  dựng thật.
 - **Đường dẫn tương đối trong compose tính theo thư mục của TỆP COMPOSE**, không theo nơi gõ lệnh
   (`0105`). Hai tệp compose ở `deploy/`, bộ cài ở thư mục cha — nên `../secrets`, không phải
   `./secrets`. Và compose **gộp** danh sách `volumes` chứ không thay thế: ghi đè một service để bỏ
