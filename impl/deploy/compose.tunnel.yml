@@ -1,0 +1,61 @@
+# =============================================================================
+# ĐƯỜNG HẦM CLOUDFLARE — mở hệ ra Internet để CHẠY THỬ (`0107`).
+#
+# Dùng cùng hai tệp kia, và phải gõ THÊM `-f`:
+#   docker compose -f compose.yml -f compose.prod.yml -f compose.tunnel.yml up -d
+# hoặc gọn hơn: `./csbh mo-thu-nghiem`
+#
+# TỆP RIÊNG, đúng tiền lệ `compose.mail.yml`: bất biến "chỉ biên mạng mở cổng"
+# chỉ có nghĩa khi việc phá nó là một hành động rõ ràng, phải gõ ra. Mở cả hệ
+# thống ra Internet càng phải vậy — nó không được là một cờ ai đó quên tắt.
+#
+# CHỖ NÀY LÀ MỘT LỖ HỔNG CỦA CHÍNH PHÉP KIỂM SEC-10.
+#
+# Ca kiểm ấy quét `ports:`. `cloudflared` không mở cổng nào — nó mở một kết nối
+# ĐI RA tới biên Cloudflare, rồi nhận request ngược qua đó. Nên bất biến "chỉ
+# caddy mở cổng" vẫn đúng từng chữ trong khi cả hệ đã ra Internet. SEC-10 vì thế
+# quét thêm tên `cloudflared`, và chỉ chấp nhận nó ở đúng tệp này.
+#
+# KHÔNG PHẢI ĐƯỜNG TRIỂN KHAI THẬT. Bàn giao vẫn là Caddy + tên miền + chứng chỉ
+# (xem `docs/04-TRIEN-KHAI.md`). Đường hầm là công cụ để người khác nhìn thấy màn
+# hình mà không phải mở cổng trên tường lửa.
+# =============================================================================
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    # `--url` là QUICK TUNNEL: không cần tài khoản Cloudflare, và địa chỉ nhận
+    # được là NGẪU NHIÊN, ĐỔI MỖI LẦN KHỞI ĐỘNG LẠI. Hệ quả phải nhớ: liên kết
+    # trong những lá thư đã gửi CHẾT sau mỗi lần dựng lại đường hầm — mà từ P13
+    # thư kích hoạt là đường duy nhất để một tài khoản có mật khẩu.
+    #
+    # Cần địa chỉ cố định thì phải là named tunnel: tài khoản Cloudflare, một tên
+    # miền trên đó, và `command: [tunnel, --no-autoupdate, run]` cộng biến
+    # `TUNNEL_TOKEN`. Đó là một quyết định khác, không phải một cờ.
+    command: [tunnel, --no-autoupdate, --url, "http://caddy:80"]
+    depends_on:
+      caddy: { condition: service_started }
+    networks: [ internal ]
+
+  # Giới hạn đăng nhập theo IP SẬP VỀ MỘT XÔ CHUNG khi chạy sau đường hầm.
+  #
+  # `clientIp()` đọc `X-Forwarded-For`, mà Caddyfile đặt header ấy bằng
+  # `{remote_host}` — qua đường hầm thì đó là IP container `cloudflared`. Nên hai
+  # mươi lượt đăng nhập mỗi phút của CẢ INTERNET dùng chung một xô, và một con
+  # bot quét `/api/auth/login` là cả nhóm dùng thử nhận 429.
+  #
+  # KHÔNG chữa bằng cách tin `CF-Connecting-IP`: header ấy chỉ đáng tin khi đường
+  # hầm là lối duy nhất tới Caddy, mà compose GỘP danh sách `ports` chứ không
+  # thay thế — không có cách nào gỡ `ports` của caddy bằng một lớp phủ. Tin một
+  # header giả mạo được thì tệ hơn hẳn một xô chung.
+  #
+  # Nới hạn mức là cách đúng ở đây, và nó KHÔNG làm yếu chống dò mật khẩu: khoá
+  # tài khoản sau 5 lần sai trong 15 phút nằm ở `identity`, đếm theo TÀI KHOẢN,
+  # không đụng gì tới IP.
+  gateway:
+    environment:
+      RATE_LOGIN_LIMIT: ${RATE_LOGIN_LIMIT:-200}

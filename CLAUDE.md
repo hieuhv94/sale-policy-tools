@@ -87,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/08/2026)
 
-Chặng gần nhất **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
+Chặng gần nhất **P133–P134** (`0106`, `0107`). `0106` sửa **ba lỗi của lượt cài thật đầu tiên**:
+mật khẩu Postgres/MinIO nằm ở hai chỗ (giờ đọc thẳng từ `secrets/*.txt` bằng biến `*_FILE`); chồng
+production dùng chung volume với demo (`COMPOSE_PROJECT_NAME=csbh-prod`) — **Postgres đặt mật khẩu
+CHỈ ở lần khởi tạo đầu tiên**; và ba ảnh phải chung MỘT repo phân biệt bằng thẻ vì registry chỉ có
+hai cấp. `0107` thêm **đường hầm Cloudflare** để chạy thử qua Internet, ở một tệp compose riêng —
+kèm việc bịt một lỗ hổng của chính SEC-10: nó quét `ports:`, mà `cloudflared` không mở cổng nào.
+**1682/1682 xanh**, cây làm việc sạch.
+
+Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên
 máy chủ khách (compose + `.env.mau` + `cai-dat.sh` + `csbh` + cron + bốn tài liệu; **không chứa
 ảnh**). Bốn việc chặn cứng đã xong: lệnh mồi tài khoản quản trị chạy được ở `production`, SMTP có

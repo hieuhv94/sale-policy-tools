@@ -20,19 +20,23 @@ csbh-1.0.0-a1b2c3d/
   cai-dat.sh           Cài lần đầu — hỏi từng thứ rồi tự dựng
   csbh                 Lệnh vận hành hằng ngày:  ./csbh help
   .env.mau             Bản khai môi trường
-  deploy/              Hai tệp compose + cấu hình Postgres. KHÔNG sửa.
+  deploy/              Ba tệp compose + cấu hình Postgres. KHÔNG sửa.
   deploy/cron.mau      Lịch sao lưu và dọn dữ liệu
   mau-van-ban/         Ba mẫu .docx (tuỳ chọn, xem mục 7)
   tai-lieu/            Triển khai · Vận hành · Hướng dẫn sử dụng · RPO-RTO
 ```
 
-Ba ảnh được kéo về:
+Ba ảnh được kéo về. Chúng nằm chung **một repo** và phân biệt bằng **thẻ** —
+registry chỉ có hai cấp `<tài khoản>/<repo>`, nên không lồng thêm tên được:
 
-| Ảnh | Là gì | Cỡ |
+| Thẻ | Là gì | Cỡ |
 |---|---|---|
-| `csbh-service` | Mười service Node. **Một ảnh cho cả mười** — service nào chạy do biến `SERVICE` quyết định lúc chạy. | ~530 MB |
-| `csbh-web` | Giao diện đã dựng + Caddy + cấu hình biên mạng | ~50 MB |
-| `csbh-ops` | Migration, sao lưu, phục hồi, mồi tài khoản. Dựng **từ** `csbh-service` nên dùng lại toàn bộ lớp của nó. | +10 MB |
+| `service-<phiên bản>` | Mười service Node. **Một ảnh cho cả mười** — service nào chạy do biến `SERVICE` quyết định lúc chạy. | ~530 MB |
+| `web-<phiên bản>` | Giao diện đã dựng + Caddy + cấu hình biên mạng | ~50 MB |
+| `ops-<phiên bản>` | Migration, sao lưu, phục hồi, mồi tài khoản. Dựng **từ** ảnh service nên dùng lại toàn bộ lớp của nó. | +10 MB |
+
+Ví dụ: `hieuhv94/nutricare-csbh:service-1.0.0-a1b2c3d`. Repo cụ thể khai ở
+`CSBH_IMAGE` trong `.env`.
 
 Tổng dung lượng tải về thực tế khoảng **590 MB**, không phải tổng ba con số trên.
 
@@ -83,6 +87,13 @@ docker login <registry>
 5. Dừng lại và nhắc bạn chạy `./csbh mo-tai-khoan`.
 
 Chạy lại được: những gì đã có thì giữ nguyên.
+
+> **Trên máy đã từng chạy bản demo, tên chồng phải khác.** `.env` khai
+> `COMPOSE_PROJECT_NAME=csbh-prod`, và nó quyết định tên volume dữ liệu. Trùng
+> tên với chồng demo nghĩa là dùng chung volume `pgdata` — mà Postgres đặt mật
+> khẩu **chỉ ở lần khởi tạo đầu tiên**, nên volume cũ giữ mật khẩu cũ và mọi
+> lệnh chạm CSDL hỏng với `password authentication failed`. Trên máy chủ khách
+> hàng chỉ có một chồng nên chuyện này không xảy ra; giữ nguyên dòng ấy.
 
 > **Bí mật sinh tại chỗ, không đi kèm bản giao.** Một bộ bí mật đóng gói sẵn là
 > bộ bí mật mà mọi bản cài dùng chung, và nó đã đi qua ít nhất một lần chép tệp.
@@ -220,6 +231,17 @@ dựng lại. Lùi về bản cũ: chạy lại với thẻ cũ (lệnh in ra th
 > **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
 > tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy
 > chủ đang chạy bản nào.
+
+---
+
+## 8b. Muốn cho người khác xem thử mà chưa có tên miền
+
+`./csbh mo-thu-nghiem` mở một đường hầm Cloudflare và in ra một địa chỉ công khai
+dùng ngay được — không cần mở cổng tường lửa, không cần tên miền, không cần
+chứng chỉ. Chi tiết và ba điều phải biết trước khi mở:
+[05-VAN-HANH.md](05-VAN-HANH.md), mục *Chạy thử qua Internet*.
+
+Đó là công cụ **xem thử**, không thay chỗ phần triển khai ở trên.
 
 ---
 

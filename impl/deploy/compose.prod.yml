@@ -15,14 +15,18 @@
 # chỉ file demo — một bất biến chỉ được canh ở bản demo là một bất biến không
 # được canh ở nơi nó có ý nghĩa.
 #
-# THẺ ẢNH KHÔNG BAO GIỜ LÀ `latest`. `CSBH_TAG` trong `.env` là một phiên bản cụ
-# thể (`1.0.0-a1b2c3d`). Với `latest` thì `docker compose pull` một tháng sau đổi
-# thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy
-# bản nào — `make version` in ra một con số, còn ảnh thì là một con số khác.
+# BA ẢNH, MỘT REPO (`0106`). Registry chỉ có hai cấp `<project>/<repo>`, nên ba
+# ảnh nằm chung một repo và phân biệt bằng THẺ: `service-…`, `web-…`, `ops-…`.
+# Một repo riêng tư là đủ cho cả ba.
+#
+# THẺ KHÔNG BAO GIỜ LÀ `latest`. `CSBH_TAG` trong `.env` là một phiên bản cụ thể
+# (`1.0.0-a1b2c3d`). Với `latest` thì `docker compose pull` một tháng sau đổi thứ
+# đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào
+# — `make version` in ra một con số, còn ảnh thì là một con số khác.
 # =============================================================================
 
 x-node: &node
-  image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-service:${CSBH_TAG:?thiếu CSBH_TAG}
+  image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:service-${CSBH_TAG:?thiếu CSBH_TAG}
   restart: unless-stopped
   logging:
     driver: json-file
@@ -86,6 +90,36 @@ x-node: &node
   networks: [ internal ]
 
 services:
+  # --- Hạ tầng đọc mật khẩu TỪ FILE, không qua `.env` (`0106`) ----------------
+  #
+  # `compose.yml` đặt `POSTGRES_PASSWORD: ${PG_PASSWORD:-csbh_dev_pw}` và
+  # `MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-csbh_dev_pw}` — tiện cho chồng dev,
+  # nhưng ở production nó dựng ra một mật khẩu nằm ở HAI CHỖ: `secrets/*.txt` và
+  # `.env`. Hai chỗ thì chúng lệch nhau được, và lệch trong im lặng:
+  #
+  #   error while interpolating services.ops.environment.PGPASSWORD:
+  #   required variable PG_PASSWORD is missing a value
+  #
+  # — một câu nói về biến môi trường, không nói rằng mật khẩu đã có sẵn trong
+  # `secrets/pg_password.txt` từ lúc cài. Đủ để một lượt cài dừng giữa chừng.
+  #
+  # Cả hai ảnh đều nhận biến `*_FILE` (đã kiểm trên chính hai ảnh đang dùng), nên
+  # `.env` thôi mang mật khẩu. Một bí mật, một chỗ.
+  postgres:
+    environment:
+      POSTGRES_DB: csbh
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password.txt
+    volumes:
+      - ../secrets:/run/secrets:ro
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: csbh
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password.txt
+    volumes:
+      - ../secrets:/run/secrets:ro
+
   # Mailpit của `compose.yml` KHÔNG chạy ở đây. Nó không bị gỡ khỏi file hạ tầng
   # (bản demo cần), mà bị vô hiệu bằng profile — một service không nằm trong
   # profile nào đang bật thì `up` bỏ qua nó.
@@ -104,7 +138,7 @@ services:
   # Thay chỗ `migrate`, và làm luôn mọi việc vận hành về sau: sao lưu, phục hồi,
   # dọn dữ liệu, mồi tài khoản. Xem `docker compose run --rm ops help`.
   ops:
-    image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-ops:${CSBH_TAG:?thiếu CSBH_TAG}
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:ops-${CSBH_TAG:?thiếu CSBH_TAG}
     command: ["migrate"]
     restart: "no"
     logging:
@@ -116,9 +150,8 @@ services:
       NODE_ENV: production
       PGHOST: postgres
       PGUSER: postgres
-      # Cùng một giá trị mà `compose.yml` đặt cho POSTGRES_PASSWORD. `.env` sinh
-      # ra từ `secrets/pg_password.txt` lúc cài — xem `docs/04-TRIEN-KHAI.md`.
-      PGPASSWORD: ${PG_PASSWORD:?thiếu PG_PASSWORD}
+      # `psql` không biết `PGPASSWORD_FILE`; `csbh-ops` đọc file rồi export hộ.
+      PGPASSWORD_FILE: /run/secrets/pg_password.txt
       PGDATABASE: csbh
       ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
       BACKUP_MIRROR_DIR: /mirror
@@ -214,7 +247,7 @@ services:
   # Giao diện nằm TRONG ảnh, không đọc từ thư mục nào của máy chủ. Caddyfile cũng
   # vậy. Hai biến còn để ngoài vì chúng khác nhau ở từng nơi cài.
   caddy:
-    image: ${CSBH_REGISTRY:?thiếu CSBH_REGISTRY}/csbh-web:${CSBH_TAG:?thiếu CSBH_TAG}
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:web-${CSBH_TAG:?thiếu CSBH_TAG}
     restart: unless-stopped
     logging:
       driver: json-file

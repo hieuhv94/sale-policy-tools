@@ -41,7 +41,7 @@ else
   # bước ngay dưới — đọc `pg_password.txt` để điền vào `.env` — hỏng với
   # "Permission denied". Đã dính đúng lỗi này lúc chạy thử bản đóng gói đầu tiên.
   docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd)/secrets:/run/secrets" \
-    "$(grep -E '^CSBH_REGISTRY=' .env.mau | cut -d= -f2-)/csbh-ops:$(grep -E '^CSBH_TAG=' .env.mau | cut -d= -f2-)" \
+    "$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-):ops-$(grep -E '^CSBH_TAG=' .env.mau | cut -d= -f2-)" \
     gen-secrets /run/secrets
 fi
 
@@ -74,8 +74,6 @@ else
     -e "s|^MAIL_FROM=.*|MAIL_FROM=${tu}|" \
     -e "s|^MAIL_ALLOWLIST=.*|MAIL_ALLOWLIST=${cho}|" \
     -e "s|^MAIL_USER=.*|MAIL_USER=${smtpu}|" \
-    -e "s|^PG_PASSWORD=.*|PG_PASSWORD=$(cat secrets/pg_password.txt)|" \
-    -e "s|^MINIO_PASSWORD=.*|MINIO_PASSWORD=$(cat secrets/minio_password.txt)|" \
     .env
 
   if [ -n "$smtpu" ]; then

@@ -13,7 +13,23 @@ cd "$(dirname "$0")"
 
 [ -f .env ] || { echo "Không thấy .env. Chạy ./cai-dat.sh trước." >&2; exit 1; }
 
+# Tên dự án compose quyết định tên volume dữ liệu. Thiếu nó thì compose lấy tên
+# thư mục, và trên một máy đã từng chạy bản demo thì tên ấy có thể trùng — chung
+# volume `pgdata` nghĩa là mật khẩu Postgres của bản demo thắng, và mọi lệnh
+# chạm CSDL hỏng với "password authentication failed". Xem `.env.mau`.
+grep -qE '^COMPOSE_PROJECT_NAME=.' .env || {
+  echo "Thiếu COMPOSE_PROJECT_NAME trong .env. Thêm dòng: COMPOSE_PROJECT_NAME=csbh-prod" >&2
+  exit 1
+}
+
+# Lớp phủ đường hầm bật theo MỘT TỆP DẤU, không theo lệnh đang gõ (`0107`).
+#
+# Không có nó thì `./csbh log` hay `./csbh trang-thai` chạy trong lúc đường hầm
+# đang lên sẽ không thấy `cloudflared`, và compose kêu nó là container mồ côi.
+# Tệ hơn: `./csbh len` sẽ dựng lại caddy mà bỏ mất lớp phủ, tức là âm thầm hạ
+# nới lỏng hạn mức đăng nhập xuống trong khi hệ vẫn đang ra Internet.
 DC="docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml"
+[ -f .thu-nghiem ] && DC="$DC -f deploy/compose.tunnel.yml"
 
 usage() {
   cat <<'HET'
@@ -39,6 +55,10 @@ csbh — vận hành Chính sách bán hàng
   Cài đặt ban đầu
     mo-tai-khoan     Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được một lần.
     thu-thu          Gửi một lá thư thử tới địa chỉ truyền vào.
+
+  Chạy thử qua Internet (KHÔNG dùng cho bàn giao thật)
+    mo-thu-nghiem    Mở đường hầm Cloudflare, in ra địa chỉ công khai.
+    dong-thu-nghiem  Đóng đường hầm, trả cấu hình về như cũ.
 
   psql [...]         Mở psql vào CSDL.
 HET
@@ -120,6 +140,83 @@ HET
     $DC exec -T gateway sh -c \
       "curl -fsS -X POST http://identity:3001/auth/forgot-password \
         -H 'content-type: application/json' -d '{\"username\":\"${dia}\"}' || true"
+    ;;
+
+  mo-thu-nghiem)
+    cat <<'HET'
+
+  Việc này ĐƯA HỆ THỐNG RA INTERNET. Ai có địa chỉ là tới được màn hình đăng
+  nhập — không có lớp chặn nào trước nó ngoài chính màn hình ấy.
+
+  Địa chỉ là NGẪU NHIÊN và ĐỔI MỖI LẦN mở lại, nên liên kết trong những lá thư
+  đã gửi sẽ chết. Dùng để xem thử, không dùng để bàn giao.
+
+HET
+    printf '  Gõ "MO" để tiếp tục: '
+    read -r xn
+    [ "$xn" = "MO" ] || { echo "  Đã huỷ."; exit 1; }
+
+    # Cất cấu hình cũ NGUYÊN VĂN để `dong-thu-nghiem` trả lại đúng như trước.
+    # Ghi lại bằng cách đọc `.env` chứ không nhớ trong đầu: người mở đường hầm
+    # và người đóng nó có thể là hai người, cách nhau vài ngày.
+    if [ ! -f .thu-nghiem ]; then
+      { grep -E '^SITE_ADDRESS=' .env; grep -E '^SITE_URL=' .env; } > .thu-nghiem
+    fi
+
+    # Caddy phải thôi tự xin chứng chỉ: `:80` là địa chỉ KHÔNG có tên miền, nên
+    # HTTPS tự động tắt. TLS do biên Cloudflare lo. Xem `docs/04-TRIEN-KHAI.md`.
+    sed -i 's|^SITE_ADDRESS=.*|SITE_ADDRESS=:80|' .env
+
+    DC="$DC -f deploy/compose.tunnel.yml"
+    echo "==> dựng lại biên mạng ở cổng 80 và mở đường hầm"
+    $DC up -d --force-recreate caddy cloudflared
+
+    echo "==> chờ Cloudflare cấp địa chỉ"
+    dia=""
+    i=0
+    while [ $i -lt 60 ]; do
+      dia=$($DC logs --no-color cloudflared 2>/dev/null             | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
+      [ -n "$dia" ] && break
+      i=$((i + 1)); sleep 2
+    done
+    [ -n "$dia" ] || {
+      echo "  Không thấy địa chỉ sau 2 phút. Xem: ./csbh log cloudflared" >&2
+      exit 1
+    }
+
+    # SITE_URL là thứ TRÌNH DUYỆT thấy, nên nó là `https://` dù Caddy chạy HTTP.
+    # Đặt `http://` ở đây là mọi lời gọi API bị CORS từ chối, trong khi màn hình
+    # đăng nhập vẫn hiện ra bình thường — kiểu hỏng khó lần nhất.
+    sed -i "s|^SITE_URL=.*|SITE_URL=${dia}|" .env
+    touch .thu-nghiem
+
+    echo "==> dựng lại các service đọc địa chỉ ấy"
+    $DC up -d --force-recreate gateway identity notification
+    cat <<HET
+
+  Địa chỉ công khai: ${dia}
+
+  Đóng lại:  ./csbh dong-thu-nghiem
+
+HET
+    ;;
+
+  dong-thu-nghiem)
+    [ -f .thu-nghiem ] || { echo "Đường hầm không chạy."; exit 0; }
+    DC="$DC -f deploy/compose.tunnel.yml"
+    echo "==> đóng đường hầm"
+    $DC rm -sf cloudflared
+    # Trả `.env` về NGUYÊN VĂN hai dòng đã cất, rồi xoá tệp dấu — thứ tự này để
+    # một lượt hỏng ở giữa vẫn còn tệp dấu, tức là còn biết mình đang dở dang.
+    while IFS= read -r dong; do
+      ten=${dong%%=*}
+      sed -i "s|^${ten}=.*|${dong}|" .env
+    done < .thu-nghiem
+    rm -f .thu-nghiem
+    echo "==> dựng lại theo cấu hình cũ"
+    docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml \
+      up -d --force-recreate caddy gateway identity notification
+    echo "  Xong. Đã trả về $(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
     ;;
 
   psql)         shift; $DC run --rm ops psql "$@" ;;

@@ -414,6 +414,52 @@ describe('SEC-10 cổng mở ra ngoài', () => {
     expect(composeServicesWithPorts('deploy/compose.mail.yml')).toEqual(['mailpit']);
   });
 
+  it('`0107` ĐƯỜNG HẦM chỉ được khai ở tệp riêng của nó', () => {
+    /*
+     * LỖ HỔNG CỦA CHÍNH PHÉP KIỂM NÀY, và đây là chỗ bịt nó.
+     *
+     * Mọi ca ở trên quét `ports:`. `cloudflared` KHÔNG mở cổng nào — nó mở một
+     * kết nối ĐI RA tới biên Cloudflare rồi nhận request ngược qua đó. Nên bất
+     * biến "chỉ caddy mở cổng" vẫn xanh trong khi cả hệ thống đã ra Internet:
+     * phép kiểm đúng từng chữ, và vô dụng đúng lúc cần.
+     *
+     * Nên quét thêm theo TÊN, không theo `ports`. Và quét cả `command:` — một
+     * service tên khác chạy ảnh `cloudflared` thì cái tên không nói ra điều gì.
+     */
+    const NOI_DUOC_PHEP = 'deploy/compose.tunnel.yml';
+    for (const f of [
+      'deploy/compose.yml',
+      'deploy/compose.test.yml',
+      'deploy/compose.demo.yml',
+      'deploy/compose.prod.yml',
+      'deploy/compose.mail.yml',
+    ]) {
+      const t = readFileSync(f, 'utf8');
+      expect(t, `${f} khai đường hầm — nó chỉ được ở ${NOI_DUOC_PHEP}`).not.toMatch(
+        /cloudflare|ngrok|tailscale|localtunnel/i,
+      );
+    }
+    // Và tệp được phép thì phải THẬT SỰ có nó — ngược lại ca này canh một quy
+    // tắc về thứ không tồn tại, và sẽ xanh mãi sau khi ai đó xoá tệp đi.
+    expect(readFileSync(NOI_DUOC_PHEP, 'utf8')).toMatch(/cloudflare\/cloudflared/);
+  });
+
+  it('`0107` đường hầm KHÔNG mở sẵn — phải gõ thêm `-f` mới mở', () => {
+    /*
+     * Cùng lý do với hộp thư thử, và nặng hơn: đây là cả hệ thống ra Internet,
+     * không phải một giao diện đọc thư. `cai-dat.sh` và lệnh `len` không được
+     * kéo theo lớp phủ này.
+     */
+    const caiDat = readFileSync('scripts/cai-dat.sh', 'utf8');
+    expect(caiDat).not.toContain('compose.tunnel.yml');
+
+    const csbh = readFileSync('scripts/csbh', 'utf8');
+    // Lớp phủ chỉ bật khi có TỆP DẤU, hoặc trong đúng lệnh mở đường hầm.
+    expect(csbh).toContain('.thu-nghiem');
+    expect(csbh).toMatch(/mo-thu-nghiem\)/);
+    expect(csbh).toMatch(/dong-thu-nghiem\)/);
+  });
+
   it('hộp thư thử KHÔNG mở sẵn — phải gọi `make demo-mail` mới mở', () => {
     // Giao diện Mailpit đọc được MỌI thư của hệ thống, kể cả liên kết kích hoạt
     // và liên kết đặt lại mật khẩu — tức là chiếm được mọi tài khoản. Mở thường

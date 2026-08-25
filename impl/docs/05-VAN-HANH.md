@@ -135,6 +135,44 @@ CSDL thì đường đúng là **phục hồi từ bản sao lưu ngay trước 
 
 ---
 
+## 5b. Chạy thử qua Internet — đường hầm Cloudflare
+
+Dùng khi cần người ở nơi khác nhìn thấy màn hình mà **không** mở cổng trên tường
+lửa và **không** cần tên miền.
+
+```sh
+./csbh mo-thu-nghiem      # hỏi lại một lần, rồi in ra địa chỉ công khai
+./csbh dong-thu-nghiem    # đóng, trả cấu hình về như cũ
+```
+
+**Đây không phải đường triển khai.** Bàn giao thật vẫn là Caddy + tên miền +
+chứng chỉ như [04-TRIEN-KHAI.md](04-TRIEN-KHAI.md).
+
+Ba điều phải biết trước khi mở:
+
+**1. Ai có địa chỉ là tới được màn hình đăng nhập.** Không có lớp chặn nào trước
+nó. Đừng mở khi trong hệ đã có dữ liệu khách hàng thật.
+
+**2. Địa chỉ ĐỔI mỗi lần mở lại.** Quick tunnel cấp một tên ngẫu nhiên
+`*.trycloudflare.com`. Liên kết trong những lá thư đã gửi **chết** sau mỗi lần mở
+lại — mà thư kích hoạt là đường duy nhất để một tài khoản mới có mật khẩu. Cần
+địa chỉ cố định thì phải dùng named tunnel: tài khoản Cloudflare, một tên miền
+trên đó, và một token.
+
+**3. Giới hạn đăng nhập gộp về một xô chung.** Qua đường hầm mọi request tới từ
+cùng một địa chỉ nội bộ, nên hạn mức theo IP không còn phân biệt được ai với ai.
+Lớp phủ tự nới hạn mức ấy lên. **Khoá tài khoản sau 5 lần sai trong 15 phút vẫn
+nguyên** — đó mới là lớp chống dò mật khẩu, và nó đếm theo tài khoản chứ không
+theo IP.
+
+Lệnh mở làm bốn việc, theo đúng thứ tự này: đặt Caddy về cổng 80 (thôi tự xin
+chứng chỉ — TLS do biên Cloudflare lo), dựng đường hầm, đợi Cloudflare cấp địa
+chỉ, rồi dựng lại `gateway` · `identity` · `notification` để CORS và liên kết
+email trỏ đúng địa chỉ ấy. Cấu hình cũ cất trong tệp `.thu-nghiem`, và
+`dong-thu-nghiem` trả lại nguyên văn.
+
+---
+
 ## 6. Chỗ dữ liệu nằm
 
 | Thứ | Ở đâu | Mất thì sao |
@@ -165,6 +203,20 @@ trước tiên.
 **Trang không mở được, chứng chỉ báo sai.** Kiểm DNS còn trỏ đúng IP không, và
 `./csbh log caddy`. Caddy tự gia hạn chứng chỉ; nó chỉ hỏng khi cổng 80 bị chặn
 — Let's Encrypt cần cổng ấy để xác minh.
+
+**`password authentication failed for user "postgres"`.** Volume `pgdata` được
+khởi tạo bởi một chồng khác với mật khẩu khác. Postgres đặt mật khẩu **chỉ ở lần
+khởi tạo đầu tiên** — đổi `secrets/pg_password.txt` về sau không đụng tới CSDL đã
+dựng. Kiểm `COMPOSE_PROJECT_NAME` trong `.env`: nó phải khác tên mà mọi chồng
+khác trên cùng máy đang dùng. Trên máy chưa có dữ liệu thật thì cách nhanh nhất
+là dựng lại từ đầu:
+
+```sh
+docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml down -v
+./csbh len
+```
+
+> `down -v` **xoá sạch dữ liệu**. Chỉ làm khi hệ chưa có gì đáng giữ.
 
 **Đĩa đầy.** Ba thứ lớn dần: WAL archive, bản sao lưu, và log container. Log đã
 giới hạn 50 MB × 10 tệp mỗi service. `don-du-lieu` hằng tháng dọn dữ liệu quá hạn

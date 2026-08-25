@@ -10,6 +10,14 @@
 # nhiều tháng và không ai biết.
 set -eu
 
+# `psql`, `pg_dump` và `pg_basebackup` chỉ biết `PGPASSWORD`, không biết
+# `PGPASSWORD_FILE` (`0106`). Đọc hộ ở đây để `.env` thôi phải mang mật khẩu —
+# một bí mật nằm ở hai chỗ là một bí mật sẽ lệch nhau.
+if [ -n "${PGPASSWORD_FILE:-}" ] && [ -f "${PGPASSWORD_FILE}" ]; then
+  PGPASSWORD="$(cat "${PGPASSWORD_FILE}")"
+  export PGPASSWORD
+fi
+
 usage() {
   cat <<'HET'
 csbh-ops — công cụ vận hành Chính sách bán hàng

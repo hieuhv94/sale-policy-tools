@@ -10046,3 +10046,136 @@ Thêm hai dòng vào chính ca ấy: `x@gia-nutricare.vn` phải bị loại,
 cũng được kiểm theo. Lượt phá lại là thứ duy nhất phân biệt được hai chuyện đó.
 
 **1679/1679 xanh.**
+
+## P133 — `0106` ba lỗi của lượt cài thật đầu tiên
+
+`0105` dựng thử chồng production trên một thư mục trắng và nó lên sạch. Lượt cài
+THẬT đầu tiên do người dùng chạy thì hỏng ba lần liên tiếp, và không lỗi nào bộ
+test bắt được — cả ba đều ở tầng cấu hình triển khai.
+
+### 1. Một bí mật nằm ở hai chỗ
+
+```
+error while interpolating services.ops.environment.PGPASSWORD:
+required variable PG_PASSWORD is missing a value
+```
+
+`cai-dat.sh` đọc `secrets/pg_password.txt` rồi chép giá trị ấy vào `.env`, vì
+`compose.yml` đặt `POSTGRES_PASSWORD: ${PG_PASSWORD:-…}` và ảnh Postgres nhận
+biến chứ không nhận file. Nên cùng một mật khẩu tồn tại hai bản, và bản thứ hai
+rỗng nếu `.env` được tạo trước khi `cai-dat.sh` chạy — câu báo lỗi thì nói về một
+biến môi trường, không nói rằng mật khẩu đã có sẵn từ lúc cài.
+
+Kiểm trên chính hai ảnh đang dùng: **cả `postgres:16-alpine` lẫn `minio` đều nhận
+biến `*_FILE`**. Postgres có `file_env 'POSTGRES_PASSWORD'` trong entrypoint;
+MinIO thì kiểm bằng cách khởi động với `MINIO_ROOT_PASSWORD_FILE` rồi đăng nhập
+bằng đúng chuỗi trong file — được. Nên `.env` thôi mang mật khẩu nào. `psql` là
+ngoại lệ duy nhất (không biết `PGPASSWORD_FILE`), và `csbh-ops` đọc hộ ở entrypoint.
+
+### 2. Chồng production dùng chung volume với bản demo
+
+```
+error: password authentication failed for user "postgres"
+```
+
+Container tên `csbh-postgres-1` — chồng production chạy trong **dự án compose
+`csbh`**, cùng dự án với `make demo` và `make test`, nên cùng volume `pgdata`.
+
+Và đây là chỗ đáng nhớ: **Postgres đặt mật khẩu CHỈ ở lần khởi tạo đầu tiên**.
+`POSTGRES_PASSWORD_FILE` mới thêm ở mục 1 không sửa được tình huống này — một
+volume đã dựng bởi bản demo giữ nguyên mật khẩu của bản demo, còn chồng production
+trình ra mật khẩu vừa sinh trong `secrets/`. Sửa đúng là **tên dự án riêng**
+(`COMPOSE_PROJECT_NAME=csbh-prod`), cộng một chốt chặn ở `csbh` dừng sớm nếu
+thiếu dòng ấy — thay vì để hỏng ở một câu nói về mật khẩu.
+
+CLAUDE.md đã ghi từ lâu rằng demo và test dùng chung hạ tầng thì hỏng khó đoán.
+`0105` thêm chồng thứ ba mà không rút ra hệ quả ấy.
+
+### 3. Registry chỉ có hai cấp
+
+`hieuhv94/nutricare-csbh/csbh-service` là một tên bị từ chối: `<tài khoản>/<repo>`
+là hết. Ba ảnh phải nằm chung một repo và phân biệt bằng THẺ —
+`service-<phiên bản>`, `web-…`, `ops-…`. Thành phần đứng TRƯỚC phiên bản để
+`docker images` xếp các bản của cùng một thành phần cạnh nhau. Và một repo riêng
+tư là đủ cho cả ba thay vì ba.
+
+### Đẩy ảnh KHÔNG phải việc của lượt dựng
+
+`day()` tách khỏi `anh()` và không nằm trong `tat-ca`. Quyền đẩy lên registry của
+công ty là chuyện của người có quyền ấy; lượt dựng chỉ in ra ba thẻ.
+
+### Bài học chung
+
+Ba lỗi này đều nằm ở khoảng giữa "dựng thử trên thư mục trắng" và "cài trên máy
+đã có thứ khác". Lượt dựng thử của `0105` đi qua sạch **chính vì** nó bắt đầu từ
+trắng — nó không thể chạm tới lỗi 2, và lỗi 1 thì nó tránh được nhờ tình cờ tạo
+`.env` sau khi sinh bí mật.
+
+## P134 — `0107` đường hầm Cloudflare để chạy thử
+
+Mở hệ ra Internet cho người ở nơi khác xem, không cần tên miền và không cần mở
+cổng trên tường lửa. Mẫu người dùng đưa là hai service `nginx` + `cloudflared`;
+áp vào hệ này thì `nginx` thừa — Caddy đã là biên mạng, và Caddyfile mang bộ
+header SEC-09 cùng CSP có hai chỗ hở `blob:` mà **jsdom không thi hành nổi**, nên
+chép sang nginx là chép lại một thứ chỉ hỏng trên trình duyệt thật.
+
+### Lỗ hổng của chính SEC-10
+
+Đáng ghi nhất của chặng này không phải cái đường hầm, mà chuyện nó **lọt qua phép
+kiểm**. SEC-10 quét `ports:`. `cloudflared` không mở cổng nào — nó mở một kết nối
+ĐI RA tới biên Cloudflare rồi nhận request ngược qua đó. Bất biến *"chỉ caddy mở
+cổng"* vẫn xanh trong khi cả hệ thống đã ra Internet: phép kiểm đúng từng chữ, và
+vô dụng đúng lúc cần.
+
+Nên SEC-10 quét thêm **theo TÊN**, ở mọi tệp compose trừ `compose.tunnel.yml`, và
+quét cả `ngrok`/`tailscale`/`localtunnel` — một service tên khác chạy cùng loại
+ảnh thì cái tên không nói ra điều gì. Cộng một ca canh `cai-dat.sh` và lệnh `len`
+không kéo theo lớp phủ ấy.
+
+### Ba thứ URL ngẫu nhiên làm hỏng
+
+`nginx` trong ví dụ không quan tâm nó được gọi bằng tên gì. Hệ này thì có, ở ba
+chỗ: `CORS_ORIGINS` (gateway mặc định ĐÓNG, so khớp từng ký tự), `WEB_BASE_URL` và
+`APP_BASE_URL` (liên kết trong mọi email). Quick tunnel cấp địa chỉ **chỉ biết sau
+khi cloudflared khởi động** và **đổi mỗi lần khởi động lại** — nên `mo-thu-nghiem`
+phải chạy hai nhịp: dựng đường hầm, đọc địa chỉ từ log, ghi vào `.env`, rồi dựng
+lại ba service đọc nó.
+
+Hệ quả phải nói ra với người dùng: liên kết trong những lá thư đã gửi CHẾT sau mỗi
+lần mở lại. Cần địa chỉ cố định thì phải là named tunnel — tài khoản Cloudflare,
+một tên miền trên đó, một token. Đó là quyết định khác, không phải một cờ.
+
+### `SITE_ADDRESS` và `SITE_URL` cố tình khác nhau
+
+`SITE_ADDRESS=:80` là địa chỉ KHÔNG có tên miền, nên Caddy tắt HTTPS tự động —
+đúng, vì TLS kết thúc ở biên Cloudflare. Nhưng `SITE_URL` vẫn phải là `https://`:
+đó là thứ TRÌNH DUYỆT thấy, và là chuỗi `Origin` mà CORS đem so. Đặt `http://` ở
+đó thì mọi lời gọi API bị từ chối trong khi màn hình đăng nhập vẫn hiện ra bình
+thường — kiểu hỏng khó lần nhất của cả chặng.
+
+Quy tắc gọn: **`SITE_ADDRESS` mô tả Caddy nghe thế nào, `SITE_URL` mô tả người
+dùng gõ gì.**
+
+### Giới hạn đăng nhập sập về một xô chung — và vì sao KHÔNG chữa
+
+`clientIp()` đọc `X-Forwarded-For`, mà Caddyfile đặt header ấy bằng `{remote_host}`
+— qua đường hầm thì đó là IP container `cloudflared`. Hai mươi lượt đăng nhập mỗi
+phút của cả Internet dùng chung một xô.
+
+Cách chữa "đúng sách" là tin `CF-Connecting-IP`. **Không làm**, vì header ấy chỉ
+đáng tin khi đường hầm là lối DUY NHẤT tới Caddy — mà compose GỘP danh sách
+`ports` chứ không thay thế (đã dính đúng bẫy này với `volumes` ở `0106`), nên
+không có cách nào gỡ `ports` của caddy bằng một lớp phủ. Tin một header giả mạo
+được thì tệ hơn hẳn một xô chung. Nới hạn mức là cách đúng ở đây, và nó không làm
+yếu gì: khoá tài khoản 5 lần sai trong 15 phút nằm ở `identity` và đếm theo TÀI
+KHOẢN.
+
+### Tệp dấu, không phải cờ
+
+`.thu-nghiem` bật lớp phủ cho MỌI lệnh của `csbh`. Không có nó thì `./csbh len`
+chạy trong lúc đường hầm đang lên sẽ dựng lại caddy mà bỏ mất lớp phủ — tức âm
+thầm hạ hạn mức đăng nhập xuống trong khi hệ vẫn đang ra Internet. Tệp ấy cũng
+cất nguyên văn hai dòng `SITE_ADDRESS`/`SITE_URL` cũ, vì người mở đường hầm và
+người đóng nó có thể là hai người, cách nhau vài ngày.
+
+**1682/1682 xanh.**

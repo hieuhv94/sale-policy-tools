@@ -14,8 +14,18 @@
 #   csbh-ops      migration, sao lưu, phục hồi, mồi tài khoản. Dựng TỪ
 #                 `csbh-service` nên nó dùng lại toàn bộ lớp của ảnh kia.
 #
-# THẺ luôn là `<phiên bản>-<git sha>`, không bao giờ `latest`. Xem chú thích đầu
-# `deploy/compose.prod.yml`.
+# BA ẢNH, MỘT REPO (`0106`). Docker Hub chỉ có hai cấp `<tài khoản>/<repo>`, nên
+# `hieuhv94/nutricare-csbh/csbh-service` là một tên bị từ chối. Ba ảnh phân biệt
+# bằng THẺ, dạng `<thành phần>-<phiên bản>-<git sha>`:
+#
+#   hieuhv94/nutricare-csbh:service-1.0.0-a1b2c3d
+#   hieuhv94/nutricare-csbh:web-1.0.0-a1b2c3d
+#   hieuhv94/nutricare-csbh:ops-1.0.0-a1b2c3d
+#
+# Thành phần đứng TRƯỚC phiên bản để `docker images` xếp ba ảnh của cùng một thành
+# phần cạnh nhau qua các bản. Và một repo riêng tư là đủ cho cả ba, thay vì ba.
+#
+# Phần phiên bản không bao giờ là `latest`. Xem chú thích đầu `compose.prod.yml`.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -23,33 +33,39 @@ cd "$(dirname "$0")/.."
 VERSION="$(cat VERSION)"
 SHA="$(git rev-parse --short HEAD 2>/dev/null || echo nogit)"
 TAG="${CSBH_TAG:-${VERSION}-${SHA}}"
-REG="${CSBH_REGISTRY:-csbh}"
+IMG="${CSBH_IMAGE:-hieuhv94/nutricare-csbh}"
 RA="${CSBH_OUT:-../workspace/dong-goi}"
 
 anh() {
-  echo "==> dựng csbh-service:${TAG}"
-  docker build -f docker/Dockerfile -t "${REG}/csbh-service:${TAG}" .
+  echo "==> dựng ${IMG}:service-${TAG}"
+  docker build -f docker/Dockerfile -t "${IMG}:service-${TAG}" .
 
-  echo "==> dựng csbh-web:${TAG}"
+  echo "==> dựng ${IMG}:web-${TAG}"
   docker build -f docker/Dockerfile.web \
     --build-arg "APP_VERSION=${TAG}" \
-    -t "${REG}/csbh-web:${TAG}" .
+    -t "${IMG}:web-${TAG}" .
 
-  # SAU csbh-service, và dựng TỪ nó. Thứ tự này là bắt buộc, không phải sở thích.
-  echo "==> dựng csbh-ops:${TAG}"
+  # SAU ảnh service, và dựng TỪ nó. Thứ tự này là bắt buộc, không phải sở thích.
+  echo "==> dựng ${IMG}:ops-${TAG}"
   docker build -f docker/Dockerfile.ops \
-    --build-arg "BASE=${REG}/csbh-service:${TAG}" \
-    -t "${REG}/csbh-ops:${TAG}" .
+    --build-arg "BASE=${IMG}:service-${TAG}" \
+    -t "${IMG}:ops-${TAG}" .
 
   echo ""
+  # Mọi mẫu phải đi qua `-e`. Trộn một mẫu trần với `-e` thì grep coi mẫu trần là
+  # TÊN TỆP, và báo "No such file or directory" — một câu không nhắc gì tới grep.
   docker images --format '  {{.Repository}}:{{.Tag}}  {{.Size}}' \
-    | grep -F "${TAG}" || true
+    | grep -F -e ":service-${TAG}" -e ":web-${TAG}" -e ":ops-${TAG}" || true
 }
 
+# ĐẨY LÀ VIỆC CỦA NGƯỜI CÓ QUYỀN PUSH, không phải của lượt dựng.
+#
+# Tách khỏi `anh` và không nằm trong `tat-ca`, có chủ ý: `make anh` dựng xong thì
+# in ra ba thẻ, còn ai đẩy và đẩy lúc nào là quyết định riêng.
 day() {
-  for a in csbh-service csbh-web csbh-ops; do
-    echo "==> đẩy ${REG}/${a}:${TAG}"
-    docker push "${REG}/${a}:${TAG}"
+  for tp in service web ops; do
+    echo "==> đẩy ${IMG}:${tp}-${TAG}"
+    docker push "${IMG}:${tp}-${TAG}"
   done
 }
 
@@ -59,7 +75,7 @@ goi() {
   mkdir -p "$goc/deploy/postgres" "$goc/deploy/caddy" "$goc/tai-lieu"
 
   # --- Thứ máy chủ CẦN để chạy ----------------------------------------------
-  cp deploy/compose.yml deploy/compose.prod.yml "$goc/deploy/"
+  cp deploy/compose.yml deploy/compose.prod.yml deploy/compose.tunnel.yml "$goc/deploy/"
   cp deploy/postgres/postgresql.conf deploy/postgres/pg_hba.conf "$goc/deploy/postgres/"
   # Caddyfile đã nướng trong ảnh; chép thêm một bản để người vận hành ĐỌC ĐƯỢC
   # cấu hình biên mạng mà không phải mở ảnh ra.
@@ -88,7 +104,7 @@ goi() {
   cp templates/*.docx "$goc/mau-van-ban/"
 
   # --- Bản khai môi trường --------------------------------------------------
-  sed -e "s|__TAG__|${TAG}|" -e "s|__REG__|${REG}|" deploy/env.mau > "$goc/.env.mau"
+  sed -e "s|__TAG__|${TAG}|" -e "s|__IMAGE__|${IMG}|" deploy/env.mau > "$goc/.env.mau"
 
   cat > "$goc/README.md" <<HET
 # Chính sách bán hàng (CSBH) — bản ${TAG}

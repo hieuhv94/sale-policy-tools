@@ -58,6 +58,27 @@ describe('`0105` bản đóng gói', () => {
     }
   });
 
+  it('`0106` `.env.mau` khai tên dự án compose, và KHÔNG mang mật khẩu nào', () => {
+    /*
+     * Hai bất biến ra từ cùng một lượt cài hỏng thật:
+     *
+     *   - Thiếu `COMPOSE_PROJECT_NAME` thì compose lấy tên thư mục, và trên máy
+     *     đã chạy bản demo nó trùng — chung volume `pgdata`, mà Postgres đặt mật
+     *     khẩu chỉ ở lần khởi tạo đầu. Triệu chứng là `password authentication
+     *     failed`, một câu không nhắc gì tới volume dùng chung.
+     *   - Mật khẩu trong `.env` là bản sao THỨ HAI của thứ đã nằm ở `secrets/`.
+     *     Hai bản thì lệch nhau được. Postgres và MinIO đều đọc được `*_FILE`.
+     */
+    const mau = readFileSync('deploy/env.mau', 'utf8');
+    expect(mau).toMatch(/^COMPOSE_PROJECT_NAME=.+$/m);
+    for (const v of ['PG_PASSWORD', 'MINIO_PASSWORD']) {
+      expect(mau, `${v} không được nằm trong .env`).not.toMatch(new RegExp(`^${v}=`, 'm'));
+    }
+    const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
+    expect(prod).toContain('POSTGRES_PASSWORD_FILE');
+    expect(prod).toContain('MINIO_ROOT_PASSWORD_FILE');
+  });
+
   it('`compose.prod.yml` KHÔNG có `build:` nào — máy chủ khách chỉ pull', () => {
     /*
      * Bất biến trung tâm của cả mô hình. Một `build:` lọt vào đây thì lệnh dựng
