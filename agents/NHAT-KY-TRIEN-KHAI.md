@@ -10439,3 +10439,34 @@ Hai chặng đầu vẫn cần: chúng bắt những đường không đi qua `c
 cấp, chạy tay, hay một máy chủ ai đó dựng bằng compose trực tiếp.
 
 **1696/1696 xanh.**
+
+## P141 — `0114` lệnh mồi không gửi thư, mà không ai nói ra
+
+Người cài đặt chạy `./csbh mo-tai-khoan`, không thấy thư nào tới, rồi đi tra cấu
+hình SMTP. Không có gì hỏng cả: **lệnh mồi không gửi thư, theo thiết kế.**
+
+Tài khoản mồi là ngoại lệ DUY NHẤT của một luật mà cả hệ thống dựa vào: *thư mời
+kích hoạt là đường duy nhất để một tài khoản có mật khẩu* (P13). Ngoại lệ ấy có
+lý do — **không có ai ở trên nó để gửi thư mời**. Nên nó nhận mật khẩu thẳng từ
+dòng lệnh, ghi vào CSDL kèm `activated_at` và `email_verified_at`, và dùng được
+ngay.
+
+Nhưng người cài đặt vừa đọc mục 4 nói rằng thư là đường duy nhất, rồi chạy lệnh
+tạo tài khoản. Chờ một lá thư là suy luận **đúng** từ những gì họ biết. Lỗi nằm ở
+chỗ không ai nói ra ngoại lệ.
+
+Sửa ở hai chỗ, và cả hai đều cần: câu in ra của chính lệnh (người không đọc tài
+liệu vẫn thấy), và mục 3 của tài liệu triển khai (người đọc trước khi chạy).
+
+Câu ấy nói ba việc: không có thư nào; đăng nhập bằng chính mật khẩu vừa nhập; và
+muốn kiểm đường thư thì tạo một tài khoản **thứ hai** trên giao diện — chỉ tài
+khoản ấy mới nhận thư mời.
+
+### Ca kiểm canh cả ngoại lệ lẫn lời giải thích
+
+Quét mã nguồn của lệnh: không `nodemailer`, không `Mailer`, không `sendInvite`,
+không `MAIL_HOST`, không `fetch(`. Thêm một lượt gửi thư vào đây là biến bước cài
+đặt đầu tiên thành một bước phụ thuộc SMTP — trong khi SMTP chưa được kiểm ở thời
+điểm ấy, và một cấu hình thư sai sẽ chặn luôn việc tạo tài khoản quản trị.
+
+**1698/1698 xanh.**

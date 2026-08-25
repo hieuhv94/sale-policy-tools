@@ -723,6 +723,35 @@ describe('SEC-04 tên khách hàng chứa công thức', () => {
 // phải đường gọi.
 // =============================================================================
 
+describe('`0114` lệnh mồi KHÔNG gửi thư, và nói ra điều đó', () => {
+  const nguon = readFileSync('scripts/bootstrap-admin.ts', 'utf8');
+
+  it('không gọi mailer, không gọi SMTP, không gọi API nào', () => {
+    /*
+     * Tài khoản mồi là ngoại lệ DUY NHẤT của luật "thư mời là đường duy nhất để
+     * một tài khoản có mật khẩu" — không có ai ở trên nó để gửi thư. Nó ghi
+     * thẳng vào CSDL kèm `activated_at`, nên nó dùng được ngay.
+     *
+     * Thêm một lượt gửi thư vào đây là biến bước cài đặt đầu tiên thành một bước
+     * phụ thuộc SMTP, trong khi SMTP chưa được kiểm ở thời điểm ấy.
+     */
+    for (const cam of ['nodemailer', 'Mailer', 'sendInvite', 'MAIL_HOST', 'fetch(']) {
+      expect(nguon, `lệnh mồi không được gọi ${cam}`).not.toContain(cam);
+    }
+    expect(nguon).toContain('activated_at');
+  });
+
+  it('NÓI RA rằng không có thư nào — nếu không người cài ngồi chờ', () => {
+    /*
+     * Đã xảy ra: người cài đặt chạy lệnh, không thấy thư, rồi đi tra cấu hình
+     * SMTP — thứ chưa liên quan gì ở bước ấy.
+     */
+    expect(nguon).toContain('KHÔNG có thư nào được gửi');
+    // Và chỉ ra chỗ đường thư THẬT SỰ được kiểm.
+    expect(nguon).toContain('tài khoản THỨ HAI');
+  });
+});
+
 describe('`0111` migrate nói ra khi Postgres từ chối mật khẩu', () => {
   /*
    * `pg_isready` KHÔNG kiểm được mật khẩu — nó chỉ hỏi "máy chủ có nhận kết nối

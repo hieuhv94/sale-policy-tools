@@ -209,6 +209,14 @@ Bốn chốt chặn:
   trị mà không màn hình nào ghi lại
 - **Bắt buộc đổi mật khẩu ở lần đăng nhập đầu**, vì mật khẩu này vừa đi qua dòng lệnh
 
+> **Lệnh này KHÔNG gửi thư nào.** Mọi tài khoản khác nhận một thư mời kèm liên
+> kết kích hoạt — đó là đường duy nhất để chúng có mật khẩu. Tài khoản mồi thì
+> ngược lại: không có ai ở trên nó để gửi thư mời, nên nó nhận mật khẩu thẳng từ
+> dòng lệnh và được đánh dấu đã kích hoạt luôn.
+>
+> Đăng nhập bằng chính mật khẩu vừa nhập. Đường thư được kiểm ở **bước 9**, khi
+> bạn tạo tài khoản thứ hai trên giao diện.
+
 Quên mật khẩu quản trị về sau thì dùng *Quên mật khẩu* trên màn hình đăng nhập.
 
 > Cho tới khi đổi mật khẩu lần đầu, **mọi đường API trả 403** — kể cả danh mục.

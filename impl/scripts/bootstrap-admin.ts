@@ -134,7 +134,21 @@ const main = async () => {
     );
 
     console.log(`bootstrap-admin: đã tạo ${taiKhoan} (${r.rows[0]?.id}).`);
-    console.log('bootstrap-admin: lần đăng nhập đầu tiên sẽ BẮT BUỘC đổi mật khẩu.');
+    /*
+     * NÓI RÕ LÀ KHÔNG CÓ THƯ NÀO (`0114`).
+     *
+     * Mọi tài khoản khác trong hệ đều nhận một thư mời kèm liên kết kích hoạt —
+     * đó là đường DUY NHẤT để chúng có mật khẩu. Tài khoản này thì ngược lại:
+     * không có ai ở trên nó để gửi thư mời, nên nó nhận mật khẩu thẳng từ dòng
+     * lệnh và được đánh dấu đã kích hoạt luôn.
+     *
+     * Người cài đặt không biết ngoại lệ ấy sẽ ngồi chờ một lá thư không bao giờ
+     * tới, rồi đi tra cấu hình SMTP — thứ chưa liên quan gì ở bước này.
+     */
+    console.log('bootstrap-admin: KHÔNG có thư nào được gửi — đăng nhập bằng chính');
+    console.log('  mật khẩu vừa nhập. Lần đăng nhập đầu tiên sẽ BẮT BUỘC đổi mật khẩu.');
+    console.log('  Muốn kiểm đường thư thì tạo một tài khoản THỨ HAI trên giao diện:');
+    console.log('  tài khoản ấy mới nhận thư mời kích hoạt.');
   } finally {
     await db.end();
   }
