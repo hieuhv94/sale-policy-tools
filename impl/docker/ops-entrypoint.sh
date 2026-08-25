@@ -26,6 +26,10 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
   bootstrap-admin    Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được khi CSDL
                      chưa có tài khoản nào. Cần ADMIN_USERNAME, ADMIN_EMAIL,
                      ADMIN_PASSWORD (hoặc ADMIN_PASSWORD_FILE).
+  nap-danh-muc       Nạp DỮ LIỆU MẪU cho bản chạy thử: nhóm sản phẩm, sản phẩm
+                     kèm giá, ba quy định chiết khấu, ba văn bản mẫu. Từ chối
+                     khi danh mục đã có sản phẩm. Cần ADMIN_USERNAME và
+                     ADMIN_PASSWORD của một tài khoản Quản trị đã đổi mật khẩu.
   backup             Sao lưu logic (pg_dump) + bản nền (pg_basebackup).
   restore-drill      DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng CSDL đang chạy.
   restore <file>     Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.
@@ -41,6 +45,7 @@ HET
 case "${1:-help}" in
   migrate)         shift; MIGRATIONS_DIR=/app/db/migrations exec /bin/sh /app/scripts/migrate.sh "$@" ;;
   bootstrap-admin) shift; exec pnpm --dir /app bootstrap-admin "$@" ;;
+  nap-danh-muc)    shift; exec pnpm --dir /app nap-danh-muc "$@" ;;
   backup)
     /bin/sh /app/scripts/backup.sh
     exec /bin/sh /app/scripts/basebackup.sh

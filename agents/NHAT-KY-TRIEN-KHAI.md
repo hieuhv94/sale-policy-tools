@@ -10219,3 +10219,67 @@ Bài học: một thay đổi ở tệp compose **không được kiểm bởi b
 lượt dựng thật mới nói được nó đúng hay sai.
 
 **1683/1683 xanh.**
+
+## P136 — `0109` nạp danh mục khởi đầu cho bản chạy thử
+
+Bản production cài xong có CSDL trống, và đó là chủ ý từ `0093`: thứ đáng nghiệm
+thu chính là đường onboarding thật. Nhưng với một bản **chạy thử**, gõ tay hai
+mươi dòng giá là chỗ người thử bỏ cuộc trước khi thấy phần mềm làm được gì.
+
+`nap-danh-muc` nạp 3 nhóm · 9 sản phẩm kèm giá · 3 quy định chiết khấu · 2 mẫu hồ
+sơ và 1 mẫu hợp đồng.
+
+### Script nạp dữ liệu ĐẦU TIÊN không có chốt `NODE_ENV`
+
+`seed.ts`, `seed-admin.ts`, `seed-demo.ts` đều tự thoát ở production (SEC-14).
+Script này thì không, nên nó phải tự biện minh được — và lời biện minh phải nằm ở
+chỗ kiểm được, không phải trong đầu ai.
+
+SEC-14 canh một chuyện **cụ thể**: tài khoản có mật khẩu ai cũng đoán được không
+được nạp lên máy chủ thật. Danh mục sản phẩm không phải chuyện đó. Nhưng ranh
+giới ấy chỉ giữ được chừng nào script không đụng tới tài khoản — và thứ dễ xảy ra
+nhất là ai đó thêm *"tiện thể tạo vài tài khoản mẫu"*. Nên có năm ca kiểm quét
+chính mã nguồn của nó: không `app_user`, không `password_hash`, không `INSERT
+INTO`, không `import from 'pg'`; có đủ hai chốt chặn; và ba tệp `.docx` nó nạp
+phải có thật.
+
+Hai chốt thay cho chốt `NODE_ENV`:
+
+1. **Tài khoản còn cờ "phải đổi mật khẩu" thì dừng.** `auth.guard` trả 403
+   `PASSWORD_CHANGE_REQUIRED` cho MỌI đường API khi cờ ấy còn — kể cả danh mục.
+   Script đọc `mustChangePassword` ngay từ phản hồi đăng nhập và nói thẳng việc
+   phải làm, thay vì chết ở lời gọi đầu tiên với một mã lỗi không giải thích gì.
+2. **Danh mục đã có sản phẩm thì dừng.** Đây là lệnh KHỞI ĐẦU, không phải lệnh
+   nhập liệu — chạy lần hai trên hệ đang dùng là trộn dữ liệu mẫu vào dữ liệu thật.
+
+### Ba quy định, chọn để bày ra luật khó nhất
+
+Không phải ba dòng bất kỳ. `CK-SUA-BOT` (mọi loại khách, 15%) và `CK-SUA-L1`
+(loại 1, 18%) cùng trỏ vào một nhóm sản phẩm, nên bản chạy thử bày ra được **dòng
+cụ thể hơn thắng** — hai hồ sơ cạnh nhau, hai ngưỡng khác nhau. Chỉ có một quy
+định chung thì người thử không bao giờ thấy luật ấy hoạt động, và sẽ tin rằng
+ngưỡng là một con số cố định cho cả hệ thống.
+
+### Con số phải nói ra: 4 mẫu hồ sơ, không phải 2
+
+`ensureDefault` nạp sẵn **một mẫu mỗi khổ** lúc `document` khởi động, cộng một
+mẫu hợp đồng. Nên sau khi nạp, ô chọn có 4 mẫu hồ sơ và 2 mẫu hợp đồng chứ không
+phải 2 và 1. Đo được trên chồng production thật:
+
+```
+HOP_DONG = 2
+HO_SO    = 4
+```
+
+Không tự vô hiệu hoá hai mẫu mặc định: chúng là thứ bảo đảm hệ dùng được ngay cả
+khi chưa ai nạp gì, và gỡ chúng đi trong một script nạp dữ liệu là để lại một hệ
+phụ thuộc vào việc script ấy đã chạy.
+
+### Chạy thật trước khi tin
+
+Dựng nguyên chồng production từ tệp nén bàn giao, tạo quản trị, thử nạp **khi
+chưa đổi mật khẩu** (từ chối đúng, kèm câu chỉ việc phải làm), đổi mật khẩu, nạp
+lại (được), rồi chạy lần hai (từ chối đúng). Đối chiếu CSDL:
+`nhom=3 sanpham=9 gia=9 qdck=3`.
+
+**1688/1688 xanh.**

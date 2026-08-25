@@ -8,7 +8,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import ExcelJS from 'exceljs';
@@ -722,6 +722,65 @@ describe('SEC-04 tên khách hàng chứa công thức', () => {
 // pnpm, nên gọi thẳng bằng sh — điều đang kiểm là chốt chặn ở đầu script, không
 // phải đường gọi.
 // =============================================================================
+
+describe('`0109` bộ nạp danh mục ĐƯỢC phép chạy ở production — và vì sao', () => {
+  /*
+   * `nap-danh-muc.ts` là script nạp dữ liệu DUY NHẤT không có chốt `NODE_ENV`,
+   * nên nó phải tự biện minh được. Ca này giữ cho lời biện minh ấy còn đúng.
+   *
+   * SEC-14 canh một chuyện cụ thể: **tài khoản có mật khẩu ai cũng đoán được**
+   * không được nạp lên máy chủ thật. Danh mục sản phẩm không phải chuyện đó.
+   * Nhưng ranh giới ấy chỉ giữ được chừng nào script KHÔNG đụng tới tài khoản —
+   * và thứ dễ xảy ra nhất là ai đó thêm "tiện thể tạo vài tài khoản mẫu".
+   */
+  const nguon = readFileSync('scripts/nap-danh-muc.ts', 'utf8');
+
+  it('KHÔNG tạo tài khoản, KHÔNG đặt mật khẩu nào', () => {
+    for (const cam of ['app_user', '/admin/users', 'password_hash', 'hashPassword']) {
+      expect(nguon, `nap-danh-muc không được đụng tới ${cam}`).not.toContain(cam);
+    }
+    // Nó ĐỌC mật khẩu quản trị để đăng nhập, và chỉ được dùng vào đúng việc ấy.
+    expect(nguon).toContain('ADMIN_PASSWORD');
+    expect(nguon).toContain('/auth/login');
+  });
+
+  it('đi qua API THẬT, không INSERT thẳng vào CSDL', () => {
+    /*
+     * Giá và ngưỡng phải qua đúng phép kiểm mà màn hình Quản trị dùng. Chèn
+     * thẳng SQL thì bản chạy thử mang những con số mà phần mềm không tạo ra
+     * được — và người thử sẽ tin rằng nó tạo được.
+     */
+    expect(nguon).not.toMatch(/INSERT INTO/i);
+    expect(nguon).not.toContain("from 'pg'");
+    expect(nguon).toContain('/catalog/products');
+    expect(nguon).toContain('/catalog/discount-rules');
+  });
+
+  it('có ĐỦ hai chốt chặn thay cho chốt NODE_ENV', () => {
+    // Chốt 1: tài khoản còn phải đổi mật khẩu thì dừng, kèm câu nói việc phải làm.
+    expect(nguon).toContain('mustChangePassword');
+    // Chốt 2: danh mục đã có sản phẩm thì dừng — đây là lệnh KHỞI ĐẦU.
+    expect(nguon).toMatch(/TỪ CHỐI/);
+    expect(nguon).toContain('/catalog/products?limit=1');
+  });
+
+  it('ba văn bản mẫu nó nạp đều có thật trong `templates/`', () => {
+    for (const t of [
+      'mau-ho-so-a4-doc.docx',
+      'mau-ho-so-a4-ngang.docx',
+      'mau-hop-dong-a4-doc.docx',
+    ]) {
+      expect(nguon, `nap-danh-muc phải nạp ${t}`).toContain(t);
+      expect(existsSync(`templates/${t}`), `thiếu templates/${t}`).toBe(true);
+    }
+  });
+
+  it('nói ra rằng đây là DỮ LIỆU MẪU, ở cả đầu lẫn cuối', () => {
+    // Một hệ thật lỡ nạp bộ này mà không ai biết thì bảng giá minh hoạ trở thành
+    // bảng giá công ty, và không có gì trên màn hình nói ra điều đó.
+    expect(nguon.match(/DỮ LIỆU MẪU/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+});
 
 describe('SEC-14 chạy script seed với NODE_ENV=production', () => {
   it('tự thoát, không tạo tài khoản nào', async () => {

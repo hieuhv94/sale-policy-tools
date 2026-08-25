@@ -12,6 +12,7 @@
     "seed": "tsx scripts/seed.ts",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "nap-danh-muc": "tsx scripts/nap-danh-muc.ts",
     "build:web": "pnpm --filter @csbh/web build"
   },
   "devDependencies": {

@@ -55,6 +55,8 @@ csbh — vận hành Chính sách bán hàng
   Cài đặt ban đầu
     mo-tai-khoan     Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được một lần.
     thu-thu          Gửi một lá thư thử tới địa chỉ truyền vào.
+    nap-danh-muc     Nạp DỮ LIỆU MẪU: sản phẩm, giá, 3 quy định chiết khấu,
+                     3 văn bản mẫu. Chỉ chạy được khi danh mục còn trống.
 
   Chạy thử qua Internet (KHÔNG dùng cho bàn giao thật)
     mo-thu-nghiem    Mở đường hầm Cloudflare, in ra địa chỉ công khai.
@@ -152,6 +154,25 @@ HET
     $DC run --rm -T \
       -e ADMIN_USERNAME="$u" -e ADMIN_EMAIL="$e" -e ADMIN_FULL_NAME="$n" \
       -e ADMIN_PASSWORD="$p" ops bootstrap-admin
+    ;;
+
+  nap-danh-muc)
+    cat <<'HET'
+
+  Nạp DỮ LIỆU MẪU vào danh mục: nhóm sản phẩm, sản phẩm kèm giá, ba quy định
+  chiết khấu, và ba văn bản mẫu (A4 dọc · A4 ngang · hợp đồng).
+
+  Đây là SỐ MINH HOẠ, không phải danh mục thật của công ty. Lệnh từ chối chạy
+  nếu danh mục đã có sản phẩm.
+
+  Cần một tài khoản Quản trị ĐÃ đổi mật khẩu lần đầu.
+
+HET
+    printf 'Tên đăng nhập Quản trị: '; read -r u
+    stty -echo 2>/dev/null || true
+    printf 'Mật khẩu: '; read -r p; echo ""
+    stty echo 2>/dev/null || true
+    $DC run --rm -T -e ADMIN_USERNAME="$u" -e ADMIN_PASSWORD="$p" ops nap-danh-muc
     ;;
 
   thu-thu)

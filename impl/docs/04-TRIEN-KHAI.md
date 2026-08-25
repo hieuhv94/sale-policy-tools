@@ -208,6 +208,48 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 
 ---
 
+## 6b. Nạp nhanh danh mục cho bản chạy thử
+
+Bước 6 ở trên là đường **thật**: Quản trị tự khai từng thứ. Với một bản chạy thử,
+gõ tay hai mươi dòng giá là chỗ người thử bỏ cuộc trước khi thấy phần mềm làm
+được gì. Lệnh này nạp sẵn một danh mục minh hoạ:
+
+```sh
+./csbh nap-danh-muc
+```
+
+| Nạp gì | Bao nhiêu |
+|---|---|
+| Nhóm sản phẩm | 3 |
+| Sản phẩm kèm giá bán Công ty | 9 |
+| Quy định chiết khấu | 3 |
+| Văn bản mẫu | 2 mẫu hồ sơ (A4 dọc · A4 ngang) + 1 mẫu hợp đồng |
+
+Ba quy định chiết khấu cố tình bày ra **luật khó nhất** của màn hình ấy: dòng cụ
+thể hơn thắng. Khách loại 1 mua sữa bột lấy ngưỡng 18%; khách loại 2 và 3 mua
+đúng sản phẩm ấy lấy 15%. Hai hồ sơ cạnh nhau, hai ngưỡng khác nhau, và cột *Quy
+định chiết khấu* nói ra vì sao.
+
+**Ba điều kiện:**
+
+- Cần một tài khoản Quản trị **đã đổi mật khẩu lần đầu**. Còn cờ bắt buộc đổi thì
+  mọi đường API trả 403, và lệnh nói thẳng điều đó thay vì chết giữa chừng.
+- **Từ chối nếu danh mục đã có sản phẩm.** Đây là lệnh khởi đầu, không phải lệnh
+  nhập liệu.
+- Nó **không tạo tài khoản nào** — đó là ranh giới khiến nó được phép chạy ở
+  `production` trong khi các script seed khác thì không.
+
+> **Đây là SỐ MINH HOẠ.** Trước khi hệ đi vào dùng thật, sửa hoặc vô hiệu hoá
+> chúng. Một bảng giá minh hoạ để nguyên sẽ thành bảng giá công ty, và không có
+> gì trên màn hình nói ra điều đó.
+
+Sau khi nạp, danh sách văn bản mẫu có **4 mẫu hồ sơ và 2 mẫu hợp đồng**: hệ thống
+đã tự nạp một mẫu mỗi khổ lúc khởi động (xem mục 7), và lệnh này thêm hai mẫu
+`.docx` trình bày đẹp hơn. Muốn ô chọn gọn lại thì vô hiệu hoá hai mẫu mặc định ở
+màn hình *Văn bản mẫu*.
+
+---
+
 ## 7. Ba mẫu văn bản trong `mau-van-ban/`
 
 **Không bắt buộc.** Hệ thống tự nạp sẵn một mẫu hồ sơ và một mẫu hợp đồng lúc

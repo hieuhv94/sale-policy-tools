@@ -95,7 +95,10 @@ hai cấp. `0107` thêm **đường hầm Cloudflare** để chạy thử qua In
 kèm việc bịt một lỗ hổng của chính SEC-10: nó quét `ports:`, mà `cloudflared` không mở cổng nào.
 `0108` sửa **bẫy gộp map lần thứ ba**: khai `*_FILE` mà không đặt biến trực tiếp về rỗng thì Postgres
 DỪNG, còn MinIO **âm thầm dùng mật khẩu mặc định** trong khi mười service đọc từ file. Đã chạy thử
-đầu-cuối qua đường hầm Cloudflare với Gmail SMTP thật. **1683/1683 xanh**, cây làm việc sạch.
+đầu-cuối qua đường hầm Cloudflare với Gmail SMTP thật. `0109` thêm `nap-danh-muc` — bộ nạp danh mục
+cho bản chạy thử (3 nhóm · 9 sản phẩm · 3 quy định chiết khấu · 3 văn bản mẫu), và là script nạp dữ
+liệu **duy nhất không có chốt `NODE_ENV`**: nó không đụng tới tài khoản, và có năm ca kiểm quét
+chính mã nguồn của nó để ranh giới ấy không trôi. **1688/1688 xanh**, cây làm việc sạch.
 
 Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên
