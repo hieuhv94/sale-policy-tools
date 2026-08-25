@@ -56,8 +56,7 @@ csbh — vận hành Chính sách bán hàng
     mo-tai-khoan     Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được một lần.
     thu-thu          Gửi một lá thư thử tới địa chỉ truyền vào.
     nap-danh-muc     Nạp DỮ LIỆU MẪU: sản phẩm, giá, 3 quy định chiết khấu,
-                     5 khách hàng, 3 văn bản mẫu. Chỉ chạy được khi danh mục
-                     còn trống.
+                     3 văn bản mẫu. Chỉ chạy được khi danh mục còn trống.
 
   Chạy thử qua Internet (KHÔNG dùng cho bàn giao thật)
     mo-thu-nghiem    Mở đường hầm Cloudflare, in ra địa chỉ công khai.
@@ -160,8 +159,8 @@ HET
   nap-danh-muc)
     cat <<'HET'
 
-  Nạp DỮ LIỆU MẪU: nhóm sản phẩm, sản phẩm kèm giá, ba quy định chiết khấu,
-  năm khách hàng, và ba văn bản mẫu (A4 dọc · A4 ngang · hợp đồng).
+  Nạp DỮ LIỆU MẪU vào danh mục: nhóm sản phẩm, sản phẩm kèm giá, ba quy định
+  chiết khấu, và ba văn bản mẫu (A4 dọc · A4 ngang · hợp đồng).
 
   Đây là SỐ MINH HOẠ, không phải danh mục thật của công ty. Lệnh từ chối chạy
   nếu danh mục đã có sản phẩm.
@@ -173,11 +172,7 @@ HET
     stty -echo 2>/dev/null || true
     printf 'Mật khẩu: '; read -r p; echo ""
     stty echo 2>/dev/null || true
-    # Bỏ trống thì năm khách hàng thuộc về tài khoản Quản trị, và TDV mở màn hình
-    # Khách hàng sẽ thấy trống — phạm vi dữ liệu lọc theo TDV phụ trách.
-    printf 'Giao khách hàng cho TDV nào (bỏ trống nếu chưa có TDV): '; read -r tdv
-    $DC run --rm -T -e ADMIN_USERNAME="$u" -e ADMIN_PASSWORD="$p" \
-      -e TDV_USERNAME="$tdv" ops nap-danh-muc
+    $DC run --rm -T -e ADMIN_USERNAME="$u" -e ADMIN_PASSWORD="$p" ops nap-danh-muc
     ;;
 
   thu-thu)

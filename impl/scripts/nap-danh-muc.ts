@@ -1,10 +1,10 @@
 /**
  * NẠP DANH MỤC KHỞI ĐẦU cho một bản chạy thử (`0109`).
  *
- * Sản phẩm, giá, ba quy định chiết khấu, năm khách hàng, và ba văn bản mẫu.
- * **KHÔNG tài khoản, KHÔNG hồ sơ** — đó là ranh giới của script này, và nó là lý
- * do script được phép chạy ở `production` trong khi `seed.ts` và `seed-demo.ts`
- * thì không (SEC-14).
+ * Sản phẩm, giá, ba quy định chiết khấu, và ba văn bản mẫu. KHÔNG tài khoản,
+ * KHÔNG khách hàng, KHÔNG hồ sơ — đó là ranh giới của script này, và nó là lý do
+ * script được phép chạy ở `production` trong khi `seed.ts` và `seed-demo.ts` thì
+ * không (SEC-14).
  *
  * SEC-14 canh một chuyện cụ thể: **tài khoản có mật khẩu ai cũng đoán được**
  * không bao giờ được nạp lên máy chủ thật. Danh mục sản phẩm không phải chuyện
@@ -107,70 +107,6 @@ const QUY_DINH_CK = [
 ];
 
 /**
- * NĂM KHÁCH HÀNG MẪU, phủ đủ ba loại khách (`0115`).
- *
- * Loại khách quyết định ngưỡng chiết khấu nào áp cho hồ sơ, và ba quy định ở
- * trên cố tình bày ra luật "dòng cụ thể hơn thắng". Nên năm khách này phải có ít
- * nhất một khách LOẠI 1 và một khách loại khác cùng mua sữa bột — không thì cái
- * luật ấy vẫn không nhìn thấy được.
- *
- * Mã số thuế và chức danh khai ĐỦ: từ `0104` thiếu một trong hai thì không gửi
- * duyệt được, và một bộ dữ liệu mẫu mà không lập nổi hồ sơ thì vô dụng.
- */
-const KHACH = [
-  {
-    code: 'KH-0001',
-    name: 'Nhà thuốc Minh Châu',
-    customerType: 1,
-    registeredAddress: 'Số 8 Tôn Thất Thuyết, Cầu Giấy, Hà Nội',
-    ownerName: 'Trần Thị Mỹ Hạnh',
-    ownerTitle: 'Chủ nhà thuốc',
-    idNumber: '0101234567',
-    debt: '4500000',
-  },
-  {
-    code: 'KH-0002',
-    name: 'Nhà thuốc Đông Á',
-    customerType: 1,
-    registeredAddress: 'Số 12 Nguyễn Văn Linh, Hải Châu, Đà Nẵng',
-    ownerName: 'Lê Quang Đạo',
-    ownerTitle: 'Chủ nhà thuốc',
-    idNumber: '0402345678',
-    debt: '0',
-  },
-  {
-    code: 'KH-0003',
-    name: 'Công ty TNHH Dược phẩm Hoàng Long',
-    customerType: 2,
-    registeredAddress: 'Số 55 Lê Duẩn, Quận 1, TP Hồ Chí Minh',
-    ownerName: 'Phạm Hoàng Long',
-    ownerTitle: 'Giám đốc',
-    idNumber: '0312345678',
-    debt: '128000000',
-  },
-  {
-    code: 'KH-0004',
-    name: 'Khoa Dinh dưỡng — Bệnh viện Bạch Mai',
-    customerType: 3,
-    registeredAddress: 'Số 78 Giải Phóng, Đống Đa, Hà Nội',
-    ownerName: 'Nguyễn Thị Thu Hà',
-    ownerTitle: 'Trưởng khoa',
-    idNumber: '0104567890',
-    debt: '0',
-  },
-  {
-    code: 'KH-0005',
-    name: 'Nhà thuốc Thanh Bình',
-    customerType: 1,
-    registeredAddress: 'Số 21 Trần Phú, Hà Đông, Hà Nội',
-    ownerName: 'Nguyễn Thanh Bình',
-    ownerTitle: 'Chủ nhà thuốc',
-    idNumber: '0105678901',
-    debt: '2100000',
-  },
-];
-
-/**
  * Hai mẫu hồ sơ và một mẫu hợp đồng.
  *
  * Hệ thống đã tự nạp một mẫu mỗi loại lúc `document` khởi động (`ensureDefault`),
@@ -182,84 +118,6 @@ const MAU = [
   { tep: 'mau-ho-so-a4-ngang.docx', ten: 'Mẫu CSBH A4 ngang', duong: '/policy-templates' },
   { tep: 'mau-hop-dong-a4-doc.docx', ten: 'Mẫu hợp đồng A4 dọc', duong: '/contract-templates' },
 ];
-
-/**
- * Tìm một tài khoản theo TÊN ĐĂNG NHẬP.
- *
- * `GET /admin/users?q=` chỉ tìm theo HỌ TÊN (`0049`) — có lý do: người quản trị
- * đi tìm "chị Hạnh kế toán", không đi tìm "kt01". Nên ở đây phải quét trang.
- * Trên một hệ vừa cài thì danh sách rất ngắn; giới hạn 200 dòng để một hệ đã
- * dùng lâu không biến lệnh này thành một vòng lặp không hồi kết.
- */
-async function timTaiKhoan(ten: string): Promise<{ id: string; role: string } | null> {
-  for (let bo = 0; bo < 200; bo += 50) {
-    const t = await goi<{ items?: { id: string; username: string; role: string }[] }>(
-      `/admin/users?limit=50&offset=${bo}`,
-      undefined,
-      'GET',
-    );
-    const ds = t.items ?? [];
-    const thay = ds.find((u) => u.username === ten);
-    if (thay) return { id: thay.id, role: thay.role };
-    if (ds.length < 50) return null;
-  }
-  return null;
-}
-
-/**
- * NĂM KHÁCH HÀNG, và câu hỏi "ai phụ trách".
- *
- * `POST /customers` gán `tdv_user_id = me.id` — TDV phụ trách mặc định là NGƯỜI
- * TẠO (CUST-01). Lệnh này chạy bằng tài khoản Quản trị, nên nếu không làm gì
- * thêm thì năm khách hàng ấy thuộc về Quản trị, và **TDV thật mở màn hình Khách
- * hàng sẽ thấy trống trơn** — phạm vi dữ liệu lọc theo `tdv_user_id`.
- *
- * Nên khai `TDV_USERNAME` thì giao lại luôn: `PATCH /customers/:id` với
- * `tdvUserId`, một quyền chỉ Quản trị có (`CAN_REASSIGN`). Không khai thì vẫn nạp,
- * và in ra một dòng nói rõ phải đổi tay ở màn hình Khách hàng.
- */
-/**
- * KIỂM TRƯỚC KHI GHI BẤT CỨ THỨ GÌ.
- *
- * Bản đầu để phép kiểm này nằm trong `napKhach`, tức là SAU khi nhóm, quy định
- * và sản phẩm đã ghi xong. Một cái tên TDV gõ sai khi ấy để lại một hệ nạp dở —
- * và lượt chạy lại bị chính chốt "danh mục đã có sản phẩm" từ chối. Không có
- * đường tiến, cũng không có đường lùi, trừ dựng lại CSDL.
- *
- * Đo được ở lượt chạy thật đầu tiên. Mọi phép kiểm không cần dữ liệu vừa tạo đều
- * phải đứng trước lượt ghi đầu tiên.
- */
-async function kiemTdv(tdv: string | undefined): Promise<{ id: string } | null> {
-  if (!tdv) return null;
-  const nguoi = await timTaiKhoan(tdv);
-  if (!nguoi) {
-    console.error(`nap-danh-muc: không có tài khoản "${tdv}". Chưa ghi gì cả.`);
-    process.exit(1);
-  }
-  if (nguoi.role !== 'TDV') {
-    console.error(
-      `nap-danh-muc: "${tdv}" có vai trò ${nguoi.role}, không phải TDV. ` +
-        'Khách hàng chỉ giao được cho Trình dược viên. Chưa ghi gì cả.',
-    );
-    process.exit(1);
-  }
-  return { id: nguoi.id };
-}
-
-async function napKhach(tdv: string | undefined, nguoi: { id: string } | null): Promise<void> {
-  for (const k of KHACH) {
-    const kh = await goi<{ id: string }>('/customers', k);
-    if (nguoi) await goi(`/customers/${kh.id}`, { tdvUserId: nguoi.id }, 'PATCH');
-  }
-
-  if (nguoi) {
-    console.log(`  khách hàng: ${KHACH.length}, đã giao cho ${tdv}`);
-  } else {
-    console.log(`  khách hàng: ${KHACH.length} — ĐANG THUỘC TÀI KHOẢN QUẢN TRỊ`);
-    console.log('    TDV mở màn hình Khách hàng sẽ thấy trống. Đổi *TDV phụ trách*');
-    console.log('    ở màn hình Khách hàng, hoặc chạy lại lệnh với TDV_USERNAME.');
-  }
-}
 
 async function napMau(): Promise<void> {
   for (const m of MAU) {
@@ -323,8 +181,6 @@ async function main(): Promise<void> {
   }
   token = phien.accessToken;
 
-  const tenTdv = process.env.TDV_USERNAME?.trim() || undefined;
-
   // Danh mục đã có sản phẩm thì DỪNG — xem chốt chặn số 2 ở đầu tệp.
   const daCo = await goi<{ items?: unknown[] }>('/catalog/products?limit=1', undefined, 'GET');
   if ((daCo.items?.length ?? 0) > 0) {
@@ -334,9 +190,6 @@ async function main(): Promise<void> {
     );
     process.exit(1);
   }
-
-  // Mọi phép kiểm đứng TRƯỚC lượt ghi đầu tiên. Xem chú thích ở `kiemTdv`.
-  const nguoiTdv = await kiemTdv(tenTdv);
 
   for (const n of NHOM) {
     await goi('/catalog/product-groups', { code: n.code, name: n.name });
@@ -366,7 +219,6 @@ async function main(): Promise<void> {
   }
   console.log(`  sản phẩm kèm giá: ${SAN_PHAM.length}`);
 
-  await napKhach(tenTdv, nguoiTdv);
   await napMau();
 
   console.log('');

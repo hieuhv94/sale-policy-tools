@@ -103,9 +103,8 @@ phải làm thay vì ném vết ngăn xếp `pg`; `0111`: `pg_isready` KHÔNG ki
 thêm một lượt `SELECT 1` và nói ra nguyên nhân; `0112`: lời nhắc của `cai-dat.sh` in ra stdout nên
 nó LỌT VÀO chính câu trả lời — `$( )` bắt toàn bộ stdout; `0113`: `cai-dat.sh` chặn tổ hợp "bí mật
 mới + volume cũ", tức chặn ở chỗ hỏng SINH RA thay vì ba chỗ nó lộ ra; `0114`: lệnh mồi KHÔNG gửi
-thư (ngoại lệ duy nhất của luật "thư mời là đường duy nhất") và giờ nói ra điều đó; `0115`: thêm
-5 khách hàng mẫu, giao được cho TDV qua `TDV_USERNAME` — không giao thì TDV thấy màn hình trống,
-vì khách hàng thuộc NGƯỜI TẠO. **1701/1701 xanh**, cây làm việc sạch.
+thư (ngoại lệ duy nhất của luật "thư mời là đường duy nhất") và giờ nói ra điều đó.
+**1698/1698 xanh**, cây làm việc sạch.
 
 Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên

@@ -27,10 +27,9 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
                      chưa có tài khoản nào. Cần ADMIN_USERNAME, ADMIN_EMAIL,
                      ADMIN_PASSWORD (hoặc ADMIN_PASSWORD_FILE).
   nap-danh-muc       Nạp DỮ LIỆU MẪU cho bản chạy thử: nhóm sản phẩm, sản phẩm
-                     kèm giá, ba quy định chiết khấu, năm khách hàng, ba văn bản
-                     mẫu. Từ chối khi danh mục đã có sản phẩm. Cần ADMIN_USERNAME
-                     và ADMIN_PASSWORD của một tài khoản Quản trị đã đổi mật
-                     khẩu. TDV_USERNAME (tuỳ chọn) để giao khách hàng luôn.
+                     kèm giá, ba quy định chiết khấu, ba văn bản mẫu. Từ chối
+                     khi danh mục đã có sản phẩm. Cần ADMIN_USERNAME và
+                     ADMIN_PASSWORD của một tài khoản Quản trị đã đổi mật khẩu.
   backup             Sao lưu logic (pg_dump) + bản nền (pg_basebackup).
   restore-drill      DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng CSDL đang chạy.
   restore <file>     Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.

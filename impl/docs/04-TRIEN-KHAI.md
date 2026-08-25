@@ -318,7 +318,6 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 | Nhóm sản phẩm | 3 |
 | Sản phẩm kèm giá bán Công ty | 9 |
 | Quy định chiết khấu | 3 |
-| Khách hàng | 5, phủ đủ ba loại khách |
 | Văn bản mẫu | 2 mẫu hồ sơ (A4 dọc · ngang) + 1 mẫu hợp đồng |
 
 Ba quy định cố tình bày ra **luật khó nhất** của màn hình ấy: dòng cụ thể hơn
@@ -328,14 +327,6 @@ phẩm ấy lấy 15%.
 Ba điều kiện: cần tài khoản Quản trị **đã đổi mật khẩu lần đầu**; **từ chối nếu
 danh mục đã có sản phẩm**; và nó **không tạo tài khoản nào** — đó là ranh giới
 khiến nó được phép chạy ở `production` trong khi các script seed khác thì không.
-
-> **Khách hàng thuộc về ai.** `POST /customers` gán TDV phụ trách là **người
-> tạo**, mà lệnh này chạy bằng tài khoản Quản trị. Nên lệnh hỏi thêm *"giao khách
-> hàng cho TDV nào"*: khai tên đăng nhập của một TDV thì nó giao luôn.
->
-> Bỏ trống cũng nạp được, nhưng năm khách hàng ấy thuộc Quản trị và **TDV mở màn
-> hình Khách hàng sẽ thấy trống trơn** — phạm vi dữ liệu lọc theo TDV phụ trách.
-> Sửa sau ở màn hình *Khách hàng*, đổi *TDV phụ trách*; đó là quyền của Quản trị.
 
 > **Đây là SỐ MINH HOẠ.** Trước khi hệ đi vào dùng thật, sửa hoặc vô hiệu hoá
 > chúng. Một bảng giá minh hoạ để nguyên sẽ thành bảng giá công ty, và không có
