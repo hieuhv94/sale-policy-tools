@@ -111,6 +111,31 @@ describe('`0105` bản đóng gói', () => {
     expect(stderr).toContain('mac-dinh.vn');
   });
 
+  it('`0113` `cai-dat.sh` chặn khi bí mật MỚI gặp volume dữ liệu CŨ', () => {
+    /*
+     * Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo thư mục dữ liệu đầu
+     * tiên. Nên `secrets/` chưa có + volume đã có = mật khẩu sắp sinh chắc chắn
+     * không khớp, và lượt `len` ngay sau sẽ chết ở migrate.
+     *
+     * Đã xảy ra ba lần (`0106`, `0111`, và một lượt cài thật), báo lỗi ở ba chỗ
+     * khác nhau — không chỗ nào là chỗ còn NGĂN được. Đây là chỗ ấy.
+     */
+    const sh = readFileSync('scripts/cai-dat.sh', 'utf8');
+
+    // Điều kiện phải là CẢ HAI vế, không phải một.
+    expect(sh).toContain('! -f secrets/pg_password.txt');
+    expect(sh).toContain('_pgdata');
+    expect(sh).toContain('docker volume inspect');
+
+    // Tên volume suy từ COMPOSE_PROJECT_NAME, không viết cứng: mỗi nơi cài một tên.
+    expect(sh).toContain('COMPOSE_PROJECT_NAME');
+
+    // Và nói ra HAI đường xử lý — chúng khác nhau hẳn.
+    expect(sh).toContain('down -v');
+    expect(sh).toContain('KHÔNG có gì đáng giữ');
+    expect(sh).toContain('CÓ dữ liệu');
+  });
+
   it('`0108` khai `*_FILE` thì PHẢI đặt biến trực tiếp về RỖNG', () => {
     /*
      * Compose GỘP map `environment` chứ không thay thế, nên `POSTGRES_PASSWORD`

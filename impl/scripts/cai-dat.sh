@@ -46,6 +46,40 @@ docker compose version >/dev/null 2>&1 || { echo "Chưa có docker compose v2." 
 # Sinh TẠI CHỖ, trên chính máy chủ này. Bí mật đi kèm bộ cài là bí mật mà mọi
 # bản cài dùng chung, và nó đã đi qua ít nhất một lần chép tệp.
 mkdir -p secrets
+
+# BÍ MẬT MỚI + VOLUME CŨ = HỎNG CHẮC CHẮN (`0113`).
+#
+# Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo thư mục dữ liệu đầu tiên.
+# Nên nếu `secrets/` chưa có (bộ cài vừa giải nén, hoặc ai đó xoá đi) mà volume
+# dữ liệu thì ĐÃ CÓ từ một lượt cài trước, mật khẩu sắp sinh ra ở đây chắc chắn
+# không khớp cái mà CSDL đang giữ — và lượt `len` ngay sau sẽ chết ở migrate.
+#
+# Đã xảy ra ba lần (`0106`, `0111`, và lượt cài này). Ba lần ấy đều báo lỗi ở ba
+# chỗ khác nhau, không chỗ nào ở đây — chỗ DUY NHẤT còn ngăn được.
+if [ ! -f secrets/pg_password.txt ]; then
+  du_an=$(grep -hE '^COMPOSE_PROJECT_NAME=' .env .env.mau 2>/dev/null | head -1 | cut -d= -f2-)
+  if [ -n "$du_an" ] && docker volume inspect "${du_an}_pgdata" >/dev/null 2>&1; then
+    cat >&2 <<HET
+
+  DỪNG: đã có dữ liệu CSDL cũ, mà bộ bí mật thì chưa có.
+
+  Volume "${du_an}_pgdata" tồn tại từ một lượt cài trước. Postgres đặt mật khẩu
+  CHỈ ở lần khởi tạo đầu tiên, nên mật khẩu sắp sinh ra sẽ không khớp cái CSDL ấy
+  đang giữ, và bước migrate sẽ hỏng.
+
+  CSDL cũ KHÔNG có gì đáng giữ — xoá nó rồi cài lại:
+      docker compose --env-file .env.mau -f deploy/compose.yml -f deploy/compose.prod.yml down -v
+      ./cai-dat.sh
+
+  CSDL cũ CÓ dữ liệu — đừng xoá. Tìm lại bộ "secrets/" của lượt cài ấy và chép
+  về đây; không còn thì xem tai-lieu/05-VAN-HANH.md, mục
+  "password authentication failed".
+
+HET
+    exit 1
+  fi
+fi
+
 if [ -f secrets/jwt-private.pem ]; then
   echo "==> secrets/ đã có, giữ nguyên"
 else

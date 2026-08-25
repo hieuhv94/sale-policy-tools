@@ -10394,3 +10394,48 @@ Bốn chỗ hỏi khác (`csbh mo-tai-khoan`, `nap-danh-muc`, xác nhận `phuc-
 `$( )`. Ranh giới là chỗ có command substitution, không phải chỗ có `printf`.
 
 **1695/1695 xanh.**
+
+## P140 — `0113` chặn ở chỗ hỏng SINH RA, không phải chỗ nó lộ ra
+
+Lần thứ ba cùng một gốc. `0106` gặp nó ở lệnh mồi tài khoản, `0111` gặp ở bước
+migrate, lượt cài thật này gặp lại ở migrate. Ba chặng trước đều làm đúng một
+việc: **sửa câu báo lỗi ở chỗ nó lộ ra**. Không chặng nào hỏi tại sao nó lộ ra
+được ba lần.
+
+Gốc là một điều kiện phát hiện được **trước khi bất cứ thứ gì hỏng**:
+
+```
+secrets/pg_password.txt CHƯA CÓ   +   volume <du-an>_pgdata ĐÃ CÓ
+```
+
+Postgres đặt mật khẩu superuser chỉ ở lần khởi tạo thư mục dữ liệu đầu tiên, nên
+tổ hợp ấy là **hỏng chắc chắn**, không phải hỏng có xác suất. Nó xảy ra mỗi khi
+bộ cài được giải nén lại, hoặc `secrets/` bị xoá, trong khi volume của lượt trước
+còn nằm đó.
+
+`cai-dat.sh` giờ kiểm đúng tổ hợp ấy trước khi sinh bí mật, và dừng kèm hai đường
+xử lý — chúng khác nhau hẳn: CSDL cũ không có gì đáng giữ thì `down -v` rồi cài
+lại; CSDL cũ có dữ liệu thì **đừng xoá**, đi tìm lại bộ `secrets/` của lượt ấy.
+
+Tên volume suy từ `COMPOSE_PROJECT_NAME` chứ không viết cứng: mỗi nơi cài một tên,
+và viết cứng `csbh-prod_pgdata` là canh đúng một cách cài.
+
+### Kiểm cả hai vế
+
+Vế chặn thì dễ nhớ kiểm. Vế **không chặn** mới là vế dễ mất: một điều kiện viết
+sai một dấu có thể chặn cả lượt cài sạch, và triệu chứng là không ai cài được gì
+nữa. Dựng cả hai: thư mục trắng đi tiếp bình thường; thêm một volume rỗng đúng
+tên thì dừng với đúng câu trên.
+
+### Ba chặng, ba tầng, và chỉ tầng này ngăn được
+
+| Chặng | Sửa ở đâu | Làm được gì |
+|---|---|---|
+| `0106` | compose đọc mật khẩu từ file | bỏ một bản sao của bí mật |
+| `0111` | migrate thử `SELECT 1` | nói ra nguyên nhân sau khi đã hỏng |
+| `0113` | `cai-dat.sh` kiểm trước khi sinh | **không để nó hỏng** |
+
+Hai chặng đầu vẫn cần: chúng bắt những đường không đi qua `cai-dat.sh` — nâng
+cấp, chạy tay, hay một máy chủ ai đó dựng bằng compose trực tiếp.
+
+**1696/1696 xanh.**
