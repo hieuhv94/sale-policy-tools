@@ -100,7 +100,8 @@ cho bản chạy thử (3 nhóm · 9 sản phẩm · 3 quy định chiết khấ
 liệu **duy nhất không có chốt `NODE_ENV`**: nó không đụng tới tài khoản, và có năm ca kiểm quét
 chính mã nguồn của nó để ranh giới ấy không trôi. `0110`: lệnh mồi bắt mã `42P01` và nói ra việc
 phải làm thay vì ném vết ngăn xếp `pg`; `0111`: `pg_isready` KHÔNG kiểm được mật khẩu, nên migrate
-thêm một lượt `SELECT 1` và nói ra nguyên nhân. **1694/1694 xanh**, cây làm việc sạch.
+thêm một lượt `SELECT 1` và nói ra nguyên nhân; `0112`: lời nhắc của `cai-dat.sh` in ra stdout nên
+nó LỌT VÀO chính câu trả lời — `$( )` bắt toàn bộ stdout. **1695/1695 xanh**, cây làm việc sạch.
 
 Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên

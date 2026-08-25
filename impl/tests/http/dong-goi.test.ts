@@ -9,8 +9,12 @@
  * chúng tồn tại. Nó không dựng ảnh và không chạy docker — nó chỉ canh cái lớp
  * mỏng dễ mục nhất: danh sách tệp.
  */
+import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
+
+const chay = promisify(execFile);
 
 const SH = readFileSync('scripts/dong-goi.sh', 'utf8');
 
@@ -77,6 +81,34 @@ describe('`0105` bản đóng gói', () => {
     const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
     expect(prod).toContain('POSTGRES_PASSWORD_FILE');
     expect(prod).toContain('MINIO_ROOT_PASSWORD_FILE');
+  });
+
+  it('`0112` `cai-dat.sh` hỏi ra stderr, trả lời ra stdout', async () => {
+    /*
+     * `hoi()` luôn được gọi trong `$( )`, mà command substitution BẮT TOÀN BỘ
+     * stdout. In lời nhắc ra stdout thì hỏng hai lần cùng lúc: màn hình không
+     * hiện câu hỏi nào — script trông như treo trong khi nó đang đứng ở `read` —
+     * và lời nhắc trở thành MỘT PHẦN của câu trả lời, nên `.env` nhận nguyên
+     * chuỗi `  Tên miền … [csbh.nutricare.vn]: csbh.nutricare.vn`.
+     *
+     * Ca này chạy CHÍNH hàm ấy, rút thẳng từ tệp thật, chứ không đọc bằng mắt:
+     * `>&2` là một ký tự dễ mất trong một lượt sửa, và mất nó thì không có gì đỏ
+     * ở tầng nào khác.
+     */
+    const sh = readFileSync('scripts/cai-dat.sh', 'utf8');
+    const ham = /^hoi\(\) \{[\s\S]*?^\}/m.exec(sh)?.[0];
+    expect(ham, 'không rút được hàm hoi() — biểu thức đã lạc hậu').toBeDefined();
+
+    const { stdout, stderr } = await chay('sh', [
+      '-c',
+      `${ham}\nx=$(hoi "Ten mien" "mac-dinh.vn" </dev/null)\nprintf '%s' "$x"`,
+    ]);
+
+    // Câu trả lời SẠCH — không dính một chữ nào của lời nhắc.
+    expect(stdout).toBe('mac-dinh.vn');
+    // Và lời nhắc vẫn tới được mắt người dùng.
+    expect(stderr).toContain('Ten mien');
+    expect(stderr).toContain('mac-dinh.vn');
   });
 
   it('`0108` khai `*_FILE` thì PHẢI đặt biến trực tiếp về RỖNG', () => {

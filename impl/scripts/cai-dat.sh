@@ -10,8 +10,23 @@ set -eu
 
 cd "$(dirname "$0")"
 
-hoi() { # hoi <câu hỏi> <mặc định>
-  if [ -n "${2:-}" ]; then printf '%s [%s]: ' "$1" "$2"; else printf '%s: ' "$1"; fi
+# hoi <câu hỏi> <mặc định> — LỜI NHẮC RA `stderr`, câu trả lời ra `stdout`.
+#
+# `>&2` ở hai dòng printf đầu là bắt buộc, không phải cẩn thận thừa (`0112`).
+#
+# Hàm này luôn được gọi trong `$( )`, mà command substitution BẮT TOÀN BỘ stdout.
+# In lời nhắc ra stdout thì hỏng hai lần cùng lúc:
+#
+#   * màn hình không hiện câu hỏi nào — script trông như treo, trong khi nó đang
+#     đứng ở `read` chờ người gõ;
+#   * và lời nhắc trở thành MỘT PHẦN của câu trả lời. Bấm Enter lấy mặc định thì
+#     `.env` nhận nguyên chuỗi
+#     `  Tên miền (DNS đã trỏ về máy này) [csbh.nutricare.vn]: csbh.nutricare.vn`.
+#
+# Cái thứ hai không lộ ra ngay: nó chỉ hiện thành một lỗi của Caddy hoặc của
+# compose ở vài bước sau, và không dòng nào nhắc tới hàm này.
+hoi() {
+  if [ -n "${2:-}" ]; then printf '%s [%s]: ' "$1" "$2" >&2; else printf '%s: ' "$1" >&2; fi
   read -r tl
   [ -n "$tl" ] || tl="${2:-}"
   printf '%s' "$tl"

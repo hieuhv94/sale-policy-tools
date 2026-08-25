@@ -10360,3 +10360,37 @@ volume lúc khởi tạo**. Ba triệu chứng khác nhau ở ba chỗ khác nha
 nào tự nói ra gốc. Giờ cả ba đều nói.
 
 **1694/1694 xanh.**
+
+## P139 — `0112` lời nhắc lọt vào chính câu trả lời
+
+Người dùng báo `./cai-dat.sh` "luôn dừng" ngay sau dòng *"Bốn thứ phải khai"*. Nó
+không dừng — nó đang đứng ở `read` chờ người gõ, và **câu hỏi thì vô hình**.
+
+`hoi()` luôn được gọi trong `$( )`, mà command substitution bắt TOÀN BỘ stdout.
+Lời nhắc in ra stdout nên nó bị nuốt, không tới màn hình. Đó là nửa dễ thấy.
+
+Nửa còn lại tệ hơn, và không lộ ra ngay: **lời nhắc trở thành một phần của câu
+trả lời**. Dựng lại được đúng một dòng:
+
+```
+gia tri nhan duoc: [  Ten mien [csbh.nutricare.vn]: csbh.nutricare.vn]
+```
+
+Nghĩa là ai bấm Enter qua bốn câu hỏi sẽ có một `.env` với
+`SITE_ADDRESS=  Tên miền (DNS đã trỏ về máy này) [csbh.nutricare.vn]: csbh.nutricare.vn`
+— và triệu chứng chỉ hiện thành một lỗi của Caddy hoặc của compose ở vài bước
+sau, không dòng nào nhắc tới hàm `hoi`.
+
+Sửa là hai lần `>&2`. Ca kiểm **chạy chính hàm ấy**, rút thẳng từ tệp thật bằng
+biểu thức chính quy rồi cho `sh` thực thi — không đọc bằng mắt, vì `>&2` là hai
+ký tự dễ mất trong một lượt sửa và mất nó thì không có gì đỏ ở tầng nào khác.
+
+Phá lại: gỡ `>&2` thì ca đỏ với
+`expected 'Ten mien [mac-dinh.vn]: mac-dinh.vn' to be 'mac-dinh.vn'` — đúng
+triệu chứng người dùng gặp.
+
+Bốn chỗ hỏi khác (`csbh mo-tai-khoan`, `nap-danh-muc`, xác nhận `phuc-hoi`,
+`mo-thu-nghiem`) KHÔNG dính: chúng gọi `printf` rồi `read` thẳng, không qua
+`$( )`. Ranh giới là chỗ có command substitution, không phải chỗ có `printf`.
+
+**1695/1695 xanh.**
