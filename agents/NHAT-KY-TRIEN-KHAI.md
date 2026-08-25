@@ -10470,3 +10470,63 @@ không `MAIL_HOST`, không `fetch(`. Thêm một lượt gửi thư vào đây l
 điểm ấy, và một cấu hình thư sai sẽ chặn luôn việc tạo tài khoản quản trị.
 
 **1698/1698 xanh.**
+
+## P142 — `0115` năm khách hàng mẫu, và câu hỏi "ai phụ trách"
+
+Thêm năm khách hàng vào `nap-danh-muc`. Việc tưởng gọn, và nó lôi ra hai chuyện.
+
+### Khách hàng thuộc về NGƯỜI TẠO
+
+`POST /customers` gán `tdv_user_id = me.id` (CUST-01), mà lệnh này chạy bằng tài
+khoản Quản trị. Không làm gì thêm thì năm khách hàng ấy thuộc Quản trị, và **TDV
+mở màn hình Khách hàng thấy trống trơn** — phạm vi dữ liệu lọc theo TDV phụ
+trách. Người thử sẽ kết luận là bộ nạp không chạy.
+
+Nên lệnh nhận thêm `TDV_USERNAME` và giao lại luôn bằng `PATCH /customers/:id` —
+một quyền chỉ Quản trị có (`CAN_REASSIGN`). Bỏ trống vẫn nạp được, nhưng in ra
+đúng hệ quả thay vì để nó im lặng.
+
+Tìm tài khoản theo tên đăng nhập phải **quét trang**: `GET /admin/users?q=` chỉ
+tìm theo HỌ TÊN (`0049`), và đó là quyết định có lý — người quản trị đi tìm *"chị
+Hạnh kế toán"*, không đi tìm *"kt01"*.
+
+### Phép kiểm đứng SAU lượt ghi là một hệ không lối thoát
+
+Bản đầu kiểm `TDV_USERNAME` bên trong hàm nạp khách hàng, tức sau khi nhóm, quy
+định và sản phẩm đã ghi xong. Gõ sai một cái tên thì:
+
+1. Sản phẩm đã ghi, khách hàng chưa
+2. Lượt chạy lại bị chính chốt *"danh mục đã có sản phẩm"* từ chối
+3. Không đường tiến, không đường lùi, trừ dựng lại CSDL
+
+Lộ ra ở **lượt chạy thật đầu tiên**, không ca kiểm nào bắt được — vì cả hai chốt
+chặn đều đúng khi xét riêng. Cái sai nằm ở THỨ TỰ giữa chúng.
+
+Luật rút ra, và giờ có ca kiểm canh bằng cách so vị trí trong mã nguồn: **mọi
+phép kiểm không cần dữ liệu vừa tạo đều phải đứng trước lượt ghi đầu tiên.** Câu
+từ chối cũng nói thêm *"Chưa ghi gì cả"* — người đọc cần biết có phải đi dọn không.
+
+### Đo trên chồng production thật
+
+Gõ sai tên TDV: `sanpham=0 khach=0` sau lượt từ chối. Khai `tdv01`:
+`khach=5 thuoc tdv01=5`. Bỏ trống: nạp được, kèm ba dòng cảnh báo.
+
+Năm khách phủ đủ ba loại, và có hai khách **loại 1** cùng mua được sữa bột với
+một khách loại 2 — không thế thì luật "dòng cụ thể hơn thắng" của ba quy định
+chiết khấu vẫn không nhìn thấy được.
+
+### Một chốt chặn canh CHUỖI thay vì canh HÀNH VI
+
+Ca kiểm `0109` cấm thẳng chuỗi `/admin/users` trong mã nguồn của bộ nạp, và câu
+ấy đọc như *"không tạo tài khoản"*. Nhưng `0115` cần **đọc** danh sách để tra tên
+đăng nhập của TDV — việc hoàn toàn hợp lệ — và ca kiểm đỏ ở chỗ không có gì sai.
+
+Nới đúng chỗ cần nới, rồi siết lại bằng thứ thật sự quan trọng: **mọi lần chạm
+tới đường ấy phải là `GET`**. Một `POST` lọt vào đây là script tạo được tài
+khoản, tức là mất đúng điều kiện để nó được phép chạy ở production.
+
+Phép quét đọc theo **cửa sổ** chứ không theo dòng — một lời gọi `fetch` xuống
+dòng ở giữa đối số nên `'GET'` nằm ở dòng sau đường dẫn — và bỏ dòng chú thích
+ra, vì chúng nhắc tên đường dẫn để giải thích chứ không phải để gọi.
+
+**1701/1701 xanh.**

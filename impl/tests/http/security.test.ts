@@ -834,12 +834,45 @@ describe('`0109` bộ nạp danh mục ĐƯỢC phép chạy ở production — 
   const nguon = readFileSync('scripts/nap-danh-muc.ts', 'utf8');
 
   it('KHÔNG tạo tài khoản, KHÔNG đặt mật khẩu nào', () => {
-    for (const cam of ['app_user', '/admin/users', 'password_hash', 'hashPassword']) {
+    for (const cam of ['app_user', 'password_hash', 'hashPassword']) {
       expect(nguon, `nap-danh-muc không được đụng tới ${cam}`).not.toContain(cam);
     }
     // Nó ĐỌC mật khẩu quản trị để đăng nhập, và chỉ được dùng vào đúng việc ấy.
     expect(nguon).toContain('ADMIN_PASSWORD');
     expect(nguon).toContain('/auth/login');
+  });
+
+  it('chạm `/admin/users` thì CHỈ ĐƯỢC ĐỌC', () => {
+    /*
+     * Bản `0109` cấm thẳng chuỗi `/admin/users`, và câu ấy đọc như "không tạo
+     * tài khoản". Nhưng nó canh CHUỖI chứ không canh HÀNH VI: `0115` cần đọc
+     * danh sách để tra tên đăng nhập của TDV, một việc hoàn toàn hợp lệ, và ca
+     * kiểm đỏ ở chỗ không có gì sai.
+     *
+     * Nới đúng chỗ cần nới, và siết lại bằng thứ thật sự quan trọng: mọi lần
+     * chạm tới đường ấy phải là `GET`. Một `POST` lọt vào đây là script này tạo
+     * được tài khoản — đúng thứ SEC-14 cấm, và là điều kiện để nó được phép chạy
+     * ở production.
+     */
+    /*
+     * Đọc theo CỬA SỔ, không theo dòng: một lời gọi `fetch` xuống dòng ở giữa
+     * đối số, nên `'GET'` nằm ở dòng sau đường dẫn. Và bỏ dòng chú thích ra —
+     * chúng nhắc tên đường dẫn để giải thích, không phải để gọi.
+     */
+    const ma = nguon
+      .split('\n')
+      .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+      .join('\n');
+
+    const cho: number[] = [];
+    for (let i = ma.indexOf('/admin/users'); i >= 0; i = ma.indexOf('/admin/users', i + 1)) {
+      cho.push(i);
+    }
+    expect(cho.length, 'không thấy lời gọi nào — biểu thức đã lạc hậu').toBeGreaterThan(0);
+    for (const i of cho) {
+      const cua_so = ma.slice(i, i + 200);
+      expect(cua_so, `lời gọi /admin/users phải là GET:\n${cua_so.slice(0, 120)}`).toContain("'GET'");
+    }
   });
 
   it('đi qua API THẬT, không INSERT thẳng vào CSDL', () => {
@@ -860,6 +893,40 @@ describe('`0109` bộ nạp danh mục ĐƯỢC phép chạy ở production — 
     // Chốt 2: danh mục đã có sản phẩm thì dừng — đây là lệnh KHỞI ĐẦU.
     expect(nguon).toMatch(/TỪ CHỐI/);
     expect(nguon).toContain('/catalog/products?limit=1');
+  });
+
+  it('`0115` MỌI phép kiểm đứng TRƯỚC lượt ghi đầu tiên', () => {
+    /*
+     * Bản đầu kiểm `TDV_USERNAME` bên trong hàm nạp khách hàng, tức SAU khi nhóm,
+     * quy định và sản phẩm đã ghi xong. Một cái tên gõ sai khi ấy để lại một hệ
+     * nạp dở — và lượt chạy lại bị chính chốt "danh mục đã có sản phẩm" từ chối.
+     * Không đường tiến, không đường lùi, trừ dựng lại CSDL.
+     *
+     * Đo được ở lượt chạy thật đầu tiên, không ca kiểm nào bắt được.
+     */
+    const iKiem = nguon.indexOf('kiemTdv(tenTdv)');
+    const iGhi = nguon.indexOf("goi('/catalog/product-groups'");
+    expect(iKiem, 'không thấy lời gọi kiemTdv trong main()').toBeGreaterThan(0);
+    expect(iGhi, 'không thấy lượt ghi đầu tiên').toBeGreaterThan(0);
+    expect(iKiem, 'phép kiểm TDV phải đứng trước lượt ghi đầu tiên').toBeLessThan(iGhi);
+
+    // Và câu từ chối phải nói rõ là chưa ghi gì — người đọc cần biết có phải dọn không.
+    expect(nguon).toContain('Chưa ghi gì cả');
+  });
+
+  it('`0115` khách hàng giao cho TDV, không để lại cho Quản trị trong im lặng', () => {
+    /*
+     * `POST /customers` gán `tdv_user_id = me.id` (CUST-01), mà lệnh này chạy
+     * bằng tài khoản Quản trị. Không giao lại thì TDV mở màn hình Khách hàng
+     * thấy TRỐNG TRƠN — phạm vi dữ liệu lọc theo TDV phụ trách — và không có gì
+     * nói cho họ biết vì sao.
+     */
+    expect(nguon).toContain('tdvUserId');
+    expect(nguon).toContain("'PATCH'");
+    // Bỏ trống vẫn nạp được, nhưng phải NÓI RA hệ quả.
+    expect(nguon).toContain('ĐANG THUỘC TÀI KHOẢN QUẢN TRỊ');
+    // Và chỉ giao được cho đúng vai trò.
+    expect(nguon).toContain("!== 'TDV'");
   });
 
   it('ba văn bản mẫu nó nạp đều có thật trong `templates/`', () => {
