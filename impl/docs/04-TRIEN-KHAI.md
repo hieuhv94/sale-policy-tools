@@ -6,7 +6,7 @@ Từ một máy chủ trắng tới màn hình đăng nhập, theo đúng thứ 
 quyết, và thiếu một thứ là dừng ở giữa chừng.
 
 | Xong rồi thì đọc tiếp | |
-|---|---|
+| --- | --- |
 | [05-VAN-HANH.md](05-VAN-HANH.md) | sao lưu, phục hồi, sự cố, nâng cấp |
 | [03-HUONG-DAN-SU-DUNG.md](03-HUONG-DAN-SU-DUNG.md) | dành cho người dùng cuối |
 | [RPO-RTO.md](../deploy/RPO-RTO.md) | cam kết mất bao nhiêu dữ liệu, bao lâu chạy lại |
@@ -60,13 +60,59 @@ Mười ba bước. Cột cuối nói bước ấy **bắt buộc phải sau bư
 ### Sáu thứ phải có trước
 
 | Cần | Thiếu thì sao |
-|---|---|
+| --- | --- |
 | **Tên miền**, DNS đã trỏ về IP máy chủ | Caddy không xin được chứng chỉ; không có HTTPS |
 | **Máy chủ SMTP**: địa chỉ, cổng, tài khoản, mật khẩu | **Không ai đăng nhập được** ngoài tài khoản quản trị đầu tiên — thư mời kích hoạt là đường duy nhất để một tài khoản có mật khẩu |
 | Tên miền gửi thư có **SPF · DKIM · DMARC** | Thư mời rơi vào spam, và triệu chứng giống hệt "hệ thống hỏng" |
 | **Tên miền được phép nhận thư** | Hệ thống không khởi động — xem mục 4 |
 | Ai là **Quản trị hệ thống đầu tiên** | Không tạo được tài khoản nào |
 | Tài khoản đăng nhập **registry** | Không kéo được ảnh |
+
+### Nếu tên miền nằm trên Cloudflare
+
+Cloudflare có hai chế độ cho mỗi bản ghi DNS, và chúng khác nhau hẳn về hệ quả.
+
+| | Đám mây **xám** (DNS only) | Đám mây **cam** (Proxied) |
+| --- | --- | --- |
+| Cloudflare làm gì | chỉ trả lời DNS | đứng chắn trước máy chủ, kết thúc TLS |
+| Chứng chỉ | Caddy tự xin Let's Encrypt, chạy như tài liệu | hai lớp TLS, phải khai thêm ở Cloudflare |
+| IP người dùng | máy chủ thấy **IP thật** | máy chủ thấy IP của Cloudflare |
+| Giới hạn đăng nhập theo IP | đúng | **hỏng** — xem dưới |
+| Bản này hỗ trợ | **có, và đã chạy thử** | chưa |
+
+**Khuyến nghị: để đám mây XÁM (DNS only).** Khai một bản ghi và không gì khác:
+
+| Type | Name | Content | Proxy status |
+| --- | --- | --- | --- |
+| A | `csbh` | IP máy chủ | **DNS only** |
+
+Mọi thứ còn lại trong tài liệu này đúng nguyên văn. Caddy xin chứng chỉ trực tiếp
+từ Let's Encrypt, thấy IP thật của người dùng, và không có lớp nào ở giữa để đi
+tìm khi có sự cố.
+
+#### Bật đám mây cam thì ba thứ đổi
+
+Ghi ra để ai cần thì biết mình đang chọn gì. **Bản này chưa chạy thử chế độ ấy.**
+
+1. **`SSL/TLS mode` phải là `Full (strict)`.** `Flexible` nghĩa là Cloudflare nói
+   HTTPS với người dùng rồi nói **HTTP trần** với máy chủ — mật khẩu và token đi
+   qua Internet dạng rõ ở chặng ấy.
+2. **Cổng 80 phải tới được từ Cloudflare**, nếu không Caddy không xin và không
+   gia hạn được chứng chỉ (thử thách HTTP-01 đi vào cổng 80).
+3. **Giới hạn đăng nhập theo IP hỏng.** Mọi request tới từ dải IP của Cloudflare,
+   nên hai mươi lượt đăng nhập mỗi phút bị gom theo IP biên chứ không theo người
+   dùng thật. IP thật nằm ở header `CF-Connecting-IP`, nhưng bản này **chưa đọc
+   header ấy** — cần sửa Caddyfile (`trusted_proxies` + `client_ip`) và chặn
+   tường lửa chỉ cho dải Cloudflare vào, nếu không header ấy giả mạo được và chốt
+   chặn còn tệ hơn hiện tại.
+
+Khoá tài khoản sau 5 lần sai trong 15 phút **không đổi** — nó đếm theo tài khoản,
+không theo IP, nên lớp chống dò mật khẩu vẫn nguyên ở cả hai chế độ.
+
+Hai giới hạn nữa của lớp proxy, cả hai đều **không cắn** ở quy mô hiện tại: tệp
+tải lên tối đa 20 MB (Cloudflare cho 100 MB), và một request quá 100 giây thì
+Cloudflare trả `524` — dựng bản mềm của một hồ sơ rất dài dưới tải nặng là chỗ
+duy nhất có thể chạm tới.
 
 ### Máy chủ
 
@@ -101,7 +147,7 @@ Ba ảnh nằm chung **một repo**, phân biệt bằng **thẻ** — registry 
 `<tài khoản>/<repo>` nên không lồng thêm tên được:
 
 | Thẻ | Là gì | Tải về thực tế |
-|---|---|---|
+| --- | --- | --- |
 | `service-<phiên bản>` | Mười service Node. **Một ảnh cho cả mười** — service nào chạy do biến `SERVICE` quyết định lúc chạy | ~530 MB |
 | `web-<phiên bản>` | Giao diện đã dựng + Caddy + cấu hình biên mạng | ~50 MB |
 | `ops-<phiên bản>` | Migration, sao lưu, phục hồi, mồi tài khoản. Dựng **từ** ảnh service nên dùng lại toàn bộ lớp của nó | **+10 MB** |
@@ -176,7 +222,7 @@ Hệ thống có **ba chốt chặn lúc khởi động**: cấu hình sai thì 
 chạy**, thay vì chạy êm rồi gửi thư vào hư vô.
 
 | Biến | Bắt buộc | Nghĩa |
-|---|---|---|
+| --- | --- | --- |
 | `MAIL_HOST` | có | Máy chủ SMTP. Không được là `mailpit`/`localhost` |
 | `MAIL_PORT` | | Mặc định 587 |
 | `MAIL_FROM` | có | Địa chỉ ở ô *From*. Tên miền này phải có SPF/DKIM/DMARC |
@@ -260,7 +306,7 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 ```
 
 | Nạp gì | Bao nhiêu |
-|---|---|
+| --- | --- |
 | Nhóm sản phẩm | 3 |
 | Sản phẩm kèm giá bán Công ty | 9 |
 | Quy định chiết khấu | 3 |
