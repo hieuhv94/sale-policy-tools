@@ -555,6 +555,23 @@ main:focus { outline: none; }
 .nut-nhe { background: transparent; border-color: var(--mau-vien); }
 .nut-rong { width: 100%; }
 
+/* HAI NÚT RỘNG XẾP CHỒNG thì phải có khoảng cách (`0116`).
+
+   Ba mảnh ghép lại thành lỗ hổng, không mảnh nào tự sai: `.the-dang-nhap` là
+   khối thường nên không có `gap`; `.nut` không mang `margin` nào; còn nếp của
+   tệp này là "mỗi thành phần tự mang khoảng cách của mình" — `.truong` có
+   `margin-bottom`, nút thì không. Kết quả: nút cạnh ô nhập vẫn thoáng, mà hai
+   nút cạnh nhau thì CHẠM NHAU.
+
+   Chỉ nhắm `.nut-rong`, không nhắm mọi `.nut`: nút rộng chiếm cả hàng nên nó
+   luôn xếp CHỒNG, và một `margin-top` ở đó luôn đúng. Đặt lên `.nut + .nut` thì
+   mọi hàng nút nằm ngang trong ứng dụng bị đẩy lệch xuống.
+
+   `--k2` chứ không `--k3`: hai nút đặc là MỘT NHÓM hành động, nên chúng đứng
+   gần nhau hơn khoảng cách giữa nút và ô nhập ở trên. `.lien-phu` dùng `--k3` vì
+   nó là một liên kết chữ, không phải nút thứ hai. */
+.nut + .nut-rong { margin-top: var(--k2); }
+
 /* Nút chỉ có biểu tượng: vuông, vẫn đủ vùng chạm 44px (FE-08). */
 .nut-bieu-tuong {
   display: inline-grid;

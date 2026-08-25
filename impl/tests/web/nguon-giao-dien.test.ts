@@ -311,3 +311,48 @@ describe('FE-11 không đặt cỡ chữ tuyệt đối', () => {
     }
   });
 });
+
+describe('`0116` hai nút rộng xếp chồng thì không được chạm nhau', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+
+  /**
+   * Mọi cặp `<button class="… nut-rong …">` đứng KỀ NHAU trong cùng một khối.
+   *
+   * Quét theo thẻ thật chứ không theo tên tệp: chỗ hỏng là một CẶP, và cặp ấy có
+   * thể xuất hiện ở bất kỳ màn hình nào ai đó viết sau này.
+   */
+  const capNutRong = (): string[] => {
+    const ra: string[] = [];
+    for (const tep of moiTep(GOC, ['.tsx'])) {
+      const s = readFileSync(tep, 'utf8');
+      // `[^]*?` không tham lam, và chặn lại nếu gặp một thẻ mở khác — hai nút
+      // cách nhau bởi một thẻ khác thì không còn là anh em kề nhau.
+      const re = /<button(?:(?!<)[^])*?nut-rong(?:(?!<button)[^])*?<\/button>\s*<button(?:(?!<)[^])*?nut-rong/g;
+      for (const m of s.matchAll(re)) {
+        ra.push(`${tep}:${s.slice(0, m.index ?? 0).split('\n').length}`);
+      }
+    }
+    return ra;
+  };
+
+  it('luật khoảng cách có mặt, và nhắm ĐÚNG nút rộng', () => {
+    /*
+     * `.nut + .nut-rong`, không phải `.nut + .nut`: nút rộng chiếm cả hàng nên
+     * nó luôn xếp CHỒNG, và một `margin-top` ở đó luôn đúng. Đặt lên mọi `.nut`
+     * thì mọi hàng nút NẰM NGANG trong ứng dụng bị đẩy lệch xuống.
+     */
+    expect(css).toMatch(/^\.nut \+ \.nut-rong \{ margin-top: var\(--k\d\); \}$/m);
+    expect(css, 'không được nhắm mọi .nut — hàng nút ngang sẽ lệch').not.toMatch(
+      /^\.nut \+ \.nut \{/m,
+    );
+  });
+
+  it('vẫn còn cặp nút rộng để luật ấy có việc mà làm', () => {
+    /*
+     * Chiều thứ hai. Không có ca này thì gỡ hết nút phụ đi, luật thành mã chết,
+     * và ca ở trên vẫn xanh — canh một quy tắc về thứ không còn tồn tại.
+     */
+    const cap = capNutRong();
+    expect(cap.length, 'không còn cặp nút rộng nào — luật CSS kia đã thành mã chết').toBeGreaterThan(0);
+  });
+});

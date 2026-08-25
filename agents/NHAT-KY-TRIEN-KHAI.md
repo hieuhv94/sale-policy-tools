@@ -10498,3 +10498,46 @@ việc hoàn toàn hợp lệ — ca kiểm đỏ ở chỗ không có gì sai. 
 chuỗi sẽ chặn nhầm vào ngày có một cách dùng đúng mà người viết chưa nghĩ tới.
 
 **1698/1698 xanh.**
+
+## P144 — `0116` hai nút rộng xếp chồng chạm nhau
+
+Người dùng báo: ở màn hình quên mật khẩu và đổi mật khẩu, các nút *"hơi sát
+nhau"*. Đo ra thì không phải sát — khoảng cách bằng **0**.
+
+Đúng hai chỗ, và quét cả `apps/web` xác nhận không còn chỗ thứ ba:
+`QuenMatKhau.tsx:79` (*Gửi liên kết đặt lại* + *Quay lại đăng nhập*) và
+`DoiMatKhau.tsx:69` (*Đổi mật khẩu* + *Đăng xuất*).
+
+### Ba mảnh, không mảnh nào tự sai
+
+- `.the-dang-nhap` là khối thường — không flex, không `gap`
+- `.nut` không mang `margin` nào
+- Nếp của `app.css` là **"mỗi thành phần tự mang khoảng cách của mình"**:
+  `.truong` có `margin-bottom: var(--k3)`, nút thì không mang gì
+
+Nên nút đứng cạnh ô nhập vẫn thoáng, còn hai nút cạnh nhau thì dính. Lỗ hổng chỉ
+lộ ra ở đúng những màn hình có **hai** nút — bốn màn hình mật khẩu thì hai màn có,
+hai màn không.
+
+Màn hình *Đăng nhập* không dính, và nó cho thấy mẫu đã đúng: nút phụ ở đó là
+`.lien-phu`, một lớp CÓ `margin-top`.
+
+### `.nut + .nut-rong`, không phải `.nut + .nut`
+
+Khách hàng chọn hướng hẹp. Nhưng "hẹp" vẫn có hai cách viết, và chúng khác nhau
+hẳn: `.nut + .nut` đẩy lệch **mọi hàng nút nằm ngang** trong cả ứng dụng — hàng
+công cụ, cụm nút trong hộp thoại. `.nut-rong` thì chiếm cả hàng nên nó **luôn**
+xếp chồng, và một `margin-top` ở đó luôn đúng.
+
+`--k2` (8px) chứ không `--k3` (12px): hai nút đặc là MỘT NHÓM hành động nên chúng
+đứng gần nhau hơn khoảng cách giữa nút và ô nhập ở trên. `.lien-phu` dùng `--k3`
+vì nó là một liên kết chữ, không phải nút thứ hai.
+
+### Ca kiểm canh hai chiều
+
+Chiều thứ nhất: luật có mặt và nhắm đúng `.nut-rong` — cộng một phép phủ định
+chặn `.nut + .nut` lọt vào. Chiều thứ hai: **vẫn còn cặp nút rộng nào đó trong mã
+giao diện**. Không có chiều ấy thì gỡ hết nút phụ đi, luật thành mã chết, và ca
+đầu vẫn xanh — canh một quy tắc về thứ không còn tồn tại.
+
+**1700/1700 xanh.**
