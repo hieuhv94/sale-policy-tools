@@ -723,6 +723,40 @@ describe('SEC-04 tên khách hàng chứa công thức', () => {
 // phải đường gọi.
 // =============================================================================
 
+describe('`0111` migrate nói ra khi Postgres từ chối mật khẩu', () => {
+  /*
+   * `pg_isready` KHÔNG kiểm được mật khẩu — nó chỉ hỏi "máy chủ có nhận kết nối
+   * không" và trả 0 kể cả khi mọi lượt đăng nhập đều bị từ chối. Nên vòng chờ
+   * qua được, rồi câu lệnh đầu tiên chết với một dòng của psql không nhắc gì tới
+   * nguyên nhân thật.
+   */
+  const sh = readFileSync('scripts/migrate.sh', 'utf8');
+
+  it('có phép thử ĐĂNG NHẬP riêng, không tin mỗi `pg_isready`', () => {
+    expect(sh).toContain('pg_isready');
+    // Một lượt `SELECT 1` thật, sau vòng chờ và trước câu lệnh đầu tiên.
+    expect(sh).toMatch(/psql -q -c 'SELECT 1'/);
+    expect(sh.indexOf('pg_isready')).toBeLessThan(sh.indexOf("psql -q -c 'SELECT 1'"));
+  });
+
+  it('nói ra nguyên nhân THẬT, không chỉ chép lại câu của psql', () => {
+    // Nguyên nhân gần như luôn là một chuyện, và nó không nằm trong câu của psql.
+    expect(sh).toContain('CHỈ ở lần khởi tạo dữ liệu đầu tiên');
+    // Hai đường xử lý, vì chúng khác nhau hẳn.
+    expect(sh).toContain('down -v');
+    expect(sh).toContain('05-VAN-HANH.md');
+    expect(sh).toContain('COMPOSE_PROJECT_NAME');
+  });
+
+  it('lỗi KHÁC lỗi mật khẩu vẫn hiện nguyên văn', () => {
+    /*
+     * Nuốt tất là biến một máy chủ sai tên, một CSDL chưa tạo, hay một quyền
+     * thiếu thành cùng một câu về mật khẩu — và người đọc sẽ đi xoá volume.
+     */
+    expect(sh).toMatch(/cat \/tmp\/migrate-thu\.err >&2/);
+  });
+});
+
 describe('`0110` lệnh mồi nói ra khi CSDL chưa chạy migration', () => {
   /*
    * `docker compose run ops` tự khởi động Postgres theo `depends_on`, nên gọi

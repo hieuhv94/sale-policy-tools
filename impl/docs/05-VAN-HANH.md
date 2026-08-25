@@ -215,19 +215,46 @@ trước `./csbh len` sẽ dựng một CSDL trống rồi chạy luôn. Tra:
 Báo `does not exist` thì chạy `./csbh len` rồi gọi lại. Ra một con số thì lệnh mồi
 đang nối tới CSDL **khác** — kiểm `COMPOSE_PROJECT_NAME` trong `.env`.
 
-**`password authentication failed for user "postgres"`.** Volume `pgdata` được
-khởi tạo bởi một chồng khác với mật khẩu khác. Postgres đặt mật khẩu **chỉ ở lần
-khởi tạo đầu tiên** — đổi `secrets/pg_password.txt` về sau không đụng tới CSDL đã
-dựng. Kiểm `COMPOSE_PROJECT_NAME` trong `.env`: nó phải khác tên mà mọi chồng
-khác trên cùng máy đang dùng. Trên máy chưa có dữ liệu thật thì cách nhanh nhất
-là dựng lại từ đầu:
+**`password authentication failed for user "postgres"`.** Xuất hiện ở bước migrate
+hoặc ở bất kỳ lệnh nào chạm CSDL.
+
+**Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo thư mục dữ liệu đầu tiên.**
+Volume `pgdata` đã dựng từ trước giữ nguyên mật khẩu của lúc ấy; sinh lại
+`secrets/pg_password.txt` hay sửa nó về sau **không đụng gì tới CSDL đã dựng**.
+
+Ba nguyên nhân, theo thứ tự hay gặp:
+
+1. Volume dựng ở một lượt cài trước, rồi `secrets/` được sinh lại
+2. `COMPOSE_PROJECT_NAME` trùng một chồng khác trên cùng máy — dùng chung volume
+   của chồng ấy, và mật khẩu của chồng ấy thắng
+3. Volume dựng khi mật khẩu còn nằm trong `.env`, trước khi chuyển sang đọc file
+
+**CSDL chưa có gì đáng giữ** — dựng lại từ đầu:
 
 ```sh
 docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml down -v
 ./csbh len
 ```
 
-> `down -v` **xoá sạch dữ liệu**. Chỉ làm khi hệ chưa có gì đáng giữ.
+> `down -v` **xoá sạch dữ liệu**, và nó nhắm vào đúng dự án ghi trong
+> `COMPOSE_PROJECT_NAME`. Kiểm dòng ấy trước khi gõ.
+
+**CSDL ĐÃ CÓ dữ liệu** — đổi mật khẩu bên trong Postgres cho khớp file, không xoá
+gì:
+
+```sh
+# 1. Mở psql bằng đúng mật khẩu CŨ mà volume đang giữ
+docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml \
+  exec -e PGPASSWORD='<mật khẩu cũ>' postgres psql -U postgres -d csbh \
+  -c "ALTER USER postgres PASSWORD '$(cat secrets/pg_password.txt)'"
+
+# 2. Rồi dựng lại
+./csbh len
+```
+
+Không nhớ mật khẩu cũ thì đường còn lại là phục hồi từ bản sao lưu vào một chồng
+mới: `./csbh sao-luu` không chạy được (nó cũng cần mật khẩu), nên phải dùng bản
+sao lưu gần nhất đã có.
 
 **Đĩa đầy.** Ba thứ lớn dần: WAL archive, bản sao lưu, và log container. Log đã
 giới hạn 50 MB × 10 tệp mỗi service. `don-du-lieu` hằng tháng dọn dữ liệu quá hạn

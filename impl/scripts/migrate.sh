@@ -16,6 +16,45 @@ for i in $(seq 1 60); do
   sleep 1
 done
 
+# `pg_isready` KHÔNG kiểm được mật khẩu (`0111`).
+#
+# Nó chỉ hỏi "máy chủ có nhận kết nối không", và trả 0 kể cả khi mọi lượt đăng
+# nhập đều bị từ chối. Nên vòng chờ ở trên qua được, rồi câu lệnh đầu tiên chết
+# với một dòng của psql không nhắc gì tới nguyên nhân thật:
+#
+#   FATAL: password authentication failed for user "postgres"
+#
+# Nguyên nhân gần như luôn là một chuyện: **Postgres đặt mật khẩu superuser CHỈ ở
+# lần khởi tạo thư mục dữ liệu đầu tiên**. Volume `pgdata` đã dựng từ trước giữ
+# nguyên mật khẩu cũ, còn `secrets/pg_password.txt` thì đã mang giá trị khác —
+# đổi file về sau không đụng gì tới CSDL đã dựng.
+if ! psql -q -c 'SELECT 1' > /dev/null 2>/tmp/migrate-thu.err; then
+  if grep -qi 'password authentication failed' /tmp/migrate-thu.err; then
+    cat >&2 <<'HET'
+
+migrate: Postgres từ chối mật khẩu.
+
+  Postgres đặt mật khẩu superuser CHỈ ở lần khởi tạo dữ liệu đầu tiên. Volume
+  dữ liệu đang dùng đã được dựng bằng một mật khẩu khác, và đổi file bí mật về
+  sau không sửa được điều đó.
+
+  CSDL chưa có gì đáng giữ — dựng lại từ đầu:
+      docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml down -v
+      ./csbh len
+
+  CSDL ĐÃ CÓ dữ liệu — đổi mật khẩu bên trong Postgres cho khớp file:
+      xem tai-lieu/05-VAN-HANH.md, mục "password authentication failed"
+
+  Cũng kiểm COMPOSE_PROJECT_NAME trong .env: nó quyết định volume nào được dùng,
+  và trùng tên với một chồng khác là dùng chung volume của chồng ấy.
+
+HET
+    exit 1
+  fi
+  cat /tmp/migrate-thu.err >&2
+  exit 1
+fi
+
 psql -v ON_ERROR_STOP=1 -q -c "
   CREATE SCHEMA IF NOT EXISTS sys;
   CREATE TABLE IF NOT EXISTS sys.schema_migration (

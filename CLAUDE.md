@@ -99,7 +99,8 @@ DỪNG, còn MinIO **âm thầm dùng mật khẩu mặc định** trong khi mư
 cho bản chạy thử (3 nhóm · 9 sản phẩm · 3 quy định chiết khấu · 3 văn bản mẫu), và là script nạp dữ
 liệu **duy nhất không có chốt `NODE_ENV`**: nó không đụng tới tài khoản, và có năm ca kiểm quét
 chính mã nguồn của nó để ranh giới ấy không trôi. `0110`: lệnh mồi bắt mã `42P01` và nói ra việc
-phải làm thay vì ném vết ngăn xếp `pg`. **1691/1691 xanh**, cây làm việc sạch.
+phải làm thay vì ném vết ngăn xếp `pg`; `0111`: `pg_isready` KHÔNG kiểm được mật khẩu, nên migrate
+thêm một lượt `SELECT 1` và nói ra nguyên nhân. **1694/1694 xanh**, cây làm việc sạch.
 
 Trước đó **P132** (`0105`): **đóng gói bản giao**. Ba ảnh —
 `csbh-service` · `csbh-web` · `csbh-ops` — đẩy lên registry riêng, cộng **một tệp nén** chép lên

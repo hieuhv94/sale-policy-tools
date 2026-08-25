@@ -10314,3 +10314,49 @@ Dựng lại tình huống thật bằng một Postgres trắng trong mạng ri�
 vào đó, và đọc đúng câu mới trước khi tin.
 
 **1691/1691 xanh.**
+
+## P138 — `0111` `pg_isready` không kiểm được mật khẩu
+
+Lượt cài thật lại chặn, lần này ở bước migrate:
+
+```
+migrate: chờ Postgres tại postgres...
+psql: error: ... FATAL: password authentication failed for user "postgres"
+```
+
+Vòng chờ ngay trên đó dùng `pg_isready`, và **nó trả 0 kể cả khi mọi lượt đăng
+nhập đều bị từ chối** — nó chỉ hỏi "máy chủ có nhận kết nối không". Nên vòng chờ
+báo thành công, rồi câu lệnh đầu tiên chết với một dòng của psql không nhắc gì tới
+nguyên nhân thật.
+
+Nguyên nhân gần như luôn là **cùng một chuyện**, và nó là chuyện đã ghi ở `0106`:
+Postgres đặt mật khẩu superuser **chỉ ở lần khởi tạo thư mục dữ liệu đầu tiên**.
+Volume `pgdata` dựng từ trước giữ nguyên mật khẩu của lúc ấy; sinh lại
+`secrets/pg_password.txt` không đụng gì tới CSDL đã dựng.
+
+Thêm một lượt `psql -c 'SELECT 1'` giữa vòng chờ và câu lệnh đầu tiên, và khi nó
+hỏng vì mật khẩu thì in ra nguyên nhân cùng **hai** đường xử lý — chúng khác nhau
+hẳn: CSDL trống thì `down -v` rồi dựng lại; CSDL có dữ liệu thì `ALTER USER` bên
+trong Postgres cho khớp file, không xoá gì.
+
+Mọi lỗi khác vẫn hiện nguyên văn. Nuốt tất là biến một máy chủ sai tên, một CSDL
+chưa tạo, hay một quyền thiếu thành cùng một câu về mật khẩu — và người đọc sẽ đi
+xoá volume.
+
+### Kiểm cả hai vế, không chỉ vế báo lỗi
+
+Dựng một Postgres với `POSTGRES_PASSWORD=MAT-KHAU-CU`, giữ volume, rồi chạy ảnh
+`ops` với `PGPASSWORD=MAT-KHAU-MOI` — đọc đúng câu mới. Rồi chạy tiếp **đường sửa
+mà tài liệu chỉ**: `ALTER USER postgres PASSWORD …` rồi migrate lại. Áp dụng 54
+migration, không bỏ qua cái nào.
+
+Vế thứ hai mới là vế đáng kiểm: một câu báo lỗi chỉ sang tài liệu mà đường trong
+tài liệu không chạy thì tệ hơn không có câu nào.
+
+### Ba lượt liên tiếp cùng một gốc
+
+`0106` · `0110` · `0111` đều ra từ một sự thật: **mật khẩu Postgres đóng băng vào
+volume lúc khởi tạo**. Ba triệu chứng khác nhau ở ba chỗ khác nhau, và không chỗ
+nào tự nói ra gốc. Giờ cả ba đều nói.
+
+**1694/1694 xanh.**
