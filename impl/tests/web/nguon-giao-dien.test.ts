@@ -269,6 +269,34 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
   });
 });
 
+describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
+  const nguon = readFileSync(join(GOC, 'components/danh-muc/SanPham.tsx'), 'utf8');
+
+  it('có nhãn *Đang áp dụng*, và nó dùng lớp màu xanh có thật', () => {
+    /*
+     * Khách hàng báo: mở *Sửa* một sản phẩm vừa tạo thì *Lịch sử giá* hiện đúng
+     * con số đang ở ô giá ngay trên, kèm ngày hôm nay — đọc như thể mở hộp thoại
+     * ra là hệ thống tự ghi một lần đổi giá.
+     *
+     * Dòng ấy có thật và đúng (`0123` ghi nó lúc TẠO). Thứ thiếu là câu trả lời
+     * cho *"dòng nào đang có hiệu lực"*.
+     */
+    expect(nguon).toContain('Đang áp dụng');
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+    expect(css).toContain('.nhan-hieu-luc');
+  });
+
+  it('phân biệt cả dòng CHƯA hiệu lực — ngày ở tương lai', () => {
+    // Chỉ đặt được qua API (màn hình bỏ ô chọn ngày ở `0123`), nhưng không nói
+    // ra thì nó đọc y hệt dòng đang áp dụng.
+    expect(nguon).toContain('Chưa hiệu lực');
+  });
+
+  it('MỘT dòng thì nói thẳng là chưa đổi giá lần nào', () => {
+    expect(nguon).toContain('chưa đổi giá lần nào');
+  });
+});
+
 describe('`0124` hai nút thao tác của một dòng bảng không xuống dòng', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
 

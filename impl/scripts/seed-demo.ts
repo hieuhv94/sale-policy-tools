@@ -464,6 +464,43 @@ function moKetNoi(): Client {
   });
 }
 
+/**
+ * Xoá dòng giá mà lượt TẠO sản phẩm vừa sinh ra (`0125`).
+ *
+ * Từ `0123` tạo sản phẩm bắt buộc có giá, và dòng ấy mang ngày HÔM NAY. Bộ nạp
+ * này dựng ba năm lịch sử rồi vặn đồng hồ về quá khứ, nên một dòng ngày hôm nay
+ * là sai với chính câu chuyện nó kể: mở *Sửa* một sản phẩm trên bản demo thì
+ * *Lịch sử giá* hiện hai dòng cùng số tiền, một dòng đề ngày hôm nay — và người
+ * xem đọc nó như thể hệ thống vừa tự ghi một lần đổi giá.
+ *
+ * Đi thẳng CSDL vì không có API xoá dòng giá, và cố ý không có: giá là chuỗi
+ * lịch sử mà hồ sơ đã đóng băng tra ngược lại. Đây là bộ nạp dựng một quá khứ,
+ * không phải một đường nghiệp vụ.
+ *
+ * XOÁ CÓ ĐIỀU KIỆN: chỉ những dòng ngày hôm nay mà đã có một dòng khác cho cùng
+ * sản phẩm. Xoá trần theo ngày sẽ cuốn theo cả giá của `nap-danh-muc`, nơi ngày
+ * hôm nay là mốc ĐÚNG và là mốc duy nhất.
+ */
+async function donGiaTao(): Promise<void> {
+  const db = moKetNoi();
+  await db.connect();
+  try {
+    const r = await db.query(
+      `DELETE FROM cat.product_price gia
+        WHERE gia.effective_from = current_date
+          AND EXISTS (
+            SELECT 1 FROM cat.product_price khac
+             WHERE khac.product_id = gia.product_id
+               AND khac.price_type = gia.price_type
+               AND khac.effective_from <> gia.effective_from
+          )`,
+    );
+    console.log(`  dọn ${r.rowCount} dòng giá của lượt tạo`);
+  } finally {
+    await db.end();
+  }
+}
+
 async function xoaDuLieuCu(): Promise<void> {
   const db = moKetNoi();
   await db.connect();
@@ -888,17 +925,11 @@ async function main(): Promise<void> {
 
   const sanPham: Record<string, string> = {};
   for (const p of SAN_PHAM) {
-    /*
-     * `price` bắt buộc từ `0123`, và nó ghi một dòng giá mang ngày HÔM NAY.
-     *
-     * Dòng ấy không thay được dòng `2024-01-01` ngay dưới — nó chỉ nằm chồng
-     * lên, và cùng một số tiền nên giá hiện hành không đổi. Bộ nạp này vặn đồng
-     * hồ về quá khứ để dựng lịch sử, nên nó vẫn cần mốc 2024 riêng.
-     */
     const r = await goi<CoId>('/catalog/products', 'admin01', {
       code: p.code,
       name: p.name,
       groupCode: p.nhom,
+      // Bắt buộc từ `0123`. Dòng giá nó ghi mang ngày HÔM NAY — xem `donGiaTao`.
       price: String(p.gia),
     });
     sanPham[p.code] = r.id;
@@ -911,6 +942,7 @@ async function main(): Promise<void> {
       effectiveFrom: '2024-01-01',
     });
   }
+  await donGiaTao();
 
   // Khách hàng. `KH-0002` thuộc tdv02 để thấy rõ phạm vi dữ liệu: tdv01 KHÔNG
   // thấy khách này. Bốn khách cuối chia cho tdv02 và tdv03 vì cùng lý do — một

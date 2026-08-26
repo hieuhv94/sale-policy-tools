@@ -87,7 +87,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P152** (`0124`): **giá bán Công ty hiện ngay TRÊN ô giá bán buôn** trong hộp thoại
+Chặng gần nhất **P153** (`0125`): khách hàng báo *"mở Sửa là lịch sử tự hiện giá hiện tại dù chưa
+Lưu"*. **Đo trên Postgres thật: KHÔNG có lượt ghi nào** — dòng ấy do lượt TẠO sinh ra (`0123`) và nó
+đúng. Nhưng đo xong lộ hai chỗ sai thật: **`seed-demo` để lại một dòng giá thừa ngày hôm nay** (hồi
+quy của `0123` — nó tạo kèm `price` rồi đặt thêm mốc 2024, thành hai dòng cùng số tiền), và **bảng
+lịch sử không nói dòng nào đang có hiệu lực**. Thêm `donGiaTao()` xoá **có điều kiện** (`EXISTS` một
+mốc khác — xoá trần theo ngày sẽ cuốn cả `nap-danh-muc`), và nhãn *Đang áp dụng* / *Chưa hiệu lực*.
+Bẫy đã ghi: ba ca mới **đếm số dòng** nên `ON CONFLICT DO UPDATE` qua mặt được — ca bắt được là ca
+đếm SỰ KIỆN của `0123`. **1766/1766 xanh.**
+
+Trước đó **P152** (`0124`): **giá bán Công ty hiện ngay TRÊN ô giá bán buôn** trong hộp thoại
 thêm dòng, và **Sửa · Xoá cùng một hàng**. Việc đầu không cần một dòng mã máy chủ nào — `0123` đã đưa
 `price` vào chính API mà ô chọn đang gọi. **Vị trí là một phần của yêu cầu**: đọc con số ấy sau khi
 đã gõ xong giá bán buôn thì quá muộn, nên ca kiểm đo bằng `compareDocumentPosition`. Nút xếp chồng là

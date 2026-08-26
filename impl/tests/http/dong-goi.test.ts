@@ -192,6 +192,23 @@ describe('`0105` bản đóng gói', () => {
     }
   });
 
+  it('`0125` `seed-demo` dọn dòng giá của lượt tạo', () => {
+    /*
+     * Từ `0123` tạo sản phẩm ghi luôn một dòng giá mang ngày HÔM NAY. Bộ nạp
+     * demo dựng ba năm lịch sử rồi vặn đồng hồ về quá khứ, nên dòng ấy sai với
+     * chính câu chuyện nó kể — và nó hiện ra ở *Lịch sử giá* như một lần đổi giá
+     * không ai thực hiện.
+     *
+     * Ca kiểm quét mã nguồn vì bộ nạp chỉ chạy trên chồng demo, không chạy trong
+     * bộ test. Phép xoá phải CÓ ĐIỀU KIỆN: xoá trần theo ngày sẽ cuốn theo cả
+     * giá của `nap-danh-muc`, nơi ngày hôm nay là mốc đúng và duy nhất.
+     */
+    const nguon = readFileSync('scripts/seed-demo.ts', 'utf8');
+    expect(nguon).toContain('donGiaTao');
+    expect(nguon).toMatch(/DELETE FROM cat\.product_price/);
+    expect(nguon, 'phải chừa lại sản phẩm chỉ có một mốc giá').toMatch(/EXISTS \(/);
+  });
+
   it('`0118` thẻ ảnh CHỈ là số phiên bản — không gắn git sha', () => {
     /*
      * Thẻ dạng `1.0.0-a1b2c3d` đọc không ra và chép tay dễ sai: người vận hành

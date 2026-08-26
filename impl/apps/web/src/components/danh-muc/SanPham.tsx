@@ -463,6 +463,24 @@ function LichSuGia({ id }: { id: string }) {
     return () => huy.abort();
   }, [id]);
 
+  /*
+   * ĐÁNH DẤU DÒNG ĐANG ÁP DỤNG (`0125`).
+   *
+   * Không có nó thì bảng này gây hiểu nhầm đúng theo cách khách hàng đã báo:
+   * sản phẩm vừa tạo hiện MỘT dòng mang ngày hôm nay và đúng con số đang ở ô
+   * giá ngay trên — đọc như thể mở hộp thoại ra là hệ thống tự ghi một lần đổi
+   * giá, dù chưa ai bấm Lưu.
+   *
+   * Dòng ấy có thật và đúng: từ `0123` lượt tạo sản phẩm ghi luôn một dòng giá
+   * cho ngày hôm nay. Thứ thiếu là câu trả lời cho *"dòng nào đang có hiệu
+   * lực"* — và với danh mục chỉ còn một loại giá thì đó là dòng mới nhất có
+   * ngày không ở tương lai, đúng luật của `currentPrice`.
+   */
+  const homNay = new Date().toISOString().slice(0, 10);
+  const dangApDung = (ls ?? [])
+    .filter((d) => d.priceType === 'GIA_BAN_CONG_TY' && d.effectiveFrom.slice(0, 10) <= homNay)
+    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+
   return (
     <>
       <h3>Lịch sử giá</h3>
@@ -473,26 +491,44 @@ function LichSuGia({ id }: { id: string }) {
       ) : ls.length === 0 ? (
         <p className="trong">Chưa đặt giá nào.</p>
       ) : (
-        <div className="khung-cuon" role="region" aria-label="Lịch sử giá" tabIndex={0}>
-          <table className="bang bang-lech">
-            <thead>
-              <tr>
-                <th>Loại giá</th>
-                <th className="so">Số tiền</th>
-                <th>Áp dụng từ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ls.map((d, i) => (
-                <tr key={`${d.priceType}-${d.effectiveFrom}-${i}`}>
-                  <td>{NHAN_LOAI_GIA[d.priceType] ?? d.priceType}</td>
-                  <td className="so">{tien(d.amount)}</td>
-                  <td>{ngay(d.effectiveFrom)}</td>
+        <>
+          {ls.length === 1 && (
+            /* MỘT dòng thì không có "lịch sử" nào để đọc — nói thẳng ra, thay vì
+               để người dùng tự hỏi dòng ấy từ đâu ra. */
+            <p className="ghi-chu">
+              Sản phẩm này chưa đổi giá lần nào. Dòng dưới đây là giá đặt lúc tạo sản phẩm.
+            </p>
+          )}
+          <div className="khung-cuon" role="region" aria-label="Lịch sử giá" tabIndex={0}>
+            <table className="bang bang-lech">
+              <thead>
+                <tr>
+                  <th>Loại giá</th>
+                  <th className="so">Số tiền</th>
+                  <th>Áp dụng từ</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {ls.map((d, i) => (
+                  <tr key={`${d.priceType}-${d.effectiveFrom}-${i}`}>
+                    <td>{NHAN_LOAI_GIA[d.priceType] ?? d.priceType}</td>
+                    <td className="so">{tien(d.amount)}</td>
+                    <td>
+                      {ngay(d.effectiveFrom)}
+                      {d === dangApDung && <span className="nhan nhan-hieu-luc">Đang áp dụng</span>}
+                      {/* Ngày ở TƯƠNG LAI: chưa có tác dụng gì, và không nói ra
+                          thì nó đọc y hệt dòng đang áp dụng. Chỉ đặt được qua
+                          API — màn hình bỏ ô chọn ngày ở `0123`. */}
+                      {d.effectiveFrom.slice(0, 10) > homNay && (
+                        <span className="nhan nhan-nhap">Chưa hiệu lực</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </>
   );

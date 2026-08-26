@@ -209,6 +209,53 @@ describe('`0123` tạo sản phẩm BẮT BUỘC có giá', () => {
   });
 });
 
+describe('`0125` mở hộp thoại Sửa KHÔNG ghi gì', () => {
+  /*
+   * Khách hàng báo: mở *Sửa* thì *Lịch sử giá* luôn hiện giá hiện tại kèm ngày
+   * hôm nay, dù chưa bấm Lưu — nghe như hệ thống tự ghi một lần đổi giá.
+   *
+   * Đo lại thì KHÔNG có lượt ghi nào. Dòng ấy do chính lượt TẠO sinh ra
+   * (`0123`), và nó đúng. Hai chỗ sai là ở nơi khác: bộ nạp demo để lại một
+   * dòng thừa mang ngày hôm nay, và bảng lịch sử không nói dòng nào đang có
+   * hiệu lực. Nhóm ca này khoá lại phần "không ghi gì" để nghi ngờ ấy không
+   * quay lại.
+   */
+  const demDong = async (id: string) =>
+    Number(
+      (
+        await withAdminDb(async (c) =>
+          c.query<{ n: string }>(
+            `SELECT count(*)::text AS n FROM cat.product_price WHERE product_id = $1`,
+            [id],
+          ),
+        )
+      ).rows[0]!.n,
+    );
+
+  it('tạo xong có ĐÚNG MỘT dòng giá, và đọc lịch sử nhiều lần không thêm dòng nào', async () => {
+    const { id } = await makeProduct({ price: '60000' });
+    expect(await demDong(id)).toBe(1);
+
+    for (let i = 0; i < 3; i++) {
+      const r = await get(`/catalog/products/${id}/prices`);
+      expect(r.status).toBe(200);
+    }
+    expect(await demDong(id)).toBe(1);
+  });
+
+  it('Lưu mà KHÔNG đổi giá thì không thêm dòng nào', async () => {
+    const { id, res } = await makeProduct({ price: '60000' });
+    await patch(`/catalog/products/${id}`, { name: 'Chi doi ten', confirm: res.body.code });
+    expect(await demDong(id)).toBe(1);
+  });
+
+  it('gửi lại ĐÚNG giá đang có cũng không thêm dòng nào', async () => {
+    const { id, res } = await makeProduct({ price: '60000' });
+    await patch(`/catalog/products/${id}`, { price: '60000', confirm: res.body.code });
+    expect(await demDong(id)).toBe(1);
+  });
+});
+
 describe('`0123` bảng sản phẩm mang theo giá bán Công ty', () => {
   it('mỗi dòng có `price`, và MỌI vai trò đọc được', async () => {
     /*

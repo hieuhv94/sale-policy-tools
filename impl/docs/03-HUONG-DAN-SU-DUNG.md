@@ -1548,7 +1548,12 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
   nằm trong chính biểu mẫu *Thêm sản phẩm*, và sửa được ở nút *Sửa*. Trước đó sản phẩm tạo xong chưa
   có giá thì chưa lập được hồ sơ với nó — một trạng thái nửa vời mà chỉ Quản trị chữa được.
 - **Ngày áp dụng luôn là hôm nay** `mới 26/08`. Màn hình không còn ô chọn ngày; đổi giá là đổi ngay.
-  Lịch sử giá vẫn giữ đủ mọi mốc cũ và hiện ở cuối hộp thoại *Sửa*.
+  Lịch sử giá vẫn giữ đủ mọi mốc cũ và hiện ở cuối hộp thoại *Sửa*, kèm nhãn **Đang áp dụng** ở dòng
+  đang có hiệu lực.
+
+> **Sản phẩm vừa tạo đã có một dòng trong lịch sử giá**, đề ngày hôm nay — đó là giá bạn nhập lúc tạo,
+> không phải một lần đổi giá do hệ thống tự ghi. Mở hộp thoại *Sửa* ra xem thì **không có gì được
+> ghi**; chỉ bấm *Lưu* mới ghi, và chỉ khi con số thật sự khác.
 - **Mọi lượt Sửa đều phải gõ lại mã vật tư** `mới 26/08`, không riêng lúc vô hiệu hoá. Màn hình này
   giờ đổi được cả giá — con số đóng băng vào mọi hồ sơ gửi duyệt từ lúc ấy — nên không còn thao tác
   nhẹ nào ở đây.

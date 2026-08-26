@@ -11136,3 +11136,64 @@ câu báo lỗi).
 | Bỏ luật CSS | 1 đỏ |
 
 **1759/1759 xanh.**
+
+## P153 — `0125` lịch sử giá: không có lượt ghi ma, nhưng có hai chỗ thật sự sai
+
+Khách hàng báo: nhấn *Sửa* một sản phẩm thì *Lịch sử giá* luôn hiện giá hiện tại
+kèm ngày áp dụng lúc đó, **dù chưa bấm Lưu** — nghe như mở hộp thoại ra là hệ
+thống tự ghi một lần đổi giá.
+
+### Đo trước, kết luận sau
+
+Dựng một tệp gỡ lỗi chạy trên Postgres thật:
+
+```
+LS-SAU-TAO                       1 dòng — 100000, hiệu lực hôm nay
+SO-DONG-SAU-KHI-MO-2-LAN         1
+SO-DONG-SAU-LUU-KHONG-DOI-GIA    1
+```
+
+**Không có lượt ghi nào.** Dòng người dùng thấy do chính lượt TẠO sinh ra —
+`0123` đặt giá bắt buộc lúc tạo, và dòng ấy mang ngày hôm nay. Nó đúng.
+
+Nhưng đo xong thì lộ ra hai chỗ sai thật, và một trong hai là **hồi quy của
+chính `0123`**.
+
+### Chỗ sai thứ nhất: bộ nạp demo để lại một dòng thừa
+
+`seed-demo` tạo sản phẩm (giờ kèm `price` → một dòng **ngày hôm nay**) rồi đặt
+tiếp giá cho `2024-01-01`. Hai dòng, **cùng một số tiền**. Bộ nạp ấy dựng ba năm
+lịch sử rồi vặn đồng hồ về quá khứ, nên một dòng đề ngày hôm nay sai với chính
+câu chuyện nó kể — và trên bản demo, mở *Sửa* bất kỳ sản phẩm nào cũng thấy đúng
+cái dòng mà khách hàng vừa báo.
+
+`donGiaTao()` xoá nó, đi thẳng CSDL vì không có API xoá dòng giá và cố ý không
+có. Phép xoá **có điều kiện** — chỉ dòng ngày hôm nay của sản phẩm đã có một mốc
+khác: xoá trần theo ngày sẽ cuốn theo cả giá của `nap-danh-muc`, nơi ngày hôm nay
+là mốc đúng và là mốc duy nhất.
+
+### Chỗ sai thứ hai: bảng không nói dòng nào đang có hiệu lực
+
+Một sản phẩm vừa tạo hiện MỘT dòng, mang đúng con số đang nằm ở ô giá ngay phía
+trên, đề ngày hôm nay. Không có gì phân biệt *"đây là giá đang áp dụng"* với
+*"đây là một lần đổi giá đã xảy ra"* — nên nó đọc thành cái thứ hai.
+
+Thêm nhãn **Đang áp dụng** cho dòng mới nhất có ngày không ở tương lai (đúng luật
+của `currentPrice`), nhãn **Chưa hiệu lực** cho dòng ngày tương lai — chỉ đặt
+được qua API từ `0123`, nhưng không nói ra thì nó đọc y hệt dòng đang áp dụng —
+và một câu thẳng khi chỉ có một dòng: *"Sản phẩm này chưa đổi giá lần nào."*
+
+### Phá lại, và một lượt phá KHÔNG đỏ
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ điều kiện `EXISTS` của `donGiaTao` | 1 đỏ |
+| `update` ghi dòng giá kể cả khi giá không đổi | **vẫn xanh** |
+
+Lượt thứ hai đáng ghi. Ba ca mới của `0125` **đếm số dòng**, mà `ON CONFLICT DO
+UPDATE` ghi đè đúng dòng của hôm nay — nên số dòng không đổi và chúng không thấy
+gì. Thứ bắt được là ca đối chiếu của `0123`, *"gửi lại đúng giá đang có thì KHÔNG
+sinh sự kiện đổi giá"*: nó đếm SỰ KIỆN, và nó đỏ. Ghi ra vì ba ca đếm dòng ở đây
+chỉ đúng chừng nào ca đếm sự kiện kia còn sống.
+
+**1766/1766 xanh.**
