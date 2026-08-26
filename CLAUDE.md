@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P145** (`0117`): **email ngoài `MAIL_ALLOWLIST` thì không tạo được tài khoản**.
+Chặng gần nhất **P146** (`0118`): **số phiên bản hiện ở chân thanh bên**, và **thẻ ảnh bỏ git sha**.
+Chân thanh bên ghi cứng `Phiên bản demo` — hiện y hệt trên production thật — trong khi **VER-05 đã
+có trong danh mục ca kiểm** và P7d đã dựng sẵn `apps/web/src/lib/phien-ban.ts` (`PHIEN_BAN`, Vite
+nhúng từ tệp `VERSION`). Hằng ấy **chưa từng có ai import**. Dùng số NHÚNG LÚC BUILD chứ không phải
+header `x-app-version`: ô này trả lời *"trình duyệt đang chạy bản nào"*, và hai số lệch nhau đúng lúc
+tab mở từ sáng gặp máy chủ nâng cấp lúc trưa (so hai số để mời tải lại là VER-07, chưa làm). Thẻ ảnh
+`1.0.0-a1b2c3d` → **`1.0.0`**; cái giá nằm NGOÀI mã: **mỗi lần giao phải là một số mới trong
+`VERSION`**, dựng lại cùng số thì thẻ trên registry bị ghi đè và máy chủ không phát hiện được.
+**1715/1715 xanh.**
+
+Trước đó **P145** (`0117`): **email ngoài `MAIL_ALLOWLIST` thì không tạo được tài khoản**.
 Tìm ra khi gỡ lỗi chồng production thật — ba tài khoản mở bằng `@nutricare.com.vn` trong khi danh
 sách khai `nutricare.vn` (**`com.vn` KHÔNG phải miền con của `vn`**). Tài khoản vẫn được tạo, chỉ lá
 thư mời hỏng ở chỗ cố tình nuốt lỗi, để lại **một tài khoản có thật, chiếm mất tên đăng nhập và địa

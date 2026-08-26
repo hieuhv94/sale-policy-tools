@@ -20,9 +20,13 @@
 # Một repo riêng tư là đủ cho cả ba.
 #
 # THẺ KHÔNG BAO GIỜ LÀ `latest`. `CSBH_TAG` trong `.env` là một phiên bản cụ thể
-# (`1.0.0-a1b2c3d`). Với `latest` thì `docker compose pull` một tháng sau đổi thứ
-# đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào
-# — `make version` in ra một con số, còn ảnh thì là một con số khác.
+# (`1.0.0`). Với `latest` thì `docker compose pull` một tháng sau đổi thứ đang
+# chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào —
+# `make version` in ra một con số, còn ảnh thì là một con số khác.
+#
+# Từ `0118` thẻ KHÔNG còn phần `-<git sha>`. Điều kiện để nó an toàn: mỗi lần
+# giao là một số phiên bản mới. Dựng lại cùng số với nội dung khác thì thẻ trên
+# registry bị ghi đè, và máy chủ kéo về nội dung khác dưới cùng một cái tên.
 # =============================================================================
 
 x-node: &node

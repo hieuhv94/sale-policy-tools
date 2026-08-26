@@ -132,7 +132,7 @@ Một tệp nén `csbh-<phiên bản>.tar.gz`, khoảng 70 KB. Nó **không ch�
 — máy chủ kéo ảnh từ registry.
 
 ```
-csbh-1.0.0-a1b2c3d/
+csbh-1.0.0/
   README.md            Điểm bắt đầu, một trang
   cai-dat.sh           Cài lần đầu
   csbh                 Lệnh vận hành hằng ngày:  ./csbh help
@@ -159,8 +159,8 @@ Tổng khoảng **590 MB**, không phải tổng ba con số trên.
 ## 2. Cài đặt
 
 ```sh
-tar -xzf csbh-1.0.0-a1b2c3d.tar.gz
-cd csbh-1.0.0-a1b2c3d
+tar -xzf csbh-1.0.0.tar.gz
+cd csbh-1.0.0
 docker login <registry>
 ./cai-dat.sh
 ```
@@ -394,7 +394,7 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 ## 8. Nâng cấp
 
 ```sh
-./csbh nang-cap 1.0.1-9f3ab2c
+./csbh nang-cap 1.0.1
 ```
 
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh

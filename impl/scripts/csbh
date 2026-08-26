@@ -108,7 +108,7 @@ case "${1:-help}" in
 
   nang-cap)
     the="${2:-}"
-    [ -n "$the" ] || { echo "dùng: ./csbh nang-cap <thẻ>   ví dụ 1.0.1-9f3ab2c" >&2; exit 2; }
+    [ -n "$the" ] || { echo "dùng: ./csbh nang-cap <thẻ>   ví dụ 1.0.1" >&2; exit 2; }
     # Sao lưu TRƯỚC khi đổi bất cứ thứ gì. Một lượt nâng cấp hỏng mà không có
     # bản sao lưu ngay trước đó là một lượt không lùi lại được.
     echo "==> sao lưu trước khi nâng cấp"

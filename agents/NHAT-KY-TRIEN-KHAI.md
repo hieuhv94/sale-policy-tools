@@ -10631,3 +10631,78 @@ bị cắt lặng lẽ khi vẫn còn người nhận khác trong cùng lá thư
 trong *Thư hỏng*. Chuyện có thật, nhưng ngoài phạm vi chặng này.
 
 **1710/1710 xanh.**
+
+## P146 — `0118` số phiên bản: hiện ra ở màn hình, và bỏ git sha khỏi thẻ ảnh
+
+Hai việc, chung một câu hỏi: *"bản nào đang chạy"*.
+
+### VER-05 đã được viết ra từ đầu, và chưa ai nối
+
+Chân thanh bên ghi cứng chuỗi `Phiên bản demo` — và nó hiện y hệt trên chồng
+production đang chạy thật. Trong khi đó danh mục ca kiểm có sẵn **VER-05** (*"mở
+bất kỳ màn hình nào của web → chân trang hiện số phiên bản"*), và P7d đã dựng
+sẵn `apps/web/src/lib/phien-ban.ts`:
+
+```ts
+declare const __PHIEN_BAN__: string | undefined;
+export const PHIEN_BAN: string = typeof __PHIEN_BAN__ === 'string' ? __PHIEN_BAN__ : '0.0.0-dev';
+```
+
+`vite.config.ts` đọc tệp `VERSION` và nhúng hằng ấy vào gói. Toàn bộ cơ chế
+hoàn chỉnh, **không có một chỗ nào import `PHIEN_BAN`**. Một hằng không người
+đọc và một chuỗi viết cứng thì không bên nào tự sai — chỉ khoảng trống giữa hai
+bên là sai, và không ca kiểm nào nhìn vào khoảng trống.
+
+Tôi suýt vá bằng đường thứ hai. Bản làm đầu tiên của chặng này dựng một móc
+`usePhienBan()` đọc header `x-app-version` mà gateway gắn lên mọi phản hồi, kèm
+một biến nhớ giá trị trong `api.ts` — chạy được, có bốn ca kiểm xanh, và **ghi đè
+mất tệp `phien-ban.ts` đang có**. Cái sai không phải ở kỹ thuật mà ở chỗ nó dựng
+nguồn sự thật thứ hai cho một câu hỏi đã có nguồn.
+
+### Hai con số ấy khác nhau, và chọn sai thì nói dối đúng lúc quan trọng
+
+- `PHIEN_BAN` — bản mà **trình duyệt đang chạy**, nhúng lúc build
+- `x-app-version` — bản mà **máy chủ đang chạy**, gắn lúc trả lời
+
+Bình thường trùng nhau. Chúng lệch đúng ở tình huống đáng nói nhất: tab mở từ
+sáng, máy chủ nâng cấp lúc trưa. Ô này trả lời *"tôi đang nhìn cái gì"* nên nó
+phải là số của gói, không phải của máy chủ. So hai số để mời tải lại là **VER-07**,
+việc khác, chưa làm.
+
+Hằng nhúng còn không có trạng thái "chưa biết" — không ô trống, không cú nhảy bố
+cục ở lần vẽ đầu.
+
+### Ca kiểm ở jsdom canh được ĐƯỜNG NỐI, không canh được GIÁ TRỊ
+
+Dưới vitest, Vite không thay `__PHIEN_BAN__`, nên `PHIEN_BAN` rơi về `0.0.0-dev`.
+Hai ca dựng màn hình vì thế chỉ chứng minh chân thanh bên đọc đúng hằng ấy — bản
+dựng thật có thể lấy số từ bất kỳ đâu mà chúng vẫn xanh. Nên có ca thứ ba quét
+`vite.config.ts`, chỗ duy nhất quyết định giá trị thật, và ca thứ tư đòi giá trị
+dự phòng **không được là một số phiên bản hợp lệ**: đặt `1.0.0` ở đó thì một bản
+dựng hỏng sẽ hiện một con số trông hoàn toàn bình thường.
+
+### Thẻ ảnh bỏ git sha
+
+`1.0.0-a1b2c3d` → `1.0.0`. Người vận hành chép thẻ từ email vào `.env` bằng tay,
+và `./csbh phien-ban` trước đây trả về một chuỗi không nói lên bản nào.
+
+Cái giá là thật và nó **nằm ngoài mã**: mỗi lần giao phải là một số mới trong
+`VERSION`. Dựng lại cùng số với nội dung đã khác thì thẻ trên registry bị ghi đè,
+máy chủ `pull` về nội dung khác dưới đúng cái tên cũ, và **không phát hiện được
+từ phía máy chủ** — đó chính là thứ sha trong thẻ đang chặn. Ghi vào chú thích
+đầu `dong-goi.sh` và `compose.prod.yml`, và ghi rằng VER-03 vì thế đắt hơn trước
+chứ không rẻ đi. Ca kiểm chỉ giữ được vế trong mã: thẻ dựng từ `VERSION` và
+không còn lời gọi `rev-parse` nào.
+
+`GIT_SHA` trong `Makefile` ở lại — `make version` vẫn in ra nó. Nó trả lời "cây
+làm việc này là commit nào", một câu khác với "thẻ ảnh là gì".
+
+### Phá lại
+
+- Trả chân thanh bên về chuỗi viết cứng → 2 ca VER-05 đỏ
+- Đổi `vite.config.ts` sang nhúng chuỗi `'1.0.0'` thay vì đọc `VERSION` → ca
+  VER-04 đỏ; hai ca VER-05 **vẫn xanh**, đúng như dự đoán ở trên — jsdom không
+  thấy được giá trị thật, và đó là lý do ca quét cấu hình phải tồn tại
+- Gỡ `TAG` về dạng có sha → ca `0118` của `dong-goi` đỏ
+
+**1715/1715 xanh.**

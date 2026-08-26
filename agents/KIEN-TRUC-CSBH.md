@@ -1332,7 +1332,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | VER-02 | Quét `/health` của 10 service sau khi deploy | Tất cả trả **cùng một** `app_version` và cùng `git_sha` | — | `P0` |
 | VER-03 | Cố tình không tạo lại một container rồi chạy phép quét | Phát hiện container chạy bản cũ và **chặn**, không tính là phát hành thành công | — | `P0` |
 | VER-04 | Quét mã nguồn tìm số phiên bản viết thẳng | Chỉ file `VERSION` chứa số này; mọi `package.json` đều là `0.0.0` | — | `P0` |
-| VER-05 | Mở bất kỳ màn hình nào của web | Chân trang hiện `v1.0.0`; màn hình Thông tin hệ thống hiện thêm git SHA và thời điểm build | — | `P0` |
+| VER-05 | Mở bất kỳ màn hình nào của web | Chân thanh bên hiện `Phiên bản 1.0.0`, đọc từ hằng nhúng lúc build. Màn hình *Thông tin hệ thống* **chưa có** — và từ `0118` cũng không còn git SHA để hiện: thẻ ảnh chỉ còn số phiên bản | — | `P0` |
 | VER-06 | Gọi bất kỳ API nào | Phản hồi có header `X-App-Version` đúng bằng số đang chạy | — | `P0` |
 | VER-07 | SPA đang mở bản `1.0.0`, máy chủ deploy lên `1.0.1` | Hiện dải thông báo mời tải lại; **không tự động tải lại**; dữ liệu đang nhập còn nguyên | — | `P0` |
 | VER-08 | SPA đang mở bản `1.x`, máy chủ deploy lên `2.0.0` | Buộc tải lại, nhưng **lưu nháp cục bộ biểu mẫu đang dở trước** và khôi phục sau khi tải xong | — | `P0` |
@@ -1804,6 +1804,18 @@ res.setHeader('X-App-Version', APP_VERSION);
 | **MINOR** `1.1.0` | Thêm chức năng, tương thích ngược | Thêm tiêu chí lọc; thêm màn hình báo cáo; giai đoạn 2 nhập Excel | Trình duyệt bản cũ vẫn chạy được; chỉ hiện dải thông báo mời tải lại |
 | **PATCH** `1.0.1` | Sửa lỗi, không đổi hành vi đã công bố | Sửa làm tròn sai ở biên; sửa vỡ bố cục ở màn hình 360px | Như trên |
 
+### Thẻ ảnh CHỈ mang số phiên bản `sửa 0118`
+
+Ba ảnh gắn thẻ `service-1.0.0` · `web-1.0.0` · `ops-1.0.0`, không còn hậu tố
+`-<git sha>`. Thẻ ngắn thì người vận hành chép tay được và `./csbh phien-ban` trả
+về một câu đọc hiểu ngay.
+
+Cái giá là thật, và nó dồn hết vào một luật nằm NGOÀI mã: **mỗi lần giao là một
+số mới trong `VERSION`**. Dựng lại cùng số với nội dung đã khác thì thẻ trên
+registry bị ghi đè, máy chủ `pull` về nội dung khác dưới đúng cái tên cũ, và
+không có cách nào phát hiện từ phía máy chủ — sha trong thẻ trước đây chặn đúng
+chuyện đó. VER-03 (quét sau deploy) vì thế đắt hơn trước, không rẻ đi.
+
 ### Trình duyệt đang mở bản cũ — vấn đề riêng của web
 
 SPA được nhúng số phiên bản lúc build, nên một người mở tab từ sáng vẫn đang chạy bản cũ sau khi deploy lúc trưa. Mỗi phản hồi API đều mang `X-App-Version`; client so với số của chính mình và xử lý theo mức chênh lệch:
@@ -1815,8 +1827,8 @@ SPA được nhúng số phiên bản lúc build, nên một người mở tab t
 
 | Nơi | Dạng | Vì sao cần |
 |---|---|---|
-| Chân trang mọi màn hình | `v1.0.0` | Người dùng báo lỗi thì đọc luôn được, không phải hỏi |
-| Màn hình *Thông tin hệ thống* | `1.0.0 · abc1234 · 06/08/2026` | Đội vận hành cần cả git SHA và thời điểm build |
+| Chân thanh bên, mọi màn hình | `Phiên bản 1.0.0` | Người dùng báo lỗi thì đọc luôn được, không phải hỏi. **Làm ở `0118`** |
+| Màn hình *Thông tin hệ thống* | `1.0.0 · 06/08/2026` | Đội vận hành cần thời điểm build. **Chưa làm.** Git SHA rời khỏi mục này ở `0118`: thẻ ảnh không còn mang sha, nên không có gì để đối chiếu |
 | Header `X-App-Version` | Mọi phản hồi API | Để SPA phát hiện mình đã cũ |
 | `GET /health` của 10 service | JSON đầy đủ | Phép quét sau deploy; giám sát |
 | Mỗi dòng nhật ký | Cột `app_version` | Truy vết “lỗi này xảy ra ở bản nào” — không có nó thì điều tra sự cố phải đoán |

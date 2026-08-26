@@ -11,6 +11,7 @@
     "./loi": "./src/lib/loi.ts",
     "./bao-loi": "./src/lib/bao-loi.tsx",
     "./giao-dien": "./src/lib/giao-dien.ts",
+    "./phien-ban": "./src/lib/phien-ban.ts",
     "./tong-quan": "./src/lib/tong-quan.ts",
     "./thong-ke": "./src/lib/thong-ke.ts",
     "./ve-bieu-do": "./src/components/bieu-do/ve.ts",

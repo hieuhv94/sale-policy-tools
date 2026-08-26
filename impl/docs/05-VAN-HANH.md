@@ -127,7 +127,7 @@ hình Quản trị). Thư gửi ba lần không được thì vào đó kèm ngu
 ## 5. Nâng cấp và lùi bản
 
 ```sh
-./csbh nang-cap 1.0.1-9f3ab2c
+./csbh nang-cap 1.0.1
 ```
 
 Sao lưu → đổi thẻ → kéo ảnh → migration → dựng lại. Lệnh in ra thẻ cũ khi xong;

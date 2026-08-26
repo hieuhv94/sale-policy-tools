@@ -192,6 +192,21 @@ describe('`0105` bản đóng gói', () => {
     }
   });
 
+  it('`0118` thẻ ảnh CHỈ là số phiên bản — không gắn git sha', () => {
+    /*
+     * Thẻ dạng `1.0.0-a1b2c3d` đọc không ra và chép tay dễ sai: người vận hành
+     * gõ nó vào `.env`, và `./csbh phien-ban` trả về một chuỗi không nói lên
+     * bản nào.
+     *
+     * Cái giá dồn hết vào một luật, và luật ấy nằm ngoài mã: **mỗi lần giao là
+     * một số mới trong `VERSION`**. Ca kiểm chỉ giữ được vế trong mã — thẻ dựng
+     * từ `VERSION` và không gì khác.
+     */
+    expect(SH).toMatch(/^TAG="\$\{CSBH_TAG:-\$\{VERSION\}\}"$/m);
+    // Không còn phép tính sha nào sót lại trong script.
+    expect(SH).not.toContain('rev-parse');
+  });
+
   it('`0117` `ops` nhận được MAIL_ALLOWLIST — nếu không, chốt của lệnh mồi là hình vẽ', () => {
     /*
      * `bootstrap-admin` từ chối một `ADMIN_EMAIL` ngoài danh sách tên miền. Nó

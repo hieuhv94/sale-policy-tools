@@ -87,6 +87,11 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
+**Cuối thanh bên** là **số phiên bản phần mềm** `mới 26/08`, ví dụ *Phiên bản 1.0.0*. Báo lỗi cho bộ
+phận kỹ thuật thì chép luôn con số ấy vào — nó cho biết bạn đang chạy bản nào, và đó là câu hỏi đầu
+tiên của người nhận báo lỗi. Đừng nhầm với cột *Phiên bản* trong hồ sơ: cột đó đếm bản CSBH thứ mấy
+của một khách hàng, không liên quan gì tới phần mềm.
+
 **Thanh trên cùng** có bốn thứ, từ phải sang: **thẻ tài khoản** (ảnh đại diện + **tên đăng nhập** của
 bạn), **chuông thông báo** `mới 23/08`, **vai trò** của bạn, và nút đổi **giao diện sáng / tối**.
 

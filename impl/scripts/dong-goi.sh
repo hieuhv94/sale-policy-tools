@@ -16,23 +16,33 @@
 #
 # BA ẢNH, MỘT REPO (`0106`). Docker Hub chỉ có hai cấp `<tài khoản>/<repo>`, nên
 # `hieuhv94/nutricare-csbh/csbh-service` là một tên bị từ chối. Ba ảnh phân biệt
-# bằng THẺ, dạng `<thành phần>-<phiên bản>-<git sha>`:
+# bằng THẺ, dạng `<thành phần>-<phiên bản>`:
 #
-#   hieuhv94/nutricare-csbh:service-1.0.0-a1b2c3d
-#   hieuhv94/nutricare-csbh:web-1.0.0-a1b2c3d
-#   hieuhv94/nutricare-csbh:ops-1.0.0-a1b2c3d
+#   hieuhv94/nutricare-csbh:service-1.0.0
+#   hieuhv94/nutricare-csbh:web-1.0.0
+#   hieuhv94/nutricare-csbh:ops-1.0.0
 #
 # Thành phần đứng TRƯỚC phiên bản để `docker images` xếp ba ảnh của cùng một thành
 # phần cạnh nhau qua các bản. Và một repo riêng tư là đủ cho cả ba, thay vì ba.
 #
-# Phần phiên bản không bao giờ là `latest`. Xem chú thích đầu `compose.prod.yml`.
+# KHÔNG CÒN `-<git sha>` sau phiên bản (`0118`). Bản trước gắn cả sha vào thẻ để
+# hai lượt dựng từ hai commit khác nhau không bao giờ trùng thẻ. Đổi lại, thẻ dài
+# và không đọc được: người vận hành phải chép `1.0.0-a1b2c3d` từ email vào `.env`,
+# và `./csbh phien-ban` trả về một chuỗi không nói lên bản nào.
+#
+# Cái giá của việc bỏ nó là THẬT, và nó dồn hết vào một luật: **mỗi lần giao là
+# một số phiên bản mới trong `VERSION`**. Dựng lại cùng số mà nội dung đã khác
+# thì thẻ cũ trên registry bị ghi đè, và một máy chủ `docker compose pull` sau đó
+# nhận nội dung khác mà `./csbh phien-ban` vẫn in ra đúng con số cũ — không có
+# cách nào phát hiện từ máy chủ. Sha trong thẻ trước đây chặn đúng chuyện này.
+#
+# Vẫn không bao giờ là `latest`. Xem chú thích đầu `compose.prod.yml`.
 set -eu
 
 cd "$(dirname "$0")/.."
 
 VERSION="$(cat VERSION)"
-SHA="$(git rev-parse --short HEAD 2>/dev/null || echo nogit)"
-TAG="${CSBH_TAG:-${VERSION}-${SHA}}"
+TAG="${CSBH_TAG:-${VERSION}}"
 IMG="${CSBH_IMAGE:-hieuhv94/nutricare-csbh}"
 RA="${CSBH_OUT:-../workspace/dong-goi}"
 
