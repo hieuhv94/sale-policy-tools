@@ -122,7 +122,21 @@ export class ProductsService {
     return this.db.tx((c) => this.insertOne(c, input, actorId));
   }
 
-  private async insertOne(c: PoolClient, input: ProductInput, actorId: string) {
+  /**
+   * `trangThai` chỉ đường nhập truyền (`0122`).
+   *
+   * Chèn thẳng ở trạng thái đúng thay vì chèn rồi `UPDATE`: sự kiện
+   * `catalog.changed` mang `after` đọc từ hàng vừa ghi, nên chèn-rồi-sửa phát ra
+   * một sự kiện nói sản phẩm đang bán, ngay trước một sự kiện thứ hai nói nó đã
+   * ngừng. Người đọc nhật ký sẽ thấy một mặt hàng sống được đúng một phần nghìn
+   * giây.
+   */
+  private async insertOne(
+    c: PoolClient,
+    input: ProductInput,
+    actorId: string,
+    trangThai: ProductStatus = 'DANG_AP_DUNG',
+  ) {
     const g = await c.query<{ id: string }>(`SELECT id FROM cat.product_group WHERE code = $1`, [
       input.groupCode,
     ]);
@@ -131,9 +145,9 @@ export class ProductsService {
 
     const r = await c
       .query<ProductRow>(
-        `INSERT INTO cat.product (code, name, group_id)
-         VALUES ($1,$2,$3) RETURNING *`,
-        [input.code, input.name, g.rows[0]!.id],
+        `INSERT INTO cat.product (code, name, group_id, status)
+         VALUES ($1,$2,$3,$4::cat.product_status) RETURNING *`,
+        [input.code, input.name, g.rows[0]!.id, trangThai],
       )
       .catch(rethrow({ [PG.uniqueViolation]: 'PRODUCT_CODE_DUPLICATE' }));
 
@@ -411,11 +425,18 @@ export class ProductsService {
     return this.db.tx(async (c) => {
       const ke = dungKeHoach(doc, await this.anhChupDanhMuc(c));
       xacNhanGoLai(confirm, CHUOI_XAC_NHAN_NHAP, {
-        viec: `ghi đè ${ke.themMoi.length + ke.sua.length} dòng danh mục`,
+        viec:
+          `ghi đè danh mục: ${ke.themMoi.length} thêm mới, ${ke.sua.length} sửa, ` +
+          `${ke.ngungBan.length} ngừng bán`,
       });
 
       for (const d of ke.themMoi) {
-        const sp = await this.insertOne(c, d, actorId);
+        const sp = await this.insertOne(
+          c,
+          d,
+          actorId,
+          d.conBan ? 'DANG_AP_DUNG' : 'DA_VO_HIEU_HOA',
+        );
         if (d.price !== null) await this.datGiaTrongTx(c, sp.id, d.code, BigInt(d.price), null, actorId);
       }
 
@@ -449,9 +470,37 @@ export class ProductsService {
         }
       }
 
+      /*
+       * Đổi trạng thái đi SAU cùng, và đi qua đúng một đường cho cả hai chiều.
+       *
+       * KHÔNG gọi `update()`: hàm ấy tự mở transaction, và nó gọi
+       * `xacNhanGoLai(confirm, code)` — chốt gõ lại mã vật tư của màn hình, vốn
+       * canh từng sản phẩm một. Ở đây chốt là chuỗi xác nhận của cả lô, đã kiểm
+       * ở trên; gọi lại chốt kia nghĩa là đòi gõ 200 mã vật tư.
+       */
+      for (const d of [...ke.ngungBan, ...ke.banLai]) {
+        const moi = ke.ngungBan.includes(d) ? 'DA_VO_HIEU_HOA' : 'DANG_AP_DUNG';
+        const truoc = await c.query<ProductRow>(`SELECT * FROM cat.product WHERE id = $1`, [d.id]);
+        const r = await c.query<ProductRow>(
+          `UPDATE cat.product SET status = $2::cat.product_status, updated_at = now()
+            WHERE id = $1 RETURNING *`,
+          [d.id, moi],
+        );
+        await emit(
+          c,
+          'catalog.changed',
+          changeEvent('product', d.id, actorId, {
+            before: toDto(truoc.rows[0]!),
+            after: toDto(r.rows[0]!),
+          }),
+        );
+      }
+
       return {
         themMoi: ke.themMoi.length,
         sua: ke.sua.length,
+        ngungBan: ke.ngungBan.length,
+        banLai: ke.banLai.length,
         khongDoi: ke.khongDoi,
       };
     });

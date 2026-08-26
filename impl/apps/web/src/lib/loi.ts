@@ -97,14 +97,21 @@ const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = 
   IMPORT_BAD_TYPE: (b) => {
     const o = (Array.isArray(b['o']) ? b['o'] : []) as { rowNumber: number; cot: string; lyDo: string }[];
     if (o.length === 0) return null;
-    const so = o.some((x) => x.lyDo === 'KHONG_PHAI_SO');
+    /*
+     * Ba lý do, ba việc phải làm khác nhau — nên câu cuối chọn theo lý do NẶNG
+     * nhất có mặt chứ không ghép cả ba. Một câu liệt kê ba cách sửa thì người
+     * đọc phải tự tìm xem cách nào là của mình.
+     */
+    const co = (x: string) => o.some((y) => y.lyDo === x);
+    const viec = co('KHONG_PHAI_HIEU_LUC')
+      ? `Cột "${NHAN_COT_EXCEL['dang_co_hieu_luc']}" chỉ nhận "Đang bán" hoặc "Ngừng bán" — bấm vào ô để xổ danh sách.`
+      : co('KHONG_PHAI_SO')
+        ? 'Ô giá phải là số.'
+        : 'Những ô này đang báo lỗi công thức trong Excel — sửa thành giá trị thật rồi tải lại.';
     return (
       `${o.length} ô trong file không đọc được: ${vaiSo(
         o.map((x) => `dòng ${x.rowNumber} · ${NHAN_COT_EXCEL[x.cot] ?? x.cot}`),
-      )}. ` +
-      (so
-        ? 'Ô giá phải là số. Ô báo lỗi công thức thì phải sửa thành giá trị thật.'
-        : 'Những ô này đang báo lỗi công thức trong Excel — sửa thành giá trị thật rồi tải lại.')
+      )}. ` + viec
     );
   },
 
@@ -141,15 +148,6 @@ const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = 
     return `Trong file có dòng trùng nhau — ${phan.join('; ')}. Giữ lại một dòng cho mỗi sản phẩm.`;
   },
 
-  IMPORT_PRODUCT_MISSING: (b) => {
-    const ma = Array.isArray(b['ma']) ? (b['ma'] as string[]) : [];
-    if (ma.length === 0) return null;
-    return (
-      `File thiếu ${ma.length} sản phẩm đang có trong danh mục: ${vaiSo(ma)}. ` +
-      'File nhập phải chứa ĐỦ mọi sản phẩm — tải file mẫu về, sửa trên đó rồi tải lên. ' +
-      'Muốn ngừng bán một sản phẩm thì làm trên màn hình, không phải bằng cách bỏ dòng khỏi file.'
-    );
-  },
 
   INVALID_TRANSITION: (b) => {
     const tt = typeof b['status'] === 'string' ? nhanTrangThai(b['status']) : null;
@@ -243,7 +241,7 @@ export const NHAN_TRUONG: Record<string, string> = {
 };
 
 /**
- * **102 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
+ * **101 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
  * người duyệt bảng câu chữ đọc theo màn hình họ dùng, không theo sơ đồ kiến trúc.
  */
 export const BANG_LOI: Record<string, Muc> = {
@@ -452,7 +450,6 @@ export const BANG_LOI: Record<string, Muc> = {
   IMPORT_MISSING_FIELD: { dang: 'hop-thoai', tuThan: true },
   IMPORT_GROUP_MISSING: { dang: 'hop-thoai', tuThan: true },
   IMPORT_DUPLICATE_IN_FILE: { dang: 'hop-thoai', tuThan: true },
-  IMPORT_PRODUCT_MISSING: { dang: 'hop-thoai', tuThan: true },
 
   // --- Tệp, văn bản mẫu và hợp đồng ----------------------------------------
   FILE_NOT_FOUND: {

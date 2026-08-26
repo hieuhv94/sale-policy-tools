@@ -15,20 +15,31 @@ export type ImportRow = {
   groupCode: string;
   /** `null` = ô để trống = KHÔNG đụng tới giá (`0121`). */
   price: bigint | null;
+  /** Cột 5 (`0122`). `true` = đang bán, `false` = ngừng bán. */
+  conBan: boolean;
+  /**
+   * Ô cột 5 để TRỐNG.
+   *
+   * Không gộp vào `conBan` được: "chưa điền" và "điền Đang bán" phải dẫn tới hai
+   * câu khác nhau, mà cả hai đều đọc ra `true` nếu chỉ có một trường boolean.
+   * `nhap.ts` bắt cờ này ở bước ô-bắt-buộc.
+   */
+  thieuHieuLuc?: true;
 };
 
 /*
- * NĂM CỘT (`0121`). Bốn cột đầu ghi được, cột thứ năm chỉ để xem.
+ * NĂM CỘT. Từ `0122` cả năm đều ghi được.
  *
  * `0025` bỏ ba cột `ck_loai_1..3` — ngưỡng chiết khấu mặc định theo loại khách —
  * vì khái niệm ấy chuyển hẳn sang bảng Chiết khấu quy định.
  *
- * `0121` thêm `gia_ban_cong_ty` và `dang_co_hieu_luc`. Cột thứ năm KHÔNG được
- * đọc vào dữ liệu, và đó là một quyết định chứ không phải thiếu sót: vô hiệu hoá
- * một sản phẩm là thao tác phá huỷ duy nhất của danh mục — nó gỡ mặt hàng khỏi
- * mọi hồ sơ lập mới và làm mọi CSBH đang hiệu lực chứa nó hiện trong box *Yêu
- * cầu cập nhật*. Màn hình bắt gõ lại mã vật tư cho đúng một sản phẩm; cho phép
- * làm việc đó hàng loạt bằng một ô Excel là gỡ mất chốt ấy mà không thay bằng gì.
+ * `0121` thêm `gia_ban_cong_ty` và `dang_co_hieu_luc`, cột thứ năm CHỈ ĐỂ XEM.
+ * `0122` mở nó ra theo yêu cầu của khách hàng: đó là đường ngừng bán hàng loạt,
+ * và là đường duy nhất mang Ý ĐỊNH — khác hẳn việc bỏ một dòng khỏi file.
+ *
+ * Đổi lại, chốt "gõ lại mã vật tư" của màn hình không còn phủ đường này. Thứ
+ * thay chỗ nó: bảng xem trước liệt kê ĐỦ những sản phẩm sắp ngừng bán, tách
+ * riêng theo lý do, cộng một chuỗi xác nhận phải gõ tay cho cả lô.
  */
 const HEADERS = [
   'ma_vat_tu',
@@ -40,8 +51,17 @@ const HEADERS = [
 
 type Cot = (typeof HEADERS)[number];
 
-/** Cột cuối cùng chỉ để xem — lượt nhập bỏ qua giá trị của nó. */
-const COT_CHI_XEM: Cot = 'dang_co_hieu_luc';
+/** Cột hiệu lực — ô chọn hai giá trị, không phải ô gõ tự do (`0122`). */
+const COT_HIEU_LUC: Cot = 'dang_co_hieu_luc';
+
+/**
+ * Hai giá trị của cột hiệu lực, và chúng nói ra HẬU QUẢ.
+ *
+ * Không dùng "Có"/"Không" hay một dấu tích: người soạn file phải đoán xem tích
+ * nghĩa là còn bán hay đã ngừng. Hai chữ này thì không đoán gì cả.
+ */
+const CON_BAN = 'Đang bán';
+const NGUNG_BAN = 'Ngừng bán';
 
 /**
  * Chú thích tiếng Việt của từng cột, hiện ở ghi chú ô tiêu đề trong file mẫu.
@@ -57,15 +77,17 @@ const NHAN_COT: Record<Cot, string> = {
     'Giá bán Công ty, số nguyên đồng. ĐỂ TRỐNG nghĩa là giữ nguyên giá hiện có. ' +
     'Ngày áp dụng luôn là ngày nhập, không khai ở đây.',
   dang_co_hieu_luc:
-    'CHỈ ĐỂ XEM — sửa ô này không có tác dụng gì. Ngừng bán một sản phẩm phải làm ' +
-    'trên màn hình Danh mục, nơi hệ thống bắt gõ lại mã vật tư để xác nhận.',
+    `Chọn "${CON_BAN}" hoặc "${NGUNG_BAN}" — bấm vào ô để xổ danh sách. ` +
+    'Đổi thành Ngừng bán là gỡ mặt hàng khỏi mọi hồ sơ lập mới. KHÔNG được để trống.',
 };
 
 /** Tên file mẫu lúc tải về. Thuần ASCII nên `Content-Disposition` không phải né gì. */
 export const MAU_TEN_TEP = 'mau-danh-muc-san-pham.xlsx';
 
-/** Hai giá trị của cột chỉ-xem. Chữ tiếng Việt vì không ai ngoài người đọc dùng tới. */
-const NHAN_HIEU_LUC = { DANG_AP_DUNG: 'Đang áp dụng', DA_VO_HIEU_HOA: 'Đã ngừng bán' };
+const NHAN_HIEU_LUC: Record<string, string> = {
+  DANG_AP_DUNG: CON_BAN,
+  DA_VO_HIEU_HOA: NGUNG_BAN,
+};
 
 export type DongMau = {
   code: string;
@@ -140,21 +162,34 @@ export async function dungFileMau(
       }
     });
 
-  const cotChiXem = HEADERS.indexOf(COT_CHI_XEM) + 1;
+  /*
+   * Ô CHỌN Ở CỘT HIỆU LỰC (`0122`).
+   *
+   * Excel không có checkbox nằm TRONG một ô. Thứ mang tên ấy có ba dạng, và chỉ
+   * dạng này dùng được:
+   *
+   *   - Ô chọn xổ xuống (`dataValidation` kiểu `list`) — dựng được, và đã đo là
+   *     sống qua một vòng ghi/đọc kèm nguyên ràng buộc.
+   *   - Checkbox Form/ActiveX — là một đối tượng NỔI trên trang, không thuộc ô
+   *     nào, nên đọc lại không biết nó của dòng nào.
+   *   - Checkbox của Excel 365 bản 2024 — ghi `TRUE`/`FALSE` vào ô. Không dựng
+   *     được từ đây, nhưng bộ đọc vẫn nhận, nên ai tự chuyển sang nó không hỏng.
+   *
+   * `allowBlank: false` cộng `showErrorMessage` để Excel chặn ngay tại chỗ nhập.
+   * Đó là lớp chặn duy nhất đứng TRƯỚC lúc tải lên; mọi lớp còn lại đều chỉ nói
+   * được sau khi người dùng đã soạn xong cả file.
+   */
+  const cotHieuLuc = HEADERS.indexOf(COT_HIEU_LUC) + 1;
   for (const p of sanPham) {
     const r = ws.addRow(theoCot(p));
-    /*
-     * TÔ XÁM cột chỉ-xem, ở từng dòng.
-     *
-     * Ghi chú ở ô tiêu đề chỉ hiện khi rê chuột, mà người ta sửa một ô Excel
-     * không rê chuột lên tiêu đề bao giờ. Nền xám là thứ nhìn thấy được mà không
-     * phải đi tìm — và nó là tất cả những gì làm được: Excel không có "cột chỉ
-     * đọc" nào tồn tại qua một lượt lưu lại của người dùng.
-     */
-    r.getCell(cotChiXem).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FFEEEEEE' },
+    r.getCell(cotHieuLuc).dataValidation = {
+      type: 'list',
+      allowBlank: false,
+      formulae: [`"${CON_BAN},${NGUNG_BAN}"`],
+      showErrorMessage: true,
+      errorStyle: 'stop',
+      errorTitle: 'Chỉ hai giá trị',
+      error: `Chọn "${CON_BAN}" hoặc "${NGUNG_BAN}".`,
     };
   }
 
@@ -198,7 +233,28 @@ const cellText = (v: ExcelJS.CellValue): string | null => {
 };
 
 /** Một ô không đọc được, kèm chỗ và lý do — gom lại rồi báo một lượt (`0121`). */
-export type LoiKieu = { rowNumber: number; cot: Cot; lyDo: 'O_HONG' | 'KHONG_PHAI_SO' };
+export type LoiKieu = {
+  rowNumber: number;
+  cot: Cot;
+  lyDo: 'O_HONG' | 'KHONG_PHAI_SO' | 'KHONG_PHAI_HIEU_LUC';
+};
+
+/**
+ * Đọc cột hiệu lực (`0122`).
+ *
+ * Nhận ba cách viết vì ba cách ấy đều xuất hiện thật: hai chữ của ô chọn, giá
+ * trị boolean của checkbox Excel 365, và chuỗi `TRUE`/`FALSE` mà một bản Excel
+ * cũ hiện ra khi mở file do bản mới ghi.
+ *
+ * `undefined` = không đọc được. Ô TRỐNG người gọi bắt riêng, vì nó là "chưa
+ * điền" chứ không phải "điền sai" — và hai chuyện ấy dẫn tới hai câu khác nhau.
+ */
+function doHieuLuc(tho: string): boolean | undefined {
+  const t = tho.trim().toLowerCase();
+  if (t === CON_BAN.toLowerCase() || t === 'true' || t === '1') return true;
+  if (t === NGUNG_BAN.toLowerCase() || t === 'false' || t === '0') return false;
+  return undefined;
+}
 
 /**
  * Giá: chịu mọi cách gõ mà người ta thật sự gõ (`0121`).
@@ -260,10 +316,11 @@ export async function parseProductSheet(buffer: Buffer): Promise<KetQuaDoc> {
     const name = o(1);
     const groupCode = o(2);
     const giaTho = o(3);
+    const hieuLucTho = o(4);
 
-    // Ô hỏng ở bất kỳ cột ghi được nào: ghi lại rồi đi tiếp, đừng đoán.
+    // Ô hỏng ở bất kỳ cột nào: ghi lại rồi đi tiếp, đừng đoán.
     let hong = false;
-    for (const [i, v] of [code, name, groupCode, giaTho].entries()) {
+    for (const [i, v] of [code, name, groupCode, giaTho, hieuLucTho].entries()) {
       if (v === null) {
         loiKieu.push({ rowNumber: n, cot: HEADERS[i]!, lyDo: 'O_HONG' });
         hong = true;
@@ -273,7 +330,9 @@ export async function parseProductSheet(buffer: Buffer): Promise<KetQuaDoc> {
 
     // Dòng trống hoàn toàn: bỏ qua ở BẤT KỲ đâu trong file, không riêng cuối.
     // Người ta chèn một dòng trắng để tách nhóm hàng, và đó không phải lỗi.
-    if (code === '' && name === '' && groupCode === '' && giaTho === '') continue;
+    if (code === '' && name === '' && groupCode === '' && giaTho === '' && hieuLucTho === '') {
+      continue;
+    }
 
     let price: bigint | null = null;
     if (giaTho !== '') {
@@ -284,7 +343,36 @@ export async function parseProductSheet(buffer: Buffer): Promise<KetQuaDoc> {
       }
     }
 
-    rows.push({ rowNumber: n, code: code!, name: name!, groupCode: groupCode!, price });
+    /*
+     * Ô trống KHÔNG phải "ngừng bán", và đây là chỗ dễ làm sai nhất của `0122`.
+     *
+     * Dòng sản phẩm MỚI mà người dùng gõ thêm vào cuối file luôn có ô này trống.
+     * Hiểu ô trống là ngừng bán nghĩa là mọi sản phẩm vừa thêm đều chết ngay lúc
+     * sinh ra — và người thêm nó sẽ không hiểu vì sao.
+     *
+     * Nên ô trống rơi xuống `IMPORT_MISSING_FIELD` ở `nhap.ts` (chưa điền), còn
+     * một giá trị lạ thì là `IMPORT_BAD_TYPE` (điền sai). Hai câu khác nhau cho
+     * hai việc phải làm khác nhau.
+     */
+    let conBan = true;
+    if (hieuLucTho !== '') {
+      const doc = doHieuLuc(hieuLucTho!);
+      if (doc === undefined) {
+        loiKieu.push({ rowNumber: n, cot: 'dang_co_hieu_luc', lyDo: 'KHONG_PHAI_HIEU_LUC' });
+        continue;
+      }
+      conBan = doc;
+    }
+
+    rows.push({
+      rowNumber: n,
+      code: code!,
+      name: name!,
+      groupCode: groupCode!,
+      price,
+      conBan,
+      ...(hieuLucTho === '' ? { thieuHieuLuc: true } : {}),
+    });
   }
 
   return { rows, loiKieu };

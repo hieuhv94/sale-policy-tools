@@ -55,6 +55,8 @@ export type DongThem = {
   code: string;
   name: string;
   groupCode: string;
+  /** Dòng mới ghi *Ngừng bán* thì sản phẩm sinh ra đã ở trạng thái ngừng bán. */
+  conBan: boolean;
   /**
    * CHUỖI, không phải `bigint`.
    *
@@ -80,9 +82,29 @@ export type DongSua = {
   canhBaoGia?: number;
 };
 
+/**
+ * Một sản phẩm sắp đổi trạng thái (`0122`).
+ *
+ * `lyDo` tách hai đường ngừng bán, và bảng xem trước PHẢI vẽ chúng thành hai
+ * khối riêng: một bên là câu khẳng định của người soạn file, một bên là suy ra
+ * từ sự VẮNG MẶT. Hai thứ mang mức độ chắc chắn khác hẳn nhau — gộp lại thì
+ * người duyệt không phân biệt được đâu là ý định, đâu là dán thiếu dòng.
+ */
+export type DoiTrangThai = {
+  id: string;
+  code: string;
+  name: string;
+  /** `O_CHON`: ô cột 5 ghi *Ngừng bán*. `VANG_MAT`: mã không có trong file. */
+  lyDo: 'O_CHON' | 'VANG_MAT';
+};
+
 export type KeHoach = {
   themMoi: DongThem[];
   sua: DongSua[];
+  /** Đang bán → ngừng bán. Liệt kê ĐỦ ở bảng xem trước, không gấp lại. */
+  ngungBan: DoiTrangThai[];
+  /** Ngừng bán → bán lại. Không đòi xác nhận riêng: nó không phá gì. */
+  banLai: DoiTrangThai[];
   /** Số dòng khớp hoàn toàn với danh mục — gấp lại ở bảng xem trước. */
   khongDoi: number;
 };
@@ -151,6 +173,8 @@ export function dungKeHoach(
     if (r.code === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'ma_vat_tu' });
     if (r.name === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'ten_vat_tu' });
     if (r.groupCode === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'nhom_sp' });
+    // Cột hiệu lực để trống là CHƯA ĐIỀN, không phải "ngừng bán" (`0122`).
+    if (r.thieuHieuLuc) thieuO.push({ rowNumber: r.rowNumber, cot: 'dang_co_hieu_luc' });
   }
   if (thieuO.length > 0) bad({ code: 'IMPORT_MISSING_FIELD', o: thieuO });
 
@@ -214,25 +238,37 @@ export function dungKeHoach(
     });
   }
 
-  // --- Bước 5: thiếu sản phẩm đang có ---------------------------------------
-  //
-  // File là ảnh chụp ĐẦY ĐỦ của danh mục. Thiếu một mã đang có nghĩa là người
-  // dùng đã dán thiếu dòng, hoặc đang nhập từ một file cũ — và cả hai đường đó
-  // đều dẫn tới việc mất dấu một mặt hàng nếu ta im lặng bỏ qua.
-  //
-  // Không có đường xoá sản phẩm nào ở đây, kể cả gián tiếp: muốn ngừng bán thì
-  // làm trên màn hình, nơi có chốt gõ lại mã vật tư.
-  const trongFile = new Set(rows.map((r) => chuanMa(r.code)));
-  const thieuSp = hienTai.sanPham.filter((p) => !trongFile.has(chuanMa(p.code)));
-  if (thieuSp.length > 0) {
-    bad({ code: 'IMPORT_PRODUCT_MISSING', ma: thieuSp.map((p) => p.code) });
-  }
-
   // --- Dựng kế hoạch --------------------------------------------------------
   const theoMa = new Map(hienTai.sanPham.map((p) => [chuanMa(p.code), p]));
   const themMoi: DongThem[] = [];
   const sua: DongSua[] = [];
+  const ngungBan: DoiTrangThai[] = [];
+  const banLai: DoiTrangThai[] = [];
   let khongDoi = 0;
+
+  /*
+   * VẮNG MẶT TRONG FILE = NGỪNG BÁN (`0122`).
+   *
+   * `0121` chặn hẳn lượt nhập khi file thiếu một mã đang có; khách hàng chốt đổi
+   * thành đường ngừng bán thứ hai. Ghi lại chỗ này vì nó ĐẢO một quyết định, và
+   * người đọc sau sẽ thấy hai câu trái nhau ở hai chỗ trong nhật ký.
+   *
+   * Rủi ro đi kèm là thật và không gỡ được bằng mã: một dòng biến mất vì lọc rồi
+   * chép phần đang hiện, vì sắp xếp rồi xoá nhầm, vì dán đè một vùng ngắn hơn —
+   * cả ba đều trông y hệt một quyết định ngừng bán. Thứ duy nhất đứng giữa là
+   * bảng xem trước, nên khối `VANG_MAT` phải liệt kê ĐỦ và tách riêng.
+   *
+   * Sản phẩm vắng mặt mà VỐN ĐÃ ngừng bán thì không có gì để làm.
+   */
+  const trongFile = new Set(rows.map((r) => chuanMa(r.code)));
+  for (const p of hienTai.sanPham) {
+    if (trongFile.has(chuanMa(p.code))) continue;
+    if (p.status === 'DANG_AP_DUNG') {
+      ngungBan.push({ id: p.id, code: p.code, name: p.name, lyDo: 'VANG_MAT' });
+    } else {
+      khongDoi += 1;
+    }
+  }
 
   for (const r of rows) {
     const cu = theoMa.get(chuanMa(r.code));
@@ -243,6 +279,7 @@ export function dungKeHoach(
         name: r.name,
         groupCode: r.groupCode,
         price: r.price === null ? null : r.price.toString(),
+        conBan: r.conBan,
       });
       continue;
     }
@@ -268,9 +305,18 @@ export function dungKeHoach(
       }
     }
 
+    // Trạng thái đi RIÊNG khỏi khối `sua`: nó không phải một ô đổi giá trị mà là
+    // một hành động có hậu quả ngoài danh mục, và bảng xem trước vẽ nó riêng.
+    const dangBan = cu.status === 'DANG_AP_DUNG';
+    if (dangBan && !r.conBan) {
+      ngungBan.push({ id: cu.id, code: cu.code, name: cu.name, lyDo: 'O_CHON' });
+    } else if (!dangBan && r.conBan) {
+      banLai.push({ id: cu.id, code: cu.code, name: cu.name, lyDo: 'O_CHON' });
+    }
+
     if (d.ten || d.nhom || d.gia) sua.push(d);
-    else khongDoi += 1;
+    else if (dangBan === r.conBan) khongDoi += 1;
   }
 
-  return { themMoi, sua, khongDoi };
+  return { themMoi, sua, ngungBan, banLai, khongDoi };
 }

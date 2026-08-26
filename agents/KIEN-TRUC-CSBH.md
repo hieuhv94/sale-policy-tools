@@ -1027,7 +1027,11 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-15 | Nhập danh mục sản phẩm từ Excel, trong đó có dòng lỗi | Báo lỗi kèm số dòng và **không ghi một phần** — toàn bộ lô nằm trong một giao dịch | §6.2 | `P1` |
 | CAT-16 | Tải file Excel mẫu, sửa một ô trên chính file ấy rồi nhập lại | Nhập thành công, **không phải sửa gì ở phần tiêu đề**. Trang thứ hai liệt kê mã nhóm đang có và bộ đọc không chạm tới nó | §13.1 | `P1` |
 | CAT-17 | Mở file mẫu vừa tải về | Đủ **5 cột**, chứa **toàn bộ** sản phẩm hiện có kể cả hàng đã vô hiệu hoá, kèm giá hiện hành và trạng thái. Tải lên lại nguyên trạng thì hợp lệ và **không sinh thay đổi nào** | §13.1 | `P1` |
-| CAT-19 | Nhập file thiếu một mã đang có trong danh mục | `IMPORT_PRODUCT_MISSING`, nêu đủ mã thiếu. Không có đường xoá sản phẩm qua lượt nhập, kể cả gián tiếp | §13.1 | `P0` |
+| CAT-19 | Nhập file thiếu một mã đang có trong danh mục | Sản phẩm ấy **ngừng bán**, và hiện ở khối *vắng mặt trong file* của bảng xem trước — tách riêng khỏi khối ngừng bán theo ô chọn | §13.1 | `P0` |
+| CAT-27 | Đổi ô *đang có hiệu lực* thành *Ngừng bán* rồi nhập | Sản phẩm ngừng bán, lý do `O_CHON`. Đổi ngược lại thì bán lại | §13.1 | `P0` |
+| CAT-28 | Để trống ô *đang có hiệu lực* | `IMPORT_MISSING_FIELD` nêu đúng dòng — **không** hiểu thành ngừng bán. Dòng sản phẩm mới gõ thêm luôn có ô này trống | §13.1 | `P0` |
+| CAT-29 | Điền một giá trị lạ vào ô *đang có hiệu lực* | `IMPORT_BAD_TYPE` / `KHONG_PHAI_HIEU_LUC`. Nhận thêm `TRUE`/`FALSE` của checkbox Excel 365 | §13.1 | `P1` |
+| CAT-30 | Mở file mẫu, soi ô cột *đang có hiệu lực* | Là **ô chọn** (`dataValidation` kiểu `list`) hai giá trị, `errorStyle: stop` — Excel chặn giá trị lạ ngay tại chỗ nhập | §13.1 | `P1` |
 | CAT-20 | Nhập file có ô lỗi công thức (`#N/A`) ở cột tên | `IMPORT_BAD_TYPE` nêu đúng dòng và cột. **Không** được lọt thành tên sản phẩm `[object Object]` | §13.1 | `P0` |
 | CAT-21 | Nhập file có mã vật tư toàn số, giá gõ `12.500` · `12,500` · `12 500` | Cả hai đều hợp lệ — mã đọc thành chuỗi, giá đọc thành 12500. Dấu chấm và dấu phẩy là dấu **nghìn** | §13.1 | `P1` |
 | CAT-22 | Bấm *Xem trước* rồi không xác nhận | Không dòng nào được ghi. Bảng xem trước tách **thêm mới · sửa (cũ → mới) · không đổi**, và cảnh báo dòng đổi giá quá 50% | §13.1 | `P0` |

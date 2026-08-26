@@ -10935,3 +10935,85 @@ thành **giá bán**: `12.35` thành mười hai đồng. Ca ấy đảo chiều
 phải bị từ chối"*.
 
 **1736/1736 xanh.**
+
+## P150 — `0122` ngừng bán hàng loạt qua file Excel
+
+Khách hàng yêu cầu mở cột thứ năm ra: ô chọn dạng checkbox, và **hai** đường
+ngừng bán — bỏ chọn, hoặc bỏ hẳn dòng khỏi file. Chặng này **đảo một quyết định
+của `0121`**: bước 5 thôi chặn khi file thiếu mã, và sự vắng mặt thành một mục
+trong kế hoạch ghi.
+
+### Excel không có checkbox nằm trong một ô
+
+Ba thứ mang tên ấy, và tôi đo từng cái trước khi chọn:
+
+- **Ô chọn xổ xuống** (`dataValidation` kiểu `list`) — dựng được, và **sống qua
+  một vòng ghi/đọc kèm nguyên ràng buộc**. Đây là thứ dùng được.
+- **Checkbox Form/ActiveX** — là một đối tượng NỔI trên trang, không thuộc ô nào,
+  nên đọc lại không biết nó của dòng nào.
+- **Checkbox của Excel 365 bản 2024** — ghi `TRUE`/`FALSE` vào ô. Không dựng được
+  từ ExcelJS, nhưng đọc được, nên bộ đọc nhận luôn cả boolean và hai chuỗi ấy.
+
+Hai giá trị là **`Đang bán`** / **`Ngừng bán`** chứ không phải một dấu tích hay
+`Có`/`Không`: một dấu tích bắt người soạn file đoán xem tích nghĩa là còn bán hay
+đã ngừng.
+
+Một chi tiết đo được, và ca kiểm phải nói ra: **`allowBlank: false` đọc lại ra
+`undefined`, không phải `false`**. `allowBlank="0"` là mặc định của OOXML nên
+ExcelJS không ghi thuộc tính ấy. Khẳng định `toBe(false)` đỏ, và đỏ vì một lý do
+sai — ca kiểm dùng `?? false`.
+
+### Ô trống là LỖI, và đây là chỗ tôi nói ngược lại yêu cầu
+
+Bullet của khách hàng viết *"checkbox không chọn cũng thành vô hiệu hoá"*. Ô
+không chọn = ô trống, và ô trống là trạng thái của **dòng sản phẩm MỚI mà người
+dùng vừa gõ thêm vào cuối file**. Hiểu nó là ngừng bán nghĩa là mọi sản phẩm vừa
+thêm đều chết ngay lúc sinh ra, và người thêm nó sẽ không hiểu vì sao.
+
+Nêu lý do ấy ra thì khách hàng chốt: ô trống là lỗi. Với ô chọn xổ xuống thì
+"không chọn" cũng không tồn tại như một trạng thái — chỉ có hai giá trị và *chưa
+điền*.
+
+Kéo theo một chi tiết ở `ImportRow`: cần cờ `thieuHieuLuc` riêng, vì "chưa điền"
+và "điền Đang bán" phải dẫn tới hai câu khác nhau mà cả hai đều đọc ra `true` nếu
+chỉ có một trường boolean.
+
+### Hai lý do ngừng bán, hai khối riêng trên bảng xem trước
+
+Tôi đã khuyên bỏ hẳn đường "vắng mặt", khách hàng giữ. Nên chỗ chịu rủi ro
+chuyển hết sang bảng xem trước, và `lyDo: 'O_CHON' | 'VANG_MAT'` tồn tại chỉ để
+bảng ấy tách được hai khối.
+
+Lập luận giữ nguyên: **ô chọn là một câu khẳng định, sự vắng mặt thì không mang ý
+định**. Bốn cách một dòng biến mất mà không ai cố ý — lọc rồi chép phần đang
+hiện, sắp xếp rồi xoá nhầm, dán đè một vùng ngắn hơn, xoá nhầm một dòng — cả bốn
+đều trông y hệt một quyết định ngừng bán. Khối `VANG_MAT` vì thế liệt kê ĐỦ,
+không gấp lại như khối *Không đổi*.
+
+### Chèn thẳng ở trạng thái đúng, không chèn rồi sửa
+
+`insertOne` nhận thêm `trangThai`. Chèn rồi `UPDATE` sẽ phát ra một sự kiện nói
+sản phẩm đang bán, ngay trước một sự kiện thứ hai nói nó đã ngừng — người đọc
+nhật ký thấy một mặt hàng sống được đúng một phần nghìn giây.
+
+Và đường đổi trạng thái trong `ghiNhap` **không gọi `update()`**: hàm ấy tự mở
+transaction, và nó gọi `xacNhanGoLai(confirm, code)` — chốt gõ lại mã vật tư vốn
+canh từng sản phẩm một. Gọi lại nó ở đây nghĩa là đòi gõ 200 mã vật tư.
+
+**Cái mất, ghi ra để đừng quên**: chốt gõ lại mã vật tư không còn phủ đường ngừng
+bán hàng loạt. Thay chỗ nó là bảng xem trước cộng một chuỗi xác nhận cho cả lô.
+Khách hàng đã cân nhắc và chốt không cần ngưỡng chặn theo tỷ lệ.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Ô trống hiểu ngầm là *Ngừng bán* | 1 đỏ |
+| Gộp hai lý do ngừng bán làm một | 1 đỏ |
+| Bỏ ô chọn khỏi file mẫu | 1 đỏ |
+
+Ca *"giữ nguyên ô hiệu lực thì trạng thái KHÔNG đổi"* là chiều ngược, thêm vào có
+chủ ý: bốn ca kia chỉ kiểm chiều ĐỔI, nên một lượt sửa biến cột 5 thành "luôn ghi
+đè" vẫn xanh nếu thiếu nó.
+
+**1744/1744 xanh.**

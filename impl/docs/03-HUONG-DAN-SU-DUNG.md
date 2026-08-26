@@ -1563,11 +1563,25 @@ Cách dùng chỉ có một, và làm đúng thứ tự này thì không sai đ�
 | `ten_vat_tu` | có | |
 | `nhom_sp` | có | Chỉ **mã** nhóm. Xem các mã đang có ở trang *Nhom san pham* của chính file |
 | `gia_ban_cong_ty` | có | **Để trống = giữ nguyên giá cũ.** Có điền thì áp dụng **từ hôm nay** |
-| `dang_co_hieu_luc` | **không** | Ô xám, chỉ để xem. Sửa nó không có tác dụng gì |
+| `dang_co_hieu_luc` | có | **Ô chọn** — bấm vào để xổ *Đang bán* / *Ngừng bán*. **Không được để trống** |
 
-**File phải chứa ĐỦ mọi sản phẩm đang có.** Thiếu một dòng là lượt nhập bị chặn và nói ra mã nào
-thiếu. Đây là chủ ý: bỏ một dòng khỏi file **không** phải cách ngừng bán một sản phẩm — muốn ngừng
-bán thì mở bảng danh mục, bấm *Sửa*, đổi trạng thái, và hệ thống bắt gõ lại mã vật tư để xác nhận.
+### Ngừng bán sản phẩm qua file `mới 26/08`
+
+Có **hai cách**, và cả hai đều hiện trong bảng xem trước trước khi ghi:
+
+1. **Đổi ô *đang có hiệu lực* thành *Ngừng bán*** — cách nên dùng, vì nó nói rõ ý định.
+2. **Bỏ hẳn dòng ấy khỏi file** — sản phẩm không có dòng nào trong file cũng thành ngừng bán.
+
+Đổi ô về *Đang bán* trên một sản phẩm đang ngừng thì **bán lại**.
+
+> **Cách thứ hai dễ xảy ra ngoài ý muốn.** Lọc rồi chép phần đang hiện, sắp xếp rồi xoá nhầm, dán đè
+> một vùng ngắn hơn — cả ba đều làm mất dòng mà trông y hệt một quyết định ngừng bán. Vì thế bảng xem
+> trước tách riêng khối **“Ngừng bán — vắng mặt trong file”** và **liệt kê đủ**; đọc kỹ khối ấy trước
+> khi gõ xác nhận. Không cố ý thì bấm *Chọn tệp khác* và kiểm lại file.
+
+**Ngừng bán không phải xoá.** Sản phẩm vẫn còn trong danh mục và trong mọi hồ sơ CSBH đã lập; nó chỉ
+biến khỏi ô chọn lúc lập hồ sơ mới, và mọi CSBH đang hiệu lực chứa nó sẽ hiện trong khối *Yêu cầu
+cập nhật* của Trình dược viên phụ trách. Danh mục **không có đường xoá sản phẩm** ở bất kỳ đâu.
 
 **Bảng xem trước liệt kê THAY ĐỔI, không liệt kê nội dung file**: bao nhiêu dòng thêm mới, bao nhiêu
 dòng sửa và sửa ô nào (*cũ → mới*), bao nhiêu dòng không đổi. Sản phẩm đổi giá **quá 50%** được nêu
@@ -1584,6 +1598,8 @@ Vài chỗ hay hỏi:
 
 - **Mã vật tư toàn số là hợp lệ.** Giá gõ `12.500`, `12,500` hay `12 500` đều đọc được — dấu chấm và
   dấu phẩy là dấu **nghìn**.
+- **Ô *đang có hiệu lực* để trống là lỗi**, không phải ngừng bán. Dòng sản phẩm mới bạn gõ thêm vào
+  cuối file luôn trống ô này — nhớ chọn một giá trị cho nó.
 - **Trùng tên** chỉ bị chặn khi file tạo thêm một cái trùng **mới**. Danh mục đang có hai sản phẩm
   cùng tên thì giữ nguyên được, không phải đi sửa tên mới nhập lại được.
 - **Nhập lại lần thứ hai trong cùng ngày** thì giá của lượt sau đè lượt trước, không báo lỗi.

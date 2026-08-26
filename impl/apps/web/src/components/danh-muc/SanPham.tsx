@@ -524,9 +524,20 @@ type DongSua = {
   canhBaoGia?: number;
 };
 
+type DoiTrangThai = { code: string; name: string; lyDo: 'O_CHON' | 'VANG_MAT' };
+
 type KeHoach = {
-  themMoi: { rowNumber: number; code: string; name: string; groupCode: string; price: string | null }[];
+  themMoi: {
+    rowNumber: number;
+    code: string;
+    name: string;
+    groupCode: string;
+    price: string | null;
+    conBan: boolean;
+  }[];
   sua: DongSua[];
+  ngungBan: DoiTrangThai[];
+  banLai: DoiTrangThai[];
   khongDoi: number;
 };
 
@@ -613,10 +624,16 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
           <BangXemTruoc ke={ke} />
 
           <p className="giai-thich">
-            Bấm <strong>Ghi đè</strong> thì {ke.themMoi.length + ke.sua.length} dòng ở trên được ghi
-            vào danh mục trong <strong>một lượt</strong> — hỏng ở giữa thì không dòng nào được ghi.
-            Danh mục hiện tại <strong>không lùi lại được</strong> sau khi ghi; muốn giữ một bản thì
-            tải file mẫu về trước.
+            Bấm <strong>Ghi đè</strong> thì {ke.themMoi.length + ke.sua.length} dòng được ghi
+            {ke.ngungBan.length > 0 && (
+              <>
+                {' '}
+                và <strong>{ke.ngungBan.length} sản phẩm chuyển sang ngừng bán</strong>
+              </>
+            )}
+            , trong <strong>một lượt</strong> — hỏng ở giữa thì không dòng nào được ghi. Danh mục
+            hiện tại <strong>không lùi lại được</strong> sau khi ghi; muốn giữ một bản thì tải file
+            mẫu về trước.
           </p>
 
           <Truong id="excel-xac-nhan" nhan={`Gõ "${CHUOI_XAC_NHAN}" để xác nhận`} bắtBuộc>
@@ -655,9 +672,9 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          File cần đủ <strong>5 cột</strong>: mã vật tư, tên sản phẩm, mã nhóm, giá bán Công ty, và
-          cột <em>đang có hiệu lực</em>. Cột cuối <strong>chỉ để xem</strong> — sửa nó không có tác
-          dụng gì.
+          File cần đủ <strong>5 cột</strong>: mã vật tư, tên sản phẩm, mã nhóm, giá bán Công ty, và{' '}
+          <em>đang có hiệu lực</em>. Ô cột cuối là <strong>ô chọn</strong> — bấm vào để xổ{' '}
+          <em>Đang bán</em> / <em>Ngừng bán</em>, không được để trống.
         </p>
 
         {/*
@@ -676,8 +693,9 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
 
         <p className="giai-thich">
           File mẫu chứa <strong>toàn bộ danh mục hiện tại</strong> kèm giá và trạng thái. Sửa ngay
-          trên đó rồi tải lên — <strong>file phải giữ đủ mọi sản phẩm đang có</strong>, thiếu một
-          dòng là lượt nhập bị chặn.
+          trên đó rồi tải lên. <strong>Bỏ một dòng khỏi file nghĩa là ngừng bán sản phẩm ấy</strong>{' '}
+          — muốn ngừng bán thì nên đổi ô <em>Đang có hiệu lực</em> cho rõ ràng, và bảng xem trước
+          liệt kê cả hai đường trước khi ghi.
         </p>
         <p className="giai-thich">
           Ô <strong>giá để trống</strong> nghĩa là giữ nguyên giá cũ. Giá có điền thì áp dụng{' '}
@@ -818,11 +836,84 @@ function BangXemTruoc({ ke }: { ke: KeHoach }) {
         </>
       )}
 
-      {ke.themMoi.length === 0 && ke.sua.length === 0 && (
-        <p className="giai-thich">
-          File khớp hoàn toàn với danh mục hiện tại — không có gì để ghi.
-        </p>
+      {/*
+        HAI KHỐI NGỪNG BÁN, TÁCH THEO LÝ DO (`0122`).
+
+        `O_CHON` là câu khẳng định của người soạn file. `VANG_MAT` là suy ra từ
+        sự vắng mặt — mà một dòng biến mất vì lọc rồi chép phần đang hiện, vì sắp
+        xếp rồi xoá nhầm, hay vì dán đè một vùng ngắn hơn thì trông y hệt một
+        quyết định ngừng bán. Gộp hai khối lại là bắt người duyệt tự đoán xem
+        dòng nào là ý định của mình.
+
+        LIỆT KÊ ĐỦ, không gấp lại như khối *Không đổi*: đây là phần phá huỷ.
+      */}
+      <KhoiNgungBan
+        ds={ke.ngungBan.filter((d) => d.lyDo === 'O_CHON')}
+        tieuDe="Ngừng bán — bạn chọn trong file"
+        moTa='Ô "Đang có hiệu lực" của những dòng này ghi Ngừng bán.'
+      />
+      <KhoiNgungBan
+        ds={ke.ngungBan.filter((d) => d.lyDo === 'VANG_MAT')}
+        tieuDe="Ngừng bán — vắng mặt trong file"
+        moTa="Những mã này đang có trong danh mục nhưng KHÔNG có dòng nào trong file. Nếu bạn không cố ý bỏ chúng đi, hãy huỷ và kiểm lại file."
+      />
+
+      {ke.banLai.length > 0 && (
+        <>
+          <h3 className="tieu-de-nhom-xem-truoc">Bán lại ({ke.banLai.length})</h3>
+          <p className="ghi-chu">
+            {ke.banLai.map((d) => `${d.code} — ${d.name}`).join(' · ')}
+          </p>
+        </>
       )}
+
+      {ke.themMoi.length === 0 &&
+        ke.sua.length === 0 &&
+        ke.ngungBan.length === 0 &&
+        ke.banLai.length === 0 && (
+          <p className="giai-thich">
+            File khớp hoàn toàn với danh mục hiện tại — không có gì để ghi.
+          </p>
+        )}
     </>
+  );
+}
+
+/** Một khối ngừng bán. Rỗng thì không vẽ gì — không có "0 sản phẩm" nào cả. */
+function KhoiNgungBan({
+  ds,
+  tieuDe,
+  moTa,
+}: {
+  ds: DoiTrangThai[];
+  tieuDe: string;
+  moTa: string;
+}) {
+  if (ds.length === 0) return null;
+  return (
+    <div className="hop-canh-bao" role="alert">
+      <strong className="hop-tieu-de">
+        {tieuDe} ({ds.length})
+      </strong>
+      <p className="ghi-chu">{moTa}</p>
+      <div className="khung-cuon" role="region" aria-label={tieuDe} tabIndex={0}>
+        <table className="bang bang-lech">
+          <thead>
+            <tr>
+              <th>Mã vật tư</th>
+              <th>Tên sản phẩm</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.map((d) => (
+              <tr key={d.code}>
+                <td className="ma-phu">{d.code}</td>
+                <td>{d.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

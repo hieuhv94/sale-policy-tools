@@ -1387,6 +1387,23 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Ngừng bán hàng loạt qua file Excel** `mới 26/08` — cột *đang có hiệu lực* thôi chỉ-để-xem. Nó là
+một **ô chọn** hai giá trị *Đang bán* / *Ngừng bán*, và có **hai đường** dẫn tới ngừng bán: đổi ô ấy,
+hoặc **bỏ hẳn dòng khỏi file**. Đổi ô về *Đang bán* thì bán lại. Ô để trống là **lỗi**, không phải
+ngừng bán.
+
+> **Bảng xem trước tách hai đường thành hai khối riêng**, và đó là điều kiện để đường thứ hai an
+> toàn. Ô chọn là một câu khẳng định; còn một dòng biến mất có thể vì người dùng lọc rồi chép phần
+> đang hiện, sắp xếp rồi xoá nhầm, hay dán đè một vùng ngắn hơn — ba tai nạn trông y hệt một quyết
+> định. Khối *vắng mặt trong file* vì thế **liệt kê đủ**, không gấp lại.
+>
+> **Ô trống phải là lỗi** vì một lý do rất cụ thể: dòng sản phẩm MỚI mà người dùng gõ thêm vào cuối
+> file luôn có ô ấy trống. Hiểu ô trống là ngừng bán nghĩa là mọi sản phẩm vừa thêm đều chết ngay
+> lúc sinh ra.
+>
+> Cái mất: chốt **gõ lại mã vật tư** của màn hình không còn phủ đường này — nó canh từng sản phẩm
+> một, còn ở đây chỉ có một chuỗi xác nhận cho cả lô.
+
 **Nhập danh mục từ Excel là GHI ĐÈ, và phải xem trước** `mới 26/08` — file nhập mang **5 cột** (mã
 vật tư · tên · mã nhóm · giá bán Công ty · đang có hiệu lực) và phải chứa **đủ mọi sản phẩm đang
 có**. Mã đã có thì cập nhật, mã mới thì thêm. Phần mềm kiểm theo thứ tự — đủ cột · đọc được ô ·
@@ -1394,13 +1411,9 @@ có**. Mã đã có thì cập nhật, mã mới thì thêm. Phần mềm kiểm
 **bảng thay đổi** để người dùng duyệt; chỉ khi họ **gõ lại chuỗi xác nhận** thì mới ghi, trong một
 lượt.
 
-> **Bốn điều KHÔNG làm được qua đường nhập**, và cả bốn đều có lý do riêng:
+> **Hai điều KHÔNG làm được qua đường nhập:**
 >
-> - **Xoá sản phẩm** — kể cả gián tiếp bằng cách bỏ dòng khỏi file. Thiếu một mã đang có là lỗi.
-> - **Ngừng bán** — cột *đang có hiệu lực* chỉ để xem. Vô hiệu hoá gỡ mặt hàng khỏi mọi hồ sơ lập
->   mới và làm mọi CSBH đang hiệu lực chứa nó hiện trong khối *Yêu cầu cập nhật*; màn hình bắt gõ
->   lại mã vật tư cho đúng một sản phẩm, nên làm việc ấy hàng loạt bằng một ô Excel là gỡ mất chốt
->   mà không thay bằng gì.
+> - **Xoá sản phẩm.** Danh mục không có đường xoá nào, ở bất kỳ màn hình nào.
 > - **Xoá giá** — ô giá để trống nghĩa là *giữ nguyên*, không phải *đặt về rỗng*. Giá là chuỗi lịch
 >   sử mà hồ sơ đã đóng băng tra ngược lại.
 > - **Đổi ngày áp dụng của giá** — luôn là ngày nhập, đặt ở máy chủ. Một cột ngày cho phép khai một

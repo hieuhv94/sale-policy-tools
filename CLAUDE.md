@@ -87,7 +87,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P149** (`0121`): **nhập danh mục từ Excel là GHI ĐÈ, và phải xem trước**. File 5 cột
+Chặng gần nhất **P150** (`0122`): **ngừng bán hàng loạt qua file Excel**. Cột 5 thôi chỉ-để-xem, nó
+là **ô chọn** `Đang bán`/`Ngừng bán` (`dataValidation` kiểu `list` — dạng checkbox DUY NHẤT dựng
+được và đọc lại được; Form/ActiveX là đối tượng nổi không thuộc ô nào). **Hai đường ngừng bán**: đổi
+ô, hoặc **bỏ dòng khỏi file** — đảo lại quyết định chặn của `0121`. Bảng xem trước **tách hai khối
+theo `lyDo`** (`O_CHON` / `VANG_MAT`) và liệt kê đủ, vì sự vắng mặt không mang ý định. **Ô trống là
+LỖI** chứ không phải ngừng bán: dòng sản phẩm mới gõ thêm luôn trống ô ấy. Cái mất, đã ghi: chốt gõ
+lại mã vật tư không còn phủ đường này. Đo được: **`allowBlank: false` đọc lại ra `undefined`** vì nó
+là mặc định của OOXML. **1744/1744 xanh.**
+
+Trước đó **P149** (`0121`): **nhập danh mục từ Excel là GHI ĐÈ, và phải xem trước**. File 5 cột
 (mã · tên · mã nhóm · giá · *đang có hiệu lực*), phải chứa **đủ mọi mã đang có**, kiểm bảy bước rồi
 hiện **bảng thay đổi**, gõ lại `GHI DE` mới ghi. Bốn thứ KHÔNG làm được qua đường nhập: xoá sản
 phẩm (kể cả bằng cách bỏ dòng), ngừng bán (cột 5 chỉ để xem), xoá giá (ô trống = giữ nguyên), đổi

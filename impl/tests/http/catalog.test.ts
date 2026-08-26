@@ -553,7 +553,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
    * không chứng minh được chỉ số 4 có mặt trên một mảng, và ExcelJS coi
    * `undefined` y như ô trống.
    */
-  type Dong = (string | number | null | undefined)[];
+  type Dong = (string | number | boolean | null | undefined)[];
 
   /*
    * TÊN cũng phải duy nhất, không riêng mã.
@@ -647,7 +647,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * vì lượt nhập vẫn trả 200.
      */
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await fileDayDu([[code('I'), ten('O hong'), nhom, null, null]])) as unknown as Buffer);
+    await wb.xlsx.load((await fileDayDu([[code('I'), ten('O hong'), nhom, null, 'Đang bán']])) as unknown as Buffer);
     const ws = wb.worksheets[0]!;
     ws.getRow(ws.rowCount).getCell(2).value = { error: '#N/A' } as ExcelJS.CellErrorValue;
 
@@ -658,14 +658,14 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
   });
 
   it('bước 2 — giá không phải số thì chặn; nhưng chấp nhận cách gõ THẬT', async () => {
-    const xau = await xemTruoc(await fileDayDu([[code('I'), ten('Gia hong'), nhom, 'mười nghìn', null]]));
+    const xau = await xemTruoc(await fileDayDu([[code('I'), ten('Gia hong'), nhom, 'mười nghìn', 'Đang bán']]));
     expect(xau.status).toBe(400);
     expect(xau.body.code).toBe('IMPORT_BAD_TYPE');
     expect(xau.body.o[0].lyDo).toBe('KHONG_PHAI_SO');
 
     // Dấu chấm và dấu phẩy là dấu NGHÌN — danh mục không có giá lẻ dưới đồng.
     for (const gia of ['12.500', '12,500', '12 500', 12500, '12500,00']) {
-      const r = await xemTruoc(await fileDayDu([[code('I'), ten(`Gia ${gia}`), nhom, gia, null]]));
+      const r = await xemTruoc(await fileDayDu([[code('I'), ten(`Gia ${gia}`), nhom, gia, 'Đang bán']]));
       expect(r.status, `gõ "${gia}" phải đọc được`).toBe(200);
       expect(r.body.themMoi[0].price).toBe('12500');
     }
@@ -675,7 +675,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     // Excel đọc ô `12345` ra kiểu number. Chặn "cột chữ mà điền số" là chặn
     // nhầm một danh mục hoàn toàn bình thường.
     const ma = Number(`9${Date.now()}`.slice(0, 9));
-    const r = await xemTruoc(await fileDayDu([[ma, ten('Ma toan so'), nhom, null, null]]));
+    const r = await xemTruoc(await fileDayDu([[ma, ten('Ma toan so'), nhom, null, 'Đang bán']]));
     expect(r.status).toBe(200);
     expect(r.body.themMoi[0].code).toBe(String(ma));
   });
@@ -689,9 +689,9 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      */
     const r = await xemTruoc(
       await fileDayDu([
-        [code('I'), ten('a'), 'NHOM-KHONG-CO-1', null, null],
-        [code('I'), ten('b'), 'NHOM-KHONG-CO-2', null, null],
-        [code('I'), ten('c'), 'NHOM-KHONG-CO-1', null, null],
+        [code('I'), ten('a'), 'NHOM-KHONG-CO-1', null, 'Đang bán'],
+        [code('I'), ten('b'), 'NHOM-KHONG-CO-2', null, 'Đang bán'],
+        [code('I'), ten('c'), 'NHOM-KHONG-CO-1', null, 'Đang bán'],
       ]),
     );
     expect(r.status).toBe(400);
@@ -710,10 +710,10 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const maTrung = code('I');
     const r = await xemTruoc(
       await fileDayDu([
-        [maTrung, ten('Ten mot'), nhom, null, null],
-        [maTrung, ten('Ten hai'), nhom, null, null],
-        [code('I'), 'Ten lap lai', nhom, null, null],
-        [code('I'), 'ten LAP  lai', nhom, null, null],
+        [maTrung, ten('Ten mot'), nhom, null, 'Đang bán'],
+        [maTrung, ten('Ten hai'), nhom, null, 'Đang bán'],
+        [code('I'), 'Ten lap lai', nhom, null, 'Đang bán'],
+        [code('I'), 'ten LAP  lai', nhom, null, 'Đang bán'],
       ]),
     );
     expect(r.status).toBe(400);
@@ -727,14 +727,117 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   // --- Bước 5: thiếu sản phẩm đang có ---------------------------------------
 
-  it('bước 5 — thiếu một mã đang có thì CHẶN, và nói ra mã nào', async () => {
+  it('`0122` thiếu một mã đang có = NGỪNG BÁN sản phẩm ấy, tách riêng lý do', async () => {
+    /*
+     * ĐẢO quyết định của `0121`, vốn chặn hẳn lượt nhập. Khách hàng chốt cho
+     * phép, nên rủi ro chuyển hết sang bảng xem trước: một dòng biến mất vì lọc
+     * rồi chép phần đang hiện trông y hệt một quyết định ngừng bán, và thứ duy
+     * nhất đứng giữa là khối `VANG_MAT` liệt kê đủ.
+     */
     const ma = code('I');
-    await post('/catalog/products', { code: ma, name: ten('Khong duoc bien mat'), groupCode: nhom });
+    const sp = await post('/catalog/products', {
+      code: ma,
+      name: ten('Vang mat trong file'),
+      groupCode: nhom,
+    });
+
+    const thieu = () => fileDayDu([], (ds) => ds.filter((d) => d[0] !== ma));
+
+    const r = await xemTruoc(await thieu());
+    expect(r.status).toBe(200);
+    const d = r.body.ngungBan.find((x: { code: string }) => x.code === ma);
+    expect(d.lyDo).toBe('VANG_MAT');
+
+    // Xem trước KHÔNG ghi gì.
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DANG_AP_DUNG');
+
+    const g = await ghiDe(await thieu());
+    expect(g.status).toBe(200);
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DA_VO_HIEU_HOA');
+  });
+
+  it('`0122` vắng mặt mà VỐN ĐÃ ngừng bán thì không có gì để làm', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Da ngung tu truoc'), groupCode: nhom });
+    await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
 
     const r = await xemTruoc(await fileDayDu([], (ds) => ds.filter((d) => d[0] !== ma)));
+    expect(r.status).toBe(200);
+    expect(r.body.ngungBan.map((x: { code: string }) => x.code)).not.toContain(ma);
+  });
+
+  it('`0122` ô hiệu lực ghi *Ngừng bán* thì ngừng bán, lý do là Ô CHỌN', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Ngung bang o chon'), groupCode: nhom });
+
+    const buf = await fileDayDu([], (ds) =>
+      ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], d[3], 'Ngừng bán'] : d)),
+    );
+    const r = await xemTruoc(buf);
+    expect(r.body.ngungBan.find((x: { code: string }) => x.code === ma).lyDo).toBe('O_CHON');
+
+    expect((await ghiDe(buf)).status).toBe(200);
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DA_VO_HIEU_HOA');
+  });
+
+  it('`0122` đổi ô về *Đang bán* thì BÁN LẠI', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Ban lai'), groupCode: nhom });
+    await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
+
+    const buf = await fileDayDu([], (ds) =>
+      ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], d[3], 'Đang bán'] : d)),
+    );
+    const r = await xemTruoc(buf);
+    expect(r.body.banLai.map((x: { code: string }) => x.code)).toContain(ma);
+
+    expect((await ghiDe(buf)).status).toBe(200);
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DANG_AP_DUNG');
+  });
+
+  it('`0122` ô hiệu lực để TRỐNG là lỗi, không phải ngừng bán', async () => {
+    /*
+     * Chỗ dễ làm sai nhất của `0122`: dòng sản phẩm MỚI người dùng gõ thêm vào
+     * cuối file luôn có ô này trống. Hiểu ô trống là ngừng bán nghĩa là mọi sản
+     * phẩm vừa thêm đều chết ngay lúc sinh ra.
+     */
+    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Thieu o hieu luc'), nhom, null, null]]));
     expect(r.status).toBe(400);
-    expect(r.body.code).toBe('IMPORT_PRODUCT_MISSING');
-    expect(r.body.ma).toContain(ma);
+    expect(r.body.code).toBe('IMPORT_MISSING_FIELD');
+    expect(r.body.o.some((x: { cot: string }) => x.cot === 'dang_co_hieu_luc')).toBe(true);
+  });
+
+  it('`0122` giá trị lạ ở ô hiệu lực là lỗi KIỂU, nêu đúng dòng', async () => {
+    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Hieu luc la'), nhom, null, 'có']]));
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_BAD_TYPE');
+    expect(r.body.o[0].cot).toBe('dang_co_hieu_luc');
+    expect(r.body.o[0].lyDo).toBe('KHONG_PHAI_HIEU_LUC');
+  });
+
+  it('`0122` nhận cả TRUE/FALSE — checkbox của Excel 365 ghi ra boolean', async () => {
+    const maBan = code('I');
+    const maNgung = code('I');
+    const r = await xemTruoc(
+      await fileDayDu([
+        [maBan, ten('Boolean that'), nhom, null, true],
+        [maNgung, ten('Boolean gia'), nhom, null, false],
+      ]),
+    );
+    expect(r.status).toBe(200);
+    const them = r.body.themMoi as { code: string; conBan: boolean }[];
+    expect(them.find((x) => x.code === maBan)!.conBan).toBe(true);
+    expect(them.find((x) => x.code === maNgung)!.conBan).toBe(false);
+  });
+
+  it('`0122` dòng MỚI ghi *Ngừng bán* thì sinh ra đã ở trạng thái ngừng bán', async () => {
+    const ma = code('I');
+    const r = await ghiDe(await fileDayDu([[ma, ten('Sinh ra da ngung'), nhom, null, 'Ngừng bán']]));
+    expect(r.status).toBe(200);
+    const sp = await withAdminDb(async (c) =>
+      c.query<{ status: string }>(`SELECT status::text FROM cat.product WHERE code = $1`, [ma]),
+    );
+    expect(sp.rows[0]!.status).toBe('DA_VO_HIEU_HOA');
   });
 
   // --- Kế hoạch -------------------------------------------------------------
@@ -751,7 +854,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const truoc = (await get('/catalog/products?limit=1')).body.total as number;
     const r = await xemTruoc(
       await fileDayDu(
-        [[code('I'), ten('Hoan toan moi'), nhom, '5000', null]],
+        [[code('I'), ten('Hoan toan moi'), nhom, '5000', 'Đang bán']],
         (ds) => ds.map((d) => (d[0] === ma ? [d[0], tenMoi, d[2], 20000, d[4]] : d)),
       ),
     );
@@ -794,7 +897,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('bước 6 — KHÔNG gõ đúng chuỗi xác nhận thì không ghi gì', async () => {
     const ma = code('I');
-    const buf = await fileDayDu([[ma, ten('Khong duoc tao'), nhom, null, null]]);
+    const buf = await fileDayDu([[ma, ten('Khong duoc tao'), nhom, null, 'Đang bán']]);
 
     for (const sai of ['', 'ghi', 'XOA']) {
       const r = await ghiDe(buf, sai);
@@ -817,7 +920,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
     const r = await ghiDe(
       await fileDayDu(
-        [[maMoi, ten('San pham moi tinh'), nhom, '7000', null]],
+        [[maMoi, ten('San pham moi tinh'), nhom, '7000', 'Đang bán']],
         (ds) => ds.map((d) => (d[0] === ma ? [d[0], tenSau, nhomKhac, 90000, d[4]] : d)),
       ),
     );
@@ -831,22 +934,16 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     expect(gia.body.amount).toBe('90000');
   });
 
-  it('TRẠNG THÁI không bao giờ đổi qua đường nhập', async () => {
+  it('`0122` giữ nguyên ô hiệu lực thì trạng thái KHÔNG đổi', async () => {
     /*
-     * Cột thứ năm chỉ để xem. Vô hiệu hoá một sản phẩm gỡ nó khỏi mọi hồ sơ lập
-     * mới và làm mọi CSBH đang hiệu lực chứa nó hiện trong box *Yêu cầu cập
-     * nhật* — màn hình bắt gõ lại mã vật tư cho đúng một sản phẩm, nên làm việc
-     * ấy hàng loạt bằng một ô Excel là gỡ mất chốt mà không thay bằng gì.
+     * Chiều ngược của bốn ca đổi trạng thái ở trên. Không có nó thì một lượt sửa
+     * biến cột 5 thành "luôn ghi đè" vẫn xanh — mọi ca kia chỉ kiểm chiều ĐỔI.
      */
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Van dang ban'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Van ngung ban'), groupCode: nhom });
     await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
 
-    const r = await ghiDe(
-      await fileDayDu([], (ds) =>
-        ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], d[3], 'Đang áp dụng'] : d)),
-      ),
-    );
+    const r = await ghiDe(await fileDayDu());
     expect(r.status).toBe(200);
     expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DA_VO_HIEU_HOA');
   });
@@ -984,7 +1081,7 @@ describe('`0119` file Excel mẫu', () => {
     });
     // Đúng ô, không chỉ "có mặt đâu đó": lệch cột thì file vẫn nhập được và nạp
     // tên sản phẩm vào ô mã nhóm.
-    expect(thay).toEqual([tenMau, groupCode, 45000, 'Đang áp dụng']);
+    expect(thay).toEqual([tenMau, groupCode, 45000, 'Đang bán']);
   });
 
   it('`0120` lấy CẢ sản phẩm đã vô hiệu hoá — file là ảnh chụp danh mục', async () => {
@@ -1005,7 +1102,7 @@ describe('`0119` file Excel mẫu', () => {
       if (n > 1) dong.set(String(row.getCell(1).value), row.getCell(5).value);
     });
     expect(dong.has(maSp)).toBe(true);
-    expect(dong.get(maSp)).toBe('Đã ngừng bán');
+    expect(dong.get(maSp)).toBe('Ngừng bán');
   });
 
   it('VÒNG TRÒN: sửa một ô trên chính file mẫu rồi nhập lại thì xong', async () => {
@@ -1073,6 +1170,40 @@ describe('`0119` file Excel mẫu', () => {
       .attach('file', Buffer.from(await wb.xlsx.writeBuffer()), 'danh-muc.xlsx');
     expect(r.status).toBe(200);
     expect(r.body.themMoi).toHaveLength(0);
+  });
+
+  it('`0122` cột hiệu lực là Ô CHỌN hai giá trị, không cho để trống', async () => {
+    /*
+     * Excel không có checkbox nằm TRONG một ô — ô chọn xổ xuống là dạng duy nhất
+     * dựng được và đọc lại được. `allowBlank: false` là lớp chặn duy nhất đứng
+     * TRƯỚC lúc tải lên; mọi lớp còn lại chỉ nói được sau khi người dùng đã soạn
+     * xong cả file.
+     *
+     * Ca này kiểm ràng buộc sống qua vòng ghi/đọc — nếu ExcelJS đánh rơi nó thì
+     * file vẫn "đúng" với bộ đọc của ta, và không gì khác bắt được.
+     */
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom o chon' });
+    await post('/catalog/products', {
+      code: code('I'),
+      name: `Co o chon ${P}-${++n}`,
+      groupCode,
+    });
+
+    const ws = (await mo()).worksheets[0]!;
+    const rb = ws.getRow(2).getCell(5).dataValidation;
+    expect(rb?.type).toBe('list');
+    expect(rb?.formulae?.[0]).toContain('Ngừng bán');
+    expect(rb?.formulae?.[0]).toContain('Đang bán');
+    // Excel phải CHẶN giá trị lạ, không chỉ cảnh báo rồi vẫn nhận.
+    expect(rb?.showErrorMessage).toBe(true);
+    expect(rb?.errorStyle).toBe('stop');
+    /*
+     * `allowBlank` đọc lại ra `undefined`, không phải `false` — và đó là ĐÚNG:
+     * `allowBlank="0"` là mặc định của OOXML nên ExcelJS không ghi thuộc tính ấy
+     * ra file. Khẳng định `toBe(false)` ở đây đỏ, và đỏ vì một lý do sai.
+     */
+    expect(rb?.allowBlank ?? false).toBe(false);
   });
 
   it('chỉ Quản trị hệ thống tải được', async () => {
