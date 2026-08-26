@@ -97,6 +97,7 @@ const makeProduct = async (): Promise<string> => {
       code: uniq('SP'),
       name: 'Nutricare Gold',
       groupCode,
+      price: '100000',
     });
   if (r.status !== 201) throw new Error(`tạo sản phẩm hỏng: ${JSON.stringify(r.body)}`);
   await c

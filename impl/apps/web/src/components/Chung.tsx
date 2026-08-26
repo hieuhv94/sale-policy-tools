@@ -9,6 +9,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { docLoi } from '../lib/loi.js';
 import { nhanTrangThai, nhomTrangThai, tien } from '../lib/format.js';
+import {
+  MAU_TRANG_THAI_SAN_PHAM,
+  NHAN_TRANG_THAI_SAN_PHAM,
+  type TrangThaiSanPham,
+} from '../lib/danh-muc.js';
 import { Lien } from '../lib/router.js';
 
 /**
@@ -51,6 +56,22 @@ export function DaiThe<T extends string>({
 export function Nhan({ trangThai }: { trangThai: string }) {
   return (
     <span className={`nhan nhan-${nhomTrangThai(trangThai)}`}>{nhanTrangThai(trangThai)}</span>
+  );
+}
+
+/**
+ * Nhãn trạng thái SẢN PHẨM — xanh đang áp dụng, đỏ đã vô hiệu hoá (`0123`).
+ *
+ * Thành phần riêng chứ không dùng lại `Nhan` ở trên: hai bảng tra khác nhau hoàn
+ * toàn — `nhomTrangThai` chỉ biết mười một trạng thái HỒ SƠ, và ném một trạng
+ * thái sản phẩm vào đó thì nó rơi vào nhánh dự phòng và ra màu xám. Trùng nhau ở
+ * chỗ hai KHOÁ MÀU, và đó là chủ ý.
+ */
+export function NhanSanPham({ trangThai }: { trangThai: TrangThaiSanPham }) {
+  return (
+    <span className={`nhan nhan-${MAU_TRANG_THAI_SAN_PHAM[trangThai]}`}>
+      {NHAN_TRANG_THAI_SAN_PHAM[trangThai]}
+    </span>
   );
 }
 

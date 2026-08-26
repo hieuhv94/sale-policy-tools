@@ -1032,6 +1032,11 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-28 | Để trống ô *đang có hiệu lực* | `IMPORT_MISSING_FIELD` nêu đúng dòng — **không** hiểu thành ngừng bán. Dòng sản phẩm mới gõ thêm luôn có ô này trống | §13.1 | `P0` |
 | CAT-29 | Điền một giá trị lạ vào ô *đang có hiệu lực* | `IMPORT_BAD_TYPE` / `KHONG_PHAI_HIEU_LUC`. Nhận thêm `TRUE`/`FALSE` của checkbox Excel 365 | §13.1 | `P1` |
 | CAT-30 | Mở file mẫu, soi ô cột *đang có hiệu lực* | Là **ô chọn** (`dataValidation` kiểu `list`) hai giá trị, `errorStyle: stop` — Excel chặn giá trị lạ ngay tại chỗ nhập | §13.1 | `P1` |
+| CAT-31 | Tạo sản phẩm không khai giá | 400, và **không** ghi sản phẩm nào — sản phẩm với giá nằm trong một transaction | §13.1 | `P0` |
+| CAT-32 | Sửa sản phẩm mà chỉ đổi tên, không gõ lại mã | `CONFIRM_MISMATCH`. Từ `0123` mọi lượt sửa đều đòi gõ, vì màn hình này đổi được cả giá | §13.1 | `P0` |
+| CAT-33 | Sửa giá rồi lưu lại đúng giá ấy lần nữa | Lượt sau **không** sinh `catalog.price_changed` — mỗi sự kiện kéo theo một lượt rà toàn bộ hồ sơ đã đóng băng | §13.1 | `P1` |
+| CAT-34 | Đọc `GET /catalog/products` bằng token của TDV | Mỗi dòng có `price` là giá hiện hành, **khớp từng chữ** với `current-price`; giá của ngày mai chưa được tính | §13.1 | `P0` |
+| CAT-35 | Soi nhãn trạng thái sản phẩm ở cả hai bảng | Xanh *Đang áp dụng*, đỏ *Đã vô hiệu hoá*; dùng lại đúng hai khoá màu của nhãn trạng thái hồ sơ | §13.1 | `P2` |
 | CAT-20 | Nhập file có ô lỗi công thức (`#N/A`) ở cột tên | `IMPORT_BAD_TYPE` nêu đúng dòng và cột. **Không** được lọt thành tên sản phẩm `[object Object]` | §13.1 | `P0` |
 | CAT-21 | Nhập file có mã vật tư toàn số, giá gõ `12.500` · `12,500` · `12 500` | Cả hai đều hợp lệ — mã đọc thành chuỗi, giá đọc thành 12500. Dấu chấm và dấu phẩy là dấu **nghìn** | §13.1 | `P1` |
 | CAT-22 | Bấm *Xem trước* rồi không xác nhận | Không dòng nào được ghi. Bảng xem trước tách **thêm mới · sửa (cũ → mới) · không đổi**, và cảnh báo dòng đổi giá quá 50% | §13.1 | `P0` |

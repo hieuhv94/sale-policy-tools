@@ -156,8 +156,7 @@ async function makeProduct(name: string, groupCode: string): Promise<string> {
   const r = await cpost('/catalog/products', {
     code: uniq('SP'),
     name,
-    groupCode,
-  });
+    groupCode, price: '100000' });
   if (r.status !== 201) throw new Error(`tạo sản phẩm hỏng: ${JSON.stringify(r.body)}`);
   await cpost(`/catalog/products/${r.body.id}/prices`, {
     priceType: 'GIA_BAN_CONG_TY',

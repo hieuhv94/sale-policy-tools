@@ -153,8 +153,7 @@ const makeProduct = async (i = 0): Promise<string> => {
     .send({
       code: uniq('SP'),
       name: `Nutricare Gold ${i} — sữa dinh dưỡng`,
-      groupCode,
-    });
+      groupCode, price: '100000' });
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
     .set('Authorization', `Bearer ${tok['admin01']}`)

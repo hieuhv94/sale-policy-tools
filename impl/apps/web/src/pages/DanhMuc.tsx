@@ -17,13 +17,13 @@ import { layJson } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { can } from '../lib/can.js';
 import {
-  NHAN_TRANG_THAI_SAN_PHAM,
   THE_SAN_PHAM,
   type NhomSanPham,
   type SanPham,
   type TheSanPhamKhoa,
 } from '../lib/danh-muc.js';
-import { BaoLoi, DaiThe, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { BaoLoi, DaiThe, DangTai, NhanSanPham, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { tien } from '../lib/format.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 import { TheSanPham } from '../components/danh-muc/SanPham.js';
@@ -225,6 +225,7 @@ function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {
                 <th>Mã vật tư</th>
                 <th>Tên sản phẩm</th>
                 <th>Nhóm</th>
+                <th className="so">Giá bán Công ty</th>
                 <th>Trạng thái</th>
               </tr>
             </thead>
@@ -234,7 +235,12 @@ function BangSanPhamChiXem({ nhom }: { nhom: NhomSanPham[] }) {
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
                   <td>{s.groupCode}</td>
-                  <td>{NHAN_TRANG_THAI_SAN_PHAM[s.status] ?? s.status}</td>
+                  {/* Dấu gạch, không phải ô trống: dữ liệu cũ có sản phẩm chưa
+                      từng đặt giá, và một ô rỗng đọc như một lỗi hiển thị. */}
+                  <td className="so">{s.price === null ? '—' : tien(s.price)}</td>
+                  <td>
+                    <NhanSanPham trangThai={s.status} />
+                  </td>
                 </tr>
               ))}
             </tbody>

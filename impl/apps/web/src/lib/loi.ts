@@ -121,7 +121,7 @@ const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = 
     return (
       `${o.length} ô bắt buộc còn trống: ${vaiSo(
         o.map((x) => `dòng ${x.rowNumber} · ${NHAN_COT_EXCEL[x.cot] ?? x.cot}`),
-      )}. ` + 'Điền đủ rồi tải lại. Riêng ô giá được để trống — nó nghĩa là giữ nguyên giá cũ.'
+      )}. ` + 'Điền đủ rồi tải lại — từ nay ô giá cũng bắt buộc, sản phẩm phải có giá bán.'
     );
   },
 

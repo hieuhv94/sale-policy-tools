@@ -80,7 +80,7 @@ const makeProduct = async (): Promise<string> => {
   const r = await c
     .post('/catalog/products')
     .set('Authorization', `Bearer ${tok['admin01']}`)
-    .send({ code: uniq('SP'), name: 'Nutricare Gold', groupCode });
+    .send({ code: uniq('SP'), name: 'Nutricare Gold', groupCode, price: '100000' });
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
     .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -2843,7 +2843,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0022'), name: 'Nutricare Gold', groupCode: g });
+      .send({ code: uniq('SP0022'), name: 'Nutricare Gold', groupCode: g, price: '100000' });
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -2988,7 +2988,7 @@ describe('0023 sản phẩm không có ngưỡng nào', () => {
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0023'), name: 'San pham khong nguong', groupCode: g });
+      .send({ code: uniq('SP0023'), name: 'San pham khong nguong', groupCode: g, price: '100000' });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
@@ -3072,7 +3072,7 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0024'), name: 'SP troi', groupCode: g });
+      .send({ code: uniq('SP0024'), name: 'SP troi', groupCode: g, price: '100000' });
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -3090,7 +3090,7 @@ describe('0023 dòng hồ sơ trả ruleId', () => {
     const sp = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0023B'), name: 'SP', groupCode: g });
+      .send({ code: uniq('SP0023B'), name: 'SP', groupCode: g, price: '100000' });
     await c
       .post(`/catalog/products/${sp.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -3167,7 +3167,7 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
     const r = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP0023C'), name: 'SP ba nguong', groupCode: g });
+      .send({ code: uniq('SP0023C'), name: 'SP ba nguong', groupCode: g, price: '100000' });
     await c
       .post(`/catalog/products/${r.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -3381,8 +3381,29 @@ const sanPhamNhomRieng = async (gia: string, tuNgay = '2020-01-01') => {
   const r = await c
     .post('/catalog/products')
     .set('Authorization', `Bearer ${tok['admin01']}`)
-    .send({ code: uniq('SP'), name: 'San pham rieng', groupCode: nhom });
+    .send({ code: uniq('SP'), name: 'San pham rieng', groupCode: nhom, price: '100000' });
   products.push(r.body.id);
+
+  /*
+   * XOÁ dòng giá của NGÀY HÔM NAY mà lượt tạo vừa sinh ra (`0123`).
+   *
+   * Từ `0123` tạo sản phẩm BẮT BUỘC có giá, và dòng ấy mang ngày hôm nay — nên
+   * nó thắng mọi mốc quá khứ mà helper này dựng, và mọi ca kiểm về lịch sử giá
+   * đọc ra đúng con số của lượt tạo. Đo được: 12 ca đỏ cùng lúc, tất cả với
+   * `expected '100000' to be '300000'`.
+   *
+   * Đi thẳng CSDL vì API không còn đường nào tạo một sản phẩm chưa có giá — mà
+   * đó chính là điểm của `0123`. Đây là fixture dựng một quá khứ, không phải một
+   * đường nghiệp vụ.
+   */
+  await withAdminDb(async (c) =>
+    c.query(
+      `DELETE FROM cat.product_price
+        WHERE product_id = $1 AND price_type = 'GIA_BAN_CONG_TY'
+          AND effective_from = current_date`,
+      [r.body.id],
+    ),
+  );
   await datGia(r.body.id as string, gia, tuNgay);
   return { productId: r.body.id as string, groupCode: nhom };
 };
@@ -3785,7 +3806,8 @@ describe('0029 box Yêu cầu cập nhật', () => {
     await (await cat())
       .patch(`/catalog/products/${productId}`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ status: 'DANG_AP_DUNG' });
+      // `confirm` bắt buộc ở MỌI lượt sửa từ `0123`, kể cả lượt bật lại.
+      .send({ status: 'DANG_AP_DUNG', confirm: maSp });
     await raSoat(productId);
     expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
   });

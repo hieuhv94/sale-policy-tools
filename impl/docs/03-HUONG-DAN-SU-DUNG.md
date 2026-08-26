@@ -1540,12 +1540,19 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
   cầu cập nhật* của người phụ trách, kèm một lá thư tới từng Trình dược viên. Vì thế hộp thoại bắt
   bạn **gõ lại mã vật tư** để xác nhận — đây là thao tác phá huỷ duy nhất của sản phẩm, vì không có
   đường xoá hẳn. Đổi tên hay **bật lại** thì không đòi gì.
-- **Giá không phải một ô** — nó là chuỗi dòng có ngày hiệu lực. Nút *Giá* mở lịch sử và cho đặt giá
-  mới. Giá hiện hành là dòng mới nhất có ngày **không ở tương lai**: đặt giá cho ngày mai thì hôm nay
-  vẫn dùng giá cũ.
+- **Giá bán Công ty bắt buộc ngay khi tạo** `mới 26/08`. Không còn nút *Giá* riêng ở từng dòng: giá
+  nằm trong chính biểu mẫu *Thêm sản phẩm*, và sửa được ở nút *Sửa*. Trước đó sản phẩm tạo xong chưa
+  có giá thì chưa lập được hồ sơ với nó — một trạng thái nửa vời mà chỉ Quản trị chữa được.
+- **Ngày áp dụng luôn là hôm nay** `mới 26/08`. Màn hình không còn ô chọn ngày; đổi giá là đổi ngay.
+  Lịch sử giá vẫn giữ đủ mọi mốc cũ và hiện ở cuối hộp thoại *Sửa*.
+- **Mọi lượt Sửa đều phải gõ lại mã vật tư** `mới 26/08`, không riêng lúc vô hiệu hoá. Màn hình này
+  giờ đổi được cả giá — con số đóng băng vào mọi hồ sơ gửi duyệt từ lúc ấy — nên không còn thao tác
+  nhẹ nào ở đây.
 - Danh mục chỉ có **một loại giá: Giá bán Công ty**. Giá bán buôn KHÔNG khai ở đây — người đề nghị
   nhập nó trên từng dòng của từng hồ sơ, vì nó khác nhau theo khách hàng.
-- **Sản phẩm mới chưa có giá** nên chưa lập được hồ sơ với nó. Đặt giá ngay sau khi tạo.
+- **Cột *Giá bán Công ty* hiện trên bảng sản phẩm của mọi vai trò** `mới 26/08`, không riêng Quản
+  trị. Trình dược viên tra giá một mặt hàng không phải mở màn hình lập hồ sơ ra nữa.
+- **Trạng thái có màu** `mới 26/08`: xanh là *Đang áp dụng*, đỏ là *Đã vô hiệu hoá*.
 ### Nhập danh mục từ Excel `sửa 26/08`
 
 Cách dùng chỉ có một, và làm đúng thứ tự này thì không sai được:
@@ -1562,7 +1569,7 @@ Cách dùng chỉ có một, và làm đúng thứ tự này thì không sai đ�
 | `ma_vat_tu` | | Mã đã có thì **cập nhật**, mã mới thì **thêm**. Không sửa được mã của sản phẩm đã có |
 | `ten_vat_tu` | có | |
 | `nhom_sp` | có | Chỉ **mã** nhóm. Xem các mã đang có ở trang *Nhom san pham* của chính file |
-| `gia_ban_cong_ty` | có | **Để trống = giữ nguyên giá cũ.** Có điền thì áp dụng **từ hôm nay** |
+| `gia_ban_cong_ty` | có | **Bắt buộc, không được để trống** `sửa 26/08`. Áp dụng **từ hôm nay** |
 | `dang_co_hieu_luc` | có | **Ô chọn** — bấm vào để xổ *Đang bán* / *Ngừng bán*. **Không được để trống** |
 
 ### Ngừng bán sản phẩm qua file `mới 26/08`
@@ -1600,6 +1607,9 @@ Vài chỗ hay hỏi:
   dấu phẩy là dấu **nghìn**.
 - **Ô *đang có hiệu lực* để trống là lỗi**, không phải ngừng bán. Dòng sản phẩm mới bạn gõ thêm vào
   cuối file luôn trống ô này — nhớ chọn một giá trị cho nó.
+- **Ô giá cũng không được để trống** `sửa 26/08`. Nếu danh mục còn sản phẩm cũ chưa từng đặt giá thì
+  file tải về sẽ trống ô ấy, và lượt nhập đầu tiên buộc bạn điền giá cho chúng — chúng vốn không lập
+  được hồ sơ nào.
 - **Trùng tên** chỉ bị chặn khi file tạo thêm một cái trùng **mới**. Danh mục đang có hai sản phẩm
   cùng tên thì giữ nguyên được, không phải đi sửa tên mới nhập lại được.
 - **Nhập lại lần thứ hai trong cùng ngày** thì giá của lượt sau đè lượt trước, không báo lỗi.

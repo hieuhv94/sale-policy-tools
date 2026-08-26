@@ -118,8 +118,23 @@ export class ProductsService {
 
   // --- Sản phẩm -------------------------------------------------------------
 
-  async create(input: ProductInput, actorId: string) {
-    return this.db.tx((c) => this.insertOne(c, input, actorId));
+  /**
+   * Tạo sản phẩm — GIÁ BÁN CÔNG TY BẮT BUỘC (`0123`).
+   *
+   * Trước đó giá là một bước riêng, và hệ quả đo được trên chính bộ nạp: sản
+   * phẩm sinh ra ở trạng thái *không dùng được*. Nó hiện trong danh mục, hiện
+   * trong ô chọn lúc lập hồ sơ, rồi chặn ở `PRICE_NOT_SET` đúng lúc Trình dược
+   * viên đã gõ xong dòng — một trạng thái nửa vời mà chỉ Quản trị chữa được.
+   *
+   * Cả hai nằm trong MỘT transaction: sản phẩm không có giá không được phép tồn
+   * tại dù chỉ một khoảnh khắc, kể cả khi lượt ghi giá hỏng.
+   */
+  async create(input: ProductInput & { price: bigint }, actorId: string) {
+    return this.db.tx(async (c) => {
+      const sp = await this.insertOne(c, input, actorId);
+      await this.datGiaTrongTx(c, sp.id, sp.code, input.price, null, actorId);
+      return sp;
+    });
   }
 
   /**
@@ -165,6 +180,7 @@ export class ProductsService {
     patch: {
       name?: string | undefined;
       status?: ProductStatus | undefined;
+      price?: bigint | undefined;
       confirm?: string | undefined;
     },
     actorId: string,
@@ -184,9 +200,19 @@ export class ProductsService {
        *
        * Bật lại thì KHÔNG đòi gì: nó không làm hỏng gì cả.
        */
-      if (patch.status === 'DA_VO_HIEU_HOA' && before.status !== 'DA_VO_HIEU_HOA') {
-        xacNhanGoLai(patch.confirm, before.code, { viec: 'vô hiệu hoá sản phẩm này' });
-      }
+      /*
+       * GÕ LẠI MÃ CHO MỌI LƯỢT SỬA (`0123`), không riêng lượt vô hiệu hoá.
+       *
+       * `0036` chỉ đòi ở lượt vô hiệu hoá, và lập luận lúc ấy là: bắt gõ cho một
+       * thao tác hằng ngày thì làm mòn chính chốt chặn ấy. Lập luận đó đúng khi
+       * màn hình sửa chỉ đổi được TÊN.
+       *
+       * Từ `0123` nó đổi được cả GIÁ, và giá là con số đóng băng vào mọi hồ sơ
+       * gửi duyệt từ lúc ấy trở đi, cộng một dòng trong khối *Yêu cầu cập nhật*
+       * của mọi TDV đang giữ CSBH chứa sản phẩm này. Không còn thao tác nhẹ nào
+       * trên màn hình này để mà làm mòn.
+       */
+      xacNhanGoLai(patch.confirm, before.code, { viec: 'sửa sản phẩm này' });
 
       const r = await c.query<ProductRow>(
         `UPDATE cat.product
@@ -203,6 +229,27 @@ export class ProductsService {
         'catalog.changed',
         changeEvent('product', id, actorId, { before: toDto(before), after: toDto(after) }),
       );
+
+      /*
+       * Giá đi SAU và chỉ khi thật sự đổi.
+       *
+       * Ghi một dòng giá bằng đúng giá đang có là thêm một sự kiện
+       * `catalog.price_changed`, tức một lượt rà mọi hồ sơ đã đóng băng (nợ
+       * N-09), để đổi lấy đúng con số không.
+       */
+      if (patch.price !== undefined) {
+        const gia = await c.query<{ amount: string }>(
+          `SELECT amount::text FROM cat.product_price
+            WHERE product_id = $1 AND price_type = 'GIA_BAN_CONG_TY'
+              AND effective_from <= current_date
+            ORDER BY effective_from DESC LIMIT 1`,
+          [id],
+        );
+        const cu = gia.rows[0]?.amount ?? null;
+        if (cu === null || BigInt(cu) !== patch.price) {
+          await this.datGiaTrongTx(c, id, after.code, patch.price, cu, actorId);
+        }
+      }
       return toDto(after);
     });
   }
@@ -232,10 +279,33 @@ export class ProductsService {
      * `forNewPolicy` vẫn ghép chuỗi vì nó là hằng, không phải dữ liệu người dùng.
      */
     const where = opts.forNewPolicy ? `AND p.status = 'DANG_AP_DUNG'` : '';
+    /*
+     * GIÁ HIỆN HÀNH đi kèm mỗi dòng (`0123`).
+     *
+     * Bảng sản phẩm là màn hình của CẢ SÁU vai trò, và tới `0122` nó không hiện
+     * giá ở đâu cả — Trình dược viên muốn biết giá một mặt hàng phải mở màn hình
+     * lập hồ sơ ra rồi thêm dòng, tức là đi vào một luồng GHI để đọc một con số.
+     *
+     * `LEFT JOIN LATERAL` chứ không phải một truy vấn thứ hai cho từng dòng:
+     * bảng này phân trang 20 dòng, nhưng nó cũng là nguồn của ô chọn sản phẩm ở
+     * `SuaHoSo` với `limit=200`.
+     *
+     * Phép chọn giá PHẢI khớp từng chữ với `currentPrice` — dòng mới nhất có
+     * ngày không ở tương lai. Hai chỗ trả lời "giá hiện hành là bao nhiêu" mà
+     * lệch nhau thì bảng nói một con số còn hồ sơ đóng băng một con số khác.
+     */
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status,
+              gi.amount::text AS price,
               count(*) OVER() AS total_count
-         FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
+         FROM cat.product p
+         JOIN cat.product_group g ON g.id = p.group_id
+         LEFT JOIN LATERAL (
+           SELECT amount FROM cat.product_price
+            WHERE product_id = p.id AND price_type = 'GIA_BAN_CONG_TY'
+              AND effective_from <= current_date
+            ORDER BY effective_from DESC LIMIT 1
+         ) gi ON true
         WHERE ($3::text IS NULL OR p.name_norm LIKE $3)
           AND ($4::text IS NULL OR g.code = $4)
           ${where}
@@ -282,11 +352,23 @@ export class ProductsService {
 
   // --- Giá ------------------------------------------------------------------
 
+  /**
+   * `effectiveFrom` TUỲ CHỌN, mặc định hôm nay (`0123`).
+   *
+   * Màn hình không còn ô chọn ngày: khách hàng chốt giá đổi là đổi ngay. Tham số
+   * vẫn ở lại vì `seed-demo` dựng ba năm lịch sử giá qua chính đường này — bỏ
+   * nó đi thì bộ nạp không dựng nổi một chuỗi giá nào có quá khứ.
+   *
+   * Hệ quả phải nhớ: đặt giá cho một ngày TƯƠNG LAI vẫn làm được qua API, và
+   * lượt rà *Yêu cầu cập nhật* chạy NGAY lúc ấy — lúc giá mới chưa hiệu lực, nên
+   * nó không thấy chênh lệch nào, và **không có gì chạy lại vào ngày hiệu lực**.
+   * Lỗ ấy có từ trước và giờ không với tới được từ giao diện.
+   */
   async setPrice(
     productId: string,
     priceType: PriceType,
     amount: bigint,
-    effectiveFrom: string,
+    effectiveFrom: string | undefined,
     actorId: string,
   ) {
     return this.db.tx(async (c) => {
@@ -320,10 +402,10 @@ export class ProductsService {
        */
       await c.query(
         `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-         VALUES ($1,$2,$3,$4,$5)
+         VALUES ($1,$2,$3, coalesce($4::date, current_date), $5)
          ON CONFLICT (product_id, price_type, effective_from)
          DO UPDATE SET amount = EXCLUDED.amount, created_by = EXCLUDED.created_by`,
-        [productId, priceType, amount.toString(), effectiveFrom, actorId],
+        [productId, priceType, amount.toString(), effectiveFrom ?? null, actorId],
       );
 
       const oldAmount = prev.rows[0]?.amount ?? null;
@@ -335,11 +417,17 @@ export class ProductsService {
         priceType,
         oldAmount,
         newAmount: amount.toString(),
-        effectiveFrom,
+        effectiveFrom: effectiveFrom ?? new Date().toISOString().slice(0, 10),
         actorId,
         at: new Date().toISOString(),
       });
-      return { productId, priceType, oldAmount, newAmount: amount.toString(), effectiveFrom };
+      return {
+        productId,
+        priceType,
+        oldAmount,
+        newAmount: amount.toString(),
+        effectiveFrom: effectiveFrom ?? new Date().toISOString().slice(0, 10),
+      };
     });
   }
 

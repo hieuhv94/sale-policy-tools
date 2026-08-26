@@ -23,6 +23,7 @@ import {
   ChuThichBatBuoc,
   DangTai,
   HopThoai,
+  NhanSanPham,
   ONhapTien,
   OTimKiem,
   Trong,
@@ -37,7 +38,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
   const [tim, datTim] = useState('');
   const [locNhom, datLocNhom] = useState('');
   const [mo, datMo] = useState<
-    { kieu: 'tao' } | { kieu: 'sua'; sp: SanPham } | { kieu: 'gia'; sp: SanPham } | { kieu: 'excel' } | null
+    { kieu: 'tao' } | { kieu: 'sua'; sp: SanPham } | { kieu: 'excel' } | null
   >(null);
 
   /*
@@ -158,6 +159,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                 <th>Mã vật tư</th>
                 <th>Tên sản phẩm</th>
                 <th>Nhóm</th>
+                <th className="so">Giá bán Công ty</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
@@ -168,16 +170,19 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                   <td className="ma-phu">{s.code}</td>
                   <td>{s.name}</td>
                   <td>{s.groupCode}</td>
-                  <td>{NHAN_TRANG_THAI_SAN_PHAM[s.status] ?? s.status}</td>
+                  {/* Dấu gạch, không phải ô trống: dữ liệu cũ có sản phẩm chưa
+                      từng đặt giá, và một ô rỗng đọc như một lỗi hiển thị. */}
+                  <td className="so">{s.price === null ? '—' : tien(s.price)}</td>
                   <td>
-                    <div className="nhom-nut nhom-nut-gon">
-                      <button type="button" className="nut nut-nhe" onClick={() => datMo({ kieu: 'sua', sp: s })}>
-                        Sửa
-                      </button>
-                      <button type="button" className="nut nut-nhe" onClick={() => datMo({ kieu: 'gia', sp: s })}>
-                        Giá
-                      </button>
-                    </div>
+                    <NhanSanPham trangThai={s.status} />
+                  </td>
+                  <td>
+                    {/* Chỉ còn MỘT nút (`0123`). Giá sửa ngay trong hộp thoại
+                        Sửa, nên một nút riêng cho nó là chia đôi cùng một việc
+                        thành hai chỗ bấm. */}
+                    <button type="button" className="nut nut-nhe" onClick={() => datMo({ kieu: 'sua', sp: s })}>
+                      Sửa
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -189,7 +194,6 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
 
       {mo?.kieu === 'tao' && <HopThoaiTao nhom={nhom} dong={dong} xong={xong} />}
       {mo?.kieu === 'sua' && <HopThoaiSua sp={mo.sp} dong={dong} xong={xong} />}
-      {mo?.kieu === 'gia' && <HopThoaiGia sp={mo.sp} dong={dong} />}
       {mo?.kieu === 'excel' && <HopThoaiExcel dong={dong} xong={xong} />}
     </>
   );
@@ -210,6 +214,7 @@ function HopThoaiTao({
   const [ma, datMa] = useState('');
   const [ten, datTen] = useState('');
   const [maNhom, datMaNhom] = useState(nhom[0]?.code ?? '');
+  const [gia, datGia] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
@@ -218,7 +223,12 @@ function HopThoaiTao({
     datLoi(null);
     datDangGui(true);
     try {
-      await dang('/catalog/products', { code: ma.trim(), name: ten.trim(), groupCode: maNhom });
+      await dang('/catalog/products', {
+        code: ma.trim(),
+        name: ten.trim(),
+        groupCode: maNhom,
+        price: gia,
+      });
       xong();
     } catch (err) {
       bao(err);
@@ -238,6 +248,13 @@ function HopThoaiTao({
         <Truong id="sp-ten" nhan="Tên sản phẩm" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={ten} onChange={(e) => datTen(e.target.value)} />}
         </Truong>
+        {/*
+          GIÁ NẰM NGAY TRONG BIỂU MẪU TẠO (`0123`).
+
+          Trước đó giá là một bước riêng sau khi tạo, và hệ quả là sản phẩm sinh
+          ra ở trạng thái không dùng được: nó hiện trong ô chọn lúc lập hồ sơ rồi
+          chặn ở "chưa có giá" đúng lúc Trình dược viên đã gõ xong dòng.
+        */}
         <Truong id="sp-nhom" nhan="Nhóm" bắtBuộc>
           {(p) => (
             <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
@@ -249,14 +266,21 @@ function HopThoaiTao({
             </select>
           )}
         </Truong>
+        <Truong id="sp-gia" nhan="Giá bán Công ty" bắtBuộc>
+          {(p) => <ONhapTien {...p} giaTri={gia} doi={datGia} />}
+        </Truong>
         <p className="ghi-chu">
-          Sản phẩm mới <strong>chưa có giá</strong>. Chưa đặt giá thì chưa lập được hồ sơ CSBH với
-          sản phẩm này — đặt giá ngay sau khi tạo.
+          Giá áp dụng <strong>từ hôm nay</strong>. Đổi giá về sau ở nút <strong>Sửa</strong>; mỗi lần
+          đổi là một dòng mới trong lịch sử giá, hồ sơ CSBH đã lập giữ nguyên giá đã đóng băng.
         </p>
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || ma.trim() === '' || ten.trim() === ''}>
+          <button
+            type="submit"
+            className="nut nut-chinh"
+            disabled={dangGui || ma.trim() === '' || ten.trim() === '' || gia.trim() === ''}
+          >
             {dangGui ? 'Đang tạo…' : 'Tạo'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>
@@ -274,19 +298,24 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
   const { bao } = useBaoLoi();
   const [ten, datTen] = useState(sp.name);
   const [trangThai, datTrangThai] = useState<TrangThaiSanPham>(sp.status);
+  const [gia, datGia] = useState(sp.price ?? '');
   const [go, datGo] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
   /*
-   * VÔ HIỆU HOÁ là thao tác phá huỷ của sản phẩm — không có đường xoá hẳn — nên
-   * nó đòi gõ lại mã (`0036`), y như xoá nhóm hay xoá quy định.
+   * GÕ LẠI MÃ Ở MỌI LƯỢT SỬA (`0123`), không riêng lượt vô hiệu hoá.
    *
-   * Chỉ đòi khi đang BẬT sang vô hiệu hoá, không đòi khi bật lại và không đòi
-   * khi chỉ sửa tên. Bắt gõ mã cho mọi lần lưu là làm mòn chính chốt chặn ấy:
-   * người dùng gõ mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá.
+   * `0036` chỉ đòi khi bật sang vô hiệu hoá, và lập luận lúc ấy là: bắt gõ cho
+   * một thao tác hằng ngày thì làm mòn chính chốt chặn ấy. Lập luận đó đúng khi
+   * màn hình này chỉ đổi được TÊN.
+   *
+   * Từ `0123` nó đổi được cả GIÁ — con số đóng băng vào mọi hồ sơ gửi duyệt kể
+   * từ lúc ấy, cộng một dòng trong khối *Yêu cầu cập nhật* của mọi TDV đang giữ
+   * CSBH chứa sản phẩm này. Không còn thao tác nhẹ nào ở đây để mà làm mòn.
    */
   const dangVoHieu = trangThai === 'DA_VO_HIEU_HOA' && sp.status !== 'DA_VO_HIEU_HOA';
+  const doiGia = gia.trim() !== '' && gia.trim() !== (sp.price ?? '');
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -296,7 +325,10 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
       await va(`/catalog/products/${sp.id}`, {
         name: ten.trim(),
         status: trangThai,
-        ...(dangVoHieu ? { confirm: go.trim() } : {}),
+        // Chỉ gửi khi ĐỔI: gửi lại đúng giá đang có thì máy chủ bỏ qua, nhưng
+        // để giao diện quyết chuyện ấy là dựng chỗ thứ hai cho cùng một luật.
+        ...(doiGia ? { price: gia.trim() } : {}),
+        confirm: go.trim(),
       });
       xong();
     } catch (err) {
@@ -319,6 +351,25 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
         <Truong id="sp-sua-ten" nhan="Tên sản phẩm" bắtBuộc>
           {(p) => <input {...p} className="o-nhap" value={ten} onChange={(e) => datTen(e.target.value)} />}
         </Truong>
+        {/*
+          GIÁ SỬA NGAY TẠI ĐÂY (`0123`), thay cho nút *Giá* riêng ở từng dòng.
+
+          Ngày áp dụng luôn là hôm nay — màn hình không còn ô chọn ngày. Đặt giá
+          cho một ngày tương lai vẫn làm được qua API, nhưng lượt rà *Yêu cầu cập
+          nhật* chạy NGAY lúc gọi, lúc giá mới chưa hiệu lực, và không có gì chạy
+          lại vào ngày hiệu lực. Bỏ ô chọn ngày là bịt luôn lỗ ấy khỏi tay người
+          dùng.
+        */}
+        <Truong id="sp-sua-gia" nhan="Giá bán Công ty" bắtBuộc>
+          {(p) => <ONhapTien {...p} giaTri={gia} doi={datGia} />}
+        </Truong>
+        {doiGia && (
+          <p className="ghi-chu">
+            Giá mới áp dụng <strong>từ hôm nay</strong>. Hồ sơ CSBH đã gửi duyệt giữ nguyên giá đã
+            đóng băng; hồ sơ <strong>đang có hiệu lực</strong> chứa sản phẩm này sẽ hiện trong khối{' '}
+            <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+          </p>
+        )}
         <Truong id="sp-sua-tt" nhan="Trạng thái">
           {(p) => (
             <select
@@ -341,28 +392,27 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
         </p>
 
         {dangVoHieu && (
-          <>
-            {/* Nói HẬU QUẢ THẬT thay vì một câu hỏi rỗng nghĩa: vô hiệu hoá
-                một sản phẩm gửi thư đi khắp nơi, và người bấm nút cần biết
-                điều đó TRƯỚC khi bấm. */}
-            <div className="hop-canh-bao" role="note">
-              Mọi CSBH <strong>đang có hiệu lực</strong> còn chứa sản phẩm này sẽ hiện trong khối{' '}
-              <strong>Yêu cầu cập nhật</strong> của người phụ trách, kèm một lá thư tới từng Trình
-              dược viên. Sản phẩm cũng biến khỏi ô chọn khi lập hồ sơ mới.
-            </div>
-            <Truong id="sp-sua-xn" nhan={`Gõ lại mã "${sp.code}" để xác nhận vô hiệu hoá`} bắtBuộc>
-              {(p) => (
-                <input
-                  {...p}
-                  className="o-nhap"
-                  autoComplete="off"
-                  value={go}
-                  onChange={(e) => datGo(e.target.value)}
-                />
-              )}
-            </Truong>
-          </>
+          /* Nói HẬU QUẢ THẬT thay vì một câu hỏi rỗng nghĩa: vô hiệu hoá một sản
+             phẩm gỡ nó khỏi mọi hồ sơ lập mới, và người bấm nút cần biết điều đó
+             TRƯỚC khi bấm. */
+          <div className="hop-canh-bao" role="note">
+            Mọi CSBH <strong>đang có hiệu lực</strong> còn chứa sản phẩm này sẽ hiện trong khối{' '}
+            <strong>Yêu cầu cập nhật</strong> của người phụ trách. Sản phẩm cũng biến khỏi ô chọn
+            khi lập hồ sơ mới.
+          </div>
         )}
+
+        <Truong id="sp-sua-xn" nhan={`Gõ lại mã "${sp.code}" để xác nhận`} bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              autoComplete="off"
+              value={go}
+              onChange={(e) => datGo(e.target.value)}
+            />
+          )}
+        </Truong>
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
@@ -370,7 +420,10 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
             type="submit"
             className="nut nut-chinh"
             disabled={
-              dangGui || ten.trim() === '' || (dangVoHieu && go.trim() !== sp.code)
+              dangGui ||
+              ten.trim() === '' ||
+              gia.trim() === '' ||
+              go.trim().toUpperCase() !== sp.code.toUpperCase()
             }
           >
             {dangGui ? 'Đang lưu…' : 'Lưu'}
@@ -380,115 +433,68 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
           </button>
         </div>
       </form>
+
+      <LichSuGia id={sp.id} />
     </HopThoai>
   );
 }
 
-// --- Giá ---------------------------------------------------------------------
-
-function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
-  const { bao } = useBaoLoi();
+/**
+ * Lịch sử giá của một sản phẩm (`0123`).
+ *
+ * Nằm TRONG hộp thoại Sửa, không phải một hộp thoại riêng: từ `0123` đổi giá là
+ * một ô của biểu mẫu ấy, và lịch sử là thứ người ta đọc để quyết định gõ số nào.
+ * Tách ra hai chỗ bấm thì phải mở hộp này, ghi nhớ con số, đóng lại, mở hộp kia.
+ *
+ * CHỈ ĐỌC. Đường ghi duy nhất là ô *Giá bán Công ty* ở trên, và nó luôn ghi cho
+ * ngày hôm nay — nên bảng này không có nút nào.
+ */
+function LichSuGia({ id }: { id: string }) {
   const [ls, datLs] = useState<DongGia[] | null>(null);
-  const [soTien, datSoTien] = useState('');
-  const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
-  const [lan, datLan] = useState(0);
 
   useEffect(() => {
     const huy = new AbortController();
-    layJson<DongGia[]>(`/catalog/products/${sp.id}/prices`, huy.signal)
+    layJson<DongGia[]>(`/catalog/products/${id}/prices`, huy.signal)
       .then(datLs)
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [sp.id, lan]);
-
-  const thieu = thieuTruong('gia', { amount: soTien, effectiveFrom: tuNgay });
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    datLoi(null);
-    datDangGui(true);
-    try {
-      // Không gửi `priceType`: danh mục chỉ còn Giá bán Công ty, máy chủ tự
-      // điền. Gửi kèm một hằng số chỉ để nó đi vòng qua mạng rồi quay về.
-      await dang(`/catalog/products/${sp.id}/prices`, {
-        amount: soTien,
-        effectiveFrom: tuNgay,
-      });
-      datSoTien('');
-      datLan((x) => x + 1);
-    } catch (err) {
-      bao(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
+  }, [id]);
 
   return (
-    <HopThoai tieuDe={`Giá — ${sp.code} ${sp.name}`} dong={dong}>
-      <p className="ghi-chu">
-        Danh mục chỉ giữ <strong>Giá bán Công ty</strong>. Giá bán buôn do người đề nghị nhập trên
-        từng dòng sản phẩm của từng hồ sơ — nó khác nhau theo khách hàng nên không có một con số
-        chung ở đây.
-      </p>
-      <p className="ghi-chu">
-        Giá hiện hành là dòng mới nhất có ngày hiệu lực <strong>không ở tương lai</strong>. Đặt giá
-        cho ngày mai thì hôm nay vẫn dùng giá cũ.
-      </p>
-
-      <form onSubmit={gui}>
-
-        <ChuThichBatBuoc />
-
-        <Truong id="gia-tien" nhan="Giá bán Công ty" donVi="Tiền tệ đơn vị đồng" bắtBuộc>
-          {(p) => <ONhapTien {...p} giaTri={soTien} doi={datSoTien} />}
-        </Truong>
-        <Truong id="gia-tu" nhan="Áp dụng từ ngày" bắtBuộc>
-          {(p) => (
-            <input {...p} className="o-nhap" type="date" value={tuNgay} onChange={(e) => datTuNgay(e.target.value)} />
-          )}
-        </Truong>
-
-        {loi !== null && <BaoLoi loi={loi} />}
-        <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || thieu.length > 0}>
-            {dangGui ? 'Đang lưu…' : 'Đặt giá mới'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Đóng
-          </button>
-        </div>
-      </form>
-
+    <>
       <h3>Lịch sử giá</h3>
-      {!ls ? (
+      {loi !== null ? (
+        <BaoLoi loi={loi} />
+      ) : !ls ? (
         <DangTai />
       ) : ls.length === 0 ? (
         <p className="trong">Chưa đặt giá nào.</p>
       ) : (
-        <table className="bang">
-          <thead>
-            <tr>
-              <th>Loại giá</th>
-              <th>Số tiền</th>
-              <th>Áp dụng từ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ls.map((d, i) => (
-              <tr key={`${d.priceType}-${d.effectiveFrom}-${i}`}>
-                <td>{NHAN_LOAI_GIA[d.priceType] ?? d.priceType}</td>
-                <td className="so">{tien(d.amount)}</td>
-                <td>{ngay(d.effectiveFrom)}</td>
+        <div className="khung-cuon" role="region" aria-label="Lịch sử giá" tabIndex={0}>
+          <table className="bang bang-lech">
+            <thead>
+              <tr>
+                <th>Loại giá</th>
+                <th className="so">Số tiền</th>
+                <th>Áp dụng từ</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {ls.map((d, i) => (
+                <tr key={`${d.priceType}-${d.effectiveFrom}-${i}`}>
+                  <td>{NHAN_LOAI_GIA[d.priceType] ?? d.priceType}</td>
+                  <td className="so">{tien(d.amount)}</td>
+                  <td>{ngay(d.effectiveFrom)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-    </HopThoai>
+    </>
   );
 }
 

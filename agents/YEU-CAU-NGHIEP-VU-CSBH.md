@@ -1387,6 +1387,27 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Sản phẩm phải có giá ngay từ lúc tạo** `mới 26/08` — Giá bán Công ty là trường **bắt buộc** của
+biểu mẫu tạo sản phẩm, và của cả cột trong file Excel. Không còn nút *Giá* riêng: giá sửa ngay ở
+biểu mẫu *Sửa*, và **mọi lượt sửa đều đòi gõ lại mã vật tư** để xác nhận. **Ngày áp dụng luôn là
+ngày hôm nay** — màn hình bỏ hẳn ô chọn ngày.
+
+> Trước đó giá là một bước riêng sau khi tạo, và sản phẩm sinh ra ở trạng thái **không dùng được**:
+> nó hiện trong ô chọn lúc lập hồ sơ rồi chặn ở *"chưa có giá"* đúng lúc Trình dược viên đã gõ xong
+> dòng — một trạng thái nửa vời mà chỉ Quản trị chữa được.
+>
+> **Vì sao mọi lượt sửa đều phải gõ lại mã**: luật cũ (`0036`) chỉ đòi ở lượt vô hiệu hoá, với lý do
+> rằng bắt gõ cho một thao tác hằng ngày sẽ làm mòn chính chốt chặn ấy. Lý do đó đúng khi màn hình
+> sửa chỉ đổi được TÊN. Giờ nó đổi được cả GIÁ — con số đóng băng vào mọi hồ sơ gửi duyệt kể từ lúc
+> ấy — nên không còn thao tác nhẹ nào ở đây để mà làm mòn.
+>
+> **Bỏ ô chọn ngày cũng bịt một lỗ**: đặt giá cho một ngày tương lai thì lượt rà *Yêu cầu cập nhật*
+> chạy NGAY lúc gọi, lúc giá mới chưa hiệu lực — nên nó không thấy chênh lệch nào, và không có gì
+> chạy lại vào ngày hiệu lực. Từ nay giao diện không với tới tình huống đó.
+
+**Bảng sản phẩm hiện Giá bán Công ty cho mọi vai trò** `mới 26/08`, và **trạng thái có màu** — xanh
+là đang áp dụng, đỏ là đã vô hiệu hoá.
+
 **Ngừng bán hàng loạt qua file Excel** `mới 26/08` — cột *đang có hiệu lực* thôi chỉ-để-xem. Nó là
 một **ô chọn** hai giá trị *Đang bán* / *Ngừng bán*, và có **hai đường** dẫn tới ngừng bán: đổi ô ấy,
 hoặc **bỏ hẳn dòng khỏi file**. Đổi ô về *Đang bán* thì bán lại. Ô để trống là **lỗi**, không phải

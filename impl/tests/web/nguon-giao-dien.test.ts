@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
 import { THE_THEO_VAI_TRO, mauThe } from '@csbh/web/tong-quan';
+import { MAU_TRANG_THAI_SAN_PHAM } from '@csbh/web/danh-muc';
 
 const GOC = 'apps/web/src';
 
@@ -264,6 +265,41 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
     const ten = [...token.matchAll(/--mau-tt-[a-z0-9-]+/g)].map((m) => m[0]);
     for (const t of new Set(ten)) {
       expect(ten.filter((x) => x === t).length, `${t} không khai đủ ba khối`).toBe(3);
+    }
+  });
+});
+
+describe('`0123` nhãn trạng thái sản phẩm có màu', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+
+  it('hai trạng thái, hai khoá màu khác nhau, và cả hai có lớp CSS thật', () => {
+    const khoa = Object.values(MAU_TRANG_THAI_SAN_PHAM);
+    expect(new Set(khoa).size, 'hai trạng thái không được trùng màu').toBe(khoa.length);
+    for (const k of khoa) {
+      expect(css, `thiếu lớp .nhan-${k}`).toContain(`.nhan-${k}`);
+    }
+  });
+
+  it('DÙNG LẠI khoá màu của nhãn trạng thái hồ sơ, không dựng cặp token thứ ba', () => {
+    /*
+     * Xanh và đỏ ở đây nói đúng thứ chúng nói ở nhãn hồ sơ — đang dùng được, và
+     * đã dừng. Một bảng màu riêng cho danh mục là hai chỗ phải giữ đồng bộ mãi
+     * mãi để trông giống hệt nhau.
+     */
+    expect(MAU_TRANG_THAI_SAN_PHAM.DANG_AP_DUNG).toBe(nhomTrangThai('DANG_CO_HIEU_LUC'));
+    expect(MAU_TRANG_THAI_SAN_PHAM.DA_VO_HIEU_HOA).toBe(nhomTrangThai('TU_CHOI'));
+  });
+
+  it('CẢ HAI bảng sản phẩm đều vẽ nhãn màu và cột giá', () => {
+    /*
+     * Hai bảng: thẻ của Quản trị, và bảng chỉ-xem của năm vai trò còn lại. Sửa
+     * một bên rồi quên bên kia là vá cho một người và để nguyên cho tất cả những
+     * người khác — đúng lỗi mà `0049` đã mắc một lần ở chính hai tệp này.
+     */
+    for (const tep of ['components/danh-muc/SanPham.tsx', 'pages/DanhMuc.tsx']) {
+      const nguon = readFileSync(join(GOC, tep), 'utf8');
+      expect(nguon, `${tep} phải dùng NhanSanPham`).toContain('<NhanSanPham');
+      expect(nguon, `${tep} phải có cột giá`).toContain('Giá bán Công ty</th>');
     }
   });
 });

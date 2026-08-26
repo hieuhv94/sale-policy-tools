@@ -184,6 +184,8 @@ const makeProduct = async (): Promise<string> => {
       code: uniq('SP'),
       name: 'Nutricare Gold',
       groupCode,
+      // Giá bắt buộc từ `0123` — sản phẩm không có giá không tồn tại được nữa.
+      price: '100000',
     });
   await c
     .post(`/catalog/products/${r.body.id}/prices`)
@@ -1011,7 +1013,15 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
     await (await http(catalog))
       .post(`/catalog/products/${d.productId}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '120000', effectiveFrom: '2020-06-01' });
+      /*
+       * KHÔNG khai `effectiveFrom` (`0123`).
+       *
+       * Lượt tạo sản phẩm ghi một dòng giá mang ngày HÔM NAY, nên một mốc quá
+       * khứ như `2020-06-01` không bao giờ thắng nó — hồ sơ vẫn thấy giá cũ và
+       * không có chênh lệch nào để mà báo. Bỏ tham số đi thì giá mới áp dụng
+       * ngay, đúng như màn hình đang làm từ `0123`.
+       */
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '120000' });
 
     /*
      * Chạy đúng đường thật: catalog -> bus -> policy tiêu thụ -> `pol.policy_impact`.
@@ -1064,7 +1074,7 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
     const sp = await c
       .post('/catalog/products')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ code: uniq('SP29'), name: 'SP rieng 0029', groupCode: nhom });
+      .send({ code: uniq('SP29'), name: 'SP rieng 0029', groupCode: nhom, price: '100000' });
     await c
       .post(`/catalog/products/${sp.body.id}/prices`)
       .set('Authorization', `Bearer ${tok['admin01']}`)

@@ -11017,3 +11017,76 @@ chủ ý: bốn ca kia chỉ kiểm chiều ĐỔI, nên một lượt sửa bi�
 đè" vẫn xanh nếu thiếu nó.
 
 **1744/1744 xanh.**
+
+## P151 — `0123` giá là một phần của sản phẩm, không phải một bước sau
+
+Bảy yêu cầu nhỏ của khách hàng, và chúng dồn về một chuyện: **một sản phẩm không
+có giá thì không phải một sản phẩm**.
+
+### Việc thứ sáu là rà soát, nên tôi làm nó trước
+
+*"Rà lại cơ chế thông báo Yêu cầu cập nhật khi ngày áp dụng giá là tức thời."*
+Consumer có xử lý `catalog.price_changed` (`catalog-impact.consumer.ts:100`), và
+nó so với giá hiện hành theo `current_date` — nên giá đặt cho HÔM NAY được phát
+hiện ngay. Không có lỗi ở đó.
+
+Lỗ thật nằm ở chiều ngược: **đặt giá cho một ngày TƯƠNG LAI**. Lượt rà chạy ngay
+lúc gọi, lúc giá mới chưa hiệu lực, nên nó không thấy chênh lệch nào — và **không
+có gì chạy lại vào ngày hiệu lực**. Hồ sơ lệch giá sẽ không bao giờ hiện trong
+khối *Yêu cầu cập nhật* cho tới khi một sự kiện khác tình cờ kích hoạt một lượt
+rà. Lỗ ấy có từ trước, và bỏ ô chọn ngày ở giao diện là bịt nó khỏi tay người
+dùng — chứ không phải sửa nó. Tham số `effectiveFrom` vẫn ở lại API vì
+`seed-demo` dựng ba năm lịch sử giá qua chính đường ấy.
+
+### Một dòng giá mang ngày HÔM NAY làm đỏ 12 ca kiểm
+
+Tạo sản phẩm giờ ghi một dòng giá cho hôm nay. Dòng ấy **thắng mọi mốc quá khứ**
+mà bộ ca kiểm dựng sau đó, nên mọi ca về lịch sử giá đọc ra đúng con số của lượt
+tạo:
+
+```
+expected '100000' to be '300000'
+```
+
+Chữa ở fixture, không ở mã sản phẩm: `sanPhamNhomRieng` xoá đúng dòng giá của
+ngày hôm nay bằng SQL rồi mới dựng quá khứ. Đi thẳng CSDL vì **API không còn
+đường nào tạo một sản phẩm chưa có giá** — mà đó chính là điểm của `0123`. Cùng
+lớp lỗi ấy làm đỏ `NTF-13`, và ở đó cách chữa đúng là bỏ hẳn `effectiveFrom`:
+đổi giá tức thời chính là thứ màn hình đang làm.
+
+### Chốt gõ lại mã: `0036` nói một đằng, `0123` nói một nẻo, và cả hai đều đúng
+
+`0036` chỉ đòi gõ lại mã ở lượt vô hiệu hoá, kèm một lập luận rành mạch: bắt gõ
+cho một thao tác hằng ngày thì làm mòn chính chốt chặn ấy — người dùng gõ mãi
+thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá.
+
+Lập luận đó đúng **khi màn hình sửa chỉ đổi được TÊN**. Từ `0123` nó đổi được cả
+GIÁ, con số đóng băng vào mọi hồ sơ gửi duyệt kể từ lúc ấy cộng một dòng trong
+khối *Yêu cầu cập nhật* của mọi TDV đang giữ CSBH chứa sản phẩm này. Không còn
+thao tác nhẹ nào ở đây để mà làm mòn, nên tiền đề của `0036` mất chứ không phải
+kết luận của nó sai.
+
+### Bỏ nút *Giá* mà không bỏ lịch sử giá
+
+Nút đi, hộp thoại đi, nhưng **bảng lịch sử giá chuyển vào chính hộp thoại Sửa** —
+đó là màn hình người ta đọc để quyết định gõ số nào. Tách hai chỗ bấm thì phải mở
+hộp này, nhớ con số, đóng lại, mở hộp kia.
+
+### `ONhapTien` và một `price` đặt sai chỗ
+
+`makeProduct` của bộ test nhận `over` để ghi đè. Lượt chèn `price` tự động của
+tôi đặt nó SAU `...over`, nên mọi ca kiểm truyền giá riêng đều bị ghi đè về
+100000 trong im lặng. Đổi thứ tự là xong, nhưng ghi lại vì nó là lỗi chỉ lộ ra
+khi một ca kiểm khẳng định đúng con số ấy — và phần lớn ca kiểm thì không.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `price` thành tuỳ chọn lúc tạo | 1 ca `0123` đỏ, kéo theo 12 ca nhập Excel |
+| Nới chốt gõ lại mã về đúng luật `0036` | 2 đỏ |
+| Bỏ cột giá khỏi truy vấn danh sách | 2 đỏ |
+| Cho ô giá trong Excel được để trống | 1 đỏ |
+| Hai trạng thái sản phẩm dùng chung một màu | 2 đỏ |
+
+**1753/1753 xanh.**

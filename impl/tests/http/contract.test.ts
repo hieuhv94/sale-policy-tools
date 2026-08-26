@@ -202,8 +202,7 @@ const makeProduct = async (i = 0): Promise<string> => {
     .send({
       code: uniq('SP'),
       name: `Nutricare Gold ${i}`,
-      groupCode,
-    });
+      groupCode, price: '100000' });
   // Kiểm NGAY tại đây. Không kiểm thì một lời gọi hỏng đi tiếp với `id`
   // undefined và nổ ba mươi dòng sau ở chỗ lập hồ sơ, với thông báo
   // "productId: phải là chuỗi" — chẳng liên quan gì tới nguyên nhân.

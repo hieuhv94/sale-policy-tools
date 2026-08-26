@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P150** (`0122`): **ngừng bán hàng loạt qua file Excel**. Cột 5 thôi chỉ-để-xem, nó
+Chặng gần nhất **P151** (`0123`): **giá là một phần của sản phẩm, không phải một bước sau**. Tạo sản
+phẩm BẮT BUỘC có giá (cùng transaction), cột giá trong Excel hết được để trống, nút *Giá* bỏ hẳn —
+sửa giá ngay ở hộp thoại *Sửa*, và **mọi lượt sửa đòi gõ lại mã** (tiền đề của `0036` mất: màn hình
+này giờ đổi được giá). **Ngày áp dụng luôn là hôm nay**, ô chọn ngày bỏ khỏi giao diện — `effectiveFrom`
+ở lại API cho `seed-demo`. Bảng sản phẩm của **cả sáu vai trò** có cột giá, và nhãn trạng thái có màu
+(dùng lại hai khoá của nhãn hồ sơ). Rà soát tìm ra: consumer xử lý `price_changed` đúng, nhưng **giá
+đặt cho ngày TƯƠNG LAI thì lượt rà chạy lúc nó chưa hiệu lực và không có gì chạy lại** — bỏ ô chọn
+ngày là bịt lỗ ấy khỏi tay người dùng, không phải sửa nó. Bẫy đã dính: dòng giá của lượt tạo mang
+ngày hôm nay nên **thắng mọi mốc quá khứ** — 12 ca kiểm đỏ, chữa ở fixture. **1753/1753 xanh.**
+
+Trước đó **P150** (`0122`): **ngừng bán hàng loạt qua file Excel**. Cột 5 thôi chỉ-để-xem, nó
 là **ô chọn** `Đang bán`/`Ngừng bán` (`dataValidation` kiểu `list` — dạng checkbox DUY NHẤT dựng
 được và đọc lại được; Form/ActiveX là đối tượng nổi không thuộc ô nào). **Hai đường ngừng bán**: đổi
 ô, hoặc **bỏ dòng khỏi file** — đảo lại quyết định chặn của `0121`. Bảng xem trước **tách hai khối

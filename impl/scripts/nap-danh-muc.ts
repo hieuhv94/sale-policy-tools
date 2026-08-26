@@ -206,15 +206,13 @@ async function main(): Promise<void> {
   console.log(`  quy định chiết khấu: ${QUY_DINH_CK.length}`);
 
   for (const p of SAN_PHAM) {
-    const sp = await goi<{ id: string }>('/catalog/products', {
+    // MỘT lượt gọi: từ `0123` giá là trường bắt buộc của lượt tạo, và nó áp
+    // dụng từ hôm nay — đúng thứ bộ nạp này vẫn làm bằng hai bước.
+    await goi<{ id: string }>('/catalog/products', {
       code: p.code,
       name: p.name,
       groupCode: p.nhom,
-    });
-    await goi(`/catalog/products/${sp.id}/prices`, {
-      priceType: 'GIA_BAN_CONG_TY',
-      amount: String(p.gia),
-      effectiveFrom: homNay,
+      price: String(p.gia),
     });
   }
   console.log(`  sản phẩm kèm giá: ${SAN_PHAM.length}`);

@@ -177,7 +177,11 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
   it('ô ngày bị xoá trắng bị bắt', () => {
     // Đây là lỗ đã có thật ở năm biểu mẫu: ô ngày có sẵn giá trị mặc định nên
     // nhìn như đã điền, mà xoá đi thì `<input type="date">` trả chuỗi rỗng.
-    expect(thieuTruong('gia', { amount: '100', effectiveFrom: '' })).toEqual(['effectiveFrom']);
+    /*
+     * `0123` bỏ `effectiveFrom` khỏi bảng: màn hình không còn ô chọn ngày, giá
+     * luôn áp dụng từ hôm nay và máy chủ tự điền.
+     */
+    expect(thieuTruong('gia', { amount: '' })).toEqual(['amount']);
   });
 });
 

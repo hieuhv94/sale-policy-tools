@@ -888,10 +888,18 @@ async function main(): Promise<void> {
 
   const sanPham: Record<string, string> = {};
   for (const p of SAN_PHAM) {
+    /*
+     * `price` bắt buộc từ `0123`, và nó ghi một dòng giá mang ngày HÔM NAY.
+     *
+     * Dòng ấy không thay được dòng `2024-01-01` ngay dưới — nó chỉ nằm chồng
+     * lên, và cùng một số tiền nên giá hiện hành không đổi. Bộ nạp này vặn đồng
+     * hồ về quá khứ để dựng lịch sử, nên nó vẫn cần mốc 2024 riêng.
+     */
     const r = await goi<CoId>('/catalog/products', 'admin01', {
       code: p.code,
       name: p.name,
       groupCode: p.nhom,
+      price: String(p.gia),
     });
     sanPham[p.code] = r.id;
     await goi(`/catalog/products/${r.id}/prices`, 'admin01', {

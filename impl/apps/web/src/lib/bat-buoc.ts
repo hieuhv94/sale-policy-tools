@@ -33,8 +33,8 @@ export type TenBieuMau =
 export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nguoi-dung': ['email', 'username', 'fullName', 'role'],
   'khach-hang': ['code', 'name', 'customerType', 'registeredAddress', 'ownerName'],
-  'san-pham': ['code', 'name', 'groupCode'],
-  gia: ['amount', 'effectiveFrom'],
+  'san-pham': ['code', 'name', 'groupCode', 'price'],
+  gia: ['amount'],
   'nhom-san-pham': ['code', 'name'],
   'chiet-khau': ['code', 'effectiveFrom', 'thresholdRate2'],
   'ho-so': ['customerId', 'appliedDate'],

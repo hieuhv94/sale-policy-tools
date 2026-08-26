@@ -123,22 +123,22 @@ export class CatalogController {
   @Post('products')
   @HttpCode(201)
   create(@CurrentUser() me: AuthUser, @Body() body: unknown) {
+    // `money()` chặn số 0 và số âm ngay ở đây — bán không đồng là nhập sai.
     const b = validate(body, {
       code: str(1, 60),
       name: str(1, 300),
       groupCode: str(1, 40),
+      price: money(),
     });
     return this.products.create(b, me.id);
   }
 
   /**
-   * Sửa sản phẩm. VÔ HIỆU HOÁ thì đòi gõ lại mã sản phẩm (`0036`).
+   * Sửa sản phẩm — MỌI lượt sửa đòi gõ lại mã sản phẩm (`0036`, siết ở `0123`).
    *
-   * `confirm` là `opt()` ở đây chứ không bắt buộc: đổi tên sản phẩm là thao tác
-   * nhẹ, hằng ngày, và bắt gõ lại mã cho nó là làm mòn chính chốt chặn ấy —
-   * người dùng gõ mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá. Ai phải gõ
-   * và khi nào thì `products.service` quyết, vì chỉ nó biết trạng thái đang đổi
-   * theo chiều nào.
+   * `confirm` vẫn khai `opt()` ở DTO dù `0123` đòi nó ở MỌI lượt sửa: chốt nằm ở
+   * service, nơi biết mã của bản ghi để so. Bắt buộc ở đây chỉ đổi 400 thiếu
+   * trường lấy 400 sai chuỗi — cùng một mã lỗi, câu chữ tệ hơn.
    */
   @Roles('QUAN_TRI')
   @Patch('products/:id')
@@ -147,6 +147,7 @@ export class CatalogController {
       name: opt(str(1, 300)),
       // Trạng thái ngoài tập hai giá trị bị chặn ngay ở đây, trước khi tới CSDL (CAT-06).
       status: opt(oneOf(...PRODUCT_STATUSES)),
+      price: opt(money()),
       confirm: opt(str(1, 60)),
     });
     return this.products.update(id, b, me.id);
@@ -175,7 +176,9 @@ export class CatalogController {
       // một trường chỉ có đúng một giá trị hợp lệ là bắt gõ lại một hằng số.
       priceType: opt(oneOf(...PRICE_TYPES)),
       amount: money(),
-      effectiveFrom: isoDate(),
+      // TUỲ CHỌN từ `0123`: màn hình không còn ô chọn ngày, giá đổi là đổi ngay.
+      // Tham số ở lại cho bộ nạp dựng lịch sử — xem chú thích ở `setPrice`.
+      effectiveFrom: opt(isoDate()),
     });
     return this.products.setPrice(
       id,

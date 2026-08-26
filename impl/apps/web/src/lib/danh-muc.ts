@@ -73,6 +73,23 @@ export const NHAN_TRANG_THAI_SAN_PHAM: Record<TrangThaiSanPham, string> = {
   DA_VO_HIEU_HOA: 'Đã vô hiệu hoá',
 };
 
+/**
+ * Khoá màu của nhãn trạng thái sản phẩm (`0123`) — tên lớp CSS, không phải mã màu.
+ *
+ * DÙNG LẠI hai khoá của nhãn trạng thái hồ sơ (`nhan-hieu-luc`, `nhan-hong`)
+ * thay vì dựng cặp token thứ ba. Xanh và đỏ ở đây nói đúng thứ chúng nói ở kia —
+ * đang dùng được, và đã dừng — nên một bảng màu riêng cho danh mục là hai chỗ
+ * phải giữ đồng bộ mãi mãi để trông giống hệt nhau.
+ *
+ * Bảng TRA chứ không phải `if`: cùng lý do đã ghi ở `NHOM_MAU` trong `format.ts`
+ * — một phép suy từ tên trạng thái sẽ lặng lẽ nuốt bất kỳ trạng thái nào thêm về
+ * sau, còn thiếu một dòng ở đây thì TypeScript báo ngay.
+ */
+export const MAU_TRANG_THAI_SAN_PHAM: Record<TrangThaiSanPham, string> = {
+  DANG_AP_DUNG: 'hieu-luc',
+  DA_VO_HIEU_HOA: 'hong',
+};
+
 /** Ba loại khách hàng (CUST-06). Ngưỡng chiết khấu khai theo từng loại. */
 export const LOAI_KHACH_HANG = [1, 2, 3] as const;
 
@@ -91,6 +108,14 @@ export type SanPham = {
   name: string;
   groupCode: string;
   status: TrangThaiSanPham;
+  /**
+   * Giá bán Công ty hiện hành (`0123`).
+   *
+   * `null` chỉ còn ở dữ liệu CŨ: từ `0123` không tạo được sản phẩm nào không có
+   * giá. Bảng vẫn phải vẽ được `null` — dữ liệu cũ không tự biến mất, và một ô
+   * hiện `NaN` thì tệ hơn một dấu gạch.
+   */
+  price: string | null;
 };
 
 export type NhomSanPham = { id: string; code: string; name: string };

@@ -82,6 +82,8 @@ const makeProduct = async (over: Record<string, unknown> = {}) => {
     code: code('P'),
     name: 'San pham thu nghiem',
     groupCode,
+    // Giá bắt buộc từ `0123`. Đặt TRƯỚC `...over` để ca kiểm ghi đè được.
+    price: '100000',
     ...over,
   });
   return { groupCode, res, id: res.body.id as string };
@@ -129,8 +131,7 @@ describe('CAT-02 mã vật tư trùng', () => {
     const again = await post('/catalog/products', {
       code: res.body.code,
       name: 'Ten khac',
-      groupCode,
-    });
+      groupCode, price: '100000' });
     expect(again.status).toBe(409);
     expect(again.body.code).toBe('PRODUCT_CODE_DUPLICATE');
   });
@@ -140,9 +141,108 @@ describe('CAT-02 mã vật tư trùng', () => {
     const messy = await post('/catalog/products', {
       code: `  ${(res.body.code as string).toLowerCase()}  `,
       name: 'Ten khac',
-      groupCode,
-    });
+      groupCode, price: '100000' });
     expect(messy.status).toBe(409);
+  });
+});
+
+describe('`0123` tạo sản phẩm BẮT BUỘC có giá', () => {
+  it('thiếu giá thì 400 và KHÔNG tạo sản phẩm nào', async () => {
+    /*
+     * Trước `0123` giá là một bước riêng, và hệ quả là sản phẩm sinh ra ở trạng
+     * thái KHÔNG DÙNG ĐƯỢC: nó hiện trong ô chọn lúc lập hồ sơ rồi chặn ở
+     * `PRICE_NOT_SET` đúng lúc Trình dược viên đã gõ xong dòng.
+     */
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom thieu gia' });
+    const ma = code('P');
+
+    const r = await post('/catalog/products', { code: ma, name: 'Khong gia', groupCode });
+    expect(r.status).toBe(400);
+
+    const co = await withAdminDb(async (c) =>
+      c.query(`SELECT 1 FROM cat.product WHERE code = $1`, [ma]),
+    );
+    expect(co.rowCount).toBe(0);
+  });
+
+  it('giá 0 hoặc âm bị chặn — bán không đồng là nhập sai', async () => {
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom gia xau' });
+    for (const price of ['0', '-1000']) {
+      const r = await post('/catalog/products', {
+        code: code('P'),
+        name: `Gia ${price}`,
+        groupCode,
+        price,
+      });
+      expect(r.status, `giá ${price}`).toBe(400);
+    }
+  });
+
+  it('tạo xong là DÙNG ĐƯỢC NGAY: có giá hiện hành, áp dụng từ hôm nay', async () => {
+    const { id } = await makeProduct({ price: '77000' });
+    const gia = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(gia.body.amount).toBe('77000');
+    expect(String(gia.body.effectiveFrom).slice(0, 10)).toBe(
+      new Date().toISOString().slice(0, 10),
+    );
+  });
+
+  it('sản phẩm và giá nằm trong MỘT transaction', async () => {
+    /*
+     * Mã nhóm không tồn tại thì lượt tạo hỏng ở giữa. Không có gì được ghi —
+     * một sản phẩm không có giá không được phép tồn tại dù chỉ một khoảnh khắc.
+     */
+    const ma = code('P');
+    const r = await post('/catalog/products', {
+      code: ma,
+      name: 'Nhom bia',
+      groupCode: 'NHOM-KHONG-CO-THAT',
+      price: '10000',
+    });
+    expect(r.status).toBe(404);
+    const co = await withAdminDb(async (c) =>
+      c.query(`SELECT 1 FROM cat.product WHERE code = $1`, [ma]),
+    );
+    expect(co.rowCount).toBe(0);
+  });
+});
+
+describe('`0123` bảng sản phẩm mang theo giá bán Công ty', () => {
+  it('mỗi dòng có `price`, và MỌI vai trò đọc được', async () => {
+    /*
+     * Bảng này là màn hình Sản phẩm của cả sáu vai trò. Tới `0122` nó không
+     * hiện giá ở đâu, nên Trình dược viên muốn biết giá một mặt hàng phải mở
+     * màn hình lập hồ sơ rồi thêm dòng — đi vào một luồng GHI để đọc một con số.
+     */
+    const { id } = await makeProduct({ price: '88000' });
+    for (const [ai, token] of [
+      ['quản trị', adminT],
+      ['TDV', tdvT],
+    ] as const) {
+      const r = await get(`/catalog/products?limit=200&q=San pham thu nghiem`, token);
+      const dong = (r.body.items as { id: string; price: string | null }[]).find((x) => x.id === id);
+      expect(dong?.price, `${ai} phải đọc được giá`).toBe('88000');
+    }
+  });
+
+  it('giá trong bảng KHỚP `current-price` — không phải hai phép chọn khác nhau', async () => {
+    /*
+     * Hai chỗ trả lời "giá hiện hành là bao nhiêu" mà lệch nhau thì bảng nói một
+     * con số còn hồ sơ đóng băng một con số khác. Đặt một giá cho NGÀY MAI để
+     * ép cả hai phải bỏ qua nó.
+     */
+    const { id, res } = await makeProduct({ price: '20000' });
+    const mai = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    await post(`/catalog/products/${id}/prices`, { amount: '999000', effectiveFrom: mai });
+
+    const bang = await get(`/catalog/products?limit=200&q=San pham thu nghiem`);
+    const dong = (bang.body.items as { id: string; price: string }[]).find((x) => x.id === id);
+    const mot = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(dong?.price).toBe(mot.body.amount);
+    expect(dong?.price, `giá của ngày mai chưa được tính`).toBe('20000');
+    expect(res.body.code).toBeTruthy();
   });
 });
 
@@ -297,8 +397,7 @@ describe('CAT-09 nhóm sản phẩm bắt buộc', () => {
     const r = await post('/catalog/products', {
       code: code('N'),
       name: 'x',
-      groupCode: 'KHONG-CO-NHOM-NAY',
-    });
+      groupCode: 'KHONG-CO-NHOM-NAY', price: '100000' });
     expect(r.status).toBe(404);
     expect(r.body.code).toBe('GROUP_NOT_FOUND');
   });
@@ -502,7 +601,7 @@ describe('0022 trùng phạm vi quy định chiết khấu', () => {
 describe('CAT-13 nhật ký ghi giá trị trước và sau', () => {
   it('sửa tên sản phẩm sinh sự kiện có cả before lẫn after', async () => {
     const { id, res } = await makeProduct();
-    await patch(`/catalog/products/${id}`, { name: 'Ten da sua' });
+    await patch(`/catalog/products/${id}`, { name: 'Ten da sua', confirm: res.body.code });
 
     const ev = (await lastEvent('catalog.changed')) as {
       entity: string;
@@ -521,7 +620,7 @@ describe('CAT-14 xoá nhóm còn sản phẩm tham chiếu', () => {
   it('trả 409', async () => {
     const groupCode = code('G');
     const g = await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co SP' });
-    await post('/catalog/products', { code: code('P'), name: 'sp', groupCode });
+    await post('/catalog/products', { code: code('P'), name: 'sp', groupCode, price: '100000' });
 
     const r = await del(`/catalog/product-groups/${g.body.id}`, { confirm: groupCode });
     expect(r.status).toBe(409);
@@ -647,7 +746,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * vì lượt nhập vẫn trả 200.
      */
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await fileDayDu([[code('I'), ten('O hong'), nhom, null, 'Đang bán']])) as unknown as Buffer);
+    await wb.xlsx.load((await fileDayDu([[code('I'), ten('O hong'), nhom, '50000', 'Đang bán']])) as unknown as Buffer);
     const ws = wb.worksheets[0]!;
     ws.getRow(ws.rowCount).getCell(2).value = { error: '#N/A' } as ExcelJS.CellErrorValue;
 
@@ -675,7 +774,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     // Excel đọc ô `12345` ra kiểu number. Chặn "cột chữ mà điền số" là chặn
     // nhầm một danh mục hoàn toàn bình thường.
     const ma = Number(`9${Date.now()}`.slice(0, 9));
-    const r = await xemTruoc(await fileDayDu([[ma, ten('Ma toan so'), nhom, null, 'Đang bán']]));
+    const r = await xemTruoc(await fileDayDu([[ma, ten('Ma toan so'), nhom, '50000', 'Đang bán']]));
     expect(r.status).toBe(200);
     expect(r.body.themMoi[0].code).toBe(String(ma));
   });
@@ -689,9 +788,9 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      */
     const r = await xemTruoc(
       await fileDayDu([
-        [code('I'), ten('a'), 'NHOM-KHONG-CO-1', null, 'Đang bán'],
-        [code('I'), ten('b'), 'NHOM-KHONG-CO-2', null, 'Đang bán'],
-        [code('I'), ten('c'), 'NHOM-KHONG-CO-1', null, 'Đang bán'],
+        [code('I'), ten('a'), 'NHOM-KHONG-CO-1', '50000', 'Đang bán'],
+        [code('I'), ten('b'), 'NHOM-KHONG-CO-2', '50000', 'Đang bán'],
+        [code('I'), ten('c'), 'NHOM-KHONG-CO-1', '50000', 'Đang bán'],
       ]),
     );
     expect(r.status).toBe(400);
@@ -710,10 +809,10 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const maTrung = code('I');
     const r = await xemTruoc(
       await fileDayDu([
-        [maTrung, ten('Ten mot'), nhom, null, 'Đang bán'],
-        [maTrung, ten('Ten hai'), nhom, null, 'Đang bán'],
-        [code('I'), 'Ten lap lai', nhom, null, 'Đang bán'],
-        [code('I'), 'ten LAP  lai', nhom, null, 'Đang bán'],
+        [maTrung, ten('Ten mot'), nhom, '50000', 'Đang bán'],
+        [maTrung, ten('Ten hai'), nhom, '50000', 'Đang bán'],
+        [code('I'), 'Ten lap lai', nhom, '50000', 'Đang bán'],
+        [code('I'), 'ten LAP  lai', nhom, '50000', 'Đang bán'],
       ]),
     );
     expect(r.status).toBe(400);
@@ -738,8 +837,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const sp = await post('/catalog/products', {
       code: ma,
       name: ten('Vang mat trong file'),
-      groupCode: nhom,
-    });
+      groupCode: nhom, price: '100000' });
 
     const thieu = () => fileDayDu([], (ds) => ds.filter((d) => d[0] !== ma));
 
@@ -758,7 +856,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('`0122` vắng mặt mà VỐN ĐÃ ngừng bán thì không có gì để làm', async () => {
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Da ngung tu truoc'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Da ngung tu truoc'), groupCode: nhom, price: '100000' });
     await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
 
     const r = await xemTruoc(await fileDayDu([], (ds) => ds.filter((d) => d[0] !== ma)));
@@ -768,7 +866,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('`0122` ô hiệu lực ghi *Ngừng bán* thì ngừng bán, lý do là Ô CHỌN', async () => {
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Ngung bang o chon'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Ngung bang o chon'), groupCode: nhom, price: '100000' });
 
     const buf = await fileDayDu([], (ds) =>
       ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], d[3], 'Ngừng bán'] : d)),
@@ -782,7 +880,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('`0122` đổi ô về *Đang bán* thì BÁN LẠI', async () => {
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Ban lai'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Ban lai'), groupCode: nhom, price: '100000' });
     await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
 
     const buf = await fileDayDu([], (ds) =>
@@ -801,14 +899,14 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * cuối file luôn có ô này trống. Hiểu ô trống là ngừng bán nghĩa là mọi sản
      * phẩm vừa thêm đều chết ngay lúc sinh ra.
      */
-    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Thieu o hieu luc'), nhom, null, null]]));
+    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Thieu o hieu luc'), nhom, '50000', null]]));
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('IMPORT_MISSING_FIELD');
     expect(r.body.o.some((x: { cot: string }) => x.cot === 'dang_co_hieu_luc')).toBe(true);
   });
 
   it('`0122` giá trị lạ ở ô hiệu lực là lỗi KIỂU, nêu đúng dòng', async () => {
-    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Hieu luc la'), nhom, null, 'có']]));
+    const r = await xemTruoc(await fileDayDu([[code('I'), ten('Hieu luc la'), nhom, '50000', 'có']]));
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('IMPORT_BAD_TYPE');
     expect(r.body.o[0].cot).toBe('dang_co_hieu_luc');
@@ -820,8 +918,8 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const maNgung = code('I');
     const r = await xemTruoc(
       await fileDayDu([
-        [maBan, ten('Boolean that'), nhom, null, true],
-        [maNgung, ten('Boolean gia'), nhom, null, false],
+        [maBan, ten('Boolean that'), nhom, '50000', true],
+        [maNgung, ten('Boolean gia'), nhom, '50000', false],
       ]),
     );
     expect(r.status).toBe(200);
@@ -832,7 +930,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('`0122` dòng MỚI ghi *Ngừng bán* thì sinh ra đã ở trạng thái ngừng bán', async () => {
     const ma = code('I');
-    const r = await ghiDe(await fileDayDu([[ma, ten('Sinh ra da ngung'), nhom, null, 'Ngừng bán']]));
+    const r = await ghiDe(await fileDayDu([[ma, ten('Sinh ra da ngung'), nhom, '50000', 'Ngừng bán']]));
     expect(r.status).toBe(200);
     const sp = await withAdminDb(async (c) =>
       c.query<{ status: string }>(`SELECT status::text FROM cat.product WHERE code = $1`, [ma]),
@@ -844,10 +942,13 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('xem trước KHÔNG ghi gì, và tách đúng ba khối', async () => {
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Ten cu'), groupCode: nhom });
-    await post(`/catalog/products/${sp.body.id}/prices`, {
-      amount: '10000',
-      effectiveFrom: '2020-01-01',
+    // Giá đặt NGAY lúc tạo (`0123`) — dòng giá của hôm nay thắng mọi mốc quá
+    // khứ, nên một lượt `POST /prices` với ngày 2020 ở đây không đổi được gì.
+    const sp = await post('/catalog/products', {
+      code: ma,
+      name: ten('Ten cu'),
+      groupCode: nhom,
+      price: '10000',
     });
 
     const tenMoi = ten('Ten moi');
@@ -873,31 +974,41 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     expect(r.body.khongDoi).toBeGreaterThan(0);
   });
 
-  it('Ô GIÁ TRỐNG nghĩa là giữ nguyên giá cũ, không phải xoá giá', async () => {
+  it('`0123` ô giá để TRỐNG là lỗi — sản phẩm phải có giá', async () => {
+    /*
+     * ĐẢO quyết định của `0121`, vốn hiểu ô trống là "giữ nguyên giá cũ". Từ
+     * `0123` sản phẩm không tồn tại được mà không có giá, nên một ô trống ở đây
+     * là dấu hiệu file soạn dở chứ không phải một ý định.
+     *
+     * Hệ quả phải nhớ, và tài liệu người dùng nói: sản phẩm CŨ chưa từng đặt giá
+     * xuất ra file mẫu với ô trống, nên lượt nhập đầu tiên sau `0123` là một đợt
+     * dọn dữ liệu.
+     */
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Giu gia'), groupCode: nhom });
-    await post(`/catalog/products/${sp.body.id}/prices`, {
-      amount: '33000',
-      effectiveFrom: '2020-01-01',
+    await post('/catalog/products', {
+      code: ma,
+      name: ten('Gia trong'),
+      groupCode: nhom,
+      price: '33000',
     });
 
     const r = await xemTruoc(
       await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], null, d[4]] : d))),
     );
-    expect(r.status).toBe(200);
-    expect(r.body.sua.find((d: { code: string }) => d.code === ma)).toBeUndefined();
-
-    // Và giá vẫn còn nguyên sau khi ghi thật.
-    await ghiDe(await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], null, d[4]] : d))));
-    const gia = await get(`/catalog/products/${sp.body.id}/current-price?priceType=GIA_BAN_CONG_TY`);
-    expect(gia.body.amount).toBe('33000');
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_MISSING_FIELD');
+    expect(
+      r.body.o.some(
+        (x: { cot: string; rowNumber: number }) => x.cot === 'gia_ban_cong_ty',
+      ),
+    ).toBe(true);
   });
 
   // --- Bước 6: xác nhận rồi ghi ---------------------------------------------
 
   it('bước 6 — KHÔNG gõ đúng chuỗi xác nhận thì không ghi gì', async () => {
     const ma = code('I');
-    const buf = await fileDayDu([[ma, ten('Khong duoc tao'), nhom, null, 'Đang bán']]);
+    const buf = await fileDayDu([[ma, ten('Khong duoc tao'), nhom, '50000', 'Đang bán']]);
 
     for (const sai of ['', 'ghi', 'XOA']) {
       const r = await ghiDe(buf, sai);
@@ -912,7 +1023,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
 
   it('ghi đè thật: thêm mới, đổi tên, đổi nhóm và đổi giá trong MỘT lượt', async () => {
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Truoc khi ghi de'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Truoc khi ghi de'), groupCode: nhom, price: '100000' });
     const nhomKhac = code('G');
     await post('/catalog/product-groups', { code: nhomKhac, name: 'Nhom dich' });
     const maMoi = code('I');
@@ -940,7 +1051,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * biến cột 5 thành "luôn ghi đè" vẫn xanh — mọi ca kia chỉ kiểm chiều ĐỔI.
      */
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Van ngung ban'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Van ngung ban'), groupCode: nhom, price: '100000' });
     await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
 
     const r = await ghiDe(await fileDayDu());
@@ -956,7 +1067,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * làm box *Yêu cầu cập nhật* của mọi TDV đầy hồ sơ chẳng lệch gì.
      */
     const ma = code('I');
-    await post('/catalog/products', { code: ma, name: ten('Chi doi mot dong'), groupCode: nhom });
+    await post('/catalog/products', { code: ma, name: ten('Chi doi mot dong'), groupCode: nhom, price: '100000' });
 
     const dem = async () =>
       Number(
@@ -986,7 +1097,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
      * DESC LIMIT 1` — không có gì phân xử.
      */
     const ma = code('I');
-    const sp = await post('/catalog/products', { code: ma, name: ten('Doi gia hai lan'), groupCode: nhom });
+    const sp = await post('/catalog/products', { code: ma, name: ten('Doi gia hai lan'), groupCode: nhom, price: '100000' });
 
     for (const gia of [11000, 22000]) {
       const r = await ghiDe(
@@ -1066,11 +1177,13 @@ describe('`0119` file Excel mẫu', () => {
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co san pham' });
     const maSp = code('I');
     const tenMau = `San pham phai co trong file ${P}-${++n}`;
-    const sp = await post('/catalog/products', { code: maSp, name: tenMau, groupCode });
-    await post(`/catalog/products/${sp.body.id}/prices`, {
-      amount: '45000',
-      effectiveFrom: '2020-01-01',
+    const sp = await post('/catalog/products', {
+      code: maSp,
+      name: tenMau,
+      groupCode,
+      price: '45000',
     });
+    expect(sp.status).toBe(201);
 
     const ws = (await mo()).worksheets[0]!;
     let thay: unknown[] | null = null;
@@ -1093,7 +1206,7 @@ describe('`0119` file Excel mẫu', () => {
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co hang ngung ban' });
     const maSp = code('I');
-    const sp = await post('/catalog/products', { code: maSp, name: `Hang ngung ban ${P}-${++n}`, groupCode });
+    const sp = await post('/catalog/products', { code: maSp, name: `Hang ngung ban ${P}-${++n}`, groupCode, price: '100000' });
     await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: maSp });
 
     const ws = (await mo()).worksheets[0]!;
@@ -1109,7 +1222,7 @@ describe('`0119` file Excel mẫu', () => {
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom vong tron' });
     const maSp = code('I');
-    const sp = await post('/catalog/products', { code: maSp, name: `Ten ban dau ${P}-${++n}`, groupCode });
+    const sp = await post('/catalog/products', { code: maSp, name: `Ten ban dau ${P}-${++n}`, groupCode, price: '100000' });
 
     const tenDaSua = `Ten da sua ${P}-${++n}`;
     const wb = await mo();
@@ -1187,8 +1300,7 @@ describe('`0119` file Excel mẫu', () => {
     await post('/catalog/products', {
       code: code('I'),
       name: `Co o chon ${P}-${++n}`,
-      groupCode,
-    });
+      groupCode, price: '100000' });
 
     const ws = (await mo()).worksheets[0]!;
     const rb = ws.getRow(2).getCell(5).dataValidation;
@@ -1363,8 +1475,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     const sp = await post('/catalog/products', {
       code: code('P'),
       name: 'San pham',
-      groupCode,
-    });
+      groupCode, price: '100000' });
 
     const sua = await patch(`/catalog/discount-rules/${ma}`, { thresholdRate2: 2200 });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
@@ -1380,8 +1491,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
     const sp = await post('/catalog/products', {
       code: code('P'),
       name: 'SP',
-      groupCode,
-    });
+      groupCode, price: '100000' });
     const tra = (on: string) =>
       get(`/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1&on=${on}`);
 
@@ -1438,7 +1548,7 @@ describe('sửa và xoá quy định chiết khấu', () => {
    */
   it('0028 đổi ngày hiệu lực, và ngày mới quyết định lúc nào quy định ăn', async () => {
     const { ma, groupCode } = await mkRule();
-    const sp = await post('/catalog/products', { code: code('P'), name: 'SP', groupCode });
+    const sp = await post('/catalog/products', { code: code('P'), name: 'SP', groupCode, price: '100000' });
     const tra = (on: string) =>
       get(`/catalog/thresholds/resolve?productId=${sp.body.id}&customerType=1&on=${on}`);
 
@@ -1751,14 +1861,23 @@ describe('`0036` xác nhận bằng cách gõ lại mã', () => {
     });
   });
 
-  describe('vô hiệu hoá sản phẩm', () => {
-    it('thiếu `confirm` thì 400 và sản phẩm VẪN đang áp dụng', async () => {
+  describe('sửa sản phẩm', () => {
+    /*
+     * `0123` SIẾT chốt của `0036`: gõ lại mã ở MỌI lượt sửa, không riêng lượt vô
+     * hiệu hoá.
+     *
+     * Lập luận cũ — "bắt gõ cho một thao tác hằng ngày thì làm mòn chính chốt
+     * chặn ấy" — đúng khi màn hình sửa chỉ đổi được TÊN. Từ `0123` nó đổi được
+     * cả GIÁ, con số đóng băng vào mọi hồ sơ gửi duyệt kể từ lúc ấy. Không còn
+     * thao tác nhẹ nào ở đây để mà làm mòn.
+     */
+    it('thiếu `confirm` thì 400, kể cả khi CHỈ đổi tên', async () => {
       const { id, res } = await makeProduct();
-      const r = await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
+      const r = await patch(`/catalog/products/${id}`, { name: 'Ten moi' });
       expect(r.status, JSON.stringify(r.body)).toBe(400);
       expect(r.body.code).toBe('CONFIRM_MISMATCH');
       expect(r.body.message).toContain(res.body.code);
-      expect((await get(`/catalog/products/${id}`)).body.status).toBe('DANG_AP_DUNG');
+      expect((await get(`/catalog/products/${id}`)).body.name).toBe(res.body.name);
     });
 
     it('gõ SAI mã thì 400', async () => {
@@ -1770,34 +1889,58 @@ describe('`0036` xác nhận bằng cách gõ lại mã', () => {
       expect(r.status).toBe(400);
     });
 
-    it('ĐỔI TÊN thì KHÔNG đòi gõ lại gì', async () => {
-      // Bắt gõ mã cho mọi lần lưu là làm mòn chính chốt chặn ấy: người dùng gõ
-      // mãi thành phản xạ rồi gõ luôn cả lúc vô hiệu hoá.
-      const { id } = await makeProduct();
-      const r = await patch(`/catalog/products/${id}`, { name: 'Ten moi khong can xac nhan' });
-      expect(r.status, JSON.stringify(r.body)).toBe(200);
-      expect(r.body.name).toBe('Ten moi khong can xac nhan');
-    });
-
-    it('BẬT LẠI thì cũng KHÔNG đòi gì — nó không làm hỏng gì cả', async () => {
+    it('BẬT LẠI cũng phải gõ — mọi lượt sửa đều gõ', async () => {
       const { id, res } = await makeProduct();
       await patch(`/catalog/products/${id}`, {
         status: 'DA_VO_HIEU_HOA',
         confirm: res.body.code,
       });
-      const r = await patch(`/catalog/products/${id}`, { status: 'DANG_AP_DUNG' });
+      expect((await patch(`/catalog/products/${id}`, { status: 'DANG_AP_DUNG' })).status).toBe(400);
+
+      const r = await patch(`/catalog/products/${id}`, {
+        status: 'DANG_AP_DUNG',
+        confirm: res.body.code,
+      });
       expect(r.status, JSON.stringify(r.body)).toBe(200);
       expect(r.body.status).toBe('DANG_AP_DUNG');
     });
 
-    it('vô hiệu hoá LẦN HAI cũng không đòi — trạng thái không đổi chiều', async () => {
+    it('`0123` sửa được GIÁ ngay tại đây, áp dụng từ HÔM NAY', async () => {
       const { id, res } = await makeProduct();
-      await patch(`/catalog/products/${id}`, {
-        status: 'DA_VO_HIEU_HOA',
+      const r = await patch(`/catalog/products/${id}`, {
+        price: '250000',
         confirm: res.body.code,
       });
-      const lai = await patch(`/catalog/products/${id}`, { status: 'DA_VO_HIEU_HOA' });
-      expect(lai.status, JSON.stringify(lai.body)).toBe(200);
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+      const gia = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
+      expect(gia.body.amount).toBe('250000');
+
+      const dong = await withAdminDb(async (c) =>
+        c.query<{ n: string }>(
+          `SELECT count(*)::text AS n FROM cat.product_price
+            WHERE product_id = $1 AND effective_from = current_date`,
+          [id],
+        ),
+      );
+      expect(dong.rows[0]!.n).toBe('1');
+    });
+
+    it('`0123` gửi lại ĐÚNG giá đang có thì KHÔNG sinh sự kiện đổi giá', async () => {
+      /*
+       * Một sự kiện `catalog.price_changed` kéo theo một lượt rà mọi hồ sơ đã
+       * đóng băng (nợ N-09). Phát nó ra cho một lượt lưu không đổi giá là trả
+       * cái giá ấy để đổi lấy đúng con số không — và làm khối *Yêu cầu cập nhật*
+       * của mọi TDV đầy những hồ sơ chẳng lệch gì.
+       */
+      const { id, res } = await makeProduct();
+      const truoc = await countEvents('catalog.price_changed');
+      await patch(`/catalog/products/${id}`, {
+        name: 'Chi doi ten thoi',
+        price: res.body.price ?? '100000',
+        confirm: res.body.code,
+      });
+      expect(await countEvents('catalog.price_changed')).toBe(truoc);
     });
   });
 });
@@ -1813,7 +1956,7 @@ describe('`0049` tìm sản phẩm theo TÊN, lọc theo nhóm', () => {
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom tim kiem' });
     const ten = ['Sữa Nutricare Gold', 'Bột dinh dưỡng Metacare', 'Ngũ cốc Đường ăn kiêng'];
     for (const t of ten) {
-      await post('/catalog/products', { code: code('PT'), name: t, groupCode });
+      await post('/catalog/products', { code: code('PT'), name: t, groupCode, price: '100000' });
     }
     return { groupCode, ten };
   };

@@ -601,6 +601,8 @@ describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
         code: uniq('SP'),
         name: 'Nutricare Gold',
         groupCode: g.body.code,
+        // Giá bắt buộc từ `0123`.
+        price: '100000',
       },
       'admin01',
     );

@@ -173,6 +173,19 @@ export function dungKeHoach(
     if (r.code === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'ma_vat_tu' });
     if (r.name === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'ten_vat_tu' });
     if (r.groupCode === '') thieuO.push({ rowNumber: r.rowNumber, cot: 'nhom_sp' });
+    /*
+     * GIÁ BẮT BUỘC từ `0123`.
+     *
+     * `0121` cho ô giá để trống với nghĩa "giữ nguyên giá cũ". Khách hàng chốt
+     * bỏ: từ `0123` sản phẩm không thể tồn tại mà không có giá, nên một ô trống
+     * ở đây là dấu hiệu file soạn dở chứ không phải một ý định.
+     *
+     * Hệ quả phải nhớ: sản phẩm CŨ chưa từng đặt giá sẽ xuất ra file mẫu với ô
+     * trống, và file ấy không tải lên lại được cho tới khi điền giá cho chúng.
+     * Đó là hành vi đúng — đằng nào chúng cũng không đưa vào hồ sơ được — nhưng
+     * nó biến lượt nhập đầu tiên sau `0123` thành một đợt dọn dữ liệu.
+     */
+    if (r.price === null) thieuO.push({ rowNumber: r.rowNumber, cot: 'gia_ban_cong_ty' });
     // Cột hiệu lực để trống là CHƯA ĐIỀN, không phải "ngừng bán" (`0122`).
     if (r.thieuHieuLuc) thieuO.push({ rowNumber: r.rowNumber, cot: 'dang_co_hieu_luc' });
   }
@@ -291,10 +304,12 @@ export function dungKeHoach(
     }
 
     /*
-     * Ô GIÁ TRỐNG = KHÔNG ĐỤNG TỚI, không phải "đặt về rỗng".
+     * Giá chỉ vào kế hoạch khi THẬT SỰ đổi.
      *
-     * Đây là chỗ dễ làm sai nhất của cả hàm: giá là một chuỗi lịch sử mà hồ sơ
-     * đã đóng băng tra ngược lại, nên "xoá giá" không phải một thao tác tồn tại.
+     * Từ `0123` ô giá bắt buộc có, nên `r.price` không bao giờ `null` ở đây —
+     * phép kiểm còn lại chỉ là "khác giá đang có hay không". Ghi một dòng giá
+     * bằng đúng giá cũ là thêm một sự kiện, tức một lượt rà mọi hồ sơ đã đóng
+     * băng (nợ N-09), để đổi lấy đúng con số không.
      */
     if (r.price !== null && (cu.price === null || BigInt(cu.price) !== r.price)) {
       d.gia = { truoc: cu.price, sau: r.price.toString() };

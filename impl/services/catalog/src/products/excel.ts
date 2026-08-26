@@ -74,7 +74,7 @@ const NHAN_COT: Record<Cot, string> = {
   ten_vat_tu: 'Tên sản phẩm — bắt buộc.',
   nhom_sp: 'MÃ nhóm sản phẩm — bắt buộc. Xem các mã đang có ở trang "Nhom san pham".',
   gia_ban_cong_ty:
-    'Giá bán Công ty, số nguyên đồng. ĐỂ TRỐNG nghĩa là giữ nguyên giá hiện có. ' +
+    'Giá bán Công ty, số nguyên đồng — BẮT BUỘC, không được để trống. ' +
     'Ngày áp dụng luôn là ngày nhập, không khai ở đây.',
   dang_co_hieu_luc:
     `Chọn "${CON_BAN}" hoặc "${NGUNG_BAN}" — bấm vào ô để xổ danh sách. ` +
