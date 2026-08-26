@@ -602,6 +602,98 @@ describe('CAT-15 nhập danh mục từ Excel', () => {
 });
 
 /**
+ * `0119` — file Excel MẪU tải về từ hộp thoại nhập.
+ *
+ * Ca đáng giá nhất ở đây là ca VÒNG TRÒN: tải file mẫu về, điền dữ liệu vào
+ * chính nó, nhập lại và phải thành công. Nó là thứ duy nhất chứng minh được điều
+ * mà file mẫu tồn tại để bảo đảm — rằng người dùng không phải sửa gì ở phần tiêu
+ * đề. Kiểm riêng "có ba cột đúng tên" thì hai bên vẫn trôi khỏi nhau được ở mọi
+ * chỗ khác: thứ tự cột, hoa thường, trang nào là trang đầu.
+ */
+describe('`0119` file Excel mẫu', () => {
+  const upload = async (buf: Buffer) =>
+    (await http(app))
+      .post('/catalog/products/import')
+      .set('Authorization', `Bearer ${adminT}`)
+      .attach('file', buf, 'danh-muc.xlsx');
+
+  const taiMau = async () =>
+    (await http(app))
+      .get('/catalog/products/import/mau')
+      .set('Authorization', `Bearer ${adminT}`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const phan: Buffer[] = [];
+        res.on('data', (c: Buffer) => phan.push(c));
+        res.on('end', () => cb(null, Buffer.concat(phan)));
+      });
+
+  it('tải về được, đúng kiểu nội dung và có tên tệp', async () => {
+    const r = await taiMau();
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toContain('spreadsheetml');
+    // Tên thật nằm ở header, không phải do giao diện bịa ra.
+    expect(r.headers['content-disposition']).toContain('mau-danh-muc-san-pham.xlsx');
+  });
+
+  it('VÒNG TRÒN: điền vào chính file mẫu rồi nhập lại thì thành công', async () => {
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom tu file mau' });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+    // Điền NGAY DƯỚI tiêu đề: file mẫu không có dòng ví dụ nào để phải xoá đi.
+    wb.worksheets[0]!.addRow([code('I'), 'San pham tu file mau', groupCode]);
+
+    const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(r.status).toBe(200);
+    expect(r.body.imported).toBe(1);
+  });
+
+  it('KHÔNG có dòng dữ liệu nào — tải về rồi nhập ngay là lô rỗng, không phải sản phẩm ma', async () => {
+    /*
+     * Một dòng ví dụ sót lại sẽ thành sản phẩm thật trong danh mục, hoặc chặn cả
+     * lô vì mã nhóm bịa. `EMPTY_SHEET` là câu trả lời đúng cho một file chưa
+     * điền gì.
+     */
+    const r = await upload((await taiMau()).body as Buffer);
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('EMPTY_SHEET');
+  });
+
+  it('trang thứ hai liệt kê mã nhóm đang có, và bộ đọc KHÔNG chạm tới nó', async () => {
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom hien o trang hai' });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+
+    const wsN = wb.worksheets[1];
+    expect(wsN, 'file mẫu phải có trang thứ hai').toBeDefined();
+    const maNhom: string[] = [];
+    wsN!.eachRow((row) => maNhom.push(String(row.getCell(1).value ?? '')));
+    expect(maNhom).toContain(groupCode);
+
+    /*
+     * `parseProductSheet` chỉ đọc `worksheets[0]`. Không có phép khẳng định này
+     * thì một lượt sửa đổi bộ đọc sang "duyệt mọi trang" sẽ nạp cả danh sách
+     * nhóm vào bảng sản phẩm, và ca vòng tròn ở trên vẫn xanh.
+     */
+    wb.worksheets[0]!.addRow([code('I'), 'Chi mot dong that', groupCode]);
+    const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(r.status).toBe(200);
+    expect(r.body.imported).toBe(1);
+  });
+
+  it('chỉ Quản trị hệ thống tải được', async () => {
+    const r = await (await http(app))
+      .get('/catalog/products/import/mau')
+      .set('Authorization', `Bearer ${tdvT}`);
+    expect(r.status).toBe(403);
+  });
+});
+
+/**
  * 0026 — kênh bán không còn là một chiều của quy định chiết khấu.
  *
  * Kiểm qua HTTP chứ không chỉ ở lược đồ: `validate` bỏ im lặng mọi trường lạ,

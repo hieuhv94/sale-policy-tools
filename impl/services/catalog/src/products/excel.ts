@@ -23,7 +23,69 @@ export type ImportRow = {
  * chặn chúng là bắt người dùng sửa lại một file họ đã có, để đổi lấy đúng con
  * số không.
  */
-const HEADERS = ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp'];
+const HEADERS = ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp'] as const;
+
+/**
+ * Chú thích tiếng Việt của từng cột, hiện ở ghi chú ô tiêu đề trong file mẫu (`0119`).
+ *
+ * `HEADERS` khai `as const` nên bảng này phải phủ ĐỦ mọi cột: thêm một cột mà
+ * quên chú thích là lỗi biên dịch, không phải một ô lặng lẽ không có hướng dẫn.
+ */
+const NHAN_COT: Record<(typeof HEADERS)[number], string> = {
+  ma_vat_tu: 'Mã vật tư — bắt buộc, không trùng mã đã có',
+  ten_vat_tu: 'Tên sản phẩm — bắt buộc',
+  nhom_sp: 'MÃ nhóm sản phẩm — bắt buộc, nhóm phải có sẵn trong danh mục',
+};
+
+/** Tên file mẫu lúc tải về. Thuần ASCII nên `Content-Disposition` không phải né gì. */
+export const MAU_TEN_TEP = 'mau-danh-muc-san-pham.xlsx';
+
+/**
+ * Dựng file Excel MẪU để Quản trị tải về (`0119`).
+ *
+ * Ba quyết định, và cả ba đều là để file tải về **nhập lại được ngay**:
+ *
+ * 1. **Tiêu đề dựng TỪ `HEADERS`**, chính mảng mà `parseProductSheet` kiểm. Viết
+ *    cứng ba cái tên lần thứ hai ở đây là dựng ra đúng thứ hỏng mà file mẫu sinh
+ *    ra để chống — người dùng tải một file "chuẩn" về, điền đúng, rồi nhận
+ *    `BAD_HEADER` vì hai bên đã trôi khỏi nhau.
+ *
+ * 2. **KHÔNG có dòng dữ liệu ví dụ.** Người dùng điền tiếp ngay dưới tiêu đề;
+ *    một dòng ví dụ sót lại sẽ thành sản phẩm ma trong danh mục, hoặc chặn cả lô
+ *    vì mã nhóm bịa. Chú thích từng cột nằm ở GHI CHÚ của ô tiêu đề: Excel hiện
+ *    nó khi rê chuột, còn bộ đọc không thấy gì. Một hàng chú thích thật thì
+ *    `parseProductSheet` sẽ đọc thành một sản phẩm tên *"Tên sản phẩm — bắt buộc"*.
+ *
+ * 3. **Trang thứ hai liệt kê mã nhóm đang có.** Bộ đọc chỉ lấy `worksheets[0]`
+ *    nên trang này không bao giờ đi vào dữ liệu. Nó ở đây vì lỗi hay gặp nhất
+ *    của một lượt nhập là mã nhóm chưa tồn tại, và người dùng chỉ biết điều đó
+ *    sau khi tải file lên rồi bị chặn cả lô.
+ */
+export async function dungFileMau(nhom: { code: string; name: string }[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('San pham');
+
+  ws.addRow([...HEADERS]);
+  const dau = ws.getRow(1);
+  dau.font = { bold: true };
+  for (const [i, h] of HEADERS.entries()) {
+    const o = dau.getCell(i + 1);
+    o.note = NHAN_COT[h];
+    ws.getColumn(i + 1).width = 28;
+  }
+  // Giữ hàng tiêu đề luôn nhìn thấy khi cuộn — file danh mục thật dài vài trăm
+  // dòng, và cuộn tới dòng 300 mà không thấy tên cột là chỗ điền nhầm cột.
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const wsN = wb.addWorksheet('Nhom san pham');
+  wsN.addRow(['ma_nhom', 'ten_nhom']);
+  wsN.getRow(1).font = { bold: true };
+  wsN.getColumn(1).width = 20;
+  wsN.getColumn(2).width = 40;
+  for (const n of nhom) wsN.addRow([n.code, n.name]);
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
 
 const cellText = (v: ExcelJS.CellValue): string => {
   if (v === null || v === undefined) return '';

@@ -1548,6 +1548,10 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
 - **Sản phẩm mới chưa có giá** nên chưa lập được hồ sơ với nó. Đặt giá ngay sau khi tạo.
 - **Nhập Excel** cần ba cột: mã vật tư, tên sản phẩm, mã nhóm. **Một dòng lỗi thì không dòng nào
   được ghi** — thông báo nêu đúng số dòng hỏng để bạn sửa file rồi nhập lại.
+- **Tải file mẫu** `mới 26/08` — nút nằm ngay trong hộp thoại *Nhập từ Excel*. File tải về đã sẵn ba
+  tiêu đề cột đúng tên, **không có dòng ví dụ nào phải xoá**: mở ra điền ngay từ dòng thứ hai. Trang
+  thứ hai của file liệt kê **mã nhóm đang có** trong danh mục — tra ở đó trước khi điền cột *mã
+  nhóm*, vì nhóm chưa tồn tại là lỗi chặn cả lô. Trang ấy chỉ để tra cứu, hệ thống không đọc nó.
 
 **Thẻ Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
 nhóm. **Làm thẻ này trước** nếu danh mục còn trống: chưa có nhóm nào thì nút *Tạo sản phẩm* bên thẻ

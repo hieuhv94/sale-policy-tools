@@ -10706,3 +10706,61 @@ làm việc này là commit nào", một câu khác với "thẻ ảnh là gì".
 - Gỡ `TAG` về dạng có sha → ca `0118` của `dong-goi` đỏ
 
 **1715/1715 xanh.**
+
+## P147 — `0119` file Excel mẫu cho lượt nhập danh mục sản phẩm
+
+Hộp thoại *Nhập từ Excel* mô tả ba cột **bằng lời**, rồi để người dùng tự gõ tên
+cột vào Excel. Gõ sai một ký tự là `BAD_HEADER`, và câu lỗi ấy chỉ nói cột thứ
+mấy sai chứ không đưa cho họ một file đúng.
+
+### Bộ dựng nằm cạnh bộ đọc, và dựng TỪ cùng một mảng
+
+`dungFileMau` viết trong chính `products/excel.ts`, dùng lại `HEADERS` — mảng mà
+`parseProductSheet` đối chiếu. Viết cứng ba cái tên lần thứ hai là dựng ra đúng
+thứ hỏng mà file mẫu sinh ra để chống: người dùng tải một file "chuẩn" về, điền
+đúng, rồi bị từ chối vì hai bên đã trôi khỏi nhau.
+
+`HEADERS` đổi sang `as const` để bảng chú thích `NHAN_COT` bị ép phủ đủ mọi cột —
+thêm một cột mà quên chú thích là lỗi biên dịch, không phải một ô lặng lẽ không
+có hướng dẫn.
+
+### Ba quyết định về NỘI DUNG file, cả ba đều là để nó nhập lại được ngay
+
+**Không có dòng dữ liệu ví dụ.** Một dòng ví dụ sót lại thành sản phẩm ma trong
+danh mục, hoặc chặn cả lô vì mã nhóm bịa. Chú thích từng cột chuyển vào GHI CHÚ
+của ô tiêu đề: Excel hiện khi rê chuột, bộ đọc không thấy gì. Một hàng chú thích
+thật thì `parseProductSheet` đọc nó thành một sản phẩm tên *"Tên sản phẩm — bắt
+buộc"*.
+
+**Trang thứ hai liệt kê mã nhóm đang có.** Bộ đọc chỉ lấy `worksheets[0]` nên
+trang này không bao giờ đi vào dữ liệu. Nó ở đây vì lỗi hay gặp nhất của một lượt
+nhập là mã nhóm chưa tồn tại — và người dùng chỉ biết điều đó SAU khi tải file
+lên rồi bị chặn cả lô. Đây là phần duy nhất rộng hơn câu chữ của yêu cầu; bỏ đi
+thì file mẫu vẫn đúng, chỉ kém hữu ích hơn.
+
+**Dựng lúc gọi, không phải một tệp tĩnh trong ảnh** — vì danh sách nhóm đổi mỗi
+khi Quản trị thêm nhóm.
+
+### Ca kiểm VÒNG TRÒN
+
+Ca đáng giá nhất tải file mẫu về, `addRow` vào chính nó, rồi nhập lại. Nó là thứ
+duy nhất chứng minh được điều mà file mẫu tồn tại để bảo đảm. Kiểm riêng "có ba
+cột đúng tên" thì hai bên vẫn trôi khỏi nhau được ở mọi chỗ khác: thứ tự cột,
+hoa thường, trang nào là trang đầu.
+
+Phá lại: đổi một tên cột trong bộ dựng → **3/5 đỏ**, gồm cả ca vòng tròn. Bỏ
+trang thứ hai → đúng một ca đỏ. Ca `403` và ca kiểm header phản hồi vẫn xanh ở cả
+hai lượt, đúng như mong đợi — chúng canh đường đi và phân quyền, không canh nội
+dung.
+
+### Nút nằm TRONG hộp thoại
+
+Không phải trên thanh công cụ của trang: người ta nghĩ tới file mẫu đúng vào lúc
+chuẩn bị nhập, không phải lúc đang xem danh sách. Tải bằng `taiVe()` chứ không
+phải thẻ `<a href>` — đường này sau `@Roles('QUAN_TRI')` và thẻ neo không gửi
+header `Authorization`, đúng cái bẫy mà `NutXuatExcel` đã dính một lần.
+
+Kèm một lớp CSS mới, `.lien-trong-dong`: `.lien-phu` đang có là khối chiếm cả
+hàng, đặt vào giữa một câu thì nó đẩy phần chữ còn lại xuống dòng dưới.
+
+**1720/1720 xanh.**

@@ -87,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P146** (`0118`): **số phiên bản hiện ở chân thanh bên**, và **thẻ ảnh bỏ git sha**.
+Chặng gần nhất **P147** (`0119`): **file Excel mẫu** tải từ hộp thoại *Nhập từ Excel*. `dungFileMau`
+nằm cạnh `parseProductSheet` trong `products/excel.ts` và dựng tiêu đề **TỪ chính mảng `HEADERS`** mà
+bộ đọc đối chiếu — hai bên trôi khỏi nhau là dựng ra đúng thứ hỏng mà file mẫu sinh ra để chống.
+**Không có dòng ví dụ** (một dòng sót lại thành sản phẩm ma); chú thích cột nằm ở ghi chú ô tiêu đề
+vì một hàng chú thích thật sẽ bị đọc thành sản phẩm. **Trang thứ hai liệt kê mã nhóm đang có** —
+`parseProductSheet` chỉ lấy `worksheets[0]` nên nó không vào dữ liệu. Ca kiểm chính là **vòng tròn**:
+tải mẫu → điền vào chính nó → nhập lại phải xong. **1720/1720 xanh.**
+
+Trước đó **P146** (`0118`): **số phiên bản hiện ở chân thanh bên**, và **thẻ ảnh bỏ git sha**.
 Chân thanh bên ghi cứng `Phiên bản demo` — hiện y hệt trên production thật — trong khi **VER-05 đã
 có trong danh mục ca kiểm** và P7d đã dựng sẵn `apps/web/src/lib/phien-ban.ts` (`PHIEN_BAN`, Vite
 nhúng từ tệp `VERSION`). Hằng ấy **chưa từng có ai import**. Dùng số NHÚNG LÚC BUILD chứ không phải

@@ -8,9 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   CurrentUser,
@@ -26,7 +28,7 @@ import {
 } from '@csbh/http-kit';
 import { PRICE_TYPES, PRODUCT_STATUSES, ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
-import { parseProductSheet } from './products/excel.js';
+import { dungFileMau, MAU_TEN_TEP, parseProductSheet } from './products/excel.js';
 
 const isoDate = () => str(10, 10);
 
@@ -172,6 +174,34 @@ export class CatalogController {
       b.effectiveFrom,
       me.id,
     );
+  }
+
+  /**
+   * FILE MẪU để tải về (`0119`).
+   *
+   * Ba đoạn đường dẫn nên nó không đụng `products/:id` (hai đoạn) — thứ tự khai
+   * ở đây không quan trọng. Đặt cạnh `products/import` để người sửa sau nhìn
+   * thấy hai đầu của cùng một việc ở cùng một chỗ.
+   *
+   * Nội dung dựng lúc gọi chứ không phải một tệp tĩnh nằm trong ảnh: trang thứ
+   * hai liệt kê mã nhóm ĐANG CÓ, mà danh sách ấy đổi mỗi khi Quản trị thêm nhóm.
+   */
+  @Roles('QUAN_TRI')
+  @Get('products/import/mau')
+  async fileMau(@Res() res: Response): Promise<void> {
+    const nhom = await this.products.listGroups();
+    const buf = await dungFileMau(nhom as { code: string; name: string }[]);
+    // Đặt header trong thân hàm: đã nhận `@Res` thì Nest giao hẳn phản hồi cho
+    // mình và không áp decorator header nữa — cùng lý do đã ghi ở `reporting`.
+    res.setHeader(
+      'content-type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'content-disposition',
+      `attachment; filename="${MAU_TEN_TEP}"; filename*=UTF-8''${encodeURIComponent(MAU_TEN_TEP)}`,
+    );
+    res.end(buf);
   }
 
   @Roles('QUAN_TRI')

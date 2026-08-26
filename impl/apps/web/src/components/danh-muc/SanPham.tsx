@@ -7,7 +7,7 @@
  * "Đặt giá mới", và bảng lịch sử để thấy giá nào áp dụng từ bao giờ.
  */
 import { useEffect, useState } from 'react';
-import { dang, guiTep, layJson, va } from '../../lib/api.js';
+import { dang, guiTep, layJson, taiVe, va } from '../../lib/api.js';
 import { ngay, tien } from '../../lib/format.js';
 import {
   NHAN_LOAI_GIA,
@@ -499,6 +499,25 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
   const [tep, datTep] = useState<File | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+  const [dangTaiMau, datDangTaiMau] = useState(false);
+
+  /*
+   * Tải qua `taiVe()`, KHÔNG phải một thẻ `<a href>` (`0119`).
+   *
+   * Đường này nằm sau `@Roles('QUAN_TRI')`, mà thẻ neo không gửi header
+   * `Authorization` — nó sẽ nhận 401 và trình duyệt hiện một trang lỗi thay vì
+   * tải file. Đúng cái bẫy mà `NutXuatExcel` đã dính một lần và `taiVe` sinh ra
+   * để bịt.
+   *
+   * Tên file thật do máy chủ đặt ở `Content-Disposition`; chuỗi dưới đây chỉ là
+   * đường lùi khi header ấy vắng mặt.
+   */
+  const taiMau = () => {
+    datDangTaiMau(true);
+    taiVe('/catalog/products/import/mau', 'mau-danh-muc-san-pham.xlsx')
+      .catch(bao)
+      .finally(() => datDangTaiMau(false));
+  };
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -525,6 +544,25 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
         <p className="ghi-chu">
           File cần các cột: <strong>mã vật tư</strong>, <strong>tên sản phẩm</strong>,{' '}
           <strong>mã nhóm</strong>. Nhóm phải có sẵn trong danh mục.
+        </p>
+
+        {/*
+          FILE MẪU tải ngay tại đây (`0119`).
+
+          Trước đó hộp thoại mô tả ba cột bằng lời và người dùng tự gõ tên cột
+          vào Excel — gõ sai một ký tự là `BAD_HEADER`, và câu lỗi ấy chỉ nói cột
+          thứ mấy sai chứ không đưa cho họ một file đúng.
+
+          Nút nằm TRONG hộp thoại chứ không ở thanh công cụ của trang: người ta
+          nghĩ tới file mẫu đúng vào lúc chuẩn bị nhập, không phải lúc đang xem
+          danh sách.
+        */}
+        <p className="ghi-chu">
+          Chưa có file đúng định dạng?{' '}
+          <button type="button" className="lien-trong-dong" disabled={dangTaiMau} onClick={taiMau}>
+            {dangTaiMau ? 'Đang tải…' : 'Tải file mẫu'}
+          </button>{' '}
+          — sẵn tiêu đề cột, kèm một trang liệt kê <strong>mã nhóm đang có</strong>.
         </p>
         {/*
           Nói trước hành vi "cả lô một transaction". Người dùng quen với kiểu
