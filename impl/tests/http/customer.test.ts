@@ -52,8 +52,7 @@ const base = (over: Record<string, unknown> = {}) => ({
   customerType: 1,
   registeredAddress: 'So 1 Lang Ha, Ha Noi',
   ownerName: 'Nguyen Van A',
-  ...over,
-});
+  ...over, phone: '0900000000' });
 
 const cleanup = () =>
   withAdminDb(async (c) => {

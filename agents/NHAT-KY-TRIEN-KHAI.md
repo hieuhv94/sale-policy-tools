@@ -11291,3 +11291,114 @@ việc người dùng không làm được.
 
 KHÔNG chạy lại bộ test theo yêu cầu của khách hàng. `typecheck` xanh, và không ca
 kiểm nào tham chiếu tới câu chữ vừa xoá — đã quét `tests/` để chắc.
+
+## P156 — `0128` số điện thoại khách hàng, và một trường ánh xạ mới
+
+Yêu cầu nghe như một cột thêm vào một bảng. Thực ra nó chạm bốn tầng, và hai
+trong số đó là những chỗ mà chặng trước cố ý dựng ra để bắt phải trả lời.
+
+### `0101` dựng sẵn một câu hỏi, và đây là lần đầu nó được hỏi
+
+`0101` đóng băng tám trường khách hàng vào hồ sơ, và chọn CỘT RỜI thay vì `jsonb`
+với đúng lý do này:
+
+> để thêm một trường về sau **buộc** phải viết migration, tức buộc phải trả lời
+> "đóng băng hay đọc sống?"
+
+Câu trả lời: **đóng băng**. Số điện thoại in ra bản CSBH, nên đọc sống nghĩa là
+khách đổi số sau khi hồ sơ đã duyệt thì tờ giấy đã ký lặng lẽ mang một con số
+khác. Đối chiếu: *Kế toán* và *Sale Admin* KHÔNG đóng băng vì câu chúng trả lời
+là "ai đang giữ hồ sơ" — một câu hỏi về hiện tại; số điện thoại trả lời "hợp đồng
+này ký với ai", một câu hỏi về thời điểm ký.
+
+### `0104` dựng sẵn câu hỏi thứ hai
+
+Bảng `NHOM_TRUONG` bắt mỗi khoá của `SCALAR` nằm trong đúng một nhóm, và định
+nghĩa của `chan-moi` mô tả chính xác trường này: *"có thể rỗng, TDV sửa được, và
+rỗng thì bản CSBH in ra một ô trắng"*. Nên nó vào `chan-moi`, cùng chỗ với mã số
+thuế và chức danh người đại diện.
+
+Hệ quả vận hành, ghi ra vì nó không suy được từ mã: **khách hàng lập trước `0128`
+chưa ai khai số thì hồ sơ mới của họ không gửi duyệt được** cho tới khi có người
+bổ sung. Không có đường nào tránh mà vẫn giữ được luật đồng nhất — nhóm duy nhất
+không chặn là `luon-co`, mà xếp một cột `NULL` được vào đó là nói dối người đọc
+sau.
+
+### Chỗ thiếu KHÔNG có gì báo
+
+Thêm cột, sửa `customers.service`, sửa `workflow.service`, sửa `sources.ts` — rồi
+14 ca kiểm vẫn đỏ với `expected 200 to be 409`, tức là lượt gửi duyệt không đi
+qua. Nguyên nhân nằm ở một chỗ tôi không nghĩ tới: **endpoint nội bộ**
+`internal.controller.ts` của `customer` liệt kê từng cột một trong câu `SELECT`,
+và nó không biết `phone`.
+
+`policy` và `document` đều đọc khách hàng qua đúng đường ấy. Thiếu ở đó thì cả
+hai nhận `undefined`, TypeScript không kêu (trường khai `?`), và triệu chứng lộ ra
+ở một chỗ chẳng liên quan — hồ sơ không rời được trạng thái *Nháp*.
+
+Đây là cái giá của phép chiếu liệt kê từng cột. Nó đúng — `SELECT *` qua ranh
+giới service là đưa mọi cột mới ra ngoài mà không ai quyết định — nhưng nó câm
+khi thiếu, nên **thêm một trường vào khách hàng là phải rà `internal.controller`
+của `customer`**, không chỉ `customers.service`.
+
+### Bốn tầng phải sửa cùng lượt
+
+| Tầng | Chỗ |
+|---|---|
+| Lược đồ | `cus.customer.phone`, `pol.policy.kh_dien_thoai_snap` |
+| customer | service (DTO · INSERT · UPDATE · `toDto`) **và** `internal.controller` |
+| policy | chốt chặn `thieuTruongLucGui`, câu ghi ảnh chụp lúc gửi duyệt |
+| document | `SCALAR` · `NHOM_TRUONG` · `khachHangCua` · hai kiểu `CustomerFull` |
+
+### Lượt chạy này bắt được một lỗi KHÔNG liên quan gì tới số điện thoại
+
+Bộ test đỏ với một câu lạ:
+
+```
+expected '2026-08-27' to be '2026-08-26'
+```
+
+`current_date` của Postgres chạy theo múi giờ của máy chủ — `Asia/Ho_Chi_Minh`,
+đặt từ `docs/04-TRIEN-KHAI.md` — còn `new Date().toISOString().slice(0, 10)` cho
+ra ngày theo UTC. **Từ 00:00 tới 07:00 giờ Việt Nam, hai bên lệch nhau đúng một
+ngày.** Lượt chạy này rơi vào đúng bảy giờ ấy; mọi lượt trước đó nằm ngoài, nên
+lỗi ngủ yên từ `0123`.
+
+Ba chỗ hỏng, và chỗ thứ hai mới là chỗ nặng:
+
+1. **Ca kiểm của `0123`** so ngày UTC với `effectiveFrom` do máy chủ trả về.
+   Xanh mười bảy giờ mỗi ngày.
+2. **`products.service` dựng lại ngày ở tầng Node** để đưa vào sự kiện
+   `catalog.price_changed` và vào câu trả lời API, trong khi DÒNG GIÁ được ghi
+   bằng `current_date`. Trong bảy giờ ấy, dòng nằm ở một ngày còn sự kiện nói
+   một ngày khác — mà consumer bên `policy` đọc chính sự kiện đó để rà chênh
+   lệch. Chữa bằng cách bỏ hẳn nguồn thứ hai: `RETURNING` ngày vừa ghi.
+3. **Nhãn *Đang áp dụng* của `0125`** so `effectiveFrom` với ngày UTC, nên trong
+   bảy giờ ấy dòng giá của hôm nay bị dán nhãn *Chưa hiệu lực*.
+
+Thêm `homNayVN()` ở `format.ts` cho vế giao diện. Nhưng bài học không nằm ở hàm
+ấy: **đừng dựng lại ở tầng Node một giá trị mà CSDL vừa sinh ra**. Ngày tháng chỉ
+là chỗ nó lộ ra dễ nhất.
+
+### Bốn ca đỏ khác trong cùng lượt là ĐỎ DÂY CHUYỀN
+
+`sla` (ba ca đẩy đồng hồ), `reporting` RPT-01, `security` SEC-14 và CAT-13 cùng
+đỏ ở lượt ấy. Chạy riêng từng nhóm thì xanh sạch. Bộ test dùng chung một Postgres
+và chạy tuần tự trong một tiến trình, nên một tệp hỏng ở giữa để lại trạng thái
+mà tệp sau đọc phải — đúng thứ đầu `CLAUDE.md` đã ghi. Đừng đuổi theo chúng trước
+khi chữa xong ca đỏ đầu tiên.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ chốt chặn số điện thoại lúc gửi duyệt | 1 đỏ |
+| Bỏ cột snapshot khỏi câu ghi lúc gửi duyệt | 1 đỏ — đúng ca đóng băng |
+| `internal.controller` của `customer` thôi trả `phone` | 1 đỏ |
+| Bỏ khoá khỏi bảng hướng dẫn ánh xạ ở giao diện | 1 đỏ |
+
+Lượt thứ ba đáng chú ý: nó **không** làm đỏ ca chốt chặn, chỉ đỏ ca đóng băng.
+Vì `thieuTruongLucGui` đọc khách hàng qua một đường khác — nên hai ca ấy đi qua
+hai đường đọc khác nhau, và cần cả hai mới phủ hết.
+
+**1771/1771 xanh.**

@@ -87,7 +87,22 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P154** (`0126`): **lịch sử giá giữ đủ mọi lần sửa**, kể cả nhiều lần trong một
+Chặng gần nhất **P156** (`0128`): **số điện thoại khách hàng**, kèm một khoá mới trong bảng ánh xạ
+văn bản mẫu. Chạm bốn tầng, và hai chặng cũ đã dựng sẵn câu hỏi cho nó: `0101` (cột rời chứ không
+jsonb → **buộc** trả lời *"đóng băng hay đọc sống"* → **đóng băng**, thêm `kh_dien_thoai_snap`) và
+`0104` (`NHOM_TRUONG` → nhóm **`chan-moi`**, tức **khách cũ chưa khai số thì hồ sơ mới không gửi
+duyệt được**). Bẫy mất 14 ca kiểm: **`internal.controller` của `customer` liệt kê từng cột** trong
+`SELECT` và không biết `phone` — `policy` với `document` đều đọc qua đó, nhận `undefined`, TypeScript
+im vì trường khai `?`, và triệu chứng lộ ra ở chỗ khác hẳn (hồ sơ không rời được *Nháp*). **Thêm một
+trường vào khách hàng thì phải rà cả `internal.controller`, không chỉ `customers.service`.**
+Lượt chạy này còn bắt được một lỗi **không liên quan**: `current_date` của Postgres theo giờ Việt
+Nam, còn `new Date().toISOString()` theo UTC — **từ 00:00 tới 07:00 giờ VN hai bên lệch một ngày**,
+nên lỗi từ `0123` ngủ yên tới giờ. Ba chỗ hỏng; nặng nhất là `products.service` **dựng lại ngày ở
+tầng Node** cho sự kiện `catalog.price_changed` trong khi dòng giá ghi bằng `current_date` — chữa
+bằng `RETURNING` ngày vừa ghi. Bài học: **đừng dựng lại ở tầng Node một giá trị mà CSDL vừa sinh
+ra.** P155 (`0127`) chỉ gỡ một đoạn chú thích ở hộp thoại thêm dòng sản phẩm. **1771/1771 xanh.**
+
+Trước đó **P154** (`0126`): **lịch sử giá giữ đủ mọi lần sửa**, kể cả nhiều lần trong một
 ngày — gỡ `UNIQUE (product_id, price_type, effective_from)`, bỏ hai chỗ `ON CONFLICT DO UPDATE`, và
 thêm cột **`stt bigserial`** làm khoá phân xử (`id` là uuid ngẫu nhiên; `created_at` là `now()`, tức
 giờ MỞ transaction). Bốn chỗ tự viết `ORDER BY effective_from DESC LIMIT 1` gom thành hằng

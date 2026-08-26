@@ -66,6 +66,7 @@ export type PolicyFull = {
   kh_noi_nhan_hang_snap: string | null;
   kh_nguoi_dai_dien_snap: string | null;
   kh_chuc_danh_dai_dien_snap: string | null;
+  kh_dien_thoai_snap: string | null;
   kh_cong_no_snap: string | null;
   nguoi_de_nghi_snap: string | null;
   tbp_ky_ten_snap: string | null;
@@ -84,6 +85,8 @@ export type CustomerFull = {
   deliveryAddress: string | null;
   ownerName: string;
   ownerTitle: string | null;
+  /** `0128` — in ra bản CSBH, và đóng băng vào hồ sơ lúc gửi duyệt. */
+  phone: string | null;
   debt: string;
 };
 

@@ -38,6 +38,28 @@ export function tyLe(v: string | number | null | undefined): string {
 
 const HAI_SO = (n: number) => String(n).padStart(2, '0');
 
+/**
+ * HÔM NAY theo giờ Việt Nam, dạng `YYYY-MM-DD` (`0128`).
+ *
+ * KHÔNG dùng `new Date().toISOString().slice(0, 10)` để so với ngày do máy chủ
+ * trả về. `toISOString` cho ra ngày theo UTC, còn `current_date` của Postgres
+ * chạy theo múi giờ Việt Nam — nên từ 00:00 tới 07:00 giờ Việt Nam hai bên lệch
+ * nhau ĐÚNG MỘT NGÀY.
+ *
+ * Đo được: ca kiểm `0123` đỏ với `expected '2026-08-27' to be '2026-08-26'`, và
+ * nó chỉ đỏ trong bảy giờ mỗi ngày. Cùng phép so ấy chạy ở nhãn *Đang áp dụng*
+ * của lịch sử giá, nên trong bảy giờ ấy dòng giá của hôm nay bị dán nhãn *Chưa
+ * hiệu lực*.
+ */
+export function homNayVN(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
 /** Ngày dd/mm/yyyy theo giờ Việt Nam. */
 export function ngay(v: string | Date | null | undefined): string {
   if (!v) return '—';

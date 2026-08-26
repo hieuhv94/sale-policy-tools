@@ -60,6 +60,7 @@ export const khachHangCua = (
     | 'kh_noi_nhan_hang_snap'
     | 'kh_nguoi_dai_dien_snap'
     | 'kh_chuc_danh_dai_dien_snap'
+    | 'kh_dien_thoai_snap'
     | 'kh_cong_no_snap'
   >,
   song: CustomerFull,
@@ -75,6 +76,7 @@ export const khachHangCua = (
         deliveryAddress: p.kh_noi_nhan_hang_snap,
         ownerName: p.kh_nguoi_dai_dien_snap ?? song.ownerName,
         ownerTitle: p.kh_chuc_danh_dai_dien_snap,
+        phone: p.kh_dien_thoai_snap,
         debt: p.kh_cong_no_snap ?? song.debt,
       };
 

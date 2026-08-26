@@ -78,6 +78,7 @@ export class CustomersController {
       idNumber: opt(taxId()),
       deliveryAddress: opt(str(1, 500)),
       ownerTitle: opt(str(1, 120)),
+      phone: opt(str(1, 30)),
       ownerIdNumber: opt(str(1, 60)),
       debt: opt(moneyKhongAm()),
     });
@@ -106,6 +107,7 @@ export class CustomersController {
       deliveryAddress: opt(str(1, 500)),
       ownerName: opt(str(1, 200)),
       ownerTitle: opt(str(1, 120)),
+      phone: opt(str(1, 30)),
       ownerIdNumber: opt(str(1, 60)),
       idNumber: opt(taxId()),
       debt: opt(moneyKhongAm()),

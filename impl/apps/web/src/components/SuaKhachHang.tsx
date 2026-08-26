@@ -26,6 +26,7 @@ export type KhachHangDayDu = {
   deliveryAddress: string | null;
   ownerName: string;
   ownerTitle: string | null;
+  phone: string | null;
   idNumber: string | null;
   debt: string;
   tdvUserId: string | null;
@@ -41,6 +42,7 @@ type Gia = {
   deliveryAddress: string;
   ownerName: string;
   ownerTitle: string;
+  phone: string;
   idNumber: string;
   debt: string;
 };
@@ -53,6 +55,7 @@ const rong: Gia = {
   deliveryAddress: '',
   ownerName: '',
   ownerTitle: '',
+  phone: '',
   idNumber: '',
   debt: '',
 };
@@ -65,6 +68,7 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   deliveryAddress: k.deliveryAddress ?? '',
   ownerName: k.ownerName,
   ownerTitle: k.ownerTitle ?? '',
+  phone: k.phone ?? '',
   idNumber: k.idNumber ?? '',
   debt: k.debt,
 });
@@ -105,6 +109,7 @@ export function BieuMauKhachHang({
         ownerName: g.ownerName.trim(),
         ...opt('deliveryAddress', coGiaTri(g.deliveryAddress)),
         ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
+        ...opt('phone', coGiaTri(g.phone)),
         ...opt('idNumber', coGiaTri(g.idNumber)),
         ...opt('debt', coGiaTri(g.debt)),
       };
@@ -242,6 +247,27 @@ export function BieuMauKhachHang({
               className="o-nhap"
               value={g.ownerTitle}
               onChange={(e) => sua({ ownerTitle: e.target.value })}
+            />
+          )}
+        </Truong>
+        {/*
+          SỐ ĐIỆN THOẠI (`0128`) — đứng cạnh người đại diện, vì nó là cách liên
+          hệ CHÍNH của khách hàng và người nhập điền hai ô ấy cùng một lúc.
+
+          Không phải ô bắt buộc của biểu mẫu này: khách hàng lập trước `0128`
+          chưa ai khai, và bắt điền ngay là chặn cả những lượt sửa chẳng liên
+          quan. Chốt nằm ở lượt GỬI DUYỆT — số này in ra bản CSBH, nên hồ sơ
+          không rời trạng thái Nháp khi nó còn trống.
+        */}
+        <Truong id="kh-dien-thoai" nhan="Số điện thoại">
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              type="tel"
+              inputMode="tel"
+              value={g.phone}
+              onChange={(e) => sua({ phone: e.target.value })}
             />
           )}
         </Truong>

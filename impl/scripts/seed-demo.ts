@@ -244,6 +244,8 @@ type KhachMau = {
   ownerName: string;
   ownerTitle: string;
   idNumber: string;
+  /** `0128` — bắt buộc lúc gửi duyệt, nên khách hàng mẫu phải có. */
+  phone: string;
   debt: string;
 };
 
@@ -257,6 +259,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerName: 'Trần Thị Mỹ Hạnh',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0101234567',
+    phone: '0912 345 678',
     debt: '4500000',
   },
   {
@@ -267,6 +270,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerName: 'Lê Quang Đạo',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0402345678',
+    phone: '0905 234 567',
     debt: '0',
   },
   {
@@ -277,6 +281,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerName: 'Phạm Hoàng Long',
     ownerTitle: 'Giám đốc',
     idNumber: '0312345678',
+    phone: '0938 456 789',
     debt: '128000000',
   },
   {
@@ -287,6 +292,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerName: 'Nguyễn Thị Thu Hà',
     ownerTitle: 'Trưởng khoa',
     idNumber: '0104567890',
+    phone: '0987 654 321',
     debt: '0',
   },
 ];
@@ -332,6 +338,7 @@ const KHACH: KhachMau[] = [
     ownerName: chu,
     ownerTitle: chucDanh,
     idNumber: mst(i + 5),
+    phone: `09${String(10000000 + i).slice(0, 8)}`,
     debt: congNo,
   })),
 ];

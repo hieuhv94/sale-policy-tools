@@ -19,6 +19,8 @@ export type CustomerInput = {
   deliveryAddress?: string | undefined;
   ownerTitle?: string | undefined;
   ownerIdNumber?: string | undefined;
+  /** Số điện thoại liên hệ (`0128`). `undefined` được — khách cũ chưa ai khai. */
+  phone?: string | undefined;
   debt?: bigint | undefined;
 };
 
@@ -33,6 +35,7 @@ type Row = {
   owner_name: string;
   owner_title: string | null;
   owner_id_number: string | null;
+  phone: string | null;
   debt: string;
   tdv_user_id: string;
   /** `0034` — ngừng hợp tác thì khách biến khỏi ô chọn lúc lập hồ sơ. */
@@ -76,8 +79,8 @@ export class CustomersService {
         .query<Row>(
           `INSERT INTO cus.customer
              (code, name, id_number, customer_type, registered_address, delivery_address,
-              owner_name, owner_title, owner_id_number, debt, tdv_user_id, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+              owner_name, owner_title, owner_id_number, phone, debt, tdv_user_id, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
            RETURNING *`,
           [
             input.code,
@@ -89,6 +92,7 @@ export class CustomersService {
             input.ownerName,
             input.ownerTitle ?? null,
             input.ownerIdNumber ?? null,
+            input.phone ?? null,
             (input.debt ?? 0n).toString(),
             // TDV phụ trách mặc định là người tạo (CUST-01).
             me.id,
@@ -226,6 +230,7 @@ export class CustomersService {
             owner_id_number    = coalesce($8, owner_id_number),
             debt               = coalesce($9, debt),
             tdv_user_id        = coalesce($10, tdv_user_id),
+            phone              = coalesce($12, phone),
             updated_at         = now()
           WHERE id = $1 RETURNING *`,
         [
@@ -240,6 +245,7 @@ export class CustomersService {
           patch.debt?.toString() ?? null,
           patch.tdvUserId ?? null,
           patch.customerType ?? null,
+          patch.phone ?? null,
         ],
       );
       const after = r.rows[0]!;
@@ -532,6 +538,7 @@ const toDto = (r: Row) => ({
   ownerName: r.owner_name,
   ownerTitle: r.owner_title,
   ownerIdNumber: r.owner_id_number,
+  phone: r.phone,
   debt: r.debt,
   tdvUserId: r.tdv_user_id,
 });

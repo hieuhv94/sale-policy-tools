@@ -54,6 +54,9 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'ho_so.dia_chi_dang_ky': (c) => c.customer.registeredAddress,
   'ho_so.noi_nhan_hang': (c) => c.customer.deliveryAddress ?? c.customer.registeredAddress,
   'ho_so.nguoi_dai_dien': (c) => c.customer.ownerName,
+  // `0128` — số điện thoại khách hàng. Đóng băng vào hồ sơ lúc gửi duyệt, nên
+  // `c.customer` ở đây có thể là ảnh chụp; xem `khachHangCua`.
+  'ho_so.dien_thoai': (c) => c.customer.phone ?? null,
   'ho_so.chuc_danh_dai_dien': (c) => c.customer.ownerTitle,
   'ho_so.cong_no': (c) => c.customer.debt,
 
@@ -168,6 +171,7 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
   // --- Chặn lúc gửi duyệt --------------------------------------------------
   'ho_so.ma_so_thue': 'chan-moi', //        cus.customer.id_number NULL được
   'ho_so.chuc_danh_dai_dien': 'chan-moi', //owner_title NULL được
+  'ho_so.dien_thoai': 'chan-moi', //        cus.customer.phone NULL được (`0128`)
   'ho_so.ngay_ap_dung': 'chan-moi', //      applied_date NULL được ở máy chủ
 
   // --- Đã chặn sẵn ---------------------------------------------------------

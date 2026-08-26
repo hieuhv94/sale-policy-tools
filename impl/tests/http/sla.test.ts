@@ -138,8 +138,7 @@ const makeCustomer = async (who = 'tdv01') => {
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5101444443 + ++nMst),
-    });
+      idNumber: String(5101444443 + ++nMst), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;
 };

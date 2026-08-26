@@ -58,6 +58,7 @@ export class PolicyInternalController {
               -- document đọc sống, xem khachHangCua.
               kh_ma_snap, kh_ten_snap, kh_ma_so_thue_snap, kh_dia_chi_dang_ky_snap,
               kh_noi_nhan_hang_snap, kh_nguoi_dai_dien_snap, kh_chuc_danh_dai_dien_snap,
+              kh_dien_thoai_snap,
               -- bigint qua JSON mất chữ số, nên trả về dạng CHUOI (0061).
               kh_cong_no_snap::text AS kh_cong_no_snap,
               nguoi_de_nghi_snap, tbp_ky_ten_snap

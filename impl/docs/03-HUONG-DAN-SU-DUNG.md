@@ -387,10 +387,13 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 
 ## 5. Lập khách hàng (TDV)
 
-*Khách hàng* → điền mã, tên, loại khách hàng, địa chỉ đăng ký, người đại diện.
+*Khách hàng* → điền mã, tên, loại khách hàng, địa chỉ đăng ký, người đại diện, **số điện thoại**.
 
 - **Mã khách hàng không sửa được sau khi lưu.** Sửa được nó là mọi hồ sơ CSBH cũ lặng lẽ trỏ sang
   một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
+- **Số điện thoại** `mới 27/08` — biểu mẫu không bắt điền ngay, nhưng **hồ sơ CSBH của khách hàng
+  này sẽ không gửi duyệt được khi ô ấy còn trống**: số điện thoại in ra bản CSBH. Khách hàng lập
+  trước ngày 27/08 chưa ai khai số, nên lần gửi duyệt tới của họ sẽ đòi bổ sung.
 - Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
   điểm bán là chuyện có thật.
 - **Loại khách hàng thì sửa được** — xem ngay dưới đây.
@@ -631,6 +634,7 @@ khoản vai trò đó nào đang hoạt động — màn hình nói thẳng đi�
 > |---|---|
 > | **Mã số thuế** | Màn hình *Khách hàng* → mở khách hàng của hồ sơ → Sửa |
 > | **Chức danh người đại diện** | cùng chỗ trên |
+> | **Số điện thoại** `mới 27/08` | cùng chỗ trên |
 > | **Thời gian áp dụng** | ngay trên màn hình hồ sơ |
 >
 > Chặn ở đây chứ không ở lúc xem, vì đây là lúc bạn còn sửa được: hồ sơ vẫn là bản nháp và bản CSBH

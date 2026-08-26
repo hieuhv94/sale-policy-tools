@@ -622,8 +622,7 @@ describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.
         ownerTitle: 'Chu ho',
-        idNumber: String(5101333332 + ++nMst),
-      },
+        idNumber: String(5101333332 + ++nMst), phone: '0900000000' },
       'tdv01',
     );
     const p = await gpost(

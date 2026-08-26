@@ -35,6 +35,8 @@ export type CustomerInfo = {
   deliveryAddress?: string | null;
   ownerName?: string | null;
   ownerTitle?: string | null;
+  /** `0128` — vào bản CSBH in ra, nên `policy` cũng phải chụp lại nó lúc gửi. */
+  phone?: string | null;
 };
 
 export type ProductSnapshot = {

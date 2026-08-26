@@ -103,8 +103,7 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5101777776 + ++nMst),
-    });
+      idNumber: String(5101777776 + ++nMst), phone: '0900000000' });
   expect(kh.status, JSON.stringify(kh.body)).toBe(201);
 
   const g = await (await http(catalog))
@@ -617,8 +616,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.
         ownerTitle: 'Chu ho',
-        idNumber: String(5101777776 + ++nMst),
-      });
+        idNumber: String(5101777776 + ++nMst), phone: '0900000000' });
     expect(kh.status, JSON.stringify(kh.body)).toBe(201);
     await withAdminDb((c) =>
       c.query(`UPDATE cus.customer SET tdv_user_id = $1 WHERE id = $2`, [userId, kh.body.id]),

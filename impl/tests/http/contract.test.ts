@@ -230,8 +230,7 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
       ownerTitle: 'Chu ho',
       idNumber: String(5100333333 + ++nMst),
       debt: '4500000',
-      ...over,
-    });
+      ...over, phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
 };

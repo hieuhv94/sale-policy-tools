@@ -238,8 +238,7 @@ describe('`0090` tên người đi TỪ NGỮ CẢNH vào sự kiện', () => {
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.
         ownerTitle: 'Chu ho',
-        idNumber: String(5100666666 + ++nMst),
-      });
+        idNumber: String(5100666666 + ++nMst), phone: '0900000000' });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
 
     const payload = await withAdminDb(async (c) => {

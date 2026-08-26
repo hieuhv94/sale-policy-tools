@@ -176,8 +176,7 @@ const makeCustomer = async (): Promise<{ id: string; code: string }> => {
       // của bộ test phải giống khách hàng thật.
       idNumber: String(5100555555 + ++nMst),
       ownerTitle: 'Chủ nhà thuốc',
-      debt: '4500000',
-    });
+      debt: '4500000', phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
 };

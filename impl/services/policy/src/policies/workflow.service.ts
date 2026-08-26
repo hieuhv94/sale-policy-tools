@@ -108,6 +108,7 @@ const PHAN_CONG: Record<string, { truong: 'tbpUserId' | 'keToanUserId' | 'saleAd
 export const TRUONG_CHAN_LUC_GUI = [
   'ho_so.ma_so_thue',
   'ho_so.chuc_danh_dai_dien',
+  'ho_so.dien_thoai',
   'ho_so.ngay_ap_dung',
 ] as const;
 
@@ -115,6 +116,7 @@ export const TRUONG_CHAN_LUC_GUI = [
 const NHAN_CHAN: Record<(typeof TRUONG_CHAN_LUC_GUI)[number], string> = {
   'ho_so.ma_so_thue': 'Mã số thuế',
   'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
+  'ho_so.dien_thoai': 'Số điện thoại',
   'ho_so.ngay_ap_dung': 'Thời gian áp dụng',
 };
 
@@ -123,11 +125,14 @@ const rong = (v: unknown): boolean =>
 
 export function thieuTruongLucGui(
   ho: { applied_date: unknown },
-  kh: { idNumber?: string | null; ownerTitle?: string | null },
+  kh: { idNumber?: string | null; ownerTitle?: string | null; phone?: string | null },
 ): void {
   const thieu: string[] = [];
   if (rong(kh.idNumber)) thieu.push('ho_so.ma_so_thue');
   if (rong(kh.ownerTitle)) thieu.push('ho_so.chuc_danh_dai_dien');
+  // `0128` — cùng nhóm `chan-moi` với hai trường trên: rỗng thì bản CSBH in ra
+  // một ô trắng, mà TDV sửa được ở hồ sơ khách hàng.
+  if (rong(kh.phone)) thieu.push('ho_so.dien_thoai');
   if (rong(ho.applied_date)) thieu.push('ho_so.ngay_ap_dung');
   if (thieu.length === 0) return;
 
@@ -541,15 +546,17 @@ export class WorkflowService {
           cus.deliveryAddress ?? null,
           cus.ownerName ?? null,
           cus.ownerTitle ?? null,
+          cus.phone ?? null,
           cus.debt ?? null,
           me.name ?? null,
         );
-        const i = params.length - 8;
+        const i = params.length - 9;
         khSql =
           `kh_ma_snap = $${i}, kh_ten_snap = $${i + 1}, kh_ma_so_thue_snap = $${i + 2}, ` +
           `kh_dia_chi_dang_ky_snap = $${i + 3}, kh_noi_nhan_hang_snap = $${i + 4}, ` +
           `kh_nguoi_dai_dien_snap = $${i + 5}, kh_chuc_danh_dai_dien_snap = $${i + 6}, ` +
-          `kh_cong_no_snap = $${i + 7}::bigint, nguoi_de_nghi_snap = $${i + 8},`;
+          `kh_dien_thoai_snap = $${i + 7}, ` +
+          `kh_cong_no_snap = $${i + 8}::bigint, nguoi_de_nghi_snap = $${i + 9},`;
       }
 
       /*

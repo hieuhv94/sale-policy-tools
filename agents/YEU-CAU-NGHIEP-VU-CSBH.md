@@ -1387,6 +1387,17 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Số điện thoại khách hàng** `mới 27/08` — thêm một trường vào hồ sơ khách hàng, và thêm một khoá
+tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
+
+> Nó **đóng băng vào hồ sơ lúc gửi duyệt**, như bảy trường khách hàng khác. Đọc sống nghĩa là khách
+> đổi số sau khi hồ sơ đã duyệt thì tờ CSBH đã ký lặng lẽ mang một con số khác.
+>
+> Và nó thuộc nhóm **chặn lúc gửi duyệt**, cùng chỗ với mã số thuế và chức danh người đại diện: rỗng
+> thì bản CSBH in ra một ô trắng, mà Trình dược viên sửa được. Hệ quả vận hành phải biết trước:
+> **khách hàng cũ chưa khai số thì hồ sơ mới của họ chưa gửi duyệt được** cho tới khi ai đó bổ sung.
+> Câu báo lỗi chỉ thẳng sang hồ sơ khách hàng.
+
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
 

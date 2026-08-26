@@ -188,8 +188,7 @@ async function makeCustomer(o: CustomerOpts = {}): Promise<{ id: string; code: s
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
       idNumber: String(5101222221 + ++nMst),
-      ...(o.taxId ? { idNumber: o.taxId } : {}),
-    });
+      ...(o.taxId ? { idNumber: o.taxId } : {}), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
 }

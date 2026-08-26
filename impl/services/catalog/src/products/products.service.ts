@@ -418,11 +418,22 @@ export class ProductsService {
        * `THU_TU_GIA_MOI_NHAT`. Thiếu nó thì hai dòng cùng ngày bằng nhau ở khoá
        * sắp xếp, và giá hiện hành đổi theo thứ tự đọc đĩa.
        */
-      await c.query(
+      /*
+       * `RETURNING` NGÀY VỪA GHI, không dựng lại nó ở tầng Node (`0128`).
+       *
+       * `current_date` chạy theo múi giờ của Postgres — Asia/Ho_Chi_Minh — còn
+       * `new Date().toISOString()` cho ra ngày theo UTC. Từ 00:00 tới 07:00 giờ
+       * Việt Nam hai bên lệch nhau ĐÚNG MỘT NGÀY, nên dòng giá nằm ở một ngày
+       * còn sự kiện phát đi nói một ngày khác — và consumer bên `policy` đọc sự
+       * kiện ấy để rà chênh lệch.
+       */
+      const ghi = await c.query<{ effective_from: string }>(
         `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-         VALUES ($1,$2,$3, coalesce($4::date, current_date), $5)`,
+         VALUES ($1,$2,$3, coalesce($4::date, current_date), $5)
+         RETURNING to_char(effective_from, 'YYYY-MM-DD') AS effective_from`,
         [productId, priceType, amount.toString(), effectiveFrom ?? null, actorId],
       );
+      const ngayHieuLuc = ghi.rows[0]!.effective_from;
 
       const oldAmount = prev.rows[0]?.amount ?? null;
       // ĐÚNG MỘT sự kiện cho mỗi lần đổi giá, kèm giá cũ và giá mới. Nằm cùng
@@ -433,7 +444,7 @@ export class ProductsService {
         priceType,
         oldAmount,
         newAmount: amount.toString(),
-        effectiveFrom: effectiveFrom ?? new Date().toISOString().slice(0, 10),
+        effectiveFrom: ngayHieuLuc,
         actorId,
         at: new Date().toISOString(),
       });
@@ -442,7 +453,7 @@ export class ProductsService {
         priceType,
         oldAmount,
         newAmount: amount.toString(),
-        effectiveFrom: effectiveFrom ?? new Date().toISOString().slice(0, 10),
+        effectiveFrom: ngayHieuLuc,
       };
     });
   }
@@ -641,9 +652,11 @@ export class ProductsService {
     oldAmount: string | null,
     actorId: string,
   ) {
-    await c.query(
+    // `RETURNING` ngày vừa ghi — xem chú thích cùng chuyện ở `setPrice`.
+    const ghi = await c.query<{ effective_from: string }>(
       `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-       VALUES ($1,'GIA_BAN_CONG_TY',$2, current_date, $3)`,
+       VALUES ($1,'GIA_BAN_CONG_TY',$2, current_date, $3)
+       RETURNING to_char(effective_from, 'YYYY-MM-DD') AS effective_from`,
       [productId, amount.toString(), actorId],
     );
     await emit(c, 'catalog.price_changed', {
@@ -652,7 +665,7 @@ export class ProductsService {
       priceType: 'GIA_BAN_CONG_TY',
       oldAmount,
       newAmount: amount.toString(),
-      effectiveFrom: new Date().toISOString().slice(0, 10),
+      effectiveFrom: ghi.rows[0]!.effective_from,
       actorId,
       at: new Date().toISOString(),
     });

@@ -201,6 +201,7 @@ export const NHAN_KHOA: Record<string, string> = {
   'ho_so.noi_nhan_hang': 'Nơi nhận hàng',
   'ho_so.nguoi_dai_dien': 'Người đại diện',
   'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
+  'ho_so.dien_thoai': 'Số điện thoại',
   'ho_so.cong_no': 'Công nợ',
 
   'ho_so.nguoi_de_nghi': 'Người đề nghị',

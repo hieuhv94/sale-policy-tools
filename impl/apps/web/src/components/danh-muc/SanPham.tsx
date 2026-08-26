@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, guiTep, layJson, taiVe, va } from '../../lib/api.js';
-import { ngay, ngayGio, tien } from '../../lib/format.js';
+import { homNayVN, ngay, ngayGio, tien } from '../../lib/format.js';
 import {
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
@@ -476,7 +476,7 @@ function LichSuGia({ id }: { id: string }) {
    * lực"* — và với danh mục chỉ còn một loại giá thì đó là dòng mới nhất có
    * ngày không ở tương lai, đúng luật của `currentPrice`.
    */
-  const homNay = new Date().toISOString().slice(0, 10);
+  const homNay = homNayVN();
   /*
    * Dòng ĐẦU TIÊN đã hiệu lực trong thứ tự MÁY CHỦ trả về, không tự sắp lại.
    *

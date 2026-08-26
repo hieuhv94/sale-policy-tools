@@ -190,11 +190,12 @@ export class CustomerInternalController {
       delivery_address: string | null;
       owner_name: string;
       owner_title: string | null;
+      phone: string | null;
       debt: string;
     }>(
       `SELECT id, code, name, customer_type, status::text AS status,
               tdv_user_id, id_number, registered_address, delivery_address,
-              owner_name, owner_title, debt::text
+              owner_name, owner_title, phone, debt::text
          FROM cus.customer WHERE id = $1`,
       [id],
     );
@@ -211,6 +212,9 @@ export class CustomerInternalController {
       deliveryAddress: row.delivery_address,
       ownerName: row.owner_name,
       ownerTitle: row.owner_title,
+      // `0128` — `policy` chụp nó vào hồ sơ lúc gửi duyệt, `document` in nó ra
+      // bản CSBH. Thiếu ở đây thì hai bên đọc `undefined` và không có gì báo.
+      phone: row.phone,
       debt: row.debt,
     };
   }

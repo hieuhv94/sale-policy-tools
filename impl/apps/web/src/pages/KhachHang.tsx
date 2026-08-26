@@ -30,6 +30,7 @@ type KhachHangDto = {
   registeredAddress: string;
   idNumber: string | null;
   ownerName: string;
+  phone: string | null;
   debt: string;
 };
 
@@ -228,6 +229,12 @@ export function ChiTietKhachHang({ id }: { id: string }) {
         <div>
           <dt>Người đại diện</dt>
           <dd>{kh.ownerName}</dd>
+        </div>
+        <div>
+          <dt>Số điện thoại</dt>
+          {/* Dấu gạch chứ không ô trống: khách hàng lập trước `0128` chưa ai
+              khai số, và một ô rỗng đọc như lỗi hiển thị. */}
+          <dd>{kh.phone ?? '—'}</dd>
         </div>
         <div>
           <dt>Công nợ</dt>

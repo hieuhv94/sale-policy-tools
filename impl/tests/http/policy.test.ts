@@ -103,8 +103,7 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5100999999 + ++nMst),
-    });
+      idNumber: String(5100999999 + ++nMst), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;
 };
@@ -4177,7 +4176,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
    * `makeCustomer` khai đủ từ `0104`, nên ca nào muốn thấy chốt chặn phải tự
    * tạo một khách thiếu — chứ không sửa `makeCustomer`, thứ mọi ca khác dựa vào.
    */
-  const khachThieu = async (bo: 'idNumber' | 'ownerTitle'): Promise<string> => {
+  const khachThieu = async (bo: 'idNumber' | 'ownerTitle' | 'phone'): Promise<string> => {
     const than: Record<string, unknown> = {
       code: uniq('KHT'),
       name: 'Nha thuoc thieu truong',
@@ -4185,8 +4184,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       registeredAddress: 'Ha Noi',
       ownerName: 'Chu ho',
       ownerTitle: 'Chu nha thuoc',
-      idNumber: String(5100999999 + ++nMst),
-    };
+      idNumber: String(5100999999 + ++nMst), phone: '0900000000' };
     delete than[bo];
     const r = await (await http(customer))
       .post('/customers')
@@ -4215,6 +4213,55 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     const r = await act(d.id, 'SUBMIT', 'tdv01');
     expect(r.status).toBe(422);
     expect(r.body.thieu).toEqual(['Chức danh người đại diện']);
+  }, 60_000);
+
+  it('`0128` thiếu SỐ ĐIỆN THOẠI thì không gửi duyệt được', async () => {
+    /*
+     * Cùng nhóm `chan-moi` với hai trường trên: số điện thoại in ra bản CSBH, mà
+     * TDV sửa được ở hồ sơ khách hàng — nên rỗng thì chặn, không phải in một ô
+     * trắng lên tờ giấy sắp đưa đi ký.
+     *
+     * Hệ quả vận hành đi kèm, đã ghi ở migration `0105`: khách hàng lập trước
+     * `0128` chưa ai khai số thì hồ sơ mới của họ chưa gửi duyệt được.
+     */
+    const d = await draft({ customerId: await khachThieu('phone') });
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status).toBe(422);
+    expect(r.body.thieu).toEqual(['Số điện thoại']);
+    expect(r.body.message).toContain('hồ sơ khách hàng');
+    // `0088` — không lộ tên trường trong mã.
+    expect(r.body.message).not.toContain('phone');
+  }, 60_000);
+
+  it('`0128` số điện thoại ĐÓNG BĂNG vào hồ sơ lúc gửi duyệt', async () => {
+    /*
+     * `0101` đóng băng bảy trường khách hàng và chọn CỘT RỜI thay vì `jsonb`,
+     * với lý do: thêm một trường về sau thì BUỘC phải viết migration, tức buộc
+     * phải trả lời "đóng băng hay đọc sống?". `0128` là lần đầu câu hỏi ấy được
+     * hỏi, và câu trả lời là ĐÓNG BĂNG — đọc sống thì khách đổi số sau khi hồ sơ
+     * đã duyệt là tờ CSBH đã ký lặng lẽ mang một con số khác.
+     */
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId });
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const sdtMoi = '0999 111 222';
+    const sua = await (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ phone: sdtMoi });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+    expect(sua.body.phone).toBe(sdtMoi);
+
+    // Hồ sơ giữ số CŨ.
+    const snap = await withAdminDb(async (c) =>
+      c.query<{ kh_dien_thoai_snap: string | null }>(
+        `SELECT kh_dien_thoai_snap FROM pol.policy WHERE id = $1`,
+        [d.id],
+      ),
+    );
+    expect(snap.rows[0]!.kh_dien_thoai_snap).toBe('0900000000');
+    expect(snap.rows[0]!.kh_dien_thoai_snap).not.toBe(sdtMoi);
   }, 60_000);
 
   it('thiếu THỜI GIAN ÁP DỤNG thì không gửi duyệt được, và câu nói đúng chỗ khác', async () => {

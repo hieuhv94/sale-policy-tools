@@ -999,6 +999,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CUST-15 | Sửa thông tin khách hàng đang có CSBH hiệu lực | Sửa được thông tin liên hệ, nhật ký ghi giá trị trước/sau; **không** đổi được mã KH | §6.1 §10 | `P0` |
 | CUST-16 | Xóa khách hàng đã có hồ sơ CSBH | 409 | §6.1 | `P1` |
 | CUST-17 | Tìm khách hàng theo tên, địa chỉ đăng ký, mã số thuế | Trả đúng; **không** tồn tại trường “Tên mã khách” ở bất kỳ đâu | §6.1 | `P1` |
+| CUST-18 | Gửi duyệt hồ sơ của khách hàng chưa khai số điện thoại | `POLICY_FIELDS_MISSING`, nêu *Số điện thoại* và chỉ sang hồ sơ khách hàng — cùng nhóm `chan-moi` với mã số thuế và chức danh (`0128`) | §6.1 §7 | `P0` |
+| CUST-19 | Đổi số điện thoại của khách hàng SAU khi hồ sơ đã gửi duyệt | Bản CSBH của hồ sơ ấy vẫn in số CŨ — số điện thoại đóng băng vào hồ sơ lúc gửi, như bảy trường khách hàng khác của `0101` | §6.1 §7 | `P0` |
 
 ### CAT — Danh mục sản phẩm, giá và chiết khấu quy định
 

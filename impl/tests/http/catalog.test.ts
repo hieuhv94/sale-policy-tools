@@ -74,6 +74,24 @@ const countEvents = (routingKey: string) =>
 let n = 0;
 const code = (kind: string) => `${P}-${kind}-${++n}`;
 
+/**
+ * HÔM NAY theo giờ Việt Nam, dạng `YYYY-MM-DD` (`0128`).
+ *
+ * KHÔNG dùng `toISOString().slice(0, 10)` để so với ngày do máy chủ trả về: nó
+ * cho ra ngày theo UTC, còn `current_date` của Postgres chạy theo múi giờ Việt
+ * Nam — nên từ 00:00 tới 07:00 giờ Việt Nam hai bên lệch nhau ĐÚNG MỘT NGÀY.
+ *
+ * Đo được, và đó là cách phát hiện: `expected '2026-08-27' to be '2026-08-26'`.
+ * Ca kiểm cũ xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại.
+ */
+const homNayVN = (): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
 /** Tạo một nhóm sản phẩm và một sản phẩm trong đó. */
 const makeProduct = async (over: Record<string, unknown> = {}) => {
   const groupCode = code('G');
@@ -184,9 +202,7 @@ describe('`0123` tạo sản phẩm BẮT BUỘC có giá', () => {
     const { id } = await makeProduct({ price: '77000' });
     const gia = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
     expect(gia.body.amount).toBe('77000');
-    expect(String(gia.body.effectiveFrom).slice(0, 10)).toBe(
-      new Date().toISOString().slice(0, 10),
-    );
+    expect(String(gia.body.effectiveFrom).slice(0, 10)).toBe(homNayVN());
   });
 
   it('sản phẩm và giá nằm trong MỘT transaction', async () => {
@@ -281,7 +297,13 @@ describe('`0123` bảng sản phẩm mang theo giá bán Công ty', () => {
      * ép cả hai phải bỏ qua nó.
      */
     const { id, res } = await makeProduct({ price: '20000' });
-    const mai = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    // Ngày mai theo giờ VIỆT NAM — cùng lý do với `homNayVN`.
+    const mai = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(Date.now() + 86_400_000));
     await post(`/catalog/products/${id}/prices`, { amount: '999000', effectiveFrom: mai });
 
     const bang = await get(`/catalog/products?limit=200&q=San pham thu nghiem`);

@@ -69,6 +69,7 @@ const NHOM_HUONG_DAN: { nhan: string; khoa: string[] }[] = [
       'ho_so.noi_nhan_hang',
       'ho_so.nguoi_dai_dien',
       'ho_so.chuc_danh_dai_dien',
+      'ho_so.dien_thoai',
       'ho_so.cong_no',
     ],
   },
