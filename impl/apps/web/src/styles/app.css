@@ -1705,30 +1705,6 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .lien-phu:hover { text-decoration: underline; }
 .lien-phu:focus-visible { outline: none; box-shadow: var(--vong-tieu-diem); border-radius: var(--bo-goc); }
 
-/* Nút dạng liên kết NẰM TRONG DÒNG chữ (`0119`) — "Tải file mẫu" đứng giữa một
-   câu giải thích. Khác `.lien-phu` đúng ở chỗ đó: lớp kia là khối chiếm cả hàng,
-   đặt vào giữa câu thì nó đẩy phần chữ còn lại xuống dòng dưới.
-
-   Vẫn là <button> chứ không phải <a>: nó chạy một lượt tải có kèm token, không
-   dẫn tới địa chỉ nào — xem chú thích ở `taiVe`. Gạch chân SẴN, không đợi rê
-   chuột: nằm lẫn trong chữ thì màu chữ thôi không đủ để nhận ra bấm được (FE-09
-   cấm dùng riêng màu để truyền một ý). */
-.lien-trong-dong {
-  display: inline;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--mau-thuong-hieu);
-  font: inherit;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.lien-trong-dong:disabled { color: var(--mau-chu-phu); cursor: default; text-decoration: none; }
-.lien-trong-dong:focus-visible {
-  outline: none;
-  box-shadow: var(--vong-tieu-diem);
-  border-radius: var(--bo-goc);
-}
 .dang-nhap-dau h1 { margin-bottom: var(--k1); }
 .dang-nhap-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
 .logo-lon {

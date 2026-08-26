@@ -10764,3 +10764,67 @@ Kèm một lớp CSS mới, `.lien-trong-dong`: `.lien-phu` đang có là khối
 hàng, đặt vào giữa một câu thì nó đẩy phần chữ còn lại xuống dòng dưới.
 
 **1720/1720 xanh.**
+
+## P148 — `0120` file mẫu mang cả danh mục, và nút thay cho liên kết
+
+Hai yêu cầu nhỏ của khách hàng, một trong hai đổi hẳn ý nghĩa của thứ vừa làm ở
+`0119`.
+
+### File mẫu trở thành ảnh chụp danh mục
+
+`0119` để trang trống trơn dưới hàng tiêu đề, có lý lẽ hẳn hoi: một dòng ví dụ
+sót lại thành sản phẩm ma. Khách hàng muốn ngược lại — file phải mang **đầy đủ
+sản phẩm hiện tại**. Lý do của họ đứng vững hơn lý do của tôi: người dùng thấy
+ngay cách điền của những dòng đã có thay vì đoán từ tên cột, và biết mã nào đã
+dùng rồi.
+
+Nhưng nó kéo theo một hệ quả phải nói ra, và tôi đã nói trước khi làm: **file này
+không tải lên lại nguyên trạng được**. Luật hiện tại là trùng mã thì chặn cả lô,
+nên một file chứa mọi sản phẩm đã có sẽ hỏng ngay ở dòng thứ hai. Cách dùng là
+xoá dòng cũ rồi điền dòng mới, và cả hộp thoại lẫn tài liệu người dùng nói đúng
+câu đó.
+
+Có **một ca kiểm canh chính hệ quả ấy**: tải lên nguyên trạng phải trả
+`IMPORT_FAILED` / `PRODUCT_CODE_DUPLICATE`. Nó không kiểm một tính năng — nó giữ
+cho câu hướng dẫn ở hộp thoại không nói sai. Ngày nào luật trùng mã đổi (bỏ qua
+dòng đã có, hay cập nhật), ca ấy đỏ và người sửa buộc phải đọc lại câu hướng dẫn.
+
+`toanBoDeXuat()` KHÔNG phân trang và **lấy cả sản phẩm đã vô hiệu hoá**. Lọc
+chúng đi thì người dùng thấy một khoảng trống trong file, điền lại chính mã ấy,
+rồi nhận lỗi trùng mã ở một dòng họ vừa tự tay gõ.
+
+### Dòng dữ liệu ghi theo `HEADERS`, không viết thẳng ba tên trường
+
+Cùng lý do với hàng tiêu đề. Đảo thứ tự cột ở một chỗ mà quên chỗ kia thì file
+tải về có tiêu đề đúng và dữ liệu lệch cột — hỏng theo kiểu tệ nhất, vì nó vẫn
+nhập được và nạp tên sản phẩm vào ô mã nhóm. Phá lại đúng chỗ này: đổi
+`theoCot` thành `[p.code, p.groupCode, p.name]` → ca *"đúng ba cột"* đỏ, còn ca
+*"lấy cả hàng vô hiệu hoá"* vẫn xanh vì nó chỉ soi cột thứ nhất.
+
+### `spliceRows` theo lô KHÔNG xoá gì
+
+Ca vòng tròn phải xoá hết dòng dữ liệu rồi thêm một dòng mới. Bản đầu viết
+`ws.spliceRows(2, ws.rowCount - 1)` và ca kiểm đỏ với `400`. Dựng lại bằng một
+tệp gỡ lỗi riêng thì thấy: sau lời gọi ấy **ba dòng vẫn còn nguyên**, và
+`rowCount` cũng không đổi.
+
+```
+truoc 4 · sau 4 · them 5
+1 ["a","b","c"] | 2 ["x0",…] | 3 ["x1",…] | 4 ["x2",…] | 5 ["moi",…]
+```
+
+`row.values = []` thì xoá được nội dung nhưng để lại ba hàng trống ở giữa file.
+Cách chạy đúng là **xoá từng dòng một, từ dưới lên**. Ghi lại vì đây là hành vi
+của thư viện, không suy ra được từ chữ ký hàm.
+
+### Nút, không phải liên kết trong dòng
+
+`0119` đặt *Tải file mẫu* làm một `<button>` dạng liên kết nằm giữa câu văn, kèm
+lớp `.lien-trong-dong` dựng riêng cho nó. Khách hàng muốn một nút thật. Lớp CSS
+ấy **gỡ hẳn** — nó chỉ có đúng một chỗ dùng, và một lớp không ai dùng là một lớp
+người sau phải đọc rồi đoán xem nó dành cho cái gì.
+
+Nút đứng TRƯỚC ô chọn tệp, theo đúng thứ tự việc phải làm: tải về, sửa, rồi mới
+chọn lên.
+
+**1722/1722 xanh.**

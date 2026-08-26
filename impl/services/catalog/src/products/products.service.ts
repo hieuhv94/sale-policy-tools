@@ -220,6 +220,28 @@ export class ProductsService {
   }
 
   /**
+   * TOÀN BỘ danh mục theo đúng ba cột của file nhập (`0120`).
+   *
+   * KHÔNG phân trang, và đó là chỗ khác `list()`: file tải về phải là cả danh
+   * mục, không phải trang đầu. Một file thiếu dòng còn tệ hơn không có file —
+   * người dùng sẽ tưởng những sản phẩm không thấy là chưa tồn tại.
+   *
+   * Lấy CẢ sản phẩm đã vô hiệu hoá: file này là ảnh chụp danh mục để đọc và sửa,
+   * mà một mặt hàng ngừng bán vẫn nằm trong danh mục. Lọc chúng đi thì người
+   * dùng thấy khoảng trống và điền lại chính mã ấy, rồi nhận lỗi trùng mã.
+   *
+   * Sắp theo mã, cùng khoá với `list()` — hai màn hình cùng nói về một danh mục
+   * mà xếp khác thứ tự là hai bảng trông như hai danh mục.
+   */
+  toanBoDeXuat() {
+    return this.db.q<{ code: string; name: string; groupCode: string; status: string }>(
+      `SELECT p.code, p.name, g.code AS "groupCode", p.status::text AS status
+         FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
+        ORDER BY p.code`,
+    );
+  }
+
+  /**
    * Mã nhóm của nhiều sản phẩm trong MỘT vòng mạng.
    *
    * `reporting` cần nó cho tiêu chí lọc "nhóm sản phẩm": dòng hồ sơ đóng băng

@@ -87,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P147** (`0119`): **file Excel mẫu** tải từ hộp thoại *Nhập từ Excel*. `dungFileMau`
+Chặng gần nhất **P148** (`0120`): file Excel mẫu mang **toàn bộ danh mục hiện tại** (kể cả hàng đã
+vô hiệu hoá), và *Tải file mẫu* thành một **nút** thật — lớp `.lien-trong-dong` của `0119` gỡ hẳn vì
+hết chỗ dùng. Hệ quả phải nhớ: **file này KHÔNG tải lên lại nguyên trạng được** — trùng mã chặn cả
+lô nên nó hỏng ở dòng 2; cách dùng là xoá dòng cũ rồi điền dòng mới, và **có một ca kiểm canh chính
+hệ quả ấy** để câu hướng dẫn ở hộp thoại không nói sai. Dòng dữ liệu ghi theo `HEADERS` chứ không
+viết thẳng ba tên trường: lệch cột thì file vẫn nhập được và nạp tên sản phẩm vào ô mã nhóm.
+**1722/1722 xanh.**
+
+Trước đó **P147** (`0119`): **file Excel mẫu** tải từ hộp thoại *Nhập từ Excel*. `dungFileMau`
 nằm cạnh `parseProductSheet` trong `products/excel.ts` và dựng tiêu đề **TỪ chính mảng `HEADERS`** mà
 bộ đọc đối chiếu — hai bên trôi khỏi nhau là dựng ra đúng thứ hỏng mà file mẫu sinh ra để chống.
 **Không có dòng ví dụ** (một dòng sót lại thành sản phẩm ma); chú thích cột nằm ở ghi chú ô tiêu đề

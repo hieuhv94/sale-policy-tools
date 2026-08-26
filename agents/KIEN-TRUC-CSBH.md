@@ -1025,7 +1025,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |
 | CAT-15 | Nhập danh mục sản phẩm từ Excel, trong đó có dòng lỗi | Báo lỗi kèm số dòng và **không ghi một phần** — toàn bộ lô nằm trong một giao dịch | §6.2 | `P1` |
-| CAT-16 | Tải file Excel mẫu ở hộp thoại *Nhập từ Excel*, điền dữ liệu vào chính file ấy rồi nhập lại | Nhập thành công, **không phải sửa gì ở phần tiêu đề**. File mẫu không có dòng dữ liệu nào; trang thứ hai liệt kê mã nhóm đang có và bộ đọc không chạm tới nó | §13.1 | `P1` |
+| CAT-16 | Tải file Excel mẫu ở hộp thoại *Nhập từ Excel*, xoá các dòng có sẵn, điền dòng mới rồi nhập lại | Nhập thành công, **không phải sửa gì ở phần tiêu đề**. Trang thứ hai liệt kê mã nhóm đang có và bộ đọc không chạm tới nó | §13.1 | `P1` |
+| CAT-17 | Mở file mẫu vừa tải về | Chứa **toàn bộ** sản phẩm hiện có, kể cả hàng đã vô hiệu hoá, mỗi dòng đúng ba cột. Tải lên lại nguyên trạng thì `IMPORT_FAILED` / `PRODUCT_CODE_DUPLICATE` — hệ quả đã biết của luật trùng mã chặn cả lô | §13.1 | `P1` |
 | CAT-16 | Đổi tên một **nhóm sản phẩm** trong danh mục | Mã giữ nguyên; hồ sơ và bộ lọc cũ vẫn đúng. *(Trước `0026` luật này phát biểu trên danh mục tỉnh/thành — danh mục ấy đã bỏ, luật thì không.)* | §6.1 §9.2 | `P1` |
 | CAT-17 | Chọn người ký đã hết hiệu lực | 400 — chỉ chọn được người ký còn hiệu lực trong phạm vi ký | §6.4 | `P1` |
 | CAT-18 | Đổi giá sản phẩm đang nằm trong hồ sơ ở trạng thái *Nháp* | Phát sự kiện `catalog.price_changed` đúng một lần kèm giá cũ và giá mới | §7 | `P0` |

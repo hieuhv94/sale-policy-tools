@@ -547,7 +547,7 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
         </p>
 
         {/*
-          FILE MẪU tải ngay tại đây (`0119`).
+          FILE MẪU tải ngay tại đây (`0119`), và là một NÚT (`0120`).
 
           Trước đó hộp thoại mô tả ba cột bằng lời và người dùng tự gõ tên cột
           vào Excel — gõ sai một ký tự là `BAD_HEADER`, và câu lỗi ấy chỉ nói cột
@@ -555,14 +555,19 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
 
           Nút nằm TRONG hộp thoại chứ không ở thanh công cụ của trang: người ta
           nghĩ tới file mẫu đúng vào lúc chuẩn bị nhập, không phải lúc đang xem
-          danh sách.
+          danh sách. Và nó đứng TRƯỚC ô chọn tệp, theo đúng thứ tự việc phải làm:
+          tải file về, sửa, rồi mới chọn lên.
         */}
-        <p className="ghi-chu">
-          Chưa có file đúng định dạng?{' '}
-          <button type="button" className="lien-trong-dong" disabled={dangTaiMau} onClick={taiMau}>
+        <div className="nhom-nut">
+          <button type="button" className="nut nut-nhe" disabled={dangTaiMau} onClick={taiMau}>
             {dangTaiMau ? 'Đang tải…' : 'Tải file mẫu'}
-          </button>{' '}
-          — sẵn tiêu đề cột, kèm một trang liệt kê <strong>mã nhóm đang có</strong>.
+          </button>
+        </div>
+        <p className="giai-thich">
+          File mẫu chứa <strong>toàn bộ sản phẩm hiện có</strong> và một trang liệt kê{' '}
+          <strong>mã nhóm đang có</strong>. Để thêm sản phẩm mới:{' '}
+          <strong>xoá các dòng đã có</strong> rồi điền dòng mới — giữ nguyên chúng thì lượt nhập
+          báo trùng mã và không dòng nào được ghi.
         </p>
         {/*
           Nói trước hành vi "cả lô một transaction". Người dùng quen với kiểu

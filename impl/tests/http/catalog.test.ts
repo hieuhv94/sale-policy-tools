@@ -617,6 +617,18 @@ describe('`0119` file Excel mẫu', () => {
       .set('Authorization', `Bearer ${adminT}`)
       .attach('file', buf, 'danh-muc.xlsx');
 
+  /**
+   * Xoá mọi dòng dữ liệu, giữ đúng hàng tiêu đề.
+   *
+   * TỪNG DÒNG MỘT, TỪ DƯỚI LÊN. `spliceRows(2, n)` một lượt **không xoá gì cả**
+   * trên phiên bản ExcelJS đang dùng — đo được: ba dòng vẫn còn nguyên sau lời
+   * gọi, và `rowCount` cũng không đổi. Đặt `row.values = []` thì xoá được nội
+   * dung nhưng để lại ba hàng trống ở giữa file.
+   */
+  const xoaDongDuLieu = (ws: ExcelJS.Worksheet) => {
+    for (let n = ws.rowCount; n >= 2; n--) ws.spliceRows(n, 1);
+  };
+
   const taiMau = async () =>
     (await http(app))
       .get('/catalog/products/import/mau')
@@ -636,29 +648,87 @@ describe('`0119` file Excel mẫu', () => {
     expect(r.headers['content-disposition']).toContain('mau-danh-muc-san-pham.xlsx');
   });
 
-  it('VÒNG TRÒN: điền vào chính file mẫu rồi nhập lại thì thành công', async () => {
+  it('`0120` chứa TOÀN BỘ sản phẩm hiện có, đúng ba cột', async () => {
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co san pham' });
+    const maSp = code('I');
+    await post('/catalog/products', { code: maSp, name: 'San pham phai co trong file', groupCode });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+    const ws = wb.worksheets[0]!;
+
+    const dong = new Map<string, string[]>();
+    ws.eachRow((row, n) => {
+      if (n === 1) return;
+      dong.set(String(row.getCell(1).value ?? ''), [
+        String(row.getCell(2).value ?? ''),
+        String(row.getCell(3).value ?? ''),
+      ]);
+    });
+    // Đúng ô, không chỉ "có mặt đâu đó": lệch cột thì file vẫn nhập được và nạp
+    // tên sản phẩm vào ô mã nhóm.
+    expect(dong.get(maSp)).toEqual(['San pham phai co trong file', groupCode]);
+  });
+
+  it('`0120` lấy CẢ sản phẩm đã vô hiệu hoá — file là ảnh chụp danh mục', async () => {
+    /*
+     * Lọc chúng đi thì người dùng thấy một khoảng trống, điền lại chính mã ấy,
+     * rồi nhận lỗi trùng mã ở một dòng họ vừa tự tay gõ.
+     */
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co hang ngung ban' });
+    const maSp = code('I');
+    const sp = await post('/catalog/products', { code: maSp, name: 'Hang ngung ban', groupCode });
+    await patch(`/catalog/products/${sp.body.id}`, {
+      status: 'DA_VO_HIEU_HOA',
+      confirm: maSp,
+    });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+    const ma: string[] = [];
+    wb.worksheets[0]!.eachRow((row, n) => {
+      if (n > 1) ma.push(String(row.getCell(1).value ?? ''));
+    });
+    expect(ma).toContain(maSp);
+  });
+
+  it('VÒNG TRÒN: xoá dòng cũ, điền dòng mới vào chính file ấy rồi nhập lại thì xong', async () => {
+    /*
+     * Ca đắt nhất của nhóm này: nó chứng minh phần TIÊU ĐỀ của file tải về không
+     * trôi khỏi thứ `parseProductSheet` đòi. Từ `0120` file mang sẵn cả danh mục,
+     * nên phải xoá hết dòng dữ liệu trước — đúng cách dùng mà hộp thoại hướng
+     * dẫn, và cũng là lý do file này KHÔNG tải lên lại nguyên trạng được.
+     */
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom tu file mau' });
 
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load((await taiMau()).body as Buffer);
-    // Điền NGAY DƯỚI tiêu đề: file mẫu không có dòng ví dụ nào để phải xoá đi.
-    wb.worksheets[0]!.addRow([code('I'), 'San pham tu file mau', groupCode]);
+    const ws = wb.worksheets[0]!;
+    xoaDongDuLieu(ws);
+    ws.addRow([code('I'), 'San pham tu file mau', groupCode]);
 
     const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
     expect(r.status).toBe(200);
     expect(r.body.imported).toBe(1);
   });
 
-  it('KHÔNG có dòng dữ liệu nào — tải về rồi nhập ngay là lô rỗng, không phải sản phẩm ma', async () => {
+  it('`0120` tải lên NGUYÊN TRẠNG thì báo trùng mã — hộp thoại phải nói trước điều này', async () => {
     /*
-     * Một dòng ví dụ sót lại sẽ thành sản phẩm thật trong danh mục, hoặc chặn cả
-     * lô vì mã nhóm bịa. `EMPTY_SHEET` là câu trả lời đúng cho một file chưa
-     * điền gì.
+     * Không phải một lỗi, mà là hệ quả đã biết của việc file mang sẵn dữ liệu:
+     * luật hiện tại là trùng mã thì chặn cả lô. Ca kiểm giữ cho câu hướng dẫn ở
+     * hộp thoại không nói sai — đổi luật trùng mã thì phải sửa cả câu ấy.
      */
+    const groupCode = code('G');
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom cho ca nguyen trang' });
+    await post('/catalog/products', { code: code('I'), name: 'Da co san', groupCode });
+
     const r = await upload((await taiMau()).body as Buffer);
     expect(r.status).toBe(400);
-    expect(r.body.code).toBe('EMPTY_SHEET');
+    expect(r.body.code).toBe('IMPORT_FAILED');
+    expect(r.body.reason).toBe('PRODUCT_CODE_DUPLICATE');
   });
 
   it('trang thứ hai liệt kê mã nhóm đang có, và bộ đọc KHÔNG chạm tới nó', async () => {
@@ -679,7 +749,9 @@ describe('`0119` file Excel mẫu', () => {
      * thì một lượt sửa đổi bộ đọc sang "duyệt mọi trang" sẽ nạp cả danh sách
      * nhóm vào bảng sản phẩm, và ca vòng tròn ở trên vẫn xanh.
      */
-    wb.worksheets[0]!.addRow([code('I'), 'Chi mot dong that', groupCode]);
+    const ws0 = wb.worksheets[0]!;
+    xoaDongDuLieu(ws0);
+    ws0.addRow([code('I'), 'Chi mot dong that', groupCode]);
     const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
     expect(r.status).toBe(200);
     expect(r.body.imported).toBe(1);

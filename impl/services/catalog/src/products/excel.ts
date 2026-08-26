@@ -50,18 +50,30 @@ export const MAU_TEN_TEP = 'mau-danh-muc-san-pham.xlsx';
  *    ra để chống — người dùng tải một file "chuẩn" về, điền đúng, rồi nhận
  *    `BAD_HEADER` vì hai bên đã trôi khỏi nhau.
  *
- * 2. **KHÔNG có dòng dữ liệu ví dụ.** Người dùng điền tiếp ngay dưới tiêu đề;
- *    một dòng ví dụ sót lại sẽ thành sản phẩm ma trong danh mục, hoặc chặn cả lô
- *    vì mã nhóm bịa. Chú thích từng cột nằm ở GHI CHÚ của ô tiêu đề: Excel hiện
- *    nó khi rê chuột, còn bộ đọc không thấy gì. Một hàng chú thích thật thì
- *    `parseProductSheet` sẽ đọc thành một sản phẩm tên *"Tên sản phẩm — bắt buộc"*.
+ * 2. **Chứa TOÀN BỘ danh mục hiện tại** (`0120`). Bản `0119` để trang trống trơn
+ *    dưới hàng tiêu đề. File có sẵn dữ liệu vừa là bản mẫu vừa là ảnh chụp danh
+ *    mục: người dùng thấy ngay cách điền của những dòng đã có thay vì đoán từ
+ *    tên cột, và biết mã nào đã dùng rồi.
+ *
+ *    Kèm theo một hệ quả phải nói ra, và tài liệu người dùng nói: **file này
+ *    KHÔNG tải lên lại nguyên trạng được**. Luật hiện tại là trùng mã thì chặn
+ *    cả lô, nên một file chứa mọi sản phẩm đã có sẽ hỏng ngay ở dòng thứ hai.
+ *    Cách dùng là xoá những dòng đã có rồi điền dòng mới.
+ *
+ *    Chú thích từng cột nằm ở GHI CHÚ của ô tiêu đề chứ không phải một hàng
+ *    riêng: Excel hiện nó khi rê chuột, còn bộ đọc không thấy gì. Một hàng chú
+ *    thích thật thì `parseProductSheet` đọc nó thành một sản phẩm tên *"Tên sản
+ *    phẩm — bắt buộc"*.
  *
  * 3. **Trang thứ hai liệt kê mã nhóm đang có.** Bộ đọc chỉ lấy `worksheets[0]`
  *    nên trang này không bao giờ đi vào dữ liệu. Nó ở đây vì lỗi hay gặp nhất
  *    của một lượt nhập là mã nhóm chưa tồn tại, và người dùng chỉ biết điều đó
  *    sau khi tải file lên rồi bị chặn cả lô.
  */
-export async function dungFileMau(nhom: { code: string; name: string }[]): Promise<Buffer> {
+export async function dungFileMau(
+  nhom: { code: string; name: string }[],
+  sanPham: { code: string; name: string; groupCode: string }[],
+): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('San pham');
 
@@ -73,6 +85,17 @@ export async function dungFileMau(nhom: { code: string; name: string }[]): Promi
     o.note = NHAN_COT[h];
     ws.getColumn(i + 1).width = 28;
   }
+
+  /*
+   * Ghi theo ĐÚNG thứ tự của `HEADERS`, không viết thẳng ba tên trường.
+   *
+   * Cùng lý do với hàng tiêu đề: đảo thứ tự cột ở một chỗ mà quên chỗ kia thì
+   * file tải về có tiêu đề đúng và dữ liệu lệch cột — hỏng theo kiểu tệ nhất, vì
+   * nó vẫn nhập được và nạp tên sản phẩm vào ô mã nhóm.
+   */
+  const theoCot = (p: { code: string; name: string; groupCode: string }) =>
+    HEADERS.map((h) => (h === 'ma_vat_tu' ? p.code : h === 'ten_vat_tu' ? p.name : p.groupCode));
+  for (const p of sanPham) ws.addRow(theoCot(p));
   // Giữ hàng tiêu đề luôn nhìn thấy khi cuộn — file danh mục thật dài vài trăm
   // dòng, và cuộn tới dòng 300 mà không thấy tên cột là chỗ điền nhầm cột.
   ws.views = [{ state: 'frozen', ySplit: 1 }];

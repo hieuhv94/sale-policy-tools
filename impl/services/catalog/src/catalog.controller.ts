@@ -183,14 +183,18 @@ export class CatalogController {
    * ở đây không quan trọng. Đặt cạnh `products/import` để người sửa sau nhìn
    * thấy hai đầu của cùng một việc ở cùng một chỗ.
    *
-   * Nội dung dựng lúc gọi chứ không phải một tệp tĩnh nằm trong ảnh: trang thứ
-   * hai liệt kê mã nhóm ĐANG CÓ, mà danh sách ấy đổi mỗi khi Quản trị thêm nhóm.
+   * Nội dung dựng lúc gọi chứ không phải một tệp tĩnh nằm trong ảnh: nó mang
+   * TOÀN BỘ danh mục hiện tại cộng danh sách mã nhóm đang có (`0120`), và cả hai
+   * đổi mỗi khi Quản trị thêm một dòng.
    */
   @Roles('QUAN_TRI')
   @Get('products/import/mau')
   async fileMau(@Res() res: Response): Promise<void> {
-    const nhom = await this.products.listGroups();
-    const buf = await dungFileMau(nhom as { code: string; name: string }[]);
+    const [nhom, sanPham] = await Promise.all([
+      this.products.listGroups(),
+      this.products.toanBoDeXuat(),
+    ]);
+    const buf = await dungFileMau(nhom as { code: string; name: string }[], sanPham);
     // Đặt header trong thân hàm: đã nhận `@Res` thì Nest giao hẳn phản hồi cho
     // mình và không áp decorator header nữa — cùng lý do đã ghi ở `reporting`.
     res.setHeader(
