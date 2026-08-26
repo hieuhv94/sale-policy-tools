@@ -293,19 +293,6 @@ export function ThemDongSanPham({
           cho mọi người duyệt. Tối đa 500 ký tự. Để trống thì không có ghi chú.
         </p>
 
-        <p className="ghi-chu">
-          <strong>Giá bán Công ty</strong> và <strong>ngưỡng chiết khấu</strong> lấy từ danh mục và
-          được đóng băng vào hồ sơ — bạn không nhập. Giá thu về và tỷ lệ chiết khấu hiện ngay sau khi
-          lưu.
-          {sua && (
-            <>
-              {' '}
-              <strong>Đổi sản phẩm thì xoá dòng này rồi thêm dòng mới</strong> — sản phẩm là thứ
-              nhận diện một dòng.
-            </>
-          )}
-        </p>
-
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
           <button

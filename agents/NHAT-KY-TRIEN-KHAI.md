@@ -11276,3 +11276,18 @@ diện không nhận được, nên sắp lại theo `effectiveFrom` thì hai d�
 bằng nhau và nhãn rơi vào dòng nào cũng được.
 
 **1769/1769 xanh.**
+
+## P155 — `0127` bỏ đoạn chú thích ở hộp thoại thêm dòng sản phẩm
+
+Khách hàng bảo xoá đoạn *"Giá bán Công ty và ngưỡng chiết khấu lấy từ danh mục và
+được đóng băng vào hồ sơ — bạn không nhập…"* ở cuối hộp thoại.
+
+Ghi lại để người sau đừng thêm nó về: đoạn ấy **đã hết đúng một nửa** từ `0124`.
+Nó nói *"bạn không nhập"* về giá bán Công ty, trong khi ngay phía trên ô Giá bán
+buôn giờ có hẳn một dòng nêu con số ấy ra — nên câu chú thích và màn hình nói hai
+chuyện khác nhau về cùng một thứ. Nửa còn lại (đổi sản phẩm thì xoá dòng rồi thêm
+lại) vẫn đúng, nhưng ô chọn sản phẩm đã `disabled` khi sửa, nên nó giải thích một
+việc người dùng không làm được.
+
+KHÔNG chạy lại bộ test theo yêu cầu của khách hàng. `typecheck` xanh, và không ca
+kiểm nào tham chiếu tới câu chữ vừa xoá — đã quét `tests/` để chắc.
