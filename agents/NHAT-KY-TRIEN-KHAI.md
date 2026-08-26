@@ -11090,3 +11090,49 @@ khi một ca kiểm khẳng định đúng con số ấy — và phần lớn ca
 | Hai trạng thái sản phẩm dùng chung một màu | 2 đỏ |
 
 **1753/1753 xanh.**
+
+## P152 — `0124` giá bán Công ty ngay trên ô giá bán buôn, và hai nút cùng một hàng
+
+Hai việc nhỏ, và việc thứ nhất **không cần một dòng mã máy chủ nào**: `0123` đã
+đưa `price` vào chính `GET /catalog/products?forNewPolicy=true` mà ô chọn sản
+phẩm đang gọi. Chỉ thiếu chỗ vẽ nó ra.
+
+### Vị trí là một phần của yêu cầu
+
+Tỷ lệ chiết khấu tính ngược từ giá bán Công ty — `1 − giá thu về / giá bán Công
+ty` — nên gõ giá bán buôn mà không thấy nó là gõ một nửa của một phép tính. Đặt
+con số ấy ở đâu cũng "hiện ra", nhưng đặt dưới đáy biểu mẫu thì người dùng đọc
+nó SAU khi đã gõ xong, tức là quá muộn để nó có ích. Cùng lý do đã ghi cho khối
+cảnh báo ngưỡng của `0022`, và ca kiểm ở đây đo bằng
+`compareDocumentPosition` — jsdom không tính bố cục, nên thứ tự trong cây DOM là
+thứ duy nhất đo được.
+
+Nguồn con số: **danh mục trước, dòng đang sửa sau**. Sản phẩm đã vô hiệu hoá
+không có trong `ds` vì `forNewPolicy=true` lọc nó đi, nhưng dòng cũ vẫn giữ con
+số đã chụp — và một ô trống ở đó đọc như một lỗi hiển thị.
+
+### `.nhom-nut-gon` cho phép xuống dòng, và đó là hành vi đúng ở chỗ khác
+
+Sửa và Xoá đã nằm chung một `div` từ trước; thứ đẩy chúng xếp chồng là
+`flex-wrap: wrap` trong một ô bảng hẹp. Không nới lớp ấy ra — nó cũng dùng ở
+danh sách thẻ trên điện thoại, nơi xuống dòng là đúng. Thêm `.nhom-nut-hang`
+dùng riêng cho ô bảng; bảng đã nằm trong `.khung-cuon` nên giữ chúng cùng hàng
+chỉ làm bảng rộng thêm và cuộn ngang.
+
+### Một ca kiểm xanh vì chính dòng chú thích của nó
+
+Ca *"vẫn còn chỗ dùng lớp ấy"* viết `toContain('nhom-nut-hang')`, và nó **vẫn
+xanh sau khi tôi gỡ lớp khỏi JSX** — vì dòng chú thích ngay trên đó nhắc tên lớp.
+Đổi sang khớp thuộc tính `className="…"`. Đây là lần thứ hai trong dự án một ca
+quét mã nguồn xanh nhờ một thứ không phải mã (lần trước: `0114` với chuỗi trong
+câu báo lỗi).
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Dời câu giá xuống dưới ô Giá bán buôn | 1 đỏ — đúng ca đo thứ tự |
+| Gỡ `nhom-nut-hang` khỏi JSX | 1 đỏ (sau khi siết ca quét) |
+| Bỏ luật CSS | 1 đỏ |
+
+**1759/1759 xanh.**

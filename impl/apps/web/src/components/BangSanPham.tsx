@@ -357,7 +357,11 @@ export function BangSanPham({
                 <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   <td>
-                    <div className="nhom-nut nhom-nut-gon">
+                    {/* `nhom-nut-hang` giữ hai nút trên CÙNG MỘT HÀNG (`0124`).
+                        `.nhom-nut-gon` cho phép xuống dòng, và trong một ô bảng
+                        hẹp thì Sửa với Xoá xếp chồng lên nhau — đọc như hai
+                        thao tác thuộc hai dòng khác nhau. */}
+                    <div className="nhom-nut nhom-nut-gon nhom-nut-hang">
                       {suaDong && (
                         <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
                           Sửa

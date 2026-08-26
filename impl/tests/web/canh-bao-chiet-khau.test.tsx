@@ -27,7 +27,9 @@ const phanHoi = (status: number, body: unknown) =>
     headers: { 'content-type': 'application/json' },
   });
 
-const SAN_PHAM = { items: [{ id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold' }] };
+const SAN_PHAM = {
+  items: [{ id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold', price: '125000' }],
+};
 
 /**
  * Chặn `fetch` và định tuyến theo đường dẫn.
@@ -149,5 +151,51 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
       expect(duong.some((d) => d.includes('/policies/hs-9/threshold-preview?productId=sp-1')))
         .toBe(true);
     });
+  });
+});
+
+
+/**
+ * `0124` — GIÁ BÁN CÔNG TY hiện ngay trên ô Giá bán buôn.
+ *
+ * Tỷ lệ chiết khấu tính ngược từ con số ấy (`1 − giá thu về / giá bán Công ty`),
+ * nên gõ giá bán buôn mà không thấy nó là gõ một nửa của một phép tính. Tới
+ * `0123` người lập phải mở màn hình Danh mục ở một tab khác để tra.
+ */
+describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
+  it('chưa chọn sản phẩm thì KHÔNG hiện con số nào', async () => {
+    chanFetch(() => phanHoi(200, {}));
+    moHopThoai();
+    await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
+    expect(screen.queryByText(/Giá bán Công ty của sản phẩm này/)).toBeNull();
+  });
+
+  it('chọn sản phẩm thì hiện đúng giá của DANH MỤC', async () => {
+    chanFetch(() =>
+      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await waitFor(() =>
+      expect(screen.getByText(/Giá bán Công ty của sản phẩm này/)).toBeDefined(),
+    );
+    // Định dạng tiền của sản phẩm, không phải chuỗi thô `125000`.
+    expect(screen.getByText(/125[.,]000/)).toBeDefined();
+  });
+
+  it('đứng TRƯỚC ô Giá bán buôn, không nằm dưới đáy biểu mẫu', async () => {
+    /*
+     * Vị trí là một phần của yêu cầu: đọc con số ấy SAU khi đã gõ xong giá bán
+     * buôn thì quá muộn để nó có ích. `compareDocumentPosition` là cách duy nhất
+     * đo được thứ tự trong jsdom — nó không tính bố cục.
+     */
+    chanFetch(() =>
+      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    const cau = await screen.findByText(/Giá bán Công ty của sản phẩm này/);
+    const o = screen.getByLabelText(/Giá bán buôn/);
+    expect(cau.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

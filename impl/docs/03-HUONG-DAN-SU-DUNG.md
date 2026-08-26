@@ -513,6 +513,10 @@ Với mỗi dòng bạn nhập **Giá bán buôn** và các khoản **CPBH**. H�
 > **Giá thu về** = Giá bán buôn − (tổng các khoản CPBH)
 > **Tỷ lệ chiết khấu** = 1 − Giá thu về / Giá bán Công ty
 
+**Giá bán Công ty của sản phẩm hiện ngay trên ô Giá bán buôn** `mới 26/08`, ngay khi bạn chọn sản
+phẩm. Đó là con số mà tỷ lệ chiết khấu tính ngược từ đó — trước đây phải mở màn hình *Danh mục* ở
+một tab khác để tra.
+
 **Gõ số tiền thì gõ số trần**, không cần dấu chấm — `1000000`. Trong lúc con trỏ còn ở trong ô, ô
 hiện đúng những chữ số bạn gõ và con số đã phân nhóm hiện ở **dòng nhỏ ngay dưới ô** (`1.000.000`)
 để bạn soát nhanh mình đang gõ mấy số 0; rời ô là chính ô hiện số đã phân nhóm. `sửa 22/08`

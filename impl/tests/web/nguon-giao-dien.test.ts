@@ -269,6 +269,29 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
   });
 });
 
+describe('`0124` hai nút thao tác của một dòng bảng không xuống dòng', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+
+  it('luật CSS có mặt và nhắm ĐÚNG lớp riêng, không nới `.nhom-nut-gon`', () => {
+    /*
+     * `.nhom-nut-gon` cũng dùng ở danh sách thẻ trên điện thoại, nơi xuống dòng
+     * là hành vi đúng. Nới nó ra là sửa một chỗ và làm hỏng chỗ kia.
+     */
+    expect(css).toMatch(/\.nhom-nut-hang\s*\{[^}]*flex-wrap:\s*nowrap/);
+    expect(css).toMatch(/\.nhom-nut-gon\s*\{[^}]*flex-wrap:\s*wrap/);
+  });
+
+  it('vẫn còn chỗ dùng lớp ấy — nếu không nó là mã chết', () => {
+    /*
+     * Tìm trong THUỘC TÍNH `className`, không tìm chuỗi trần: bản đầu của ca này
+     * dùng `toContain('nhom-nut-hang')` và nó vẫn xanh sau khi gỡ lớp khỏi JSX,
+     * vì chính dòng chú thích ngay trên đó nhắc tên lớp.
+     */
+    const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
+    expect(nguon).toMatch(/className="[^"]*\bnhom-nut-hang\b[^"]*"/);
+  });
+});
+
 describe('`0123` nhãn trạng thái sản phẩm có màu', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
 

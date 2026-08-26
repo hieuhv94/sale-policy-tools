@@ -12,11 +12,24 @@ import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
+import { tien } from '../lib/format.js';
 import type { DongSanPham } from './BangSanPham.js';
 
 export { suaDuoc } from '../lib/sua-ho-so.js';
 
-type SanPham = { id: string; code: string; name: string };
+/**
+ * Chỉ những trường ô chọn này cần — KHÔNG dùng lại `SanPham` của `danh-muc.ts`.
+ *
+ * Kiểu kia mang cả trạng thái và nhóm, thứ mà biểu mẫu ở đây không đọc tới. Giữ
+ * hẹp thì thêm một trường vào danh mục không kéo theo một thay đổi ở đây.
+ */
+type SanPham = {
+  id: string;
+  code: string;
+  name: string;
+  /** Giá bán Công ty hiện hành (`0123`). `null` ở dữ liệu cũ chưa từng đặt giá. */
+  price: string | null;
+};
 
 type XemTruocNguong = {
   productCode: string;
@@ -108,6 +121,10 @@ export function ThemDongSanPham({
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
   const xem = useXemTruocNguong(hoSoId, sanPham);
+
+  /** Giá bán Công ty của sản phẩm đang chọn. `null` = chưa chọn, hoặc không tra được. */
+  const giaCongTy =
+    (ds ?? []).find((s) => s.id === sanPham)?.price ?? (sua ? dongCu.companyPrice : null) ?? null;
 
   useEffect(() => {
     const huy = new AbortController();
@@ -205,6 +222,25 @@ export function ThemDongSanPham({
             đánh dấu vượt ngưỡng được. Vẫn lập hồ sơ được; báo Quản trị hệ thống nếu cần một ngưỡng
             cho sản phẩm này.
           </div>
+        )}
+
+        {/*
+          GIÁ BÁN CÔNG TY, ngay trên ô Giá bán buôn (`0124`).
+ 
+          Đây là con số mà tỷ lệ chiết khấu tính ngược từ đó — `1 − giá thu về /
+          giá bán Công ty` — nên gõ giá bán buôn mà không thấy nó là gõ một nửa
+          của một phép tính. Tới `0123` người lập phải mở màn hình Danh mục ở một
+          tab khác để tra.
+ 
+          Lấy từ DANH MỤC trước, rồi mới tới dòng đang sửa: sản phẩm đã vô hiệu
+          hoá không có trong `ds` (`forNewPolicy=true` lọc nó đi) nhưng dòng cũ
+          vẫn giữ con số đã chụp, và một ô trống ở đó đọc như một lỗi hiển thị.
+        */}
+        {giaCongTy !== null && (
+          <p className="ghi-chu">
+            Giá bán Công ty của sản phẩm này: <strong>{tien(giaCongTy)}</strong>. Tỷ lệ chiết khấu
+            tính từ con số đó và giá thu về.
+          </p>
         )}
 
         <Truong id="dsp-gia" nhan="Giá bán buôn" donVi="Tiền tệ đơn vị đồng" bắtBuộc>

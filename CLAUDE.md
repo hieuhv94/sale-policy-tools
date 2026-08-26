@@ -87,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P151** (`0123`): **giá là một phần của sản phẩm, không phải một bước sau**. Tạo sản
+Chặng gần nhất **P152** (`0124`): **giá bán Công ty hiện ngay TRÊN ô giá bán buôn** trong hộp thoại
+thêm dòng, và **Sửa · Xoá cùng một hàng**. Việc đầu không cần một dòng mã máy chủ nào — `0123` đã đưa
+`price` vào chính API mà ô chọn đang gọi. **Vị trí là một phần của yêu cầu**: đọc con số ấy sau khi
+đã gõ xong giá bán buôn thì quá muộn, nên ca kiểm đo bằng `compareDocumentPosition`. Nút xếp chồng là
+do `.nhom-nut-gon` có `flex-wrap: wrap` — **không nới lớp ấy** (danh sách thẻ trên điện thoại cần
+wrap), thêm `.nhom-nut-hang` riêng cho ô bảng. Bẫy: một ca quét mã nguồn **xanh nhờ chính dòng chú
+thích của nó** — phải khớp thuộc tính `className="…"`, không khớp chuỗi trần. **1759/1759 xanh.**
+
+Trước đó **P151** (`0123`): **giá là một phần của sản phẩm, không phải một bước sau**. Tạo sản
 phẩm BẮT BUỘC có giá (cùng transaction), cột giá trong Excel hết được để trống, nút *Giá* bỏ hẳn —
 sửa giá ngay ở hộp thoại *Sửa*, và **mọi lượt sửa đòi gõ lại mã** (tiền đề của `0036` mất: màn hình
 này giờ đổi được giá). **Ngày áp dụng luôn là hôm nay**, ô chọn ngày bỏ khỏi giao diện — `effectiveFrom`

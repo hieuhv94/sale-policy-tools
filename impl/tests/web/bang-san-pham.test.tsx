@@ -205,6 +205,24 @@ describe('sửa một dòng đã có', () => {
     expect(within(bang).getAllByRole('button', { name: 'Sửa' }).length).toBeGreaterThan(0);
     expect(within(bang).getAllByRole('button', { name: 'Xoá' }).length).toBeGreaterThan(0);
   });
+
+  it('`0124` hai nút nằm trong CÙNG MỘT khối không cho xuống dòng', () => {
+    /*
+     * jsdom không tính bố cục, nên không đo được "chúng có cùng một hàng không".
+     * Thứ đo được — và cũng là thứ quyết định — là hai nút thuộc cùng một khối
+     * flex, và khối ấy mang lớp cấm xuống dòng.
+     *
+     * Luật CSS đi kèm nằm ở `nguon-giao-dien.test.ts`; thiếu một trong hai thì
+     * hoặc nút bị tách khối, hoặc lớp thành mã chết.
+     */
+    render(<BangSanPham dong={[dong()]} suaDong={() => undefined} xoaDong={() => undefined} />);
+    const bang = screen.getByRole('table');
+    const nutSua = within(bang).getAllByRole('button', { name: 'Sửa' })[0]!;
+    const nutXoa = within(bang).getAllByRole('button', { name: 'Xoá' })[0]!;
+
+    expect(nutSua.parentElement).toBe(nutXoa.parentElement);
+    expect(nutSua.parentElement?.className).toContain('nhom-nut-hang');
+  });
 });
 
 describe('FE-36 hồ sơ chưa có dòng nào', () => {

@@ -1298,6 +1298,18 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .nhom-nut-gon { gap: var(--k2); flex-wrap: wrap; }
 .nhom-nut-gon .nut { padding: var(--k1) var(--k3); font-size: var(--chu-nho); }
 
+/* Hai nút thao tác của một DÒNG BẢNG đứng cùng một hàng (`0124`).
+
+   `.nhom-nut-gon` cho phép xuống dòng, và đó là hành vi đúng ở danh sách thẻ
+   trên điện thoại — chỗ có cả bề ngang lẫn bề dọc. Trong một ô bảng hẹp thì nó
+   xếp Sửa lên trên Xoá, và hai nút chồng nhau trông như hai thao tác của hai
+   dòng khác nhau.
+
+   Bảng nằm trong `.khung-cuon` nên giữ chúng cùng hàng chỉ làm bảng rộng ra và
+   cuộn ngang — thứ mà bảng sản phẩm vốn đã làm với mười mấy cột. */
+.nhom-nut-hang { flex-wrap: nowrap; }
+.nhom-nut-hang .nut { white-space: nowrap; }
+
 .o-danh-dau {
   display: flex;
   align-items: center;
