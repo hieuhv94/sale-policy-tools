@@ -752,6 +752,86 @@ describe('`0114` lệnh mồi KHÔNG gửi thư, và nói ra điều đó', () =
   });
 });
 
+describe('`0117` lệnh mồi từ chối ADMIN_EMAIL ngoài MAIL_ALLOWLIST', () => {
+  const nguon = readFileSync('scripts/bootstrap-admin.ts', 'utf8');
+
+  it('so bằng HÀM DÙNG CHUNG, không chép lại phép so', () => {
+    /*
+     * Chép phép so vào đây là dựng chỗ thứ BA cho cùng một luật — và chỗ thứ hai
+     * (`identity/mailer.ts`) đã kịp lệch khỏi chỗ thứ nhất suốt mười một chặng
+     * trước khi `0117` gộp lại.
+     */
+    expect(nguon).toContain('thuocMienThu');
+    expect(nguon).toContain('chuanHoaMienThu');
+    // Không có phép so tự chế nào bên cạnh.
+    expect(nguon).not.toMatch(/endsWith\(/);
+  });
+
+  it('CHẠY THẬT: địa chỉ ngoài danh sách thì DỪNG, trước cả khi mở kết nối CSDL', async () => {
+    /*
+     * Ca này chạy chính script, không đọc mã nguồn bằng mắt.
+     *
+     * `expect(...).not.toMatch(/TỪ CHỐI/)` là phần đáng giá: CSDL của bộ test đã
+     * có 10 tài khoản mẫu, nên script SẼ dừng dù chốt tên miền có tồn tại hay
+     * không — chỉ khác ở chỗ dừng vì lý do gì. Không phân biệt hai lý do thì ca
+     * kiểm này xanh kể cả khi `0117` bị gỡ sạch.
+     */
+    let code = 0;
+    let ra = '';
+    try {
+      await exec('pnpm', ['bootstrap-admin'], {
+        env: {
+          ...process.env,
+          ADMIN_USERNAME: `${P}_boot`,
+          ADMIN_EMAIL: 'ai-do@gmail.com',
+          ADMIN_PASSWORD: 'MatKhauMoi@2026',
+          MAIL_ALLOWLIST: 'nutricare.vn',
+        },
+      });
+    } catch (e) {
+      const err = e as { code?: number; stderr?: string; stdout?: string };
+      code = err.code ?? 1;
+      ra = `${err.stderr ?? ''}${err.stdout ?? ''}`;
+    }
+    expect(code).not.toBe(0);
+    expect(ra).toContain('MAIL_ALLOWLIST');
+    expect(ra).not.toMatch(/TỪ CHỐI/);
+    // Câu báo phải nói ra vì sao chuyện này quan trọng dù lệnh mồi không gửi thư
+    // nào: sai ở đây chỉ lộ ra lần đầu bấm *Quên mật khẩu*, lúc không còn đường
+    // vào nào khác. Không nói ra thì người cài đọc nó như một phép kiểm hình thức.
+    expect(ra).toMatch(/Quên mật khẩu/);
+  }, 120_000);
+
+  it('CHẠY THẬT: địa chỉ trong danh sách thì đi tiếp — dừng ở chốt khác', async () => {
+    let ra = '';
+    try {
+      await exec('pnpm', ['bootstrap-admin'], {
+        env: {
+          ...process.env,
+          ADMIN_USERNAME: `${P}_boot2`,
+          ADMIN_EMAIL: 'quan-tri@nutricare.vn',
+          ADMIN_PASSWORD: 'MatKhauMoi@2026',
+          MAIL_ALLOWLIST: 'nutricare.vn',
+        },
+      });
+    } catch (e) {
+      const err = e as { stderr?: string; stdout?: string };
+      ra = `${err.stderr ?? ''}${err.stdout ?? ''}`;
+    }
+    // Vẫn dừng — CSDL bộ test đã có tài khoản — nhưng KHÔNG vì tên miền. Chiều
+    // ngược lại này giữ cho chốt không siết thành "chặn tất".
+    expect(ra).not.toContain('MAIL_ALLOWLIST');
+  }, 120_000);
+
+  it('vẫn KHÔNG gửi thư — chốt mới không được kéo SMTP vào lệnh mồi (`0114`)', () => {
+    // Đọc một biến môi trường là đọc cấu hình, không phải mở kết nối. Ranh giới
+    // của `0114` phải còn nguyên sau lượt sửa này.
+    for (const cam of ['nodemailer', 'Mailer', 'sendInvite', 'MAIL_HOST', 'fetch(']) {
+      expect(nguon, `lệnh mồi không được gọi ${cam}`).not.toContain(cam);
+    }
+  });
+});
+
 describe('`0111` migrate nói ra khi Postgres từ chối mật khẩu', () => {
   /*
    * `pg_isready` KHÔNG kiểm được mật khẩu — nó chỉ hỏi "máy chủ có nhận kết nối

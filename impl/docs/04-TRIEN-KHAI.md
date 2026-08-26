@@ -262,6 +262,13 @@ MAIL_ALLOWLIST=nutricare.vn,nutricare.com.vn
 chặn một địa chỉ cá nhân gõ nhầm vào hồ sơ tài khoản rồi nhận toàn bộ thông báo
 nghiệp vụ — công nợ, giá thu về, tên khách hàng.
 
+Danh sách này còn quyết định **tài khoản nào mở được**: Quản trị hệ thống nhập
+một email ngoài danh sách thì màn hình từ chối ngay, và `bootstrap-admin` cũng
+từ chối một `ADMIN_EMAIL` ngoài danh sách. Lý do là cùng một chuyện — thư mời là
+đường duy nhất để một tài khoản có mật khẩu, nên một địa chỉ không nhận được thư
+là một tài khoản không dùng được. Mở tài khoản cho người ngoài công ty thì phải
+khai thêm tên miền của họ vào đây trước.
+
 Đổi danh sách về sau: sửa `.env` rồi `./csbh len`. Không cần dựng lại ảnh.
 
 ### TLS: mặc định nghiêng về an toàn

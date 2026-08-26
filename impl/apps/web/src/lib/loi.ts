@@ -138,6 +138,7 @@ export const NHAN_TRUONG: Record<string, string> = {
   days: 'Số ngày',
   debt: 'Công nợ',
   deliveryAddress: 'Địa chỉ giao hàng',
+  email: 'Email',
   fileName: 'Tên tệp',
   fullName: 'Họ và tên',
   groupCode: 'Mã nhóm sản phẩm',
@@ -159,7 +160,7 @@ export const NHAN_TRUONG: Record<string, string> = {
 };
 
 /**
- * **96 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
+ * **97 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
  * người duyệt bảng câu chữ đọc theo màn hình họ dùng, không theo sơ đồ kiến trúc.
  */
 export const BANG_LOI: Record<string, Muc> = {
@@ -222,6 +223,12 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'thanh-noi',
     cau: 'Tài khoản này đã kích hoạt rồi, không cần gửi lại thư mời.',
   },
+  /*
+   * Câu lấy TỪ MÁY CHỦ vì nó phải kể ra các tên miền đang được khai (`0117`) —
+   * danh sách ấy khác nhau ở từng nơi cài đặt, chép một câu tĩnh vào đây là mất
+   * đúng phần nói lên phải gõ địa chỉ như thế nào.
+   */
+  EMAIL_DOMAIN_NOT_ALLOWED: { dang: 'o-nhap', truong: 'email', tuMayChu: true },
   SUCCESSOR_NOT_FOUND: {
     dang: 'o-nhap',
     truong: 'successorId',

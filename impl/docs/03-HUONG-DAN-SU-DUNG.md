@@ -1376,6 +1376,27 @@ thư của người khác, và người đó đặt được mật khẩu cho t�
 
 Liên kết hết hạn sau **72 giờ**; hết hạn thì bấm **Gửi lại thư mời**.
 
+### Email phải thuộc tên miền của công ty `mới 26/08`
+
+Hệ thống chỉ gửi thư tới những **tên miền đã khai lúc cài đặt** — thường là tên miền của công ty.
+Nhập một địa chỉ ngoài danh sách đó thì màn hình báo lỗi ngay dưới ô *Email*, **kể ra các tên miền
+đang được phép**, và **không tạo tài khoản nào**.
+
+Đây là chốt chặn có ích chứ không phải phiền hà: tài khoản chỉ nhận được mật khẩu qua thư mời, nên
+một địa chỉ không nhận được thư là một tài khoản không bao giờ dùng được — mà nó vẫn chiếm mất tên
+đăng nhập và địa chỉ ấy.
+
+Hai điều dễ nhầm:
+
+- **Miền con thì được**. Khai `nutricare.vn` thì `an@hn.nutricare.vn` vẫn tạo được.
+- **`nutricare.com.vn` KHÔNG phải miền con của `nutricare.vn`.** Đó là hai tên miền khác nhau, mỗi
+  cái phải khai riêng.
+
+Cần mở tài khoản cho một địa chỉ ngoài tên miền công ty — nhân sự thuê ngoài chẳng hạn — thì báo bộ
+phận kỹ thuật **khai thêm tên miền ấy** vào cấu hình nhận thư. Không có đường vòng nào khác, và
+không nên có: một tài khoản không nhận được thư của hệ thống thì cũng không đặt lại được mật khẩu
+khi quên.
+
 ### Hạn xử lý và thư hỏng — thẻ *Hệ thống*
 
 **Hạn xử lý (SLA)**: số ngày cho mỗi bước chờ. Đổi số này **tính lại hạn cho mọi hồ sơ đang chờ**,
@@ -1395,7 +1416,7 @@ thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Văn bản mẫu** 
 
 Màn hình có **hai thẻ**: *Mẫu hồ sơ CSBH* và *Mẫu hợp đồng*. Cùng một cách làm việc — tải `.docx`
 lên, ánh xạ ô trống, ban hành — nên chúng ở cùng một chỗ. Phần dưới nói về thẻ thứ nhất; thẻ *Mẫu
-hợp đồng* xem mục 7.
+hợp đồng* xem mục 9.
 
 #### Thẻ *Mẫu hồ sơ CSBH* `mới 19/08`
 

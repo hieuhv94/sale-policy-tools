@@ -84,6 +84,35 @@ export class UsersService {
   ) {}
 
   async create(input: CreateUserInput, createdBy: string) {
+    /*
+     * ĐỊA CHỈ PHẢI NHẬN ĐƯỢC THƯ, nếu không thì đừng tạo tài khoản (`0117`).
+     *
+     * Tới `0116` một địa chỉ ngoài `MAIL_ALLOWLIST` vẫn tạo được tài khoản; chỉ
+     * lá thư mời là hỏng, ở một chỗ cố tình nuốt lỗi (`guiThuMoi` ngay dưới).
+     * Kết quả là một tài khoản có thật, chiếm mất tên đăng nhập và địa chỉ, mà
+     * KHÔNG BAO GIỜ đăng nhập được: từ P13 thư mời là đường duy nhất để nó có
+     * mật khẩu, và `resendInvite` sẽ hỏng lại đúng như vậy mỗi lần bấm.
+     *
+     * Chặn ở đây chứ không ở tầng DTO: `validate` kiểm HÌNH DẠNG địa chỉ, còn
+     * đây là một luật của triển khai, đọc từ cùng biến môi trường mà đường gửi
+     * thư đọc — và hỏi qua `mailer.nhanDuocThu()` để hai bên không trả lời khác
+     * nhau. Danh sách rỗng (demo, bộ test) thì hàm ấy cho qua mọi địa chỉ.
+     *
+     * Hỏi TRƯỚC phép kiểm trùng: đây là tính chất của chính giá trị vừa gõ, trả
+     * lời được mà không cần đụng tới CSDL.
+     */
+    if (!this.mailer.nhanDuocThu(input.email)) {
+      const mien = this.mailer.cfg.allowlist.join(', ');
+      throw new BadRequestException({
+        code: 'EMAIL_DOMAIN_NOT_ALLOWED',
+        field: 'email',
+        message:
+          `Địa chỉ ${input.email} không nhận được thư của hệ thống nên chưa tạo tài khoản được. ` +
+          `Hệ thống chỉ gửi thư tới các tên miền: ${mien}. ` +
+          'Dùng địa chỉ thuộc một trong các tên miền đó, hoặc đề nghị bộ phận kỹ thuật khai thêm tên miền.',
+      });
+    }
+
     const trung = await this.db.q<{ email: string; username: string }>(
       `SELECT email, username FROM idn.app_user
         WHERE lower(email) = lower($1) OR lower(username) = lower($2)`,

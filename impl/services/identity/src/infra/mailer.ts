@@ -19,7 +19,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { createTransport, type Transporter } from 'nodemailer';
-import { tuyChonSmtp } from '@csbh/http-kit';
+import { thuocMienThu, tuyChonSmtp, type MailConfig } from '@csbh/http-kit';
 import { CONFIG, MAIL } from './config.js';
 
 /** Giãn cách giữa các lần thử lại, tính bằng mili-giây. */
@@ -28,6 +28,13 @@ const CHO_THU_LAI = [200, 1000, 3000];
 @Injectable()
 export class Mailer {
   private readonly log = new Logger(Mailer.name);
+  /**
+   * Phơi ra như `notification/mailer.ts` (`0117`) — hai chỗ cần tới nó.
+   *
+   * `UsersService` hỏi `nhanDuocThu()` trước khi tạo tài khoản, và bộ test thay
+   * tạm `cfg.allowlist` để kiểm đường chặn mà không phải dựng lại cả service.
+   */
+  readonly cfg: MailConfig = MAIL;
   private readonly tx: Transporter = createTransport(tuyChonSmtp(MAIL));
 
   async sendInvite(to: string, fullName: string, activationUrl: string): Promise<void> {
@@ -76,12 +83,25 @@ export class Mailer {
    * thứ biến đó dựng ra để chặn.
    */
   private nguoiNhan(to: string): { den: string; goc?: string } {
-    if (MAIL.allowlist.length > 0) {
-      const hop = MAIL.allowlist.some((d) => to.toLowerCase().endsWith(d));
-      if (!hop) throw new Error(`địa chỉ ${to} bị loại theo MAIL_ALLOWLIST`);
+    if (!this.nhanDuocThu(to)) {
+      throw new Error(`địa chỉ ${to} bị loại theo MAIL_ALLOWLIST`);
     }
-    if (MAIL.redirectAll !== undefined) return { den: MAIL.redirectAll, goc: to };
+    if (this.cfg.redirectAll !== undefined) return { den: this.cfg.redirectAll, goc: to };
     return { den: to };
+  }
+
+  /**
+   * Địa chỉ này có nhận được thư của hệ thống không (`0117`).
+   *
+   * MỘT câu trả lời cho cả hai chỗ hỏi: đường gửi ngay dưới, và `UsersService`
+   * lúc tạo tài khoản. Tách ra vì tới `0116` chúng trả lời khác nhau —
+   * `nguoiNhan()` so bằng `to.toLowerCase().endsWith(d)`, đúng phép so mà `0105`
+   * đã bỏ ở `notification`: nó khớp cả `ke-toan@gia-nutricare.vn` khi danh sách
+   * là `nutricare.vn`, một tên miền do người khác đăng ký, chỉ cần kết thúc đúng
+   * chữ ấy. `thuocMienThu` so trên PHẦN SAU dấu `@` và chấp nhận miền con.
+   */
+  nhanDuocThu(to: string): boolean {
+    return thuocMienThu(to, this.cfg.allowlist);
   }
 
   /**

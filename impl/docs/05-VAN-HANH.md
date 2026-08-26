@@ -111,6 +111,11 @@ miền thì phải khai thêm:
 ./csbh len
 ```
 
+Cùng danh sách ấy chặn ở **màn hình tạo tài khoản**: email ngoài danh sách thì
+Quản trị không tạo được tài khoản, và câu báo kể ra các tên miền đang được phép.
+Nghe "không tạo được tài khoản cho người mới" thì kiểm biến này trước tiên —
+`nutricare.com.vn` **không** phải miền con của `nutricare.vn`, phải khai riêng.
+
 **3. Thư có rời khỏi hệ thống không?** Xem hộp *Thư hỏng* trong phần mềm (màn
 hình Quản trị). Thư gửi ba lần không được thì vào đó kèm nguyên văn lỗi SMTP.
 

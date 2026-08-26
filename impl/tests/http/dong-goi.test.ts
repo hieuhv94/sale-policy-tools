@@ -191,4 +191,23 @@ describe('`0105` bản đóng gói', () => {
       expect(mau, `env.mau thiếu biến bắt buộc ${v}`).toMatch(new RegExp(`^${v}=`, 'm'));
     }
   });
+
+  it('`0117` `ops` nhận được MAIL_ALLOWLIST — nếu không, chốt của lệnh mồi là hình vẽ', () => {
+    /*
+     * `bootstrap-admin` từ chối một `ADMIN_EMAIL` ngoài danh sách tên miền. Nó
+     * chạy trong container `ops`, mà khối `environment` của `ops` KHÔNG kế thừa
+     * `&node-env` — nó tự khai từng biến một.
+     *
+     * Thiếu biến ở đó thì `chuanHoaMienThu(undefined)` trả danh sách rỗng,
+     * `thuocMienThu` cho qua mọi địa chỉ, và chốt chặn đọc như thể đang chặn mà
+     * không chặn gì — đúng lớp lỗi mà `0105` đã gặp một lần ở chính biến này.
+     *
+     * Không có ca kiểm nào khác bắt được: bộ test chạy `bootstrap-admin` bằng
+     * môi trường của chính nó, không qua compose.
+     */
+    const prod = readFileSync('deploy/compose.prod.yml', 'utf8');
+    const khoiOps = /^ {2}ops:\n(?: {4}.*\n| *\n)*/m.exec(prod)?.[0];
+    expect(khoiOps, 'không rút được khối service `ops` — biểu thức đã lạc hậu').toBeDefined();
+    expect(khoiOps).toContain('MAIL_ALLOWLIST');
+  });
 });

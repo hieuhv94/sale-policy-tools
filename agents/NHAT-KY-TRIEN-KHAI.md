@@ -10541,3 +10541,93 @@ giao diện**. Không có chiều ấy thì gỡ hết nút phụ đi, luật th
 đầu vẫn xanh — canh một quy tắc về thứ không còn tồn tại.
 
 **1700/1700 xanh.**
+
+## P145 — `0117` email ngoài danh sách nhận thư thì đừng tạo tài khoản
+
+Chặng này bắt đầu từ một buổi gỡ lỗi trên chồng production thật, không từ một
+phản hồi bằng lời. Ba tài khoản mở trên máy chủ khách không nhận được thư mời.
+Log của `identity` nói ra hai nguyên nhân khác hẳn nhau:
+
+```
+ERROR [UsersService] không gửi được thư mời cho 379f4cf1… (lienhtd@nutricare.com.vn):
+  Error: địa chỉ lienhtd@nutricare.com.vn bị loại theo MAIL_ALLOWLIST
+WARN  [Mailer] gửi "Kích hoạt tài khoản…" tới …@gmail.com hỏng, thử lại sau 200ms:
+  Error: getaddrinfo ENOTFOUND stmp.gmail.com
+```
+
+`stmp.gmail.com` là lỗi gõ trong `.env`, sửa tại chỗ. Cái thứ nhất mới là chặng
+này: danh sách khai `nutricare.vn`, tài khoản mở bằng `@nutricare.com.vn`, và
+**`com.vn` không phải miền con của `vn`**.
+
+### Cái hỏng thật không phải lá thư
+
+Tài khoản vẫn được tạo. `guiThuMoi` nuốt lỗi có chủ ý — tới lúc ấy transaction đã
+commit, ném ra thì Quản trị nhận 500 và không biết mình vừa tạo xong hay chưa
+(ONB-16 canh đúng điều đó). Nhưng thứ nó để lại là một tài khoản **có thật, chiếm
+mất tên đăng nhập và địa chỉ, và không bao giờ đăng nhập được**: từ P13 thư mời
+là đường duy nhất để một tài khoản có mật khẩu, nên *Gửi lại thư mời* hỏng lại
+đúng như vậy mỗi lần bấm. Không có đường nào chữa ngoài xoá tài khoản — mà hệ
+thống không có đường xoá tài khoản.
+
+Nên chốt chặn không nằm ở chỗ gửi thư, nó nằm ở chỗ **tạo tài khoản**. Và nó chỉ
+có một chỗ để nằm: email đặt được đúng một lần, lúc tạo. `PATCH /admin/users/:id`
+nhận mỗi `fullName`, `PATCH /auth/me` cũng vậy — cả hai cố ý (`0032`: đổi email
+là tự chuyển đường đặt lại mật khẩu sang hộp thư khác).
+
+### Một luật, ba chỗ hỏi, hai chỗ trả lời khác nhau
+
+Trên đường đặt chốt thì lộ ra `identity/mailer.ts` vẫn so bằng
+`to.toLowerCase().endsWith(d)` — **đúng phép so mà `0105` đã bỏ ở
+`notification`**. Nó nhận `ke-toan@gia-nutricare.vn` là người nhà khi danh sách
+là `nutricare.vn`: một tên miền do người khác đăng ký, chỉ cần kết thúc đúng chữ
+ấy. Hai đường gửi thư của cùng hệ thống trả lời khác nhau về cùng một câu hỏi,
+suốt mười một chặng, và không ca kiểm nào bắt được — ca của `0105` gọi
+`notification.Mailer.allowed()`, không ai gọi đường của identity.
+
+Nên `0117` không thêm một phép so thứ ba mà gộp lại: `Mailer.nhanDuocThu()` gọi
+`thuocMienThu` của `http-kit`, `nguoiNhan()` hỏi chính nó, và `UsersService` hỏi
+qua `mailer` chứ không đọc thẳng cấu hình. `Mailer.cfg` phơi ra như bên
+`notification` — vừa để `UsersService` hỏi được, vừa để bộ test thay tạm danh sách
+mà không phải dựng lại service.
+
+### Lệnh mồi: chốt thật hay hình vẽ, khác nhau ở một dòng compose
+
+`bootstrap-admin` là đường tạo tài khoản THỨ HAI, đi thẳng SQL. Sai tên miền ở đó
+**không lộ ra lúc cài** — nó không gửi thư nào (`0114`), tài khoản có mật khẩu
+ngay và đăng nhập được. Nó lộ ra lần đầu người quản trị bấm *Quên mật khẩu*: đường
+ấy đi qua đúng bộ lọc tên miền và im lặng theo thiết kế (không nói tài khoản có
+tồn tại hay không). Triệu chứng là một hệ thống không còn ai vào được bằng quyền
+quản trị.
+
+Nhưng khối `environment` của service `ops` **không kế thừa `&node-env`** — nó tự
+khai từng biến. Thiếu `MAIL_ALLOWLIST` ở đó thì `chuanHoaMienThu(undefined)` trả
+danh sách rỗng, `thuocMienThu` cho qua tất, và chốt chặn đọc như thể đang chặn mà
+không chặn gì — đúng lớp lỗi mà `0105`, `0106`, `0108` đã dính ba lần ở chính
+nhóm biến này. Nên chặng này gồm cả một dòng trong `compose.prod.yml`, và một ca
+kiểm rút khối `ops` ra khỏi tệp để soi.
+
+### Phá lại
+
+- Gỡ chốt ở `create` → **3 ca ONB-18 đỏ**, hai ca còn lại (miền con qua, danh
+  sách rỗng không lọc) vẫn xanh — đúng, chúng canh chiều ngược.
+- Trả `nhanDuocThu` về `endsWith` → **đúng một ca đỏ**: *TÊN MIỀN NHÁI*. Đây là ca
+  đắt nhất của chặng, vì nó là ca duy nhất phân biệt được hai phép so.
+- Gỡ chốt ở `bootstrap-admin` → ca *CHẠY THẬT* đỏ, ca quét mã nguồn **vẫn xanh**
+  (dòng `import` còn đó). Ghi ra vì nó cho thấy ranh giới: ca quét chỉ canh việc
+  không ai chép lại phép so, còn việc chốt có chạy hay không thì phải chạy thật.
+
+Hai ca *CHẠY THẬT* ấy đối chiếu nhau, và vế thứ hai mới là vế khó bỏ: CSDL của bộ
+test đã có 10 tài khoản mẫu nên `bootstrap-admin` DỪNG dù có chốt hay không —
+`expect(ra).not.toMatch(/TỪ CHỐI/)` là thứ duy nhất phân biệt "dừng vì tên miền"
+với "dừng vì đã có tài khoản". Thiếu nó thì ca kiểm xanh kể cả khi `0117` bị gỡ
+sạch.
+
+### Không làm
+
+Đánh dấu tài khoản cũ có email ngoài danh sách hiện hành, trên màn hình Người
+dùng. Chốt lúc tạo **không phải một bất biến**: thu hẹp `MAIL_ALLOWLIST` về sau
+để lại những tài khoản đã có ngoài danh sách, và triệu chứng vô hình — thư của họ
+bị cắt lặng lẽ khi vẫn còn người nhận khác trong cùng lá thư, không có dòng nào
+trong *Thư hỏng*. Chuyện có thật, nhưng ngoài phạm vi chặng này.
+
+**1710/1710 xanh.**

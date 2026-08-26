@@ -85,7 +85,19 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (24/08/2026)
+## Trạng thái hiện tại (26/08/2026)
+
+Chặng gần nhất **P145** (`0117`): **email ngoài `MAIL_ALLOWLIST` thì không tạo được tài khoản**.
+Tìm ra khi gỡ lỗi chồng production thật — ba tài khoản mở bằng `@nutricare.com.vn` trong khi danh
+sách khai `nutricare.vn` (**`com.vn` KHÔNG phải miền con của `vn`**). Tài khoản vẫn được tạo, chỉ lá
+thư mời hỏng ở chỗ cố tình nuốt lỗi, để lại **một tài khoản có thật, chiếm mất tên đăng nhập và địa
+chỉ, không bao giờ đăng nhập được**. Chốt nằm ở `UsersService.create` — email đặt được đúng một lần
+nên đó là chỗ duy nhất phải canh. Kéo theo hai việc: `identity/mailer.ts` vẫn so bằng
+`endsWith` — **đúng phép so mà `0105` đã bỏ ở `notification`**, lệch suốt mười một chặng, giờ cả hai
+gọi chung `thuocMienThu`; và `bootstrap-admin` cũng từ chối, kèm **một dòng `MAIL_ALLOWLIST` trong
+khối `ops` của `compose.prod.yml`** vì khối ấy không kế thừa `&node-env`. **1710/1710 xanh.**
+
+## Trạng thái trước đó (24/08/2026)
 
 Chặng gần nhất **P133–P134** (`0106`, `0107`). `0106` sửa **ba lỗi của lượt cài thật đầu tiên**:
 mật khẩu Postgres/MinIO nằm ở hai chỗ (giờ đọc thẳng từ `secrets/*.txt` bằng biến `*_FILE`); chồng

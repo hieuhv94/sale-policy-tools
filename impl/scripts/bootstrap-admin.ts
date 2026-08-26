@@ -29,6 +29,7 @@ import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 import { checkNewPassword, describePasswordProblems } from '../packages/identity-core/src/password-policy.js';
 import { hashPassword } from '../packages/identity-core/src/password.js';
+import { chuanHoaMienThu, thuocMienThu } from '../packages/http-kit/src/mail-config.js';
 
 const doc = (ten: string): string => {
   const tepBM = process.env[`${ten}_FILE`];
@@ -58,6 +59,29 @@ const main = async () => {
 
   if (!HINH_THU.test(thu)) {
     console.error(`bootstrap-admin: ADMIN_EMAIL "${thu}" không phải địa chỉ thư hợp lệ.`);
+    process.exit(1);
+  }
+
+  /*
+   * ĐỊA CHỈ PHẢI NẰM TRONG `MAIL_ALLOWLIST` (`0117`).
+   *
+   * Lệnh mồi không gửi thư nào (`0114`), nên sai ở đây KHÔNG lộ ra lúc cài: tài
+   * khoản dựng xong có mật khẩu ngay và đăng nhập được. Nó lộ ra vài tháng sau,
+   * lần đầu người quản trị bấm *Quên mật khẩu* — đường ấy đi qua đúng bộ lọc tên
+   * miền, và nó im lặng theo thiết kế (không nói tài khoản có tồn tại hay không).
+   * Triệu chứng khi đó là một hệ thống không còn ai vào được bằng quyền quản trị.
+   *
+   * Dùng chung `chuanHoaMienThu`/`thuocMienThu` với hai service gửi thư — chép
+   * lại phép so ở đây là dựng chỗ thứ ba để hai bên lệch nhau.
+   */
+  const mienThu = chuanHoaMienThu(process.env.MAIL_ALLOWLIST);
+  if (!thuocMienThu(thu, mienThu)) {
+    console.error(
+      `bootstrap-admin: ADMIN_EMAIL "${thu}" không thuộc tên miền nào trong MAIL_ALLOWLIST ` +
+        `(${mienThu.join(', ')}). Tài khoản mồi vẫn đăng nhập được, nhưng "Quên mật khẩu" ` +
+        'sẽ KHÔNG BAO GIỜ gửi được thư cho nó. Dùng địa chỉ thuộc tên miền công ty, ' +
+        'hoặc khai thêm tên miền vào MAIL_ALLOWLIST trong .env rồi chạy lại.',
+    );
     process.exit(1);
   }
 

@@ -1,10 +1,10 @@
 /**
- * ONB-01 … ONB-15 — tạo tài khoản bằng email, kích hoạt, bắt buộc đổi mật khẩu.
+ * ONB-01 … ONB-18 — tạo tài khoản bằng email, kích hoạt, bắt buộc đổi mật khẩu.
  * YCNV muc 2.8.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { assertSafeMailConfig, UnsafeMailConfigError } from '@csbh/http-kit';
+import { assertSafeMailConfig, chuanHoaMienThu, UnsafeMailConfigError } from '@csbh/http-kit';
 import { Mailer as IdentityMailer } from '@csbh/identity/testing';
 import {
   accessTokenFor,
@@ -549,5 +549,110 @@ describe('`0049` GET /admin/users?q= tìm theo họ tên', () => {
     // `total` KHÔNG đổi theo cỡ trang — thanh phân trang đọc con số này để nói
     // "trang 1/2", và nó phải là tổng của cả kết quả lọc chứ không phải của trang.
     expect(trang1.body.total).toBe(3);
+  });
+});
+
+// =============================================================================
+// ONB-18 — không tạo được tài khoản với email ngoài `MAIL_ALLOWLIST` (`0117`)
+//
+// Tới `0116` địa chỉ ngoài danh sách vẫn tạo được tài khoản; chỉ thư mời hỏng,
+// ở một chỗ cố tình nuốt lỗi. Kết quả là một tài khoản có thật, chiếm mất tên
+// đăng nhập và địa chỉ, mà KHÔNG BAO GIỜ đăng nhập được — từ P13 thư mời là
+// đường duy nhất để nó có mật khẩu.
+//
+// Bộ test chạy với `MAIL_ALLOWLIST` rỗng nên chốt này tự tắt; thay tạm
+// `mailer.cfg.allowlist` là cách duy nhất đi qua được đúng đường thật.
+// =============================================================================
+
+describe('ONB-18 email ngoài MAIL_ALLOWLIST', () => {
+  /** Chạy `f` với danh sách tên miền thay tạm, luôn trả về như cũ. */
+  const voiMien = async (dsMien: string, f: () => Promise<void>) => {
+    const mailer = app.get(IdentityMailer);
+    const cu = mailer.cfg.allowlist;
+    /*
+     * Dựng danh sách QUA `chuanHoaMienThu`, không tiêm thẳng mảng chuỗi — cùng
+     * lý do đã ghi ở NTF-19: tiêm một giá trị mà đường thật không bao giờ sinh
+     * ra là kiểm một thứ không tồn tại.
+     */
+    (mailer.cfg as { allowlist: string[] }).allowlist = chuanHoaMienThu(dsMien);
+    try {
+      await f();
+    } finally {
+      (mailer.cfg as { allowlist: string[] }).allowlist = cu;
+    }
+  };
+
+  const coTaiKhoan = async (username: string) =>
+    withAdminDb(async (c) => {
+      const q = await c.query(`SELECT 1 FROM idn.app_user WHERE username = $1`, [username]);
+      return q.rowCount;
+    });
+
+  it('chặn với 400, và KHÔNG để lại tài khoản nào', async () => {
+    await voiMien('nutricare.vn', async () => {
+      const { res, username, email } = await createUser({ email: 'ai-do@gmail.com' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('EMAIL_DOMAIN_NOT_ALLOWED');
+      // Ô nào sai — giao diện đặt câu lỗi ngay dưới ô đó.
+      expect(res.body.field).toBe('email');
+      // Câu phải KỂ RA tên miền được phép: người quản trị đang đứng trước ô nhập
+      // và cần biết gõ gì, mà danh sách ấy khác nhau ở từng nơi cài đặt.
+      expect(res.body.message).toContain('nutricare.vn');
+
+      // Chặn TRƯỚC khi ghi: tên đăng nhập và địa chỉ phải còn dùng được.
+      expect(await coTaiKhoan(username)).toBe(0);
+      expect(await mailpitCountTo(email)).toBe(0);
+    });
+  });
+
+  it('MIỀN CON thì qua — công ty nhiều chi nhánh', async () => {
+    await voiMien('nutricare.vn', async () => {
+      const { res } = await createUser({ email: `chi-nhanh-${Date.now()}@hn.nutricare.vn` });
+      expect(res.status).toBe(201);
+    });
+  });
+
+  it('TÊN MIỀN NHÁI bị chặn — phép so cũ của identity cho nó lọt', async () => {
+    /*
+     * `gia-nutricare.vn` là một tên miền do NGƯỜI KHÁC đăng ký, chỉ kết thúc
+     * đúng chữ `nutricare.vn`. Bản trước `0117` của `identity/mailer.ts` so bằng
+     * `to.toLowerCase().endsWith(d)` — đúng phép so mà `0105` đã bỏ ở
+     * `notification` — nên nó nhận địa chỉ này là người nhà.
+     *
+     * Ca kiểm của `0105` cho chuyện này nằm ở `notification`, và identity giữ
+     * bản sao thứ hai của cùng một luật suốt mười một chặng mà không ai canh.
+     */
+    await voiMien('nutricare.vn', async () => {
+      const { res, username } = await createUser({ email: 'ke-toan@gia-nutricare.vn' });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('EMAIL_DOMAIN_NOT_ALLOWED');
+      expect(await coTaiKhoan(username)).toBe(0);
+    });
+  });
+
+  it('nhiều tên miền: mỗi miền khai riêng, `com.vn` KHÔNG phải miền con của `vn`', async () => {
+    /*
+     * Lỗi thật của lượt cài đầu tiên: danh sách khai `nutricare.vn`, tài khoản
+     * mở bằng `@nutricare.com.vn`, và mọi thư mời hỏng. Hai tên miền khác nhau.
+     */
+    await voiMien('nutricare.vn', async () => {
+      const { res } = await createUser({ email: 'lien@nutricare.com.vn' });
+      expect(res.status).toBe(400);
+    });
+    await voiMien('nutricare.vn,nutricare.com.vn', async () => {
+      const { res } = await createUser({ email: `lien-${Date.now()}@nutricare.com.vn` });
+      expect(res.status).toBe(201);
+    });
+  });
+
+  it('danh sách RỖNG thì không lọc gì — demo và bộ test không đụng tới', async () => {
+    // Giá trị mặc định của một biến không ai đặt là rỗng, và ở production
+    // `assertSafeMailConfig` không cho phép rỗng. Ngoài production thì rỗng
+    // nghĩa là "không lọc" — nếu không, mọi ca kiểm trên kia phải khai tên miền.
+    await voiMien('', async () => {
+      const { res } = await createUser({ email: `bat-ky-${Date.now()}@gmail.com` });
+      expect(res.status).toBe(201);
+    });
   });
 });

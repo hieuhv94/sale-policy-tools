@@ -975,6 +975,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | ONB-13 | Đổi mật khẩu thành công khi đang có phiên khác mở | Toàn bộ refresh token của người đó bị thu hồi — mọi phiên cũ đăng xuất | §2.8 | `P0` |
 | ONB-14 | Kích hoạt bằng cách đăng nhập rồi đổi mật khẩu, không mở email | Tài khoản hoạt động nhưng cột *đã xác nhận email* vẫn trống trong danh sách quản trị | §2.8 | `P1` |
 | ONB-15 | Soi bảng người dùng và nhật ký sau toàn bộ luồng trên | Không có mật khẩu thô hay chuỗi token kích hoạt ở bất kỳ đâu — chỉ lưu bản băm | §2.8 | `P0` |
+| ONB-18 | Tạo tài khoản với email ngoài `MAIL_ALLOWLIST` | 400 `EMAIL_DOMAIN_NOT_ALLOWED` tại ô *email*, kể ra tên miền được phép, **không** ghi tài khoản nào. Miền con thì qua; tên miền chỉ *kết thúc bằng* chuỗi ấy thì không | §2.8 | `P0` |
 
 ### CUST — Khách hàng
 

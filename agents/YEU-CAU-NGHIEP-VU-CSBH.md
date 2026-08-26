@@ -183,6 +183,12 @@ tác của Quản trị hệ thống.
 
 - **Email là định danh đăng nhập** và là duy nhất trên toàn hệ thống. Trùng email thì báo lỗi, không
   tạo tài khoản thứ hai.
+- **Địa chỉ phải thuộc tên miền được phép nhận thư** `mới 26/08` — xem danh sách khai lúc chạy ở
+  Phụ lục B. Ngoài danh sách thì **chặn ngay tại ô nhập**, kể ra các tên miền đang được phép, và
+  không tạo tài khoản nào. Bản trước vẫn tạo tài khoản rồi để lá thư mời hỏng, mà thư mời là đường
+  duy nhất để tài khoản có mật khẩu — nên thứ để lại là một tài khoản có thật, chiếm mất tên đăng
+  nhập và địa chỉ, không bao giờ đăng nhập được. Trên máy chủ thật danh sách này luôn có; ở bản demo
+  nó để trống, và để trống nghĩa là không lọc.
 - **KHÔNG CÒN mật khẩu mặc định** `sửa 12/08`. Bản trước cho Quản trị tự đặt một mật khẩu và bàn
   giao tay; đường đó bị bỏ vì mật khẩu đi qua tin nhắn, giấy nhớ hoặc lời nói là mật khẩu người thứ
   ba biết được, và không có cách nào biết nó đã đi tới đâu. Tài khoản mới **không có mật khẩu nào
@@ -1391,6 +1397,23 @@ không phải ra bản mới.
 > mà bỏ trống chính là giá trị của một cấu hình không ai đặt — nên chốt chặn ấy chỉ tồn tại ở nơi
 > có người nhớ bật. Nó chặn một địa chỉ cá nhân gõ nhầm vào hồ sơ tài khoản rồi nhận toàn bộ thông
 > báo nghiệp vụ: công nợ, giá thu về, tên khách hàng.
+
+**Không tạo được tài khoản với email ngoài danh sách ấy** `mới 26/08` — Quản trị hệ thống nhập một
+địa chỉ không thuộc tên miền nào đã khai thì phần mềm **từ chối ngay tại ô nhập**, kể ra các tên
+miền đang được phép, và **không tạo tài khoản nào**. Lệnh mồi tài khoản quản trị đầu tiên trên máy
+chủ mới cũng từ chối theo cùng luật ấy.
+
+> Trước đó tài khoản vẫn được tạo, chỉ có lá thư mời là hỏng — và hỏng ở một chỗ cố tình nuốt lỗi,
+> vì lúc ấy tài khoản đã ghi vào CSDL rồi. Kết quả là một tài khoản có thật, chiếm mất tên đăng nhập
+> và địa chỉ, mà **không bao giờ đăng nhập được**: thư mời là đường duy nhất để nó có mật khẩu, nên
+> bấm *Gửi lại thư mời* bao nhiêu lần cũng hỏng lại đúng như vậy. Đây là chuyện đã xảy ra ở lượt cài
+> thật: danh sách khai `nutricare.vn`, tài khoản mở bằng `@nutricare.com.vn` — **hai tên miền khác
+> nhau, `com.vn` không phải miền con của `vn`** — và ba tài khoản dựng ra đều chết.
+>
+> Cần mở tài khoản cho một địa chỉ ngoài tên miền công ty thì phải **khai thêm tên miền ấy** vào
+> danh sách nhận thư. Cố ý không có đường vòng riêng cho việc tạo tài khoản: một tài khoản không
+> nhận được thư của hệ thống là một tài khoản không dùng được, nên hai câu hỏi ấy chỉ có một câu
+> trả lời.
 
 **Đủ trường mới gửi duyệt được** `mới 24/08` — trước khi hồ sơ rời trạng thái *Nháp*, phần mềm kiểm
 các trường sẽ in ra bản CSBH. Thiếu thì **chặn gửi**, và báo rõ thiếu mục nào cùng chỗ phải đi sửa.

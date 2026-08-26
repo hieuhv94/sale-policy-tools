@@ -168,6 +168,11 @@ services:
       ROLE_PASSWORD_FILE: /run/secrets/role_password.txt
       BACKUP_MIRROR_DIR: /mirror
       APP_VERSION: ${CSBH_TAG}
+      # `bootstrap-admin` từ chối một ADMIN_EMAIL ngoài danh sách này (`0117`):
+      # tài khoản mồi không nhận thư mời nào, nên sai tên miền chỉ lộ ra ở lần
+      # đầu bấm *Quên mật khẩu* — lúc không còn đường vào nào khác. `ops` KHÔNG
+      # gửi thư, nó chỉ đọc danh sách để so.
+      MAIL_ALLOWLIST: ${MAIL_ALLOWLIST}
     volumes:
       - ../secrets:/run/secrets:ro
       - pgarchive:/archive
