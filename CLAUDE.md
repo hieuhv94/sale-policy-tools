@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (26/08/2026)
 
-Chặng gần nhất **P148** (`0120`): file Excel mẫu mang **toàn bộ danh mục hiện tại** (kể cả hàng đã
+Chặng gần nhất **P149** (`0121`): **nhập danh mục từ Excel là GHI ĐÈ, và phải xem trước**. File 5 cột
+(mã · tên · mã nhóm · giá · *đang có hiệu lực*), phải chứa **đủ mọi mã đang có**, kiểm bảy bước rồi
+hiện **bảng thay đổi**, gõ lại `GHI DE` mới ghi. Bốn thứ KHÔNG làm được qua đường nhập: xoá sản
+phẩm (kể cả bằng cách bỏ dòng), ngừng bán (cột 5 chỉ để xem), xoá giá (ô trống = giữ nguyên), đổi
+ngày áp dụng (luôn là hôm nay). `excel.ts` chỉ đọc · `nhap.ts` là **hàm thuần** chạy HAI lần — một
+lần xem trước, một lần **trong transaction ghi**. **Trùng tên chỉ chặn phần MỚI phát sinh**: danh
+mục không cấm trùng tên (đo được 19 sản phẩm cùng tên), mà file phải đủ — chặn cứng thì danh mục ấy
+không bao giờ nhập lại được. Giá dùng `ON CONFLICT DO UPDATE`, **giữ** unique index; màn hình *Đặt
+giá* bỏ `PRICE_ALREADY_SET_FOR_DATE` theo. **Chỉ phát sự kiện cho dòng thật sự đổi** (nợ N-09).
+**1736/1736 xanh.**
+
+Trước đó **P148** (`0120`): file Excel mẫu mang **toàn bộ danh mục hiện tại** (kể cả hàng đã
 vô hiệu hoá), và *Tải file mẫu* thành một **nút** thật — lớp `.lien-trong-dong` của `0119` gỡ hẳn vì
 hết chỗ dùng. Hệ quả phải nhớ: **file này KHÔNG tải lên lại nguyên trạng được** — trùng mã chặn cả
 lô nên nó hỏng ở dòng 2; cách dùng là xoá dòng cũ rồi điền dòng mới, và **có một ca kiểm canh chính

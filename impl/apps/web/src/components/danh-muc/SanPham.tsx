@@ -494,11 +494,52 @@ function HopThoaiGia({ sp, dong }: { sp: SanPham; dong: () => void }) {
 
 // --- Nhập Excel --------------------------------------------------------------
 
+/**
+ * Nhập danh mục từ Excel — BA BƯỚC, không phải một cú bấm (`0121`).
+ *
+ *   chọn tệp → **xem trước** → gõ xác nhận rồi ghi đè
+ *
+ * Bước giữa mới là lý do cả màn hình này tồn tại. Lượt nhập GHI ĐÈ danh mục —
+ * đổi tên, đổi nhóm, đổi giá của những sản phẩm đã có — nên nó là lượt ghi có
+ * bán kính lớn nhất của phần mềm, và một file dán lệch cột trông y hệt một file
+ * đúng cho tới lúc đã ghi xong.
+ *
+ * Bảng xem trước KHÔNG liệt kê nội dung file. Nó liệt kê **thay đổi**: thêm mới,
+ * sửa gì (cũ → mới), và một con số cho phần không đổi. Một bảng 500 dòng giống
+ * hệt nhau thì không ai đọc — người dùng bấm Đồng ý mà không nhìn, và bước xem
+ * trước thành một nút Tiếp theo có trang trí.
+ *
+ * Máy chủ kiểm LẠI từ đầu lúc ghi. Kết quả xem trước là ảnh chụp: giữa hai lượt,
+ * ai đó có thể vừa thêm một sản phẩm hoặc đổi một cái giá.
+ */
+
+type ODoi = { truoc: string | null; sau: string };
+
+type DongSua = {
+  rowNumber: number;
+  code: string;
+  ten?: ODoi;
+  nhom?: ODoi;
+  gia?: ODoi;
+  canhBaoGia?: number;
+};
+
+type KeHoach = {
+  themMoi: { rowNumber: number; code: string; name: string; groupCode: string; price: string | null }[];
+  sua: DongSua[];
+  khongDoi: number;
+};
+
+/** Người dùng phải gõ đúng chuỗi này. Máy chủ kiểm lại, đây chỉ là ô nhập. */
+const CHUOI_XAC_NHAN = 'GHI DE';
+
 function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
   const { bao } = useBaoLoi();
   const [tep, datTep] = useState<File | null>(null);
+  const [ke, datKe] = useState<KeHoach | null>(null);
+  const [goLai, datGoLai] = useState('');
   const [loi, datLoi] = useState<unknown>(null);
-  const [dangGui, datDangGui] = useState(false);
+  const [dangChay, datDangChay] = useState(false);
   const [dangTaiMau, datDangTaiMau] = useState(false);
 
   /*
@@ -508,9 +549,6 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
    * `Authorization` — nó sẽ nhận 401 và trình duyệt hiện một trang lỗi thay vì
    * tải file. Đúng cái bẫy mà `NutXuatExcel` đã dính một lần và `taiVe` sinh ra
    * để bịt.
-   *
-   * Tên file thật do máy chủ đặt ở `Content-Disposition`; chuỗi dưới đây chỉ là
-   * đường lùi khi header ấy vắng mặt.
    */
   const taiMau = () => {
     datDangTaiMau(true);
@@ -519,39 +557,111 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
       .finally(() => datDangTaiMau(false));
   };
 
-  const gui = async (e: React.FormEvent) => {
+  const goiVoiTep = async <T,>(duong: string, them?: Record<string, string>): Promise<T> => {
+    const form = new FormData();
+    form.append('file', tep!);
+    for (const [k, v] of Object.entries(them ?? {})) form.append(k, v);
+    return guiTep<T>(duong, form);
+  };
+
+  /*
+   * Lỗi của lượt XEM TRƯỚC hiện NGAY TRONG hộp thoại, không qua `bao()`.
+   *
+   * Sáu mã lỗi của lượt nhập mang theo danh sách dòng hỏng, và người dùng cần
+   * đọc danh sách ấy trong lúc file Excel đang mở ở cửa sổ bên cạnh. Một hộp
+   * thoại lỗi đè lên hộp thoại này thì đóng nó đi là mất luôn danh sách.
+   */
+  const xemTruoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tep) return;
     datLoi(null);
-    datDangGui(true);
+    datDangChay(true);
     try {
-      const form = new FormData();
-      form.append('file', tep);
-      await guiTep('/catalog/products/import', form);
-      xong();
+      datKe(await goiVoiTep<KeHoach>('/catalog/products/import/xem-truoc'));
     } catch (err) {
-      bao(err);
+      datLoi(err);
     } finally {
-      datDangGui(false);
+      datDangChay(false);
     }
   };
 
+  const ghiDe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    datLoi(null);
+    datDangChay(true);
+    try {
+      await goiVoiTep('/catalog/products/import', { confirm: goLai });
+      xong();
+    } catch (err) {
+      datLoi(err);
+    } finally {
+      datDangChay(false);
+    }
+  };
+
+  /** Quay về bước chọn tệp — sửa file xong thì xem trước lại từ đầu. */
+  const lamLai = () => {
+    datKe(null);
+    datGoLai('');
+    datLoi(null);
+  };
+
+  if (ke) {
+    return (
+      <HopThoai tieuDe="Xem trước thay đổi danh mục" dong={dong}>
+        <form onSubmit={ghiDe}>
+          <BangXemTruoc ke={ke} />
+
+          <p className="giai-thich">
+            Bấm <strong>Ghi đè</strong> thì {ke.themMoi.length + ke.sua.length} dòng ở trên được ghi
+            vào danh mục trong <strong>một lượt</strong> — hỏng ở giữa thì không dòng nào được ghi.
+            Danh mục hiện tại <strong>không lùi lại được</strong> sau khi ghi; muốn giữ một bản thì
+            tải file mẫu về trước.
+          </p>
+
+          <Truong id="excel-xac-nhan" nhan={`Gõ "${CHUOI_XAC_NHAN}" để xác nhận`} bắtBuộc>
+            {(p) => (
+              <input
+                {...p}
+                className="o-nhap"
+                autoComplete="off"
+                value={goLai}
+                onChange={(e) => datGoLai(e.target.value)}
+              />
+            )}
+          </Truong>
+
+          {loi !== null && <BaoLoi loi={loi} />}
+          <div className="nhom-nut">
+            <button
+              type="submit"
+              className="nut nut-canh-bao"
+              disabled={dangChay || goLai.trim().toUpperCase() !== CHUOI_XAC_NHAN}
+            >
+              {dangChay ? 'Đang ghi…' : 'Ghi đè danh mục'}
+            </button>
+            <button type="button" className="nut nut-nhe" onClick={lamLai}>
+              Chọn tệp khác
+            </button>
+          </div>
+        </form>
+      </HopThoai>
+    );
+  }
+
   return (
     <HopThoai tieuDe="Nhập sản phẩm từ Excel" dong={dong}>
-      <form onSubmit={gui}>
+      <form onSubmit={xemTruoc}>
         <ChuThichBatBuoc />
 
         <p className="ghi-chu">
-          File cần các cột: <strong>mã vật tư</strong>, <strong>tên sản phẩm</strong>,{' '}
-          <strong>mã nhóm</strong>. Nhóm phải có sẵn trong danh mục.
+          File cần đủ <strong>5 cột</strong>: mã vật tư, tên sản phẩm, mã nhóm, giá bán Công ty, và
+          cột <em>đang có hiệu lực</em>. Cột cuối <strong>chỉ để xem</strong> — sửa nó không có tác
+          dụng gì.
         </p>
 
         {/*
           FILE MẪU tải ngay tại đây (`0119`), và là một NÚT (`0120`).
-
-          Trước đó hộp thoại mô tả ba cột bằng lời và người dùng tự gõ tên cột
-          vào Excel — gõ sai một ký tự là `BAD_HEADER`, và câu lỗi ấy chỉ nói cột
-          thứ mấy sai chứ không đưa cho họ một file đúng.
 
           Nút nằm TRONG hộp thoại chứ không ở thanh công cụ của trang: người ta
           nghĩ tới file mẫu đúng vào lúc chuẩn bị nhập, không phải lúc đang xem
@@ -563,20 +673,16 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
             {dangTaiMau ? 'Đang tải…' : 'Tải file mẫu'}
           </button>
         </div>
+
         <p className="giai-thich">
-          File mẫu chứa <strong>toàn bộ sản phẩm hiện có</strong> và một trang liệt kê{' '}
-          <strong>mã nhóm đang có</strong>. Để thêm sản phẩm mới:{' '}
-          <strong>xoá các dòng đã có</strong> rồi điền dòng mới — giữ nguyên chúng thì lượt nhập
-          báo trùng mã và không dòng nào được ghi.
+          File mẫu chứa <strong>toàn bộ danh mục hiện tại</strong> kèm giá và trạng thái. Sửa ngay
+          trên đó rồi tải lên — <strong>file phải giữ đủ mọi sản phẩm đang có</strong>, thiếu một
+          dòng là lượt nhập bị chặn.
         </p>
-        {/*
-          Nói trước hành vi "cả lô một transaction". Người dùng quen với kiểu
-          nhập từng dòng, bỏ qua dòng lỗi — ở đây thì ngược lại, và biết trước
-          thì họ sửa file rồi nhập lại thay vì đi tìm xem đã ghi được tới đâu.
-        */}
         <p className="giai-thich">
-          Một dòng lỗi thì <strong>không dòng nào được ghi</strong>. Thông báo lỗi nêu đúng số dòng
-          hỏng để bạn sửa file rồi nhập lại.
+          Ô <strong>giá để trống</strong> nghĩa là giữ nguyên giá cũ. Giá có điền thì áp dụng{' '}
+          <strong>từ hôm nay</strong>. Muốn ngừng bán một sản phẩm thì làm trên bảng danh mục, không
+          phải bằng cách bỏ dòng khỏi file.
         </p>
 
         <Truong id="excel-tep" nhan="Tệp Excel" bắtBuộc>
@@ -593,8 +699,8 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">
-          <button type="submit" className="nut nut-chinh" disabled={dangGui || tep === null}>
-            {dangGui ? 'Đang nhập…' : 'Nhập'}
+          <button type="submit" className="nut nut-chinh" disabled={dangChay || tep === null}>
+            {dangChay ? 'Đang kiểm…' : 'Xem trước'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>
             Huỷ
@@ -602,5 +708,121 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
         </div>
       </form>
     </HopThoai>
+  );
+}
+
+/** Một ô đổi giá trị, dạng *cũ → mới*. Ô chưa từng có giá trị thì hiện dấu gạch. */
+function Doi({ o, tienTe = false }: { o: ODoi; tienTe?: boolean }) {
+  const ve = (x: string | null) => (x === null ? '—' : tienTe ? tien(x) : x);
+  return (
+    <>
+      <span className="gia-tri-cu">{ve(o.truoc)}</span> <span aria-hidden="true">→</span>{' '}
+      <strong>{ve(o.sau)}</strong>
+    </>
+  );
+}
+
+/**
+ * Bảng xem trước — ba khối, mỗi khối có số đếm ở tiêu đề.
+ *
+ * Khối *Không đổi* chỉ có một con số. Vẽ ra 400 dòng y nguyên là đẩy phần đáng
+ * đọc xuống dưới màn hình thứ ba.
+ */
+function BangXemTruoc({ ke }: { ke: KeHoach }) {
+  const canhBao = ke.sua.filter((d) => d.canhBaoGia !== undefined);
+
+  return (
+    <>
+      <p className="ghi-chu">
+        <strong>{ke.themMoi.length}</strong> thêm mới · <strong>{ke.sua.length}</strong> sửa ·{' '}
+        <strong>{ke.khongDoi}</strong> không đổi
+      </p>
+
+      {canhBao.length > 0 && (
+        /*
+          CẢNH BÁO GIÁ LỆCH LỚN, đứng TRÊN cả hai bảng.
+
+          Gõ thừa một số 0 trong Excel là chuyện thường, và sau khi ghi đè thì
+          không có đường lùi nào ngoài phục hồi từ bản sao lưu. Đây là thứ duy
+          nhất trên màn hình này đáng để người dùng dừng lại nhìn.
+        */
+        <p className="hop-canh-bao" role="alert">
+          <strong className="hop-tieu-de">{canhBao.length} sản phẩm đổi giá quá 50%</strong>
+          {canhBao
+            .slice(0, 5)
+            .map((d) => d.code)
+            .join(', ')}
+          {canhBao.length > 5 ? ` và ${canhBao.length - 5} mã nữa` : ''}. Kiểm lại trước khi ghi —
+          gõ thừa một số 0 là chuyện thường, và ghi xong thì không lùi lại được.
+        </p>
+      )}
+
+      {ke.themMoi.length > 0 && (
+        <>
+          <h3 className="tieu-de-nhom-xem-truoc">Thêm mới ({ke.themMoi.length})</h3>
+          <div className="khung-cuon" role="region" aria-label="Sản phẩm thêm mới" tabIndex={0}>
+            <table className="bang">
+              <thead>
+                <tr>
+                  <th>Dòng</th>
+                  <th>Mã vật tư</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Nhóm</th>
+                  <th className="so">Giá</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ke.themMoi.map((d) => (
+                  <tr key={d.code}>
+                    <td className="so">{d.rowNumber}</td>
+                    <td className="ma-phu">{d.code}</td>
+                    <td>{d.name}</td>
+                    <td>{d.groupCode}</td>
+                    <td className="so">{d.price === null ? '—' : tien(d.price)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {ke.sua.length > 0 && (
+        <>
+          <h3 className="tieu-de-nhom-xem-truoc">Sửa ({ke.sua.length})</h3>
+          <div className="khung-cuon" role="region" aria-label="Sản phẩm được sửa" tabIndex={0}>
+            <table className="bang">
+              <thead>
+                <tr>
+                  <th>Dòng</th>
+                  <th>Mã vật tư</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Nhóm</th>
+                  <th>Giá</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ke.sua.map((d) => (
+                  <tr key={d.code} className={d.canhBaoGia === undefined ? undefined : 'dong-lech'}>
+                    <td className="so">{d.rowNumber}</td>
+                    <td className="ma-phu">{d.code}</td>
+                    {/* Ô KHÔNG đổi để trống hẳn — chỉ vẽ thứ sắp thay đổi. */}
+                    <td>{d.ten ? <Doi o={d.ten} /> : null}</td>
+                    <td>{d.nhom ? <Doi o={d.nhom} /> : null}</td>
+                    <td>{d.gia ? <Doi o={d.gia} tienTe /> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {ke.themMoi.length === 0 && ke.sua.length === 0 && (
+        <p className="giai-thich">
+          File khớp hoàn toàn với danh mục hiện tại — không có gì để ghi.
+        </p>
+      )}
+    </>
   );
 }

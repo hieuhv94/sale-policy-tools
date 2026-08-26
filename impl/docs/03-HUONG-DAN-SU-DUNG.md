@@ -1546,17 +1546,49 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
 - Danh mục chỉ có **một loại giá: Giá bán Công ty**. Giá bán buôn KHÔNG khai ở đây — người đề nghị
   nhập nó trên từng dòng của từng hồ sơ, vì nó khác nhau theo khách hàng.
 - **Sản phẩm mới chưa có giá** nên chưa lập được hồ sơ với nó. Đặt giá ngay sau khi tạo.
-- **Nhập Excel** cần ba cột: mã vật tư, tên sản phẩm, mã nhóm. **Một dòng lỗi thì không dòng nào
-  được ghi** — thông báo nêu đúng số dòng hỏng để bạn sửa file rồi nhập lại.
-- **Tải file mẫu** `mới 26/08` — nút nằm ngay trong hộp thoại *Nhập từ Excel*, trên ô chọn tệp. File
-  tải về có ba tiêu đề cột đúng tên và **toàn bộ sản phẩm hiện có**, kể cả hàng đã ngừng bán — nó
-  vừa là bản mẫu vừa là ảnh chụp danh mục. Trang thứ hai liệt kê **mã nhóm đang có**; tra ở đó trước
-  khi điền cột *mã nhóm*, vì nhóm chưa tồn tại là lỗi chặn cả lô. Trang ấy chỉ để tra cứu, hệ thống
-  không đọc nó.
-- **Thêm sản phẩm mới thì XOÁ các dòng đã có trong file rồi mới điền** `mới 26/08`. Giữ nguyên chúng
-  và tải lên là báo **trùng mã** ngay ở dòng thứ hai, và không dòng nào được ghi. File mẫu không
-  phải để tải lên lại nguyên trạng — nó để bạn nhìn thấy cách điền của những dòng đã có, và biết mã
-  nào đã dùng.
+### Nhập danh mục từ Excel `sửa 26/08`
+
+Cách dùng chỉ có một, và làm đúng thứ tự này thì không sai được:
+
+1. Bấm **Nhập từ Excel**, rồi bấm **Tải file mẫu**.
+2. Sửa ngay trên file vừa tải — file đã chứa **toàn bộ danh mục hiện tại**.
+3. Chọn lại file ấy, bấm **Xem trước**.
+4. Đọc bảng thay đổi, gõ `GHI DE` rồi bấm **Ghi đè danh mục**.
+
+**File có 5 cột**, và cột cuối chỉ để xem:
+
+| Cột | Sửa được | Ý nghĩa |
+| --- | --- | --- |
+| `ma_vat_tu` | | Mã đã có thì **cập nhật**, mã mới thì **thêm**. Không sửa được mã của sản phẩm đã có |
+| `ten_vat_tu` | có | |
+| `nhom_sp` | có | Chỉ **mã** nhóm. Xem các mã đang có ở trang *Nhom san pham* của chính file |
+| `gia_ban_cong_ty` | có | **Để trống = giữ nguyên giá cũ.** Có điền thì áp dụng **từ hôm nay** |
+| `dang_co_hieu_luc` | **không** | Ô xám, chỉ để xem. Sửa nó không có tác dụng gì |
+
+**File phải chứa ĐỦ mọi sản phẩm đang có.** Thiếu một dòng là lượt nhập bị chặn và nói ra mã nào
+thiếu. Đây là chủ ý: bỏ một dòng khỏi file **không** phải cách ngừng bán một sản phẩm — muốn ngừng
+bán thì mở bảng danh mục, bấm *Sửa*, đổi trạng thái, và hệ thống bắt gõ lại mã vật tư để xác nhận.
+
+**Bảng xem trước liệt kê THAY ĐỔI, không liệt kê nội dung file**: bao nhiêu dòng thêm mới, bao nhiêu
+dòng sửa và sửa ô nào (*cũ → mới*), bao nhiêu dòng không đổi. Sản phẩm đổi giá **quá 50%** được nêu
+riêng ở đầu bảng — gõ thừa một số 0 là chuyện thường, và ghi xong thì không lùi lại được.
+
+**Ghi đè xong không có đường lùi.** Muốn giữ một bản danh mục trước khi sửa thì tải file mẫu về và
+cất lại — đó chính là ảnh chụp đầy đủ.
+
+Phần mềm kiểm theo thứ tự, và **gom hết lỗi cùng loại vào một lần trả lời** để bạn sửa một lượt:
+đủ cột → ô đọc được không → ô bắt buộc còn trống không → mã nhóm đã có chưa → trong file có dòng
+trùng nhau không → file có thiếu sản phẩm nào không.
+
+Vài chỗ hay hỏi:
+
+- **Mã vật tư toàn số là hợp lệ.** Giá gõ `12.500`, `12,500` hay `12 500` đều đọc được — dấu chấm và
+  dấu phẩy là dấu **nghìn**.
+- **Trùng tên** chỉ bị chặn khi file tạo thêm một cái trùng **mới**. Danh mục đang có hai sản phẩm
+  cùng tên thì giữ nguyên được, không phải đi sửa tên mới nhập lại được.
+- **Nhập lại lần thứ hai trong cùng ngày** thì giá của lượt sau đè lượt trước, không báo lỗi.
+- Sau lượt nhập đổi giá, mọi CSBH đang hiệu lực chứa sản phẩm ấy sẽ hiện trong khối *Yêu cầu cập
+  nhật* của Trình dược viên phụ trách. Đó là hành vi đúng, không phải lỗi.
 
 **Thẻ Nhóm sản phẩm** — mỗi sản phẩm phải thuộc một nhóm, và quy định chiết khấu cũng khai theo
 nhóm. **Làm thẻ này trước** nếu danh mục còn trống: chưa có nhóm nào thì nút *Tạo sản phẩm* bên thẻ

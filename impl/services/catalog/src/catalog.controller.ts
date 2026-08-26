@@ -30,6 +30,16 @@ import { PRICE_TYPES, PRODUCT_STATUSES, ProductsService } from './products/produ
 import { RulesService } from './rules/rules.service.js';
 import { dungFileMau, MAU_TEN_TEP, parseProductSheet } from './products/excel.js';
 
+/**
+ * Trần cỡ tệp tải lên (`0121`).
+ *
+ * Tới `0120` `FileInterceptor` không khai `limits` nào, nên một tệp 50 MB đi
+ * thẳng vào bộ nhớ của `catalog` trước khi có ai kịp kiểm gì. 5 MB là rộng rãi
+ * cho một file `.xlsx` vài nghìn dòng — chạm vào nó gần như chắc chắn là nhầm
+ * tệp chứ không phải danh mục lớn.
+ */
+const TRAN_CO_TEP = 5 * 1024 * 1024;
+
 const isoDate = () => str(10, 10);
 
 /**
@@ -190,11 +200,13 @@ export class CatalogController {
   @Roles('QUAN_TRI')
   @Get('products/import/mau')
   async fileMau(@Res() res: Response): Promise<void> {
-    const [nhom, sanPham] = await Promise.all([
+    // Hai nguồn: `listGroups` có TÊN nhóm cho trang thứ hai, còn ảnh chụp danh
+    // mục chỉ mang mã. Trang tra cứu mà chỉ có mã thì không tra được gì.
+    const [nhom, anh] = await Promise.all([
       this.products.listGroups(),
-      this.products.toanBoDeXuat(),
+      this.products.anhChupDanhMuc(),
     ]);
-    const buf = await dungFileMau(nhom as { code: string; name: string }[], sanPham);
+    const buf = await dungFileMau(nhom as { code: string; name: string }[], anh.sanPham);
     // Đặt header trong thân hàm: đã nhận `@Res` thì Nest giao hẳn phản hồi cho
     // mình và không áp decorator header nữa — cùng lý do đã ghi ở `reporting`.
     res.setHeader(
@@ -208,16 +220,40 @@ export class CatalogController {
     res.end(buf);
   }
 
+  /**
+   * XEM TRƯỚC — kiểm hết bảy bước rồi trả về kế hoạch, KHÔNG ghi gì (`0121`).
+   *
+   * Tách khỏi đường ghi thay vì thêm một cờ `dryRun`: hai đường có phân quyền
+   * giống nhau nhưng hậu quả khác hẳn, và một cờ boolean quyết định "có ghi đè
+   * cả danh mục hay không" là thứ dễ đặt sai nhất trong mọi cách khai một API.
+   */
+  @Roles('QUAN_TRI')
+  @Post('products/import/xem-truoc')
+  @HttpCode(200)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: TRAN_CO_TEP } }))
+  async xemTruocNhap(@UploadedFile() file: { buffer: Buffer } | undefined) {
+    return this.products.xemTruocNhap(await parseProductSheet(file?.buffer ?? Buffer.alloc(0)));
+  }
+
+  /**
+   * GHI ĐÈ danh mục theo file.
+   *
+   * Nhận LẠI nguyên file chứ không nhận mã của một bản nháp đã kiểm: một bản
+   * nháp ở máy chủ là trạng thái phải dọn, phải hết hạn, và phải trả lời câu
+   * "ai được xác nhận bản nháp của ai". Gửi lại file thì lượt ghi tự đọc và tự
+   * kiểm lại từ đầu — mà nó phải kiểm lại từ đầu trong mọi trường hợp.
+   */
   @Roles('QUAN_TRI')
   @Post('products/import')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: TRAN_CO_TEP } }))
   async importProducts(
     @CurrentUser() me: AuthUser,
     @UploadedFile() file: { buffer: Buffer } | undefined,
+    @Body('confirm') confirm: string | undefined,
   ) {
-    const rows = await parseProductSheet(file?.buffer ?? Buffer.alloc(0));
-    return this.products.importProducts(rows, me.id);
+    const doc = await parseProductSheet(file?.buffer ?? Buffer.alloc(0));
+    return this.products.ghiNhap(doc, confirm, me.id);
   }
 
   // --- Chiết khấu quy định --------------------------------------------------

@@ -8,6 +8,23 @@ import { contains, paged, PG, pgCode, xacNhanGoLai, type Page } from '@csbh/http
 import type { PoolClient } from 'pg';
 import { Db } from '../infra/db.js';
 import { changeEvent, emit } from '../infra/outbox.js';
+import type { KetQuaDoc } from './excel.js';
+import {
+  dungKeHoach,
+  type DanhMucHienTai,
+  type KeHoach,
+  type SanPhamHienTai,
+} from './nhap.js';
+
+/**
+ * Chuỗi người dùng phải gõ lại để ghi đè danh mục (`0121`).
+ *
+ * Không dùng mã của một bản ghi như mọi chỗ khác dùng `xacNhanGoLai`: lượt này
+ * không nhắm vào một bản ghi nào, nó đè lên cả bảng. Một từ cố định là thứ duy
+ * nhất nói đúng phạm vi — và nó vẫn phải gõ, tức vẫn chặn được cú bấm theo phản
+ * xạ, thứ mà chốt này sinh ra để chặn.
+ */
+export const CHUOI_XAC_NHAN_NHAP = 'GHI DE';
 
 export const PRODUCT_STATUSES = ['DANG_AP_DUNG', 'DA_VO_HIEU_HOA'] as const;
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
@@ -220,28 +237,6 @@ export class ProductsService {
   }
 
   /**
-   * TOÀN BỘ danh mục theo đúng ba cột của file nhập (`0120`).
-   *
-   * KHÔNG phân trang, và đó là chỗ khác `list()`: file tải về phải là cả danh
-   * mục, không phải trang đầu. Một file thiếu dòng còn tệ hơn không có file —
-   * người dùng sẽ tưởng những sản phẩm không thấy là chưa tồn tại.
-   *
-   * Lấy CẢ sản phẩm đã vô hiệu hoá: file này là ảnh chụp danh mục để đọc và sửa,
-   * mà một mặt hàng ngừng bán vẫn nằm trong danh mục. Lọc chúng đi thì người
-   * dùng thấy khoảng trống và điền lại chính mã ấy, rồi nhận lỗi trùng mã.
-   *
-   * Sắp theo mã, cùng khoá với `list()` — hai màn hình cùng nói về một danh mục
-   * mà xếp khác thứ tự là hai bảng trông như hai danh mục.
-   */
-  toanBoDeXuat() {
-    return this.db.q<{ code: string; name: string; groupCode: string; status: string }>(
-      `SELECT p.code, p.name, g.code AS "groupCode", p.status::text AS status
-         FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
-        ORDER BY p.code`,
-    );
-  }
-
-  /**
    * Mã nhóm của nhiều sản phẩm trong MỘT vòng mạng.
    *
    * `reporting` cần nó cho tiêu chí lọc "nhóm sản phẩm": dòng hồ sơ đóng băng
@@ -293,15 +288,29 @@ export class ProductsService {
         [productId, priceType],
       );
 
-      // THÊM một dòng lịch sử, không sửa dòng cũ: hồ sơ đã đóng băng giá theo
-      // phiên bản vẫn phải tra lại đúng giá tại thời điểm đó (CAT-04).
-      await c
-        .query(
-          `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-           VALUES ($1,$2,$3,$4,$5)`,
-          [productId, priceType, amount.toString(), effectiveFrom, actorId],
-        )
-        .catch(rethrow({ [PG.uniqueViolation]: 'PRICE_ALREADY_SET_FOR_DATE' }));
+      /*
+       * THÊM một dòng lịch sử, không sửa dòng cũ: hồ sơ đã đóng băng giá theo
+       * phiên bản vẫn phải tra lại đúng giá tại thời điểm đó (CAT-04).
+       *
+       * ĐẶT LẠI GIÁ TRONG CÙNG MỘT NGÀY THÌ ĐÈ (`0121`). Trước đó ràng buộc
+       * `UNIQUE (product_id, price_type, effective_from)` làm lượt thứ hai chết
+       * với `PRICE_ALREADY_SET_FOR_DATE` — đúng về mặt dữ liệu và sai về mặt
+       * người dùng: gõ nhầm một số 0 lúc sáng thì cả ngày hôm đó không sửa lại
+       * được, phải đợi sang hôm sau hoặc khai một ngày hiệu lực giả.
+       *
+       * Ràng buộc GIỮ NGUYÊN, và đó là điểm mấu chốt: bỏ nó đi thì hai dòng
+       * cùng ngày cùng tồn tại được, mà `currentPrice` chọn dòng bằng
+       * `ORDER BY effective_from DESC LIMIT 1` — không có gì phân xử, nên giá
+       * hiện hành đổi theo tâm trạng của Postgres. Upsert đạt đúng mục tiêu
+       * "ghi đè" mà vẫn giữ đúng một dòng cho mỗi ngày.
+       */
+      await c.query(
+        `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
+         VALUES ($1,$2,$3,$4,$5)
+         ON CONFLICT (product_id, price_type, effective_from)
+         DO UPDATE SET amount = EXCLUDED.amount, created_by = EXCLUDED.created_by`,
+        [productId, priceType, amount.toString(), effectiveFrom, actorId],
+      );
 
       const oldAmount = prev.rows[0]?.amount ?? null;
       // ĐÚNG MỘT sự kiện cho mỗi lần đổi giá, kèm giá cũ và giá mới. Nằm cùng
@@ -345,28 +354,144 @@ export class ProductsService {
   // --- Nhập từ Excel --------------------------------------------------------
 
   /**
-   * Cả lô nằm trong MỘT transaction: một dòng lỗi thì không dòng nào được ghi.
-   * Ghi một phần rồi báo lỗi là trạng thái tệ nhất — người dùng không biết phải
-   * sửa file rồi nhập lại từ đâu (CAT-15).
+   * Ảnh chụp danh mục để đối chiếu với file (`0121`).
+   *
+   * Nhận `PoolClient` tuỳ chọn: lượt XEM TRƯỚC đọc ngoài transaction, còn lượt
+   * GHI phải đọc BÊN TRONG chính transaction sắp ghi. Không có tham số ấy thì
+   * lượt ghi đối chiếu với một ảnh chụp cũ hơn dữ liệu nó sắp đè lên.
+   *
+   * Giá lấy bằng `DISTINCT ON` — dòng mới nhất có ngày không ở tương lai, đúng
+   * luật của `currentPrice`. Viết lại phép chọn ấy ở đây là dựng chỗ thứ hai để
+   * trả lời "giá hiện hành là bao nhiêu", nên nó phải khớp từng chữ.
    */
-  async importProducts(rows: (ProductInput & { rowNumber: number })[], actorId: string) {
-    if (rows.length === 0) throw new BadRequestException({ code: 'EMPTY_SHEET' });
+  async anhChupDanhMuc(c?: PoolClient): Promise<DanhMucHienTai> {
+    const chay = async <T extends Record<string, unknown>>(sql: string): Promise<T[]> =>
+      c ? (await c.query<T>(sql)).rows : this.db.q<T>(sql);
+
+    const sanPham = await chay<SanPhamHienTai>(
+      `SELECT p.id, p.code, p.name, g.code AS "groupCode", p.status::text AS status,
+              gi.amount::text AS price
+         FROM cat.product p
+         JOIN cat.product_group g ON g.id = p.group_id
+         LEFT JOIN LATERAL (
+           SELECT amount FROM cat.product_price
+            WHERE product_id = p.id AND price_type = 'GIA_BAN_CONG_TY'
+              AND effective_from <= current_date
+            ORDER BY effective_from DESC LIMIT 1
+         ) gi ON true
+        ORDER BY p.code`,
+    );
+    const nhom = await chay<{ code: string }>(`SELECT code FROM cat.product_group ORDER BY code`);
+    return { sanPham, maNhom: nhom.map((n) => n.code) };
+  }
+
+  /** Bước 1–5 rồi dựng kế hoạch. Không ghi gì — đây là thứ bảng xem trước vẽ. */
+  async xemTruocNhap(doc: KetQuaDoc): Promise<KeHoach> {
+    return dungKeHoach(doc, await this.anhChupDanhMuc());
+  }
+
+  /**
+   * Ghi đè danh mục theo file, trong MỘT transaction (`0121`).
+   *
+   * Ba điều kiện, và cả ba đều ở đây chứ không ở giao diện:
+   *
+   * 1. **Kiểm LẠI từ đầu bên trong transaction.** Kế hoạch mà người dùng vừa
+   *    duyệt được dựng từ một ảnh chụp cũ hơn; giữa hai lượt, ai đó có thể vừa
+   *    thêm một sản phẩm, đổi một cái giá, xoá một nhóm.
+   * 2. **Gõ lại chuỗi xác nhận.** Đây là lượt ghi có bán kính lớn nhất của phần
+   *    mềm — một file dán nhầm cột đổi tên và giá của cả danh mục. Chốt nằm ở
+   *    máy chủ, không phải ở hộp thoại: ai gọi thẳng API cũng phải nói ra.
+   * 3. **Chỉ phát sự kiện cho dòng THẬT SỰ ĐỔI.** `catalog.changed` và
+   *    `catalog.price_changed` kéo theo một lượt rà mọi hồ sơ đã đóng băng ×
+   *    mọi dòng ở `policy` (nợ N-09). Phát cho cả những dòng khớp y nguyên là
+   *    biến một lượt nhập 500 dòng thành 500 lượt rà vô ích, và làm box *Yêu cầu
+   *    cập nhật* của mọi TDV đầy những hồ sơ chẳng lệch gì.
+   */
+  async ghiNhap(doc: KetQuaDoc, confirm: string | undefined, actorId: string) {
     return this.db.tx(async (c) => {
-      const created: unknown[] = [];
-      for (const r of rows) {
-        try {
-          created.push(await this.insertOne(c, r, actorId));
-        } catch (e) {
-          const code = (e as { response?: { code?: string } }).response?.code ?? 'ROW_INVALID';
-          throw new BadRequestException({
-            code: 'IMPORT_FAILED',
-            rowNumber: r.rowNumber,
-            reason: code,
-            message: `Dòng ${r.rowNumber}: ${code}. Không dòng nào được ghi.`,
-          });
+      const ke = dungKeHoach(doc, await this.anhChupDanhMuc(c));
+      xacNhanGoLai(confirm, CHUOI_XAC_NHAN_NHAP, {
+        viec: `ghi đè ${ke.themMoi.length + ke.sua.length} dòng danh mục`,
+      });
+
+      for (const d of ke.themMoi) {
+        const sp = await this.insertOne(c, d, actorId);
+        if (d.price !== null) await this.datGiaTrongTx(c, sp.id, d.code, BigInt(d.price), null, actorId);
+      }
+
+      for (const d of ke.sua) {
+        if (d.ten || d.nhom) {
+          const truoc = await c.query<ProductRow>(`SELECT * FROM cat.product WHERE id = $1`, [d.id]);
+          const g = d.nhom
+            ? await c.query<{ id: string }>(`SELECT id FROM cat.product_group WHERE code = $1`, [
+                d.nhom.sau,
+              ])
+            : null;
+          const r = await c.query<ProductRow>(
+            `UPDATE cat.product
+                SET name = coalesce($2, name),
+                    group_id = coalesce($3, group_id),
+                    updated_at = now()
+              WHERE id = $1 RETURNING *`,
+            [d.id, d.ten?.sau ?? null, g?.rows[0]?.id ?? null],
+          );
+          await emit(
+            c,
+            'catalog.changed',
+            changeEvent('product', d.id, actorId, {
+              before: toDto(truoc.rows[0]!),
+              after: toDto(r.rows[0]!),
+            }),
+          );
+        }
+        if (d.gia) {
+          await this.datGiaTrongTx(c, d.id, d.code, BigInt(d.gia.sau), d.gia.truoc, actorId);
         }
       }
-      return { imported: created.length };
+
+      return {
+        themMoi: ke.themMoi.length,
+        sua: ke.sua.length,
+        khongDoi: ke.khongDoi,
+      };
+    });
+  }
+
+  /**
+   * Ghi một dòng giá bên trong transaction đang mở.
+   *
+   * Không gọi lại `setPrice` được — hàm ấy tự mở transaction riêng, và một lượt
+   * nhập 500 dòng sẽ thành 500 transaction rời, tức là mất đúng thứ bảo đảm
+   * "một dòng lỗi thì không dòng nào được ghi".
+   *
+   * Ngày áp dụng là NGÀY NHẬP, đặt ở máy chủ. File không có cột ngày: một cột
+   * như vậy cho phép khai một ngày trong quá khứ, và giá quá khứ thì hồ sơ đã
+   * đóng băng tra ngược lại được — sửa nó là sửa lịch sử.
+   */
+  private async datGiaTrongTx(
+    c: PoolClient,
+    productId: string,
+    productCode: string,
+    amount: bigint,
+    oldAmount: string | null,
+    actorId: string,
+  ) {
+    await c.query(
+      `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
+       VALUES ($1,'GIA_BAN_CONG_TY',$2, current_date, $3)
+       ON CONFLICT (product_id, price_type, effective_from)
+       DO UPDATE SET amount = EXCLUDED.amount, created_by = EXCLUDED.created_by`,
+      [productId, amount.toString(), actorId],
+    );
+    await emit(c, 'catalog.price_changed', {
+      productId,
+      productCode,
+      priceType: 'GIA_BAN_CONG_TY',
+      oldAmount,
+      newAmount: amount.toString(),
+      effectiveFrom: new Date().toISOString().slice(0, 10),
+      actorId,
+      at: new Date().toISOString(),
     });
   }
 }

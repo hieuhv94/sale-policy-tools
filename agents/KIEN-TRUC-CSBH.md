@@ -1025,8 +1025,16 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-13 | Sửa bất kỳ mục nào trong danh mục | Nhật ký ghi giá trị trước và sau | §2.7 §10 | `P0` |
 | CAT-14 | Xóa nhóm sản phẩm còn sản phẩm tham chiếu | 409 | §6.2 | `P1` |
 | CAT-15 | Nhập danh mục sản phẩm từ Excel, trong đó có dòng lỗi | Báo lỗi kèm số dòng và **không ghi một phần** — toàn bộ lô nằm trong một giao dịch | §6.2 | `P1` |
-| CAT-16 | Tải file Excel mẫu ở hộp thoại *Nhập từ Excel*, xoá các dòng có sẵn, điền dòng mới rồi nhập lại | Nhập thành công, **không phải sửa gì ở phần tiêu đề**. Trang thứ hai liệt kê mã nhóm đang có và bộ đọc không chạm tới nó | §13.1 | `P1` |
-| CAT-17 | Mở file mẫu vừa tải về | Chứa **toàn bộ** sản phẩm hiện có, kể cả hàng đã vô hiệu hoá, mỗi dòng đúng ba cột. Tải lên lại nguyên trạng thì `IMPORT_FAILED` / `PRODUCT_CODE_DUPLICATE` — hệ quả đã biết của luật trùng mã chặn cả lô | §13.1 | `P1` |
+| CAT-16 | Tải file Excel mẫu, sửa một ô trên chính file ấy rồi nhập lại | Nhập thành công, **không phải sửa gì ở phần tiêu đề**. Trang thứ hai liệt kê mã nhóm đang có và bộ đọc không chạm tới nó | §13.1 | `P1` |
+| CAT-17 | Mở file mẫu vừa tải về | Đủ **5 cột**, chứa **toàn bộ** sản phẩm hiện có kể cả hàng đã vô hiệu hoá, kèm giá hiện hành và trạng thái. Tải lên lại nguyên trạng thì hợp lệ và **không sinh thay đổi nào** | §13.1 | `P1` |
+| CAT-19 | Nhập file thiếu một mã đang có trong danh mục | `IMPORT_PRODUCT_MISSING`, nêu đủ mã thiếu. Không có đường xoá sản phẩm qua lượt nhập, kể cả gián tiếp | §13.1 | `P0` |
+| CAT-20 | Nhập file có ô lỗi công thức (`#N/A`) ở cột tên | `IMPORT_BAD_TYPE` nêu đúng dòng và cột. **Không** được lọt thành tên sản phẩm `[object Object]` | §13.1 | `P0` |
+| CAT-21 | Nhập file có mã vật tư toàn số, giá gõ `12.500` · `12,500` · `12 500` | Cả hai đều hợp lệ — mã đọc thành chuỗi, giá đọc thành 12500. Dấu chấm và dấu phẩy là dấu **nghìn** | §13.1 | `P1` |
+| CAT-22 | Bấm *Xem trước* rồi không xác nhận | Không dòng nào được ghi. Bảng xem trước tách **thêm mới · sửa (cũ → mới) · không đổi**, và cảnh báo dòng đổi giá quá 50% | §13.1 | `P0` |
+| CAT-23 | Ghi đè mà gõ sai chuỗi xác nhận | `CONFIRM_MISMATCH`, không dòng nào được ghi | §13.1 | `P0` |
+| CAT-24 | Ghi đè một file chỉ đổi đúng một dòng | Đúng **một** sự kiện `catalog.changed` — dòng khớp y nguyên không phát sự kiện, vì mỗi sự kiện kéo theo một lượt rà toàn bộ hồ sơ đã đóng băng (nợ N-09) | §13.1 | `P0` |
+| CAT-25 | Sửa cột *đang có hiệu lực* trong file rồi nhập | Trạng thái **không đổi**. Ngừng bán chỉ làm được trên màn hình, nơi có chốt gõ lại mã vật tư | §13.1 | `P0` |
+| CAT-26 | Nhập hai lần trong cùng một ngày, giá khác nhau | Lượt sau **đè** giá của lượt trước; đúng một dòng giá cho ngày ấy. Ràng buộc `UNIQUE (product_id, price_type, effective_from)` giữ nguyên | §13.1 | `P0` |
 | CAT-16 | Đổi tên một **nhóm sản phẩm** trong danh mục | Mã giữ nguyên; hồ sơ và bộ lọc cũ vẫn đúng. *(Trước `0026` luật này phát biểu trên danh mục tỉnh/thành — danh mục ấy đã bỏ, luật thì không.)* | §6.1 §9.2 | `P1` |
 | CAT-17 | Chọn người ký đã hết hiệu lực | 400 — chỉ chọn được người ký còn hiệu lực trong phạm vi ký | §6.4 | `P1` |
 | CAT-18 | Đổi giá sản phẩm đang nằm trong hồ sơ ở trạng thái *Nháp* | Phát sự kiện `catalog.price_changed` đúng một lần kèm giá cũ và giá mới | §7 | `P0` |

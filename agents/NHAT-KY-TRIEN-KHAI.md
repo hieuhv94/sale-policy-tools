@@ -10828,3 +10828,110 @@ Nút đứng TRƯỚC ô chọn tệp, theo đúng thứ tự việc phải làm
 chọn lên.
 
 **1722/1722 xanh.**
+
+## P149 — `0121` nhập danh mục là GHI ĐÈ, và phải xem trước
+
+Chặng lớn nhất kể từ `0105`. Yêu cầu của khách hàng: file nhập mang **5 cột**, chứa
+**đủ danh mục**, và **ghi đè** lên dữ liệu đang có — kèm một hộp kiểm bảy bước
+rồi bảng duyệt trước khi ghi.
+
+### Ba phép so, ba chỗ khác nhau, cùng một luật
+
+`excel.ts` chỉ ĐỌC — không chạm CSDL, không biết nghiệp vụ. `nhap.ts` là hàm
+**thuần** nhận các dòng đã đọc cộng một ảnh chụp danh mục, trả về kế hoạch hoặc
+ném lỗi. Tách như vậy vì phép kiểm chạy **hai lần** cho mỗi lượt nhập: một lần ở
+`/xem-truoc`, một lần nữa **bên trong transaction ghi**. Giữa hai lượt, người
+khác có thể vừa thêm một sản phẩm hay đổi một cái giá — nên kết quả xem trước là
+ảnh chụp, không phải bảo đảm. Hai bản sao của cùng phép kiểm thì sẽ lệch nhau, và
+lệch ở đây nghĩa là bảng người dùng vừa duyệt không phải thứ được ghi.
+
+`anhChupDanhMuc(c?)` nhận `PoolClient` tuỳ chọn đúng vì lý do ấy: lượt ghi phải
+đọc ảnh chụp **trong chính transaction** nó sắp ghi.
+
+### Thứ tự bước là một phần của đặc tả
+
+Khách hàng xếp *"sai kiểu"* sau *"thiếu nhóm"* và *"trùng"*. Tôi đổi lên trước và
+nói lý do: ô lỗi công thức đọc ra `null`, nên để nó đi tiếp thì phép so mã nhóm
+và phép dò trùng chạy trên một giá trị vô nghĩa rồi báo một câu nói về chuyện
+khác hẳn.
+
+Ô lỗi công thức mới là ca thật của bước ấy. Tới `0120` `String({ error: '#N/A' })`
+cho ra `"[object Object]"` và chuỗi đó đi thẳng vào CSDL làm **tên sản phẩm** —
+không ca kiểm nào bắt được vì lượt nhập vẫn trả 200. Ngược lại, *"cột chữ mà điền
+số"* KHÔNG phải lỗi: mã vật tư toàn số là danh mục bình thường.
+
+### Trùng tên: chặn cứng làm danh mục không nhập lại được nữa
+
+Đặc tả nói chặn khi trùng tên trong file. Viết xong thì **11 ca kiểm đỏ cùng
+lúc**, và thân lỗi nói ra nguyên nhân:
+
+```
+{"code":"IMPORT_DUPLICATE_IN_FILE","trungTen":[
+  {"giaTri":"San pham thu nghiem","dong":[37,38,…,57]}]}
+```
+
+**19 sản phẩm cùng tên** trong danh mục — `cat.product` không có unique index
+trên `name`, và danh mục thật cũng vậy: cùng một mặt hàng ở hai quy cách. Ghép
+với luật *"file phải chứa đủ mọi mã"*, một phép chặn cứng nghĩa là danh mục nào
+lỡ có hai sản phẩm trùng tên thì **không bao giờ nhập lại được**, và đường chữa
+duy nhất là sửa tên bằng tay trên màn hình — đúng thứ mà lượt nhập sinh ra để
+khỏi phải làm.
+
+Nên phép so là: tên ấy trong file xuất hiện **nhiều hơn** trong danh mục hay
+không. Giữ nguyên hiện trạng thì qua, tạo thêm một cái trùng mới thì chặn. Mã thì
+vẫn chặn thẳng — nó là khoá, và CSDL có unique index trên nó.
+
+Đây là lần thứ hai trong chặng mà một ca kiểm đỏ nói ra một chuyện về **dữ liệu
+thật**, không phải về mã.
+
+### Giá: giữ ràng buộc, ghi bằng upsert
+
+Khách hàng chốt "bỏ ràng buộc một dòng giá mỗi ngày". Tôi nêu lý do không nên và
+họ đổi sang upsert: bỏ unique index thì hai dòng cùng ngày cùng tồn tại, mà
+`currentPrice` chọn dòng bằng `ORDER BY effective_from DESC LIMIT 1` — không có
+gì phân xử, nên **giá hiện hành đổi theo tâm trạng của Postgres**, ở cả màn hình
+lẫn giá đóng băng vào hồ sơ lúc gửi duyệt. `ON CONFLICT DO UPDATE` đạt đúng mục
+tiêu ghi đè mà vẫn giữ đúng một dòng mỗi ngày.
+
+Kéo theo: màn hình *Đặt giá* bỏ luôn `PRICE_ALREADY_SET_FOR_DATE`. Hai đường ghi
+giá trả lời khác nhau về cùng một câu hỏi là thứ luật của repo cấm.
+
+### Chỉ phát sự kiện cho dòng THẬT SỰ đổi
+
+Mỗi `catalog.changed` và `catalog.price_changed` kéo theo một lượt rà mọi hồ sơ
+đã đóng băng × mọi dòng ở `policy` — món nợ **N-09**. Phát cho cả dòng khớp y
+nguyên là biến một lượt nhập 500 dòng thành 500 lượt rà vô ích, và làm khối *Yêu
+cầu cập nhật* của mọi TDV đầy hồ sơ chẳng lệch gì.
+
+Bộ lọc nằm ở `dungKeHoach`, không ở lượt ghi — và lượt phá lại chứng minh điều
+đó: gỡ `if (d.ten || d.nhom)` ở `ghiNhap` thì ca kiểm **vẫn xanh**, vì `ke.sua`
+đã chỉ chứa dòng đã đổi. Phải phá đúng chỗ dựng kế hoạch mới đỏ.
+
+### `bad()` giấu mất mã lỗi khỏi bộ quét của `0088`
+
+Sáu mã mới lọt qua `tests/web/loi.test.tsx` vì hàm gọn `bad('IMPORT_BAD_TYPE', …)`
+không để lại chuỗi `code: '…'` trong mã nguồn — đúng lớp lỗi mà `0088` dựng ra để
+chặn. Chữa bằng cách đổi chữ ký thành `bad({ code: 'X', … })` chứ không nới bộ
+quét: bộ quét đang làm đúng việc của nó.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ bước 5 (thiếu sản phẩm đang có) | 1 đỏ |
+| Cho mọi dòng vào khối *Sửa* | 5 đỏ, gồm cả ca đếm sự kiện |
+| Bỏ `ON CONFLICT` ở đường nhập | 1 đỏ |
+| Bỏ chốt gõ lại chuỗi xác nhận | 1 đỏ |
+| `cellText` nuốt ô lỗi công thức như bản `0120` | 1 đỏ |
+| Gỡ `if (d.ten \|\| d.nhom)` ở `ghiNhap` | **vẫn xanh** — ghi ở trên |
+
+### Ca kiểm cũ phải viết lại, không phải sửa
+
+Hai ca lạc hậu chứ không sai: `CAT-18 ghi giá hỏng thì KHÔNG có sự kiện mồ côi`
+dựng trên chính lỗi trùng ngày vừa bỏ, và `0025 nhập Excel vẫn nhận file mẫu CŨ`
+dựa vào việc ba cột `ck_loai_*` bị bỏ qua. Cột thứ tư giờ là `gia_ban_cong_ty` —
+đúng vị trí `ck_loai_1` — nên im lặng bỏ qua nghĩa là đọc ngưỡng chiết khấu cũ
+thành **giá bán**: `12.35` thành mười hai đồng. Ca ấy đảo chiều thành *"file cũ
+phải bị từ chối"*.
+
+**1736/1736 xanh.**

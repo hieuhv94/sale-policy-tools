@@ -1387,6 +1387,32 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Nhập danh mục từ Excel là GHI ĐÈ, và phải xem trước** `mới 26/08` — file nhập mang **5 cột** (mã
+vật tư · tên · mã nhóm · giá bán Công ty · đang có hiệu lực) và phải chứa **đủ mọi sản phẩm đang
+có**. Mã đã có thì cập nhật, mã mới thì thêm. Phần mềm kiểm theo thứ tự — đủ cột · đọc được ô ·
+đủ ô bắt buộc · mã nhóm đã tồn tại · không trùng trong file · không thiếu sản phẩm nào — rồi hiện
+**bảng thay đổi** để người dùng duyệt; chỉ khi họ **gõ lại chuỗi xác nhận** thì mới ghi, trong một
+lượt.
+
+> **Bốn điều KHÔNG làm được qua đường nhập**, và cả bốn đều có lý do riêng:
+>
+> - **Xoá sản phẩm** — kể cả gián tiếp bằng cách bỏ dòng khỏi file. Thiếu một mã đang có là lỗi.
+> - **Ngừng bán** — cột *đang có hiệu lực* chỉ để xem. Vô hiệu hoá gỡ mặt hàng khỏi mọi hồ sơ lập
+>   mới và làm mọi CSBH đang hiệu lực chứa nó hiện trong khối *Yêu cầu cập nhật*; màn hình bắt gõ
+>   lại mã vật tư cho đúng một sản phẩm, nên làm việc ấy hàng loạt bằng một ô Excel là gỡ mất chốt
+>   mà không thay bằng gì.
+> - **Xoá giá** — ô giá để trống nghĩa là *giữ nguyên*, không phải *đặt về rỗng*. Giá là chuỗi lịch
+>   sử mà hồ sơ đã đóng băng tra ngược lại.
+> - **Đổi ngày áp dụng của giá** — luôn là ngày nhập, đặt ở máy chủ. Một cột ngày cho phép khai một
+>   ngày trong quá khứ, tức là sửa lịch sử.
+>
+> **Trùng tên chỉ chặn phần MỚI phát sinh.** Danh mục không cấm trùng tên, và danh mục thật có trùng
+> tên — cùng một mặt hàng ở hai quy cách. Chặn cứng cộng với luật *"file phải đủ"* nghĩa là một danh
+> mục lỡ có hai sản phẩm cùng tên thì không bao giờ nhập lại được.
+>
+> **Đặt lại giá trong cùng một ngày thì đè**, ở cả đường nhập lẫn màn hình *Đặt giá*. Trước đó lượt
+> thứ hai bị từ chối, nên gõ nhầm một số 0 lúc sáng thì cả ngày hôm ấy không sửa lại được.
+
 **Tên miền nhận thư khai lúc chạy, nhiều miền** `mới 25/08` — người vận hành khai danh sách tên
 miền được phép **nhận** thư nghiệp vụ; nhiều miền thì ngăn bằng dấu phẩy, và **miền con tự động
 được chấp nhận** (khai `nutricare.vn` thì `tdv@hn.nutricare.vn` cũng nhận được). Địa chỉ ngoài mọi

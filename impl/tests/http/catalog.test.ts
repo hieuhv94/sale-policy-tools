@@ -535,98 +535,42 @@ describe('CAT-14 xoá nhóm còn sản phẩm tham chiếu', () => {
   });
 });
 
-describe('CAT-15 nhập danh mục từ Excel', () => {
-  const sheet = async (rows: (string | number | undefined)[][]): Promise<Buffer> => {
+/**
+ * CAT-15 · CAT-16 · CAT-17 — nhập danh mục từ Excel (`0121`).
+ *
+ * Từ `0121` đây không còn là "thêm sản phẩm hàng loạt" mà là **ghi đè danh mục**:
+ * file mang đủ mọi sản phẩm đang có, và lượt nhập sửa tên, nhóm, giá của những
+ * mã đã tồn tại. Nên phần lớn ca dưới đây kiểm những thứ KHÔNG được xảy ra.
+ *
+ * Mọi ca đều chạy trên một danh mục dùng chung với các nhóm ca khác trong tệp
+ * này, nên file nhập phải dựng TỪ ảnh chụp hiện tại — `fileDayDu()` lo việc đó.
+ */
+describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
+  const COT = ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp', 'gia_ban_cong_ty', 'dang_co_hieu_luc'];
+
+  /*
+   * Cho phép `undefined` vì các ca dưới đây dựng dòng bằng `d[4]` — TypeScript
+   * không chứng minh được chỉ số 4 có mặt trên một mảng, và ExcelJS coi
+   * `undefined` y như ô trống.
+   */
+  type Dong = (string | number | null | undefined)[];
+
+  /*
+   * TÊN cũng phải duy nhất, không riêng mã.
+   *
+   * File nhập chứa CẢ danh mục, và bước 4 chặn tên lặp lại trong file — nên một
+   * ca kiểm đặt tên `'x'` sẽ đụng đúng cái tên mà một ca khác trong tệp này đã
+   * tạo, rồi đỏ vì một lý do chẳng liên quan gì tới thứ nó định kiểm. Đã dính
+   * một lượt trước khi có hàm này.
+   */
+  const ten = (goi: string) => `${goi} ${P}-${++n}`;
+
+  const sheet = async (rows: Dong[], cot: (string | number)[] = COT): Promise<Buffer> => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('SP');
-    ws.addRow(['ma_vat_tu', 'ten_vat_tu', 'nhom_sp', 'ck_loai_1', 'ck_loai_2', 'ck_loai_3']);
+    ws.addRow(cot);
     for (const r of rows) ws.addRow(r);
     return Buffer.from(await wb.xlsx.writeBuffer());
-  };
-
-  const upload = async (buf: Buffer) =>
-    (await http(app))
-      .post('/catalog/products/import')
-      .set('Authorization', `Bearer ${adminT}`)
-      .attach('file', buf, 'danh-muc.xlsx');
-
-  it('file sạch thì nhập đủ', async () => {
-    const groupCode = code('G');
-    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom nhap' });
-    const r = await upload(
-      await sheet([
-        [code('I'), 'San pham A', groupCode, '12,35'],
-        [code('I'), 'San pham B', groupCode, 10],
-      ]),
-    );
-    expect(r.status).toBe(200);
-    expect(r.body.imported).toBe(2);
-  });
-
-  it('có dòng lỗi thì báo SỐ DÒNG và KHÔNG ghi một phần', async () => {
-    const groupCode = code('G');
-    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom nhap 2' });
-    const okCode = code('I');
-    const before = (await get('/catalog/products?limit=200')).body.total as number;
-
-    const r = await upload(
-      await sheet([
-        [okCode, 'Dong nay hop le', groupCode],
-        ['', 'Dong nay thieu ma', groupCode],
-      ]),
-    );
-    expect(r.status).toBe(400);
-    expect(r.body.code).toBe('IMPORT_FAILED');
-    expect(r.body.rowNumber).toBe(3); // dòng 1 là tiêu đề
-    expect(r.body.message).toContain('Không dòng nào được ghi');
-
-    // Dòng hợp lệ đứng TRƯỚC dòng lỗi cũng không được ghi.
-    //
-    // So TỔNG với tổng, không so tổng với một trang. Bản trước lấy `before` từ
-    // `total` rồi đối chiếu với `items` của trang đầu — hai con số chỉ bằng nhau
-    // khi danh mục còn dưới 200 sản phẩm, nên test xanh suốt từ P4 rồi đỏ ở P6b
-    // đúng lúc dữ liệu vượt trần phân trang. Lỗi của phép khẳng định, không phải
-    // của mã sản phẩm.
-    expect((await get('/catalog/products?limit=1')).body.total).toBe(before);
-    const found = await withAdminDb(async (c) =>
-      c.query(`SELECT 1 FROM cat.product WHERE code = $1`, [okCode]),
-    );
-    expect(found.rowCount).toBe(0);
-  });
-
-  it('nhóm sản phẩm không tồn tại cũng là lỗi cả lô', async () => {
-    const r = await upload(await sheet([[code('I'), 'x', 'NHOM-KHONG-CO']]));
-    expect(r.status).toBe(400);
-    expect(r.body.rowNumber).toBe(2);
-  });
-});
-
-/**
- * `0119` — file Excel MẪU tải về từ hộp thoại nhập.
- *
- * Ca đáng giá nhất ở đây là ca VÒNG TRÒN: tải file mẫu về, điền dữ liệu vào
- * chính nó, nhập lại và phải thành công. Nó là thứ duy nhất chứng minh được điều
- * mà file mẫu tồn tại để bảo đảm — rằng người dùng không phải sửa gì ở phần tiêu
- * đề. Kiểm riêng "có ba cột đúng tên" thì hai bên vẫn trôi khỏi nhau được ở mọi
- * chỗ khác: thứ tự cột, hoa thường, trang nào là trang đầu.
- */
-describe('`0119` file Excel mẫu', () => {
-  const upload = async (buf: Buffer) =>
-    (await http(app))
-      .post('/catalog/products/import')
-      .set('Authorization', `Bearer ${adminT}`)
-      .attach('file', buf, 'danh-muc.xlsx');
-
-  /**
-   * Xoá mọi dòng dữ liệu, giữ đúng hàng tiêu đề.
-   *
-   * TỪNG DÒNG MỘT, TỪ DƯỚI LÊN. `spliceRows(2, n)` một lượt **không xoá gì cả**
-   * trên phiên bản ExcelJS đang dùng — đo được: ba dòng vẫn còn nguyên sau lời
-   * gọi, và `rowCount` cũng không đổi. Đặt `row.values = []` thì xoá được nội
-   * dung nhưng để lại ba hàng trống ở giữa file.
-   */
-  const xoaDongDuLieu = (ws: ExcelJS.Worksheet) => {
-    for (let n = ws.rowCount; n >= 2; n--) ws.spliceRows(n, 1);
   };
 
   const taiMau = async () =>
@@ -640,121 +584,495 @@ describe('`0119` file Excel mẫu', () => {
         res.on('end', () => cb(null, Buffer.concat(phan)));
       });
 
+  /** Mọi dòng của danh mục hiện tại, đọc ra từ chính file mẫu. */
+  const dongHienCo = async (): Promise<Dong[]> => {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+    const ra: Dong[] = [];
+    wb.worksheets[0]!.eachRow((row, n) => {
+      if (n === 1) return;
+      ra.push([1, 2, 3, 4, 5].map((i) => (row.getCell(i).value ?? null) as string | number | null));
+    });
+    return ra;
+  };
+
+  /**
+   * File ĐỦ: toàn bộ danh mục hiện tại, cộng những dòng truyền vào.
+   *
+   * Bắt buộc phải đi đường này. Từ `0121` một file thiếu bất kỳ mã nào đang có
+   * đều bị chặn ở bước 5, nên một ca kiểm dựng file bằng tay sẽ đỏ vì lý do
+   * chẳng liên quan gì tới thứ nó định kiểm.
+   */
+  const fileDayDu = async (them: Dong[] = [], sua?: (ds: Dong[]) => Dong[]) => {
+    let ds = await dongHienCo();
+    if (sua) ds = sua(ds);
+    return sheet([...ds, ...them]);
+  };
+
+  const xemTruoc = async (buf: Buffer, token = adminT) =>
+    (await http(app))
+      .post('/catalog/products/import/xem-truoc')
+      .set('Authorization', `Bearer ${token}`)
+      .attach('file', buf, 'danh-muc.xlsx');
+
+  const ghiDe = async (buf: Buffer, confirm = 'GHI DE') =>
+    (await http(app))
+      .post('/catalog/products/import')
+      .set('Authorization', `Bearer ${adminT}`)
+      .field('confirm', confirm)
+      .attach('file', buf, 'danh-muc.xlsx');
+
+  /** Một nhóm dùng riêng cho nhóm ca này. */
+  let nhom = '';
+  beforeAll(async () => {
+    nhom = code('G');
+    await post('/catalog/product-groups', { code: nhom, name: 'Nhom nhap excel' });
+  });
+
+  // --- Bước 1: đủ cột -------------------------------------------------------
+
+  it('bước 1 — thiếu cột thì chặn, nêu đúng cột nào', async () => {
+    const r = await xemTruoc(await sheet([], ['ma_vat_tu', 'ten_vat_tu', 'nhom_sp']));
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('BAD_HEADER');
+    expect(r.body.message).toContain('gia_ban_cong_ty');
+  });
+
+  // --- Bước 2: sai kiểu -----------------------------------------------------
+
+  it('bước 2 — ô lỗi công thức bị chặn, KHÔNG lọt thành tên sản phẩm', async () => {
+    /*
+     * Tới `0120` `String({ error: '#N/A' })` cho ra `"[object Object]"`, và
+     * chuỗi ấy đi thẳng vào CSDL làm tên sản phẩm. Không ca kiểm nào bắt được
+     * vì lượt nhập vẫn trả 200.
+     */
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await fileDayDu([[code('I'), ten('O hong'), nhom, null, null]])) as unknown as Buffer);
+    const ws = wb.worksheets[0]!;
+    ws.getRow(ws.rowCount).getCell(2).value = { error: '#N/A' } as ExcelJS.CellErrorValue;
+
+    const r = await xemTruoc(Buffer.from(await wb.xlsx.writeBuffer()));
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_BAD_TYPE');
+    expect(r.body.o[0].cot).toBe('ten_vat_tu');
+  });
+
+  it('bước 2 — giá không phải số thì chặn; nhưng chấp nhận cách gõ THẬT', async () => {
+    const xau = await xemTruoc(await fileDayDu([[code('I'), ten('Gia hong'), nhom, 'mười nghìn', null]]));
+    expect(xau.status).toBe(400);
+    expect(xau.body.code).toBe('IMPORT_BAD_TYPE');
+    expect(xau.body.o[0].lyDo).toBe('KHONG_PHAI_SO');
+
+    // Dấu chấm và dấu phẩy là dấu NGHÌN — danh mục không có giá lẻ dưới đồng.
+    for (const gia of ['12.500', '12,500', '12 500', 12500, '12500,00']) {
+      const r = await xemTruoc(await fileDayDu([[code('I'), ten(`Gia ${gia}`), nhom, gia, null]]));
+      expect(r.status, `gõ "${gia}" phải đọc được`).toBe(200);
+      expect(r.body.themMoi[0].price).toBe('12500');
+    }
+  });
+
+  it('bước 2 — MÃ VẬT TƯ TOÀN SỐ là file hợp lệ, không phải "sai kiểu"', async () => {
+    // Excel đọc ô `12345` ra kiểu number. Chặn "cột chữ mà điền số" là chặn
+    // nhầm một danh mục hoàn toàn bình thường.
+    const ma = Number(`9${Date.now()}`.slice(0, 9));
+    const r = await xemTruoc(await fileDayDu([[ma, ten('Ma toan so'), nhom, null, null]]));
+    expect(r.status).toBe(200);
+    expect(r.body.themMoi[0].code).toBe(String(ma));
+  });
+
+  // --- Bước 3: nhóm chưa có -------------------------------------------------
+
+  it('bước 3 — gom HẾT mã nhóm thiếu vào một lần trả lời', async () => {
+    /*
+     * Dừng ở dòng hỏng đầu tiên nghĩa là một file có ba nhóm chưa tạo phải tải
+     * lên bốn lần để biết đủ.
+     */
+    const r = await xemTruoc(
+      await fileDayDu([
+        [code('I'), ten('a'), 'NHOM-KHONG-CO-1', null, null],
+        [code('I'), ten('b'), 'NHOM-KHONG-CO-2', null, null],
+        [code('I'), ten('c'), 'NHOM-KHONG-CO-1', null, null],
+      ]),
+    );
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_GROUP_MISSING');
+    expect(r.body.nhom.map((n: { ma: string }) => n.ma).sort()).toEqual([
+      'NHOM-KHONG-CO-1',
+      'NHOM-KHONG-CO-2',
+    ]);
+    // Nêu cả số dòng — người dùng mở file ra sửa, không đi dò từng dòng.
+    expect(r.body.nhom.find((n: { ma: string }) => n.ma === 'NHOM-KHONG-CO-1').dong).toHaveLength(2);
+  });
+
+  // --- Bước 4: trùng trong file ---------------------------------------------
+
+  it('bước 4 — trùng mã hoặc trùng tên TRONG FILE thì chặn, nêu các cặp dòng', async () => {
+    const maTrung = code('I');
+    const r = await xemTruoc(
+      await fileDayDu([
+        [maTrung, ten('Ten mot'), nhom, null, null],
+        [maTrung, ten('Ten hai'), nhom, null, null],
+        [code('I'), 'Ten lap lai', nhom, null, null],
+        [code('I'), 'ten LAP  lai', nhom, null, null],
+      ]),
+    );
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_DUPLICATE_IN_FILE');
+    expect(r.body.trungMa).toHaveLength(1);
+    expect(r.body.trungMa[0].dong).toHaveLength(2);
+    // Tên so sau khi gom khoảng trắng và bỏ hoa thường — nhưng KHÔNG bỏ dấu.
+    expect(r.body.trungTen).toHaveLength(1);
+    expect(r.body.trungTen[0].dong).toHaveLength(2);
+  });
+
+  // --- Bước 5: thiếu sản phẩm đang có ---------------------------------------
+
+  it('bước 5 — thiếu một mã đang có thì CHẶN, và nói ra mã nào', async () => {
+    const ma = code('I');
+    await post('/catalog/products', { code: ma, name: ten('Khong duoc bien mat'), groupCode: nhom });
+
+    const r = await xemTruoc(await fileDayDu([], (ds) => ds.filter((d) => d[0] !== ma)));
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('IMPORT_PRODUCT_MISSING');
+    expect(r.body.ma).toContain(ma);
+  });
+
+  // --- Kế hoạch -------------------------------------------------------------
+
+  it('xem trước KHÔNG ghi gì, và tách đúng ba khối', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Ten cu'), groupCode: nhom });
+    await post(`/catalog/products/${sp.body.id}/prices`, {
+      amount: '10000',
+      effectiveFrom: '2020-01-01',
+    });
+
+    const tenMoi = ten('Ten moi');
+    const truoc = (await get('/catalog/products?limit=1')).body.total as number;
+    const r = await xemTruoc(
+      await fileDayDu(
+        [[code('I'), ten('Hoan toan moi'), nhom, '5000', null]],
+        (ds) => ds.map((d) => (d[0] === ma ? [d[0], tenMoi, d[2], 20000, d[4]] : d)),
+      ),
+    );
+
+    expect(r.status).toBe(200);
+    expect((await get('/catalog/products?limit=1')).body.total).toBe(truoc);
+
+    expect(r.body.themMoi).toHaveLength(1);
+    const sua = r.body.sua.find((d: { code: string }) => d.code === ma);
+    expect(sua.ten.sau).toBe(tenMoi);
+    expect(sua.gia).toEqual({ truoc: '10000', sau: '20000' });
+    // Nhóm không đổi thì KHÔNG có mặt — bảng xem trước chỉ vẽ thứ sắp thay đổi.
+    expect(sua.nhom).toBeUndefined();
+    // Giá gấp đôi → vượt ngưỡng 50%.
+    expect(sua.canhBaoGia).toBeGreaterThan(0.5);
+    expect(r.body.khongDoi).toBeGreaterThan(0);
+  });
+
+  it('Ô GIÁ TRỐNG nghĩa là giữ nguyên giá cũ, không phải xoá giá', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Giu gia'), groupCode: nhom });
+    await post(`/catalog/products/${sp.body.id}/prices`, {
+      amount: '33000',
+      effectiveFrom: '2020-01-01',
+    });
+
+    const r = await xemTruoc(
+      await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], null, d[4]] : d))),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body.sua.find((d: { code: string }) => d.code === ma)).toBeUndefined();
+
+    // Và giá vẫn còn nguyên sau khi ghi thật.
+    await ghiDe(await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], null, d[4]] : d))));
+    const gia = await get(`/catalog/products/${sp.body.id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(gia.body.amount).toBe('33000');
+  });
+
+  // --- Bước 6: xác nhận rồi ghi ---------------------------------------------
+
+  it('bước 6 — KHÔNG gõ đúng chuỗi xác nhận thì không ghi gì', async () => {
+    const ma = code('I');
+    const buf = await fileDayDu([[ma, ten('Khong duoc tao'), nhom, null, null]]);
+
+    for (const sai of ['', 'ghi', 'XOA']) {
+      const r = await ghiDe(buf, sai);
+      expect(r.status, `"${sai}" đáng lẽ bị chặn`).toBe(400);
+      expect(r.body.code).toBe('CONFIRM_MISMATCH');
+    }
+    const co = await withAdminDb(async (c) =>
+      c.query(`SELECT 1 FROM cat.product WHERE code = $1`, [ma]),
+    );
+    expect(co.rowCount).toBe(0);
+  });
+
+  it('ghi đè thật: thêm mới, đổi tên, đổi nhóm và đổi giá trong MỘT lượt', async () => {
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Truoc khi ghi de'), groupCode: nhom });
+    const nhomKhac = code('G');
+    await post('/catalog/product-groups', { code: nhomKhac, name: 'Nhom dich' });
+    const maMoi = code('I');
+    const tenSau = ten('Sau khi ghi de');
+
+    const r = await ghiDe(
+      await fileDayDu(
+        [[maMoi, ten('San pham moi tinh'), nhom, '7000', null]],
+        (ds) => ds.map((d) => (d[0] === ma ? [d[0], tenSau, nhomKhac, 90000, d[4]] : d)),
+      ),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body.themMoi).toBe(1);
+
+    const sau = await get(`/catalog/products/${sp.body.id}`);
+    expect(sau.body.name).toBe(tenSau);
+    expect(sau.body.groupCode).toBe(nhomKhac);
+    const gia = await get(`/catalog/products/${sp.body.id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(gia.body.amount).toBe('90000');
+  });
+
+  it('TRẠNG THÁI không bao giờ đổi qua đường nhập', async () => {
+    /*
+     * Cột thứ năm chỉ để xem. Vô hiệu hoá một sản phẩm gỡ nó khỏi mọi hồ sơ lập
+     * mới và làm mọi CSBH đang hiệu lực chứa nó hiện trong box *Yêu cầu cập
+     * nhật* — màn hình bắt gõ lại mã vật tư cho đúng một sản phẩm, nên làm việc
+     * ấy hàng loạt bằng một ô Excel là gỡ mất chốt mà không thay bằng gì.
+     */
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Van dang ban'), groupCode: nhom });
+    await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: ma });
+
+    const r = await ghiDe(
+      await fileDayDu([], (ds) =>
+        ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], d[3], 'Đang áp dụng'] : d)),
+      ),
+    );
+    expect(r.status).toBe(200);
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.status).toBe('DA_VO_HIEU_HOA');
+  });
+
+  it('CHỈ phát sự kiện cho dòng THẬT SỰ đổi', async () => {
+    /*
+     * Mỗi `catalog.changed` và `catalog.price_changed` kéo theo một lượt rà mọi
+     * hồ sơ đã đóng băng × mọi dòng ở `policy` (nợ N-09). Phát cho cả những dòng
+     * khớp y nguyên là biến một lượt nhập 500 dòng thành 500 lượt rà vô ích, và
+     * làm box *Yêu cầu cập nhật* của mọi TDV đầy hồ sơ chẳng lệch gì.
+     */
+    const ma = code('I');
+    await post('/catalog/products', { code: ma, name: ten('Chi doi mot dong'), groupCode: nhom });
+
+    const dem = async () =>
+      Number(
+        (
+          await withAdminDb(async (c) =>
+            c.query<{ n: string }>(`SELECT count(*)::text AS n FROM cat.outbox`),
+          )
+        ).rows[0]!.n,
+      );
+
+    const truoc = await dem();
+    const r = await ghiDe(
+      await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], 'Ten khac han', d[2], d[3], d[4]] : d))),
+    );
+    expect(r.status).toBe(200);
+    expect(r.body.sua).toBe(1);
+    expect(r.body.khongDoi).toBeGreaterThan(0);
+    // Đúng MỘT sự kiện, cho đúng một dòng đã đổi.
+    expect((await dem()) - truoc).toBe(1);
+  });
+
+  it('nhập LẦN HAI trong cùng ngày thì đè giá, không báo trùng ngày', async () => {
+    /*
+     * `UNIQUE (product_id, price_type, effective_from)` giữ nguyên; lượt ghi đi
+     * qua `ON CONFLICT DO UPDATE` (`0121`). Bỏ ràng buộc thì hai dòng cùng ngày
+     * cùng tồn tại, mà `currentPrice` chọn dòng bằng `ORDER BY effective_from
+     * DESC LIMIT 1` — không có gì phân xử.
+     */
+    const ma = code('I');
+    const sp = await post('/catalog/products', { code: ma, name: ten('Doi gia hai lan'), groupCode: nhom });
+
+    for (const gia of [11000, 22000]) {
+      const r = await ghiDe(
+        await fileDayDu([], (ds) => ds.map((d) => (d[0] === ma ? [d[0], d[1], d[2], gia, d[4]] : d))),
+      );
+      expect(r.status, `lượt giá ${gia}`).toBe(200);
+    }
+
+    const gia = await get(`/catalog/products/${sp.body.id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(gia.body.amount).toBe('22000');
+
+    // Đúng MỘT dòng giá cho hôm nay, không phải hai.
+    const dong = await withAdminDb(async (c) =>
+      c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM cat.product_price
+          WHERE product_id = $1 AND effective_from = current_date`,
+        [sp.body.id],
+      ),
+    );
+    expect(dong.rows[0]!.n).toBe('1');
+  });
+
+  it('chỉ Quản trị hệ thống xem trước được', async () => {
+    const r = await xemTruoc(await sheet([]), tdvT);
+    expect(r.status).toBe(403);
+  });
+});
+
+/**
+ * `0119` · `0120` · `0121` — file Excel mẫu tải về.
+ *
+ * Ca đáng giá nhất là ca VÒNG TRÒN: tải file mẫu về, sửa một ô, nhập lại và phải
+ * thành công. Nó là thứ duy nhất chứng minh được điều mà file mẫu tồn tại để bảo
+ * đảm — người dùng không phải sửa gì ở phần tiêu đề. Kiểm riêng "có đủ năm cột
+ * đúng tên" thì hai bên vẫn trôi khỏi nhau được ở mọi chỗ khác: thứ tự cột, hoa
+ * thường, trang nào là trang đầu.
+ */
+describe('`0119` file Excel mẫu', () => {
+  const taiMau = async () =>
+    (await http(app))
+      .get('/catalog/products/import/mau')
+      .set('Authorization', `Bearer ${adminT}`)
+      .buffer(true)
+      .parse((res, cb) => {
+        const phan: Buffer[] = [];
+        res.on('data', (c: Buffer) => phan.push(c));
+        res.on('end', () => cb(null, Buffer.concat(phan)));
+      });
+
+  const mo = async () => {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await taiMau()).body as Buffer);
+    return wb;
+  };
+
   it('tải về được, đúng kiểu nội dung và có tên tệp', async () => {
     const r = await taiMau();
     expect(r.status).toBe(200);
     expect(r.headers['content-type']).toContain('spreadsheetml');
-    // Tên thật nằm ở header, không phải do giao diện bịa ra.
     expect(r.headers['content-disposition']).toContain('mau-danh-muc-san-pham.xlsx');
   });
 
-  it('`0120` chứa TOÀN BỘ sản phẩm hiện có, đúng ba cột', async () => {
+  it('`0121` đủ NĂM cột, đúng tên và đúng thứ tự', async () => {
+    const ws = (await mo()).worksheets[0]!;
+    const tieuDe = (ws.getRow(1).values as unknown[]).slice(1).map(String);
+    expect(tieuDe).toEqual([
+      'ma_vat_tu',
+      'ten_vat_tu',
+      'nhom_sp',
+      'gia_ban_cong_ty',
+      'dang_co_hieu_luc',
+    ]);
+  });
+
+  it('`0120` chứa TOÀN BỘ sản phẩm hiện có, đúng ô, kèm giá và trạng thái', async () => {
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co san pham' });
     const maSp = code('I');
-    await post('/catalog/products', { code: maSp, name: 'San pham phai co trong file', groupCode });
+    const tenMau = `San pham phai co trong file ${P}-${++n}`;
+    const sp = await post('/catalog/products', { code: maSp, name: tenMau, groupCode });
+    await post(`/catalog/products/${sp.body.id}/prices`, {
+      amount: '45000',
+      effectiveFrom: '2020-01-01',
+    });
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await taiMau()).body as Buffer);
-    const ws = wb.worksheets[0]!;
-
-    const dong = new Map<string, string[]>();
+    const ws = (await mo()).worksheets[0]!;
+    let thay: unknown[] | null = null;
     ws.eachRow((row, n) => {
-      if (n === 1) return;
-      dong.set(String(row.getCell(1).value ?? ''), [
-        String(row.getCell(2).value ?? ''),
-        String(row.getCell(3).value ?? ''),
-      ]);
+      if (n > 1 && String(row.getCell(1).value) === maSp) {
+        thay = [2, 3, 4, 5].map((i) => row.getCell(i).value);
+      }
     });
     // Đúng ô, không chỉ "có mặt đâu đó": lệch cột thì file vẫn nhập được và nạp
     // tên sản phẩm vào ô mã nhóm.
-    expect(dong.get(maSp)).toEqual(['San pham phai co trong file', groupCode]);
+    expect(thay).toEqual([tenMau, groupCode, 45000, 'Đang áp dụng']);
   });
 
   it('`0120` lấy CẢ sản phẩm đã vô hiệu hoá — file là ảnh chụp danh mục', async () => {
     /*
      * Lọc chúng đi thì người dùng thấy một khoảng trống, điền lại chính mã ấy,
-     * rồi nhận lỗi trùng mã ở một dòng họ vừa tự tay gõ.
+     * rồi nhận lỗi trùng mã ở một dòng họ vừa tự tay gõ. Từ `0121` còn nặng hơn:
+     * file thiếu một mã đang có là bị chặn hẳn.
      */
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom co hang ngung ban' });
     const maSp = code('I');
-    const sp = await post('/catalog/products', { code: maSp, name: 'Hang ngung ban', groupCode });
-    await patch(`/catalog/products/${sp.body.id}`, {
-      status: 'DA_VO_HIEU_HOA',
-      confirm: maSp,
-    });
+    const sp = await post('/catalog/products', { code: maSp, name: `Hang ngung ban ${P}-${++n}`, groupCode });
+    await patch(`/catalog/products/${sp.body.id}`, { status: 'DA_VO_HIEU_HOA', confirm: maSp });
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await taiMau()).body as Buffer);
-    const ma: string[] = [];
-    wb.worksheets[0]!.eachRow((row, n) => {
-      if (n > 1) ma.push(String(row.getCell(1).value ?? ''));
+    const ws = (await mo()).worksheets[0]!;
+    const dong = new Map<string, unknown>();
+    ws.eachRow((row, n) => {
+      if (n > 1) dong.set(String(row.getCell(1).value), row.getCell(5).value);
     });
-    expect(ma).toContain(maSp);
+    expect(dong.has(maSp)).toBe(true);
+    expect(dong.get(maSp)).toBe('Đã ngừng bán');
   });
 
-  it('VÒNG TRÒN: xoá dòng cũ, điền dòng mới vào chính file ấy rồi nhập lại thì xong', async () => {
-    /*
-     * Ca đắt nhất của nhóm này: nó chứng minh phần TIÊU ĐỀ của file tải về không
-     * trôi khỏi thứ `parseProductSheet` đòi. Từ `0120` file mang sẵn cả danh mục,
-     * nên phải xoá hết dòng dữ liệu trước — đúng cách dùng mà hộp thoại hướng
-     * dẫn, và cũng là lý do file này KHÔNG tải lên lại nguyên trạng được.
-     */
+  it('VÒNG TRÒN: sửa một ô trên chính file mẫu rồi nhập lại thì xong', async () => {
     const groupCode = code('G');
-    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom tu file mau' });
+    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom vong tron' });
+    const maSp = code('I');
+    const sp = await post('/catalog/products', { code: maSp, name: `Ten ban dau ${P}-${++n}`, groupCode });
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await taiMau()).body as Buffer);
+    const tenDaSua = `Ten da sua ${P}-${++n}`;
+    const wb = await mo();
     const ws = wb.worksheets[0]!;
-    xoaDongDuLieu(ws);
-    ws.addRow([code('I'), 'San pham tu file mau', groupCode]);
+    ws.eachRow((row, d) => {
+      if (d > 1 && String(row.getCell(1).value) === maSp) row.getCell(2).value = tenDaSua;
+    });
 
-    const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
+    const r = await (await http(app))
+      .post('/catalog/products/import')
+      .set('Authorization', `Bearer ${adminT}`)
+      .field('confirm', 'GHI DE')
+      .attach('file', Buffer.from(await wb.xlsx.writeBuffer()), 'danh-muc.xlsx');
+
     expect(r.status).toBe(200);
-    expect(r.body.imported).toBe(1);
+    expect(r.body.sua).toBe(1);
+    expect((await get(`/catalog/products/${sp.body.id}`)).body.name).toBe(tenDaSua);
   });
 
-  it('`0120` tải lên NGUYÊN TRẠNG thì báo trùng mã — hộp thoại phải nói trước điều này', async () => {
+  it('`0121` tải về rồi nhập lại NGUYÊN TRẠNG là hợp lệ và không đổi gì', async () => {
     /*
-     * Không phải một lỗi, mà là hệ quả đã biết của việc file mang sẵn dữ liệu:
-     * luật hiện tại là trùng mã thì chặn cả lô. Ca kiểm giữ cho câu hướng dẫn ở
-     * hộp thoại không nói sai — đổi luật trùng mã thì phải sửa cả câu ấy.
+     * Từ `0121` đây mới là cách dùng bình thường: file là ảnh chụp đầy đủ, nên
+     * nhập lại nguyên trạng phải qua sạch và không sinh thay đổi nào. Tới `0120`
+     * chính lượt này báo trùng mã.
      */
-    const groupCode = code('G');
-    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom cho ca nguyen trang' });
-    await post('/catalog/products', { code: code('I'), name: 'Da co san', groupCode });
+    const r = await (await http(app))
+      .post('/catalog/products/import/xem-truoc')
+      .set('Authorization', `Bearer ${adminT}`)
+      .attach('file', (await taiMau()).body as Buffer, 'danh-muc.xlsx');
 
-    const r = await upload((await taiMau()).body as Buffer);
-    expect(r.status).toBe(400);
-    expect(r.body.code).toBe('IMPORT_FAILED');
-    expect(r.body.reason).toBe('PRODUCT_CODE_DUPLICATE');
+    expect(r.status).toBe(200);
+    expect(r.body.themMoi).toHaveLength(0);
+    expect(r.body.sua).toHaveLength(0);
+    expect(r.body.khongDoi).toBeGreaterThan(0);
   });
 
   it('trang thứ hai liệt kê mã nhóm đang có, và bộ đọc KHÔNG chạm tới nó', async () => {
     const groupCode = code('G');
     await post('/catalog/product-groups', { code: groupCode, name: 'Nhom hien o trang hai' });
 
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load((await taiMau()).body as Buffer);
-
+    const wb = await mo();
     const wsN = wb.worksheets[1];
     expect(wsN, 'file mẫu phải có trang thứ hai').toBeDefined();
     const maNhom: string[] = [];
     wsN!.eachRow((row) => maNhom.push(String(row.getCell(1).value ?? '')));
     expect(maNhom).toContain(groupCode);
+    // Có TÊN nhóm chứ không chỉ mã — một trang tra cứu chỉ có mã thì tra được gì.
+    expect(wsN!.getRow(2).getCell(2).value).toBeTruthy();
 
     /*
      * `parseProductSheet` chỉ đọc `worksheets[0]`. Không có phép khẳng định này
      * thì một lượt sửa đổi bộ đọc sang "duyệt mọi trang" sẽ nạp cả danh sách
      * nhóm vào bảng sản phẩm, và ca vòng tròn ở trên vẫn xanh.
      */
-    const ws0 = wb.worksheets[0]!;
-    xoaDongDuLieu(ws0);
-    ws0.addRow([code('I'), 'Chi mot dong that', groupCode]);
-    const r = await upload(Buffer.from(await wb.xlsx.writeBuffer()));
+    const r = await (await http(app))
+      .post('/catalog/products/import/xem-truoc')
+      .set('Authorization', `Bearer ${adminT}`)
+      .attach('file', Buffer.from(await wb.xlsx.writeBuffer()), 'danh-muc.xlsx');
     expect(r.status).toBe(200);
-    expect(r.body.imported).toBe(1);
+    expect(r.body.themMoi).toHaveLength(0);
   });
 
   it('chỉ Quản trị hệ thống tải được', async () => {
@@ -765,14 +1083,6 @@ describe('`0119` file Excel mẫu', () => {
   });
 });
 
-/**
- * 0026 — kênh bán không còn là một chiều của quy định chiết khấu.
- *
- * Kiểm qua HTTP chứ không chỉ ở lược đồ: `validate` bỏ im lặng mọi trường lạ,
- * nên máy chủ vẫn nhận `channelCode` mà không báo gì. Điều phải chứng minh là
- * nó KHÔNG ĐỔI ĐƯỢC KẾT QUẢ — một biểu mẫu cũ hay một script cũ còn gửi trường
- * ấy lên thì ngưỡng trả về vẫn là ngưỡng của hai chiều còn lại.
- */
 describe('0026 kênh bán không còn ảnh hưởng tới ngưỡng', () => {
   it('gửi kèm channelCode cũng ra đúng ngưỡng của nhóm × loại khách', async () => {
     const { id, groupCode } = await makeProduct();
@@ -825,23 +1135,56 @@ describe('CAT-18 đổi giá phát sự kiện đúng một lần', () => {
     expect(ev.newAmount).toBe('150000');
   });
 
-  it('ghi giá hỏng thì KHÔNG có sự kiện mồ côi', async () => {
+  it('`0121` đặt lại giá CÙNG NGÀY thì ĐÈ, không báo lỗi trùng ngày', async () => {
+    /*
+     * Tới `0120` lượt thứ hai chết với `PRICE_ALREADY_SET_FOR_DATE` — đúng về
+     * mặt dữ liệu và sai về mặt người dùng: gõ nhầm một số 0 lúc sáng thì cả
+     * ngày hôm đó không sửa lại được, phải đợi sang hôm sau hoặc khai một ngày
+     * hiệu lực giả.
+     *
+     * Ràng buộc `UNIQUE (product_id, price_type, effective_from)` GIỮ NGUYÊN;
+     * lượt ghi đi qua `ON CONFLICT DO UPDATE`. Bỏ ràng buộc thì hai dòng cùng
+     * ngày cùng tồn tại, mà `currentPrice` chọn dòng bằng `ORDER BY
+     * effective_from DESC LIMIT 1` — không có gì phân xử, nên giá hiện hành đổi
+     * theo tâm trạng của Postgres.
+     */
     const { id } = await makeProduct();
-    await post(`/catalog/products/${id}/prices`, {
-      priceType: 'GIA_BAN_CONG_TY',
-      amount: '100000',
-      effectiveFrom: '2020-01-01',
-    });
-    const before = await countEvents('catalog.price_changed');
+    for (const amount of ['100000', '111000']) {
+      const r = await post(`/catalog/products/${id}/prices`, {
+        priceType: 'GIA_BAN_CONG_TY',
+        amount,
+        effectiveFrom: '2020-01-01',
+      });
+      expect(r.status, `đặt giá ${amount}`).toBe(201);
+    }
 
-    // Trùng (sản phẩm, loại giá, ngày hiệu lực) — transaction phải cuốn cả sự kiện.
-    const dup = await post(`/catalog/products/${id}/prices`, {
-      priceType: 'GIA_BAN_CONG_TY',
-      amount: '111000',
-      effectiveFrom: '2020-01-01',
-    });
-    expect(dup.status).toBe(409);
-    expect(await countEvents('catalog.price_changed')).toBe(before);
+    // ĐÚNG MỘT dòng cho ngày ấy, mang giá của lượt sau.
+    const dong = await withAdminDb(async (c) =>
+      c.query<{ n: string; amount: string }>(
+        `SELECT count(*)::text AS n, max(amount)::text AS amount
+           FROM cat.product_price
+          WHERE product_id = $1 AND price_type = 'GIA_BAN_CONG_TY'
+            AND effective_from = '2020-01-01'`,
+        [id],
+      ),
+    );
+    expect(dong.rows[0]!.n).toBe('1');
+    expect(dong.rows[0]!.amount).toBe('111000');
+  });
+
+  it('mỗi lượt đặt giá phát ĐÚNG MỘT sự kiện, kể cả lượt ghi đè', async () => {
+    // Sự kiện nằm trong cùng transaction với dòng giá, nên không có chuyện giá
+    // đổi mà sự kiện mất, hay ngược lại (CAT-18).
+    const { id } = await makeProduct();
+    const before = await countEvents('catalog.price_changed');
+    for (const amount of ['50000', '60000']) {
+      await post(`/catalog/products/${id}/prices`, {
+        priceType: 'GIA_BAN_CONG_TY',
+        amount,
+        effectiveFrom: '2021-01-01',
+      });
+    }
+    expect(await countEvents('catalog.price_changed')).toBe(before + 2);
   });
 });
 
@@ -1167,50 +1510,29 @@ describe('0025 bỏ ngưỡng mặc định của sản phẩm', () => {
     }
   });
 
-  it('nhập Excel vẫn nhận file mẫu CŨ, ba cột thừa bị bỏ qua', async () => {
-    // Chặn file cũ là bắt người dùng sửa lại một file họ đã có, để đổi lấy đúng
-    // con số không: ba cột ấy giờ không dùng vào việc gì.
-    const groupCode = code('G');
-    await post('/catalog/product-groups', { code: groupCode, name: 'Nhom excel 0025' });
-
+  it('`0121` ba cột `ck_loai_*` của file mẫu CŨ giờ KHÔNG còn nhận nữa', async () => {
+    /*
+     * `0025` cố ý cho file cũ đi qua: ba cột thừa bị bỏ qua chứ không báo lỗi,
+     * vì chặn chúng là bắt người dùng sửa lại một file họ đã có để đổi lấy đúng
+     * con số không.
+     *
+     * `0121` đảo lại, và có lý do: cột thứ tư giờ là `gia_ban_cong_ty`, tức là
+     * đúng vị trí mà file cũ để `ck_loai_1`. Im lặng bỏ qua nghĩa là đọc ngưỡng
+     * chiết khấu cũ thành GIÁ BÁN — `12.35` thành mười hai đồng. Nên ở đây báo
+     * lỗi là cách duy nhất đúng, và câu lỗi nêu thẳng tên cột phải có.
+     */
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('sp');
     ws.addRow(['ma_vat_tu', 'ten_vat_tu', 'nhom_sp', 'ck_loai_1', 'ck_loai_2', 'ck_loai_3']);
-    const maSp = code('P');
-    ws.addRow([maSp, 'San pham excel', groupCode, 12.35, 12.35, 12.35]);
     const buf = Buffer.from(await wb.xlsx.writeBuffer());
 
     const r = await (await http(app))
-      .post('/catalog/products/import')
+      .post('/catalog/products/import/xem-truoc')
       .set('Authorization', `Bearer ${adminT}`)
       .attach('file', buf, 'sp.xlsx');
-    expect(r.status, JSON.stringify(r.body)).toBe(200);
-    expect(r.body.imported).toBe(1);
-
-    // Đọc SẢN PHẨM VỪA NHẬP theo id, không lọc trên danh sách.
-    //
-    // Bản trước gọi `/catalog/products?q=<mã>&limit=50` rồi tìm trong kết quả —
-    // và nó xanh suốt một thời gian dài vì một lý do sai: `/catalog/products`
-    // KHÔNG có tham số `q` nào cả (`products.service.ts:159` chỉ nhận
-    // `forNewPolicy` và phân trang). Máy chủ bỏ qua `q` trong im lặng và trả 50
-    // sản phẩm đầu theo mã. Chừng nào bảng còn dưới 50 dòng thì "50 sản phẩm
-    // đầu" tình cờ là "tất cả", nên ca kiểm thử vẫn xanh.
-    //
-    // CSDL của bộ test dùng chung và các tệp test khác không dọn sản phẩm của
-    // mình — tới 1.337 dòng thì sản phẩm vừa nhập rơi ra ngoài 50 dòng đầu và ca
-    // này đỏ, không phải vì việc nhập Excel hỏng.
-    const id = await withAdminDb(async (c) => {
-      const r = await c.query<{ id: string }>(`SELECT id FROM cat.product WHERE code = $1`, [maSp]);
-      return r.rows[0]?.id;
-    });
-    expect(id, 'sản phẩm nhập từ Excel phải nằm trong danh mục').toBeDefined();
-
-    const sp = (await get(`/catalog/products/${id!}`)).body as {
-      code: string;
-      defaultRate2Type1?: number;
-    };
-    expect(sp.code).toBe(maSp);
-    expect(sp.defaultRate2Type1).toBeUndefined();
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('BAD_HEADER');
+    expect(r.body.message).toContain('gia_ban_cong_ty');
   });
 });
 

@@ -55,6 +55,28 @@ type Muc = {
 };
 
 /**
+ * Nhãn tiếng Việt của các cột trong file Excel danh mục (`0121`).
+ *
+ * Khai ở đây chứ không ở máy chủ. Khoá là tên cột THẬT trong file — người dùng
+ * đang mở đúng file ấy, nên nêu kèm tên cột giúp họ tìm đúng chỗ, còn `0088`
+ * cấm tên trường TRONG MÃ chứ không cấm tên cột trong tài liệu của họ.
+ */
+const NHAN_COT_EXCEL: Record<string, string> = {
+  ma_vat_tu: 'Mã vật tư',
+  ten_vat_tu: 'Tên sản phẩm',
+  nhom_sp: 'Mã nhóm',
+  gia_ban_cong_ty: 'Giá bán Công ty',
+  dang_co_hieu_luc: 'Đang có hiệu lực',
+};
+
+/** `[3, 7, 12]` → `"3, 7, 12"`; quá dài thì cắt và nói còn bao nhiêu. */
+function vaiSo(ds: unknown, toiDa = 8): string {
+  const m = (Array.isArray(ds) ? ds : []).map(String);
+  if (m.length <= toiDa) return m.join(', ');
+  return `${m.slice(0, toiDa).join(', ')} và ${m.length - toiDa} chỗ nữa`;
+}
+
+/**
  * Ba lớp lỗi của `domain-policy` viết câu bằng **tiếng Việt KHÔNG DẤU** vì cùng
  * một câu ấy đi vào log và nhật ký hệ thống. Giao diện tới `0088` lấy nguyên
  * câu đó ra màn hình, nên Trưởng bộ phận bấm *Ký số* trên hồ sơ đã sang bước
@@ -68,6 +90,67 @@ type Muc = {
  * tên tiếng Việt đang hiện trên màn hình.
  */
 const DUNG_CAU: Record<string, (b: Record<string, unknown>) => string | null> = {
+  IMPORT_TOO_MANY_ROWS: (b) =>
+    `File có ${b['soDong']} dòng, vượt mức ${b['toiDa']} dòng mỗi lượt nhập. ` +
+    'Chia nhỏ file rồi nhập lại.',
+
+  IMPORT_BAD_TYPE: (b) => {
+    const o = (Array.isArray(b['o']) ? b['o'] : []) as { rowNumber: number; cot: string; lyDo: string }[];
+    if (o.length === 0) return null;
+    const so = o.some((x) => x.lyDo === 'KHONG_PHAI_SO');
+    return (
+      `${o.length} ô trong file không đọc được: ${vaiSo(
+        o.map((x) => `dòng ${x.rowNumber} · ${NHAN_COT_EXCEL[x.cot] ?? x.cot}`),
+      )}. ` +
+      (so
+        ? 'Ô giá phải là số. Ô báo lỗi công thức thì phải sửa thành giá trị thật.'
+        : 'Những ô này đang báo lỗi công thức trong Excel — sửa thành giá trị thật rồi tải lại.')
+    );
+  },
+
+  IMPORT_MISSING_FIELD: (b) => {
+    const o = (Array.isArray(b['o']) ? b['o'] : []) as { rowNumber: number; cot: string }[];
+    if (o.length === 0) return null;
+    return (
+      `${o.length} ô bắt buộc còn trống: ${vaiSo(
+        o.map((x) => `dòng ${x.rowNumber} · ${NHAN_COT_EXCEL[x.cot] ?? x.cot}`),
+      )}. ` + 'Điền đủ rồi tải lại. Riêng ô giá được để trống — nó nghĩa là giữ nguyên giá cũ.'
+    );
+  },
+
+  IMPORT_GROUP_MISSING: (b) => {
+    const n = (Array.isArray(b['nhom']) ? b['nhom'] : []) as { ma: string; dong: number[] }[];
+    if (n.length === 0) return null;
+    return (
+      `${n.length} mã nhóm trong file chưa có trong danh mục: ${vaiSo(n.map((x) => x.ma))}. ` +
+      'Tạo các nhóm này ở thẻ Nhóm sản phẩm trước, rồi nhập lại.'
+    );
+  },
+
+  IMPORT_DUPLICATE_IN_FILE: (b) => {
+    const ma = (Array.isArray(b['trungMa']) ? b['trungMa'] : []) as { giaTri: string; dong: number[] }[];
+    const ten = (Array.isArray(b['trungTen']) ? b['trungTen'] : []) as { giaTri: string; dong: number[] }[];
+    const phan: string[] = [];
+    if (ma.length > 0) {
+      phan.push(`${ma.length} mã vật tư lặp lại: ${vaiSo(ma.map((x) => `${x.giaTri} (dòng ${x.dong.join(', ')})`))}`);
+    }
+    if (ten.length > 0) {
+      phan.push(`${ten.length} tên sản phẩm lặp lại: ${vaiSo(ten.map((x) => `${x.giaTri} (dòng ${x.dong.join(', ')})`))}`);
+    }
+    if (phan.length === 0) return null;
+    return `Trong file có dòng trùng nhau — ${phan.join('; ')}. Giữ lại một dòng cho mỗi sản phẩm.`;
+  },
+
+  IMPORT_PRODUCT_MISSING: (b) => {
+    const ma = Array.isArray(b['ma']) ? (b['ma'] as string[]) : [];
+    if (ma.length === 0) return null;
+    return (
+      `File thiếu ${ma.length} sản phẩm đang có trong danh mục: ${vaiSo(ma)}. ` +
+      'File nhập phải chứa ĐỦ mọi sản phẩm — tải file mẫu về, sửa trên đó rồi tải lên. ' +
+      'Muốn ngừng bán một sản phẩm thì làm trên màn hình, không phải bằng cách bỏ dòng khỏi file.'
+    );
+  },
+
   INVALID_TRANSITION: (b) => {
     const tt = typeof b['status'] === 'string' ? nhanTrangThai(b['status']) : null;
     if (!tt) return null;
@@ -160,7 +243,7 @@ export const NHAN_TRUONG: Record<string, string> = {
 };
 
 /**
- * **97 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
+ * **102 mã lỗi của máy chủ.** Nhóm theo luồng nghiệp vụ, không theo service —
  * người duyệt bảng câu chữ đọc theo màn hình họ dùng, không theo sơ đồ kiến trúc.
  */
 export const BANG_LOI: Record<string, Muc> = {
@@ -351,8 +434,25 @@ export const BANG_LOI: Record<string, Muc> = {
   },
   RULE_CODE_DUPLICATE: { dang: 'o-nhap', truong: 'code', tuMayChu: true },
   RULE_SCOPE_DUPLICATE: { dang: 'hop-thoai', tuMayChu: true },
-  IMPORT_FAILED: { dang: 'hop-thoai', tuMayChu: true },
   BAD_HEADER: { dang: 'hop-thoai', tuMayChu: true },
+
+  /*
+   * Sáu mã của lượt nhập danh mục (`0121`).
+   *
+   * Câu dựng TẠI GIAO DIỆN (`tuThan`) chứ không lấy từ máy chủ: thân lỗi mang số
+   * dòng, mã nhóm, tên cột trong file — dựng câu ở máy chủ nghĩa là ghép chuỗi
+   * tiếng Việt trong một service, và `0088` cấm đúng chuyện đó.
+   *
+   * Hộp thoại nhập còn vẽ CHI TIẾT từ cùng thân lỗi ấy — danh sách dòng hỏng để
+   * người dùng mở file ra sửa. Câu ở đây là câu tóm tắt, và là thứ duy nhất hiện
+   * ra nếu lỗi nổi lên ở một màn hình khác.
+   */
+  IMPORT_TOO_MANY_ROWS: { dang: 'hop-thoai', tuThan: true },
+  IMPORT_BAD_TYPE: { dang: 'hop-thoai', tuThan: true },
+  IMPORT_MISSING_FIELD: { dang: 'hop-thoai', tuThan: true },
+  IMPORT_GROUP_MISSING: { dang: 'hop-thoai', tuThan: true },
+  IMPORT_DUPLICATE_IN_FILE: { dang: 'hop-thoai', tuThan: true },
+  IMPORT_PRODUCT_MISSING: { dang: 'hop-thoai', tuThan: true },
 
   // --- Tệp, văn bản mẫu và hợp đồng ----------------------------------------
   FILE_NOT_FOUND: {

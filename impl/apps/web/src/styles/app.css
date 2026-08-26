@@ -852,6 +852,37 @@ textarea.o-nhap { min-height: 6rem; }
 .bang-lech .so { font-family: var(--so-deu-cot); }
 
 
+/* --- Bảng xem trước lượt nhập danh mục (`0121`) -----------------------------
+
+   Ba lớp, mỗi lớp một việc, và cả ba dùng lại token có sẵn thay vì dựng màu
+   mới: bảng này chỉ xuất hiện trong đúng một hộp thoại, và một bảng màu riêng
+   cho một màn hình là một bảng màu sẽ lệch khỏi phần còn lại ở lần đổi chủ đề
+   sau. */
+
+/* Tiêu đề của từng khối (Thêm mới / Sửa). Nhỏ và thưa hơn tiêu đề hộp thoại —
+   nó chia một danh sách, không mở một phần mới của màn hình. */
+.tieu-de-nhom-xem-truoc {
+  margin: var(--k4) 0 var(--k2);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Giá trị SẮP BỊ THAY, trong cặp "cũ → mới". Gạch ngang chứ không chỉ làm mờ:
+   mờ nói "ít quan trọng", gạch nói "sắp không còn" — và đó mới là điều người
+   duyệt cần đọc được trong một liếc mắt (FE-09 cấm dùng riêng màu để truyền ý). */
+.gia-tri-cu {
+  color: var(--mau-chu-phu);
+  text-decoration: line-through;
+}
+
+/* Dòng có giá lệch quá ngưỡng. Vạch màu bên trái, KHÔNG nhuộm nền cả dòng —
+   cùng lý do đã ghi ở `.canh-bao-lech`: nền vàng làm chữ trong ô đục lại, và
+   một bảng có mười dòng nhuộm vàng trông như đang báo mười lỗi. */
+.dong-lech td:first-child { box-shadow: inset 3px 0 0 var(--mau-canh-bao); }
+
+
 .lech-chi-tiet {
   padding: 0 var(--k4) var(--k3);
   border-top: 1px solid var(--mau-vien);
