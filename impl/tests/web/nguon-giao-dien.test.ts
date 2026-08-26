@@ -292,6 +292,33 @@ describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
     expect(nguon).toContain('Chưa hiệu lực');
   });
 
+  it('`0126` khung lịch sử tự cuộn dọc, không đẩy nút Lưu khỏi tầm nhìn', () => {
+    /*
+     * Lịch sử chỉ dài ra chứ không bao giờ ngắn lại — mỗi ngày có đổi giá là một
+     * dòng, và từ `0126` mỗi LẦN sửa trong ngày cũng là một dòng. Nó nằm ở cuối
+     * hộp thoại Sửa, nên dài quá thì ô gõ xác nhận và nút Lưu bị đẩy khỏi tầm
+     * nhìn và người dùng phải cuộn ngược lên để bấm.
+     *
+     * `.khung-cuon` chỉ có `overflow-x` — cuộn NGANG. Phải là một lớp riêng.
+     */
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+    expect(css).toMatch(/\.khung-lich-su-gia\s*\{[^}]*max-height/);
+    expect(css).toMatch(/\.khung-lich-su-gia\s*\{[^}]*overflow-y:\s*auto/);
+    expect(nguon).toMatch(/className="[^"]*\bkhung-lich-su-gia\b[^"]*"/);
+  });
+
+  it('`0126` KHÔNG tự sắp lại lịch sử ở giao diện — thứ tự do máy chủ quyết', () => {
+    /*
+     * Từ `0126` nhiều dòng dùng chung một ngày hiệu lực, và thứ phân xử giữa
+     * chúng là cột `stt` — một con số giao diện không nhận được. Sắp lại theo
+     * `effectiveFrom` thì hai dòng cùng ngày bằng nhau, và nhãn *Đang áp dụng*
+     * rơi vào dòng nào cũng được.
+     */
+    expect(nguon, 'giao diện không được `sort` lại lịch sử giá').not.toMatch(
+      /ls[^\n]*\.sort\(/,
+    );
+  });
+
   it('MỘT dòng thì nói thẳng là chưa đổi giá lần nào', () => {
     expect(nguon).toContain('chưa đổi giá lần nào');
   });

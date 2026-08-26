@@ -11197,3 +11197,82 @@ sinh sự kiện đổi giá"*: nó đếm SỰ KIỆN, và nó đỏ. Ghi ra v�
 chỉ đúng chừng nào ca đếm sự kiện kia còn sống.
 
 **1766/1766 xanh.**
+
+## P154 — `0126` lịch sử giá giữ đủ mọi lần sửa, và khung tự cuộn
+
+Hai việc: khung lịch sử tự cuộn (phương án rẻ đã đề xuất), và **giữ đủ mọi lần
+sửa giá trong cùng một ngày**. Việc thứ hai đụng thẳng vào lược đồ.
+
+### Ba luật nối nhau ở cùng một chỗ
+
+| | Sửa giá lần thứ hai trong ngày |
+|---|---|
+| tới `0120` | chết với `PRICE_ALREADY_SET_FOR_DATE` |
+| `0121` | upsert — ĐÈ lên dòng của ngày ấy, con số cũ biến mất |
+| `0126` | thêm một dòng nữa, giữ đủ |
+
+Ghi cả ba ra ở `setPrice` vì hai luật đầu đều có lý lẽ viết rõ trong mã, và người
+đọc sau sẽ thấy chúng mâu thuẫn nhau nếu không biết thứ tự.
+
+### Gỡ ràng buộc thì phải có khoá phân xử — và hai ứng viên sẵn có đều hỏng
+
+`0121` từng từ chối bỏ `UNIQUE (product_id, price_type, effective_from)` với lý
+do: hai dòng cùng ngày thì `ORDER BY effective_from DESC LIMIT 1` không có gì
+phân xử. Lý do ấy vẫn đúng, nên `0126` gỡ ràng buộc **kèm** một cột mới:
+
+- `id` là `uuid DEFAULT gen_random_uuid()` — ngẫu nhiên, không tăng dần.
+- `created_at` là `now()`, tức giờ MỞ TRANSACTION: hai dòng ghi trong cùng một
+  transaction mang y hệt một giá trị. Hôm nay chưa đường nào ghi hai dòng giá cho
+  một sản phẩm trong một transaction, nhưng đó là tính chất của mã hiện tại chứ
+  không phải bảo đảm của lược đồ.
+
+Nên thêm `stt bigserial`.
+
+### Bốn chỗ trả lời cùng một câu hỏi
+
+`currentPrice`, `list()`, `anhChupDanhMuc()`, và phép so lúc sửa giá — mỗi chỗ tự
+viết `ORDER BY effective_from DESC LIMIT 1`. Chừng nào một ngày chỉ có một dòng
+thì bốn bản sao ấy vô hại; từ `0126` chúng có thể trả về bốn con số khác nhau
+trên cùng một dữ liệu. Gom thành hằng `THU_TU_GIA_MOI_NHAT`.
+
+### Một ca kiểm KHÔNG bắt được thứ nó định bắt
+
+Ca *"đặt lại giá cùng ngày"* dựng bốn dòng cùng ngày rồi khẳng định lần cuối
+thắng. Phá lại:
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `stt DESC` → `stt ASC` | ĐỎ |
+| Bỏ hẳn `stt` khỏi `ORDER BY` | **vẫn xanh** |
+
+Vì chỉ mục `ix_price_lookup` đã mang sẵn `(… effective_from DESC, stt DESC)`, nên
+Postgres quét chỉ mục và trả đúng thứ tự dù câu lệnh không đòi. Tôi có thử một
+lượt `UPDATE` để xáo thứ tự vật lý — không ăn thua, vì lượt quét đi qua chỉ mục
+chứ không qua heap.
+
+Thứ bắt được chiều thiếu là ca *"lịch sử trả về MỚI NHẤT TRƯỚC"*: nó đọc CẢ danh
+sách, không có `LIMIT 1`, nên không dựa được vào một lượt quét chỉ mục có sẵn thứ
+tự. Hai ca phải sống cùng nhau, và chú thích trong ca thứ nhất nói ra điều đó —
+gỡ ca kia đi thì luật phân xử mất người canh, và chỗ hỏng chỉ lộ ra khi có ai đổi
+chỉ mục.
+
+### Thứ tự cũ của lịch sử sắp theo LOẠI GIÁ trước
+
+`ORDER BY price_type, effective_from DESC`. Danh mục chỉ còn một loại nên nó
+không lộ ra, nhưng dữ liệu cũ còn dòng `GIA_BAN_BUON` đã rút khỏi danh mục — ở
+những sản phẩm ấy bảng gom theo loại chứ không theo thời gian, và mốc mới nhất
+không nằm ở dòng đầu.
+
+### Giao diện
+
+`max-height` + `overflow-y` cho riêng khung lịch sử: `.khung-cuon` chỉ có
+`overflow-x`, và hộp thoại thì cuộn cả thân — dài quá thì ô gõ xác nhận và nút
+Lưu bị đẩy khỏi tầm nhìn.
+
+Thêm cột **Ghi lúc**: nhiều dòng dùng chung một ngày hiệu lực thì chỉ hiện ngày
+là chúng trông y hệt nhau. Và nhãn *Đang áp dụng* giờ lấy **dòng đầu tiên đã hiệu
+lực trong thứ tự MÁY CHỦ trả về** — không tự `sort` lại: `stt` là con số giao
+diện không nhận được, nên sắp lại theo `effectiveFrom` thì hai dòng cùng ngày
+bằng nhau và nhãn rơi vào dòng nào cũng được.
+
+**1769/1769 xanh.**

@@ -1037,6 +1037,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CAT-33 | Sửa giá rồi lưu lại đúng giá ấy lần nữa | Lượt sau **không** sinh `catalog.price_changed` — mỗi sự kiện kéo theo một lượt rà toàn bộ hồ sơ đã đóng băng | §13.1 | `P1` |
 | CAT-34 | Đọc `GET /catalog/products` bằng token của TDV | Mỗi dòng có `price` là giá hiện hành, **khớp từng chữ** với `current-price`; giá của ngày mai chưa được tính | §13.1 | `P0` |
 | CAT-35 | Soi nhãn trạng thái sản phẩm ở cả hai bảng | Xanh *Đang áp dụng*, đỏ *Đã vô hiệu hoá*; dùng lại đúng hai khoá màu của nhãn trạng thái hồ sơ | §13.1 | `P2` |
+| CAT-36 | Đổi giá ba lần trong cùng một ngày | Lịch sử giữ **đủ ba dòng**; giá hiện hành là lần cuối, kể cả khi nó là con số nhỏ nhất. Phân xử bằng cột `stt` tăng dần, không bằng số tiền và không bằng thứ tự đọc đĩa | §13.1 | `P0` |
+| CAT-37 | Đọc lịch sử giá của một sản phẩm có cả dòng `GIA_BAN_BUON` cũ | Sắp **mới nhất trước** theo thời gian, không gom theo loại giá; mỗi dòng kèm thời điểm ghi | §13.1 | `P1` |
 | FE-39 | Chọn một sản phẩm trong hộp thoại *Thêm dòng sản phẩm* | **Giá bán Công ty** hiện ngay, và đứng **TRƯỚC** ô *Giá bán buôn* — đọc sau khi đã gõ xong thì quá muộn để có ích | §7 | `P1` |
 | FE-40 | Soi hàng thao tác của một dòng sản phẩm trong bảng | *Sửa* và *Xoá* nằm **cùng một hàng**; ô bảng hẹp không được đẩy chúng xếp chồng lên nhau | §7 | `P2` |
 | CAT-20 | Nhập file có ô lỗi công thức (`#N/A`) ở cột tên | `IMPORT_BAD_TYPE` nêu đúng dòng và cột. **Không** được lọt thành tên sản phẩm `[object Object]` | §13.1 | `P0` |

@@ -85,9 +85,18 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (26/08/2026)
+## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P153** (`0125`): khách hàng báo *"mở Sửa là lịch sử tự hiện giá hiện tại dù chưa
+Chặng gần nhất **P154** (`0126`): **lịch sử giá giữ đủ mọi lần sửa**, kể cả nhiều lần trong một
+ngày — gỡ `UNIQUE (product_id, price_type, effective_from)`, bỏ hai chỗ `ON CONFLICT DO UPDATE`, và
+thêm cột **`stt bigserial`** làm khoá phân xử (`id` là uuid ngẫu nhiên; `created_at` là `now()`, tức
+giờ MỞ transaction). Bốn chỗ tự viết `ORDER BY effective_from DESC LIMIT 1` gom thành hằng
+`THU_TU_GIA_MOI_NHAT`. Lịch sử đổi sang **mới nhất trước** (thứ tự cũ sắp theo `price_type` trước —
+lộ ra ở sản phẩm còn dòng `GIA_BAN_BUON`), kèm cột *Ghi lúc*; khung tự cuộn dọc. Bẫy đã ghi: ca kiểm
+tie-break **không bắt được việc bỏ `stt` khỏi `ORDER BY`** vì chỉ mục `ix_price_lookup` đã mang sẵn
+thứ tự ấy — ca bắt được là ca đọc CẢ danh sách, không có `LIMIT 1`. **1769/1769 xanh.**
+
+Trước đó **P153** (`0125`): khách hàng báo *"mở Sửa là lịch sử tự hiện giá hiện tại dù chưa
 Lưu"*. **Đo trên Postgres thật: KHÔNG có lượt ghi nào** — dòng ấy do lượt TẠO sinh ra (`0123`) và nó
 đúng. Nhưng đo xong lộ hai chỗ sai thật: **`seed-demo` để lại một dòng giá thừa ngày hôm nay** (hồi
 quy của `0123` — nó tạo kèm `price` rồi đặt thêm mốc 2024, thành hai dòng cùng số tiền), và **bảng

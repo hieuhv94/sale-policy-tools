@@ -1554,6 +1554,11 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
 > **Sản phẩm vừa tạo đã có một dòng trong lịch sử giá**, đề ngày hôm nay — đó là giá bạn nhập lúc tạo,
 > không phải một lần đổi giá do hệ thống tự ghi. Mở hộp thoại *Sửa* ra xem thì **không có gì được
 > ghi**; chỉ bấm *Lưu* mới ghi, và chỉ khi con số thật sự khác.
+
+**Sửa giá nhiều lần trong cùng một ngày thì lịch sử giữ đủ mọi lần** `mới 27/08`. Mỗi lần một dòng,
+cột *Ghi lúc* cho biết lần nào trước lần nào; giá đang dùng là **lần cuối cùng**, và nó mang nhãn
+*Đang áp dụng*. Khung lịch sử **tự cuộn** khi dài, để ô xác nhận và nút *Lưu* luôn nằm trong tầm
+nhìn.
 - **Mọi lượt Sửa đều phải gõ lại mã vật tư** `mới 26/08`, không riêng lúc vô hiệu hoá. Màn hình này
   giờ đổi được cả giá — con số đóng băng vào mọi hồ sơ gửi duyệt từ lúc ấy — nên không còn thao tác
   nhẹ nào ở đây.

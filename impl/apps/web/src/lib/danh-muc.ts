@@ -120,7 +120,13 @@ export type SanPham = {
 
 export type NhomSanPham = { id: string; code: string; name: string };
 
-export type DongGia = { priceType: LoaiGia; amount: string; effectiveFrom: string };
+export type DongGia = {
+  priceType: LoaiGia;
+  amount: string;
+  effectiveFrom: string;
+  /** Thời điểm GHI dòng này (`0126`) — phân biệt mấy lần sửa trong cùng một ngày. */
+  createdAt: string;
+};
 
 export type QuyDinhChietKhau = {
   /** Mã do Quản trị đặt — khoá chính từ `0024`, hiện ở cột *Id*. */

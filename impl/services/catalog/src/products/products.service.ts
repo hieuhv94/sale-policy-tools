@@ -43,6 +43,19 @@ export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
  * Giá trị enum trong CSDL vẫn còn, để lịch sử giá đã lỡ ghi vẫn đọc được. Chốt
  * chặn dòng mới nằm ở `0019_mot_loai_gia.sql`.
  */
+/**
+ * THỨ TỰ "GIÁ MỚI NHẤT" — khai một lần, dùng ở mọi chỗ chọn giá (`0126`).
+ *
+ * Bốn chỗ trả lời cùng câu hỏi *"giá hiện hành là bao nhiêu"*: `currentPrice`,
+ * `list()`, `anhChupDanhMuc()`, và phép so lúc sửa giá. Từ `0126` một sản phẩm
+ * có thể có NHIỀU dòng cùng ngày, nên `effective_from DESC` không còn đủ để
+ * quyết định dòng nào thắng — thiếu `stt` thì bốn chỗ ấy có thể trả về bốn con
+ * số khác nhau trên cùng một dữ liệu.
+ *
+ * Chép chuỗi này ra chỗ thứ năm là dựng chỗ thứ năm để lệch.
+ */
+export const THU_TU_GIA_MOI_NHAT = 'ORDER BY effective_from DESC, stt DESC';
+
 export const PRICE_TYPES = ['GIA_BAN_CONG_TY'] as const;
 export type PriceType = (typeof PRICE_TYPES)[number];
 
@@ -242,7 +255,7 @@ export class ProductsService {
           `SELECT amount::text FROM cat.product_price
             WHERE product_id = $1 AND price_type = 'GIA_BAN_CONG_TY'
               AND effective_from <= current_date
-            ORDER BY effective_from DESC LIMIT 1`,
+            ${THU_TU_GIA_MOI_NHAT} LIMIT 1`,
           [id],
         );
         const cu = gia.rows[0]?.amount ?? null;
@@ -304,7 +317,7 @@ export class ProductsService {
            SELECT amount FROM cat.product_price
             WHERE product_id = p.id AND price_type = 'GIA_BAN_CONG_TY'
               AND effective_from <= current_date
-            ORDER BY effective_from DESC LIMIT 1
+            ${THU_TU_GIA_MOI_NHAT} LIMIT 1
          ) gi ON true
         WHERE ($3::text IS NULL OR p.name_norm LIKE $3)
           AND ($4::text IS NULL OR g.code = $4)
@@ -380,7 +393,7 @@ export class ProductsService {
       const prev = await c.query<{ amount: string }>(
         `SELECT amount::text FROM cat.product_price
           WHERE product_id = $1 AND price_type = $2 AND effective_from <= current_date
-          ORDER BY effective_from DESC LIMIT 1`,
+          ${THU_TU_GIA_MOI_NHAT} LIMIT 1`,
         [productId, priceType],
       );
 
@@ -388,23 +401,26 @@ export class ProductsService {
        * THÊM một dòng lịch sử, không sửa dòng cũ: hồ sơ đã đóng băng giá theo
        * phiên bản vẫn phải tra lại đúng giá tại thời điểm đó (CAT-04).
        *
-       * ĐẶT LẠI GIÁ TRONG CÙNG MỘT NGÀY THÌ ĐÈ (`0121`). Trước đó ràng buộc
-       * `UNIQUE (product_id, price_type, effective_from)` làm lượt thứ hai chết
-       * với `PRICE_ALREADY_SET_FOR_DATE` — đúng về mặt dữ liệu và sai về mặt
-       * người dùng: gõ nhầm một số 0 lúc sáng thì cả ngày hôm đó không sửa lại
-       * được, phải đợi sang hôm sau hoặc khai một ngày hiệu lực giả.
+       * ĐẶT LẠI GIÁ TRONG CÙNG MỘT NGÀY THÌ THÊM MỘT DÒNG NỮA (`0126`).
        *
-       * Ràng buộc GIỮ NGUYÊN, và đó là điểm mấu chốt: bỏ nó đi thì hai dòng
-       * cùng ngày cùng tồn tại được, mà `currentPrice` chọn dòng bằng
-       * `ORDER BY effective_from DESC LIMIT 1` — không có gì phân xử, nên giá
-       * hiện hành đổi theo tâm trạng của Postgres. Upsert đạt đúng mục tiêu
-       * "ghi đè" mà vẫn giữ đúng một dòng cho mỗi ngày.
+       * Ba luật nối nhau ở chỗ này, ghi cả ba ra vì hai luật đầu đã bị thay:
+       *
+       *   tới `0120`  lượt thứ hai chết với `PRICE_ALREADY_SET_FOR_DATE` — đúng
+       *               về dữ liệu, sai về người dùng: gõ nhầm một số 0 lúc sáng
+       *               thì cả ngày hôm đó không sửa lại được.
+       *   `0121`      upsert, ĐÈ lên dòng của ngày ấy. Sửa được chuyện trên,
+       *               nhưng con số cũ biến mất — không ai biết trong ngày đã có
+       *               mấy lần đổi.
+       *   `0126`      chèn thêm dòng, giữ đủ mọi lần sửa (khách hàng chốt 26/08).
+       *
+       * Điều kiện để `0126` an toàn nằm ở lược đồ chứ không ở đây: cột `stt`
+       * tăng dần làm khoá phân xử, và MỌI chỗ chọn giá phải sắp bằng
+       * `THU_TU_GIA_MOI_NHAT`. Thiếu nó thì hai dòng cùng ngày bằng nhau ở khoá
+       * sắp xếp, và giá hiện hành đổi theo thứ tự đọc đĩa.
        */
       await c.query(
         `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-         VALUES ($1,$2,$3, coalesce($4::date, current_date), $5)
-         ON CONFLICT (product_id, price_type, effective_from)
-         DO UPDATE SET amount = EXCLUDED.amount, created_by = EXCLUDED.created_by`,
+         VALUES ($1,$2,$3, coalesce($4::date, current_date), $5)`,
         [productId, priceType, amount.toString(), effectiveFrom ?? null, actorId],
       );
 
@@ -436,19 +452,31 @@ export class ProductsService {
     const row = await this.db.one<{ amount: string; effective_from: Date }>(
       `SELECT amount::text, effective_from FROM cat.product_price
         WHERE product_id = $1 AND price_type = $2 AND effective_from <= coalesce($3::date, current_date)
-        ORDER BY effective_from DESC LIMIT 1`,
+        ${THU_TU_GIA_MOI_NHAT} LIMIT 1`,
       [productId, priceType, on ?? null],
     );
     if (!row) throw new NotFoundException({ code: 'PRICE_NOT_SET' });
     return { productId, priceType, amount: row.amount, effectiveFrom: row.effective_from };
   }
 
+  /**
+   * Lịch sử giá, MỚI NHẤT TRƯỚC (`0126`).
+   *
+   * Thứ tự cũ là `price_type, effective_from DESC` — sắp theo LOẠI GIÁ trước.
+   * Danh mục chỉ còn một loại nên nó không lộ ra, nhưng dữ liệu cũ còn dòng
+   * `GIA_BAN_BUON` đã rút khỏi danh mục; ở những sản phẩm ấy bảng gom theo loại
+   * chứ không theo thời gian, và mốc mới nhất không nằm ở dòng đầu.
+   *
+   * Trả kèm `createdAt` vì từ `0126` nhiều dòng dùng chung một ngày hiệu lực —
+   * chỉ hiện ngày thì mấy lần sửa trong ngày trông y hệt nhau và không xếp được
+   * thứ tự bằng mắt.
+   */
   priceHistory(productId: string) {
     return this.db.q(
       `SELECT price_type::text AS "priceType", amount::text AS amount,
-              effective_from AS "effectiveFrom"
+              effective_from AS "effectiveFrom", created_at AS "createdAt"
          FROM cat.product_price WHERE product_id = $1
-        ORDER BY price_type, effective_from DESC`,
+        ${THU_TU_GIA_MOI_NHAT}`,
       [productId],
     );
   }
@@ -479,7 +507,7 @@ export class ProductsService {
            SELECT amount FROM cat.product_price
             WHERE product_id = p.id AND price_type = 'GIA_BAN_CONG_TY'
               AND effective_from <= current_date
-            ORDER BY effective_from DESC LIMIT 1
+            ${THU_TU_GIA_MOI_NHAT} LIMIT 1
          ) gi ON true
         ORDER BY p.code`,
     );
@@ -615,9 +643,7 @@ export class ProductsService {
   ) {
     await c.query(
       `INSERT INTO cat.product_price (product_id, price_type, amount, effective_from, created_by)
-       VALUES ($1,'GIA_BAN_CONG_TY',$2, current_date, $3)
-       ON CONFLICT (product_id, price_type, effective_from)
-       DO UPDATE SET amount = EXCLUDED.amount, created_by = EXCLUDED.created_by`,
+       VALUES ($1,'GIA_BAN_CONG_TY',$2, current_date, $3)`,
       [productId, amount.toString(), actorId],
     );
     await emit(c, 'catalog.price_changed', {

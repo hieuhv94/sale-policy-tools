@@ -1136,7 +1136,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     expect((await dem()) - truoc).toBe(1);
   });
 
-  it('nhập LẦN HAI trong cùng ngày thì đè giá, không báo trùng ngày', async () => {
+  it('`0126` nhập LẦN HAI trong cùng ngày thì THÊM dòng, không báo trùng ngày', async () => {
     /*
      * `UNIQUE (product_id, price_type, effective_from)` giữ nguyên; lượt ghi đi
      * qua `ON CONFLICT DO UPDATE` (`0121`). Bỏ ràng buộc thì hai dòng cùng ngày
@@ -1156,7 +1156,11 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
     const gia = await get(`/catalog/products/${sp.body.id}/current-price?priceType=GIA_BAN_CONG_TY`);
     expect(gia.body.amount).toBe('22000');
 
-    // Đúng MỘT dòng giá cho hôm nay, không phải hai.
+    /*
+     * BA dòng cho hôm nay (`0126`): một của lượt tạo, và một cho mỗi lượt nhập
+     * đổi giá. Tới `0125` chỗ này khẳng định đúng MỘT dòng — upsert đè lên nhau,
+     * và đúng cái đè ấy là thứ khách hàng bảo bỏ.
+     */
     const dong = await withAdminDb(async (c) =>
       c.query<{ n: string }>(
         `SELECT count(*)::text AS n FROM cat.product_price
@@ -1164,7 +1168,7 @@ describe('CAT-15 · CAT-16 nhập danh mục từ Excel', () => {
         [sp.body.id],
       ),
     );
-    expect(dong.rows[0]!.n).toBe('1');
+    expect(dong.rows[0]!.n).toBe('3');
   });
 
   it('chỉ Quản trị hệ thống xem trước được', async () => {
@@ -1425,41 +1429,78 @@ describe('CAT-18 đổi giá phát sự kiện đúng một lần', () => {
     expect(ev.newAmount).toBe('150000');
   });
 
-  it('`0121` đặt lại giá CÙNG NGÀY thì ĐÈ, không báo lỗi trùng ngày', async () => {
+  it('`0126` đặt lại giá CÙNG NGÀY thì THÊM một dòng, giữ đủ mọi lần sửa', async () => {
     /*
-     * Tới `0120` lượt thứ hai chết với `PRICE_ALREADY_SET_FOR_DATE` — đúng về
-     * mặt dữ liệu và sai về mặt người dùng: gõ nhầm một số 0 lúc sáng thì cả
-     * ngày hôm đó không sửa lại được, phải đợi sang hôm sau hoặc khai một ngày
-     * hiệu lực giả.
+     * Ba luật nối nhau, ghi cả ba vì hai luật đầu đã bị thay:
      *
-     * Ràng buộc `UNIQUE (product_id, price_type, effective_from)` GIỮ NGUYÊN;
-     * lượt ghi đi qua `ON CONFLICT DO UPDATE`. Bỏ ràng buộc thì hai dòng cùng
-     * ngày cùng tồn tại, mà `currentPrice` chọn dòng bằng `ORDER BY
-     * effective_from DESC LIMIT 1` — không có gì phân xử, nên giá hiện hành đổi
-     * theo tâm trạng của Postgres.
+     *   tới `0120`  lượt thứ hai chết với `PRICE_ALREADY_SET_FOR_DATE`.
+     *   `0121`      upsert, ĐÈ lên dòng của ngày ấy — con số cũ biến mất.
+     *   `0126`      chèn thêm dòng, giữ đủ (khách hàng chốt 26/08).
+     *
+     * KHÔNG khai `effectiveFrom`: cả bốn dòng — một của lượt tạo, ba của ba lượt
+     * đặt giá — cùng rơi vào NGÀY HÔM NAY. Đó chính là tình huống mà cột `stt`
+     * sinh ra để phân xử; khai một ngày quá khứ thì `effective_from` đã đủ tách
+     * chúng ra và ca kiểm không chạm tới thứ nó định kiểm.
      */
-    const { id } = await makeProduct();
-    for (const amount of ['100000', '111000']) {
+    const { id } = await makeProduct({ price: '100000' });
+    for (const amount of ['111000', '123000', '99000']) {
       const r = await post(`/catalog/products/${id}/prices`, {
         priceType: 'GIA_BAN_CONG_TY',
         amount,
-        effectiveFrom: '2020-01-01',
       });
       expect(r.status, `đặt giá ${amount}`).toBe(201);
     }
 
-    // ĐÚNG MỘT dòng cho ngày ấy, mang giá của lượt sau.
     const dong = await withAdminDb(async (c) =>
-      c.query<{ n: string; amount: string }>(
-        `SELECT count(*)::text AS n, max(amount)::text AS amount
-           FROM cat.product_price
+      c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM cat.product_price
           WHERE product_id = $1 AND price_type = 'GIA_BAN_CONG_TY'
-            AND effective_from = '2020-01-01'`,
+            AND effective_from = current_date`,
         [id],
       ),
     );
-    expect(dong.rows[0]!.n).toBe('1');
-    expect(dong.rows[0]!.amount).toBe('111000');
+    expect(dong.rows[0]!.n).toBe('4');
+
+    /*
+     * LẦN CUỐI thắng, dù nó là con số NHỎ NHẤT.
+     *
+     * `99000` cố ý: nếu một chỗ nào đó phân xử bằng số tiền thay vì bằng `stt`
+     * thì ca này đỏ, còn một con số tăng dần sẽ giấu lỗi ấy đi.
+     *
+     * GIỚI HẠN CỦA CA NÀY, đo được ở lượt phá lại:
+     *
+     *   - Đảo chiều thành `stt ASC` → ĐỎ. Bắt được.
+     *   - Bỏ hẳn `stt` khỏi `ORDER BY` → **vẫn xanh**. Chỉ mục `ix_price_lookup`
+     *     đã mang sẵn `(… effective_from DESC, stt DESC)`, nên Postgres quét
+     *     chỉ mục và trả đúng thứ tự dù câu lệnh không đòi.
+     *
+     * Thứ bắt được chiều thiếu là ca *"lịch sử trả về MỚI NHẤT TRƯỚC"* ngay dưới
+     * — nó đọc CẢ danh sách nên không dựa được vào một lượt quét có `LIMIT 1`.
+     * Hai ca này phải sống cùng nhau; gỡ ca kia đi thì luật phân xử mất người
+     * canh, và chỗ hỏng sẽ chỉ lộ ra khi ai đó đổi chỉ mục.
+     */
+    const gia = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
+    expect(gia.body.amount).toBe('99000');
+
+    // Và bảng danh sách phải nói cùng con số — bốn chỗ chọn giá, một luật.
+    const bang = await get(`/catalog/products?limit=200&q=San pham thu nghiem`);
+    const d = (bang.body.items as { id: string; price: string }[]).find((x) => x.id === id);
+    expect(d?.price).toBe('99000');
+  });
+
+  it('`0126` lịch sử trả về MỚI NHẤT TRƯỚC, kèm giờ ghi', async () => {
+    /*
+     * Thứ tự cũ là `price_type, effective_from DESC` — sắp theo LOẠI GIÁ trước.
+     * Danh mục chỉ còn một loại nên nó không lộ ra, nhưng dữ liệu cũ còn dòng
+     * `GIA_BAN_BUON`, và ở những sản phẩm ấy mốc mới nhất không nằm ở dòng đầu.
+     */
+    const { id } = await makeProduct({ price: '10000' });
+    await post(`/catalog/products/${id}/prices`, { amount: '20000' });
+
+    const ls = await get(`/catalog/products/${id}/prices`);
+    const ds = ls.body as { amount: string; createdAt: string }[];
+    expect(ds[0]!.amount).toBe('20000');
+    expect(ds[0]!.createdAt, 'phải có giờ ghi để phân biệt hai lần cùng ngày').toBeTruthy();
   });
 
   it('mỗi lượt đặt giá phát ĐÚNG MỘT sự kiện, kể cả lượt ghi đè', async () => {
@@ -1963,6 +2004,11 @@ describe('`0036` xác nhận bằng cách gõ lại mã', () => {
       const gia = await get(`/catalog/products/${id}/current-price?priceType=GIA_BAN_CONG_TY`);
       expect(gia.body.amount).toBe('250000');
 
+      /*
+       * HAI dòng cho hôm nay (`0126`): lượt tạo ghi một, lượt sửa ghi một nữa.
+       * Tới `0125` upsert đè lên nhau nên chỗ này khẳng định đúng một dòng — và
+       * đúng cái đè ấy là thứ khách hàng bảo bỏ: lịch sử phải giữ đủ mọi lần.
+       */
       const dong = await withAdminDb(async (c) =>
         c.query<{ n: string }>(
           `SELECT count(*)::text AS n FROM cat.product_price
@@ -1970,7 +2016,7 @@ describe('`0036` xác nhận bằng cách gõ lại mã', () => {
           [id],
         ),
       );
-      expect(dong.rows[0]!.n).toBe('1');
+      expect(dong.rows[0]!.n).toBe('2');
     });
 
     it('`0123` gửi lại ĐÚNG giá đang có thì KHÔNG sinh sự kiện đổi giá', async () => {

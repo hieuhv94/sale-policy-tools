@@ -1387,6 +1387,13 @@ kỳ đâu. Chi tiết ở mục 6.4.
 > người bấm xoá không có màn hình nào cho biết mình vừa làm gì. Nên bỏ đường xoá không phải là một
 > yêu cầu thứ hai, nó là điều kiện để đường thứ nhất an toàn.
 
+**Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
+dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
+
+> Trước đó hai lần sửa trong một ngày ĐÈ lên nhau: con số cũ biến mất, và không ai biết trong ngày ấy
+> đã có mấy lần đổi. Cái giá của việc giữ đủ nằm ở lược đồ — phải có một khoá phân xử tăng dần, nếu
+> không thì hai dòng cùng ngày bằng nhau và giá hiện hành đổi theo thứ tự đọc đĩa.
+
 **Sản phẩm phải có giá ngay từ lúc tạo** `mới 26/08` — Giá bán Công ty là trường **bắt buộc** của
 biểu mẫu tạo sản phẩm, và của cả cột trong file Excel. Không còn nút *Giá* riêng: giá sửa ngay ở
 biểu mẫu *Sửa*, và **mọi lượt sửa đều đòi gõ lại mã vật tư** để xác nhận. **Ngày áp dụng luôn là

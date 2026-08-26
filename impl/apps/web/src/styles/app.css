@@ -1307,6 +1307,16 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
    Bảng nằm trong `.khung-cuon` nên giữ chúng cùng hàng chỉ làm bảng rộng ra và
    cuộn ngang — thứ mà bảng sản phẩm vốn đã làm với mười mấy cột. */
+/* Khung lịch sử giá tự cuộn dọc (`0126`).
+
+   Lịch sử chỉ dài ra chứ không bao giờ ngắn lại — mỗi NGÀY có đổi giá là một
+   dòng, và từ `0126` mỗi LẦN sửa trong ngày cũng là một dòng. Nó nằm ở cuối hộp
+   thoại Sửa, nên dài quá thì ô gõ xác nhận và nút Lưu bị đẩy khỏi tầm nhìn.
+
+   `--k` nhân lên xấp xỉ tám dòng cộng hàng tiêu đề: đủ để đọc mấy lần đổi gần
+   nhất mà không nuốt mất phần biểu mẫu phía trên. */
+.khung-lich-su-gia { max-height: 18rem; overflow-y: auto; }
+
 .nhom-nut-hang { flex-wrap: nowrap; }
 .nhom-nut-hang .nut { white-space: nowrap; }
 

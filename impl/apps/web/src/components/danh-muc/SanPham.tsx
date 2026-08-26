@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, guiTep, layJson, taiVe, va } from '../../lib/api.js';
-import { ngay, tien } from '../../lib/format.js';
+import { ngay, ngayGio, tien } from '../../lib/format.js';
 import {
   NHAN_LOAI_GIA,
   NHAN_TRANG_THAI_SAN_PHAM,
@@ -477,9 +477,20 @@ function LichSuGia({ id }: { id: string }) {
    * ngày không ở tương lai, đúng luật của `currentPrice`.
    */
   const homNay = new Date().toISOString().slice(0, 10);
-  const dangApDung = (ls ?? [])
-    .filter((d) => d.priceType === 'GIA_BAN_CONG_TY' && d.effectiveFrom.slice(0, 10) <= homNay)
-    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+  /*
+   * Dòng ĐẦU TIÊN đã hiệu lực trong thứ tự MÁY CHỦ trả về, không tự sắp lại.
+   *
+   * Từ `0126` nhiều dòng dùng chung một ngày hiệu lực, và thứ phân xử giữa chúng
+   * là cột `stt` — một con số giao diện không nhận được. Sắp lại ở đây theo
+   * `effectiveFrom` thì hai dòng cùng ngày bằng nhau, `sort` giữ thứ tự nào tuỳ
+   * bản trình duyệt, và nhãn *Đang áp dụng* rơi vào dòng nào cũng được.
+   *
+   * Máy chủ đã sắp đúng bằng `THU_TU_GIA_MOI_NHAT`; việc còn lại chỉ là bỏ qua
+   * những dòng chưa tới ngày.
+   */
+  const dangApDung = (ls ?? []).find(
+    (d) => d.priceType === 'GIA_BAN_CONG_TY' && d.effectiveFrom.slice(0, 10) <= homNay,
+  );
 
   return (
     <>
@@ -499,13 +510,29 @@ function LichSuGia({ id }: { id: string }) {
               Sản phẩm này chưa đổi giá lần nào. Dòng dưới đây là giá đặt lúc tạo sản phẩm.
             </p>
           )}
-          <div className="khung-cuon" role="region" aria-label="Lịch sử giá" tabIndex={0}>
+          {/*
+            KHUNG CUỘN DỌC, cao tối đa vài dòng (`0126`).
+
+            Lịch sử chỉ dài ra chứ không bao giờ ngắn lại, và nó nằm ở CUỐI hộp
+            thoại Sửa — dài quá thì ô gõ xác nhận và nút Lưu bị đẩy khỏi tầm
+            nhìn, người dùng phải cuộn ngược lên để bấm. Cuộn trong chính khung
+            này giữ hai thứ ấy đứng yên.
+          */}
+          <div
+            className="khung-cuon khung-lich-su-gia"
+            role="region"
+            aria-label="Lịch sử giá"
+            tabIndex={0}
+          >
             <table className="bang bang-lech">
               <thead>
                 <tr>
                   <th>Loại giá</th>
                   <th className="so">Số tiền</th>
                   <th>Áp dụng từ</th>
+                  {/* Từ `0126` nhiều lần sửa dùng chung một ngày — chỉ hiện ngày
+                      thì chúng trông y hệt nhau và không xếp được bằng mắt. */}
+                  <th>Ghi lúc</th>
                 </tr>
               </thead>
               <tbody>
@@ -523,6 +550,7 @@ function LichSuGia({ id }: { id: string }) {
                         <span className="nhan nhan-nhap">Chưa hiệu lực</span>
                       )}
                     </td>
+                    <td className="ma-phu">{ngayGio(d.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
