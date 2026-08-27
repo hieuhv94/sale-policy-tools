@@ -559,16 +559,40 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
 // `0066` M-08 — CSBH hết hiệu lực thì có thư, cả hai đường
 // =============================================================================
 
+/**
+ * Bơm cạn outbox rồi dọn sạch hộp thư — gọi ở CUỐI một ca kiểm nhiều bước.
+ *
+ * `donHopThuVaCho` chỉ dọn hộp THƯ. Sự kiện còn nằm trong outbox thì nó không
+ * thấy, và lượt bơm của ca kiểm SAU sẽ đẩy chúng xuống — ca ấy đếm nhầm thư của
+ * ca này thành thư của mình. Đo được ở `0147`: ba ca đỏ với `expected 2 to be 1`
+ * và `expected 'duplicate' to be 'sent'`, không ca nào có lỗi thật.
+ *
+ * Bơm NHIỀU lượt vì mỗi lượt chỉ lấy một lô; dọn sau cùng vì thư vừa bơm còn
+ * đang trên đường qua RabbitMQ.
+ */
+async function donSachSau(): Promise<void> {
+  for (let i = 0; i < 5; i += 1) await outbox.pumpOnce();
+  await donHopThuVaCho();
+}
+
+/**
+ * Chờ tới khi hộp thư có một lá mang tiêu đề chứa `khoa`, rồi trả về lá đó.
+ *
+ * Gỡ ra ngoài mọi `describe` ở `0147`: nó vốn là hàm riêng của khối `0066`, và
+ * khối mới cần đúng phép đợi ấy. Chép lại thì hai bản trôi khỏi nhau, mà cái
+ * trôi ở đây là phép ĐỢI — thứ hỏng thành ca kiểm chập chờn, không thành ca kiểm
+ * đỏ.
+ */
+async function doiThu(khoa: string) {
+  await outbox.pumpOnce();
+  await waitFor(
+    async () => (await listMail()).some((m) => m.Subject.includes(khoa)),
+    `thư có tiêu đề chứa "${khoa}"`,
+  );
+  return (await listMail()).find((m) => m.Subject.includes(khoa))!;
+}
+
 describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
-  /** Chờ tới khi hộp thư có một lá mang tiêu đề chứa `khoa`, rồi trả về lá đó. */
-  async function doiThu(khoa: string) {
-    await outbox.pumpOnce();
-    await waitFor(
-      async () => (await listMail()).some((m) => m.Subject.includes(khoa)),
-      `thư có tiêu đề chứa "${khoa}"`,
-    );
-    return (await listMail()).find((m) => m.Subject.includes(khoa))!;
-  }
 
   it('người của bản CŨ, không còn tên ở bản mới, được báo hết hiệu lực', async () => {
     const d = await draft();
@@ -654,7 +678,7 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     expect(tat.filter((m) => m.Subject.includes('hết hiệu lực'))).toHaveLength(0);
   }, 120_000);
 
-  it('khách hàng ngừng hợp tác — ba người còn lại của hồ sơ được báo', async () => {
+  it('khách hàng ngừng hợp tác — TBP và Kế toán được báo, Sale Admin thì không', async () => {
     const d = await draft();
     await runToActive(d.id);
     await donHopThuVaCho();
@@ -667,10 +691,15 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     expect(r.status, JSON.stringify(r.body)).toBe(200);
 
     const thu = await doiThu('ngừng hợp tác');
-    // Không có tdv01: họ vừa bấm nút và vừa nhìn thấy kết quả trên màn hình.
+    /*
+     * HAI người bị trừ, vì hai lý do khác hẳn nhau:
+     *
+     *   tdv01 — vừa bấm nút, vừa nhìn thấy kết quả trên màn hình;
+     *   sa01  — `0147`: Sale Admin nhận thư theo BƯỚC, không theo việc có tên
+     *           trên hồ sơ. Khách ngừng hợp tác không sinh ra việc gì cho họ.
+     */
     expect(thu.To.map((x) => x.Address).sort()).toEqual([
       'kt01@csbh.test',
-      'sa01@csbh.test',
       'tbp01@csbh.test',
     ]);
 
@@ -684,6 +713,154 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     // và gợi ý ngược lại là bắt người đọc đi tìm một hồ sơ không tồn tại.
     expect(m.Text).not.toContain('Phiên bản thay thế');
   }, 120_000);
+});
+
+// =============================================================================
+// `0147` — SALE ADMIN NHẬN THƯ THEO BƯỚC, KHÔNG THEO TÊN TRÊN HỒ SƠ
+// =============================================================================
+
+/**
+ * Khách hàng chốt 27/08: *"chỉ gửi cho SA khi đó là việc SA phải làm"*.
+ *
+ * Sale Admin **rời hẳn luồng** sau khi bàn giao bản cứng — khác ba vai trò kia,
+ * vốn còn có thể nhận lại hồ sơ ở vòng sau. Nên mọi lá thư gửi họ *vì họ còn tên
+ * trên hồ sơ* đều là thư không dẫn tới việc gì.
+ *
+ * Hai đường mang nghĩa ấy, và tệp này canh cả hai — cộng chiều dương, thứ dễ mất
+ * nhất khi luật viết dưới dạng một phép trừ.
+ */
+describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', () => {
+  it('KHÔNG nhận thư "để biết" khi hồ sơ đi tiếp mà không cần họ', async () => {
+    /*
+     * Kịch bản: SA bàn giao xong, Kế toán trả hồ sơ về ở L2. Thư chính đi TBP và
+     * TDV; trước `0147` thì SA nhận thêm một lá "để biết".
+     *
+     * Lá thư ấy tự nói ra vì sao nó phải đi: thân thư viết *"bạn KHÔNG phải xử
+     * lý gì ở bước này"* — tức theo định nghĩa của chính nó, đó là thư không có
+     * việc.
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01', { saleAdminUserId: await idCua('sa01') });
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    await act(d.id, 'SA_HANDOVER', 'sa01');
+    /*
+     * BƠM TRƯỚC rồi mới dọn, và thứ tự ấy là cả sự khác biệt.
+     *
+     * `OUTBOX_AUTO_PUMP=0` trong bộ test, nên thư của bốn bước trên còn nằm
+     * nguyên trong outbox chứ chưa tới hộp thư. Dọn một hộp thư trống là dọn
+     * đúng không có gì — rồi lượt bơm của `doiThu` đẩy cả bốn lá xuống cùng lúc,
+     * trong đó lá *tiếp nhận lần 1* có tên sa01, và ca kiểm đỏ ở một chỗ chẳng
+     * nói gì về nguyên nhân.
+     */
+    await outbox.pumpOnce();
+    await donHopThuVaCho();
+
+    await act(d.id, 'KT_RETURN_L2', 'kt01', { reason: 'Ban cung mo chu ky' });
+    const chinh = await doiThu('không tiếp nhận lần 2');
+    expect(chinh.To.map((x) => x.Address).sort()).toEqual([
+      'tbp01@csbh.test',
+      'tdv01@csbh.test',
+    ]);
+
+    /*
+     * MỐC ĐỒNG BỘ, và đây là chỗ bản đầu của ca kiểm này SAI.
+     *
+     * Bản ấy đợi lá thư chính rồi đếm ngay, kèm một câu giải thích nghe xuôi tai:
+     * *"hai lá phát ra từ cùng một transaction"*. Câu ấy đúng với OUTBOX bên
+     * `policy` nhưng sai với hai lá THƯ: `notification` gửi lá "để biết" SAU lá
+     * chính, trong cùng một lượt xử lý. Thấy lá chính không chứng minh được gì
+     * về lá kia — nó có thể còn đang trên đường.
+     *
+     * Đo được lúc phá lại: gỡ hẳn phép trừ Sale Admin khỏi `notification` mà ca
+     * kiểm **vẫn xanh**. Một ca kiểm xanh nhờ chạy nhanh hơn lỗi.
+     *
+     * Mốc đúng là một sự kiện SAU nó: hồ sơ được gửi lại. Cả hai đi qua CÙNG một
+     * hàng đợi, xử lý tuần tự — nên lá thư của lượt gửi lại tới nơi nghĩa là mọi
+     * lá của lượt trả về đã được thử gửi xong.
+     */
+    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
+    await doiThu('chờ duyệt lại');
+
+    /*
+     * CHIỀU NGƯỢC, và nó kiêm luôn mốc đồng bộ: cơ chế "để biết" vẫn sống, chỉ
+     * Sale Admin đứng ngoài. Lượt gửi lại báo TBP, nên Kế toán — người vừa trả
+     * hồ sơ về — nhận đúng một lá "để biết".
+     *
+     * ĐỢI lá ấy chứ không đọc ngay: lá "để biết" đi SAU lá chính trong cùng một
+     * lượt xử lý (bản đầu của ca kiểm này đã dính đúng chỗ ấy một lần). Và vì
+     * hàng đợi xử lý tuần tự, lá "để biết" của lượt GỬI LẠI tới nơi nghĩa là mọi
+     * lá của lượt TRẢ VỀ trước đó đã gửi xong — đó mới là thứ ca kiểm cần chắc.
+     *
+     * Thiếu khẳng định này thì một bản sửa gỡ hẳn `baoNguoiDaTacDong` cũng làm
+     * xanh cả ca kiểm.
+     */
+    const deBiet: Awaited<ReturnType<typeof fullMail>>[] = [];
+    await waitFor(async () => {
+      deBiet.length = 0;
+      for (const m of await listMail()) {
+        const full = await fullMail(m.ID);
+        if (full.Text.includes('chỉ để bạn biết')) deBiet.push(full);
+      }
+      return deBiet.length > 0;
+    }, 'thư "để biết" của lượt gửi lại');
+
+    expect(deBiet, 'cơ chế "để biết" phải còn nguyên cho ba vai trò kia').toHaveLength(1);
+    expect(deBiet[0]!.To.map((x) => x.Address)).toEqual(['kt01@csbh.test']);
+
+    for (const m of await listMail()) {
+      expect(
+        m.To.map((x) => x.Address),
+        `sa01 vẫn nhận thư "${m.Subject}"`,
+      ).not.toContain('sa01@csbh.test');
+    }
+
+    await donSachSau();
+  }, 150_000);
+
+  it('CHIỀU DƯƠNG: vẫn nhận đủ ba bước sinh ra việc cho mình', async () => {
+    /*
+     * Ca đắt nhất của tệp, và là ca dễ thiếu nhất: luật viết dưới dạng một phép
+     * TRỪ, nên một bản sửa trừ quá tay — chặn Sale Admin ở mọi đường — vẫn làm
+     * xanh cả hai ca chiều âm ở trên.
+     *
+     * Ba bước ấy là: Kế toán tiếp nhận L1 (việc bắt đầu), Kế toán bắt in lại
+     * (việc quay lại), Kế toán tiếp nhận L2 (kết quả việc họ vừa làm).
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await outbox.pumpOnce();
+    await donHopThuVaCho();
+
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01', { saleAdminUserId: await idCua('sa01') });
+    expect(
+      (await doiThu('tiếp nhận lần 1')).To.map((x) => x.Address),
+      'B6 giao việc cho Sale Admin mà không báo họ',
+    ).toContain('sa01@csbh.test');
+
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    await act(d.id, 'SA_HANDOVER', 'sa01');
+    await outbox.pumpOnce();
+    await donHopThuVaCho();
+
+    await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban cung bi nhoe' });
+    expect(
+      (await doiThu('in lại')).To.map((x) => x.Address),
+      'bắt in lại là việc của Sale Admin',
+    ).toContain('sa01@csbh.test');
+
+    await donSachSau();
+  }, 150_000);
 });
 
 // =============================================================================

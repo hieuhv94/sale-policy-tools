@@ -31,6 +31,31 @@ const THU_TU: [string, keyof BonNguoi][] = [
 ];
 
 /**
+ * Vai trò nhận thư theo BƯỚC, không theo việc có tên trên hồ sơ (`0147`).
+ *
+ * Khách hàng chốt 27/08: *"các thông báo và email liên quan đến CSBH chỉ gửi cho
+ * SA khi đó là việc SA phải làm"*.
+ *
+ * Sale Admin khác ba vai trò kia ở một điểm khiến luật này đúng: họ **rời hẳn
+ * luồng** sau khi bàn giao bản cứng. TDV thì luôn là người chịu trách nhiệm hồ
+ * sơ, TBP và Kế toán còn có thể nhận lại nó ở vòng sau — còn SA thì không, trừ
+ * đúng một đường là Kế toán bắt in lại. Nên mọi lá thư gửi họ *vì họ có tên
+ * trên hồ sơ* đều là thư không dẫn tới việc gì.
+ *
+ * HAI đường mang nghĩa ấy, và cả hai đều bị chặn ở lượt này:
+ *
+ *   `vaiTroConLai`   — hàm này: *"còn ai trên hồ sơ chưa được báo"*;
+ *   `observers`      — `notification.baoNguoiDaTacDong`: *"ai đã từng chạm vào"*.
+ *
+ * Đường CÒN LẠI không đụng tới: bảng `RECIPIENTS` và `OWNER_ROLE` bên
+ * `sla-worker` khai từng bước một, và ba chỗ có tên Sale Admin ở đó đều là bước
+ * sinh ra việc cho họ. Đó là khác biệt cả điểm của lượt sửa này — chặn theo
+ * ĐƯỜNG, không chặn theo danh sách hành động, nên thêm một bước mới cho Sale
+ * Admin về sau không phải nhớ khai vào đâu cả.
+ */
+export const KHONG_NHAN_THEO_TEN = new Set(['SALE_ADMIN']);
+
+/**
  * Vai trò của `hoSo` mà người giữ nó KHÔNG nằm trong `daBaoRoi`.
  *
  * Ô trống bị bỏ qua: hồ sơ chưa đi hết luồng thì chưa có Sale Admin, và một vai
@@ -44,6 +69,10 @@ export function vaiTroConLai(hoSo: BonNguoi, daBaoRoi: (string | null)[] = []): 
   const bo = new Set(daBaoRoi.filter((x): x is string => !!x));
   const ra: string[] = [];
   for (const [vaiTro, cot] of THU_TU) {
+    // `0147` — hàm này trả lời đúng câu *"còn ai trên hồ sơ"*, và đó là câu Sale
+    // Admin thôi trả lời. Lọc ở ĐÂY chứ không ở hai nơi gọi: cả hai đều hỏi cùng
+    // một câu, và nơi thứ ba thêm vào sau này cũng thế.
+    if (KHONG_NHAN_THEO_TEN.has(vaiTro)) continue;
     const id = hoSo[cot];
     // Cùng một người giữ hai vai trò trên một hồ sơ là chuyện không xảy ra ở
     // đây (bốn vai trò, bốn tài khoản khác nhau), nhưng `notification` vẫn khử

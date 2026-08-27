@@ -1496,6 +1496,21 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
 
+**Sale Admin chỉ nhận thư và thông báo khi đó là VIỆC CỦA HỌ** `mới 27/08` — mọi thư CSBH gửi Sale
+Admin *vì họ có tên trên hồ sơ* đều bỏ đi.
+
+> Bỏ: thư **"để biết"** ở mọi bước, và thư báo CSBH **hết hiệu lực** (cả hai đường — có phiên bản mới,
+> và khách hàng ngừng hợp tác), kể cả khi người lập **xoá** một hồ sơ đã đi qua tay họ.
+>
+> Giữ: ba bước **sinh ra việc** cho Sale Admin — *Kế toán tiếp nhận lần 1*, *Kế toán yêu cầu in lại*,
+> *Kế toán tiếp nhận lần 2* — cộng thư **nhắc sắp quá hạn** và **quá hạn** khi hồ sơ đang nằm ở bước
+> của họ.
+>
+> Vì sao luật này đúng với Sale Admin mà không đúng với ba vai trò kia: họ **rời hẳn luồng** sau khi
+> bàn giao bản cứng. TDV luôn là người chịu trách nhiệm hồ sơ; TBP và Kế toán còn có thể nhận lại nó
+> ở vòng sau. Sale Admin thì không, trừ đúng một đường là Kế toán bắt in lại — và đường ấy đã có thư
+> riêng.
+
 **Nhãn *Công nợ*** `sửa 27/08` — mọi màn hình gọi trường này là **Công nợ**, không phải *Điều khoản
 thanh toán*. Nội dung vẫn là điều khoản (chốt cùng ngày, ở trên); đổi là đổi **tên gọi**, về đúng chữ
 người dùng vẫn dùng. Bốn màn hình và cả bốn văn bản mẫu.

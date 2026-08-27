@@ -12835,3 +12835,146 @@ Hai ca kiểm của `0145` đứng nguyên, chỉ đổi chú thích cho đúng 
 Để nguyên vì nó ngoài phạm vi lượt này, nhưng nó là mã chết có một ca kiểm canh.
 
 **1884/1884 xanh.**
+
+## P175 — `0147` Sale Admin nhận thư theo BƯỚC, không theo tên trên hồ sơ
+
+Khách hàng chốt 27/08: *"các thông báo và email liên quan đến CSBH chỉ gửi cho SA
+khi đó là việc SA phải làm"*.
+
+### Chặn theo ĐƯỜNG, không theo danh sách hành động
+
+Cách hiển nhiên là khai một danh sách *"những hành động Sale Admin được nhận
+thư"* rồi lọc theo nó. Không làm thế, và đây là chỗ đáng ghi nhất của lượt này.
+
+Rà lại thì mọi lá thư tới Sale Admin đi qua đúng **bốn** cơ chế, và chúng chia
+làm hai loại rõ rệt:
+
+    THEO BƯỚC — mỗi bước một quyết định, khai sẵn trong mã
+      RECIPIENTS       workflow.service.ts   3 bước có tên SALE_ADMIN
+      OWNER_ROLE       sla-worker            SA_DANG_XU_LY -> SALE_ADMIN
+
+    THEO TÊN — "còn ai trên hồ sơ", không hỏi bước nào
+      vaiTroConLai     nguoi-nhan.ts         SUPERSEDE, CUSTOMER_RETIRED
+      observers        notification          thư "để biết", và hồ sơ bị xoá
+
+Hai cơ chế nhóm trên đã là những quyết định có cân nhắc cho TỪNG bước, và cả ba
+chỗ có tên Sale Admin đều là bước sinh ra việc cho họ. Hai cơ chế nhóm dưới thì
+theo định nghĩa của chính chúng không hỏi *"có việc không"*.
+
+Nên luật là: **chặn Sale Admin ở hai đường THEO TÊN, không đụng hai đường THEO
+BƯỚC.** Hai dòng mã, hai tệp. Cái được, và là lý do chọn cách này: thêm một bước
+mới cho Sale Admin về sau **không phải nhớ khai vào đâu cả** — một danh sách
+hành động thì phải nhớ, và đó đúng là loại luật `0128` đã ghi vào `CLAUDE.md`.
+
+### Vì sao luật đúng với Sale Admin mà không đúng với ba vai trò kia
+
+Họ **rời hẳn luồng** sau khi bàn giao bản cứng. TDV luôn là người chịu trách
+nhiệm hồ sơ; TBP và Kế toán còn có thể nhận lại nó ở vòng sau. Sale Admin thì
+không, trừ đúng một đường là `KT_REQUEST_REPRINT` — và đường ấy đã có thư riêng
+trong `RECIPIENTS`.
+
+Chép luật này sang một vai trò khác là sai, và chú thích tại chỗ nói ra điều đó.
+
+### Chỗ đặt phép trừ `observers`
+
+`observers` là danh sách **id người đã thao tác**, dựng ở BA nơi phát sự kiện
+(`workflow`, `policies.discarded`, `sla-worker`). Lọc ở nơi phát là ba chỗ phải
+nhớ; lọc ở `notification.baoNguoiDaTacDong` là **một** chỗ, và đúng chỗ theo
+nghĩa: ba nơi kia chỉ biết *"ai đã chạm vào hồ sơ"*, còn câu *"ai đáng nhận thư
+không-việc"* thuộc về nơi dựng lá thư ấy.
+
+Trừ theo ID chứ không theo vai trò, vì `observers` không mang vai trò nào. Việc
+ấy an toàn nhờ một bất biến đã có: bốn vai trò, bốn tài khoản khác nhau.
+
+### Ba lần đo để quy trách nhiệm cho ca kiểm đỏ
+
+Lượt chạy đầu của `notification.test.ts` cho **5 đỏ**, và không đọc ra được ngay
+cái nào là lỗi thật. Ba lượt chạy để tách:
+
+    mã nguồn MỚI + ca kiểm MỚI   5 đỏ
+    mã nguồn MỚI + ca kiểm HEAD  4 đỏ
+    mã nguồn HEAD + ca kiểm HEAD 2 đỏ   <- INT-06 và `0085`
+
+Hai ca cuối **đỏ sẵn ở HEAD khi chạy riêng tệp này** — chúng phụ thuộc thứ tự và
+chỉ xanh trong lượt chạy đầy đủ. Không phải do lượt sửa này, và không đụng tới.
+
+Ba ca còn lại thì đúng là của tôi: một ca `0066` khai tên `sa01` trong danh sách
+người nhận thư *ngừng hợp tác* (đúng luật cũ), và hai ca đỏ vì ca kiểm MỚI để lại
+rác.
+
+**Đừng đoán một ca đỏ là "chắc do chạy riêng".** Ba lượt chạy trả lời dứt điểm
+câu ấy, và lượt thứ ba là lượt duy nhất nói được điều gì chắc chắn.
+
+### `donSachSau()` — dọn cả OUTBOX, không chỉ hộp thư
+
+Hai ca đỏ kia (`expected 2 to be 1`, `expected 'duplicate' to be 'sent'`) có cùng
+một nguyên nhân: `OUTBOX_AUTO_PUMP=0` nên sự kiện của ca kiểm này còn nằm trong
+outbox khi ca kiểm sau bắt đầu, và lượt bơm của ca sau đẩy chúng xuống — ca sau
+đếm nhầm thư của ca trước thành thư của mình.
+
+`donHopThuVaCho` chỉ dọn hộp THƯ, nên nó không thấy gì để dọn. Thêm
+`donSachSau()`: bơm cạn rồi mới dọn.
+
+Cùng bẫy ấy còn cắn một lần nữa **trong chính ca kiểm mới**: dọn hộp thư sau bốn
+bước duyệt là dọn đúng không có gì, rồi `doiThu` bơm cả bốn lá xuống cùng lúc —
+trong đó lá *tiếp nhận lần 1* có tên `sa01`, và ca kiểm đỏ ở một chỗ chẳng nói gì
+về nguyên nhân. **Bơm TRƯỚC, dọn SAU.**
+
+> **SỰ CỐ, lần thứ ba — và lần này chốt chặn không bắt được.**
+>
+> Ba lượt chạy `vitest` ở trên gõ thẳng `docker compose … -f compose.test.yml run`,
+> đúng loại lệnh `CLAUDE.md` cấm khi chồng demo đang bật. Và chồng demo **đã bật**
+> trong quãng ấy — người dùng dựng lên để xem lượt đổi nhãn của `0146`.
+>
+> Chốt chặn `check-demo-down` chỉ nằm ở mục tiêu `make test`; gọi thẳng `vitest`
+> qua compose thì đi vòng qua nó. Đúng bài học `0134` đã ghi — *"gọi vitest thẳng
+> không phải cách chạy nhẹ hơn, nó là cách bỏ qua chốt duy nhất canh chuyện
+> này"* — lặp lại ở chính người vừa đọc dòng ấy.
+>
+> Đếm lại ngay sau đó: 295 hồ sơ · 30 tài khoản · 124 khách hàng · 131 sản phẩm ·
+> 24 mẫu hợp đồng. Không bảng nào bị xoá; cái mất là dữ liệu demo **trộn lẫn** dữ
+> liệu test. Dựng lại bằng `make demo` + `make demo-mau` là sạch.
+>
+> Cách đúng khi demo bật, đã ghi từ `0134` và vẫn đúng: chỉ chạy `tests/web`, và
+> chạy bằng `docker run` một ảnh rời gắn repo vào với `--network none` — không
+> gõ bất kỳ lệnh `compose … -f compose.test.yml` nào.
+
+### Một ca kiểm XANH NHỜ CHẠY NHANH HƠN LỖI
+
+Bản đầu của ca chiều âm đợi lá thư CHÍNH rồi đếm ngay, kèm một câu giải thích
+nghe rất xuôi: *"hai lá phát ra từ CÙNG một transaction, nên thấy lá chính rồi mà
+hộp thư vẫn chỉ có nó nghĩa là lá kia thật sự không được gửi"*.
+
+Câu ấy đúng với **outbox** bên `policy` và sai với hai lá **thư**: `notification`
+gửi lá "để biết" SAU lá chính, trong cùng một lượt xử lý. Thấy lá chính không
+chứng minh được gì về lá kia.
+
+Phá lại bắt được: gỡ hẳn phép trừ Sale Admin khỏi `notification` mà ca kiểm
+**vẫn xanh 45/45**. Nếu không phá lại thì lượt này đã giao đi một luật không có
+gì canh — và tệ hơn, một ca kiểm mang tên đúng luật ấy.
+
+Chữa bằng một MỐC ĐỒNG BỘ có thật: gửi lại hồ sơ, rồi **đợi lá "để biết" của
+lượt gửi lại** (lá ấy đi tới Kế toán — người vừa trả hồ sơ về). Hàng đợi xử lý
+tuần tự, nên lá ấy tới nơi nghĩa là mọi lá của lượt trả về đã gửi xong. Cùng một
+phép đợi kiêm luôn chiều ngược: cơ chế "để biết" vẫn sống nguyên cho ba vai trò
+kia.
+
+Bài học, cùng họ với `0144` (`flushSync` so trạng thái ở một hồ sơ đi vòng):
+**một phép đợi sai không làm ca kiểm đỏ, nó làm ca kiểm vô nghĩa.** Và câu chú
+thích nghe xuôi tai là thứ giữ cho nó không bị nghi ngờ.
+
+### Ca chiều dương là ca đắt nhất
+
+Luật viết dưới dạng một phép TRỪ, nên một bản sửa trừ quá tay — chặn Sale Admin ở
+mọi đường — vẫn làm xanh cả hai ca chiều âm. Ca chiều dương chạy đủ ba bước sinh
+việc và đòi có tên `sa01` trong từng lá.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gỡ phép lọc ở `vaiTroConLai` | 1 đỏ — ca *ngừng hợp tác* |
+| Gỡ phép trừ `observers` ở `notification` | 1 đỏ — ca chiều âm *(sau khi chữa phép đợi; TRƯỚC đó: 0 đỏ)* |
+| Bỏ `SALE_ADMIN` khỏi `RECIPIENTS.KT_RECEIVE_L1` | 2 đỏ — ca chiều dương và bảng người nhận muc 3 |
+
+**1886/1886 xanh.**

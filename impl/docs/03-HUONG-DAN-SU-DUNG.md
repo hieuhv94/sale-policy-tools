@@ -146,7 +146,7 @@ Bấm vào chuông thì sổ xuống **10 thông báo gần nhất**. Mỗi dòn
 | Dòng mờ | Mã và tên khách hàng, mã hồ sơ |
 | Dòng nhỏ | *3 giờ trước* — rê chuột lên thì hiện ngày giờ đầy đủ |
 | Chấm xanh bên trái | Dòng này bạn **chưa đọc** |
-| Nhãn **để biết** | Bạn **không phải xử lý gì** — bạn nhận nó vì đã từng thao tác trên hồ sơ |
+| Nhãn **để biết** | Bạn **không phải xử lý gì** — bạn nhận nó vì đã từng thao tác trên hồ sơ. Sale Admin không bao giờ nhận loại này `sửa 27/08` |
 
 **Bấm vào một dòng thì tới đúng chỗ mà liên kết trong email dẫn tới**, và dòng đó thành đã đọc. Dòng
 *để biết* mở *Lịch sử hồ sơ* thay vì mở hồ sơ — ở đó không có nút nào cho bạn bấm, còn lịch sử thì
@@ -915,9 +915,17 @@ Thư *để biết* nói thẳng ở thân thư rằng bạn **không phải x�
 sử** chứ không mở hồ sơ: mở hồ sơ ra bạn chẳng có nút nào bấm được, còn thứ bạn muốn biết là hồ sơ đã
 đi qua những đâu từ lúc bạn rời tay.
 
-Ba nhóm **không** nhận thư *để biết*: người vừa nhận thư chính (nhận hai thư cho một sự kiện là cách
+Bốn nhóm **không** nhận thư *để biết*: người vừa nhận thư chính (nhận hai thư cho một sự kiện là cách
 nhanh nhất khiến người ta ngừng đọc cả hai), người **vừa bấm nút** (họ vừa nhìn thấy kết quả trên
-màn hình), và tài khoản **đã bị vô hiệu hoá**.
+màn hình), tài khoản **đã bị vô hiệu hoá**, và **Sale Admin** `mới 27/08`.
+
+> **Sale Admin nhận thư theo BƯỚC, không theo việc có tên trên hồ sơ** `mới 27/08`. Họ **rời hẳn
+> luồng** sau khi bàn giao bản cứng — khác ba vai trò kia, vốn còn có thể nhận lại hồ sơ ở vòng sau —
+> nên mọi lá thư gửi họ *vì họ còn tên trên hồ sơ* đều là thư không dẫn tới việc gì.
+>
+> Sale Admin vẫn nhận **đủ** thư ở ba bước sinh ra việc cho mình: *Kế toán tiếp nhận lần 1* (việc bắt
+> đầu), *Kế toán yêu cầu in lại* (việc quay lại), *Kế toán tiếp nhận lần 2* (kết quả việc vừa làm) —
+> cộng thư **nhắc sắp quá hạn** và **quá hạn** khi hồ sơ đang nằm ở bước của họ.
 
 ### Thư báo CSBH hết hiệu lực
 
@@ -926,7 +934,7 @@ Một CSBH đang hiệu lực mất hiệu lực theo **hai đường**, và c�
 | Đường | Ai nhận thư |
 |---|---|
 | **Có phiên bản mới** được duyệt xong | Người của **bản cũ** mà **không còn tên trong bản mới** |
-| **Khách hàng ngừng hợp tác** | Cả ba người còn lại của hồ sơ — trừ chính TDV vừa bấm nút |
+| **Khách hàng ngừng hợp tác** | Trưởng bộ phận và Kế toán của hồ sơ — trừ chính TDV vừa bấm nút, và trừ Sale Admin `sửa 27/08` |
 
 Ở đường thứ nhất, thư thường **không được gửi**, và đó là đúng: cùng một Trình dược viên, cùng một
 Trưởng bộ phận, cùng một Kế toán giữ cả hai phiên bản thì cả bốn người vừa nhận lá *CSBH bắt đầu có

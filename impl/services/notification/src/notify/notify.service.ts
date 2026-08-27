@@ -359,7 +359,29 @@ export class NotifyService {
     const ids = Array.isArray(p['observers']) ? (p['observers'] as string[]) : [];
     if (ids.length === 0) return;
 
-    const bo = new Set([...daNhan.map((t) => t.userId), s(p['actorId']) ?? '']);
+    /*
+     * SALE ADMIN KHÔNG BAO GIỜ nhận lá thư này (`0147`).
+     *
+     * Khách hàng chốt 27/08: *"chỉ gửi cho SA khi đó là việc SA phải làm"*. Lá
+     * thư "để biết" thì theo định nghĩa của chính nó là lá thư KHÔNG có việc —
+     * thân thư viết đúng câu ấy: *"bạn KHÔNG phải xử lý gì ở bước này"*.
+     *
+     * Chặn ở đây, một chỗ, thay vì lọc `observers` ở ba nơi phát sự kiện
+     * (`workflow`, `policies.discarded`, `sla-worker`): ba nơi ấy chỉ biết *"ai
+     * đã chạm vào hồ sơ"*, còn câu *"ai đáng nhận thư không-việc"* thì thuộc về
+     * đây. Lọc ở nơi phát là dựng ra đúng cái bẫy `0128` — một luật phải nhớ
+     * khai lại mỗi lần thêm một nguồn sự kiện.
+     *
+     * Trừ theo ID chứ không theo vai trò: `observers` là danh sách người đã
+     * thao tác, không mang vai trò nào. Một người giữ hai vai trò trên cùng một
+     * hồ sơ là chuyện không xảy ra (bốn vai trò, bốn tài khoản), nên id của Sale
+     * Admin trong danh sách ấy chỉ có thể là chính họ.
+     */
+    const bo = new Set([
+      ...daNhan.map((t) => t.userId),
+      s(p['actorId']) ?? '',
+      s(p['saleAdminUserId']) ?? '',
+    ]);
     const conLai = [...new Set(ids)].filter((id) => typeof id === 'string' && !bo.has(id));
     if (conLai.length === 0) return;
 
