@@ -537,7 +537,7 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
   };
 
-  it('hộp GỬI DUYỆT có ô chọn mẫu, và nút Gửi xám cho tới khi chọn', async () => {
+  it('hộp GỬI DUYỆT có ô chọn mẫu, và nút Tiếp tục xám cho tới khi chọn', async () => {
     localStorage.setItem('csbh:phien', JSON.stringify(TDV));
     const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
 
@@ -552,7 +552,8 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
      * nên gọi trước là bày một khối đỏ ra trước khi người dùng kịp làm gì sai.
      */
     expect(f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'))).toEqual([]);
-    expect(screen.getByRole('button', { name: /^Xác nhận/ }).hasAttribute('disabled')).toBe(true);
+    // `0140` — bước một kết bằng *Tiếp tục*: nút này chuyển bước, không gửi gì.
+    expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('đổi mẫu thì bản xem trước DỰNG LẠI bằng đúng mẫu vừa chọn', async () => {
@@ -575,7 +576,7 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     });
   });
 
-  it('gửi duyệt thì `mauHoSoId` đi kèm thân yêu cầu', async () => {
+  it('gửi duyệt thì `mauHoSoId` đi kèm thân yêu cầu — qua CẢ HAI bước', async () => {
     // jsdom không có `URL.createObjectURL`, mà bản xem trước dựng `blob:` từ nó
     // — thiếu thì `xemUrl` mãi là null và nút *Xác nhận* xám vĩnh viễn.
     vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
@@ -591,9 +592,23 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
       if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
     }
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^Xác nhận/ }).hasAttribute('disabled')).toBe(false),
+      expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(false),
     );
-    fireEvent.click(screen.getByRole('button', { name: /^Xác nhận/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
+
+    /*
+     * BƯỚC HAI (`0140`): đọc bản mềm, rồi mới có nút gửi thật.
+     *
+     * Tìm TRONG hộp thoại, không tìm cả trang: nút *Gửi duyệt* của dải thao tác
+     * phía sau vẫn còn đó, cùng tên. `getByRole` toàn trang trả về "tìm thấy hai
+     * phần tử" — một câu lỗi nói đúng vấn đề nhưng dễ đọc nhầm thành lỗi của mã
+     * sản phẩm.
+     */
+    const nutGui = await within(await screen.findByRole('dialog')).findByRole('button', {
+      name: 'Gửi duyệt',
+    });
+    await waitFor(() => expect(nutGui.hasAttribute('disabled')).toBe(false));
+    fireEvent.click(nutGui);
 
     await waitFor(() => {
       const goi = f.mock.calls.find((c) => String(c[0]).includes('/actions/SUBMIT'));
@@ -634,33 +649,124 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     expect(document.querySelector('.hop-thoai-to')).toBeNull();
   });
 
-  it('`0129` khung xem trước mang khổ giấy của mẫu đang chọn', async () => {
+  it('`0129`·`0140` hộp XEM TRƯỚC mang khổ giấy của mẫu đang chọn', async () => {
     /*
-     * Khung PDF chặn bề rộng bằng `cao × --ty-le`, nên `--ty-le` không tới nơi
-     * nghĩa là khung rơi về A4 dọc — và một mẫu A4 NGANG hiện trong một khung
-     * dọc thì tờ giấy co lại còn một nửa. Không có gì đỏ lên, chỉ là chữ bé đi.
+     * Tỷ lệ giờ nằm trên chính HỘP THOẠI, không trên khung.
+     *
+     * `0140` đưa bản xem trước sang một hộp riêng dùng `tyLe` → `.hop-thoai-xem`,
+     * nơi bề rộng hộp suy ra từ `--cao-khung × --ty-le` (`0073`), và khung bên
+     * trong đọc lại chính hai biến ấy. Đặt tỷ lệ lên khung như bản `0129` giờ là
+     * đặt sai chỗ: hộp mang một hình, khung mang một hình khác.
+     *
+     * Sai thì KHÔNG có gì đỏ lên — mẫu A4 ngang chỉ hiện trong một hộp dọc và tờ
+     * giấy co lại còn một nửa.
      */
     vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
     localStorage.setItem('csbh:phien', JSON.stringify(TDV));
     await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
     fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
 
-    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
-    fireEvent.change(oMau, { target: { value: MAU[1]!.id } });
-    const khung = await waitFor(() => {
-      const e = document.querySelector<HTMLElement>('.khung-pdf');
-      expect(e, 'chưa dựng khung xem trước').not.toBeNull();
+    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), { target: { value: MAU[1]!.id } });
+    for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
+      const o = screen.queryByLabelText(nhan);
+      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
+    }
+    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+
+    const hop = await waitFor(() => {
+      const e = document.querySelector<HTMLElement>('.hop-thoai-xem');
+      expect(e, 'bước hai phải dùng cỡ hộp XEM TRƯỚC').not.toBeNull();
       return e!;
     });
     // Mẫu A4 NGANG — rộng hơn cao.
-    expect(Number(khung.style.getPropertyValue('--ty-le'))).toBeCloseTo(TY_LE_KHO.a4l, 5);
+    expect(Number(hop.style.getPropertyValue('--ty-le'))).toBeCloseTo(TY_LE_KHO.a4l, 5);
+    expect(document.querySelector('.khung-xem'), 'khung phải là `.khung-xem`').not.toBeNull();
+    // Và KHÔNG còn khung `.khung-pdf` của bản cũ nằm lẫn trong hộp.
+    expect(document.querySelector('.khung-pdf')).toBeNull();
+  });
 
-    fireEvent.change(oMau, { target: { value: MAU[0]!.id } });
-    await waitFor(() =>
-      expect(
-        Number(document.querySelector<HTMLElement>('.khung-pdf')!.style.getPropertyValue('--ty-le')),
-      ).toBeCloseTo(TY_LE_KHO.a4p, 5),
-    );
+  /* ---------------------------------------------------------------------
+   * `0140` — GỬI DUYỆT TÁCH LÀM HAI BƯỚC
+   * ------------------------------------------------------------------- */
+
+  /** Đưa hộp gửi duyệt tới cuối bước một: đã chọn mẫu và đủ người. */
+  const denCuoiBuocMot = async (mau = MAU[1]!.id) => {
+    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), { target: { value: mau } });
+    for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
+      const o = screen.queryByLabelText(nhan);
+      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
+    }
+    return f;
+  };
+
+  it('BƯỚC MỘT không có bản xem trước nào — đó là cả điểm của lượt tách', async () => {
+    /*
+     * Tới `0139` khung PDF nằm kẹp giữa ô chọn mẫu và hai ô chọn người, cao
+     * `min(52dvh, 560px)`. Nó ở lại thì bước một dài gấp đôi mà tờ giấy vẫn
+     * không đọc nổi — hai cái hỏng cùng lúc.
+     */
+    await denCuoiBuocMot();
+    expect(document.querySelector('.khung-pdf'), 'bước một không được có khung PDF').toBeNull();
+    expect(document.querySelector('.khung-xem')).toBeNull();
+    expect(document.querySelector('.hop-thoai-xem')).toBeNull();
+  });
+
+  it('*Tiếp tục* KHÔNG gửi gì cả', async () => {
+    /*
+     * Ca đáng giá nhất của lượt này. Nút bước một đổi từ *Xác nhận* sang *Tiếp
+     * tục* và đổi luôn việc nó làm; đấu nhầm nó vào `gui` thì hồ sơ đi ngay lúc
+     * người dùng tưởng mình vừa bấm để XEM — không lùi lại được, vì gửi duyệt
+     * đóng băng giá và ngưỡng.
+     */
+    const f = await denCuoiBuocMot();
+    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+
+    await screen.findByRole('button', { name: 'Quay lại' });
+    expect(f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/actions/'))).toEqual([]);
+  });
+
+  it('BƯỚC HAI dùng cỡ hộp XEM TRƯỚC, không phải cỡ hộp thường', async () => {
+    // Yêu cầu nói thẳng: *"kích thước hộp thư như preview bản mềm"*. Cỡ ấy là
+    // `.hop-thoai-xem` — bề rộng suy từ chiều cao khung nhân tỷ lệ tờ giấy.
+    await denCuoiBuocMot();
+    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+
+    await waitFor(() => expect(document.querySelector('.hop-thoai-xem')).not.toBeNull());
+    expect(document.querySelector('.khung-xem')).not.toBeNull();
+    expect(document.querySelector('.hop-thoai-to'), 'không phải bậc `to`').toBeNull();
+  });
+
+  it('*Quay lại* về bước một và GIỮ nguyên mẫu đã chọn', async () => {
+    /*
+     * Người dùng tới bước hai để ĐỌC, và thứ họ hay muốn sau khi đọc là đổi mẫu
+     * — nên đường về phải giữ nguyên những gì đã chọn. Dựng lại hộp từ đầu là
+     * bắt họ chọn lại ba ô để sửa một ô.
+     */
+    await denCuoiBuocMot(MAU[0]!.id);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Quay lại' }));
+
+    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
+    expect((oMau as HTMLSelectElement).value).toBe(MAU[0]!.id);
+    expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('hành động KHÔNG có xem trước vẫn là MỘT bước', async () => {
+    /*
+     * Chiều đối chiếu. Cho mọi hành động hai bước thì Trưởng bộ phận bấm *Ký số
+     * duyệt* xong phải bấm thêm một nút nữa để làm đúng việc vừa bấm.
+     */
+    localStorage.setItem('csbh:phien', JSON.stringify(TBP));
+    await mo(HO_SO, ['TBP_SIGN']);
+    fireEvent.click(screen.getByRole('button', { name: 'Ký số duyệt' }));
+
+    const hop = await screen.findByRole('dialog');
+    expect(within(hop).getByRole('button', { name: /^Xác nhận/ })).toBeDefined();
+    expect(within(hop).queryByRole('button', { name: 'Tiếp tục' })).toBeNull();
   });
 
   it('hồ sơ ĐÃ GẮN MẪU: hộp xem bản mềm KHÔNG hỏi mẫu nào nữa', async () => {

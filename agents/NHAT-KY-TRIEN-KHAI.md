@@ -12237,3 +12237,75 @@ kiểm: chuỗi `\n` truyền qua bash là hai ký tự chứ không phải mộ
 
 **703/705 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`
 nên không chạy trong ảnh trần). `make test` đầy đủ chưa chạy.**
+
+## P168 — `0140` gửi duyệt tách làm hai bước
+
+Khách hàng chốt 27/08: bước một chọn TBP · Kế toán · văn bản mẫu; xác nhận xong
+thì một hộp KHÁC mở ra, **cỡ bằng hộp xem bản mềm**, và nút gửi thật nằm ở đó.
+
+### Vì sao tách, nói bằng thứ đo được
+
+Tới `0139` cả ba việc nằm trong một hộp bậc thường (700px), và bản xem trước là
+một `.khung-pdf` cao `min(52dvh, 560px)` **kẹp giữa** ô chọn mẫu với hai ô chọn
+người. Ở cỡ ấy tờ A4 đọc được cái đầu đề chứ không đọc được nội dung, nên bước
+*đọc lại* tồn tại trên màn hình mà không tồn tại trong thực tế — người dùng cuộn
+qua nó để tới nút bấm.
+
+Tách đôi đổi bản chất bước thứ hai: nó thôi là một khối trang trí giữa biểu mẫu
+và trở thành **việc duy nhất** của màn hình ấy.
+
+### Cỡ hộp đặt bằng `tyLe`, KHÔNG bằng `co`
+
+Đây là chỗ dễ làm nhầm nhất. `co="to"` chỉ nới bề rộng; thứ cần là cơ chế của
+`0073` — `tyLe` bật `.hop-thoai-xem`, nơi bề rộng suy ra từ `--cao-khung × tỷ lệ
+tờ giấy`, và `.khung-xem` bên trong đọc lại **chính hai biến ấy**. Nhờ vậy khung
+cao hết phần màn hình còn lại thay vì bị kẹp ở `min(52dvh, 560px)`, và hộp với
+khung luôn cùng một hình.
+
+Hệ quả: ca kiểm `0129` phải viết lại. Nó từng khẳng định `--ty-le` nằm trên
+**khung**; giờ nó nằm trên **hộp thoại**, và đặt lên khung là đặt sai chỗ — hộp
+mang một hình, khung mang một hình khác. Sai thì không có gì đỏ lên, mẫu A4 ngang
+chỉ hiện trong một hộp dọc và tờ giấy co lại còn một nửa.
+
+### Một nút, hai việc — và cái bẫy của nó
+
+Nút bước một đổi từ *Xác nhận* sang *Tiếp tục* và đổi luôn việc nó làm. Đấu nhầm
+nó vào `gui` thì **hồ sơ đi ngay lúc người dùng tưởng mình vừa bấm để XEM** —
+không lùi lại được, vì gửi duyệt đóng băng giá và ngưỡng. Có một ca kiểm chỉ để
+canh chuyện ấy: bấm *Tiếp tục* xong thì `/actions/` phải chưa được gọi lần nào.
+
+Nhãn cũng là một phần của việc: *Xác nhận* trên một nút chỉ chuyển bước là một
+lời hứa sai.
+
+### `chuaXem` gỡ hẳn — hai điều kiện tách ra hai bước
+
+Nó từng khoá nút *Xác nhận* cho tới khi bản xem trước tải xong, vì cả hai việc
+chung một hộp. Giờ *"đã chọn mẫu"* khoá nút ở bước MỘT, còn *"bản xem trước đã
+tải xong"* khoá nút *Gửi duyệt* ở bước HAI. Giữ nguyên `chuaXem` ở bước một thì
+người dùng chọn xong ba ô vẫn ngồi đợi một khung PDF họ chưa nhìn thấy.
+
+### *Quay lại*, không phải *Huỷ*
+
+Người dùng tới bước hai để ĐỌC, và thứ họ hay muốn sau khi đọc là đổi mẫu hoặc
+đổi người duyệt — chứ không phải bỏ cả lượt gửi. Dựng lại hộp từ đầu là bắt họ
+chọn lại ba ô để sửa một ô. Nút *Huỷ* vẫn còn ở bước một.
+
+### Bẫy của ca kiểm
+
+`getByRole('button', { name: 'Gửi duyệt' })` tìm thấy **hai** phần tử: nút của
+dải thao tác phía sau, và nút bước hai. Phải tìm trong `role="dialog"`. Câu lỗi
+*"tìm thấy hai phần tử"* nói đúng vấn đề nhưng dễ đọc nhầm thành lỗi của mã sản
+phẩm.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Nút bước một đấu thẳng vào `gui()` | 5 đỏ |
+| Bước hai dùng cỡ hộp `to` | 2 đỏ |
+| Bước hai dùng lại `.khung-pdf` | 2 đỏ |
+| *Quay lại* đóng hẳn hộp thoại | 1 đỏ |
+| Bỏ hẳn bước hai | 5 đỏ |
+
+**708/710 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).
+`make test` đầy đủ chưa chạy.**

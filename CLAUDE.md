@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P164–P167**, một lượt phản hồi 27/08 làm thành bốn chặng:
+Chặng gần nhất **P168** (`0140`): **gửi duyệt tách làm hai bước** — bước một chọn TBP · Kế toán ·
+văn bản mẫu, bước hai là một hộp RIÊNG **cỡ hộp xem bản mềm** và nút gửi thật nằm ở đó. Cỡ ấy đặt
+bằng **`tyLe`, KHÔNG bằng `co`**: `tyLe` bật `.hop-thoai-xem` (bề rộng suy từ `--cao-khung × tỷ lệ
+tờ giấy`, `0073`) và `.khung-xem` đọc lại chính hai biến ấy — nhờ vậy hộp với khung luôn cùng hình,
+và khung cao hết màn hình thay vì bị kẹp ở `min(52dvh, 560px)`. Kéo theo: ca kiểm `0129` phải viết
+lại, vì `--ty-le` chuyển từ **khung** sang **hộp thoại**. Bẫy nguy hiểm nhất: nút bước một đổi việc
+nó làm — đấu nhầm vào `gui` thì **hồ sơ đi ngay lúc người dùng tưởng mình bấm để XEM**, không lùi
+được; có một ca kiểm chỉ canh chuyện ấy. `chuaXem` gỡ hẳn: hai điều kiện tách ra hai nút.
+Bẫy ca kiểm: `getByRole('button', {name:'Gửi duyệt'})` khớp **hai** phần tử — nút dải thao tác phía
+sau và nút bước hai; phải tìm trong `role="dialog"`.
+
+Trước đó **P164–P167**, một lượt phản hồi 27/08 làm thành bốn chặng:
 
 **P167** (`0139`) ba loại khách hàng có **tên thật** — giữ chữ *Loại n* ở đầu vì con số là thứ quy
 định chiết khấu khai theo. Chú thích cũ ở `nhanLoaiKhach` đã đoán trước đúng lượt này.

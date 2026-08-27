@@ -1401,6 +1401,16 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
 
+**Gửi duyệt tách làm HAI BƯỚC** `mới 27/08` — bước một chọn Trưởng bộ phận, Kế toán và văn bản mẫu;
+xác nhận xong thì một hộp thoại KHÁC mở ra, **cỡ bằng hộp xem bản mềm**, hiện bản CSBH dựng bằng mẫu
+vừa chọn. Bấm *Gửi duyệt* ở hộp ấy thì hồ sơ mới đi.
+
+> Bản trước để cả ba ô chọn và bản xem trước trong một hộp. Bản A4 bị kẹp giữa biểu mẫu, cao chừng
+> nửa màn hình, nên người dùng cuộn qua nó để tới nút bấm — bước *đọc lại* tồn tại trên màn hình mà
+> không tồn tại trong thực tế. Tách đôi làm nó thành **việc duy nhất** của màn hình thứ hai.
+>
+> *Tiếp tục* ở bước một **không gửi gì cả**, và *Quay lại* ở bước hai giữ nguyên những gì đã chọn.
+
 **Ba loại khách hàng có TÊN THẬT** `mới 27/08` — nhãn hiện đủ cả số lẫn tên:
 
 > | | |

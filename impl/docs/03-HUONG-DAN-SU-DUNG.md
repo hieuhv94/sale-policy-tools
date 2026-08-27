@@ -634,24 +634,36 @@ Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạ
 hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
 không cần nhập lại.
 
-### Gửi duyệt: chọn người, đọc lại, rồi mới xác nhận
+### Gửi duyệt: HAI BƯỚC `sửa 27/08`
 
-Bấm **Gửi duyệt** thì hộp thoại mở ra bốn phần, theo đúng thứ tự này:
+Bấm **Gửi duyệt** thì hộp thoại mở ra, và lượt gửi đi qua hai bước rời nhau.
+
+**Bước 1 — chọn** ba thứ:
 
 1. **Văn bản mẫu** `mới 23/08` — chọn bố cục cho bản mềm CSBH. Mỗi mẫu có tập cột riêng, nên *"bản
    đầy đủ cho nội bộ"* và *"bản gọn đưa khách hàng"* ra hai tờ giấy khác hẳn nhau. **Mẫu này gắn với
    hồ sơ**: người duyệt xem đúng bản bạn chọn ở đây và không đổi được.
-2. **Bản CSBH A4** hiện ngay dưới ô chọn, dựng bằng **chính mẫu vừa chọn** — đổi mẫu thì nó dựng
-   lại. Đọc lại đi: đây là **lần cuối nội dung còn sửa được**. Sau bước này giá, ngưỡng, mẫu **và
-   thông tin khách hàng** đóng băng, và mọi chỉnh sửa đều phải đi một vòng trả lại.
-3. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
+2. **Trưởng bộ phận duyệt** — người sẽ ký số. Chỉ người bạn chọn nhìn thấy hồ sơ này trong hộp việc
    của họ; Trưởng bộ phận khác không thấy, và cũng không mở được.
-4. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
+3. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
 
-Nút *Xác nhận* khoá tới khi đã chọn mẫu, bản A4 tải xong và cả hai ô người đã chọn. Ô chọn rỗng nghĩa là chưa có tài
-khoản vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
+Nút *Tiếp tục* khoá tới khi đã chọn mẫu và cả hai ô người. Ô chọn rỗng nghĩa là chưa có tài khoản
+vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
 
-> **Thiếu thông tin thì chưa gửi được** `mới 24/08`. Bấm *Xác nhận* mà hồ sơ hoặc khách hàng còn
+> **Bấm *Tiếp tục* KHÔNG gửi hồ sơ đi.** Nó chỉ mở bước 2.
+
+**Bước 2 — đọc lại rồi mới gửi.** Một hộp thoại khác mở ra, **cỡ bằng hộp *Xem bản mềm*** — tờ A4
+cao gần hết màn hình, đọc được chứ không chỉ nhìn được. Đây đúng là bản người duyệt sẽ đọc.
+
+Đọc kỹ đi: đây là **lần cuối nội dung còn sửa được**. Bấm **Gửi duyệt** thì giá, ngưỡng, mẫu **và
+thông tin khách hàng** đóng băng, và mọi chỉnh sửa đều phải đi một vòng trả lại. Muốn đổi mẫu hoặc
+đổi người duyệt thì bấm **Quay lại** — những gì đã chọn còn nguyên.
+
+> Trước 27/08 cả ba ô chọn và bản xem trước nằm chung một hộp. Bản A4 bị kẹp giữa biểu mẫu, cao
+> chừng nửa màn hình, nên phần lớn người dùng cuộn qua nó để tới nút bấm — tức là bước *đọc lại*
+> tồn tại trên màn hình mà không tồn tại trong thực tế.
+
+> **Thiếu thông tin thì chưa gửi được** `mới 24/08`. Bấm *Gửi duyệt* ở bước 2 mà hồ sơ hoặc khách hàng còn
 > trống một trường sẽ in ra bản CSBH thì phần mềm **chặn lại và kể tên từng mục**:
 >
 > | Mục còn thiếu | Sửa ở đâu |
@@ -684,7 +696,7 @@ cho một Trưởng bộ phận khác, và đổi luôn bố cục bản mềm n
 > **Chọn xong là không đổi được.** Hệ thống **không có** chức năng giao lại một hồ sơ cho người
 > khác. Chọn nhầm người thì hồ sơ nằm ở hộp việc của người đó và không ai gỡ ra được — người lập
 > không sửa được, người đáng lẽ phải nhận thì không nhìn thấy hồ sơ để mà nhận, Quản trị hệ thống
-> cũng không có nút nào. Đọc kỹ hai ô chọn trước khi bấm Xác nhận.
+> cũng không có nút nào. Đọc kỹ hai ô chọn trước khi bấm *Tiếp tục*.
 >
 > Đổi người phụ trách chỉ xảy ra ở đúng hai chỗ: **lúc chọn người** trong luồng, và **lúc vô hiệu
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).

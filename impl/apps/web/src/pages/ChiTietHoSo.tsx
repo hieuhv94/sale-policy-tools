@@ -16,7 +16,7 @@ import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
-import { NHAN_KHO, TY_LE_KHO, type MauChon } from '../lib/mau-hop-dong.js';
+import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
 import {
   SuaNgayApDung,
   ThemDongSanPham,
@@ -549,6 +549,24 @@ function HopThoaiHanhDong({
   /** Mẫu bản mềm TDV chọn, chỉ ở hai bước gửi duyệt (`0098`). */
   const [dsMau, datDsMau] = useState<MauChon[] | null>(null);
   const [mauId, datMauId] = useState('');
+  /**
+   * HAI BƯỚC của lượt gửi duyệt (`0140`, khách hàng chốt 27/08).
+   *
+   *   `chon` — chọn Trưởng bộ phận, Kế toán và văn bản mẫu;
+   *   `xem`  — đọc bản mềm ở cỡ hộp XEM TRƯỚC, rồi mới bấm *Gửi duyệt*.
+   *
+   * Tới `0139` cả ba việc nằm trong MỘT hộp, và bản xem trước bị kẹp giữa ô chọn
+   * mẫu với hai ô chọn người — cao chừng nửa màn hình, tức đọc được cái đầu đề
+   * chứ không đọc được tờ giấy. Người dùng cuộn qua nó để tới nút Xác nhận.
+   *
+   * Tách đôi đổi bản chất bước thứ hai: nó thôi là một khối trang trí giữa biểu
+   * mẫu và trở thành VIỆC DUY NHẤT của màn hình ấy — đọc đúng thứ mình sắp gửi,
+   * ở đúng cỡ đọc được.
+   *
+   * Chỉ hành động CÓ xem trước mới có hai bước; duyệt, trả lại, từ chối vẫn là
+   * một hộp như cũ.
+   */
+  const [buoc, datBuoc] = useState<'chon' | 'xem'>('chon');
 
   // Danh sách người cho từng ô. Tải MỘT lượt cho cả hộp thoại; hai ô của bước
   // gửi duyệt hỏi hai vai trò khác nhau nên vẫn là hai lời gọi, nhưng chúng chạy
@@ -616,10 +634,16 @@ function HopThoaiHanhDong({
   const thieuNguoi = oChon.some((o) => !chon[o.truong]);
   /** Khổ giấy của mẫu đang chọn — để khung xem trước mang đúng hình (`0129`). */
   const khoGiayMau = dsMau?.find((m) => m.id === mauId)?.khoGiay ?? null;
-  // Chưa chọn mẫu thì chưa có bản xem trước, nên `chuaXem` đã gánh luôn phần
-  // chặn ấy — nút Gửi vẫn xám cho tới khi người dùng thật sự đọc được bản mình
-  // sắp gửi. Máy chủ chặn lần thứ hai bằng `TEMPLATE_REQUIRED`.
-  const chuaXem = canXem && xemUrl === null;
+  /*
+   * `chuaXem` ĐÃ GỠ (`0140`) — hai điều kiện tách ra hai bước.
+   *
+   * Nó từng khoá nút *Xác nhận* cho tới khi bản xem trước tải xong, vì cả hai
+   * việc nằm chung một hộp. Giờ *"đã chọn mẫu"* khoá nút ở bước MỘT, còn *"bản
+   * xem trước đã tải xong"* khoá nút *Gửi duyệt* ở bước HAI — mỗi điều kiện
+   * canh đúng cái nút mà nó nói về.
+   *
+   * Máy chủ vẫn chặn lần thứ hai bằng `TEMPLATE_REQUIRED`.
+   */
 
   const gui = async () => {
     datLoi(null);
@@ -645,16 +669,69 @@ function HopThoaiHanhDong({
   };
 
   /*
-   * BẬC THƯỜNG cho MỌI hành động, kể cả bước gửi duyệt (`0130`).
+   * BẬC THƯỜNG cho hộp bước MỘT, kể cả ở lượt gửi duyệt (`0130`).
    *
-   * `0129` cho hai bước gửi duyệt bậc `to` vì chúng nhúng cả một tờ CSBH. Khách
-   * hàng xem xong chốt 27/08: về bậc thường như mọi hộp khác.
-   *
-   * Bề rộng hộp KHÔNG phải thứ quyết định tờ CSBH to hay nhỏ — `.khung-pdf` khoá
-   * theo tỷ lệ tờ giấy và chặn bằng chiều cao, nên nới hộp ra chỉ thêm nền xám
-   * hai bên. Đó cũng là lý do đưa về bậc thường không mất gì: ở 700px, khung vẫn
-   * cao đúng `min(52dvh, 560px)` như trước.
+   * `0129` cho hai bước gửi duyệt bậc `to` vì chúng nhúng cả một tờ CSBH; khách
+   * hàng chốt 27/08 đưa về bậc thường. `0140` tách tờ CSBH sang một hộp RIÊNG có
+   * cơ chế cỡ của chính nó (`tyLe` → `.hop-thoai-xem`), nên quyết định ấy càng
+   * đúng: hộp bước một giờ chỉ còn ba ô chọn.
    */
+
+  /*
+   * BƯỚC HAI — hộp XEM TRƯỚC, cùng cỡ với hộp *Xem bản mềm* (`0140`).
+   *
+   * Cỡ hộp KHÔNG đặt bằng `co`: `tyLe` bật `.hop-thoai-xem`, nơi bề rộng suy ra
+   * từ `--cao-khung × tỷ lệ tờ giấy` (`0073`). Đó là khác biệt cả điểm của lượt
+   * này — khung cao hết phần màn hình còn lại thay vì `min(52dvh, 560px)` bị kẹp
+   * giữa biểu mẫu, và tờ A4 đọc được chứ không chỉ nhìn được.
+   *
+   * Khổ giấy lấy từ mẫu ĐANG CHỌN; mẫu chưa khai khổ thì `TY_LE_MAC_DINH` (A4
+   * dọc), cùng đường lùi mà `XemTep` dùng.
+   */
+  if (canXem && buoc === 'xem') {
+    return (
+      <HopThoai
+        tieuDe={`${HANH_DONG_NHAN[hanhDong] ?? hanhDong} — đọc lại bản mềm`}
+        dong={dong}
+        tyLe={khoGiayMau ? TY_LE_KHO[khoGiayMau] : TY_LE_MAC_DINH}
+      >
+        <p className="ghi-chu">
+          Đây đúng là bản người duyệt sẽ đọc. Bấm <strong>Gửi duyệt</strong> thì{' '}
+          <strong>giá, ngưỡng và văn bản mẫu đóng băng</strong>, và mọi chỉnh sửa đều phải đi một
+          vòng trả lại.
+        </p>
+
+        {xemUrl === null ? (
+          <DangTai />
+        ) : (
+          // `.khung-xem` chứ không `.khung-pdf`: nó đọc `--cao-khung` và
+          // `--ty-le` của chính hộp thoại, nên khung với hộp luôn cùng hình.
+          <iframe className="khung-xem" src={xemUrl} title="Bản mềm CSBH" />
+        )}
+
+        {loi !== null && <BaoLoi loi={loi} />}
+        <div className="nhom-nut">
+          <button
+            type="button"
+            className="nut nut-chinh"
+            disabled={dangGui || xemUrl === null}
+            onClick={gui}
+          >
+            {dangGui ? 'Đang gửi…' : 'Gửi duyệt'}
+          </button>
+          {/*
+            QUAY LẠI, không phải Huỷ: người dùng tới đây để ĐỌC, và thứ họ hay
+            muốn sau khi đọc là đổi mẫu hoặc đổi người duyệt — chứ không phải bỏ
+            cả lượt gửi. Nút Huỷ vẫn còn ở bước một.
+          */}
+          <button type="button" className="nut nut-nhe" onClick={() => datBuoc('chon')}>
+            Quay lại
+          </button>
+        </div>
+      </HopThoai>
+    );
+  }
+
   return (
     <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
       {canXem && (
@@ -698,41 +775,20 @@ function HopThoaiHanhDong({
             )}
           </Truong>
 
-          <div className="xem-truoc">
-            <p className="ghi-chu">
-              Đọc lại bản CSBH dưới đây trước khi gửi. Sau bước này{' '}
-              <strong>giá, ngưỡng và văn bản mẫu đóng băng</strong>, và mọi chỉnh sửa đều phải đi
-              một vòng trả lại.
-            </p>
-            {mauId === '' ? (
-              // KHÔNG dựng bản xem trước bằng một mẫu đoán sẵn: bản người dùng
-              // đọc phải là bản họ sắp gửi, nên chưa chọn thì chưa có gì để đọc.
-              <p className="ghi-chu">Chọn một văn bản mẫu ở trên để xem trước bản CSBH.</p>
-            ) : xemUrl === null ? (
-              <DangTai />
-            ) : (
-              /*
-                Khung mang ĐÚNG hình tờ giấy của mẫu đang chọn (`0129`).
+          {/*
+            BẢN XEM TRƯỚC ĐÃ SANG BƯỚC HAI (`0140`).
 
-                Cùng con số `TY_LE_KHO` mà hộp *Xem bản mềm* dùng, và cùng lý do:
-                khổ giấy đọc từ chính file .docx lúc Quản trị lưu mẫu, nên giao
-                diện đã cầm sẵn câu trả lời — hỏi lại trình xem PDF là không hỏi
-                được. Đổi mẫu dọc sang ngang thì khung đổi hình ngay.
+            Chỗ này từng là một khung PDF cao `min(52dvh, 560px)` kẹp giữa ô chọn
+            mẫu và hai ô chọn người. Nó ở lại đây thì bước một dài gấp đôi, và tờ
+            giấy vẫn không đọc nổi — hai cái hỏng cùng lúc.
 
-                Mẫu chưa khai khổ giấy thì không đặt gì và CSS giữ A4 dọc.
-              */
-              <iframe
-                className="khung-pdf"
-                src={xemUrl}
-                title="Bản CSBH A4"
-                style={
-                  khoGiayMau
-                    ? ({ '--ty-le': String(TY_LE_KHO[khoGiayMau]) } as CSSProperties)
-                    : undefined
-                }
-              />
-            )}
-          </div>
+            Câu dưới đây thay nó, và nó nói ra thứ người dùng cần biết trước khi
+            bấm: còn một bước nữa, và bước ấy mới là bước gửi.
+          */}
+          <p className="ghi-chu">
+            Bấm <strong>Tiếp tục</strong> để đọc lại bản mềm dựng bằng mẫu vừa chọn. Hồ sơ{' '}
+            <strong>chưa gửi đi</strong> ở bước này.
+          </p>
         </>
       )}
 
@@ -782,16 +838,27 @@ function HopThoaiHanhDong({
       )}
       {!canLyDo && oChon.length === 0 && !canXem && <p>Xác nhận thực hiện thao tác này?</p>}
       {loi !== null && <BaoLoi loi={loi} />}
+      {/*
+        MỘT nút, hai việc khác nhau (`0140`).
+
+        Hành động CÓ xem trước thì nút này đi sang bước hai và KHÔNG gửi gì cả —
+        nhãn phải nói đúng điều đó, vì *Xác nhận* trên một nút chỉ chuyển bước là
+        một lời hứa sai. Hành động khác thì nó gửi luôn, như cũ.
+
+        `chuaXem` KHÔNG còn khoá nút này: bản xem trước là điều kiện của bước
+        HAI, và khoá nó ở đây thì người dùng chọn xong ba ô vẫn ngồi đợi một khung
+        PDF họ chưa nhìn thấy.
+      */}
       <div className="nhom-nut">
         <button
           type="button"
           className="nut nut-chinh"
           disabled={
-            dangGui || (canLyDo && lyDo.trim().length === 0) || thieuNguoi || chuaXem
+            dangGui || (canLyDo && lyDo.trim().length === 0) || thieuNguoi || (canXem && mauId === '')
           }
-          onClick={gui}
+          onClick={canXem ? () => datBuoc('xem') : gui}
         >
-          {dangGui ? 'Đang gửi…' : 'Xác nhận'}
+          {canXem ? 'Tiếp tục' : dangGui ? 'Đang gửi…' : 'Xác nhận'}
         </button>
         <button type="button" className="nut nut-nhe" onClick={dong}>
           Huỷ
