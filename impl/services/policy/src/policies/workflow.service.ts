@@ -70,18 +70,65 @@ const RECIPIENTS: Partial<Record<Action, string[]>> = {
  * Kế toán KHÔNG xuất hiện ở `KT_RECEIVE_L1`: người ấy đã được chọn từ lúc gửi
  * duyệt và nhận cả hai lần tiếp nhận.
  */
-const PHAN_CONG: Record<string, { truong: 'tbpUserId' | 'keToanUserId' | 'saleAdminUserId'; cot: string; vaiTro: string; nhan: string }[]> = {
-  SUBMIT: [
-    { truong: 'tbpUserId', cot: 'tbp_user_id', vaiTro: 'TBP', nhan: 'Trưởng bộ phận duyệt' },
-    { truong: 'keToanUserId', cot: 'ke_toan_user_id', vaiTro: 'KE_TOAN', nhan: 'Kế toán tiếp nhận' },
-  ],
-  RESUBMIT_AFTER_EDIT: [
-    { truong: 'tbpUserId', cot: 'tbp_user_id', vaiTro: 'TBP', nhan: 'Trưởng bộ phận duyệt' },
-    { truong: 'keToanUserId', cot: 'ke_toan_user_id', vaiTro: 'KE_TOAN', nhan: 'Kế toán tiếp nhận' },
-  ],
-  KT_RECEIVE_L1: [
-    { truong: 'saleAdminUserId', cot: 'sale_admin_user_id', vaiTro: 'SALE_ADMIN', nhan: 'Sale Admin xử lý' },
-  ],
+type OPhanCong = {
+  truong: 'tbpUserId' | 'keToanUserId' | 'saleAdminUserId';
+  cot: string;
+  vaiTro: string;
+  nhan: string;
+};
+
+const O_TBP: OPhanCong = {
+  truong: 'tbpUserId',
+  cot: 'tbp_user_id',
+  vaiTro: 'TBP',
+  nhan: 'Trưởng bộ phận duyệt',
+};
+const O_KE_TOAN: OPhanCong = {
+  truong: 'keToanUserId',
+  cot: 'ke_toan_user_id',
+  vaiTro: 'KE_TOAN',
+  nhan: 'Kế toán tiếp nhận',
+};
+const O_SALE_ADMIN: OPhanCong = {
+  truong: 'saleAdminUserId',
+  cot: 'sale_admin_user_id',
+  vaiTro: 'SALE_ADMIN',
+  nhan: 'Sale Admin xử lý',
+};
+
+/**
+ * Bước này đòi chọn NHỮNG AI — phụ thuộc cả HÀNH ĐỘNG lẫn TRẠNG THÁI hồ sơ
+ * (`0141`, khách hàng chốt 27/08).
+ *
+ * Tới `0140` đây là một bảng tra tĩnh, và nó nói sai ở hai chỗ:
+ *
+ *   `RESUBMIT_AFTER_EDIT` bắt CHỌN LẠI Trưởng bộ phận và Kế toán. Chú thích cũ
+ *   bênh cách ấy — *"người sửa có quyền gửi cho một Trưởng bộ phận khác"* —
+ *   nhưng nó trả giá đắt hơn nhiều so với cái tiện nó mua: người vừa trả hồ sơ
+ *   về **mất quyền đọc chính hồ sơ họ vừa trả**, vì id họ bị ghi đè khỏi cột
+ *   `tbp_user_id` mà phạm vi đọc lại tính theo bốn cột ấy. Họ vẫn nhận thư báo
+ *   (`daTacDong` đọc từ nhật ký, không từ bốn cột), bấm vào thì nhận 403.
+ *
+ *   `KT_RECEIVE_L1` bắt chọn Sale Admin ở MỌI lượt tiếp nhận. Hồ sơ đi vòng thứ
+ *   hai — bị trả về, sửa, gửi lại, ký lại, tiếp nhận lại — thì Kế toán phải chọn
+ *   lại một người đã chọn rồi, và chọn khác đi là đẩy hồ sơ sang một Sale Admin
+ *   chưa từng thấy nó.
+ *
+ * Nên luật mới: **chọn MỘT LẦN, ở đúng bước sinh ra việc ấy.** Muốn đổi người
+ * thì đó là một nghiệp vụ khác (bàn giao), không phải một hệ quả phụ của lượt
+ * gửi lại.
+ */
+const phanCongCua = (
+  action: Action,
+  before: { sale_admin_user_id: string | null },
+): OPhanCong[] => {
+  if (action === 'SUBMIT') return [O_TBP, O_KE_TOAN];
+  // Gửi lại sau khi sửa: KHÔNG chọn ai — hai người đã được chọn từ lượt gửi đầu
+  // và vẫn nằm nguyên trong bốn cột (đường trả về không xoá chúng).
+  if (action === 'RESUBMIT_AFTER_EDIT') return [];
+  // Chỉ hỏi Sale Admin ở lượt tiếp nhận ĐẦU TIÊN.
+  if (action === 'KT_RECEIVE_L1') return before.sale_admin_user_id ? [] : [O_SALE_ADMIN];
+  return [];
 };
 
 /**
@@ -166,7 +213,7 @@ export class WorkflowService {
     opts: {
       reason?: string | undefined;
       rowVersion?: number | undefined;
-      /** Người được chọn ở bước này (`0031`). Xem `PHAN_CONG`. */
+      /** Người được chọn ở bước này (`0031`). Xem `phanCongCua`. */
       tbpUserId?: string | undefined;
       keToanUserId?: string | undefined;
       saleAdminUserId?: string | undefined;
@@ -197,7 +244,7 @@ export class WorkflowService {
     // Người được chọn ở bước này — kiểm TRƯỚC khi đụng tới trạng thái, vì chọn
     // sai là lỗi của biểu mẫu chứ không phải của luồng, và người dùng phải nhận
     // về một lỗi nói đúng ô nào sai.
-    const phanCong = await this.doiPhanCong(action, opts);
+    const phanCong = await this.doiPhanCong(action, before, opts);
 
     // Ký số lần thứ hai trên cùng hồ sơ. Không để rơi vào nhánh INVALID_TRANSITION
     // chung, vì nguyên nhân khác hẳn: không phải sai bước mà là bấm lặp, và người
@@ -289,7 +336,7 @@ export class WorkflowService {
        *
        * `RESUBMIT_AFTER_EDIT` cũng phải chọn lại chứ không kế thừa lần trước:
        * hồ sơ bị trả về rồi sửa thì bảng sản phẩm có thể đã khác, mà tập cột phù
-       * hợp với bảng cũ chưa chắc còn hợp — đúng lối mà `PHAN_CONG` đã chọn cho
+       * hợp với bảng cũ chưa chắc còn hợp — đúng lối mà `phanCongCua` đã chọn cho
        * người xử lý.
        */
       if (!opts.mauHoSoId) {
@@ -742,14 +789,15 @@ export class WorkflowService {
    */
   private async doiPhanCong(
     action: Action,
+    before: { sale_admin_user_id: string | null },
     opts: {
       tbpUserId?: string | undefined;
       keToanUserId?: string | undefined;
       saleAdminUserId?: string | undefined;
     },
   ): Promise<Record<string, string>> {
-    const can = PHAN_CONG[action];
-    if (!can) return {};
+    const can = phanCongCua(action, before);
+    if (can.length === 0) return {};
 
     const thieu = can.filter((x) => !opts[x.truong]);
     if (thieu.length > 0) {

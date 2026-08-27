@@ -1396,6 +1396,16 @@ export class PoliciesService {
       // này có từ bao giờ" hỏi về mốc đầu.
       createdAt: p.created_at,
       tdvUserId: p.tdv_user_id ?? '',
+      /**
+       * ĐÃ CÓ Sale Admin chưa (`0141`) — một CỜ, không phải id.
+       *
+       * Màn hình chỉ cần biết có phải hỏi ô ấy nữa không. Trả id ra thì nó thành
+       * một thứ giao diện có thể đọc, so sánh, hiển thị — và mở đường cho một
+       * bản sao thứ hai của luật *"chọn một lần"* mọc lên ở phía giao diện.
+       * Máy chủ vẫn là chỗ duy nhất quyết định, cờ này chỉ để đừng bày ra một ô
+       * mà bấm vào chắc chắn bị từ chối.
+       */
+      daChonSaleAdmin: p.sale_admin_user_id !== null,
       createdBy: (p as unknown as { created_by: string }).created_by,
       rowVersion: p.row_version,
       lastReason: p.last_reason,

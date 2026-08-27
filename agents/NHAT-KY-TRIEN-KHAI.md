@@ -12309,3 +12309,60 @@ phẩm.
 
 **708/710 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).
 `make test` đầy đủ chưa chạy.**
+
+## P169 — `0141` chọn người MỘT LẦN, ở đúng bước sinh ra việc ấy
+
+Hai luật, khách hàng chốt 27/08, và cả hai đều đảo lại một quyết định cũ.
+
+### Gửi lại sau khi sửa: thôi chọn lại TBP và Kế toán
+
+`0031` cho chọn lại, kèm chú thích bênh cách ấy: *"người sửa có quyền gửi cho một
+Trưởng bộ phận khác, và ép họ giữ nguyên người vừa trả lại hồ sơ là một mặc định
+khó chịu mà không luật nào đòi"*. Câu ấy đúng về cái tiện, và bỏ sót cái giá:
+
+**Phạm vi đọc một hồ sơ tính theo bốn cột người trên chính hồ sơ ấy** (`0031`), và
+lượt ghi là `coalesce($2, tbp_user_id)` — tức GHI ĐÈ. Chọn Trưởng bộ phận khác là
+**xoá người vừa trả hồ sơ về khỏi phạm vi**: họ không mở lại được chính hồ sơ họ
+vừa trả, kể cả lý do họ đã ghi.
+
+Và nó lệch với thư: `daTacDong()` đọc từ `pol.policy_event`, nên người ấy **vẫn
+nhận thư** báo hồ sơ đã gửi lại, đã ký, đã có hiệu lực — bấm vào liên kết trong
+thư thì nhận 403. Hai hệ thống trả lời hai kiểu về cùng một người.
+
+### Tiếp nhận L1: chỉ hỏi Sale Admin ở lượt đầu
+
+Hồ sơ đi vòng thứ hai thì người ấy đã có. Hỏi lại là mời chọn khác đi, tức đẩy hồ
+sơ sang một Sale Admin chưa từng thấy nó — và người cũ mất phạm vi đúng như trên.
+
+### Bảng tra thành HÀM
+
+`PHAN_CONG` là một `Record<string, …>` tra theo hành động. Hai luật mới đều phụ
+thuộc **trạng thái hồ sơ**, nên nó thành `phanCongCua(action, before)`. Bản sao
+phía giao diện đi theo: `O_CHON_CUA` → `oChonCua(hanhDong, hoSo)`.
+
+Giao diện nhận một **CỜ** `daChonSaleAdmin`, không nhận id. Trả id ra thì nó thành
+thứ giao diện đọc được, so sánh được, hiển thị được — và mở đường cho một bản sao
+thứ hai của luật *"chọn một lần"* mọc lên ở phía giao diện.
+
+Giá trị lùi của cờ là `false` — **hỏi thừa một ô còn hơn bỏ sót**: máy chủ cũ hơn
+giao diện không gửi cờ, và bỏ sót thì người dùng bấm xong mới nhận
+`ASSIGNEE_REQUIRED` cho một trường không có trên màn hình, còn hỏi thừa thì máy
+chủ chỉ việc bỏ qua giá trị ấy. Có một ca kiểm canh đúng chiều ấy.
+
+### Hai luật độc lập, và lượt này tách chúng ra
+
+*Chọn người* chỉ ở lượt gửi ĐẦU; *đọc lại bản mềm* (`CAN_XEM_TRUOC`) ở CẢ HAI
+lượt gửi — lượt gửi lại cũng đóng băng giá và ngưỡng, và nội dung vừa bị sửa.
+Gộp hai luật lại thì hộp gửi lại thành một cái nút trống không: không ô nào để
+điền, và bản mềm cũng biến mất. Một ca kiểm giữ hai luật rời nhau.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gửi lại chọn lại cả hai như cũ | 2 đỏ |
+| Tiếp nhận L1 luôn hỏi Sale Admin | 1 đỏ |
+| Thiếu cờ thì BỎ SÓT ô thay vì hỏi thừa | 1 đỏ |
+
+**654/656 ca giao diện xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`). Ca HTTP của
+`policy` KHÔNG chạy được — chồng demo còn bật.**

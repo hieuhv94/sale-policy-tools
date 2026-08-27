@@ -35,20 +35,36 @@ const CHON_KE_TOAN: OChon = {
   moTa: 'Người tiếp nhận cả lần 1 và lần 2, và là người xuất hợp đồng.',
 };
 
-export const O_CHON_CUA: Record<string, OChon[]> = {
-  SUBMIT: [CHON_TBP, CHON_KE_TOAN],
-  // Gửi lại sau khi sửa thì CHỌN LẠI, không kế thừa lần trước: hồ sơ bị trả về
-  // để sửa thì người sửa có quyền gửi cho một Trưởng bộ phận khác, và ép họ giữ
-  // nguyên người vừa trả lại hồ sơ là một mặc định khó chịu mà không luật nào đòi.
-  RESUBMIT_AFTER_EDIT: [CHON_TBP, CHON_KE_TOAN],
-  KT_RECEIVE_L1: [
-    {
-      truong: 'saleAdminUserId',
-      vaiTro: 'SALE_ADMIN',
-      nhan: 'Sale Admin xử lý',
-      moTa: 'Người in bản cứng, trình Ban lãnh đạo ký, scan và bàn giao lại.',
-    },
-  ],
+/**
+ * Bước này hỏi NHỮNG AI — phụ thuộc cả hành động lẫn TRẠNG THÁI hồ sơ (`0141`).
+ *
+ * Bản sao phía giao diện của `phanCongCua` ở `policy/workflow.service.ts`, và nó
+ * chỉ để **đừng bày ra một ô mà bấm vào chắc chắn bị từ chối**. Máy chủ vẫn là
+ * chốt thật: gửi kèm một ô nó không hỏi thì nó bỏ qua, thiếu một ô nó hỏi thì nó
+ * trả `ASSIGNEE_REQUIRED`.
+ *
+ * HAI luật, cả hai do khách hàng chốt 27/08:
+ *
+ *   - **Gửi lại sau khi sửa KHÔNG chọn lại ai.** Trưởng bộ phận và Kế toán đã
+ *     chọn từ lượt gửi đầu, và đường trả về không xoá họ. Chọn lại được nghĩa là
+ *     người vừa trả hồ sơ về có thể bị ghi đè khỏi cột `tbp_user_id` — mà phạm
+ *     vi đọc tính theo đúng bốn cột ấy, nên họ mất quyền mở chính hồ sơ mình vừa
+ *     trả lại.
+ *   - **Tiếp nhận L1 chỉ hỏi Sale Admin ở lượt ĐẦU.** Hồ sơ đi vòng thứ hai thì
+ *     người ấy đã có; hỏi lại là mời chọn khác đi, tức đẩy hồ sơ sang một người
+ *     chưa từng thấy nó.
+ */
+export const oChonCua = (hanhDong: string, hoSo?: { daChonSaleAdmin?: boolean }): OChon[] => {
+  if (hanhDong === 'SUBMIT') return [CHON_TBP, CHON_KE_TOAN];
+  if (hanhDong === 'KT_RECEIVE_L1') return hoSo?.daChonSaleAdmin ? [] : [CHON_SALE_ADMIN];
+  return [];
+};
+
+const CHON_SALE_ADMIN: OChon = {
+  truong: 'saleAdminUserId',
+  vaiTro: 'SALE_ADMIN',
+  nhan: 'Sale Admin xử lý',
+  moTa: 'Người in bản cứng, trình Ban lãnh đạo ký, scan và bàn giao lại.',
 };
 
 /**

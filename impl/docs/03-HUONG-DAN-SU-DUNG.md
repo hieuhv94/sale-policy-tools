@@ -647,10 +647,22 @@ Bấm **Gửi duyệt** thì hộp thoại mở ra, và lượt gửi đi qua ha
    của họ; Trưởng bộ phận khác không thấy, và cũng không mở được.
 3. **Kế toán tiếp nhận** — người nhận **cả lần 1 và lần 2**, và là người xuất hợp đồng.
 
+> **Tiếp nhận lần 1 chỉ hỏi Sale Admin ở lượt ĐẦU** `mới 27/08`. Hồ sơ đi vòng thứ hai thì người ấy
+> đã có, và hộp tiếp nhận không còn ô chọn nào — bấm *Xác nhận* là xong.
+
 Nút *Tiếp tục* khoá tới khi đã chọn mẫu và cả hai ô người. Ô chọn rỗng nghĩa là chưa có tài khoản
 vai trò đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
 
 > **Bấm *Tiếp tục* KHÔNG gửi hồ sơ đi.** Nó chỉ mở bước 2.
+
+> **Gửi LẠI sau khi bị trả về thì KHÔNG chọn lại người** `mới 27/08`. Trưởng bộ phận và Kế toán đã
+> chọn từ lượt gửi đầu và giữ nguyên qua mọi vòng trả lại — hộp gửi lại chỉ còn ô chọn mẫu và bản
+> xem trước. Muốn đổi người thì đó là việc của Quản trị hệ thống (bàn giao), không phải một hệ quả
+> phụ của lượt gửi lại.
+>
+> Lý do: phạm vi đọc một hồ sơ tính theo bốn cột người trên chính hồ sơ ấy. Chọn một Trưởng bộ phận
+> khác là **xoá người vừa trả hồ sơ về khỏi phạm vi** — họ vẫn nhận thư báo nhưng mở ra thì nhận
+> *"không có quyền"*.
 
 **Bước 2 — đọc lại rồi mới gửi.** Một hộp thoại khác mở ra, **cỡ bằng hộp *Xem bản mềm*** — tờ A4
 cao gần hết màn hình, đọc được chứ không chỉ nhìn được. Đây đúng là bản người duyệt sẽ đọc.

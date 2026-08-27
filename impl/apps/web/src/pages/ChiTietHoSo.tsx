@@ -26,7 +26,7 @@ import {
 import { Lien, useDuong } from '../lib/router.js';
 import {
   CAN_XEM_TRUOC,
-  O_CHON_CUA,
+  oChonCua,
   type NguoiChon,
 } from '../lib/nguoi-xu-ly.js';
 import {
@@ -59,6 +59,14 @@ type HoSo = {
    * "lập trước `0098`, không có bản mềm".
    */
   mauHoSoId?: string | null;
+  /**
+   * Đã có Sale Admin chưa (`0141`) — một cờ, không phải id.
+   *
+   * Tuỳ chọn vì máy chủ cũ hơn giao diện không gửi nó, và giá trị lùi `false`
+   * chọn phía AN TOÀN: hỏi thừa một ô còn hơn bỏ qua một ô bắt buộc rồi nhận
+   * `ASSIGNEE_REQUIRED` sau khi bấm.
+   */
+  daChonSaleAdmin?: boolean;
   /** Người LẬP hồ sơ (`0061`). `ten` là `null` khi identity không tra được. */
   nguoiDeNghi?: { ten: string | null };
   /**
@@ -498,6 +506,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
           hanhDong={hanhDong}
           hoSoId={hoSo.id}
           rowVersion={hoSo.rowVersion}
+          daChonSaleAdmin={hoSo.daChonSaleAdmin ?? false}
           dong={() => datHanhDong(null)}
           xong={() => {
             datHanhDong(null);
@@ -515,7 +524,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
  * Ba phần, và phần nào có mặt là do BẢNG quyết định chứ không do một chuỗi `if`:
  *
  *   1. **Lý do** — `CAN_LY_DO` (trả lại, từ chối, yêu cầu in lại).
- *   2. **Chọn người xử lý bước sau** — `O_CHON_CUA` (`0031`).
+ *   2. **Chọn người xử lý bước sau** — `oChonCua` (`0031`, `0141`).
  *   3. **Xem trước bản CSBH A4** — `CAN_XEM_TRUOC`, chỉ lúc gửi duyệt.
  *
  * Nút xác nhận KHOÁ tới khi cả ba phần đủ. Với bản xem trước, "đủ" nghĩa là đã
@@ -527,17 +536,21 @@ function HopThoaiHanhDong({
   hanhDong,
   hoSoId,
   rowVersion,
+  daChonSaleAdmin,
   dong,
   xong,
 }: {
   hanhDong: string;
   hoSoId: string;
   rowVersion: number;
+  /** `0141` — đã có Sale Admin thì lượt tiếp nhận L1 thôi hỏi ô ấy. */
+  daChonSaleAdmin: boolean;
   dong: () => void;
   xong: () => void;
 }) {
   const canLyDo = CAN_LY_DO.has(hanhDong);
-  const oChon = O_CHON_CUA[hanhDong] ?? [];
+  // `0141` — bước nào hỏi ai phụ thuộc cả trạng thái hồ sơ, không chỉ hành động.
+  const oChon = oChonCua(hanhDong, { daChonSaleAdmin });
   const canXem = CAN_XEM_TRUOC.has(hanhDong);
 
   const [lyDo, datLyDo] = useState('');
