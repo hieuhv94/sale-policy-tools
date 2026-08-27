@@ -134,6 +134,27 @@ export class Clients implements OnModuleDestroy {
     if (!r.ok) throw new Error(`policy trả ${r.status} khi ghi lần sinh văn bản`);
   }
 
+  /**
+   * AI nhìn thấy khách hàng này (`0148`) — hỏi `customer`, không tự suy.
+   *
+   * Bản trước `document` tự khai luật: *"khách hàng thì theo TDV phụ trách"* —
+   * đúng ở `0031` và sai từ đúng lúc ấy, vì `0031` cũng dựng ra bảng
+   * `cus.customer_access`, thứ mà chỉ `customer` biết. Hệ quả đo được: Trưởng bộ
+   * phận mở được màn hình khách hàng nhưng nhận 403 ở mọi tệp pháp lý của họ.
+   *
+   * Hỏi thay vì chép, vì đây là luật của service kia và nó đã đổi một lần rồi.
+   */
+  async customerViewers(id: string): Promise<string[]> {
+    const r = await fetch(
+      `${customerUrl()}/internal/customers/${encodeURIComponent(id)}/nguoi-xem`,
+      { headers: svc() },
+    );
+    if (r.status === 404) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
+    if (!r.ok) throw new Error(`customer trả ${r.status} khi hỏi người xem`);
+    const b = (await r.json()) as { userIds?: unknown };
+    return Array.isArray(b.userIds) ? (b.userIds as string[]) : [];
+  }
+
   async customer(id: string): Promise<CustomerFull> {
     const r = await fetch(`${customerUrl()}/internal/customers/${encodeURIComponent(id)}`, {
       headers: svc(),

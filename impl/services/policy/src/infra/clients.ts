@@ -6,6 +6,7 @@ import { identityUrl, mintServiceToken } from '@csbh/http-kit';
 
 const catalogUrl = () => process.env.CATALOG_URL ?? 'http://catalog:3002';
 const customerUrl = () => process.env.CUSTOMER_URL ?? 'http://customer:3003';
+const documentUrl = () => process.env.DOCUMENT_URL ?? 'http://document:3005';
 
 export type CustomerInfo = {
   id: string;
@@ -124,6 +125,34 @@ export class Clients {
       },
     );
     if (!res.ok) throw new Error(`customer trả ${res.status} khi cấp quyền xem khách hàng`);
+  }
+
+  /**
+   * Nhân bản tệp *Giấy tờ hồ sơ* sang phiên bản CSBH mới (`0148`).
+   *
+   * NÉM RA KHI HỎNG, không nuốt. Nuốt thì bản mới lập xong mà thiếu giấy tờ, và
+   * người lập không có cách nào biết — đúng cái hỏng lượt này sinh ra để chữa,
+   * chỉ đổi từ "luôn thiếu" thành "thỉnh thoảng thiếu", tức khó tìm hơn hẳn.
+   *
+   * Cái giá, ghi ra để không ai phải đoán: từ lượt này, lập phiên bản CSBH mới
+   * cho một khách hàng **đã có giấy tờ đính kèm** cần `document` sống. Hồ sơ đầu
+   * tiên của một khách, và mọi bản mới của khách chưa đính giấy tờ nào, thì
+   * KHÔNG gọi — `create()` chỉ gọi khi bản cũ thật sự có tệp.
+   */
+  async saoChepGiayTo(
+    tuHoSo: string,
+    sangHoSo: string,
+  ): Promise<{ objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[]> {
+    const res = await fetch(`${documentUrl()}/internal/files/sao-chep`, {
+      method: 'POST',
+      headers: { ...svc(), 'content-type': 'application/json' },
+      body: JSON.stringify({ from: tuHoSo, to: sangHoSo }),
+    });
+    if (!res.ok) throw new Error(`document trả ${res.status} khi nhân bản giấy tờ hồ sơ`);
+    const b = (await res.json()) as { tep?: unknown };
+    return Array.isArray(b.tep)
+      ? (b.tep as { objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[])
+      : [];
   }
 
   async customer(id: string): Promise<CustomerInfo> {

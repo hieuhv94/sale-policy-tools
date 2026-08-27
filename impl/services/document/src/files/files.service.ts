@@ -91,6 +91,55 @@ export class FilesService {
    * Lưu riêng thì chuyển hồ sơ sang TDV khác phải nhớ cập nhật cả file, và ngày
    * quên là ngày người cũ vẫn xem được.
    */
+  /**
+   * QUYỀN ĐỌC — xem, tải xuống, liệt kê (`0148`).
+   *
+   * Tách khỏi quyền GHI vì khách hàng chốt 27/08: *"những ai nhìn thấy khách
+   * hàng đều xem và tải được các file hồ sơ pháp lý, nhưng không sửa hoặc xoá
+   * được"*. Một hàm cho cả hai việc thì không viết ra được câu ấy.
+   *
+   * Khác nhau ĐÚNG ở nhánh khách hàng:
+   *
+   *   đọc  — mọi người nhìn thấy khách hàng (TDV phụ trách · những người được
+   *          giao một hồ sơ của khách này · Quản trị hệ thống);
+   *   ghi  — chỉ TDV phụ trách.
+   *
+   * Nhánh HỒ SƠ không đổi, và cũng không nên đổi: bốn cột người trên hồ sơ vốn
+   * đã là "ai đang cầm hồ sơ này", tức đã trả lời đúng cả hai câu.
+   */
+  async assertCanRead(ownerKind: OwnerKind, ownerId: string | null, me: AuthUser): Promise<void> {
+    if (ownerKind === 'CUSTOMER') {
+      if (!ownerId) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+      /*
+       * Quản trị hệ thống đi nhánh riêng, y như `assertInScope` bên `customer`.
+       *
+       * Phạm vi dữ liệu của họ RỖNG (`0031`) nên họ không bao giờ khớp một danh
+       * sách người — mà họ mở được màn hình khách hàng. Thiếu nhánh này thì tệp
+       * pháp lý là thứ duy nhất trên màn hình ấy họ không mở được.
+       */
+      if (me.role === 'QUAN_TRI') return;
+      const nguoi = await this.clients.customerViewers(ownerId);
+      const scope = await this.clients.scopeUserIds(me);
+      if (nguoi.some((x) => x && scope.includes(x))) return;
+      throw new ForbiddenException({
+        code: 'OUT_OF_SCOPE',
+        message: 'Khách hàng này nằm ngoài phạm vi dữ liệu của bạn',
+      });
+    }
+    return this.assertCanAccess(ownerKind, ownerId, me);
+  }
+
+  /**
+   * QUYỀN GHI — tải lên, gỡ bỏ (`0148`).
+   *
+   * Đúng luật cũ, không nới một chút nào: tệp pháp lý của khách hàng do TDV phụ
+   * trách đưa vào và chỉ họ gỡ ra. Trưởng bộ phận đọc được từ `0148`, nhưng
+   * "đọc được" và "sửa được" là hai câu, và lượt này chỉ trả lời câu thứ nhất.
+   */
+  async assertCanWrite(ownerKind: OwnerKind, ownerId: string | null, me: AuthUser): Promise<void> {
+    return this.assertCanAccess(ownerKind, ownerId, me);
+  }
+
   async assertCanAccess(ownerKind: OwnerKind, ownerId: string | null, me: AuthUser): Promise<void> {
     if (ownerKind === 'TEMPLATE') {
       /*
@@ -166,7 +215,7 @@ export class FilesService {
         detected: type ?? 'không nhận dạng được',
       });
     }
-    await this.assertCanAccess(input.ownerKind, input.ownerId, me);
+    await this.assertCanWrite(input.ownerKind, input.ownerId, me);
 
     // Chuẩn hoá NFC cho tên hiển thị. macOS gửi lên dạng NFD, Windows gửi NFC;
     // không chuẩn hoá thì "Giấy phép.pdf" từ hai máy thành hai chuỗi khác nhau
@@ -256,7 +305,7 @@ export class FilesService {
   }
 
   async listFor(ownerKind: OwnerKind, ownerId: string, me: AuthUser): Promise<FileRow[]> {
-    await this.assertCanAccess(ownerKind, ownerId, me);
+    await this.assertCanRead(ownerKind, ownerId, me);
     return this.db.q<FileRow>(
       `SELECT * FROM doc.stored_file
         WHERE owner_kind = $1::doc.owner_kind AND owner_id = $2 AND deleted_at IS NULL
@@ -274,7 +323,7 @@ export class FilesService {
    */
   async read(id: string, me: AuthUser): Promise<{ row: FileRow; body: Buffer }> {
     const row = await this.row(id);
-    await this.assertCanAccess(row.owner_kind, row.owner_id, me);
+    await this.assertCanRead(row.owner_kind, row.owner_id, me);
     const body = await this.storage.get(row.object_key);
     if (sha256(body) !== row.sha256) {
       throw new ConflictException({
@@ -304,7 +353,8 @@ export class FilesService {
 
   async verify(id: string, me: AuthUser): Promise<{ ok: boolean; expected: string; actual: string }> {
     const row = await this.row(id);
-    await this.assertCanAccess(row.owner_kind, row.owner_id, me);
+    // Đối chiếu băm là một phép ĐỌC — nó không đổi gì trên kho.
+    await this.assertCanRead(row.owner_kind, row.owner_id, me);
     const actual = sha256(await this.storage.get(row.object_key));
     return { ok: actual === row.sha256, expected: row.sha256, actual };
   }
@@ -322,6 +372,57 @@ export class FilesService {
    * Trước đó còn một đường tự động — yêu cầu in lại xoá luôn bản scan — và đường
    * ấy đã gỡ theo yêu cầu khách hàng: Sale Admin chủ động gỡ và thay.
    */
+  /**
+   * Nhân bản tệp *Giấy tờ hồ sơ* của một hồ sơ sang hồ sơ khác (`0148`).
+   *
+   * CHÉP BYTE, không dùng chung `object_key`, và lý do nằm ngay ở hàm dưới đây:
+   * `discard` **xoá object khỏi kho** chứ không chỉ đánh dấu dòng. Hai dòng
+   * cùng trỏ một object thì Trình dược viên gỡ giấy tờ khỏi bản CŨ là bản MỚI
+   * mất tệp — mất thật, không khôi phục được, và mất ở một hồ sơ mà người gỡ
+   * không hề mở ra. Một lượt `put` thêm là cái giá rẻ để không có đường ấy.
+   *
+   * Trả về danh sách `objectKey` MỚI để `policy` dựng con trỏ của nó theo đúng
+   * những tệp thật sự chép được — chứ không tự đoán từ bảng của chính nó. Hai
+   * bảng đã có thể lệch nhau (tệp mồ côi), và lượt chép không phải là chỗ để
+   * cái lệch ấy nhân đôi.
+   */
+  async saoChepGiayToHoSo(
+    tuHoSo: string,
+    sangHoSo: string,
+  ): Promise<{ objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[]> {
+    const nguon = await this.db.q<FileRow>(
+      `SELECT * FROM doc.stored_file
+        WHERE owner_kind = 'POLICY' AND owner_id = $1
+          AND purpose = 'HO_SO' AND deleted_at IS NULL
+        ORDER BY uploaded_at`,
+      [tuHoSo],
+    );
+
+    const ra: { objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[] = [];
+    for (const f of nguon) {
+      const body = await this.storage.get(f.object_key);
+      const moi = await this.store({
+        fileName: f.file_name,
+        contentType: f.content_type,
+        buffer: body,
+        ownerKind: 'POLICY',
+        ownerId: sangHoSo,
+        purpose: 'HO_SO',
+        // Người tải lên GIỮ NGUYÊN là người của bản gốc, không đổi thành người
+        // vừa lập bản mới: câu mà cột này trả lời là *"ai đưa tờ giấy này vào hệ
+        // thống"*, và lượt chép không đổi câu trả lời ấy.
+        uploadedBy: f.uploaded_by,
+      });
+      ra.push({
+        objectKey: moi.object_key,
+        fileName: moi.file_name,
+        sizeBytes: String(moi.size_bytes),
+        uploadedBy: moi.uploaded_by,
+      });
+    }
+    return ra;
+  }
+
   async discard(id: string, reason: string): Promise<void> {
     const row = await this.db.one<FileRow>(`SELECT * FROM doc.stored_file WHERE id = $1`, [id]);
     if (!row || row.deleted_at) return;

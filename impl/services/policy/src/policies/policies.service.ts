@@ -15,6 +15,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import {
   computeLine,
@@ -396,12 +397,51 @@ export class PoliciesService {
       new Date(),
     );
 
+    /*
+     * ID SINH Ở NODE, không để Postgres tự đặt — và đó là điều kiện để nhân bản
+     * giấy tờ được (`0148`).
+     *
+     * Lượt nhân bản là một lời gọi HTTP sang `document`, mà luật ở đây là **lời
+     * gọi ra service khác không bao giờ nằm trong transaction** (xem
+     * `grantCustomerAccess`): nó giữ khoá dòng suốt thời gian mạng.
+     *
+     * Gọi SAU transaction thì hỏng ở chiều tệ nhất — hồ sơ đã tạo xong, người
+     * dùng nhận lỗi, và bản mới nằm đó thiếu giấy tờ. Gọi TRƯỚC thì hỏng ở chiều
+     * lành: chưa có gì được tạo, người dùng bấm lại. Muốn gọi trước thì phải
+     * biết id của hồ sơ mới trước khi ghi nó — nên id sinh ở đây.
+     *
+     * Cái sót lại khi transaction hỏng sau lượt chép: vài dòng `doc.stored_file`
+     * trỏ vào một hồ sơ không tồn tại. Chúng vô hình (mọi đường đọc đều đi qua
+     * `owner_id`) và không tốn gì ngoài chỗ chứa.
+     */
+    const policyId = randomUUID();
+
+    /*
+     * HỎI BẢNG CỦA MÌNH TRƯỚC, rồi mới gọi ra ngoài.
+     *
+     * Một câu `SELECT ... LIMIT 1` cục bộ thay cho một lời gọi HTTP ở mọi lượt
+     * lập phiên bản mới. Cái nó mua được không phải tốc độ mà là **phạm vi phụ
+     * thuộc**: chỉ những khách hàng thật sự có giấy tờ đính kèm mới cần
+     * `document` sống lúc lập bản mới. Bản đầu tiên của mọi khách, và mọi bản
+     * mới của khách chưa đính tờ nào, không gọi lời nào cả.
+     */
+    const coGiayTo =
+      active !== undefined &&
+      active !== null &&
+      (await this.db.one(
+        `SELECT 1 FROM pol.policy_attachment
+          WHERE policy_id = $1 AND kind = 'HO_SO' LIMIT 1`,
+        [active.id],
+      )) !== undefined;
+
+    const tepThuaKe = coGiayTo ? await this.clients.saoChepGiayTo(active!.id, policyId) : [];
+
     return this.db.tx(async (c) => {
       const created = await c.query<PolicyRow>(
         `INSERT INTO pol.policy
-           (code, customer_id, version_no, status, applied_date, supersedes_id,
+           (id, code, customer_id, version_no, status, applied_date, supersedes_id,
             created_by, tdv_user_id, app_version)
-         VALUES (pol.next_policy_code(), $1, $2, 'NHAP', $3, $4, $5, $6, $7)
+         VALUES ($8, pol.next_policy_code(), $1, $2, 'NHAP', $3, $4, $5, $6, $7)
          RETURNING *`,
         [
           input.customerId,
@@ -411,9 +451,44 @@ export class PoliciesService {
           me.id,
           customer.tdvUserId,
           process.env.APP_VERSION ?? '0.0.0-dev',
+          policyId,
         ],
       );
       const policy = created.rows[0]!;
+
+      /*
+       * GIẤY TỜ HỒ SƠ THỪA KẾ (`0148`).
+       *
+       * Đứng cạnh lượt chép dòng sản phẩm ngay dưới, và cùng một lý do: bản mới
+       * *trông như* đã thừa kế mọi thứ người lập nhớ đã nhập. Trước lượt này nó
+       * thừa kế đủ mọi dòng sản phẩm mà không mang theo một tờ giấy nào — nên
+       * người lập đọc màn hình ra "đã đầy đủ", gửi duyệt, và Trưởng bộ phận mở
+       * ra không thấy giấy tờ nào. Không cảnh báo, không ai sai.
+       *
+       * Chép theo DANH SÁCH `document` trả về, không tự đọc bảng của mình: hai
+       * bảng có thể đã lệch nhau (tệp mồ côi từ lượt tải lên hỏng nửa chừng), và
+       * lượt chép không phải chỗ để cái lệch ấy nhân đôi.
+       */
+      if (tepThuaKe.length > 0) {
+        await c.query(
+          // `uploaded_by` GIỮ NGUYÊN người của bản gốc, không đổi thành người
+          // vừa lập bản mới: câu mà cột này trả lời là *"ai đưa tờ giấy này vào
+          // hệ thống"*, và lượt chép không đổi câu trả lời ấy. `document` giữ
+          // cùng một quy ước cho dòng của nó, nên hai bên nói giống nhau.
+          `INSERT INTO pol.policy_attachment
+             (policy_id, kind, file_name, object_key, size_bytes, uploaded_by)
+           SELECT $1, 'HO_SO', t.file_name, t.object_key, t.size_bytes::bigint, t.uploaded_by
+             FROM unnest($2::text[], $3::text[], $4::text[], $5::uuid[])
+               AS t(file_name, object_key, size_bytes, uploaded_by)`,
+          [
+            policy.id,
+            tepThuaKe.map((t) => t.fileName),
+            tepThuaKe.map((t) => t.objectKey),
+            tepThuaKe.map((t) => t.sizeBytes),
+            tepThuaKe.map((t) => t.uploadedBy),
+          ],
+        );
+      }
 
       // Phiên bản mới CHỨA LẠI toàn bộ sản phẩm cũ: chép nguyên dòng cũ trước,
       // rồi mới áp các dòng người dùng gửi lên đè lên (POL-05, POL-07, muc 5.4).

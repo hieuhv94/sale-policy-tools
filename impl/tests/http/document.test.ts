@@ -236,6 +236,23 @@ beforeAll(async () => {
   doc = await createDocumentApp();
   storage = doc.get(Storage);
 
+  /*
+   * `document` NGHE THẬT, và trỏ `DOCUMENT_URL` vào nó (`0148`).
+   *
+   * Chiều gọi ngược với `bootPolicyListening` ở trên: từ `0148`, `policy` hỏi
+   * `document` nhân bản giấy tờ khi lập phiên bản CSBH mới. Cùng một instance
+   * `doc` đã dựng — supertest chạy được với app đang nghe, nên không cần bản
+   * thứ hai, và một bản thứ hai sẽ có kho MinIO riêng của nó.
+   */
+  await doc.listen(0, '127.0.0.1');
+  const cong = (doc.getHttpServer() as { address(): { port: number } }).address().port;
+  const truocDocUrl = process.env.DOCUMENT_URL;
+  process.env.DOCUMENT_URL = `http://127.0.0.1:${cong}`;
+  restores.push(() => {
+    if (truocDocUrl === undefined) delete process.env.DOCUMENT_URL;
+    else process.env.DOCUMENT_URL = truocDocUrl;
+  });
+
   const g = await (await http(catalog))
     .post('/catalog/product-groups')
     .set('Authorization', `Bearer ${tok['admin01']}`)
@@ -1241,4 +1258,214 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
         .send({ confirm: 'Mau se mat file' });
     }
   }, 120_000);
+});
+
+// =============================================================================
+// `0148` — GIẤY TỜ ĐI THEO PHIÊN BẢN MỚI, VÀ AI ĐỌC ĐƯỢC TỆP PHÁP LÝ
+// =============================================================================
+
+/** Đính một tệp `HO_SO` vào hồ sơ: `document` giữ file, `policy` giữ con trỏ. */
+async function dinhGiayTo(policyId: string, ten: string, who = 'tdv01') {
+  const up = await upload('tdv01', { ownerKind: 'POLICY', ownerId: policyId, purpose: 'HO_SO' }, PDF, ten);
+  expect(up.status, JSON.stringify(up.body)).toBe(201);
+  const g = await ppost(
+    `/policies/${policyId}/attachments`,
+    { kind: 'HO_SO', fileName: ten, objectKey: up.body.objectKey, sizeBytes: up.body.sizeBytes },
+    who,
+  );
+  expect(g.status, JSON.stringify(g.body)).toBe(201);
+  return up.body.objectKey as string;
+}
+
+/** Đưa một hồ sơ đi hết mười bước, trả lại chính id ấy. */
+async function chayHetLuong(id: string): Promise<void> {
+  expect((await act(id, 'SUBMIT', 'tdv01')).status).toBe(200);
+  expect((await act(id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+  expect((await act(id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+  const scan = await upload('sa01', { ownerKind: 'POLICY', ownerId: id, purpose: 'SCAN' }, PDF, 'ban-cung.pdf');
+  expect(scan.status).toBe(201);
+  expect(
+    (
+      await ppost(
+        `/policies/${id}/attachments`,
+        { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: scan.body.objectKey, sizeBytes: scan.body.sizeBytes },
+        'sa01',
+      )
+    ).status,
+  ).toBe(201);
+  expect((await act(id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+  expect((await act(id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
+}
+
+describe('`0148` phiên bản mới thừa kế GIẤY TỜ, không thừa kế bản cứng', () => {
+  it('chép tệp `HO_SO` sang bản mới, và bản mới có tệp RIÊNG chứ không dùng chung', async () => {
+    /*
+     * Cái hỏng lượt này chữa: bản mới thừa kế đủ mọi dòng sản phẩm — nên nó
+     * *trông như* đã thừa kế mọi thứ — mà không mang theo một tờ giấy nào. Người
+     * lập đọc màn hình ra "đã đầy đủ", gửi duyệt, và Trưởng bộ phận mở ra không
+     * thấy giấy tờ nào. Không cảnh báo, không ai sai.
+     *
+     * `objectKey` phải KHÁC: hai dòng cùng trỏ một object thì `discard` — vốn
+     * XOÁ object khỏi kho chứ không chỉ đánh dấu dòng — biến lượt gỡ giấy tờ ở
+     * bản cũ thành lượt xoá tệp của bản mới.
+     */
+    const d = await draft();
+    const khoaCu = await dinhGiayTo(d.id, 'giay-phep-kinh-doanh.pdf');
+    await chayHetLuong(d.id);
+
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(9))] },
+      'tdv01',
+    );
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+
+    const tep = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {
+      kind: string;
+      fileName: string;
+      objectKey: string;
+    }[];
+    const giayTo = tep.filter((t) => t.kind === 'HO_SO');
+    expect(giayTo, 'bản mới phải thừa kế giấy tờ của bản cũ').toHaveLength(1);
+    expect(giayTo[0]!.fileName).toBe('giay-phep-kinh-doanh.pdf');
+    expect(giayTo[0]!.objectKey, 'phải là BẢN CHÉP, không dùng chung object').not.toBe(khoaCu);
+    expect(await storage.exists(giayTo[0]!.objectKey)).toBe(true);
+    expect(await storage.exists(khoaCu), 'tệp của bản cũ vẫn còn nguyên').toBe(true);
+  }, 240_000);
+
+  it('KHÔNG chép bản cứng — nó là chữ ký của phiên bản CŨ', async () => {
+    /*
+     * Chép cả `SCAN` thì `SA_HANDOVER` của bản mới đi qua chốt `SCAN_REQUIRED`
+     * (WF-14) bằng tờ giấy đã ký của một bản khác: không ai scan gì cả mà hệ
+     * thống tin là đã có bản cứng. Đó là một lỗ hổng, không phải một tiện ích.
+     */
+    const d = await draft();
+    await dinhGiayTo(d.id, 'giay-to.pdf');
+    await chayHetLuong(d.id);
+
+    const cu = (await pget(`/policies/${d.id}`, 'tdv01')).body.attachments as { kind: string }[];
+    expect(cu.filter((t) => t.kind === 'SCAN'), 'bản cũ phải CÓ bản cứng').toHaveLength(1);
+
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(8))] },
+      'tdv01',
+    );
+    const tep = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {
+      kind: string;
+    }[];
+    expect(tep.filter((t) => t.kind === 'SCAN'), 'bản cứng KHÔNG được đi theo').toHaveLength(0);
+    expect(tep.filter((t) => t.kind === 'HO_SO')).toHaveLength(1);
+  }, 240_000);
+
+  it('Trưởng bộ phận của bản mới TẢI XUỐNG được tệp thừa kế', async () => {
+    /*
+     * Ca đáng giá nhất, và là lý do lượt chép phải đi qua `document` chứ không
+     * chỉ chép con trỏ trong `pol.policy_attachment`.
+     *
+     * Chép mỗi con trỏ thì dòng tệp vẫn hiện trên màn hình bản mới, nhưng
+     * `doc.stored_file.owner_id` còn ghi hồ sơ CŨ — và lượt kiểm quyền lúc tải
+     * đọc đúng cột ấy. Kết quả: một dòng bấm vào thì 403, tức đúng cái hỏng
+     * đang chữa, chỉ đổi hình dạng.
+     */
+    const d = await draft();
+    await dinhGiayTo(d.id, 'giay-to.pdf');
+    await chayHetLuong(d.id);
+
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(7))] },
+      'tdv01',
+    );
+    expect((await act(v2.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const tep = (await pget(`/policies/${v2.body.id}`, 'tbp01')).body.attachments as {
+      objectKey: string;
+    }[];
+    expect(tep).toHaveLength(1);
+
+    const ds = await dget(`/files?ownerKind=POLICY&ownerId=${v2.body.id}`, 'tbp01');
+    expect(ds.status, JSON.stringify(ds.body)).toBe(200);
+    const f = (ds.body as { id: string; objectKey: string }[]).find(
+      (x) => x.objectKey === tep[0]!.objectKey,
+    );
+    expect(f, 'tệp thừa kế phải thuộc về hồ sơ MỚI ở document').toBeDefined();
+    expect((await dget(`/files/${f!.id}/link`, 'tbp01')).status).toBe(200);
+  }, 240_000);
+});
+
+describe('`0148` ai nhìn thấy khách hàng thì đọc được hồ sơ pháp lý', () => {
+  /** Khách hàng có một tệp pháp lý, và một hồ sơ đã giao cho tbp01. */
+  async function khachCoTepVaHoSo() {
+    const d = await draft();
+    const up = await upload(
+      'tdv01',
+      { ownerKind: 'CUSTOMER', ownerId: d.customerId, purpose: 'PHAP_LY' },
+      PDF,
+      'giay-phep.pdf',
+    );
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    // Gửi duyệt là lúc `policy` cấp quyền xem khách hàng cho người được giao
+    // (`0031`) — đó chính là đường tbp01 nhìn thấy khách hàng này.
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    return { customerId: d.customerId, fileId: up.body.id as string };
+  }
+
+  it('Trưởng bộ phận LIỆT KÊ và TẢI XUỐNG được', async () => {
+    /*
+     * Trước `0148`, `document` tự khai luật *"khách hàng thì theo TDV phụ
+     * trách"* — đúng ở `0031` và sai từ đúng lúc ấy, vì `0031` cũng dựng ra
+     * `cus.customer_access`. Hệ quả: Trưởng bộ phận mở được màn hình khách hàng
+     * mà nhận 403 ở mọi tệp pháp lý trên chính màn hình ấy.
+     */
+    const { customerId, fileId } = await khachCoTepVaHoSo();
+
+    const ds = await dget(`/files?ownerKind=CUSTOMER&ownerId=${customerId}`, 'tbp01');
+    expect(ds.status, JSON.stringify(ds.body)).toBe(200);
+    expect((ds.body as { id: string }[]).map((x) => x.id)).toContain(fileId);
+
+    expect((await dget(`/files/${fileId}`, 'tbp01')).status).toBe(200);
+    expect((await dget(`/files/${fileId}/link`, 'tbp01')).status).toBe(200);
+  }, 180_000);
+
+  it('nhưng KHÔNG tải lên và KHÔNG xoá được — đọc và ghi là hai câu', async () => {
+    const { customerId, fileId } = await khachCoTepVaHoSo();
+
+    const them = await upload(
+      'tbp01',
+      { ownerKind: 'CUSTOMER', ownerId: customerId, purpose: 'PHAP_LY' },
+      PDF,
+      'tbp-tu-them.pdf',
+    );
+    expect(them.status, 'Trưởng bộ phận không được thêm giấy tờ pháp lý').toBe(403);
+
+    const xoa = await ddel(`/files/${fileId}`, 'tbp01');
+    // 403 vì vai trò (`@Roles('SALE_ADMIN','TDV')`) — chốt chặn đầu tiên đã đủ,
+    // và `assertCanWrite` là lớp thứ hai cho Sale Admin, vai trò CÓ trong danh
+    // sách ấy nhưng không phải TDV phụ trách khách này.
+    expect(xoa.status).toBe(403);
+    const saXoa = await ddel(`/files/${fileId}`, 'sa01');
+    expect(saXoa.status, 'Sale Admin cũng không xoá được tệp của khách người khác').toBe(403);
+
+    // Và tệp vẫn còn nguyên sau cả ba lượt thử.
+    expect((await dget(`/files/${fileId}`, 'tdv01')).status).toBe(200);
+  }, 180_000);
+
+  it('người NGOÀI phạm vi vẫn 403 — luật nới cho người xem, không nới cho tất cả', async () => {
+    // tdv03 không phụ trách khách này và chưa từng được giao hồ sơ nào của họ.
+    const { customerId, fileId } = await khachCoTepVaHoSo();
+    expect((await dget(`/files?ownerKind=CUSTOMER&ownerId=${customerId}`, 'tdv03')).status).toBe(403);
+    expect((await dget(`/files/${fileId}/link`, 'tdv03')).status).toBe(403);
+  }, 180_000);
+
+  it('Quản trị hệ thống đọc được, dù phạm vi dữ liệu của họ RỖNG', async () => {
+    /*
+     * Phạm vi của Quản trị là rỗng (`0031`) nên họ không bao giờ khớp một danh
+     * sách người — mà họ mở được màn hình khách hàng. Thiếu nhánh riêng cho họ
+     * thì tệp pháp lý là thứ duy nhất trên màn hình ấy họ không mở được.
+     */
+    const { customerId, fileId } = await khachCoTepVaHoSo();
+    expect((await dget(`/files?ownerKind=CUSTOMER&ownerId=${customerId}`, 'admin01')).status).toBe(200);
+    expect((await dget(`/files/${fileId}/link`, 'admin01')).status).toBe(200);
+  }, 180_000);
 });

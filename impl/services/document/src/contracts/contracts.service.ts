@@ -81,7 +81,7 @@ export class ContractsService {
     this.assertRole(me);
 
     const policy = await this.clients.policy(policyId);
-    await this.files.assertCanAccess('POLICY', policyId, me);
+    await this.files.assertCanRead('POLICY', policyId, me);
 
     // CỔNG THỜI ĐIỂM: chưa tiếp nhận lần 1 thì chưa xuất được — điều kiện giống
     // hệt nhau cho kế toán và Sale Admin. Quyền rộng ra không mở cổng sớm hơn

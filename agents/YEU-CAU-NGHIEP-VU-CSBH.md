@@ -1496,6 +1496,25 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
 
+**Giấy tờ hồ sơ đi theo phiên bản mới** `mới 28/08` — lập CSBH bổ sung hoặc chỉnh sửa thì các tệp
+*Giấy tờ hồ sơ* của bản đang hiệu lực được **chép sang** bản mới, y như dòng sản phẩm.
+
+> **Bản cứng KHÔNG đi theo** — nó là tờ giấy đã ký của phiên bản cũ; chép sang là để bước *Sale Admin
+> bàn giao* của bản mới đi qua chốt "phải có bản scan" bằng chữ ký của một bản khác.
+>
+> Mỗi bản nhận một BẢN SAO riêng, không dùng chung tệp: gỡ giấy tờ ở bản cũ không được làm bản mới
+> mất tệp.
+
+**Hồ sơ pháp lý của khách hàng: ai xem được khách thì xem được tệp** `mới 28/08` — Trưởng bộ phận,
+Kế toán, Sale Admin (khi đã được giao một hồ sơ của khách ấy), Ban lãnh đạo và Quản trị hệ thống đều
+**xem và tải** được giấy phép kinh doanh, chứng chỉ hành nghề…
+
+> **Thêm và gỡ thì KHÔNG đổi**: vẫn chỉ Trình dược viên phụ trách khách hàng ấy. Giấy tờ pháp lý là
+> thứ TDV xin của khách và mang về; ba vai trò kia không cầm bản gốc bao giờ.
+>
+> Trước lượt này khối *Hồ sơ pháp lý* hiện với mọi vai trò nhưng chỉ TDV phụ trách mở được tệp —
+> Trưởng bộ phận duyệt một hồ sơ mà không đọc được giấy phép kinh doanh của chính khách hàng ấy.
+
 **Sale Admin chỉ nhận thư và thông báo khi đó là VIỆC CỦA HỌ** `mới 27/08` — mọi thư CSBH gửi Sale
 Admin *vì họ có tên trên hồ sơ* đều bỏ đi.
 

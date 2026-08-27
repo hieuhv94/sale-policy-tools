@@ -12978,3 +12978,120 @@ việc và đòi có tên `sa01` trong từng lá.
 | Bỏ `SALE_ADMIN` khỏi `RECIPIENTS.KT_RECEIVE_L1` | 2 đỏ — ca chiều dương và bảng người nhận muc 3 |
 
 **1886/1886 xanh.**
+
+## P176 — `0148` giấy tờ đi theo phiên bản mới, và ai đọc được tệp pháp lý
+
+Hai lỗ hổng tìm ra ở lượt rà theo yêu cầu người dùng (*"TDV đã thêm file mà TBP
+không thấy"*), cả hai đều **im lặng hoàn toàn** — không lỗi, không cảnh báo,
+không ca kiểm nào chạm tới.
+
+### Lỗ thứ nhất: bản mới thừa kế mọi thứ TRỪ giấy tờ
+
+`create()` chép dòng sản phẩm từ bản đang hiệu lực sang bản mới. Nó không chép
+`pol.policy_attachment`.
+
+Cái làm nó nguy hiểm là **sự bất đối xứng**: bản mới tự động mang theo mọi thứ
+người lập nhớ đã nhập, trừ đúng thứ này. Họ đọc màn hình ra "hồ sơ đã đầy đủ",
+gửi duyệt; Trưởng bộ phận mở ra không thấy giấy tờ nào. Khối rỗng chỉ nói *"Trình
+dược viên đính kèm khi hồ sơ còn sửa được"* — một câu đúng mà không gợi ra rằng
+bản TRƯỚC có giấy tờ.
+
+### Chép con trỏ là chưa đủ, và đó là chỗ dễ dừng lại quá sớm
+
+Bản sửa hiển nhiên là một câu `INSERT ... SELECT` trong `pol.policy_attachment`.
+Nó sai theo cách chỉ lộ ra lúc bấm: `doc.stored_file.owner_id` vẫn ghi hồ sơ CŨ,
+mà lượt kiểm quyền lúc tải đọc đúng cột ấy — và giao diện dò `objectKey` trong
+danh sách tệp CỦA HỒ SƠ MỚI, một danh sách không có nó. Kết quả là một dòng tệp
+hiện trên màn hình mà bấm vào thì hỏng: **đúng cái lỗ đang chữa, chỉ đổi hình
+dạng.** Có một ca kiểm riêng canh đúng chuyện ấy — TBP của bản mới tải xuống
+được thật.
+
+Nên lượt chép phải đi qua `document` (AD-02: `csbh_pol` không ghi được lược đồ
+`doc`), và nó **chép BYTE** chứ không dùng chung `object_key`. Lý do nằm ở
+`discard`: hàm ấy **xoá object khỏi kho** chứ không chỉ đánh dấu dòng. Hai dòng
+cùng trỏ một object thì TDV gỡ giấy tờ khỏi bản CŨ là bản MỚI mất tệp — mất
+thật, ở một hồ sơ người gỡ không hề mở ra.
+
+**KHÔNG chép `SCAN`.** Bản scan là tờ giấy đã ký của phiên bản cũ; mang sang thì
+`SA_HANDOVER` của bản mới đi qua chốt `SCAN_REQUIRED` (WF-14) bằng chữ ký của
+một bản khác — không ai scan gì cả mà hệ thống tin là đã có bản cứng.
+
+### Thứ tự gọi: TRƯỚC transaction, và id sinh ở Node
+
+Luật của repo (xem `grantCustomerAccess`): **lời gọi ra service khác không bao
+giờ nằm trong transaction** — nó giữ khoá dòng suốt thời gian mạng.
+
+Gọi SAU transaction thì hỏng ở chiều tệ nhất: hồ sơ đã tạo xong, người dùng nhận
+lỗi, và bản mới nằm đó thiếu giấy tờ. Gọi TRƯỚC thì hỏng ở chiều lành — chưa có
+gì được tạo, bấm lại là xong. Muốn gọi trước thì phải biết id hồ sơ mới trước khi
+ghi nó, nên **id sinh bằng `randomUUID()` ở Node** thay vì để Postgres đặt.
+
+Cái sót lại khi transaction hỏng sau lượt chép: vài dòng `doc.stored_file` trỏ
+vào một hồ sơ không tồn tại. Vô hình (mọi đường đọc đi qua `owner_id`) và không
+tốn gì ngoài chỗ chứa.
+
+Phụ thuộc mới, ghi ra để không ai phải đoán: lập phiên bản mới cho khách **đã có
+giấy tờ đính kèm** cần `document` sống. Hạn chế phạm vi bằng một câu `SELECT …
+LIMIT 1` cục bộ trước — bản đầu tiên của mọi khách, và mọi bản mới của khách chưa
+đính tờ nào, không gọi lời nào cả. Nhờ vậy 78 tệp kiểm còn lại không phải đổi gì.
+
+### Lỗ thứ hai: `document` tự khai luật của `customer`
+
+`assertCanAccess` viết *"khách hàng thì vẫn theo TDV phụ trách"* — đúng ở `0031`
+và **sai từ đúng lúc ấy**, vì chính `0031` dựng ra `cus.customer_access`, bảng mà
+`policy` ghi vào mỗi lần giao hồ sơ. Một service chép luật của service khác, rồi
+service kia đổi luật trong cùng một chặng.
+
+Hệ quả: Trưởng bộ phận mở được màn hình khách hàng — giao diện dựng khối *Hồ sơ
+pháp lý* cho mọi vai trò — mà nhận 403 ở mọi tệp trên chính màn hình ấy.
+
+Chữa bằng cách **hỏi thay vì chép**: `customer` mở
+`GET /internal/customers/:id/nguoi-xem`, trả về DANH SÁCH NGƯỜI chứ không trả lời
+có/không. Trả danh sách giữ cho hai nhánh (hồ sơ và khách hàng) dùng CHUNG một
+phép so ở `document`; trả có/không thì `document` có hai hình dạng kiểm quyền, và
+cái thứ hai không ai đọc lại nữa.
+
+### `assertCanRead` vs `assertCanWrite`
+
+Yêu cầu là *"xem và tải được, nhưng không sửa hoặc xoá được"* — một hàm cho cả
+hai việc thì không viết ra được câu ấy. Tách đôi, và nhánh HỒ SƠ giữ nguyên ở cả
+hai: bốn cột người trên hồ sơ vốn đã trả lời đúng cả hai câu.
+
+Kèm một chỗ phải mở mà thoạt nhìn như mâu thuẫn với `0133`: `QUAN_TRI` thêm vào
+`READERS`. Không mâu thuẫn — chốt vai trò chỉ là cửa ngoài, còn nhánh HỒ SƠ của
+`assertCanRead` so phạm vi dữ liệu, thứ Quản trị có RỖNG. Họ vào được cửa rồi
+vẫn 403 ở mọi tệp hồ sơ, đúng như trước; cái mở ra chỉ là nhánh khách hàng, nơi
+`0133` đã giữ lại trang cho họ.
+
+### Ca kiểm đỏ: đo trước khi kết luận, lần thứ hai liên tiếp
+
+`document.test.ts` chạy riêng cho **9 đỏ** ngay ở HEAD — tệp này phụ thuộc thứ tự
+như `INT-06`/`0085` của `0147`. Lùi cả mã nguồn lẫn ca kiểm về HEAD rồi chạy lại
+là biết ngay, và không mất một phút nào đi tìm lỗi không tồn tại. Ba ca đỏ thật
+đều là của ca kiểm mới, và ca đầu tiên bắt được một lỗi thật: `uploaded_by` là
+`NOT NULL` và lượt `INSERT` chép thiếu nó.
+
+`uploaded_by` giữ nguyên NGƯỜI CỦA BẢN GỐC ở cả hai bảng, không đổi thành người
+vừa lập bản mới: câu cột này trả lời là *"ai đưa tờ giấy này vào hệ thống"*, và
+lượt chép không đổi câu trả lời ấy.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Không chép giấy tờ sang bản mới (trước `0148`) | 3 đỏ |
+| Dùng chung `object_key` thay vì chép byte | 2 đỏ |
+| Chép CẢ bản cứng | 3 đỏ |
+| Quyền đọc tệp khách hàng về luật cũ | 2 đỏ — TBP và Quản trị |
+| Nới quyền GHI theo cùng luật đọc | 1 đỏ |
+
+Lượt thứ hai đáng chú ý: dùng chung `object_key` làm đỏ **cả ca tải xuống của
+TBP**, không chỉ ca so khoá. Đó là vì hai dòng cùng khoá thì `document` trả về
+đúng một dòng của hồ sơ CŨ, và phép dò `objectKey` trong danh sách tệp của hồ sơ
+MỚI không tìm thấy gì — tức bản sửa nửa vời ấy hỏng theo đúng cách bản không sửa
+gì đã hỏng.
+
+Lượt cuối là ca chiều ngược của yêu cầu: *"xem và tải được, NHƯNG không sửa hoặc
+xoá được"*. Thiếu nó thì một bản sửa gộp hai hàm lại làm một vẫn xanh hết.
+
+**1893/1893 xanh.**

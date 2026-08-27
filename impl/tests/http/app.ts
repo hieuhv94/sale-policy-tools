@@ -267,6 +267,33 @@ export async function bootCustomerListening(): Promise<{
   };
 }
 
+/**
+ * Dựng document nghe thật và trỏ `DOCUMENT_URL` vào đó (`0148`).
+ *
+ * Chiều gọi NGƯỢC với `bootPolicyListening`: từ `0148`, `policy` hỏi `document`
+ * nhân bản giấy tờ khi lập phiên bản CSBH mới. Chỉ tệp kiểm nào dựng một bản cũ
+ * CÓ giấy tờ mới cần hàm này — `create()` không gọi ra ngoài khi bản cũ không
+ * đính tờ nào, và đó là lý do 78 tệp kiểm còn lại không phải đổi gì.
+ */
+export async function bootDocumentListening(): Promise<{
+  app: INestApplication;
+  restore: () => void;
+}> {
+  const { createTestApp } = await import('@csbh/document/testing');
+  const app = await createTestApp();
+  await app.listen(0, '127.0.0.1');
+  const addr = (app.getHttpServer() as { address(): { port: number } }).address();
+  const previous = process.env.DOCUMENT_URL;
+  process.env.DOCUMENT_URL = `http://127.0.0.1:${addr.port}`;
+  return {
+    app,
+    restore: () => {
+      if (previous === undefined) delete process.env.DOCUMENT_URL;
+      else process.env.DOCUMENT_URL = previous;
+    },
+  };
+}
+
 /** Xoá bộ lọc đã lưu trong phiên — dùng giữa các test của reporting (RPT-04). */
 export async function clearSavedFilters(): Promise<void> {
   const { default: Redis } = await import('ioredis');

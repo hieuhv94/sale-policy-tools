@@ -50,6 +50,39 @@ export class CustomerInternalController {
   }
 
   /**
+   * AI NHÌN THẤY khách hàng này — `document` hỏi để gác tệp hồ sơ pháp lý (`0148`).
+   *
+   * Trả về DANH SÁCH NGƯỜI, không trả lời có/không, và đó là một lựa chọn: phép
+   * so cuối cùng (`phạm vi của tôi có giao với danh sách này không`) đã nằm sẵn
+   * ở `document` cho nhánh hồ sơ, nên trả về danh sách giữ cho hai nhánh dùng
+   * CHUNG một phép so. Trả về có/không thì `document` có hai hình dạng kiểm
+   * quyền cho hai loại chủ sở hữu, và cái thứ hai không ai đọc lại nữa.
+   *
+   * Hai nguồn, đúng hai nguồn mà `assertInScope` của chính service này dùng:
+   * TDV phụ trách, và bảng `cus.customer_access` — những người được `policy` cấp
+   * quyền khi họ được giao một hồ sơ của khách này (`0031`).
+   *
+   * KHÔNG có Quản trị hệ thống ở đây, và không phải vì quên: phạm vi của họ là
+   * RỖNG (`0031`), nên họ không bao giờ khớp một danh sách người. `document` xử
+   * lý họ bằng một nhánh riêng, y như `assertInScope` bên này.
+   */
+  @Get(':id/nguoi-xem')
+  async nguoiXem(@Param('id') id: string) {
+    const kh = await this.db.one<{ tdv_user_id: string | null }>(
+      `SELECT tdv_user_id FROM cus.customer WHERE id = $1`,
+      [id],
+    );
+    if (!kh) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
+    const them = await this.db.q<{ user_id: string }>(
+      `SELECT user_id FROM cus.customer_access WHERE customer_id = $1`,
+      [id],
+    );
+    return {
+      userIds: [...new Set([kh.tdv_user_id, ...them.map((x) => x.user_id)])].filter(Boolean),
+    };
+  }
+
+  /**
    * Khách hàng do TDV này phụ trách — đếm trước khi vô hiệu hoá tài khoản (`0032`).
    *
    * Tách khỏi lệnh chuyển thật để màn hình quản trị nói được con số TRƯỚC khi

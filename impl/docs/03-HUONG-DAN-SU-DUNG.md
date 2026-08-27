@@ -467,6 +467,15 @@ hỏi *loại giấy tờ* rồi mới tải lên.
 **Chỉ Trình dược viên phụ trách khách hàng ấy** mới thêm và gỡ được. Người khác vẫn xem và tải bình
 thường, chỉ không thấy dấu ✕ và vùng kéo thả.
 
+> **"Người khác" nghĩa là ai** `sửa 28/08` — **mọi người mở được trang khách hàng này**: Trưởng bộ
+> phận, Kế toán và Sale Admin đã được giao một hồ sơ CSBH của khách, Ban lãnh đạo, và Quản trị hệ
+> thống.
+>
+> Trước 28/08 câu trên đúng trên màn hình mà sai ở máy chủ: khối *Hồ sơ pháp lý* hiện với mọi vai
+> trò, nhưng chỉ Trình dược viên phụ trách mở được tệp — người khác bấm vào thì báo *ngoài phạm vi
+> dữ liệu*. Trưởng bộ phận duyệt một hồ sơ mà không đọc được giấy phép kinh doanh của chính khách
+> hàng ấy.
+
 > Trước 20/08 mọi vai trò ghi đều tải lên được, cho mọi khách trong phạm vi của mình. Giấy tờ pháp lý
 > là thứ TDV xin của khách và mang về — ba vai trò kia không cầm bản gốc bao giờ.
 >
@@ -1154,6 +1163,15 @@ Mở một hồ sơ:
 
 Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai tải lên và lúc nào — để câu hỏi *"bản cứng
 đâu"* luôn có chỗ trả lời.
+
+**Lập phiên bản mới thì giấy tờ hồ sơ ĐI THEO** `sửa 28/08` — y như dòng sản phẩm. Bản mới nhận một
+bản sao riêng của từng tệp, nên gỡ giấy tờ ở bản cũ không đụng gì tới bản mới.
+
+> **Bản cứng thì KHÔNG đi theo**, và đó là chủ ý: nó là tờ giấy đã ký của phiên bản *cũ*. Bản mới
+> phải được in, trình ký và scan lại từ đầu.
+>
+> Trước 28/08 bản mới thừa kế đủ mọi dòng sản phẩm mà không mang theo tờ giấy nào — nên nó *trông
+> như* đã đầy đủ, và người duyệt mở ra mới thấy trống.
 
 Mỗi tệp là một **thẻ có ảnh thu nhỏ** `sửa 20/08`. Rê chuột lên thẻ thì hiện hai nút ở giữa: **con
 mắt** để xem ngay trong phần mềm, **mũi tên xuống** để tải về. Dấu **✕** ở góc trên bên phải là gỡ

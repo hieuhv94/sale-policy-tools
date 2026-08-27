@@ -8,6 +8,7 @@ import { Clients } from './infra/clients.js';
 import { Gotenberg } from './infra/gotenberg.js';
 import { FilesService } from './files/files.service.js';
 import { FilesController } from './files/files.controller.js';
+import { FilesInternalController } from './files/internal.controller.js';
 import { RenderService } from './render/render.service.js';
 import { RenderController } from './render/render.controller.js';
 import { TemplatesService } from './contracts/templates.service.js';
@@ -43,6 +44,7 @@ class HealthController {
   controllers: [
     HealthController,
     FilesController,
+    FilesInternalController,
     RenderController,
     ContractTemplatesController,
     PolicyTemplatesController,

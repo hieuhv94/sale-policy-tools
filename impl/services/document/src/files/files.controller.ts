@@ -26,7 +26,25 @@ import { checkFileToken, FILE_LINK_TTL_SEC, mintFileToken } from './file-link.js
 import { UploadErrorFilter } from './upload-error.filter.js';
 
 const WRITERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'];
-const READERS = [...WRITERS, 'BAN_LANH_DAO'];
+
+/**
+ * Ai gõ được vào các đường ĐỌC tệp. Quản trị hệ thống thêm ở `0148`.
+ *
+ * Thoạt nhìn nó mâu thuẫn với `0133` — *"Quản trị đứng ngoài luồng duyệt, không
+ * có phạm vi hồ sơ nào"*. Không mâu thuẫn, vì chốt vai trò ở đây chỉ là cửa
+ * ngoài: phép kiểm thật nằm ở `assertCanRead`, và ở đó nhánh HỒ SƠ so phạm vi
+ * dữ liệu — thứ mà Quản trị có RỖNG. Nên họ vào được cửa rồi vẫn nhận 403 ở mọi
+ * tệp của hồ sơ, đúng như trước.
+ *
+ * Cái mở ra là nhánh KHÁCH HÀNG. Màn hình khách hàng dựng khối *Hồ sơ pháp lý*
+ * cho mọi vai trò mở được trang ấy, và Quản trị mở được (`0133` giữ lại trang
+ * này vì nút *Đổi TDV phụ trách* nằm ở đó). Trước lượt này, khối ấy hiện với họ
+ * rồi báo lỗi — đúng lối "nút hiện rồi trả 403" mà `0097` đã phải chữa một lần.
+ *
+ * KHÔNG thêm vào `WRITERS`: đọc và ghi là hai câu, và lượt này chỉ trả lời câu
+ * thứ nhất.
+ */
+const READERS = [...WRITERS, 'BAN_LANH_DAO', 'QUAN_TRI'];
 
 @Controller('files')
 export class FilesController {
@@ -76,7 +94,7 @@ export class FilesController {
   @Get(':id')
   async meta(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
-    await this.files.assertCanAccess(row.owner_kind, row.owner_id, me);
+    await this.files.assertCanRead(row.owner_kind, row.owner_id, me);
     return view(row);
   }
 
@@ -84,7 +102,8 @@ export class FilesController {
   @Get(':id/link')
   async link(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
-    await this.files.assertCanAccess(row.owner_kind, row.owner_id, me);
+    // ĐỌC: đây là bước một của lượt tải xuống (`DOC-09`), không phải lượt ghi nào.
+    await this.files.assertCanRead(row.owner_kind, row.owner_id, me);
     return {
       url: `/files/${id}/content?t=${encodeURIComponent(mintFileToken(id, me.id))}`,
       expiresInSec: FILE_LINK_TTL_SEC,
@@ -171,7 +190,9 @@ export class FilesController {
   @Delete(':id')
   async remove(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
-    await this.files.assertCanAccess(row.owner_kind, row.owner_id, me);
+    // GHI, và cố ý hẹp hơn quyền đọc từ `0148`: Trưởng bộ phận đọc được tệp
+    // pháp lý của khách hàng, nhưng xoá thì vẫn chỉ TDV phụ trách.
+    await this.files.assertCanWrite(row.owner_kind, row.owner_id, me);
     await this.files.discard(id, `xoá bởi ${me.role}`);
     return { ok: true };
   }
