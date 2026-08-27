@@ -21,6 +21,7 @@ import {
   opt,
   pageOf,
   Roles,
+  ngayIso,
   str,
   uuid,
   validate,
@@ -179,7 +180,7 @@ export class PoliciesController {
 
     const head = validate(body, {
       customerId: str(1, 60),
-      appliedDate: opt(str(10, 10)),
+      appliedDate: opt(ngayIso()),
       mode: opt(oneOf('SUPPLEMENT', 'AMEND')),
     });
     const lines = (Array.isArray(b.lines) ? b.lines : []).map(
@@ -243,7 +244,7 @@ export class PoliciesController {
   @Patch(':id')
   update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     rejectForbidden(body);
-    const b = validate(body, { appliedDate: str(10, 10) });
+    const b = validate(body, { appliedDate: ngayIso() });
     return this.policies.updateAppliedDate(id, b.appliedDate, me);
   }
 

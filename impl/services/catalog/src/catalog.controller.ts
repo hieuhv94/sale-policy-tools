@@ -19,6 +19,7 @@ import {
   int,
   money,
   oneOf,
+  ngayIso,
   opt,
   pageOf,
   Roles,
@@ -40,7 +41,10 @@ import { dungFileMau, MAU_TEN_TEP, parseProductSheet } from './products/excel.js
  */
 const TRAN_CO_TEP = 5 * 1024 * 1024;
 
-const isoDate = () => str(10, 10);
+/*
+ * `isoDate` CỤC BỘ đã gỡ (`0136`) — nó là `str(10, 10)`, tức chỉ đếm ký tự.
+ * Dùng `ngayIso()` của `http-kit`: một chỗ khai, và nó kiểm ngày có thật.
+ */
 
 /**
  * Đọc thì mọi vai trò đã đăng nhập đều được — TDV cần danh mục để lập hồ sơ.
@@ -162,7 +166,7 @@ export class CatalogController {
 
   @Get('products/:id/current-price')
   currentPrice(@Param('id') id: string, @Query('priceType') pt?: string, @Query('on') on?: string) {
-    const b = validate({ priceType: pt, on }, { priceType: oneOf(...PRICE_TYPES), on: opt(isoDate()) });
+    const b = validate({ priceType: pt, on }, { priceType: oneOf(...PRICE_TYPES), on: opt(ngayIso()) });
     return this.products.currentPrice(id, b.priceType, b.on);
   }
 
@@ -178,7 +182,7 @@ export class CatalogController {
       amount: money(),
       // TUỲ CHỌN từ `0123`: màn hình không còn ô chọn ngày, giá đổi là đổi ngay.
       // Tham số ở lại cho bộ nạp dựng lịch sử — xem chú thích ở `setPrice`.
-      effectiveFrom: opt(isoDate()),
+      effectiveFrom: opt(ngayIso()),
     });
     return this.products.setPrice(
       id,
@@ -304,7 +308,7 @@ export class CatalogController {
       code: str(1, 40),
       productGroupCode: opt(str(1, 40)),
       customerType: opt(int(1, 3)),
-      effectiveFrom: isoDate(),
+      effectiveFrom: ngayIso(),
       thresholdRate2: int(0, 10_000),
     });
     return this.rules.create(b, me.id);
@@ -325,7 +329,7 @@ export class CatalogController {
   updateRule(@CurrentUser() me: AuthUser, @Param('code') code: string, @Body() body: unknown) {
     const b = validate(body, {
       thresholdRate2: int(0, 10_000),
-      effectiveFrom: opt(isoDate()),
+      effectiveFrom: opt(ngayIso()),
     });
     return this.rules.update(code, b, me.id);
   }
@@ -346,7 +350,7 @@ export class CatalogController {
   ) {
     const b = validate(
       { productId, customerType, on },
-      { productId: str(1, 60), customerType: int(1, 3), on: opt(isoDate()) },
+      { productId: str(1, 60), customerType: int(1, 3), on: opt(ngayIso()) },
     );
     return this.rules.resolve(b);
   }

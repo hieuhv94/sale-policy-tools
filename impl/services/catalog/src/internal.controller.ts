@@ -3,7 +3,7 @@
  * tra nhóm sản phẩm — không service nào đọc thẳng schema cat (AD-02).
  */
 import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import { int, opt, ServiceOnly, str, validate } from '@csbh/http-kit';
+import { int, ngayIso, opt, ServiceOnly, validate } from '@csbh/http-kit';
 import { ProductsService } from './products/products.service.js';
 import { RulesService } from './rules/rules.service.js';
 
@@ -31,7 +31,7 @@ export class CatalogInternalController {
   ) {
     const q = validate(
       { customerType, on },
-      { customerType: int(1, 3), on: opt(str(10, 10)) },
+      { customerType: int(1, 3), on: opt(ngayIso()) },
     );
     const product = (await this.products.byId(productId)) as {
       id: string;
@@ -66,7 +66,7 @@ export class CatalogInternalController {
   @Post('product-snapshots')
   @HttpCode(200)
   async snapshots(@Body() body: unknown) {
-    const b = validate(body, { customerType: int(1, 3), on: opt(str(10, 10)) });
+    const b = validate(body, { customerType: int(1, 3), on: opt(ngayIso()) });
     const ids = (body as { productIds?: unknown }).productIds;
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) {
       throw new BadRequestException({

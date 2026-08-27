@@ -12006,3 +12006,65 @@ chạy `pg-init` + `migrate` trên chính CSDL ấy.
 csbh_internal` nếu thật sự cần tới Gotenberg như lượt đo này.
 
 **9/9 ca của tệp mới xanh; `make test` đầy đủ chưa chạy.**
+
+## P164 — `0136` nút *Đóng*, và ngày tháng báo lỗi cho ra hồn
+
+Hai yêu cầu đầu của lượt phản hồi 27/08, chung một chặng vì cả hai là **câu chữ
+người dùng đọc khi có lỗi**.
+
+### Nút *Đã hiểu* → *Đóng*
+
+Nhãn cũ hỏi một câu mà cái nút không trả lời được: nó chỉ đóng hộp thoại, còn
+người dùng đã hiểu hay chưa thì không ai biết.
+
+### `str(10, 10)` không phải một phép kiểm ngày
+
+Khách hàng báo câu lỗi ngày tháng *"không đúng hoặc không rõ"*. Đọc mã thì ra
+nguyên nhân, và nó không nằm ở câu chữ: **năm chỗ cần ngày đều tự viết
+`str(10, 10)`** — ba service, không chỗ nào kiểm đó là ngày gì.
+
+Ba hệ quả, và chỉ hệ quả đầu là thứ khách hàng nhìn thấy:
+
+| Nhập | Trước | Sau |
+|---|---|---|
+| `27/08/2026` | *"phải có tối thiểu 10 ký tự"* | *"phải là một ngày hợp lệ, dạng năm-tháng-ngày"* |
+| `khong-phai` | **đi qua** → Postgres `22007` → **HTTP 500** | 400, chặn ở cửa |
+| `2026-02-31` | **đi qua** → 500 | *"không phải một ngày có thật trên lịch"* |
+
+Câu cũ nói về **độ dài chuỗi** với một người đang nhập một cái ngày — đúng về
+mặt kỹ thuật, vô nghĩa với người đọc. Và hai dòng dưới là đúng lớp lỗi mà
+`uuid()` đã sinh ra để bịt từ `0058`: một chuỗi người dùng tự gõ sai không được
+phép ra thành "lỗi máy chủ".
+
+`ngayIso()` về `http-kit`, một chỗ khai cho cả ba service.
+
+### `new Date('2026-02-31')` KHÔNG ném lỗi
+
+Nó lặng lẽ trôi sang 03/03. Nên khớp biểu thức chính quy là chưa đủ — phải dựng
+ngày rồi **in ngược ra so lại**, lệch nghĩa là ngày vừa gõ không tồn tại.
+
+Và phải dùng `Date.UTC` chứ không `new Date(chuỗi)` cộng `getFullYear()`: chuỗi
+`yyyy-mm-dd` đọc theo UTC còn `getFullYear()` trả theo giờ máy, nên ở múi giờ
+Việt Nam **mọi ngày lùi một hôm và mọi ngày đều "không tồn tại"**. Cùng họ với
+bẫy `current_date`/`toISOString` của `0128`.
+
+### Hai câu, không phải một
+
+`27/08/2026` là gõ đúng ngày sai thứ tự; `2026-02-31` là gõ đúng thứ tự nhưng
+ngày không có thật. Một câu chung cho cả hai bắt người dùng tự đoán mình sai kiểu
+gì — có một ca kiểm canh hai câu phải khác nhau.
+
+Kèm ba nhãn ô nhập còn thiếu ở `NHAN_TRUONG`: `effectiveFrom`, `on`, `phone`.
+Thiếu nhãn thì hộp thoại lùi về *"Có ô nhập chưa hợp lệ"* — đúng nhưng không chỉ
+được vào ô nào.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Câu lỗi quay về nói độ dài chuỗi | 2 đỏ |
+| Thôi kiểm ngày có thật trên lịch | 2 đỏ |
+| Thôi kiểm dạng | 2 đỏ |
+| Nút lỗi trở về *Đã hiểu* | 1 đỏ |
+
+**32/32 ca của hai tệp liên quan xanh; `make test` đầy đủ chưa chạy.**

@@ -124,6 +124,47 @@ export const uuid = (): Check<string> => ({
   },
 });
 
+/**
+ * NGÀY — `yyyy-mm-dd`, và phải là một ngày CÓ THẬT trên lịch (`0136`).
+ *
+ * Tới `0135` mỗi chỗ cần ngày đều tự viết `str(10, 10)` — năm chỗ, ba service.
+ * Nó đếm ký tự, không xem đó là ngày gì, nên hai chuyện lọt qua:
+ *
+ *   1. `'khong-phai'` đúng mười ký tự → qua cửa, rồi Postgres từ chối ở
+ *      `WHERE effective_from = $1` với `22007`. Ra ngoài thành **HTTP 500** —
+ *      "lỗi máy chủ" cho một chuỗi người dùng tự gõ sai. Cùng loại lỗi mà
+ *      `uuid()` đã sinh ra để bịt, chỉ khác cái kiểu dữ liệu.
+ *   2. `'2026-02-31'` cũng mười ký tự, cũng đúng dạng — nhưng tháng Hai không
+ *      có ngày 31.
+ *
+ * Và câu báo lỗi nó sinh ra là thứ khách hàng đã chỉ ra: *"phải có tối thiểu 10
+ * ký tự"*. Câu ấy nói về ĐỘ DÀI CHUỖI với một người đang nhập một cái ngày —
+ * đúng về mặt kỹ thuật, vô nghĩa với người đọc.
+ *
+ * VÌ SAO SO LẠI BẰNG `toISOString`, không chỉ khớp biểu thức chính quy: `new
+ * Date('2026-02-31')` KHÔNG ném lỗi, nó lặng lẽ trôi sang `2026-03-03`. Dựng
+ * ngày rồi in ngược ra và so với chuỗi gốc là cách bắt được chuyện ấy — lệch
+ * nghĩa là ngày vừa gõ không tồn tại.
+ *
+ * `Date.UTC` chứ không phải `new Date(chuỗi)`: chuỗi `yyyy-mm-dd` được đọc theo
+ * UTC, còn `getFullYear()` trả theo giờ máy — ở múi giờ Việt Nam thì mọi ngày
+ * lùi một hôm, và mọi ngày đều "không tồn tại".
+ */
+export const ngayIso = (): Check<string> => ({
+  parse: (v, field) => {
+    if (typeof v !== 'string') throw bad(field, 'phải là chuỗi');
+    const t = v.trim();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+    if (!m) throw bad(field, 'phải là một ngày hợp lệ, dạng năm-tháng-ngày');
+    const [nam, thang, ngay] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const d = new Date(Date.UTC(nam, thang - 1, ngay));
+    const ve =
+      d.getUTCFullYear() === nam && d.getUTCMonth() === thang - 1 && d.getUTCDate() === ngay;
+    if (!ve) throw bad(field, 'không phải một ngày có thật trên lịch');
+    return t;
+  },
+});
+
 export const opt = <T>(c: Check<T>): Check<T | undefined> => ({
   parse: (v, field) => (v === undefined || v === null || v === '' ? undefined : c.parse(v, field)),
 });

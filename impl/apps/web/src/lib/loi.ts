@@ -219,6 +219,7 @@ export const NHAN_TRUONG: Record<string, string> = {
   days: 'Số ngày',
   debt: 'Công nợ',
   deliveryAddress: 'Địa chỉ giao hàng',
+  effectiveFrom: 'Ngày hiệu lực',
   email: 'Email',
   fileName: 'Tên tệp',
   fullName: 'Họ và tên',
@@ -226,9 +227,13 @@ export const NHAN_TRUONG: Record<string, string> = {
   login: 'Tên đăng nhập',
   name: 'Tên',
   note: 'Ghi chú',
+  // `on` là tham số ngày của đường tra giá và tra ngưỡng — người dùng gặp nó
+  // qua bộ lọc *tính theo ngày*, nên nó cần một cái tên đọc được (`0136`).
+  on: 'Ngày tính',
   ownerIdNumber: 'CCCD/MST',
   ownerName: 'Người đại diện',
   ownerTitle: 'Chức vụ người đại diện',
+  phone: 'Số điện thoại',
   placeholder: 'Ô trống trong mẫu',
   priceType: 'Loại giá',
   productGroupCode: 'Nhóm sản phẩm',

@@ -100,7 +100,7 @@ export function useBaoLoi(): Cua {
  *
  * KHÔNG dùng `HopThoai` chung: hộp ấy đóng được bằng cách bấm ra ngoài, mà một
  * câu lỗi đóng bằng cú bấm vô ý là một câu chưa ai đọc. Ở đây chỉ Escape và nút
- * *Đã hiểu* đóng được.
+ * *Đóng* đóng được (`0136` — trước là *Đã hiểu*).
  */
 function HopThoaiLoi({ loi, dong }: { loi: DangHien; dong: () => void }) {
   useEffect(() => {
@@ -128,8 +128,16 @@ function HopThoaiLoi({ loi, dong }: { loi: DangHien; dong: () => void }) {
             trước, và tới `0088` nó đứng ngang hàng với câu lỗi.
           */}
           {loi.traceId && <span className="hop-loi-ma">Mã tra cứu: {loi.traceId}</span>}
+          {/*
+            *Đóng*, không phải *Đã hiểu* (`0136`, khách hàng chốt 27/08).
+
+            Nhãn cũ hỏi một câu mà cái nút không trả lời được: nó chỉ đóng hộp
+            thoại, còn người dùng đã hiểu hay chưa thì không ai biết. Nhãn mới
+            nói đúng việc nút làm — và đó là quy ước của mọi nút đóng khác trong
+            phần mềm.
+          */}
           <button type="button" className="nut nut-chinh" onClick={dong}>
-            Đã hiểu
+            Đóng
           </button>
         </div>
       </div>

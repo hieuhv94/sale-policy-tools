@@ -233,7 +233,7 @@ describe('`0088` dạng hiển thị', () => {
     // Mã tra cứu có mặt nhưng ở dòng cuối — người dùng đọc nó cho Quản trị.
     expect(hop.textContent).toContain('tr-9');
 
-    await nguoi.click(screen.getByRole('button', { name: 'Đã hiểu' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Đóng' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
