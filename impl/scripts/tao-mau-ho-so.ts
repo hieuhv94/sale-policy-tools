@@ -51,11 +51,29 @@ const dayDu = [
   para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}} · {{ho_so.trang_thai}}'),
   para(''),
   para('BÊN BÁN: CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+  /*
+   * KHỐI BÊN MUA — một dòng nhận diện, rồi MỘT dòng gộp ba mục (`0135`, chốt
+   * 27/08): người đại diện · địa chỉ · mã số thuế, ngăn bằng dấu gạch.
+   *
+   * Đây là cách khối bên mua được viết trên hợp đồng giấy, và nó đọc nhanh hơn
+   * ba dòng có nhãn: mắt bắt cả ba mục trong một lượt thay vì dò xuống ba dòng.
+   *
+   * `dia_chi_dang_ky` là khoá mang **địa chỉ kinh doanh** — đó là địa chỉ đăng
+   * ký của khách hàng. Khoá `noi_nhan_hang` là chỗ giao hàng, một mục khác hẳn,
+   * nên nó ở lại dòng riêng bên dưới.
+   *
+   * Ba mục này đều CÓ NHÃN Ở HỘP THOẠI KHÁCH HÀNG, nên bỏ nhãn ở đây không làm
+   * mất nghĩa — nhưng nó khiến một mục rỗng đọc thành hai dấu gạch dính nhau.
+   * Cả ba đều thuộc nhóm chặn gửi duyệt (`0104`, `0128`) trừ địa chỉ, nên chuyện
+   * ấy chỉ xảy ra với địa chỉ, và địa chỉ thì bắt buộc ngay ở hộp thoại lập
+   * khách hàng.
+   */
   para('BÊN MUA: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
-  para('Mã số thuế: {{ho_so.ma_so_thue}}'),
-  para('Địa chỉ đăng ký: {{ho_so.dia_chi_dang_ky}}'),
+  para('{{ho_so.nguoi_dai_dien}} - {{ho_so.dia_chi_dang_ky}} - {{ho_so.ma_so_thue}}'),
+  para('Chức danh người đại diện: {{ho_so.chuc_danh_dai_dien}}'),
+  // `0134` — số điện thoại chặn lượt gửi duyệt, nên nó phải in ra được.
+  para('Điện thoại: {{ho_so.dien_thoai}}'),
   para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),
-  para('Người đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
   para('Công nợ tại thời điểm lập: {{ho_so.cong_no}} đồng'),
   para(''),
   para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
@@ -116,10 +134,11 @@ const hopDong = [
   para('BÊN BÁN (Bên A): CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
   para(''),
   para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
-  para('Mã số thuế: {{ho_so.ma_so_thue}}'),
-  para('Địa chỉ đăng ký: {{ho_so.dia_chi_dang_ky}}'),
+  // Cùng dòng gộp với hai mẫu hồ sơ (`0135`) — xem chú thích ở `dayDu`.
+  para('{{ho_so.nguoi_dai_dien}} - {{ho_so.dia_chi_dang_ky}} - {{ho_so.ma_so_thue}}'),
+  para('Chức danh người đại diện: {{ho_so.chuc_danh_dai_dien}}'),
+  para('Điện thoại: {{ho_so.dien_thoai}}'),
   para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),
-  para('Người đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
   para('Công nợ tại thời điểm ký: {{ho_so.cong_no}} đồng'),
   para(''),
   para('Điều 1. Danh mục sản phẩm và giá áp dụng'),

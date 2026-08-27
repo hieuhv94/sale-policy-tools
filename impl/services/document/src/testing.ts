@@ -28,4 +28,11 @@ export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
 export { DocumentOutbox } from './infra/outbox.relay.js';
 
 /** `0055` — bảng sản phẩm dạng Word, để ca kiểm thử soi thẳng số ô mỗi hàng. */
-export { bangSanPhamXml, COT_BANG, COT_BAT_BUOC, COT_MAC_DINH, chuanHoaCot } from './contracts/bang-san-pham.js';
+export {
+  bangSanPhamXml,
+  COT_BANG,
+  COT_BAT_BUOC,
+  COT_MAC_DINH,
+  RONG_TOI_THIEU_PCT,
+  chuanHoaCot,
+} from './contracts/bang-san-pham.js';

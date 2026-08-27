@@ -87,7 +87,29 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P162** (`0134`): **mẫu văn bản in được số điện thoại**, và tài liệu triển khai theo
+Chặng gần nhất **P163** (`0135`): **bề rộng cột bảng sản phẩm** và **phông Times New Roman**. Đo
+trước khi sửa (docx → Gotenberg → PDF, đọc vị trí đường kẻ dọc) và con số nói hết: **mười một cột,
+mỗi cột đúng 43,8pt — bằng nhau tăm tắp**. Bộ `trongSo` của `0055` **chưa bao giờ có tác dụng**, vì
+`table()` phát `<w:tblGrid>` chia ĐỀU trong khi ô mang `w:tcW` theo tỷ lệ — và ở `tblLayout=fixed`
+LibreOffice nghe theo LƯỚI (chú thích tại chỗ nói `tblGrid` "chỉ là gợi ý" — đúng với `autofit`, sai
+với `fixed`). Sửa: lưới mang cùng tỷ lệ. Tên sản phẩm 9,1% → **25,6%** (2,82×). Kèm **lề trong ô**
+0,19cm → 0,1cm: mười một cột thì lề ăn mất **4,2cm**, một phần tư bề ngang A4 dọc. Phông: gói `.docx`
+**không có `word/styles.xml`** nào — đo được qua tên phông nhúng trong PDF (`Carlito` = thay thế của
+Calibri → `LiberationSerif` = thay thế của Times New Roman). Ảnh Gotenberg **không có TNR thật** (phông
+bản quyền), nên bản in máy chủ dùng Liberation Serif — cùng số đo, khác nét. Phải khai `hAnsi` (tiếng
+Việt có dấu rơi vào đó) và khai styles ở **cả** `Content_Types` lẫn `document.xml.rels`, thiếu một chỗ
+thì **Word không mở được file** còn LibreOffice vẫn mở.
+`templates/*.docx` là **ĐẦU RA** của `scripts/tao-mau-ho-so.ts` — `0134` vá thẳng vào file, và lượt
+sinh lại này suýt nuốt mất bản vá ấy.
+
+> **SỰ CỐ, lần thứ hai:** chồng demo bật thì **không gõ BẤT KỲ lệnh `compose … -f compose.test.yml`
+> nào** — không riêng `vitest`. Hai tệp compose dùng CÙNG tên project `csbh`, nên `compose run` đưa
+> project về tập service của bản test: nó **hạ mười service ứng dụng của demo** và chạy `pg-init` +
+> `migrate` trên chính CSDL ấy. Cần chạy gì thì `docker run` một ảnh rời gắn repo vào, `--network
+> none` (hoặc `--network csbh_internal` nếu cần Gotenberg). Lần trước (`0134`) đã xoá sạch bảng mẫu
+> văn bản của demo — 177/177 hồ sơ mất mẫu đã đóng băng.
+
+Trước đó **P162** (`0134`): **mẫu văn bản in được số điện thoại**, và tài liệu triển khai theo
 kịp. `0128` thêm một trường **chặn gửi duyệt** rồi thêm khoá ánh xạ, nhưng **không mẫu nào kèm theo
 phần mềm in nó** — bản chạy thử bắt điền một trường không xuất hiện trên tờ giấy nào. Không ca kiểm
 nào bắt được vì **hai vế ở hai thế giới**: bảng phân loại trong TypeScript, và bốn file zip nhị phân.

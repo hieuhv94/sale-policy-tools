@@ -11891,3 +11891,118 @@ là cách bỏ qua chốt duy nhất đang canh chuyện này.
 `typecheck` xanh. Describe `0057` của `tests/http/contract.test.ts`: **8/8 xanh**,
 kể cả ca `0134` mới — nhưng đó chính là lượt chạy gây ra sự cố ở trên, và **không
 chạy lại**. Bộ test đầy đủ vẫn chưa chạy được.
+
+## P163 — `0135` bề rộng cột bảng sản phẩm, và phông Times New Roman
+
+Yêu cầu nghe như chỉnh vài con số: *"tên sản phẩm cần rộng hơn, các cột còn lại
+tự chỉnh, có cả cột STT"*. `COT_BANG` đã có sẵn cột `trongSo` từ `0055`, và cột
+STT cũng có sẵn — nên đúng là chỉ việc sửa bộ số.
+
+**Đo trước đã**, theo đúng luật của `CLAUDE.md`. Dựng docx → Gotenberg →
+LibreOffice → PDF, rồi đọc vị trí các đường kẻ dọc trong content stream:
+
+| Cột | TRƯỚC | SAU | |
+|---|---|---|---|
+| STT | 43,8pt · 9,1% | 16,8pt · 3,5% | 0,38× |
+| Mã sản phẩm | 43,8pt · 9,1% | 39,1pt · 8,1% | 0,89× |
+| **Tên sản phẩm** | 43,8pt · 9,1% | **123,4pt · 25,6%** | **2,82×** |
+| CPBH lẻ · Tỷ lệ CK | 43,8pt · 9,1% | 28,0pt · 5,8% | 0,64× |
+| Ghi chú | 43,9pt · 9,1% | 61,7pt · 12,8% | 1,41× |
+
+Cột TRƯỚC nói hết: **mười một cột, mỗi cột đúng 43,8pt — bằng nhau tăm tắp.** Bộ
+`trongSo` chưa bao giờ có tác dụng, ở bất kỳ mẫu nào, kể từ `0055`.
+
+### Nguyên nhân: hai nguồn trả lời khác nhau về cùng một câu hỏi
+
+`table()` phát ra `<w:tblGrid>` chia ĐỀU, còn từng ô mang `w:tcW` theo tỷ lệ. Ở
+chế độ `tblLayout=fixed`, LibreOffice nghe theo **LƯỚI**. Chú thích ngay tại chỗ
+khẳng định `tblGrid` *"chỉ là GỢI Ý khi bảng ở chế độ tự co"* — câu ấy đúng với
+`autofit` và sai với `fixed`, mà bảng sản phẩm chạy `fixed`.
+
+Chữa bằng cách cho lưới mang đúng tỷ lệ ấy: câu hỏi hết chỗ để trả lời sai. Nếu
+chỉ sửa bộ số mà không sờ tới lưới thì mọi cột vẫn 43,8pt, và **không ca kiểm nào
+đỏ** — bảng vẫn dựng, vẫn mở được, chỉ là không có gì đổi.
+
+### Ca kiểm bắt được hai lỗi của chính bản sửa
+
+1. **Sàn `Math.max(360, …)` phá vỡ tỷ lệ.** Giữ sàn ở cả hai nhánh thì STT nặng
+   2,36% bị nong lên 3,68% — lưới và ô lại lệch nhau. Sàn chỉ ở lại nhánh KHÔNG
+   có trọng số; cột quá hẹp chặn ở chỗ đúng hơn là chính bộ `trongSo`.
+2. **STT hạ xuống 2 là quá tay.** 2/75 = 2,67% của 17cm chỉ được 0,45cm, mà hai
+   chữ số cộng lề trong ô cần chừng 0,6cm — `10` xuống hai dòng. Trả về 3.
+
+Cả hai đều do ca kiểm đối chiếu tìm ra, không phải do đọc lại mã.
+
+### LỀ TRONG Ô — chỗ nới ra được nhiều nhất mà không lấy của cột nào
+
+Mặc định Word là 0,19cm mỗi bên. Bảng đủ cột có mười một cột, tức **4,2cm bị lề
+ăn mất** trước khi chữ nào được vẽ — một phần tư bề rộng chữ của A4 dọc. Hạ về
+0,1cm trả lại gần 2cm cho phần chữ. Không hạ về 0: cột số dính nhau thì mắt không
+tách được hai con số kề nhau.
+
+### Phông: `.docx` KHÔNG có `word/styles.xml` nào cả
+
+Đo được, và đây là bằng chứng sạch nhất của cả chặng — tên phông nhúng trong PDF:
+
+    TRƯỚC:  BAAAAA+Carlito-Regular    (Carlito = bản thay thế của **Calibri**)
+    SAU:    BAAAAA+LiberationSerif    (Liberation Serif = bản thay thế của **Times New Roman**)
+
+Thiếu phần styles thì phông do trình xem tự chọn — LibreOffice lấy Calibri. Thêm
+`docDefaults` khai Times New Roman thì nó chuyển sang bản thay thế đúng của TNR.
+
+**Nói thẳng cái không làm được:** ảnh Gotenberg KHÔNG có Times New Roman thật
+(`fc-list` không có dòng nào), vì đó là phông có bản quyền của Microsoft. Bản in
+từ máy chủ dùng Liberation Serif — **cùng số đo**, nên ngắt dòng và số trang khớp
+nhau, chỉ khác nét chữ. Quản trị tải file về mở bằng Word thì ra đúng TNR. Muốn
+đúng nét trên bản in thì phải cài phông vào ảnh, và đó là một câu hỏi bản quyền
+chứ không phải một dòng mã.
+
+Ba thuộc tính phông chứ không phải một: `ascii` cho chữ Latin, `hAnsi` cho phần
+mở rộng — **tiếng Việt có dấu rơi vào `hAnsi`** — và `cs`. Khai thiếu `hAnsi` là
+để chữ không dấu một phông, chữ có dấu một phông khác.
+
+Phần styles phải khai ở CẢ HAI chỗ (`[Content_Types].xml` và `document.xml.rels`).
+Thiếu một chỗ thì LibreOffice vẫn mở bình thường và bỏ qua phông, còn **Word báo
+tài liệu hỏng và không mở** — đúng loại lệch nguy hiểm nhất ở đây, vì bản in qua
+máy chủ trông vẫn ổn.
+
+### Khối BÊN MUA gộp một dòng
+
+Khách hàng chốt 27/08: `{{người đại diện}} - {{địa chỉ kinh doanh}} - {{mã số
+thuế}}`. *Địa chỉ kinh doanh* ánh xạ vào `ho_so.dia_chi_dang_ky` — đó là địa chỉ
+đăng ký của khách hàng; `noi_nhan_hang` là chỗ giao hàng, một mục khác, nên nó ở
+lại dòng riêng.
+
+Sửa ở **`scripts/tao-mau-ho-so.ts`**, không vá file `.docx`. `0134` đã vá thẳng
+vào file — nên bản sinh lại của lượt này suýt **xoá mất dòng Điện thoại** mà
+`0134` thêm vào, vì nó chưa bao giờ có trong script. Bài học: `templates/*.docx`
+là ĐẦU RA; sửa ở đầu ra thì lượt sinh lại kế tiếp nuốt mất.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `tblGrid` quay lại chia đều | 3 đỏ |
+| Tên sản phẩm về 14 | 1 đỏ |
+| STT về 2 — dưới ngưỡng | 1 đỏ |
+| Bỏ hẳn `word/styles.xml` khỏi gói | 1 đỏ |
+| Có `styles.xml` nhưng không khai ở `Content_Types` | 1 đỏ |
+| Nhánh hồ sơ RỖNG quên truyền trọng số | 1 đỏ |
+
+### Đã chạy — và cách chạy đã đổi
+
+`typecheck` xanh. `tests/http/bang-cot.test.ts` **9/9 xanh**.
+
+Cả hai chạy bằng `docker run --network none` trên ảnh `node:22-alpine`, **không
+qua compose**. Sự cố của `0134` lặp lại một lần nữa ở đầu lượt này: gọi
+`docker compose -f compose.yml -f compose.test.yml run test` để chạy một script
+đo — hai tệp ấy dùng CÙNG tên project `csbh` với chồng demo, nên compose đưa
+project về tập service của bản test và **hạ mười service ứng dụng của demo**, kèm
+chạy `pg-init` + `migrate` trên chính CSDL ấy.
+
+**Luật rộng hơn luật đã ghi ở `0134`: chồng demo bật thì không gõ BẤT KỲ lệnh
+`compose … -f compose.test.yml` nào**, không riêng `vitest`. Cần chạy gì thì
+`docker run` một ảnh rời, gắn repo vào, `--network none` — hoặc `--network
+csbh_internal` nếu thật sự cần tới Gotenberg như lượt đo này.
+
+**9/9 ca của tệp mới xanh; `make test` đầy đủ chưa chạy.**

@@ -211,6 +211,7 @@ const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
 <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
 </Types>`;
@@ -223,7 +224,46 @@ const RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </Relationships>`;
 
 const DOC_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`;
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+/**
+ * PHÔNG CHỮ của mọi tài liệu hệ thống dựng ra — **Times New Roman 11pt**
+ * (`0135`, khách hàng chốt 27/08).
+ *
+ * Đặt ở `docDefaults` chứ KHÔNG gắn vào từng `<w:r>`: một tài liệu có `w:rFonts`
+ * trên vài trăm run là một tài liệu mà đổi phông phải sửa vài trăm chỗ, và chỗ
+ * bỏ sót thì lệch phông ngay giữa câu. `docDefaults` là chỗ duy nhất Word và
+ * LibreOffice đều đọc để biết "phông mặc định của tài liệu này".
+ *
+ * Tới `0134` gói `.docx` KHÔNG có `word/styles.xml` nào cả. Thiếu nó thì phông
+ * do trình xem tự chọn — LibreOffice lấy Liberation Serif, Word lấy Calibri —
+ * nên cùng một file in ở hai máy ra hai bản khác nhau. Bản in qua Gotenberg đi
+ * đường LibreOffice, còn Quản trị tải file về sửa thì mở bằng Word.
+ *
+ * BA thuộc tính phông, không phải một: `ascii` cho chữ Latin, `hAnsi` cho phần
+ * mở rộng — và **tiếng Việt có dấu rơi vào `hAnsi`**, nên khai thiếu nó là để
+ * chữ không dấu một phông còn chữ có dấu một phông khác.
+ *
+ * `w:sz` tính bằng NỬA điểm: 22 = 11pt. `w:szCs` là cỡ cho chữ "complex script";
+ * hai số phải bằng nhau, nếu không vài ký tự đổi cỡ giữa dòng.
+ */
+const PHONG = 'Times New Roman';
+
+// `W` khai bên dưới, mà `const` ở cấp mô-đun chạy theo THỨ TỰ — dùng `${W}` ở
+// đây là một `ReferenceError` lúc nạp mô-đun, không phải lúc gọi hàm.
+const W_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles ${W_NS}><w:docDefaults><w:rPrDefault><w:rPr>` +
+  `<w:rFonts w:ascii="${PHONG}" w:hAnsi="${PHONG}" w:cs="${PHONG}"/>` +
+  `<w:sz w:val="22"/><w:szCs w:val="22"/>` +
+  `</w:rPr></w:rPrDefault>` +
+  // Đoạn văn KHÔNG giãn cách thừa: mặc định của Word là 8pt sau mỗi đoạn, và
+  // bản CSBH có hơn hai mươi đoạn ngắn — cộng lại là gần một trang trống.
+  `<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>` +
+  `</w:docDefaults></w:styles>`;
 
 const CORE = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
@@ -236,7 +276,7 @@ const APP = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
 <Application>CSBH</Application></Properties>`;
 
-const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+const W = W_NS;
 
 export const para = (text: string): string =>
   `<w:p><w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
@@ -296,15 +336,61 @@ const RONG_CHU = 9638;
  *
  * Mẫu hợp đồng vẫn dùng `autofit`: bảng bốn cột chữ ngắn, tự co đọc đẹp hơn.
  */
-export const table = (rowsXml: string[], coDinh = false): string => {
+export const table = (rowsXml: string[], coDinh = false, trongSo?: number[]): string => {
   const cols = (rowsXml[0]?.match(/<w:tc[ >]/g) ?? []).length || 1;
-  // `tblGrid` chỉ là GỢI Ý khi bảng ở chế độ tự co; chia đều bề rộng chữ cho số
-  // cột để LibreOffice có điểm khởi đầu hợp lý thay vì dồn hết vào cột đầu.
-  const rong = Math.max(360, Math.floor(RONG_CHU / cols));
-  const grid = `<w:tblGrid>${`<w:gridCol w:w="${rong}"/>`.repeat(cols)}</w:tblGrid>`;
+  /*
+   * `tblGrid` PHẢI mang đúng tỷ lệ mà `w:tcW` của từng ô đang khai (`0135`).
+   *
+   * Tới `0134` chỗ này chia ĐỀU bề rộng chữ cho số cột, kèm chú thích nói
+   * `tblGrid` "chỉ là gợi ý khi bảng ở chế độ tự co". Câu ấy đúng một nửa: bảng
+   * sản phẩm chạy ở chế độ **`fixed`**, và ở đó `tblGrid` không còn là gợi ý —
+   * nó là định nghĩa lưới cột, đứng ngang hàng với `w:tcW`.
+   *
+   * Nên hai chỗ đang trả lời khác nhau về CÙNG một câu hỏi: lưới nói "mười cột
+   * bằng nhau", ô nói "tên sản phẩm rộng gấp mười lần STT". Trình xem nghe theo
+   * cái nào là chuyện của từng trình xem — và đó chính là thứ không được để tồn
+   * tại. Cho lưới mang cùng tỷ lệ thì câu hỏi ấy hết chỗ để trả lời sai.
+   *
+   * Không đo được bằng ca kiểm: cái sai chỉ hiện ra ở bề rộng cột trong bản PDF
+   * do LibreOffice dựng. Cái kiểm được — và ca kiểm canh đúng chỗ đó — là **hai
+   * dãy số phải khớp nhau**.
+   */
+  const ts = trongSo?.length === cols ? trongSo : undefined;
+  const tong = ts?.reduce((a, b) => a + b, 0);
+  /*
+   * KHÔNG có sàn `Math.max(360, …)` ở nhánh có trọng số, và đó là một quyết
+   * định đã đo.
+   *
+   * Bản đầu của `0135` giữ sàn 360 twip cho cả hai nhánh — và ca kiểm đối chiếu
+   * đỏ ngay: cột STT nặng 2/80 tức 2,36% bề rộng, nhưng sàn nong nó lên 3,68%.
+   * Hai dãy số lại lệch nhau, đúng thứ lượt này sinh ra để bỏ đi.
+   *
+   * Sàn chỉ ở lại nhánh KHÔNG có trọng số, nơi nó vẫn làm đúng việc cũ: chia đều
+   * cho một số cột rất lớn thì mỗi cột có thể ra vài chục twip.
+   *
+   * Cột quá hẹp giờ chặn ở chỗ đúng hơn — chính bộ `trongSo`, và
+   * `RONG_TOI_THIEU_PCT` có một ca kiểm canh.
+   */
+  const rong = (i: number): number =>
+    ts === undefined || tong === undefined || tong === 0
+      ? Math.max(360, Math.floor(RONG_CHU / cols))
+      : Math.round((RONG_CHU * ts[i]!) / tong);
+  const grid = `<w:tblGrid>${ts === undefined ? `<w:gridCol w:w="${rong(0)}"/>`.repeat(cols) : ts.map((_, i) => `<w:gridCol w:w="${rong(i)}"/>`).join('')}</w:tblGrid>`;
   return (
     `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/>` +
     `<w:tblLayout w:type="${coDinh ? 'fixed' : 'autofit'}"/>` +
+    /*
+     * LỀ TRONG Ô hẹp lại còn 0,1cm mỗi bên (`0135`).
+     *
+     * Mặc định của Word là 0,19cm mỗi bên. Nghe nhỏ, nhưng bảng sản phẩm đủ cột
+     * có mười một cột — 11 × 0,38cm = **4,2cm lề**, tức một phần tư bề rộng chữ
+     * của khổ A4 dọc bị lề ăn mất trước khi chữ nào được vẽ.
+     *
+     * Đây là chỗ nới ra được nhiều nhất mà không lấy của cột nào: 0,1cm mỗi bên
+     * trả lại gần 2cm cho phần chữ. Không hạ về 0 — chữ dính sát đường kẻ đọc
+     * mệt, và cột số dính nhau thì mắt không tách được hai con số kề nhau.
+     */
+    `<w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar>` +
     `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:left w:val="single" w:sz="4" w:color="999999"/>` +
     `<w:bottom w:val="single" w:sz="4" w:color="999999"/>` +
@@ -340,6 +426,7 @@ export function makeDocx(body: string, kho: 'a4p' | 'a4l' = 'a4p'): Buffer {
       'docProps/core.xml': strToU8(CORE),
       'docProps/app.xml': strToU8(APP),
       'word/_rels/document.xml.rels': strToU8(DOC_RELS),
+      'word/styles.xml': strToU8(STYLES),
       [DOCUMENT_XML]: strToU8(xml),
     }),
   );

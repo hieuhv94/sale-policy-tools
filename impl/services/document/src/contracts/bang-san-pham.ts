@@ -57,21 +57,48 @@ import { money, pct, soCotCpbh } from './dinh-dang.js';
  *      lẻ — đều tắt được, nên một mẫu ra bản A4 không có chữ CPBH nào là hợp lệ
  *      và lưu được; đó là điều khách hàng đã chốt, không phải một lỗ hổng.
  *   3. `trongSo` là TỶ LỆ bề rộng, không phải số đo. Hai cột CHỮ — tên sản phẩm
- *      và ghi chú — rộng gấp đôi cột số, nếu không thì tên xuống bốn dòng còn
+ *      và ghi chú — rộng hơn hẳn cột số, nếu không thì tên xuống bốn dòng còn
  *      cột STT thừa chỗ.
+ *
+ * `0135` CHIA LẠI, khách hàng chốt 27/08: *"tên sản phẩm cần rộng hơn"*. Tên sản
+ * phẩm 14 → **22**, tức từ 18% lên **29%** bề rộng bảng ở tập cột mặc định. Chỗ
+ * bù lấy từ ba cột không cần rộng:
+ *
+ *   Ghi chú  14 → 11  — vẫn là cột chữ, nhưng thứ yếu so với tên mặt hàng
+ *   Tỷ lệ CK  6 → 5   — `19,51%` là sáu ký tự, không hơn
+ *   CPBH lẻ   6 → 5   — cột số, và phần lớn dòng để trống
+ *
+ * *Mã sản phẩm* đi NGƯỢC lại, 6 → 7: `NC-GOLD-900` là mười một ký tự không có
+ * chỗ ngắt, nên nó là cột dễ vỡ chữ nhất trong nhóm cột hẹp.
+ *
+ * *STT* thử hạ 3 → 2 rồi TRẢ VỀ 3, và lý do đáng giữ: ở 2 nó rơi xuống 2,67% —
+ * dưới `RONG_TOI_THIEU_PCT`, và ca kiểm bắt được ngay. Hai chữ số cộng lề trong
+ * ô cần chừng 0,6cm; 2,67% của 17cm chỉ được 0,45cm, và `10` xuống hai dòng.
  */
 export const COT_BANG = [
   { khoa: 'stt', nhan: 'STT', trongSo: 3 },
-  { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm', trongSo: 6 },
-  { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', trongSo: 14, batBuoc: true },
+  { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm', trongSo: 7 },
+  { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', trongSo: 22, batBuoc: true },
   { khoa: 'gia_cong_ty', nhan: 'Giá công ty', trongSo: 7 },
   { khoa: 'gia_ban_buon', nhan: 'Giá bán buôn', trongSo: 7 },
   { khoa: 'cpbh_tong', nhan: 'CPBH tổng', trongSo: 7 },
-  { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)', trongSo: 6 },
+  { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)', trongSo: 5 },
   { khoa: 'gia_thu_ve', nhan: 'Giá thu về', trongSo: 7 },
-  { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK', trongSo: 6 },
-  { khoa: 'ghi_chu', nhan: 'Ghi chú', trongSo: 14 },
+  { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK', trongSo: 5 },
+  { khoa: 'ghi_chu', nhan: 'Ghi chú', trongSo: 11 },
 ] as const;
+
+/**
+ * Cột hẹp nhất được phép — tính bằng phần trăm bề rộng bảng (`0135`).
+ *
+ * Không phải một con số thẩm mỹ. Bảng ở chế độ `fixed`, nên chữ dài hơn cột thì
+ * XUỐNG DÒNG chứ không nong cột ra: một cột 3% của khổ A4 dọc rộng chừng 0,5cm,
+ * và `1.234.567` xuống bảy dòng, mỗi dòng một chữ số.
+ *
+ * Ca kiểm canh con số này ở tổ hợp XẤU NHẤT — đủ mười cột cộng số cột CPBH tối
+ * đa — chứ không ở tập cột mặc định, vì đó mới là chỗ cột bị bóp nhỏ nhất.
+ */
+export const RONG_TOI_THIEU_PCT = 3;
 
 export type KhoaCot = (typeof COT_BANG)[number]['khoa'];
 
@@ -169,6 +196,7 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
         ),
       ],
       true,
+      ts,
     );
   }
   return table(
@@ -181,5 +209,8 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
     // Bố cục CỐ ĐỊNH: ghi chú dài thì xuống dòng, ô cao lên — chứ không nong
     // cột ra và đẩy cột cuối khỏi mép giấy.
     true,
+    // Cùng dãy trọng số mà từng ô đang dùng — lưới cột và ô phải nói một điều
+    // (`0135`). Xem chú thích ở `table()`.
+    ts,
   );
 }

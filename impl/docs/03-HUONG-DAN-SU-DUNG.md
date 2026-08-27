@@ -1498,6 +1498,13 @@ luôn ở trong tầm mắt.
   dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**.
 - **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
   nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**.
+  > **Bề rộng cột chia lại** `mới 27/08`. *Tên sản phẩm* giờ chiếm khoảng **một phần tư** bề ngang
+  > bảng — rộng gấp gần ba lần bản trước — còn *STT*, *Tỷ lệ CK* và các cột CPBH lẻ hẹp lại. Bạn
+  > không chỉnh được bề rộng này trong Word: phần mềm dựng cả cái bảng, nên nó cũng quyết bề rộng.
+- **Phông chữ Times New Roman** `mới 27/08` cho mọi file phần mềm sinh ra. Bản in ra từ máy chủ dùng
+  **Liberation Serif** — phông thay thế cùng số đo, vì Times New Roman là phông có bản quyền và
+  không cài sẵn trên máy chủ Linux. Chữ nằm đúng chỗ ấy, chỉ khác nét; mở file bằng Word trên máy
+  bạn thì ra đúng Times New Roman.
 - **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **10 mục** `sửa 24/08` ở phần *Yêu cầu
   hiển thị file*; thông báo **kể tên từng mục còn thiếu** `sửa 24/08`, và bảng hướng dẫn bên phải
   gắn sẵn dấu *bắt buộc* vào đúng những mục ấy — không phải tải file lên rồi mới biết. (Trước 20/08 là 13 — mục *thông tin công ty* rời
