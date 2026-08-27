@@ -11802,3 +11802,92 @@ mở được liên kết trong thư.
 nói nhất của nửa sau chặng này — luật đã đúng ở máy chủ từ trước.
 
 **650/650 ca giao diện xanh; `make test` đầy đủ chưa chạy.**
+
+## P162 — `0134` mẫu văn bản in được số điện thoại, và tài liệu triển khai theo kịp
+
+Người dùng hỏi rà lại bộ nạp `nap-danh-muc` xem còn khớp với những gì đã đổi
+không. Bốn thân yêu cầu của nó đều khớp DTO hiện tại — `product-groups`,
+`products` (đã mang `price` từ `0123`), `discount-rules`, form tải mẫu. Chỗ lệch
+nằm ở thứ nó nạp chứ không ở cách nó gọi.
+
+### Trường chặn gửi duyệt mà không mẫu nào in ra
+
+`0128` thêm *số điện thoại khách hàng*, xếp nó vào nhóm `chan-moi` — rỗng thì
+**không gửi duyệt được** — và thêm khoá vào bảng ánh xạ. Nhưng **không mẫu nào
+kèm theo phần mềm in con số ấy**: cả bốn file `.docx` trong `templates/` đều
+không có ô `{{ho_so.dien_thoai}}`. Bản chạy thử bắt mọi người điền một trường
+không xuất hiện trên bất kỳ tờ giấy nào.
+
+Không ca kiểm nào bắt được, và lý do đáng ghi: **hai vế nằm ở hai thế giới khác
+nhau** — một bên là bảng phân loại trong TypeScript, một bên là bốn file zip nhị
+phân. Không có đường nào để `tsc` hay một ca kiểm đơn vị nối chúng lại.
+
+Ca kiểm mới đọc danh sách `.docx` **từ chính `nap-danh-muc.ts`** rồi đòi mỗi file
+in đủ MỌI trường `chan-moi`. Chép danh sách sang là dựng bản sao thứ hai, và ngày
+bộ nạp đổi danh sách thì ca kiểm canh những file chẳng ai nạp.
+
+Mẫu **rút gọn** để nguyên: nó cố ý bỏ cả địa chỉ lẫn mã số thuế (`0067` — bản
+bốn cột đưa khách hàng), và `nap-danh-muc` không nạp nó.
+
+### Sửa file .docx: chúng do root sở hữu
+
+`impl/templates/` là `root:root` — do một lượt chạy container tạo ra. Dựng lại
+file trong thư mục tạm rồi chép vào bằng một container chạy `-u 0`. Ghi ra vì đây
+là bẫy mất thời gian: `PermissionError` ở một thư mục nằm trong repo của chính
+mình đọc như một lỗi lập trình.
+
+Ba file dựng lại vẫn qua được hai ca kiểm sẵn có — *"mọi file trong `templates/`
+LƯU ĐƯỢC qua đúng đường người dùng đi"* và *"mẫu A4 ngang thật sự khai khổ NGANG
+trong file"* — nên lượt đóng gói lại zip không làm hỏng phần `sectPr`.
+
+### Còn một chỗ cùng loại, CHƯA sửa
+
+`ensureDefault` dựng mẫu mặc định **bằng mã** (`defaultHoSoBody`), và thân mẫu ấy
+không in mã số thuế, chức danh người đại diện, lẫn số điện thoại — cả ba đều chặn
+gửi duyệt. Trên một chồng production mà không ai chạy `nap-danh-muc`, đó là mẫu
+DUY NHẤT tồn tại. Lỗi sâu hơn một tầng, và có từ `0104` chứ không phải mới. Để
+lại có chủ ý: sửa nó đổi thứ `ensureDefault` sinh ra ở mọi CSDL trống, và bộ test
+đầy đủ đang không chạy được.
+
+### Tài liệu triển khai: ba chỗ đã lệch
+
+| Chỗ | Lệch từ |
+|---|---|
+| §5 *"khai nhóm sản phẩm → sản phẩm → giá"* — giá không còn là bước riêng | `0123` |
+| §5 · §6 không nói ba trường khách hàng chặn lượt gửi duyệt | `0104` + `0128` |
+| §6 không nói menu Quản trị thôi có mục *Hồ sơ CSBH* | `0133` |
+
+Vế thứ hai là vế đắt nhất khi nghiệm thu: lập một khách hàng nhanh với mỗi tên và
+địa chỉ thì tới bước gửi duyệt mới biết thiếu, và người nghiệm thu đọc nó như một
+lỗi của phần mềm.
+
+### SỰ CỐ: tôi làm hỏng chồng demo của người dùng
+
+Ghi lại đầy đủ vì nó sẽ lặp nếu không ai đọc.
+
+Bộ test đầy đủ đang bị `check-demo-down` chặn (chồng demo bật). Tôi **né chốt ấy**
+bằng cách gọi thẳng `docker compose … run test pnpm vitest run tests/http/…`. Chốt
+đó có mặt đúng để chặn việc vừa làm: test HTTP dọn bảng của `document` trước khi
+chạy, mà nó dùng CHUNG Postgres với demo.
+
+Đo trên chính CSDL demo sau đó:
+
+| | |
+|---|---|
+| `doc.contract_template` | 3 dòng, cả ba `updated_at` = lượt chạy test — tức mẫu `ensureDefault` tự tạo, không phải mẫu `make demo-mau` nạp |
+| Hồ sơ có gắn mẫu | 177 |
+| Hồ sơ trỏ vào mẫu **đã mất** | **177 / 177** |
+
+Mọi hồ sơ đã gửi duyệt trong bản demo không mở được bản mềm nữa. Dữ liệu khác còn
+nguyên (26 tài khoản · 28 khách hàng · 199 hồ sơ · 35 sản phẩm).
+
+**Luật rút ra: chồng demo bật thì CHỈ chạy `tests/web`.** Chúng là jsdom, chặn
+`fetch`, không nối tới Postgres. Mọi thứ khác — `tests/http`, `tests/db` — phải
+đợi `make demo-down`. Gọi vitest thẳng KHÔNG phải một cách chạy "nhẹ hơn"; nó chỉ
+là cách bỏ qua chốt duy nhất đang canh chuyện này.
+
+### Đã chạy
+
+`typecheck` xanh. Describe `0057` của `tests/http/contract.test.ts`: **8/8 xanh**,
+kể cả ca `0134` mới — nhưng đó chính là lượt chạy gây ra sự cố ở trên, và **không
+chạy lại**. Bộ test đầy đủ vẫn chưa chạy được.

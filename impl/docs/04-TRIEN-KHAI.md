@@ -307,12 +307,29 @@ việc đang làm.
 Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 
 1. **Quản trị** tạo tài khoản cho từng người, đủ sáu vai trò
-2. **Quản trị** khai nhóm sản phẩm → sản phẩm → giá
+2. **Quản trị** khai nhóm sản phẩm, rồi sản phẩm — **giá bán Công ty nhập ngay ở
+   hộp thoại tạo**, không còn bước đặt giá riêng `sửa 27/08`. Nhiều sản phẩm thì
+   dùng *Nhập từ Excel*: tải file mẫu, điền, tải lên, xem trước rồi mới ghi
 3. **Quản trị** khai quy định chiết khấu
-4. **Trình dược viên** lập khách hàng
+4. **Trình dược viên** lập khách hàng — **điền đủ ba trường ở khối cảnh báo bên
+   dưới**, không thì bước 5 dừng ở lượt gửi duyệt
 5. **Trình dược viên** lập hồ sơ CSBH đầu tiên
 
 Đây là thứ đáng nghiệm thu: cả đường onboarding chạy được hay không.
+
+> **BA TRƯỜNG CỦA KHÁCH HÀNG CHẶN LƯỢT GỬI DUYỆT** `sửa 27/08` — mã số thuế,
+> chức danh người đại diện, và **số điện thoại**. Thiếu bất kỳ trường nào thì hồ
+> sơ lập được, sửa được, nhưng **không rời khỏi *Nháp***; câu báo lỗi kể đúng
+> trường nào thiếu và chỉ sang hồ sơ khách hàng.
+>
+> Đây là chỗ vòng nghiệm thu hay dừng nhất: lập một khách hàng nhanh với mỗi tên
+> và địa chỉ thì tới bước gửi duyệt mới biết. Ba trường ấy đều in ra tờ CSBH, nên
+> chúng bắt buộc chứ không phải tuỳ chọn.
+>
+> **Nâng cấp một bản chạy thử đã có dữ liệu**: khách hàng lập trước 27/08 chưa có
+> số điện thoại, và **hồ sơ MỚI của họ chưa gửi duyệt được** cho tới khi ai đó bổ
+> sung. Hồ sơ đã gửi duyệt từ trước không bị ảnh hưởng — chúng đã đóng băng dữ
+> liệu khách hàng tại thời điểm gửi.
 
 ### Đường nhanh — cho bản chạy thử
 
@@ -361,7 +378,12 @@ và 2 mẫu hợp đồng**; muốn gọn lại thì vô hiệu hoá hai mẫu m
 
 - [ ] Mở `https://<tên miền>` — có ổ khoá, chứng chỉ hợp lệ
 - [ ] Đăng nhập bằng tài khoản quản trị; đổi mật khẩu ở màn hình bắt buộc
+      — *(menu của vai trò này **không có mục Hồ sơ CSBH** `sửa 27/08`: họ đứng
+      ngoài luồng duyệt nên không hồ sơ nào thuộc phạm vi của họ. Mục **Khách
+      hàng** thì vẫn còn, vì đây là chỗ đổi TDV phụ trách.)*
 - [ ] Tạo một tài khoản thật, **nhận được thư mời**, kích hoạt được
+- [ ] Lập một khách hàng **có đủ mã số thuế, chức danh người đại diện và số điện
+      thoại** — thiếu một trường thì bước dưới dừng ở lượt gửi duyệt `sửa 27/08`
 - [ ] Chạy **hết một vòng mười bước** bằng tài khoản thật: TDV lập hồ sơ → gửi
       duyệt → TBP ký → Kế toán nhận L1 → Sale Admin bàn giao → Kế toán nhận L2
 - [ ] Xuất một hợp đồng và mở file ra xem

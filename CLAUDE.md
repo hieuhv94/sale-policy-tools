@@ -87,7 +87,22 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P161** (`0133`): nốt **bốn bảng thao tác còn lại** (đủ bảy), và **Hồ sơ CSBH ra
+Chặng gần nhất **P162** (`0134`): **mẫu văn bản in được số điện thoại**, và tài liệu triển khai theo
+kịp. `0128` thêm một trường **chặn gửi duyệt** rồi thêm khoá ánh xạ, nhưng **không mẫu nào kèm theo
+phần mềm in nó** — bản chạy thử bắt điền một trường không xuất hiện trên tờ giấy nào. Không ca kiểm
+nào bắt được vì **hai vế ở hai thế giới**: bảng phân loại trong TypeScript, và bốn file zip nhị phân.
+Ca kiểm mới đọc danh sách `.docx` **từ chính `nap-danh-muc.ts`** rồi đòi in đủ mọi trường `chan-moi`.
+Còn một chỗ cùng loại CHƯA sửa: `ensureDefault` dựng mẫu mặc định **bằng mã** và cũng không in ba
+trường ấy — trên production không ai chạy `nap-danh-muc` thì đó là mẫu DUY NHẤT.
+`impl/templates/` là **`root:root`**, sửa phải qua một container `-u 0`.
+
+> **SỰ CỐ, đọc trước khi chạy test:** chồng demo bật thì `make test` dừng ở `check-demo-down`. Né
+> chốt ấy bằng cách gọi thẳng `vitest run tests/http/…` đã **xoá sạch bảng mẫu văn bản của bản
+> demo** — 177/177 hồ sơ mất mẫu đã đóng băng, không mở được bản mềm nữa. **Demo bật thì CHỈ chạy
+> `tests/web`** (jsdom, chặn `fetch`, không nối Postgres). Gọi vitest thẳng không phải cách chạy
+> "nhẹ hơn", nó là cách bỏ qua chốt duy nhất canh chuyện này.
+
+Trước đó **P161** (`0133`): nốt **bốn bảng thao tác còn lại** (đủ bảy), và **Hồ sơ CSBH ra
 khỏi Quản trị hệ thống**. Nửa sau nghe như đổi luật, thực ra **luật đã có sẵn**: YCNV muc 2.1 viết
 *"Quản trị đứng ngoài luồng duyệt, không có phạm vi hồ sơ nào"*, và máy chủ làm đúng thế từ đầu
 (`scope_user_ids` rỗng → `403 OUT_OF_SCOPE`) — chỉ mục menu là chưa ai gỡ. **Không một dòng máy chủ

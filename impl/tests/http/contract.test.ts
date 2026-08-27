@@ -1775,6 +1775,39 @@ describe('`0057` bộ file mẫu trong templates/', () => {
     }
   });
 
+  /**
+   * `0134` — MẪU `nap-danh-muc` NẠP PHẢI IN ĐƯỢC MỌI TRƯỜNG CHẶN GỬI DUYỆT.
+   *
+   * Lỗ hổng có thật, và `0128` mở ra nó: thêm *số điện thoại khách hàng*, xếp nó
+   * vào nhóm `chan-moi` (rỗng thì không gửi duyệt được), thêm khoá vào bảng ánh
+   * xạ — nhưng **không mẫu nào kèm theo phần mềm in con số ấy**. Bản chạy thử
+   * bắt mọi người điền một trường không xuất hiện trên bất kỳ tờ giấy nào.
+   *
+   * Không ca kiểm nào bắt được, vì hai vế nằm ở hai thế giới khác nhau: một bên
+   * là bảng phân loại trong TypeScript, một bên là bốn file `.docx` nhị phân.
+   *
+   * Danh sách file ĐỌC TỪ CHÍNH `nap-danh-muc.ts` chứ không chép sang: chép là
+   * dựng bản sao thứ hai, và ngày bộ nạp đổi danh sách thì ca này canh những
+   * file chẳng ai nạp.
+   */
+  it('`0134` mẫu bộ nạp dùng in đủ MỌI trường chặn gửi duyệt', () => {
+    const nguon = readFileSync('scripts/nap-danh-muc.ts', 'utf8');
+    const tepNap = [...nguon.matchAll(/tep:\s*'([^']+\.docx)'/g)].map((m) => m[1]!);
+    expect(tepNap.length, 'không đọc được danh sách mẫu của nap-danh-muc').toBe(3);
+
+    const chanMoi = Object.entries(NHOM_TRUONG)
+      .filter(([, nhom]) => nhom === 'chan-moi')
+      .map(([khoa]) => khoa);
+    expect(chanMoi.length, 'nhóm chan-moi rỗng — bảng phân loại hỏng').toBeGreaterThan(0);
+
+    const thieu: string[] = [];
+    for (const tep of tepNap) {
+      const o = new Set(placeholdersOf(readFileSync(`templates/${tep}`)));
+      for (const n of chanMoi) if (!o.has(`{{${n}}}`)) thieu.push(`${tep} thiếu {{${n}}}`);
+    }
+    expect(thieu, thieu.join('\n')).toEqual([]);
+  });
+
   it('mẫu RÚT GỌN có đủ mục bắt buộc — nếu không thì không lưu được', () => {
     /*
      * Mẫu rút gọn tồn tại để trả lời câu "ít nhất phải có những gì". Nó mà thiếu
