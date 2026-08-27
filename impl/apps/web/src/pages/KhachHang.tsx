@@ -31,6 +31,7 @@ type KhachHangDto = {
   idNumber: string | null;
   ownerName: string;
   phone: string | null;
+  /** Câu chữ điều khoản thanh toán, máy chủ dựng sẵn (`0138`). */
   debt: string;
 };
 
@@ -253,8 +254,10 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           <dd>{kh.phone ?? '—'}</dd>
         </div>
         <div>
-          <dt>Công nợ</dt>
-          <dd className="so">{tien(kh.debt)}</dd>
+          <dt>Điều khoản thanh toán</dt>
+          {/* `0138` — một câu chữ, không phải số tiền: bỏ `.so` (căn phải,
+              chữ số đều cột) vì đây thôi là một con số. */}
+          <dd>{kh.debt || '—'}</dd>
         </div>
       </dl>
 

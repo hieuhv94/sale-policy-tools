@@ -556,7 +556,7 @@ export class WorkflowService {
           `kh_dia_chi_dang_ky_snap = $${i + 3}, kh_noi_nhan_hang_snap = $${i + 4}, ` +
           `kh_nguoi_dai_dien_snap = $${i + 5}, kh_chuc_danh_dai_dien_snap = $${i + 6}, ` +
           `kh_dien_thoai_snap = $${i + 7}, ` +
-          `kh_cong_no_snap = $${i + 8}::bigint, nguoi_de_nghi_snap = $${i + 9},`;
+          `kh_cong_no_snap = $${i + 8}, nguoi_de_nghi_snap = $${i + 9},`;
       }
 
       /*

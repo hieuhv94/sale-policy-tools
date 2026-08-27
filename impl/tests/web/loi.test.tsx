@@ -191,7 +191,7 @@ describe('`0088` VALIDATION_FAILED không lộ tên trường trong mã', () => 
   });
 
   it('nhãn trường phủ các ô người dùng gõ nhiều nhất', () => {
-    for (const t of ['customerCode', 'wholesalePrice', 'debt', 'fullName', 'login']) {
+    for (const t of ['customerCode', 'wholesalePrice', 'debtTerm', 'fullName', 'login']) {
       expect(NHAN_TRUONG[t], t).toBeTruthy();
     }
   });

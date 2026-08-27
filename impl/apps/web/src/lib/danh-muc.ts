@@ -102,6 +102,32 @@ export const LOAI_KHACH_HANG = [1, 2, 3] as const;
  */
 export const nhanLoaiKhach = (n: number): string => `Loại ${n}`;
 
+/**
+ * ĐIỀU KHOẢN THANH TOÁN (`0138`) — bản sao phía giao diện.
+ *
+ * Máy chủ giữ bản gốc ở `services/customer/src/customers/dieu-khoan.ts` và dựng
+ * sẵn câu chữ trả về; giao diện cần bảng này vì nó phải VẼ Ô CHỌN, tức phải biết
+ * ba phương án trước khi người dùng chọn cái nào.
+ *
+ * Hai bản sao là chuyện chấp nhận có ý thức, cùng lối với bảng quyền của
+ * `can.ts`: có một ca kiểm đối chiếu chúng, nên lệch là đỏ chứ không lặng lẽ.
+ */
+export const DIEU_KHOAN_NO = ['SAU_NHAN_HANG', 'GOI_DON_90', 'KHAC'] as const;
+
+export type DieuKhoanNo = (typeof DIEU_KHOAN_NO)[number];
+
+/**
+ * Câu chữ trên ô chọn.
+ *
+ * *Khác* mang thêm chữ *(tự nhập)* — nhãn ấy CHỈ có trên ô chọn, không đi vào
+ * dữ liệu: chọn nó xong thì thứ hiện ra và thứ in ra là câu người dùng gõ.
+ */
+export const NHAN_DIEU_KHOAN_NO: Record<DieuKhoanNo, string> = {
+  SAU_NHAN_HANG: 'Thanh toán sau khi nhận hàng',
+  GOI_DON_90: 'Thanh toán gối đơn, công nợ không quá 90 ngày',
+  KHAC: 'Khác (tự nhập)',
+};
+
 export type SanPham = {
   id: string;
   code: string;

@@ -48,7 +48,7 @@ const HO_SO = {
     ma: 'KH-000123',
     ten: 'Cong ty TNHH Duoc pham ABC',
     loai: 2,
-    congNo: '4500000',
+    congNo: 'Thanh toán gối đơn, công nợ không quá 90 ngày',
     trangThai: 'DANG_HOP_TAC',
   },
   xoaDuoc: false,
@@ -177,7 +177,7 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Ngày soạn thảo')).not.toBe(oCua('Ngày áp dụng'));
   });
 
-  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, công nợ', async () => {
+  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, điều khoản thanh toán', async () => {
     await mo();
     const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
       (e) => e.querySelector('h2')?.textContent === 'Khách hàng',
@@ -187,8 +187,12 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(within(nhom as HTMLElement).getByText('KH-000123')).toBeDefined();
     expect(oCua('Tên')).toBe('Cong ty TNHH Duoc pham ABC');
     expect(oCua('Loại')).toBe('Loại 2');
-    // Công nợ đọc theo tiền, không phải một chuỗi bigint thô.
-    expect(oCua('Công nợ')).toBe('4.500.000 đ');
+    /*
+     * `0138` — công nợ thôi là số tiền, nó là ĐIỀU KHOẢN thanh toán, và máy chủ
+     * gửi xuống câu chữ đã dựng xong. Ô này in nguyên câu ấy: không `tien()`,
+     * không hậu tố ` đ`.
+     */
+    expect(oCua('Điều khoản thanh toán')).toBe('Thanh toán gối đơn, công nợ không quá 90 ngày');
   });
 
   it('mã khách hàng bấm được, dẫn sang màn hình khách hàng đó', async () => {

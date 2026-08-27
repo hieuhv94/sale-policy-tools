@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,6 +9,7 @@ import { PG, paged, pgCode, type AuthUser, type Page, kemNguCanh } from '@csbh/h
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
 import { PolicyClient } from '../infra/policy.client.js';
+import { cauNo, loiDieuKhoan, type DieuKhoanNo } from './dieu-khoan.js';
 
 export type CustomerInput = {
   code: string;
@@ -21,7 +23,14 @@ export type CustomerInput = {
   ownerIdNumber?: string | undefined;
   /** Số điện thoại liên hệ (`0128`). `undefined` được — khách cũ chưa ai khai. */
   phone?: string | undefined;
-  debt?: bigint | undefined;
+  /**
+   * Điều khoản thanh toán (`0138`) — thay cho `debt: bigint` trước đó.
+   *
+   * `debtNote` chỉ có nghĩa khi `debtTerm === 'KHAC'`; ràng buộc ấy kiểm ở
+   * `assertDieuKhoan` chứ không ở CSDL, để câu báo lỗi chỉ được vào đúng ô.
+   */
+  debtTerm?: DieuKhoanNo | undefined;
+  debtNote?: string | undefined;
 };
 
 type Row = {
@@ -36,7 +45,8 @@ type Row = {
   owner_title: string | null;
   owner_id_number: string | null;
   phone: string | null;
-  debt: string;
+  debt_term: string;
+  debt_note: string | null;
   tdv_user_id: string;
   /** `0034` — ngừng hợp tác thì khách biến khỏi ô chọn lúc lập hồ sơ. */
   status: string;
@@ -65,7 +75,14 @@ export class CustomersService {
     private readonly policies: PolicyClient,
   ) {}
 
+  /** Luật ở `dieu-khoan.ts`, cạnh chính bảng từ vựng nó kiểm (`0138`). */
+  private assertDieuKhoan(term: string | undefined, note: string | undefined): void {
+    const l = loiDieuKhoan(term, note);
+    if (l) throw new BadRequestException(l);
+  }
+
   async create(input: CustomerInput, me: AuthUser) {
+    this.assertDieuKhoan(input.debtTerm, input.debtNote);
     // Trùng CCCD/MST thì VẪN LƯU, chỉ kèm cảnh báo: một chủ hộ mở nhiều điểm
     // bán là nghiệp vụ có thật (CUST-05).
     const duplicates = await this.findByIdNumber(input.idNumber);
@@ -79,8 +96,9 @@ export class CustomersService {
         .query<Row>(
           `INSERT INTO cus.customer
              (code, name, id_number, customer_type, registered_address, delivery_address,
-              owner_name, owner_title, owner_id_number, phone, debt, tdv_user_id, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)
+              owner_name, owner_title, owner_id_number, phone, debt_term, debt_note,
+              tdv_user_id, created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)
            RETURNING *`,
           [
             input.code,
@@ -93,7 +111,8 @@ export class CustomersService {
             input.ownerTitle ?? null,
             input.ownerIdNumber ?? null,
             input.phone ?? null,
-            (input.debt ?? 0n).toString(),
+            input.debtTerm ?? 'SAU_NHAN_HANG',
+            input.debtNote ?? null,
             // TDV phụ trách mặc định là người tạo (CUST-01).
             me.id,
           ],
@@ -187,6 +206,7 @@ export class CustomersService {
     },
     me: AuthUser,
   ) {
+    this.assertDieuKhoan(patch.debtTerm, patch.debtNote);
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
     await this.assertInScope(cur.tdv_user_id, me, id);
@@ -228,9 +248,21 @@ export class CustomersService {
             owner_name         = coalesce($6, owner_name),
             owner_title        = coalesce($7, owner_title),
             owner_id_number    = coalesce($8, owner_id_number),
-            debt               = coalesce($9, debt),
+            debt_term          = coalesce($9, debt_term),
             tdv_user_id        = coalesce($10, tdv_user_id),
             phone              = coalesce($12, phone),
+            -- debt_note KHONG dung coalesce (0138). Doi tu *Khac* sang phuong an
+            -- 1 hay 2 thi phan go tay phai BIEN MAT; coalesce giu no lai, va no
+            -- nam im trong CSDL cho toi ngay ai do doi nguoc ve *Khac* va thay
+            -- noi dung cua lan truoc hien ra nhu the vua go.
+            --   ''  = luot sua khong dung toi dieu khoan, giu nguyen
+            --   '-' = xoa
+            -- (Chu thich nay khong dung dau backtick: ca khoi SQL nam trong mot
+            --  template literal cua TypeScript, va mot dau backtick o day cat
+            --  dut chuoi — da dinh mot lan.)
+            debt_note          = CASE WHEN $13 = '' THEN debt_note
+                                      WHEN $13 = '-' THEN NULL
+                                      ELSE $13 END,
             updated_at         = now()
           WHERE id = $1 RETURNING *`,
         [
@@ -242,10 +274,12 @@ export class CustomersService {
           patch.ownerName ?? null,
           patch.ownerTitle ?? null,
           patch.ownerIdNumber ?? null,
-          patch.debt?.toString() ?? null,
+          patch.debtTerm ?? null,
           patch.tdvUserId ?? null,
           patch.customerType ?? null,
           patch.phone ?? null,
+          // '' = không đụng tới · '-' = xoá · còn lại = nội dung mới.
+          patch.debtTerm === undefined ? '' : (patch.debtNote ?? '-'),
         ],
       );
       const after = r.rows[0]!;
@@ -539,6 +573,15 @@ const toDto = (r: Row) => ({
   ownerTitle: r.owner_title,
   ownerIdNumber: r.owner_id_number,
   phone: r.phone,
-  debt: r.debt,
+  debtTerm: r.debt_term,
+  debtNote: r.debt_note,
+  /*
+   * `debt` là trường DẪN XUẤT, chỉ để đọc (`0138`).
+   *
+   * `policy` và `document` nhận đúng một chuỗi và không cần biết ba phương án
+   * là gì — nhờ vậy lượt đổi này không phải sửa logic ở hai service ấy. Giữ tên
+   * cũ `debt` cũng vì thế: nó là khoá mà `ho_so.cong_no` vẫn đang đọc.
+   */
+  debt: cauNo(r.debt_term, r.debt_note),
   tdvUserId: r.tdv_user_id,
 });

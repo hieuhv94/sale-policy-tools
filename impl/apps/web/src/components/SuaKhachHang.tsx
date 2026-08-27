@@ -13,8 +13,13 @@
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
-import { LOAI_KHACH_HANG, nhanLoaiKhach } from '../lib/danh-muc.js';
-import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, ONhapTien, Truong } from './Chung.js';
+import {
+  DIEU_KHOAN_NO,
+  LOAI_KHACH_HANG,
+  NHAN_DIEU_KHOAN_NO,
+  nhanLoaiKhach,
+} from '../lib/danh-muc.js';
+import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 export type KhachHangDayDu = {
@@ -28,7 +33,10 @@ export type KhachHangDayDu = {
   ownerTitle: string | null;
   phone: string | null;
   idNumber: string | null;
+  /** Câu chữ đã dựng xong — chỉ để hiện, không sửa qua ô này (`0138`). */
   debt: string;
+  debtTerm: string;
+  debtNote: string | null;
   tdvUserId: string | null;
   /** `DANG_HOP_TAC` | `NGUNG_HOP_TAC` (`0034`). */
   status: string;
@@ -44,7 +52,8 @@ type Gia = {
   ownerTitle: string;
   phone: string;
   idNumber: string;
-  debt: string;
+  debtTerm: string;
+  debtNote: string;
 };
 
 const rong: Gia = {
@@ -57,7 +66,8 @@ const rong: Gia = {
   ownerTitle: '',
   phone: '',
   idNumber: '',
-  debt: '',
+  debtTerm: 'SAU_NHAN_HANG',
+  debtNote: '',
 };
 
 const tuDto = (k: KhachHangDayDu): Gia => ({
@@ -70,7 +80,8 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   ownerTitle: k.ownerTitle ?? '',
   phone: k.phone ?? '',
   idNumber: k.idNumber ?? '',
-  debt: k.debt,
+  debtTerm: k.debtTerm,
+  debtNote: k.debtNote ?? '',
 });
 
 export function BieuMauKhachHang({
@@ -111,7 +122,16 @@ export function BieuMauKhachHang({
         ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
         ...opt('phone', coGiaTri(g.phone)),
         ...opt('idNumber', coGiaTri(g.idNumber)),
-        ...opt('debt', coGiaTri(g.debt)),
+        /*
+         * `debtTerm` gửi ở MỌI lượt, `debtNote` chỉ khi chọn *Khác* (`0138`).
+         *
+         * Máy chủ từ chối `debtNote` kèm phương án 1 hay 2 (`DEBT_NOTE_NOT_ALLOWED`),
+         * và đó là chốt đúng — nhưng nếu giao diện cứ gửi kèm chuỗi cũ thì người
+         * dùng đổi từ *Khác* sang phương án 1 sẽ nhận một lỗi mà họ không hiểu
+         * mình vừa làm gì sai.
+         */
+        debtTerm: g.debtTerm,
+        ...(g.debtTerm === 'KHAC' ? { debtNote: g.debtNote.trim() } : {}),
       };
       if (khach) {
         // Chỉ gửi khi ĐÃ ĐỔI. Gửi kèm ở mọi lượt sửa thì một lần sửa địa chỉ
@@ -141,6 +161,9 @@ export function BieuMauKhachHang({
     g.name.trim() !== '' &&
     g.registeredAddress.trim() !== '' &&
     g.ownerName.trim() !== '' &&
+    // Chọn *Khác* mà chưa gõ gì thì nút Lưu xám (`0138`) — máy chủ cũng chặn,
+    // nhưng bắt người dùng bấm Lưu mới biết là bắt họ đi một vòng thừa.
+    (g.debtTerm !== 'KHAC' || g.debtNote.trim() !== '') &&
     (khach !== undefined || g.code.trim() !== '');
 
   return (
@@ -285,9 +308,43 @@ export function BieuMauKhachHang({
           Trùng mã số thuế với khách khác <strong>vẫn lưu được</strong> — hệ thống chỉ cảnh báo. Một
           chủ hộ mở nhiều điểm bán là chuyện bình thường.
         </p>
-        <Truong id="kh-no" nhan="Công nợ" donVi="Tiền tệ đơn vị đồng">
-          {(p) => <ONhapTien {...p} giaTri={g.debt} doi={(v) => sua({ debt: v })} />}
+        {/*
+          CÔNG NỢ là một ĐIỀU KHOẢN, không phải số tiền (`0138`, chốt 27/08).
+
+          Ô gõ nội dung chỉ hiện khi chọn *Khác*, và nó BẮT BUỘC khi hiện — máy
+          chủ chặn cả hai chiều, ô này chỉ nói trước để không ai phải bấm Lưu
+          mới biết.
+        */}
+        <Truong id="kh-no" nhan="Điều khoản thanh toán" bắtBuộc>
+          {(p) => (
+            <select
+              {...p}
+              className="o-nhap"
+              value={g.debtTerm}
+              onChange={(e) => sua({ debtTerm: e.target.value })}
+            >
+              {DIEU_KHOAN_NO.map((d) => (
+                <option key={d} value={d}>
+                  {NHAN_DIEU_KHOAN_NO[d]}
+                </option>
+              ))}
+            </select>
+          )}
         </Truong>
+        {g.debtTerm === 'KHAC' && (
+          <Truong id="kh-no-khac" nhan="Ghi rõ điều khoản" bắtBuộc>
+            {(p) => (
+              <textarea
+                {...p}
+                className="o-nhap"
+                rows={2}
+                maxLength={500}
+                value={g.debtNote}
+                onChange={(e) => sua({ debtNote: e.target.value })}
+              />
+            )}
+          </Truong>
+        )}
 
         {loi !== null && <BaoLoi loi={loi} />}
         <div className="nhom-nut">

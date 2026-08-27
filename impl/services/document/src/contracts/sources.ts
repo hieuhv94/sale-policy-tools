@@ -164,7 +164,7 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
   'ho_so.dia_chi_dang_ky': 'luon-co', //    registered_address NOT NULL
   'ho_so.noi_nhan_hang': 'luon-co', //      rỗng thì rơi về địa chỉ đăng ký
   'ho_so.nguoi_dai_dien': 'luon-co', //     owner_name NOT NULL
-  'ho_so.cong_no': 'luon-co', //            debt NOT NULL DEFAULT 0
+  'ho_so.cong_no': 'luon-co', //            debt_term NOT NULL DEFAULT (`0138`)
   'ho_so.nguoi_de_nghi': 'luon-co', //      hồ sơ luôn có TDV phụ trách
   ngay_in: 'luon-co', //                    now()
 
@@ -199,7 +199,9 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
  * Trường nào không có tên ở đây thì giữ nguyên chữ (`text`).
  */
 export const DINH_DANG_NGUON: Record<string, Format> = {
-  'ho_so.cong_no': 'money_vnd',
+  // `0138` — công nợ là một ĐIỀU KHOẢN, không phải số tiền. Để `money_vnd`
+  // thì `applyFormat` cố phân nhóm hàng nghìn một câu chữ.
+  'ho_so.cong_no': 'text',
   'ho_so.ngay_ap_dung': 'date_dmy',
   'ho_so.ngay_hieu_luc': 'date_dmy',
   'ho_so.ngay_tbp_ky': 'date_dmy',

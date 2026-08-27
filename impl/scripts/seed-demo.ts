@@ -248,7 +248,8 @@ type KhachMau = {
   idNumber: string;
   /** `0128` — bắt buộc lúc gửi duyệt, nên khách hàng mẫu phải có. */
   phone: string;
-  debt: string;
+  debtTerm: string;
+  debtNote?: string;
 };
 
 /** Bốn khách viết tay — phủ đủ ba loại khách, và `KH-0002` thuộc `tdv02`. */
@@ -262,7 +263,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0101234567',
     phone: '0912 345 678',
-    debt: '4500000',
+    debtTerm: 'GOI_DON_90',
   },
   {
     code: 'KH-0002',
@@ -273,7 +274,7 @@ const KHACH_TAY: KhachMau[] = [
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0402345678',
     phone: '0905 234 567',
-    debt: '0',
+    debtTerm: 'SAU_NHAN_HANG',
   },
   {
     code: 'KH-0003',
@@ -284,7 +285,8 @@ const KHACH_TAY: KhachMau[] = [
     ownerTitle: 'Giám đốc',
     idNumber: '0312345678',
     phone: '0938 456 789',
-    debt: '128000000',
+    debtTerm: 'KHAC',
+    debtNote: 'Thanh toán 50% khi đặt hàng, 50% sau 30 ngày',
   },
   {
     code: 'KH-0004',
@@ -295,36 +297,36 @@ const KHACH_TAY: KhachMau[] = [
     ownerTitle: 'Trưởng khoa',
     idNumber: '0104567890',
     phone: '0987 654 321',
-    debt: '0',
+    debtTerm: 'SAU_NHAN_HANG',
   },
 ];
 
 /** `[tên, loại khách, địa chỉ đăng ký, người đại diện, chức danh, công nợ]`. */
-const KHACH_THEM: [string, number, string, string, string, string][] = [
-  ['Nhà thuốc Thanh Bình', 1, 'Số 21 Trần Phú, Hà Đông, Hà Nội', 'Nguyễn Thanh Bình', 'Chủ nhà thuốc', '2100000'],
-  ['Nhà thuốc An Khang', 1, 'Số 145 Cầu Giấy, Cầu Giấy, Hà Nội', 'Đỗ Thị An', 'Chủ nhà thuốc', '0'],
-  ['Nhà thuốc Phúc Lộc', 1, 'Số 9 Lê Lợi, TP Vinh, Nghệ An', 'Trần Phúc Lộc', 'Chủ nhà thuốc', '860000'],
-  ['Nhà thuốc Bảo Ngọc', 1, 'Số 32 Hai Bà Trưng, TP Huế, Thừa Thiên Huế', 'Lê Bảo Ngọc', 'Chủ nhà thuốc', '5400000'],
-  ['Nhà thuốc Hương Sen', 1, 'Số 88 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Vũ Thị Hương', 'Chủ nhà thuốc', '0'],
-  ['Nhà thuốc Tâm Đức', 1, 'Số 4 Quang Trung, TP Nam Định, Nam Định', 'Phạm Tâm Đức', 'Chủ nhà thuốc', '1250000'],
-  ['Nhà thuốc Việt Nhật', 1, 'Số 60 Lạch Tray, Ngô Quyền, Hải Phòng', 'Hoàng Việt Anh', 'Chủ nhà thuốc', '3300000'],
-  ['Quầy thuốc Kim Ngân', 1, 'Số 7 Hùng Vương, TP Việt Trì, Phú Thọ', 'Ngô Kim Ngân', 'Chủ quầy thuốc', '0'],
-  ['Công ty CP Dược phẩm Đại Việt', 2, 'Số 210 Nguyễn Thị Minh Khai, Quận 3, TP Hồ Chí Minh', 'Trịnh Đại Nghĩa', 'Tổng giám đốc', '245000000'],
-  ['Công ty TNHH Dược Tân Á', 2, 'Số 18 Điện Biên Phủ, Bình Thạnh, TP Hồ Chí Minh', 'Bùi Tân Á', 'Giám đốc', '92000000'],
-  ['Công ty TNHH Thương mại Nam Dược', 2, 'Số 3 Trường Chinh, Đống Đa, Hà Nội', 'Dương Nam Sơn', 'Giám đốc', '58000000'],
-  ['Công ty CP Dược Miền Trung', 2, 'Số 44 Ngô Quyền, Sơn Trà, Đà Nẵng', 'Cao Minh Trung', 'Giám đốc', '134000000'],
-  ['Công ty TNHH Dược phẩm Sông Hồng', 2, 'Số 27 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội', 'Hà Thị Hồng', 'Giám đốc', '0'],
-  ['Công ty CP Y tế Tây Đô', 2, 'Số 5 Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ', 'Mai Tây Đô', 'Phó giám đốc', '76500000'],
-  ['Công ty TNHH Dược Cao Nguyên', 2, 'Số 91 Phan Đình Phùng, TP Buôn Ma Thuột, Đắk Lắk', 'Lý Cao Sơn', 'Giám đốc', '31000000'],
-  ['Chuỗi nhà thuốc Sức Khoẻ Vàng', 2, 'Số 300 Xã Đàn, Đống Đa, Hà Nội', 'Nguyễn Hoàng Giang', 'Giám đốc chuỗi', '188000000'],
-  ['Khoa Dinh dưỡng — Bệnh viện Chợ Rẫy', 3, 'Số 201B Nguyễn Chí Thanh, Quận 5, TP Hồ Chí Minh', 'Trần Quốc Bảo', 'Trưởng khoa', '0'],
-  ['Khoa Dinh dưỡng — Bệnh viện Việt Đức', 3, 'Số 40 Tràng Thi, Hoàn Kiếm, Hà Nội', 'Lê Thị Kim Chi', 'Trưởng khoa', '0'],
-  ['Khoa Nhi — Bệnh viện Đa khoa Thanh Hoá', 3, 'Số 181 Hải Thượng Lãn Ông, TP Thanh Hoá', 'Phạm Văn Toàn', 'Trưởng khoa', '0'],
-  ['Khoa Dinh dưỡng — Bệnh viện Đà Nẵng', 3, 'Số 124 Hải Phòng, Thanh Khê, Đà Nẵng', 'Nguyễn Thị Diệu', 'Phó trưởng khoa', '0'],
-  ['Khoa Ung bướu — Bệnh viện K Tân Triều', 3, 'Số 30 Cầu Bươu, Thanh Trì, Hà Nội', 'Đặng Hoàng Nam', 'Trưởng khoa', '0'],
-  ['Khoa Hồi sức — Bệnh viện Bình Dân', 3, 'Số 371 Điện Biên Phủ, Quận 3, TP Hồ Chí Minh', 'Vũ Đình Khoa', 'Trưởng khoa', '0'],
-  ['Trung tâm Y tế huyện Đông Anh', 3, 'Thị trấn Đông Anh, Đông Anh, Hà Nội', 'Trần Thị Vân', 'Giám đốc trung tâm', '0'],
-  ['Trung tâm Dinh dưỡng TP Hồ Chí Minh', 3, 'Số 180 Lê Văn Sỹ, Phú Nhuận, TP Hồ Chí Minh', 'Lương Minh Khôi', 'Giám đốc', '0'],
+const KHACH_THEM: [string, number, string, string, string][] = [
+  ['Nhà thuốc Thanh Bình', 1, 'Số 21 Trần Phú, Hà Đông, Hà Nội', 'Nguyễn Thanh Bình', 'Chủ nhà thuốc'],
+  ['Nhà thuốc An Khang', 1, 'Số 145 Cầu Giấy, Cầu Giấy, Hà Nội', 'Đỗ Thị An', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Phúc Lộc', 1, 'Số 9 Lê Lợi, TP Vinh, Nghệ An', 'Trần Phúc Lộc', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Bảo Ngọc', 1, 'Số 32 Hai Bà Trưng, TP Huế, Thừa Thiên Huế', 'Lê Bảo Ngọc', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Hương Sen', 1, 'Số 88 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Vũ Thị Hương', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Tâm Đức', 1, 'Số 4 Quang Trung, TP Nam Định, Nam Định', 'Phạm Tâm Đức', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Việt Nhật', 1, 'Số 60 Lạch Tray, Ngô Quyền, Hải Phòng', 'Hoàng Việt Anh', 'Chủ nhà thuốc'],
+  ['Quầy thuốc Kim Ngân', 1, 'Số 7 Hùng Vương, TP Việt Trì, Phú Thọ', 'Ngô Kim Ngân', 'Chủ quầy thuốc'],
+  ['Công ty CP Dược phẩm Đại Việt', 2, 'Số 210 Nguyễn Thị Minh Khai, Quận 3, TP Hồ Chí Minh', 'Trịnh Đại Nghĩa', 'Tổng giám đốc'],
+  ['Công ty TNHH Dược Tân Á', 2, 'Số 18 Điện Biên Phủ, Bình Thạnh, TP Hồ Chí Minh', 'Bùi Tân Á', 'Giám đốc'],
+  ['Công ty TNHH Thương mại Nam Dược', 2, 'Số 3 Trường Chinh, Đống Đa, Hà Nội', 'Dương Nam Sơn', 'Giám đốc'],
+  ['Công ty CP Dược Miền Trung', 2, 'Số 44 Ngô Quyền, Sơn Trà, Đà Nẵng', 'Cao Minh Trung', 'Giám đốc'],
+  ['Công ty TNHH Dược phẩm Sông Hồng', 2, 'Số 27 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội', 'Hà Thị Hồng', 'Giám đốc'],
+  ['Công ty CP Y tế Tây Đô', 2, 'Số 5 Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ', 'Mai Tây Đô', 'Phó giám đốc'],
+  ['Công ty TNHH Dược Cao Nguyên', 2, 'Số 91 Phan Đình Phùng, TP Buôn Ma Thuột, Đắk Lắk', 'Lý Cao Sơn', 'Giám đốc'],
+  ['Chuỗi nhà thuốc Sức Khoẻ Vàng', 2, 'Số 300 Xã Đàn, Đống Đa, Hà Nội', 'Nguyễn Hoàng Giang', 'Giám đốc chuỗi'],
+  ['Khoa Dinh dưỡng — Bệnh viện Chợ Rẫy', 3, 'Số 201B Nguyễn Chí Thanh, Quận 5, TP Hồ Chí Minh', 'Trần Quốc Bảo', 'Trưởng khoa'],
+  ['Khoa Dinh dưỡng — Bệnh viện Việt Đức', 3, 'Số 40 Tràng Thi, Hoàn Kiếm, Hà Nội', 'Lê Thị Kim Chi', 'Trưởng khoa'],
+  ['Khoa Nhi — Bệnh viện Đa khoa Thanh Hoá', 3, 'Số 181 Hải Thượng Lãn Ông, TP Thanh Hoá', 'Phạm Văn Toàn', 'Trưởng khoa'],
+  ['Khoa Dinh dưỡng — Bệnh viện Đà Nẵng', 3, 'Số 124 Hải Phòng, Thanh Khê, Đà Nẵng', 'Nguyễn Thị Diệu', 'Phó trưởng khoa'],
+  ['Khoa Ung bướu — Bệnh viện K Tân Triều', 3, 'Số 30 Cầu Bươu, Thanh Trì, Hà Nội', 'Đặng Hoàng Nam', 'Trưởng khoa'],
+  ['Khoa Hồi sức — Bệnh viện Bình Dân', 3, 'Số 371 Điện Biên Phủ, Quận 3, TP Hồ Chí Minh', 'Vũ Đình Khoa', 'Trưởng khoa'],
+  ['Trung tâm Y tế huyện Đông Anh', 3, 'Thị trấn Đông Anh, Đông Anh, Hà Nội', 'Trần Thị Vân', 'Giám đốc trung tâm'],
+  ['Trung tâm Dinh dưỡng TP Hồ Chí Minh', 3, 'Số 180 Lê Văn Sỹ, Phú Nhuận, TP Hồ Chí Minh', 'Lương Minh Khôi', 'Giám đốc'],
 ];
 
 /** MST 10 chữ số, sinh theo thứ tự để không trùng và vẫn hợp lệ (CUST-04). */
@@ -332,7 +334,15 @@ const mst = (i: number): string => String(3_000_000_000 + i * 137);
 
 const KHACH: KhachMau[] = [
   ...KHACH_TAY,
-  ...KHACH_THEM.map(([name, loai, diaChi, chu, chucDanh, congNo], i) => ({
+  /*
+   * Điều khoản thanh toán XOAY VÒNG qua cả ba phương án (`0138`).
+   *
+   * Cột thứ sáu của `KHACH_THEM` từng là số tiền công nợ; công nợ thôi là số
+   * tiền, và giữ lại cột ấy để rồi vứt đi là để một bảng dữ liệu nói dối về thứ
+   * nó chứa. Xoay theo chỉ số thay vì đổi 24 dòng thành 24 mã: bản demo cần cả
+   * ba phương án xuất hiện — nhất là *Khác*, chỗ duy nhất có phần gõ tay.
+   */
+  ...KHACH_THEM.map(([name, loai, diaChi, chu, chucDanh], i) => ({
     code: `KH-${String(i + 5).padStart(4, '0')}`,
     name,
     customerType: loai,
@@ -341,7 +351,8 @@ const KHACH: KhachMau[] = [
     ownerTitle: chucDanh,
     idNumber: mst(i + 5),
     phone: `09${String(10000000 + i).slice(0, 8)}`,
-    debt: congNo,
+    debtTerm: (['SAU_NHAN_HANG', 'GOI_DON_90', 'KHAC'] as const)[i % 3]!,
+    ...(i % 3 === 2 ? { debtNote: 'Thanh toán trong vòng 45 ngày kể từ ngày giao hàng' } : {}),
   })),
 ];
 

@@ -12101,3 +12101,110 @@ Không thay bằng mẫu khác: hai mẫu còn lại là bản ĐỦ CỘT, và 
 | `nap-danh-muc` nạp thêm mẫu rút gọn | 2 đỏ |
 
 **6/6 ca của tệp mới xanh; `make test` đầy đủ chưa chạy.**
+
+## P166 — `0138` công nợ là một ĐIỀU KHOẢN, không phải số tiền
+
+Yêu cầu lớn nhất của lượt 27/08. Ba lựa chọn, lựa chọn thứ ba cho gõ tự do — và
+nó chạm CSDL, bốn service, giao diện, ba mẫu văn bản, bộ nạp demo.
+
+### Hai cột, không phải một
+
+`debt_term` giữ MÃ, `debt_note` giữ phần gõ tay của *Khác*. Gộp làm một cột chữ
+thì mất khả năng phân biệt *"khách này chọn phương án 2"* với *"khách này gõ tay
+đúng câu của phương án 2"* — hai chuyện khác nhau ngay khi ai đó muốn đếm xem bao
+nhiêu khách đang gối đơn.
+
+Ràng buộc *"note chỉ có nghĩa khi term = KHAC"* đặt ở service chứ không ở `CHECK`:
+câu báo lỗi phải chỉ đúng vào ô nhập nào (`0088`), mà một `CHECK` vi phạm ra
+`23514` — mã lỗi không nói được ô nào.
+
+### Luật HAI CHIỀU, và chiều thứ hai mới là chiều dễ quên
+
+*Khác* thì **phải** gõ nội dung; hai phương án kia thì **không được**. Chiều thứ
+hai đáng giữ ngang chiều thứ nhất: chọn phương án 1 rồi gõ thêm một dòng thì dòng
+ấy không đi đâu cả — không lên màn hình, không ra bản in — và người gõ tin rằng
+nó có. Nuốt im lặng tệ hơn một câu lỗi.
+
+Luật ấy ban đầu viết thành một `private assertDieuKhoan` trong service, và **ca
+kiểm thuần không với tới** — muốn kiểm phải dựng cả một service với CSDL. Chuyển
+nó về `dieu-khoan.ts` thành hàm thuần `loiDieuKhoan()` trả về mô tả lỗi; service
+bọc lại thành `BadRequestException`. Đó cũng là chỗ đúng của nó: cạnh chính bảng
+từ vựng mà nó kiểm.
+
+### `customer` dựng sẵn CÂU CHỮ, hai service kia chỉ thấy một chuỗi
+
+Ba câu này đi ra tới ba chỗ — hai màn hình và **tờ CSBH in ra**. Chép chúng sang
+từng chỗ là dựng ba bản sao sẽ trôi khỏi nhau, và chỗ trôi đầu tiên bao giờ cũng
+là bản in.
+
+Nên `customer.internal` trả về trường `debt` là câu chữ đã dựng xong. Nhờ vậy
+`policy` và `document` **không phải sửa một dòng logic nào** — chỉ đổi kiểu cột
+snapshot và đổi định dạng từ `money_vnd` sang `text`.
+
+Giao diện có bản sao riêng vì nó phải VẼ Ô CHỌN, tức phải biết ba phương án trước
+khi người dùng chọn cái nào. Có ca kiểm đối chiếu hai bảng, cùng lối với bảng
+quyền của `can.ts`.
+
+### Ảnh chụp chụp CÂU CHỮ, không chụp mã
+
+`0101` chụp công nợ vào hồ sơ lúc gửi duyệt. Giờ nó chụp câu đã dựng xong — và đó
+là một quyết định, không phải sự tiện tay: tờ CSBH đã ký phải in đúng câu hai bên
+đọc lúc ký. Chụp MÃ rồi dựng câu lúc in nghĩa là sửa câu chữ của phương án 2 về
+sau sẽ đổi luôn nội dung của mọi tờ đã ký từ trước — lặng lẽ, không ai đối chiếu
+được.
+
+### Cột `debt` cũ gỡ hẳn, và số tiền mất theo
+
+Không có phép chuyển đổi nào đúng: `4.500.000 đồng` không nói được khách ấy thanh
+toán sau khi nhận hàng hay gối đơn 90 ngày. Giữ lại cột thì nó thành một con số
+không ai đọc được nữa mà vẫn nằm đó.
+
+Mọi khách nhận `SAU_NHAN_HANG` — thận trọng nhất trong ba vì nó KHÔNG cho nợ.
+Đoán sai theo hướng ấy thì TDV sửa lại; đoán sai theo hướng ngược lại là in ra
+một tờ CSBH cho nợ 90 ngày mà không ai đồng ý.
+
+**Bản chạy thử đã nhập công nợ bằng số phải khai lại điều khoản cho từng khách.**
+
+### Ba chỗ suýt quên
+
+1. **`internal.controller` của `customer` liệt kê từng cột** — đúng cái bẫy `0128`
+   đã ghi. Không sửa nó thì `policy` và `document` nhận `undefined`.
+2. **Ba mẫu văn bản in `{{ho_so.cong_no}} đồng`** — giữ nguyên thì tờ CSBH in ra
+   *"Thanh toán sau khi nhận hàng đồng"*.
+3. **`debt_note` KHÔNG dùng `coalesce` trong câu `UPDATE`** — đổi từ *Khác* sang
+   phương án 1 thì phần gõ tay phải biến mất, `coalesce` giữ nó lại và nó nằm im
+   cho tới ngày ai đó đổi ngược về *Khác*.
+
+### Một bẫy cú pháp, mất thời gian thật
+
+Chú thích SQL trong câu `UPDATE` viết bằng markdown có dấu **backtick** — mà cả
+khối SQL nằm trong một *template literal* của TypeScript, nên backtick đầu tiên
+**cắt đứt chuỗi**. Triệu chứng là bảy lỗi cú pháp ở những dòng chẳng liên quan,
+kèm `TS1489: Decimals with leading zeros` cho chuỗi `0138` trong chú thích.
+**Chú thích bên trong template literal không được dùng backtick.**
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| *Khác* rỗng trả về chữ "Khác" | 1 đỏ |
+| Bỏ chiều thứ hai của luật | 1 đỏ |
+| `cong_no` quay lại định dạng tiền | 1 đỏ |
+| Mẫu văn bản in lại chữ *đồng* | 1 đỏ |
+| Bảng giao diện trôi khỏi bảng máy chủ | 1 đỏ |
+| Giao diện gọi lại `tien()` cho công nợ | 1 đỏ |
+
+### Một lượt phá lại làm hỏng cây làm việc
+
+Kịch bản phá dùng `rm -rf impl/services` rồi khôi phục bằng `tar` — `impl/services/*/node_modules`
+là **liên kết do root tạo**, `rm` không xoá được, `set -e` dừng script giữa chừng,
+và `impl/apps/web/src` đã bị xoá trước đó thì không kịp khôi phục. Chữa bằng chính
+bản tar đã chụp trước lượt phá.
+
+**Luật: phá lại thì sao lưu TỪNG TỆP sắp sửa, không sao lưu cả thư mục.** Thư mục
+mã nguồn của repo này có `node_modules` cài bằng liên kết bên trong, nên `rm -rf`
+một thư mục service không bao giờ chạy trọn.
+
+**14/14 ca của tệp mới xanh; 695/697 ca chạy được ngoại tuyến xanh (2 bỏ qua, và
+`bundle.test.ts` cần `pnpm` nên không chạy trong ảnh trần). `make test` đầy đủ
+chưa chạy.**

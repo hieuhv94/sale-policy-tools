@@ -217,7 +217,8 @@ export const NHAN_TRUONG: Record<string, string> = {
   customerName: 'Tên khách hàng',
   customerType: 'Loại khách hàng',
   days: 'Số ngày',
-  debt: 'Công nợ',
+  debtNote: 'Ghi rõ điều khoản',
+  debtTerm: 'Điều khoản thanh toán',
   deliveryAddress: 'Địa chỉ giao hàng',
   effectiveFrom: 'Ngày hiệu lực',
   email: 'Email',
@@ -406,6 +407,15 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Giấy tờ này không còn trong hồ sơ khách hàng. Tải lại rồi thử lại.',
   },
+  /*
+   * `0138` — điều khoản thanh toán, luật HAI CHIỀU.
+   *
+   * Câu của máy chủ đã đúng và đã chỉ vào ô (`field: 'debtNote'`), nên lấy
+   * nguyên; dạng `o-nhap` đưa nó xuống ngay dưới ô gõ thay vì bày một hộp thoại
+   * chặn màn hình cho một ô còn trống.
+   */
+  DEBT_NOTE_REQUIRED: { dang: 'o-nhap', tuMayChu: true },
+  DEBT_NOTE_NOT_ALLOWED: { dang: 'o-nhap', tuMayChu: true },
   CUSTOMER_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_ALREADY_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_HAS_POLICY: { dang: 'hop-thoai', tuMayChu: true },

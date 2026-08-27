@@ -1,7 +1,19 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
-import { CurrentUser, int, money, moneyKhongAm, opt, pageOf, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import {
+  CurrentUser,
+  int,
+  money,
+  oneOf,
+  opt,
+  pageOf,
+  Roles,
+  str,
+  validate,
+  type AuthUser,
+} from '@csbh/http-kit';
 import { CustomersService } from './customers.service.js';
 import { taxId } from './tax-id.js';
+import { DIEU_KHOAN_NO } from './dieu-khoan.js';
 
 /** Ban lãnh đạo chỉ đọc; mọi endpoint ghi ở đây đều loại vai trò đó ra (AUTH-13). */
 const WRITERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'QUAN_TRI'];
@@ -80,7 +92,15 @@ export class CustomersController {
       ownerTitle: opt(str(1, 120)),
       phone: opt(str(1, 30)),
       ownerIdNumber: opt(str(1, 60)),
-      debt: opt(moneyKhongAm()),
+      /*
+       * ĐIỀU KHOẢN thanh toán (`0138`) — thay cho `debt: opt(moneyKhongAm())`.
+       *
+       * `debtNote` khai `str(1, 500)` chứ không bắt buộc: ràng buộc thật là
+       * *"bắt buộc KHI VÀ CHỈ KHI chọn Khác"*, một luật hai chiều mà bộ kiểm
+       * theo từng trường không phát biểu được. Nó nằm ở `assertDieuKhoan`.
+       */
+      debtTerm: opt(oneOf(...DIEU_KHOAN_NO)),
+      debtNote: opt(str(1, 500)),
     });
     return this.customers.create(b, me);
   }
@@ -110,7 +130,15 @@ export class CustomersController {
       phone: opt(str(1, 30)),
       ownerIdNumber: opt(str(1, 60)),
       idNumber: opt(taxId()),
-      debt: opt(moneyKhongAm()),
+      /*
+       * ĐIỀU KHOẢN thanh toán (`0138`) — thay cho `debt: opt(moneyKhongAm())`.
+       *
+       * `debtNote` khai `str(1, 500)` chứ không bắt buộc: ràng buộc thật là
+       * *"bắt buộc KHI VÀ CHỈ KHI chọn Khác"*, một luật hai chiều mà bộ kiểm
+       * theo từng trường không phát biểu được. Nó nằm ở `assertDieuKhoan`.
+       */
+      debtTerm: opt(oneOf(...DIEU_KHOAN_NO)),
+      debtNote: opt(str(1, 500)),
       tdvUserId: opt(str(36, 36)),
     });
     return this.customers.update(id, b, me);

@@ -6,6 +6,7 @@ import { Body, Controller, Get, HttpCode, NotFoundException, Param, Post } from 
 import { ServiceOnly, kemNguCanh } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import { PolicyClient } from './infra/policy.client.js';
+import { cauNo } from './customers/dieu-khoan.js';
 
 @ServiceOnly()
 @Controller('internal/customers')
@@ -191,11 +192,12 @@ export class CustomerInternalController {
       owner_name: string;
       owner_title: string | null;
       phone: string | null;
-      debt: string;
+      debt_term: string;
+      debt_note: string | null;
     }>(
       `SELECT id, code, name, customer_type, status::text AS status,
               tdv_user_id, id_number, registered_address, delivery_address,
-              owner_name, owner_title, phone, debt::text
+              owner_name, owner_title, phone, debt_term, debt_note
          FROM cus.customer WHERE id = $1`,
       [id],
     );
@@ -215,7 +217,20 @@ export class CustomerInternalController {
       // `0128` — `policy` chụp nó vào hồ sơ lúc gửi duyệt, `document` in nó ra
       // bản CSBH. Thiếu ở đây thì hai bên đọc `undefined` và không có gì báo.
       phone: row.phone,
-      debt: row.debt,
+      /*
+       * CÂU CHỮ đã dựng xong, không phải mã (`0138`).
+       *
+       * `policy` chụp chuỗi này vào `kh_cong_no_snap` lúc gửi duyệt và
+       * `document` in nó ra tờ CSBH; cả hai chỉ thấy một chuỗi. Dựng câu ở đây
+       * — trong service SỞ HỮU dữ liệu — là chỗ duy nhất biết ba phương án, nên
+       * sửa câu chữ về sau không phải đi qua hai service khác.
+       *
+       * `0128` đã dạy đúng chỗ này một lần: hàm `SELECT` liệt kê từng cột, nên
+       * thêm hay đổi một trường của khách hàng mà quên nó thì `policy` và
+       * `document` nhận `undefined` — TypeScript im, và triệu chứng lộ ra ở chỗ
+       * khác hẳn.
+       */
+      debt: cauNo(row.debt_term, row.debt_note),
     };
   }
 }

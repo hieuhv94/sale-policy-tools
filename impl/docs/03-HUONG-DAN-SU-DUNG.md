@@ -792,7 +792,7 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 | Thẻ **Khách hàng** | Nghĩa |
 |---|---|
 | Mã | Bấm vào mở màn hình khách hàng đó |
-| Tên · Loại · Công nợ | Ba thứ quyết định ngưỡng chiết khấu và điều khoản thanh toán |
+| Tên · Loại · Điều khoản thanh toán | Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
 | Trạng thái | **Chỉ hiện khi khách đã ngừng hợp tác** — hồ sơ cũ của họ vẫn mở được |
 
 > **Tên và công nợ ở thẻ này là số LÚC GỬI DUYỆT, không phải số hôm nay** `sửa 24/08`. Hồ sơ đã gửi
@@ -1765,6 +1765,6 @@ Nói trước để khỏi đi tìm:
 - **Không có nghiệp vụ thu hồi** hồ sơ đã duyệt. Muốn thay đổi thì lập phiên bản mới.
 - **Không lưu file hợp đồng** — không tra được "những hợp đồng nào đã ký". Dấu vết duy nhất là mốc
   *đã xuất hợp đồng lúc nào, ai xuất* trên hồ sơ.
-- **Không tích hợp hệ thống kế toán.** Công nợ là một ô nhập tay.
+- **Không tích hợp hệ thống kế toán.** Công nợ là một **điều khoản thanh toán** chọn trong ba `sửa 27/08`, không phải số dư lấy từ hệ thống kế toán.
 - **Không cảnh báo giấy tờ pháp lý hết hạn.**
 - **Nhập dữ liệu CSBH cũ từ Excel** đang hoãn sang giai đoạn 2.

@@ -863,7 +863,9 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
             </O>
             <O nhan="Tên">{kh.ten}</O>
             <O nhan="Loại">{nhanLoaiKhach(kh.loai)}</O>
-            <O nhan="Công nợ">{kh.congNo === null ? '—' : `${tien(kh.congNo)} đ`}</O>
+            {/* `0138` — điều khoản thanh toán, đã đóng băng vào hồ sơ lúc gửi
+                duyệt (`0101`). Không còn ` đ` ở cuối. */}
+            <O nhan="Điều khoản thanh toán">{kh.congNo || '—'}</O>
             {/* Khách đã ngừng hợp tác thì PHẢI nói ra ở đây. Hồ sơ cũ của họ vẫn
                 mở được, và không có dòng này thì người đọc không thấy gì bất
                 thường ở một chính sách dành cho khách không còn giao dịch. */}

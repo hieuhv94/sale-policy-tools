@@ -433,7 +433,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | Loại khách hàng | Loại 1: HKD của KH · Loại 2: HKD cộng tác · Loại 3: HKD/công ty là điểm bán hoặc cơ sở y tế. **Sửa được sau khi lưu** `sửa 15/08` — xem dưới bảng |
 | Địa chỉ đăng ký / Nơi nhận hàng | Cho phép khác nhau; hiển thị đúng trên hợp đồng; dùng lọc |
 | Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
-| Công nợ | Trường dữ liệu bình thường, hiển thị khi lập CSBH. **Không tích hợp** với hệ thống kế toán |
+| Công nợ | **ĐIỀU KHOẢN thanh toán, không phải số tiền** `sửa 27/08` — chọn một trong ba, phương án *Khác* thì tự nhập nội dung. **Không tích hợp** với hệ thống kế toán |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
 | **Trạng thái** `16/08` | Bình thường · **Đã xoá**. Khách đã xoá biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
 | Hồ sơ đính kèm | GPKD, GPP, giấy phép hoạt động, ảnh nhà thuốc, tài liệu khác. Hiện thành **thẻ có ảnh thu nhỏ**, rê chuột ra nút xem và tải, dấu ✕ để gỡ `sửa 20/08` |
@@ -1400,6 +1400,24 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
+
+**Công nợ là một ĐIỀU KHOẢN thanh toán, không phải số tiền** `mới 27/08` — ba lựa chọn, và lựa
+chọn thứ ba cho gõ tự do:
+
+> 1. Thanh toán sau khi nhận hàng
+> 2. Thanh toán gối đơn, công nợ không quá 90 ngày
+> 3. Khác — người dùng tự nhập nội dung
+>
+> *Khác* thì **bắt buộc** ghi rõ nội dung, và hai phương án kia thì **không được** ghi thêm — luật
+> hai chiều, vì một dòng ghi chú kèm phương án 1 sẽ không đi đâu cả mà người gõ vẫn tin rằng nó có.
+>
+> Cột `debt` cũ **gỡ hẳn**, và số tiền trong đó mất theo: `4.500.000 đồng` không nói được khách ấy
+> thanh toán sau khi nhận hàng hay gối đơn 90 ngày, nên không có phép chuyển đổi nào đúng. Mọi khách
+> hàng nhận phương án 1 — thận trọng nhất trong ba, vì nó KHÔNG cho nợ. **Bản chạy thử đã nhập công
+> nợ bằng số phải khai lại điều khoản cho từng khách hàng.**
+>
+> Ảnh chụp vào hồ sơ (`0101`) chụp **câu chữ đã dựng xong**, không phải mã: sửa câu chữ của phương
+> án 2 về sau không được đổi nội dung của những tờ đã ký từ trước.
 
 **Quản trị hệ thống KHÔNG có màn hình Hồ sơ CSBH** `mới 27/08` — mục menu ấy gỡ khỏi vai trò này, và
 gõ thẳng địa chỉ cũng bị chặn.
