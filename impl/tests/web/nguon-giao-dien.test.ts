@@ -322,6 +322,60 @@ describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
   it('MỘT dòng thì nói thẳng là chưa đổi giá lần nào', () => {
     expect(nguon).toContain('chưa đổi giá lần nào');
   });
+
+  /*
+   * `0131` — HAI KHOẢNG HỞ, cả hai đều là chuyện bố cục thuần.
+   *
+   * Quét nguồn chứ không dựng màn hình, và lần này là bắt buộc chứ không phải
+   * tiện tay: jsdom KHÔNG tính bố cục, nên `getComputedStyle` ở đó trả về đúng
+   * thứ vừa viết vào chứ không đo được một pixel nào. Thứ kiểm được là lớp có
+   * đúng chỗ và luật có đúng nội dung — hai vế, và thiếu vế nào cũng vô nghĩa:
+   * một lớp không có luật thì không đẩy được gì, một luật không ai gắn thì là
+   * mã chết.
+   */
+  it('`0131` tiêu đề *Lịch sử giá* có khoảng hở trên và dưới', () => {
+    /*
+     * `h3 { margin: 0 }` khai ở đầu `app.css`, và đó là chủ ý — mỗi chỗ dùng tự
+     * khai khoảng hở nó cần. Chỗ này chưa khai bao giờ, nên chữ *Lịch sử giá*
+     * dính sát mép khung bảng và đọc như một dòng của bảng chứ không phải tên
+     * của nó.
+     */
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+    expect(nguon, 'tiêu đề chưa mang lớp khoảng hở').toMatch(
+      /<h3 className="[^"]*\btieu-de-lich-su-gia\b[^"]*">Lịch sử giá<\/h3>/,
+    );
+
+    const luat = css.match(/\.tieu-de-lich-su-gia\s*\{([^}]*)\}/);
+    expect(luat, 'thiếu luật cho `.tieu-de-lich-su-gia`').not.toBeNull();
+    const le = luat![1]!.match(/margin:\s*var\(--k(\d)\)\s+0\s+var\(--k(\d)\)/);
+    expect(le, 'lớp có mặt nhưng không đặt lề trên/dưới').not.toBeNull();
+    // Hở TRÊN dày hơn hở DƯỚI: khoảng hở nói cho mắt biết tiêu đề thuộc khối
+    // nào. Bằng nhau thì nó lửng lơ giữa ô giá phía trên và bảng phía dưới.
+    expect(Number(le![1]), 'hở trên phải dày hơn hở dưới').toBeGreaterThan(Number(le![2]));
+  });
+
+  it('`0131` nhãn *Đang áp dụng* KHÔNG dính vào ngày áp dụng', () => {
+    /*
+     * `.nhan` không có lề, và ở đây nó theo sau một nút VĂN BẢN chứ không phải
+     * một thẻ — nên không luật anh-em nào với tới. JSX cũng không cứu: xuống
+     * dòng giữa hai biểu thức thì khoảng trắng bị nuốt.
+     *
+     * Và vế thứ hai, cái bẫy: `display: flex` đặt thẳng lên `<td>` thì ô ấy
+     * thôi là ô bảng — trình duyệt bọc nó trong một ô ẩn và bề rộng của nó thôi
+     * tham gia phép chia cột, nên cột *Áp dụng từ* lệch khỏi tiêu đề của chính
+     * nó. Lớp phải nằm trên một thẻ BỌC BÊN TRONG ô.
+     */
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+    const luat = css.match(/\.o-ngay-hieu-luc\s*\{([^}]*)\}/);
+    expect(luat, 'thiếu luật cho `.o-ngay-hieu-luc`').not.toBeNull();
+    expect(luat![1]).toMatch(/display:\s*flex/);
+    expect(luat![1], 'thiếu `gap` — hai thứ vẫn dính nhau').toMatch(/gap:\s*var\(--k\d\)/);
+
+    expect(nguon).toMatch(/<span className="[^"]*\bo-ngay-hieu-luc\b[^"]*">/);
+    expect(nguon, 'lớp flex không được nằm thẳng trên `<td>`').not.toMatch(
+      /<td className="[^"]*\bo-ngay-hieu-luc\b/,
+    );
+  });
 });
 
 describe('`0124` hai nút thao tác của một dòng bảng không xuống dòng', () => {

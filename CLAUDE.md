@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P158** (`0130`): **kéo lại cỡ hộp thoại** sau khi khách hàng xem bản `0129` —
+Chặng gần nhất **P159** (`0131`): **hai khoảng hở ở *Lịch sử giá*** — tiêu đề dính bảng, nhãn *Đang
+áp dụng* dính ngày. Hai bẫy đáng nhớ: **`h3 { margin: 0 }` là chủ ý** (mỗi chỗ dùng tự khai khoảng
+hở nó cần, như `.tieu-de-nhom-xem-truoc`), nên chữa ở `h3` là dịch mọi tiêu đề cấp ba trong ứng dụng
+mà không ca nào đỏ; và **`display: flex` KHÔNG được đặt thẳng lên `<td>`** — ô ấy thôi là ô bảng,
+trình duyệt bọc nó trong một ô ẩn và bề rộng của nó thôi tham gia phép chia cột. Lớp nằm trên một
+`<span>` bọc trong ô, ca kiểm canh cả chiều cấm. Ghi thêm hai điều: JSX **nuốt khoảng trắng** giữa
+hai biểu thức xuống dòng nên ngày và nhãn dính liền — chữa bằng `gap`, không bằng dấu cách gõ tay;
+và `LichSuGia` không nằm trong `exports` của `apps/web/package.json`, tức **màn hình danh mục sản
+phẩm chưa có ca kiểm nào dựng DOM thật** — một chỗ trống, không phải một quyết định.
+**1782/1782 xanh.**
+
+Trước đó **P158** (`0130`): **kéo lại cỡ hộp thoại** sau khi khách hàng xem bản `0129` —
 ba bậc hạ một phần ba (**700 · 1000 · 1200px**), hộp xem bản mềm hạ chiều cao (`--cao-khung`: trừ
 15rem → **19rem**, trần → 1400px), và **hộp gửi duyệt về bậc thường**. Ba thứ đáng nhớ: bậc `rong`
 phải hạ theo dù khách hàng không nêu tên nó, nếu không nó **rộng hơn cả bậc `to`** và cái thang gãy

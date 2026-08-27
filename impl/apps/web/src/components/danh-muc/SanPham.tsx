@@ -494,7 +494,7 @@ function LichSuGia({ id }: { id: string }) {
 
   return (
     <>
-      <h3>Lịch sử giá</h3>
+      <h3 className="tieu-de-lich-su-gia">Lịch sử giá</h3>
       {loi !== null ? (
         <BaoLoi loi={loi} />
       ) : !ls ? (
@@ -541,14 +541,25 @@ function LichSuGia({ id }: { id: string }) {
                     <td>{NHAN_LOAI_GIA[d.priceType] ?? d.priceType}</td>
                     <td className="so">{tien(d.amount)}</td>
                     <td>
-                      {ngay(d.effectiveFrom)}
-                      {d === dangApDung && <span className="nhan nhan-hieu-luc">Đang áp dụng</span>}
-                      {/* Ngày ở TƯƠNG LAI: chưa có tác dụng gì, và không nói ra
-                          thì nó đọc y hệt dòng đang áp dụng. Chỉ đặt được qua
-                          API — màn hình bỏ ô chọn ngày ở `0123`. */}
-                      {d.effectiveFrom.slice(0, 10) > homNay && (
-                        <span className="nhan nhan-nhap">Chưa hiệu lực</span>
-                      )}
+                      {/*
+                        Bọc trong một `<span>` chứ KHÔNG đặt `display: flex` thẳng
+                        lên `<td>` (`0131`): một ô bảng nhận `display: flex` thì
+                        thôi là ô bảng, trình duyệt bọc nó trong một ô ẩn, và bề
+                        rộng của nó thôi tham gia phép chia cột — cột *Áp dụng từ*
+                        lệch khỏi tiêu đề của chính nó.
+                      */}
+                      <span className="o-ngay-hieu-luc">
+                        {ngay(d.effectiveFrom)}
+                        {d === dangApDung && (
+                          <span className="nhan nhan-hieu-luc">Đang áp dụng</span>
+                        )}
+                        {/* Ngày ở TƯƠNG LAI: chưa có tác dụng gì, và không nói ra
+                            thì nó đọc y hệt dòng đang áp dụng. Chỉ đặt được qua
+                            API — màn hình bỏ ô chọn ngày ở `0123`. */}
+                        {d.effectiveFrom.slice(0, 10) > homNay && (
+                          <span className="nhan nhan-nhap">Chưa hiệu lực</span>
+                        )}
+                      </span>
                     </td>
                     <td className="ma-phu">{ngayGio(d.createdAt)}</td>
                   </tr>

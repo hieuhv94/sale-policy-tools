@@ -11558,3 +11558,65 @@ Suy luận sai kia sẽ quay lại, nên cái đáng canh là hai hộp bằng n
 | Hộp gửi duyệt quay lại bậc `to` | 1 đỏ |
 
 **1780/1780 xanh.**
+
+## P159 — `0131` hai khoảng hở ở *Lịch sử giá*
+
+Khách hàng: tiêu đề *Lịch sử giá* quá sát bảng ngay dưới nó, và nhãn *Đang áp
+dụng* quá sát ngày áp dụng. Hai chuyện bố cục thuần, nhưng mỗi chuyện có một cái
+bẫy đáng ghi.
+
+### `h3 { margin: 0 }` là chủ ý, nên chỗ dùng phải tự khai
+
+Dòng ấy ở đầu `app.css` từ P7d, và nó không phải một thiếu sót để đi sửa: mỗi chỗ
+dùng tự khai khoảng hở nó cần, như `.tieu-de-nhom-xem-truoc` của `0121`. Chữa
+bằng cách cho `h3` một lề mặc định thì mọi tiêu đề cấp ba trong ứng dụng dịch
+xuống, và không màn hình nào đỏ lên vì việc ấy.
+
+Chỗ này chưa khai bao giờ. Thêm `.tieu-de-lich-su-gia`, và hở TRÊN dày hơn hở
+DƯỚI (`--k5` / `--k2`): khoảng hở là thứ nói cho mắt biết tiêu đề thuộc về khối
+nào, bằng nhau thì nó lửng lơ giữa ô *Giá bán Công ty* phía trên và bảng phía
+dưới. Ca kiểm canh chính quan hệ ấy, không canh hai con số.
+
+### Ngày và nhãn dính nhau vì JSX nuốt khoảng trắng
+
+`.nhan` không có lề, và ở đây nó theo sau một nút VĂN BẢN chứ không phải một thẻ
+— nên `* + .nhan` cũng không với tới. JSX cũng không cứu: xuống dòng giữa hai
+biểu thức thì khoảng trắng biến mất hẳn.
+
+Chữa bằng `flex` + `gap` chứ không bằng một dấu cách gõ tay: dấu cách ấy vô hình
+trong mã nguồn, và lượt dọn dẹp nào cũng có thể xoá nó mà không ai nhận ra.
+
+**Nhưng lớp `flex` KHÔNG được nằm thẳng trên `<td>`.** Một ô bảng nhận
+`display: flex` thì thôi là ô bảng — trình duyệt bọc nó trong một ô ẩn, và bề
+rộng của nó thôi tham gia phép chia cột, nên cột *Áp dụng từ* lệch khỏi tiêu đề
+của chính nó. Lớp nằm trên một `<span>` bọc bên trong ô, và ca kiểm canh cả chiều
+cấm: `<td className="… o-ngay-hieu-luc">` là đỏ.
+
+### Vì sao quét nguồn, không dựng màn hình
+
+Bắt buộc chứ không phải tiện tay: jsdom KHÔNG tính bố cục, nên `getComputedStyle`
+ở đó trả về đúng thứ vừa viết vào chứ không đo được một pixel nào. Kiểm được hai
+vế — lớp có đúng chỗ, và luật có đúng nội dung — và thiếu vế nào cũng vô nghĩa:
+một lớp không có luật thì không đẩy được gì, một luật không ai gắn thì là mã chết.
+Nên cả hai ca đều khẳng định cả hai vế.
+
+Ghi thêm: `LichSuGia` không nằm trong `exports` của `apps/web/package.json`, tức
+cả màn hình danh mục sản phẩm chưa có ca kiểm nào dựng DOM thật. Ở lượt này không
+cần — nhưng đó là chỗ trống, không phải một quyết định.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Tiêu đề thôi mang lớp khoảng hở | 1 đỏ |
+| Hở trên bằng hở dưới | 1 đỏ |
+| Bỏ `gap` của ô ngày | 1 đỏ |
+| Thẻ bọc thôi mang lớp | 1 đỏ |
+
+Lượt thứ ba suýt lọt, và lỗi nằm ở chính kịch bản phá: `perl -0pi -e 's/\n  gap:
+var\(--k2\);//'` không có cờ `/g` nên nó xoá dòng `gap` ĐẦU TIÊN của cả tệp — một
+luật chẳng liên quan — và bộ test xanh. Đọc "xanh" thành "ca kiểm yếu" là kết luận
+sai; **phá lại mà xanh thì việc đầu tiên phải làm là kiểm tra bản phá có LÀM
+đúng chỗ không.**
+
+**1782/1782 xanh.**

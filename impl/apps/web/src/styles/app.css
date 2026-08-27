@@ -1317,6 +1317,37 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    nhất mà không nuốt mất phần biểu mẫu phía trên. */
 .khung-lich-su-gia { max-height: 18rem; overflow-y: auto; }
 
+/* Tiêu đề *Lịch sử giá* — khoảng hở trên và dưới (`0131`).
+
+   `h3` khai `margin: 0` ở đầu tệp này, nên mọi tiêu đề cấp ba dính sát thứ đứng
+   ngay dưới nó. Đó là chủ ý: mỗi chỗ dùng tự khai khoảng hở nó cần, như
+   `.tieu-de-nhom-xem-truoc`. Chỗ này chưa khai bao giờ, và trong hộp thoại Sửa
+   thì hậu quả nhìn thấy rõ — chữ *Lịch sử giá* nằm đè lên mép khung bảng, đọc
+   như một dòng của bảng chứ không phải cái tên của nó.
+
+   Hở TRÊN dày hơn hở DƯỚI: khoảng hở là thứ nói cho mắt biết cái tiêu đề thuộc
+   về khối nào. Bằng nhau thì nó lửng lơ giữa ô *Giá bán Công ty* phía trên và
+   bảng phía dưới. */
+.tieu-de-lich-su-gia { margin: var(--k5) 0 var(--k2); }
+
+/* Nhãn *Đang áp dụng* / *Chưa hiệu lực* đứng cạnh NGÀY trong cùng một ô (`0131`).
+
+   `.nhan` không có lề, và ở đây nó theo sau một nút VĂN BẢN chứ không phải một
+   thẻ — nên `* + .nhan` cũng không với tới. JSX cũng không cứu: xuống dòng giữa
+   hai biểu thức thì khoảng trắng bị nuốt, nên ngày và nhãn dính liền nhau.
+
+   `gap` chứ không phải một dấu cách gõ tay trong JSX: dấu cách ấy vô hình trong
+   mã nguồn, và lượt dọn dẹp nào cũng có thể xoá nó mà không ai nhận ra.
+
+   `wrap` vì ô này hẹp: ngày cộng nhãn *Chưa hiệu lực* dài hơn bề ngang cột trong
+   hộp thoại ở bậc thường, và không cho xuống dòng thì bảng cuộn ngang. */
+.o-ngay-hieu-luc {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--k2);
+}
+
 .nhom-nut-hang { flex-wrap: nowrap; }
 .nhom-nut-hang .nut { white-space: nowrap; }
 
