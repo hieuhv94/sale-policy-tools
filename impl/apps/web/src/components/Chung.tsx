@@ -484,14 +484,27 @@ export function OTimKiem({
 export function HopThoai({
   tieuDe,
   dong,
-  rong = false,
+  co = 'thuong',
   tyLe = null,
   children,
 }: {
   tieuDe: string;
   dong: () => void;
-  /** Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường chẳng hạn (`0068`). */
-  rong?: boolean;
+  /**
+   * Bậc bề rộng của hộp — ba bậc, con số ở `tokens.css` (`0129`).
+   *
+   *   `thuong` biểu mẫu nhập liệu, và mặc định;
+   *   `rong`   nội dung hai cột — bảng ánh xạ trường (`0068`);
+   *   `to`     nội dung XEM TRƯỚC, gần hết màn hình.
+   *
+   * Một prop ba giá trị chứ không phải hai cờ `rong`/`to`: hai cờ thì `rong to`
+   * cùng bật là một trạng thái viết ra được mà không có nghĩa, và câu trả lời
+   * cho nó nằm ở thứ tự các nhánh trong JSX — chỗ không ai nghĩ tới việc đọc.
+   *
+   * Bậc này KHÔNG có tác dụng khi `tyLe` khác `null`: hộp xem tệp tự tính bề
+   * rộng theo tỷ lệ nội dung, xem `.hop-thoai-xem`.
+   */
+  co?: 'thuong' | 'rong' | 'to';
   /**
    * Tỷ lệ **rộng / cao** của khung xem bên trong — hộp tự khớp theo (`0073`).
    *
@@ -551,7 +564,11 @@ export function HopThoai({
     <div className="lop-phu" onMouseDown={(e) => e.target === e.currentTarget && dong()}>
       <div
         className={
-          tyLe !== null ? 'hop-thoai hop-thoai-xem' : rong ? 'hop-thoai hop-thoai-rong' : 'hop-thoai'
+          tyLe !== null
+            ? 'hop-thoai hop-thoai-xem'
+            : co === 'thuong'
+              ? 'hop-thoai'
+              : `hop-thoai hop-thoai-${co}`
         }
         role="dialog"
         aria-modal="true"

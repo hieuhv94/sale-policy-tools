@@ -209,12 +209,15 @@ describe('`0073` khung xem trong CSS', () => {
     /*
      * Một bản scan hoá đơn cao và hẹp cho ra tỷ lệ cỡ 0.3; nhân với chiều cao
      * khung là một hộp rộng chừng 200px, không đủ chỗ cho tiêu đề và hai nút.
-     * Sàn đặt đúng bằng bề rộng hộp thoại thường.
+     *
+     * `0129` cắt sợi dây "sàn = bề rộng hộp thoại thường" mà bản `0073` buộc:
+     * hộp thường nới gấp đôi, còn câu hỏi *"hẹp tới đâu thì vỡ"* thì không đổi
+     * theo. Nới sàn theo hộp thường nghĩa là tờ A4 dọc nằm giữa một hộp 1040px
+     * với hai vệt xám hai bên — đúng thứ `0073` sinh ra để bỏ đi.
      */
     const k = khoi(/\.hop-thoai-xem/).join('\n');
     expect(k).toMatch(/width:\s*min\(\s*max\(/);
-    expect(k).toMatch(/520px/);
-    expect(khoi(/^\s*\.hop-thoai\s*$/m).join('\n')).toMatch(/520px/);
+    expect(k).toMatch(/var\(--san-hop-thoai\)/);
   });
 
   it('CSS tự đứng được: `--ty-le` có mặc định, không đợi JavaScript', () => {
@@ -239,5 +242,126 @@ describe('`0073` khung xem trong CSS', () => {
     expect(k).toMatch(/calc\(100dvh\s*-\s*\d+rem\)/);
     // `dvh` không được hiểu thì CẢ dòng bị bỏ, nên phải có dòng `vh` đứng trước.
     expect(k).toMatch(/calc\(100vh\s*-\s*\d+rem\)/);
+  });
+});
+
+// =============================================================================
+// `0129` — ba bậc bề rộng hộp thoại
+// =============================================================================
+
+describe('`0129` hộp thoại đủ rộng', () => {
+  /*
+   * Chú thích GỠ TRƯỚC, khác với hàm `khoi` ở khối trên.
+   *
+   * `[^{}]+` trước dấu `{` nuốt cả chú thích đứng trên bộ chọn, nên `.khung-pdf`
+   * nhắc tên trong một chú thích của `.hop-thoai-xem` là đủ để hai khối gộp làm
+   * một — và ca kiểm xanh nhờ khai báo của khối KHÁC.
+   */
+  const css = (t: string) =>
+    readFileSync(`apps/web/src/styles/${t}`, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  const khoi = (tep: string, re: RegExp): string =>
+    [...css(tep).matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => re.test(m[1]!))
+      .map((m) => m[2]!)
+      .join('\n');
+
+  /** Giá trị của một token, đọc từ `tokens.css`. */
+  const token = (ten: string): number => {
+    const m = css('tokens.css').match(new RegExp(`${ten}:\\s*(\\d+)px`));
+    expect(m, `thiếu token ${ten}`).not.toBeNull();
+    return Number(m![1]);
+  };
+
+  it('ba bậc bề rộng tăng dần, và bậc thường gấp đôi con số cũ', () => {
+    /*
+     * Ba bậc mà không tăng dần là ba bậc vô nghĩa — một hộp `to` hẹp hơn hộp
+     * thường thì mọi chỗ gọi `co="to"` đang nói ngược lại điều nó định nói, và
+     * không có màn hình nào đỏ lên vì việc ấy.
+     */
+    const thuong = token('--rong-hop-thoai');
+    const rong = token('--rong-hop-thoai-rong');
+    const to = token('--rong-hop-thoai-to');
+
+    expect(thuong).toBe(520 * 2);
+    expect(rong).toBe(760 * 2);
+    expect(thuong).toBeLessThan(rong);
+    expect(rong).toBeLessThan(to);
+  });
+
+  it('SÀN hộp xem KHÔNG đi theo bề rộng hộp thường', () => {
+    /*
+     * Hai con số trả lời hai câu hỏi khác nhau (xem ca "hộp thoại có SÀN" ở
+     * trên). Buộc chúng bằng nhau là cách bản `0073` viết, và đó chính là chỗ
+     * `0129` suýt sửa nhầm: nới hộp thường lên 1040px mà sàn đi theo thì tờ A4
+     * dọc trong hộp xem tự dưng có hai vệt xám hai bên.
+     */
+    expect(token('--san-hop-thoai')).toBeLessThan(token('--rong-hop-thoai'));
+  });
+
+  it('ba bậc đều bọc trong `min(…, 100%)`', () => {
+    // Lớp phủ đã có lề hai bên. Đặt bề rộng cứng thì trên laptop 1366px hộp đẩy
+    // nội dung chạy ra ngoài mép màn hình, và không cuộn ngang tới được.
+    for (const [chon, bien] of [
+      [/^\s*\.hop-thoai\s*$/m, '--rong-hop-thoai'],
+      [/\.hop-thoai-rong/, '--rong-hop-thoai-rong'],
+      [/\.hop-thoai-to/, '--rong-hop-thoai-to'],
+    ] as const) {
+      const k = khoi('app.css', chon);
+      expect(k, `thiếu luật cho ${bien}`).toMatch(
+        new RegExp(`width:\\s*min\\(\\s*var\\(${bien}\\)\\s*,\\s*100%\\s*\\)`),
+      );
+    }
+  });
+
+  it('TRẦN chiều cao khung xem không cắn trên màn hình 27"', () => {
+    /*
+     * Ca này canh đúng chỗ `0129` nới, và nó là chỗ dễ đọc lướt qua nhất: bề
+     * rộng hộp xem là HỆ QUẢ của chiều cao khung, nên "mở rộng cửa sổ xem
+     * trước" không sửa được bằng một dòng `width`.
+     *
+     * `0073` đặt trần 900px. Màn 2560×1440 còn `1440 - 240 = 1200px` chỗ trống,
+     * nên trần ấy vứt đi 300px — một phần tư khung — và tờ giấy nhỏ đi đúng
+     * chừng ấy. Trần phải cao hơn phần chiều cao mà một màn hình 1440px cho.
+     */
+    const k = khoi('app.css', /\.hop-thoai-xem/);
+    // `[^;]*` chạy tới dấu phẩy CUỐI của `clamp(…)` — vế thứ ba là cái trần.
+    const tran = [...k.matchAll(/--cao-khung:[^;]*,\s*(\d+)px\s*\)\s*;/g)].map((m) => Number(m[1]));
+    expect(tran.length, 'không đọc được trần của --cao-khung').toBe(2);
+    for (const t of tran) expect(t).toBeGreaterThanOrEqual(1440 - 240);
+  });
+
+  it('bảng xem trước lượt nhập Excel mở ở bậc TO', () => {
+    /*
+     * Quét nguồn chứ không dựng màn hình: chưa có bộ đồ giả nào cho màn hình
+     * danh mục, và thứ dễ mất nhất ở đây là một thuộc tính JSX bị xoá trong một
+     * lượt dọn dẹp.
+     *
+     * Khớp CẢ thẻ mở chứ không khớp chuỗi `co="to"` trần: `0124` đã dính đúng
+     * bẫy ấy — một ca kiểm xanh nhờ chính dòng chú thích của nó.
+     */
+    const src = readFileSync('apps/web/src/components/danh-muc/SanPham.tsx', 'utf8');
+    const the = src.match(/<HopThoai[^>]*tieuDe="Xem trước thay đổi danh mục"[^>]*>/);
+    expect(the, 'không tìm thấy hộp xem trước thay đổi danh mục').not.toBeNull();
+    expect(the![0]).toMatch(/\bco="to"/);
+
+    // Và hộp CHỌN TỆP thì không: ở đó chỉ có một ô chọn tệp và hai nút.
+    const chonTep = src.match(/<HopThoai[^>]*tieuDe="Nhập sản phẩm từ Excel"[^>]*>/);
+    expect(chonTep, 'không tìm thấy hộp chọn tệp').not.toBeNull();
+    expect(chonTep![0]).not.toMatch(/\bco=/);
+  });
+
+  it('`.khung-pdf` chặn bề rộng theo chiều cao, không kéo hết hộp', () => {
+    /*
+     * Hộp gửi duyệt nới ra `to`, và `width: 100%` cũ biến khung thành một dải
+     * ngang 1800px đựng một tờ A4 dọc: trình xem PDF khớp trang theo chiều cao,
+     * nên hơn 700px mỗi bên là xám trơn và chữ không to thêm chút nào.
+     *
+     * Cùng một phép với `.khung-xem`, và cùng một lý do.
+     */
+    const k = khoi('app.css', /\.khung-pdf/);
+    expect(k).toMatch(/width:\s*min\(\s*100%\s*,\s*calc\(var\(--cao-pdf\)\s*\*\s*var\(--ty-le\)/);
+    expect(k, 'chiều cao vẫn phải là thứ cầm lái').toMatch(/height:\s*var\(--cao-pdf\)/);
+    expect(k, 'thiếu đường lùi A4 dọc cho `--ty-le`').toMatch(/--ty-le:\s*0?\.\d+/);
   });
 });

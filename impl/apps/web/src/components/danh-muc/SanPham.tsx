@@ -688,8 +688,14 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
   };
 
   if (ke) {
+    /*
+     * Hộp TO (`0129`). Bảng này là chỗ duy nhất người dùng đọc được lượt ghi đè
+     * trước khi nó xảy ra, và mỗi dòng sửa mang cột *cũ → mới* — ở bề rộng hộp
+     * thường thì một tên sản phẩm đủ dài xuống ba dòng, và so hai cột với nhau
+     * thành việc dò theo con mắt chứ không phải nhìn một cái là thấy.
+     */
     return (
-      <HopThoai tieuDe="Xem trước thay đổi danh mục" dong={dong}>
+      <HopThoai tieuDe="Xem trước thay đổi danh mục" co="to" dong={dong}>
         <form onSubmit={ghiDe}>
           <BangXemTruoc ke={ke} />
 

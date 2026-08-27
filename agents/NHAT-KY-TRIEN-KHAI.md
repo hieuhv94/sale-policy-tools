@@ -11402,3 +11402,98 @@ Vì `thieuTruongLucGui` đọc khách hàng qua một đường khác — nên h
 hai đường đọc khác nhau, và cần cả hai mới phủ hết.
 
 **1771/1771 xanh.**
+
+## P157 — `0129` nới bề rộng hộp thoại, ba bậc theo việc
+
+Khách hàng chốt 27/08: hộp thoại hẹp quá. Ba vế trong một câu — hộp **xem trước**
+bản mềm CSBH và hợp đồng, hộp **nhập danh mục từ Excel**, cả hai gần hết màn
+hình; mọi hộp **nhập liệu** còn lại thì rộng gấp đôi.
+
+### Bề rộng không đặt được ở chỗ tưởng là chỗ đặt
+
+Vế "xem trước gần full màn hình" là vế duy nhất không sửa bằng một dòng `width`,
+và nếu đọc lướt thì nó trông giống hệt hai vế kia.
+
+`.hop-thoai-xem` **không nhận bề rộng**. Từ `0073` nó tính bề rộng TỪ chiều cao
+khung nhân tỷ lệ tờ giấy — vì khung xem khoá theo `aspect-ratio`, và một tờ A4
+dọc rộng bằng nửa màn hình 1920px thì cao 1357px, cao hơn mọi màn hình laptop.
+Nong `width` ở đó chỉ dựng ra hai vệt xám rộng hơn hai bên tờ giấy: trình xem PDF
+khớp trang theo chiều cao, nên bề rộng thừa không làm chữ to thêm một pixel nào.
+
+Chỗ nới thật là **TRẦN của `--cao-khung`**, và trần ấy đang cắn thật:
+
+| Màn hình | `100dvh − 15rem` | Trần cũ 900px | Phần vứt đi |
+|---|---|---|---|
+| 1920×1080 | 840px | không cắn | 0 |
+| 2560×1440 | 1200px | **cắn** | 300px, tức 25% khung |
+
+Trần mới 1600px. `15rem` giữ nguyên — nó là chỗ ngồi của tiêu đề và hàng nút,
+đo được 126px (157px khi có ô chọn mẫu), và `0073` đã ghi rằng hạ xuống 11rem thì
+khung bắt đầu bị cắt. Nới trần không đụng tới biên ấy.
+
+### Ba bậc, một prop — không phải hai cờ
+
+`HopThoai` đổi `rong?: boolean` thành `co?: 'thuong' | 'rong' | 'to'`. Hai cờ
+`rong` và `to` thì `rong to` cùng bật là một trạng thái viết ra được mà không có
+nghĩa, và câu trả lời cho nó nằm ở thứ tự các nhánh trong biểu thức JSX — chỗ
+không ai nghĩ tới việc đọc.
+
+Bậc `to` (1800px) đi theo VIỆC chứ không theo màn hình: đúng hai chỗ, và cả hai
+đều là chỗ người dùng tới để ĐỌC một thứ rộng chứ không phải để điền ô — bảng xem
+trước lượt ghi đè danh mục, và hộp gửi duyệt, chỗ nhúng cả tờ CSBH. Mấy hành động
+còn lại của luồng duyệt (duyệt, trả lại, từ chối) ở lại bậc thường: chúng có một
+ô lý do và một ô chọn người, nới ra 1800px là bày gần hết màn hình để hỏi một câu.
+
+### Cái hỏng mà việc nới ra làm lộ
+
+`.khung-pdf` — bản CSBH nhúng trong hộp gửi duyệt — là `width: 100%`, `height:
+min(52vh, 560px)`. Ở hộp 520px thì hai vệt xám hai bên nhỏ tới mức không ai để ý.
+Ở hộp 1800px thì tờ A4 dọc nằm lọt giữa **hơn 700px xám mỗi bên**, và tờ giấy
+không to thêm chút nào vì chiều cao vẫn là thứ chặn.
+
+Chữa bằng đúng phép của `.khung-xem`: chặn bề rộng bằng `cao × --ty-le`, để chiều
+cao vẫn cầm lái. `--ty-le` lấy từ khổ giấy của mẫu đang chọn — cùng bảng
+`TY_LE_KHO` mà hộp *Xem bản mềm* dùng, và con số ấy vốn đã nằm sẵn trong tay giao
+diện từ `0058`, đọc từ chính file .docx lúc Quản trị lưu mẫu. Lý do `0031` viết
+`height` cố định vẫn còn nguyên và không bị đảo: cái bị chặn vẫn là chiều cao,
+chỉ thêm một chặn thứ hai ở bề rộng.
+
+### Sàn của hộp xem CẮT khỏi bề rộng hộp thường
+
+`0073` viết sàn là `520px` với chú thích *"đúng bằng hộp thoại thường"*, và một
+ca kiểm buộc hai con số bằng nhau. Đi theo sợi dây ấy khi nới hộp thường lên
+1040px thì tờ A4 dọc trong hộp xem tự dưng có hai vệt xám hai bên — đúng thứ
+`0073` sinh ra để bỏ đi.
+
+Hai con số trả lời hai câu hỏi khác nhau: sàn trả lời *"hẹp tới đâu thì tiêu đề
+và hai nút vỡ"*, còn bề rộng hộp thường trả lời *"một biểu mẫu cần bao nhiêu chỗ"*.
+Nên `--san-hop-thoai: 520px` thành một token riêng, và ca kiểm đổi sang canh rằng
+sàn **nhỏ hơn** hộp thường thay vì bằng.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `--rong-hop-thoai` trở về 520px | 2 đỏ — bậc tăng dần, và sàn |
+| Trần `--cao-khung` trở về 900px | 1 đỏ |
+| `.khung-pdf` trở về `width: 100%` | 1 đỏ |
+| Gỡ `--ty-le` khỏi khung xem trước | 1 đỏ |
+| Bảng xem trước Excel thôi là hộp `to` | 1 đỏ |
+| Mọi hộp hành động đều là hộp `to` | 1 đỏ |
+| Sàn hộp xem đi theo bề rộng hộp thường | 1 đỏ |
+
+Lượt cuối là lượt đáng giữ nhất: nó hoàn tác một quyết định *"đừng làm"* chứ
+không hoàn tác một dòng mã, và nếu ca kiểm chỉ canh "sàn là 520px" thì nó xanh.
+Ca canh **quan hệ** giữa hai con số, nên bất kỳ ai nới sàn theo hộp thường về sau
+đều đỏ, dù con số họ chọn là bao nhiêu.
+
+Vế thứ hai của ca "hộp gửi duyệt là hộp TO" cũng có chủ ý: nó khẳng định hộp
+duyệt thường **không** to. Bỏ vế ấy thì đổi `co` thành hằng `'to'` vẫn xanh.
+
+Một cái bẫy đã dính lúc viết ca kiểm, ghi lại vì nó sẽ lặp: nửa sau của ca ấy
+`cleanup()` rồi dựng lại màn hình, nhưng `localStorage` còn giữ phiên TDV — mà
+`canHanhDong('TDV', 'TBP_SIGN')` là `false`, nên nút ký không hiện và ca đỏ ở chỗ
+tìm nút chứ không phải ở chỗ nó định kiểm. **Đổi vai trò giữa hai nửa của một ca
+thì phải đặt lại phiên, không chỉ `cleanup()`.**
+
+**1779/1779 xanh.**

@@ -5,7 +5,7 @@
  * máy trạng thái nằm ở đó. Bảng vai trò phía giao diện chỉ dùng để ẩn bớt trước
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong } from '../lib/can.js';
@@ -16,7 +16,7 @@ import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
-import { NHAN_KHO, type MauChon } from '../lib/mau-hop-dong.js';
+import { NHAN_KHO, TY_LE_KHO, type MauChon } from '../lib/mau-hop-dong.js';
 import {
   SuaNgayApDung,
   ThemDongSanPham,
@@ -614,6 +614,8 @@ function HopThoaiHanhDong({
   }, [canXem, hoSoId, mauId]);
 
   const thieuNguoi = oChon.some((o) => !chon[o.truong]);
+  /** Khổ giấy của mẫu đang chọn — để khung xem trước mang đúng hình (`0129`). */
+  const khoGiayMau = dsMau?.find((m) => m.id === mauId)?.khoGiay ?? null;
   // Chưa chọn mẫu thì chưa có bản xem trước, nên `chuaXem` đã gánh luôn phần
   // chặn ấy — nút Gửi vẫn xám cho tới khi người dùng thật sự đọc được bản mình
   // sắp gửi. Máy chủ chặn lần thứ hai bằng `TEMPLATE_REQUIRED`.
@@ -642,8 +644,20 @@ function HopThoaiHanhDong({
     }
   };
 
+  /*
+   * Hộp TO chỉ ở hai bước CÓ xem trước (`0129`).
+   *
+   * `canXem` đúng là tập hai hành động gửi duyệt, tức đúng hai lần hộp này nhúng
+   * cả một tờ CSBH bên trong. Mấy hành động còn lại — duyệt, trả lại, từ chối —
+   * chỉ có một ô lý do và một ô chọn người; nới chúng ra 1800px là bày một hộp
+   * gần hết màn hình để hỏi một câu.
+   */
   return (
-    <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
+    <HopThoai
+      tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong}
+      co={canXem ? 'to' : 'thuong'}
+      dong={dong}
+    >
       {canXem && (
         <>
           {/*
@@ -698,7 +712,26 @@ function HopThoaiHanhDong({
             ) : xemUrl === null ? (
               <DangTai />
             ) : (
-              <iframe className="khung-pdf" src={xemUrl} title="Bản CSBH A4" />
+              /*
+                Khung mang ĐÚNG hình tờ giấy của mẫu đang chọn (`0129`).
+
+                Cùng con số `TY_LE_KHO` mà hộp *Xem bản mềm* dùng, và cùng lý do:
+                khổ giấy đọc từ chính file .docx lúc Quản trị lưu mẫu, nên giao
+                diện đã cầm sẵn câu trả lời — hỏi lại trình xem PDF là không hỏi
+                được. Đổi mẫu dọc sang ngang thì khung đổi hình ngay.
+
+                Mẫu chưa khai khổ giấy thì không đặt gì và CSS giữ A4 dọc.
+              */
+              <iframe
+                className="khung-pdf"
+                src={xemUrl}
+                title="Bản CSBH A4"
+                style={
+                  khoGiayMau
+                    ? ({ '--ty-le': String(TY_LE_KHO[khoGiayMau]) } as CSSProperties)
+                    : undefined
+                }
+              />
             )}
           </div>
         </>

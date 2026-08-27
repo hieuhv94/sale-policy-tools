@@ -18,6 +18,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
+import { TY_LE_KHO } from '@csbh/web/mau-hop-dong';
 
 const TBP = {
   accessToken: 'a',
@@ -595,6 +596,61 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
       const than = JSON.parse(String((goi![1] as { body?: string })?.body ?? '{}'));
       expect(than.mauHoSoId).toBe(MAU[1]!.id);
     });
+  });
+
+  it('`0129` hộp GỬI DUYỆT là hộp TO, hộp duyệt thường thì không', async () => {
+    /*
+     * Bậc bề rộng đi theo VIỆC, không theo tên hành động: hộp gửi duyệt nhúng cả
+     * một tờ CSBH để đọc trước khi ký, còn hộp duyệt chỉ có một ô lý do.
+     *
+     * Ca này canh CẢ HAI VẾ. Kiểm mỗi vế "gửi duyệt thì to" thì đổi `co` thành
+     * hằng `'to'` vẫn xanh, và mọi hộp trong luồng duyệt rộng 1800px để hỏi một
+     * câu — đúng thứ mà một bậc bề rộng sinh ra để tránh.
+     */
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+    await screen.findByLabelText(/Văn bản mẫu/);
+    expect(document.querySelector('.hop-thoai-to'), 'hộp gửi duyệt phải là hộp to').not.toBeNull();
+
+    // Vai trò phải trở về TBP: `canHanhDong` giấu nút ký của một phiên TDV, và
+    // hộp không mở ra thì ca này xanh vì không tìm thấy gì, không vì đúng.
+    cleanup();
+    localStorage.setItem('csbh:phien', JSON.stringify(TBP));
+    await mo(HO_SO, ['TBP_SIGN']);
+    fireEvent.click(screen.getByRole('button', { name: 'Ký số duyệt' }));
+    await screen.findByRole('button', { name: /^Xác nhận/ });
+    expect(document.querySelector('.hop-thoai')).not.toBeNull();
+    expect(document.querySelector('.hop-thoai-to'), 'hộp ký không nhúng bản mềm nào').toBeNull();
+  });
+
+  it('`0129` khung xem trước mang khổ giấy của mẫu đang chọn', async () => {
+    /*
+     * Khung PDF chặn bề rộng bằng `cao × --ty-le`, nên `--ty-le` không tới nơi
+     * nghĩa là khung rơi về A4 dọc — và một mẫu A4 NGANG hiện trong một khung
+     * dọc thì tờ giấy co lại còn một nửa. Không có gì đỏ lên, chỉ là chữ bé đi.
+     */
+    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+    await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
+
+    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
+    fireEvent.change(oMau, { target: { value: MAU[1]!.id } });
+    const khung = await waitFor(() => {
+      const e = document.querySelector<HTMLElement>('.khung-pdf');
+      expect(e, 'chưa dựng khung xem trước').not.toBeNull();
+      return e!;
+    });
+    // Mẫu A4 NGANG — rộng hơn cao.
+    expect(Number(khung.style.getPropertyValue('--ty-le'))).toBeCloseTo(TY_LE_KHO.a4l, 5);
+
+    fireEvent.change(oMau, { target: { value: MAU[0]!.id } });
+    await waitFor(() =>
+      expect(
+        Number(document.querySelector<HTMLElement>('.khung-pdf')!.style.getPropertyValue('--ty-le')),
+      ).toBeCloseTo(TY_LE_KHO.a4p, 5),
+    );
   });
 
   it('hồ sơ ĐÃ GẮN MẪU: hộp xem bản mềm KHÔNG hỏi mẫu nào nữa', async () => {

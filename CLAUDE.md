@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P156** (`0128`): **số điện thoại khách hàng**, kèm một khoá mới trong bảng ánh xạ
+Chặng gần nhất **P157** (`0129`): **nới bề rộng hộp thoại**, ba bậc chọn theo VIỆC (`co` của
+`HopThoai`, con số ở `tokens.css`): nhập liệu 1040px · hai cột 1520px · **xem trước 1800px**. Chỗ dễ
+sửa nhầm: hộp **xem bản mềm/hợp đồng KHÔNG nhận bề rộng** — từ `0073` nó tính rộng TỪ `--cao-khung ×
+tỷ lệ tờ giấy`, nên "gần full màn hình" nằm ở **trần `--cao-khung`** (900px → 1600px; trần cũ vứt đi
+300px trên màn 2560×1440), không ở một dòng `width`. Kèm hai thứ lộ ra vì hộp rộng thêm: `.khung-pdf`
+là `width: 100%` nên tờ A4 dọc trong hộp 1800px có hơn 700px xám mỗi bên — giờ chặn rộng bằng
+`cao × --ty-le` như `.khung-xem`, `--ty-le` lấy từ khổ giấy của mẫu đang chọn; và **sàn hộp xem cắt
+khỏi bề rộng hộp thường** (`--san-hop-thoai` riêng) vì hai con số trả lời hai câu hỏi khác nhau —
+ca kiểm giờ canh **quan hệ** (sàn < hộp thường) chứ không canh con số. **1779/1779 xanh.**
+
+Trước đó **P156** (`0128`): **số điện thoại khách hàng**, kèm một khoá mới trong bảng ánh xạ
 văn bản mẫu. Chạm bốn tầng, và hai chặng cũ đã dựng sẵn câu hỏi cho nó: `0101` (cột rời chứ không
 jsonb → **buộc** trả lời *"đóng băng hay đọc sống"* → **đóng băng**, thêm `kh_dien_thoai_snap`) và
 `0104` (`NHOM_TRUONG` → nhóm **`chan-moi`**, tức **khách cũ chưa khai số thì hồ sơ mới không gửi

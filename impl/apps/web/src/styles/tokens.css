@@ -184,6 +184,43 @@
   --rong-thanh-ben: 260px;
 
   /**
+   * Bề rộng hộp thoại — BA BẬC, chọn theo VIỆC đang làm trong hộp (`0129`).
+   *
+   * Tới `0128` chỉ có hai con số viết thẳng trong `app.css`: 520px cho mọi hộp,
+   * 760px cho bảng ánh xạ. Khách hàng chốt 27/08: hẹp quá. Một biểu mẫu bảy ô ở
+   * 520px trên màn hình 1920px dùng hết 27% bề ngang và bắt cuộn dọc, trong khi
+   * hai phần ba màn hình để trống.
+   *
+   *   `--rong-hop-thoai`      hộp NHẬP LIỆU thường — gấp đôi con số cũ;
+   *   `--rong-hop-thoai-rong` nội dung hai cột (bảng ánh xạ) — cũng gấp đôi;
+   *   `--rong-hop-thoai-to`   hộp XEM TRƯỚC — gần hết màn hình.
+   *
+   * Ba con số này là TRẦN, không phải bề rộng thật: mọi chỗ dùng đều bọc trong
+   * `min(…, 100%)` vì lớp phủ đã có lề hai bên. Trên laptop 1366px cả ba bậc đều
+   * chạm 100% và ba bậc thành một — đó là ý muốn, không phải lỗi.
+   *
+   * Bậc `to` KHÔNG đặt 100%: một bảng xem trước kéo hết bề ngang màn hình 27"
+   * cho ra những dòng dài tới mức mắt lạc hàng khi đọc ngang.
+   */
+  --rong-hop-thoai: 1040px;
+  --rong-hop-thoai-rong: 1520px;
+  --rong-hop-thoai-to: 1800px;
+
+  /**
+   * SÀN bề rộng của hộp xem tệp (`0073`) — KHÔNG đi theo ba con số trên.
+   *
+   * Bề rộng hộp xem suy ra từ tỷ lệ nội dung, nên một bản scan hoá đơn cao và
+   * hẹp (tỷ lệ 0.3) cho ra một hộp rộng chừng 200px: tiêu đề vỡ, hai nút chồng
+   * lên nhau. Sàn này chặn ca ấy.
+   *
+   * Tới `0128` nó viết là `520px` — đúng bằng bề rộng hộp thoại thường lúc bấy
+   * giờ — và một ca kiểm buộc hai số bằng nhau. `0129` cắt sợi dây ấy: nới sàn
+   * theo hộp nhập liệu nghĩa là tờ A4 dọc nằm giữa một hộp 1040px với hai vệt
+   * xám hai bên. Sàn trả lời "hẹp tới đâu thì vỡ", một câu hỏi khác hẳn.
+   */
+  --san-hop-thoai: 520px;
+
+  /**
    * Vùng chạm tối thiểu 44px (FE-08).
    *
    * Không phải con số tuỳ chọn: dưới mức này thì ngón tay người lớn bấm trượt,

@@ -438,7 +438,11 @@ export function ThemMau({
         ngắt, còn `<select>` thì mặc định rộng bằng mục dài nhất của nó.
       */}
       {moAnhXa && oTrong && (
-        <HopThoai tieuDe="Ánh xạ ô trống với trường dữ liệu" rong dong={() => datMoAnhXa(false)}>
+        <HopThoai
+          tieuDe="Ánh xạ ô trống với trường dữ liệu"
+          co="rong"
+          dong={() => datMoAnhXa(false)}
+        >
           <p className="ghi-chu">
             Mỗi ô trống trong file lấy dữ liệu từ một trường của hồ sơ. Phần mềm đã đoán sẵn theo
             tên ô; soát lại và chọn nốt những ô còn trống.

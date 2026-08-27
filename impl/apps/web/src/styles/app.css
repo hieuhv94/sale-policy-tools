@@ -1619,7 +1619,7 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc-to);
   box-shadow: var(--bong-noi);
-  width: min(520px, 100%);
+  width: min(var(--rong-hop-thoai), 100%);
   /* Cao tối đa bằng màn hình trừ lề của lớp phủ; phần thân tự cuộn bên trong. */
   max-height: calc(100vh - var(--k4) * 2);
   max-height: calc(100dvh - var(--k4) * 2);
@@ -1647,9 +1647,24 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
    Bề rộng hộp = bề rộng khung ở chiều cao tối đa (`cao × tỷ lệ`) cộng đệm hai
    bên, kẹp giữa hai đầu:
-     - SÀN 520px, đúng bằng hộp thoại thường: một bản scan hoá đơn cao và hẹp
-       cho ra tỷ lệ 0.3, và hộp rộng 200px thì tiêu đề với hai nút vỡ hết;
+     - SÀN `--san-hop-thoai`: một bản scan hoá đơn cao và hẹp cho ra tỷ lệ 0.3,
+       và hộp rộng 200px thì tiêu đề với hai nút vỡ hết;
      - TRẦN 100%, vì lớp phủ đã có lề — vượt qua là nội dung chạy ra ngoài mép.
+
+   `0129` — HỘP NÀY KHÔNG NHẬN BỀ RỘNG THẲNG, và đó là chỗ dễ sửa nhầm nhất khi
+   yêu cầu là *"mở rộng cửa sổ xem trước gần full màn hình"*.
+
+   Khung xem khoá theo tỷ lệ tờ giấy, nên bề rộng là HỆ QUẢ của chiều cao chứ
+   không phải một con số đặt được: một tờ A4 dọc rộng bằng nửa màn hình 1920px
+   thì cao 1357px, tức cao hơn mọi màn hình laptop. Nong `width` ở đây chỉ dựng
+   ra hai vệt xám rộng hơn hai bên tờ giấy, không làm chữ to thêm một pixel nào.
+
+   Nên chỗ nới thật nằm ở TRẦN của `--cao-khung`: `0073` đặt 900px, và con số ấy
+   cắn ngay khi màn hình cao hơn 1140px — màn 27" 2560×1440 bỏ phí 300px chiều
+   cao, tức đúng một phần tư khung. Trần mới 1600px chỉ còn cắn ở màn hình cao
+   hơn 1840px; dưới mức ấy vế `100dvh - 15rem` cầm lái, tức khung LUÔN cao hết
+   phần màn hình còn lại. 15rem giữ nguyên (xem đoạn dưới) — nó là chỗ ngồi của
+   tiêu đề và hàng nút, cắt bớt là đẩy nút ra ngoài tầm nhìn.
 
    `--cao-khung` trừ đi một khoản CỐ ĐỊNH cho phần khung hộp (tiêu đề, hàng nút,
    ô chọn mẫu) chứ không lấy một phần trăm chiều cao: những thứ ấy cao bằng chữ,
@@ -1668,8 +1683,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    đi trượt lại), nhưng trình duyệt không hiểu `dvh` sẽ bỏ CẢ dòng và biến thành
    rỗng — nên dòng `vh` đứng trước làm nền. Cùng lối với `max-height` ở trên. */
 .hop-thoai-xem {
-  --cao-khung: clamp(300px, calc(100vh - 15rem), 900px);
-  --cao-khung: clamp(300px, calc(100dvh - 15rem), 900px);
+  --cao-khung: clamp(300px, calc(100vh - 15rem), 1600px);
+  --cao-khung: clamp(300px, calc(100dvh - 15rem), 1600px);
   /*
      A4 dọc là giá trị mặc định, và React đặt ĐÈ lên bằng style nội tuyến — style
      nội tuyến thắng mọi luật trong tệp này.
@@ -1680,14 +1695,30 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
      JavaScript có kịp chạy hay không.
   */
   --ty-le: 0.7071;
-  width: min(max(calc(var(--cao-khung) * var(--ty-le) + var(--k5) * 2), 520px), 100%);
+  width: min(
+    max(calc(var(--cao-khung) * var(--ty-le) + var(--k5) * 2), var(--san-hop-thoai)),
+    100%
+  );
 }
 
 /* Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường (`0068`).
 
    `min()` với `100%` chứ không đặt bề rộng cứng: lớp phủ đã có lề hai bên, nên
    trên màn hình hẹp hộp phải co lại theo chứ không đẩy nội dung ra ngoài mép. */
-.hop-thoai-rong { width: min(760px, 100%); }
+.hop-thoai-rong { width: min(var(--rong-hop-thoai-rong), 100%); }
+
+/* Hộp TO cho nội dung XEM TRƯỚC — gần hết màn hình (`0129`).
+
+   Hai chỗ dùng, và cả hai có chung một tính chất: người dùng tới đây để ĐỌC một
+   thứ rộng, không phải để điền ô.
+
+     - bảng xem trước lượt nhập danh mục từ Excel — bốn khối, mỗi dòng sửa mang
+       cột *cũ → mới* nên nó rộng gấp đôi một bảng thường;
+     - hộp gửi duyệt, chỗ có bản mềm CSBH nhúng ngay trong hộp.
+
+   Không gộp vào bậc rộng ở trên: bảng ánh xạ trường là một biểu mẫu — mỗi dòng
+   một ô chọn — còn hai chỗ này thì không nhập gì cả. */
+.hop-thoai-to { width: min(var(--rong-hop-thoai-to), 100%); }
 
 /* Bảng ánh xạ trong hộp thoại: KHÔNG cho tràn ra ngoài khung (`0068`).
 
@@ -2015,20 +2046,37 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 /* --- Xem trước bản CSBH A4 trước khi gửi duyệt (`0031`) -------------------- */
 
 /*
- * Khung PDF cao cố định theo `vh`, KHÔNG theo tỷ lệ A4.
+ * Khung PDF CAO cố định theo `vh`, RỘNG suy ra từ chiều cao (`0031`, `0129`).
  *
- * Một khung đúng tỷ lệ 1:1.414 trên màn hình laptop cao hơn cả cửa sổ, nên hộp
- * thoại tự cuộn và hai nút Xác nhận/Huỷ trôi ra ngoài tầm nhìn — người dùng đọc
- * xong bản xem trước rồi không thấy nút đâu. Khung thấp hơn, tự cuộn bên trong,
- * giữ nút luôn nhìn thấy được.
+ * Chiều cao là thứ phải chặn, và lý do từ `0031` còn nguyên: một khung đúng tỷ
+ * lệ 1:1.414 tính TỪ BỀ RỘNG hộp thì trên màn hình laptop nó cao hơn cả cửa sổ,
+ * hộp thoại tự cuộn, và hai nút Xác nhận/Huỷ trôi ra ngoài tầm nhìn — người
+ * dùng đọc xong bản xem trước rồi không thấy nút đâu.
+ *
+ * Nhưng `width: 100%` thì hỏng theo chiều ngược lại từ `0129`, khi hộp gửi duyệt
+ * nới rộng ra: một khung rộng 1800px cao 560px đựng một tờ A4 DỌC cho ra tờ giấy
+ * nằm lọt giữa hai vệt xám mỗi bên hơn 700px — trình xem PDF khớp trang theo
+ * chiều cao, nên bề rộng thừa không làm chữ to thêm chút nào.
+ *
+ * Cách đúng là cùng một phép của `.khung-xem` (`0073`): chặn ở BỀ RỘNG bằng
+ * `cao × tỷ lệ`, để chiều cao vẫn là thứ cầm lái mà khung không còn thừa ngang.
+ * `--ty-le` do React đặt vào theo khổ giấy của mẫu đang chọn — mẫu A4 ngang thì
+ * khung rộng ra gấp đôi ngay, thay vì cũng một cái khung 100% như trước.
  */
 .xem-truoc {
   margin-bottom: 16px;
 }
 
 .khung-pdf {
-  width: 100%;
-  height: min(52vh, 560px);
+  --cao-pdf: min(52vh, 560px);
+  --cao-pdf: min(52dvh, 560px);
+  /* A4 dọc là đường lùi, y như `.hop-thoai-xem`: `calc()` gặp biến rỗng thì cả
+     khai báo bề rộng thành vô nghĩa và khung co về bề rộng nội dung. */
+  --ty-le: 0.7071;
+  display: block;
+  width: min(100%, calc(var(--cao-pdf) * var(--ty-le)));
+  height: var(--cao-pdf);
+  margin-inline: auto;
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
   background: var(--mau-nen-phu);
