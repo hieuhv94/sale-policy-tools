@@ -70,7 +70,12 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
               <tr>
                 <th>Mã nhóm</th>
                 <th>Tên nhóm</th>
-                <th>Thao tác</th>
+                {/* Tiêu đề KHÔNG hiện ra mắt (`0132`), nhưng vẫn phải có: một
+                    `<th>` rỗng thì trình đọc màn hình đọc ô nút là "cột trống",
+                    và người dùng bàn phím không biết mình vừa Tab vào đâu. */}
+                <th>
+                  <span className="chi-doc-man-hinh">Thao tác</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -78,7 +83,7 @@ export function TheNhom({ nhom, taiLai }: { nhom: NhomSanPham[]; taiLai: () => v
                 <tr key={n.id}>
                   <td className="ma-phu">{n.code}</td>
                   <td>{n.name}</td>
-                  <td>
+                  <td className="o-thao-tac-re-chuot">
                     <button
                       type="button"
                       className="nut nut-canh-bao"

@@ -2497,6 +2497,44 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 .o-thao-tac + .o-thao-tac { padding-left: 0; }
 
+/* --- Thao tác của bảng DANH MỤC: hiện khi rê chuột (`0132`) ---------------- */
+
+/* Ba bảng danh mục — sản phẩm, nhóm sản phẩm, quy định chiết khấu — chỉ có một
+   hoặc hai nút mỗi dòng, và chúng lặp lại y hệt ở MỌI dòng. Một cột nút xám kéo
+   dọc suốt bảng thì nó nặng bằng cả phần dữ liệu, trong khi thứ người ta tới đây
+   để đọc là dữ liệu.
+
+   BA ĐIỀU KIỆN, và thiếu cái nào cũng hỏng cho một nhóm người dùng:
+
+     - `:hover` trên chính hàng — không phải trên ô: rê tới đâu trong hàng cũng
+       ra nút, chứ không phải phải tìm đúng cái ô đang trong suốt;
+     - `:focus-within` — đi bằng bàn phím thì Tab tới nút phải thấy nó. Thiếu vế
+       này là tiêu điểm nằm ở một chỗ không nhìn thấy được, và cả hai thao tác
+       thành không với tới được bằng bàn phím;
+     - `@media (hover: none)` — màn hình cảm ứng không có "rê" nào cả, để nguyên
+       thì nút không bao giờ hiện.
+
+   Cùng ba điều kiện với thẻ tệp của `0069`, và đó là chủ ý: hai chỗ trả lời cùng
+   một câu hỏi thì phải trả lời giống nhau.
+
+   `opacity` chứ KHÔNG phải `display: none` hay `visibility: hidden`:
+
+     - `display: none` làm cột co lại rồi bung ra khi rê chuột, tức cả bảng nhảy
+       ngang dưới con trỏ;
+     - `visibility: hidden` thì nút KHÔNG NHẬN ĐƯỢC TIÊU ĐIỂM, nên `:focus-within`
+       không bao giờ kích hoạt được — cái ẩn tự khoá mất đường hiện của chính nó. */
+.o-thao-tac-re-chuot {
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+tr:hover > .o-thao-tac-re-chuot,
+tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
+
+@media (hover: none) {
+  .o-thao-tac-re-chuot { opacity: 1; }
+}
+
 /* --- Ô CÂU CHỮ trong bảng (`0070`) ---------------------------------------- */
 
 /* `th, td` đặt `white-space: nowrap` cho MỌI ô — đúng với mã, ngày và tiền, sai

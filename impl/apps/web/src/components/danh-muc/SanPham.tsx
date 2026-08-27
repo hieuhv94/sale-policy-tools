@@ -161,7 +161,12 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                 <th>Nhóm</th>
                 <th className="so">Giá bán Công ty</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                {/* Tiêu đề KHÔNG hiện ra mắt (`0132`), nhưng vẫn phải có: một
+                    `<th>` rỗng thì trình đọc màn hình đọc ô nút là "cột trống",
+                    và người dùng bàn phím không biết mình vừa Tab vào đâu. */}
+                <th>
+                  <span className="chi-doc-man-hinh">Thao tác</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -176,7 +181,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
                   <td>
                     <NhanSanPham trangThai={s.status} />
                   </td>
-                  <td>
+                  <td className="o-thao-tac-re-chuot">
                     {/* Chỉ còn MỘT nút (`0123`). Giá sửa ngay trong hộp thoại
                         Sửa, nên một nút riêng cho nó là chia đôi cùng một việc
                         thành hai chỗ bấm. */}

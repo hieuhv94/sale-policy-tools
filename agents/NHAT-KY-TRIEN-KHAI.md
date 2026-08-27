@@ -11620,3 +11620,80 @@ sai; **phá lại mà xanh thì việc đầu tiên phải làm là kiểm tra b
 đúng chỗ không.**
 
 **1782/1782 xanh.**
+
+## P160 — `0132` thao tác trong danh mục hiện khi rê chuột
+
+Hai vế: nút *Sửa* / *Xoá* của ba bảng danh mục chỉ hiện khi rê chuột tới, và cột
+*Thao tác* thôi có tên nhìn thấy được.
+
+Phạm vi là **ba bảng danh mục** — sản phẩm, nhóm sản phẩm, quy định chiết khấu.
+Bốn bảng còn lại có cột thao tác (văn bản mẫu, người dùng, thư hỏng, dòng sản
+phẩm trong hồ sơ) giữ nguyên: yêu cầu nói *"trong danh mục"*, và ba bảng ấy có
+chung một tính chất mà bốn bảng kia không có — nút lặp y hệt ở mọi dòng, nên cột
+nút nặng ngang phần dữ liệu mà người ta tới đây để đọc.
+
+### Ba điều kiện, không phải một
+
+`:hover` một mình hỏng cho hai nhóm người dùng cùng lúc, và **cả hai đều không lộ
+ra khi thử bằng chuột trên máy để bàn**:
+
+| Thiếu vế | Ai mất gì |
+|---|---|
+| `:focus-within` | bàn phím — Tab tới nút mà nút vẫn trong suốt, tiêu điểm nằm ở chỗ không nhìn thấy |
+| `@media (hover: none)` | cảm ứng — không có "rê" nào cả, nút không bao giờ hiện |
+
+Cùng ba điều kiện với thẻ tệp của `0069`, và đó là chủ ý: hai chỗ trả lời cùng
+một câu hỏi thì phải trả lời giống nhau.
+
+`:hover` đặt trên **hàng**, không trên ô: rê tới đâu trong hàng cũng ra nút, chứ
+không bắt người dùng tìm đúng cái ô đang trong suốt.
+
+### `visibility: hidden` tự khoá mất đường thoát của chính nó
+
+Cái bẫy đáng ghi nhất của lượt này, và nó im lặng hoàn toàn: một phần tử
+`visibility: hidden` **KHÔNG nhận được tiêu điểm**, nên `:focus-within` không bao
+giờ kích hoạt được. Vế bàn phím vẫn còn nguyên trong tệp CSS, đọc vào thấy đầy đủ
+ba điều kiện, mà thực tế chỉ còn hai — và người dùng bàn phím mất hẳn cả hai thao
+tác chứ không phải chỉ mất phần nhìn.
+
+`display: none` thì hỏng theo kiểu nhìn thấy được: cột co lại rồi bung ra khi rê
+chuột, tức cả bảng nhảy ngang dưới con trỏ. Nên `opacity`, và có một ca kiểm cấm
+hai thuộc tính kia quay lại.
+
+### Cột không tên vẫn phải có tên
+
+`<th>` rỗng thì trình đọc màn hình đọc ô nút là "cột trống", và người dùng bàn
+phím Tab vào một nút mà không biết nút ấy thuộc cột nào. Tên đi vào
+`.chi-doc-man-hinh` — lớp đã có sẵn cho đúng việc này từ P7d (`NutGiaoDien`,
+`ChuongThongBao`, `BangSanPham`), không dựng lớp mới.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Một bảng danh mục quên gắn lớp | 1 đỏ |
+| Tiêu đề thành `<th>` rỗng | 1 đỏ |
+| Bỏ vế bàn phím (`:focus-within`) | 1 đỏ |
+| Bỏ vế cảm ứng (`@media (hover: none)`) | 1 đỏ |
+| Ẩn bằng `visibility: hidden` | 2 đỏ — cả ca cấm lẫn ca ba điều kiện |
+
+Lượt cuối đỏ HAI ca, và đó đúng là hình dạng của cái bẫy: đổi một thuộc tính ẩn
+làm chết luôn vế bàn phím ở một luật khác, cách đó mười dòng.
+
+### Cái không kiểm được, nói ra
+
+Không ca nào chứng minh nút THẬT SỰ hiện ra khi rê chuột — jsdom không tính bố
+cục, và `:hover` thì không có cả trong mô hình của nó. Ca kiểm canh **luật có đủ
+vế và lớp có đúng chỗ**; phần "nhìn thấy được" phải thử bằng mắt trên bản demo.
+
+### Bộ test đầy đủ CHƯA chạy ở chặng này
+
+`make test` dừng ở chốt `check-demo-down`: chồng demo đang bật, và nó dùng chung
+Postgres với bộ test. Không tự tắt — chốt ấy sinh ra đúng để không tắt bản demo
+của người khác, và chạy test sau demo còn xoá sạch 10 tài khoản mẫu.
+
+Đã chạy thay vào đó: `typecheck` xanh, và **641/641 ca giao diện xanh (45 tệp)** —
+`tests/web` là jsdom, chặn `fetch`, không nối tới Postgres nên chạy được trong lúc
+demo đang bật. Thay đổi của chặng này nằm trọn trong `apps/web/src` (một tệp CSS,
+ba tệp TSX), nên phần chưa chạy — test máy chủ, CSDL, HTTP — không có đường nào
+chạm tới. Vẫn phải chạy lại `make test` sau khi hạ demo.

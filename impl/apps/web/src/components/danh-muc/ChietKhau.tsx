@@ -186,7 +186,14 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                 <th>Áp dụng cho</th>
                 <th>Ngưỡng</th>
                 <th>Hiệu lực</th>
-                {!chiXem && <th>Thao tác</th>}
+                {/* Tiêu đề KHÔNG hiện ra mắt (`0132`), nhưng vẫn phải có: một
+                    `<th>` rỗng thì trình đọc màn hình đọc ô nút là "cột trống",
+                    và người dùng bàn phím không biết mình vừa Tab vào đâu. */}
+                {!chiXem && (
+                  <th>
+                    <span className="chi-doc-man-hinh">Thao tác</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -201,7 +208,7 @@ export function TheChietKhau({ nhom, chiXem = false }: { nhom: NhomSanPham[]; ch
                       ghi chú trên đầu bảng — nơi nó được nói đúng một lần. */}
                   <td>{ngay(q.effectiveFrom)}</td>
                   {!chiXem && (
-                    <td>
+                    <td className="o-thao-tac-re-chuot">
                       <div className="nhom-nut nhom-nut-gon">
                         <button type="button" className="nut nut-nhe" onClick={() => datSua(q)}>
                           Sửa

@@ -378,6 +378,89 @@ describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
   });
 });
 
+describe('`0132` thao tác trong danh mục hiện khi rê chuột', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+
+  /** Ba bảng DANH MỤC — và chỉ ba. Bảng khác giữ nguyên cột thao tác nhìn thấy. */
+  const BANG_DANH_MUC = [
+    'components/danh-muc/SanPham.tsx',
+    'components/danh-muc/Nhom.tsx',
+    'components/danh-muc/ChietKhau.tsx',
+  ];
+
+  it('cả ba bảng danh mục đều gắn lớp vào Ô thao tác', () => {
+    /*
+     * Lớp phải nằm trên chính `<td>`, không phải trên nút bên trong: ô giữ chỗ
+     * của cột. Đặt lên nút thì ô rỗng vẫn có đệm, và cột co lại đúng một chút —
+     * đủ để bảng nhảy ngang mỗi lần rê chuột qua một dòng.
+     */
+    for (const tep of BANG_DANH_MUC) {
+      const s = readFileSync(join(GOC, tep), 'utf8');
+      expect(s, `${tep} chưa gắn lớp rê chuột`).toMatch(
+        /<td className="[^"]*\bo-thao-tac-re-chuot\b[^"]*">/,
+      );
+    }
+  });
+
+  it('tiêu đề cột KHÔNG còn hiện ra mắt, nhưng vẫn còn cho trình đọc màn hình', () => {
+    /*
+     * Hai vế, và vế thứ hai mới là vế dễ mất. Một `<th>` rỗng thì trình đọc màn
+     * hình đọc ô nút là "cột trống", và người dùng bàn phím Tab vào một nút mà
+     * không biết nút ấy thuộc cột nào của bảng nào.
+     *
+     * `.chi-doc-man-hinh` là lớp đã có sẵn cho đúng việc này (`NutGiaoDien`,
+     * `ChuongThongBao`, `BangSanPham`), không phải một lớp dựng riêng ở đây.
+     */
+    for (const tep of BANG_DANH_MUC) {
+      const s = readFileSync(join(GOC, tep), 'utf8');
+      expect(s, `${tep} còn tiêu đề *Thao tác* nhìn thấy được`).not.toMatch(
+        /<th>\s*Thao tác\s*<\/th>/,
+      );
+      expect(s, `${tep} mất hẳn tên cột, kể cả với trình đọc màn hình`).toMatch(
+        /<span className="chi-doc-man-hinh">Thao tác<\/span>/,
+      );
+    }
+  });
+
+  it('BA điều kiện hiện nút, không phải một', () => {
+    /*
+     * `:hover` một mình là hỏng cho hai nhóm người dùng cùng lúc, và cả hai đều
+     * không lộ ra khi thử bằng chuột trên máy để bàn:
+     *
+     *   - bàn phím — Tab tới nút mà nút vẫn trong suốt;
+     *   - cảm ứng  — không có "rê" nào cả, nút không bao giờ hiện.
+     *
+     * Cùng ba điều kiện với thẻ tệp của `0069`.
+     */
+    const luat = css.match(/\.o-thao-tac-re-chuot\s*\{([^}]*)\}/);
+    expect(luat, 'thiếu luật cho `.o-thao-tac-re-chuot`').not.toBeNull();
+    expect(luat![1]).toMatch(/opacity:\s*0/);
+
+    expect(css, 'thiếu vế rê chuột').toMatch(/tr:hover\s*>\s*\.o-thao-tac-re-chuot/);
+    expect(css, 'thiếu vế bàn phím — nút không với tới được bằng Tab').toMatch(
+      /tr:focus-within\s*>\s*\.o-thao-tac-re-chuot/,
+    );
+    expect(css, 'thiếu vế cảm ứng — nút không bao giờ hiện trên điện thoại').toMatch(
+      /@media \(hover: none\)\s*\{\s*\.o-thao-tac-re-chuot\s*\{[^}]*opacity:\s*1/,
+    );
+  });
+
+  it('ẩn bằng `opacity`, KHÔNG bằng `display` hay `visibility`', () => {
+    /*
+     * Cái bẫy, và nó tự khoá mất đường thoát của chính nó: một phần tử
+     * `visibility: hidden` KHÔNG nhận được tiêu điểm, nên `:focus-within` không
+     * bao giờ kích hoạt được — vế bàn phím ở ca trên thành mã chết mà vẫn còn
+     * nguyên trong tệp CSS.
+     *
+     * `display: none` thì hỏng theo kiểu nhìn thấy được: cột co lại rồi bung ra
+     * khi rê chuột, tức cả bảng nhảy ngang dưới con trỏ.
+     */
+    const luat = css.match(/\.o-thao-tac-re-chuot\s*\{([^}]*)\}/);
+    expect(luat![1]).not.toMatch(/display:\s*none/);
+    expect(luat![1]).not.toMatch(/visibility:\s*hidden/);
+  });
+});
+
 describe('`0124` hai nút thao tác của một dòng bảng không xuống dòng', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
 

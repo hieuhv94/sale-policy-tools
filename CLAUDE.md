@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P159** (`0131`): **hai khoảng hở ở *Lịch sử giá*** — tiêu đề dính bảng, nhãn *Đang
+Chặng gần nhất **P160** (`0132`): **thao tác trong danh mục hiện khi rê chuột**, và cột *Thao tác*
+thôi có tên nhìn thấy được — ba bảng danh mục (sản phẩm · nhóm · chiết khấu), bốn bảng còn lại giữ
+nguyên. **BA điều kiện chứ không một**: `tr:hover` · `tr:focus-within` · `@media (hover: none)` —
+thiếu vế hai thì bàn phím mất hẳn thao tác, thiếu vế ba thì cảm ứng mất, và **cả hai đều không lộ ra
+khi thử bằng chuột trên máy để bàn**. Bẫy im lặng nhất: **`visibility: hidden` không nhận được tiêu
+điểm**, nên nó tự khoá mất `:focus-within` của chính nó — luật vẫn còn nguyên trong CSS mà đã thành
+mã chết; dùng `opacity` (`display: none` thì cột co ra co vào, bảng nhảy ngang). Cột không tên vẫn
+phải có tên: `.chi-doc-man-hinh`, `<th>` rỗng thì trình đọc màn hình đọc là "cột trống".
+**641/641 ca giao diện xanh; `make test` đầy đủ CHƯA chạy — chồng demo đang bật, xem nhật ký P160.**
+
+Trước đó **P159** (`0131`): **hai khoảng hở ở *Lịch sử giá*** — tiêu đề dính bảng, nhãn *Đang
 áp dụng* dính ngày. Hai bẫy đáng nhớ: **`h3 { margin: 0 }` là chủ ý** (mỗi chỗ dùng tự khai khoảng
 hở nó cần, như `.tieu-de-nhom-xem-truoc`), nên chữa ở `h3` là dịch mọi tiêu đề cấp ba trong ứng dụng
 mà không ca nào đỏ; và **`display: flex` KHÔNG được đặt thẳng lên `<td>`** — ô ấy thôi là ô bảng,
