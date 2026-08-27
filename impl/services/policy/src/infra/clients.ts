@@ -1,7 +1,7 @@
 /**
  * Lời gọi ra ba service khác. policy không đọc được schema `cat`, `cus` lẫn `idn`.
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { identityUrl, mintServiceToken } from '@csbh/http-kit';
 
 const catalogUrl = () => process.env.CATALOG_URL ?? 'http://catalog:3002';
@@ -58,6 +58,8 @@ const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });
 
 @Injectable()
 export class Clients {
+  private readonly log = new Logger(Clients.name);
+
   /** TDV này đã có Trưởng bộ phận quản lý chưa. `null` là chưa gán. */
   /**
    * Vai trò và trạng thái của những tài khoản vừa được chọn (`0031`).
@@ -142,17 +144,46 @@ export class Clients {
   async saoChepGiayTo(
     tuHoSo: string,
     sangHoSo: string,
+    objectKeys: string[],
   ): Promise<{ objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[]> {
+    if (objectKeys.length === 0) return [];
     const res = await fetch(`${documentUrl()}/internal/files/sao-chep`, {
       method: 'POST',
       headers: { ...svc(), 'content-type': 'application/json' },
-      body: JSON.stringify({ from: tuHoSo, to: sangHoSo }),
+      body: JSON.stringify({ from: tuHoSo, to: sangHoSo, objectKeys }),
     });
     if (!res.ok) throw new Error(`document trả ${res.status} khi nhân bản giấy tờ hồ sơ`);
     const b = (await res.json()) as { tep?: unknown };
     return Array.isArray(b.tep)
       ? (b.tep as { objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[])
       : [];
+  }
+
+  /**
+   * Gỡ hẳn một tệp khỏi kho — gọi sau khi con trỏ ở `pol` đã bị xoá (`0149`).
+   *
+   * NUỐT LỖI, và đây là một trong số rất ít chỗ nuốt có lý do viết ra được:
+   *
+   *   - việc người dùng yêu cầu — *gỡ tệp khỏi hồ sơ* — ĐÃ XONG và đã commit.
+   *     Ném ra ở đây là báo "gỡ hỏng" cho một thao tác vừa thành công;
+   *   - đường lùi khi nuốt là **đúng hành vi trước `0149`**: tệp nằm lại kho mà
+   *     không hồ sơ nào trỏ tới. Không mất dữ liệu, không lộ dữ liệu, chỉ tốn
+   *     chỗ chứa — tức nuốt ở đây làm hệ thống lùi về trạng thái cũ chứ không
+   *     dựng ra một trạng thái mới nào.
+   *
+   * Ghi log để lượt dọn về sau còn có dấu vết mà lần theo.
+   */
+  async goBoTep(objectKey: string, lyDo: string): Promise<void> {
+    try {
+      const res = await fetch(`${documentUrl()}/internal/files/go-bo`, {
+        method: 'POST',
+        headers: { ...svc(), 'content-type': 'application/json' },
+        body: JSON.stringify({ objectKey, lyDo }),
+      });
+      if (!res.ok) throw new Error(`document trả ${res.status}`);
+    } catch (e) {
+      this.log.error(`không gỡ được tệp ${objectKey} khỏi kho: ${String(e)}`);
+    }
   }
 
   async customer(id: string): Promise<CustomerInfo> {

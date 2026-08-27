@@ -482,6 +482,9 @@ thường, chỉ không thấy dấu ✕ và vùng kéo thả.
 > **Gỡ giấy tờ** là việc mới. Trước đó tải nhầm là nằm lại vĩnh viễn, và cách duy nhất để sửa là tải
 > thêm bản đúng rồi để hai bản cạnh nhau — người đọc sau không biết bản nào dùng được.
 
+> **Gỡ là XOÁ HẲN** `sửa 28/08` — tệp mất khỏi kho lưu trữ, không khôi phục được. Tới 28/08 nó chỉ
+> biến khỏi màn hình còn bản thân tệp vẫn nằm lại và vẫn tải về được bằng đường dẫn cũ.
+
 > **Ba ô Tỉnh/thành · Bệnh viện–điểm bán · Kênh bán đã bỏ.** Ngưỡng chiết khấu chỉ phụ thuộc nhóm sản
 > phẩm và loại khách hàng, nên ba ô ấy không còn ảnh hưởng tới bất kỳ con số nào. Dữ liệu đã nhập của
 > chúng không còn nữa; muốn lọc theo địa bàn thì dùng ô **Địa chỉ đăng ký**.
@@ -1165,7 +1168,11 @@ Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai tải lên
 đâu"* luôn có chỗ trả lời.
 
 **Lập phiên bản mới thì giấy tờ hồ sơ ĐI THEO** `sửa 28/08` — y như dòng sản phẩm. Bản mới nhận một
-bản sao riêng của từng tệp, nên gỡ giấy tờ ở bản cũ không đụng gì tới bản mới.
+bản sao riêng của từng tệp, nên gỡ giấy tờ ở bản cũ không đụng gì tới bản mới. Đi theo đúng những
+giấy tờ bản cũ **đang có**: thứ đã gỡ thì không quay lại.
+
+**Gỡ tệp khỏi hồ sơ là XOÁ HẲN** `sửa 28/08`, giống hồ sơ pháp lý của khách hàng — kể cả bản cứng
+Sale Admin gỡ ra để thay bản in lại.
 
 > **Bản cứng thì KHÔNG đi theo**, và đó là chủ ý: nó là tờ giấy đã ký của phiên bản *cũ*. Bản mới
 > phải được in, trình ký và scan lại từ đầu.

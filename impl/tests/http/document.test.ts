@@ -868,14 +868,26 @@ describe('`0050` DOC-17 · WF-13 · WF-18 bản scan GIỮ LẠI khi yêu cầu 
     expect((await dget(`/files/${up.body.id}/link`, 'sa01')).status).toBe(200);
 
     /*
-     * Sale Admin CHỦ ĐỘNG gỡ. Hai bước, và cả hai đều cần: gỡ con trỏ khỏi hồ
-     * sơ, rồi xoá file trên kho. Đường thứ hai chỉ mở cho TDV và Sale Admin.
+     * Sale Admin CHỦ ĐỘNG gỡ — MỘT bước từ `0149`, trước đó là hai.
+     *
+     * Luật của `0050` không đổi chút nào: bản scan sống qua lượt yêu cầu in lại
+     * và chỉ biến mất khi Sale Admin tự tay gỡ. Cái đổi là cơ chế — gỡ con trỏ
+     * giờ xoá luôn tệp trên kho, nên lượt gọi `DELETE /files/:id` thứ hai không
+     * còn việc gì để làm.
+     *
+     * Bản trước phải gọi cả hai vì `detach` chỉ xoá con trỏ, và chú thích tại
+     * chỗ ấy nêu một lý do đã cũ từ `0069`. Chính vì thế mà giao diện — vốn chỉ
+     * gọi bước một — để lại tệp trên kho ở MỌI lượt gỡ: ca kiểm này gọi đủ hai
+     * bước nên nó không bao giờ thấy điều đó.
      */
     const dinhKem = (await pget(`/policies/${d.id}`, 'sa01')).body.attachments[0];
     expect((await pdel(`/policies/${d.id}/attachments/${dinhKem.id}`, 'sa01')).status).toBe(200);
-    expect((await ddel(`/files/${up.body.id}`, 'sa01')).status).toBe(200);
+    expect(await storage.exists(up.body.objectKey), 'một bước là đủ').toBe(false);
 
-    expect(await storage.exists(up.body.objectKey)).toBe(false);
+    // Gọi thêm bước hai thì nhận 404 `FILE_DISCARDED` — không còn tệp nào ở đó.
+    const lai = await ddel(`/files/${up.body.id}`, 'sa01');
+    expect(lai.status).toBe(404);
+    expect(lai.body.code).toBe('FILE_DISCARDED');
 
     // Vết huỷ còn nguyên — ai huỷ, lúc nào, vì sao.
     const row = await withAdminDb(async (c) => {
@@ -886,6 +898,8 @@ describe('`0050` DOC-17 · WF-13 · WF-18 bản scan GIỮ LẠI khi yêu cầu 
       return r.rows[0]!;
     });
     expect(row.deleted_at).not.toBeNull();
+    // Lý do do `0149` đặt: *"gỡ khỏi hồ sơ bởi SALE_ADMIN"* — vẫn nói ra vai trò
+    // đã bấm, và nói thêm được cả đường nào dẫn tới lượt xoá.
     expect(row.delete_reason).toContain('SALE_ADMIN');
 
     // File đã huỷ thì không mở lại được bằng liên kết cũ.
@@ -1468,4 +1482,193 @@ describe('`0148` ai nhìn thấy khách hàng thì đọc được hồ sơ phá
     expect((await dget(`/files?ownerKind=CUSTOMER&ownerId=${customerId}`, 'admin01')).status).toBe(200);
     expect((await dget(`/files/${fileId}/link`, 'admin01')).status).toBe(200);
   }, 180_000);
+});
+
+// =============================================================================
+// `0149` — HAI KHO PHẢI KHỚP NHAU
+// =============================================================================
+
+/**
+ * Tệp sống ở hai kho: `doc.stored_file` + MinIO nói *"tệp này tồn tại"*,
+ * `pol.policy_attachment` / `cus.customer_document` nói *"hồ sơ này có tệp ấy"*.
+ * Tới `0149` không có gì buộc chúng khớp nhau, và cái lệch đi ra theo ba đường —
+ * tải lên hỏng nửa chừng, gỡ đính kèm, và (từ `0148`) lượt chép sang bản mới đọc
+ * nhầm kho.
+ */
+describe('`0149` gỡ đính kèm thì tệp mất khỏi kho', () => {
+  it('gỡ giấy tờ hồ sơ: con trỏ mất VÀ tệp mất', async () => {
+    /*
+     * Trước `0149` chỉ con trỏ mất. Hệ quả không phải chỉ tốn chỗ chứa: tệp đã
+     * gỡ vẫn tải về nguyên vẹn qua `GET /files/:id/content`, và "đã gỡ" mà vẫn
+     * đọc được thì không phải điều người bấm nút mong đợi.
+     */
+    const d = await draft();
+    const khoa = await dinhGiayTo(d.id, 'giay-to-nham.pdf');
+    expect(await storage.exists(khoa)).toBe(true);
+
+    const tep = (await pget(`/policies/${d.id}`, 'tdv01')).body.attachments as { id: string }[];
+    expect(tep).toHaveLength(1);
+    expect((await pdel(`/policies/${d.id}/attachments/${tep[0]!.id}`, 'tdv01')).status).toBe(200);
+
+    expect(
+      ((await pget(`/policies/${d.id}`, 'tdv01')).body.attachments as unknown[]),
+      'con trỏ phải mất',
+    ).toHaveLength(0);
+    expect(await storage.exists(khoa), 'tệp phải mất khỏi kho').toBe(false);
+
+    // Và `document` cũng thôi liệt kê nó — không còn đường nào tải về.
+    const ds = await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'tdv01');
+    expect((ds.body as { objectKey: string }[]).map((x) => x.objectKey)).not.toContain(khoa);
+  }, 180_000);
+
+  it('gỡ hồ sơ pháp lý của khách hàng: cũng mất khỏi kho', async () => {
+    // Cùng một hình dạng ở `customer`, và cùng một chú thích sai: bản trước tin
+    // rằng `sys.run_retention()` dọn hộ, trong khi hàm ấy chưa bao giờ biết tới
+    // `doc.stored_file`.
+    const d = await draft();
+    const up = await upload(
+      'tdv01',
+      { ownerKind: 'CUSTOMER', ownerId: d.customerId, purpose: 'PHAP_LY' },
+      PDF,
+      'giay-phep.pdf',
+    );
+    expect(up.status).toBe(201);
+    const khoa = up.body.objectKey as string;
+
+    const them = await (await http(customer))
+      .post(`/customers/${d.customerId}/documents`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({
+        kind: 'GIAY_PHEP_KINH_DOANH',
+        fileName: 'giay-phep.pdf',
+        objectKey: khoa,
+        sizeBytes: up.body.sizeBytes,
+      });
+    expect(them.status, JSON.stringify(them.body)).toBe(201);
+    expect(await storage.exists(khoa)).toBe(true);
+
+    const xoa = await (await http(customer))
+      .delete(`/customers/${d.customerId}/documents/${them.body.id}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`);
+    expect(xoa.status, JSON.stringify(xoa.body)).toBe(200);
+    expect(await storage.exists(khoa), 'tệp pháp lý phải mất khỏi kho').toBe(false);
+  }, 180_000);
+});
+
+describe('`0149` lượt ghi con trỏ bị từ chối thì tệp được dọn', () => {
+  it('hồ sơ đã gửi duyệt: `POLICY_LOCKED` và tệp không nằm lại', async () => {
+    /*
+     * Đúng kịch bản thường gặp nhất: TDV mở màn hình lúc hồ sơ còn *Nháp*, chọn
+     * file, và giữa hai việc ấy hồ sơ đã gửi duyệt (từ một tab khác, hoặc do
+     * chính họ). Lời gọi thứ hai trả 409 — và trước `0149`, tệp ở lời gọi thứ
+     * nhất nằm lại kho vĩnh viễn.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const up = await upload('tdv01', { ownerKind: 'POLICY', ownerId: d.id, purpose: 'HO_SO' }, PDF, 'muon.pdf');
+    expect(up.status).toBe(201);
+    const khoa = up.body.objectKey as string;
+    expect(await storage.exists(khoa)).toBe(true);
+
+    const g = await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'HO_SO', fileName: 'muon.pdf', objectKey: khoa, sizeBytes: up.body.sizeBytes },
+      'tdv01',
+    );
+    expect(g.status).toBe(409);
+    expect(g.body.code).toBe('POLICY_LOCKED');
+
+    // Lỗi người dùng nhận vẫn là lỗi GỐC, không bị lỗi dọn dẹp che mất — và tệp
+    // đã được dọn.
+    expect(await storage.exists(khoa), 'tệp mồ côi phải được dọn').toBe(false);
+  }, 180_000);
+
+  it('sai vai trò ở hồ sơ pháp lý: 403 và tệp không nằm lại', async () => {
+    // Đường của `customer`. sa01 xem được khách hàng (`0148`) nhưng không phải
+    // TDV phụ trách, nên lượt ghi con trỏ bị từ chối.
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const up = await upload(
+      'sa01',
+      { ownerKind: 'CUSTOMER', ownerId: d.customerId, purpose: 'PHAP_LY' },
+      PDF,
+      'sa-tu-them.pdf',
+    );
+    // `0148` giữ nguyên luật GHI: chỉ TDV phụ trách tải lên được, nên lượt này
+    // hỏng ngay ở `document` và chưa có tệp nào để mà dọn.
+    expect(up.status).toBe(403);
+  }, 180_000);
+});
+
+describe('`0149` lượt chép sang bản mới đọc bảng CON TRỎ', () => {
+  it('giấy tờ đã GỠ khỏi bản cũ KHÔNG quay lại ở bản mới', async () => {
+    /*
+     * HỒI QUY CỦA `0148`, và nó đi vào bản giao được vì cả bảy ca của chặng ấy
+     * đều đi đường sạch — đính kèm rồi chép, không ca nào gỡ tệp trước.
+     *
+     * `0148` chọn nguồn chép bằng `owner_id = hồ sơ cũ AND purpose = 'HO_SO'`
+     * trên bảng của `document`, kèm một câu biện minh nghe hợp lý: *"hai bảng có
+     * thể đã lệch nhau, và lượt chép không phải chỗ để cái lệch ấy nhân đôi"*.
+     * Đúng vế đầu, sai vế sau: bảng mang rác chính là bảng nó đang đọc.
+     */
+    const d = await draft();
+    await dinhGiayTo(d.id, 'giay-giu-lai.pdf');
+    await dinhGiayTo(d.id, 'giay-se-go.pdf');
+
+    const tep = (await pget(`/policies/${d.id}`, 'tdv01')).body.attachments as {
+      id: string;
+      fileName: string;
+    }[];
+    const seGo = tep.find((t) => t.fileName === 'giay-se-go.pdf')!;
+    expect((await pdel(`/policies/${d.id}/attachments/${seGo.id}`, 'tdv01')).status).toBe(200);
+
+    await chayHetLuong(d.id);
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(6))] },
+      'tdv01',
+    );
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+
+    const moi = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {
+      kind: string;
+      fileName: string;
+    }[];
+    const giayTo = moi.filter((t) => t.kind === 'HO_SO').map((t) => t.fileName);
+    expect(giayTo).toEqual(['giay-giu-lai.pdf']);
+  }, 240_000);
+
+  it('tệp MỒ CÔI của bản cũ không thành đính kèm ở bản mới', async () => {
+    /*
+     * Nửa còn lại của cùng một hồi quy: một tệp chưa bao giờ có con trỏ — vì
+     * lượt ghi con trỏ hỏng — mà `0148` vẫn chép sang, và ở bản mới nó thành một
+     * đính kèm THẬT, nhìn thấy được, do người lập chưa từng đưa vào.
+     *
+     * Từ `0149` lượt ghi hỏng đã tự dọn tệp, nên ca này dựng tệp mồ côi bằng
+     * cách tải lên mà KHÔNG gọi lượt ghi con trỏ — đúng thứ còn sót lại khi
+     * trình duyệt đóng giữa hai lời gọi, chỗ mà bù trừ ở máy chủ không với tới.
+     */
+    const d = await draft();
+    await dinhGiayTo(d.id, 'giay-that.pdf');
+    const moCoi = await upload(
+      'tdv01',
+      { ownerKind: 'POLICY', ownerId: d.id, purpose: 'HO_SO' },
+      PDF,
+      'mo-coi.pdf',
+    );
+    expect(moCoi.status).toBe(201);
+
+    await chayHetLuong(d.id);
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(5))] },
+      'tdv01',
+    );
+    const moi = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {
+      kind: string;
+      fileName: string;
+    }[];
+    expect(moi.filter((t) => t.kind === 'HO_SO').map((t) => t.fileName)).toEqual(['giay-that.pdf']);
+  }, 240_000);
 });

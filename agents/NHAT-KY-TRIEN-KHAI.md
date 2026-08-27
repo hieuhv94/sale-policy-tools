@@ -13095,3 +13095,145 @@ Lượt cuối là ca chiều ngược của yêu cầu: *"xem và tải đượ
 xoá được"*. Thiếu nó thì một bản sửa gộp hai hàm lại làm một vẫn xanh hết.
 
 **1893/1893 xanh.**
+
+## P177 — `0149` hai kho tệp phải khớp nhau
+
+Tệp sống ở hai kho, và tới chặng này không có gì buộc chúng khớp:
+
+    doc.stored_file + MinIO       "tệp này tồn tại"
+    pol.policy_attachment
+    cus.customer_document         "hồ sơ này có tệp ấy"
+
+Tách hai kho là đúng và có lý do ghi sẵn ở `TepDinhKem` — gộp lại là bắt `policy`
+đụng MinIO, và `document` phải biết luật nghiệp vụ. Cái thiếu không phải kiến
+trúc mà là **phép bù trừ giữa hai lượt ghi**. Cái lệch đi ra theo ba đường, và
+lượt này bịt cả ba.
+
+### Đường 1 — hồi quy do CHÍNH `0148` gây ra
+
+`saoChepGiayToHoSo` chọn nguồn bằng `owner_id = hồ sơ cũ AND purpose = 'HO_SO'`
+trên bảng của `document`. Đó là lấy nhầm bảng: bảng ấy trả lời *"tệp nào tồn
+tại"*, còn câu cần hỏi là *"hồ sơ cũ có tệp gì"*, và chỉ bảng con trỏ trả lời
+được. Hai câu lệch nhau đúng ở tệp đã GỠ và tệp MỒ CÔI — nên bản mới thừa kế cả
+giấy tờ người lập đã cố ý gỡ, còn tệp mồ côi thì thành một đính kèm THẬT, nhìn
+thấy được, chưa từng thuộc về bản cũ.
+
+Đáng ghi nhất là **cách nó đi lọt**: tôi viết ra một câu biện minh nghe hợp lý —
+*"hai bảng đã có thể lệch nhau (tệp mồ côi), và lượt chép không phải chỗ để cái
+lệch ấy nhân đôi"* — cho một lựa chọn ngược. Vế đầu đúng; vế sau đảo chiều, vì
+bảng mang rác chính là bảng đang đọc. Câu ấy còn làm chỗ sai khó nghi ngờ hơn là
+không viết gì.
+
+Cả bảy ca `0148` xanh vì tất cả đều đi đường sạch: đính kèm rồi chép, không ca
+nào gỡ tệp trước. **Một bộ ca kiểm chỉ đi đường sạch không nói gì về đường bẩn.**
+
+### Đường 2 — gỡ đính kèm chỉ xoá con trỏ
+
+`workflow.detach` xoá mỗi `pol.policy_attachment`, với chú thích nêu lý do:
+`DELETE /files/:id` chỉ mở cho TDV và Sale Admin, nên gọi nó ở đây sẽ chặn Kế
+toán gỡ tệp.
+
+Lý do ấy **đã cũ**. Từ `0069`, `assertNguoiGhiTep` ngay phía trên chặn Kế toán gỡ
+bất kỳ loại tệp nào — `HO_SO` chỉ TDV, `SCAN` chỉ Sale Admin, đúng hai vai trò
+trong danh sách được xoá tệp. Câu chú thích tả thế giới TRƯỚC `0069` và thành sai
+ngay chặng sau đó.
+
+Bên `customer` là một chú thích cùng họ nhưng nặng hơn: *"`sys.run_retention()`
+dọn theo vòng đời chung"*. Đọc `0008_scale_retention.sql` thì hàm ấy chỉ đụng hai
+bảng token và ba bảng `outbox` — **nó chưa bao giờ biết tới `doc.stored_file` lẫn
+MinIO**. Một câu nghe hợp lý mà chưa bao giờ đúng, và nó giữ cho chỗ hở không bị
+nghi ngờ suốt tám mươi chặng.
+
+Đo được, và là con số đáng nhớ nhất của lượt rà: **giao diện không gọi
+`DELETE /files/:id` ở bất kỳ đâu** — không ở tệp hồ sơ, không ở hồ sơ pháp lý.
+Đường duy nhất thật sự xoá byte chỉ có bộ kiểm đi qua. Tức là trong toàn bộ phần
+mềm, không một thao tác nào của người dùng xoá được một byte khỏi kho.
+
+### Đường 3 — tải lên là hai lời gọi, không bù trừ
+
+`document` rất cẩn thận *bên trong* lời gọi của nó: `put` lên MinIO, `insert`, và
+nếu insert hỏng thì `remove` object. Nhưng giữa hai LỜI GỌI thì không có gì, mà
+lời gọi thứ hai bị từ chối là chuyện thường — `POLICY_LOCKED` khi hồ sơ đổi trạng
+thái giữa lúc mở màn hình và lúc chọn xong file, `403` khi sai vai trò.
+
+Bù trừ đặt ở **máy chủ**, không ở giao diện, dù giao diện cũng gọi được
+`DELETE /files/:id`: máy chủ biết chắc mình vừa từ chối, còn trình duyệt thì có
+thể đã đóng. `attach` bọc thân cũ trong một `try/catch` gọi `goBoTep` rồi ném lại
+lỗi GỐC — lỗi dọn dẹp không được che mất lỗi người dùng cần đọc.
+
+Không phủ hết, và ghi ra: mất mạng đúng giữa hai lời gọi thì vẫn còn một tệp mồ
+côi, không chỗ nào biết để dọn. Ca kiểm *"tệp mồ côi không thành đính kèm ở bản
+mới"* dựng đúng tình huống ấy — và nó vẫn phải xanh.
+
+### Ca kiểm đi một đường không ai đi
+
+Lượt chạy đầy đủ đỏ đúng một ca — `0050` DOC-17, *"bản scan giữ lại khi yêu cầu
+in lại"* — và nó nói ra chỗ mù của cả ba đường trên.
+
+Ca ấy gọi TƯỜNG MINH hai bước: `DELETE /policies/:id/attachments/:aid` rồi
+`DELETE /files/:id`, kèm chú thích *"hai bước, và cả hai đều cần"*. Đúng với API,
+và **không đúng với phần mềm**: giao diện chỉ gọi bước một, ở mọi lượt gỡ. Ca
+kiểm đi một đường không người dùng nào đi, nên nó xác nhận cơ chế hoạt động
+trong khi cơ chế ấy chưa bao giờ chạy đủ ngoài đời.
+
+Giờ nó đỏ vì bước hai trả `404 FILE_DISCARDED` — bước một đã xoá tệp. Viết lại
+thành khẳng định mới: **một bước là đủ**. Luật của `0050` không đổi một chữ —
+bản scan vẫn sống qua lượt yêu cầu in lại và chỉ mất khi Sale Admin tự tay gỡ.
+
+Bài học chung với `0148` (bảy ca đều đi đường sạch): **một ca kiểm gọi API trực
+tiếp không thay được một ca đi đúng đường giao diện đi.**
+
+### Vì sao `goBoTep` NUỐT lỗi
+
+Hai lần nuốt trong lượt này, và cả hai có lý do viết ra được — khác hẳn kiểu nuốt
+`?? false` của `0142` mà `0144` phải đi chữa:
+
+* việc người dùng yêu cầu (*gỡ tệp khỏi hồ sơ*) **đã xong và đã commit**. Ném ra
+  là báo "gỡ hỏng" cho một thao tác vừa thành công;
+* đường lùi khi nuốt **đúng bằng hành vi trước `0149`** — tệp nằm lại kho. Không
+  mất dữ liệu, không lộ dữ liệu, chỉ tốn chỗ chứa. Nuốt ở đây đưa hệ thống về
+  trạng thái cũ chứ không dựng ra một trạng thái mới nào.
+
+Thứ tự cũng chọn theo cùng lối: xoá con trỏ TRƯỚC, gỡ tệp SAU. Đảo lại thì lượt
+hỏng để lại một con trỏ trỏ vào tệp không còn — một dòng hiện trên màn hình mà
+bấm vào thì 404, tệ hơn hẳn một tệp mồ côi vô hình.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Nguồn chép về lại bảng của `document` (lỗi `0148`) | 2 đỏ |
+| `detach` thôi gỡ tệp | 1 đỏ |
+| `attach` thôi bù trừ | 1 đỏ |
+| `customer` thôi gỡ tệp khi xoá hồ sơ pháp lý | 1 đỏ |
+
+Mỗi lượt đỏ đúng MỘT nhóm, không lan sang nhóm khác — bốn đường độc lập, bốn ca
+riêng. Đáng chú ý: lượt thứ hai KHÔNG làm đỏ ca *"giấy tờ đã gỡ không quay lại"*,
+và đó là đúng — với nguồn chép là bảng con trỏ, tệp đã gỡ không được chép dù byte
+của nó còn hay mất. Hai bản sửa độc lập thật sự, không cái nào che cái nào.
+
+> **SỰ CỐ, và là bẫy đã ghi sẵn trong `CLAUDE.md`.** Lượt phá lại thứ nhất kết
+> thúc bằng `git checkout -- services/document/src/files/files.service.ts` — và
+> lệnh ấy đưa tệp về **HEAD**, không về trạng thái đang làm việc. Toàn bộ phần
+> `0149` trong tệp ấy biến mất.
+>
+> Triệu chứng thì lạc hướng hẳn: hai lượt phá sau đó đều báo **5 đỏ** thay vì 1,
+> gồm cả những ca chẳng liên quan gì tới thứ vừa phá. Dễ đọc thành "bản sửa của
+> mình rối hơn tưởng". Thứ chỉ ra sự thật là con số: một phép phá đúng một dòng
+> không thể làm đỏ năm ca ở ba nhóm khác nhau.
+>
+> `vitest` chạy qua esbuild nên KHÔNG typecheck — mã gọi `saoChepGiayToHoSo` với
+> ba tham số trong khi hàm chỉ còn hai, và nó vẫn chạy. `tsc` sẽ bắt ngay, nhưng
+> lượt phá lại không ai chạy `tsc`.
+>
+> Luật cũ vẫn đúng và giờ có thêm một vế: **sao lưu từng tệp, và phục hồi bằng
+> chính bản sao lưu ấy — `git checkout` không phải lệnh phục hồi khi cây làm việc
+> đang có thay đổi chưa commit.**
+
+### Trường hợp 4 giữ nguyên
+
+Người dùng chốt: TDV không đính thêm tệp được sau khi đã gửi duyệt là **đúng**,
+không sửa. Đóng băng lúc gửi duyệt là luật có chủ ý (`0098`, `0101`), và muốn
+thêm giấy tờ thì đường đúng là nhờ trả hồ sơ về.
+
+**1899/1899 xanh.**

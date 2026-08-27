@@ -1496,6 +1496,17 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
 
+**Gỡ một tệp là XOÁ HẲN nó** `mới 28/08` — gỡ giấy tờ hồ sơ, gỡ bản cứng, gỡ hồ sơ pháp lý của
+khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi phục được.
+
+> Trước lượt này chỉ dòng trên màn hình biến mất; tệp vẫn nằm lại kho và vẫn tải về được bằng đường
+> dẫn cũ. Không phải lỗ hổng phân quyền — vẫn đúng những người có quyền xem — nhưng *"đã gỡ"* mà vẫn
+> đọc được thì không phải điều người bấm nút mong đợi. Và trong toàn phần mềm khi ấy **không thao tác
+> nào của người dùng xoá được một byte** khỏi kho.
+>
+> Kèm theo: tải lên là hai bước (nhận tệp · ghi vào hồ sơ), và bước hai bị từ chối — hồ sơ vừa gửi
+> duyệt, sai vai trò — thì tệp ở bước một **được dọn ngay** thay vì nằm lại.
+
 **Giấy tờ hồ sơ đi theo phiên bản mới** `mới 28/08` — lập CSBH bổ sung hoặc chỉnh sửa thì các tệp
 *Giấy tờ hồ sơ* của bản đang hiệu lực được **chép sang** bản mới, y như dòng sản phẩm.
 
@@ -1504,6 +1515,8 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Mỗi bản nhận một BẢN SAO riêng, không dùng chung tệp: gỡ giấy tờ ở bản cũ không được làm bản mới
 > mất tệp.
+>
+> Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
 **Hồ sơ pháp lý của khách hàng: ai xem được khách thì xem được tệp** `mới 28/08` — Trưởng bộ phận,
 Kế toán, Sale Admin (khi đã được giao một hồ sơ của khách ấy), Ban lãnh đạo và Quản trị hệ thống đều

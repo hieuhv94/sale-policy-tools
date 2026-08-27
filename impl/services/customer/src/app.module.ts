@@ -5,6 +5,7 @@ import { Db } from './infra/db.js';
 import { CustomerOutbox } from './infra/outbox.relay.js';
 import { ScopeClient } from './infra/scope.client.js';
 import { PolicyClient } from './infra/policy.client.js';
+import { DocumentClient } from './infra/document.client.js';
 import { CustomersService } from './customers/customers.service.js';
 import { CustomersController } from './customers/customers.controller.js';
 import { CustomerInternalController } from './internal.controller.js';
@@ -42,6 +43,7 @@ class HealthController {
     CustomerOutbox,
     ScopeClient,
     PolicyClient,
+    DocumentClient,
     CustomersService,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },

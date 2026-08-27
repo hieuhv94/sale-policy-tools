@@ -31,10 +31,38 @@ export class FilesInternalController {
    */
   @Post('sao-chep')
   @HttpCode(200)
-  async saoChep(@Body() body: { from?: unknown; to?: unknown }) {
+  async saoChep(@Body() body: { from?: unknown; to?: unknown; objectKeys?: unknown }) {
     const from = typeof body?.from === 'string' ? body.from : '';
     const to = typeof body?.to === 'string' ? body.to : '';
-    if (!from || !to) return { tep: [] };
-    return { tep: await this.files.saoChepGiayToHoSo(from, to) };
+    const khoa = Array.isArray(body?.objectKeys)
+      ? body.objectKeys.filter((x): x is string => typeof x === 'string' && x.length > 0)
+      : [];
+    if (!from || !to || khoa.length === 0) return { tep: [] };
+    return { tep: await this.files.saoChepGiayToHoSo(from, to, khoa) };
+  }
+
+  /**
+   * Gỡ hẳn một tệp — gọi khi con trỏ ở service kia vừa bị xoá (`0149`).
+   *
+   * VÌ SAO ĐƯỜNG NÀY PHẢI CÓ. `DELETE /files/:id` mở cho người dùng, và chú
+   * thích ở `workflow.detach` nêu đúng lý do không gọi nó từ `policy`: vai trò
+   * được gỡ đính kèm không nhất thiết là vai trò được xoá tệp.
+   *
+   * Nhưng lập luận ấy đã CŨ. Từ `0069`, gỡ `HO_SO` chỉ TDV làm được và gỡ `SCAN`
+   * chỉ Sale Admin — đúng hai vai trò trong danh sách xoá tệp. Câu chú thích kia
+   * tả thế giới trước `0069`, nơi mọi vai trò gỡ được; nó đúng lúc viết ra và
+   * thành sai ngay chặng sau, không ai đọc lại.
+   *
+   * Đường nội bộ chứ không dùng lại đường của người dùng: đây là hệ quả tự động
+   * của một thao tác đã được cho phép ở service kia, không phải một lượt xoá do
+   * ai đó bấm — nên nó không đi qua chốt vai trò lần thứ hai.
+   */
+  @Post('go-bo')
+  @HttpCode(200)
+  async goBo(@Body() body: { objectKey?: unknown; lyDo?: unknown }) {
+    const khoa = typeof body?.objectKey === 'string' ? body.objectKey : '';
+    if (!khoa) return { removed: false };
+    const lyDo = typeof body?.lyDo === 'string' && body.lyDo ? body.lyDo : 'gỡ khỏi hồ sơ';
+    return { removed: await this.files.goBoTheoKhoa(khoa, lyDo) };
   }
 }

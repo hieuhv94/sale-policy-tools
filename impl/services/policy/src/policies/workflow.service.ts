@@ -869,7 +869,38 @@ export class WorkflowService {
 
   // --- File đính kèm --------------------------------------------------------
 
+  /**
+   * Ghi con trỏ tệp vào hồ sơ — và DỌN tệp lại nếu lượt ghi bị từ chối (`0149`).
+   *
+   * Tải lên là HAI lời gọi từ trình duyệt: `document` nhận file thật, rồi `policy`
+   * ghi con trỏ. Không có phép bù trừ nào giữa hai lời gọi ấy, nên mỗi lượt gọi
+   * thứ hai bị từ chối để lại một tệp nằm trên kho mà không hồ sơ nào trỏ tới —
+   * và những lượt từ chối ấy là chuyện thường: `POLICY_LOCKED` khi hồ sơ đổi
+   * trạng thái giữa lúc mở màn hình và lúc chọn xong file, `403` khi sai vai trò.
+   *
+   * Bù trừ ở MÁY CHỦ chứ không ở giao diện, dù giao diện cũng gọi được
+   * `DELETE /files/:id`: máy chủ biết chắc mình vừa từ chối, còn trình duyệt thì
+   * có thể đã đóng. Đường này phủ nhiều hơn hẳn, và KHÔNG phủ hết — mất mạng
+   * đúng giữa hai lời gọi thì vẫn còn một tệp mồ côi, và không có chỗ nào biết
+   * để mà dọn.
+   */
   async attach(
+    policyId: string,
+    input: { kind: 'HO_SO' | 'SCAN'; fileName: string; objectKey: string; sizeBytes: bigint },
+    me: AuthUser,
+  ) {
+    try {
+      return await this.attachNoiBo(policyId, input, me);
+    } catch (e) {
+      // Tệp vừa tải lên giờ không thuộc về hồ sơ nào — gỡ nó rồi mới ném lỗi
+      // thật ra ngoài. `goBoTep` tự nuốt lỗi của chính nó, nên lỗi người dùng
+      // nhận vẫn là lỗi gốc chứ không bị một lỗi dọn dẹp che mất.
+      await this.clients.goBoTep(input.objectKey, 'hồ sơ từ chối đính kèm');
+      throw e;
+    }
+  }
+
+  private async attachNoiBo(
     policyId: string,
     input: { kind: 'HO_SO' | 'SCAN'; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
@@ -944,8 +975,11 @@ export class WorkflowService {
     // Gỡ theo LOẠI của chính tệp ấy, không theo trạng thái hồ sơ: một hồ sơ ở
     // bước Sale Admin vẫn còn giấy tờ do TDV đính lúc lập, và Sale Admin không
     // có việc gì với chúng.
-    const t = await this.db.one<{ kind: 'HO_SO' | 'SCAN' }>(
-      `SELECT kind::text AS kind FROM pol.policy_attachment WHERE id = $1 AND policy_id = $2`,
+    const t = await this.db.one<{ kind: 'HO_SO' | 'SCAN'; object_key: string }>(
+      // `object_key` đi kèm từ `0149`: lượt gỡ giờ xoá cả tệp trên kho, và khoá
+      // kho là thứ duy nhất `document` nhận diện tệp theo.
+      `SELECT kind::text AS kind, object_key
+         FROM pol.policy_attachment WHERE id = $1 AND policy_id = $2`,
       [attachmentId, policyId],
     );
     if (!t) throw new NotFoundException({ code: 'ATTACHMENT_NOT_FOUND' });
@@ -955,6 +989,27 @@ export class WorkflowService {
       attachmentId,
       policyId,
     ]);
+
+    /*
+     * GỠ HẲN TỆP KHỎI KHO (`0149`).
+     *
+     * Bản trước chỉ xoá con trỏ, và chú thích tại chỗ nêu lý do: `DELETE /files/:id`
+     * chỉ mở cho TDV và Sale Admin, nên gọi nó ở đây sẽ chặn Kế toán gỡ tệp.
+     *
+     * Lý do ấy ĐÃ CŨ. Từ `0069`, `assertNguoiGhiTep` ngay trên đây chặn Kế toán
+     * gỡ bất kỳ loại tệp nào: `HO_SO` chỉ TDV, `SCAN` chỉ Sale Admin — đúng hai
+     * vai trò trong danh sách được xoá tệp. Câu chú thích kia tả thế giới TRƯỚC
+     * `0069` và thành sai ngay chặng sau đó; không ai đọc lại nó.
+     *
+     * Hệ quả của việc không đọc lại: kho chỉ lớn lên, và không một thao tác nào
+     * của người dùng xoá được một byte. Từ `0148` còn nặng hơn — giấy tờ đã gỡ
+     * QUAY LẠI ở phiên bản CSBH mới, vì lượt chép đọc bảng của `document` chứ
+     * không đọc bảng con trỏ. `0149` sửa cả hai đầu.
+     *
+     * SAU transaction và NUỐT lỗi — xem `goBoTep`: việc người dùng yêu cầu đã
+     * xong, và đường lùi khi hỏng đúng bằng hành vi cũ.
+     */
+    await this.clients.goBoTep(t.object_key, `gỡ khỏi hồ sơ bởi ${me.role}`);
     return { ok: true };
   }
 

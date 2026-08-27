@@ -419,22 +419,33 @@ export class PoliciesService {
     /*
      * HỎI BẢNG CỦA MÌNH TRƯỚC, rồi mới gọi ra ngoài.
      *
-     * Một câu `SELECT ... LIMIT 1` cục bộ thay cho một lời gọi HTTP ở mọi lượt
-     * lập phiên bản mới. Cái nó mua được không phải tốc độ mà là **phạm vi phụ
-     * thuộc**: chỉ những khách hàng thật sự có giấy tờ đính kèm mới cần
-     * `document` sống lúc lập bản mới. Bản đầu tiên của mọi khách, và mọi bản
-     * mới của khách chưa đính tờ nào, không gọi lời nào cả.
+     * Một câu `SELECT` cục bộ thay cho một lời gọi HTTP ở mọi lượt lập phiên bản
+     * mới. Cái nó mua được không phải tốc độ mà là **phạm vi phụ thuộc**: chỉ
+     * những khách hàng thật sự có giấy tờ đính kèm mới cần `document` sống lúc
+     * lập bản mới. Bản đầu tiên của mọi khách, và mọi bản mới của khách chưa
+     * đính tờ nào, không gọi lời nào cả.
+     *
+     * `0149` — câu này còn LÀM MỘT VIỆC THỨ HAI, và là việc quan trọng hơn: nó
+     * quyết định **chép tệp nào**. Bản `0148` chỉ hỏi *"có tệp không"* rồi để
+     * `document` tự chọn từ bảng của nó — tức lấy nhầm bảng. `pol.policy_attachment`
+     * là bảng duy nhất trả lời được *"hồ sơ cũ có tệp gì"*; bảng bên kia trả lời
+     * *"tệp nào tồn tại"*, và hai câu ấy lệch nhau đúng ở tệp đã GỠ và tệp MỒ
+     * CÔI. Kết quả của bản cũ: giấy tờ TDV đã gỡ quay lại ở bản mới.
      */
-    const coGiayTo =
-      active !== undefined &&
-      active !== null &&
-      (await this.db.one(
-        `SELECT 1 FROM pol.policy_attachment
-          WHERE policy_id = $1 AND kind = 'HO_SO' LIMIT 1`,
-        [active.id],
-      )) !== undefined;
+    const khoaGiayTo = active
+      ? (
+          await this.db.q<{ object_key: string }>(
+            `SELECT object_key FROM pol.policy_attachment
+              WHERE policy_id = $1 AND kind = 'HO_SO' ORDER BY uploaded_at`,
+            [active.id],
+          )
+        ).map((x) => x.object_key)
+      : [];
 
-    const tepThuaKe = coGiayTo ? await this.clients.saoChepGiayTo(active!.id, policyId) : [];
+    const tepThuaKe =
+      khoaGiayTo.length > 0
+        ? await this.clients.saoChepGiayTo(active!.id, policyId, khoaGiayTo)
+        : [];
 
     return this.db.tx(async (c) => {
       const created = await c.query<PolicyRow>(

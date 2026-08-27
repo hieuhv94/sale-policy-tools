@@ -9,6 +9,7 @@ import { PG, paged, pgCode, type AuthUser, type Page, kemNguCanh } from '@csbh/h
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
 import { PolicyClient } from '../infra/policy.client.js';
+import { DocumentClient } from '../infra/document.client.js';
 import { cauNo, loiDieuKhoan, type DieuKhoanNo } from './dieu-khoan.js';
 
 export type CustomerInput = {
@@ -73,6 +74,7 @@ export class CustomersService {
     private readonly db: Db,
     private readonly scope: ScopeClient,
     private readonly policies: PolicyClient,
+    private readonly documents: DocumentClient,
   ) {}
 
   /** Luật ở `dieu-khoan.ts`, cạnh chính bảng từ vựng nó kiểm (`0138`). */
@@ -470,7 +472,23 @@ export class CustomersService {
     input: { kind: string; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
   ) {
-    await this.assertTdvPhuTrach(customerId, me);
+    /*
+     * Lượt ghi bị TỪ CHỐI thì dọn lại tệp vừa tải lên (`0149`).
+     *
+     * Tải lên là hai lời gọi từ trình duyệt — `document` nhận file, rồi
+     * `customer` ghi con trỏ — và không có phép bù trừ nào giữa chúng. Người
+     * không phải TDV phụ trách bấm tải lên thì `assertTdvPhuTrach` ném 403, và
+     * tệp đã nằm trên kho ở lời gọi trước đó.
+     *
+     * Cùng cách làm với `WorkflowService.attach` bên `policy`; xem chú thích ở
+     * đó về việc vì sao bù trừ ở máy chủ chứ không ở giao diện.
+     */
+    try {
+      await this.assertTdvPhuTrach(customerId, me);
+    } catch (e) {
+      await this.documents.goBoTep(input.objectKey, 'khách hàng từ chối đính kèm');
+      throw e;
+    }
     const r = await this.db.one<{ id: string }>(
       `INSERT INTO cus.customer_document (customer_id, kind, file_name, object_key, size_bytes, uploaded_by)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
@@ -486,17 +504,28 @@ export class CustomersService {
    * để sửa là tải thêm bản đúng rồi để hai bản cạnh nhau — người đọc sau không
    * biết bản nào là bản dùng được.
    *
-   * Chỉ xoá con trỏ ở `cus.customer_document`, KHÔNG xoá file trên kho: file có
-   * vòng đời riêng do `document` giữ, và `sys.run_retention()` dọn theo vòng đời
-   * chung. Cùng cách làm với việc gỡ tệp đính kèm của hồ sơ.
+   * `0149` — XOÁ LUÔN FILE TRÊN KHO, không chỉ con trỏ.
+   *
+   * Bản trước dừng ở con trỏ, với lý do: *"file có vòng đời riêng do `document`
+   * giữ, và `sys.run_retention()` dọn theo vòng đời chung"*. Vế sau **không
+   * đúng**: đọc `0008_scale_retention.sql` thì hàm ấy chỉ đụng hai bảng token và
+   * ba bảng `outbox` — nó chưa bao giờ biết tới `doc.stored_file` lẫn MinIO.
+   *
+   * Một câu nghe hợp lý mà chưa bao giờ đúng, và nó giữ cho chỗ hở này không bị
+   * nghi ngờ. Hệ quả: giấy tờ pháp lý người dùng đã gỡ vẫn tải về được nguyên
+   * vẹn qua `GET /files/:id/content` — với đúng những người có quyền xem khách
+   * hàng ấy, nên không phải lỗ hổng phân quyền, nhưng "đã gỡ" mà vẫn đọc được
+   * thì không phải điều người bấm nút mong đợi.
    */
   async removeDocument(customerId: string, documentId: string, me: AuthUser) {
     await this.assertTdvPhuTrach(customerId, me);
-    const r = await this.db.q(
-      `DELETE FROM cus.customer_document WHERE id = $1 AND customer_id = $2 RETURNING id`,
+    const r = await this.db.q<{ id: string; object_key: string }>(
+      `DELETE FROM cus.customer_document WHERE id = $1 AND customer_id = $2
+       RETURNING id, object_key`,
       [documentId, customerId],
     );
     if (r.length === 0) throw new NotFoundException({ code: 'DOCUMENT_NOT_FOUND' });
+    await this.documents.goBoTep(r[0]!.object_key, `gỡ khỏi hồ sơ pháp lý bởi ${me.role}`);
     return { ok: true };
   }
 

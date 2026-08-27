@@ -389,13 +389,31 @@ export class FilesService {
   async saoChepGiayToHoSo(
     tuHoSo: string,
     sangHoSo: string,
+    khoa: string[],
   ): Promise<{ objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[]> {
+    /*
+     * `policy` NÓI CHÉP TỆP NÀO; ở đây không tự chọn (`0149`).
+     *
+     * Bản `0148` tự chọn bằng `owner_id = hồ sơ cũ AND purpose = 'HO_SO'`, và đó
+     * là lấy nhầm bảng. Bảng này trả lời *"tệp nào tồn tại"*; câu cần hỏi là
+     * *"hồ sơ cũ có tệp gì"*, và chỉ `pol.policy_attachment` trả lời được.
+     *
+     * Hai câu ấy lệch nhau ở đúng những tệp mà `0149` đang chữa: tệp TDV đã GỠ
+     * khỏi hồ sơ (con trỏ mất, dòng ở đây còn), và tệp MỒ CÔI của một lượt tải
+     * lên hỏng nửa chừng (chưa bao giờ có con trỏ). Bản `0148` chép cả hai — nên
+     * giấy tờ đã gỡ quay lại ở bản mới, còn tệp mồ côi thành đính kèm thật.
+     *
+     * Vẫn lọc thêm `purpose = 'HO_SO'` dù `policy` đã lọc `kind`: hai chốt cho
+     * cùng một luật, và chốt ở đây là chốt cuối trước khi byte được nhân đôi.
+     */
+    if (khoa.length === 0) return [];
     const nguon = await this.db.q<FileRow>(
       `SELECT * FROM doc.stored_file
         WHERE owner_kind = 'POLICY' AND owner_id = $1
           AND purpose = 'HO_SO' AND deleted_at IS NULL
+          AND object_key = ANY($2::text[])
         ORDER BY uploaded_at`,
-      [tuHoSo],
+      [tuHoSo, khoa],
     );
 
     const ra: { objectKey: string; fileName: string; sizeBytes: string; uploadedBy: string }[] = [];
@@ -421,6 +439,28 @@ export class FilesService {
       });
     }
     return ra;
+  }
+
+  /**
+   * Gỡ hẳn một tệp theo KHOÁ KHO — `policy` và `customer` gọi khi con trỏ của
+   * chúng bị xoá (`0149`).
+   *
+   * Theo `object_key` chứ không theo `id`: hai bảng con trỏ (`pol.policy_attachment`,
+   * `cus.customer_document`) chỉ giữ khoá kho, không giữ id của `doc.stored_file`.
+   * Đó là ranh giới có từ `0069` và không đáng đổi cho một lượt xoá.
+   *
+   * Không tìm thấy thì IM LẶNG bỏ qua, không ném: lượt gỡ ở service kia đã ghi
+   * xong rồi, và một tệp vốn đã biến mất thì không có gì để sửa. Ném ra ở đây
+   * chỉ dựng thêm một đường lỗi cho một việc đã đạt mục đích.
+   */
+  async goBoTheoKhoa(objectKey: string, reason: string): Promise<boolean> {
+    const row = await this.db.one<FileRow>(
+      `SELECT * FROM doc.stored_file WHERE object_key = $1 AND deleted_at IS NULL`,
+      [objectKey],
+    );
+    if (!row) return false;
+    await this.discard(row.id, reason);
+    return true;
   }
 
   async discard(id: string, reason: string): Promise<void> {
