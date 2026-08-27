@@ -10,7 +10,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { contains, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
-import { build, BUOC_DANG_CHO, SAP_QUA_HAN, type Filter } from './filter.js';
+import { build, BUOC_DANG_CHO, SAP_QUA_HAN, type Filter, type PhamVi } from './filter.js';
 
 /**
  * Khoá thẻ trên trang tổng quan — bốn bước chờ, riêng B8 tách làm hai (`0045`).
@@ -120,8 +120,8 @@ export class ReportsService {
         message: `limit phải là số nguyên trong khoảng 1..${LIST_LIMIT_MAX}`,
       });
     }
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build(filter, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build(filter, pv);
 
     let cursorSql = '';
     if (opts.cursor) {
@@ -170,12 +170,12 @@ export class ReportsService {
    * là mời người dùng chọn một cái tên rồi nhận về danh sách rỗng, mà không có
    * gì nói cho họ biết vì sao — đúng cái bẫy `RPT-09` mở ra.
    *
-   * Dùng lại `build({}, ids)` chứ không viết lại mệnh đề phạm vi: ô chọn và
+   * Dùng lại `build({}, pv)` chứ không viết lại mệnh đề phạm vi: ô chọn và
    * danh sách kết quả phải nói về cùng một tập hồ sơ.
    */
   async handlers(me: AuthUser): Promise<{ userId: string; name: string | null }[]> {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build({}, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build({}, pv);
     const rows = await this.db.q<{ id: string; name: string | null }>(
       `SELECT tdv_user_id::text AS id, max(tdv_name) AS name
          FROM rpt.policy_row
@@ -208,8 +208,8 @@ export class ReportsService {
     me: AuthUser,
     q: string,
   ): Promise<{ code: string; name: string }[]> {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build({}, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build({}, pv);
     const tuKhoa = q.trim();
     if (tuKhoa === '') return [];
     params.push(contains(tuKhoa), `%${tuKhoa.toUpperCase()}%`);
@@ -229,8 +229,8 @@ export class ReportsService {
 
   /** Tổng số hồ sơ khớp bộ lọc — hỏi riêng vì màn hình chỉ cần nó khi cần. */
   async count(me: AuthUser, filter: Filter): Promise<number> {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build(filter, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build(filter, pv);
     const r = await this.db.one<{ n: string }>(
       `SELECT count(*)::text AS n FROM rpt.policy_row WHERE ${where}`,
       params,
@@ -239,8 +239,8 @@ export class ReportsService {
   }
 
   /** Toàn bộ tập đã lọc, để xuất Excel. Không phân trang — người gọi tự giới hạn. */
-  async all(scopeIds: string[], filter: Filter, cap: number): Promise<Record<string, unknown>[]> {
-    const { where, params } = build(filter, scopeIds);
+  async all(pv: PhamVi, filter: Filter, cap: number): Promise<Record<string, unknown>[]> {
+    const { where, params } = build(filter, pv);
     params.push(cap);
     /*
      * MỘT DÒNG CHO MỖI SẢN PHẨM (`0080`), không phải một dòng cho mỗi hồ sơ.
@@ -275,8 +275,8 @@ export class ReportsService {
    * nhánh cũ (§4). Hồ sơ đang chờ bình thường thì bước suy ra từ trạng thái.
    */
   async progress(me: AuthUser, filter: Filter) {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build(filter, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build(filter, pv);
 
     const byStatus = await this.db.q<{ k: string; n: string }>(
       `SELECT status AS k, count(*)::text AS n FROM rpt.policy_row
@@ -339,8 +339,8 @@ export class ReportsService {
    * thì không có cơ hội bị trả lại, đưa vào mẫu số chỉ làm loãng tỷ lệ.
    */
   async returnRate(me: AuthUser, filter: Filter) {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build(filter, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build(filter, pv);
     const r = await this.db.one<{
       submitted: string;
       returned: string;
@@ -388,8 +388,8 @@ export class ReportsService {
    * không trông vào việc người xem nhớ đặt thêm bộ lọc.
    */
   async sla(me: AuthUser, filter: Filter, now = new Date()) {
-    const ids = await this.scope.userIdsFor(me);
-    const { where, params } = build(filter, ids);
+    const pv = await this.scope.phamViCua(me);
+    const { where, params } = build(filter, pv);
     // Thời điểm so sánh là THAM SỐ, không phải `now()` trong SQL. Cùng lý do với
     // sla-worker: đồng hồ phải tiêm được thì mới kiểm được hành vi ở ngày 13 và
     // ngày 14 mà không phải chờ hai tuần.
@@ -414,7 +414,7 @@ export class ReportsService {
 
     // Đếm riêng phần bị loại, dùng lại đúng mệnh đề lọc nhưng KHÔNG có tham số
     // thời điểm — `where` được dựng trước khi tham số đó được thêm vào.
-    const forExcluded = build(filter, ids);
+    const forExcluded = build(filter, pv);
     const excluded = await this.db.one<{ n: string }>(
       `SELECT count(*)::text AS n FROM rpt.policy_row
         WHERE ${forExcluded.where} AND source = 'LEGACY' AND sla_due_at IS NOT NULL`,

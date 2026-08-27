@@ -16,6 +16,7 @@ import {
 } from '../../services/policy/src/policies/policies.service.js';
 import { phanCongCua } from '../../services/policy/src/policies/workflow.service.js';
 import { oChonCua } from '../../apps/web/src/lib/nguoi-xu-ly.js';
+import { build } from '../../services/reporting/src/reports/filter.js';
 
 /** Bốn cột người — phần không đổi của mọi mệnh đề phạm vi (`0031`). */
 const BON_COT = ['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id'];
@@ -285,5 +286,64 @@ describe('`0143` bảng phân công của giao diện KHỚP bảng máy chủ',
       const web = oChonCua(hd, { daChonSaleAdmin: false }).map((x) => x.vaiTro);
       expect(web, hd).toEqual(may);
     }
+  });
+});
+
+// =============================================================================
+// `0144` — `policy` và `reporting` trả lời GIỐNG HỆT nhau
+// =============================================================================
+
+/**
+ * `filter.ts` bên `reporting` chép lại mệnh đề phạm vi của `policy`, và có sẵn
+ * một chú thích từ `0031`: *"hai chỗ phải trả lời giống hệt nhau, nếu không thì
+ * một hồ sơ mở được ở màn hình Hồ sơ mà biến mất khỏi Báo cáo"*.
+ *
+ * Suốt từ đó tới `0143` **không ca kiểm nào canh câu ấy**, và `0142` đã tạo ra
+ * đúng cái lệch ấy theo chiều ngược: thẻ *Sắp quá hạn* của Kế toán đếm 3, bấm
+ * vào ra 2 dòng.
+ *
+ * So bằng cách CHUẨN HOÁ hai chuỗi SQL rồi đối chiếu — không so từng ký tự, vì
+ * hai bên khác nhau hợp lệ ở hai chỗ: `policy` đọc enum nên phải `status::text`,
+ * và `policy` có bí danh bảng còn `reporting` thì không.
+ */
+const chuanHoa = (sql: string): string =>
+  sql
+    .replace(/\bp\./g, '')
+    .replace(/status::text/g, 'status')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+describe('`0144` hai service dựng cùng một mệnh đề phạm vi', () => {
+  /*
+   * Bộ lọc RỖNG, nên `where` chỉ gồm đúng mệnh đề phạm vi — `build` nối các
+   * điều kiện bằng ` AND `, và cắt theo chuỗi ấy sẽ cắt nhầm vào giữa chính
+   * mệnh đề của Kế toán (nó cũng chứa một chữ `AND`). Đã dính một lượt.
+   */
+  const cuaReporting = (vaiTro: string): string => build({}, { ids: ['x'], vaiTro }).where;
+
+  it('KẾ TOÁN: cùng bốn cột, cùng luật riêng', () => {
+    expect(chuanHoa(cuaReporting('KE_TOAN'))).toBe(chuanHoa(thuocPhamVi(1, '', 'KE_TOAN')));
+  });
+
+  it('mọi vai trò khác: cùng bốn cột, không luật nào thêm', () => {
+    for (const vt of ['TDV', 'TBP', 'SALE_ADMIN', 'BAN_LANH_DAO', 'QUAN_TRI']) {
+      expect(chuanHoa(cuaReporting(vt)), vt).toBe(chuanHoa(thuocPhamVi(1, '', vt)));
+    }
+  });
+
+  it('bên `reporting` cũng CHỈ siết Kế toán, không siết ai khác', () => {
+    // Chiều đối chiếu: nối nhầm luật cho mọi vai trò thì TDV mất hồ sơ mình vừa
+    // gửi khỏi mọi con số của Tổng quan, và không thẻ nào nói vì sao.
+    expect(cuaReporting('KE_TOAN')).toContain('da_qua_tbp');
+    for (const vt of ['TDV', 'TBP', 'SALE_ADMIN', 'BAN_LANH_DAO']) {
+      expect(cuaReporting(vt), vt).not.toContain('da_qua_tbp');
+    }
+  });
+
+  it('`params[0]` vẫn là danh sách phạm vi — hợp đồng của `build`', () => {
+    // Mọi tiêu chí lọc đánh số tham số động tính từ `$1`. Đổi chỗ nó là lệch
+    // toàn bộ, và triệu chứng là một câu SQL chạy được nhưng lọc sai.
+    const { params } = build({}, { ids: ['a', 'b'], vaiTro: 'KE_TOAN' });
+    expect(params[0]).toEqual(['a', 'b']);
   });
 });

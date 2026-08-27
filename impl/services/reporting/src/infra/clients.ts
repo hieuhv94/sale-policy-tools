@@ -58,8 +58,15 @@ export type PolicySrc = {
    * phân khác đi qua ranh giới này, để không mất chữ số ở tầng JSON.
    */
   so_lan_tbp_tra_lai: number;
-  /** `0142` — hồ sơ đã từng qua Trưởng bộ phận; KHÔNG bao giờ về `false`. */
-  da_qua_tbp?: boolean;
+  /**
+   * `0142` — hồ sơ đã từng qua Trưởng bộ phận; KHÔNG bao giờ về `false`.
+   *
+   * Khai BẮT BUỘC (`0144`): `?` ở đây là cái đã để lượt đầu trôi lọt. Nguồn
+   * KHÔNG trả cột này vì `internal.controller` liệt kê từng cột, `src.da_qua_tbp`
+   * ra `undefined`, và `?? false` biến một thiếu sót thành một câu trả lời sai
+   * mà TypeScript không có gì để nói.
+   */
+  da_qua_tbp: boolean;
   sua_lai_ngay: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */

@@ -229,7 +229,7 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
       idNumber: String(5100333333 + ++nMst),
-      debt: '4500000',
+      debtTerm: 'SAU_NHAN_HANG',
       ...over, phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
@@ -731,8 +731,14 @@ describe('DOC-31 · DOC-32 định dạng và bảng lặp', () => {
     const d = await toReceivedL1(1);
     const prev = (await dget(`/policies/${d.id}/contract/preview?mauId=${await mauHD()}`, 'kt01')).body;
 
-    // Công nợ 4.500.000 — dấu phân nhóm nghìn kiểu Việt Nam.
-    expect(prev.values['{{ho_so.cong_no}}']).toBe('4.500.000');
+    /*
+     * `0138` — công nợ đi ra là CÂU CHỮ, không phải số tiền. Để nó ở `money_vnd`
+     * thì `applyFormat` phân nhóm hàng nghìn một câu tiếng Việt.
+     *
+     * Phép phân nhóm hàng nghìn vẫn được canh trong chính ca này, chỉ đổi chỗ:
+     * `87.000` ở cuối, đọc ra từ bảng sản phẩm trong PDF.
+     */
+    expect(prev.values['{{ho_so.cong_no}}']).toBe('Thanh toán sau khi nhận hàng');
     expect(prev.values['{{ngay_in}}']).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
 
     /*
@@ -2348,12 +2354,17 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
 
   it('GỬI DUYỆT thì chụp đủ tám trường khách hàng và tên người đề nghị', async () => {
     const d = await draft();
-    await suaKhach(d.customerId, { name: 'Nhà thuốc Trước Khi Gửi', debt: '7777777' });
+    await suaKhach(d.customerId, {
+      name: 'Nhà thuốc Trước Khi Gửi',
+      debtTerm: 'GOI_DON_90',
+    });
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
 
     const a = await anhChup(d.id);
     expect(a.kh_ten_snap).toBe('Nhà thuốc Trước Khi Gửi');
-    expect(a.kh_cong_no_snap).toBe('7777777');
+    // `0138` — ảnh chụp giữ CÂU đã dựng, không giữ mã điều khoản: đổi câu chữ
+    // của `CAU_DIEU_KHOAN` về sau không được sửa lại tờ CSBH đã gửi duyệt.
+    expect(a.kh_cong_no_snap).toBe('Thanh toán gối đơn, công nợ không quá 90 ngày');
     expect(a.kh_ma_snap).toBe(d.code);
     expect(a.kh_dia_chi_dang_ky_snap).toBe(ADDRESS_1);
     // `AuthUser.name` — ảnh chụp danh tính của `0090`, chính người vừa bấm gửi.
@@ -2362,22 +2373,25 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
 
   it('SỬA KHÁCH HÀNG sau khi gửi duyệt thì bản mềm KHÔNG đổi', async () => {
     const d = await draft();
-    await suaKhach(d.customerId, { name: 'Nhà thuốc Đã Duyệt', debt: '1234567' });
+    await suaKhach(d.customerId, { name: 'Nhà thuốc Đã Duyệt', debtTerm: 'GOI_DON_90' });
     await act(d.id, 'SUBMIT', 'tdv01');
 
     const truoc = await banMem(d.id);
     expect(truoc).toContain('Nhà thuốc Đã Duyệt');
 
     // Đổi cả tên lẫn công nợ — đúng kịch bản đã đo được ở lượt rà `0099`.
-    await suaKhach(d.customerId, { name: 'TÊN MỚI SAU KHI KÝ', debt: '9999999' });
+    await suaKhach(d.customerId, {
+      name: 'TÊN MỚI SAU KHI KÝ',
+      debtTerm: 'KHAC',
+      debtNote: 'ĐIỀU KHOẢN MỚI SAU KHI KÝ',
+    });
 
     const sau = await banMem(d.id);
     expect(sau, 'tên mới KHÔNG được lọt vào văn bản đã gửi duyệt').not.toContain(
       'TÊN MỚI SAU KHI KÝ',
     );
     expect(sau).toContain('Nhà thuốc Đã Duyệt');
-    // Công nợ in ra có định dạng tiền, nên so bằng chuỗi đã bỏ khoảng trắng.
-    expect(packed(sau)).not.toContain(packed('9.999.999'));
+    expect(packed(sau)).not.toContain(packed('ĐIỀU KHOẢN MỚI SAU KHI KÝ'));
   }, 120_000);
 
   it('TBP KÝ thì chụp tên người ký, và tên ấy in ra bản mềm', async () => {
@@ -2439,12 +2453,16 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     expect((await anhChup(d.id)).kh_ten_snap).toBe('Tên SAI lúc gửi lần đầu');
 
     // Đây là cả nội dung của yêu cầu: đóng băng KHÔNG được khoá chết việc sửa.
-    await suaKhach(d.customerId, { name: 'Tên ĐÚNG sau khi sửa', debt: '2024' });
+    await suaKhach(d.customerId, {
+      name: 'Tên ĐÚNG sau khi sửa',
+      debtTerm: 'KHAC',
+      debtNote: 'Trả trước 30%, còn lại sau 60 ngày',
+    });
     expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
 
     const a = await anhChup(d.id);
     expect(a.kh_ten_snap).toBe('Tên ĐÚNG sau khi sửa');
-    expect(a.kh_cong_no_snap).toBe('2024');
+    expect(a.kh_cong_no_snap).toBe('Trả trước 30%, còn lại sau 60 ngày');
 
     const chu = await banMem(d.id);
     expect(chu).toContain('Tên ĐÚNG sau khi sửa');
@@ -2497,19 +2515,27 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
      * không có gì nói cho họ biết cái nào đúng.
      */
     const d = await draft();
-    await suaKhach(d.customerId, { name: 'Nhà thuốc Khớp Nhau', debt: '5555555' });
+    await suaKhach(d.customerId, {
+      name: 'Nhà thuốc Khớp Nhau',
+      debtTerm: 'KHAC',
+      debtNote: 'Trả sau 45 ngày kể từ ngày nhận hàng',
+    });
     await act(d.id, 'SUBMIT', 'tdv01');
+    // `0142` — Kế toán chưa thấy hồ sơ ở lượt chờ TBP ĐẦU TIÊN, nên phải cho nó
+    // đi qua chữ ký thì mới hỏi được đúng câu ca kiểm này muốn hỏi.
+    await act(d.id, 'TBP_SIGN', 'tbp01');
 
-    await suaKhach(d.customerId, { name: 'Tên đổi sau khi gửi', debt: '8888888' });
+    await suaKhach(d.customerId, { name: 'Tên đổi sau khi gửi', debtTerm: 'SAU_NHAN_HANG' });
 
     const man = await pget(`/policies/${d.id}`, 'kt01');
-    expect(man.body.khachHang.congNo).toBe('5555555');
+    expect(man.status, JSON.stringify(man.body)).toBe(200);
+    expect(man.body.khachHang.congNo).toBe('Trả sau 45 ngày kể từ ngày nhận hàng');
     expect(man.body.khachHang.ten).toBe('Nhà thuốc Khớp Nhau');
     expect(man.body.nguoiDeNghi.ten).toBe((await anhChup(d.id)).nguoi_de_nghi_snap);
 
     const chu = await banMem(d.id);
     expect(chu).toContain('Nhà thuốc Khớp Nhau');
-    expect(packed(chu)).toContain(packed('5.555.555'));
+    expect(packed(chu)).toContain(packed('Trả sau 45 ngày kể từ ngày nhận hàng'));
   }, 120_000);
 
   it('hồ sơ lập TRƯỚC `0101` vẫn dựng được — đọc sống, không vỡ', async () => {
@@ -2538,7 +2564,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
       await withAdminDb(async (c) => {
         await c.query(
           `UPDATE pol.policy SET kh_ma_snap = $2, kh_ten_snap = $3,
-                  kh_dia_chi_dang_ky_snap = $4, kh_cong_no_snap = $5::bigint,
+                  kh_dia_chi_dang_ky_snap = $4, kh_cong_no_snap = $5::text,
                   nguoi_de_nghi_snap = $6
             WHERE id = $1`,
           [

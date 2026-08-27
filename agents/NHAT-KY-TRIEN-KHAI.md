@@ -12525,3 +12525,120 @@ Ca HTTP đầu-cuối cho cả hai yêu cầu, và mệnh đề phạm vi bên `
 cần CSDL, tức cần hạ chồng demo.
 
 **726/728 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).**
+
+## P172 — `0144` thẻ *Sắp quá hạn* và danh sách nói cùng một con số
+
+Người dùng đọc đúng một câu trong bản rà của chặng trước — *"thẻ Sắp quá hạn của
+Kế toán còn đếm cả hồ sơ vừa bị giấu"* — và bảo sửa. Chặng này là món nợ P171 tự
+ghi ra ở dòng cuối cùng của nó.
+
+### Một mệnh đề phạm vi, chép ở hai chỗ
+
+`0142` chỉ siết `policy`. `reporting` có mệnh đề phạm vi RIÊNG trong `filter.ts`,
+chép tay bốn cột người từ `0031`, kèm sẵn một dòng chú thích: *"hai chỗ phải trả
+lời giống hệt nhau, nếu không thì một hồ sơ mở được ở màn hình Hồ sơ mà biến mất
+khỏi Báo cáo"*. Thêm luật vào một bên là dựng ra đúng cái lệch ấy theo chiều
+ngược: **đếm được ở Tổng quan, mở ra thì 403.**
+
+Không gộp hai mệnh đề làm một, và đó là lựa chọn: chúng chạy trên hai bảng của
+hai service, `pol.policy` có `status` là enum còn `rpt.policy_row` là `text`, và
+`csbh_rpt` không có quyền đọc lược đồ `pol` (AD-02). Thứ gộp được là **phép so**,
+nên năm ca kiểm mới so chính hai chuỗi SQL sinh ra sau khi chuẩn hoá khoảng trắng
+và bí danh bảng. Dòng chú thích từ `0031` giờ có người canh.
+
+### `tsc` liệt kê hộ 18 chỗ gọi
+
+Đổi `build(f, ids: string[])` thành `build(f, pv: PhamVi)` thay vì thêm một tham
+số thứ ba có giá trị mặc định. Tham số mặc định thì chỗ gọi cũ vẫn dịch được, và
+đúng những chỗ ấy là chỗ quên. Kiểu mới làm cả 18 chỗ đỏ, gồm ba service con
+(`reports`, `thong-ke`, `exports`), rồi mỗi chỗ đổi
+`const ids = await this.scope.userIdsFor(me)` thành một `PhamVi` mang thêm
+`me.role`.
+
+Mười một chỗ ấy dựng cùng một cặp giá trị, nên nó về thành `scope.phamViCua(me)`
+— một hàm, không phải một dòng chép mười một lần. Đây không phải chuyện gọn mắt:
+lấy được `ids` mà quên `vaiTro` là đúng cái sai chặng này đang sửa, và một hàm
+trả về cả cặp thì không có cách nào lấy vế này mà bỏ vế kia.
+
+Ba ô đếm của trang Tổng quan — `byStep`, `byStepDetail`, `byTdv` — đều dựng trên
+cùng một chuỗi `where`, nên thẻ và danh sách khớp nhau **theo cấu tạo**, không
+phải nhờ một phép sửa riêng cho thẻ.
+
+### Bẫy `0128`, lần thứ ba
+
+Ca kiểm ngoại tuyến xanh hết, và đường thật vẫn hỏng: `internal.controller` của
+`policy` — nguồn mà `reporting` đồng bộ từ đó — **liệt kê từng cột trong câu
+SELECT** và không biết `da_qua_tbp`. Mọi dòng read-model mang `false`.
+
+Cái làm nó ngủ yên được là một dòng phòng thủ: `src.da_qua_tbp ?? false`. Bản
+`0142` viết dòng ấy kèm nguyên văn lời cảnh báo *"ngày ai đó nối mệnh đề vào, mọi
+dòng đồng bộ từ hôm nay tới lúc ấy đều mang `false` sai"* — và người nối mệnh đề
+vào là chính tôi, ba chặng sau. **Một giá trị lùi im lặng là chỗ để một thiếu sót
+sống sót.** Gỡ `??` và khai `da_qua_tbp` bắt buộc bên `clients.ts`: cột `NOT
+NULL` nhận `undefined` thì `pg` ném ngay, ồn ào, ở lượt đồng bộ đầu tiên.
+
+Nhưng phải nói rõ giới hạn: **kiểu bắt buộc KHÔNG bắt được lỗi này** — ranh giới
+HTTP là một phép ép kiểu, `tsc` không có gì để nói. Thứ bắt được là ca kiểm
+`da_qua_tbp đi được từ nguồn sang read-model`, đọc thẳng `rpt.policy_row` sau ba
+lượt chuyển bước. Đó là khác biệt với P171: ở đó kiểu bắt buộc là chốt chặn thật
+vì cả hai đầu đều là mã TypeScript; ở đây hai đầu nối nhau bằng JSON.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ nhánh `KE_TOAN` khỏi `filter.ts` | 3 đỏ — 2 ca so chuỗi SQL, 1 ca đầu-cuối |
+| Gỡ `da_qua_tbp` khỏi câu SELECT của `internal.controller` | **61 đỏ** trong `reporting.test.ts` |
+
+Ca *"hồ sơ ĐÃ qua TBP rồi quay lại thì vào CẢ HAI"* **xanh** ở lượt phá thứ nhất,
+và điều đó đúng: bỏ luật đi thì mọi hồ sơ đều thấy được, nên hai con số vẫn nhích
+cùng một lượng. Nó canh chiều dương — bản sửa siết quá tay, giấu luôn hồ sơ Kế
+toán phải xử lý — chứ không canh chiều âm. Hai ca đứng cạnh nhau mới đủ.
+
+61 đỏ ở lượt thứ hai là con số của một đường ống đứt hẳn chứ không phải một luật
+sai; trước khi gỡ `??` thì cùng phép phá ấy chỉ làm đỏ 2 ca, và không ca nào chỉ
+vào câu SELECT.
+
+### `flushSync` so TRẠNG THÁI, và trạng thái quay lại chỗ cũ
+
+Ca *"đã qua TBP rồi quay lại thì vào cả hai"* đỏ ở một lượt chạy đầy đủ rồi xanh
+ở lượt sau — chập chờn, và nguyên nhân đáng ghi.
+
+`flushSync` của `reporting.test.ts` chờ tới khi `rpt.policy_row.status` bằng
+`pol.policy.status`. Kịch bản của ca này đưa hồ sơ đi một vòng rồi **về đúng chỗ
+cũ**: `CHO_TBP_DUYET` → ký → bị trả → sửa → `CHO_TBP_DUYET`. Read-model chạm
+trạng thái ấy ngay từ lượt gửi ĐẦU, nên phép chờ trả về khi ba sự kiện sau còn
+đang trên đường; lượt `UPDATE` đặt hạn ngay sau đó bị chính chúng ghi đè, và
+con số về 0.
+
+Chữa bằng `donDong()`, chờ `rpt.policy_row.src_row_version >= pol.policy.row_version`.
+Hai phép chờ hỏi hai câu khác nhau, và chỉ có một câu đúng ở đây:
+
+    status  — "hai bên có giống nhau LÚC NÀY không?"
+    version — "read-model đã nuốt HẾT chưa?"
+
+Mọi ca kiểm chạy một hồ sơ qua nhiều bước rồi **quay lại một trạng thái đã đi
+qua** đều dính bẫy này, và nó chỉ lộ ra khi máy đủ tải để sự kiện chậm hơn dòng
+lệnh kế tiếp. Chạy lại ba lượt liên tiếp để xác nhận, không tin một lượt xanh.
+
+### Bảy ca kiểm cũ đỏ vì luật đã đổi, không vì hồi quy
+
+Lượt chạy đầy đủ đầu tiên sau bốn chặng ngoại tuyến trả về 13 đỏ. Không cái nào
+là hồi quy:
+
+* **tám ca công nợ** còn khẳng định `debt` là số tiền (`0138` đổi nó thành điều
+  khoản). Viết lại thành ca của luật mới, kể cả ca *đổi từ Khác sang phương án 1
+  thì phần gõ tay biến mất* mà `0138` chưa có;
+* **một ca thư "để biết"** dựng trên kịch bản *gửi lại cho một TBP khác*, đường
+  mà `0141` xoá hẳn. Chọn kịch bản mới bằng cách đọc bảng `RECIPIENTS`: phần lớn
+  các bước gọi tên cả ba vai trò còn lại nên không còn ai để mà "cho biết" —
+  `RESUBMIT_AFTER_EDIT` là bước duy nhất còn chừa ra một người đã tác động thật;
+* **bốn ca phạm vi** đúng là hành vi `0142` mong muốn. Bảng `KHONG_THAY` tách
+  riêng khỏi `MONG_DOI` vì hai bảng trả lời hai câu khác nhau — *"bấm được gì"*
+  và *"mở được không"* — và gộp lại thì một hồ sơ biến khỏi tầm mắt trông y hệt
+  một hồ sơ hết việc để làm.
+
+Ca `INVALID_TRANSITION` phải đổi người bấm nhầm từ Kế toán sang TDV: 403 của
+`0142` chặn trước khi câu `409` kịp dựng. Luật cần kiểm không đổi.
+
+**1871/1871 xanh.**

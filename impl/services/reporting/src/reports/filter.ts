@@ -297,16 +297,49 @@ export type Built = { where: string; params: unknown[] };
  * hoạch cho một câu lệnh không dùng được chỉ mục nào — với 20 nghìn hồ sơ thì
  * đó là quét toàn bảng ở mọi lần mở màn hình.
  */
-export function build(f: Filter, scopeUserIds: string[]): Built {
-  const params: unknown[] = [scopeUserIds];
+/**
+ * PHẠM VI của người đang hỏi — id **và** vai trò (`0144`).
+ *
+ * Tới `0143` chỗ này chỉ truyền `string[]`. Đủ dùng chừng nào phạm vi còn là
+ * *"id tôi ở một trong bốn cột"* — và `0142` phá vỡ điều đó: Kế toán có thêm một
+ * luật riêng, mà một mảng id thì không nói được ai đang hỏi.
+ *
+ * Đổi kiểu thay vì thêm một tham số thứ ba: `ids` được luồn qua chục hàm riêng
+ * của hai service, và một tham số tuỳ chọn thêm vào cuối thì chỗ nào quên truyền
+ * cũng vẫn dịch được — tức là luật im lặng biến mất ở đúng chỗ ấy. Đổi KIỂU thì
+ * trình biên dịch chỉ ra từng chỗ, đúng cách `0143` đã bịt hai đường `attach` và
+ * `detach`.
+ */
+export type PhamVi = { ids: string[]; vaiTro: string };
+
+/**
+ * Luật riêng của Kế toán (`0142`, nối sang `reporting` ở `0144`).
+ *
+ * Bản sao của `KE_TOAN_CHUA_TOI_LUOT` bên `policy`, viết lại cho `rpt.policy_row`
+ * — bảng ấy có cột `status` là `text` chứ không phải enum, nên không cần ép kiểu.
+ *
+ * Hai chỗ phải trả lời giống hệt nhau. `tests/http/pham-vi-ke-toan.test.ts` so
+ * chính hai chuỗi SQL sinh ra, nên lệch là đỏ chứ không lặng lẽ.
+ */
+const KE_TOAN_CHUA_TOI_LUOT = "(status = 'CHO_TBP_DUYET' AND da_qua_tbp = false)";
+
+export function build(f: Filter, pv: PhamVi): Built {
+  const params: unknown[] = [pv.ids];
   // Phạm vi: id của tôi ở MỘT TRONG BỐN cột người (`0031`). Cùng phép lọc với
   // `thuocPhamVi` bên policy — hai chỗ phải trả lời giống hệt nhau, nếu không
   // thì một hồ sơ mở được ở màn hình Hồ sơ mà biến mất khỏi Báo cáo.
-  const cond: string[] = [
-    `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
-      .map((c) => `${c} = ANY($1::uuid[])`)
-      .join(' OR ')})`,
-  ];
+  const bonCot = `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
+    .map((c) => `${c} = ANY($1::uuid[])`)
+    .join(' OR ')})`;
+  /*
+   * `0144` — Kế toán chưa thấy hồ sơ ở lượt chờ TBP đầu tiên.
+   *
+   * Thiếu vế này thì thẻ *Sắp quá hạn* trên Tổng quan đếm cả hồ sơ mà màn hình
+   * Hồ sơ đã giấu: ô ghi 3, bấm vào ra 2 dòng, và không có gì nói dòng thứ ba đi
+   * đâu. Thẻ ấy cộng `soon` của MỌI bước, kể cả `B4_TBP_DUYET`.
+   */
+  const cond: string[] =
+    pv.vaiTro === 'KE_TOAN' ? [`(${bonCot} AND NOT ${KE_TOAN_CHUA_TOI_LUOT})`] : [bonCot];
   const add = (sql: (i: number) => string, value: unknown): void => {
     params.push(value);
     cond.push(sql(params.length));

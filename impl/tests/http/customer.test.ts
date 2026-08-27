@@ -227,11 +227,35 @@ describe('0026 ba trường phân loại đã rời khỏi khách hàng', () => 
   });
 });
 
-describe('CUST-09 công nợ là trường số bình thường', () => {
-  it('lưu và trả về đúng, không có lời gọi ra hệ thống kế toán nào', async () => {
-    const r = await post('/customers', base({ debt: '150000000' }));
+describe('CUST-09 công nợ là ĐIỀU KHOẢN thanh toán, không phải số tiền (`0138`)', () => {
+  it('lưu mã điều khoản, trả về CÂU CHỮ đã dựng xong', async () => {
+    /*
+     * Trường `debt` trong câu trả lời là trường DẪN XUẤT: `customer` dựng sẵn
+     * câu để `policy` và `document` chỉ thấy một chuỗi. Đó là lý do lượt đổi
+     * `0138` không phải sửa một dòng logic nào ở hai service kia.
+     */
+    const r = await post('/customers', base({ debtTerm: 'GOI_DON_90' }));
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.debtTerm).toBe('GOI_DON_90');
+    expect(r.body.debt).toBe('Thanh toán gối đơn, công nợ không quá 90 ngày');
+  });
+
+  it('*Khác* in ra ĐÚNG câu người dùng gõ', async () => {
+    const r = await post(
+      '/customers',
+      base({ debtTerm: 'KHAC', debtNote: 'Trả trước 30%, còn lại sau 60 ngày' }),
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.debt).toBe('Trả trước 30%, còn lại sau 60 ngày');
+  });
+
+  it('KHÔNG khai gì thì mặc định là phương án THẬN TRỌNG nhất', async () => {
+    // `SAU_NHAN_HANG` — nó KHÔNG cho nợ. Đoán sai theo hướng ấy thì TDV sửa
+    // lại; đoán sai theo hướng ngược lại là in ra một tờ CSBH cho nợ 90 ngày
+    // mà không ai đồng ý.
+    const r = await post('/customers', base());
     expect(r.status).toBe(201);
-    expect(r.body.debt).toBe('150000000');
+    expect(r.body.debt).toBe('Thanh toán sau khi nhận hàng');
   });
 });
 
@@ -344,7 +368,7 @@ describe('CUST-15 sửa khách hàng đang có CSBH hiệu lực', () => {
       ),
     );
 
-    const r = await patch(`/customers/${c.body.id}`, { name: 'Ten moi', debt: '5000' });
+    const r = await patch(`/customers/${c.body.id}`, { name: 'Ten moi', debtTerm: 'GOI_DON_90' });
     expect(r.status).toBe(200);
     expect(r.body.name).toBe('Ten moi');
 
@@ -659,19 +683,48 @@ describe('AD-02 customer không đọc chéo schema khác', () => {
   });
 });
 
-describe('Công nợ bằng 0 là hợp lệ', () => {
-  it('lập được khách hàng không nợ gì', async () => {
-    // `money()` bắt buộc > 0 và đúng cho GIÁ BÁN. Công nợ thì khác: khách vừa
-    // thanh toán xong là nợ 0. Lỗi này chỉ lộ ra khi dựng dữ liệu demo thật.
-    const r = await post('/customers', base({ debt: '0' }));
-    expect(r.status, JSON.stringify(r.body)).toBe(201);
-    expect(r.body.debt).toBe('0');
+describe('`0138` luật HAI CHIỀU của ô ghi rõ nội dung — qua đường HTTP thật', () => {
+  /*
+   * Hàm thuần `loiDieuKhoan` đã có ca riêng ở `dieu-khoan-no.test.ts`. Ba ca
+   * dưới đây đi đường thật để chứng minh service GỌI nó — một luật đúng mà
+   * không ai gọi thì không chặn được gì.
+   */
+  it('chọn *Khác* mà bỏ trống thì 400, và lỗi chỉ vào ĐÚNG ô', async () => {
+    const r = await post('/customers', base({ debtTerm: 'KHAC' }));
+    expect(r.status, JSON.stringify(r.body)).toBe(400);
+    expect(r.body.code).toBe('DEBT_NOTE_REQUIRED');
+    expect(r.body.field).toBe('debtNote');
   });
 
-  it('công nợ ÂM vẫn bị chặn', async () => {
-    const r = await post('/customers', base({ debt: '-1000' }));
+  it('chọn phương án 1 mà VẪN gõ nội dung thì cũng 400', async () => {
+    // Chiều thứ hai. Không chặn thì dòng vừa gõ không đi đâu cả, mà người gõ
+    // tin rằng nó có.
+    const r = await post(
+      '/customers',
+      base({ debtTerm: 'SAU_NHAN_HANG', debtNote: 'ghi thêm' }),
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(400);
+    expect(r.body.code).toBe('DEBT_NOTE_NOT_ALLOWED');
+  });
+
+  it('mã điều khoản LẠ bị chặn ở cửa', async () => {
+    const r = await post('/customers', base({ debtTerm: 'GOI_DON_120' }));
     expect(r.status).toBe(400);
-    expect(r.body.field).toBe('debt');
+  });
+
+  it('đổi từ *Khác* sang phương án 1 thì phần gõ tay BIẾN MẤT', async () => {
+    /*
+     * `debt_note` KHÔNG dùng `coalesce` trong câu `UPDATE` (`0138`). Dùng thì nó
+     * nằm im trong CSDL — vô hại cho tới ngày ai đó đổi ngược về *Khác* và thấy
+     * nội dung của lần trước hiện ra như thể vừa gõ.
+     */
+    const c = await post('/customers', base({ debtTerm: 'KHAC', debtNote: 'Trả sau 45 ngày' }));
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+
+    const u = await patch(`/customers/${c.body.id}`, { debtTerm: 'SAU_NHAN_HANG' });
+    expect(u.status, JSON.stringify(u.body)).toBe(200);
+    expect(u.body.debtNote).toBeNull();
+    expect(u.body.debt).toBe('Thanh toán sau khi nhận hàng');
   });
 });
 

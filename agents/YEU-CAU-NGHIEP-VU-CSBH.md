@@ -1407,6 +1407,13 @@ trong danh sách của Kế toán. Bị trả lại từ các bước sau rồi 
 > Điều kiện là *"đã từng qua Trưởng bộ phận"*, không phải *"đang ở bước nào"*: Kế toán trả hồ sơ lại
 > ở L1 rồi nó quay về chờ TBP thì họ đã đọc nó, đã viết lý do, và có lý do để theo dõi tiếp.
 
+Luật này áp cho **cả các ô đếm** `sửa 27/08` — thẻ *Sắp quá hạn* và mọi ô đếm việc trên trang *Tổng
+quan* và *Thống kê* của Kế toán bỏ qua đúng những hồ sơ đang bị giấu.
+
+> Bấm vào một con số rồi đếm số dòng hiện ra phải bằng chính con số ấy. Một màn hình đếm được thứ
+> màn hình kia không mở được là lỗi nặng hơn cả việc đếm sai: người dùng thấy có việc, bấm vào, và
+> không có gì ở đó.
+
 **Chọn người xử lý MỘT LẦN, ở đúng bước sinh ra việc ấy** `mới 27/08`:
 
 > - **Gửi lại sau khi sửa KHÔNG chọn lại** Trưởng bộ phận và Kế toán — hai người đã chọn từ lượt gửi

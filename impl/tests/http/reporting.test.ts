@@ -2021,3 +2021,136 @@ describe('`0085` hồ sơ đi theo khách hàng', () => {
     expect(row.tdv_user_id, 'read-model tự suy TDV từ khách hàng').toBe(userId['tdv01']);
   });
 });
+
+// =============================================================================
+// `0144` — THẺ VÀ DANH SÁCH NÓI CÙNG MỘT CON SỐ
+// =============================================================================
+
+/**
+ * Khách hàng báo: *"thẻ Sắp quá hạn của Kế toán đếm cả hồ sơ vừa bị giấu"*.
+ *
+ * `0142` giấu hồ sơ chờ TBP lượt đầu khỏi Kế toán — nhưng chỉ ở `policy`. Trang
+ * *Tổng quan* và *Thống kê* đọc `rpt.policy_row` qua `filter.ts`, một mệnh đề
+ * phạm vi CHÉP LẠI, nên nó vẫn đếm những hồ sơ ấy: thẻ ghi 5, bấm vào ra 4.
+ *
+ * Ba ca dưới đây đi ĐƯỜNG THẬT — qua bus, qua read-model — vì cái sai của lượt
+ * này không nằm ở một hàm nào: nó nằm ở chỗ hai đường đọc trả lời khác nhau.
+ */
+describe('`0144` phạm vi của Kế toán giống nhau ở Hồ sơ và ở Tổng quan', () => {
+  /**
+   * Chờ read-model nuốt hết MỌI sự kiện của hồ sơ, so bằng `row_version`.
+   *
+   * `flushSync` so TRẠNG THÁI, và ở đây trạng thái quay lại chỗ cũ: hồ sơ đi
+   * `CHO_TBP_DUYET` → ký → bị trả → sửa → `CHO_TBP_DUYET`. Read-model đạt trạng
+   * thái ấy ngay từ lượt gửi ĐẦU, nên `flushSync` trả về khi ba sự kiện sau còn
+   * đang trên đường. Lượt `UPDATE` hạn ngay sau đó bị chính chúng ghi đè, và ca
+   * kiểm đỏ ở một dòng chẳng liên quan gì tới nguyên nhân.
+   *
+   * `row_version` thì đơn điệu tăng, nên nó trả lời đúng câu cần hỏi: *"đã nuốt
+   * hết chưa"*, không phải *"có giống nhau ở thời điểm này không"*.
+   */
+  async function donDong(id: string, timeoutMs = 20_000): Promise<void> {
+    const until = Date.now() + timeoutMs;
+    for (;;) {
+      await outbox.pumpOnce();
+      const xong = await withAdminDb(async (c) => {
+        const r = await c.query<{ xong: boolean }>(
+          `SELECT r.src_row_version >= p.row_version AS xong
+             FROM pol.policy p
+             JOIN rpt.policy_row r ON r.policy_id = p.id
+            WHERE p.id = $1`,
+          [id],
+        );
+        return r.rows[0]?.xong === true;
+      });
+      if (xong) return;
+      if (Date.now() >= until) throw new Error(`read-model chưa nuốt hết sự kiện của ${id}`);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+
+  /** Đặt hạn còn 1 giờ, ở CẢ hai bảng — thẻ đọc read-model, hạn thì ở nguồn. */
+  const sapHet = async (id: string): Promise<void> => {
+    await donDong(id);
+    await withAdminDb(async (c) => {
+      const han = new Date(Date.now() + 3600_000).toISOString();
+      await c.query(`UPDATE pol.policy SET sla_due_at = $2 WHERE id = $1`, [id, han]);
+      await c.query(`UPDATE rpt.policy_row SET sla_due_at = $2 WHERE policy_id = $1`, [id, han]);
+    });
+  };
+
+  /** Số hồ sơ ở bước B4 mà kế toán ĐẾM được, và số dòng họ MỞ được. */
+  const doHaiCon = async (): Promise<{ the: number; dong: number }> => {
+    const tq = await rget('/reports/progress', 'kt01');
+    expect(tq.status, JSON.stringify(tq.body)).toBe(200);
+    const o = (tq.body.byStepDetail ?? {})['B4_TBP_DUYET'] as
+      | { total: number; soon: number }
+      | undefined;
+
+    const ds = await rget('/reports/policies?status=CHO_TBP_DUYET&han=SAP_QUA_HAN&limit=200', 'kt01');
+    expect(ds.status, JSON.stringify(ds.body)).toBe(200);
+    return { the: o?.soon ?? 0, dong: (ds.body.items as unknown[]).length };
+  };
+
+  it('hồ sơ chờ TBP LƯỢT ĐẦU không vào thẻ, cũng không vào danh sách', async () => {
+    const truoc = await doHaiCon();
+
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+    await sapHet(d.id);
+
+    const sau = await doHaiCon();
+    expect(sau.the, 'thẻ KHÔNG được nhích lên').toBe(truoc.the);
+    expect(sau.dong, 'danh sách cũng không').toBe(truoc.dong);
+  });
+
+  it('hồ sơ ĐÃ qua TBP rồi quay lại thì vào CẢ HAI, cùng một lượng', async () => {
+    /*
+     * Chiều dương. Thiếu nó thì mệnh đề `NOT (…)` viết quá tay — giấu luôn hồ sơ
+     * Kế toán phải xử lý — vẫn xanh, vì hai con số 0 cũng khớp nhau.
+     */
+    const truoc = await doHaiCon();
+
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    await flushSync([d.id]);
+    await sapHet(d.id);
+
+    const sau = await doHaiCon();
+    expect(sau.the, 'thẻ phải nhích đúng một').toBe(truoc.the + 1);
+    expect(sau.dong, 'và danh sách nhích cùng một lượng').toBe(truoc.dong + 1);
+  });
+
+  it('`da_qua_tbp` đi được từ nguồn sang read-model', async () => {
+    /*
+     * Ca này canh một ĐOẠN ỐNG, không canh một luật — và đoạn ống ấy đã đứt thật
+     * ở lượt đầu của `0144`: `internal.controller` liệt kê từng cột trong câu
+     * SELECT, không biết cột mới, nên `reporting` nhận `undefined` và ghi `false`
+     * vào mọi dòng. Hai ca trên KHÔNG bắt được — ca một xanh vì `false` cũng
+     * giấu đúng, ca hai thì đỏ, nhưng đỏ ở một chỗ chẳng nói gì về nguyên nhân.
+     *
+     * Cùng cái bẫy `0128` đã mất 14 ca kiểm. Nó không tự lộ ra ở tầng kiểu:
+     * ranh giới HTTP là một phép ép kiểu, `tsc` không có gì để nói.
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await flushSync([d.id]);
+    expect((await rptRow(d.id))?.['da_qua_tbp'], 'chưa ký thì false').toBe(false);
+
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await flushSync([d.id]);
+    expect((await rptRow(d.id))?.['da_qua_tbp'], 'ký rồi thì true').toBe(true);
+
+    await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' });
+    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
+    await flushSync([d.id]);
+    expect(
+      (await rptRow(d.id))?.['da_qua_tbp'],
+      'quay lại CHO_TBP_DUYET vẫn true — cột này KHÔNG bao giờ bị xoá',
+    ).toBe(true);
+  });
+});

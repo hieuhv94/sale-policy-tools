@@ -29,7 +29,7 @@ import {
 } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ScopeClient } from '../infra/scope.client.js';
-import { build } from './filter.js';
+import { build, type PhamVi } from './filter.js';
 
 /**
  * MỖI CHỈ SỐ NEO VÀO ĐÚNG MỘT MỐC, và bảng này là chỗ nói ra điều đó.
@@ -239,18 +239,18 @@ export class ThongKeService {
   ) {}
 
   async chuoi(me: AuthUser, ky: Ky, soKy: number, bayGio = new Date()): Promise<BoThongKe> {
-    const ids = await this.scope.userIdsFor(me);
+    const pv = await this.scope.phamViCua(me);
     const cacKy = chuoiKy(ky, soKy, bayGio);
     const tu = cacKy[0]!.tu;
     const den = cacKy[cacKy.length - 1]!.den;
 
     const [dem, tien, dong, legacy, trungVi, buoc] = await Promise.all([
-      this.dem(ids, ky, tu, den),
-      this.tien(ids, ky, tu, den),
-      this.dong(ids, ky, tu, den),
-      this.legacy(ids, tu),
+      this.dem(pv, ky, tu, den),
+      this.tien(pv, ky, tu, den),
+      this.dong(pv, ky, tu, den),
+      this.legacy(pv, tu),
       this.trungVi(ky, tu, den),
-      this.theoBuoc(ids, ky, tu, den),
+      this.theoBuoc(pv, ky, tu, den),
     ]);
 
     const chuoi = cacKy.map((k) => gop(k, dem, tien, dong));
@@ -268,9 +268,9 @@ export class ThongKeService {
     const { daQua, denKyTruoc } = mocCungKhoang(ky, bayGio);
     const dauTruoc = kyKe(ky, bayGio, -1);
     const [demT, tienT, dongT] = await Promise.all([
-      this.dem(ids, ky, dauTruoc.toISOString(), denKyTruoc),
-      this.tien(ids, ky, dauTruoc.toISOString(), denKyTruoc),
-      this.dong(ids, ky, dauTruoc.toISOString(), denKyTruoc),
+      this.dem(pv, ky, dauTruoc.toISOString(), denKyTruoc),
+      this.tien(pv, ky, dauTruoc.toISOString(), denKyTruoc),
+      this.dong(pv, ky, dauTruoc.toISOString(), denKyTruoc),
     ]);
     const kyTruoc = gop(
       {
@@ -305,12 +305,12 @@ export class ThongKeService {
 
   /** Bốn quãng chờ, trung bình theo kỳ — xem chú thích của `buoc` ở `BoThongKe`. */
   private async theoBuoc(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
   ): Promise<Record<string, ThoiGianBuoc>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
     const ngay = (a: string, b: string) =>
@@ -379,7 +379,7 @@ export class ThongKeService {
    *     chốt cho câu hỏi "TDV nào thuộc quản lý của tôi". Hệ thống KHÔNG có cây
    *     tổ chức (`16/08`), nên đây là câu trả lời duy nhất đọc được từ dữ liệu.
    *
-   * `build({}, ids)` lo cả hai — cùng mệnh đề phạm vi mà mọi báo cáo khác dùng,
+   * `build({}, pv)` lo cả hai — cùng mệnh đề phạm vi mà mọi báo cáo khác dùng,
    * không phải một luật thứ hai chạy song song.
    *
    * DANH SÁCH NGƯỜI LẤY THEO CẢ CỬA SỔ, KHÔNG THEO KỲ ĐANG XEM. Lấy theo kỳ thì
@@ -387,16 +387,16 @@ export class ThongKeService {
    * nhất, ca cần thấy nhất. Ai không có hồ sơ nào trong kỳ này vẫn hiện, với số 0.
    */
   async theoTdv(me: AuthUser, ky: Ky, soKy: number, bayGio = new Date()): Promise<BoTheoTdv> {
-    const ids = await this.scope.userIdsFor(me);
+    const pv = await this.scope.phamViCua(me);
     const cacKy = chuoiKy(ky, soKy, bayGio);
     const tu = cacKy[0]!.tu;
     const den = cacKy[cacKy.length - 1]!.den;
     const maKyDs = cacKy.map((k) => k.ma);
 
     const [dem, chatLuong, suaLai] = await Promise.all([
-      this.demTheoTdv(ids, ky, tu, den),
-      this.chatLuongTheoTdv(ids, ky, tu, den),
-      this.suaLaiTheoTdv(ids, tu, den),
+      this.demTheoTdv(pv, ky, tu, den),
+      this.chatLuongTheoTdv(pv, ky, tu, den),
+      this.suaLaiTheoTdv(pv, tu, den),
     ]);
 
     const nguoi = [...dem.values()]
@@ -461,9 +461,9 @@ export class ThongKeService {
     chuoi: { ma: string; nhan: string; nhanNgan: string }[];
     dong: { nhom: string; maKy: string; chietKhauTb: number; soDong: number; vuotNguong: number }[];
   }> {
-    const ids = await this.scope.userIdsFor(me);
+    const pv = await this.scope.phamViCua(me);
     const cacKy = chuoiKy(ky, soKy, bayGio);
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(cacKy[0]!.tu, cacKy[cacKy.length - 1]!.den);
     const i = params.length;
 
@@ -511,7 +511,7 @@ export class ThongKeService {
    * Bốn cái này là bốn cái vẽ được thành hình — gửi lên, xong, bị trả, bị từ chối.
    */
   private async demTheoTdv(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
@@ -522,7 +522,7 @@ export class ThongKeService {
       traLai: 'returned_at',
       tuChoi: 'rejected_at',
     };
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
 
@@ -590,12 +590,12 @@ export class ThongKeService {
    * giấu mất cái kết cục nặng hơn.
    */
   private async chatLuongTheoTdv(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
   ): Promise<Map<string, Record<string, ChatLuong>>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
 
@@ -645,11 +645,11 @@ export class ThongKeService {
    * lần một quý là bình thường, và trung bình của hai con số thì nói được rất ít.
    */
   private async suaLaiTheoTdv(
-    ids: string[],
+    pv: PhamVi,
     tu: string,
     den: string,
   ): Promise<Map<string, number>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
     const rows = await this.db.q<{ nguoi: string; ngay: string | null }>(
@@ -667,12 +667,12 @@ export class ThongKeService {
 
   /** Mười một phép đếm dòng chảy trong MỘT câu lệnh — xem `NEO`. */
   private async dem(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
   ): Promise<Map<string, Record<string, number>>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
 
@@ -709,12 +709,12 @@ export class ThongKeService {
 
   /** Giá trị và thời gian duyệt — cùng neo `approved_at`. */
   private async tien(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
   ): Promise<Map<string, { giaTri: number; ngay: number | null }>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
     const rows = await this.db.q<{ ky: string; tong: string | null; ngay: string | null }>(
@@ -738,12 +738,12 @@ export class ThongKeService {
 
   /** Dòng sản phẩm của hồ sơ có hiệu lực trong kỳ — chiết khấu và ngưỡng. */
   private async dong(
-    ids: string[],
+    pv: PhamVi,
     ky: Ky,
     tu: string,
     den: string,
   ): Promise<Map<string, { soDong: number; ck: number | null; vuot: number }>> {
-    const { where, params } = build({}, ids);
+    const { where, params } = build({}, pv);
     params.push(tu, den);
     const i = params.length;
     const rows = await this.db.q<{ ky: string; n: string; ck: string | null; vuot: string }>(
@@ -775,8 +775,8 @@ export class ThongKeService {
    *
    * Đúng cách khối SLA đang làm với `excludedLegacy`.
    */
-  private async legacy(ids: string[], tu: string): Promise<number> {
-    const { where, params } = build({}, ids);
+  private async legacy(pv: PhamVi, tu: string): Promise<number> {
+    const { where, params } = build({}, pv);
     params.push(tu);
     const r = await this.db.one<{ n: string }>(
       `SELECT count(*)::text AS n FROM rpt.policy_row

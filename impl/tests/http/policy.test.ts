@@ -1658,7 +1658,11 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
     ]);
     // Người lập vẫn MỞ được hồ sơ của mình, chỉ là không có việc gì để bấm.
     expect(await nut(d.id, 'tdv01')).toEqual([]);
-    expect(await nut(d.id, 'kt01')).toEqual([]);
+
+    // `0142` — Kế toán chưa THẤY hồ sơ ở lượt chờ TBP đầu tiên, nên câu trả lời
+    // của họ không phải "không có nút nào" mà là 403. Hai câu ấy khác nhau, và
+    // ca kiểm phải nói rõ mình đang hỏi câu nào.
+    expect((await get(`/policies/${d.id}/allowed-actions`, 'kt01')).status).toBe(403);
   });
 
   /**
@@ -1681,6 +1685,19 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
     DA_XOA: {},
   };
 
+  /**
+   * Vai trò KHÔNG THẤY hồ sơ ở trạng thái ấy — 403, không phải "không có nút".
+   *
+   * Để riêng khỏi `MONG_DOI` vì hai bảng trả lời hai câu khác nhau: bảng kia hỏi
+   * *"bấm được gì"*, bảng này hỏi *"mở được không"*. Gộp lại thì một hồ sơ biến
+   * mất khỏi tầm mắt một vai trò trông y hệt một hồ sơ hết việc để làm.
+   */
+  const KHONG_THAY: Record<string, string[]> = {
+    // `0142` — lượt chờ TBP ĐẦU TIÊN. `da_qua_tbp` còn `false` vì hồ sơ dựng
+    // bằng một lượt `SUBMIT` rồi vặn thẳng trạng thái, chưa đi qua `TBP_SIGN`.
+    CHO_TBP_DUYET: ['kt01'],
+  };
+
   for (const [tt, mong] of Object.entries(MONG_DOI)) {
     it(`hồ sơ ${tt}: mỗi vai trò chỉ thấy đúng việc của mình`, async () => {
       const d = await draft();
@@ -1700,6 +1717,11 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
       });
 
       for (const who of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
+        if ((KHONG_THAY[tt] ?? []).includes(who)) {
+          const r = await get(`/policies/${d.id}/allowed-actions`, who);
+          expect(r.status, `${tt} × ${who} phải KHÔNG thấy hồ sơ`).toBe(403);
+          continue;
+        }
         const co = [...(await nut(d.id, who))].sort();
         expect(co, `${tt} × ${who}`).toEqual([...(mong[who] ?? [])].sort());
       }
@@ -1750,9 +1772,15 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
      * sẽ đọc được "hành động được phép: không có", và hiểu ra là hồ sơ hỏng chứ
      * không phải là đang chờ Trưởng bộ phận.
      */
+    /*
+     * Người bấm nhầm ở đây là TDV chứ không phải Kế toán: `0142` giấu hẳn hồ sơ
+     * ở lượt chờ TBP đầu tiên khỏi Kế toán, nên họ nhận 403 trước khi câu
+     * `INVALID_TRANSITION` kịp dựng. Luật cần kiểm không đổi — danh sách trong
+     * câu báo lỗi kể ĐỦ hành động của trạng thái, kể cả của vai trò khác.
+     */
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
-    const r = await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    const r = await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('INVALID_TRANSITION');
     expect([...(r.body.allowed as string[])].sort()).toEqual([
@@ -1779,8 +1807,18 @@ describe('POL-15 phạm vi dữ liệu khi lập hồ sơ', () => {
     expect((await get(`/policies/${d.id}`, 'kt01')).status).toBe(403);
     expect((await get(`/policies/${d.id}`, 'kt02')).status).toBe(403);
 
-    // Gửi duyệt và chọn kt01 → kt01 đọc được, kt02 vẫn không.
+    /*
+     * Gửi duyệt và chọn kt01 — nhưng `0142` chèn thêm một điều kiện NỮA vào
+     * đúng chỗ này: được giao là chưa đủ, hồ sơ còn phải ĐÃ TỪNG qua tay Trưởng
+     * bộ phận. Ở lượt chờ TBP đầu tiên kt01 vẫn 403, y như kt02 — hai con số
+     * giống nhau vì hai lý do khác hẳn nhau.
+     */
     await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await get(`/policies/${d.id}`, 'kt01')).status).toBe(403);
+    expect((await get(`/policies/${d.id}`, 'kt02')).status).toBe(403);
+
+    // TBP ký xong thì phân công mới có hiệu lực thật: kt01 đọc được, kt02 không.
+    await act(d.id, 'TBP_SIGN', 'tbp01');
     expect((await get(`/policies/${d.id}`, 'kt01')).status).toBe(200);
     expect((await get(`/policies/${d.id}`, 'kt02')).status).toBe(403);
   });

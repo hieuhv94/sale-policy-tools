@@ -248,12 +248,13 @@ export class SyncService {
          * trả lời khác với `pol.policy` — đúng cái lệch mà chú thích ở
          * `filter.ts` cảnh báo.
          *
-         * CHƯA có mệnh đề lọc nào dùng cột này ở `reporting` (xem nhật ký
-         * `0142`): phạm vi riêng của Kế toán mới áp ở `policy`. Cột vẫn phải
-         * ĐÚNG từ bây giờ, nếu không thì ngày ai đó nối mệnh đề vào, mọi dòng
-         * đồng bộ từ hôm nay tới lúc ấy đều mang `false` sai.
+         * `0144` nối mệnh đề ấy vào `filter.ts` — và câu cảnh báo bản `0142`
+         * viết ở đây ("ngày ai đó nối mệnh đề vào, mọi dòng đồng bộ từ hôm nay
+         * tới lúc ấy đều mang `false` sai") ĐÚNG NGUYÊN VĂN: nguồn không trả cột
+         * này, `?? false` nuốt mất, và không có gì đỏ lên. Nay `da_qua_tbp` khai
+         * BẮT BUỘC bên `clients.ts` nên `??` đi theo.
          */
-        src.da_qua_tbp ?? false,
+        src.da_qua_tbp,
         src.row_version,
       ],
     );

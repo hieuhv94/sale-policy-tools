@@ -50,6 +50,12 @@ export class PolicyInternalController {
               pending_step::text AS pending_step, source::text AS source,
               created_by, returned_at, rejected_at, deactivated_at,
               sla_due_at, sla_started_at, reprint_requested_at,
+              -- 0144: PHẢI có tên ở đây. Câu SELECT này liệt kê từng cột, nên
+              -- một cột mới không tự đi theo: reporting nhận undefined, ghi
+              -- false vào read-model, và phạm vi của Kế toán ở Tổng quan lệch
+              -- khỏi phạm vi ở màn hình Hồ sơ đúng tại những hồ sơ đã qua TBP
+              -- rồi quay lại CHO_TBP_DUYET. Cùng cái bẫy đã mất 14 ca ở 0128.
+              da_qua_tbp,
               -- 0098: mẫu đã đóng băng lúc gửi duyệt. document dựng bản mềm
               -- bằng đúng cột này chứ không hỏi người xem nữa.
               mau_ho_so_id,

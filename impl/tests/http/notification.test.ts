@@ -432,25 +432,44 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
    * thứ nhất biến khỏi cột `tbp_user_id`, nên mọi phép suy từ bốn cột phân công
    * đều bỏ sót họ — nhưng họ là người đã đọc hồ sơ và đã viết lý do trả lại.
    */
-  it('Trưởng bộ phận đã bị thay vẫn nhận thư, và liên kết trỏ vào NHẬT KÝ', async () => {
+  it('người vừa TRẢ hồ sơ về vẫn nhận thư, và liên kết trỏ vào NHẬT KÝ', async () => {
+    /*
+     * Kịch bản cũ của ca này là *"TDV gửi lại cho một Trưởng bộ phận KHÁC"* —
+     * `0141` xoá hẳn đường ấy đi (gửi lại không chọn lại người), nên phải chọn
+     * một kịch bản khác cho CÙNG một luật.
+     *
+     * Kịch bản mới: KẾ TOÁN trả hồ sơ về, TDV sửa xong GỬI LẠI. Thư chính của
+     * `RESUBMIT_AFTER_EDIT` chỉ đi tới Trưởng bộ phận (bảng `RECIPIENTS`) —
+     * người vừa trả hồ sơ về không có tên trong đó, mà họ là người cần biết
+     * nhất rằng hồ sơ đã sửa và đang quay lại phía mình.
+     *
+     * Chọn được kịch bản này là nhờ để ý `RECIPIENTS`: phần lớn các bước gọi
+     * tên cả ba vai trò còn lại, nên KHÔNG còn ai để mà "cho biết". Đúng ba bước
+     * chừa người ra — `RESUBMIT_AFTER_EDIT`, `TBP_RETURN`/`TBP_REJECT` và
+     * `KT_REQUEST_REPRINT` — và chỉ ở bước đầu mới có một người đã tác động
+     * thật sự đứng ngoài danh sách.
+     */
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
-    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
-    // Gửi lại cho tbp02 — `RESUBMIT_AFTER_EDIT` chọn lại người, không kế thừa.
-    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01', { tbpUserId: await idCua('tbp02') });
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' });
+    await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
 
-    // Bốn thư: gửi duyệt → tbp01, trả lại → tdv01, gửi lại → tbp02, và thư
-    // "để biết" → tbp01.
-    const mails = await flush(4);
-    const theoDoi = [];
-    for (const m of mails) {
-      const full = await fullMail(m.ID);
-      if (full.Text.includes('chỉ để bạn biết')) theoDoi.push(full);
-    }
+    await outbox.pumpOnce();
+    const theoDoi: Awaited<ReturnType<typeof fullMail>>[] = [];
+    await waitFor(async () => {
+      theoDoi.length = 0;
+      for (const m of await listMail()) {
+        const full = await fullMail(m.ID);
+        if (full.Text.includes('chỉ để bạn biết')) theoDoi.push(full);
+      }
+      return theoDoi.length >= 1;
+    }, 'thư "để biết" gửi cho Kế toán đã trả hồ sơ về');
+
     expect(theoDoi, 'phải có đúng một thư "để biết"').toHaveLength(1);
 
     const t = theoDoi[0]!;
-    expect(t.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
+    expect(t.To.map((x) => x.Address)).toEqual(['kt01@csbh.test']);
     // Liên kết trỏ vào NHẬT KÝ: mở hồ sơ ra họ chẳng có nút nào bấm được, còn
     // thứ họ muốn biết là hồ sơ đã đi qua đâu từ lúc mình rời tay.
     expect(t.Text).toMatch(/\/ho-so\/[0-9a-f-]{36}\/nhat-ky/);

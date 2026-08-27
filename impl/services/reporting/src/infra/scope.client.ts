@@ -9,6 +9,7 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
 import { identityUrl, JWT, mintServiceToken, REDIS_URL, type AuthUser } from '@csbh/http-kit';
+import type { PhamVi } from '../reports/filter.js';
 
 @Injectable()
 export class ScopeClient implements OnModuleDestroy {
@@ -26,6 +27,18 @@ export class ScopeClient implements OnModuleDestroy {
     const body = (await res.json()) as { scopeUserIds: string[] };
     await this.redis.set(key, JSON.stringify(body.scopeUserIds), 'EX', JWT.accountCacheTtlSec);
     return body.scopeUserIds;
+  }
+
+  /**
+   * Phạm vi ĐẦY ĐỦ để đưa cho `build()` — id VÀ vai trò (`0144`).
+   *
+   * Một hàm chứ không phải hai lời gọi rời ở tám chỗ: từ `0142` phạm vi của Kế
+   * toán khác năm vai trò còn lại, nên một chỗ lấy id mà quên vai trò là một
+   * màn hình đếm thừa hồ sơ mà chính người đọc không mở được. Ở đây thì không
+   * có cách nào lấy được vế này mà bỏ vế kia.
+   */
+  async phamViCua(me: AuthUser): Promise<PhamVi> {
+    return { ids: await this.userIdsFor(me), vaiTro: me.role };
   }
 
   async onModuleDestroy(): Promise<void> {
