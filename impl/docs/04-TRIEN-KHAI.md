@@ -366,6 +366,11 @@ rồi sửa câu chữ trong Word. Sau khi chạy `nap-danh-muc`, ô chọn có 
 và 2 mẫu hợp đồng**; muốn gọn lại thì vô hiệu hoá hai mẫu mặc định ở màn hình
 *Văn bản mẫu*.
 
+> Lệnh nạp lấy **ba** trong bốn file: hai mẫu hồ sơ A4 dọc/ngang và một mẫu hợp
+> đồng. File thứ tư — `mau-ho-so-a4-doc-rut-gon.docx` — **không nạp** `sửa 27/08`.
+> Nó là bản chỉ có đúng những mục bắt buộc, để trả lời câu *"ít nhất mẫu phải có
+> những gì"*; tải lên bằng tay khi cần.
+
 ---
 
 ## 6. Nghiệm thu trước khi giao cho người dùng

@@ -166,7 +166,10 @@ export const BO_MAU: {
   ten: string;
   kho: 'a4p' | 'a4l';
   than: string[];
-  /** Bỏ trống là CÓ nạp — chỉ mẫu hợp đồng đứng ngoài `make demo-mau` (`0058`). */
+  /**
+   * Bỏ trống là CÓ nạp. Hai mẫu đứng ngoài: mẫu HỢP ĐỒNG (`0058` — bản demo đã
+   * có mẫu hợp đồng riêng) và mẫu RÚT GỌN (`0137` — khách hàng chốt bỏ).
+   */
   napDemo?: boolean;
 }[] = [
   {
@@ -181,11 +184,25 @@ export const BO_MAU: {
     kho: 'a4l',
     than: dayDu,
   },
+  /*
+   * Mẫu RÚT GỌN — sinh ra file, nhưng KHÔNG nạp vào CSDL nào (`0137`).
+   *
+   * Khách hàng chốt 27/08: bỏ nó khỏi cả `make demo-mau` lẫn `./csbh
+   * nap-danh-muc`. File vẫn ở lại `templates/` và vẫn có một ca kiểm canh —
+   * nó trả lời câu hỏi *"ít nhất phải có những gì thì mẫu mới ban hành được"*,
+   * và đó là câu hỏi của người SOẠN mẫu, không phải của người dùng bản demo.
+   * Quản trị tải nó lên bằng tay khi cần.
+   *
+   * CÁI MẤT, ghi ra để không ai ngạc nhiên: đây là mẫu DUY NHẤT khai `cotBang`,
+   * nên từ lượt này bản demo không còn chỗ nào bày ra tính năng *chọn tập cột
+   * theo từng mẫu* (`0067`) đang hoạt động. Muốn xem thì tự tải mẫu này lên.
+   */
   {
     tep: 'mau-ho-so-a4-doc-rut-gon.docx',
     ten: 'Mẫu hồ sơ CSBH rút gọn — A4 dọc',
     kho: 'a4p',
     than: rutGon,
+    napDemo: false,
   },
   /*
    * MẪU HỢP ĐỒNG — sinh ra file, nhưng KHÔNG nạp vào CSDL demo (`0058`).

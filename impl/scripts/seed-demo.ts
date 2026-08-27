@@ -105,10 +105,12 @@ const idNguoiDung: Record<string, string> = {};
  * Mẫu hồ sơ đã nạp, theo thứ tự `namMauHoSo` tải lên (`0098`).
  *
  * Từ `0098` gửi duyệt BẮT BUỘC kèm mẫu, và mẫu ấy đóng băng vào hồ sơ. Bộ nạp
- * XOAY VÒNG qua cả ba mẫu thay vì dùng mãi một cái: bản demo cần bày ra chính
- * thứ vừa làm được — mở hai hồ sơ khác nhau ra thì thấy hai bố cục khác nhau,
- * và một trong ba mẫu là bản rút gọn bốn cột. Dùng một mẫu cho tất cả thì tính
- * năng này vô hình y như lúc chưa có.
+ * XOAY VÒNG qua các mẫu đã nạp thay vì dùng mãi một cái: mở hai hồ sơ khác nhau
+ * ra thì thấy hai bố cục khác nhau, còn dùng một mẫu cho tất cả thì tính năng
+ * này vô hình y như lúc chưa có.
+ *
+ * Từ `0137` còn HAI mẫu — A4 dọc và A4 ngang — vì mẫu rút gọn đã ra khỏi bộ nạp.
+ * Hai bố cục vẫn đủ để thấy việc xoay vòng có thật.
  */
 const mauHoSoDaNap: string[] = [];
 let luotMau = 0;
@@ -596,15 +598,14 @@ async function namMauHoSo(): Promise<void> {
     form.append('name', m.ten);
     form.append('mapping', JSON.stringify(mapping));
     /*
-     * Mẫu RÚT GỌN nạp kèm TẬP CỘT GỌN (`0067`).
+     * KHÔNG mẫu nào khai `cotBang` nữa (`0137`).
      *
-     * Bản demo cần bày ra chính thứ vừa làm được: hai mẫu đủ mười cột cho nội
-     * bộ, một mẫu bốn cột để đưa khách hàng. Không có mẫu nào khai tập cột thì
-     * ô chọn cột trên màn hình thêm mẫu là một chức năng không ai thấy hoạt động.
+     * Tới `0136` mẫu RÚT GỌN nạp kèm tập cột bốn cột, để bản demo bày ra tính
+     * năng *chọn tập cột theo từng mẫu* (`0067`) đang chạy. Khách hàng chốt
+     * 27/08 bỏ mẫu ấy khỏi bộ nạp, nên tính năng ấy mất chỗ trưng bày — xem
+     * `tao-mau-ho-so.ts`. Không thay bằng một mẫu khác: hai mẫu còn lại là bản
+     * ĐỦ CỘT, và cắt cột của chúng là đổi chính thứ chúng sinh ra để là.
      */
-    if (m.tep.includes('rut-gon')) {
-      form.append('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'cpbh_tong', 'gia_thu_ve']));
-    }
     form.append('file', new Blob([buf]), m.tep);
     const mau = await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
     mauHoSoDaNap.push(mau.id);

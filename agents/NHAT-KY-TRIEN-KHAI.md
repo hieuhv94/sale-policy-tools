@@ -12068,3 +12068,36 @@ Thiếu nhãn thì hộp thoại lùi về *"Có ô nhập chưa hợp lệ"* �
 | Nút lỗi trở về *Đã hiểu* | 1 đỏ |
 
 **32/32 ca của hai tệp liên quan xanh; `make test` đầy đủ chưa chạy.**
+
+## P165 — `0137` mẫu rút gọn ra khỏi hai bộ nạp
+
+Khách hàng chốt 27/08. File **ở lại** `templates/` và vẫn được sinh ra — nó trả
+lời câu hỏi *"ít nhất mẫu phải có những gì thì mới ban hành được"*, và đó là câu
+hỏi của người SOẠN mẫu chứ không của người dùng bản demo. Quản trị tải lên tay.
+
+Hai bộ nạp có HAI danh sách riêng, và đó là chỗ chúng trôi khỏi nhau được:
+`make demo-mau` đọc `BO_MAU` rồi lọc `napDemo !== false`, còn `nap-danh-muc` giữ
+một mảng `MAU` viết tay trong chính script. `nap-danh-muc` **chưa bao giờ** nạp
+mẫu rút gọn, nên vế ấy đã đúng sẵn — nhưng "đã đúng" là trạng thái hôm nay, không
+phải một bảo đảm, nên nó vẫn có một ca kiểm.
+
+Ca kiểm thứ ba là chiều đối chiếu, và nó bắt đúng cách làm sai hiển nhiên nhất:
+**xoá luôn mục khỏi `BO_MAU`**. Làm thế thì hai ca đầu vẫn xanh, mà file biến mất
+khỏi repo ở lượt sinh lại kế tiếp — kéo theo ca `0057` canh nội dung nó.
+
+### Cái mất, ghi ra để không ai ngạc nhiên
+
+Mẫu rút gọn là mẫu **DUY NHẤT** khai `cotBang`. Từ lượt này bản demo không còn
+chỗ nào bày ra tính năng *chọn tập cột theo từng mẫu* (`0067`) đang hoạt động.
+Không thay bằng mẫu khác: hai mẫu còn lại là bản ĐỦ CỘT, và cắt cột của chúng là
+đổi chính thứ chúng sinh ra để là.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Mẫu rút gọn quay lại `demo-mau` | 2 đỏ |
+| Xoá hẳn mục rút gọn khỏi `BO_MAU` | 1 đỏ |
+| `nap-danh-muc` nạp thêm mẫu rút gọn | 2 đỏ |
+
+**6/6 ca của tệp mới xanh; `make test` đầy đủ chưa chạy.**
