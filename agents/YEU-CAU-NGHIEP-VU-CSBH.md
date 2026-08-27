@@ -1477,6 +1477,20 @@ gõ thẳng địa chỉ cũng bị chặn.
 > đỏ (đọc như hệ thống hỏng), và cũng không phải câu *"khách hàng chưa có CSBH nào"* (một khẳng định
 > về dữ liệu mà màn hình không có căn cứ đưa ra — khách rất có thể đang có một CSBH hiệu lực).
 
+**Chọn văn bản mẫu bằng Ô CHỌN, và hộp xem ôm sát tờ giấy** `mới 27/08`:
+
+> - Bước **chọn mẫu trước khi xem** — còn ở hồ sơ *Nháp* và ở mọi lượt xuất hợp đồng — là một **ô
+>   chọn** kèm nút *Xem*, thay cho danh sách nút xếp dọc. Ô mở ra **rỗng**: luật *"phải chọn, phần
+>   mềm không chọn hộ"* (chốt 20/08) giữ nguyên, chỉ đổi hình dạng. Danh mục mẫu dài ra thì ô chọn
+>   vẫn cao một dòng, còn danh sách nút thì đẩy nút *Đóng* xuống dưới tầm nhìn.
+> - **Hộp xem trước rộng đúng bằng tờ giấy** cộng phần đệm — không còn dải trắng thừa bên phải bản
+>   xem. Đo được trước khi sửa trên laptop 1366×768: hộp 520px đựng một tờ A4 dọc rộng 267px, thừa
+>   **203px** trắng dồn hết sang phải.
+>
+> Hệ quả nhìn thấy được của vế thứ hai: trên màn hình thấp, hộp xem **hẹp hơn hẳn** hộp nhập liệu
+> thường. Đó là đúng — nó chỉ rộng bằng thứ nó đang đựng, và một hộp rộng hơn tờ giấy không làm chữ
+> to thêm một pixel nào.
+
 **Thao tác trong bảng hiện khi rê chuột** `mới 27/08` — cột *Thao tác* thôi có tiêu đề nhìn thấy
 được, và các nút chỉ hiện khi con trỏ đi vào dòng. Áp dụng cho **cả bảy bảng** có cột thao tác: sản
 phẩm · nhóm sản phẩm · quy định chiết khấu · văn bản mẫu · người dùng · thư hỏng · dòng sản phẩm

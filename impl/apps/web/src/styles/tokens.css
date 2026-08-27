@@ -237,8 +237,34 @@
    *
    * `0130` hạ hộp thường xuống 700px, và sàn KHÔNG hạ theo — cùng lý do, ngược
    * chiều. Hai con số lại gần nhau, nhưng chúng vẫn là hai câu hỏi.
+   *
+   * `0145` HẠ XUỐNG 240px, và con số này ĐO ĐƯỢC chứ không ước lượng.
+   *
+   * Khách hàng báo *"khung preview không fit, thừa một phần lề lớn bên phải hộp
+   * thoại"*. Dựng lại trong Chrome ở ba cỡ cửa sổ, đọc bằng
+   * `getBoundingClientRect`:
+   *
+   *     cửa sổ       hộp thoại   khung xem   hở trái   hở phải
+   *     1920×1080    535px       485px       25px      25px
+   *     1366×768     520px       267px       25px      203px
+   *     1280×720     520px       233px       25px      237px
+   *
+   * Bề rộng hộp là `max(khung + đệm, SÀN)`. Trên màn hình cao thì vế đầu thắng
+   * và hai số khớp nhau tới từng pixel — đó là thiết kế của `0073` và nó đúng.
+   * Trên laptop 768px thì SÀN thắng, và cả phần chênh lệch thành một dải trắng
+   * chết. Sàn 520px là thứ dựng ra dải ấy.
+   *
+   * 520px được chọn ở `0128` vì nó bằng bề rộng hộp thoại thường lúc bấy giờ —
+   * tức nó chưa bao giờ trả lời câu hỏi của chính nó. Câu hỏi thật là *"hẹp tới
+   * đâu thì hàng nút vỡ"*, và câu trả lời đo được là **186px** (hai nút *Đóng* ·
+   * *Tải xuống* cộng khoảng cách). Cộng đệm hai bên `2 × var(--k5)` = 48px và
+   * hai đường viền là 236px; làm tròn lên 240px.
+   *
+   * Tiêu đề thì KHÔNG vỡ, nó xuống dòng — nên nó không phải ràng buộc. Đây là
+   * chỗ bản `0073` nhầm khi viết *"tiêu đề với hai nút vỡ hết"*: một trong hai
+   * vế ấy tự lo được.
    */
-  --san-hop-thoai: 520px;
+  --san-hop-thoai: 240px;
 
   /**
    * Vùng chạm tối thiểu 44px (FE-08).

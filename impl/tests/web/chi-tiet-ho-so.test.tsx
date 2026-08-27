@@ -387,6 +387,21 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(screen.queryByRole('heading', { name: 'Tải văn bản' })).toBeNull();
   });
 
+  /**
+   * Chọn một mẫu ở BƯỚC MỘT rồi bấm *Xem* (`0145`).
+   *
+   * Gộp vào một hàm vì bốn ca dưới đây đều phải đi qua đúng hai lượt bấm ấy, và
+   * `0145` vừa cho thấy cái giá của việc chép tay: bước một đổi từ danh sách nút
+   * sang ô chọn thì năm ca đỏ cùng lúc ở năm chỗ giống hệt nhau.
+   */
+  const chonMauRoiXem = async (ten: RegExp | string) => {
+    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
+    const dong = [...o.options].find((x) => new RegExp(ten).test(x.textContent ?? ''));
+    expect(dong, `không thấy mẫu ${String(ten)} trong ô chọn`).toBeDefined();
+    fireEvent.change(o, { target: { value: dong!.value } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
+  };
+
   it('`0067` HỎI MẪU TRƯỚC, chưa tải nội dung gì cả', async () => {
     /*
      * `0058` mở sẵn mẫu đầu danh sách. Khách hàng chốt lại ngày 20/08: bắt chọn
@@ -398,8 +413,13 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
 
     await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
-    expect(screen.getByRole('button', { name: /Mẫu A4 dọc/ })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Mẫu A4 ngang/ })).toBeDefined();
+    // `0145` — một Ô CHỌN mang đủ hai mẫu, không phải một nút cho mỗi mẫu.
+    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
+    expect([...o.options].some((x) => /Mẫu A4 dọc/.test(x.textContent ?? ''))).toBe(true);
+    expect([...o.options].some((x) => /Mẫu A4 ngang/.test(x.textContent ?? ''))).toBe(true);
+    // Ô mở ra RỖNG, và nút *Xem* khoá theo — luật `0067` nằm ở chính hai dòng này.
+    expect(o.value).toBe('');
+    expect((screen.getByRole('button', { name: 'Xem' }) as HTMLButtonElement).disabled).toBe(true);
     // CHƯA gọi máy chủ dựng bản mềm lần nào.
     expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
   });
@@ -407,7 +427,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   it('`0067` chọn mẫu rồi mới tải, và đường tải mang đúng mẫu vừa chọn', async () => {
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 ngang/ }));
+    await chonMauRoiXem(/Mẫu A4 ngang/);
 
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
@@ -422,7 +442,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   it('`0058` ô chọn liệt kê ĐỦ mẫu, kèm khổ giấy đọc từ file', async () => {
     await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
+    await chonMauRoiXem(/Mẫu A4 dọc/);
     const o = (await screen.findByLabelText('Mẫu')) as HTMLSelectElement;
     expect([...o.options].map((x) => x.textContent)).toEqual([
       'Mẫu A4 dọc · A4 dọc',
@@ -433,7 +453,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   it('`0058` đổi mẫu thì tải lại theo ĐÚNG mẫu vừa chọn', async () => {
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
+    await chonMauRoiXem(/Mẫu A4 dọc/);
     const o = await screen.findByLabelText('Mẫu');
     fireEvent.change(o, { target: { value: MAU[1]!.id } });
 
@@ -520,7 +540,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(nut('Xem hợp đồng')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Xuất hợp đồng' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Mẫu A4 dọc/ }));
+    await chonMauRoiXem(/Mẫu A4 dọc/);
     await waitFor(() => {
       const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('contract.pdf'));
       expect(d.length).toBeGreaterThan(0);

@@ -2136,9 +2136,20 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
        rộng, và khung méo đi đúng lúc màn hình thấp — `aspect-ratio` không đẩy
        ngược ràng buộc sang chiều kia.
 
-   `margin-inline: auto` cho ca hộp bị SÀN 520px giữ lại: khung hẹp hơn thân
-   hộp thì nó đứng giữa, chứ không dạt sang trái để lại một khoảng trống lệch. */
+   `margin-inline: auto` cho ca hộp bị SÀN giữ lại: khung hẹp hơn thân hộp thì nó
+   đứng giữa, chứ không dạt sang trái để lại một khoảng trống lệch.
+
+   `display: block` LÀ ĐIỀU KIỆN để dòng trên có tác dụng, và thiếu nó suốt từ
+   `0073` (`0145` đo ra). `<iframe>` mặc định là `display: inline`; lề tự động
+   KHÔNG căn giữa một phần tử inline — nó nằm trên dòng chữ, dạt trái, và toàn bộ
+   chỗ thừa dồn sang PHẢI. Đúng triệu chứng khách hàng báo: đo được 203px trắng
+   bên phải trên cửa sổ 1366×768, 25px bên trái.
+
+   Hai bản sửa, hai tầng, và cần cả hai: sàn hạ xuống 240px (`tokens.css`) làm
+   chỗ thừa gần như biến mất, còn dòng này lo phần còn lại cho những tỷ lệ cực
+   đoan — một bản scan hoá đơn tỷ lệ 0.3 vẫn chạm sàn. */
 .khung-xem {
+  display: block;
   width: min(100%, calc(var(--cao-khung) * var(--ty-le)));
   aspect-ratio: var(--ty-le);
   margin-inline: auto;
@@ -2291,18 +2302,6 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
    Mỗi mẫu một nút chiếm trọn bề ngang, xếp dọc: tên mẫu do Quản trị đặt nên nó
    dài ngắn tuỳ ý, và xếp ngang thì hàng vỡ ra chỗ không đoán được. */
-.chon-mau-truoc {
-  display: grid;
-  gap: var(--k2);
-  margin: var(--k3) 0;
-}
-
-.chon-mau-truoc .nut {
-  width: 100%;
-  justify-content: flex-start;
-  text-align: left;
-}
-
 /* Dòng tóm tắt ánh xạ trên trang thêm mẫu (`0068`). */
 .tom-tat-anh-xa {
   display: flex;

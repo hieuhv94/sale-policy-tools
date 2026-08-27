@@ -370,6 +370,77 @@ describe('`0129` hộp thoại đủ rộng', () => {
     }
   });
 
+  it('`0145` SÀN không được lớn hơn tờ A4 dọc trên laptop 768px', () => {
+    /*
+     * Đây là ca của lỗi khách hàng báo: *"thừa một phần lề lớn bên phải hộp
+     * thoại"*. Bề rộng hộp là `max(khung + đệm, SÀN)`, nên khi sàn thắng thì cả
+     * phần chênh lệch thành một dải trắng chết bên trong hộp.
+     *
+     * Đo được trong Chrome trước khi sửa, ba cỡ cửa sổ:
+     *
+     *     1920×1080   hộp 535px · khung 485px   hở phải  25px
+     *     1366×768    hộp 520px · khung 267px   hở phải 203px
+     *     1280×720    hộp 520px · khung 233px   hở phải 237px
+     *
+     * Ca này dựng lại chính phép tính ấy từ CSS, ở cỡ màn hình PHỔ BIẾN NHẤT
+     * trong văn phòng — laptop 1366×768. Nó canh một QUAN HỆ giữa ba con số nằm
+     * ở hai tệp khác nhau (`--san-hop-thoai` bên `tokens.css`, khoản trừ của
+     * `--cao-khung` bên `app.css`), nên nới bất kỳ con số nào mà quên con số kia
+     * đều đỏ ở đây.
+     *
+     * `768 - 87` là chiều cao KHUNG NHÌN đo được trong Chrome không màn hình, đã
+     * trừ phần khung cửa sổ; lấy tròn 768 thì ca kiểm rộng tay hơn thực tế.
+     */
+    const A4_DOC_SO = 0.7071;
+    const k5 = 24;
+    const khoTrong = 768 - 87;
+
+    const k = khoi('app.css', /\.hop-thoai-xem/);
+    const tru = Number(k.match(/--cao-khung:[^;]*?100dvh\s*-\s*(\d+)rem/)?.[1]) * 16;
+    expect(tru, 'không đọc được khoản trừ của --cao-khung').toBeGreaterThan(0);
+
+    const caoKhung = Math.max(300, khoTrong - tru);
+    const rongKhung = caoKhung * A4_DOC_SO;
+    const san = token('--san-hop-thoai');
+
+    expect(
+      san,
+      `sàn ${san}px lớn hơn tờ A4 dọc (${Math.round(rongKhung)}px) — phần chênh ` +
+        `lệch thành dải trắng chết trong hộp`,
+    ).toBeLessThanOrEqual(Math.round(rongKhung) + k5 * 2);
+  });
+
+  it('`0145` SÀN vẫn đủ chỗ cho hàng nút — nó là lý do sàn tồn tại', () => {
+    /*
+     * Vế ngược, và cần cả hai: hạ sàn để bịt dải trắng thì rất dễ hạ quá tay,
+     * và cái vỡ đầu tiên là hàng nút — *Đóng* cạnh *Tải xuống*.
+     *
+     * 186px là số ĐO ĐƯỢC trong Chrome (tổng bề rộng hai nút cộng `gap`), không
+     * phải ước lượng. Cộng đệm hai bên của thân hộp là ngưỡng thật.
+     *
+     * Tiêu đề KHÔNG nằm trong phép tính này: nó xuống dòng chứ không vỡ. Bản
+     * `0073` gộp cả hai vào một câu — *"tiêu đề với hai nút vỡ hết"* — và đó là
+     * lý do sàn bị đặt cao gấp đôi mức cần thiết suốt bảy mươi chặng.
+     */
+    expect(token('--san-hop-thoai')).toBeGreaterThanOrEqual(186 + 24 * 2);
+  });
+
+  it('`0145` `.khung-xem` là khối, nếu không thì lề tự động vô nghĩa', () => {
+    /*
+     * `<iframe>` mặc định `display: inline`, và lề tự động KHÔNG căn giữa một
+     * phần tử inline — nó dạt trái, dồn hết chỗ thừa sang PHẢI. Chú thích cạnh
+     * `margin-inline: auto` đã hứa căn giữa suốt từ `0073` mà chưa bao giờ làm
+     * được; đo trong Chrome ở `0145`: hở trái 25px, hở phải 203px.
+     *
+     * Hai khai báo phải đi cùng nhau, nên ca kiểm đòi cả hai: gỡ `display` đi
+     * thì `margin-inline` thành mã chết, còn gỡ `margin-inline` thì `display`
+     * chẳng làm gì.
+     */
+    const k = khoi('app.css', /\.khung-xem/);
+    expect(k, 'iframe inline thì lề tự động không căn giữa').toMatch(/display:\s*block/);
+    expect(k).toMatch(/margin-inline:\s*auto/);
+  });
+
   it('bảng xem trước lượt nhập Excel mở ở bậc TO', () => {
     /*
      * Quét nguồn chứ không dựng màn hình: chưa có bộ đồ giả nào cho màn hình

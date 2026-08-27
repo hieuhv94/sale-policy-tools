@@ -11,6 +11,10 @@
  *     thuộc tính của bản trình bày ấy, nằm sẵn trong file .docx do Quản trị
  *     soạn. Hỏi khổ giấy là bắt người dùng ghép hai mảnh mà phần mềm ghép được.
  *
+ *   - `0145`: bước chọn mẫu là một **ô chọn**, không phải một danh sách nút.
+ *     Cùng một câu hỏi với ô đổi mẫu ở màn hình sau, nên cùng một hình dạng — và
+ *     nó cao bằng một dòng dù danh mục mẫu có dài tới đâu.
+ *
  *   - `0098`: HAI LOẠI RẼ ĐÔI. Hợp đồng giữ nguyên bước chọn mẫu; bản mềm CSBH
  *     thì mẫu đã gắn vào hồ sơ từ lúc gửi duyệt, nên hộp mở thẳng nội dung và
  *     chỉ NÓI RA tên mẫu.
@@ -23,7 +27,7 @@
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
 import { NHAN_KHO, TY_LE_KHO, type MauChon } from '../lib/mau-hop-dong.js';
-import { BaoLoi, DangTai, HopThoai } from './Chung.js';
+import { BaoLoi, DangTai, HopThoai, Truong } from './Chung.js';
 import { XemTep } from './XemTep.js';
 
 export type LoaiVanBan = 'HO_SO' | 'HOP_DONG';
@@ -78,6 +82,16 @@ export function XemBanMem({
   const [ds, datDs] = useState<MauChon[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [chon, datChon] = useState<string | null>(null);
+  /**
+   * Mẫu đang chọn trong Ô CHỌN của bước một — chưa phải mẫu đang XEM (`0145`).
+   *
+   * Hai state chứ không một, và đó là cả cơ chế giữ luật `0067` khi bước một
+   * chuyển từ danh sách nút sang một ô chọn: một cái nút vừa là lựa chọn vừa là
+   * lượt xác nhận, còn một ô chọn thì không. Gộp lại thành một state nghĩa là
+   * `chon` có giá trị ngay lúc người dùng vừa rê qua danh sách, và hộp nhảy sang
+   * bản xem trước của mẫu họ chưa kịp đọc tên.
+   */
+  const [dinhChon, datDinhChon] = useState('');
   /** Mẫu đã gắn — chỉ để hiện tên và lấy khổ giấy, không để chọn. */
   const [mauGan, datMauGan] = useState<MauChon | null>(null);
 
@@ -143,22 +157,55 @@ export function XemBanMem({
             <p className="ghi-chu">
               Chọn văn bản mẫu để xem trước. Mỗi mẫu có bố cục và tập cột riêng.
             </p>
-            <div className="chon-mau-truoc">
-              {ds.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  className="nut nut-nhe"
-                  onClick={() => datChon(m.id)}
+            {/*
+              Ô CHỌN, không phải danh sách nút (`0145`).
+
+              Danh sách nút của `0067` đọc được khi có ba mẫu; danh mục mẫu thì
+              chỉ dài thêm, và mười nút xếp dọc đẩy nút *Đóng* xuống dưới tầm
+              nhìn ngay trên laptop. Ô chọn cao bằng một dòng dù có bao nhiêu
+              mẫu, và nó khớp với ô chọn ĐỔI MẪU ở màn hình sau — cùng một câu
+              hỏi thì nên cùng một hình dạng.
+            */}
+            <Truong id="chon-mau-truoc" nhan="Văn bản mẫu" bắtBuộc>
+              {(o) => (
+                <select
+                  {...o}
+                  className="o-nhap"
+                  value={dinhChon}
+                  onChange={(e) => datDinhChon(e.target.value)}
                 >
-                  {m.ten}
-                  {phuDe(m) ? ` · ${phuDe(m)}` : ''}
-                </button>
-              ))}
-            </div>
+                  {/*
+                    DÒNG RỖNG ĐỨNG ĐẦU, và nó là chỗ giữ nguyên luật `0067`.
+
+                    Bỏ nó đi thì ô chọn tự mang mẫu đầu danh sách, tức quay lại
+                    đúng cái `0058` làm và khách hàng đã bác ngày 20/08: phần lớn
+                    người dùng không bao giờ biết mẫu thứ hai tồn tại, và họ gửi
+                    đi bản đầu tiên phần mềm đưa ra chứ không phải bản họ định
+                    gửi. Nút *Xem* khoá theo dòng rỗng ấy.
+                  */}
+                  <option value="">— Chọn văn bản mẫu —</option>
+                  {ds.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.ten}
+                      {phuDe(m) ? ` · ${phuDe(m)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Truong>
           </>
         )}
         <div className="nhom-nut">
+          {ds !== null && ds.length > 0 && (
+            <button
+              type="button"
+              className="nut nut-chinh"
+              disabled={dinhChon === ''}
+              onClick={() => datChon(dinhChon)}
+            >
+              Xem
+            </button>
+          )}
           <button type="button" className="nut nut-nhe" onClick={dong}>
             Đóng
           </button>

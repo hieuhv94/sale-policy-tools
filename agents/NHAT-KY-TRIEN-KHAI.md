@@ -12642,3 +12642,92 @@ Ca `INVALID_TRANSITION` phải đổi người bấm nhầm từ Kế toán sang
 `0142` chặn trước khi câu `409` kịp dựng. Luật cần kiểm không đổi.
 
 **1871/1871 xanh.**
+
+## P173 — `0145` ô chọn mẫu, và hộp xem ôm sát tờ giấy
+
+Hai yêu cầu, và vế thứ hai là một lỗi **đo được** chứ không phải chuyện thẩm mỹ.
+
+### Đo trước khi sửa, và số đo chỉ thẳng vào nguyên nhân
+
+Khách hàng báo *"khung preview không fit với kích thước file pdf, ví dụ với A4
+dọc, thừa một phần lề lớn bên phải hộp thoại"*. Dựng lại khối `.hop-thoai-xem`
+trong Chrome không màn hình, đọc bằng `getBoundingClientRect` ở ba cỡ cửa sổ:
+
+    cửa sổ       hộp thoại   khung xem   hở trái   hở phải
+    1920×1080    535px       485px       25px       25px
+    1366×768     520px       267px       25px      203px
+    1280×720     520px       233px       25px      237px
+
+Hai điều đọc ra ngay. Thứ nhất, ở 1920 thì hai số **khớp tới từng pixel** — phép
+tính của `0073` đúng. Thứ hai, chỗ hỏng nằm ở SÀN: bề rộng hộp là
+`max(khung + đệm, --san-hop-thoai)`, nên khi sàn thắng thì cả phần chênh lệch
+thành một dải trắng chết. Và nó dồn **hết sang phải**, không chia đôi.
+
+### Sàn 520px chưa bao giờ trả lời câu hỏi của chính nó
+
+`0128` đặt sàn bằng 520px vì đó là bề rộng hộp thoại thường lúc bấy giờ — một
+con số mượn. Câu hỏi thật là *"hẹp tới đâu thì hàng nút vỡ"*, và đo được là
+**186px** (hai nút *Đóng* · *Tải xuống* cộng `gap`). Cộng đệm hai bên 48px là
+236px; sàn mới **240px**.
+
+Tiêu đề thì KHÔNG vỡ — nó xuống dòng. Bản `0073` viết *"tiêu đề với hai nút vỡ
+hết"*, gộp hai thứ vào một câu, và một trong hai vế ấy tự lo được. Sàn vì thế bị
+đặt cao gấp đôi mức cần thiết suốt bảy mươi chặng.
+
+Đo lại sau khi sửa, cùng ba cỡ cửa sổ: **535/485 · 315/265 · 281/231** — hiệu số
+đúng 50px (đệm 48 + viền 2) ở cả ba. Không còn dải trắng nào.
+
+### Một dòng CSS hứa suông từ `0073`
+
+`margin-inline: auto` trên `.khung-xem`, kèm chú thích *"khung hẹp hơn thân hộp
+thì nó đứng giữa, chứ không dạt sang trái"*. Nó **chưa bao giờ làm được điều
+ấy**: `<iframe>` mặc định là `display: inline`, và lề tự động không căn giữa một
+phần tử inline. Đó là lý do 203px dồn hết sang phải thay vì chia 101px mỗi bên.
+
+Thêm `display: block`. Hai bản sửa nằm ở hai tầng và cần cả hai: sàn lo phần lớn
+các ca, dòng này lo những tỷ lệ cực đoan — một bản scan hoá đơn tỷ lệ 0.3 vẫn
+chạm sàn.
+
+Bài học cùng họ với `0132` (`visibility: hidden` tự khoá mất `:focus-within` của
+chính nó): **một luật CSS bị vô hiệu bởi một thuộc tính khác vẫn nằm nguyên
+trong tệp, đọc vào thì thấy đúng.** Chú thích còn làm nó khó nghi ngờ hơn.
+
+### Ô chọn: cái nút vừa là lựa chọn vừa là xác nhận, ô chọn thì không
+
+Vế thứ nhất nghe như đổi một thẻ HTML, nhưng nó đổi cả số bước. Một danh sách
+nút gộp hai việc vào một lượt bấm; một ô chọn tách chúng ra, nên phải có state
+thứ hai (`dinhChon`) và một nút *Xem*.
+
+Chỗ dễ mất nhất là luật `0067` — *phải chọn, phần mềm không chọn hộ* (khách hàng
+chốt 20/08). `<select>` mặc định mang giá trị của `<option>` đầu tiên, nên chỉ
+cần thiếu dòng rỗng đứng đầu là phần mềm lại chọn hộ, **màn hình trông y hệt**.
+Lúc phá lại, gỡ đúng dòng ấy làm đỏ 2 ca.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ `<option value="">` đứng đầu | 2 đỏ |
+| Đấu `onChange` thẳng vào lượt xem | 2 đỏ |
+| Sàn về lại 520px | 1 đỏ — ca A4 dọc trên laptop |
+| Sàn xuống 100px (quá tay chiều ngược) | 1 đỏ — ca hàng nút |
+| Gỡ `display: block` | 1 đỏ |
+
+Hai ca sàn là một CẶP và phải viết cả hai: mỗi ca một mình chỉ chặn một chiều,
+và chiều còn lại là chiều lượt sửa sau sẽ đi.
+
+### Năm ca cũ đỏ, và chúng đỏ ĐÚNG
+
+`chi-tiet-ho-so.test.tsx` lái cả màn hình thật nên nó bấm đúng những cái nút vừa
+biến mất — 5 ca đỏ ở lượt chạy đầy đủ. Đây là ca kiểm làm đúng việc của nó: đổi
+hình dạng một bước thì mọi chỗ đi qua bước ấy phải đỏ.
+
+Đáng ghi là **vì sao có tận năm chỗ**: cả năm chép tay cùng hai dòng *bấm Xem
+bản mềm → bấm nút mang tên mẫu*. Gom lại thành `chonMauRoiXem()`, nên lượt đổi
+hình dạng sau chỉ phải sửa một chỗ.
+
+### Cái mất
+
+`.chon-mau-truoc` gỡ khỏi `app.css` — hết chỗ dùng.
+
+**1880/1880 xanh.**

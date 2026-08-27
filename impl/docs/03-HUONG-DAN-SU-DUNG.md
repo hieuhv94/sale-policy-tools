@@ -1016,9 +1016,22 @@ nút *Tải xuống* và *Đóng*.
 > **Hợp đồng vẫn hỏi chọn mẫu** mỗi lượt xuất, và **phải chọn** mới xem được: hệ thống không lưu hợp
 > đồng nên không có gì để gắn mẫu vào.
 
+Ở những chỗ **còn hỏi chọn mẫu** — hồ sơ Nháp, và mọi lượt xuất hợp đồng — câu hỏi ấy là một **ô
+chọn** `sửa 27/08`, kèm nút *Xem*. Ô mở ra **rỗng**: phần mềm không chọn hộ bạn, và nút *Xem* chỉ mở
+khoá sau khi bạn chọn. Trước đó mỗi mẫu là một cái nút xếp dọc — đọc được khi có ba mẫu, nhưng danh
+mục mẫu chỉ dài thêm, và tới mẫu thứ mười thì nút *Đóng* bị đẩy xuống dưới tầm nhìn.
+
+> Ô chọn này giống hệt ô **Mẫu** ở đoạn ngay dưới, và giống là có chủ ý: cùng một câu hỏi thì nên
+> cùng một hình dạng.
+
 Sau khi đã xem, trên bản đang xem có ô **Mẫu** để đổi sang mẫu khác mà không phải đóng hộp ra chọn
 lại — ô này chỉ hiện khi có từ hai mẫu trở lên. Đổi bao nhiêu lần cũng được và không lần nào bị tính
 là một lượt tải.
+
+**Hộp xem ôm sát tờ giấy** `sửa 27/08` — bề rộng hộp là bề rộng tờ giấy cộng đúng phần đệm, nên
+không còn dải trắng thừa bên phải bản xem. Tờ A4 dọc trên laptop 1366×768 trước đó để lại 203px
+trắng; giờ là 25px mỗi bên, bằng nhau. Hệ quả nhìn thấy được: trên màn hình thấp, hộp xem **hẹp hơn
+hẳn** hộp nhập liệu thường — đó là đúng, nó chỉ rộng bằng thứ nó đang đựng.
 
 > **Không còn hỏi khổ giấy nữa** `sửa 20/08`. Khổ giấy nằm sẵn trong file mẫu mà Quản trị soạn: mẫu
 > ngang thì bản mềm ra ngang. Hỏi riêng khổ giấy là bắt bạn ghép hai mảnh mà phần mềm ghép được —
