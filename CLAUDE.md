@@ -87,15 +87,25 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P157** (`0129`): **nới bề rộng hộp thoại**, ba bậc chọn theo VIỆC (`co` của
-`HopThoai`, con số ở `tokens.css`): nhập liệu 1040px · hai cột 1520px · **xem trước 1800px**. Chỗ dễ
-sửa nhầm: hộp **xem bản mềm/hợp đồng KHÔNG nhận bề rộng** — từ `0073` nó tính rộng TỪ `--cao-khung ×
-tỷ lệ tờ giấy`, nên "gần full màn hình" nằm ở **trần `--cao-khung`** (900px → 1600px; trần cũ vứt đi
-300px trên màn 2560×1440), không ở một dòng `width`. Kèm hai thứ lộ ra vì hộp rộng thêm: `.khung-pdf`
-là `width: 100%` nên tờ A4 dọc trong hộp 1800px có hơn 700px xám mỗi bên — giờ chặn rộng bằng
-`cao × --ty-le` như `.khung-xem`, `--ty-le` lấy từ khổ giấy của mẫu đang chọn; và **sàn hộp xem cắt
-khỏi bề rộng hộp thường** (`--san-hop-thoai` riêng) vì hai con số trả lời hai câu hỏi khác nhau —
-ca kiểm giờ canh **quan hệ** (sàn < hộp thường) chứ không canh con số. **1779/1779 xanh.**
+Chặng gần nhất **P158** (`0130`): **kéo lại cỡ hộp thoại** sau khi khách hàng xem bản `0129` —
+ba bậc hạ một phần ba (**700 · 1000 · 1200px**), hộp xem bản mềm hạ chiều cao (`--cao-khung`: trừ
+15rem → **19rem**, trần → 1400px), và **hộp gửi duyệt về bậc thường**. Ba thứ đáng nhớ: bậc `rong`
+phải hạ theo dù khách hàng không nêu tên nó, nếu không nó **rộng hơn cả bậc `to`** và cái thang gãy
+lặng lẽ; *"giảm chiều cao một chút"* có ngưỡng đọc ra được — khoản trừ phải > **189px** (khung hộp
+157 + lề lớp phủ 32) mới không cắt hộp, và > ~289px mới còn thấy trang phía sau; và **bề rộng hộp
+không quyết định tờ CSBH to hay nhỏ** (`.khung-pdf` chặn bằng chiều cao), nên `0129` xếp hộp gửi
+duyệt vào bậc `to` là một suy luận nghe hợp lý mà sai. Bài học về ca kiểm: `0129` viết
+`expect(thuong).toBe(520 * 2)` — canh CON SỐ nên lượt này nó đỏ ở chỗ chẳng có gì sai trong khi cái
+thang gãy thì lọt; canh **quan hệ** (`thuong < rong < to`, sàn < thuong) mới bắt được.
+**1780/1780 xanh.**
+
+Trước đó **P157** (`0129`): **nới bề rộng hộp thoại**, ba bậc chọn theo VIỆC (`co` của
+`HopThoai`, con số ở `tokens.css`). Chỗ dễ sửa nhầm: hộp **xem bản mềm/hợp đồng KHÔNG nhận bề
+rộng** — từ `0073` nó tính rộng TỪ `--cao-khung × tỷ lệ tờ giấy`, nên "gần full màn hình" nằm ở
+**trần `--cao-khung`**, không ở một dòng `width`. Kèm hai thứ lộ ra vì hộp rộng thêm: `.khung-pdf`
+là `width: 100%` nên tờ A4 dọc có hàng trăm pixel xám mỗi bên — giờ chặn rộng bằng `cao × --ty-le`
+như `.khung-xem`, `--ty-le` lấy từ khổ giấy của mẫu đang chọn; và **sàn hộp xem cắt khỏi bề rộng hộp
+thường** (`--san-hop-thoai` riêng) vì hai con số trả lời hai câu hỏi khác nhau.
 
 Trước đó **P156** (`0128`): **số điện thoại khách hàng**, kèm một khoá mới trong bảng ánh xạ
 văn bản mẫu. Chạm bốn tầng, và hai chặng cũ đã dựng sẵn câu hỏi cho nó: `0101` (cột rời chứ không

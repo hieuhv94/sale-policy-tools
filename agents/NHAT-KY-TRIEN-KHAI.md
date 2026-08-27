@@ -11497,3 +11497,64 @@ tìm nút chứ không phải ở chỗ nó định kiểm. **Đổi vai trò gi
 thì phải đặt lại phiên, không chỉ `cleanup()`.**
 
 **1779/1779 xanh.**
+
+## P158 — `0130` kéo lại cỡ hộp thoại sau khi khách hàng xem bản `0129`
+
+Bốn vế, tất cả đều là chỉnh con số của chặng ngay trước. Ghi lại vì cái đáng nhớ
+không phải bốn con số, mà là ba chỗ mà việc chỉnh con số làm lộ ra.
+
+| Vế khách hàng nêu | Làm gì |
+|---|---|
+| hộp thường rộng quá, giảm 1/3 | `--rong-hop-thoai` 1040 → **700px** |
+| hộp nhập Excel giảm 1/3 | `--rong-hop-thoai-to` 1800 → **1200px** |
+| hộp bản mềm/hợp đồng giảm chiều cao một chút | `--cao-khung`: trừ 15rem → **19rem**, trần 1600 → **1400px** |
+| hộp gửi duyệt cùng cỡ hộp thường | bỏ `co` khỏi `HopThoaiHanhDong` |
+
+### Bậc `rong` phải hạ theo, dù không ai nêu tên nó
+
+Khách hàng nói bốn hộp, và bảng ánh xạ trường không nằm trong bốn. Hạ đúng bốn vế
+ấy thì `--rong-hop-thoai-rong` ở lại 1520px và **thành bậc rộng nhất, rộng hơn cả
+bậc `to`** — ba bậc thôi là một cái thang, và mọi chỗ gọi `co="to"` nói ngược lại
+điều nó định nói mà không màn hình nào đỏ lên.
+
+Nên nó hạ theo, cùng tỷ lệ, xuống 1000px. Ca kiểm bắt được việc này ngay lượt
+chạy đầu — và bắt được **chỉ vì** nó canh QUAN HỆ giữa ba con số. Bản `0129` viết
+`expect(thuong).toBe(520 * 2)`, một phép so con số; giữ nguyên kiểu ấy thì lượt
+này ca đỏ vì `700 ≠ 1040` — đỏ đúng chỗ chẳng có gì sai — còn cái thang gãy thì
+lọt. Đổi sang canh `thuong < rong < to` cộng `thuong > 520`.
+
+### "Giảm chiều cao một chút" có một ngưỡng đọc ra được
+
+Không phải một con số thẩm mỹ. Khoản trừ cố định phải lớn hơn khung hộp cộng lề
+lớp phủ, dư ra đủ để còn thấy trang phía sau:
+
+    khung hộp   ≤ 157px   (đo trong Chrome ở `0073`, ca có ô chọn mẫu)
+    lề lớp phủ  =  32px   (2 × --k4)
+
+Dưới 189px là hộp bị CẮT. Từ 189px tới ~289px thì hộp vừa khít hai mép màn hình —
+đúng thứ khách hàng nhìn thấy ở bản `0129` (240px) và gọi là cao quá. 19rem =
+304px rơi vừa trên ngưỡng ấy; đo được: khung trên 1920×1080 hạ từ 840px xuống
+776px (−7,6%). Ca kiểm canh cả hai đầu, và **đọc khoản trừ từ chính CSS** thay vì
+chép 240px sang — bản `0129` chép, nên ca ấy đang đo bằng thước của bản trước.
+
+### Hộp gửi duyệt: bề rộng không phải thứ quyết định tờ CSBH to hay nhỏ
+
+`0129` xếp nó vào bậc `to` vì nó nhúng cả một tờ CSBH. Suy luận nghe hợp lý và
+sai: `.khung-pdf` khoá theo tỷ lệ tờ giấy và chặn bằng CHIỀU CAO (`0129` vừa sửa
+đúng chỗ đó), nên nới hộp ra chỉ thêm nền xám hai bên. Đưa về bậc thường không
+mất gì — ở 700px khung vẫn cao đúng `min(52dvh, 560px)` như trước.
+
+Ca kiểm đổi chiều: từ *"gửi duyệt thì to"* thành *"gửi duyệt giống hệt bước ký"*.
+Suy luận sai kia sẽ quay lại, nên cái đáng canh là hai hộp bằng nhau.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Hộp thường tụt về 520px của `0128` | 2 đỏ — thang, và sàn |
+| Chỉ hạ hai bậc khách hàng nêu tên | 1 đỏ — `rong` vượt `to` |
+| Khoản trừ trở về 15rem | 1 đỏ — hộp chạm hai mép |
+| Trần trở về 900px của `0073` | 1 đỏ |
+| Hộp gửi duyệt quay lại bậc `to` | 1 đỏ |
+
+**1780/1780 xanh.**

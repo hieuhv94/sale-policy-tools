@@ -598,20 +598,25 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     });
   });
 
-  it('`0129` hộp GỬI DUYỆT là hộp TO, hộp duyệt thường thì không', async () => {
+  it('`0130` hộp GỬI DUYỆT ở BẬC THƯỜNG như mọi hộp hành động khác', async () => {
     /*
-     * Bậc bề rộng đi theo VIỆC, không theo tên hành động: hộp gửi duyệt nhúng cả
-     * một tờ CSBH để đọc trước khi ký, còn hộp duyệt chỉ có một ô lý do.
+     * `0129` cho bước gửi duyệt bậc `to` vì nó nhúng cả một tờ CSBH; khách hàng
+     * xem xong chốt 27/08 đưa về bậc thường. Ca này canh CHIỀU ĐẢO NGƯỢC ấy.
      *
-     * Ca này canh CẢ HAI VẾ. Kiểm mỗi vế "gửi duyệt thì to" thì đổi `co` thành
-     * hằng `'to'` vẫn xanh, và mọi hộp trong luồng duyệt rộng 1800px để hỏi một
-     * câu — đúng thứ mà một bậc bề rộng sinh ra để tránh.
+     * Đáng canh vì suy luận sai nghe rất hợp lý và sẽ quay lại: bề rộng hộp KHÔNG
+     * quyết định tờ CSBH to hay nhỏ — `.khung-pdf` khoá theo tỷ lệ tờ giấy và
+     * chặn bằng chiều cao, nên nới hộp ra chỉ thêm nền xám hai bên.
+     *
+     * Kiểm CẢ HAI hộp: bước gửi duyệt (có bản mềm) và bước ký (không có). Chúng
+     * phải giống nhau, và đó chính là điều `0130` chốt.
      */
     localStorage.setItem('csbh:phien', JSON.stringify(TDV));
     await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
     fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
     await screen.findByLabelText(/Văn bản mẫu/);
-    expect(document.querySelector('.hop-thoai-to'), 'hộp gửi duyệt phải là hộp to').not.toBeNull();
+    expect(document.querySelector('.hop-thoai')).not.toBeNull();
+    expect(document.querySelector('.hop-thoai-to'), 'hộp gửi duyệt đã về bậc thường').toBeNull();
+    expect(document.querySelector('.hop-thoai-rong')).toBeNull();
 
     // Vai trò phải trở về TBP: `canHanhDong` giấu nút ký của một phiên TDV, và
     // hộp không mở ra thì ca này xanh vì không tìm thấy gì, không vì đúng.
@@ -621,7 +626,7 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     fireEvent.click(screen.getByRole('button', { name: 'Ký số duyệt' }));
     await screen.findByRole('button', { name: /^Xác nhận/ });
     expect(document.querySelector('.hop-thoai')).not.toBeNull();
-    expect(document.querySelector('.hop-thoai-to'), 'hộp ký không nhúng bản mềm nào').toBeNull();
+    expect(document.querySelector('.hop-thoai-to')).toBeNull();
   });
 
   it('`0129` khung xem trước mang khổ giấy của mẫu đang chọn', async () => {

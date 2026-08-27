@@ -1661,10 +1661,19 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
    Nên chỗ nới thật nằm ở TRẦN của `--cao-khung`: `0073` đặt 900px, và con số ấy
    cắn ngay khi màn hình cao hơn 1140px — màn 27" 2560×1440 bỏ phí 300px chiều
-   cao, tức đúng một phần tư khung. Trần mới 1600px chỉ còn cắn ở màn hình cao
-   hơn 1840px; dưới mức ấy vế `100dvh - 15rem` cầm lái, tức khung LUÔN cao hết
-   phần màn hình còn lại. 15rem giữ nguyên (xem đoạn dưới) — nó là chỗ ngồi của
-   tiêu đề và hàng nút, cắt bớt là đẩy nút ra ngoài tầm nhìn.
+   cao, tức đúng một phần tư khung. `0129` nới lên 1600px.
+
+   `0130` KÉO LẠI MỘT CHÚT, và cả hai vế cùng lúc: trần 1600px → 1400px, khoản
+   trừ cố định 15rem → 19rem. Khách hàng xem bản `0129` rồi bảo hộp bản mềm cao
+   quá — ở `100dvh - 15rem` nó gần chạm hai mép trên dưới màn hình, và một hộp
+   thoại không còn thấy trang phía sau thì nó thôi trông như hộp thoại.
+
+   Đo bằng con số: trên 1920×1080 khung hạ từ 840px xuống 776px (−7,6%); trên
+   2560×1440 hạ từ 1200px xuống 1136px. Vế trần chỉ cắn từ 1704px trở lên.
+
+   Khoản trừ nới RA chứ không cắt bớt, nên biên an toàn của `0073` chỉ dày thêm:
+   nó là chỗ ngồi của tiêu đề và hàng nút (đo được 126px, 157px khi có ô chọn
+   mẫu), và cắt bớt mới là thứ đẩy nút ra ngoài tầm nhìn.
 
    `--cao-khung` trừ đi một khoản CỐ ĐỊNH cho phần khung hộp (tiêu đề, hàng nút,
    ô chọn mẫu) chứ không lấy một phần trăm chiều cao: những thứ ấy cao bằng chữ,
@@ -1683,8 +1692,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    đi trượt lại), nhưng trình duyệt không hiểu `dvh` sẽ bỏ CẢ dòng và biến thành
    rỗng — nên dòng `vh` đứng trước làm nền. Cùng lối với `max-height` ở trên. */
 .hop-thoai-xem {
-  --cao-khung: clamp(300px, calc(100vh - 15rem), 1600px);
-  --cao-khung: clamp(300px, calc(100dvh - 15rem), 1600px);
+  --cao-khung: clamp(300px, calc(100vh - 19rem), 1400px);
+  --cao-khung: clamp(300px, calc(100dvh - 19rem), 1400px);
   /*
      A4 dọc là giá trị mặc định, và React đặt ĐÈ lên bằng style nội tuyến — style
      nội tuyến thắng mọi luật trong tệp này.
@@ -1707,17 +1716,16 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    trên màn hình hẹp hộp phải co lại theo chứ không đẩy nội dung ra ngoài mép. */
 .hop-thoai-rong { width: min(var(--rong-hop-thoai-rong), 100%); }
 
-/* Hộp TO cho nội dung XEM TRƯỚC — gần hết màn hình (`0129`).
+/* Hộp TO cho nội dung XEM TRƯỚC (`0129`, thu lại ở `0130`).
 
-   Hai chỗ dùng, và cả hai có chung một tính chất: người dùng tới đây để ĐỌC một
-   thứ rộng, không phải để điền ô.
+   MỘT chỗ dùng: bảng xem trước lượt nhập danh mục từ Excel — bốn khối, mỗi dòng
+   sửa mang cột *cũ → mới* nên nó rộng gấp đôi một bảng thường, và người dùng tới
+   đây để ĐỌC chứ không để điền ô.
 
-     - bảng xem trước lượt nhập danh mục từ Excel — bốn khối, mỗi dòng sửa mang
-       cột *cũ → mới* nên nó rộng gấp đôi một bảng thường;
-     - hộp gửi duyệt, chỗ có bản mềm CSBH nhúng ngay trong hộp.
-
-   Không gộp vào bậc rộng ở trên: bảng ánh xạ trường là một biểu mẫu — mỗi dòng
-   một ô chọn — còn hai chỗ này thì không nhập gì cả. */
+   `0129` còn xếp hộp gửi duyệt vào bậc này vì nó nhúng cả tờ CSBH; khách hàng
+   chốt 27/08 đưa nó về bậc thường — xem `ChiTietHoSo`. Bậc vẫn là một bậc chung
+   chứ không gấp vào `.hop-thoai-rong`: bảng ánh xạ trường là một biểu mẫu (mỗi
+   dòng một ô chọn), còn bảng này thì không nhập gì cả. */
 .hop-thoai-to { width: min(var(--rong-hop-thoai-to), 100%); }
 
 /* Bảng ánh xạ trong hộp thoại: KHÔNG cho tràn ra ngoài khung (`0068`).

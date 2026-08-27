@@ -645,19 +645,18 @@ function HopThoaiHanhDong({
   };
 
   /*
-   * Hộp TO chỉ ở hai bước CÓ xem trước (`0129`).
+   * BẬC THƯỜNG cho MỌI hành động, kể cả bước gửi duyệt (`0130`).
    *
-   * `canXem` đúng là tập hai hành động gửi duyệt, tức đúng hai lần hộp này nhúng
-   * cả một tờ CSBH bên trong. Mấy hành động còn lại — duyệt, trả lại, từ chối —
-   * chỉ có một ô lý do và một ô chọn người; nới chúng ra 1800px là bày một hộp
-   * gần hết màn hình để hỏi một câu.
+   * `0129` cho hai bước gửi duyệt bậc `to` vì chúng nhúng cả một tờ CSBH. Khách
+   * hàng xem xong chốt 27/08: về bậc thường như mọi hộp khác.
+   *
+   * Bề rộng hộp KHÔNG phải thứ quyết định tờ CSBH to hay nhỏ — `.khung-pdf` khoá
+   * theo tỷ lệ tờ giấy và chặn bằng chiều cao, nên nới hộp ra chỉ thêm nền xám
+   * hai bên. Đó cũng là lý do đưa về bậc thường không mất gì: ở 700px, khung vẫn
+   * cao đúng `min(52dvh, 560px)` như trước.
    */
   return (
-    <HopThoai
-      tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong}
-      co={canXem ? 'to' : 'thuong'}
-      dong={dong}
-    >
+    <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
       {canXem && (
         <>
           {/*

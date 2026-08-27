@@ -273,18 +273,25 @@ describe('`0129` hộp thoại đủ rộng', () => {
     return Number(m![1]);
   };
 
-  it('ba bậc bề rộng tăng dần, và bậc thường gấp đôi con số cũ', () => {
+  it('ba bậc bề rộng TĂNG DẦN, và bậc thường rộng hơn con số trước `0129`', () => {
     /*
      * Ba bậc mà không tăng dần là ba bậc vô nghĩa — một hộp `to` hẹp hơn hộp
      * thường thì mọi chỗ gọi `co="to"` đang nói ngược lại điều nó định nói, và
      * không có màn hình nào đỏ lên vì việc ấy.
+     *
+     * Canh QUAN HỆ chứ không canh con số, và `0130` là lý do: nó hạ cả ba bậc
+     * một phần ba sau khi khách hàng xem bản `0129`. Một ca kiểm ghim `1040px`
+     * thì mỗi lượt chỉnh cỡ đều đỏ mà chẳng phát hiện được gì — thứ đáng canh là
+     * cái thang, cộng với việc bậc thường không lặng lẽ tụt về 520px của `0128`.
+     *
+     * Ca đỏ đúng lúc đáng đỏ: `0130` thoạt tiên chỉ hạ hai bậc khách hàng nêu
+     * tên, để `rong` ở 1520px — và nó thành bậc RỘNG NHẤT, rộng hơn cả `to`.
      */
     const thuong = token('--rong-hop-thoai');
     const rong = token('--rong-hop-thoai-rong');
     const to = token('--rong-hop-thoai-to');
 
-    expect(thuong).toBe(520 * 2);
-    expect(rong).toBe(760 * 2);
+    expect(thuong).toBeGreaterThan(520);
     expect(thuong).toBeLessThan(rong);
     expect(rong).toBeLessThan(to);
   });
@@ -320,15 +327,47 @@ describe('`0129` hộp thoại đủ rộng', () => {
      * rộng hộp xem là HỆ QUẢ của chiều cao khung, nên "mở rộng cửa sổ xem
      * trước" không sửa được bằng một dòng `width`.
      *
-     * `0073` đặt trần 900px. Màn 2560×1440 còn `1440 - 240 = 1200px` chỗ trống,
-     * nên trần ấy vứt đi 300px — một phần tư khung — và tờ giấy nhỏ đi đúng
-     * chừng ấy. Trần phải cao hơn phần chiều cao mà một màn hình 1440px cho.
+     * `0073` đặt trần 900px trong khi màn 2560×1440 cho hơn 1100px chỗ trống,
+     * nên trần ấy vứt đi một phần tư khung và tờ giấy nhỏ đi đúng chừng ấy.
+     *
+     * Khoản trừ ĐỌC TỪ CHÍNH CSS chứ không viết cứng 240px: `0130` nới nó từ
+     * 15rem lên 19rem để hạ khung một chút, và một con số chép tay ở đây thì ca
+     * kiểm sẽ đo bằng cái thước của bản trước.
      */
     const k = khoi('app.css', /\.hop-thoai-xem/);
+    const tru = [...k.matchAll(/--cao-khung:[^;]*?100d?vh\s*-\s*(\d+)rem/g)].map(
+      (m) => Number(m[1]) * 16,
+    );
+    expect(tru.length, 'không đọc được khoản trừ của --cao-khung').toBe(2);
     // `[^;]*` chạy tới dấu phẩy CUỐI của `clamp(…)` — vế thứ ba là cái trần.
     const tran = [...k.matchAll(/--cao-khung:[^;]*,\s*(\d+)px\s*\)\s*;/g)].map((m) => Number(m[1]));
     expect(tran.length, 'không đọc được trần của --cao-khung').toBe(2);
-    for (const t of tran) expect(t).toBeGreaterThanOrEqual(1440 - 240);
+    for (const [i, t] of tran.entries()) expect(t).toBeGreaterThanOrEqual(1440 - tru[i]!);
+  });
+
+  it('`0130` hộp xem CÒN CHỪA khoảng hở trên dưới, không chạm hai mép', () => {
+    /*
+     * Yêu cầu là *"giảm chiều cao lại một chút"*, và cái "một chút" ấy có một
+     * ngưỡng đọc ra được: khoản trừ phải lớn hơn phần khung hộp cộng lề lớp phủ,
+     * dư ra đủ để người dùng còn thấy trang phía sau.
+     *
+     *   khung hộp   ≤ 157px (đo trong Chrome ở `0073`, ca có ô chọn mẫu)
+     *   lề lớp phủ  = 2 × var(--k4) = 32px
+     *
+     * Dưới 189px là hộp bị cắt. Từ 189px tới ~289px thì hộp vừa khít hai mép màn
+     * hình — đúng thứ khách hàng nhìn thấy ở bản `0129` và bảo là cao quá. Trần
+     * trên giữ cho lần chỉnh sau đừng đi quá đà: trừ hơn 400px là bỏ phí gần một
+     * phần ba màn hình laptop, tức quay về đúng lỗi mà `0129` vừa chữa.
+     */
+    const k = khoi('app.css', /\.hop-thoai-xem/);
+    const tru = [...k.matchAll(/--cao-khung:[^;]*?100d?vh\s*-\s*(\d+)rem/g)].map(
+      (m) => Number(m[1]) * 16,
+    );
+    expect(tru.length).toBe(2);
+    for (const t of tru) {
+      expect(t, 'hộp xem chạm hai mép màn hình').toBeGreaterThanOrEqual(157 + 32 + 100);
+      expect(t, 'trừ quá tay, khung bỏ phí chiều cao').toBeLessThanOrEqual(400);
+    }
   });
 
   it('bảng xem trước lượt nhập Excel mở ở bậc TO', () => {

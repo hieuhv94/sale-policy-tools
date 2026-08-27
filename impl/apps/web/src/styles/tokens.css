@@ -191,9 +191,9 @@
    * 520px trên màn hình 1920px dùng hết 27% bề ngang và bắt cuộn dọc, trong khi
    * hai phần ba màn hình để trống.
    *
-   *   `--rong-hop-thoai`      hộp NHẬP LIỆU thường — gấp đôi con số cũ;
-   *   `--rong-hop-thoai-rong` nội dung hai cột (bảng ánh xạ) — cũng gấp đôi;
-   *   `--rong-hop-thoai-to`   hộp XEM TRƯỚC — gần hết màn hình.
+   *   `--rong-hop-thoai`      hộp NHẬP LIỆU thường;
+   *   `--rong-hop-thoai-rong` nội dung hai cột (bảng ánh xạ);
+   *   `--rong-hop-thoai-to`   hộp XEM TRƯỚC.
    *
    * Ba con số này là TRẦN, không phải bề rộng thật: mọi chỗ dùng đều bọc trong
    * `min(…, 100%)` vì lớp phủ đã có lề hai bên. Trên laptop 1366px cả ba bậc đều
@@ -201,10 +201,27 @@
    *
    * Bậc `to` KHÔNG đặt 100%: một bảng xem trước kéo hết bề ngang màn hình 27"
    * cho ra những dòng dài tới mức mắt lạc hàng khi đọc ngang.
+   *
+   * ---------------------------------------------------------------------------
+   * `0130` — CẢ BA BẬC HẠ MỘT PHẦN BA
+   * ---------------------------------------------------------------------------
+   *
+   * `0129` nhân đôi thẳng hai con số cũ (520 → 1040, 760 → 1520) và đặt bậc `to`
+   * ở 1800px. Khách hàng xem xong chốt 27/08: **rộng quá**. Một biểu mẫu một cột
+   * ở 1040px cho ra ô nhập dài gần một mét trên màn 1920px, và mắt phải đi hết
+   * bề ngang ấy để nối nhãn với ô — cái mất còn nhiều hơn cái được so với 520px.
+   *
+   * Nên ba bậc hạ đúng một phần ba, giữ nguyên tỷ lệ giữa chúng.
+   *
+   * Bậc `rong` KHÔNG có trong bốn vế khách hàng nêu — họ nói *hộp thường*, *hộp
+   * nhập Excel*, *hộp bản mềm*, *hộp gửi duyệt*. Nó hạ theo vì bảng ánh xạ trường
+   * là màn hình của Quản trị, ít người mở, và để nó ở 1520px thì nó **rộng hơn
+   * cả bậc `to`** — ba bậc thôi là một cái thang, và mọi chỗ gọi `co="to"` đang
+   * nói ngược lại điều nó định nói.
    */
-  --rong-hop-thoai: 1040px;
-  --rong-hop-thoai-rong: 1520px;
-  --rong-hop-thoai-to: 1800px;
+  --rong-hop-thoai: 700px;
+  --rong-hop-thoai-rong: 1000px;
+  --rong-hop-thoai-to: 1200px;
 
   /**
    * SÀN bề rộng của hộp xem tệp (`0073`) — KHÔNG đi theo ba con số trên.
@@ -217,6 +234,9 @@
    * giờ — và một ca kiểm buộc hai số bằng nhau. `0129` cắt sợi dây ấy: nới sàn
    * theo hộp nhập liệu nghĩa là tờ A4 dọc nằm giữa một hộp 1040px với hai vệt
    * xám hai bên. Sàn trả lời "hẹp tới đâu thì vỡ", một câu hỏi khác hẳn.
+   *
+   * `0130` hạ hộp thường xuống 700px, và sàn KHÔNG hạ theo — cùng lý do, ngược
+   * chiều. Hai con số lại gần nhau, nhưng chúng vẫn là hai câu hỏi.
    */
   --san-hop-thoai: 520px;
 
