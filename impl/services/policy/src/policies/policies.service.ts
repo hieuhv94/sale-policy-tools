@@ -197,11 +197,39 @@ export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
  */
 export const xuatHopDongDuoc = (ktL1ReceivedAt: Date | null): boolean => ktL1ReceivedAt !== null;
 
-export const thuocPhamVi = (n: number, alias = ''): string => {
+/**
+ * KẾ TOÁN CHƯA THẤY hồ sơ ở lượt CHỜ TBP ĐẦU TIÊN (`0142`, chốt 27/08).
+ *
+ * Tới `0141` Kế toán được chọn ngay lúc gửi duyệt, nên id họ vào cột
+ * `ke_toan_user_id` từ phút ấy và hồ sơ hiện trong danh sách của họ suốt cả
+ * quãng chờ Trưởng bộ phận — một hồ sơ chưa tới lượt, chưa chắc tới lượt (TBP có
+ * thể từ chối), nằm lẫn với việc thật của họ.
+ *
+ * ĐIỀU KIỆN LÀ "ĐÃ TỪNG QUA TBP", không phải "đang ở bước nào": hồ sơ bị Kế toán
+ * trả lại ở L1 rồi quay về `CHO_TBP_DUYET` thì họ VẪN thấy — họ đã đọc nó, đã
+ * viết lý do, và có lý do để theo dõi nó về sau.
+ *
+ * Xem `0107_ke_toan_chua_thay_luot_dau.sql` về việc vì sao phải là một cột
+ * riêng chứ không suy được từ `tbp_signed_at` hay `kt_l1_received_at`.
+ */
+const KE_TOAN_CHUA_TOI_LUOT = (a: string): string =>
+  `(${a}status::text = 'CHO_TBP_DUYET' AND ${a}da_qua_tbp = false)`;
+
+/**
+ * Mệnh đề PHẠM VI của một hồ sơ.
+ *
+ * `vaiTro` là tuỳ chọn và chỉ có một giá trị làm đổi kết quả — `KE_TOAN`. Truyền
+ * vai trò chứ không truyền một cờ `boolean`: chỗ gọi đã có `me.role` trong tay,
+ * và một cờ tên `boLuotDau` ở chỗ gọi thì người đọc phải nhớ nó nói về ai.
+ */
+export const thuocPhamVi = (n: number, alias = '', vaiTro?: string): string => {
   const a = alias ? `${alias}.` : '';
-  return `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
+  const trongBonCot = `(${['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id']
     .map((c) => `${a}${c} = ANY($${n}::uuid[])`)
     .join(' OR ')})`;
+  return vaiTro === 'KE_TOAN'
+    ? `(${trongBonCot} AND NOT ${KE_TOAN_CHUA_TOI_LUOT(a)})`
+    : trongBonCot;
 };
 
 /**
@@ -860,9 +888,11 @@ export class PoliciesService {
    */
   async byId(policyId: string, me: AuthUser) {
     const so = await this.db.one<PolicyRow & { status: string }>(
+      // `da_qua_tbp` đi kèm vì `assertPolicyInScope` cần nó cho luật riêng của
+      // Kế toán (`0142`) — thiếu ở đây thì chốt chặn im lặng không chặn gì.
       `SELECT tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
               status::text AS status, kt_l1_received_at, kt_l2_received_at,
-              tbp_signed_at, tbp_signed_by, sa_handover_at
+              tbp_signed_at, tbp_signed_by, sa_handover_at, da_qua_tbp
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );
@@ -1121,7 +1151,7 @@ export class PoliciesService {
               count(*) OVER() AS total_count
          FROM pol.policy p
          JOIN pol.policy_impact i ON i.policy_id = p.id
-        WHERE ${thuocPhamVi(1, 'p')}
+        WHERE ${thuocPhamVi(1, 'p', me.role)}
           AND p.status::text = ANY($2::text[])
         GROUP BY p.id
         ORDER BY max(i.detected_at) DESC, p.code
@@ -1192,7 +1222,7 @@ export class PoliciesService {
               supersedes_id AS "supersedesId", superseded_by_id AS "supersededById",
               count(*) OVER() AS total_count
          FROM pol.policy
-        WHERE ${thuocPhamVi(1)}
+        WHERE ${thuocPhamVi(1, '', me.role)}
           AND ($2::uuid IS NULL OR customer_id = $2::uuid)
           AND ($3::text IS NULL OR status::text = $3)
         -- Cột id phá hoà để phân trang ổn định: khoá sắp xếp bị hoà thì thứ tự
@@ -1524,12 +1554,34 @@ export class PoliciesService {
       tbp_user_id: string | null;
       ke_toan_user_id: string | null;
       sale_admin_user_id: string | null;
+      /** `0142` — hai trường này chỉ dùng cho luật riêng của Kế toán. */
+      status?: string;
+      da_qua_tbp?: boolean;
     },
     me: AuthUser,
   ): Promise<void> {
     const ids = await this.scope.userIdsFor(me);
     const nguoi = [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
     if (!nguoi.some((x) => x !== null && ids.includes(x))) {
+      throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+    }
+
+    /*
+     * Cùng luật với `thuocPhamVi(..., 'KE_TOAN')`, ở đường MỞ MỘT HỒ SƠ (`0142`).
+     *
+     * Thiếu chốt này thì danh sách giấu hồ sơ đi nhưng gõ thẳng địa chỉ vẫn mở
+     * được — đúng lỗ hổng mà `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
+     *
+     * `status` và `da_qua_tbp` khai TUỲ CHỌN: vài chỗ gọi hàm này với một dòng
+     * chỉ có bốn cột người. Thiếu thì không chặn — chọn phía nới, vì siết nhầm
+     * ở đây là khoá một người khỏi hồ sơ họ có quyền đọc, và triệu chứng là một
+     * màn hình 403 không giải thích gì.
+     */
+    if (
+      me.role === 'KE_TOAN' &&
+      p.status === 'CHO_TBP_DUYET' &&
+      p.da_qua_tbp === false
+    ) {
       throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
     }
   }

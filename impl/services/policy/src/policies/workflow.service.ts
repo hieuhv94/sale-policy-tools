@@ -626,7 +626,18 @@ export class WorkflowService {
       let kySql = '';
       if (action === 'TBP_SIGN') {
         params.push(me.name ?? null);
-        kySql = `tbp_ky_ten_snap = $${params.length},`;
+        /*
+         * `da_qua_tbp` bật ở đây và KHÔNG BAO GIỜ tắt (`0142`).
+         *
+         * Nó đứng cạnh ba cột chữ ký nhưng trả lời một câu NGƯỢC LẠI về thời
+         * gian: ba cột kia hỏi *"bây giờ có chữ ký không"* nên phải xoá lúc trả
+         * về; cột này hỏi *"đã từng ký chưa"* nên xoá là nói dối.
+         *
+         * Đừng gom nó vào nhánh `YEU_CAU_CHINH_SUA` bên dưới cho gọn: làm thế là
+         * lấy lại quyền đọc của Kế toán với chính những hồ sơ họ đã trả về, và
+         * không ca kiểm nào của lượt trả về đỏ lên.
+         */
+        kySql = `tbp_ky_ten_snap = $${params.length}, da_qua_tbp = true,`;
       } else if (step.next === 'YEU_CAU_CHINH_SUA') {
         kySql = 'tbp_signed_at = NULL, tbp_signed_by = NULL, tbp_ky_ten_snap = NULL,';
       }

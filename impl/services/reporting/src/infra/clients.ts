@@ -58,6 +58,8 @@ export type PolicySrc = {
    * phân khác đi qua ranh giới này, để không mất chữ số ở tầng JSON.
    */
   so_lan_tbp_tra_lai: number;
+  /** `0142` — hồ sơ đã từng qua Trưởng bộ phận; KHÔNG bao giờ về `false`. */
+  da_qua_tbp?: boolean;
   sua_lai_ngay: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */

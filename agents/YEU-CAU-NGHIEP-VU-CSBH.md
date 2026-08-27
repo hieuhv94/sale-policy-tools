@@ -1401,6 +1401,22 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
 
+**Kế toán chưa thấy hồ sơ ở lượt CHỜ TBP ĐẦU TIÊN** `mới 27/08` — hồ sơ vừa gửi duyệt chưa hiện
+trong danh sách của Kế toán. Bị trả lại từ các bước sau rồi quay về *Chờ TBP duyệt* thì **vẫn thấy**.
+
+> Điều kiện là *"đã từng qua Trưởng bộ phận"*, không phải *"đang ở bước nào"*: Kế toán trả hồ sơ lại
+> ở L1 rồi nó quay về chờ TBP thì họ đã đọc nó, đã viết lý do, và có lý do để theo dõi tiếp.
+
+**Chọn người xử lý MỘT LẦN, ở đúng bước sinh ra việc ấy** `mới 27/08`:
+
+> - **Gửi lại sau khi sửa KHÔNG chọn lại** Trưởng bộ phận và Kế toán — hai người đã chọn từ lượt gửi
+>   đầu và giữ nguyên qua mọi vòng trả lại. Chọn lại được nghĩa là người vừa trả hồ sơ về bị xoá khỏi
+>   phạm vi đọc, vì phạm vi tính theo bốn cột người trên chính hồ sơ ấy.
+> - **Tiếp nhận lần 1 chỉ hỏi Sale Admin ở lượt ĐẦU.** Hồ sơ đi vòng thứ hai thì người ấy đã có; hỏi
+>   lại là mời chọn khác đi, tức đẩy hồ sơ sang một người chưa từng thấy nó.
+>
+> Muốn đổi người thì đó là nghiệp vụ **bàn giao**, không phải hệ quả phụ của một lượt gửi lại.
+
 **Gửi duyệt tách làm HAI BƯỚC** `mới 27/08` — bước một chọn Trưởng bộ phận, Kế toán và văn bản mẫu;
 xác nhận xong thì một hộp thoại KHÁC mở ra, **cỡ bằng hộp xem bản mềm**, hiện bản CSBH dựng bằng mẫu
 vừa chọn. Bấm *Gửi duyệt* ở hộp ấy thì hồ sơ mới đi.

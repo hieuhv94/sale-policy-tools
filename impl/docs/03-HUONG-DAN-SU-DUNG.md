@@ -78,6 +78,10 @@ cái khác nhau.
 | **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08` |
 | **Quản trị hệ thống** | Danh mục sản phẩm, giá, người dùng. **Không** tham gia duyệt hồ sơ |
 
+> **Kế toán chưa thấy hồ sơ đang chờ Trưởng bộ phận duyệt LẦN ĐẦU** `mới 27/08`. Hồ sơ vừa được gửi
+> duyệt chưa vào danh sách của bạn — nó chỉ hiện khi Trưởng bộ phận đã ký. Nhưng hồ sơ **bạn đã trả
+> lại** rồi quay về chờ Trưởng bộ phận thì vẫn thấy, vì bạn đã đọc và đã viết lý do cho nó.
+
 > **Ba loại khách hàng** `mới 27/08` — nhãn trên màn hình hiện đủ cả số lẫn tên, vì con số là thứ
 > quy định chiết khấu khai theo:
 >

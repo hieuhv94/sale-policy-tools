@@ -87,7 +87,25 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P168** (`0140`): **gửi duyệt tách làm hai bước** — bước một chọn TBP · Kế toán ·
+Chặng gần nhất **P169–P170**, hai luật về PHẠM VI hồ sơ (chốt 27/08):
+
+**P170** (`0142`) **Kế toán chưa thấy hồ sơ ở lượt chờ TBP ĐẦU TIÊN**; bị trả lại từ các bước sau
+thì vẫn thấy. Điều kiện là *"đã từng qua TBP"* — và **không cột nào có sẵn trả lời được**:
+`tbp_signed_at` bị xoá mỗi lượt trả về, `kt_l1_received_at` còn NULL khi Kế toán trả ở L1,
+`so_lan_tbp_tra_lai` đếm lượt TRẢ chứ không đếm lượt KÝ. Nên thêm **`da_qua_tbp`, cột KHÔNG BAO GIỜ
+bị xoá** — nó đứng cạnh ba cột chữ ký nhưng hỏi ngược lại về thời gian (*"đã từng ký chưa"* thay vì
+*"bây giờ có chữ ký không"*); gom nó vào nhánh xoá chữ ký là lấy lại quyền đọc của Kế toán mà không
+ca kiểm nào đỏ. Chặn ở **hai** đường: `thuocPhamVi` (danh sách) và `assertPolicyInScope` (mở một hồ
+sơ), cả hai mặc định phía NỚI. **Vế `reporting` CHƯA làm** — cột đã có trong migration và bộ đồng bộ
+đã ghi, nhưng mệnh đề lọc chưa nối, nên thẻ *Sắp quá hạn* của Kế toán còn đếm cả hồ sơ vừa bị giấu.
+
+**P169** (`0141`) **chọn người MỘT LẦN**: gửi lại sau khi sửa thôi chọn lại TBP/Kế toán, và tiếp
+nhận L1 chỉ hỏi Sale Admin ở lượt đầu. `0031` cho chọn lại và bỏ sót cái giá: lượt ghi là
+`coalesce($2, tbp_user_id)` tức GHI ĐÈ, nên **người vừa trả hồ sơ về mất quyền đọc chính hồ sơ ấy** —
+trong khi vẫn nhận thư (`daTacDong` đọc từ nhật ký, không từ bốn cột). Bảng tra `PHAN_CONG` thành hàm
+`phanCongCua(action, before)`; giao diện nhận một **CỜ** `daChonSaleAdmin`, không nhận id.
+
+Trước đó **P168** (`0140`): **gửi duyệt tách làm hai bước** — bước một chọn TBP · Kế toán ·
 văn bản mẫu, bước hai là một hộp RIÊNG **cỡ hộp xem bản mềm** và nút gửi thật nằm ở đó. Cỡ ấy đặt
 bằng **`tyLe`, KHÔNG bằng `co`**: `tyLe` bật `.hop-thoai-xem` (bề rộng suy từ `--cao-khung × tỷ lệ
 tờ giấy`, `0073`) và `.khung-xem` đọc lại chính hai biến ấy — nhờ vậy hộp với khung luôn cùng hình,

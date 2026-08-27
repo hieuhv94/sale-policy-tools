@@ -12366,3 +12366,86 @@ Gộp hai luật lại thì hộp gửi lại thành một cái nút trống kh�
 
 **654/656 ca giao diện xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`). Ca HTTP của
 `policy` KHÔNG chạy được — chồng demo còn bật.**
+
+## P170 — `0142` Kế toán chưa thấy hồ sơ ở lượt chờ TBP đầu tiên
+
+Khách hàng chốt 27/08. Tới `0141` Kế toán được chọn ngay lúc gửi duyệt, nên id họ
+vào cột `ke_toan_user_id` từ phút ấy và hồ sơ hiện trong danh sách của họ suốt
+quãng chờ Trưởng bộ phận — một hồ sơ chưa tới lượt, chưa chắc tới lượt (TBP có
+thể từ chối), nằm lẫn với việc thật.
+
+### Điều kiện là "ĐÃ TỪNG qua TBP", không phải "đang ở bước nào"
+
+Kế toán trả hồ sơ lại ở L1 rồi nó quay về *Chờ TBP duyệt* thì họ **vẫn thấy** —
+họ đã đọc nó, đã viết lý do, và có lý do để theo dõi tiếp.
+
+### Bốn thứ có sẵn, không cái nào trả lời được
+
+| Cột | Vì sao không dùng được |
+|---|---|
+| `tbp_signed_at` | **bị xoá** mỗi lượt quay về `YEU_CAU_CHINH_SUA` (`0101`) — nó trả lời câu KHÁC |
+| `kt_l1_received_at` | vẫn `NULL` khi Kế toán trả lại ở L1 — đúng ca phải thấy |
+| `so_lan_tbp_tra_lai` | đếm lượt TBP TRẢ VỀ, không đếm lượt TBP KÝ |
+| `returned_at` | không nói ai trả |
+
+Nên thêm `da_qua_tbp`, và điều đáng nhớ nhất về nó: **KHÔNG BAO GIỜ bị xoá.** Nó
+đứng cạnh ba cột chữ ký nhưng trả lời câu ngược lại về thời gian —
+
+    tbp_signed_at   BÂY GIỜ có chữ ký không?   → xoá khi trả về
+    da_qua_tbp      ĐÃ TỪNG ký chưa?           → không bao giờ xoá
+
+Ai đó "dọn dẹp" bằng cách gom nó vào nhánh xoá chữ ký sẽ lấy lại quyền đọc của Kế
+toán với chính những hồ sơ họ đã trả về, **và không ca kiểm nào của lượt trả về
+đỏ lên**. Có một ca kiểm canh đúng sự VẮNG MẶT ấy.
+
+Dữ liệu cũ nạp lại từ `pol.policy_event` — nguồn duy nhất còn giữ được sự thật ấy
+sau khi `tbp_signed_at` đã bị xoá ở đúng những hồ sơ cần nhất.
+
+### Hai chốt, vì phạm vi được hỏi ở hai đường
+
+`thuocPhamVi(n, alias, vaiTro)` cho danh sách, và `assertPolicyInScope` cho lượt
+MỞ một hồ sơ. Chỉ chặn ở danh sách thì gõ thẳng địa chỉ vẫn mở được — đúng lỗ
+hổng `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
+
+Hai chỗ ấy mặc định phía **NỚI**: không truyền vai trò, hoặc dòng không mang
+`da_qua_tbp`, thì không chặn gì. Siết nhầm ở đây là khoá một người khỏi hồ sơ họ
+có quyền đọc, và triệu chứng là một danh sách rỗng không giải thích gì.
+
+### Vế REPORTING: cột đã nối, mệnh đề CHƯA
+
+`filter.ts` bên `reporting` chép lại mệnh đề phạm vi và có sẵn một chú thích:
+*"hai chỗ phải trả lời giống hệt nhau, nếu không thì một hồ sơ mở được ở màn hình
+Hồ sơ mà biến mất khỏi Báo cáo"*. Lượt này tạo ra đúng cái lệch ấy theo chiều
+ngược: **một hồ sơ đếm được ở Tổng quan mà mở ra thì 403.**
+
+Đo được mức độ: thẻ *Sắp quá hạn* và *Quá hạn* của Kế toán đếm trên cả phạm vi,
+nên chúng gồm cả hồ sơ vừa bị giấu; hai thẻ theo bước (`B6_KT_L1`, `B10_KT_L2`)
+lọc theo `pending_step` nên không đổi. Con số trên thẻ và số dòng trong danh sách
+lệch nhau đúng ở đó.
+
+**Đã làm phần cột**: `rpt.policy_row.da_qua_tbp` có trong migration, được nạp lại
+cho dữ liệu cũ, và **bộ đồng bộ ghi nó từ bây giờ** — nên tới lúc nối mệnh đề thì
+dữ liệu đã đúng sẵn. **Chưa làm phần mệnh đề**: nó phải luồn `me.role` qua ~20
+chỗ gọi `build()` ở hai tệp, và không một dòng nào trong đó chạy được ngoại tuyến
+— chồng demo đang bật nên mọi ca HTTP của `reporting` đều không chạy. Làm mù một
+thay đổi rộng vào một service không kiểm được là cách hỏng đắt hơn hẳn cái lệch
+nó chữa.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Quên `NOT` — đảo ngược luật | 1 đỏ |
+| Áp luật cho MỌI vai trò | 1 đỏ |
+| Thôi bật cờ lúc TBP ký | 1 đỏ |
+| Gom cờ vào nhánh xoá chữ ký | 1 đỏ |
+| `byId` thôi đọc cột ấy | 1 đỏ *(bản ca kiểm đầu: XANH — xem dưới)* |
+
+Lượt cuối xanh ở lần chạy đầu, và lỗi ở ca kiểm chứ không ở bản phá: nó tìm chuỗi
+`da_qua_tbp` trong 900 ký tự sau `async byId(`, mà ngay trên câu `SELECT` có một
+dòng chú thích nhắc đúng tên cột ấy. **Cùng bẫy `0124`: ca kiểm xanh nhờ chính
+lời giải thích của nó.** Chữa bằng cách gỡ chú thích trước khi quét, rồi khớp cả
+hình dạng `SELECT … da_qua_tbp … FROM pol.policy`.
+
+**719/721 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).
+Ca HTTP và ca CSDL KHÔNG chạy được — chồng demo còn bật.**
