@@ -9,7 +9,12 @@
  * `oChonCua` là bản sao của `phanCongCua` bên `workflow.service.ts`, đúng nếp
  * "giao diện dựng ô, máy chủ chặn". Hai bản LỆCH NHAU là lỗi im lặng: giao diện
  * không hiện ô, người dùng bấm gửi, máy chủ trả 422 nói thiếu một trường không
- * có trên màn hình. Ca cuối cùng canh đúng điều đó.
+ * có trên màn hình.
+ *
+ * CA ĐỐI CHIẾU HAI BẢNG NẰM Ở `tests/http/pham-vi-ke-toan.test.ts` (`0143`) —
+ * tệp này không import được mã của service. Docstring cũ ở đây nói *"ca cuối
+ * cùng canh đúng điều đó"* suốt từ `0031`, và **ca ấy chưa bao giờ tồn tại**: ca
+ * cuối so `CAN_XEM_TRUOC` với bảng ô chọn, không so hai bảng với nhau.
  *
  * `0141` đổi nó từ một BẢNG TRA thành một HÀM: bước nào hỏi ai phụ thuộc cả
  * trạng thái hồ sơ, không chỉ hành động.

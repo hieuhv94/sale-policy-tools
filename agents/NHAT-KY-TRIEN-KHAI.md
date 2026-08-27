@@ -12449,3 +12449,79 @@ hình dạng `SELECT … da_qua_tbp … FROM pol.policy`.
 
 **719/721 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).
 Ca HTTP và ca CSDL KHÔNG chạy được — chồng demo còn bật.**
+
+## P171 — `0143` bịt ba lỗ hổng của chính hai chặng vừa rồi
+
+Người dùng hỏi *"đã thêm ca kiểm cho tất cả các trường hợp chưa"*. Rà lại thì
+chưa, và một trong những chỗ thiếu là một **lỗ hổng thật** chứ không chỉ là ca
+kiểm còn nợ.
+
+### 1. Hai đường KHÔNG có chốt chặn — và trình biên dịch bịt hộ
+
+`0142` khai hai trường của luật Kế toán là **tuỳ chọn**, lý do ghi trong mã là
+"chọn phía nới". Nghe an toàn. Hậu quả: `attach` và `detach` liệt kê đúng năm cột
+trong câu `SELECT`, nên hai trường ấy về `undefined`, phép so `=== false` sai, và
+**luật không bao giờ nổ ở hai đường ấy**.
+
+Đúng bẫy `0128` đã ghi vào `CLAUDE.md` — *"thêm một trường thì phải rà cả những
+câu SELECT liệt kê từng cột"* — và nó vừa lặp lại ở chính người viết ra dòng ấy.
+
+Chữa bằng cách khai **BẮT BUỘC**, rồi để `tsc` chỉ chỗ. Nó chỉ ra **ba** chỗ, một
+chỗ ngoài dự đoán:
+
+    workflow.service.ts:242  apply()  — SELECT * đã lấy, chỉ thiếu ở khai kiểu
+    workflow.service.ts:887  attach() — SELECT liệt kê cột, THIẾU THẬT
+    workflow.service.ts:927  detach() — SELECT liệt kê cột, THIẾU THẬT
+
+Đây là chỗ đáng ghi nhất của cả lượt: **một ca kiểm quét mã nguồn không bao giờ
+mạnh bằng một kiểu dữ liệu bắt buộc.** Ca quét bị một cách viết mới lách qua;
+kiểu bắt buộc thì không dịch được. Ca kiểm còn lại của lượt này chỉ canh cho
+không ai thêm dấu `?` vào lại.
+
+Thực tế `loaiTepGhiDuoc` chặn Kế toán ghi tệp ở `CHO_TBP_DUYET` nên lỗ hổng chưa
+khai thác được — nhưng đó là hai chốt độc lập, và dựa vào chốt kia mà không viết
+ra là cách để nó biến mất trong im lặng.
+
+### 2. Ca kiểm mô tả CÁCH VIẾT, không mô tả HÀNH VI
+
+Ba ca của `0142` khẳng định ba chuỗi có mặt trong mã nguồn. Lượt này viết lại
+`p.da_qua_tbp === false` thành `!p.da_qua_tbp` — **không đổi hành vi gì cả** — và
+ca ấy đỏ. Chiều ngược lại tệ hơn: đổi `&&` thành `||` là đảo ngược luật mà cả ba
+phép so vẫn xanh.
+
+Gỡ nó, thay bằng năm ca **gọi thẳng hàm**. Dựng `PoliciesService` với `db` và
+`clients` là `null`: đó là một khẳng định, không phải sự lười — ngày nào
+`assertPolicyInScope` bắt đầu gọi CSDL thì ca kiểm nổ ngay chứ không lặng lẽ mở
+một kết nối.
+
+Ca đáng giá nhất trong năm là **chiều dương** — *"Kế toán MỞ ĐƯỢC hồ sơ đã từng
+qua TBP"*. `0142` thiếu hẳn nó, và lúc phá lại thì một bản sửa chặn TẤT CẢ hồ sơ
+chờ TBP (tức mất đúng nửa yêu cầu của khách hàng) chỉ làm đỏ **một mình ca ấy**.
+
+### 3. Một docstring nói dối suốt từ `0031`
+
+`nguoi-xu-ly.test.ts` mở đầu bằng *"hai bản lệch nhau là lỗi im lặng… ca cuối
+cùng canh đúng điều đó"*. **Ca ấy chưa bao giờ tồn tại** — ca cuối so
+`CAN_XEM_TRUOC` với bảng ô chọn, không so bảng giao diện với bảng máy chủ.
+
+Viết ca thật: quét **11 hành động × 2 trạng thái Sale Admin**, so cả tên trường
+lẫn vai trò. Nó ở `tests/http/` chứ không ở `tests/web/` vì tệp bên kia không
+import được mã của service.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Chặn CẢ hồ sơ đã qua TBP — mất nửa yêu cầu | 1 đỏ *(đúng ca `0142` thiếu)* |
+| `&&` thành `\|\|` — đảo ngược luật | 3 đỏ |
+| Nới lại hai trường thành tuỳ chọn | 1 đỏ |
+| Máy chủ đòi chọn lại, giao diện thì không | 1 đỏ |
+| Giao diện hỏi thừa, máy chủ thì không | 1 đỏ |
+| `attach` quên cột ấy | **typecheck đỏ** — `TS2345`, không cần ca kiểm nào |
+
+### Còn nợ, không đổi
+
+Ca HTTP đầu-cuối cho cả hai yêu cầu, và mệnh đề phạm vi bên `reporting`. Cả hai
+cần CSDL, tức cần hạ chồng demo.
+
+**726/728 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`).**

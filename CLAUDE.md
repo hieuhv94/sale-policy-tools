@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P169–P170**, hai luật về PHẠM VI hồ sơ (chốt 27/08):
+Chặng gần nhất **P171** (`0143`): **bịt ba lỗ hổng của chính P169–P170**. Đáng nhớ nhất:
+`0142` khai hai trường của luật Kế toán là **tuỳ chọn** ("chọn phía nới"), và `attach`/`detach` liệt
+kê từng cột trong `SELECT` nên chốt chặn **không bao giờ nổ ở hai đường ấy** — đúng bẫy `0128` đã
+ghi, lặp lại ở chính người viết ra dòng ấy. Chữa bằng cách khai **BẮT BUỘC** rồi để `tsc` chỉ chỗ (nó
+chỉ ra ba, một ngoài dự đoán). Bài học: **một ca kiểm quét mã nguồn không bao giờ mạnh bằng một kiểu
+dữ liệu bắt buộc** — ca quét bị một cách viết mới lách qua, kiểu bắt buộc thì không dịch được. Hai
+chỗ nữa: ba ca của `0142` mô tả CÁCH VIẾT (đổi `=== false` thành `!` là đỏ, đổi `&&` thành `||` vẫn
+xanh) — thay bằng năm ca **gọi thẳng hàm**, trong đó ca **chiều dương** là ca `0142` thiếu hẳn; và
+docstring của `nguoi-xu-ly.test.ts` hứa có ca đối chiếu hai bảng phân công **suốt từ `0031` mà ca ấy
+chưa bao giờ tồn tại** — giờ có thật, quét 11 hành động × 2 trạng thái.
+
+Trước đó **P169–P170**, hai luật về PHẠM VI hồ sơ (chốt 27/08):
 
 **P170** (`0142`) **Kế toán chưa thấy hồ sơ ở lượt chờ TBP ĐẦU TIÊN**; bị trả lại từ các bước sau
 thì vẫn thấy. Điều kiện là *"đã từng qua TBP"* — và **không cột nào có sẵn trả lời được**:

@@ -118,7 +118,7 @@ const O_SALE_ADMIN: OPhanCong = {
  * thì đó là một nghiệp vụ khác (bàn giao), không phải một hệ quả phụ của lượt
  * gửi lại.
  */
-const phanCongCua = (
+export const phanCongCua = (
   action: Action,
   before: { sale_admin_user_id: string | null },
 ): OPhanCong[] => {
@@ -234,6 +234,8 @@ export class WorkflowService {
       supersedes_id: string | null;
       /** `0104` — chốt chặn "đủ trường lúc gửi duyệt" đọc cột này. `SELECT *` vốn đã lấy. */
       applied_date: Date | null;
+      /** `0142` — luật riêng của Kế toán ở `assertPolicyInScope`. `SELECT *` vốn đã lấy. */
+      da_qua_tbp: boolean;
       tbp_signed_at: Date | null;
       pending_step: Step | null;
       overdue_at: Date | null;
@@ -878,8 +880,13 @@ export class WorkflowService {
       tbp_user_id: string | null;
       ke_toan_user_id: string | null;
       sale_admin_user_id: string | null;
+      da_qua_tbp: boolean;
     }>(
-      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id
+      // `da_qua_tbp` đi kèm vì `assertPolicyInScope` đọc nó (`0142`). Câu này
+      // LIỆT KÊ TỪNG CỘT, nên thêm một trường vào luật phạm vi là phải rà cả nó
+      // — đúng bẫy `0128`, và `0143` đã bắt nó bằng cách khai trường ấy BẮT BUỘC.
+      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
+              da_qua_tbp
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );
@@ -918,8 +925,13 @@ export class WorkflowService {
       tbp_user_id: string | null;
       ke_toan_user_id: string | null;
       sale_admin_user_id: string | null;
+      da_qua_tbp: boolean;
     }>(
-      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id
+      // `da_qua_tbp` đi kèm vì `assertPolicyInScope` đọc nó (`0142`). Câu này
+      // LIỆT KÊ TỪNG CỘT, nên thêm một trường vào luật phạm vi là phải rà cả nó
+      // — đúng bẫy `0128`, và `0143` đã bắt nó bằng cách khai trường ấy BẮT BUỘC.
+      `SELECT status, tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id,
+              da_qua_tbp
          FROM pol.policy WHERE id = $1`,
       [policyId],
     );

@@ -10,7 +10,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { thuocPhamVi } from '../../services/policy/src/policies/policies.service.js';
+import {
+  PoliciesService,
+  thuocPhamVi,
+} from '../../services/policy/src/policies/policies.service.js';
+import { phanCongCua } from '../../services/policy/src/policies/workflow.service.js';
+import { oChonCua } from '../../apps/web/src/lib/nguoi-xu-ly.js';
 
 /** Bốn cột người — phần không đổi của mọi mệnh đề phạm vi (`0031`). */
 const BON_COT = ['tdv_user_id', 'tbp_user_id', 'ke_toan_user_id', 'sale_admin_user_id'];
@@ -103,16 +108,19 @@ describe('`0142` cột `da_qua_tbp` không bao giờ bị xoá', () => {
 describe('`0142` chốt chặn ở đường MỞ MỘT HỒ SƠ', () => {
   const svc = readFileSync('services/policy/src/policies/policies.service.ts', 'utf8');
 
-  it('`assertPolicyInScope` có luật riêng của Kế toán', () => {
-    /*
-     * Danh sách giấu hồ sơ đi mà `byId` không chặn thì gõ thẳng địa chỉ vẫn mở
-     * được — đúng lỗ hổng `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
-     */
-    const ham = svc.slice(svc.indexOf('async assertPolicyInScope'));
-    expect(ham).toContain("me.role === 'KE_TOAN'");
-    expect(ham).toContain("p.status === 'CHO_TBP_DUYET'");
-    expect(ham).toContain('p.da_qua_tbp === false');
-  });
+  /*
+   * Ca *"`assertPolicyInScope` có luật riêng của Kế toán"* ĐÃ GỠ (`0143`).
+   *
+   * Nó khẳng định ba chuỗi có mặt trong mã nguồn — `me.role === 'KE_TOAN'` và
+   * hai chuỗi nữa — và nó đỏ ngay lúc `0143` viết lại `p.da_qua_tbp === false`
+   * thành `!p.da_qua_tbp`, một lượt sửa KHÔNG đổi hành vi gì cả.
+   *
+   * Đó là toàn bộ vấn đề của nó: nó mô tả CÁCH VIẾT, không mô tả HÀNH VI. Chiều
+   * ngược lại còn tệ hơn — đổi `&&` thành `||` là đảo ngược luật mà cả ba phép
+   * so vẫn xanh.
+   *
+   * Bốn ca ở `0143` bên dưới gọi thẳng hàm và thay hẳn nó.
+   */
 
   it('`byId` ĐỌC cột ấy — thiếu thì chốt chặn im lặng không chặn gì', () => {
     /*
@@ -130,5 +138,152 @@ describe('`0142` chốt chặn ở đường MỞ MỘT HỒ SƠ', () => {
       .replace(/\/\/[^\n]*/g, '')
       .replace(/\/\*[\s\S]*?\*\//g, '');
     expect(sel).toMatch(/SELECT[\s\S]*?\bda_qua_tbp\b[\s\S]*?FROM pol\.policy/);
+  });
+});
+
+// =============================================================================
+// `0143` — HÀNH VI của chốt chặn, và hai bảng phân công khớp nhau
+// =============================================================================
+
+/**
+ * Dựng `PoliciesService` với đúng thứ `assertPolicyInScope` dùng tới.
+ *
+ * Nó chỉ đọc `this.scope.userIdsFor(me)`; `db` và `clients` không được chạm tới
+ * trên đường này. Truyền `null` cho hai cái ấy là một khẳng định — nếu ngày nào
+ * hàm bắt đầu gọi CSDL thì ca kiểm nổ ngay, chứ không lặng lẽ mở một kết nối.
+ */
+const dungService = (ids: string[]): PoliciesService =>
+  new PoliciesService(
+    null as never,
+    null as never,
+    { userIdsFor: async () => ids } as never,
+  );
+
+const KT = 'kt-1';
+const hoSo = (over: Partial<Record<string, unknown>> = {}) => ({
+  tdv_user_id: 'tdv-1',
+  tbp_user_id: 'tbp-1',
+  ke_toan_user_id: KT,
+  sale_admin_user_id: null,
+  status: 'CHO_TBP_DUYET',
+  da_qua_tbp: false,
+  ...over,
+});
+
+const me = (role: string, id = KT) => ({ id, role }) as never;
+
+const choPhep = async (svc: PoliciesService, p: unknown, u: unknown): Promise<boolean> => {
+  try {
+    await svc.assertPolicyInScope(p as never, u as never);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+describe('`0143` GỌI THẬT chốt chặn, không đọc mã nguồn', () => {
+  /*
+   * Bốn ca của `0142` đọc CHỮ trong mã nguồn: chúng khẳng định ba chuỗi có mặt.
+   * Đổi `&&` thành `||` là luật đảo ngược mà cả ba `toContain` vẫn xanh — đúng
+   * loại ca kiểm mô tả hình dạng thay vì mô tả hành vi.
+   */
+  it('Kế toán KHÔNG mở được hồ sơ chờ TBP chưa từng qua TBP', async () => {
+    const svc = dungService([KT]);
+    expect(await choPhep(svc, hoSo(), me('KE_TOAN'))).toBe(false);
+  });
+
+  it('nhưng MỞ ĐƯỢC khi hồ sơ đã từng qua TBP — chiều dương của luật', async () => {
+    /*
+     * Ca này là thứ `0142` thiếu hẳn. Không có nó thì một bản sửa chặn TẤT CẢ
+     * hồ sơ chờ TBP của Kế toán vẫn xanh — kể cả hồ sơ chính họ đã trả về, tức
+     * là mất đúng nửa yêu cầu của khách hàng.
+     */
+    const svc = dungService([KT]);
+    expect(await choPhep(svc, hoSo({ da_qua_tbp: true }), me('KE_TOAN'))).toBe(true);
+  });
+
+  it('mọi TRẠNG THÁI khác đều mở được, dù chưa qua TBP', async () => {
+    const svc = dungService([KT]);
+    for (const st of ['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2', 'YEU_CAU_CHINH_SUA', 'DA_XOA']) {
+      expect(await choPhep(svc, hoSo({ status: st }), me('KE_TOAN')), st).toBe(true);
+    }
+  });
+
+  it('năm vai trò còn lại KHÔNG bị luật này chạm tới', async () => {
+    // Cùng một hồ sơ, cùng một phạm vi — chỉ đổi vai trò người mở.
+    for (const vt of ['TDV', 'TBP', 'SALE_ADMIN', 'BAN_LANH_DAO']) {
+      const svc = dungService(['nguoi-1']);
+      const p = hoSo({ tdv_user_id: 'nguoi-1' });
+      expect(await choPhep(svc, p, me(vt, 'nguoi-1')), vt).toBe(true);
+    }
+  });
+
+  it('ngoài phạm vi vẫn là ngoài phạm vi — luật mới không nới cho ai', async () => {
+    const svc = dungService(['nguoi-la']);
+    expect(await choPhep(svc, hoSo({ da_qua_tbp: true }), me('KE_TOAN', 'nguoi-la'))).toBe(false);
+  });
+
+  it('hai trường của luật khai BẮT BUỘC, không tuỳ chọn', () => {
+    /*
+     * `0142` khai chúng tuỳ chọn, và hai đường `attach`/`detach` — vốn liệt kê
+     * từng cột trong câu `SELECT` — im lặng bỏ qua chốt. Khai bắt buộc thì trình
+     * biên dịch rà giúp mọi chỗ gọi.
+     *
+     * Ca này canh cho không ai nới lại: một dấu `?` ở đây là chốt chặn có thể
+     * biến mất ở một chỗ gọi mới mà không ai biết.
+     */
+    const src = readFileSync('services/policy/src/policies/policies.service.ts', 'utf8');
+    const ham = src.slice(src.indexOf('async assertPolicyInScope'), src.indexOf('async assertPolicyInScope') + 1600);
+    expect(ham).toMatch(/\n\s+status: string;/);
+    expect(ham).toMatch(/\n\s+da_qua_tbp: boolean;/);
+    expect(ham, 'khai tuỳ chọn là mở lại lỗ hổng của `0142`').not.toMatch(/status\?: string/);
+    expect(ham).not.toMatch(/da_qua_tbp\?: boolean/);
+  });
+});
+
+describe('`0143` bảng phân công của giao diện KHỚP bảng máy chủ', () => {
+  /*
+   * Docstring của `nguoi-xu-ly.test.ts` từ `0031` đã hứa có ca này — *"hai bản
+   * lệch nhau là lỗi im lặng… ca cuối cùng canh đúng điều đó"* — nhưng ca ấy
+   * chưa bao giờ tồn tại. Nó so `CAN_XEM_TRUOC` với bảng ô chọn, không so hai
+   * bảng với nhau. `0143` viết ra ca thật.
+   *
+   * Lệch nhau trông thế nào: giao diện không hiện ô, người dùng bấm gửi, máy chủ
+   * trả 422 `ASSIGNEE_REQUIRED` nói thiếu một trường không có trên màn hình.
+   */
+  const HANH_DONG = [
+    'SUBMIT',
+    'RESUBMIT_AFTER_EDIT',
+    'KT_RECEIVE_L1',
+    'KT_RECEIVE_L2',
+    'TBP_SIGN',
+    'TBP_RETURN',
+    'TBP_REJECT',
+    'SA_HANDOVER',
+    'KT_RETURN_L1',
+    'KT_RETURN_L2',
+    'KT_REQUEST_REPRINT',
+  ];
+
+  it('mọi hành động × mọi trạng thái Sale Admin đều cho cùng một danh sách', () => {
+    for (const hd of HANH_DONG) {
+      for (const daChon of [false, true]) {
+        const may = phanCongCua(hd as never, {
+          sale_admin_user_id: daChon ? 'sa-1' : null,
+        }).map((x) => x.truong);
+        const web = oChonCua(hd, { daChonSaleAdmin: daChon }).map((x) => x.truong);
+        expect(web, `${hd} · daChonSaleAdmin=${daChon}`).toEqual(may);
+      }
+    }
+  });
+
+  it('VAI TRÒ của từng ô cũng khớp, không chỉ tên trường', () => {
+    // Tên trường khớp mà vai trò lệch thì ô chọn nạp sai danh sách người, và
+    // máy chủ trả `ASSIGNEE_WRONG_ROLE` sau khi người dùng đã chọn xong.
+    for (const hd of ['SUBMIT', 'KT_RECEIVE_L1']) {
+      const may = phanCongCua(hd as never, { sale_admin_user_id: null }).map((x) => x.vaiTro);
+      const web = oChonCua(hd, { daChonSaleAdmin: false }).map((x) => x.vaiTro);
+      expect(web, hd).toEqual(may);
+    }
   });
 });

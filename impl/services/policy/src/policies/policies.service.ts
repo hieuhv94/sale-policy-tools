@@ -52,6 +52,8 @@ type PolicyRow = {
   customer_id: string;
   version_no: number;
   status: string;
+  /** `0142` — đã từng qua TBP. KHÔNG BAO GIỜ về `false`; xem migration `0107`. */
+  da_qua_tbp: boolean;
   supersedes_id: string | null;
   superseded_by_id: string | null;
   applied_date: Date | null;
@@ -1554,9 +1556,23 @@ export class PoliciesService {
       tbp_user_id: string | null;
       ke_toan_user_id: string | null;
       sale_admin_user_id: string | null;
-      /** `0142` — hai trường này chỉ dùng cho luật riêng của Kế toán. */
-      status?: string;
-      da_qua_tbp?: boolean;
+      /**
+       * Hai trường của luật riêng Kế toán (`0142`), khai BẮT BUỘC (`0143`).
+       *
+       * Bản `0142` khai chúng tuỳ chọn với lý do "chọn phía nới". Nghe an toàn,
+       * và nó im lặng bỏ chốt ở hai đường: `attach` và `detach` liệt kê đúng năm
+       * cột trong câu `SELECT`, nên hai trường này về `undefined`, phép so
+       * `=== false` sai, và luật không bao giờ nổ ở đó.
+       *
+       * Đúng bẫy `0128` đã ghi vào `CLAUDE.md` — *"thêm một trường thì phải rà
+       * cả những câu SELECT liệt kê từng cột"* — và nó vừa lặp lại.
+       *
+       * Khai BẮT BUỘC thì **trình biên dịch** rà giúp: mỗi chỗ gọi hoặc đọc đủ
+       * hai cột, hoặc không dịch được. Mạnh hơn một ca kiểm quét mã nguồn, vì nó
+       * không thể bị một cách viết mới lách qua.
+       */
+      status: string;
+      da_qua_tbp: boolean;
     },
     me: AuthUser,
   ): Promise<void> {
@@ -1577,11 +1593,7 @@ export class PoliciesService {
      * ở đây là khoá một người khỏi hồ sơ họ có quyền đọc, và triệu chứng là một
      * màn hình 403 không giải thích gì.
      */
-    if (
-      me.role === 'KE_TOAN' &&
-      p.status === 'CHO_TBP_DUYET' &&
-      p.da_qua_tbp === false
-    ) {
+    if (me.role === 'KE_TOAN' && p.status === 'CHO_TBP_DUYET' && !p.da_qua_tbp) {
       throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
     }
   }
