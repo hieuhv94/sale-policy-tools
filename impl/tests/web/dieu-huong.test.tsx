@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
 import { KhongCoManHinh, KhongCoQuyen, noiDung } from '@csbh/web/app';
-import { DIEU_HUONG, VAI_TRO, dieuHuongCho, xem } from '@csbh/web/can';
+import { DIEU_HUONG, VAI_TRO, can, dieuHuongCho, xem } from '@csbh/web/can';
 
 /** So KIỂU phần tử, không so chuỗi tiêu đề — sửa câu chữ không được làm đỏ test. */
 const kieu = (el: unknown): unknown => (el as ReactElement)?.type;
@@ -59,12 +59,23 @@ describe('mọi mục điều hướng dẫn tới một màn hình', () => {
    * sao. Đây cũng là chỗ đã hỏng thật: mọi lá thư từ trước tới nay đều trỏ vào
    * `/policies/:id` — đường của API, không phải của giao diện.
    */
-  it('hai đường dẫn xuất hiện trong thư đều mở được, với mọi vai trò', () => {
-    for (const v of VAI_TRO) {
+  it('hai đường dẫn xuất hiện trong thư đều mở được, với mọi vai trò NHẬN THƯ', () => {
+    /*
+     * `0133` thu hẹp vòng lặp này, và lý do phải ghi ra: Quản trị hệ thống KHÔNG
+     * nhận lá thư hồ sơ nào — `notify.service.handle()` lấy người nhận từ chính
+     * những người đang giữ hồ sơ, mà họ không giữ hồ sơ nào bao giờ. Nên với họ
+     * hai đường này không tới từ một lá thư, và trả *Không có quyền* là đúng.
+     *
+     * Bỏ vòng lặp qua `VAI_TRO` mà không nói gì thì ca này vẫn XANH — `KhongCoQuyen`
+     * đâu phải `KhongCoManHinh` — và người đọc sau sẽ tin rằng Quản trị vẫn mở
+     * được liên kết trong thư.
+     */
+    for (const v of VAI_TRO.filter((x) => xem(x, 'hoSo'))) {
       expect(kieu(noiDung('/ho-so/abc-123', v)), `${v} · mở hồ sơ`).not.toBe(KhongCoManHinh);
       expect(kieu(noiDung('/ho-so/abc-123/nhat-ky', v)), `${v} · nhật ký`).not.toBe(
         KhongCoManHinh,
       );
+      expect(kieu(noiDung('/ho-so/abc-123', v)), `${v} · mở hồ sơ`).not.toBe(KhongCoQuyen);
     }
   });
 
@@ -117,5 +128,67 @@ describe('`0060` Văn bản mẫu — một mục menu, một chủ', () => {
       // Và vai trò khác vẫn bị chặn ở tầng định tuyến, không chỉ bị ẩn menu.
       expect(kieu(noiDung(d, 'SALE_ADMIN')), `${d} phải chặn Sale Admin`).toBe(KhongCoQuyen);
     }
+  });
+});
+
+// =============================================================================
+// `0133` — Hồ sơ CSBH ra khỏi phạm vi của Quản trị hệ thống
+// =============================================================================
+
+describe('`0133` Quản trị hệ thống không vào màn hình hồ sơ', () => {
+  const DUONG_HO_SO = ['/ho-so', '/ho-so/moi', '/ho-so/abc-123', '/ho-so/abc-123/nhat-ky'];
+
+  it('BỐN đường `/ho-so*` đều chặn, không riêng đường danh sách', () => {
+    /*
+     * Ẩn mục menu thôi là chưa chặn: gõ thẳng địa chỉ là đường đi vòng hiển
+     * nhiên nhất. Và phải cả bốn — liên kết tới một hồ sơ cụ thể còn nằm trong
+     * dấu trang của người dùng và trong dòng thông báo ở chuông.
+     *
+     * `KhongCoQuyen` chứ không phải `KhongCoManHinh`: hai câu nói hai chuyện
+     * khác nhau, và "không có màn hình nào ở địa chỉ này" là câu sai — màn hình
+     * có thật, chỉ là không dành cho họ.
+     */
+    for (const d of DUONG_HO_SO) {
+      expect(kieu(noiDung(d, 'QUAN_TRI')), `${d} phải chặn Quản trị`).toBe(KhongCoQuyen);
+    }
+  });
+
+  it('năm vai trò còn lại KHÔNG bị chặn ở bất kỳ đường nào trong bốn', () => {
+    // Chiều đối chiếu. Thiếu nó thì một chốt chặn viết nhầm thành "chặn tất cả"
+    // vẫn xanh, và cả luồng duyệt chết mà không ca nào kêu.
+    for (const v of VAI_TRO.filter((x) => x !== 'QUAN_TRI')) {
+      for (const d of DUONG_HO_SO) {
+        // `/ho-so/moi` có chốt riêng của nó (`lapHoSo`, chỉ TDV) — không tính.
+        if (d === '/ho-so/moi' && v !== 'TDV') continue;
+        expect(kieu(noiDung(d, v)), `${v} · ${d}`).not.toBe(KhongCoQuyen);
+      }
+    }
+  });
+
+  it('TỔNG QUAN vẫn còn — nó KHÔNG đi nhờ khoá `hoSo`', () => {
+    /*
+     * Cái bẫy của lượt này, và nó im lặng hoàn toàn.
+     *
+     * Tới `0132` mục menu `/` khai `muc: 'hoSo'`, nên gỡ Quản trị khỏi `hoSo` là
+     * gỡ luôn màn hình đầu tiên họ nhìn thấy sau khi đăng nhập — trong khi Tổng
+     * quan của họ chẳng có thẻ hồ sơ nào (`THE_THEO_VAI_TRO.QUAN_TRI` rỗng), nó
+     * là thư hỏng, ô hệ thống, hoạt động hôm nay và nhật ký gọn.
+     */
+    expect(xem('QUAN_TRI', 'tongQuan')).toBe(true);
+    expect(dieuHuongCho('QUAN_TRI').map((m) => m.duong)).toContain('/');
+    expect(kieu(noiDung('/', 'QUAN_TRI'))).not.toBe(KhongCoQuyen);
+  });
+
+  it('KHÁCH HÀNG vẫn còn — chỗ duy nhất đổi được TDV phụ trách', () => {
+    /*
+     * `doiTdvPhuTrach` là quyền CHỈ của Quản trị (`0031`), và nút ấy nằm trên
+     * trang chi tiết khách hàng. Gỡ nốt trang Khách hàng là gỡ luôn cách duy
+     * nhất đổi TDV phụ trách của một khách — chốt 27/08 giữ lại có chủ ý.
+     *
+     * Hai vế đi cùng nhau ở đây: mục menu còn, VÀ quyền còn. Mất vế nào thì
+     * chức năng cũng chết, mà mỗi vế nằm ở một bảng khác nhau.
+     */
+    expect(dieuHuongCho('QUAN_TRI').map((m) => m.duong)).toContain('/khach-hang');
+    expect(can('QUAN_TRI', 'doiTdvPhuTrach')).toBe(true);
   });
 });

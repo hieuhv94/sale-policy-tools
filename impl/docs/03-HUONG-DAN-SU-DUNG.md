@@ -87,6 +87,13 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
+> **Quản trị hệ thống không có mục *Hồ sơ CSBH*** `mới 27/08`. Vai trò này đứng ngoài luồng duyệt
+> nên không có hồ sơ nào thuộc phạm vi của họ — mục menu ấy chỉ dẫn tới một màn hình trống.
+>
+> Mục **Khách hàng** thì vẫn còn, vì đây là chỗ *đổi TDV phụ trách* khi một TDV nghỉ việc. Mở một
+> khách ra thì hai khối *CSBH đang áp dụng* và *Lịch sử CSBH* ghi **"Không khả dụng với vai trò của
+> bạn"** — đó không phải lỗi, và cũng không có nghĩa là khách hàng chưa có CSBH nào.
+
 **Cuối thanh bên** là **số phiên bản phần mềm** `mới 26/08`, ví dụ *Phiên bản 1.0.0*. Báo lỗi cho bộ
 phận kỹ thuật thì chép luôn con số ấy vào — nó cho biết bạn đang chạy bản nào, và đó là câu hỏi đầu
 tiên của người nhận báo lỗi. Đừng nhầm với cột *Phiên bản* trong hồ sơ: cột đó đếm bản CSBH thứ mấy
@@ -536,9 +543,17 @@ làm bản in dài thêm mấy cột số 0.
 Trên bản in, số cột CPBH lấy theo **dòng nhiều khoản nhất**; dòng ít khoản hơn để **ô trống** — ô
 trống nghĩa là dòng ấy không có khoản đó, khác với số 0 nghĩa là khoản đó bằng không.
 
-**Sửa một dòng đã thêm**: bấm *Sửa* ở cột Thao tác. Đổi được giá bán buôn và các khoản chi phí.
+**Sửa một dòng đã thêm**: bấm *Sửa* ở cột cuối bảng. Đổi được giá bán buôn và các khoản chi phí.
 **Sản phẩm thì không đổi được** — muốn đổi sản phẩm thì xoá dòng rồi thêm dòng mới, vì đó là hai
 việc khác nhau.
+
+> **Hai nút *Sửa* và *Xoá* chỉ hiện khi con trỏ chuột đi vào dòng** `mới 27/08`. Cột cuối bảng
+> trông trống cho tới lúc ấy, và đó là chủ ý — hai nút lặp ở mọi dòng thì chúng nặng ngang phần số
+> liệu bạn đang đọc. Đi bằng bàn phím thì nút hiện ra khi tiêu điểm vào dòng; trên máy tính bảng và
+> điện thoại thì nút hiện sẵn, vì ở đó không có thao tác rê chuột nào.
+>
+> Luật này áp cho mọi bảng có cột thao tác: sản phẩm, nhóm sản phẩm, chiết khấu, văn bản mẫu, người
+> dùng, thư hỏng, và bảng sản phẩm trong hồ sơ.
 
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ — nhưng chỉ **từ lúc bấm Gửi duyệt**.

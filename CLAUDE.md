@@ -87,7 +87,20 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P160** (`0132`): **thao tác trong danh mục hiện khi rê chuột**, và cột *Thao tác*
+Chặng gần nhất **P161** (`0133`): nốt **bốn bảng thao tác còn lại** (đủ bảy), và **Hồ sơ CSBH ra
+khỏi Quản trị hệ thống**. Nửa sau nghe như đổi luật, thực ra **luật đã có sẵn**: YCNV muc 2.1 viết
+*"Quản trị đứng ngoài luồng duyệt, không có phạm vi hồ sơ nào"*, và máy chủ làm đúng thế từ đầu
+(`scope_user_ids` rỗng → `403 OUT_OF_SCOPE`) — chỉ mục menu là chưa ai gỡ. **Không một dòng máy chủ
+nào.** Ba bẫy: **Tổng quan đi nhờ khoá `hoSo`** (mục `/` khai `muc: 'hoSo'` từ P22) nên gỡ là mất
+luôn màn hình đầu tiên sau đăng nhập — tách khoá `tongQuan`; **Khách hàng phải GIỮ** vì
+`doiTdvPhuTrach` chỉ của Quản trị (`0031`) và nút nằm ở đó, nên hai khối CSBH trên trang ấy nói
+*"không khả dụng"* — **gác bằng chính cờ `xem(role,'hoSo')`, KHÔNG gọi API rồi bắt 403**; và ca kiểm
+`0132` **liệt kê ba tên tệp** nên bốn bảng kia lọt — giờ có thêm một ca **quét toàn bộ**. Bài học ca
+kiểm: bản đầu hỏi *"tệp này có ô nào mang lớp không"* → gỡ lớp khỏi **một trong ba** ô của bảng Người
+dùng vẫn xanh; phải **đếm từng ô**.
+**650/650 ca giao diện xanh; `make test` đầy đủ chưa chạy — chồng demo đang bật.**
+
+Trước đó **P160** (`0132`): **thao tác trong danh mục hiện khi rê chuột**, và cột *Thao tác*
 thôi có tên nhìn thấy được — ba bảng danh mục (sản phẩm · nhóm · chiết khấu), bốn bảng còn lại giữ
 nguyên. **BA điều kiện chứ không một**: `tr:hover` · `tr:focus-within` · `@media (hover: none)` —
 thiếu vế hai thì bàn phím mất hẳn thao tác, thiếu vế ba thì cảm ứng mất, và **cả hai đều không lộ ra

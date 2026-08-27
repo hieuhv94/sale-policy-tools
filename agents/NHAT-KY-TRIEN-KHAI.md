@@ -11697,3 +11697,108 @@ của người khác, và chạy test sau demo còn xoá sạch 10 tài khoản 
 demo đang bật. Thay đổi của chặng này nằm trọn trong `apps/web/src` (một tệp CSS,
 ba tệp TSX), nên phần chưa chạy — test máy chủ, CSDL, HTTP — không có đường nào
 chạm tới. Vẫn phải chạy lại `make test` sau khi hạ demo.
+
+## P161 — `0133` nốt bốn bảng thao tác, và Hồ sơ CSBH ra khỏi Quản trị
+
+Hai việc rời nhau, chung một chặng vì cùng một lượt phản hồi.
+
+### Vì sao `0132` chỉ làm ba trên bảy
+
+Khách hàng hỏi *"liệt kê các danh mục có cột thao tác bên phải"*, câu trả lời là
+**bảy bảng**, rồi yêu cầu tiếp nói *"thao tác trong danh mục"* — và tôi đọc thành
+ba bảng danh mục thật. Đọc hẹp ấy không sai, nhưng ca kiểm của `0132` **đóng băng
+luôn cách đọc hẹp**: nó liệt kê đúng ba tên tệp, nên bốn bảng kia không có ai
+nhắc. `0133` thêm một ca **quét toàn bộ** — không `<th>` nào ở bất kỳ tệp `.tsx`
+nào còn chữ *Thao tác* nhìn thấy được — để lần sau bảng mới cũng bị hỏi.
+
+Hai chỗ phải cẩn thận khi mở rộng:
+
+- **Người dùng có BA ô thao tác**, không phải một (`0070` cố ý tách ba cột để ba
+  nút thẳng hàng khi dòng nào thiếu *Gửi lại thư mời*). Regex tiêu đề phải là
+  `<th[^>]*>` vì nó khai `colSpan={3}`.
+- **Bảng sản phẩm trong hồ sơ có HAI bố cục**: bảng thật, và danh sách thẻ trên
+  điện thoại. Chỉ vế bảng mang lớp — nút ở vế thẻ không nằm trong ô bảng nào nên
+  `tr:hover` không với tới, và điện thoại là cảm ứng, `@media (hover: none)` vốn
+  đã cho hiện.
+
+### Ca kiểm đầu tiên hỏi sai câu, và phá lại bắt được
+
+Bản đầu hỏi *"tệp này có ô nào mang lớp không"*. Gỡ lớp khỏi **một trong ba** ô
+của bảng Người dùng thì hai ô kia vẫn trả lời "có" — ca **xanh**, trong khi màn
+hình có một lỗ thủng nhìn thấy được ngay giữa cột thao tác. Đổi sang **đếm từng
+ô**: mọi `<td>` chứa `<button>` trong bảy tệp ấy đều phải mang lớp.
+
+### Hồ sơ CSBH: luật đã có sẵn, chỉ mục menu là chưa ai gỡ
+
+Yêu cầu nghe như một thay đổi nghiệp vụ. Thực ra YCNV mục 2.1 đã viết từ lâu:
+*"Quản trị hệ thống đứng ngoài luồng duyệt, **không có phạm vi hồ sơ nào**"* — và
+máy chủ làm đúng thế từ đầu: `idn.scope_user_ids` trả RỖNG cho họ, nên
+`assertPolicyInScope` ném `403 OUT_OF_SCOPE` ở mọi đường đọc hồ sơ. Cái sai là
+mục menu vẫn còn, dẫn tới một màn hình mở lên chỉ để nhận danh sách trống hoặc
+một khối lỗi đỏ. **Không đụng một dòng máy chủ nào.**
+
+### Cái bẫy: Tổng quan đi nhờ khoá `hoSo`
+
+Mục menu `/` khai `muc: 'hoSo'` từ P22 — hai thứ trùng nhau chỉ vì chưa ai tách.
+Gỡ Quản trị khỏi `hoSo` là **gỡ luôn màn hình đầu tiên họ thấy sau khi đăng
+nhập**, trong khi Tổng quan của họ chẳng có thẻ hồ sơ nào: `THE_THEO_VAI_TRO.QUAN_TRI`
+là mảng rỗng, và năm khối của họ là thư hỏng, ô hệ thống, hoạt động hôm nay,
+nhật ký gọn. Thêm khoá `tongQuan` riêng.
+
+### Khách hàng GIỮ, và hai khối CSBH nói "không khả dụng"
+
+Gỡ nốt trang Khách hàng là gỡ luôn **cách duy nhất đổi TDV phụ trách** —
+`doiTdvPhuTrach` là quyền chỉ của Quản trị (`0031`), nút nằm trên trang chi tiết
+khách hàng, và YCNV mục 2.1 đã ghi hẳn ngoại lệ *"Quản trị hệ thống thấy toàn bộ
+khách hàng"* kèm lý do. Khách hàng chốt 27/08: giữ trang, và hiện *không khả
+dụng* thay vì lỗi.
+
+Ba câu trả lời khác hẳn nhau, và hai câu kia đều nói sai:
+
+| Cách hiện | Vì sao sai |
+|---|---|
+| khối ĐỎ | `403 OUT_OF_SCOPE` đọc như hệ thống đang hỏng |
+| "chưa có CSBH nào" | một khẳng định về DỮ LIỆU mà màn hình không có căn cứ đưa ra |
+| **"không khả dụng với vai trò của bạn"** | đúng câu duy nhất |
+
+**KHÔNG GỌI API rồi bắt lỗi** — gác bằng chính cờ `xem(role, 'hoSo')` đã ẩn mục
+menu. Câu trả lời đã biết trước khi hỏi, nên dựng nó từ một mã lỗi là để nó hỏng
+lặng lẽ vào ngày máy chủ đổi mã.
+
+Khối *Lịch sử CSBH* còn cần hơn khối kia: `/policies?customerId=…` lọc theo phạm
+vi nên với Quản trị nó trả về một **danh sách rỗng chứ không phải lỗi**, và
+`LichSuCsbh` sẽ nói "chưa có phiên bản nào" — một câu sai không có dấu hiệu nào
+cho thấy nó sai.
+
+### Chặn ở tầng định tuyến, cả BỐN đường
+
+`/ho-so`, `/ho-so/moi`, `/ho-so/:id`, `/ho-so/:id/nhat-ky`. Không riêng đường
+danh sách: liên kết tới một hồ sơ cụ thể còn nằm trong dấu trang và trong dòng
+thông báo ở chuông. Cùng lý do `/nhat-ky` đã chặn ở đây từ `0086`.
+
+Một ca kiểm cũ **suýt** che mất việc này: `dieu-huong.test.tsx` khẳng định hai
+đường trong thư mở được *"với mọi vai trò"*, và nó vẫn xanh sau khi chặn — vì
+`KhongCoQuyen` đâu phải `KhongCoManHinh`. Đã thu vòng lặp về những vai trò thật
+sự nhận thư hồ sơ, kèm lý do; để nguyên thì người đọc sau tin rằng Quản trị vẫn
+mở được liên kết trong thư.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Văn bản mẫu quên gắn lớp | 1 đỏ |
+| Người dùng: MỘT trong ba ô quên gắn lớp | 1 đỏ *(bản ca kiểm đầu: xanh — xem trên)* |
+| Thư hỏng hiện lại tên cột | 2 đỏ — cả ca bảy bảng lẫn ca quét toàn bộ |
+| `QUAN_TRI` quay lại xem được hồ sơ | 3 đỏ — quyền, định tuyến, và trang khách hàng |
+| Bỏ chốt chặn ở tầng định tuyến | 1 đỏ |
+| Tổng quan đi nhờ khoá `hoSo` lại | 1 đỏ |
+| Trang khách hàng lại luôn hỏi hồ sơ | 1 đỏ |
+
+### Bộ test đầy đủ CHƯA chạy, lần thứ hai liên tiếp
+
+`make test` vẫn dừng ở `check-demo-down` — chồng demo đang bật. Đã chạy:
+`typecheck` xanh, **650/650 ca giao diện xanh (45 tệp)**. Thay đổi nằm trọn trong
+`apps/web/src` và `tests/web`; **không một dòng máy chủ nào**, và đó là điều đáng
+nói nhất của nửa sau chặng này — luật đã đúng ở máy chủ từ trước.
+
+**650/650 ca giao diện xanh; `make test` đầy đủ chưa chạy.**

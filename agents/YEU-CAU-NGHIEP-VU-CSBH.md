@@ -1401,6 +1401,28 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
 
+**Quản trị hệ thống KHÔNG có màn hình Hồ sơ CSBH** `mới 27/08` — mục menu ấy gỡ khỏi vai trò này, và
+gõ thẳng địa chỉ cũng bị chặn.
+
+> Đây không phải một luật mới. Mục 2.1 đã viết *"Quản trị hệ thống đứng ngoài luồng duyệt, không có
+> phạm vi hồ sơ nào"*, và phần mềm đã làm đúng điều đó ở máy chủ từ đầu — mọi đường đọc hồ sơ trả
+> `403` với vai trò này. Chỉ có mục menu là chưa ai gỡ, nên nó dẫn tới một màn hình mở lên chỉ để
+> nhận danh sách trống hoặc một khối lỗi đỏ.
+>
+> **Màn hình Khách hàng thì GIỮ**, đúng theo ngoại lệ đã ghi ở mục 2.1: họ là người *đổi TDV phụ
+> trách*, và nút ấy nằm trên trang chi tiết khách hàng. Đổi lại, hai khối *CSBH đang áp dụng* và
+> *Lịch sử CSBH* trên trang ấy nói **"Không khả dụng với vai trò của bạn"** — không phải một khối lỗi
+> đỏ (đọc như hệ thống hỏng), và cũng không phải câu *"khách hàng chưa có CSBH nào"* (một khẳng định
+> về dữ liệu mà màn hình không có căn cứ đưa ra — khách rất có thể đang có một CSBH hiệu lực).
+
+**Thao tác trong bảng hiện khi rê chuột** `mới 27/08` — cột *Thao tác* thôi có tiêu đề nhìn thấy
+được, và các nút chỉ hiện khi con trỏ đi vào dòng. Áp dụng cho **cả bảy bảng** có cột thao tác: sản
+phẩm · nhóm sản phẩm · quy định chiết khấu · văn bản mẫu · người dùng · thư hỏng · dòng sản phẩm
+trong hồ sơ.
+
+> Nút vẫn hiện đầy đủ với người dùng **bàn phím** (khi tiêu điểm đi vào dòng) và trên **màn hình cảm
+> ứng** (nơi không có thao tác rê chuột nào). Tên cột vẫn còn nguyên với trình đọc màn hình.
+
 > Trước đó hai lần sửa trong một ngày ĐÈ lên nhau: con số cũ biến mất, và không ai biết trong ngày ấy
 > đã có mấy lần đổi. Cái giá của việc giữ đủ nằm ở lược đồ — phải có một khoá phân xử tăng dần, nếu
 > không thì hai dòng cùng ngày bằng nhau và giá hiện hành đổi theo thứ tự đọc đĩa.

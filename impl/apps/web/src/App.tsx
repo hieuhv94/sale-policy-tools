@@ -81,6 +81,21 @@ export function App() {
  */
 export function noiDung(duong: string, vaiTro: string) {
   if (duong === '/') return <TongQuan />;
+
+  /*
+    BỐN đường `/ho-so*` chặn ở tầng định tuyến (`0133`), không chỉ ẩn mục menu.
+
+    Gõ thẳng địa chỉ vào thanh duyệt là đường đi vòng hiển nhiên nhất qua một
+    menu bị ẩn — cùng lý do `/nhat-ky` đã chặn ở đây từ `0086`. Và cả bốn chứ
+    không riêng `/ho-so`: liên kết tới một hồ sơ cụ thể còn nằm trong thư báo,
+    trong dòng thông báo ở chuông, và trong dấu trang của người dùng.
+
+    Không chặn thì Quản trị vẫn mở được màn hình, và nó bày một khối lỗi đỏ
+    `OUT_OF_SCOPE` — đúng thứ việc gỡ mục menu sinh ra để bỏ đi.
+  */
+  const laDuongHoSo = duong === '/ho-so' || duong.startsWith('/ho-so/');
+  if (laDuongHoSo && !xem(vaiTro, 'hoSo')) return <KhongCoQuyen />;
+
   if (duong === '/ho-so') return <DanhSachHoSo />;
 
   // PHẢI đứng trước `khop('/ho-so/:id')` — nếu không thì `moi` bị bắt như một

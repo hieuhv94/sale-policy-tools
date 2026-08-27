@@ -195,7 +195,11 @@ function TheNguoiDung() {
                 Cột bảng thì thẳng hàng theo định nghĩa; một `<div>` bên trong ô
                 thì không, vì mỗi ô tự căn theo nội dung của chính nó.
               */}
-              <th colSpan={3}>Thao tác</th>
+              {/* Tên cột ẩn khỏi mắt, giữ cho trình đọc màn hình (`0132`).
+                  `colSpan` ở nguyên: ba ô vẫn là ba cột thật. */}
+              <th colSpan={3}>
+                <span className="chi-doc-man-hinh">Thao tác</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -205,7 +209,7 @@ function TheNguoiDung() {
                 <td className="ma-phu">{u.username}</td>
                 <td>{NHAN_VAI_TRO[u.role] ?? u.role}</td>
                 <td>{trangThaiTaiKhoan(u)}</td>
-                <td className="o-thao-tac">
+                <td className="o-thao-tac o-thao-tac-re-chuot">
                   <button
                     type="button"
                     className="nut nut-nhe"
@@ -214,7 +218,7 @@ function TheNguoiDung() {
                     Xem
                   </button>
                 </td>
-                <td className="o-thao-tac">
+                <td className="o-thao-tac o-thao-tac-re-chuot">
                   {/*
                     Ô TRỐNG khi tài khoản đã kích hoạt, chứ không bỏ ô đi: cột
                     vẫn còn thì hai nút hai bên không bị xô chỗ.
@@ -230,7 +234,7 @@ function TheNguoiDung() {
                     </button>
                   )}
                 </td>
-                <td className="o-thao-tac">
+                <td className="o-thao-tac o-thao-tac-re-chuot">
                     <button
                       type="button"
                       className={u.isActive ? 'nut nut-canh-bao' : 'nut nut-nhe'}

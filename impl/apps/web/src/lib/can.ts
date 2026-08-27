@@ -101,7 +101,41 @@ export const can = (vaiTro: string | undefined, quyen: Quyen): boolean =>
  * `0086` cũng không đọc nhật ký hệ thống nữa.
  */
 export const QUYEN_XEM = {
-  hoSo: VAI_TRO,
+  /**
+   * Tổng quan là khoá RIÊNG, không đi nhờ `hoSo` (`0133`).
+   *
+   * Tới `0132` mục menu `/` khai `muc: 'hoSo'`, và hai thứ ấy trùng nhau chỉ vì
+   * chưa ai tách. Gỡ Quản trị khỏi `hoSo` mà không tách thì **Tổng quan biến mất
+   * theo** — trong khi Tổng quan của Quản trị chẳng có thẻ hồ sơ nào:
+   * `THE_THEO_VAI_TRO.QUAN_TRI` là mảng rỗng, và năm khối của họ là thư hỏng, ô
+   * hệ thống, hoạt động hôm nay, nhật ký gọn. Đó là màn hình quản trị đúng
+   * nghĩa, không phải một màn hình hồ sơ.
+   */
+  tongQuan: VAI_TRO,
+  /**
+   * Hồ sơ CSBH — mọi vai trò TRỪ Quản trị hệ thống (`0133`, chốt 27/08).
+   *
+   * Quản trị hệ thống không có việc gì trong luồng duyệt: họ không lập, không
+   * duyệt, không ký, không xuất hợp đồng. Và máy chủ đã nói đúng điều đó từ lâu
+   * — `idn.scope_user_ids` trả RỖNG cho họ, nên `assertPolicyInScope` ném
+   * `403 OUT_OF_SCOPE` ở mọi đường đọc hồ sơ. Mục menu này bày ra một màn hình
+   * mà mở lên chỉ để nhận danh sách trống hoặc một khối lỗi đỏ.
+   *
+   * KHÔNG đụng tới máy chủ: nó vốn đã chặn đúng. Đây là bảng "đừng bày ra nút
+   * bấm vào chỉ nhận 403", và lượt này là một dòng đáng lẽ có từ đầu.
+   */
+  hoSo: ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'],
+  /**
+   * Khách hàng — VẪN CÒN Quản trị, và đây là chỗ khác `hoSo` (`0133`).
+   *
+   * Chốt 27/08 gỡ *Hồ sơ CSBH* nhưng GIỮ *Khách hàng*, vì `doiTdvPhuTrach` là
+   * quyền CHỈ của Quản trị (`0031`) và nút ấy nằm trên trang chi tiết khách
+   * hàng. Gỡ cả hai trang là gỡ luôn cách duy nhất đổi TDV phụ trách của một
+   * khách — một chức năng có trong YCNV.
+   *
+   * Đổi lại, hai khối CSBH trên trang ấy nói *"không khả dụng"* với Quản trị
+   * thay vì gọi API rồi bày lỗi 403 — xem `pages/KhachHang.tsx`.
+   */
   khachHang: VAI_TRO,
   thongKe: VAI_TRO,
   // "Danh mục" tách làm ba mục menu riêng ở P22. Sản phẩm và Chiết khấu mọi vai
@@ -144,7 +178,7 @@ export const xem = (vaiTro: string | undefined, muc: MucXem): boolean =>
 export type MucDieuHuong = { duong: string; nhan: string; muc: MucXem };
 
 export const DIEU_HUONG: MucDieuHuong[] = [
-  { duong: '/', nhan: 'Tổng quan', muc: 'hoSo' },
+  { duong: '/', nhan: 'Tổng quan', muc: 'tongQuan' },
   { duong: '/ho-so', nhan: 'Hồ sơ CSBH', muc: 'hoSo' },
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
   { duong: '/thong-ke', nhan: 'Thống kê', muc: 'thongKe' },

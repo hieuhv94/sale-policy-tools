@@ -19,7 +19,7 @@ import {
   HopThoaiNgungHopTac,
 } from '../components/SuaKhachHang.js';
 import { usePhien } from '../lib/auth.js';
-import { can } from '../lib/can.js';
+import { can, xem } from '../lib/can.js';
 import { la404 } from '../lib/loi.js';
 
 type KhachHangDto = {
@@ -128,6 +128,20 @@ export function ChiTietKhachHang({ id }: { id: string }) {
   const [mo, datMo] = useState<'sua' | 'tdv' | 'ngung' | null>(null);
   const [lan, datLan] = useState(0);
 
+  /*
+   * Vai trò này có ĐỌC ĐƯỢC hồ sơ không (`0133`).
+   *
+   * Đúng một cờ cho cả hai khối CSBH dưới đây, và nó là CHÍNH cái cờ đã ẩn mục
+   * menu *Hồ sơ CSBH* — không phải một phép suy thứ hai. Quản trị hệ thống là
+   * vai trò duy nhất trả `false` hôm nay.
+   *
+   * KHÔNG GỌI API khi cờ tắt, chứ không phải gọi rồi bắt lỗi: `scope_user_ids`
+   * rỗng nên máy chủ chắc chắn trả `403 OUT_OF_SCOPE`, và bắt lỗi là dựng câu
+   * trả lời từ một mã lỗi — hỏng nếu máy chủ đổi mã. Ở đây câu trả lời đã biết
+   * trước khi hỏi.
+   */
+  const xemDuocHoSo = xem(nguoiDung?.role, 'hoSo');
+
   useEffect(() => {
     const huy = new AbortController();
     layJson<KhachHangDayDu>(`/customers/${id}`, huy.signal)
@@ -135,18 +149,20 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
       });
-    layJson<HoSoHienHanh>(`/policies/current?customerId=${encodeURIComponent(id)}`, huy.signal)
-      .then(datHoSo)
-      .catch((e: unknown) => {
-        if (huy.signal.aborted) return;
-        // 404 nghĩa là khách chưa có CSBH nào — câu trả lời bình thường.
-        // Mọi lỗi KHÁC thì nói ra (`0089`): nuốt chúng vào cùng nhánh này là
-        // khẳng định "chưa có CSBH nào" trong khi thật ra chưa hỏi được.
-        if (la404(e)) datHoSo('khong-co');
-        else datLoiHoSo(e);
-      });
+    if (xemDuocHoSo) {
+      layJson<HoSoHienHanh>(`/policies/current?customerId=${encodeURIComponent(id)}`, huy.signal)
+        .then(datHoSo)
+        .catch((e: unknown) => {
+          if (huy.signal.aborted) return;
+          // 404 nghĩa là khách chưa có CSBH nào — câu trả lời bình thường.
+          // Mọi lỗi KHÁC thì nói ra (`0089`): nuốt chúng vào cùng nhánh này là
+          // khẳng định "chưa có CSBH nào" trong khi thật ra chưa hỏi được.
+          if (la404(e)) datHoSo('khong-co');
+          else datLoiHoSo(e);
+        });
+    }
     return () => huy.abort();
-  }, [id, lan]);
+  }, [id, lan, xemDuocHoSo]);
 
   if (loi !== null) return <BaoLoi loi={loi} />;
   if (!kh) return <DangTai />;
@@ -243,8 +259,22 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       </dl>
 
       <h2>CSBH đang áp dụng</h2>
-      {loiHoSo !== null && <BaoLoi loi={loiHoSo} thuLai={taiLai} />}
-      {hoSo === null && loiHoSo === null && <DangTai />}
+      {/*
+        KHÔNG KHẢ DỤNG, chứ không phải lỗi và cũng không phải "chưa có" (`0133`).
+
+        Ba câu trả lời khác hẳn nhau, và hai câu kia đều nói sai với Quản trị hệ
+        thống: một khối đỏ đọc như hệ thống đang hỏng, còn *"khách hàng chưa có
+        CSBH nào"* là một lời khẳng định về DỮ LIỆU mà màn hình này không có căn
+        cứ để đưa ra — khách rất có thể đang có một CSBH hiệu lực.
+      */}
+      {!xemDuocHoSo && (
+        <Trong
+          tieuDe="Không khả dụng với vai trò của bạn"
+          moTa="Quản trị hệ thống không tham gia luồng duyệt nên không xem được hồ sơ CSBH. Thông tin khách hàng và việc đổi TDV phụ trách vẫn dùng bình thường."
+        />
+      )}
+      {xemDuocHoSo && loiHoSo !== null && <BaoLoi loi={loiHoSo} thuLai={taiLai} />}
+      {xemDuocHoSo && hoSo === null && loiHoSo === null && <DangTai />}
       {hoSo === 'khong-co' && (
         <Trong
           tieuDe="Khách hàng chưa có CSBH nào đang hiệu lực"
@@ -273,7 +303,20 @@ export function ChiTietKhachHang({ id }: { id: string }) {
         chưa có chỗ nào trả lời.
       */}
       <h2>Lịch sử CSBH</h2>
-      <LichSuCsbh khachHangId={id} />
+      {/*
+        Cùng cờ, cùng lý do với khối trên (`0133`) — và ở đây còn cần hơn:
+        `/policies?customerId=…` lọc theo phạm vi nên với Quản trị nó trả về một
+        DANH SÁCH RỖNG chứ không phải lỗi, và `LichSuCsbh` sẽ nói "chưa có phiên
+        bản nào". Một câu sai mà không có dấu hiệu nào cho thấy nó sai.
+      */}
+      {xemDuocHoSo ? (
+        <LichSuCsbh khachHangId={id} />
+      ) : (
+        <Trong
+          tieuDe="Không khả dụng với vai trò của bạn"
+          moTa="Lịch sử CSBH thuộc luồng duyệt, ngoài phạm vi của Quản trị hệ thống."
+        />
+      )}
 
       {/*
         CHỈ TDV PHỤ TRÁCH khách hàng này (`0069`).

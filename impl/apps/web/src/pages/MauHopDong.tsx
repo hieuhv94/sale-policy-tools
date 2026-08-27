@@ -175,7 +175,10 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
                 <th>Khổ giấy</th>
                 <th>Thêm lúc</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                {/* Tên cột ẩn khỏi mắt, giữ cho trình đọc màn hình (`0132`). */}
+                <th>
+                  <span className="chi-doc-man-hinh">Thao tác</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -197,7 +200,7 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
                         <span className="nhan nhan-tot">Đang dùng</span>
                       )}
                     </td>
-                    <td>
+                    <td className="o-thao-tac-re-chuot">
                       {voHieu ? (
                         <button
                           type="button"

@@ -378,28 +378,52 @@ describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
   });
 });
 
-describe('`0132` thao tác trong danh mục hiện khi rê chuột', () => {
+describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
 
-  /** Ba bảng DANH MỤC — và chỉ ba. Bảng khác giữ nguyên cột thao tác nhìn thấy. */
-  const BANG_DANH_MUC = [
+  /**
+   * BẢY bảng có cột thao tác ở bên phải — `0133` đưa nốt bốn bảng còn lại vào.
+   *
+   * `0132` chỉ đổi ba bảng danh mục, và bốn bảng kia lọt vì ca kiểm liệt kê đúng
+   * ba tên tệp. Danh sách viết tay là con dao hai lưỡi: nó nói rõ phạm vi, nhưng
+   * một bảng mới thêm về sau sẽ không có ai nhắc. Ca *"không còn tiêu đề nhìn
+   * thấy được ở BẤT KỲ đâu"* bên dưới là vế quét toàn bộ, bù cho chỗ đó.
+   */
+  const BANG_CO_THAO_TAC = [
     'components/danh-muc/SanPham.tsx',
     'components/danh-muc/Nhom.tsx',
     'components/danh-muc/ChietKhau.tsx',
+    'pages/MauHopDong.tsx',
+    'pages/NguoiDung.tsx',
+    'components/quan-tri/HeThong.tsx',
+    'components/BangSanPham.tsx',
   ];
+  const BANG_DANH_MUC = BANG_CO_THAO_TAC;
 
-  it('cả ba bảng danh mục đều gắn lớp vào Ô thao tác', () => {
+  it('MỌI ô thao tác của cả bảy bảng đều gắn lớp, không phải một ô mỗi tệp', () => {
     /*
      * Lớp phải nằm trên chính `<td>`, không phải trên nút bên trong: ô giữ chỗ
      * của cột. Đặt lên nút thì ô rỗng vẫn có đệm, và cột co lại đúng một chút —
      * đủ để bảng nhảy ngang mỗi lần rê chuột qua một dòng.
+     *
+     * ĐẾM TỪNG Ô chứ không hỏi "tệp này có ô nào mang lớp không", và đó là chỗ
+     * bản `0133` đầu tiên viết sai: bảng Người dùng có BA ô thao tác (`0070` cố
+     * ý tách ba cột), gỡ lớp khỏi một ô thì hai ô kia vẫn ẩn còn ô ấy hiện suốt
+     * — một lỗ thủng nhìn thấy được ngay giữa cột — mà ca kiểm cũ vẫn xanh vì
+     * hai ô còn lại đã trả lời "có".
      */
-    for (const tep of BANG_DANH_MUC) {
+    const lac: string[] = [];
+    for (const tep of BANG_CO_THAO_TAC) {
       const s = readFileSync(join(GOC, tep), 'utf8');
-      expect(s, `${tep} chưa gắn lớp rê chuột`).toMatch(
-        /<td className="[^"]*\bo-thao-tac-re-chuot\b[^"]*">/,
-      );
+      // Mọi `<td …> … </td>` có chứa một nút. Trong bảy tệp này, ô nào có nút
+      // thì ô ấy là ô thao tác — không có ngoại lệ nào.
+      for (const m of s.matchAll(/<td\b([^>]*)>((?:(?!<\/td>)[\s\S])*?)<\/td>/g)) {
+        if (!m[2]!.includes('<button')) continue;
+        if (/\bo-thao-tac-re-chuot\b/.test(m[1]!)) continue;
+        lac.push(`${tep}:${s.slice(0, m.index ?? 0).split('\n').length}`);
+      }
     }
+    expect(lac, `ô thao tác chưa gắn lớp rê chuột:\n${lac.join('\n')}`).toEqual([]);
   });
 
   it('tiêu đề cột KHÔNG còn hiện ra mắt, nhưng vẫn còn cho trình đọc màn hình', () => {
@@ -413,13 +437,33 @@ describe('`0132` thao tác trong danh mục hiện khi rê chuột', () => {
      */
     for (const tep of BANG_DANH_MUC) {
       const s = readFileSync(join(GOC, tep), 'utf8');
+      // `<th[^>]*>` chứ không `<th>`: bảng Người dùng khai `colSpan={3}` — ba ô
+      // cho ba nút (`0070`) — và một regex chặt hơn sẽ bỏ sót đúng bảng ấy.
       expect(s, `${tep} còn tiêu đề *Thao tác* nhìn thấy được`).not.toMatch(
-        /<th>\s*Thao tác\s*<\/th>/,
+        /<th[^>]*>\s*Thao tác\s*<\/th>/,
       );
       expect(s, `${tep} mất hẳn tên cột, kể cả với trình đọc màn hình`).toMatch(
         /<span className="chi-doc-man-hinh">Thao tác<\/span>/,
       );
     }
+  });
+
+  it('KHÔNG còn tiêu đề *Thao tác* nhìn thấy được ở bất kỳ màn hình nào', () => {
+    /*
+     * Vế QUÉT TOÀN BỘ, bù cho danh sách bảy tên tệp viết tay ở trên.
+     *
+     * `0132` đổi ba bảng và ca kiểm liệt kê đúng ba tên, nên bốn bảng còn lại
+     * lọt qua — không phải vì ai làm sai, mà vì ca kiểm chỉ nhìn vào chỗ nó được
+     * bảo nhìn. Ca này nhìn khắp nơi, và nó cũng canh cho bảng thêm mới về sau.
+     */
+    const lac: string[] = [];
+    for (const tep of moiTep(GOC, ['.tsx'])) {
+      const s = readFileSync(tep, 'utf8');
+      for (const [i, dong] of s.split('\n').entries()) {
+        if (/<th[^>]*>\s*Thao tác\s*<\/th>/.test(dong)) lac.push(`${tep}:${i + 1}`);
+      }
+    }
+    expect(lac, `tiêu đề *Thao tác* còn nhìn thấy ở:\n${lac.join('\n')}`).toEqual([]);
   });
 
   it('BA điều kiện hiện nút, không phải một', () => {

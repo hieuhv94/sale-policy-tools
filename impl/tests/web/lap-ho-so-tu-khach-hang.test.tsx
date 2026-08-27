@@ -182,3 +182,53 @@ describe('`0083` màn hình lập hồ sơ nhận khách hàng từ đường d�
     await waitFor(() => expect(screen.getByLabelText('Tìm khách hàng')).toBeDefined());
   });
 });
+
+// =============================================================================
+// `0133` — hai khối CSBH nói "không khả dụng" với Quản trị hệ thống
+// =============================================================================
+
+describe('`0133` màn hình khách hàng với Quản trị hệ thống', () => {
+  const QT_ID = '33333333-3333-3333-3333-333333333333';
+
+  it('hai khối CSBH nói KHÔNG KHẢ DỤNG, và không hỏi máy chủ câu nào', async () => {
+    /*
+     * Ba câu trả lời khác hẳn nhau, và hai câu kia đều nói sai với vai trò này:
+     *
+     *   - khối ĐỎ  — `scope_user_ids` rỗng nên máy chủ trả `403 OUT_OF_SCOPE`,
+     *     và một khối đỏ đọc như hệ thống đang hỏng;
+     *   - "chưa có CSBH nào" — một khẳng định về DỮ LIỆU mà màn hình không có
+     *     căn cứ đưa ra: khách rất có thể đang có một CSBH hiệu lực.
+     *
+     * Vế thứ hai của ca này là vế đáng giá: KHÔNG GỌI API. Câu trả lời đã biết
+     * trước khi hỏi, nên gọi rồi bắt `403` là dựng câu trả lời từ một mã lỗi —
+     * hỏng lặng lẽ nếu máy chủ đổi mã.
+     */
+    dangNhapLa(QT_ID, 'QUAN_TRI');
+    const f = chanMang(KHACH);
+    mo(<ChiTietKhachHang id="kh-1" />);
+
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getAllByText(/Không khả dụng với vai trò của bạn/).length).toBe(2),
+    );
+
+    const goi = f.mock.calls.map((c) => String(c[0]));
+    expect(goi.filter((d) => d.includes('/policies')), 'không được hỏi hồ sơ').toEqual([]);
+    // Và thông tin khách hàng thì vẫn hiện bình thường — đó là cả lý do trang
+    // này còn ở lại trong phạm vi của họ.
+    expect(screen.getByText(KHACH.name)).toBeDefined();
+  });
+
+  it('TDV thì ngược lại: có hỏi hồ sơ, và không có chữ *không khả dụng* nào', async () => {
+    // Chiều đối chiếu. Thiếu nó thì đổi cờ thành hằng `false` vẫn xanh, và mọi
+    // vai trò đều mất khối CSBH trên màn hình khách hàng.
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMang(KHACH);
+    mo(<ChiTietKhachHang id="kh-1" />);
+
+    await waitFor(() =>
+      expect(f.mock.calls.some((c) => String(c[0]).includes('/policies/current'))).toBe(true),
+    );
+    expect(screen.queryByText(/Không khả dụng với vai trò của bạn/)).toBeNull();
+  });
+});

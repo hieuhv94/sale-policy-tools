@@ -329,7 +329,12 @@ export function BangSanPham({
                   {c.nhan}
                 </th>
               ))}
-              {coThaoTac && <th>Thao tác</th>}
+              {/* Tên cột ẩn khỏi mắt, giữ cho trình đọc màn hình (`0132`). */}
+              {coThaoTac && (
+                <th>
+                  <span className="chi-doc-man-hinh">Thao tác</span>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -356,7 +361,15 @@ export function BangSanPham({
                 <td className="ma-quy-dinh">{d.ruleCode ?? ''}</td>
                 <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
-                  <td>
+                  /*
+                    Rê chuột mới hiện (`0132`) — CHỈ ở vế BẢNG.
+
+                    Danh sách thẻ ở cuối tệp này (bố cục điện thoại) không mang
+                    lớp ấy: nút ở đó không nằm trong ô bảng nào nên luật
+                    `tr:hover` không với tới, và điện thoại là màn hình cảm ứng —
+                    `@media (hover: none)` vốn đã cho hiện luôn.
+                  */
+                  <td className="o-thao-tac-re-chuot">
                     {/* `nhom-nut-hang` giữ hai nút trên CÙNG MỘT HÀNG (`0124`).
                         `.nhom-nut-gon` cho phép xuống dòng, và trong một ô bảng
                         hẹp thì Sửa với Xoá xếp chồng lên nhau — đọc như hai

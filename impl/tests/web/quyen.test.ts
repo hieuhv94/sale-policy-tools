@@ -89,6 +89,27 @@ describe('FE-25 điều hướng của Quản trị hệ thống', () => {
       expect(nhan.some((n) => n.includes(cam)), `menu không được có mục "${cam}"`).toBe(false);
     }
   });
+
+  it('`0133` cũng không có mục *Hồ sơ CSBH*', () => {
+    /*
+     * Bốn chữ cấm ở ca trên KHÔNG bắt được mục này — nhãn của nó là "Hồ sơ CSBH",
+     * không chứa "duyệt" hay "ký số" — nên nó lọt suốt từ P22 tới `0132`.
+     *
+     * Và nó có thật chứ không phải chuyện lý thuyết: `idn.scope_user_ids` trả
+     * RỖNG cho Quản trị, nên mọi đường đọc hồ sơ ném `403 OUT_OF_SCOPE`. Mục menu
+     * ấy dẫn tới một màn hình mở lên chỉ để nhận danh sách trống hoặc khối đỏ.
+     */
+    expect(xem('QUAN_TRI', 'hoSo')).toBe(false);
+    expect(dieuHuongCho('QUAN_TRI').map((m) => m.duong)).not.toContain('/ho-so');
+  });
+
+  it('`0133` năm vai trò còn lại VẪN xem được hồ sơ', () => {
+    // Chiều đối chiếu: một dòng viết nhầm thành mảng rỗng thì cả phần mềm chết,
+    // và ca trên vẫn xanh.
+    for (const v of ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO']) {
+      expect(xem(v, 'hoSo'), `${v} phải xem được hồ sơ`).toBe(true);
+    }
+  });
 });
 
 describe('Bảng quyền là nguồn DUY NHẤT', () => {

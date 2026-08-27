@@ -253,7 +253,10 @@ function ThuHongChuaXuLy() {
                 <th>Hỏng lúc</th>
                 <th>Lỗi gần nhất</th>
                 <th>Trạng thái</th>
-                <th>Thao tác</th>
+                {/* Tên cột ẩn khỏi mắt, giữ cho trình đọc màn hình (`0132`). */}
+                <th>
+                  <span className="chi-doc-man-hinh">Thao tác</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -267,7 +270,9 @@ function ThuHongChuaXuLy() {
                       không giúp được gì cho việc đó. */}
                   <td className="loi-goc">{t.lastError ?? '—'}</td>
                   <td>{t.resolvedAt ? `Đã xử lý ${ngayGio(t.resolvedAt)}` : 'Chưa xử lý'}</td>
-                  <td>
+                  {/* Dòng ĐÃ xử lý không có nút nào — rê chuột vào cũng không
+                      hiện gì, và đó là đúng: không còn việc để làm ở dòng ấy. */}
+                  <td className="o-thao-tac-re-chuot">
                     {t.resolvedAt === null && (
                       <button
                         type="button"
