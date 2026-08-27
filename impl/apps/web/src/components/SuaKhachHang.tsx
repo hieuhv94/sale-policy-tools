@@ -315,7 +315,7 @@ export function BieuMauKhachHang({
           chủ chặn cả hai chiều, ô này chỉ nói trước để không ai phải bấm Lưu
           mới biết.
         */}
-        <Truong id="kh-no" nhan="Điều khoản thanh toán" bắtBuộc>
+        <Truong id="kh-no" nhan="Công nợ" bắtBuộc>
           {(p) => (
             <select
               {...p}

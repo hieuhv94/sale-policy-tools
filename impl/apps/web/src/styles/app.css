@@ -1741,6 +1741,25 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   );
 }
 
+/* Hộp xem TỜ GIẤY: bề rộng ỔN ĐỊNH, và tờ giấy phóng to cho vừa (`0146`).
+
+   Đây là chỗ `0146` cắt sợi dây mà `0073` buộc. Luật cũ ở ngay trên tính bề
+   rộng hộp TỪ tỷ lệ tờ giấy, nên hộp không thể vừa ổn định vừa không thừa lề:
+   mở mẫu dọc ra 315px, mẫu ngang ra 630px, cùng một hộp.
+
+   Với PDF thì phép tính ấy không cần thiết ngay từ đầu, và đó là điều `0073`
+   không có: trình xem PDF của trình duyệt **phóng to được**. Bảo nó vừa bề rộng
+   (`#view=FitH`, xem `XemTep`) thì tờ giấy tự lấp đầy khung, và bề rộng hộp trở
+   thành một lựa chọn tự do thay vì một hệ quả.
+
+   Lớp này ĐÈ lên `.hop-thoai-xem`, không thay nó: `--cao-khung` và `--ty-le`
+   khai ở đó vẫn cần — `--cao-khung` cho chiều cao khung, `--ty-le` cho ca ảnh.
+
+   ẢNH thì KHÔNG nhận lớp này, và không phải vì quên: một tấm ảnh trong `<img>`
+   không có trình xem nào để bảo "vừa bề rộng", nên bề rộng hộp vẫn phải suy từ
+   số đo của nó. Đó là lý do `--san-hop-thoai` còn sống. */
+.hop-thoai-giay { width: min(var(--rong-hop-thoai-xem), 100%); }
+
 /* Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường (`0068`).
 
    `min()` với `100%` chứ không đặt bề rộng cứng: lớp phủ đã có lề hai bên, nên
@@ -2157,6 +2176,23 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
   background: var(--mau-nen-phu);
+}
+
+/* Khung của một TỜ GIẤY: lấp đầy hộp, cả hai chiều (`0146`).
+
+   `aspect-ratio: auto` gỡ hẳn luật của `0073` cho riêng ca này — giữ lại thì
+   khung vẫn mang hình tờ giấy và vẫn chừa lề, tức cả lượt sửa thành vô nghĩa.
+   Đây là chỗ dễ sửa nhầm nhất: `width: 100%` một mình KHÔNG đủ, vì `aspect-ratio`
+   ở khối trên sẽ đẩy chiều cao lên theo bề rộng và khung tràn khỏi hộp.
+
+   Cặp `width: 100%` + `height: var(--cao-khung)` nói đúng điều cần nói: *"khung
+   lấy hết chỗ được cho"*. Việc khớp tờ giấy vào chỗ ấy là việc của trình xem PDF,
+   và nó làm tốt hơn CSS — nó biết trang thật khổ gì, còn CSS chỉ có một con số
+   khai trước. */
+.khung-giay {
+  width: 100%;
+  height: var(--cao-khung);
+  aspect-ratio: auto;
 }
 
 /* Ảnh scan: vừa khung, giữ tỷ lệ, nền tối hơn để mép giấy trắng nhìn rõ.

@@ -177,7 +177,7 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Ngày soạn thảo')).not.toBe(oCua('Ngày áp dụng'));
   });
 
-  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, điều khoản thanh toán', async () => {
+  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, công nợ', async () => {
     await mo();
     const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
       (e) => e.querySelector('h2')?.textContent === 'Khách hàng',
@@ -192,8 +192,13 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
      * `0138` — công nợ thôi là số tiền, nó là ĐIỀU KHOẢN thanh toán, và máy chủ
      * gửi xuống câu chữ đã dựng xong. Ô này in nguyên câu ấy: không `tien()`,
      * không hậu tố ` đ`.
+     *
+     * Nhãn đổi lại thành *Công nợ* ở `0146` — đó là chữ khách hàng dùng, và cái
+     * `0138` đổi là NỘI DUNG của ô, không phải tên gọi của nó. Nhãn *Điều khoản
+     * thanh toán* mô tả đúng thứ đang hiện, nhưng nó là chữ của người viết phần
+     * mềm chứ không phải chữ của người đọc màn hình.
      */
-    expect(oCua('Điều khoản thanh toán')).toBe('Thanh toán gối đơn, công nợ không quá 90 ngày');
+    expect(oCua('Công nợ')).toBe('Thanh toán gối đơn, công nợ không quá 90 ngày');
   });
 
   it('mã khách hàng bấm được, dẫn sang màn hình khách hàng đó', async () => {

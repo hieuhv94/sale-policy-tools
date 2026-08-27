@@ -12731,3 +12731,107 @@ hình dạng sau chỉ phải sửa một chỗ.
 `.chon-mau-truoc` gỡ khỏi `app.css` — hết chỗ dùng.
 
 **1880/1880 xanh.**
+
+## P174 — `0146` bề rộng hộp xem ổn định, và nhãn *Công nợ*
+
+Khách hàng xem bản `0145` rồi chốt lại: *"hộp thư của khổ dọc vẫn quá hẹp, hãy
+điều chỉnh để độ rộng của hộp thư luôn ổn định, có thể zoom phần pdf lên để không
+bị thừa lề bên phải"*. Một câu, và nó đảo chiều lượt sửa trước.
+
+### `0145` đúng phép tính, sai bài toán
+
+`0145` bịt dải trắng bằng cách cho hộp CO theo tờ giấy, và bịt được thật — đo
+lại: hiệu số đúng 50px ở cả ba cỡ màn hình. Nhưng nó thừa hưởng nguyên vẹn một
+giả định của `0073` mà chưa ai nghi ngờ: **bề rộng hộp phải suy ra từ tỷ lệ tờ
+giấy.** Với giả định ấy thì "ổn định" và "không thừa lề" loại trừ nhau — cùng một
+hộp, mở mẫu dọc ra 315px, mẫu ngang ra 630px.
+
+Thứ `0073` không có, và lượt này dùng: **trình xem PDF của trình duyệt phóng to
+được.** Bảo nó *"vừa bề rộng"* (`#view=FitH`) thì tờ giấy tự lấp đầy khung, và
+bề rộng hộp thành một lựa chọn tự do thay vì một hệ quả. Cả phép tính biến mất
+chứ không phải được sửa lại.
+
+Đo sau khi sửa, ba cỡ cửa sổ × ba tỷ lệ giấy:
+
+    cửa sổ       hộp    khung      đáy hàng nút / khung nhìn
+    1920×1080    900    850×689    885 / 993
+    1366×768     900    850×377    573 / 681
+    1280×720     900    850×329    525 / 633
+
+Chín ô đầu **giống hệt nhau theo hàng** — đó là chữ *ổn định*, đo ra được. Hiệu
+900 − 850 = 50px là đệm 48 cộng viền 2, tức không còn một pixel chết nào. Và cột
+cuối là thứ suýt quên: hàng nút vẫn nằm trong khung nhìn ở cả ba, nên không phải
+đụng tới `HopThoai` để ghim nút xuống chân hộp.
+
+### Ba cách làm đã cân, và vì sao hai cách kia sai
+
+    Khung mang aspect-ratio, hộp co theo      `0145` — hộp nhảy cỡ
+    Khung rộng 100%, cao theo aspect-ratio    khung cao 1202px, thân hộp cuộn,
+                                              nút *Đóng* trôi khỏi tầm nhìn —
+                                              muc 11.1 đòi nút ấy LUÔN thấy được
+    Khung lấp đầy hộp, trình xem PDF phóng to  ← chọn
+
+Cách thứ hai nghe hợp lý nhất và sai ở chỗ khó thấy nhất: nó dựng ra **hai mặt
+cuộn lồng nhau** — thân hộp cuộn cái khung, cái khung cuộn tờ giấy — thứ mà con
+lăn chuột không thoát ra được.
+
+### Cái bẫy: `width: 100%` một mình không đủ
+
+`aspect-ratio` của `.khung-xem` vẫn có hiệu lực, nên chiều cao đi theo bề rộng và
+khung tràn khỏi hộp. Phải `aspect-ratio: auto` cho riêng ca này. Lúc phá lại, gỡ
+đúng dòng ấy làm đỏ một ca — và nếu không có ca ấy thì triệu chứng sẽ là "hộp
+thoại dài bất thường", chẳng gợi gì tới tỷ lệ.
+
+### Một ca kiểm bắc qua hai tệp
+
+`#view=FitH` phải có ở **cả hai** chỗ dựng khung tờ giấy — hộp *Xem bản mềm* và
+bước hai của lượt gửi duyệt (`0140`). Người dùng đọc cùng một tờ giấy ở hai chỗ
+ấy; một chỗ có, chỗ kia không, là hai bản trình bày khác nhau của một hồ sơ.
+
+Ca kiểm quét nguồn và đòi ĐỦ hai điều kiện **trên cùng một thẻ** — có
+`khung-giay` thì phải có `FitH` — chứ không đếm riêng hai chuỗi trong tệp. Phá
+lại lượt thứ hai gỡ `FitH` **chỉ ở hộp gửi duyệt** và ca ấy đỏ; đếm riêng thì nó
+đã xanh.
+
+### Nhãn *Công nợ*, và một " đồng" sót lại
+
+Đổi nhãn ở bốn màn hình cộng bốn văn bản mẫu. Mẫu là **đầu ra** của
+`scripts/tao-mau-ho-so.ts` (`0135`), nên sinh lại — và so lại `word/document.xml`
+trước/sau để chắc rằng lượt sinh không nuốt mất bản vá nào: đúng một dòng đổi
+trong mỗi tệp.
+
+Trên đường đó lộ ra một chỗ sót của `0138`: `ensureDefault` bên
+`templates.service.ts` dựng mẫu mặc định **bằng mã** và vẫn in
+`{{ho_so.cong_no}} đồng`. Từ `0138` giá trị ấy là một CÂU CHỮ, nên mẫu ấy in ra
+*"Công nợ: Thanh toán sau khi nhận hàng đồng"*. `0162` đã ghi rằng `ensureDefault`
+là một bản sao thứ hai đi lạc khỏi ba tệp `.docx`; đây là lần nó cắn.
+
+Đáng nhớ vì sao không ca kiểm nào bắt: `ensureDefault` chỉ chạy khi CSDL chưa có
+mẫu nào, mà mọi tệp kiểm đều nạp mẫu thật trước. Trên máy khách hàng thì ngược
+lại — không ai chạy `nap-danh-muc` thì đó là mẫu DUY NHẤT.
+
+Ca kiểm cũ chỉ quét `tao-mau-ho-so.ts` — đúng một trong hai nguồn. Nay quét cả
+hai, và **danh sách nguồn viết thành một mảng** để đường dựng mẫu thứ ba khai tên
+vào đó thay vì đi lạc như `ensureDefault` đã đi.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gỡ `#view=FitH` ở hộp *Xem bản mềm* | 2 đỏ |
+| Gỡ `#view=FitH` **chỉ** ở hộp gửi duyệt | 1 đỏ — ca bắc qua hai tệp |
+| Giữ `aspect-ratio` ở `.khung-giay` | 1 đỏ |
+| Bề rộng hộp lại suy từ tỷ lệ (quay về `0145`) | 1 đỏ |
+| Hoàn tác nhãn ở một trong bốn màn hình | 1 đỏ |
+| Trả lại ` đồng` cho `ensureDefault` | 1 đỏ — ca vừa nới rộng |
+
+### Còn lại, không đụng
+
+`--san-hop-thoai` (240px của `0145`) **không chết**: nó vẫn cầm lái hộp xem ẢNH,
+thứ không phóng to được — không có trình xem ảnh nào để mà bảo *"vừa bề rộng"*.
+Hai ca kiểm của `0145` đứng nguyên, chỉ đổi chú thích cho đúng phạm vi mới.
+
+`.khung-pdf` giờ **không còn chỗ dùng nào** — `0140` đã chuyển sang `.khung-xem`.
+Để nguyên vì nó ngoài phạm vi lượt này, nhưng nó là mã chết có một ca kiểm canh.
+
+**1884/1884 xanh.**

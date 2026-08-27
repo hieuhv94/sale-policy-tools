@@ -67,8 +67,20 @@ describe('`0051` hộp xem tệp', () => {
     expect(khung.tagName).toBe('IFRAME');
     // Đây là cả điểm của `xemTruoc`: nhúng thẳng `/files/...` là 401 vì thẻ
     // iframe không gửi header Authorization.
-    expect(khung.getAttribute('src')).toBe('blob:gia-lap-1');
-    expect(khung.getAttribute('src')).not.toContain('/files/');
+    const src = khung.getAttribute('src') ?? '';
+    expect(src.split('#')[0]).toBe('blob:gia-lap-1');
+    expect(src).not.toContain('/files/');
+
+    /*
+     * `0146` — mảnh neo `#view=FitH` bảo trình xem PDF phóng tờ giấy cho VỪA BỀ
+     * RỘNG khung. Thiếu nó thì trình xem khớp trang theo chiều CAO như mặc định,
+     * và dải xám hai bên quay lại — đúng thứ khách hàng vừa bảo sửa.
+     *
+     * Canh ở đây chứ không chỉ ở CSS, vì hai vế nằm hai nơi và mỗi vế một mình
+     * đều vô nghĩa: `.khung-giay` cho khung lấp đầy hộp, mảnh neo này cho tờ
+     * giấy lấp đầy khung.
+     */
+    expect(src).toContain('#view=FitH');
   });
 
   it('ảnh nhúng bằng thẻ img, không phải iframe', async () => {

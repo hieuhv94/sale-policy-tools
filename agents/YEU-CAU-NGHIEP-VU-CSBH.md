@@ -1483,13 +1483,22 @@ gõ thẳng địa chỉ cũng bị chặn.
 >   chọn** kèm nút *Xem*, thay cho danh sách nút xếp dọc. Ô mở ra **rỗng**: luật *"phải chọn, phần
 >   mềm không chọn hộ"* (chốt 20/08) giữ nguyên, chỉ đổi hình dạng. Danh mục mẫu dài ra thì ô chọn
 >   vẫn cao một dòng, còn danh sách nút thì đẩy nút *Đóng* xuống dưới tầm nhìn.
-> - **Hộp xem trước rộng đúng bằng tờ giấy** cộng phần đệm — không còn dải trắng thừa bên phải bản
->   xem. Đo được trước khi sửa trên laptop 1366×768: hộp 520px đựng một tờ A4 dọc rộng 267px, thừa
->   **203px** trắng dồn hết sang phải.
+> - **Không còn dải trắng thừa bên phải bản xem.** Đo được trước khi sửa trên laptop 1366×768: hộp
+>   520px đựng một tờ A4 dọc rộng 267px, thừa **203px** trắng dồn hết sang phải.
+
+**Hộp xem có bề rộng CỐ ĐỊNH, tờ giấy phóng to cho vừa** `sửa 27/08` — vế thứ hai ở trên thoạt tiên
+làm hộp co theo tờ giấy; khách hàng xem bản ấy rồi chốt lại: *"hộp của khổ dọc vẫn quá hẹp, hãy điều
+chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên để không bị thừa lề bên phải"*.
+
+> Hộp xem bản mềm và hợp đồng rộng **900px** ở mọi khổ giấy và mọi màn hình (hẹp lại theo màn hình
+> nhỏ). Cái mất, có chủ ý: mẫu **khổ dọc** cao hơn khung nên phải cuộn trong bản xem mới đọc hết —
+> đổi lấy chữ to hơn và một hộp không nhảy cỡ giữa hai lần mở.
 >
-> Hệ quả nhìn thấy được của vế thứ hai: trên màn hình thấp, hộp xem **hẹp hơn hẳn** hộp nhập liệu
-> thường. Đó là đúng — nó chỉ rộng bằng thứ nó đang đựng, và một hộp rộng hơn tờ giấy không làm chữ
-> to thêm một pixel nào.
+> Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
+
+**Nhãn *Công nợ*** `sửa 27/08` — mọi màn hình gọi trường này là **Công nợ**, không phải *Điều khoản
+thanh toán*. Nội dung vẫn là điều khoản (chốt cùng ngày, ở trên); đổi là đổi **tên gọi**, về đúng chữ
+người dùng vẫn dùng. Bốn màn hình và cả bốn văn bản mẫu.
 
 **Thao tác trong bảng hiện khi rê chuột** `mới 27/08` — cột *Thao tác* thôi có tiêu đề nhìn thấy
 được, và các nút chỉ hiện khi con trỏ đi vào dòng. Áp dụng cho **cả bảy bảng** có cột thao tác: sản

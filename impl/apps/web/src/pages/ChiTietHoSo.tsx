@@ -707,6 +707,7 @@ function HopThoaiHanhDong({
         tieuDe={`${HANH_DONG_NHAN[hanhDong] ?? hanhDong} — đọc lại bản mềm`}
         dong={dong}
         tyLe={khoGiayMau ? TY_LE_KHO[khoGiayMau] : TY_LE_MAC_DINH}
+        giay
       >
         <p className="ghi-chu">
           Đây đúng là bản người duyệt sẽ đọc. Bấm <strong>Gửi duyệt</strong> thì{' '}
@@ -717,9 +718,20 @@ function HopThoaiHanhDong({
         {xemUrl === null ? (
           <DangTai />
         ) : (
-          // `.khung-xem` chứ không `.khung-pdf`: nó đọc `--cao-khung` và
-          // `--ty-le` của chính hộp thoại, nên khung với hộp luôn cùng hình.
-          <iframe className="khung-xem" src={xemUrl} title="Bản mềm CSBH" />
+          /*
+           * `.khung-xem` chứ không `.khung-pdf`: nó đọc `--cao-khung` của chính
+           * hộp thoại, nên khung với hộp luôn cùng một phép tính.
+           *
+           * `0146` thêm `.khung-giay` và `#view=FitH`: hộp giữ một bề rộng ổn
+           * định, tờ giấy phóng to cho vừa. Hộp này phải đi cùng hộp *Xem bản
+           * mềm* tới từng chi tiết — người dùng đọc cùng một tờ giấy ở hai chỗ,
+           * và `0140` dựng nó ra chính vì lý do ấy.
+           */
+          <iframe
+            className="khung-xem khung-giay"
+            src={`${xemUrl}#view=FitH`}
+            title="Bản mềm CSBH"
+          />
         )}
 
         {loi !== null && <BaoLoi loi={loi} />}
@@ -945,7 +957,7 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
             <O nhan="Loại">{nhanLoaiKhach(kh.loai)}</O>
             {/* `0138` — điều khoản thanh toán, đã đóng băng vào hồ sơ lúc gửi
                 duyệt (`0101`). Không còn ` đ` ở cuối. */}
-            <O nhan="Điều khoản thanh toán">{kh.congNo || '—'}</O>
+            <O nhan="Công nợ">{kh.congNo || '—'}</O>
             {/* Khách đã ngừng hợp tác thì PHẢI nói ra ở đây. Hồ sơ cũ của họ vẫn
                 mở được, và không có dòng này thì người đọc không thấy gì bất
                 thường ở một chính sách dành cho khách không còn giao dịch. */}

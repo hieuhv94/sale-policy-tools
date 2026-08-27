@@ -486,6 +486,7 @@ export function HopThoai({
   dong,
   co = 'thuong',
   tyLe = null,
+  giay = false,
   children,
 }: {
   tieuDe: string;
@@ -520,6 +521,18 @@ export function HopThoai({
    * `null` là hộp thoại thường.
    */
   tyLe?: number | null;
+  /**
+   * Nội dung là một TỜ GIẤY — PDF do phần mềm dựng ra (`0146`).
+   *
+   * Hộp giữ MỘT bề rộng cố định (`--rong-hop-thoai-xem`) thay vì suy từ `tyLe`,
+   * và tờ giấy phóng to cho vừa. Chỉ đúng với PDF: trình xem PDF của trình duyệt
+   * nhận được lệnh *"vừa bề rộng"*, còn một tấm ảnh thì không — nên ảnh vẫn đi
+   * đường cũ, bề rộng hộp suy từ số đo của chính nó.
+   *
+   * `tyLe` VẪN phải truyền kèm: nó mang `--cao-khung` vào khối, thứ quyết định
+   * chiều cao khung xem.
+   */
+  giay?: boolean;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -565,7 +578,7 @@ export function HopThoai({
       <div
         className={
           tyLe !== null
-            ? 'hop-thoai hop-thoai-xem'
+            ? `hop-thoai hop-thoai-xem${giay ? ' hop-thoai-giay' : ''}`
             : co === 'thuong'
               ? 'hop-thoai'
               : `hop-thoai hop-thoai-${co}`

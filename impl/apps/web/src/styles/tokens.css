@@ -267,6 +267,30 @@
   --san-hop-thoai: 240px;
 
   /**
+   * Bề rộng ỔN ĐỊNH của hộp XEM TỜ GIẤY — bản mềm CSBH và hợp đồng (`0146`).
+   *
+   * `0145` cho hộp co theo tờ giấy để bịt dải trắng bên phải, và bịt được thật —
+   * nhưng khách hàng xem bản ấy rồi bảo *"hộp của khổ dọc vẫn quá hẹp, hãy điều
+   * chỉnh để độ rộng luôn ổn định"*. Đo lại con số họ thấy: 315px trên laptop
+   * 1366×768. Đúng là hẹp, và tệ hơn nữa là nó **nhảy** — cùng một hộp, mở mẫu
+   * dọc thì 315px, mẫu ngang thì 630px.
+   *
+   * Gốc rễ: `0073` buộc bề rộng hộp vào tỷ lệ tờ giấy, nên hộp không thể vừa ổn
+   * định vừa không thừa lề. Lượt này cắt sợi dây ấy theo hướng ngược với `0145`:
+   * hộp giữ MỘT bề rộng, còn tờ giấy **phóng to cho vừa** (`#view=FitH`).
+   * Không còn phép tính nào để mà lệch.
+   *
+   * 900px nằm giữa hộp thường (700px) và hộp rộng (1000px), và đó là chỗ đúng
+   * của nó: đây là mặt ĐỌC, rộng hơn một biểu mẫu nhập liệu, nhưng phóng to
+   * thêm nữa thì tờ A4 dọc cao quá màn hình và người đọc phải cuộn nhiều hơn
+   * mức đáng.
+   *
+   * `--san-hop-thoai` KHÔNG chết theo: nó vẫn giữ hộp xem ẢNH, thứ không phóng
+   * to được — trình duyệt không có trình xem ảnh nào để mà bảo "vừa bề rộng".
+   */
+  --rong-hop-thoai-xem: 900px;
+
+  /**
    * Vùng chạm tối thiểu 44px (FE-08).
    *
    * Không phải con số tuỳ chọn: dưới mức này thì ngón tay người lớn bấm trượt,

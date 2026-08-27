@@ -137,7 +137,7 @@ export function XemTep({
   const tyLeKhung = cach === 'khong' ? null : (tyLeAnh ?? tyLe ?? TY_LE_MAC_DINH);
 
   return (
-    <HopThoai tieuDe={tieuDe} dong={dong} tyLe={tyLeKhung}>
+    <HopThoai tieuDe={tieuDe} dong={dong} tyLe={tyLeKhung} giay={cach === 'pdf'}>
       {truoc}
 
       {loi !== null && <BaoLoi loi={loi} />}
@@ -145,7 +145,24 @@ export function XemTep({
       {tep === null && loi === null && <DangTai />}
 
       {tep !== null && cach === 'pdf' && (
-        <iframe className="khung-xem" src={tep.url} title={tieuDe} />
+        /*
+         * `#view=FitH` — *"vừa bề rộng"* (`0146`).
+         *
+         * Đây là nửa còn lại của lượt sửa, và nửa quan trọng hơn: `.khung-giay`
+         * cho khung lấp đầy hộp, còn dòng này là thứ bảo trình xem PDF phóng tờ
+         * giấy lên cho hết bề rộng ấy. Thiếu nó thì trình xem khớp trang theo
+         * chiều CAO như mặc định, và dải xám hai bên quay lại y nguyên — chỉ
+         * khác là xám thay vì trắng.
+         *
+         * `FitH` là tham số mở tệp chuẩn, PDFium (Chrome, Edge) và pdf.js
+         * (Firefox) đều hiểu. Trình duyệt nào bỏ qua thì rơi về đúng hành vi
+         * hôm nay, không vỡ gì — nên nó an toàn để dựa vào.
+         *
+         * Nối vào `blob:` URL, tức là một mảnh neo thuần phía trình duyệt: máy
+         * chủ không bao giờ nhìn thấy nó, và nút *Tải xuống* đi đường khác
+         * (`duongTai ?? duong`) nên không dính.
+         */
+        <iframe className="khung-xem khung-giay" src={`${tep.url}#view=FitH`} title={tieuDe} />
       )}
 
       {tep !== null && cach === 'anh' && (

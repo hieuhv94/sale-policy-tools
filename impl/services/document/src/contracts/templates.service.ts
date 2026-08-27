@@ -736,7 +736,7 @@ const defaultHoSoBody = (): string =>
     para('Tên khách hàng: {{ho_so.ten_khach_hang}}'),
     para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
     para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
-    para('Công nợ: {{ho_so.cong_no}} đồng'),
+    para('Công nợ: {{ho_so.cong_no}}'),
     para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
     para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
     para(''),
@@ -761,7 +761,7 @@ const defaultTemplateBody = (): string =>
     para('BÊN MUA: {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
     para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
     para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
-    para('Công nợ hiện tại: {{ho_so.cong_no}} đồng'),
+    para('Công nợ hiện tại: {{ho_so.cong_no}}'),
     para(''),
     para('Danh sách sản phẩm và chính sách giá:'),
     // MỘT ô trống, hệ thống dựng cả bảng (`0067`). Trước đó đây là một bảng vẽ

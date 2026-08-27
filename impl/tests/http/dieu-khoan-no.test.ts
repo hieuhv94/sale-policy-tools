@@ -135,12 +135,41 @@ describe('`0138` không còn chỗ nào coi công nợ là tiền', () => {
     expect(s).not.toMatch(/'ho_so\.cong_no':\s*'money_vnd'/);
   });
 
-  it('ba mẫu văn bản thôi in chữ *đồng* sau công nợ', () => {
-    // Câu cũ là "Công nợ tại thời điểm lập: {{ho_so.cong_no}} đồng". Giữ nguyên
-    // thì tờ CSBH in ra "Thanh toán sau khi nhận hàng đồng".
-    const s = doc('scripts/tao-mau-ho-so.ts');
-    expect(s).not.toMatch(/\{\{ho_so\.cong_no\}\}\s*đồng/);
-    expect(s).toContain('Điều khoản thanh toán: {{ho_so.cong_no}}');
+  it('KHÔNG mẫu nào in chữ *đồng* sau công nợ — kể cả mẫu dựng bằng mã', () => {
+    /*
+     * Câu cũ là "Công nợ tại thời điểm lập: {{ho_so.cong_no}} đồng". Giữ nguyên
+     * thì tờ CSBH in ra "Thanh toán sau khi nhận hàng đồng".
+     *
+     * HAI nguồn mẫu chứ không một, và `0146` tìm ra vế thứ hai bằng cách đi đổi
+     * nhãn: `0138` sửa `tao-mau-ho-so.ts` — nơi sinh ra ba tệp `.docx` — nhưng
+     * `templates.service.ensureDefault` dựng mẫu mặc định **bằng mã**, và nó vẫn
+     * in ` đồng` suốt tám chặng.
+     *
+     * Vì sao không tệp kiểm nào bắt được: `ensureDefault` chỉ chạy khi CSDL chưa
+     * có mẫu nào, mà mọi tệp kiểm đều nạp mẫu thật trước. Trên máy khách hàng
+     * thì ngược hẳn — không ai chạy `nap-danh-muc` thì đó là mẫu DUY NHẤT.
+     *
+     * Nên ca này quét NGUỒN, và quét cả hai nơi. Thêm một đường dựng mẫu thứ ba
+     * thì khai tên nó vào đây.
+     */
+    for (const p of [
+      'scripts/tao-mau-ho-so.ts',
+      'services/document/src/contracts/templates.service.ts',
+    ]) {
+      expect(doc(p), p).not.toMatch(/\{\{ho_so\.cong_no\}\}\s*đồng/);
+    }
+  });
+
+  it('`0146` mẫu gọi trường này là *Công nợ*, cùng chữ với màn hình', () => {
+    /*
+     * Nhãn trên tờ giấy và nhãn trên màn hình phải là MỘT: người dùng đối chiếu
+     * hai thứ ấy cạnh nhau khi kiểm lại hồ sơ trước lúc gửi duyệt.
+     *
+     * `0138` đặt *Điều khoản thanh toán* — mô tả đúng nội dung, nhưng đó là chữ
+     * của người viết phần mềm. `0146` đưa về chữ khách hàng vẫn dùng.
+     */
+    expect(doc('scripts/tao-mau-ho-so.ts')).toContain('Công nợ: {{ho_so.cong_no}}');
+    expect(doc('scripts/tao-mau-ho-so.ts')).not.toContain('Điều khoản thanh toán');
   });
 
   it('cột `debt` cũ đã gỡ khỏi lược đồ, và ảnh chụp đổi sang chữ', () => {

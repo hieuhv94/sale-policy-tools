@@ -75,7 +75,7 @@ const dayDu = [
   para('Điện thoại: {{ho_so.dien_thoai}}'),
   para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),
   // `0138` — công nợ là một ĐIỀU KHOẢN, không phải số tiền: bỏ chữ *đồng*.
-  para('Điều khoản thanh toán: {{ho_so.cong_no}}'),
+  para('Công nợ: {{ho_so.cong_no}}'),
   para(''),
   para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
   para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
@@ -103,7 +103,7 @@ const rutGon = [
   para('Số {{ho_so.ma_ho_so}} · {{ho_so.trang_thai}}'),
   para(''),
   para('Khách hàng: {{ho_so.ten_khach_hang}} ({{ho_so.ma_khach_hang}})'),
-  para('Điều khoản thanh toán: {{ho_so.cong_no}}'),
+  para('Công nợ: {{ho_so.cong_no}}'),
   para('Người đề nghị: {{ho_so.nguoi_de_nghi}} — áp dụng từ {{ho_so.ngay_ap_dung}}'),
   para(''),
   para('{{bang_san_pham}}'),
@@ -140,7 +140,7 @@ const hopDong = [
   para('Chức danh người đại diện: {{ho_so.chuc_danh_dai_dien}}'),
   para('Điện thoại: {{ho_so.dien_thoai}}'),
   para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),
-  para('Điều khoản thanh toán: {{ho_so.cong_no}}'),
+  para('Công nợ: {{ho_so.cong_no}}'),
   para(''),
   para('Điều 1. Danh mục sản phẩm và giá áp dụng'),
   /*

@@ -370,6 +370,65 @@ describe('`0129` hộp thoại đủ rộng', () => {
     }
   });
 
+  it('`0146` hộp xem TỜ GIẤY có bề rộng ổn định, không suy từ tỷ lệ', () => {
+    /*
+     * Yêu cầu là *"độ rộng của hộp luôn ổn định"*, và chữ ấy có một phép kiểm
+     * đọc ra được: bề rộng KHÔNG được nhắc tới `--ty-le`.
+     *
+     * `0145` bịt dải trắng bằng cách cho hộp co theo tờ giấy, và bịt được thật —
+     * nhưng cùng một hộp mở mẫu dọc ra 315px, mẫu ngang ra 630px. Đo trên
+     * laptop 1366×768 sau lượt này: **900px ở cả ba tỷ lệ**, khung 850px, hiệu
+     * đúng 50px (đệm 48 + viền 2).
+     */
+    const k = khoi('app.css', /\.hop-thoai-giay/);
+    expect(k, 'không tìm thấy luật cho `.hop-thoai-giay`').not.toBe('');
+    expect(k).toMatch(/width:\s*min\(\s*var\(--rong-hop-thoai-xem\)\s*,\s*100%\s*\)/);
+    expect(k, 'bề rộng ổn định thì không được suy từ tỷ lệ tờ giấy').not.toMatch(/--ty-le/);
+
+    // Nằm giữa hộp thường và hộp rộng: đây là mặt ĐỌC, không phải biểu mẫu.
+    const xem = token('--rong-hop-thoai-xem');
+    expect(xem).toBeGreaterThan(token('--rong-hop-thoai'));
+    expect(xem).toBeLessThan(token('--rong-hop-thoai-rong'));
+  });
+
+  it('`0146` khung TỜ GIẤY lấp đầy hộp — cả hai chiều', () => {
+    /*
+     * `width: 100%` một mình KHÔNG đủ, và đây là chỗ dễ sửa nhầm nhất của cả
+     * lượt: `aspect-ratio` của `.khung-xem` vẫn còn hiệu lực, nên chiều cao đi
+     * theo bề rộng và khung tràn khỏi hộp. Phải gỡ tỷ lệ ĐI cho riêng ca này.
+     */
+    const k = khoi('app.css', /\.khung-giay/);
+    expect(k, 'không tìm thấy luật cho `.khung-giay`').not.toBe('');
+    expect(k).toMatch(/width:\s*100%/);
+    expect(k, 'thiếu chiều cao thì khung xẹp xuống 150px mặc định của iframe').toMatch(
+      /height:\s*var\(--cao-khung\)/,
+    );
+    expect(k, '`aspect-ratio` còn sót thì khung vẫn mang hình tờ giấy').toMatch(
+      /aspect-ratio:\s*auto/,
+    );
+  });
+
+  it('`0146` mọi khung TỜ GIẤY đều xin trình xem PDF vừa bề rộng', () => {
+    /*
+     * Hai chỗ dựng khung tờ giấy — hộp *Xem bản mềm* (`XemTep`) và bước hai của
+     * lượt gửi duyệt (`ChiTietHoSo`, `0140`). Người dùng đọc CÙNG một tờ giấy ở
+     * hai chỗ ấy, nên một chỗ có `#view=FitH` mà chỗ kia không là hai bản trình
+     * bày khác nhau của cùng một hồ sơ.
+     *
+     * Quét nguồn vì phép này không đo được bằng jsdom lẫn bằng CSS: nó nằm ở
+     * chuỗi `src`. Đòi ĐỦ hai điều kiện trên cùng một khung — có `khung-giay`
+     * thì phải có `FitH` — chứ không đếm riêng từng chuỗi trong tệp.
+     */
+    for (const tep of ['apps/web/src/components/XemTep.tsx', 'apps/web/src/pages/ChiTietHoSo.tsx']) {
+      const src = readFileSync(tep, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const khung = [...src.matchAll(/<iframe[\s\S]*?\/>/g)]
+        .map((m) => m[0])
+        .filter((x) => x.includes('khung-giay'));
+      expect(khung.length, `${tep} không còn khung tờ giấy nào`).toBeGreaterThan(0);
+      for (const x of khung) expect(x, `${tep}: khung tờ giấy thiếu #view=FitH`).toContain('#view=FitH');
+    }
+  });
+
   it('`0145` SÀN không được lớn hơn tờ A4 dọc trên laptop 768px', () => {
     /*
      * Đây là ca của lỗi khách hàng báo: *"thừa một phần lề lớn bên phải hộp
@@ -381,6 +440,11 @@ describe('`0129` hộp thoại đủ rộng', () => {
      *     1920×1080   hộp 535px · khung 485px   hở phải  25px
      *     1366×768    hộp 520px · khung 267px   hở phải 203px
      *     1280×720    hộp 520px · khung 233px   hở phải 237px
+     *
+     * `0146` đưa TỜ GIẤY ra khỏi phép tính này (bề rộng cố định, xem
+     * `.hop-thoai-giay`), nên sàn giờ chỉ còn cầm lái hộp xem **ẢNH** — thứ
+     * không phóng to được. Ca kiểm vẫn đứng nguyên và vẫn đáng: một bản scan
+     * dọc cũng cho ra đúng cái dải trắng ấy.
      *
      * Ca này dựng lại chính phép tính ấy từ CSS, ở cỡ màn hình PHỔ BIẾN NHẤT
      * trong văn phòng — laptop 1366×768. Nó canh một QUAN HỆ giữa ba con số nằm
