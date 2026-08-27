@@ -87,7 +87,40 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (27/08/2026)
 
-Chặng gần nhất **P163** (`0135`): **bề rộng cột bảng sản phẩm** và **phông Times New Roman**. Đo
+Chặng gần nhất **P164–P167**, một lượt phản hồi 27/08 làm thành bốn chặng:
+
+**P167** (`0139`) ba loại khách hàng có **tên thật** — giữ chữ *Loại n* ở đầu vì con số là thứ quy
+định chiết khấu khai theo. Chú thích cũ ở `nhanLoaiKhach` đã đoán trước đúng lượt này.
+
+**P166** (`0138`) — lớn nhất: **công nợ là một ĐIỀU KHOẢN, không phải số tiền**. Hai cột
+(`debt_term` + `debt_note`), cột `debt bigint` **gỡ hẳn** và số tiền mất theo (không có phép chuyển
+đổi nào đúng; mọi khách nhận phương án 1 — thận trọng nhất vì nó KHÔNG cho nợ). **`customer` dựng
+sẵn CÂU CHỮ** và trả qua trường `debt`, nên `policy` với `document` chỉ thấy một chuỗi và không phải
+sửa dòng logic nào. **Ảnh chụp chụp CÂU CHỮ, không chụp mã** — sửa câu chữ về sau không được đổi nội
+dung tờ đã ký. Luật *Khác thì bắt buộc gõ, hai phương án kia thì cấm* là luật **hai chiều**, nên nó
+rời khỏi service về `dieu-khoan.ts` thành hàm thuần — ca kiểm thuần mới với tới được. Ba chỗ suýt
+quên: `internal.controller` liệt kê từng cột (bẫy `0128`), mẫu văn bản in `{{ho_so.cong_no}} đồng`,
+và `debt_note` không được dùng `coalesce`.
+
+**P165** (`0137`) mẫu A4 rút gọn ra khỏi `make demo-mau` lẫn `nap-danh-muc`; file ở lại `templates/`.
+Cái mất: đó là mẫu DUY NHẤT khai `cotBang`, nên demo hết chỗ bày tính năng chọn tập cột.
+
+**P164** (`0136`) nút hộp lỗi *Đã hiểu* → ***Đóng***, và **`str(10, 10)` không phải một phép kiểm
+ngày**: năm chỗ, ba service. `khong-phai` đúng mười ký tự nên nó ĐI QUA rồi Postgres ném `22007` →
+**HTTP 500**; câu lỗi thì nói *"phải có tối thiểu 10 ký tự"* với người đang nhập một cái ngày. Thêm
+`ngayIso()` vào `http-kit`. `new Date('2026-02-31')` KHÔNG ném lỗi — nó trôi sang 03/03, nên phải
+dựng ngày rồi in ngược ra so lại, và phải dùng `Date.UTC` (họ bẫy `current_date`/`toISOString`).
+
+> **HAI BẪY CỦA CHÍNH LƯỢT NÀY, đọc trước khi phá lại:**
+> **Chú thích trong template literal không được dùng backtick** — cả khối SQL nằm trong một template
+> literal, và một backtick cắt đứt chuỗi (triệu chứng: bảy lỗi cú pháp ở dòng chẳng liên quan).
+> **Phá lại thì sao lưu TỪNG TỆP, không sao lưu cả thư mục** — `impl/services/*/node_modules` là
+> liên kết do root tạo nên `rm -rf` một thư mục service không bao giờ chạy trọn, và `set -e` dừng
+> giữa chừng để lại cây làm việc mất `apps/web/src`.
+
+**703/705 ca chạy được ngoại tuyến xanh; `make test` đầy đủ CHƯA chạy — chồng demo vẫn bật.**
+
+Trước đó **P163** (`0135`): **bề rộng cột bảng sản phẩm** và **phông Times New Roman**. Đo
 trước khi sửa (docx → Gotenberg → PDF, đọc vị trí đường kẻ dọc) và con số nói hết: **mười một cột,
 mỗi cột đúng 43,8pt — bằng nhau tăm tắp**. Bộ `trongSo` của `0055` **chưa bao giờ có tác dụng**, vì
 `table()` phát `<w:tblGrid>` chia ĐỀU trong khi ô mang `w:tcW` theo tỷ lệ — và ở `tblLayout=fixed`

@@ -12208,3 +12208,32 @@ một thư mục service không bao giờ chạy trọn.
 **14/14 ca của tệp mới xanh; 695/697 ca chạy được ngoại tuyến xanh (2 bỏ qua, và
 `bundle.test.ts` cần `pnpm` nên không chạy trong ảnh trần). `make test` đầy đủ
 chưa chạy.**
+
+## P167 — `0139` ba loại khách hàng có tên thật
+
+Chặng ngắn nhất của lượt này, và chú thích cũ ở `nhanLoaiKhach` đã đoán trước
+đúng nó: *"khi nghiệp vụ đặt tên thật cho ba loại thì chỉ sửa ở đây"*. Hôm nay là
+ngày ấy, và quả thật chỉ sửa ở đây — bốn màn hình đều gọi hàm chứ không chỗ nào
+tự nội suy `Loại ${n}`. Một hàm nhỏ đặt đúng chỗ, viết từ P22, trả công đúng một
+lần vào hôm nay.
+
+**GIỮ chữ *Loại n* ở đầu**, không thay hẳn bằng tên: con số ấy là thứ **quy định
+chiết khấu khai theo** (`CK-SUA-L1` áp cho *loại 1*), và nó xuất hiện ở màn hình
+Chiết khấu, trong file Excel nhập danh mục, trong câu báo lỗi. Bỏ nó đi thì người
+đọc phải tự dịch tên sang số mỗi lần đối chiếu hai màn hình.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ chữ *Loại n* ở đầu nhãn | 3 đỏ |
+| Đổi tên loại 2 | 2 đỏ |
+| Thiếu tên loại 3 | 2 đỏ |
+
+Lượt thứ ba **xanh ở lần chạy đầu**, và lỗi lại nằm ở kịch bản phá chứ không ở ca
+kiểm: chuỗi `\n` truyền qua bash là hai ký tự chứ không phải một dòng mới, nên
+`replace` không khớp gì cả. Đúng bài học `0131` đã ghi — chạy lại kèm một
+`assert` rằng bản phá LÀNH đúng chỗ, và nó đỏ ngay.
+
+**703/705 ca chạy được ngoại tuyến xanh (2 bỏ qua; `bundle.test.ts` cần `pnpm`
+nên không chạy trong ảnh trần). `make test` đầy đủ chưa chạy.**

@@ -78,6 +78,15 @@ cái khác nhau.
 | **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08` |
 | **Quản trị hệ thống** | Danh mục sản phẩm, giá, người dùng. **Không** tham gia duyệt hồ sơ |
 
+> **Ba loại khách hàng** `mới 27/08` — nhãn trên màn hình hiện đủ cả số lẫn tên, vì con số là thứ
+> quy định chiết khấu khai theo:
+>
+> | | |
+> |---|---|
+> | Loại 1 | Hộ kinh doanh của khách hàng |
+> | Loại 2 | Hộ kinh doanh cộng tác |
+> | Loại 3 | Hộ kinh doanh/ Công ty điểm trưng bày hàng |
+
 Bạn chỉ nhìn thấy dữ liệu **trong phạm vi của mình**: TDV thấy khách hàng mình phụ trách, Kế toán
 thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên dưới.
 

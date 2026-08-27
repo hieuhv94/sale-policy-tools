@@ -20,7 +20,10 @@ import {
 } from '../../services/customer/src/customers/dieu-khoan.js';
 import {
   DIEU_KHOAN_NO as DIEU_KHOAN_WEB,
+  LOAI_KHACH_HANG,
   NHAN_DIEU_KHOAN_NO,
+  TEN_LOAI_KHACH,
+  nhanLoaiKhach,
 } from '../../apps/web/src/lib/danh-muc.js';
 
 describe('`0138` ba phương án, và chỉ ba', () => {
@@ -155,5 +158,41 @@ describe('`0138` không còn chỗ nào coi công nợ là tiền', () => {
     for (const p of ['apps/web/src/pages/KhachHang.tsx', 'apps/web/src/pages/ChiTietHoSo.tsx']) {
       expect(doc(p), p).not.toMatch(/tien\((kh\.debt|kh\.congNo)\)/);
     }
+  });
+});
+
+// =============================================================================
+// `0139` — ba loại khách hàng có TÊN THẬT
+// =============================================================================
+
+describe('`0139` nhãn loại khách hàng', () => {
+  it('ba loại mang đúng tên khách hàng chốt', () => {
+    expect(nhanLoaiKhach(1)).toBe('Loại 1 - Hộ kinh doanh của khách hàng');
+    expect(nhanLoaiKhach(2)).toBe('Loại 2 - Hộ kinh doanh cộng tác');
+    expect(nhanLoaiKhach(3)).toBe('Loại 3 - Hộ kinh doanh/ Công ty điểm trưng bày hàng');
+  });
+
+  it('GIỮ chữ *Loại n* ở đầu, không thay hẳn bằng tên', () => {
+    /*
+     * Con số ấy là thứ quy định chiết khấu khai theo — `CK-SUA-L1` áp cho loại
+     * 1 — và nó xuất hiện ở màn hình Chiết khấu, trong file Excel nhập danh mục,
+     * trong câu báo lỗi. Bỏ nó đi thì người đọc phải tự dịch tên sang số mỗi lần
+     * đối chiếu hai màn hình.
+     */
+    for (const n of LOAI_KHACH_HANG) {
+      expect(nhanLoaiKhach(n), String(n)).toMatch(new RegExp(`^Loại ${n}\\b`));
+    }
+  });
+
+  it('giá trị LẠ vẫn hiện ra được, không thành ô trống', () => {
+    // Dữ liệu cũ không tự biến mất, và một ô rỗng đọc như lỗi hiển thị.
+    expect(nhanLoaiKhach(4)).toBe('Loại 4');
+  });
+
+  it('ba loại của bảng khớp `LOAI_KHACH_HANG`', () => {
+    // Hai danh sách ở cạnh nhau trong cùng một tệp, và vẫn trôi khỏi nhau được:
+    // thêm loại 4 vào một chỗ mà quên chỗ kia thì ô chọn có bốn mục, mục thứ tư
+    // không có tên.
+    expect(Object.keys(TEN_LOAI_KHACH).map(Number)).toEqual([...LOAI_KHACH_HANG]);
   });
 });

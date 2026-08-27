@@ -94,13 +94,33 @@ export const MAU_TRANG_THAI_SAN_PHAM: Record<TrangThaiSanPham, string> = {
 export const LOAI_KHACH_HANG = [1, 2, 3] as const;
 
 /**
- * Nhãn của một loại khách hàng.
+ * TÊN THẬT của ba loại khách hàng (`0139`, khách hàng chốt 27/08).
  *
- * Một hàm chứ không nội suy thẳng `Loại ${n}` ở bốn màn hình: khi nghiệp vụ đặt
- * tên thật cho ba loại (đại lý cấp 1, nhà thuốc, bệnh viện…) thì chỉ sửa ở đây.
- * Giá trị lạ vẫn hiện ra được — dữ liệu cũ không bao giờ nên hiện thành ô trống.
+ * Chú thích cũ ở đây đoán trước đúng lượt này: *"khi nghiệp vụ đặt tên thật cho
+ * ba loại thì chỉ sửa ở đây"*. Hôm nay là ngày ấy, và quả thật chỉ sửa ở đây —
+ * bốn màn hình gọi `nhanLoaiKhach()` chứ không chỗ nào tự nội suy `Loại ${n}`.
  */
-export const nhanLoaiKhach = (n: number): string => `Loại ${n}`;
+export const TEN_LOAI_KHACH: Record<number, string> = {
+  1: 'Hộ kinh doanh của khách hàng',
+  2: 'Hộ kinh doanh cộng tác',
+  3: 'Hộ kinh doanh/ Công ty điểm trưng bày hàng',
+};
+
+/**
+ * Nhãn của một loại khách hàng — `Loại 2 - Hộ kinh doanh cộng tác`.
+ *
+ * GIỮ chữ *Loại n* ở đầu chứ không thay hẳn bằng tên: con số ấy là thứ **quy
+ * định chiết khấu khai theo** (`CK-SUA-L1` áp cho *loại 1*), và nó xuất hiện ở
+ * màn hình Chiết khấu, trong file Excel nhập danh mục, trong câu báo lỗi. Bỏ nó
+ * đi thì người đọc phải tự dịch tên sang số mỗi lần đối chiếu hai màn hình.
+ *
+ * Giá trị lạ vẫn hiện ra được — dữ liệu cũ không bao giờ nên hiện thành ô trống,
+ * và một loại 4 lọt vào thì `Loại 4` đọc được hơn hẳn một ô rỗng.
+ */
+export const nhanLoaiKhach = (n: number): string => {
+  const t = TEN_LOAI_KHACH[n];
+  return t ? `Loại ${n} - ${t}` : `Loại ${n}`;
+};
 
 /**
  * ĐIỀU KHOẢN THANH TOÁN (`0138`) — bản sao phía giao diện.

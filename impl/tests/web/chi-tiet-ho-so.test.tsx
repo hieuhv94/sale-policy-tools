@@ -186,7 +186,8 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
 
     expect(within(nhom as HTMLElement).getByText('KH-000123')).toBeDefined();
     expect(oCua('Tên')).toBe('Cong ty TNHH Duoc pham ABC');
-    expect(oCua('Loại')).toBe('Loại 2');
+    // `0139` — nhãn mang cả SỐ lẫn TÊN THẬT của loại khách hàng.
+    expect(oCua('Loại')).toBe('Loại 2 - Hộ kinh doanh cộng tác');
     /*
      * `0138` — công nợ thôi là số tiền, nó là ĐIỀU KHOẢN thanh toán, và máy chủ
      * gửi xuống câu chữ đã dựng xong. Ô này in nguyên câu ấy: không `tien()`,

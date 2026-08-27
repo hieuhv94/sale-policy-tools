@@ -1401,6 +1401,17 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
 
+**Ba loại khách hàng có TÊN THẬT** `mới 27/08` — nhãn hiện đủ cả số lẫn tên:
+
+> | | |
+> |---|---|
+> | Loại 1 | Hộ kinh doanh của khách hàng |
+> | Loại 2 | Hộ kinh doanh cộng tác |
+> | Loại 3 | Hộ kinh doanh/ Công ty điểm trưng bày hàng |
+>
+> GIỮ chữ *Loại n* ở đầu chứ không thay hẳn bằng tên: con số ấy là thứ **quy định chiết khấu khai
+> theo**, và nó xuất hiện ở màn hình Chiết khấu, trong file Excel nhập danh mục, trong câu báo lỗi.
+
 **Công nợ là một ĐIỀU KHOẢN thanh toán, không phải số tiền** `mới 27/08` — ba lựa chọn, và lựa
 chọn thứ ba cho gõ tự do:
 
