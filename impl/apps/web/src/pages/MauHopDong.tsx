@@ -27,6 +27,7 @@ import {
 } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DaiThe, DangTai, HopThoaiXacNhan, Trong } from '../components/Chung.js';
 import { ThemMau } from './ThemMau.js';
+import { ChiTietMau } from '../components/ChiTietMau.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 export function VanBanMau() {
@@ -58,6 +59,8 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
   const { bao } = useBaoLoi();
   const ch = CAU_HINH_MAU[loai];
   const [ds, datDs] = useState<MauDto[] | null>(null);
+  /** Mẫu đang mở hộp chi tiết (`0150`). `null` là không mở hộp nào. */
+  const [dangXem, datDangXem] = useState<MauDto | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [lan, datLan] = useState(0);
   const [dangThem, datDangThem] = useState(false);
@@ -201,6 +204,21 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
                       )}
                     </td>
                     <td className="o-thao-tac-re-chuot">
+                      {/*
+                        XEM đứng TRƯỚC hai nút đổi trạng thái (`0150`).
+
+                        Nó là thao tác đọc và không đổi gì; hai nút kia đổi
+                        trạng thái của mẫu. Xếp việc đọc trước việc ghi cũng là
+                        xếp theo thứ tự người dùng thật sự làm: mở ra xem mẫu
+                        này là mẫu nào, RỒI mới quyết định có vô hiệu hay không.
+                      */}
+                      <button
+                        type="button"
+                        className="nut nut-nhe"
+                        onClick={() => datDangXem(t)}
+                      >
+                        Xem
+                      </button>
                       {voHieu ? (
                         <button
                           type="button"
@@ -227,6 +245,10 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {dangXem && (
+        <ChiTietMau mau={dangXem} duong={ch.duong} dong={() => datDangXem(null)} />
       )}
 
       {hoiVoHieu && (

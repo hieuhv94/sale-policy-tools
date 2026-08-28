@@ -151,6 +151,22 @@ export class ContractTemplatesController {
   }
 
   /**
+   * CHI TIẾT một mẫu — bảng ánh xạ và tập cột, chỉ đọc (`0150`).
+   *
+   * Đường RIÊNG, không nới `GET :id` sẵn có. Đường kia mở cho năm vai trò để ô
+   * chọn đọc được cái tên, còn đây là dữ liệu quản trị: ô trống nào lấy trường
+   * nào, mẫu in ra mấy cột. Nhét chung là mở một cửa rộng hơn hẳn cho một tiện
+   * ích của đúng một vai trò.
+   *
+   * Trả về cả mẫu ĐÃ VÔ HIỆU — xem `chiTiet`.
+   */
+  @Roles('QUAN_TRI')
+  @Get(':id/chi-tiet')
+  chiTietHopDong(@Param('id') id: string) {
+    return this.templates.chiTiet(id, 'HOP_DONG');
+  }
+
+  /**
    * Mẫu dùng được, cho ô chọn lúc xuất hợp đồng (`0058`).
    *
    * Đây là đường DUY NHẤT của `/contract-templates` mà Quản trị KHÔNG vào được,
@@ -303,6 +319,22 @@ export class PolicyTemplatesController {
    * ăn 403 — một lỗ không màn hình nào lộ ra, vì màn hình quản trị đọc tên từ
    * danh sách chứ không từ đây.
    */
+  /**
+   * CHI TIẾT một mẫu — bảng ánh xạ và tập cột, chỉ đọc (`0150`).
+   *
+   * Đường RIÊNG, không nới `GET :id` sẵn có. Đường kia mở cho năm vai trò để ô
+   * chọn đọc được cái tên, còn đây là dữ liệu quản trị: ô trống nào lấy trường
+   * nào, mẫu in ra mấy cột. Nhét chung là mở một cửa rộng hơn hẳn cho một tiện
+   * ích của đúng một vai trò.
+   *
+   * Trả về cả mẫu ĐÃ VÔ HIỆU — xem `chiTiet`.
+   */
+  @Roles('QUAN_TRI')
+  @Get(':id/chi-tiet')
+  chiTietHoSo(@Param('id') id: string) {
+    return this.templates.chiTiet(id, 'HO_SO');
+  }
+
   @Roles(...NGUOI_XEM_HO_SO, 'QUAN_TRI')
   @Get(':id')
   ten(@Param('id') id: string) {

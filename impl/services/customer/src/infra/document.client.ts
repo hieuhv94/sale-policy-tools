@@ -40,6 +40,19 @@ export class DocumentClient {
           'X-Service-Token': mintServiceToken('customer'),
         },
         body: JSON.stringify({ objectKey, lyDo }),
+        /*
+         * CHẶN GIỜ, vì đây là việc DỌN chứ không phải việc người dùng đợi.
+         *
+         * Lượt gọi này nằm trên đường TRẢ LỜI của một thao tác đã xong — gỡ tệp
+         * đã commit, hoặc lượt đính kèm vừa bị từ chối và lỗi đã sẵn sàng ném ra.
+         * `document` chết hoặc treo thì không có lý do gì để người dùng ngồi chờ
+         * hết thời gian mặc định của `fetch`.
+         *
+         * Đo được ở `0150`: một ca kiểm thử hai mươi lượt đính kèm hỏng trong
+         * môi trường không có `document` chạy quá 30 giây rồi bị cắt — mỗi lượt
+         * từ chối kéo theo một lời gọi treo.
+         */
+        signal: AbortSignal.timeout(3000),
       });
       if (!res.ok) throw new Error(`document trả ${res.status}`);
     } catch (e) {

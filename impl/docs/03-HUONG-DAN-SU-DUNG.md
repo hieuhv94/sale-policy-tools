@@ -1542,8 +1542,22 @@ hợp đồng* xem mục 9.
 Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không dựng cứng trong phần mềm.
 Thẻ này là chỗ quản mẫu ấy.
 
-**Ba thao tác** `sửa 23/08`: **Thêm mẫu** ở góc trên bên phải, **Vô hiệu hoá** và **Dùng lại** ở
-từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng được.
+**Bốn thao tác** `sửa 28/08`: **Thêm mẫu** ở góc trên bên phải; **Xem**, **Vô hiệu hoá** và **Dùng
+lại** ở từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng được.
+
+**Xem** `mới 28/08` mở hộp *Chi tiết mẫu*, chỉ đọc:
+
+| Hiện gì | Để làm gì |
+| --- | --- |
+| **Cột của bảng sản phẩm** | Mẫu này in bảng đủ mười cột hay chỉ vài cột — khác biệt lớn nhất giữa bản dùng nội bộ và bản đưa khách hàng |
+| **Ô trống và nguồn dữ liệu** | Từng ô `{{…}}` trên file lấy dữ liệu từ đâu |
+| Nút **Tải file .docx** | Lấy chính file gốc về để sửa trong Word rồi tải lên thành mẫu mới |
+
+> Trước 28/08 mẫu đã lưu là một **hộp đen**: bảng chỉ hiện tên, khổ giấy, ngày sửa, trạng thái, và
+> thao tác duy nhất là vô hiệu hoá. Muốn biết một mẫu ánh xạ ra sao thì không có đường nào.
+>
+> **Xem được cả mẫu đã vô hiệu hoá**, và đó là chủ ý: nếu lỡ vô hiệu hết mẫu, đường duy nhất để có
+> lại là tải một `.docx` lên — mà file duy nhất trong tầm tay bạn là file lấy về từ chính đây.
 
 > **Không xoá được mẫu nữa** `sửa 23/08`. Từ khi mẫu hồ sơ gắn vào hồ sơ lúc gửi duyệt, xoá một mẫu
 > nghĩa là làm hỏng vĩnh viễn bản mềm của mọi hồ sơ đã dùng nó — mà hồ sơ thì khoá sửa từ lúc ấy, nên
@@ -1554,9 +1568,20 @@ từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng được.
 >
 > Vô hiệu hoá đòi **gõ lại tên mẫu**; *Dùng lại* thì không đòi gì, vì nó không phá huỷ gì.
 
-> **Không sửa được mẫu.** Muốn đổi câu chữ thì thêm mẫu mới rồi vô hiệu mẫu cũ: hồ sơ cũ giữ nguyên
-> bản của nó, hồ sơ mới dùng bản mới. Sửa thẳng một mẫu đã gắn vào hồ sơ đã ký là sửa chính văn bản
-> đã duyệt.
+> **Không sửa được mẫu.** Muốn đổi câu chữ thì *Tải file .docx* về, sửa trong Word, thêm mẫu mới rồi
+> vô hiệu mẫu cũ: hồ sơ cũ giữ nguyên bản của nó, hồ sơ mới dùng bản mới. Sửa thẳng một mẫu đã gắn
+> vào hồ sơ đã ký là sửa chính văn bản đã duyệt.
+>
+> **Tên mẫu không được trùng** `mới 28/08`, tính cả mẫu đã vô hiệu hoá. Ô chọn chỉ hiện đúng một cột
+> — cái tên — nên hai mẫu trùng tên là hai dòng người chọn không phân biệt được. Hệ quả khi làm theo
+> đoạn trên: bản mới phải mang **tên khác** bản cũ, ví dụ thêm *v2* ở cuối.
+
+> **Hệ thống không tự tạo mẫu nào** `mới 28/08`. Trước đó nó dựng sẵn một mẫu mỗi khổ giấy lúc khởi
+> động, nên vô hiệu hoá mẫu cuối cùng của một khổ thì hôm sau có một mẫu bạn không hề tạo xuất hiện
+> trong danh sách.
+>
+> Đổi lại: **không còn mẫu nào thì không xem được bản mềm và không gửi duyệt được hồ sơ**. Danh sách
+> mẫu trống là việc phải xử lý, không phải việc hệ thống tự lo.
 
 > **Không còn ban hành, không còn nháp.** Mọi mẫu trong danh sách đều dùng được ngay — lưu được là
 > dùng được. Mọi phép kiểm dồn về lúc bấm *Lưu*, tức là lúc bạn còn đang mở file Word ra và sửa thêm

@@ -13237,3 +13237,167 @@ không sửa. Đóng băng lúc gửi duyệt là luật có chủ ý (`0098`, `
 thêm giấy tờ thì đường đúng là nhờ trả hồ sơ về.
 
 **1899/1899 xanh.**
+
+## P178 — `0150` xem được văn bản mẫu, và không còn mẫu mặc định
+
+Người dùng đặt bài *"thêm chức năng xem hoặc sửa văn bản mẫu"* và yêu cầu đề
+xuất trước khi viết mã. Bốn lượt trao đổi rút gọn nó xuống còn **một chặng, chỉ
+XEM** — và trên đường ấy lộ ra hai quyết định lớn hơn hẳn bài toán ban đầu.
+
+### Chỗ hở do chính hệ thống tạo ra
+
+Mẫu đã lưu là một HỘP ĐEN: bảng quản trị hiện tên, khổ giấy, ngày sửa, trạng
+thái, và thao tác duy nhất là vô hiệu hoá. Không đường nào xem lại ánh xạ, không
+đường nào lấy file về.
+
+Đáng ghi là **vì sao**: `0067` bỏ hẳn việc sửa mẫu, với lý do viết thẳng trong
+migration — *"Không còn sửa mẫu: muốn đổi thì XOÁ đi và thêm mẫu mới."* Rồi
+`0098` **bỏ luôn quyền xoá**, vì mẫu đã đóng băng vào hồ sơ. Đường thoát mà
+`0067` dựa vào bị lấy đi, và không ai để ý rằng khi ấy không còn đường nào cả.
+
+Không phải một tính năng bị bỏ quên. Là hai quyết định đúng, mỗi cái đúng ở lượt
+của nó, và không ai đọc lại cái thứ nhất khi ra cái thứ hai.
+
+### Hai quyết định lớn hơn bài toán ban đầu
+
+Cả hai đến từ việc rà chứ không từ yêu cầu:
+
+**Cấm trùng tên.** Ô chọn mẫu hiện đúng một cột — cái tên. Bảng chưa bao giờ có
+ràng buộc trùng tên: `uq_contract_template_active` của `0012` canh `is_active`,
+và `0067` gỡ nó cùng vòng đời ban hành. Hai mẫu trùng tên là hai dòng người chọn
+không phân biệt được, trong khi chúng có thể khác nhau cả tập cột.
+
+**Bỏ hẳn mẫu mặc định.** `ensureDefault` dựng một mẫu mỗi loại/khổ lúc khởi động
+khi không còn mẫu nào còn hiệu lực — nên vô hiệu hoá mẫu cuối cùng của một khổ
+là hôm sau có một mẫu Quản trị không hề tạo nằm trong ô chọn của mọi người.
+
+Cái giá, người dùng chốt nhận: **hệ thống vừa cài xong không dùng được** cho tới
+khi có mẫu. `0098` bắt chọn mẫu lúc gửi duyệt, nên hồ sơ không rời được *Nháp*.
+`./csbh nap-danh-muc` thành bước cài đặt bắt buộc, không còn là đường tắt.
+
+### Chốt chặn migration nổ ngay lượt chạy đầu — và nó nói đúng
+
+Migration thêm unique index có một khối `DO` dừng lại nếu dữ liệu đã trùng tên.
+Nó nổ ngay: **5 bản** mỗi mẫu mặc định trong CSDL test.
+
+Nguyên nhân là **chính cơ chế đang bị bỏ**: `ensureDefault` chỉ hỏi *"còn mẫu nào
+DÙNG ĐƯỢC không"*, nên mỗi lượt bộ kiểm vô hiệu hoá cả bảng rồi dựng lại app là
+thêm một bản mới mang y nguyên cái tên cũ. Chuyện ấy xảy ra được trên máy khách
+hàng đúng như trên máy test.
+
+Nên migration chia làm hai bước, và ranh giới giữa chúng là ranh giới sở hữu:
+
+    1a. Bản trùng do HỆ THỐNG sinh (`is_default`)  → tự đánh số lại
+    1b. Bản trùng do NGƯỜI DÙNG tải lên            → DỪNG, in ra từng dòng
+
+Đổi tên hộ dữ liệu người dùng là sửa thứ không ai yêu cầu, và cái tên mới ấy sẽ
+hiện lên ô chọn của mọi TDV. Còn dòng `is_default` thì `0150` vừa tuyên bố là
+không nên tồn tại — hệ thống dọn thứ chính nó bày ra là đúng phận sự.
+
+Đổi tên chứ không xoá, kể cả với dòng hệ thống: mẫu có thể đã đóng băng vào hồ sơ
+đã ký, và xoá là làm hỏng bản mềm của chúng. Giữ bản CŨ NHẤT nguyên tên vì nó là
+bản nhiều hồ sơ trỏ vào nhất.
+
+### `tsc` liệt kê hộ, lần thứ ba
+
+Gỡ `ensureDefault` xong, trình biên dịch chỉ ra đúng bốn chỗ còn gọi: một ở
+`bootstrap.ts`, ba ở hai tệp kiểm. Không phải đi tìm.
+
+Nhưng nó **không** chỉ ra được chỗ thứ năm, và chỗ ấy mới là chỗ đau:
+`tests/http/app.ts` có hàm `mauHoSoMacDinh()` đọc thẳng CSDL để lấy *"một id mẫu
+hợp lệ bất kỳ"*, với chú thích *"mẫu luôn có sẵn vì `TemplateBootstrap` seed hai
+mẫu lúc khởi động"*. Câu ấy vừa thành sai, và nó là SQL — `tsc` không đọc.
+
+Chữa bằng cách cho hàm ấy **tự dựng một mẫu tối thiểu** khi bảng rỗng. Nó chạy
+trong hàng chục tệp kiểm, phần lớn không dựng `document` lên, nên bắt chúng gọi
+API chỉ để có một id là đổi một dòng lấy một vòng khởi động.
+
+### Ca kiểm dựa vào thứ tự, và thứ tự vừa mất
+
+`contract.test.ts` có hai hàm `mauHD()`/`mauHoSo()` trả *"mẫu đầu tiên trong danh
+sách dùng được"* — chạy được nhờ `ensureDefault` seed sẵn. Bỏ seed đi thì "cái
+đầu tiên" có thể là mẫu tối thiểu do `app.ts` dựng, thứ **không có object trên
+kho**: mọi ca dựng văn bản nhận 409.
+
+Cho tệp tự dựng hai mẫu của nó ở `beforeAll` và nhớ id. Việc ấy bỏ luôn một chỗ
+mong manh có sẵn: "cái đầu tiên" phụ thuộc `updated_at DESC`, nên một mẫu do ca
+khác vừa tải lên là đủ đổi mẫu mà cả tệp đang dùng — và ca `DOC-15` đang dựa vào
+đúng sự mong manh ấy để kiểm *"thay mẫu rồi xuất lại"*. Giờ nó nói thẳng id ra.
+
+Kèm một cái bẫy chỉ lộ khi chạy CẢ tệp: hàm `xoaHet` vô hiệu hoá cả bảng rồi dựng
+lại một mẫu, nhưng không trỏ `mauHoSoNho` sang bản mới — nên các ca sau cầm id
+của một mẫu đã vô hiệu. Chạy riêng ca ấy thì xanh.
+
+### Mẫu giả không đủ — và chỗ nó cắn nằm cách xa hai bước
+
+Bản đầu của `mauHoSoMacDinh()` chèn một dòng mẫu trỏ vào một `stored_file` cũng
+giả, **không có object trên kho**, với lập luận nghe hợp lý: *"ca nào thật sự
+dựng văn bản đều tự tải mẫu của nó lên, hàm này chỉ cần một id hợp lệ"*.
+
+Sai, và đường dẫn tới chỗ sai đi qua hai bước: `phanCongMacDinh` dùng chính id ấy
+lúc GỬI DUYỆT, và `0098` **đóng băng** nó vào hồ sơ. Từ đó mọi lượt xem bản mềm
+của hồ sơ ấy đi qua đúng mẫu giả — `TEMPLATE_FILE_MISSING`, ở những ca chẳng dựng
+mẫu nào.
+
+Chữa bằng cách ghi object thật lên MinIO rồi mới ghi hai dòng CSDL. `Storage`
+dựng độc lập được, nó đọc cấu hình từ biến môi trường chứ không cần Nest.
+
+Bài học cùng họ với `0148`: **một chỗ giả chỉ vô hại chừng nào không ai đóng băng
+nó.** Ở đây thứ đóng băng lại là một luật viết ở service khác, năm mươi chặng
+trước.
+
+### Ca kiểm dính đúng cái giá mà người dùng vừa chọn
+
+Hai ca của `document.test.ts` tải mẫu lên với tên CỐ ĐỊNH — *"Mẫu sắp bị xoá"*,
+*"Mau se mat file"* — rồi vô hiệu hoá ở phần dọn. Lượt chạy thứ hai đỏ với
+`TEMPLATE_NAME_TAKEN`.
+
+Đó chính là hệ quả đã nêu ra lúc chốt yêu cầu: **cấm trùng tên kể cả với mẫu đã
+vô hiệu thì cái tên bị cháy vĩnh viễn.** Người dùng nhận cái giá ấy có ý thức, và
+bộ kiểm là chỗ đầu tiên trả nó. Chữa bằng `uniq()` như mọi tên khác trong bộ
+kiểm — nhưng đáng ghi vì trên máy khách hàng không có `uniq()` nào cả.
+
+### Phép bù trừ của `0149` cần một cái chặn giờ, và chặng này bắt được
+
+Một ca của `policy.test.ts` quá giờ ở **30 giây**. Nguyên nhân không nằm ở
+`0150`: từ `0149`, mỗi lượt `attach` bị TỪ CHỐI gọi ra `document` để dọn tệp vừa
+tải lên. Ca ấy thử hai mươi lượt đính kèm hỏng, trong một môi trường không có
+`document` chạy — hai mươi lời gọi treo tới hết thời gian mặc định của `fetch`.
+
+Bộ kiểm chỉ là chỗ nó lộ ra. Luật đúng thì đúng ở cả production: lượt gọi ấy nằm
+trên đường TRẢ LỜI của một thao tác đã xong — con trỏ đã xoá và đã commit, hoặc
+lỗi đã sẵn sàng ném ra — nên `document` treo không phải lý do để người dùng ngồi
+chờ. Thêm `AbortSignal.timeout(3000)` ở cả hai client.
+
+Đáng ghi vì cái giá này KHÔNG thấy được lúc viết `0149`: ở đó phép bù trừ chỉ là
+"một lời gọi thêm trên nhánh hỏng", và nhánh hỏng thì hiếm. Nó chỉ thành vấn đề
+khi nhánh hỏng là chuyện thường — và một bảng trạng thái × loại tệp là đúng chỗ
+biến nhánh hiếm thành nhánh chính.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Chi tiết CHẶN mẫu đã vô hiệu | 3 đỏ |
+| Gỡ chốt trùng tên ở tầng ứng dụng (còn `23505` thô) | 2 đỏ |
+| Chi tiết mở cho cả năm vai trò xem hồ sơ | 1 đỏ |
+| Chỉ cấm trùng tên trong nhóm CÒN HIỆU LỰC | 1 đỏ |
+
+Lượt thứ tư là lượt đáng giá nhất: nó nới đúng theo hướng mà tôi đã đề xuất và
+người dùng đã bác — và ca kiểm bắt được. Không có nó thì luật *"tính cả mẫu đã vô
+hiệu"* chỉ tồn tại trong một chỉ mục mà không gì canh.
+
+> Lượt ấy còn để lại một bài học về chính việc phá: nó làm lượt tải mẫu thứ hai
+> THÀNH CÔNG, tức là ghi thêm một dòng trùng tên vào CSDL — và chỉ mục nghiêm
+> không dựng lại được cho tới khi dọn dòng ấy đi. **Phá một ràng buộc CSDL thì
+> lượt phá để lại dữ liệu mà lượt phục hồi không nuốt được.** Sao lưu tệp mã
+> nguồn là chưa đủ ở đây.
+
+### Cái mất, ghi ra để không ai đi tìm
+
+`vaFileMacDinh` (`0059`) — phép tự dựng lại file khi object mất trên kho — đi
+cùng khái niệm mặc định. Nó **chỉ chữa cho mẫu hệ thống**; mẫu Quản trị tải lên
+chưa bao giờ được chữa. Bỏ đi là bỏ một sự bất đối xứng, không phải bỏ một bảo
+đảm chung, và ca kiểm còn lại giờ nói đúng cho MỌI mẫu.
+
+**1905/1905 xanh.**

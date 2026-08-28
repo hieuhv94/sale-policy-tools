@@ -1496,6 +1496,37 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
 
+**Xem được văn bản mẫu đã lưu** `mới 28/08` — hộp *Chi tiết mẫu* trên màn hình Quản trị, chỉ đọc:
+tập cột của bảng sản phẩm, bảng ô trống ↔ nguồn dữ liệu, và nút **tải file `.docx` gốc** về.
+
+> Xem được **cả mẫu đã vô hiệu hoá**. Đó là chủ ý: hệ thống thôi tự tạo mẫu (xem dưới), nên nếu vô
+> hiệu hết mẫu thì đường duy nhất để có lại là tải một `.docx` lên — mà file duy nhất trong tầm tay
+> Quản trị là file lấy về từ chính đây.
+>
+> **Vẫn KHÔNG sửa được mẫu.** Sửa một mẫu đã gắn vào hồ sơ đã ký là sửa chính văn bản đã duyệt. Muốn
+> đổi thì tải file về, sửa trong Word, thêm mẫu mới, vô hiệu mẫu cũ.
+>
+> Chỗ hở này do chính hệ thống tạo ra: `0067` bỏ việc sửa mẫu với lý do *"muốn đổi thì XOÁ đi và
+> thêm mẫu mới"*, rồi `0098` bỏ luôn quyền xoá vì mẫu đã đóng băng vào hồ sơ. Đường thoát bị lấy đi
+> mà không ai để ý.
+
+**Tên văn bản mẫu không được trùng** `mới 28/08` — trong cùng một loại mẫu, tính **cả mẫu đã vô hiệu
+hoá**. Ô chọn mẫu chỉ hiện đúng một cột là cái tên, nên hai mẫu trùng tên là hai dòng không phân
+biệt được.
+
+> Cái giá, có chủ ý: tên của một mẫu hỏng **không dùng lại được**. Chữa một mẫu sai là tải bản mới
+> lên rồi vô hiệu bản cũ, và bản mới phải mang tên khác.
+
+**Hệ thống KHÔNG BAO GIỜ tự tạo văn bản mẫu** `mới 28/08` — bỏ hẳn khái niệm *mẫu mặc định*.
+
+> Trước đó hệ thống dựng sẵn một mẫu hồ sơ mỗi khổ giấy và một mẫu hợp đồng lúc khởi động. Hệ quả:
+> vô hiệu hoá mẫu cuối cùng của một khổ thì lần khởi động sau có một mẫu Quản trị không hề tạo xuất
+> hiện trong ô chọn của mọi người.
+>
+> **Cái giá**: hệ thống vừa cài xong **không dùng được** cho tới khi có mẫu — không mẫu nào thì
+> không gửi duyệt được hồ sơ nào. Nạp danh mục ban đầu (hoặc một lượt tải mẫu tay) thành **bước cài
+> đặt bắt buộc**.
+
 **Gỡ một tệp là XOÁ HẲN nó** `mới 28/08` — gỡ giấy tờ hồ sơ, gỡ bản cứng, gỡ hồ sơ pháp lý của
 khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi phục được.
 

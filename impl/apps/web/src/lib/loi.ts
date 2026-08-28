@@ -475,6 +475,15 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Không tìm thấy văn bản mẫu này. Tải lại danh sách mẫu rồi chọn lại.',
   },
+  /*
+   * `0150` — trùng tên mẫu. Lỗi của Ô TÊN, không phải của cả thao tác: người
+   * dùng đang đứng trong hộp thêm mẫu, đã chọn file và ánh xạ xong, và thứ họ
+   * phải sửa là đúng một ô. Đẩy ra hộp thoại là bắt họ đọc rồi tự đi tìm ô ấy.
+   *
+   * `tuMayChu` vì câu của máy chủ nói được cả cái tên đang trùng, mà bảng này
+   * thì không — nó không biết người dùng vừa gõ gì.
+   */
+  TEMPLATE_NAME_TAKEN: { dang: 'o-nhap', truong: 'name', tuMayChu: true },
   LINK_TOKEN_MISSING: {
     dang: 'thanh-noi',
     cau: 'Không mở được tệp. Đóng khung xem rồi mở lại từ hồ sơ.',

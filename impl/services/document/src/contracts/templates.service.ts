@@ -9,7 +9,7 @@
  * không còn xoá — xem `voHieu`.
  */
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { kemNguCanh, type AuthUser } from '@csbh/http-kit';
+import { kemNguCanh, PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { ObjectMissingError, Storage } from '../infra/storage.js';
 import { FilesService } from '../files/files.service.js';
@@ -22,7 +22,7 @@ import {
   placeholdersOf,
 } from './docx.js';
 import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
-import { chuanHoaCot } from './bang-san-pham.js';
+import { chuanHoaCot, COT_BANG } from './bang-san-pham.js';
 import { COMPANY } from './dinh-dang.js';
 
 /**
@@ -44,7 +44,6 @@ export type TemplateRow = {
   id: string;
   name: string;
   file_id: string;
-  is_default: boolean;
   updated_at: Date;
   kind: Loai;
   paper_size: KhoGiay | null;
@@ -64,20 +63,18 @@ export type FieldRow = {
 export type MappingInput = { placeholder: string; source: string };
 
 /**
- * Thứ tự mẫu trong ô chọn — và mẫu đầu danh sách là mẫu mặc định (`0058`).
+ * Thứ tự mẫu trong ô chọn — mới sửa lên trước (`0058`, rút gọn ở `0150`).
  *
- * `is_default` xếp SAU CÙNG, không phải trước. Mẫu mặc định là cái sơ sài do hệ
- * thống tự seed để phần mềm chạy được từ phút đầu (DOC-35); ngày Quản trị phát
- * hành một mẫu thật thì mẫu thật phải là cái mở ra sẵn, còn cái sơ sài lùi
- * xuống cuối. Xếp ngược lại thì công soạn mẫu của họ chỉ tới được người nào
- * chịu khó mở ô chọn ra.
+ * Vế `is_default ASC` đứng đầu đã đi cùng khái niệm mẫu mặc định (`0150`): hệ
+ * thống không tự dựng mẫu nào nữa, nên mọi mẫu trong danh sách đều là mẫu do
+ * Quản trị đưa vào và không cái nào đáng lùi xuống cuối.
  *
  * `paper_size` đứng trước `id` để phá hoà DỨT KHOÁT chứ không ngẫu nhiên: hai
- * mẫu mặc định seed cùng một giao dịch có `published_at` bằng nhau, và `id` là
- * uuid ngẫu nhiên — bỏ nó ra thì mẫu mở sẵn là khổ dọc hay khổ ngang tuỳ từng
- * lần cài đặt. Thứ tự khai enum cho A4 dọc đứng trước.
+ * mẫu tải lên trong cùng một giây có `updated_at` bằng nhau, và `id` là uuid
+ * ngẫu nhiên — bỏ nó ra thì mẫu mở sẵn là khổ dọc hay khổ ngang tuỳ từng lần
+ * chạy. Thứ tự khai enum cho A4 dọc đứng trước.
  */
-const THU_TU_MAU = 'is_default ASC, updated_at DESC, paper_size, id';
+const THU_TU_MAU = 'updated_at DESC, paper_size, id';
 
 @Injectable()
 export class TemplatesService {
@@ -201,11 +198,35 @@ export class TemplatesService {
     );
 
     return this.db.tx(async (c) => {
-      const t = await c.query<TemplateRow>(
-        `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size, cot_bang)
+      /*
+       * TÊN TRÙNG thì từ chối, và bắt lỗi của CSDL chứ không hỏi trước (`0150`).
+       *
+       * Hỏi trước bằng `SELECT` rồi `INSERT` là để hai lượt bấm gần như đồng
+       * thời cùng đi qua — đúng lý do `0012` đã viết khi dựng
+       * `uq_contract_template_active`. Chỉ mục là chốt thật; khối này chỉ dịch
+       * `23505` sang một câu người dùng đọc được, kèm chính cái tên đang trùng.
+       *
+       * Tính cả mẫu ĐÃ VÔ HIỆU (xem migration `0108`). Hệ quả người dùng gặp
+       * ngay: tên của một mẫu hỏng bị cháy vĩnh viễn, vì không còn đường sửa
+       * mẫu — chữa một mẫu sai là tải bản mới lên rồi vô hiệu hoá bản cũ, mà tên
+       * tự nhiên của bản mới chính là tên bản cũ.
+       */
+      const t = await c
+        .query<TemplateRow>(
+          `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size, cot_bang)
          VALUES ($1,$2,$3,$4::doc.template_kind,$5::doc.paper_size,$6::jsonb) RETURNING *`,
-        [input.name, file.id, me.id, input.kind, khoGiayCua(input.buffer), JSON.stringify(cot)],
-      );
+          [input.name, file.id, me.id, input.kind, khoGiayCua(input.buffer), JSON.stringify(cot)],
+        )
+        .catch((e: unknown) => {
+          if (pgCode(e) === PG.uniqueViolation) {
+            throw new ConflictException({
+              code: 'TEMPLATE_NAME_TAKEN',
+              message: `Đã có văn bản mẫu tên "${input.name}". Đặt một tên khác.`,
+              name: input.name,
+            });
+          }
+          throw e;
+        });
       const id = t.rows[0]!.id;
       for (const m of input.mapping) {
         await c.query(
@@ -369,9 +390,9 @@ export class TemplatesService {
    * mẫu: người chọn mẫu lúc xem bản mềm là kế toán, TDV, Trưởng bộ phận — họ
    * cần biết có những mẫu nào, chứ không cần quyền sửa mẫu nào.
    *
-   * Trả về đúng bốn thứ ô chọn cần. KHÔNG dùng lại `view()` của màn hình quản
-   * lý: `fileId`, `updatedAt`, `isDefault` là chuyện nội bộ của mẫu, và một
-   * đường đọc mở rộng cho năm vai trò thì càng ít cột lọt ra càng tốt.
+   * Trả về đúng ba thứ ô chọn cần. KHÔNG dùng lại `view()` của màn hình quản
+   * lý: `fileId` và `updatedAt` là chuyện nội bộ của mẫu, và một đường đọc mở
+   * rộng cho năm vai trò thì càng ít cột lọt ra càng tốt.
    */
   async khaDung(kind: Loai): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
     const rows = await this.db.q<TemplateRow>(
@@ -399,6 +420,51 @@ export class TemplatesService {
       ten: t.template.name,
       khoGiay: t.template.paper_size,
       voHieu: t.template.vo_hieu_hoa_luc !== null,
+    };
+  }
+
+  /**
+   * CHI TIẾT một mẫu cho màn hình quản trị (`0150`) — kể cả mẫu đã vô hiệu.
+   *
+   * Trước lượt này, mẫu đã lưu là một HỘP ĐEN: bảng quản trị hiện tên, khổ giấy,
+   * ngày sửa, trạng thái — và thao tác duy nhất là vô hiệu hoá. Không có đường
+   * nào xem lại nội dung, xem lại ánh xạ, hay lấy file về.
+   *
+   * Chỗ hở ấy do chính hệ thống tự tạo ra, và đáng ghi vì nó không phải một
+   * tính năng bị bỏ quên: `0067` bỏ hẳn việc sửa mẫu với lý do viết thẳng trong
+   * migration — *"muốn đổi thì XOÁ đi và thêm mẫu mới"* — rồi `0098` bỏ luôn
+   * quyền xoá vì mẫu đã đóng băng vào hồ sơ. Đường thoát mà `0067` dựa vào bị
+   * lấy đi, và không ai để ý rằng khi ấy không còn đường nào cả.
+   *
+   * KỂ CẢ MẪU ĐÃ VÔ HIỆU, và đó không phải sự tiện tay: từ `0150` hệ thống không
+   * tự dựng mẫu nào nữa, nên nếu Quản trị lỡ vô hiệu hoá hết mẫu thì đường duy
+   * nhất để có lại là tải một `.docx` lên — và file `.docx` duy nhất trong tầm
+   * tay họ là file lấy về từ chính đây. Chặn mẫu vô hiệu ở đường này là biến một
+   * bước lùi được thành một ngõ cụt.
+   */
+  async chiTiet(id: string, kind: Loai) {
+    const t = await this.theoId(id, kind);
+    if (!t) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
+    return {
+      // `view()` đã mang sẵn `cotBang` — tập cột của bảng sản phẩm. Nó thuộc về
+      // màn hình này chứ không phải chuyện nội bộ: `{{bang_san_pham}}` là MỘT ô
+      // trống trên mẫu, nhưng nó nở ra thành mười cột hay bốn cột tuỳ chính
+      // trường ấy, và đó là khác biệt lớn nhất giữa bản nội bộ và bản đưa khách.
+      ...view(t.template),
+      /*
+       * NHÃN của tập cột, dựng ở đây chứ không để giao diện tự dịch.
+       *
+       * Bảng từ vựng nằm ngay cạnh — `COT_BANG` bên `bang-san-pham.ts`, cùng chỗ
+       * khai trọng số bề rộng của chính những cột ấy. Chép nó sang giao diện là
+       * dựng ra một bản thứ hai để hai bên trôi khỏi nhau, và cái trôi ở đây thì
+       * im lặng: một cột đổi tên là màn hình quản trị nói sai tên cột mà không
+       * có gì đỏ lên.
+       *
+       * `null` nghĩa là mẫu KHÔNG khai tập cột riêng — bảng in đủ mọi cột. Khác
+       * hẳn mảng rỗng, thứ không dựng ra được (`Tên sản phẩm` là cột bắt buộc).
+       */
+      nhanCot: nhanCotBang(t.template.cot_bang),
+      anhXa: t.fields.map((f) => ({ placeholder: f.placeholder, source: f.source })),
     };
   }
 
@@ -464,9 +530,10 @@ export class TemplatesService {
    * này khi object đã biến mất: KHÔNG phải 500 kèm vết ngăn xếp của minio, mà là
    * một câu nói rõ chuyện gì xảy ra và AI sửa được.
    *
-   * Mẫu MẶC ĐỊNH thì lẽ ra không tới được đây: `ensureDefault` dựng lại file cho
-   * chúng lúc khởi động. Còn tới được thì service vừa khởi động xong đã mất
-   * object — hiếm, nhưng câu thông báo vẫn phải đúng.
+   * `0150` bỏ phép tự chữa `vaFileMacDinh` cùng với khái niệm mẫu mặc định, nên
+   * đây là chỗ DUY NHẤT còn nói được chuyện này. Nó vốn chỉ chữa cho mẫu do hệ
+   * thống dựng — mẫu Quản trị tải lên chưa bao giờ được chữa — nên cái mất là
+   * một sự bất đối xứng, không phải một bảo đảm chung.
    */
   async docxCua(t: TemplateRow): Promise<Buffer> {
     const file = await this.files.row(t.file_id);
@@ -486,291 +553,15 @@ export class TemplatesService {
     }
   }
 
-  // --- Mẫu mặc định ---------------------------------------------------------
-
-  /**
-   * Seed một mẫu tối thiểu lúc khởi động nếu chưa có mẫu nào ĐANG DÙNG.
-   *
-   * Không có bước này thì hệ thống mới triển khai xong sẽ trả 409 ở lần xuất hợp
-   * đồng đầu tiên, và người dùng gặp một lỗi mà họ không có cách nào đoán ra
-   * phải làm gì (DOC-35).
-   */
-  async ensureDefault(systemUserId: string): Promise<void> {
-    await this.ensureDefaultHopDong(systemUserId);
-    await this.ensureDefaultHoSo(systemUserId);
-    await this.vaFileMacDinh(systemUserId);
-  }
-
-  /**
-   * Dựng lại FILE của mẫu mặc định nào mất object trên kho (`0059`).
-   *
-   * CSDL và kho đối tượng ghi riêng nên chúng lệch nhau được, và lệch trong im
-   * lặng: phục hồi CSDL từ một bản sao lưu mới hơn MinIO, dựng lại MinIO từ
-   * đầu, hoặc xoá nhầm một object. Đã gặp thật — triệu chứng là mọi lượt xem
-   * bản mềm trả 500 với `S3Error`, còn màn hình quản trị vẫn hiển thị mẫu ấy
-   * đang dùng bình thường.
-   *
-   * Tới `0058` phép tự chữa này CHỈ có cho mẫu hợp đồng, và nó nằm lẫn trong
-   * `ensureDefaultHopDong` — nên mẫu hồ sơ, thứ mọi vai trò đều mở hằng ngày,
-   * lại là thứ không tự chữa được. Tách ra thành một bước riêng chạy cho cả
-   * bảng thì không loại mẫu nào bị bỏ quên nữa.
-   *
-   * CHỈ CHỮA MẪU MẶC ĐỊNH, và đây là ranh giới cố ý: chúng do chính hệ thống
-   * sinh ra nên dựng lại được y hệt. Mẫu người dùng tải lên thì KHÔNG — thay
-   * thầm nội dung một văn bản nghiệp vụ bằng bố cục khác tệ hơn nhiều so với
-   * báo lỗi, và `docxCua` lo phần báo lỗi ấy.
-   */
-  private async vaFileMacDinh(systemUserId: string): Promise<void> {
-    const ds = await this.db.q<TemplateRow>(
-      `SELECT * FROM doc.contract_template WHERE is_default`,
-    );
-    for (const t of ds) {
-      if (await this.files.objectExists(t.file_id)) continue;
-      this.log.warn(`mẫu mặc định ${t.id} (${t.name}) mất file trên kho lưu trữ — đang dựng lại`);
-
-      // Dựng lại đúng bố cục của chính loại và khổ ấy. `paper_size` của mẫu hợp
-      // đồng mặc định là null với hàng cũ trước `0058`, và `makeDocx` lấy khổ
-      // dọc khi không nói gì — đúng bố cục nó vốn có.
-      const buffer =
-        t.kind === 'HO_SO'
-          ? makeDocx(defaultHoSoBody(), t.paper_size ?? 'a4p')
-          : makeDocx(defaultTemplateBody(), t.paper_size ?? 'a4p');
-
-      const rebuilt = await this.files.store({
-        fileName: t.kind === 'HO_SO' ? `mau-ho-so-csbh-${t.paper_size ?? 'a4p'}.docx` : 'mau-hop-dong-mac-dinh.docx',
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer,
-        ownerKind: 'TEMPLATE',
-        ownerId: null,
-        purpose: 'MAU_HD',
-        uploadedBy: systemUserId,
-      });
-      await this.db.q(
-        `UPDATE doc.contract_template SET file_id = $2, updated_at = now() WHERE id = $1`,
-        [t.id, rebuilt.id],
-      );
-    }
-  }
-
-  /**
-   * Seed mẫu hồ sơ CSBH mặc định cho CẢ HAI khổ giấy (`0055`).
-   *
-   * Không có bước này thì hệ thống vừa triển khai xong không xem được bản mềm
-   * nào — mọi lượt bấm *Xem bản mềm* trả về "chưa có văn bản mẫu phù hợp", và
-   * người dùng gặp một lỗi mà họ không có cách nào đoán ra phải làm gì. Cùng lý
-   * do với mẫu hợp đồng mặc định (DOC-35).
-   *
-   * Đường báo lỗi VẪN có thật và vẫn tới được: Quản trị vô hiệu mẫu của một khổ
-   * là khổ ấy báo lỗi ngay. Mẫu mặc định chỉ bảo đảm hệ thống chạy được từ phút
-   * đầu, không bảo đảm nó luôn có mẫu.
-   */
-  private async ensureDefaultHoSo(systemUserId: string): Promise<void> {
-    const thieu: { kho: KhoGiay; fileId: string }[] = [];
-    for (const kho of KHO_GIAY) {
-      // `vo_hieu_hoa_luc IS NULL` từ `0098` — xem lý do dài ở `ensureDefaultHopDong`.
-      const co = await this.db.one<{ id: string }>(
-        `SELECT id FROM doc.contract_template
-          WHERE kind = 'HO_SO' AND paper_size = $1::doc.paper_size
-            AND vo_hieu_hoa_luc IS NULL LIMIT 1`,
-        [kho],
-      );
-      if (co) continue;
-      const file = await this.files.store({
-        fileName: `mau-ho-so-csbh-${kho}.docx`,
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        buffer: makeDocx(defaultHoSoBody(), kho),
-        ownerKind: 'TEMPLATE',
-        ownerId: null,
-        purpose: 'MAU_HD',
-        uploadedBy: systemUserId,
-      });
-      thieu.push({ kho, fileId: file.id });
-    }
-    if (thieu.length === 0) return;
-
-    /*
-     * CẢ HAI KHỔ TRONG MỘT GIAO DỊCH — để `published_at` của chúng BẰNG NHAU.
-     *
-     * `now()` của Postgres là thời điểm mở giao dịch, nên hai câu INSERT ở đây
-     * nhận đúng một giá trị. Trước `0058` mỗi khổ một giao dịch riêng, chênh nhau
-     * vài mili giây, và điều đó không hại gì khi mẫu được tra theo khổ.
-     *
-     * Từ `0058` thứ tự ấy QUYẾT ĐỊNH mẫu nào mở sẵn khi không ai chọn — bản xem
-     * trước trong hộp ký số chẳng hạn. Chênh mili giây thì mẫu mặc định là khổ
-     * nào tuỳ vào thứ tự vòng lặp, một chi tiết không ai nghĩ là mình đang quyết
-     * định. Bằng nhau thì `THU_TU_MAU` rơi xuống `paper_size`, và A4 dọc — thứ
-     * tự khai enum — luôn là bản mở sẵn.
-     */
-    await this.db.tx(async (c) => {
-      for (const { kho, fileId } of thieu) {
-        const t = await c.query<{ id: string }>(
-          `INSERT INTO doc.contract_template
-             (name, file_id, is_default, updated_by, kind, paper_size)
-           VALUES ($1,$2,true,$3,'HO_SO',$4::doc.paper_size) RETURNING id`,
-          [`Mẫu hồ sơ CSBH mặc định — ${NHAN_KHO[kho]}`, fileId, systemUserId, kho],
-        );
-        const id = t.rows[0]!.id;
-        for (const m of DEFAULT_HO_SO_MAPPING) {
-          await c.query(
-            `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
-             VALUES ($1,$2,$3)`,
-            [id, m.placeholder, m.source],
-          );
-        }
-      }
-    });
-  }
-
-  private async ensureDefaultHopDong(systemUserId: string): Promise<void> {
-    /*
-     * Điều kiện là "CÓ MẪU NÀO CÒN DÙNG ĐƯỢC KHÔNG", không phải "bảng có dòng
-     * nào không" — `0098` trả nó về đúng câu mà `0058` từng hỏi.
-     *
-     * `0067` đổi sang "có dòng nào" là hợp lý vào lúc ấy: bỏ vòng đời rồi thì
-     * mọi dòng đều dùng được, nên hai câu là một. `0098` dựng lại cờ vô hiệu
-     * hoá, và hai câu tách đôi trở lại.
-     *
-     * Tôi đã định giữ nguyên "có dòng nào", với lý do: Quản trị vô hiệu cái mẫu
-     * mặc định sơ sài này là quyết định có chủ ý, seed lại là âm thầm huỷ nó.
-     * Lý do ấy sai, và sai theo một cách đáng ghi. Nó hình dung cảnh hệ thống
-     * seed đè lên một bộ mẫu đang chạy tốt — cảnh mà chính điều kiện này đã loại
-     * trừ: còn MỘT mẫu dùng được thì không seed gì cả. Nhánh seed chỉ chạy khi
-     * KHÔNG CÒN mẫu nào dùng được, tức là lúc phần mềm đã hỏng. Dựng lại một
-     * mẫu tối thiểu ở đó không đè lên lựa chọn nào; nó trả lại khả năng làm việc.
-     *
-     * Đo được ngay trong bộ test: đổi `ddel` thành vô hiệu hoá mà giữ điều kiện
-     * cũ thì một ca vô hiệu hết mẫu, `ensureDefault` thấy "đã có mẫu" và không
-     * làm gì — mọi ca chạy sau nhận ô chọn RỖNG. Đúng hình dạng sự cố mà chú
-     * thích cũ ở đây đã kể.
-     */
-    const existing = await this.db.one<{ id: string }>(
-      `SELECT id FROM doc.contract_template
-        WHERE kind = 'HOP_DONG' AND vo_hieu_hoa_luc IS NULL LIMIT 1`,
-    );
-    // Phép tự chữa "có dòng mẫu nhưng mất file" KHÔNG còn ở đây (`0059`): nó là
-    // `vaFileMacDinh`, chạy cho CẢ BẢNG sau hai bước seed. Nằm lẫn trong nhánh
-    // này thì mẫu hồ sơ không được chữa, mà đó mới là thứ mọi vai trò mở hằng ngày.
-    if (existing) return;
-
-    const buffer = makeDocx(defaultTemplateBody());
-    const file = await this.files.store({
-      fileName: 'mau-hop-dong-mac-dinh.docx',
-      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      buffer,
-      ownerKind: 'TEMPLATE',
-      ownerId: null,
-      purpose: 'MAU_HD',
-      uploadedBy: systemUserId,
-    });
-
-    await this.db.tx(async (c) => {
-      const t = await c.query<{ id: string }>(
-        `INSERT INTO doc.contract_template (name, file_id, is_default, updated_by)
-         VALUES ($1,$2,true,$3) RETURNING id`,
-        ['Mẫu hợp đồng mặc định', file.id, systemUserId],
-      );
-      const id = t.rows[0]!.id;
-      for (const m of DEFAULT_MAPPING) {
-        await c.query(
-          `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
-           VALUES ($1,$2,$3)`,
-          [id, m.placeholder, m.source],
-        );
-      }
-    });
-  }
 }
 
-const DEFAULT_MAPPING: MappingInput[] = [
-  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' },
-  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang' },
-  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky' },
-  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien' },
-  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no' },
-  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' },
-  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung' },
-  { placeholder: '{{ngay_in}}', source: 'ngay_in' },
-];
 
-const DEFAULT_HO_SO_MAPPING: MappingInput[] = [
-  { placeholder: '{{cong_ty.dia_chi}}', source: 'cong_ty.dia_chi' },
-  { placeholder: '{{ho_so.ma_ho_so}}', source: 'ho_so.ma_ho_so' },
-  { placeholder: '{{ho_so.phien_ban}}', source: 'ho_so.phien_ban' },
-  { placeholder: '{{ho_so.trang_thai}}', source: 'ho_so.trang_thai' },
-  { placeholder: '{{ho_so.ngay_ap_dung}}', source: 'ho_so.ngay_ap_dung' },
-  { placeholder: '{{ho_so.ma_khach_hang}}', source: 'ho_so.ma_khach_hang' },
-  { placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' },
-  { placeholder: '{{ho_so.dia_chi_dang_ky}}', source: 'ho_so.dia_chi_dang_ky' },
-  { placeholder: '{{ho_so.nguoi_dai_dien}}', source: 'ho_so.nguoi_dai_dien' },
-  { placeholder: '{{ho_so.cong_no}}', source: 'ho_so.cong_no' },
-  { placeholder: '{{ho_so.nguoi_de_nghi}}', source: 'ho_so.nguoi_de_nghi' },
-  { placeholder: '{{ho_so.truong_bo_phan}}', source: 'ho_so.truong_bo_phan' },
-  { placeholder: '{{ho_so.ke_toan}}', source: 'ho_so.ke_toan' },
-  { placeholder: '{{ho_so.ngay_tbp_ky}}', source: 'ho_so.ngay_tbp_ky' },
-  { placeholder: '{{ho_so.ngay_kt_nhan_l2}}', source: 'ho_so.ngay_kt_nhan_l2' },
-  { placeholder: '{{ho_so.tep_dinh_kem}}', source: 'ho_so.tep_dinh_kem' },
-  { placeholder: '{{ho_so.chu_ky_so_TBP}}', source: 'ho_so.chu_ky_so_TBP' },
-];
-
-/**
- * Thân mẫu hồ sơ mặc định — chép lại bố cục của bản A4 dựng cứng trước `0055`.
- *
- * `{{bang_san_pham}}` là chỗ hệ thống nhét cả bảng sản phẩm vào, với số cột CPBH
- * đúng theo hồ sơ đang xem.
- *
- * `{{ho_so.chu_ky_so_TBP}}` đứng CUỐI, tách hẳn khỏi khối thời gian duyệt: nó là
- * KHỐI CHỮ KÝ trên văn bản, chỗ mà người đọc bản giấy đưa mắt xuống tìm.
- */
-const defaultHoSoBody = (): string =>
-  [
-    // Khối công ty gõ THẲNG, không còn ô trống (`0067`): ba giá trị ấy cố định
-    // ở mọi hồ sơ, nên một ô trống cho chúng chỉ thêm một bước có thể quên.
-    para(COMPANY.name),
-    para(`${COMPANY.address} — MST ${COMPANY.taxCode}`),
-    para(''),
-    para('CHÍNH SÁCH BÁN HÀNG'),
-    para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}'),
-    para(''),
-    para('Trạng thái: {{ho_so.trang_thai}}'),
-    para('Mã khách hàng: {{ho_so.ma_khach_hang}}'),
-    para('Tên khách hàng: {{ho_so.ten_khach_hang}}'),
-    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
-    para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
-    para('Công nợ: {{ho_so.cong_no}}'),
-    para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
-    para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
-    para(''),
-    para('{{bang_san_pham}}'),
-    para(''),
-    para('Thời gian duyệt'),
-    para('Trưởng bộ phận: {{ho_so.truong_bo_phan}} — ký ngày {{ho_so.ngay_tbp_ky}}'),
-    para('Kế toán: {{ho_so.ke_toan}} — tiếp nhận ngày {{ho_so.ngay_kt_nhan_l2}}'),
-    para('File đính kèm: {{ho_so.tep_dinh_kem}}'),
-    para(''),
-    para('{{ho_so.chu_ky_so_TBP}}'),
-  ].join('');
-
-const defaultTemplateBody = (): string =>
-  [
-    para(COMPANY.name),
-    para(`${COMPANY.address} — MST ${COMPANY.taxCode}`),
-    para(''),
-    para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
-    para('Số hồ sơ CSBH: {{ho_so.ma_ho_so}} — ngày áp dụng {{ho_so.ngay_ap_dung}}'),
-    para(''),
-    para('BÊN MUA: {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
-    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
-    para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
-    para('Công nợ hiện tại: {{ho_so.cong_no}}'),
-    para(''),
-    para('Danh sách sản phẩm và chính sách giá:'),
-    // MỘT ô trống, hệ thống dựng cả bảng (`0067`). Trước đó đây là một bảng vẽ
-    // tay bốn cột với nhóm khoá `san_pham.` và cơ chế nhân bản dòng — cả hai đã
-    // gỡ, vì bảng do hệ thống dựng cho phép chọn cột theo từng mẫu.
-    para(O_BANG_SAN_PHAM),
-    para(''),
-    para('Hà Nội, ngày {{ngay_in}}'),
-  ].join('');
+/** Nhãn tiếng Việt của tập cột, giữ đúng thứ tự khai ở `COT_BANG` (`0150`). */
+const nhanCotBang = (cot: unknown): string[] | null => {
+  if (!Array.isArray(cot) || cot.length === 0) return null;
+  const co = new Set(cot.map(String));
+  return COT_BANG.filter((c) => co.has(c.khoa)).map((c) => c.nhan);
+};
 
 const view = (r: TemplateRow) => ({
   id: r.id,
@@ -778,7 +569,6 @@ const view = (r: TemplateRow) => ({
   kind: r.kind,
   paperSize: r.paper_size,
   fileId: r.file_id,
-  isDefault: r.is_default,
   updatedAt: r.updated_at,
   cotBang: r.cot_bang,
   /** `0098` — mẫu đã vô hiệu vẫn nằm trong bảng quản trị, mang dấu này. */

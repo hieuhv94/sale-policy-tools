@@ -15,6 +15,7 @@ import {
   createTestApp as createDocumentApp,
   makeDocx,
   NGUON_BAT_BUOC_HO_SO,
+  placeholdersOf,
   O_BANG_SAN_PHAM,
   para,
   Storage,
@@ -244,6 +245,80 @@ beforeAll(async () => {
    * `doc` đã dựng — supertest chạy được với app đang nghe, nên không cần bản
    * thứ hai, và một bản thứ hai sẽ có kho MinIO riêng của nó.
    */
+  /*
+   * HAI MẪU của riêng tệp này, một khổ mỗi bản (`0150`).
+   *
+   * Thay cho hai bản `ensureDefault` từng seed lúc khởi động — xem chú thích ở
+   * `mauDoc`. `makeDocx` nhận khổ giấy làm tham số thứ hai, và `khoGiayCua` đọc
+   * lại chính nó từ file lúc lưu, nên hai mẫu này mang đúng hai khổ.
+   */
+  /*
+   * Bố cục chép lại từ mẫu hồ sơ mặc định trước `0150`.
+   *
+   * Không phải chép cho đủ: một loạt ca đọc NỘI DUNG bản mềm — tiêu đề *CHÍNH
+   * SÁCH BÁN HÀNG*, dòng *TBP đã ký số*, mười ba mục của muc 11.1. Hàm dựng bố
+   * cục ấy sống trong `templates.service.ts` để `ensureDefault` seed lúc khởi
+   * động; `0150` gỡ cả hai, nên nó về đây — đúng chỗ của nó, vì nó vốn là dữ
+   * liệu thử chứ không phải một phần của sản phẩm.
+   */
+  const thanMau = () =>
+    [
+      para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+      para('Trụ sở Công ty — MST 0100000000'),
+      para(''),
+      para('CHÍNH SÁCH BÁN HÀNG'),
+      para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}'),
+      para(''),
+      para('Trạng thái: {{ho_so.trang_thai}}'),
+      para('Mã khách hàng: {{ho_so.ma_khach_hang}}'),
+      para('Tên khách hàng: {{ho_so.ten_khach_hang}}'),
+      para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
+      para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
+      para('Công nợ: {{ho_so.cong_no}}'),
+      para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
+      para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
+      para(''),
+      para(O_BANG_SAN_PHAM),
+      para(''),
+      para('Thời gian duyệt'),
+      para('Trưởng bộ phận: {{ho_so.truong_bo_phan}} — ký ngày {{ho_so.ngay_tbp_ky}}'),
+      para('Kế toán: {{ho_so.ke_toan}} — tiếp nhận ngày {{ho_so.ngay_kt_nhan_l2}}'),
+      para('File đính kèm: {{ho_so.tep_dinh_kem}}'),
+      para(''),
+      para('{{ho_so.chu_ky_so_TBP}}'),
+    ].join('');
+  /*
+   * Ánh xạ suy TỪ CHÍNH FILE, không từ danh sách trường bắt buộc.
+   *
+   * Bố cục trên có nhiều ô hơn `NGUON_BAT_BUOC_HO_SO` — *phiên bản*, *trạng
+   * thái*, *chữ ký số* — và máy chủ từ chối lưu khi còn ô chưa ánh xạ
+   * (`TEMPLATE_INCOMPLETE`). Suy từ file thì hai bên không thể lệch nhau.
+   */
+  for (const [kho, dat] of [
+    ['a4p', (id: string) => (mauDocNho = id)],
+    ['a4l', (id: string) => (mauNgangNho = id)],
+  ] as const) {
+    const than = makeDocx(thanMau(), kho);
+    const r = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', uniq(`Mau ho so ${kho}`))
+      .field(
+        'mapping',
+        JSON.stringify(
+          placeholdersOf(than)
+            .filter((o) => o !== O_BANG_SAN_PHAM)
+            .map((o) => ({ placeholder: o, source: o.slice(2, -2) })),
+        ),
+      )
+      .attach('file', than, {
+        filename: `ho-so-${kho}.docx`,
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+    if (r.status !== 201) throw new Error(`không dựng được mẫu ${kho}: ${JSON.stringify(r.body)}`);
+    dat(r.body.id as string);
+  }
+
   await doc.listen(0, '127.0.0.1');
   const cong = (doc.getHttpServer() as { address(): { port: number } }).address().port;
   const truocDocUrl = process.env.DOCUMENT_URL;
@@ -281,15 +356,23 @@ afterAll(async () => {
  * tệp kiểm thử. Một ca ở `contract.test.ts` ban hành mẫu riêng của nó là mọi
  * khẳng định về nội dung ở đây đổi nghĩa — và đã đổi thật một lần.
  */
+/**
+ * Hai mẫu hồ sơ của RIÊNG tệp này — một khổ dọc, một khổ ngang (`0150`).
+ *
+ * Trước đó `mauDoc()` tra danh sách và tìm mẫu có chữ *"mặc định"* trong tên,
+ * tức dựa vào việc hệ thống tự seed mẫu lúc khởi động. `0150` bỏ hẳn cơ chế ấy,
+ * nên không còn mẫu nào mang cái tên đó — và tệ hơn, mẫu duy nhất còn lại có thể
+ * là bản tối thiểu do `app.ts` dựng, thứ KHÔNG có object trên kho.
+ *
+ * Dựng ở `beforeAll` và nhớ id. Cùng cách làm với `contract.test.ts`, và cùng
+ * một cái được: thứ tự trong danh sách thôi ảnh hưởng tới ca kiểm nào cả.
+ */
+let mauDocNho = '';
+let mauNgangNho = '';
+
 const mauDoc = async (): Promise<string> => {
-  const r = await (await http(doc))
-    .get('/policy-templates/available')
-    .set('Authorization', `Bearer ${tok['tdv01']}`);
-  const m = (r.body as { id: string; ten: string; khoGiay: string }[]).find(
-    (x) => x.khoGiay === 'a4p' && x.ten.includes('mặc định'),
-  );
-  expect(m, 'thiếu mẫu hồ sơ mặc định khổ dọc').toBeDefined();
-  return m!.id;
+  if (!mauDocNho) throw new Error('beforeAll chưa dựng mẫu hồ sơ khổ dọc');
+  return mauDocNho;
 };
 
 describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
@@ -307,15 +390,11 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
       .get('/policy-templates/available')
       .set('Authorization', `Bearer ${tok['tdv01']}`);
     expect(ds.status, 'người xem bản mềm phải đọc được danh sách mẫu').toBe(200);
-    const mau = ds.body as { id: string; ten: string; khoGiay: string }[];
 
-    const doc_ = mau.find((m) => m.khoGiay === 'a4p');
-    const ngang = mau.find((m) => m.khoGiay === 'a4l');
-    expect(doc_, 'thiếu mẫu mặc định khổ dọc').toBeDefined();
-    expect(ngang, 'thiếu mẫu mặc định khổ ngang').toBeDefined();
-
+    // Hai mẫu của chính tệp này (`0150`) — không đi tìm trong danh sách chung
+    // nữa, vì hệ thống thôi seed mẫu và danh sách ấy dùng chung với mọi tệp.
     const p = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${doc_!.id}`)
+      .get(`/policies/${d.id}/render?mauId=${mauDocNho}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     expect(p.status).toBe(200);
@@ -326,7 +405,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     }
 
     const l = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${ngang!.id}`)
+      .get(`/policies/${d.id}/render?mauId=${mauNgangNho}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
     for (const s of await pageSizes(l.body as Buffer)) {
@@ -357,24 +436,27 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     expect(r.body.code).toBe('TEMPLATE_REQUIRED');
   }, 60_000);
 
-  it('`0098` thứ tự ô chọn vẫn ổn định: mẫu mặc định khổ DỌC đứng trước khổ ngang', async () => {
+  it('`0098` thứ tự ô chọn PHÁ HOÀ dứt khoát, không rơi xuống uuid ngẫu nhiên', async () => {
     /*
-     * Phần CÒN GIÁ TRỊ của ca cũ, tách ra đứng riêng.
+     * Phần CÒN GIÁ TRỊ của ca cũ, viết lại ở `0150`.
      *
-     * Hai mẫu mặc định seed trong cùng một giao dịch nên `updated_at` bằng nhau;
-     * không có phép phá hoà theo `paper_size` thì thứ tự rơi xuống `id` — uuid
-     * ngẫu nhiên — và mẫu đứng đầu ô chọn là dọc hay ngang tuỳ từng lần cài đặt.
-     * Nó thôi quyết định bản xem trước, nhưng vẫn quyết định thứ người dùng thấy
-     * đầu tiên trong ô chọn.
+     * Bản trước lọc theo chữ *"mặc định"* trong tên và khẳng định mẫu khổ dọc
+     * đứng trước — cả hai vế đều dựa vào việc hệ thống tự seed hai mẫu trong
+     * cùng một giao dịch. `0150` bỏ hẳn cơ chế ấy, nên không còn cặp mẫu nào
+     * chắc chắn cùng `updated_at` để mà kiểm.
+     *
+     * Điều CẦN khẳng định thì không đổi: phép phá hoà phải dứt khoát. Không có
+     * `paper_size` thì thứ tự rơi xuống `id` — uuid ngẫu nhiên — và mẫu đứng đầu
+     * ô chọn đổi theo từng lần cài đặt. Kiểm ở NGUỒN vì đó là chỗ duy nhất nói
+     * được điều ấy khi không dựng nổi hai mẫu cùng mốc thời gian.
      */
-    const macDinh = (
-      await (await http(doc))
-        .get('/policy-templates/available')
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).body as { ten: string; khoGiay: string }[];
-    const chiMacDinh = macDinh.filter((m) => m.ten.includes('mặc định'));
-    expect(chiMacDinh[0]!.khoGiay, 'mẫu mặc định khổ dọc phải đứng trước khổ ngang').toBe('a4p');
-  }, 60_000);
+    const src = readFileSync('services/document/src/contracts/templates.service.ts', 'utf8');
+    const thuTu = src.match(/const THU_TU_MAU = '([^']+)'/)?.[1];
+    expect(thuTu, 'không đọc được THU_TU_MAU').toBeDefined();
+    expect(thuTu, 'thiếu phép phá hoà theo khổ giấy').toContain('paper_size');
+    expect(thuTu, 'thiếu khoá cuối cùng để thứ tự dứt khoát').toMatch(/paper_size,\s*id$/);
+    expect(thuTu, '`is_default` đã đi cùng khái niệm mẫu mặc định').not.toContain('is_default');
+  }, 30_000);
 
   it('`0098` mẫu ĐÃ VÔ HIỆU thì từ chối, không âm thầm rơi về mẫu khác', async () => {
     /*
@@ -397,7 +479,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     const up = await (await http(doc))
       .post('/policy-templates')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .field('name', 'Mẫu sắp bị xoá')
+      .field('name', uniq('Mau sap bi xoa'))
       .field('mapping', JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))))
       .attach('file', than, {
         filename: 'sap-xoa.docx',
@@ -408,7 +490,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     await (await http(doc))
       .post(`/policy-templates/${up.body.id}/vo-hieu`)
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .send({ confirm: 'Mẫu sắp bị xoá' });
+      .send({ confirm: up.body.name });
 
     const r = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
@@ -470,10 +552,20 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
+    /*
+     * KHÔNG truyền `mauId`: hồ sơ đã gửi duyệt nên mẫu đã ĐÓNG BĂNG (`0098`), và
+     * truyền một mẫu khác thì máy chủ trả `409 TEMPLATE_LOCKED`.
+     *
+     * Bản trước truyền `mauDoc()` và đi qua được vì mẫu đóng băng lúc gửi duyệt
+     * CHÍNH LÀ mẫu ấy — cả hai đều là "mẫu mặc định khổ dọc". `0150` bỏ mẫu mặc
+     * định, nên hai đường ấy tách ra: hồ sơ đóng băng mẫu do `phanCongMacDinh`
+     * chọn, còn `mauDoc()` là mẫu riêng của tệp này.
+     */
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
+      .get(`/policies/${d.id}/render`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .responseType('blob');
+    expect(pdf.status, JSON.stringify(pdf.body)).toBe(200);
     const t = await pdfText(pdf.body as Buffer);
 
     const required = [
@@ -1188,50 +1280,16 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       return r.rows[0]!;
     });
 
-  it('mẫu MẶC ĐỊNH tự dựng lại file — không cần ai đụng tay', async () => {
+
+  it('mất file thì 409 nói rõ ai sửa được, KHÔNG phải 500', async () => {
     /*
-     * Tự chữa được vì mẫu mặc định do CHÍNH hệ thống sinh ra: dựng lại cho ra
-     * đúng file cũ, không có gì để mất.
+     * Ranh giới cố ý: hệ thống KHÔNG dựng lại file hộ. Thay thầm nội dung một
+     * văn bản nghiệp vụ bằng bố cục mặc định tệ hơn nhiều so với báo lỗi —
+     * người ký sẽ đặt bút xuống dưới một thứ không phải thứ họ soạn.
      *
-     * Tới `0058` phép chữa này chỉ có cho mẫu HỢP ĐỒNG, nằm lẫn trong
-     * `ensureDefaultHopDong` — nên mẫu hồ sơ, thứ mọi vai trò mở hằng ngày, lại
-     * là thứ không tự chữa được. Ca này canh đúng chỗ ấy.
-     */
-    const ds = (await (await http(doc))
-      .get('/policy-templates')
-      .set('Authorization', `Bearer ${tok['admin01']}`)).body as {
-      id: string;
-      isDefault: boolean;
-      paperSize: string;
-    }[];
-    const mau = ds.find((x) => x.isDefault && x.paperSize === 'a4p')!;
-    const truoc = await doiFile(mau.id);
-
-    // Xoá object đi, giữ nguyên dòng trong CSDL — đúng hình dạng của sự cố.
-    await storage.remove(truoc.object_key);
-    expect(await storage.exists(truoc.object_key)).toBe(false);
-
-    // `ensureDefault` chạy lúc service khởi động; gọi thẳng cho nhanh.
-    await doc.get(TemplatesService).ensureDefault(SYSTEM_USER_ID);
-
-    const sau = await doiFile(mau.id);
-    expect(sau.file_id, 'phải trỏ sang một file MỚI').not.toBe(truoc.file_id);
-    expect(await storage.exists(sau.object_key)).toBe(true);
-
-    // Và bản mềm dựng được trở lại — phép thử duy nhất chứng minh nó thật sự chữa.
-    const d = await draft(1);
-    const r = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${mau.id}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .responseType('blob');
-    expect(r.status).toBe(200);
-  }, 120_000);
-
-  it('mẫu NGƯỜI DÙNG tải lên: 409 nói rõ ai sửa được, KHÔNG phải 500', async () => {
-    /*
-     * Ranh giới cố ý: mẫu người dùng soạn thì hệ thống KHÔNG dựng lại. Thay thầm
-     * nội dung một văn bản nghiệp vụ bằng bố cục mặc định tệ hơn nhiều so với
-     * báo lỗi — người ký sẽ đặt bút xuống dưới một thứ không phải thứ họ soạn.
+     * `0150`: từ nay đúng cho MỌI mẫu. Bản trước chừa một ngoại lệ cho mẫu do hệ
+     * thống seed (`vaFileMacDinh`, `0059`), và ngoại lệ ấy đi cùng khái niệm mẫu
+     * mặc định.
      *
      * Nhưng báo lỗi phải là báo lỗi ĐÚNG: 409 với câu chữ nói ai tải lại được,
      * chứ không phải 500 kèm vết ngăn xếp của thư viện minio.
@@ -1239,7 +1297,7 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
     const up = await (await http(doc))
       .post('/policy-templates')
       .set('Authorization', `Bearer ${tok['admin01']}`)
-      .field('name', 'Mau se mat file')
+      .field('name', uniq('Mau se mat file'))
       // `0067`: ánh xạ đi CÙNG file trong một lượt lưu — không còn bước ánh xạ
       // riêng, và cũng không còn mẫu nào tồn tại mà chưa ánh xạ xong.
       .field('mapping', JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))))
@@ -1260,8 +1318,11 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       expect(r.body.code).toBe('TEMPLATE_FILE_MISSING');
       expect(r.body.message).toContain('Quản trị hệ thống');
 
-      // Và `ensureDefault` KHÔNG được lặng lẽ dựng lại mẫu của người dùng.
-      await doc.get(TemplatesService).ensureDefault(SYSTEM_USER_ID);
+      // Và KHÔNG có gì lặng lẽ dựng lại file hộ.
+      //
+      // `0150` gỡ hẳn `vaFileMacDinh` cùng khái niệm mẫu mặc định, nên khẳng
+      // định này giờ đúng cho MỌI mẫu chứ không riêng mẫu người dùng — sự bất
+      // đối xứng "mẫu hệ thống thì tự chữa, mẫu người dùng thì không" biến mất.
       expect(await storage.exists((await doiFile(up.body.id)).object_key)).toBe(false);
     } finally {
       // `0098`: không còn đường xoá. Vô hiệu hoá là đủ cho việc dọn dẹp ở đây —
@@ -1269,7 +1330,7 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       await (await http(doc))
         .post(`/policy-templates/${up.body.id}/vo-hieu`)
         .set('Authorization', `Bearer ${tok['admin01']}`)
-        .send({ confirm: 'Mau se mat file' });
+        .send({ confirm: up.body.name });
     }
   }, 120_000);
 });

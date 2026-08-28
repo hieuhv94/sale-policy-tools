@@ -81,8 +81,18 @@ export async function cleanupTestUsers(): Promise<void> {
  *
  * Đọc THẲNG CSDL chứ không qua `/policy-templates/available`: đường API cần một
  * token và một trong năm vai trò xem hồ sơ, mà phần lớn ca gọi hàm này chỉ cần
- * "một id hợp lệ bất kỳ". Mẫu luôn có sẵn vì `TemplateBootstrap` seed hai mẫu
- * mặc định lúc `document` khởi động.
+ * "một id hợp lệ bất kỳ".
+ *
+ * `0150` — TỰ DỰNG MỘT MẪU nếu chưa có cái nào.
+ *
+ * Trước đó mẫu luôn có sẵn vì `TemplateBootstrap` seed hai bản mặc định lúc
+ * `document` khởi động. Khách hàng chốt bỏ hẳn khái niệm ấy: hệ thống không bao
+ * giờ tự tạo một văn bản mẫu. Nên trên một CSDL test vừa migrate xong, bảng mẫu
+ * RỖNG — và mọi ca gọi hàm này sẽ hỏng ở một chỗ chẳng nói gì về nguyên nhân.
+ *
+ * Dựng bằng `INSERT` thẳng chứ không qua API: hàm này chạy trong hàng chục tệp
+ * kiểm, phần lớn không dựng `document` lên, và bắt chúng làm thế chỉ để có một
+ * id hợp lệ là đổi một dòng lấy một vòng khởi động.
  *
  * Nhớ MỘT LẦN cho cả lượt chạy: nó không đổi giữa chừng, và mỗi ca một lượt kết
  * nối CSDL riêng là chỗ chậm không cần thiết trong một bộ test vốn đã chạy tuần
@@ -92,14 +102,73 @@ let mauNho: string | undefined;
 export async function mauHoSoMacDinh(): Promise<string> {
   if (mauNho) return mauNho;
   const id = await withAdminDb(async (c) => {
-    const r = await c.query<{ id: string }>(
+    const co = await c.query<{ id: string }>(
       `SELECT id FROM doc.contract_template
         WHERE kind = 'HO_SO' AND vo_hieu_hoa_luc IS NULL
-        ORDER BY is_default ASC, updated_at DESC, paper_size, id LIMIT 1`,
+        ORDER BY updated_at DESC, paper_size, id LIMIT 1`,
     );
-    return r.rows[0]?.id;
+    if (co.rows[0]) return co.rows[0].id;
+
+    /*
+     * Chưa có mẫu nào — dựng một mẫu DỰNG ĐƯỢC THẬT.
+     *
+     * "Một dòng giả trỏ vào một file không tồn tại" là điều hấp dẫn ở đây, và
+     * nó sai: `phanCongMacDinh` dùng chính id này lúc gửi duyệt, và `0098` ĐÓNG
+     * BĂNG nó vào hồ sơ. Từ đó mọi lượt xem bản mềm của hồ sơ ấy đi qua đúng mẫu
+     * này — không có object trên kho thì cả loạt ca nhận `TEMPLATE_FILE_MISSING`
+     * ở một chỗ chẳng nói gì về nguyên nhân.
+     *
+     * Nên: ghi object thật lên MinIO, rồi mới ghi hai dòng CSDL. `Storage` dựng
+     * độc lập được — nó đọc cấu hình từ biến môi trường, không cần Nest.
+     */
+    const { makeDocx, para, Storage } = await import('@csbh/document/testing');
+    const than = makeDocx(
+      [
+        para('CHÍNH SÁCH BÁN HÀNG'),
+        para('Số {{ho_so.ma_ho_so}}'),
+        para('Khách hàng: {{ho_so.ten_khach_hang}}'),
+        para('{{bang_san_pham}}'),
+      ].join(''),
+    );
+    const kho = new Storage();
+    await kho.onModuleInit();
+    const khoa = `mau_hd/bo-kiem-${Date.now()}.docx`;
+    await kho.put(
+      khoa,
+      than,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+
+    const f = await c.query<{ id: string }>(
+      `INSERT INTO doc.stored_file
+         (object_key, file_name, content_type, size_bytes, sha256,
+          owner_kind, owner_id, purpose, uploaded_by)
+       VALUES ($1, 'mau-bo-kiem.docx',
+               'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+               $2, encode(sha256($3::bytea), 'hex'), 'TEMPLATE', NULL, 'MAU_HD',
+               '00000000-0000-0000-0000-000000000000')
+       RETURNING id`,
+      [khoa, than.length, than],
+    );
+    const t = await c.query<{ id: string }>(
+      `INSERT INTO doc.contract_template (name, file_id, updated_by, kind, paper_size)
+       VALUES ($1, $2, '00000000-0000-0000-0000-000000000000', 'HO_SO', 'a4p')
+       RETURNING id`,
+      [`Mau ho so cho bo kiem ${Date.now()}`, f.rows[0]!.id],
+    );
+    for (const [o, n] of [
+      ['{{ho_so.ma_ho_so}}', 'ho_so.ma_ho_so'],
+      ['{{ho_so.ten_khach_hang}}', 'ho_so.ten_khach_hang'],
+    ]) {
+      await c.query(
+        `INSERT INTO doc.contract_template_field (template_id, placeholder, source)
+         VALUES ($1,$2,$3)`,
+        [t.rows[0]!.id, o, n],
+      );
+    }
+    return t.rows[0]!.id;
   });
-  if (!id) throw new Error('chưa có mẫu hồ sơ nào — document đã khởi động chưa?');
+  if (!id) throw new Error('không dựng được mẫu hồ sơ cho bộ kiểm');
   mauNho = id;
   return id;
 }

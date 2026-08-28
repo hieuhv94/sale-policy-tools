@@ -18,7 +18,6 @@ import {
   ContractTemplatesController,
   PolicyTemplatesController,
 } from './contracts/contracts.controller.js';
-import { TemplateBootstrap } from './contracts/bootstrap.js';
 
 const VERSION = process.env.APP_VERSION ?? '0.0.0-dev';
 
@@ -60,7 +59,6 @@ class HealthController {
     RenderService,
     TemplatesService,
     ContractsService,
-    TemplateBootstrap,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

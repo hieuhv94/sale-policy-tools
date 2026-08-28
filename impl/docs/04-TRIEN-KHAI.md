@@ -331,11 +331,24 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 > sung. Hồ sơ đã gửi duyệt từ trước không bị ảnh hưởng — chúng đã đóng băng dữ
 > liệu khách hàng tại thời điểm gửi.
 
-### Đường nhanh — cho bản chạy thử
+### Nạp danh mục mẫu — **bắt buộc nếu chưa có văn bản mẫu nào** `sửa 28/08`
 
 ```sh
 ./csbh nap-danh-muc
 ```
+
+> **Từ 28/08 hệ thống KHÔNG tự tạo văn bản mẫu nào.** Trước đó nó dựng sẵn một
+> mẫu hồ sơ mỗi khổ và một mẫu hợp đồng lúc khởi động, nên phần mềm chạy được
+> ngay cả khi chưa ai tải gì lên.
+>
+> Không còn thế nữa: **không có mẫu thì Trình dược viên không gửi duyệt được hồ
+> sơ nào** — bước gửi duyệt bắt chọn mẫu — và Kế toán không xuất được hợp đồng.
+> Nên lệnh này (hoặc một lượt Quản trị tự tải mẫu lên) là **bước cài đặt bắt
+> buộc**, không còn là đường tắt cho bản chạy thử.
+>
+> Đổi lại, không còn mẫu lạ tự xuất hiện: trước đây vô hiệu hoá mẫu cuối cùng
+> của một khổ thì lần khởi động sau hệ thống dựng lại một bản Quản trị không hề
+> tạo, và nó nằm ngay trong ô chọn của mọi người.
 
 | Nạp gì | Bao nhiêu |
 | --- | --- |
@@ -358,13 +371,16 @@ khiến nó được phép chạy ở `production` trong khi các script seed kh
 
 ### Về văn bản mẫu
 
-Hệ thống **tự nạp sẵn một mẫu hồ sơ mỗi khổ và một mẫu hợp đồng** lúc khởi động,
-nên gửi duyệt và xuất hợp đồng chạy được ngay từ phút đầu — không cần tải gì lên.
+Sau `nap-danh-muc`, ô chọn có **2 mẫu hồ sơ** (A4 dọc · ngang) và **1 mẫu hợp
+đồng** — đúng ba file được nạp, không có mẫu nào khác.
 
-Bốn file trong `mau-van-ban/` là **điểm khởi đầu đẹp hơn** để Quản trị tải lên
-rồi sửa câu chữ trong Word. Sau khi chạy `nap-danh-muc`, ô chọn có **4 mẫu hồ sơ
-và 2 mẫu hợp đồng**; muốn gọn lại thì vô hiệu hoá hai mẫu mặc định ở màn hình
-*Văn bản mẫu*.
+Bốn file trong `mau-van-ban/` là **điểm khởi đầu** để Quản trị tải lên rồi sửa
+câu chữ trong Word.
+
+**Tên mẫu không được trùng** `mới 28/08`, tính cả mẫu đã vô hiệu hoá. Ô chọn chỉ
+hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai dòng người chọn không
+phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
+rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 
 > Lệnh nạp lấy **ba** trong bốn file: hai mẫu hồ sơ A4 dọc/ngang và một mẫu hợp
 > đồng. File thứ tư — `mau-ho-so-a4-doc-rut-gon.docx` — **không nạp** `sửa 27/08`.
