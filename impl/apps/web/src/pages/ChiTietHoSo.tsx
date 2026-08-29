@@ -111,6 +111,15 @@ type HoSo = {
   xuatHopDongDuoc?: boolean;
   /** `0050` — bản scan đang đính kèm là bản Kế toán đã yêu cầu in lại. */
   banScanCu?: boolean;
+  /**
+   * `0160` — đã có bản scan chưa, tức nút *Bàn giao* sáng hay xám.
+   *
+   * Máy chủ tính, giao diện KHÔNG tự suy từ `attachments`: chốt chặn thật
+   * (`SCAN_REQUIRED`) hỏi cùng một câu ở cùng một chỗ, và hai bên tự suy là hai
+   * bên sẽ lệch. `undefined` với hồ sơ cũ chưa có trường này — coi như bật, vì
+   * siết nhầm ở đây là khoá mất một việc người ta làm được.
+   */
+  banGiaoDuoc?: boolean;
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
@@ -247,16 +256,34 @@ export function ChiTietHoSo({ id }: { id: string }) {
               Xuất hợp đồng
             </button>
           )}
-          {thaoTac.map((a) => (
-            <button
-              key={a}
-              type="button"
-              className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
-              onClick={() => datHanhDong(a)}
-            >
-              {HANH_DONG_NHAN[a] ?? a}
-            </button>
-          ))}
+          {thaoTac.map((a) => {
+            /*
+             * `0160` — *Bàn giao* XÁM khi chưa có bản scan, không biến mất.
+             *
+             * Giấu nút thì Sale Admin nhìn một màn hình không có việc gì để bấm
+             * và không có gì nói vì sao. Xám kèm lý do thì việc phải làm nằm
+             * ngay trên cùng màn hình ấy — khối *Tệp đính kèm* ở ngay dưới.
+             *
+             * Đây KHÔNG phải chốt chặn: máy chủ vẫn trả `409 SCAN_REQUIRED` cho
+             * ai gọi thẳng API. Nó chỉ để đừng bày ra một nút bấm vào chỉ nhận
+             * lỗi — cùng nguyên tắc `can.ts` đã viết cho 403.
+             */
+            const thieuScan = a === 'SA_HANDOVER' && hoSo.banGiaoDuoc === false;
+            return (
+              <button
+                key={a}
+                type="button"
+                className={a.includes('REJECT') ? 'nut nut-canh-bao' : 'nut nut-chinh'}
+                disabled={thieuScan}
+                {...(thieuScan
+                  ? { title: 'Chưa có bản scan — tải bản scan lên rồi mới bàn giao được' }
+                  : {})}
+                onClick={() => datHanhDong(a)}
+              >
+                {HANH_DONG_NHAN[a] ?? a}
+              </button>
+            );
+          })}
           {/* Xoá đứng CUỐI nhóm và mang màu cảnh báo: nó là thao tác không lùi
               được duy nhất ở đây, nên nó không nằm cạnh chỗ tay hay bấm. */}
           {hoSo.xoaDuoc && can(nguoiDung?.role, 'xoaHoSo') && (
@@ -266,6 +293,24 @@ export function ChiTietHoSo({ id }: { id: string }) {
           )}
         </div>
       </div>
+
+      {/*
+        LÝ DO nút *Bàn giao* đang xám, viết ra thành chữ (`0160`).
+
+        Thuộc tính `title` một mình là không đủ: trình đọc màn hình không đọc nó
+        trên một nút `disabled`, và trên màn hình cảm ứng thì không có thao tác
+        rê chuột nào để nó hiện ra. Một nút xám không lời giải thích là một màn
+        hình bí — người dùng biết mình không bấm được, không biết vì sao.
+
+        Chỉ hiện khi *Bàn giao* thật sự nằm trong dải nút, tức đúng người đúng
+        bước. Hiện ở mọi lúc là dạy người ta bỏ qua nó.
+      */}
+      {thaoTac.includes('SA_HANDOVER') && hoSo.banGiaoDuoc === false && (
+        <p className="ghi-chu" role="status">
+          <strong>Chưa bàn giao được:</strong> hồ sơ chưa có bản scan. Tải bản scan lên ở khối{' '}
+          <em>Tệp đính kèm</em> bên dưới, rồi nút <em>Bàn giao</em> sẽ dùng được.
+        </p>
+      )}
 
       {/*
         THÔNG TIN HỒ SƠ, mỗi thứ một dòng có nhãn (`0061`).

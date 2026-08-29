@@ -198,6 +198,26 @@ export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
 export const xuatHopDongDuoc = (ktL1ReceivedAt: Date | null): boolean => ktL1ReceivedAt !== null;
 
 /**
+ * HỒ SƠ ĐÃ CÓ BẢN SCAN CHƯA — một câu hỏi, một câu lệnh (`0160`).
+ *
+ * Chốt chặn `SCAN_REQUIRED` (WF-14) có từ lâu và chặn đúng: bàn giao bản cứng mà
+ * chưa tải bản scan thì `SA_HANDOVER` trả `409`. Cái thiếu là NỬA KIA — nút
+ * *Bàn giao* vẫn sáng, Sale Admin bấm, rồi mới biết mình còn thiếu việc.
+ *
+ * Khách hàng chốt 29/08: nút chỉ khả dụng khi đã có bản scan. Nên màn hình cần
+ * chính câu hỏi mà chốt chặn đang hỏi — và đó là lúc dễ sinh ra **hai bản của
+ * cùng một luật**: một ở `workflow` để chặn, một ở đây để vẽ nút. Hai bản sẽ
+ * lệch nhau đúng vào ngày ai đó thêm một loại tệp hoặc đổi nghĩa `kind`, và
+ * triệu chứng là một nút sáng bấm vào ra 409 — hoặc tệ hơn, một nút xám trong
+ * khi máy chủ sẵn sàng nhận.
+ *
+ * Nên nó là MỘT hằng, và cả hai chỗ dùng chung. `$1` là `policyId` ở cả hai.
+ */
+export const SQL_CO_BAN_SCAN =
+  `EXISTS (SELECT 1 FROM pol.policy_attachment a
+            WHERE a.policy_id = $1 AND a.kind = 'SCAN')`;
+
+/**
  * KẾ TOÁN CHỈ THẤY HỒ SƠ ĐÃ TỪNG TỚI BÀN MÌNH (`0142`, mở rộng ở `0157`).
  *
  * Tới `0141` Kế toán được chọn ngay lúc gửi duyệt, nên id họ vào cột
@@ -1190,6 +1210,7 @@ export class PoliciesService {
       loaiTepGhiDuoc: loaiTepGhiDuoc(p.status, me.role),
       xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
       banScanCu: await this.banScanCu(policyId, p.status),
+      banGiaoDuoc: await this.banGiaoDuoc(policyId),
     };
   }
 
@@ -1209,6 +1230,26 @@ export class PoliciesService {
    * trên hồ sơ: một cờ phải nhớ xoá đúng lúc Sale Admin tải bản mới, và quên xoá
    * là cảnh báo dính vĩnh viễn. Mốc thời gian thì tự đúng.
    */
+  /**
+   * Bàn giao được chưa — nút *Bàn giao* sáng hay xám (`0160`, chốt 29/08).
+   *
+   * Cờ này KHÔNG phải chốt chặn. Chốt thật là `SCAN_REQUIRED` bên `workflow`, và
+   * nó phải ở đó: giao diện giấu một nút không ngăn được ai gọi thẳng API. Đây
+   * chỉ để **đừng bày ra một nút bấm vào chỉ nhận 409** — cùng nguyên tắc mà
+   * `can.ts` đã viết cho 403.
+   *
+   * Dùng chung `SQL_CO_BAN_SCAN` với chốt chặn ấy, nên hai bên không lệch được.
+   *
+   * KHÔNG xét trạng thái. Nút chỉ hiện khi `allowed-actions` có `SA_HANDOVER`,
+   * tức khi hồ sơ đang ở `SA_DANG_XU_LY` — máy trạng thái đã trả lời câu ấy rồi,
+   * và hỏi lại ở đây là dựng bản sao thứ hai của máy trạng thái trong một hàm
+   * chẳng liên quan gì tới nó.
+   */
+  private async banGiaoDuoc(policyId: string): Promise<boolean> {
+    const r = await this.db.one<{ co: boolean }>(`SELECT ${SQL_CO_BAN_SCAN} AS co`, [policyId]);
+    return r?.co === true;
+  }
+
   private async banScanCu(policyId: string, status: string): Promise<boolean> {
     if (status !== 'SA_DANG_XU_LY') return false;
     const r = await this.db.one<{ cu: boolean }>(

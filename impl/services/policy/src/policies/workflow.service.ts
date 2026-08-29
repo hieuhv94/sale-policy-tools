@@ -32,7 +32,7 @@ import { emit } from '../infra/emit.js';
 import { vaiTroConLai, type BonNguoi } from '../infra/nguoi-nhan.js';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
-import { daTacDong, NGUOI_GHI_TEP, PoliciesService } from './policies.service.js';
+import { daTacDong, NGUOI_GHI_TEP, PoliciesService, SQL_CO_BAN_SCAN } from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
 const RECIPIENTS: Partial<Record<Action, string[]>> = {
@@ -400,12 +400,12 @@ export class WorkflowService {
     }
 
     if (action === 'SA_HANDOVER') {
-      const scan = await this.db.q(
-        `SELECT 1 FROM pol.policy_attachment WHERE policy_id = $1 AND kind = 'SCAN'`,
-        [policyId],
-      );
+      // Cùng một hằng với cờ `banGiaoDuoc` mà màn hình đọc để bật/tắt nút
+      // (`0160`) — một câu hỏi thì một câu lệnh, nếu không thì nút và chốt chặn
+      // sẽ lệch nhau vào ngày ai đó đổi nghĩa `kind`.
+      const scan = await this.db.q<{ co: boolean }>(`SELECT ${SQL_CO_BAN_SCAN} AS co`, [policyId]);
       // Bàn giao bản cứng mà chưa có bản scan là bàn giao thứ không tồn tại (WF-14).
-      if (scan.length === 0) {
+      if (scan[0]?.co !== true) {
         throw new ConflictException({
           code: 'SCAN_REQUIRED',
           message: 'Chưa tải bản scan nên chưa bàn giao được',

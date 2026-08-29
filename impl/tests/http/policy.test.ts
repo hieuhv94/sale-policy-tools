@@ -2172,6 +2172,28 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
     expect(r.body.code).toBe('SCAN_REQUIRED');
   });
 
+  it('`0160` cờ `banGiaoDuoc` đi CÙNG chốt chặn — tắt khi chưa scan, bật khi đã có', async () => {
+    /*
+     * Cờ này chỉ để vẽ nút; chốt thật vẫn là `SCAN_REQUIRED` ở ca ngay trên.
+     * Nhưng hai bên phải nói CÙNG một câu, nếu không thì màn hình sáng nút mà
+     * máy chủ từ chối — hoặc xám nút trong khi máy chủ sẵn sàng nhận.
+     *
+     * Khẳng định CẢ HAI chiều trên CÙNG một hồ sơ, trước và sau khi tải scan:
+     * chỉ kiểm chiều tắt thì một cờ trả `false` cứng vẫn xanh.
+     */
+    const d = await toSaStage();
+    expect((await get(`/policies/${d.id}`, 'sa01')).body.banGiaoDuoc, 'chưa scan').toBe(false);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status, 'chốt chặn cùng chiều').toBe(409);
+
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    expect((await get(`/policies/${d.id}`, 'sa01')).body.banGiaoDuoc, 'đã scan').toBe(true);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status, 'chốt chặn cùng chiều').toBe(200);
+  });
+
   it('WF-13 có scan rồi thì sang KT duyệt bản cứng', async () => {
     const d = await toSaStage();
     await post(

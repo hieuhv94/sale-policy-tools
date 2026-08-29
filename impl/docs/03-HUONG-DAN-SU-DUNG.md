@@ -318,10 +318,17 @@ nghĩa của nó, đây là phần không cần bạn làm gì. Bấm vào thì 
 | **Trình ký** | Kế toán vừa nhận bản mềm. In, trình Ban lãnh đạo ký, nhận lại, scan, tải lên (bước B8). |
 | **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ **vẫn còn** để bạn đối chiếu xem bản giấy hỏng ở đâu — in xong thì **gỡ nó và tải bản mới lên**. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
 
+> **Nút *Bàn giao* xám cho tới khi có bản scan** `mới 29/08`. Chưa tải bản scan lên thì nút không bấm
+> được, và màn hình ghi rõ *"Chưa bàn giao được: hồ sơ chưa có bản scan"*. Tải tệp lên ở khối *Tệp
+> đính kèm* là nút dùng được ngay — không phải tải lại trang.
+>
+> Máy chủ vẫn chặn như trước nếu ai đó gọi thẳng API; cái mới chỉ là bạn biết trước thay vì bấm rồi
+> mới nhận lỗi.
+
 **Thẻ *Sắp quá hạn*** đếm hồ sơ còn dưới 24 giờ là tới hạn, **ở bất kỳ bước nào** trong phạm vi của
 bạn — không riêng bước bạn phụ trách. **Trong phạm vi của bạn**, chữ ấy là chữ quan trọng: Kế toán
-chưa thấy hồ sơ ở lượt *Chờ TBP duyệt* đầu tiên, nên những hồ sơ ấy cũng không nằm trong thẻ này của
-họ. Con số trên thẻ và số dòng mở ra khi bấm vào luôn bằng nhau, ở mọi vai trò. Người đang giữ hồ sơ
+chỉ thấy hồ sơ đã từng tới bàn mình, nên những hồ sơ chưa qua chữ ký Trưởng bộ phận cũng không nằm
+trong thẻ này của họ. Con số trên thẻ và số dòng mở ra khi bấm vào luôn bằng nhau, ở mọi vai trò. Người đang giữ hồ sơ
 chính là người đã không xử lý suốt 13 ngày qua, nên ai liên quan cũng cần thấy để còn gọi nhắc. Ô tô **đỏ** vì đây là thứ sắp mất hẳn, không
 phải một việc tồn đọng. Các ô đếm việc khác có thêm dòng *"trong đó N sắp quá hạn"* để biết chỗ nào
 đang gấp.

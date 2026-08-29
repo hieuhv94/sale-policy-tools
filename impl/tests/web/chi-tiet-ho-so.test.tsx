@@ -813,3 +813,74 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     expect(screen.queryByRole('button', { name: /Mẫu A4 dọc/ })).toBeNull();
   });
 });
+
+describe('`0160` nút Bàn giao xám khi hồ sơ chưa có bản scan', () => {
+  /*
+   * Chốt thật nằm ở máy chủ (`SCAN_REQUIRED`, 409) và có từ lâu. Cái thiếu là
+   * nửa kia: nút vẫn sáng, Sale Admin bấm, rồi mới biết mình còn thiếu việc.
+   *
+   * Ba ca dưới đây canh ba chuyện khác nhau, và bỏ ca nào cũng để lọt một cách
+   * hỏng riêng.
+   */
+  const nutBanGiao = () => screen.getByRole('button', { name: 'Bàn giao' });
+
+  /*
+   * Đăng nhập bằng SALE ADMIN, không dùng `TBP` mặc định của tệp này.
+   *
+   * `thaoTac` lọc `allowed-actions` qua `canHanhDong(vaiTro, …)`, nên trả về
+   * `SA_HANDOVER` cho một Trưởng bộ phận thì nút không bao giờ vẽ ra — ca kiểm
+   * sẽ đỏ vì "không tìm thấy nút", một câu chẳng nói gì về cái đang kiểm.
+   */
+  const dangNhapSa = () =>
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'SALE_ADMIN', username: 'sa01' } }),
+    );
+
+  it('cờ TẮT → nút có mặt nhưng không bấm được', async () => {
+    dangNhapSa();
+    await mo({ ...HO_SO, banGiaoDuoc: false }, ['SA_HANDOVER']);
+    expect(nutBanGiao().hasAttribute('disabled'), 'phải xám').toBe(true);
+  });
+
+  it('và màn hình NÓI RA vì sao, không để một nút xám câm', async () => {
+    /*
+     * `title` một mình không đủ: trình đọc màn hình không đọc nó trên một nút
+     * `disabled`, và cảm ứng thì không có thao tác rê chuột. Ca này đòi một dòng
+     * chữ THẬT trên màn hình.
+     */
+    dangNhapSa();
+    await mo({ ...HO_SO, banGiaoDuoc: false }, ['SA_HANDOVER']);
+    expect(screen.getByText(/chưa có bản scan/i)).toBeDefined();
+  });
+
+  it('cờ BẬT → nút bấm được, và không còn dòng nhắc nào', async () => {
+    /*
+     * Chiều dương. Thiếu ca này thì một bản sửa xám nút VĨNH VIỄN vẫn xanh —
+     * và Sale Admin không bao giờ bàn giao được hồ sơ nào.
+     */
+    dangNhapSa();
+    await mo({ ...HO_SO, banGiaoDuoc: true }, ['SA_HANDOVER']);
+    expect(nutBanGiao().hasAttribute('disabled')).toBe(false);
+    expect(screen.queryByText(/chưa có bản scan/i)).toBeNull();
+  });
+
+  it('KHÔNG đụng tới nút khác trong cùng dải — chỉ Bàn giao bị cờ này chạm', async () => {
+    /*
+     * Đọc nhầm cờ thành "xám mọi nút" là khoá cả màn hình, và ba ca trên không
+     * thấy vì chúng chỉ dựng đúng một nút.
+     *
+     * So với *Xuất hợp đồng* chứ không với một hành động thứ hai của luồng: Sale
+     * Admin chỉ có ĐÚNG MỘT hành động (`banGiao`), nên không có nút cùng loại
+     * nào để đặt cạnh. *Xuất hợp đồng* nằm cùng dải, cũng của họ, và đi qua một
+     * đường điều kiện khác hẳn — đúng thứ cần để bắt một bản sửa xám cả dải.
+     */
+    dangNhapSa();
+    await mo({ ...HO_SO, banGiaoDuoc: false, xuatHopDongDuoc: true }, ['SA_HANDOVER']);
+    expect(nutBanGiao().hasAttribute('disabled')).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Xuất hợp đồng' }).hasAttribute('disabled'),
+      'nút khác trong cùng dải phải không bị chạm',
+    ).toBe(false);
+  });
+});

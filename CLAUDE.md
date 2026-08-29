@@ -87,7 +87,21 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P187** (`0159`): **dọn nốt hồ sơ và khách hàng** — `0156` mới dọn sản phẩm, và lỗ
+Chặng gần nhất **P188–P189**. **P188** (`0160`): **nút *Bàn giao* xám khi chưa có bản scan**. Nửa đầu
+của yêu cầu ĐÃ XONG TỪ LÂU — chốt `SCAN_REQUIRED` (WF-14) trả 409 từ đầu; lượt này bù **nửa còn
+thiếu**, đúng nguyên tắc `can.ts` đã viết cho 403. Câu *"có bản scan chưa"* dùng CHUNG một hằng
+`SQL_CO_BAN_SCAN` giữa chốt chặn và cờ vẽ nút — hai bản là hai bản sẽ lệch. **Không lọc
+`allowed-actions`**: danh sách ấy còn đi vào thân lỗi `INVALID_TRANSITION`, lọc nó là câu trả lời ấy
+nói sai; dùng cờ riêng `banGiaoDuoc` như `xuatHopDongDuoc`. **Xám chứ không ẩn**, vì việc phải làm nằm
+ngay dưới trên cùng màn hình — và `title` một mình không đủ (trình đọc màn hình không đọc nó trên nút
+`disabled`), nên có thêm một dòng chữ thật.
+
+**P189** (`0161`): `waitEntries(d.id, 5)` đợi năm **DÒNG** trong khi số 5 suy từ năm **HÀNH ĐỘNG** —
+quên `CREATED`. Ca kiểm đọc bảng trước khi dòng cuối kịp về. **Ba lượt chạy mới đủ kết luận** (đỏ ở
+lượt đầy đủ, xanh khi cô lập, xanh lại ở lượt đầy đủ sau); hai lượt đầu đủ để gọi là "chập chờn" và
+bỏ qua — đó chính là cách một lỗi thật sống sót. **1937/1937 xanh.**
+
+Trước đó **P187** (`0159`): **dọn nốt hồ sơ và khách hàng** — `0156` mới dọn sản phẩm, và lỗ
 hổng hiện ra ở bảng kế tiếp ba chặng sau, theo cách khó chịu nhất: một ca kiểm về **THƯ** hết giờ 30
 giây, không chữ nào nhắc tới danh mục hay hiệu năng. **Nợ N-09 vừa cắn thật** — `CLAUDE.md` ghi *"ở
 quy mô hiện tại chưa cắn"*, đúng với dữ liệu thật, sai với CSDL bộ kiểm (5469 hồ sơ, **1702 đóng

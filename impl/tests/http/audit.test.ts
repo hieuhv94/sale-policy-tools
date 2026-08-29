@@ -211,9 +211,21 @@ describe('AUD-01 các loại hành động đều sinh bản ghi nhật ký', ()
     await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Bản cứng mờ' });
 
     await flush();
-    // NĂM dòng, không sáu: `PUBLISH_SIGNED` đã bị gỡ ở `0064` — ký số giờ là
-    // MỘT nước `CHO_TBP_DUYET -> CHO_KT_L1`.
-    const rows = await waitEntries(d.id, 5);
+    /*
+     * SÁU dòng: `CREATED` cộng năm hành động (`0161`).
+     *
+     * Con số cũ là `5`, và nó đếm HÀNH ĐỘNG trong khi `waitEntries` đếm DÒNG —
+     * mà lượt lập hồ sơ cũng ghi một dòng `CREATED`. `waitEntries` trả về ngay
+     * khi đủ số đếm, nên nó thoát ở dòng thứ năm và ca kiểm đọc bảng TRƯỚC KHI
+     * `KT_REQUEST_REPRINT` kịp về. Xanh hay đỏ tuỳ nhịp hàng đợi.
+     *
+     * Chưa từng đỏ cho tới lượt chạy này, và đó đúng là điều `CLAUDE.md` cảnh
+     * báo: *"ca kiểm bất đồng bộ xanh ở lượt đầu chưa nói lên gì"*.
+     *
+     * (`PUBLISH_SIGNED` bị gỡ ở `0064` — ký số là MỘT nước
+     * `CHO_TBP_DUYET -> CHO_KT_L1`, nên năm hành động chứ không sáu.)
+     */
+    const rows = await waitEntries(d.id, 6);
     const actions = rows.map((r) => r.action);
 
     for (const a of [

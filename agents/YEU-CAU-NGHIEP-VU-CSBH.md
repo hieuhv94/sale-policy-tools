@@ -1549,6 +1549,12 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Nút *Bàn giao* chỉ khả dụng khi đã có bản scan** `mới 29/08` — Sale Admin thấy nút xám kèm một dòng
+nói rõ còn thiếu gì, thay vì bấm rồi mới nhận lỗi.
+
+> **Chốt chặn ở máy chủ không đổi**: `SA_HANDOVER` khi chưa có bản scan vẫn trả lỗi (WF-14, có từ
+> đầu). Lượt này chỉ thêm nửa còn lại — đừng bày ra một nút bấm vào chỉ nhận lỗi.
+
 **Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH** `sửa 29/08` — mở rộng luật `27/08`. Trước đó hồ sơ
 chỉ bị giấu ở trạng thái *Chờ TBP duyệt*, nên **Trưởng bộ phận trả hồ sơ về là Kế toán lại thấy nó**
 dù nó chưa bao giờ tới lượt họ. Giờ điều kiện bỏ hẳn vế trạng thái.

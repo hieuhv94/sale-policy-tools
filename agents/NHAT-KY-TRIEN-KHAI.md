@@ -14001,3 +14001,94 @@ vượt 30 giây. Rộng gấp đôi mức một lượt chạy sinh ra, và cò
 
 Câu lỗi nói thẳng cả nguyên nhân lẫn chỗ nó sẽ hiện ra — vì lần này chính tôi đã
 mất một quãng đi từ *"ca kiểm về thư hết giờ"* tới *"hồ sơ tích quá nhiều"*.
+
+## P188 — `0160` nút Bàn giao xám khi chưa có bản scan
+
+Người dùng: *"Phải có file scan thì SA mới được bàn giao cho KT, nút bàn giao mới
+khả dụng"*.
+
+### Nửa đầu đã xong từ lâu
+
+Rà trước khi sửa: chốt chặn `SCAN_REQUIRED` (WF-14) có sẵn trong
+`workflow.service`, trả `409`, và có ca kiểm. Vế *"phải có file scan thì mới bàn
+giao được"* đã đúng từ đầu.
+
+Cái thiếu là vế thứ hai của chính câu ấy — **nút**. Sale Admin bấm, rồi mới biết
+mình còn thiếu việc. `can.ts` đã viết ra nguyên tắc cho đúng chuyện này từ lâu:
+*"đừng bày ra nút mà bấm vào chỉ nhận 403"*. Ở đây là 409, cùng một lẽ.
+
+Ghi ra vì nó đổi hình dạng chặng: không phải thêm một luật, mà là **bù nửa còn
+thiếu của một luật đã có**.
+
+### Chỗ nguy hiểm là câu hỏi bị hỏi hai lần
+
+Màn hình cần đúng câu mà chốt chặn đang hỏi — *"hồ sơ này có bản scan chưa"*. Viết
+lại nó ở tầng đọc là dựng **hai bản của cùng một luật**, và chúng sẽ lệch vào ngày
+ai đó thêm một loại tệp hoặc đổi nghĩa `kind`. Triệu chứng: một nút sáng bấm vào
+ra 409 — hoặc tệ hơn, một nút xám trong khi máy chủ sẵn sàng nhận.
+
+Nên nó là MỘT hằng `SQL_CO_BAN_SCAN`, và cả hai chỗ dùng chung. `workflow` vốn đã
+import từ `policies.service`, nên không phải dựng thêm mô-đun nào.
+
+### Cờ, không phải lọc `allowed-actions`
+
+Cách khác là để `/allowed-actions` thôi trả `SA_HANDOVER` khi chưa có scan. Bỏ,
+vì danh sách ấy còn đi vào **thân lỗi `INVALID_TRANSITION`** để nói *"bước này
+làm được gì"* — lọc nó là câu trả lời ấy nói sai.
+
+Dùng một cờ riêng `banGiaoDuoc`, đúng khuôn `xuatHopDongDuoc` và `xoaDuoc` đã có:
+máy chủ tính, giao diện đọc. Cờ KHÔNG xét trạng thái — nút chỉ hiện khi
+`allowed-actions` có `SA_HANDOVER`, tức máy trạng thái đã trả lời câu ấy rồi, và
+hỏi lại là dựng bản sao thứ hai của máy trạng thái ở một hàm chẳng liên quan.
+
+### Xám, không giấu — và phải NÓI RA vì sao
+
+`xuatHopDongDuoc` thì ẩn nút. Ở đây xám, vì khác nhau ở chỗ **việc phải làm nằm
+trong tay người dùng và ngay trên cùng màn hình**: khối *Tệp đính kèm* ở dưới. Ẩn
+đi thì Sale Admin nhìn một màn hình không có việc gì để bấm và không có gì nói vì
+sao.
+
+`title` một mình không đủ: trình đọc màn hình không đọc nó trên một nút
+`disabled`, và màn hình cảm ứng không có thao tác rê chuột. Nên có thêm một dòng
+chữ THẬT, và một ca kiểm đòi đúng dòng ấy.
+
+### Ca kiểm đối chiếu hai chiều trên CÙNG một hồ sơ
+
+Ca máy chủ đọc cờ TRƯỚC và SAU khi tải scan, và mỗi lần đều đối chiếu với chính
+chốt chặn (409 rồi 200). Chỉ kiểm chiều tắt thì một cờ trả `false` cứng vẫn xanh;
+chỉ kiểm cờ mà không kiểm chốt thì hai bên lệch nhau vẫn xanh.
+
+Bên giao diện, ca *"không đụng tới nút khác"* phải so với **Xuất hợp đồng**: Sale
+Admin chỉ có ĐÚNG MỘT hành động của luồng (`banGiao`), nên không có nút cùng loại
+nào để đặt cạnh. Nút ấy nằm cùng dải, cũng của họ, và đi qua một đường điều kiện
+khác hẳn — đúng thứ cần để bắt một bản sửa xám cả dải.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gỡ phép xám nút ở giao diện | 2 đỏ |
+| Gỡ cờ `banGiaoDuoc` khỏi DTO máy chủ | 1 đỏ |
+
+## P189 — `0161` một điểm đồng bộ đếm nhầm, ẩn suốt từ P7b
+
+Lộ ra giữa `0160`: ca `AUD-01` đỏ ở lượt chạy đầy đủ, xanh khi chạy riêng, rồi
+xanh lại ở lượt đầy đủ thứ hai. Không phải chập chờn của hạ tầng — là một lỗi
+thật, chỉ hiện ra khi nhịp hàng đợi lệch.
+
+`waitEntries(d.id, 5)` đợi **năm DÒNG**, còn con số `5` được suy từ **năm HÀNH
+ĐỘNG** — quên mất rằng lượt lập hồ sơ cũng ghi một dòng `CREATED`. Hàm ấy trả về
+ngay khi đủ số đếm, nên nó thoát ở dòng thứ năm và ca kiểm đọc bảng **trước khi
+`KT_REQUEST_REPRINT` kịp về**.
+
+Chú thích ngay trên nó còn giải thích cặn kẽ *"NĂM dòng, không sáu"* — một lập
+luận đúng về hành động và sai về dòng, nằm đó làm người đọc yên tâm.
+
+`CLAUDE.md` đã ghi đúng lớp lỗi này: *"Ca kiểm bất đồng bộ xanh ở lượt đầu chưa
+nói lên gì."* Lần này nó xanh ở vài trăm lượt đầu.
+
+**Ba lượt chạy mới đủ để kết luận**: đỏ ở lượt đầy đủ, xanh khi cô lập, xanh lại
+ở lượt đầy đủ sau. Hai lượt đầu đủ để gọi nó là "chập chờn" và bỏ qua — và đó
+chính là cách một lỗi thật sống sót.
+
+**1937/1937 xanh.**
