@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P180** (`0152`): **thứ tự mục trên thanh bên** → Tổng quan · Khách hàng · Hồ sơ
+Chặng gần nhất **P181** (`0153`): **khối thông tin khách hàng** → *Mã số thuế · Người đại diện · Số
+điện thoại · Công nợ · Loại khách hàng*, và **địa chỉ ra khỏi khối**. Điểm cả chặng: *"bỏ phần địa
+chỉ"* là bỏ khỏi **CHỖ BÀY**, không phải khỏi hệ thống — địa chỉ hiện ở HAI chỗ trên trang này, và
+**thẻ danh sách phải giữ** (hai khách trùng tên chỉ phân biệt được bằng nó, và ô tìm kiếm ngay trên
+đó khai *"tìm theo tên, địa chỉ hoặc mã số thuế"*). Có một ca kiểm canh đúng cách hiểu sai ấy. Khối
+`dl.the-so` **chưa từng có ca kiểm nào** dù ba tệp dựng `ChiTietKhachHang` thật — lần thứ hai liên
+tiếp một yêu cầu về TRÌNH BÀY chạm vào vùng không ai canh (`0152` là thứ tự thanh bên), nên đáng rà
+xem còn danh sách hiển thị nào cùng loại đang trống. Ca mới **dựng DOM thật**: quét chuỗi chỉ đúng
+với thứ tự CHỮ trong tệp, tách khỏi thứ tự người dùng THẤY ngay khi một ô bị bọc vào nhánh điều kiện.
+**1918/1918 xanh.**
+
+Trước đó **P180** (`0152`): **thứ tự mục trên thanh bên** → Tổng quan · Khách hàng · Hồ sơ
 CSBH · Sản phẩm · Chiết khấu · Thống kê (theo trình tự công việc, không theo tần suất). Việc nhỏ,
 điều đáng ghi là **thứ tự chưa từng được canh**: mọi ca cũ dùng `toContain`/`find` — hỏi *"có mặt
 không"* chứ không hỏi *"đứng thứ mấy"* — nên đảo hai mục vẫn xanh cả bộ. Ca mới khẳng định **cả dãy**

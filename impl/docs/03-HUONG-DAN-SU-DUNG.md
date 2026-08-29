@@ -435,7 +435,16 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 
 Loại khách hàng hiện ở **cả hai chỗ**: cạnh mã trên từng thẻ ở danh sách, và trong khối thông tin ở
 màn hình chi tiết. Nó quyết định ngưỡng chiết khấu, nên người lập hồ sơ cần thấy nó trước khi mở
-khách hàng ra.
+khách hàng ra — và thẻ ở danh sách là chỗ họ đọc nó.
+
+Khối thông tin trên màn hình chi tiết bày **năm ô, theo thứ tự** `sửa 29/08`: *Mã số thuế / CCCD* ·
+*Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*. Bốn ô đầu là thứ đi thẳng vào
+hợp đồng; *Loại khách hàng* xuống cuối vì nó là một phân loại chứ không phải thông tin liên hệ.
+
+> **Địa chỉ đăng ký không còn trong khối ấy** `sửa 29/08`, nhưng **không mất khỏi hệ thống**. Nó vẫn
+> bắt buộc lúc lập khách hàng, vẫn sửa được trong hộp *Sửa*, vẫn **in trên tờ CSBH và hợp đồng**, và
+> vẫn hiện ngay dưới tên khách trên **từng thẻ ở danh sách** — chỗ ấy giữ, vì hai khách trùng tên chỉ
+> phân biệt được bằng địa chỉ. Ô tìm kiếm vẫn tìm theo địa chỉ.
 
 **Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
 không riêng Trình dược viên.

@@ -13539,3 +13539,58 @@ chiều người dùng thật sự làm) và để *Thống kê* đứng giữa,
 | Đưa *Thống kê* về vị trí 4 | 3 đỏ |
 
 **1915/1915 xanh.**
+
+## P181 — `0153` khối thông tin khách hàng
+
+Hai câu: *Loại khách hàng* xuống cuối, bỏ địa chỉ. Việc nhỏ; hai chỗ đáng ghi.
+
+### "Bỏ phần địa chỉ" là bỏ khỏi CHỖ BÀY, không phải khỏi hệ thống
+
+Địa chỉ đăng ký hiện ở **hai chỗ** trên trang này: khối `dl.the-so` của màn hình
+chi tiết, và dòng phụ dưới tên trên **từng thẻ ở danh sách**. Chỉ gỡ chỗ thứ
+nhất.
+
+Gỡ nốt chỗ thứ hai nghe như cùng một yêu cầu, và nó sẽ hỏng hai thứ: hai khách
+trùng tên thôi phân biệt được với nhau — chuyện có thật, `0121` đã đo được 19 sản
+phẩm trùng tên và khách hàng không có ràng buộc nào chặt hơn — và ô tìm kiếm ngay
+phía trên khai *"tìm theo tên, địa chỉ hoặc mã số thuế"*, tức nó sẽ trả về những
+thẻ không hiện thứ vừa dùng để tìm.
+
+Nên có **một ca kiểm canh đúng cách hiểu sai ấy**: nó đọc mã nguồn và đòi thẻ
+danh sách còn `{k.registeredAddress}`, đòi câu hướng dẫn tìm kiếm còn nguyên. Phá
+lại bằng cách gỡ dòng ấy cho 1 đỏ.
+
+Trường thì không đụng tới ở bất kỳ tầng nào: vẫn bắt buộc lúc lập, vẫn sửa được,
+vẫn đóng băng vào hồ sơ (`0101`), vẫn in trên tờ CSBH và hợp đồng.
+
+### Khối ấy chưa từng có ca kiểm nào
+
+Ba tệp kiểm dựng `ChiTietKhachHang` thật — nút *Lập hồ sơ*, hộp *Sửa*, phép nuốt
+lỗi — và **không tệp nào nhìn tới `dl.the-so`**. Thêm, bớt hay đảo một ô trong
+khối ấy không làm đỏ bất cứ thứ gì.
+
+Đây là lần thứ hai liên tiếp một yêu cầu về TRÌNH BÀY chạm vào một vùng không ca
+kiểm nào canh: `0152` là thứ tự thanh bên, `0153` là khối này. Cùng một hình dạng
+— thứ tự và tập phần tử của một danh sách hiển thị — nên có lẽ đáng rà xem còn
+danh sách nào cùng loại đang trống.
+
+Ca mới **dựng DOM thật**, không quét mã nguồn. Một ca quét chuỗi sẽ khẳng định
+*"tệp có chữ Loại khách hàng ở sau chữ Công nợ"* — đúng với thứ tự CHỮ trong tệp,
+không đúng với thứ tự người dùng THẤY, và hai thứ ấy tách nhau ngay khi ai đó bọc
+một ô vào nhánh điều kiện hoặc dời nó sang một thành phần con. Khẳng định **cả
+dãy nhãn** bằng `toEqual`, cùng lý do đã ghi ở `0152`.
+
+Ca *"không còn ô địa chỉ nào"* tách riêng chứ không dựa vào ca thứ tự, và nó bắt
+một cách hỏng khác: thêm lại địa chỉ dưới một cái NHÃN KHÁC (*Trụ sở*, *Nơi nhận
+hàng*). Nó hỏi cả **giá trị** chứ không chỉ nhãn — một ô tên *Trụ sở* mang chính
+chuỗi địa chỉ vẫn là đưa địa chỉ trở lại khối.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Đưa *Loại khách hàng* lên đầu như cũ | 1 đỏ |
+| Trả *Địa chỉ đăng ký* về khối | 2 đỏ |
+| Gỡ địa chỉ khỏi THẺ DANH SÁCH (cách hiểu sai) | 1 đỏ |
+
+**1918/1918 xanh.**

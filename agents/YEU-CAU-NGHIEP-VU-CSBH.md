@@ -1549,6 +1549,18 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Khối thông tin khách hàng: năm ô, Loại khách hàng ở cuối** `mới 29/08` — màn hình chi tiết khách
+hàng bày *Mã số thuế / CCCD* · *Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*.
+
+> **Địa chỉ đăng ký ra khỏi khối ấy** — bỏ khỏi CHỖ BÀY, không bỏ khỏi hệ thống. Trường vẫn bắt buộc
+> lúc lập khách, vẫn sửa được, vẫn đóng băng vào hồ sơ (`0101`) và vẫn in trên tờ CSBH lẫn hợp đồng.
+>
+> Nó **vẫn hiện trên thẻ ở danh sách**: hai khách trùng tên chỉ phân biệt được bằng địa chỉ, và ô tìm
+> kiếm ngay trên đó khai *"tìm theo tên, địa chỉ hoặc mã số thuế"*.
+>
+> *Loại khách hàng* xuống cuối vì nó là một phân loại, không phải thông tin liên hệ — và người lập hồ
+> sơ vốn đã đọc nó ở thẻ danh sách, cạnh mã, trước khi mở khách hàng ra.
+
 **Thứ tự mục trên thanh bên** `mới 29/08` — **Tổng quan · Khách hàng · Hồ sơ CSBH · Sản phẩm ·
 Chiết khấu · Thống kê**, rồi ba mục chỉ Quản trị hệ thống thấy (*Văn bản mẫu*, *Người dùng*,
 *Nhật ký*).

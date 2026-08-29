@@ -230,15 +230,24 @@ export function ChiTietKhachHang({ id }: { id: string }) {
         </div>
       </div>
 
+      {/*
+        THỨ TỰ VÀ TẬP Ô — khách hàng chốt 29/08 (`0153`).
+
+        ĐỊA CHỈ ĐĂNG KÝ RA KHỎI KHỐI NÀY, và đó là bỏ khỏi CHỖ BÀY chứ không bỏ
+        khỏi hệ thống. Trường vẫn bắt buộc lúc lập khách, vẫn sửa được ở hộp
+        *Sửa*, vẫn đóng băng vào hồ sơ (`kh_dia_chi_dang_ky_snap`, `0101`) và vẫn
+        in trên tờ CSBH lẫn hợp đồng. Nó cũng vẫn hiện ở **thẻ trong danh sách** —
+        chỗ ấy giữ, vì hai khách trùng tên chỉ phân biệt được bằng địa chỉ, và ô
+        tìm kiếm ngay trên đó khai *"tìm theo tên, địa chỉ hoặc mã số thuế"*.
+
+        LOẠI KHÁCH HÀNG XUỐNG CUỐI. Nó đứng đầu từ P13 vì nó quyết định ngưỡng
+        chiết khấu — nhưng câu ấy đúng với NGƯỜI LẬP HỒ SƠ, và người lập hồ sơ
+        đọc nó ở thẻ danh sách (`ma-phu`, ngay cạnh mã) trước khi mở khách ra.
+        Trong khối này thì bốn ô kia là thứ người ta mở khách hàng ra để tra:
+        mã số thuế, người đại diện, số điện thoại, công nợ — bốn mục đi thẳng vào
+        hợp đồng. Loại khách là một phân loại, không phải một thông tin liên hệ.
+      */}
       <dl className="the-so">
-        <div>
-          <dt>Loại khách hàng</dt>
-          <dd>{nhanLoaiKhach(kh.customerType)}</dd>
-        </div>
-        <div>
-          <dt>Địa chỉ đăng ký</dt>
-          <dd>{kh.registeredAddress}</dd>
-        </div>
         <div>
           <dt>Mã số thuế / CCCD</dt>
           <dd>{kh.idNumber ?? '—'}</dd>
@@ -258,6 +267,10 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           {/* `0138` — một câu chữ, không phải số tiền: bỏ `.so` (căn phải,
               chữ số đều cột) vì đây thôi là một con số. */}
           <dd>{kh.debt || '—'}</dd>
+        </div>
+        <div>
+          <dt>Loại khách hàng</dt>
+          <dd>{nhanLoaiKhach(kh.customerType)}</dd>
         </div>
       </dl>
 
