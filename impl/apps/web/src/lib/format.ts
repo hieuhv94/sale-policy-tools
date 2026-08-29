@@ -105,7 +105,7 @@ export function ngayGio(v: string | Date | null | undefined): string {
 export const NHAN_TRANG_THAI: Record<string, string> = {
   NHAP: 'Nháp',
   CHO_TBP_DUYET: 'Chờ TBP duyệt',
-  CHO_KT_L1: 'KT duyệt bản mềm',
+  CHO_KT_L1: 'Chờ KT duyệt L1',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
   CHO_KT_L2: 'KT duyệt bản cứng',
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',

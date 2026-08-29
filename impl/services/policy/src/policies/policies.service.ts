@@ -198,22 +198,33 @@ export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
 export const xuatHopDongDuoc = (ktL1ReceivedAt: Date | null): boolean => ktL1ReceivedAt !== null;
 
 /**
- * KẾ TOÁN CHƯA THẤY hồ sơ ở lượt CHỜ TBP ĐẦU TIÊN (`0142`, chốt 27/08).
+ * KẾ TOÁN CHỈ THẤY HỒ SƠ ĐÃ TỪNG TỚI BÀN MÌNH (`0142`, mở rộng ở `0157`).
  *
  * Tới `0141` Kế toán được chọn ngay lúc gửi duyệt, nên id họ vào cột
  * `ke_toan_user_id` từ phút ấy và hồ sơ hiện trong danh sách của họ suốt cả
- * quãng chờ Trưởng bộ phận — một hồ sơ chưa tới lượt, chưa chắc tới lượt (TBP có
- * thể từ chối), nằm lẫn với việc thật của họ.
+ * quãng chưa tới lượt.
  *
- * ĐIỀU KIỆN LÀ "ĐÃ TỪNG QUA TBP", không phải "đang ở bước nào": hồ sơ bị Kế toán
- * trả lại ở L1 rồi quay về `CHO_TBP_DUYET` thì họ VẪN thấy — họ đã đọc nó, đã
- * viết lý do, và có lý do để theo dõi nó về sau.
+ * `0142` giấu nó, nhưng CHỈ ở trạng thái `CHO_TBP_DUYET`. Khách hàng chốt 29/08
+ * chỉ ra chỗ hở: **Trưởng bộ phận trả hồ sơ về là nó sang `YEU_CAU_CHINH_SUA`
+ * và lọt qua chốt** — Kế toán lại thấy một hồ sơ chưa bao giờ tới lượt mình.
  *
- * Xem `0107_ke_toan_chua_thay_luot_dau.sql` về việc vì sao phải là một cột
- * riêng chứ không suy được từ `tbp_signed_at` hay `kt_l1_received_at`.
+ * Nên điều kiện bỏ hẳn vế trạng thái, chỉ còn `da_qua_tbp`. Và cột ấy trả lời
+ * đúng câu cần hỏi dù tên nó nói về Trưởng bộ phận: **`TBP_SIGN` là đường DUY
+ * NHẤT vào `CHO_KT_L1`**, và nó cũng là chỗ duy nhất bật cờ này — nên
+ * `da_qua_tbp = true` tương đương *"hồ sơ đã từng nằm trên bàn Kế toán"*.
+ *
+ * Đọc theo NGHĨA ĐEN câu khách hàng viết — *"chỉ thấy khi đã từng được kế toán
+ * TÁC ĐỘNG"* — thì Kế toán không bao giờ thấy hồ sơ đang chờ chính mình ở
+ * `CHO_KT_L1`, và không ai xử lý được bước nào. Câu ấy phải hiểu là *"đã tới
+ * lượt Kế toán"*, và đó là điều cột này đang nói.
+ *
+ * Hồ sơ Kế toán TỰ trả lại ở L1 hay L2 thì họ VẪN thấy: nó đã qua bàn họ, cờ đã
+ * bật, và không lượt trả về nào tắt cờ (`0107`).
+ *
+ * Xem `0107_ke_toan_chua_thay_luot_dau.sql` về việc vì sao phải là một cột riêng
+ * chứ không suy được từ `tbp_signed_at` hay `kt_l1_received_at`.
  */
-const KE_TOAN_CHUA_TOI_LUOT = (a: string): string =>
-  `(${a}status::text = 'CHO_TBP_DUYET' AND ${a}da_qua_tbp = false)`;
+const KE_TOAN_CHUA_TOI_LUOT = (a: string): string => `(${a}da_qua_tbp = false)`;
 
 /**
  * Mệnh đề PHẠM VI của một hồ sơ.
@@ -1658,7 +1669,6 @@ export class PoliciesService {
        * hai cột, hoặc không dịch được. Mạnh hơn một ca kiểm quét mã nguồn, vì nó
        * không thể bị một cách viết mới lách qua.
        */
-      status: string;
       da_qua_tbp: boolean;
     },
     me: AuthUser,
@@ -1675,12 +1685,16 @@ export class PoliciesService {
      * Thiếu chốt này thì danh sách giấu hồ sơ đi nhưng gõ thẳng địa chỉ vẫn mở
      * được — đúng lỗ hổng mà `0133` vừa bịt ở tầng định tuyến, chỉ khác chỗ.
      *
-     * `status` và `da_qua_tbp` khai TUỲ CHỌN: vài chỗ gọi hàm này với một dòng
-     * chỉ có bốn cột người. Thiếu thì không chặn — chọn phía nới, vì siết nhầm
-     * ở đây là khoá một người khỏi hồ sơ họ có quyền đọc, và triệu chứng là một
-     * màn hình 403 không giải thích gì.
+     * `da_qua_tbp` khai BẮT BUỘC (`0143`): khai tuỳ chọn thì hai đường
+     * `attach`/`detach` — vốn liệt kê từng cột trong `SELECT` — im lặng bỏ qua
+     * chốt, và không ca kiểm nào đỏ. Kiểu bắt buộc thì trình biên dịch chỉ chỗ.
+     *
+     * `0157` GỠ VẾ TRẠNG THÁI. Điều kiện cũ chỉ chặn ở `CHO_TBP_DUYET`, nên hồ
+     * sơ bị Trưởng bộ phận trả về (`YEU_CAU_CHINH_SUA`) lọt qua. Cột `status`
+     * theo đó rời khỏi cả kiểu tham số — giữ một trường bắt buộc mà không dòng
+     * nào đọc là bắt mọi chỗ gọi mang theo dữ liệu cho một luật đã bỏ.
      */
-    if (me.role === 'KE_TOAN' && p.status === 'CHO_TBP_DUYET' && !p.da_qua_tbp) {
+    if (me.role === 'KE_TOAN' && !p.da_qua_tbp) {
       throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
     }
   }

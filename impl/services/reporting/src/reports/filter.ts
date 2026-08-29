@@ -315,13 +315,14 @@ export type PhamVi = { ids: string[]; vaiTro: string };
 /**
  * Luật riêng của Kế toán (`0142`, nối sang `reporting` ở `0144`).
  *
- * Bản sao của `KE_TOAN_CHUA_TOI_LUOT` bên `policy`, viết lại cho `rpt.policy_row`
- * — bảng ấy có cột `status` là `text` chứ không phải enum, nên không cần ép kiểu.
+ * Bản sao của `KE_TOAN_CHUA_TOI_LUOT` bên `policy`. `0157` bỏ vế trạng thái nên
+ * hai bên giờ giống nhau từng ký tự — trước đó chúng lệch một phép ép kiểu, vì
+ * `rpt.policy_row.status` là `text` còn `pol.policy.status` là enum.
  *
  * Hai chỗ phải trả lời giống hệt nhau. `tests/http/pham-vi-ke-toan.test.ts` so
  * chính hai chuỗi SQL sinh ra, nên lệch là đỏ chứ không lặng lẽ.
  */
-const KE_TOAN_CHUA_TOI_LUOT = "(status = 'CHO_TBP_DUYET' AND da_qua_tbp = false)";
+const KE_TOAN_CHUA_TOI_LUOT = '(da_qua_tbp = false)';
 
 export function build(f: Filter, pv: PhamVi): Built {
   const params: unknown[] = [pv.ids];

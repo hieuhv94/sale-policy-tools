@@ -86,7 +86,7 @@ const DA_CHOT: Partial<Record<VaiTro, string[]>> = {
   ],
   TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Quá hạn', 'Đang chờ', 'Đang có hiệu lực'],
   KE_TOAN: [
-    'KT duyệt bản mềm',
+    'Chờ KT duyệt L1',
     'KT duyệt bản cứng',
     'Sắp quá hạn',
     'Quá hạn',

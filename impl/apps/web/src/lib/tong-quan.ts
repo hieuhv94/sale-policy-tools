@@ -259,7 +259,7 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theTrangThai('DANG_CO_HIEU_LUC'),
   ],
   KE_TOAN: [
-    theBuoc('B6_KT_L1', 'KT duyệt bản mềm', ['B6_KT_L1'], 'tiếp nhận lần 1'),
+    theBuoc('B6_KT_L1', 'Chờ KT duyệt L1', ['B6_KT_L1'], 'tiếp nhận lần 1'),
     theBuoc('B10_KT_L2', 'KT duyệt bản cứng', ['B10_KT_L2'], 'tiếp nhận lần 2'),
     theSapQuaHan(),
     theQuaHan(),

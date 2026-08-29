@@ -147,7 +147,7 @@ describe('`0088` ba câu không dấu dựng lại bằng tên tiếng Việt', 
         allowed: ['KT_RECEIVE_L1', 'KT_RETURN_L1'],
       }),
     );
-    expect(d.cau).toContain('KT duyệt bản mềm');
+    expect(d.cau).toContain('Chờ KT duyệt L1');
     expect(d.cau).toContain('Kế toán tiếp nhận lần 1');
     // Không còn chữ không dấu lẫn mã máy nào lọt ra màn hình.
     expect(d.cau).not.toContain('TBP_SIGN');

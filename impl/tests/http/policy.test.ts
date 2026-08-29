@@ -1696,10 +1696,36 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
    * mất khỏi tầm mắt một vai trò trông y hệt một hồ sơ hết việc để làm.
    */
   const KHONG_THAY: Record<string, string[]> = {
-    // `0142` — lượt chờ TBP ĐẦU TIÊN. `da_qua_tbp` còn `false` vì hồ sơ dựng
-    // bằng một lượt `SUBMIT` rồi vặn thẳng trạng thái, chưa đi qua `TBP_SIGN`.
+    /*
+     * `0157` — Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH, ở MỌI trạng thái.
+     *
+     * `0142` chỉ giấu ở `CHO_TBP_DUYET`; giờ điều kiện bỏ hẳn vế trạng thái, nên
+     * ba trạng thái dưới đây — những trạng thái ĐẾN ĐƯỢC mà không cần chữ ký
+     * Trưởng bộ phận — cũng khuất mắt Kế toán.
+     */
+    NHAP: ['kt01'],
     CHO_TBP_DUYET: ['kt01'],
+    YEU_CAU_CHINH_SUA: ['kt01'],
+    DA_XOA: ['kt01'],
   };
+
+  /**
+   * Trạng thái CHỈ đến được sau chữ ký Trưởng bộ phận (`0157`).
+   *
+   * Ca này vặn thẳng `status` bằng SQL, nên nó phải tự đặt `da_qua_tbp` cho khớp
+   * — nếu không thì nó dựng ra một tổ hợp KHÔNG TỒN TẠI trong đời thật
+   * (`CHO_KT_L1` mà chưa qua TBP) và hỏi hệ thống cư xử thế nào với nó.
+   *
+   * Đó đúng là cái bẫy `0142` đã để lại: một fixture như vậy nằm trong bộ kiểm
+   * suốt hai chặng, xanh, và không bảo vệ gì.
+   */
+  const SAU_CHU_KY_TBP = new Set([
+    'CHO_KT_L1',
+    'SA_DANG_XU_LY',
+    'CHO_KT_L2',
+    'DANG_CO_HIEU_LUC',
+    'HET_HIEU_LUC',
+  ]);
 
   for (const [tt, mong] of Object.entries(MONG_DOI)) {
     it(`hồ sơ ${tt}: mỗi vai trò chỉ thấy đúng việc của mình`, async () => {
@@ -1713,9 +1739,10 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
           `UPDATE pol.policy
               SET sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01'),
                   status = $2::pol.policy_status,
+                  da_qua_tbp = $3,
                   pending_step = NULL
             WHERE id = $1`,
-          [d.id, tt],
+          [d.id, tt, SAU_CHU_KY_TBP.has(tt)],
         );
       });
 
@@ -2074,13 +2101,25 @@ describe('`0155` Đã xoá là trạng thái kết thúc — thay cho WF-08 Từ
     for (const [a, who] of [
       ['SUBMIT', 'tdv01'],
       ['TBP_SIGN', 'tbp01'],
-      ['KT_RECEIVE_L1', 'kt01'],
       ['RESUBMIT_AFTER_EDIT', 'tdv01'],
     ] as const) {
       const r = await act(d.id, a, who);
       expect(r.status, `${a} đáng lẽ bị chặn`).toBe(409);
       expect(r.body.code).toBe('INVALID_TRANSITION');
     }
+
+    /*
+     * KẾ TOÁN nhận **403, không phải 409** (`0157`), và đó là câu trả lời MẠNH
+     * HƠN chứ không phải một ngoại lệ.
+     *
+     * Hồ sơ này đi SUBMIT → TBP trả lại → người lập xoá, nên nó chưa bao giờ
+     * qua chữ ký Trưởng bộ phận. Kế toán không thấy nó, và chốt phạm vi trả lời
+     * TRƯỚC cả máy trạng thái: không phải *"hành động này sai bước"* mà là *"hồ
+     * sơ này không thuộc về bạn"*.
+     */
+    const rKt = await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    expect(rKt.status, 'Kế toán không thấy hồ sơ chưa từng qua TBP').toBe(403);
+    expect(rKt.body.code).toBe('OUT_OF_SCOPE');
 
     const allowed = (await get(`/policies/${d.id}/allowed-actions`)).body;
     expect(allowed.allowed).toEqual([]);

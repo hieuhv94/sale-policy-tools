@@ -34,16 +34,21 @@ describe('`0142` bốn cột người vẫn là nền của mọi phạm vi', ()
     // `column reference is ambiguous` — một lỗi lúc chạy, không lúc dịch.
     const sql = thuocPhamVi(1, 'p', 'KE_TOAN');
     for (const c of BON_COT) expect(sql, c).toContain(`p.${c}`);
-    expect(sql).toContain('p.status');
+    // `0157` — vế `status` đã bỏ; chỉ còn `da_qua_tbp` cần bí danh.
     expect(sql).toContain('p.da_qua_tbp');
   });
 });
 
 describe('`0142` luật riêng CHỈ áp cho Kế toán', () => {
-  it('Kế toán bị loại hồ sơ CHỜ TBP chưa từng qua TBP', () => {
+  it('`0157` Kế toán bị loại MỌI hồ sơ chưa từng qua TBP, không riêng trạng thái nào', () => {
     const sql = thuocPhamVi(1, '', 'KE_TOAN');
-    expect(sql).toContain("status::text = 'CHO_TBP_DUYET'");
     expect(sql).toContain('da_qua_tbp = false');
+    /*
+     * Vế trạng thái phải BIẾN MẤT, không chỉ là "không cần nữa". Giữ lại thì
+     * hồ sơ bị Trưởng bộ phận trả về vẫn lọt qua chốt — đúng lỗi khách hàng
+     * báo ngày 29/08.
+     */
+    expect(sql).not.toContain('CHO_TBP_DUYET');
     // Mệnh đề phải PHỦ ĐỊNH: quên `NOT` là đảo ngược luật — Kế toán chỉ còn
     // thấy đúng những hồ sơ đáng lẽ phải giấu.
     expect(sql).toMatch(/AND NOT \(/);
@@ -203,10 +208,53 @@ describe('`0143` GỌI THẬT chốt chặn, không đọc mã nguồn', () => {
     expect(await choPhep(svc, hoSo({ da_qua_tbp: true }), me('KE_TOAN'))).toBe(true);
   });
 
-  it('mọi TRẠNG THÁI khác đều mở được, dù chưa qua TBP', async () => {
+  it('`0157` TBP TRẢ LẠI thì Kế toán VẪN không thấy — hồ sơ chưa từng tới bàn họ', async () => {
+    /*
+     * Khách hàng chốt 29/08. `0142` chỉ giấu ở trạng thái `CHO_TBP_DUYET`, nên
+     * Trưởng bộ phận trả hồ sơ về là nó sang `YEU_CAU_CHINH_SUA` và **lọt qua
+     * chốt** — Kế toán thấy một hồ sơ chưa bao giờ tới lượt mình, chỉ vì id họ
+     * đã vào cột `ke_toan_user_id` từ lúc gửi duyệt (`0141`).
+     */
     const svc = dungService([KT]);
-    for (const st of ['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2', 'YEU_CAU_CHINH_SUA', 'DA_XOA']) {
-      expect(await choPhep(svc, hoSo({ status: st }), me('KE_TOAN')), st).toBe(true);
+    expect(await choPhep(svc, hoSo({ status: 'YEU_CAU_CHINH_SUA' }), me('KE_TOAN'))).toBe(false);
+  });
+
+  it('nhưng KẾ TOÁN trả lại ở L1 thì họ VẪN thấy — họ đã đọc và đã viết lý do', async () => {
+    /*
+     * Chiều dương, và nó là ranh giới của cả luật. Cùng một trạng thái
+     * `YEU_CAU_CHINH_SUA`, khác nhau ở chỗ hồ sơ đã từng tới bàn Kế toán hay
+     * chưa. Bỏ ca này thì một bản sửa giấu MỌI hồ sơ `YEU_CAU_CHINH_SUA` vẫn
+     * xanh — và Kế toán mất dấu chính hồ sơ họ vừa trả về.
+     */
+    const svc = dungService([KT]);
+    expect(
+      await choPhep(svc, hoSo({ status: 'YEU_CAU_CHINH_SUA', da_qua_tbp: true }), me('KE_TOAN')),
+    ).toBe(true);
+  });
+
+  it('`0157` LUẬT KHÔNG CÒN NHÌN TRẠNG THÁI — chỉ nhìn đã qua bàn Kế toán chưa', async () => {
+    /*
+     * Ca này thay cho ca `0142` cũ, vốn khẳng định *"mọi trạng thái khác đều mở
+     * được dù chưa qua TBP"*. Câu ấy giờ sai, và nó sai theo hướng nguy hiểm:
+     * chính nó là chỗ hở khách hàng báo.
+     *
+     * Đáng ghi: fixture cũ dựng `CHO_KT_L1` kèm `da_qua_tbp: false` — một trạng
+     * thái **KHÔNG DỰNG RA ĐƯỢC** trong đời thật, vì `TBP_SIGN` là đường duy
+     * nhất vào `CHO_KT_L1` và chính nó bật cờ. Ca kiểm ấy khẳng định hành vi cho
+     * một tổ hợp không tồn tại, nên nó xanh mà không bảo vệ gì.
+     *
+     * Quét CẢ HAI chiều trên cùng danh sách trạng thái: cờ tắt thì giấu hết, cờ
+     * bật thì hiện hết. Đó mới là luật.
+     */
+    const svc = dungService([KT]);
+    const MOI_TT = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2',
+                    'YEU_CAU_CHINH_SUA', 'DANG_CO_HIEU_LUC', 'DA_XOA'];
+    for (const st of MOI_TT) {
+      expect(await choPhep(svc, hoSo({ status: st }), me('KE_TOAN')), `${st} · chưa qua`).toBe(false);
+      expect(
+        await choPhep(svc, hoSo({ status: st, da_qua_tbp: true }), me('KE_TOAN')),
+        `${st} · đã qua`,
+      ).toBe(true);
     }
   });
 
@@ -224,21 +272,24 @@ describe('`0143` GỌI THẬT chốt chặn, không đọc mã nguồn', () => {
     expect(await choPhep(svc, hoSo({ da_qua_tbp: true }), me('KE_TOAN', 'nguoi-la'))).toBe(false);
   });
 
-  it('hai trường của luật khai BẮT BUỘC, không tuỳ chọn', () => {
+  it('`da_qua_tbp` khai BẮT BUỘC, không tuỳ chọn', () => {
     /*
-     * `0142` khai chúng tuỳ chọn, và hai đường `attach`/`detach` — vốn liệt kê
-     * từng cột trong câu `SELECT` — im lặng bỏ qua chốt. Khai bắt buộc thì trình
-     * biên dịch rà giúp mọi chỗ gọi.
+     * `0142` khai nó tuỳ chọn, và hai đường `attach`/`detach` — vốn liệt kê từng
+     * cột trong câu `SELECT` — im lặng bỏ qua chốt. Khai bắt buộc thì trình biên
+     * dịch rà giúp mọi chỗ gọi.
      *
      * Ca này canh cho không ai nới lại: một dấu `?` ở đây là chốt chặn có thể
      * biến mất ở một chỗ gọi mới mà không ai biết.
+     *
+     * `0157` gỡ `status` khỏi kiểu tham số cùng lúc gỡ nó khỏi luật — nên ca này
+     * còn đòi nó ĐỪNG quay lại: một trường bắt buộc mà không dòng nào đọc là bắt
+     * mọi chỗ gọi mang theo dữ liệu cho một luật đã bỏ.
      */
     const src = readFileSync('services/policy/src/policies/policies.service.ts', 'utf8');
     const ham = src.slice(src.indexOf('async assertPolicyInScope'), src.indexOf('async assertPolicyInScope') + 1600);
-    expect(ham).toMatch(/\n\s+status: string;/);
     expect(ham).toMatch(/\n\s+da_qua_tbp: boolean;/);
-    expect(ham, 'khai tuỳ chọn là mở lại lỗ hổng của `0142`').not.toMatch(/status\?: string/);
-    expect(ham).not.toMatch(/da_qua_tbp\?: boolean/);
+    expect(ham, 'khai tuỳ chọn là mở lại lỗ hổng của `0142`').not.toMatch(/da_qua_tbp\?: boolean/);
+    expect(ham, '`status` đã rời khỏi luật ở `0157`').not.toMatch(/\n\s+status\??: string;/);
   });
 });
 

@@ -78,9 +78,14 @@ cái khác nhau.
 | **Ban lãnh đạo** | **Chỉ xem** — báo cáo, hồ sơ, lịch sử của từng hồ sơ. Không có nút ghi ở bất kỳ đâu. **Không** vào *Nhật ký* hệ thống `sửa 21/08` |
 | **Quản trị hệ thống** | Danh mục sản phẩm, giá, người dùng. **Không** tham gia duyệt hồ sơ |
 
-> **Kế toán chưa thấy hồ sơ đang chờ Trưởng bộ phận duyệt LẦN ĐẦU** `mới 27/08`. Hồ sơ vừa được gửi
-> duyệt chưa vào danh sách của bạn — nó chỉ hiện khi Trưởng bộ phận đã ký. Nhưng hồ sơ **bạn đã trả
-> lại** rồi quay về chờ Trưởng bộ phận thì vẫn thấy, vì bạn đã đọc và đã viết lý do cho nó.
+> **Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH** `sửa 29/08`. Hồ sơ chỉ vào danh sách của bạn khi
+> Trưởng bộ phận đã ký — trước đó nó chưa tới lượt bạn, dù tên bạn đã được chọn từ lúc gửi duyệt.
+>
+> Điều này đúng ở **mọi trạng thái**, không riêng *Chờ TBP duyệt*: Trưởng bộ phận trả hồ sơ về cho
+> Trình dược viên thì bạn vẫn không thấy nó. Trước ngày 29/08 thì có — và đó là chỗ vừa sửa.
+>
+> Ngược lại, hồ sơ **bạn đã trả lại** ở L1 hay L2 thì bạn vẫn thấy ở mọi bước sau đó, vì bạn đã đọc
+> và đã viết lý do cho nó.
 
 > **Ba loại khách hàng** `mới 27/08` — nhãn trên màn hình hiện đủ cả số lẫn tên, vì con số là thứ
 > quy định chiết khấu khai theo:
@@ -290,7 +295,7 @@ lọc sẵn đúng bằng con số vừa bấm.
 |---|---|
 | **Trình dược viên** | Yêu cầu chỉnh sửa · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
-| **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
+| **Kế toán** | Chờ KT duyệt L1 · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Ban lãnh đạo** | **Cả 11 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
@@ -822,7 +827,7 @@ TDV lập  →  Gửi duyệt  →  TBP ký số  →  Kế toán tiếp nhận 
 Ở mỗi bước, người phụ trách nhận **email** kèm liên kết mở thẳng hồ sơ — **đúng một thư cho một
 lần bấm nút**. Trước 19/08, lần Trưởng bộ phận ký số sinh hai thư về cùng một giây cho kế toán, vì
 hệ thống ghi thêm một bước trung gian *TBP đã ký số* mà không ai nhìn thấy. Bước ấy đã bỏ: ký xong
-là hồ sơ sang thẳng *KT duyệt bản mềm*.
+là hồ sơ sang thẳng *Chờ KT duyệt L1*.
 
 **Ai nhận hồ sơ ở bước sau là do người ở bước trước chọn**, không phải do một cấu hình nhân sự nào:
 
@@ -852,7 +857,7 @@ quan** — quen một chỗ là đọc được chỗ kia.
 Bốn bước chờ đi thành một **chuỗi** theo đúng thứ tự hồ sơ đi qua, nên nhìn dải thẻ là biết đoạn nào
 đang tắc:
 
-| Chờ TBP duyệt | KT duyệt bản mềm | Sale Admin đang xử lý | KT duyệt bản cứng |
+| Chờ TBP duyệt | Chờ KT duyệt L1 | Sale Admin đang xử lý | KT duyệt bản cứng |
 |---|---|---|---|
 | chàm | lam | xanh ngọc | mòng két |
 
@@ -914,7 +919,7 @@ Ngay dưới hai thẻ ấy là dải **đã duyệt**: mỗi bước đã đi q
 | Ô | Nghĩa |
 |---|---|
 | Trưởng bộ phận ký | Người **thật sự đặt bút** — khác người được phân công nếu có duyệt thay |
-| KT duyệt bản mềm | Kế toán tiếp nhận lần 1 |
+| Chờ KT duyệt L1 | Kế toán tiếp nhận lần 1 |
 | Sale Admin bàn giao | Bàn giao bản cứng |
 | KT duyệt bản cứng | Kế toán tiếp nhận lần 2 — CSBH có hiệu lực từ đây |
 
