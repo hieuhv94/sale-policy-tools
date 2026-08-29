@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo này là gì
 
-Phần mềm **Chính sách bán hàng (CSBH)** của Công Ty Cổ Phần Dinh Dưỡng Nutricare: trình dược viên lập hồ
+Phần mềm **Chính sách bán hàng (CSBH)** của Công ty TNHH Dược phẩm Nutricare: trình dược viên lập hồ
 sơ CSBH cho từng khách hàng, hồ sơ đi qua **luồng duyệt 10 bước** rồi có hiệu lực vô thời hạn.
 
 Bản 1.0.0 đã viết xong (chặng P1–P8) và đang trong **vòng sửa theo phản hồi khách hàng** — mỗi lượt
@@ -85,9 +85,24 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (27/08/2026)
+## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P171** (`0143`): **bịt ba lỗ hổng của chính P169–P170**. Đáng nhớ nhất:
+Chặng gần nhất **P179** (`0151`): **tên công ty đổi pháp nhân** → *Công ty TNHH Dược phẩm Nutricare*
+(địa chỉ và MST giữ nguyên). Nghe như một lượt tìm-và-thay, thực ra tên cũ nằm ở **sáu chỗ trong mã
+cộng bốn tệp `.docx` nhị phân** — mà tệp nhị phân thì không công cụ tìm kiếm văn bản nào thấy, và
+chính chúng mới là thứ đi lên tờ giấy. Hằng `COMPANY` **đã là mã chết từ `0150`**: `ensureDefault`
+bị gỡ nhưng dòng `import` ở lại, và **một import không ai dùng không làm `tsc` đỏ** — nên hệ thống có
+một hằng mang tên công ty mà không ai đọc, trong khi tên thật gõ tay ở năm chỗ. Giờ nó là nguồn sự
+thật; còn đúng một bản chép tay là màn hình đăng nhập (giao diện là gói riêng, `FE-38` chặn 250KB),
+canh bằng ca kiểm hai chiều. Ca đáng giá nhất **đọc vào trong tệp zip** (`documentXml`) — phá lại
+bằng cách giữ hằng mới mà hoàn tác một `.docx` cho **1 đỏ nêu đúng tên tệp**. Ba bẫy đã ghi: **chuẩn
+hoá NFC trước khi so nội dung** (bẫy `CLAUDE.md` ghi cho tên tệp, đúng y hệt cho nội dung); tên cũ
+trong ca kiểm phải **dựng từ hai mảnh** vì phép quét đọc cả tệp chính nó; và **phạm vi quét là mã
+nguồn, không phải cả repo** — nhật ký phải giữ được tên cũ. Cái giá trên hệ đang chạy: mẫu đã nằm
+trong CSDL **không đổi theo** (đúng — hồ sơ đã ký giữ tên lúc ký), phải tải tay bốn mẫu mới, và vì
+`0150` cấm trùng tên nên **bản mới phải mang tên khác**. **1912/1912 xanh.**
+
+Trước đó **P171** (`0143`): **bịt ba lỗ hổng của chính P169–P170**. Đáng nhớ nhất:
 `0142` khai hai trường của luật Kế toán là **tuỳ chọn** ("chọn phía nới"), và `attach`/`detach` liệt
 kê từng cột trong `SELECT` nên chốt chặn **không bao giờ nổ ở hai đường ấy** — đúng bẫy `0128` đã
 ghi, lặp lại ở chính người viết ra dòng ấy. Chữa bằng cách khai **BẮT BUỘC** rồi để `tsc` chỉ chỗ (nó

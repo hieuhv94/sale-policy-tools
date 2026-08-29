@@ -12,6 +12,7 @@ import type { INestApplication } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
 import {
   bangSanPhamXml,
+  COMPANY,
   createTestApp as createDocumentApp,
   makeDocx,
   NGUON_BAT_BUOC_HO_SO,
@@ -263,7 +264,7 @@ beforeAll(async () => {
    */
   const thanMau = () =>
     [
-      para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+      para(COMPANY.name),
       para('Trụ sở Công ty — MST 0100000000'),
       para(''),
       para('CHÍNH SÁCH BÁN HÀNG'),
@@ -569,7 +570,7 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
     const t = await pdfText(pdf.body as Buffer);
 
     const required = [
-      'CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE', //   1. thông tin công ty
+      COMPANY.name, //   1. thông tin công ty
       'Người đề nghị', //                      2. người đề nghị
       'Thời gian áp dụng', //                  3. thời gian áp dụng
       'Công nợ', //                            4. công nợ

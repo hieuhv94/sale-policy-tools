@@ -29,11 +29,34 @@ export const STATUS_LABEL: Record<string, string> = {
   DA_XOA: 'Đã xoá',
 };
 
+/**
+ * Thông tin Công ty — NGUỒN SỰ THẬT DUY NHẤT của tên in trên giấy tờ (`0151`).
+ *
+ * Khách hàng đổi tên pháp nhân 29/08: *Cổ phần Dinh dưỡng* → *TNHH Dược phẩm*.
+ * Lượt ấy tìm ra tên cũ nằm ở **sáu chỗ trong mã** cộng bốn tệp `.docx` nhị
+ * phân, và hằng này là chỗ duy nhất trong sáu chỗ ấy **không ai đọc**: `0150`
+ * gỡ `ensureDefault` — người dùng cuối cùng của nó — mà để lại dòng `import`,
+ * nên `tsc` im và hằng thành mã chết mang một cái tên đã sai.
+ *
+ * Nên `0151` KHÔNG chỉ sửa chuỗi: `tao-mau-ho-so.ts` và `seed-demo.ts` giờ đọc
+ * từ đây. Mỗi chỗ tự gõ lại tên là một chỗ nữa phải nhớ vào lượt đổi tên sau, và
+ * lượt này đã chứng minh không ai nhớ nổi sáu chỗ.
+ *
+ * ĐỊA CHỈ VÀ MÃ SỐ THUẾ GIỮ NGUYÊN (chốt 29/08) — chỉ tên pháp nhân đổi.
+ *
+ * `name` viết HOA vì nó in ở đầu văn bản. Màn hình đăng nhập dùng dạng chữ
+ * thường và **không** đọc được hằng này — giao diện là gói riêng, không import
+ * được từ một service. Đó là chỗ hở duy nhất còn lại, và `ten-cong-ty.test.ts`
+ * canh nó bằng cách quét cả repo tìm tên cũ.
+ */
 export const COMPANY = {
-  name: 'CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE',
+  name: 'CÔNG TY TNHH DƯỢC PHẨM NUTRICARE',
   address: 'Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội',
   taxCode: '0102345678',
 } as const;
+
+/** Dòng địa chỉ + MST đứng ngay dưới tên, ở cả ba mẫu (`0151`). */
+export const COMPANY_ADDRESS_LINE = `${COMPANY.address} — MST ${COMPANY.taxCode}`;
 
 /** Tiền: dấu phân nhóm nghìn kiểu Việt Nam. Số nguyên đồng, không phần thập phân. */
 export const money = (v: string | number | null | undefined): string =>

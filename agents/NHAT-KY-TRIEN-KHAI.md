@@ -13401,3 +13401,100 @@ chưa bao giờ được chữa. Bỏ đi là bỏ một sự bất đối xứn
 đảm chung, và ca kiểm còn lại giờ nói đúng cho MỌI mẫu.
 
 **1905/1905 xanh.**
+
+## P179 — `0151` tên công ty đổi pháp nhân
+
+Người dùng: *"Thay đổi tên công ty thành **Công ty TNHH Dược phẩm Nutricare**"*.
+Một dòng, và nghe như một lượt tìm-và-thay.
+
+Nó không phải. Lượt rà tìm ra tên cũ nằm ở **sáu chỗ trong mã** cộng **bốn tệp
+`.docx` nhị phân** — và bốn tệp ấy là thứ không một công cụ tìm kiếm văn bản nào
+nhìn thấy. Chúng cũng chính là thứ đi lên tờ giấy khách hàng ký.
+
+**Hỏi trước hai câu, và câu thứ nhất đáng tiền.** Tên in trên mẫu nằm cùng khối
+với địa chỉ và mã số thuế; đổi từ *Cổ phần* sang *TNHH* thường là đổi pháp nhân,
+tức giấy đăng ký kinh doanh mới, tức MST mới. Người dùng chốt **chỉ đổi tên**.
+Đoán bừa ở đây là in một mã số thuế sai lên hợp đồng đã ký — hỏng theo kiểu phần
+mềm không sửa lại được. Câu thứ hai: `guide/` là repo riêng đã publish, để ngoài
+phạm vi.
+
+### Hằng mang tên công ty là MÃ CHẾT, và nó chết từ chặng trước
+
+`COMPANY` trong `dinh-dang.ts` đã có sẵn từ lâu. Người dùng cuối cùng của nó là
+`ensureDefault` — thứ **`0150` vừa gỡ ở chặng ngay trước**. Dòng `import` thì ở
+lại, và **một import không ai dùng KHÔNG làm `tsc` đỏ**, nên nó sống sót cả lượt
+rà của `0150` lẫn lượt typecheck sau đó.
+
+Nghĩa là ngay trước chặng này, hệ thống có một hằng tên `COMPANY` mang tên công ty
+mà **không nơi nào đọc**, trong khi tên thật được gõ tay ở năm chỗ khác. Đúng
+hình dạng bẫy mà `CLAUDE.md` đã ghi cho `Storage`/`Response`: `tsc` không bắt
+được thứ nó không có lý do gì để hỏi tới.
+
+Nên `0151` **không chỉ sửa chuỗi**: `tao-mau-ho-so.ts`, `seed-demo.ts` và hai tệp
+kiểm giờ đọc từ hằng ấy. `dinh-dang.ts` không mang phụ thuộc chạy nào — nó chỉ
+import một KIỂU — nên một script dựng tệp import được nó mà không kéo theo Nest.
+
+Còn đúng **một** bản chép tay: màn hình đăng nhập. Giao diện là gói riêng, và
+import từ một service vào đó sẽ kéo cả cây phụ thuộc máy chủ vào gói trình duyệt
+mà `FE-38` chặn ở 250KB. Chỗ hở ấy không bịt được bằng kiểu dữ liệu, chỉ bịt được
+bằng ca kiểm — nên có một ca quét thẳng tệp `DangNhap.tsx`, khẳng định **cả hai
+chiều** (có tên mới, và không còn tên cũ).
+
+### Ca kiểm đáng giá nhất là ca đọc vào trong tệp zip
+
+Hằng nằm trong TypeScript; bốn mẫu là bốn gói zip. Hai vế ở hai thế giới — đúng
+chỗ hở `0134` đã trả giá một lần, khi một trường thêm vào bảng phân loại mà không
+mẫu nào in nó và không ca kiểm nào bắt được.
+
+Ca mới mở từng `.docx` bằng `documentXml()`, đòi có `COMPANY.name` và đòi **không
+còn** tên cũ. Phá lại chứng minh nó đúng là chốt chặn cần có: giữ hằng mới mà
+hoàn tác một tệp `.docx` về bản đã commit — tức mô phỏng đúng việc *sửa mã rồi
+quên chạy lại bộ sinh* — ra **1 đỏ**, nêu tên tệp và nói ra việc phải làm.
+
+Ba thứ nhỏ hơn nhưng phải ghi:
+
+**Chuẩn hoá NFC trước khi so chuỗi.** `CLAUDE.md` ghi bẫy này cho *tên tệp*; nó
+áp dụng y hệt cho *nội dung*. Chữ `ưỡ` ra NFD trên máy này và NFC trên máy kia —
+hai chuỗi hiện lên giống hệt nhau mà `includes()` trả `false`. Không chuẩn hoá
+thì ca quét xanh ở đúng lúc nó phải đỏ.
+
+**Tên cũ trong ca kiểm dựng từ hai mảnh** (`'CỔ PHẦN' + ' DINH DƯỠNG NUTRICARE'`).
+Phép quét đọc cả tệp chính nó, nên một hằng viết liền sẽ tự làm mình đỏ. Cách
+khác là loại trừ tệp này khỏi danh sách quét — nhưng loại trừ thì mọi thứ khác
+trong tệp cũng ra khỏi tầm quét theo.
+
+**Phạm vi quét là MÃ NGUỒN, không phải cả repo.** Luật là *"phần mềm không được
+IN ra tên cũ"*, không phải *"chữ ấy không được xuất hiện"*. Nhật ký này và Phụ lục
+B **phải** giữ tên cũ — chúng ghi một quyết định có thật, và một ca kiểm bắt xoá
+lịch sử là một ca kiểm sai.
+
+### Sinh lại mẫu không nuốt mất bản vá nào
+
+`0135` đã cảnh báo: `templates/*.docx` là ĐẦU RA của `tao-mau-ho-so.ts`, và `0134`
+từng vá thẳng vào tệp nên lượt sinh lại suýt nuốt mất bản vá ấy. Kiểm lại sau khi
+sinh: bốn tệp vẫn có `word/styles.xml` khai **Times New Roman** (`0135`) và vẫn
+mang ô `{{ho_so.dien_thoai}}` (`0134`). Cả hai bản sửa ấy nằm trong **bộ sinh**,
+không vá vào nhị phân, nên chúng đi qua an toàn. Ghi ra để lượt sau khỏi phải đo
+lại từ đầu.
+
+### Cái giá trên hệ đang chạy
+
+Đổi mã nguồn **không** đụng tới mẫu đã nằm trong CSDL, và không được đụng: mẫu
+đóng băng vào hồ sơ lúc gửi duyệt (`0098`), nên hồ sơ đã ký vẫn in cái tên có
+hiệu lực lúc nó được ký. Đó là hành vi đúng.
+
+Nhưng nó có nghĩa là hệ đang chạy phải **tải bốn mẫu mới lên bằng tay**, và ở đây
+chặng này va thẳng vào chặng trước: **`0150` cấm trùng tên, kể cả với mẫu đã vô
+hiệu**. Bản mới không mang lại được tên bản cũ — phải đặt tên khác rồi vô hiệu hoá
+bản cũ. Đã ghi thành một mục riêng trong `04-TRIEN-KHAI.md`; bỏ qua nó thì bản in
+vẫn ra tên cũ trong khi mọi thứ khác nói tên mới.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Hằng `COMPANY.name` về tên cũ | 3 đỏ |
+| Chỉ một tệp `.docx` về bản đã commit, giữ hằng mới | 1 đỏ, nêu đúng tên tệp |
+| Màn hình đăng nhập về tên cũ | 2 đỏ |
+
+**1912/1912 xanh.**

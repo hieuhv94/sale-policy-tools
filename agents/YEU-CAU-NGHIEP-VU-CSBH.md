@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Đơn vị yêu cầu** | Công Ty Cổ Phần Dinh Dưỡng Nutricare |
+| **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
 | **Phiên bản** | 4.2 — hợp nhất sau ba phiên rà soát, bổ sung quy trình tạo tài khoản ngày 07/08 |
 | **Ngày** | 07/08/2026 |
 | **Nguồn** | `01.08. QUY TRÌNH CSBH.docx` (QT) · `01.08. Yêu cầu nghiệp vụ.docx` (v3.0) · `05.08. Yêu cầu nghiệp vụ.docx` (v3.1) · 42 quyết định chốt trong các phiên 04/08, 05/08, 06/08 và 07/08 |
@@ -1548,6 +1548,20 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 > mất tệp.
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
+
+**Tên pháp nhân đổi thành *Công ty TNHH Dược phẩm Nutricare*** `mới 29/08` — thay cho *Công Ty Cổ
+Phần Dinh Dưỡng Nutricare* ở mọi chỗ phần mềm in ra tên Công ty: bốn tệp mẫu `.docx` và màn hình đăng
+nhập.
+
+> **Địa chỉ và mã số thuế GIỮ NGUYÊN** — chỉ tên pháp nhân đổi.
+>
+> **Tờ đã ký không đổi theo, và đó là đúng.** Mẫu văn bản đóng băng vào hồ sơ lúc gửi duyệt, nên mọi
+> hồ sơ đã duyệt vẫn in đúng cái tên có hiệu lực lúc nó được ký. Không có đường nào sửa ngược, và
+> cũng không nên có.
+>
+> **Hệ đang chạy phải tự tải bốn mẫu mới lên** — đổi mã nguồn không đụng tới mẫu đã nằm trong CSDL.
+> Và vì tên mẫu không được trùng (`28/08`), bản mới **phải mang tên khác** bản cũ; cách làm là tải
+> lên với tên có gắn mốc thời gian rồi vô hiệu hoá bản cũ.
 
 **Hồ sơ pháp lý của khách hàng: ai xem được khách thì xem được tệp** `mới 28/08` — Trưởng bộ phận,
 Kế toán, Sale Admin (khi đã được giao một hồ sơ của khách ấy), Ban lãnh đạo và Quản trị hệ thống đều

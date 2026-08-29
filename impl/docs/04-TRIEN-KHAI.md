@@ -387,6 +387,25 @@ rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 > Nó là bản chỉ có đúng những mục bắt buộc, để trả lời câu *"ít nhất mẫu phải có
 > những gì"*; tải lên bằng tay khi cần.
 
+### Nâng cấp lên bản có tên Công ty mới `mới 29/08`
+
+Tên pháp nhân đổi thành **Công ty TNHH Dược phẩm Nutricare**. Với một hệ **vừa
+cài**, không phải làm gì: `nap-danh-muc` nạp bốn file đã mang tên mới.
+
+Với hệ **đang chạy** thì có một việc tay, và bỏ qua nó là bản in vẫn ra tên cũ:
+
+| | |
+| --- | --- |
+| Vì sao | Mẫu nằm trong CSDL và trên kho lưu trữ từ lượt tải lên đầu tiên. Nâng cấp ảnh **không** đụng tới chúng — và không được đụng, vì mẫu đã đóng băng vào những hồ sơ đã ký |
+| Phải làm | Quản trị tải bốn file trong `mau-van-ban/` lên lại, rồi **vô hiệu hoá** bản cũ |
+| Bẫy | **Tên mẫu không được trùng**, kể cả với bản đã vô hiệu. Bản mới phải mang tên khác — ví dụ thêm hậu tố `(2026)` |
+
+> **Hồ sơ đã duyệt vẫn in tên cũ, và đó là đúng.** Chúng gắn với mẫu có hiệu lực
+> lúc chúng được ký. Không có đường nào sửa ngược một tờ đã ký, và cũng không nên
+> có — sửa được nghĩa là nội dung tờ giấy người ta đã ký thay đổi sau lưng họ.
+>
+> Địa chỉ và mã số thuế **không đổi** trong lượt này.
+
 ---
 
 ## 6. Nghiệm thu trước khi giao cho người dùng

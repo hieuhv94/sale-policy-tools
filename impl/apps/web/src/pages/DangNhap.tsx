@@ -79,7 +79,15 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         <div className="dang-nhap-dau">
           <img src={logo} alt="Nutricare" className="logo-lon" />
           <h1>{lopPhu ? 'Phiên đã hết hạn' : 'Chính sách bán hàng'}</h1>
-          {!lopPhu && <p className="dang-nhap-phu">Công Ty Cổ Phần Dinh Dưỡng Nutricare</p>}
+          {/*
+            Tên pháp nhân, dạng chữ thường (`0151`, chốt 29/08).
+
+            KHÔNG đọc từ hằng `COMPANY` bên `document`: giao diện là gói riêng,
+            import từ một service vào đây sẽ kéo cả cây phụ thuộc máy chủ vào gói
+            trình duyệt. Nên đây là bản chép tay DUY NHẤT còn lại của cái tên, và
+            `ten-cong-ty.test.ts` canh đúng chỗ hở ấy bằng cách quét cả repo.
+          */}
+          {!lopPhu && <p className="dang-nhap-phu">Công ty TNHH Dược phẩm Nutricare</p>}
         </div>
         {lopPhu && (
           <p className="ghi-chu">

@@ -1,6 +1,6 @@
 # Chính sách bán hàng (CSBH) — Nutricare
 
-Phần mềm quản lý chính sách bán hàng cho Công Ty Cổ Phần Dinh Dưỡng Nutricare: trình dược viên lập hồ sơ
+Phần mềm quản lý chính sách bán hàng cho Công ty TNHH Dược phẩm Nutricare: trình dược viên lập hồ sơ
 CSBH cho từng khách hàng, hồ sơ đi qua **luồng duyệt 10 bước** (Trưởng bộ phận ký số → Kế toán tiếp
 nhận L1 → Sale Admin bàn giao bản cứng → Kế toán tiếp nhận L2) rồi có hiệu lực vô thời hạn.
 
@@ -52,7 +52,7 @@ Toàn bộ tài liệu, mã nguồn, chú thích và thông báo trên màn hìn
 
 **Độc quyền — mọi quyền được bảo lưu.** © 2026 hieuhv.
 
-Phần mềm được phát triển riêng cho Công Ty Cổ Phần Dinh Dưỡng Nutricare, cấp cho công ty quyền sử dụng
+Phần mềm được phát triển riêng cho Công ty TNHH Dược phẩm Nutricare, cấp cho công ty quyền sử dụng
 theo thoả thuận giữa hai bên. Không được sao chép, phân phối, công bố hay tạo sản phẩm phái sinh
 ngoài phạm vi đó nếu không có văn bản cho phép của người giữ bản quyền.
 

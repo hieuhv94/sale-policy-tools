@@ -14,6 +14,15 @@ export { Storage, sha256, BUCKET } from './infra/storage.js';
 export { FilesService, sniff, MAX_BYTES } from './files/files.service.js';
 export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
 export { money, pct, dmy } from './contracts/dinh-dang.js';
+/*
+ * `COMPANY` mở ra cho bộ kiểm (`0151`).
+ *
+ * Fixture của bộ kiểm dựng `.docx` riêng và gõ tên Công ty vào đầu trang — sáu
+ * chỗ, và lượt đổi pháp nhân 29/08 phải sửa từng chỗ. Đọc từ hằng thì lượt sau
+ * không phải sửa ca kiểm nào, và quan trọng hơn: ca nào khẳng định *"bản in ra
+ * có tên Công ty"* thì khẳng định đúng cái tên phần mềm thật sẽ in.
+ */
+export { COMPANY, COMPANY_ADDRESS_LINE } from './contracts/dinh-dang.js';
 export { TemplatesService } from './contracts/templates.service.js';
 export { ContractsService } from './contracts/contracts.service.js';
 export {

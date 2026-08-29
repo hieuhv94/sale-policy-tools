@@ -15,6 +15,7 @@ import { createTestApp as createAuditApp } from '@csbh/audit/testing';
 import {
   createTestApp as createDocumentApp,
   DocumentOutbox,
+  COMPANY,
   TemplatesService,
   makeDocx,
   para,
@@ -410,7 +411,7 @@ afterAll(async () => {
 const twelveSlotTemplate = () =>
   makeDocx(
     [
-      para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+      para(COMPANY.name),
       para('HỢP ĐỒNG với {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
       para('Địa chỉ: {{ho_so.dia_chi_dang_ky}} — nhận hàng {{ho_so.noi_nhan_hang}}'),
       para('Đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
@@ -740,7 +741,7 @@ describe('`0067` DOC-13 ĐỔI LUẬT — hồ sơ thiếu trường thì ô tr�
 
     const buf = makeDocx(
       [
-        para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+        para(COMPANY.name),
         para('HỢP ĐỒNG với {{ho_so.ten_khach_hang}}'),
         para('Duyệt ngày {{ho_so.ngay_kt_nhan_l2}}'),
       ].join(''),
@@ -838,7 +839,7 @@ describe('DOC-34 chuyển hợp đồng đã trộn sang PDF', () => {
     expect(text).toContain(CUSTOMER_NAME); //          dấu tiếng Việt nguyên vẹn
     expect(text).toContain('Nhà thuốc');
     expect(text).toContain(ADDRESS_1);
-    expect(text).toContain('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE');
+    expect(text).toContain(COMPANY.name);
     expect(text).not.toContain('{{');
 
     const { PDFDocument } = await import('pdf-lib');
@@ -2730,7 +2731,7 @@ describe('`0104` NHOM_TRUONG phủ hết bảng hướng dẫn ánh xạ', () =>
 const thanMauHopDong = (): Buffer =>
   makeDocx(
     [
-      para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+      para(COMPANY.name),
       // Địa chỉ ở đây KHÔNG được trùng địa chỉ khách hàng nào của bộ kiểm: ca
       // DOC-27 khẳng định bản xuất lần hai KHÔNG còn địa chỉ cũ, và một chuỗi
       // giống hệt nằm sẵn trong phần đầu trang làm ca ấy đỏ mà chẳng liên quan.

@@ -33,6 +33,7 @@
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
 import { makeDocx, para } from '../services/document/src/contracts/docx.js';
+import { COMPANY } from '../services/document/src/contracts/dinh-dang.js';
 import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
 
 if (process.env.NODE_ENV === 'production') {
@@ -1310,9 +1311,10 @@ async function main(): Promise<void> {
   // máy chủ đọc ô trống ngay lúc tải lên và từ chối file không phải docx
   // (`DOC-33`), nên một file giả sẽ hỏng ở đúng bước này.
   const than = [
-    // Tên Công ty gõ THẲNG (`0067`): nhóm khoá `cong_ty.` đã bỏ vì ba giá trị ấy
-    // cố định ở mọi hồ sơ.
-    para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+    // Tên Công ty KHÔNG còn là ô trống (`0067`): ba giá trị ấy cố định ở mọi hồ
+    // sơ. Nhưng cũng không gõ lại ở đây nữa (`0151`) — đọc từ hằng, vì lượt đổi
+    // pháp nhân 29/08 tìm thấy nó nằm rải ở sáu chỗ.
+    para(COMPANY.name),
     para('HỢP ĐỒNG PHÂN PHỐI SẢN PHẨM'),
     para('Bên B: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
     para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),

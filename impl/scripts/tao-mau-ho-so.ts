@@ -18,6 +18,18 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { makeDocx, para } from '../services/document/src/contracts/docx.js';
+/*
+ * Tên Công ty ĐỌC TỪ HẰNG, không gõ lại (`0151`).
+ *
+ * Trước lượt này tệp này gõ tên ra bốn lần, và tên ấy còn nằm ở năm chỗ khác —
+ * nên lượt khách hàng đổi pháp nhân là một lượt grep toàn repo. `dinh-dang.ts`
+ * không mang phụ thuộc chạy nào (nó chỉ import một KIỂU), nên một script dựng
+ * tệp import được nó mà không kéo theo Nest.
+ */
+import {
+  COMPANY,
+  COMPANY_ADDRESS_LINE,
+} from '../services/document/src/contracts/dinh-dang.js';
 
 /**
  * Khối đầu trang — giống nhau ở cả ba mẫu.
@@ -27,8 +39,8 @@ import { makeDocx, para } from '../services/document/src/contracts/docx.js';
  * và quên thì bản in ra mang chuỗi `{{cong_ty.ten}}` ngay dòng đầu.
  */
 const dauTrang = [
-  para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
-  para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
+  para(COMPANY.name),
+  para(COMPANY_ADDRESS_LINE),
   para(''),
   para('CHÍNH SÁCH BÁN HÀNG'),
 ];
@@ -50,7 +62,7 @@ const dayDu = [
   ...dauTrang,
   para('Số {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}} · {{ho_so.trang_thai}}'),
   para(''),
-  para('BÊN BÁN: CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+  para(`BÊN BÁN: ${COMPANY.name}`),
   /*
    * KHỐI BÊN MUA — một dòng nhận diện, rồi MỘT dòng gộp ba mục (`0135`, chốt
    * 27/08): người đại diện · địa chỉ · mã số thuế, ngăn bằng dấu gạch.
@@ -126,13 +138,13 @@ const rutGon = [
  * soạn đổi được nó mà không phải vẽ lại bảng.
  */
 const hopDong = [
-  para('CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
-  para('Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội — MST 0102345678'),
+  para(COMPANY.name),
+  para(COMPANY_ADDRESS_LINE),
   para(''),
   para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
   para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}, áp dụng từ {{ho_so.ngay_ap_dung}}.'),
   para(''),
-  para('BÊN BÁN (Bên A): CÔNG TY CỔ PHẦN DINH DƯỠNG NUTRICARE'),
+  para(`BÊN BÁN (Bên A): ${COMPANY.name}`),
   para(''),
   para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   // Cùng dòng gộp với hai mẫu hồ sơ (`0135`) — xem chú thích ở `dayDu`.

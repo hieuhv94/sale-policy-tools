@@ -23,7 +23,14 @@ import {
 } from './docx.js';
 import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
 import { chuanHoaCot, COT_BANG } from './bang-san-pham.js';
-import { COMPANY } from './dinh-dang.js';
+/*
+ * `COMPANY` ĐÃ GỠ KHỎI TỆP NÀY (`0151`).
+ *
+ * Người dùng duy nhất của nó ở đây là `ensureDefault` — bộ dựng mẫu mặc định mà
+ * `0150` bỏ hẳn. Dòng `import` thì ở lại: một import không ai dùng KHÔNG làm
+ * `tsc` đỏ, nên nó sống sót cả lượt rà của `0150` lẫn `tsc` sau đó. Hằng ấy giờ
+ * chỉ còn `scripts/tao-mau-ho-so.ts` và `seed-demo.ts` đọc.
+ */
 
 /**
  * Hai loại mẫu, cùng một chủ sở hữu từ `0060` — nhưng KHÁC nhau ở chỗ ai chọn.
