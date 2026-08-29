@@ -36,7 +36,7 @@ import { withAdminDb } from './app.js';
  */
 const NGUONG = Math.floor(TRAN_SO_DONG / 2);
 
-describe('`0156` CSDL của bộ kiểm không tích rác sản phẩm', () => {
+describe('`0156` CSDL của bộ kiểm không tích rác', () => {
   it(`số sản phẩm ${TIEN_TO_KIEM} còn lại nằm dưới ${NGUONG}`, async () => {
     const n = await withAdminDb(async (c) => {
       const r = await c.query<{ n: string }>(
@@ -73,6 +73,39 @@ describe('`0156` CSDL của bộ kiểm không tích rác sản phẩm', () => {
       readFileSync('vitest.config.ts', 'utf8'),
       '`vitest.config.ts` không còn khai globalSetup',
     ).toContain("globalSetup: ['tests/don-rac-truoc-luot.ts']");
+  });
+
+  it('`0159` số HỒ SƠ ĐÓNG BĂNG còn lại đủ nhỏ để lượt rà danh mục kịp chạy', async () => {
+    /*
+     * Đổi một quy định chiết khấu thì `policy` quét MỌI hồ sơ đã đóng băng ×
+     * mọi dòng, kèm gọi REST sang `customer` và `catalog` — nợ **N-09**, ghi
+     * trong `CLAUDE.md` kèm câu *"ở quy mô hiện tại chưa cắn"*.
+     *
+     * Nó cắn ở `0159`, và không phải trên máy khách hàng: CSDL của bộ kiểm tích
+     * **1702 hồ sơ đóng băng**, và ca `0029` bên `notification.test.ts` chạy quá
+     * 30 giây rồi bị cắt. Triệu chứng là một ca kiểm về THƯ hết giờ — không có
+     * chữ nào nhắc tới danh mục hay hiệu năng.
+     *
+     * Ngưỡng 500 là con số ĐO ĐƯỢC quy ra: ở 199 hồ sơ ca ấy chạy 44 giây cho cả
+     * tệp và xanh; ở 1702 thì riêng nó vượt 30 giây. Để rộng gấp đôi mức một lượt
+     * chạy sinh ra, và vẫn còn xa mức làm ca kia đỏ.
+     */
+    const n = await withAdminDb(async (c) => {
+      const r = await c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM pol.policy
+          WHERE status::text IN ('CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2','DANG_CO_HIEU_LUC')`,
+      );
+      return Number(r.rows[0]!.n);
+    });
+
+    expect(
+      n,
+      `Có ${n} hồ sơ đã đóng băng trong CSDL kiểm. Lượt rà khi đổi quy định chiết ` +
+        `khấu quét hết chúng (nợ N-09), và ca 0029 bên notification.test.ts sẽ hết ` +
+        `giờ 30 giây — ở một chỗ không nhắc gì tới hiệu năng. Bước dọn đầu lượt ` +
+        `(globalSetup) xoá hồ sơ theo KHÁCH HÀNG có tiền tố ${TIEN_TO_KIEM}, vì mã ` +
+        `hồ sơ do máy chủ sinh và không mang tiền tố nào.`,
+    ).toBeLessThan(500);
   });
 
   it('mọi tệp kiểm HTTP đều đặt tiền tố `ZZ` cho dữ liệu của mình', () => {

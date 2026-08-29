@@ -87,7 +87,33 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P184** (`0156`): **bộ kiểm thôi tự đầu độc CSDL của nó**. `cat.product` không có
+Chặng gần nhất **P187** (`0159`): **dọn nốt hồ sơ và khách hàng** — `0156` mới dọn sản phẩm, và lỗ
+hổng hiện ra ở bảng kế tiếp ba chặng sau, theo cách khó chịu nhất: một ca kiểm về **THƯ** hết giờ 30
+giây, không chữ nào nhắc tới danh mục hay hiệu năng. **Nợ N-09 vừa cắn thật** — `CLAUDE.md` ghi *"ở
+quy mô hiện tại chưa cắn"*, đúng với dữ liệu thật, sai với CSDL bộ kiểm (5469 hồ sơ, **1702 đóng
+băng**); dọn xuống 199 thì xanh trong 44 giây. Nợ để nguyên, chặng này chỉ dọn rác. Hai điều đáng
+nhớ: **`git stash` rồi chạy trên bản đã commit** là cách rẻ và dứt điểm nhất để trả lời *"tôi có gây
+ra không"* — chắc hơn mọi phép đọc mã; và **0 trong 5469 hồ sơ mang tiền tố `ZZ`** vì
+`pol.next_policy_code()` sinh mã ở máy chủ, nên bốn tệp kiểm viết `DELETE FROM pol.policy WHERE code
+LIKE 'ZZ…%'` đều là **lệnh rỗng, và đã rỗng từ đầu** — không ai thấy, vì `DELETE` xoá 0 dòng không
+báo gì. Đường đúng là xoá **qua khách hàng**.
+
+Trước đó **P185–P186**. **P186** (`0158`): *KT duyệt bản mềm* → ***Chờ KT duyệt L1***, ba bảng
+nhãn cộng nhãn thẻ Tổng quan. ***KT duyệt bản cứng* GIỮ NGUYÊN** — khách hàng chốt riêng khi được
+hỏi, nên hai nhãn thôi cùng lối đặt tên; đừng "sửa cho đồng bộ".
+
+**P185** (`0157`): **Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH**, ở mọi trạng thái. Bản sửa là
+**XOÁ một mệnh đề, không thêm cột**: `TBP_SIGN` là đường DUY NHẤT vào `CHO_KT_L1` và cũng là chỗ duy
+nhất bật `da_qua_tbp`, nên cột ấy — dù tên nói về TBP — đã trả lời đúng câu *"đã từng nằm trên bàn Kế
+toán chưa"*. `0142` gắn thêm vế `status = 'CHO_TBP_DUYET'` thừa, nên TBP trả hồ sơ về là chốt tắt.
+`status` rời khỏi cả kiểu tham số `assertPolicyInScope`. Hai điều đáng nhớ: câu khách hàng viết —
+*"đã từng được kế toán TÁC ĐỘNG"* — **đọc nghĩa đen thì không dựng được** (Kế toán sẽ không thấy hồ
+sơ đang chờ chính mình); và **một fixture vặn thẳng CSDL phải tự dựng ra trạng thái ĐẾN ĐƯỢC** — ca
+`0142` cũ khẳng định hành vi cho `CHO_KT_L1` + `da_qua_tbp: false`, một tổ hợp không tồn tại, và nằm
+đó xanh suốt hai chặng. Kế toán giờ nhận **403 chứ không 409** trên hồ sơ chưa qua TBP: chốt phạm vi
+trả lời trước máy trạng thái, và đó là câu mạnh hơn.
+
+Trước đó **P184** (`0156`): **bộ kiểm thôi tự đầu độc CSDL của nó**. `cat.product` không có
 đường xoá qua API (`0121`), nên chín trong mười hai tệp kiểm tạo sản phẩm mà không gỡ được — đo được
 **~690 dòng mỗi lượt chạy**, tức **bảy lượt là chạm trần 5000** của lượt nhập Excel và bốn ca danh mục
 đỏ ở chỗ vô can. Chẩn đoán khớp đến từng tiền tố: bảy tiền tố còn rác đúng bằng bảy tệp không có bước

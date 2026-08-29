@@ -1549,6 +1549,20 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Kế toán chỉ thấy hồ sơ ĐÃ TỪNG TỚI BÀN MÌNH** `sửa 29/08` — mở rộng luật `27/08`. Trước đó hồ sơ
+chỉ bị giấu ở trạng thái *Chờ TBP duyệt*, nên **Trưởng bộ phận trả hồ sơ về là Kế toán lại thấy nó**
+dù nó chưa bao giờ tới lượt họ. Giờ điều kiện bỏ hẳn vế trạng thái.
+
+> Hồ sơ do **chính Kế toán** trả lại ở L1 hay L2 thì họ VẪN thấy: nó đã qua bàn họ, và không lượt trả
+> về nào xoá dấu ấy.
+>
+> Đọc theo nghĩa đen *"chỉ thấy khi đã từng được kế toán TÁC ĐỘNG"* thì Kế toán không bao giờ thấy hồ
+> sơ đang chờ chính mình, và không ai xử lý được bước nào — nên câu ấy hiểu là *"đã tới lượt Kế
+> toán"*, tức đã qua chữ ký Trưởng bộ phận.
+
+**Trạng thái *KT duyệt bản mềm* đổi tên thành *Chờ KT duyệt L1*** `sửa 29/08`. *KT duyệt bản cứng*
+**giữ nguyên tên** (chốt riêng) — hai nhãn không cùng một lối đặt tên, có chủ ý.
+
 **BỎ HẲN trạng thái *Từ chối*** `mới 29/08` — và bỏ luôn cả nút. Ở bước *Chờ TBP duyệt*, Trưởng bộ
 phận chỉ còn **hai** đường ra: **Ký số duyệt** hoặc **Trả lại chỉnh sửa**.
 

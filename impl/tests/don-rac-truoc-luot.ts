@@ -61,9 +61,48 @@ export default async function donRacTruocLuot(): Promise<void> {
 
   try {
     // `ON DELETE CASCADE` trên `cat.product_price` lo phần giá.
-    const r = await c.query(`DELETE FROM cat.product WHERE code LIKE $1`, [`${TIEN_TO_KIEM}%`]);
-    if (r.rowCount) {
-      console.log(`bộ kiểm: dọn ${r.rowCount} sản phẩm còn lại của lượt chạy trước`);
+    const sp = await c.query(`DELETE FROM cat.product WHERE code LIKE $1`, [`${TIEN_TO_KIEM}%`]);
+
+    /*
+     * HỒ SƠ VÀ KHÁCH HÀNG — thêm ở `0159`, cùng bệnh với sản phẩm.
+     *
+     * `0156` mới dọn sản phẩm, và lỗ hổng hiện ra ở bảng kế tiếp đúng bốn chặng
+     * sau: **5469 hồ sơ, 1702 trong đó đã đóng băng, 5299 khách hàng**. Ca kiểm
+     * `0029` — đổi một quy định chiết khấu — chạy quá 30 giây rồi bị cắt, vì lượt
+     * rà quét MỌI hồ sơ đóng băng × mọi dòng, kèm gọi REST sang hai service.
+     *
+     * Đó là nợ **N-09** đã ghi trong `CLAUDE.md`: *"ở quy mô hiện tại chưa cắn"*.
+     * Nó cắn — không phải trên máy khách hàng mà trên CSDL của bộ kiểm, nơi rác
+     * tích nhanh hơn dữ liệu thật nhiều lần.
+     *
+     * XOÁ HỒ SƠ THEO KHÁCH HÀNG, không theo mã hồ sơ. `pol.next_policy_code()`
+     * sinh mã ở máy chủ nên hồ sơ **không bao giờ mang tiền tố `ZZ`** — đo được:
+     * 0 trong 5469. Mọi bước dọn hiện có trong các tệp kiểm đều viết
+     * `DELETE FROM pol.policy WHERE code LIKE 'ZZ…%'`, tức **là lệnh rỗng, và đã
+     * rỗng từ đầu**. Mỗi hồ sơ thuộc về một khách hàng, và khách hàng thì có
+     * tiền tố — đó là đường vào đúng.
+     *
+     * `DA_XOA` phải gỡ nhãn TRƯỚC: `trg_forbid_delete_rejected` chặn xoá dòng ở
+     * trạng thái kết thúc (`0035`). Đây là chỗ DUY NHẤT được phép đi vòng qua
+     * chốt ấy, và chỉ vì nó đang dọn dữ liệu của một lượt chạy đã kết thúc.
+     */
+    const khachKiem = `EXISTS (SELECT 1 FROM cus.customer k
+                                WHERE k.id = p.customer_id AND k.code LIKE $1)`;
+    await c.query(
+      `UPDATE pol.policy p SET status = 'NHAP'
+        WHERE p.status::text = 'DA_XOA' AND ${khachKiem}`,
+      [`${TIEN_TO_KIEM}%`],
+    );
+    const hs = await c.query(`DELETE FROM pol.policy p WHERE ${khachKiem}`, [`${TIEN_TO_KIEM}%`]);
+    const kh = await c.query(`DELETE FROM cus.customer WHERE code LIKE $1`, [`${TIEN_TO_KIEM}%`]);
+
+    const phan = [
+      sp.rowCount ? `${sp.rowCount} sản phẩm` : '',
+      hs.rowCount ? `${hs.rowCount} hồ sơ` : '',
+      kh.rowCount ? `${kh.rowCount} khách hàng` : '',
+    ].filter(Boolean);
+    if (phan.length) {
+      console.log(`bộ kiểm: dọn ${phan.join(' · ')} còn lại của lượt chạy trước`);
     }
   } finally {
     await c.end();

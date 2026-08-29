@@ -13884,3 +13884,120 @@ lượt **TEST với nhau** cũng đủ hỏng — và nó hỏng theo kiểu t�
 "hợp lệ" nên không chốt chặn nào nổ.
 
 **1929/1929 xanh.**
+
+## P185 — `0157` Kế toán chỉ thấy hồ sơ đã từng tới bàn mình
+
+Người dùng: *"Khi trưởng bộ phận trả lại hồ sơ cho TDV thì Kế toán vẫn ko được
+nhìn thấy hồ sơ, chỉ thấy khi hồ sơ đã từng được kế toán tác động"*.
+
+### Bản sửa là XOÁ một mệnh đề, không phải thêm một cột
+
+Nghe như phải có một cột mới `da_qua_ke_toan`, đối xứng với `da_qua_tbp` của
+`0107`. Không cần: **`TBP_SIGN` là đường DUY NHẤT vào `CHO_KT_L1`**, và nó cũng
+là chỗ duy nhất bật `da_qua_tbp`. Nên cột ấy — dù mang tên nói về Trưởng bộ phận
+— đã trả lời chính xác câu *"hồ sơ này đã từng nằm trên bàn Kế toán chưa"*.
+
+Cái sai của `0142` chỉ là nó gắn thêm một vế thừa:
+
+    (status = 'CHO_TBP_DUYET' AND da_qua_tbp = false)
+
+Vế `status` khiến chốt chỉ nổ ở ĐÚNG MỘT trạng thái. Trưởng bộ phận trả hồ sơ về
+là nó sang `YEU_CAU_CHINH_SUA`, vế ấy sai, và cả mệnh đề tắt — Kế toán lại thấy
+một hồ sơ chưa bao giờ tới lượt mình. Bỏ vế đi là xong, ở cả ba bản của luật.
+
+`status` theo đó rời khỏi cả kiểu tham số của `assertPolicyInScope`: giữ một
+trường BẮT BUỘC mà không dòng nào đọc là bắt mọi chỗ gọi mang dữ liệu cho một
+luật đã bỏ.
+
+### Câu khách hàng viết, đọc theo nghĩa đen thì không dựng được
+
+*"Chỉ thấy khi hồ sơ đã từng được kế toán TÁC ĐỘNG"* — nếu đúng chữ ấy thì Kế
+toán không bao giờ thấy hồ sơ đang chờ chính mình ở `CHO_KT_L1`, và không ai xử
+lý được bước nào. Câu ấy phải hiểu là *"đã tới lượt Kế toán"*. Ghi ra vì nó là
+loại câu mà sáu tháng sau đọc lại sẽ tưởng đã làm sai.
+
+### Một fixture khẳng định hành vi cho một tổ hợp không tồn tại
+
+Ca `0142` cũ dựng `CHO_KT_L1` kèm `da_qua_tbp: false` rồi khẳng định Kế toán mở
+được. Tổ hợp ấy **không dựng ra được trong đời thật** — `CHO_KT_L1` chỉ tới bằng
+`TBP_SIGN`, mà chính nó bật cờ. Ca ấy nằm trong bộ kiểm suốt hai chặng, xanh, và
+không bảo vệ gì.
+
+Cùng bệnh ở `tests/http/policy.test.ts`: bảng ma trận `allowed-actions` vặn thẳng
+`status` bằng SQL mà không đặt `da_qua_tbp`, nên nó hỏi hệ thống cư xử ra sao với
+tám tổ hợp trong đó có năm tổ hợp không tồn tại. Giờ fixture tự đặt cờ theo một
+tập `SAU_CHU_KY_TBP` khai tường minh.
+
+Bài học chung: **một fixture vặn thẳng CSDL phải tự chịu trách nhiệm dựng ra một
+trạng thái ĐẾN ĐƯỢC.** Không thì nó kiểm một thế giới không có thật, và xanh.
+
+### 403 mạnh hơn 409
+
+Ca `0155` khẳng định mọi hành động trên hồ sơ *Đã xoá* đều 409. Với Kế toán giờ
+là **403**: hồ sơ ấy đi SUBMIT → TBP trả lại → xoá, nên chưa từng qua chữ ký, và
+chốt phạm vi trả lời TRƯỚC máy trạng thái. Không phải *"hành động sai bước"* mà
+là *"hồ sơ này không thuộc về bạn"* — một câu mạnh hơn, nên ca kiểm khẳng định
+thẳng nó thay vì nới điều kiện.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả luật về bản `0142` (thêm lại vế trạng thái) | 5 đỏ, gồm cả ca đối chiếu hai service |
+
+## P186 — `0158` đổi tên trạng thái *KT duyệt bản mềm*
+
+*KT duyệt bản mềm* → ***Chờ KT duyệt L1***, ba bảng nhãn: `document`,
+`notification`, và giao diện. Cộng nhãn thẻ trên trang Tổng quan — nó là nhãn của
+một BƯỚC chứ không phải của trạng thái, nhưng hiện đúng chữ ấy cho người dùng.
+
+**`KT duyệt bản cứng` GIỮ NGUYÊN**, khách hàng chốt riêng khi được hỏi. Hai nhãn
+thôi cùng một lối đặt tên — chữ `L1` trong tên mới không có `L2` nào đứng cạnh.
+Ghi ra để lượt sau không ai "sửa cho đồng bộ".
+
+## P187 — `0159` dọn nốt hồ sơ và khách hàng, và N-09 vừa cắn thật
+
+`0156` dọn sản phẩm. Lỗ hổng hiện ra ở bảng kế tiếp đúng ba chặng sau, và nó lộ
+ra theo cách khó chịu nhất: một ca kiểm về **THƯ** hết giờ 30 giây, không có chữ
+nào nhắc tới danh mục hay hiệu năng.
+
+### Chẩn đoán mất một thí nghiệm, không phải một suy luận
+
+Ca `0029` bên `notification.test.ts` đỏ ngay sau khi tôi sửa xong `0157`/`0158`.
+Nó **xanh ở lượt P184**, nên phản xạ đầu là "mình vừa làm hỏng". Chạy riêng: vẫn
+đỏ. Cất toàn bộ thay đổi bằng `git stash`, chạy lại trên **bản đã commit**: vẫn
+đỏ.
+
+Đó là câu trả lời — không phải do chặng này. Ghi cách làm ra vì nó rẻ và dứt
+điểm: một lượt `stash` trả lời câu *"tôi có gây ra không"* chắc chắn hơn mọi phép
+đọc mã.
+
+Đo tiếp: **5469 hồ sơ, 1702 đã đóng băng, 5299 khách hàng**. Lượt rà khi đổi quy
+định chiết khấu quét mọi hồ sơ đóng băng × mọi dòng, kèm REST sang hai service.
+Dọn xuống 199 hồ sơ thì cả tệp chạy 44 giây và xanh.
+
+**Đây là nợ N-09 cắn.** `CLAUDE.md` ghi *"ở quy mô hiện tại chưa cắn"* — đúng với
+dữ liệu thật, sai với CSDL của bộ kiểm, nơi rác tích nhanh hơn nhiều lần. Nợ ấy
+vẫn để nguyên: chặng này dọn rác, không sửa thuật toán.
+
+### Mọi bước dọn hồ sơ trong bộ kiểm đều là lệnh rỗng, và đã rỗng từ đầu
+
+Đo được: **0 trong 5469 hồ sơ mang tiền tố `ZZ`**. `pol.next_policy_code()` sinh
+mã ở máy chủ, nên hồ sơ không bao giờ mang tiền tố của tệp kiểm — trong khi bốn
+tệp viết `DELETE FROM pol.policy WHERE code LIKE 'ZZ…%'` ở bước dọn của mình.
+Bốn câu lệnh ấy chưa bao giờ xoá một dòng nào.
+
+Không ai phát hiện được, vì một lệnh `DELETE` xoá 0 dòng không báo gì cả.
+
+Đường vào đúng là **qua khách hàng**: mỗi hồ sơ thuộc một khách, và khách thì có
+tiền tố. `DA_XOA` phải gỡ nhãn trước — `trg_forbid_delete_rejected` chặn xoá dòng
+ở trạng thái kết thúc (`0035`), và đây là chỗ DUY NHẤT được phép đi vòng qua chốt
+ấy, chỉ vì nó đang dọn dữ liệu của một lượt đã kết thúc.
+
+### Ngưỡng của ca kiểm mới là con số ĐO ĐƯỢC
+
+500 hồ sơ đóng băng: ở 199 thì ca `0029` xanh trong 44 giây; ở 1702 thì riêng nó
+vượt 30 giây. Rộng gấp đôi mức một lượt chạy sinh ra, và còn xa mức làm ca kia đỏ.
+
+Câu lỗi nói thẳng cả nguyên nhân lẫn chỗ nó sẽ hiện ra — vì lần này chính tôi đã
+mất một quãng đi từ *"ca kiểm về thư hết giờ"* tới *"hồ sơ tích quá nhiều"*.
