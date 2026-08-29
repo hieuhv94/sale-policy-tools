@@ -1549,6 +1549,16 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Thứ tự mục trên thanh bên** `mới 29/08` — **Tổng quan · Khách hàng · Hồ sơ CSBH · Sản phẩm ·
+Chiết khấu · Thống kê**, rồi ba mục chỉ Quản trị hệ thống thấy (*Văn bản mẫu*, *Người dùng*,
+*Nhật ký*).
+
+> Theo **trình tự công việc**, không theo tần suất dùng: có khách trước rồi mới có hồ sơ; Sản phẩm và
+> Chiết khấu là cụm phải TRA khi lập và khi duyệt; Thống kê là việc cuối kỳ.
+>
+> Hai chỗ đổi so với bản trước: *Khách hàng* lên trước *Hồ sơ CSBH*, và *Thống kê* xuống cuối nhóm
+> (nó đang đứng giữa, cắt đôi cụm tra cứu).
+
 **Tên pháp nhân đổi thành *Công ty TNHH Dược phẩm Nutricare*** `mới 29/08` — thay cho *Công Ty Cổ
 Phần Dinh Dưỡng Nutricare* ở mọi chỗ phần mềm in ra tên Công ty: bốn tệp mẫu `.docx` và màn hình đăng
 nhập.

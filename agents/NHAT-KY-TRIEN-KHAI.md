@@ -13498,3 +13498,44 @@ vẫn ra tên cũ trong khi mọi thứ khác nói tên mới.
 | Màn hình đăng nhập về tên cũ | 2 đỏ |
 
 **1912/1912 xanh.**
+
+## P180 — `0152` thứ tự mục trên thanh bên
+
+Người dùng đưa một danh sách sáu mục đánh số. Việc nhỏ, và phần đáng ghi không
+nằm ở bản sửa mà ở thứ **chưa từng được canh**.
+
+`DIEU_HUONG` là một mảng, và thanh bên vẽ đúng thứ tự mảng — `dieuHuongCho` chỉ
+`filter`, không sắp lại. Nhưng **không ca kiểm nào canh thứ tự ấy**: mọi ca hiện
+có dùng `toContain` hoặc `find`, tức chúng hỏi *"mục này có mặt không"* chứ không
+hỏi *"nó đứng thứ mấy"*. Đảo hai mục bất kỳ thì cả bộ kiểm vẫn xanh, và triệu
+chứng duy nhất là người dùng mở phần mềm ra thấy menu khác hôm qua.
+
+Nên chặng này thêm ba ca. Ca chính khẳng định **cả dãy** bằng `toEqual` chứ không
+kiểm từng cặp lân cận: kiểm từng cặp thì chèn một mục mới vào giữa vẫn xanh, mà
+chèn vào giữa chính là cách thứ tự này hỏng dễ nhất về sau.
+
+**Ca thứ hai là chiều đối chiếu, và nó không thừa.** Ca đầu đọc `DIEU_HUONG` gốc;
+người dùng thì thấy bảng ĐÃ LỌC theo vai trò. Chuyển nhầm một mục quản trị lên
+trên thì mảng gốc vẫn giữ đúng thứ tự sáu mục kia — ca đầu xanh — trong khi trên
+màn hình có một mục lạ chen vào giữa. Ca thứ hai quét năm vai trò ngoài Quản trị
+và đòi danh sách sau lọc đúng bằng sáu mục ấy.
+
+Ghi lại một quan sát của lượt phá lại: đảo *Khách hàng* ↔ *Hồ sơ CSBH* làm đỏ hai
+ca, **không phải ba** — ca của Quản trị vẫn xanh. Đúng như vậy: `0133` gỡ *Hồ sơ
+CSBH* khỏi Quản trị, nên đảo hai mục ấy không đổi được danh sách của một vai trò
+chỉ thấy một trong hai. Không phải lỗ hổng của ca kiểm, mà là hệ quả của một luật
+có thật — nhưng nếu không đo thì sẽ tưởng ca thứ ba thừa.
+
+Thứ tự mới theo **trình tự công việc**, không theo tần suất: có khách trước rồi
+mới có hồ sơ cho khách ấy; Sản phẩm và Chiết khấu là cụm phải TRA khi lập và khi
+duyệt; Thống kê là việc cuối kỳ. Thứ tự cũ đặt *Hồ sơ* trước *Khách hàng* (ngược
+chiều người dùng thật sự làm) và để *Thống kê* đứng giữa, cắt đôi cụm tra cứu.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Đảo *Khách hàng* ↔ *Hồ sơ CSBH* | 2 đỏ (ca Quản trị xanh, lý do ở trên) |
+| Đưa *Thống kê* về vị trí 4 | 3 đỏ |
+
+**1915/1915 xanh.**

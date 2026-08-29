@@ -100,6 +100,19 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
+Thứ tự các mục `sửa 29/08` theo đúng trình tự công việc, không theo tần suất dùng:
+
+| | Mục | Vì sao đứng ở đây |
+| --- | --- | --- |
+| 1 | **Tổng quan** | mở phần mềm ra là thấy việc của mình hôm nay |
+| 2 | **Khách hàng** | có khách trước, rồi mới có hồ sơ cho khách ấy |
+| 3 | **Hồ sơ CSBH** | việc chính |
+| 4 | **Sản phẩm** | phải tra khi lập và khi duyệt hồ sơ |
+| 5 | **Chiết khấu** | cùng cụm tra cứu với Sản phẩm |
+| 6 | **Thống kê** | nhìn lại cả kỳ — việc của cuối tháng, không phải của hôm nay |
+
+Quản trị hệ thống có thêm ba mục ở cuối: *Văn bản mẫu*, *Người dùng*, *Nhật ký*.
+
 > **Quản trị hệ thống không có mục *Hồ sơ CSBH*** `mới 27/08`. Vai trò này đứng ngoài luồng duyệt
 > nên không có hồ sơ nào thuộc phạm vi của họ — mục menu ấy chỉ dẫn tới một màn hình trống.
 >

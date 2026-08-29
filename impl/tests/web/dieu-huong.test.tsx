@@ -192,3 +192,66 @@ describe('`0133` Quản trị hệ thống không vào màn hình hồ sơ', () 
     expect(can('QUAN_TRI', 'doiTdvPhuTrach')).toBe(true);
   });
 });
+
+describe('`0152` thứ tự mục trên thanh bên', () => {
+  /*
+   * Thứ tự là một YÊU CẦU, nên nó phải có ca kiểm.
+   *
+   * Tới `0152` không ca nào canh nó: mọi ca hiện có dùng `toContain` hoặc
+   * `find`, tức chúng hỏi *"mục này có mặt không"* chứ không hỏi *"nó đứng thứ
+   * mấy"*. Đảo hai mục bất kỳ là cả bộ kiểm vẫn xanh — và triệu chứng duy nhất
+   * là người dùng mở phần mềm ra thấy menu khác hôm qua.
+   *
+   * Khẳng định CẢ DÃY bằng `toEqual`, không kiểm từng cặp lân cận: kiểm từng cặp
+   * thì chèn một mục mới vào giữa vẫn xanh, mà chèn vào giữa chính là cách thứ
+   * tự này hỏng dễ nhất về sau.
+   */
+  it('sáu mục mọi vai trò đều thấy, đúng thứ tự khách hàng chốt 29/08', () => {
+    expect(DIEU_HUONG.slice(0, 6).map((m) => m.nhan)).toEqual([
+      'Tổng quan',
+      'Khách hàng',
+      'Hồ sơ CSBH',
+      'Sản phẩm',
+      'Chiết khấu',
+      'Thống kê',
+    ]);
+  });
+
+  it('và đó đúng là những gì năm vai trò ngoài Quản trị NHÌN THẤY', () => {
+    /*
+     * Chiều đối chiếu, và nó canh một cách hỏng mà ca trên không thấy: `slice`
+     * đọc bảng gốc, còn người dùng thấy bảng ĐÃ LỌC theo vai trò. Chuyển nhầm
+     * một mục quản trị lên trên là danh sách sáu mục kia vẫn đúng thứ tự trong
+     * mảng gốc, mà trên màn hình thì có một mục lạ chen vào giữa.
+     *
+     * `TDV` đại diện: năm vai trò ngoài Quản trị đều thấy đúng sáu mục này —
+     * `QUYEN_XEM` cho cả sáu là `VAI_TRO` trừ `hoSo` (Quản trị đứng ngoài, xem
+     * `0133`), nên khác biệt duy nhất nằm ở Quản trị.
+     */
+    for (const v of VAI_TRO.filter((x) => x !== 'QUAN_TRI')) {
+      expect(dieuHuongCho(v).map((m) => m.nhan), v).toEqual([
+        'Tổng quan',
+        'Khách hàng',
+        'Hồ sơ CSBH',
+        'Sản phẩm',
+        'Chiết khấu',
+        'Thống kê',
+      ]);
+    }
+  });
+
+  it('ba mục của Quản trị vẫn ở CUỐI, sau sáu mục kia', () => {
+    // Quản trị không thấy *Hồ sơ CSBH* (`0133`), nên danh sách của họ là năm mục
+    // chung rồi tới ba mục riêng — thứ tự tương đối giữa hai nhóm không đổi.
+    expect(dieuHuongCho('QUAN_TRI').map((m) => m.nhan)).toEqual([
+      'Tổng quan',
+      'Khách hàng',
+      'Sản phẩm',
+      'Chiết khấu',
+      'Thống kê',
+      'Văn bản mẫu',
+      'Người dùng',
+      'Nhật ký',
+    ]);
+  });
+});

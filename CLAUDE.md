@@ -87,7 +87,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P179** (`0151`): **tên công ty đổi pháp nhân** → *Công ty TNHH Dược phẩm Nutricare*
+Chặng gần nhất **P180** (`0152`): **thứ tự mục trên thanh bên** → Tổng quan · Khách hàng · Hồ sơ
+CSBH · Sản phẩm · Chiết khấu · Thống kê (theo trình tự công việc, không theo tần suất). Việc nhỏ,
+điều đáng ghi là **thứ tự chưa từng được canh**: mọi ca cũ dùng `toContain`/`find` — hỏi *"có mặt
+không"* chứ không hỏi *"đứng thứ mấy"* — nên đảo hai mục vẫn xanh cả bộ. Ca mới khẳng định **cả dãy**
+bằng `toEqual` (kiểm từng cặp lân cận thì chèn một mục vào giữa vẫn lọt), kèm **chiều đối chiếu qua
+bảng ĐÃ LỌC**: ca đọc mảng gốc sẽ xanh khi một mục quản trị bị chuyển lên chen vào giữa. Đo được lúc
+phá lại: đảo *Khách hàng* ↔ *Hồ sơ* chỉ 2 đỏ chứ không 3 — ca Quản trị xanh vì `0133` đã gỡ *Hồ sơ*
+khỏi họ. **1915/1915 xanh.**
+
+Trước đó **P179** (`0151`): **tên công ty đổi pháp nhân** → *Công ty TNHH Dược phẩm Nutricare*
 (địa chỉ và MST giữ nguyên). Nghe như một lượt tìm-và-thay, thực ra tên cũ nằm ở **sáu chỗ trong mã
 cộng bốn tệp `.docx` nhị phân** — mà tệp nhị phân thì không công cụ tìm kiếm văn bản nào thấy, và
 chính chúng mới là thứ đi lên tờ giấy. Hằng `COMPANY` **đã là mã chết từ `0150`**: `ensureDefault`
