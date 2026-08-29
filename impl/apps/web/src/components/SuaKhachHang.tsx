@@ -27,8 +27,11 @@ export type KhachHangDayDu = {
   code: string;
   name: string;
   customerType: number;
+  /** Bản GỘP nhiều dòng — chỉ để hiện. Sửa thì dùng hai mảng dưới (`0154`). */
   registeredAddress: string;
   deliveryAddress: string | null;
+  registeredAddresses: string[];
+  deliveryAddresses: string[];
   ownerName: string;
   ownerTitle: string | null;
   phone: string | null;
@@ -46,8 +49,15 @@ type Gia = {
   code: string;
   name: string;
   customerType: string;
-  registeredAddress: string;
-  deliveryAddress: string;
+  /*
+   * MẢNG, và ô rỗng ĐƯỢC PHÉP tồn tại trong lúc gõ (`0154`).
+   *
+   * Người dùng bấm *Thêm địa chỉ* là có ngay một ô trống — lọc nó đi ở tầng
+   * trạng thái thì ô vừa thêm biến mất ngay khi vừa hiện ra. Phép lọc nằm ở
+   * lượt GỬI, không ở lượt gõ.
+   */
+  registeredAddresses: string[];
+  deliveryAddresses: string[];
   ownerName: string;
   ownerTitle: string;
   phone: string;
@@ -60,8 +70,8 @@ const rong: Gia = {
   code: '',
   name: '',
   customerType: '1',
-  registeredAddress: '',
-  deliveryAddress: '',
+  registeredAddresses: [''],
+  deliveryAddresses: [],
   ownerName: '',
   ownerTitle: '',
   phone: '',
@@ -74,8 +84,10 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   code: k.code,
   name: k.name,
   customerType: String(k.customerType),
-  registeredAddress: k.registeredAddress,
-  deliveryAddress: k.deliveryAddress ?? '',
+  // Ít nhất một ô, kể cả khi máy chủ trả mảng rỗng: một biểu mẫu không có ô nào
+  // để gõ địa chỉ là một biểu mẫu không lưu được mà không nói vì sao.
+  registeredAddresses: k.registeredAddresses.length > 0 ? k.registeredAddresses : [''],
+  deliveryAddresses: k.deliveryAddresses,
   ownerName: k.ownerName,
   ownerTitle: k.ownerTitle ?? '',
   phone: k.phone ?? '',
@@ -83,6 +95,81 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   debtTerm: k.debtTerm,
   debtNote: k.debtNote ?? '',
 });
+
+/**
+ * Một nhóm ô địa chỉ, thêm và bớt được (`0154`).
+ *
+ * MỖI Ô MỘT NHÃN RIÊNG — *Địa chỉ đăng ký 1*, *2*, *3* — chứ không một nhãn
+ * chung cho cả nhóm. `Truong` nối `<label>` với `<input>` bằng `id`, và ba ô
+ * dùng chung một `id` là ba ô mà trình đọc màn hình đọc thành cùng một tên;
+ * người dùng bàn phím nghe "Địa chỉ đăng ký" ba lần mà không biết mình đang ở ô
+ * nào. Con số trong nhãn cũng chính là thứ tự in ra giấy.
+ *
+ * NÚT XOÁ chỉ hiện khi còn nhiều hơn một ô ở nhóm BẮT BUỘC: xoá tới ô cuối cùng
+ * là dựng ra một biểu mẫu không lưu được, và nút gây ra chuyện đó không nên có.
+ * Nhóm không bắt buộc thì xoá hết được — mảng rỗng là *"không khai nơi nhận
+ * riêng"*, một câu trả lời hợp lệ.
+ */
+function NhomDiaChi({
+  id,
+  nhan,
+  ds,
+  doi,
+  themNhan,
+  goiY,
+  bắtBuộc = false,
+}: {
+  id: string;
+  nhan: string;
+  ds: string[];
+  doi: (ds: string[]) => void;
+  themNhan: string;
+  goiY?: string;
+  bắtBuộc?: boolean;
+}) {
+  const dat = (i: number, v: string) => doi(ds.map((x, k) => (k === i ? v : x)));
+  const xoa = (i: number) => doi(ds.filter((_, k) => k !== i));
+  const xoaDuoc = bắtBuộc ? ds.length > 1 : ds.length > 0;
+
+  return (
+    <div className="nhom-dia-chi">
+      {ds.map((v, i) => (
+        <div className="hang-dia-chi" key={i}>
+          <Truong
+            id={`${id}-${i}`}
+            nhan={ds.length > 1 ? `${nhan} ${i + 1}` : nhan}
+            {...(bắtBuộc && i === 0 ? { bắtBuộc: true } : {})}
+          >
+            {(p) => (
+              <input
+                {...p}
+                className="o-nhap"
+                value={v}
+                {...(goiY !== undefined && i === 0 ? { placeholder: goiY } : {})}
+                onChange={(e) => dat(i, e.target.value)}
+              />
+            )}
+          </Truong>
+          {xoaDuoc && (
+            <button
+              type="button"
+              className="nut nut-nhe nut-xoa-dia-chi"
+              onClick={() => xoa(i)}
+              /* Nhãn mang SỐ THỨ TỰ: ba nút cùng tên "Xoá" là ba nút mà người
+                 dùng bàn phím không phân biệt được cái nào xoá dòng nào. */
+              aria-label={`Xoá ${nhan.toLowerCase()} ${i + 1}`}
+            >
+              Xoá
+            </button>
+          )}
+        </div>
+      ))}
+      <button type="button" className="nut nut-nhe" onClick={() => doi([...ds, ''])}>
+        {themNhan}
+      </button>
+    </div>
+  );
+}
 
 export function BieuMauKhachHang({
   khach,
@@ -109,6 +196,9 @@ export function BieuMauKhachHang({
   // mà người dùng cố ý bỏ trống.
   const coGiaTri = (v: string) => (v.trim() === '' ? undefined : v.trim());
 
+  /** Bỏ ô trống, cắt khoảng trắng. Dùng ở CẢ lượt gửi lẫn phép kiểm nút Lưu. */
+  const sach = (ds: string[]): string[] => ds.map((d) => d.trim()).filter((d) => d !== '');
+
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
     datLoi(null);
@@ -116,9 +206,10 @@ export function BieuMauKhachHang({
     try {
       const than = {
         name: g.name.trim(),
-        registeredAddress: g.registeredAddress.trim(),
+        // `sach()` bỏ ô trống và cắt khoảng trắng — đúng một chỗ, ở lượt gửi.
+        registeredAddresses: sach(g.registeredAddresses),
+        deliveryAddresses: sach(g.deliveryAddresses),
         ownerName: g.ownerName.trim(),
-        ...opt('deliveryAddress', coGiaTri(g.deliveryAddress)),
         ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
         ...opt('phone', coGiaTri(g.phone)),
         ...opt('idNumber', coGiaTri(g.idNumber)),
@@ -159,7 +250,7 @@ export function BieuMauKhachHang({
 
   const duGiaTri =
     g.name.trim() !== '' &&
-    g.registeredAddress.trim() !== '' &&
+    sach(g.registeredAddresses).length > 0 &&
     g.ownerName.trim() !== '' &&
     // Chọn *Khác* mà chưa gõ gì thì nút Lưu xám (`0138`) — máy chủ cũng chặn,
     // nhưng bắt người dùng bấm Lưu mới biết là bắt họ đi một vòng thừa.
@@ -232,27 +323,22 @@ export function BieuMauKhachHang({
             <input {...p} className="o-nhap" value={g.name} onChange={(e) => sua({ name: e.target.value })} />
           )}
         </Truong>
-        <Truong id="kh-dc-dk" nhan="Địa chỉ đăng ký" bắtBuộc>
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              value={g.registeredAddress}
-              onChange={(e) => sua({ registeredAddress: e.target.value })}
-            />
-          )}
-        </Truong>
-        <Truong id="kh-dc-gh" nhan="Địa chỉ giao hàng">
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              value={g.deliveryAddress}
-              placeholder="Để trống thì dùng địa chỉ đăng ký"
-              onChange={(e) => sua({ deliveryAddress: e.target.value })}
-            />
-          )}
-        </Truong>
+        <NhomDiaChi
+          id="kh-dc-dk"
+          nhan="Địa chỉ đăng ký"
+          bắtBuộc
+          ds={g.registeredAddresses}
+          doi={(ds) => sua({ registeredAddresses: ds })}
+          themNhan="Thêm địa chỉ đăng ký"
+        />
+        <NhomDiaChi
+          id="kh-dc-gh"
+          nhan="Địa chỉ giao hàng"
+          ds={g.deliveryAddresses}
+          doi={(ds) => sua({ deliveryAddresses: ds })}
+          themNhan="Thêm địa chỉ giao hàng"
+          goiY="Để trống thì dùng địa chỉ đăng ký"
+        />
         <Truong id="kh-nguoi" nhan="Người đại diện" bắtBuộc>
           {(p) => (
             <input

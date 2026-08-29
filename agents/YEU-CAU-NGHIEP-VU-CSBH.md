@@ -1549,6 +1549,21 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Một khách hàng có NHIỀU địa chỉ** `mới 29/08` — cả *Địa chỉ đăng ký* lẫn *Địa chỉ giao hàng* đều
+thêm được nhiều dòng, tối đa 50 mỗi loại. Phải còn **ít nhất một** địa chỉ đăng ký.
+
+> **Tờ CSBH và hợp đồng in HẾT, mỗi địa chỉ một dòng** — thứ tự in đúng thứ tự người dùng sắp trong
+> biểu mẫu, nên dòng đầu là địa chỉ đầu.
+>
+> **Thẻ ở danh sách khách hàng** chỉ hiện địa chỉ đầu kèm *+N địa chỉ khác*: thẻ ấy trả lời *"có phải
+> khách tôi đang tìm không"*, và ba dòng địa chỉ trên mỗi thẻ làm danh sách không đọc được nữa.
+>
+> Việc này **mở đường cho luật cấm trùng mã số thuế**: tới nay *"một chủ hộ nhiều điểm bán"* được làm
+> bằng cách lập nhiều khách hàng cùng MST, mỗi bản một địa chỉ. Từ đây nó là **một khách, nhiều địa
+> chỉ** — nên cấm trùng MST thôi chặn nhầm nghiệp vụ.
+>
+> Địa chỉ dán từ Word có ký tự xuống dòng thì hệ thống **gộp lại thành một dòng**, không báo lỗi.
+
 **Khối thông tin khách hàng: năm ô, Loại khách hàng ở cuối** `mới 29/08` — màn hình chi tiết khách
 hàng bày *Mã số thuế / CCCD* · *Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*.
 

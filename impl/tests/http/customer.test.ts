@@ -50,7 +50,7 @@ const base = (over: Record<string, unknown> = {}) => ({
   code: code(),
   name: 'Nha thuoc Minh Chau',
   customerType: 1,
-  registeredAddress: 'So 1 Lang Ha, Ha Noi',
+  registeredAddresses: ['So 1 Lang Ha, Ha Noi'],
   ownerName: 'Nguyen Van A',
   ...over, phone: '0900000000' });
 
@@ -197,8 +197,8 @@ describe('CUST-07 địa chỉ đăng ký khác nơi nhận hàng', () => {
     const r = await post(
       '/customers',
       base({
-        registeredAddress: 'So 1 Lang Ha, Ha Noi',
-        deliveryAddress: 'Kho so 5, Bac Ninh',
+        registeredAddresses: ['So 1 Lang Ha, Ha Noi'],
+        deliveryAddresses: ['Kho so 5, Bac Ninh'],
       }),
     );
     expect(r.status).toBe(201);
@@ -637,7 +637,7 @@ describe('CUST-17 tìm khách hàng', () => {
     const mst = '5566778899';
     await post(
       '/customers',
-      base({ name: 'Hieu thuoc Kim Lien', registeredAddress: 'Ngo 12 Kim Lien', idNumber: mst }),
+      base({ name: 'Hieu thuoc Kim Lien', registeredAddresses: ['Ngo 12 Kim Lien'], idNumber: mst }),
     );
 
     for (const q of ['Kim Lien', 'Ngo 12', mst]) {
@@ -905,5 +905,132 @@ describe('`0069` hồ sơ pháp lý chỉ của TDV phụ trách', () => {
         expect(r.status).toBe(200);
         expect((r.body as { objectKey?: string }[])[0]?.objectKey).toBeDefined();
       });
+  });
+});
+
+/**
+ * `0154` — MỘT KHÁCH HÀNG, NHIỀU ĐỊA CHỈ (chốt 29/08).
+ *
+ * Bảng `cus.customer_address` là nguồn sự thật; hai cột cũ trên `cus.customer`
+ * thành bản GỘP do trigger dựng, ngăn bằng ký tự xuống dòng. Cả hai dạng đều đi
+ * ra ngoài: chuỗi gộp cho `policy` và `document`, mảng cho màn hình sửa.
+ */
+describe('`0154` nhiều địa chỉ cho một khách hàng', () => {
+  it('lập khách với BA địa chỉ đăng ký — giữ đủ và giữ đúng thứ tự', async () => {
+    /*
+     * THỨ TỰ là dữ liệu nghiệp vụ, không phải trình bày: nó quyết định địa chỉ
+     * nào in ở dòng đầu trên tờ hợp đồng. Gửi lên một thứ tự không phải a-b-c để
+     * một phép sắp xếp lén nào đó lộ ra ngay.
+     */
+    const ds = ['C - So 3 Chua Boc', 'A - So 1 Lang Ha', 'B - So 2 Tay Son'];
+    const c = await post('/customers', base({ registeredAddresses: ds }));
+    expect(c.status).toBe(201);
+
+    const r = await get(`/customers/${c.body.id}`);
+    expect(r.body.registeredAddresses).toEqual(ds);
+  });
+
+  it('và cột GỘP mang đúng ba dòng ấy, ngăn bằng ký tự xuống dòng', async () => {
+    /*
+     * Đây là vế mà `policy` đóng băng và `document` in ra giấy. Nó phải khớp
+     * TỪNG KÝ TỰ với mảng: `setParagraphText` đổi `\n` thành `<w:br/>`, nên một
+     * dấu cách lẫn vào đây là hai địa chỉ dính liền trên tờ hợp đồng.
+     */
+    const ds = ['So 1 Lang Ha', 'So 2 Tay Son'];
+    const c = await post('/customers', base({ registeredAddresses: ds }));
+    const r = await get(`/customers/${c.body.id}`);
+    expect(r.body.registeredAddress).toBe(ds.join('\n'));
+  });
+
+  it('sửa thì GHI ĐÈ cả danh sách, không cộng dồn', async () => {
+    const c = await post('/customers', base({ registeredAddresses: ['Cu 1', 'Cu 2', 'Cu 3'] }));
+    const r = await patch(`/customers/${c.body.id}`, { registeredAddresses: ['Moi 1', 'Moi 2'] });
+    expect(r.status).toBe(200);
+    expect(r.body.registeredAddresses).toEqual(['Moi 1', 'Moi 2']);
+  });
+
+  it('KHÔNG gửi trường thì danh sách giữ nguyên — vắng mặt khác mảng rỗng', async () => {
+    /*
+     * Quy ước của mọi trường khác trong `PATCH` này, và nó phải đúng cả ở đây:
+     * một lượt sửa số điện thoại không được xoá mất địa chỉ của khách.
+     */
+    const c = await post('/customers', base({ registeredAddresses: ['Giu nguyen'] }));
+    const r = await patch(`/customers/${c.body.id}`, { phone: '0911111111' });
+    expect(r.body.registeredAddresses).toEqual(['Giu nguyen']);
+  });
+
+  it('nơi nhận hàng: mảng RỖNG là xoá hết, và đó là câu trả lời hợp lệ', async () => {
+    /*
+     * Chiều ngược của ca trên. Gộp "vắng mặt" với "rỗng" vào một nhánh là mất
+     * hẳn khả năng xoá dòng cuối cùng — đúng lỗi `0138` đã phải chữa cho
+     * `debtNote`, và lượt này dựng lại đúng hình dạng ấy ở một chỗ khác.
+     */
+    const c = await post('/customers', base({ deliveryAddresses: ['Kho A', 'Kho B'] }));
+    expect((await get(`/customers/${c.body.id}`)).body.deliveryAddresses).toEqual(['Kho A', 'Kho B']);
+
+    const r = await patch(`/customers/${c.body.id}`, { deliveryAddresses: [] });
+    expect(r.body.deliveryAddresses).toEqual([]);
+    // Cột gộp về NULL, không phải chuỗi rỗng: `0006` khai "để trống nghĩa là
+    // trùng địa chỉ đăng ký", và mọi chỗ dùng `coalesce` đọc hai thứ ấy khác nhau.
+    expect(r.body.deliveryAddress).toBeNull();
+  });
+
+  it('ô để trống bị bỏ đi, không thành một địa chỉ rỗng', async () => {
+    // Người dùng bấm *Thêm địa chỉ* rồi đổi ý là có một ô trống nằm lại trong
+    // biểu mẫu. Nó không được thành một dòng trắng trên tờ hợp đồng.
+    const c = await post('/customers', base({ registeredAddresses: ['That', '   ', ''] }));
+    expect(c.status).toBe(201);
+    expect((await get(`/customers/${c.body.id}`)).body.registeredAddresses).toEqual(['That']);
+  });
+
+  it('không còn địa chỉ nào thì TỪ CHỐI, không lưu một khách không có địa chỉ', async () => {
+    const r = await post('/customers', base({ registeredAddresses: ['  ', ''] }));
+    expect(r.status).toBe(400);
+  });
+
+  it('địa chỉ dán từ Word có XUỐNG DÒNG thì gộp lại, không trả 500', async () => {
+    /*
+     * Ràng buộc CSDL cấm `\n` trong một địa chỉ — phải cấm, vì cột gộp nối bằng
+     * chính ký tự ấy. Nhưng `str(1, 500)` ở controller cho nó đi qua, nên nếu
+     * tầng service không chuẩn hoá thì một thao tác dán hoàn toàn bình thường
+     * chạm thẳng vào chốt chặn và người dùng nhận `500`.
+     */
+    const c = await post('/customers', base({ registeredAddresses: ['So 1 Lang Ha\nBa Dinh, Ha Noi'] }));
+    expect(c.status).toBe(201);
+    const r = await get(`/customers/${c.body.id}`);
+    expect(r.body.registeredAddresses).toEqual(['So 1 Lang Ha Ba Dinh, Ha Noi']);
+  });
+
+  it('bảng địa chỉ là NGUỒN, hai cột cũ chỉ là bản gộp do trigger dựng', async () => {
+    /*
+     * Ca đối chiếu HAI TẦNG, và nó là ca duy nhất chứng minh cột kia thật sự
+     * dẫn xuất: ghi thẳng vào bảng địa chỉ bằng SQL — không qua API — rồi đòi
+     * cột gộp tự đổi theo. Nếu ai đó về sau gỡ trigger và quay lại ghi tay hai
+     * cột ấy trong service thì mọi ca trên vẫn xanh, còn ca này đỏ.
+     */
+    const c = await post('/customers', base({ registeredAddresses: ['Ban dau'] }));
+    await withAdminDb(async (db) => {
+      await db.query(
+        `INSERT INTO cus.customer_address (customer_id, kind, address, stt)
+         VALUES ($1, 'DANG_KY', 'Them bang SQL', 2)`,
+        [c.body.id],
+      );
+    });
+    const r = await get(`/customers/${c.body.id}`);
+    expect(r.body.registeredAddresses).toEqual(['Ban dau', 'Them bang SQL']);
+    expect(r.body.registeredAddress).toBe('Ban dau\nThem bang SQL');
+  });
+
+  it('xoá khách hàng thì địa chỉ đi theo, không để lại dòng mồ côi', async () => {
+    // `ON DELETE CASCADE`. Không có nó thì mỗi khách bị xoá để lại vài dòng
+    // trỏ vào một khoá không còn tồn tại — vô hình, và lớn dần.
+    const c = await post('/customers', base({ registeredAddresses: ['A', 'B'] }));
+    await withAdminDb((db) => db.query(`DELETE FROM cus.customer WHERE id = $1`, [c.body.id]));
+    const con = await withAdminDb((db) =>
+      db.query(`SELECT count(*)::int AS n FROM cus.customer_address WHERE customer_id = $1`, [
+        c.body.id,
+      ]),
+    );
+    expect((con.rows[0] as { n: number }).n).toBe(0);
   });
 });

@@ -87,7 +87,22 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P181** (`0153`): **khối thông tin khách hàng** → *Mã số thuế · Người đại diện · Số
+Chặng gần nhất **P182** (`0154`): **một khách hàng có nhiều địa chỉ** — bảng `cus.customer_address`
+là nguồn, hai cột cũ thành **bản gộp do trigger dựng**, ngăn bằng `\n`. Điểm quan trọng nhất là hai
+yêu cầu của khách **khoá vào nhau**: `0006` cho trùng MST có chủ ý với đúng lý do *"một chủ hộ nhiều
+điểm bán"*, nên nhiều-địa-chỉ phải đi TRƯỚC cấm-trùng-MST (`0155`), nếu không là bịt đường đi mà chưa
+mở đường thay thế. Giữ tên hai cột cũ khiến `policy`/`document`/`reporting` **không sửa dòng nào**
+(khuôn `0138`), và `setParagraphText` **đã** đổi `\n` → `<w:br/>` từ trước — chú thích của nó viết
+đúng chữ *"địa chỉ nhiều dòng"*. Ràng buộc **cấm `\n` trong một địa chỉ** là thứ khiến cột gộp tách
+ngược ra được, nên đọc mảng không cần truy vấn thêm. Ba chỗ tự dính: **backtick trong chú thích giữa
+template literal** (`CLAUDE.md` đã ghi, vẫn dính); **bỏ trống `$4`/`$5` để khỏi đánh số lại** — kèm cả
+một chú thích biện minh, mà Postgres đếm theo tham số cao nhất nên mọi `PATCH` trả 500; và
+`registered_address` `NOT NULL` **không có mặc định** nên thiếu `SET DEFAULT ''` là mọi lượt lập khách
+đều hỏng. Lộ thêm một khoảng hở có sẵn: `trong()` không biết mảng nên `[]` và `['']` lọt thành *"đã
+điền"*. Phá lại `DROP TRIGGER` cho **10 đỏ, gồm một ca TÌM KIẾM có sẵn từ trước** — chứng minh cột gộp
+đúng là thứ chỉ mục GIN đang dùng. **1930/1930 xanh.**
+
+Trước đó **P181** (`0153`): **khối thông tin khách hàng** → *Mã số thuế · Người đại diện · Số
 điện thoại · Công nợ · Loại khách hàng*, và **địa chỉ ra khỏi khối**. Điểm cả chặng: *"bỏ phần địa
 chỉ"* là bỏ khỏi **CHỖ BÀY**, không phải khỏi hệ thống — địa chỉ hiện ở HAI chỗ trên trang này, và
 **thẻ danh sách phải giữ** (hai khách trùng tên chỉ phân biệt được bằng nó, và ô tìm kiếm ngay trên

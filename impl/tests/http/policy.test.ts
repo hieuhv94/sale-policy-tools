@@ -98,7 +98,7 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
       code: uniq('KH'),
       name: 'Nha thuoc thu nghiem',
       customerType: 1,
-      registeredAddress: 'Ha Noi',
+      registeredAddresses: ['Ha Noi'],
       ownerName: 'Chu ho',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -4219,7 +4219,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       code: uniq('KHT'),
       name: 'Nha thuoc thieu truong',
       customerType: 1,
-      registeredAddress: 'Ha Noi',
+      registeredAddresses: ['Ha Noi'],
       ownerName: 'Chu ho',
       ownerTitle: 'Chu nha thuoc',
       idNumber: String(5100999999 + ++nMst), phone: '0900000000' };

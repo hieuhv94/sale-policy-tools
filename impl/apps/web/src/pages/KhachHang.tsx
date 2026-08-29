@@ -27,7 +27,9 @@ type KhachHangDto = {
   code: string;
   name: string;
   customerType: number;
+  /** Bản gộp nhiều dòng. Thẻ danh sách dùng mảng bên dưới (`0154`). */
   registeredAddress: string;
+  registeredAddresses: string[];
   idNumber: string | null;
   ownerName: string;
   phone: string | null;
@@ -87,7 +89,23 @@ export function DanhSachKhachHang() {
                   {k.code} · {nhanLoaiKhach(k.customerType)}
                 </span>
                 <strong>{k.name}</strong>
-                <span className="phu">{k.registeredAddress}</span>
+                {/*
+                  ĐỊA CHỈ ĐẦU cộng một con số, không phải cả danh sách (`0154`).
+
+                  Cột `registeredAddress` là chuỗi GỘP ngăn bằng `\n`. Đổ thẳng
+                  vào JSX thì HTML nuốt ký tự xuống dòng thành dấu cách và ba
+                  địa chỉ dính thành một dòng dài không đọc được — hỏng im lặng,
+                  vì với khách một địa chỉ thì nó vẫn đúng.
+
+                  Thẻ này trả lời *"có phải khách tôi đang tìm không"*, và địa
+                  chỉ đầu đủ để trả lời. Con số nói cho người đọc biết còn nữa,
+                  để họ không tưởng khách chỉ có một điểm.
+                */}
+                <span className="phu">
+                  {k.registeredAddresses[0] ?? '—'}
+                  {k.registeredAddresses.length > 1 &&
+                    ` · +${k.registeredAddresses.length - 1} địa chỉ khác`}
+                </span>
               </Lien>
             </li>
           ))}

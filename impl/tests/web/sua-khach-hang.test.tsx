@@ -48,6 +48,8 @@ const KHACH: KhachHangDayDu = {
   customerType: 1,
   registeredAddress: 'So 1 Lang Ha',
   deliveryAddress: null,
+  registeredAddresses: ['So 1 Lang Ha'],
+  deliveryAddresses: [],
   ownerName: 'Nguyen Van A',
   ownerTitle: null,
   idNumber: null,

@@ -38,6 +38,8 @@ const KHACH = {
   customerType: 1,
   registeredAddress: 'Ha Noi',
   deliveryAddress: null,
+  registeredAddresses: ['Ha Noi'],
+  deliveryAddresses: [],
   ownerName: 'Chu ho',
   ownerTitle: null,
   idNumber: null,

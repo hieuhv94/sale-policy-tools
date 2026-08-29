@@ -236,7 +236,7 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
       code,
       name: CUSTOMER_NAME,
       customerType: 1,
-      registeredAddress: ADDRESS_1,
+      registeredAddresses: [ADDRESS_1],
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -982,7 +982,7 @@ describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => 
     const upd = await (await http(customer))
       .patch(`/customers/${d.customerId}`)
       .set('Authorization', `Bearer ${tok['sa01']}`)
-      .send({ registeredAddress: ADDRESS_2 });
+      .send({ registeredAddresses: [ADDRESS_2] });
     expect(upd.status).toBe(200);
 
     const second = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer);

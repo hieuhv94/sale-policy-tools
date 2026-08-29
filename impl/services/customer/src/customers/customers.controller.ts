@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   CurrentUser,
+  danhSach,
   int,
   money,
   oneOf,
@@ -85,10 +86,25 @@ export class CustomersController {
       name: str(1, 300),
       // Loại khách hàng chỉ có ba giá trị (CUST-06).
       customerType: int(1, 3),
-      registeredAddress: str(1, 500),
+      /*
+       * ĐỊA CHỈ LÀ MỘT DANH SÁCH (`0154`, chốt 29/08) — trước là một chuỗi.
+       *
+       * `danhSach` chặn trần 50 dòng. Con số ấy không phải để tiết kiệm chỗ mà
+       * để chặn một biểu mẫu hỏng: mỗi địa chỉ in thêm một dòng lên tờ hợp đồng,
+       * và một khách hàng có năm mươi điểm bán là chuyện phải gọi điện hỏi lại
+       * chứ không phải chuyện lặng lẽ in ra bốn trang giấy.
+       */
+      // `str(0, …)` — Ô TRỐNG ĐI QUA ĐƯỢC, và phép lọc nằm ở service.
+      //
+      // Mảng này là một cấu trúc của biểu mẫu: người dùng bấm *Thêm địa chỉ* rồi
+      // đổi ý là có một ô trống nằm lại. Từ chối cả yêu cầu vì một ô ấy là hành
+      // vi thù địch, và câu lỗi sẽ nói *"phải có tối thiểu 1 ký tự"* về một ô
+      // người ta cố ý để trống. Luật thật — *"phải còn ít nhất một địa chỉ SAU
+      // KHI bỏ ô trống"* — là luật của cả danh sách, nên nó ở `assertDiaChi`.
+      registeredAddresses: danhSach(str(0, 500)),
       ownerName: str(1, 200),
       idNumber: opt(taxId()),
-      deliveryAddress: opt(str(1, 500)),
+      deliveryAddresses: opt(danhSach(str(0, 500))),
       ownerTitle: opt(str(1, 120)),
       phone: opt(str(1, 30)),
       ownerIdNumber: opt(str(1, 60)),
@@ -123,8 +139,15 @@ export class CustomersController {
        * khoá sửa được nên chúng không đổi số dưới tay người duyệt.
        */
       customerType: opt(int(1, 3)),
-      registeredAddress: opt(str(1, 500)),
-      deliveryAddress: opt(str(1, 500)),
+      /*
+       * `0154` — vắng mặt = không đụng tới; mảng RỖNG = xoá hết.
+       *
+       * Hai nghĩa khác nhau, và `opt()` giữ được cả hai vì nó phân biệt "vắng
+       * mặt" với "có mặt mà rỗng". Gộp chúng lại là mất khả năng xoá dòng cuối —
+       * đúng lỗi `0138` đã phải chữa cho `debtNote`.
+       */
+      registeredAddresses: opt(danhSach(str(0, 500))),
+      deliveryAddresses: opt(danhSach(str(0, 500))),
       ownerName: opt(str(1, 200)),
       ownerTitle: opt(str(1, 120)),
       phone: opt(str(1, 30)),

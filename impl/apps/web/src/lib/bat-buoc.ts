@@ -32,7 +32,7 @@ export type TenBieuMau =
 
 export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nguoi-dung': ['email', 'username', 'fullName', 'role'],
-  'khach-hang': ['code', 'name', 'customerType', 'registeredAddress', 'ownerName'],
+  'khach-hang': ['code', 'name', 'customerType', 'registeredAddresses', 'ownerName'],
   'san-pham': ['code', 'name', 'groupCode', 'price'],
   gia: ['amount'],
   'nhom-san-pham': ['code', 'name'],
@@ -66,8 +66,22 @@ export const CHAT_HON: Partial<Record<TenBieuMau, readonly string[]>> = {
 export const batBuoc = (bieuMau: TenBieuMau, truong: string): boolean =>
   BAT_BUOC[bieuMau].includes(truong);
 
+/**
+ * Một ô coi như CHƯA ĐIỀN.
+ *
+ * MẢNG tính riêng (`0154`). Từ lượt địa chỉ thành danh sách, một trường bắt
+ * buộc có thể là `string[]`, và không có nhánh này thì `[]` lẫn `['']` đều lọt
+ * qua — cả hai đều không phải chuỗi, không phải `null`, nên phép kiểm cũ trả về
+ * *"đã điền"*. Hệ quả: nút *Lưu* sáng lên với một biểu mẫu chỉ có ô địa chỉ
+ * trống, người dùng bấm, và máy chủ trả 400 về một ô họ tưởng đã điền.
+ *
+ * Lọc từng phần tử bằng chính phép kiểm này, nên `['', '  ']` cũng là trống.
+ */
 const trong = (v: unknown): boolean =>
-  v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+  v === undefined ||
+  v === null ||
+  (typeof v === 'string' && v.trim() === '') ||
+  (Array.isArray(v) && v.every((x) => trong(x)));
 
 /**
  * Những trường bắt buộc còn để trống. Rỗng nghĩa là gửi được.

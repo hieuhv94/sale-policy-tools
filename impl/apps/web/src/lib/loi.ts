@@ -239,6 +239,10 @@ export const NHAN_TRUONG: Record<string, string> = {
   priceType: 'Loại giá',
   productGroupCode: 'Nhóm sản phẩm',
   registeredAddress: 'Địa chỉ đăng ký',
+  // `0154` — máy chủ báo lỗi theo tên trường MỚI (mảng); giữ cả tên cũ vì nhật
+  // ký kiểm toán của những lượt sửa trước vẫn mang nó.
+  registeredAddresses: 'Địa chỉ đăng ký',
+  deliveryAddresses: 'Địa chỉ giao hàng',
   role: 'Vai trò',
   status: 'Trạng thái',
   thresholdRate2: 'Ngưỡng chiết khấu',
@@ -416,6 +420,12 @@ export const BANG_LOI: Record<string, Muc> = {
    */
   DEBT_NOTE_REQUIRED: { dang: 'o-nhap', tuMayChu: true },
   DEBT_NOTE_NOT_ALLOWED: { dang: 'o-nhap', tuMayChu: true },
+  /*
+   * `0154` — dưới Ô, không phải hộp thoại: người dùng vừa xoá dòng địa chỉ cuối
+   * cùng, và việc phải làm tiếp là gõ vào đúng ô ấy. Máy chủ dựng sẵn câu, và nó
+   * kèm `field` nên câu lỗi rơi đúng vào nhóm ô địa chỉ đăng ký.
+   */
+  CUSTOMER_ADDRESS_REQUIRED: { dang: 'o-nhap', truong: 'registeredAddresses', tuMayChu: true },
   CUSTOMER_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_ALREADY_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_HAS_POLICY: { dang: 'hop-thoai', tuMayChu: true },

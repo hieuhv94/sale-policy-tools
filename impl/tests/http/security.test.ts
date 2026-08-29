@@ -617,7 +617,7 @@ describe('AUD-08 thao tác vượt quyền bị từ chối', () => {
         code: uniq('KH'),
         name: 'Nhà thuốc Minh Châu',
         customerType: 1,
-        registeredAddress: 'Số 8 Tôn Thất Thuyết, Hà Nội',
+        registeredAddresses: ['Số 8 Tôn Thất Thuyết, Hà Nội'],
         ownerName: 'Trần Thị Mỹ Hạnh',
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.

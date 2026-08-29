@@ -233,7 +233,7 @@ describe('`0090` tên người đi TỪ NGỮ CẢNH vào sự kiện', () => {
         code: ma,
         customerType: 1,
         name: 'Nha thuoc kiem thu 0090',
-        registeredAddress: 'Ha Noi',
+        registeredAddresses: ['Ha Noi'],
         ownerName: 'Chu ho',
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.

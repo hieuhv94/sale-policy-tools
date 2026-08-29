@@ -38,6 +38,8 @@ const KHACH = {
   customerType: 1,
   registeredAddress: 'So 1 Lang Ha, Ba Dinh, Ha Noi',
   deliveryAddress: null,
+  registeredAddresses: ['So 1 Lang Ha, Ba Dinh, Ha Noi'],
+  deliveryAddresses: [],
   ownerName: 'Tran Thi B',
   ownerTitle: null,
   idNumber: '0101234567',
@@ -161,7 +163,17 @@ describe('`0153` khối thông tin khách hàng', () => {
       'apps/web/src/pages/KhachHang.tsx',
       'utf8',
     );
-    expect(ma).toContain('{k.registeredAddress}');
+    /*
+     * `0154` đổi CÁCH in chứ không bỏ: thẻ in địa chỉ ĐẦU cộng một con số, vì
+     * cột gộp mang nhiều dòng và HTML nuốt `\n` thành dấu cách.
+     *
+     * Ca này đã bắt được đúng lượt ấy — nó đỏ khi `{k.registeredAddress}` biến
+     * mất, và đó là việc nó sinh ra để làm. Nới nó ra thành *"có chữ address ở
+     * đâu đó"* là bỏ mất khả năng ấy; giữ nguyên độ chặt, chỉ đổi sang biểu thức
+     * thật đang dùng.
+     */
+    expect(ma).toContain('{k.registeredAddresses[0]');
+    expect(ma).toContain('địa chỉ khác');
     expect(ma).toContain('Tìm theo tên, địa chỉ hoặc mã số thuế');
   });
 });

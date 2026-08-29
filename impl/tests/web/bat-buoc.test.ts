@@ -146,7 +146,7 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
     code: 'KH001',
     name: 'Nha thuoc A',
     customerType: 1,
-    registeredAddress: '12 Ly Thuong Kiet',
+    registeredAddresses: ['12 Ly Thuong Kiet'],
     ownerName: 'Nguyen Van A',
   };
 
@@ -166,6 +166,26 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
 
   it('thiếu hẳn khoá cũng tính là trống', () => {
     expect(thieuTruong('khach-hang', {})).toEqual([...BAT_BUOC['khach-hang']]);
+  });
+
+  it('`0154` mảng địa chỉ RỖNG hoặc toàn ô trắng tính là chưa điền', () => {
+    /*
+     * Không có nhánh mảng trong `trong()` thì cả hai trường hợp dưới đây đều
+     * lọt: chúng không phải chuỗi, không phải null, nên phép kiểm cũ trả về
+     * *"đã điền"*. Nút Lưu sáng lên với một biểu mẫu chưa có địa chỉ nào.
+     */
+    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: [] })).toEqual([
+      'registeredAddresses',
+    ]);
+    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: ['', '  '] })).toEqual([
+      'registeredAddresses',
+    ]);
+  });
+
+  it('nhưng CÓ một dòng thật thì đủ, dù kèm dòng trống', () => {
+    // Người dùng bấm *Thêm địa chỉ* rồi đổi ý là có một ô trống nằm lại. Ô ấy bị
+    // bỏ đi ở lượt gửi, nên nó không được làm nút Lưu tắt.
+    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: ['12 Ly Thuong Kiet', ''] })).toEqual([]);
   });
 
   it('số 0 và giá trị false KHÔNG bị coi là trống', () => {

@@ -98,7 +98,7 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
       code: uniq('KH'),
       name: 'Nha thuoc thu nghiem',
       customerType: 1,
-      registeredAddress: 'Ha Noi',
+      registeredAddresses: ['Ha Noi'],
       ownerName: 'Chu ho',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -611,7 +611,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
         code: uniq('KH'),
         name: 'Nha thuoc ban giao',
         customerType: 1,
-        registeredAddress: 'Ha Noi',
+        registeredAddresses: ['Ha Noi'],
         ownerName: 'Chu ho',
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.

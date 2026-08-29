@@ -441,6 +441,28 @@ Khối thông tin trên màn hình chi tiết bày **năm ô, theo thứ tự** 
 *Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*. Bốn ô đầu là thứ đi thẳng vào
 hợp đồng; *Loại khách hàng* xuống cuối vì nó là một phân loại chứ không phải thông tin liên hệ.
 
+### Nhiều địa chỉ cho một khách hàng `mới 29/08`
+
+Cả *Địa chỉ đăng ký* và *Địa chỉ giao hàng* đều thêm được **nhiều dòng**: bấm **Thêm địa chỉ đăng ký**
+hoặc **Thêm địa chỉ giao hàng** trong hộp *Lập* / *Sửa khách hàng*, và mỗi dòng có nút **Xoá** riêng.
+
+| | |
+| --- | --- |
+| Bắt buộc | **Ít nhất một** địa chỉ đăng ký. Nút *Xoá* biến mất khi chỉ còn một dòng |
+| Tối đa | 50 dòng mỗi loại |
+| Thứ tự | Đúng thứ tự trên biểu mẫu, và **đó là thứ tự in ra giấy** |
+| Ô trống | Bấm *Thêm* rồi đổi ý thì cứ để trống — ô trống bị bỏ đi lúc lưu, không thành một dòng trắng |
+| Dán từ Word | Địa chỉ có ký tự xuống dòng được **gộp thành một dòng**, không báo lỗi |
+
+**Tờ CSBH và hợp đồng in đủ mọi địa chỉ**, mỗi cái một dòng.
+
+**Thẻ ở danh sách khách hàng** chỉ hiện địa chỉ đầu kèm *+2 địa chỉ khác*. Thẻ ấy để bạn nhận ra đúng
+khách cần tìm; muốn xem đủ thì mở khách ra rồi bấm *Sửa*.
+
+> **Vì sao có tính năng này**: trước ngày 29/08, một chủ hộ mở nhiều điểm bán phải lập **nhiều khách
+> hàng** cùng mã số thuế, mỗi bản một địa chỉ — nên lịch sử CSBH của cùng một người bị cắt làm nhiều
+> mảnh. Giờ đó là **một khách hàng**.
+
 > **Địa chỉ đăng ký không còn trong khối ấy** `sửa 29/08`, nhưng **không mất khỏi hệ thống**. Nó vẫn
 > bắt buộc lúc lập khách hàng, vẫn sửa được trong hộp *Sửa*, vẫn **in trên tờ CSBH và hợp đồng**, và
 > vẫn hiện ngay dưới tên khách trên **từng thẻ ở danh sách** — chỗ ấy giữ, vì hai khách trùng tên chỉ

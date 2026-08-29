@@ -115,7 +115,7 @@ const makeCustomer = async () => {
       code: uniq('KH'),
       name: 'Nhà thuốc Minh Châu',
       customerType: 1,
-      registeredAddress: 'Số 8 Tôn Thất Thuyết, Hà Nội',
+      registeredAddresses: ['Số 8 Tôn Thất Thuyết, Hà Nội'],
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -296,7 +296,7 @@ describe('AUD-02 sửa một trường quan trọng', () => {
     const upd = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ registeredAddress: after });
+      .send({ registeredAddresses: [after] });
     expect(upd.status, JSON.stringify(upd.body)).toBe(200);
 
     await flush();

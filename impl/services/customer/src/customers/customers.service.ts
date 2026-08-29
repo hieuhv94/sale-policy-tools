@@ -12,14 +12,36 @@ import { PolicyClient } from '../infra/policy.client.js';
 import { DocumentClient } from '../infra/document.client.js';
 import { cauNo, loiDieuKhoan, type DieuKhoanNo } from './dieu-khoan.js';
 
+/**
+ * Ngăn cách giữa các địa chỉ trong hai cột GỘP (`0154`).
+ *
+ * Cùng một ký tự mà `cus.gop_dia_chi()` dùng để nối và tầng này dùng để tách —
+ * khai một chỗ, vì hai bên lệch nhau là một khách hàng bốn địa chỉ đọc ra thành
+ * một chuỗi dài. Ràng buộc `dia_chi_mot_dong` cấm ký tự này nằm trong một địa
+ * chỉ, nên phép nối là không mất mát và phép tách trả về đúng mảng gốc.
+ */
+const NGAN_DIA_CHI = '\n';
+
+/** Cột gộp → mảng. Chuỗi rỗng và `null` đều ra mảng rỗng, không ra `['']`. */
+export const tachDiaChi = (gop: string | null): string[] =>
+  gop === null || gop.trim() === '' ? [] : gop.split(NGAN_DIA_CHI);
+
 export type CustomerInput = {
   code: string;
   name: string;
   customerType: number;
-  registeredAddress: string;
+  /**
+   * Địa chỉ đăng ký — MỘT HOẶC NHIỀU (`0154`, chốt 29/08).
+   *
+   * Mảng chứ không chuỗi, và bắt buộc ít nhất một: `cus.customer.registered_address`
+   * là `NOT NULL` từ `0006`, và một khách hàng không có địa chỉ nào thì tờ hợp
+   * đồng in ra không có bên mua.
+   */
+  registeredAddresses: string[];
   ownerName: string;
   idNumber?: string | undefined;
-  deliveryAddress?: string | undefined;
+  /** Nơi nhận hàng — không bắt buộc; mảng rỗng nghĩa là trùng địa chỉ đăng ký. */
+  deliveryAddresses?: string[] | undefined;
   ownerTitle?: string | undefined;
   ownerIdNumber?: string | undefined;
   /** Số điện thoại liên hệ (`0128`). `undefined` được — khách cũ chưa ai khai. */
@@ -77,14 +99,83 @@ export class CustomersService {
     private readonly documents: DocumentClient,
   ) {}
 
+  /**
+   * PHẢI CÒN ÍT NHẤT MỘT địa chỉ đăng ký sau khi bỏ ô trống (`0154`).
+   *
+   * Luật của CẢ DANH SÁCH, nên nó không phát biểu được bằng một bộ kiểm theo
+   * từng phần tử — cùng lý do `assertDieuKhoan` phải tồn tại. Controller cho ô
+   * trống đi qua có chủ ý; chỗ duy nhất biết *"sau khi lọc còn gì không"* là đây.
+   *
+   * `undefined` thì bỏ qua: lượt `PATCH` không nói tới địa chỉ thì không đụng
+   * tới chúng, và bắt mọi lượt sửa số điện thoại phải gửi kèm địa chỉ là biến
+   * một trường tuỳ chọn thành bắt buộc.
+   */
+  private assertDiaChi(ds: string[] | undefined): void {
+    if (ds === undefined) return;
+    if (ds.some((d) => d.trim() !== '')) return;
+    throw new BadRequestException({
+      code: 'CUSTOMER_ADDRESS_REQUIRED',
+      message: 'Khách hàng phải có ít nhất một địa chỉ đăng ký.',
+      field: 'registeredAddresses',
+    });
+  }
+
   /** Luật ở `dieu-khoan.ts`, cạnh chính bảng từ vựng nó kiểm (`0138`). */
   private assertDieuKhoan(term: string | undefined, note: string | undefined): void {
     const l = loiDieuKhoan(term, note);
     if (l) throw new BadRequestException(l);
   }
 
+  /**
+   * Ghi lại TOÀN BỘ địa chỉ một loại của một khách hàng (`0154`).
+   *
+   * XOÁ HẾT RỒI CHÈN LẠI, không so từng dòng để sửa tại chỗ. Địa chỉ không mang
+   * khoá nghiệp vụ nào — hai dòng cùng nội dung là hai dòng không phân biệt
+   * được — nên "sửa dòng thứ hai" và "xoá dòng hai, thêm một dòng mới" là cùng
+   * một việc. Ghi đè trọn vẹn thì thứ tự người dùng sắp luôn là thứ tự lưu, và
+   * không có nhánh nào để lệch.
+   *
+   * `stt` đánh từ 1 theo đúng thứ tự mảng gửi lên: đó là thứ tự in ra giấy.
+   *
+   * Trigger `tr_gop_dia_chi` dựng lại hai cột gộp sau mỗi lượt ghi, nên KHÔNG
+   * chỗ nào ở đây đụng tới `registered_address`/`delivery_address`.
+   */
+  private async ghiDiaChi(
+    c: { query: (sql: string, params?: unknown[]) => Promise<unknown> },
+    customerId: string,
+    kind: 'DANG_KY' | 'NHAN_HANG',
+    dsChua: string[],
+  ): Promise<void> {
+    /*
+     * GỘP MỌI KHOẢNG TRẮNG thành một dấu cách, kể cả xuống dòng.
+     *
+     * Ràng buộc `dia_chi_mot_dong` cấm `\n` trong một địa chỉ — phải cấm, vì hai
+     * cột gộp nối bằng chính ký tự ấy. Nhưng `str(1, 500)` ở controller CHO
+     * PHÉP `\n` đi qua, nên một người dán địa chỉ hai dòng từ Word sẽ chạm thẳng
+     * vào chốt chặn CSDL và nhận **500** — một mã lỗi không nói gì về việc phải
+     * làm, cho một thao tác hoàn toàn hợp lý.
+     *
+     * Chuẩn hoá thay vì từ chối: người dùng muốn nói một địa chỉ, và ký tự xuống
+     * dòng ở đây là chuyện trình bày chứ không phải nội dung. Cùng phép biến đổi
+     * mà migration `0109` dùng để chuyển dữ liệu cũ.
+     */
+    const ds = dsChua.map((d) => d.replace(/\s+/g, ' ').trim()).filter((d) => d !== '');
+    await c.query(`DELETE FROM cus.customer_address WHERE customer_id = $1 AND kind = $2`, [
+      customerId,
+      kind,
+    ]);
+    if (ds.length === 0) return;
+    await c.query(
+      `INSERT INTO cus.customer_address (customer_id, kind, address, stt)
+       SELECT $1, $2::cus.address_kind, d.address, d.stt
+         FROM unnest($3::text[]) WITH ORDINALITY AS d(address, stt)`,
+      [customerId, kind, ds],
+    );
+  }
+
   async create(input: CustomerInput, me: AuthUser) {
     this.assertDieuKhoan(input.debtTerm, input.debtNote);
+    this.assertDiaChi(input.registeredAddresses);
     // Trùng CCCD/MST thì VẪN LƯU, chỉ kèm cảnh báo: một chủ hộ mở nhiều điểm
     // bán là nghiệp vụ có thật (CUST-05).
     const duplicates = await this.findByIdNumber(input.idNumber);
@@ -96,19 +187,25 @@ export class CustomersService {
     const row = await this.db.tx(async (c) => {
       const r = await c
         .query<Row>(
+          /*
+           * `registered_address` và `delivery_address` KHÔNG nằm trong câu này
+           * nữa (`0154`) — chúng là cột dẫn xuất, do trigger dựng từ
+           * `cus.customer_address` ngay dưới. Cột đầu là `NOT NULL` nên nó nhận
+           * mặc định `''` của lược đồ trong khoảnh khắc giữa hai câu lệnh; cả
+           * hai nằm trong CÙNG transaction nên không lượt đọc nào thấy khoảng
+           * giữa ấy.
+           */
           `INSERT INTO cus.customer
-             (code, name, id_number, customer_type, registered_address, delivery_address,
+             (code, name, id_number, customer_type,
               owner_name, owner_title, owner_id_number, phone, debt_term, debt_note,
               tdv_user_id, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
            RETURNING *`,
           [
             input.code,
             input.name,
             input.idNumber ?? null,
             input.customerType,
-            input.registeredAddress,
-            input.deliveryAddress ?? null,
             input.ownerName,
             input.ownerTitle ?? null,
             input.ownerIdNumber ?? null,
@@ -126,18 +223,32 @@ export class CustomersService {
           throw e;
         });
       const created = r.rows[0]!;
+
+      /*
+       * Địa chỉ ghi NGAY SAU dòng khách hàng, trong cùng transaction (`0154`).
+       *
+       * Trigger dựng lại hai cột gộp, nên `created` trong tay đã CŨ — nó là bản
+       * `RETURNING *` chụp trước lượt ghi địa chỉ, và hai cột gộp của nó còn
+       * rỗng. Phải đọc lại dòng, nếu không thì `after` trong nhật ký và giá trị
+       * trả về cho màn hình đều nói rằng khách hàng vừa lập không có địa chỉ nào.
+       */
+      await this.ghiDiaChi(c, created.id, 'DANG_KY', input.registeredAddresses);
+      await this.ghiDiaChi(c, created.id, 'NHAN_HANG', input.deliveryAddresses ?? []);
+      const sau = (await c.query<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [created.id]))
+        .rows[0]!;
+
       await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
         'customer.created',
         JSON.stringify(kemNguCanh({
           entity: 'customer',
-          id: created.id,
-          customerId: created.id,
+          id: sau.id,
+          customerId: sau.id,
           actorId: me.id,
-          after: toDto(created),
+          after: toDto(sau),
           at: new Date().toISOString(),
         })),
       ]);
-      return created;
+      return sau;
     });
 
     return { ...toDto(row), duplicateIdNumberWith: duplicates };
@@ -209,6 +320,7 @@ export class CustomersService {
     me: AuthUser,
   ) {
     this.assertDieuKhoan(patch.debtTerm, patch.debtNote);
+    this.assertDiaChi(patch.registeredAddresses);
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
     await this.assertInScope(cur.tdv_user_id, me, id);
@@ -240,19 +352,29 @@ export class CustomersService {
     }
 
     return this.db.tx(async (c) => {
-      const r = await c.query<Row>(
+      // Không giữ `RETURNING *` vào biến nữa (`0154`): lượt ghi địa chỉ ngay
+      // dưới làm trigger dựng lại hai cột gộp, nên bản chụp ở đây đã cũ.
+      await c.query<Row>(
         `UPDATE cus.customer SET
-            customer_type      = coalesce($11, customer_type),
+            customer_type      = coalesce($9, customer_type),
             name               = coalesce($2, name),
             id_number          = coalesce($3, id_number),
-            registered_address = coalesce($4, registered_address),
-            delivery_address   = coalesce($5, delivery_address),
-            owner_name         = coalesce($6, owner_name),
-            owner_title        = coalesce($7, owner_title),
-            owner_id_number    = coalesce($8, owner_id_number),
-            debt_term          = coalesce($9, debt_term),
-            tdv_user_id        = coalesce($10, tdv_user_id),
-            phone              = coalesce($12, phone),
+            -- registered_address / delivery_address KHONG con o day (0154):
+            -- chung la cot dan xuat, ghi qua ghiDiaChi roi trigger dung lai.
+            --
+            -- Da DANH SO LAI ca danh sach, khong bo trong $4/$5: Postgres dem
+            -- theo tham so cao nhat duoc tham chieu, nen gui 13 gia tri cho mot
+            -- cau chi dung 11 la loi bind — moi luot PATCH tra 500.
+            --
+            -- (Khong dau backtick trong khoi nay: ca cau SQL nam trong mot
+            --  template literal, va mot backtick cat dut chuoi — bay da ghi o
+            --  CLAUDE.md, va vua dinh lai o dung luot nay.)
+            owner_name         = coalesce($4, owner_name),
+            owner_title        = coalesce($5, owner_title),
+            owner_id_number    = coalesce($6, owner_id_number),
+            debt_term          = coalesce($7, debt_term),
+            tdv_user_id        = coalesce($8, tdv_user_id),
+            phone              = coalesce($10, phone),
             -- debt_note KHONG dung coalesce (0138). Doi tu *Khac* sang phuong an
             -- 1 hay 2 thi phan go tay phai BIEN MAT; coalesce giu no lai, va no
             -- nam im trong CSDL cho toi ngay ai do doi nguoc ve *Khac* va thay
@@ -262,17 +384,15 @@ export class CustomersService {
             -- (Chu thich nay khong dung dau backtick: ca khoi SQL nam trong mot
             --  template literal cua TypeScript, va mot dau backtick o day cat
             --  dut chuoi — da dinh mot lan.)
-            debt_note          = CASE WHEN $13 = '' THEN debt_note
-                                      WHEN $13 = '-' THEN NULL
-                                      ELSE $13 END,
+            debt_note          = CASE WHEN $11 = '' THEN debt_note
+                                      WHEN $11 = '-' THEN NULL
+                                      ELSE $11 END,
             updated_at         = now()
           WHERE id = $1 RETURNING *`,
         [
           id,
           patch.name ?? null,
           patch.idNumber ?? null,
-          patch.registeredAddress ?? null,
-          patch.deliveryAddress ?? null,
           patch.ownerName ?? null,
           patch.ownerTitle ?? null,
           patch.ownerIdNumber ?? null,
@@ -284,7 +404,22 @@ export class CustomersService {
           patch.debtTerm === undefined ? '' : (patch.debtNote ?? '-'),
         ],
       );
-      const after = r.rows[0]!;
+      /*
+       * Địa chỉ ghi RIÊNG, và chỉ khi lượt sửa có nói tới chúng (`0154`).
+       *
+       * `undefined` = không đụng tới, đúng quy ước của mọi trường khác trong
+       * `PATCH` này. Mảng RỖNG thì khác hẳn: nó là *"xoá hết nơi nhận hàng"*, và
+       * `ghiDiaChi` làm đúng thế. Gộp hai thứ ấy vào một nhánh là mất khả năng
+       * xoá dòng cuối cùng — đúng lỗi mà `0138` đã phải chữa cho `debt_note`.
+       */
+      if (patch.registeredAddresses !== undefined) {
+        await this.ghiDiaChi(c, id, 'DANG_KY', patch.registeredAddresses);
+      }
+      if (patch.deliveryAddresses !== undefined) {
+        await this.ghiDiaChi(c, id, 'NHAN_HANG', patch.deliveryAddresses);
+      }
+      // Đọc lại: trigger vừa dựng lại hai cột gộp, nên `RETURNING *` ở trên đã cũ.
+      const after = (await c.query<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id])).rows[0]!;
       // Nhật ký ghi giá trị trước và sau (CUST-15). Đi qua outbox vì role
       // csbh_cus không có quyền ghi vào schema aud.
       await c.query(`INSERT INTO cus.outbox (routing_key, payload) VALUES ($1,$2::jsonb)`, [
@@ -596,8 +731,25 @@ const toDto = (r: Row) => ({
   name: r.name,
   idNumber: r.id_number,
   customerType: r.customer_type,
+  /*
+   * HAI DẠNG của cùng một dữ liệu, và cả hai đều có người dùng thật (`0154`).
+   *
+   * `registeredAddress` / `deliveryAddress` — CHUỖI GỘP, nhiều dòng. Đây là thứ
+   * `policy` đóng băng vào hồ sơ và `document` in ra giấy; `setParagraphText`
+   * đổi `\n` thành `<w:br/>` nên chuỗi này lên giấy thành nhiều dòng mà không ai
+   * phải sửa gì. Giữ nguyên tên cũ chính là điều khiến ba service sau không phải
+   * đổi một dòng nào — cùng cách `0138` đã làm với `debt`.
+   *
+   * `registeredAddresses` / `deliveryAddresses` — MẢNG, cho màn hình sửa. Tách
+   * tại chỗ từ chính cột gộp chứ không truy vấn thêm: ràng buộc
+   * `dia_chi_mot_dong` cấm `\n` nằm trong một địa chỉ, nên phép tách trả về đúng
+   * mảng gốc. Truy vấn thêm sẽ là một lượt gọi cho mỗi dòng ở màn hình danh
+   * sách — N+1 ở đúng chỗ đông dòng nhất.
+   */
   registeredAddress: r.registered_address,
   deliveryAddress: r.delivery_address,
+  registeredAddresses: tachDiaChi(r.registered_address),
+  deliveryAddresses: tachDiaChi(r.delivery_address),
   ownerName: r.owner_name,
   ownerTitle: r.owner_title,
   ownerIdNumber: r.owner_id_number,

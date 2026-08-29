@@ -182,7 +182,7 @@ async function makeCustomer(o: CustomerOpts = {}): Promise<{ id: string; code: s
       code,
       name: o.name ?? 'Nhà thuốc Minh Châu',
       customerType: 1,
-      registeredAddress: o.address ?? 'Số 8 Tôn Thất Thuyết, Hà Nội',
+      registeredAddresses: [o.address ?? 'Số 8 Tôn Thất Thuyết, Hà Nội'],
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -1405,7 +1405,7 @@ describe('Read-model đồng bộ đúng khi sự kiện giao lại hoặc hồ 
     const patch = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ registeredAddress: 'Số 99 Lý Thường Kiệt, Hải Phòng' });
+      .send({ registeredAddresses: ['Số 99 Lý Thường Kiệt, Hải Phòng'] });
     expect(patch.status).toBe(200);
 
     await cusOutbox.pumpOnce();

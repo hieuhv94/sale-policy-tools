@@ -13594,3 +13594,100 @@ chuỗi địa chỉ vẫn là đưa địa chỉ trở lại khối.
 | Gỡ địa chỉ khỏi THẺ DANH SÁCH (cách hiểu sai) | 1 đỏ |
 
 **1918/1918 xanh.**
+
+## P182 — `0154` một khách hàng, nhiều địa chỉ
+
+Người dùng đưa hai gạch đầu dòng: *"MST không được trùng"* và *"có thể thêm
+nhiều địa chỉ cho một khách hàng"*. Chúng trông như hai việc rời nhau. Chúng
+không phải.
+
+### Hai yêu cầu ấy khoá vào nhau, và thứ tự là bắt buộc
+
+`0006` cho phép trùng mã số thuế **có chủ ý**, và chú thích của nó nêu đúng MỘT
+lý do: *"một chủ hộ mở nhiều điểm bán là chuyện có thật, chặn cứng là chặn nhầm
+nghiệp vụ"* (CUST-05).
+
+Nghĩa là tới hôm nay, *"nhiều điểm bán"* được làm bằng cách dựng **nhiều khách
+hàng cùng MST**, mỗi bản một địa chỉ — và lịch sử CSBH của cùng một người bị cắt
+làm nhiều mảnh. Yêu cầu thứ hai lấy đi nhu cầu ấy. Chỉ sau khi có nó thì cấm
+trùng MST mới là siết một đường thừa; làm ngược lại là bịt đường đi mà chưa mở
+đường thay thế. Nên `0155` đi sau, không đi trước.
+
+### Hai cột cũ Ở LẠI, và chúng thành cột dẫn xuất
+
+`cus.customer_address` là nguồn sự thật. `registered_address` và
+`delivery_address` không bị gỡ — chúng thành **bản gộp do trigger dựng lại**, các
+địa chỉ ngăn bằng `\n`.
+
+Nghe như vá cái bóng. Ba lý do đều cụ thể, và cái thứ ba là món quà từ quá khứ:
+
+1. `ix_customer_search` là chỉ mục GIN trigram trên **biểu thức**
+   `(name || ' ' || registered_address || ' ' || coalesce(id_number,''))`. Chỉ
+   mục biểu thức không tham chiếu được sang bảng khác. Đo được lúc phá lại: gỡ
+   trigger đi thì một ca kiểm tìm kiếm **có sẵn từ trước** đỏ theo.
+2. `internal.controller` bên `customer` liệt kê từng cột, và `policy` với
+   `document` đều đọc qua đó — bẫy `0128`. Giữ tên cột nghĩa là ba service ấy
+   **không sửa một dòng nào**.
+3. `setParagraphText` trong `docx.ts` **đã** đổi `\n` thành `<w:br/>`, và chú
+   thích của nó viết đúng chữ *"địa chỉ nhiều dòng dính thành một hàng dài"*. Ai
+   đó đã dựng sẵn đường cho việc này từ trước. Chuỗi gộp đi thẳng ra giấy thành
+   nhiều dòng mà không ai phải sửa gì.
+
+Đúng khuôn `0138` đã dùng cho công nợ: **`customer` dựng sẵn câu chữ** và trả qua
+trường cũ.
+
+### Ràng buộc đắt giá nhất là ràng buộc cấm xuống dòng
+
+`dia_chi_mot_dong` cấm `\n` bên trong một địa chỉ. Không có nó thì phép nối
+**không tách ngược ra được** — hai địa chỉ thành ba, im lặng, và chỉ lộ ra trên
+tờ giấy đã in. Có nó thì cột gộp là một phép mã hoá không mất mát, nên tầng đọc
+chỉ cần `split('\n')`: **không truy vấn thêm, không N+1 ở màn hình danh sách**.
+
+Cái giá đi kèm, và nó suýt thành một lỗi `500`: `str(1, 500)` ở controller CHO
+PHÉP `\n` đi qua, nên một người dán địa chỉ hai dòng từ Word sẽ chạm thẳng vào
+chốt chặn CSDL. Chữa bằng cách **chuẩn hoá chứ không từ chối** — ký tự xuống dòng
+ở đây là chuyện trình bày, không phải nội dung.
+
+### Ba chỗ tự tay dính
+
+**Backtick trong chú thích giữa template literal.** `CLAUDE.md` đã ghi cái bẫy
+này bằng chữ in đậm, và tôi vẫn dính: `(0154)` viết trong khối SQL của `UPDATE`
+cắt đứt chuỗi, `tsc` báo *"Octal literals are not allowed"* ở một dòng chẳng liên
+quan.
+
+**Bỏ trống `$4`/`$5` để khỏi đánh số lại.** Tôi viết hẳn một chú thích biện minh
+cho việc ấy — *"đánh số lại là chỗ lệch một ô mà không có gì đỏ lên"* — và nó vừa
+sai vừa không chạy: **Postgres đếm theo tham số cao nhất được tham chiếu**, nên
+gửi 13 giá trị cho một câu chỉ dùng 11 là lỗi bind. Mọi lượt `PATCH` trả 500. Một
+lập luận nghe hợp lý không thay được một lượt chạy thử.
+
+**`registered_address` là `NOT NULL` không có mặc định.** Lượt lập khách ghi dòng
+khách TRƯỚC rồi mới ghi địa chỉ — phải thế, vì khoá ngoại — nên giữa hai câu lệnh
+cột ấy chưa có giá trị. Thiếu `SET DEFAULT ''` thì **mọi lượt lập khách hàng đều
+hỏng**.
+
+### Một khoảng hở lộ ra ngoài dự kiến
+
+`thieuTruong` dùng `trong()`, và `trong()` không biết mảng: `[]` lẫn `['']` đều
+không phải chuỗi, không phải `null`, nên chúng lọt qua thành *"đã điền"*. Nút
+*Lưu* sáng lên với một biểu mẫu chỉ có ô địa chỉ trống. Đây không phải hệ quả của
+lượt này mà là một chỗ trống có sẵn — chỉ là tới lượt này mới có một trường bắt
+buộc mang kiểu mảng để nó lộ ra.
+
+### Và ca kiểm của chặng trước bắt được chặng này
+
+`0153` viết một ca đòi thẻ danh sách còn `{k.registeredAddress}`. Lượt này đổi
+cách in — địa chỉ đầu cộng *+N địa chỉ khác*, vì HTML nuốt `\n` thành dấu cách và
+ba địa chỉ dính liền — nên ca ấy đỏ. Đúng việc nó sinh ra để làm. Sửa nó sang
+biểu thức mới, **giữ nguyên độ chặt**: nới thành *"có chữ address ở đâu đó"* là
+vứt bỏ chính khả năng vừa chứng minh được.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Vô hiệu đường ghi địa chỉ ở lượt SỬA | 1 đỏ |
+| `DROP TRIGGER tr_gop_dia_chi` | 10 đỏ, gồm một ca TÌM KIẾM có sẵn từ trước |
+| Gỡ nhánh mảng khỏi `trong()` | 1 đỏ |
+
+**1930/1930 xanh.**

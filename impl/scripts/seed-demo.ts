@@ -243,7 +243,15 @@ type KhachMau = {
   code: string;
   name: string;
   customerType: number;
-  registeredAddress: string;
+  /**
+   * MỘT HOẶC NHIỀU địa chỉ đăng ký (`0154`).
+   *
+   * Bản demo phải có khách NHIỀU địa chỉ, nếu không thì tính năng vừa dựng
+   * không có chỗ nào bày ra — đúng cái mất mà `0137` đã ghi khi mẫu rút gọn
+   * rời khỏi bộ nạp và demo hết chỗ bày việc chọn tập cột.
+   */
+  registeredAddresses: string[];
+  deliveryAddresses?: string[];
   ownerName: string;
   ownerTitle: string;
   idNumber: string;
@@ -259,7 +267,13 @@ const KHACH_TAY: KhachMau[] = [
     code: 'KH-0001',
     name: 'Nhà thuốc Minh Châu',
     customerType: 1,
-    registeredAddress: 'Số 8 Tôn Thất Thuyết, Cầu Giấy, Hà Nội',
+    // BA địa chỉ — chuỗi nhà thuốc, đúng nghiệp vụ mà `0154` sinh ra để đỡ.
+    registeredAddresses: [
+      'Số 8 Tôn Thất Thuyết, Cầu Giấy, Hà Nội',
+      'Số 214 Nguyễn Trãi, Thanh Xuân, Hà Nội',
+      'Số 31 Chùa Bộc, Đống Đa, Hà Nội',
+    ],
+    deliveryAddresses: ['Kho số 2, KCN Quang Minh, Mê Linh, Hà Nội'],
     ownerName: 'Trần Thị Mỹ Hạnh',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0101234567',
@@ -270,7 +284,7 @@ const KHACH_TAY: KhachMau[] = [
     code: 'KH-0002',
     name: 'Nhà thuốc Đông Á',
     customerType: 1,
-    registeredAddress: 'Số 12 Nguyễn Văn Linh, Hải Châu, Đà Nẵng',
+    registeredAddresses: ['Số 12 Nguyễn Văn Linh, Hải Châu, Đà Nẵng'],
     ownerName: 'Lê Quang Đạo',
     ownerTitle: 'Chủ nhà thuốc',
     idNumber: '0402345678',
@@ -281,7 +295,15 @@ const KHACH_TAY: KhachMau[] = [
     code: 'KH-0003',
     name: 'Công ty TNHH Dược phẩm Hoàng Long',
     customerType: 2,
-    registeredAddress: 'Số 55 Lê Duẩn, Quận 1, TP Hồ Chí Minh',
+    // HAI địa chỉ đăng ký cộng một nơi nhận hàng riêng.
+    registeredAddresses: [
+      'Số 55 Lê Duẩn, Quận 1, TP Hồ Chí Minh',
+      'Lô B12, KCN Tân Bình, TP Hồ Chí Minh',
+    ],
+    deliveryAddresses: [
+      'Kho Bình Chánh, TP Hồ Chí Minh',
+      'Kho Thủ Đức, TP Hồ Chí Minh',
+    ],
     ownerName: 'Phạm Hoàng Long',
     ownerTitle: 'Giám đốc',
     idNumber: '0312345678',
@@ -293,7 +315,7 @@ const KHACH_TAY: KhachMau[] = [
     code: 'KH-0004',
     name: 'Khoa Dinh dưỡng — Bệnh viện Bạch Mai',
     customerType: 3,
-    registeredAddress: 'Số 78 Giải Phóng, Đống Đa, Hà Nội',
+    registeredAddresses: ['Số 78 Giải Phóng, Đống Đa, Hà Nội'],
     ownerName: 'Nguyễn Thị Thu Hà',
     ownerTitle: 'Trưởng khoa',
     idNumber: '0104567890',
@@ -347,7 +369,7 @@ const KHACH: KhachMau[] = [
     code: `KH-${String(i + 5).padStart(4, '0')}`,
     name,
     customerType: loai,
-    registeredAddress: diaChi,
+    registeredAddresses: [diaChi],
     ownerName: chu,
     ownerTitle: chucDanh,
     idNumber: mst(i + 5),

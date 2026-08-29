@@ -3000,3 +3000,41 @@ svg.bd-nho { width: 62px; margin: 0; }
   svg.bd-nho { display: none; }
   .chat-luong li { grid-template-columns: minmax(88px, 1fr) 3fr 36px; }
 }
+
+/* Nhóm ô ĐỊA CHỈ thêm/bớt được (`0154`).
+
+   Nút *Xoá* đứng CÙNG HÀNG với ô nhập, không xuống dòng: nó thuộc về đúng ô bên
+   trái nó, và đẩy nó xuống dòng là cắt đứt liên hệ ấy — người dùng phải đếm để
+   biết nút nào xoá dòng nào.
+
+   `align-items: end` chứ không `center`: `Truong` bọc nhãn phía trên ô nhập, nên
+   căn giữa sẽ nâng nút lên ngang giữa cụm nhãn-và-ô, tức là lệch khỏi ô. Căn
+   theo đáy thì nút thẳng hàng với đáy ô nhập ở mọi độ dài nhãn.
+
+   `.hang-dia-chi > :first-child` là `Truong`; cho nó `flex: 1` để ô nhập ăn hết
+   bề ngang còn lại thay vì co về bề rộng nội dung. */
+.nhom-dia-chi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--k2);
+}
+
+.hang-dia-chi {
+  display: flex;
+  align-items: end;
+  gap: var(--k2);
+}
+
+.hang-dia-chi > :first-child {
+  flex: 1;
+  /* `min-width: 0` để ô nhập co được trong flex: thiếu nó thì bề rộng tối thiểu
+     của input đẩy cả hàng rộng ra và nút Xoá tràn khỏi hộp thoại trên điện
+     thoại. Cùng cái bẫy `.khung-cuon` đã phải xử một lần. */
+  min-width: 0;
+}
+
+/* Nút Xoá KHÔNG co lại: chữ "Xoá" bị bóp thành hai dòng trông như một nút hỏng. */
+.nut-xoa-dia-chi {
+  flex: none;
+  white-space: nowrap;
+}
