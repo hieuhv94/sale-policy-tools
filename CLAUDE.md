@@ -87,7 +87,31 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P183** (`0155`): **bỏ hẳn trạng thái `TU_CHOI`**, và bỏ luôn nút — TBP chỉ còn *Ký*
+Chặng gần nhất **P184** (`0156`): **bộ kiểm thôi tự đầu độc CSDL của nó**. `cat.product` không có
+đường xoá qua API (`0121`), nên chín trong mười hai tệp kiểm tạo sản phẩm mà không gỡ được — đo được
+**~690 dòng mỗi lượt chạy**, tức **bảy lượt là chạm trần 5000** của lượt nhập Excel và bốn ca danh mục
+đỏ ở chỗ vô can. Chẩn đoán khớp đến từng tiền tố: bảy tiền tố còn rác đúng bằng bảy tệp không có bước
+dọn. Bước dọn nằm ở **`globalSetup`** (`tests/don-rac-truoc-luot.ts`), dọn ĐẦU lượt chứ không cuối —
+lượt hỏng giữa chừng vẫn để lại dữ liệu cho người gỡ lỗi soi.
+
+> **BÀI HỌC ĐẮT NHẤT của chặng, và tôi đặt sai lần đầu:** bản đầu để bước dọn trong `withAdminDb` gác
+> bằng một cờ mô-đun, với lý lẽ *"chạy tuần tự trong một tiến trình nên một lần mỗi tiến trình là một
+> lần mỗi lượt"*. **Đo ra: chạy TÁM lần, một lần mỗi tệp** — vitest cấp lại đồ thị mô-đun cho từng
+> tệp. Tệ hơn, giữa lượt nó xoá sản phẩm của tệp chạy TRƯỚC trong CÙNG lượt. **`fileParallelism: false`
+> nói về THỨ TỰ, không nói về việc dùng chung mô-đun** — tôi suy từ vế đầu ra vế sau và không kiểm,
+> trong khi một dòng `console.log` trả lời ngay ở lượt chạy đầu.
+
+Phản đối ban đầu với `globalSetup` — *"chạy cả cho `tests/web` vốn không có Postgres, nên phải bọc
+`try/catch` im lặng, và một bước dọn im lặng bỏ qua sẽ có ngày im lặng không chạy"* — tự tan: nó
+được bịt bằng chính ca kiểm **ĐẾM** số dòng còn lại. **Một chốt chặn ồn ào làm cho một bước im lặng
+trở nên an toàn**; không cần cả hai đều ồn. Ngưỡng đếm đặt ở **nửa trần**, vì đặt sát trần thì nó chỉ
+đỏ cùng lúc với chính lỗi nó sinh ra để tránh.
+
+> **BẪY TỰ DÍNH:** chạy `vitest` một tệp trong lúc `make test` đang chạy nền là hai lượt dùng chung
+> một Postgres — junit ghi 6 đỏ trong khi `make test` thoát mã 0. Đúng cái `CLAUDE.md` cảnh báo cho
+> cặp demo/test, chỉ khác là hai lượt TEST với nhau.
+
+Trước đó **P183** (`0155`): **bỏ hẳn trạng thái `TU_CHOI`**, và bỏ luôn nút — TBP chỉ còn *Ký*
 hoặc *Trả lại*. Đường kết thúc không mất mà **đổi tay**: TBP trả lại, TDV tự xoá → `DA_XOA`, khớp
 luật `0099` *chỉ TDV xoá hồ sơ của mình*. Cái mất: TBP không tự kết thúc được hồ sơ, và
 `YEU_CAU_CHINH_SUA` **không có SLA** nên hồ sơ nằm đó vô thời hạn. Bỏ một giá trị enum là **dựng lại

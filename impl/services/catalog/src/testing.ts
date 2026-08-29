@@ -11,3 +11,5 @@ export async function createTestApp(): Promise<INestApplication> {
 }
 
 export { CatalogOutbox } from './infra/outbox.relay.js';
+/** `0156` — trần số dòng của lượt nhập Excel; chốt chặn rác CSDL đo theo nó. */
+export { TRAN_SO_DONG } from './products/nhap.js';

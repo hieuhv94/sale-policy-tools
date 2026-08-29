@@ -26,6 +26,15 @@ export default defineConfig({
   ],
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'packages/*/src/**/*.test.ts'],
+    /*
+     * Dọn sản phẩm còn lại của lượt chạy TRƯỚC, đúng một lần (`0156`).
+     *
+     * Phải là `globalSetup` chứ không phải một cờ mô-đun trong `tests/http/app.ts`:
+     * vitest cấp lại đồ thị mô-đun cho TỪNG TỆP, nên cờ ấy về `false` mỗi tệp và
+     * bước dọn chạy tám lần — xoá cả sản phẩm do tệp chạy trước trong cùng lượt
+     * tạo ra. Đo được, không phải suy đoán.
+     */
+    globalSetup: ['tests/don-rac-truoc-luot.ts'],
     // Test ràng buộc CSDL dùng chung một Postgres thật nên chạy tuần tự,
     // tránh hai test cùng chèn vào một bảng rồi đổ lỗi cho nhau.
     fileParallelism: false,

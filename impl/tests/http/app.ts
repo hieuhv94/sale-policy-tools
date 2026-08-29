@@ -173,6 +173,16 @@ export async function mauHoSoMacDinh(): Promise<string> {
   return id;
 }
 
+/*
+ * `TIEN_TO_KIEM` và bước dọn rác ĐÃ CHUYỂN sang `tests/don-rac-truoc-luot.ts`
+ * (`0156`).
+ *
+ * Bản đầu đặt chúng ở đây, gác bằng một cờ mô-đun, với lý lẽ *"bộ kiểm chạy tuần
+ * tự trong một tiến trình nên một lần mỗi tiến trình là một lần mỗi lượt"*. Đo ra
+ * thì sai: vitest cấp lại đồ thị mô-đun cho TỪNG TỆP, cờ về `false` mỗi lượt, và
+ * bước dọn chạy tám lần — trong đó có lần xoá sản phẩm của tệp chạy trước trong
+ * cùng lượt. `globalSetup` chạy đúng một lần, trước mọi tệp.
+ */
 export async function withAdminDb<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = admin();
   await c.connect();

@@ -13788,3 +13788,99 @@ liên quan gì tới việc đang làm. Chưa sửa, ghi ra đây.
 | `ALTER TYPE ... ADD VALUE 'TU_CHOI'` ở CSDL | 1 đỏ, ở tầng lược đồ |
 
 **1926/1926 xanh.**
+
+## P184 — `0156` bộ kiểm thôi tự đầu độc CSDL của nó
+
+Việc này lộ ra GIỮA `0155`: bốn ca kiểm danh mục đỏ với `IMPORT_TOO_MANY_ROWS`
+trong một chặng chẳng liên quan gì tới danh mục. Mất một quãng mới nhận ra nguyên
+nhân nằm ngoài mã sản phẩm — và đó chính là cái giá phải chặn.
+
+### Chẩn đoán khớp đến từng tiền tố
+
+`cat.product` có **5194 dòng**, trong đó **5159 mang tiền tố `ZZ`**, vượt trần
+5000 của lượt nhập Excel. Nhóm theo tiền tố thì bảy tệp còn rác — và đối chiếu
+với `grep 'DELETE FROM cat.product' tests/`, đúng bảy tệp ấy là những tệp KHÔNG
+có bước dọn. Ba tệp có dọn (`ZZCAT`, `ZZPOL`, `ZZVT`) không để lại dòng nào.
+
+Không phải suy đoán: hai danh sách trùng khít.
+
+Gốc rễ là một quyết định nghiệp vụ đúng — `0121` bỏ hẳn đường xoá sản phẩm qua
+API, vì danh mục không cho xoá. Nên bộ kiểm không có cách nào tự gỡ ngoài SQL
+thô, và chín tệp đã không làm.
+
+### Chỗ đặt bước dọn quan trọng hơn bản thân bước dọn — và tôi đặt sai lần đầu
+
+Ba nơi khả dĩ. Tôi loại hai nơi bằng lý lẽ, chọn nơi thứ ba, và **lý lẽ ấy sai**.
+
+**`seed.ts`** chỉ chạy qua `make test`. Người ta VẪN gọi `vitest` thẳng — hai sự
+cố `0134` và `0135` đều bắt đầu đúng như thế — và lượt gọi ấy sẽ không dọn. Loại,
+và điều này đúng.
+
+**`globalSetup`** chạy cho mọi lượt, kể cả `vitest run tests/web` vốn không có
+Postgres nào để nối. Nó sẽ phải bọc `try/catch` để im lặng bỏ qua, và *"một bước
+dọn im lặng bỏ qua là một bước dọn sẽ có ngày im lặng không chạy nữa"*. Loại.
+
+**`withAdminDb` kèm một cờ mô-đun** — tôi chọn cái này, và viết hẳn chú thích
+khẳng định nó chạy *"một lần mỗi lượt"*, vì bộ kiểm chạy tuần tự trong một tiến
+trình.
+
+**Đo ra thì nó chạy TÁM lần**, một lần mỗi tệp: vitest cấp lại đồ thị mô-đun cho
+từng tệp kiểm, nên cờ về `false` mỗi lượt. Hậu quả nặng hơn việc chạy thừa — log
+ghi *"dọn 9 sản phẩm"* ở giữa lượt, tức nó đang xoá sản phẩm do một tệp CHẠY
+TRƯỚC trong CÙNG lượt tạo ra. Hôm nay vô hại vì mỗi tệp tự chứa, nhưng đó là một
+quả mìn đặt sẵn cho tệp đầu tiên cần dữ liệu của tệp khác.
+
+Bài học không phải *"cờ mô-đun không dùng được"* mà là: **`fileParallelism: false`
+nói về THỨ TỰ, không nói về việc dùng chung mô-đun.** Tôi suy từ vế đầu ra vế sau
+và không kiểm — trong khi một dòng `console.log` đã trả lời ngay ở lượt chạy đầu.
+
+Nên cuối cùng là `globalSetup`, và phản đối cũ của tôi tự nó tan: nỗi lo *"im lặng
+bỏ qua"* được bịt bằng chính ca kiểm ĐẾM số dòng còn lại. Nó đỏ khi rác bắt đầu
+tích, nên sự im lặng không bao giờ kéo dài quá vài lượt chạy. Một chốt chặn ồn ào
+làm cho một bước im lặng trở nên an toàn — không cần cả hai đều ồn.
+
+### Con số đo được lúc chạy thử
+
+Lượt chạy đầu tiên sau khi lắp: **dọn 688 sản phẩm của lượt trước**. Tức là
+khoảng **bảy lượt `make test` là chạm trần** — nhanh hơn nhiều so với ước lượng
+"ba mươi lượt" tôi nói lúc phát hiện. Ghi lại vì nó đổi mức độ khẩn: đây không
+phải chuyện của sáu tháng nữa, nó đã đỏ một lần và sẽ đỏ lại trong tuần.
+
+### Ba ca kiểm, và ca thứ hai là ca thật sự cần
+
+Ca đếm số dòng còn lại chỉ bắt được HẬU QUẢ, và bắt muộn. Ngưỡng đặt ở **nửa
+trần** chứ không sát trần: đặt ở 4999 thì nó chỉ đỏ cùng lúc với
+`IMPORT_TOO_MANY_ROWS`, tức chẳng cứu ai khỏi đúng quãng đi tìm nguyên nhân mà nó
+sinh ra để tránh.
+
+Ca thứ hai QUÉT MÃ NGUỒN, và đây là chỗ hiếm hoi quét mã nguồn là phép kiểm đúng:
+cái phải khẳng định là *"dòng ấy còn được gọi ở lượt dùng CSDL đầu tiên"*, mà gọi
+thật rồi đếm thì chỉ chứng minh được nó chạy một lần — đúng cái nó vốn làm. Nó
+đòi CẢ HAI vế: hàm tồn tại, và `withAdminDb` gọi nó. Chỉ đòi vế đầu thì gỡ lời
+gọi mà giữ hàm vẫn xanh, và đó là cách hỏng dễ xảy ra nhất — hàm trông vẫn còn đó
+khi người ta đọc lướt.
+
+Ca thứ ba canh chính cái quy ước mà bước dọn dựa vào: mọi tệp kiểm phải đặt tiền
+tố `ZZ`. Một tệp mới khai `const P = 'TEST'` thì sản phẩm của nó nằm ngoài tầm
+dọn, và rác quay lại — lần này không tiền tố chung nào để mà tìm.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gỡ bước dọn, chèn 2600 dòng rác | 2 đỏ, câu lỗi nói luôn cách dọn tay |
+| Lắp lại | tự dọn 2600 dòng ngay lượt sau |
+| Chạy ba tệp kiểm cùng lúc sau khi chèn 40 dòng | dọn **đúng một lần**, không phải ba |
+
+### Một bẫy tự dính, đáng ghi vì nó là bản sao của một bẫy đã có
+
+Tôi chạy `vitest` một tệp trong lúc `make test` đang chạy NỀN. Hai lượt dùng chung
+một Postgres, và kết quả là junit ghi **6 đỏ trong khi `make test` thoát mã 0** —
+hai điều không thể cùng đúng, và mất một lúc mới nhận ra chúng là hai lượt chạy
+khác nhau ghi đè lên cùng một tệp báo cáo.
+
+`CLAUDE.md` đã cảnh báo đúng hình dạng này cho cặp **demo/test**. Cái mới là hai
+lượt **TEST với nhau** cũng đủ hỏng — và nó hỏng theo kiểu tệ hơn, vì cả hai đều
+"hợp lệ" nên không chốt chặn nào nổ.
+
+**1929/1929 xanh.**

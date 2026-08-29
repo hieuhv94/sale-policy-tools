@@ -57,6 +57,22 @@ docker compose -f deploy/compose.yml -f deploy/compose.test.yml run --rm test \
 chạy song song thì hai tệp cùng chèn vào một bảng rồi đổ lỗi cho nhau. Chậm hơn, nhưng mọi lần đỏ
 đều là lỗi thật.
 
+### Sản phẩm thì bộ kiểm tự dọn `mới 29/08`
+
+**Danh mục sản phẩm là ngoại lệ, và nó từng làm hỏng một lượt chạy.** `cat.product` không có đường
+xoá qua API (`0121`), nên chín trong mười hai tệp kiểm tạo sản phẩm mà không gỡ được chúng đi. Đo
+được: **~690 dòng mỗi lượt chạy**, và tới 5000 dòng thì các ca *nhập Excel* đỏ với
+`IMPORT_TOO_MANY_ROWS` — ở một chỗ chẳng liên quan gì tới nguyên nhân.
+
+Từ `0156`, `withAdminDb` xoá mọi sản phẩm mang tiền tố `ZZ` **ở lượt dùng CSDL đầu tiên** của mỗi
+lượt chạy. Không phải làm gì cả; dòng `bộ kiểm: dọn N sản phẩm còn lại của lượt chạy trước` trong
+log là bình thường.
+
+> Dọn ở ĐẦU lượt, không phải cuối: một lượt chạy hỏng giữa chừng vẫn để lại dữ liệu cho người gỡ lỗi
+> soi, và lượt sau tự dọn hộ.
+
+`don-rac.test.ts` canh chuyện này. Nếu nó đỏ, câu lỗi nói luôn cách dọn tay.
+
 ## Ba điều dễ vấp
 
 **1. Test đỏ vì trạng thái sót lại từ lượt chạy trước.**
