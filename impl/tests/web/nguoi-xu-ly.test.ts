@@ -83,7 +83,7 @@ describe('bước nào phải chọn ai', () => {
   });
 
   it('bước không sinh ra việc cho ai thì không có ô chọn nào', () => {
-    for (const h of ['TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT', 'SA_HANDOVER', 'KT_RECEIVE_L2']) {
+    for (const h of ['TBP_SIGN', 'TBP_RETURN', 'SA_HANDOVER', 'KT_RECEIVE_L2']) {
       expect(oChonCua(h, { daChonSaleAdmin: false }), h).toEqual([]);
     }
   });

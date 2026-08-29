@@ -27,7 +27,6 @@ export type TrangThai =
   | 'DANG_CO_HIEU_LUC'
   | 'HET_HIEU_LUC'
   | 'YEU_CAU_CHINH_SUA'
-  | 'TU_CHOI'
   | 'QUA_HAN_DUYET'
   | 'DA_XOA';
 
@@ -40,7 +39,6 @@ export const MOI_TRANG_THAI: TrangThai[] = [
   'DANG_CO_HIEU_LUC',
   'HET_HIEU_LUC',
   'YEU_CAU_CHINH_SUA',
-  'TU_CHOI',
   'QUA_HAN_DUYET',
   'DA_XOA',
 ];
@@ -66,7 +64,6 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
   SA_DANG_XU_LY: 'SALE_ADMIN',
   DANG_CO_HIEU_LUC: null,
   HET_HIEU_LUC: null,
-  TU_CHOI: null,
   QUA_HAN_DUYET: null,
   DA_XOA: null,
 };
@@ -253,7 +250,6 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theQuaHan(),
     theDangCho('TDV'),
     theTrangThai('DANG_CO_HIEU_LUC'),
-    theTrangThai('TU_CHOI'),
   ],
   TBP: [
     theBuoc('B4_TBP_DUYET', 'Chờ TBP duyệt', ['B4_TBP_DUYET'], 'đang chờ bạn ký số'),
@@ -261,7 +257,6 @@ export const THE_THEO_VAI_TRO: Record<VaiTro, The[]> = {
     theQuaHan(),
     theDangCho('TBP'),
     theTrangThai('DANG_CO_HIEU_LUC'),
-    theTrangThai('TU_CHOI'),
   ],
   KE_TOAN: [
     theBuoc('B6_KT_L1', 'KT duyệt bản mềm', ['B6_KT_L1'], 'tiếp nhận lần 1'),

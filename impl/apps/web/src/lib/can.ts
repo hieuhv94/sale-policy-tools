@@ -54,7 +54,6 @@ export const QUYEN_GHI = {
    */
   traLaiTbp: ['TBP'],
   traLaiKt: ['KE_TOAN'],
-  tuChoi: ['TBP'],
   tiepNhanL1: ['KE_TOAN'],
   banGiao: ['SALE_ADMIN'],
   tiepNhanL2: ['KE_TOAN'],
@@ -234,7 +233,6 @@ export const QUYEN_HANH_DONG: Record<string, Quyen> = {
   RESUBMIT_AFTER_EDIT: 'guiDuyet',
   TBP_SIGN: 'kySo',
   TBP_RETURN: 'traLaiTbp',
-  TBP_REJECT: 'tuChoi',
   KT_RECEIVE_L1: 'tiepNhanL1',
   KT_RETURN_L1: 'traLaiKt',
   SA_HANDOVER: 'banGiao',
@@ -263,7 +261,6 @@ export const HANH_DONG_NHAN: Record<string, string> = {
   SUBMIT: 'Gửi duyệt',
   TBP_SIGN: 'Ký số duyệt',
   TBP_RETURN: 'Trả lại chỉnh sửa',
-  TBP_REJECT: 'Từ chối hồ sơ',
   KT_RECEIVE_L1: 'Tiếp nhận lần 1',
   KT_RETURN_L1: 'Trả lại (L1)',
   SA_HANDOVER: 'Bàn giao',
@@ -276,7 +273,6 @@ export const HANH_DONG_NHAN: Record<string, string> = {
 /** Hành động BẮT BUỘC nhập lý do (muc 3). */
 export const CAN_LY_DO = new Set([
   'TBP_RETURN',
-  'TBP_REJECT',
   'KT_RETURN_L1',
   'KT_RETURN_L2',
   'KT_REQUEST_REPRINT',

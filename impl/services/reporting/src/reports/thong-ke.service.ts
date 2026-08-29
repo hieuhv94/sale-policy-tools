@@ -57,7 +57,6 @@ const NEO: Record<string, { cot: string; them?: string }> = {
   hopDong: { cot: 'contract_issued_at' },
   coHieuLuc: { cot: 'approved_at' },
   traLai: { cot: 'returned_at' },
-  tuChoi: { cot: 'rejected_at' },
   hetHieuLuc: { cot: 'deactivated_at' },
   quaHan: { cot: 'sla_due_at', them: `status = 'QUA_HAN_DUYET'` },
 };
@@ -139,7 +138,6 @@ export type DongTdv = {
   guiDuyet?: number;
   coHieuLuc?: number;
   traLai?: number;
-  tuChoi?: number;
   giaTri?: number;
 };
 
@@ -148,7 +146,6 @@ export type ChatLuong = {
   kyThang: number;
   traLai1: number;
   traLaiNhieu: number;
-  tuChoi: number;
   dangXuLy: number;
 };
 
@@ -163,12 +160,12 @@ export type ThoiGianBuoc = {
 };
 
 /** Kỳ không có hồ sơ nào — năm ô đều 0, và tỷ lệ suy ra là không xác định. */
-const RONG: ChatLuong = { kyThang: 0, traLai1: 0, traLaiNhieu: 0, tuChoi: 0, dangXuLy: 0 };
+const RONG: ChatLuong = { kyThang: 0, traLai1: 0, traLaiNhieu: 0, dangXuLy: 0 };
 
 export type NguoiThongKe = {
   userId: string;
   ten: string;
-  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; tuChoi: number; giaTri: number };
+  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; giaTri: number };
   /** Chuỗi theo kỳ để vẽ đường nhỏ — cùng trục thời gian với `chuoi`. */
   chuoiHieuLuc: number[];
   chuoiGui: number[];
@@ -413,7 +410,6 @@ export class ThongKeService {
             guiDuyet: cuoi.guiDuyet ?? 0,
             coHieuLuc: cuoi.coHieuLuc ?? 0,
             traLai: cuoi.traLai ?? 0,
-            tuChoi: cuoi.tuChoi ?? 0,
             giaTri: cuoi.giaTri ?? 0,
           },
           chuoiHieuLuc,
@@ -424,7 +420,7 @@ export class ThongKeService {
           xuHuong: xuHuong(chuoiHieuLuc),
           xuHuongGui: xuHuong(chuoiGui),
           tyLeTraLai: phanTram(
-            chuoiTong(maKyDs, n.theoKy, 'traLai') + chuoiTong(maKyDs, n.theoKy, 'tuChoi'),
+            chuoiTong(maKyDs, n.theoKy, 'traLai'),
             chuoiTong(maKyDs, n.theoKy, 'guiDuyet'),
           ),
           chatLuong: cl ?? RONG,
@@ -520,7 +516,6 @@ export class ThongKeService {
       guiDuyet: 'submitted_at',
       coHieuLuc: 'approved_at',
       traLai: 'returned_at',
-      tuChoi: 'rejected_at',
     };
     const { where, params } = build({}, pv);
     params.push(tu, den);
@@ -601,12 +596,17 @@ export class ThongKeService {
 
     const rows = await this.db.q<Record<string, string | null>>(
       `SELECT tdv_user_id::text AS nguoi, ${maSql(ky, 'submitted_at')} AS ky,
-              count(*) FILTER (WHERE rejected_at IS NOT NULL)::text AS tu_choi,
-              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai >= 2)::text AS tra_nhieu,
-              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 1)::text AS tra_1,
-              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 0
+              -- 0155 — o tu_choi da bo, VA bon o con lai thoi loc
+              -- rejected_at IS NULL theo. Dieu kien ay von de mot ho so khong
+              -- nam o hai lat cung luc; giu no lai khi khong con lat tu_choi
+              -- thi ho so bi tu choi TRUOC 29/08 roi khoi MOI lat, va tong bon o
+              -- thoi bang so ho so da gui — thanh ty le ngan di ma khong ai biet.
+              -- (Khong dau backtick: ca cau SQL nam trong mot template literal.)
+              count(*) FILTER (WHERE so_lan_tbp_tra_lai >= 2)::text AS tra_nhieu,
+              count(*) FILTER (WHERE so_lan_tbp_tra_lai = 1)::text AS tra_1,
+              count(*) FILTER (WHERE so_lan_tbp_tra_lai = 0
                                  AND tbp_signed_at IS NOT NULL)::text AS ky_thang,
-              count(*) FILTER (WHERE rejected_at IS NULL AND so_lan_tbp_tra_lai = 0
+              count(*) FILTER (WHERE so_lan_tbp_tra_lai = 0
                                  AND tbp_signed_at IS NULL)::text AS dang_xu_ly
          FROM rpt.policy_row
         WHERE ${where} AND source <> 'LEGACY'
@@ -623,7 +623,6 @@ export class ThongKeService {
         kyThang: Number(r['ky_thang'] ?? 0),
         traLai1: Number(r['tra_1'] ?? 0),
         traLaiNhieu: Number(r['tra_nhieu'] ?? 0),
-        tuChoi: Number(r['tu_choi'] ?? 0),
         dangXuLy: Number(r['dang_xu_ly'] ?? 0),
       };
       ra.set(nguoi, o);
@@ -825,7 +824,7 @@ function gop(
   const l = dong.get(k.ma);
   const demDu = Object.fromEntries(Object.keys(NEO).map((ten) => [ten, d[ten] ?? 0]));
   const guiDuyet = demDu['guiDuyet'] ?? 0;
-  const traVe = (demDu['traLai'] ?? 0) + (demDu['tuChoi'] ?? 0);
+  const traVe = demDu['traLai'] ?? 0;
   return {
     ...k,
     dem: demDu,

@@ -54,7 +54,7 @@ describe('AD-02 · không đọc chéo được schema của service khác', () 
         expect(r.rows[0].id).toBeDefined();
       });
     } finally {
-      // Dọn tay: hồ sơ NHAP xoá được, khác với TU_CHOI. Không dọn thì mỗi lần
+      // Dọn tay: hồ sơ NHAP xoá được, khác với DA_XOA. Không dọn thì mỗi lần
       // chạy lại bồi thêm một dòng không bao giờ mất.
       await withClient(admin(), async (a) => {
         await a.query('DELETE FROM pol.policy WHERE customer_id = $1', [cust]);

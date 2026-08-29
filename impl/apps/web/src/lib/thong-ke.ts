@@ -100,14 +100,13 @@ export type ChatLuong = {
   kyThang: number;
   traLai1: number;
   traLaiNhieu: number;
-  tuChoi: number;
   dangXuLy: number;
 };
 
 export type NguoiThongKe = {
   userId: string;
   ten: string;
-  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; tuChoi: number; giaTri: number };
+  kyNay: { guiDuyet: number; coHieuLuc: number; traLai: number; giaTri: number };
   chuoiHieuLuc: number[];
   chuoiGui: number[];
   xuHuong: MaXuHuong;
@@ -259,7 +258,6 @@ export const NEO: Record<string, { nhan: string; moc: string }> = {
   hopDong: { nhan: 'Xuất hợp đồng', moc: 'theo lần xuất hợp đồng gần nhất' },
   coHieuLuc: { nhan: 'Có hiệu lực', moc: 'theo ngày kế toán tiếp nhận bản cứng xong' },
   traLai: { nhan: 'Bị trả lại', moc: 'theo ngày bị trả lại' },
-  tuChoi: { nhan: 'Bị từ chối', moc: 'theo ngày bị từ chối' },
   quaHan: { nhan: 'Quá hạn', moc: 'theo ngày hết hạn 14 ngày' },
   hetHieuLuc: { nhan: 'Hết hiệu lực', moc: 'theo ngày bị bản mới thay' },
   giaTri: { nhan: 'Giá trị', moc: 'tổng giá thu về của hồ sơ có hiệu lực trong kỳ' },
@@ -285,7 +283,7 @@ export const mocNgan = (bo: BoThongKe): string[] => bo.chuoi.map((k) => k.nhanNg
  * vẽ thành 0% thì đường tụt xuống đáy và đọc ra là "kỳ ấy hỏng hết".
  */
 export function tyLeKyThang(c: ChatLuong): number | null {
-  const tong = c.kyThang + c.traLai1 + c.traLaiNhieu + c.tuChoi + c.dangXuLy;
+  const tong = c.kyThang + c.traLai1 + c.traLaiNhieu + c.dangXuLy;
   if (tong === 0) return null;
   return Number(((c.kyThang / tong) * 100).toFixed(2));
 }

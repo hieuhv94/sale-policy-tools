@@ -92,24 +92,21 @@ export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có mu�
 const EDITABLE: readonly string[] = SUA_DUOC;
 
 /**
- * Trạng thái TDV phụ trách xoá được (`0039`).
+ * Trạng thái TDV phụ trách xoá được (`0039`, thu lại ở `0155`).
  *
  * Tới `0035` danh sách này ĐÚNG BẰNG `EDITABLE` — "xoá được đúng những hồ sơ sửa
- * được". `0039` thêm `TU_CHOI`, và vì thế nó tách thành hằng số riêng: hai câu
- * hỏi "sửa được không" và "xoá được không" giờ có hai câu trả lời khác nhau, gộp
- * lại một chỗ là sẽ sai khi một trong hai đổi tiếp.
+ * được". `0039` thêm `TU_CHOI` vào, nên nó tách thành một hằng số riêng.
  *
- * VÌ SAO `TU_CHOI` VÀO ĐƯỢC, dù `POL-14` từng nói không ai xoá được nó. Điều
- * `POL-14` bảo vệ là **dấu vết**, không phải con số trên thẻ đếm: hồ sơ bị từ
- * chối phải còn lại trong lịch sử và trong báo cáo tỷ lệ trả lại. Ở đây "xoá"
- * KHÔNG xoá dòng nào — nó chuyển `DA_XOA` và ghi thêm một dòng nhật ký, nên cả
- * hai thứ ấy còn nguyên. Cái mất đi đúng bằng cái người dùng muốn mất: hồ sơ
- * thôi nằm trong thẻ *Từ chối* của người lập, nơi nó chỉ còn là rác nhìn.
+ * `0155` BỎ HẲN `TU_CHOI`, nên danh sách quay về đúng bằng `EDITABLE`. Nhưng
+ * hằng số RIÊNG thì giữ, không gộp lại: hai câu hỏi *"sửa được không"* và *"xoá
+ * được không"* là hai câu khác nhau, và chúng đã từng trả lời khác nhau một lần
+ * rồi. Gộp lại là mời lần thứ hai xảy ra âm thầm — ai đó nới `EDITABLE` cho một
+ * lý do chẳng liên quan gì tới việc xoá, và quyền xoá nới theo.
  *
- * Chốt ở CSDL vẫn nguyên: `trg_forbid_delete_rejected` chặn XOÁ DÒNG ở cả
- * `TU_CHOI` lẫn `DA_XOA`. Đường duy nhất là đổi trạng thái, và nó có vết.
+ * Chốt ở CSDL vẫn nguyên: `trg_forbid_delete_rejected` chặn XOÁ DÒNG ở `DA_XOA`.
+ * Đường duy nhất là đổi trạng thái, và nó có vết.
  */
-const XOA_DUOC = [...EDITABLE, 'TU_CHOI'];
+const XOA_DUOC = [...EDITABLE];
 
 /**
  * Hồ sơ này người đang xem có xoá được không — giao diện đọc để ẩn nút (`0039`).
@@ -239,8 +236,8 @@ export const thuocPhamVi = (n: number, alias = '', vaiTro?: string): string => {
  * Hồ sơ ĐÃ ĐÓNG BĂNG — số của nó không đổi nữa, dù danh mục có đổi (`0029`).
  *
  * Gồm cả `DANG_CO_HIEU_LUC`: nó cũng đóng băng, và cũng lệch được. Không gồm
- * `TU_CHOI` và `HET_HIEU_LUC` — hai trạng thái kết thúc, lệch hay không cũng
- * không ai làm gì được nữa.
+ * `HET_HIEU_LUC` và `DA_XOA` — trạng thái kết thúc, lệch hay không cũng không ai
+ * làm gì được nữa.
  */
 /**
  * Vai trò nào đọc cột người nào trên hồ sơ (`0031`).
@@ -862,16 +859,18 @@ export class PoliciesService {
    *   * `NHAP` — chưa gửi duyệt.
    *   * `YEU_CAU_CHINH_SUA` — gom cả ba đường trả về: Trưởng bộ phận yêu cầu
    *     chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2.
-   *   * `TU_CHOI` — thêm ở `0039`.
+   *
+   * (`TU_CHOI` từng nằm trong danh sách này từ `0039`; `0155` bỏ hẳn trạng thái
+   * ấy nên nó biến mất khỏi đây theo.)
    *
    * HAI KẾT CỤC, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
    *
    *   * `NHAP` → xoá hẳn dòng, không ghi nhật ký. Hồ sơ chưa gửi duyệt thì chưa
    *     ai ngoài người lập thấy nó; ghi một dòng "đã xoá" cho mỗi lần lập nhầm
    *     là chống spam ngược — người lập sẽ ngại mở bản nháp.
-   *   * `YEU_CAU_CHINH_SUA` và `TU_CHOI` → `DA_XOA` và ghi nhật ký. Hồ sơ đã qua
-   *     tay người khác, đã bị trả lại hoặc từ chối kèm lý do; xoá sạch là làm
-   *     biến mất luôn phần việc của họ.
+   *   * `YEU_CAU_CHINH_SUA` → `DA_XOA` và ghi nhật ký. Hồ sơ đã qua tay người
+   *     khác và đã bị trả lại kèm lý do; xoá sạch là làm biến mất luôn phần việc
+   *     của họ.
    */
   async remove(policyId: string, me: AuthUser) {
     // Đọc thẳng dòng nguồn, KHÔNG qua `byId`: đường kia làm mới giá và ngưỡng
@@ -996,8 +995,10 @@ export class PoliciesService {
      *
      * Trước đó giao diện suy điều kiện xoá từ `allowed-actions`: hồ sơ nào còn
      * `SUBMIT` hoặc `RESUBMIT_AFTER_EDIT` thì sửa được, mà sửa được thì xoá
-     * được. `0039` cắt đứt phép suy ấy — `TU_CHOI` xoá được mà không có hành
-     * động nào đi ra.
+     * được. `0039` cắt đứt phép suy ấy bằng `TU_CHOI` — một trạng thái xoá được
+     * mà không có hành động nào đi ra. `0155` bỏ trạng thái ấy, nên hôm nay hai
+     * danh sách lại trùng nhau; cờ này vẫn giữ, vì nó còn mang cả phần "đúng
+     * người phụ trách" mà giao diện không tự biết được.
      *
      * Chép danh sách trạng thái sang giao diện là dựng bản sao thứ hai phải giữ
      * đồng bộ; trả về một cờ BOOLEAN thì máy chủ vẫn là nơi duy nhất biết luật,

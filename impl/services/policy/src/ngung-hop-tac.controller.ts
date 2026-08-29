@@ -29,7 +29,7 @@ import { vaiTroConLai, type BonNguoi } from './infra/nguoi-nhan.js';
  * người lập đã tự bỏ vẫn bị đếm là "đang chờ", nên khách hàng ấy không xoá được
  * nữa, mà cũng không có thao tác nào đưa hồ sơ đó đi đâu tiếp.
  */
-const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI', 'DA_XOA'];
+const KET_THUC = ['HET_HIEU_LUC', 'DA_XOA'];
 
 type Hang = { id: string; code: string; status: string };
 

@@ -133,8 +133,8 @@ describe('`0094` tỷ lệ ký thẳng', () => {
      * 0 vẽ ra một điểm chạm đáy và đọc thành "kỳ ấy hỏng hết"; `null` thì không
      * vẽ gì. Đây là khác biệt giữa "không có dữ liệu" và "dữ liệu bằng không".
      */
-    expect(tyLeKyThang({ kyThang: 0, traLai1: 0, traLaiNhieu: 0, tuChoi: 0, dangXuLy: 0 })).toBeNull();
-    expect(tyLeKyThang({ kyThang: 3, traLai1: 1, traLaiNhieu: 0, tuChoi: 0, dangXuLy: 0 })).toBe(75);
+    expect(tyLeKyThang({ kyThang: 0, traLai1: 0, traLaiNhieu: 0, dangXuLy: 0 })).toBeNull();
+    expect(tyLeKyThang({ kyThang: 3, traLai1: 1, traLaiNhieu: 0, dangXuLy: 0 })).toBe(75);
   });
 });
 
@@ -249,7 +249,6 @@ const soLieuKy = (ma: string, nhan: string, dangChay: boolean, n: number) => ({
     hopDong: n - 1,
     coHieuLuc: n - 1,
     traLai: 1,
-    tuChoi: 0,
     quaHan: 0,
     hetHieuLuc: 0,
   },
@@ -287,13 +286,13 @@ const BO = {
 const nguoi = (ten: string, so: number, chuoi: number[], xh: string, kyThang: number) => ({
   userId: `u-${ten}`,
   ten,
-  kyNay: { guiDuyet: so + 1, coHieuLuc: so, traLai: 1, tuChoi: 0, giaTri: so * 1_000_000 },
+  kyNay: { guiDuyet: so + 1, coHieuLuc: so, traLai: 1, giaTri: so * 1_000_000 },
   chuoiHieuLuc: chuoi,
   chuoiGui: chuoi.map((v) => v + 1),
   xuHuong: xh,
   xuHuongGui: xh,
   tyLeTraLai: 12,
-  chatLuong: { kyThang, traLai1: 2, traLaiNhieu: 1, tuChoi: 0, dangXuLy: 1 },
+  chatLuong: { kyThang, traLai1: 2, traLaiNhieu: 1, dangXuLy: 1 },
   chatLuongTheoKy: [],
   suaLaiNgay: 3.2,
 });

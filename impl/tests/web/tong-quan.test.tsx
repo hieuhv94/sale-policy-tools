@@ -83,9 +83,8 @@ const DA_CHOT: Partial<Record<VaiTro, string[]>> = {
     'Quá hạn',
     'Đang chờ',
     'Đang có hiệu lực',
-    'Từ chối',
   ],
-  TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Quá hạn', 'Đang chờ', 'Đang có hiệu lực', 'Từ chối'],
+  TBP: ['Chờ TBP duyệt', 'Sắp quá hạn', 'Quá hạn', 'Đang chờ', 'Đang có hiệu lực'],
   KE_TOAN: [
     'KT duyệt bản mềm',
     'KT duyệt bản cứng',
@@ -300,8 +299,8 @@ describe('`0047` thẻ Sắp quá hạn', () => {
       // đường cho ra cùng một tập, và đường này để lại đúng cái ô chọn mà người
       // dùng thấy trong biểu mẫu.
       expect(duongThe(the)).toBe('/ho-so?han=QUA_HAN');
-      // `0064` đỏ, CÙNG màu *Từ chối* — khách hàng chốt ngày 19/08. Hai ngõ cụt
-      // khác nguyên nhân, nhưng với người dùng cùng một kết cục.
+      // `0064` đỏ. Từng dùng chung màu với *Từ chối*; `0155` bỏ trạng thái ấy
+      // nên `hong` giờ chỉ còn đúng một chủ.
       expect(mauThe(the), v).toBe('hong');
     }
   });

@@ -5,7 +5,7 @@
  * là ngay cả khi ai đó sửa thẳng vào CSDL thì ràng buộc vẫn giữ.
  *
  * MỌI test có ghi đều bọc trong `inRollback`. Bản đầu không bọc và để lại 135
- * dòng trong pol.policy sau vài chục lần chạy — trong đó có hồ sơ TU_CHOI mà
+ * dòng trong pol.policy sau vài chục lần chạy — trong đó có hồ sơ DA_XOA mà
  * chính trigger ở đây cấm xoá, nên chúng vĩnh viễn không dọn được. Đúng bất biến
  * mà test này chứng minh lại là thứ biến rác test thành rác không xoá nổi.
  */
@@ -69,10 +69,10 @@ describe('POL-02 · không trùng sản phẩm trong cùng một hồ sơ', () =
 describe('POL-14 · hồ sơ Từ chối không ai xoá được', () => {
   it('DELETE bằng SQL thô vẫn bị chặn và báo lỗi rõ ràng', async () => {
     await inRollback(db, async () => {
-      const id = await mkPolicy(db, `POL14-${Date.now()}`, await mkCustomer(db, 'POL14'), 'TU_CHOI');
+      const id = await mkPolicy(db, `POL14-${Date.now()}`, await mkCustomer(db, 'POL14'), 'DA_XOA');
       const err = await expectSqlErrorInTx(db, () =>
         db.query('DELETE FROM pol.policy WHERE id=$1', [id]));
-      expect(err.message).toContain('TU_CHOI');
+      expect(err.message).toContain('DA_XOA');
       const still = await db.query('SELECT count(*)::int n FROM pol.policy WHERE id=$1', [id]);
       expect(still.rows[0].n).toBe(1);                      // vẫn còn nguyên
     });
@@ -238,7 +238,7 @@ describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
      */
     expect(r.rows.map((x) => x.enumlabel)).toEqual([
       'NHAP','CHO_TBP_DUYET','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2',
-      'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','TU_CHOI','QUA_HAN_DUYET',
+      'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','QUA_HAN_DUYET',
       'DA_XOA']);
   });
 

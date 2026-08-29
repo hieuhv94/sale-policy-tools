@@ -39,7 +39,6 @@ const RECIPIENTS: Partial<Record<Action, string[]>> = {
   SUBMIT: ['TBP'],
   TBP_SIGN: ['KE_TOAN', 'TDV'],
   TBP_RETURN: ['TDV'],
-  TBP_REJECT: ['TDV'],
   KT_RECEIVE_L1: ['SALE_ADMIN', 'TBP', 'TDV'],
   KT_RETURN_L1: ['TBP', 'TDV'],
   SA_HANDOVER: ['KE_TOAN', 'TBP', 'TDV'],
@@ -679,13 +678,15 @@ export class WorkflowService {
         });
       }
 
-      if (action === 'TBP_REJECT') {
-        await c.query(`UPDATE pol.policy SET rejected_at = now(), rejected_by = $2 WHERE id = $1`, [
-          policyId,
-          me.id,
-        ]);
-      }
-
+      /*
+       * KHỐI ĐẶT `rejected_at` ĐÃ GỠ (`0155`).
+       *
+       * `TBP_REJECT` là hành động duy nhất từng ghi hai cột `rejected_at` /
+       * `rejected_by`, và hành động ấy không còn. Hai cột thì Ở LẠI trong lược
+       * đồ: chúng giữ mốc của những hồ sơ bị từ chối TRƯỚC ngày 29/08, nay mang
+       * trạng thái `DA_XOA` — gỡ cột là xoá mất câu trả lời *"hồ sơ này kết thúc
+       * lúc nào"* của chính chúng.
+       */
       /*
        * KHỐI "XOÁ BẢN SCAN KHI YÊU CẦU IN LẠI" ĐÃ GỠ Ở `0050`.
        *

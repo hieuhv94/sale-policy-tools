@@ -17,7 +17,6 @@ export const STATUS_LABEL: Record<string, string> = {
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
-  TU_CHOI: 'Từ chối',
   QUA_HAN_DUYET: 'Quá hạn duyệt',
   DA_XOA: 'Đã xoá',
 };
@@ -48,7 +47,6 @@ export const STEP_LABEL: Record<string, string> = {
   YEU_CAU_CHINH_SUA: 'Trình dược viên chỉnh sửa và gửi lại',
   DANG_CO_HIEU_LUC: 'Đã hoàn tất — không còn bước nào phải xử lý',
   HET_HIEU_LUC: 'Đã kết thúc — CSBH này không còn hiệu lực',
-  TU_CHOI: 'Đã kết thúc — hồ sơ bị từ chối',
   QUA_HAN_DUYET: 'Quá hạn — vẫn chờ đúng bước cũ',
   DA_XOA: 'Đã kết thúc — người lập đã xoá hồ sơ',
 };
@@ -64,7 +62,6 @@ export const TITLE: Record<string, string> = {
   RESUBMIT_AFTER_EDIT: 'Hồ sơ đã chỉnh sửa, chờ duyệt lại',
   TBP_SIGN: 'Trưởng bộ phận đã ký số, chuyển sang Kế toán tiếp nhận',
   TBP_RETURN: 'Hồ sơ bị trả lại để chỉnh sửa',
-  TBP_REJECT: 'Hồ sơ bị từ chối',
   KT_RECEIVE_L1: 'Kế toán đã tiếp nhận lần 1',
   KT_RETURN_L1: 'Kế toán không tiếp nhận lần 1',
   SA_HANDOVER: 'Sale Admin đã bàn giao bản cứng',
@@ -72,11 +69,13 @@ export const TITLE: Record<string, string> = {
   KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
   // Người lập bỏ hẳn một hồ sơ đã vào luồng (`0035`, `0039`). Thư đi tới người
-  // đã trả lại hoặc đã từ chối nó.
+  // đã trả lại nó.
   //
-  // Tiêu đề KHÔNG nói "bị trả lại" nữa: từ `0039` hồ sơ *Từ chối* cũng xoá được,
-  // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai. Thân thư đã ghi rõ
-  // trạng thái và mã hồ sơ.
+  // Tiêu đề KHÔNG nói "bị trả lại": `0039` mở đường xoá cho cả hồ sơ *Từ chối*,
+  // nên một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai. `0155` bỏ trạng
+  // thái ấy và hôm nay chỉ còn một đường vào — nhưng tiêu đề giữ nguyên, vì thân
+  // thư vốn đã ghi rõ trạng thái và mã hồ sơ, và nói "bị trả lại" ở tiêu đề là
+  // khẳng định một chuyện mà đường này không kiểm.
   DELETE: 'Trình dược viên đã xoá hồ sơ',
   /*
    * HAI đường làm một CSBH đang hiệu lực hết hiệu lực (`0066`). Cả hai trước đây

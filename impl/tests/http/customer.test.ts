@@ -62,7 +62,7 @@ const cleanup = () =>
     // ngừng hợp tác.
     await c.query(
       `UPDATE pol.policy SET status = 'NHAP'
-        WHERE code LIKE $1 AND status::text IN ('TU_CHOI', 'DA_XOA')`,
+        WHERE code LIKE $1 AND status::text = 'DA_XOA'`,
       [`${P}%`],
     );
     await c.query(`DELETE FROM pol.policy WHERE code LIKE $1`, [`${P}%`]);
@@ -524,7 +524,7 @@ describe('`0034` CUST-16 ngừng hợp tác — một nút thay cho hai', () => 
   // thêm một trạng thái kết thúc: quên nó ở `KET_THUC` thì hồ sơ người lập đã tự
   // bỏ vẫn bị đếm là "đang chờ", nên khách hàng không xoá được nữa — mà cũng
   // không thao tác nào đưa hồ sơ đó đi tiếp được. Một ngõ cụt kín.
-  for (const st of ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']) {
+  for (const st of ['HET_HIEU_LUC', 'DA_XOA']) {
     it(`chỉ có hồ sơ ${st} (đã kết thúc): giữ lại khách, KHÔNG hết hiệu lực gì`, async () => {
       const c = await post('/customers', base());
       const code = await themHoSo(c.body.id as string, st);

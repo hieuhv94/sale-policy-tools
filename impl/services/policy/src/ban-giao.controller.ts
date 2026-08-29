@@ -38,7 +38,7 @@ import { COT_CUA_VAI_TRO } from './policies/policies.service.js';
  * gì để người kế nhiệm làm với nó, và bàn giao nó chỉ làm dài thêm bảng xem
  * trước mà Quản trị phải đọc trước khi vô hiệu hoá một tài khoản.
  */
-const KET_THUC = ['HET_HIEU_LUC', 'TU_CHOI', 'DA_XOA'];
+const KET_THUC = ['HET_HIEU_LUC', 'DA_XOA'];
 
 type Hang = { id: string; code: string; status: string; customer_id: string };
 

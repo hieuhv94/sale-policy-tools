@@ -111,7 +111,6 @@ export const NHAN_TRANG_THAI: Record<string, string> = {
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',
   YEU_CAU_CHINH_SUA: 'Yêu cầu chỉnh sửa',
-  TU_CHOI: 'Từ chối',
   QUA_HAN_DUYET: 'Quá hạn duyệt',
   DA_XOA: 'Đã xoá',
 };
@@ -130,10 +129,13 @@ export const nhanTrangThai = (s: string): string => NHAN_TRANG_THAI[s] ?? s;
  * tiền tố `CHO_`. Phép suy ấy chính là thứ đã trói bốn bước chờ vào một màu, và
  * nó cũng sẽ lặng lẽ nuốt bất kỳ trạng thái mới nào bắt đầu bằng `CHO_`.
  *
- * BA cặp dùng chung màu, cả ba do khách hàng chốt ngày 19/08:
- *   - `TU_CHOI` + `QUA_HAN_DUYET` → `hong`. Hai ngõ cụt khác nguyên nhân, nhưng
- *     với người dùng cùng một kết cục: hồ sơ không đi tiếp được nữa.
+ * Hai nhóm dùng chung màu, do khách hàng chốt ngày 19/08:
+ *   - `QUA_HAN_DUYET` → `hong`. Ngõ cụt do hết hạn, và người dùng đọc nó là một
+ *     hồ sơ HỎNG chứ không phải một hồ sơ đã đóng gọn ghẽ.
  *   - `HET_HIEU_LUC` + `DA_XOA` → `ket-thuc`. Đã rời khỏi luồng, không đòi ai gì.
+ *
+ * `TU_CHOI` từng dùng chung màu `hong` với `QUA_HAN_DUYET`; `0155` bỏ hẳn trạng
+ * thái ấy, nên `hong` giờ chỉ còn một dòng.
  */
 const NHOM_MAU: Record<string, string> = {
   NHAP: 'nhap',
@@ -144,7 +146,6 @@ const NHOM_MAU: Record<string, string> = {
   DANG_CO_HIEU_LUC: 'hieu-luc',
   HET_HIEU_LUC: 'ket-thuc',
   YEU_CAU_CHINH_SUA: 'sua',
-  TU_CHOI: 'hong',
   QUA_HAN_DUYET: 'hong',
   DA_XOA: 'ket-thuc',
 };
@@ -171,6 +172,13 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   RESUBMIT_AFTER_EDIT: 'Gửi lại sau chỉnh sửa',
   TBP_SIGN: 'Trưởng bộ phận ký số',
   TBP_RETURN: 'Trưởng bộ phận trả lại để chỉnh sửa',
+  /*
+   * GIỮ LẠI dù hành động đã bỏ (`0155`).
+   *
+   * Bảng này dịch mã hành động trong NHẬT KÝ HỒ SƠ, và nhật ký kể chuyện đã xảy
+   * ra. Hồ sơ bị từ chối trước 29/08 vẫn còn dòng `TBP_REJECT` của chúng; gỡ
+   * nhãn là bày mã trần ra màn hình ở đúng chỗ người ta vào để đọc lịch sử.
+   */
   TBP_REJECT: 'Trưởng bộ phận từ chối',
   KT_RECEIVE_L1: 'Kế toán tiếp nhận lần 1',
   KT_RETURN_L1: 'Kế toán không tiếp nhận lần 1',

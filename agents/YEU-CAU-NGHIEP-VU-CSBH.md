@@ -1549,6 +1549,21 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**BỎ HẲN trạng thái *Từ chối*** `mới 29/08` — và bỏ luôn cả nút. Ở bước *Chờ TBP duyệt*, Trưởng bộ
+phận chỉ còn **hai** đường ra: **Ký số duyệt** hoặc **Trả lại chỉnh sửa**.
+
+> **Đường kết thúc một hồ sơ không mất, nó đổi tay**: TBP trả lại, rồi chính người lập bấm **Xoá** —
+> hồ sơ mang nhãn *Đã xoá*. Khớp với luật đã có: chỉ TDV xoá được hồ sơ của mình.
+>
+> **Cái mất**: TBP không còn tự kết thúc được một hồ sơ. Nếu người lập không đồng ý, hồ sơ nằm ở
+> *Yêu cầu chỉnh sửa* cho tới khi một trong hai người hành động — trạng thái ấy **không có SLA**.
+>
+> Hồ sơ đang ở *Từ chối* chuyển sang *Đã xoá*; lý do Trưởng bộ phận đã gõ vẫn nằm nguyên trong nhật
+> ký. Trạng thái hồ sơ còn **mười** giá trị.
+>
+> **Thống kê mất chỉ số *Bị từ chối*** và một lát của biểu đồ cơ cấu kết cục — một chỉ số không ai
+> tới được nữa thì luôn bằng 0. Báo cáo *tỷ lệ trả lại* **giữ** ô `rejected` cho dữ liệu cũ.
+
 **Một khách hàng có NHIỀU địa chỉ** `mới 29/08` — cả *Địa chỉ đăng ký* lẫn *Địa chỉ giao hàng* đều
 thêm được nhiều dòng, tối đa 50 mỗi loại. Phải còn **ít nhất một** địa chỉ đăng ký.
 

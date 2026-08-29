@@ -56,10 +56,10 @@ describe('chuỗi truy vấn tách khỏi đường dẫn', () => {
   });
 
   it('đọc được tham số ngay từ lần vẽ đầu, không cần bấm gì', () => {
-    window.history.replaceState(null, '', '/ho-so?status=TU_CHOI');
+    window.history.replaceState(null, '', '/ho-so?status=DA_XOA');
     dung();
     expect(duong()).toBe('/ho-so');
-    expect(status()).toBe('TU_CHOI');
+    expect(status()).toBe('DA_XOA');
   });
 
   it('bấm hai thẻ khác nhau cùng trỏ về /ho-so là HAI lần chuyển màn hình', async () => {

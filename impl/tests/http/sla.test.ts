@@ -596,7 +596,6 @@ describe('`0047` quá hạn là KẾT THÚC — đảo ngược NTF-11', () => {
     // chặn, nhưng chặn ở lớp khác và không nói gì về `0047`.
     for (const [who, hd] of [
       ['tdv01', 'RESUBMIT_AFTER_EDIT'],
-      ['tbp01', 'TBP_REJECT'],
     ] as const) {
       const r = await act(id, hd, who);
       expect(r.status, `${who}/${hd}`).toBe(409);

@@ -13691,3 +13691,100 @@ vứt bỏ chính khả năng vừa chứng minh được.
 | Gỡ nhánh mảng khỏi `trong()` | 1 đỏ |
 
 **1930/1930 xanh.**
+
+## P183 — `0155` bỏ hẳn trạng thái Từ chối
+
+Người dùng: *"Bỏ hoàn toàn trạng thái Từ chối"*. Hỏi lại đúng một câu — nút ấy đi
+đâu — và câu trả lời là **bỏ luôn nút**. TBP ở bước *Chờ TBP duyệt* chỉ còn hai
+đường: ký, hoặc trả lại.
+
+### Đường kết thúc không mất, nó đổi tay
+
+Trước lượt này có hai đường kết thúc một hồ sơ không dùng được:
+
+    TBP bấm *Từ chối*            → TU_CHOI   (TBP quyết định)
+    TBP trả lại, TDV bấm *Xoá*   → DA_XOA    (người lập quyết định)
+
+Bỏ đường thứ nhất là dồn về đường thứ hai, và nó **khớp với luật đã có**: `0099`
+chốt chỉ TDV xoá được hồ sơ của mình. Hai đường cùng dẫn tới *"hồ sơ này không đi
+tiếp"* mà một đường cho người khác quyết định số phận bản nháp của TDV là một sự
+bất đối xứng — giờ hết.
+
+Cái mất, đã ghi vào Phụ lục B: **TBP không còn tự kết thúc được một hồ sơ**. Nếu
+người lập không đồng ý, hồ sơ nằm ở *Yêu cầu chỉnh sửa* cho tới khi một trong hai
+người hành động — và trạng thái ấy **không có SLA** (`WAITING` chỉ gồm bốn trạng
+thái chờ), nên nó nằm được vô thời hạn.
+
+### Bỏ một giá trị enum là dựng lại cả kiểu
+
+Postgres không có `ALTER TYPE ... DROP VALUE`. `0048` đã đi qua đường này một lần
+và để lại công thức đầy đủ: gỡ ba chỉ mục và giá trị mặc định TRƯỚC — định nghĩa
+của chúng mang hằng số thuộc kiểu CŨ, và sau bước đổi tên thì hằng ấy thuộc
+`policy_status_cu` còn cột thuộc kiểu mới, nên Postgres dừng với *"operator does
+not exist"*.
+
+Mười lăm hồ sơ `TU_CHOI` trong CSDL kiểm chuyển sang `DA_XOA`. Không phải một lựa
+chọn: không dòng nào được còn mang giá trị cũ lúc đổi kiểu.
+
+### Hai cột `rejected_at` / `rejected_by` Ở LẠI
+
+Chúng giữ mốc của những hồ sơ bị từ chối trước 29/08, nay mang trạng thái
+`DA_XOA`. Gỡ cột là xoá mất câu trả lời *"hồ sơ này kết thúc lúc nào"* của chính
+chúng. Không đường ghi nào đặt chúng nữa — chốt ấy ở tầng ứng dụng, và
+`COMMENT ON COLUMN` nói ra điều đó.
+
+Cùng lý do, `NHAN_HANH_DONG.TBP_REJECT` **giữ nguyên**: bảng ấy dịch mã hành động
+trong NHẬT KÝ, và nhật ký kể chuyện đã xảy ra. Gỡ nhãn là bày mã trần ra màn hình
+ở đúng chỗ người ta vào để đọc lịch sử.
+
+### Chỗ suýt hỏng lặng lẽ nhất nằm trong Thống kê
+
+Biểu đồ *cơ cấu kết cục* có năm lát, và bốn lát kia lọc `rejected_at IS NULL` để
+một hồ sơ không nằm ở hai lát cùng lúc. Bỏ lát `tu_choi` mà giữ nguyên phép lọc
+ấy thì hồ sơ bị từ chối trước 29/08 **rơi khỏi MỌI lát** — tổng thôi bằng số hồ
+sơ đã gửi, thanh tỷ lệ ngắn đi, và không có gì đỏ lên. Phải gỡ cả bốn phép lọc.
+
+Có một ca kiểm canh đúng chuyện ấy: nó dựng một hồ sơ mang `rejected_at` cộng hai
+lần trả lại, rồi đòi nó xuất hiện ở lát *trả lại từ 2 lần*.
+
+Cái mất thật sự: chỉ số **Bị từ chối** rời khỏi ô chọn của Thống kê, và lát
+tương ứng biến khỏi hai biểu đồ. Đúng — một chỉ số không ai tới được nữa thì luôn
+bằng 0. Báo cáo *tỷ lệ trả lại* thì **giữ** ô `rejected` cho dữ liệu cũ.
+
+### Ba chỗ tự tay dính
+
+**Backtick trong template literal — lần thứ HAI trong hai chặng liên tiếp.** Lần
+này tôi chèn nó bằng escape trong một script Python, tức là vẫn quên rằng khối SQL
+là template literal. Triệu chứng vẫn y hệt: *"Octal literals are not allowed"* ở
+một dòng chẳng liên quan.
+
+**Thay `TU_CHOI` bằng `YEU_CAU_CHINH_SUA` trong ba ca kiểm về trạng thái KẾT
+THÚC.** Nghe hợp lý — đó là chỗ hồ sơ rơi vào sau khi TBP trả lại — nhưng
+`YEU_CAU_CHINH_SUA` **không phải trạng thái kết thúc**: `RESUBMIT_AFTER_EDIT` đi
+ra được, và trigger không chặn xoá dòng. Ba ca ấy phải đi HẾT đường
+trả-lại-rồi-xoá mới chạm được chốt chặn chúng đang kiểm.
+
+**`createsNewVersion`** trên `TBP_RETURN` làm tôi dừng lại kiểm: nếu nó thật sự
+tạo phiên bản mới thì thay `TBP_REJECT` bằng `TBP_RETURN` sẽ đổi nghĩa hàng chục
+ca kiểm. Nó chỉ là một cờ trả về, không service nào hành động theo.
+
+### Một chuyện NGOÀI chặng, đo được trên đường đi
+
+Bộ kiểm đỏ bốn ca ở danh mục với `IMPORT_TOO_MANY_ROWS`, không liên quan gì tới
+`0155`. Nguyên nhân: **CSDL kiểm tự đầu độc mình** — 5194 sản phẩm, trong đó 5159
+mang tiền tố `ZZ*` do chính bộ kiểm tạo qua nhiều lượt chạy, vượt trần 5000 dòng
+của lượt nhập Excel. Sản phẩm không xoá được qua API và bước dọn của các tệp kiểm
+không quét chúng.
+
+Dọn tay thì xanh. Nhưng nó sẽ quay lại: mỗi lượt `make test` thêm vài trăm dòng,
+nên khoảng ba mươi lượt nữa là đỏ lần hai — và lần ấy cũng sẽ đỏ ở một chỗ chẳng
+liên quan gì tới việc đang làm. Chưa sửa, ghi ra đây.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Thêm lại `TU_CHOI` + `TBP_REJECT` vào máy trạng thái | 4 đỏ |
+| `ALTER TYPE ... ADD VALUE 'TU_CHOI'` ở CSDL | 1 đỏ, ở tầng lược đồ |
+
+**1926/1926 xanh.**

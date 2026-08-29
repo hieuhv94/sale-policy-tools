@@ -781,7 +781,7 @@ describe('RPT-03 xoá bộ lọc', () => {
     const mine = await draft({ who: 'tdv01' });
     const others = await draft({ who: 'tdv03' });
 
-    await rput('/reports/filters/ho-so', { status: 'TU_CHOI' });
+    await rput('/reports/filters/ho-so', { status: 'DA_XOA' });
     const cleared = await rpost('/reports/filters/ho-so/clear', {});
     expect(cleared.status).toBe(200);
     expect(cleared.body.appliedCriteria).toBe(0);
@@ -826,11 +826,11 @@ describe('RPT-04 giữ điều kiện lọc trong phiên làm việc', () => {
 
   it('bộ lọc của mỗi người và mỗi màn hình tách nhau', async () => {
     await rput('/reports/filters/ho-so', { status: 'NHAP' }, 'tdv01');
-    await rput('/reports/filters/bao-cao', { status: 'TU_CHOI' }, 'tdv01');
+    await rput('/reports/filters/bao-cao', { status: 'DA_XOA' }, 'tdv01');
     await rput('/reports/filters/ho-so', { status: 'CHO_KT_L1' }, 'kt01');
 
     expect((await rget('/reports/filters/ho-so', 'tdv01')).body.filter.status).toBe('NHAP');
-    expect((await rget('/reports/filters/bao-cao', 'tdv01')).body.filter.status).toBe('TU_CHOI');
+    expect((await rget('/reports/filters/bao-cao', 'tdv01')).body.filter.status).toBe('DA_XOA');
     expect((await rget('/reports/filters/ho-so', 'kt01')).body.filter.status).toBe('CHO_KT_L1');
   });
 
@@ -923,57 +923,73 @@ describe('RPT-10 báo cáo tiến độ', () => {
 });
 
 describe('RPT-11 báo cáo tỷ lệ hồ sơ bị trả lại', () => {
-  it('tính CẢ hồ sơ ở trạng thái Từ chối', async () => {
+  it('đếm hồ sơ BỊ TRẢ LẠI, và không đếm hồ sơ đi thẳng', async () => {
     const returned = await draft();
     expect((await act(returned.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     expect((await act(returned.id, 'TBP_RETURN', 'tbp01', { reason: 'Thiếu hồ sơ pháp lý' })).status).toBe(200);
 
-    const rejected = await draft();
-    expect((await act(rejected.id, 'SUBMIT', 'tdv01')).status).toBe(200);
-    expect((await act(rejected.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiết khấu vượt trần' })).status).toBe(200);
-
     const clean = await draft();
     expect((await act(clean.id, 'SUBMIT', 'tdv01')).status).toBe(200);
-    await flushSync([returned.id, rejected.id, clean.id]);
+    await flushSync([returned.id, clean.id]);
 
     const r = (await rget('/reports/return-rate', 'bld01')).body;
     expect(r.returned).toBeGreaterThanOrEqual(1);
-    expect(r.rejected).toBeGreaterThanOrEqual(1);
-    // Hồ sơ Từ chối nằm trong tử số — bỏ nó ra là giấu đúng những hồ sơ hỏng nặng nhất.
-    expect(r.returnedOrRejected).toBeGreaterThanOrEqual(r.rejected);
+    expect(r.returnedOrRejected).toBeGreaterThanOrEqual(r.returned);
     expect(r.rate).toBeGreaterThan(0);
-
-    const rowRejected = await rptRow(rejected.id);
-    expect(rowRejected?.['status']).toBe('TU_CHOI');
   });
 
-  it('`0039` người lập XOÁ hồ sơ bị từ chối thì con số KHÔNG đổi', async () => {
+  it('`0155` ô `rejected` vẫn còn trong báo cáo, nhưng không hồ sơ MỚI nào vào được', async () => {
+    /*
+     * Bỏ trạng thái *Từ chối* KHÔNG gỡ ô `rejected` khỏi báo cáo này, và đó là
+     * chủ ý: cột `rejected_at` giữ mốc của những hồ sơ bị từ chối TRƯỚC 29/08,
+     * và một báo cáo lịch sử thôi đếm chúng là một báo cáo tự sửa quá khứ.
+     *
+     * Cái phải khẳng định là chiều còn lại: từ hôm nay **không có đường nào**
+     * đặt `rejected_at`, nên con số ấy đứng yên. Hồ sơ mới bị trả lại rồi bị xoá
+     * cũng không làm nó nhúc nhích.
+     */
+    const truoc = (await rget('/reports/return-rate', 'bld01')).body;
+
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Chiết khấu vượt trần' })).status).toBe(200);
+    await flushSync([d.id]);
+
+    const sau = (await rget('/reports/return-rate', 'bld01')).body;
+    expect(sau.rejected, 'không đường nào đặt rejected_at nữa').toBe(truoc.rejected);
+    expect(Number(sau.returned)).toBeGreaterThan(Number(truoc.returned));
+  });
+
+  it('`0039` người lập XOÁ hồ sơ bị trả lại thì con số KHÔNG đổi', async () => {
     /*
      * Chỗ dễ hỏng nhất của `0039`, và hỏng theo hướng đẹp lên.
      *
-     * Từ `0039` TDV bỏ được hồ sơ đã bị từ chối khỏi thẻ đếm của mình, và hồ sơ
-     * chuyển `DA_XOA`. Nếu báo cáo đếm theo `status = 'TU_CHOI'` như trước thì
-     * mỗi lần dọn màn hình là một lần tỷ lệ từ chối của chính người đó tụt
-     * xuống — một chỉ số tự bào mòn, mà không ai nhìn ra vì nó chỉ nhỏ đi.
+     * TDV bỏ được hồ sơ đã bị trả lại khỏi thẻ đếm của mình, và hồ sơ chuyển
+     * `DA_XOA`. Nếu báo cáo đếm theo TRẠNG THÁI thì mỗi lần dọn màn hình là một
+     * lần tỷ lệ trả lại của chính người đó tụt xuống — một chỉ số tự bào mòn, mà
+     * không ai nhìn ra vì nó chỉ nhỏ đi.
      *
-     * Nên báo cáo đếm theo `rejected_at`: một mốc ĐÃ XẢY RA, không đảo được.
+     * Nên báo cáo đếm theo `returned_at`: một mốc ĐÃ XẢY RA, không đảo được.
+     *
+     * `0155` không đổi bất biến này, chỉ đổi đường đi tới nó: trước là hồ sơ bị
+     * TỪ CHỐI, giờ là hồ sơ bị TRẢ LẠI. Bất biến quan trọng hơn cái cớ.
      */
-    const rejected = await draft();
-    expect((await act(rejected.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const bịTrả = await draft();
+    expect((await act(bịTrả.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     expect(
-      (await act(rejected.id, 'TBP_REJECT', 'tbp01', { reason: 'Chiết khấu vượt trần' })).status,
+      (await act(bịTrả.id, 'TBP_RETURN', 'tbp01', { reason: 'Chiết khấu vượt trần' })).status,
     ).toBe(200);
-    await flushSync([rejected.id]);
+    await flushSync([bịTrả.id]);
 
     const truoc = (await rget('/reports/return-rate', 'bld01')).body;
 
     // Người lập bỏ nó đi.
-    expect((await pdel(`/policies/${rejected.id}`, 'tdv01')).status).toBe(204);
-    await flushSync([rejected.id]);
-    expect((await rptRow(rejected.id))?.['status']).toBe('DA_XOA');
+    expect((await pdel(`/policies/${bịTrả.id}`, 'tdv01')).status).toBe(204);
+    await flushSync([bịTrả.id]);
+    expect((await rptRow(bịTrả.id))?.['status']).toBe('DA_XOA');
 
     const sau = (await rget('/reports/return-rate', 'bld01')).body;
-    expect(sau.rejected, 'xoá khỏi màn hình không được xoá khỏi báo cáo').toBe(truoc.rejected);
+    expect(sau.returned, 'xoá khỏi màn hình không được xoá khỏi báo cáo').toBe(truoc.returned);
     expect(sau.returnedOrRejected).toBe(truoc.returnedOrRejected);
     expect(sau.rate).toBe(truoc.rate);
   });

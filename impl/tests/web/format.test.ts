@@ -61,7 +61,7 @@ describe('Nhãn trạng thái', () => {
     const tatCa = [
       'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
       'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
-      'TU_CHOI', 'QUA_HAN_DUYET', 'DA_XOA',
+      'QUA_HAN_DUYET', 'DA_XOA',
     ];
     for (const t of tatCa) {
       expect(nhanTrangThai(t), `thiếu nhãn cho ${t}`).not.toBe(t);

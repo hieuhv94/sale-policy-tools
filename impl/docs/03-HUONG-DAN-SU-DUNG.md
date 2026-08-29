@@ -288,8 +288,8 @@ lọc sẵn đúng bằng con số vừa bấm.
 
 | Vai trò | Thẻ bạn thấy |
 |---|---|
-| **Trình dược viên** | Yêu cầu chỉnh sửa · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
-| **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực · Từ chối |
+| **Trình dược viên** | Yêu cầu chỉnh sửa · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
+| **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Kế toán** | KT duyệt bản mềm · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Ban lãnh đạo** | **Cả 11 trạng thái** |
@@ -781,7 +781,7 @@ muốn sửa phải chờ người duyệt trả lại.
 
 **Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:
 **Nháp**, **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế toán không
-tiếp nhận L1, Kế toán không tiếp nhận L2), và **Từ chối**. Phải **gõ lại mã hồ sơ** để xác nhận, vì
+tiếp nhận L1, Kế toán không tiếp nhận L2). Phải **gõ lại mã hồ sơ** để xác nhận, vì
 xoá không lùi được.
 
 Hai kết cục, hệ thống tự chọn — bạn không phải quyết định:
@@ -790,7 +790,6 @@ Hai kết cục, hệ thống tự chọn — bạn không phải quyết địn
 |---|---|
 | **Nháp** (chưa gửi duyệt) | Biến mất hẳn, không để lại dòng lịch sử nào |
 | **Yêu cầu chỉnh sửa** | Chuyển sang **Đã xoá** — hồ sơ ở lại, giữ nguyên lịch sử và lý do trả lại, tra cứu được, nhưng không đi tiếp được nữa |
-| **Từ chối** | Cũng chuyển sang **Đã xoá**, giữ nguyên lịch sử và lý do từ chối |
 
 Sự khác nhau nằm ở chỗ **đã có ai khác đọc hồ sơ chưa**. Bản nháp chưa gửi thì chưa ai ngoài bạn
 nhìn thấy, nên giữ lại một dòng "đã xoá" cho mỗi lần lập nhầm chỉ làm rác lịch sử. Hồ sơ bị trả lại
@@ -798,8 +797,12 @@ thì đã qua tay người khác, họ đã đọc và đã viết lý do — xo
 việc của họ. **Người đã trả hồ sơ lại sẽ nhận thư báo** khi bạn xoá, vì họ đang chờ một bản sửa sẽ
 không bao giờ tới.
 
-**Xoá hồ sơ bị Từ chối** là để dọn màn hình: hồ sơ ấy đã đóng vĩnh viễn, không làm gì được nữa, mà
-vẫn nằm đếm trong thẻ *Từ chối* trên trang tổng quan của bạn. Xoá xong nó rời khỏi thẻ đó.
+**Xoá hồ sơ bị trả lại** là để dọn màn hình: hồ sơ bạn đã quyết định không theo đuổi nữa vẫn nằm
+đếm trong thẻ *Yêu cầu chỉnh sửa* trên trang tổng quan của bạn. Xoá xong nó rời khỏi thẻ đó.
+
+> **Trạng thái *Từ chối* đã bỏ** `sửa 29/08`. Trưởng bộ phận không còn nút ấy — muốn dừng hẳn một hồ
+> sơ thì họ **trả lại**, rồi bạn tự **Xoá**. Hồ sơ cũ đang ở *Từ chối* nay mang nhãn *Đã xoá*, lý do
+> Trưởng bộ phận đã ghi vẫn tra cứu được trong nhật ký.
 
 > **Nó KHÔNG biến mất khỏi báo cáo.** Tỷ lệ trả lại và từ chối đếm theo **thời điểm hồ sơ bị từ
 > chối**, không theo trạng thái hiện tại — nên xoá ở đây không làm con số của bạn đẹp lên. Lịch sử
@@ -836,7 +839,7 @@ cùng vai trò không thấy, không mở.
 
 - **Trả lại chỉnh sửa** (TBP hoặc Kế toán): hồ sơ về tay TDV, **bắt buộc nhập lý do**. Sửa xong đi
   lại từ đầu vòng duyệt.
-- **Từ chối** (chỉ TBP): hồ sơ đóng vĩnh viễn. **Không ai xoá được** hồ sơ đã từ chối, kể cả Quản
+- **Đã xoá**: hồ sơ đóng vĩnh viễn. **Không ai xoá được** dòng của nó, kể cả Quản
   trị hệ thống.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái
   đóng vĩnh viễn và không ai xoá được — xem *Xoá hồ sơ* ở mục 6.
@@ -860,11 +863,11 @@ Còn lại:
 | Nâu xám | Nháp |
 | Xanh lá | Đang có hiệu lực |
 | Hổ phách | Yêu cầu chỉnh sửa · và thẻ *Lỗi bản cứng* của Sale Admin |
-| **Đỏ** | Từ chối · Quá hạn duyệt |
+| **Đỏ** | Quá hạn duyệt |
 | **Xám đá** | Hết hiệu lực · Đã xoá |
 | Cam | thẻ *Sắp quá hạn* — không phải trạng thái |
 
-Hai cặp in đậm **cố ý dùng chung màu**: *Từ chối* với *Quá hạn duyệt* khác nguyên nhân nhưng cùng một
+Cặp in đậm **cố ý dùng chung màu**: *Hết hiệu lực* với *Đã xoá* khác nguyên nhân nhưng cùng một
 kết cục — hồ sơ không đi tiếp được nữa; *Hết hiệu lực* với *Đã xoá* đều đã rời khỏi luồng và không
 đòi ai làm gì.
 
@@ -929,7 +932,7 @@ Người mở màn hình này phần lớn là để ký; bắt họ cuộn qua 
 văn bản mới tới được việc của mình là đặt việc chính ở xa nhất.
 
 Chúng chỉ hiện **những việc bạn làm được ở bước hiện tại** — không phải mọi việc của bước ấy. Trưởng
-bộ phận mở một hồ sơ đang chờ mình thấy ba nút *Ký số duyệt · Trả lại chỉnh sửa · Từ chối hồ sơ*;
+bộ phận mở một hồ sơ đang chờ mình thấy hai nút *Ký số duyệt · Trả lại chỉnh sửa*;
 Trình dược viên mở đúng hồ sơ đó **không thấy nút nào**, vì lúc này việc không thuộc về họ.
 
 Nhóm nút biến mất hẳn khi bạn không có việc gì, không hiện ra rồi báo lỗi khi bấm. **Ban lãnh đạo**
@@ -943,7 +946,7 @@ không ai bấm nhầm nó khi đang định ký.
 | Nút | Chỉ hiện khi |
 |---|---|
 | *Sửa hồ sơ* | Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*, và bạn là TDV phụ trách |
-| *Xoá hồ sơ* | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa* hoặc *Từ chối*, và bạn là TDV phụ trách |
+| *Xoá hồ sơ* | Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*, và bạn là TDV phụ trách |
 | *Tải tệp lên* | Hồ sơ đang nhận được đúng loại tệp ấy — *Hồ sơ* ở bước nháp, *Bản scan* ở bước Sale Admin |
 | *Gỡ* tệp | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa* hoặc *Sale Admin đang xử lý* |
 | *Xuất hợp đồng (PDF)* | Kế toán đã tiếp nhận lần 1 |
@@ -1034,7 +1037,7 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
   >
   > Hai loại dòng *Tải bản mềm CSBH* và *Tải bản hợp đồng* ghi trước 20/08 đã **xoá hẳn**: phần mềm
   > chưa bàn giao nên chúng đều là dấu vết của bản demo và của các lượt chạy thử.
-- **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Từ chối*, *Đã xoá* hay *Hết hiệu lực*. Đó chính là
+- **Đọc được ở mọi trạng thái**, kể cả hồ sơ đã *Đã xoá* hay *Hết hiệu lực*. Đó chính là
   lúc cần nó nhất: không còn màn hình nào khác nói chuyện gì đã xảy ra.
 - Phạm vi xem **giống hệt** phạm vi mở hồ sơ: thấy hồ sơ thì đọc được lịch sử của nó, không thấy thì
   không.
@@ -1497,7 +1500,7 @@ Hộp thoại vô hiệu hoá hỏi ba thứ, theo thứ tự:
 
 **Chuyển những hồ sơ nào**: mọi hồ sơ **chưa kết thúc** mà người đó đang giữ ở vai trò của mình —
 kể cả bản **Nháp**, và kể cả hồ sơ **Đang có hiệu lực** (người phụ trách nó là người nhận thư khi
-giá hoặc quy định chiết khấu đổi). Hồ sơ **Từ chối**, **Đã xoá** và **Hết hiệu lực** thì không, vì không ai còn
+giá hoặc quy định chiết khấu đổi). Hồ sơ **Đã xoá** và **Hết hiệu lực** thì không, vì không ai còn
 phải làm gì với chúng — trừ khi chúng thuộc một khách hàng vừa đổi tay, xem ngay dưới.
 
 **Khách hàng đi cùng hồ sơ** — chỉ với Trình dược viên, vì *TDV phụ trách* là liên kết duy nhất giữa
@@ -1506,7 +1509,7 @@ là loại khách dễ mồ côi nhất — không hồ sơ nào trỏ tới nê
 duy nhất còn nhìn thấy thì vừa bị khoá tài khoản. Vì thế một TDV chỉ có khách mà chưa lập hồ sơ nào
 **cũng phải chọn người nhận**.
 
-**Hồ sơ của một khách hàng đi theo khách hàng ấy** `mới 21/08` — **mọi** hồ sơ, kể cả *Từ chối* và
+**Hồ sơ của một khách hàng đi theo khách hàng ấy** `mới 21/08` — **mọi** hồ sơ, kể cả
 *Hết hiệu lực*. Người tiếp quản một khách hàng cần đọc được lịch sử chính sách của khách đó; và
 không cho họ đọc thì màn hình *Hồ sơ CSBH* vẫn **bày hồ sơ ra** (nó tính phạm vi theo TDV phụ trách
 khách hàng) trong khi bấm vào lại báo *không có quyền*. Chỉ hồ sơ **Đã xoá** đứng ngoài.

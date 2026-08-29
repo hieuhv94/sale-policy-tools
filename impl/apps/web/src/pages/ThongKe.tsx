@@ -105,13 +105,12 @@ export function ThongKe() {
                   lop={[
                     { nhan: 'Có hiệu lực', diem: chuoiChiSo(bo, 'coHieuLuc'), mau: 'bd-tot' },
                     { nhan: 'Bị trả lại', diem: chuoiChiSo(bo, 'traLai'), mau: 'bd-canh' },
-                    { nhan: 'Bị từ chối', diem: chuoiChiSo(bo, 'tuChoi'), mau: 'bd-xau' },
                     { nhan: 'Quá hạn', diem: chuoiChiSo(bo, 'quaHan'), mau: 'bd-mo' },
                   ]}
                 />
                 <ChuThich
-                  muc={['coHieuLuc', 'traLai', 'tuChoi', 'quaHan']}
-                  mau={['bd-tot', 'bd-canh', 'bd-xau', 'bd-mo']}
+                  muc={['coHieuLuc', 'traLai', 'quaHan']}
+                  mau={['bd-tot', 'bd-canh', 'bd-mo']}
                 />
               </>
             )}
@@ -264,14 +263,13 @@ export function ThongKe() {
                   <Cot
                     moc={mocNgan(bo)}
                     nhom
-                    moTa="Số hồ sơ đã ký, bị trả lại và bị từ chối theo từng kỳ"
+                    moTa="Số hồ sơ đã ký và bị trả lại theo từng kỳ"
                     lop={[
                       { nhan: 'Đã ký', diem: chuoiChiSo(bo, 'tbpKy'), mau: 'bd-1' },
                       { nhan: 'Trả lại', diem: chuoiChiSo(bo, 'traLai'), mau: 'bd-canh' },
-                      { nhan: 'Từ chối', diem: chuoiChiSo(bo, 'tuChoi'), mau: 'bd-xau' },
                     ]}
                   />
-                  <ChuThich muc={['tbpKy', 'traLai', 'tuChoi']} mau={['bd-1', 'bd-canh', 'bd-xau']} />
+                  <ChuThich muc={['tbpKy', 'traLai']} mau={['bd-1', 'bd-canh']} />
                 </div>
                 <div className="o">
                   <div className="o-dau">
@@ -714,17 +712,16 @@ function ChatLuongTdv({ bo, aiDo }: { bo: BoTheoTdv; aiDo: string | null }) {
       <ul className="chat-luong">
         {dong.map((n) => {
           const c = n.chatLuong;
-          const tong = c.kyThang + c.traLai1 + c.traLaiNhieu + c.tuChoi + c.dangXuLy;
+          const tong = c.kyThang + c.traLai1 + c.traLaiNhieu + c.dangXuLy;
           return (
             <li key={n.userId} className={n.userId === aiDo ? 'chon' : undefined}>
               <span className="chat-luong-ten">{n.ten}</span>
               <ThanhTyLe
-                moTa={`${n.ten}: ${c.kyThang} ký thẳng, ${c.traLai1} trả lại một lần, ${c.traLaiNhieu} trả lại từ hai lần, ${c.tuChoi} từ chối, ${c.dangXuLy} đang xử lý`}
+                moTa={`${n.ten}: ${c.kyThang} ký thẳng, ${c.traLai1} trả lại một lần, ${c.traLaiNhieu} trả lại từ hai lần, ${c.dangXuLy} đang xử lý`}
                 phan={[
                   { nhan: 'Ký thẳng', so: c.kyThang, mau: 'bd-tot' },
                   { nhan: 'Trả lại 1 lần', so: c.traLai1, mau: 'bd-canh' },
                   { nhan: 'Trả lại từ 2 lần', so: c.traLaiNhieu, mau: 'bd-4' },
-                  { nhan: 'Từ chối', so: c.tuChoi, mau: 'bd-xau' },
                   { nhan: 'Đang xử lý', so: c.dangXuLy, mau: 'bd-mo' },
                 ]}
               />
@@ -734,8 +731,8 @@ function ChatLuongTdv({ bo, aiDo }: { bo: BoTheoTdv; aiDo: string | null }) {
         })}
       </ul>
       <ChuThich
-        muc={['Ký thẳng lần đầu', 'Trả lại 1 lần', 'Trả lại từ 2 lần', 'Từ chối', 'Đang xử lý']}
-        mau={['bd-tot', 'bd-canh', 'bd-4', 'bd-xau', 'bd-mo']}
+        muc={['Ký thẳng lần đầu', 'Trả lại 1 lần', 'Trả lại từ 2 lần', 'Đang xử lý']}
+        mau={['bd-tot', 'bd-canh', 'bd-4', 'bd-mo']}
         tho
       />
       <p className="ghi-chu">

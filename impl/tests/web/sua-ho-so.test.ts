@@ -25,7 +25,7 @@ describe('suy "sửa được" từ câu trả lời của máy chủ', () => {
   });
 
   it('hồ sơ đang chờ người khác duyệt — KHÔNG sửa được', () => {
-    expect(suaDuoc(['TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT'])).toBe(false);
+    expect(suaDuoc(['TBP_SIGN', 'TBP_RETURN'])).toBe(false);
     expect(suaDuoc(['KT_RECEIVE_L1', 'KT_RETURN_L1'])).toBe(false);
     expect(suaDuoc(['SA_HANDOVER'])).toBe(false);
   });

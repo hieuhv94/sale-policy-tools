@@ -73,6 +73,13 @@ type HoSoOpts = {
   hopDong?: string;
   approved?: string;
   traLai?: string;
+  /**
+   * Mốc `rejected_at` — DỮ LIỆU LỊCH SỬ (`0155`).
+   *
+   * Không đường ghi nào đặt cột này nữa, nhưng nó còn nguyên trong lược đồ và
+   * còn giữ mốc của hồ sơ bị từ chối trước 29/08. Fixture giữ lại để kiểm rằng
+   * những hồ sơ ấy vẫn được đếm ở đâu đó, chứ không rơi khỏi mọi ô.
+   */
   tuChoi?: string;
   quaHan?: string;
   /** Ai nhìn thấy hồ sơ này. Mặc định `tdv01`. */
@@ -323,8 +330,16 @@ describe('`0093` mỗi chỉ số neo vào đúng một mốc', () => {
 
     const r = await rget('/reports/thong-ke?ky=thang&soKy=12');
     const o = kyCo(r.body, ky('thang', 1).ma);
-    expect(o?.dem).toMatchObject({ guiDuyet: 4, traLai: 1, tuChoi: 1 });
-    expect(o?.tyLeTraLai).toBe(50);
+    /*
+     * `0155` — không còn ô `tuChoi`, và tỷ lệ trả lại THÔI cộng nó vào.
+     *
+     * Trước đây `traVe = traLai + tuChoi` = 2/4 = 50%. Giờ chỉ còn `traLai` =
+     * 1/4 = 25%. Hồ sơ mang `rejected_at` là dữ liệu lịch sử; nó vẫn nằm trong
+     * mẫu số vì nó đã gửi duyệt, chỉ thôi được đếm là một lượt trả về.
+     */
+    expect(o?.dem).toMatchObject({ guiDuyet: 4, traLai: 1 });
+    expect(o?.dem).not.toHaveProperty('tuChoi');
+    expect(o?.tyLeTraLai).toBe(25);
   });
 });
 
@@ -456,7 +471,7 @@ describe('`0093` tham số', () => {
      */
     await hoSo({ approved: tai('thang', 1, NGAY) });
     const a = await rget('/reports/thong-ke?ky=thang&soKy=12');
-    const b = await rget('/reports/thong-ke?ky=thang&soKy=12&status=TU_CHOI');
+    const b = await rget('/reports/thong-ke?ky=thang&soKy=12&status=DA_XOA');
     const ma = ky('thang', 1).ma;
     expect(kyCo(b.body, ma)?.dem.coHieuLuc).toBe(kyCo(a.body, ma)?.dem.coHieuLuc);
     expect(kyCo(a.body, ma)?.dem.coHieuLuc).toBe(1);
@@ -544,16 +559,22 @@ describe('`0094` cơ cấu chất lượng hồ sơ', () => {
     await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(2) });
     await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(3), soLanTraLai: 1 });
     await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tbpKy: kyNay(4), soLanTraLai: 3 });
+    /*
+     * Hồ sơ mang `rejected_at` — dữ liệu TRƯỚC `0155`. Nó không còn lát riêng,
+     * nên nó rơi vào lát theo số lần trả lại của chính nó (2 → *trả lại từ 2
+     * lần*). Đó là điều phải khẳng định: nó vẫn được đếm ở ĐÂU ĐÓ. Bỏ ô `tuChoi`
+     * mà giữ nguyên phép lọc `rejected_at IS NULL` ở bốn ô kia thì nó rơi khỏi
+     * MỌI lát, và thanh tỷ lệ ngắn đi mà không ai biết.
+     */
     await hoSo({ tbp: 'tbp01', submitted: kyNay(1), tuChoi: kyNay(5), soLanTraLai: 2 });
-    // Chưa ngã ngũ: đã gửi, chưa ký, chưa trả, chưa từ chối.
+    // Chưa ngã ngũ: đã gửi, chưa ký, chưa trả.
     await hoSo({ tbp: 'tbp01', submitted: kyNay(1), status: 'CHO_TBP_DUYET' });
 
     const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
     expect(r.body.nguoi[0].chatLuong).toEqual({
       kyThang: 1,
       traLai1: 1,
-      traLaiNhieu: 1,
-      tuChoi: 1,
+      traLaiNhieu: 2,
       dangXuLy: 1,
     });
   });
@@ -564,7 +585,7 @@ describe('`0094` cơ cấu chất lượng hồ sơ', () => {
     await hoSo({ tbp: 'tbp01', submitted: tai('thang', 1, NGAY), tbpKy: kyNay(2) });
     const r = await rget('/reports/thong-ke/tdv?ky=thang&soKy=12', 'tbp01');
     const cl = r.body.nguoi[0].chatLuong;
-    expect(cl.kyThang + cl.traLai1 + cl.traLaiNhieu + cl.tuChoi + cl.dangXuLy).toBe(0);
+    expect(cl.kyThang + cl.traLai1 + cl.traLaiNhieu + cl.dangXuLy).toBe(0);
   });
 
   it('số ngày sửa lại LỌC THEO PHẠM VI, không lấy cả hồ sơ ngoài bàn mình', async () => {

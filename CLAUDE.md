@@ -87,7 +87,24 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P182** (`0154`): **một khách hàng có nhiều địa chỉ** — bảng `cus.customer_address`
+Chặng gần nhất **P183** (`0155`): **bỏ hẳn trạng thái `TU_CHOI`**, và bỏ luôn nút — TBP chỉ còn *Ký*
+hoặc *Trả lại*. Đường kết thúc không mất mà **đổi tay**: TBP trả lại, TDV tự xoá → `DA_XOA`, khớp
+luật `0099` *chỉ TDV xoá hồ sơ của mình*. Cái mất: TBP không tự kết thúc được hồ sơ, và
+`YEU_CAU_CHINH_SUA` **không có SLA** nên hồ sơ nằm đó vô thời hạn. Bỏ một giá trị enum là **dựng lại
+cả kiểu** (công thức `0048`). Hai cột `rejected_at`/`rejected_by` và nhãn `NHAN_HANH_DONG.TBP_REJECT`
+**GIỮ LẠI** — nhật ký kể chuyện đã xảy ra. Chỗ suýt hỏng lặng lẽ nhất: bốn lát còn lại của biểu đồ cơ
+cấu kết cục lọc `rejected_at IS NULL` để không trùng lát; bỏ lát `tu_choi` mà giữ phép lọc ấy thì hồ
+sơ cũ **rơi khỏi MỌI lát** và tổng ngắn đi mà không gì đỏ. Ba chỗ tự dính: **backtick trong template
+literal lần thứ HAI trong hai chặng**; thay `TU_CHOI` bằng `YEU_CAU_CHINH_SUA` ở ba ca về trạng thái
+KẾT THÚC (nó không phải trạng thái kết thúc); và phải kiểm `createsNewVersion` trước khi đổi
+`TBP_REJECT` → `TBP_RETURN`. **1926/1926 xanh.**
+
+> **NGOÀI CHẶNG, đã đo:** CSDL kiểm **tự đầu độc mình** — 5159 sản phẩm `ZZ*` tích qua nhiều lượt
+> chạy, vượt trần 5000 dòng của lượt nhập Excel, làm bốn ca danh mục đỏ ở chỗ chẳng liên quan. Sản
+> phẩm không xoá được qua API và bước dọn không quét chúng. Dọn tay thì xanh, nhưng khoảng ba mươi
+> lượt `make test` nữa là đỏ lại. **Chưa sửa.**
+
+Trước đó **P182** (`0154`): **một khách hàng có nhiều địa chỉ** — bảng `cus.customer_address`
 là nguồn, hai cột cũ thành **bản gộp do trigger dựng**, ngăn bằng `\n`. Điểm quan trọng nhất là hai
 yêu cầu của khách **khoá vào nhau**: `0006` cho trùng MST có chủ ý với đúng lý do *"một chủ hộ nhiều
 điểm bán"*, nên nhiều-địa-chỉ phải đi TRƯỚC cấm-trùng-MST (`0155`), nếu không là bịt đường đi mà chưa

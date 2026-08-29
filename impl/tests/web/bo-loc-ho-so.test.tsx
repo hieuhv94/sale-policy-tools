@@ -275,7 +275,7 @@ describe('`0077` nút xuất Excel', () => {
     await nguoi.click(screen.getByRole('button', { name: 'Xuất Excel' }));
     await screen.findByRole('button', { name: /Tải file/ }, { timeout: 3000 });
 
-    rerender(<NutXuatExcel boLoc={{ status: 'TU_CHOI' }} />);
+    rerender(<NutXuatExcel boLoc={{ status: 'DA_XOA' }} />);
     expect(screen.queryByRole('button', { name: /Tải file/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeDefined();
   });

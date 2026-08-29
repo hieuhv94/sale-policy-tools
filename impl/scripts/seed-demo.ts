@@ -133,6 +133,16 @@ const phanCong = (hanhDong: string): Record<string, string> => {
 const act = (id: string, hanhDong: string, ai: string, body: Record<string, unknown> = {}) =>
   goi(`/policies/${id}/actions/${hanhDong}`, ai, { ...phanCong(hanhDong), ...body });
 
+/**
+ * Người lập bỏ hẳn một hồ sơ đã vào luồng (`0035`) — đường DUY NHẤT tới `DA_XOA`
+ * từ `0155`.
+ *
+ * `DELETE` chứ không phải một hành động của máy trạng thái: xoá không đi qua
+ * `/actions/*`, nó có endpoint riêng và luật riêng (chỉ TDV phụ trách, chỉ ở hai
+ * trạng thái sửa được).
+ */
+const xoaHoSo = (id: string, ai: string) => goi(`/policies/${id}`, ai, {}, 'DELETE');
+
 // --- Danh mục -----------------------------------------------------------------
 
 /**
@@ -1227,7 +1237,7 @@ async function main(): Promise<void> {
     ['CHO_KT_L1', 11],
     ['CHO_KT_L2', 11],
     ['SA_DANG_XU_LY', QUA_MOT_TRANG],
-    ['TU_CHOI', 5],
+    ['DA_XOA', 5],
     ['DANG_CO_HIEU_LUC', QUA_MOT_TRANG],
   ];
 
@@ -1316,11 +1326,20 @@ async function main(): Promise<void> {
         await act(id, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
         continue;
       }
-      if (dich === 'TU_CHOI') {
+      /*
+       * `DA_XOA` thay cho `TU_CHOI` (`0155`).
+       *
+       * Đường tới nó đổi hẳn: trước là TBP bấm *Từ chối* một nước; giờ là TBP
+       * TRẢ LẠI, rồi chính người lập bấm *Xoá*. Bản demo phải đi đúng đường ấy
+       * — dựng trạng thái bằng cách ghi thẳng CSDL là bày ra một hồ sơ mà phần
+       * mềm không tạo ra được, và nhật ký của nó sẽ trống ở giữa.
+       */
+      if (dich === 'DA_XOA') {
         await act(id, 'SUBMIT', 'tdv01');
-        await act(id, 'TBP_REJECT', 'tbp01', {
+        await act(id, 'TBP_RETURN', 'tbp01', {
           reason: 'Khách hàng đang quá hạn công nợ trên 90 ngày, chưa cấp CSBH mới.',
         });
+        await xoaHoSo(id, 'tdv01');
         continue;
       }
       await dayToi(id, dich);

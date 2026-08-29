@@ -211,7 +211,6 @@ describe('`0038` không bày nút bấm vào là 403', () => {
     expect(canHanhDong('TDV', 'RESUBMIT_AFTER_EDIT')).toBe(true);
     expect(canHanhDong('TBP', 'TBP_SIGN')).toBe(true);
     expect(canHanhDong('TBP', 'TBP_RETURN')).toBe(true);
-    expect(canHanhDong('TBP', 'TBP_REJECT')).toBe(true);
     expect(canHanhDong('KE_TOAN', 'KT_RECEIVE_L1')).toBe(true);
     expect(canHanhDong('KE_TOAN', 'KT_RECEIVE_L2')).toBe(true);
     expect(canHanhDong('KE_TOAN', 'KT_RETURN_L1')).toBe(true);

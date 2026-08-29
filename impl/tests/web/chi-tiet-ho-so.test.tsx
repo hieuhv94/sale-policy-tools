@@ -108,7 +108,7 @@ const toiLaAi = (): Response =>
  * thêm một đường nữa khi người dùng sổ lịch sử ra. Trả theo thứ tự thì đổi thứ
  * tự `Promise.all` một lần là test đỏ mà chẳng có gì hỏng.
  */
-const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_REJECT']) => {
+const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_RETURN']) => {
   const f = vi.fn((duong: unknown) => {
     const d = String(duong);
     if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());

@@ -37,12 +37,12 @@
 export const STATUSES = [
   'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
   'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
-  'TU_CHOI', 'QUA_HAN_DUYET', 'DA_XOA',
+  'QUA_HAN_DUYET', 'DA_XOA',
 ] as const;
 export type Status = (typeof STATUSES)[number];
 
 export const ACTIONS = [
-  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN', 'TBP_REJECT',
+  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN',
   'KT_RECEIVE_L1', 'KT_RETURN_L1', 'SA_HANDOVER', 'KT_RECEIVE_L2',
   'KT_RETURN_L2', 'KT_REQUEST_REPRINT', 'RESUBMIT_AFTER_EDIT', 'SUPERSEDE',
 ] as const;
@@ -70,7 +70,6 @@ const RULES: readonly Rule[] = [
   { from: 'CHO_TBP_DUYET',    to: 'CHO_KT_L1',        by: 'TBP',        stamp: 'tbp_signed' },
   { from: 'CHO_TBP_DUYET',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
-  { from: 'CHO_TBP_DUYET',    to: 'TU_CHOI',          by: 'TBP',        requiresReason: true },
   { from: 'CHO_KT_L1',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    stamp: 'kt_l1_received' },
   { from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
@@ -88,7 +87,6 @@ const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
   RESUBMIT_AFTER_EDIT: { from: ['YEU_CAU_CHINH_SUA'], to: 'CHO_TBP_DUYET' },
   TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'CHO_KT_L1' },
   TBP_RETURN:          { from: ['CHO_TBP_DUYET'],     to: 'YEU_CAU_CHINH_SUA' },
-  TBP_REJECT:          { from: ['CHO_TBP_DUYET'],     to: 'TU_CHOI' },
   KT_RECEIVE_L1:       { from: ['CHO_KT_L1'],         to: 'SA_DANG_XU_LY' },
   KT_RETURN_L1:        { from: ['CHO_KT_L1'],         to: 'YEU_CAU_CHINH_SUA' },
   SA_HANDOVER:         { from: ['SA_DANG_XU_LY'],     to: 'CHO_KT_L2' },
@@ -115,7 +113,7 @@ const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
  * "Kết thúc" ở đây nghĩa là **không người nào thao tác được nữa**. Hệ thống vẫn
  * đi tiếp một nước cuối, y như `DANG_CO_HIEU_LUC` vẫn tự sang `HET_HIEU_LUC`.
  */
-export const TERMINAL: readonly Status[] = ['TU_CHOI', 'DA_XOA', 'QUA_HAN_DUYET'];
+export const TERMINAL: readonly Status[] = ['DA_XOA', 'QUA_HAN_DUYET'];
 
 /** Bốn trạng thái chờ có SLA 14 ngày (§9.1). */
 export const WAITING: readonly Status[] = [

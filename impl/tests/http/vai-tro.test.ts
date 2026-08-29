@@ -198,7 +198,7 @@ afterAll(async () => {
     // kiểm — đúng thứ đã xảy ra một lần.
     await c.query(
       `UPDATE pol.policy SET status = 'NHAP'
-        WHERE status::text IN ('TU_CHOI', 'DA_XOA')
+        WHERE status::text = 'DA_XOA'
           AND customer_id IN (SELECT id FROM cus.customer WHERE code LIKE $1)`,
       [`${P}%`],
     );
@@ -449,7 +449,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
 
   // Hai trạng thái kết thúc, cùng một lý do không bàn giao: không có việc gì cho
   // người kế nhiệm làm với chúng. `DA_XOA` vào đây từ `0035`.
-  for (const tt of ['TU_CHOI', 'DA_XOA']) {
+  for (const tt of ['DA_XOA']) {
     it(`hồ sơ ${tt} thì KHÔNG chuyển — đó là trạng thái kết thúc`, async () => {
       const hs = await lapVaGui();
       await withAdminDb((c) =>
@@ -496,7 +496,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
             WHERE status::text <> ALL($2::text[])
               AND (tdv_user_id = $1 OR tbp_user_id = $1
                    OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
-          [tbp01, ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']],
+          [tbp01, ['HET_HIEU_LUC', 'DA_XOA']],
         );
         return Number(r.rows[0]!.n);
       });
@@ -564,7 +564,7 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
             WHERE status::text <> ALL($2::text[])
               AND (tdv_user_id = $1 OR tbp_user_id = $1
                    OR ke_toan_user_id = $1 OR sale_admin_user_id = $1)`,
-          [u.id, ['TU_CHOI', 'HET_HIEU_LUC', 'DA_XOA']],
+          [u.id, ['HET_HIEU_LUC', 'DA_XOA']],
         );
         return Number(x.rows[0]!.n);
       });

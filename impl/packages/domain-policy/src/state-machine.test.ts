@@ -10,9 +10,10 @@ const go = (current: Status, action: Action, role: Parameters<typeof transition>
             reason?: string) => transition({ current, action, role, reason });
 
 describe('WF-02/03 · bộ trạng thái là danh sách đóng', () => {
-  it('đúng 11 trạng thái ĐẾN ĐƯỢC', () => {
-    // 11 của muc 4, cộng `DA_XOA` từ `0035`, trừ `TBP_DA_KY_SO` gỡ ở `0064`.
-    expect(STATUSES).toHaveLength(11);
+  it('đúng 10 trạng thái ĐẾN ĐƯỢC', () => {
+    // 11 của muc 4, cộng `DA_XOA` từ `0035`, trừ `TBP_DA_KY_SO` gỡ ở `0064`,
+    // trừ `TU_CHOI` bỏ ở `0155`.
+    expect(STATUSES).toHaveLength(10);
     expect(STATUSES as readonly string[]).not.toContain('TBP_DA_KY_SO');
   });
   it('không còn nhãn cũ nào', () => {
@@ -77,18 +78,36 @@ describe('WF-20 · trả lại thì đi lại TOÀN BỘ vòng duyệt, kể c�
   });
 });
 
-describe('WF-08 · Từ chối là trạng thái kết thúc', () => {
-  it('TBP từ chối cần lý do', () => {
-    expect(() => go('CHO_TBP_DUYET', 'TBP_REJECT', 'TBP')).toThrow(ReasonRequiredError);
+describe('`0155` · Từ chối đã bỏ hẳn khỏi máy trạng thái', () => {
+  /*
+   * WF-08 cũ khẳng định *"Từ chối là trạng thái kết thúc"*. Khách hàng chốt
+   * 29/08 bỏ hẳn nó, nên ba ca ấy đổi chiều: giờ phải khẳng định nó KHÔNG TỒN
+   * TẠI, chứ không phải xoá chúng đi.
+   *
+   * Xoá đi thì máy trạng thái mất chốt duy nhất canh việc ai đó thêm lại
+   * `TU_CHOI` — và thêm lại là chuyện dễ xảy ra, vì hai cột `rejected_at` /
+   * `rejected_by` vẫn còn nguyên trong lược đồ.
+   */
+  it('không còn trạng thái `TU_CHOI` nào trong danh sách', () => {
+    expect(STATUSES as readonly string[]).not.toContain('TU_CHOI');
   });
-  it('không hành động nào đi ra khỏi Từ chối', () => {
-    expect(allowedActions('TU_CHOI')).toEqual([]);
-    for (const a of ACTIONS) {
-      expect(() => go('TU_CHOI', a, 'TDV')).toThrow(InvalidTransitionError);
-    }
+
+  it('không còn hành động `TBP_REJECT` nào', () => {
+    expect(ACTIONS as readonly string[]).not.toContain('TBP_REJECT');
   });
-  it('TERMINAL đúng bằng ba trạng thái kết thúc — `0047` thêm Quá hạn duyệt', () => {
-    expect(TERMINAL).toEqual(['TU_CHOI', 'DA_XOA', 'QUA_HAN_DUYET']);
+
+  it('TBP ở bước Chờ TBP duyệt chỉ còn HAI đường ra: ký, hoặc trả lại', () => {
+    /*
+     * Ca chiều dương, và nó là ca quan trọng nhất của lượt này. Ba ca trên chỉ
+     * nói *"cái cũ đã mất"*; ca này nói *"cái còn lại vẫn đủ dùng"* — bỏ nhầm
+     * `TBP_RETURN` thì cả ba ca kia vẫn xanh trong khi hồ sơ nằm chết ở bước
+     * TBP, không ai đưa đi đâu được.
+     */
+    expect(allowedActions('CHO_TBP_DUYET').sort()).toEqual(['TBP_RETURN', 'TBP_SIGN']);
+  });
+
+  it('TERMINAL còn đúng hai trạng thái kết thúc', () => {
+    expect(TERMINAL).toEqual(['DA_XOA', 'QUA_HAN_DUYET']);
   });
 });
 
@@ -201,7 +220,7 @@ describe('NTF-10 · `0047` Quá hạn duyệt là trạng thái KẾT THÚC, v�
 
   it('trạng thái không phải chờ thì không quá hạn được', () => {
     expect(() => markOverdue('DANG_CO_HIEU_LUC')).toThrow(InvalidTransitionError);
-    expect(() => markOverdue('TU_CHOI')).toThrow(InvalidTransitionError);
+    expect(() => markOverdue('DA_XOA')).toThrow(InvalidTransitionError);
   });
 
   it('KHÔNG hành động nào đi ra khỏi Quá hạn duyệt, với BẤT KỲ vai trò nào', () => {

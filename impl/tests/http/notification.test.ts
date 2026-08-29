@@ -445,7 +445,7 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
      *
      * Chọn được kịch bản này là nhờ để ý `RECIPIENTS`: phần lớn các bước gọi
      * tên cả ba vai trò còn lại, nên KHÔNG còn ai để mà "cho biết". Đúng ba bước
-     * chừa người ra — `RESUBMIT_AFTER_EDIT`, `TBP_RETURN`/`TBP_REJECT` và
+     * chừa người ra — `RESUBMIT_AFTER_EDIT`, `TBP_RETURN` và
      * `KT_REQUEST_REPRINT` — và chỉ ở bước đầu mới có một người đã tác động
      * thật sự đứng ngoài danh sách.
      */

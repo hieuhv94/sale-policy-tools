@@ -186,11 +186,12 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
 
   /** Cặp trạng thái được phép dùng chung một màu, kèm lý do. */
   const CHUNG_MAU: Record<string, string> = {
-    'TU_CHOI+QUA_HAN_DUYET': 'hai ngõ cụt, khác nguyên nhân nhưng cùng kết cục',
+    // `0155` bỏ `TU_CHOI`, nên cặp `TU_CHOI+QUA_HAN_DUYET` không còn — `hong`
+    // giờ chỉ có đúng một trạng thái. Còn lại một cặp duy nhất.
     'HET_HIEU_LUC+DA_XOA': 'đều đã rời khỏi luồng, không đòi ai làm gì',
   };
 
-  it('mỗi trạng thái có một khoá màu, và chỉ hai cặp được trùng', () => {
+  it('mỗi trạng thái có một khoá màu, và chỉ một cặp được trùng', () => {
     const theoMau = new Map<string, string[]>();
     for (const t of Object.keys(NHAN_TRANG_THAI)) {
       const m = nhomTrangThai(t);
@@ -219,10 +220,7 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
      * nào được trùng ô nào. Khai tên thẻ tường minh chứ không đếm số cặp — đếm
      * thì một cặp trùng MỚI vẫn lọt qua miễn tổng số không đổi.
      */
-    const CAP_CHO_PHEP = [
-      ['TU_CHOI', 'QUA_HAN_DUYET'],
-      ['HET_HIEU_LUC', 'DA_XOA'],
-    ].map((c) => c.sort().join('+'));
+    const CAP_CHO_PHEP = [['HET_HIEU_LUC', 'DA_XOA']].map((c) => c.sort().join('+'));
 
     for (const [vaiTro, ds] of Object.entries(THE_THEO_VAI_TRO)) {
       const theoMau = new Map<string, string[]>();
@@ -546,7 +544,7 @@ describe('`0123` nhãn trạng thái sản phẩm có màu', () => {
      * mãi để trông giống hệt nhau.
      */
     expect(MAU_TRANG_THAI_SAN_PHAM.DANG_AP_DUNG).toBe(nhomTrangThai('DANG_CO_HIEU_LUC'));
-    expect(MAU_TRANG_THAI_SAN_PHAM.DA_VO_HIEU_HOA).toBe(nhomTrangThai('TU_CHOI'));
+    expect(MAU_TRANG_THAI_SAN_PHAM.DA_VO_HIEU_HOA).toBe(nhomTrangThai('QUA_HAN_DUYET'));
   });
 
   it('CẢ HAI bảng sản phẩm đều vẽ nhãn màu và cột giá', () => {
