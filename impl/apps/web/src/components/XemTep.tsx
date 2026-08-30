@@ -80,14 +80,20 @@ export function XemTep({
   const [loi, datLoi] = useState<unknown>(null);
   const [dangTai, datDangTai] = useState(false);
   /*
-   * Tỷ lệ ĐO ĐƯỢC của ảnh. Chỉ ảnh mới có: `naturalWidth`/`naturalHeight` là
-   * kích thước thật của tệp, và trình duyệt biết nó ngay khi giải mã xong.
+   * Số đo THẬT của ảnh. Chỉ ảnh mới có: `naturalWidth`/`naturalHeight` là kích
+   * thước của chính tệp, và trình duyệt biết nó ngay khi giải mã xong.
    *
    * Đây là chỗ khác nhau căn bản giữa ảnh và PDF trong hộp này. Ảnh nằm trong
    * DOM của chính trang nên đo được tới từng pixel; PDF nằm trong một tài liệu
    * riêng của trình xem PDF, và không có cách nào hỏi nó.
+   *
+   * `0164` giữ CẢ HAI SỐ chứ không riêng tỷ lệ. Tỷ lệ trả lời *"khung mang hình
+   * gì"*; chiều cao trả lời *"phóng to tới đâu thì thôi"* — và câu thứ hai chỉ
+   * trả lời được bằng một số đo tuyệt đối. Tới `0146` không ai hỏi câu ấy vì
+   * trần `--cao-khung` là 1400px, đủ thấp để phần lớn ảnh không chạm; `0164` bỏ
+   * trần nên nó thành câu hỏi thật.
    */
-  const [tyLeAnh, datTyLeAnh] = useState<number | null>(null);
+  const [anh, datAnh] = useState<{ rong: number; cao: number } | null>(null);
 
   useEffect(() => {
     let song = true;
@@ -95,7 +101,7 @@ export function XemTep({
     datLoi(null);
     // Đổi tệp là quên số đo cũ: giữ lại thì khung mang tỷ lệ của tệp TRƯỚC
     // trong khoảnh khắc tệp mới chưa giải mã xong.
-    datTyLeAnh(null);
+    datAnh(null);
     xemTruoc(duong)
       .then((x) => {
         url = x.url;
@@ -134,10 +140,21 @@ export function XemTep({
    * Riêng `'khong'` — tệp Word, Excel — trả `null` để hộp về đúng cỡ hộp thoại
    * thường: ở đó không có khung xem nào, chỉ có một câu nhắn tải về.
    */
-  const tyLeKhung = cach === 'khong' ? null : (tyLeAnh ?? tyLe ?? TY_LE_MAC_DINH);
+  const tyLeKhung =
+    cach === 'khong' ? null : (anh === null ? (tyLe ?? TY_LE_MAC_DINH) : anh.rong / anh.cao);
 
   return (
-    <HopThoai tieuDe={tieuDe} dong={dong} tyLe={tyLeKhung} giay={cach === 'pdf'}>
+    <HopThoai
+      tieuDe={tieuDe}
+      dong={dong}
+      tyLe={tyLeKhung}
+      /*
+        CHỈ ảnh mới chặn chiều cao (`0164`). PDF để `null` — nó phóng bao nhiêu
+        cũng nét, nên chặn là bỏ phí màn hình.
+      */
+      caoNoiDung={anh?.cao ?? null}
+      giay={cach === 'pdf'}
+    >
       {truoc}
 
       {loi !== null && <BaoLoi loi={loi} />}
@@ -176,7 +193,7 @@ export function XemTep({
               // duyệt, với hai số đo bằng 0 — và `0/0` là `NaN`, thứ lọt thẳng
               // vào `calc()` rồi làm sập cả bề rộng của hộp thoại.
               if (a.naturalWidth > 0 && a.naturalHeight > 0) {
-                datTyLeAnh(a.naturalWidth / a.naturalHeight);
+                datAnh({ rong: a.naturalWidth, cao: a.naturalHeight });
               }
             }}
           />

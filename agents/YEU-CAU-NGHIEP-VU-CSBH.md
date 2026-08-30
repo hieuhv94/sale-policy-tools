@@ -1510,6 +1510,33 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 > đổi lấy chữ to hơn và một hộp không nhảy cỡ giữa hai lần mở.
 >
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
+>
+> **900px thành SÀN chứ không còn là con số duy nhất** `sửa 30/08` — xem mục ngay dưới.
+
+**Hộp xem phóng to gần hết màn hình** `sửa 30/08` — *"phóng to hết cỡ hộp thư để preview văn bản,
+gần như full hết cả màn hình, có thể đè lên thanh bar bên trái, đảm bảo scale phù hợp với tỉ lệ màn
+hình; đối với preview ảnh thì tự điều chỉnh kích thước để fit với kích thước ảnh"*.
+
+> **Bỏ hẳn trần chiều cao.** Khung xem cao bằng màn hình trừ đúng chỗ ngồi của tiêu đề và hàng nút.
+> Ba lượt trước đặt trần 900px (`23/08`) → 1600px (`27/08`) → 1400px (`27/08`); từ đây màn hình càng
+> cao thì khung càng cao, không có mức dừng. Khoảng hở mà lượt `27/08` cố ý chừa ra để hộp *"còn
+> trông như hộp thoại"* nay bị cắt gần hết — chính khách hàng đảo lại câu ấy.
+>
+> **Bề rộng lấy phần LỚN HƠN** của hai vế: bề rộng ứng với chiều cao khung (`cao × tỷ lệ tờ giấy`)
+> và sàn 900px của bản `27/08`. Nên nó **không bao giờ hẹp hơn bản trước**, và rộng thêm khi màn hình
+> cho phép — khổ ngang trên màn 1920×1080 ra 1210px, trên 2560×1440 ra 1720px. Khổ **dọc** thì sàn
+> thắng ở mọi màn hình văn phòng, tức giữ nguyên hành vi cũ; đó là chủ ý, vì một tờ dọc rộng 605px
+> đúng là thứ khách hàng đã than phiền ngày `27/08`.
+>
+> Vì sao vế tỷ lệ là mức **tối ưu** chứ không phải tối đa: trình xem PDF được bảo *"vừa bề rộng"*,
+> nên hộp rộng hơn mức ấy chỉ làm nó phóng trang cao hơn khung rồi sinh ra một thanh cuộn dọc bên
+> trong khung. Rộng đúng bằng ấy thì trang lấp đầy khung theo **cả hai chiều**.
+>
+> **ẢNH thì chặn ở cỡ THẬT của tệp.** Một tấm 400×300 kéo lên cao 900px là phóng to gấp ba — mờ theo
+> kiểu người dùng tưởng bản scan bị hỏng. PDF không chặn: nó là ảnh vector, phóng bao nhiêu cũng nét.
+>
+> **Đè lên thanh bên: đã đúng từ trước.** Lớp phủ vốn phủ kín màn hình và nằm trên thanh bên; cái làm
+> hộp trông nhỏ là trần chiều cao và bề rộng cố định, không phải thanh bên.
 
 **Xem được văn bản mẫu đã lưu** `mới 28/08` — hộp *Chi tiết mẫu* trên màn hình Quản trị, chỉ đọc:
 tập cột của bảng sản phẩm, bảng ô trống ↔ nguồn dữ liệu, và nút **tải file `.docx` gốc** về.

@@ -486,6 +486,7 @@ export function HopThoai({
   dong,
   co = 'thuong',
   tyLe = null,
+  caoNoiDung = null,
   giay = false,
   children,
 }: {
@@ -521,6 +522,19 @@ export function HopThoai({
    * `null` là hộp thoại thường.
    */
   tyLe?: number | null;
+  /**
+   * Chiều cao THẬT của nội dung, tính bằng pixel — chỉ ẢNH mới có (`0164`).
+   *
+   * Khung xem không được cao hơn con số này: yêu cầu viết thẳng *"đối với
+   * preview ảnh thì tự điều chỉnh kích thước để fit với kích thước ảnh"*, và
+   * một tấm 400×300 kéo lên cao 900px là phóng to gấp ba — mờ theo kiểu người
+   * dùng tưởng bản scan bị hỏng.
+   *
+   * `null` với PDF, và đó KHÔNG phải chỗ trống: PDF là ảnh vector, phóng bao
+   * nhiêu cũng nét, nên chặn nó là bỏ phí màn hình. CSS đọc biến này qua
+   * `var(--cao-anh, 99999px)` — không đặt là không chặn.
+   */
+  caoNoiDung?: number | null;
   /**
    * Nội dung là một TỜ GIẤY — PDF do phần mềm dựng ra (`0146`).
    *
@@ -587,7 +601,20 @@ export function HopThoai({
         aria-modal="true"
         aria-label={tieuDe}
         ref={khung}
-        style={tyLe !== null ? ({ '--ty-le': String(tyLe) } as CSSProperties) : undefined}
+        /*
+          Hai biến, và chỉ đặt biến nào có nghĩa. `--cao-anh` vắng mặt là CSS rơi
+          về giá trị lùi trong `var(--cao-anh, 99999px)`, tức không chặn gì —
+          đúng ca PDF. Đặt nó bằng một chuỗi rỗng thì `var()` coi như CÓ giá trị
+          và `min()` hỏng cả dòng.
+        */
+        style={
+          tyLe !== null
+            ? ({
+                '--ty-le': String(tyLe),
+                ...(caoNoiDung !== null ? { '--cao-anh': `${caoNoiDung}px` } : {}),
+              } as CSSProperties)
+            : undefined
+        }
       >
         {/*
           Tiêu đề nằm NGOÀI vùng cuộn, nội dung nằm trong. Biểu mẫu tạo Trình

@@ -66,6 +66,10 @@ const tyLeCuaHop = (): number | null => {
   return v === '' ? null : Number(v);
 };
 
+/** Chiều cao thật của ảnh mà hộp đang khai, đọc từ chính biến CSS nó đặt ra. */
+const caoAnhCuaHop = (): string =>
+  document.querySelector<HTMLElement>('[role="dialog"]')?.style.getPropertyValue('--cao-anh') ?? '';
+
 const A4_DOC = TY_LE_KHO.a4p;
 const A4_NGANG = TY_LE_KHO.a4l;
 
@@ -141,6 +145,53 @@ describe('`0073` hộp xem tệp nhận đúng tỷ lệ', () => {
     const t = tyLeCuaHop();
     expect(t).not.toBeNaN();
     expect(t).toBeCloseTo(TY_LE_MAC_DINH, 5);
+  });
+
+  it('`0164` ẢNH khai CỠ THẬT của nó, và khai bằng pixel', async () => {
+    /*
+     * Nửa React của luật *"preview ảnh thì fit với kích thước ảnh"*. Nửa CSS —
+     * `--cao-khung: min(chỗ trống, --cao-anh)` — nằm ở ca riêng bên dưới; ca này
+     * canh chỗ nối giữa hai nửa, và chỗ nối ấy là một CHUỖI có đơn vị.
+     *
+     * Quên `px` thì `min()` gặp một số trần, coi cả khai báo là sai cú pháp, và
+     * `--cao-khung` rơi về rỗng — hộp co về bề rộng nội dung, hỏng ở một chỗ
+     * không nhắc gì tới ảnh.
+     */
+    chanFetch('image/jpeg');
+    bay();
+    const anh = await waitFor(() => screen.getByAltText('Bản scan') as HTMLImageElement);
+    // Chưa đo xong thì CHƯA khai: một con số đoán trước ở đây là chặn nhầm.
+    expect(caoAnhCuaHop()).toBe('');
+
+    Object.defineProperty(anh, 'naturalWidth', { value: 800, configurable: true });
+    Object.defineProperty(anh, 'naturalHeight', { value: 600, configurable: true });
+    anh.dispatchEvent(new Event('load'));
+
+    await waitFor(() => expect(caoAnhCuaHop()).toBe('600px'));
+  });
+
+  it('`0164` PDF KHÔNG khai chiều cao — nó phóng bao nhiêu cũng nét', async () => {
+    /*
+     * Chiều đối chiếu, và là chiều dễ hỏng lặng lẽ hơn: khai một con số cho PDF
+     * thì tờ giấy bị chặn ở đúng con số ấy trên mọi màn hình, và không có triệu
+     * chứng nào ngoài "hộp nhỏ hơn mình tưởng".
+     */
+    chanFetch('application/pdf');
+    bay({ tyLe: A4_NGANG });
+    await waitFor(() => expect(document.querySelector('.khung-giay')).not.toBeNull());
+    expect(caoAnhCuaHop()).toBe('');
+  });
+
+  it('`0164` ảnh hỏng thì cũng KHÔNG khai chiều cao', async () => {
+    // Cùng một chốt chặn với ca `NaN` ở trên, nhìn từ phía chiều cao: `0px` lọt
+    // vào `min()` là khung xẹp xuống không còn gì.
+    chanFetch('image/png');
+    bay();
+    const anh = await waitFor(() => screen.getByAltText('Bản scan') as HTMLImageElement);
+    Object.defineProperty(anh, 'naturalWidth', { value: 0, configurable: true });
+    Object.defineProperty(anh, 'naturalHeight', { value: 0, configurable: true });
+    anh.dispatchEvent(new Event('load'));
+    expect(caoAnhCuaHop()).toBe('');
   });
 
   it('tệp KHÔNG nhúng được thì hộp về cỡ hộp thoại thường', async () => {
@@ -238,10 +289,31 @@ describe('`0073` khung xem trong CSS', () => {
      * hàng nút bị đẩy khỏi tầm nhìn, còn trên màn hình 27" thì thừa một dải trống.
      */
     const k = khoi(/\.hop-thoai-xem/).join('\n');
-    expect(k).toMatch(/--cao-khung:\s*clamp\(/);
+    // `0164` bỏ TRẦN nên `clamp()` thành `max()` — hai vế, không còn ba.
+    expect(k).toMatch(/--cao-kha-dung:\s*max\(/);
     expect(k).toMatch(/calc\(100dvh\s*-\s*\d+rem\)/);
     // `dvh` không được hiểu thì CẢ dòng bị bỏ, nên phải có dòng `vh` đứng trước.
     expect(k).toMatch(/calc\(100vh\s*-\s*\d+rem\)/);
+  });
+
+  it('`0164` chiều cao khung chặn ở CỠ THẬT của ảnh, và chỉ của ảnh', () => {
+    /*
+     * Yêu cầu viết thẳng: *"đối với preview ảnh thì tự điều chỉnh kích thước để
+     * fit với kích thước ảnh"*. Bỏ trần `--cao-khung` mà không thêm chốt này thì
+     * một tấm 400×300 bị kéo lên cao gần hết màn hình — phóng to gấp ba, mờ theo
+     * kiểu người dùng tưởng bản scan bị hỏng.
+     *
+     * Giá trị lùi `99999px` là cả cơ chế: React KHÔNG đặt `--cao-anh` cho PDF,
+     * nên `var()` rơi về con số ấy và `min()` không chặn gì. Đặt một giá trị lùi
+     * nhỏ, hay quên hẳn giá trị lùi, đều làm PDF co lại — và co lặng lẽ.
+     */
+    const k = khoi(/\.hop-thoai-xem/).join('\n');
+    const m = k.match(/--cao-khung:\s*min\(\s*var\(--cao-kha-dung\)\s*,\s*var\(--cao-anh,\s*(\d+)px\)\s*\)/);
+    expect(m, '`--cao-khung` phải là min(chỗ trống, cỡ thật của ảnh)').not.toBeNull();
+    expect(
+      Number(m![1]),
+      'giá trị lùi phải cao hơn mọi màn hình, nếu không thì PDF bị co lặng lẽ',
+    ).toBeGreaterThan(4320);
   });
 });
 
@@ -321,74 +393,153 @@ describe('`0129` hộp thoại đủ rộng', () => {
     }
   });
 
-  it('TRẦN chiều cao khung xem không cắn trên màn hình 27"', () => {
+  it('`0164` lớp phủ ĐÈ LÊN thanh bên và thanh tiêu đề', () => {
     /*
-     * Ca này canh đúng chỗ `0129` nới, và nó là chỗ dễ đọc lướt qua nhất: bề
-     * rộng hộp xem là HỆ QUẢ của chiều cao khung, nên "mở rộng cửa sổ xem
-     * trước" không sửa được bằng một dòng `width`.
+     * Nửa này của yêu cầu — *"có thể đè lên thanh bar bên trái"* — ĐÃ ĐÚNG SẴN,
+     * và đó là điều đáng ghi: `.lop-phu` là `position: fixed; inset: 0` với
+     * `z-index: 50`, còn thanh bên đứng ở 40 và thanh tiêu đề ở 30. Hộp xem chưa
+     * bao giờ bị thanh bên cắt; cái làm nó trông nhỏ là trần chiều cao và bề
+     * rộng cố định, hai thứ lượt này gỡ.
      *
-     * `0073` đặt trần 900px trong khi màn 2560×1440 cho hơn 1100px chỗ trống,
-     * nên trần ấy vứt đi một phần tư khung và tờ giấy nhỏ đi đúng chừng ấy.
-     *
-     * Khoản trừ ĐỌC TỪ CHÍNH CSS chứ không viết cứng 240px: `0130` nới nó từ
-     * 15rem lên 19rem để hạ khung một chút, và một con số chép tay ở đây thì ca
-     * kiểm sẽ đo bằng cái thước của bản trước.
+     * Nên ca này không canh một bản sửa, nó canh một BẤT BIẾN chưa ai viết ra:
+     * hạ `z-index` của lớp phủ, hoặc nâng thanh bên lên, là hộp xem bị một dải
+     * 260px che mất mép trái — và không có gì đỏ lên.
      */
-    const k = khoi('app.css', /\.hop-thoai-xem/);
-    const tru = [...k.matchAll(/--cao-khung:[^;]*?100d?vh\s*-\s*(\d+)rem/g)].map(
-      (m) => Number(m[1]) * 16,
-    );
-    expect(tru.length, 'không đọc được khoản trừ của --cao-khung').toBe(2);
-    // `[^;]*` chạy tới dấu phẩy CUỐI của `clamp(…)` — vế thứ ba là cái trần.
-    const tran = [...k.matchAll(/--cao-khung:[^;]*,\s*(\d+)px\s*\)\s*;/g)].map((m) => Number(m[1]));
-    expect(tran.length, 'không đọc được trần của --cao-khung').toBe(2);
-    for (const [i, t] of tran.entries()) expect(t).toBeGreaterThanOrEqual(1440 - tru[i]!);
+    const soZ = (bo: RegExp) => Number(khoi('app.css', bo).match(/z-index:\s*(\d+)/)?.[1]);
+    const phu = soZ(/\.lop-phu/);
+    expect(phu, 'không đọc được z-index của lớp phủ').toBeGreaterThan(0);
+    for (const [ten, bo] of [
+      ['thanh bên', /\.thanh-ben/],
+      ['thanh tiêu đề', /\.thanh-tieu-de/],
+      ['màn che ngăn kéo', /\.man-che/],
+    ] as const) {
+      const z = soZ(bo);
+      expect(z, `không đọc được z-index của ${ten}`).toBeGreaterThan(0);
+      expect(phu, `${ten} nằm trên lớp phủ — hộp xem bị nó che mất một mép`).toBeGreaterThan(z);
+    }
   });
 
-  it('`0130` hộp xem CÒN CHỪA khoảng hở trên dưới, không chạm hai mép', () => {
+  it('`0164` KHÔNG còn trần chiều cao — màn hình to thì khung to theo', () => {
     /*
-     * Yêu cầu là *"giảm chiều cao lại một chút"*, và cái "một chút" ấy có một
-     * ngưỡng đọc ra được: khoản trừ phải lớn hơn phần khung hộp cộng lề lớp phủ,
-     * dư ra đủ để người dùng còn thấy trang phía sau.
+     * Ba lượt sửa cùng một con số, và lượt này bỏ hẳn nó:
+     *
+     *   `0073` trần 900px  — cắn từ màn hình cao hơn 1140px
+     *   `0129` trần 1600px — cắn từ 1904px
+     *   `0130` trần 1400px — cắn từ 1704px
+     *   `0164` KHÔNG CÓ TRẦN
+     *
+     * Khách hàng đòi *"phóng to hết cỡ… gần như full hết cả màn hình"*, và một
+     * cái trần là thứ duy nhất còn ngăn điều đó trên màn hình lớn. Cái nó từng
+     * bảo vệ — ảnh nhỏ bị kéo giãn — giờ do `--cao-anh` lo, và lo đúng chỗ hơn:
+     * theo cỡ THẬT của tệp chứ theo một con số đoán trước.
+     *
+     * Ca này canh chiều KHÔNG có: `max()` chỉ nhận hai đối, nên một cái trần lén
+     * quay lại sẽ phải viết thành `clamp()` hoặc `min()` và đỏ ở đây.
+     */
+    const k = khoi('app.css', /\.hop-thoai-xem/);
+    const dong = [...k.matchAll(/--cao-kha-dung:\s*([^;]+);/g)].map((m) => m[1]!.trim());
+    expect(dong.length, 'thiếu cặp vh/dvh của --cao-kha-dung').toBe(2);
+    for (const d of dong) {
+      expect(d, 'trần quay lại thì màn hình lớn bỏ phí chiều cao').toMatch(/^max\(/);
+      expect(d).not.toMatch(/clamp\(/);
+    }
+  });
+
+  it('`0164` hộp xem gần chạm hai mép, nhưng hàng nút vẫn còn chỗ', () => {
+    /*
+     * Ca này ĐẢO NGƯỢC `0130`, và cả hai ngưỡng đổi chiều cùng lúc.
+     *
+     * `0130` đòi khoản trừ **lớn hơn** 289px để hộp còn chừa khoảng hở — khách
+     * hàng khi ấy bảo hộp cao quá. `0164` họ bảo ngược lại: *"gần như full hết
+     * cả màn hình"*. Nên giờ nó là một trần, không phải một sàn.
+     *
+     * Sàn còn lại là ngưỡng VẬT LÝ, và nó không đổi theo ý ai:
      *
      *   khung hộp   ≤ 157px (đo trong Chrome ở `0073`, ca có ô chọn mẫu)
      *   lề lớp phủ  = 2 × var(--k4) = 32px
+     *   viền        = 2px
      *
-     * Dưới 189px là hộp bị cắt. Từ 189px tới ~289px thì hộp vừa khít hai mép màn
-     * hình — đúng thứ khách hàng nhìn thấy ở bản `0129` và bảo là cao quá. Trần
-     * trên giữ cho lần chỉnh sau đừng đi quá đà: trừ hơn 400px là bỏ phí gần một
-     * phần ba màn hình laptop, tức quay về đúng lỗi mà `0129` vừa chữa.
+     * Dưới 191px là khung bị cắt và hàng nút trôi khỏi tầm nhìn — `0073` đã đo
+     * và ghi lại rằng 11rem (176px) là chỗ nó bắt đầu hỏng. Trần 240px giữ cho
+     * lượt sau đừng lùi về mức `0130`: trừ nhiều hơn thế là quay lại đúng cái
+     * khoảng hở mà khách hàng vừa bảo bỏ.
      */
     const k = khoi('app.css', /\.hop-thoai-xem/);
-    const tru = [...k.matchAll(/--cao-khung:[^;]*?100d?vh\s*-\s*(\d+)rem/g)].map(
+    const tru = [...k.matchAll(/--cao-kha-dung:[^;]*?100d?vh\s*-\s*(\d+)rem/g)].map(
       (m) => Number(m[1]) * 16,
     );
     expect(tru.length).toBe(2);
     for (const t of tru) {
-      expect(t, 'hộp xem chạm hai mép màn hình').toBeGreaterThanOrEqual(157 + 32 + 100);
-      expect(t, 'trừ quá tay, khung bỏ phí chiều cao').toBeLessThanOrEqual(400);
+      expect(t, 'trừ ít quá — hàng nút trôi khỏi tầm nhìn').toBeGreaterThanOrEqual(157 + 32 + 2);
+      expect(t, 'hộp chưa gần full màn hình').toBeLessThanOrEqual(240);
     }
   });
 
-  it('`0146` hộp xem TỜ GIẤY có bề rộng ổn định, không suy từ tỷ lệ', () => {
+  it('`0164` hộp TỜ GIẤY lấy phần LỚN HƠN của tỷ lệ và sàn ổn định', () => {
     /*
-     * Yêu cầu là *"độ rộng của hộp luôn ổn định"*, và chữ ấy có một phép kiểm
-     * đọc ra được: bề rộng KHÔNG được nhắc tới `--ty-le`.
+     * Ba lượt, ba câu trả lời cho cùng một câu hỏi, và ca này canh câu thứ ba:
      *
-     * `0145` bịt dải trắng bằng cách cho hộp co theo tờ giấy, và bịt được thật —
-     * nhưng cùng một hộp mở mẫu dọc ra 315px, mẫu ngang ra 630px. Đo trên
-     * laptop 1366×768 sau lượt này: **900px ở cả ba tỷ lệ**, khung 850px, hiệu
-     * đúng 50px (đệm 48 + viền 2).
+     *   `0073` bề rộng = `cao × tỷ lệ`  → A4 dọc ra 315px trên laptop, và bề
+     *                                     rộng NHẢY khi đổi mẫu
+     *   `0146` bề rộng = 900px cố định  → hết nhảy, nhưng màn 27" cũng 900px
+     *   `0164` bề rộng = `max()` cả hai → không bao giờ hẹp hơn `0146`, và rộng
+     *                                     ra khi màn hình cho phép
+     *
+     * Vì sao vế tỷ lệ là mức TỐI ƯU chứ không phải tối đa: `#view=FitH` khớp tờ
+     * giấy theo BỀ RỘNG, nên hộp rộng hơn `cao × tỷ lệ` làm trình xem phóng
+     * trang cao hơn khung và sinh một thanh cuộn dọc BÊN TRONG khung. Rộng đúng
+     * bằng ấy thì trang lấp đầy khung cả hai chiều.
+     *
+     * `max()` chứ không phải thay hẳn sàn bằng tỷ lệ: bỏ sàn đi là A4 dọc trên
+     * laptop 1366×768 tụt về 605px, tức lùi lại đúng chỗ khách hàng đã than
+     * phiền ở `0145`.
      */
     const k = khoi('app.css', /\.hop-thoai-giay/);
     expect(k, 'không tìm thấy luật cho `.hop-thoai-giay`').not.toBe('');
-    expect(k).toMatch(/width:\s*min\(\s*var\(--rong-hop-thoai-xem\)\s*,\s*100%\s*\)/);
-    expect(k, 'bề rộng ổn định thì không được suy từ tỷ lệ tờ giấy').not.toMatch(/--ty-le/);
+    expect(k, 'thiếu vế tỷ lệ thì màn hình lớn không rộng thêm được').toMatch(
+      /max\(\s*calc\(\s*var\(--cao-khung\)\s*\*\s*var\(--ty-le\)\s*\)\s*,\s*var\(--rong-hop-thoai-xem\)/,
+    );
+    expect(k, 'thiếu `min(…, 100%)` thì hộp chạy ra ngoài mép màn hình').toMatch(/min\(/);
+    expect(k).toMatch(/100%/);
 
-    // Nằm giữa hộp thường và hộp rộng: đây là mặt ĐỌC, không phải biểu mẫu.
+    // Sàn vẫn nằm giữa hộp thường và hộp rộng: đây là mặt ĐỌC, không phải biểu mẫu.
     const xem = token('--rong-hop-thoai-xem');
     expect(xem).toBeGreaterThan(token('--rong-hop-thoai'));
     expect(xem).toBeLessThan(token('--rong-hop-thoai-rong'));
+  });
+
+  it('`0164` KHỔ NGANG rộng thêm thật, và khổ dọc không hẹp đi', () => {
+    /*
+     * Ca đối chiếu, và nó dựng lại chính phép tính của CSS bằng những con số ĐỌC
+     * TỪ CSS — không chép tay con số nào, nên nới sàn hay đổi khoản trừ đều
+     * được đo lại ở đây.
+     *
+     * Hai mẫu bàn giao của `0164` đều là A4 NGANG, nên đó là ca phải thắng.
+     * Khổ dọc thì chỉ cần KHÔNG THUA bản `0146`.
+     *
+     * DÒNG ĐẦU LÀ CHỖ NEO, và nó có mặt vì phá lại: bỏ vế tỷ lệ khỏi
+     * `.hop-thoai-giay` thì ca này vẫn XANH — nó dựng lại công thức trong
+     * JavaScript, nên nó đo cái công thức của chính nó chứ không đo CSS. Một ca
+     * dựng trên bản sao chỉ đúng chừng nào có thứ giữ cho bản sao khỏi trôi.
+     */
+    expect(
+      khoi('app.css', /\.hop-thoai-giay/),
+      'phép tính dưới đây dựng theo luật của `.hop-thoai-giay`, nên vế tỷ lệ phải còn ở đó',
+    ).toMatch(/--ty-le/);
+
+    const k = khoi('app.css', /\.hop-thoai-xem/);
+    const tru = Number(k.match(/--cao-kha-dung:[^;]*?100dvh\s*-\s*(\d+)rem/)?.[1]) * 16;
+    expect(tru, 'không đọc được khoản trừ').toBeGreaterThan(0);
+    const san = token('--rong-hop-thoai-xem');
+    const rong = (caoManHinh: number, tyLe: number) =>
+      Math.max(Math.max(300, caoManHinh - tru) * tyLe, san);
+
+    // A4 ngang trên hai màn hình văn phòng phổ biến: phải rộng hơn hẳn sàn.
+    expect(rong(1080, 1.4142)).toBeGreaterThan(san * 1.2);
+    expect(rong(1440, 1.4142)).toBeGreaterThan(san * 1.6);
+    // A4 dọc: sàn thắng, tức đúng bằng hành vi `0146` — không thua.
+    expect(rong(1080, 0.7071)).toBe(san);
+    expect(rong(768, 0.7071)).toBe(san);
   });
 
   it('`0146` khung TỜ GIẤY lấp đầy hộp — cả hai chiều', () => {
@@ -461,8 +612,8 @@ describe('`0129` hộp thoại đủ rộng', () => {
     const khoTrong = 768 - 87;
 
     const k = khoi('app.css', /\.hop-thoai-xem/);
-    const tru = Number(k.match(/--cao-khung:[^;]*?100dvh\s*-\s*(\d+)rem/)?.[1]) * 16;
-    expect(tru, 'không đọc được khoản trừ của --cao-khung').toBeGreaterThan(0);
+    const tru = Number(k.match(/--cao-kha-dung:[^;]*?100dvh\s*-\s*(\d+)rem/)?.[1]) * 16;
+    expect(tru, 'không đọc được khoản trừ của --cao-kha-dung').toBeGreaterThan(0);
 
     const caoKhung = Math.max(300, khoTrong - tru);
     const rongKhung = caoKhung * A4_DOC_SO;

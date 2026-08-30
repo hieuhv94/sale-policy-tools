@@ -87,7 +87,25 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P191** (`0163`): **bản mềm thôi đóng băng, và thôi là việc của người duyệt**. Ba câu
+Chặng gần nhất **P192** (`0164`): **hộp xem văn bản phóng to gần hết màn hình, ảnh thì vừa cỡ thật**.
+Năm câu trong một yêu cầu, và chúng không cùng một việc. Vế *"đè lên thanh bar bên trái"* **đã đúng
+sẵn** — `.lop-phu` là `fixed; inset: 0; z-index: 50` còn thanh bên ở 40 — nên lượt này chỉ viết ra
+một bất biến chưa ai canh; cái làm hộp TRÔNG nhỏ là trần `--cao-khung` và bề rộng cố định 900px.
+Trần chiều cao **bỏ hẳn** (`clamp()` → `max()`, và đó chính là phép kiểm: `max()` chỉ nhận hai đối),
+khoản trừ 19rem → **14rem** = 157px khung hộp + 32px lề + 2px viền + 33px biên. Bề rộng lấy **phần
+LỚN HƠN** của `cao × tỷ lệ` và sàn 900px: bỏ hẳn sàn là quay về luật `0073`, thứ cho tờ A4 dọc ra
+315px trên laptop — đúng cái `0145` vừa chữa. Vế tỷ lệ là mức **tối ưu chứ không phải tối đa**, vì
+`#view=FitH` khớp trang theo BỀ RỘNG: rộng hơn `cao × tỷ lệ` là trình xem phóng trang cao hơn khung
+rồi sinh thanh cuộn dọc BÊN TRONG khung. Khổ ngang trên 1920×1080 ra 1210px, trên 2560×1440 ra
+1720px; khổ dọc sàn thắng, tức không thua bản trước ở đâu. **Ảnh chặn ở cỡ THẬT** —
+`min(var(--cao-kha-dung), var(--cao-anh, 99999px))`, và **giá trị lùi LÀ cơ chế**: React không đặt
+`--cao-anh` cho PDF nên `min()` không chặn gì; đặt chuỗi rỗng hoặc quên `px` đều làm `--cao-khung`
+rỗng và hộp co về bề rộng nội dung. **Ca kiểm của `0130` phải ĐẢO CHIỀU chứ không nới ngưỡng** — nó
+đòi hộp *chừa khoảng hở*, mà chính khách hàng vừa đảo câu ấy. Ca xanh lúc phá lại: *"khổ ngang rộng
+thêm thật"* dựng lại công thức bằng JavaScript nên nó đo **công thức của chính nó**, không đo CSS;
+chữa bằng một dòng neo đòi `.hop-thoai-giay` còn nhắc `--ty-le`. **1934/1934 xanh.**
+
+Trước đó **P191** (`0163`): **bản mềm thôi đóng băng, và thôi là việc của người duyệt**. Ba câu
 khách hàng gửi cùng lúc là **một câu**: `0098` đóng băng mẫu vì tin bản mềm là văn bản đi qua luồng
 duyệt; khách hàng nói lại nó là **thao tác IN của Sale Admin ở B8**. Khi nó chỉ còn là thao tác của
 MỘT người ở MỘT bước thì chỉ người ấy cần nút, chỉ người ấy chọn mẫu, và không còn gì để đóng băng —

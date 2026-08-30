@@ -1098,15 +1098,26 @@ Sau khi đã xem, trên bản đang xem có ô **Mẫu** để đổi sang mẫu
 lại — ô này chỉ hiện khi có từ hai mẫu trở lên. Đổi bao nhiêu lần cũng được và không lần nào bị tính
 là một lượt tải.
 
-**Hộp xem có bề rộng cố định, và tờ giấy phóng to cho vừa** `sửa 27/08` — hộp xem bản mềm và hợp
-đồng luôn rộng **900px** (hẹp lại theo màn hình nhỏ), bất kể mẫu khổ dọc hay khổ ngang. Tờ giấy
-được phóng to cho hết bề rộng ấy, nên không còn dải trắng thừa bên phải bản xem.
+**Hộp xem phóng to gần hết màn hình** `sửa 30/08` — hộp xem bản mềm và hợp đồng cao bằng màn hình
+trừ đúng chỗ ngồi của tiêu đề và hàng nút, và nó **nằm đè lên thanh bên trái**. Màn hình càng lớn thì
+hộp càng lớn: không còn mức dừng nào.
 
-> Với mẫu **khổ dọc** thì tờ giấy cao hơn khung, và bạn **cuộn trong chính bản xem** để đọc tiếp —
-> đó là cái giá của việc chữ to hơn. Muốn xem cả trang một lượt thì dùng nút thu nhỏ của trình xem
-> PDF, hoặc *Tải xuống*.
->
-> Hộp xem **ảnh scan** thì khác: nó vẫn co theo hình tấm ảnh, vì ảnh không phóng to được như PDF.
+Bề rộng đi theo **khổ giấy của mẫu bạn đang xem**, nhưng không bao giờ hẹp hơn 900px của bản trước:
+
+| Màn hình | Mẫu khổ NGANG | Mẫu khổ DỌC |
+|---|---|---|
+| 1366×768 | 900px | 900px |
+| 1920×1080 | 1210px | 900px |
+| 2560×1440 | 1720px | 900px |
+
+> Với mẫu **khổ ngang** thì cả tờ giấy lọt trong khung, không phải cuộn. Với mẫu **khổ dọc** thì tờ
+> giấy vẫn cao hơn khung, và bạn **cuộn trong chính bản xem** để đọc tiếp — đó là cái giá của việc
+> chữ to hơn. Muốn xem cả trang một lượt thì dùng nút thu nhỏ của trình xem PDF, hoặc *Tải xuống*.
+
+> **Hộp xem ẢNH thì vừa đúng tấm ảnh** `sửa 30/08` — nó co theo cả hình lẫn **cỡ thật** của tệp, và
+> không phóng ảnh to hơn cỡ ấy. Một tấm scan nhỏ mở ra vẫn nhỏ, và đó là chủ ý: kéo giãn nó ra cho
+> đầy màn hình chỉ làm ảnh mờ đi, chứ không cho bạn thêm chi tiết nào. PDF thì khác — nó phóng bao
+> nhiêu cũng nét, nên nó lấy hết chỗ.
 
 > **Không còn hỏi khổ giấy nữa** `sửa 20/08`. Khổ giấy nằm sẵn trong file mẫu mà Quản trị soạn: mẫu
 > ngang thì bản mềm ra ngang. Hỏi riêng khổ giấy là bắt bạn ghép hai mảnh mà phần mềm ghép được —

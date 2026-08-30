@@ -14236,3 +14236,97 @@ Lượt thứ hai là lượt đáng giá: nới một hằng thì chỉ ca đ�
 bằng cách nới nốt hằng kia. Chỉ khi có ca **gọi thật bằng bốn tài khoản** thì đường ấy mới đóng.
 
 **1928/1928 xanh.**
+
+## P192 — `0164` hộp xem phóng to gần hết màn hình, ảnh thì vừa cỡ thật
+
+Bốn câu trong một yêu cầu, và chúng KHÔNG cùng một việc: *"phóng to hết cỡ"* · *"gần như full hết cả
+màn hình"* · *"có thể đè lên thanh bar bên trái"* · *"đảm bảo scale phù hợp với tỉ lệ màn hình"* ·
+*"đối với preview ảnh thì tự điều chỉnh kích thước để fit với kích thước ảnh"*. Câu thứ ba đã đúng
+sẵn, câu thứ tư và thứ năm kéo ngược nhau, và đó là cả nội dung của chặng.
+
+### Vế "đè lên thanh bên" ĐÃ XONG TỪ TRƯỚC
+
+`.lop-phu` là `position: fixed; inset: 0` với `z-index: 50`; thanh bên đứng ở 40, thanh tiêu đề ở 30.
+Hộp xem chưa bao giờ bị thanh bên cắt. Cái làm nó **trông** nhỏ là hai thứ khác hẳn: trần
+`--cao-khung` và bề rộng cố định 900px của `.hop-thoai-giay`.
+
+Nên lượt này không sửa gì ở đó, chỉ **viết ra một bất biến chưa ai canh**: hạ `z-index` của lớp phủ
+hoặc nâng thanh bên lên là hộp xem mất một dải 260px bên mép trái, và không có gì đỏ. Ca kiểm mới so
+lớp phủ với cả ba lớp cố định.
+
+### Trần chiều cao: ba lượt nới, một lượt bỏ hẳn
+
+`0073` 900px → `0129` 1600px → `0130` 1400px → `0164` **không còn trần**. `clamp()` thành `max()`, và
+đó chính là phép kiểm: `max()` chỉ nhận hai đối nên một cái trần lén quay lại phải viết thành
+`clamp()` hoặc `min()`, và ca kiểm đọc ra ngay.
+
+Khoản trừ cố định 19rem → **14rem**. Nó không phải một con số thẩm mỹ mà là tổng của ba khoản đo
+được: phần khung hộp 157px ở ca xấu nhất (`0073` đo trong Chrome), lề lớp phủ 32px, hai đường viền
+2px — tổng 191px, còn 33px biên. `0073` đã ghi rằng 11rem là chỗ khung bắt đầu bị cắt, nên 14rem là
+bậc thấp nhất còn an toàn.
+
+**Ca kiểm của `0130` phải ĐẢO CHIỀU chứ không nới ngưỡng.** Nó đòi khoản trừ **lớn hơn** 289px để hộp
+còn chừa khoảng hở — câu ấy là một quyết định của khách hàng, và hôm nay chính họ đảo lại. Bản mới
+giữ nguyên vế sàn (ngưỡng vật lý, không đổi theo ý ai) và biến vế kia thành trần.
+
+### Bề rộng: `max()` chứ không thay hẳn
+
+Đây là chỗ hai câu của khách hàng kéo ngược nhau. *"Phóng to hết cỡ"* nói hãy bỏ con số 900px cố
+định; nhưng bỏ hẳn nó là quay về luật `0073` — và `0145` đã ghi rằng luật ấy cho tờ A4 **dọc** ra
+**315px** trên laptop 1366×768, đúng thứ khách hàng than phiền ba chặng trước.
+
+Nên bề rộng lấy **phần lớn hơn** của hai vế, và mỗi vế trả lời một câu khác nhau:
+
+    cao × tỷ lệ            "rộng bao nhiêu thì tờ giấy vừa khít khung theo CẢ HAI chiều"
+    --rong-hop-thoai-xem   "hẹp hơn mức này thì đọc không nổi"
+
+Vế đầu là mức **tối ưu**, không phải tối đa, và lý do nằm ở `#view=FitH`: trình xem PDF khớp trang
+theo BỀ RỘNG. Cho hộp rộng hơn `cao × tỷ lệ` thì nó phóng trang cao hơn khung và sinh một thanh cuộn
+dọc **bên trong** khung — rộng thêm mà đọc khó hơn.
+
+Đo được, và hai mẫu bàn giao mới đều là A4 NGANG nên đó là ca hưởng lợi:
+
+| màn hình | `0146` | `0164` khổ ngang | `0164` khổ dọc |
+|---|---|---|---|
+| 1366×768 | 900px | 900px (sàn thắng) | 900px |
+| 1920×1080 | 900px | **1210px** | 900px |
+| 2560×1440 | 900px | **1720px** | 900px |
+
+Khổ dọc giữ nguyên hành vi `0146` ở mọi màn hình văn phòng — không thua bản trước ở bất kỳ đâu.
+
+### Ảnh: chặn ở CỠ THẬT, và đó là vế thứ năm
+
+Bỏ trần chiều cao mà không thêm gì thì một tấm 400×300 bị kéo lên cao gần hết màn hình — phóng gấp
+ba, mờ theo kiểu người dùng tưởng bản scan bị hỏng. Yêu cầu nói thẳng điều ngược lại.
+
+`XemTep` vốn đã đo `naturalWidth`/`naturalHeight` để lấy TỶ LỆ; lượt này giữ **cả hai số** thay vì
+thương của chúng, vì hai câu hỏi khác nhau: tỷ lệ trả lời *"khung mang hình gì"*, chiều cao trả lời
+*"phóng tới đâu thì thôi"* — và câu thứ hai chỉ trả lời được bằng một số đo tuyệt đối.
+
+Chỗ nối giữa React và CSS là `--cao-khung: min(var(--cao-kha-dung), var(--cao-anh, 99999px))`. **Giá
+trị lùi LÀ cơ chế**: React không đặt `--cao-anh` cho PDF, nên `var()` rơi về con số ấy và `min()`
+không chặn gì. Ba cách hỏng, cả ba đều lặng lẽ, và mỗi cách có một ca kiểm:
+
+- đặt `--cao-anh: ''` cho PDF → `var()` coi như CÓ giá trị, `min()` hỏng, `--cao-khung` rỗng, hộp co
+  về bề rộng nội dung;
+- quên đơn vị `px` → `min()` gặp số trần, cả khai báo sai cú pháp, cùng triệu chứng;
+- ảnh hỏng (`naturalHeight === 0`) → `0px` lọt vào `min()` và khung xẹp hẳn. Cùng chốt chặn với ca
+  `NaN` của `0073`, nhìn từ phía chiều cao.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trần chiều cao về `clamp(…, 1400px)` kiểu `0130` | 3 đỏ |
+| Bề rộng hộp giấy về 900px cố định | 1 đỏ → **2 đỏ** sau khi neo (dưới) |
+| `caoNoiDung={null}` — React thôi khai cỡ ảnh | 1 đỏ |
+| Gỡ vế `--cao-anh` khỏi `--cao-khung` | 1 đỏ |
+| Hạ `z-index` lớp phủ xuống 35 | 1 đỏ |
+
+**Ca xanh lúc phá lại, và nó đáng ghi:** *"KHỔ NGANG rộng thêm thật"* dựng lại công thức bề rộng
+bằng JavaScript từ hai con số đọc trong CSS — nên nó đo **công thức của chính nó**, không đo
+`.hop-thoai-giay`. Bỏ vế tỷ lệ khỏi CSS mà ca ấy vẫn xanh. Chữa bằng một dòng neo ở đầu ca: luật
+`.hop-thoai-giay` phải còn nhắc `--ty-le`. Đây đúng loại "ca dựng trên stub" mà `CLAUDE.md` bảo phải
+ghi ra — nó chỉ đúng chừng nào có một ca đối chiếu giữ cho bản sao khỏi trôi.
+
+**1934/1934 xanh.**
