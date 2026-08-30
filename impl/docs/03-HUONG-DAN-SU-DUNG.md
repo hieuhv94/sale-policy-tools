@@ -1226,6 +1226,24 @@ Mở một hồ sơ:
 Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai tải lên và lúc nào — để câu hỏi *"bản cứng
 đâu"* luôn có chỗ trả lời.
 
+### Hồ sơ pháp lý của khách hàng `mới 29/08`
+
+Khối **thứ ba**, nằm dưới hai khối trên: giấy phép kinh doanh, chứng chỉ hành nghề… của **khách
+hàng**, không phải của hồ sơ này. Trước đây muốn xem chúng phải rời trang, mở khách hàng ra, rồi quay
+lại — ba lần chuyển màn hình giữa lúc đang đọc một hồ sơ chờ chữ ký của mình.
+
+| | |
+| --- | --- |
+| Ai thấy | Mọi vai trò mở được hồ sơ này |
+| Làm được gì | **Xem và tải về** |
+| Không làm được gì | Thêm, gỡ — kể cả Trình dược viên phụ trách |
+
+> **Sửa thì sang trang khách hàng.** Liên kết nằm ngay ở ô *Mã khách hàng* phía trên đầu trang. Ở đó
+> việc thêm và gỡ giấy tờ có đủ ngữ cảnh; trang hồ sơ là chỗ đọc một hồ sơ CSBH.
+>
+> Nhãn khối ghi rõ *"của khách hàng"* để không lẫn với *Giấy tờ hồ sơ* ngay phía trên — hai thứ khác
+> hẳn nhau: một cái đi theo hồ sơ, một cái thuộc về khách hàng và dùng chung cho mọi hồ sơ của họ.
+
 **Lập phiên bản mới thì giấy tờ hồ sơ ĐI THEO** `sửa 28/08` — y như dòng sản phẩm. Bản mới nhận một
 bản sao riêng của từng tệp, nên gỡ giấy tờ ở bản cũ không đụng gì tới bản mới. Đi theo đúng những
 giấy tờ bản cũ **đang có**: thứ đã gỡ thì không quay lại.

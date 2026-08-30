@@ -108,10 +108,18 @@ const toiLaAi = (): Response =>
  * thêm một đường nữa khi người dùng sổ lịch sử ra. Trả theo thứ tự thì đổi thứ
  * tự `Promise.all` một lần là test đỏ mà chẳng có gì hỏng.
  */
-const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_RETURN']) => {
+const chan = (
+  hoSo: unknown = HO_SO,
+  choPhep: string[] = ['TBP_SIGN', 'TBP_RETURN'],
+  /** Hồ sơ pháp lý của KHÁCH HÀNG — khối mới ở `0162`. */
+  giayToKhach: unknown[] = [],
+) => {
   const f = vi.fn((duong: unknown) => {
     const d = String(duong);
     if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());
+    // Đặt TRƯỚC `/files`: đường này là `/customers/:id/documents`, và khối
+    // `HoSoPhapLy` gọi nó ngay khi trang dựng lên.
+    if (d.includes('/documents')) return Promise.resolve(json(giayToKhach));
     if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
     if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: choPhep }));
     if (d.includes('/files')) return Promise.resolve(json([]));
@@ -127,8 +135,8 @@ const chan = (hoSo: unknown = HO_SO, choPhep: string[] = ['TBP_SIGN', 'TBP_RETUR
   return f;
 };
 
-const mo = async (hoSo: unknown = HO_SO, choPhep?: string[]) => {
-  const f = chan(hoSo, choPhep);
+const mo = async (hoSo: unknown = HO_SO, choPhep?: string[], giayToKhach?: unknown[]) => {
+  const f = chan(hoSo, choPhep, giayToKhach);
   render(
     <PhienProvider>
       <BoDinhTuyen>
@@ -478,6 +486,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
       if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());
       if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
       if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: [] }));
+      if (d.includes('/documents')) return Promise.resolve(json([]));
       if (d.includes('/files')) return Promise.resolve(json([]));
       if (d.includes('/available')) return Promise.resolve(json([]));
       return Promise.resolve(json(HO_SO));
@@ -882,5 +891,61 @@ describe('`0160` nút Bàn giao xám khi hồ sơ chưa có bản scan', () => {
       screen.getByRole('button', { name: 'Xuất hợp đồng' }).hasAttribute('disabled'),
       'nút khác trong cùng dải phải không bị chạm',
     ).toBe(false);
+  });
+});
+
+describe('`0162` hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH', () => {
+  const GIAY_TO = [
+    {
+      id: 'gt-1',
+      kind: 'GIAY_PHEP_KINH_DOANH',
+      fileName: 'giay-phep.pdf',
+      objectKey: 'phap_ly/gp.pdf',
+      sizeBytes: '2048',
+      uploadedAt: '2026-07-01T03:00:00.000Z',
+    },
+  ];
+
+  it('hiện đủ tệp của khách, không phải bấm sang trang khách hàng', async () => {
+    await mo(HO_SO, undefined, GIAY_TO);
+    await waitFor(() => expect(screen.getByText('giay-phep.pdf')).toBeDefined());
+  });
+
+  it('gọi đúng khách hàng của HỒ SƠ NÀY', async () => {
+    /*
+     * Ca này canh một cách hỏng im lặng: truyền nhầm `hoSo.id` thay cho
+     * `hoSo.customerId`. Hai giá trị đều là uuid, khối vẫn dựng, lời gọi vẫn
+     * 200 — chỉ là nó hỏi về một khách hàng không tồn tại và trả danh sách
+     * rỗng. Trên màn hình đọc ra là *"khách này chưa có giấy tờ nào"*.
+     */
+    const f = await mo(HO_SO, undefined, GIAY_TO);
+    const duong = f.mock.calls.map((c) => String(c[0]));
+    expect(duong.some((d) => d.includes(`/customers/${HO_SO.customerId}/documents`))).toBe(true);
+  });
+
+  it('nhãn nói rõ đây là giấy tờ CỦA KHÁCH HÀNG', async () => {
+    // Trang này đã có hai mục tệp khác — *Giấy tờ hồ sơ* và *Bản cứng*. Một mục
+    // thứ ba tên trùng nghĩa là ba cái tên người dùng đọc nhầm.
+    await mo(HO_SO, undefined, GIAY_TO);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: /Hồ sơ pháp lý của khách hàng/ })).toBeDefined(),
+    );
+  });
+
+  it('CHỈ ĐỌC — không có vùng tải lên nào ở trang hồ sơ', async () => {
+    /*
+     * Chiều đối chiếu, và nó canh đúng chỗ dễ nới tay nhất: bật `choPhepGhi`
+     * cho TDV phụ trách "cho tiện". Trang này là chỗ đọc hồ sơ CSBH; sửa giấy tờ
+     * khách hàng có đủ ngữ cảnh ở trang khách hàng, không phải ở đây.
+     */
+    await mo(HO_SO, undefined, GIAY_TO);
+    await waitFor(() => expect(screen.getByText('giay-phep.pdf')).toBeDefined());
+    /*
+     * Tìm đúng CHỮ mà `VungTaiLen` dựng ra khi `choPhepGhi` bật — *Thêm giấy
+     * tờ*. Bản đầu của ca này đoán một cái tên khác (*Tải lên*), nên nó xanh cả
+     * khi phá lại: một ca kiểm mô tả hình dạng tưởng tượng thay vì hành vi thật.
+     * Bắt được đúng lúc phá lại, không phải lúc viết.
+     */
+    expect(screen.queryByText(/Thêm giấy tờ/)).toBeNull();
   });
 });

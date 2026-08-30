@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/08/2026)
 
-Chặng gần nhất **P188–P189**. **P188** (`0160`): **nút *Bàn giao* xám khi chưa có bản scan**. Nửa đầu
+Chặng gần nhất **P190** (`0162`): **hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH**,
+chỉ đọc. **Không một dòng máy chủ nào** — `0148` đã mở quyền đọc, DTO đã mang `customerId` ở cấp trên
+cùng (tôi kịp viết một bản vá thêm `id` vào khối `khachHang` rồi mới thấy `tsc` chỉ ra nó có sẵn), và
+`grantCustomerAccess` chạy từ lượt gửi duyệt nên không có khe 403. **Dùng lại `HoSoPhapLy`** với
+`choPhepGhi={false}`, thêm prop `tieuDe` vì trang ấy đã có hai khối tệp khác. Hai điều đáng nhớ: mang
+một khối sang trang thứ hai **làm lộ một mong manh có sẵn** — trả sai hình dạng thì `ds.map` ném lỗi
+lúc dựng và React tháo CẢ CÂY, chấp nhận được ở trang khách hàng nhưng không ở trang hồ sơ, nên thêm
+một phép kiểm hình dạng (không nuốt lỗi, vẫn vào `BaoLoi`); và ca kiểm *"chỉ đọc"* bản đầu tìm một
+nút tên tôi ĐOÁN nên **phá lại vẫn xanh** — `VungTaiLen` dựng chữ *Thêm giấy tờ*. **1941/1941 xanh.**
+
+Trước đó **P188–P189**. **P188** (`0160`): **nút *Bàn giao* xám khi chưa có bản scan**. Nửa đầu
 của yêu cầu ĐÃ XONG TỪ LÂU — chốt `SCAN_REQUIRED` (WF-14) trả 409 từ đầu; lượt này bù **nửa còn
 thiếu**, đúng nguyên tắc `can.ts` đã viết cho 403. Câu *"có bản scan chưa"* dùng CHUNG một hằng
 `SQL_CO_BAN_SCAN` giữa chốt chặn và cờ vẽ nút — hai bản là hai bản sẽ lệch. **Không lọc

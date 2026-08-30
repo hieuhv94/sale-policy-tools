@@ -1549,6 +1549,14 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
 
+**Hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH** `mới 29/08` — người duyệt đối chiếu
+giấy phép kinh doanh mà không phải rời trang sang khách hàng rồi quay lại.
+
+> **CHỈ ĐỌC ở đây**, kể cả với Trình dược viên phụ trách: xem và tải được, thêm và gỡ thì sang trang
+> khách hàng. Trang hồ sơ là chỗ đọc một hồ sơ CSBH, không phải chỗ quản lý giấy tờ khách hàng.
+>
+> Nhãn ghi rõ *"của khách hàng"* — trang này đã có hai mục tệp khác (*Giấy tờ hồ sơ*, *Bản cứng*).
+
 **Nút *Bàn giao* chỉ khả dụng khi đã có bản scan** `mới 29/08` — Sale Admin thấy nút xám kèm một dòng
 nói rõ còn thiếu gì, thay vì bấm rồi mới nhận lỗi.
 

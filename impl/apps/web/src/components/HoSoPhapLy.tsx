@@ -41,8 +41,20 @@ const laAnh = (ten: string): boolean => /\.(png|jpe?g|gif|webp|bmp)$/i.test(ten)
 export function HoSoPhapLy({
   khachHangId,
   choPhepGhi,
+  tieuDe = 'Hồ sơ pháp lý',
+  moTa,
 }: {
   khachHangId: string;
+  /**
+   * Nhãn của mục (`0162`).
+   *
+   * Trang khách hàng để mặc định. Trang HỒ SƠ CSBH phải nói rõ *"của khách
+   * hàng"*: ở đó đã có hai mục tệp khác — *Giấy tờ hồ sơ* và *Bản cứng* — và ba
+   * cái tên gần nhau là ba cái tên người dùng đọc nhầm.
+   */
+  tieuDe?: string;
+  /** Một dòng giải thích dưới nhãn. Bỏ trống thì không hiện gì. */
+  moTa?: string;
   /**
    * Thêm và gỡ được không — CHỈ TDV phụ trách chính khách hàng này (`0069`).
    *
@@ -72,7 +84,26 @@ export function HoSoPhapLy({
     const huy = new AbortController();
     datLoi(null);
     layJson<TepPhapLy[]>(`/customers/${khachHangId}/documents`, huy.signal)
-      .then(datDs)
+      .then((ds) => {
+        /*
+         * KIỂM HÌNH DẠNG trước khi nhận (`0162`).
+         *
+         * Đường này trả về MẢNG TRẦN, không phải `{ items }`. Nhận nhầm một
+         * object rồi `ds.map` là **ném lỗi ngay lúc dựng**, và React tháo cả cây
+         * — tức là một câu trả lời sai hình dạng ở đây làm trắng CẢ TRANG.
+         *
+         * Trước `0162` khối này chỉ sống ở trang khách hàng, nơi nó gần như là
+         * cả trang. Giờ nó còn nằm trên trang HỒ SƠ CSBH, và ở đó một khối phụ
+         * không được phép kéo sập phần còn lại.
+         *
+         * KHÔNG nuốt lỗi (`0089`): hình dạng lạ đi vào `BaoLoi` như mọi lỗi
+         * khác, chỉ khác là nó ở trong phạm vi khối này.
+         */
+        if (!Array.isArray(ds)) {
+          throw new Error('Danh sách hồ sơ pháp lý trả về sai hình dạng');
+        }
+        datDs(ds);
+      })
       .catch((e) => {
         if (!huy.signal.aborted) datLoi(e);
       });
@@ -168,7 +199,8 @@ export function HoSoPhapLy({
 
   return (
     <>
-      <h2>Hồ sơ pháp lý</h2>
+      <h2>{tieuDe}</h2>
+      {moTa !== undefined && <p className="ghi-chu">{moTa}</p>}
 
       {loi !== null && <BaoLoi loi={loi} thuLai={taiLai} />}
 

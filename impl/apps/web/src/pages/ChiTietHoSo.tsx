@@ -14,6 +14,7 @@ import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
+import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
 import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
@@ -423,6 +424,34 @@ export function ChiTietHoSo({ id }: { id: string }) {
         */
         loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
         taiLai={taiLai}
+      />
+
+      {/*
+        HỒ SƠ PHÁP LÝ CỦA KHÁCH HÀNG, ngay tại đây (`0162`, chốt 29/08).
+
+        Người duyệt cần đối chiếu giấy phép kinh doanh với thông tin trên hồ sơ,
+        và trước lượt này họ phải rời trang, mở khách hàng ra, rồi quay lại — ba
+        lần chuyển màn hình giữa lúc đang đọc một hồ sơ chờ chữ ký của mình.
+
+        DÙNG LẠI `HoSoPhapLy`, không chép một bản chỉ-đọc. Nó đã nhận cờ
+        `choPhepGhi` từ `0069`, và nó cũng đã tự lo phần xem ảnh, xem PDF, tải
+        về. Một bản sao rút gọn ở đây là một chỗ thứ hai phải sửa mỗi lần thêm
+        một loại giấy tờ — và là chỗ sẽ quên.
+
+        `choPhepGhi={false}` LUÔN, kể cả với TDV phụ trách: trang này là chỗ đọc
+        hồ sơ CSBH, không phải chỗ quản lý giấy tờ khách hàng. Sửa thì sang trang
+        khách hàng, nơi việc ấy có đủ ngữ cảnh — liên kết nằm ngay ở ô *Mã khách
+        hàng* phía trên. Máy chủ vẫn chặn đúng luật ấy (`0069`), nên đây chỉ là
+        chuyện đừng bày ra vùng tải lên ở một màn hình không dành cho nó.
+
+        Khối tự lo lỗi của riêng nó (`BaoLoi` bên trong): lời gọi sang `customer`
+        hỏng thì mất đúng mục này, không mất cả trang hồ sơ.
+      */}
+      <HoSoPhapLy
+        khachHangId={hoSo.customerId}
+        choPhepGhi={false}
+        tieuDe="Hồ sơ pháp lý của khách hàng"
+        moTa="Giấy tờ của khách hàng, không phải của hồ sơ này. Sửa hoặc bổ sung ở trang khách hàng."
       />
 
       {/*

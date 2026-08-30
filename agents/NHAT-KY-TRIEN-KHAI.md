@@ -14092,3 +14092,66 @@ nói lên gì."* Lần này nó xanh ở vài trăm lượt đầu.
 chính là cách một lỗi thật sống sót.
 
 **1937/1937 xanh.**
+
+## P190 — `0162` hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ
+
+Người dùng: *"thêm một mục chứa các file đính kèm trong thông tin của khách hàng
+để không cần phải click vào khách hàng mà vẫn có thể thấy"*.
+
+### Không một dòng máy chủ nào
+
+Rà trước khi sửa và cả hai vế đã sẵn sàng: `0148` mở quyền ĐỌC hồ sơ pháp lý cho
+mọi vai trò thấy được khách hàng, và DTO hồ sơ đã mang `customerId` ở cấp trên
+cùng — tôi đã kịp viết một bản vá thêm `id` vào khối `khachHang` rồi mới thấy
+`tsc` chỉ ra rằng trường ấy có sẵn.
+
+Quyền cũng không có khe hở: `grantCustomerAccess` chạy ngay từ lượt **gửi duyệt**
+(`0141` chọn TBP và Kế toán ở đó), nên tới lúc một người mở được hồ sơ thì họ đã
+có quyền xem khách hàng.
+
+### Dùng lại khối cũ, không chép một bản chỉ-đọc
+
+`HoSoPhapLy` đã nhận cờ `choPhepGhi` từ `0069`, và đã tự lo xem ảnh, xem PDF, tải
+về. Một bản rút gọn ở trang hồ sơ là chỗ thứ hai phải sửa mỗi lần thêm một loại
+giấy tờ — và là chỗ sẽ quên.
+
+`choPhepGhi={false}` LUÔN, kể cả với TDV phụ trách. Trang này là chỗ đọc hồ sơ
+CSBH; sửa giấy tờ khách hàng có đủ ngữ cảnh ở trang khách hàng.
+
+Thêm một prop `tieuDe`: trang hồ sơ đã có hai khối tệp — *Giấy tờ hồ sơ* và *Bản
+cứng* — nên khối thứ ba phải nói rõ nó là **của khách hàng**. Ba cái tên gần
+nhau là ba cái tên người dùng đọc nhầm.
+
+### Mang một khối sang trang thứ hai làm lộ một mong manh có sẵn
+
+Một ca kiểm cũ đỏ ngay: nó dựng stub `fetch` riêng, không có nhánh
+`/customers/:id/documents`, nên khối mới nhận về object hồ sơ, `ds.map` ném lỗi
+lúc dựng, React tháo cả cây — và ca ấy đỏ ở chỗ *"không tìm thấy nút Xem bản
+mềm"*.
+
+Chú thích ở `lap-ho-so-tu-khach-hang.test.ts` đã cảnh báo đúng chuyện này từ
+trước: *"trả sai hình dạng thì màn hình nổ ngay lúc dựng"*. Ở trang khách hàng
+điều đó chấp nhận được — khối ấy gần như là cả trang. Ở trang hồ sơ thì không:
+một khối phụ không được phép kéo sập phần còn lại.
+
+Nên thêm một phép kiểm hình dạng, và nó KHÔNG nuốt lỗi (`0089`): hình dạng lạ đi
+vào `BaoLoi` như mọi lỗi khác, chỉ khác là nó ở trong phạm vi khối này.
+
+### Ca kiểm "chỉ đọc" của tôi không bắt được gì, và phá lại chỉ ra
+
+Bản đầu tìm một nút tên `/Thêm hồ sơ pháp lý|Tải lên/` — hai cái tên tôi ĐOÁN.
+`VungTaiLen` dựng ra chữ *Thêm giấy tờ*. Nên khi phá lại bằng cách bật
+`choPhepGhi`, ca ấy vẫn xanh: một ca kiểm mô tả một hình dạng tưởng tượng thay vì
+hành vi thật.
+
+Đây đúng là thứ bước phá lại sinh ra để bắt, và nó bắt được — nhưng chỉ vì tôi
+phá đúng cái nới tay dễ xảy ra nhất. Phá một chỗ khác thì ca ấy còn nằm đó xanh.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Truyền `hoSo.id` thay cho `hoSo.customerId` | 1 đỏ |
+| Bật `choPhepGhi` | 0 đỏ lúc đầu → sửa bộ chọn → 1 đỏ |
+
+**1941/1941 xanh.**
