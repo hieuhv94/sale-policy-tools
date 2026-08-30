@@ -20,7 +20,7 @@
  * trạng thái hồ sơ, không chỉ hành động.
  */
 import { describe, expect, it } from 'vitest';
-import { CAN_XEM_TRUOC, oChonCua } from '@csbh/web/nguoi-xu-ly';
+import { oChonCua } from '@csbh/web/nguoi-xu-ly';
 
 /** Mọi tổ hợp (hành động × trạng thái hồ sơ) mà hàm trả về ô nào đó. */
 const MOI_O = [
@@ -117,24 +117,18 @@ describe('hình dạng từng ô', () => {
   });
 });
 
-describe('xem trước bản CSBH A4', () => {
-  it('CHỈ bắt xem ở bước gửi duyệt', () => {
-    // Đây là lần cuối nội dung hồ sơ còn sửa được; sau bước này giá và ngưỡng
-    // đóng băng. Thêm một cửa xác nhận ở mọi bước là dạy người dùng bấm qua mà
-    // không đọc — đúng thứ cửa này sinh ra để tránh.
-    expect([...CAN_XEM_TRUOC].sort()).toEqual(['RESUBMIT_AFTER_EDIT', 'SUBMIT']);
-  });
-
-  it('`0141` GỬI LẠI vẫn phải xem trước, dù thôi chọn người', () => {
+describe('`0163` lượt gửi duyệt KHÔNG còn bản xem trước', () => {
+  it('`RESUBMIT_AFTER_EDIT` vẫn không chọn lại ai — luật `0141` giữ nguyên', () => {
     /*
-     * Hai luật độc lập, và lượt này tách chúng ra: *chọn người* chỉ ở lượt gửi
-     * ĐẦU, còn *đọc lại bản mềm* ở CẢ HAI lượt gửi — vì lượt gửi lại cũng là một
-     * lượt đóng băng giá và ngưỡng, và nội dung vừa bị sửa.
+     * `CAN_XEM_TRUOC` đã gỡ cùng cơ chế đóng băng mẫu (`0163`): bản mềm là thao
+     * tác in của Sale Admin ở bước B8, nên người gửi duyệt không chọn mẫu và
+     * không có gì để xem trước.
      *
-     * Gộp hai luật lại thì hộp gửi lại thành một cái nút trống không: không ô
-     * nào để điền, và bản mềm cũng biến mất.
+     * Hai ca cũ ở đây khẳng định đúng tập ấy. Chúng đi theo, nhưng luật `0141`
+     * mà một trong hai ca đứng cạnh thì KHÔNG mất — nên nó ở lại, tách khỏi
+     * chuyện xem trước.
      */
-    expect(CAN_XEM_TRUOC.has('RESUBMIT_AFTER_EDIT')).toBe(true);
     expect(oChonCua('RESUBMIT_AFTER_EDIT')).toEqual([]);
   });
 });
+

@@ -341,10 +341,17 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 > mẫu hồ sơ mỗi khổ và một mẫu hợp đồng lúc khởi động, nên phần mềm chạy được
 > ngay cả khi chưa ai tải gì lên.
 >
-> Không còn thế nữa: **không có mẫu thì Trình dược viên không gửi duyệt được hồ
-> sơ nào** — bước gửi duyệt bắt chọn mẫu — và Kế toán không xuất được hợp đồng.
-> Nên lệnh này (hoặc một lượt Quản trị tự tải mẫu lên) là **bước cài đặt bắt
-> buộc**, không còn là đường tắt cho bản chạy thử.
+> Không còn thế nữa: **không có mẫu thì Sale Admin không in được bản mềm CSBH**
+> — kể cả hồ sơ đã có hiệu lực — và Kế toán không xuất được hợp đồng. Nên lệnh
+> này (hoặc một lượt Quản trị tự tải mẫu lên) là **bước cài đặt bắt buộc**, không
+> còn là đường tắt cho bản chạy thử.
+>
+> **Sửa lại `29/08`:** bản 28/08 viết *"không có mẫu thì Trình dược viên không
+> gửi duyệt được hồ sơ nào"*, vì khi ấy bước gửi duyệt bắt chọn mẫu. Bước ấy đã
+> bỏ — luồng duyệt chạy trọn vẹn mà không cần mẫu nào. Nghĩa là **thiếu mẫu
+> không chặn ngay lúc cài đặt, nó chặn ở bước B8** khi Sale Admin cần bản cứng
+> để trình ký. Hỏng muộn hơn thì khó thấy hơn, nên lệnh này vẫn nằm trong danh
+> sách bước cài đặt bắt buộc.
 >
 > Đổi lại, không còn mẫu lạ tự xuất hiện: trước đây vô hiệu hoá mẫu cuối cùng
 > của một khổ thì lần khởi động sau hệ thống dựng lại một bản Quản trị không hề

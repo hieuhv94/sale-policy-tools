@@ -31,21 +31,30 @@ import {
   type AuthUser,
 } from '@csbh/http-kit';
 
-/**
- * Ai được XEM bản mềm CSBH — và vì thế ai được thấy danh sách mẫu để chọn (`0058`).
- *
- * Cùng danh sách với `render.controller.ts`. Chép sang đây thay vì nhập từ đó
- * vì hai controller nằm hai mô-đun và chiều phụ thuộc đang là render → contracts;
- * đảo lại để dùng chung một hằng số là đổi kiến trúc cho một mảng năm chuỗi.
- * `document.test.ts` đối chiếu hai danh sách để chúng không lệch nhau.
- */
-export const NGUOI_XEM_HO_SO = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
 import { MAX_BYTES } from '../files/files.service.js';
 import { TemplatesService, type MappingInput } from './templates.service.js';
 import { ContractsService } from './contracts.service.js';
 import { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
 import { O_BANG_SAN_PHAM } from './docx.js';
 import { COT_BANG, COT_BAT_BUOC } from './bang-san-pham.js';
+
+/**
+ * Ai được xem DANH SÁCH mẫu hồ sơ — và vì thế ai chọn được mẫu (`0163`).
+ *
+ * Thu về đúng Sale Admin, khớp `READERS` của `RenderController`. Bất biến là:
+ * **ai dựng được bản mềm thì thấy được danh sách mẫu**, không hơn không kém.
+ * Rộng hơn là một vai trò thấy danh sách mẫu của thứ họ không xem được; hẹp hơn
+ * là ô chọn trả 403 ngay khi hộp vừa mở.
+ *
+ * Chép sang đây thay vì nhập từ `render.controller.ts` vì hai controller nằm hai
+ * mô-đun và chiều phụ thuộc đang là render → contracts; đảo lại để dùng chung
+ * một mảng một phần tử là đổi kiến trúc cho một hằng số. `document.test.ts` đối
+ * chiếu hai danh sách để chúng không lệch nhau.
+ *
+ * Tới `0162` là năm vai trò, vì khi ấy TDV chọn mẫu lúc gửi duyệt và bốn vai trò
+ * kia mở được bản mềm. `0163` bỏ cả hai vế.
+ */
+export const NGUOI_XEM_HO_SO = ['SALE_ADMIN'];
 
 /**
  * Đọc bảng ánh xạ từ một trường FORM (chuỗi JSON) — dùng chung hai loại mẫu.
@@ -277,9 +286,8 @@ export class PolicyTemplatesController {
   /**
    * Mẫu dùng được, cho Ô CHỌN lúc xem bản mềm (`0058`).
    *
-   * MỞ CHO NĂM VAI TRÒ ĐỌC, không riêng Quản trị — và đó là chủ ý: người chọn
-   * mẫu là kế toán, TDV, Trưởng bộ phận. Họ cần biết có những mẫu nào, chứ không
-   * cần quyền thêm hay xoá mẫu nào.
+   * CHỈ SALE ADMIN từ `0163` — họ là người duy nhất chọn mẫu, và chỉ ở lúc in.
+   * Không cần quyền thêm hay xoá mẫu nào.
    */
   @Roles(...NGUOI_XEM_HO_SO)
   @Get('available')

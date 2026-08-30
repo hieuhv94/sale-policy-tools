@@ -284,7 +284,6 @@ export class PoliciesController {
       // Mẫu bản mềm, đóng băng lúc gửi duyệt (`0098`). `opt()` cùng lý do như
       // ba ô trên: chỉ hai hành động cần nó. Bắt buộc thật sự thì `workflow`
       // đòi, kèm câu nói rõ phải chọn cái gì.
-      mauHoSoId: opt(uuid()),
     });
     return this.workflow.act(id, a.action as Action, me, b);
   }

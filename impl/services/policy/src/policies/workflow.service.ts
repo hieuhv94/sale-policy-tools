@@ -217,7 +217,6 @@ export class WorkflowService {
       keToanUserId?: string | undefined;
       saleAdminUserId?: string | undefined;
       /** Mẫu bản mềm TDV chọn, đóng băng lúc gửi duyệt (`0098`). */
-      mauHoSoId?: string | undefined;
     },
   ) {
     const before = await this.db.one<{
@@ -319,34 +318,17 @@ export class WorkflowService {
       await this.policies.assertNoMissingInheritedProduct(policyId);
 
       /*
-       * VĂN BẢN MẪU ĐÓNG BĂNG VÀO HỒ SƠ, ngay tại đây (`0098`).
+       * PHÉP KIỂM "PHẢI CHỌN VĂN BẢN MẪU" ĐÃ GỠ (`0163`).
        *
-       * Cùng một lằn ranh với giá và ngưỡng ở khối ngay dưới, và đó là chủ ý:
-       * bản trình bày của một văn bản sắp đem đi ký là một phần của thứ được
-       * duyệt, không phải sở thích của từng người mở nó ra xem. Sau lằn này TDV
-       * không đổi được nữa, và không vai trò nào sau trong luồng chọn được.
+       * `0098` bắt mọi lượt `SUBMIT` và `RESUBMIT_AFTER_EDIT` kèm `mauHoSoId`,
+       * vì bản mềm khi ấy là văn bản đi qua luồng duyệt và phải bất biến. Khách
+       * hàng chốt 29/08 rằng nó không phải thế: bản mềm là thao tác IN của Sale
+       * Admin ở bước B8, nên người gửi duyệt không có việc gì với văn bản mẫu.
        *
-       * BẮT BUỘC, không rơi về mẫu đầu danh sách. Mỗi mẫu có tập cột riêng
-       * (`0067`), nên mặc định ngầm nghĩa là người gửi ký một bản họ chưa từng
-       * chọn — và với "bản gọn đưa khách hàng" thì khác biệt là có hay không có
-       * cột CPBH, tức con số nội bộ của Công ty.
-       *
-       * Chặn ở ĐÂY chứ không ở lúc xem: hồ sơ vẫn đang là bản nháp nên chưa mất
-       * gì, đúng lối đã dùng cho "TDV chưa gán Trưởng bộ phận thì không gửi
-       * được" (muc 2.9).
-       *
-       * `RESUBMIT_AFTER_EDIT` cũng phải chọn lại chứ không kế thừa lần trước:
-       * hồ sơ bị trả về rồi sửa thì bảng sản phẩm có thể đã khác, mà tập cột phù
-       * hợp với bảng cũ chưa chắc còn hợp — đúng lối mà `phanCongCua` đã chọn cho
-       * người xử lý.
+       * Kéo theo: hệ thống KHÔNG CÓ MẪU NÀO vẫn gửi duyệt được — `0150` ghi
+       * ngược lại, và câu ấy đúng cho tới hôm nay. Thiếu mẫu giờ chỉ chặn đúng
+       * thao tác in của Sale Admin.
        */
-      if (!opts.mauHoSoId) {
-        throw new UnprocessableEntityException({
-          code: 'TEMPLATE_REQUIRED',
-          message: 'Chọn văn bản mẫu cho bản mềm CSBH trước khi gửi duyệt.',
-        });
-      }
-
       thieuTruongLucGui(before, cus);
 
       /*
@@ -550,27 +532,13 @@ export class WorkflowService {
             : '';
 
       /*
-       * ĐÓNG BĂNG MẪU, trong CÙNG câu lệnh đổi trạng thái (`0098`).
+       * KHỐI GHI `mau_ho_so_id` ĐÃ GỠ (`0163`) — cột ấy không còn trong lược đồ.
        *
-       * Không phải một `UPDATE` thứ hai sau đó: hồ sơ đã sang *Chờ TBP duyệt*
-       * mà cột mẫu chưa kịp ghi là một hồ sơ khoá sửa và không xem được bản mềm
-       * — không ai chữa được, vì cả hai đường ghi cột đều chỉ mở lúc gửi duyệt.
-       * Cùng một câu lệnh thì hai thứ ấy hoặc cùng đúng, hoặc cùng không xảy ra.
-       *
-       * Ghi ĐÈ ở mỗi lượt gửi, kể cả `RESUBMIT_AFTER_EDIT` — xem khối kiểm ở
-       * trên về việc vì sao không kế thừa lần trước.
-       *
-       * Điều kiện là HÀNH ĐỘNG, không phải "có gửi `mauHoSoId` không". Hai câu
-       * ấy khác nhau ở đúng chỗ nguy hiểm: Trưởng bộ phận bấm *Ký số* mà kèm
-       * theo một `mauHoSoId` — dù do một màn hình viết sau này gửi thừa, hay do
-       * một lượt gọi tay — sẽ ghi đè mẫu mà người gửi đã chọn, ở đúng bước mà
-       * yêu cầu nói là không ai được chọn nữa.
+       * Chú thích cũ ở đây cảnh báo một chuyện thật: điều kiện phải là HÀNH
+       * ĐỘNG chứ không phải *"có gửi `mauHoSoId` không"*, nếu không thì Trưởng
+       * bộ phận bấm *Ký số* mà kèm thừa một `mauHoSoId` sẽ ghi đè mẫu người gửi
+       * đã chọn. Lo ấy hết nghĩa cùng cái cột.
        */
-      let mauSql = '';
-      if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
-        params.push(opts.mauHoSoId);
-        mauSql = `mau_ho_so_id = $${params.length},`;
-      }
 
       /*
        * ĐÓNG BĂNG KHÁCH HÀNG VÀ NGƯỜI ĐỀ NGHỊ (`0101`) — cùng vạch với mẫu.
@@ -646,7 +614,7 @@ export class WorkflowService {
       const upd = await c.query<{ id: string }>(
         `UPDATE pol.policy SET
             status = $2::pol.policy_status,
-            ${stampSql}${reprintSql}${mauSql}${khSql}${kySql}
+            ${stampSql}${reprintSql}${khSql}${kySql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
             sla_due_at = CASE WHEN $${slaIdx}

@@ -1,9 +1,22 @@
 import { Controller, Get, Param, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, opt, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { RenderService } from './render.service.js';
 
-const READERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO'];
+/**
+ * CHỈ SALE ADMIN dựng được bản mềm (`0163`, chốt 29/08).
+ *
+ * Năm vai trò cũ mất quyền này, kể cả **Ban lãnh đạo** — hỏi lại và khách hàng
+ * chốt đúng chữ *"chỉ giữ ở SA"*.
+ *
+ * Bản mềm thôi là văn bản đi qua luồng duyệt; nó là thao tác IN của Sale Admin ở
+ * bước B8. Người duyệt đọc dữ liệu hồ sơ trên màn hình chi tiết — vốn đã mang đủ
+ * mười ba mục của muc 11.1 — chứ không đọc bản dựng ra giấy.
+ *
+ * Chặn Ở ĐÂY chứ không chỉ ẩn nút: giấu một nút không ngăn được ai gọi thẳng
+ * đường này.
+ */
+const READERS = ['SALE_ADMIN'];
 
 @Controller('policies')
 export class RenderController {
@@ -54,7 +67,14 @@ export class RenderController {
         không có liên kết cũ nào đang sống. `validate` bỏ qua khoá lạ chứ không
         từ chối, nên một địa chỉ còn mang `?xem=1` vẫn trả về đúng bản PDF.
       */
-      mauId: opt(uuid()),
+      /*
+       * BẮT BUỘC từ `0163` — trước là `opt(uuid())`.
+       *
+       * Bỏ trống từng nghĩa là *"đọc mẫu đã gắn vào hồ sơ"*, và không còn mẫu
+       * nào gắn vào hồ sơ nữa. Người gọi duy nhất là hộp *Xem bản mềm* của Sale
+       * Admin, và ở đó ô chọn mẫu luôn có giá trị.
+       */
+      mauId: uuid(),
     });
     const { body, code } = await this.render.pdf(id, b.mauId, me);
     res.setHeader('Content-Type', 'application/pdf');

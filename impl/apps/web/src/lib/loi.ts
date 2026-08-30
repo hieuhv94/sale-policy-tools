@@ -513,7 +513,6 @@ export const BANG_LOI: Record<string, Muc> = {
   TEMPLATE_INCOMPLETE: { dang: 'hop-thoai', tuMayChu: true },
   TEMPLATE_MISSING_REQUIRED: { dang: 'hop-thoai', tuThan: true, tuMayChu: true },
   TEMPLATE_FILE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
-  POLICY_TEMPLATE_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   /*
    * `NO_ACTIVE_TEMPLATE` ĐÃ GỠ (`0098`) — máy chủ không còn ném nó.
    *
@@ -534,18 +533,16 @@ export const BANG_LOI: Record<string, Muc> = {
    * câu của chúng nói về đúng hồ sơ này (đã gắn mẫu nào, lập trước hay sau
    * `0098`), không phải một câu chung.
    */
-  TEMPLATE_REQUIRED: { dang: 'o-nhap', truong: 'mauHoSoId', tuMayChu: true },
-  TEMPLATE_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
-  POLICY_TEMPLATE_NOT_SET: { dang: 'hop-thoai', tuMayChu: true },
-  /**
-   * Hồ sơ CÒN NHÁP, người xem không phải TDV của nó (`0100`).
+  /*
+   * NĂM MÃ LỖI VỀ MẪU ĐÃ GỠ (`0163`): `POLICY_TEMPLATE_MISSING`,
+   * `TEMPLATE_REQUIRED`, `TEMPLATE_LOCKED`, `POLICY_TEMPLATE_NOT_SET`,
+   * `POLICY_TEMPLATE_PENDING`.
    *
-   * Tách khỏi `POLICY_TEMPLATE_NOT_SET` vì hai chuyện khác hẳn nhau và lời
-   * khuyên đi kèm cũng khác: ở đây không có gì hỏng và không phải làm gì cả —
-   * chờ người phụ trách gửi duyệt. Gộp vào mã kia thì Ban lãnh đạo mở một hồ sơ
-   * Nháp bất kỳ sẽ đọc rằng hồ sơ ấy lập trước `0098` và nên lập lại cái mới.
+   * Cả năm sinh ra từ cơ chế ĐÓNG BĂNG mẫu vào hồ sơ (`0098`, `0100`), và cơ
+   * chế ấy đã bỏ. Máy chủ không phát mã nào trong số đó nữa —
+   * `tests/web/loi.test.tsx` quét mã nguồn máy chủ nên giữ lại chúng ở đây là
+   * giữ năm dòng không ai đọc tới.
    */
-  POLICY_TEMPLATE_PENDING: { dang: 'hop-thoai', tuMayChu: true },
   PLACEHOLDER_NOT_IN_TEMPLATE: { dang: 'o-nhap', truong: 'placeholder', tuMayChu: true },
   SOURCE_UNKNOWN: { dang: 'o-nhap', truong: 'source', tuMayChu: true },
   CONTRACT_NOT_READY: { dang: 'hop-thoai', tuMayChu: true },

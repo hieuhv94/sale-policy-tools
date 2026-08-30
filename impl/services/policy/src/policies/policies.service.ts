@@ -1590,7 +1590,6 @@ export class PoliciesService {
        * mỗi lượt mở hồ sơ là một vòng mạng cho một chuỗi mà phần lớn màn hình
        * không dùng tới. Màn hình nào cần tên thì hỏi `/policy-templates/:id`.
        */
-      mauHoSoId: (p as unknown as { mau_ho_so_id: string | null }).mau_ho_so_id,
       /*
        * Ảnh chụp khách hàng và người đề nghị (`0101`), ba trường mà MÀN HÌNH
        * dùng tới. Năm trường còn lại chỉ có nghĩa với bản mềm, và `document`

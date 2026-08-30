@@ -14155,3 +14155,84 @@ phá đúng cái nới tay dễ xảy ra nhất. Phá một chỗ khác thì ca 
 | Bật `choPhepGhi` | 0 đỏ lúc đầu → sửa bộ chọn → 1 đỏ |
 
 **1941/1941 xanh.**
+
+## P191 — `0163` bản mềm thôi đóng băng, và thôi là việc của người duyệt
+
+Ba câu khách hàng gửi cùng lúc — bỏ *Xem bản mềm* của TDV/TBP/Kế toán, chuyển việc chọn mẫu sang Sale
+Admin lúc in, và bỏ đóng băng mẫu. Đọc rời từng câu thì đây là ba việc giao diện; đọc cùng nhau thì
+nó là **một câu duy nhất về mẫu**, và câu ấy đảo ngược `0098`.
+
+`0098` đóng băng mẫu vì nó tin bản mềm là **văn bản đi qua luồng duyệt**: người ký ở B10 phải thấy
+đúng tờ giấy người gửi ở B3 đã thấy. Khách hàng vừa nói giả định ấy sai — *"mục đích của bản mềm chỉ
+để in ra bản cứng tại thời điểm đó"*. Bản mềm là **thao tác IN của Sale Admin ở B8**. Khi nó chỉ còn
+là thao tác của MỘT người ở MỘT bước thì chỉ người ấy cần nút, chỉ người ấy chọn mẫu, và **không còn
+gì để đóng băng** — ba câu tự suy ra nhau. Cái thật sự được duyệt là dữ liệu hồ sơ, và dữ liệu ấy
+vẫn đóng băng nguyên vẹn (`0022` giá và ngưỡng, `0101` tám trường khách hàng).
+
+Cái mất, đã ghi vào cả migration lẫn YCNV: **hồ sơ đã ký in lại hôm nay có thể ra một tờ giấy khác**,
+và **vô hiệu hết mẫu thì không hồ sơ nào in được** — kể cả hồ sơ đã có hiệu lực. Trước `0163` cả hai
+không xảy ra được. Khách hàng chấp nhận: bản pháp lý là bản cứng đã ký và đã scan.
+
+### Cột `mau_ho_so_id` gỡ HẲN, không chỉ thôi ghi
+
+Một cột không ai đặt nữa mà vẫn nằm đó là một câu hỏi cho người đọc lược đồ sáu tháng sau, và câu trả
+lời đúng — *"mẫu nào đã dựng ra bản mềm của hồ sơ này"* — từ đây **không có đáp án**. Không có gì để
+chuyển đi: dữ liệu trong cột là *"mẫu đã gắn"*, và chính khái niệm ấy vừa bị bỏ.
+
+Gỡ cột kéo theo `mauCua()` của `render.service.ts` **co từ ~106 dòng xuống một dòng**
+(`templates.chon('HO_SO', mauId)`). Cả trăm dòng ấy là cây quyết định *"hồ sơ đã gắn mẫu chưa · đang
+sửa được không · người xem có được chọn không"*, và nó biến mất không phải vì được viết gọn lại mà
+vì ba trong bốn nhánh của nó thôi tồn tại.
+
+### `0150` đảo một nửa, và chỗ đảo nằm ở tài liệu triển khai
+
+`0150` ghi *"không có mẫu thì không hồ sơ nào gửi duyệt được"* — đúng, vì `SUBMIT` đòi `mauHoSoId`.
+Từ đây luồng duyệt chạy trọn vẹn mà không cần mẫu nào; thiếu mẫu chỉ chặn đúng thao tác in ở B8.
+Nghĩa là **chỗ hỏng dời sang muộn hơn và khó thấy hơn**: bản cài mới không có mẫu vẫn chạy êm qua
+mười bước, rồi kẹt ở đúng lúc Sale Admin cần bản cứng để trình ký. `docs/04-TRIEN-KHAI.md` giữ
+`nap-danh-muc` trong danh sách bước bắt buộc, nhưng vì lý do mới ấy chứ không vì lý do cũ.
+
+### Ba chỗ tự dính, và một chỗ suýt
+
+**Gán tắt Sale Admin trong `draft()` làm đỏ một ca về ĐỊA CHỈ KHÁCH HÀNG.** Mọi ca render của
+`contract.test.ts` cần hồ sơ nằm trên bàn `sa01`, nên bản đầu vặn thẳng `sale_admin_user_id` ngay ở
+`draft()`. DOC-27 đỏ với `403` ở lượt `PATCH /customers` — không chữ nào nhắc tới mẫu hay bản mềm.
+Nguyên nhân: từ `0141` bước `KT_RECEIVE_L1` **chỉ hỏi Sale Admin khi cột còn rỗng**, nên gán sẵn là
+bước ấy thôi ghi, thôi bắn sự kiện, thôi dựng dòng `cus.customer_access` — `sa01` giữ quyền đọc HỒ SƠ
+mà mất quyền sửa KHÁCH HÀNG. Bài học chung: **một phép gán tắt phải đứng ngoài đường đi thật**. Giờ
+nó là `giaoChoSa(id)` gọi từ `banMem()`, đúng chỗ cần.
+
+**`export` lọt vào giữa khối `import`.** `NGUOI_XEM_HO_SO` viết chèn giữa hai dòng `import` của
+`contracts.controller.ts`. `tsc` **xanh** — import được hoisted — nên không gì báo. Cùng lúc đó
+docstring cũ của hằng vẫn nằm trên docstring mới, hai khối liền nhau nói hai chuyện khác nhau.
+
+**`tests/web/nguoi-xu-ly.test.ts` có HAI `describe('hình dạng từng ô')` giống hệt.** Bản sao thứ hai
+chạy lại đúng ba ca ấy và **xanh cả hai lượt**, nên không có tín hiệu nào. Đây là dấu vết của một
+lượt sửa file-wide bằng regex — cùng loại với những lượt đã ghi ở P182 và P183.
+
+**Suýt dính:** `khung-xem.test.tsx` quét hai tệp đòi mọi `<iframe class="khung-giay">` mang
+`#view=FitH`. `ChiTietHoSo` hết khung nên `expect(khung.length).toBeGreaterThan(0)` đỏ. Cám dỗ là xoá
+ca; đúng là **rút danh sách còn một tệp** — điều nó canh (*"mọi khung tờ giấy đều xin FitH"*) vẫn phải
+đúng ở chỗ duy nhất còn lại.
+
+### Bảng quyền không nhận thêm khoá, nhưng vẫn phải giữ tên vai trò
+
+`tests/web/quyen.test.ts` cấm mọi tệp ngoài `can.ts` viết `role === 'SALE_ADMIN'`, nên bản đầu viết
+thẳng ở `ChiTietHoSo.tsx` là đỏ ngay. Nhưng khoá mới **không vào `QUYEN_XEM`** được: bảng ấy khớp
+một-một với `DIEU_HUONG`, và *Xem bản mềm* không phải một mục menu. Chỗ đúng là một hằng riêng
+`XEM_BAN_MEM` cộng hàm `xemBanMemDuoc()`, vẫn trong `can.ts` — ranh giới mà ca kiểm canh là **tệp**,
+không phải **bảng**.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `READERS` về năm vai trò | 1 đỏ — ca đối chiếu `READERS` ↔ `NGUOI_XEM_HO_SO` |
+| Nới **cả hai** hằng về năm vai trò | 2 đỏ, ở `contract.test.ts`: danh sách mẫu, và 403 của bốn vai trò |
+| `XEM_BAN_MEM` về `VAI_TRO` | 2 đỏ ở `chi-tiet-ho-so.test.tsx` |
+| `mauId` về `opt(uuid())` | 1 đỏ — DOC-01, *"không truyền mẫu thì 400"* |
+
+Lượt thứ hai là lượt đáng giá: nới một hằng thì chỉ ca đối chiếu đỏ, và một người sửa vội sẽ "chữa"
+bằng cách nới nốt hằng kia. Chỉ khi có ca **gọi thật bằng bốn tài khoản** thì đường ấy mới đóng.
+
+**1928/1928 xanh.**

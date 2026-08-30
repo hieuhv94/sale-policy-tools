@@ -261,7 +261,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 |---|---|---|---|---|
 | B1 | TDV | Nháp | — | Tạo hồ sơ: khách hàng, sản phẩm, CPBH, ngày áp dụng, file đính kèm |
 | B2 | Hệ thống | Nháp | — | Tự tính, đối chiếu danh mục, kiểm tra trùng sản phẩm và CSBH hiện có, cảnh báo lỗi |
-| B3 | TDV | Chờ TBP duyệt | TBP | **Chọn văn bản mẫu** `sửa 23/08`, xem bản CSBH dựng bằng chính mẫu ấy, chốt và gửi duyệt. Hồ sơ khóa sửa; giá, ngưỡng và **mẫu** đóng băng |
+| B3 | TDV | Chờ TBP duyệt | TBP | Chọn Trưởng bộ phận và Kế toán, chốt và gửi duyệt. Hồ sơ khóa sửa; giá và ngưỡng đóng băng. **Không chọn văn bản mẫu** `sửa 29/08` — xem mục 6.4 |
 | B4 | TBP — duyệt | **KT duyệt bản mềm** `sửa 19/08` | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký. Hồ sơ sang thẳng bàn kế toán |
 | B4B | TBP — không duyệt | Yêu cầu chỉnh sửa → B3 | TDV | Bắt buộc nhập lý do; hồ sơ mở khóa, tạo phiên bản mới |
 | ~~B5~~ | ~~Hệ thống~~ | — | — | **Bỏ `19/08`** — xem ghi chú dưới bảng |
@@ -368,8 +368,10 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
    thế, thời điểm và người thao tác.
 6. Mã phiên bản tự sinh theo số lần cập nhật CSBH của khách hàng đó và hiển thị trên bản in.
 
-7. **Văn bản mẫu của bản mềm cũng đóng băng lúc gửi duyệt** `mới 23/08`, cùng lằn ranh với giá và
-   ngưỡng. Xem mục 6.4.
+7. ~~**Văn bản mẫu của bản mềm cũng đóng băng lúc gửi duyệt**~~ `bỏ 29/08` — quyết định `23/08` đã
+   được đảo lại. Bản mềm **không** đóng băng: nó là thao tác IN của Sale Admin ở bước B8, không phải
+   văn bản đi qua luồng duyệt, nên mẫu là tham số của lượt in chứ không phải tính chất của hồ sơ.
+   Xem mục 6.4.
 
 8. **Thông tin khách hàng và hai cái tên cũng đóng băng lúc gửi duyệt** `mới 24/08`, vẫn cùng lằn
    ranh ấy. Tám trường của khách hàng in trên bản CSBH — mã, tên, mã số thuế, địa chỉ đăng ký, nơi
@@ -599,24 +601,32 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
-- **TDV chọn mẫu MỘT LẦN lúc gửi duyệt, rồi mẫu ĐÓNG BĂNG vào hồ sơ** `sửa 23/08`. Ô chọn nằm trong
-  hộp *Gửi duyệt*, ngay trên bản A4 xem trước; đổi mẫu thì bản xem trước dựng lại. Từ lúc bấm gửi,
-  **không vai trò nào chọn lại được** — Trưởng bộ phận, Kế toán, Sale Admin và Ban lãnh đạo mở bản
-  mềm ra là thấy đúng bản người gửi đã chọn, kèm tên mẫu ở tiêu đề. Khổ giấy đi theo file `.docx` của
-  mẫu — phần mềm đọc nó từ `w:orient` chứ không hỏi người tải lên, vì một ô nhập tay không còn hậu
-  quả gì là một ô sẽ nói dối.
-  > **Đảo quyết định `20/08`** — *"người xem chọn mẫu, phải chọn trước khi xem"*. Luật ấy đúng chừng
-  > nào mẫu chỉ là bản trình bày của người đang đọc. Nhưng bản mềm CSBH là **thứ đem đi ký**, nên bản
-  > trình bày của nó là một phần của cái được duyệt, không phải sở thích của từng người mở ra xem —
-  > và mỗi mẫu có tập cột riêng, nên hai người mở cùng một hồ sơ có thể thấy hai bảng giá khác nhau.
-  > Lý do cũ (*"mở sẵn một cái thì phần lớn người dùng không biết cái kia tồn tại"*) vẫn được giữ, chỉ
-  > dời chỗ: nó thành lý do buộc **TDV** phải chọn, chứ không còn là lý do hỏi lại mọi người xem.
+- **CHỈ SALE ADMIN xem bản mềm, và họ chọn mẫu ở MỖI lượt in** `sửa 29/08`. Ô chọn nằm trong hộp
+  *Xem bản mềm*, mở ra rỗng; chọn rồi mới dựng, đổi mẫu thì dựng lại. Khổ giấy đi theo file `.docx`
+  của mẫu — phần mềm đọc nó từ `w:orient` chứ không hỏi người tải lên, vì một ô nhập tay không còn
+  hậu quả gì là một ô sẽ nói dối.
+  > **Đảo quyết định `23/08`, và đảo tận gốc.** Luật cũ — *"TDV chọn mẫu một lần lúc gửi duyệt, rồi
+  > mẫu đóng băng vào hồ sơ"* — đứng trên một giả định: bản mềm là **văn bản đi qua luồng duyệt**,
+  > nên người ký ở B10 phải thấy đúng tờ giấy người gửi ở B3 đã thấy. Khách hàng nói lại ngày 29/08
+  > rằng giả định ấy không đúng: *"mục đích của bản mềm chỉ để in ra bản cứng tại thời điểm đó"*.
   >
-  > Kéo theo: **gửi duyệt bắt buộc chọn mẫu**, chặn ở máy chủ — chưa chọn thì không gửi được, và hồ
-  > sơ vẫn là bản nháp nên chưa mất gì (cùng lối với *TDV chưa gán Trưởng bộ phận thì không gửi
-  > được*, mục 2.9). Hồ sơ bị trả lại rồi gửi lại thì **chọn lại**, ghi đè mẫu cũ.
+  > Bản mềm là **thao tác IN của Sale Admin ở bước B8**. Cái được duyệt là dữ liệu hồ sơ, và dữ liệu
+  > ấy vẫn đóng băng nguyên vẹn — giá, ngưỡng, thông tin khách hàng, tên người ký. Khi bản mềm chỉ
+  > còn là thao tác in của MỘT người ở MỘT bước thì ba câu sau là một câu: chỉ người ấy cần nút, chỉ
+  > người ấy chọn mẫu (và chọn lúc in, không lúc gửi), và không còn gì để đóng băng.
   >
-  > **Hợp đồng KHÔNG đóng băng** — Kế toán và Sale Admin vẫn chọn mẫu ở mỗi lượt xuất, vì hệ thống
+  > Kéo theo, ghi ra để không ai phải đoán: **hồ sơ đã ký in lại hôm nay có thể ra một tờ giấy khác**
+  > hôm nó được ký, nếu Quản trị đã sửa danh mục mẫu ở giữa; và **vô hiệu hết mẫu thì không hồ sơ nào
+  > in được**, kể cả hồ sơ đã duyệt. Khách hàng chấp nhận — tờ giấy có giá trị pháp lý là **bản cứng
+  > đã ký và đã scan**, không phải bản mềm dựng lại. **Gửi duyệt thôi cần mẫu**, nên hệ thống chưa có
+  > mẫu nào vẫn gửi duyệt được (đảo một nửa quyết định `28/08`, xem mục 6.4 dưới).
+  >
+  > **Người duyệt thôi xem được tờ CSBH.** TDV, Trưởng bộ phận, Kế toán và **Ban lãnh đạo** mất nút
+  > — hỏi lại riêng về Ban lãnh đạo và khách hàng chốt đúng chữ *"chỉ giữ ở SA"*, dù đó là nút duy
+  > nhất của vai trò chỉ-đọc trên trang hồ sơ. Họ duyệt trên **bảng dữ liệu** ở màn hình chi tiết hồ
+  > sơ, vốn đã mang đủ mười ba mục của mục 11.1.
+  >
+  > **Hợp đồng vẫn KHÔNG đóng băng** — Kế toán và Sale Admin vẫn chọn mẫu ở mỗi lượt xuất, vì hệ thống
   > không lưu hợp đồng (mục 8.3) nên không có gì để gắn mẫu vào. Nhưng họ cũng **phải chọn**: không
   > còn mẫu mặc định ngầm ở bất kỳ đâu, và nút *Xem* xám cho tới khi chọn.
   > *Ban hành* nghĩa là **thêm vào danh sách chọn**, không phải thay mẫu cũ. Nhiều mẫu
@@ -624,17 +634,16 @@ nói rõ dòng nào hẹp hơn dòng nào.
   > RỖNG. Bản trước chốt "mỗi khổ giấy một mẫu riêng" — luật ấy sinh ra từ việc hệ thống tự tra mẫu
   > theo khổ, và nó mất nghĩa khi chính người dùng chọn.
 - **KHÔNG xoá và KHÔNG sửa một mẫu — chỉ VÔ HIỆU HOÁ** `sửa 23/08`, và bật lại được bất cứ lúc nào.
-  Vô hiệu hoá rút mẫu khỏi ô chọn, **không đụng tới hồ sơ đã gắn nó**: những hồ sơ ấy vẫn xem được
-  bản mềm bình thường. Vô hiệu hoá đòi **gõ lại tên mẫu**; bật lại thì không đòi gì.
-  > Đây là **hệ quả bắt buộc** của việc đóng băng, không phải một yêu cầu rời. Một mẫu xoá được là
-  > bản mềm của mọi hồ sơ đã gắn nó hỏng vĩnh viễn — mà hồ sơ thì khoá sửa ngay từ lúc gửi duyệt, nên
-  > không ai chữa được, và người bấm xoá cũng không có màn hình nào cho biết mẫu ấy đang được bao
-  > nhiêu hồ sơ dùng.
+  Vô hiệu hoá rút mẫu khỏi ô chọn; nó **không xoá dòng nào**, nên bật lại là mọi hồ sơ in được bằng
+  mẫu ấy như cũ. Vô hiệu hoá đòi **gõ lại tên mẫu**; bật lại thì không đòi gì.
+  > Lý lẽ ĐỔI ở `29/08` nhưng kết luận thì không. Tới `28/08` đây là hệ quả bắt buộc của việc đóng
+  > băng: một mẫu xoá được là bản mềm của mọi hồ sơ đã gắn nó hỏng vĩnh viễn. Không còn đóng băng,
+  > nhưng lý do mới còn rộng hơn — mẫu là tham số của lượt in, nên xoá một mẫu là **mọi hồ sơ** mất
+  > một cách in, không riêng những hồ sơ đã gắn nó.
   >
-  > Lý do `20/08` bỏ *sửa* — *"sửa một mẫu đang dùng thì bản mềm hôm nay và hôm qua khác nhau mà
-  > không chỗ nào ghi lại"* — nay được chính cột mẫu trên hồ sơ trả lời. Nhưng *sửa* vẫn không quay
-  > lại, vì lý do đã đổi: sửa một mẫu đã gắn vào hồ sơ đã ký là **sửa chính văn bản đã duyệt**. Cách
-  > đúng là thêm mẫu mới rồi vô hiệu mẫu cũ — hồ sơ cũ giữ nguyên bản của nó, hồ sơ mới dùng bản mới.
+  > *Sửa* cũng không quay lại. Lý do `20/08` — *"sửa một mẫu đang dùng thì bản mềm hôm nay và hôm qua
+  > khác nhau mà không chỗ nào ghi lại"* — nay đúng trở lại nguyên văn, vì bản mềm dựng lại mỗi lần
+  > in. Cách đúng vẫn là thêm mẫu mới rồi vô hiệu mẫu cũ.
 - **Bảng sản phẩm vẫn do hệ thống dựng.** Mẫu đặt một ô trống duy nhất `{{bang_san_pham}}`, và hệ
   thống thay nó bằng cả cái bảng với **đúng số cột CPBH của từng hồ sơ** (mục 7.1). Một bảng vẽ sẵn
   trong Word có số cột cố định, nên nó không tả được luật ấy — mỗi dòng nhận tới 50 khoản.
@@ -710,7 +719,7 @@ giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước n�
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
 | **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
-| **Văn bản mẫu** | Chỉ Quản trị | Cả hai loại mẫu, hai thẻ; người xem chọn mẫu lúc xem bản mềm — xem 6.4 |
+| **Văn bản mẫu** | Chỉ Quản trị | Cả hai loại mẫu, hai thẻ; Sale Admin chọn mẫu lúc xem bản mềm `sửa 29/08` — xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
 "Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở
@@ -1373,6 +1382,9 @@ chỗ, không có bảng tra thứ hai. Bấm vào một thông báo thì tới 
 > khẩu mang **token thô** trong thân — thứ `ONB-15` chỉ cho phép tồn tại trong bộ nhớ tiến trình và
 > trong email, còn CSDL chỉ giữ bản băm. Bảng thông báo thì đọc được qua API. Chi tiết ở muc 9.1b.
 
+> **ĐÃ ĐẢO NGƯỢC `29/08`** — xem mục *"Bản mềm CHỈ của Sale Admin…"* ở cuối Phụ lục B. Đoạn dưới đây
+> giữ lại vì nó là tiền đề của tám chặng sau nó, không phải vì nó còn đúng.
+
 **Mẫu bản mềm đóng băng vào hồ sơ, và mẫu chỉ vô hiệu chứ không xoá** `mới 23/08` — hai quyết định
 KHOÁ LẪN NHAU, bỏ một cái thì cái kia thành lỗi. TDV chọn mẫu trong hộp *Gửi duyệt*, ngay trên bản
 A4 xem trước; từ lúc bấm gửi thì **không vai trò nào chọn lại**, mọi người xem đúng bản người gửi đã
@@ -1423,6 +1435,9 @@ quan* và *Thống kê* của Kế toán bỏ qua đúng những hồ sơ đang 
 >   lại là mời chọn khác đi, tức đẩy hồ sơ sang một người chưa từng thấy nó.
 >
 > Muốn đổi người thì đó là nghiệp vụ **bàn giao**, không phải hệ quả phụ của một lượt gửi lại.
+
+> **ĐÃ ĐẢO NGƯỢC `29/08`** — không còn mẫu để chọn ở đây, nên không còn bản xem trước, nên không còn
+> bước hai. Gửi duyệt về lại MỘT bước, như mọi hành động khác.
 
 **Gửi duyệt tách làm HAI BƯỚC** `mới 27/08` — bước một chọn Trưởng bộ phận, Kế toán và văn bản mẫu;
 xác nhận xong thì một hộp thoại KHÁC mở ra, **cỡ bằng hộp xem bản mềm**, hiện bản CSBH dựng bằng mẫu
@@ -1548,6 +1563,36 @@ khách hàng: cả ba đều xoá tệp khỏi kho lưu trữ, không khôi ph�
 > mất tệp.
 >
 > Đi theo đúng những giấy tờ bản cũ **đang có** `sửa 28/08` — thứ đã gỡ thì không quay lại.
+
+**Bản mềm CHỈ của Sale Admin, và mẫu THÔI đóng băng** `sửa 29/08` — ba câu khách hàng nói cùng lúc,
+và chúng chỉ có nghĩa khi đi cùng nhau:
+
+> 1. **Bỏ mục *Xem bản mềm* của TDV, Trưởng bộ phận và Kế toán** — chỉ Sale Admin giữ. Hỏi lại riêng
+>    về **Ban lãnh đạo** và khách hàng chốt đúng chữ *"chỉ giữ ở SA"*, dù đó là nút DUY NHẤT của vai
+>    trò chỉ-đọc trên trang hồ sơ.
+> 2. **Bỏ việc chọn văn bản mẫu lúc TDV gửi duyệt** — chuyển sang Sale Admin, chọn lúc mở bản mềm.
+> 3. **Mẫu bản mềm KHÔNG đóng băng theo hồ sơ** — *"mục đích của bản mềm chỉ để in ra bản cứng tại
+>    thời điểm đó"*.
+>
+> **Vì sao ba câu là một câu.** Quyết định `23/08` đóng băng mẫu, và lý lẽ khi ấy đúng với giả định
+> khi ấy: bản mềm là **văn bản đi qua luồng duyệt**, nên phải bất biến từ lúc gửi tới lúc ký. Câu
+> thứ ba nói lại rằng giả định ấy sai — bản mềm là **thao tác IN của Sale Admin ở bước B8**. Cái
+> được duyệt là dữ liệu hồ sơ, và dữ liệu ấy vẫn đóng băng nguyên vẹn (giá, ngưỡng, tám trường khách
+> hàng, tên người ký). Khi bản mềm chỉ còn là thao tác in của MỘT người ở MỘT bước thì chỉ người ấy
+> cần nút, chỉ người ấy chọn mẫu — và chọn lúc in, không lúc gửi — nên không còn gì để đóng băng.
+>
+> **CÁI MẤT, ghi ra để không ai phải đoán.** *Hồ sơ đã ký in lại hôm nay có thể ra một tờ giấy KHÁC*
+> hôm nó được ký, nếu Quản trị đã sửa danh mục mẫu ở giữa; và *vô hiệu hết mẫu thì không hồ sơ nào
+> in được*, kể cả hồ sơ đã có hiệu lực. Trước `29/08` cả hai chuyện ấy không xảy ra được. Khách hàng
+> chấp nhận: tờ giấy có giá trị pháp lý là **bản cứng đã ký và đã scan**, không phải bản mềm dựng
+> lại. *Người duyệt thôi xem được tờ CSBH* — họ đọc **bảng dữ liệu** trên màn hình chi tiết hồ sơ,
+> vốn đã mang đủ mười ba mục của mục 11.1.
+>
+> **Đảo một nửa quyết định `28/08`.** Chặng ấy ghi *"không có văn bản mẫu thì không hồ sơ nào gửi
+> duyệt được"*. Từ đây gửi duyệt không cần mẫu; thiếu mẫu chỉ chặn đúng thao tác in của Sale Admin.
+>
+> Kéo theo, và đã làm: **gửi duyệt về lại MỘT bước** (bước hai của `27/08` sinh ra chỉ để đọc bản
+> xem trước), và hộp *Xem bản mềm* **luôn hỏi mẫu** ở mọi trạng thái hồ sơ, mở ra rỗng.
 
 **Hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH** `mới 29/08` — người duyệt đối chiếu
 giấy phép kinh doanh mà không phải rời trang sang khách hàng rồi quay lại.

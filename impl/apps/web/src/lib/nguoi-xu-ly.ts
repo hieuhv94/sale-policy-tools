@@ -67,18 +67,13 @@ const CHON_SALE_ADMIN: OChon = {
   moTa: 'Người in bản cứng, trình Ban lãnh đạo ký, scan và bàn giao lại.',
 };
 
-/**
- * Bước nào phải xem bản CSBH A4 trước khi bấm xác nhận.
+/*
+ * `CAN_XEM_TRUOC` ĐÃ GỠ (`0163`).
  *
- * Chỉ lúc GỬI DUYỆT. Đây là lần cuối cùng nội dung hồ sơ còn sửa được — sau bước
- * này giá và ngưỡng đóng băng, và mọi thứ sai đều phải đi một vòng trả lại. Bắt
- * người ký vào một văn bản họ chưa từng nhìn thấy toàn văn là chỗ dễ lọt lỗi
- * nhất của cả luồng.
- *
- * KHÔNG bắt xem ở các bước sau: Trưởng bộ phận và Kế toán mở hồ sơ ra là đã đọc
- * nó rồi, và thêm một cửa xác nhận nữa ở mỗi bước là dạy người dùng bấm qua mà
- * không đọc — đúng thứ cửa này sinh ra để tránh.
+ * Nó khai hai hành động gửi duyệt là "có bản xem trước", vì `0098` bắt người gửi
+ * chọn văn bản mẫu và `0140` tách việc đọc lại thành bước hai. Bản mềm giờ là
+ * thao tác in của Sale Admin ở bước B8, nên lượt gửi duyệt không xem trước gì
+ * cả và hộp thoại về đúng một bước.
  */
-export const CAN_XEM_TRUOC = new Set(['SUBMIT', 'RESUBMIT_AFTER_EDIT']);
 
 export type NguoiChon = { id: string; username: string; fullName: string };

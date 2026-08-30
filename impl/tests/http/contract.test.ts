@@ -263,6 +263,30 @@ async function draft(lineCount = 1, customerId?: string) {
   return { id: r.body.id as string, customerId: cus.id, code: cus.code };
 }
 
+/**
+ * Giao hồ sơ cho `sa01` bằng cách vặn thẳng CSDL (`0163`).
+ *
+ * Chỉ Sale Admin dựng được bản mềm, mà `sale_admin_user_id` chỉ được điền ở
+ * bước `KT_RECEIVE_L1`. Ca nào muốn dựng bản mềm của một hồ sơ CHƯA tới bước ấy
+ * thì gọi hàm này, thay vì đẩy hồ sơ đi ba bước — tệp này kiểm việc DỰNG VĂN
+ * BẢN, không kiểm luồng duyệt.
+ *
+ * **KHÔNG gọi nó trong `draft()`.** Bản đầu của `0163` làm đúng thế và DOC-27 đỏ
+ * ở một chỗ chẳng liên quan: từ `0141` bước `KT_RECEIVE_L1` chỉ hỏi Sale Admin
+ * khi cột còn rỗng, nên gán sẵn là bước ấy thôi ghi — và thôi bắn sự kiện dựng
+ * dòng `cus.customer_access`. `sa01` giữ được quyền đọc HỒ SƠ mà mất quyền sửa
+ * KHÁCH HÀNG. Phép gán tắt phải đứng ngoài đường đi thật, đúng chỗ nó cần.
+ */
+const giaoChoSa = (id: string) =>
+  withAdminDb((c) =>
+    c.query(
+      `UPDATE pol.policy
+          SET sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01')
+        WHERE id = $1`,
+      [id],
+    ),
+  );
+
 /** Đưa hồ sơ tới đúng bước Kế toán đã tiếp nhận lần 1 — cổng mở cho xuất hợp đồng. */
 async function toReceivedL1(lineCount = 1) {
   const d = await draft(lineCount);
@@ -272,23 +296,14 @@ async function toReceivedL1(lineCount = 1) {
   return d;
 }
 
-/**
- * Như trên, nhưng GỬI DUYỆT BẰNG MỘT MẪU CỤ THỂ (`0098`).
+/*
+ * `toReceivedL1Voi` ĐÃ GỠ (`0163`).
  *
- * Ca nào muốn kiểm bản mềm dựng ra trông thế nào thì phải dùng hàm này: từ
- * `0098` mẫu đóng băng lúc gửi duyệt, nên thêm một mẫu SAU khi hồ sơ đã gửi rồi
- * mới truyền `?mauId=` là 409 `TEMPLATE_LOCKED` — đúng như thiết kế.
- *
- * Kéo theo một đổi thay về thứ tự dựng dữ liệu, và nó phản ánh đúng đời thật:
- * mẫu phải có TRƯỚC khi người ta gửi hồ sơ đi.
+ * Nó đẩy hồ sơ tới `CHO_KT_L1` bằng MỘT mẫu cụ thể, vì `0098` đóng băng mẫu lúc
+ * gửi duyệt nên "hồ sơ dựng bằng mẫu nào" là một tính chất của hồ sơ. Không còn
+ * thế: mẫu là tham số của lượt IN, nên `toReceivedL1()` cộng một `mauId` ở lượt
+ * render nói đúng chuyện ấy và nói gọn hơn.
  */
-async function toReceivedL1Voi(mauHoSoId: string, lineCount = 1) {
-  const d = await draft(lineCount);
-  await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId });
-  await act(d.id, 'TBP_SIGN', 'tbp01');
-  await act(d.id, 'KT_RECEIVE_L1', 'kt01');
-  return d;
-}
 
 beforeAll(async () => {
   const i = await bootIdentityListening();
@@ -1360,8 +1375,8 @@ describe('`0059` bản mềm và hợp đồng không để lại dòng lịch s
      * cùng một khẳng định.
      */
     const d = await toReceivedL1();
-    expect((await pdfOf(`/policies/${d.id}/render`, 'kt01')).status).toBe(200);
-    expect((await pdfOf(`/policies/${d.id}/render?xem=1`, 'sa01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/render?mauId=${await mauHoSo()}`, 'sa01')).status).toBe(200);
+    expect((await pdfOf(`/policies/${d.id}/render?mauId=${await mauHoSo()}`, 'sa01')).status).toBe(200);
     expect((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).status).toBe(200);
     // `xem=1` là khoá thừa còn sót từ `0058`; `validate` bỏ qua khoá lạ. Nhưng
     // `mauId` thì KHÔNG thừa nữa (`0098`), nên nó phải đi kèm.
@@ -1413,7 +1428,7 @@ describe('`0059` bản mềm và hợp đồng không để lại dòng lịch s
     const d = await toReceivedL1();
     // `validate` bỏ qua khoá lạ chứ không từ chối, nên đường cũ vẫn trả 200 —
     // nhưng trả về PDF như mọi lượt xem khác, không còn HTML nào.
-    const r = await pdfOf(`/policies/${d.id}/render?format=html&xem=1`, 'kt01');
+    const r = await pdfOf(`/policies/${d.id}/render?format=html&mauId=${await mauHoSo()}`, 'sa01');
     expect(r.status).toBe(200);
     expect(r.headers['content-type']).toContain('application/pdf');
     expect(dem(await lichSu(d.id), 'TAI_HO_SO')).toBe(0);
@@ -1434,7 +1449,7 @@ describe('`0059` bản mềm và hợp đồng không để lại dòng lịch s
      */
     const d = await toReceivedL1();
     const runs = await Promise.all(
-      [0, 1, 2, 3, 4].map(() => pdfOf(`/policies/${d.id}/render`, 'kt01')),
+      [0, 1, 2, 3, 4].map(async () => pdfOf(`/policies/${d.id}/render?mauId=${await mauHoSo()}`, 'sa01')),
     );
     for (const r of runs) expect(r.status).toBe(200);
     expect(dem(await lichSu(d.id), 'TAI_HO_SO')).toBe(0);
@@ -1553,35 +1568,30 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     expect(hopDong.every((t) => t.kind === 'HOP_DONG')).toBe(true);
   }, 90_000);
 
-  it('`0098` VÔ HIỆU HẾT MẪU không đụng tới hồ sơ đã gửi duyệt', async () => {
+  it('`0163` VÔ HIỆU HẾT MẪU thì KHÔNG hồ sơ nào in được — kể cả hồ sơ đã duyệt', async () => {
     /*
-     * `0098` ĐẢO NGƯỢC ca này, và chỗ đảo là điều đáng nhớ nhất của cả chặng.
+     * Ca này đảo chiều LẦN THỨ HAI, và hai lần đảo kể đúng lịch sử của khái niệm
+     * "mẫu đóng băng".
      *
-     * Yêu cầu gốc của khách hàng — *"chưa có hồ sơ mẫu thì hãy báo lỗi"* — vẫn
-     * đúng, nhưng nó nói về NGƯỜI ĐANG CHỌN MẪU. Tới `0097` mọi người xem đều
-     * đang chọn mẫu, nên danh sách rỗng làm hỏng mọi lượt xem, kể cả hồ sơ đã
-     * duyệt xong từ năm ngoái.
+     * `0097`: mọi người xem đều chọn mẫu, nên danh sách rỗng làm hỏng mọi lượt
+     *         xem — kể cả hồ sơ duyệt xong từ năm ngoái.
+     * `0098`: mẫu đóng băng vào hồ sơ, nên danh sách rỗng KHÔNG chạm tới hồ sơ
+     *         đã gửi duyệt. Đó là cả lý do để bỏ đường xoá mẫu.
+     * `0163`: bỏ đóng băng. Bản mềm dựng lại mỗi lần in, nên nó lại phụ thuộc
+     *         hoàn toàn vào danh mục mẫu HÔM NAY.
      *
-     * Từ `0098` chỉ TDV chọn, và chỉ một lần. Hồ sơ đã gửi duyệt mang sẵn mẫu
-     * của nó, nên danh sách rỗng KHÔNG chạm tới được — đó là cả lý do để bỏ
-     * đường xoá. Người còn bị chặn là người còn phải chọn: TDV với một hồ sơ
-     * Nháp.
+     * Cái mất phải ghi rõ: **hồ sơ đã ký in lại hôm nay có thể ra một tờ giấy
+     * khác** hôm nó được ký, và nếu Quản trị vô hiệu hết mẫu thì không in được
+     * nữa. Khách hàng chấp nhận — tờ giấy có giá trị pháp lý là BẢN CỨNG đã ký
+     * và đã scan, không phải bản mềm dựng lại.
      */
     const d = await toReceivedL1();
-    const nhap = await draft();
+    const mau = await mauHoSo();
 
     const khoiPhuc = await xoaHet();
     try {
-      // Hồ sơ ĐÃ ĐÓNG BĂNG: vẫn xem được, dù không mẫu nào còn trong ô chọn.
-      expect(
-        (await pdfOf(`/policies/${d.id}/render`, 'kt01')).status,
-        'hồ sơ đã gắn mẫu không được phụ thuộc vào ô chọn',
-      ).toBe(200);
-
-      // Hồ sơ NHÁP: không còn gì để chọn, nên đây mới là chỗ báo lỗi.
-      const r = await dget(`/policies/${nhap.id}/render`, 'tdv01');
-      expect(r.status).toBe(409);
-      expect(r.body.code).toBe('TEMPLATE_REQUIRED');
+      const r = await dget(`/policies/${d.id}/render?mauId=${mau}`, 'sa01');
+      expect(r.status, 'mẫu đã vô hiệu thì không dựng được nữa').toBe(404);
     } finally {
       await khoiPhuc();
     }
@@ -1680,11 +1690,14 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     const up = await luuMauHoSo('Mau moi cua quan tri', than);
     expect(up.status, JSON.stringify(up.body)).toBe(201);
 
-    // `0098`: gửi duyệt BẰNG mẫu này, rồi mới xem — mẫu đóng băng lúc gửi.
-    const d = await toReceivedL1Voi(up.body.id as string);
+    /*
+     * `0163`: mẫu KHÔNG đóng băng nữa, nên hồ sơ đi luồng bằng gì cũng được —
+     * cái quyết định bản mềm là `mauId` của chính lượt in.
+     */
+    const d = await toReceivedL1();
 
     try {
-      const pdf = await pdfOf(`/policies/${d.id}/render`, 'kt01');
+      const pdf = await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01');
       expect(pdf.status).toBe(200);
       const t = await pdfText(pdf.body as Buffer);
       // Câu chỉ có trong mẫu MỚI — chứng minh bản mềm đọc từ mẫu, không dựng cứng.
@@ -1717,11 +1730,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .field('cotBang', JSON.stringify(['stt', 'ten_san_pham', 'cpbh_tong', 'gia_thu_ve']))
       .attach('file', than, { filename: 'gon.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
-    const d = await toReceivedL1Voi(up.body.id as string, 1);
+    const d = await toReceivedL1();
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01')).body as Buffer),
       );
       for (const co of ['STT', 'Tênsảnphẩm', 'CPBHtổng', 'Giáthuvề']) {
         expect(chu, `thiếu cột ${co}`).toContain(co);
@@ -1755,11 +1768,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .attach('file', than, { filename: 'motcot.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     expect(up.body.cotBang).toEqual(['stt', 'ten_san_pham']);
-    const d = await toReceivedL1Voi(up.body.id as string, 1);
+    const d = await toReceivedL1();
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
     } finally {
@@ -1790,11 +1803,11 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       .attach('file', than, { filename: 'khongcpbh.docx', contentType: DOCX });
     expect(up.status, JSON.stringify(up.body)).toBe(201);
     expect(up.body.cotBang, 'CPBH tổng bị thêm lại').toEqual(['stt', 'ten_san_pham', 'gia_ban_buon']);
-    const d = await toReceivedL1Voi(up.body.id as string, 1);
+    const d = await toReceivedL1();
 
     try {
       const chu = packed(
-        await pdfText((await pdfOf(`/policies/${d.id}/render`, 'kt01')).body as Buffer),
+        await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
       expect(chu, 'CPBH tổng vẫn in ra dù đã tắt').not.toContain('CPBHtổng');
@@ -1996,15 +2009,24 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
       expect((await dget('/contract-templates/available', u)).status, u).toBe(403);
     }
 
-    // Mẫu HỒ SƠ thì ngược lại: năm vai trò đọc được bản mềm đều thấy, còn Quản
-    // trị — người quản lý chính những mẫu ấy — thì không, vì họ không xem hồ sơ.
-    for (const u of ['tdv01', 'tbp01', 'kt01', 'sa01', 'bld01']) {
-      expect((await dget('/policy-templates/available', u)).status, u).toBe(200);
+    /*
+     * Mẫu HỒ SƠ thu về ĐÚNG Sale Admin ở `0163`, khớp `READERS` của render.
+     *
+     * Tới `0162` là năm vai trò, vì khi ấy TDV chọn mẫu lúc gửi duyệt và bốn vai
+     * trò kia mở được bản mềm. Cả hai vế đã bỏ. Bất biến giữ nguyên hình dạng —
+     * *ai dựng được bản mềm thì thấy được danh sách mẫu* — chỉ tập hợp co lại.
+     *
+     * Quản trị vẫn KHÔNG thấy, dù họ quản lý chính những mẫu ấy: họ không xem hồ
+     * sơ, và đây là ô chọn của một màn hình hồ sơ.
+     */
+    expect((await dget('/policy-templates/available', 'sa01')).status).toBe(200);
+    for (const u of ['tdv01', 'tbp01', 'kt01', 'bld01', 'admin01']) {
+      expect((await dget('/policy-templates/available', u)).status, u).toBe(403);
     }
   }, 60_000);
 
   it('trả về ĐÚNG ba trường, không rò cột nội bộ nào của mẫu', async () => {
-    const r = await dget('/policy-templates/available', 'tdv01');
+    const r = await dget('/policy-templates/available', 'sa01');
     expect(r.status).toBe(200);
     expect((r.body as unknown[]).length).toBeGreaterThan(0);
     for (const m of r.body as Record<string, unknown>[]) {
@@ -2081,289 +2103,79 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
 // `0098` — Mẫu hồ sơ đóng băng vào hồ sơ lúc gửi duyệt
 // =============================================================================
 
-describe('`0098` mẫu hồ sơ đóng băng vào hồ sơ', () => {
-  /** Một mẫu hồ sơ riêng của ca kiểm, đủ mục bắt buộc nên lưu được. */
-  const themMauHoSo = async (ten: string) => {
-    const than = makeDocx(
-      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para(O_BANG_SAN_PHAM)].join(''),
-    );
-    const r = await (await http(doc))
-      .post('/policy-templates')
-      .set('Authorization', `Bearer ${tok['admin01']}`)
-      .field('name', ten)
-      .field(
-        'mapping',
-        JSON.stringify(NGUON_BAT_BUOC_HO_SO.map((n) => ({ placeholder: `{{${n}}}`, source: n }))),
-      )
-      .attach('file', than, { filename: 'ca-kiem.docx', contentType: DOCX });
-    expect(r.status, JSON.stringify(r.body)).toBe(201);
-    return r.body.id as string;
-  };
-
-  const mauCuaHoSo = async (id: string): Promise<string | null> =>
-    ((await ppost(`/policies/${id}/actions/NOOP`, {}, 'tdv01'), null),
-    (
-      (await (await http(policy)).get(`/policies/${id}`).set('Authorization', `Bearer ${tok['tdv01']}`))
-        .body as { mauHoSoId: string | null }
-    ).mauHoSoId);
-
-  it('GỬI DUYỆT thiếu mẫu thì chặn, và hồ sơ VẪN ở Nháp', async () => {
-    const d = await draft();
-    const id = await idNguoiDung();
-    // Gọi thẳng, KHÔNG qua `act` — `act` tự kèm mẫu mặc định, nên nó che mất
-    // đúng phép chặn mà ca này canh.
-    const r = await ppost(
-      `/policies/${d.id}/actions/SUBMIT`,
-      { tbpUserId: id['tbp01'], keToanUserId: id['kt01'] },
-      'tdv01',
-    );
-    expect(r.status).toBe(422);
-    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
-
-    // Chặn TRƯỚC khi đổi trạng thái: hỏng nửa chừng thì hồ sơ khoá sửa mà không
-    // có mẫu, và không đường nào ghi cột ấy nữa.
-    const sau = (
-      await (await http(policy)).get(`/policies/${d.id}`).set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).body as { status: string; mauHoSoId: string | null };
-    expect(sau.status).toBe('NHAP');
-    expect(sau.mauHoSoId ?? null).toBeNull();
-  }, 60_000);
-
-  it('gửi duyệt xong thì cột `mauHoSoId` mang đúng mẫu vừa chọn', async () => {
-    const mau = await themMauHoSo('Mẫu đóng băng A');
-    try {
-      const d = await draft();
-      expect((await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mau })).status).toBe(200);
-      expect(await mauCuaHoSo(d.id)).toBe(mau);
-    } finally {
-      await donMau('/policy-templates', mau);
-    }
-  }, 90_000);
-
-  it('SAU khi đóng băng, truyền mẫu KHÁC thì 409 — và truyền ĐÚNG mẫu vẫn qua', async () => {
-    const mauA = await themMauHoSo('Mẫu đóng băng B');
-    const mauB = await themMauHoSo('Mẫu đóng băng C');
-    try {
-      const d = await draft();
-      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
-
-      const khac = await (await http(doc))
-        .get(`/policies/${d.id}/render?mauId=${mauB}`)
-        .set('Authorization', `Bearer ${tok['tbp01']}`);
-      expect(khac.status).toBe(409);
-      expect(khac.body.code).toBe('TEMPLATE_LOCKED');
-
-      // KHÔNG phạt người truyền đúng: cùng một mẫu thì không có gì mâu thuẫn để
-      // mà từ chối, và một địa chỉ cũ còn mang `?mauId=` vẫn phải mở được.
-      const dung = await (await http(doc))
-        .get(`/policies/${d.id}/render?mauId=${mauA}`)
-        .set('Authorization', `Bearer ${tok['tbp01']}`)
-        .responseType('blob');
-      expect(dung.status).toBe(200);
-
-      // Và không truyền gì thì lấy đúng mẫu đã gắn — đường mà giao diện đi.
-      const trong = await (await http(doc))
-        .get(`/policies/${d.id}/render`)
-        .set('Authorization', `Bearer ${tok['kt01']}`)
-        .responseType('blob');
-      expect(trong.status).toBe(200);
-    } finally {
-      await donMau('/policy-templates', mauA);
-      await donMau('/policy-templates', mauB);
-    }
-  }, 120_000);
-
-  /**
-   * CA QUAN TRỌNG NHẤT của cả chặng.
+describe('`0163` bản mềm KHÔNG còn đóng băng theo hồ sơ', () => {
+  /*
+   * Cả khối `0098` cũ đã đi cùng cơ chế đóng băng: "gửi duyệt thiếu mẫu thì
+   * chặn", "cột `mauHoSoId` mang đúng mẫu vừa chọn", "truyền mẫu khác thì 409
+   * TEMPLATE_LOCKED", "vô hiệu mẫu đã gắn thì hồ sơ vẫn xem được".
    *
-   * Cả điểm của việc bỏ *xoá* và thay bằng *vô hiệu hoá* nằm ở đây: mẫu rời khỏi
-   * ô chọn mà những hồ sơ đã gắn nó vẫn dựng được bản mềm. Nếu ca này đỏ thì
-   * "vô hiệu hoá" chỉ là cái tên khác của "xoá", và `0098` không giải quyết gì.
+   * Khách hàng chốt 29/08 rằng bản mềm không phải văn bản đi qua luồng duyệt —
+   * nó là thao tác IN của Sale Admin ở bước B8. Bốn câu trên hết nghĩa cùng lúc.
+   *
+   * Bốn ca dưới đây khẳng định thế giới MỚI, và mỗi ca canh một cách quay lại
+   * khác nhau.
    */
-  it('VÔ HIỆU mẫu đã gắn: hồ sơ ấy VẪN xem được bản mềm', async () => {
-    const mau = await themMauHoSo('Mẫu sắp vô hiệu');
-    const d = await draft();
-    await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mau });
-
-    expect((await donMau('/policy-templates', mau)).status).toBe(200);
-
-    // Rời khỏi ô chọn…
-    const oChon = (
-      await (await http(doc))
-        .get('/policy-templates/available')
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-    ).body as { id: string }[];
-    expect(oChon.map((m) => m.id)).not.toContain(mau);
-
-    // …nhưng KHÔNG rời khỏi hồ sơ đã dùng nó.
-    const r = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['tbp01']}`)
-      .responseType('blob');
-    expect(r.status, 'vô hiệu hoá không được làm hỏng hồ sơ đã gắn mẫu').toBe(200);
-    expect((r.body as Buffer).length).toBeGreaterThan(1000);
-
-    // Và tên mẫu vẫn đọc được, để màn hình nói được bản này dựng bằng gì.
-    const ten = await (await http(doc))
-      .get(`/policy-templates/${mau}`)
-      .set('Authorization', `Bearer ${tok['tbp01']}`);
-    expect(ten.status).toBe(200);
-    expect(ten.body.ten).toBe('Mẫu sắp vô hiệu');
-    expect(ten.body.voHieu).toBe(true);
-  }, 120_000);
-
-  it('GỬI LẠI sau khi bị trả về thì GHI ĐÈ mẫu, không kế thừa lần trước', async () => {
-    const mauA = await themMauHoSo('Mẫu lần đầu');
-    const mauB = await themMauHoSo('Mẫu lần hai');
-    try {
-      const d = await draft();
-      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
-      await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'sửa lại giá' });
-      expect(await mauCuaHoSo(d.id)).toBe(mauA);
-
-      await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01', { mauHoSoId: mauB });
-      expect(await mauCuaHoSo(d.id)).toBe(mauB);
-    } finally {
-      await donMau('/policy-templates', mauA);
-      await donMau('/policy-templates', mauB);
-    }
-  }, 120_000);
-
-  it('hành động KHÁC không ghi đè được mẫu, dù có gửi kèm `mauHoSoId`', async () => {
-    const mauA = await themMauHoSo('Mẫu của người gửi');
-    const mauB = await themMauHoSo('Mẫu người khác gửi kèm');
-    try {
-      const d = await draft();
-      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
-      // Trưởng bộ phận ký, kèm một mẫu khác. Bước này không được phép chọn mẫu.
-      await act(d.id, 'TBP_SIGN', 'tbp01', { mauHoSoId: mauB });
-      expect(await mauCuaHoSo(d.id), 'mẫu của người gửi phải còn nguyên').toBe(mauA);
-    } finally {
-      await donMau('/policy-templates', mauA);
-      await donMau('/policy-templates', mauB);
-    }
-  }, 120_000);
-
-  it('hồ sơ BỊ TRẢ LẠI: TDV xem trước được bằng MẪU KHÁC để còn gửi lại', async () => {
+  it('GỬI DUYỆT không cần mẫu — hệ thống không có mẫu nào vẫn gửi được', async () => {
     /*
-     * Đường mà hộp *Gửi lại duyệt* đi, và là chỗ luật "đã gắn thì khoá" dễ bắt
-     * nhầm nhất: hồ sơ bị trả về VẪN mang mẫu của lần gửi trước, nhưng nó đang
-     * sửa được và TDV có quyền đổi mẫu. Hộp gửi lại dựng bản xem trước kèm
-     * `?mauId=` của mẫu mới chọn — chặn ở đây là chặn luôn cả nút *Xác nhận*,
-     * vì nút ấy chờ bản xem trước tải xong.
+     * Đảo ngược `0098` và một nửa `0150`. Chặng ấy ghi *"không có mẫu thì không
+     * hồ sơ nào gửi duyệt được"*, và câu ấy đúng cho tới hôm nay. Thiếu mẫu giờ
+     * chỉ chặn đúng thao tác in của Sale Admin.
      */
-    const mauA = await themMauHoSo('Mẫu lần đầu — xem trước');
-    const mauB = await themMauHoSo('Mẫu định đổi sang');
-    try {
-      const d = await draft();
-      await act(d.id, 'SUBMIT', 'tdv01', { mauHoSoId: mauA });
-      await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'đổi bố cục' });
-
-      const r = await (await http(doc))
-        .get(`/policies/${d.id}/render?mauId=${mauB}`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`)
-        .responseType('blob');
-      expect(r.status, 'TDV phải xem trước được bằng mẫu định đổi sang').toBe(200);
-
-      // Nhưng NGƯỜI KHÁC vẫn thấy đúng mẫu đang gắn: hồ sơ sửa được không có
-      // nghĩa là ai cũng đổi được bản trình bày của nó.
-      const tbp = await (await http(doc))
-        .get(`/policies/${d.id}/render?mauId=${mauB}`)
-        .set('Authorization', `Bearer ${tok['tbp01']}`);
-      expect(tbp.status).toBe(409);
-      expect(tbp.body.code).toBe('TEMPLATE_LOCKED');
-    } finally {
-      await donMau('/policy-templates', mauA);
-      await donMau('/policy-templates', mauB);
-    }
-  }, 120_000);
-
-  it('hồ sơ CHƯA gắn mẫu và người xem KHÔNG phải TDV của nó thì không xem được', async () => {
-    // Ban lãnh đạo mở được hồ sơ Nháp (phạm vi cho qua vì TDV nằm trong đó),
-    // nên phép chặn phải ở MÁY CHỦ chứ không ở chỗ giao diện ẩn ô chọn.
     const d = await draft();
-    const r = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['bld01']}`);
-    expect(r.status).toBe(409);
-    // `0100`: hồ sơ CÒN NHÁP là chuyện bình thường, không phải dữ liệu cũ.
-    expect(r.body.code).toBe('POLICY_TEMPLATE_PENDING');
-    expect(r.body.message).toContain('chưa gửi duyệt');
-    // Câu này KHÔNG được bảo người ta lập một CSBH mới: hồ sơ ấy vẫn sống.
-    expect(r.body.message).not.toContain('lập một CSBH mới');
-    expect(r.body.message).not.toContain('trước khi phần mềm');
-  }, 60_000);
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect((await pget(`/policies/${d.id}`, 'tdv01')).body.status).toBe('CHO_TBP_DUYET');
+  });
 
-  it('`0100` hồ sơ ĐÃ GỬI DUYỆT mà cột mẫu rỗng thì mới là dữ liệu lập trước `0098`', async () => {
+  it('hồ sơ KHÔNG mang trường `mauHoSoId` nào nữa', async () => {
+    // Cột đã gỡ khỏi lược đồ (`0111`). Ca này canh chiều còn lại: DTO thôi khai
+    // nó, nên một màn hình viết sau này không đọc được một giá trị luôn rỗng.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await pget(`/policies/${d.id}`, 'tdv01')).body).not.toHaveProperty('mauHoSoId');
+  });
+
+  it('CÙNG một hồ sơ, hai mẫu khác nhau cho ra hai bản mềm khác nhau', async () => {
     /*
-     * Dựng bằng cách VẶN CSDL, vì không API nào tạo ra được tình huống này nữa:
-     * từ `0098`, hai lối ra duy nhất của `NHAP` và `YEU_CAU_CHINH_SUA` đều bắt
-     * buộc ghi cột mẫu, trong cùng câu lệnh đổi trạng thái.
-     *
-     * Đó cũng chính là lý do phải có ca này. Trên CSDL dựng mới, số hồ sơ rơi
-     * vào nhánh ấy là 0 — đo trên chồng demo: 199 hồ sơ, 22 hồ sơ thiếu mẫu và
-     * cả 22 đều ở `NHAP`. Không lượt chạy nào tái hiện được nó, nên không có gì
-     * canh câu chữ của nó ngoài ca kiểm này.
+     * Đây là cả nội dung của yêu cầu: Sale Admin chọn mẫu ở MỖI lượt in, và
+     * không có gì khoá họ vào một bản trình bày. Trước `0163` lượt thứ hai trả
+     * `409 TEMPLATE_LOCKED`.
      */
-    const d = await toReceivedL1();
-    const cu = await withAdminDb(async (c) => {
-      // Đọc TRƯỚC rồi mới xoá — không lồng sub-select vào `RETURNING`: ở đó nó
-      // đọc theo ảnh chụp của chính câu lệnh, một luật dễ nhớ sai.
-      const r = await c.query<{ mau_ho_so_id: string | null }>(
-        `SELECT mau_ho_so_id FROM pol.policy WHERE id = $1`,
-        [d.id],
-      );
-      await c.query(`UPDATE pol.policy SET mau_ho_so_id = NULL WHERE id = $1`, [d.id]);
-      return r.rows[0]?.mau_ho_so_id ?? null;
-    });
-
-    try {
-      const r = await (await http(doc))
-        .get(`/policies/${d.id}/render`)
-        .set('Authorization', `Bearer ${tok['bld01']}`);
-      expect(r.status).toBe(409);
-      expect(r.body.code).toBe('POLICY_TEMPLATE_NOT_SET');
-      expect(r.body.message).toContain('trước khi phần mềm');
-    } finally {
-      /*
-       * TRẢ CỘT VỀ CHỖ CŨ, và không phải chỉ cho gọn.
-       *
-       * Câu chẩn đoán bàn giao cho người vận hành — *"đếm hồ sơ ngoài `SUA_DUOC`
-       * mà cột mẫu rỗng"* — là cách duy nhất biết một CSDL có cần lượt gán mẫu
-       * cho dữ liệu cũ hay không. Ca này cố ý dựng ra đúng loại dòng ấy, nên bỏ
-       * lại là mỗi lượt `make test` cộng thêm một vào con số đó, trên chính CSDL
-       * mà người ta sẽ chạy câu chẩn đoán để thử. Đo được: sau ba lượt chạy, câu
-       * ấy trả về 3 — cả ba đều do đây.
-       *
-       * Cùng luật đã đặt ở `0067` cho ca ban hành mẫu: ca nào bày ra một trạng
-       * thái TOÀN CỤC thì `finally` phải dọn nó.
-       */
-      await withAdminDb(async (c) => {
-        await c.query(`UPDATE pol.policy SET mau_ho_so_id = $2 WHERE id = $1`, [d.id, cu]);
-      });
-    }
-  }, 90_000);
-
-  it('`0100` chính TDV mở hồ sơ Nháp CỦA MÌNH vẫn nhận câu bảo chọn mẫu', async () => {
-    // Nhánh `TEMPLATE_REQUIRED` không đổi, và ca này giữ cho nó khỏi bị nhánh
-    // mới nuốt: cùng một hồ sơ, hai người, hai câu trả lời khác nhau.
     const d = await draft();
-    const r = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
-  }, 60_000);
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+
+    // Mẫu thứ hai dựng tại chỗ: cả điểm của ca này là HAI mẫu khác nhau trên
+    // CÙNG một hồ sơ, nên không dùng lại được mẫu dùng chung của tệp.
+    const mau2 = await luuMauHoSoTen(uniq('Mau ho so thu hai'));
+    expect(mau2.status, JSON.stringify(mau2.body)).toBe(201);
+
+    const a = await pdfOf(`/policies/${d.id}/render?mauId=${await mauHoSo()}`, 'sa01');
+    const b = await pdfOf(`/policies/${d.id}/render?mauId=${mau2.body.id}`, 'sa01');
+    expect(a.status, JSON.stringify(a.body)).toBe(200);
+    expect(b.status, JSON.stringify(b.body)).toBe(200);
+    expect(Buffer.compare(a.body as Buffer, b.body as Buffer), 'hai mẫu phải ra hai bản').not.toBe(0);
+  });
+
+  it('CHỈ Sale Admin dựng được — bốn vai trò kia nhận 403', async () => {
+    /*
+     * Chặn ở MÁY CHỦ, không chỉ ẩn nút. Kể cả Ban lãnh đạo — hỏi lại và khách
+     * hàng chốt đúng chữ *"chỉ giữ ở SA"*, dù đó là nút duy nhất của vai trò
+     * chỉ-đọc trên trang hồ sơ.
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    const duong = `/policies/${d.id}/render?mauId=${await mauHoSo()}`;
+
+    expect((await pdfOf(duong, 'sa01')).status, 'sa01').toBe(200);
+    for (const ai of ['tdv01', 'tbp01', 'kt01', 'bld01']) {
+      expect((await pdfOf(duong, ai)).status, ai).toBe(403);
+    }
+  });
 });
-
-// =============================================================================
-// `0101` — khách hàng và hai cái tên ĐÓNG BĂNG vào hồ sơ
-//
-// Trước `0101`, tám trường khách hàng và bốn tên người đọc SỐNG ở mỗi lượt dựng
-// văn bản. Sửa công nợ hôm nay thì bản CSBH đã ký tuần trước đổi nội dung theo,
-// lặng lẽ và ngược thời gian. Khối này kiểm cả hai vế: đóng băng đúng chỗ, và
-// **vẫn mở ra được** khi hồ sơ bị trả lại để sửa.
-// =============================================================================
 
 type AnhChup = {
   kh_ma_snap: string | null;
@@ -2397,9 +2209,19 @@ const suaKhach = async (id: string, than: Record<string, unknown>) => {
   if (r.status !== 200) throw new Error(`sửa khách hàng hỏng: ${JSON.stringify(r.body)}`);
 };
 
-const banMem = async (policyId: string, who = 'bld01', mauId?: string): Promise<string> => {
-  const q = mauId ? `?mauId=${mauId}` : '';
-  const r = await pdfOf(`/policies/${policyId}/render${q}`, who);
+/**
+ * Dựng bản mềm rồi trả về CHỮ trong đó.
+ *
+ * `0163` — chỉ Sale Admin dựng được, và `mauId` bắt buộc. Bản trước mặc định
+ * `bld01` và cho bỏ trống mẫu (khi ấy bỏ trống nghĩa là *"đọc mẫu đã gắn vào hồ
+ * sơ"*); cả hai vế đã bỏ.
+ */
+const banMem = async (policyId: string, mauId: string, who = 'sa01'): Promise<string> => {
+  // Bản mềm là thao tác của Sale Admin (`0163`), nên hồ sơ phải nằm trên bàn
+  // họ. Các ca dưới đây dừng ở giữa luồng duyệt để soi ảnh chụp, nên phép giao
+  // đi kèm ngay đây thay vì rải ra từng ca.
+  if (who === 'sa01') await giaoChoSa(policyId);
+  const r = await pdfOf(`/policies/${policyId}/render?mauId=${mauId}`, who);
   if (r.status !== 200) throw new Error(`dựng bản mềm hỏng: ${r.status} ${JSON.stringify(r.body)}`);
   return pdfText(r.body as Buffer);
 };
@@ -2413,9 +2235,9 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
 
     // Đọc sống là ĐÚNG ở quãng này: người lập đang cân nhắc, họ phải thấy số
     // hiện tại chứ không phải một ảnh chụp chưa ai chụp.
-    expect(await banMem(d.id, 'tdv01', mau)).toContain(CUSTOMER_NAME);
+    expect(await banMem(d.id, mau)).toContain(CUSTOMER_NAME);
     await suaKhach(d.customerId, { name: 'Nhà thuốc Nháp Vừa Sửa' });
-    expect(await banMem(d.id, 'tdv01', mau)).toContain('Nhà thuốc Nháp Vừa Sửa');
+    expect(await banMem(d.id, mau)).toContain('Nhà thuốc Nháp Vừa Sửa');
     expect((await anhChup(d.id)).kh_ten_snap).toBeNull();
   }, 120_000);
 
@@ -2443,7 +2265,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     await suaKhach(d.customerId, { name: 'Nhà thuốc Đã Duyệt', debtTerm: 'GOI_DON_90' });
     await act(d.id, 'SUBMIT', 'tdv01');
 
-    const truoc = await banMem(d.id);
+    const truoc = await banMem(d.id, await mauHoSo());
     expect(truoc).toContain('Nhà thuốc Đã Duyệt');
 
     // Đổi cả tên lẫn công nợ — đúng kịch bản đã đo được ở lượt rà `0099`.
@@ -2453,7 +2275,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
       debtNote: 'ĐIỀU KHOẢN MỚI SAU KHI KÝ',
     });
 
-    const sau = await banMem(d.id);
+    const sau = await banMem(d.id, await mauHoSo());
     expect(sau, 'tên mới KHÔNG được lọt vào văn bản đã gửi duyệt').not.toContain(
       'TÊN MỚI SAU KHI KÝ',
     );
@@ -2469,7 +2291,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     const a = await anhChup(d.id);
     expect(a.tbp_ky_ten_snap).toBeTruthy();
     expect(a.tbp_signed_at).not.toBeNull();
-    expect(await banMem(d.id)).toContain(a.tbp_ky_ten_snap!);
+    expect(await banMem(d.id, await mauHoSo())).toContain(a.tbp_ky_ten_snap!);
   }, 120_000);
 
   it('TBP TỰ ĐỔI HỌ TÊN thì tên trên bản ĐÃ KÝ vẫn nguyên', async () => {
@@ -2486,7 +2308,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
 
     await doiTen('Nguyễn Văn Đổi Tên Sau Khi Ký');
     try {
-      const chu = await banMem(d.id);
+      const chu = await banMem(d.id, await mauHoSo());
       expect(chu, 'bản đã ký phải giữ tên lúc ký').toContain(tenLucKy);
       expect(chu).not.toContain('Đổi Tên Sau Khi Ký');
     } finally {
@@ -2531,7 +2353,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     expect(a.kh_ten_snap).toBe('Tên ĐÚNG sau khi sửa');
     expect(a.kh_cong_no_snap).toBe('Trả trước 30%, còn lại sau 60 ngày');
 
-    const chu = await banMem(d.id);
+    const chu = await banMem(d.id, await mauHoSo());
     expect(chu).toContain('Tên ĐÚNG sau khi sửa');
     expect(chu).not.toContain('Tên SAI lúc gửi lần đầu');
   }, 150_000);
@@ -2569,7 +2391,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     expect(a.nguoi_de_nghi_snap, 'người ĐỀ NGHỊ là việc đã xảy ra, bàn giao không đổi nó').toBe(
       nguoiDeNghi,
     );
-    expect(await banMem(d.id)).toContain(nguoiDeNghi);
+    expect(await banMem(d.id, await mauHoSo())).toContain(nguoiDeNghi);
   }, 120_000);
 
   it('MÀN HÌNH hồ sơ và BẢN MỀM nói cùng một con số công nợ', async () => {
@@ -2600,7 +2422,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     expect(man.body.khachHang.ten).toBe('Nhà thuốc Khớp Nhau');
     expect(man.body.nguoiDeNghi.ten).toBe((await anhChup(d.id)).nguoi_de_nghi_snap);
 
-    const chu = await banMem(d.id);
+    const chu = await banMem(d.id, await mauHoSo());
     expect(chu).toContain('Nhà thuốc Khớp Nhau');
     expect(packed(chu)).toContain(packed('Trả sau 45 ngày kể từ ngày nhận hàng'));
   }, 120_000);
@@ -2624,7 +2446,7 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     });
 
     try {
-      const chu = await banMem(d.id);
+      const chu = await banMem(d.id, await mauHoSo());
       // Đọc sống thì ra đúng tên đang có trong `cus.customer`.
       expect(chu).toContain(CUSTOMER_NAME);
     } finally {

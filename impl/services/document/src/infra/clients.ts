@@ -57,7 +57,6 @@ export type PolicyFull = {
    * `null` = hồ sơ chưa gửi duyệt lần nào, hoặc lập trước `0098`. Hai nghĩa ấy
    * phân biệt bằng trạng thái — xem `RenderService.mauCua`.
    */
-  mau_ho_so_id: string | null;
   /** Ảnh chụp khách hàng và hai cái tên, ghi lúc gửi duyệt / ký (`0101`). */
   kh_ma_snap: string | null;
   kh_ten_snap: string | null;

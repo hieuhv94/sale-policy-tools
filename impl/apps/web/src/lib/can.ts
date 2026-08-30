@@ -173,6 +173,28 @@ export type MucXem = keyof typeof QUYEN_XEM;
 export const xem = (vaiTro: string | undefined, muc: MucXem): boolean =>
   vaiTro !== undefined && (QUYEN_XEM[muc] as readonly string[]).includes(vaiTro);
 
+/**
+ * Ai bấm được *Xem bản mềm* — CHỈ Sale Admin (`0163`, chốt 29/08).
+ *
+ * Đây KHÔNG phải một mục menu, nên nó không vào `QUYEN_XEM`: bảng ấy khớp một-một
+ * với `DIEU_HUONG`, và thêm một khoá không có đường dẫn là làm hỏng phép đối
+ * chiếu ấy. Nhưng nó vẫn phải ở trong `can.ts`, vì đây là chỗ DUY NHẤT được nêu
+ * tên vai trò — mọi tệp khác bị `tests/web/quyen.test.ts` cấm viết
+ * `role === 'SALE_ADMIN'`, và cái luật ấy chính là thứ giữ cho một quyền không
+ * có hai bản.
+ *
+ * Bản mềm thôi là văn bản đi qua luồng duyệt: nó là thao tác IN của Sale Admin
+ * ở bước B8. TDV, TBP, Kế toán và Ban lãnh đạo duyệt trên BẢNG dữ liệu ở màn
+ * hình chi tiết hồ sơ — vốn đã mang đủ mười ba mục của muc 11.1.
+ *
+ * Máy chủ nói đúng câu này ở `READERS` của `render.controller.ts`; ca đối chiếu
+ * hai bên nằm ở `tests/http/document.test.ts`.
+ */
+export const XEM_BAN_MEM: readonly VaiTro[] = ['SALE_ADMIN'];
+
+export const xemBanMemDuoc = (vaiTro: string | undefined): boolean =>
+  vaiTro !== undefined && (XEM_BAN_MEM as readonly string[]).includes(vaiTro);
+
 /** Các mục điều hướng, lọc theo vai trò. */
 export type MucDieuHuong = { duong: string; nhan: string; muc: MucXem };
 

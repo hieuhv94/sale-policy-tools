@@ -85,9 +85,28 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (29/08/2026)
+## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P190** (`0162`): **hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH**,
+Chặng gần nhất **P191** (`0163`): **bản mềm thôi đóng băng, và thôi là việc của người duyệt**. Ba câu
+khách hàng gửi cùng lúc là **một câu**: `0098` đóng băng mẫu vì tin bản mềm là văn bản đi qua luồng
+duyệt; khách hàng nói lại nó là **thao tác IN của Sale Admin ở B8**. Khi nó chỉ còn là thao tác của
+MỘT người ở MỘT bước thì chỉ người ấy cần nút, chỉ người ấy chọn mẫu, và không còn gì để đóng băng —
+ba câu tự suy ra nhau. Cột `mau_ho_so_id` **gỡ hẳn** (`0111`), và `mauCua()` co từ ~106 dòng xuống
+một dòng: ba trong bốn nhánh của cây quyết định ấy thôi tồn tại. **Cái mất, khách hàng chấp nhận**:
+hồ sơ đã ký in lại hôm nay có thể ra tờ giấy KHÁC, và vô hiệu hết mẫu thì không hồ sơ nào in được.
+**`0150` đảo một nửa** — gửi duyệt thôi cần mẫu, nên thiếu mẫu chặn ở B8 chứ không ở B3, tức **hỏng
+muộn hơn và khó thấy hơn** (`docs/04-TRIEN-KHAI.md` giữ `nap-danh-muc` là bước bắt buộc, vì lý do mới).
+Chỗ tự dính đắt nhất: gán tắt `sale_admin_user_id` ngay trong `draft()` làm **DOC-27 — một ca về ĐỊA
+CHỈ KHÁCH HÀNG — đỏ với 403**, vì `0141` chỉ hỏi Sale Admin khi cột còn rỗng, nên gán sẵn là bước ấy
+thôi bắn sự kiện dựng `cus.customer_access`: `sa01` giữ quyền đọc HỒ SƠ mà mất quyền sửa KHÁCH HÀNG.
+**Một phép gán tắt phải đứng ngoài đường đi thật.** Hai chỗ nữa: một `export` lọt vào giữa khối
+`import` (`tsc` **xanh** — import được hoisted), và `nguoi-xu-ly.test.ts` có HAI `describe` giống hệt
+nhau — **xanh cả hai lượt**, nên không tín hiệu nào; dấu vết của một lượt sửa file-wide bằng regex,
+cùng loại đã ghi ở P182 và P183. Quyền mới **không vào `QUYEN_XEM`** (bảng ấy khớp một-một với
+`DIEU_HUONG`) mà là hằng riêng `XEM_BAN_MEM` trong `can.ts`: ranh giới `quyen.test.ts` canh là **tệp**,
+không phải bảng. **1928/1928 xanh.**
+
+Trước đó **P190** (`0162`): **hồ sơ pháp lý của khách hàng hiện ngay trên trang hồ sơ CSBH**,
 chỉ đọc. **Không một dòng máy chủ nào** — `0148` đã mở quyền đọc, DTO đã mang `customerId` ở cấp trên
 cùng (tôi kịp viết một bản vá thêm `id` vào khối `khachHang` rồi mới thấy `tsc` chỉ ra nó có sẵn), và
 `grantCustomerAccess` chạy từ lượt gửi duyệt nên không có khe 403. **Dùng lại `HoSoPhapLy`** với
@@ -618,13 +637,17 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
   một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
   thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
-- **Mẫu bản mềm CSBH đóng băng vào hồ sơ lúc gửi duyệt** (`0098`) — cột `pol.policy.mau_ho_so_id`,
-  tham chiếu logic sang `doc`, không FK. Chỉ TDV chọn, đúng hai hành động `SUBMIT` và
-  `RESUBMIT_AFTER_EDIT` ghi cột ấy; mọi vai trò sau chỉ xem. Kéo theo hai luật khoá lẫn nhau: **mẫu
-  không xoá được nữa, chỉ vô hiệu hoá** — và vô hiệu hoá **không đụng tới hồ sơ đã gắn**, nên
-  `templates.khaDung()` (ô chọn, có lọc) và `templates.theoId()` (dựng văn bản, không lọc) phải
-  tách rời. **Hợp đồng KHÔNG đóng băng** — không lưu bản ghi nào thì không có gì để gắn vào — nhưng
-  người xuất vẫn **bắt buộc chọn**: không còn mẫu mặc định ngầm ở bất kỳ đâu.
+- **Mẫu bản mềm KHÔNG đóng băng, và bản mềm CHỈ của Sale Admin** (`0163`, đảo `0098`). Cột
+  `pol.policy.mau_ho_so_id` **gỡ hẳn** (`0111`). Bản mềm không phải văn bản đi qua luồng duyệt — nó
+  là **thao tác IN của Sale Admin ở B8**; cái được duyệt là dữ liệu hồ sơ, và dữ liệu ấy vẫn đóng
+  băng nguyên vẹn (`0022`, `0101`). Nên `mauId` **bắt buộc** ở `render.controller`, `READERS` thu về
+  `['SALE_ADMIN']`, và `NGUOI_XEM_HO_SO` của `contracts.controller` phải khớp — bất biến là *ai dựng
+  được bản mềm thì thấy được danh sách mẫu*, có ca đối chiếu ở `document.test.ts` **cộng** một ca gọi
+  thật bằng bốn tài khoản (nới một hằng chỉ làm đỏ ca đối chiếu, và người sửa vội sẽ nới nốt hằng
+  kia). Giao diện gác bằng `xemBanMemDuoc()` trong `can.ts`, **không** bằng một khoá `QUYEN_XEM` —
+  bảng ấy khớp một-một với `DIEU_HUONG`. **Mẫu vẫn không xoá được, chỉ vô hiệu hoá**, nhưng vì lý do
+  MỚI và rộng hơn: xoá một mẫu là lấy đi một cách in của MỌI hồ sơ, không riêng hồ sơ đã gắn nó.
+  **Gửi duyệt thôi cần mẫu** — đảo một nửa `0150`, nên thiếu mẫu chặn ở B8 chứ không ở B3.
 - **Bảng CSBH XEM và MẪU bản mềm là hai thứ khác nhau** (`0102`). Mười ba mục tối thiểu của muc 11.1
   là yêu cầu của **màn hình chi tiết hồ sơ** (`ChiTietHoSo.tsx`) — DOC-03 đọc chúng ra từ PDF dựng
   bằng `mau-ho-so-a4-doc.docx`, không từ một đường dựng nào của hệ thống (`0103` sửa lại câu này:

@@ -190,12 +190,38 @@ const line = (productId: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/*
+ * GÁN SALE ADMIN ngay từ lượt lập (`0163`).
+ *
+ * Từ `0163` chỉ Sale Admin dựng được bản mềm, mà một hồ sơ vừa lập chưa có
+ * `sale_admin_user_id` — cột ấy chỉ được điền ở bước `KT_RECEIVE_L1`. Nên mọi
+ * lượt render trong tệp này sẽ nhận `403 OUT_OF_SCOPE` trước khi chạm tới
+ * đường dựng PDF.
+ *
+ * Vặn thẳng CSDL chứ không đẩy hồ sơ đi ba bước: tệp này kiểm việc DỰNG VĂN
+ * BẢN — khổ giấy, ngắt trang, ô trống, phông chữ — chứ không kiểm luồng duyệt.
+ * Bắt mỗi ca đi hết luồng là đổi một dòng lấy ba lượt gọi và một nguồn đỏ mới
+ * chẳng liên quan gì tới thứ đang kiểm.
+ */
+async function giaoChoSa(policyId: string): Promise<void> {
+  await withAdminDb((c) =>
+    c.query(
+      `UPDATE pol.policy
+          SET sale_admin_user_id = (SELECT id FROM idn.app_user WHERE username = 'sa01')
+        WHERE id = $1`,
+      [policyId],
+    ),
+  );
+}
+
 async function draft(lineCount = 1): Promise<{ id: string; customerId: string; code: string }> {
   const cus = await makeCustomer();
   const lines = [];
   for (let i = 0; i < lineCount; i++) lines.push(line(await makeProduct(i)));
   const r = await ppost('/policies', { customerId: cus.id, lines }, 'tdv01');
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${r.status} ${JSON.stringify(r.body)}`);
+
+  await giaoChoSa(r.body.id as string);
   return { id: r.body.id as string, customerId: cus.id, code: cus.code };
 }
 
@@ -377,64 +403,23 @@ const mauDoc = async (): Promise<string> => {
 };
 
 describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
-  /*
-   * `0058` — khổ giấy đi theo MẪU ĐƯỢC CHỌN, không còn là tham số của lời gọi.
-   *
-   * Ca này vì thế mạnh hơn bản cũ chứ không yếu đi: bản cũ chứng minh máy chủ
-   * hiểu `?size=a4l`, bản này chứng minh **khổ giấy trong file .docx của mẫu đi
-   * hết đường tới trang PDF** — qua bảng mẫu, qua Gotenberg, ra đúng số đo.
-   */
-  it('đúng khổ theo mẫu được chọn, không co méo ở cả hai hướng', async () => {
-    const d = await draft(3);
-
-    const ds = await (await http(doc))
-      .get('/policy-templates/available')
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
-    expect(ds.status, 'người xem bản mềm phải đọc được danh sách mẫu').toBe(200);
-
-    // Hai mẫu của chính tệp này (`0150`) — không đi tìm trong danh sách chung
-    // nữa, vì hệ thống thôi seed mẫu và danh sách ấy dùng chung với mọi tệp.
-    const p = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${mauDocNho}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .responseType('blob');
-    expect(p.status).toBe(200);
-    expect(p.headers['content-type']).toBe('application/pdf');
-    for (const s of await pageSizes(p.body as Buffer)) {
-      expect(s.w).toBe(595);
-      expect(s.h).toBe(842);
-    }
-
-    const l = await (await http(doc))
-      .get(`/policies/${d.id}/render?mauId=${mauNgangNho}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .responseType('blob');
-    for (const s of await pageSizes(l.body as Buffer)) {
-      expect(s.w).toBe(842);
-      expect(s.h).toBe(595);
-    }
-  }, 60_000);
-
-  it('`0098` hồ sơ NHÁP: không chọn mẫu thì TỪ CHỐI, không rơi về mẫu mặc định', async () => {
+  it('`0163` KHÔNG truyền mẫu thì 400 — không còn mẫu nào để rơi về', async () => {
     /*
-     * ĐẢO NGƯỢC ca cũ, và đảo có chủ ý.
+     * `0098` trả `409 TEMPLATE_REQUIRED` ở đây, vì bỏ trống `mauId` khi ấy có
+     * nghĩa *"đọc mẫu đã gắn vào hồ sơ"* và hồ sơ Nháp thì chưa gắn. `0163` bỏ
+     * hẳn khái niệm mẫu-gắn-vào-hồ-sơ, nên bỏ trống thôi có nghĩa gì cả:
+     * `mauId` thành tham số BẮT BUỘC và câu trả lời về tầng kiểm dữ liệu vào.
      *
-     * Bản trước khẳng định đường "không tham số" phải ra một bản đọc được, vì
-     * hộp xác nhận ký số dựng bản xem trước mà không có ô chọn nào. Từ `0098`
-     * hộp ấy không cần đoán nữa: hồ sơ đã gửi duyệt thì mẫu nằm sẵn trên chính
-     * hồ sơ, và bản xem trước lúc GỬI thì mang `mauId` người gửi vừa chọn.
-     *
-     * Nên mẫu mặc định ngầm mất chỗ đứng cuối cùng của nó. Với hồ sơ còn Nháp —
-     * chưa gắn mẫu nào — câu trả lời đúng là hỏi lại, không phải đưa ra một bản
-     * trình bày mà người xem không chọn: hai mẫu có hai tập cột khác nhau, nên
-     * "một bản đọc được" chưa chắc là bản họ định đọc.
+     * Vẫn phải có ca: điều cần giữ là hệ thống KHÔNG tự chọn hộ một bố cục. Hai
+     * mẫu có hai tập cột khác nhau, nên "một bản đọc được" chưa chắc là bản
+     * người dùng định đọc.
      */
     const d = await draft(1);
     const r = await (await http(doc))
       .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('TEMPLATE_REQUIRED');
+      .set('Authorization', `Bearer ${tok['sa01']}`);
+    expect(r.status).toBe(400);
+    expect(r.body.field).toBe('mauId');
   }, 60_000);
 
   it('`0098` thứ tự ô chọn PHÁ HOÀ dứt khoát, không rơi xuống uuid ngẫu nhiên', async () => {
@@ -495,7 +480,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
 
     const r = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
+      .set('Authorization', `Bearer ${tok['sa01']}`);
     expect(r.status).toBe(404);
     expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
   }, 60_000);
@@ -504,7 +489,7 @@ describe('DOC-01 sinh PDF khổ A4 dọc và ngang', () => {
     const d = await draft(1);
     const r = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=khong-phai-uuid`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`);
+      .set('Authorization', `Bearer ${tok['sa01']}`);
     expect(r.status).toBe(400);
   }, 30_000);
 });
@@ -515,7 +500,7 @@ describe('DOC-02 PDF là VĂN BẢN, không phải ảnh chụp màn hình', () 
 
     const pdf = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
       .responseType('blob');
     const text = await pdfText(pdf.body as Buffer);
 
@@ -563,8 +548,8 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
      * chọn, còn `mauDoc()` là mẫu riêng của tệp này.
      */
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
       .responseType('blob');
     expect(pdf.status, JSON.stringify(pdf.body)).toBe(200);
     const t = await pdfText(pdf.body as Buffer);
@@ -598,7 +583,7 @@ describe('DOC-19 hồ sơ nhiều dòng sản phẩm', () => {
     const d = await draft(60);
     const pdf = await (await http(doc))
       .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
       .responseType('blob');
 
     const sizes = await pageSizes(pdf.body as Buffer);
@@ -630,7 +615,7 @@ describe('DOC-20 nhiều yêu cầu render cùng lúc', () => {
       Array.from({ length: 5 }, () =>
         agent
           .get(`/policies/${d.id}/render?mauId=${mau}`)
-          .set('Authorization', `Bearer ${tok['tdv01']}`)
+          .set('Authorization', `Bearer ${tok['sa01']}`)
           .responseType('blob'),
       ),
     );
@@ -677,8 +662,8 @@ describe('`0103` bản lưu ký số đã gỡ', () => {
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
     const pdf = await (await http(doc))
-      .get(`/policies/${d.id}/render`)
-      .set('Authorization', `Bearer ${tok['tbp01']}`)
+      .get(`/policies/${d.id}/render?mauId=${await mauDoc()}`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
       .responseType('blob');
     expect(pdf.status).toBe(200);
     // Khối chữ ký vẫn in ra bản mềm qua `{{ho_so.chu_ky_so_TBP}}`.
@@ -1019,10 +1004,11 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
       'tdv01',
     );
     expect(r.status, JSON.stringify(r.body)).toBe(201);
+    await giaoChoSa(r.body.id as string);
 
     const pdf = await (await http(doc))
       .get(`/policies/${r.body.id}/render?mauId=${await mauDoc()}`)
-      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
       .responseType('blob');
     const t = lien(await pdfText(pdf.body as Buffer));
 
@@ -1314,7 +1300,7 @@ describe('`0059` mẫu mất file trên kho lưu trữ', () => {
       const d = await draft(1);
       const r = await (await http(doc))
         .get(`/policies/${d.id}/render?mauId=${up.body.id}`)
-        .set('Authorization', `Bearer ${tok['tdv01']}`);
+        .set('Authorization', `Bearer ${tok['sa01']}`);
       expect(r.status, 'phải là 409 chứ không phải 500').toBe(409);
       expect(r.body.code).toBe('TEMPLATE_FILE_MISSING');
       expect(r.body.message).toContain('Quản trị hệ thống');

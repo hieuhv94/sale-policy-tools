@@ -43,8 +43,9 @@ export type Size = 'a4p' | 'a4l';
  * Xét theo ẢNH CHỤP chứ không theo trạng thái vì một lý do rất cụ thể: hồ sơ
  * *Yêu cầu chỉnh sửa* thì đã gửi duyệt một lần rồi, nên xét trạng thái sẽ bắt
  * nó dùng ảnh chụp CŨ — trong khi TDV đang sửa chính thông tin ấy và cần thấy
- * số mới. Đây đúng là cái bẫy đã cắn ở `0098` (xem `mauCua`, nhánh 1 phải đứng
- * trước), và lần này nó tự tránh: ảnh chụp có mặt thì nó là ảnh của lần gửi
+ * số mới. Đây đúng là cái bẫy đã cắn ở `0098` (mẫu đóng băng, nhánh 1 phải đứng
+ * trước — cả cơ chế ấy đã bỏ ở `0163`), và lần này nó tự tránh: ảnh chụp có mặt
+ * thì nó là ảnh của lần gửi
  * gần nhất, còn lượt gửi lại ghi đè nó ngay trong câu lệnh đổi trạng thái.
  *
  * LẤY CẢ CỤM hoặc không lấy gì — không trộn từng trường. Một văn bản nửa số cũ
@@ -133,15 +134,15 @@ export class RenderService {
   async pdf(
     policyId: string,
     /**
-     * Mẫu người gọi truyền kèm. Từ `0098` nó chỉ còn nghĩa với NGƯỜI LẬP đang
-     * soạn hồ sơ của mình; mọi trường hợp khác đọc mẫu từ chính hồ sơ. Không còn
-     * nhánh "bỏ trống thì lấy mẫu đầu danh sách" — xem `mauCua`.
+     * MẪU BẮT BUỘC (`0163`) — trước là tuỳ chọn, và bỏ trống nghĩa là *"đọc mẫu
+     * đã gắn vào hồ sơ"*. Không còn mẫu nào gắn vào hồ sơ nữa, nên người gọi
+     * luôn phải nói mình muốn in bằng mẫu nào.
      */
-    mauId: string | undefined,
+    mauId: string,
     me: AuthUser,
   ): Promise<{ body: Buffer; code: string }> {
     const { policy, customer, people } = await this.collect(policyId, me);
-    const mau = await this.mauCua(policy, mauId, me);
+    const mau = await this.mauCua(mauId);
 
     /*
       KHÔNG còn phép kiểm "thiếu trường bắt buộc" ở đây (`0067`).
@@ -183,109 +184,19 @@ export class RenderService {
   }
 
   /**
-   * MẪU NÀO DỰNG BẢN MỀM NÀY — toàn bộ luật của `0098`, ở đúng một chỗ.
+   * MẪU để dựng bản mềm — người gọi CHỌN, hồ sơ không giữ (`0163`).
    *
-   * Ba nhánh, và THỨ TỰ giữa chúng là cả nội dung của yêu cầu:
+   * Cả một trăm dòng luật cũ ở đây đã đi cùng khái niệm *mẫu đóng băng*: nhánh
+   * "người lập đang soạn thì cho chọn", nhánh "hồ sơ đã gắn mẫu thì khoá"
+   * (`TEMPLATE_LOCKED`), và hai câu lỗi phân biệt *chưa gửi duyệt* với *dữ liệu
+   * lập trước `0098`* (`0100`). Không nhánh nào còn nghĩa: bản mềm giờ là thao
+   * tác IN của Sale Admin, và họ chọn mẫu ở đúng lúc in.
    *
-   *   1. NGƯỜI LẬP, hồ sơ CÒN SỬA ĐƯỢC → mẫu họ chọn. Đây là quãng duy nhất còn
-   *      chọn được, và nó khép lại đúng lúc bấm *Gửi duyệt*.
-   *   2. Hồ sơ ĐÃ ĐÓNG BĂNG mẫu → dùng đúng mẫu ấy, kể cả khi nó đã bị vô hiệu
-   *      hoá. Ai truyền `mauId` khác thì bị TỪ CHỐI, không bị bỏ qua im lặng —
-   *      im lặng ở đây nghĩa là người gọi tin mình đang xem mẫu A trong khi
-   *      nhận về mẫu B (`0089`).
-   *   3. Còn lại → không dựng được, và có HAI lý do khác hẳn nhau. Xem `0100`
-   *      ở khối ngay trên câu lệnh ném lỗi.
-   *
-   * NHÁNH 1 PHẢI ĐỨNG TRƯỚC, và tôi đã xếp ngược ở bản đầu. Hồ sơ *Yêu cầu
-   * chỉnh sửa* VẪN mang mẫu của lần gửi trước, nên nhánh 2 đứng trước sẽ nuốt
-   * nó: TDV mở hộp *Gửi lại duyệt*, chọn mẫu khác, bản xem trước ăn 409
-   * `TEMPLATE_LOCKED` — và vì nút *Xác nhận* chờ bản xem trước tải xong, họ
-   * không bao giờ gửi lại được bằng mẫu mới. Máy chủ vẫn nhận `mauHoSoId` mới ở
-   * `RESUBMIT_AFTER_EDIT`, nên lỗi này chỉ đóng đúng đường giao diện đi.
-   *
-   * Đảo lại KHÔNG nới lỏng gì: điều kiện của nhánh 1 là "còn sửa được VÀ chính
-   * người lập". Vai trò khác mở cùng hồ sơ ấy vẫn rơi xuống nhánh 2 và vẫn thấy
-   * đúng mẫu đang gắn — hồ sơ sửa được không có nghĩa ai cũng đổi được bản
-   * trình bày của nó.
-   *
-   * PHẢI Ở MÁY CHỦ, không phải ở chỗ giao diện ẩn ô chọn: Ban lãnh đạo mở được
-   * hồ sơ *Nháp* của người khác (`assertPolicyInScope` cho qua vì TDV nằm trong
-   * phạm vi họ), nên "web không bày ô chọn" không chặn được gì.
+   * `chon` chứ không `theoId`: chỉ mẫu CÒN HIỆU LỰC mới in được. Mẫu đã vô hiệu
+   * hoá vẫn xem lại được ở màn hình quản trị (`0150`), nhưng nó không phải thứ
+   * để dựng một tờ giấy mới.
    */
-  private async mauCua(
-    policy: { id: string; status: string; mau_ho_so_id: string | null; tdv_user_id: string | null },
-    mauId: string | undefined,
-    me: AuthUser,
-  ) {
-    const dangSoan = SUA_DUOC.includes(policy.status as never) && policy.tdv_user_id === me.id;
-
-    if (dangSoan && mauId) return this.templates.chon('HO_SO', mauId);
-
-    if (policy.mau_ho_so_id) {
-      if (mauId && mauId !== policy.mau_ho_so_id) {
-        throw new ConflictException({
-          code: 'TEMPLATE_LOCKED',
-          message:
-            'Hồ sơ này đã gắn văn bản mẫu từ lúc gửi duyệt, không đổi mẫu khi xem được.',
-          templateId: policy.mau_ho_so_id,
-        });
-      }
-      const mau = await this.templates.theoId(policy.mau_ho_so_id, 'HO_SO');
-      if (!mau) {
-        // Mẫu đã gắn mà không tra ra được: chỉ xảy ra khi có người xoá thẳng
-        // dưới CSDL, vì `0098` đã gỡ hết đường xoá qua API.
-        throw new ConflictException({
-          code: 'POLICY_TEMPLATE_MISSING',
-          message:
-            'Văn bản mẫu đã gắn với hồ sơ này không còn trong hệ thống. ' +
-            'Đề nghị Quản trị hệ thống kiểm tra lại danh sách văn bản mẫu.',
-          templateId: policy.mau_ho_so_id,
-        });
-      }
-      return mau;
-    }
-
-    if (dangSoan) {
-      throw new ConflictException({
-        code: 'TEMPLATE_REQUIRED',
-        message: 'Chọn một văn bản mẫu để xem bản mềm.',
-      });
-    }
-
-    /*
-     * HAI LÝ DO, HAI CÂU (`0100`).
-     *
-     * `0098` gộp cả hai vào một câu — *"hồ sơ này lập trước khi phần mềm gắn
-     * văn bản mẫu"* — vì lúc viết nhánh này tôi chỉ nghĩ tới dữ liệu cũ. Nhưng
-     * hồ sơ NHÁP của người khác cũng rơi xuống đây, và với nó thì cả hai vế của
-     * câu ấy đều sai: nó không lập trước `0098`, và lời khuyên *"lập một CSBH
-     * mới"* đẩy người đọc đi làm một việc vô ích — hồ sơ ấy vẫn sống, TDV của
-     * nó chỉ chưa gửi duyệt.
-     *
-     * Phân biệt được bằng chính TRẠNG THÁI, không cần thêm dữ liệu nào: còn sửa
-     * được thì cột mẫu rỗng là chuyện BÌNH THƯỜNG của một hồ sơ chưa gửi; ngoài
-     * `SUA_DUOC` mà vẫn rỗng thì mới là dữ liệu lập trước `0098` — vì từ `0098`
-     * hai lối ra duy nhất của hai trạng thái ấy đều bắt buộc ghi cột.
-     *
-     * Ai đọc câu thứ nhất: trên thực tế chỉ Ban lãnh đạo. Bốn vai trò kia không
-     * nằm trong phạm vi một hồ sơ Nháp của người khác (hồ sơ Nháp mới có mỗi
-     * `tdv_user_id`), nên họ dừng ở 403 trước khi tới đây. Viết điều kiện theo
-     * trạng thái chứ không theo vai trò: luật là về hồ sơ, không về người.
-     */
-    if (SUA_DUOC.includes(policy.status as never)) {
-      throw new ConflictException({
-        code: 'POLICY_TEMPLATE_PENDING',
-        message:
-          'Hồ sơ này chưa gửi duyệt nên chưa có bản mềm. ' +
-          'Trình dược viên phụ trách sẽ chọn văn bản mẫu khi gửi duyệt.',
-      });
-    }
-
-    throw new ConflictException({
-      code: 'POLICY_TEMPLATE_NOT_SET',
-      message:
-        'Hồ sơ này lập trước khi phần mềm gắn văn bản mẫu vào hồ sơ, nên không có bản mềm. ' +
-        'Lập một CSBH mới cho khách hàng này để có bản mềm.',
-    });
+  private mauCua(mauId: string) {
+    return this.templates.chon('HO_SO', mauId);
   }
 }

@@ -18,7 +18,6 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
-import { TY_LE_KHO } from '@csbh/web/mau-hop-dong';
 
 const TBP = {
   accessToken: 'a',
@@ -32,6 +31,26 @@ const TBP = {
     mustChangePassword: false,
   },
 };
+
+/**
+ * Phiên Sale Admin (`0163`).
+ *
+ * Từ `0163` *Xem bản mềm* chỉ của Sale Admin, nên mọi ca về bản mềm phải đăng
+ * nhập bằng vai trò này. Tệp mặc định là TBP vì phần lớn ca ở đây nói về màn
+ * hình của người DUYỆT — đổi mặc định là kéo theo hàng chục ca chẳng liên quan.
+ */
+const SA = {
+  ...TBP,
+  user: {
+    ...TBP.user,
+    id: '44444444-4444-4444-4444-444444444444',
+    username: 'sa01',
+    fullName: 'Le Van Sa',
+    role: 'SALE_ADMIN',
+  },
+};
+
+const laSa = () => localStorage.setItem('csbh:phien', JSON.stringify(SA));
 
 const HO_SO = {
   id: 'hs-1',
@@ -258,20 +277,33 @@ describe('`0061` thao tác ở góc trên bên phải', () => {
     expect(screen.queryByRole('heading', { name: 'Thao tác' })).toBeNull();
   });
 
-  it('`0054` vai trò không làm được gì thì nhóm nút chỉ còn ĐÚNG nút xem', async () => {
+  it('`0163` vai trò không làm được gì thì nhóm nút RỖNG — trừ Sale Admin', async () => {
     /*
-     * Ca này đảo chiều ở `0054`, và đảo có lý do.
+     * Ca này đảo chiều LẦN THỨ HAI.
      *
-     * Bản cũ khẳng định nhóm nút BIẾN MẤT khi vai trò không thao tác được gì —
-     * một khối bo góc rỗng bám mép phải tiêu đề trông như giao diện hỏng. Giờ
-     * nhóm ấy luôn có ít nhất *Xem bản mềm*, vốn không phải thao tác ghi, nên nó
-     * không bao giờ rỗng nữa. Điều cần giữ là **không có nút ghi nào lọt vào**.
+     * Bản gốc khẳng định nhóm nút biến mất khi vai trò không thao tác được gì.
+     * `0054` đảo lại: nhóm luôn còn *Xem bản mềm*, vốn không phải thao tác ghi,
+     * nên nó không bao giờ rỗng. `0163` đảo về: nút ấy chỉ còn của Sale Admin,
+     * nên với năm vai trò kia nhóm rỗng lại như trước.
+     *
+     * Điều KHÔNG đổi qua cả ba lượt, và là điều ca này thật sự canh: **không có
+     * nút ghi nào lọt vào** khi máy chủ nói không hành động nào cho phép.
      */
     await mo(HO_SO, []);
     const dau = document.querySelector('.nhom-nut-dau');
-    expect(dau).not.toBeNull();
-    const ten = [...dau!.querySelectorAll('button')].map((b) => b.textContent);
-    expect(ten).toEqual(['Xem bản mềm']);
+    expect(dau, 'khối vẫn phải dựng, chỉ là không có nút nào bên trong').not.toBeNull();
+    expect([...dau!.querySelectorAll('button')].map((b) => b.textContent)).toEqual([]);
+
+    // Chiều đối chiếu: cùng hồ sơ, cùng danh sách hành động rỗng, đổi mỗi vai
+    // trò. Không có vế này thì gỡ hẳn nút khỏi mã nguồn vẫn xanh.
+    cleanup();
+    laSa();
+    await mo(HO_SO, []);
+    expect(
+      [...document.querySelector('.nhom-nut-dau')!.querySelectorAll('button')].map(
+        (b) => b.textContent,
+      ),
+    ).toEqual(['Xem bản mềm']);
   });
 });
 
@@ -387,6 +419,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   const nut = (ten: string) => screen.queryByRole('button', { name: ten });
 
   it('`0054` MỘT nút *Xem bản mềm*, và nó nằm cùng hàng với mã hồ sơ', async () => {
+    laSa();
     await mo();
     const n = nut('Xem bản mềm');
     expect(n).not.toBeNull();
@@ -422,6 +455,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
      * nên hai mẫu của cùng một hồ sơ ra hai bản giấy khác hẳn nhau. Mở sẵn một
      * cái nghĩa là phần lớn người dùng không bao giờ biết cái kia tồn tại.
      */
+    laSa();
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
 
@@ -438,6 +472,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   });
 
   it('`0067` chọn mẫu rồi mới tải, và đường tải mang đúng mẫu vừa chọn', async () => {
+    laSa();
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await chonMauRoiXem(/Mẫu A4 ngang/);
@@ -453,6 +488,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   });
 
   it('`0058` ô chọn liệt kê ĐỦ mẫu, kèm khổ giấy đọc từ file', async () => {
+    laSa();
     await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await chonMauRoiXem(/Mẫu A4 dọc/);
@@ -464,6 +500,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   });
 
   it('`0058` đổi mẫu thì tải lại theo ĐÚNG mẫu vừa chọn', async () => {
+    laSa();
     const f = await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await chonMauRoiXem(/Mẫu A4 dọc/);
@@ -492,6 +529,7 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
       return Promise.resolve(json(HO_SO));
     });
     vi.stubGlobal('fetch', f);
+    laSa();
     render(
       <PhienProvider>
         <BoDinhTuyen>
@@ -508,15 +546,31 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     expect(f.mock.calls.map((c) => String(c[0])).some((d) => d.includes('/render'))).toBe(false);
   });
 
-  it('`0054` Ban lãnh đạo — không có nút thao tác nào nhưng VẪN xem được bản mềm', async () => {
+  it('`0163` BỐN vai trò kia mất nút *Xem bản mềm*, Ban lãnh đạo mất luôn nút cuối', async () => {
     /*
-     * Trước `0054` cả nhóm nút ở tiêu đề ẩn khi `thaoTac` rỗng, nên vai trò
-     * chỉ-đọc không thấy nút nào. Xem bản mềm không phải thao tác ghi.
+     * `0054` khẳng định điều ngược lại — Ban lãnh đạo không thao tác được gì
+     * nhưng VẪN xem được bản mềm. Khách hàng chốt 29/08 rằng bản mềm là thao tác
+     * IN của Sale Admin, không phải văn bản đi qua luồng duyệt; được hỏi lại
+     * riêng về Ban lãnh đạo, họ chốt đúng chữ *"chỉ giữ ở SA"*.
+     *
+     * Cái giá, ghi ra để không ai phải đoán: với Ban lãnh đạo đó là nút DUY NHẤT
+     * trên trang này, nên dải thao tác của họ giờ rỗng hẳn. Người duyệt đọc hồ
+     * sơ ở BẢNG dữ liệu ngay trên màn hình — vốn đã mang đủ mười ba mục của
+     * muc 11.1 — chứ không ở tờ giấy dựng ra.
      */
-    localStorage.setItem(
-      'csbh:phien',
-      JSON.stringify({ ...TBP, user: { ...TBP.user, role: 'BAN_LANH_DAO', username: 'bld01' } }),
-    );
+    for (const v of ['TDV', 'TBP', 'KE_TOAN', 'BAN_LANH_DAO']) {
+      cleanup();
+      localStorage.setItem(
+        'csbh:phien',
+        JSON.stringify({ ...TBP, user: { ...TBP.user, role: v, username: 'x01' } }),
+      );
+      await mo(HO_SO, []);
+      expect(nut('Xem bản mềm'), `${v} không được thấy nút bản mềm`).toBeNull();
+    }
+
+    // Chiều đối chiếu, cùng hồ sơ cùng danh sách hành động rỗng.
+    cleanup();
+    laSa();
     await mo(HO_SO, []);
     expect(nut('Xem bản mềm')).not.toBeNull();
   });
@@ -565,234 +619,132 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
   });
 });
 
-describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau chỉ xem', () => {
+describe('`0163` gửi duyệt KHÔNG chọn mẫu, và bản mềm luôn hỏi mẫu', () => {
+  /*
+   * Chặng này gỡ cả một cơ chế, nên nó gỡ theo mười ba ca của `0098` và `0140`.
+   * Chúng khẳng định đúng thứ vừa bị bỏ — ô chọn mẫu trong hộp gửi duyệt, bản
+   * xem trước ở bước hai, `mauHoSoId` trong thân `SUBMIT` — nên giữ lại là giữ
+   * một bản mô tả sai về phần mềm.
+   *
+   * Bốn ca dưới đây là phần CÒN ĐÚNG của mười ba ca ấy, viết lại theo chiều
+   * ngược: mỗi ca canh đúng chỗ mà cơ chế cũ sẽ quay lại nếu ai đó dựng lại nó
+   * mà không đọc `0111_bo_dong_bang_mau_ho_so.sql`.
+   */
   const TDV = {
     ...TBP,
     user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
   };
 
-  it('hộp GỬI DUYỆT có ô chọn mẫu, và nút Tiếp tục xám cho tới khi chọn', async () => {
+  const moGuiDuyet = async () => {
     localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-
+    const f = await mo({ ...HO_SO, status: 'NHAP' }, ['SUBMIT']);
     fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
-    expect(oMau).toBeDefined();
+    await screen.findByRole('dialog');
+    return f;
+  };
 
+  it('hộp GỬI DUYỆT không còn ô chọn mẫu, và KHÔNG dựng bản mềm nào', async () => {
     /*
-     * CHƯA CHỌN thì KHÔNG gọi `render` lần nào.
-     *
-     * Không phải chuyện tiết kiệm một vòng mạng: máy chủ trả 409 khi thiếu mẫu,
-     * nên gọi trước là bày một khối đỏ ra trước khi người dùng kịp làm gì sai.
+     * Hai vế, và vế thứ hai mới là vế đắt: ô chọn biến mất mà lượt gọi `/render`
+     * ở lại thì mỗi lần TDV mở hộp gửi duyệt là một lượt dựng PDF ở máy chủ cho
+     * một tờ giấy không ai nhìn — và từ `0163` TDV còn nhận 403 ở đường ấy, nên
+     * hộp mở ra kèm một khối đỏ.
      */
+    const f = await moGuiDuyet();
+    expect(screen.queryByLabelText(/Văn bản mẫu/)).toBeNull();
     expect(f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'))).toEqual([]);
-    // `0140` — bước một kết bằng *Tiếp tục*: nút này chuyển bước, không gửi gì.
-    expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(true);
+    expect(
+      f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/policy-templates')),
+    ).toEqual([]);
   });
 
-  it('đổi mẫu thì bản xem trước DỰNG LẠI bằng đúng mẫu vừa chọn', async () => {
-    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-
-    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
-    fireEvent.change(oMau, { target: { value: MAU[0]!.id } });
-    await waitFor(() => {
-      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
-      expect(d.some((x) => x.includes(`mauId=${MAU[0]!.id}`))).toBe(true);
-    });
-
-    // Mẫu thứ hai có TẬP CỘT khác, nên bản đang hiện không còn là bản sắp gửi.
-    fireEvent.change(oMau, { target: { value: MAU[1]!.id } });
-    await waitFor(() => {
-      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
-      expect(d.some((x) => x.includes(`mauId=${MAU[1]!.id}`))).toBe(true);
-    });
+  it('gửi duyệt là MỘT bước — không còn *Tiếp tục* lẫn *Quay lại*', async () => {
+    /*
+     * `0140` tách lượt gửi duyệt làm hai bước vì bước hai là chỗ ĐỌC bản mềm sắp
+     * gửi. Không còn bản mềm ở đây thì bước hai là một cú bấm thừa.
+     *
+     * Tìm TRONG hộp thoại: nút *Gửi duyệt* của dải thao tác phía sau vẫn còn đó
+     * với đúng cái tên ấy, và `getByRole` toàn trang sẽ báo "tìm thấy hai phần
+     * tử" — một câu lỗi đúng nhưng dễ đọc nhầm thành lỗi của mã sản phẩm.
+     */
+    await moGuiDuyet();
+    const hop = await screen.findByRole('dialog');
+    expect(within(hop).queryByRole('button', { name: 'Tiếp tục' })).toBeNull();
+    expect(within(hop).queryByRole('button', { name: 'Quay lại' })).toBeNull();
+    expect(within(hop).getByRole('button', { name: /^Xác nhận/ })).toBeDefined();
   });
 
-  it('gửi duyệt thì `mauHoSoId` đi kèm thân yêu cầu — qua CẢ HAI bước', async () => {
-    // jsdom không có `URL.createObjectURL`, mà bản xem trước dựng `blob:` từ nó
-    // — thiếu thì `xemUrl` mãi là null và nút *Xác nhận* xám vĩnh viễn.
-    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
-    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-
-    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), {
-      target: { value: MAU[1]!.id },
-    });
+  it('thân yêu cầu SUBMIT không mang `mauHoSoId` nữa', async () => {
+    /*
+     * Máy chủ bỏ qua khoá lạ (`validate` không từ chối), nên gửi thừa trường này
+     * KHÔNG có gì đỏ lên — nó chỉ là một lời nói dối lặng lẽ về thứ hồ sơ mang
+     * theo. Đó là lý do ca này soi THÂN yêu cầu chứ không soi mã trả về.
+     */
+    const f = await moGuiDuyet();
     for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
       const o = screen.queryByLabelText(nhan);
       if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
     }
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(false),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
-
-    /*
-     * BƯỚC HAI (`0140`): đọc bản mềm, rồi mới có nút gửi thật.
-     *
-     * Tìm TRONG hộp thoại, không tìm cả trang: nút *Gửi duyệt* của dải thao tác
-     * phía sau vẫn còn đó, cùng tên. `getByRole` toàn trang trả về "tìm thấy hai
-     * phần tử" — một câu lỗi nói đúng vấn đề nhưng dễ đọc nhầm thành lỗi của mã
-     * sản phẩm.
-     */
-    const nutGui = await within(await screen.findByRole('dialog')).findByRole('button', {
-      name: 'Gửi duyệt',
-    });
-    await waitFor(() => expect(nutGui.hasAttribute('disabled')).toBe(false));
-    fireEvent.click(nutGui);
+    const hop = await screen.findByRole('dialog');
+    fireEvent.click(within(hop).getByRole('button', { name: /^Xác nhận/ }));
 
     await waitFor(() => {
       const goi = f.mock.calls.find((c) => String(c[0]).includes('/actions/SUBMIT'));
       expect(goi, 'chưa gọi SUBMIT').toBeDefined();
       const than = JSON.parse(String((goi![1] as { body?: string })?.body ?? '{}'));
-      expect(than.mauHoSoId).toBe(MAU[1]!.id);
+      expect(Object.keys(than)).not.toContain('mauHoSoId');
     });
   });
 
-  it('`0130` hộp GỬI DUYỆT ở BẬC THƯỜNG như mọi hộp hành động khác', async () => {
+  it('`0130` hộp GỬI DUYỆT vẫn ở BẬC THƯỜNG như mọi hộp hành động khác', async () => {
     /*
      * `0129` cho bước gửi duyệt bậc `to` vì nó nhúng cả một tờ CSBH; khách hàng
-     * xem xong chốt 27/08 đưa về bậc thường. Ca này canh CHIỀU ĐẢO NGƯỢC ấy.
-     *
-     * Đáng canh vì suy luận sai nghe rất hợp lý và sẽ quay lại: bề rộng hộp KHÔNG
-     * quyết định tờ CSBH to hay nhỏ — `.khung-pdf` khoá theo tỷ lệ tờ giấy và
-     * chặn bằng chiều cao, nên nới hộp ra chỉ thêm nền xám hai bên.
-     *
-     * Kiểm CẢ HAI hộp: bước gửi duyệt (có bản mềm) và bước ký (không có). Chúng
-     * phải giống nhau, và đó chính là điều `0130` chốt.
+     * xem xong chốt 27/08 đưa về bậc thường. Bản mềm rời khỏi hộp này hẳn ở
+     * `0163`, nên lý do duy nhất để nới nó ra cũng mất — ca canh chiều ấy ở lại.
      */
-    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-    await screen.findByLabelText(/Văn bản mẫu/);
+    await moGuiDuyet();
     expect(document.querySelector('.hop-thoai')).not.toBeNull();
-    expect(document.querySelector('.hop-thoai-to'), 'hộp gửi duyệt đã về bậc thường').toBeNull();
+    expect(document.querySelector('.hop-thoai-to'), 'hộp gửi duyệt ở bậc thường').toBeNull();
     expect(document.querySelector('.hop-thoai-rong')).toBeNull();
-
-    // Vai trò phải trở về TBP: `canHanhDong` giấu nút ký của một phiên TDV, và
-    // hộp không mở ra thì ca này xanh vì không tìm thấy gì, không vì đúng.
-    cleanup();
-    localStorage.setItem('csbh:phien', JSON.stringify(TBP));
-    await mo(HO_SO, ['TBP_SIGN']);
-    fireEvent.click(screen.getByRole('button', { name: 'Ký số duyệt' }));
-    await screen.findByRole('button', { name: /^Xác nhận/ });
-    expect(document.querySelector('.hop-thoai')).not.toBeNull();
-    expect(document.querySelector('.hop-thoai-to')).toBeNull();
-  });
-
-  it('`0129`·`0140` hộp XEM TRƯỚC mang khổ giấy của mẫu đang chọn', async () => {
-    /*
-     * Tỷ lệ giờ nằm trên chính HỘP THOẠI, không trên khung.
-     *
-     * `0140` đưa bản xem trước sang một hộp riêng dùng `tyLe` → `.hop-thoai-xem`,
-     * nơi bề rộng hộp suy ra từ `--cao-khung × --ty-le` (`0073`), và khung bên
-     * trong đọc lại chính hai biến ấy. Đặt tỷ lệ lên khung như bản `0129` giờ là
-     * đặt sai chỗ: hộp mang một hình, khung mang một hình khác.
-     *
-     * Sai thì KHÔNG có gì đỏ lên — mẫu A4 ngang chỉ hiện trong một hộp dọc và tờ
-     * giấy co lại còn một nửa.
-     */
-    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
-    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-
-    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), { target: { value: MAU[1]!.id } });
-    for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
-      const o = screen.queryByLabelText(nhan);
-      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
-    }
-    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
-
-    const hop = await waitFor(() => {
-      const e = document.querySelector<HTMLElement>('.hop-thoai-xem');
-      expect(e, 'bước hai phải dùng cỡ hộp XEM TRƯỚC').not.toBeNull();
-      return e!;
-    });
-    // Mẫu A4 NGANG — rộng hơn cao.
-    expect(Number(hop.style.getPropertyValue('--ty-le'))).toBeCloseTo(TY_LE_KHO.a4l, 5);
-    expect(document.querySelector('.khung-xem'), 'khung phải là `.khung-xem`').not.toBeNull();
-    // Và KHÔNG còn khung `.khung-pdf` của bản cũ nằm lẫn trong hộp.
+    expect(document.querySelector('.hop-thoai-xem'), 'không còn hộp xem trước nào').toBeNull();
     expect(document.querySelector('.khung-pdf')).toBeNull();
-  });
-
-  /* ---------------------------------------------------------------------
-   * `0140` — GỬI DUYỆT TÁCH LÀM HAI BƯỚC
-   * ------------------------------------------------------------------- */
-
-  /** Đưa hộp gửi duyệt tới cuối bước một: đã chọn mẫu và đủ người. */
-  const denCuoiBuocMot = async (mau = MAU[1]!.id) => {
-    vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x', revokeObjectURL: vi.fn() });
-    localStorage.setItem('csbh:phien', JSON.stringify(TDV));
-    const f = await mo({ ...HO_SO, status: 'NHAP', mauHoSoId: null }, ['SUBMIT']);
-    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt' }));
-    fireEvent.change(await screen.findByLabelText(/Văn bản mẫu/), { target: { value: mau } });
-    for (const nhan of [/Trưởng bộ phận/, /Kế toán/]) {
-      const o = screen.queryByLabelText(nhan);
-      if (o) fireEvent.change(o, { target: { value: 'nguoi-1' } });
-    }
-    return f;
-  };
-
-  it('BƯỚC MỘT không có bản xem trước nào — đó là cả điểm của lượt tách', async () => {
-    /*
-     * Tới `0139` khung PDF nằm kẹp giữa ô chọn mẫu và hai ô chọn người, cao
-     * `min(52dvh, 560px)`. Nó ở lại thì bước một dài gấp đôi mà tờ giấy vẫn
-     * không đọc nổi — hai cái hỏng cùng lúc.
-     */
-    await denCuoiBuocMot();
-    expect(document.querySelector('.khung-pdf'), 'bước một không được có khung PDF').toBeNull();
     expect(document.querySelector('.khung-xem')).toBeNull();
-    expect(document.querySelector('.hop-thoai-xem')).toBeNull();
   });
 
-  it('*Tiếp tục* KHÔNG gửi gì cả', async () => {
+  it('hồ sơ ĐÃ DUYỆT XONG: Sale Admin vẫn phải CHỌN mẫu mỗi lượt in', async () => {
     /*
-     * Ca đáng giá nhất của lượt này. Nút bước một đổi từ *Xác nhận* sang *Tiếp
-     * tục* và đổi luôn việc nó làm; đấu nhầm nó vào `gui` thì hồ sơ đi ngay lúc
-     * người dùng tưởng mình vừa bấm để XEM — không lùi lại được, vì gửi duyệt
-     * đóng băng giá và ngưỡng.
+     * Đây là câu đảo ngược thẳng `0098`. Tới `0162` hồ sơ đã gửi duyệt mang sẵn
+     * mẫu của nó, nên hộp xem bản mềm mở ra là thấy ngay nội dung. Từ `0163`
+     * không có "mẫu của hồ sơ" nữa: mẫu là tham số của lượt IN, nên ô chọn phải
+     * hiện lại ở MỌI trạng thái, kể cả hồ sơ đã có hiệu lực.
+     *
+     * Và nó mở ra RỖNG (luật `0067`): hai mẫu cho hai tập cột khác nhau, chọn
+     * sẵn một cái nghĩa là phần lớn người dùng không biết cái kia tồn tại.
      */
-    const f = await denCuoiBuocMot();
-    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
+    laSa();
+    const f = await mo({ ...HO_SO, status: 'HIEU_LUC' }, []);
+    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
 
-    await screen.findByRole('button', { name: 'Quay lại' });
-    expect(f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/actions/'))).toEqual([]);
+    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
+    expect(o.value, 'ô chọn mở ra rỗng').toBe('');
+    expect(f.mock.calls.map((c) => String(c[0])).some((x) => x.includes('/available'))).toBe(true);
+    expect(f.mock.calls.map((c) => String(c[0])).some((x) => x.includes('/render'))).toBe(false);
+
+    // Chọn rồi mới dựng, và dựng bằng đúng mẫu vừa chọn.
+    fireEvent.change(o, { target: { value: MAU[1]!.id } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
+    await waitFor(() => {
+      const d = f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/render'));
+      expect(d.length).toBeGreaterThan(0);
+      expect(d.every((x) => x.includes(`mauId=${MAU[1]!.id}`))).toBe(true);
+    });
   });
 
-  it('BƯỚC HAI dùng cỡ hộp XEM TRƯỚC, không phải cỡ hộp thường', async () => {
-    // Yêu cầu nói thẳng: *"kích thước hộp thư như preview bản mềm"*. Cỡ ấy là
-    // `.hop-thoai-xem` — bề rộng suy từ chiều cao khung nhân tỷ lệ tờ giấy.
-    await denCuoiBuocMot();
-    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
-
-    await waitFor(() => expect(document.querySelector('.hop-thoai-xem')).not.toBeNull());
-    expect(document.querySelector('.khung-xem')).not.toBeNull();
-    expect(document.querySelector('.hop-thoai-to'), 'không phải bậc `to`').toBeNull();
-  });
-
-  it('*Quay lại* về bước một và GIỮ nguyên mẫu đã chọn', async () => {
+  it('hành động nào cũng MỘT bước — chiều đối chiếu ở bước ký', async () => {
     /*
-     * Người dùng tới bước hai để ĐỌC, và thứ họ hay muốn sau khi đọc là đổi mẫu
-     * — nên đường về phải giữ nguyên những gì đã chọn. Dựng lại hộp từ đầu là
-     * bắt họ chọn lại ba ô để sửa một ô.
-     */
-    await denCuoiBuocMot(MAU[0]!.id);
-    fireEvent.click(await screen.findByRole('button', { name: 'Tiếp tục' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Quay lại' }));
-
-    const oMau = await screen.findByLabelText(/Văn bản mẫu/);
-    expect((oMau as HTMLSelectElement).value).toBe(MAU[0]!.id);
-    expect(screen.getByRole('button', { name: 'Tiếp tục' }).hasAttribute('disabled')).toBe(false);
-  });
-
-  it('hành động KHÔNG có xem trước vẫn là MỘT bước', async () => {
-    /*
-     * Chiều đối chiếu. Cho mọi hành động hai bước thì Trưởng bộ phận bấm *Ký số
-     * duyệt* xong phải bấm thêm một nút nữa để làm đúng việc vừa bấm.
+     * Cho mọi hành động hai bước thì Trưởng bộ phận bấm *Ký số duyệt* xong phải
+     * bấm thêm một nút nữa để làm đúng việc vừa bấm. Ca này có từ `0140` và ở
+     * lại nguyên vẹn: nó không nói gì về mẫu.
      */
     localStorage.setItem('csbh:phien', JSON.stringify(TBP));
     await mo(HO_SO, ['TBP_SIGN']);
@@ -802,26 +754,8 @@ describe('`0098` mẫu bản mềm: TDV chọn lúc gửi, các vai trò sau ch�
     expect(within(hop).getByRole('button', { name: /^Xác nhận/ })).toBeDefined();
     expect(within(hop).queryByRole('button', { name: 'Tiếp tục' })).toBeNull();
   });
-
-  it('hồ sơ ĐÃ GẮN MẪU: hộp xem bản mềm KHÔNG hỏi mẫu nào nữa', async () => {
-    /*
-     * Đây là câu yêu cầu nói thẳng: sau khi TDV gửi duyệt thì mọi vai trò khác
-     * chỉ XEM, không chọn. Trưởng bộ phận mở bản mềm ra phải thấy ngay nội dung,
-     * không thấy một danh sách mẫu để bấm.
-     */
-    const f = await mo({ ...HO_SO, status: 'CHO_TBP_DUYET', mauHoSoId: MAU[0]!.id });
-    fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
-
-    await waitFor(() => {
-      const d = f.mock.calls.map((c) => String(c[0]));
-      // Không hỏi danh sách mẫu, và đường xem KHÔNG mang `mauId` — máy chủ đọc
-      // mẫu từ chính hồ sơ, và nó từ chối một `mauId` khác (`TEMPLATE_LOCKED`).
-      expect(d.some((x) => x.includes('/policy-templates/available'))).toBe(false);
-      expect(d.some((x) => x.includes('/render') && x.includes('mauId='))).toBe(false);
-    });
-    expect(screen.queryByRole('button', { name: /Mẫu A4 dọc/ })).toBeNull();
-  });
 });
+
 
 describe('`0160` nút Bàn giao xám khi hồ sơ chưa có bản scan', () => {
   /*

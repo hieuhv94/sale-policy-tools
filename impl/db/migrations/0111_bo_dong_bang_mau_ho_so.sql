@@ -1,0 +1,55 @@
+-- `0163` — BẢN MỀM THÔI ĐÓNG BĂNG THEO HỒ SƠ.
+--
+-- Khách hàng chốt 29/08, ba câu đi cùng nhau và chỉ có nghĩa khi đi cùng nhau:
+--
+--   1. Bỏ mục *Xem bản mềm* của TDV, TBP và Kế toán — chỉ Sale Admin giữ.
+--   2. Bỏ việc chọn văn bản mẫu lúc TDV gửi duyệt; Sale Admin chọn lúc xem.
+--   3. Mẫu bản mềm KHÔNG đóng băng theo hồ sơ.
+--
+-- ---------------------------------------------------------------------------
+-- VÌ SAO BA CÂU ẤY LÀ MỘT CÂU
+-- ---------------------------------------------------------------------------
+--
+-- `0098` đóng băng mẫu vào hồ sơ, và lý lẽ khi ấy đúng với giả định khi ấy: bản
+-- mềm là **văn bản đi qua luồng duyệt**, nên nó phải bất biến từ lúc gửi tới lúc
+-- ký — người ký ở bước 10 phải thấy đúng tờ giấy người gửi ở bước 3 đã thấy.
+--
+-- Khách hàng vừa nói lại rằng giả định ấy không đúng: *"mục đích của bản mềm chỉ
+-- để in ra bản cứng tại thời điểm đó"*. Bản mềm không phải vật được duyệt — nó
+-- là thao tác IN của Sale Admin ở bước B8. Cái được duyệt là dữ liệu hồ sơ, và
+-- dữ liệu ấy vẫn đóng băng nguyên vẹn (`0022` cho dòng sản phẩm, `0101` cho
+-- thông tin khách hàng).
+--
+-- Khi bản mềm chỉ còn là thao tác in của MỘT người ở MỘT bước, thì:
+--   - chỉ người ấy cần nút (câu 1),
+--   - chỉ người ấy cần chọn mẫu, và chọn lúc in chứ không lúc gửi (câu 2),
+--   - không còn gì để đóng băng (câu 3).
+--
+-- ---------------------------------------------------------------------------
+-- CÁI MẤT, ghi ra để không ai phải đoán
+-- ---------------------------------------------------------------------------
+--
+-- **Hồ sơ đã ký in lại hôm nay có thể ra một tờ giấy KHÁC** hôm nó được ký, nếu
+-- Quản trị đã sửa mẫu ở giữa. Trước `0163` điều đó không xảy ra được. Đây là hệ
+-- quả trực tiếp của quyết định, và khách hàng chấp nhận nó: tờ giấy có giá trị
+-- pháp lý là BẢN CỨNG đã ký và đã scan, không phải bản mềm dựng lại.
+--
+-- **Người duyệt thôi xem được tờ CSBH.** Trưởng bộ phận ký dựa trên bảng dữ liệu
+-- trên màn hình chi tiết hồ sơ — vốn đã mang đủ mười ba mục của muc 11.1 — chứ
+-- không dựa trên bản dựng ra giấy.
+--
+-- **`0150` đảo chiều một nửa.** Chặng ấy ghi *"không có mẫu thì không hồ sơ nào
+-- gửi duyệt được"*, vì `SUBMIT` đòi `mauHoSoId`. Từ đây gửi duyệt không cần mẫu;
+-- thiếu mẫu chỉ chặn đúng thao tác IN của Sale Admin ở B8. `nap-danh-muc` thôi
+-- là bước cài đặt chặn cứng — xem `docs/04-TRIEN-KHAI.md`.
+
+-- --- Gỡ cột ------------------------------------------------------------------
+--
+-- Gỡ CỘT chứ không chỉ thôi ghi vào nó. Một cột không ai đặt nữa mà vẫn còn đó
+-- là một câu hỏi cho người đọc lược đồ sáu tháng sau, và câu trả lời đúng —
+-- *"mẫu nào đã dựng ra bản mềm của hồ sơ này"* — không còn tồn tại: từ đây câu
+-- ấy không có đáp án, vì bản mềm dựng lại mỗi lần in.
+--
+-- Không có gì để chuyển đi: dữ liệu trong cột là *"mẫu đã gắn"*, và khái niệm ấy
+-- vừa bị bỏ. `policy_event` vẫn giữ nguyên nhật ký của mọi lượt gửi duyệt.
+ALTER TABLE pol.policy DROP COLUMN IF EXISTS mau_ho_so_id;

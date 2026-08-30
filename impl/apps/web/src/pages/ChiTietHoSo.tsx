@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
-import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong } from '../lib/can.js';
+import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong, xemBanMemDuoc } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
@@ -26,7 +26,6 @@ import {
 } from '../components/SuaHoSo.js';
 import { Lien, useDuong } from '../lib/router.js';
 import {
-  CAN_XEM_TRUOC,
   oChonCua,
   type NguoiChon,
 } from '../lib/nguoi-xu-ly.js';
@@ -52,14 +51,7 @@ type HoSo = {
   appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
-  /**
-   * Mẫu bản mềm đã đóng băng lúc gửi duyệt (`0098`).
-   *
-   * `null` mang HAI nghĩa, phân biệt bằng chính trạng thái hồ sơ: hồ sơ còn sửa
-   * được thì là "TDV chưa chọn, và còn chọn được"; hồ sơ đã gửi duyệt thì là
-   * "lập trước `0098`, không có bản mềm".
-   */
-  mauHoSoId?: string | null;
+  /* `mauHoSoId` ĐÃ GỠ (`0163`) — mẫu thôi đóng băng theo hồ sơ. */
   /**
    * Đã có Sale Admin chưa (`0141`) — một cờ, không phải id.
    *
@@ -233,17 +225,26 @@ export function ChiTietHoSo({ id }: { id: string }) {
       <div className="dau-trang">
         <h1>{hoSo.code}</h1>
         {/*
-          *Xem bản mềm* đứng CÙNG HÀNG với các nút thao tác (`0054`).
+          *Xem bản mềm* đứng CÙNG HÀNG với các nút thao tác (`0054`), và từ
+          `0163` CHỈ SALE ADMIN thấy nó.
 
-          Nó không phải thao tác ghi nên không phạm `FE-23`, và nó mở cho cả năm
-          vai trò đọc được hồ sơ — kể cả Ban lãnh đạo, vốn không có nút nào khác.
-          Vì thế nhóm nút này KHÔNG còn điều kiện `thaoTac.length > 0`: trước
-          `0054` vai trò chỉ-đọc không thấy nhóm nút nào cả.
+          Tới `0162` nó mở cho cả năm vai trò đọc được hồ sơ, kể cả Ban lãnh đạo.
+          Khách hàng chốt 29/08 rằng bản mềm không phải văn bản đi qua luồng
+          duyệt mà là thao tác IN của Sale Admin ở bước B8 — nên chỉ người ấy cần
+          nút. Hỏi lại riêng về Ban lãnh đạo và họ chốt đúng chữ *"chỉ giữ ở
+          SA"*, dù đó là nút duy nhất trên trang này của vai trò chỉ-đọc.
+
+          Máy chủ chặn cùng luật ở `RenderController` (`READERS`), nên ẩn nút chỉ
+          là đừng bày ra một thứ bấm vào chỉ nhận 403. Tên vai trò khai ở
+          `can.ts` chứ không viết thẳng ở đây — `tests/web/quyen.test.ts` cấm, và
+          cái cấm ấy là thứ giữ cho một quyền không có hai bản.
         */}
         <div className="nhom-nut nhom-nut-dau">
-          <button type="button" className="nut nut-nhe" onClick={() => datMoBanMem(true)}>
-            Xem bản mềm
-          </button>
+          {xemBanMemDuoc(nguoiDung?.role) && (
+            <button type="button" className="nut nut-nhe" onClick={() => datMoBanMem(true)}>
+              Xem bản mềm
+            </button>
+          )}
           {/*
             *Xuất hợp đồng* và *Xoá hồ sơ* LÊN ĐÂY từ `0071`.
 
@@ -476,22 +477,16 @@ export function ChiTietHoSo({ id }: { id: string }) {
         tiêu đề dẫn sang màn hình khác, và một liên kết như thế thì phần lớn
         người dùng không biết là có.
       */}
-      {moBanMem && (
-        <XemBanMem
-          hoSoId={hoSo.id}
-          maHoSo={hoSo.code}
-          /*
-            `0098` — hồ sơ đã gửi duyệt thì mẫu đã đóng băng, không hỏi lại nữa.
+      {/*
+        `0163` — LUÔN hỏi mẫu, ở mọi trạng thái hồ sơ.
 
-            `dangSua` chứ không phải `hoSo.mauHoSoId != null`: hồ sơ *Yêu cầu
-            chỉnh sửa* VẪN mang mẫu của lần gửi trước, nhưng người lập đang soạn
-            lại nó và có quyền đổi. Đọc mỗi cột mẫu thì họ mất ô chọn ở đây trong
-            khi máy chủ vẫn cho đổi — giao diện hẹp hơn luật, và hẹp ở đúng chỗ
-            người dùng cần.
-          */
-          mauDaGan={dangSua ? null : hoSo.mauHoSoId}
-          dong={() => datMoBanMem(false)}
-        />
+        Tới `0162` chỗ này truyền `mauDaGan`: hồ sơ đã gửi duyệt mang sẵn mẫu
+        đóng băng của nó nên hộp mở ra là thấy ngay nội dung. Không còn "mẫu của
+        hồ sơ" nữa — mẫu là tham số của lượt IN — nên hộp này giống hệt hộp xuất
+        hợp đồng ngay dưới: chọn mẫu, rồi mới dựng.
+      */}
+      {moBanMem && (
+        <XemBanMem hoSoId={hoSo.id} maHoSo={hoSo.code} dong={() => datMoBanMem(false)} />
       )}
 
       {moHopDong && (
@@ -599,12 +594,14 @@ export function ChiTietHoSo({ id }: { id: string }) {
  *
  *   1. **Lý do** — `CAN_LY_DO` (trả lại, từ chối, yêu cầu in lại).
  *   2. **Chọn người xử lý bước sau** — `oChonCua` (`0031`, `0141`).
- *   3. **Xem trước bản CSBH A4** — `CAN_XEM_TRUOC`, chỉ lúc gửi duyệt.
  *
- * Nút xác nhận KHOÁ tới khi cả ba phần đủ. Với bản xem trước, "đủ" nghĩa là đã
- * tải xong và hiện ra — không phải người dùng đã cuộn hết. Ép cuộn là thứ người
- * ta học cách bấm qua trong ba ngày, còn bày ra toàn văn thì ít nhất người muốn
- * đọc có chỗ để đọc.
+ * PHẦN THỨ BA — *xem trước bản CSBH A4* — ĐÃ GỠ (`0163`). Nó tồn tại vì `0098`
+ * bắt người gửi duyệt chọn văn bản mẫu, và `0140` tách nó ra thành bước hai để
+ * tờ giấy đọc được. Bản mềm giờ là thao tác in của Sale Admin ở bước B8, nên
+ * người gửi duyệt không có văn bản mẫu nào để chọn và không có gì để xem trước.
+ * Hộp thoại quay về MỘT bước, như trước `0140`.
+ *
+ * Nút xác nhận KHOÁ tới khi cả hai phần còn lại đủ.
  */
 function HopThoaiHanhDong({
   hanhDong,
@@ -625,36 +622,12 @@ function HopThoaiHanhDong({
   const canLyDo = CAN_LY_DO.has(hanhDong);
   // `0141` — bước nào hỏi ai phụ thuộc cả trạng thái hồ sơ, không chỉ hành động.
   const oChon = oChonCua(hanhDong, { daChonSaleAdmin });
-  const canXem = CAN_XEM_TRUOC.has(hanhDong);
 
   const [lyDo, datLyDo] = useState('');
   const [chon, datChon] = useState<Record<string, string>>({});
   const [nguoi, datNguoi] = useState<Record<string, NguoiChon[]> | null>(null);
-  const [xemUrl, datXemUrl] = useState<string | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
-  /** Mẫu bản mềm TDV chọn, chỉ ở hai bước gửi duyệt (`0098`). */
-  const [dsMau, datDsMau] = useState<MauChon[] | null>(null);
-  const [mauId, datMauId] = useState('');
-  /**
-   * HAI BƯỚC của lượt gửi duyệt (`0140`, khách hàng chốt 27/08).
-   *
-   *   `chon` — chọn Trưởng bộ phận, Kế toán và văn bản mẫu;
-   *   `xem`  — đọc bản mềm ở cỡ hộp XEM TRƯỚC, rồi mới bấm *Gửi duyệt*.
-   *
-   * Tới `0139` cả ba việc nằm trong MỘT hộp, và bản xem trước bị kẹp giữa ô chọn
-   * mẫu với hai ô chọn người — cao chừng nửa màn hình, tức đọc được cái đầu đề
-   * chứ không đọc được tờ giấy. Người dùng cuộn qua nó để tới nút Xác nhận.
-   *
-   * Tách đôi đổi bản chất bước thứ hai: nó thôi là một khối trang trí giữa biểu
-   * mẫu và trở thành VIỆC DUY NHẤT của màn hình ấy — đọc đúng thứ mình sắp gửi,
-   * ở đúng cỡ đọc được.
-   *
-   * Chỉ hành động CÓ xem trước mới có hai bước; duyệt, trả lại, từ chối vẫn là
-   * một hộp như cũ.
-   */
-  const [buoc, datBuoc] = useState<'chon' | 'xem'>('chon');
-
   // Danh sách người cho từng ô. Tải MỘT lượt cho cả hộp thoại; hai ô của bước
   // gửi duyệt hỏi hai vai trò khác nhau nên vẫn là hai lời gọi, nhưng chúng chạy
   // song song chứ không nối tiếp.
@@ -676,62 +649,7 @@ function HopThoaiHanhDong({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hanhDong]);
 
-  // Danh sách mẫu cho ô chọn — chỉ tải ở hai bước có xem trước (`0098`).
-  useEffect(() => {
-    if (!canXem) return;
-    const huy = new AbortController();
-    layJson<MauChon[]>('/policy-templates/available', huy.signal)
-      .then(datDsMau)
-      .catch((e: unknown) => {
-        if (!huy.signal.aborted) datLoi(e);
-      });
-    return () => huy.abort();
-  }, [canXem]);
-
-  /*
-   * Bản A4 tải về bộ nhớ rồi nhúng. Thu hồi `blob:` khi đóng — xem `xemTruoc`.
-   *
-   * KÈM `mauId` từ `0098`, và dựng LẠI mỗi lần đổi mẫu: mỗi mẫu có tập cột
-   * riêng, nên đổi mẫu mà giữ nguyên bản đang hiện là bày ra một bản không phải
-   * bản sắp gửi. Chưa chọn mẫu thì không gọi gì cả — máy chủ sẽ từ chối, và một
-   * lỗi đỏ hiện ra trước khi người dùng kịp làm gì sai là một lỗi nói dối.
-   *
-   * `TBP_SIGN` KHÔNG nằm trong `CAN_XEM_TRUOC` nên không đi qua đây; hộp ký số
-   * của Trưởng bộ phận không có ô chọn mẫu, và bản mềm họ mở dựng bằng đúng mẫu
-   * hồ sơ đã gắn.
-   */
-  useEffect(() => {
-    if (!canXem || mauId === '') return;
-    let url: string | null = null;
-    let song = true;
-    datXemUrl(null);
-    xemTruoc(`/policies/${hoSoId}/render?mauId=${mauId}`)
-      .then((x) => {
-        url = x.url;
-        if (song) datXemUrl(x.url);
-        else URL.revokeObjectURL(x.url);
-      })
-      .catch(datLoi);
-    return () => {
-      song = false;
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [canXem, hoSoId, mauId]);
-
   const thieuNguoi = oChon.some((o) => !chon[o.truong]);
-  /** Khổ giấy của mẫu đang chọn — để khung xem trước mang đúng hình (`0129`). */
-  const khoGiayMau = dsMau?.find((m) => m.id === mauId)?.khoGiay ?? null;
-  /*
-   * `chuaXem` ĐÃ GỠ (`0140`) — hai điều kiện tách ra hai bước.
-   *
-   * Nó từng khoá nút *Xác nhận* cho tới khi bản xem trước tải xong, vì cả hai
-   * việc nằm chung một hộp. Giờ *"đã chọn mẫu"* khoá nút ở bước MỘT, còn *"bản
-   * xem trước đã tải xong"* khoá nút *Gửi duyệt* ở bước HAI — mỗi điều kiện
-   * canh đúng cái nút mà nó nói về.
-   *
-   * Máy chủ vẫn chặn lần thứ hai bằng `TEMPLATE_REQUIRED`.
-   */
-
   const gui = async () => {
     datLoi(null);
     datDangGui(true);
@@ -739,10 +657,6 @@ function HopThoaiHanhDong({
       await dang(`/policies/${hoSoId}/actions/${hanhDong}`, {
         rowVersion,
         ...(canLyDo ? { reason: lyDo.trim() } : {}),
-        // `canXem` là đúng tập hai hành động gửi duyệt (`CAN_XEM_TRUOC`), tức
-        // đúng hai chỗ máy chủ đóng băng mẫu. Gửi kèm ở hành động khác thì máy
-        // chủ bỏ qua, nhưng gửi thừa vẫn là nói một điều không có nghĩa.
-        ...(canXem ? { mauHoSoId: mauId } : {}),
         ...chon,
       });
       xong();
@@ -764,133 +678,8 @@ function HopThoaiHanhDong({
    * đúng: hộp bước một giờ chỉ còn ba ô chọn.
    */
 
-  /*
-   * BƯỚC HAI — hộp XEM TRƯỚC, cùng cỡ với hộp *Xem bản mềm* (`0140`).
-   *
-   * Cỡ hộp KHÔNG đặt bằng `co`: `tyLe` bật `.hop-thoai-xem`, nơi bề rộng suy ra
-   * từ `--cao-khung × tỷ lệ tờ giấy` (`0073`). Đó là khác biệt cả điểm của lượt
-   * này — khung cao hết phần màn hình còn lại thay vì `min(52dvh, 560px)` bị kẹp
-   * giữa biểu mẫu, và tờ A4 đọc được chứ không chỉ nhìn được.
-   *
-   * Khổ giấy lấy từ mẫu ĐANG CHỌN; mẫu chưa khai khổ thì `TY_LE_MAC_DINH` (A4
-   * dọc), cùng đường lùi mà `XemTep` dùng.
-   */
-  if (canXem && buoc === 'xem') {
-    return (
-      <HopThoai
-        tieuDe={`${HANH_DONG_NHAN[hanhDong] ?? hanhDong} — đọc lại bản mềm`}
-        dong={dong}
-        tyLe={khoGiayMau ? TY_LE_KHO[khoGiayMau] : TY_LE_MAC_DINH}
-        giay
-      >
-        <p className="ghi-chu">
-          Đây đúng là bản người duyệt sẽ đọc. Bấm <strong>Gửi duyệt</strong> thì{' '}
-          <strong>giá, ngưỡng và văn bản mẫu đóng băng</strong>, và mọi chỉnh sửa đều phải đi một
-          vòng trả lại.
-        </p>
-
-        {xemUrl === null ? (
-          <DangTai />
-        ) : (
-          /*
-           * `.khung-xem` chứ không `.khung-pdf`: nó đọc `--cao-khung` của chính
-           * hộp thoại, nên khung với hộp luôn cùng một phép tính.
-           *
-           * `0146` thêm `.khung-giay` và `#view=FitH`: hộp giữ một bề rộng ổn
-           * định, tờ giấy phóng to cho vừa. Hộp này phải đi cùng hộp *Xem bản
-           * mềm* tới từng chi tiết — người dùng đọc cùng một tờ giấy ở hai chỗ,
-           * và `0140` dựng nó ra chính vì lý do ấy.
-           */
-          <iframe
-            className="khung-xem khung-giay"
-            src={`${xemUrl}#view=FitH`}
-            title="Bản mềm CSBH"
-          />
-        )}
-
-        {loi !== null && <BaoLoi loi={loi} />}
-        <div className="nhom-nut">
-          <button
-            type="button"
-            className="nut nut-chinh"
-            disabled={dangGui || xemUrl === null}
-            onClick={gui}
-          >
-            {dangGui ? 'Đang gửi…' : 'Gửi duyệt'}
-          </button>
-          {/*
-            QUAY LẠI, không phải Huỷ: người dùng tới đây để ĐỌC, và thứ họ hay
-            muốn sau khi đọc là đổi mẫu hoặc đổi người duyệt — chứ không phải bỏ
-            cả lượt gửi. Nút Huỷ vẫn còn ở bước một.
-          */}
-          <button type="button" className="nut nut-nhe" onClick={() => datBuoc('chon')}>
-            Quay lại
-          </button>
-        </div>
-      </HopThoai>
-    );
-  }
-
   return (
     <HopThoai tieuDe={HANH_DONG_NHAN[hanhDong] ?? hanhDong} dong={dong}>
-      {canXem && (
-        <>
-          {/*
-            Ô CHỌN MẪU ĐỨNG TRƯỚC BẢN XEM TRƯỚC (`0098`).
-
-            Thứ tự này là cả nội dung của bước: chọn bản trình bày, rồi ĐỌC ĐÚNG
-            bản ấy, rồi mới gửi. Đặt ô chọn xuống dưới thì người dùng đọc xong
-            bản mẫu A rồi mới thấy có thể đổi sang B — và cái họ vừa duyệt bằng
-            mắt không phải cái họ sắp gửi đi.
-          */}
-          <Truong id="chon-mau-ho-so" nhan="Văn bản mẫu cho bản mềm" bắtBuộc>
-            {(p) => (
-              <>
-                <select
-                  {...p}
-                  className="o-nhap"
-                  value={mauId}
-                  onChange={(e) => datMauId(e.target.value)}
-                >
-                  <option value="">— Chọn mẫu —</option>
-                  {(dsMau ?? []).map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.ten}
-                      {m.khoGiay ? ` · ${NHAN_KHO[m.khoGiay]}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <span className="ghi-chu">
-                  Mẫu này <strong>gắn với hồ sơ</strong> từ lúc gửi. Người duyệt xem đúng bản bạn
-                  chọn ở đây và không đổi được.
-                </span>
-                {dsMau !== null && dsMau.length === 0 && (
-                  <span className="ghi-chu canh-bao">
-                    Chưa có văn bản mẫu nào đang dùng được. Đề nghị Quản trị hệ thống thêm một mẫu ở
-                    màn hình Văn bản mẫu.
-                  </span>
-                )}
-              </>
-            )}
-          </Truong>
-
-          {/*
-            BẢN XEM TRƯỚC ĐÃ SANG BƯỚC HAI (`0140`).
-
-            Chỗ này từng là một khung PDF cao `min(52dvh, 560px)` kẹp giữa ô chọn
-            mẫu và hai ô chọn người. Nó ở lại đây thì bước một dài gấp đôi, và tờ
-            giấy vẫn không đọc nổi — hai cái hỏng cùng lúc.
-
-            Câu dưới đây thay nó, và nó nói ra thứ người dùng cần biết trước khi
-            bấm: còn một bước nữa, và bước ấy mới là bước gửi.
-          */}
-          <p className="ghi-chu">
-            Bấm <strong>Tiếp tục</strong> để đọc lại bản mềm dựng bằng mẫu vừa chọn. Hồ sơ{' '}
-            <strong>chưa gửi đi</strong> ở bước này.
-          </p>
-        </>
-      )}
-
       {oChon.map((o) => (
         <Truong key={o.truong} id={`chon-${o.truong}`} nhan={o.nhan} bắtBuộc>
           {(p) => (
@@ -935,7 +724,7 @@ function HopThoaiHanhDong({
           )}
         </Truong>
       )}
-      {!canLyDo && oChon.length === 0 && !canXem && <p>Xác nhận thực hiện thao tác này?</p>}
+      {!canLyDo && oChon.length === 0 && <p>Xác nhận thực hiện thao tác này?</p>}
       {loi !== null && <BaoLoi loi={loi} />}
       {/*
         MỘT nút, hai việc khác nhau (`0140`).
@@ -953,11 +742,11 @@ function HopThoaiHanhDong({
           type="button"
           className="nut nut-chinh"
           disabled={
-            dangGui || (canLyDo && lyDo.trim().length === 0) || thieuNguoi || (canXem && mauId === '')
+            dangGui || (canLyDo && lyDo.trim().length === 0) || thieuNguoi
           }
-          onClick={canXem ? () => datBuoc('xem') : gui}
+          onClick={gui}
         >
-          {canXem ? 'Tiếp tục' : dangGui ? 'Đang gửi…' : 'Xác nhận'}
+          {dangGui ? 'Đang gửi…' : 'Xác nhận'}
         </button>
         <button type="button" className="nut nut-nhe" onClick={dong}>
           Huỷ

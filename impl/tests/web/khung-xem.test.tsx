@@ -410,16 +410,17 @@ describe('`0129` hộp thoại đủ rộng', () => {
 
   it('`0146` mọi khung TỜ GIẤY đều xin trình xem PDF vừa bề rộng', () => {
     /*
-     * Hai chỗ dựng khung tờ giấy — hộp *Xem bản mềm* (`XemTep`) và bước hai của
-     * lượt gửi duyệt (`ChiTietHoSo`, `0140`). Người dùng đọc CÙNG một tờ giấy ở
-     * hai chỗ ấy, nên một chỗ có `#view=FitH` mà chỗ kia không là hai bản trình
-     * bày khác nhau của cùng một hồ sơ.
-     *
      * Quét nguồn vì phép này không đo được bằng jsdom lẫn bằng CSS: nó nằm ở
      * chuỗi `src`. Đòi ĐỦ hai điều kiện trên cùng một khung — có `khung-giay`
      * thì phải có `FitH` — chứ không đếm riêng từng chuỗi trong tệp.
+     *
+     * `0146` quét HAI tệp: `XemTep` và bước hai của lượt gửi duyệt
+     * (`ChiTietHoSo`, `0140`). `0163` gỡ bước hai — TDV thôi chọn mẫu nên thôi
+     * có bản xem trước — nên chỉ còn một chỗ dựng khung tờ giấy. Danh sách rút
+     * còn một tệp chứ KHÔNG bỏ ca: cái nó canh là "mọi khung tờ giấy đều xin
+     * `FitH`", và câu ấy vẫn phải đúng ở chỗ duy nhất còn lại.
      */
-    for (const tep of ['apps/web/src/components/XemTep.tsx', 'apps/web/src/pages/ChiTietHoSo.tsx']) {
+    for (const tep of ['apps/web/src/components/XemTep.tsx']) {
       const src = readFileSync(tep, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
       const khung = [...src.matchAll(/<iframe[\s\S]*?\/>/g)]
         .map((m) => m[0])

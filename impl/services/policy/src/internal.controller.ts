@@ -58,7 +58,6 @@ export class PolicyInternalController {
               da_qua_tbp,
               -- 0098: mẫu đã đóng băng lúc gửi duyệt. document dựng bản mềm
               -- bằng đúng cột này chứ không hỏi người xem nữa.
-              mau_ho_so_id,
               -- 0101: khách hàng và hai cái tên, đóng băng lúc gửi duyệt.
               -- Rỗng nghĩa là chưa gửi duyệt hoặc lập trước 0101 — khi ấy
               -- document đọc sống, xem khachHangCua.
