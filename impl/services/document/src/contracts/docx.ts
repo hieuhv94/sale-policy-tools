@@ -59,8 +59,27 @@ const rezip = (buf: Buffer, xml: string): Buffer => {
 };
 
 /** Chữ hiển thị của một đoạn XML, bỏ hết thẻ. */
+/**
+ * Chữ của một đoạn văn — nối nội dung mọi `<w:t>`, bỏ qua mọi thẻ khác.
+ *
+ * `(?:\s[^>]*)?` CHỨ KHÔNG `[^>]*`, và đó là cả một lỗi `0165` phải đi vá.
+ *
+ * `[^>]*` cho `<w:t` nuốt luôn **`<w:tabs>`** và **`<w:tab/>`** — hai thẻ TAB
+ * của Word, vì `abs>` và `ab/>` đều khớp. Hậu quả không phải mất một ký tự: bộ
+ * quét chạy tiếp tới `</w:t>` THẬT ở cuối run kế tiếp, nên nó trả về **cả khối
+ * markup nằm giữa** dưới dạng "chữ" — rồi `setParagraphText` escape khối ấy và
+ * in nguyên `&lt;w:rPr&gt;…` ra tờ giấy.
+ *
+ * Ai cũng dính, không riêng mẫu của phần mềm: **tab stop là cách căn cột thông
+ * thường nhất trong Word**, nên bất kỳ mẫu nào Quản trị tự soạn mà có một điểm
+ * dừng tab đều in ra XML. Lỗi nằm ở đây từ `0051`, và chỉ lộ ra ở `0165` vì đây
+ * là lượt đầu tiên phần mềm tự sinh ra một mẫu có tab.
+ *
+ * `setParagraphText` ngay dưới VỐN ĐÃ viết đúng — một chỗ đúng, một chỗ sai, và
+ * hai chỗ ấy cách nhau mười lăm dòng.
+ */
 const textOf = (xml: string): string =>
-  [...xml.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map((m) => m[1] ?? '').join('');
+  [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map((m) => m[1] ?? '').join('');
 
 const esc = (v: string): string =>
   v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -282,6 +301,32 @@ export const para = (text: string): string =>
   `<w:p><w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
 
 /**
+ * Cách trình bày một ô bảng (`0165`).
+ *
+ * Bốn thuộc tính, và cả bốn đọc ra được từ hai file khách hàng gõ tay — xem
+ * `bang-san-pham.ts` để biết cột nào lấy gì. Tất cả đều TUỲ CHỌN: bảng của mẫu
+ * hợp đồng vẫn gọi `cell(text)` như trước và ra đúng kết quả cũ.
+ */
+export type KieuO = {
+  /** Mã màu RRGGBB, không có dấu `#`. Bỏ trống là ô trắng. */
+  nen?: string;
+  canh?: 'left' | 'center' | 'right';
+  dam?: boolean;
+};
+
+/**
+ * Đoạn văn trong một ô bảng, có căn lề và in đậm (`0165`).
+ *
+ * Tách khỏi `para` chứ không thêm tham số cho nó: `para` còn phục vụ thân văn
+ * bản của `makeDocx`, nơi không có khái niệm ô nào cả.
+ */
+const paraO = (text: string, k: KieuO): string => {
+  const pPr = k.canh === undefined ? '' : `<w:pPr><w:jc w:val="${k.canh}"/></w:pPr>`;
+  const rPr = k.dam === true ? '<w:rPr><w:b/></w:rPr>' : '';
+  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
+};
+
+/**
  * Ô bảng rộng THEO TỶ LỆ, không theo số twip cố định (`0055`).
  *
  * Bản trước cho mỗi ô 1800 twip. Với bảng bốn cột của mẫu hợp đồng thì vừa; với
@@ -293,12 +338,23 @@ export const para = (text: string): string =>
  * vừa cả khổ dọc lẫn khổ ngang — điều bắt buộc, vì mẫu hai khổ dùng chung một
  * hàm dựng bảng.
  */
-const cell = (text: string, phanTram?: number): string => {
+const cell = (text: string, phanTram?: number, kieu: KieuO = {}): string => {
   const w =
     phanTram === undefined
       ? '<w:tcW w:w="0" w:type="auto"/>'
       : `<w:tcW w:w="${Math.round(phanTram)}" w:type="pct"/>`;
-  return `<w:tc><w:tcPr>${w}</w:tcPr>${para(text)}</w:tc>`;
+  /*
+   * THỨ TỰ TRONG `<w:tcPr>` LÀ BẮT BUỘC, không phải sở thích.
+   *
+   * `CT_TcPr` của OOXML là một `xsd:sequence`: `tcW` → `gridSpan` → … → `shd` →
+   * … → `vAlign`. Đặt `shd` trước `tcW` thì Word từ chối mở file — còn
+   * LibreOffice vẫn mở bình thường, nên lỗi này không lộ ra ở bản PDF do máy chủ
+   * dựng. Cùng đúng cái bẫy `0135` đã ghi cho `styles.xml`.
+   */
+  const shd = kieu.nen === undefined ? '' : `<w:shd w:val="clear" w:color="auto" w:fill="${kieu.nen}"/>`;
+  // Căn giữa theo CHIỀU DỌC ở mọi ô: hàng tiêu đề có ô một dòng và ô hai dòng
+  // (`Giá bán buôn` xuống dòng ở cột hẹp), và chữ dính mép trên trông như lỗi in.
+  return `<w:tc><w:tcPr>${w}${shd}<w:vAlign w:val="center"/></w:tcPr>${paraO(text, kieu)}</w:tc>`;
 };
 
 /**
@@ -310,15 +366,20 @@ const cell = (text: string, phanTram?: number): string => {
  *   - `w:cantSplit` — không cắt đôi một hàng qua hai trang. Nửa dòng ở cuối
  *     trang này, nửa kia ở đầu trang sau, và người ký đối chiếu nhầm cột.
  */
-export const tableRow = (cells: string[], tieuDe = false, trongSo?: number[]): string => {
+export const tableRow = (
+  cells: string[],
+  tieuDe = false,
+  trongSo?: number[],
+  kieu?: KieuO[],
+): string => {
   const pr = tieuDe
     ? '<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>'
     : '<w:trPr><w:cantSplit/></w:trPr>';
   const tong = trongSo?.reduce((a, b) => a + b, 0);
   const o = cells.map((c, i) =>
     trongSo === undefined || tong === undefined || tong === 0
-      ? cell(c)
-      : cell(c, (5000 * (trongSo[i] ?? 1)) / tong),
+      ? cell(c, undefined, kieu?.[i] ?? {})
+      : cell(c, (5000 * (trongSo[i] ?? 1)) / tong, kieu?.[i] ?? {}),
   );
   return `<w:tr>${pr}${o.join('')}</w:tr>`;
 };
@@ -391,12 +452,20 @@ export const table = (rowsXml: string[], coDinh = false, trongSo?: number[]): st
      * mệt, và cột số dính nhau thì mắt không tách được hai con số kề nhau.
      */
     `<w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar>` +
-    `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="999999"/>` +
-    `<w:left w:val="single" w:sz="4" w:color="999999"/>` +
-    `<w:bottom w:val="single" w:sz="4" w:color="999999"/>` +
-    `<w:right w:val="single" w:sz="4" w:color="999999"/>` +
-    `<w:insideH w:val="single" w:sz="4" w:color="999999"/>` +
-    `<w:insideV w:val="single" w:sz="4" w:color="999999"/></w:tblBorders>` +
+    /*
+     * Màu đường kẻ `D3D3D3` — đọc từ hai file khách hàng gõ tay (`0165`).
+     *
+     * Bản trước dùng `999999`, đậm hơn hẳn. Trên một bảng mười một cột thì đường
+     * kẻ đậm át cả con số: cái mắt bắt được trước tiên là cái lưới, không phải
+     * dữ liệu. Đây là chỗ khách hàng đã tự chọn khi họ vẽ tờ mẫu, nên lấy đúng
+     * con số ấy chứ không đoán một mức xám khác.
+     */
+    `<w:tblBorders><w:top w:val="single" w:sz="4" w:color="D3D3D3"/>` +
+    `<w:left w:val="single" w:sz="4" w:color="D3D3D3"/>` +
+    `<w:bottom w:val="single" w:sz="4" w:color="D3D3D3"/>` +
+    `<w:right w:val="single" w:sz="4" w:color="D3D3D3"/>` +
+    `<w:insideH w:val="single" w:sz="4" w:color="D3D3D3"/>` +
+    `<w:insideV w:val="single" w:sz="4" w:color="D3D3D3"/></w:tblBorders>` +
     `</w:tblPr>${grid}${rowsXml.join('')}</w:tbl>`
   );
 };

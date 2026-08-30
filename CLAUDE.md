@@ -87,7 +87,27 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P192** (`0164`): **hộp xem văn bản phóng to gần hết màn hình, ảnh thì vừa cỡ thật**.
+Chặng gần nhất **P193** (`0165`): **loại mẫu thứ ba, ba mẫu mặc định đi cùng hệ thống, bảng sản phẩm
+đúng màu**. `HO_SO_RUT_GON` là một LOẠI chứ không phải một cờ, vì `cot_bang` không nói được ba thứ:
+một **thẻ riêng**, một **mẫu mặc định riêng** (khoá idempotent `(kind, name)`), và **tập cột suy từ
+loại**. Chỗ nguy hiểm nhất: `tsc` chỉ ra mọi chỗ khai `Loai` thiếu nhánh nhưng **không chỉ ra một
+truy vấn viết `kind = 'HO_SO'`** — vẫn dịch, vẫn chạy, chỉ là mẫu rút gọn **vô hình** với Sale Admin;
+nên có hằng `LOAI_HO_SO` và một ca đi hết đường thật (dựng mẫu → tìm trong ô chọn `sa01` → dựng PDF).
+**MỘT controller** cho hai loại hồ sơ: lý do tách `PolicyTemplates` khỏi `ContractTemplates` là *"hai
+tập vai trò khác hẳn"*, không áp được ở đây. **Hai lỗi thật tìm ra bằng cách IN RA GIẤY**: `textOf`
+khớp `<w:t[^>]*>` nên nuốt luôn `<w:tabs>`/`<w:tab/>` rồi trả cả khối markup về dưới dạng "chữ" —
+**mọi mẫu Word có tab stop đều in ra XML**, lỗi nằm đó từ `0051`, và `setParagraphText` cách đó mười
+lăm dòng vốn đã viết đúng; và `setParagraphText` dồn cả đoạn vào `<w:t>` đầu, nên **một đoạn văn chỉ
+mang được MỘT vị trí chữ** — khối chỗ ký phải là một BẢNG, mỗi cột một ô. Hai `<w:tbl>` liền nhau thì
+Word **gộp làm một**. `0134` bắt được lỗ hổng thật ở hai mẫu mới: thiếu `chuc_danh_dai_dien` và
+`dien_thoai`, hai trường `chan-moi`. **Đảo một nửa `0150`**: vẫn không TỰ DỰNG thân mẫu bằng mã, chỉ
+NẠP ba file `.docx`; và không mọc lại sau khi vô hiệu, vì câu hỏi là *"đã từng nạp chưa"* (tính cả
+dòng đã tắt) chứ không phải *"còn mẫu dùng được không"*. Hai lượt phá lại XANH: bỏ chốt "đã nạp chưa"
+(vì `uq_template_ten` mới là chốt thật — nhưng `luu()` tải file lên MinIO TRƯỚC khi ghi CSDL, nên mỗi
+lượt để lại ba object mồ côi), và **đổi tên một mẫu mặc định** — một lỗ thật, đã thêm ca ghim tên.
+**1947/1947 xanh.**
+
+Trước đó **P192** (`0164`): **hộp xem văn bản phóng to gần hết màn hình, ảnh thì vừa cỡ thật**.
 Năm câu trong một yêu cầu, và chúng không cùng một việc. Vế *"đè lên thanh bar bên trái"* **đã đúng
 sẵn** — `.lop-phu` là `fixed; inset: 0; z-index: 50` còn thanh bên ở 40 — nên lượt này chỉ viết ra
 một bất biến chưa ai canh; cái làm hộp TRÔNG nhỏ là trần `--cao-khung` và bề rộng cố định 900px.
@@ -655,6 +675,20 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
   một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
   thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
+- **BA loại văn bản mẫu** (`0165`): `HO_SO` (đầy đủ) · `HO_SO_RUT_GON` · `HOP_DONG`. Hai loại hồ sơ
+  khác nhau **đúng một chuyện — tập cột bảng sản phẩm** — và tập ấy **suy từ loại** (`COT_RUT_GON`,
+  sáu cột), không do người soạn khai. Ba thẻ của Quản trị là ba danh sách rời; **ô chọn của Sale
+  Admin trộn chung hai loại hồ sơ**, nên mọi đường tra một mẫu hồ sơ nhận `LOAI_HO_SO` chứ không
+  `'HO_SO'` — `tsc` không bắt được chỗ sót ấy. **Ba mẫu MẶC ĐỊNH nạp lúc khởi động** từ
+  `templates/default/`, idempotent theo `(kind, name)` **tính cả dòng đã vô hiệu hoá**; tên mẫu bị
+  ghim bằng ca kiểm, vì đổi tên là nạp thêm một bản thứ hai trên mọi hệ đang chạy. `nap-danh-muc` và
+  `seed-demo` **thôi tạo mẫu nào**.
+- **Một đoạn văn của mẫu chỉ mang được MỘT vị trí chữ** (`0165`). `setParagraphText` dồn toàn bộ chữ
+  vào `<w:t>` ĐẦU TIÊN rồi làm rỗng các `<w:t>` còn lại, nên nhiều ô trống trong một đoạn — dù cách
+  nhau bằng tab — trộn xong đều về một chỗ. Muốn nhiều cột thì dùng **bảng**, mỗi cột một ô. Kèm hai
+  bẫy đo được: hai `<w:tbl>` liền nhau thì Word **gộp làm một bảng**, và thứ tự trong `<w:tcPr>` là
+  `xsd:sequence` (`tcW` → `shd` → `vAlign`) — sai thứ tự thì **Word không mở được file còn
+  LibreOffice vẫn mở**, nên bản PDF máy chủ dựng không lộ ra gì.
 - **Mẫu bản mềm KHÔNG đóng băng, và bản mềm CHỈ của Sale Admin** (`0163`, đảo `0098`). Cột
   `pol.policy.mau_ho_so_id` **gỡ hẳn** (`0111`). Bản mềm không phải văn bản đi qua luồng duyệt — nó
   là **thao tác IN của Sale Admin ở B8**; cái được duyệt là dữ liệu hồ sơ, và dữ liệu ấy vẫn đóng

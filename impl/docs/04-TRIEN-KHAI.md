@@ -36,7 +36,7 @@ Mười ba bước. Cột cuối nói bước ấy **bắt buộc phải sau bư
 | 7 | Tài khoản Quản trị đầu tiên | `./csbh mo-tai-khoan` | 6 | **chỉ chạy được một lần**: nó từ chối khi CSDL đã có tài khoản |
 | 8 | Đăng nhập giao diện, **đổi mật khẩu** | *(trên màn hình)* | 7 | cho tới lúc này **mọi đường API trả 403** — bước 9 và 10 đều chặn |
 | 9 | Kiểm thư đầu-cuối: tạo một tài khoản thật, nhận thư mời, kích hoạt | *(trên màn hình)* | 8 | bước hay bị bỏ nhất và hỏng nhiều nhất |
-| 10 | Nạp dữ liệu ban đầu | tự khai, **hoặc** `./csbh nap-danh-muc` | 8 | lệnh nạp đòi tài khoản đã đổi mật khẩu, và từ chối khi danh mục đã có sản phẩm |
+| 10 | Nạp danh mục ban đầu | tự khai, **hoặc** `./csbh nap-danh-muc` | 8 | lệnh nạp đòi tài khoản đã đổi mật khẩu, và từ chối khi danh mục đã có sản phẩm. **Văn bản mẫu KHÔNG cần nạp** `sửa 30/08` |
 | 11 | Nghiệm thu: vòng mười bước, xuất hợp đồng, `pg_stat_archiver`, `dien-tap` | | 10 | phải có sản phẩm mới lập được hồ sơ |
 | 12 | Cài lịch tự động | `cp deploy/cron.mau /etc/cron.d/csbh` | 6 | làm được sớm hơn, nhưng **đừng giao khi chưa làm** |
 | 13 | *(tuỳ chọn)* mở đường hầm cho người khác xem | `./csbh mo-thu-nghiem` | 10 | hệ trống trơn thì không có gì để xem |
@@ -331,38 +331,29 @@ Thứ tự bắt buộc, vì mỗi bước dựa vào bước trước:
 > sung. Hồ sơ đã gửi duyệt từ trước không bị ảnh hưởng — chúng đã đóng băng dữ
 > liệu khách hàng tại thời điểm gửi.
 
-### Nạp danh mục mẫu — **bắt buộc nếu chưa có văn bản mẫu nào** `sửa 28/08`
+### Nạp danh mục mẫu — **tuỳ chọn** `sửa 30/08`
 
 ```sh
 ./csbh nap-danh-muc
 ```
 
-> **Từ 28/08 hệ thống KHÔNG tự tạo văn bản mẫu nào.** Trước đó nó dựng sẵn một
-> mẫu hồ sơ mỗi khổ và một mẫu hợp đồng lúc khởi động, nên phần mềm chạy được
-> ngay cả khi chưa ai tải gì lên.
+> **Ba văn bản mẫu đi CÙNG hệ thống, không cần chạy lệnh nào** `sửa 30/08`.
+> Service `document` nạp chúng ở lượt khởi động đầu tiên, từ ba file `.docx` nằm
+> sẵn trong ảnh (`templates/default/`). Lệnh này vì thế **thôi là bước cài đặt
+> bắt buộc** — nó chỉ còn nạp DANH MỤC: nhóm, sản phẩm, giá, quy định chiết khấu.
 >
-> Không còn thế nữa: **không có mẫu thì Sale Admin không in được bản mềm CSBH**
-> — kể cả hồ sơ đã có hiệu lực — và Kế toán không xuất được hợp đồng. Nên lệnh
-> này (hoặc một lượt Quản trị tự tải mẫu lên) là **bước cài đặt bắt buộc**, không
-> còn là đường tắt cho bản chạy thử.
->
-> **Sửa lại `29/08`:** bản 28/08 viết *"không có mẫu thì Trình dược viên không
-> gửi duyệt được hồ sơ nào"*, vì khi ấy bước gửi duyệt bắt chọn mẫu. Bước ấy đã
-> bỏ — luồng duyệt chạy trọn vẹn mà không cần mẫu nào. Nghĩa là **thiếu mẫu
-> không chặn ngay lúc cài đặt, nó chặn ở bước B8** khi Sale Admin cần bản cứng
-> để trình ký. Hỏng muộn hơn thì khó thấy hơn, nên lệnh này vẫn nằm trong danh
-> sách bước cài đặt bắt buộc.
->
-> Đổi lại, không còn mẫu lạ tự xuất hiện: trước đây vô hiệu hoá mẫu cuối cùng
-> của một khổ thì lần khởi động sau hệ thống dựng lại một bản Quản trị không hề
-> tạo, và nó nằm ngay trong ô chọn của mọi người.
+> Đây là lượt đảo thứ hai của cùng một câu, nên ghi rõ cả ba mốc: `28/08` bỏ mẫu
+> mặc định (*"hệ thống không bao giờ tự tạo văn bản mẫu"*) và biến lệnh này thành
+> bước bắt buộc; `29/08` bỏ việc gửi duyệt kèm mẫu, nên thiếu mẫu chỉ chặn ở B8;
+> `30/08` mẫu mặc định quay lại — nhưng nó **NẠP FILE** bàn giao chứ không **DỰNG**
+> thân mẫu bằng mã, và **không mọc lại** sau khi Quản trị vô hiệu hoá nó.
 
 | Nạp gì | Bao nhiêu |
 | --- | --- |
 | Nhóm sản phẩm | 3 |
 | Sản phẩm kèm giá bán Công ty | 9 |
 | Quy định chiết khấu | 3 |
-| Văn bản mẫu | 2 mẫu hồ sơ (A4 dọc · ngang) + 1 mẫu hợp đồng |
+| Văn bản mẫu | **không nạp** `sửa 30/08` — đã có sẵn từ lượt khởi động |
 
 Ba quy định cố tình bày ra **luật khó nhất** của màn hình ấy: dòng cụ thể hơn
 thắng. Khách loại 1 mua sữa bột lấy ngưỡng 18%; khách loại 2 và 3 mua đúng sản
@@ -376,10 +367,19 @@ khiến nó được phép chạy ở `production` trong khi các script seed kh
 > chúng. Một bảng giá minh hoạ để nguyên sẽ thành bảng giá công ty, và không có
 > gì trên màn hình nói ra điều đó.
 
-### Về văn bản mẫu
+### Về văn bản mẫu `sửa 30/08`
 
-Sau `nap-danh-muc`, ô chọn có **2 mẫu hồ sơ** (A4 dọc · ngang) và **1 mẫu hợp
-đồng** — đúng ba file được nạp, không có mẫu nào khác.
+Hệ thống vừa cài xong đã có **ba mẫu**, mỗi loại một cái:
+
+| Thẻ trên màn hình Quản trị | Tên mẫu | File nguồn trong ảnh |
+| --- | --- | --- |
+| Hồ sơ mẫu đầy đủ | `Hồ sơ mẫu đầy đủ (bản mặc định)` | `templates/default/ho-so-day-du.docx` |
+| Hồ sơ mẫu rút gọn | `Hồ sơ mẫu rút gọn (bản mặc định)` | `templates/default/ho-so-rut-gon.docx` |
+| Mẫu hợp đồng | `Hợp đồng (bản mặc định)` | `templates/default/hop-dong.docx` |
+
+Chúng nạp **một lần duy nhất**, ở lượt khởi động đầu tiên nào thấy chưa có mẫu
+mang đúng tên ấy. Vô hiệu hoá một mẫu mặc định thì nó **nằm im** — lượt khởi
+động sau không dựng lại. Muốn nó về thì bấm *Dùng lại* trên màn hình Quản trị.
 
 Bốn file trong `mau-van-ban/` là **điểm khởi đầu** để Quản trị tải lên rồi sửa
 câu chữ trong Word.
@@ -388,11 +388,6 @@ câu chữ trong Word.
 hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai dòng người chọn không
 phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
 rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
-
-> Lệnh nạp lấy **ba** trong bốn file: hai mẫu hồ sơ A4 dọc/ngang và một mẫu hợp
-> đồng. File thứ tư — `mau-ho-so-a4-doc-rut-gon.docx` — **không nạp** `sửa 27/08`.
-> Nó là bản chỉ có đúng những mục bắt buộc, để trả lời câu *"ít nhất mẫu phải có
-> những gì"*; tải lên bằng tay khi cần.
 
 ### Nâng cấp lên bản có tên Công ty mới `mới 29/08`
 

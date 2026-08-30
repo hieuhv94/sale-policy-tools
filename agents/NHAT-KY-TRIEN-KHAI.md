@@ -14330,3 +14330,129 @@ bằng JavaScript từ hai con số đọc trong CSS — nên nó đo **công th
 ghi ra — nó chỉ đúng chừng nào có một ca đối chiếu giữ cho bản sao khỏi trôi.
 
 **1934/1934 xanh.**
+
+## P193 — `0165` loại mẫu thứ ba, ba mẫu mặc định, và bảng sản phẩm đúng màu
+
+Năm câu trong một yêu cầu, và chúng nối vào nhau: thêm thẻ *Hồ sơ mẫu rút gọn* · ba mẫu mặc định đi
+cùng hệ thống · lấy từ ba file bàn giao đặt trong `templates/default/` · bỏ nạp mẫu khỏi `demo-mau`
+và `nap-danh-muc` · bảng sản phẩm đúng màu, đúng định dạng, tự chọn cột.
+
+### Vì sao là một LOẠI, không phải một cờ
+
+`0067` đã cho mỗi mẫu tự khai tập cột, nên *"bản gọn"* vốn dựng được mà không cần loại mới. Cái loại
+mới mang thêm là ba thứ `cot_bang` không nói được: một **thẻ riêng** (tức một danh sách riêng), một
+**mẫu mặc định riêng** — khoá idempotent là `(kind, name)`, chỉ mục `uq_template_ten` của `0108` — và
+**tập cột suy từ loại** thay vì khai tay mỗi lượt tải lên.
+
+Thêm giá trị enum thì rẻ: một dòng `ALTER TYPE … ADD VALUE`, đối xứng với `0110` nơi BỎ một giá trị
+là dựng lại cả kiểu. Nhưng nó phải nằm **một mình trong một tệp migration**: `ADD VALUE` không dùng
+được giá trị mới trong cùng transaction, và `migrate.sh` chạy mỗi tệp dưới `--single-transaction`.
+
+**Chỗ nguy hiểm nhất của cả chặng**: `tsc` chỉ ra mọi chỗ khai `Loai` thiếu nhánh, nhưng **không chỉ
+ra được một truy vấn viết `kind = 'HO_SO'`** — nó vẫn dịch, vẫn chạy, chỉ là mẫu rút gọn **vô hình**:
+Quản trị thấy nó ở thẻ của nó, còn Sale Admin không bao giờ chọn được. Nên `LOAI_HO_SO` là hằng, mọi
+đường tra một mẫu hồ sơ nhận `Loai | Loai[]`, và có một ca kiểm đi hết đường thật — dựng mẫu rút gọn,
+tìm nó trong ô chọn của `sa01`, rồi dựng PDF bằng chính nó.
+
+**MỘT controller, không hai.** `contracts.controller.ts` tách `PolicyTemplates` khỏi `ContractTemplates`
+với lý do *"`available` của hai loại mở cho hai tập vai trò khác hẳn nhau"*. Lý do ấy KHÔNG áp được
+cho hai loại hồ sơ: cùng vai trò, cùng phép kiểm, cùng ô chọn. Nên `loai` là một tham số, và
+`available` trả CẢ HAI loại — trộn chung là đúng nghiệp vụ, không phải một chỗ lười.
+
+### Lỗi thật tìm ra bằng cách IN RA GIẤY: `textOf` nuốt thẻ tab
+
+Dựng thử một bản mềm bằng mẫu mặc định và tờ giấy in ra `&lt;w:rPr&gt;…` — nguyên khối markup.
+
+`textOf` khớp `<w:t[^>]*>`, và `[^>]*` cho `<w:t` nuốt luôn hai thẻ TAB của Word: `<w:tabs>` (`abs>`)
+và `<w:tab/>` (`ab/>`). Bộ quét chạy tiếp tới `</w:t>` THẬT ở cuối run kế tiếp, nên nó trả về **cả
+khối markup nằm giữa** dưới dạng "chữ"; `setParagraphText` escape khối ấy rồi in ra.
+
+**Ai cũng dính, không riêng mẫu của phần mềm** — tab stop là cách căn cột thông thường nhất trong
+Word, nên bất kỳ mẫu nào Quản trị tự soạn có một điểm dừng tab đều in ra XML. Lỗi nằm đó từ `0051` và
+chỉ lộ ra hôm nay vì đây là lượt ĐẦU TIÊN phần mềm tự sinh ra một mẫu có tab. `setParagraphText`
+ngay dưới **vốn đã viết đúng** — `(?:\s[^>]*)?` — một chỗ đúng, một chỗ sai, cách nhau mười lăm dòng.
+
+### Và một giới hạn sâu hơn: một đoạn văn chỉ mang được MỘT vị trí chữ
+
+Sửa `textOf` xong thì ba cái tên chỗ ký **dính liền**: `Lê Thị Kế ToánTrần Vũ Phượng TrangĐoàn Vũ
+Long`. `setParagraphText` dồn toàn bộ chữ vào `<w:t>` ĐẦU TIÊN và làm rỗng các `<w:t>` còn lại, nên
+ba ô trống trong MỘT đoạn văn — dù cách nhau bằng tab — trộn xong đều về một chỗ.
+
+Ba cách căn cột đã thử, chỉ cách thứ ba sống sót qua lượt trộn: chép dải khoảng trắng (lệch, vì dòng
+nhãn 14pt còn dòng dưới 11pt) → tab stop thật (thẳng cột trên file mẫu, vỡ khi trộn) → **một Ô BẢNG
+cho mỗi cột**. Mỗi ô là một đoạn văn riêng, nên mỗi ô trống đứng một mình.
+
+> **Luật rút ra, đáng nhớ hơn cả khối chỗ ký:** *một đoạn văn của mẫu chỉ nên mang MỘT vị trí chữ.*
+> Đây là ràng buộc của cơ chế trộn, và nó chưa từng được viết ra ở đâu.
+
+Kèm hai chỗ đo được: hai `<w:tbl>` liền nhau thì Word **gộp làm một bảng**, nên hai hàng chỗ ký phải
+nằm trong MỘT bảng; và đoạn trống bắt buộc sau bảng phải ép về cao 1pt, vì ở cỡ mặc định nó chiếm
+đúng một dòng — đúng một dòng làm bản rút gọn tràn sang trang hai.
+
+### Bảng sản phẩm: màu theo NHÓM Ý NGHĨA
+
+Bốn màu đọc thẳng từ `Mau_mac_dinh_full.docx`, và chúng chia theo cách bảng ĐƯỢC ĐỌC chứ không theo
+thứ tự cột: xám cho STT, vàng cho Mã sản phẩm, **xanh cho tên và hai mức giá của DANH MỤC**, **cam
+cho mọi cột từ CPBH trở đi — số của riêng hồ sơ này**. Ranh giới xanh/cam tách phần không bàn cãi
+khỏi phần đang xin phê duyệt.
+
+Hai chỗ **cố ý lệch** với tờ mẫu: `cpbh_tong` căn phải (hai file khách hàng nói khác nhau về cùng cột
+ấy — bản đầy đủ căn phải, bản rút gọn căn giữa; chọn phải, vì nó là tiền), và `ghi_chu` căn trái (ô
+ghi chú trong cả hai file đều RỖNG nên không nhìn ra ý định; mà đó là cột chữ duy nhất tự xuống dòng).
+
+**BỀ RỘNG CỘT giữ theo `0135`, KHÔNG lấy theo tờ mẫu.** Chặng ấy khách hàng nêu đích danh *"tên sản
+phẩm cần rộng hơn"* và cột ấy lên 25,6%; tờ mẫu gõ tay để nó ở 12,4%. Lấy theo tờ mẫu là lặng lẽ đảo
+một yêu cầu họ đã nói thành lời.
+
+Thứ tự trong `<w:tcPr>` là `xsd:sequence`: `tcW` → … → `shd` → … → `vAlign`. Đặt sai thì **Word từ
+chối mở file còn LibreOffice vẫn mở** — nên lỗi không lộ ra ở bản PDF do máy chủ dựng. Cùng bẫy
+`0135` đã ghi cho `styles.xml`.
+
+### Bộ kiểm bắt được một lỗ hổng thật ở hai mẫu mới
+
+`0134` — *"mẫu đi cùng hệ thống phải in đủ mọi trường chặn gửi duyệt"* — đỏ ngay lượt đầu: hai mẫu
+dựng từ tờ giấy khách hàng gõ **không in chức danh người đại diện và số điện thoại**, hai trường
+nhóm `chan-moi`. Hồ sơ thiếu chúng thì không gửi duyệt được, nên một mẫu không in chúng bắt người
+dùng điền một ô không xuất hiện trên tờ giấy nào — đúng lỗ hổng `0128` mở ra và `0134` sinh ra để
+bịt. Ca kiểm ấy vừa chứng minh nó còn sống.
+
+### Đảo một nửa `0150`, và nửa nào đảo là cả nội dung
+
+`0150` bỏ `ensureDefault` với hai lý lẽ chồng lên nhau: (a) hệ thống không được **tự DỰNG** một văn
+bản mẫu — dựng thân mẫu bằng mã, ra tờ giấy không ai duyệt nội dung; (b) vô hiệu mẫu cuối cùng rồi
+khởi động lại thì nó **MỌC LẠI**, vì bộ dựng cũ hỏi *"loại này còn mẫu dùng được không"* — một câu
+hỏi mà câu trả lời đổi theo thao tác của người dùng.
+
+Lý lẽ (a) **vẫn giữ**: `0165` **NẠP FILE** `.docx` bàn giao, thứ mở ra xem và sửa được. Lý lẽ (b)
+cũng giữ, bằng cách đổi câu hỏi thành *"đã từng nạp chưa"* — đo bằng sự tồn tại của dòng mang đúng
+`(kind, name)`, **tính cả dòng đã vô hiệu hoá**.
+
+Bộ nạp đi qua `TemplatesService.luu` chứ không tự viết `INSERT`: mọi phép kiểm của `0067` chạy đúng
+như khi Quản trị tự tải lên, nên ba mẫu bàn giao được KIỂM ở mỗi lượt khởi động. Nạp hỏng thì ghi log
+rồi đi tiếp — một service tài liệu không lên được là cả phần mềm dừng.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `textOf` về `<w:t[^>]*>` | 1 đỏ |
+| `cot_bang` thôi suy từ loại | 1 đỏ |
+| `khaDung(LOAI_HO_SO)` → `khaDung('HO_SO')` | 1 đỏ |
+| Bỏ chốt *"đã nạp chưa"* trong bộ nạp | **0 đỏ** |
+| Đổi TÊN một mẫu mặc định | **0 đỏ** → thêm ca ghim tên |
+
+**Hai lượt xanh, và cả hai đáng ghi.**
+
+*Bỏ chốt "đã nạp chưa"* xanh vì `uq_template_ten` mới là chốt chặn thật: lượt nạp thứ hai đâm vào chỉ
+mục, ném 23505, bị `catch` nuốt — không dòng thừa nào. Chốt ở TypeScript vẫn đáng giữ, nhưng vì lý do
+khác và nhỏ hơn: không có nó thì mỗi lượt khởi động ghi ba dòng lỗi, và tệ hơn — `luu()` **tải file
+lên MinIO TRƯỚC** rồi mới ghi CSDL, nên mỗi lượt để lại ba object mồ côi.
+
+*Đổi tên mẫu mặc định* xanh là một lỗ thật: tên là khoá idempotent, nên đổi một chữ là mọi hệ đang
+chạy nạp thêm một bản thứ hai bên cạnh bản cũ. Đã thêm ca **ghim cả ba tên và ba tên file**.
+
+Kèm một chỗ tự dính lộ ra lúc viết ca kiểm: `xoaHet()` của `contract.test.ts` vô hiệu CẢ BẢNG rồi chỉ
+dựng một mẫu mới thay thế — nên ba mẫu mặc định nằm tắt suốt phần còn lại của tệp, và CSDL kiểm thì
+sống qua nhiều lượt chạy. Giờ nó nhớ đúng những dòng nó tắt và bật lại đúng chừng ấy.
+
+**1947/1947 xanh.**

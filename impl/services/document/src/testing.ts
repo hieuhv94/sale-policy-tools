@@ -32,7 +32,7 @@ export {
   dinhDangCua,
   type NhomTruong,
 } from './contracts/sources.js';
-export { makeDocx, para, table, tableRow, placeholdersOf, documentXml, khoGiayCua, O_BANG_SAN_PHAM } from './contracts/docx.js';
+export { makeDocx, mergeDocx, para, table, tableRow, placeholdersOf, documentXml, khoGiayCua, O_BANG_SAN_PHAM } from './contracts/docx.js';
 export { SYSTEM_USER_ID } from './contracts/bootstrap.js';
 export { DocumentOutbox } from './infra/outbox.relay.js';
 
@@ -42,6 +42,11 @@ export {
   COT_BANG,
   COT_BAT_BUOC,
   COT_MAC_DINH,
+  COT_RUT_GON,
   RONG_TOI_THIEU_PCT,
   chuanHoaCot,
 } from './contracts/bang-san-pham.js';
+
+// `0165` — ba mẫu mặc định đi cùng hệ thống; ca kiểm đọc danh sách từ đây
+// chứ không chép tên file sang.
+export { MAU_MAC_DINH, MauMacDinhBootstrap } from './contracts/bootstrap-mau.js';

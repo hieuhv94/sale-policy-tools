@@ -138,10 +138,61 @@ describe('`0060` hai loại mẫu, một người quản lý', () => {
   });
 
   it('mỗi loại có tiêu đề riêng để làm nhãn thẻ', () => {
-    // Hai thẻ của một trang thì nhãn phải nói được loại nào — "Mẫu hợp đồng" và
+    // Ba thẻ của một trang thì nhãn phải nói được loại nào — "Mẫu hợp đồng" và
     // "Giấy tờ mẫu" cạnh nhau thì cái thứ hai không nói lên điều gì.
     expect(CAU_HINH_MAU.HOP_DONG.tieuDe).toBe('Mẫu hợp đồng');
-    expect(CAU_HINH_MAU.HO_SO.tieuDe).not.toBe(CAU_HINH_MAU.HOP_DONG.tieuDe);
+    const ten = Object.values(CAU_HINH_MAU).map((c) => c.tieuDe);
+    expect(new Set(ten).size, `nhãn thẻ trùng nhau: ${ten.join(' · ')}`).toBe(ten.length);
+  });
+});
+
+// =============================================================================
+// `0165` — BA loại mẫu, ba thẻ
+// =============================================================================
+
+describe('`0165` loại mẫu thứ ba: hồ sơ rút gọn', () => {
+  it('BA loại, và cả ba khớp đúng enum của máy chủ', () => {
+    /*
+     * Bản sao thứ hai của một danh sách đóng — cùng loại rủi ro với `KHO_GIAY`
+     * ở trên, nên cùng cách canh: đọc thẳng mã nguồn migration.
+     *
+     * `HO_SO_RUT_GON` thêm ở `0112`, hai giá trị kia khai từ `0050` — nên phải
+     * quét CẢ HAI tệp. Quét mỗi tệp mới thì hai giá trị cũ lọt.
+     */
+    const ma =
+      readFileSync('db/migrations/0050_mau_ho_so_csbh.sql', 'utf8') +
+      readFileSync('db/migrations/0112_mau_ho_so_rut_gon.sql', 'utf8');
+    const loai = Object.keys(CAU_HINH_MAU);
+    expect(loai.sort()).toEqual(['HOP_DONG', 'HO_SO', 'HO_SO_RUT_GON']);
+    for (const k of loai) expect(ma, `enum doc.template_kind thiếu ${k}`).toContain(`'${k}'`);
+  });
+
+  it('hai loại HỒ SƠ dùng CHUNG đường dẫn, phân biệt bằng `loai`', () => {
+    /*
+     * Khác hẳn ranh giới `HO_SO` ↔ `HOP_DONG` ngay trên. Lý do tách hai đường
+     * dẫn kia là *"available của hai loại mở cho hai tập vai trò khác hẳn"*, và
+     * lý do ấy KHÔNG áp được ở đây: đầy đủ và rút gọn cùng một tập vai trò, cùng
+     * một bộ phép kiểm, cùng một ô chọn của Sale Admin.
+     */
+    expect(CAU_HINH_MAU.HO_SO_RUT_GON.duong).toBe(CAU_HINH_MAU.HO_SO.duong);
+    expect(CAU_HINH_MAU.HO_SO.loai).toBe('HO_SO');
+    expect(CAU_HINH_MAU.HO_SO_RUT_GON.loai).toBe('HO_SO_RUT_GON');
+    // Mẫu hợp đồng là loại DUY NHẤT của đường dẫn nó, nên không mang tham số —
+    // gắn thừa vào là một tham số máy chủ bỏ qua mà người đọc tưởng có tác dụng.
+    expect(CAU_HINH_MAU.HOP_DONG.loai).toBeUndefined();
+  });
+
+  it('cả hai loại hồ sơ đều có MỤC BẮT BUỘC theo muc 11.1', () => {
+    // Rút gọn là rút gọn CỘT của bảng sản phẩm, không phải rút gọn phép kiểm:
+    // nó vẫn là bản CSBH đem đi ký, nên vẫn phải đủ mười mục.
+    expect(CAU_HINH_MAU.HO_SO_RUT_GON.bangDoHeThongDung).toBe(true);
+    expect(CAU_HINH_MAU.HO_SO.bangDoHeThongDung).toBe(true);
+  });
+
+  it('nhãn thẻ nói rõ ĐẦY ĐỦ và RÚT GỌN, không phải hai cái tên chung chung', () => {
+    // Yêu cầu nêu đích danh: thẻ cũ đổi tên thành *"Hồ sơ mẫu đầy đủ"*.
+    expect(CAU_HINH_MAU.HO_SO.tieuDe).toContain('đầy đủ');
+    expect(CAU_HINH_MAU.HO_SO_RUT_GON.tieuDe).toContain('rút gọn');
   });
 });
 

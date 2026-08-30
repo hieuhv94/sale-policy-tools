@@ -38,10 +38,16 @@ export function VanBanMau() {
         nhanVung="Loại văn bản mẫu"
         dangChon={the}
         chon={datThe}
-        muc={[
-          { khoa: 'HO_SO' as LoaiMau, nhan: 'Mẫu hồ sơ CSBH' },
-          { khoa: 'HOP_DONG' as LoaiMau, nhan: 'Mẫu hợp đồng' },
-        ]}
+        /*
+          BA thẻ từ `0165`, và thứ tự này là thứ tự người dùng nghĩ: hai bản của
+          cùng một tờ CSBH đứng cạnh nhau, hợp đồng — văn bản khác hẳn — đứng
+          cuối. Nhãn lấy thẳng từ `CAU_HINH_MAU` để tiêu đề trong thẻ và nhãn
+          trên dải thẻ không bao giờ là hai câu khác nhau.
+        */
+        muc={(['HO_SO', 'HO_SO_RUT_GON', 'HOP_DONG'] as LoaiMau[]).map((k) => ({
+          khoa: k,
+          nhan: CAU_HINH_MAU[k].tieuDe,
+        }))}
       />
       {/*
         `key` bắt React DỰNG LẠI hẳn khi đổi thẻ, không tái dùng cây cũ.
@@ -54,6 +60,16 @@ export function VanBanMau() {
     </>
   );
 }
+
+/**
+ * Đường LẤY DANH SÁCH của một thẻ (`0165`).
+ *
+ * Chỉ danh sách và lượt tạo mới cần `loai`; mọi đường còn lại đi theo `id`, và
+ * id đã nói đủ. Nên tham số nằm ở đây chứ không dán vào `ch.duong` — dán vào đó
+ * thì `${ch.duong}/${id}/vo-hieu` dựng ra một URL có tham số ở giữa.
+ */
+const duongDs = (ch: { duong: string; loai?: LoaiMau }): string =>
+  ch.loai === undefined ? ch.duong : `${ch.duong}?loai=${ch.loai}`;
 
 function MauVanBan({ loai }: { loai: LoaiMau }) {
   const { bao } = useBaoLoi();
@@ -72,13 +88,13 @@ function MauVanBan({ loai }: { loai: LoaiMau }) {
   useEffect(() => {
     const huy = new AbortController();
     datDs(null);
-    layJson<MauDto[]>(ch.duong, huy.signal)
+    layJson<MauDto[]>(duongDs(ch), huy.signal)
       .then(datDs)
       .catch((e: unknown) => {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [ch.duong, lan]);
+  }, [ch, lan]);
 
   /**
    * Một hàm cho cả hai chiều: `confirm` chỉ đi kèm chiều vô hiệu hoá.

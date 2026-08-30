@@ -9,6 +9,11 @@
 # trị tải về sửa. Không commit thì bản demo không có mẫu nào để nạp, và người
 # clone repo về phải tự sinh lại. Mỗi file ~2,5KB.
 !impl/templates/*.docx
+# `0165` — ba mẫu MẶC ĐỊNH đi cùng ảnh Docker. Luật một sao ở trên không với tới
+# thư mục con, nên thiếu dòng này thì ba file quan trọng nhất của bộ bàn giao
+# nằm ngoài git — và lượt `docker build` trên máy khác dựng ra một ảnh không có
+# mẫu nào, hỏng ở đúng chỗ khó đoán nhất là lượt khởi động đầu tiên.
+!impl/templates/default/*.docx
 venv/
 __pycache__/
 

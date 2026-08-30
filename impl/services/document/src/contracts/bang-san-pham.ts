@@ -25,7 +25,7 @@
  * mất khỏi bản in mà không báo gì.
  */
 import type { PolicyFull, PolicyLine } from '../infra/clients.js';
-import { table, tableRow } from './docx.js';
+import { table, tableRow, type KieuO } from './docx.js';
 import { money, pct, soCotCpbh } from './dinh-dang.js';
 
 /**
@@ -89,6 +89,68 @@ export const COT_BANG = [
 ] as const;
 
 /**
+ * MÀU NỀN hàng tiêu đề, theo NHÓM Ý NGHĨA của cột (`0165`).
+ *
+ * Bốn màu, và bốn con số này đọc thẳng từ `Mau_mac_dinh_full.docx` — tờ mẫu
+ * khách hàng tự gõ. Không đoán lại một bảng màu khác: đây là chỗ họ đã quyết,
+ * và họ quyết theo cách bảng ĐƯỢC ĐỌC chứ không theo thứ tự cột:
+ *
+ *   xám   `EFEFEF`  STT — cột đánh số, không mang dữ liệu nghiệp vụ nào
+ *   vàng  `FFFF00`  Mã sản phẩm — khoá đối chiếu với danh mục, chỗ mắt tìm trước
+ *   xanh  `CBD8F1`  tên và hai mức giá **của danh mục** — số Công ty công bố
+ *   cam   `FFE6D0`  từ CPBH trở đi — số **của riêng hồ sơ này**, thứ đang duyệt
+ *
+ * Ranh giới xanh/cam là ranh giới đáng nhớ nhất: nó tách *"số lấy từ danh mục"*
+ * khỏi *"số người lập đề nghị"*, tức tách phần không bàn cãi khỏi phần đang xin
+ * phê duyệt.
+ */
+const NEN_TIEU_DE: Record<KhoaCot, string> = {
+  stt: 'EFEFEF',
+  ma_san_pham: 'FFFF00',
+  ten_san_pham: 'CBD8F1',
+  gia_cong_ty: 'CBD8F1',
+  gia_ban_buon: 'CBD8F1',
+  cpbh_tong: 'FFE6D0',
+  cpbh: 'FFE6D0',
+  gia_thu_ve: 'FFE6D0',
+  ty_le_ck: 'FFE6D0',
+  ghi_chu: 'FFE6D0',
+};
+
+/**
+ * Cách trình bày Ô DỮ LIỆU của từng cột (`0165`).
+ *
+ * Cũng đọc từ tờ mẫu khách hàng, và hai luật của nó nhất quán:
+ *
+ *   - **số căn phải**, chữ căn trái, STT căn giữa — cột số căn phải thì hàng
+ *     nghìn thẳng cột và mắt so được hai dòng kề nhau;
+ *   - **in đậm bốn con số đáng nhìn**: mã sản phẩm, CPBH tổng, giá thu về, tỷ lệ
+ *     CK. Ba con số sau là kết quả của phép tính mà cả tờ giấy sinh ra để trình.
+ *
+ * HAI CHỖ LỆCH với tờ mẫu, và cả hai đều cố ý:
+ *
+ *   `cpbh_tong` — bản đầy đủ căn PHẢI, bản rút gọn căn GIỮA. Hai file nói khác
+ *   nhau về cùng một cột, nên đây là chỗ phải chọn: căn phải, vì nó là tiền.
+ *
+ *   `ghi_chu` — tờ mẫu căn GIỮA, ở đây căn TRÁI. Ô ghi chú trong cả hai file đều
+ *   RỖNG nên không nhìn ra được ý định; mà ghi chú là cột chữ duy nhất tự xuống
+ *   dòng (`0056`), và một đoạn nhiều dòng căn giữa thì mỗi dòng một mép — đọc
+ *   mệt hẳn so với căn trái.
+ */
+const KIEU_O: Record<KhoaCot, KieuO> = {
+  stt: { canh: 'center' },
+  ma_san_pham: { dam: true },
+  ten_san_pham: {},
+  gia_cong_ty: { canh: 'right' },
+  gia_ban_buon: { canh: 'right' },
+  cpbh_tong: { canh: 'right', dam: true },
+  cpbh: { canh: 'right' },
+  gia_thu_ve: { canh: 'right', dam: true },
+  ty_le_ck: { canh: 'right', dam: true },
+  ghi_chu: {},
+};
+
+/**
  * Cột hẹp nhất được phép — tính bằng phần trăm bề rộng bảng (`0135`).
  *
  * Không phải một con số thẩm mỹ. Bảng ở chế độ `fixed`, nên chữ dài hơn cột thì
@@ -106,6 +168,30 @@ export type KhoaCot = (typeof COT_BANG)[number]['khoa'];
 export const COT_MAC_DINH: KhoaCot[] = COT_BANG.map((c) => c.khoa);
 
 export const COT_BAT_BUOC: KhoaCot[] = COT_BANG.filter((c) => 'batBuoc' in c).map((c) => c.khoa);
+
+/**
+ * Tập cột RÚT GỌN — sáu cột, đọc từ `Mau_mac_dinh_rut_gon.docx` (`0165`).
+ *
+ * Đây là *"bản gọn đưa khách hàng"* mà `0067` sinh ra khái niệm tập-cột-theo-mẫu
+ * để phục vụ, và giờ khách hàng đã nói ra sáu cột ấy là những cột nào.
+ *
+ * BỐN CỘT BỊ CẮT, và chúng cùng một nhóm: từng khoản CPBH · giá thu về · tỷ lệ
+ * CK · ghi chú. Ba cột đầu là phép TÍNH NGƯỢC ra mức chiết khấu — thứ nội bộ
+ * Công ty dùng để duyệt, không phải thứ đưa cho bên mua.
+ *
+ * `cpbh_tong` thì **Ở LẠI**, và đó là chỗ dễ đọc lướt qua: bản rút gọn vẫn in
+ * tổng chi phí bán hàng. `0084` mở cột ấy ra cho tắt chính vì lý do "con số nội
+ * bộ", nhưng tờ mẫu khách hàng vừa gõ có nó — nên ở đây họ đã trả lời khác, và
+ * câu trả lời của họ thắng.
+ */
+export const COT_RUT_GON: KhoaCot[] = [
+  'stt',
+  'ma_san_pham',
+  'ten_san_pham',
+  'gia_cong_ty',
+  'gia_ban_buon',
+  'cpbh_tong',
+];
 
 /**
  * Chuẩn hoá tập cột người dùng khai: bỏ khoá lạ, thêm lại cột bắt buộc, và giữ
@@ -150,6 +236,25 @@ const O: Record<Exclude<KhoaCot, 'cpbh'>, (l: PolicyLine, i: number) => string> 
   ghi_chu: (l) => l.note ?? '',
 };
 
+/** Kiểu của từng ô trên một hàng — nở `cpbh` ra đúng số cột như `tieuDe`. */
+const kieuHang = (soCot: number, cot: KhoaCot[], bang: Record<KhoaCot, KieuO>): KieuO[] =>
+  cot.flatMap((k) =>
+    k === 'cpbh' ? Array.from({ length: soCot }, () => bang[k]) : [bang[k]],
+  );
+
+/** Ô tiêu đề: nền theo nhóm cột, chữ đậm, căn giữa — cả ba đọc từ tờ mẫu. */
+const kieuTieuDe = (soCot: number, cot: KhoaCot[]): KieuO[] =>
+  kieuHang(
+    soCot,
+    cot,
+    Object.fromEntries(
+      (Object.keys(NEN_TIEU_DE) as KhoaCot[]).map((k) => [
+        k,
+        { nen: NEN_TIEU_DE[k], canh: 'center' as const, dam: true },
+      ]),
+    ) as Record<KhoaCot, KieuO>,
+  );
+
 const dong = (l: PolicyLine, i: number, soCot: number, cot: KhoaCot[]): string[] =>
   cot.flatMap((k) =>
     k === 'cpbh'
@@ -186,7 +291,7 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
   if (p.lines.length === 0) {
     return table(
       [
-        tableRow(tieuDe(0, cot), true, ts),
+        tableRow(tieuDe(0, cot), true, ts, kieuTieuDe(0, cot)),
         // Ô đầu là dấu gạch, ô thứ hai là câu giải thích, còn lại để trống —
         // dựng theo SỐ CỘT THẬT chứ không đếm tay, vì số cột giờ đổi theo mẫu.
         tableRow(
@@ -199,12 +304,13 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
       ts,
     );
   }
+  const kieuDong = kieuHang(soCot, cot, KIEU_O);
   return table(
     [
       // Hàng tiêu đề LẶP LẠI ở mỗi trang — hồ sơ 60 dòng tràn sang sáu trang, và
       // từ trang 2 mà không có tên cột thì bảng số đọc không ra gì (DOC-19).
-      tableRow(tieuDe(soCot, cot), true, ts),
-      ...p.lines.map((l, i) => tableRow(dong(l, i, soCot, cot), false, ts)),
+      tableRow(tieuDe(soCot, cot), true, ts, kieuTieuDe(soCot, cot)),
+      ...p.lines.map((l, i) => tableRow(dong(l, i, soCot, cot), false, ts, kieuDong)),
     ],
     // Bố cục CỐ ĐỊNH: ghi chú dài thì xuống dòng, ô cao lên — chứ không nong
     // cột ra và đẩy cột cuối khỏi mép giấy.

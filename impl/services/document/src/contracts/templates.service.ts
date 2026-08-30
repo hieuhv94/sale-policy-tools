@@ -22,7 +22,7 @@ import {
   placeholdersOf,
 } from './docx.js';
 import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
-import { chuanHoaCot, COT_BANG } from './bang-san-pham.js';
+import { chuanHoaCot, COT_BANG, COT_RUT_GON } from './bang-san-pham.js';
 /*
  * `COMPANY` ĐÃ GỠ KHỎI TỆP NÀY (`0151`).
  *
@@ -41,7 +41,22 @@ import { chuanHoaCot, COT_BANG } from './bang-san-pham.js';
  *              xuất**, vì hợp đồng không lưu bản ghi nào (muc 8.3) nên không có
  *              gì để đóng băng vào.
  */
-export type Loai = 'HOP_DONG' | 'HO_SO';
+export type Loai = 'HOP_DONG' | 'HO_SO' | 'HO_SO_RUT_GON';
+
+/**
+ * HAI loại mẫu HỒ SƠ, và mọi đường tra một mẫu hồ sơ đều nhận cả hai (`0165`).
+ *
+ * `HO_SO` là bản ĐẦY ĐỦ, `HO_SO_RUT_GON` là bản gọn — khác nhau ở tập cột của
+ * bảng sản phẩm, không ở luật nào khác. Ô chọn của Sale Admin trộn chung hai
+ * danh sách: họ chọn bản trình bày ở lúc IN, và cả hai đều là bản trình bày hợp
+ * lệ của cùng một hồ sơ.
+ *
+ * Đây là chỗ dễ sót nhất của cả chặng. Thêm giá trị enum thì `tsc` chỉ ra mọi
+ * chỗ khai `Loai` thiếu nhánh, nhưng KHÔNG chỉ ra được một truy vấn viết
+ * `kind = 'HO_SO'` — nó vẫn dịch, vẫn chạy, chỉ là mẫu rút gọn vô hình. Nên mọi
+ * chỗ như thế phải đi qua hằng này, và có ca kiểm quét mã nguồn canh.
+ */
+export const LOAI_HO_SO: Loai[] = ['HO_SO', 'HO_SO_RUT_GON'];
 export type KhoGiay = 'a4p' | 'a4l';
 
 export const KHO_GIAY: KhoGiay[] = ['a4p', 'a4l'];
@@ -171,9 +186,22 @@ export class TemplatesService {
       });
     }
 
-    const cot = chuanHoaCot(input.cotBang);
+    /*
+     * TẬP CỘT SUY TỪ LOẠI MẪU khi người soạn không khai gì (`0165`).
+     *
+     * Yêu cầu là *"tự động chọn cột với bản hồ sơ đầy đủ và rút gọn"*. `0067`
+     * cho khai theo từng mẫu và đó vẫn đúng — chỉ là mặc định thôi còn là *"đủ
+     * mười cột"* cho mọi loại: mẫu rút gọn mặc định ra sáu cột của tờ mẫu khách
+     * hàng gõ.
+     *
+     * `chuanHoaCot(undefined)` rơi về `COT_MAC_DINH`, nên nhánh rút gọn phải
+     * truyền tập cột VÀO chứ không dựa vào giá trị lùi ấy.
+     */
+    const cot = chuanHoaCot(
+      input.cotBang ?? (input.kind === 'HO_SO_RUT_GON' ? COT_RUT_GON : undefined),
+    );
 
-    if (input.kind === 'HO_SO') {
+    if (input.kind === 'HO_SO' || input.kind === 'HO_SO_RUT_GON') {
       // MỤC BẮT BUỘC của muc 11.1 — kiểm ở đây, một lần, lúc LƯU. Trước `0067`
       // phép kiểm này nằm ở bước ban hành; bỏ ban hành thì nó về đúng chỗ duy
       // nhất còn lại, và cũng là chỗ người sửa được đang đứng.
@@ -401,12 +429,14 @@ export class TemplatesService {
    * lý: `fileId` và `updatedAt` là chuyện nội bộ của mẫu, và một đường đọc mở
    * rộng cho năm vai trò thì càng ít cột lọt ra càng tốt.
    */
-  async khaDung(kind: Loai): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
+  async khaDung(kind: Loai | Loai[]): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
+    // MẢNG loại chứ không một loại (`0165`): ô chọn của Sale Admin trộn chung
+    // mẫu đầy đủ và mẫu rút gọn, vì cả hai là bản trình bày của cùng một hồ sơ.
     const rows = await this.db.q<TemplateRow>(
       `SELECT * FROM doc.contract_template
-        WHERE kind = $1::doc.template_kind AND vo_hieu_hoa_luc IS NULL
+        WHERE kind = ANY($1::doc.template_kind[]) AND vo_hieu_hoa_luc IS NULL
         ORDER BY ${THU_TU_MAU}`,
-      [kind],
+      [Array.isArray(kind) ? kind : [kind]],
     );
     return rows.map((r) => ({ id: r.id, ten: r.name, khoGiay: r.paper_size }));
   }
@@ -419,7 +449,7 @@ export class TemplatesService {
    * lúc người ta thắc mắc "sao bản này khác bản kia" lại là lúc không còn câu
    * trả lời. Trả về ĐÚNG ba thứ màn hình cần, không hơn.
    */
-  async ten(id: string, kind: Loai) {
+  async ten(id: string, kind: Loai | Loai[]) {
     const t = await this.theoId(id, kind);
     if (!t) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
     return {
@@ -449,7 +479,7 @@ export class TemplatesService {
    * tay họ là file lấy về từ chính đây. Chặn mẫu vô hiệu ở đường này là biến một
    * bước lùi được thành một ngõ cụt.
    */
-  async chiTiet(id: string, kind: Loai) {
+  async chiTiet(id: string, kind: Loai | Loai[]) {
     const t = await this.theoId(id, kind);
     if (!t) throw new NotFoundException({ code: 'TEMPLATE_NOT_FOUND' });
     return {
@@ -494,12 +524,12 @@ export class TemplatesService {
    */
   async theoId(
     id: string,
-    kind: Loai,
+    kind: Loai | Loai[],
   ): Promise<{ template: TemplateRow; fields: FieldRow[] } | undefined> {
     const t = await this.db.one<TemplateRow>(
       `SELECT * FROM doc.contract_template
-        WHERE id = $1 AND kind = $2::doc.template_kind`,
-      [id, kind],
+        WHERE id = $1 AND kind = ANY($2::doc.template_kind[])`,
+      [id, Array.isArray(kind) ? kind : [kind]],
     );
     if (!t) return undefined;
     return { template: t, fields: await this.fields(t.id) };
@@ -518,7 +548,10 @@ export class TemplatesService {
    * ra chứ không phải bản họ định gửi — và với bản mềm CSBH thì bản ấy đem đi
    * ký. Thiếu `mauId` giờ là lỗi của người gọi, không phải một chỗ để đoán.
    */
-  async chon(kind: Loai, mauId: string): Promise<{ template: TemplateRow; fields: FieldRow[] }> {
+  async chon(
+    kind: Loai | Loai[],
+    mauId: string,
+  ): Promise<{ template: TemplateRow; fields: FieldRow[] }> {
     const t = await this.theoId(mauId, kind);
     if (!t || t.template.vo_hieu_hoa_luc) {
       throw new NotFoundException({
@@ -553,8 +586,10 @@ export class TemplatesService {
         code: 'TEMPLATE_FILE_MISSING',
         message:
           `File của mẫu "${t.name}" không còn trên kho lưu trữ. ` +
-          `Đề nghị ${t.kind === 'HO_SO' ? 'Quản trị hệ thống' : 'Sale Admin'} tải mẫu lên lại ` +
-          'rồi ban hành, hoặc chọn một mẫu khác.',
+          // MỘT chủ sở hữu cho cả ba loại từ `0060` — câu cũ còn nhắc Sale Admin
+          // ở nhánh `else`, và `0165` biến nhánh ấy thành nhánh của mẫu rút gọn,
+          // tức chỉ sai người ở đúng loại mẫu mới thêm.
+          'Đề nghị Quản trị hệ thống tải mẫu lên lại, hoặc chọn một mẫu khác.',
         templateId: t.id,
       });
     }

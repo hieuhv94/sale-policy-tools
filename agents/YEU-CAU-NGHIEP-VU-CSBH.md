@@ -601,6 +601,10 @@ nói rõ dòng nào hẹp hơn dòng nào.
 
 **Bản CSBH A4 sinh từ mẫu Quản trị tải lên** `sửa 19/08`. Trước đó hệ thống tự dựng bố cục trong mã.
 
+- **BA LOẠI MẪU** `sửa 30/08` — *Hồ sơ mẫu đầy đủ* · *Hồ sơ mẫu rút gọn* · *Mẫu hợp đồng*, mỗi loại
+  một thẻ trên màn hình Quản trị và một **mẫu mặc định đi cùng hệ thống**. Hai loại hồ sơ khác nhau
+  đúng một chuyện: **tập cột** của bảng sản phẩm, và tập ấy suy từ loại chứ không do người soạn khai.
+  Chi tiết ở Phụ lục B, mục *"BA loại văn bản mẫu…"*.
 - **CHỈ SALE ADMIN xem bản mềm, và họ chọn mẫu ở MỖI lượt in** `sửa 29/08`. Ô chọn nằm trong hộp
   *Xem bản mềm*, mở ra rỗng; chọn rồi mới dựng, đổi mẫu thì dựng lại. Khổ giấy đi theo file `.docx`
   của mẫu — phần mềm đọc nó từ `w:orient` chứ không hỏi người tải lên, vì một ô nhập tay không còn
@@ -719,7 +723,7 @@ giấy**, và vốn dĩ luôn là như vậy: phần mềm không có bước n�
 |---|---|---|
 | **Sản phẩm** | Mọi vai trò | Bảng sản phẩm có **tìm kiếm theo tên hoặc mã**. Quản trị thấy hai thẻ: *Sản phẩm* và *Nhóm sản phẩm* |
 | **Chiết khấu** | Mọi vai trò | Bảng ngưỡng theo nhóm sản phẩm × loại khách hàng; Quản trị thêm phần tạo/sửa |
-| **Văn bản mẫu** | Chỉ Quản trị | Cả hai loại mẫu, hai thẻ; Sale Admin chọn mẫu lúc xem bản mềm `sửa 29/08` — xem 6.4 |
+| **Văn bản mẫu** | Chỉ Quản trị | BA loại mẫu, ba thẻ `sửa 30/08`; Sale Admin chọn mẫu lúc xem bản mềm — xem 6.4 |
 
 Vì sao bỏ dải thẻ "Danh mục": nó là **một tầng điều hướng thứ hai nằm trong tầng thứ nhất** — bấm
 "Danh mục" rồi vẫn phải bấm tiếp mới tới thứ mình cần, và thanh bên không cho biết mình đang đứng ở
@@ -1513,6 +1517,45 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > **900px thành SÀN chứ không còn là con số duy nhất** `sửa 30/08` — xem mục ngay dưới.
 
+**BA loại văn bản mẫu, và ba mẫu MẶC ĐỊNH đi cùng hệ thống** `sửa 30/08` — bốn câu chốt cùng lúc:
+
+> 1. **Thêm một thẻ cho *Hồ sơ mẫu rút gọn***; thẻ cũ đổi tên thành ***Hồ sơ mẫu đầy đủ***. Màn hình
+>    *Văn bản mẫu* có ba thẻ: đầy đủ · rút gọn · hợp đồng.
+> 2. **Mỗi loại một mẫu mặc định, deploy cùng hệ thống** — không cần `make demo-mau` lẫn
+>    `./csbh nap-danh-muc`.
+> 3. Ba mẫu ấy lấy từ ba file khách hàng gửi, thành **bản chuẩn tên cố định** trong `templates/default/`.
+> 4. **Bỏ việc nạp mẫu** khỏi `make demo-mau` và `nap-danh-muc`.
+> 5. **Bảng sản phẩm đúng màu và đúng định dạng** của tờ mẫu khách hàng gõ, và **tự chọn cột** theo
+>    loại mẫu.
+>
+> **Vì sao là một LOẠI riêng, không phải một cờ.** Tập cột theo từng mẫu đã có từ `20/08`, nên "bản
+> gọn" vốn dựng được mà không cần loại mới. Cái loại mới mang thêm là ba thứ tập cột không nói được:
+> một **thẻ riêng** (tức một danh sách riêng), một **mẫu mặc định riêng**, và **tập cột suy từ loại**
+> thay vì khai tay ở mỗi lượt tải lên.
+>
+> **Sáu cột của bản rút gọn**: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · CPBH
+> tổng. Bốn cột bị cắt cùng một nhóm — từng khoản CPBH, giá thu về, tỷ lệ CK, ghi chú — là phép tính
+> ngược ra mức chiết khấu, thứ nội bộ Công ty dùng để duyệt. **CPBH tổng thì Ở LẠI**, vì tờ mẫu khách
+> hàng gõ có nó; `21/08` mở cột ấy ra cho tắt với lý do "con số nội bộ", và ở đây họ trả lời khác.
+>
+> **Ô chọn của Sale Admin TRỘN CHUNG hai loại hồ sơ.** Họ chọn bản trình bày ở lúc in, và đầy đủ hay
+> rút gọn đều là bản trình bày hợp lệ của cùng một hồ sơ. Ba thẻ của Quản trị là ba danh sách rời.
+>
+> **Đảo một nửa `28/08`.** Chặng ấy chốt *"hệ thống không bao giờ tự tạo một văn bản mẫu"*, với hai
+> lý lẽ chồng lên nhau. Lý lẽ *"không tự DỰNG thân mẫu bằng mã"* **vẫn giữ** — `30/08` nạp ba FILE
+> `.docx` bàn giao, thứ người ta mở ra xem và sửa được. Lý lẽ *"vô hiệu mẫu cuối cùng thì nó mọc
+> lại"* cũng giữ: lượt nạp hỏi *"đã từng nạp chưa"* — đo bằng sự tồn tại của dòng, **tính cả dòng đã
+> vô hiệu hoá** — chứ không hỏi *"loại này còn mẫu dùng được không"*. Quản trị tắt mẫu mặc định thì nó
+> nằm im.
+>
+> **Màu hàng tiêu đề** theo NHÓM Ý NGHĨA, đọc thẳng từ tờ mẫu khách hàng: xám cho STT, vàng cho Mã
+> sản phẩm, xanh cho tên và hai mức giá **của danh mục**, cam cho mọi cột từ CPBH trở đi — số **của
+> riêng hồ sơ này**. Ranh giới xanh/cam tách phần không bàn cãi khỏi phần đang xin phê duyệt.
+>
+> **BỀ RỘNG CỘT giữ theo `27/08`, không lấy theo tờ mẫu.** Chặng ấy khách hàng nêu đích danh *"tên sản
+> phẩm cần rộng hơn"* và cột ấy được nới lên 25,6%; tờ mẫu gõ tay để nó ở 12,4%. Lấy theo tờ mẫu là
+> lặng lẽ đảo một yêu cầu họ đã nói thành lời.
+
 **Hộp xem phóng to gần hết màn hình** `sửa 30/08` — *"phóng to hết cỡ hộp thư để preview văn bản,
 gần như full hết cả màn hình, có thể đè lên thanh bar bên trái, đảm bảo scale phù hợp với tỉ lệ màn
 hình; đối với preview ảnh thì tự điều chỉnh kích thước để fit với kích thước ảnh"*.
@@ -1558,6 +1601,10 @@ biệt được.
 
 > Cái giá, có chủ ý: tên của một mẫu hỏng **không dùng lại được**. Chữa một mẫu sai là tải bản mới
 > lên rồi vô hiệu bản cũ, và bản mới phải mang tên khác.
+
+> **ĐẢO MỘT NỬA `30/08`** — hệ thống lại có mẫu mặc định, nhưng nó **NẠP FILE** bàn giao chứ không
+> **DỰNG** thân mẫu bằng mã, và nó không mọc lại sau khi bị vô hiệu. Xem mục *"BA loại văn bản
+> mẫu…"* ở cuối Phụ lục B; đoạn dưới đây giữ lại vì nó là tiền đề của bảy chặng sau nó.
 
 **Hệ thống KHÔNG BAO GIỜ tự tạo văn bản mẫu** `mới 28/08` — bỏ hẳn khái niệm *mẫu mặc định*.
 

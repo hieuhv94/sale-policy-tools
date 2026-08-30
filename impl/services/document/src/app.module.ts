@@ -12,6 +12,7 @@ import { FilesInternalController } from './files/internal.controller.js';
 import { RenderService } from './render/render.service.js';
 import { RenderController } from './render/render.controller.js';
 import { TemplatesService } from './contracts/templates.service.js';
+import { MauMacDinhBootstrap } from './contracts/bootstrap-mau.js';
 import { ContractsService } from './contracts/contracts.service.js';
 import {
   ContractsController,
@@ -59,6 +60,7 @@ class HealthController {
     RenderService,
     TemplatesService,
     ContractsService,
+    MauMacDinhBootstrap,
     { provide: ACCOUNT_SOURCE, useClass: RemoteAccountSource },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],

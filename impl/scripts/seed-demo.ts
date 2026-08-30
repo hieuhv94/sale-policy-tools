@@ -32,8 +32,6 @@
  */
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
-import { makeDocx, para } from '../services/document/src/contracts/docx.js';
-import { COMPANY } from '../services/document/src/contracts/dinh-dang.js';
 import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
 
 if (process.env.NODE_ENV === 'production') {
@@ -102,28 +100,23 @@ async function guiTep<T>(duong: string, ai: string, form: FormData): Promise<T> 
  */
 const idNguoiDung: Record<string, string> = {};
 
-/**
- * Mẫu hồ sơ đã nạp, theo thứ tự `namMauHoSo` tải lên (`0098`).
+/*
+ * XOAY VÒNG MẪU HỒ SƠ ĐÃ GỠ (`0165`).
  *
- * Từ `0098` gửi duyệt BẮT BUỘC kèm mẫu, và mẫu ấy đóng băng vào hồ sơ. Bộ nạp
- * XOAY VÒNG qua các mẫu đã nạp thay vì dùng mãi một cái: mở hai hồ sơ khác nhau
- * ra thì thấy hai bố cục khác nhau, còn dùng một mẫu cho tất cả thì tính năng
- * này vô hình y như lúc chưa có.
+ * Khối này gán cho mỗi hồ sơ một mẫu khác nhau qua `mauHoSoId` của `SUBMIT`, để
+ * bản demo bày ra việc *mỗi hồ sơ một bố cục*. `0163` bỏ hẳn việc gửi duyệt kèm
+ * mẫu — và đây là **mã chết từ lúc ấy mà không gì báo**: `validate` bỏ qua khoá
+ * lạ, nên thân yêu cầu vẫn mang một trường không ai đọc, suốt hai chặng.
  *
- * Từ `0137` còn HAI mẫu — A4 dọc và A4 ngang — vì mẫu rút gọn đã ra khỏi bộ nạp.
- * Hai bố cục vẫn đủ để thấy việc xoay vòng có thật.
+ * Bài học đã ghi ở `0128` nhìn từ chiều ngược: một khoá thừa trong thân yêu cầu
+ * im lặng hệt như một cột thiếu trong `SELECT`.
  */
-const mauHoSoDaNap: string[] = [];
-let luotMau = 0;
 
 const phanCong = (hanhDong: string): Record<string, string> => {
   if (hanhDong === 'SUBMIT' || hanhDong === 'RESUBMIT_AFTER_EDIT') {
     return {
       tbpUserId: idNguoiDung['tbp01']!,
       keToanUserId: idNguoiDung['kt01']!,
-      ...(mauHoSoDaNap.length > 0
-        ? { mauHoSoId: mauHoSoDaNap[luotMau++ % mauHoSoDaNap.length]! }
-        : {}),
     };
   }
   if (hanhDong === 'KT_RECEIVE_L1') return { saleAdminUserId: idNguoiDung['sa01']! };
@@ -389,31 +382,15 @@ const KHACH: KhachMau[] = [
   })),
 ];
 
-/** Mẫu hợp đồng — tên phải khác nhau để nhìn ra thứ tự trang khi phân trang. */
-const MAU_HOP_DONG = [
-  'Hợp đồng phân phối — nhà thuốc lẻ',
-  'Hợp đồng phân phối — nhà thuốc chuỗi',
-  'Hợp đồng phân phối — công ty dược',
-  'Hợp đồng phân phối — bệnh viện',
-  'Hợp đồng nguyên tắc năm 2026',
-  'Hợp đồng nguyên tắc năm 2025',
-  'Phụ lục điều chỉnh giá',
-  'Phụ lục bổ sung sản phẩm',
-  'Phụ lục gia hạn công nợ',
-  'Biên bản bàn giao hàng mẫu',
-  'Biên bản đối chiếu công nợ',
-  'Biên bản thanh lý hợp đồng',
-  'Thoả thuận trưng bày sản phẩm',
-  'Thoả thuận hỗ trợ truyền thông',
-  'Cam kết giá bán lẻ',
-  'Cam kết không bán phá giá',
-  'Đơn đề nghị mở mã khách hàng',
-  'Đơn đề nghị điều chỉnh chiết khấu',
-  'Hợp đồng phân phối khu vực miền Bắc',
-  'Hợp đồng phân phối khu vực miền Trung',
-  'Hợp đồng phân phối khu vực miền Nam',
-  'Hợp đồng phân phối kênh bệnh viện',
-];
+/*
+ * `MAU_HOP_DONG` ĐÃ GỠ (`0165`) — mười mấy cái tên chỉ để bản demo có đủ dòng mà
+ * thấy phân trang trên màn hình mẫu hợp đồng. Bộ nạp thôi tạo mẫu nào, nên danh
+ * sách ấy hết chỗ dùng.
+ *
+ * Cái mất: màn hình *Văn bản mẫu* của bản demo giờ có đúng ba dòng, không đủ để
+ * bày phân trang. Chấp nhận được — phân trang đã có ca kiểm riêng, và một bản
+ * demo có ba mẫu là bức tranh ĐÚNG của một hệ thống vừa cài xong.
+ */
 
 /**
  * Tài khoản thêm — **chỉ cho bản demo**, để danh sách Người dùng vượt 20 dòng.
@@ -602,59 +579,20 @@ async function xoaDuLieuCu(): Promise<void> {
   }
 }
 
-/**
- * Nạp các mẫu HỒ SƠ từ `templates/` (`0057`) — bỏ qua mẫu hợp đồng (`0058`).
+/*
+ * NẠP MẪU HỒ SƠ ĐÃ GỠ KHỎI BỘ NẠP DEMO (`0165`).
  *
- * Đi qua API THẬT như mọi thứ khác trong bộ nạp: máy chủ đọc ô trống, kiểm mục
- * bắt buộc của muc 11.1, và chèn thẳng SQL là bỏ qua cả hai — dữ liệu demo sẽ ở
- * trạng thái mà phần mềm không tạo ra được.
+ * Khách hàng chốt 30/08: ba mẫu mặc định đi cùng hệ thống, không cần `demo-mau`
+ * lẫn `nap-danh-muc`. Bản demo dùng chính ba mẫu ấy — thứ khách hàng sẽ thấy
+ * trên máy chủ thật — thay vì một bộ mẫu riêng chỉ tồn tại trong bản demo.
  *
- * MỘT LƯỢT GỌI cho cả file lẫn ánh xạ (`0067`). Ba bước cũ — tải lên, ánh xạ,
- * ban hành — gộp làm một, nên bộ nạp cũng ngắn đi đúng chỗ ấy.
+ * Cái mất, và nó đã mất từ `0137`: bản demo không còn chỗ trưng bày tính năng
+ * *mỗi mẫu một tập cột* (`0067`). Giờ nó có lại, và có theo cách đúng hơn — hai
+ * mẫu hồ sơ mặc định là ĐẦY ĐỦ và RÚT GỌN, tức đúng hai tập cột khác nhau.
  *
- * ÁNH XẠ SUY TỪ CHÍNH Ô TRỐNG, không khai tay: mẫu đặt tên ô trùng luôn tên
- * trường (`{{ho_so.cong_no}}`). Khai tay một bảng ánh xạ thứ hai ở đây là một
- * bản sao sẽ trôi khỏi file mẫu ngay lần đầu ai đó thêm một ô.
+ * `BO_MAU` và `tao-mau-ho-so.ts` ở lại: chúng còn dựng file `.docx` trong
+ * `templates/`, thứ `templates/default/` lấy làm nguồn.
  */
-async function namMauHoSo(): Promise<void> {
-  for (const m of BO_MAU) {
-    // Mẫu HỢP ĐỒNG trong `templates/` đứng ngoài (`0058`): bản demo đã có mẫu
-    // hợp đồng riêng. Xem `tao-mau-ho-so.ts`.
-    if (m.napDemo === false) continue;
-
-    const buf = readFileSync(`${THU_MUC}/${m.tep}`);
-    const oTrong = await guiTep<{ placeholders: string[] }>(
-      '/policy-templates/o-trong',
-      'admin01',
-      (() => {
-        const f = new FormData();
-        f.append('file', new Blob([buf]), m.tep);
-        return f;
-      })(),
-    );
-
-    const mapping = oTrong.placeholders
-      // `{{bang_san_pham}}` KHÔNG ánh xạ — hệ thống thay nó bằng cả một bảng.
-      .filter((o) => o !== '{{bang_san_pham}}')
-      .map((o) => ({ placeholder: o, source: o.slice(2, -2) }));
-
-    const form = new FormData();
-    form.append('name', m.ten);
-    form.append('mapping', JSON.stringify(mapping));
-    /*
-     * KHÔNG mẫu nào khai `cotBang` nữa (`0137`).
-     *
-     * Tới `0136` mẫu RÚT GỌN nạp kèm tập cột bốn cột, để bản demo bày ra tính
-     * năng *chọn tập cột theo từng mẫu* (`0067`) đang chạy. Khách hàng chốt
-     * 27/08 bỏ mẫu ấy khỏi bộ nạp, nên tính năng ấy mất chỗ trưng bày — xem
-     * `tao-mau-ho-so.ts`. Không thay bằng một mẫu khác: hai mẫu còn lại là bản
-     * ĐỦ CỘT, và cắt cột của chúng là đổi chính thứ chúng sinh ra để là.
-     */
-    form.append('file', new Blob([buf]), m.tep);
-    const mau = await guiTep<{ id: string }>('/policy-templates', 'admin01', form);
-    mauHoSoDaNap.push(mau.id);
-  }
-}
 
 /**
  * Chèn thẳng SQL — ngoại lệ DUY NHẤT của "nạp qua API thật".
@@ -1037,18 +975,10 @@ async function main(): Promise<void> {
 
   // === Mẫu hồ sơ CSBH ========================================================
   //
-  // Nạp từ FILE THẬT trong `templates/`, không dựng lại thân mẫu ở đây (`0057`).
-  //
-  // Đây là điểm khác biệt đáng giá: bản demo dùng đúng ba file mà Quản trị tải
-  // về sửa được. Dựng lại thân mẫu trong bộ nạp thì demo chạy trên một bố cục
-  // chỉ tồn tại trong mã seed, và ngày ai đó sửa file trong `templates/` mà quên
-  // sửa ở đây thì hai bên lệch nhau mà không gì báo.
-  await namMauHoSo();
-
-  // PHẢI đứng TRƯỚC mọi lượt lập hồ sơ (`0098`): gửi duyệt bắt buộc kèm mẫu, và
-  // `phanCong()` xoay vòng qua chính mảng mà `namMauHoSo` vừa điền. Đặt sau thì
-  // mảng còn rỗng lúc hồ sơ đầu tiên đi qua, và mọi hồ sơ của bản demo gửi duyệt
-  // mà không có mẫu — hỏng ở đúng chỗ khó đoán nhất là màn hình xem bản mềm.
+  // BỘ NẠP THÔI ĐỤNG TỚI VĂN BẢN MẪU (`0165`) — ba mẫu mặc định đã có sẵn từ lúc
+  // `document` khởi động. Ràng buộc thứ tự cũ (*"nạp mẫu trước mọi lượt lập hồ
+  // sơ, vì gửi duyệt bắt buộc kèm mẫu"*) mất theo `0163`: gửi duyệt không cần
+  // mẫu nữa.
 
   // === PHẦN VIẾT TAY: năm hồ sơ được chọn, đứng đầu danh sách =================
 
@@ -1346,49 +1276,11 @@ async function main(): Promise<void> {
     }
   }
 
-  // === Mẫu hợp đồng ==========================================================
+  // === Mẫu hợp đồng ĐÃ GỠ (`0165`) ==========================================
   //
-  // `.docx` dựng bằng chính bộ dựng của service document, không phải file rỗng:
-  // máy chủ đọc ô trống ngay lúc tải lên và từ chối file không phải docx
-  // (`DOC-33`), nên một file giả sẽ hỏng ở đúng bước này.
-  const than = [
-    // Tên Công ty KHÔNG còn là ô trống (`0067`): ba giá trị ấy cố định ở mọi hồ
-    // sơ. Nhưng cũng không gõ lại ở đây nữa (`0151`) — đọc từ hằng, vì lượt đổi
-    // pháp nhân 29/08 tìm thấy nó nằm rải ở sáu chỗ.
-    para(COMPANY.name),
-    para('HỢP ĐỒNG PHÂN PHỐI SẢN PHẨM'),
-    para('Bên B: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
-    para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
-    para('Áp dụng theo hồ sơ CSBH số {{ho_so.ma_ho_so}}'),
-    para(''),
-    para('{{bang_san_pham}}'),
-  ].join('');
-  for (const ten of MAU_HOP_DONG) {
-    /*
-     * Ánh xạ đi CÙNG file trong một lượt (`0067`) — không còn bước ánh xạ riêng
-     * và không còn bước ban hành. Mẫu lưu được là mẫu dùng được, nên bản demo
-     * KHÔNG còn dòng mẫu nào ở trạng thái nửa vời.
-     *
-     * Trước `0067` bộ nạp chỉ tải lên chứ không ánh xạ và không ban hành, mà nó
-     * cũng xoá sạch `doc.contract_template` ở đầu — kể cả mẫu mặc định do service
-     * tự seed. Kết quả: bản demo không có mẫu hợp đồng nào dùng được, và mọi lần
-     * bấm *Xuất hợp đồng* trả 409. Không ai báo, vì lỗi ấy chỉ hiện ra khi có
-     * người bấm đúng nút đó trên đúng một hồ sơ đã qua tiếp nhận lần 1.
-     */
-    const form = new FormData();
-    form.append('name', ten);
-    form.append(
-      'mapping',
-      JSON.stringify(
-        [...than.matchAll(/\{\{([a-zA-Z0-9_.]+)\}\}/g)]
-          .map((x) => `{{${x[1]}}}`)
-          .filter((o, i, a) => a.indexOf(o) === i && o !== '{{bang_san_pham}}')
-          .map((o) => ({ placeholder: o, source: o.slice(2, -2) })),
-      ),
-    );
-    form.append('file', new Blob([makeDocx(than)]), `${ten}.docx`);
-    await guiTep('/contract-templates', 'admin01', form);
-  }
+  // Bản demo dùng chính mẫu hợp đồng mặc định mà `document` nạp lúc khởi động —
+  // thứ khách hàng sẽ thấy trên máy chủ thật. Khối cũ dựng ba mẫu bằng `makeDocx`
+  // ngay trong bộ nạp, tức một bố cục chỉ tồn tại trong mã seed.
 
   // === Thư hỏng ==============================================================
   await namThuHong();
@@ -1441,10 +1333,9 @@ async function main(): Promise<void> {
     `seed-demo: xong — ${NHOM.length} nhóm, ${SAN_PHAM.length} sản phẩm, ` +
       `${QUY_DINH_CK.length} quy định chiết khấu, ${KHACH.length} khách hàng, ` +
       `${daLap} hồ sơ (${SAP_QUA_HAN.length} sắp quá hạn, ${DA_QUA_HAN.length} đã quá hạn), ` +
-      // ĐẾM SỐ NẠP THẬT, không phải số file trong thư mục (`0059`): mẫu hợp đồng
-      // trong `templates/` cố ý đứng ngoài, và một con số đếm cả nó thì mỗi lần
-      // ai đó soi CSDL lại phải đi tìm xem mình vừa mất một mẫu ở đâu.
-      `${MAU_HOP_DONG.length} mẫu hợp đồng, ${BO_MAU.filter((m) => m.napDemo !== false).length} mẫu hồ sơ, ${SO_THU_HONG} thư hỏng, ` +
+      // KHÔNG còn đếm mẫu (`0165`): bộ nạp thôi tạo mẫu nào, nên một con số ở đây
+      // sẽ nói về thứ nó không làm.
+      `${SO_THU_HONG} thư hỏng, ` +
       `${lech} hồ sơ cần cập nhật, ${tb.tong} thông báo (${tb.chuaDoc} chưa đọc)`,
   );
 }

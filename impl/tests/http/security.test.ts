@@ -943,14 +943,18 @@ describe('`0109` bộ nạp danh mục ĐƯỢC phép chạy ở production — 
     expect(nguon).toContain('/catalog/products?limit=1');
   });
 
-  it('ba văn bản mẫu nó nạp đều có thật trong `templates/`', () => {
-    for (const t of [
-      'mau-ho-so-a4-doc.docx',
-      'mau-ho-so-a4-ngang.docx',
-      'mau-hop-dong-a4-doc.docx',
-    ]) {
-      expect(nguon, `nap-danh-muc phải nạp ${t}`).toContain(t);
-      expect(existsSync(`templates/${t}`), `thiếu templates/${t}`).toBe(true);
+  it('`0165` KHÔNG nạp văn bản mẫu nào — việc ấy đã sang lượt khởi động', () => {
+    /*
+     * Ca này ĐẢO CHIỀU: tới `0164` nó đòi script nạp đúng ba file trong
+     * `templates/`. Khách hàng chốt 30/08 rằng ba mẫu mặc định đi cùng hệ thống,
+     * không cần chạy lệnh nào — nên script này thôi có việc với mẫu.
+     *
+     * Giữ lại là dựng ra ĐƯỜNG NẠP THỨ HAI cho cùng một thứ, và đường thứ hai
+     * sẽ đâm vào `uq_template_ten` hoặc — tệ hơn — thêm một bộ mẫu gần giống bên
+     * cạnh bộ đã có. Cùng loại lỗi mà `0165` gỡ khỏi `seed-demo`.
+     */
+    for (const cam of ['/policy-templates', '/contract-templates', '.docx', 'o-trong']) {
+      expect(nguon, `nap-danh-muc thôi đụng tới ${cam}`).not.toContain(cam);
     }
   });
 

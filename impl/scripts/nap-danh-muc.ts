@@ -26,10 +26,10 @@
  *
  * Gọi:  ./csbh nap-danh-muc
  */
+
 import { readFileSync } from 'node:fs';
 
 const GATEWAY = process.env.GATEWAY_URL ?? 'http://gateway:3000';
-const THU_MUC = process.env.TEMPLATES_DIR ?? '/app/templates';
 
 const doc = (ten: string): string => {
   const tep = process.env[`${ten}_FILE`];
@@ -55,17 +55,6 @@ async function goi<T>(duong: string, body?: unknown, method = 'POST'): Promise<T
   });
   if (!r.ok) throw new Error(`${method} ${duong} → ${r.status} ${await r.text()}`);
   return r.status === 204 ? (undefined as T) : ((await r.json()) as T);
-}
-
-/** KHÔNG đặt `content-type` bằng tay — `undici` tự đặt kèm `boundary`. */
-async function guiTep<T>(duong: string, form: FormData): Promise<T> {
-  const r = await fetch(`${GATEWAY}${duong}`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}` },
-    body: form,
-  });
-  if (!r.ok) throw new Error(`POST ${duong} → ${r.status} ${await r.text()}`);
-  return (await r.json()) as T;
 }
 
 // --- Thứ được nạp -----------------------------------------------------------
@@ -106,46 +95,20 @@ const QUY_DINH_CK = [
   { code: 'CK-YHOC', productGroupCode: 'DINH-DUONG-Y-HOC', thresholdRate2: 1200 },
 ];
 
-/**
- * Hai mẫu hồ sơ và một mẫu hợp đồng.
+/*
+ * NẠP VĂN BẢN MẪU ĐÃ GỠ KHỎI SCRIPT NÀY (`0165`).
  *
- * Hệ thống đã tự nạp một mẫu mỗi loại lúc `document` khởi động (`ensureDefault`),
- * nên ba file này KHÔNG phải điều kiện để dùng được — chúng là bản trình bày đẹp
- * hơn, và là thứ Quản trị tải về sửa câu chữ trong Word.
+ * Khách hàng chốt 30/08: ba mẫu mặc định *"luôn luôn được deploy cùng hệ thống
+ * mà không cần phải make demo-mau hay make nap-danh-muc"*. Chúng nạp lúc
+ * `document` khởi động — xem `services/document/src/contracts/bootstrap-mau.ts`.
+ *
+ * Giữ lại ở đây một bản thứ hai là dựng ra hai đường nạp cho cùng một thứ, và
+ * đường thứ hai sẽ đâm vào `uq_template_ten` hoặc — tệ hơn — thêm một bộ mẫu
+ * gần giống bên cạnh bộ đã có.
+ *
+ * `TEMPLATES_DIR` và `readFileSync` đi theo: không còn ai đọc file trong script
+ * này nữa.
  */
-const MAU = [
-  { tep: 'mau-ho-so-a4-doc.docx', ten: 'Mẫu CSBH A4 dọc', duong: '/policy-templates' },
-  { tep: 'mau-ho-so-a4-ngang.docx', ten: 'Mẫu CSBH A4 ngang', duong: '/policy-templates' },
-  { tep: 'mau-hop-dong-a4-doc.docx', ten: 'Mẫu hợp đồng A4 dọc', duong: '/contract-templates' },
-];
-
-async function napMau(): Promise<void> {
-  for (const m of MAU) {
-    const buf = readFileSync(`${THU_MUC}/${m.tep}`);
-
-    const oTrong = await guiTep<{ placeholders: string[] }>(
-      `${m.duong}/o-trong`,
-      (() => {
-        const f = new FormData();
-        f.append('file', new Blob([buf]), m.tep);
-        return f;
-      })(),
-    );
-
-    // `{{bang_san_pham}}` KHÔNG ánh xạ tới trường nào — hệ thống thay nó bằng cả
-    // một bảng. Mọi ô còn lại thì tên khoá trùng luôn tên trường nguồn (`0051`).
-    const mapping = oTrong.placeholders
-      .filter((o) => o !== '{{bang_san_pham}}')
-      .map((o) => ({ placeholder: o, source: o.slice(2, -2) }));
-
-    const form = new FormData();
-    form.append('name', m.ten);
-    form.append('mapping', JSON.stringify(mapping));
-    form.append('file', new Blob([buf]), m.tep);
-    await guiTep(m.duong, form);
-    console.log(`  mẫu: ${m.ten}`);
-  }
-}
 
 async function main(): Promise<void> {
   const taiKhoan = doc('ADMIN_USERNAME');
@@ -217,7 +180,6 @@ async function main(): Promise<void> {
   }
   console.log(`  sản phẩm kèm giá: ${SAN_PHAM.length}`);
 
-  await napMau();
 
   console.log('');
   console.log('  Xong. Đây là DỮ LIỆU MẪU — sửa hoặc vô hiệu hoá trước khi dùng thật.');

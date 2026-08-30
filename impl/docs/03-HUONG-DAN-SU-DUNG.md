@@ -1610,16 +1610,38 @@ thư được đánh dấu đã xử lý.
 Ba mục menu riêng. **Sản phẩm** và **Chiết khấu** mọi vai trò vào được — vai trò không phải Quản trị
 thấy đúng bảng dữ liệu, ở dạng chỉ đọc. **Văn bản mẫu** chỉ Quản trị hệ thống thấy.
 
-### 13.0. Văn bản mẫu — hai thẻ `sửa 20/08`
+### 13.0. Văn bản mẫu — ba thẻ `sửa 30/08`
 
-Màn hình có **hai thẻ**: *Mẫu hồ sơ CSBH* và *Mẫu hợp đồng*. Cùng một cách làm việc — tải `.docx`
-lên, ánh xạ ô trống, ban hành — nên chúng ở cùng một chỗ. Phần dưới nói về thẻ thứ nhất; thẻ *Mẫu
-hợp đồng* xem mục 9.
+Màn hình có **ba thẻ**: *Hồ sơ mẫu đầy đủ* · *Hồ sơ mẫu rút gọn* · *Mẫu hợp đồng*. Cùng một cách làm
+việc — tải `.docx` lên, ánh xạ ô trống, lưu — nên chúng ở cùng một chỗ. Phần dưới nói về hai thẻ đầu;
+thẻ *Mẫu hợp đồng* xem mục 9.
 
-#### Thẻ *Mẫu hồ sơ CSBH* `mới 19/08`
+**Ba mẫu có sẵn từ lúc cài đặt** `mới 30/08` — mỗi thẻ một mẫu, tên kết thúc bằng *(bản mặc định)*.
+Bạn không phải làm gì để có chúng, và không phải chạy lệnh nào. Sửa được: tải bản của mình lên rồi vô
+hiệu hoá bản mặc định. Vô hiệu hoá xong nó **nằm im**, không tự hiện lại ở lần khởi động sau.
+
+#### Hai thẻ *Hồ sơ mẫu* `sửa 30/08`
 
 Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không dựng cứng trong phần mềm.
-Thẻ này là chỗ quản mẫu ấy.
+Hai thẻ này là chỗ quản mẫu ấy.
+
+**Đầy đủ và rút gọn khác nhau đúng MỘT chuyện: số cột của bảng sản phẩm.** Mọi luật khác giống hệt —
+cùng mục bắt buộc, cùng ô `{{bang_san_pham}}`, cùng người quản lý.
+
+| | Cột của bảng sản phẩm | Dùng khi nào |
+| --- | --- | --- |
+| **Đầy đủ** | đủ mười: STT · Mã SP · Tên SP · Giá công ty · Giá bán buôn · CPBH tổng · từng khoản CPBH · Giá thu về · Tỷ lệ CK · Ghi chú | bản nội bộ, để duyệt |
+| **Rút gọn** | sáu: STT · Mã SP · Tên SP · Giá công ty · Giá bán buôn · CPBH tổng | bản đưa khách hàng |
+
+Bản rút gọn **không in** giá thu về, tỷ lệ chiết khấu và từng khoản CPBH — ba con số ấy là phép tính
+ngược ra mức chiết khấu, thứ Công ty dùng để duyệt chứ không đưa cho bên mua.
+
+> **Cột tự chọn theo thẻ** `mới 30/08`. Mở trang *Thêm mẫu* từ thẻ nào thì ô chọn cột đã tích sẵn
+> đúng tập cột của thẻ ấy. Vẫn sửa được nếu bạn muốn khác đi.
+
+> **Sale Admin thấy CẢ HAI trong một ô chọn.** Ba thẻ ở đây là ba danh sách rời của người QUẢN mẫu;
+> còn lúc in bản mềm thì Sale Admin chọn giữa mọi mẫu hồ sơ, đầy đủ hay rút gọn đều được — cả hai là
+> bản trình bày hợp lệ của cùng một hồ sơ.
 
 **Bốn thao tác** `sửa 28/08`: **Thêm mẫu** ở góc trên bên phải; **Xem**, **Vô hiệu hoá** và **Dùng
 lại** ở từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng được.
@@ -1662,6 +1684,11 @@ lại** ở từng dòng. Cột *Trạng thái* nói mẫu nào đang dùng đư
 > hiệu lực. Gửi duyệt thì vẫn chạy bình thường `sửa 29/08`: người gửi không chọn mẫu nên họ không
 > phụ thuộc vào danh sách này. Danh sách mẫu trống là việc phải xử lý, không phải việc hệ thống tự
 > lo.
+>
+> **Sửa lại `30/08`:** hệ thống có ba mẫu mặc định ngay từ lúc cài, nên danh sách chỉ trống khi bạn
+> đã tự vô hiệu hoá hết. Câu *"hệ thống không tự tạo mẫu"* vẫn đúng ở chỗ nó vốn nhắm tới: nó **nạp**
+> ba file bàn giao mở ra xem được, chứ không **dựng** một mẫu bằng mã; và vô hiệu hoá rồi thì nó
+> không tự hiện lại.
 
 > **Không còn ban hành, không còn nháp.** Mọi mẫu trong danh sách đều dùng được ngay — lưu được là
 > dùng được. Mọi phép kiểm dồn về lúc bấm *Lưu*, tức là lúc bạn còn đang mở file Word ra và sửa thêm

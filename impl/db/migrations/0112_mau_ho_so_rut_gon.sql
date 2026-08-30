@@ -1,0 +1,39 @@
+-- `0165` — LOẠI MẪU THỨ BA: hồ sơ rút gọn.
+--
+-- Khách hàng chốt 30/08: màn hình *Văn bản mẫu* có BA thẻ thay vì hai —
+-- *Hồ sơ mẫu đầy đủ* · *Hồ sơ mẫu rút gọn* · *Mẫu hợp đồng* — và mỗi loại có
+-- một mẫu mặc định đi kèm hệ thống.
+--
+-- ---------------------------------------------------------------------------
+-- VÌ SAO LÀ MỘT LOẠI RIÊNG, KHÔNG PHẢI MỘT CỜ TRÊN MẪU HỒ SƠ
+-- ---------------------------------------------------------------------------
+--
+-- `0067` cho mỗi mẫu tự khai tập cột (`cot_bang`), nên "bản đầy đủ cho nội bộ"
+-- và "bản gọn đưa khách hàng" vốn đã dựng được mà không cần loại mới. Cái loại
+-- mới mang thêm là những thứ `cot_bang` không nói được:
+--
+--   * MỘT THẺ RIÊNG trên màn hình quản trị, tức một danh sách riêng — `cot_bang`
+--     là một mảng khoá, không phải một cách phân nhóm.
+--   * MỘT MẪU MẶC ĐỊNH RIÊNG. Yêu cầu là *"mỗi loại một mẫu mặc định"*, và khoá
+--     idempotent của lượt nạp ấy là `(kind, name)` — chỉ mục `uq_template_ten`
+--     của `0108`. Không có loại riêng thì hai mẫu mặc định nằm chung một loại và
+--     phải phân biệt bằng tên, tức bằng một quy ước không có ràng buộc nào giữ.
+--   * TẬP CỘT SUY RA TỪ LOẠI (`0165`, yêu cầu *"tự động chọn cột"*). Cột không
+--     còn là thứ người soạn khai mỗi lần; nó là tính chất của loại mẫu.
+--
+-- ---------------------------------------------------------------------------
+-- MỘT CÂU LỆNH, MỘT TỆP MIGRATION
+-- ---------------------------------------------------------------------------
+--
+-- `ALTER TYPE … ADD VALUE` **không dùng được giá trị mới trong cùng transaction**
+-- đã thêm nó, và `scripts/migrate.sh` chạy mỗi tệp dưới `--single-transaction`.
+-- Nên tệp này chỉ có đúng một dòng: mọi câu lệnh cần tới `'HO_SO_RUT_GON'` phải
+-- nằm ở một tệp SAU.
+--
+-- Ở đây không có câu lệnh nào như thế, và cũng không cần: ba mẫu mặc định do
+-- `document` nạp lúc khởi động (`bootstrap-mau.ts`), không do migration.
+--
+-- Đối xứng với `0110`: bỏ một giá trị enum là dựng lại cả kiểu, còn THÊM thì chỉ
+-- một dòng. Không có ràng buộc nào phải sửa theo — `ck_template_paper_size` đã
+-- gỡ ở `0058`, và `uq_template_ten (kind, name)` tự đúng cho giá trị mới.
+ALTER TYPE doc.template_kind ADD VALUE IF NOT EXISTS 'HO_SO_RUT_GON';

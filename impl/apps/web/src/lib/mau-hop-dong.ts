@@ -34,7 +34,14 @@ export type MauHopDong = {
   voHieuHoaLuc?: string | null;
 };
 
-export type LoaiMau = 'HOP_DONG' | 'HO_SO';
+/**
+ * BA loại văn bản mẫu từ `0165` — ba thẻ trên màn hình Quản trị.
+ *
+ * `HO_SO` và `HO_SO_RUT_GON` khác nhau đúng một chuyện: TẬP CỘT của bảng sản
+ * phẩm, và tập ấy suy từ loại chứ không do người soạn khai. Mọi luật khác —
+ * mục bắt buộc muc 11.1, ô `{{bang_san_pham}}`, vai trò quản lý — giống hệt.
+ */
+export type LoaiMau = 'HOP_DONG' | 'HO_SO' | 'HO_SO_RUT_GON';
 export type KhoGiay = 'a4p' | 'a4l';
 
 export const KHO_GIAY: KhoGiay[] = ['a4p', 'a4l'];
@@ -77,6 +84,11 @@ export const CAU_HINH_MAU: Record<
   LoaiMau,
   {
     duong: string;
+    /**
+     * Tham số `loai` gửi kèm mọi lời gọi, khi hai loại dùng CHUNG một đường dẫn
+     * (`0165`). Bỏ trống là loại duy nhất của đường dẫn ấy — mẫu hợp đồng.
+     */
+    loai?: LoaiMau;
     tieuDe: string;
     moTa: string;
     /**
@@ -99,12 +111,27 @@ export const CAU_HINH_MAU: Record<
   },
   HO_SO: {
     duong: '/policy-templates',
-    tieuDe: 'Giấy tờ mẫu',
-    // `0098` đổi câu này: người xem không còn chọn mẫu nữa. TDV chọn một lần
-    // lúc gửi duyệt, rồi mẫu đóng băng vào hồ sơ.
-    moTa: 'Mẫu Word dựng bản CSBH A4. Trình dược viên chọn mẫu lúc gửi duyệt, và mẫu ấy gắn với hồ sơ.',
+    loai: 'HO_SO',
+    tieuDe: 'Hồ sơ mẫu đầy đủ',
+    moTa:
+      'Mẫu Word dựng bản CSBH A4 với ĐỦ MƯỜI CỘT của bảng sản phẩm — bản nội bộ, ' +
+      'có cả giá thu về và tỷ lệ chiết khấu. Sale Admin chọn mẫu lúc in bản mềm.',
     bangDoHeThongDung: true,
-    nhanTaiLen: 'Tải mẫu hồ sơ CSBH',
+    nhanTaiLen: 'Tải mẫu hồ sơ đầy đủ',
+  },
+  HO_SO_RUT_GON: {
+    // CÙNG đường dẫn với mẫu đầy đủ, phân biệt bằng tham số `loai` (`0165`).
+    // Hai loại này cùng một tập vai trò và cùng một bộ phép kiểm, nên tách đôi
+    // đường dẫn là chép mười đường để đổi đúng một chuỗi — xem `loaiHoSo` bên
+    // `contracts.controller.ts`.
+    duong: '/policy-templates',
+    loai: 'HO_SO_RUT_GON',
+    tieuDe: 'Hồ sơ mẫu rút gọn',
+    moTa:
+      'Cùng bản CSBH A4 nhưng bảng sản phẩm chỉ SÁU CỘT — bản đưa khách hàng, ' +
+      'không in giá thu về, tỷ lệ chiết khấu và từng khoản CPBH.',
+    bangDoHeThongDung: true,
+    nhanTaiLen: 'Tải mẫu hồ sơ rút gọn',
   },
 };
 
@@ -135,6 +162,13 @@ export type DanhMucNguon = {
   oBangSanPham?: string;
   cotBang?: CotBang[];
   cotBatBuoc?: string[];
+  /**
+   * Tập cột MỞ SẴN của loại mẫu đang soạn (`0165`).
+   *
+   * Tuỳ chọn vì máy chủ cũ hơn giao diện không gửi nó, và giá trị lùi là *cả
+   * danh mục* — đúng hành vi trước `0165`, tức không mất cột nào.
+   */
+  cotMacDinh?: string[];
 };
 
 /**

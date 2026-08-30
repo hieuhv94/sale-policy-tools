@@ -129,10 +129,12 @@ export function ThemMau({
    * ánh xạ hiện ra với những ô chọn rỗng đúng vào lúc người dùng bắt đầu điền.
    */
   useState(() => {
-    layJson<DanhMucNguon>(`${ch.duong}/sources`)
+    // `?loai=` để máy chủ trả đúng TẬP CỘT MỞ SẴN của loại này (`0165`): mẫu
+    // rút gọn mở ra với sáu cột đã tích sẵn, mẫu đầy đủ với cả mười.
+    layJson<DanhMucNguon>(`${ch.duong}/sources${ch.loai === undefined ? '' : `?loai=${ch.loai}`}`)
       .then((d) => {
         datDanhMuc(d);
-        datCot((c) => c ?? (d.cotBang ?? []).map((x) => x.khoa));
+        datCot((c) => c ?? d.cotMacDinh ?? (d.cotBang ?? []).map((x) => x.khoa));
       })
       .catch(datLoiTai);
     return undefined;
@@ -174,6 +176,9 @@ export function ThemMau({
       form.append('name', ten.trim() || tep.name.replace(/\.docx$/i, ''));
       form.append('mapping', JSON.stringify(mapping));
       if (cot) form.append('cotBang', JSON.stringify(cot));
+      // `loai` đi trong THÂN, không trong URL: đây là một lượt ghi, và loại mẫu
+      // là một phần của thứ được ghi (`0165`).
+      if (ch.loai !== undefined) form.append('loai', ch.loai);
       xong(await guiTep<MauDto>(ch.duong, form));
     } catch (e) {
       bao(e);

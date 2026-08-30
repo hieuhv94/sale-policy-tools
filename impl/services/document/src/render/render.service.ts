@@ -22,7 +22,7 @@ import { SUA_DUOC } from '@csbh/domain-policy';
 import { Clients, type CustomerFull, type PolicyFull } from '../infra/clients.js';
 import { Gotenberg } from '../infra/gotenberg.js';
 import { FilesService } from '../files/files.service.js';
-import { TemplatesService } from '../contracts/templates.service.js';
+import { LOAI_HO_SO, TemplatesService } from '../contracts/templates.service.js';
 import { bangSanPhamXml } from '../contracts/bang-san-pham.js';
 import { mergeDocx } from '../contracts/docx.js';
 import { tron } from '../contracts/tron.js';
@@ -197,6 +197,8 @@ export class RenderService {
    * để dựng một tờ giấy mới.
    */
   private mauCua(mauId: string) {
-    return this.templates.chon('HO_SO', mauId);
+    // CẢ HAI loại mẫu hồ sơ (`0165`) — Sale Admin chọn đầy đủ hay rút gọn ở lúc
+    // in, và ô chọn của họ trộn chung hai danh sách.
+    return this.templates.chon(LOAI_HO_SO, mauId);
   }
 }

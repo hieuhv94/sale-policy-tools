@@ -18,10 +18,15 @@ import {
   COMPANY,
   TemplatesService,
   makeDocx,
+  mergeDocx,
   para,
   placeholdersOf,
   documentXml,
   KNOWN_SOURCES,
+  COT_MAC_DINH,
+  COT_RUT_GON,
+  MAU_MAC_DINH,
+  MauMacDinhBootstrap,
   NGUON_BAT_BUOC_HO_SO,
   NHOM_TRUONG,
   O_BANG_SAN_PHAM,
@@ -514,6 +519,41 @@ describe('DOC-25 đọc ô trống của một file .docx', () => {
       '<w:r><w:t>ten_khach</w:t></w:r>' +
       '<w:r><w:t>_hang}}, xin chào</w:t></w:r></w:p>';
     expect(placeholdersOf(makeDocx(split))).toEqual(['{{ho_so.ten_khach_hang}}']);
+  });
+
+  it('`0165` đoạn văn có TAB của Word không làm bộ đọc chữ nuốt markup', async () => {
+    /*
+     * LỖI THẬT, tìm ra lúc dựng bản mềm bằng mẫu mặc định đầu tiên có tab stop.
+     *
+     * `textOf` khớp `<w:t[^>]*>`, và `[^>]*` cho `<w:t` nuốt luôn hai thẻ TAB
+     * của Word — `<w:tabs>` (`abs>`) và `<w:tab/>` (`ab/>`). Bộ quét chạy tiếp
+     * tới `</w:t>` THẬT ở cuối run kế tiếp, nên nó trả về CẢ KHỐI MARKUP nằm
+     * giữa dưới dạng "chữ"; `setParagraphText` escape khối ấy và in nguyên
+     * `&lt;w:rPr&gt;…` ra tờ giấy.
+     *
+     * Ai cũng dính, không riêng mẫu của phần mềm: **tab stop là cách căn cột
+     * thông thường nhất trong Word**. Lỗi nằm đó từ `0051` và chỉ lộ ra ở `0165`
+     * vì đây là lượt đầu tiên phần mềm tự sinh ra một mẫu có tab.
+     *
+     * Ca kiểm đi qua CẢ HAI đường mà lỗi biểu hiện: đọc ô trống, và trộn.
+     */
+    const tab =
+      '<w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="2419"/></w:tabs></w:pPr>' +
+      '<w:r><w:tab/></w:r>' +
+      '<w:r><w:t>{{ho_so.ten_khach_hang}}</w:t></w:r></w:p>';
+    const buf = makeDocx(tab);
+
+    expect(placeholdersOf(buf), 'ô trống sau một thẻ tab').toEqual([
+      '{{ho_so.ten_khach_hang}}',
+    ]);
+
+    const tron = mergeDocx(buf, {
+      values: { '{{ho_so.ten_khach_hang}}': 'Nhà thuốc Có Tab' },
+    });
+    const chu = documentXml(tron);
+    expect(chu, 'chữ đã điền phải có mặt').toContain('Nhà thuốc Có Tab');
+    // Chốt chặn thật: KHÔNG có markup nào bị escape thành chữ.
+    expect(chu, 'markup lọt vào <w:t> rồi in ra giấy').not.toContain('&lt;w:');
   });
 });
 
@@ -1500,9 +1540,24 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
    * và ca này vừa vô hiệu hoá cả bảng ngay phía trên.
    */
   const xoaHet = async () => {
-    const ds = (await qget('/policy-templates', 'admin01')).body as { id: string }[];
-    for (const t of ds) await donMau('/policy-templates', t.id, 'admin01');
+    const ds = (await qget('/policy-templates', 'admin01')).body as {
+      id: string;
+      voHieuHoaLuc?: string | null;
+    }[];
+    /*
+     * NHỚ những mẫu nó thật sự TẮT, để bật lại đúng chừng ấy (`0165`).
+     *
+     * Bản trước chỉ tắt rồi dựng một mẫu mới thay thế — nên ba mẫu MẶC ĐỊNH
+     * (`0165`) nằm tắt suốt phần còn lại của tệp, và ca nào hỏi *"ô chọn của
+     * Sale Admin có đủ hai mẫu hồ sơ không"* thì đỏ ở một chỗ chẳng liên quan.
+     * Đúng kiểu đỏ chỉ xuất hiện khi chạy CẢ TỆP.
+     *
+     * Bỏ qua mẫu vốn đã tắt: bật lại chúng là sửa trạng thái mà ca khác cố ý đặt.
+     */
+    const daTat = ds.filter((x) => x.voHieuHoaLuc == null);
+    for (const t of daTat) await donMau('/policy-templates', t.id, 'admin01');
     return async () => {
+      for (const t of daTat) await dpost(`/policy-templates/${t.id}/mo-lai`, 'admin01', {});
       const r = await luuMauHoSo(uniq('Mau dung lai'));
       expect(r.status, JSON.stringify(r.body)).toBe(201);
       /*
@@ -1517,30 +1572,34 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     };
   };
 
-  it('`0150` hệ thống KHÔNG tự dựng mẫu nào — không còn khái niệm mẫu mặc định', async () => {
+  it('`0165` hệ thống KHÔNG tự DỰNG mẫu — nó chỉ NẠP ba file bàn giao', async () => {
     /*
-     * Ca này ĐẢO NGƯỢC hẳn bản trước, thứ khẳng định *"hệ thống seed sẵn mỗi khổ
-     * một mẫu, để chạy được từ phút đầu"*.
+     * Ca này đảo MỘT NỬA của `0150`, và nửa nào đảo là cả nội dung của nó.
      *
-     * Khách hàng chốt 28/08: hệ thống không bao giờ được tự tạo một văn bản mẫu.
-     * Vô hiệu hoá mẫu cuối cùng của một khổ rồi khởi động lại thì bản cũ dựng
-     * một mẫu Quản trị không hề tạo — và nó nằm ngay trong ô chọn của mọi TDV.
+     * `0150` bỏ `ensureDefault` với hai lý lẽ khác nhau chồng lên nhau:
      *
-     * Cái giá đã ghi ở migration `0108`: hệ thống vừa cài xong KHÔNG dùng được
-     * cho tới khi có mẫu, và `./csbh nap-danh-muc` thành bước cài đặt bắt buộc.
+     *   (a) *"hệ thống không được TỰ DỰNG một văn bản mẫu"* — dựng thân mẫu bằng
+     *       mã, ra một tờ giấy không ai duyệt nội dung;
+     *   (b) *"vô hiệu mẫu cuối cùng rồi khởi động lại thì nó MỌC LẠI"* — bộ dựng
+     *       cũ hỏi *"loại này còn mẫu dùng được không"*.
+     *
+     * Khách hàng chốt 30/08 rằng ba mẫu mặc định phải đi cùng hệ thống. Lý lẽ
+     * (a) VẪN GIỮ: `0165` nạp ba FILE `.docx` bàn giao — thứ người ta mở ra xem
+     * và sửa được — chứ không dựng thân mẫu bằng mã. Lý lẽ (b) cũng giữ, và có
+     * ca kiểm riêng: khoá idempotent là `(kind, name)` tính cả dòng đã tắt.
      *
      * Quét MÃ NGUỒN chứ không quét CSDL: bảng lúc này đã đầy mẫu do các ca khác
-     * tải lên, nên "không có mẫu nào" không đo được nữa. Thứ đo được, và là thứ
-     * đáng canh, là không còn đường nào TỰ dựng mẫu.
+     * tải lên, nên "không có mẫu nào" không đo được nữa.
      */
     const src = readFileSync('services/document/src/contracts/templates.service.ts', 'utf8');
     for (const ten of ['ensureDefault', 'ensureDefaultHoSo', 'ensureDefaultHopDong', 'vaFileMacDinh']) {
       expect(src, `${ten} phải gỡ hẳn`).not.toContain(`async ${ten}(`);
     }
-    expect(
-      readFileSync('services/document/src/app.module.ts', 'utf8'),
-      'TemplateBootstrap còn được đăng ký thì nó vẫn chạy lúc khởi động',
-    ).not.toContain('TemplateBootstrap');
+    // Bộ nạp `0165` đọc FILE, không gọi `makeDocx` — ranh giới giữa *nạp* và
+    // *dựng*, và là thứ duy nhất còn phân biệt nó với `ensureDefault` cũ.
+    const boot = readFileSync('services/document/src/contracts/bootstrap-mau.ts', 'utf8');
+    expect(boot, 'mẫu mặc định phải ĐỌC TỪ FILE').toContain('readFileSync');
+    expect(boot, 'không được dựng thân mẫu bằng mã').not.toContain('makeDocx');
   }, 30_000);
 
   it('chỉ QUẢN TRỊ vào được — Sale Admin và Kế toán đều 403', async () => {
@@ -1862,7 +1921,7 @@ describe('`0057` bộ file mẫu trong templates/', () => {
   });
 
   /**
-   * `0134` — MẪU `nap-danh-muc` NẠP PHẢI IN ĐƯỢC MỌI TRƯỜNG CHẶN GỬI DUYỆT.
+   * `0134` — MẪU ĐI CÙNG HỆ THỐNG PHẢI IN ĐƯỢC MỌI TRƯỜNG CHẶN GỬI DUYỆT.
    *
    * Lỗ hổng có thật, và `0128` mở ra nó: thêm *số điện thoại khách hàng*, xếp nó
    * vào nhóm `chan-moi` (rỗng thì không gửi duyệt được), thêm khoá vào bảng ánh
@@ -1870,16 +1929,21 @@ describe('`0057` bộ file mẫu trong templates/', () => {
    * bắt mọi người điền một trường không xuất hiện trên bất kỳ tờ giấy nào.
    *
    * Không ca kiểm nào bắt được, vì hai vế nằm ở hai thế giới khác nhau: một bên
-   * là bảng phân loại trong TypeScript, một bên là bốn file `.docx` nhị phân.
+   * là bảng phân loại trong TypeScript, một bên là những file `.docx` nhị phân.
    *
-   * Danh sách file ĐỌC TỪ CHÍNH `nap-danh-muc.ts` chứ không chép sang: chép là
-   * dựng bản sao thứ hai, và ngày bộ nạp đổi danh sách thì ca này canh những
-   * file chẳng ai nạp.
+   * `0165` ĐỔI NGUỒN DANH SÁCH, không đổi câu hỏi. Tới `0164` nó đọc mã nguồn
+   * `nap-danh-muc.ts`; script ấy thôi nạp mẫu nào, nên danh sách giờ đọc từ
+   * `MAU_MAC_DINH` — ba mẫu `document` nạp lúc khởi động, tức đúng những mẫu có
+   * mặt trên một máy chủ vừa cài xong.
+   *
+   * MẪU HỢP ĐỒNG ĐỨNG NGOÀI, và đó là điều `0134` chưa phải nói: nhóm `chan-moi`
+   * là mục bắt buộc của **bản CSBH** (muc 11.1), còn hợp đồng không có mục nào
+   * bắt buộc. Tới `0164` cả ba file của `nap-danh-muc` tình cờ đều in đủ, nên
+   * ranh giới ấy chưa lộ ra.
    */
-  it('`0134` mẫu bộ nạp dùng in đủ MỌI trường chặn gửi duyệt', () => {
-    const nguon = readFileSync('scripts/nap-danh-muc.ts', 'utf8');
-    const tepNap = [...nguon.matchAll(/tep:\s*'([^']+\.docx)'/g)].map((m) => m[1]!);
-    expect(tepNap.length, 'không đọc được danh sách mẫu của nap-danh-muc').toBe(3);
+  it('`0134` ba mẫu mặc định in đủ MỌI trường chặn gửi duyệt', () => {
+    const hoSo = MAU_MAC_DINH.filter((m) => m.kind !== 'HOP_DONG');
+    expect(hoSo.length, 'phải có hai mẫu hồ sơ mặc định').toBe(2);
 
     const chanMoi = Object.entries(NHOM_TRUONG)
       .filter(([, nhom]) => nhom === 'chan-moi')
@@ -1887,9 +1951,9 @@ describe('`0057` bộ file mẫu trong templates/', () => {
     expect(chanMoi.length, 'nhóm chan-moi rỗng — bảng phân loại hỏng').toBeGreaterThan(0);
 
     const thieu: string[] = [];
-    for (const tep of tepNap) {
-      const o = new Set(placeholdersOf(readFileSync(`templates/${tep}`)));
-      for (const n of chanMoi) if (!o.has(`{{${n}}}`)) thieu.push(`${tep} thiếu {{${n}}}`);
+    for (const m of hoSo) {
+      const o = new Set(placeholdersOf(readFileSync(`templates/default/${m.tep}`)));
+      for (const n of chanMoi) if (!o.has(`{{${n}}}`)) thieu.push(`${m.tep} thiếu {{${n}}}`);
     }
     expect(thieu, thieu.join('\n')).toEqual([]);
   });
@@ -2102,6 +2166,136 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
 // =============================================================================
 // `0098` — Mẫu hồ sơ đóng băng vào hồ sơ lúc gửi duyệt
 // =============================================================================
+
+describe('`0165` ba mẫu mặc định nạp lúc khởi động', () => {
+  /** Ba mẫu mặc định đang có trong CSDL, kèm tập cột và trạng thái vô hiệu. */
+  const dsMacDinh = () =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{
+        id: string;
+        kind: string;
+        name: string;
+        cot_bang: string[] | null;
+        tat: boolean;
+      }>(
+        `SELECT id, kind::text AS kind, name, cot_bang,
+                vo_hieu_hoa_luc IS NOT NULL AS tat
+           FROM doc.contract_template WHERE name = ANY($1) ORDER BY name`,
+        [MAU_MAC_DINH.map((m) => m.ten)],
+      );
+      return r.rows;
+    });
+
+  it('CÓ MẶT ngay sau khi service lên, không cần chạy lệnh nào', async () => {
+    /*
+     * Yêu cầu viết thẳng: *"luôn luôn được deploy cùng hệ thống mà không cần
+     * phải make demo-mau hay make nap-danh-muc"*. Bộ kiểm không chạy script nào
+     * trong hai script ấy, nên ba dòng này chỉ có thể do lượt khởi động tạo ra.
+     */
+    const ds = await dsMacDinh();
+    expect(ds.map((r) => r.name).sort()).toEqual(MAU_MAC_DINH.map((m) => m.ten).sort());
+    expect(ds.map((r) => r.kind).sort()).toEqual(['HOP_DONG', 'HO_SO', 'HO_SO_RUT_GON']);
+  });
+
+  it('mẫu RÚT GỌN mang đúng SÁU cột, mẫu đầy đủ mang cả mười', async () => {
+    // Vế *"tự động chọn cột"* của yêu cầu, đo ở chỗ nó đọng lại: cột `cot_bang`
+    // trên chính dòng mẫu. Không ai khai nó — nó suy từ loại (`0165`).
+    const ds = await dsMacDinh();
+    const gon = ds.find((r) => r.kind === 'HO_SO_RUT_GON')!;
+    const du = ds.find((r) => r.kind === 'HO_SO')!;
+    expect(gon.cot_bang).toEqual(COT_RUT_GON);
+    expect(du.cot_bang).toEqual(COT_MAC_DINH);
+    expect(gon.cot_bang!.length).toBeLessThan(du.cot_bang!.length);
+  });
+
+  it('CẢ HAI mẫu hồ sơ vào chung ô chọn của Sale Admin, và dựng được bản mềm', async () => {
+    /*
+     * Chốt chặn của việc *"thêm một loại"*: `tsc` chỉ ra mọi chỗ khai `Loai`
+     * thiếu nhánh, nhưng KHÔNG chỉ ra được một truy vấn viết `kind = 'HO_SO'` —
+     * nó vẫn dịch, vẫn chạy, chỉ là mẫu rút gọn **vô hình**: Quản trị thấy nó ở
+     * thẻ của nó, còn Sale Admin thì không bao giờ chọn được.
+     *
+     * Nên ca này đi hết đường thật: ô chọn → dựng PDF, bằng đúng mẫu rút gọn.
+     */
+    /*
+     * DỰNG MỘT MẪU RÚT GỌN NGAY TRONG CA, không dựa vào ba mẫu mặc định.
+     *
+     * Ba mẫu ấy có thể đang ở trạng thái TẮT do một ca khác trong tệp vừa quét
+     * cả bảng, và CSDL kiểm thì sống qua nhiều lượt chạy. Ca này nói về LOẠI mẫu
+     * chứ không về ba dòng cụ thể, nên nó tự dựng lấy dữ liệu của mình.
+     */
+    const than = makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
+    );
+    const ten = uniq('Mau rut gon cua ca kiem');
+    const up = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', ten)
+      .field('loai', 'HO_SO_RUT_GON')
+      .field('mapping', JSON.stringify(anhXaTu(than)))
+      .attach('file', than, { filename: 'gon.docx', contentType: DOCX });
+    expect(up.status, JSON.stringify(up.body)).toBe(201);
+    expect(up.body.cotBang, 'tập cột phải suy từ LOẠI, không ai khai').toEqual(COT_RUT_GON);
+
+    // Thẻ RÚT GỌN thấy nó, thẻ ĐẦY ĐỦ thì không — hai danh sách rời.
+    const dsGon = (await dget('/policy-templates?loai=HO_SO_RUT_GON', 'admin01'))
+      .body as { name: string }[];
+    const dsDu = (await dget('/policy-templates', 'admin01')).body as { name: string }[];
+    expect(dsGon.map((x) => x.name)).toContain(ten);
+    expect(dsDu.map((x) => x.name), 'mẫu rút gọn lọt sang thẻ đầy đủ').not.toContain(ten);
+
+    // Nhưng ô chọn của Sale Admin thì TRỘN CHUNG — họ chọn bản trình bày lúc in.
+    const oChon = (await dget('/policy-templates/available', 'sa01')).body as {
+      id: string;
+      ten: string;
+    }[];
+    const gon = oChon.find((x) => x.ten === ten);
+    expect(gon, 'ô chọn của Sale Admin không thấy mẫu rút gọn').toBeDefined();
+
+    const d = await toReceivedL1();
+    await giaoChoSa(d.id);
+    const pdf = await pdfOf(`/policies/${d.id}/render?mauId=${gon!.id}`, 'sa01');
+    expect(pdf.status, 'không dựng được bản mềm bằng mẫu RÚT GỌN').toBe(200);
+  }, 150_000);
+
+  it('chạy LẠI lượt nạp KHÔNG thêm bản thứ hai', async () => {
+    /*
+     * Idempotent theo `(kind, name)`. Mỗi lượt `docker compose up` là một lượt
+     * chạy, nên một bộ nạp không idempotent sẽ nhân bản danh mục mẫu theo số lần
+     * khởi động — hoặc đâm vào `uq_template_ten` và ghi một dòng lỗi ở mỗi lượt.
+     */
+    const truoc = await dsMacDinh();
+    await doc.get(MauMacDinhBootstrap).onApplicationBootstrap();
+    expect(await dsMacDinh()).toEqual(truoc);
+  });
+
+  it('VÔ HIỆU HOÁ một mẫu mặc định thì lượt sau KHÔNG dựng lại', async () => {
+    /*
+     * Đây là lời hứa mà `0150` đòi khi bỏ `ensureDefault`, và là lý do nó bỏ:
+     * bộ dựng cũ hỏi *"loại này còn mẫu nào dùng được không"* — một câu hỏi mà
+     * câu trả lời đổi theo thao tác của người dùng, nên vô hiệu mẫu cuối cùng là
+     * hôm sau có một mẫu Quản trị không hề tạo.
+     *
+     * Bản `0165` hỏi *"đã từng nạp chưa"*, đo bằng sự tồn tại của dòng — TÍNH CẢ
+     * dòng đã tắt. Nên nó giữ được lời hứa ấy mà không phải bỏ việc seed.
+     */
+    const ds = await dsMacDinh();
+    const m = ds.find((r) => r.kind === 'HOP_DONG')!;
+    const tat = await dpost(`/contract-templates/${m.id}/vo-hieu`, 'admin01', {
+      confirm: m.name,
+    });
+    expect(tat.status, JSON.stringify(tat.body)).toBe(200);
+    try {
+      await doc.get(MauMacDinhBootstrap).onApplicationBootstrap();
+      const sau = await dsMacDinh();
+      expect(sau.filter((r) => r.kind === 'HOP_DONG').length, 'mọc lại một bản thứ hai').toBe(1);
+      expect(sau.find((r) => r.kind === 'HOP_DONG')!.tat, 'bị bật lại sau lưng Quản trị').toBe(true);
+    } finally {
+      await dpost(`/contract-templates/${m.id}/mo-lai`, 'admin01', {});
+    }
+  }, 60_000);
+});
 
 describe('`0163` bản mềm KHÔNG còn đóng băng theo hồ sơ', () => {
   /*

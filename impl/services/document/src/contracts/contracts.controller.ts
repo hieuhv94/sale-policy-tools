@@ -32,11 +32,11 @@ import {
 } from '@csbh/http-kit';
 
 import { MAX_BYTES } from '../files/files.service.js';
-import { TemplatesService, type MappingInput } from './templates.service.js';
+import { LOAI_HO_SO, TemplatesService, type Loai, type MappingInput } from './templates.service.js';
 import { ContractsService } from './contracts.service.js';
 import { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
 import { O_BANG_SAN_PHAM } from './docx.js';
-import { COT_BANG, COT_BAT_BUOC } from './bang-san-pham.js';
+import { COT_BANG, COT_BAT_BUOC, COT_MAC_DINH, COT_RUT_GON } from './bang-san-pham.js';
 
 /**
  * Ai được xem DANH SÁCH mẫu hồ sơ — và vì thế ai chọn được mẫu (`0163`).
@@ -227,6 +227,21 @@ export class ContractTemplatesController {
 }
 
 /**
+ * ĐỌC THAM SỐ `loai` của một lượt gọi mẫu hồ sơ (`0165`).
+ *
+ * HAI loại đi chung một controller, khác hẳn ranh giới `HO_SO` ↔ `HOP_DONG` ở
+ * trên. Lý do tách hai controller kia là *"available của hai loại mở cho hai tập
+ * vai trò khác hẳn nhau"* — và lý do ấy KHÔNG áp được ở đây: đầy đủ và rút gọn
+ * cùng một tập vai trò, cùng một bộ phép kiểm, cùng một ô chọn của Sale Admin.
+ * Tách đôi là chép nguyên mười đường dẫn để đổi đúng một chuỗi.
+ *
+ * Giá trị lạ rơi về `HO_SO` chứ không 400: đây là một tham số CHỌN DANH SÁCH,
+ * không phải dữ liệu ghi. Một màn hình cũ không gửi gì thì phải thấy đúng thứ nó
+ * vẫn thấy.
+ */
+const loaiHoSo = (v: unknown): Loai => (v === 'HO_SO_RUT_GON' ? 'HO_SO_RUT_GON' : 'HO_SO');
+
+/**
  * Mẫu HỒ SƠ CSBH — của **Quản trị hệ thống** (muc 6.4, `0055`).
  *
  * VẪN TÁCH CONTROLLER dù từ `0060` cả hai loại mẫu cùng một chủ, và hai lý do
@@ -261,7 +276,7 @@ export class PolicyTemplatesController {
   async luu(
     @CurrentUser() me: AuthUser,
     @UploadedFile() file: { buffer: Buffer } | undefined,
-    @Body() body: { name?: string; mapping?: string; cotBang?: string },
+    @Body() body: { name?: string; mapping?: string; cotBang?: string; loai?: string },
   ) {
     if (!file) throw new BadRequestException({ code: 'FILE_MISSING', message: 'Thiếu phần file' });
     const b = validate({ name: body?.name ?? 'Mẫu hồ sơ CSBH' }, { name: str(1, 200) });
@@ -269,7 +284,7 @@ export class PolicyTemplatesController {
       {
         name: b.name,
         buffer: file.buffer,
-        kind: 'HO_SO',
+        kind: loaiHoSo(body?.loai),
         mapping: docAnhXa(body?.mapping),
         cotBang: docCotBang(body?.cotBang),
       },
@@ -279,8 +294,10 @@ export class PolicyTemplatesController {
 
   @Roles('QUAN_TRI')
   @Get()
-  list() {
-    return this.templates.list('HO_SO');
+  list(@Query('loai') loai?: string) {
+    // MỘT loại một danh sách: ba thẻ trên màn hình quản trị là ba danh sách rời,
+    // và mỗi thẻ chỉ có việc với loại của nó (`0165`).
+    return this.templates.list(loaiHoSo(loai));
   }
 
   /**
@@ -292,12 +309,14 @@ export class PolicyTemplatesController {
   @Roles(...NGUOI_XEM_HO_SO)
   @Get('available')
   available() {
-    return this.templates.khaDung('HO_SO');
+    // CẢ HAI loại trong MỘT danh sách (`0165`): Sale Admin chọn bản trình bày ở
+    // lúc in, và đầy đủ hay rút gọn đều là bản trình bày hợp lệ của hồ sơ ấy.
+    return this.templates.khaDung(LOAI_HO_SO);
   }
 
   @Roles('QUAN_TRI')
   @Get('sources')
-  sources() {
+  sources(@Query('loai') loai?: string) {
     // Kèm danh sách mục BẮT BUỘC và danh mục CỘT của bảng sản phẩm: màn hình
     // thêm mẫu cần cả hai để dựng hướng dẫn và ô chọn cột.
     return {
@@ -306,6 +325,14 @@ export class PolicyTemplatesController {
       oBangSanPham: O_BANG_SAN_PHAM,
       cotBang: COT_BANG,
       cotBatBuoc: COT_BAT_BUOC,
+      /*
+       * TẬP CỘT MỞ SẴN của loại này (`0165`, yêu cầu *"tự động chọn cột"*).
+       *
+       * Máy chủ trả, giao diện KHÔNG tự suy: bảng cột rút gọn là một danh sách
+       * sáu khoá, và một bản sao của nó bên `apps/web` sẽ lệch ở đúng lượt ai đó
+       * thêm hay bớt một cột. Cùng lối với `cotBatBuoc` ngay trên.
+       */
+      cotMacDinh: loaiHoSo(loai) === 'HO_SO_RUT_GON' ? COT_RUT_GON : COT_MAC_DINH,
     };
   }
 
@@ -340,13 +367,13 @@ export class PolicyTemplatesController {
   @Roles('QUAN_TRI')
   @Get(':id/chi-tiet')
   chiTietHoSo(@Param('id') id: string) {
-    return this.templates.chiTiet(id, 'HO_SO');
+    return this.templates.chiTiet(id, LOAI_HO_SO);
   }
 
   @Roles(...NGUOI_XEM_HO_SO, 'QUAN_TRI')
   @Get(':id')
   ten(@Param('id') id: string) {
-    return this.templates.ten(id, 'HO_SO');
+    return this.templates.ten(id, LOAI_HO_SO);
   }
 
   /**
