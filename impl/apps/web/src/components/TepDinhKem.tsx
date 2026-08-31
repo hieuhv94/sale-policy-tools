@@ -49,7 +49,11 @@ export type TepDto = {
 
 type FileDto = { id: string; objectKey: string };
 
-const NHAN_LOAI: Record<string, string> = { HO_SO: 'Hồ sơ', SCAN: 'Bản scan' };
+const NHAN_LOAI: Record<string, string> = {
+  HO_SO: 'Hồ sơ',
+  SCAN: 'Bản scan',
+  BAN_MEM: 'Bản mềm',
+};
 
 /**
  * Hai khối, theo thứ tự thời gian của hồ sơ (`0097`).
@@ -61,12 +65,38 @@ const NHAN_LOAI: Record<string, string> = { HO_SO: 'Hồ sơ', SCAN: 'Bản scan
  * "Chưa có tệp nào" của bản trước đúng mà vô dụng: nó không cho biết tệp ấy do
  * ai đưa vào, nên người đang thiếu nó không biết phải hỏi ai.
  */
-const KHOI: { loai: string; tieuDe: string; trong: string; them: string }[] = [
+const KHOI: {
+  loai: string;
+  tieuDe: string;
+  trong: string;
+  them: string;
+  /**
+   * Tệp của khối này do HỆ THỐNG DỰNG, không tải lên từ máy (`0167`).
+   *
+   * Khối *Bản mềm* là khối duy nhất như vậy: nó không có vùng kéo thả, mà một
+   * nút mở hộp chọn mẫu → xem trước → lưu. Cờ này là thứ quyết định vẽ cái nào.
+   */
+  dungTuMau?: boolean;
+}[] = [
   {
     loai: 'HO_SO',
     tieuDe: 'Giấy tờ hồ sơ',
     trong: 'Chưa có giấy tờ nào. Trình dược viên đính kèm khi hồ sơ còn sửa được.',
     them: 'Thêm giấy tờ',
+  },
+  {
+    /*
+     * BẢN MỀM đứng GIỮA, và thứ tự ấy theo đúng chiều hồ sơ đi (`0167`).
+     *
+     * Sale Admin dựng bản mềm trước, in ra, trình ký, rồi mới scan lại thành bản
+     * cứng. Đặt nó sau *Bản cứng* là đọc ngược chiều công việc.
+     */
+    loai: 'BAN_MEM',
+    tieuDe: 'Bản mềm',
+    trong:
+      'Chưa có bản mềm. Sale Admin dựng từ một mẫu hồ sơ đầy đủ ở bước Sale Admin đang xử lý.',
+    them: 'Tạo bản mềm',
+    dungTuMau: true,
   },
   {
     loai: 'SCAN',
@@ -80,6 +110,7 @@ export function TepDinhKem({
   hoSoId,
   tep,
   loaiGhiDuoc,
+  taoBanMem,
   taiLai,
 }: {
   hoSoId: string;
@@ -104,6 +135,14 @@ export function TepDinhKem({
    * lời đúng nằm sẵn ở đây: gỡ được đúng những loại tải lên được.
    */
   loaiGhiDuoc: string[];
+  /**
+   * Mở hộp TẠO BẢN MỀM (`0167`). Bỏ trống thì khối *Bản mềm* không có nút thêm.
+   *
+   * Hộp thoại sống ở `ChiTietHoSo` chứ không ở đây, vì nó có HAI cửa vào: nút
+   * trong khối này, và lượt bấm *Bàn giao* khi hồ sơ chưa có bản mềm. Dựng hai
+   * bản của cùng một hộp là hai chỗ phải sửa mỗi lần đổi luật chọn mẫu.
+   */
+  taoBanMem?: () => void;
   taiLai: () => void;
 }) {
   const { bao } = useBaoLoi();
@@ -222,9 +261,17 @@ export function TepDinhKem({
    * và vai trò người đang xem, và ở mọi trạng thái nó chỉ ra đúng MỘT loại. Hộp
    * thoại cũ hỏi loại là hỏi một câu chỉ có một đáp án.
    */
-  const taiLen = async (f: File) => {
-    const loai = loaiGhiDuoc[0];
-    if (!loai) return;
+  const taiLen = async (loai: string, f: File) => {
+    /*
+     * LOẠI đến từ CHÍNH KHỐI đang bấm, không phải `loaiGhiDuoc[0]` (`0167`).
+     *
+     * Bản trước lấy phần tử đầu, và nó đúng chừng nào hàm ấy trả về nhiều nhất
+     * một loại. `0167` cho Sale Admin ghi HAI loại cùng lúc ở bước
+     * `SA_DANG_XU_LY` (`['SCAN', 'BAN_MEM']`), nên phần tử đầu là một cái tên
+     * bất kỳ trong hai — và tệp tải lên ở khối *Bản cứng* sẽ được ghi dưới nhãn
+     * của khối kia, im lặng.
+     */
+    if (!loaiGhiDuoc.includes(loai)) return;
     datDangTaiLen(true);
     try {
       const form = new FormData();
@@ -316,9 +363,32 @@ export function TepDinhKem({
                   vai trò (`0069`). Ở hồ sơ Nháp nó là `['HO_SO']`, nên vùng này
                   hiện dưới *Giấy tờ hồ sơ* và KHÔNG hiện dưới *Bản cứng*.
                 */}
-                {ghiDuoc && (
-                  <VungTaiLen nhan={k.them} dangTai={dangTaiLen} chon={(f: File) => void taiLen(f)} />
-                )}
+                {ghiDuoc &&
+                  (k.dungTuMau === true ? (
+                    /*
+                      Một NÚT, không phải vùng kéo thả (`0167`). Bản mềm không
+                      nằm sẵn trên máy ai để mà chọn — nó được dựng ra từ dữ liệu
+                      hồ sơ và một mẫu, nên câu hỏi đầu tiên là *"mẫu nào"*.
+                    */
+                    taoBanMem !== undefined && (
+                      <button type="button" className="vung-tai-len" onClick={taoBanMem}>
+                        {/*
+                          DÙNG LẠI `.vung-tai-len` cho cái nút này, dù nó không
+                          nhận file nào: hai khối đứng cạnh nhau trong cùng một
+                          lưới, và một ô vuông nét đứt bên cạnh một nút chữ nhật
+                          làm cái lưới ấy trông như bị hỏng. Hình dạng nói "chỗ
+                          để thêm một tệp", và đó đúng là việc nó làm.
+                        */}
+                        {k.them}
+                      </button>
+                    )
+                  ) : (
+                    <VungTaiLen
+                      nhan={k.them}
+                      dangTai={dangTaiLen}
+                      chon={(f: File) => void taiLen(k.loai, f)}
+                    />
+                  ))}
               </div>
             )}
           </section>

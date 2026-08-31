@@ -429,7 +429,9 @@ export class TemplatesService {
    * lý: `fileId` và `updatedAt` là chuyện nội bộ của mẫu, và một đường đọc mở
    * rộng cho năm vai trò thì càng ít cột lọt ra càng tốt.
    */
-  async khaDung(kind: Loai | Loai[]): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null }[]> {
+  async khaDung(
+    kind: Loai | Loai[],
+  ): Promise<{ id: string; ten: string; khoGiay: KhoGiay | null; loai: Loai }[]> {
     // MẢNG loại chứ không một loại (`0165`): ô chọn của Sale Admin trộn chung
     // mẫu đầy đủ và mẫu rút gọn, vì cả hai là bản trình bày của cùng một hồ sơ.
     const rows = await this.db.q<TemplateRow>(
@@ -438,7 +440,18 @@ export class TemplatesService {
         ORDER BY ${THU_TU_MAU}`,
       [Array.isArray(kind) ? kind : [kind]],
     );
-    return rows.map((r) => ({ id: r.id, ten: r.name, khoGiay: r.paper_size }));
+    /*
+     * `loai` đi kèm từ `0167`, và nó có hai việc.
+     *
+     * Ô chọn lúc XEM trộn chung mẫu đầy đủ với mẫu rút gọn (`0165`), nên người
+     * chọn cần biết mình đang chọn bản nào — hai cái tên do Quản trị đặt không
+     * bắt buộc nói ra điều đó.
+     *
+     * Và hộp TẠO BẢN MỀM chỉ nhận mẫu đầy đủ: nó lọc bằng chính trường này thay
+     * vì gọi một đường riêng, nên hai màn hình đọc cùng một danh sách và không
+     * có bản thứ hai để mà lệch.
+     */
+    return rows.map((r) => ({ id: r.id, ten: r.name, khoGiay: r.paper_size, loai: r.kind }));
   }
 
   /**

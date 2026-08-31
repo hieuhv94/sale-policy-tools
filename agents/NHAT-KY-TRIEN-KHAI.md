@@ -14512,3 +14512,87 @@ này, ở cả hai bảng.
 bảng mẫu đang trống — bộ nạp không đưa chúng về, phải **khởi động lại `document`**.
 
 **1948/1948 xanh.**
+
+## P195 — `0167` bản mềm thành một TỆP của hồ sơ, đóng băng như bản cứng
+
+Năm câu khách hàng chốt 31/08, và câu thứ nhất hoá ra đã đúng sẵn: hộp *Xem bản mềm* bày mẫu của cả
+hai loại hồ sơ từ `0165`. Lượt này chỉ thêm nhãn *đầy đủ* / *rút gọn* vào ô chọn — hai cái tên do
+Quản trị đặt không bắt buộc nói ra điều đó, mà hai bản in ra sáu cột và mười cột.
+
+Bốn câu còn lại là một tính năng mới: **bản mềm ĐÃ LƯU**.
+
+### Đây không phải `0098` quay lại
+
+Nghe thì giống — "bản mềm đóng băng theo hồ sơ" — nhưng thứ được đóng băng khác hẳn. `0098` đóng băng
+**id của MẪU** vào cột `pol.policy.mau_ho_so_id`, và `0163` gỡ hẳn cột ấy. `0167` đóng băng **chính
+tờ giấy**: các byte PDF, nằm trên kho đối tượng như mọi tệp khác.
+
+Khác biệt ấy quyết định mọi thứ về sau, và có một ca kiểm nói thẳng ra nó: vô hiệu hết mẫu thì lượt
+DỰNG MỚI trả 404 — đúng như `0163` — còn tệp ĐÃ LƯU vẫn tải được. Bản lưu không tra tới mẫu nào nữa.
+
+Hai thứ sống cạnh nhau và không được lẫn:
+
+| | *Xem bản mềm* (`0163`) | *Bản mềm* (`0167`) |
+|---|---|---|
+| Mẫu | cả hai loại hồ sơ | **chỉ mẫu đầy đủ** |
+| Lưu lại | không | **có, vĩnh viễn** |
+| Mẫu bị vô hiệu | không xem được nữa | vẫn tải được |
+
+`doc.file_purpose` KHÔNG cần giá trị mới: `BAN_CSBH` — *"bản CSBH A4 do hệ thống sinh"* — có từ
+`0011` và **chưa từng có ai dùng**. Đây đúng là chỗ nó được nghĩ ra để phục vụ.
+
+### Chốt chặn bàn giao: hai mã lỗi, không phải một
+
+`SA_HANDOVER` đã đòi bản scan (WF-14) từ lâu; nay đòi cả bản mềm. Mã lỗi **riêng**, và đó là quyết
+định đáng ghi: màn hình phản ứng khác hẳn với hai ca.
+
+    thiếu BẢN SCAN  → nút XÁM. Việc ngoài phần mềm — in, trình ký, scan. Không nút nào làm hộ được.
+    thiếu BẢN MỀM   → nút VẪN SÁNG, bấm vào thì hộp tạo bản mềm mở ra trước, lưu xong hỏi xác nhận
+                      bàn giao ngay. Việc phần mềm làm được, nên nó làm.
+
+Một mã lỗi chung thì màn hình không biết phải làm gì, và cái giá là hoặc nút xám ở cả hai ca (bắt
+người ta đi tìm), hoặc sáng ở cả hai (bấm vào ra 409). Nên `coBanMem` là một cờ RIÊNG với
+`banGiaoDuoc`, không gộp.
+
+Giá trị lùi của hai cờ ĐI NGƯỢC NHAU, có chủ ý. `banGiaoDuoc` thiếu → coi như CÓ (đừng khoá mất một
+việc làm được). `coBanMem` thiếu → cũng coi như CÓ, tức **không chen thêm bước**. Cả hai cùng chọn
+phía không cản đường: đoán sai thì người dùng nhận 409 và biết phải làm gì; đoán sai hướng kia thì họ
+bị chặn bởi một bước không có thật.
+
+### Ranh giới: bản mềm KHÔNG tải lên từ máy được
+
+`purpose=BAN_CSBH` **cố ý đứng ngoài** `oneOf` của đường `POST /files`. Mở nó ra là mở đường đính bất
+kỳ PDF nào vào hồ sơ dưới nhãn *bản mềm* — đúng thứ mà việc dựng-từ-mẫu sinh ra để bảo đảm. Có một ca
+kiểm gọi thẳng đường ấy và đòi 400.
+
+### `loaiTepGhiDuoc` trả về HAI phần tử, và đó là một thay đổi có hệ quả
+
+Bước `SA_DANG_XU_LY` giờ cho Sale Admin ghi `['SCAN', 'BAN_MEM']`. Đây là lần đầu hàm ấy trả về nhiều
+hơn một loại, và giao diện **đang đọc `loaiGhiDuoc[0]`** để biết đang tải loại gì — nên tệp thả vào
+khối *Bản cứng* sẽ được ghi dưới nhãn của khối kia, im lặng. `TepDinhKem` giờ lấy loại từ CHÍNH KHỐI
+đang bấm. Ca kiểm `0069` ghim luôn cả THỨ TỰ hai giá trị: `includes` không quan tâm thứ tự, nên đảo
+chúng là một thay đổi không ai thấy.
+
+### 70 ca đỏ trong một lượt, và vì sao đó là dấu hiệu tốt
+
+Thêm chốt `BAN_MEM_REQUIRED` làm đỏ **70 ca** ở sáu tệp — mọi fixture đẩy hồ sơ qua `SA_HANDOVER`.
+Không có ca nào sai: chúng đang nói đúng rằng luật vừa đổi. Vá bằng một lượt chèn có kịch bản, 22 chỗ,
+mỗi chỗ thêm một lượt gắn `BAN_MEM` ngay sau lượt gắn `SCAN`.
+
+Ba ca phải sửa bằng tay chứ không chèn được, và cả ba cùng một lỗi hình dạng: chúng đọc
+`attachments[0]` hoặc đếm `toHaveLength(1)` trên CẢ mảng. Từ `0167` hồ sơ tới được bước B8 luôn có hai
+tệp, nên câu hỏi đúng là *"có mấy tệp LOẠI SCAN"* — lọc theo `kind` chứ không đếm tổng. Một con số
+tổng sẽ đổi mỗi lần thêm một loại tệp, và nó đổi ở một ca chẳng nói gì về loại tệp.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ chốt `BAN_MEM_REQUIRED` | 1 đỏ |
+| `luuBanMem` nhận cả hai loại mẫu | 1 đỏ |
+| Mở `purpose=BAN_CSBH` ở đường tải tệp | 1 đỏ |
+| Nút *Bàn giao* đấu thẳng vào hành động | 1 đỏ |
+| Khối *Bản mềm* trở lại vùng kéo thả | 2 đỏ |
+| Hộp tạo thôi lọc mẫu | 1 đỏ |
+
+**1962/1962 xanh.**

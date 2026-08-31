@@ -325,6 +325,17 @@ nghĩa của nó, đây là phần không cần bạn làm gì. Bấm vào thì 
 > Máy chủ vẫn chặn như trước nếu ai đó gọi thẳng API; cái mới chỉ là bạn biết trước thay vì bấm rồi
 > mới nhận lỗi.
 
+> **Chưa có BẢN MỀM thì bấm *Bàn giao* sẽ tạo nó trước** `mới 31/08`. Nút không xám — hệ thống mở
+> luôn hộp chọn văn bản mẫu, bạn xem trước rồi bấm *Lưu bản mềm*; lưu xong nó hỏi xác nhận bàn giao
+> ngay, không bắt bấm lại từ đầu.
+>
+> Hai thứ thiếu, hai cách xử khác nhau, và khác vì lý do thật: **bản scan** là việc ngoài phần mềm —
+> phải in, trình ký, scan — nên nút xám và màn hình bảo bạn đi làm. **Bản mềm** thì phần mềm dựng
+> được ngay, nên nó dựng luôn thay vì bắt bạn đi tìm một nút khác.
+>
+> Bàn giao cho Kế toán là bàn giao **cả hai bản**: bản mềm để họ đọc và đối chiếu, bản cứng đã ký để
+> lưu.
+
 **Thẻ *Sắp quá hạn*** đếm hồ sơ còn dưới 24 giờ là tới hạn, **ở bất kỳ bước nào** trong phạm vi của
 bạn — không riêng bước bạn phụ trách. **Trong phạm vi của bạn**, chữ ấy là chữ quan trọng: Kế toán
 chỉ thấy hồ sơ đã từng tới bàn mình, nên những hồ sơ chưa qua chữ ký Trưởng bộ phận cũng không nằm
@@ -1210,22 +1221,41 @@ Mở một hồ sơ:
 - **Xuất hợp đồng** — chỉ Kế toán và Sale Admin, và chỉ sau tiếp nhận lần 1. Cũng mở ra xem trước,
   có ô chọn mẫu hợp đồng.
 
-### Giấy tờ hồ sơ và Bản cứng
+### Giấy tờ hồ sơ, Bản mềm và Bản cứng
 
-**HAI KHỐI RIÊNG** `sửa 23/08`, vì chúng là hai thứ khác nhau và do hai người đưa vào ở hai thời
-điểm khác nhau:
+**BA KHỐI RIÊNG** `sửa 31/08`, vì chúng là ba thứ khác nhau và vào hồ sơ ở ba thời điểm khác nhau.
+Thứ tự trên màn hình đúng bằng thứ tự chúng xuất hiện:
 
-| Khối | Là gì | Ai tải lên | Lúc nào |
+| Khối | Là gì | Ai đưa vào | Lúc nào |
 |---|---|---|---|
 | **Giấy tờ hồ sơ** | Giấy tờ đính kèm hồ sơ CSBH | Trình dược viên | Khi hồ sơ còn sửa được — *Nháp* hoặc *Yêu cầu chỉnh sửa* |
+| **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* |
 | **Bản cứng** | Bản giấy đã ký, scan lại | Sale Admin | Bước *Sale Admin đang xử lý* |
+
+#### Bản mềm `mới 31/08`
+
+Khối này **không nhận tệp từ máy bạn**. Nó có một nút **Tạo bản mềm**: bấm vào thì hộp chọn văn bản
+mẫu mở ra, bạn chọn mẫu, xem trước cả tờ giấy, rồi bấm **Lưu bản mềm**.
+
+> **Chỉ mẫu hồ sơ ĐẦY ĐỦ dùng được ở đây.** Bản mềm đã lưu là bản bạn đem trình ký và bàn giao cho
+> Kế toán, nên nó phải mang đủ cột — kể cả giá thu về và tỷ lệ chiết khấu. Mẫu *rút gọn* là bản đưa
+> khách hàng, và nó không có mặt trong ô chọn của hộp này.
+
+> **Lưu xong là ĐÓNG BĂNG.** Quản trị sửa mẫu hay vô hiệu hoá mẫu về sau đều không đụng tới bản đã
+> lưu — nó là một tệp PDF nằm trong hồ sơ, y như bản scan. Đây là chỗ khác hẳn nút *Xem bản mềm* ở
+> góc trên bên phải: nút ấy dựng lại tờ giấy mỗi lần bấm, chọn được cả mẫu rút gọn, và không lưu gì.
+
+> **Lưu được nhiều bản.** Kế toán yêu cầu in lại thì bạn dựng bản mới; bản cũ ở lại làm vết. Tên tệp
+> mang mã hồ sơ và mốc thời gian nên nhìn là biết cái nào mới.
+
+**Chỉ Sale Admin tạo và gỡ được bản mềm.** Vai trò khác thấy khối, xem và tải xuống bình thường.
 
 > **Vì sao tách.** Trước đó cả hai nằm chung một khối tên *Bản cứng*, nên Trình dược viên mở một hồ
 > sơ **Nháp** ra là thấy vùng kéo thả nằm dưới đúng cái tiêu đề ấy — đọc ra là *"tôi đang tải bản
 > cứng lên lúc hồ sơ còn nháp"*, một câu vô lý: bản cứng là bản giấy đã ký, nó chưa tồn tại cho tới
 > khi Sale Admin trình ký xong ở bước B8.
 
-Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai tải lên và lúc nào — để câu hỏi *"bản cứng
+Khối nào **chưa có tệp** vẫn hiện, kèm một câu nói ai đưa vào và lúc nào — để câu hỏi *"bản cứng
 đâu"* luôn có chỗ trả lời.
 
 ### Hồ sơ pháp lý của khách hàng `mới 29/08`

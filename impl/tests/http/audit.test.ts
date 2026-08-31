@@ -207,6 +207,12 @@ describe('AUD-01 các loại hành động đều sinh bản ghi nhật ký', ()
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+      'sa01',
+    );
     await act(d.id, 'SA_HANDOVER', 'sa01');
     await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Bản cứng mờ' });
 

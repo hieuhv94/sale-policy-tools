@@ -914,6 +914,12 @@ describe('`0050` DOC-17 · WF-13 · WF-18 bản scan GIỮ LẠI khi yêu cầu 
       },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+      'sa01',
+    );
     expect(attach.status).toBe(201);
 
     await act(d.id, 'SA_HANDOVER', 'sa01');
@@ -1077,6 +1083,12 @@ describe('`0053` N-01 lịch sử ghi lại người tải tệp của hồ sơ'
     await ppost(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: up.body.fileName, objectKey: up.body.objectKey },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     return { d, fileId: up.body.id as string };
@@ -1355,6 +1367,12 @@ async function chayHetLuong(id: string): Promise<void> {
       )
     ).status,
   ).toBe(201);
+      // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+      await ppost(
+        `/policies/${id}/attachments`,
+        { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id}.pdf` },
+        'sa01',
+      );
   expect((await act(id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
   expect((await act(id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
 }

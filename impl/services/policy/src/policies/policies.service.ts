@@ -156,7 +156,17 @@ export const loaiTepGhiDuoc = (status: string, role?: string): string[] => {
    * đây là thứ QUYẾT ĐỊNH nút có hiện hay không, còn kia là thứ chặn thật.
    */
   if (EDITABLE.includes(status)) return NGUOI_GHI_TEP.HO_SO === role ? ['HO_SO'] : [];
-  if (status === 'SA_DANG_XU_LY') return NGUOI_GHI_TEP.SCAN === role ? ['SCAN'] : [];
+  /*
+   * HAI loại ở bước `SA_DANG_XU_LY` từ `0167`: bản scan và **bản mềm**.
+   *
+   * Cả hai của Sale Admin, cả hai chỉ ở bước ấy — nên chúng ra cùng một lúc.
+   * Đây là lần đầu hàm này trả về NHIỀU HƠN MỘT loại, và đó là một thay đổi có
+   * hệ quả: giao diện từng đọc `loaiGhiDuoc[0]` để biết đang tải loại gì, và với
+   * hai phần tử thì nó tải bản mềm lên dưới nhãn bản scan. Xem `TepDinhKem`.
+   */
+  if (status === 'SA_DANG_XU_LY') {
+    return NGUOI_GHI_TEP.SCAN === role ? ['SCAN', 'BAN_MEM'] : [];
+  }
   return [];
 };
 
@@ -170,10 +180,16 @@ export const loaiTepGhiDuoc = (status: string, role?: string): string[] => {
  * đọc ở ba chỗ (nút trên màn hình, phép chặn lúc tải lên, phép chặn lúc gỡ), và
  * ba bản chép sẽ lệch nhau vào ngày ai đó đổi một chỗ.
  */
-export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN', string> = {
+export const NGUOI_GHI_TEP: Record<'HO_SO' | 'SCAN' | 'BAN_MEM', string> = {
   HO_SO: 'TDV',
   SCAN: 'SALE_ADMIN',
+  // `0167` — bản mềm đã lưu. Cùng chủ với bản scan, và cùng lý do: nó là thứ
+  // Sale Admin dựng ra ở bước B8 để in và trình ký.
+  BAN_MEM: 'SALE_ADMIN',
 };
+
+/** Ba loại tệp của một hồ sơ — dùng ở chỗ nào cần kể đủ chúng ra (`0167`). */
+export type LoaiTep = keyof typeof NGUOI_GHI_TEP;
 
 /*
  * `tepXoaDuoc()` ĐÃ GỠ Ở `0097`, cùng với trường cùng tên trong phản hồi.
@@ -216,6 +232,22 @@ export const xuatHopDongDuoc = (ktL1ReceivedAt: Date | null): boolean => ktL1Rec
 export const SQL_CO_BAN_SCAN =
   `EXISTS (SELECT 1 FROM pol.policy_attachment a
             WHERE a.policy_id = $1 AND a.kind = 'SCAN')`;
+
+/**
+ * HỒ SƠ ĐÃ CÓ BẢN MỀM CHƯA (`0167`) — cùng khuôn với `SQL_CO_BAN_SCAN`.
+ *
+ * Bàn giao cho Kế toán là bàn giao CẢ HAI bản: bản mềm để họ đọc, bản cứng đã ký
+ * để lưu. Nên chốt chặn ở `SA_HANDOVER` hỏi cả hai câu, và mỗi câu có một mã lỗi
+ * riêng — gộp làm một câu *"thiếu tệp"* thì người dùng không biết mình thiếu cái
+ * nào trong hai.
+ *
+ * MỘT hằng cho cả chốt chặn lẫn cờ vẽ màn hình, đúng lý do đã viết cho bản scan
+ * ở trên: hai bản của cùng một luật sẽ lệch, và triệu chứng là một nút bấm vào
+ * ra 409.
+ */
+export const SQL_CO_BAN_MEM =
+  `EXISTS (SELECT 1 FROM pol.policy_attachment a
+            WHERE a.policy_id = $1 AND a.kind = 'BAN_MEM')`;
 
 /**
  * KẾ TOÁN CHỈ THẤY HỒ SƠ ĐÃ TỪNG TỚI BÀN MÌNH (`0142`, mở rộng ở `0157`).
@@ -1211,6 +1243,7 @@ export class PoliciesService {
       xuatHopDongDuoc: xuatHopDongDuoc(so.kt_l1_received_at ?? null),
       banScanCu: await this.banScanCu(policyId, p.status),
       banGiaoDuoc: await this.banGiaoDuoc(policyId),
+      coBanMem: await this.coBanMem(policyId),
     };
   }
 
@@ -1247,6 +1280,26 @@ export class PoliciesService {
    */
   private async banGiaoDuoc(policyId: string): Promise<boolean> {
     const r = await this.db.one<{ co: boolean }>(`SELECT ${SQL_CO_BAN_SCAN} AS co`, [policyId]);
+    return r?.co === true;
+  }
+
+  /**
+   * Hồ sơ đã có bản mềm đã lưu chưa (`0167`).
+   *
+   * Cờ RIÊNG chứ không gộp vào `banGiaoDuoc`, vì màn hình làm hai việc khác nhau
+   * với hai câu trả lời:
+   *
+   *   thiếu BẢN SCAN  → nút *Bàn giao* XÁM. Sale Admin phải đi in, trình ký, scan
+   *                     — một việc ngoài phần mềm, không nút nào làm hộ được.
+   *   thiếu BẢN MỀM   → nút VẪN SÁNG, và bấm vào thì hộp tạo bản mềm mở ra trước.
+   *                     Đây là việc phần mềm làm được ngay, nên chặn lại là bắt
+   *                     người dùng tự đi tìm một nút mà hệ thống thừa biết.
+   *
+   * Gộp hai câu thành một cờ thì mất đúng sự phân biệt ấy: hoặc nút xám ở cả hai
+   * ca (bắt người ta đi tìm), hoặc sáng ở cả hai (bấm vào ra 409).
+   */
+  private async coBanMem(policyId: string): Promise<boolean> {
+    const r = await this.db.one<{ co: boolean }>(`SELECT ${SQL_CO_BAN_MEM} AS co`, [policyId]);
     return r?.co === true;
   }
 

@@ -138,6 +138,12 @@ const runToActive = async (d: { id: string }) => {
       )
     ).status,
   ).toBe(201);
+      // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+      await post(
+        `/policies/${d.id}/attachments`,
+        { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+        'sa01',
+      );
   expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
   const last = await act(d.id, 'KT_RECEIVE_L2', 'kt01');
   expect(last.status).toBe(200);
@@ -881,6 +887,12 @@ const biTraLai = async (
         { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
         'sa01',
       );
+      // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+      await post(
+        `/policies/${d.id}/attachments`,
+        { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+        'sa01',
+      );
       await act(d.id, 'SA_HANDOVER', 'sa01');
       await act(d.id, 'KT_RETURN_L2', 'kt01', { reason: 'Ban cung sai mau' });
     }
@@ -1275,6 +1287,12 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
         await post(
           `/policies/${d.id}/attachments`,
           { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+          'sa01',
+        );
+        // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+        await post(
+          `/policies/${d.id}/attachments`,
+          { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
           'sa01',
         );
         await act(d.id, 'SA_HANDOVER', 'sa01');
@@ -1895,6 +1913,12 @@ describe('POL-17 hai hồ sơ cho cùng khách hàng gửi đồng thời', () =
       { kind: 'SCAN', fileName: 's.pdf', objectKey: `scan/${b.body.id}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${b.body.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${b.body.id}.pdf` },
+      'sa01',
+    );
     await act(b.body.id, 'SA_HANDOVER', 'sa01');
     const last = await act(b.body.id, 'KT_RECEIVE_L2', 'kt01');
     expect(last.status).toBeGreaterThanOrEqual(400);
@@ -2190,6 +2214,12 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+      'sa01',
+    );
     expect((await get(`/policies/${d.id}`, 'sa01')).body.banGiaoDuoc, 'đã scan').toBe(true);
     expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status, 'chốt chặn cùng chiều').toBe(200);
   });
@@ -2199,6 +2229,12 @@ describe('WF-13 · WF-14 · WF-15 Sale Admin bàn giao', () => {
     await post(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     const r = await act(d.id, 'SA_HANDOVER', 'sa01');
@@ -2280,6 +2316,12 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+      'sa01',
+    );
     await act(d.id, 'SA_HANDOVER', 'sa01');
     return d;
   };
@@ -2304,8 +2346,14 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     const r = await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
     expect(r.status).toBe(200);
     expect(r.body.status).toBe('SA_DANG_XU_LY');
-    expect(r.body.attachments, 'bản scan phải còn nguyên').toHaveLength(1);
-    expect(r.body.attachments[0].fileName).toBe('ban-cung.pdf');
+    // HAI tệp từ `0167`: bản scan và bản mềm — `toL2()` gắn cả hai vì bàn giao
+    // đòi cả hai. Lọc theo LOẠI chứ không đếm tổng: câu ca này khẳng định là về
+    // BẢN SCAN, và một con số tổng sẽ đổi mỗi lần thêm một loại tệp.
+    const scan = (r.body.attachments as { kind: string; fileName: string }[]).filter(
+      (a) => a.kind === 'SCAN',
+    );
+    expect(scan, 'bản scan phải còn nguyên').toHaveLength(1);
+    expect(scan[0]!.fileName).toBe('ban-cung.pdf');
 
     // Và KHÔNG còn sự kiện huỷ nào được phát.
     const ev = (await outboxFor(d.id)).find((e) => e.routing_key === 'policy.scan_discarded');
@@ -2329,7 +2377,16 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
 
     // Gỡ bản cũ rồi tải bản mới — đúng đường Sale Admin phải đi.
-    const cu = (await get(`/policies/${d.id}`, 'sa01')).body.attachments[0];
+    //
+    // Lấy đúng tệp SCAN chứ không `attachments[0]`: từ `0167` hồ sơ tới được
+    // bước này luôn có hai tệp, và thứ tự trong mảng không phải thứ ca này nói
+    // về. Bản mềm ở lại — yêu cầu in lại là chê BẢN GIẤY.
+    const cu = (
+      (await get(`/policies/${d.id}`, 'sa01')).body.attachments as {
+        id: string;
+        kind: string;
+      }[]
+    ).find((a) => a.kind === 'SCAN')!;
     expect((await del(`/policies/${d.id}/attachments/${cu.id}`, 'sa01')).status).toBe(200);
     await post(
       `/policies/${d.id}/attachments`,
@@ -2338,7 +2395,9 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     );
 
     const sau = await get(`/policies/${d.id}`, 'sa01');
-    expect(sau.body.attachments).toHaveLength(1);
+    expect(
+      (sau.body.attachments as { kind: string }[]).filter((a) => a.kind === 'SCAN'),
+    ).toHaveLength(1);
     // Cảnh báo suy từ MỐC TẢI LÊN chứ không từ một cờ phải nhớ xoá — nên nó tự
     // đúng, không có trạng thái nào để quên dọn.
     expect(sau.body.banScanCu).toBe(false);
@@ -2358,6 +2417,12 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     await post(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung-2.pdf', objectKey: `scan/${d.id}-2.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     const r = await act(d.id, 'SA_HANDOVER', 'sa01');
@@ -4242,8 +4307,20 @@ describe('`0069` ai được đụng vào tệp nào', () => {
     const cua = async (who: string) =>
       (await get(`/policies/${d.id}`, who)).body as { loaiTepGhiDuoc: string[] };
 
+    /*
+     * HAI loại ở bước này từ `0167`: bản scan và bản mềm — cả hai của Sale Admin.
+     *
+     * Đây là lần đầu `loaiTepGhiDuoc` trả về nhiều hơn một phần tử, và đó không
+     * phải chi tiết vô hại: giao diện từng đọc `loaiGhiDuoc[0]` để biết đang tải
+     * loại gì, nên phần tử thứ hai làm tệp tải ở khối *Bản cứng* được ghi dưới
+     * nhãn của khối kia. `TepDinhKem` giờ lấy loại từ CHÍNH KHỐI đang bấm.
+     *
+     * THỨ TỰ có nghĩa và được khẳng định ở đây: giao diện duyệt `KHOI` theo thứ
+     * tự của nó, nhưng phép kiểm `includes` thì không — đảo hai giá trị này là
+     * một thay đổi không ai thấy, nên ghim lại cho chắc.
+     */
     const sa = await cua('sa01');
-    expect(sa.loaiTepGhiDuoc).toEqual(['SCAN']);
+    expect(sa.loaiTepGhiDuoc).toEqual(['SCAN', 'BAN_MEM']);
 
     for (const who of ['tdv01', 'tbp01', 'kt01']) {
       const x = await cua(who);

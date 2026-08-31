@@ -140,6 +140,11 @@ export type MauChon = {
   id: string;
   ten: string;
   khoGiay: KhoGiay | null;
+  /**
+   * Loại mẫu (`0167`). Tuỳ chọn vì mẫu HỢP ĐỒNG dùng chung kiểu này và ô chọn
+   * của nó chỉ có một loại — hỏi lại ở đó là hỏi điều hiển nhiên.
+   */
+  loai?: LoaiMau;
 };
 
 /** Một dòng ánh xạ. Hai trường, không hơn (`0067`). */

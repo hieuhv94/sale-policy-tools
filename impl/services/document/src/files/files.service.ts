@@ -25,7 +25,17 @@ export type OwnerKind = 'POLICY' | 'CUSTOMER' | 'TEMPLATE';
  * nhãn chết là một lượt migration rủi ro hơn hẳn thứ nó dọn. Kiểu TypeScript này
  * mới là chốt chặn — không đường nào ghi được hai giá trị ấy nữa.
  */
-export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'MAU_HD';
+/**
+ * `BAN_CSBH` thêm vào từ `0167` — bản mềm Sale Admin đã lưu.
+ *
+ * Giá trị này có trong enum `doc.file_purpose` từ `0011` mà chưa từng có ai
+ * dùng: nó được nghĩ ra cho *"bản CSBH A4 do hệ thống sinh"*, và tới `0163` thì
+ * bản mềm dựng lại mỗi lần in nên không có gì để lưu. `0167` đóng băng nó thành
+ * một tệp của hồ sơ, và đó đúng là chỗ giá trị này chờ sẵn.
+ *
+ * `BAN_DA_KY` vẫn KHÔNG có ở đây: bản lưu ký số đã gỡ hẳn ở `0103`.
+ */
+export type Purpose = 'HO_SO' | 'SCAN' | 'PHAP_LY' | 'MAU_HD' | 'BAN_CSBH';
 
 export const MAX_BYTES = 20 * 1024 * 1024;
 
@@ -51,6 +61,10 @@ const ALLOWED: Record<Purpose, string[]> = {
   SCAN: ['application/pdf', 'image/jpeg', 'image/png'],
   PHAP_LY: ['application/pdf', 'image/jpeg', 'image/png'],
   MAU_HD: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  // `0167` — bản mềm đã lưu. CHỈ PDF, và không phải vì thận trọng: nó do
+  // Gotenberg dựng ra ngay trước lượt ghi, nên mọi giá trị khác ở đây sẽ là một
+  // ô không bao giờ đúng.
+  BAN_CSBH: ['application/pdf'],
 };
 
 export function sniff(buf: Buffer): string | undefined {

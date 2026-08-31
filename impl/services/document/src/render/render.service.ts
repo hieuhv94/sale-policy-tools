@@ -184,6 +184,70 @@ export class RenderService {
   }
 
   /**
+   * DỰNG BẢN MỀM RỒI LƯU LẠI thành một tệp của hồ sơ (`0167`).
+   *
+   * Khác `pdf()` ở hai chỗ, và cả hai đều là ràng buộc nghiệp vụ chứ không phải
+   * chi tiết kỹ thuật:
+   *
+   *   1. **CHỈ mẫu hồ sơ ĐẦY ĐỦ.** Khách hàng chốt 31/08: *"SA sẽ chọn loại văn
+   *      bản mẫu chỉ được lấy từ mẫu hồ sơ đầy đủ"*. Bản lưu là bản đem đi trình
+   *      ký và bàn giao cho Kế toán, nên nó phải mang đủ cột — kể cả giá thu về
+   *      và tỷ lệ chiết khấu, thứ mẫu rút gọn cố ý cắt đi cho khách hàng xem.
+   *      `chon('HO_SO', …)` chứ không `LOAI_HO_SO`: mẫu rút gọn không tra ra ở
+   *      đây, nên nó trả `404 TEMPLATE_NOT_USABLE` — cùng câu lỗi với một mẫu đã
+   *      vô hiệu, và đúng nghĩa: mẫu ấy không dùng được **cho việc này**.
+   *   2. **Ghi tệp vào kho** với `purpose: 'BAN_CSBH'` — giá trị có từ `0011` và
+   *      chưa từng có ai dùng; đây đúng là chỗ nó được nghĩ ra để phục vụ.
+   *
+   * KHÔNG tự gắn tệp vào hồ sơ ở đây. `pol.policy_attachment` là bảng của
+   * `policy`, và người gọi đi tiếp một bước `POST /policies/:id/attachments` —
+   * đúng hai bước mà lượt tải bản scan đang đi. Giữ nguyên hình dạng ấy để
+   * `attach` vẫn là chỗ DUY NHẤT quyết định một tệp có được vào hồ sơ hay không,
+   * và để phép dọn `goBoTep` khi hồ sơ từ chối vẫn chạy nguyên vẹn.
+   */
+  async luuBanMem(
+    policyId: string,
+    mauId: string,
+    me: AuthUser,
+  ): Promise<{ objectKey: string; fileName: string; sizeBytes: string; fileId: string }> {
+    const { policy, customer, people } = await this.collect(policyId, me);
+    const mau = await this.templates.chon('HO_SO', mauId);
+    const { values } = tron(mau.fields, { policy, customer, people });
+    const docx = mergeDocx(await this.templates.docxCua(mau.template), {
+      values,
+      banSanPham: bangSanPhamXml(policy, mau.template.cot_bang),
+    });
+    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
+
+    /*
+     * TÊN TỆP mang mã hồ sơ và MỐC THỜI GIAN.
+     *
+     * Sale Admin lưu được nhiều bản mềm — hồ sơ bị Kế toán yêu cầu in lại thì họ
+     * dựng bản mới, và bản cũ ở lại làm vết. Ba tệp cùng tên `CSBH-xxx.pdf` nằm
+     * cạnh nhau trong một khối thì không ai biết cái nào mới; mốc thời gian trong
+     * chính cái tên trả lời câu ấy ngay trên thẻ tệp.
+     */
+    const luc = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', 'h');
+    const file = await this.files.upload(
+      {
+        ownerKind: 'POLICY',
+        ownerId: policyId,
+        purpose: 'BAN_CSBH',
+        fileName: `CSBH-${policy.code} (${luc}).pdf`,
+        buffer: body,
+      },
+      me,
+    );
+    return {
+      objectKey: file.object_key,
+      fileName: file.file_name,
+      // `bigint` không đi qua JSON được — cùng cách `files.controller` đang trả.
+      sizeBytes: String(file.size_bytes),
+      fileId: file.id,
+    };
+  }
+
+  /**
    * MẪU để dựng bản mềm — người gọi CHỌN, hồ sơ không giữ (`0163`).
    *
    * Cả một trăm dòng luật cũ ở đây đã đi cùng khái niệm *mẫu đóng băng*: nhánh

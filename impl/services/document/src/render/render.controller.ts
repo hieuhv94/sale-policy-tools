@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { RenderService } from './render.service.js';
@@ -80,5 +80,27 @@ export class RenderController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}.pdf"`);
     res.end(body);
+  }
+
+  /**
+   * DỰNG BẢN MỀM RỒI LƯU thành một tệp của hồ sơ (`0167`).
+   *
+   * `POST` chứ không `GET`: đường trên trả về một tờ giấy để đọc rồi quên, đường
+   * này **ghi** — một dòng `doc.stored_file` và một object trên kho. Trả cùng
+   * hình dạng với `POST /files` để lượt gắn tệp phía sau đi đúng đường mà bản
+   * scan đang đi.
+   *
+   * `mauId` bắt buộc, và chỉ nhận **mẫu hồ sơ đầy đủ** — xem `luuBanMem`.
+   */
+  @Roles(...READERS)
+  @Post(':id/render/luu')
+  @HttpCode(201)
+  async luu(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Query() q: Record<string, string>,
+  ) {
+    const b = validate(q, { mauId: uuid() });
+    return this.render.luuBanMem(id, b.mauId, me);
   }
 }

@@ -72,6 +72,14 @@ export class FilesController {
     const b = validate(q, {
       ownerKind: oneOf('POLICY', 'CUSTOMER', 'TEMPLATE'),
       ownerId: opt(str(36, 36)),
+      /*
+       * `BAN_CSBH` CỐ Ý ĐỨNG NGOÀI danh sách này (`0167`).
+       *
+       * Bản mềm không phải thứ ai đó tải lên từ máy mình — nó do hệ thống dựng
+       * từ dữ liệu hồ sơ và một mẫu, ở `POST /policies/:id/render/luu`. Mở nó ra
+       * ở đây là mở một đường để đính bất kỳ tệp PDF nào vào hồ sơ dưới nhãn
+       * *bản mềm*, tức là đúng thứ mà việc dựng-từ-mẫu sinh ra để bảo đảm.
+       */
       purpose: oneOf('HO_SO', 'SCAN', 'PHAP_LY', 'MAU_HD'),
       fileName: opt(str(1, 300)),
     });

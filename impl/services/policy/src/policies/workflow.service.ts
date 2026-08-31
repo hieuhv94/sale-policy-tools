@@ -32,7 +32,14 @@ import { emit } from '../infra/emit.js';
 import { vaiTroConLai, type BonNguoi } from '../infra/nguoi-nhan.js';
 import { Db } from '../infra/db.js';
 import { Clients } from '../infra/clients.js';
-import { daTacDong, NGUOI_GHI_TEP, PoliciesService, SQL_CO_BAN_SCAN } from './policies.service.js';
+import {
+  daTacDong,
+  NGUOI_GHI_TEP,
+  PoliciesService,
+  SQL_CO_BAN_MEM,
+  SQL_CO_BAN_SCAN,
+  type LoaiTep,
+} from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
 const RECIPIENTS: Partial<Record<Action, string[]>> = {
@@ -391,6 +398,28 @@ export class WorkflowService {
         throw new ConflictException({
           code: 'SCAN_REQUIRED',
           message: 'Chưa tải bản scan nên chưa bàn giao được',
+        });
+      }
+
+      /*
+       * VÀ PHẢI CÓ BẢN MỀM ĐÃ LƯU (`0167`).
+       *
+       * Bàn giao cho Kế toán là bàn giao CẢ HAI bản: bản mềm để họ đọc và đối
+       * chiếu, bản cứng đã ký để lưu. Trước `0167` bản mềm dựng lại mỗi lần xem
+       * (`0163`), nên hồ sơ bàn giao xong không mang theo tờ giấy nào — Kế toán
+       * mở ra thì thấy bản dựng bằng danh mục mẫu HÔM NAY, không phải bản Sale
+       * Admin đã in và trình ký.
+       *
+       * MÃ LỖI RIÊNG, không gộp với `SCAN_REQUIRED`: giao diện phản ứng khác hẳn
+       * với hai ca này — thiếu scan thì nút xám (việc ngoài phần mềm), thiếu bản
+       * mềm thì mở hộp tạo bản mềm ngay (việc phần mềm làm được). Một mã lỗi
+       * chung thì màn hình không biết phải làm gì.
+       */
+      const mem = await this.db.q<{ co: boolean }>(`SELECT ${SQL_CO_BAN_MEM} AS co`, [policyId]);
+      if (mem[0]?.co !== true) {
+        throw new ConflictException({
+          code: 'BAN_MEM_REQUIRED',
+          message: 'Chưa tạo bản mềm nên chưa bàn giao được',
         });
       }
     }
@@ -855,7 +884,7 @@ export class WorkflowService {
    */
   async attach(
     policyId: string,
-    input: { kind: 'HO_SO' | 'SCAN'; fileName: string; objectKey: string; sizeBytes: bigint },
+    input: { kind: LoaiTep; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
   ) {
     try {
@@ -871,7 +900,7 @@ export class WorkflowService {
 
   private async attachNoiBo(
     policyId: string,
-    input: { kind: 'HO_SO' | 'SCAN'; fileName: string; objectKey: string; sizeBytes: bigint },
+    input: { kind: LoaiTep; fileName: string; objectKey: string; sizeBytes: bigint },
     me: AuthUser,
   ) {
     const p = await this.db.one<{
@@ -944,7 +973,7 @@ export class WorkflowService {
     // Gỡ theo LOẠI của chính tệp ấy, không theo trạng thái hồ sơ: một hồ sơ ở
     // bước Sale Admin vẫn còn giấy tờ do TDV đính lúc lập, và Sale Admin không
     // có việc gì với chúng.
-    const t = await this.db.one<{ kind: 'HO_SO' | 'SCAN'; object_key: string }>(
+    const t = await this.db.one<{ kind: LoaiTep; object_key: string }>(
       // `object_key` đi kèm từ `0149`: lượt gỡ giờ xoá cả tệp trên kho, và khoá
       // kho là thứ duy nhất `document` nhận diện tệp theo.
       `SELECT kind::text AS kind, object_key
@@ -994,7 +1023,7 @@ export class WorkflowService {
    * không. Một bản chép thứ hai ở đây là chỗ để hai bên lệch nhau — và lệch theo
    * chiều nào cũng tệ: nút hiện rồi trả 403, hoặc nút ẩn mà đường vẫn mở.
    */
-  private assertNguoiGhiTep(kind: 'HO_SO' | 'SCAN', me: AuthUser): void {
+  private assertNguoiGhiTep(kind: LoaiTep, me: AuthUser): void {
     if (me.role !== NGUOI_GHI_TEP[kind]) {
       throw new ForbiddenException({
         code: 'FORBIDDEN_ROLE',

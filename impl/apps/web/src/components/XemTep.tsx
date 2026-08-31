@@ -37,6 +37,7 @@ export function XemTep({
   tenTep,
   truoc,
   tyLe,
+  them,
   dong,
 }: {
   tieuDe: string;
@@ -74,6 +75,15 @@ export function XemTep({
    * Bỏ trống là A4 dọc (`TY_LE_MAC_DINH`) — xem lý do ở đó.
    */
   tyLe?: number | undefined;
+  /**
+   * Nút phụ chèn vào ĐẦU hàng nút, cạnh *Đóng* và *Tải xuống* (`0167`).
+   *
+   * Một chỗ duy nhất dùng: nút *Lưu bản mềm* của hộp tạo bản mềm. Đặt ở hàng nút
+   * chứ không ở `truoc` vì nó là một HÀNH ĐỘNG trên thứ đang xem — người dùng
+   * tìm hành động ở hàng nút, còn `truoc` là chỗ của những lựa chọn ĐỔI nội dung
+   * đang xem.
+   */
+  them?: ReactNode;
   dong: () => void;
 }) {
   const [tep, datTep] = useState<XemDuoc | null>(null);
@@ -216,6 +226,7 @@ export function XemTep({
         hộp thoại người dùng tưởng mình bị kẹt.
       */}
       <div className="nhom-nut">
+        {them}
         <button type="button" className="nut nut-nhe" onClick={dong}>
           Đóng
         </button>

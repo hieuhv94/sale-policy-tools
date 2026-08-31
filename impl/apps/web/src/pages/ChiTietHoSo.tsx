@@ -113,6 +113,20 @@ type HoSo = {
    * siết nhầm ở đây là khoá mất một việc người ta làm được.
    */
   banGiaoDuoc?: boolean;
+  /**
+   * `0167` — hồ sơ đã có bản mềm ĐÃ LƯU chưa.
+   *
+   * Cờ RIÊNG với `banGiaoDuoc`, vì màn hình làm hai việc khác nhau: thiếu bản
+   * scan thì nút *Bàn giao* xám (việc ngoài phần mềm — in, trình ký, scan);
+   * thiếu bản mềm thì nút vẫn sáng và bấm vào mở hộp tạo bản mềm trước, vì đó là
+   * việc phần mềm làm được ngay.
+   *
+   * `undefined` với máy chủ cũ hơn giao diện — coi như ĐÃ CÓ, tức không chen
+   * thêm bước nào. Giá trị lùi chọn phía không cản đường: đoán sai theo hướng
+   * này thì người dùng nhận `409 BAN_MEM_REQUIRED` và biết phải làm gì; đoán sai
+   * hướng kia thì họ bị chặn bởi một bước không có thật.
+   */
+  coBanMem?: boolean;
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
@@ -174,6 +188,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
 
   /** Hộp *Xem bản mềm* đang mở hay không (`0054`). */
   const [moBanMem, datMoBanMem] = useState(false);
+  /**
+   * Hộp TẠO BẢN MỀM (`0167`), và nó nhớ mình được mở để làm gì.
+   *
+   *   `'tep'`     — Sale Admin bấm *Tạo bản mềm* ở khối tệp. Lưu xong là xong.
+   *   `'banGiao'` — họ bấm *Bàn giao* trên một hồ sơ chưa có bản mềm. Lưu xong
+   *                 thì hộp xác nhận bàn giao mở ra ngay, không bắt bấm lại.
+   *
+   * Một state mang cả LÝ DO chứ không phải một `boolean` cộng một cờ thứ hai:
+   * "đang mở" và "mở để bàn giao" không độc lập nhau, và hai cờ rời thì trạng
+   * thái `đóng + để bàn giao` viết ra được mà không có nghĩa gì.
+   */
+  const [moTaoBanMem, datMoTaoBanMem] = useState<'tep' | 'banGiao' | null>(null);
   const [moHopDong, datMoHopDong] = useState(false);
 
   /** Tệp đang mở xem trực tiếp — hợp đồng (`0051`). */
@@ -280,7 +306,22 @@ export function ChiTietHoSo({ id }: { id: string }) {
                 {...(thieuScan
                   ? { title: 'Chưa có bản scan — tải bản scan lên rồi mới bàn giao được' }
                   : {})}
-                onClick={() => datHanhDong(a)}
+                onClick={() => {
+                  /*
+                   * BÀN GIAO KHI CHƯA CÓ BẢN MỀM: chen bước tạo vào trước
+                   * (`0167`, chốt 31/08).
+                   *
+                   * Không chặn, và không bắt người dùng đi tìm nút: hệ thống
+                   * biết chính xác cái đang thiếu và dựng được nó ngay. Máy chủ
+                   * vẫn có chốt thật (`409 BAN_MEM_REQUIRED`) cho ai gọi thẳng
+                   * API — đây chỉ là đường đi thuận cho người bấm nút.
+                   */
+                  if (a === 'SA_HANDOVER' && hoSo.coBanMem === false) {
+                    datMoTaoBanMem('banGiao');
+                    return;
+                  }
+                  datHanhDong(a);
+                }}
               >
                 {HANH_DONG_NHAN[a] ?? a}
               </button>
@@ -424,6 +465,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
           hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
         */
         loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
+        taoBanMem={() => datMoTaoBanMem('tep')}
         taiLai={taiLai}
       />
 
@@ -487,6 +529,47 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       {moBanMem && (
         <XemBanMem hoSoId={hoSo.id} maHoSo={hoSo.code} dong={() => datMoBanMem(false)} />
+      )}
+
+      {/*
+        HỘP TẠO BẢN MỀM (`0167`) — cùng thành phần với hộp xem thử, khác đúng hai
+        prop: lọc còn mẫu ĐẦY ĐỦ, và có hàm lưu.
+
+        Lưu đi HAI BƯỚC, đúng đường mà lượt tải bản scan đang đi: `document` dựng
+        PDF rồi ghi tệp vào kho, `policy` gắn tệp ấy vào hồ sơ. Giữ nguyên hình
+        dạng ấy để `attach` vẫn là chỗ DUY NHẤT quyết định một tệp có vào hồ sơ
+        hay không — và để phép dọn tệp mồ côi khi hồ sơ từ chối vẫn chạy.
+      */}
+      {moTaoBanMem !== null && (
+        <XemBanMem
+          hoSoId={hoSo.id}
+          maHoSo={hoSo.code}
+          chiLoaiMau="HO_SO"
+          khiLuu={async (mauId) => {
+            const x = await dang<{ objectKey: string; fileName: string; sizeBytes: string }>(
+              `/policies/${hoSo.id}/render/luu?mauId=${mauId}`,
+              {},
+            );
+            await dang(`/policies/${hoSo.id}/attachments`, {
+              kind: 'BAN_MEM',
+              fileName: x.fileName,
+              objectKey: x.objectKey,
+              sizeBytes: x.sizeBytes,
+            });
+            /*
+              Lưu xong thì đi tiếp theo ĐÚNG LÝ DO hộp được mở.
+
+              Mở từ nút *Bàn giao* thì hộp xác nhận bàn giao bật ra ngay — khách
+              hàng chốt đúng chữ *"nhấn lưu xong thì hệ thống hỏi xác nhận để bàn
+              giao"*. Mở từ khối tệp thì dừng ở đây.
+            */
+            const tiep = moTaoBanMem === 'banGiao';
+            datMoTaoBanMem(null);
+            taiLai();
+            if (tiep) datHanhDong('SA_HANDOVER');
+          }}
+          dong={() => datMoTaoBanMem(null)}
+        />
       )}
 
       {moHopDong && (

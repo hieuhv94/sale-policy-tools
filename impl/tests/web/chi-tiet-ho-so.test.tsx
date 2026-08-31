@@ -94,10 +94,23 @@ const LICH_SU = [
   },
 ];
 
-/** Hai mẫu đang dùng — đủ để ô chọn hiện ra (`0058`). */
+/**
+ * Ba mẫu đang dùng — đủ để ô chọn hiện ra (`0058`), và đủ để phép LỌC của `0167`
+ * có gì mà lọc.
+ *
+ * Ô chọn lúc XEM trộn chung hai loại hồ sơ (`0165`); hộp TẠO BẢN MỀM chỉ nhận
+ * mẫu ĐẦY ĐỦ. Không có mẫu rút gọn ở đây thì ca kiểm phép lọc xanh vì danh sách
+ * vốn không có gì để loại — một ca xanh không nói lên điều gì.
+ */
 const MAU = [
-  { id: '00000000-0000-4000-8000-000000000001', ten: 'Mẫu A4 dọc', khoGiay: 'a4p' },
-  { id: '00000000-0000-4000-8000-000000000002', ten: 'Mẫu A4 ngang', khoGiay: 'a4l' },
+  { id: '00000000-0000-4000-8000-000000000001', ten: 'Mẫu A4 dọc', khoGiay: 'a4p', loai: 'HO_SO' },
+  { id: '00000000-0000-4000-8000-000000000002', ten: 'Mẫu A4 ngang', khoGiay: 'a4l', loai: 'HO_SO' },
+  {
+    id: '00000000-0000-4000-8000-000000000003',
+    ten: 'Mẫu rút gọn',
+    khoGiay: 'a4l',
+    loai: 'HO_SO_RUT_GON',
+  },
 ];
 
 /** Người để chọn ở bước gửi duyệt — hộp thoại đòi cả Trưởng bộ phận lẫn Kế toán. */
@@ -492,10 +505,18 @@ describe('`0051` xem bản CSBH và hợp đồng không cần tải về', () =
     await mo();
     fireEvent.click(screen.getByRole('button', { name: 'Xem bản mềm' }));
     await chonMauRoiXem(/Mẫu A4 dọc/);
+    /*
+     * Nhãn phụ nói CẢ HAI thứ từ `0167`: loại mẫu, rồi khổ giấy.
+     *
+     * Ô chọn trộn chung mẫu đầy đủ với mẫu rút gọn (`0165`), mà hai bản ấy in ra
+     * sáu cột và mười cột — hai cái tên do Quản trị đặt không bắt buộc nói ra
+     * điều đó, nên ô chọn phải tự nói.
+     */
     const o = (await screen.findByLabelText('Mẫu')) as HTMLSelectElement;
     expect([...o.options].map((x) => x.textContent)).toEqual([
-      'Mẫu A4 dọc · A4 dọc',
-      'Mẫu A4 ngang · A4 ngang',
+      'Mẫu A4 dọc · đầy đủ · A4 dọc',
+      'Mẫu A4 ngang · đầy đủ · A4 ngang',
+      'Mẫu rút gọn · rút gọn · A4 ngang',
     ]);
   });
 
@@ -756,6 +777,131 @@ describe('`0163` gửi duyệt KHÔNG chọn mẫu, và bản mềm luôn hỏi 
   });
 });
 
+
+describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', () => {
+  const SA_XU_LY = {
+    ...HO_SO,
+    status: 'SA_DANG_XU_LY',
+    loaiTepGhiDuoc: ['SCAN', 'BAN_MEM'],
+    banGiaoDuoc: true,
+  };
+
+  const laSaAdmin = () => localStorage.setItem('csbh:phien', JSON.stringify(SA));
+
+  /** Mở trang với vai Sale Admin ở bước B8. */
+  const moSa = async (thay: Record<string, unknown> = {}) => {
+    laSaAdmin();
+    return mo({ ...SA_XU_LY, ...thay }, ['SA_HANDOVER']);
+  };
+
+  it('có BA khối tệp, và Bản mềm đứng GIỮA', async () => {
+    /*
+     * Thứ tự theo chiều hồ sơ đi: giấy tờ có từ lúc lập, rồi Sale Admin dựng bản
+     * mềm, in ra, trình ký, rồi mới scan lại thành bản cứng. Đặt bản mềm sau bản
+     * cứng là đọc ngược chiều công việc.
+     *
+     * Khẳng định CẢ DÃY bằng `toEqual` chứ không `toContain`: đảo hai khối vẫn
+     * qua được mọi phép "có mặt không", và đó đúng là bài học `0152` đã ghi.
+     */
+    await moSa();
+    const ten = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
+    expect(ten).toEqual(['Giấy tờ hồ sơ', 'Bản mềm', 'Bản cứng']);
+  });
+
+  it('nút TẠO BẢN MỀM chỉ hiện cho người ghi được, và nó KHÔNG phải ô chọn file', async () => {
+    /*
+     * Bản mềm không nằm sẵn trên máy ai để mà chọn — nó dựng ra từ dữ liệu hồ sơ
+     * và một mẫu. Một `<input type="file">` ở đây là mời người dùng đính một tệp
+     * bất kỳ dưới nhãn *bản mềm*, đúng thứ máy chủ vừa chặn ở `purpose`.
+     */
+    await moSa();
+    const khoi = [...document.querySelectorAll('.khoi-tep')].find(
+      (e) => e.querySelector('h2')?.textContent === 'Bản mềm',
+    )!;
+    expect(within(khoi as HTMLElement).getByRole('button', { name: 'Tạo bản mềm' })).toBeDefined();
+    expect(khoi.querySelector('input[type="file"]'), 'khối bản mềm không nhận file').toBeNull();
+
+    // Chiều đối chiếu: khối BẢN CỨNG thì vẫn là chỗ nhận file.
+    const cung = [...document.querySelectorAll('.khoi-tep')].find(
+      (e) => e.querySelector('h2')?.textContent === 'Bản cứng',
+    )!;
+    expect(cung.querySelector('input[type="file"]')).not.toBeNull();
+  });
+
+  it('vai trò KHÁC không thấy nút tạo, nhưng vẫn thấy khối', async () => {
+    // *"Chỉ SA mới có quyền thêm và xóa bản mềm, các người dùng khác chỉ có xem
+    // và tải xuống"* — nên khối phải còn đó, chỉ mất đường ghi.
+    await mo({ ...SA_XU_LY, loaiTepGhiDuoc: [] }, []);
+    const ten = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
+    expect(ten).toContain('Bản mềm');
+    expect(screen.queryByRole('button', { name: 'Tạo bản mềm' })).toBeNull();
+  });
+
+  it('hộp tạo bản mềm CHỈ bày mẫu ĐẦY ĐỦ', async () => {
+    /*
+     * `MAU` của tệp kiểm này có hai mẫu; ca dưới thêm một mẫu rút gọn vào câu
+     * trả lời của `/available` để phép lọc có gì mà lọc.
+     */
+    laSaAdmin();
+    const f = chan(SA_XU_LY, ['SA_HANDOVER']);
+    render(
+      <PhienProvider>
+        <BoDinhTuyen>
+          <ChiTietHoSo id="hs-1" />
+        </BoDinhTuyen>
+      </PhienProvider>,
+    );
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo bản mềm' }));
+
+    const o = (await screen.findByLabelText(/Văn bản mẫu/)) as HTMLSelectElement;
+    const nhan = [...o.options].map((x) => x.textContent ?? '');
+    expect(nhan.some((x) => /Mẫu A4 dọc/.test(x)), 'mẫu đầy đủ phải có').toBe(true);
+    expect(nhan.some((x) => /Mẫu rút gọn/.test(x)), 'mẫu rút gọn KHÔNG được có').toBe(false);
+    expect(f).toBeDefined();
+  });
+
+  it('BÀN GIAO khi chưa có bản mềm: mở hộp TẠO trước, KHÔNG gửi hành động nào', async () => {
+    /*
+     * Ca đáng giá nhất của lượt này, và nó canh đúng chỗ dễ đấu nhầm: nút *Bàn
+     * giao* đổi việc nó làm tuỳ theo `coBanMem`. Đấu thẳng vào `datHanhDong` thì
+     * hồ sơ đi ngay lúc Sale Admin tưởng mình bấm để TẠO BẢN MỀM — không lùi
+     * được, vì bàn giao chuyển hồ sơ sang tay Kế toán.
+     */
+    const f = await moSa({ coBanMem: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Bàn giao' }));
+
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
+    expect(screen.getByRole('dialog').textContent).toContain('Tạo bản mềm');
+    expect(
+      f.mock.calls.map((c) => String(c[0])).filter((x) => x.includes('/actions/')),
+      'chưa được gửi hành động nào',
+    ).toEqual([]);
+  });
+
+  it('đã CÓ bản mềm thì Bàn giao đi thẳng vào hộp xác nhận', async () => {
+    // Chiều đối chiếu: thiếu nó thì gỡ hẳn nhánh `coBanMem` vẫn xanh ở ca trên.
+    await moSa({ coBanMem: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Bàn giao' }));
+
+    const hop = await screen.findByRole('dialog');
+    expect(hop.textContent).not.toContain('Tạo bản mềm');
+    expect(within(hop).getByRole('button', { name: /^Xác nhận/ })).toBeDefined();
+  });
+
+  it('máy chủ cũ KHÔNG gửi cờ thì coi như ĐÃ CÓ — không chen bước không có thật', async () => {
+    /*
+     * Giá trị lùi chọn phía KHÔNG CẢN ĐƯỜNG, ngược với `banGiaoDuoc`. Đoán sai
+     * theo hướng này thì người dùng nhận `409 BAN_MEM_REQUIRED` và biết phải làm
+     * gì; đoán sai hướng kia thì họ bị chặn bởi một bước không tồn tại và không
+     * có gì trên màn hình nói vì sao.
+     */
+    await moSa();
+    fireEvent.click(screen.getByRole('button', { name: 'Bàn giao' }));
+    const hop = await screen.findByRole('dialog');
+    expect(hop.textContent).not.toContain('Tạo bản mềm');
+  });
+});
 
 describe('`0160` nút Bàn giao xám khi hồ sơ chưa có bản scan', () => {
   /*

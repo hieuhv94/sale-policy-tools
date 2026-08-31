@@ -944,6 +944,12 @@ describe('DOC-12 hai hồ sơ của cùng một khách hàng', () => {
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${a.id}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await ppost(
+      `/policies/${a.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${a.id}.pdf` },
+      'sa01',
+    );
     await act(a.id, 'SA_HANDOVER', 'sa01');
     await act(a.id, 'KT_RECEIVE_L2', 'kt01');
 
@@ -1104,6 +1110,12 @@ describe('DOC-24 hồ sơ bị trả về rồi duyệt lại và xuất tiếp'
     await ppost(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
@@ -2089,12 +2101,22 @@ describe('`0058` danh sách mẫu đang dùng, cho ô chọn', () => {
     }
   }, 60_000);
 
-  it('trả về ĐÚNG ba trường, không rò cột nội bộ nào của mẫu', async () => {
+  it('trả về ĐÚNG bốn trường, không rò cột nội bộ nào của mẫu', async () => {
+    /*
+     * `loai` thêm ở `0167`, và nó KHÔNG phải một cột nội bộ rò ra: ô chọn trộn
+     * chung mẫu đầy đủ với mẫu rút gọn (`0165`), nên người chọn phải phân biệt
+     * được — hai cái tên do Quản trị đặt không bắt buộc nói ra điều đó. Hộp *Tạo
+     * bản mềm* cũng lọc bằng chính trường này.
+     *
+     * Ca vẫn canh đúng thứ nó sinh ra để canh: một danh sách ĐÓNG. `cot_bang`,
+     * `file_id`, `vo_hieu_hoa_luc` là chuyện nội bộ của mẫu, và đường này mở cho
+     * một vai trò không quản mẫu.
+     */
     const r = await dget('/policy-templates/available', 'sa01');
     expect(r.status).toBe(200);
     expect((r.body as unknown[]).length).toBeGreaterThan(0);
     for (const m of r.body as Record<string, unknown>[]) {
-      expect(Object.keys(m).sort()).toEqual(['id', 'khoGiay', 'ten']);
+      expect(Object.keys(m).sort()).toEqual(['id', 'khoGiay', 'loai', 'ten']);
     }
   }, 30_000);
 
@@ -2295,6 +2317,199 @@ describe('`0165` ba mẫu mặc định nạp lúc khởi động', () => {
       await dpost(`/contract-templates/${m.id}/mo-lai`, 'admin01', {});
     }
   }, 60_000);
+});
+
+describe('`0167` bản mềm ĐÃ LƯU là một tệp của hồ sơ', () => {
+  /** Hồ sơ đã tới bàn Sale Admin, đã có bản scan — tức chỉ còn thiếu bản mềm. */
+  const toiSaleAdmin = async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    await ppost(
+      `/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: uniq('scan') },
+      'sa01',
+    );
+    return d;
+  };
+
+  /** Dựng và lưu bản mềm, đúng hai bước mà màn hình đi. */
+  const luuBanMem = async (policyId: string, mauId: string, who = 'sa01') => {
+    const r = await (await http(doc))
+      .post(`/policies/${policyId}/render/luu?mauId=${mauId}`)
+      .set('Authorization', `Bearer ${tok[who]}`);
+    if (r.status !== 201) return { status: r.status, body: r.body };
+    const g = await ppost(
+      `/policies/${policyId}/attachments`,
+      {
+        kind: 'BAN_MEM',
+        fileName: r.body.fileName,
+        objectKey: r.body.objectKey,
+        sizeBytes: r.body.sizeBytes,
+      },
+      who,
+    );
+    return { status: g.status, body: g.body, tep: r.body };
+  };
+
+  it('dựng ra một PDF THẬT, lưu vào hồ sơ, và tải lại được đúng nội dung ấy', async () => {
+    /*
+     * Vế cuối là vế đáng giá: một dòng `pol.policy_attachment` trỏ tới một object
+     * không tồn tại thì màn hình vẫn bày ra một thẻ tệp bấm được, và chỗ hỏng lộ
+     * ra ở tận lượt Kế toán bấm tải xuống.
+     */
+    const d = await toiSaleAdmin();
+    const r = await luuBanMem(d.id, await mauHoSo());
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    // Tên tệp mang MÃ HỒ SƠ và mốc thời gian: Sale Admin lưu được nhiều bản
+    // mềm (hồ sơ bị yêu cầu in lại thì họ dựng bản mới), và ba tệp cùng tên nằm
+    // cạnh nhau thì không ai biết cái nào mới.
+    expect(r.tep!.fileName).toMatch(/^CSBH-.+\.pdf$/);
+    expect(Number(r.tep!.sizeBytes), 'phải là một PDF thật, không phải tệp rỗng').toBeGreaterThan(
+      1000,
+    );
+
+    const tep = (await pget(`/policies/${d.id}`, 'sa01')).body.attachments as {
+      kind: string;
+      objectKey: string;
+    }[];
+    const mem = tep.filter((x) => x.kind === 'BAN_MEM');
+    expect(mem, 'bản mềm phải nằm trong danh sách tệp của hồ sơ').toHaveLength(1);
+
+    const ds = await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'sa01');
+    const f = (ds.body as { id: string; objectKey: string }[]).find(
+      (x) => x.objectKey === mem[0]!.objectKey,
+    );
+    expect(f, 'tệp phải thuộc về hồ sơ này ở `document`').toBeDefined();
+    // Cấp được liên kết tải là bằng chứng object CÓ THẬT trên kho: `link` đọc
+    // dòng tệp rồi ký một token cho đúng object ấy.
+    expect((await dget(`/files/${f!.id}/link`, 'sa01')).status).toBe(200);
+  }, 150_000);
+
+  it('ĐÓNG BĂNG: vô hiệu mẫu rồi thì bản mềm đã lưu vẫn tải được', async () => {
+    /*
+     * Đây là chỗ `0167` khác hẳn `0163`, và là cả lý do khách hàng đòi nó.
+     *
+     * `0163` dựng lại văn bản mỗi lượt xem, nên nó phụ thuộc hoàn toàn vào danh
+     * mục mẫu HÔM NAY — vô hiệu hết mẫu là không hồ sơ nào in được. Bản mềm đã
+     * lưu thì không tra tới mẫu nào nữa: nó là các byte PDF nằm trên kho.
+     */
+    const d = await toiSaleAdmin();
+    const r = await luuBanMem(d.id, await mauHoSo());
+    expect(r.status).toBe(201);
+
+    const khoiPhuc = await (async () => {
+      const ds = (await dget('/policy-templates', 'admin01')).body as { id: string }[];
+      for (const x of ds) await donMau('/policy-templates', x.id, 'admin01');
+      return async () => {
+        for (const x of ds) await dpost(`/policy-templates/${x.id}/mo-lai`, 'admin01', {});
+      };
+    })();
+    try {
+      // Dựng MỚI thì hỏng, đúng như `0163` — không còn mẫu nào.
+      expect((await pdfOf(`/policies/${d.id}/render?mauId=${await mauHoSo()}`, 'sa01')).status).toBe(
+        404,
+      );
+      // Nhưng tệp ĐÃ LƯU thì vẫn ở đó và vẫn lấy được liên kết.
+      const tep = (await pget(`/policies/${d.id}`, 'sa01')).body.attachments as {
+        kind: string;
+        objectKey: string;
+      }[];
+      const mem = tep.find((x) => x.kind === 'BAN_MEM')!;
+      const ds = await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'sa01');
+      const f = (ds.body as { id: string; objectKey: string }[]).find(
+        (x) => x.objectKey === mem.objectKey,
+      )!;
+      expect((await dget(`/files/${f.id}/link`, 'sa01')).status).toBe(200);
+    } finally {
+      await khoiPhuc();
+    }
+  }, 180_000);
+
+  it('CHỈ mẫu hồ sơ ĐẦY ĐỦ — mẫu rút gọn bị từ chối', async () => {
+    /*
+     * Khách hàng chốt 31/08: *"SA sẽ chọn loại văn bản mẫu chỉ được lấy từ mẫu hồ
+     * sơ đầy đủ"*. Bản lưu là bản đem trình ký và bàn giao cho Kế toán, nên nó
+     * phải mang đủ cột — kể cả giá thu về và tỷ lệ CK, thứ mẫu rút gọn cố ý cắt.
+     *
+     * Chặn ở MÁY CHỦ, không chỉ lọc ô chọn: giao diện lọc danh sách là để đừng
+     * bày ra một lựa chọn sai, còn đây là thứ ngăn nó thật.
+     */
+    const d = await toiSaleAdmin();
+    const than = makeDocx(
+      [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
+    );
+    const gon = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', uniq('Mau gon khong luu duoc'))
+      .field('loai', 'HO_SO_RUT_GON')
+      .field('mapping', JSON.stringify(anhXaTu(than)))
+      .attach('file', than, { filename: 'gon.docx', contentType: DOCX });
+    expect(gon.status, JSON.stringify(gon.body)).toBe(201);
+
+    const r = await luuBanMem(d.id, gon.body.id as string);
+    expect(r.status, 'mẫu rút gọn không được lưu thành bản mềm').toBe(404);
+    expect(r.body.code).toBe('TEMPLATE_NOT_USABLE');
+  }, 150_000);
+
+  it('CHỈ Sale Admin lưu được — bốn vai trò kia nhận 403', async () => {
+    const d = await toiSaleAdmin();
+    const mau = await mauHoSo();
+    for (const ai of ['tdv01', 'tbp01', 'kt01', 'bld01']) {
+      const r = await (await http(doc))
+        .post(`/policies/${d.id}/render/luu?mauId=${mau}`)
+        .set('Authorization', `Bearer ${tok[ai]}`);
+      expect(r.status, ai).toBe(403);
+    }
+  }, 120_000);
+
+  it('BÀN GIAO đòi bản mềm — thiếu thì 409, có thì đi được', async () => {
+    /*
+     * Đối xứng với `SCAN_REQUIRED` (WF-14), và có MÃ LỖI RIÊNG: màn hình phản
+     * ứng khác hẳn với hai ca. Thiếu scan thì nút xám — việc ngoài phần mềm.
+     * Thiếu bản mềm thì nút vẫn sáng và hộp tạo bản mềm mở ra trước, vì đó là
+     * việc phần mềm làm được ngay. Một mã lỗi chung thì màn hình không biết
+     * phải làm gì.
+     */
+    const d = await toiSaleAdmin();
+    const truoc = await act(d.id, 'SA_HANDOVER', 'sa01');
+    expect(truoc.status).toBe(409);
+    expect(truoc.body.code).toBe('BAN_MEM_REQUIRED');
+
+    expect((await luuBanMem(d.id, await mauHoSo())).status).toBe(201);
+    const sau = await act(d.id, 'SA_HANDOVER', 'sa01');
+    expect(sau.status, JSON.stringify(sau.body)).toBe(200);
+    expect(sau.body.status).toBe('CHO_KT_L2');
+  }, 150_000);
+
+  it('cờ `coBanMem` khớp đúng chốt chặn, ở cả hai chiều', async () => {
+    // Cùng nguyên tắc `0160` đã đặt cho `banGiaoDuoc`: màn hình đọc CHÍNH câu hỏi
+    // mà chốt chặn đang hỏi, nên hai bên không lệch được.
+    const d = await toiSaleAdmin();
+    expect((await pget(`/policies/${d.id}`, 'sa01')).body.coBanMem).toBe(false);
+    await luuBanMem(d.id, await mauHoSo());
+    expect((await pget(`/policies/${d.id}`, 'sa01')).body.coBanMem).toBe(true);
+  }, 150_000);
+
+  it('KHÔNG tải lên được một PDF bất kỳ dưới nhãn bản mềm', async () => {
+    /*
+     * Ranh giới của cả tính năng: bản mềm phải do hệ thống dựng từ dữ liệu hồ sơ
+     * và một mẫu. Mở `purpose=BAN_CSBH` ở đường tải tệp là mở đường đính bất kỳ
+     * tệp nào vào hồ sơ dưới nhãn ấy — đúng thứ việc dựng-từ-mẫu sinh ra để
+     * bảo đảm.
+     */
+    const d = await toiSaleAdmin();
+    const r = await (await http(doc))
+      .post(`/files?ownerKind=POLICY&ownerId=${d.id}&purpose=BAN_CSBH&fileName=gia.pdf`)
+      .set('Authorization', `Bearer ${tok['sa01']}`)
+      .attach('file', Buffer.from('%PDF-1.4 gia mao'), {
+        filename: 'gia.pdf',
+        contentType: 'application/pdf',
+      });
+    expect(r.status, 'purpose BAN_CSBH không được mở ở đường tải lên').toBe(400);
+  }, 120_000);
 });
 
 describe('`0163` bản mềm KHÔNG còn đóng băng theo hồ sơ', () => {

@@ -1,0 +1,40 @@
+-- `0167` — BẢN MỀM LÀ MỘT TỆP ĐÍNH KÈM CỦA HỒ SƠ.
+--
+-- Khách hàng chốt 31/08: hồ sơ CSBH có thêm mục *Bản mềm*, giao diện như *Bản
+-- cứng*. Sale Admin tạo nó bằng cách chọn một mẫu **hồ sơ đầy đủ**, xem trước,
+-- rồi lưu; tệp PDF ấy **đóng băng và lưu cùng hồ sơ**, y như bản scan. Vai trò
+-- khác chỉ xem và tải xuống.
+--
+-- ---------------------------------------------------------------------------
+-- ĐÂY KHÔNG PHẢI `0098` QUAY LẠI
+-- ---------------------------------------------------------------------------
+--
+-- `0098` đóng băng **id của MẪU** vào cột `pol.policy.mau_ho_so_id`, rồi `0163`
+-- gỡ hẳn cột ấy. Nghe qua thì lượt này đi ngược, nhưng thứ được đóng băng khác
+-- hẳn: không phải một con trỏ tới mẫu, mà **chính tờ giấy** — các byte PDF, nằm
+-- trên kho đối tượng như mọi tệp khác.
+--
+-- Khác biệt ấy quyết định mọi thứ về sau. Mẫu đổi, mẫu bị vô hiệu, mẫu bị Quản
+-- trị sửa câu chữ — bản mềm đã lưu **không đổi theo**, vì nó không còn tra tới
+-- mẫu nào nữa. Đó đúng là điều `0163` không làm được và khách hàng vừa đòi:
+-- *"bản mềm này được đóng băng và lưu cùng hồ sơ CSBH, giống như bản cứng"*.
+--
+-- Thao tác IN tuỳ ý của `0163` VẪN CÒN và không đổi: nút *Xem bản mềm* dựng lại
+-- văn bản mỗi lần, chọn được cả mẫu đầy đủ lẫn mẫu rút gọn, không lưu gì. Hai
+-- thứ khác nhau, sống cạnh nhau:
+--
+--   *Xem bản mềm*  — xem thử, mọi loại mẫu, không lưu, không để lại vết.
+--   *Bản mềm*      — một TỆP của hồ sơ, chỉ từ mẫu đầy đủ, lưu vĩnh viễn.
+--
+-- ---------------------------------------------------------------------------
+-- MỘT CÂU LỆNH, MỘT TỆP
+-- ---------------------------------------------------------------------------
+--
+-- `ALTER TYPE … ADD VALUE` không dùng được giá trị mới trong cùng transaction đã
+-- thêm nó, và `migrate.sh` chạy mỗi tệp dưới `--single-transaction`. Cùng lý do
+-- đã ghi ở `0112`.
+--
+-- `doc.file_purpose` KHÔNG cần giá trị mới: `BAN_CSBH` — *"bản CSBH A4 do hệ
+-- thống sinh"* — có từ `0011` và mô tả đúng thứ này. Nó chưa từng có ai dùng, và
+-- đây là chỗ nó vốn được nghĩ ra để phục vụ.
+ALTER TYPE pol.attachment_kind ADD VALUE IF NOT EXISTS 'BAN_MEM';

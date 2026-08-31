@@ -293,7 +293,7 @@ export class PoliciesController {
   @HttpCode(201)
   attach(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
-      kind: oneOf('HO_SO', 'SCAN'),
+      kind: oneOf('HO_SO', 'SCAN', 'BAN_MEM'),
       fileName: str(1, 300),
       objectKey: str(1, 500),
       sizeBytes: opt(money()),

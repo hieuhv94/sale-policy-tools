@@ -23,7 +23,7 @@
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
-import { NHAN_KHO, TY_LE_KHO, type MauChon } from '../lib/mau-hop-dong.js';
+import { NHAN_KHO, TY_LE_KHO, type LoaiMau, type MauChon } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DangTai, HopThoai, Truong } from './Chung.js';
 import { XemTep } from './XemTep.js';
 
@@ -49,21 +49,59 @@ const CAU_HINH: Record<
   },
 };
 
-/** Nhãn phụ của một mẫu: khổ giấy đọc từ chính file, hoặc không nói gì. */
-const phuDe = (m: MauChon): string => (m.khoGiay ? NHAN_KHO[m.khoGiay] : '');
+/**
+ * Nhãn phụ của một mẫu: LOẠI mẫu và khổ giấy đọc từ chính file.
+ *
+ * `0167` thêm vế loại, và nó cần thật: từ `0165` ô chọn lúc xem trộn chung mẫu
+ * *đầy đủ* với mẫu *rút gọn*, mà hai bản ấy in ra hai bảng sản phẩm khác hẳn
+ * nhau — sáu cột và mười cột. Hai cái tên do Quản trị đặt không bắt buộc nói ra
+ * điều đó, nên ô chọn phải tự nói.
+ */
+const NHAN_LOAI_MAU: Partial<Record<LoaiMau, string>> = {
+  HO_SO: 'đầy đủ',
+  HO_SO_RUT_GON: 'rút gọn',
+};
+
+const phuDe = (m: MauChon): string =>
+  [m.loai ? NHAN_LOAI_MAU[m.loai] : '', m.khoGiay ? NHAN_KHO[m.khoGiay] : '']
+    .filter((x) => x !== '' && x !== undefined)
+    .join(' · ');
 
 export function XemBanMem({
   loai = 'HO_SO',
   hoSoId,
   maHoSo,
+  chiLoaiMau,
+  khiLuu,
   dong,
 }: {
   loai?: LoaiVanBan;
   hoSoId: string;
   maHoSo: string;
+  /**
+   * Chỉ cho chọn MỘT loại mẫu (`0167`) — hộp *Tạo bản mềm* truyền `'HO_SO'`.
+   *
+   * Khách hàng chốt 31/08: bản mềm đem lưu *"chỉ được lấy từ mẫu hồ sơ đầy đủ"*.
+   * Bỏ trống là không lọc gì — hộp XEM THỬ vẫn bày cả mẫu đầy đủ lẫn rút gọn,
+   * đúng như `0165`.
+   *
+   * Lọc ở đây chứ không gọi một đường API riêng: cùng một danh sách, một lời
+   * gọi, và không có bản thứ hai để lệch. Máy chủ VẪN chặn — `luuBanMem` tra
+   * `chon('HO_SO', …)` nên một mẫu rút gọn gửi thẳng vào đó nhận 404.
+   */
+  chiLoaiMau?: LoaiMau;
+  /**
+   * Có hàm này thì bản xem trước mọc thêm nút **Lưu** (`0167`).
+   *
+   * Bỏ trống là hộp XEM THỬ thuần: đọc rồi đóng, không để lại gì — đúng `0163`.
+   * Đây là chỗ duy nhất phân biệt hai hộp, và hai hộp ấy dùng chung mọi thứ còn
+   * lại: ô chọn mẫu, khung xem, khổ giấy, nút tải xuống.
+   */
+  khiLuu?: (mauId: string) => Promise<void>;
   dong: () => void;
 }) {
   const ch = CAU_HINH[loai];
+  const [dangLuu, datDangLuu] = useState(false);
   const [ds, datDs] = useState<MauChon[] | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [chon, datChon] = useState<string | null>(null);
@@ -82,12 +120,14 @@ export function XemBanMem({
   useEffect(() => {
     const huy = new AbortController();
     layJson<MauChon[]>(ch.duongMau, huy.signal)
-      .then(datDs)
+      // Lọc SAU khi nhận, không lọc bằng tham số: máy chủ trả một danh sách cho
+      // cả hai hộp, nên chúng không thể nhìn thấy hai thế giới khác nhau.
+      .then((x) => datDs(chiLoaiMau === undefined ? x : x.filter((m) => m.loai === chiLoaiMau)))
       .catch((e: unknown) => {
         if (!huy.signal.aborted) datLoi(e);
       });
     return () => huy.abort();
-  }, [ch.duongMau]);
+  }, [ch.duongMau, chiLoaiMau]);
 
   if (chon === null) {
     /*
@@ -103,7 +143,7 @@ export function XemBanMem({
       ra chứ không phải bản họ định gửi.
     */
     return (
-      <HopThoai tieuDe={`Xem ${ch.nhan} ${maHoSo}`} dong={dong}>
+      <HopThoai tieuDe={`${khiLuu ? 'Tạo bản mềm' : `Xem ${ch.nhan}`} ${maHoSo}`} dong={dong}>
         {loi !== null ? (
           <BaoLoi loi={loi} />
         ) : ds === null ? (
@@ -115,13 +155,15 @@ export function XemBanMem({
             rồi để họ tự đoán là đẩy một việc không làm được sang cho họ.
           */
           <p className="ghi-chu">
-            Chưa có văn bản mẫu nào cho {ch.nhan}. Đề nghị <strong>{ch.nguoiSoan}</strong> thêm một
-            mẫu, rồi mở lại.
+            Chưa có văn bản mẫu nào {khiLuu ? 'loại hồ sơ đầy đủ' : `cho ${ch.nhan}`}. Đề nghị{' '}
+            <strong>{ch.nguoiSoan}</strong> thêm một mẫu, rồi mở lại.
           </p>
         ) : (
           <>
             <p className="ghi-chu">
-              Chọn văn bản mẫu để xem trước. Mỗi mẫu có bố cục và tập cột riêng.
+              {khiLuu
+                ? 'Chọn văn bản mẫu để dựng bản mềm. Chỉ mẫu hồ sơ ĐẦY ĐỦ dùng được ở đây — bản mềm đã lưu là bản đem trình ký và bàn giao cho Kế toán.'
+                : 'Chọn văn bản mẫu để xem trước. Mỗi mẫu có bố cục và tập cột riêng.'}
             </p>
             {/*
               Ô CHỌN, không phải danh sách nút (`0145`).
@@ -169,7 +211,7 @@ export function XemBanMem({
               disabled={dinhChon === ''}
               onClick={() => datChon(dinhChon)}
             >
-              Xem
+              {khiLuu ? 'Xem trước' : 'Xem'}
             </button>
           )}
           <button type="button" className="nut nut-nhe" onClick={dong}>
@@ -195,9 +237,32 @@ export function XemBanMem({
 
   return (
     <XemTep
-      tieuDe={`${loai === 'HO_SO' ? 'Bản mềm' : 'Hợp đồng'} ${maHoSo}${
+      tieuDe={`${khiLuu ? 'Tạo bản mềm' : loai === 'HO_SO' ? 'Bản mềm' : 'Hợp đồng'} ${maHoSo}${
         tenMau ? ` — ${tenMau}` : ''
       }`}
+      /*
+        NÚT LƯU chỉ mọc ra ở hộp TẠO (`0167`).
+
+        Đặt trong hàng nút của `XemTep` chứ không ở `truoc`: nó là một HÀNH ĐỘNG
+        trên thứ đang xem, cùng loại với *Tải xuống*, và người dùng tìm hành động
+        ở hàng nút. Ô chọn đổi mẫu thì vẫn ở trên khung — nó đổi thứ đang xem chứ
+        không làm gì với nó.
+      */
+      them={
+        khiLuu && (
+          <button
+            type="button"
+            className="nut nut-chinh"
+            disabled={dangLuu}
+            onClick={() => {
+              datDangLuu(true);
+              void khiLuu(chon).finally(() => datDangLuu(false));
+            }}
+          >
+            {dangLuu ? 'Đang lưu…' : 'Lưu bản mềm'}
+          </button>
+        )
+      }
       /*
         MỘT đường cho cả xem lẫn tải (`0059`).
 

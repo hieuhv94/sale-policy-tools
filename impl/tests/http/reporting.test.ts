@@ -245,6 +245,12 @@ async function activated(o: PolicyOpts = {}): Promise<string> {
       )
     ).status,
   ).toBe(201);
+      // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+      await ppost(
+        `/policies/${d.id}/attachments`,
+        { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
+        'sa01',
+      );
   expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
   expect((await act(d.id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
   await flushSync([d.id]);
@@ -1561,6 +1567,12 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
         )
       ).status,
     ).toBe(201);
+        // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+        await ppost(
+          `/policies/${id}/attachments`,
+          { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id}.pdf` },
+          'sa01',
+        );
     expect((await act(id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
     await flushSync([id]);
   }

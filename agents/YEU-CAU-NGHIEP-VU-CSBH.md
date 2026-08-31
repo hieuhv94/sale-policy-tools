@@ -268,7 +268,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B6A | Kế toán — nhận L1 | Sale Admin đang xử lý | SA, TBP, TDV | Tiếp nhận file mềm và **chọn Sale Admin xử lý bước sau** `sửa 16/08`; khách hàng đủ điều kiện xuất hàng và xuất VAT |
 | B6B | Kế toán — không nhận L1 | Yêu cầu chỉnh sửa → B3 | TBP, TDV | Bắt buộc nhập lý do; duyệt và ký lại từ đầu |
 | B7 | Kế toán **hoặc** Sale Admin | — | — | Xuất file hợp đồng (xem mục 8) |
-| B8 | Sale Admin | Sale Admin đang xử lý | KT, TBP, TDV | In, trình BLĐ ký, nhận lại, scan, tải file lên |
+| B8 | Sale Admin | Sale Admin đang xử lý | KT, TBP, TDV | **Tạo bản mềm** `sửa 31/08`, in, trình BLĐ ký, nhận lại, scan, tải lên. Bàn giao đòi CẢ HAI tệp |
 | B9 | Sale Admin | KT duyệt bản cứng | KT, TBP, TDV | Bàn giao bản cứng |
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
@@ -1162,6 +1162,9 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **Ai được đụng vào tệp nào** `mới 20/08`: bản cứng đã scan — **chỉ Sale Admin**; giấy tờ của hồ sơ
   — **chỉ TDV**, và chỉ khi hồ sơ còn sửa được; hồ sơ pháp lý khách hàng — **chỉ TDV phụ trách khách
   hàng ấy**. Vai trò khác xem và tải bình thường, nhưng không thấy nút gỡ lẫn vùng tải lên.
+- **BA KHỐI TỆP** `sửa 31/08` — *Giấy tờ hồ sơ* · *Bản mềm* · *Bản cứng*, theo đúng chiều hồ sơ đi:
+  Sale Admin dựng bản mềm trước, in ra, trình ký, rồi mới scan lại. Khối *Bản mềm* không nhận tệp tải
+  lên — nó có một nút mở hộp chọn mẫu. Xem Phụ lục B, mục *"BẢN MỀM thành một TỆP của hồ sơ"*.
 - **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08`: *Giấy tờ hồ sơ* (TDV đính lúc lập) và *Bản cứng*
   (Sale Admin scan ở B8). Vùng tải lên và dấu gỡ chỉ hiện ở **đúng khối của loại tệp** người ấy được
   đụng vào — ở hồ sơ *Nháp*, khối *Bản cứng* không cho TDV tải gì lên.
@@ -1516,6 +1519,47 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 > Hộp xem **ảnh scan** giữ nguyên cách cũ, co theo hình tấm ảnh: ảnh không phóng to được như PDF.
 >
 > **900px thành SÀN chứ không còn là con số duy nhất** `sửa 30/08` — xem mục ngay dưới.
+
+**BẢN MỀM thành một TỆP của hồ sơ, đóng băng như bản cứng** `mới 31/08` — năm câu chốt cùng lúc:
+
+> 1. Hộp *Xem bản mềm* của Sale Admin bày mẫu của **cả hai loại hồ sơ** — đầy đủ và rút gọn. (Đã
+>    đúng từ `30/08`; lượt này chỉ thêm nhãn *đầy đủ* / *rút gọn* vào ô chọn, vì hai cái tên do
+>    Quản trị đặt không bắt buộc nói ra điều đó.)
+> 2. Hồ sơ CSBH có thêm một mục **Bản mềm**, giao diện như *Bản cứng*. **Chỉ Sale Admin thêm và
+>    xoá**; vai trò khác xem và tải xuống.
+> 3. Tạo bản mềm: Sale Admin chọn văn bản mẫu — **chỉ mẫu hồ sơ ĐẦY ĐỦ** — hệ thống hiện bản xem
+>    trước, rồi cho **Lưu**.
+> 4. Bản mềm ấy **đóng băng và lưu cùng hồ sơ**, giống bản cứng.
+> 5. Bấm **Bàn giao** khi chưa có bản mềm thì hệ thống mở luôn khung chọn mẫu và lưu trước; lưu xong
+>    mới hỏi xác nhận bàn giao.
+>
+> **KHÔNG PHẢI `23/08` QUAY LẠI.** Quyết định ấy đóng băng **id của MẪU** vào hồ sơ, và `29/08` gỡ
+> hẳn. Thứ được đóng băng ở đây khác hẳn: **chính tờ giấy** — các byte PDF, nằm trên kho như mọi tệp
+> khác. Mẫu đổi, mẫu bị vô hiệu, Quản trị sửa câu chữ — bản mềm đã lưu **không đổi theo**, vì nó
+> không còn tra tới mẫu nào nữa.
+>
+> **Hai thứ sống cạnh nhau, và đừng lẫn:**
+>
+> | | *Xem bản mềm* | *Bản mềm* (tệp) |
+> |---|---|---|
+> | Mẫu | cả hai loại hồ sơ | **chỉ mẫu đầy đủ** |
+> | Lưu lại | không | **có, vĩnh viễn** |
+> | Mẫu bị vô hiệu | không xem được nữa | vẫn tải được |
+>
+> **Vì sao bản lưu chỉ nhận mẫu đầy đủ**: nó là bản đem trình ký và bàn giao cho Kế toán, nên phải
+> mang đủ cột — kể cả giá thu về và tỷ lệ chiết khấu, thứ mẫu rút gọn cố ý cắt đi cho khách hàng xem.
+>
+> **Bàn giao đòi CẢ HAI tệp.** `SA_HANDOVER` đã chặn khi thiếu bản scan (WF-14) từ lâu; nay chặn cả
+> khi thiếu bản mềm, với một **mã lỗi riêng**. Hai mã vì màn hình phản ứng khác hẳn: thiếu bản scan
+> thì nút *Bàn giao* **xám** — việc ngoài phần mềm, phải in, trình ký, scan; thiếu bản mềm thì nút
+> **vẫn sáng** và bấm vào mở hộp tạo bản mềm trước, vì đó là việc phần mềm làm được ngay.
+>
+> **Bản mềm KHÔNG tải lên từ máy được.** Nó chỉ sinh ra từ dữ liệu hồ sơ và một mẫu; mở đường tải tệp
+> cho nó là mở đường đính bất kỳ PDF nào vào hồ sơ dưới nhãn *bản mềm*, đúng thứ việc dựng-từ-mẫu
+> sinh ra để bảo đảm.
+>
+> Sale Admin lưu được **nhiều** bản mềm — hồ sơ bị Kế toán yêu cầu in lại thì họ dựng bản mới, và bản
+> cũ ở lại làm vết. Tên tệp mang mã hồ sơ và mốc thời gian để phân biệt.
 
 **BA loại văn bản mẫu, và ba mẫu MẶC ĐỊNH đi cùng hệ thống** `sửa 30/08` — bốn câu chốt cùng lúc:
 

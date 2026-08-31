@@ -255,6 +255,12 @@ async function runToActive(id: string): Promise<void> {
     { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id}.pdf` },
     'sa01',
   );
+  // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+  await post(
+    `/policies/${id}/attachments`,
+    { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id}.pdf` },
+    'sa01',
+  );
   await act(id, 'SA_HANDOVER', 'sa01');
   await act(id, 'KT_RECEIVE_L2', 'kt01');
 }
@@ -620,6 +626,12 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id2}.pdf` },
       'sa01',
     );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${id2}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id2}.pdf` },
+      'sa01',
+    );
     await act(id2, 'SA_HANDOVER', 'sa01');
     await act(id2, 'KT_RECEIVE_L2', 'kt01');
 
@@ -664,6 +676,12 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     await post(
       `/policies/${id2}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id2}.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${id2}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id2}.pdf` },
       'sa01',
     );
     await act(id2, 'SA_HANDOVER', 'sa01');
@@ -746,6 +764,12 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
     await post(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     await act(d.id, 'SA_HANDOVER', 'sa01');
@@ -847,6 +871,12 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
     await post(
       `/policies/${d.id}/attachments`,
       { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+      'sa01',
+    );
+    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
+    await post(
+      `/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${d.id}.pdf` },
       'sa01',
     );
     await act(d.id, 'SA_HANDOVER', 'sa01');

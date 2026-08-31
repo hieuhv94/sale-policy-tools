@@ -384,6 +384,14 @@ export const BANG_LOI: Record<string, Muc> = {
   MISSING_INHERITED_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `0167` — chưa tạo bản mềm thì chưa bàn giao được.
+   *
+   * `tuMayChu` như bản scan: câu của máy chủ đã nói đúng việc phải làm. Người
+   * gặp mã này gần như luôn là người gọi thẳng API — màn hình mở hộp tạo bản mềm
+   * TRƯỚC khi gửi `SA_HANDOVER`, nên đường bấm nút không đi qua đây.
+   */
+  BAN_MEM_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   DUPLICATE_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
   PRODUCT_DISABLED: { dang: 'hop-thoai', tuMayChu: true },
   REASON_REQUIRED: {

@@ -87,7 +87,23 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P194** (`0166`): **`make demo-mau` thôi cuốn theo ba mẫu mặc định** — hồi quy do
+Chặng gần nhất **P195** (`0167`): **bản mềm thành một TỆP của hồ sơ, đóng băng như bản cứng**. Câu
+thứ nhất của khách hàng đã đúng sẵn từ `0165` (ô chọn bày cả hai loại hồ sơ) — lượt này chỉ thêm nhãn
+*đầy đủ*/*rút gọn*. **KHÔNG phải `0098` quay lại**: `0098` đóng băng **id của MẪU**, `0167` đóng băng
+**chính tờ giấy** — byte PDF trên kho, nên vô hiệu hết mẫu thì lượt DỰNG MỚI trả 404 còn tệp ĐÃ LƯU
+vẫn tải được (có ca kiểm nói thẳng ra). `BAN_CSBH` của `doc.file_purpose` có từ `0011` mà **chưa từng
+ai dùng** — đây đúng là chỗ nó chờ. Bản lưu **chỉ nhận mẫu ĐẦY ĐỦ** (`chon('HO_SO', …)`, không
+`LOAI_HO_SO`), vì nó là bản trình ký và bàn giao. **Bàn giao đòi CẢ HAI tệp, hai MÃ LỖI riêng**:
+thiếu scan → nút XÁM (việc ngoài phần mềm); thiếu bản mềm → nút VẪN SÁNG, mở hộp tạo trước rồi hỏi
+xác nhận (việc phần mềm làm được). Gộp một mã là mất đúng sự phân biệt ấy. **`purpose=BAN_CSBH` cố ý
+đứng ngoài `oneOf` của `POST /files`** — mở ra là cho đính bất kỳ PDF nào dưới nhãn bản mềm.
+**`loaiTepGhiDuoc` lần đầu trả HAI phần tử**, và giao diện đang đọc `loaiGhiDuoc[0]` — tệp thả ở khối
+*Bản cứng* bị ghi dưới nhãn khối kia, im lặng; giờ lấy loại từ CHÍNH KHỐI đang bấm, và ca kiểm ghim
+cả thứ tự. **70 ca đỏ trong một lượt** khi thêm chốt — không ca nào sai, chúng nói đúng rằng luật vừa
+đổi; vá bằng lượt chèn có kịch bản 22 chỗ, cộng ba ca phải sửa tay vì đọc `attachments[0]` hoặc đếm
+`toHaveLength(1)` trên cả mảng — câu hỏi đúng là *"có mấy tệp LOẠI SCAN"*. **1962/1962 xanh.**
+
+Trước đó **P194** (`0166`): **`make demo-mau` thôi cuốn theo ba mẫu mặc định** — hồi quy do
 chính `0165` sinh ra. `xoaDuLieuCu()` của `seed-demo` quét sạch `doc.contract_template` từ lâu và
 **vô hại cho tới `0165`**: bộ nạp dựng lại ngay một bộ mẫu của riêng nó, xoá rồi tạo là một cặp cân
 bằng. `0165` bỏ vế TẠO nên lượt xoá thành một chiều — bảng trống tới khi ai đó khởi động lại
@@ -690,6 +706,13 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
   một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
   thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
+- **BẢN MỀM ĐÃ LƯU là một tệp của hồ sơ** (`0167`) — `pol.attachment_kind` thêm `BAN_MEM` (`0113`),
+  `doc.file_purpose` dùng `BAN_CSBH` vốn có sẵn từ `0011`. Khác `0098` ở chỗ căn bản: đóng băng
+  **byte PDF**, không phải id của mẫu — nên mẫu đổi hay bị vô hiệu đều không chạm tới nó. Chỉ Sale
+  Admin tạo/gỡ; chỉ nhận **mẫu ĐẦY ĐỦ**; **không tải lên từ máy được** (`purpose=BAN_CSBH` đứng ngoài
+  `oneOf` của `POST /files`). Lưu đi HAI BƯỚC như bản scan — `document` dựng+ghi tệp, `policy` gắn —
+  để `attach` vẫn là chỗ duy nhất quyết định một tệp có vào hồ sơ hay không. `SA_HANDOVER` đòi cả
+  `SCAN_REQUIRED` lẫn `BAN_MEM_REQUIRED`, **hai mã riêng** vì màn hình xử hai ca khác hẳn nhau.
 - **BA loại văn bản mẫu** (`0165`): `HO_SO` (đầy đủ) · `HO_SO_RUT_GON` · `HOP_DONG`. Hai loại hồ sơ
   khác nhau **đúng một chuyện — tập cột bảng sản phẩm** — và tập ấy **suy từ loại** (`COT_RUT_GON`,
   sáu cột), không do người soạn khai. Ba thẻ của Quản trị là ba danh sách rời; **ô chọn của Sale
