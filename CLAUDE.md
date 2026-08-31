@@ -87,7 +87,20 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P196** (`0168`): **`make demo-mau` chạy lại được**, và một lỗ hổng gateway lộ ra.
+Chặng gần nhất **P197** (`0169`): **thứ tự menu riêng cho Quản trị hệ thống** — Tổng quan · Người
+dùng · Khách hàng · Sản phẩm · Chiết khấu · Văn bản mẫu · Thống kê · Nhật ký; năm vai trò trong luồng
+giữ nguyên `0152`. Nghe như phải có **thứ tự theo vai trò**, và đó là suy sai đắt nhất: nó dựng ra một
+bảng thứ hai phải giữ đồng bộ. Ba mục *Người dùng* · *Văn bản mẫu* · *Nhật ký* CHỈ Quản trị thấy, nên
+xê dịch chúng không chạm ai khác — chen vào giữa những mục chung thì **MỘT mảng cho ra cả hai thứ tự**,
+không thêm một dòng logic nào, `dieuHuongCho` vẫn là một `filter`. Giới hạn đã ghi: cách này sống được
+chừng nào yêu cầu chỉ đụng vị trí của mục RIÊNG; đòi đổi thứ tự tương đối của hai mục CHUNG theo vai
+trò thì phải đổi cấu trúc. **Ca kiểm `slice(0, 6)` phải THAY chứ không sửa số** — nó khẳng định sáu
+mục chung nằm ở sáu vị trí đầu MẢNG GỐC, một tính chất tình cờ đúng chứ chưa bao giờ là luật; ca mới
+canh bất biến thật mà cả cơ chế đứng lên: **menu của mọi vai trò là một DÃY CON của `DIEU_HUONG`**
+(chỉ số tăng dần). Phá lại `dieuHuongCho` bằng một `sort` cho **3 đỏ**, kể cả hai ca có từ `0152`.
+**1965/1965 xanh.**
+
+Trước đó **P196** (`0168`): **`make demo-mau` chạy lại được**, và một lỗ hổng gateway lộ ra.
 `make demo` không hỏng; `make demo-mau` hỏng ở BA chỗ chồng lên nhau. (1) `0167` thêm chốt
 `BAN_MEM_REQUIRED` và tôi vá 22 chỗ trong **bộ kiểm** mà quên `seed-demo.ts` — nơi cũng đẩy hồ sơ qua
 B8. Bản mềm của demo dựng bằng **đường API thật** (88 lượt Gotenberg), không chèn con trỏ giả như bản

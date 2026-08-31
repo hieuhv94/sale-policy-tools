@@ -105,7 +105,8 @@ thấy của các TDV thuộc mình, Sale Admin thấy toàn bộ nhánh bên d�
 đạo không có mục nào dẫn tới nút ghi, Quản trị hệ thống không có mục nào của luồng duyệt. Mục đang
 mở được tô nền xanh.
 
-Thứ tự các mục `sửa 29/08` theo đúng trình tự công việc, không theo tần suất dùng:
+Thứ tự các mục `sửa 29/08` theo đúng trình tự công việc, không theo tần suất dùng. Đây là thứ tự của
+**năm vai trò trong luồng** — Trình dược viên · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo:
 
 | | Mục | Vì sao đứng ở đây |
 | --- | --- | --- |
@@ -116,7 +117,19 @@ Thứ tự các mục `sửa 29/08` theo đúng trình tự công việc, không
 | 5 | **Chiết khấu** | cùng cụm tra cứu với Sản phẩm |
 | 6 | **Thống kê** | nhìn lại cả kỳ — việc của cuối tháng, không phải của hôm nay |
 
-Quản trị hệ thống có thêm ba mục ở cuối: *Văn bản mẫu*, *Người dùng*, *Nhật ký*.
+**Quản trị hệ thống có thứ tự RIÊNG** `sửa 31/08` — tám mục, và ba mục chỉ họ thấy **không dồn ở
+cuối** nữa mà xen vào giữa:
+
+| | Mục | |
+| --- | --- | --- |
+| 1 | **Tổng quan** | |
+| 2 | **Người dùng** | chỉ Quản trị |
+| 3 | **Khách hàng** | |
+| 4 | **Sản phẩm** | |
+| 5 | **Chiết khấu** | |
+| 6 | **Văn bản mẫu** | chỉ Quản trị |
+| 7 | **Thống kê** | |
+| 8 | **Nhật ký** | chỉ Quản trị |
 
 > **Quản trị hệ thống không có mục *Hồ sơ CSBH*** `mới 27/08`. Vai trò này đứng ngoài luồng duyệt
 > nên không có hồ sơ nào thuộc phạm vi của họ — mục menu ấy chỉ dẫn tới một màn hình trống.

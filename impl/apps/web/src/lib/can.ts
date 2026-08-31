@@ -201,8 +201,33 @@ export type MucDieuHuong = { duong: string; nhan: string; muc: MucXem };
 /**
  * THỨ TỰ Ở ĐÂY LÀ THỨ TỰ TRÊN THANH BÊN — `dieuHuongCho` chỉ lọc, không sắp lại.
  *
- * Khách hàng chốt thứ tự sáu mục đầu ngày 29/08 (`0152`), và nó theo **trình tự
- * công việc** chứ không theo tần suất dùng:
+ * ---------------------------------------------------------------------------
+ * MỘT MẢNG, HAI THỨ TỰ NHÌN THẤY
+ * ---------------------------------------------------------------------------
+ *
+ * `0169` đổi thứ tự menu của **Quản trị hệ thống** trong khi năm vai trò kia giữ
+ * nguyên. Nghe như phải có thứ tự riêng theo vai trò — và đó là chỗ suy sai đắt
+ * nhất ở đây, vì nó dựng ra một bảng thứ hai phải giữ đồng bộ với bảng này.
+ *
+ * KHÔNG CẦN. Ba mục *Người dùng* · *Văn bản mẫu* · *Nhật ký* chỉ Quản trị thấy,
+ * nên **xê dịch chúng không chạm tới ai khác**. Chen chúng vào đúng chỗ giữa
+ * những mục chung là một mảng duy nhất cho ra cả hai thứ tự:
+ *
+ *   Năm vai trò trong luồng  Tổng quan · Khách hàng · Hồ sơ CSBH · Sản phẩm ·
+ *                            Chiết khấu · Thống kê          (KHÔNG ĐỔI, `0152`)
+ *   Quản trị hệ thống        Tổng quan · Người dùng · Khách hàng · Sản phẩm ·
+ *                            Chiết khấu · Văn bản mẫu · Thống kê · Nhật ký
+ *
+ * Phép lọc còn giữ được bao nhiêu thứ tự khác nhau thì tuỳ vào việc mục riêng
+ * nằm xen tới đâu — nên nếu một yêu cầu sau này đòi đổi thứ tự tương đối của hai
+ * mục CHUNG theo vai trò, mảng đơn này hết đường và lúc ấy mới phải đổi cấu trúc.
+ * Chưa tới lúc đó.
+ *
+ * ---------------------------------------------------------------------------
+ * VÌ SAO SÁU MỤC CHUNG XẾP NHƯ VẬY (`0152`, chốt 29/08)
+ * ---------------------------------------------------------------------------
+ *
+ * Theo **trình tự công việc**, không theo tần suất dùng:
  *
  *   Tổng quan   — mở ra thấy việc của mình hôm nay
  *   Khách hàng  — có khách trước, rồi mới có hồ sơ cho khách ấy
@@ -210,24 +235,21 @@ export type MucDieuHuong = { duong: string; nhan: string; muc: MucXem };
  *   Sản phẩm ·  Chiết khấu — hai thứ phải TRA khi lập và khi duyệt hồ sơ
  *   Thống kê    — nhìn lại, việc của cuối kỳ chứ không của hôm nay
  *
- * Hai chỗ đổi so với bản trước: *Khách hàng* lên trước *Hồ sơ CSBH* (thứ tự cũ
- * đặt hồ sơ trước, ngược chiều với việc người dùng thật sự làm), và *Thống kê*
- * xuống cuối nhóm (nó đứng giữa *Hồ sơ* và *Sản phẩm*, cắt đôi cụm tra cứu).
- *
- * Ba mục cuối chỉ Quản trị hệ thống thấy nên chúng không nằm trong danh sách
- * khách hàng nêu; giữ nguyên ở cuối. Với năm vai trò kia, danh sách kết thúc ở
- * *Thống kê* — nên thứ tự sáu mục trên là thứ tự họ THẤY, không phải một khúc
- * giữa của một danh sách dài hơn.
+ * Với năm vai trò ấy, danh sách kết thúc ở *Thống kê* — nên đó là thứ tự họ
+ * THẤY, không phải một khúc giữa của một danh sách dài hơn.
  */
 export const DIEU_HUONG: MucDieuHuong[] = [
   { duong: '/', nhan: 'Tổng quan', muc: 'tongQuan' },
+  // Chỉ Quản trị thấy — xen vào đây để menu của họ có *Người dùng* ở vị trí thứ
+  // hai mà không ai khác nhìn thấy một thay đổi nào (`0169`).
+  { duong: '/nguoi-dung', nhan: 'Người dùng', muc: 'nguoiDung' },
   { duong: '/khach-hang', nhan: 'Khách hàng', muc: 'khachHang' },
   { duong: '/ho-so', nhan: 'Hồ sơ CSBH', muc: 'hoSo' },
   { duong: '/san-pham', nhan: 'Sản phẩm', muc: 'sanPham' },
   { duong: '/chiet-khau', nhan: 'Chiết khấu', muc: 'chietKhau' },
-  { duong: '/thong-ke', nhan: 'Thống kê', muc: 'thongKe' },
+  // Cũng chỉ Quản trị — chen giữa *Chiết khấu* và *Thống kê* (`0169`).
   { duong: '/van-ban-mau', nhan: 'Văn bản mẫu', muc: 'vanBanMau' },
-  { duong: '/nguoi-dung', nhan: 'Người dùng', muc: 'nguoiDung' },
+  { duong: '/thong-ke', nhan: 'Thống kê', muc: 'thongKe' },
   { duong: '/nhat-ky', nhan: 'Nhật ký', muc: 'nhatKy' },
 ];
 

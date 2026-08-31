@@ -1782,15 +1782,28 @@ hàng bày *Mã số thuế / CCCD* · *Người đại diện* · *Số điện
 > *Loại khách hàng* xuống cuối vì nó là một phân loại, không phải thông tin liên hệ — và người lập hồ
 > sơ vốn đã đọc nó ở thẻ danh sách, cạnh mã, trước khi mở khách hàng ra.
 
-**Thứ tự mục trên thanh bên** `mới 29/08` — **Tổng quan · Khách hàng · Hồ sơ CSBH · Sản phẩm ·
-Chiết khấu · Thống kê**, rồi ba mục chỉ Quản trị hệ thống thấy (*Văn bản mẫu*, *Người dùng*,
-*Nhật ký*).
+**Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
-> Theo **trình tự công việc**, không theo tần suất dùng: có khách trước rồi mới có hồ sơ; Sản phẩm và
-> Chiết khấu là cụm phải TRA khi lập và khi duyệt; Thống kê là việc cuối kỳ.
+> **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,
+> chốt 29/08 và **không đổi**:
 >
-> Hai chỗ đổi so với bản trước: *Khách hàng* lên trước *Hồ sơ CSBH*, và *Thống kê* xuống cuối nhóm
-> (nó đang đứng giữa, cắt đôi cụm tra cứu).
+> > Tổng quan · Khách hàng · Hồ sơ CSBH · Sản phẩm · Chiết khấu · Thống kê
+>
+> Theo **trình tự công việc**, không theo tần suất dùng: có khách trước rồi mới có hồ sơ; Sản phẩm và
+> Chiết khấu là cụm phải TRA khi lập và khi duyệt; Thống kê là việc cuối kỳ. (Hai chỗ đổi so với bản
+> trước 29/08: *Khách hàng* lên trước *Hồ sơ CSBH*, và *Thống kê* xuống cuối nhóm.)
+>
+> **Quản trị hệ thống** `sửa 31/08` — tám mục, ba mục riêng của họ thôi dồn ở cuối:
+>
+> > Tổng quan · **Người dùng** · Khách hàng · Sản phẩm · Chiết khấu · **Văn bản mẫu** · Thống kê ·
+> > **Nhật ký**
+>
+> Họ không có *Hồ sơ CSBH* — Quản trị đứng ngoài luồng duyệt (chốt 27/08).
+>
+> Hai thứ tự này đến từ **MỘT danh sách duy nhất**, không phải hai bảng. Ba mục riêng của Quản trị chỉ
+> mình họ thấy, nên xê dịch chúng không chạm tới ai khác — chen chúng vào đúng chỗ giữa những mục
+> chung là một danh sách cho ra cả hai. Cách này còn dùng được chừng nào yêu cầu chỉ đụng tới vị trí
+> của mục RIÊNG; đòi đổi thứ tự tương đối của hai mục CHUNG theo vai trò thì phải đổi cấu trúc.
 
 **Tên pháp nhân đổi thành *Công ty TNHH Dược phẩm Nutricare*** `mới 29/08` — thay cho *Công Ty Cổ
 Phần Dinh Dưỡng Nutricare* ở mọi chỗ phần mềm in ra tên Công ty: bốn tệp mẫu `.docx` và màn hình đăng

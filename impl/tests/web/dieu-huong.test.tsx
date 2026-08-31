@@ -206,15 +206,31 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
    * thì chèn một mục mới vào giữa vẫn xanh, mà chèn vào giữa chính là cách thứ
    * tự này hỏng dễ nhất về sau.
    */
-  it('sáu mục mọi vai trò đều thấy, đúng thứ tự khách hàng chốt 29/08', () => {
-    expect(DIEU_HUONG.slice(0, 6).map((m) => m.nhan)).toEqual([
-      'Tổng quan',
-      'Khách hàng',
-      'Hồ sơ CSBH',
-      'Sản phẩm',
-      'Chiết khấu',
-      'Thống kê',
-    ]);
+  it('`0169` `dieuHuongCho` CHỈ LỌC — menu của mọi vai trò là một DÃY CON', () => {
+    /*
+     * Ca này thay cho một ca đọc `DIEU_HUONG.slice(0, 6)`, và chỗ thay là điều
+     * đáng ghi. Câu `slice` ấy khẳng định sáu mục chung nằm ở SÁU VỊ TRÍ ĐẦU của
+     * mảng gốc — một tính chất tình cờ đúng tới `0168`, chứ chưa bao giờ là luật.
+     * `0169` chen ba mục riêng của Quản trị vào giữa và nó sai ngay, trong khi
+     * thứ tự người dùng THẤY không đổi một chút nào.
+     *
+     * Thứ đáng canh là bất biến thật: **phép lọc giữ nguyên thứ tự**. Cả cơ chế
+     * "một mảng cho hai thứ tự nhìn thấy" của `0169` đứng trên đúng câu ấy — thêm
+     * một phép `sort` theo vai trò vào `dieuHuongCho` là mảng gốc thôi nói được
+     * điều gì về màn hình, và hai ca dưới sẽ canh một thứ tự không ai thấy.
+     */
+    const goc = DIEU_HUONG.map((m) => m.duong);
+    for (const v of VAI_TRO) {
+      const thay = dieuHuongCho(v).map((m) => m.duong);
+      expect(thay.length, `${v} không thấy mục nào`).toBeGreaterThan(0);
+      // Dãy con: chỉ số trong mảng gốc phải TĂNG DẦN.
+      const chiSo = thay.map((d) => goc.indexOf(d));
+      expect(chiSo, `${v} có mục không nằm trong DIEU_HUONG`).not.toContain(-1);
+      expect(
+        chiSo,
+        `${v}: menu bị sắp lại, không còn là dãy con của DIEU_HUONG`,
+      ).toEqual([...chiSo].sort((a, b) => a - b));
+    }
   });
 
   it('và đó đúng là những gì năm vai trò ngoài Quản trị NHÌN THẤY', () => {
@@ -240,17 +256,24 @@ describe('`0152` thứ tự mục trên thanh bên', () => {
     }
   });
 
-  it('ba mục của Quản trị vẫn ở CUỐI, sau sáu mục kia', () => {
-    // Quản trị không thấy *Hồ sơ CSBH* (`0133`), nên danh sách của họ là năm mục
-    // chung rồi tới ba mục riêng — thứ tự tương đối giữa hai nhóm không đổi.
+  it('`0169` thứ tự RIÊNG của Quản trị hệ thống, khách hàng chốt 31/08', () => {
+    /*
+     * Ba mục riêng thôi dồn ở CUỐI: *Người dùng* lên ngay sau *Tổng quan*, *Văn
+     * bản mẫu* chen giữa *Chiết khấu* và *Thống kê*. Quản trị không thấy *Hồ sơ
+     * CSBH* (`0133`) nên danh sách của họ có tám mục.
+     *
+     * Khẳng định CẢ DÃY bằng `toEqual`, không kiểm từng cặp lân cận: kiểm từng
+     * cặp thì chèn một mục mới vào giữa vẫn xanh, mà chèn vào giữa chính là cách
+     * thứ tự này hỏng dễ nhất về sau.
+     */
     expect(dieuHuongCho('QUAN_TRI').map((m) => m.nhan)).toEqual([
       'Tổng quan',
+      'Người dùng',
       'Khách hàng',
       'Sản phẩm',
       'Chiết khấu',
-      'Thống kê',
       'Văn bản mẫu',
-      'Người dùng',
+      'Thống kê',
       'Nhật ký',
     ]);
   });

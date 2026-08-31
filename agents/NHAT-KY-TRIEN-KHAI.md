@@ -14664,3 +14664,50 @@ qua gateway, liệt kê tệp của một hồ sơ, xin liên kết, tải về:
 | Nới mẫu gateway thành `/policies/.*` | 1 đỏ (ca chiều ngược) |
 
 **1965/1965 xanh.**
+
+## P197 — `0169` thứ tự menu riêng cho Quản trị hệ thống
+
+Khách hàng chốt 31/08: menu của Quản trị đổi sang **Tổng quan · Người dùng · Khách hàng · Sản phẩm ·
+Chiết khấu · Văn bản mẫu · Thống kê · Nhật ký**. Năm vai trò trong luồng giữ nguyên thứ tự `0152`.
+
+### Nghe như phải có thứ tự theo vai trò, và không phải
+
+Đó là suy sai đắt nhất ở đây: nó dựng ra một bảng thứ hai phải giữ đồng bộ với `DIEU_HUONG`, cho đúng
+một yêu cầu về thứ tự.
+
+Ba mục *Người dùng* · *Văn bản mẫu* · *Nhật ký* **chỉ Quản trị thấy**, nên xê dịch chúng không chạm
+tới ai khác. Chen chúng vào đúng chỗ giữa những mục chung thì **một mảng cho ra cả hai thứ tự**:
+
+    Tổng quan · [Người dùng] · Khách hàng · Hồ sơ CSBH · Sản phẩm · Chiết khấu ·
+    [Văn bản mẫu] · Thống kê · [Nhật ký]
+
+Lọc cho năm vai trò → sáu mục cũ, **không đổi một chữ**. Lọc cho Quản trị → đúng tám mục yêu cầu.
+Không một dòng logic nào thêm vào; `dieuHuongCho` vẫn là một `filter`.
+
+Ghi ra giới hạn của cách này để lần sau khỏi phải tìm lại: nó sống được chừng nào yêu cầu chỉ đụng
+tới vị trí của mục RIÊNG. Đòi đổi thứ tự tương đối của hai mục CHUNG theo vai trò — ví dụ Kế toán
+muốn *Thống kê* lên trước *Sản phẩm* — thì mảng đơn hết đường, và lúc ấy mới phải đổi cấu trúc.
+
+### Ca kiểm `slice(0, 6)` phải THAY, không phải sửa số
+
+Ca `0152` khẳng định `DIEU_HUONG.slice(0, 6)` là sáu mục chung. Câu ấy **tình cờ đúng** tới `0168` —
+nó nói về vị trí trong MẢNG GỐC, một tính chất chưa bao giờ là luật. `0169` chen ba mục vào giữa và
+nó sai ngay, trong khi thứ tự người dùng THẤY không đổi một chút nào.
+
+Sửa nó thành `slice(0, 9)` hay đổi các chỉ số là giữ lại một ca đo nhầm thứ. Thứ đáng canh là bất
+biến thật, và `0169` vừa làm nó thành thứ cả cơ chế đứng lên: **phép lọc giữ nguyên thứ tự**. Ca mới
+đòi menu của MỌI vai trò là một **dãy con** của `DIEU_HUONG` — chỉ số tăng dần. Thêm một `sort` vào
+`dieuHuongCho` là mảng gốc thôi nói được gì về màn hình, và hai ca thứ tự dưới nó sẽ canh một thứ tự
+không ai nhìn thấy.
+
+Hai ca khẳng định CẢ DÃY đã có sẵn từ `0152` (một cho năm vai trò, một cho Quản trị) nên vế "đúng thứ
+tự" không mất gì — ca `slice` vốn là bản yếu hơn của ca đầu.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả *Người dùng* về cuối danh sách | 1 đỏ |
+| `dieuHuongCho` sắp lại theo tên thay vì chỉ lọc | **3 đỏ** — kể cả hai ca có từ `0152` |
+
+**1965/1965 xanh.**
