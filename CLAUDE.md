@@ -87,7 +87,21 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P197** (`0169`): **thứ tự menu riêng cho Quản trị hệ thống** — Tổng quan · Người
+Chặng gần nhất **P198** (`0170`): ***Bản mềm* và *Bản cứng* xuống cuối trang hồ sơ**, ngay trên
+*Lịch sử*. `TepDinhKem` dựng CẢ BA khối trong một lượt gọi, nên việc này là **tách component ra hai
+chỗ trên trang** (prop `chiKhoi`). Có đường rẻ hơn — đẩy *Hồ sơ pháp lý* lên trên cả cụm, giữ một lượt
+gọi — nhưng nó **lặng lẽ đẩy *Giấy tờ hồ sơ* xuống theo**, một khối khách hàng không nhắc tới; và chỗ
+tách đúng theo nghĩa: *Giấy tờ hồ sơ* là thứ TDV đính LÚC LẬP, hai khối kia là **sản phẩm của bước
+B8**. **Cảnh báo *bản scan cũ* phải ĐI THEO** — câu của nó là *"bản scan DƯỚI ĐÂY"*, để lại chỗ cũ là
+trỏ vào một khối không còn ở đó, và không test nào bắt được vì không có gì hỏng. **Suýt dựng ra vòng
+lặp gọi mạng**: mảng lọc `tepCua` tính thẳng trong thân component là tham chiếu mới mỗi render, mà nó
+nằm trong deps của `useEffect` dựng ảnh thu nhỏ → gọi `/files` → `setState` → render → lặp vô hạn, và
+**không ca kiểm nào đỏ**; `useMemo` với khoá `chiKhoi?.join(',')` vì `chiKhoi` cũng khai tại chỗ. Cái
+giá chấp nhận: hai lượt gọi `/files` khi cả hai nhóm có ảnh. Ca `0167` đọc `.khoi-tep h2` nên **mù với
+mục xen giữa** — ca mới đọc CẢ DÃY `<h2>` của trang; **lần thứ BA** một yêu cầu TRÌNH BÀY rơi vào vùng
+chưa ai canh (`0152`, `0153`). **1966/1966 xanh.**
+
+Trước đó **P197** (`0169`): **thứ tự menu riêng cho Quản trị hệ thống** — Tổng quan · Người
 dùng · Khách hàng · Sản phẩm · Chiết khấu · Văn bản mẫu · Thống kê · Nhật ký; năm vai trò trong luồng
 giữ nguyên `0152`. Nghe như phải có **thứ tự theo vai trò**, và đó là suy sai đắt nhất: nó dựng ra một
 bảng thứ hai phải giữ đồng bộ. Ba mục *Người dùng* · *Văn bản mẫu* · *Nhật ký* CHỈ Quản trị thấy, nên

@@ -431,30 +431,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
           : {})}
       />
 
-      {/*
-        Bản scan đang đính kèm là bản Kế toán đã chê (`0050`).
-
-        Từ `0050` yêu cầu in lại KHÔNG còn tự xoá bản scan — Sale Admin chủ động
-        gỡ và thay. Khối này là thứ giữ cho việc "chủ động" ấy không thành việc
-        "quên": hồ sơ vẫn đủ điều kiện bàn giao ngay, nên bấm bàn giao mà chưa
-        thay là gửi lại đúng bản vừa bị từ chối.
-
-        CẢNH BÁO, không chặn — có lần in lại mà bản scan cũ vẫn dùng được, ví dụ
-        bản giấy hỏng lúc chuyển phát chứ không phải bản in sai.
-      */}
-      {hoSo.banScanCu === true && (
-        <div className="canh-bao-scan" role="status">
-          <p>
-            <strong>Bản scan dưới đây là bản Kế toán đã yêu cầu in lại.</strong>
-          </p>
-          <p className="ghi-chu">
-            Nó được giữ lại để bạn đối chiếu xem bản giấy hỏng ở đâu. In bản mới xong thì{' '}
-            <strong>gỡ tệp này và tải bản scan mới lên</strong> trước khi bàn giao — hệ thống không
-            chặn bạn bàn giao lại bản cũ.
-          </p>
-        </div>
-      )}
-
       <TepDinhKem
         hoSoId={hoSo.id}
         tep={hoSo.attachments}
@@ -465,7 +441,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
           hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
         */
         loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
-        taoBanMem={() => datMoTaoBanMem('tep')}
+        chiKhoi={['HO_SO']}
         taiLai={taiLai}
       />
 
@@ -590,6 +566,58 @@ export function ChiTietHoSo({ id }: { id: string }) {
           dong={() => datDangXem(null)}
         />
       )}
+
+      {/*
+        BẢN MỀM và BẢN CỨNG xuống CUỐI TRANG, ngay trên *Lịch sử* (`0170`, chốt
+        31/08).
+
+        Ba khối tệp thôi đứng liền nhau, và chỗ tách đúng theo nghĩa: *Giấy tờ hồ
+        sơ* là thứ Trình dược viên đính vào LÚC LẬP — nó thuộc về nội dung hồ sơ,
+        nên ở lại ngay dưới bảng sản phẩm. Hai khối này là SẢN PHẨM CỦA BƯỚC B8,
+        sinh ra sau khi hồ sơ đã đi hết vòng duyệt, nên chúng đứng cạnh *Lịch sử*
+        — chỗ kể lại vòng duyệt ấy.
+
+        Cảnh báo *bản scan cũ* đi THEO, không ở lại trên: câu chữ của nó là *"bản
+        scan DƯỚI ĐÂY"*, nên để nó lại chỗ cũ là trỏ vào một khối không còn ở đó.
+      */}
+      {/*
+        Bản scan đang đính kèm là bản Kế toán đã chê (`0050`).
+
+        Từ `0050` yêu cầu in lại KHÔNG còn tự xoá bản scan — Sale Admin chủ động
+        gỡ và thay. Khối này là thứ giữ cho việc "chủ động" ấy không thành việc
+        "quên": hồ sơ vẫn đủ điều kiện bàn giao ngay, nên bấm bàn giao mà chưa
+        thay là gửi lại đúng bản vừa bị từ chối.
+
+        CẢNH BÁO, không chặn — có lần in lại mà bản scan cũ vẫn dùng được, ví dụ
+        bản giấy hỏng lúc chuyển phát chứ không phải bản in sai.
+      */}
+      {hoSo.banScanCu === true && (
+        <div className="canh-bao-scan" role="status">
+          <p>
+            <strong>Bản scan dưới đây là bản Kế toán đã yêu cầu in lại.</strong>
+          </p>
+          <p className="ghi-chu">
+            Nó được giữ lại để bạn đối chiếu xem bản giấy hỏng ở đâu. In bản mới xong thì{' '}
+            <strong>gỡ tệp này và tải bản scan mới lên</strong> trước khi bàn giao — hệ thống không
+            chặn bạn bàn giao lại bản cũ.
+          </p>
+        </div>
+      )}
+
+      <TepDinhKem
+        hoSoId={hoSo.id}
+        tep={hoSo.attachments}
+        /*
+          Quyền VÀ trạng thái, cả hai (`0048`). Bảng quyền phía giao diện nói
+          "vai trò này được đính kèm"; máy chủ nói "hồ sơ này lúc này đính kèm
+          được loại gì". Thiếu vế thứ hai thì nút vẫn hiện ở hồ sơ đã quá hạn
+          hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
+        */
+        loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
+        chiKhoi={['BAN_MEM', 'SCAN']}
+        taoBanMem={() => datMoTaoBanMem('tep')}
+        taiLai={taiLai}
+      />
 
       <LichSuGap hoSoId={hoSo.id} />
 

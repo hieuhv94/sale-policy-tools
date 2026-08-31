@@ -1165,6 +1165,11 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **BA KHỐI TỆP** `sửa 31/08` — *Giấy tờ hồ sơ* · *Bản mềm* · *Bản cứng*, theo đúng chiều hồ sơ đi:
   Sale Admin dựng bản mềm trước, in ra, trình ký, rồi mới scan lại. Khối *Bản mềm* không nhận tệp tải
   lên — nó có một nút mở hộp chọn mẫu. Xem Phụ lục B, mục *"BẢN MỀM thành một TỆP của hồ sơ"*.
+- **THỨ TỰ MỤC trên trang hồ sơ** `sửa 31/08` — *Hồ sơ* · *Khách hàng* · *Sản phẩm* · *Giấy tờ hồ sơ*
+  · *Hồ sơ pháp lý của khách hàng* · **Bản mềm** · **Bản cứng** · *Lịch sử*.
+  > Hai khối của bước B8 xuống cuối, ngay trên *Lịch sử*: chúng là **sản phẩm của vòng duyệt**, nên
+  > đứng cạnh chỗ kể lại vòng duyệt ấy. *Giấy tờ hồ sơ* **ở lại trên** — nó là thứ Trình dược viên
+  > đính vào lúc lập, thuộc về nội dung hồ sơ. *Lịch sử* vẫn cuối cùng (chốt 23/08).
 - **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08`: *Giấy tờ hồ sơ* (TDV đính lúc lập) và *Bản cứng*
   (Sale Admin scan ở B8). Vùng tải lên và dấu gỡ chỉ hiện ở **đúng khối của loại tệp** người ấy được
   đụng vào — ở hồ sơ *Nháp*, khối *Bản cứng* không cho TDV tải gì lên.

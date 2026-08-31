@@ -14711,3 +14711,62 @@ tự" không mất gì — ca `slice` vốn là bản yếu hơn của ca đầu
 | `dieuHuongCho` sắp lại theo tên thay vì chỉ lọc | **3 đỏ** — kể cả hai ca có từ `0152` |
 
 **1965/1965 xanh.**
+
+## P198 — `0170` *Bản mềm* và *Bản cứng* xuống cuối trang hồ sơ
+
+Khách hàng chốt 31/08: hai khối ấy xuống cuối, **nhưng trước *Lịch sử***. Thứ tự mới:
+
+    Hồ sơ · Khách hàng · Sản phẩm · Giấy tờ hồ sơ · Hồ sơ pháp lý KH · Bản mềm · Bản cứng · Lịch sử
+
+### Yêu cầu nêu HAI khối, và đó là chỗ phải đọc kỹ
+
+`TepDinhKem` dựng cả BA khối trong một lượt gọi, nên đưa hai khối xuống cuối là **tách component ra
+hai chỗ trên trang**. Có một đường rẻ hơn: đẩy *Hồ sơ pháp lý* lên trên cả cụm, giữ nguyên một lượt
+gọi — cũng thoả đúng chữ *"Bản mềm và Bản cứng ở cuối, trước Lịch sử"*.
+
+Không chọn đường ấy, vì nó **lặng lẽ đẩy *Giấy tờ hồ sơ* xuống theo** — một khối khách hàng không
+nhắc tới. Và chỗ tách đúng theo nghĩa nghiệp vụ: *Giấy tờ hồ sơ* là thứ TDV đính vào LÚC LẬP, thuộc
+về nội dung hồ sơ; hai khối kia là **sản phẩm của bước B8**, nên chúng đứng cạnh *Lịch sử* — chỗ kể
+lại vòng duyệt đã sinh ra chúng.
+
+### Cảnh báo *bản scan cũ* phải ĐI THEO
+
+Câu của nó là *"bản scan **DƯỚI ĐÂY** là bản Kế toán đã yêu cầu in lại"*. Để nguyên chỗ cũ thì nó trỏ
+vào một khối không còn ở đó — chữ vẫn đúng ngữ pháp, và sai hoàn toàn về thứ nó chỉ. Loại lỗi không
+test nào bắt được vì không có gì hỏng, chỉ có một câu nói dối.
+
+### `useMemo` — suýt dựng ra một vòng lặp gọi mạng
+
+Prop mới `chiKhoi` kéo theo một mảng lọc `tepCua`, và bản đầu tính nó **thẳng trong thân component**.
+`tepCua` là tham chiếu mới ở mỗi lượt render, mà nó nằm trong mảng phụ thuộc của `useEffect` dựng ảnh
+thu nhỏ — tức mỗi lượt render lại gọi `/files?ownerKind=POLICY` một lần, và lượt gọi ấy `setState`,
+sinh render tiếp. Vòng lặp vô hạn, và nó **không đỏ ở bất kỳ ca kiểm nào** — jsdom chỉ thấy một danh
+sách tệp đúng.
+
+Bắt được bằng cách đọc lại dòng vừa viết trước khi chạy. `useMemo` với khoá `chiKhoi?.join(',')`, vì
+`chiKhoi` cũng là một mảng khai TẠI CHỖ ở `ChiTietHoSo` — so tham chiếu thì memo không bao giờ trúng.
+
+### Cái giá, đã đo và chấp nhận
+
+Hai lượt dựng `TepDinhKem` là hai bộ trạng thái riêng — đúng, mỗi nhóm tự lo phần của nó. Nhưng cũng
+là **hai lượt gọi `/files?ownerKind=POLICY`** khi cả hai nhóm đều có ảnh. Gộp lại được, phải nhấc phép
+tải danh sách tệp ra khỏi component — đổi hình dạng một thứ đang chạy đúng, cho một khoản tiết kiệm
+chưa ai đo thấy trên một trang vốn gọi bốn lượt. Chưa làm.
+
+### Ca kiểm: lần thứ BA một yêu cầu trình bày chạm vùng không ai canh
+
+Ca `0167` đọc `.khoi-tep h2` — nó chỉ thấy ba khối tệp và **mù hoàn toàn với những mục xen giữa**:
+chuyển *Hồ sơ pháp lý* xuống dưới *Bản cứng* thì nó vẫn xanh. Nên nó không đổi một chữ ở lượt này, và
+ca mới đọc **cả dãy `<h2>` của trang** theo thứ tự DOM — tức đúng thứ tự người dùng cuộn qua.
+
+Cùng loại chỗ trống với `0152` (thứ tự thanh bên) và `0153` (khối thông tin khách hàng). Ba lần rồi:
+**một yêu cầu về TRÌNH BÀY gần như luôn rơi vào vùng chưa có ca kiểm nào.**
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Nhóm cuối trở lại chỗ cũ (ba khối liền nhau) | 3 đỏ |
+| `chiKhoi` thôi lọc — cả ba khối dựng ở CẢ HAI chỗ | 3 đỏ |
+
+**1966/1966 xanh.**

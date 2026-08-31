@@ -1237,7 +1237,7 @@ Mở một hồ sơ:
 ### Giấy tờ hồ sơ, Bản mềm và Bản cứng
 
 **BA KHỐI RIÊNG** `sửa 31/08`, vì chúng là ba thứ khác nhau và vào hồ sơ ở ba thời điểm khác nhau.
-Thứ tự trên màn hình đúng bằng thứ tự chúng xuất hiện:
+Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 
 | Khối | Là gì | Ai đưa vào | Lúc nào |
 |---|---|---|---|
@@ -1262,6 +1262,20 @@ mẫu mở ra, bạn chọn mẫu, xem trước cả tờ giấy, rồi bấm **
 > mang mã hồ sơ và mốc thời gian nên nhìn là biết cái nào mới.
 
 **Chỉ Sale Admin tạo và gỡ được bản mềm.** Vai trò khác thấy khối, xem và tải xuống bình thường.
+
+#### Ba khối này nằm ở đâu trên trang `sửa 31/08`
+
+Cuộn từ trên xuống, trang hồ sơ có tám mục theo thứ tự này:
+
+*Hồ sơ* → *Khách hàng* → *Sản phẩm* → **Giấy tờ hồ sơ** → *Hồ sơ pháp lý của khách hàng* →
+**Bản mềm** → **Bản cứng** → *Lịch sử*
+
+> *Bản mềm* và *Bản cứng* nằm gần cuối, ngay trên *Lịch sử*, vì chúng là **kết quả của vòng duyệt** —
+> chúng chỉ có sau khi hồ sơ đã đi qua chữ ký Trưởng bộ phận và tới bàn Sale Admin. Đọc từ trên xuống
+> là đọc đúng chiều hồ sơ đi.
+>
+> *Giấy tờ hồ sơ* thì ở lại phía trên, ngay dưới bảng sản phẩm: nó là thứ Trình dược viên đính vào
+> **lúc lập**, tức một phần nội dung của hồ sơ chứ không phải sản phẩm của bước nào.
 
 > **Vì sao tách.** Trước đó cả hai nằm chung một khối tên *Bản cứng*, nên Trình dược viên mở một hồ
 > sơ **Nháp** ra là thấy vùng kéo thả nằm dưới đúng cái tiêu đề ấy — đọc ra là *"tôi đang tải bản

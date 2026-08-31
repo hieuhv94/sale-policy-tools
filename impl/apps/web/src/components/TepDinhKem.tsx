@@ -30,7 +30,7 @@
  * thành một là bắt `policy` đụng vào MinIO, và `document` phải biết luật nghiệp
  * vụ của hồ sơ.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, HopThoaiXacNhan } from './Chung.js';
@@ -110,6 +110,7 @@ export function TepDinhKem({
   hoSoId,
   tep,
   loaiGhiDuoc,
+  chiKhoi,
   taoBanMem,
   taiLai,
 }: {
@@ -136,6 +137,19 @@ export function TepDinhKem({
    */
   loaiGhiDuoc: string[];
   /**
+   * CHỈ dựng những khối này, theo đúng thứ tự khai ở `KHOI` (`0170`).
+   *
+   * Bỏ trống là dựng cả ba, đúng như trước. Có nó vì khách hàng chốt 31/08 đưa
+   * *Bản mềm* và *Bản cứng* xuống cuối trang — sau khối *Hồ sơ pháp lý của khách
+   * hàng*, một thành phần KHÁC — nên ba khối thôi đứng liền nhau và trang gọi
+   * component này HAI LẦN, mỗi lần một nhóm.
+   *
+   * Hai lượt dựng là hai bộ trạng thái riêng (hộp xem, hộp hỏi gỡ, ảnh thu nhỏ),
+   * và điều đó ĐÚNG: mỗi nhóm tự lo phần của nó. Cái giá đã đo và chấp nhận —
+   * xem `tepCua` ngay dưới.
+   */
+  chiKhoi?: string[];
+  /**
    * Mở hộp TẠO BẢN MỀM (`0167`). Bỏ trống thì khối *Bản mềm* không có nút thêm.
    *
    * Hộp thoại sống ở `ChiTietHoSo` chứ không ở đây, vì nó có HAI cửa vào: nút
@@ -146,6 +160,25 @@ export function TepDinhKem({
   taiLai: () => void;
 }) {
   const { bao } = useBaoLoi();
+  /*
+   * TỆP CỦA RIÊNG NHÓM NÀY (`0170`).
+   *
+   * Lọc ở đây chứ không để mỗi khối tự lọc, vì có một chỗ đọc `tep` mà KHÔNG
+   * theo khối: phép dựng ảnh thu nhỏ ở dưới. Nó bỏ qua lượt gọi mạng khi nhóm
+   * không có ảnh nào — và cái bỏ qua ấy chỉ đúng nếu `tep` đã là tệp của nhóm.
+   *
+   * Cái giá, đo và chấp nhận: hồ sơ có ảnh ở CẢ HAI nhóm thì trang gọi
+   * `/files?ownerKind=POLICY` hai lượt thay vì một. Một lời gọi JSON nhỏ trên
+   * một trang vốn đã gọi bốn lượt; gộp lại được, nhưng phải nhấc phép tải danh
+   * sách tệp ra khỏi component — đổi hình dạng một thứ đang chạy đúng, cho một
+   * khoản tiết kiệm chưa ai đo thấy.
+   */
+  const tepCua = useMemo(
+    () => (chiKhoi === undefined ? tep : tep.filter((t) => chiKhoi.includes(t.kind))),
+    // `chiKhoi` là một mảng khai TẠI CHỖ ở `ChiTietHoSo`, nên tham chiếu của nó
+    // đổi mỗi lượt render — nối thành chuỗi để so bằng GIÁ TRỊ.
+    [tep, chiKhoi?.join(',')],
+  );
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [dangTaiLen, datDangTaiLen] = useState(false);
   /** Đường xem của từng tệp, xin dần để dựng ảnh thu nhỏ (`0069`). */
@@ -226,7 +259,7 @@ export function TepDinhKem({
    * một lời gọi trả về mọi tệp của hồ sơ.
    */
   useEffect(() => {
-    const anh = tep.filter((t) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(t.fileName));
+    const anh = tepCua.filter((t) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(t.fileName));
     if (anh.length === 0) return;
     const huy = new AbortController();
     void (async () => {
@@ -252,7 +285,7 @@ export function TepDinhKem({
       }
     })();
     return () => huy.abort();
-  }, [hoSoId, tep]);
+  }, [hoSoId, tepCua]);
 
   /**
    * Tải một tệp lên — hai bước ở HAI service, đúng như trước (`0069`).
@@ -314,8 +347,8 @@ export function TepDinhKem({
 
   return (
     <>
-      {KHOI.map((k) => {
-        const cua = tep.filter((t) => t.kind === k.loai);
+      {KHOI.filter((k) => chiKhoi === undefined || chiKhoi.includes(k.loai)).map((k) => {
+        const cua = tepCua.filter((t) => t.kind === k.loai);
         const ghiDuoc = loaiGhiDuoc.includes(k.loai);
 
         return (

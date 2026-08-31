@@ -794,7 +794,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     return mo({ ...SA_XU_LY, ...thay }, ['SA_HANDOVER']);
   };
 
-  it('có BA khối tệp, và Bản mềm đứng GIỮA', async () => {
+  it('có BA khối tệp, và Bản mềm đứng TRƯỚC Bản cứng', async () => {
     /*
      * Thứ tự theo chiều hồ sơ đi: giấy tờ có từ lúc lập, rồi Sale Admin dựng bản
      * mềm, in ra, trình ký, rồi mới scan lại thành bản cứng. Đặt bản mềm sau bản
@@ -802,10 +802,46 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
      *
      * Khẳng định CẢ DÃY bằng `toEqual` chứ không `toContain`: đảo hai khối vẫn
      * qua được mọi phép "có mặt không", và đó đúng là bài học `0152` đã ghi.
+     *
+     * `0170` tách ba khối này ra HAI chỗ trên trang, nhưng thứ tự DOM giữ nguyên
+     * — nên ca này không đổi một chữ. Chỗ nó không nhìn thấy là những mục KHÁC
+     * chen vào giữa, và đó là việc của ca `0170` ngay dưới.
      */
     await moSa();
     const ten = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
     expect(ten).toEqual(['Giấy tờ hồ sơ', 'Bản mềm', 'Bản cứng']);
+  });
+
+  it('`0170` THỨ TỰ MỤC trên cả trang — Bản mềm và Bản cứng ngay trên Lịch sử', async () => {
+    /*
+     * Thứ tự mục là một YÊU CẦU, nên nó phải có ca kiểm — và tới `0170` KHÔNG ca
+     * nào canh nó. Ca ngay trên chỉ đọc `.khoi-tep h2`, tức chỉ thấy ba khối tệp
+     * và mù hoàn toàn với những mục xen giữa chúng: chuyển *Hồ sơ pháp lý* xuống
+     * dưới *Bản cứng* thì nó vẫn xanh. Đây là lần thứ ba một yêu cầu về TRÌNH
+     * BÀY chạm vào vùng không ai canh (`0152` thứ tự thanh bên, `0153` khối
+     * thông tin khách hàng).
+     *
+     * Đọc CẢ DÃY `<h2>` của trang, theo đúng thứ tự DOM — tức đúng thứ tự người
+     * dùng cuộn qua. Quét mã nguồn thì chỉ thấy thứ tự CHỮ trong tệp, và hai thứ
+     * ấy tách nhau ngay khi một mục bị bọc vào nhánh điều kiện.
+     */
+    await moSa();
+    const muc = [...document.querySelectorAll('h2')].map((e) => e.textContent);
+    expect(muc).toEqual([
+      // Hai khối tóm tắt ở đầu trang — `0061`.
+      'Hồ sơ',
+      'Khách hàng',
+      'Sản phẩm',
+      // *Giấy tờ hồ sơ* Ở LẠI trên: nó là thứ TDV đính lúc lập, thuộc về nội
+      // dung hồ sơ chứ không phải sản phẩm của bước B8.
+      'Giấy tờ hồ sơ',
+      'Hồ sơ pháp lý của khách hàng',
+      'Bản mềm',
+      'Bản cứng',
+      // *Lịch sử* vẫn CUỐI CÙNG (`0061`) — yêu cầu `0170` nói *"xuống cuối
+      // nhưng trước mục lịch sử"*, nên hai vế ấy phải cùng đúng.
+      'Lịch sử',
+    ]);
   });
 
   it('nút TẠO BẢN MỀM chỉ hiện cho người ghi được, và nó KHÔNG phải ô chọn file', async () => {
