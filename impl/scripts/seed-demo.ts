@@ -998,6 +998,58 @@ async function main(): Promise<void> {
     (k) => k.code,
   );
 
+  /*
+   * MẪU HỒ SƠ ĐẦY ĐỦ để dựng bản mềm (`0168`).
+   *
+   * Đọc MỘT LẦN từ chính ô chọn mà Sale Admin dùng, và lọc theo `loai`: bản lưu
+   * chỉ nhận mẫu đầy đủ (`0167`). Không gõ tên mẫu vào đây — tên ấy là khoá
+   * idempotent của lượt nạp mẫu mặc định (`0165`), và một bản chép ở bộ nạp demo
+   * là chỗ nó trôi được.
+   */
+  const mauDayDu = await (async () => {
+    const ds = await goi<{ id: string; loai?: string }[]>(
+      '/policy-templates/available',
+      'sa01',
+      undefined,
+      'GET',
+    );
+    const m = ds.find((x) => x.loai === 'HO_SO');
+    if (!m) {
+      throw new Error(
+        'không có mẫu hồ sơ ĐẦY ĐỦ nào — bản mềm không dựng được. ' +
+          'Ba mẫu mặc định nạp lúc `document` khởi động; khởi động lại service ấy rồi chạy lại.',
+      );
+    }
+    return m.id;
+  })();
+
+  /*
+   * BẢN MỀM dựng bằng ĐƯỜNG API THẬT, không chèn một con trỏ giả (`0168`).
+   *
+   * Bản scan ở ngay dưới thì giả — và đúng là phải giả: không có API nào sinh ra
+   * một bản giấy đã ký, nó là vật ngoài phần mềm. Bản mềm thì ngược lại: phần
+   * mềm dựng ra nó, ở `POST /policies/:id/render/luu`. Nên luật *"nạp qua API
+   * thật"* của bộ nạp này áp được, và áp thì bản demo có những tệp MỞ RA ĐƯỢC —
+   * thứ cả tính năng `0167` sinh ra để có.
+   *
+   * Cái giá đã đo: chừng 35 hồ sơ đi qua bàn giao, mỗi lượt một vòng Gotenberg.
+   * Đổi lại là khối *Bản mềm* của bản demo không phải một dãy liên kết chết.
+   */
+  const themBanMem = async (id: string) => {
+    const x = await goi<{ fileName: string; objectKey: string; sizeBytes: string }>(
+      `/policies/${id}/render/luu?mauId=${mauDayDu}`,
+      'sa01',
+      {},
+    );
+    await goi(`/policies/${id}/attachments`, 'sa01', {
+      kind: 'BAN_MEM',
+      fileName: x.fileName,
+      objectKey: x.objectKey,
+      sizeBytes: x.sizeBytes,
+    });
+  };
+
+
   /** Một dòng sản phẩm. `cpbh` là chi phí bán hàng, quyết định tỷ lệ chiết khấu. */
   const dong = (ma: string, giaBuon: number, ...cpbh: number[]) => ({
     productId: sanPham[ma]!,
@@ -1061,6 +1113,7 @@ async function main(): Promise<void> {
   await act(hs4, 'SUBMIT', 'tdv02');
   await act(hs4, 'TBP_SIGN', 'tbp01');
   await act(hs4, 'KT_RECEIVE_L1', 'kt01');
+  await themBanMem(hs4);
   await goi(`/policies/${hs4}/attachments`, 'sa01', {
     kind: 'SCAN',
     fileName: 'ban-cung-da-ky.pdf',
@@ -1102,6 +1155,8 @@ async function main(): Promise<void> {
     {
       dich: 'CHO_KT_L2',
       chay: async (id) => {
+        // Thứ tự đúng chiều việc thật: dựng bản mềm → in → trình ký → scan.
+        await themBanMem(id);
         await themScan(id);
         return act(id, 'SA_HANDOVER', 'sa01');
       },

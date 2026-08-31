@@ -78,7 +78,9 @@ export class RenderController {
     });
     const { body, code } = await this.render.pdf(id, b.mauId, me);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="CSBH-${code}.pdf"`);
+    // `code` đã mang tiền tố `CSBH-` — ghép thêm cho ra `CSBH-CSBH-2026-000020`
+    // (`0168`). Lỗi có sẵn từ lâu, chỉ lộ ra khi `0167` bắt đầu LƯU cái tên ấy.
+    res.setHeader('Content-Disposition', `attachment; filename="${code}.pdf"`);
     res.end(body);
   }
 

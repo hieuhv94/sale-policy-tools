@@ -2365,7 +2365,13 @@ describe('`0167` bản mềm ĐÃ LƯU là một tệp của hồ sơ', () => {
     // Tên tệp mang MÃ HỒ SƠ và mốc thời gian: Sale Admin lưu được nhiều bản
     // mềm (hồ sơ bị yêu cầu in lại thì họ dựng bản mới), và ba tệp cùng tên nằm
     // cạnh nhau thì không ai biết cái nào mới.
-    expect(r.tep!.fileName).toMatch(/^CSBH-.+\.pdf$/);
+    const ma = (await pget(`/policies/${d.id}`, 'sa01')).body.code as string;
+    expect(r.tep!.fileName, 'tên tệp phải bắt đầu bằng chính mã hồ sơ').toMatch(
+      new RegExp(`^${ma} \\(.+\\)\\.pdf$`),
+    );
+    // Và KHÔNG lặp tiền tố: `code` vốn đã là `CSBH-…`, ghép thêm một lần nữa cho
+    // ra `CSBH-CSBH-2026-000020` — đo được trên chồng demo ở `0168`.
+    expect(r.tep!.fileName).not.toContain('CSBH-CSBH');
     expect(Number(r.tep!.sizeBytes), 'phải là một PDF thật, không phải tệp rỗng').toBeGreaterThan(
       1000,
     );

@@ -87,7 +87,23 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P195** (`0167`): **bản mềm thành một TỆP của hồ sơ, đóng băng như bản cứng**. Câu
+Chặng gần nhất **P196** (`0168`): **`make demo-mau` chạy lại được**, và một lỗ hổng gateway lộ ra.
+`make demo` không hỏng; `make demo-mau` hỏng ở BA chỗ chồng lên nhau. (1) `0167` thêm chốt
+`BAN_MEM_REQUIRED` và tôi vá 22 chỗ trong **bộ kiểm** mà quên `seed-demo.ts` — nơi cũng đẩy hồ sơ qua
+B8. Bản mềm của demo dựng bằng **đường API thật** (88 lượt Gotenberg), không chèn con trỏ giả như bản
+scan: không API nào sinh ra được bản giấy đã ký, còn bản mềm thì phần mềm dựng ra nó. (2) **Gateway
+không định tuyến `render/luu`** — mẫu `chiTiet` kết thúc bằng `render)$` nên lượt gọi rơi xuống
+`policy` và nhận `404 "Cannot POST …"`, một câu không nhắc gì tới gateway. **Bộ kiểm không thể bắt
+được**: mọi ca http gọi thẳng `http(doc)`. Chú thích ở `routes.ts` đã ghi đúng điều này từ `0055` và
+vẫn không ngăn được lần thứ hai — nên giờ có `tests/http/gateway.test.ts` **quét decorator** của hai
+controller `@Controller('policies')` rồi đối chiếu với mẫu, kèm ca chiều ngược cấm nới mẫu thành `.*`.
+(3) `CSBH-CSBH-2026-000020` — `policy.code` đã mang tiền tố, ba chỗ ghép thêm; lỗi có từ lâu, chỉ lộ
+khi `0167` bắt đầu LƯU cái tên ấy, và ca kiểm cũ `toMatch(/^CSBH-.+/)` **xanh với cả tên hỏng**.
+**BẪY:** chồng demo chạy từ ẢNH ĐÃ DỰNG, không bind-mount — sửa `routes.ts` rồi `docker restart`
+không đổi gì, phải `up -d --build`. Nghiệm thu thật: `kt01` tải bản mềm qua gateway — 200, 34.711
+byte, `%PDF-`. **1965/1965 xanh.**
+
+Trước đó **P195** (`0167`): **bản mềm thành một TỆP của hồ sơ, đóng băng như bản cứng**. Câu
 thứ nhất của khách hàng đã đúng sẵn từ `0165` (ô chọn bày cả hai loại hồ sơ) — lượt này chỉ thêm nhãn
 *đầy đủ*/*rút gọn*. **KHÔNG phải `0098` quay lại**: `0098` đóng băng **id của MẪU**, `0167` đóng băng
 **chính tờ giấy** — byte PDF trên kho, nên vô hiệu hết mẫu thì lượt DỰNG MỚI trả 404 còn tệp ĐÃ LƯU

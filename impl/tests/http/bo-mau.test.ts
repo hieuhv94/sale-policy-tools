@@ -121,17 +121,32 @@ describe('`0165` không bộ nạp nào tạo văn bản mẫu nữa', () => {
     }
   });
 
-  it('`seed-demo` KHÔNG đụng tới mẫu', () => {
+  it('`seed-demo` KHÔNG TẠO mẫu — nhưng ĐỌC ô chọn thì được', () => {
     /*
      * Vế này đắt hơn vế trên: `seed-demo` từng nạp CẢ HAI loại — mẫu hồ sơ qua
      * `namMauHoSo()` và mười mấy mẫu hợp đồng dựng bằng `makeDocx`. Sót lại một
      * trong hai thì bản demo có hai bộ mẫu chồng lên nhau, và người xem không
      * biết bộ nào là bộ thật.
+     *
+     * `0168` NỚI MỘT NỬA, và chỗ nới là ranh giới thật của luật này: bộ nạp phải
+     * ĐỌC ô chọn để lấy id mẫu hồ sơ đầy đủ, vì `0167` bắt nó dựng bản mềm qua
+     * đường API thật. Đọc không phải tạo. Bản trước cấm mọi lần NHẮC TỚI chuỗi
+     * `/policy-templates`, và câu ấy rộng hơn luật nó định canh.
+     *
+     * Nên ca kiểm đổi từ *"không nhắc tới"* sang *"nhắc tới ĐÚNG một đường, và
+     * đường ấy là đường đọc"*. Thêm một đường tạo mẫu vào bộ nạp là đỏ ngay.
      */
     const s = nguon('scripts/seed-demo.ts');
-    for (const cam of ['/policy-templates', '/contract-templates']) {
-      expect(s, `seed-demo thôi đụng tới ${cam}`).not.toContain(cam);
-    }
+    // Mẫu HỢP ĐỒNG thì bộ nạp không có việc gì — kể cả đọc.
+    expect(s, 'seed-demo thôi đụng tới /contract-templates').not.toContain('/contract-templates');
+    // Và không có bước ĐỌC Ô TRỐNG — bước đầu của mọi lượt tải mẫu lên.
+    expect(s, 'seed-demo không được có bước đọc ô trống của một mẫu').not.toContain('/o-trong');
+
+    const nhac = [...s.matchAll(/\/policy-templates[^'`\s]*/g)].map((m) => m[0]);
+    expect(
+      [...new Set(nhac)],
+      'chỉ được đọc ô chọn; mọi đường khác của `/policy-templates` là đường GHI',
+    ).toEqual(['/policy-templates/available']);
   });
 
   it('`0166` lượt dọn của `seed-demo` KHÔNG cuốn theo ba mẫu mặc định', () => {

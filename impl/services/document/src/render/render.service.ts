@@ -163,7 +163,7 @@ export class RenderService {
       // (muc 7.1), và đúng tập cột của CHÍNH MẪU NÀY (`0067`).
       banSanPham: bangSanPhamXml(policy, mau.template.cot_bang),
     });
-    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
+    const body = await this.gotenberg.docxToPdf(docx, `${policy.code}.docx`);
 
     /*
      * KHÔNG ghi dòng *Lịch sử* nào cho bản mềm (`0059`).
@@ -217,7 +217,7 @@ export class RenderService {
       values,
       banSanPham: bangSanPhamXml(policy, mau.template.cot_bang),
     });
-    const body = await this.gotenberg.docxToPdf(docx, `CSBH-${policy.code}.docx`);
+    const body = await this.gotenberg.docxToPdf(docx, `${policy.code}.docx`);
 
     /*
      * TÊN TỆP mang mã hồ sơ và MỐC THỜI GIAN.
@@ -233,7 +233,17 @@ export class RenderService {
         ownerKind: 'POLICY',
         ownerId: policyId,
         purpose: 'BAN_CSBH',
-        fileName: `CSBH-${policy.code} (${luc}).pdf`,
+        /*
+         * `policy.code` ĐÃ mang tiền tố `CSBH-` (`pol.next_policy_code()`).
+         *
+         * Ghép thêm một lần nữa cho ra `CSBH-CSBH-2026-000020` — đo được trên
+         * chồng demo, không phải suy đoán. Lỗi này CÓ SẴN ở ba chỗ khác trong
+         * chính tệp và controller này, và chưa ai thấy vì hai chỗ kia chỉ đặt
+         * tên tạm cho Gotenberg, còn chỗ thứ ba là `Content-Disposition` của
+         * một lượt tải mà người dùng hiếm khi đọc kỹ tên. `0167` là lượt đầu
+         * tiên cái tên ấy được LƯU LẠI và bày lên màn hình.
+         */
+        fileName: `${policy.code} (${luc}).pdf`,
         buffer: body,
       },
       me,

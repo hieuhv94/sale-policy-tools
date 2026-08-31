@@ -43,7 +43,21 @@ export const UPSTREAMS: Upstream[] = [
     prefix: '/policies',
     name: 'document',
     url: env('DOCUMENT_URL', 'http://document:3005'),
-    chiTiet: /^\/policies\/[^/]+\/(contract\.pdf|contract\/preview|render)$/,
+    /*
+     * `render/luu` thêm ở `0168`, và nó là một LỖI THẬT lượt này đi vá.
+     *
+     * Mẫu cũ kết thúc bằng `render)$`, nên `POST /policies/:id/render/luu` không
+     * khớp và rơi xuống dòng `/policies` → `policy`, nơi không có route ấy. Máy
+     * chủ trả một 404 của Nest — *"Cannot POST …"* — chứ không phải một mã lỗi
+     * nào của phần mềm, nên không câu chữ nào chỉ ra chỗ sai.
+     *
+     * Bộ kiểm KHÔNG bắt được: mọi ca http gọi thẳng từng service (`http(doc)`),
+     * không đi qua gateway. Chú thích ngay trên đã ghi đúng điều đó từ `0055` —
+     * *"phát hiện ra chỉ bằng cách chạy thật"* — và lượt này là lần thứ hai.
+     * `tests/http/gateway.test.ts` giờ đối chiếu mẫu này với chính bảng route của
+     * `document`, nên lần sau nó đỏ ở bộ kiểm chứ không ở chồng demo.
+     */
+    chiTiet: /^\/policies\/[^/]+\/(contract\.pdf|contract\/preview|render(\/luu)?)$/,
   },
   { prefix: '/policies', name: 'policy', url: env('POLICY_URL', 'http://policy:3004') },
   { prefix: '/sla', name: 'policy', url: env('POLICY_URL', 'http://policy:3004') },

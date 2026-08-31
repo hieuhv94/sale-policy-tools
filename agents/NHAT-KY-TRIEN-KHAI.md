@@ -14596,3 +14596,71 @@ tổng sẽ đổi mỗi lần thêm một loại tệp, và nó đổi ở mộ
 | Hộp tạo thôi lọc mẫu | 1 đỏ |
 
 **1962/1962 xanh.**
+
+## P196 — `0168` `make demo-mau` chạy lại được, và một lỗ hổng gateway lộ ra
+
+Khách hàng báo `make demo` và `make demo-mau` lỗi. `make demo` thì không — nó chạy sạch, ba mẫu mặc
+định lên đủ. `make demo-mau` thì hỏng, và hỏng ở hai chỗ chồng lên nhau.
+
+### Lỗi 1: bộ nạp demo không biết luật bàn giao vừa đổi
+
+`0167` thêm chốt `BAN_MEM_REQUIRED` vào `SA_HANDOVER`. Tôi đã vá 22 chỗ trong **bộ kiểm** và quên
+`scripts/seed-demo.ts` — nơi cũng đẩy hồ sơ qua đúng bước ấy. Bộ nạp gắn mỗi bản scan, nên nó chết ở
+hồ sơ đầu tiên đi qua B8.
+
+**Bản mềm của bản demo dựng bằng ĐƯỜNG API THẬT**, không chèn một con trỏ giả như bản scan. Ranh giới
+ấy có lý do: không API nào sinh ra được một bản giấy đã ký — nó là vật ngoài phần mềm — nên bản scan
+buộc phải giả. Bản mềm thì phần mềm dựng ra nó, nên luật *"nạp qua API thật"* của bộ nạp áp được. Cái
+giá đo được: 88 lượt render Gotenberg. Đổi lại là khối *Bản mềm* của bản demo có tệp **mở ra được**,
+thay vì một dãy liên kết chết.
+
+### Lỗi 2, và nó là lỗ hổng thật: gateway không định tuyến `render/luu`
+
+Sửa xong bộ nạp thì gặp `404 "Cannot POST /policies/.../render/luu"` — một câu của Nest, không nhắc
+gì tới gateway lẫn service nào.
+
+Hai service cùng phục vụ tiền tố `/policies`. `UPSTREAMS` tách chúng bằng một mẫu liệt kê ĐÍCH DANH ba
+đường của `document`, và mẫu ấy kết thúc bằng `render)$` — nên `render/luu` rơi xuống `policy`, nơi
+không có route ấy.
+
+**Bộ kiểm không thể bắt được**, và chú thích ngay trên bảng route đã ghi đúng lý do từ `0055`:
+*"gateway chỉ định tuyến theo tiền tố là không đủ, và phát hiện ra điều đó chỉ bằng cách chạy thật —
+mọi test trước đó gọi thẳng từng service"*. Lời cảnh báo ấy đúng, được viết ra, và vẫn không ngăn
+được lần thứ hai: 104 ca của `0167` đều gọi `http(doc)` trực tiếp.
+
+Nên lượt này đóng vòng bằng `tests/http/gateway.test.ts`: nó **quét decorator** của hai controller
+`@Controller('policies')` bên `document`, rồi đối chiếu từng đường với chính mẫu `chiTiet`. Thêm một
+route mà quên gateway là đỏ ở bộ kiểm. Kèm một ca chiều ngược — mẫu không được nuốt
+`/policies/:id/actions/...` — vì cách "sửa" dễ nhất cho ca đầu là nới mẫu thành `.*`, và làm thế thì
+cả luồng duyệt bay sang `document` trong khi ca đầu vẫn xanh.
+
+> **BẪY LÚC DỰNG LẠI:** chồng demo chạy từ ẢNH ĐÃ DỰNG, không bind-mount mã nguồn. Sửa `routes.ts` rồi
+> `docker restart csbh-gateway-1` **không đổi gì** — container vẫn mang ảnh cũ. Phải `up -d --build`.
+> Mất hai lượt `make demo-mau` (mỗi lượt vài phút) mới nhìn ra, và dấu hiệu duy nhất là lỗi y hệt.
+
+### Lỗi 3, nhỏ và có sẵn từ lâu: `CSBH-CSBH-2026-000020`
+
+Bản demo dựng xong thì tên tệp đọc ra là `CSBH-CSBH-2026-000020 (…).pdf`. `policy.code` đã mang tiền
+tố `CSBH-` (`pol.next_policy_code()`), và ba chỗ trong `render` ghép thêm một lần nữa.
+
+Lỗi có từ lâu và chưa ai thấy, vì hai chỗ chỉ đặt tên tạm cho Gotenberg còn chỗ thứ ba là
+`Content-Disposition` của một lượt tải mà người ta hiếm khi đọc kỹ. `0167` là lượt đầu tiên cái tên ấy
+được **LƯU LẠI và bày lên màn hình** — và một cái tên trên thẻ tệp thì ai cũng đọc.
+
+Ca kiểm cũ viết `toMatch(/^CSBH-.+\.pdf$/)`, và nó **xanh với cả cái tên hỏng**. Bản mới đọc mã hồ sơ
+thật rồi đòi tên bắt đầu đúng bằng mã ấy, cộng một dòng cấm thẳng chuỗi `CSBH-CSBH`.
+
+### Nghiệm thu trên chồng demo THẬT
+
+`make demo` → 3 mẫu; `make demo-mau` → chạy trọn, **88 bản scan và 88 bản mềm**; rồi đăng nhập `kt01`
+qua gateway, liệt kê tệp của một hồ sơ, xin liên kết, tải về: **HTTP 200, 34.711 byte,
+`application/pdf`, bốn byte đầu `%PDF-`**, tên tệp `CSBH-2026-000239 (2026-08-31 08h25).pdf`.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Mẫu gateway về `render)$` | 1 đỏ |
+| Nới mẫu gateway thành `/policies/.*` | 1 đỏ (ca chiều ngược) |
+
+**1965/1965 xanh.**
