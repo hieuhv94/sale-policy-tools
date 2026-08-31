@@ -33,6 +33,7 @@
 import { Client } from 'pg';
 import { readFileSync } from 'node:fs';
 import { BO_MAU, THU_MUC } from './tao-mau-ho-so.js';
+import { MAU_MAC_DINH } from '../services/document/src/contracts/bootstrap-mau.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('seed-demo: TỪ CHỐI chạy ở môi trường production');
@@ -531,6 +532,25 @@ async function donGiaTao(): Promise<void> {
   }
 }
 
+/**
+ * GIỮ LẠI ba mẫu mặc định khi dọn dữ liệu cũ (`0166`).
+ *
+ * Lỗi thật, và nó chỉ hiện ra sau `0165`: `xoaDuLieuCu()` quét sạch
+ * `doc.contract_template`, và tới `0164` điều đó vô hại vì bộ nạp demo dựng lại
+ * ngay một bộ mẫu của riêng nó. `0165` bỏ việc dựng ấy đi — ba mẫu mặc định giờ
+ * nạp ở **lượt khởi động của service**, không phải ở lượt seed.
+ *
+ * Nên `make demo-mau` xoá chúng và **không gì đưa chúng về**: bộ nạp không tạo
+ * mẫu, còn `document` thì đã khởi động xong từ lâu. Bản demo mất sạch văn bản
+ * mẫu, và triệu chứng lộ ra ở tận màn hình *Xem bản mềm* của Sale Admin.
+ *
+ * Ranh giới đúng: lượt dọn này xoá **dữ liệu NGHIỆP VỤ của bản demo** — khách
+ * hàng, hồ sơ, danh mục. Ba mẫu mặc định không thuộc nhóm ấy; chúng là một phần
+ * của HỆ THỐNG, đúng như `idn.app_user` — thứ mà khối dọn này cũng không đụng
+ * tới. Mẫu do Quản trị tự tải lên thì vẫn bị xoá: chúng đúng là dữ liệu demo.
+ */
+const TEN_MAU_MAC_DINH = MAU_MAC_DINH.map((m) => m.ten);
+
 async function xoaDuLieuCu(): Promise<void> {
   const db = moKetNoi();
   await db.connect();
@@ -557,10 +577,37 @@ async function xoaDuLieuCu(): Promise<void> {
       DELETE FROM cus.customer_document;
       DELETE FROM cus.outbox;
       DELETE FROM cus.customer;
-      DELETE FROM doc.contract_template_field;
-      DELETE FROM doc.contract_template;
       DELETE FROM doc.outbox;
-      DELETE FROM doc.stored_file;
+    `);
+
+    /*
+     * Ba lượt xoá của `doc` tách ra khỏi khối trên vì chúng cần THAM SỐ, và
+     * node-pg chỉ cho truyền tham số khi câu lệnh đứng một mình.
+     *
+     * VẪN MỘT TRANSACTION: khối trên mở `BEGIN` và không đóng, khối dưới đóng
+     * bằng `COMMIT`. Cùng một `Client`, nên ba câu ở giữa nằm trong đúng
+     * transaction ấy — lượt dọn hỏng giữa chừng vẫn không để lại nửa vời.
+     *
+     * Thứ tự bắt buộc: `contract_template.file_id` có khoá ngoại sang
+     * `stored_file`, nên tệp phải xoá SAU mẫu — và chỉ xoá những tệp không còn
+     * mẫu nào trỏ tới.
+     */
+    await db.query(
+      `DELETE FROM doc.contract_template_field
+        WHERE template_id IN (SELECT id FROM doc.contract_template WHERE name <> ALL($1))`,
+      [TEN_MAU_MAC_DINH],
+    );
+    await db.query(`DELETE FROM doc.contract_template WHERE name <> ALL($1)`, [
+      TEN_MAU_MAC_DINH,
+    ]);
+    // `NOT EXISTS` chứ không `NOT IN`: `NOT IN` gặp một NULL trong tập con là trả
+    // về rỗng cho MỌI dòng, tức không xoá gì và cũng không báo gì.
+    await db.query(
+      `DELETE FROM doc.stored_file f
+        WHERE NOT EXISTS (SELECT 1 FROM doc.contract_template t WHERE t.file_id = f.id)`,
+    );
+
+    await db.query(`
       DELETE FROM cat.outbox;
       DELETE FROM cat.product_price;
       DELETE FROM cat.discount_rule;

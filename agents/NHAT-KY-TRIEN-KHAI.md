@@ -14456,3 +14456,59 @@ dựng một mẫu mới thay thế — nên ba mẫu mặc định nằm tắt 
 sống qua nhiều lượt chạy. Giờ nó nhớ đúng những dòng nó tắt và bật lại đúng chừng ấy.
 
 **1947/1947 xanh.**
+
+## P194 — `0166` `make demo-mau` thôi cuốn theo ba mẫu mặc định
+
+Khách hàng báo ngay sau khi nhận `0165`: *"chạy `make demo-mau` toàn bộ văn bản mẫu mặc định bị xoá
+mất"*. Đúng, và nó là hồi quy do chính `0165` sinh ra.
+
+`xoaDuLieuCu()` của `seed-demo` quét sạch `doc.contract_template` và `doc.stored_file`. Câu lệnh ấy
+có từ lâu và **vô hại cho tới hôm qua**: bộ nạp demo dựng lại ngay một bộ mẫu của riêng nó, nên xoá
+rồi tạo là một cặp cân bằng. `0165` bỏ vế TẠO đi — ba mẫu mặc định giờ nạp ở **lượt khởi động của
+`document`** — nên lượt xoá thành một chiều: bảng trống, và không gì đưa chúng về cho tới khi ai đó
+khởi động lại service.
+
+**Không tệp nào một mình nhìn thấy được cái lệch này.** `seed-demo.ts` không biết `0165` vừa đổi ai
+chịu trách nhiệm tạo mẫu; `bootstrap-mau.ts` không biết có ai đang xoá bảng của nó. Lượt rà của
+`0165` đọc `seed-demo` để GỠ phần nạp mẫu và đi ngang qua khối dọn mà không hỏi nó xoá những gì.
+
+### Ranh giới đúng, và nó có sẵn ngay trong chính khối ấy
+
+Lượt dọn này xoá **dữ liệu NGHIỆP VỤ của bản demo** — khách hàng, hồ sơ, danh mục. Nó **không** đụng
+tới `idn.app_user`, vì tài khoản là một phần của hệ thống chứ không phải dữ liệu demo. Ba mẫu mặc
+định thuộc đúng nhóm ấy. Mẫu do Quản trị tự tải lên thì vẫn xoá — chúng đúng là dữ liệu demo.
+
+Nên bản sửa là một mệnh đề `WHERE`, không phải một bước nạp lại: `name <> ALL($1)` với danh sách đọc
+từ chính `MAU_MAC_DINH`, và `doc.stored_file` chỉ xoá những tệp không còn mẫu nào trỏ tới.
+
+Ba chỗ phải để ý khi viết:
+
+- **Tham số buộc phải tách khỏi khối nhiều câu lệnh.** node-pg chỉ cho truyền tham số ở giao thức mở
+  rộng, tức một câu lệnh một lượt. Khối `BEGIN … COMMIT` cũ là MỘT chuỗi nhiều câu, nên ba lượt xoá
+  của `doc` phải đứng riêng — và để giữ nguyên MỘT transaction thì khối trên thôi `COMMIT`, khối dưới
+  đóng. Cùng một `Client` nên ba câu ở giữa nằm đúng trong transaction ấy.
+- **`NOT EXISTS` chứ không `NOT IN`.** `NOT IN` gặp một NULL trong tập con là trả rỗng cho MỌI dòng —
+  không xoá gì, và không báo gì.
+- **Thứ tự**: `contract_template.file_id` có khoá ngoại sang `stored_file`, nên tệp xoá SAU mẫu.
+
+### Dựng lại trên chồng demo THẬT
+
+Đúng đường mà `CLAUDE.md` bảo dùng khi nghi một lỗi, và lần này nó vừa là chỗ tìm ra vừa là chỗ
+nghiệm thu. `make demo` → 3 mẫu; `make demo-mau` → **vẫn 3 mẫu**, đủ file và đủ 17/17/12 dòng ánh xạ;
+rồi đăng nhập `sa01` qua gateway, đọc ô chọn (hai mẫu hồ sơ), dựng bản mềm bằng mẫu **rút gọn** —
+`HTTP 200`, PDF 34.842 byte, in ra đúng sáu cột và đúng màu.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả `DELETE FROM doc.contract_template;` không điều kiện | 1 đỏ |
+
+Ca kiểm QUÉT MÃ NGUỒN, và nó yếu hơn một kiểu dữ liệu bắt buộc — một cách viết mới vẫn lách qua được.
+Nhưng vế nó canh thì chặt: `DELETE FROM <bảng>;` **không kèm điều kiện** chính là hình dạng của lỗi
+này, ở cả hai bảng.
+
+**Cái không sửa, và người vận hành cần biết**: hệ nào đã lỡ chạy `make demo-mau` của bản `0165` thì
+bảng mẫu đang trống — bộ nạp không đưa chúng về, phải **khởi động lại `document`**.
+
+**1948/1948 xanh.**

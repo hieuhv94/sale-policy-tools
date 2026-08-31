@@ -87,7 +87,22 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (30/08/2026)
 
-Chặng gần nhất **P193** (`0165`): **loại mẫu thứ ba, ba mẫu mặc định đi cùng hệ thống, bảng sản phẩm
+Chặng gần nhất **P194** (`0166`): **`make demo-mau` thôi cuốn theo ba mẫu mặc định** — hồi quy do
+chính `0165` sinh ra. `xoaDuLieuCu()` của `seed-demo` quét sạch `doc.contract_template` từ lâu và
+**vô hại cho tới `0165`**: bộ nạp dựng lại ngay một bộ mẫu của riêng nó, xoá rồi tạo là một cặp cân
+bằng. `0165` bỏ vế TẠO nên lượt xoá thành một chiều — bảng trống tới khi ai đó khởi động lại
+`document`. **Không tệp nào một mình nhìn thấy cái lệch này.** Ranh giới đúng có sẵn ngay trong khối
+ấy: nó không đụng `idn.app_user`, vì tài khoản là hệ thống chứ không phải dữ liệu demo — ba mẫu mặc
+định cùng nhóm. Bản sửa là một mệnh đề `WHERE` đọc từ `MAU_MAC_DINH`, không phải một bước nạp lại.
+Ba chỗ phải để ý: **tham số buộc tách khỏi khối nhiều câu lệnh** (node-pg chỉ cho tham số ở giao thức
+mở rộng — giữ MỘT transaction bằng cách khối trên thôi `COMMIT`, khối dưới đóng); **`NOT EXISTS` chứ
+không `NOT IN`** (gặp NULL là trả rỗng cho mọi dòng, không xoá gì và không báo gì); và tệp xoá SAU
+mẫu vì `file_id` có khoá ngoại. Nghiệm thu trên **chồng demo thật**: `make demo` → 3 mẫu,
+`make demo-mau` → vẫn 3 mẫu, rồi `sa01` dựng bản mềm bằng mẫu rút gọn qua gateway — HTTP 200, PDF
+34.842 byte. **Hệ nào đã lỡ chạy `make demo-mau` của bản `0165` thì phải khởi động lại `document`.**
+**1948/1948 xanh.**
+
+Trước đó **P193** (`0165`): **loại mẫu thứ ba, ba mẫu mặc định đi cùng hệ thống, bảng sản phẩm
 đúng màu**. `HO_SO_RUT_GON` là một LOẠI chứ không phải một cờ, vì `cot_bang` không nói được ba thứ:
 một **thẻ riêng**, một **mẫu mặc định riêng** (khoá idempotent `(kind, name)`), và **tập cột suy từ
 loại**. Chỗ nguy hiểm nhất: `tsc` chỉ ra mọi chỗ khai `Loai` thiếu nhánh nhưng **không chỉ ra một

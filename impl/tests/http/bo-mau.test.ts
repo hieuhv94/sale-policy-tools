@@ -134,6 +134,37 @@ describe('`0165` không bộ nạp nào tạo văn bản mẫu nữa', () => {
     }
   });
 
+  it('`0166` lượt dọn của `seed-demo` KHÔNG cuốn theo ba mẫu mặc định', () => {
+    /*
+     * LỖI THẬT, khách hàng báo sau khi chạy `make demo-mau`: *"toàn bộ văn bản
+     * mẫu mặc định bị xoá mất"*.
+     *
+     * `xoaDuLieuCu()` quét sạch `doc.contract_template`, và tới `0164` điều đó
+     * vô hại — bộ nạp demo dựng lại ngay một bộ mẫu của riêng nó. `0165` bỏ việc
+     * dựng ấy đi, nên lượt xoá thành **một chiều**: ba mẫu mặc định chỉ nạp ở
+     * LƯỢT KHỞI ĐỘNG của `document`, mà service thì đã lên từ lâu.
+     *
+     * Đây là loại lệch không tệp nào một mình nhìn thấy: `seed-demo.ts` không
+     * biết `0165` vừa đổi ai chịu trách nhiệm tạo mẫu, còn `bootstrap-mau.ts`
+     * không biết có ai đang xoá bảng của nó.
+     *
+     * Ca kiểm QUÉT MÃ NGUỒN, và nó yếu hơn một kiểu dữ liệu bắt buộc — một cách
+     * viết mới vẫn lách qua được. Nhưng vế thứ nhất thì chặt: `DELETE FROM
+     * doc.contract_template;` KHÔNG kèm điều kiện chính là hình dạng của lỗi.
+     */
+    const s = nguon('scripts/seed-demo.ts');
+    for (const bang of ['doc.contract_template', 'doc.stored_file']) {
+      expect(
+        s,
+        `xoá trắng ${bang} là cuốn theo cả ba mẫu mặc định — phải có điều kiện`,
+      ).not.toMatch(new RegExp(`DELETE FROM ${bang.replace('.', '\\.')}\\s*;`));
+    }
+    expect(
+      s,
+      'điều kiện phải đọc từ `MAU_MAC_DINH`, không chép tay ba cái tên',
+    ).toContain('MAU_MAC_DINH');
+  });
+
   it('`BO_MAU` VẪN CÒN — nó là nguồn của chính ba file trong `default/`', () => {
     /*
      * Chiều đối chiếu, và nó bắt cách dọn dẹp quá tay: thấy `seed-demo` thôi đọc
