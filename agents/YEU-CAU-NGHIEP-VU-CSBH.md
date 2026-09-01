@@ -676,8 +676,10 @@ nói rõ dòng nào hẹp hơn dòng nào.
   Hai trường vẫn **đặt ô được**: mẫu nào muốn in thì in, hệ thống chỉ thôi ép — và ba mẫu bàn giao
   kèm phần mềm vẫn in cả hai.
   > Cộng bốn mục tự chịu trách nhiệm ấy, phép kiểm tự động lúc lưu mẫu còn **9 trên 13 mục**
-  > `sửa 24/08`. Nói ra vì một bảo đảm 9/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 9/13 đã
-  > biết — cái tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký.
+  > `sửa 24/08`, rồi còn **7 trên 13** `sửa 01/09` khi khách hàng bỏ ba dòng *Số hồ sơ* ·
+  > *Tên khách hàng* · *File đính kèm* khỏi hai mẫu hồ sơ của họ. Nói ra vì một bảo đảm 7/13 mà
+  > tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 7/13 đã biết — cái tưởng ấy chỉ vỡ ra trên một bản đã
+  > đem đi ký.
   >
   > **13 mục của muc 11.1 là yêu cầu của bảng CSBH XEM**, tức MÀN HÌNH chi tiết hồ sơ — nó bày đủ
   > cả mười ba và không mẫu nào chi phối. Đem nguyên yêu cầu của màn hình áp sang bản người dùng vẽ
@@ -1256,9 +1258,11 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - Bảng CSBH xem tối thiểu có: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và
   tên khách hàng, tên sản phẩm, CPBH, trạng thái, file đính kèm, Trưởng bộ phận, kế toán, thời gian duyệt.
   > **Mười ba mục này là yêu cầu của bảng XEM — MÀN HÌNH chi tiết hồ sơ** `làm rõ 24/08`, và màn
-  > hình ấy luôn đủ cả mười ba. **Mẫu bản mềm do Quản trị soạn là một thứ khác**: nó chỉ bị ép **9 trên
-  > 13**, vì bốn mục kia hoặc cố định (*thông tin công ty*), hoặc do người soạn quyết (*CPBH*),
-  > hoặc **còn đang đổi** lúc dựng văn bản (*trạng thái*, *thời gian duyệt*). Xem mục 6.4.
+  > hình ấy luôn đủ cả mười ba. **Mẫu bản mềm do Quản trị soạn là một thứ khác**: nó chỉ bị ép **7 trên
+  > 13** `sửa 01/09`, vì sáu mục kia hoặc cố định (*thông tin công ty*), hoặc do người soạn quyết
+  > (*CPBH*), hoặc **còn đang đổi** lúc dựng văn bản (*trạng thái*, *thời gian duyệt*), hoặc **khách
+  > hàng đã bỏ khỏi tờ giấy của họ** (*tên khách hàng* — dòng ấy giờ in tên người đại diện — và
+  > *file đính kèm*). **Mã khách hàng vẫn bắt buộc.** Xem mục 6.4.
 
 ### 11.3. Phân trang `mới 16/08`
 
@@ -1421,6 +1425,11 @@ tương ứng vào **bảng ánh xạ văn bản mẫu** để in ra bản CSBH.
 > thì bản CSBH in ra một ô trắng, mà Trình dược viên sửa được. Hệ quả vận hành phải biết trước:
 > **khách hàng cũ chưa khai số thì hồ sơ mới của họ chưa gửi duyệt được** cho tới khi ai đó bổ sung.
 > Câu báo lỗi chỉ thẳng sang hồ sơ khách hàng.
+>
+> **THÔI CHẶN** `sửa 01/09` — hai mẫu hồ sơ mặc định không còn in số điện thoại lẫn chức danh người
+> đại diện, nên chặn lúc gửi duyệt là chặn vì một ô không tồn tại trên tờ giấy. **Trường vẫn còn**
+> trong hồ sơ khách hàng và vẫn đặt được ô trống trong mẫu; chỉ là **không bắt buộc**, và hệ quả vận
+> hành ở trên **hết hiệu lực**: khách cũ chưa khai số vẫn gửi duyệt được.
 
 **Lịch sử giá giữ đủ mọi lần sửa** `mới 27/08` — kể cả nhiều lần trong cùng một ngày. Mỗi lần một
 dòng, kèm thời điểm ghi; giá đang dùng là **lần cuối cùng**, đánh dấu rõ trên màn hình.
@@ -1565,6 +1574,28 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 >
 > Sale Admin lưu được **nhiều** bản mềm — hồ sơ bị Kế toán yêu cầu in lại thì họ dựng bản mới, và bản
 > cũ ở lại làm vết. Tên tệp mang mã hồ sơ và mốc thời gian để phân biệt.
+
+**Hai mẫu hồ sơ mặc định BỎ BỐN DÒNG, và một dòng đổi nghĩa** `sửa 01/09` — *"sửa lại văn bản hồ sơ
+mặc định cả đầy đủ và rút gọn trong default: bỏ số hồ sơ, người đại diện, và số điện thoại; tên khách
+hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên khách hàng}} - …`; bỏ dòng File đính kèm"*.
+
+> Khối thông tin của cả hai mẫu còn đúng **bốn dòng**: *Mã khách hàng* · *Tên khách hàng* ·
+> *Công nợ* · *Thời gian áp dụng*. Dòng *Tên khách hàng* in **tên người đại diện — địa chỉ đăng ký —
+> MST**; ba dòng *Số hồ sơ*, *Người đại diện* (dòng riêng, có kèm chức danh và số điện thoại) và
+> *File đính kèm* biến mất.
+>
+> **Đây là khách hàng đòi lại bản vẽ của chính họ.** *Số hồ sơ* và *File đính kèm* không có trên tờ
+> mẫu họ gõ tay `30/08`; chúng bị chèn thêm vào đúng vì danh sách mục bắt buộc của muc 11.1 đòi. Nên
+> lượt này danh sách ấy là thứ phải nhường, không phải tờ giấy.
+>
+> **Hai chốt chặn lúc gửi duyệt gỡ theo**: *chức danh người đại diện* (chốt `24/08`) và *số điện
+> thoại* (chốt `27/08`). Một trường chỉ đáng chặn khi nó để lại một ô trắng trên bản đem đi ký — bỏ
+> khỏi tờ giấy rồi mà vẫn chặn thì phần mềm bắt điền một thứ không ai đọc. Còn lại **hai** trường
+> chặn: *Mã số thuế* và *Thời gian áp dụng*.
+>
+> **Cái mất, đã cân nhắc và khách hàng chốt**: bản CSBH in ra **không còn tên pháp nhân của khách
+> hàng** ở bất kỳ đâu — chỉ còn tên người đại diện, địa chỉ và mã số thuế. Mã khách hàng vẫn còn, và
+> mã số thuế mới là thứ định danh pháp lý.
 
 **BA loại văn bản mẫu, và ba mẫu MẶC ĐỊNH đi cùng hệ thống** `sửa 30/08` — bốn câu chốt cùng lúc:
 
@@ -1956,7 +1987,8 @@ chủ mới cũng từ chối theo cùng luật ấy.
 **Đủ trường mới gửi duyệt được** `mới 24/08` — trước khi hồ sơ rời trạng thái *Nháp*, phần mềm kiểm
 các trường sẽ in ra bản CSBH. Thiếu thì **chặn gửi**, và báo rõ thiếu mục nào cùng chỗ phải đi sửa.
 Ba trường bị chặn: **Mã số thuế** · **Chức danh người đại diện** (cả hai ở hồ sơ khách hàng) và
-**Thời gian áp dụng** (ở hồ sơ). Kèm theo, *Thời gian áp dụng* nay **mặc định là hôm nay** ngay ở máy
+**Thời gian áp dụng** (ở hồ sơ) — `sửa 01/09`: **còn hai**, xem mục ngay dưới. Kèm theo, *Thời gian
+áp dụng* nay **mặc định là hôm nay** ngay ở máy
 chủ — trước đó chỉ màn hình *Lập hồ sơ* điền sẵn, nên hồ sơ tạo qua đường khác chạy hết vòng duyệt
 với ô ấy để trống trên bản A4.
 
@@ -1989,7 +2021,7 @@ có mặt là ép in một câu sai ở mọi hồ sơ chưa tới B10. Hai trư
 thôi ép, và ba mẫu bàn giao kèm phần mềm vẫn in cả hai. Chi tiết ở mục 6.4.
 
 > **Mười ba mục của mục 11.1 là yêu cầu của bảng CSBH XEM**, tức MÀN HÌNH chi tiết hồ sơ — nó vẫn
-> đủ cả mười ba. Đem nguyên yêu cầu ấy áp sang **mẫu do Quản trị vẽ** là chỗ `20/08` đọc quá lời. Cộng bốn mục nay tự chịu trách nhiệm, phép kiểm lúc lưu mẫu còn **9 trên 13**.
+> đủ cả mười ba. Đem nguyên yêu cầu ấy áp sang **mẫu do Quản trị vẽ** là chỗ `20/08` đọc quá lời. Cộng bốn mục nay tự chịu trách nhiệm, phép kiểm lúc lưu mẫu còn **9 trên 13** — và còn **7 trên 13** từ `01/09`.
 
 **Thông tin khách hàng đóng băng vào hồ sơ, và chữ ký huỷ khi trả lại** `mới 24/08` — tám trường
 khách hàng in trên bản CSBH (kể cả **công nợ**) cùng **họ tên người đề nghị** chụp lại vào hồ sơ lúc

@@ -160,16 +160,28 @@ export const phanCongCua = (
  */
 export const TRUONG_CHAN_LUC_GUI = [
   'ho_so.ma_so_thue',
-  'ho_so.chuc_danh_dai_dien',
-  'ho_so.dien_thoai',
+  /*
+   * `chuc_danh_dai_dien` và `dien_thoai` ĐÃ RA KHỎI DANH SÁCH (`0171`, chốt
+   * 31/08), và lý do là một luật chứ không phải một ý thích.
+   *
+   * Khách hàng bỏ hai trường ấy khỏi cả hai mẫu hồ sơ mặc định. Luật `0134` nói:
+   * **trường nào chặn gửi duyệt thì phải in ra ở đâu đó** — sinh ra sau khi
+   * `0128` thêm số điện thoại vào đây mà không mẫu nào in nó, khiến TDV bị bắt
+   * điền một ô không xuất hiện trên bất kỳ tờ giấy nào.
+   *
+   * Giữ phép chặn mà bỏ khỏi tờ giấy là dựng lại đúng cái hỏng ấy. Nên bỏ khỏi
+   * tờ giấy thì bỏ luôn khỏi đây — hai vế đi cùng nhau, và `0134` không phải nới
+   * một dòng nào.
+   *
+   * Hai trường VẪN CÒN trong hồ sơ khách hàng và vẫn khai được; chúng chỉ thôi
+   * CHẶN lượt gửi duyệt.
+   */
   'ho_so.ngay_ap_dung',
 ] as const;
 
 /** Nhãn người dùng đọc. Câu báo lỗi KHÔNG được lộ tên trường trong mã (`0088`). */
 const NHAN_CHAN: Record<(typeof TRUONG_CHAN_LUC_GUI)[number], string> = {
   'ho_so.ma_so_thue': 'Mã số thuế',
-  'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',
-  'ho_so.dien_thoai': 'Số điện thoại',
   'ho_so.ngay_ap_dung': 'Thời gian áp dụng',
 };
 
@@ -182,10 +194,12 @@ export function thieuTruongLucGui(
 ): void {
   const thieu: string[] = [];
   if (rong(kh.idNumber)) thieu.push('ho_so.ma_so_thue');
-  if (rong(kh.ownerTitle)) thieu.push('ho_so.chuc_danh_dai_dien');
-  // `0128` — cùng nhóm `chan-moi` với hai trường trên: rỗng thì bản CSBH in ra
-  // một ô trắng, mà TDV sửa được ở hồ sơ khách hàng.
-  if (rong(kh.phone)) thieu.push('ho_so.dien_thoai');
+  /*
+   * `ownerTitle` và `phone` THÔI BỊ CHẶN (`0171`) — xem `TRUONG_CHAN_LUC_GUI`.
+   * Tham số `kh` giữ nguyên hình dạng: `attach`/`detach` và hai chỗ khác đọc
+   * cùng kiểu ấy, và thu hẹp nó đi chỉ để bớt hai trường không ai đọc là một
+   * lượt sửa lan ra bốn tệp cho không thêm gì.
+   */
   if (rong(ho.applied_date)) thieu.push('ho_so.ngay_ap_dung');
   if (thieu.length === 0) return;
 

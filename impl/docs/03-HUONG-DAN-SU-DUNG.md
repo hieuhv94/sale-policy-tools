@@ -462,9 +462,9 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 
 - **Mã khách hàng không sửa được sau khi lưu.** Sửa được nó là mọi hồ sơ CSBH cũ lặng lẽ trỏ sang
   một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
-- **Số điện thoại** `mới 27/08` — biểu mẫu không bắt điền ngay, nhưng **hồ sơ CSBH của khách hàng
-  này sẽ không gửi duyệt được khi ô ấy còn trống**: số điện thoại in ra bản CSBH. Khách hàng lập
-  trước ngày 27/08 chưa ai khai số, nên lần gửi duyệt tới của họ sẽ đòi bổ sung.
+- **Số điện thoại** `sửa 01/09` — không bắt buộc, và **không còn chặn lượt gửi duyệt**: hai mẫu hồ
+  sơ mặc định thôi in số điện thoại nên không có ô trắng nào để lo. Trường vẫn ở đó, vẫn nên điền,
+  và mẫu nào muốn in vẫn đặt ô trống được.
 - Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
   điểm bán là chuyện có thật.
 - **Loại khách hàng thì sửa được** — xem ngay dưới đây.
@@ -770,9 +770,11 @@ khách hàng** đóng băng ngay lúc ấy, và mọi chỉnh sửa sau đó đ�
 > | Mục còn thiếu | Sửa ở đâu |
 > |---|---|
 > | **Mã số thuế** | Màn hình *Khách hàng* → mở khách hàng của hồ sơ → Sửa |
-> | **Chức danh người đại diện** | cùng chỗ trên |
-> | **Số điện thoại** `mới 27/08` | cùng chỗ trên |
 > | **Thời gian áp dụng** | ngay trên màn hình hồ sơ |
+>
+> **Chỉ còn hai mục** `sửa 01/09`. *Chức danh người đại diện* và *Số điện thoại* thôi bị chặn: hai
+> mẫu hồ sơ mặc định không in chúng nữa, nên chặn là bắt điền một thứ không xuất hiện trên tờ giấy
+> nào. Hai trường vẫn ở hồ sơ khách hàng và vẫn nên điền.
 >
 > Chặn ở đây chứ không ở lúc xem, vì đây là lúc bạn còn sửa được: hồ sơ vẫn là bản nháp và bản CSBH
 > chưa đi đâu cả. Sửa xong quay lại bấm *Gửi duyệt* là đi tiếp — không phải lập hồ sơ khác.
@@ -1785,21 +1787,26 @@ luôn ở trong tầm mắt.
   **Liberation Serif** — phông thay thế cùng số đo, vì Times New Roman là phông có bản quyền và
   không cài sẵn trên máy chủ Linux. Chữ nằm đúng chỗ ấy, chỉ khác nét; mở file bằng Word trên máy
   bạn thì ra đúng Times New Roman.
-- **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **10 mục** `sửa 24/08` ở phần *Yêu cầu
+- **Lưu bị chặn nếu thiếu mục bắt buộc.** Bản A4 phải có đủ **7 mục** `sửa 01/09` ở phần *Yêu cầu
   hiển thị file*; thông báo **kể tên từng mục còn thiếu** `sửa 24/08`, và bảng hướng dẫn bên phải
   gắn sẵn dấu *bắt buộc* vào đúng những mục ấy — không phải tải file lên rồi mới biết. (Trước 20/08 là 13 — mục *thông tin công ty* rời
   khỏi danh sách cùng lúc với khoá của nó, và giờ do người soạn tự chịu trách nhiệm.)
+  > **Ba mục nữa rời danh sách** `mới 01/09`: *Số hồ sơ*, *Tên khách hàng* và *File đính kèm* — khách
+  > hàng đã bỏ cả ba khỏi tờ mẫu của họ. Bạn **vẫn đặt ô được** nếu muốn in chúng; hệ thống chỉ thôi
+  > đòi. Cái mất phải biết: bản A4 dựng từ hai mẫu mặc định **không còn tên pháp nhân khách hàng** —
+  > dòng *Tên khách hàng* trên tờ giấy nay in **tên người đại diện**, kèm địa chỉ và mã số thuế.
   > **Bỏ ép *Trạng thái* và *Thời gian duyệt*** `mới 24/08`. Hai mục ấy **còn đổi** trong lúc hồ sơ
   > đi qua luồng duyệt: bản mềm xem ở bước Trưởng bộ phận ký sẽ in ra *Chờ kế toán duyệt lần 1* và
   > một ô *Thời gian duyệt* trống — ép mẫu phải có chúng là ép in ra một câu sai. Bạn **vẫn đặt ô
   > được** nếu muốn, và ba mẫu soạn sẵn kèm phần mềm vẫn in cả hai.
-- **Có sẵn một mẫu mặc định cho mỗi khổ** ngay khi triển khai, để không phải chờ ai soạn mẫu mới xem
-  được bản mềm. Chúng luôn nằm **cuối** danh sách.
-- **Bộ file mẫu soạn sẵn** trong thư mục `templates/` của bộ mã: `mau-ho-so-a4-doc.docx`,
-  `mau-ho-so-a4-ngang.docx`, một bản **rút gọn** gần sát mức tối thiểu (từ 24/08 nó rộng hơn đúng
-  hai ô: *Trạng thái* và *Thời gian duyệt*, hai mục vừa thôi bị ép), và
-  `mau-hop-dong-a4-doc.docx`. Tải một file về, sửa câu chữ trong Word, rồi tải lên. Bản demo
-  (`make demo-mau`) nạp sẵn ba file đầu; mẫu hợp đồng thì không, ai cần tự tải lên.
+- **Ba mẫu mặc định, một cho mỗi loại** `sửa 30/08` — *Hồ sơ mẫu đầy đủ (bản mặc định)*, *Hồ sơ mẫu
+  rút gọn (bản mặc định)* và *Hợp đồng (bản mặc định)*. Chúng nạp **lúc hệ thống khởi động**, không
+  cần `make demo-mau` lẫn `./csbh nap-danh-muc`. Vô hiệu hoá một mẫu mặc định thì nó **nằm im**,
+  không mọc lại ở lần khởi động sau.
+- **Bộ file mẫu soạn sẵn** ở `templates/default/` của bộ mã: `ho-so-day-du.docx`,
+  `ho-so-rut-gon.docx`, `hop-dong.docx` — đúng ba file phần mềm tự nạp. Tải một mẫu về từ màn hình
+  *Văn bản mẫu*, sửa câu chữ trong Word, rồi tải lên thành mẫu mới; **tên mẫu phải khác** vì hệ
+  thống cấm hai mẫu trùng tên trong cùng một loại.
 
 ##### Chọn cột của bảng sản phẩm `mới 20/08`
 

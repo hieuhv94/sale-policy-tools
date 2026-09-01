@@ -15,7 +15,9 @@ import {
   createTestApp as createPolicyApp,
   CatalogImpactConsumer,
   Clients,
+  TRUONG_CHAN_LUC_GUI,
 } from '@csbh/policy/testing';
+import { NHOM_TRUONG } from '@csbh/document/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -4389,30 +4391,45 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     expect(r.body.message).not.toContain('ho_so.');
   }, 60_000);
 
-  it('thiếu CHỨC DANH người đại diện thì không gửi duyệt được', async () => {
-    const d = await draft({ customerId: await khachThieu('ownerTitle') });
-    const r = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(r.status).toBe(422);
-    expect(r.body.thieu).toEqual(['Chức danh người đại diện']);
-  }, 60_000);
-
-  it('`0128` thiếu SỐ ĐIỆN THOẠI thì không gửi duyệt được', async () => {
+  it('`0171` thiếu CHỨC DANH hoặc SỐ ĐIỆN THOẠI thì VẪN gửi duyệt được', async () => {
     /*
-     * Cùng nhóm `chan-moi` với hai trường trên: số điện thoại in ra bản CSBH, mà
-     * TDV sửa được ở hồ sơ khách hàng — nên rỗng thì chặn, không phải in một ô
-     * trắng lên tờ giấy sắp đưa đi ký.
+     * Ca này ĐẢO NGƯỢC hai ca của `0104` và `0128`, và chỗ đảo là một luật chứ
+     * không phải một ý thích.
      *
-     * Hệ quả vận hành đi kèm, đã ghi ở migration `0105`: khách hàng lập trước
-     * `0128` chưa ai khai số thì hồ sơ mới của họ chưa gửi duyệt được.
+     * Khách hàng chốt 31/08 bỏ *chức danh người đại diện* và *số điện thoại* khỏi
+     * cả hai mẫu hồ sơ mặc định. Luật `0134` nói: **trường nào chặn gửi duyệt thì
+     * phải in ra ở đâu đó** — nó sinh ra sau khi `0128` thêm số điện thoại vào
+     * danh sách chặn mà không mẫu nào in con số ấy, khiến TDV bị bắt điền một ô
+     * không xuất hiện trên bất kỳ tờ giấy nào.
+     *
+     * Giữ phép chặn mà bỏ khỏi tờ giấy là dựng lại đúng cái hỏng ấy. Nên hai vế
+     * đi cùng nhau, và `0134` không phải nới một dòng nào.
+     *
+     * Hai trường VẪN CÒN trong hồ sơ khách hàng và vẫn khai được — chúng chỉ
+     * thôi CHẶN.
      */
-    const d = await draft({ customerId: await khachThieu('phone') });
-    const r = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(r.status).toBe(422);
-    expect(r.body.thieu).toEqual(['Số điện thoại']);
-    expect(r.body.message).toContain('hồ sơ khách hàng');
-    // `0088` — không lộ tên trường trong mã.
-    expect(r.body.message).not.toContain('phone');
-  }, 60_000);
+    for (const bo of ['ownerTitle', 'phone'] as const) {
+      const d = await draft({ customerId: await khachThieu(bo) });
+      const r = await act(d.id, 'SUBMIT', 'tdv01');
+      expect(r.status, `thiếu ${bo} mà vẫn phải gửi được: ${JSON.stringify(r.body)}`).toBe(200);
+      expect(r.body.status).toBe('CHO_TBP_DUYET');
+    }
+  }, 90_000);
+
+  it('`0171` hai trường ấy KHÔNG còn trong danh sách chặn, ở cả hai bảng', () => {
+    /*
+     * Chiều đối chiếu, và nó canh chỗ hai bảng trôi khỏi nhau: `document` phân
+     * loại trường (`NHOM_TRUONG`), `policy` thực thi phép chặn
+     * (`TRUONG_CHAN_LUC_GUI`). Bỏ ở một bên mà quên bên kia thì hoặc `0134` đỏ,
+     * hoặc phép chặn sống sót ở một chỗ không ai ngờ.
+     */
+    for (const truong of ['ho_so.chuc_danh_dai_dien', 'ho_so.dien_thoai']) {
+      expect(TRUONG_CHAN_LUC_GUI as readonly string[], truong).not.toContain(truong);
+      expect(NHOM_TRUONG[truong], `${truong} phải sang nhóm de-trong`).toBe('de-trong');
+    }
+    // Và hai trường CÒN LẠI thì vẫn chặn — không nới quá tay.
+    expect([...TRUONG_CHAN_LUC_GUI].sort()).toEqual(['ho_so.ma_so_thue', 'ho_so.ngay_ap_dung']);
+  });
 
   it('`0128` số điện thoại ĐÓNG BĂNG vào hồ sơ lúc gửi duyệt', async () => {
     /*

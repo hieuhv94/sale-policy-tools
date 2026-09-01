@@ -14770,3 +14770,102 @@ Cùng loại chỗ trống với `0152` (thứ tự thanh bên) và `0153` (kh�
 | `chiKhoi` thôi lọc — cả ba khối dựng ở CẢ HAI chỗ | 3 đỏ |
 
 **1966/1966 xanh.**
+
+---
+
+## P199 — `0171` hai mẫu hồ sơ mặc định bỏ bốn dòng, và hai chốt chặn gửi duyệt gỡ theo
+
+Yêu cầu: *"sửa lại văn bản hồ sơ mặc định cả đầy đủ và rút gọn trong default: bỏ số hồ sơ, người đại
+diện, và số điện thoại; tên khách hàng là `{{tên người đại diện}} - …` chứ không phải
+`{{tên khách hàng}} - …`; bỏ dòng File đính kèm"*.
+
+Nghe như một lượt sửa hai file `.docx`. Nó chạm bốn tầng, và chỗ đắt nhất không nằm ở file nào.
+
+### "Bỏ người đại diện" không phải bỏ người đại diện
+
+Câu thứ nhất và câu thứ hai của khách hàng **nói về cùng một người, ngược chiều nhau**: dòng *Người
+đại diện* biến mất, nhưng dòng *Tên khách hàng* thì thôi in tên pháp nhân và **in chính tên người đại
+diện**. Đọc riêng câu đầu rồi gỡ `{{ho_so.nguoi_dai_dien}}` khỏi mẫu là làm sai cả hai.
+
+Khối thông tin của cả hai mẫu còn đúng **bốn dòng**: *Mã khách hàng* · *Tên khách hàng* (= tên người
+đại diện — địa chỉ đăng ký — MST) · *Công nợ* · *Thời gian áp dụng*.
+
+Cái mất là thật, và tôi đã nêu ra trước khi làm: **bản CSBH in ra không còn tên pháp nhân của khách
+hàng ở bất kỳ đâu**. Còn mã khách hàng và mã số thuế — thứ định danh pháp lý — nên khách hàng chốt
+như vậy.
+
+### Ba mục rời `NGUON_BAT_BUOC_HO_SO`, và hai trong ba là thứ chính tôi chèn vào
+
+`ma_ho_so`, `ten_khach_hang`, `tep_dinh_kem`. Phép kiểm lúc lưu mẫu còn **7 trên 13 mục** của muc
+11.1, không còn 10.
+
+Đáng ghi ở chỗ: tờ mẫu khách hàng gõ tay hồi `0165` **không có** *Số hồ sơ* lẫn *File đính kèm*. Tôi
+chèn hai dòng ấy vào đúng vì danh sách này đòi — và bây giờ họ đòi lại bản vẽ của mình. Nên lượt này
+**danh sách là thứ phải nhường**, không phải tờ giấy. Ba mục vẫn ở lại `SCALAR`: mẫu nào muốn in vẫn
+đặt ô trống được, hệ thống chỉ thôi ÉP.
+
+### Chỗ đắt nhất: hai chốt chặn gửi duyệt phải gỡ theo, và đó là một LUẬT
+
+`chuc_danh_dai_dien` (chốt `0104`) và `dien_thoai` (chốt `0128`) không nằm trong yêu cầu. Nhưng
+`0134` đã viết ra luật ràng buộc chúng: **trường nào chặn gửi duyệt thì phải in ra ở đâu đó** — chính
+ca kiểm ấy sinh ra vì `0128` thêm một trường chặn mà không mẫu nào in nó, khiến TDV bị bắt điền một ô
+không xuất hiện trên bất kỳ tờ giấy nào.
+
+Bỏ hai trường khỏi tờ giấy mà giữ phép chặn là **dựng lại đúng cái hỏng ấy**. Hai vế đi cùng nhau, và
+`0134` không phải nới một dòng nào.
+
+Đây là chỗ duy nhất tôi dừng lại hỏi, vì bỏ chặn là đổi một luật nghiệp vụ khách hàng chốt ngày
+24/08 và 27/08 — họ trả lời **"thôi bắt buộc luôn"**. Còn lại **hai** trường chặn: *Mã số thuế* và
+*Thời gian áp dụng*.
+
+### Nhóm thứ NĂM trong `NHOM_TRUONG`, không phải chuyển sang nhóm có sẵn
+
+Hai trường ấy phải rời nhóm `chan-moi`, và không nhóm nào trong bốn nhóm cũ nhận được chúng:
+
+| Nhóm | Vì sao KHÔNG |
+|---|---|
+| `luon-co` | sai — hai cột ấy rỗng được, và rỗng thật ở phần lớn khách cũ |
+| `chan-san` | sai — không có chốt chặn nào khác ở chỗ khác |
+| `dien-sau` | sai — **không bước nào sau này điền chúng**; đó là câu nhóm ấy trả lời |
+
+Nên có `de-trong`: *rỗng lúc gửi là chấp nhận được, và không ai chặn*. Một nhóm mới đắt hơn một dòng
+chuyển chỗ, nhưng nhét chúng vào `dien-sau` là ghi vào bảng phân loại một câu **sai sự thật**, và
+bảng ấy là thứ `0134` với `0104` đọc để trả lời cả hai câu hỏi *"ai chặn"* và *"bước nào sinh ra"*.
+
+### `thieuTruongLucGui` giữ nguyên hình dạng tham số
+
+Bỏ `ownerTitle`/`phone` khỏi kiểu tham số là một lượt sửa lan ra bốn tệp — `attach`/`detach` và hai
+chỗ nữa đọc cùng kiểu ấy — cho không thêm gì. Chúng ở lại, có chú thích nói vì sao.
+
+### Ca kiểm mới ghim NỘI DUNG hai mẫu, không ghim tên
+
+`bo-mau.test.ts` đã ghim tên mẫu và tên file từ `0165`. Lượt này thêm một ca đọc **danh sách ô trống
+thật trong zip** (`placeholdersOf`) rồi `toEqual` với đúng 12 khoá đã chốt. Nó canh cả hai chiều: sửa
+mẫu mà quên danh sách là đỏ, sửa danh sách mà quên mẫu cũng đỏ — và **hai vế nằm ở hai thế giới**
+(TypeScript và một file zip nhị phân), đúng loại lệch mà `0134` đã phải trả giá một lần.
+
+Ba ca của `0104`/`0128` khẳng định hai trường ấy CHẶN được thay bằng hai ca khẳng định chúng **không
+còn chặn** — một ca gọi thật qua HTTP, một ca đối chiếu `TRUONG_CHAN_LUC_GUI` với `NHOM_TRUONG` ở cả
+hai bảng.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả `chuc_danh_dai_dien` + `dien_thoai` về `TRUONG_CHAN_LUC_GUI` | 2 đỏ |
+| Trả ba mục về `NGUON_BAT_BUOC_HO_SO` | 1 đỏ (`0057`) |
+| Đảo `{{ho_so.nguoi_dai_dien}}` → `{{ho_so.ten_khach_hang}}` trong `ho-so-day-du.docx` | 1 đỏ (ca mới) |
+
+> **BẪY, và tôi suýt đọc nhầm kết quả:** lượt phá lại thứ ba lần đầu **không hề xảy ra** —
+> `templates/default/` là `root:root`, script Python ném `PermissionError` rồi bộ kiểm chạy tiếp trên
+> file NGUYÊN VẸN và in ra `11 passed`. Một phá lại mà bản sửa không ghi được **trông giống hệt** một
+> phá lại xanh. Phải ghi đè qua `docker run -u 0` mới thật sự đảo được, và lúc ấy nó đỏ.
+
+### Nghiệm thu bằng cách IN RA GIẤY
+
+Dựng cả hai mẫu qua `mergeDocx` với dữ liệu mẫu rồi đẩy qua Gotenberg: **mỗi bản một trang**, khối
+thông tin đúng bốn dòng, dòng *Tên khách hàng* in `Nguyễn Thị B – Số nhà 5… – MST 23457689`, không
+còn *Số hồ sơ* lẫn *File đính kèm*. Bốn file `.docx` đổi (hai bản `default/` và hai bản chép ở
+`templates/`).
+
+**1967/1967 xanh.**

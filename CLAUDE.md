@@ -85,9 +85,28 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (30/08/2026)
+## Trạng thái hiện tại (01/09/2026)
 
-Chặng gần nhất **P198** (`0170`): ***Bản mềm* và *Bản cứng* xuống cuối trang hồ sơ**, ngay trên
+Chặng gần nhất **P199** (`0171`): **hai mẫu hồ sơ mặc định bỏ bốn dòng, và HAI CHỐT CHẶN gửi duyệt gỡ
+theo**. *"Bỏ người đại diện"* KHÔNG phải bỏ người đại diện: câu kế tiếp bảo dòng *Tên khách hàng* in
+chính tên ấy — hai câu nói về cùng một người, ngược chiều nhau, đọc riêng câu đầu là làm sai cả hai.
+Khối thông tin còn **bốn dòng**; **bản CSBH thôi mang tên pháp nhân khách hàng** ở bất kỳ đâu (còn mã
+khách và MST — khách hàng đã chốt khi được nêu). `NGUON_BAT_BUOC_HO_SO` mất ba mục, phép kiểm lúc lưu
+mẫu còn **7/13** của muc 11.1 — và **hai trong ba là thứ chính tôi chèn vào ở `0165`** vì danh sách ấy
+đòi, trong khi tờ mẫu họ gõ tay không có; nên **danh sách là thứ phải nhường**. Chỗ đắt nhất nằm ngoài
+yêu cầu: `chuc_danh_dai_dien` (`0104`) và `dien_thoai` (`0128`) phải thôi chặn, vì `0134` đã viết ra
+luật **trường nào chặn gửi duyệt thì phải in ra ở đâu đó** — giữ chặn mà bỏ khỏi tờ giấy là dựng lại
+đúng cái hỏng `0134` sinh ra để chống. Đây là chỗ duy nhất dừng hỏi, khách hàng đáp *"thôi bắt buộc
+luôn"*; còn **hai** trường chặn. Hai trường ấy cần **nhóm THỨ NĂM `de-trong`** chứ không chuyển vào
+nhóm có sẵn: `dien-sau` khẳng định *"bước nào đó sau này điền"* — một câu **sai sự thật** ở đây, và
+`0134`/`0104` đọc bảng ấy để trả lời hai câu hỏi khác nhau. Ca kiểm mới ghim **NỘI DUNG** hai mẫu (đọc
+`placeholdersOf` trong zip, `toEqual` 12 khoá) vì hai vế ở hai thế giới — TypeScript và một file nhị
+phân. **BẪY, suýt đọc nhầm:** phá lại lượt ba **không hề xảy ra** — `templates/default/` là `root:root`
+nên script ném `PermissionError` rồi bộ kiểm chạy trên file NGUYÊN VẸN và in `11 passed`; **một phá lại
+mà bản sửa không ghi được trông giống hệt một phá lại xanh**, phải `docker run -u 0`. **1967/1967
+xanh.**
+
+Trước đó **P198** (`0170`): ***Bản mềm* và *Bản cứng* xuống cuối trang hồ sơ**, ngay trên
 *Lịch sử*. `TepDinhKem` dựng CẢ BA khối trong một lượt gọi, nên việc này là **tách component ra hai
 chỗ trên trang** (prop `chiKhoi`). Có đường rẻ hơn — đẩy *Hồ sơ pháp lý* lên trên cả cụm, giữ một lượt
 gọi — nhưng nó **lặng lẽ đẩy *Giấy tờ hồ sơ* xuống theo**, một khối khách hàng không nhắc tới; và chỗ
@@ -785,9 +804,15 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   là yêu cầu của **màn hình chi tiết hồ sơ** (`ChiTietHoSo.tsx`) — DOC-03 đọc chúng ra từ PDF dựng
   bằng `mau-ho-so-a4-doc.docx`, không từ một đường dựng nào của hệ thống (`0103` sửa lại câu này:
   bản `0102` chỉ sai chỗ `render/sheet.ts`, thứ chỉ phục vụ bản lưu ký số). Mẫu do Quản trị vẽ chỉ
-  bị ép **9/13**: *thông tin công ty* cố định, *CPBH* do người soạn quyết, còn *trạng thái* và
-  *thời gian duyệt* thì **còn đang đổi** lúc dựng văn bản. Bỏ ÉP không phải bỏ TRƯỜNG — hai khoá vẫn
+  bị ép **7/13** (`0171`, trước là 9/13): *thông tin công ty* cố định, *CPBH* do người soạn quyết,
+  *trạng thái* và *thời gian duyệt* **còn đang đổi** lúc dựng văn bản, còn *tên khách hàng* với *file
+  đính kèm* thì **khách hàng đã bỏ khỏi tờ giấy của họ**. Bỏ ÉP không phải bỏ TRƯỜNG — mọi khoá vẫn
   trong `SCALAR`, và gỡ nhầm chúng ở đó thì ba mẫu bàn giao trả `400 SOURCE_UNKNOWN` lúc lưu.
+- **Trường nào CHẶN gửi duyệt thì phải IN RA ở đâu đó** (`0134`, `0171`). Hai vế đi cùng nhau: `0128`
+  thêm một trường chặn mà không mẫu nào in nó, và `0171` bỏ hai trường khỏi tờ giấy nên phải bỏ luôn
+  phép chặn. Còn **hai** trường chặn — *Mã số thuế* và *Thời gian áp dụng*. `NHOM_TRUONG` vì thế có
+  nhóm thứ NĂM `de-trong` (*rỗng lúc gửi là chấp nhận được, không ai chặn*): nhét chúng vào `dien-sau`
+  là ghi vào bảng phân loại một câu sai sự thật — không bước nào sau này điền chúng.
 - **"Chưa biết lúc gửi" và "không được phép in" là HAI câu hỏi** (`0104`). `NHOM_TRUONG` chỉ trả lời
   câu thứ nhất: bảy trường `dien-sau` rỗng lúc gửi duyệt là đúng, nhưng chúng **vẫn ở lại** danh mục
   ánh xạ vì chúng là khối phê duyệt của tờ CSBH. Gỡ khỏi `SCALAR` thì ba mẫu bàn giao trả

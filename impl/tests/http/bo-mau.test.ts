@@ -23,7 +23,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAU_MAC_DINH } from '@csbh/document/testing';
+import { MAU_MAC_DINH, placeholdersOf } from '@csbh/document/testing';
 import { BO_MAU, THU_MUC } from '../../scripts/tao-mau-ho-so.js';
 
 const GOC = `${THU_MUC}/default`;
@@ -89,6 +89,46 @@ describe('`0165` ba mẫu mặc định', () => {
      */
     const ten = MAU_MAC_DINH.map((m) => m.ten);
     expect(new Set(ten).size, `tên trùng nhau: ${ten.join(' · ')}`).toBe(ten.length);
+  });
+
+  it('`0171` hai mẫu HỒ SƠ in ĐÚNG những trường khách hàng đã chốt', () => {
+    /*
+     * Bố cục tờ giấy là một YÊU CẦU, và tới `0171` không ca nào canh nó. `0134`
+     * chỉ hỏi *"mọi trường CHẶN gửi duyệt có được in không"* — sau `0171` nhóm ấy
+     * còn hai trường, cả hai đều có mặt, nên nó xanh với bất kỳ tờ giấy nào. Bỏ
+     * thêm một dòng, hay đưa `Số hồ sơ` quay lại, đều không làm gì đỏ.
+     *
+     * Ca này ghim CẢ TẬP ô trống, hai chiều. Khách hàng chốt 31/08 bỏ bốn thứ:
+     *
+     *   `ho_so.ma_ho_so` · `ho_so.phien_ban`   dòng *Số hồ sơ*
+     *   `ho_so.chuc_danh_dai_dien`             \ một dòng *Người đại diện · ĐT*
+     *   `ho_so.dien_thoai`                     /
+     *   `ho_so.tep_dinh_kem`                   dòng *File đính kèm*
+     *   `ho_so.ten_khach_hang`                 thay bằng `nguoi_dai_dien`
+     *
+     * Ghim bằng `toEqual` trên tập ĐÃ SẮP chứ không `toContain` từng cái: chiều
+     * "thiếu" và chiều "thừa" đều là hỏng, và chiều thừa mới là chiều một lượt
+     * dựng lại mẫu dễ mắc.
+     */
+    const MONG = [
+      'bang_san_pham',
+      'ho_so.cong_no',
+      'ho_so.dia_chi_dang_ky',
+      'ho_so.ke_toan',
+      'ho_so.ma_khach_hang',
+      'ho_so.ma_so_thue',
+      'ho_so.ngay_ap_dung',
+      'ho_so.ngay_kt_nhan_l1',
+      'ho_so.ngay_tbp_ky',
+      // Dòng *Tên khách hàng* in TÊN NGƯỜI ĐẠI DIỆN, không phải tên khách hàng.
+      'ho_so.nguoi_dai_dien',
+      'ho_so.nguoi_de_nghi',
+      'ho_so.truong_bo_phan',
+    ];
+    for (const m of MAU_MAC_DINH.filter((x) => x.kind !== 'HOP_DONG')) {
+      const o = placeholdersOf(readFileSync(`${GOC}/${m.tep}`)).map((x) => x.slice(2, -2));
+      expect([...o].sort(), m.tep).toEqual(MONG);
+    }
   });
 
   it('mẫu HỢP ĐỒNG mặc định là BẢN SAO đúng byte của `mau-hop-dong-a4-doc.docx`', () => {

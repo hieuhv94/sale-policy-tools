@@ -135,6 +135,13 @@ export const KNOWN_SOURCES: string[] = Object.keys(SCALAR);
  *   `chan-san`    Đã có chốt chặn từ trước `0104`, ở chỗ khác. Chỉ `truong_bo_phan`
  *                 (muc 2.9: chưa gán TBP thì không gửi được).
  *   `dien-sau`    Rỗng lúc gửi là ĐÚNG. Bước nào sinh ra thì ghi trong bảng dưới.
+ *   `de-trong`    Rỗng lúc gửi là CHẤP NHẬN ĐƯỢC, và không ai chặn (`0171`).
+ *                 Khác `luon-co` ở chỗ nó CÓ THỂ rỗng thật; khác `dien-sau` ở
+ *                 chỗ không bước nào sinh ra nó — người ta chỉ đơn giản không
+ *                 bắt buộc phải khai. Nhóm này ra đời khi khách hàng bỏ *chức
+ *                 danh người đại diện* và *số điện thoại* khỏi cả hai mẫu hồ sơ:
+ *                 bỏ khỏi tờ giấy thì phải bỏ luôn khỏi phép chặn (luật `0134`),
+ *                 mà bốn nhóm cũ không có chỗ nào nói đúng trạng thái ấy.
  *
  * BẢY TRƯỜNG `dien-sau` VẪN Ở LẠI TRONG `SCALAR` (chốt 24/08). Đã cân nhắc gỡ
  * chúng khỏi danh mục ánh xạ cho gọn, rồi bỏ ý ấy: chúng chính là KHỐI PHÊ DUYỆT
@@ -151,7 +158,7 @@ export const KNOWN_SOURCES: string[] = Object.keys(SCALAR);
  * Thêm một khoá vào `SCALAR` mà quên xếp nhóm là ĐỎ — tức là bị buộc phải trả
  * lời "trường này bắt buộc lúc gửi, hay điền sau?".
  */
-export type NhomTruong = 'luon-co' | 'chan-moi' | 'chan-san' | 'dien-sau';
+export type NhomTruong = 'luon-co' | 'chan-moi' | 'chan-san' | 'dien-sau' | 'de-trong';
 
 export const NHOM_TRUONG: Record<string, NhomTruong> = {
   // --- Luôn có -------------------------------------------------------------
@@ -170,9 +177,16 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
 
   // --- Chặn lúc gửi duyệt --------------------------------------------------
   'ho_so.ma_so_thue': 'chan-moi', //        cus.customer.id_number NULL được
-  'ho_so.chuc_danh_dai_dien': 'chan-moi', //owner_title NULL được
-  'ho_so.dien_thoai': 'chan-moi', //        cus.customer.phone NULL được (`0128`)
   'ho_so.ngay_ap_dung': 'chan-moi', //      applied_date NULL được ở máy chủ
+
+  // --- Để trống được ------------------------------------------------------
+  //
+  // `0171` — khách hàng bỏ hai trường này khỏi cả hai mẫu hồ sơ mặc định, nên
+  // chúng ra khỏi `chan-moi` cùng lúc. Giữ phép chặn mà bỏ khỏi tờ giấy là dựng
+  // lại đúng cái `0134` sinh ra để bắt: một ô bắt buộc điền mà không xuất hiện
+  // trên bất kỳ bản in nào.
+  'ho_so.chuc_danh_dai_dien': 'de-trong', //  owner_title NULL được
+  'ho_so.dien_thoai': 'de-trong', //          cus.customer.phone NULL được (`0128`)
 
   // --- Đã chặn sẵn ---------------------------------------------------------
   'ho_so.truong_bo_phan': 'chan-san', //    muc 2.9, chặn từ P5
@@ -260,16 +274,36 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
  */
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
   'ho_so.ma_khach_hang',
-  'ho_so.ten_khach_hang',
   'ho_so.cong_no',
-  'ho_so.ma_ho_so',
   'ho_so.ngay_ap_dung',
-  'ho_so.tep_dinh_kem',
   'ho_so.nguoi_de_nghi',
   'ho_so.truong_bo_phan',
   'ho_so.ke_toan',
   'ho_so.ngay_tbp_ky',
 ];
+
+/*
+ * BA MỤC RỜI KHỎI DANH SÁCH Ở `0171`, chốt 31/08 — và đây là chỗ phải đọc kỹ.
+ *
+ *   `ho_so.ma_ho_so`      dòng *Số hồ sơ*
+ *   `ho_so.ten_khach_hang` dòng *Tên khách hàng* giờ in TÊN NGƯỜI ĐẠI DIỆN
+ *   `ho_so.tep_dinh_kem`   dòng *File đính kèm*
+ *
+ * Khách hàng bỏ cả ba khỏi hai mẫu hồ sơ mặc định. Hai trong ba là thứ chính tôi
+ * THÊM VÀO ở `0165`: tờ mẫu họ gõ tay không có *Số hồ sơ* lẫn *File đính kèm*,
+ * và tôi chèn vào đúng vì danh sách này đòi. Nên lượt này là họ đòi lại bản vẽ
+ * của mình, và danh sách mới là thứ phải nhường.
+ *
+ * PHÉP KIỂM CÒN 7/13 MỤC của muc 11.1, không còn 10. Nói ra con số ấy vì một bảo
+ * đảm 7/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 7/13 đã biết — và cái
+ * tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký. Ba mục vừa rời khỏi đây **vẫn ở
+ * lại `SCALAR`**: mẫu nào muốn in vẫn đặt ô trống được, hệ thống chỉ thôi ÉP.
+ *
+ * `ten_khach_hang` là mục mất mát thật sự đáng cân nhắc — từ `0171` bản CSBH in
+ * ra KHÔNG còn tên pháp nhân của khách hàng ở đâu, chỉ còn tên người đại diện,
+ * địa chỉ và mã số thuế. Mã khách hàng thì vẫn còn, và mã số thuế là thứ định
+ * danh pháp lý; khách hàng đã chốt như vậy.
+ */
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);
 

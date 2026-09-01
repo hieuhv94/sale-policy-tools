@@ -1521,11 +1521,32 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
    * Ánh xạ suy từ tên ô trống như mọi chỗ khác; thân mẫu mặc định là "đủ 12 mục
    * + ô bảng sản phẩm", nên ca nào muốn kiểm đường HỎNG thì tự truyền thân khác.
    */
+  /*
+   * Ô TRỐNG của mẫu fixture — danh sách bắt buộc CỘNG mấy trường ca kiểm đọc.
+   *
+   * Tới `0170` mẫu fixture dựng thẳng từ `NGUON_BAT_BUOC_HO_SO`, và điều đó đúng
+   * chừng nào danh sách ấy còn chứa mọi trường mà ca kiểm khẳng định. `0171` gỡ
+   * `ten_khach_hang` khỏi danh sách — nó thôi BẮT BUỘC nhưng vẫn in được — và
+   * năm ca của `0101` đỏ cùng lúc, tất cả vì tờ giấy thôi mang cái tên chúng đi
+   * tìm.
+   *
+   * Hai chuyện khác nhau: *"mẫu tối thiểu phải có gì"* và *"mẫu fixture in gì"*.
+   * Trộn chúng vào một danh sách là mỗi lượt nới luật kéo theo một loạt ca đỏ ở
+   * chỗ chẳng liên quan. Nên fixture khai thêm phần nó cần.
+   */
+  const O_MAU_FIXTURE = [
+    ...NGUON_BAT_BUOC_HO_SO,
+    // `0101` đọc ba trường này ra khỏi bản mềm để kiểm phép ĐÓNG BĂNG.
+    'ho_so.ten_khach_hang',
+    'ho_so.dia_chi_dang_ky',
+    'ho_so.chu_ky_so_TBP',
+  ];
+
   const luuMauHoSo = async (name: string, buf?: Buffer) => {
     const than =
       buf ??
       makeDocx(
-        [...NGUON_BAT_BUOC_HO_SO.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
+        [...O_MAU_FIXTURE.map((n) => para(`{{${n}}}`)), para('{{bang_san_pham}}')].join(''),
       );
     return (await http(doc))
       .post('/policy-templates')
@@ -1698,11 +1719,14 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
      * ra, chưa đóng, và sửa thêm một ô trống là xong. Báo ở bước sau nghĩa là họ
      * đã coi như xong việc rồi mới bị gọi lại.
      */
-    const r = await luuMauHoSo('Mau thieu muc', makeDocx(para('{{ho_so.ten_khach_hang}}')));
+    // Ô trống đem thử phải là một trường CÒN bắt buộc: `0171` gỡ `ten_khach_hang`
+    // khỏi danh sách, nên mẫu chỉ có ô ấy giờ thiếu CẢ MƯỜI mục và ca kiểm không
+    // còn nói được gì về "thiếu một mục".
+    const r = await luuMauHoSo('Mau thieu muc', makeDocx(para('{{ho_so.ma_khach_hang}}')));
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_MISSING_REQUIRED');
     // Nói RÕ thiếu gì, không chỉ nói "thiếu": Quản trị phải sửa được ngay.
-    expect(r.body.thieuTruong).toContain('ho_so.ma_ho_so');
+    expect(r.body.thieuTruong).toContain('ho_so.cong_no');
     expect(r.body.thieuBangSanPham).toBe('{{bang_san_pham}}');
   }, 120_000);
 
@@ -1977,9 +2001,19 @@ describe('`0057` bộ file mẫu trong templates/', () => {
      * bước lưu.
      */
     const o = new Set(placeholdersOf(readFileSync('templates/mau-ho-so-a4-doc-rut-gon.docx')));
-    // MƯỜI HAI từ `0067` (mục *thông tin công ty* rời cùng nhóm khoá `cong_ty.`),
-    // MƯỜI từ `0102` — *trạng thái* và *thời gian duyệt* thôi bị ép.
-    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 10 mục').toBe(10);
+    /*
+     * Con số này CHỈ ĐI XUỐNG, và mỗi lần xuống đều là một quyết định của khách
+     * hàng — nên nó bị ghim, không phải để chặt chẽ mà để mỗi lượt nới phải đi
+     * qua một dòng người sửa buộc nhìn thấy:
+     *
+     *   13  muc 11.1 nguyên văn
+     *   12  `0067` — *thông tin công ty* rời cùng nhóm khoá `cong_ty.`
+     *   11  `0084` — *CPBH* do người soạn tự chịu (cột `cpbh_tong` tắt được)
+     *   10  `0102` — *trạng thái* và *thời gian duyệt* còn ĐANG ĐỔI lúc dựng
+     *    7  `0171` — *số hồ sơ*, *tên khách hàng*, *file đính kèm* rời khỏi hai
+     *       mẫu mặc định theo yêu cầu 31/08
+     */
+    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 7 mục').toBe(7);
     for (const n of NGUON_BAT_BUOC_HO_SO) {
       expect(o.has(`{{${n}}}`), `mẫu rút gọn thiếu {{${n}}}`).toBe(true);
     }
