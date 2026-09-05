@@ -12,10 +12,11 @@
  * lúc hồ sơ còn nháp", một câu vô lý với chính người vừa làm việc đó. Bản cứng
  * là bản giấy đã ký, chưa tồn tại cho tới bước B8.
  *
- * Hai khối, mỗi khối một loại tệp:
+ * Hai khối, mỗi khối một loại tệp (`sửa 0172` — khối thứ ba, *Giấy tờ hồ sơ*,
+ * đã bỏ; xem `KHOI` bên dưới):
  *
- *   *Giấy tờ hồ sơ* — `HO_SO`, TDV đính lúc lập, chỉ khi hồ sơ còn sửa được.
- *   *Bản cứng*      — `SCAN`, Sale Admin tải lên ở bước *Sale Admin đang xử lý*.
+ *   *Bản mềm*  — `BAN_MEM`, Sale Admin DỰNG TỪ MẪU ở bước *Sale Admin đang xử lý*.
+ *   *Bản cứng* — `SCAN`, Sale Admin tải lên ở cùng bước ấy.
  *
  * Khối rỗng vẫn hiện, kèm một câu nói **ai** tải lên và **lúc nào**. Ẩn nó đi
  * thì câu hỏi "bản cứng đâu" không có chỗ nào trả lời; để nó rỗng không lời thì
@@ -30,7 +31,7 @@
  * thành một là bắt `policy` đụng vào MinIO, và `document` phải biết luật nghiệp
  * vụ của hồ sơ.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { dang, guiTep, layJson, taiVe, xoa } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
 import { BaoLoi, HopThoaiXacNhan } from './Chung.js';
@@ -49,21 +50,41 @@ export type TepDto = {
 
 type FileDto = { id: string; objectKey: string };
 
-const NHAN_LOAI: Record<string, string> = {
-  HO_SO: 'Hồ sơ',
-  SCAN: 'Bản scan',
-  BAN_MEM: 'Bản mềm',
-};
+/*
+ * `NHAN_LOAI` ĐÃ GỠ (`0172`) — nó là mã chết từ `0097`, lượt đưa loại tệp lên
+ * TIÊU ĐỀ KHỐI: mỗi khối chỉ chứa một loại, nên in lại cái tên ấy trên từng thẻ
+ * là in một chữ giống hệt nhau lên mọi thẻ trong cùng một khối. Bảng tra ở lại
+ * mà không ai đọc, và không lượt dịch nào báo — một hằng cấp mô-đun không dùng
+ * tới không làm `tsc` đỏ. (`HoSoPhapLy` có bảng CÙNG TÊN và nó thì dùng thật:
+ * ở đó một khối chứa nhiều loại giấy tờ.)
+ */
 
 /**
  * Hai khối, theo thứ tự thời gian của hồ sơ (`0097`).
  *
- * *Giấy tờ hồ sơ* đứng trước vì nó có từ lúc lập; *Bản cứng* đứng sau vì nó chỉ
- * xuất hiện ở bước B8. Đọc từ trên xuống là đọc đúng chiều hồ sơ đi.
+ * *Bản mềm* đứng trước *Bản cứng* vì Sale Admin dựng bản mềm, in ra, trình ký,
+ * rồi mới scan lại. Đọc từ trên xuống là đọc đúng chiều hồ sơ đi.
  *
  * `trong` nói AI tải lên và LÚC NÀO — đó là cả lý do khối rỗng vẫn hiện. Câu
  * "Chưa có tệp nào" của bản trước đúng mà vô dụng: nó không cho biết tệp ấy do
  * ai đưa vào, nên người đang thiếu nó không biết phải hỏi ai.
+ *
+ * ---------------------------------------------------------------------------
+ * KHỐI *GIẤY TỜ HỒ SƠ* (`HO_SO`) ĐÃ BỎ HẲN (`0172`, chốt 01/09)
+ * ---------------------------------------------------------------------------
+ *
+ * Khách hàng: *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ sơ"* —
+ * câu tiếp theo của `0171`, lượt bỏ dòng *File đính kèm* khỏi hai mẫu hồ sơ.
+ *
+ * Bỏ khỏi ĐÂY chứ không chỉ bỏ khỏi trang: `ChiTietHoSo` là nơi duy nhất dựng
+ * component này, nên một mục ở lại bảng mà không trang nào bày ra là một cơ chế
+ * không ai dùng mà vẫn chạy — thứ sẽ hỏng lặng lẽ vì không lượt thử tay nào đi
+ * qua nó nữa.
+ *
+ * Đường máy chủ GIỮ NGUYÊN (`kind: 'HO_SO'` vẫn nằm trong `oneOf` của
+ * `POST /policies/:id/attachments`, vẫn có chốt vai trò và trạng thái): tệp của
+ * hồ sơ cũ còn nguyên trong CSDL lẫn trên kho, và cần bày lại thì chỉ phải dựng
+ * lại phần màn hình.
  */
 const KHOI: {
   loai: string;
@@ -79,14 +100,8 @@ const KHOI: {
   dungTuMau?: boolean;
 }[] = [
   {
-    loai: 'HO_SO',
-    tieuDe: 'Giấy tờ hồ sơ',
-    trong: 'Chưa có giấy tờ nào. Trình dược viên đính kèm khi hồ sơ còn sửa được.',
-    them: 'Thêm giấy tờ',
-  },
-  {
     /*
-     * BẢN MỀM đứng GIỮA, và thứ tự ấy theo đúng chiều hồ sơ đi (`0167`).
+     * BẢN MỀM đứng TRƯỚC, và thứ tự ấy theo đúng chiều hồ sơ đi (`0167`).
      *
      * Sale Admin dựng bản mềm trước, in ra, trình ký, rồi mới scan lại thành bản
      * cứng. Đặt nó sau *Bản cứng* là đọc ngược chiều công việc.
@@ -110,7 +125,6 @@ export function TepDinhKem({
   hoSoId,
   tep,
   loaiGhiDuoc,
-  chiKhoi,
   taoBanMem,
   taiLai,
 }: {
@@ -136,19 +150,19 @@ export function TepDinhKem({
    * lời đúng nằm sẵn ở đây: gỡ được đúng những loại tải lên được.
    */
   loaiGhiDuoc: string[];
-  /**
-   * CHỈ dựng những khối này, theo đúng thứ tự khai ở `KHOI` (`0170`).
+  /*
+   * `chiKhoi` ĐÃ GỠ (`0172`).
    *
-   * Bỏ trống là dựng cả ba, đúng như trước. Có nó vì khách hàng chốt 31/08 đưa
-   * *Bản mềm* và *Bản cứng* xuống cuối trang — sau khối *Hồ sơ pháp lý của khách
-   * hàng*, một thành phần KHÁC — nên ba khối thôi đứng liền nhau và trang gọi
-   * component này HAI LẦN, mỗi lần một nhóm.
+   * `0170` thêm nó để tách *Giấy tờ hồ sơ* khỏi hai khối kia — khách hàng đưa
+   * *Bản mềm* và *Bản cứng* xuống cuối trang, sau khối *Hồ sơ pháp lý*, nên ba
+   * khối thôi đứng liền nhau và trang phải gọi component này HAI LẦN.
    *
-   * Hai lượt dựng là hai bộ trạng thái riêng (hộp xem, hộp hỏi gỡ, ảnh thu nhỏ),
-   * và điều đó ĐÚNG: mỗi nhóm tự lo phần của nó. Cái giá đã đo và chấp nhận —
-   * xem `tepCua` ngay dưới.
+   * `0172` bỏ hẳn khối *Giấy tờ hồ sơ*, nên hai khối còn lại lại đứng liền nhau
+   * và một lượt gọi là đủ. Giữ prop ấy là giữ một phép lọc không lọc gì.
+   *
+   * Được một khoản: lượt gọi `/files` dựng ảnh thu nhỏ trở lại MỘT lần cho cả
+   * trang — cái giá mà `0170` đã đo và chấp nhận.
    */
-  chiKhoi?: string[];
   /**
    * Mở hộp TẠO BẢN MỀM (`0167`). Bỏ trống thì khối *Bản mềm* không có nút thêm.
    *
@@ -160,25 +174,6 @@ export function TepDinhKem({
   taiLai: () => void;
 }) {
   const { bao } = useBaoLoi();
-  /*
-   * TỆP CỦA RIÊNG NHÓM NÀY (`0170`).
-   *
-   * Lọc ở đây chứ không để mỗi khối tự lọc, vì có một chỗ đọc `tep` mà KHÔNG
-   * theo khối: phép dựng ảnh thu nhỏ ở dưới. Nó bỏ qua lượt gọi mạng khi nhóm
-   * không có ảnh nào — và cái bỏ qua ấy chỉ đúng nếu `tep` đã là tệp của nhóm.
-   *
-   * Cái giá, đo và chấp nhận: hồ sơ có ảnh ở CẢ HAI nhóm thì trang gọi
-   * `/files?ownerKind=POLICY` hai lượt thay vì một. Một lời gọi JSON nhỏ trên
-   * một trang vốn đã gọi bốn lượt; gộp lại được, nhưng phải nhấc phép tải danh
-   * sách tệp ra khỏi component — đổi hình dạng một thứ đang chạy đúng, cho một
-   * khoản tiết kiệm chưa ai đo thấy.
-   */
-  const tepCua = useMemo(
-    () => (chiKhoi === undefined ? tep : tep.filter((t) => chiKhoi.includes(t.kind))),
-    // `chiKhoi` là một mảng khai TẠI CHỖ ở `ChiTietHoSo`, nên tham chiếu của nó
-    // đổi mỗi lượt render — nối thành chuỗi để so bằng GIÁ TRỊ.
-    [tep, chiKhoi?.join(',')],
-  );
   const [dangChay, datDangChay] = useState<string | null>(null);
   const [dangTaiLen, datDangTaiLen] = useState(false);
   /** Đường xem của từng tệp, xin dần để dựng ảnh thu nhỏ (`0069`). */
@@ -259,7 +254,7 @@ export function TepDinhKem({
    * một lời gọi trả về mọi tệp của hồ sơ.
    */
   useEffect(() => {
-    const anh = tepCua.filter((t) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(t.fileName));
+    const anh = tep.filter((t) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(t.fileName));
     if (anh.length === 0) return;
     const huy = new AbortController();
     void (async () => {
@@ -285,7 +280,7 @@ export function TepDinhKem({
       }
     })();
     return () => huy.abort();
-  }, [hoSoId, tepCua]);
+  }, [hoSoId, tep]);
 
   /**
    * Tải một tệp lên — hai bước ở HAI service, đúng như trước (`0069`).
@@ -347,8 +342,8 @@ export function TepDinhKem({
 
   return (
     <>
-      {KHOI.filter((k) => chiKhoi === undefined || chiKhoi.includes(k.loai)).map((k) => {
-        const cua = tepCua.filter((t) => t.kind === k.loai);
+      {KHOI.map((k) => {
+        const cua = tep.filter((t) => t.kind === k.loai);
         const ghiDuoc = loaiGhiDuoc.includes(k.loai);
 
         return (
@@ -453,8 +448,16 @@ export function TepDinhKem({
                 cho tới khi có bản scan mới — mà tải lại thì phải có bản giấy trong tay.
               </p>
             ) : (
+              /*
+                BẢN MỀM, nhánh còn lại từ `0172` (trước đó nhánh này nói về giấy
+                tờ do TDV đính). Bàn giao cũng bị chặn — `BAN_MEM_REQUIRED` của
+                `0167` — nhưng khác bản cứng ở chỗ QUAN TRỌNG: dựng lại được ngay
+                từ một mẫu, không phải đi tìm tờ giấy.
+              */
               <p>
-                Giấy tờ này không còn gắn với hồ sơ nữa. Đính lại được chừng nào hồ sơ còn sửa được.
+                Bản mềm này không còn gắn với hồ sơ nữa, và{' '}
+                <strong>bước bàn giao bị chặn lại</strong> cho tới khi có bản mềm mới. Dựng lại được
+                ngay từ một mẫu hồ sơ đầy đủ.
               </p>
             )
           }

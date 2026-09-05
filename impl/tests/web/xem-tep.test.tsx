@@ -161,3 +161,116 @@ describe('`0051` hộp xem tệp', () => {
     await waitFor(() => expect(goi.mock.calls.length).toBeGreaterThan(truoc));
   });
 });
+
+/**
+ * `0172` — PHÓNG TO ẢNH trong hộp xem, chốt 01/09.
+ *
+ * *"Cho phép zoom bằng chuột hoặc biểu tượng khi xem preview ảnh hoặc pdf nếu
+ * chưa có"*. PDF thì ĐÃ CÓ — trình xem PDF của trình duyệt mang sẵn thanh công
+ * cụ phóng to và `Ctrl` + lăn chuột — nên lượt này chỉ dựng cho ẢNH, và có một
+ * ca canh đúng chỗ ranh giới ấy: thanh phóng KHÔNG được mọc ra ở hộp PDF.
+ */
+describe('`0172` phóng to ảnh', () => {
+  const moAnh = async () => {
+    chanFetch(() => tep('image/jpeg'));
+    bay();
+    return await waitFor(() => screen.getByAltText('Bản scan hợp đồng'));
+  };
+
+  it('mở ra ở cỡ VỪA KHUNG — 100%, không phóng sẵn', async () => {
+    const anh = await moAnh();
+    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toBe('100%');
+    // `scale(1)` chứ không phải "không có transform": một mức phóng khai tường
+    // minh là thứ giữ cho lượt kéo và lượt phóng dùng chung một công thức.
+    expect(anh.getAttribute('style')).toContain('scale(1)');
+  });
+
+  it('bấm + thì ảnh to ra thật, và con số nói đúng mức đang phóng', async () => {
+    const nguoi = userEvent.setup();
+    const anh = await moAnh();
+    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    /*
+     * Đo trên `transform` của chính thẻ ảnh, không đo state.
+     *
+     * Một ca chỉ đọc con số phần trăm sẽ XANH ngay cả khi quên nối mức phóng vào
+     * `style` — tức là xanh với một cái nút không làm gì cả.
+     */
+    expect(anh.getAttribute('style')).toContain('scale(1.25)');
+    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toBe('125%');
+  });
+
+  it('không thu nhỏ được xuống dưới cỡ vừa khung', async () => {
+    // Dưới 100% thì ảnh nhỏ hơn khung và chỉ còn viền trống — không ai cần, và
+    // nó dựng ra một trạng thái mà nút *Về cỡ vừa khung* phải chữa.
+    await moAnh();
+    expect(
+      screen.getByRole('button', { name: 'Thu nhỏ' }).hasAttribute('disabled'),
+      'ở 100% mà vẫn bấm thu nhỏ được',
+    ).toBe(true);
+  });
+
+  it('nút phần trăm đưa ảnh VỀ cỡ vừa khung, và về giữa', async () => {
+    const nguoi = userEvent.setup();
+    const anh = await moAnh();
+    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    await nguoi.click(screen.getByRole('button', { name: 'Về cỡ vừa khung' }));
+    expect(anh.getAttribute('style')).toContain('scale(1)');
+    // Về cỡ cũ mà giữ độ lệch là để lại một ảnh vừa khung nằm lệch hẳn sang một
+    // bên, và không nút nào chỉnh lại được.
+    expect(anh.getAttribute('style')).toContain('translate(0px, 0px)');
+  });
+
+  it('LĂN CHUỘT phóng to, và chặn trang cuộn phía sau', async () => {
+    /*
+     * Ca này chỉ có nghĩa vì React gắn `onWheel` dưới dạng listener THỤ ĐỘNG:
+     * viết `onWheel={...}` rồi gọi `preventDefault()` thì trang vẫn cuộn. Nên
+     * `defaultPrevented` là vế phải kiểm, không kém vế mức phóng.
+     */
+    const anh = await moAnh();
+    const khung = anh.parentElement!;
+    const e = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
+    khung.dispatchEvent(e);
+    await waitFor(() => expect(anh.getAttribute('style')).toContain('scale(1.15)'));
+    expect(e.defaultPrevented, 'lăn chuột vẫn cuộn trang phía sau').toBe(true);
+  });
+
+  it('kéo được khi ĐÃ phóng to, và KHÔNG kéo được lúc vừa khung', async () => {
+    const nguoi = userEvent.setup();
+    const anh = await moAnh();
+    const khung = anh.parentElement as HTMLElement;
+    // jsdom không dựng Pointer Events, nên `setPointerCapture` phải tự cắm vào.
+    khung.setPointerCapture = () => undefined;
+
+    const keo = () => {
+      khung.dispatchEvent(
+        new MouseEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }),
+      );
+      khung.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, clientX: 130, clientY: 120 }),
+      );
+      khung.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    };
+
+    keo();
+    expect(anh.getAttribute('style'), 'ảnh vừa khung mà vẫn kéo đi được').toContain(
+      'translate(0px, 0px)',
+    );
+
+    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    keo();
+    await waitFor(() => expect(anh.getAttribute('style')).toContain('translate(30px, 20px)'));
+  });
+
+  it('hộp PDF KHÔNG có thanh phóng — trình xem của trình duyệt đã có sẵn', async () => {
+    /*
+     * Ranh giới, và nó là một quyết định chứ không phải một chỗ chưa làm: điều
+     * khiển mức phóng của trình xem PDF nhúng phải đi qua tham số `#zoom=` trong
+     * địa chỉ, tức NẠP LẠI cả tài liệu và nhảy mất chỗ người ta đang đọc — tệ
+     * hơn hẳn thanh công cụ sẵn có.
+     */
+    chanFetch(() => tep('application/pdf'));
+    bay();
+    await waitFor(() => screen.getByTitle('Bản scan hợp đồng'));
+    expect(screen.queryByRole('button', { name: 'Phóng to' })).toBeNull();
+  });
+});

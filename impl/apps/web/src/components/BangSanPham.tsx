@@ -27,6 +27,7 @@
  */
 import { useState } from 'react';
 import { tien, tyLe } from '../lib/format.js';
+import { COT_TRUOC, COT_SAU, nhanCpbh } from '../lib/bang-cot.js';
 
 export type DongSanPham = {
   id: string;
@@ -111,49 +112,8 @@ export const lyDoTyLe = (d: DongSanPham): string | undefined => {
   return phan.length === 0 ? undefined : phan.join(' ');
 };
 
-/** Cột cố định, KHÔNG kể các cột CPBH — số cột CPBH tuỳ dữ liệu. */
-export const COT_TRUOC = [
-  { khoa: 'productCode', nhan: 'Mã SP' },
-  { khoa: 'productName', nhan: 'Tên sản phẩm' },
-  { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
-  { khoa: 'wholesalePrice', nhan: 'Giá bán buôn' },
-  /*
-   * CPBH TỔNG, đứng ngay TRƯỚC các khoản lẻ (`0056`).
-   *
-   * Con số cộng lại là thứ người đọc cần trước — nó là cái đi vào phép tính giá
-   * thu về. Từng khoản lẻ chỉ cần khi thấy tổng lạ và muốn soi. Đặt tổng sau
-   * dải CPBH1…CPBHn thì mắt phải lướt qua cả dải rồi mới tới thứ mình tìm.
-   *
-   * Bản in A4 xếp đúng thứ tự này — hai bảng phải đọc giống nhau, nếu không thì
-   * người đối chiếu màn hình với bản giấy phải dò lại từ đầu.
-   */
-  { khoa: 'cpbhTotal', nhan: 'CPBH tổng' },
-] as const;
-
-export const COT_SAU = [
-  { khoa: 'netPrice', nhan: 'Giá thu về' },
-  { khoa: 'discountRate', nhan: 'Tỷ lệ CK' },
-  /*
-   * Mã quy định chiết khấu đã cho ra ngưỡng của dòng này (`0023`).
-   *
-   * Đứng NGAY SAU Tỷ lệ CK vì nó trả lời chính câu hỏi mà con số ấy gợi ra —
-   * "ngưỡng đem so là ngưỡng nào, ai khai". Dán mã này vào ô tìm kiếm ở màn hình
-   * Chiết khấu là ra đúng dòng quy định.
-   *
-   * Ô TRỐNG khi không có: dòng rơi về mặc định của sản phẩm, hoặc không có ngưỡng
-   * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — con số Tỷ lệ
-   * CK ngay bên trái đã đổi màu và mang dấu `?` nói đúng điều đó rồi.
-   */
-  { khoa: 'ruleCode', nhan: 'QĐCK' },
-  /*
-   * Ghi chú của người lập cho riêng dòng này (`0027`).
-   *
-   * ĐỨNG CUỐI vì nó là cột chữ duy nhất giữa một bảng số: xen vào giữa thì mọi
-   * cột tiền bên phải nó mất thế thẳng hàng, và bảng tiền mà không đọc được
-   * theo cột dọc là bảng không kiểm được.
-   */
-  { khoa: 'note', nhan: 'Ghi chú' },
-] as const;
+// `COT_TRUOC` · `COT_SAU` dời sang `lib/bang-cot.ts` (`0172`) — xem lý do ở đó.
+export { COT_TRUOC, COT_SAU, nhanCpbh } from '../lib/bang-cot.js';
 
 /**
  * Số cột CPBH của cả bảng = dòng NHIỀU KHOẢN NHẤT.
@@ -170,7 +130,7 @@ export const cotCho = (dong: readonly DongSanPham[]) => [
   ...COT_TRUOC,
   ...Array.from({ length: soCotCpbh(dong) }, (_, i) => ({
     khoa: `cpbh${i + 1}`,
-    nhan: `CPBH ${i + 1}`,
+    nhan: nhanCpbh(i),
   })),
   ...COT_SAU,
 ];
@@ -262,7 +222,7 @@ function CpbhGop({ d }: { d: DongSanPham }) {
         aria-expanded={mo}
         onClick={() => datMo((x) => !x)}
       >
-        <span>Tổng CPBH</span>
+        <span>CPBH</span>
         <span className="so">{tien(d.cpbhTotal)}</span>
         <span className="mui-ten" aria-hidden="true">
           {mo ? '▲' : '▼'}
@@ -275,7 +235,7 @@ function CpbhGop({ d }: { d: DongSanPham }) {
           <dl className="cpbh-chi-tiet">
             {co.map((v, i) => (
               <div key={i}>
-                <dt>CPBH {i + 1}</dt>
+                <dt>{nhanCpbh(i)}</dt>
                 <dd className="so">{tien(v)}</dd>
               </div>
             ))}

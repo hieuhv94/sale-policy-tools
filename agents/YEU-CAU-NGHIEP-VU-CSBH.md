@@ -848,8 +848,8 @@ Thuộc **giai đoạn 1**.
 Mỗi dòng sản phẩm có số khoản CPBH riêng, nhưng một bảng in ra giấy phải có **số cột đều nhau** —
 cột so le thì không đọc theo hàng dọc được và người ký không đối chiếu nổi.
 
-- Cột của bảng, chốt `19/08`: **STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn ·
-  CPBH tổng · CPBH1…CPBHn · Giá thu về · Tỷ lệ CK · Ghi chú**. Cột *Ngưỡng* đã **bỏ hẳn** — bản giấy
+- Cột của bảng, chốt `19/08` (tên cột `sửa 01/09`): **STT · Mã sản phẩm · Tên sản phẩm ·
+  Giá bán Công ty · Giá bán buôn · CPBH · CPBH 1…CPBH n · Giá thu về · Tỷ lệ CK · Ghi chú**. Cột *Ngưỡng* đã **bỏ hẳn** — bản giấy
   không còn nói mức chiết khấu tối đa cho phép, nên hồ sơ vượt ngưỡng và hồ sơ đúng ngưỡng trông
   giống nhau trên giấy; khách hàng biết và chấp nhận.
 - **Ghi chú tự xuống dòng**, ô cao lên theo. Bảng dùng bố cục bề rộng cố định: để cột tự co theo nội
@@ -1164,17 +1164,20 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **Ai được đụng vào tệp nào** `mới 20/08`: bản cứng đã scan — **chỉ Sale Admin**; giấy tờ của hồ sơ
   — **chỉ TDV**, và chỉ khi hồ sơ còn sửa được; hồ sơ pháp lý khách hàng — **chỉ TDV phụ trách khách
   hàng ấy**. Vai trò khác xem và tải bình thường, nhưng không thấy nút gỡ lẫn vùng tải lên.
-- **BA KHỐI TỆP** `sửa 31/08` — *Giấy tờ hồ sơ* · *Bản mềm* · *Bản cứng*, theo đúng chiều hồ sơ đi:
-  Sale Admin dựng bản mềm trước, in ra, trình ký, rồi mới scan lại. Khối *Bản mềm* không nhận tệp tải
-  lên — nó có một nút mở hộp chọn mẫu. Xem Phụ lục B, mục *"BẢN MỀM thành một TỆP của hồ sơ"*.
-- **THỨ TỰ MỤC trên trang hồ sơ** `sửa 31/08` — *Hồ sơ* · *Khách hàng* · *Sản phẩm* · *Giấy tờ hồ sơ*
-  · *Hồ sơ pháp lý của khách hàng* · **Bản mềm** · **Bản cứng** · *Lịch sử*.
+- **HAI KHỐI TỆP** `sửa 01/09` — *Bản mềm* · *Bản cứng*, theo đúng chiều hồ sơ đi: Sale Admin dựng
+  bản mềm trước, in ra, trình ký, rồi mới scan lại. Khối *Bản mềm* không nhận tệp tải lên — nó có một
+  nút mở hộp chọn mẫu. Xem Phụ lục B, mục *"BẢN MỀM thành một TỆP của hồ sơ"*.
+  > **Khối *Giấy tờ hồ sơ* ĐÃ BỎ** `sửa 01/09` — xem Phụ lục B, mục *"Bỏ mục Giấy tờ hồ sơ"*. Hệ quả
+  > rộng hơn một khối bị ẩn: đó là chỗ duy nhất của giao diện đính được loại tệp ấy, nên **Trình dược
+  > viên thôi đính giấy tờ vào hồ sơ CSBH**. Giấy tờ pháp lý của khách hàng thì vẫn nguyên, ở hồ sơ
+  > khách hàng và ở khối *Hồ sơ pháp lý của khách hàng* ngay trên trang này.
+- **THỨ TỰ MỤC trên trang hồ sơ** `sửa 01/09` — *Hồ sơ* · *Khách hàng* · *Sản phẩm* ·
+  *Hồ sơ pháp lý của khách hàng* · **Bản mềm** · **Bản cứng** · *Lịch sử*.
   > Hai khối của bước B8 xuống cuối, ngay trên *Lịch sử*: chúng là **sản phẩm của vòng duyệt**, nên
-  > đứng cạnh chỗ kể lại vòng duyệt ấy. *Giấy tờ hồ sơ* **ở lại trên** — nó là thứ Trình dược viên
-  > đính vào lúc lập, thuộc về nội dung hồ sơ. *Lịch sử* vẫn cuối cùng (chốt 23/08).
-- **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08`: *Giấy tờ hồ sơ* (TDV đính lúc lập) và *Bản cứng*
-  (Sale Admin scan ở B8). Vùng tải lên và dấu gỡ chỉ hiện ở **đúng khối của loại tệp** người ấy được
-  đụng vào — ở hồ sơ *Nháp*, khối *Bản cứng* không cho TDV tải gì lên.
+  > đứng cạnh chỗ kể lại vòng duyệt ấy. *Lịch sử* vẫn cuối cùng (chốt 23/08).
+- **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08` (`sửa 01/09` — cặp khối giờ là *Bản mềm* và *Bản
+  cứng*; *Giấy tờ hồ sơ* đã bỏ): vùng tải lên và dấu gỡ chỉ hiện ở **đúng khối của loại tệp** người
+  ấy được đụng vào — ở hồ sơ *Nháp* không khối nào cho tải gì lên.
   > Một khối tên *Bản cứng* chứa cả hai loại thì ở hồ sơ Nháp, TDV thấy vùng kéo thả nằm dưới đúng
   > cái tiêu đề ấy — đọc ra là "tôi đang tải bản cứng lên lúc hồ sơ còn nháp". Bản cứng là bản giấy
   > đã ký, chưa tồn tại cho tới B8.
@@ -1575,6 +1578,61 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 > Sale Admin lưu được **nhiều** bản mềm — hồ sơ bị Kế toán yêu cầu in lại thì họ dựng bản mới, và bản
 > cũ ở lại làm vết. Tên tệp mang mã hồ sơ và mốc thời gian để phân biệt.
 
+**Bỏ mục *Giấy tờ hồ sơ*** `sửa 01/09` — *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ
+sơ"*. Trang hồ sơ CSBH còn **hai** khối tệp: *Bản mềm* và *Bản cứng*.
+
+> Đây là câu tiếp theo của lượt bỏ dòng *File đính kèm* khỏi hai mẫu hồ sơ, ngay bên trên: giấy tờ
+> đính lúc lập thôi xuất hiện trên tờ giấy, và giờ thôi xuất hiện trên màn hình.
+>
+> **Hệ quả rộng hơn một khối bị ẩn, và đã nêu ra:** đó là chỗ DUY NHẤT của giao diện đính được loại
+> tệp ấy, nên **Trình dược viên thôi đính giấy tờ vào hồ sơ CSBH**. Tệp của hồ sơ cũ còn nguyên trong
+> cơ sở dữ liệu và trên kho lưu trữ; đường máy chủ cũng còn nguyên, nên cần bày lại thì chỉ phải dựng
+> lại phần màn hình. Hồ sơ pháp lý của khách hàng **không liên quan** — nó ở hồ sơ khách hàng và vẫn
+> hiện trên trang hồ sơ CSBH như cũ.
+
+**Phóng to được ảnh trong hộp xem** `sửa 01/09` — *"cho phép zoom bằng chuột hoặc biểu tượng khi xem
+preview ảnh hoặc pdf nếu chưa có"*.
+
+> Hộp xem **ảnh** có thanh phóng to: hai nút − và +, một nút phần trăm bấm vào là về cỡ vừa khung;
+> lăn chuột cũng phóng, và ảnh đã phóng thì **kéo** để di chuyển. Tối đa 6 lần, không thu nhỏ xuống
+> dưới cỡ vừa khung.
+>
+> **PDF không thêm gì, và đó là một quyết định.** Trình xem PDF của trình duyệt đã mang sẵn thanh
+> công cụ phóng to cùng `Ctrl` + lăn chuột. Dựng thêm một bộ nút của mình thì phải điều khiển trình
+> xem ấy qua tham số trong địa chỉ, tức **nạp lại cả tài liệu và nhảy mất chỗ người ta đang đọc** —
+> tệ hơn hẳn thứ sẵn có.
+
+**Tiêu đề cột thống nhất giữa màn hình và bản mềm** `sửa 01/09` — *"đồng bộ tiêu đề cột trong trang
+hồ sơ CSBH và trong bản mềm"*.
+
+> | Trước | Nay |
+> |---|---|
+> | *Giá bán Công ty* (màn hình) / *Giá công ty* (bản mềm) | **Giá bán Công ty** |
+> | *CPBH tổng* | **CPBH** |
+> | *CPBH1* (bản mềm) / *CPBH 1* (màn hình) | **CPBH 1** |
+> | *Mã SP* (màn hình) / *Mã sản phẩm* (bản mềm) | **Mã sản phẩm** |
+>
+> Cặp thứ tư khách hàng không nêu — nó nằm ngay cạnh ba cặp kia và cùng một loại lỗi, nên sửa luôn.
+> Hai cột chỉ có ở một bên vẫn giữ nguyên: *STT* chỉ có trên bản in, *QĐCK* chỉ có trên màn hình.
+>
+> Hai bảng tên cột **không gộp làm một được** (một bên là gói giao diện, một bên là mã máy chủ), nên
+> chốt chặn là một phép đối chiếu tự động — thêm một cột ở một bên mà quên bên kia là hỏng ngay lúc
+> ấy, không phải lúc ai đó cầm bản in lên so.
+
+**Bề rộng cột bản mềm tự co giãn theo nội dung** `sửa 01/09` — *"độ rộng cột trong bản mềm tự động
+được điều chỉnh để cố gắng không phải xuống dòng"*.
+
+> Mỗi cột được chia bề rộng theo **ô dài nhất của chính nó**, thay cho bộ tỷ lệ cố định chốt `27/08`.
+> Hai cột chữ — *Tên sản phẩm* và *Ghi chú* — có **trần**: chúng được phép xuống dòng, nên nhu cầu
+> của chúng không được kéo mọi cột tiền vào chỗ vỡ chữ.
+>
+> **Đảo một nửa `27/08`.** Chặng ấy nới *Tên sản phẩm* lên 29% bề ngang sau khi đo trên bản in thật,
+> và con số ấy đúng với danh mục lúc đó — nó vẫn sai với một danh mục toàn tên ngắn. Cái GIỮ LẠI là
+> luật đứng sau: *cột chữ được xuống dòng, cột số thì không*.
+>
+> **Cái mất, đã cân nhắc:** hai bản CSBH của hai khách hàng khác nhau in ra không còn khớp lưới cột.
+> Bảng nào cũng đọc được, chỉ là đặt cạnh nhau thì các đường kẻ dọc không thẳng hàng.
+
 **Hai mẫu hồ sơ mặc định BỎ BỐN DÒNG, và một dòng đổi nghĩa** `sửa 01/09` — *"sửa lại văn bản hồ sơ
 mặc định cả đầy đủ và rút gọn trong default: bỏ số hồ sơ, người đại diện, và số điện thoại; tên khách
 hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên khách hàng}} - …`; bỏ dòng File đính kèm"*.
@@ -1613,8 +1671,8 @@ hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên kh
 > một **thẻ riêng** (tức một danh sách riêng), một **mẫu mặc định riêng**, và **tập cột suy từ loại**
 > thay vì khai tay ở mỗi lượt tải lên.
 >
-> **Sáu cột của bản rút gọn**: STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn · CPBH
-> tổng. Bốn cột bị cắt cùng một nhóm — từng khoản CPBH, giá thu về, tỷ lệ CK, ghi chú — là phép tính
+> **Sáu cột của bản rút gọn**: STT · Mã sản phẩm · Tên sản phẩm · Giá bán Công ty · Giá bán buôn ·
+> CPBH (tên cột `sửa 01/09`). Bốn cột bị cắt cùng một nhóm — từng khoản CPBH, giá thu về, tỷ lệ CK, ghi chú — là phép tính
 > ngược ra mức chiết khấu, thứ nội bộ Công ty dùng để duyệt. **CPBH tổng thì Ở LẠI**, vì tờ mẫu khách
 > hàng gõ có nó; `21/08` mở cột ấy ra cho tắt với lý do "con số nội bộ", và ở đây họ trả lời khác.
 >

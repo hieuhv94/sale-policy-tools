@@ -90,7 +90,8 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
 
   it('không dòng nào có khoản nào thì KHÔNG có cột CPBH ĐÁNH SỐ', () => {
     /*
-     * `0056` — *CPBH tổng* là cột CỐ ĐỊNH, luôn có, như *Giá thu về*.
+     * `0056` — cột *CPBH* (tổng) là cột CỐ ĐỊNH, luôn có, như *Giá thu về*.
+     * Nhãn của nó đổi *CPBH tổng* → *CPBH* ở `0172` cho khớp bản mềm.
      *
      * Chỉ các cột CPBH1…CPBHn mới sinh theo dữ liệu, và chúng biến mất khi
      * không dòng nào có khoản nào — bốn cột số 0 nói sai về một hồ sơ chẳng có
@@ -101,7 +102,7 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
     render(<BangSanPham dong={ds} />);
     const bang = within(screen.getByRole('table'));
     expect(bang.queryByText(/^CPBH \d/)).toBeNull();
-    expect(bang.getByText('CPBH tổng')).toBeDefined();
+    expect(bang.getByText('CPBH')).toBeDefined();
   });
 });
 
@@ -127,7 +128,8 @@ describe('FE-03 dưới 640px thành thẻ, KHÔNG cột nào biến mất', () 
       <BangSanPham dong={[dong({ cpbh: ['3000', '1000', '500', '250'], cpbhTotal: '4750' })]} />,
     );
     const the = document.querySelector('.the-san-pham .the') as HTMLElement;
-    const nut = within(the).getByRole('button', { name: /Tổng CPBH/ });
+    // Nhãn nút gấp cũng theo `0172`: *Tổng CPBH* → *CPBH*, một tên cho cả ba chỗ.
+    const nut = within(the).getByRole('button', { name: /CPBH/ });
 
     expect(nut.getAttribute('aria-expanded')).toBe('false');
     expect(within(the).queryByText('CPBH 3')).toBeNull();

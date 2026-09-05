@@ -806,10 +806,13 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
      * `0170` tách ba khối này ra HAI chỗ trên trang, nhưng thứ tự DOM giữ nguyên
      * — nên ca này không đổi một chữ. Chỗ nó không nhìn thấy là những mục KHÁC
      * chen vào giữa, và đó là việc của ca `0170` ngay dưới.
+     *
+     * `0172` bỏ khối *Giấy tờ hồ sơ*, nên dãy còn HAI — và hai khối ấy lại đứng
+     * liền nhau, tức trang gọi `TepDinhKem` đúng MỘT lượt.
      */
     await moSa();
     const ten = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
-    expect(ten).toEqual(['Giấy tờ hồ sơ', 'Bản mềm', 'Bản cứng']);
+    expect(ten).toEqual(['Bản mềm', 'Bản cứng']);
   });
 
   it('`0170` THỨ TỰ MỤC trên cả trang — Bản mềm và Bản cứng ngay trên Lịch sử', async () => {
@@ -832,9 +835,12 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
       'Hồ sơ',
       'Khách hàng',
       'Sản phẩm',
-      // *Giấy tờ hồ sơ* Ở LẠI trên: nó là thứ TDV đính lúc lập, thuộc về nội
-      // dung hồ sơ chứ không phải sản phẩm của bước B8.
-      'Giấy tờ hồ sơ',
+      /*
+        *Giấy tờ hồ sơ* đứng ở ĐÂY tới `0170`, và `0172` bỏ hẳn khối ấy — khách
+        hàng: *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ sơ"*. Ca
+        này là chỗ duy nhất của bộ kiểm nói ra rằng nó ĐÃ BIẾN MẤT khỏi trang,
+        chứ không phải bị đẩy đi đâu đó.
+      */
       'Hồ sơ pháp lý của khách hàng',
       'Bản mềm',
       'Bản cứng',

@@ -13,8 +13,10 @@
  *
  * CỘT — chốt ngày 19/08:
  *
- *   STT · Mã sản phẩm · Tên sản phẩm · Giá công ty · Giá bán buôn ·
- *   **CPBH tổng** · CPBH1…CPBHn · Giá thu về · Tỷ lệ CK · Ghi chú
+ *   STT · Mã sản phẩm · Tên sản phẩm · Giá bán Công ty · Giá bán buôn ·
+ *   **CPBH** · CPBH 1…CPBH n · Giá thu về · Tỷ lệ CK · Ghi chú
+ *
+ * NHÃN cột đồng bộ với bảng trên MÀN HÌNH ở `0172` — xem `COT_BANG`.
  *
  * *Ngưỡng* ĐÃ BỎ. Đổi lại, bản giấy không còn nói mức chiết khấu tối đa cho
  * phép của từng dòng — hồ sơ vượt ngưỡng và hồ sơ đúng ngưỡng trông giống hệt
@@ -56,36 +58,50 @@ import { money, pct, soCotCpbh } from './dinh-dang.js';
  *      kiểm tự động còn 11 trên 13 mục. Cả hai khoản CPBH — cột tổng và các cột
  *      lẻ — đều tắt được, nên một mẫu ra bản A4 không có chữ CPBH nào là hợp lệ
  *      và lưu được; đó là điều khách hàng đã chốt, không phải một lỗ hổng.
- *   3. `trongSo` là TỶ LỆ bề rộng, không phải số đo. Hai cột CHỮ — tên sản phẩm
- *      và ghi chú — rộng hơn hẳn cột số, nếu không thì tên xuống bốn dòng còn
- *      cột STT thừa chỗ.
+ *   3. BỀ RỘNG CỘT **đo từ nội dung thật** (`0172`) — xem `trongSoCot` ở cuối
+ *      tệp. Không còn bộ trọng số viết cứng nào.
  *
- * `0135` CHIA LẠI, khách hàng chốt 27/08: *"tên sản phẩm cần rộng hơn"*. Tên sản
- * phẩm 14 → **22**, tức từ 18% lên **29%** bề rộng bảng ở tập cột mặc định. Chỗ
- * bù lấy từ ba cột không cần rộng:
+ * ---------------------------------------------------------------------------
+ * `trongSo` ĐÃ BỎ (`0172`, chốt 01/09) — và nó từng là cả một chặng
+ * ---------------------------------------------------------------------------
  *
- *   Ghi chú  14 → 11  — vẫn là cột chữ, nhưng thứ yếu so với tên mặt hàng
- *   Tỷ lệ CK  6 → 5   — `19,51%` là sáu ký tự, không hơn
- *   CPBH lẻ   6 → 5   — cột số, và phần lớn dòng để trống
+ * Khách hàng: *"độ rộng cột trong bản mềm tự động được điều chỉnh để cố gắng
+ * không phải xuống dòng"*. Một bộ trọng số cố định không trả lời được câu ấy:
+ * nó không biết dòng sản phẩm của hồ sơ NÀY dài bao nhiêu, nên nó chỉ đúng cho
+ * những hồ sơ tình cờ giống hồ sơ mà người chỉnh số đang nhìn.
  *
- * *Mã sản phẩm* đi NGƯỢC lại, 6 → 7: `NC-GOLD-900` là mười một ký tự không có
- * chỗ ngắt, nên nó là cột dễ vỡ chữ nhất trong nhóm cột hẹp.
+ * `0135` chỉnh bộ số ấy một lượt (tên sản phẩm 14 → 22, tức 18% → 29%) sau khi
+ * đo trên PDF thật, và lượt chỉnh đó ĐÚNG với dữ liệu lúc ấy. Nó vẫn sai với
+ * một danh mục toàn tên ngắn — 29% bề ngang cho `Sữa A` trong khi cột tiền bên
+ * cạnh vỡ chữ.
  *
- * *STT* thử hạ 3 → 2 rồi TRẢ VỀ 3, và lý do đáng giữ: ở 2 nó rơi xuống 2,67% —
- * dưới `RONG_TOI_THIEU_PCT`, và ca kiểm bắt được ngay. Hai chữ số cộng lề trong
- * ô cần chừng 0,6cm; 2,67% của 17cm chỉ được 0,45cm, và `10` xuống hai dòng.
+ * Cái GIỮ LẠI của `0135`: *tên sản phẩm và ghi chú là hai cột CHỮ, chúng được
+ * phép xuống dòng, cột số thì không*. Luật ấy giờ nằm ở trường `tran` dưới đây
+ * thay vì ở một con số bề rộng.
  */
 export const COT_BANG = [
-  { khoa: 'stt', nhan: 'STT', trongSo: 3 },
-  { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm', trongSo: 7 },
-  { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', trongSo: 22, batBuoc: true },
-  { khoa: 'gia_cong_ty', nhan: 'Giá công ty', trongSo: 7 },
-  { khoa: 'gia_ban_buon', nhan: 'Giá bán buôn', trongSo: 7 },
-  { khoa: 'cpbh_tong', nhan: 'CPBH tổng', trongSo: 7 },
-  { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH1…CPBHn)', trongSo: 5 },
-  { khoa: 'gia_thu_ve', nhan: 'Giá thu về', trongSo: 7 },
-  { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK', trongSo: 5 },
-  { khoa: 'ghi_chu', nhan: 'Ghi chú', trongSo: 11 },
+  { khoa: 'stt', nhan: 'STT' },
+  { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm' },
+  /*
+   * `tran` — TRẦN bề rộng, tính bằng `em` của cỡ chữ thân bảng (11pt).
+   *
+   * Chỉ hai cột CHỮ có nó, và đó chính là ranh giới `0135` đã vạch: cột số phải
+   * được đủ chỗ để KHÔNG xuống dòng, cột chữ thì xuống dòng là bình thường
+   * (`0056` viết ra điều đó cho *Ghi chú*). Không có trần thì một tên sản phẩm
+   * bốn mươi ký tự ăn hết bề ngang và đẩy mọi cột tiền vào chỗ vỡ chữ.
+   *
+   * 13em ≈ 5cm cho tên sản phẩm, 9em ≈ 3,5cm cho ghi chú — đủ cho phần lớn tên
+   * mặt hàng trên MỘT dòng, và tên dài hơn thì xuống hai dòng thay vì kéo cả
+   * bảng theo.
+   */
+  { khoa: 'ten_san_pham', nhan: 'Tên sản phẩm', batBuoc: true, tran: 13 },
+  { khoa: 'gia_cong_ty', nhan: 'Giá bán Công ty' },
+  { khoa: 'gia_ban_buon', nhan: 'Giá bán buôn' },
+  { khoa: 'cpbh_tong', nhan: 'CPBH' },
+  { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH 1…CPBH n)' },
+  { khoa: 'gia_thu_ve', nhan: 'Giá thu về' },
+  { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK' },
+  { khoa: 'ghi_chu', nhan: 'Ghi chú', tran: 9 },
 ] as const;
 
 /**
@@ -220,7 +236,7 @@ const tieuDe = (soCot: number, cot: KhoaCot[]): string[] =>
     // cộng lại trước, rồi mới soi từng khoản nếu thấy lạ. Đặt sau thì mắt phải
     // lướt qua cả dải CPBH1…CPBHn rồi mới tới thứ mình đi tìm.
     k === 'cpbh'
-      ? Array.from({ length: soCot }, (_, i) => `CPBH${i + 1}`)
+      ? Array.from({ length: soCot }, (_, i) => `CPBH ${i + 1}`)
       : [COT_BANG.find((c) => c.khoa === k)!.nhan],
   );
 
@@ -266,29 +282,124 @@ const dong = (l: PolicyLine, i: number, soCot: number, cot: KhoaCot[]): string[]
   );
 
 /**
- * Trọng số bề rộng từng cột. Tổng bao nhiêu không quan trọng — chỉ TỶ LỆ.
+ * Bề rộng ước lượng của một chuỗi, tính bằng **em** của phông thân bảng.
  *
- * *Tên sản phẩm* và *Ghi chú* rộng gấp ba bốn lần cột số vì chúng là hai cột
- * CHỮ; chia đều thì tên sản phẩm xuống bốn dòng còn cột STT thừa chỗ.
+ * Không đo được chính xác ở đây — bề rộng thật do LibreOffice (hoặc Word) tính
+ * lúc dựng trang, với chính bảng advance width của phông đang cài. Nhưng bảng
+ * này chỉ cần TỶ LỆ giữa các cột, và một xấp xỉ theo nhóm ký tự đủ để trả lời
+ * *"cột nào cần rộng hơn cột nào, và hơn bao nhiêu"*.
+ *
+ * Các con số lấy từ bảng advance width của Times New Roman: chữ số đúng 0,5em
+ * (nên `1.234.567` là 4,25em), dấu chấm 0,25em, chữ hoa rộng gần gấp rưỡi chữ
+ * thường. Dấu tiếng Việt không đổi bề rộng của chữ cái mang nó.
  */
-const trongSoCot = (soCot: number, cot: KhoaCot[]): number[] =>
-  cot.flatMap((k) => {
-    const ts = COT_BANG.find((c) => c.khoa === k)!.trongSo;
-    return k === 'cpbh' ? Array.from({ length: soCot }, () => ts) : [ts];
+const rongChu = (s: string): number => {
+  let em = 0;
+  for (const c of s) {
+    if (c >= '0' && c <= '9') em += 0.5;
+    else if (c === ' ') em += 0.25;
+    else if ('.,:;\''.includes(c)) em += 0.25;
+    else if ('-/()'.includes(c)) em += 0.31;
+    else if (c === '%') em += 0.83;
+    // Chữ HOA (kể cả chữ hoa có dấu) rộng hơn hẳn chữ thường — `MST` với `mst`
+    // lệch nhau gần một nửa.
+    else if (c === c.toUpperCase() && c !== c.toLowerCase()) em += 0.72;
+    else em += 0.5;
+  }
+  return em;
+};
+
+/**
+ * Bề rộng của TỪ DÀI NHẤT — dùng cho hàng tiêu đề.
+ *
+ * Tiêu đề được phép xuống dòng GIỮA HAI TỪ, và tờ mẫu khách hàng tự gõ cũng có
+ * *Giá bán buôn* nằm hai dòng. Cái không được phép là cắt giữa một từ, nên đây
+ * mới là con số ràng buộc — lấy cả chuỗi thì *Giá bán Công ty* đòi một cột rộng
+ * gấp đôi con số nó đựng.
+ */
+const rongTuDaiNhat = (s: string): number =>
+  Math.max(0, ...s.split(/\s+/).filter(Boolean).map(rongChu));
+
+/** Lề trong ô, hai bên: 57 twip mỗi bên (`table()`), quy ra em ở cỡ 11pt. */
+const LE_O_EM = 114 / 220;
+
+/**
+ * TRỌNG SỐ BỀ RỘNG, đo từ chính nội dung sắp in (`0172`).
+ *
+ * Ba bước, và bước thứ ba là chỗ luật nghiệp vụ nằm:
+ *
+ *   1. Mỗi cột cần bề rộng bằng ô DÀI NHẤT của nó (kể cả hàng tiêu đề, tính
+ *      theo từ dài nhất), cộng lề trong ô.
+ *   2. Hai cột CHỮ bị chặn ở `tran`: chúng được phép xuống dòng, nên nhu cầu của
+ *      chúng không được kéo mọi cột số vào chỗ vỡ chữ.
+ *   3. Cột nào cũng phải trên `RONG_TOI_THIEU_PCT`.
+ *
+ * `table()` chia lại theo TỔNG, nên đơn vị tuyệt đối không quan trọng: nếu tổng
+ * nhu cầu nhỏ hơn bề ngang trang thì mọi cột được nới ra theo tỷ lệ và không
+ * cột nào xuống dòng; nếu lớn hơn thì mọi cột co lại theo tỷ lệ — cùng lắm là
+ * xuống dòng đều nhau, thay vì một cột vỡ vụn trong khi cột bên cạnh thừa chỗ.
+ *
+ * ĐÂY LÀ CHỖ CÙNG MỘT BẢNG IN RA HAI HỒ SƠ CÓ THỂ RA HAI BỀ RỘNG CỘT KHÁC NHAU,
+ * và đó chính là điều khách hàng yêu cầu. Hệ quả phải biết: hai bản CSBH của hai
+ * khách hàng đặt cạnh nhau không còn khớp lưới cột.
+ */
+const trongSoCot = (
+  tieuDeHang: string[],
+  duLieu: string[][],
+  soCot: number,
+  cot: KhoaCot[],
+): number[] => {
+  const tran = cot.flatMap((k) => {
+    const c = COT_BANG.find((x) => x.khoa === k)!;
+    const t = 'tran' in c ? c.tran : Infinity;
+    return k === 'cpbh' ? Array.from({ length: soCot }, () => t) : [t];
   });
+  const can = tieuDeHang.map((td, i) =>
+    Math.min(
+      tran[i]!,
+      Math.max(rongTuDaiNhat(td), ...duLieu.map((h) => rongChu(h[i] ?? ''))),
+    ) + LE_O_EM,
+  );
+  return apDungSan(can);
+};
+
+/**
+ * Nong những cột dưới sàn lên đúng sàn, rồi kiểm lại — nong một cột làm tổng
+ * tăng, nên cột vừa đạt sàn có thể tụt xuống lại.
+ *
+ * Có lúc KHÔNG làm được: đủ mười cột cộng nhiều khoản CPBH thì số cột × sàn vượt
+ * quá 100%, và lúc ấy không cách chia nào cứu được — bảng chật vì SỐ CỘT chứ
+ * không vì cách chia. Trả về nguyên trạng thay vì lặp mãi.
+ */
+const apDungSan = (can: number[]): number[] => {
+  const san = RONG_TOI_THIEU_PCT / 100;
+  if (can.length * san >= 1) return can;
+  const ra = [...can];
+  for (let lan = 0; lan < ra.length * 2; lan++) {
+    const tong = ra.reduce((a, b) => a + b, 0);
+    const i = ra.findIndex((x) => x / tong < san - 1e-9);
+    if (i < 0) break;
+    // x' / (T − x + x') = san  ⇔  x' = san·(T − x) / (1 − san)
+    ra[i] = (san * (tong - ra[i]!)) / (1 - san);
+  }
+  return ra;
+};
 
 export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
   const cot = chuanHoaCot(cotKhai);
   // Không chọn cột CPBH lẻ thì KHÔNG tính số cột: `soCotCpbh` quét mọi dòng, và
   // quét để rồi vứt đi là việc thừa trên đường nóng của mọi lượt xem bản mềm.
   const soCot = cot.includes('cpbh') ? soCotCpbh(p.lines) : 0;
-  const ts = trongSoCot(soCot, cot);
   /*
    * Hồ sơ CHƯA CÓ DÒNG NÀO vẫn phải ra một cái bảng, không phải một khoảng
    * trống. Bảng chỉ có hàng tiêu đề nói rõ "chưa có dòng sản phẩm"; một khoảng
    * trống ở giữa văn bản đọc ra như tài liệu bị lỗi khi in.
    */
   if (p.lines.length === 0) {
+    // Trọng số đo từ HÀNG TIÊU ĐỀ, không tính hàng "Chưa có sản phẩm nào": câu
+    // ấy nằm trong một ô, và để nó dự phần thì cột *Mã sản phẩm* của một hồ sơ
+    // rỗng rộng gấp ba lần bình thường.
+    const ts = trongSoCot(tieuDe(0, cot), [], 0, cot);
     return table(
       [
         tableRow(tieuDe(0, cot), true, ts, kieuTieuDe(0, cot)),
@@ -305,12 +416,17 @@ export function bangSanPhamXml(p: PolicyFull, cotKhai?: unknown): string {
     );
   }
   const kieuDong = kieuHang(soCot, cot, KIEU_O);
+  const hangTieuDe = tieuDe(soCot, cot);
+  const hangDuLieu = p.lines.map((l, i) => dong(l, i, soCot, cot));
+  // Dựng NỘI DUNG trước rồi mới đo bề rộng: từ `0172` bề rộng cột là hàm của
+  // chính những chuỗi này, nên không tính trước chúng được.
+  const ts = trongSoCot(hangTieuDe, hangDuLieu, soCot, cot);
   return table(
     [
       // Hàng tiêu đề LẶP LẠI ở mỗi trang — hồ sơ 60 dòng tràn sang sáu trang, và
       // từ trang 2 mà không có tên cột thì bảng số đọc không ra gì (DOC-19).
-      tableRow(tieuDe(soCot, cot), true, ts, kieuTieuDe(soCot, cot)),
-      ...p.lines.map((l, i) => tableRow(dong(l, i, soCot, cot), false, ts, kieuDong)),
+      tableRow(hangTieuDe, true, ts, kieuTieuDe(soCot, cot)),
+      ...hangDuLieu.map((h) => tableRow(h, false, ts, kieuDong)),
     ],
     // Bố cục CỐ ĐỊNH: ghi chú dài thì xuống dòng, ô cao lên — chứ không nong
     // cột ra và đẩy cột cuối khỏi mép giấy.

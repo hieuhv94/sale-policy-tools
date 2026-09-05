@@ -195,11 +195,20 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
   });
 });
 
-const GIAY_TO = {
+/**
+ * Bản mềm — khối thứ hai từ `0172`.
+ *
+ * Trước lượt ấy fixture này là một GIẤY TỜ (`kind: 'HO_SO'`), và cả khối *Giấy
+ * tờ hồ sơ* lẫn loại tệp ấy đã ra khỏi giao diện. Đổi fixture chứ không xoá ca
+ * kiểm: những gì `0097` khẳng định — mỗi khối một loại, tệp về đúng khối, nút
+ * gỡ theo LOẠI chứ không theo một cờ chung — vẫn là luật, chỉ là bây giờ nó nói
+ * về cặp *Bản mềm* / *Bản cứng*.
+ */
+const BAN_MEM = {
   id: 'dk-2',
-  kind: 'HO_SO',
-  fileName: 'gpkd.pdf',
-  objectKey: 'hoso/hs-1.pdf',
+  kind: 'BAN_MEM',
+  fileName: 'CSBH-2026-000001 (2026-08-01 09h00).pdf',
+  objectKey: 'banmem/hs-1.pdf',
   uploadedAt: '2026-08-01T03:00:00.000Z',
 };
 
@@ -223,34 +232,38 @@ const khoi = (tieuDe: string): HTMLElement => {
 };
 
 describe('`0097` hai khối tệp, mỗi khối một loại', () => {
-  it('hồ sơ NHÁP: vùng tải lên nằm ở *Giấy tờ hồ sơ*, KHÔNG ở *Bản cứng*', () => {
+  it('hồ sơ NHÁP: KHÔNG khối nào có vùng tải lên', () => {
     /*
      * Đúng lời khách hàng, chốt 23/08: "khối bản cứng trên màn hình hồ sơ Nháp,
      * không cho TDV upload gì lên ở trong khối đó cả".
      *
-     * Trước `0097` cả hai loại chung một khối tên *Bản cứng*, nên TDV ở hồ sơ
-     * Nháp thấy một vùng *Thêm hồ sơ* nằm dưới tiêu đề ấy — và đọc ra là "tôi
-     * đang tải bản cứng lên lúc hồ sơ còn nháp".
+     * `0172` bỏ khối *Giấy tờ hồ sơ*, nên ở hồ sơ Nháp máy chủ vẫn trả
+     * `['HO_SO']` mà không khối nào nhận loại ấy — màn hình không còn chỗ nào
+     * TDV tải tệp lên, và đó ĐÚNG là điều khách hàng vừa chốt.
      */
     chan();
     bayVoi([], ['HO_SO']);
-    expect(khoi('Giấy tờ hồ sơ').querySelector('.vung-tai-len')).not.toBeNull();
+    expect(khoi('Bản mềm').querySelector('.vung-tai-len')).toBeNull();
     expect(khoi('Bản cứng').querySelector('.vung-tai-len')).toBeNull();
   });
 
-  it('bước Sale Admin xử lý: ngược lại — vùng tải lên chỉ ở *Bản cứng*', () => {
+  it('bước Sale Admin xử lý: vùng tải lên chỉ ở *Bản cứng*', () => {
+    /*
+     * *Bản mềm* KHÔNG có vùng kéo thả dù Sale Admin ghi được nó (`0167`): nó
+     * dựng từ mẫu chứ không nằm sẵn trên máy ai, nên chỗ ấy là một NÚT.
+     */
     chan();
-    bayVoi([GIAY_TO], ['SCAN']);
+    bayVoi([BAN_MEM], ['SCAN', 'BAN_MEM']);
     expect(khoi('Bản cứng').querySelector('.vung-tai-len')).not.toBeNull();
-    expect(khoi('Giấy tờ hồ sơ').querySelector('.vung-tai-len')).toBeNull();
+    expect(khoi('Bản mềm').querySelector('.vung-tai-len')).toBeNull();
   });
 
   it('tệp về ĐÚNG khối của loại nó', () => {
     chan();
-    bayVoi([GIAY_TO, ...TEP], []);
-    expect(within(khoi('Giấy tờ hồ sơ')).getByText('gpkd.pdf')).toBeDefined();
+    bayVoi([BAN_MEM, ...TEP], []);
+    expect(within(khoi('Bản mềm')).getByText(BAN_MEM.fileName)).toBeDefined();
     expect(within(khoi('Bản cứng')).getByText('ban-cung-da-ky.pdf')).toBeDefined();
-    expect(within(khoi('Bản cứng')).queryByText('gpkd.pdf')).toBeNull();
+    expect(within(khoi('Bản cứng')).queryByText(BAN_MEM.fileName)).toBeNull();
   });
 
   it('nút GỠ theo loại tệp, không theo một cờ chung', () => {
@@ -261,11 +274,11 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
      * "nút hiện rồi trả 403" mà `assertNguoiGhiTep` sinh ra để chặn.
      */
     chan();
-    bayVoi([GIAY_TO, ...TEP], ['SCAN']);
+    bayVoi([BAN_MEM, ...TEP], ['SCAN']);
     expect(khoi('Bản cứng').querySelector('.the-tep-go')).not.toBeNull();
     expect(
-      khoi('Giấy tờ hồ sơ').querySelector('.the-tep-go'),
-      'Sale Admin không gỡ được giấy tờ của TDV',
+      khoi('Bản mềm').querySelector('.the-tep-go'),
+      'ghi được bản cứng KHÔNG có nghĩa là gỡ được bản mềm',
     ).toBeNull();
   });
 
@@ -273,7 +286,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
     // Đây là lý do khối rỗng vẫn hiện. Ẩn đi thì câu hỏi "bản cứng đâu" không có
     // chỗ nào trả lời.
     chan();
-    bayVoi([], ['HO_SO']);
+    bayVoi([], []);
     const trong = khoi('Bản cứng').querySelector('.trong')!.textContent ?? '';
     expect(trong).toContain('Sale Admin');
     expect(trong).toContain('Sale Admin đang xử lý');
@@ -297,15 +310,23 @@ describe('`0097` hộp thoại gỡ nói đúng loại tệp đang gỡ', () => 
     expect(hop.textContent).toContain('bàn giao');
   });
 
-  it('gỡ GIẤY TỜ thì KHÔNG nhắc gì tới bàn giao', async () => {
-    // Bản trước mở đầu bằng "Nếu đây là bản scan thì…" — một câu điều kiện mà
-    // người đọc phải tự trả lời, trong khi màn hình biết thừa câu trả lời.
+  it('gỡ BẢN MỀM cũng chặn bàn giao, nhưng nói rõ DỰNG LẠI ĐƯỢC', async () => {
+    /*
+     * Hai loại tệp, hai câu khác nhau, và chỗ khác nhau là chỗ đáng nói: thiếu
+     * bản cứng thì phải đi tìm tờ giấy đã ký — việc ngoài phần mềm; thiếu bản
+     * mềm thì bấm một nút là có lại. `0167` tách hai mã lỗi ở máy chủ chính vì
+     * lẽ đó, và hộp thoại này phải nói cùng một chuyện.
+     *
+     * Trước `0172` nhánh này nói về GIẤY TỜ của TDV và khẳng định *không nhắc
+     * tới bàn giao* — câu ấy đúng với giấy tờ và SAI với bản mềm, nên ca kiểm
+     * phải đổi theo chứ không nới ra.
+     */
     const nguoi = userEvent.setup();
     chan();
-    bayVoi([GIAY_TO], ['HO_SO']);
-    await nguoi.click(screen.getByRole('button', { name: 'Gỡ gpkd.pdf' }));
+    bayVoi([BAN_MEM], ['BAN_MEM']);
+    await nguoi.click(screen.getByRole('button', { name: `Gỡ ${BAN_MEM.fileName}` }));
     const hop = await screen.findByRole('dialog');
-    expect(hop.textContent).not.toContain('bàn giao');
-    expect(hop.textContent).toContain('còn sửa được');
+    expect(hop.textContent).toContain('bàn giao');
+    expect(hop.textContent).toContain('Dựng lại được');
   });
 });

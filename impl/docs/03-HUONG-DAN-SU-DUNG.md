@@ -1145,6 +1145,22 @@ Bề rộng đi theo **khổ giấy của mẫu bạn đang xem**, nhưng không
 > đầy màn hình chỉ làm ảnh mờ đi, chứ không cho bạn thêm chi tiết nào. PDF thì khác — nó phóng bao
 > nhiêu cũng nét, nên nó lấy hết chỗ.
 
+#### Phóng to trong hộp xem `mới 01/09`
+
+**Xem ẢNH** — ngay trên khung có ba nút: **−**, một nút ghi mức phóng hiện tại (**100%**), và **+**.
+
+- Bấm **+** hoặc **−** để đổi từng nấc, tối đa **6 lần** cỡ vừa khung.
+- **Lăn chuột** trên tấm ảnh cũng phóng to thu nhỏ.
+- Ảnh đã phóng to thì **kéo bằng chuột** để di chuyển tới chỗ muốn xem. Trên điện thoại thì kéo bằng
+  ngón tay.
+- Bấm **nút phần trăm** để về đúng cỡ vừa khung — ảnh cũng về giữa.
+
+Không thu nhỏ xuống dưới cỡ vừa khung được: dưới mức ấy ảnh nhỏ hơn khung và chỉ còn viền trống.
+
+**Xem PDF** — dùng **thanh công cụ của chính trình xem PDF** trong trình duyệt (hiện ở mép khung khi
+bạn rê chuột vào), hoặc **`Ctrl` + lăn chuột**. Phần mềm cố ý không thêm nút riêng: điều khiển trình
+xem ấy từ bên ngoài thì phải nạp lại cả tài liệu, và bạn mất chỗ đang đọc.
+
 > **Không còn hỏi khổ giấy nữa** `sửa 20/08`. Khổ giấy nằm sẵn trong file mẫu mà Quản trị soạn: mẫu
 > ngang thì bản mềm ra ngang. Hỏi riêng khổ giấy là bắt bạn ghép hai mảnh mà phần mềm ghép được —
 > bạn chọn *bản trình bày*, còn khổ giấy đi theo nó. Tên mẫu trong ô chọn có kèm nhãn khổ giấy để
@@ -1236,16 +1252,23 @@ Mở một hồ sơ:
 - **Xuất hợp đồng** — chỉ Kế toán và Sale Admin, và chỉ sau tiếp nhận lần 1. Cũng mở ra xem trước,
   có ô chọn mẫu hợp đồng.
 
-### Giấy tờ hồ sơ, Bản mềm và Bản cứng
+### Bản mềm và Bản cứng
 
-**BA KHỐI RIÊNG** `sửa 31/08`, vì chúng là ba thứ khác nhau và vào hồ sơ ở ba thời điểm khác nhau.
-Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
+**HAI KHỐI RIÊNG** `sửa 01/09`, vì chúng là hai thứ khác nhau và vào hồ sơ ở hai thời điểm khác
+nhau. Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 
 | Khối | Là gì | Ai đưa vào | Lúc nào |
 |---|---|---|---|
-| **Giấy tờ hồ sơ** | Giấy tờ đính kèm hồ sơ CSBH | Trình dược viên | Khi hồ sơ còn sửa được — *Nháp* hoặc *Yêu cầu chỉnh sửa* |
 | **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* |
 | **Bản cứng** | Bản giấy đã ký, scan lại | Sale Admin | Bước *Sale Admin đang xử lý* |
+
+> **Khối *Giấy tờ hồ sơ* đã bỏ** `sửa 01/09`. Trước đó Trình dược viên đính được giấy tờ kèm theo
+> vào hồ sơ CSBH lúc còn *Nháp*; khách hàng chốt bỏ mục ấy, và cùng lượt ấy dòng *File đính kèm*
+> cũng ra khỏi hai mẫu hồ sơ mặc định.
+>
+> Tệp đã đính ở hồ sơ cũ **không mất** — chúng còn nguyên trong hệ thống, chỉ là không màn hình nào
+> bày ra nữa. Giấy tờ pháp lý của khách hàng là chuyện khác và **vẫn nguyên**: nó ở hồ sơ khách hàng
+> và vẫn hiện ngay trên trang hồ sơ CSBH, ở khối *Hồ sơ pháp lý của khách hàng*.
 
 #### Bản mềm `mới 31/08`
 
@@ -1265,21 +1288,18 @@ mẫu mở ra, bạn chọn mẫu, xem trước cả tờ giấy, rồi bấm **
 
 **Chỉ Sale Admin tạo và gỡ được bản mềm.** Vai trò khác thấy khối, xem và tải xuống bình thường.
 
-#### Ba khối này nằm ở đâu trên trang `sửa 31/08`
+#### Hai khối này nằm ở đâu trên trang `sửa 01/09`
 
-Cuộn từ trên xuống, trang hồ sơ có tám mục theo thứ tự này:
+Cuộn từ trên xuống, trang hồ sơ có bảy mục theo thứ tự này:
 
-*Hồ sơ* → *Khách hàng* → *Sản phẩm* → **Giấy tờ hồ sơ** → *Hồ sơ pháp lý của khách hàng* →
-**Bản mềm** → **Bản cứng** → *Lịch sử*
+*Hồ sơ* → *Khách hàng* → *Sản phẩm* → *Hồ sơ pháp lý của khách hàng* → **Bản mềm** → **Bản cứng** →
+*Lịch sử*
 
 > *Bản mềm* và *Bản cứng* nằm gần cuối, ngay trên *Lịch sử*, vì chúng là **kết quả của vòng duyệt** —
 > chúng chỉ có sau khi hồ sơ đã đi qua chữ ký Trưởng bộ phận và tới bàn Sale Admin. Đọc từ trên xuống
 > là đọc đúng chiều hồ sơ đi.
->
-> *Giấy tờ hồ sơ* thì ở lại phía trên, ngay dưới bảng sản phẩm: nó là thứ Trình dược viên đính vào
-> **lúc lập**, tức một phần nội dung của hồ sơ chứ không phải sản phẩm của bước nào.
 
-> **Vì sao tách.** Trước đó cả hai nằm chung một khối tên *Bản cứng*, nên Trình dược viên mở một hồ
+> **Vì sao tách hai khối.** Trước đó cả hai nằm chung một khối tên *Bản cứng*, nên người mở một hồ
 > sơ **Nháp** ra là thấy vùng kéo thả nằm dưới đúng cái tiêu đề ấy — đọc ra là *"tôi đang tải bản
 > cứng lên lúc hồ sơ còn nháp"*, một câu vô lý: bản cứng là bản giấy đã ký, nó chưa tồn tại cho tới
 > khi Sale Admin trình ký xong ở bước B8.
@@ -1302,12 +1322,16 @@ lại — ba lần chuyển màn hình giữa lúc đang đọc một hồ sơ c
 > **Sửa thì sang trang khách hàng.** Liên kết nằm ngay ở ô *Mã khách hàng* phía trên đầu trang. Ở đó
 > việc thêm và gỡ giấy tờ có đủ ngữ cảnh; trang hồ sơ là chỗ đọc một hồ sơ CSBH.
 >
-> Nhãn khối ghi rõ *"của khách hàng"* để không lẫn với *Giấy tờ hồ sơ* ngay phía trên — hai thứ khác
-> hẳn nhau: một cái đi theo hồ sơ, một cái thuộc về khách hàng và dùng chung cho mọi hồ sơ của họ.
+> Nhãn khối ghi rõ *"của khách hàng"* để không lẫn với hai khối tệp ở dưới — chúng khác hẳn nhau:
+> *Bản mềm* và *Bản cứng* đi theo một hồ sơ, còn giấy tờ pháp lý thuộc về khách hàng và dùng chung
+> cho mọi hồ sơ của họ.
 
 **Lập phiên bản mới thì giấy tờ hồ sơ ĐI THEO** `sửa 28/08` — y như dòng sản phẩm. Bản mới nhận một
 bản sao riêng của từng tệp, nên gỡ giấy tờ ở bản cũ không đụng gì tới bản mới. Đi theo đúng những
 giấy tờ bản cũ **đang có**: thứ đã gỡ thì không quay lại.
+
+> `sửa 01/09` — luật này **vẫn chạy ở máy chủ**, nhưng từ khi khối *Giấy tờ hồ sơ* bị bỏ thì không
+> hồ sơ mới nào có giấy tờ để mà chép sang. Nó chỉ còn ý nghĩa với hồ sơ lập trước ngày ấy.
 
 **Gỡ tệp khỏi hồ sơ là XOÁ HẲN** `sửa 28/08`, giống hồ sơ pháp lý của khách hàng — kể cả bản cứng
 Sale Admin gỡ ra để thay bản in lại.
@@ -1689,8 +1713,8 @@ cùng mục bắt buộc, cùng ô `{{bang_san_pham}}`, cùng người quản l�
 
 | | Cột của bảng sản phẩm | Dùng khi nào |
 | --- | --- | --- |
-| **Đầy đủ** | đủ mười: STT · Mã SP · Tên SP · Giá công ty · Giá bán buôn · CPBH tổng · từng khoản CPBH · Giá thu về · Tỷ lệ CK · Ghi chú | bản nội bộ, để duyệt |
-| **Rút gọn** | sáu: STT · Mã SP · Tên SP · Giá công ty · Giá bán buôn · CPBH tổng | bản đưa khách hàng |
+| **Đầy đủ** | đủ mười: STT · Mã sản phẩm · Tên sản phẩm · Giá bán Công ty · Giá bán buôn · CPBH · từng khoản CPBH · Giá thu về · Tỷ lệ CK · Ghi chú | bản nội bộ, để duyệt |
+| **Rút gọn** | sáu: STT · Mã sản phẩm · Tên sản phẩm · Giá bán Công ty · Giá bán buôn · CPBH | bản đưa khách hàng |
 
 Bản rút gọn **không in** giá thu về, tỷ lệ chiết khấu và từng khoản CPBH — ba con số ấy là phép tính
 ngược ra mức chiết khấu, thứ Công ty dùng để duyệt chứ không đưa cho bên mua.
@@ -1780,9 +1804,16 @@ luôn ở trong tầm mắt.
   dưới. Hồ sơ chưa ký thì chỗ ấy để **trống**.
 - **Bảng sản phẩm KHÔNG vẽ trong Word.** Đặt ô `{{bang_san_pham}}` ở chỗ muốn có bảng; phần mềm thay
   nó bằng cả cái bảng, với **đúng số cột CPBH của từng hồ sơ**.
-  > **Bề rộng cột chia lại** `mới 27/08`. *Tên sản phẩm* giờ chiếm khoảng **một phần tư** bề ngang
-  > bảng — rộng gấp gần ba lần bản trước — còn *STT*, *Tỷ lệ CK* và các cột CPBH lẻ hẹp lại. Bạn
-  > không chỉnh được bề rộng này trong Word: phần mềm dựng cả cái bảng, nên nó cũng quyết bề rộng.
+  > **Bề rộng cột TỰ CO GIÃN theo nội dung** `sửa 01/09`. Mỗi cột rộng vừa đủ cho ô dài nhất của
+  > chính nó ở **hồ sơ đang in**: danh mục toàn tên ngắn thì cột *Tên sản phẩm* hẹp lại và nhường
+  > chỗ cho cột tiền, và ngược lại. Mục tiêu là **không cột số nào phải xuống dòng**.
+  >
+  > Hai cột chữ — *Tên sản phẩm* và *Ghi chú* — có mức trần: quá dài thì chúng xuống dòng chứ không
+  > kéo cả bảng theo. Bạn **không chỉnh được bề rộng này trong Word**: phần mềm dựng cả cái bảng,
+  > nên nó cũng quyết bề rộng.
+  >
+  > Hệ quả: hai bản CSBH của hai khách hàng khác nhau in ra có thể có lưới cột không khớp nhau. Bảng
+  > nào cũng đọc được, chỉ là đặt cạnh nhau thì đường kẻ dọc không thẳng hàng.
 - **Phông chữ Times New Roman** `mới 27/08` cho mọi file phần mềm sinh ra. Bản in ra từ máy chủ dùng
   **Liberation Serif** — phông thay thế cùng số đo, vì Times New Roman là phông có bản quyền và
   không cài sẵn trên máy chủ Linux. Chữ nằm đúng chỗ ấy, chỉ khác nét; mở file bằng Word trên máy
@@ -1815,12 +1846,12 @@ khách hàng"** mà không cần ai lập trình — người xem chọn mẫu n
 
 | Cột | Ghi chú |
 |---|---|
-| STT · Mã sản phẩm · Giá công ty · Giá bán buôn · **CPBH tổng** · Giá thu về · Tỷ lệ CK · Ghi chú | Tuỳ chọn |
+| STT · Mã sản phẩm · Giá bán Công ty · Giá bán buôn · **CPBH** · Giá thu về · Tỷ lệ CK · Ghi chú | Tuỳ chọn |
 | **Tên sản phẩm** | **Không tắt được** — bảng giá phải nói nó đang nói về mặt hàng nào |
 | **Từng khoản CPBH** | Một lựa chọn duy nhất, bật thì hiện **hết** CPBH1…CPBHn |
 
-> **CPBH tổng tắt được** `sửa 21/08`. CPBH là chi phí **nội bộ**: bản đưa khách hàng thì tắt cả
-> *CPBH tổng* lẫn *từng khoản CPBH*, bản lưu nội bộ thì bật. Đổi lại, phần mềm **không còn tự bảo
+> **Cột CPBH tắt được** `sửa 21/08`. CPBH là chi phí **nội bộ**: bản đưa khách hàng thì tắt cả
+> *CPBH* lẫn *từng khoản CPBH*, bản lưu nội bộ thì bật. Đổi lại, phần mềm **không còn tự bảo
 > đảm** mục *CPBH* của muc 11.1 có mặt trên bản A4 — bạn soạn mẫu, bạn quyết.
 
 > *Từng khoản CPBH* không tách ra chọn lẻ được: số cột bằng dòng nhiều khoản nhất của **từng hồ sơ**,
@@ -2030,7 +2061,7 @@ Dưới 1024px thanh bên **thu lại thành ngăn kéo**: chạm nút ba gạch
 chạm ra ngoài hoặc chạm dấu X để đóng. Chọn một mục xong thì nó tự đóng.
 
 Bảng dòng sản phẩm dưới 640px chuyển thành **thẻ**, mỗi sản phẩm một thẻ. **Không cột nào bị bỏ** —
-bốn ô CPBH gấp vào dòng *Tổng CPBH*, chạm vào để mở.
+bốn ô CPBH gấp vào dòng *CPBH*, chạm vào để mở.
 
 Ô nhập tiền gọi **bàn phím số**. Xoay ngang máy giữa lúc đang gõ không làm mất nội dung.
 

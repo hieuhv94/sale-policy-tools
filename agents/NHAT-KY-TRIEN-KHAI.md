@@ -14869,3 +14869,139 @@ còn *Số hồ sơ* lẫn *File đính kèm*. Bốn file `.docx` đổi (hai b�
 `templates/`).
 
 **1967/1967 xanh.**
+
+---
+
+## P200 — `0172` bỏ khối Giấy tờ hồ sơ, phóng to ảnh, đồng bộ tên cột, bề rộng cột đo từ nội dung
+
+Bốn câu trong một lượt phản hồi, và chúng độc lập với nhau — trừ hai câu cuối, vốn cùng nói về một
+cái bảng.
+
+### 1. Bỏ mục *Giấy tờ hồ sơ* — và nó rộng hơn một khối bị ẩn
+
+*"Bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ sơ"*. Câu tiếp theo của `0171`, lượt bỏ dòng
+*File đính kèm* khỏi hai mẫu.
+
+Chỗ phải nói ra: **đây là chỗ DUY NHẤT của giao diện đính được tệp loại `HO_SO`**, nên bỏ khối là bỏ
+luôn tính năng — TDV thôi đính giấy tờ vào hồ sơ CSBH. Nói ra trước khi làm chứ không phát hiện sau.
+
+Bỏ ở `KHOI` của `TepDinhKem` chứ không chỉ ở trang: `ChiTietHoSo` là nơi duy nhất dựng component ấy,
+nên một mục ở lại bảng mà không trang nào bày ra là **một cơ chế không ai dùng mà vẫn chạy** — thứ
+sẽ hỏng lặng lẽ vì không lượt thử tay nào đi qua nó nữa. Đường máy chủ thì GIỮ: nó vẫn có chốt vai
+trò và trạng thái, tệp cũ vẫn nằm nguyên, và cần bày lại thì chỉ phải dựng lại phần màn hình.
+
+**`chiKhoi` của `0170` gỡ theo, và đó là một khoản được.** Prop ấy sinh ra vì ba khối phải tách làm
+hai chỗ trên trang; còn hai khối thì chúng lại đứng liền nhau và một lượt gọi là đủ. Kéo theo `tepCua`
+với `useMemo` của nó biến mất — **lượt gọi `/files` dựng ảnh thu nhỏ trở lại MỘT lần cho cả trang**,
+đúng cái giá mà `0170` đã đo và chấp nhận.
+
+Hai chỗ suýt để lại nói sai:
+
+- **Câu cảnh báo lúc gỡ tệp.** Nhánh "không phải SCAN" trước đây nói về giấy tờ của TDV — *"Đính lại
+  được chừng nào hồ sơ còn sửa được"*. Nhánh ấy giờ là BẢN MỀM, và câu ấy sai hoàn toàn: gỡ bản mềm
+  **chặn bàn giao** (`BAN_MEM_REQUIRED`), chỉ khác bản cứng ở chỗ dựng lại được ngay từ một mẫu.
+- **`NHAN_LOAI` trong `TepDinhKem` là mã chết từ `0097`** — lượt đưa loại tệp lên tiêu đề khối. Một
+  hằng cấp mô-đun không ai đọc **không làm `tsc` đỏ**, nên nó nằm đó bảy chặng. (`HoSoPhapLy` có
+  bảng cùng tên và dùng thật: ở đó một khối chứa nhiều loại giấy tờ.)
+
+### 2. Phóng to ảnh — và một ranh giới cố ý không làm
+
+*"Cho phép zoom bằng chuột hoặc biểu tượng khi xem preview ảnh hoặc pdf **nếu chưa có**"*. Vế cuối là
+lời mời kiểm tra, và kiểm ra hai câu trả lời khác nhau:
+
+- **PDF ĐÃ CÓ.** `<iframe>` với một PDF đi thẳng vào trình xem PDF của trình duyệt, thứ mang sẵn
+  thanh công cụ phóng to và `Ctrl` + lăn chuột. Điều khiển nó từ ngoài thì phải đi qua tham số
+  `#zoom=` trong địa chỉ — tức **nạp lại cả tài liệu và nhảy mất chỗ đang đọc**. Nên không thêm gì,
+  và có một ca kiểm ghim đúng ranh giới ấy để lượt sau không "làm cho đủ bộ".
+- **ẢNH thì không có đường nào**: `object-fit: contain` khớp ảnh vào khung rồi thôi. Giờ có ba nút
+  (− · phần trăm · +), lăn chuột, và kéo để di chuyển.
+
+> **BẪY, và nó im lặng:** `onWheel` của React gắn ở gốc cây dưới dạng listener **THỤ ĐỘNG**, nên
+> `preventDefault()` trong đó không có tác dụng — ảnh phóng to trong lúc trang vẫn cuộn phía sau.
+> Phải `addEventListener('wheel', …, { passive: false })` bằng tay. Đây là chỗ duy nhất trong phần
+> mềm phải đi đường ấy.
+
+> **BẪY THỨ HAI, đã dính và đo được:** bản đầu để `khungAnh.current` làm phụ thuộc của `useEffect`.
+> Nghe hợp lý mà sai — React so phụ thuộc bằng giá trị đọc được **lúc render**, còn ref thì gán lúc
+> **commit**. Ở đúng lượt render dựng ra khung, giá trị ấy vẫn là `null`, hiệu ứng thoát sớm, và
+> không có lượt render nào nữa nên **listener không bao giờ được gắn**. Ca kiểm lăn chuột bắt được
+> ngay; nếu chỉ có ca bấm nút thì nó nằm im.
+
+### 3. Đồng bộ tên cột — khách hàng tìm ra ba cặp, có cặp thứ tư
+
+*Giá bán Công ty*/*Giá công ty* · *CPBH tổng*/*CPBH* · *CPBH 1*/*CPBH1*. Cặp thứ tư — *Mã SP*/*Mã sản
+phẩm* — nằm ngay cạnh và không ai nêu. Đó là hình dạng của lỗi này: nó sinh ra từng cặp một, mỗi cặp
+một lượt sửa ở MỘT bên.
+
+Tên chọn theo **tờ mẫu khách hàng tự gõ** (`Mau_mac_dinh_full.docx`), đọc thẳng từ hàng tiêu đề trong
+zip: `CPBH`, `CPBH 1`, `CPBH 2`, `Mã sản phẩm`. Riêng *Giá bán Công ty* lấy theo bản màn hình — tờ
+mẫu ghi *Giá công ty*, nhưng đó là một trong hai bản đang có, và khách hàng nêu đích danh bản dài.
+
+**Hai bảng không gộp làm một được**: `COT_TRUOC`/`COT_SAU` thuộc gói giao diện (`FE-38` chặn 250KB),
+`COT_BANG` thuộc `document`. Nên chốt chặn là một ca ĐỐI CHIẾU đọc cả hai hằng, kèm **chiều ngược** —
+mọi cột của cả hai bên phải nằm trong bảng ánh xạ hoặc trong danh sách miễn trừ có ghi lý do. Không
+có chiều ấy thì cách "sửa" rẻ nhất là gỡ một dòng khỏi bảng ánh xạ.
+
+Kéo theo một lượt dời tệp: hai bảng tên cột ra khỏi `BangSanPham.tsx` về `lib/bang-cot.ts`. Lý do
+không phải thẩm mỹ — `tests/http/` **không bật `jsx`**, nên nhập một `.tsx` vào đó thì `vitest` chạy
+được mà `tsc` đỏ (`TS6142`). Tên cột vốn là DỮ LIỆU, và đây là chỗ đúng của nó.
+
+### 4. Bề rộng cột đo từ nội dung — bỏ hẳn bộ trọng số của `0135`
+
+*"Độ rộng cột trong bản mềm tự động được điều chỉnh để cố gắng không phải xuống dòng"*.
+
+`0135` chỉnh bộ `trongSo` sau khi đo trên PDF thật, và lượt chỉnh ấy ĐÚNG với dữ liệu lúc đó. Nó vẫn
+sai với một danh mục toàn tên ngắn: 29% bề ngang cho `Sữa A` trong khi cột tiền bên cạnh vỡ chữ. Một
+bộ số cố định **không biết hồ sơ này chứa gì**, nên nó không trả lời được câu khách hàng vừa hỏi.
+
+Ba bước, và bước ba là chỗ luật nghiệp vụ nằm:
+
+1. Nhu cầu của một cột = ô dài nhất của nó, cộng lề trong ô.
+2. Hàng tiêu đề tính theo **TỪ DÀI NHẤT**, không phải cả chuỗi — tiêu đề được phép xuống dòng giữa
+   hai từ (tờ mẫu khách hàng cũng có *Giá bán buôn* hai dòng), cái không được phép là cắt giữa một
+   từ. Lấy cả chuỗi thì *Giá bán Công ty* đòi một cột rộng gấp đôi con số nó đựng.
+3. Hai cột CHỮ bị chặn ở `tran` (13em và 9em). Đây chính là thứ `0135` GIỮ LẠI: cột số phải đủ chỗ
+   để không xuống dòng, cột chữ thì xuống dòng là bình thường (`0056` đã viết cho *Ghi chú*).
+
+`table()` chia lại theo tổng nên đơn vị tuyệt đối không quan trọng — chỉ tỷ lệ. Tổng nhu cầu nhỏ hơn
+bề ngang trang thì mọi cột nới ra và không cột nào xuống dòng; lớn hơn thì co đều, cùng lắm là xuống
+dòng đều nhau thay vì một cột vỡ vụn cạnh một cột thừa chỗ.
+
+Ba chỗ đáng ghi:
+
+- **`apDungSan` phải LẶP.** Nong một cột lên sàn làm tổng tăng, nên cột vừa đạt sàn tụt xuống lại.
+  Và có lúc không làm được: đủ mười cột cộng nhiều khoản CPBH thì `số cột × 3%` vượt 100% — lúc ấy
+  bảng chật vì SỐ CỘT chứ không vì cách chia, nên trả về nguyên trạng thay vì lặp mãi.
+- **Nhánh hồ sơ RỖNG đo riêng.** Hàng thứ hai của nó mang câu *"Chưa có sản phẩm nào"* trong một ô;
+  để câu ấy dự phần thì cột *Mã sản phẩm* của một hồ sơ rỗng rộng gấp ba lần bình thường.
+- **Thứ tự đảo:** phải dựng NỘI DUNG trước rồi mới đo, vì bề rộng giờ là hàm của chính những chuỗi
+  ấy. Trước lượt này `ts` tính xong trước cả hàng tiêu đề.
+
+Cái mất, đã ghi vào tài liệu: **hai bản CSBH của hai khách hàng in ra không còn khớp lưới cột.**
+
+### Ca kiểm cũ phải THAY, không phải nới
+
+Hai ca của `0135` đọc thẳng `COT_BANG[…].trongSo` — chúng khẳng định *"tên sản phẩm là cột rộng
+nhất"* trên một dãy số viết cứng. Dãy ấy không còn, và câu hỏi đúng cũng đổi: không phải *"cột nào
+rộng nhất"* mà *"cột nào cần rộng thì có rộng ra không"*. Ba ca mới: tên dài thì cột rộng ra và tên
+ngắn thì nhường chỗ; cột số đủ chỗ cho con số dài nhất (đo bằng twip trên khổ A4 ngang); cột chữ bị
+trần chặn.
+
+### Nghiệm thu bằng cách IN RA GIẤY
+
+Dựng cả hai mẫu với ba dòng sản phẩm — một dòng tên bốn mươi ký tự, giá bảy chữ số, ghi chú dài —
+rồi đẩy qua Gotenberg. **Mỗi bản một trang; không cột số nào xuống dòng**; tên sản phẩm và ghi chú
+xuống hai dòng đúng như thiết kế; tiêu đề *Giá bán Công ty* và *Giá bán buôn* gãy giữa hai từ.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả khối `HO_SO` về `KHOI` | 2 đỏ (cả hai ca thứ tự mục) |
+| Trả nhãn *CPBH* → *CPBH tổng*, CHỈ bên bản mềm | 1 đỏ, nói đúng cặp lệch |
+| Bỏ `tran` của hai cột chữ | 2 đỏ (cột số hụt chỗ, cột tên chiếm 38%) |
+| `trongSoCot` trả về dãy BẰNG NHAU | 3 đỏ, gồm một ca có từ `0135` |
+| Bỏ `preventDefault()` của lượt lăn chuột | 1 đỏ |
+| Thôi nối mức phóng vào `transform` | 3 đỏ |
+
+**1978/1978 xanh.**

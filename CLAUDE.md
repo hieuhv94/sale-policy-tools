@@ -85,9 +85,28 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (01/09/2026)
+## Trạng thái hiện tại (05/09/2026)
 
-Chặng gần nhất **P199** (`0171`): **hai mẫu hồ sơ mặc định bỏ bốn dòng, và HAI CHỐT CHẶN gửi duyệt gỡ
+Chặng gần nhất **P200** (`0172`): **bốn việc rời nhau trong một lượt phản hồi.** (1) **Bỏ khối *Giấy
+tờ hồ sơ*** — và nó rộng hơn một khối bị ẩn: đó là chỗ DUY NHẤT giao diện đính được tệp `HO_SO`, nên
+TDV thôi đính giấy tờ vào hồ sơ (đường máy chủ GIỮ, tệp cũ còn nguyên). Bỏ ở `KHOI` chứ không chỉ ở
+trang, vì `ChiTietHoSo` là nơi duy nhất dựng component ấy. **`chiKhoi` của `0170` gỡ theo và đó là
+khoản ĐƯỢC**: hai khối lại liền nhau → một lượt gọi → `/files` trở lại MỘT lần. Hai chỗ suýt nói sai:
+câu cảnh báo lúc gỡ (nhánh "không phải SCAN" giờ là BẢN MỀM, mà gỡ bản mềm **có** chặn bàn giao), và
+`NHAN_LOAI` là **mã chết từ `0097`** — hằng cấp mô-đun không ai đọc không làm `tsc` đỏ. (2) **Phóng
+to ẢNH** (nút − · % · +, lăn chuột, kéo); **PDF cố ý KHÔNG thêm gì** — trình xem của trình duyệt đã
+có, điều khiển nó từ ngoài phải qua `#zoom=` tức nạp lại tài liệu; có ca kiểm ghim ranh giới. **BẪY:**
+`onWheel` của React là listener THỤ ĐỘNG nên `preventDefault` vô tác dụng — phải `addEventListener`
+tay với `passive:false`; và để `ref.current` làm phụ thuộc `useEffect` là **listener không bao giờ
+được gắn** (React so phụ thuộc lúc RENDER, ref gán lúc COMMIT). (3) **Đồng bộ tên cột** hai bảng —
+khách hàng tìm ra ba cặp, có **cặp thứ tư** (*Mã SP*/*Mã sản phẩm*) họ không nêu; tên lấy từ tờ mẫu
+họ gõ. Hai bảng không gộp được (gói giao diện vs mã service) nên chốt là ca ĐỐI CHIẾU **kèm chiều
+ngược**; tên cột dời sang `lib/bang-cot.ts` vì `tests/http/` không bật `jsx`. (4) **Bề rộng cột đo từ
+NỘI DUNG**, bỏ hẳn `trongSo` của `0135`: nhu cầu = ô dài nhất, **tiêu đề tính theo TỪ dài nhất** (nó
+được xuống dòng giữa hai từ), hai cột chữ có `tran`. `apDungSan` phải LẶP và có lúc bó tay (số cột ×
+3% > 100%). Cái mất: hai bản CSBH của hai khách **không còn khớp lưới cột**. **1978/1978 xanh.**
+
+Trước đó **P199** (`0171`): **hai mẫu hồ sơ mặc định bỏ bốn dòng, và HAI CHỐT CHẶN gửi duyệt gỡ
 theo**. *"Bỏ người đại diện"* KHÔNG phải bỏ người đại diện: câu kế tiếp bảo dòng *Tên khách hàng* in
 chính tên ấy — hai câu nói về cùng một người, ngược chiều nhau, đọc riêng câu đầu là làm sai cả hai.
 Khối thông tin còn **bốn dòng**; **bản CSBH thôi mang tên pháp nhân khách hàng** ở bất kỳ đâu (còn mã
@@ -768,6 +787,13 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
   một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
   thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
+- **HAI khối tệp trên trang hồ sơ, và BỀ RỘNG CỘT đo từ nội dung** (`0172`). Khối *Giấy tờ hồ sơ*
+  (`kind: 'HO_SO'`) bỏ khỏi giao diện — đường máy chủ giữ nguyên, tệp cũ còn nguyên, nhưng **không
+  màn hình nào đính hay bày nó nữa**. Bảng sản phẩm: nhãn cột của `apps/web/src/lib/bang-cot.ts` và
+  của `document/contracts/bang-san-pham.ts` phải **khớp từng chữ**, canh bằng `tests/http/tieu-de-cot.test.ts`
+  (có cả chiều ngược: cột mới ở một bên mà quên bên kia là đỏ). Bề rộng cột **không còn hằng số nào**
+  — đo từ ô dài nhất, tiêu đề tính theo TỪ dài nhất, hai cột chữ có `tran`; nên hai hồ sơ khác nhau
+  in ra hai lưới cột khác nhau, và đó là điều khách hàng yêu cầu.
 - **BẢN MỀM ĐÃ LƯU là một tệp của hồ sơ** (`0167`) — `pol.attachment_kind` thêm `BAN_MEM` (`0113`),
   `doc.file_purpose` dùng `BAN_CSBH` vốn có sẵn từ `0011`. Khác `0098` ở chỗ căn bản: đóng băng
   **byte PDF**, không phải id của mẫu — nên mẫu đổi hay bị vô hiệu đều không chạm tới nó. Chỉ Sale

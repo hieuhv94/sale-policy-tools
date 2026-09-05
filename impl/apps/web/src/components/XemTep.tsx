@@ -12,7 +12,7 @@
  * bị thu hồi. Hộp này thu hồi ở nhánh dọn của `useEffect` — mở rồi đóng vài chục
  * tệp scan trong một phiên mà không thu hồi là vài trăm MB không ai đòi lại.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { taiVe, xemTruoc, type XemDuoc } from '../lib/api.js';
 import { TY_LE_MAC_DINH } from '../lib/mau-hop-dong.js';
 import { BaoLoi, DangTai, HopThoai } from './Chung.js';
@@ -105,6 +105,67 @@ export function XemTep({
    */
   const [anh, datAnh] = useState<{ rong: number; cao: number } | null>(null);
 
+  /*
+   * PHÓNG TO ẢNH (`0172`, chốt 01/09) — *"cho phép zoom bằng chuột hoặc biểu
+   * tượng khi xem preview ảnh hoặc pdf nếu chưa có"*.
+   *
+   * CHỈ ẢNH. PDF nhúng bằng `<iframe>` đi thẳng vào TRÌNH XEM PDF của trình
+   * duyệt, và trình xem ấy đã có sẵn cả hai đường: thanh công cụ có nút phóng
+   * to/thu nhỏ, và `Ctrl` + lăn chuột. Dựng thêm một bộ nút của riêng mình cho
+   * PDF là dựng một bộ điều khiển thứ hai bên cạnh một bộ đang chạy tốt — mà
+   * điều khiển được nó thì phải đi qua tham số `#zoom=` trong địa chỉ, tức là
+   * NẠP LẠI cả tài liệu và nhảy mất chỗ người ta đang đọc.
+   *
+   * Ảnh thì trước lượt này không có đường nào: `object-fit: contain` khớp ảnh
+   * vào khung rồi thôi, nên một bản scan chữ nhỏ chỉ đọc được bằng cách tải về.
+   */
+  const [phong, datPhong] = useState(1);
+  /** Độ lệch khi kéo ảnh đã phóng to, tính bằng pixel trên màn hình. */
+  const [lech, datLech] = useState({ x: 0, y: 0 });
+  const keo = useRef<{ x: number; y: number } | null>(null);
+  const khungAnh = useRef<HTMLDivElement | null>(null);
+
+  const PHONG_MIN = 1;
+  const PHONG_MAX = 6;
+  const dungPhong = (z: number) => {
+    const m = Math.min(PHONG_MAX, Math.max(PHONG_MIN, z));
+    datPhong(m);
+    // Về đúng cỡ vừa khung thì ảnh phải về giữa: giữ độ lệch cũ là để lại một
+    // ảnh vừa khung mà nằm lệch hẳn sang một bên, không cách nào chỉnh lại.
+    if (m === 1) datLech({ x: 0, y: 0 });
+  };
+
+  /*
+   * LĂN CHUỘT phải gắn bằng listener THẬT với `passive: false`.
+   *
+   * React gắn `onWheel` ở gốc cây dưới dạng listener THỤ ĐỘNG, nên
+   * `preventDefault()` trong đó không có tác dụng — trang vẫn cuộn phía sau
+   * trong lúc ảnh phóng to, và trình duyệt còn ghi một cảnh báo ra console.
+   * Đây là chỗ duy nhất trong phần mềm phải đi đường này.
+   */
+  useEffect(() => {
+    const el = khungAnh.current;
+    if (el === null) return;
+    const lan = (e: WheelEvent) => {
+      e.preventDefault();
+      // Nhân chứ không cộng: mỗi nấc đổi cùng một TỶ LỆ, nên phóng từ 1 lên 2
+      // mất đúng số nấc như từ 2 lên 4.
+      dungPhong(phong * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+    };
+    el.addEventListener('wheel', lan, { passive: false });
+    return () => el.removeEventListener('wheel', lan);
+    /*
+     * `tep` PHẢI có trong danh sách, và đây là chỗ đã dính một lần.
+     *
+     * Bản đầu để `khungAnh.current` làm phụ thuộc, nghe hợp lý mà SAI: React so
+     * phụ thuộc bằng giá trị đọc được LÚC RENDER, còn ref thì gán lúc commit —
+     * nên ở đúng lượt render dựng ra khung, giá trị ấy vẫn là `null`, hiệu ứng
+     * thoát sớm, và nếu không có lượt render nào nữa thì listener KHÔNG BAO GIỜ
+     * được gắn. `tep` đổi từ `null` sang nội dung đúng ở lượt dựng ra khung, và
+     * hiệu ứng chạy SAU commit nên lúc đó ref đã có.
+     */
+  }, [phong, tep]);
+
   useEffect(() => {
     let song = true;
     let url: string | null = null;
@@ -112,6 +173,10 @@ export function XemTep({
     // Đổi tệp là quên số đo cũ: giữ lại thì khung mang tỷ lệ của tệp TRƯỚC
     // trong khoảnh khắc tệp mới chưa giải mã xong.
     datAnh(null);
+    // …và quên cả mức phóng: tệp mới mở ra ở cỡ vừa khung, không mang theo mức
+    // phóng của tệp trước (`0172`).
+    datPhong(1);
+    datLech({ x: 0, y: 0 });
     xemTruoc(duong)
       .then((x) => {
         url = x.url;
@@ -193,10 +258,78 @@ export function XemTep({
       )}
 
       {tep !== null && cach === 'anh' && (
-        <div className="khung-xem khung-anh">
+        /*
+          THANH PHÓNG TO, chỉ có ở ảnh (`0172`).
+
+          Đặt TRÊN khung chứ không dưới, cùng lý do với `truoc`: khung xem chiếm
+          gần hết chiều cao hộp, và một điều khiển nằm dưới nó thì phải cuộn mới
+          thấy. Con số phần trăm là một NÚT — bấm vào là về đúng cỡ vừa khung,
+          đường thoát cho người vừa lăn chuột quá tay.
+        */
+        <div className="thanh-phong">
+          <button
+            type="button"
+            className="nut nut-nhe nut-phong"
+            aria-label="Thu nhỏ"
+            disabled={phong <= 1}
+            onClick={() => dungPhong(phong / 1.25)}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="nut nut-nhe"
+            aria-label="Về cỡ vừa khung"
+            disabled={phong === 1}
+            onClick={() => dungPhong(1)}
+          >
+            {Math.round(phong * 100)}%
+          </button>
+          <button
+            type="button"
+            className="nut nut-nhe nut-phong"
+            aria-label="Phóng to"
+            disabled={phong >= 6}
+            onClick={() => dungPhong(phong * 1.25)}
+          >
+            +
+          </button>
+          <span className="ghi-chu">Lăn chuột để phóng to, kéo để di chuyển ảnh.</span>
+        </div>
+      )}
+
+      {tep !== null && cach === 'anh' && (
+        <div
+          className="khung-xem khung-anh"
+          ref={khungAnh}
+          /*
+            KÉO ẢNH bằng con trỏ — chuột, bút và ngón tay đi chung một đường
+            (`pointer*`). `setPointerCapture` là thứ giữ cho lượt kéo không đứt
+            khi con trỏ ra khỏi khung giữa chừng.
+          */
+          onPointerDown={(e) => {
+            if (phong <= 1) return;
+            keo.current = { x: e.clientX - lech.x, y: e.clientY - lech.y };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            if (keo.current === null) return;
+            datLech({ x: e.clientX - keo.current.x, y: e.clientY - keo.current.y });
+          }}
+          onPointerUp={() => {
+            keo.current = null;
+          }}
+          onPointerCancel={() => {
+            keo.current = null;
+          }}
+          data-keo={phong > 1 ? '1' : undefined}
+        >
           <img
             src={tep.url}
             alt={tieuDe}
+            style={{ transform: `translate(${lech.x}px, ${lech.y}px) scale(${phong})` }}
+            /* Kéo ảnh là KÉO KHUNG, không phải kéo-thả tệp của trình duyệt. */
+            draggable={false}
             onLoad={(e) => {
               const a = e.currentTarget;
               // Chặn phép chia cho 0: ảnh hỏng vẫn kích hoạt `load` ở vài trình

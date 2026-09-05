@@ -431,19 +431,22 @@ export function ChiTietHoSo({ id }: { id: string }) {
           : {})}
       />
 
-      <TepDinhKem
-        hoSoId={hoSo.id}
-        tep={hoSo.attachments}
-        /*
-          Quyền VÀ trạng thái, cả hai (`0048`). Bảng quyền phía giao diện nói
-          "vai trò này được đính kèm"; máy chủ nói "hồ sơ này lúc này đính kèm
-          được loại gì". Thiếu vế thứ hai thì nút vẫn hiện ở hồ sơ đã quá hạn
-          hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
-        */
-        loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
-        chiKhoi={['HO_SO']}
-        taiLai={taiLai}
-      />
+      {/*
+        KHỐI *GIẤY TỜ HỒ SƠ* ĐÃ BỎ (`0172`, chốt 01/09).
+
+        Khách hàng: *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ sơ"*.
+        Đây là câu tiếp theo của `0171`, lượt bỏ dòng *File đính kèm* khỏi hai mẫu
+        hồ sơ: giấy tờ TDV đính lúc lập thôi xuất hiện trên tờ giấy, và giờ thôi
+        xuất hiện trên màn hình.
+
+        HỆ QUẢ, nói thẳng vì nó rộng hơn một khối bị ẩn: đây là chỗ DUY NHẤT của
+        giao diện đính được tệp loại `HO_SO`, nên tính năng ấy hết đường vào —
+        tệp đã đính ở hồ sơ cũ vẫn nằm nguyên trong CSDL và trên kho, chỉ không
+        còn màn hình nào bày ra. Đường máy chủ (`POST /policies/:id/attachments`
+        với `kind: 'HO_SO'`) GIỮ NGUYÊN, vì gỡ nó là một quyết định khác — nó vẫn
+        có chốt chặn vai trò và trạng thái, và cần lại thì chỉ phải dựng lại phần
+        màn hình.
+      */}
 
       {/*
         HỒ SƠ PHÁP LÝ CỦA KHÁCH HÀNG, ngay tại đây (`0162`, chốt 29/08).
@@ -614,7 +617,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
           hay đang chờ duyệt, và bấm vào là 409 sau khi đã chọn xong file.
         */
         loaiGhiDuoc={can(nguoiDung?.role, 'taiTepDinhKem') ? (hoSo.loaiTepGhiDuoc ?? []) : []}
-        chiKhoi={['BAN_MEM', 'SCAN']}
         taoBanMem={() => datMoTaoBanMem('tep')}
         taiLai={taiLai}
       />

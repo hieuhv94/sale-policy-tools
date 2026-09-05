@@ -1798,7 +1798,8 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       // Câu chỉ có trong mẫu MỚI — chứng minh bản mềm đọc từ mẫu, không dựng cứng.
       expect(t.replace(/\s+/g, '')).toContain(CAU.replace(/\s+/g, ''));
       // Và bảng sản phẩm vẫn do hệ thống dựng, đủ cột.
-      expect(t.replace(/\s+/g, '')).toContain('Giácôngty');
+      // Nhãn *Giá công ty* → *Giá bán Công ty* ở `0172`, cho khớp bảng trên màn hình.
+      expect(t.replace(/\s+/g, '')).toContain('GiábánCôngty');
     } finally {
       await donMau('/policy-templates', up.body.id, 'admin01');
     }
@@ -1831,10 +1832,12 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
       const chu = packed(
         await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01')).body as Buffer),
       );
-      for (const co of ['STT', 'Tênsảnphẩm', 'CPBHtổng', 'Giáthuvề']) {
+      // *CPBH tổng* → *CPBH* ở `0172`. So sau khi bỏ khoảng trắng nên `CPBH` cũng
+      // khớp `CPBH 1` — chuỗi dài hơn không dùng được nữa, xem ca ở dòng dưới.
+      for (const co of ['STT', 'Tênsảnphẩm', 'CPBH', 'Giáthuvề']) {
         expect(chu, `thiếu cột ${co}`).toContain(co);
       }
-      for (const khong of ['Mãsảnphẩm', 'Giácôngty', 'Giábánbuôn', 'TỷlệCK', 'Ghichú']) {
+      for (const khong of ['Mãsảnphẩm', 'GiábánCôngty', 'Giábánbuôn', 'TỷlệCK', 'Ghichú']) {
         expect(chu, `cột ${khong} KHÔNG được in ra`).not.toContain(khong);
       }
     } finally {
@@ -1905,7 +1908,7 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
         await pdfText((await pdfOf(`/policies/${d.id}/render?mauId=${up.body.id}`, 'sa01')).body as Buffer),
       );
       expect(chu).toContain('Tênsảnphẩm');
-      expect(chu, 'CPBH tổng vẫn in ra dù đã tắt').not.toContain('CPBHtổng');
+      expect(chu, 'cột CPBH vẫn in ra dù đã tắt').not.toContain('CPBH');
       // Cả cột lẻ cũng phải vắng: hai lựa chọn tách nhau, và tắt một mà lộ cái
       // kia thì con số chi phí vẫn nằm trên giấy.
       expect(chu, 'cột CPBH lẻ vẫn in ra').not.toContain('CPBH1');

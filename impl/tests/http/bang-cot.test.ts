@@ -93,29 +93,67 @@ describe('`0135` lưới cột và ô nói CÙNG một điều', () => {
   });
 });
 
-describe('`0135` tên sản phẩm là cột rộng nhất', () => {
-  it('rộng hơn MỌI cột khác, và hơn hẳn chứ không hơn một chút', () => {
-    /*
-     * Yêu cầu của khách hàng phát biểu thành một BẤT ĐẲNG THỨC, không thành một
-     * con số: ghim `22` thì mỗi lượt chỉnh cỡ về sau đều đỏ mà chẳng phát hiện
-     * được gì, còn bất đẳng thức thì sống qua mọi lượt chỉnh.
-     */
-    const ten = COT_BANG.find((c) => c.khoa === 'ten_san_pham')!.trongSo;
-    for (const c of COT_BANG) {
-      if (c.khoa === 'ten_san_pham') continue;
-      expect(ten, `tên sản phẩm phải rộng hơn ${c.khoa}`).toBeGreaterThan(c.trongSo);
-    }
-    // "Rộng hơn hẳn": ít nhất gấp rưỡi cột chữ còn lại (*Ghi chú*).
-    const ghiChu = COT_BANG.find((c) => c.khoa === 'ghi_chu')!.trongSo;
-    expect(ten).toBeGreaterThanOrEqual(ghiChu * 1.5);
+describe('`0172` bề rộng cột ĐO TỪ NỘI DUNG', () => {
+  /*
+   * `0135` khẳng định *tên sản phẩm là cột rộng nhất* bằng cách đọc thẳng
+   * `COT_BANG[…].trongSo` — một dãy số viết cứng. `0172` bỏ dãy ấy: bề rộng giờ
+   * là hàm của chính dữ liệu sắp in, nên câu hỏi đúng cũng đổi theo. Không còn
+   * *"cột nào rộng nhất"* mà là *"cột nào cần rộng thì có rộng ra không"*.
+   */
+  it('tên DÀI thì cột tên rộng ra; tên NGẮN thì nó nhường chỗ', () => {
+    const cot = (xml: string, i: number) => tyLe(oHangDau(xml))[i]!;
+    // Chỉ số 2 = `ten_san_pham` ở tập cột mặc định (STT · Mã · Tên · …).
+    const dai = cot(bangSanPhamXml(hoSo()), 2);
+    const ngan = cot(
+      bangSanPhamXml({
+        lines: [{ ...dong(0), product_name_snap: 'Sữa A' }],
+      } as never),
+      2,
+    );
+    expect(dai, `tên dài ${dai.toFixed(1)}% ≤ tên ngắn ${ngan.toFixed(1)}%`).toBeGreaterThan(ngan);
   });
 
-  it('STT là cột HẸP nhất — nội dung dài nhất là hai chữ số', () => {
-    const stt = COT_BANG.find((c) => c.khoa === 'stt')!.trongSo;
-    for (const c of COT_BANG) {
-      if (c.khoa === 'stt') continue;
-      expect(stt, `STT phải hẹp hơn ${c.khoa}`).toBeLessThanOrEqual(c.trongSo);
+  it('cột SỐ được đủ chỗ cho con số dài nhất của nó', () => {
+    /*
+     * Đây là lời hứa của cả lượt sửa: *"cố gắng không phải xuống dòng"*. Đo bằng
+     * cách so bề rộng cột với bề rộng ước lượng của chuỗi dài nhất trong cột —
+     * cùng thước đo mà `trongSoCot` dùng, nên nó kiểm phép CHIA chứ không kiểm
+     * lại chính công thức đo chữ.
+     *
+     * Khổ A4 NGANG (hai mẫu mặc định đều ngang): bề ngang chữ 14570 twip.
+     */
+    const RONG_NGANG = 14570;
+    const EM = 220; // 11pt, tính bằng twip
+    const xml = bangSanPhamXml(hoSo());
+    const o = tyLe(oHangDau(xml));
+    // `615.000` — chuỗi dài nhất của mọi cột tiền trong fixture.
+    const canEm = 6 * 0.5 + 0.25 + 114 / 220;
+    for (const i of [3, 4, 5, 8, 9]) {
+      const co = (o[i]! / 100) * RONG_NGANG;
+      expect(co, `cột ${i} chỉ được ${Math.round(co)} twip, cần ${Math.round(canEm * EM)}`)
+        .toBeGreaterThanOrEqual(canEm * EM);
     }
+  });
+
+  it('cột CHỮ bị chặn ở trần — một tên bốn mươi ký tự không nuốt cả bảng', () => {
+    /*
+     * Chiều đối chiếu, và nó cần thật: bỏ `tran` đi thì cột tên chiếm gần nửa
+     * bảng cho một tên dài, và mọi cột tiền tụt xuống dưới mức đủ chỗ — tức là
+     * ca ngay trên đỏ. Ca này bắt được sớm hơn và nói đúng nguyên nhân.
+     */
+    const o = tyLe(
+      oHangDau(
+        bangSanPhamXml({
+          lines: [
+            {
+              ...dong(0),
+              product_name_snap: 'Nutricare Gold Đặc Biệt hộp thiếc 900g dành cho người cao tuổi',
+            },
+          ],
+        } as never),
+      ),
+    );
+    expect(o[2], `cột tên chiếm ${o[2]!.toFixed(1)}% bề ngang bảng`).toBeLessThan(35);
   });
 
   it('cột STT vẫn CÓ MẶT, và đứng đầu tiên', () => {
