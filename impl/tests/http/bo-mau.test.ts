@@ -146,12 +146,28 @@ describe('`0165` ba mẫu mặc định', () => {
 
     const MAU_HO_SO = MAU_MAC_DINH.filter((m) => m.kind !== 'HOP_DONG');
 
-    it('BỐN cột trong MỘT hàng, đúng thứ tự khách hàng chốt', () => {
+    /**
+     * HAI mẫu, HAI dãy chức danh — và sự khác nhau ấy là CHỦ Ý (`0174`).
+     *
+     * `0173` cho cả hai dùng chung một dãy bốn ô, với lý lẽ *"bản đầy đủ mới là
+     * tờ Sale Admin in ra đem trình Ban lãnh đạo ký ở B8"*. Khách hàng chốt
+     * 05/09 trả lời khác — *"bản mẫu hồ sơ đầy đủ không cần phần Phó giám đốc"*
+     * — nên ô ấy chỉ còn ở bản RÚT GỌN, đúng như tờ mẫu họ tự gõ.
+     *
+     * Khai thành BẢNG TRA chứ không nới ca kiểm thành `toContain`: hai mẫu khác
+     * nhau ở đúng một ô, và một phép kiểm lỏng tay thì mất luôn khả năng nói ra
+     * chỗ khác nhau ấy là chỗ nào.
+     */
+    const CHUC_DANH: Record<string, string[]> = {
+      'ho-so-day-du.docx': ['Kế toán', 'Trưởng bộ phận', 'Người đề nghị'],
+      'ho-so-rut-gon.docx': ['Phó Giám đốc', 'Kế toán', 'Trưởng bộ phận', 'Người đề nghị'],
+    };
+
+    it('MỘT hàng, đúng dãy chức danh của từng mẫu', () => {
       /*
        * Chốt 01/09: *"di chuyển chỗ Kế toán duyệt vào giữa Phó Giám đốc và TBP,
        * cố gắng sắp xếp trong một dòng"*. Bản rút gọn trước đó xếp HAI hàng —
-       * *Kế toán* nằm một mình ở hàng dưới — còn bản đầy đủ thì không có ô *Phó
-       * Giám đốc* nào.
+       * *Kế toán* nằm một mình ở hàng dưới.
        *
        * Ghim CẢ DÃY bằng `toEqual`: hỏi "có mặt không" thì đảo hai ô vẫn xanh,
        * mà thứ tự chính là thứ khách hàng nêu.
@@ -162,12 +178,17 @@ describe('`0165` ba mẫu mặc định', () => {
         const chucDanh = (t.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map(
           (o) => (o.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/) ?? [])[1],
         );
-        expect(chucDanh, m.tep).toEqual([
-          'Phó Giám đốc',
-          'Kế toán',
-          'Trưởng bộ phận',
-          'Người đề nghị',
-        ]);
+        expect(chucDanh, m.tep).toEqual(CHUC_DANH[m.tep]);
+        /*
+         * LƯỚI cột phải khớp SỐ Ô. Ở `tblLayout=fixed` trình xem nghe theo
+         * `<w:tblGrid>` chứ không theo `w:tcW` (`0135` đo được điều đó trên PDF
+         * thật), nên bỏ một ô mà quên bớt một `gridCol` là ba ô chia theo lưới
+         * bốn cột — cả khối lệch sang trái, và không gì khác đỏ.
+         */
+        expect(
+          t.match(/<w:gridCol/g)?.length,
+          `${m.tep}: lưới cột không khớp số ô`,
+        ).toBe(CHUC_DANH[m.tep]!.length);
       }
     });
 

@@ -15084,3 +15084,47 @@ Ba dòng sản phẩm, dựng qua `mergeDocx` rồi Gotenberg: **mỗi bản m�
 dòng không kẻ ô, khoảng trống giữa chức danh và tên nhìn rõ trên cả hai mẫu.
 
 **1981/1981 xanh.**
+
+---
+
+## P202 — `0174` mẫu hồ sơ ĐẦY ĐỦ bỏ ô *Phó Giám đốc*
+
+*"Bản mẫu hồ sơ đầy đủ không cần phần Phó giám đốc"* — trả lời thẳng cho giả định `0173` vừa nêu ra
+cùng bản giao.
+
+`0173` cho hai mẫu dùng chung một khối chữ ký bốn ô, và lập luận nghe hợp lý: bản ĐẦY ĐỦ mới là tờ
+Sale Admin in ra đem trình Ban lãnh đạo ký ở B8, nên nó cần ô ấy nhất. **Lập luận ấy sai ở chỗ nó suy
+từ quy trình chứ không từ tờ giấy khách hàng đưa** — tờ mẫu họ tự gõ có *Phó Giám đốc* ở bản rút gọn
+và không có ở bản đầy đủ, và đó đã là câu trả lời từ đầu. Đây là lần thứ hai trong ba chặng một suy
+luận "cho gọn, cho nhất quán" phải nhường lại cho bản vẽ của họ (xem `0171`).
+
+Cái đáng giữ của `0173`: **giả định ấy được nêu ra thành lời cùng bản giao**, nên nó quay lại sau một
+lượt phản hồi chứ không nằm im trên tờ giấy đã ký.
+
+Khối chữ ký giờ khác nhau giữa hai mẫu, và ca kiểm nói ra điều đó bằng một **bảng tra** thay vì nới
+phép kiểm thành `toContain` — hai mẫu lệch nhau đúng một ô, và một phép kiểm lỏng tay thì mất luôn
+khả năng chỉ ra chỗ lệch ấy là chỗ nào.
+
+### `<w:tblGrid>` phải bớt theo, và nó là chỗ hỏng im lặng
+
+Bỏ một `<w:tc>` mà quên bớt một `<w:gridCol>` thì ba ô chia theo lưới **bốn cột**: cả khối chữ ký dồn
+sang trái, chừa một khoảng trắng bên phải. Không gì đỏ — bảng vẫn hợp lệ, file vẫn mở được. Đây đúng
+là hình dạng lỗi mà `0135` đã đo trên PDF thật: ở `tblLayout=fixed`, trình xem nghe theo LƯỚI chứ
+không theo `w:tcW`. Nên ca kiểm đối chiếu **số `gridCol` với số ô**, không chỉ đọc dãy chức danh.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Trả ô *Phó Giám đốc* về mẫu đầy đủ | 1 đỏ |
+| Bỏ ô nhưng GIỮ bốn `gridCol` | 1 đỏ, nói đúng "lưới cột không khớp số ô" |
+
+> **BẪY, lần thứ hai trong bốn chặng:** lượt phá lại thứ nhất ban đầu **không hề chạy** — script Python
+> ném `re.error` rồi bộ kiểm chạy trên file NGUYÊN VẸN và in `14 passed`. Y hệt `0171`, chỉ khác nguyên
+> nhân (ở đó là `PermissionError`). **Một phá lại mà bản sửa không ghi được trông giống hệt một phá lại
+> xanh** — phải đọc dòng đầu của lượt chạy, không chỉ đọc con số cuối.
+
+### Nghiệm thu
+
+Dựng lại cả hai mẫu với ba dòng sản phẩm rồi đẩy qua Gotenberg: **mỗi bản một trang**; bản đầy đủ ba ô
+chia đều, không kẻ ô, khoảng trống ký tay còn nguyên.

@@ -1582,14 +1582,23 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 chốt cùng lúc:
 
 > 1. **Bỏ ô kẻ** ở khối chữ ký dưới bảng sản phẩm.
-> 2. **Kế toán vào giữa *Phó Giám đốc* và *Trưởng bộ phận***, cả khối xếp trên **một dòng**:
->    *Phó Giám đốc* · *Kế toán* · *Trưởng bộ phận* · *Người đề nghị*.
+> 2. **Kế toán vào giữa *Phó Giám đốc* và *Trưởng bộ phận***, cả khối xếp trên **một dòng**.
 > 3. **Chừa khoảng trống giữa chức danh và tên người ký**, để ký tay sau khi in.
 >
-> **Bản đầy đủ trước đó KHÔNG có ô *Phó Giám đốc***, chỉ bản rút gọn có. Lượt này hai mẫu dùng chung
-> một khối chữ ký — và đó là cách đọc đã chọn, vì bản ĐẦY ĐỦ mới là tờ Sale Admin in ra đem trình Ban
-> lãnh đạo ký ở B8, tức tờ cần chỗ ký ấy nhất. Ô *Phó Giám đốc* chỉ có chức danh và khoảng trống, không
-> có ô trống dữ liệu nào — hệ thống không có trường tên cho Ban lãnh đạo.
+> **HAI MẪU, HAI DÃY CHỨC DANH** `sửa 05/09`:
+>
+> | Mẫu | Khối chữ ký |
+> |---|---|
+> | Đầy đủ | *Kế toán* · *Trưởng bộ phận* · *Người đề nghị* |
+> | Rút gọn | *Phó Giám đốc* · *Kế toán* · *Trưởng bộ phận* · *Người đề nghị* |
+>
+> Bản đầu của lượt này cho hai mẫu dùng chung một khối bốn ô, lập luận rằng bản ĐẦY ĐỦ mới là tờ Sale
+> Admin in ra đem trình Ban lãnh đạo ký ở B8 nên nó cần ô ấy nhất. Khách hàng trả lời khác — *"bản mẫu
+> hồ sơ đầy đủ không cần phần Phó giám đốc"* — nên ô *Phó Giám đốc* chỉ còn ở bản rút gọn, đúng như tờ
+> mẫu họ tự gõ.
+>
+> Ô *Phó Giám đốc* chỉ có chức danh và khoảng trống, **không có ô trống dữ liệu nào** — hệ thống không
+> có trường tên cho Ban lãnh đạo.
 >
 > **Đường kẻ không đến từ khối chữ ký.** Bảng chữ ký chưa bao giờ khai đường kẻ; nó dính vào **bảng
 > sản phẩm** — hai bảng Word nằm liền nhau thì bị gộp làm một, và bảng gộp lấy đường kẻ của bảng đầu.

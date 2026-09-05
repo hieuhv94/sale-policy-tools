@@ -1838,10 +1838,15 @@ luôn ở trong tầm mắt.
   `ho-so-rut-gon.docx`, `hop-dong.docx` — đúng ba file phần mềm tự nạp. Tải một mẫu về từ màn hình
   *Văn bản mẫu*, sửa câu chữ trong Word, rồi tải lên thành mẫu mới; **tên mẫu phải khác** vì hệ
   thống cấm hai mẫu trùng tên trong cùng một loại.
-- **Khối chữ ký của hai mẫu hồ sơ** `sửa 01/09`: một dòng bốn ô — *Phó Giám đốc* · *Kế toán* ·
-  *Trưởng bộ phận* · *Người đề nghị* — **không kẻ ô**, và giữa chức danh với tên có **khoảng trống
-  để ký tay** sau khi in. Ô *Phó Giám đốc* chỉ có chức danh và chỗ ký: hệ thống không có trường tên
-  cho Ban lãnh đạo.
+- **Khối chữ ký của hai mẫu hồ sơ** `sửa 05/09`: nằm trên **một dòng**, **không kẻ ô**, và giữa
+  chức danh với tên có **khoảng trống để ký tay** sau khi in.
+
+  | Mẫu | Các ô |
+  |---|---|
+  | **Đầy đủ** | *Kế toán* · *Trưởng bộ phận* · *Người đề nghị* |
+  | **Rút gọn** | *Phó Giám đốc* · *Kế toán* · *Trưởng bộ phận* · *Người đề nghị* |
+
+  Ô *Phó Giám đốc* chỉ có chức danh và chỗ ký: hệ thống không có trường tên cho Ban lãnh đạo.
   > **Bản đầy đủ chứa được ít hơn khoảng hai dòng sản phẩm trên trang một** so với trước — đó là chỗ
   > khoảng trống ký tay chiếm. Hồ sơ dài hơn thì khối chữ ký sang trang sau, như mọi văn bản dài ra.
   >

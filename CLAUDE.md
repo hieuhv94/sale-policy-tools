@@ -87,7 +87,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/09/2026)
 
-Chặng gần nhất **P201** (`0173`): **khối chữ ký hai mẫu hồ sơ — một dòng bốn ô, không kẻ ô, chừa chỗ
+Chặng gần nhất **P202** (`0174`): **mẫu hồ sơ ĐẦY ĐỦ bỏ ô *Phó Giám đốc*** — trả lời thẳng cho giả
+định `0173` vừa nêu. Lập luận cũ (*"bản đầy đủ mới là tờ đem trình BLĐ ký"*) **suy từ quy trình chứ
+không từ tờ giấy khách hàng đưa**; tờ mẫu họ gõ có ô ấy ở bản rút gọn và không có ở bản đầy đủ, và đó
+đã là câu trả lời từ đầu — **lần thứ hai trong ba chặng** một suy luận "cho nhất quán" phải nhường lại
+cho bản vẽ của họ (xem `0171`). Hai mẫu giờ hai dãy chức danh, ca kiểm khai thành **BẢNG TRA** chứ
+không nới thành `toContain`. **Bỏ một `<w:tc>` thì phải bớt một `<w:gridCol>`**: ở `tblLayout=fixed`
+trình xem nghe theo LƯỚI (`0135`), nên ba ô chia theo lưới bốn cột là cả khối dồn sang trái mà không
+gì đỏ — ca kiểm đối chiếu số `gridCol` với số ô. **BẪY lần thứ HAI trong bốn chặng:** phá lại lượt một
+không hề chạy (script ném `re.error`) rồi bộ kiểm in `14 passed` trên file nguyên vẹn — y hệt `0171`,
+chỉ khác nguyên nhân. **1981/1981 xanh.**
+
+Trước đó **P201** (`0173`): **khối chữ ký hai mẫu hồ sơ — một dòng bốn ô, không kẻ ô, chừa chỗ
 ký tay.** Câu *"bỏ ô kẻ ở phần chữ ký"* **không nằm ở chỗ nó trông như đang nằm**: bảng chữ ký chưa
 bao giờ khai `tblBorders`; nó DÍNH vào bảng sản phẩm — `mergeDocx` thay cả đoạn `{{bang_san_pham}}`
 bằng một `<w:tbl>`, và **hai `<w:tbl>` liền nhau thì Word gộp làm một**, bảng gộp lấy đường kẻ của
