@@ -1578,6 +1578,27 @@ chỉnh để độ rộng luôn ổn định, có thể zoom phần pdf lên đ
 > Sale Admin lưu được **nhiều** bản mềm — hồ sơ bị Kế toán yêu cầu in lại thì họ dựng bản mới, và bản
 > cũ ở lại làm vết. Tên tệp mang mã hồ sơ và mốc thời gian để phân biệt.
 
+**Khối chữ ký của hai mẫu hồ sơ: một dòng bốn ô, không kẻ ô, chừa chỗ ký tay** `sửa 01/09` — ba câu
+chốt cùng lúc:
+
+> 1. **Bỏ ô kẻ** ở khối chữ ký dưới bảng sản phẩm.
+> 2. **Kế toán vào giữa *Phó Giám đốc* và *Trưởng bộ phận***, cả khối xếp trên **một dòng**:
+>    *Phó Giám đốc* · *Kế toán* · *Trưởng bộ phận* · *Người đề nghị*.
+> 3. **Chừa khoảng trống giữa chức danh và tên người ký**, để ký tay sau khi in.
+>
+> **Bản đầy đủ trước đó KHÔNG có ô *Phó Giám đốc***, chỉ bản rút gọn có. Lượt này hai mẫu dùng chung
+> một khối chữ ký — và đó là cách đọc đã chọn, vì bản ĐẦY ĐỦ mới là tờ Sale Admin in ra đem trình Ban
+> lãnh đạo ký ở B8, tức tờ cần chỗ ký ấy nhất. Ô *Phó Giám đốc* chỉ có chức danh và khoảng trống, không
+> có ô trống dữ liệu nào — hệ thống không có trường tên cho Ban lãnh đạo.
+>
+> **Đường kẻ không đến từ khối chữ ký.** Bảng chữ ký chưa bao giờ khai đường kẻ; nó dính vào **bảng
+> sản phẩm** — hai bảng Word nằm liền nhau thì bị gộp làm một, và bảng gộp lấy đường kẻ của bảng đầu.
+> Nên phép chữa là chèn một đoạn văn ngăn giữa hai bảng, không phải tắt một thuộc tính.
+>
+> **Cái mất, đã đo:** khoảng trống ký tay cao thêm ~1,5cm, nên bản đầy đủ chứa được **ít hơn khoảng
+> hai dòng sản phẩm** trên trang một. Hồ sơ dài hơn thì khối chữ ký sang trang sau, như mọi văn bản
+> dài ra.
+
 **Bỏ mục *Giấy tờ hồ sơ*** `sửa 01/09` — *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ
 sơ"*. Trang hồ sơ CSBH còn **hai** khối tệp: *Bản mềm* và *Bản cứng*.
 

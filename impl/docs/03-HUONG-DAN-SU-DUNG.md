@@ -1838,6 +1838,16 @@ luôn ở trong tầm mắt.
   `ho-so-rut-gon.docx`, `hop-dong.docx` — đúng ba file phần mềm tự nạp. Tải một mẫu về từ màn hình
   *Văn bản mẫu*, sửa câu chữ trong Word, rồi tải lên thành mẫu mới; **tên mẫu phải khác** vì hệ
   thống cấm hai mẫu trùng tên trong cùng một loại.
+- **Khối chữ ký của hai mẫu hồ sơ** `sửa 01/09`: một dòng bốn ô — *Phó Giám đốc* · *Kế toán* ·
+  *Trưởng bộ phận* · *Người đề nghị* — **không kẻ ô**, và giữa chức danh với tên có **khoảng trống
+  để ký tay** sau khi in. Ô *Phó Giám đốc* chỉ có chức danh và chỗ ký: hệ thống không có trường tên
+  cho Ban lãnh đạo.
+  > **Bản đầy đủ chứa được ít hơn khoảng hai dòng sản phẩm trên trang một** so với trước — đó là chỗ
+  > khoảng trống ký tay chiếm. Hồ sơ dài hơn thì khối chữ ký sang trang sau, như mọi văn bản dài ra.
+  >
+  > Soạn mẫu riêng thì nhớ: **đừng đặt bảng chữ ký ngay sau đoạn `{{bang_san_pham}}`**. Word gộp hai
+  > bảng nằm liền nhau làm một, và khối chữ ký sẽ thừa hưởng đường kẻ của bảng sản phẩm. Chừa một
+  > dòng trống giữa hai chỗ ấy.
 
 ##### Chọn cột của bảng sản phẩm `mới 20/08`
 

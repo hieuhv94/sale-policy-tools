@@ -23,7 +23,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { MAU_MAC_DINH, placeholdersOf } from '@csbh/document/testing';
+import { MAU_MAC_DINH, documentXml, placeholdersOf } from '@csbh/document/testing';
 import { BO_MAU, THU_MUC } from '../../scripts/tao-mau-ho-so.js';
 
 const GOC = `${THU_MUC}/default`;
@@ -129,6 +129,103 @@ describe('`0165` ba mẫu mặc định', () => {
       const o = placeholdersOf(readFileSync(`${GOC}/${m.tep}`)).map((x) => x.slice(2, -2));
       expect([...o].sort(), m.tep).toEqual(MONG);
     }
+  });
+
+  describe('`0173` KHỐI CHỮ KÝ của hai mẫu hồ sơ', () => {
+    /**
+     * Bảng chữ ký = bảng THỨ HAI của tài liệu. Bảng đầu là khối thông tin khách
+     * hàng; bảng sản phẩm thì chưa có ở đây — nó do `mergeDocx` chèn vào lúc dựng
+     * bản mềm, đúng chỗ ô trống `{{bang_san_pham}}`.
+     */
+    const bangChuKy = (tep: string): string => {
+      const x = documentXml(readFileSync(`${GOC}/${tep}`));
+      const bang = x.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g) ?? [];
+      expect(bang.length, `${tep}: chờ hai bảng, thấy ${bang.length}`).toBe(2);
+      return bang[1]!;
+    };
+
+    const MAU_HO_SO = MAU_MAC_DINH.filter((m) => m.kind !== 'HOP_DONG');
+
+    it('BỐN cột trong MỘT hàng, đúng thứ tự khách hàng chốt', () => {
+      /*
+       * Chốt 01/09: *"di chuyển chỗ Kế toán duyệt vào giữa Phó Giám đốc và TBP,
+       * cố gắng sắp xếp trong một dòng"*. Bản rút gọn trước đó xếp HAI hàng —
+       * *Kế toán* nằm một mình ở hàng dưới — còn bản đầy đủ thì không có ô *Phó
+       * Giám đốc* nào.
+       *
+       * Ghim CẢ DÃY bằng `toEqual`: hỏi "có mặt không" thì đảo hai ô vẫn xanh,
+       * mà thứ tự chính là thứ khách hàng nêu.
+       */
+      for (const m of MAU_HO_SO) {
+        const t = bangChuKy(m.tep);
+        expect(t.match(/<w:tr>/g)?.length, `${m.tep}: khối chữ ký phải nằm trên MỘT hàng`).toBe(1);
+        const chucDanh = (t.match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? []).map(
+          (o) => (o.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/) ?? [])[1],
+        );
+        expect(chucDanh, m.tep).toEqual([
+          'Phó Giám đốc',
+          'Kế toán',
+          'Trưởng bộ phận',
+          'Người đề nghị',
+        ]);
+      }
+    });
+
+    it('KHÔNG kẻ ô, và bảng chữ ký KHÔNG dính vào bảng sản phẩm', () => {
+      /*
+       * Hai vế của cùng một yêu cầu — *"bỏ phần ô kẻ ở phần chữ ký dưới bảng sản
+       * phẩm"* — và vế thứ hai mới là nguyên nhân thật.
+       *
+       * Khai `w:val="nil"` là chưa đủ: hai `<w:tbl>` LIỀN NHAU thì Word gộp làm
+       * MỘT bảng (`0165` đã đo), và bảng gộp lấy thuộc tính của bảng ĐẦU — tức
+       * bảng sản phẩm, thứ có đường kẻ. `mergeDocx` thay CẢ ĐOẠN chứa
+       * `{{bang_san_pham}}` bằng một `<w:tbl>`, nên đoạn ấy mà đứng ngay trước
+       * bảng chữ ký thì sau lượt trộn hai bảng dính nhau — đúng cái đã xảy ra
+       * với bản rút gọn.
+       *
+       * Nên phép kiểm đọc chính khoảng GIỮA hai chỗ: phải còn ít nhất một `<w:p>`
+       * ở đó sau khi ô trống bảng sản phẩm bị thay.
+       */
+      for (const m of MAU_HO_SO) {
+        expect(bangChuKy(m.tep), `${m.tep}: bảng chữ ký chưa khai KHÔNG kẻ ô`).toContain(
+          '<w:top w:val="nil"/>',
+        );
+
+        const x = documentXml(readFileSync(`${GOC}/${m.tep}`));
+        const i = x.indexOf('{{bang_san_pham}}');
+        expect(i, `${m.tep}: không thấy ô trống bảng sản phẩm`).toBeGreaterThan(0);
+        const sauODoan = x.indexOf('</w:p>', i) + 6;
+        const truocBang = x.indexOf('<w:tbl>', sauODoan);
+        expect(
+          x.slice(sauODoan, truocBang),
+          `${m.tep}: bảng chữ ký dính ngay sau bảng sản phẩm — Word sẽ gộp hai bảng và kẻ ô lên khối chữ ký`,
+        ).toContain('<w:p');
+      }
+    });
+
+    it('có KHOẢNG TRỐNG giữa chức danh và tên, để ký tay sau khi in', () => {
+      /*
+       * *"Để khoảng trống ở giữa tên người ký và chức danh để có thể ký bằng tay
+       * sau khi in"*. Đo bằng số ĐOẠN RỖNG nằm giữa hai đoạn có chữ trong cùng
+       * một ô — đó là thứ dựng ra khoảng trống, và cũng là thứ một lượt "dọn dẹp
+       * đoạn thừa" sẽ xoá mất mà không gì khác đỏ.
+       *
+       * Kiểm ô *Kế toán* (ô thứ hai): nó là ô có đủ ba phần — chức danh, tên,
+       * dòng ngày — nên nó bắt được cả trường hợp khoảng trống rơi nhầm xuống
+       * dưới tên.
+       */
+      for (const m of MAU_HO_SO) {
+        const o = (bangChuKy(m.tep).match(/<w:tc>[\s\S]*?<\/w:tc>/g) ?? [])[1]!;
+        const doan = o.match(/<w:p[ >][\s\S]*?<\/w:p>/g) ?? [];
+        const coChu = doan.map((d) => /<w:t(?:\s[^>]*)?>[^<]/.test(d));
+        const dauTien = coChu.indexOf(true);
+        const keTiep = coChu.indexOf(true, dauTien + 1);
+        expect(
+          keTiep - dauTien - 1,
+          `${m.tep}: chỉ có ${keTiep - dauTien - 1} đoạn rỗng giữa chức danh và tên`,
+        ).toBeGreaterThanOrEqual(2);
+      }
+    });
   });
 
   it('mẫu HỢP ĐỒNG mặc định là BẢN SAO đúng byte của `mau-hop-dong-a4-doc.docx`', () => {

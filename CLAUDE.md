@@ -87,7 +87,22 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/09/2026)
 
-Chặng gần nhất **P200** (`0172`): **bốn việc rời nhau trong một lượt phản hồi.** (1) **Bỏ khối *Giấy
+Chặng gần nhất **P201** (`0173`): **khối chữ ký hai mẫu hồ sơ — một dòng bốn ô, không kẻ ô, chừa chỗ
+ký tay.** Câu *"bỏ ô kẻ ở phần chữ ký"* **không nằm ở chỗ nó trông như đang nằm**: bảng chữ ký chưa
+bao giờ khai `tblBorders`; nó DÍNH vào bảng sản phẩm — `mergeDocx` thay cả đoạn `{{bang_san_pham}}`
+bằng một `<w:tbl>`, và **hai `<w:tbl>` liền nhau thì Word gộp làm một**, bảng gộp lấy đường kẻ của
+bảng ĐẦU. Bẫy này `0165` đã ghi rồi vẫn cắn ở đúng file `0165` dựng. Chữa bằng **một đoạn văn ngăn
+giữa**, không phải tắt thuộc tính — nên ca kiểm đọc KHOẢNG GIỮA hai chỗ, chứ ca chỉ kiểm `nil` sẽ
+xanh với đúng tờ giấy đang hỏng. **Bản đầy đủ chưa từng có ô *Phó Giám đốc*** nên câu "chen Kế toán
+vào giữa" đọc nghĩa đen chỉ áp được cho bản rút gọn; chọn cho hai mẫu dùng CHUNG một khối chữ ký vì
+bản ĐẦY ĐỦ mới là tờ đem trình BLĐ ký ở B8 — đã nêu giả định. Ô ấy không mang ô trống dữ liệu nào nên
+**tập 12 khoá của `0171` không đổi**. Khoảng trống ký tay **đo chứ không chọn**: 3×14pt và 4×14pt đều
+tràn trang 2, chốt **2 đoạn × 18pt** — lớn nhất còn giữ một trang; giá là bản đầy đủ chứa **ít hơn ~2
+dòng sản phẩm** ở trang một. Xoá `templates/mau-ho-so-a4-ngang-{day-du,rut-gon}.docx`: **không script
+nào nạp, không ca kiểm nào đọc** — bản sao phải nhớ giữ đồng bộ bằng tay, mà `dong-goi.sh` vẫn gói
+chúng đi. **1981/1981 xanh.**
+
+Trước đó **P200** (`0172`): **bốn việc rời nhau trong một lượt phản hồi.** (1) **Bỏ khối *Giấy
 tờ hồ sơ*** — và nó rộng hơn một khối bị ẩn: đó là chỗ DUY NHẤT giao diện đính được tệp `HO_SO`, nên
 TDV thôi đính giấy tờ vào hồ sơ (đường máy chủ GIỮ, tệp cũ còn nguyên). Bỏ ở `KHOI` chứ không chỉ ở
 trang, vì `ChiTietHoSo` là nơi duy nhất dựng component ấy. **`chiKhoi` của `0170` gỡ theo và đó là

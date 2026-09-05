@@ -15005,3 +15005,82 @@ xuống hai dòng đúng như thiết kế; tiêu đề *Giá bán Công ty* và
 | Thôi nối mức phóng vào `transform` | 3 đỏ |
 
 **1978/1978 xanh.**
+
+---
+
+## P201 — `0173` khối chữ ký hai mẫu hồ sơ: một dòng bốn ô, không kẻ ô, chừa chỗ ký tay
+
+Ba câu, và câu đầu — *"bỏ phần ô kẻ ở phần chữ ký dưới bảng sản phẩm"* — không nằm ở chỗ nó trông
+như đang nằm.
+
+### Đường kẻ KHÔNG đến từ khối chữ ký
+
+Bảng chữ ký của cả hai mẫu **chưa bao giờ khai `<w:tblBorders>`**. Đo trong zip trước khi sửa: bản
+đầy đủ in ra không có kẻ ô, bản rút gọn thì có — cùng một cấu trúc bảng, hai kết quả khác nhau.
+
+Khác biệt nằm ở **thứ đứng NGAY TRƯỚC nó**. `mergeDocx` thay CẢ ĐOẠN chứa `{{bang_san_pham}}` bằng
+một `<w:tbl>`; bản rút gọn để bảng chữ ký ngay sau đoạn ấy, nên sau lượt trộn hai `<w:tbl>` dính
+nhau — và **Word gộp hai bảng liền nhau làm MỘT**, bảng gộp lấy thuộc tính của bảng ĐẦU, tức bảng
+sản phẩm với đường kẻ `D3D3D3` của nó. Bẫy này `0165` đã đo và ghi ra, rồi vẫn cắn ở đúng file mà
+`0165` dựng.
+
+Nên phép chữa là **chèn một đoạn văn ngăn giữa hai bảng**, không phải tắt một thuộc tính. Vẫn khai
+thêm `w:val="nil"` cho cả hai mẫu — không phải để chữa, mà để nói ra ý định và chặn một lượt sửa sau
+vô tình bật lên.
+
+Ca kiểm vì thế đọc **khoảng giữa** ô trống bảng sản phẩm và bảng chữ ký, đòi ở đó còn ít nhất một
+`<w:p>`. Một ca chỉ kiểm `w:val="nil"` sẽ xanh với đúng cái tờ giấy đang hỏng.
+
+### Bản đầy đủ chưa từng có ô *Phó Giám đốc*
+
+*"Di chuyển chỗ Kế toán duyệt vào giữa Phó Giám đốc và TBP"* đọc theo nghĩa đen chỉ áp được cho bản
+RÚT GỌN: bản đầy đủ có ba ô (*Kế toán* · *Trưởng bộ phận* · *Người đề nghị*) và không có *Phó Giám
+đốc* nào để mà chen vào giữa.
+
+Chọn cách đọc **hai mẫu dùng chung một khối chữ ký**, và lý do không phải cho gọn: bản ĐẦY ĐỦ mới là
+tờ Sale Admin in ra đem trình Ban lãnh đạo ký ở B8 — tờ cần chỗ ký của Phó Giám đốc nhất lại là tờ
+không có nó. Đã nêu giả định này ra cùng bản giao.
+
+Ô *Phó Giám đốc* chỉ mang chức danh và khoảng trống, **không có ô trống dữ liệu nào**: hệ thống không
+có trường tên cho Ban lãnh đạo. Nhờ vậy tập 12 ô trống mà `0171` ghim **không đổi một khoá nào**, và
+ca ấy vẫn là chốt chặn cho nội dung tờ giấy.
+
+### Khoảng trống ký tay: đo chứ không chọn
+
+Ba đoạn rỗng cỡ 14pt (~1,8cm) làm bản đầy đủ **tràn sang trang 2 đúng hai dòng ngày**. Thu gọn đoạn
+ngăn cách phía trên từ 11pt xuống 4pt vẫn tràn. Đo lần lượt trên PDF thật:
+
+| Khoảng trống | Bản đầy đủ (3 dòng sản phẩm) |
+|---|---|
+| 3 đoạn × 14pt | 2 trang |
+| 4 đoạn × 14pt | 2 trang |
+| 2 đoạn × 14pt | 1 trang |
+| 2 đoạn × 18pt | **1 trang** |
+| 2 đoạn × 22pt | 2 trang |
+
+Chốt **2 đoạn × 18pt** — khoảng trống lớn nhất còn giữ được một trang. Cái giá đã ghi vào tài liệu:
+bản đầy đủ chứa được **ít hơn khoảng hai dòng sản phẩm** trên trang một.
+
+### Hai file mồ côi, xoá
+
+`templates/mau-ho-so-a4-ngang-day-du.docx` và `-rut-gon.docx` do `0165` tạo ra rồi `0171` cập nhật
+theo — mà **không script nào nạp, không ca kiểm nào đọc, không dòng mã nào nhắc tên**. `0057` liệt kê
+ba file hồ sơ trong `templates/` và không có hai file này. Chúng là bản sao của hai mẫu mặc định,
+tức đúng thứ phải nhớ giữ đồng bộ bằng tay ở mỗi lượt sửa mẫu — và `dong-goi.sh` thì `cp
+templates/*.docx` nên chúng vẫn đi vào gói bàn giao. Xoá.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Gỡ khai `w:val="nil"` khỏi bảng chữ ký | 1 đỏ |
+| Bỏ đoạn ngăn cách → hai bảng dính nhau | 1 đỏ, **cùng ca** — nó canh cả hai vế |
+| Bỏ các đoạn rỗng chừa chỗ ký | 1 đỏ |
+| Đảo *Kế toán* xuống sau *Trưởng bộ phận* | 1 đỏ |
+
+### Nghiệm thu bằng cách IN RA GIẤY
+
+Ba dòng sản phẩm, dựng qua `mergeDocx` rồi Gotenberg: **mỗi bản một trang**, khối chữ ký bốn ô một
+dòng không kẻ ô, khoảng trống giữa chức danh và tên nhìn rõ trên cả hai mẫu.
+
+**1981/1981 xanh.**
