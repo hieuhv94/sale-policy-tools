@@ -87,7 +87,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/09/2026)
 
-Chặng gần nhất **P203** (`0175`): **địa chỉ đăng ký thành HAI Ô và chỉ MỘT; mã số thuế BẮT BUỘC và
+Chặng gần nhất **P204** (`0176`): **nút *Xoá* của hàng địa chỉ tụt xuống 12px** — một dòng CSS, lý do
+đáng nhớ hơn bản sửa. `.hang-dia-chi` căn `align-items: end` (chủ ý), `.truong` mang
+`margin-bottom: var(--k3)` (cũng chủ ý) — và **flexbox căn theo HỘP CÓ LỀ**, nên nút thẳng mép dưới
+của cái LỀ chứ không của ô nhập. Hai luật đều đúng ở chỗ của chúng; đọc CSS không thấy, nhìn thì thấy
+ngay. Lỗi có từ `0154`, chỉ lộ ra khi `0175` bỏ nhóm ô địa chỉ đăng ký và còn mỗi *Địa chỉ giao hàng*.
+Chữa ở HÀNG chứ không ở `.truong` (toàn cục là dịch mọi ô nhập của cả phần mềm). Ca kiểm đọc thẳng
+`app.css` và canh CẢ HAI vế — lề 0 **và** `align-items: end` — vì đổi sang `center` cũng làm vế đầu
+xanh mà lệch theo kiểu khác. **1988/1988 xanh.**
+
+Trước đó **P203** (`0175`): **địa chỉ đăng ký thành HAI Ô và chỉ MỘT; mã số thuế BẮT BUỘC và
 DUY NHẤT.** Sáu câu một lượt, và hai câu nặng nhất **khoá vào nhau đúng như `0154` đã viết trước**:
 `0006` cho trùng MST vì *"một chủ hộ nhiều điểm bán"*, `0154` mở đường thay thế, lượt này thu địa chỉ
 ĐĂNG KÝ về một (theo giấy ĐKKD) và đẩy nhiều điểm bán sang địa chỉ GIAO HÀNG — tới đó cấm trùng mới là

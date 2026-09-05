@@ -3112,6 +3112,17 @@ svg.bd-nho { width: 62px; margin: 0; }
      của input đẩy cả hàng rộng ra và nút Xoá tràn khỏi hộp thoại trên điện
      thoại. Cùng cái bẫy `.khung-cuon` đã phải xử một lần. */
   min-width: 0;
+
+  /* LỀ DƯỚI PHẢI VỀ 0, nếu không nút *Xoá* tụt xuống 12px (`0176`).
+
+     `.truong` mang `margin-bottom: var(--k3)` để hai ô nhập liên tiếp không dính
+     nhau. Trong hàng này nó thành một cái bẫy: flexbox căn `align-items: end`
+     theo **hộp CÓ LỀ**, nên mép dưới của nút thẳng hàng với mép dưới của cái
+     LỀ — tức thấp hơn đáy ô nhập đúng bằng `--k3`. Nhìn ra ngay, mà đọc CSS thì
+     không: cả hai luật đều đúng ở chỗ của chúng.
+
+     Khoảng cách giữa các hàng địa chỉ không mất: `.nhom-dia-chi` đã có `gap`. */
+  margin-bottom: 0;
 }
 
 /* Nút Xoá KHÔNG co lại: chữ "Xoá" bị bóp thành hai dòng trông như một nút hỏng. */

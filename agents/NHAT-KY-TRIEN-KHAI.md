@@ -15268,3 +15268,50 @@ Chỉ mục dựng đúng dạng phần — `WHERE ((id_number IS NOT NULL) AND 
 ràng buộc `chi_noi_nhan_hang` có mặt. Migration đi qua CSDL phát triển sau khi dọn một nhóm trùng.
 
 **1985/1985 xanh.**
+
+---
+
+## P204 — `0176` nút *Xoá* của hàng địa chỉ giao hàng thẳng hàng với ô nhập
+
+Một dòng CSS, và lý do đáng ghi hơn bản sửa.
+
+### Hai luật đều đúng ở chỗ của chúng, và cộng lại thì sai
+
+`.hang-dia-chi` là một hàng flex căn `align-items: end` — chủ ý, để nút *Xoá* thẳng mép dưới với ô
+nhập bên cạnh dù nhãn phía trên có cao thấp thế nào.
+
+`.truong` mang `margin-bottom: var(--k3)` từ rất lâu, để hai ô nhập liên tiếp trong một biểu mẫu
+không dính nhau.
+
+Chỗ hỏng nằm ở một chi tiết của flexbox: **`align-items` căn theo HỘP CÓ LỀ**, không theo hộp viền.
+Nên mép dưới của nút thẳng hàng với mép dưới của cái LỀ — tức thấp hơn đáy ô nhập đúng **12px**.
+
+Nhìn ra ngay bằng mắt; đọc CSS thì không, vì không luật nào sai. `0175` không sinh ra lỗi này — nó có
+từ `0154`, lượt dựng nhóm ô địa chỉ — chỉ là tới `0175` nhóm ấy còn mỗi *Địa chỉ giao hàng* nên nó
+thành thứ đập vào mắt.
+
+### Chữa ở HÀNG, không ở `.truong`
+
+`.truong { margin-bottom: 0 }` toàn cục là dịch mọi ô nhập của cả phần mềm để chữa một hàng. Luật đặt
+đúng chỗ: `.hang-dia-chi > :first-child { margin-bottom: 0 }`. Khoảng cách giữa các hàng địa chỉ không
+mất — `.nhom-dia-chi` đã có `gap`.
+
+### Ca kiểm đọc chính tệp CSS, và canh CẢ HAI vế
+
+jsdom không tính bố cục nên không ca kiểm nào đo được vị trí thật. Thứ đo được — và là đúng thứ đã
+hỏng — là hai luật nói ngược nhau, nên ca kiểm đọc thẳng `app.css` (cùng lối `0164` dùng cho hộp xem)
+và khẳng định **cả hai**: lề dưới bằng 0, **và** hàng vẫn căn `align-items: end`.
+
+Vế thứ hai cần thật: đổi sang `align-items: center` cũng làm ca thứ nhất xanh và trông thẳng hàng ở
+hàng đầu — nhưng lúc ấy nhãn *Địa chỉ giao hàng 2* kéo hàng cao lên và nút trôi ra giữa, lệch theo
+một kiểu khác. Cộng thêm một ca canh `gap` của nhóm: gỡ lề dưới mà không có `gap` thì hai hàng dính
+nhau, và đó là điều khiến lượt sửa này an toàn.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ `margin-bottom: 0` | 1 đỏ |
+| Đổi `align-items: end` → `center` | 1 đỏ, ở ca chiều đối chiếu |
+
+**1988/1988 xanh.**

@@ -8,6 +8,7 @@
  * có cách nào biết khách này thuộc loại mấy, trong khi chính con số ấy quyết
  * định ngưỡng chiết khấu của mọi dòng sản phẩm họ sắp nhập.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -157,5 +158,49 @@ describe('0023 chỉ gửi customerType khi thật sự đổi', () => {
 
     await waitFor(() => expect(thanDaGui(f)).toBeDefined());
     expect(thanDaGui(f).customerType).toBe(2);
+  });
+});
+
+/**
+ * `0176` — HÀNG ĐỊA CHỈ: nút *Xoá* thẳng hàng với ô nhập, chốt 05/09.
+ *
+ * jsdom KHÔNG tính bố cục, nên không ca kiểm nào ở tệp này đo được vị trí thật.
+ * Thứ đo được — và là đúng thứ đã hỏng — là **hai luật CSS nói ngược nhau**:
+ * `.hang-dia-chi` căn `align-items: end`, mà flexbox căn theo hộp CÓ LỀ, trong
+ * khi `.truong` mang `margin-bottom`. Nút thẳng hàng với mép dưới của cái LỀ chứ
+ * không phải của ô nhập.
+ *
+ * Đọc thẳng tệp CSS, cùng lối `0164` đã dùng cho hộp xem.
+ */
+describe('`0176` nút Xoá của hàng địa chỉ thẳng hàng với ô nhập', () => {
+  const css = (): string =>
+    readFileSync('apps/web/src/styles/app.css', 'utf8');
+
+  const khoi = (re: RegExp): string =>
+    [...css().matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => re.test(m[1]!))
+      .map((m) => m[2]!)
+      .join('\n');
+
+  it('ô nhập trong hàng địa chỉ KHÔNG mang lề dưới', () => {
+    const k = khoi(/\.hang-dia-chi > :first-child/);
+    expect(k, 'không tìm thấy luật nào cho ô nhập trong hàng địa chỉ').not.toBe('');
+    expect(k, 'lề dưới của `.truong` đẩy nút Xoá tụt xuống').toMatch(/margin-bottom:\s*0\s*;/);
+  });
+
+  it('và hàng vẫn căn theo MÉP DƯỚI — hai luật ấy đi cùng nhau', () => {
+    /*
+     * Chiều đối chiếu. Đổi `.hang-dia-chi` sang `align-items: center` cũng làm
+     * nút trông thẳng hàng ở ca trên — nhưng lúc ấy nhãn *Địa chỉ giao hàng 2*
+     * kéo hàng cao lên và nút trôi ra giữa, lệch theo một kiểu khác. Hai luật
+     * này là một cơ chế, nên chúng phải được canh cùng nhau.
+     */
+    expect(khoi(/^\s*\.hang-dia-chi\s*$/m)).toMatch(/align-items:\s*end\s*;/);
+  });
+
+  it('khoảng cách giữa các hàng KHÔNG mất — nó đến từ `gap` của nhóm', () => {
+    // Gỡ lề dưới mà không có `gap` thì hai hàng địa chỉ dính nhau; ca này là lý
+    // do lượt sửa trên an toàn.
+    expect(khoi(/^\s*\.nhom-dia-chi\s*$/m)).toMatch(/gap:/);
   });
 });
