@@ -23,16 +23,9 @@ import {
   http,
   withAdminDb,
   phanCongMacDinh,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZAUD';
@@ -115,12 +108,13 @@ const makeCustomer = async () => {
       code: uniq('KH'),
       name: 'Nhà thuốc Minh Châu',
       customerType: 1,
-      registeredAddresses: ['Số 8 Tôn Thất Thuyết, Hà Nội'],
+      province: 'Hà Nội',
+      streetWard: 'Số 8 Tôn Thất Thuyết',
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5100000000 + ++nMst), phone: '0900000000' });
+      idNumber: mstDuyNhat(), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;
 };
@@ -305,8 +299,17 @@ describe('AUD-06 cấu trúc một bản ghi nhật ký', () => {
 describe('AUD-02 sửa một trường quan trọng', () => {
   it('lưu giá trị TRƯỚC và SAU', async () => {
     const customerId = await makeCustomer();
-    const before = 'Số 8 Tôn Thất Thuyết, Hà Nội';
-    const after = 'Số 145 Nguyễn Trãi, Thanh Xuân, Hà Nội';
+    /*
+     * `0175` — nhật ký chụp cột GỘP `registeredAddress`, mà cột ấy do trigger
+     * nối `street_ward` với `province`. Nên giá trị đem so phải là chuỗi ĐÃ NỐI,
+     * không phải chuỗi gửi lên: gửi `'… , Hà Nội'` vào ô số nhà thì cột gộp ra
+     * `'…, Hà Nội, Hà Nội'`, và ca kiểm đỏ ở một chỗ chẳng nói gì về nguyên nhân.
+     */
+    const TINH = 'Hà Nội';
+    const soNhaTruoc = 'Số 8 Tôn Thất Thuyết';
+    const soNhaSau = 'Số 145 Nguyễn Trãi, Thanh Xuân';
+    const before = `${soNhaTruoc}, ${TINH}`;
+    const after = `${soNhaSau}, ${TINH}`;
 
     // Sửa bằng chính TDV phụ trách (`0031`). Trước đây `sa01` sửa được vì cây
     // tổ chức cho họ thấy khách của mọi TDV trong nhánh; giờ quyền xem khách đi
@@ -314,7 +317,7 @@ describe('AUD-02 sửa một trường quan trọng', () => {
     const upd = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ registeredAddresses: [after] });
+      .send({ streetWard: soNhaSau });
     expect(upd.status, JSON.stringify(upd.body)).toBe(200);
 
     await flush();

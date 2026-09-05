@@ -87,7 +87,21 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/09/2026)
 
-Chặng gần nhất **P202** (`0174`): **mẫu hồ sơ ĐẦY ĐỦ bỏ ô *Phó Giám đốc*** — trả lời thẳng cho giả
+Chặng gần nhất **P203** (`0175`): **địa chỉ đăng ký thành HAI Ô và chỉ MỘT; mã số thuế BẮT BUỘC và
+DUY NHẤT.** Sáu câu một lượt, và hai câu nặng nhất **khoá vào nhau đúng như `0154` đã viết trước**:
+`0006` cho trùng MST vì *"một chủ hộ nhiều điểm bán"*, `0154` mở đường thay thế, lượt này thu địa chỉ
+ĐĂNG KÝ về một (theo giấy ĐKKD) và đẩy nhiều điểm bán sang địa chỉ GIAO HÀNG — tới đó cấm trùng mới là
+siết một đường thừa. `registered_address` **vẫn là cột dẫn xuất, chỉ đổi NGUỒN** (ba lý do của `0154`
+còn nguyên); trigger dời sang `BEFORE INSERT/UPDATE` trên `cus.customer`, và `tr_gop_dia_chi` **phải
+thôi đụng** cột ấy nếu không mỗi lượt sửa địa chỉ giao hàng ghi đè nó thành rỗng. **Migration DỪNG
+LẠI** khi dữ liệu còn trùng MST, in ra danh sách mã khách — hệ thống không chọn hộ được. Chỉ mục là
+chỉ mục PHẦN (`status <> 'NGUNG_HOP_TAC'`) và `findByIdNumber` **phải cùng phạm vi**. Tách địa chỉ cũ
+thì **để trống chứ không đoán bừa**. Ô hỏi trùng ngay lúc gõ: `@Get('kiem-tra-mst')` **khai trước
+`@Get(':id')`**, đợi 400ms, và **trừ chính mình**. **PHÁ LẠI TÌM RA MỘT CA XANH VÌ LÝ DO SAI**: ca
+"khách đã ngừng không giữ chỗ MST" gọi đường xoá thật, mà khách chưa có hồ sơ thì `ngungHopTac` **xoá
+hẳn dòng** (`0034`) — nên nó xanh dù có lọc trạng thái hay không. **1985/1985 xanh.**
+
+Trước đó **P202** (`0174`): **mẫu hồ sơ ĐẦY ĐỦ bỏ ô *Phó Giám đốc*** — trả lời thẳng cho giả
 định `0173` vừa nêu. Lập luận cũ (*"bản đầy đủ mới là tờ đem trình BLĐ ký"*) **suy từ quy trình chứ
 không từ tờ giấy khách hàng đưa**; tờ mẫu họ gõ có ô ấy ở bản rút gọn và không có ở bản đầy đủ, và đó
 đã là câu trả lời từ đầu — **lần thứ hai trong ba chặng** một suy luận "cho nhất quán" phải nhường lại
@@ -789,6 +803,15 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **Sáu vai trò**: Kế toán L1 và L2 là một người (hai màn hình); TDV và QL là một vai trò.
 - **Không có cây phân quyền** (bỏ hẳn `16/08`) — người dùng không quản lý lẫn nhau; mỗi bước, người
   đang cầm hồ sơ tự chọn người xử lý bước sau. Đổi *TDV phụ trách* là quyền của Quản trị hệ thống.
+- **MÃ SỐ THUẾ duy nhất, và ĐỊA CHỈ ĐĂNG KÝ chỉ có một** (`0175`, đảo `0006`). Duy nhất **giữa khách
+  ĐANG hợp tác** — chỉ mục phần `uq_customer_id_number`, và `findByIdNumber` phải lọc CÙNG điều kiện,
+  nếu không thì một bên nói "lập được" rồi bên kia trả `23505` (mà khối `catch` đọc mọi `23505` là
+  trùng MÃ KHÁCH). Địa chỉ đăng ký là hai cột `province`/`street_ward` trên `cus.customer`;
+  `registered_address` **vẫn dẫn xuất** nhưng nguồn là hai cột ấy, dựng bởi trigger
+  `tr_dung_dia_chi_dang_ky` (`BEFORE`, gán vào `NEW`). `cus.customer_address` **chỉ còn `NHAN_HANG`**
+  — có ràng buộc `chi_noi_nhan_hang` chặn, và đó là chỗ "nhiều điểm bán" chuyển sang. **Nâng cấp một
+  hệ đang chạy có thể DỪNG** ở migration nếu dữ liệu còn trùng MST; `docs/04-TRIEN-KHAI.md` có mục
+  riêng. Mọi lượt lập khách hàng trong bộ kiểm phải dùng `mstDuyNhat()` của `tests/http/app.ts`.
 - **Đổi tay khách hàng thì mọi hồ sơ của khách ấy sang tay theo** (`0085`, trừ `DA_XOA`) — cả đường
   bàn giao lúc vô hiệu hoá tài khoản lẫn đường sửa một khách.
 - **Hợp đồng do Kế toán hoặc Sale Admin xuất** (bước B7), không phải Trưởng bộ phận. TBP ký xong là

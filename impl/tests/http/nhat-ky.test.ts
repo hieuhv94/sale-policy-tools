@@ -19,16 +19,9 @@ import {
   bootPolicyListening,
   http,
   withAdminDb,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 let identity: INestApplication;
 let customer: INestApplication;
@@ -233,12 +226,13 @@ describe('`0090` tên người đi TỪ NGỮ CẢNH vào sự kiện', () => {
         code: ma,
         customerType: 1,
         name: 'Nha thuoc kiem thu 0090',
-        registeredAddresses: ['Ha Noi'],
+        province: 'Ha Noi',
+      streetWard: 'Ha Noi',
         ownerName: 'Chu ho',
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.
         ownerTitle: 'Chu ho',
-        idNumber: String(5100666666 + ++nMst), phone: '0900000000' });
+        idNumber: mstDuyNhat(), phone: '0900000000' });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
 
     const payload = await withAdminDb(async (c) => {

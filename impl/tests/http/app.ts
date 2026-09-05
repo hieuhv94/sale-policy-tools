@@ -33,6 +33,24 @@ let demMa = 0;
 export const maDuyNhat = (tienTo: string, loai: string): string =>
   `${tienTo}-${loai}-${++demMa}-${LAN_CHAY}`;
 
+/**
+ * MÃ SỐ THUẾ duy nhất xuyên suốt mọi lượt chạy (`0175`).
+ *
+ * Từ `0175` mã số thuế **bắt buộc và duy nhất** giữa các khách đang hợp tác, nên
+ * mọi lượt lập khách hàng trong bộ kiểm phải mang một mã riêng — một hằng gõ tay
+ * dùng lại ở hai tệp là một lượt chạy đỏ ở tệp chạy sau, và triệu chứng của nó
+ * (`CUSTOMER_ID_NUMBER_DUPLICATE` ở một ca chẳng nói gì về mã số thuế) không chỉ
+ * về nguyên nhân.
+ *
+ * 13 chữ số — dạng dài nhất `taxId()` nhận — vì nó có đủ chỗ nhét cả dấu vết
+ * lượt chạy lẫn số đếm mà không đụng nhau. Bốn byte ngẫu nhiên của `LAN_CHAY`
+ * cho 10 chữ số thập phân, cộng ba chữ số đếm là vừa đủ.
+ */
+const MST_LAN_CHAY = String(parseInt(LAN_CHAY, 16)).padStart(10, '0').slice(-10);
+let demMst = 0;
+export const mstDuyNhat = (): string =>
+  `${MST_LAN_CHAY}${String(++demMst % 1000).padStart(3, '0')}`;
+
 export async function boot(): Promise<INestApplication> {
   return createTestApp();
 }

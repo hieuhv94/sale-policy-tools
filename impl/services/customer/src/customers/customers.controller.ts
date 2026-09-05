@@ -37,6 +37,25 @@ export class CustomersController {
     });
   }
 
+  /**
+   * Ô mã số thuế hỏi NGAY LÚC GÕ, chưa ghi gì (`0175`).
+   *
+   * PHẢI KHAI TRƯỚC `@Get(':id')`. Nest khớp route theo THỨ TỰ KHAI BÁO, nên đặt
+   * sau thì `kiem-tra-mst` rơi vào `:id` và thành một lượt tra khách hàng theo
+   * một uuid không hợp lệ — 404, chứ không phải một lỗi nói ra chuyện gì.
+   *
+   * `tru` = id khách đang sửa: lượt sửa nào cũng gửi lại chính mã số thuế đang
+   * có, và không trừ ra thì màn hình báo trùng với chính nó.
+   */
+  @Get('kiem-tra-mst')
+  kiemTraMst(@Query('mst') mst: string, @Query('tru') tru?: string) {
+    const b = validate({ mst, ...(tru === undefined ? {} : { tru }) }, {
+      mst: taxId(),
+      tru: opt(str(36, 36)),
+    });
+    return this.customers.kiemTraMst(b.mst, b.tru);
+  }
+
   @Get(':id')
   byId(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     return this.customers.byId(id, me);
@@ -87,23 +106,27 @@ export class CustomersController {
       // Loại khách hàng chỉ có ba giá trị (CUST-06).
       customerType: int(1, 3),
       /*
-       * ĐỊA CHỈ LÀ MỘT DANH SÁCH (`0154`, chốt 29/08) — trước là một chuỗi.
+       * ĐỊA CHỈ ĐĂNG KÝ: HAI Ô, CHỈ MỘT (`0175`, chốt 05/09) — trước là một
+       * danh sách (`0154`).
        *
-       * `danhSach` chặn trần 50 dòng. Con số ấy không phải để tiết kiệm chỗ mà
-       * để chặn một biểu mẫu hỏng: mỗi địa chỉ in thêm một dòng lên tờ hợp đồng,
-       * và một khách hàng có năm mươi điểm bán là chuyện phải gọi điện hỏi lại
-       * chứ không phải chuyện lặng lẽ in ra bốn trang giấy.
+       * `str(1, …)` chứ không `str(0, …)`: hai ô này bắt buộc, và ô trống không
+       * còn là một trạng thái trung gian hợp lệ của biểu mẫu — không có nút
+       * *Thêm* nào sinh ra chúng nữa. Câu lỗi tiếng Việt nói rõ ô nào vẫn ở
+       * service (`assertDiaChiDangKy`), vì nó là chỗ duy nhất phân biệt được
+       * *"vắng mặt"* với *"gửi lên chuỗi rỗng"*.
        */
-      // `str(0, …)` — Ô TRỐNG ĐI QUA ĐƯỢC, và phép lọc nằm ở service.
-      //
-      // Mảng này là một cấu trúc của biểu mẫu: người dùng bấm *Thêm địa chỉ* rồi
-      // đổi ý là có một ô trống nằm lại. Từ chối cả yêu cầu vì một ô ấy là hành
-      // vi thù địch, và câu lỗi sẽ nói *"phải có tối thiểu 1 ký tự"* về một ô
-      // người ta cố ý để trống. Luật thật — *"phải còn ít nhất một địa chỉ SAU
-      // KHI bỏ ô trống"* — là luật của cả danh sách, nên nó ở `assertDiaChi`.
-      registeredAddresses: danhSach(str(0, 500)),
+      province: str(1, 200),
+      streetWard: str(1, 500),
       ownerName: str(1, 200),
-      idNumber: opt(taxId()),
+      /*
+       * MÃ SỐ THUẾ BẮT BUỘC từ `0175` — trước là `opt(taxId())`.
+       *
+       * Khách hàng cũ chưa khai thì cột vẫn `NULL` ở CSDL; chốt này chỉ áp cho
+       * lượt LẬP MỚI. Lượt sửa vẫn `opt`, vì `PATCH` không gửi kèm thì nghĩa là
+       * không đụng tới — nhưng biểu mẫu khai ô ấy bắt buộc, nên bất kỳ lượt sửa
+       * nào cũng lấp chỗ trống của một khách hàng cũ.
+       */
+      idNumber: taxId(),
       deliveryAddresses: opt(danhSach(str(0, 500))),
       ownerTitle: opt(str(1, 120)),
       phone: opt(str(1, 30)),
@@ -145,9 +168,18 @@ export class CustomersController {
        * Hai nghĩa khác nhau, và `opt()` giữ được cả hai vì nó phân biệt "vắng
        * mặt" với "có mặt mà rỗng". Gộp chúng lại là mất khả năng xoá dòng cuối —
        * đúng lỗi `0138` đã phải chữa cho `debtNote`.
+       *
+       * CHỈ CÒN ĐỊA CHỈ GIAO HÀNG ở dạng danh sách (`0175`).
        */
-      registeredAddresses: opt(danhSach(str(0, 500))),
       deliveryAddresses: opt(danhSach(str(0, 500))),
+      /*
+       * `str(0, …)` chứ không `str(1, …)`: chuỗi rỗng phải ĐI QUA được tới
+       * service, nơi nó thành `CUSTOMER_PROVINCE_REQUIRED` — một câu nói đúng
+       * việc phải làm. Chặn ở đây thì người dùng xoá trắng ô rồi bấm Lưu sẽ nhận
+       * *"phải có tối thiểu 1 ký tự"*, một câu về độ dài chuỗi.
+       */
+      province: opt(str(0, 200)),
+      streetWard: opt(str(0, 500)),
       ownerName: opt(str(1, 200)),
       ownerTitle: opt(str(1, 120)),
       phone: opt(str(1, 30)),

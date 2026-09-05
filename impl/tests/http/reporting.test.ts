@@ -36,16 +36,9 @@ import {
   http,
   withAdminDb,
   phanCongMacDinh,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZRPT';
@@ -182,12 +175,16 @@ async function makeCustomer(o: CustomerOpts = {}): Promise<{ id: string; code: s
       code,
       name: o.name ?? 'Nhà thuốc Minh Châu',
       customerType: 1,
-      registeredAddresses: [o.address ?? 'Số 8 Tôn Thất Thuyết, Hà Nội'],
+      // `0175` — địa chỉ đăng ký thành hai ô. Fixture nào truyền `address` thì
+      // cả chuỗi vào ô số nhà: những ca ấy chỉ cần một chuỗi PHÂN BIỆT ĐƯỢC để
+      // đối chiếu, không cần đúng hình dạng tỉnh/thành.
+      province: 'Hà Nội',
+      streetWard: o.address ?? 'Số 8 Tôn Thất Thuyết',
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5101222221 + ++nMst),
+      idNumber: mstDuyNhat(),
       ...(o.taxId ? { idNumber: o.taxId } : {}), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
@@ -1427,7 +1424,7 @@ describe('Read-model đồng bộ đúng khi sự kiện giao lại hoặc hồ 
     const patch = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ registeredAddresses: ['Số 99 Lý Thường Kiệt, Hải Phòng'] });
+      .send({ streetWard: 'Số 99 Lý Thường Kiệt', province: 'Hải Phòng' });
     expect(patch.status).toBe(200);
 
     await cusOutbox.pumpOnce();

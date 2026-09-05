@@ -458,24 +458,40 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 
 ## 5. Lập khách hàng (TDV)
 
-*Khách hàng* → điền mã, tên, loại khách hàng, địa chỉ đăng ký, người đại diện, **số điện thoại**.
+*Khách hàng* → điền mã, **tên Hộ kinh doanh/tên Công ty**, loại khách hàng, **Tỉnh/Thành phố** và
+**Số nhà, Phường xã** theo đăng ký kinh doanh, người đại diện, **mã số thuế**, số điện thoại.
 
 - **Mã khách hàng không sửa được sau khi lưu.** Sửa được nó là mọi hồ sơ CSBH cũ lặng lẽ trỏ sang
   một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
 - **Số điện thoại** `sửa 01/09` — không bắt buộc, và **không còn chặn lượt gửi duyệt**: hai mẫu hồ
   sơ mặc định thôi in số điện thoại nên không có ô trắng nào để lo. Trường vẫn ở đó, vẫn nên điền,
   và mẫu nào muốn in vẫn đặt ô trống được.
-- Trùng mã số thuế / CCCD với khách khác: hệ thống **vẫn lưu**, chỉ cảnh báo. Một chủ hộ mở nhiều
-  điểm bán là chuyện có thật.
+- **Mã số thuế bắt buộc, và KHÔNG hai khách hàng nào được trùng** `sửa 05/09`. Gõ xong là phần mềm
+  hỏi ngay: trùng thì một dòng chữ đỏ hiện **ngay dưới ô**, nói rõ mã và tên khách hàng đang giữ mã
+  số thuế ấy, và nút *Lưu* không bấm được.
+  > Trước ngày 05/09 thì ngược lại — trùng vẫn lưu được, chỉ cảnh báo, vì *"một chủ hộ mở nhiều điểm
+  > bán"*. Nhiều điểm bán giờ khai bằng **nhiều địa chỉ giao hàng** trên cùng một khách hàng.
+  >
+  > **Khách đã ngừng hợp tác không giữ chỗ**: họ quay lại thì lập được khách hàng mới với đúng mã số
+  > thuế cũ.
+- **Địa chỉ đăng ký là HAI ô, và chỉ có một** `sửa 05/09` — theo giấy đăng ký kinh doanh. Khách hàng
+  lập trước ngày ấy có thể thấy **ô Tỉnh/Thành phố trống**: phần mềm chỉ tách được địa chỉ cũ khi
+  đoạn cuối của nó mở đầu bằng *Thành phố*, *Tỉnh* hay *TP*. Điền nốt ở lượt sửa tiếp theo — ô ấy
+  bắt buộc nên không lưu được khi còn trống.
 - **Loại khách hàng thì sửa được** — xem ngay dưới đây.
 
 Loại khách hàng hiện ở **cả hai chỗ**: cạnh mã trên từng thẻ ở danh sách, và trong khối thông tin ở
 màn hình chi tiết. Nó quyết định ngưỡng chiết khấu, nên người lập hồ sơ cần thấy nó trước khi mở
 khách hàng ra — và thẻ ở danh sách là chỗ họ đọc nó.
 
-Khối thông tin trên màn hình chi tiết bày **năm ô, theo thứ tự** `sửa 29/08`: *Mã số thuế / CCCD* ·
-*Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*. Bốn ô đầu là thứ đi thẳng vào
-hợp đồng; *Loại khách hàng* xuống cuối vì nó là một phân loại chứ không phải thông tin liên hệ.
+Khối thông tin trên màn hình chi tiết bày **bảy ô, theo thứ tự** `sửa 05/09`: *Mã số thuế* ·
+*Tỉnh/Thành phố* · *Số nhà, Phường xã* · *Người đại diện* · *Số điện thoại* · *Công nợ* ·
+*Loại khách hàng*. Sáu ô đầu là thứ đi thẳng vào hợp đồng; *Loại khách hàng* xuống cuối vì nó là một
+phân loại chứ không phải thông tin liên hệ.
+
+**Địa chỉ giao hàng hiện thêm một ô — chỉ khi có** `mới 05/09`, mỗi địa chỉ một dòng. Không khai thì
+ô ấy không xuất hiện: để trống nghĩa là *"giao tới địa chỉ đăng ký"*, nên một ô ghi dấu gạch sẽ nói
+rằng khách hàng thiếu một thông tin mà họ không hề thiếu.
 
 ### Nhiều địa chỉ cho một khách hàng `mới 29/08`
 
@@ -539,7 +555,8 @@ bản cũ chết.
 
 ### Hồ sơ pháp lý `sửa 20/08`
 
-Giấy phép kinh doanh, chứng chỉ hành nghề, giấy tờ tuỳ thân. Hiển thị giống hệt phần *Bản cứng* của
+**Bốn loại** `sửa 05/09`: *Giấy đăng ký kinh doanh* · *Giấy GPP* · *Căn cước công dân* · *Khác*.
+Hiển thị giống hệt phần *Bản cứng* của
 hồ sơ: mỗi giấy tờ một **thẻ có ảnh thu nhỏ**, rê chuột hiện **con mắt** để xem và **mũi tên xuống**
 để tải, dấu **✕** ở góc để gỡ. Thêm bằng **vùng kéo thả** ở cuối hàng; chọn xong file thì phần mềm
 hỏi *loại giấy tờ* rồi mới tải lên.

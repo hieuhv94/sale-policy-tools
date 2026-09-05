@@ -7,9 +7,10 @@
  *   - **Mã khách hàng không sửa được sau khi lưu** (`CUST-04`). Sửa được nó là
  *     mọi hồ sơ CSBH cũ lặng lẽ trỏ sang một khách hàng khác. Nên ô mã chỉ có ở
  *     biểu mẫu lập mới.
- *   - **Trùng mã số thuế / CCCD vẫn lưu được**, chỉ cảnh báo (`CUST-07`): một
- *     chủ hộ mở nhiều điểm bán là chuyện có thật. Không nói trước thì người dùng
- *     tưởng mình nhập sai và đi sửa một dữ liệu đúng.
+ *   - **Trùng mã số thuế thì KHÔNG lập được** (`0175`, chốt 05/09) — đảo hẳn
+ *     `CUST-07`. Hỏi máy chủ NGAY LÚC GÕ và báo ngay dưới ô, chứ không đợi lượt
+ *     bấm Lưu: người ta gõ xong mã số thuế rồi mới điền nốt mười ô còn lại, và
+ *     báo ở cuối là bắt họ làm lại cả biểu mẫu.
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
@@ -27,9 +28,12 @@ export type KhachHangDayDu = {
   code: string;
   name: string;
   customerType: number;
-  /** Bản GỘP nhiều dòng — chỉ để hiện. Sửa thì dùng hai mảng dưới (`0154`). */
+  /** Bản GỘP — chỉ để hiện. Sửa thì dùng hai ô dưới (`0154`, `0175`). */
   registeredAddress: string;
   deliveryAddress: string | null;
+  /** Địa chỉ đăng ký, HAI Ô và chỉ một địa chỉ (`0175`). */
+  province: string;
+  streetWard: string;
   registeredAddresses: string[];
   deliveryAddresses: string[];
   ownerName: string;
@@ -49,14 +53,15 @@ type Gia = {
   code: string;
   name: string;
   customerType: string;
+  province: string;
+  streetWard: string;
   /*
    * MẢNG, và ô rỗng ĐƯỢC PHÉP tồn tại trong lúc gõ (`0154`).
    *
    * Người dùng bấm *Thêm địa chỉ* là có ngay một ô trống — lọc nó đi ở tầng
    * trạng thái thì ô vừa thêm biến mất ngay khi vừa hiện ra. Phép lọc nằm ở
-   * lượt GỬI, không ở lượt gõ.
+   * lượt GỬI, không ở lượt gõ. Chỉ còn địa chỉ GIAO HÀNG là danh sách (`0175`).
    */
-  registeredAddresses: string[];
   deliveryAddresses: string[];
   ownerName: string;
   ownerTitle: string;
@@ -70,7 +75,8 @@ const rong: Gia = {
   code: '',
   name: '',
   customerType: '1',
-  registeredAddresses: [''],
+  province: '',
+  streetWard: '',
   deliveryAddresses: [],
   ownerName: '',
   ownerTitle: '',
@@ -84,9 +90,17 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   code: k.code,
   name: k.name,
   customerType: String(k.customerType),
-  // Ít nhất một ô, kể cả khi máy chủ trả mảng rỗng: một biểu mẫu không có ô nào
-  // để gõ địa chỉ là một biểu mẫu không lưu được mà không nói vì sao.
-  registeredAddresses: k.registeredAddresses.length > 0 ? k.registeredAddresses : [''],
+  /*
+   * Khách hàng lập TRƯỚC `0175` có thể còn ô tỉnh/thành RỖNG: migration chỉ tách
+   * được địa chỉ cũ khi đoạn cuối mở đầu bằng "Thành phố", "Tỉnh" hay "TP". Ô
+   * rỗng ấy hiện ra ở đây, và biểu mẫu khai nó bắt buộc — nên lượt sửa tiếp theo
+   * của khách hàng ấy là lượt lấp chỗ trống.
+   *
+   * (Không viết `*Thành phố*` kiểu in nghiêng ở đây: dấu sao đứng cạnh dấu gạch
+   *  chéo đóng luôn khối chú thích, và `tsc` báo lỗi ở ba dòng phía dưới.)
+   */
+  province: k.province,
+  streetWard: k.streetWard,
   deliveryAddresses: k.deliveryAddresses,
   ownerName: k.ownerName,
   ownerTitle: k.ownerTitle ?? '',
@@ -164,7 +178,13 @@ function NhomDiaChi({
           )}
         </div>
       ))}
-      <button type="button" className="nut nut-nhe" onClick={() => doi([...ds, ''])}>
+      {/* `nut-them-dia-chi` — ôm lấy chữ và thẳng mép trái với ô nhập (`0175`).
+          Thiếu nó thì nút kéo giãn hết bề ngang cột flex và trông như một khối. */}
+      <button
+        type="button"
+        className="nut nut-nhe nut-them-dia-chi"
+        onClick={() => doi([...ds, ''])}
+      >
         {themNhan}
       </button>
     </div>
@@ -188,6 +208,54 @@ export function BieuMauKhachHang({
 
   const sua = (p: Partial<Gia>) => datG((cu) => ({ ...cu, ...p }));
 
+  /**
+   * Khách hàng đang giữ mã số thuế vừa gõ, hoặc `null` (`0175`).
+   *
+   * HỎI MÁY CHỦ, không tra trong danh sách đang có trên màn hình: danh sách ấy
+   * đã lọc theo phạm vi của người đang xem, nên một khách của TDV khác sẽ không
+   * có trong đó — và câu trả lời *"chưa ai dùng"* sẽ sai đúng ở chỗ nó phải
+   * đúng nhất.
+   */
+  const [trungMst, datTrungMst] = useState<{ code: string; name: string } | null>(null);
+
+  useEffect(() => {
+    const mst = g.idNumber.trim();
+    // Ô rỗng thì không hỏi: đó là trạng thái đầu của mọi biểu mẫu lập mới, và
+    // một lượt gọi mạng cho một ô chưa ai gõ là một lượt gọi thừa ở mọi lần mở.
+    if (mst === '') {
+      datTrungMst(null);
+      return;
+    }
+    /*
+     * ĐỢI 400ms sau phím cuối. Không có nó thì mã số thuế mười chữ số là mười
+     * lượt gọi, chín trong đó hỏi về một chuỗi chưa gõ xong.
+     *
+     * `huy` chặn lượt trả về ĐẾN MUỘN ghi đè lượt mới: gõ thêm một chữ số rồi
+     * xoá đi thì hai lượt gọi chạy song song, và lượt cũ về sau sẽ dán câu trả
+     * lời của chuỗi cũ lên ô đang mang chuỗi mới.
+     */
+    let huy = false;
+    const h = setTimeout(() => {
+      void layJson<{ trung: boolean; khachHang?: { code: string; name: string } }>(
+        `/customers/kiem-tra-mst?mst=${encodeURIComponent(mst)}` +
+          (khach ? `&tru=${khach.id}` : ''),
+      )
+        .then((r) => {
+          if (!huy) datTrungMst(r.trung && r.khachHang ? r.khachHang : null);
+        })
+        .catch(() => {
+          // Hỏng thì IM LẶNG và coi như chưa trùng: đây là một phép hỏi trước
+          // cho tiện, còn chốt chặn thật nằm ở máy chủ lúc ghi. Dựng một khối
+          // lỗi đỏ ở đây là báo hỏng mạng cho một việc người dùng không yêu cầu.
+          if (!huy) datTrungMst(null);
+        });
+    }, 400);
+    return () => {
+      huy = true;
+      clearTimeout(h);
+    };
+  }, [g.idNumber, khach?.id]);
+
   /** Đang sửa một khách đã có, VÀ ô loại khách hàng thật sự đổi giá trị. */
   const doiLoai = khach !== undefined && Number(g.customerType) !== khach.customerType;
 
@@ -206,13 +274,15 @@ export function BieuMauKhachHang({
     try {
       const than = {
         name: g.name.trim(),
+        province: g.province.trim(),
+        streetWard: g.streetWard.trim(),
         // `sach()` bỏ ô trống và cắt khoảng trắng — đúng một chỗ, ở lượt gửi.
-        registeredAddresses: sach(g.registeredAddresses),
         deliveryAddresses: sach(g.deliveryAddresses),
         ownerName: g.ownerName.trim(),
         ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
         ...opt('phone', coGiaTri(g.phone)),
-        ...opt('idNumber', coGiaTri(g.idNumber)),
+        // MÃ SỐ THUẾ gửi ở MỌI lượt từ `0175` — nó thôi là ô tuỳ chọn.
+        idNumber: g.idNumber.trim(),
         /*
          * `debtTerm` gửi ở MỌI lượt, `debtNote` chỉ khi chọn *Khác* (`0138`).
          *
@@ -250,7 +320,12 @@ export function BieuMauKhachHang({
 
   const duGiaTri =
     g.name.trim() !== '' &&
-    sach(g.registeredAddresses).length > 0 &&
+    g.province.trim() !== '' &&
+    g.streetWard.trim() !== '' &&
+    g.idNumber.trim() !== '' &&
+    // Đã biết trùng thì nút xám: máy chủ cũng chặn, nhưng bắt bấm Lưu mới biết
+    // là bắt người dùng đi một vòng thừa cho một câu trả lời đã có sẵn.
+    trungMst === null &&
     g.ownerName.trim() !== '' &&
     // Chọn *Khác* mà chưa gõ gì thì nút Lưu xám (`0138`) — máy chủ cũng chặn,
     // nhưng bắt người dùng bấm Lưu mới biết là bắt họ đi một vòng thừa.
@@ -318,19 +393,46 @@ export function BieuMauKhachHang({
           </div>
         )}
 
-        <Truong id="kh-ten" nhan="Tên khách hàng" bắtBuộc>
+        {/* `0175` — *Tên khách hàng* → *Tên Hộ kinh doanh/Tên Công ty*: khách của
+            Công ty là hộ kinh doanh hoặc doanh nghiệp, và cái tên phải điền là
+            tên trên giấy đăng ký kinh doanh chứ không phải tên chủ hộ. */}
+        <Truong id="kh-ten" nhan="Tên Hộ kinh doanh/Tên Công ty" bắtBuộc>
           {(p) => (
             <input {...p} className="o-nhap" value={g.name} onChange={(e) => sua({ name: e.target.value })} />
           )}
         </Truong>
-        <NhomDiaChi
-          id="kh-dc-dk"
-          nhan="Địa chỉ đăng ký"
-          bắtBuộc
-          ds={g.registeredAddresses}
-          doi={(ds) => sua({ registeredAddresses: ds })}
-          themNhan="Thêm địa chỉ đăng ký"
-        />
+        {/*
+          ĐỊA CHỈ ĐĂNG KÝ: HAI Ô, CHỈ MỘT (`0175`, chốt 05/09).
+
+          `0154` cho nó là một danh sách thêm bớt được, để một chủ hộ nhiều điểm
+          bán khai đủ. Khách hàng thu lại: địa chỉ đăng ký theo giấy đăng ký kinh
+          doanh, mà một pháp nhân chỉ có một tờ giấy ấy. Nhiều điểm bán vẫn khai
+          được ở khối *Địa chỉ giao hàng* ngay dưới.
+
+          TỈNH/THÀNH ĐỨNG TRƯỚC dù trên tờ giấy nó in sau: đây là thứ người nhập
+          biết chắc và gõ xong trong hai giây, còn số nhà thì phải nhìn vào giấy
+          tờ. Biểu mẫu xếp theo thứ tự người ta điền được, không theo thứ tự in.
+        */}
+        <Truong id="kh-tinh" nhan="Tỉnh/Thành phố (theo đăng ký kinh doanh)" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              value={g.province}
+              onChange={(e) => sua({ province: e.target.value })}
+            />
+          )}
+        </Truong>
+        <Truong id="kh-so-nha" nhan="Số nhà, Phường xã (theo đăng ký kinh doanh)" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              value={g.streetWard}
+              onChange={(e) => sua({ streetWard: e.target.value })}
+            />
+          )}
+        </Truong>
         <NhomDiaChi
           id="kh-dc-gh"
           nhan="Địa chỉ giao hàng"
@@ -380,7 +482,25 @@ export function BieuMauKhachHang({
             />
           )}
         </Truong>
-        <Truong id="kh-mst" nhan="Mã số thuế / CCCD">
+        {/*
+          MÃ SỐ THUẾ: BẮT BUỘC và DUY NHẤT (`0175`, chốt 05/09) — đảo hẳn
+          `CUST-07`, thứ vốn cho trùng và chỉ cảnh báo.
+
+          Câu báo trùng đi qua `loi` của `Truong`, tức nằm NGAY DƯỚI ô và gắn với
+          nó bằng `aria-describedby`. Một dòng chữ đặt cạnh mà không gắn thì trình
+          đọc màn hình đọc nhãn ô rồi im — người dùng bàn phím không bao giờ biết
+          vì sao nút Lưu xám.
+        */}
+        <Truong
+          id="kh-mst"
+          nhan="Mã số thuế"
+          bắtBuộc
+          {...(trungMst
+            ? {
+                loi: `Mã số thuế này đã thuộc về khách hàng ${trungMst.code} — ${trungMst.name}.`,
+              }
+            : {})}
+        >
           {(p) => (
             <input
               {...p}
@@ -390,10 +510,6 @@ export function BieuMauKhachHang({
             />
           )}
         </Truong>
-        <p className="ghi-chu">
-          Trùng mã số thuế với khách khác <strong>vẫn lưu được</strong> — hệ thống chỉ cảnh báo. Một
-          chủ hộ mở nhiều điểm bán là chuyện bình thường.
-        </p>
         {/*
           CÔNG NỢ là một ĐIỀU KHOẢN, không phải số tiền (`0138`, chốt 27/08).
 

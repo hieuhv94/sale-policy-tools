@@ -1879,8 +1879,8 @@ phận chỉ còn **hai** đường ra: **Ký số duyệt** hoặc **Trả lạ
 > **Thống kê mất chỉ số *Bị từ chối*** và một lát của biểu đồ cơ cấu kết cục — một chỉ số không ai
 > tới được nữa thì luôn bằng 0. Báo cáo *tỷ lệ trả lại* **giữ** ô `rejected` cho dữ liệu cũ.
 
-**Một khách hàng có NHIỀU địa chỉ** `mới 29/08` — cả *Địa chỉ đăng ký* lẫn *Địa chỉ giao hàng* đều
-thêm được nhiều dòng, tối đa 50 mỗi loại. Phải còn **ít nhất một** địa chỉ đăng ký.
+**Một khách hàng có NHIỀU địa chỉ** `mới 29/08` (`thu hẹp 05/09` — chỉ còn *Địa chỉ giao hàng*; xem
+mục *"Địa chỉ đăng ký thành hai ô"* ở dưới) — thêm được nhiều dòng, tối đa 50.
 
 > **Tờ CSBH và hợp đồng in HẾT, mỗi địa chỉ một dòng** — thứ tự in đúng thứ tự người dùng sắp trong
 > biểu mẫu, nên dòng đầu là địa chỉ đầu.
@@ -1890,12 +1890,49 @@ thêm được nhiều dòng, tối đa 50 mỗi loại. Phải còn **ít nhấ
 >
 > Việc này **mở đường cho luật cấm trùng mã số thuế**: tới nay *"một chủ hộ nhiều điểm bán"* được làm
 > bằng cách lập nhiều khách hàng cùng MST, mỗi bản một địa chỉ. Từ đây nó là **một khách, nhiều địa
-> chỉ** — nên cấm trùng MST thôi chặn nhầm nghiệp vụ.
+> chỉ** — nên cấm trùng MST thôi chặn nhầm nghiệp vụ. **Luật ấy chốt ngày 05/09**, đúng một chặng sau.
 >
 > Địa chỉ dán từ Word có ký tự xuống dòng thì hệ thống **gộp lại thành một dòng**, không báo lỗi.
 
-**Khối thông tin khách hàng: năm ô, Loại khách hàng ở cuối** `mới 29/08` — màn hình chi tiết khách
-hàng bày *Mã số thuế / CCCD* · *Người đại diện* · *Số điện thoại* · *Công nợ* · *Loại khách hàng*.
+**Địa chỉ đăng ký thành HAI Ô và chỉ có MỘT; mã số thuế BẮT BUỘC và DUY NHẤT** `sửa 05/09` — sáu câu
+trong một lượt phản hồi, và chúng chạm cùng một màn hình:
+
+> 1. Mục *Tên khách hàng* đổi nhãn thành ***Tên Hộ kinh doanh/Tên Công ty***.
+> 2. Biểu mẫu bỏ ô *Địa chỉ đăng ký*, thay bằng **hai ô bắt buộc**: *Tỉnh/Thành phố (theo đăng ký
+>    kinh doanh)* và *Số nhà, Phường xã (theo đăng ký kinh doanh)* — và **chỉ có một** địa chỉ.
+> 3. Hai ô ấy **hiện ra ở trang thông tin khách hàng**.
+> 4. Nút *Thêm địa chỉ giao hàng* căn lại cho gọn; **địa chỉ giao hàng hiện ở trang thông tin khách
+>    hàng nếu có**.
+> 5. Bốn loại giấy tờ đổi tên: *Giấy đăng ký kinh doanh* · *Giấy GPP* · *Căn cước công dân* · *Khác*.
+> 6. **Không cho hai khách hàng trùng mã số thuế** — báo ngay dưới ô lúc nhập, không cho lưu — và
+>    **mã số thuế bắt buộc**.
+>
+> **Câu 2 và câu 6 là một việc.** Chốt `29/08` cho trùng mã số thuế với đúng một lý do — *"một chủ hộ
+> mở nhiều điểm bán"* — và mở đường thay thế bằng nhiều địa chỉ. Lượt này thu địa chỉ ĐĂNG KÝ về một
+> (nó theo giấy đăng ký kinh doanh, mà một pháp nhân chỉ có một tờ giấy ấy) và đẩy "nhiều điểm bán"
+> sang **địa chỉ giao hàng**, thứ vẫn là danh sách. Tới đó thì hai khách cùng mã số thuế thôi là một
+> cách khai hợp lệ.
+>
+> **Mã số thuế duy nhất chỉ tính giữa khách ĐANG hợp tác.** Khách đã ngừng là dữ liệu lịch sử; giữ
+> chỗ mã số thuế của họ là cấm luôn lượt lập lại chính họ khi họ quay lại.
+>
+> **Hai hệ quả vận hành, nói ra trước:**
+>
+> - **Bản nâng cấp DỪNG LẠI nếu dữ liệu đang có còn hai khách trùng mã số thuế.** Nó in ra danh sách
+>   mã khách phải xử lý. Hệ thống không tự chọn được giữ bản nào — đó là quyết định nghiệp vụ.
+> - **Địa chỉ cũ tách được hay không là tuỳ chuỗi.** Đoạn cuối mở đầu bằng *Thành phố*, *Tỉnh* hay
+>   *TP* thì thành ô tỉnh/thành; không khớp thì cả chuỗi vào ô số nhà và **ô tỉnh/thành để trống**.
+>   Để trống chứ không đoán bừa: ô trống thì người dùng thấy ngay lúc mở ra sửa, còn một tỉnh/thành
+>   đoán sai thì đi thẳng lên tờ CSBH mà không ai biết. Ô ấy bắt buộc nên lượt sửa tiếp theo của
+>   khách hàng đó là lượt lấp chỗ trống.
+>
+> **Khách hàng cũ chưa khai mã số thuế thì cột vẫn trống** — chốt bắt buộc chỉ áp cho lượt LẬP MỚI.
+> Biểu mẫu khai ô ấy bắt buộc, nên bất kỳ lượt sửa nào cũng lấp nốt.
+
+**Khối thông tin khách hàng: năm ô, Loại khách hàng ở cuối** `mới 29/08` (`sửa 05/09` — thành **bảy**:
+hai ô địa chỉ đăng ký chen vào sau mã số thuế, cộng *Địa chỉ giao hàng* khi có) — màn hình chi tiết
+khách hàng bày *Mã số thuế* · *Tỉnh/Thành phố* · *Số nhà, Phường xã* · *Người đại diện* · *Số điện
+thoại* · *Công nợ* · *Loại khách hàng*.
 
 > **Địa chỉ đăng ký ra khỏi khối ấy** — bỏ khỏi CHỖ BÀY, không bỏ khỏi hệ thống. Trường vẫn bắt buộc
 > lúc lập khách, vẫn sửa được, vẫn đóng băng vào hồ sơ (`0101`) và vẫn in trên tờ CSBH lẫn hợp đồng.

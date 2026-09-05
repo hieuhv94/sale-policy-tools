@@ -389,6 +389,39 @@ hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai d
 phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
 rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 
+### Nâng cấp lên bản CẤM TRÙNG MÃ SỐ THUẾ `mới 05/09`
+
+**Bước migration của bản này DỪNG LẠI nếu dữ liệu đang có còn hai khách hàng
+trùng mã số thuế.** Nó không tự sửa gì — hệ thống không chọn được giữ bản nào,
+đó là quyết định nghiệp vụ — mà in ra đúng danh sách phải xử lý:
+
+```
+ERROR: Còn khách hàng TRÙNG mã số thuế, không tạo được ràng buộc duy nhất.
+Sửa hoặc ngừng hợp tác bớt những khách sau rồi chạy lại:
+  0101234567 (KH-0012, KH-0031)
+```
+
+| | |
+| --- | --- |
+| Vì sao có | Tới `29/08` phần mềm **cho phép** trùng có chủ ý, để một chủ hộ khai nhiều điểm bán. Đường ấy nay là **nhiều địa chỉ giao hàng trên một khách hàng** |
+| Phải làm | Với mỗi nhóm trùng: giữ MỘT khách hàng, chuyển địa chỉ của những bản kia thành *địa chỉ giao hàng* của bản giữ lại, rồi **Ngừng hợp tác** những bản thừa |
+| Làm ở đâu | Trên giao diện, trước khi nâng cấp — bản đang chạy vẫn cho sửa bình thường |
+| Chạy lại | `docker compose … up -d` lần nữa; migration đã áp dụng dở không để lại trạng thái lỡ dở, nó chạy trong một transaction |
+
+> **Khách đã ngừng hợp tác KHÔNG tính là trùng** — chốt chặn chỉ nhìn khách đang
+> hợp tác. Nên "ngừng hợp tác bản thừa" là cách xử lý hợp lệ và đủ.
+
+Hai việc tay nữa, nhỏ hơn, và **không chặn nâng cấp**:
+
+- **Ô *Tỉnh/Thành phố* có thể trống** ở khách hàng cũ. Phần mềm tách địa chỉ cũ
+  ra hai ô khi đoạn cuối mở đầu bằng *Thành phố*, *Tỉnh* hay *TP*; không khớp thì
+  cả chuỗi vào ô *Số nhà, Phường xã* và ô tỉnh/thành để trống. Ô ấy bắt buộc, nên
+  lượt sửa tiếp theo của khách hàng đó là lượt lấp chỗ trống.
+- **Khách hàng cũ chưa khai mã số thuế thì vẫn trống.** Chốt bắt buộc chỉ áp cho
+  lượt lập mới; biểu mẫu khai ô ấy bắt buộc nên bất kỳ lượt sửa nào cũng lấp nốt.
+
+---
+
 ### Nâng cấp lên bản có tên Công ty mới `mới 29/08`
 
 Tên pháp nhân đổi thành **Công ty TNHH Dược phẩm Nutricare**. Với một hệ **vừa

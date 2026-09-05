@@ -16,7 +16,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BAT_BUOC, CHAT_HON, batBuoc, thieuTruong, type TenBieuMau } from '@csbh/web/bat-buoc';
+import { BAT_BUOC, CHAT_HON, batBuoc, thieuTruong, trong, type TenBieuMau } from '@csbh/web/bat-buoc';
 
 /**
  * Biểu mẫu nào đọc DTO nào. `neo` là dòng decorator, duy nhất trong từng tệp.
@@ -146,7 +146,9 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
     code: 'KH001',
     name: 'Nha thuoc A',
     customerType: 1,
-    registeredAddresses: ['12 Ly Thuong Kiet'],
+    province: 'Ha Noi',
+    streetWard: '12 Ly Thuong Kiet',
+    idNumber: '0101234567',
     ownerName: 'Nguyen Van A',
   };
 
@@ -168,24 +170,35 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
     expect(thieuTruong('khach-hang', {})).toEqual([...BAT_BUOC['khach-hang']]);
   });
 
-  it('`0154` mảng địa chỉ RỖNG hoặc toàn ô trắng tính là chưa điền', () => {
+  it('`0175` thiếu MỘT trong hai ô địa chỉ thì đúng ô đó bị nêu tên', () => {
     /*
-     * Không có nhánh mảng trong `trong()` thì cả hai trường hợp dưới đây đều
-     * lọt: chúng không phải chuỗi, không phải null, nên phép kiểm cũ trả về
-     * *"đã điền"*. Nút Lưu sáng lên với một biểu mẫu chưa có địa chỉ nào.
+     * `0154` để địa chỉ đăng ký là một MẢNG, và nhánh mảng của `trong()` sinh ra
+     * để đo nó. `0175` tách thành hai ô chuỗi thường, nên phép đo quay về nhánh
+     * chuỗi — điều đáng canh giờ là *"đúng ô nào bị nêu tên"*.
+     *
+     * Nhánh mảng KHÔNG bỏ: `deliveryAddresses` vẫn là danh sách, và một biểu mẫu
+     * khác về sau vẫn có thể cần nó. Ca canh chính nhánh ấy ở ngay dưới.
      */
-    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: [] })).toEqual([
-      'registeredAddresses',
-    ]);
-    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: ['', '  '] })).toEqual([
-      'registeredAddresses',
-    ]);
+    expect(thieuTruong('khach-hang', { ...dayDu, province: '' })).toEqual(['province']);
+    expect(thieuTruong('khach-hang', { ...dayDu, streetWard: '   ' })).toEqual(['streetWard']);
   });
 
-  it('nhưng CÓ một dòng thật thì đủ, dù kèm dòng trống', () => {
-    // Người dùng bấm *Thêm địa chỉ* rồi đổi ý là có một ô trống nằm lại. Ô ấy bị
-    // bỏ đi ở lượt gửi, nên nó không được làm nút Lưu tắt.
-    expect(thieuTruong('khach-hang', { ...dayDu, registeredAddresses: ['12 Ly Thuong Kiet', ''] })).toEqual([]);
+  it('`0175` MÃ SỐ THUẾ thôi là ô tuỳ chọn', () => {
+    // Đảo hẳn `CUST-05`: trước lượt này ô ấy để trống vẫn lưu được, và chốt duy
+    // nhất nằm ở lượt gửi duyệt.
+    expect(thieuTruong('khach-hang', { ...dayDu, idNumber: '' })).toEqual(['idNumber']);
+  });
+
+  it('nhánh MẢNG của `trong()` vẫn còn, và vẫn đúng', () => {
+    /*
+     * `deliveryAddresses` không nằm trong bảng ô bắt buộc, nên không ca nào ở
+     * trên đi qua nhánh ấy nữa. Gọi thẳng để nó khỏi thành mã chết: bỏ nhánh
+     * mảng đi thì `[]` và `['']` lọt thành *"đã điền"*, đúng lỗ hổng `0154` mở
+     * ra và đã phải bịt một lần.
+     */
+    expect(trong([])).toBe(true);
+    expect(trong(['', '  '])).toBe(true);
+    expect(trong(['12 Ly Thuong Kiet', ''])).toBe(false);
   });
 
   it('số 0 và giá trị false KHÔNG bị coi là trống', () => {

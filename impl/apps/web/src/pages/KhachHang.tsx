@@ -30,6 +30,9 @@ type KhachHangDto = {
   /** Bản gộp nhiều dòng. Thẻ danh sách dùng mảng bên dưới (`0154`). */
   registeredAddress: string;
   registeredAddresses: string[];
+  province: string;
+  streetWard: string;
+  deliveryAddresses: string[];
   idNumber: string | null;
   ownerName: string;
   phone: string | null;
@@ -267,8 +270,28 @@ export function ChiTietKhachHang({ id }: { id: string }) {
       */}
       <dl className="the-so">
         <div>
-          <dt>Mã số thuế / CCCD</dt>
+          <dt>Mã số thuế</dt>
+          {/* `0175` — bắt buộc và duy nhất từ 05/09. Dấu gạch chỉ còn ở khách
+              hàng lập trước ngày ấy: họ chưa ai khai. */}
           <dd>{kh.idNumber ?? '—'}</dd>
+        </div>
+        {/*
+          ĐỊA CHỈ ĐĂNG KÝ QUAY LẠI KHỐI NÀY, ở dạng HAI Ô (`0175`, chốt 05/09).
+
+          `0153` đưa nó ra khỏi đây với lý do *"bỏ khỏi chỗ bày, không bỏ khỏi hệ
+          thống"* — và lý do ấy đúng với một chuỗi địa chỉ tự do đã hiện sẵn trên
+          thẻ danh sách. Khách hàng vừa yêu cầu ngược lại, và cũng bằng một câu
+          khác: *"hiển thị thông tin ở mục trên trong trang thông tin khách
+          hàng"*, ngay sau câu tách nó thành hai ô. Hai ô ấy là dữ liệu theo giấy
+          đăng ký kinh doanh, không phải một dòng địa chỉ để nhận ra khách.
+        */}
+        <div>
+          <dt>Tỉnh/Thành phố</dt>
+          <dd>{kh.province || '—'}</dd>
+        </div>
+        <div>
+          <dt>Số nhà, Phường xã</dt>
+          <dd>{kh.streetWard || '—'}</dd>
         </div>
         <div>
           <dt>Người đại diện</dt>
@@ -290,6 +313,29 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           <dt>Loại khách hàng</dt>
           <dd>{nhanLoaiKhach(kh.customerType)}</dd>
         </div>
+        {/*
+          ĐỊA CHỈ GIAO HÀNG — CHỈ KHI CÓ (`0175`).
+
+          *"Hiển thị thông tin này trong trang thông tin của khách hàng NẾU CÓ"*.
+          Vế cuối là một yêu cầu thật, không phải cách nói: mảng rỗng nghĩa là
+          *"giao tới địa chỉ đăng ký"* (`0006`), nên một ô ghi dấu gạch ở đây sẽ
+          nói rằng khách hàng thiếu một thông tin mà họ không hề thiếu.
+
+          Nhiều địa chỉ thì mỗi cái một dòng: chúng là một danh sách, và nối bằng
+          dấu phẩy thì một địa chỉ vốn đã có dấu phẩy sẽ đọc ra thành hai.
+        */}
+        {kh.deliveryAddresses.length > 0 && (
+          <div>
+            <dt>Địa chỉ giao hàng</dt>
+            <dd>
+              {kh.deliveryAddresses.map((d, i) => (
+                <span key={i} className="dong-dia-chi">
+                  {d}
+                </span>
+              ))}
+            </dd>
+          </div>
+        )}
       </dl>
 
       <h2>CSBH đang áp dụng</h2>

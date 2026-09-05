@@ -31,15 +31,26 @@ export type CustomerInput = {
   name: string;
   customerType: number;
   /**
-   * Địa chỉ đăng ký — MỘT HOẶC NHIỀU (`0154`, chốt 29/08).
+   * Địa chỉ đăng ký — HAI Ô, và CHỈ MỘT địa chỉ (`0175`, chốt 05/09).
    *
-   * Mảng chứ không chuỗi, và bắt buộc ít nhất một: `cus.customer.registered_address`
-   * là `NOT NULL` từ `0006`, và một khách hàng không có địa chỉ nào thì tờ hợp
-   * đồng in ra không có bên mua.
+   * `0154` cho nó là một MẢNG, để một chủ hộ nhiều điểm bán khai đủ. Khách hàng
+   * thu lại: địa chỉ đăng ký theo giấy đăng ký kinh doanh, mà một pháp nhân chỉ
+   * có một tờ giấy ấy. Nhiều điểm bán vẫn khai được — bằng địa chỉ GIAO HÀNG,
+   * thứ vẫn là danh sách.
+   *
+   * Hai ô chứ không một chuỗi vì khách hàng nêu đích danh hai mục, và tách ra
+   * thì tỉnh/thành trở thành một giá trị lọc và đối chiếu được — chuỗi tự do thì
+   * không.
    */
-  registeredAddresses: string[];
+  province: string;
+  streetWard: string;
   ownerName: string;
-  idNumber?: string | undefined;
+  /**
+   * Mã số thuế — **BẮT BUỘC** từ `0175`, và **DUY NHẤT** giữa các khách đang
+   * hợp tác. Đảo hẳn `0006`; xem `db/migrations/0114_…` để biết vì sao lượt đảo
+   * ấy phải đi sau `0154`.
+   */
+  idNumber: string;
   /** Nơi nhận hàng — không bắt buộc; mảng rỗng nghĩa là trùng địa chỉ đăng ký. */
   deliveryAddresses?: string[] | undefined;
   ownerTitle?: string | undefined;
@@ -62,6 +73,8 @@ type Row = {
   name: string;
   id_number: string | null;
   customer_type: number;
+  province: string;
+  street_ward: string;
   registered_address: string;
   delivery_address: string | null;
   owner_name: string;
@@ -110,13 +123,47 @@ export class CustomersService {
    * tới chúng, và bắt mọi lượt sửa số điện thoại phải gửi kèm địa chỉ là biến
    * một trường tuỳ chọn thành bắt buộc.
    */
-  private assertDiaChi(ds: string[] | undefined): void {
-    if (ds === undefined) return;
-    if (ds.some((d) => d.trim() !== '')) return;
-    throw new BadRequestException({
-      code: 'CUSTOMER_ADDRESS_REQUIRED',
-      message: 'Khách hàng phải có ít nhất một địa chỉ đăng ký.',
-      field: 'registeredAddresses',
+  private assertDiaChiDangKy(province: string | undefined, streetWard: string | undefined): void {
+    /*
+     * `undefined` thì bỏ qua — lượt `PATCH` không nói tới địa chỉ thì không đụng
+     * tới nó. Nhưng CHUỖI RỖNG thì không: gửi `''` là cố ý xoá, và ô này bắt
+     * buộc. Hai trạng thái ấy phải tách nhau, đúng như `0138` đã phải tách cho
+     * `debtNote`.
+     */
+    if (province !== undefined && province.trim() === '') {
+      throw new BadRequestException({
+        code: 'CUSTOMER_PROVINCE_REQUIRED',
+        message: 'Phải điền Tỉnh/Thành phố theo đăng ký kinh doanh.',
+        field: 'province',
+      });
+    }
+    if (streetWard !== undefined && streetWard.trim() === '') {
+      throw new BadRequestException({
+        code: 'CUSTOMER_STREET_REQUIRED',
+        message: 'Phải điền Số nhà, Phường xã theo đăng ký kinh doanh.',
+        field: 'streetWard',
+      });
+    }
+  }
+
+  /**
+   * MÃ SỐ THUẾ DUY NHẤT giữa các khách ĐANG hợp tác (`0175`, chốt 05/09).
+   *
+   * Kiểm ở đây **và** ở chỉ mục `uq_customer_id_number`. Hai chỗ, và cả hai đều
+   * cần: chỉ mục là chốt thật — nó đúng cả khi hai lượt lập chạy song song —
+   * còn phép kiểm này là chỗ duy nhất trả được một câu tiếng Việt nói ra khách
+   * hàng nào đang giữ mã ấy. Bắt `23505` rồi đoán ngược lại là đoán, vì dòng
+   * khách hàng còn một chỉ mục duy nhất nữa: mã khách hàng.
+   */
+  private async assertMstChuaDung(idNumber: string | undefined, tru?: string): Promise<void> {
+    if (idNumber === undefined) return;
+    const trung = await this.findByIdNumber(idNumber, tru);
+    if (trung.length === 0) return;
+    throw new ConflictException({
+      code: 'CUSTOMER_ID_NUMBER_DUPLICATE',
+      message: `Mã số thuế này đã thuộc về khách hàng ${trung[0]!.code} — ${trung[0]!.name}.`,
+      field: 'idNumber',
+      khachHang: trung[0],
     });
   }
 
@@ -143,7 +190,7 @@ export class CustomersService {
   private async ghiDiaChi(
     c: { query: (sql: string, params?: unknown[]) => Promise<unknown> },
     customerId: string,
-    kind: 'DANG_KY' | 'NHAN_HANG',
+    kind: 'NHAN_HANG',
     dsChua: string[],
   ): Promise<void> {
     /*
@@ -175,10 +222,16 @@ export class CustomersService {
 
   async create(input: CustomerInput, me: AuthUser) {
     this.assertDieuKhoan(input.debtTerm, input.debtNote);
-    this.assertDiaChi(input.registeredAddresses);
-    // Trùng CCCD/MST thì VẪN LƯU, chỉ kèm cảnh báo: một chủ hộ mở nhiều điểm
-    // bán là nghiệp vụ có thật (CUST-05).
-    const duplicates = await this.findByIdNumber(input.idNumber);
+    this.assertDiaChiDangKy(input.province, input.streetWard);
+    /*
+     * TRÙNG MÃ SỐ THUẾ THÌ KHÔNG LẬP ĐƯỢC (`0175`) — đảo hẳn `CUST-05`.
+     *
+     * Tới `0174` chỗ này chỉ cảnh báo, với lý do *"một chủ hộ mở nhiều điểm bán
+     * là nghiệp vụ có thật"*. Nhu cầu ấy giờ có đường riêng — nhiều địa chỉ giao
+     * hàng trên CÙNG một khách (`0154`) — nên hai khách cùng mã số thuế thôi là
+     * một cách khai hợp lệ.
+     */
+    await this.assertMstChuaDung(input.idNumber);
 
     // Ghi khách hàng và ghi sự kiện trong CÙNG transaction. Trước P7b bước này
     // không phát sự kiện nào, và hậu quả rộng hơn báo cáo: nhật ký cũng không có
@@ -198,8 +251,9 @@ export class CustomersService {
           `INSERT INTO cus.customer
              (code, name, id_number, customer_type,
               owner_name, owner_title, owner_id_number, phone, debt_term, debt_note,
+              province, street_ward,
               tdv_user_id, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)
            RETURNING *`,
           [
             input.code,
@@ -212,6 +266,8 @@ export class CustomersService {
             input.phone ?? null,
             input.debtTerm ?? 'SAU_NHAN_HANG',
             input.debtNote ?? null,
+            input.province.trim(),
+            input.streetWard.trim(),
             // TDV phụ trách mặc định là người tạo (CUST-01).
             me.id,
           ],
@@ -232,7 +288,6 @@ export class CustomersService {
        * rỗng. Phải đọc lại dòng, nếu không thì `after` trong nhật ký và giá trị
        * trả về cho màn hình đều nói rằng khách hàng vừa lập không có địa chỉ nào.
        */
-      await this.ghiDiaChi(c, created.id, 'DANG_KY', input.registeredAddresses);
       await this.ghiDiaChi(c, created.id, 'NHAN_HANG', input.deliveryAddresses ?? []);
       const sau = (await c.query<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [created.id]))
         .rows[0]!;
@@ -251,7 +306,7 @@ export class CustomersService {
       return sau;
     });
 
-    return { ...toDto(row), duplicateIdNumberWith: duplicates };
+    return toDto(row);
   }
 
   async byId(id: string, me: AuthUser) {
@@ -320,10 +375,13 @@ export class CustomersService {
     me: AuthUser,
   ) {
     this.assertDieuKhoan(patch.debtTerm, patch.debtNote);
-    this.assertDiaChi(patch.registeredAddresses);
+    this.assertDiaChiDangKy(patch.province, patch.streetWard);
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
     await this.assertInScope(cur.tdv_user_id, me, id);
+    // TRỪ CHÍNH MÌNH: lượt sửa nào cũng gửi lại mã số thuế đang có, và không trừ
+    // ra thì không khách hàng nào sửa được gì nữa.
+    await this.assertMstChuaDung(patch.idNumber, id);
 
     if (patch.tdvUserId !== undefined && !CAN_REASSIGN.includes(me.role)) {
       throw new ForbiddenException({
@@ -375,6 +433,8 @@ export class CustomersService {
             debt_term          = coalesce($7, debt_term),
             tdv_user_id        = coalesce($8, tdv_user_id),
             phone              = coalesce($10, phone),
+            province           = coalesce($12, province),
+            street_ward        = coalesce($13, street_ward),
             -- debt_note KHONG dung coalesce (0138). Doi tu *Khac* sang phuong an
             -- 1 hay 2 thi phan go tay phai BIEN MAT; coalesce giu no lai, va no
             -- nam im trong CSDL cho toi ngay ai do doi nguoc ve *Khac* va thay
@@ -402,6 +462,8 @@ export class CustomersService {
           patch.phone ?? null,
           // '' = không đụng tới · '-' = xoá · còn lại = nội dung mới.
           patch.debtTerm === undefined ? '' : (patch.debtNote ?? '-'),
+          patch.province?.trim() ?? null,
+          patch.streetWard?.trim() ?? null,
         ],
       );
       /*
@@ -412,9 +474,6 @@ export class CustomersService {
        * `ghiDiaChi` làm đúng thế. Gộp hai thứ ấy vào một nhánh là mất khả năng
        * xoá dòng cuối cùng — đúng lỗi mà `0138` đã phải chữa cho `debt_note`.
        */
-      if (patch.registeredAddresses !== undefined) {
-        await this.ghiDiaChi(c, id, 'DANG_KY', patch.registeredAddresses);
-      }
       if (patch.deliveryAddresses !== undefined) {
         await this.ghiDiaChi(c, id, 'NHAN_HANG', patch.deliveryAddresses);
       }
@@ -684,13 +743,36 @@ export class CustomersService {
 
   // --- Trợ giúp -------------------------------------------------------------
 
-  private async findByIdNumber(idNumber: string | undefined) {
+  /**
+   * Khách ĐANG hợp tác đang giữ mã số thuế này, trừ `tru` ra (`0175`).
+   *
+   * Khách đã ngừng hợp tác KHÔNG tính, cùng phạm vi với chỉ mục
+   * `uq_customer_id_number`: hai chỗ trả lời khác nhau thì một trong hai luôn
+   * sai, và cái sai sẽ là cái nói *"lập được"* rồi để CSDL trả `23505`.
+   */
+  private async findByIdNumber(idNumber: string | undefined, tru?: string) {
     if (!idNumber) return [];
-    const rows = await this.db.q<{ id: string; code: string; name: string }>(
-      `SELECT id, code, name FROM cus.customer WHERE id_number = $1`,
-      [idNumber],
+    return this.db.q<{ id: string; code: string; name: string }>(
+      `SELECT id, code, name FROM cus.customer
+        WHERE id_number = $1 AND status <> 'NGUNG_HOP_TAC' AND ($2::uuid IS NULL OR id <> $2)`,
+      [idNumber, tru ?? null],
     );
-    return rows;
+  }
+
+  /**
+   * Ô MÃ SỐ THUẾ hỏi NGAY LÚC GÕ (`0175`).
+   *
+   * Khách hàng: *"nếu trùng cảnh báo bên dưới ngay lúc nhập và không cho phép
+   * tạo"*. Hai vế, hai chỗ: chỗ chặn là `assertMstChuaDung` ở lượt ghi, chỗ báo
+   * là đây — và đường này KHÔNG ghi gì, nên nó gọi được ở mỗi lượt gõ.
+   *
+   * Trả về MÃ và TÊN của khách đang giữ, không phải một chữ *"đã tồn tại"* trần:
+   * người vừa bị chặn cần biết hỏi ai. Đây cũng đúng những gì `create` vẫn trả
+   * về ở `duplicateIdNumberWith` tới `0174`, nên không mở rộng thứ gì đang kín.
+   */
+  async kiemTraMst(mst: string, tru: string | undefined) {
+    const trung = await this.findByIdNumber(mst, tru);
+    return { trung: trung.length > 0, ...(trung[0] ? { khachHang: trung[0] } : {}) };
   }
 
   /**
@@ -748,6 +830,15 @@ const toDto = (r: Row) => ({
    */
   registeredAddress: r.registered_address,
   deliveryAddress: r.delivery_address,
+  /*
+   * HAI Ô của địa chỉ đăng ký (`0175`). `registeredAddress` ở trên là bản GỘP
+   * mà chúng dựng ra — giữ lại vì `policy` và `document` đọc chính nó.
+   *
+   * `registeredAddresses` (số nhiều) vẫn còn, và giờ nó luôn có **một** phần
+   * tử: màn hình danh sách đọc nó để hiện một dòng địa chỉ dưới tên khách.
+   */
+  province: r.province,
+  streetWard: r.street_ward,
   registeredAddresses: tachDiaChi(r.registered_address),
   deliveryAddresses: tachDiaChi(r.delivery_address),
   ownerName: r.owner_name,

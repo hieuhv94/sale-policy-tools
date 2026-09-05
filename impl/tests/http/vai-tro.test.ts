@@ -28,16 +28,9 @@ import {
   TEST_PREFIX,
   withAdminDb,
   phanCongMacDinh,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZVT';
@@ -98,12 +91,13 @@ const lapVaGui = async (): Promise<{ id: string; code: string }> => {
       code: uniq('KH'),
       name: 'Nha thuoc thu nghiem',
       customerType: 1,
-      registeredAddresses: ['Ha Noi'],
+      province: 'Ha Noi',
+      streetWard: 'Ha Noi',
       ownerName: 'Chu ho',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5101777776 + ++nMst), phone: '0900000000' });
+      idNumber: mstDuyNhat(), phone: '0900000000' });
   expect(kh.status, JSON.stringify(kh.body)).toBe(201);
 
   const g = await (await http(catalog))
@@ -611,12 +605,13 @@ describe('`0032` vô hiệu hoá tài khoản và chuyển giao hồ sơ', () =>
         code: uniq('KH'),
         name: 'Nha thuoc ban giao',
         customerType: 1,
-        registeredAddresses: ['Ha Noi'],
+        province: 'Ha Noi',
+      streetWard: 'Ha Noi',
         ownerName: 'Chu ho',
         // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
         // của bộ test phải giống khách hàng thật.
         ownerTitle: 'Chu ho',
-        idNumber: String(5101777776 + ++nMst), phone: '0900000000' });
+        idNumber: mstDuyNhat(), phone: '0900000000' });
     expect(kh.status, JSON.stringify(kh.body)).toBe(201);
     await withAdminDb((c) =>
       c.query(`UPDATE cus.customer SET tdv_user_id = $1 WHERE id = $2`, [userId, kh.body.id]),

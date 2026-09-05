@@ -48,16 +48,9 @@ import {
   http,
   withAdminDb,
   phanCongMacDinh,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZHD';
@@ -209,8 +202,17 @@ async function pdfText(pdf: Buffer): Promise<string> {
 
 let groupCode = '';
 const CUSTOMER_NAME = 'Nhà thuốc Minh Châu — Quận Đống Đa';
-const ADDRESS_1 = 'Số 8 Tôn Thất Thuyết, Hà Nội';
-const ADDRESS_2 = 'Số 145 Nguyễn Trãi, Thanh Xuân, Hà Nội';
+/*
+ * `0175` — địa chỉ đăng ký là HAI Ô, và cột gộp `registered_address` do trigger
+ * nối lại bằng `', '`. Ca kiểm đọc chuỗi in RA GIẤY, nên nó phải khớp đúng cái
+ * chuỗi trigger dựng ra — khai hai mảnh rồi nối bằng chính phép nối ấy.
+ */
+const SO_NHA_1 = 'Số 8 Tôn Thất Thuyết';
+const TINH_1 = 'Hà Nội';
+const SO_NHA_2 = 'Số 145 Nguyễn Trãi, Thanh Xuân';
+const TINH_2 = 'Hà Nội';
+const ADDRESS_1 = `${SO_NHA_1}, ${TINH_1}`;
+const ADDRESS_2 = `${SO_NHA_2}, ${TINH_2}`;
 
 const makeProduct = async (i = 0): Promise<string> => {
   const c = await http(catalog);
@@ -241,12 +243,13 @@ const makeCustomer = async (over: Record<string, unknown> = {}) => {
       code,
       name: CUSTOMER_NAME,
       customerType: 1,
-      registeredAddresses: [ADDRESS_1],
+      province: TINH_1,
+      streetWard: SO_NHA_1,
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5100333333 + ++nMst),
+      idNumber: mstDuyNhat(),
       debtTerm: 'SAU_NHAN_HANG',
       ...over, phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
@@ -1043,7 +1046,7 @@ describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => 
     const upd = await (await http(customer))
       .patch(`/customers/${d.customerId}`)
       .set('Authorization', `Bearer ${tok['sa01']}`)
-      .send({ registeredAddresses: [ADDRESS_2] });
+      .send({ province: TINH_2, streetWard: SO_NHA_2 });
     expect(upd.status).toBe(200);
 
     const second = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer);

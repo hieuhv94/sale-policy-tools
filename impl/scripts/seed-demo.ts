@@ -913,6 +913,35 @@ async function luiHetHieuLuc(db: Client, id: string, ngay: string): Promise<void
 
 type CoId = { id: string };
 
+
+/**
+ * Chuyển một khách hàng của bộ nạp sang thân request của `0175`.
+ *
+ * Fixture ở trên vẫn viết `registeredAddresses` như một danh sách, và giữ nguyên
+ * là có chủ ý: nó ĐỌC RA đúng nghiệp vụ mà bộ nạp muốn bày — một chuỗi nhà thuốc
+ * có ba điểm bán. Cái đổi là chỗ CHỨA nghiệp vụ ấy:
+ *
+ *   - địa chỉ ĐẦU TIÊN thành hai ô `province` / `streetWard` — địa chỉ theo giấy
+ *     đăng ký kinh doanh, và một pháp nhân chỉ có một;
+ *   - những địa chỉ CÒN LẠI xuống `deliveryAddresses`, đúng đường mà `0175` để
+ *     lại cho "nhiều điểm bán".
+ *
+ * Tách tỉnh/thành bằng dấu phẩy CUỐI CÙNG, cùng phép đoán mà migration `0114`
+ * dùng cho dữ liệu cũ — chỉ khác là ở đây dữ liệu do chính bộ nạp viết ra nên
+ * nó luôn khớp.
+ */
+const thanKhach = (k: (typeof KHACH)[number]) => {
+  const [dau, ...con] = k.registeredAddresses;
+  const i = (dau ?? '').lastIndexOf(',');
+  const { registeredAddresses: _bo, ...con_lai } = k;
+  return {
+    ...con_lai,
+    province: i < 0 ? '' : (dau ?? '').slice(i + 1).trim(),
+    streetWard: i < 0 ? (dau ?? '') : (dau ?? '').slice(0, i).trim(),
+    deliveryAddresses: [...con, ...(k.deliveryAddresses ?? [])],
+  };
+};
+
 async function main(): Promise<void> {
   await xoaDuLieuCu();
 
@@ -989,7 +1018,7 @@ async function main(): Promise<void> {
   const cuaTdv03 = new Set(['KH-0027', 'KH-0028']);
   for (const k of KHACH) {
     const chu = cuaTdv02.has(k.code) ? 'tdv02' : cuaTdv03.has(k.code) ? 'tdv03' : 'tdv01';
-    const r = await goi<CoId>('/customers', chu, k);
+    const r = await goi<CoId>('/customers', chu, thanKhach(k));
     khach[k.code] = r.id;
   }
 

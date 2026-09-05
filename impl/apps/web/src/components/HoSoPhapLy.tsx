@@ -29,10 +29,22 @@ type TepPhapLy = {
 
 type FileDto = { id: string; objectKey: string };
 
+/**
+ * Nhãn bốn loại giấy tờ (`sửa 0175`, chốt 05/09).
+ *
+ * KHOÁ GIỮ NGUYÊN, chỉ đổi CHỮ HIỆN RA. Bốn khoá ấy đã nằm trong `doc.kind` của
+ * mọi tệp đã tải lên; đổi khoá là phải viết migration cho dữ liệu cũ, và mọi tệp
+ * chưa kịp chuyển sẽ rơi về nhánh `?? t.kind` — hiện ra một chuỗi in hoa gạch
+ * dưới thay vì một cái tên.
+ *
+ * Ba nhãn đổi theo đúng chữ khách hàng dùng ở nhà thuốc: *Giấy đăng ký kinh
+ * doanh* (không phải "giấy phép"), *Giấy GPP* (chứng nhận Thực hành tốt cơ sở
+ * bán lẻ thuốc — thứ ngành dược gọi tắt như vậy), và *Căn cước công dân*.
+ */
 const NHAN_LOAI: Record<string, string> = {
-  GIAY_PHEP_KINH_DOANH: 'Giấy phép kinh doanh',
-  CHUNG_CHI_HANH_NGHE: 'Chứng chỉ hành nghề',
-  GIAY_TO_TUY_THAN: 'Giấy tờ tuỳ thân',
+  GIAY_PHEP_KINH_DOANH: 'Giấy đăng ký kinh doanh',
+  CHUNG_CHI_HANH_NGHE: 'Giấy GPP',
+  GIAY_TO_TUY_THAN: 'Căn cước công dân',
   KHAC: 'Khác',
 };
 

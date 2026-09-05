@@ -32,7 +32,16 @@ export type TenBieuMau =
 
 export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nguoi-dung': ['email', 'username', 'fullName', 'role'],
-  'khach-hang': ['code', 'name', 'customerType', 'registeredAddresses', 'ownerName'],
+  'khach-hang': [
+    'code',
+    'name',
+    'customerType',
+    // `0175` — địa chỉ đăng ký thành HAI ô, và mã số thuế thôi là ô tuỳ chọn.
+    'province',
+    'streetWard',
+    'ownerName',
+    'idNumber',
+  ],
   'san-pham': ['code', 'name', 'groupCode', 'price'],
   gia: ['amount'],
   'nhom-san-pham': ['code', 'name'],
@@ -77,7 +86,13 @@ export const batBuoc = (bieuMau: TenBieuMau, truong: string): boolean =>
  *
  * Lọc từng phần tử bằng chính phép kiểm này, nên `['', '  ']` cũng là trống.
  */
-const trong = (v: unknown): boolean =>
+/*
+ * `export` từ `0175`: sau khi địa chỉ đăng ký thành hai ô chuỗi, không bảng ô
+ * bắt buộc nào còn đi qua nhánh MẢNG — nên nhánh ấy chỉ giữ được bằng một ca
+ * kiểm gọi thẳng vào đây. Nó vẫn cần: `deliveryAddresses` là danh sách, và bỏ
+ * nhánh đi thì `[]` với `['']` lọt thành "đã điền" (lỗ hổng `0154` từng mở).
+ */
+export const trong = (v: unknown): boolean =>
   v === undefined ||
   v === null ||
   (typeof v === 'string' && v.trim() === '') ||

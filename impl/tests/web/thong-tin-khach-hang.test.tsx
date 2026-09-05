@@ -39,6 +39,8 @@ const KHACH = {
   registeredAddress: 'So 1 Lang Ha, Ba Dinh, Ha Noi',
   deliveryAddress: null,
   registeredAddresses: ['So 1 Lang Ha, Ba Dinh, Ha Noi'],
+  province: 'Ha Noi',
+  streetWard: 'So 1 Lang Ha, Ba Dinh',
   deliveryAddresses: [],
   ownerName: 'Tran Thi B',
   ownerTitle: null,
@@ -66,7 +68,7 @@ const dangNhapLa = (id: string, role: string) =>
     }),
   );
 
-const chanMang = () => {
+const chanMang = (kh: typeof KHACH = KHACH) => {
   vi.stubGlobal(
     'fetch',
     vi.fn((duong: unknown) => {
@@ -75,7 +77,7 @@ const chanMang = () => {
         return Promise.resolve(json(JSON.parse(localStorage.getItem('csbh:phien')!).user));
       }
       if (d.includes('/documents')) return Promise.resolve(json([]));
-      if (/\/customers\/[^/?]+($|\?)/.test(d)) return Promise.resolve(json(KHACH));
+      if (/\/customers\/[^/?]+($|\?)/.test(d)) return Promise.resolve(json(kh));
       if (d.includes('/policies/current')) {
         return Promise.resolve(new Response('{"code":"NO_ACTIVE_POLICY"}', { status: 404 }));
       }
@@ -110,11 +112,15 @@ afterEach(() => {
 });
 
 describe('`0153` khối thông tin khách hàng', () => {
-  it('đúng năm ô, đúng thứ tự — Loại khách hàng ở CUỐI', async () => {
+  it('đúng dãy ô, đúng thứ tự — Loại khách hàng ở CUỐI', async () => {
     /*
      * Khẳng định CẢ DÃY bằng `toEqual`, không kiểm từng cặp lân cận: kiểm từng
      * cặp thì chèn một ô mới vào giữa vẫn xanh, mà chèn vào giữa là cách thứ tự
      * này hỏng dễ nhất về sau. Cùng bài học `0152` vừa ghi cho thanh bên.
+     *
+     * `0175` thêm HAI ô địa chỉ đăng ký ngay sau mã số thuế — khách hàng chốt
+     * *"hiển thị thông tin ở mục trên trong trang thông tin khách hàng"*. Đặt
+     * chúng cạnh mã số thuế vì cả ba đều đọc từ giấy đăng ký kinh doanh.
      */
     dangNhapLa(TDV_ID, 'TDV');
     chanMang();
@@ -122,12 +128,33 @@ describe('`0153` khối thông tin khách hàng', () => {
 
     await waitFor(() => expect(document.querySelector('dl.the-so')).not.toBeNull());
     expect(nhanTrongKhoi()).toEqual([
-      'Mã số thuế / CCCD',
+      'Mã số thuế',
+      'Tỉnh/Thành phố',
+      'Số nhà, Phường xã',
       'Người đại diện',
       'Số điện thoại',
       'Công nợ',
       'Loại khách hàng',
     ]);
+  });
+
+  it('`0175` ĐỊA CHỈ GIAO HÀNG chỉ hiện KHI CÓ', async () => {
+    /*
+     * *"Hiển thị thông tin này trong trang thông tin của khách hàng NẾU CÓ"*.
+     * Vế cuối là một yêu cầu thật: mảng rỗng nghĩa là *"giao tới địa chỉ đăng
+     * ký"* (`0006`), nên một ô ghi dấu gạch ở đây nói rằng khách hàng thiếu một
+     * thông tin mà họ không hề thiếu.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMang({ ...KHACH, deliveryAddresses: ['Kho A - so 1', 'Kho B - so 2'] });
+    mo();
+
+    await waitFor(() => expect(document.querySelector('dl.the-so')).not.toBeNull());
+    expect(nhanTrongKhoi()).toContain('Địa chỉ giao hàng');
+    const khoi = document.querySelector('dl.the-so')!.textContent ?? '';
+    // ĐỦ CẢ HAI: in một dòng rồi bỏ phần còn lại là mất địa chỉ mà không báo gì.
+    expect(khoi).toContain('Kho A - so 1');
+    expect(khoi).toContain('Kho B - so 2');
   });
 
   it('KHÔNG còn ô địa chỉ nào trong khối', async () => {
@@ -145,8 +172,15 @@ describe('`0153` khối thông tin khách hàng', () => {
 
     await waitFor(() => expect(document.querySelector('dl.the-so')).not.toBeNull());
     const khoi = document.querySelector('dl.the-so')!.textContent ?? '';
-    expect(khoi).not.toMatch(/[Đđ]ịa chỉ/);
+    /*
+     * `0175` ĐẢO MỘT NỬA ca này: hai ô địa chỉ đăng ký quay lại khối, nên phép
+     * cấm *"không có chữ địa chỉ nào"* thôi đúng. Cái còn lại — và là cái ca này
+     * sinh ra để canh — là **chuỗi địa chỉ GỘP không được quay lại**: nó vẫn ở
+     * thẻ danh sách, và in cả hai chỗ là in cùng một thứ hai lần.
+     */
     expect(khoi).not.toContain(KHACH.registeredAddress);
+    // Và không ô nào mang nhãn *Địa chỉ đăng ký* trần: hai ô mới có tên riêng.
+    expect(nhanTrongKhoi()).not.toContain('Địa chỉ đăng ký');
   });
 
   it('nhưng địa chỉ VẪN CÒN trong hệ thống — thẻ danh sách giữ nó', async () => {

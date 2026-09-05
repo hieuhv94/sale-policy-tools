@@ -3119,3 +3119,23 @@ svg.bd-nho { width: 62px; margin: 0; }
   flex: none;
   white-space: nowrap;
 }
+
+/* Nút THÊM ĐỊA CHỈ ôm lấy chữ, không kéo hết bề ngang (`0175`, chốt 05/09).
+
+   `.nhom-dia-chi` là một cột flex, nên mọi con của nó kéo giãn hết bề ngang theo
+   mặc định — kể cả cái nút. Kết quả là một thanh nút dài bằng cả hộp thoại nằm
+   dưới ô nhập, trông như một khối chứ không như một nút: đó là chỗ khách hàng
+   bảo *"căn chỉnh lại cho thẳng thắng gọn gàng, hợp lý so với vị trí hộp thư"*.
+
+   `align-self: start` cho nó co về bề rộng chữ và thẳng mép TRÁI với ô nhập
+   phía trên — cùng một đường dóng, nên mắt đọc từ trên xuống không bị gãy. */
+.nut-them-dia-chi {
+  align-self: start;
+}
+
+/* Nhiều địa chỉ giao hàng trong một ô của khối thông tin: MỖI CÁI MỘT DÒNG.
+
+   Nối bằng dấu phẩy thì một địa chỉ vốn đã có dấu phẩy đọc ra thành hai. */
+.dong-dia-chi {
+  display: block;
+}

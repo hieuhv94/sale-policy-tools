@@ -433,7 +433,22 @@ export const BANG_LOI: Record<string, Muc> = {
    * cùng, và việc phải làm tiếp là gõ vào đúng ô ấy. Máy chủ dựng sẵn câu, và nó
    * kèm `field` nên câu lỗi rơi đúng vào nhóm ô địa chỉ đăng ký.
    */
-  CUSTOMER_ADDRESS_REQUIRED: { dang: 'o-nhap', truong: 'registeredAddresses', tuMayChu: true },
+  /*
+   * `CUSTOMER_ADDRESS_REQUIRED` ĐÃ BỎ ở `0175`: địa chỉ đăng ký thôi là một danh
+   * sách, nên không còn trạng thái *"xoá tới dòng cuối cùng"* nào để mà báo. Hai
+   * mã dưới thay chỗ nó, mỗi ô một mã — câu lỗi chỉ đúng vào ô phải điền.
+   */
+  CUSTOMER_PROVINCE_REQUIRED: { dang: 'o-nhap', truong: 'province', tuMayChu: true },
+  CUSTOMER_STREET_REQUIRED: { dang: 'o-nhap', truong: 'streetWard', tuMayChu: true },
+  /*
+   * `0175` — dưới Ô mã số thuế, không phải hộp thoại.
+   *
+   * Người dùng gần như không bao giờ tới được đây: biểu mẫu hỏi máy chủ ngay lúc
+   * gõ và làm xám nút Lưu. Mã này là chốt cho hai lượt lập CHẠY SONG SONG cùng
+   * một mã số thuế — chỗ mà phép hỏi trước không thể đúng — nên câu của nó vẫn
+   * phải rơi đúng vào ô ấy.
+   */
+  CUSTOMER_ID_NUMBER_DUPLICATE: { dang: 'o-nhap', truong: 'idNumber', tuMayChu: true },
   CUSTOMER_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_ALREADY_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_HAS_POLICY: { dang: 'hop-thoai', tuMayChu: true },

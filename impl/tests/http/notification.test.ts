@@ -43,16 +43,9 @@ import {
   mailpitClear,
   withAdminDb,
   phanCongMacDinh,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZNTF';
@@ -207,12 +200,13 @@ const makeCustomer = async (): Promise<{ id: string; code: string }> => {
       code,
       name: CUSTOMER_NAME,
       customerType: 1,
-      registeredAddresses: ['Số 8 Tôn Thất Thuyết, Hà Nội'],
+      province: 'Hà Nội',
+      streetWard: 'Số 8 Tôn Thất Thuyết',
       ownerName: 'Trần Thị Mỹ Hạnh',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5100777777 + ++nMst), phone: '0900000000' });
+      idNumber: mstDuyNhat(), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, code };
 };

@@ -15128,3 +15128,143 @@ không theo `w:tcW`. Nên ca kiểm đối chiếu **số `gridCol` với số �
 
 Dựng lại cả hai mẫu với ba dòng sản phẩm rồi đẩy qua Gotenberg: **mỗi bản một trang**; bản đầy đủ ba ô
 chia đều, không kẻ ô, khoảng trống ký tay còn nguyên.
+
+---
+
+## P203 — `0175` địa chỉ đăng ký hai ô chỉ một, mã số thuế bắt buộc và duy nhất
+
+Sáu câu trong một lượt phản hồi, tất cả trên màn hình khách hàng. Bốn câu là nhãn và bố cục; hai câu
+còn lại — địa chỉ đăng ký và mã số thuế — **là một việc**, và `0154` đã viết sẵn ra thứ tự của nó.
+
+### Hai câu ấy khoá vào nhau, và `0154` đã nói trước
+
+`0006` cho trùng mã số thuế **có chủ ý**, với đúng một lý do ghi trong chú thích: *"một chủ hộ mở
+nhiều điểm bán là chuyện có thật"*. `0154` lấy đi nhu cầu ấy bằng bảng địa chỉ — một khách, nhiều địa
+chỉ — và nói thẳng: *"chỉ sau khi có nó thì cấm trùng mã số thuế mới là siết một đường thừa"*.
+
+Lượt này là vế thứ hai, và nó siết thêm một nấc mà `0154` không lường: **địa chỉ ĐĂNG KÝ giờ chỉ có
+MỘT**. Nhiều điểm bán vẫn khai được — bằng địa chỉ GIAO HÀNG, thứ vẫn là danh sách. Địa chỉ đăng ký
+theo giấy đăng ký kinh doanh, một pháp nhân một tờ giấy; và đó cũng chính là thứ mã số thuế định
+danh. Hai câu của khách hàng khớp nhau ở đúng chỗ ấy.
+
+### `registered_address` vẫn là cột dẫn xuất — chỉ đổi NGUỒN
+
+Cả ba lý do `0154` đưa ra để giữ cột gộp vẫn nguyên giá trị: chỉ mục GIN trigram dựng trên **biểu
+thức** có cột ấy (chỉ mục biểu thức không tham chiếu được sang bảng khác); `internal.controller` liệt
+kê từng cột nên `policy` và `document` không sửa dòng nào; và tầng văn bản in thẳng chuỗi ấy ra giấy.
+
+Nên nguồn dời từ `cus.customer_address` sang hai cột mới trên chính dòng khách hàng, và trigger dời
+theo — `BEFORE INSERT OR UPDATE` trên `cus.customer`, gán vào `NEW` là xong. `AFTER` thì phải `UPDATE`
+lại bảng và tự kích hoạt chính mình.
+
+`tr_gop_dia_chi` cũ **phải thôi đụng** `registered_address`: để nguyên thì mỗi lượt sửa địa chỉ giao
+hàng lại ghi đè nó bằng chuỗi rỗng — bảng địa chỉ không còn dòng `DANG_KY` nào để gộp.
+
+### Migration DỪNG LẠI, và đó là quyết định
+
+Dữ liệu đang chạy có thể còn hai khách trùng mã số thuế — chính phần mềm cho phép điều đó. Hệ thống
+**không chọn được** giữ bản nào; đó là quyết định nghiệp vụ. Nên migration `RAISE EXCEPTION` kèm danh
+sách mã khách phải xử lý, bằng tiếng Việt, trước khi tạo chỉ mục.
+
+Một lượt `CREATE UNIQUE INDEX` vấp dữ liệu trùng chỉ ném ra tên chỉ mục và MỘT giá trị — người vận
+hành đọc nó giữa lúc nâng cấp sẽ không biết phải sửa những dòng nào. `docs/04-TRIEN-KHAI.md` có mục
+riêng cho bước tay này.
+
+> **Đo trên CSDL phát triển:** đúng một nhóm trùng, và nó là rác — `KH-0020` của bộ nạp demo với một
+> dòng `aaa` gõ tay, 0 hồ sơ. Xoá mã số thuế của dòng rác rồi migration đi qua. Con số ấy nói lên
+> một điều đáng nhớ: `0006` mở đường cho trùng lặp từ đầu, mà **gần như không ai đi**.
+
+### Chỉ mục là chỉ mục PHẦN, và phép kiểm ở service phải cùng phạm vi
+
+`WHERE id_number IS NOT NULL AND status <> 'NGUNG_HOP_TAC'`. Khách đã ngừng là dữ liệu lịch sử; giữ
+chỗ mã số thuế của họ là cấm luôn lượt lập lại chính họ khi họ quay lại.
+
+`findByIdNumber` lọc **đúng cùng điều kiện ấy**. Hai chỗ trả lời khác nhau thì một trong hai luôn
+sai, và cái sai sẽ là cái nói *"lập được"* rồi để CSDL trả `23505` — một mã lỗi không nói gì về mã số
+thuế, vì dòng khách hàng còn một chỉ mục duy nhất nữa là mã khách.
+
+Vẫn giữ **cả hai**: chỉ mục là chốt thật (đúng cả khi hai lượt lập chạy song song), phép kiểm ở
+service là chỗ duy nhất trả được câu tiếng Việt nói ra khách hàng nào đang giữ mã ấy.
+
+### Tách địa chỉ cũ: ĐỂ TRỐNG chứ không đoán bừa
+
+Địa chỉ cũ là một chuỗi tự do; tách nó ra hai ô là đoán. Phép đoán hẹp và nói ra được: đoạn sau dấu
+phẩy cuối cùng mở đầu bằng *Thành phố*, *Tỉnh* hay *TP* thì đó là tỉnh/thành. Không khớp thì cả chuỗi
+vào ô số nhà và **ô tỉnh/thành để trống**.
+
+Để trống vì một ô trống thì người dùng thấy ngay lúc mở ra sửa, còn một tỉnh/thành đoán sai thì đi
+thẳng lên tờ CSBH mà không ai biết. Đo trên dữ liệu thật: `TP Hồ Chí Minh` tách được, `Hà Nội` và
+`Đà Nẵng` trần thì không — đúng như thiết kế.
+
+### Ô hỏi NGAY LÚC GÕ, và ba cái bẫy của nó
+
+*"Nếu trùng cảnh báo bên dưới ngay lúc nhập và không cho phép tạo"* — hai vế, hai chỗ: chốt chặn ở
+lượt ghi, chỗ báo ở một đường `GET` không ghi gì.
+
+- **`@Get('kiem-tra-mst')` phải khai TRƯỚC `@Get(':id')`.** Nest khớp route theo thứ tự khai báo, nên
+  đặt sau thì nó rơi vào `:id` và thành một lượt tra khách hàng theo một uuid không hợp lệ — 404,
+  không phải một lỗi nói ra chuyện gì.
+- **Đợi 400ms sau phím cuối**, và huỷ lượt cũ: gõ thêm một chữ số rồi xoá đi thì hai lượt gọi chạy
+  song song, và lượt cũ về sau sẽ dán câu trả lời của chuỗi cũ lên ô đang mang chuỗi mới.
+- **Trừ chính mình ra** (`&tru=<id>`): biểu mẫu gửi lại mọi ô ở mỗi lượt sửa, nên không trừ thì không
+  khách hàng nào sửa được gì nữa — kể cả sửa số điện thoại.
+
+Hỏi MÁY CHỦ chứ không tra danh sách đang có trên màn hình: danh sách ấy đã lọc theo phạm vi người
+xem, nên một khách của TDV khác không có trong đó — và câu *"chưa ai dùng"* sẽ sai đúng ở chỗ nó phải
+đúng nhất.
+
+### Nút *Thêm địa chỉ* trông như một khối, và lý do nằm ở flex
+
+`.nhom-dia-chi` là cột flex, nên mọi con của nó kéo giãn hết bề ngang — kể cả cái nút. `align-self:
+start` cho nó co về bề rộng chữ và thẳng mép trái với ô nhập phía trên.
+
+### Bộ kiểm: một hằng gõ tay thành một quả mìn
+
+Mã số thuế duy nhất nghĩa là **mọi lượt lập khách hàng trong bộ kiểm phải mang một mã riêng**. Mười
+tệp đang dùng mười bộ đếm cục bộ kiểu `String(5100999999 + ++nMst)` — chúng không đụng nhau hôm nay
+vì mỗi tệp một tiền tố, nhưng đó là một sự sắp đặt bằng tay, và tệp thứ mười một sẽ trùng.
+
+Gom về `mstDuyNhat()` ở `tests/http/app.ts`, dựng từ chính dấu vết lượt chạy mà `maDuyNhat` đang
+dùng. Mười ba chữ số — dạng dài nhất `taxId()` nhận — vì nó có đủ chỗ cho cả dấu vết lẫn số đếm.
+
+Hai ca phải nghĩ lại chứ không sửa chuỗi:
+
+- **`khachThieu('idNumber')`** dựng một khách KHÔNG có mã số thuế, để thấy chốt chặn lúc gửi duyệt.
+  API không tạo ra được nữa. Nhưng chốt ấy vẫn phải sống — nó phục vụ đúng những khách lập TRƯỚC
+  `0175`. Nên ca kiểm lập khách hợp lệ rồi **xoá cột bằng SQL**: dựng lại đúng tình trạng dữ liệu cũ.
+  Bỏ chốt chặn đi vì "API không tạo ra được nữa" là bỏ lưới duy nhất canh những khách hàng ấy.
+- **Nhánh MẢNG của `trong()`** thành mã chết: sau khi địa chỉ đăng ký là hai ô chuỗi, không bảng ô bắt
+  buộc nào còn đi qua nó. Nhánh vẫn cần — `deliveryAddresses` là danh sách — nên `trong` thành
+  `export` và có một ca gọi thẳng. Bỏ nhánh đi thì `[]` với `['']` lọt thành "đã điền", đúng lỗ hổng
+  `0154` từng mở và đã phải bịt một lần.
+
+### Ca kiểm cũ ĐẢO MỘT NỬA, không nới
+
+`0153` có ca *"KHÔNG còn ô địa chỉ nào trong khối"* — khách hàng vừa yêu cầu ngược lại. Nhưng chỉ một
+nửa đảo: hai ô mới quay vào khối, còn **chuỗi địa chỉ GỘP vẫn không được quay lại** (nó ở thẻ danh
+sách, in cả hai chỗ là in cùng một thứ hai lần). Ca giữ nguyên vế thứ hai và thêm một phép cấm nhãn
+*Địa chỉ đăng ký* trần.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ `assertMstChuaDung` khỏi `create` | 1 đỏ — và nó **chứng minh luôn chú thích**: chỉ mục vẫn nổ, nhưng lỗi ra là `CUSTOMER_CODE_DUPLICATE`, vì khối `catch` đoán mọi `23505` là trùng MÃ KHÁCH |
+| Bỏ `tru` khỏi `assertMstChuaDung` ở lượt sửa | 1 đỏ — không khách hàng nào sửa được gì nữa |
+| Trigger dựng `registered_address` thôi nối tỉnh/thành | 1 đỏ |
+| Bỏ `status <> 'NGUNG_HOP_TAC'` khỏi `findByIdNumber` | **XANH ở lượt đầu** — xem dưới |
+
+> **CA KIỂM XANH VÌ LÝ DO SAI, và phá lại là thứ tìm ra.** Ca *"khách đã ngừng hợp tác không giữ chỗ
+> mã số thuế"* bản đầu gọi đường xoá thật (`DELETE /customers/:id`). Với một khách **chưa có hồ sơ
+> nào** thì `ngungHopTac` **xoá hẳn dòng** (`0034`) chứ không chuyển trạng thái — nên câu truy vấn
+> không tìm thấy gì dù có lọc theo trạng thái hay không, và ca kiểm không hề canh thứ nó nói là đang
+> canh. Chữa bằng cách vặn thẳng cột `status` qua SQL: dựng ĐÚNG tình trạng cần — một dòng còn đó,
+> mang trạng thái đã ngừng — thay vì kéo cả `policy` vào tệp kiểm khách hàng. Sau lượt chữa thì phá
+> lại cho 1 đỏ.
+
+### Nghiệm thu trên CSDL thật
+
+Chỉ mục dựng đúng dạng phần — `WHERE ((id_number IS NOT NULL) AND (status <> 'NGUNG_HOP_TAC'))` — và
+ràng buộc `chi_noi_nhan_hang` có mặt. Migration đi qua CSDL phát triển sau khi dọn một nhóm trùng.
+
+**1985/1985 xanh.**

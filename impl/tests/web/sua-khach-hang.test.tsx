@@ -49,10 +49,14 @@ const KHACH: KhachHangDayDu = {
   registeredAddress: 'So 1 Lang Ha',
   deliveryAddress: null,
   registeredAddresses: ['So 1 Lang Ha'],
+  province: 'Ha Noi',
+  streetWard: 'So 1 Lang Ha',
   deliveryAddresses: [],
   ownerName: 'Nguyen Van A',
   ownerTitle: null,
-  idNumber: null,
+  // `0175` — mã số thuế BẮT BUỘC, nên `null` ở đây làm nút Lưu xám và mọi ca
+  // gửi request bên dưới im lặng không gửi gì.
+  idNumber: '0101234567',
   debt: '0',
   tdvUserId: 'u-1',
 };
@@ -134,7 +138,7 @@ describe('0023 chỉ gửi customerType khi thật sự đổi', () => {
     const nguoi = userEvent.setup();
     const f = chanFetch();
     moSua();
-    await nguoi.type(screen.getByLabelText(/Tên khách hàng/), ' B');
+    await nguoi.type(screen.getByLabelText(/Tên Hộ kinh doanh/), ' B');
     await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(thanDaGui(f)).toBeDefined());

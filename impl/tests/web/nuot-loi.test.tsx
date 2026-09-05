@@ -39,6 +39,8 @@ const KHACH = {
   registeredAddress: 'Ha Noi',
   deliveryAddress: null,
   registeredAddresses: ['Ha Noi'],
+  province: 'Ha Noi',
+  streetWard: 'Ha Noi',
   deliveryAddresses: [],
   ownerName: 'Chu ho',
   ownerTitle: null,

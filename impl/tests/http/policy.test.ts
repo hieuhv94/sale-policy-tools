@@ -30,16 +30,9 @@ import {
   withAdminDb,
   phanCongMacDinh,
   idNguoiDung,
+  mstDuyNhat,
 } from './app.js';
 
-/**
- * Bộ đếm MST — MỖI khách hàng một mã số thuế riêng (`0104`).
- *
- * Dùng chung một số cho cả tệp thì `POST /customers` tra trùng MST trả về
- * danh sách lớn dần theo số khách hàng đã tạo — O(n²), và những ca chạy sau
- * cùng bắt đầu chạm ngưỡng quá giờ.
- */
-let nMst = 0;
 
 const SEED_PW = 'Test@1234';
 const P = 'ZZPOL';
@@ -100,12 +93,13 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
       code: uniq('KH'),
       name: 'Nha thuoc thu nghiem',
       customerType: 1,
-      registeredAddresses: ['Ha Noi'],
+      province: 'Ha Noi',
+      streetWard: 'Ha Noi',
       ownerName: 'Chu ho',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
       ownerTitle: 'Chu ho',
-      idNumber: String(5100999999 + ++nMst), phone: '0900000000' });
+      idNumber: mstDuyNhat(), phone: '0900000000' });
   if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
   return r.body.id as string;
 };
@@ -4364,10 +4358,32 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       code: uniq('KHT'),
       name: 'Nha thuoc thieu truong',
       customerType: 1,
-      registeredAddresses: ['Ha Noi'],
+      province: 'Ha Noi',
+      streetWard: 'Ha Noi',
       ownerName: 'Chu ho',
       ownerTitle: 'Chu nha thuoc',
-      idNumber: String(5100999999 + ++nMst), phone: '0900000000' };
+      idNumber: mstDuyNhat(), phone: '0900000000' };
+    /*
+     * MÃ SỐ THUẾ KHÔNG BỎ ĐƯỢC QUA API NỮA (`0175`, chốt 05/09) — ô ấy bắt buộc
+     * lúc lập. Nhưng chốt chặn lúc GỬI DUYỆT vẫn phải sống, và nó phục vụ đúng
+     * một tập khách hàng: những khách lập TRƯỚC `0175`, cột `id_number` còn
+     * `NULL` vì hồi ấy ô này tuỳ chọn.
+     *
+     * Nên ca kiểm dựng lại đúng tình trạng ấy: lập khách hàng hợp lệ rồi XOÁ
+     * cột bằng SQL. Bỏ chốt chặn đi vì "API không tạo ra được nữa" là bỏ lưới
+     * duy nhất canh những khách hàng cũ.
+     */
+    if (bo === 'idNumber') {
+      const r = await (await http(customer))
+        .post('/customers')
+        .set('Authorization', `Bearer ${tok['tdv01']}`)
+        .send(than);
+      expect(r.status, JSON.stringify(r.body)).toBe(201);
+      await withAdminDb((c) =>
+        c.query(`UPDATE cus.customer SET id_number = NULL WHERE id = $1`, [r.body.id]),
+      );
+      return r.body.id as string;
+    }
     delete than[bo];
     const r = await (await http(customer))
       .post('/customers')
