@@ -62,6 +62,13 @@ services:
     volumes:
       - ..:/app
       - ../../workspace:/workspace
+      # `0178` — TÀI LIỆU NGUỒN, chỉ đọc. Chúng nằm NGOÀI `impl/` nên `..:/app` ở trên không
+      # với tới; thiếu hai dòng này thì `tests/http/tai-lieu.test.ts` không đọc được gì và
+      # nó ĐỎ chứ không lặng lẽ bỏ qua — một phép kiểm tài liệu tự tắt là một phép kiểm
+      # không tồn tại. Đường dẫn tương đối tính theo THƯ MỤC TỆP COMPOSE (`0105`), nên
+      # `../..` là gốc kho mã.
+      - ../../agents:/tai-lieu/agents:ro
+      - ../../CLAUDE.md:/tai-lieu/CLAUDE.md:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
       - pgbackup:/backup

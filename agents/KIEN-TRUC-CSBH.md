@@ -4,21 +4,21 @@
 |---|---|
 | **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
 | **Phiên bản phần mềm** | **1.0.1** — bản giao thứ hai, sau vòng sửa theo phản hồi khách hàng; xem mục 16 |
-| **Phiên bản tài liệu** | 1.1 · 06/08/2026 |
+| **Phiên bản tài liệu** | **1.2 · 06/09/2026** — rà soát toàn văn theo triển khai thật (`0178`) |
 | **Nguồn nghiệp vụ** | `YEU-CAU-NGHIEP-VU-CSBH.md` v4.1 — khi mâu thuẫn, **tài liệu nghiệp vụ có hiệu lực cao hơn** |
 | **Bản web** | `../artifacts/kien-truc-csbh.html` · https://claude.ai/code/artifact/d9e72525-6df5-475d-8b76-52f8a3202aea |
 
-> Bản `.md` này **sinh tự động** từ file HTML bằng `python3 tools/html2md.py`.
-> Sửa HTML rồi chạy lại script, đừng sửa tay file này.
+> **BẢN `.md` NÀY LÀ BẢN CHÍNH.** `sửa 06/09` — ghi chú cũ nói nó *"sinh tự động từ HTML bằng `python3 tools/html2md.py`, đừng sửa tay"*. Câu ấy đã sai sự thật từ lâu và là một cái bẫy: **script ấy không tồn tại** (`tools/` chỉ còn `figs/`), còn `../artifacts/kien-truc-csbh.html` đông cứng ở
+> ngày 07/08 và không mang một mã thay đổi nào. Từ `0021` trở đi mọi cập nhật đều viết thẳng vào file này. Bản web chỉ là ảnh chụp lúc bàn giao lần đầu.
 
 Bản thiết kế triển khai cho YCNV v4.1: phân rã microservice chạy bằng Docker Compose, techstack kèm
-lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục 334 test case
+lý do chọn, thiết kế giao diện chạy được trên cả máy tính lẫn điện thoại, danh mục test case
 cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên production.
 
 | | | | |
 |---|---|---|---|
-| **10** service ứng dụng | **334** test case | **11** trạng thái hồ sơ | **6** vai trò |
-| **10** tài khoản mẫu | **3** khung nhìn được test | **8 GB** RAM một VM là đủ | **~50** người dùng |
+| **10** service ứng dụng | **1998** ca kiểm đang chạy | **10** trạng thái hồ sơ | **6** vai trò |
+| **10** tài khoản mẫu | **66** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
@@ -75,7 +75,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 
 > **Bẫy dễ làm sai**
 >
-> Mười ba chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** cho xóa hồ sơ Từ chối — **không ai xóa được**, kể cả quản trị hệ thống; **(4)** suy hộp việc của Trưởng bộ phận từ `user_node` — nhánh duyệt đi qua `approver_user_id`, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng; **(12)** phân biệt hai loại trùng quy định bằng cách dò chuỗi `'code'` trong tên ràng buộc — trùng mã đến từ HAI ràng buộc (`discount_rule_pkey` khi trùng y nguyên, `uq_rule_code_norm` khi khác hoa thường), nên phải nhận diện theo đúng một tên là `uq_rule_pham_vi` rồi coi phần còn lại là trùng mã (`0024`); **(13)** khớp quy định chiết khấu theo kênh, tỉnh hay bệnh viện — ngưỡng chỉ phụ thuộc **nhóm sản phẩm × loại khách hàng**, cả ba danh mục ấy đã rời khỏi phần mềm ở `0026` và không có cột nào để khớp nữa.
+> Mười ba chỗ đội lập trình hay làm ngược với tài liệu: **(1)** đặt nút xuất hợp đồng ở màn hình Trưởng bộ phận — phải là **Kế toán hoặc Sale Admin**, sau tiếp nhận L1; **(2)** làm nghiệp vụ thu hồi hồ sơ — **không tồn tại**, muốn đổi thì lập CSBH mới; **(3)** dựng lại trạng thái *Từ chối* — **đã bỏ hẳn `0155`**, TBP chỉ còn *Ký* và *Trả lại*, và đường kết thúc là TDV tự xoá hồ sơ bị trả lại; **(4)** đi tìm cây tổ chức để suy hộp việc — **`user_node` và `approver_user_id` đã `DROP` ở migration `0031`**; phạm vi là bốn cột người trên chính hồ sơ, xem §06; **(5)** đặt giá bán buôn vào danh mục sản phẩm — nó nhập trên **từng dòng của từng hồ sơ**, danh mục chỉ có Giá bán Công ty; **(6)** cho đổi email hoặc vai trò qua `PATCH /auth/me` — đó là tự chuyển đường khôi phục mật khẩu và tự nâng quyền; **(7)** cho `POST .../lines` ghi đè khi trùng sản phẩm để "tiện sửa dòng" — trùng lúc THÊM là một nhầm lẫn và `POL-02` chặn nó có chủ ý, sửa dòng đi đường riêng `PATCH .../lines/:lineId`; **(8)** dựng chỉ mục duy nhất cho phạm vi chiết khấu mà quên `NULLS NOT DISTINCT` — Postgres coi mỗi NULL là một giá trị riêng, nên hai dòng "mọi nhóm, mọi loại KH" vẫn lọt, mà đó chính là cặp dễ khai trùng nhất; **(9)** cho `threshold_source IS NULL` nghĩa là `PRODUCT_DEFAULT` hay `KHONG_CO` — `NULL` là **không rõ** (dòng lập trước `0022`), và gộp chúng lại là tô vàng hàng loạt dòng cũ; **(10)** chặn thêm dòng khi sản phẩm không có ngưỡng nào — ngưỡng chỉ để CẢNH BÁO, vượt ngưỡng còn không chặn gửi duyệt, nên thiếu ngưỡng không thể là lý do từ chối (`0023`); **(11)** thay ngưỡng thiếu bằng số 0 cho "tiện tính" — 0 là "ngưỡng bằng không" và mọi dòng sẽ bị đánh dấu vượt ngưỡng; **(12)** phân biệt hai loại trùng quy định bằng cách dò chuỗi `'code'` trong tên ràng buộc — trùng mã đến từ HAI ràng buộc (`discount_rule_pkey` khi trùng y nguyên, `uq_rule_code_norm` khi khác hoa thường), nên phải nhận diện theo đúng một tên là `uq_rule_pham_vi` rồi coi phần còn lại là trùng mã (`0024`); **(13)** khớp quy định chiết khấu theo kênh, tỉnh hay bệnh viện — ngưỡng chỉ phụ thuộc **nhóm sản phẩm × loại khách hàng**, cả ba danh mục ấy đã rời khỏi phần mềm ở `0026` và không có cột nào để khớp nữa.
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TB
     AUD[audit]
   end
   PG[("PostgreSQL 16 · 9 schema · 9 DB role")]
-  RD[("Redis 7 · phiên, BullMQ")]
+  RD[("Redis 7 · ảnh chụp danh tính, khoá cron")]
   MIN[("MinIO · file, scan")]
   SMTP[["SMTP / Mailpit"]]
   SPA -->|HTTPS| CADDY
@@ -133,13 +133,13 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 | Service | Trách nhiệm | Sở hữu dữ liệu | Vì sao tách riêng |
 |---|---|---|---|
 | api-gateway | Xác thực JWT, kiểm quyền thô, gộp dữ liệu cho một màn hình, rate limit, gắn trace-id | — | Màn hình “hồ sơ chi tiết” cần dữ liệu từ 4 service; nếu để trình duyệt tự gọi thì mỗi lần mở hồ sơ là 5 vòng mạng và 5 lần kiểm quyền. |
-| identity | Tài khoản, 6 vai trò, cây tổ chức Sale Admin → kế toán → TDV, phát và thu hồi token, giải phạm vi dữ liệu | `idn.*` | Phạm vi dữ liệu suy ra từ cây tổ chức được mọi service dùng; tách ra để chỉ có một nơi định nghĩa “ai thấy được gì”. |
+| identity | Tài khoản, 6 vai trò, phát và thu hồi token, giải phạm vi dữ liệu | `idn.*` | Phạm vi dữ liệu được mọi service dùng; tách ra để chỉ có một nơi định nghĩa “ai thấy được gì”. **Cây tổ chức đã bỏ hẳn `16/08`** — phạm vi suy từ bốn cột người trên chính hồ sơ, xem §06. |
 | catalog | Sản phẩm, giá bán Công ty, lịch sử giá, chiết khấu quy định, nhóm SP, mẫu bản CSBH, người ký *(không gồm mẫu hợp đồng)* | `cat.*` | Do Quản trị hệ thống nhập, nhịp thay đổi rất chậm và độc lập hoàn toàn với luồng duyệt. Chỉ nó được phát `catalog.price_changed`. |
 | customer | Khách hàng, chống trùng mã KH, hồ sơ pháp lý đính kèm, gán TDV phụ trách | `cus.*` | Vòng đời khách hàng dài hơn vòng đời một CSBH; nhiều CSBH tham chiếu tới cùng một khách hàng. |
-| policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái 11 trạng thái, phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
-| document | Render bản CSBH A4, ký số nội bộ, băm và lưu file, xóa scan khi in lại. **Sở hữu nghiệp vụ hợp đồng**: mẫu do Sale Admin tải lên, bảng ánh xạ trường, trộn dữ liệu và sinh PDF theo yêu cầu | `doc.*` — chỉ mẫu và ánh xạ, **không lưu hợp đồng** | Chạy Chromium headless — ngốn RAM và CPU theo đợt. Tách để giới hạn tài nguyên riêng, không làm chậm API nghiệp vụ. Mẫu hợp đồng nằm ở đây chứ không ở `catalog` vì mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này, và do Sale Admin vận hành chứ không phải danh mục dùng chung. |
+| policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái **10 trạng thái** (`sửa 29/08`), phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
+| document | Dựng bản CSBH và hợp đồng từ mẫu `.docx`, băm và lưu file. **Sở hữu nghiệp vụ văn bản mẫu**: ba loại mẫu (`0165`) do Quản trị tải lên, bảng ánh xạ trường, trộn dữ liệu và sinh PDF | `doc.*` — mẫu, ánh xạ và **file**, gồm bản mềm đã lưu (`0167`); **không lưu hợp đồng** | Gọi Gotenberg — ngốn RAM và CPU theo đợt. Tách để giới hạn tài nguyên riêng, không làm chậm API nghiệp vụ. **Ký số nội bộ đã gỡ `0103`**; **xoá scan khi in lại đã bỏ `0050`** — Sale Admin chủ động gỡ và thay. Mẫu nằm ở đây chứ không ở `catalog` vì mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này. |
 | notification | Email theo bảng bước §3, gộp một luồng cho mỗi khách hàng, nhắc SLA, DLQ | `ntf.*` | Phụ thuộc SMTP bên ngoài, hay lỗi và cần retry lâu. Không được để việc gửi thư làm hỏng transaction duyệt hồ sơ. |
-| reporting | Read-model phẳng phục vụ 14 tiêu chí lọc, báo cáo tiến độ, xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
+| reporting | Read-model phẳng phục vụ **9 tiêu chí lọc** (`sửa 21/08`), báo cáo tiến độ, thống kê (`0094`), xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
 | audit | Nhật ký chỉ ghi thêm, giá trị trước/sau, báo cáo nhật ký người dùng | `aud.*` | Cần chế độ quyền CSDL khác hẳn phần còn lại (chỉ INSERT). Tách schema là cách duy nhất cưỡng chế được điều đó. |
 | sla-worker | Cron 5 phút: quét hạn 14 ngày, gửi nhắc trước 24 giờ, chuyển `QUA_HAN_DUYET`, tự xoá hồ sơ quá hạn quá 3 ngày (`0047`), rà CSBH bị ảnh hưởng khi đổi giá | dùng `pol.*` (chung mã nguồn với policy) | Là tiến trình nền, cần scale và restart độc lập với API. Dùng chung code với policy nên không phát sinh chi phí đồng bộ mô hình. |
 
@@ -147,12 +147,12 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 
 | Service | Endpoint tiêu biểu |
 |---|---|
-| identity | `POST /auth/login` · `POST /auth/refresh` · `GET /me/scope` · `GET /users?role=` · `PUT /org/{userId}/parent` |
+| identity | `POST /auth/login` · `POST /auth/refresh` · `GET /me/scope` · `GET /admin/users` · `POST /admin/users` — **không có `/org/{userId}/parent`**, cây tổ chức đã bỏ (`16/08`) |
 | catalog | `GET /products` · `POST /products` · `PUT /products/{id}/price` · `GET /discount-rules/resolve?group=&customerType=` |
-| customer | `POST /customers` · `GET /customers?q=` · `POST /customers/{id}/attachments` |
-| policy | `POST /policies` · `POST /policies/{id}/lines` · `POST /policies/{id}/submit` · `POST /policies/{id}/sign` · `POST /policies/{id}/receive-l1` · `POST /policies/{id}/handover` · `POST /policies/{id}/receive-l2` · `POST /policies/{id}/return` · `POST /policies/{id}/reject` · `POST /policies/{id}/request-reprint` · `GET /customers/{id}/active-policy` |
-| document | `GET /policies/{id}/render?size=a4p\|a4l` · `POST /policies/{id}/sign-file` · `DELETE /scans/{id}` · `GET /files/{id}` · *Mẫu hợp đồng (Sale Admin):* `POST /contract-templates` · `PUT /contract-templates/{id}/mapping` · `POST /contract-templates/{id}/publish` · `GET /contract-templates/{id}/placeholders` · *Hợp đồng:* `GET /policies/{id}/contract/preview` · `GET /policies/{id}/contract.pdf` — trả thẳng file, **không** có `/contracts/{id}` vì không lưu bản ghi nào |
-| reporting | `GET /reports/policies?`<14 tham số lọc> · `POST /exports/excel` · `GET /exports/{jobId}` |
+| customer | `POST /customers` · `GET /customers?q=` · `GET /customers/kiem-tra-mst` (`0175`, khai TRƯỚC `:id`) · `POST /customers/{id}/attachments` |
+| policy | `POST /policies` · `POST /policies/{id}/lines` · `PATCH /policies/{id}/lines/{lineId}` · `DELETE /policies/{id}/lines/{lineId}` · **`POST /policies/{id}/actions/{action}`** — MỘT đường cho cả mười một hành động của máy trạng thái, không một đường cho mỗi bước · `GET /policies/{id}/allowed-actions` · `POST /policies/{id}/attachments` · `GET /policies/current` |
+| document | `GET /policies/{id}/render` · **`POST /policies/{id}/render/luu`** (lưu bản mềm thành tệp của hồ sơ, `0167` — nhớ khai vào mẫu route của gateway, `0168`) · `GET /files/{id}/content` · `DELETE /files/{id}` · *Mẫu (Quản trị):* `POST|GET /contract-templates` và `POST|GET /policy-templates` — **hai controller, ba loại mẫu** (`0165`) · `POST /{...}-templates/{id}/vo-hieu` — **mẫu chỉ vô hiệu hoá, không xoá** (`0163`) · *Hợp đồng:* `GET /policies/{id}/contract/preview` · `GET /policies/{id}/contract.pdf` — trả thẳng file, **không** có `/contracts/{id}` vì không lưu bản ghi nào. **`POST /policies/{id}/sign-file` ĐÃ GỠ (`0103`)** |
+| reporting | `GET /reports/policies?`<9 tham số lọc> · `POST /exports/excel` · `GET /exports/{jobId}` |
 | audit | `GET /audit?entity=&id=` · `GET /audit/user-activity` — **không có** PUT/PATCH/DELETE |
 
 ---
@@ -165,24 +165,24 @@ Nguyên tắc chọn: ưu tiên thứ đội 3–5 người vận hành được
 |---|---|---|---|
 | Ngôn ngữ & runtime | **TypeScript · Node 22 LTS** | Một ngôn ngữ cho backend, worker và SPA. Kiểu dữ liệu của response dùng chung, đổi hợp đồng API là compile lỗi ngay ở frontend. Ảnh Docker ~180MB, khởi động <2s. | *Java/Spring Boot*: mỗi container 400–600MB RAM × 10 = quá nặng cho VM 8GB. *Go*: nhanh nhưng phần lớn công việc ở đây là CRUD + form + báo cáo, boilerplate không đáng. *Python/FastAPI*: tốt, nhưng không chia sẻ được kiểu với frontend. |
 | Framework backend | **NestJS 10** | Module hóa sẵn theo đúng biên giới service; guard/interceptor là chỗ tự nhiên để cắm kiểm quyền theo vai trò + phạm vi + trạng thái hồ sơ (§10). Sinh OpenAPI tự động để dùng cho contract test. | *Express thuần*: 10 service sẽ thành 10 kiểu cấu trúc khác nhau. *Fastify thuần*: nhanh hơn nhưng ở 50 user thì tốc độ framework không phải nút cổ chai. |
-| CSDL | **PostgreSQL 16** | Bốn thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực”, `numeric` chính xác cho tiền và tỷ lệ, recursive CTE cho cây phân quyền, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
-| Truy cập dữ liệu | **Prisma 5** + migration SQL viết tay cho ràng buộc đặc biệt | Kiểu sinh từ schema, migration có phiên bản, dễ review. Phần nào ORM không diễn đạt được (partial index, trigger, REVOKE) thì viết SQL thẳng trong migration — vẫn nằm trong lịch sử migration. | *TypeORM*: migration hay lệch với thực tế. *Knex thuần*: mất kiểu, 14 tiêu chí lọc sẽ thành chuỗi nối tay. |
+| CSDL | **PostgreSQL 16** | Ba thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực” và cho “mã số thuế duy nhất giữa khách đang hợp tác” (`0175`), `numeric` chính xác cho tiền và tỷ lệ, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. (*Recursive CTE cho cây phân quyền* — lý do thứ tư của bản thiết kế — mất theo cây tổ chức `16/08`.) | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
+| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 66 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
 | Bus sự kiện | **RabbitMQ 3.13**, topic exchange `csbh.events` | Có sẵn DLQ, retry theo TTL, giao diện quản trị để kế toán vận hành nhìn được hàng đợi email lỗi. Chiếm ~120MB RAM. | *Kafka*: thừa mấy bậc cho vài nghìn sự kiện/tháng, tốn ~1GB RAM. *Redis Streams*: đã có Redis nhưng thiếu routing theo topic và DLQ, phải tự viết. *NATS*: nhẹ hơn nhưng đội ít quen, công cụ vận hành mỏng hơn. |
-| Hàng đợi việc & cache | **Redis 7 + BullMQ** | Job xuất Excel, sinh PDF, gửi email retry; cache cây phân quyền TTL 60s; khóa phân tán cho cron SLA khi chạy nhiều bản. | *Dùng RabbitMQ cho cả job*: mất tính năng lịch trình, retry có backoff và theo dõi tiến độ job. |
+| Hàng đợi việc & cache | **Redis 7** (`ioredis`) | Cache ảnh chụp danh tính cho token (`0090`), khoá phân tán cho cron SLA. **BullMQ đã bỏ khỏi lựa chọn**: xuất Excel và sinh PDF chạy đồng bộ trong lời gọi, còn thư retry đi qua RabbitMQ với DLQ — không còn loại job nào cần lịch trình riêng. | *Dùng RabbitMQ cho cả cache*: sai công cụ. |
 | Lưu file | **MinIO** (S3 API) | File ký, bản scan, hợp đồng phải xóa được *thật* khi kế toán yêu cầu in lại (§10) — S3 API cho xóa theo object và bật versioning chọn lọc. Sau này chuyển lên S3/Cloud không đổi code. | *Lưu vào thư mục ổ đĩa*: khó sao lưu nhất quán, khó cấp link có hạn. *BLOB trong Postgres*: phình DB, sao lưu chậm. |
-| Sinh bản A4 & PDF | **Playwright + Chromium headless** trong `document` | Yêu cầu §11 là file tải về phải khớp đúng bản đang xem trên màn hình. Cách duy nhất bảo đảm điều đó là bản xem và bản PDF dùng *chung một HTML/CSS*, chỉ khác lớp định kiểu khổ giấy. Chromium chạy phía máy chủ render giống hệt trình duyệt người dùng, nên một đường sinh file duy nhất phục vụ được mọi thiết bị. | *wkhtmltopdf*: engine WebKit cũ, sai lệch CSS hiện đại. *PDFKit/jsPDF*: vẽ tay từng ô, không bao giờ khớp bản xem, chi phí bảo trì cao. |
-| Mẫu hợp đồng & trộn dữ liệu | **Mẫu .docx + docxtemplater**, chuyển PDF bằng **Gotenberg** (LibreOffice đóng gói sẵn) | Người soạn mẫu là **Sale Admin, không phải lập trình viên** — họ đã có hợp đồng trong Word, nên để họ chèn ô trống dạng `{{customer.tax_code}}` ngay trong Word rồi tải lên là con đường ngắn nhất. Hệ thống đọc file mẫu, liệt kê các ô trống tìm được và cho Sale Admin ánh xạ từng ô với một trường dữ liệu qua giao diện. Bản PDF sinh ra để in và ký nên phải cố định bố cục. Vì hợp đồng không được lưu, đây thuần túy là một phép biến đổi không trạng thái — dễ test và dễ chạy lại. | *Soạn mẫu bằng trình soạn thảo HTML trong ứng dụng*: tận dụng được Chromium đã có, không cần thêm container — nhưng bắt Sale Admin dựng lại hợp đồng từ đầu trên web thay vì dùng file Word sẵn có. Giữ làm phương án dự phòng nếu Gotenberg quá nặng. *Hard-code bố cục trong mã nguồn*: mỗi lần sửa một dòng điều khoản lại phải phát hành phần mềm. |
+| Sinh bản A4 & PDF | **Gotenberg** (LibreOffice đóng gói sẵn) — MỘT đường duy nhất cho cả bản CSBH lẫn hợp đồng | **Đảo lựa chọn `Playwright + Chromium` của bản thiết kế.** Lập luận cũ — *bản xem và bản PDF dùng chung một HTML/CSS* — mất hiệu lực khi khách hàng chốt rằng **mẫu do người dùng soạn trong Word** (`0051`): nguồn không còn là HTML nữa. Giữ Chromium là phải nuôi hai đường dựng văn bản cho cùng một tờ giấy. Bỏ nó cũng bớt ~900MB RAM lúc bận. | *Chromium*: xem lý do bên trái. *PDFKit/jsPDF*: vẽ tay từng ô, không bao giờ khớp mẫu người dùng soạn. |
+| Mẫu văn bản & trộn dữ liệu | **Mẫu `.docx` đọc/ghi bằng mã tự viết** (`contracts/docx.ts`, dùng `fflate` giải nén zip), chuyển PDF bằng **Gotenberg** | Người soạn mẫu là **Quản trị hệ thống, không phải lập trình viên** — họ đã có văn bản trong Word, nên để họ chèn ô trống `{{...}}` ngay trong Word rồi tải lên là con đường ngắn nhất. Hệ thống đọc file, liệt kê ô trống và cho ánh xạ từng ô với một trường nguồn. **`docxtemplater` đã bỏ khỏi lựa chọn**: việc thật hoá ra không phải thay chuỗi mà là **dựng lại `<w:tbl>` bảng sản phẩm** với bề rộng cột đo từ nội dung (`0135`, `0172`) — thứ không thư viện điền-ô-trống nào làm. | *docxtemplater*: xem lý do bên trái. *Hard-code bố cục trong mã nguồn*: mỗi lần sửa một dòng điều khoản lại phải phát hành phần mềm. |
 | Xuất Excel | **ExcelJS** chế độ streaming | 5.000 dòng không nạp hết vào RAM; định dạng số tiền, đóng băng dòng tiêu đề, autofilter. | *CSV*: Excel tiếng Việt hay hỏng mã hóa và mất định dạng số. |
 | Gửi & kiểm thử email | **Nodemailer** + SMTP công ty · **Mailpit** ở dev và CI | Mailpit là máy chủ SMTP bắt-tất-cả kèm REST API, nên test tự động khẳng định được người nhận và nội dung thư mà **không cần hộp thư thật nào**. Ảnh 20MB, không có trạng thái phải dọn giữa các lần chạy. | *MailHog*: cùng ý tưởng nhưng đã ngừng bảo trì. *Mailtrap* và dịch vụ tương tự: phải có tài khoản, có hạn mức, và làm test CI phụ thuộc vào mạng ra ngoài. |
-| Xác thực | **JWT RS256 tự phát hành** ở `identity`, access 15 phút + refresh 8 giờ có xoay vòng | Service khác chỉ cần khóa công khai để xác minh, không phải gọi ngược. Cây tổ chức là logic nghiệp vụ riêng nên dù sao cũng phải tự viết. | *Keycloak*: thêm một container ~700MB và một mô hình dữ liệu thứ hai, trong khi phần khó nhất — cây phân quyền — vẫn phải tự làm. |
+| Xác thực | **JWT RS256 tự phát hành** ở `identity`, access 15 phút + refresh 8 giờ có xoay vòng | Service khác chỉ cần khóa công khai để xác minh, không phải gọi ngược. Token đi kèm **ảnh chụp danh tính** trong Redis (`0090`) nên vô hiệu tài khoản có hiệu lực ngay. | *Keycloak*: thêm một container ~700MB và một mô hình dữ liệu thứ hai, trong khi phạm vi dữ liệu — phần riêng của nghiệp vụ này — vẫn phải tự làm. |
 | Biên mạng | **Caddy 2** | TLS Let's Encrypt tự động, cấu hình 15 dòng, phục vụ luôn SPA tĩnh và thêm header bảo mật. | *Nginx*: TLS và gia hạn phải tự lo. *Traefik*: mạnh về khám phá động — thứ hệ này không cần vì danh sách service cố định. |
-| Frontend | **React 18 + Vite + TanStack Query + Ant Design 5** | Bảng nhiều cột, bộ lọc kết hợp, form nhập giá và biểu mẫu in — đúng thế mạnh Ant Design; có sẵn `vi_VN`, không phải tự dựng lại 30 component doanh nghiệp. | *Next.js*: SSR không mang lại gì cho ứng dụng nội bộ sau đăng nhập, đổi lại thêm một runtime Node phải vận hành. |
-| Kiểm thử | **Jest + Supertest + Testcontainers**, **Playwright** cho E2E, **k6** cho tải | Testcontainers cho Postgres/Rabbit thật trong test tích hợp — đúng chỗ cần vì phần lớn bất biến nằm ở tầng CSDL, mock sẽ bỏ lọt. | *Mock toàn bộ CSDL*: sẽ không bao giờ bắt được lỗi partial unique index hay trigger nhật ký. |
-| Quan sát | **pino** (log JSON) + **OpenTelemetry** → Grafana + Loki + Tempo (profile tùy chọn) | Trace-id xuyên gateway → service → consumer để dựng lại một luồng duyệt hoàn chỉnh khi có khiếu nại. | *ELK*: nặng hơn nhiều so với nhu cầu 50 người dùng. |
+| Frontend | **React 18 + Vite, KHÔNG thư viện component** — CSS tự viết trong `app.css` + `tokens.css` | **Đảo lựa chọn `Ant Design 5 + TanStack Query` của bản thiết kế.** Ngân sách gói `FE-38` chặn 250KB, mà riêng Ant Design đã vượt; và giao diện này có nhiều thứ phải vẽ tay tới mức thư viện chỉ đứng chắn đường — bảng mười cột thành thẻ trên điện thoại, khung xem giấy theo tỷ lệ A4 (`0073`), sáu dạng biểu đồ SVG tự vẽ (`0094`). Gọi API bằng `lib/api.ts` mỏng, không TanStack Query. | *Ant Design*: vượt ngân sách gói. *Next.js*: SSR không mang lại gì cho ứng dụng nội bộ sau đăng nhập. |
+| Kiểm thử | **Vitest + Supertest + jsdom**, chạy trên **Postgres/RabbitMQ/MinIO THẬT** dựng bằng compose | **Đảo lựa chọn `Jest + Testcontainers + Playwright` của bản thiết kế.** Ý đúng của Testcontainers — *hạ tầng thật, đừng mock* — giữ nguyên, chỉ đổi cách dựng: `deploy/compose.test.yml` đã phải tồn tại cho `make demo`, nên dựng thêm một tầng container thứ hai là hai chỗ khai cùng một hạ tầng. Test chạy **tuần tự** (`fileParallelism: false`) vì dùng chung một Postgres. Giao diện kiểm bằng jsdom; **không có E2E Playwright, không có k6**. | *Mock toàn bộ CSDL*: sẽ không bao giờ bắt được lỗi partial unique index hay trigger nhật ký. |
+| Quan sát | **Log JSON ra stdout**, gom bằng `make luu-log` vào `logarchive/` | Ở quy mô 50 người dùng và một VM, một thư mục log có xoay vòng theo tháng (`make nen-log-thang`) trả lời được mọi câu hỏi thực tế. **`pino` và OpenTelemetry → Grafana/Loki/Tempo đã bỏ khỏi lựa chọn** — chưa dựng, và chưa có nhu cầu nào đòi. | *ELK*: nặng hơn nhiều so với nhu cầu 50 người dùng. |
 
 > **Định cỡ tài nguyên**
 >
-> Một VM **4 vCPU / 8 GB RAM / 100 GB SSD** đủ cho 50 người dùng: 10 service Node × ~250MB = 2,5GB · Postgres 1,5GB · Chromium theo đợt 900MB · **Gotenberg 700MB** · RabbitMQ 150MB · Redis 260MB · MinIO 200MB · Caddy 30MB ≈ **6,2GB lúc bận nhất**. Vẫn vừa, nhưng biên an toàn mỏng hơn hẳn so với trước khi có Gotenberg — nếu muốn thoải mái thì lấy VM 12GB, hoặc bỏ Gotenberg và dùng phương án mẫu HTML đã nêu ở hàng “Mẫu hợp đồng”. Hai container nặng nhất đều nằm trên đường xuất file nên hãy đo lại bằng `PERF-05` trước khi chốt cấu hình.
+> Một VM **4 vCPU / 8 GB RAM / 100 GB SSD** đủ cho 50 người dùng: 10 service Node × ~250MB = 2,5GB · Postgres 1,5GB · **Gotenberg 700MB** · RabbitMQ 150MB · Redis 260MB · MinIO 200MB · Caddy 30MB ≈ **5,3GB lúc bận nhất**. `sửa` — **Chromium theo đợt 900MB đã bỏ** cùng lựa chọn Playwright, nên biên an toàn rộng hơn con số bản thiết kế ước tính. Container nặng nhất còn lại (Gotenberg) nằm trên đường xuất file; đo lại bằng `PERF-05` trước khi chốt cấu hình.
 
 ---
 
@@ -198,7 +198,7 @@ id                uuid pk
 code              text unique          -- CSBH-2026-000123
 customer_id       uuid                 -- tham chiếu logic sang cus.customer
 version_no        int                  -- tự tăng theo số lần cập nhật của KH đó (§5.6)
-status            pol_status           -- enum 11 giá trị, danh sách đóng (§4)
+status            pol_status           -- enum 10 giá trị, danh sách đóng (§4) `sửa 0155`
 pending_step      pol_step null        -- bước đang chờ, dùng khi rơi vào QUA_HAN_DUYET
 supersedes_id     uuid null            -- bản bị thay thế
 superseded_by_id  uuid null
@@ -212,9 +212,23 @@ kt_l1_received_at/by · contract_issued_at/by · sa_handover_at/by · kt_l2_rece
 source            pol_source default 'NORMAL'   -- NORMAL | LEGACY (§12)
 import_batch_id   uuid null
 row_version       int default 0        -- khóa lạc quan cho hai người bấm duyệt cùng lúc
+da_qua_tbp        bool default false   -- 0142: đã TỪNG qua bàn TBP. KHÔNG BAO GIỜ bị xoá —
+                                       --   ngược với ba cột chữ ký, vốn xoá mỗi lượt trả về
+-- ẢNH CHỤP KHÁCH HÀNG, đóng băng lúc gửi duyệt (0101, 0128, 0138, 0177)
+kh_ma_snap · kh_ten_snap · kh_ma_so_thue_snap · kh_nguoi_dai_dien_snap
+kh_chuc_danh_dai_dien_snap · kh_dien_thoai_snap · kh_cong_no_snap
+kh_dia_chi_dang_ky_snap                -- chuỗi GỘP, tầng văn bản in thẳng ra giấy
+kh_so_nha_snap · kh_tinh_thanh_snap    -- 0177: HAI Ô nguồn, cạnh chuỗi gộp. NULL với hồ sơ
+                                       --   gửi trước 0177 — KHÔNG backfill, KHÔNG đọc sống
+kh_noi_nhan_hang_snap                  -- gộp bằng \n; tách ngược ĐƯỢC vì 0154 cấm \n
+                                       --   bên trong một địa chỉ
+nguoi_de_nghi_snap · tbp_ky_ten_snap   -- tên người, chụp lúc gửi / lúc KÝ
+rejected_at/by                         -- 0155 bỏ trạng thái TU_CHOI nhưng GIỮ hai cột này:
+                                       --   nhật ký kể chuyện đã xảy ra
+-- mau_ho_so_id ĐÃ GỠ HẲN (0163, migration 0111) — mẫu thôi đóng băng theo hồ sơ
 ```
 
-### Bốn ràng buộc phải nằm ở tầng CSDL
+### Năm ràng buộc phải nằm ở tầng CSDL `sửa 0175`
 
 ```
 -- 1) Mỗi khách hàng đúng một CSBH còn hiệu lực (§5.1)
@@ -224,16 +238,65 @@ CREATE UNIQUE INDEX uq_policy_active_per_customer
 -- 2) Không trùng sản phẩm trong cùng một hồ sơ (§5.1)
 ALTER TABLE pol.policy_line ADD CONSTRAINT uq_line UNIQUE (policy_id, product_id);
 
--- 3) Hồ sơ Từ chối là trạng thái kết thúc, không ai xóa được (§4)
-CREATE RULE no_delete_rejected AS ON DELETE TO pol.policy
-  WHERE OLD.status = 'TU_CHOI' DO INSTEAD NOTHING;
+-- 3) ĐÃ GỠ (0155) — trạng thái TU_CHOI không còn, nên RULE no_delete_rejected mất
+--    đối tượng. Đường kết thúc giờ là DA_XOA, và nó được canh ở tầng ứng dụng.
 
 -- 4) Nhật ký chỉ ghi thêm, chặn ở CSDL chứ không chỉ ở ứng dụng (§10)
 REVOKE UPDATE, DELETE, TRUNCATE ON aud.audit_log FROM csbh_app;
 GRANT  INSERT, SELECT              ON aud.audit_log TO   csbh_audit;
 CREATE TRIGGER trg_audit_immutable BEFORE UPDATE OR DELETE ON aud.audit_log
   FOR EACH ROW EXECUTE FUNCTION aud.raise_immutable();  -- chặn cả superuser
+
+-- 5) MÃ SỐ THUẾ duy nhất giữa khách ĐANG hợp tác (0175, đảo 0006)
+--    Chỉ mục PHẦN, và `findByIdNumber` phải lọc CÙNG điều kiện: lệch phạm vi thì
+--    một bên nói "lập được" rồi bên kia trả 23505 — mà khối catch đọc mọi 23505
+--    là trùng MÃ KHÁCH.
+CREATE UNIQUE INDEX uq_customer_id_number ON cus.customer (id_number)
+  WHERE id_number IS NOT NULL AND status <> 'NGUNG_HOP_TAC';
+
+-- 6) Địa chỉ NHẬN HÀNG là dòng duy nhất còn được phép trong bảng địa chỉ (0175)
+ALTER TABLE cus.customer_address ADD CONSTRAINT chi_noi_nhan_hang
+  CHECK (kind = 'NHAN_HANG');
 ```
+
+> **Hai cột địa chỉ là DẪN XUẤT, không ghi thẳng** (`0154`, `0175`).
+> `cus.customer.registered_address` do trigger `tr_dung_dia_chi_dang_ky` dựng (`BEFORE INSERT/UPDATE`,
+> gán vào `NEW`) từ `street_ward || ', ' || province`; `delivery_address` do `tr_gop_dia_chi` gộp từ
+> `cus.customer_address` ngăn bằng `\n`. Giữ tên hai cột cũ là lý do `policy`/`document`/`reporting`
+> **không phải sửa dòng nào** khi địa chỉ thành nhiều dòng — cùng khuôn `0138` dùng cho công nợ.
+>
+> **Nâng cấp một hệ đang chạy có thể DỪNG** ở migration `0114` nếu dữ liệu còn hai khách trùng mã số
+> thuế: nó in ra danh sách mã khách phải xử lý rồi `RAISE EXCEPTION`. Hệ thống không chọn hộ được —
+> đó là quyết định nghiệp vụ.
+
+### Văn bản mẫu: ba loại, và ba mẫu MẶC ĐỊNH đi cùng hệ thống `0165`
+
+`doc.contract_template.kind` có **ba** giá trị: `HO_SO` (đầy đủ) · `HO_SO_RUT_GON` · `HOP_DONG`. Hai
+loại hồ sơ khác nhau **đúng một chuyện — tập cột bảng sản phẩm** — và tập ấy **suy từ loại**
+(`COT_RUT_GON`, sáu cột), không do người soạn khai.
+
+- **Một controller cho hai loại hồ sơ** (`@Controller('policy-templates')`); lý do tách
+  `ContractTemplates` ra riêng là *"hai tập vai trò khác hẳn"*, không áp được ở đây.
+- **Ô chọn của Sale Admin trộn chung hai loại hồ sơ**, nên mọi đường tra một mẫu hồ sơ phải nhận hằng
+  `LOAI_HO_SO` chứ không viết `kind = 'HO_SO'` — `tsc` **không bắt được** chỗ sót ấy: câu truy vấn vẫn
+  dịch, vẫn chạy, chỉ là mẫu rút gọn **vô hình**.
+- **Ba mẫu mặc định nạp lúc `document` khởi động** từ `templates/default/`, idempotent theo
+  `(kind, name)` **tính cả dòng đã vô hiệu hoá** — câu hỏi là *"đã từng nạp chưa"*, không phải *"còn
+  mẫu dùng được không"*; nhờ vậy Quản trị vô hiệu một mẫu mặc định thì nó **nằm im**. Tên mẫu bị ghim
+  bằng ca kiểm, vì đổi tên là nạp thêm một bản thứ hai trên mọi hệ đang chạy.
+- **Mẫu chỉ vô hiệu hoá, không xoá** (`0163`) — xoá một mẫu là lấy đi một cách in của MỌI hồ sơ.
+
+### Tệp của một hồ sơ: ba loại, và bản mềm là một trong số đó `0167`
+
+`pol.attachment_kind` có `HO_SO` · `SCAN` · `BAN_MEM`. Bản mềm đóng băng **byte PDF** trên kho đối
+tượng (`doc.file_purpose = 'BAN_CSBH'`), khác hẳn `0098` vốn đóng băng *id của mẫu* — nên vô hiệu hết
+mẫu thì lượt DỰNG MỚI trả 404 còn tệp ĐÃ LƯU vẫn tải được.
+
+- Chỉ Sale Admin tạo/gỡ; chỉ nhận **mẫu ĐẦY ĐỦ**; **không tải lên từ máy được** —
+  `purpose=BAN_CSBH` cố ý đứng ngoài `oneOf` của `POST /files`, mở ra là cho đính bất kỳ PDF nào dưới
+  nhãn bản mềm.
+- Khối `HO_SO` **vẫn còn ở máy chủ nhưng KHÔNG còn màn hình nào** đính hay bày nó (`0172`) — tệp cũ
+  còn nguyên, đường API giữ.
 
 ### Dòng sản phẩm và đóng băng giá
 
@@ -348,7 +411,9 @@ pol.policy_impact
 > **Hồ sơ CSBH** là bản ghi nghiệp vụ chạy qua 10 bước duyệt, lưu vĩnh viễn, có phiên bản và lịch sử. **Hợp đồng** là một văn bản pháp lý riêng, có mẫu riêng và bố cục riêng; nó *lấy trường dữ liệu* từ hồ sơ CSBH và hồ sơ khách hàng để điền vào ô trống trên mẫu, rồi **được trả về ngay dưới dạng PDF và không lưu lại**. Hai văn bản khác nhau, nhưng chỉ một trong hai là dữ liệu của hệ thống.
 
 ```
--- MẪU do Sale Admin soạn sẵn và tải lên (§8.2). Không thuộc catalog, không thuộc Quản trị hệ thống.
+-- MẪU do QUẢN TRỊ HỆ THỐNG soạn và tải lên (`sửa 0165` — bản thiết kế giao cho Sale Admin).
+-- Không thuộc catalog: mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này.
+-- Kế toán và Sale Admin chỉ ĐỌC danh sách mẫu để chọn lúc xuất.
 doc.contract_template
   id · name
   is_active         boolean        -- đúng MỘT mẫu đang dùng tại một thời điểm
@@ -399,73 +464,95 @@ flowchart TB
 Sale Admin cấu hình, không phải lập trình viên hard-code. Toàn bộ nhánh này chạy lại từ đầu ở *mỗi*
 lần bấm — nên bấm hai lần cách nhau một tuần có thể ra hai nội dung khác nhau nếu dữ liệu nguồn đã đổi.
 
-### Cây phân quyền
+### Phạm vi dữ liệu — bốn cột người, không cây
 
+> **`### Cây phân quyền` của bản thiết kế đã BỎ HẲN** (`16/08`, migration `0031`). Bảng
+> `idn.user_node`, cột `app_user.approver_user_id`, hàm đệ quy và mã lỗi `NO_APPROVER` đều đã
+> `DROP`. Giữ tiêu đề cũ ở đây sẽ khiến người đọc đi tìm một bảng không tồn tại.
+
+Cây trả lời câu *"ai nhìn thấy dữ liệu của ai"* bằng một quan hệ nhân sự, mà nghiệp vụ này không có
+quan hệ ấy: người dùng **không quản lý lẫn nhau**. Câu hỏi thật hẹp hơn nhiều — *"tôi có phần việc
+nào trong hồ sơ này không"* — và nó được trả lời bằng **bốn cột người ngay trên chính hồ sơ**:
+
+```sql
+-- policies.service.ts :: thuocPhamVi()
+(tdv_user_id = ANY($1) OR tbp_user_id = ANY($1)
+ OR ke_toan_user_id = ANY($1) OR sale_admin_user_id = ANY($1))
+-- Kế toán còn AND thêm: hồ sơ đã TỪNG qua bàn TBP (0142)
+AND NOT (da_qua_tbp = false)
 ```
--- idn.user_node: (user_id, parent_id) — phạm vi suy ra bằng recursive CTE
-WITH RECURSIVE sub AS (
-  SELECT user_id FROM idn.user_node WHERE user_id = $1
-  UNION ALL
-  SELECT n.user_id FROM idn.user_node n JOIN sub ON n.parent_id = sub.user_id
-) SELECT user_id FROM sub;   -- cache Redis TTL 60s, xóa cache khi cây đổi
 
--- NHÁNH DUYỆT tách riêng: idn.app_user.approver_user_id trỏ thẳng TDV -> TBP.
--- Phạm vi của một TBP KHÔNG đi qua user_node:
-SELECT id FROM idn.app_user WHERE role = 'TDV' AND approver_user_id = $1;
-```
+Bốn cột ấy được ghi khi **người đang cầm hồ sơ chọn người xử lý bước sau** — chọn MỘT LẦN, ở đúng
+bước sinh ra việc ấy (`0141`). Không có bước nào hệ thống tự tìm đường.
 
-**Hai nhánh, hai cơ chế** `sửa 12/08`. Khái niệm "bộ phận" đã bỏ: trước đây TDV nối với người duyệt
-qua ba bước gián tiếp (tạo bộ phận → gán người duyệt cho bộ phận → gán TDV vào bộ phận) cho một quan
-hệ mà nghiệp vụ chỉ nhìn thấy là *"TDV này do ai duyệt"*. Giờ là một cột trỏ thẳng.
+Ba hệ quả phải nhớ khi đọc mã:
 
-Hệ quả phải nhớ khi đọc mã: **hộp việc của Trưởng bộ phận không suy từ `user_node`**. Một TDV chưa
-gán `approver_user_id` thì hồ sơ họ gửi nằm ở `CHO_TBP_DUYET` mà **không vào hộp việc của ai** — nên
-`policy` chặn ngay ở bước gửi với `NO_APPROVER`, chứ không để hồ sơ đi vào ngõ cụt im lặng.
-
+- **Quản trị hệ thống có phạm vi RỖNG** (`scope_user_ids` rỗng → `403 OUT_OF_SCOPE`). Họ đứng ngoài
+  luồng duyệt, nên mục *Hồ sơ CSBH* cũng không có trên menu của họ (`0133`).
+- **Kế toán chưa thấy hồ sơ ở lượt chờ TBP đầu tiên** (`0142`). Cột `da_qua_tbp` **không bao giờ bị
+  xoá** — nó hỏi *"đã từng ký chưa"*, ngược lại với ba cột chữ ký vốn bị xoá mỗi lượt trả về.
+- **Quyền xem KHÁCH HÀNG đi kèm nhưng qua đường khác**: `policy` gọi
+  `POST /internal/customers/:id/access` để ghi `cus.customer_access` (`0031`) — ghi THÊM, không bao
+  giờ xoá, vì người đã tiếp nhận một hồ sơ vẫn phải tra lại được khách hàng ấy.
 ---
 
 ## 07. Máy trạng thái hồ sơ
 
-Mười một trạng thái, danh sách đóng. Mọi chuyển trạng thái không có trong sơ đồ đều trả `409 INVALID_TRANSITION` kèm trạng thái hiện tại và danh sách hành động được phép.
+**Mười trạng thái** `sửa 29/08`, danh sách đóng — nguồn sự thật là `STATUSES` trong
+`packages/domain-policy/src/state-machine.ts`. Mọi chuyển trạng thái không có trong sơ đồ đều trả
+`409 INVALID_TRANSITION` kèm trạng thái hiện tại và danh sách hành động được phép.
 
 ```mermaid
 stateDiagram-v2
   [*] --> Nhap
   Nhap: Nháp — sửa tự do
   ChoTBP: Chờ TBP duyệt — khóa sửa
-  DaKy: TBP đã ký số
   ChoL1: KT duyệt bản mềm
   SAXuLy: Sale Admin đang xử lý
   ChoL2: KT duyệt bản cứng
   HieuLuc: Đang có hiệu lực — vô thời hạn
   HetHieuLuc: Hết hiệu lực
   YeuCauSua: Yêu cầu chỉnh sửa — bắt buộc có lý do
-  TuChoi: Từ chối — KHÔNG AI xóa được
-  QuaHan: Quá hạn duyệt — lưu kèm bước đang chờ
+  QuaHan: Quá hạn duyệt — KẾT THÚC, lưu kèm bước đang chờ
+  DaXoa: Đã xoá — KẾT THÚC
   Nhap --> ChoTBP: TDV gửi duyệt (B3)
-  ChoTBP --> DaKy: TBP duyệt + ký số (B4)
-  DaKy --> ChoL1: hệ thống phát hành file (B5)
+  ChoTBP --> ChoL1: TBP duyệt + ký (B4) — MỘT nước
   ChoL1 --> SAXuLy: KT tiếp nhận L1 (B6A)
   SAXuLy --> ChoL2: SA bàn giao bản cứng (B9)
   ChoL2 --> HieuLuc: KT tiếp nhận L2 — hiệu lực NGAY (B10A)
   HieuLuc --> HetHieuLuc: CSBH mới cùng KH được duyệt
-  ChoTBP --> TuChoi: TBP từ chối
-  TuChoi --> [*]
-  ChoTBP --> YeuCauSua: TBP không duyệt (B4B)
+  ChoTBP --> YeuCauSua: TBP trả lại (B4B)
   ChoL1 --> YeuCauSua: KT không nhận L1 (B6B)
   ChoL2 --> YeuCauSua: KT không nhận L2 (B10B)
-  ChoL2 --> SAXuLy: yêu cầu in lại, xóa scan (B10C)
-  YeuCauSua --> Nhap: TDV sửa, TẠO PHIÊN BẢN MỚI, đi lại từ đầu
+  ChoL2 --> SAXuLy: yêu cầu in lại (B10C)
+  YeuCauSua --> ChoTBP: TDV sửa và gửi lại, TẠO PHIÊN BẢN MỚI
+  Nhap --> [*]: TDV xoá — XOÁ HẲN DÒNG, không ghi lịch sử
+  YeuCauSua --> DaXoa: TDV xoá — giữ dòng và nhật ký
   ChoTBP --> QuaHan: quá 14 ngày
   ChoL1 --> QuaHan: quá 14 ngày
   SAXuLy --> QuaHan: quá 14 ngày
   ChoL2 --> QuaHan: quá 14 ngày
+  QuaHan --> DaXoa: sla-worker, sau 3 ngày
+  DaXoa --> [*]
 ```
 
 **Hình 2 — Toàn bộ đường đi hợp lệ của một hồ sơ.** Ba nhánh trả lại đều đổ về *Yêu cầu chỉnh sửa*
-và đều tạo phiên bản mới, nghĩa là phải ký số lại từ đầu. Vòng in lại là ngoại lệ duy nhất: hồ sơ
-quay về Sale Admin mà *không* phải ký lại. *Quá hạn duyệt* không phải một bước trong luồng mà là lớp
-phủ lên bốn trạng thái chờ, nên bản ghi phải nhớ nó đang chờ ở bước nào.
+và đều tạo phiên bản mới, nghĩa là phải ký lại từ đầu. Vòng in lại là ngoại lệ duy nhất: hồ sơ quay
+về Sale Admin mà *không* phải ký lại. *Quá hạn duyệt* không phải một bước trong luồng mà là lớp phủ
+lên bốn trạng thái chờ, nên bản ghi phải nhớ nó đang chờ ở bước nào.
+
+> **Ba chỗ sơ đồ này đã đổi so với bản thiết kế**, và cả ba đều là quyết định của khách hàng:
+>
+> - **`TBP đã ký số` và bước B5 gỡ hẳn** (`19/08`, `0064`). Trạng thái ấy chưa bao giờ hiện ra với
+>   người dùng — `TBP_SIGN` đặt nó rồi `PUBLISH_SIGNED` chuyển tiếp ngay trong cùng transaction —
+>   nhưng nó là HAI lần chuyển bước, tức hai email, và Kế toán có tên trong cả hai. Nay là một nước.
+>   Giá trị enum cũng đã gỡ khỏi CSDL ở migration `0048`.
+> - **`Từ chối` bỏ hẳn** (`29/08`, `0155`). Trưởng bộ phận chỉ còn *Ký* hoặc *Trả lại*; đường kết
+>   thúc không mất mà **đổi tay** — TDV tự xoá hồ sơ bị trả lại. Hai cột `rejected_at`/`rejected_by`
+>   GIỮ LẠI vì nhật ký kể chuyện đã xảy ra.
+> - **`Đã xoá` vẽ ra thành trạng thái** — bản thiết kế bỏ sót nó. Nó KHÔNG có luật nào trong `RULES`,
+>   và đó là chủ ý: đường tới nó là `DELETE /policies/:id`, không phải một hành động trong dải nút
+>   *Thao tác*. Thêm luật vào `RULES` sẽ làm `allowedActions` mọc thêm một nút xoá cạnh *Gửi lại*.
 
 ---
 
@@ -537,7 +624,7 @@ của một lần phê duyệt đã xảy ra.
 | Tầng | Câu hỏi | Cài ở đâu |
 |---|---|---|
 | **Vai trò** | Vai trò này có được gọi hành động này không? (Ban lãnh đạo không có hành động ghi nào) | Guard trên từng route, sinh từ ma trận vai trò × hành động |
-| **Phạm vi** | Hồ sơ này có nằm trong cây tổ chức của người dùng không? | Bộ lọc bắt buộc ở tầng repository — mọi truy vấn hồ sơ đều nhận `scopeUserIds`, không có đường vòng |
+| **Phạm vi** | Hồ sơ này có tên người dùng ở một trong bốn cột người không? (`sửa 16/08` — trước là "nằm trong cây tổ chức") | Bộ lọc bắt buộc ở tầng repository — mọi truy vấn hồ sơ đều nhận `scopeUserIds`, không có đường vòng |
 | **Trạng thái** | Ở trạng thái hiện tại, hành động này có hợp lệ không? | Máy trạng thái trong domain `policy`, không rải if/else ở controller |
 
 ### Ma trận vai trò × hành động
@@ -545,14 +632,15 @@ của một lần phê duyệt đã xảy ra.
 | Hành động | TDV | TBP | Kế toán | Sale Admin | Ban LĐ | Quản trị |
 |---|---|---|---|---|---|---|
 | Tạo khách hàng, lập CSBH, gửi duyệt | `có` | — | — | — | — | — |
-| Duyệt & ký số / từ chối | — | `có` | — | — | — | — |
+| Duyệt & ký / **trả lại** (`sửa 0155` — không còn *từ chối*) | — | `có` | — | — | — | — |
 | Tiếp nhận L1 · L2 · trả lại | — | — | `có` | — | — | — |
-| **Tạo & ánh xạ mẫu hợp đồng** `sửa 06/08` | — | — | — | `có` | — | `không` |
+| **Tạo & ánh xạ VĂN BẢN MẪU** — ba loại (`sửa 0165`) | — | — | — | `không` | — | `có` |
 | **Xuất hợp đồng** `sửa 06/08` | — | `không` | `có` | `có` | — | — |
 | Tải scan · bàn giao bản cứng | — | — | — | `có` | — | — |
 | Xem mọi hồ sơ, xuất Excel | của mình | của TDV thuộc quyền | của TDV phụ trách | của kế toán phụ trách | `toàn bộ` | — |
 | Sửa danh mục, giá, ngưỡng CK | — | — | — | — | — | `có` |
-| Xóa hồ sơ *Từ chối* | `không` | `không` | `không` | `không` | `không` | `không` |
+| Xoá hồ sơ *Nháp* · *Yêu cầu chỉnh sửa* (`sửa 0155`) | `TDV đang phụ trách` | `không` | `không` | `không` | `không` | `không` |
+| **Tạo / gỡ BẢN MỀM đã lưu** `0167` | — | — | — | `có` | — | — |
 
 ### Vòng đời tài khoản `mới 07/08`
 
@@ -610,7 +698,7 @@ Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo *hiệu năng
 
 - Mật khẩu băm bằng **scrypt** của thư viện chuẩn Node `sửa 07/08`; khóa tài khoản 15 phút sau 5 lần sai. *Đổi từ Argon2id:* Argon2 trên Node cần module biên dịch gốc, kéo theo toolchain C vào ảnh Docker của mọi service. scrypt nằm sẵn trong `node:crypto`, cũng là hàm dẫn xuất khóa chống ASIC được RFC 7914 chuẩn hóa và OWASP chấp nhận. Bản băm lưu kèm tiền tố thuật toán nên đổi sang Argon2id sau này không phải reset mật khẩu ai.
 - Access token 15 phút, refresh token 8 giờ có xoay vòng và phát hiện dùng lại — dùng lại thì thu hồi cả họ token.
-- Cache phạm vi dữ liệu trong Redis TTL 60 giây; đổi cây tổ chức thì xóa cache ngay, nên độ trễ tối đa là 60 giây và có test cho điều đó.
+- ~~Cache phạm vi dữ liệu trong Redis TTL 60 giây~~ `bỏ 16/08` — phạm vi giờ đọc thẳng bốn cột người trên chính hồ sơ, không còn phép đệ quy nào để mà cache. Redis giữ **ảnh chụp danh tính** cho token (`0090`), một thứ khác.
 - File chỉ truy cập qua `document` với link có hạn 5 phút gắn với người dùng — không có URL công khai trên MinIO.
 - Chỉ Caddy publish cổng; 10 service và 4 hạ tầng nằm trong mạng `internal` không expose.
 - Chữ ký là **chữ ký điện tử nội bộ**: ảnh chữ ký + họ tên + vai trò + dấu thời gian, kèm SHA-256 của file lưu trong CSDL để phát hiện sửa file. *Không* dùng chứng thư số pháp lý, không gọi HSM/CA.
@@ -622,23 +710,43 @@ Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo *hiệu năng
 ### Bố cục kho mã
 
 ```
-csbh/
-├─ apps/                 # monorepo pnpm, 10 service + web dùng chung types
+impl/
+├─ services/             # monorepo pnpm — MƯỜI service NestJS
 │  ├─ gateway/  identity/  catalog/  customer/  policy/  document/
-│  ├─ notification/  reporting/  audit/  sla-worker/  web/
+│  └─ notification/  reporting/  audit/  sla-worker/
+├─ apps/web/             # React 18 + Vite, KHÔNG thư viện component
 ├─ packages/
-│  ├─ contracts/         # DTO + enum trạng thái + routing key dùng chung
+│  ├─ contracts/         # DTO + routing key dùng chung
 │  ├─ domain-policy/     # công thức chiết khấu + máy trạng thái (thuần, dễ unit test)
-│  └─ testing/           # fixture, factory, helper Testcontainers
-├─ docker/               # Dockerfile.service (multi-stage), Dockerfile.document (+Chromium)
+│  ├─ http-kit/          # guard, DTO helper, cắt kỳ, mã lỗi dùng chung
+│  ├─ bus/               # outbox + RabbitMQ
+│  └─ identity-core/     # băm mật khẩu, token
+├─ db/migrations/        # 66 file .sql — NGUỒN SỰ THẬT của lược đồ
+├─ docker/               # Dockerfile (MỘT ảnh cho cả mười service, 0105)
+│                        #   + Dockerfile.web · Dockerfile.ops · Dockerfile.dev
 ├─ deploy/
 │  ├─ compose.yml              # nền, giống production
-│  ├─ compose.dev.yml          # mở cổng, Mailpit, Adminer, hot reload
-│  ├─ compose.test.yml         # stack ephemeral cho CI, cổng ngẫu nhiên
-│  └─ postgres/init/01-schemas.sql   # tạo 9 schema + 9 role + REVOKE nhật ký
-├─ tests/  e2e/  load/   # Playwright, k6
+│  ├─ compose.dev.yml          # mở cổng, hot reload
+│  ├─ compose.test.yml         # stack cho bộ test
+│  ├─ compose.demo.yml         # bản chạy thử ở cổng 8080
+│  ├─ compose.prod.yml         # bản giao, KHÔNG có build:
+│  ├─ compose.tunnel.yml       # đường hầm Cloudflare để chạy thử qua Internet (0107)
+│  └─ postgres/init/01-schemas.sql   # tạo schema + role + REVOKE nhật ký
+├─ templates/            # ba mẫu .docx mặc định (0165) + tờ mẫu gốc của khách hàng
+├─ scripts/              # migrate · seed · seed-demo · nap-danh-muc · dong-goi · backup
+├─ tests/                # db/ · http/ · web/ — 1998 ca, chạy TUẦN TỰ
 └─ Makefile
 ```
+
+> **Ba chỗ khác bản thiết kế**, và mỗi chỗ là một quyết định đã ghi:
+>
+> - **`services/` chứ không `apps/`**, và `apps/` chỉ còn `web`. Mười service backend và một SPA
+>   không cùng một loại thứ.
+> - **MỘT `Dockerfile` cho cả mười service** (`0105`) — `ARG SERVICE`/`ENV SERVICE` là hai lớp cuối,
+>   `CMD` đọc `${SERVICE}` lúc chạy. Đo được: `csbh-audit` và `csbh-policy` trùng nhau từng lớp.
+>   `Dockerfile.document (+Chromium)` của bản thiết kế không tồn tại — Chromium đã bỏ.
+> - **`packages/testing/` không có**, và không có `tests/e2e` lẫn `tests/load`: không dùng
+>   Testcontainers, Playwright hay k6 (xem §05). Fixture nằm ở `tests/http/app.ts`.
 
 ### `deploy/compose.yml` — rút gọn phần lặp bằng YAML anchor
 
@@ -688,12 +796,9 @@ services:
   audit:        { <<: *node, environment: { SERVICE: audit,        DB_SCHEMA: aud, DB_USER: csbh_audit } }
   sla-worker:   { <<: *node, environment: { SERVICE: sla-worker,   DB_SCHEMA: pol } }
 
-  document:                             # ảnh riêng vì kèm Chromium, RAM cao hơn
-    <<: *node
-    build: { context: .., dockerfile: docker/Dockerfile.document }
-    environment: { SERVICE: document, DB_SCHEMA: doc }
-    shm_size: 512mb                       # thiếu dòng này Chromium chết khi render A4
-    deploy: { resources: { limits: { memory: 900M, cpus: "1.0" } } }
+  # `sửa 0105` — document KHÔNG còn ảnh riêng: không Dockerfile.document, không Chromium,
+  # không shm_size, không giới hạn RAM riêng. Nó là một dòng như chín service kia.
+  document:     { <<: *node, environment: { SERVICE: document,   DB_SCHEMA: doc } }
 
   gotenberg:                            # chuyển .docx đã trộn sang PDF để in và ký
     image: gotenberg/gotenberg:8
@@ -775,7 +880,7 @@ services:
 
 > **Bốn chỗ compose hay làm sai**
 >
-> **1.** Thiếu `shm_size` cho container Chromium → render A4 chết ngẫu nhiên khi nhiều người in cùng lúc. **2.** `depends_on` không có `condition: service_healthy` → service khởi động trước Postgres rồi crash-loop. **3.** Publish cổng Postgres/Rabbit trong file production → mở toàn bộ CSDL ra Internet; các cổng đó chỉ được có mặt trong `compose.dev.yml`. **4.** Chạy migration song song từ nhiều service → khóa chéo; phải có một container `migrate` chạy trước và thoát.
+> **1.** ~~Thiếu `shm_size` cho container Chromium~~ `bỏ 0105` — không còn Chromium. Chỗ hay sai thay chỗ nó: **compose GỘP `volumes` và `environment`, không thay thế** (`0105`, `0106`, `0108` — ba lần dính), nên không lớp phủ nào GỠ được một mục; biến môi trường phải **đặt rỗng**, và MinIO coi chuỗi rỗng là chưa đặt rồi **lặng lẽ dùng mật khẩu mặc định**. **2.** `depends_on` không có `condition: service_healthy` → service khởi động trước Postgres rồi crash-loop. **3.** Publish cổng Postgres/Rabbit trong file production → mở toàn bộ CSDL ra Internet. **4.** Chạy migration song song từ nhiều service → khóa chéo; phải có một container `migrate` chạy trước và thoát. **5.** Hai tệp compose dùng CHUNG một tên project thì `compose run` kéo project về tập service của tệp sau và **hạ mười service của bên kia** (`0135`).
 
 ---
 
@@ -793,7 +898,7 @@ Làm responsive “đều tay” cho mọi màn hình là cách tốn công mà 
 | Ban lãnh đạo | **Điện thoại** | Tra một khách hàng đang áp chính sách nào, xem báo cáo tiến độ | `Mobile-first` Tra cứu và lọc phải gọn trên màn hình nhỏ; xuất Excel thì gửi link tải. |
 | TDV | PC để lập, điện thoại để theo dõi | Nhập hồ sơ nhiều dòng sản phẩm, mỗi dòng một số khoản CPBH riêng | Desktop-first cho màn hình lập; danh sách và trạng thái hồ sơ vẫn xem tốt trên điện thoại. |
 | Kế toán | PC | Đối chiếu hai lần, xuất hợp đồng | Desktop-first. Trên điện thoại vẫn tiếp nhận được nhưng không tối ưu. |
-| Sale Admin | PC | In, scan, tải file, soạn mẫu hợp đồng và ánh xạ trường | Desktop-only cho màn hình ánh xạ trường — kéo thả trên điện thoại là vô nghĩa. |
+| Sale Admin | PC | Tạo bản mềm, in, scan, tải file, bàn giao | Desktop-only cho màn hình xem giấy A4 — khung theo tỷ lệ trang không đọc được trên điện thoại |
 | Quản trị hệ thống | PC | Danh mục, giá, nhập Excel | Desktop-only. Điện thoại chỉ cần xem được, không cần sửa. |
 
 > **Kết luận rút ra**
@@ -881,7 +986,7 @@ File `logo.png` trong kho tài liệu: **576 × 533 px**, màu thương hiệu *
 | Thanh tiêu đề ứng dụng | Nằm ngang, nền trong suốt | cao 28px (PC) · 24px (điện thoại) | Bấm vào quay về trang chủ; trên điện thoại chỉ giữ biểu tượng, bỏ phần chữ |
 | Trang đăng nhập | Khối đầy đủ | rộng 160px | Chỗ duy nhất logo được lớn |
 | **Bản CSBH in A4** | SVG hoặc PNG ≥ 900px | rộng 40mm, góc trên trái | Bắt buộc — đây là văn bản trình Ban lãnh đạo ký |
-| **PDF hợp đồng** | Như trên | Theo mẫu Sale Admin đặt | Nằm trong mẫu `.docx`, không phải do mã nguồn chèn |
+| **PDF hợp đồng** | Như trên | Theo mẫu Quản trị đặt (`sửa 0165`) | Nằm trong mẫu `.docx`, không phải do mã nguồn chèn |
 | Email thông báo | PNG nằm ngang, nền trắng chấp nhận được | cao 32px | Nhúng dạng `cid:` chứ không dẫn link ngoài — nhiều trình khách chặn ảnh từ xa |
 | Favicon và biểu tượng khi lưu màn hình chính | Chỉ biểu tượng, bỏ chữ | 32 · 180 · 512px | Chữ NUTRICARE không đọc được ở 32px |
 | Trang lỗi và màn hình trống | Chỉ biểu tượng, giảm độ đậm | rộng 72px | Không lặp lại logo ở mọi thẻ — chỉ dùng khi màn hình trống |
@@ -903,7 +1008,7 @@ apps/web/src/
 ├─ app/        # router, guard theo vai trò, khung bố cục theo điểm gãy
 ├─ features/   # chia theo nghiệp vụ: policy · customer · catalog · contract · report
 ├─ shared/
-│  ├─ ui/      # bọc Ant Design + token màu thương hiệu #034EA2
+│  ├─ ui/      # component TỰ VIẾT + token màu thương hiệu #034EA2 (`sửa` — không Ant Design)
 │  ├─ table/   # MỘT thành phần bảng tự chuyển sang thẻ dưới 640px — dùng lại ở mọi màn hình
 │  └─ print/   # bố cục A4, tách hoàn toàn khỏi hệ điểm gãy
 └─ entities/   # kiểu dữ liệu dùng chung với backend qua packages/contracts
@@ -919,7 +1024,11 @@ apps/web/src/
 
 ## 12. Danh mục test case
 
-Mỗi dòng là một test case tự động, có mã cố định để tham chiếu trong mã nguồn (`describe('WF-18 …')`) và trong biên bản nghiệm thu. Cột *YCNV* trỏ về mục trong tài liệu nghiệp vụ v4.0 — không có test case nào không truy được về một điều khoản.
+Mỗi dòng là một test case tự động, có mã cố định để tham chiếu trong mã nguồn (`describe('WF-18 …')`) và trong biên bản nghiệm thu. Cột *YCNV* trỏ về mục trong tài liệu nghiệp vụ — không có test case nào không truy được về một điều khoản.
+
+> **Danh mục này là BẢN KẾ HOẠCH, không phải bản kiểm kê.** Bộ test thật có **1998 ca** trong 83 tệp dưới `impl/tests/`, và nó đã đi xa hơn danh mục này rất nhiều — phần lớn ca sinh ra từ các chặng sửa theo phản hồi khách hàng (`P100`+), nơi mỗi mã thay đổi mang theo ca kiểm riêng. Chạy `make test` là nguồn sự thật; danh mục dưới đây giữ lại để tra **ý định** của một ca và điều khoản YCNV nó bảo vệ.
+>
+> Ca đã **nghỉ** được gạch ngang kèm ngày và lý do, không xoá: một ca biến mất im lặng trông giống hệt một ca chưa bao giờ được viết.
 
 | Mức | Nghĩa | Hệ quả |
 |---|---|---|
@@ -930,7 +1039,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
   
   
 
-### AUTH — Xác thực, vai trò và cây phân quyền
+### AUTH — Xác thực, vai trò và phạm vi dữ liệu
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
@@ -950,7 +1059,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | AUTH-14 | admin01 gọi duyệt / ký / tiếp nhận | 403 — quản trị hệ thống không tham gia luồng duyệt | §2.7 | `P0` |
 | AUTH-15 | Chuyển tdv03 từ kt02 sang kt01 | Phạm vi của cả hai kế toán cập nhật trong ≤ 60 giây, không phải sửa tay từng hồ sơ | §2.1 | `P1` |
 | AUTH-16 | Xóa một kế toán vẫn còn TDV cấp dưới | 409, yêu cầu chuyển giao TDV trước | §2.1 | `P1` |
-| AUTH-17 | Tạo vòng lặp trong cây tổ chức (A là cấp trên của B và ngược lại) | 400, truy vấn đệ quy không treo | §2.1 | `P1` |
+| ~~AUTH-17~~ `nghỉ 16/08` | Tạo vòng lặp trong cây tổ chức | **Không còn cây** — bảng `idn.user_node` đã `DROP` ở migration `0031`. Ca thay chỗ: `SEC-13` quét mọi đường ghi và gọi thật bằng `bld01` | §2.1 | — |
 | AUTH-18 | Cấu hình người duyệt thay cho vai trò TBP theo bộ phận | Người thay ký được; nhật ký và ô chữ ký ghi đúng người ký thật | §2.3 | `P0` |
 | AUTH-19 | Giải phạm vi trên cây sâu 3 cấp (SA → 2 kế toán → 4 TDV) | Trả đúng tập 7 người dùng, một truy vấn đệ quy duy nhất | §2.1 | `P1` |
 | AUTH-20 | Đổi người giữ chức Trưởng bộ phận trong khi có hồ sơ đang *Chờ TBP duyệt* | Người mới duyệt được ngay, không phải sửa hồ sơ; vai trò gán theo bộ phận chứ không gán cứng cá nhân | §2.3 | `P0` |
@@ -1107,19 +1216,19 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
 | WF-01 | TDV gửi duyệt hồ sơ *Nháp* | *Chờ TBP duyệt*, hồ sơ khóa sửa, email tới TBP, đặt `sla_due_at` | §3 B3 | `P0` |
-| WF-02 | Gửi một mã trạng thái ngoài danh sách 11 giá trị | 400 — danh sách trạng thái là danh sách đóng | §4 | `P0` |
+| WF-02 | Gửi một mã trạng thái ngoài danh sách **10** giá trị (`sửa 29/08`) | 400 — danh sách trạng thái là danh sách đóng | §4 | `P0` |
 | WF-03 | Quét toàn bộ response và enum tìm các nhãn cũ | Không còn “Bản Demo”, “Đang duyệt”, “Đã chuyển bước sau”, “Đang áp dụng” | §4 | `P0` |
-| WF-04 | TBP duyệt và ký số | *TBP đã ký số*; email tới kế toán và TDV; file có chữ ký, họ tên, ngày giờ | §3 B4 | `P0` |
+| WF-04 | TBP duyệt và ký | *KT duyệt bản mềm* NGAY (`sửa 19/08` — trạng thái trung gian *TBP đã ký số* đã gỡ); email tới kế toán và TDV; mốc `tbp_signed_at` và ảnh chụp tên người ký | §3 B4 | `P0` |
 | WF-05 | TBP bấm ký lần thứ hai trên cùng hồ sơ | 409 `ALREADY_SIGNED` — nút đã đổi trạng thái, không cho ký lặp | §2.3 | `P0` |
 | WF-06 | TBP không duyệt nhưng bỏ trống lý do | 400 `REASON_REQUIRED` | §3 B4B | `P0` |
 | WF-07 | TBP không duyệt kèm lý do | *Yêu cầu chỉnh sửa*, hồ sơ mở khóa, tạo phiên bản mới, email tới TDV kèm lý do | §3 B4B | `P0` |
-| WF-08 | TBP từ chối hồ sơ | *Từ chối*; thử mọi hành động tiếp theo đều 409 — đây là trạng thái kết thúc | §4 | `P0` |
-| WF-09 | Sau khi TBP ký số | Hệ thống tự chuyển *KT duyệt bản mềm* và phát hành liên kết “CSBH đã ký số” tại bàn kế toán | §3 B5 | `P0` |
+| ~~WF-08~~ `nghỉ 29/08` | TBP từ chối hồ sơ | **Không còn nút, không còn trạng thái** (`0155`). Ca thay chỗ: dải thao tác của TBP ở *Chờ TBP duyệt* chỉ có *Ký* và *Trả lại* | §4 | — |
+| ~~WF-09~~ `nghỉ 19/08` | Bước B5 phát hành file sau khi ký | **Bước B5 đã gỡ** — `TBP_SIGN` đi thẳng sang *KT duyệt bản mềm* trong một nước, xem WF-04. Ca thay chỗ: nhật ký hồ sơ chỉ có MỘT dòng cho lượt ký, không phải hai | §3 B4 | — |
 | WF-10 | Kế toán tiếp nhận lần 1 | *Sale Admin đang xử lý*; email tới SA, TBP, TDV | §3 B6A | `P0` |
 | WF-11 | Kế toán không tiếp nhận lần 1, có lý do | *Yêu cầu chỉnh sửa* → Bước 3; hồ sơ phải duyệt và ký lại từ đầu | §3 B6B | `P0` |
 | WF-12 | kt02 tiếp nhận hồ sơ của tdv01 (ngoài phạm vi) | 403 | §2.4 | `P0` |
 | WF-13 | Sale Admin tải bản scan rồi bấm bàn giao | *KT duyệt bản cứng*; email tới KT, TBP, TDV | §3 B8 B9 | `P0` |
-| WF-14 | Sale Admin bấm bàn giao khi chưa có file scan | 409 | §2.5 | `P0` |
+| WF-14 | Sale Admin bấm bàn giao khi thiếu tệp | 409 — và từ `0167` là **HAI mã riêng**: `SCAN_REQUIRED` (thiếu bản cứng → nút **XÁM**, việc ngoài phần mềm) và `BAN_MEM_REQUIRED` (thiếu bản mềm → nút vẫn sáng, mở hộp tạo trước). Gộp một mã là mất đúng sự phân biệt ấy | §2.5 | `P0` |
 | WF-15 | Sale Admin gọi bàn giao khi hồ sơ đang ở *KT duyệt bản mềm* | 409 `INVALID_TRANSITION` — không bỏ qua được bước tiếp nhận L1 | §2.5 | `P0` |
 | WF-16 | Kế toán tiếp nhận lần 2 | *Đang có hiệu lực* **ngay tại thời điểm đó**; `effective_from` = đúng timestamp hành động | §5.3 | `P0` |
 | WF-17 | Kế toán không tiếp nhận L2, chọn “Trả về Bước 3” | *Yêu cầu chỉnh sửa*, tạo phiên bản mới, bắt buộc có lý do | §3 B10B | `P0` |
@@ -1160,7 +1269,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 |---|---|---|---|---|
 | DOC-01 | Sinh PDF bản CSBH ở khổ A4 dọc và A4 ngang | Đúng khổ và tỷ lệ, không co méo, không cắt nội dung ở cả hai | §11.1 | `P0` |
 | DOC-02 | So nội dung PDF với bản đang xem trên màn hình | Khớp nhau; PDF không chứa menu, thanh điều hướng hay nút thao tác vì dùng bố cục văn bản riêng | §11.1 | `P0` |
-| DOC-03 | Kiểm nội dung bảng CSBH xem — **màn hình chi tiết hồ sơ**, và bản A4 dựng bằng mẫu bàn giao `mau-ho-so-a4-doc.docx`. KHÔNG phải mọi mẫu do Quản trị soạn | Có đủ 13 mục tối thiểu: thông tin công ty, người đề nghị, thời gian áp dụng, công nợ, mã và tên KH, tên sản phẩm, CPBH, trạng thái, file đính kèm, TBP, kế toán, thời gian duyệt. Mẫu do Quản trị soạn chỉ bị ép **9/13** — xem DOC-36 | §11.1 | `P0` |
+| DOC-03 | Kiểm nội dung bảng CSBH xem — **màn hình chi tiết hồ sơ**. KHÔNG phải mẫu do Quản trị soạn: mẫu ấy chỉ bị ép **7/13** mục (`sửa 01/09` — xem YCNV §11.1) | Màn hình chi tiết có đủ 13 mục tối thiểu của §11.1 | §11.1 | `P0` |
 | ~~DOC-04~~ `nghỉ 24/08` | TBP ký số, file kết quả hiện chữ ký | **Không còn bản lưu ký số** (`0103`). Chữ ký vẫn hiện trên bản mềm qua `{{ho_so.chu_ky_so_TBP}}`; câu "văn bản lúc ký nói gì" trả lời bằng ảnh chụp `0101` chứ không bằng một object PDF thứ hai | §11.1 | — |
 | ~~DOC-05~~ `nghỉ 24/08` | So file trước và sau khi ký | Cùng lý do DOC-04. Ca thay chỗ: `POST /policies/:id/sign-file` phải trả **404** — đường đã gỡ, và một lượt khôi phục nhầm không đi qua im lặng | §11.1 | `P1` |
 | DOC-06 | Sửa nội dung file trên storage rồi gọi API xác minh | Phát hiện sai SHA-256 và báo lỗi toàn vẹn | §10 | `P1` |
@@ -1172,22 +1281,22 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | DOC-12 | Xuất hợp đồng cho hồ sơ A trong khi hồ sơ B của cùng khách hàng cũng tồn tại | PDF chứa đúng dữ liệu của hồ sơ được bấm, không lẫn hồ sơ khác | §8.3 | `P0` |
 | DOC-13 | Xuất hợp đồng khi hồ sơ khách hàng thiếu trường được ánh xạ và đánh dấu bắt buộc | **Chặn xuất**, liệt kê đúng tên các trường thiếu; không sinh file có ô trống | §8.2 | `P0` |
 | DOC-14 | Xem trước hợp đồng | Trộn đúng dữ liệu khách hàng, người đại diện, địa chỉ, công nợ, danh sách sản phẩm và điều khoản; xem trước **không** tạo bản ghi hợp đồng | §8.2 | `P0` |
-| DOC-15 | Sale Admin thay mẫu, rồi xuất lại hợp đồng cho một hồ sơ đã từng xuất | Lần xuất mới dùng **mẫu mới** — không có ràng buộc phiên bản nào vì lần xuất trước không được lưu lại | §8.2 | `P0` |
+| DOC-15 | Quản trị thay mẫu, rồi Kế toán xuất lại hợp đồng cho một hồ sơ đã từng xuất | Lần xuất mới dùng **mẫu mới** — hợp đồng không đóng băng, khác bản mềm đã lưu (`0167`) | §8.2 | `P1` |
 | DOC-16 | Hợp đồng có trạng thái riêng và tải được bản scan | Đúng, và liên kết ngược về hồ sơ CSBH nguồn | §8 | `P1` |
 | DOC-17 | Kế toán yêu cầu in lại bản cứng | Object scan bị xóa thật khỏi MinIO, không còn bản sao ảnh; nhật ký vẫn giữ vết việc hủy | §10 | `P0` |
 | DOC-18 | Tải lên file có tên tiếng Việt đầy đủ dấu | Lưu và tải về đúng tên; chuẩn hóa Unicode nhất quán, không sinh tên rác | §11.1 | `P1` |
 | DOC-19 | Sinh PDF hồ sơ 200 dòng sản phẩm | Ngắt trang đúng, dòng tiêu đề lặp lại ở mỗi trang, không mất dòng cuối | §11.1 | `P1` |
-| DOC-20 | Năm yêu cầu render đồng thời | Xếp hàng qua BullMQ, tối đa 2 tiến trình Chromium song song, không container nào bị OOM | §11.1 | `P2` |
+| DOC-20 | Năm yêu cầu dựng văn bản đồng thời | Gotenberg tự xếp hàng (`--libreoffice-restart-after=10`); không có hàng đợi ứng dụng nào (`sửa` — BullMQ và Chromium đã bỏ) | §11.1 | `P2` |
 | DOC-21 | Sale Admin xuất hợp đồng khi kế toán *chưa* tiếp nhận lần 1 | 409 — điều kiện thời điểm giống hệt kế toán, quyền rộng ra nhưng cổng không mở sớm hơn | §8 | `P0` |
 | DOC-22 | Kế toán và Sale Admin cùng bấm xuất gần như đồng thời | **Cả hai đều nhận được PDF**, không có xung đột vì không ghi đè gì; nhật ký ghi **hai** dòng | §8.3 | `P0` |
 | DOC-23 | Sale Admin là người bấm xuất | Nhật ký ghi đúng sa01 kèm vai trò; hai cột `contract_issued_at/by` trên hồ sơ cập nhật theo lần xuất gần nhất | §8.3 §10 | `P0` |
 | DOC-24 | Hồ sơ bị trả về Bước 3 sau khi đã xuất hợp đồng, rồi duyệt lại và xuất tiếp | Lần xuất sau lấy dữ liệu của phiên bản mới; không có bản ghi hợp đồng cũ nào phải xử lý | §8.3 | `P1` |
-| DOC-25 | Sale Admin tải lên file mẫu `.docx` có 12 ô trống | Hệ thống đọc file, liệt kê đúng 12 ô trống tìm được để Sale Admin ánh xạ — không bắt gõ tay danh sách | §8.2 | `P0` |
-| DOC-26 | Quản trị hệ thống gọi API quản lý mẫu hợp đồng | 403 — mẫu hợp đồng thuộc Sale Admin, khác với mẫu bản CSBH và biểu mẫu scan | §2.7 §6.4 | `P0` |
+| DOC-25 | Quản trị tải lên file mẫu `.docx` có 12 ô trống | Hệ thống đọc file, liệt kê đúng 12 ô trống tìm được để ánh xạ — không đoán, không bỏ sót | §8.2 | `P0` |
+| DOC-26 `đảo 0165` | **Sale Admin** gọi API quản lý văn bản mẫu | 403 — mẫu thuộc **Quản trị hệ thống**. Bản thiết kế khẳng định ngược lại; mã nguồn khai `@Roles('QUAN_TRI')` ở mọi đường ghi của `contract-templates` và `policy-templates`. Sale Admin chỉ ĐỌC (`/available`) | §8.2 | `P0` |
 | DOC-27 | Xuất hợp đồng, đổi địa chỉ khách hàng, rồi xuất lại | Bản thứ hai mang địa chỉ mới. **Đây là hành vi đúng theo thiết kế** — test khẳng định điều đó thay vì chống lại nó | §8.3 | `P0` |
 | DOC-28 | Quét OpenAPI và lược đồ CSDL tìm dấu vết lưu hợp đồng | Không có bảng `contract`, không có endpoint `GET /contracts/{id}`, không có object hợp đồng nào nằm lại trên MinIO sau khi xuất | §8.3 | `P0` |
 | DOC-29 | Ánh xạ một ô trống tới trường nguồn không tồn tại | 400 khi lưu ánh xạ, không đợi tới lúc xuất mới báo lỗi | §8.2 | `P1` |
-| DOC-30 | Mẫu chứa ô trống chưa được ánh xạ, Sale Admin bấm phát hành mẫu | Chặn phát hành và chỉ rõ ô nào chưa ánh xạ | §8.2 | `P1` |
+| DOC-30 | Mẫu chứa ô trống chưa được ánh xạ, Quản trị bấm lưu mẫu | Chặn và chỉ rõ ô nào chưa ánh xạ | §8.2 | `P1` |
 | DOC-31 | Trường tiền, ngày và phần trăm trong hợp đồng | Áp đúng định dạng đã khai trong bảng ánh xạ: tiền có dấu phân nhóm nghìn, ngày `dd/mm/yyyy`, tỷ lệ 2 chữ số thập phân **khớp với số trên hồ sơ CSBH** | §8.2 §7 | `P0` |
 | DOC-32 | Mẫu có bảng lặp cho danh sách sản phẩm, hồ sơ có 40 dòng | Sinh đủ 40 dòng, ngắt trang đúng, không mất dòng cuối | §8.2 | `P1` |
 | DOC-33 | Tải lên file mẫu hỏng hoặc không phải `.docx` | 400 kèm thông báo rõ; mẫu đang dùng không bị ảnh hưởng | §8.2 | `P1` |
@@ -1249,7 +1358,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
-| RPT-01 | Lần lượt dùng từng tiêu chí trong 14 tiêu chí ở §9.2 | Cả 14 đều lọc đúng — một test case con cho mỗi tiêu chí | §9.2 | `P0` |
+| RPT-01 | Lần lượt dùng từng tiêu chí trong **9 tiêu chí** ở §9.2 (`sửa 21/08`) | Cả 9 đều lọc đúng — một test case con cho mỗi tiêu chí | §9.2 | `P0` |
 | RPT-02 | Kết hợp 5 điều kiện cùng lúc | Trả đúng giao của các điều kiện | §9.2 | `P0` |
 | RPT-03 | Bấm xóa bộ lọc | Trả lại danh sách đầy đủ trong phạm vi của người dùng, không phải toàn hệ thống | §9.2 | `P1` |
 | RPT-04 | Đặt bộ lọc, chuyển màn hình rồi quay lại trong cùng phiên | Điều kiện lọc được giữ nguyên | §9.2 | `P1` |
@@ -1315,7 +1424,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | FE-07 | Bàn phím ảo mở lên khi đang nhập ở cuối biểu mẫu | Nút hành động chính vẫn nhìn thấy được, không bị bàn phím hay thanh điều hướng đáy che | — | `P0` |
 | FE-08 | Chạm vào mọi nút trên điện thoại | Vùng bấm tối thiểu 44×44px, không có hai nút sát nhau dưới 8px | — | `P1` |
 | FE-09 | Chạm vào ô nhập tiền và ô nhập CPBH trên điện thoại | Gọi bàn phím số, không phải bàn phím chữ | §7 | `P1` |
-| FE-10 | Mở bộ lọc 14 tiêu chí trên điện thoại | Nằm trong tấm trượt lên; đóng lại vẫn giữ điều kiện đã chọn và số kết quả | §9.2 | `P1` |
+| FE-10 | Mở bộ lọc **9 tiêu chí** trên điện thoại | Nằm trong tấm trượt lên; đóng lại vẫn giữ điều kiện đã chọn và số kết quả | §9.2 | `P1` |
 | FE-11 | Đặt cỡ chữ hệ thống lên 200% | Bố cục không vỡ, không chồng chữ, không mất nút | — | `P1` |
 | FE-12 | Màn hình tra cứu của bld01 trên điện thoại | Tìm được một khách hàng và xem được CSBH đang áp dụng trong không quá 3 lần chạm | §2.6 | `P1` |
 | FE-13 | Logo trên thanh tiêu đề | Có mặt ở mọi màn hình sau đăng nhập; bấm vào quay về trang chủ | — | `P1` |
@@ -1422,15 +1531,15 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 
 | Tầng | Tỷ trọng | Công cụ | Chạy khi | Thời lượng mục tiêu |
 |---|---|---|---|---|
-| **Unit** — công thức chiết khấu, làm tròn, máy trạng thái, giải phạm vi | ~55% | Jest, không I/O | Mỗi lần lưu file, mỗi commit | < 20 giây |
-| **Tích hợp** — service + Postgres + Rabbit thật | ~30% | Jest + Supertest + Testcontainers | Mỗi push, mỗi PR | < 6 phút |
+| **Unit** — công thức chiết khấu, làm tròn, máy trạng thái, giải phạm vi | ~55% | **Vitest**, không I/O | Mỗi lần lưu file, mỗi commit | < 20 giây |
+| **Tích hợp** — service + Postgres + Rabbit thật | ~30% | **Vitest + Supertest**, hạ tầng dựng bằng `compose.test.yml` (`sửa` — không Testcontainers) | Mỗi push, mỗi PR | ~10 phút |
 | **Hợp đồng** — schema giữa gateway/reporting và các provider | ~5% | Snapshot OpenAPI + kiểm tra tương thích ngược | Mỗi PR | < 30 giây |
-| **E2E** — 10 bước nghiệp vụ qua giao diện thật | ~8% | Playwright trên stack compose | Trước merge vào `main`, hằng đêm | < 12 phút |
-| **Tải** — 50 người dùng đồng thời | ~2% | k6 | Trước mỗi lần lên production | 10 phút |
+| ~~**E2E** — 10 bước nghiệp vụ qua giao diện thật~~ | — | **CHƯA DỰNG.** Giao diện kiểm bằng **jsdom** trong cùng bộ Vitest: dựng DOM thật, đọc nhãn và thứ tự, nhưng **không tính bố cục** — nên mọi ca về khoảng cách và bề rộng phải đọc thẳng `app.css` (`0164`, `0176`) | — | — |
+| ~~**Tải** — 50 người dùng đồng thời~~ | — | **CHƯA DỰNG.** Không có k6 trong repo | — | — |
 
 > **Vì sao tầng tích hợp nặng hơn thường lệ**
 >
-> Bất biến quan trọng nhất của hệ này nằm ở CSDL chứ không ở code: partial unique index, trigger chặn sửa nhật ký, rule chặn xóa hồ sơ Từ chối, cột sinh cho tỷ lệ chiết khấu. Test có mock CSDL sẽ *xanh* trong khi hệ thống thật vẫn hỏng. Vì vậy mọi test nhóm `EFF`, `AUD` và phần lớn `WF` đều bắt buộc chạy trên Postgres thật qua Testcontainers.
+> Bất biến quan trọng nhất của hệ này nằm ở CSDL chứ không ở code: partial unique index (gồm cả "mã số thuế duy nhất giữa khách đang hợp tác", `0175`), trigger chặn sửa nhật ký, trigger dựng cột địa chỉ dẫn xuất (`0154`, `0175`), cột sinh cho tỷ lệ chiết khấu. Test có mock CSDL sẽ *xanh* trong khi hệ thống thật vẫn hỏng. Vì vậy mọi test nhóm `EFF`, `AUD` và phần lớn `WF` đều bắt buộc chạy trên **Postgres thật** — một Postgres DÙNG CHUNG, và vì thế bộ test chạy **tuần tự** (`fileParallelism: false`): chậm hơn, nhưng mọi lần đỏ đều là lỗi thật.
 
 ### Quy trình test frontend
 
@@ -1439,17 +1548,17 @@ Frontend có ba loại lỗi mà test backend không bao giờ bắt được: *
 | Tầng | Công cụ | Bắt loại lỗi gì | Chạy khi |
 |---|---|---|---|
 | **Thành phần** | Vitest + Testing Library | Logic hiển thị: định dạng tiền và tỷ lệ, quy tắc bảng-thành-thẻ, trạng thái rỗng và lỗi | Mỗi lần lưu file, mỗi commit |
-| **Giả lập API** | MSW, dữ liệu giả sinh từ `packages/contracts` | Frontend chạy độc lập với backend; đổi hợp đồng API là compile lỗi ngay | Kèm test thành phần |
-| **E2E theo vai trò** | Playwright, một *project* cho mỗi tài khoản mẫu | Luồng nghiệp vụ thật; nút hiện đúng vai trò; phiên đăng nhập | Trước merge vào `main` |
-| **E2E theo thiết bị** | Playwright *projects*: 390×844 · 768×1024 · 1440×900 | Vỡ bố cục, che nút, cuộn ngang, bàn phím ảo che nội dung | Trước merge — **cùng bộ kịch bản chạy lại trên cả ba** |
-| **Ảnh chụp đối chiếu** | `toHaveScreenshot()` của Playwright | Lệch bố cục ngoài ý muốn sau khi sửa CSS — loại lỗi review mắt thường hay bỏ sót | Trước merge; ảnh chuẩn nằm trong kho mã |
-| **Tiếp cận** | axe-core cắm vào Playwright | Ô nhập thiếu nhãn, tương phản kém, bẫy tiêu điểm bàn phím | Trước merge |
+| **Giả lập API** | `vi.stubGlobal('fetch', …)` viết tay trong từng tệp kiểm (`sửa` — không MSW) | Frontend chạy độc lập với backend; dựng được cả nhánh lỗi | Mỗi commit |
+| **Theo vai trò** | jsdom: dựng trang thật với phiên của từng vai trò (`sửa` — không Playwright) | Nút và mục menu hiện cho đúng người; `quyen.test.ts` đối chiếu bảng quyền hai chiều | Mỗi commit |
+| ~~**E2E theo thiết bị**~~ | **CHƯA DỰNG** — jsdom không tính bố cục. Thay chỗ: ca kiểm **đọc thẳng `app.css`** và khẳng định các luật bố cục (`0164` hộp xem, `0176` hàng địa chỉ, `0177` cột nhãn) | Vỡ bố cục vẫn phải soi bằng mắt trên chồng demo | — |
+| ~~**Ảnh chụp đối chiếu**~~ | **CHƯA DỰNG** | — | — |
+| **Tiếp cận** | Kiểm tay trong ca jsdom: nhãn `<label for>`, `aria-label` cho nút chỉ có biểu tượng, `.chi-doc-man-hinh` cho cột không tên (`0132`) — **không có axe-core** | Ô nhập thiếu nhãn, nút xám câm | Mỗi commit |
 | **File PDF tải về** | Gọi `document-service` rồi đọc PDF bằng `pdf-lib`: đếm trang, đo khổ, trích chữ | Sai khổ, cắt nội dung, sai số trang, logo vỡ hạt, số liệu lệch bản đang xem | Trước merge |
-| **Ngân sách hiệu năng** | Lighthouse CI + kiểm cỡ gói | Gói phình dần theo từng lần merge | Mỗi PR; vượt ngân sách thì CI đỏ |
+| **Ngân sách gói** | `tests/web/bundle.test.ts` — đo cỡ gói đã dựng (`sửa` — không Lighthouse CI) | Gói phình dần theo từng lần merge | Mỗi PR |
 
 > **Điểm mấu chốt: một kịch bản, ba thiết bị**
 >
-> Không viết riêng bộ test cho điện thoại. Kịch bản E2E viết **một lần** rồi Playwright chạy lại nguyên bộ đó trên ba khung nhìn qua cấu hình `projects`. Nhờ vậy “duyệt được hồ sơ trên điện thoại” không phải một tính năng riêng phải nhớ test — nó tự động là điều kiện để merge. Riêng nhóm `FE-03` đến `FE-11` mới là test dành riêng cho một khung nhìn cụ thể, vì chúng khẳng định đúng cái *khác biệt* giữa các điểm gãy.
+> ~~Không viết riêng bộ test cho điện thoại — một kịch bản, ba thiết bị.~~ `chưa dựng` — không có E2E. Điều còn đúng và đã trả giá ba lần (`0152`, `0153`, `0170`): **một yêu cầu về TRÌNH BÀY rất dễ rơi vào vùng không ca kiểm nào canh.** Thứ tự mục trên thanh bên, tập ô của một khối thông tin, thứ tự các khối trên một trang — cả ba từng không ai canh, và cả ba lộ ra khi khách hàng yêu cầu đổi.
 
 ### Quy trình test theo từng service
 
@@ -1458,10 +1567,10 @@ Mười service không có cùng loại rủi ro, nên không đổ đều công
 | Service | Rủi ro chính | Nhấn vào loại test | Phụ thuộc phải dùng thật |
 |---|---|---|---|
 | policy | Sai công thức, sai làm tròn, hai người duyệt cùng lúc, vỡ ràng buộc một-CSBH-hiệu-lực | **Unit** cho công thức và máy trạng thái (thuần, chạy nghìn lần trong vài giây) + **tích hợp** cho ràng buộc CSDL và tranh chấp đồng thời | Postgres — bắt buộc. Partial unique index và khóa lạc quan không thể giả lập |
-| identity | Rò rỉ phạm vi dữ liệu giữa các nhánh trong cây tổ chức | **Tích hợp** với cây tổ chức thật nhiều tầng; bảng quét vai trò × endpoint | Postgres (truy vấn đệ quy) và Redis (cache quyền hết hạn) |
+| identity | Rò rỉ phạm vi dữ liệu giữa những người không cùng phần việc | **Tích hợp** với bốn cột người thật trên hồ sơ; bảng quét vai trò × endpoint (`SEC-13`) | Postgres và Redis (ảnh chụp danh tính hết hạn) |
 | catalog | Chọn nhầm dòng chiết khấu quy định khi nhiều dòng cùng khớp | **Unit** cho thứ tự ưu tiên — mỗi cặp tranh chấp một test | Không cần; logic thuần |
 | customer | Lọt mã khách hàng trùng do chuẩn hóa chuỗi | **Tích hợp** với ràng buộc unique ở CSDL | Postgres, MinIO cho file đính kèm |
-| document | Sai khổ A4, Chromium chết khi nhiều người in, xóa scan không sạch, trộn sai trường | **E2E** so ảnh và so kích thước trang; test tải nhẹ cho hàng đợi render | Chromium, Gotenberg và MinIO — cả ba đều thật, vì lỗi nằm đúng ở chỗ giáp ranh |
+| document | Sai khổ A4, trộn sai trường, mẫu Word không mở được vì sai thứ tự `<w:tcPr>` (`0165`) | Dựng PDF thật qua Gotenberg rồi ĐỌC NGƯỢC bằng `pdf-lib`/`pdfjs-dist`: đếm trang, đo khổ, đo vị trí đường kẻ cột (`0135`) | Gotenberg thật trong compose |
 | notification | Gửi nhầm người, gửi trùng, mất thư khi SMTP hỏng | **Tích hợp** với Mailpit; test gửi lại sự kiện để kiểm tính idempotent | RabbitMQ và Mailpit |
 | sla-worker | Đếm sai 14 ngày, gửi nhắc trùng, chạy hai bản cùng lúc | **Unit** với đồng hồ tiêm được (không chờ 14 ngày thật) + tích hợp cho khóa phân tán | Redis cho khóa; Postgres cho `sla_due_at` |
 | reporting | Read-model lệch dữ liệu gốc; bộ lọc bỏ qua phạm vi vai trò | **Tích hợp**: phát sự kiện rồi so số đếm read-model với truy vấn trực tiếp | RabbitMQ và Postgres |
@@ -1479,7 +1588,7 @@ Mười service không có cùng loại rủi ro, nên không đổ đều công
 
 ### Dữ liệu test
 
-- **Không** dùng chung một CSDL cho nhiều test chạy song song. Mỗi file test tích hợp nhận một schema riêng do Testcontainers cấp, xóa sau khi xong.
+- **NGƯỢC LẠI bản thiết kế:** bộ test **dùng CHUNG một Postgres** và chạy **TUẦN TỰ** (`fileParallelism: false`), không cấp schema riêng cho từng tệp. Đổi lấy: chậm hơn, nhưng mọi lần đỏ đều là lỗi thật. Cái giá phải canh — **bộ test tự đầu độc CSDL của nó** khi một tệp tạo dữ liệu mà không có đường xoá (`0156`: ~690 sản phẩm mỗi lượt chạy, bảy lượt là chạm trần 5000 của lượt nhập Excel); bước dọn nằm ở `globalSetup`, dọn ĐẦU lượt, và có một ca ĐẾM số dòng còn lại làm chốt chặn ồn ào.
 - Factory dựng dữ liệu theo ý đồ nghiệp vụ: `aPolicy().forCustomer(c).atStatus('CHO_KT_L2').build()` — đọc test là hiểu tình huống, không phải lần theo 40 dòng insert.
 - Thời gian là đầu vào tiêm được (`Clock`), nếu không thì không test được SLA 14 ngày mà phải chờ 14 ngày thật.
 
@@ -1502,63 +1611,73 @@ Mười service không có cùng loại rủi ro, nên không đổ đều công
 ### Bốn lệnh
 
 ```
-# 1. Dựng toàn bộ stack, chờ mọi healthcheck xanh (~90 giây lần đầu)
+# 1. Dựng hạ tầng (Postgres, Redis, RabbitMQ, MinIO, Mailpit, Gotenberg) + migration
 make up
 
-# 2. Nạp danh mục + 10 tài khoản mẫu + 3 khách hàng + 2 hồ sơ ở trạng thái giữa luồng
+# 2. Nạp 10 tài khoản mẫu
 make seed
 
-# 3. Toàn bộ test backend: unit -> tích hợp -> hợp đồng
+# 3. Toàn bộ bộ test — tự chạy migrate + seed trước, và CHẶN nếu chồng demo đang bật
 make test
 
-# 4. E2E qua giao diện thật — chạy lại nguyên bộ trên 3 khung nhìn
-make e2e                  # điện thoại 390 · máy tính bảng 768 · máy tính 1440
-make e2e-mobile           # chỉ khung nhìn điện thoại, dùng khi đang sửa giao diện
+# 4. Bản chạy thử ở http://localhost:8080 — CSDL TRỐNG, chỉ có admin01
+make demo
+make demo-mau             # nạp thêm 10 tài khoản mẫu + ba năm dữ liệu nghiệp vụ
+make demo-down
 
-# 5. Kiểm giao diện: ảnh đối chiếu, tiếp cận, ngân sách gói, và tải 50 người dùng
-make ui
-make load
+# 5. Đóng gói bản giao
+make anh                  # dựng ba ảnh
+make goi                  # gói tệp nén -> workspace/dong-goi/
 ```
+
+> **`make e2e`, `make ui`, `make load` KHÔNG tồn tại** `sửa 06/09` — bản thiết kế đặt tên cho ba lệnh
+> chạy Playwright, ảnh đối chiếu và k6, không cái nào được dựng (xem §05). Kiểm giao diện nằm trong
+> chính `make test`, bằng jsdom.
+>
+> **Hai chốt chặn phải nhớ**, cả hai đã trả giá thật:
+>
+> - **Chồng demo và bộ test dùng chung một Postgres/RabbitMQ/MinIO.** Chạy đồng thời thì hỏng theo
+>   kiểu khó đoán nhất — test đỏ ở bốn tệp không tệp nào có lỗi thật. `make test` có chốt
+>   `check-demo-down`; **né chốt ấy bằng cách gọi thẳng `vitest` đã xoá sạch bảng văn bản mẫu của bản
+>   demo một lần** (`0134`), và một lần khác `compose run` hạ luôn mười service của demo (`0135`).
+> - **Chạy demo rồi chạy test là mất sạch 10 tài khoản mẫu**, nên `make test` luôn kéo theo `migrate`
+>   và `seed` — không phải việc người chạy phải nhớ.
 
 ```
 # Makefile — rút gọn
-COMPOSE = docker compose -f deploy/compose.yml -f deploy/compose.dev.yml
+COMPOSE = docker compose -f deploy/compose.yml -f deploy/compose.test.yml
 
 up:    ; $(COMPOSE) up -d --wait
-seed:  ; $(COMPOSE) exec gateway node dist/seed.js --with-demo-users
-test:  ; pnpm -r test          # Testcontainers tự dựng Postgres/Rabbit riêng
-e2e:   ; pnpm playwright test tests/e2e
-e2e-mobile: ; pnpm playwright test tests/e2e --project=mobile
-ui:    ; pnpm playwright test tests/ui --update-snapshots=none && pnpm lhci autorun
-load:  ; k6 run --vus 50 --duration 10m tests/load/policy-flow.js
+seed:  ; $(COMPOSE) run --rm -T test pnpm seed
+test:  ; $(COMPOSE) run --rm test pnpm test   # migrate + seed chạy trước; CHẶN nếu demo đang bật
+demo:  ; docker compose … up -d          # bản chạy thử ở cổng 8080, CSDL trống
+demo-mau: ; $(COMPOSE) run --rm ops pnpm seed-demo   # 10 tài khoản mẫu + dữ liệu nghiệp vụ
+anh:   ; ./scripts/dong-goi.sh --anh       # dựng ba ảnh bản giao
+goi:   ; ./scripts/dong-goi.sh             # gói tệp nén -> workspace/dong-goi/
 logs:  ; $(COMPOSE) logs -f --tail=100
 reset: ; $(COMPOSE) down -v && $(MAKE) up seed
 down:  ; $(COMPOSE) down
 ```
 
-```
-// playwright.config.ts — một bộ kịch bản, ba thiết bị, không viết trùng
-projects: [
-  { name: 'mobile',  use: { ...devices['Pixel 7'] } },              // 412 × 915
-  { name: 'tablet',  use: { ...devices['iPad (gen 7)'] } },         // 810 × 1080
-  { name: 'desktop', use: { viewport: { width: 1440, height: 900 } } },
-]
-```
+> **Khối `playwright.config.ts` của bản thiết kế đã BỎ** `sửa 06/09` — không có Playwright
+> trong repo (xem §05). Thứ thay chỗ nó: `vitest.config.ts` khai `fileParallelism: false`,
+> `environment: node` cho `tests/http` và `tests/db`, `jsdom` cho `tests/web`, cộng
+> `globalSetup: tests/don-rac-truoc-luot.ts` — bước dọn rác chạy ĐẦU lượt (`0156`).
 
 ### Mười tài khoản mẫu — phủ đủ 6 vai trò và cả trường hợp ngoài phạm vi
 
-| Tài khoản | Vai trò | Vị trí trong cây tổ chức | Dùng để kiểm |
+| Tài khoản | Vai trò | Phần việc trong luồng | Dùng để kiểm |
 |---|---|---|---|
-| tdv01 | TDV · người đề nghị | dưới KT01, bộ phận TBP01 | Luồng chính từ đầu tới cuối |
-| tdv02 | TDV | dưới KT01, bộ phận TBP01 | TDV không thấy hồ sơ của tdv01 |
-| tdv03 | TDV | dưới KT02, bộ phận TBP02 | Cách ly giữa hai nhánh kế toán |
-| tbp01 | Trưởng bộ phận | quản lý tdv01, tdv02 | Duyệt, ký số, từ chối, trả lại |
-| tbp02 | Trưởng bộ phận (người duyệt thay) | quản lý tdv03 | Cấu hình duyệt thay, không gán cứng cá nhân |
-| kt01 | Kế toán (L1 và L2) | quản lý tdv01, tdv02 · dưới sa01 | Tiếp nhận hai lần, xuất hợp đồng, ba nhánh từ chối |
-| kt02 | Kế toán | quản lý tdv03 · dưới sa01 | Kế toán này không tiếp nhận được hồ sơ của tdv01 |
-| sa01 | Sale Admin | quản lý kt01, kt02 | In, scan, bàn giao, làm lại bản cứng |
-| bld01 | Ban lãnh đạo | ngoài cây, đọc toàn bộ | Quét mọi endpoint ghi phải trả 403 |
-| admin01 | Quản trị hệ thống | ngoài luồng duyệt | Danh mục, giá, ngưỡng CK, cây tổ chức |
+| tdv01 | TDV · người đề nghị | — | Luồng chính từ đầu tới cuối |
+| tdv02 | TDV | — | TDV không thấy hồ sơ của tdv01 |
+| tdv03 | TDV | — | Hai TDV không thấy hồ sơ của nhau |
+| tbp01 | Trưởng bộ phận | được TDV chọn lúc gửi duyệt | Duyệt và ký, **trả lại** (`sửa 0155` — không còn *từ chối*) |
+| tbp02 | Trưởng bộ phận | được TDV chọn lúc gửi duyệt | TBP này không mở được hồ sơ gửi cho tbp01 |
+| kt01 | Kế toán (L1 và L2) | được TDV chọn lúc gửi duyệt | Tiếp nhận hai lần, xuất hợp đồng, ba nhánh trả lại |
+| kt02 | Kế toán | được TDV chọn lúc gửi duyệt | Kế toán này không mở được hồ sơ giao cho kt01 |
+| sa01 | Sale Admin | được Kế toán chọn ở lượt tiếp nhận L1 ĐẦU TIÊN (`0141`) | Tạo bản mềm, scan, bàn giao, làm lại bản cứng |
+| bld01 | Ban lãnh đạo | ngoài luồng, đọc toàn bộ | Quét mọi endpoint ghi phải trả 403 (`SEC-13`) |
+| admin01 | Quản trị hệ thống | ngoài luồng duyệt, **phạm vi hồ sơ RỖNG** | Danh mục, giá, ngưỡng CK, tài khoản, văn bản mẫu |
 
 Mật khẩu chung ở môi trường dev: `Test@1234`. Email dạng `tdv01@csbh.test` — tên miền `.test` không phân giải được và Mailpit bắt hết, nên không có thư nào ra ngoài thật kể cả khi cấu hình sai.
 
@@ -1569,7 +1688,7 @@ Mật khẩu chung ở môi trường dev: `Test@1234`. Email dạng `tdv01@csbh
 - **3 khách hàng** — mỗi loại 1, một khách có địa chỉ đăng ký khác nơi nhận hàng.
 - **4 hồ sơ dựng sẵn**: một ở *Chờ TBP duyệt*, một ở *KT duyệt bản cứng*, một *Đang có hiệu lực* (để thử luồng bổ sung/chỉnh sửa), một *Từ chối* (để thử không xóa được).
 - **1 hồ sơ `LEGACY`** thiếu file ký và thiếu mốc thời gian, để kiểm nhóm `MIG` ngay từ giai đoạn 1.
-- **1 mẫu hợp đồng mặc định** đã ánh xạ đủ trường, seed sẵn khi triển khai để chạy thử ngay mà không phải chờ Sale Admin soạn mẫu thật (§8.2). Kèm một mẫu thứ hai còn ô trống chưa ánh xạ để kiểm `DOC-30`.
+- **BA văn bản mẫu mặc định** (`sửa 0165`) — hồ sơ đầy đủ · hồ sơ rút gọn · hợp đồng — nạp lúc `document` KHỞI ĐỘNG từ `templates/default/`, không phải do `seed` hay `nap-danh-muc` (`0166`). Idempotent theo `(kind, name)` tính cả dòng đã vô hiệu hoá, nên Quản trị vô hiệu một mẫu mặc định thì nó nằm im.
 
 ### Kiểm thử email — không cần hộp thư thật
 
@@ -1577,7 +1696,7 @@ Email là nơi dễ gây tai nạn nhất khi test: một lần cấu hình nh�
 
 | Tầng | Thư đi đâu | Địa chỉ dùng | Kiểm được gì |
 |---|---|---|---|
-| **Unit** | Transport giả trong tiến trình (`jsonTransport` của Nodemailer) | Bất kỳ | Chọn đúng tập người nhận theo bước và theo cây tổ chức; nội dung mẫu thư trộn đúng dữ liệu |
+| **Unit** | Transport giả trong tiến trình (`jsonTransport` của Nodemailer) | Bất kỳ | Chọn đúng tập người nhận theo bước và theo bốn cột người; nội dung mẫu thư trộn đúng dữ liệu |
 | **Tích hợp** | SMTP giả nhúng (gói `smtp-server`), cổng ngẫu nhiên | Bất kỳ | Envelope SMTP thật: MAIL FROM, RCPT TO, header, mã hóa tiếng Việt, retry khi máy chủ trả 4xx/5xx |
 | **E2E & dev** | **Mailpit** trong Docker — nhận mọi thư, không chuyển tiếp đi đâu | `tdv01@csbh.test` | Toàn bộ luồng 10 bước sinh đúng 12 thư; đọc và khẳng định nội dung qua REST API của Mailpit |
 | **Staging / UAT** | Mailpit, *hoặc* SMTP thật kèm `MAIL_REDIRECT_ALL` đổ hết vào một hộp thư QA | Địa chỉ ẩn danh hóa | Kế toán và Sale Admin đọc thư thật trong trình khách thật để nghiệm thu |
@@ -1623,14 +1742,14 @@ export async function waitForMail(to: string, timeoutMs = 5000) {
 }
 
 // NTF-01 + NTF-02 trong một test
-it('WF-04 · TBP ký số thì kế toán và TDV nhận thư đủ nội dung', async () => {
+it('WF-04 · TBP ký thì kế toán và TDV nhận thư đủ nội dung', async () => {
   await resetMail();
   await api.as('tbp01').post(`/policies/${id}/sign`);
 
   const m = await waitForMail('kt01@csbh.test');
   expect(m.To.map(t => t.Address)).toEqual(['kt01@csbh.test', 'tdv01@csbh.test']);
   expect(m.Text).toContain('KH-000123');          // mã khách hàng
-  expect(m.Text).toContain('TBP đã ký số');       // trạng thái
+  expect(m.Text).toContain('KT duyệt bản mềm');   // trạng thái MỚI — `0064` gỡ bước trung gian
   expect(m.Text).toMatch(/\/policies\/[0-9a-f-]{36}/); // liên kết mở hồ sơ
   expect(m.Subject).toContain('Nhà thuốc Minh Châu'); // dấu tiếng Việt không vỡ
 });
@@ -1698,13 +1817,13 @@ it('WF-04 · TBP ký số thì kế toán và TDV nhận thư đủ nội dung',
 push / pull request
   ├─ lint + kiểm kiểu (song song, ~40s)
   ├─ unit test                      # chặn merge nếu phủ < 85% domain-policy
-  ├─ tích hợp (Testcontainers)      # chặn merge nếu có P0 fail
+  ├─ `make test` trên compose.test  # chặn merge nếu có P0 fail
   ├─ kiểm tương thích ngược OpenAPI
   └─ build 3 ảnh Docker, gắn tag theo commit SHA
 
 merge vào main
-  ├─ E2E Playwright trên stack compose sạch
-  ├─ k6 smoke 50 VU trong 3 phút
+  ├─ (E2E: CHƯA DỰNG)
+  ├─ (kiểm tải: CHƯA DỰNG)
   └─ đẩy ảnh lên registry, gắn thêm tag :staging
 
 deploy production (bấm tay)
@@ -1737,7 +1856,7 @@ Một file `VERSION` ở gốc kho mã là **nguồn duy nhất**. Sửa nó r�
 |---|---|---|---|
 | **Phiên bản hồ sơ CSBH** | `v3` của khách hàng KH-000123 | Người dùng nghiệp vụ | Tự tăng theo số lần cập nhật CSBH của khách hàng đó (§5.6). **Không liên quan gì** tới ba loại dưới. |
 | **Phiên bản phần mềm** | `1.0.0` | Người dùng và đội vận hành | Mục này. Một số duy nhất cho toàn hệ. |
-| Phiên bản lược đồ CSDL | `20260806143012_add_contract_template` | Đội lập trình | Prisma Migrate tự quản, tăng theo thời gian. |
+| Phiên bản lược đồ CSDL | `0115_dia_chi_dang_ky_dong_bang_hai_o.sql` | Đội lập trình | Số thứ tự bốn chữ số viết tay, tên file mang chính **mã thay đổi** của chặng sinh ra nó (`sửa` — không Prisma Migrate). |
 | Phiên bản API | `/api/v1/…` | Trình duyệt | Chỉ đổi khi phá vỡ hợp đồng — tức là khi phần MAJOR tăng. |
 
 > **Đặt tên cho rõ trong mã nguồn**
@@ -1879,11 +1998,11 @@ SPA được nhúng số phiên bản lúc build, nên một người mở tab t
 
 | Chặng | Thời lượng | Nội dung | Bàn giao được gì |
 |---|---|---|---|
-| P0 | 2 tuần | Monorepo, compose, CI, `identity` + cây phân quyền, seed, khung test. **Khung giao diện: bảng token màu từ logo, thành phần bảng-thành-thẻ dùng chung, ba khung nhìn Playwright** | Đăng nhập được, 10 tài khoản mẫu chạy, CI xanh trên cả ba khung nhìn |
+| P0 | 2 tuần | Monorepo, compose, CI, `identity` + phạm vi dữ liệu, seed, khung test. **Khung giao diện: bảng token màu từ logo, thành phần bảng-thành-thẻ dùng chung, ba khung nhìn** | Đăng nhập được, 10 tài khoản mẫu chạy, CI xanh trên cả ba khung nhìn |
 | P1 | 3 tuần | `catalog` + `customer` + màn hình quản trị danh mục | Quản trị nhập được sản phẩm, giá, chiết khấu quy định; TDV tạo được khách hàng |
 | P2 | 4 tuần | `policy`: công thức, đóng băng giá, máy trạng thái 10 bước, phiên bản, hiệu lực | **Luồng duyệt chạy được từ đầu tới cuối** — mốc quan trọng nhất |
 | P3 | 3 tuần | `document`: render A4, ký số nội bộ, quản lý scan, **và khối hợp đồng** — màn hình Sale Admin tải mẫu và ánh xạ trường, trộn dữ liệu, xem trước, sinh PDF | In đúng khổ, file ký có dấu thời gian, Sale Admin tự đổi được mẫu hợp đồng mà không cần lập trình viên |
-| P4 | 2 tuần | `notification` + `sla-worker` + `reporting` | Email đúng bảng bước, SLA 14 ngày, 14 tiêu chí lọc, xuất Excel |
+| P4 | 2 tuần | `notification` + `sla-worker` + `reporting` | Email đúng bảng bước, SLA 14 ngày, 9 tiêu chí lọc, xuất Excel |
 | P5 | 2 tuần | `audit` hoàn chỉnh, tối ưu hiệu năng, UAT với kế toán và Sale Admin, chuyển giao | Nghiệm thu, tài liệu vận hành, bàn giao |
 
 ### Rủi ro cần theo dõi
@@ -1892,7 +2011,7 @@ SPA được nhúng số phiên bản lúc build, nên một người mở tab t
 |---|---|---|
 | Chi phí vận hành 10 service vượt lợi ích ở quy mô 50 người | Thời gian dựng môi trường local > 3 phút; lập trình viên phải mở 4 log để gỡ một lỗi | Gộp `audit` + `reporting` vào một, gộp `customer` vào `policy`. Vì cùng monorepo và cùng ngôn ngữ nên là việc gộp module, không phải viết lại. |
 | Mẫu hợp đồng thay đổi liên tục trong lúc làm | Yêu cầu sửa bố cục quá 2 lần mỗi tuần ở chặng P3 | Đã xử lý về mặt kiến trúc: mẫu là file Sale Admin tự tải lên và tự ánh xạ, đổi bố cục không cần phát hành phần mềm. Rủi ro còn lại chuyển sang chỗ khác — **bảng ánh xạ trường**. Chốt sớm danh sách trường nguồn được phép dùng, vì thêm một trường nguồn mới thì vẫn phải sửa mã. |
-| Chromium ngốn RAM khi nhiều người in cùng lúc | `document` chạm giới hạn bộ nhớ trong test tải | Xếp hàng render qua BullMQ, tối đa 2 tiến trình song song; đã tính trong `PERF-03`. |
+| ~~Chromium ngốn RAM khi nhiều người in cùng lúc~~ | `bỏ 0105` — không còn Chromium. Rủi ro thay chỗ: **N-09 rà danh mục O(n)** — đổi một quy định chiết khấu quét mọi hồ sơ đã đóng băng × mọi dòng. Đã cắn một lần trong CSDL bộ kiểm (`0159`), chưa cắn ở quy mô thật | Chia lô `SONG_SONG`; hoãn có chủ ý |
 | Giai đoạn 2 buộc đổi lược đồ | Phát hiện muộn rằng cột mốc thời gian không nullable | Nhóm test `MIG` chạy ngay từ giai đoạn 1, không đợi tới lúc làm giai đoạn 2. |
 
 > **Kết luận**

@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 50 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 66 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -87,7 +87,29 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (06/09/2026)
 
-Chặng gần nhất **P205** (`0177`): **khối *Khách hàng* trên trang hồ sơ — bốn ô thành tám**, và
+Chặng gần nhất **P206** (`0178`): **rà soát tài liệu theo triển khai thật**, và ba tệp trôi ba mức
+khác hẳn nhau. `impl/docs/` **khớp** (theo kịp `0177` — vì mỗi chặng bắt sửa chúng), lệch đúng một CON
+SỐ. `YEU-CAU-NGHIEP-VU-CSBH.md` có **một lệch nặng và nó TỰ MÂU THUẪN**: mục 4 vẫn liệt kê `Từ chối`
+là trạng thái hiện hành trong khi Phụ lục B của chính nó viết *"BỎ HẲN"* — `0155` sửa Phụ lục B mà bỏ
+sót thân bài, đúng nửa việc luật ở đây đã viết ra để chống. `KIEN-TRUC-CSBH.md` trôi theo **hai cách**:
+phần thiết kế ban đầu chưa bao giờ sửa (**Prisma · Playwright + Chromium · BullMQ · docxtemplater ·
+Ant Design · Testcontainers · k6 · Lighthouse — không gói nào có trong `package.json`**; cộng cây tổ
+chức 12 chỗ, 14 tiêu chí lọc, `sign-file`), và **ngừng theo kịp từ `0129`** (nó CÓ được sửa 51 lần,
+dừng ở `0128`). **Cái bẫy giải thích phần đầu nằm ngay ở đầu tệp**: ghi chú *"sinh tự động từ HTML
+bằng `python3 tools/html2md.py`, đừng sửa tay"* — **script ấy không tồn tại** và HTML đông cứng ở
+07/08; câu ấy chỉ người ta sang một quy trình không chạy được, đúng cái tệp duy nhất đang được đọc.
+Chữa bằng cách **nói ra thứ đã đảo** (*"Đảo lựa chọn X của bản thiết kế"* kèm lý do), không xoá lặng
+lẽ — bỏ câu hỏi *"sao không dùng Prisma?"* không trả lời là mời người sau đề xuất lại. Một chỗ ở §13
+phải viết **ngược hẳn**: bản thiết kế dặn *"KHÔNG dùng chung CSDL"*, thực tế dùng CHUNG một Postgres
+và chạy TUẦN TỰ. Chốt chặn `tests/http/tai-lieu.test.ts` đối chiếu **hai vế ở hai thế giới** — văn bản
+tiếng Việt vs `STATUSES` và `package.json`; **tài liệu nằm ngoài `impl/`** nên compose phải mount
+`../../agents` đọc-chỉ, và phép kiểm tồn tại tệp **ĐỎ chứ không skip** (bài học `0156`). Ba chỗ ca
+kiểm tự sai, tìm ra lúc phá lại: quét theo DÒNG cắt đôi câu tiếng Việt (đơn vị đúng là ĐOẠN);
+`Chromium` phải **ra khỏi** danh sách cấm vì nó vẫn chạy thật **bên trong Gotenberg**; và một ca
+**XANH VÌ LÝ DO SAI** — đổi *"`pg` thuần"* thành *"Prisma 5"* vẫn xanh vì đoạn ấy còn cụm *"Đảo lựa
+chọn"*, danh sách phủ định ban đầu có cả `sửa` và `thay`. **2002/2002 xanh.**
+
+Trước đó **P205** (`0177`): **khối *Khách hàng* trên trang hồ sơ — bốn ô thành tám**, và
 ***"bỏ mục tên"* KHÔNG phải bỏ tên**: câu kế tiếp của cùng yêu cầu đòi *tên hộ kinh doanh/tên công
 ty*, đúng dữ liệu ô ấy đang mang — `0175` đã đổi nhãn nó ở biểu mẫu, trang hồ sơ là chỗ còn sót. **Mô
 -típ `0171` lần thứ hai.** Bốn trong năm trường đã có ảnh chụp từ `0101`; chỗ tốn công là **`0175` để

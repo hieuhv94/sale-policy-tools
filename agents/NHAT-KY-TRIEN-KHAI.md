@@ -15429,3 +15429,112 @@ mặt trên `<section>`**. Thiếu vế ba thì hai vế kia thành mã chết m
 | Nối địa chỉ giao hàng bằng dấu phẩy | 1 đỏ |
 | Bỏ `--cot-nhan` của khối khách hàng | 1 đỏ |
 | Giữ CSS, gỡ class khỏi `<section>` | 1 đỏ |
+
+## P206 — `0178` rà soát tài liệu theo triển khai thật, và một chốt chặn để nó khỏi trôi lại
+
+Người dùng hỏi *"tài liệu đã khớp với triển khai chưa"*. Câu trả lời hoá ra khác nhau ở từng tệp, và
+sự khác nhau ấy mới là thứ đáng ghi.
+
+### Ba tài liệu, ba mức trôi khác hẳn nhau
+
+**`impl/docs/` — khớp.** Theo kịp tới `0177`. Không lạ: chúng được sửa trong chính chặng sinh ra thay
+đổi, vì `CLAUDE.md` bắt thế. Một lệch duy nhất, và nó là một CON SỐ chứ không phải một câu:
+*"Cả 11 trạng thái"* ở bảng vai trò. Cùng tệp, cách đó 500 dòng, đã nói đúng rằng *Từ chối* bỏ rồi.
+
+**`YEU-CAU-NGHIEP-VU-CSBH.md` — một lệch nặng, và nó TỰ MÂU THUẪN.** Mục 4 vẫn liệt kê `Từ chối` là
+trạng thái hiện hành cùng năm quy tắc xây trên đó, trong khi Phụ lục B của **chính tài liệu ấy** viết
+*"BỎ HẲN trạng thái Từ chối"*. `0155` cập nhật Phụ lục B mà bỏ sót thân bài — đúng nửa việc mà
+`CLAUDE.md` đã viết ra luật để chống (*"đồng bộ thân bài **và** Phụ lục B"*). Đây là tài liệu **hiệu
+lực cao nhất**, nên ai đọc mục 4 rồi làm theo sẽ dựng lại một trạng thái đã gỡ khỏi enum.
+
+**`KIEN-TRUC-CSBH.md` — trôi có hệ thống, và trôi theo HAI cách khác nhau:**
+
+1. **Phần thiết kế ban đầu chưa bao giờ được sửa.** Prisma 5 · Playwright + Chromium · BullMQ ·
+   docxtemplater · Ant Design + TanStack Query · Jest + Testcontainers · k6 · Lighthouse · pino +
+   OpenTelemetry. **Không gói nào trong số đó có trong repo** — kiểm bằng `package.json` của cả bốn
+   workspace. Cộng cây tổ chức (12 chỗ), 14 tiêu chí lọc (5 chỗ), `sign-file`, `/reject`.
+2. **Ngừng theo kịp từ `0129`.** Nó CÓ được cập nhật rời rạc — 51 lần nhắc mã thay đổi — nhưng dừng ở
+   `0128`. Ba loại văn bản mẫu, bản mềm thành tệp, mã số thuế duy nhất, địa chỉ hai ô: không có.
+
+### Cái bẫy ở đầu tệp, và nó giải thích cả phần 1
+
+Đầu `KIEN-TRUC-CSBH.md` ghi: *"Bản `.md` này **sinh tự động** từ file HTML bằng
+`python3 tools/html2md.py`. Sửa HTML rồi chạy lại script, đừng sửa tay file này."*
+
+**Script ấy không tồn tại** — `tools/` chỉ còn `figs/`. Và `artifacts/kien-truc-csbh.html` đông cứng ở
+07/08, không mang một mã thay đổi nào, trong khi bản `.md` đã nhận 51 lần sửa tay.
+
+Câu ấy vì thế vừa sai vừa **có hại**: nó bảo người ta đừng sửa đúng cái tệp duy nhất đang được đọc, và
+chỉ họ sang một quy trình không chạy được. Rất có thể chính nó là lý do phần thiết kế ban đầu không ai
+động vào suốt tám tháng, trong khi những mục có người sửa thì được sửa thẳng vào `.md` bất chấp lời
+dặn. Đổi ghi chú thành *"bản `.md` này là bản chính"*.
+
+### Chữa: nói ra thứ đã đảo, đừng xoá dấu vết
+
+Mọi chỗ đảo lựa chọn đều viết thành **"Đảo lựa chọn X của bản thiết kế"** kèm lý do, chứ không thay
+lặng lẽ. Lý do: bản thiết kế cân nhắc có thật, và người đọc sau này sẽ tự hỏi *"sao không dùng
+Prisma?"* — bỏ câu hỏi ấy không trả lời là mời họ đề xuất lại. Ba chỗ đáng nhất:
+
+- **Playwright + Chromium → Gotenberg.** Lập luận cũ *"bản xem và bản PDF dùng chung một HTML/CSS"*
+  **mất hiệu lực** khi khách hàng chốt rằng mẫu do người dùng soạn trong Word (`0051`): nguồn không
+  còn là HTML. Giữ Chromium là nuôi hai đường dựng văn bản cho cùng một tờ giấy.
+- **Testcontainers → `compose.test.yml`.** Ý đúng của nó — *hạ tầng thật, đừng mock* — giữ nguyên;
+  chỉ đổi cách dựng, vì compose đã phải tồn tại cho `make demo`.
+- **`docxtemplater` → mã tự viết.** Việc thật hoá ra không phải thay chuỗi mà là **dựng lại `<w:tbl>`**
+  với bề rộng cột đo từ nội dung (`0135`, `0172`) — không thư viện điền-ô-trống nào làm.
+
+Một chỗ trong §13 phải viết **ngược hẳn** bản thiết kế: nó dặn *"KHÔNG dùng chung một CSDL cho nhiều
+test chạy song song"*, còn thực tế là dùng CHUNG một Postgres và chạy TUẦN TỰ. Đổi lấy sự chắc chắn,
+và cái giá đã trả một lần ở `0156` (bộ test tự đầu độc CSDL của nó).
+
+### Chốt chặn: bốn ca, và mount là một phần của cơ chế
+
+Hai lệch lớn nhất có chung hình dạng — **hai vế ở hai thế giới**: một vế là văn bản tiếng Việt, vế kia
+là `STATUSES` và `package.json`, và không trình dịch nào nối chúng. Cùng lý do `0134` và `0151` phải
+viết ca quét.
+
+`tests/http/tai-lieu.test.ts` đối chiếu bốn thứ: số trạng thái, cách viết bằng CHỮ của con số cũ, số
+migration, và **tên công cụ không có trong `package.json`**. Vế thứ hai của ca cuối đọc chính
+`package.json` chứ không so với một danh sách cấm gõ tay — thêm Playwright thật thì ca tự thôi đòi hỏi.
+
+**Tài liệu nằm NGOÀI `impl/`**, mà container test chỉ mount `..:/app`. Nên compose phải mount thêm
+`../../agents` và `../../CLAUDE.md` (đọc-chỉ). Và vì thế phép kiểm tồn tại tệp phải **ĐỎ**, không phải
+`skip`: một phép kiểm tài liệu tự tắt khi thiếu mount trông giống hệt một phép kiểm đang xanh — bài
+học `0156` viết cho bước dọn, áp y hệt ở đây. Phá lại bằng cách gỡ hai dòng mount cho **4 đỏ**, mỗi ca
+nói đúng nguyên nhân.
+
+`NHAT-KY-TRIEN-KHAI.md` **đứng ngoài phạm vi quét**. Nó ghi chuyện đã xảy ra nên phải giữ được tên cũ
+và con số cũ; `0151` đã phải nói đúng điều này một lần.
+
+### Hai chỗ ca kiểm tự sai, tìm ra lúc phá lại
+
+**Quét theo DÒNG là sai đơn vị.** Bản đầu đỏ ở một câu hoàn toàn đúng — *"…không dùng ⏎
+Testcontainers, Playwright hay k6"* — vì chữ *không* nằm ở dòng trước, markdown xuống dòng ở cột 100.
+Đơn vị đúng là ĐOẠN: một câu tiếng Việt không bị cắt đôi bởi chỗ người ta bấm Enter.
+
+**`Chromium` phải RA KHỎI danh sách cấm.** Nó bị bỏ với tư cách *đường dựng PDF của ta*, nhưng **vẫn
+đang chạy thật bên trong ảnh Gotenberg** — nên `docs/04` viết *"Chromium trong Gotenberg ngốn nhất"* và
+`docs/05` viết *"kiểm gotenberg: nó chạy Chromium"* đều ĐÚNG. Một ca kiểm bắt xoá hai câu ấy sẽ làm
+tài liệu vận hành nói dối về thứ đang chiếm RAM trên máy chủ.
+
+**Và một ca XANH VÌ LÝ DO SAI.** Phá lại lượt đầu đổi *"`pg` thuần"* thành *"Prisma 5"* mà ca vẫn
+xanh: đoạn ấy còn cụm *"Đảo lựa chọn `Prisma 5`"*, khớp `PHU_DINH`. Danh sách phủ định ban đầu quá
+rộng — nó có cả `sửa` và `thay`, hai chữ xuất hiện ở hàng trăm dòng. Siết lại còn bảy dấu hiệu thật sự
+nói *"đã bỏ"*, rồi phá lại **đúng cách**: chèn một khẳng định MỚI không kèm phủ định — **2 đỏ**, chỉ
+thẳng số dòng.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| *"Cả 10 trạng thái"* → *11* ở `docs/03` | 1 đỏ |
+| *"66 migration"* → *50* ở `CLAUDE.md` | 1 đỏ |
+| Chèn *"Lược đồ quản lý bằng Prisma 5, E2E bằng Playwright"* | 1 đỏ, bắt CẢ HAI tên |
+| Gỡ hai dòng mount tài liệu khỏi `compose.test.yml` | **4 đỏ**, mỗi ca nói đúng nguyên nhân |
+
+> **BẪY TỰ DÍNH, đúng cái `CLAUDE.md` đã ghi:** trong lúc `make test` chạy nền, tôi gọi thẳng
+> `vitest run tests/http/tai-lieu.test.ts` hai lượt để xem bản sửa mới nhất có xanh không. Mỗi lượt
+> `compose run` **kéo theo `migrate` chạy lại** trên chính CSDL mà `make test` đang dùng. Lượt ấy vẫn
+> xanh 2002/2002, nhưng con số ấy không đáng tin — nên đã chạy lại MỘT lượt sạch, không đụng gì.
+> `CLAUDE.md` viết cảnh báo này cho cặp demo/test và cho hai lượt test với nhau; lần này là lượt test
+> nền với lượt test tay, cùng một cái bẫy.

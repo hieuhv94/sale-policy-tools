@@ -81,7 +81,7 @@ thường chưa có hồ sơ nào nên không đường nào khác với tới.
 - Khi bổ sung hoặc chỉnh sửa chính sách: đưa lại **toàn bộ** sản phẩm cũ vào hồ sơ mới.
 
 **Không được làm** — sửa danh mục sản phẩm, giá bán Công ty, ngưỡng chiết khấu; sửa hồ sơ sau khi
-đã gửi duyệt; xóa hồ sơ đã bị từ chối.
+đã gửi duyệt.
 
 **Nhận email** — khi hồ sơ chuyển bước, bị trả lại, và khi giá sản phẩm thay đổi làm ảnh hưởng
 CSBH mình phụ trách.
@@ -297,33 +297,31 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
 | `Đang có hiệu lực` | CSBH đang áp dụng, vô thời hạn | — |
 | `Hết hiệu lực` | Bị thay bởi một CSBH mới của cùng khách hàng | — |
 | `Yêu cầu chỉnh sửa` | Bị trả lại, chờ TDV sửa | — |
-| `Từ chối` | Trưởng bộ phận từ chối — **trạng thái kết thúc**, hồ sơ bị bỏ | — |
+| ~~`Từ chối`~~ | **BỎ HẲN `29/08`** — Trưởng bộ phận không còn nút ấy; họ **trả lại**, rồi TDV tự **xoá**. Xem Phụ lục B, mục *"BỎ HẲN trạng thái Từ chối"* | — |
 | `Quá hạn duyệt` | Quá 14 ngày ở một trạng thái chờ. **Trạng thái kết thúc** `sửa 18/08` — không ai thao tác được nữa, và sau **3 ngày** hệ thống tự chuyển sang `Đã xóa` | — |
 | `Đã xóa` | Người lập bỏ hẳn một hồ sơ bị trả lại — **trạng thái kết thúc** | — |
 
 **Quy tắc**
 
-- Mỗi trạng thái có một mã kỹ thuật và một nhãn hiển thị; danh sách trên là danh sách đóng.
+- Mỗi trạng thái có một mã kỹ thuật và một nhãn hiển thị; danh sách trên là danh sách đóng — **mười
+  trạng thái** `sửa 29/08`.
 - Không dùng các tên cũ: “Bản Demo”, “Đang duyệt”, “Đã chuyển bước sau”, “Đang áp dụng”.
-- Hồ sơ ở `Từ chối` **không ai xóa được DÒNG**, kể cả người tạo — giữ nguyên trong lịch sử và trong
-  báo cáo tỷ lệ hồ sơ bị trả lại. `sửa 18/08`: TDV đang phụ trách **bỏ được nó khỏi màn hình của
-  mình** bằng cách chuyển sang `Đã xóa`, và đó không mâu thuẫn với điều trên — dòng dữ liệu còn
-  nguyên, nhật ký dài thêm một dòng, và báo cáo đếm theo **mốc `rejected_at`** chứ không theo trạng
-  thái hiện tại nên con số không đổi. Cái mất đi đúng bằng cái người dùng muốn mất: hồ sơ thôi nằm
-  trong thẻ đếm *Từ chối* trên trang tổng quan của người lập.
-- **TDV xóa được hồ sơ ở ba trạng thái**: `Nháp`, `Yêu cầu chỉnh sửa` (gồm cả ba đường bị trả về:
-  TBP yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2), và `Từ chối`
-  (`thêm 18/08`).
+- ~~Hồ sơ ở `Từ chối` **không ai xóa được DÒNG**~~ `bỏ 29/08` — không còn trạng thái ấy. Hai cột
+  `rejected_at` / `rejected_by` **VẪN CÒN** trong lược đồ và báo cáo vẫn đếm theo mốc ấy: nhật ký kể
+  chuyện đã xảy ra, và hồ sơ bị từ chối trước ngày ấy phải còn tra được.
+- **TDV xóa được hồ sơ ở hai trạng thái** `sửa 29/08`: `Nháp` và `Yêu cầu chỉnh sửa` (gồm cả ba đường
+  bị trả về: TBP yêu cầu chỉnh sửa, Kế toán không tiếp nhận L1, Kế toán không tiếp nhận L2).
   Hai kết cục, hệ thống chọn theo trạng thái chứ không hỏi người dùng:
   - `Nháp` → **xóa hẳn, không ghi lịch sử**. Hồ sơ chưa gửi duyệt thì chưa ai ngoài người lập nhìn
     thấy; ghi một dòng "đã xóa" cho mỗi lần lập nhầm là biến nhật ký thành bãi rác và làm người lập
     ngại mở bản nháp.
-  - `Yêu cầu chỉnh sửa` → chuyển `Đã xóa`, **ghi vào lịch sử hồ sơ y như `Từ chối`**. Hồ sơ đã qua
-    tay người khác và đã bị trả lại kèm lý do; xóa sạch dấu vết là làm biến mất phần việc của họ.
-    Người đã trả hồ sơ lại nhận thư báo.
+  - `Yêu cầu chỉnh sửa` → chuyển `Đã xóa`, **ghi vào lịch sử hồ sơ**. Hồ sơ đã qua tay người khác và
+    đã bị trả lại kèm lý do; xóa sạch dấu vết là làm biến mất phần việc của họ. Người đã trả hồ sơ
+    lại nhận thư báo. Từ `29/08` đây là **đường kết thúc duy nhất** cho một hồ sơ Trưởng bộ phận
+    không muốn duyệt: họ trả lại, người lập tự bỏ.
   Chỉ **TDV đang phụ trách** hồ sơ xóa được, không phải người đã lập ra nó — hai thứ khác nhau sau
   một lần bàn giao. Vai trò khác không xóa được gì, kể cả Quản trị hệ thống.
-- Hồ sơ ở `Đã xóa` cũng **không ai xóa được** và không hành động nào đi ra được, giống `Từ chối`.
+- Hồ sơ ở `Đã xóa` cũng **không ai xóa được** và không hành động nào đi ra được.
   Nó không chặn việc xóa khách hàng và không được bàn giao khi một tài khoản bị vô hiệu hóa.
 - `Quá hạn duyệt` áp dụng chung cho mọi trạng thái chờ. **Là trạng thái KẾT THÚC** `sửa 18/08`:
   không vai trò nào thao tác được lên hồ sơ nữa, và sau **3 ngày** hệ thống tự chuyển nó sang
@@ -832,7 +830,7 @@ hôm nay.
 |---|---|
 | **Nháp · Yêu cầu chỉnh sửa** | **Sống theo danh mục.** Mỗi lần mở hồ sơ, giá và ngưỡng chụp lại; lúc bấm *Gửi duyệt* chụp lại lần cuối rồi mới đóng băng |
 | **Đã gửi duyệt → Đang có hiệu lực** | **Không bao giờ ghi đè.** Hiện trong box *Yêu cầu cập nhật* (muc 9.3) và trong khối cảnh báo ngay trên màn hình hồ sơ `18/08`. **Không gửi email** `sửa 18/08` |
-| **Từ chối · Hết hiệu lực** | Không theo dõi nữa |
+| **Đã xoá · Hết hiệu lực** | Không theo dõi nữa |
 
 Giá bán buôn và các khoản CPBH **không bao giờ** bị làm mới — đó là con số người lập nhập, không phải
 ảnh chụp danh mục. Làm mới chỉ tính lại ba thứ đến từ danh mục: Giá bán Công ty, ngưỡng, và mã quy
@@ -880,7 +878,7 @@ bản người dùng xem khác bản đem ký.
 | Bố cục | Bảng sản phẩm, CPBH, tỷ lệ chiết khấu | Điều khoản hợp đồng, do Sale Admin soạn |
 | Sinh ra khi nào | TDV lập ở Bước 1 | Xuất ở Bước 7, sau khi kế toán tiếp nhận lần 1 |
 | Vòng đời | Lưu vĩnh viễn, có phiên bản, có lịch sử | **Sinh ra rồi trả về ngay, không lưu trong hệ thống** |
-| Trạng thái | 11 trạng thái ở mục 4 | Không có trạng thái — chỉ là một file PDF |
+| Trạng thái | 10 trạng thái ở mục 4 `sửa 29/08` | Không có trạng thái — chỉ là một file PDF |
 
 Hợp đồng **lấy dữ liệu từ** hồ sơ CSBH và hồ sơ khách hàng để điền vào ô trống trên mẫu. Nó không
 phải một cách in khác của hồ sơ.
@@ -2204,7 +2202,8 @@ sơ ấy**; có tên trên hồ sơ chỉ cho quyền xem lại việc mình đ�
 
 **Hồ sơ đi theo khách hàng** `mới 21/08`. Đổi *TDV phụ trách* của một khách hàng — dù qua bàn giao
 lúc vô hiệu hoá tài khoản, hay qua màn hình khách hàng — thì **mọi hồ sơ của khách ấy sang tay
-cùng**, kể cả *Từ chối* và *Hết hiệu lực*; chỉ hồ sơ *Đã xoá* đứng ngoài.
+cùng**, kể cả *Hết hiệu lực*; chỉ hồ sơ *Đã xoá* đứng ngoài. (Lúc chốt luật này còn *Từ chối*,
+và nó cũng sang tay cùng — trạng thái ấy bỏ ở `29/08`.)
 
 > **Vì sao rộng hơn luật bàn giao ở trên.** Phạm vi đọc hồ sơ có hai bản cài đặt phải trả lời giống
 > hệt nhau: màn hình *Hồ sơ CSBH* đọc read-model báo cáo, màn hình chi tiết đọc thẳng hồ sơ. Tới
@@ -2258,8 +2257,9 @@ vi đọc suy từ bốn ô người trên chính hồ sơ · gửi duyệt ph�
 **Luồng** — tuần tự, không song song · kế toán từ chối lần 2 có hai lựa chọn · quy tắc bổ sung và
 chỉnh sửa CSBH · trả lại bắt buộc nhập lý do · bản scan cũ **giữ nguyên** khi yêu cầu in lại `sửa 19/08`.
 
-**Trạng thái** — dùng bộ đã hợp nhất · Từ chối là trạng thái kết thúc · không cho xóa hồ sơ bị từ
-chối · “Quá hạn duyệt” là trạng thái riêng · đổi tên “Đang áp dụng” thành “Đang có hiệu lực”.
+**Trạng thái** — dùng bộ đã hợp nhất · ~~Từ chối là trạng thái kết thúc · không cho xóa hồ sơ bị từ
+chối~~ (`bỏ 29/08` — xem mục *"BỎ HẲN trạng thái Từ chối"*) · “Quá hạn duyệt” là trạng thái riêng ·
+đổi tên “Đang áp dụng” thành “Đang có hiệu lực”.
 
 **Hiệu lực** — có hiệu lực ngay khi kế toán duyệt lần 2 · mọi CSBH vô thời hạn · không có nghiệp vụ
 thu hồi · phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.

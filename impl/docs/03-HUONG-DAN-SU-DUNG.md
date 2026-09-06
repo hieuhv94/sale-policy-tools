@@ -310,7 +310,7 @@ lọc sẵn đúng bằng con số vừa bấm.
 | **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Kế toán** | Chờ KT duyệt L1 · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
-| **Ban lãnh đạo** | **Cả 11 trạng thái** |
+| **Ban lãnh đạo** | **Cả 10 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
 Cố ý **không** bày cho bạn bước của người khác thành thẻ riêng: một Trình dược viên nhìn ô "KT duyệt
