@@ -15315,3 +15315,117 @@ nhau, và đó là điều khiến lượt sửa này an toàn.
 | Đổi `align-items: end` → `center` | 1 đỏ, ở ca chiều đối chiếu |
 
 **1988/1988 xanh.**
+
+## P205 — `0177` khối *Khách hàng* trên trang hồ sơ: người đại diện, địa chỉ đăng ký hai ô, địa chỉ giao hàng
+
+Khách hàng chốt 06/09: *"Phần thông tin khách hàng bỏ mục 'tên', thay vào đó bổ sung thêm: 'tên người
+đại diện', 'tên hộ kinh doanh/tên công ty', Số nhà, phường xã, tỉnh thành phố, Địa chỉ giao hàng
+(thêm đủ nếu có nhiều), loại và công nợ giữ nguyên"*.
+
+Khối ấy trước lượt này có bốn ô: *Mã · Tên · Loại · Công nợ*.
+
+### *"Bỏ mục tên"* không phải bỏ tên — lần thứ hai của mô-típ `0171`
+
+Vế đầu và vế hai của câu nói về **cùng một ô**. Dữ liệu ô *Tên* đang mang chính là tên pháp nhân, và
+`0175` đã đổi nhãn của nó ở biểu mẫu lập khách hàng thành *Tên Hộ kinh doanh/Tên Công ty* — trang hồ
+sơ là chỗ còn sót lại. Nên đây là một lượt **đổi nhãn cộng thêm một ô**, không phải bỏ một ô rồi thêm
+hai ô khác.
+
+Đọc riêng vế đầu thì làm sai cả hai vế cùng lúc: mất tên khách hàng khỏi màn hình, và vẫn phải đi tìm
+một trường *"tên hộ kinh doanh"* không tồn tại. `0171` đã ghi đúng hình dạng này — *"bỏ người đại
+diện"* mà câu kế tiếp lại bảo in chính tên ấy. Có một ca kiểm canh riêng cách hiểu sai: nhãn *Tên*
+trần phải biến mất, **giá trị** phải ở lại.
+
+### Chỗ tốn công thật: `0175` để lại một nửa việc đóng băng
+
+Bốn trong năm trường đã có ảnh chụp sẵn từ `0101` — người đại diện, tên, nơi nhận hàng, công nợ. Lượt
+này chỉ thiếu **địa chỉ đăng ký ở dạng HAI Ô**, và nó thiếu vì một lý do có gốc:
+
+`0175` tách địa chỉ đăng ký thành hai cột nguồn `street_ward` / `province`, rồi biến
+`registered_address` thành cột **DẪN XUẤT** do trigger dựng. `0101` thì đóng băng đúng cột dẫn xuất
+ấy. Nên từ `0175` hệ thống **đóng băng cái bóng mà không đóng băng cái nguồn** — không ai thấy, vì tờ
+giấy chỉ in chuỗi gộp và màn hình hồ sơ chưa bày địa chỉ nào.
+
+Cám dỗ ở đây là tách ngược chuỗi gộp ở dấu phẩy cuối cùng. Nó **chạy được hôm nay** — tên tỉnh thành
+không chứa dấu phẩy — và đó chính là điều làm nó nguy hiểm: nó dựng một phép suy ngược lên hình dạng
+của một cột dẫn xuất, và ngày ai đó đổi dấu ngăn trong `tr_dung_dia_chi_dang_ky` thì hai ô vẫn đầy
+chữ, chỉ cắt sai chỗ, và **không có gì đỏ**. Nên `0115` thêm hai cột `kh_so_nha_snap` /
+`kh_tinh_thanh_snap`, chụp cùng lượt và cùng nguồn với chuỗi gộp.
+
+Cột gộp **GIỮ NGUYÊN**: `document` in thẳng nó ra giấy, và không có lý do nào bắt tờ giấy đổi theo một
+thay đổi của màn hình.
+
+### Không backfill, và ba nhánh đọc
+
+Hồ sơ đã gửi trước hôm nay có chuỗi gộp mà hai cột mới NULL. Điền chúng đòi đọc `cus.customer` — schema
+của service khác — và giá trị đọc được là địa chỉ **hôm nay**, không phải địa chỉ lúc gửi. Điền như
+thế là viết lại một ảnh chụp.
+
+Nên chỗ đọc có ba nhánh, và chúng nói ba chuyện khác nhau:
+
+| Hồ sơ | Hai ô | Màn hình bày |
+|---|---|---|
+| chưa gửi duyệt | đọc SỐNG từ khách hàng | hai ô |
+| gửi từ `0177` | ảnh chụp | hai ô |
+| gửi TRƯỚC `0177` | `null` | MỘT ô *Địa chỉ đăng ký* — chuỗi gộp đã đóng băng |
+
+Nhánh ba là nhánh dễ viết sai nhất, vì bản sai **trông đúng**: `khSoNhaSnap ?? khach?.streetWard` đọc
+xuôi tai và cho kết quả đúng trên mọi khách hàng chưa đổi địa chỉ. Với khách đã đổi thì một hồ sơ đã
+ký lặng lẽ hiện địa chỉ hôm nay **ngay cạnh** một cột gộp mang địa chỉ cũ. Có một ca kiểm dựng đúng
+tình huống ấy: xoá hai cột thẳng trên CSDL, đổi địa chỉ khách, rồi đòi hai ô phải `null`.
+
+Hình dạng hai-ô-hay-một-ô tự hết theo thời gian: `0101` chụp lại **cả khối** ở mỗi lượt gửi, nên hồ sơ
+còn đi trong luồng có hai ô ngay lượt gửi lại tiếp theo. Chỉ hồ sơ đã có hiệu lực giữ nó mãi — và đó
+đúng là điều nên xảy ra với một hồ sơ đã ký.
+
+### Hai chỗ nhỏ, mỗi chỗ một luật cũ
+
+**Địa chỉ giao hàng tách ngược ĐƯỢC**, khác hẳn địa chỉ đăng ký ở ngay trên: `0154` kèm một ràng buộc
+**cấm ký tự xuống dòng bên trong một địa chỉ**, nên `\n` là một dấu ngăn thật. Dấu `', '` của địa chỉ
+đăng ký thì cũng là một chuỗi hợp lệ giữa lòng một địa chỉ — hai cột gộp trông giống nhau mà chỉ một
+cái đảo ngược được.
+
+**Mảng rỗng có nghĩa riêng** — *"giao tới địa chỉ đăng ký"* (`0006`) — nên khối bỏ hẳn ô thay vì ghi
+dấu gạch, cùng luật `0175` đã đặt cho trang khách hàng. Một ô dấu gạch ở đây nói rằng khách thiếu một
+thông tin mà họ không hề thiếu.
+
+### Bẫy `0128` lại nằm đúng chỗ cũ
+
+`customer/internal.controller` liệt kê **từng cột** trong `SELECT`, và `province` với `street_ward`
+không có trong danh sách ấy. Hai trường khai TUỲ CHỌN ở `CustomerInfo` nên TypeScript im; triệu chứng
+sẽ là hai ô rỗng trên hồ sơ Nháp, ở một màn hình chẳng nhắc gì tới `customer`. Ca *"hồ sơ NHÁP đọc
+SỐNG"* là chốt duy nhất canh chuyện này — phá lại cho **2 đỏ**.
+
+Chú thích ở `load()` khẳng định *"ba trường mà MÀN HÌNH dùng tới"*. Câu ấy sắp sai, nên nó được sửa
+chứ không để lại: giờ là tám, và ranh giới thì **không đổi** — chức danh người đại diện và mã số thuế
+vẫn ở lại bên `document`, vì màn hình này không bày chúng.
+
+### Đánh số tham số lại đủ
+
+Thêm hai tham số vào giữa dãy `khSql` là đánh số lại từ `$i` tới `$i+11`. `0154` đã trả giá cho lối
+tắt kia — bỏ trống một chỗ để khỏi sửa các số sau — vì **Postgres đếm tham số theo số CAO NHẤT** xuất
+hiện trong câu lệnh, nên một khoảng trống làm lệch cả dãy và mọi lượt ghi trả 500.
+
+### Cột nhãn: một hệ quả không ai yêu cầu, và `0176` bảo phải canh nó
+
+*Tên Hộ kinh doanh/Tên Công ty* dài gấp đôi nhãn dài nhất của khối *Hồ sơ*, và ở `7.5rem` nó xuống ba
+dòng cạnh một giá trị một dòng. Chữa bằng một biến đặt trên **KHỐI** (`.tom-tat-khach`), không nới con
+số dùng chung — nới chung là đẩy giá trị ra xa nhãn ở cả khối *Hồ sơ*, nơi mọi nhãn đều ngắn. Cùng lẽ
+với `0176`.
+
+Ca kiểm canh **ba** vế, và vế thứ ba mới là vế thật: luật chung đọc biến · khối khai biến · **class có
+mặt trên `<section>`**. Thiếu vế ba thì hai vế kia thành mã chết mà không gì đỏ — phá lại riêng vế ấy
+(giữ nguyên CSS, gỡ class) cho **1 đỏ**.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Thôi đóng băng hai ô ở `khSql` | 1 đỏ — ca *GỬI DUYỆT đóng băng* |
+| Bỏ `province, street_ward` khỏi `SELECT` của `customer` | 2 đỏ — bẫy `0128` |
+| Nhánh ba rơi về đọc sống | 1 đỏ — ca *gửi TRƯỚC migration* |
+| Nhãn về lại *Tên* | 2 đỏ — dãy nhãn, và ca chiều cấm |
+| Bỏ điều kiện `noiNhanHang.length > 0` | 1 đỏ |
+| Nối địa chỉ giao hàng bằng dấu phẩy | 1 đỏ |
+| Bỏ `--cot-nhan` của khối khách hàng | 1 đỏ |
+| Giữ CSS, gỡ class khỏi `<section>` | 1 đỏ |

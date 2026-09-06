@@ -597,11 +597,25 @@ export class WorkflowService {
        */
       let khSql = '';
       if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
+        /*
+         * HAI Ô ĐỊA CHỈ ĐĂNG KÝ đi cùng cột gộp (`0177`).
+         *
+         * Cột gộp `kh_dia_chi_dang_ky_snap` GIỮ: `document` in thẳng chuỗi ấy ra
+         * giấy. Hai ô rời thêm vào vì màn hình hồ sơ bày hai ô, và tách ngược
+         * chuỗi gộp là suy ngược lên hình dạng của một cột DẪN XUẤT (`0175`) —
+         * chạy được hôm nay, hỏng ngầm ngày trigger đổi dấu ngăn.
+         *
+         * Cả ba chụp trong CÙNG một lượt, từ CÙNG một `cus`: hai ô và chuỗi gộp
+         * nói cùng một địa chỉ, nên chụp lệch nhịp là dựng ra một hồ sơ mà màn
+         * hình và tờ giấy nói hai địa chỉ khác nhau.
+         */
         params.push(
           cus.code,
           cus.name,
           cus.idNumber ?? null,
           cus.registeredAddress ?? null,
+          cus.streetWard ?? null,
+          cus.province ?? null,
           cus.deliveryAddress ?? null,
           cus.ownerName ?? null,
           cus.ownerTitle ?? null,
@@ -609,13 +623,22 @@ export class WorkflowService {
           cus.debt ?? null,
           me.name ?? null,
         );
-        const i = params.length - 9;
+        /*
+         * ĐÁNH SỐ LẠI ĐỦ, không bỏ trống chỗ nào để khỏi sửa các số sau.
+         *
+         * `0154` đã trả giá cho lối tắt ấy: Postgres đếm tham số theo SỐ CAO
+         * NHẤT xuất hiện trong câu lệnh, nên một khoảng trống ở giữa làm lệch cả
+         * dãy và mọi lượt ghi trả 500.
+         */
+        const i = params.length - 11;
         khSql =
           `kh_ma_snap = $${i}, kh_ten_snap = $${i + 1}, kh_ma_so_thue_snap = $${i + 2}, ` +
-          `kh_dia_chi_dang_ky_snap = $${i + 3}, kh_noi_nhan_hang_snap = $${i + 4}, ` +
-          `kh_nguoi_dai_dien_snap = $${i + 5}, kh_chuc_danh_dai_dien_snap = $${i + 6}, ` +
-          `kh_dien_thoai_snap = $${i + 7}, ` +
-          `kh_cong_no_snap = $${i + 8}, nguoi_de_nghi_snap = $${i + 9},`;
+          `kh_dia_chi_dang_ky_snap = $${i + 3}, ` +
+          `kh_so_nha_snap = $${i + 4}, kh_tinh_thanh_snap = $${i + 5}, ` +
+          `kh_noi_nhan_hang_snap = $${i + 6}, ` +
+          `kh_nguoi_dai_dien_snap = $${i + 7}, kh_chuc_danh_dai_dien_snap = $${i + 8}, ` +
+          `kh_dien_thoai_snap = $${i + 9}, ` +
+          `kh_cong_no_snap = $${i + 10}, nguoi_de_nghi_snap = $${i + 11},`;
       }
 
       /*

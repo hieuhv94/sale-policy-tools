@@ -13,6 +13,7 @@
  * Ca dễ hỏng nhất là số 3: một khối gập tải sẵn nội dung ngay lúc mở trang thì
  * nhìn bằng mắt không thấy khác gì, mà mỗi lượt mở hồ sơ lại thêm một vòng mạng.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
@@ -66,6 +67,12 @@ const HO_SO = {
   khachHang: {
     ma: 'KH-000123',
     ten: 'Cong ty TNHH Duoc pham ABC',
+    // `0177` — năm trường của khối *Khách hàng* trên trang hồ sơ.
+    nguoiDaiDien: 'Nguyen Thi Dai Dien',
+    soNha: 'Số 12 ngõ 5, Phường Láng Hạ',
+    tinhThanh: 'Thành phố Hà Nội',
+    diaChiDangKy: 'Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội',
+    noiNhanHang: ['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng'],
     loai: 2,
     congNo: 'Thanh toán gối đơn, công nợ không quá 90 ngày',
     trangThai: 'DANG_HOP_TAC',
@@ -217,15 +224,37 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Ngày soạn thảo')).not.toBe(oCua('Ngày áp dụng'));
   });
 
-  it('khách hàng là NHÓM RIÊNG: mã, tên, loại, công nợ', async () => {
+  it('khách hàng là NHÓM RIÊNG, và ĐỦ DÃY Ô theo ĐÚNG THỨ TỰ (`0177`)', async () => {
     await mo();
     const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
       (e) => e.querySelector('h2')?.textContent === 'Khách hàng',
     );
     expect(nhom, 'không có nhóm Khách hàng').toBeDefined();
 
+    /*
+     * CẢ DÃY bằng `toEqual`, không phải từng ô bằng `toContain`.
+     *
+     * `0152` đã trả giá cho lối kia: hỏi *"có mặt không"* thì đảo hai ô vẫn xanh,
+     * mà thứ tự chính là thứ khách hàng viết ra trong yêu cầu này. Khẳng định cả
+     * dãy còn bắt được luôn chiều ngược — chèn thêm một ô không ai yêu cầu, hoặc
+     * để sót ô *Tên* cũ nằm lại.
+     */
+    expect([...(nhom as HTMLElement).querySelectorAll('dt')].map((e) => e.textContent)).toEqual([
+      'Mã',
+      'Người đại diện',
+      'Tên Hộ kinh doanh/Tên Công ty',
+      'Số nhà, Phường xã',
+      'Tỉnh/Thành phố',
+      'Địa chỉ giao hàng',
+      'Loại',
+      'Công nợ',
+    ]);
+
     expect(within(nhom as HTMLElement).getByText('KH-000123')).toBeDefined();
-    expect(oCua('Tên')).toBe('Cong ty TNHH Duoc pham ABC');
+    expect(oCua('Người đại diện')).toBe('Nguyen Thi Dai Dien');
+    expect(oCua('Tên Hộ kinh doanh/Tên Công ty')).toBe('Cong ty TNHH Duoc pham ABC');
+    expect(oCua('Số nhà, Phường xã')).toBe('Số 12 ngõ 5, Phường Láng Hạ');
+    expect(oCua('Tỉnh/Thành phố')).toBe('Thành phố Hà Nội');
     // `0139` — nhãn mang cả SỐ lẫn TÊN THẬT của loại khách hàng.
     expect(oCua('Loại')).toBe('Loại 2 - Hộ kinh doanh cộng tác');
     /*
@@ -262,6 +291,106 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     await mo({ ...HO_SO, khachHang: null });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('CSBH-2026-000123');
     expect(document.body.textContent).toContain('Chưa tải được thông tin khách hàng');
+  });
+
+  /*
+   * `0177` — *"bỏ mục Tên"* KHÔNG phải bỏ tên khách hàng khỏi màn hình.
+   *
+   * Câu kế tiếp trong cùng yêu cầu đòi thêm *tên hộ kinh doanh/tên công ty*, và
+   * đó chính là dữ liệu ô cũ đang mang: `0175` đã đổi nhãn của nó ở biểu mẫu lập
+   * khách hàng, trang này là chỗ còn sót. Đọc riêng vế đầu là làm sai cả hai.
+   *
+   * Ca này canh đúng cách hiểu sai ấy: nhãn cũ phải biến mất, GIÁ TRỊ phải ở lại.
+   */
+  it('nhãn *Tên* trần không còn, nhưng tên pháp nhân vẫn hiện', async () => {
+    await mo();
+    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
+    expect(nhan).not.toContain('Tên');
+    expect(oCua('Tên Hộ kinh doanh/Tên Công ty')).toBe('Cong ty TNHH Duoc pham ABC');
+  });
+
+  it('hồ sơ gửi TRƯỚC `0177`: một ô *Địa chỉ đăng ký*, không phải hai ô rỗng', async () => {
+    /*
+     * Hai cột ảnh chụp mới là NULL trên mọi hồ sơ đã gửi trước migration `0115`,
+     * và cột gộp thì có. Bày hai ô dấu gạch ở đây nói rằng hồ sơ thiếu địa chỉ —
+     * nó không thiếu, chỉ là lượt gửi ấy chụp một chuỗi thay vì hai ô.
+     */
+    await mo({
+      ...HO_SO,
+      khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null },
+    });
+    expect(oCua('Địa chỉ đăng ký')).toBe('Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội');
+    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
+    expect(nhan).not.toContain('Số nhà, Phường xã');
+    expect(nhan).not.toContain('Tỉnh/Thành phố');
+  });
+
+  it('không có địa chỉ nào thì KHÔNG có ô địa chỉ đăng ký, kể cả ô dấu gạch', async () => {
+    // Hồ sơ Nháp của một khách chưa khai địa chỉ. Ô sẽ hiện ra ngay khi họ khai;
+    // một ô dấu gạch ở đây chỉ nói rằng màn hình biết mình đang thiếu gì.
+    await mo({
+      ...HO_SO,
+      khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null, diaChiDangKy: null },
+    });
+    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
+    expect(nhan).not.toContain('Địa chỉ đăng ký');
+    expect(nhan).not.toContain('Số nhà, Phường xã');
+  });
+
+  it('nhiều địa chỉ giao hàng thì MỖI CÁI MỘT DÒNG', async () => {
+    // Nối bằng dấu phẩy thì một địa chỉ vốn đã có dấu phẩy đọc ra thành hai —
+    // và cả hai địa chỉ trong fixture đều có dấu phẩy, nên phép nối sai sẽ cho
+    // ra bốn dòng chứ không phải hai.
+    await mo();
+    const dd = [...document.querySelectorAll('.tom-tat-nhom dt')]
+      .find((e) => e.textContent === 'Địa chỉ giao hàng')!
+      .parentElement!.querySelector('dd')!;
+    const dong = [...dd.querySelectorAll('.dong-dia-chi')].map((e) => e.textContent);
+    expect(dong).toEqual(['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng']);
+  });
+
+  it('KHÔNG có địa chỉ giao hàng thì bỏ hẳn ô, không ghi dấu gạch', async () => {
+    /*
+     * `0006` — mảng rỗng nghĩa là *"giao tới địa chỉ đăng ký"*, một câu trả lời
+     * đầy đủ chứ không phải một ô còn trống. Dấu gạch ở đây nói rằng khách hàng
+     * thiếu một thông tin mà họ không hề thiếu. Cùng luật với trang khách hàng.
+     */
+    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, noiNhanHang: [] } });
+    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
+    expect(nhan).not.toContain('Địa chỉ giao hàng');
+  });
+
+  /*
+   * `0177` — CỘT NHÃN RIÊNG cho khối khách hàng, canh CẢ BA vế.
+   *
+   * jsdom không tính bố cục, nên thứ đo được là ba mảnh phải khớp nhau: luật
+   * chung đọc biến, khối khách hàng khai biến, và class thật sự có mặt trên
+   * `<section>`. Thiếu mảnh thứ ba thì hai mảnh kia thành mã chết mà không gì
+   * đỏ — đúng kiểu hỏng `0176` đã ghi.
+   */
+  it('khối khách hàng có cột nhãn RỘNG HƠN, và class thật sự nằm trên khối', async () => {
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
+    const khoi = (re: RegExp): string[] =>
+      [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((m) => re.test(m[1]!)).map((m) => m[2]!);
+
+    // Vế 1: luật chung ĐỌC biến, không ghi cứng con số trở lại.
+    const chung = khoi(/\.tom-tat-nhom dl > div/);
+    expect(chung.length, 'không tìm thấy luật cho `.tom-tat-nhom dl > div`').toBeGreaterThan(0);
+    expect(chung.some((x) => /grid-template-columns:\s*var\(--cot-nhan/.test(x))).toBe(true);
+
+    // Vế 2: khối khách hàng khai biến ấy, và khai RỘNG HƠN mức chung 7.5rem.
+    const rieng = khoi(/\.tom-tat-khach/)
+      .map((x) => x.match(/--cot-nhan:\s*([\d.]+)rem/)?.[1])
+      .filter((x): x is string => x !== undefined)
+      .map(Number);
+    expect(rieng.length, '`.tom-tat-khach` không khai `--cot-nhan`').toBeGreaterThan(0);
+    expect(Math.max(...rieng)).toBeGreaterThan(7.5);
+
+    // Vế 3: class nằm trên đúng khối Khách hàng, không phải khối Hồ sơ.
+    await mo();
+    const nhom = document.querySelector('.tom-tat-khach');
+    expect(nhom, 'không khối nào mang class `tom-tat-khach`').not.toBeNull();
+    expect(nhom!.querySelector('h2')?.textContent).toBe('Khách hàng');
   });
 
   it('khách đã ngừng hợp tác thì nói ra ở ngay khối này', async () => {

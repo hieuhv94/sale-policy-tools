@@ -379,6 +379,12 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
    đề nghị**. Họ tên **Trưởng bộ phận đã ký** chụp lúc ký. Từ đó, sửa hồ sơ khách hàng hay đổi họ
    tên tài khoản **không làm đổi nội dung một hồ sơ đã gửi duyệt**.
 
+   **Địa chỉ đăng ký chụp thêm ở dạng HAI Ô** `bổ sung 06/09` — *Số nhà, Phường xã* và
+   *Tỉnh/Thành phố*, bên cạnh chuỗi gộp vốn có. Quyết định `05/09` tách địa chỉ đăng ký thành hai ô ở
+   hồ sơ khách hàng, nhưng lượt gửi duyệt vẫn chỉ chụp chuỗi gộp — nên từ hôm ấy hệ thống đóng băng
+   **cái bóng mà không đóng băng cái nguồn**. Không ai thấy, vì tờ giấy chỉ in chuỗi gộp; nó lộ ra khi
+   trang hồ sơ bắt đầu bày hai ô. Chuỗi gộp **giữ nguyên** — tờ CSBH và hợp đồng vẫn in thẳng nó.
+
    > **Vì sao cần.** Trước đó những trường ấy đọc trực tiếp từ hồ sơ khách hàng ở mỗi lần mở, nên
    > sửa công nợ hôm nay là đổi con số trên bản CSBH đã ký từ tuần trước — lặng lẽ, và không ai
    > đối chiếu lại được. Giá và ngưỡng vốn đã đóng băng từ đầu; đây là nốt phần còn lại của cùng
@@ -1942,6 +1948,25 @@ thoại* · *Công nợ* · *Loại khách hàng*.
 >
 > *Loại khách hàng* xuống cuối vì nó là một phân loại, không phải thông tin liên hệ — và người lập hồ
 > sơ vốn đã đọc nó ở thẻ danh sách, cạnh mã, trước khi mở khách hàng ra.
+
+**Khối *Khách hàng* trên TRANG HỒ SƠ CSBH: tám ô** `mới 06/09` — *Mã* · *Người đại diện* · *Tên Hộ
+kinh doanh/Tên Công ty* · *Số nhà, Phường xã* · *Tỉnh/Thành phố* · *Địa chỉ giao hàng* (chỉ khi có) ·
+*Loại* · *Công nợ*. Trước lượt này là bốn: *Mã* · *Tên* · *Loại* · *Công nợ*.
+
+> **Khối này là một thứ khác với khối trên màn hình KHÁCH HÀNG** — hai màn hình, hai câu hỏi. Ở đây
+> mọi ô là dữ liệu **đã đóng băng lúc gửi duyệt** (mục 5, ý 8); ở kia là dữ liệu hôm nay.
+>
+> ***"Bỏ mục tên"* không phải bỏ tên khách hàng.** Câu kế tiếp của cùng yêu cầu đòi thêm *tên hộ kinh
+> doanh/tên công ty*, và đó chính là dữ liệu ô cũ đang mang — quyết định `05/09` đã đổi nhãn của nó ở
+> biểu mẫu lập khách hàng, trang hồ sơ là chỗ còn sót. Đây là một lượt **đổi nhãn cộng thêm một ô**.
+>
+> **Địa chỉ giao hàng chỉ hiện khi có**, mỗi địa chỉ một dòng. Không có dòng nào nghĩa là *giao tới
+> địa chỉ đăng ký*, một câu trả lời đầy đủ chứ không phải một ô còn trống.
+>
+> **Hồ sơ gửi duyệt TRƯỚC 06/09 hiện MỘT ô *Địa chỉ đăng ký*** thay cho hai ô: lượt gửi của chúng chỉ
+> giữ lại địa chỉ ở dạng một dòng, và phần mềm bày đúng thứ đã giữ chứ không tự cắt ra hai ô — cắt sai
+> chỗ thì không ai biết. Hồ sơ còn trong luồng có hai ô ngay lượt gửi lại tiếp theo; hồ sơ đã có hiệu
+> lực giữ nguyên một ô, đúng như một tờ giấy đã ký.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

@@ -936,8 +936,17 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 | Thẻ **Khách hàng** | Nghĩa |
 |---|---|
 | Mã | Bấm vào mở màn hình khách hàng đó |
-| Tên · Loại · Công nợ | Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
+| Người đại diện | `mới 06/09` |
+| Tên Hộ kinh doanh/Tên Công ty | `đổi tên 06/09` — trước là *Tên*, cùng một thông tin |
+| Số nhà, Phường xã · Tỉnh/Thành phố | Địa chỉ theo giấy đăng ký kinh doanh `mới 06/09` |
+| Địa chỉ giao hàng | **Chỉ hiện khi có** — mỗi địa chỉ một dòng. Không có dòng nào nghĩa là giao tới địa chỉ đăng ký `mới 06/09` |
+| Loại · Công nợ | Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
 | Trạng thái | **Chỉ hiện khi khách đã ngừng hợp tác** — hồ sơ cũ của họ vẫn mở được |
+
+> **Hồ sơ lập trước 06/09 hiện MỘT ô *Địa chỉ đăng ký* thay cho hai ô.** Lượt gửi duyệt của chúng chỉ
+> giữ lại địa chỉ ở dạng một dòng, và phần mềm bày đúng thứ đã được giữ chứ không tự cắt ra hai ô.
+> Hồ sơ còn đang đi trong luồng sẽ có hai ô ngay ở lượt gửi lại tiếp theo; hồ sơ đã có hiệu lực thì
+> giữ nguyên một ô — đó là thông tin đã đóng băng trên một tờ giấy đã ký.
 
 > **Tên và công nợ ở thẻ này là số LÚC GỬI DUYỆT, không phải số hôm nay** `sửa 24/08`. Hồ sơ đã gửi
 > duyệt thì thông tin khách hàng in trên bản CSBH được **giữ nguyên** — sửa hồ sơ khách hàng về sau
@@ -948,6 +957,9 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 >
 > Hồ sơ còn *Nháp* thì chưa có gì được giữ, nên thẻ hiện số hiện tại — đúng quãng người lập còn
 > đang cân nhắc. *Loại khách hàng* và nhãn *đã ngừng hợp tác* luôn là tin của hôm nay.
+>
+> `bổ sung 06/09`: **người đại diện, hai ô địa chỉ đăng ký và địa chỉ giao hàng cũng theo luật này** —
+> giữ nguyên như lúc gửi duyệt. Đổi địa chỉ khách hàng không làm đổi một hồ sơ đã đưa đi ký.
 
 Ba mốc ngày tháng nằm ở ba ô riêng chứ không nối nhau trên một dòng: *ngày soạn thảo* và *ngày áp
 dụng* cách nhau hàng tuần ở hồ sơ soạn dần, và đọc nhầm mốc nào cũng ra một ngày trông hợp lý.

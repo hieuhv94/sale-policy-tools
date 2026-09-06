@@ -221,6 +221,8 @@ export class CustomerInternalController {
       tdv_user_id: string;
       id_number: string | null;
       registered_address: string;
+      province: string;
+      street_ward: string;
       delivery_address: string | null;
       owner_name: string;
       owner_title: string | null;
@@ -229,7 +231,8 @@ export class CustomerInternalController {
       debt_note: string | null;
     }>(
       `SELECT id, code, name, customer_type, status::text AS status,
-              tdv_user_id, id_number, registered_address, delivery_address,
+              tdv_user_id, id_number, registered_address, province, street_ward,
+              delivery_address,
               owner_name, owner_title, phone, debt_term, debt_note
          FROM cus.customer WHERE id = $1`,
       [id],
@@ -244,6 +247,17 @@ export class CustomerInternalController {
       tdvUserId: row.tdv_user_id,
       idNumber: row.id_number,
       registeredAddress: row.registered_address,
+      /*
+       * HAI Ô NGUỒN của địa chỉ đăng ký (`0177`).
+       *
+       * `registeredAddress` ngay trên là cột DẪN XUẤT từ đúng hai ô này
+       * (`0175`), và nó ở lại vì tầng văn bản in thẳng chuỗi ấy ra giấy. Hai ô
+       * rời thêm vào đây vì từ `0177` `policy` chụp CHÚNG vào hồ sơ lúc gửi
+       * duyệt: khối *Khách hàng* trên trang hồ sơ bày hai ô, và tách ngược chuỗi
+       * gộp là suy ngược lên hình dạng của một cột dẫn xuất.
+       */
+      province: row.province,
+      streetWard: row.street_ward,
       deliveryAddress: row.delivery_address,
       ownerName: row.owner_name,
       ownerTitle: row.owner_title,

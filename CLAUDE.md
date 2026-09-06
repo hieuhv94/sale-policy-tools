@@ -85,9 +85,26 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (05/09/2026)
+## Trạng thái hiện tại (06/09/2026)
 
-Chặng gần nhất **P204** (`0176`): **nút *Xoá* của hàng địa chỉ tụt xuống 12px** — một dòng CSS, lý do
+Chặng gần nhất **P205** (`0177`): **khối *Khách hàng* trên trang hồ sơ — bốn ô thành tám**, và
+***"bỏ mục tên"* KHÔNG phải bỏ tên**: câu kế tiếp của cùng yêu cầu đòi *tên hộ kinh doanh/tên công
+ty*, đúng dữ liệu ô ấy đang mang — `0175` đã đổi nhãn nó ở biểu mẫu, trang hồ sơ là chỗ còn sót. **Mô
+-típ `0171` lần thứ hai.** Bốn trong năm trường đã có ảnh chụp từ `0101`; chỗ tốn công là **`0175` để
+lại một nửa việc đóng băng** — nó biến `registered_address` thành cột DẪN XUẤT của
+`street_ward`/`province`, mà `0101` đóng băng đúng cột dẫn xuất ấy, nên hệ thống **đóng băng cái bóng
+mà không đóng băng cái nguồn**; không ai thấy tới khi màn hình đòi hai ô. Tách ngược chuỗi gộp ở dấu
+phẩy cuối **chạy được hôm nay** và hỏng NGẦM ngày trigger đổi dấu ngăn → `0115` thêm
+`kh_so_nha_snap`/`kh_tinh_thanh_snap`. **Không backfill** (đọc `cus` là lấy địa chỉ HÔM NAY, tức viết
+lại một ảnh chụp), nên chỗ đọc có **BA nhánh** và nhánh ba là nhánh dễ viết sai vì bản sai TRÔNG ĐÚNG:
+`?? khach?.streetWard` chỉ lộ ra với khách ĐÃ đổi địa chỉ. Hình dạng một-ô tự hết — `0101` chụp lại cả
+khối ở MỖI lượt gửi. **Địa chỉ giao hàng tách ngược ĐƯỢC** (ràng buộc cấm `\n` của `0154`), địa chỉ
+đăng ký thì không (`', '` là chuỗi hợp lệ giữa lòng một địa chỉ). Bẫy `0128` lại đúng chỗ cũ:
+`province`/`street_ward` thiếu trong `SELECT` liệt kê từng cột của `customer/internal.controller` →
+**2 đỏ**. Cột nhãn nới bằng biến trên KHỐI (`0176`), ca kiểm canh **BA vế** — vế thứ ba là *class có
+mặt trên `<section>`*, thiếu nó thì hai vế kia thành mã chết. **1998/1998 xanh.**
+
+Trước đó **P204** (`0176`): **nút *Xoá* của hàng địa chỉ tụt xuống 12px** — một dòng CSS, lý do
 đáng nhớ hơn bản sửa. `.hang-dia-chi` căn `align-items: end` (chủ ý), `.truong` mang
 `margin-bottom: var(--k3)` (cũng chủ ý) — và **flexbox căn theo HỘP CÓ LỀ**, nên nút thẳng mép dưới
 của cái LỀ chứ không của ô nhập. Hai luật đều đúng ở chỗ của chúng; đọc CSS không thấy, nhìn thì thấy
@@ -837,8 +854,17 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `templates.duongDan()`, một hàm cho cả thư lẫn chuông. Hai lá thư của `identity` (kích hoạt, đặt
   lại mật khẩu) **không** sinh thông báo: chúng mang token thô, mà `ONB-15` cấm token thô nằm trong
   CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
-- **Khách hàng và hai cái tên đóng băng lúc gửi duyệt** (`0101`) — tám cột `kh_*_snap` cộng
-  `nguoi_de_nghi_snap` trên `pol.policy`; `tbp_ky_ten_snap` chụp lúc KÝ. Cột rời chứ không jsonb, để
+- **Khách hàng và hai cái tên đóng băng lúc gửi duyệt** (`0101`, `0177`) — mười cột `kh_*_snap` cộng
+  `nguoi_de_nghi_snap` trên `pol.policy`; `tbp_ky_ten_snap` chụp lúc KÝ. `0177` thêm
+  `kh_so_nha_snap`/`kh_tinh_thanh_snap` **bên cạnh** `kh_dia_chi_dang_ky_snap` chứ không thay nó:
+  `0175` biến `registered_address` thành cột DẪN XUẤT, nên từ đó `0101` đóng băng CÁI BÓNG mà không
+  đóng băng CÁI NGUỒN. Cột gộp GIỮ — `document` in thẳng nó ra giấy; **đừng tách ngược nó** ở dấu phẩy
+  cuối, phép ấy chạy được hôm nay và hỏng NGẦM ngày `tr_dung_dia_chi_dang_ky` đổi dấu ngăn. Hồ sơ gửi
+  trước `0177` có hai cột mới NULL — **KHÔNG backfill và KHÔNG rơi về đọc sống** (địa chỉ hôm nay
+  không phải địa chỉ lúc gửi); màn hình bày MỘT ô *Địa chỉ đăng ký* thay hai ô, và hình dạng ấy tự hết
+  vì ảnh chụp làm mới ở mỗi lượt gửi. `kh_noi_nhan_hang_snap` **tách ngược ĐƯỢC** thành danh sách nhờ
+  ràng buộc cấm `\n` của `0154` — hai cột gộp trông giống nhau mà chỉ một cái đảo ngược được. Cột rời
+  chứ không jsonb, để
   thêm một trường về sau **buộc** phải viết migration, tức buộc phải trả lời "đóng băng hay đọc
   sống?". Vế đọc ở `khachHangCua`/`nguoiCua` (`render.service.ts`), quyết định theo **ảnh chụp có
   mặt hay không**, không theo trạng thái. *Kế toán* và *Sale Admin* KHÔNG đóng băng — câu chúng trả

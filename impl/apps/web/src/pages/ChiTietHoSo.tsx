@@ -69,6 +69,17 @@ type HoSo = {
   khachHang?: {
     ma: string;
     ten: string;
+    /** `0177` — bốn trường dưới đây đóng băng lúc gửi duyệt, cùng `ten`. */
+    nguoiDaiDien: string | null;
+    soNha: string | null;
+    tinhThanh: string | null;
+    /**
+     * Chuỗi gộp `"số nhà, tỉnh thành"` — CHỈ là giá trị lùi cho hồ sơ gửi trước
+     * `0177`, lúc hai ô trên chưa được chụp. Đọc nó khi và chỉ khi cả hai rỗng.
+     */
+    diaChiDangKy: string | null;
+    /** Mảng RỖNG = *"giao tới địa chỉ đăng ký"* (`0006`), không phải thiếu. */
+    noiNhanHang: string[];
     loai: number;
     congNo: string | null;
     trangThai: string | null;
@@ -886,6 +897,39 @@ function O({ nhan, children }: { nhan: string; children: ReactNode }) {
 }
 
 /**
+ * Địa chỉ đăng ký: HAI Ô, hoặc MỘT ô cho hồ sơ gửi trước `0177`.
+ *
+ * Hai hình dạng, và cái thứ hai không phải một đường suy tàn cần che đi — nó nói
+ * đúng thứ đã được đóng băng. Hồ sơ gửi trước `0177` chỉ chụp cột GỘP
+ * `kh_dia_chi_dang_ky_snap`; tách ngược nó ở dấu phẩy là suy ngược lên hình dạng
+ * của một cột dẫn xuất (`0175`), còn đọc sống hai ô của khách hàng hôm nay là
+ * trộn hai thời điểm vào một khối đã đóng băng — đúng thứ `0101` chống.
+ *
+ * Hình dạng cũ tự hết: `0101` chụp lại cả khối ở MỖI lượt gửi, nên hồ sơ còn đi
+ * trong luồng có hai ô ngay lượt gửi lại tiếp theo. Chỉ hồ sơ đã có hiệu lực giữ
+ * nó mãi, và đó đúng là điều nên xảy ra với một hồ sơ đã ký.
+ */
+function DiaChiDangKy({
+  kh,
+}: {
+  kh: { soNha: string | null; tinhThanh: string | null; diaChiDangKy: string | null };
+}) {
+  if (!kh.soNha && !kh.tinhThanh) {
+    // Không có ô gộp nào để lùi về thì thôi hẳn, chứ không bày một ô dấu gạch:
+    // hồ sơ chưa gửi duyệt của một khách chưa khai địa chỉ mới rơi vào đây, và
+    // ô ấy sẽ hiện ra ngay khi họ khai.
+    if (!kh.diaChiDangKy) return null;
+    return <O nhan="Địa chỉ đăng ký">{kh.diaChiDangKy}</O>;
+  }
+  return (
+    <>
+      <O nhan="Số nhà, Phường xã">{kh.soNha || '—'}</O>
+      <O nhan="Tỉnh/Thành phố">{kh.tinhThanh || '—'}</O>
+    </>
+  );
+}
+
+/**
  * Hai nhóm thông tin ở đầu màn hình hồ sơ (`0061`): hồ sơ, và khách hàng của nó.
  *
  * TRẠNG THÁI nằm trong lưới chứ không còn là một nhãn rời ở góc phải: góc ấy giờ
@@ -914,7 +958,7 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
         </dl>
       </section>
 
-      <section className="tom-tat-nhom">
+      <section className="tom-tat-nhom tom-tat-khach">
         <h2>Khách hàng</h2>
         {kh === null || kh === undefined ? (
           // Nói THÀNH LỜI. Một khối rỗng ở đây đọc ra là "hồ sơ này không có
@@ -929,7 +973,43 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
                 {kh.ma}
               </Lien>
             </O>
-            <O nhan="Tên">{kh.ten}</O>
+            {/*
+              TẬP Ô VÀ THỨ TỰ — khách hàng chốt 06/09 (`0177`).
+
+              *"Bỏ mục Tên, thay vào đó bổ sung thêm tên người đại diện, tên hộ
+              kinh doanh/tên công ty"* là MỘT việc, không phải hai. Ô cũ nhãn
+              *Tên* mang đúng tên pháp nhân, và `0175` đã đổi nhãn của nó ở biểu
+              mẫu lập khách hàng thành *Tên Hộ kinh doanh/Tên Công ty* — trang
+              này là chỗ còn sót lại. Đọc riêng vế đầu mà bỏ hẳn ô là làm sai cả
+              hai vế, đúng lối `0171` đã ghi.
+
+              Thứ tự theo đúng câu khách hàng viết: người đại diện TRƯỚC tên
+              pháp nhân, và *Số nhà, Phường xã* trước *Tỉnh/Thành phố* — ngược
+              với trang khách hàng, nơi hai ô ấy đi theo thứ tự của biểu mẫu.
+              Chọn theo bản vẽ của họ chứ không theo phép nhất quán, cùng lẽ với
+              `0171` và `0174`.
+            */}
+            <O nhan="Người đại diện">{kh.nguoiDaiDien || '—'}</O>
+            <O nhan="Tên Hộ kinh doanh/Tên Công ty">{kh.ten}</O>
+            <DiaChiDangKy kh={kh} />
+            {/*
+              ĐỊA CHỈ GIAO HÀNG — CHỈ KHI CÓ, cùng luật với trang khách hàng
+              (`0175`). Mảng rỗng nghĩa là *"giao tới địa chỉ đăng ký"* (`0006`),
+              nên một ô ghi dấu gạch ở đây nói rằng khách thiếu một thông tin mà
+              họ không hề thiếu.
+
+              Mỗi địa chỉ một DÒNG: nối bằng dấu phẩy thì một địa chỉ vốn đã có
+              dấu phẩy sẽ đọc ra thành hai.
+            */}
+            {kh.noiNhanHang.length > 0 && (
+              <O nhan="Địa chỉ giao hàng">
+                {kh.noiNhanHang.map((d, i) => (
+                  <span key={i} className="dong-dia-chi">
+                    {d}
+                  </span>
+                ))}
+              </O>
+            )}
             <O nhan="Loại">{nhanLoaiKhach(kh.loai)}</O>
             {/* `0138` — điều khoản thanh toán, đã đóng băng vào hồ sơ lúc gửi
                 duyệt (`0101`). Không còn ` đ` ở cuối. */}

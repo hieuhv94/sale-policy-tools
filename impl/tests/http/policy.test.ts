@@ -4478,6 +4478,154 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     expect(snap.rows[0]!.kh_dien_thoai_snap).not.toBe(sdtMoi);
   }, 60_000);
 
+  /*
+   * `0177` — HAI Ô ĐỊA CHỈ ĐĂNG KÝ và ĐỊA CHỈ GIAO HÀNG trên khối khách hàng.
+   *
+   * Cùng câu hỏi mà `0101` dựng cột rời để bắt phải hỏi, và `0128` hỏi lần đầu:
+   * *"đóng băng hay đọc sống?"*. Câu trả lời lần này cũng là ĐÓNG BĂNG, nhưng lý
+   * do hẹp hơn: `kh_dia_chi_dang_ky_snap` ĐÃ đóng băng địa chỉ ấy từ `0101`, nên
+   * bày hai ô đọc sống cạnh nó là dựng ra một khối nói hai địa chỉ khác nhau cho
+   * cùng một hồ sơ — chính thứ `0101` sinh ra để chống.
+   */
+  const khachCoDiaChi = async (over: Record<string, unknown> = {}): Promise<string> => {
+    const r = await (await http(customer))
+      .post('/customers')
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({
+        code: uniq('KH'),
+        name: 'Ho kinh doanh Minh Anh',
+        customerType: 1,
+        province: 'Thành phố Hà Nội',
+        streetWard: 'Số 12 ngõ 5, Phường Láng Hạ',
+        deliveryAddresses: ['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng'],
+        ownerName: 'Nguyen Thi Dai Dien',
+        ownerTitle: 'Chu ho',
+        idNumber: mstDuyNhat(),
+        phone: '0900000000',
+        ...over,
+      });
+    if (r.status !== 201) throw new Error(`tạo khách hàng hỏng: ${JSON.stringify(r.body)}`);
+    return r.body.id as string;
+  };
+
+  it('`0177` hồ sơ NHÁP đọc SỐNG hai ô địa chỉ và danh sách giao hàng', async () => {
+    /*
+     * Vế đầu của cặp: chưa gửi duyệt thì chưa có ảnh chụp nào, và khối phải theo
+     * kịp khách hàng hôm nay — cùng lẽ với giá và ngưỡng ở `0029`.
+     *
+     * Ca này cũng là chốt duy nhất canh bẫy `0128` cho hai cột mới: `province` và
+     * `street_ward` phải có mặt trong câu `SELECT` liệt kê từng cột của
+     * `customer/internal.controller`. Thiếu chúng thì `policy` nhận `undefined`,
+     * TypeScript im vì hai trường khai tuỳ chọn, và hai ô ra rỗng.
+     */
+    const customerId = await khachCoDiaChi();
+    const d = await draft({ customerId });
+
+    const r = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r.status).toBe(200);
+    expect(r.body.khachHang.soNha).toBe('Số 12 ngõ 5, Phường Láng Hạ');
+    expect(r.body.khachHang.tinhThanh).toBe('Thành phố Hà Nội');
+    expect(r.body.khachHang.nguoiDaiDien).toBe('Nguyen Thi Dai Dien');
+    expect(r.body.khachHang.noiNhanHang).toEqual([
+      'Kho 1, KCN Bắc Thăng Long',
+      'Số 8 Trần Duy Hưng',
+    ]);
+
+    // Đổi khách hàng thì hồ sơ Nháp ĐỔI THEO.
+    const sua = await (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ province: 'Tỉnh Bắc Ninh' });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+
+    const r2 = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r2.body.khachHang.tinhThanh).toBe('Tỉnh Bắc Ninh');
+  }, 60_000);
+
+  it('`0177` GỬI DUYỆT đóng băng hai ô địa chỉ và danh sách giao hàng', async () => {
+    const customerId = await khachCoDiaChi();
+    const d = await draft({ customerId });
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const sua = await (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({
+        province: 'Tỉnh Bắc Ninh',
+        streetWard: 'Số 99 Đường Mới',
+        deliveryAddresses: ['Kho 2, Quế Võ'],
+      });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+
+    // Hồ sơ giữ ĐỊA CHỈ CŨ, cả hai ô lẫn danh sách giao hàng.
+    const r = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r.body.khachHang.soNha).toBe('Số 12 ngõ 5, Phường Láng Hạ');
+    expect(r.body.khachHang.tinhThanh).toBe('Thành phố Hà Nội');
+    expect(r.body.khachHang.noiNhanHang).toEqual([
+      'Kho 1, KCN Bắc Thăng Long',
+      'Số 8 Trần Duy Hưng',
+    ]);
+
+    /*
+     * Và đọc thẳng CSDL: hai ô phải nằm trong CỘT RIÊNG, không phải suy ra từ
+     * `kh_dia_chi_dang_ky_snap` lúc đọc. Cột gộp là DẪN XUẤT (`0175`) — tách
+     * ngược nó chạy được hôm nay và hỏng ngầm ngày trigger đổi dấu ngăn.
+     */
+    const snap = await withAdminDb(async (c) =>
+      c.query<{ kh_so_nha_snap: string | null; kh_tinh_thanh_snap: string | null }>(
+        `SELECT kh_so_nha_snap, kh_tinh_thanh_snap FROM pol.policy WHERE id = $1`,
+        [d.id],
+      ),
+    );
+    expect(snap.rows[0]!.kh_so_nha_snap).toBe('Số 12 ngõ 5, Phường Láng Hạ');
+    expect(snap.rows[0]!.kh_tinh_thanh_snap).toBe('Thành phố Hà Nội');
+  }, 60_000);
+
+  it('`0177` hồ sơ gửi TRƯỚC migration: hai ô rỗng, KHÔNG rơi về đọc sống', async () => {
+    /*
+     * Dựng thẳng trên CSDL vì không đường API nào tạo ra được tình huống này: nó
+     * là hồ sơ đã gửi duyệt trước khi `0115` thêm hai cột.
+     *
+     * Điều ca này canh là một cám dỗ, không phải một lỗi hiển nhiên: chỗ đọc rất
+     * dễ viết `khSoNhaSnap ?? khach?.streetWard`, và nó sẽ trông đúng trên mọi
+     * khách hàng chưa đổi địa chỉ. Với khách ĐÃ đổi thì hồ sơ đã ký lặng lẽ hiện
+     * địa chỉ hôm nay cạnh một cột gộp mang địa chỉ cũ.
+     */
+    const customerId = await khachCoDiaChi();
+    const d = await draft({ customerId });
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET kh_so_nha_snap = NULL, kh_tinh_thanh_snap = NULL WHERE id = $1`, [
+        d.id,
+      ]),
+    );
+    // Khách hàng đổi địa chỉ SAU đó — nếu chỗ đọc rơi về đọc sống thì lộ ra ở đây.
+    const sua = await (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ province: 'Tỉnh Bắc Ninh', streetWard: 'Số 99 Đường Mới' });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+
+    const r = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r.body.khachHang.soNha).toBeNull();
+    expect(r.body.khachHang.tinhThanh).toBeNull();
+    // Cột gộp đã đóng băng vẫn còn, và nó là thứ màn hình bày thay.
+    expect(r.body.khachHang.diaChiDangKy).toBe('Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội');
+  }, 60_000);
+
+  it('`0177` khách KHÔNG có địa chỉ giao hàng thì danh sách RỖNG, không phải một dòng trắng', async () => {
+    /*
+     * Mảng rỗng có nghĩa riêng — *"giao tới địa chỉ đăng ký"* (`0006`) — nên một
+     * phần tử chuỗi rỗng lọt vào đây sẽ thành một dòng trắng trên màn hình, đọc
+     * ra như một địa chỉ chưa điền xong.
+     */
+    const customerId = await khachCoDiaChi({ deliveryAddresses: [] });
+    const d = await draft({ customerId });
+    const r = await get(`/policies/${d.id}`, 'tdv01');
+    expect(r.body.khachHang.noiNhanHang).toEqual([]);
+  }, 60_000);
+
   it('thiếu THỜI GIAN ÁP DỤNG thì không gửi duyệt được, và câu nói đúng chỗ khác', async () => {
     /*
      * Xoá trắng ngày TRỰC TIẾP trên CSDL, không qua API: từ `0104` lệnh tạo hồ

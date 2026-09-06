@@ -33,6 +33,13 @@ export type CustomerInfo = {
    */
   idNumber?: string | null;
   registeredAddress?: string | null;
+  /**
+   * HAI Ô NGUỒN của địa chỉ đăng ký (`0177`), chụp vào hồ sơ cùng cột gộp ngay
+   * trên. Cột gộp là DẪN XUẤT của đúng hai ô này (`0175`) — nó ở lại vì tờ giấy
+   * in thẳng chuỗi ấy, còn màn hình hồ sơ bày hai ô.
+   */
+  province?: string | null;
+  streetWard?: string | null;
   deliveryAddress?: string | null;
   ownerName?: string | null;
   ownerTitle?: string | null;

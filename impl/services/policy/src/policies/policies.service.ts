@@ -339,6 +339,24 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
 };
 
 /**
+ * Cột gộp địa chỉ giao hàng → DANH SÁCH (`0177`).
+ *
+ * `cus.customer.delivery_address` là cột dẫn xuất do trigger `tr_gop_dia_chi`
+ * dựng từ `cus.customer_address`, ngăn bằng `\n` (`0154`). Tách ngược ở đây an
+ * toàn vì `0154` kèm theo một ràng buộc CẤM ký tự xuống dòng bên trong một địa
+ * chỉ — không có nó thì phép tách này là một phỏng đoán.
+ *
+ * `null` và chuỗi rỗng đều ra MẢNG RỖNG, và mảng rỗng có nghĩa riêng: *"giao tới
+ * địa chỉ đăng ký"* (`0006`). Lọc bỏ dòng trắng để một dấu `\n` thừa ở cuối
+ * không đẻ ra một địa chỉ rỗng mà màn hình sẽ bày thành một dòng trống.
+ */
+const tachDiaChi = (v: string | null | undefined): string[] =>
+  (v ?? '')
+    .split('\n')
+    .map((x) => x.trim())
+    .filter((x) => x !== '');
+
+/**
  * Phần nhận dạng đi kèm MỌI sự kiện về hồ sơ.
  *
  * Bên nhận không đọc được schema pol lẫn cus, nên sự kiện chỉ mang `policyId`
@@ -1227,11 +1245,59 @@ export class PoliciesService {
         const anh = p as unknown as {
           khMaSnap: string | null;
           khTenSnap: string | null;
+          khNguoiDaiDienSnap: string | null;
+          khDiaChiDangKySnap: string | null;
+          khSoNhaSnap: string | null;
+          khTinhThanhSnap: string | null;
+          khNoiNhanHangSnap: string | null;
           khCongNoSnap: string | null;
         };
+        /*
+         * ĐỊA CHỈ ĐĂNG KÝ, ba nhánh và chúng nói ba chuyện khác nhau (`0177`).
+         *
+         *   1. Hồ sơ chưa gửi duyệt  → chưa có ảnh chụp nào, đọc SỐNG hai ô.
+         *   2. Gửi từ `0177` trở đi   → hai ô đã đóng băng, dùng chúng.
+         *   3. Gửi TRƯỚC `0177`       → chỉ có chuỗi gộp; hai ô về `null` và màn
+         *      hình bày MỘT ô *Địa chỉ đăng ký*.
+         *
+         * Nhánh 3 KHÔNG rơi về đọc sống hai ô của khách hàng hôm nay. Địa chỉ ấy
+         * có thể đã đổi sau lượt gửi, và bày nó cạnh những ô đã đóng băng là
+         * dựng ra một khối trộn hai thời điểm — đúng thứ `0101` sinh ra để
+         * chống. Chuỗi gộp là thứ thật sự đã được đóng băng, không hơn.
+         *
+         * Điều kiện là `khTenSnap`, không phải `khSoNhaSnap`: câu hỏi ở đây là
+         * *"hồ sơ này đã đóng băng chưa"*, và cột tên là cột trả lời nó ở khắp
+         * `0101` (`khachHangCua` bên `document` cũng đọc đúng cột ấy).
+         */
+        const daDongBang = anh.khTenSnap !== null;
         return {
           ma: anh.khMaSnap ?? khach?.code ?? '',
           ten: anh.khTenSnap ?? khach?.name ?? '',
+          nguoiDaiDien: anh.khNguoiDaiDienSnap ?? (daDongBang ? null : (khach?.ownerName ?? null)),
+          soNha: anh.khSoNhaSnap ?? (daDongBang ? null : (khach?.streetWard ?? null)),
+          tinhThanh: anh.khTinhThanhSnap ?? (daDongBang ? null : (khach?.province ?? null)),
+          /*
+           * Chuỗi gộp đi kèm, và nó CHỈ là giá trị lùi của nhánh 3 — màn hình
+           * đọc nó khi và chỉ khi hai ô trên đều rỗng. Gửi cả ba xuống chứ không
+           * để máy chủ tự chọn: hai ô rỗng vì "chưa khai" và hai ô rỗng vì "lượt
+           * gửi ấy chưa chụp" là hai chuyện, và chỉ nơi có cả ba giá trị mới
+           * phân biệt được.
+           */
+          diaChiDangKy: anh.khDiaChiDangKySnap ?? (daDongBang ? null : (khach?.registeredAddress ?? null)),
+          /*
+           * ĐỊA CHỈ GIAO HÀNG là một DANH SÁCH, tách từ cột gộp.
+           *
+           * `0154` cấm ký tự xuống dòng bên trong một địa chỉ, và chính ràng
+           * buộc ấy làm cho cột gộp tách ngược ra được — khác hẳn địa chỉ đăng
+           * ký ở ngay trên, nơi dấu ngăn `', '` cũng là một ký tự hợp lệ giữa
+           * lòng một địa chỉ.
+           *
+           * Mảng RỖNG nghĩa là *"giao tới địa chỉ đăng ký"* (`0006`), không phải
+           * thiếu dữ liệu — màn hình bỏ hẳn ô, không ghi dấu gạch.
+           */
+          noiNhanHang: tachDiaChi(
+            anh.khNoiNhanHangSnap ?? (daDongBang ? null : (khach?.deliveryAddress ?? null)),
+          ),
           loai: khach?.customerType ?? 0,
           congNo: anh.khCongNoSnap ?? khach?.debt ?? null,
           trangThai: khach?.status ?? null,
@@ -1644,13 +1710,27 @@ export class PoliciesService {
        * không dùng tới. Màn hình nào cần tên thì hỏi `/policy-templates/:id`.
        */
       /*
-       * Ảnh chụp khách hàng và người đề nghị (`0101`), ba trường mà MÀN HÌNH
-       * dùng tới. Năm trường còn lại chỉ có nghĩa với bản mềm, và `document`
-       * đọc thẳng chúng qua `internal/policies/:id` — không đẩy lên đây để một
-       * màn hình không cần chúng phải chở chúng đi.
+       * Ảnh chụp khách hàng và người đề nghị (`0101`), những trường mà MÀN HÌNH
+       * dùng tới. Phần còn lại chỉ có nghĩa với bản mềm, và `document` đọc thẳng
+       * chúng qua `internal/policies/:id` — không đẩy lên đây để một màn hình
+       * không cần chúng phải chở chúng đi.
+       *
+       * `0177` nâng danh sách từ ba lên tám: khối *Khách hàng* trên trang hồ sơ
+       * bày thêm người đại diện, địa chỉ đăng ký (hai ô, cộng cột gộp làm giá
+       * trị lùi cho hồ sơ gửi trước `0177`) và địa chỉ giao hàng. Ranh giới thì
+       * KHÔNG đổi — chức danh người đại diện và mã số thuế vẫn ở lại bên
+       * `document`, vì màn hình này không bày chúng.
        */
       khMaSnap: (p as unknown as { kh_ma_snap: string | null }).kh_ma_snap,
       khTenSnap: (p as unknown as { kh_ten_snap: string | null }).kh_ten_snap,
+      khNguoiDaiDienSnap: (p as unknown as { kh_nguoi_dai_dien_snap: string | null })
+        .kh_nguoi_dai_dien_snap,
+      khDiaChiDangKySnap: (p as unknown as { kh_dia_chi_dang_ky_snap: string | null })
+        .kh_dia_chi_dang_ky_snap,
+      khSoNhaSnap: (p as unknown as { kh_so_nha_snap: string | null }).kh_so_nha_snap,
+      khTinhThanhSnap: (p as unknown as { kh_tinh_thanh_snap: string | null }).kh_tinh_thanh_snap,
+      khNoiNhanHangSnap: (p as unknown as { kh_noi_nhan_hang_snap: string | null })
+        .kh_noi_nhan_hang_snap,
       khCongNoSnap: (p as unknown as { kh_cong_no_snap: string | null }).kh_cong_no_snap,
       nguoiDeNghiSnap: (p as unknown as { nguoi_de_nghi_snap: string | null }).nguoi_de_nghi_snap,
       lines,
