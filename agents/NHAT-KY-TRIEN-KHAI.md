@@ -15812,4 +15812,65 @@ theo UTC, ca kiểm xanh mười bảy giờ mỗi ngày và đỏ bảy giờ c
 
 **2020/2020 xanh** ở lượt chạy sạch trước khi phá lại.
 
-**2021/2021 xanh.**
+### Bộ nạp demo: hỏng ở BA chỗ, và chỗ thứ ba không đường nào bắt được
+
+`make demo-mau` là thứ đầu tiên phải chạy lại sau một lượt đổi luật, và lượt này nó hỏng ở ba chỗ —
+đúng hình dạng `0168` đã cắn: bộ nạp dựng dữ liệu qua **đường API thật**, nên mọi lượt siết API đều
+chạm nó, mà `make test` không chạy nó bao giờ (nó cần cả chồng demo).
+
+| Chỗ | Triệu chứng nếu để nguyên |
+|---|---|
+| `lapHoSo` gửi `appliedDate` ở cấp hồ sơ | trường ấy bị bỏ qua, **mọi dòng của ba năm lịch sử chụp bảng giá HÔM NAY** |
+| `cheDo()` chép lại luật cũ để chọn `SUPPLEMENT`/`AMEND` | `400 VALIDATION_FAILED` ngay hồ sơ thứ sáu |
+| `luiHoSo` đặt `applied_date` bằng SQL thô | `column "applied_date" does not exist` — bộ nạp chết giữa chừng |
+
+Chỗ thứ nhất là chỗ đáng sợ nhất vì nó **không làm hỏng gì**: bộ nạp vẫn chạy trọn, vẫn in ra "199 hồ
+sơ", và biểu đồ *tỷ lệ chiết khấu theo thời gian* thành một đường phẳng — đúng thứ `0095` dựng ba năm
+lịch sử ra để bày. Ngày áp dụng vì thế phải đính vào **từng dòng** ở `lapHoSo`, và `luiHoSo` phải vặn
+cả `pol.policy_line.ngay_ap_dung` chứ không riêng các mốc của `pol.policy`.
+
+`cheDo()` co lại còn một dòng, và cái mất là một bản chép: nó từng chép luật của máy chủ (*"có sản
+phẩm mới thì bổ sung"*) để đoán trước câu trả lời. Bản chép ấy đúng là thứ hỏng đầu tiên khi luật đổi.
+
+### Chốt chặn mới: `tests/db/bo-nap-demo.test.ts`
+
+`0168` dựng `gateway.test.ts` sau khi bộ định tuyến trôi lần thứ hai. Đây là cùng một nước đi cho bộ
+nạp demo, và câu hỏi nó hỏi là câu **hai thế giới**: mọi cột mà bộ nạp GHI bằng SQL thô có thật trong
+`information_schema` của CSDL đang chạy không.
+
+Nó **không** kiểm phần bộ nạp gọi API — chỗ ấy vẫn chỉ có một lượt `make demo-mau` thật canh, và ca
+kiểm nói thẳng điều đó thay vì để người đọc tưởng đã đủ. Vế thứ hai bù một phần hẹp: cấm đích danh ba
+cái tên `0180` vừa gỡ, sau khi đã bỏ chú thích khỏi mã (cấm nhắc tên cũ trong lời giải thích là cấm
+giải thích).
+
+Ca kiểm **đếm số cột đã quét** và đòi khác không. Không có dòng ấy thì nó xanh rực rỡ vào ngày phép
+rút chuỗi hỏng — phá lại lượt ba xác nhận: đổi danh sách tệp nguồn cho `seed-demo` rơi ra ngoài thì
+`daQuet` về 0 và ca đỏ đúng chỗ.
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `UPDATE pol.policy` đặt lại `applied_date` | 1 đỏ, nêu đúng `pol.policy.applied_date` |
+| Gửi lại `mode: 'AMEND'` | 1 đỏ, kèm lý do và mã chặng |
+| Bỏ `seed-demo` khỏi danh sách tệp quét | 1 đỏ ở ca ĐẾM — phép quét tự tắt bị bắt |
+
+### Nghiệm thu trên chồng demo thật
+
+`make demo` (dựng lại ảnh) → `make demo-mau`: chạy trọn, **199 hồ sơ · 713 dòng sản phẩm · 0 dòng
+thiếu ngày · 6 mốc ngày khác nhau từ 16/05/2024 tới 01/08/2026**. Ba trạng thái đều có mặt trong dữ
+liệu mẫu mà không phải dựng riêng: **288 *Bổ sung* · 236 *Đang áp dụng* · 189 *Chỉnh sửa*** — bộ nạp
+đổi hệ số CPBH ở mỗi mốc lịch sử nên dòng thừa kế tự khác đi.
+
+Một hồ sơ đọc qua API thật (`tdv01`, `CSBH-2026-000188`, phiên bản 6) bày đủ cả ba trong một bảng, và
+`appliedDate` **không còn trong DTO**:
+
+```
+NC-DIA-850  | 2026-08-01 | BO_SUNG      | CK 16.00 | CK cũ —
+NC-GOLD-900 | 2026-08-01 | CHINH_SUA    | CK 15.28 | CK cũ 15.18
+NC-OLD-400  | 2026-03-19 | DANG_AP_DUNG | CK 14.97 | CK cũ —
+```
+
+Bản mềm dựng qua gateway bằng **cả hai** mẫu mặc định — HTTP 200, 34.314 và 33.313 byte, `%PDF-` —
+và tờ giấy nói đúng thứ đã chốt: cột *Ngày áp dụng* đứng ngay trước *Mã sản phẩm*, **không** có dòng
+*Thời gian áp dụng* ở đầu trang, **không** có cột *Trạng thái* lẫn *Tỷ lệ CK cũ*.
+
+**2023/2023 xanh.**

@@ -829,13 +829,26 @@ async function luiHoSo(
             sa_handover_at    = ($2::date - interval '3 days'),
             kt_l2_received_at = $2::date,
             effective_from    = $2::date,
-            applied_date      = $2::date,
             sla_started_at    = NULL,
             sla_due_at        = NULL,
             row_version       = row_version + 1
       WHERE id = $1`,
     [id, moc.ngay],
   );
+
+  /*
+   * NGÀY ÁP DỤNG của từng dòng đi theo (`0180`).
+   *
+   * Trước `0180` đây là một cột của `pol.policy` và câu `UPDATE` ngay trên đặt
+   * nó cùng lúc với mọi mốc khác. Giờ nó nằm ở `pol.policy_line`, nên bỏ câu
+   * này là hồ sơ mang mốc 2024 mà mọi dòng sản phẩm ghi *áp dụng từ hôm nay* —
+   * và bộ lọc *"CSBH áp dụng từ … đến …"* (đọc ngày SỚM NHẤT của các dòng) gom
+   * cả ba năm lịch sử về một ngày.
+   */
+  await db.query(`UPDATE pol.policy_line SET ngay_ap_dung = $2::date WHERE policy_id = $1`, [
+    id,
+    moc.ngay,
+  ]);
 
   // Nhật ký hồ sơ phải khớp với những mốc vừa đặt. Không sửa thì màn hình *Lịch
   // sử* của một hồ sơ năm 2024 kể lại rằng nó đi hết mười bước vào hôm nay.
@@ -1086,17 +1099,30 @@ async function main(): Promise<void> {
     cpbh: cpbh.map(String),
   });
 
+  /**
+   * Lập một hồ sơ, và GẮN NGÀY ÁP DỤNG VÀO TỪNG DÒNG (`0180`).
+   *
+   * Trước `0180` ngày là một trường của hồ sơ và bộ nạp gửi nó một lần. Giờ nó
+   * thuộc về dòng sản phẩm, nên bộ nạp phải đính nó vào mỗi dòng — và đó không
+   * phải một phép đổi hình dạng cho vừa DTO: ngày ấy **quyết định bảng giá và
+   * ngưỡng được chụp** (`0029`). Bỏ qua thì mọi hồ sơ của ba năm lịch sử chụp
+   * bảng giá HÔM NAY, và biểu đồ *tỷ lệ chiết khấu theo thời gian* thành một
+   * đường phẳng — đúng thứ `0095` dựng lịch sử ra để tránh.
+   *
+   * `ngayApDung` khai ở đây chứ không ở `dong()`: mọi dòng của một hồ sơ demo
+   * cùng ngày, và bắt mười tám chỗ gọi `dong()` mang thêm một tham số là mời
+   * người sau bỏ sót một chỗ.
+   */
   const lapHoSo = async (
     khachHang: string,
     lines: object[],
     ai = 'tdv01',
-    them: { mode?: string; appliedDate?: string } = {},
+    them: { mode?: string; ngayApDung?: string } = {},
   ) =>
     (
       await goi<CoId>('/policies', ai, {
         customerId: khach[khachHang]!,
-        lines,
-        appliedDate: them.appliedDate ?? '2026-08-01',
+        lines: lines.map((l) => ({ ...l, ngayApDung: them.ngayApDung ?? '2026-08-01' })),
         ...(them.mode ? { mode: them.mode } : {}),
       })
     ).id;
@@ -1235,22 +1261,22 @@ async function main(): Promise<void> {
   ];
 
   /**
-   * Khách nào đang có CSBH hiệu lực, và CSBH ấy gồm những sản phẩm nào (`0095`).
+   * Khách nào đang có CSBH hiệu lực (`0095`).
    *
    * Từ khi bộ nạp dựng ba năm lịch sử, phần lớn khách đã có một CSBH hiệu lực
-   * TRƯỚC khi vòng `KE_HOACH` chạy tới. `POST /policies` khi ấy đòi khai rõ đây
-   * là bản *bổ sung* hay *chỉnh sửa* (POL-04) — và chọn nhầm một trong hai thì
-   * máy chủ trả 409 chứ không đoán hộ.
+   * TRƯỚC khi vòng `KE_HOACH` chạy tới. `POST /policies` khi ấy **hỏi lại** thay
+   * vì đoán hộ (POL-04, POL-06), nên bộ nạp phải xác nhận.
    *
-   * Luật đúng bằng luật của máy chủ: có sản phẩm MỚI so với bản đang hiệu lực
-   * thì là *bổ sung*, không thì là *chỉnh sửa*.
+   * `0180` — MỘT giá trị. Trước lượt này chỗ này chép lại luật của máy chủ để
+   * chọn giữa `SUPPLEMENT` và `AMEND` (*"có sản phẩm mới thì bổ sung"*), và bản
+   * chép ấy là thứ đầu tiên hỏng khi luật đổi. Giờ chỉ còn câu hỏi *"có lập
+   * phiên bản mới không"*, nên tập sản phẩm thôi phải theo dõi ở đây — nhưng
+   * `spDangHieuLuc` GIỮ LẠI: nó vẫn trả lời *"khách này đã có CSBH hiệu lực
+   * chưa"*, và đó mới là điều quyết định có gửi `mode` hay không.
    */
   const spDangHieuLuc = new Map<string, Set<string>>();
-  const cheDo = (kh: string, ma: string[]): { mode?: string } => {
-    const dang = spDangHieuLuc.get(kh);
-    if (!dang) return {};
-    return { mode: ma.some((m) => !dang.has(m)) ? 'SUPPLEMENT' : 'AMEND' };
-  };
+  const cheDo = (kh: string): { mode?: string } =>
+    spDangHieuLuc.has(kh) ? { mode: 'NEW_VERSION' } : {};
 
   /**
    * THỨ TỰ TRONG BẢNG NÀY LÀ BẮT BUỘC: `DANG_CO_HIEU_LUC` phải đứng CUỐI.
@@ -1273,7 +1299,7 @@ async function main(): Promise<void> {
   for (const h of SAP_QUA_HAN) {
     stt += 1;
     const khSap = cuaTdv01[stt % cuaTdv01.length]!;
-    const id = await lapHoSo(khSap, dongCuaHoSo(stt), 'tdv01', cheDo(khSap, maCuaHoSo(stt)));
+    const id = await lapHoSo(khSap, dongCuaHoSo(stt), 'tdv01', cheDo(khSap));
     await dayToi(id, h.buoc);
     idSapQuaHan.push(id);
     daLap += 1;
@@ -1283,7 +1309,7 @@ async function main(): Promise<void> {
   for (const h of DA_QUA_HAN) {
     stt += 1;
     const khQua = cuaTdv01[stt % cuaTdv01.length]!;
-    const id = await lapHoSo(khQua, dongCuaHoSo(stt), 'tdv01', cheDo(khQua, maCuaHoSo(stt)));
+    const id = await lapHoSo(khQua, dongCuaHoSo(stt), 'tdv01', cheDo(khQua));
     await dayToi(id, h.buoc);
     idDaQuaHan.push({ id, buoc: h.buoc, quaHanNgay: h.quaHanNgay });
     daLap += 1;
@@ -1350,8 +1376,8 @@ async function main(): Promise<void> {
           stt += 1;
           const ma = maCuaHoSo(stt);
           const id = await lapHoSo(kh, dongCuaHoSo(stt), ai, {
-            appliedDate: m.ngay,
-            ...cheDo(kh, ma),
+            ngayApDung: m.ngay,
+            ...cheDo(kh),
           });
           // Cứ hai đời thì một đời bị trả lại — vượt ngưỡng ấy là bản demo trông
           // như một bộ phận không ai duyệt nổi hồ sơ của ai.
@@ -1377,7 +1403,7 @@ async function main(): Promise<void> {
       const kh = dich === 'DANG_CO_HIEU_LUC' ? cuaTdv01[i]! : cuaTdv01[stt % cuaTdv01.length]!;
       stt += 1;
       const ma = maCuaHoSo(stt);
-      const id = await lapHoSo(kh, dongCuaHoSo(stt), 'tdv01', cheDo(kh, ma));
+      const id = await lapHoSo(kh, dongCuaHoSo(stt), 'tdv01', cheDo(kh));
       daLap += 1;
       if (dich === 'DANG_CO_HIEU_LUC') spDangHieuLuc.set(kh, new Set(ma));
 

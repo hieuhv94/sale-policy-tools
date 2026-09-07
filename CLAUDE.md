@@ -103,7 +103,12 @@ mặc định KHÔNG tự nạp lại** (bộ nạp idempotent tính cả dòng 
 XOÁ ba dòng ấy. **Phá lại chín lượt, lượt XANH là lượt đáng giá nhất**: ca kiểm tập cột đọc `cot_bang`
 đã nạp trong CSDL nên nó chỉ đo được ở lượt chạy đầu tiên — chữa bằng cách tách quyết định thành hàm
 thuần `cotBangMauMacDinh(kind)`. **Một chẩn đoán sai đã hoàn tác**: `2,9994%` là làm tròn số nguyên
-của `w:tcW` (tổng ra 5001), không phải `apDungSan` không hội tụ. **2021/2021 xanh.**
+của `w:tcW` (tổng ra 5001), không phải `apDungSan` không hội tụ. **Bộ nạp demo hỏng ở BA chỗ** và
+chỗ nguy hiểm nhất *không làm hỏng gì*: gửi `appliedDate` ở cấp hồ sơ thì trường ấy bị bỏ qua, bộ nạp
+vẫn in *"199 hồ sơ"*, và ba năm lịch sử chụp bảng giá HÔM NAY — nên có `tests/db/bo-nap-demo.test.ts`
+đối chiếu cột SQL thô của bộ nạp với `information_schema`. Nghiệm thu trên chồng demo thật: 713 dòng ·
+0 thiếu ngày · **288 *Bổ sung* · 236 *Đang áp dụng* · 189 *Chỉnh sửa***, bản mềm hai mẫu mặc định
+HTTP 200 và in đúng cột *Ngày áp dụng*. **2023/2023 xanh.**
 
 Trước đó **P207** (`0179`): **cột nhãn khối *Khách hàng* trên trang hồ sơ đo TỪ NỘI DUNG**, để
 *Tên Hộ kinh doanh/Tên Công ty* thôi xuống dòng. Đo trước khi sửa, trên Chromium thật (Gotenberg dựng
