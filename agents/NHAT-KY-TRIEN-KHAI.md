@@ -16094,3 +16094,48 @@ hướng tệ nhất — khối hiện ra rồi mỗi tệp trả 403.
 > `assertCanRead(…, 'HO_SO')` cũng ném. Phá lại lần nữa: giờ nó đỏ.
 
 **2034/2034 xanh.**
+
+## P212 — `0184` TDV cũng đối chiếu được phiên bản trước, trong lúc soạn và lúc sửa
+
+Khách hàng đọc `0183` xong nói thẳng: *"TDV cũng có thể xem được để đối chiếu trong lúc sửa hoặc
+nháp"*.
+
+### Đây là hệ quả tôi đã nêu ra, và họ đảo lại
+
+`0183` mở khối cho đúng bốn bàn duyệt, theo chốt *"khi TDV gửi vào luồng duyệt"*, và tôi đã ghi hệ
+quả ngay trong nhật ký chặng ấy: **khối tắt trong lúc TDV sửa**. Khách hàng đọc rồi đảo, và họ đúng ở
+một điểm mà cả hai bên đều bỏ qua lúc chốt lần đầu: **người đang soạn cần đối chiếu TRƯỚC người đang
+duyệt** — sửa cho khớp rồi mới gửi thì đỡ hẳn một vòng trả lại.
+
+### Hằng đổi TÊN, không chỉ đổi nội dung
+
+`DANG_TRONG_LUONG` → `CHUA_DUYET_XONG`, và đó không phải chuyện chữ nghĩa: tập mới gồm cả *Nháp* và
+*Yêu cầu chỉnh sửa*, nên cái tên cũ nói sai về chính nó. Câu chung của tập mới là **hồ sơ còn đang
+được làm**; ba trạng thái ở ngoài đều vì cùng một lẽ — chúng đã xong.
+
+Dựng **từ `SUA_DUOC`** chứ không chép hai chuỗi: đó là nguồn sự thật của *"còn sửa được"*, và một bản
+chép ở đây sẽ trôi khỏi nó ở đúng lượt ai đó thêm một trạng thái sửa được.
+
+MỘT hằng cho cả hai chỗ — điều kiện bày khối (`load`) và phép nới quyền (`nguoi_xem_ban_truoc`). Hai
+bản là hai câu trả lời sẽ lệch, và lệch theo hướng tệ nhất: khối hiện ra rồi mỗi tệp trong nó trả
+403, hoặc quyền mở rộng hơn thứ màn hình bày.
+
+### Ca kiểm phải THAY chứ không sửa số
+
+Ca `0183` khẳng định *"hồ sơ Nháp trả `null`"* — một câu về chính điều vừa bị đảo. Nó được viết lại
+thành vế ngược, cộng một ca mới cho `YEU_CAU_CHINH_SUA`: hồ sơ vừa bị trả về kèm lý do, TDV mở ra
+sửa — đúng lúc câu hỏi *"bản trước ghi gì"* là câu họ đang phải trả lời.
+
+Ca giao diện mới canh một tính chất của MÀN HÌNH chứ không của luật: nó vẽ khối theo `banTruoc` máy
+chủ gửi và **không tự lọc theo `status`**. Thiếu nó thì một điều kiện trạng thái lọt vào component,
+và mọi lượt nới ở máy chủ về sau đều im lặng không có tác dụng — phá lại lượt ba dựng đúng cái ấy.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ `SUA_DUOC` khỏi tập | 2 đỏ — hồ sơ Nháp, và hồ sơ bị trả lại |
+| Nới quá tay: thêm `DANG_CO_HIEU_LUC` | 1 đỏ ở ca vế TẮT |
+| Giao diện tự lọc `status !== 'NHAP'` | 1 đỏ ở ca giao diện |
+
+**2036/2036 xanh.**

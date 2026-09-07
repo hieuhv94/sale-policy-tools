@@ -87,7 +87,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P211** (`0183`): **bản mềm và bản cứng của PHIÊN BẢN TRƯỚC** hiện trên hồ sơ đang
+Chặng gần nhất **P212** (`0184`): khối *bản mềm và bản cứng của phiên bản trước* mở thêm cho **TDV
+trong lúc soạn và lúc sửa**. Đây là **hệ quả tôi đã nêu ra ở `0183` và khách hàng đảo lại** — bản
+chốt đầu mở đúng bốn bàn duyệt nên khối tắt khi hồ sơ về tay TDV; họ đúng ở điểm cả hai bỏ qua lúc
+chốt: *người đang soạn cần đối chiếu TRƯỚC người đang duyệt*, sửa cho khớp rồi mới gửi thì đỡ một
+vòng trả lại. Hằng đổi cả TÊN: `DANG_TRONG_LUONG` → **`CHUA_DUYET_XONG`**, dựng **từ `SUA_DUOC`**
+chứ không chép hai chuỗi, và MỘT hằng cho cả điều kiện bày khối lẫn phép nới quyền. Ca `0183` khẳng
+định *"hồ sơ Nháp trả null"* nên phải **THAY chứ không sửa số**. **2036/2036 xanh.**
+
+Trước đó **P211** (`0183`): **bản mềm và bản cứng của PHIÊN BẢN TRƯỚC** hiện trên hồ sơ đang
 duyệt, chỉ đọc. Chốt chặn có thật làm chặng này không phải một lượt sửa giao diện: quyền đọc tệp tính
 theo **bốn cột người của chính hồ sơ chủ tệp** (`0031`), mà `0141` cho mỗi phiên bản chọn người duyệt
 riêng — nên đúng những lượt đổi người giữa hai bản, tức đúng lúc cần đối chiếu nhất, khối sẽ đầy thẻ

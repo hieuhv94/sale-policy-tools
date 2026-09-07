@@ -10,7 +10,7 @@ import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/c
 import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import {
-  DANG_TRONG_LUONG,
+  CHUA_DUYET_XONG,
   SQL_DONG_KHAC_BAN_TRUOC,
   SQL_NOI_BAN_TRUOC,
   SQL_TRANG_THAI_DONG,
@@ -165,9 +165,13 @@ export class PolicyInternalController {
     /*
      * NGƯỜI ĐƯỢC XEM TỆP CỦA HỒ SƠ NÀY VỚI TƯ CÁCH "BẢN TRƯỚC" (`0183`).
      *
-     * Bốn cột người của mọi hồ sơ KẾ NHIỆM đang đi trong luồng duyệt — tức
-     * những người đang phải duyệt một phiên bản thay thế chính hồ sơ này, và vì
-     * thế cần đọc được bản mềm với file scan của nó để so.
+     * Bốn cột người của mọi hồ sơ KẾ NHIỆM **chưa duyệt xong** — tức những
+     * người đang làm hoặc đang duyệt một phiên bản thay thế chính hồ sơ này, và
+     * vì thế cần đọc được bản mềm với file scan của nó để so.
+     *
+     * CÙNG một hằng với điều kiện bày khối (`CHUA_DUYET_XONG`), không phải một
+     * bản chép: hai chỗ trả lời khác nhau thì hoặc khối hiện ra mà mỗi tệp trong
+     * nó trả 403, hoặc quyền mở rộng hơn thứ màn hình bày.
      *
      * Trả về từ ĐÂY chứ không để `document` tự tra: `superseded_by_id` là cột
      * của `pol`, và `document` chỉ được hỏi qua đúng một cửa. Nó cũng đi CÙNG
@@ -183,7 +187,7 @@ export class PolicyInternalController {
          FROM pol.policy
         WHERE supersedes_id = $1
           AND status::text = ANY($2::text[])`,
-      [id, DANG_TRONG_LUONG],
+      [id, CHUA_DUYET_XONG],
     );
 
     return {

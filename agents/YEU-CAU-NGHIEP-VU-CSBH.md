@@ -2058,14 +2058,20 @@ bản mềm và bản cứng đã được lưu ở phiên bản ngay trước �
 >
 > **Ba điều kiện, và cả ba do MÁY CHỦ quyết định:**
 >
-> - hồ sơ **đang đi trong luồng duyệt** — bốn bàn: chờ TBP · chờ KT L1 · Sale Admin xử lý · chờ KT
->   L2. Khối tắt lúc còn *Nháp*, lúc bị trả lại, và sau khi duyệt xong;
+> - hồ sơ **chưa duyệt xong** `sửa 07/09` — *Nháp* · *Yêu cầu chỉnh sửa* · và bốn bàn duyệt (chờ TBP
+>   · chờ KT L1 · Sale Admin xử lý · chờ KT L2). Khối chỉ tắt khi hồ sơ đã xong: có hiệu lực, quá
+>   hạn, hoặc đã xoá;
 > - hồ sơ có **phiên bản trước** (bản mà nó thay thế);
 > - chỉ **hai loại tệp**: bản mềm và file scan. Giấy tờ hồ sơ của bản cũ đã được chép sang bản mới
 >   lúc lập (`28/08`), nên bày lại là bày hai lần cùng một tệp.
 >
 > **AI XEM ĐƯỢC:** ai đọc được hồ sơ MỚI. Không giới hạn đúng hai vai trò khách hàng nêu — Sale Admin
 > và Ban lãnh đạo cũng đọc chính hồ sơ ấy và cùng có nhu cầu đối chiếu.
+>
+> **TDV XEM ĐƯỢC TRONG LÚC SOẠN** `sửa 07/09` — *"TDV cũng có thể xem được để đối chiếu trong lúc sửa
+> hoặc nháp"*. Bản chốt đầu mở đúng bốn bàn duyệt, và hệ quả đã được nêu ra lúc ấy: khối tắt trong
+> lúc TDV sửa. Khách hàng đọc xong đảo lại, và họ đúng ở một điểm: **người đang soạn cần đối chiếu
+> TRƯỚC người đang duyệt** — sửa cho khớp rồi mới gửi thì đỡ hẳn một vòng trả lại.
 >
 > **Đây là một lượt NỚI QUYỀN, và nó cần thiết**: quyền đọc tệp vốn tính theo bốn cột người của chính
 > hồ sơ chủ tệp, mà mỗi phiên bản chọn người duyệt riêng (`27/08`). Không nới thì đúng những lượt đổi

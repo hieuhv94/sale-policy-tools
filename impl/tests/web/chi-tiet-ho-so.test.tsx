@@ -1081,6 +1081,46 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     expect(khoi.querySelector('.the-tep-go'), 'khối chỉ đọc mà có dấu ✕').toBeNull();
   });
 
+  it('`0184` khối hiện cả với TDV ở hồ sơ NHÁP — giao diện không lọc theo trạng thái', async () => {
+    /*
+     * `0183` mở khối cho bốn bàn duyệt; `0184` mở thêm *Nháp* và *Yêu cầu chỉnh
+     * sửa* để TDV đối chiếu trong lúc soạn.
+     *
+     * Ca này canh một tính chất của GIAO DIỆN chứ không của luật: màn hình vẽ
+     * khối theo `banTruoc` mà máy chủ gửi, **không** tự lọc theo `status`. Thiếu
+     * nó thì một điều kiện `status === 'CHO_TBP_DUYET'` lọt vào component và mọi
+     * lượt nới ở máy chủ về sau đều im lặng không có tác dụng.
+     */
+    // Vai TDV dựng tại chỗ: hằng `TDV` của tệp này sống trong một `describe`
+    // khác. Màn hình chỉ đọc VAI TRÒ từ phiên — phạm vi là việc của máy chủ.
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({
+        ...TBP,
+        user: { ...TBP.user, username: 'tdv01', role: 'TDV' },
+      }),
+    );
+    await mo(
+      {
+        ...HO_SO,
+        status: 'NHAP',
+        loaiTepGhiDuoc: [],
+        banTruoc: {
+          id: 'hs-cu',
+          code: 'CSBH-2026-000001',
+          versionNo: 1,
+          attachments: [],
+        },
+      },
+      [],
+    );
+
+    const khoi = document.querySelector('.khoi-ban-truoc') as HTMLElement;
+    expect(khoi, 'hồ sơ Nháp cũng phải có khối').not.toBeNull();
+    // Bản trước CHƯA có tệp nào: nói thành lời, không ẩn khối.
+    expect(khoi.textContent).toContain('chưa lưu bản mềm hay file scan nào');
+  });
+
   it('`0183` KHÔNG có bản trước thì không có khối nào — máy chủ quyết định', async () => {
     /*
      * Chiều đối chiếu. Giao diện KHÔNG tự suy từ `status`: `banTruoc` rỗng là

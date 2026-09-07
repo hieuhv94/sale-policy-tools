@@ -1423,22 +1423,48 @@ describe('`0183` tệp của phiên bản trước, cho người duyệt bản m
     return v2.body.id as string;
   };
 
-  it('hồ sơ ĐANG TRONG LUỒNG trả về bản mềm + file scan của bản liền trước', async () => {
+  it('hồ sơ CHƯA DUYỆT XONG trả về bản mềm + file scan của bản liền trước', async () => {
     const d = await draft();
     await chayHetLuong(d.id);
     const v2 = await lapV2(d);
 
-    // Còn NHÁP thì chưa có gì: khách hàng chốt khối chỉ hiện khi đang duyệt.
-    expect((await pget(`/policies/${v2}`, 'tdv01')).body.banTruoc, 'hồ sơ Nháp').toBeNull();
+    /*
+     * `0184` ĐẢO VẾ NÀY. `0183` trả `null` ở hồ sơ Nháp, theo chốt *"khi TDV gửi
+     * vào luồng duyệt"*; khách hàng đọc xong nói thẳng rằng TDV cũng cần đối
+     * chiếu **trong lúc soạn**. Người đang soạn cần nó TRƯỚC người đang duyệt —
+     * sửa xong rồi mới gửi thì đỡ một vòng trả lại.
+     */
+    const nhap = (await pget(`/policies/${v2}`, 'tdv01')).body.banTruoc;
+    expect(nhap, 'hồ sơ Nháp cũng phải có').not.toBeNull();
+    expect(nhap.id).toBe(d.id);
 
     expect((await act(v2, 'SUBMIT', 'tdv01')).status).toBe(200);
     const bt = (await pget(`/policies/${v2}`, 'tbp01')).body.banTruoc;
-    expect(bt, 'gửi duyệt rồi thì phải có').not.toBeNull();
+    expect(bt, 'gửi duyệt rồi thì vẫn có').not.toBeNull();
     expect(bt.id).toBe(d.id);
     expect(bt.versionNo).toBe(1);
 
     const loai = (bt.attachments as { kind: string }[]).map((t) => t.kind).sort();
     expect(loai, 'đúng hai loại, không kèm giấy tờ HO_SO').toEqual(['BAN_MEM', 'SCAN']);
+  }, 240_000);
+
+  it('`0184` hồ sơ BỊ TRẢ LẠI vẫn có — TDV đối chiếu trong lúc sửa', async () => {
+    /*
+     * Trạng thái thứ hai mà `0184` mở, và là trạng thái đáng giá nhất của cả
+     * lượt: hồ sơ vừa bị trả về kèm một lý do, TDV mở ra sửa — đúng lúc câu hỏi
+     * *"bản trước ghi gì"* là câu họ đang phải trả lời.
+     */
+    const d = await draft();
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    expect((await act(v2, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(
+      (await act(v2, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chu ky' })).status,
+    ).toBe(200);
+
+    const sau = (await pget(`/policies/${v2}`, 'tdv01')).body;
+    expect(sau.status).toBe('YEU_CAU_CHINH_SUA');
+    expect(sau.banTruoc, 'bị trả lại thì vẫn phải có').not.toBeNull();
   }, 240_000);
 
   it('GIẤY TỜ `HO_SO` của bản cũ KHÔNG lọt vào khối này', async () => {
@@ -1463,11 +1489,14 @@ describe('`0183` tệp của phiên bản trước, cho người duyệt bản m
     expect((await pget(`/policies/${d.id}`, 'tbp01')).body.banTruoc).toBeNull();
   }, 120_000);
 
-  it('DUYỆT XONG thì khối tắt — nó là công cụ của lượt duyệt, không phải của hồ sơ', async () => {
+  it('DUYỆT XONG thì khối tắt — nó là công cụ của lượt LÀM, không phải của hồ sơ', async () => {
     /*
-     * Khách hàng chốt *"chỉ khi đang trong luồng duyệt"*. Ca này canh vế TẮT,
-     * và nó cần thật: một điều kiện chỉ có vế bật thì bản sửa nào bỏ quên vế kia
-     * vẫn xanh.
+     * Vế TẮT, và nó cần thật: một điều kiện chỉ có vế bật thì bản sửa nào bỏ
+     * quên vế kia vẫn xanh.
+     *
+     * `0184` nới điều kiện sang cả *Nháp* và *Yêu cầu chỉnh sửa*, nhưng KHÔNG
+     * nới tới đây: hồ sơ đã có hiệu lực là hồ sơ đã xong, và khối này là công cụ
+     * của lượt đang làm.
      */
     const d = await draft();
     await chayHetLuong(d.id);

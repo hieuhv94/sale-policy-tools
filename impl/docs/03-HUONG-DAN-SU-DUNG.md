@@ -1350,15 +1350,16 @@ nhau. Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 
 ### Bản mềm và bản cứng của phiên bản trước `mới 07/09`
 
-Khi bạn mở một hồ sơ **sửa đổi/bổ sung đang đi trong luồng duyệt**, dưới hai khối trên có thêm một
-khối **chỉ để đối chiếu**: bản mềm và file scan đã lưu ở **phiên bản ngay trước đó** — bản mà hồ sơ
-này thay thế.
+Khi bạn mở một hồ sơ **sửa đổi/bổ sung chưa duyệt xong**, dưới hai khối trên có thêm một khối **chỉ
+để đối chiếu**: bản mềm và file scan đã lưu ở **phiên bản ngay trước đó** — bản mà hồ sơ này thay
+thế.
 
 - Khối nói rõ nó thuộc hồ sơ nào; **bấm vào mã hồ sơ** là sang xem bản cũ.
 - **Xem và tải được, không sửa được**: không có vùng kéo thả, không có dấu ✕. Đó là tờ giấy của một
   phiên bản đã ký.
-- Chỉ hiện **khi hồ sơ đang được duyệt** — từ lúc gửi duyệt tới khi duyệt xong. Lúc còn *Nháp*, lúc
-  bị trả lại, và sau khi đã có hiệu lực thì không có khối này.
+- Hiện **suốt thời gian hồ sơ còn đang được làm** `sửa 07/09`: lúc còn *Nháp*, lúc bị trả lại để
+  sửa, và cả bốn bước duyệt. **Trình dược viên đối chiếu được ngay trong lúc soạn** — sửa cho khớp
+  rồi mới gửi thì đỡ một vòng trả lại. Khối chỉ tắt khi hồ sơ đã xong: có hiệu lực, quá hạn, đã xoá.
 - Phiên bản **đầu tiên** của một khách hàng không có gì để so, nên cũng không có khối.
 - Phiên bản trước **chưa từng tới bước Sale Admin** thì khối vẫn hiện và nói rõ là chưa có tệp nào —
   chứ không biến mất, vì biến mất đọc ra như phần mềm không có tính năng này.

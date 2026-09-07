@@ -356,18 +356,35 @@ export const DA_DONG_BANG = [
 ];
 
 /**
- * ĐANG ĐI TRONG LUỒNG DUYỆT — bốn bàn làm việc, không hơn (`0183`).
+ * HỒ SƠ CHƯA DUYỆT XONG — còn soạn được, hoặc đang đi trong luồng (`0184`).
  *
- * Tập này khác `DA_DONG_BANG` đúng hai trạng thái, và cả hai đều bị loại có lý
- * do: `DANG_CO_HIEU_LUC` là hồ sơ đã duyệt xong, `QUA_HAN_DUYET` là trạng thái
- * KẾT THÚC (`18/08`) — không ai thao tác nữa.
+ * Điều kiện bày khối *bản mềm và bản cứng của phiên bản trước*.
  *
- * `YEU_CAU_CHINH_SUA` cũng KHÔNG nằm đây, và đó là chỗ đáng nói: hồ sơ ấy đã
- * quay về bàn TDV. Khách hàng chốt 07/09 rằng khối so sánh chỉ hiện *"khi đang
- * trong luồng duyệt"*, nên nó tắt trong lúc TDV sửa và bật lại ngay lượt gửi
- * tiếp theo.
+ * `0183` mở cho đúng bốn bàn làm việc, theo chốt *"khi TDV gửi vào luồng
+ * duyệt"*, và tôi đã ghi ra hệ quả: khối tắt trong lúc TDV sửa. Khách hàng đọc
+ * xong nói thẳng — *"TDV cũng có thể xem được để đối chiếu trong lúc sửa hoặc
+ * nháp"* — nên `0184` gộp thêm `SUA_DUOC`.
+ *
+ * Câu chung của cả tập: **hồ sơ còn đang được làm**. Người đang soạn cần đối
+ * chiếu đúng như người đang duyệt, và họ cần TRƯỚC — sửa xong rồi mới gửi thì
+ * đỡ một vòng trả lại.
+ *
+ * BA trạng thái vẫn ở ngoài, và cả ba vì cùng một lẽ — chúng đã xong:
+ * `DANG_CO_HIEU_LUC` (duyệt xong), `QUA_HAN_DUYET` (kết thúc, `18/08`),
+ * `DA_XOA`/`HET_HIEU_LUC`. Khối này là công cụ của lượt LÀM, không phải một mục
+ * của hồ sơ.
+ *
+ * Dựng TỪ hai hằng có sẵn chứ không chép sáu chuỗi: `SUA_DUOC` là nguồn sự thật
+ * của *"còn sửa được"*, và một bản chép ở đây sẽ trôi khỏi nó ở đúng lượt ai đó
+ * thêm một trạng thái sửa được.
  */
-export const DANG_TRONG_LUONG = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'];
+export const CHUA_DUYET_XONG = [
+  ...SUA_DUOC,
+  'CHO_TBP_DUYET',
+  'CHO_KT_L1',
+  'SA_DANG_XU_LY',
+  'CHO_KT_L2',
+];
 
 /**
  * `date` của Postgres về tới đây thành `Date`; catalog nhận chuỗi `yyyy-mm-dd`.
@@ -1874,7 +1891,7 @@ export class PoliciesService {
      * nào"* — hai câu khác nhau, và câu thứ hai đáng nói ra.
      */
     const banTruoc =
-      p.supersedes_id !== null && DANG_TRONG_LUONG.includes(p.status)
+      p.supersedes_id !== null && CHUA_DUYET_XONG.includes(p.status)
         ? (
             (await q(
               `SELECT c.id, c.code, c.version_no AS "versionNo",
