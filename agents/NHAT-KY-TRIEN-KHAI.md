@@ -16139,3 +16139,87 @@ và mọi lượt nới ở máy chủ về sau đều im lặng không có tác
 | Giao diện tự lọc `status !== 'NHAP'` | 1 đỏ ở ca giao diện |
 
 **2036/2036 xanh.**
+
+---
+
+## P213 — `0185` Hoàn duyệt: Trưởng bộ phận rút lại chữ ký của chính mình
+
+Khách hàng: *"Thêm một thao tác mới cho TBP với những CSBH đang trong luồng duyệt gọi là 'Hoàn
+duyệt', TBP có thể thực hiện thao tác này đối với bất kỳ trạng thái nào của CSBH trừ 'Chờ TBP duyệt',
+'đang có hiệu lực', 'Nháp' và 'Yêu cầu chỉnh sửa', khi TBP chọn 'Hoàn duyệt' CSBH đó sẽ tự động về
+'Yêu cầu chỉnh sửa' đối với TDV"*.
+
+### Danh sách trừ của khách hàng bỏ sót ba trạng thái, và câu thứ nhất trả lời hộ
+
+Bốn cái tên họ trừ ra để lại **sáu** trạng thái, không phải ba: `HET_HIEU_LUC`, `QUA_HAN_DUYET` và
+`DA_XOA` không có trong danh sách trừ. Nhưng mệnh đề mở đầu — *"những CSBH **đang trong luồng
+duyệt**"* — cắt đúng ba cái ấy đi: chúng là trạng thái KẾT THÚC (`TERMINAL`, cộng `HET_HIEU_LUC` là
+bản đã bị thay). Một hành động đi ra khỏi chúng là đảo lại luật `18/08` và `0035`, và làm sống lại
+một hồ sơ đã xoá.
+
+Hai câu ghép lại ra **đúng ba trạng thái**: `CHO_KT_L1`, `SA_DANG_XU_LY`, `CHO_KT_L2`. Đã hỏi lại và
+khách hàng chốt.
+
+### LỖ HỔNG PHÂN QUYỀN CÓ SẴN, `0185` là lượt đầu tiên chạm vào nó
+
+`Rule` không mang tên hành động. `transition` tra luật bằng `(from, to, by)` và `allowedActionsFor`
+lọc bằng `(from, ACTION_OF[a].to, by)` — **không có tên hành động ở đâu cả**. Phép ấy luôn ra đúng
+một kết quả **chỉ vì tình cờ**: cho tới `0184`, mỗi cặp `(from, to)` có đúng MỘT hành động.
+
+*Hoàn duyệt* là cạnh đầu tiên phá vỡ điều đó. Ở `CHO_KT_L1` có hai hành động cùng về
+`YEU_CAU_CHINH_SUA` — `KT_RETURN_L1` của Kế toán và `TBP_RECALL` của Trưởng bộ phận. Đo được trước
+khi sửa: `transition({current: 'CHO_KT_L1', action: 'KT_RETURN_L1', role: 'TBP'})` **đi qua**, vì nó
+tìm thấy luật của `TBP_RECALL` (cùng `from`, cùng `to`, cùng `by`) — Trưởng bộ phận thực hiện được
+hành động của Kế toán, và `allowedActionsFor` bày ra đúng nút ấy cho cả hai người.
+
+Đây là loại lỗ hổng **một tính năng mới mở ra chứ không tự sinh ra**: mã tra luật không đổi một chữ
+nào, chỉ có bảng dữ liệu dày thêm một dòng. Chữa bằng cách thêm `action: Action` làm trường ĐẦU TIÊN
+của `Rule` và tra theo nó — một kiểu bắt buộc, nên `tsc` chỉ ra đủ mười ba luật cũ phải khai.
+
+Kèm một chốt chặn cho chính lớp lỗi ấy: `RULES` và `ACTION_OF` là **hai bản mô tả của cùng một máy
+trạng thái**, nên chúng trôi khỏi nhau được, và lượt trôi đầu tiên đã là một lỗ hổng phân quyền. Ca
+mới đối chiếu **cả hai chiều** — mọi luật khai `from`/`to` nằm trong `ACTION_OF`, và mọi `from` khai
+ở `ACTION_OF` phải có một luật thật. Hai hằng ấy phải `export` để ca kiểm với tới; chú thích tại chỗ
+nói rõ chúng mở ra cho bộ kiểm, không cho người gọi.
+
+### Không một dòng nào ở `workflow.service` phải xử chuyện xoá chữ ký
+
+`0101` đã viết luật *"quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký"* thành một nhánh theo
+ĐÍCH ĐẾN (`step.next`), không theo tên hành động — nên *Hoàn duyệt* đi vào đúng nhánh ấy mà không
+phải thêm gì. `da_qua_tbp` (`0142`) thì **không** nằm trong nhánh xoá, và đó cũng đúng: nó trả lời
+*"đã từng qua bàn TBP chưa"*, và hồ sơ này đã từng qua thật. Kế toán vẫn thấy nó sau khi hoàn duyệt.
+
+### `RECIPIENTS` báo cho CẢ BA, và bảng ấy thiếu một dòng thì KHÔNG GÌ ĐỎ
+
+`TBP_RETURN` chỉ báo TDV — đúng, vì lúc trả lại ở bước duyệt hồ sơ chưa rời bàn TBP. Hoàn duyệt thì
+hồ sơ **đang nằm trên bàn Kế toán hoặc Sale Admin**; việc họ đang làm vừa bị rút đi, và không báo là
+để họ làm tiếp một hồ sơ không còn ở đó. Nên `TBP_RECALL: ['TDV', 'KE_TOAN', 'SALE_ADMIN']`.
+
+Chỗ đáng ghi là **hình dạng của bảng**: `Partial<Record<Action, string[]>>`, và chỗ dùng là
+`const to = RECIPIENTS[action]; if (to) { … }`. Thiếu một dòng thì `tsc` xanh, bước chuyển vẫn chạy
+đúng, hồ sơ vẫn về `YEU_CAU_CHINH_SUA` — và **không lá thư nào được gửi**. Chín ca của `0185` bên
+`policy.test.ts` xanh hết với đúng cái hỏng ấy. Ca thư mới chọn `SA_DANG_XU_LY` vì đó là trạng thái
+duy nhất cả ba người nhận đều đã có tên trên hồ sơ; hoàn duyệt ở `CHO_KT_L1` thì Sale Admin chưa
+được chọn nên `targets` lọc họ ra (`0031`) và tập người nhận nhỏ hơn mà bảng vẫn đúng.
+
+### `hoanDuyet` là khoá RIÊNG trong `QUYEN_GHI`, dù nó cấp đúng `['TBP']` như `traLaiTbp`
+
+Phá lại đã đo: đổi `TBP_RECALL: 'hoanDuyet'` thành `'traLaiTbp'` **vẫn xanh** — hai khoá cấp cùng
+một tập vai trò nên bảng đối chiếu của `quyen.test.ts` không phân biệt được. Đó là một phá lại xanh
+có lý do, và lý do ấy đáng ghi ra: khoá riêng là một quyết định về **chỗ sửa sau này**, không phải
+về hành vi hôm nay. Ngày nào khách hàng nói *"cho Ban lãnh đạo hoàn duyệt"* hoặc *"TBP thôi trả lại
+ở bước duyệt"*, hai câu ấy phải sửa được rời nhau. Gộp khoá thì lượt sửa đầu tiên kéo theo cái kia mà
+không gì đỏ.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Tra luật bằng `(from, to, by)` như trước | **1 đỏ** — ca *"KHÔNG lẫn với hành động cùng đích của vai trò khác"* |
+| Thêm `CHO_TBP_DUYET` vào luật **và** `ACTION_OF` | **2 đỏ** — ca `0185` *"KHÔNG làm được ở CHO_TBP_DUYET"*, và ca `0155` *"TBP ở bước Chờ TBP duyệt chỉ còn HAI đường ra"* |
+| Thêm `CHO_TBP_DUYET` vào **một mình luật** | **3 đỏ**, trong đó ca đối chiếu `RULES` ↔ `ACTION_OF` — hai bảng trôi khỏi nhau là đỏ ngay, không đợi tới lúc nó thành lỗ hổng |
+| Bỏ `requiresReason` khỏi ba luật | **3 đỏ** |
+| `hoanDuyet: []` trong `QUYEN_GHI` | **1 đỏ**, nêu đủ ba cặp trạng thái × vai trò |
+| Bỏ dòng `TBP_RECALL` khỏi `RECIPIENTS` | **1 đỏ** ở ca thư mới — và không ca nào khác |
+
+**2063/2063 xanh.**

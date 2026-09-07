@@ -1,8 +1,8 @@
 /** WF — luồng duyệt và chuyển trạng thái (YCNV §3, §4). */
 import { describe, expect, it } from 'vitest';
 import {
-  ACTIONS, allowedActions, allowedActionsFor, ForbiddenRoleError, InvalidTransitionError, markOverdue,
-  ReasonRequiredError, STATUSES, TERMINAL, transition, WAITING,
+  ACTION_OF, ACTIONS, allowedActions, allowedActionsFor, ForbiddenRoleError, InvalidTransitionError,
+  markOverdue, ReasonRequiredError, RULES, STATUSES, TERMINAL, transition, WAITING,
   type Action, type Status,
 } from './state-machine.js';
 
@@ -159,6 +159,98 @@ describe('WF-18/19 · yêu cầu in lại là ngoại lệ duy nhất không ph�
   });
 });
 
+/**
+ * `0185` — HOÀN DUYỆT: Trưởng bộ phận rút lại chữ ký của chính mình.
+ *
+ * Khách hàng chốt 07/09: TBP làm được thao tác này ở mọi trạng thái TRỪ *Chờ TBP
+ * duyệt*, *Đang có hiệu lực*, *Nháp* và *Yêu cầu chỉnh sửa* — và trong phạm vi
+ * *"CSBH đang trong luồng duyệt"*. Hai câu ghép lại ra đúng ba trạng thái.
+ */
+describe('`0185` · Hoàn duyệt của Trưởng bộ phận', () => {
+  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'] as const)(
+    'từ %s về Yêu cầu chỉnh sửa, tạo phiên bản mới',
+    (from) => {
+      const r = go(from, 'TBP_RECALL', 'TBP', 'ky nham ho so');
+      expect(r.next).toBe('YEU_CAU_CHINH_SUA');
+      expect(r.createsNewVersion, 'phải đi lại toàn bộ vòng duyệt, kể cả ký số').toBe(true);
+      expect(r.stamp).toBe('returned');
+    },
+  );
+
+  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'] as const)(
+    '%s · thiếu lý do thì bị chặn',
+    (from) => {
+      expect(() => go(from, 'TBP_RECALL', 'TBP')).toThrow(ReasonRequiredError);
+      expect(() => go(from, 'TBP_RECALL', 'TBP', '  ')).toThrow(ReasonRequiredError);
+    },
+  );
+
+  it.each(['NHAP', 'CHO_TBP_DUYET', 'YEU_CAU_CHINH_SUA', 'DANG_CO_HIEU_LUC',
+           'HET_HIEU_LUC', 'QUA_HAN_DUYET', 'DA_XOA'] as const)(
+    'KHÔNG làm được ở %s',
+    (from) => {
+      expect(() => go(from, 'TBP_RECALL', 'TBP', 'x')).toThrow(InvalidTransitionError);
+    },
+  );
+
+  it('CHỈ Trưởng bộ phận — ba vai trò kia đều bị chặn', () => {
+    for (const v of ['TDV', 'KE_TOAN', 'SALE_ADMIN'] as const) {
+      expect(() => go('SA_DANG_XU_LY', 'TBP_RECALL', v, 'x')).toThrow(ForbiddenRoleError);
+    }
+  });
+
+  /**
+   * LỖ HỔNG CÓ SẴN, lộ ra vì `0185` là cạnh ĐẦU TIÊN làm hai hành động của hai
+   * vai trò cùng đi tới một đích từ cùng một trạng thái.
+   *
+   * Trước `0185`, `transition` tra luật bằng `(from, to, by)` — không có tên
+   * hành động trong đó. Phép ấy luôn ra đúng một kết quả **chỉ vì** mỗi cặp
+   * `(from, to)` có đúng một hành động. Thêm `TBP_RECALL` vào `CHO_KT_L1` là ở
+   * đó có hai: `KT_RETURN_L1` (Kế toán) và `TBP_RECALL` (TBP), cùng về
+   * `YEU_CAU_CHINH_SUA`.
+   *
+   * Hệ quả đo được trước khi sửa: `transition('CHO_KT_L1', 'KT_RETURN_L1',
+   * 'TBP')` **đi qua** — Trưởng bộ phận thực hiện được hành động của Kế toán —
+   * và `allowedActionsFor` bày ra đúng nút ấy cho cả hai người.
+   */
+  it('KHÔNG lẫn với hành động cùng đích của vai trò khác', () => {
+    // TBP không mượn được đường của Kế toán…
+    expect(() => go('CHO_KT_L1', 'KT_RETURN_L1', 'TBP', 'x')).toThrow(ForbiddenRoleError);
+    expect(() => go('CHO_KT_L2', 'KT_RETURN_L2', 'TBP', 'x')).toThrow(ForbiddenRoleError);
+    // …và Kế toán không mượn được đường của TBP.
+    expect(() => go('CHO_KT_L1', 'TBP_RECALL', 'KE_TOAN', 'x')).toThrow(ForbiddenRoleError);
+
+    // Và danh sách NÚT của mỗi người chỉ có hành động của chính họ.
+    expect(allowedActionsFor('CHO_KT_L1', 'TBP')).toEqual(['TBP_RECALL']);
+    expect(allowedActionsFor('CHO_KT_L1', 'KE_TOAN').sort()).toEqual([
+      'KT_RECEIVE_L1',
+      'KT_RETURN_L1',
+    ]);
+  });
+
+  /**
+   * Chốt chặn cho chính lớp lỗi trên: mỗi luật phải khai đúng hành động của nó,
+   * và bảng `ACTION_OF` phải khớp với `RULES` cả hai chiều.
+   *
+   * Hai bảng ấy là hai bản mô tả của cùng một máy trạng thái, nên chúng trôi
+   * khỏi nhau được — và lượt trôi đầu tiên đã là một lỗ hổng phân quyền.
+   */
+  it('mọi hành động có luật, và luật khai đúng `from`/`to` của hành động ấy', () => {
+    for (const a of ACTIONS) {
+      const luat = RULES.filter((r) => r.action === a);
+      expect(luat.length, `${a} không có luật nào`).toBeGreaterThan(0);
+      for (const r of luat) {
+        expect(ACTION_OF[a].from, `${a}: luật khai from=${r.from}`).toContain(r.from);
+        expect(r.to, `${a}: luật khai to=${r.to}`).toBe(ACTION_OF[a].to);
+      }
+      // Chiều ngược: mọi `from` khai ở `ACTION_OF` phải có một luật thật.
+      for (const f of ACTION_OF[a].from) {
+        expect(luat.some((r) => r.from === f), `${a}: ACTION_OF khai ${f} mà không có luật`).toBe(true);
+      }
+    }
+  });
+});
+
 describe('WF-15/23 · chuyển bước không hợp lệ', () => {
   it('Sale Admin không bỏ qua được bước tiếp nhận L1', () => {
     expect(() => go('CHO_KT_L1', 'SA_HANDOVER', 'SALE_ADMIN')).toThrow(InvalidTransitionError);
@@ -171,7 +263,15 @@ describe('WF-15/23 · chuyển bước không hợp lệ', () => {
       const err = e as InvalidTransitionError;
       expect(err.code).toBe('INVALID_TRANSITION');
       expect(err.current).toBe('CHO_KT_L1');
-      expect(err.allowed.sort()).toEqual(['KT_RECEIVE_L1', 'KT_RETURN_L1']);
+      /*
+       * BA hành động từ `0185`: *Hoàn duyệt* của Trưởng bộ phận đứng cạnh hai
+       * hành động của Kế toán.
+       *
+       * Danh sách này KHÔNG xét vai trò — có chủ ý (xem `allowedActions`): câu
+       * `INVALID_TRANSITION` nói về TRẠNG THÁI, và người đọc cần biết hồ sơ ở
+       * đây còn đi tiếp được bằng gì, kể cả bằng tay người khác.
+       */
+      expect(err.allowed.sort()).toEqual(['KT_RECEIVE_L1', 'KT_RETURN_L1', 'TBP_RECALL']);
     }
   });
 });

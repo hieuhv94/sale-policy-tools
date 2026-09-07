@@ -1737,9 +1737,17 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
   const MONG_DOI: Record<string, Record<string, string[]>> = {
     NHAP: { tdv01: ['SUBMIT'] },
     CHO_TBP_DUYET: { tbp01: ['TBP_SIGN', 'TBP_RETURN'] },
-    CHO_KT_L1: { kt01: ['KT_RECEIVE_L1', 'KT_RETURN_L1'] },
-    SA_DANG_XU_LY: { sa01: ['SA_HANDOVER'] },
-    CHO_KT_L2: { kt01: ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT'] },
+    /*
+     * `0185` — *Hoàn duyệt* của Trưởng bộ phận đứng cạnh việc của người khác ở
+     * ba trạng thái SAU chữ ký của họ. Bảng này viết TAY, nên nó là chỗ nói ra
+     * rằng nút mới hiện đúng cho MỘT vai trò và KHÔNG mọc thêm cho ai khác.
+     */
+    CHO_KT_L1: { kt01: ['KT_RECEIVE_L1', 'KT_RETURN_L1'], tbp01: ['TBP_RECALL'] },
+    SA_DANG_XU_LY: { sa01: ['SA_HANDOVER'], tbp01: ['TBP_RECALL'] },
+    CHO_KT_L2: {
+      kt01: ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT'],
+      tbp01: ['TBP_RECALL'],
+    },
     YEU_CAU_CHINH_SUA: { tdv01: ['RESUBMIT_AFTER_EDIT'] },
     // `SUPERSEDE` cũng của hệ thống — không ai bấm cho bản đang hiệu lực hết hạn.
     DANG_CO_HIEU_LUC: {},
@@ -2114,6 +2122,149 @@ describe('WF-04 · WF-05 · WF-09 TBP ký số', () => {
     expect(row.tbp_signed_at).not.toBeNull();
     expect(row.tbp_signed_by).not.toBeNull();
   });
+});
+
+/**
+ * `0185` — HOÀN DUYỆT: Trưởng bộ phận rút lại chữ ký của chính mình.
+ *
+ * Máy trạng thái đã có ca thuần ở `packages/domain-policy`; nhóm này đi ĐƯỜNG
+ * HTTP THẬT, vì ba thứ chỉ lộ ra ở đó: chốt vai trò của controller, việc xoá
+ * chữ ký, và người nào nhận thư.
+ */
+describe('`0185` Trưởng bộ phận hoàn duyệt', () => {
+  /** Đẩy hồ sơ tới một trạng thái SAU chữ ký TBP, đi đúng đường thật. */
+  const toi = async (dich: 'CHO_KT_L1' | 'SA_DANG_XU_LY' | 'CHO_KT_L2') => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    if (dich === 'CHO_KT_L1') return d;
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    if (dich === 'SA_DANG_XU_LY') return d;
+    expect(
+      (
+        await post(
+          `/policies/${d.id}/attachments`,
+          { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${d.id}.pdf` },
+          'sa01',
+        )
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await post(
+          `/policies/${d.id}/attachments`,
+          { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `banmem/${d.id}.pdf` },
+          'sa01',
+        )
+      ).status,
+    ).toBe(201);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    return d;
+  };
+
+  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'] as const)(
+    'từ %s: hồ sơ về Yêu cầu chỉnh sửa, và CHỮ KÝ TBP bị xoá',
+    async (dich) => {
+      const d = await toi(dich);
+      expect((await get(`/policies/${d.id}`, 'tbp01')).body.status).toBe(dich);
+
+      const r = await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Ky nham ho so' });
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(r.body.status).toBe('YEU_CAU_CHINH_SUA');
+      expect(r.body.lastReason).toBe('Ky nham ho so');
+
+      /*
+       * CHỮ KÝ PHẢI BỊ XOÁ, và đây là vế dễ mất nhất của cả lượt.
+       *
+       * `TBP_SIGN` chặn khi `tbp_signed_at` còn giá trị (`ALREADY_SIGNED`), nên
+       * một lượt hoàn duyệt giữ nguyên chữ ký sẽ cho ra đúng lỗ hổng `P0` mà
+       * `0101` đã vá: hồ sơ gửi lại rồi **không ký lại được** và nằm chết ở
+       * *Chờ TBP duyệt*.
+       */
+      const cot = await withAdminDb((c) =>
+        c.query<{ tbp_signed_at: Date | null; da_qua_tbp: boolean }>(
+          `SELECT tbp_signed_at, da_qua_tbp FROM pol.policy WHERE id = $1`,
+          [d.id],
+        ),
+      );
+      expect(cot.rows[0]!.tbp_signed_at, 'chữ ký phải bị xoá').toBeNull();
+      // …nhưng `da_qua_tbp` thì KHÔNG BAO GIỜ tắt (`0142`): nó trả lời "đã từng
+      // ký chưa", và tắt nó là lấy lại quyền đọc của Kế toán.
+      expect(cot.rows[0]!.da_qua_tbp).toBe(true);
+
+      // Đi lại được trọn vòng: gửi lại rồi ký lại, không vướng ALREADY_SIGNED.
+      expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+      expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    },
+    120_000,
+  );
+
+  it('thiếu lý do thì 400 REASON_REQUIRED', async () => {
+    const d = await toi('SA_DANG_XU_LY');
+    const r = await act(d.id, 'TBP_RECALL', 'tbp01');
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('REASON_REQUIRED');
+  }, 60_000);
+
+  it('KHÔNG làm được ở Chờ TBP duyệt — ở đó đã có sẵn Trả lại', async () => {
+    /*
+     * Trạng thái khách hàng loại trừ đích danh. Hai nút cùng làm một việc ở cùng
+     * một chỗ là bắt người dùng đoán chúng khác nhau ở đâu.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const r = await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'x' });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('INVALID_TRANSITION');
+    // Câu lỗi nói ra đường đi thật ở đây.
+    expect(r.body.allowed).toContain('TBP_RETURN');
+  }, 60_000);
+
+  it('KHÔNG làm được với hồ sơ ĐANG CÓ HIỆU LỰC', async () => {
+    // Đường đúng khi ấy là lập phiên bản mới, không phải kéo bản đã ký quay lại.
+    const d = await draft();
+    await runToActive(d);
+    const r = await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'x' });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('INVALID_TRANSITION');
+  }, 120_000);
+
+  it('CHỈ Trưởng bộ phận — ba vai trò kia nhận 403', async () => {
+    const d = await toi('SA_DANG_XU_LY');
+    for (const who of ['tdv01', 'kt01', 'sa01']) {
+      const r = await act(d.id, 'TBP_RECALL', who, { reason: 'x' });
+      expect(r.status, `${who} phải bị chặn`).toBe(403);
+    }
+  }, 90_000);
+
+  it('KHÔNG lẫn với hành động cùng đích của Kế toán', async () => {
+    /*
+     * `0185` là cạnh ĐẦU TIÊN làm hai hành động của hai vai trò cùng đi tới một
+     * đích từ cùng một trạng thái, và phép tra luật cũ — theo `(from, to, by)`,
+     * không có tên hành động — khi ấy cho TBP thực hiện `KT_RETURN_L1`.
+     *
+     * Ca này đi đường HTTP thật để canh cả chốt của controller, không chỉ hàm
+     * thuần: một lượt sửa nới `@Roles` cũng phải đỏ ở đây.
+     */
+    const d = await toi('CHO_KT_L1');
+    const r = await act(d.id, 'KT_RETURN_L1', 'tbp01', { reason: 'x' });
+    expect(r.status, 'TBP không mượn được đường của Kế toán').toBe(403);
+
+    const k = await act(d.id, 'TBP_RECALL', 'kt01', { reason: 'x' });
+    expect(k.status, 'Kế toán không mượn được đường của TBP').toBe(403);
+  }, 90_000);
+
+  it('ghi một dòng LỊCH SỬ mang đúng hành động và lý do', async () => {
+    const d = await toi('SA_DANG_XU_LY');
+    expect((await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Sai dieu khoan' })).status).toBe(200);
+
+    const ls = await get(`/policies/${d.id}/events`, 'tbp01');
+    const dong = (ls.body as { action: string; reason: string | null }[]).find(
+      (e) => e.action === 'TBP_RECALL',
+    );
+    expect(dong, 'không có dòng nào cho TBP_RECALL').toBeDefined();
+    expect(dong!.reason).toBe('Sai dieu khoan');
+  }, 90_000);
 });
 
 describe('WF-06 · WF-07 · WF-27 TBP không duyệt', () => {

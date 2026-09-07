@@ -389,6 +389,44 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
   });
 });
 
+describe('`0185` Hoàn duyệt báo cho cả ba, không riêng người lập', () => {
+  /*
+   * Bảng `RECIPIENTS` là một `Partial<Record<Action, string[]>>`, nên THIẾU một
+   * dòng không làm `tsc` đỏ và cũng không làm bước chuyển hỏng: `if (to)` bỏ
+   * qua, hồ sơ vẫn về `YEU_CAU_CHINH_SUA`, và không lá thư nào được gửi. Mọi ca
+   * kiểm của `0185` bên `policy.test.ts` vẫn xanh với đúng cái hỏng ấy.
+   *
+   * Ca này chọn `SA_DANG_XU_LY` vì đó là trạng thái duy nhất mà cả ba người
+   * nhận đều đã có tên trên hồ sơ — hoàn duyệt ở `CHO_KT_L1` thì Sale Admin
+   * chưa được chọn, nên `targets` lọc họ ra (`0031`) và tập người nhận nhỏ hơn
+   * mà bảng vẫn đúng.
+   */
+  it('Kế toán và Sale Admin đang giữ hồ sơ đều được báo việc vừa bị rút đi', async () => {
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    await flush(3);
+    await mailpitClear();
+
+    await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Ky nham ho so cua khach khac' });
+
+    const mails = await flush(1);
+    const thu = mails.find((m) => m.To.length === 3);
+    expect(thu, 'thư hoàn duyệt phải có ba người nhận').toBeDefined();
+    expect(thu!.To.map((t) => t.Address).sort()).toEqual([
+      'kt01@csbh.test',
+      'sa01@csbh.test',
+      'tdv01@csbh.test',
+    ]);
+
+    const full = await fullMail(thu!.ID);
+    // Lý do đi kèm: người đang cầm hồ sơ cần biết vì sao việc của mình dừng.
+    expect(full.Text).toContain('Ky nham ho so cua khach khac');
+    expect(full.Text).toContain('Yêu cầu chỉnh sửa');
+  });
+});
+
 describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nhận được thư', () => {
   /*
    * Vì sao có thư ở đây, trong khi yêu cầu không nhắc tới email.

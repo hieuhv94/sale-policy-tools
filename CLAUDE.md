@@ -85,9 +85,29 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (07/09/2026)
+## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P212** (`0184`): khối *bản mềm và bản cứng của phiên bản trước* mở thêm cho **TDV
+Chặng gần nhất **P213** (`0185`): **Hoàn duyệt — Trưởng bộ phận rút lại chữ ký của chính mình**, đưa
+hồ sơ về *Yêu cầu chỉnh sửa*. Danh sách trừ của khách hàng bỏ sót ba trạng thái, và **mệnh đề mở đầu
+trả lời hộ**: *"những CSBH đang trong luồng duyệt"* cắt nốt `HET_HIEU_LUC`, `QUA_HAN_DUYET`, `DA_XOA`
+— hai câu ghép lại ra **đúng ba** trạng thái (`CHO_KT_L1` · `SA_DANG_XU_LY` · `CHO_KT_L2`). Chỗ nặng
+nhất là **một lỗ hổng phân quyền CÓ SẴN mà tính năng này mở ra**: `Rule` không mang tên hành động,
+nên `transition` tra luật bằng `(from, to, by)` — đúng chỉ vì tới `0184` mỗi cặp `(from, to)` có đúng
+MỘT hành động. Thêm *Hoàn duyệt* là `CHO_KT_L1` có hai, và đo được `transition({action:
+'KT_RETURN_L1', role: 'TBP'})` **đi qua** — TBP làm được hành động của Kế toán, `allowedActionsFor`
+bày ra đúng nút ấy. Chữa bằng `action: Action` trên `Rule` (kiểu bắt buộc, `tsc` chỉ ra đủ mười ba
+luật cũ), kèm ca đối chiếu **`RULES` ↔ `ACTION_OF` hai chiều** — hai bản mô tả của cùng một máy trạng
+thái thì trôi khỏi nhau được, và lượt trôi đầu tiên đã là một lỗ hổng. **Không một dòng nào ở
+`workflow.service` phải xử chuyện xoá chữ ký**: `0101` viết luật ấy theo ĐÍCH ĐẾN chứ không theo tên
+hành động; `da_qua_tbp` (`0142`) đứng ngoài nhánh xoá và đúng thế — hồ sơ đã từng qua bàn TBP thật.
+**`RECIPIENTS` báo cho CẢ BA** (khác `TBP_RETURN` chỉ báo TDV: lúc hoàn duyệt hồ sơ đang nằm trên bàn
+Kế toán hoặc Sale Admin), và bảng ấy là `Partial<Record<…>>` với `if (to)` ở chỗ dùng — **thiếu một
+dòng thì `tsc` xanh, bước chuyển vẫn đúng, và không lá thư nào được gửi**; chín ca của `0185` bên
+`policy.test.ts` xanh hết với đúng cái hỏng ấy, nên có thêm một ca THƯ. **Một phá lại xanh có lý do**:
+đổi `hoanDuyet` thành `traLaiTbp` vẫn xanh vì hai khoá cấp cùng `['TBP']` — khoá riêng là quyết định
+về **chỗ sửa sau này**, không phải về hành vi hôm nay. **2063/2063 xanh.**
+
+Trước đó **P212** (`0184`): khối *bản mềm và bản cứng của phiên bản trước* mở thêm cho **TDV
 trong lúc soạn và lúc sửa**. Đây là **hệ quả tôi đã nêu ra ở `0183` và khách hàng đảo lại** — bản
 chốt đầu mở đúng bốn bàn duyệt nên khối tắt khi hồ sơ về tay TDV; họ đúng ở điểm cả hai bỏ qua lúc
 chốt: *người đang soạn cần đối chiếu TRƯỚC người đang duyệt*, sửa cho khớp rồi mới gửi thì đỡ một
@@ -1106,6 +1126,14 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 `import { Storage }` khỏi `render.service.ts` nhưng để nguyên `private readonly storage: Storage`
 trong constructor. Typecheck **xanh** — `Storage` là interface của `lib.dom` — và chỉ DI của Nest bắt
 được lúc chạy. `Response`, `Request`, `Event`, `File` là bẫy cùng loại.
+
+**Một bảng luật tra bằng thứ KHÔNG phải khoá của nó thì đúng cho tới dòng thứ hai.** `RULES` của máy
+trạng thái tra bằng `(from, to, by)` suốt mười ba luật — đúng chỉ vì mỗi cặp `(from, to)` tình cờ có
+đúng MỘT hành động. `0185` thêm luật thứ mười bốn và ở `CHO_KT_L1` có hai hành động cùng về
+`YEU_CAU_CHINH_SUA`: TBP thực hiện được hành động của Kế toán, và giao diện bày ra đúng nút ấy. Mã
+tra luật không đổi một chữ; chỉ bảng dữ liệu dày thêm một dòng. Chốt chặn là **trường `action` bắt
+buộc trên `Rule`** cộng ca đối chiếu `RULES` ↔ `ACTION_OF` hai chiều — hai bảng ấy mô tả cùng một máy
+trạng thái nên chúng trôi khỏi nhau được.
 
 **Chèn một phương thức vào giữa khối decorator là cướp decorator của phương thức bên dưới.** P26
 thêm `suaDong` ngay dưới `@Roles('TDV')` của `removeLine`; decorator sang tay phương thức mới, ghi

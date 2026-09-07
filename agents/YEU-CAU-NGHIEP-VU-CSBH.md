@@ -273,6 +273,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
 | B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ **giữ nguyên**; Sale Admin chủ động gỡ và thay `sửa 19/08` |
+| B4C | TBP — **hoàn duyệt** `mới 07/09` | Yêu cầu chỉnh sửa → B3 | TDV, KT, SA | Rút lại chữ ký của chính mình ở **ba bước SAU B4**: B6 · B8 · B9/B10. Bắt buộc nhập lý do; chữ ký bị xoá và hồ sơ đi lại toàn bộ vòng duyệt |
 
 **Bước B5 và trạng thái `TBP đã ký số` đã bỏ** `19/08`. Chúng chưa bao giờ hiện ra với người dùng:
 hệ thống chuyển tiếp ngay trong cùng một giao dịch với lần TBP ký, nên không hồ sơ nào từng dừng lại
@@ -2048,6 +2049,32 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > **Hai cột này CÓ trong danh mục cột của văn bản mẫu nhưng KHÔNG tích sẵn cho hai mẫu mặc định**
 > (khách hàng chốt riêng khi được hỏi): chúng trả lời câu *"bản này khác bản trước ở đâu"* — việc của
 > người đang duyệt, không phải nội dung của một chính sách đem ký. Mẫu nào cần thì tự tích.
+
+**HOÀN DUYỆT — Trưởng bộ phận rút lại chữ ký của chính mình** `mới 07/09` — *"Thêm một thao tác mới
+cho TBP với những CSBH đang trong luồng duyệt gọi là «Hoàn duyệt». TBP có thể thực hiện thao tác này
+đối với bất kỳ trạng thái nào của CSBH trừ «Chờ TBP duyệt», «đang có hiệu lực», «Nháp» và «Yêu cầu
+chỉnh sửa». Khi TBP chọn «Hoàn duyệt», CSBH đó sẽ tự động về «Yêu cầu chỉnh sửa» đối với TDV"*.
+
+> **BA trạng thái**, và chúng là phần giao nhau của hai câu trên: *Chờ KT duyệt L1* · *Sale Admin
+> đang xử lý* · *Chờ KT duyệt bản cứng*. Nói gọn: **ba bước SAU chữ ký của chính TBP**.
+>
+> Ba trạng thái còn lại — *Quá hạn duyệt*, *Đã xoá*, *Hết hiệu lực* — đọc theo nghĩa đen câu thứ hai
+> thì cũng lọt vào, nhưng khách hàng chốt là KHÔNG khi được hỏi: cả ba đã kết thúc (`18/08`, `0035`),
+> và cho một hành động đi ra khỏi chúng là làm sống lại một hồ sơ đã xoá.
+>
+> **Bắt buộc nhập lý do** — giống ba đường trả hồ sơ về đã có. Hồ sơ quay về tay TDV kèm một câu nói
+> rõ phải sửa gì; không có thì họ chỉ thấy hồ sơ tự bật lại.
+>
+> **Chữ ký TBP bị xoá và hồ sơ đi lại TOÀN BỘ vòng duyệt** — đúng luật `WF-20`. Đây không phải chi
+> tiết kỹ thuật: giữ chữ ký lại thì lượt gửi lại sẽ không ký lại được, và hồ sơ nằm chết ở *Chờ TBP
+> duyệt* (lỗ hổng `P0` mà `24/08` đã vá).
+>
+> **Báo cho CẢ BA** — TDV, Kế toán và Sale Admin — khác đường *Trả lại* ở B4B chỉ báo TDV. Lý do:
+> lúc B4B hồ sơ chưa rời bàn TBP; lúc hoàn duyệt thì nó **đang nằm trên bàn người khác**, và việc họ
+> đang làm vừa bị rút đi.
+>
+> ***Chờ TBP duyệt* bị loại vì ở đó đã có sẵn *Trả lại chỉnh sửa*** — hai nút làm cùng một việc ở
+> cùng một chỗ là bắt người dùng đoán chúng khác nhau ở đâu.
 
 **Bản mềm và bản cứng của PHIÊN BẢN TRƯỚC hiện trên hồ sơ đang duyệt** `mới 07/09` — *"Khi một chính
 sách bán hàng được sửa đổi/bổ sung được TDV gửi vào luồng duyệt, khi đó vẫn cần phải hiển thị CSBH

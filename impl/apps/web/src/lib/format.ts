@@ -172,6 +172,9 @@ export const NHAN_HANH_DONG: Record<string, string> = {
   RESUBMIT_AFTER_EDIT: 'Gửi lại sau chỉnh sửa',
   TBP_SIGN: 'Trưởng bộ phận ký số',
   TBP_RETURN: 'Trưởng bộ phận trả lại để chỉnh sửa',
+  // `0185` — nói rõ họ RÚT LẠI CHỮ KÝ, không phải trả lại như ở bước duyệt: hai
+  // dòng lịch sử này đọc gần giống nhau mà xảy ra ở hai chỗ khác hẳn.
+  TBP_RECALL: 'Trưởng bộ phận hoàn duyệt, rút lại chữ ký',
   /*
    * GIỮ LẠI dù hành động đã bỏ (`0155`).
    *

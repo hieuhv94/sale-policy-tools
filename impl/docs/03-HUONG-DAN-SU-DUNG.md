@@ -938,6 +938,17 @@ cùng vai trò không thấy, không mở.
 
 - **Trả lại chỉnh sửa** (TBP hoặc Kế toán): hồ sơ về tay TDV, **bắt buộc nhập lý do**. Sửa xong đi
   lại từ đầu vòng duyệt.
+- **Hoàn duyệt** (chỉ Trưởng bộ phận) `mới 07/09`: **rút lại chữ ký của chính mình** sau khi đã ký.
+  Làm được ở **ba bước sau chữ ký** — *Chờ KT duyệt L1*, *Sale Admin đang xử lý*, *Chờ KT duyệt bản
+  cứng* — và **bắt buộc nhập lý do**. Hồ sơ về *Yêu cầu chỉnh sửa* cho Trình dược viên, chữ ký bị
+  xoá, và vòng duyệt đi lại từ đầu.
+
+  > **Ở bước *Chờ TBP duyệt* thì không có nút này** — ở đó bạn đã có *Trả lại chỉnh sửa*, làm đúng
+  > việc ấy. Hồ sơ **đang có hiệu lực** cũng không: muốn đổi thì lập phiên bản mới.
+  >
+  > **Ba người được báo**: Trình dược viên, Kế toán và Sale Admin. Khác *Trả lại chỉnh sửa* ở bước
+  > duyệt (chỉ báo TDV), vì lúc hoàn duyệt hồ sơ **đang nằm trên bàn người khác** và việc họ đang làm
+  > vừa bị rút đi.
 - **Đã xoá**: hồ sơ đóng vĩnh viễn. **Không ai xoá được** dòng của nó, kể cả Quản
   trị hệ thống.
 - **Đã xoá**: hồ sơ bị trả lại mà người lập quyết định bỏ hẳn, không sửa lại nữa. Cũng là trạng thái

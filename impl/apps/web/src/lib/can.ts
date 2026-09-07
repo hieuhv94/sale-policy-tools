@@ -53,6 +53,16 @@ export const QUYEN_GHI = {
    * một nút 403. Ca kiểm thử đối chiếu bảng này với máy trạng thái bắt được.
    */
   traLaiTbp: ['TBP'],
+  /*
+   * HOÀN DUYỆT (`0185`) — khoá RIÊNG, không dùng lại `traLaiTbp`.
+   *
+   * Cùng một vai trò và cùng một đích đến, nên gộp nghe rất hợp lý. Nhưng hai
+   * khoá trả lời hai câu khác nhau: `traLaiTbp` là *"chưa ký, trả về"*,
+   * `hoanDuyet` là *"đã ký rồi, rút lại"* — và chúng sống ở những trạng thái
+   * khác hẳn nhau. Gộp thì ngày nào đó một trong hai đổi vai trò là cái kia đổi
+   * theo mà không ai để ý; `0038` đã tách `traLai` làm hai vì đúng lý do ấy.
+   */
+  hoanDuyet: ['TBP'],
   traLaiKt: ['KE_TOAN'],
   tiepNhanL1: ['KE_TOAN'],
   banGiao: ['SALE_ADMIN'],
@@ -277,6 +287,7 @@ export const QUYEN_HANH_DONG: Record<string, Quyen> = {
   RESUBMIT_AFTER_EDIT: 'guiDuyet',
   TBP_SIGN: 'kySo',
   TBP_RETURN: 'traLaiTbp',
+  TBP_RECALL: 'hoanDuyet',
   KT_RECEIVE_L1: 'tiepNhanL1',
   KT_RETURN_L1: 'traLaiKt',
   SA_HANDOVER: 'banGiao',
@@ -305,6 +316,7 @@ export const HANH_DONG_NHAN: Record<string, string> = {
   SUBMIT: 'Gửi duyệt',
   TBP_SIGN: 'Ký số duyệt',
   TBP_RETURN: 'Trả lại chỉnh sửa',
+  TBP_RECALL: 'Hoàn duyệt',
   KT_RECEIVE_L1: 'Tiếp nhận lần 1',
   KT_RETURN_L1: 'Trả lại (L1)',
   SA_HANDOVER: 'Bàn giao',
@@ -317,6 +329,9 @@ export const HANH_DONG_NHAN: Record<string, string> = {
 /** Hành động BẮT BUỘC nhập lý do (muc 3). */
 export const CAN_LY_DO = new Set([
   'TBP_RETURN',
+  // `0185` — hồ sơ về tay TDV thì phải kèm một câu nói rõ sửa gì, y như ba
+  // đường trả về đã có. Không có lý do thì TDV chỉ thấy hồ sơ tự quay lại.
+  'TBP_RECALL',
   'KT_RETURN_L1',
   'KT_RETURN_L2',
   'KT_REQUEST_REPRINT',

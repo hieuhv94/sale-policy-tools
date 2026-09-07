@@ -42,7 +42,7 @@ export const STATUSES = [
 export type Status = (typeof STATUSES)[number];
 
 export const ACTIONS = [
-  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN',
+  'SUBMIT', 'TBP_SIGN', 'TBP_RETURN', 'TBP_RECALL',
   'KT_RECEIVE_L1', 'KT_RETURN_L1', 'SA_HANDOVER', 'KT_RECEIVE_L2',
   'KT_RETURN_L2', 'KT_REQUEST_REPRINT', 'RESUBMIT_AFTER_EDIT', 'SUPERSEDE',
 ] as const;
@@ -51,6 +51,21 @@ export type Action = (typeof ACTIONS)[number];
 export type Role = 'TDV' | 'TBP' | 'KE_TOAN' | 'SALE_ADMIN' | 'BAN_LANH_DAO' | 'QUAN_TRI' | 'SYSTEM';
 
 export interface Rule {
+  /**
+   * Hành động sinh ra nước chuyển này (`0185`).
+   *
+   * TỪNG KHÔNG CÓ, và chỗ thiếu ấy là một lỗ hổng thật — chỉ ngủ yên vì tới
+   * `0184` mỗi cặp `(from, to)` có đúng MỘT hành động, nên tra luật bằng đích
+   * đến tình cờ luôn ra đúng một kết quả.
+   *
+   * `0185` thêm *Hoàn duyệt*: ở `CHO_KT_L1` có hai hành động cùng về
+   * `YEU_CAU_CHINH_SUA` — `KT_RETURN_L1` của Kế toán và `TBP_RECALL` của Trưởng
+   * bộ phận. Phép tra cũ khi ấy cho `transition({action:'KT_RETURN_L1', role:
+   * 'TBP'})` **đi qua**, vì nó tìm thấy luật của `TBP_RECALL` (cùng `from`,
+   * cùng `to`, cùng `by`). Một vai trò thực hiện được hành động của vai trò
+   * khác, và `allowedActionsFor` bày ra đúng nút ấy.
+   */
+  action: Action;
   from: Status;
   to: Status;
   /** Ai được phép. Ban lãnh đạo và Quản trị không xuất hiện ở bất kỳ luật nào. */
@@ -63,30 +78,70 @@ export interface Rule {
   createsNewVersion?: boolean;
 }
 
-const RULES: readonly Rule[] = [
-  { from: 'NHAP',             to: 'CHO_TBP_DUYET',    by: 'TDV',        stamp: 'submitted' },
-  { from: 'YEU_CAU_CHINH_SUA', to: 'CHO_TBP_DUYET',   by: 'TDV',        stamp: 'submitted' },
+/**
+ * XUẤT RA từ `0185` — để một ca kiểm đối chiếu được nó với `ACTION_OF`.
+ *
+ * Hai hằng này là hai bản mô tả của CÙNG một máy trạng thái, nên chúng trôi khỏi
+ * nhau được; lượt trôi đầu tiên đã là một lỗ hổng phân quyền. Không đường chạy
+ * nào ngoài tệp này đọc chúng — chúng mở ra cho bộ kiểm, không cho người gọi.
+ */
+export const RULES: readonly Rule[] = [
+  { action: 'SUBMIT', from: 'NHAP',             to: 'CHO_TBP_DUYET',    by: 'TDV',        stamp: 'submitted' },
+  { action: 'RESUBMIT_AFTER_EDIT', from: 'YEU_CAU_CHINH_SUA', to: 'CHO_TBP_DUYET',   by: 'TDV',        stamp: 'submitted' },
   // MỘT nước, không hai (`0064`) — xem khối ghi chú ở đầu tệp.
-  { from: 'CHO_TBP_DUYET',    to: 'CHO_KT_L1',        by: 'TBP',        stamp: 'tbp_signed' },
-  { from: 'CHO_TBP_DUYET',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+  { action: 'TBP_SIGN', from: 'CHO_TBP_DUYET',    to: 'CHO_KT_L1',        by: 'TBP',        stamp: 'tbp_signed' },
+  { action: 'TBP_RETURN', from: 'CHO_TBP_DUYET',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
-  { from: 'CHO_KT_L1',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    stamp: 'kt_l1_received' },
-  { from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
+  { action: 'KT_RECEIVE_L1', from: 'CHO_KT_L1',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    stamp: 'kt_l1_received' },
+  { action: 'KT_RETURN_L1', from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
-  { from: 'SA_DANG_XU_LY',    to: 'CHO_KT_L2',        by: 'SALE_ADMIN', stamp: 'sa_handover' },
-  { from: 'CHO_KT_L2',        to: 'DANG_CO_HIEU_LUC', by: 'KE_TOAN',    stamp: 'kt_l2_received' },
-  { from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
+  { action: 'SA_HANDOVER', from: 'SA_DANG_XU_LY',    to: 'CHO_KT_L2',        by: 'SALE_ADMIN', stamp: 'sa_handover' },
+  { action: 'KT_RECEIVE_L2', from: 'CHO_KT_L2',        to: 'DANG_CO_HIEU_LUC', by: 'KE_TOAN',    stamp: 'kt_l2_received' },
+  { action: 'KT_RETURN_L2', from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
   // Ngoại lệ duy nhất: quay về Sale Admin mà KHÔNG phải ký lại (§3 B10C).
-  { from: 'CHO_KT_L2',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    requiresReason: true },
-  { from: 'DANG_CO_HIEU_LUC', to: 'HET_HIEU_LUC',     by: 'SYSTEM' },
+  { action: 'KT_REQUEST_REPRINT', from: 'CHO_KT_L2',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    requiresReason: true },
+  /*
+   * HOÀN DUYỆT — Trưởng bộ phận rút lại chữ ký của chính mình (`0185`, 07/09).
+   *
+   * BA luật cho ba trạng thái, không phải một luật "từ bất kỳ đâu": bảng này
+   * liệt kê từng cặp `from → to`, và đó là cả cách nó nói ra được *"ở trạng thái
+   * này còn đi tiếp được bằng gì"* trong câu lỗi `INVALID_TRANSITION`.
+   *
+   * VÌ SAO KHÔNG CÓ `CHO_TBP_DUYET`: ở đó hồ sơ đang nằm trên bàn TBP và họ đã
+   * có sẵn *Trả lại chỉnh sửa*. Thêm một nút thứ hai làm đúng việc ấy là bày ra
+   * hai đường cho một thao tác, và người dùng phải đoán chúng khác nhau chỗ nào.
+   *
+   * VÌ SAO KHÔNG CÓ `DANG_CO_HIEU_LUC`, `QUA_HAN_DUYET`, `DA_XOA`,
+   * `HET_HIEU_LUC`: khách hàng chốt 07/09 sau khi được hỏi. Ba cái sau là trạng
+   * thái KẾT THÚC (`TERMINAL`, và `HET_HIEU_LUC` là bản đã bị thay) — cho một
+   * hành động đi ra khỏi chúng là đảo lại luật `18/08` và `0035`, và làm sống
+   * lại một hồ sơ đã xoá. `DANG_CO_HIEU_LUC` thì đường đúng là lập phiên bản
+   * mới, không phải kéo bản đã ký quay lại.
+   *
+   * `requiresReason` + `createsNewVersion` giống hệt ba đường trả về đã có: hồ
+   * sơ về tay TDV kèm một câu nói rõ phải sửa gì, và nó đi lại toàn bộ vòng
+   * duyệt — kể cả chữ ký TBP, vốn bị xoá ở mọi lượt quay về `YEU_CAU_CHINH_SUA`
+   * (`0101`).
+   */
+  { action: 'TBP_RECALL', from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  { action: 'TBP_RECALL', from: 'SA_DANG_XU_LY',    to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  { action: 'TBP_RECALL', from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
+  { action: 'SUPERSEDE', from: 'DANG_CO_HIEU_LUC', to: 'HET_HIEU_LUC',     by: 'SYSTEM' },
 ];
 
-const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
+/** Xuất ra cùng lý do với `RULES` (`0185`). */
+export const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
   SUBMIT:              { from: ['NHAP'],              to: 'CHO_TBP_DUYET' },
   RESUBMIT_AFTER_EDIT: { from: ['YEU_CAU_CHINH_SUA'], to: 'CHO_TBP_DUYET' },
   TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'CHO_KT_L1' },
   TBP_RETURN:          { from: ['CHO_TBP_DUYET'],     to: 'YEU_CAU_CHINH_SUA' },
+  // `0185` — HOÀN DUYỆT: TBP rút lại chữ ký ở ba bước SAU chữ ký của họ.
+  TBP_RECALL:          { from: ['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'],
+                         to: 'YEU_CAU_CHINH_SUA' },
   KT_RECEIVE_L1:       { from: ['CHO_KT_L1'],         to: 'SA_DANG_XU_LY' },
   KT_RETURN_L1:        { from: ['CHO_KT_L1'],         to: 'YEU_CAU_CHINH_SUA' },
   SA_HANDOVER:         { from: ['SA_DANG_XU_LY'],     to: 'CHO_KT_L2' },
@@ -229,8 +284,9 @@ export function allowedActions(current: Status): Action[] {
  * kiểu lỗi này.
  */
 export function allowedActionsFor(current: Status, role: Role): Action[] {
+  // Khớp theo `r.action`, KHÔNG theo đích đến (`0185`) — xem `Rule.action`.
   return allowedActions(current).filter((a) =>
-    RULES.some((r) => r.from === current && r.to === ACTION_OF[a].to && r.by === role),
+    RULES.some((r) => r.action === a && r.from === current && r.by === role),
   );
 }
 
@@ -257,10 +313,13 @@ export function transition(input: TransitionInput): TransitionResult {
     throw new InvalidTransitionError(current, action, allowedActions(current));
   }
 
-  const rule = RULES.find((r) => r.from === current && r.to === spec.to && r.by === role);
+  // Khớp theo `action`, KHÔNG theo `spec.to` (`0185`): hai hành động của hai vai
+  // trò có thể cùng một đích, và khi ấy phép tra cũ cho vai trò này thực hiện
+  // hành động của vai trò kia.
+  const rule = RULES.find((r) => r.action === action && r.from === current && r.by === role);
   if (!rule) {
     // Chuyển bước đúng nhưng sai vai trò.
-    const anyRule = RULES.find((r) => r.from === current && r.to === spec.to);
+    const anyRule = RULES.find((r) => r.action === action && r.from === current);
     if (anyRule) throw new ForbiddenRoleError(role, action);
     throw new InvalidTransitionError(current, action, allowedActions(current));
   }

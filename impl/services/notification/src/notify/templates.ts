@@ -62,6 +62,9 @@ export const TITLE: Record<string, string> = {
   RESUBMIT_AFTER_EDIT: 'Hồ sơ đã chỉnh sửa, chờ duyệt lại',
   TBP_SIGN: 'Trưởng bộ phận đã ký số, chuyển sang Kế toán tiếp nhận',
   TBP_RETURN: 'Hồ sơ bị trả lại để chỉnh sửa',
+  // `0185` — nói rõ hồ sơ ĐÃ ĐI QUA chữ ký rồi bị rút: người nhận có thể đang
+  // cầm nó trên bàn mình.
+  TBP_RECALL: 'Trưởng bộ phận hoàn duyệt — hồ sơ quay lại để chỉnh sửa',
   KT_RECEIVE_L1: 'Kế toán đã tiếp nhận lần 1',
   KT_RETURN_L1: 'Kế toán không tiếp nhận lần 1',
   SA_HANDOVER: 'Sale Admin đã bàn giao bản cứng',

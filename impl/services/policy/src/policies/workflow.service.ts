@@ -46,6 +46,19 @@ const RECIPIENTS: Partial<Record<Action, string[]>> = {
   SUBMIT: ['TBP'],
   TBP_SIGN: ['KE_TOAN', 'TDV'],
   TBP_RETURN: ['TDV'],
+  /*
+   * HOÀN DUYỆT (`0185`) — báo cho CẢ BA, không riêng TDV.
+   *
+   * Khác `TBP_RETURN` ngay trên đúng ở chỗ này, và khác vì hoàn cảnh khác: lúc
+   * trả lại ở bước duyệt, hồ sơ chưa rời bàn TBP nên chỉ TDV cần biết. Hoàn
+   * duyệt thì hồ sơ ĐANG nằm trên bàn Kế toán hoặc Sale Admin — họ đang có việc
+   * với nó, và việc ấy vừa bị rút đi. Không báo là để họ làm tiếp một hồ sơ
+   * không còn ở đó.
+   *
+   * Ai không dính tới hồ sơ thì `targets` tự lọc: `0031` chỉ gửi cho người có
+   * tên trong bốn cột, nên hồ sơ chưa tới Sale Admin không sinh thư cho họ.
+   */
+  TBP_RECALL: ['TDV', 'KE_TOAN', 'SALE_ADMIN'],
   KT_RECEIVE_L1: ['SALE_ADMIN', 'TBP', 'TDV'],
   KT_RETURN_L1: ['TBP', 'TDV'],
   SA_HANDOVER: ['KE_TOAN', 'TBP', 'TDV'],
