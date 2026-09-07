@@ -114,9 +114,24 @@ const KHOI: {
     dungTuMau: true,
   },
   {
+    /*
+     * *Bản cứng* → ***File SCAN bản cứng*** (`0181`, chốt 07/09).
+     *
+     * Tiêu đề cũ gọi tên VẬT — tờ giấy đã ký — trong khi thứ nằm dưới nó là một
+     * danh sách FILE. Hai nghĩa ấy lệch nhau đúng ở câu người dùng hay hỏi:
+     * *"bản cứng đâu?"* có thể là *"tờ giấy ai đang giữ?"* hoặc *"file scan có
+     * chưa?"*, và khối này chỉ trả lời được câu thứ hai.
+     *
+     * Chỉ đổi Ở ĐÂY. Chữ *bản cứng* ở mọi chỗ khác — *KT duyệt bản cứng*, *Sale
+     * Admin bàn giao bản cứng*, khối *Bản cứng* của màn hình Thống kê — vẫn nói
+     * về vật ấy chứ không về file, nên đổi chúng theo là làm sai nghĩa cả một
+     * bước duyệt lẫn hai biểu đồ đếm lượt bàn giao.
+     */
     loai: 'SCAN',
-    tieuDe: 'Bản cứng',
-    trong: 'Chưa có bản cứng. Sale Admin scan bản đã ký rồi tải lên ở bước Sale Admin đang xử lý.',
+    tieuDe: 'File SCAN bản cứng',
+    trong:
+      'Chưa có file scan bản cứng. Sale Admin scan bản đã ký rồi tải lên ở bước ' +
+      'Sale Admin đang xử lý.',
     them: 'Thêm bản scan',
   },
 ];

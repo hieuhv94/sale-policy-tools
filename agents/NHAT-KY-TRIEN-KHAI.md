@@ -15874,3 +15874,54 @@ và tờ giấy nói đúng thứ đã chốt: cột *Ngày áp dụng* đứng 
 *Thời gian áp dụng* ở đầu trang, **không** có cột *Trạng thái* lẫn *Tỷ lệ CK cũ*.
 
 **2023/2023 xanh.**
+
+## P209 — `0181` khối *Bản cứng* đổi tên thành *File SCAN bản cứng*
+
+Khách hàng: *"Sửa chữ «Bản cứng» thành «File SCAN bản cứng»"*. Một chuỗi, và cả chặng nằm ở câu hỏi
+**đổi ở đâu**.
+
+### Chữ *bản cứng* nằm ở mười bốn chỗ, và chỉ MỘT chỗ được đổi
+
+Phần mềm gọi *bản cứng* theo hai nghĩa, và chúng không thay nhau được:
+
+| Nghĩa | Ví dụ | Đổi? |
+|---|---|---|
+| **VẬT** — tờ giấy đã ký | bước *KT duyệt bản cứng*, việc *Sale Admin bàn giao bản cứng*, *Số ngày làm bản cứng*, khối *Bản cứng* của màn hình Thống kê | **Không** |
+| **FILE** — bản scan của tờ giấy ấy | khối tệp trên trang hồ sơ | **Có** |
+
+Nhãn mới chỉ đúng ở nghĩa thứ hai: *"File SCAN bản cứng"* đứng trên một biểu đồ đếm **lượt bàn giao**
+là một câu sai. Nên phép đổi dừng ở đúng một hằng — `KHOI[1].tieuDe` của `TepDinhKem` — cộng câu
+"khối rỗng" ngay dưới nó, để tiêu đề và câu giải thích của cùng một khối không nói hai thứ.
+
+Cái tên ấy lệch đúng ở câu người dùng hay hỏi: *"bản cứng đâu?"* có thể là *"tờ giấy ai đang giữ?"*
+hoặc *"file scan có chưa?"*, và khối này chỉ trả lời được câu thứ hai.
+
+### Lỗi có sẵn, tìm ra vì đi ngang qua
+
+Dòng nhắc của `0160` — hiện khi nút *Bàn giao* xám — bảo người dùng *"tải bản scan lên ở khối **Tệp
+đính kèm** bên dưới"*. Trên màn hình **không có khối nào tên thế**: nhãn ấy đã đổi thành *Bản cứng*
+từ `0054`, tức câu chỉ đường sai suốt hai mươi ba chặng.
+
+Đây đúng thứ `0170` đã ghi bằng chữ khác — *"để lại chỗ cũ là trỏ vào một khối không còn ở đó, và
+không test nào bắt được vì không có gì hỏng"*. Ca kiểm của `0160` chỉ đòi màn hình có chữ *"chưa có
+bản scan"*, nên nó xanh với một chỉ dẫn dẫn người ta đi tìm một khối không tồn tại.
+
+**Ca mới canh phép ĐỐI CHIẾU, không canh chuỗi**: mọi tên khối mà câu nhắc nhắc tới (`<em>`) phải là
+tên một khối thật sự dựng ra trên trang. Ghim chuỗi *"File SCAN bản cứng"* thì lượt đổi nhãn thứ ba
+lại đỏ ở đây trong khi lỗi thật — hai chỗ trôi khỏi nhau — vẫn lọt.
+
+### Tệp ca kiểm gọi tên khối ở TÁM chỗ
+
+`tep-dinh-kem.test.tsx` viết `khoi('Bản cứng')` tám lần. Gộp về một hằng `SCAN_TIEU_DE`: cái tên này
+đã đổi **hai lần** (`0054`, rồi `0181`), nên lượt thứ ba chỉ phải sửa một dòng thay vì tám.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Nhãn khối quay về *Bản cứng* | 3 đỏ — dãy tiêu đề, thứ tự mục trên trang, và ca đối chiếu mới |
+| Câu nhắc trỏ lại *Tệp đính kèm* | 1 đỏ, nêu đúng tên khối không có trên trang |
+
+Lượt phá thứ hai là lượt đáng giá: nó dựng lại **chính lỗi cũ**, và ca mới bắt được.
+
+**2024/2024 xanh.**

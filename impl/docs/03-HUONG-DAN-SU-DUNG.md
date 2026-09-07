@@ -555,7 +555,7 @@ bản cũ chết.
 ### Hồ sơ pháp lý `sửa 20/08`
 
 **Bốn loại** `sửa 05/09`: *Giấy đăng ký kinh doanh* · *Giấy GPP* · *Căn cước công dân* · *Khác*.
-Hiển thị giống hệt phần *Bản cứng* của
+Hiển thị giống hệt phần *File SCAN bản cứng* của
 hồ sơ: mỗi giấy tờ một **thẻ có ảnh thu nhỏ**, rê chuột hiện **con mắt** để xem và **mũi tên xuống**
 để tải, dấu **✕** ở góc để gỡ. Thêm bằng **vùng kéo thả** ở cuối hàng; chọn xong file thì phần mềm
 hỏi *loại giấy tờ* rồi mới tải lên.
@@ -1154,7 +1154,7 @@ sang trạng thái nào, ai làm, và lý do nếu bước đó có.
 
 ### Xem tệp không cần tải về
 
-Mục **Bản cứng** liệt kê tệp đính kèm của hồ sơ. Mỗi tệp có **hai nút**: *Xem* và *Tải xuống*. *Xem* mở tệp ngay trong phần mềm — PDF và
+Mục **File SCAN bản cứng** liệt kê tệp đính kèm của hồ sơ. Mỗi tệp có **hai nút**: *Xem* và *Tải xuống*. *Xem* mở tệp ngay trong phần mềm — PDF và
 ảnh hiện thẳng trong một hộp, có nút **Đóng** luôn nhìn thấy và nút *Tải xuống* nếu bạn vẫn cần bản
 về máy.
 
@@ -1333,15 +1333,20 @@ Mở một hồ sơ:
 - **Xuất hợp đồng** — chỉ Kế toán và Sale Admin, và chỉ sau tiếp nhận lần 1. Cũng mở ra xem trước,
   có ô chọn mẫu hợp đồng.
 
-### Bản mềm và Bản cứng
+### Bản mềm và File SCAN bản cứng
 
 **HAI KHỐI RIÊNG** `sửa 01/09`, vì chúng là hai thứ khác nhau và vào hồ sơ ở hai thời điểm khác
 nhau. Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 
+> **Tên khối đổi ở `07/09`**: *Bản cứng* → ***File SCAN bản cứng***. Tên cũ gọi tên **tờ giấy**,
+> trong khi thứ nằm dưới nó là một danh sách **file**. Chữ *bản cứng* ở mọi chỗ khác của phần mềm —
+> bước *KT duyệt bản cứng*, việc *Sale Admin bàn giao bản cứng*, khối *Bản cứng* của màn hình Thống
+> kê — vẫn nói về tờ giấy ấy và **không đổi**.
+
 | Khối | Là gì | Ai đưa vào | Lúc nào |
 |---|---|---|---|
 | **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* |
-| **Bản cứng** | Bản giấy đã ký, scan lại | Sale Admin | Bước *Sale Admin đang xử lý* |
+| **File SCAN bản cứng** `đổi tên 07/09` | File scan của bản giấy đã ký | Sale Admin | Bước *Sale Admin đang xử lý* |
 
 > **Khối *Giấy tờ hồ sơ* đã bỏ** `sửa 01/09`. Trước đó Trình dược viên đính được giấy tờ kèm theo
 > vào hồ sơ CSBH lúc còn *Nháp*; khách hàng chốt bỏ mục ấy, và cùng lượt ấy dòng *File đính kèm*
@@ -1373,10 +1378,10 @@ mẫu mở ra, bạn chọn mẫu, xem trước cả tờ giấy, rồi bấm **
 
 Cuộn từ trên xuống, trang hồ sơ có bảy mục theo thứ tự này:
 
-*Hồ sơ* → *Khách hàng* → *Sản phẩm* → *Hồ sơ pháp lý của khách hàng* → **Bản mềm** → **Bản cứng** →
+*Hồ sơ* → *Khách hàng* → *Sản phẩm* → *Hồ sơ pháp lý của khách hàng* → **Bản mềm** → **File SCAN bản cứng** →
 *Lịch sử*
 
-> *Bản mềm* và *Bản cứng* nằm gần cuối, ngay trên *Lịch sử*, vì chúng là **kết quả của vòng duyệt** —
+> *Bản mềm* và *File SCAN bản cứng* nằm gần cuối, ngay trên *Lịch sử*, vì chúng là **kết quả của vòng duyệt** —
 > chúng chỉ có sau khi hồ sơ đã đi qua chữ ký Trưởng bộ phận và tới bàn Sale Admin. Đọc từ trên xuống
 > là đọc đúng chiều hồ sơ đi.
 
@@ -1404,7 +1409,7 @@ lại — ba lần chuyển màn hình giữa lúc đang đọc một hồ sơ c
 > việc thêm và gỡ giấy tờ có đủ ngữ cảnh; trang hồ sơ là chỗ đọc một hồ sơ CSBH.
 >
 > Nhãn khối ghi rõ *"của khách hàng"* để không lẫn với hai khối tệp ở dưới — chúng khác hẳn nhau:
-> *Bản mềm* và *Bản cứng* đi theo một hồ sơ, còn giấy tờ pháp lý thuộc về khách hàng và dùng chung
+> *Bản mềm* và *File SCAN bản cứng* đi theo một hồ sơ, còn giấy tờ pháp lý thuộc về khách hàng và dùng chung
 > cho mọi hồ sơ của họ.
 
 **Lập phiên bản mới thì giấy tờ hồ sơ ĐI THEO** `sửa 28/08` — y như dòng sản phẩm. Bản mới nhận một
@@ -1446,7 +1451,7 @@ Thêm tệp bằng **vùng kéo thả** ở cuối hàng: kéo file vào, hoặc
 > thả**; thẻ vẫn xem và tải bình thường.
 >
 > Luật này đọc **theo từng khối** `sửa 23/08`. Ở bước *Sale Admin đang xử lý*, Sale Admin thấy vùng
-> kéo thả và dấu ✕ trong khối *Bản cứng*, nhưng **không** thấy dấu ✕ trên giấy tờ Trình dược viên đã
+> kéo thả và dấu ✕ trong khối *File SCAN bản cứng*, nhưng **không** thấy dấu ✕ trên giấy tờ Trình dược viên đã
 > đính từ lúc lập.
 
 Mỗi tệp tối đa **20MB**. Đường tải cấp riêng cho từng người và **hết hạn sau vài phút**; hết hạn thì

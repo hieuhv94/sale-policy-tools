@@ -956,7 +956,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     return mo({ ...SA_XU_LY, ...thay }, ['SA_HANDOVER']);
   };
 
-  it('có BA khối tệp, và Bản mềm đứng TRƯỚC Bản cứng', async () => {
+  it('có BA khối tệp, và Bản mềm đứng TRƯỚC File SCAN bản cứng', async () => {
     /*
      * Thứ tự theo chiều hồ sơ đi: giấy tờ có từ lúc lập, rồi Sale Admin dựng bản
      * mềm, in ra, trình ký, rồi mới scan lại thành bản cứng. Đặt bản mềm sau bản
@@ -974,10 +974,10 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
      */
     await moSa();
     const ten = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
-    expect(ten).toEqual(['Bản mềm', 'Bản cứng']);
+    expect(ten).toEqual(['Bản mềm', 'File SCAN bản cứng']);
   });
 
-  it('`0170` THỨ TỰ MỤC trên cả trang — Bản mềm và Bản cứng ngay trên Lịch sử', async () => {
+  it('`0170` THỨ TỰ MỤC trên cả trang — hai khối tệp ngay trên Lịch sử', async () => {
     /*
      * Thứ tự mục là một YÊU CẦU, nên nó phải có ca kiểm — và tới `0170` KHÔNG ca
      * nào canh nó. Ca ngay trên chỉ đọc `.khoi-tep h2`, tức chỉ thấy ba khối tệp
@@ -1005,7 +1005,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
       */
       'Hồ sơ pháp lý của khách hàng',
       'Bản mềm',
-      'Bản cứng',
+      'File SCAN bản cứng',
       // *Lịch sử* vẫn CUỐI CÙNG (`0061`) — yêu cầu `0170` nói *"xuống cuối
       // nhưng trước mục lịch sử"*, nên hai vế ấy phải cùng đúng.
       'Lịch sử',
@@ -1027,7 +1027,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
 
     // Chiều đối chiếu: khối BẢN CỨNG thì vẫn là chỗ nhận file.
     const cung = [...document.querySelectorAll('.khoi-tep')].find(
-      (e) => e.querySelector('h2')?.textContent === 'Bản cứng',
+      (e) => e.querySelector('h2')?.textContent === 'File SCAN bản cứng',
     )!;
     expect(cung.querySelector('input[type="file"]')).not.toBeNull();
   });
@@ -1145,6 +1145,34 @@ describe('`0160` nút Bàn giao xám khi hồ sơ chưa có bản scan', () => {
     dangNhapSa();
     await mo({ ...HO_SO, banGiaoDuoc: false }, ['SA_HANDOVER']);
     expect(screen.getByText(/chưa có bản scan/i)).toBeDefined();
+  });
+
+  it('`0181` dòng nhắc trỏ ĐÚNG TÊN khối đang có trên màn hình', async () => {
+    /*
+     * LỖI CÓ THẬT, tìm ra ở lượt đổi nhãn `0181`.
+     *
+     * Câu nhắc bảo người dùng *"tải bản scan lên ở khối **Tệp đính kèm**"* —
+     * một cái tên đã đổi từ `0054` và không còn trên màn hình từ đó. Hai lượt
+     * đổi tên khối đều không ai nghĩ tới câu chỉ đường nằm cách đó hai trăm
+     * dòng, và ca `0160` chỉ đòi có chữ *"chưa có bản scan"* nên nó xanh suốt.
+     *
+     * Ca này canh phép ĐỐI CHIẾU chứ không canh một chuỗi: mọi tên khối mà câu
+     * nhắc nhắc tới phải là tên một khối thật sự dựng ra trên trang. Ghim chuỗi
+     * *"File SCAN bản cứng"* thì lượt đổi nhãn sau lại đỏ ở đây mà lỗi thật —
+     * hai chỗ trôi khỏi nhau — vẫn lọt.
+     */
+    dangNhapSa();
+    await mo({ ...HO_SO, banGiaoDuoc: false }, ['SA_HANDOVER']);
+
+    const nhac = screen.getByText(/chưa có bản scan/i).closest('p')!;
+    const khoiNhac = [...nhac.querySelectorAll('em')].map((e) => e.textContent);
+    expect(khoiNhac.length, 'câu nhắc không trỏ tới khối nào').toBeGreaterThan(0);
+
+    const tenKhoi = [...document.querySelectorAll('.khoi-tep h2')].map((e) => e.textContent);
+    // `Bàn giao` là tên NÚT, không phải tên khối — nó có quyền không nằm trong dãy.
+    for (const t of khoiNhac.filter((x) => x !== 'Bàn giao')) {
+      expect(tenKhoi, `câu nhắc trỏ tới khối "${t}" không có trên trang`).toContain(t);
+    }
   });
 
   it('cờ BẬT → nút bấm được, và không còn dòng nhắc nào', async () => {

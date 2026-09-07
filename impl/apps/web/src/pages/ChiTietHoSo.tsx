@@ -359,8 +359,21 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       {thaoTac.includes('SA_HANDOVER') && hoSo.banGiaoDuoc === false && (
         <p className="ghi-chu" role="status">
+          {/*
+            TÊN KHỐI GỌI ĐÚNG TÊN NÓ ĐANG MANG (`0181`).
+
+            Câu này trỏ tới khối *Tệp đính kèm* — một cái tên đã đổi từ `0054`
+            và không còn trên màn hình từ đó. Một lỗi có sẵn, tìm ra ở lượt đổi
+            nhãn này: hai lượt đổi tên khối (`0054`, rồi `0181`) đều không ai
+            nghĩ tới câu chỉ đường nằm cách đó hai trăm dòng.
+
+            Đây đúng là thứ `0170` đã ghi bằng chữ khác — *"để lại chỗ cũ là trỏ
+            vào một khối không còn ở đó, và không test nào bắt được vì không có
+            gì hỏng"*. Ca kiểm của `0160` chỉ đòi có "chưa có bản scan" trên màn
+            hình, nên nó xanh suốt với một chỉ dẫn sai.
+          */}
           <strong>Chưa bàn giao được:</strong> hồ sơ chưa có bản scan. Tải bản scan lên ở khối{' '}
-          <em>Tệp đính kèm</em> bên dưới, rồi nút <em>Bàn giao</em> sẽ dùng được.
+          <em>File SCAN bản cứng</em> bên dưới, rồi nút <em>Bàn giao</em> sẽ dùng được.
         </p>
       )}
 

@@ -1177,7 +1177,7 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 - **Ai được đụng vào tệp nào** `mới 20/08`: bản cứng đã scan — **chỉ Sale Admin**; giấy tờ của hồ sơ
   — **chỉ TDV**, và chỉ khi hồ sơ còn sửa được; hồ sơ pháp lý khách hàng — **chỉ TDV phụ trách khách
   hàng ấy**. Vai trò khác xem và tải bình thường, nhưng không thấy nút gỡ lẫn vùng tải lên.
-- **HAI KHỐI TỆP** `sửa 01/09` — *Bản mềm* · *Bản cứng*, theo đúng chiều hồ sơ đi: Sale Admin dựng
+- **HAI KHỐI TỆP** `sửa 01/09`, `đổi tên 07/09` — *Bản mềm* · *File SCAN bản cứng*, theo đúng chiều hồ sơ đi: Sale Admin dựng
   bản mềm trước, in ra, trình ký, rồi mới scan lại. Khối *Bản mềm* không nhận tệp tải lên — nó có một
   nút mở hộp chọn mẫu. Xem Phụ lục B, mục *"BẢN MỀM thành một TỆP của hồ sơ"*.
   > **Khối *Giấy tờ hồ sơ* ĐÃ BỎ** `sửa 01/09` — xem Phụ lục B, mục *"Bỏ mục Giấy tờ hồ sơ"*. Hệ quả
@@ -1185,7 +1185,7 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
   > viên thôi đính giấy tờ vào hồ sơ CSBH**. Giấy tờ pháp lý của khách hàng thì vẫn nguyên, ở hồ sơ
   > khách hàng và ở khối *Hồ sơ pháp lý của khách hàng* ngay trên trang này.
 - **THỨ TỰ MỤC trên trang hồ sơ** `sửa 01/09` — *Hồ sơ* · *Khách hàng* · *Sản phẩm* ·
-  *Hồ sơ pháp lý của khách hàng* · **Bản mềm** · **Bản cứng** · *Lịch sử*.
+  *Hồ sơ pháp lý của khách hàng* · **Bản mềm** · **File SCAN bản cứng** · *Lịch sử*.
   > Hai khối của bước B8 xuống cuối, ngay trên *Lịch sử*: chúng là **sản phẩm của vòng duyệt**, nên
   > đứng cạnh chỗ kể lại vòng duyệt ấy. *Lịch sử* vẫn cuối cùng (chốt 23/08).
 - **Màn hình hồ sơ tách HAI KHỐI TỆP** `mới 23/08` (`sửa 01/09` — cặp khối giờ là *Bản mềm* và *Bản
@@ -1622,7 +1622,7 @@ chốt cùng lúc:
 > dài ra.
 
 **Bỏ mục *Giấy tờ hồ sơ*** `sửa 01/09` — *"bỏ mục giấy tờ hồ sơ, không cần trong thông tin của hồ
-sơ"*. Trang hồ sơ CSBH còn **hai** khối tệp: *Bản mềm* và *Bản cứng*.
+sơ"*. Trang hồ sơ CSBH còn **hai** khối tệp: *Bản mềm* và *File SCAN bản cứng* (`đổi tên 07/09`).
 
 > Đây là câu tiếp theo của lượt bỏ dòng *File đính kèm* khỏi hai mẫu hồ sơ, ngay bên trên: giấy tờ
 > đính lúc lập thôi xuất hiện trên tờ giấy, và giờ thôi xuất hiện trên màn hình.
@@ -2043,6 +2043,20 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > **Hai cột này CÓ trong danh mục cột của văn bản mẫu nhưng KHÔNG tích sẵn cho hai mẫu mặc định**
 > (khách hàng chốt riêng khi được hỏi): chúng trả lời câu *"bản này khác bản trước ở đâu"* — việc của
 > người đang duyệt, không phải nội dung của một chính sách đem ký. Mẫu nào cần thì tự tích.
+
+**Khối *Bản cứng* đổi tên thành *File SCAN bản cứng*** `sửa 07/09` — *"Sửa chữ «Bản cứng» thành
+«File SCAN bản cứng»"*.
+
+> Tên cũ gọi tên **VẬT** — tờ giấy đã ký — trong khi thứ nằm dưới nó là một danh sách **FILE**. Hai
+> nghĩa ấy lệch nhau đúng ở câu người dùng hay hỏi: *"bản cứng đâu?"* có thể là *"tờ giấy ai đang
+> giữ?"* hoặc *"file scan có chưa?"*, và khối này chỉ trả lời được câu thứ hai.
+>
+> **Chỉ đổi ở KHỐI TỆP.** Chữ *bản cứng* ở mọi chỗ khác vẫn nói về tờ giấy chứ không về file, nên
+> chúng KHÔNG đổi: bước ***KT duyệt bản cứng*** trong luồng duyệt, việc ***Sale Admin bàn giao bản
+> cứng***, khối ***Bản cứng*** của màn hình Thống kê (nó đếm lượt bàn giao và số ngày làm bản cứng,
+> không đếm file). Đổi chúng theo là làm sai nghĩa một bước duyệt và hai biểu đồ.
+>
+> Đây là lần đổi tên **thứ hai** của khối ấy: `19/08` đổi từ *Tệp đính kèm* sang *Bản cứng*.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

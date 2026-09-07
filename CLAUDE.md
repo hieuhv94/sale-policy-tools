@@ -87,7 +87,17 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P208** (`0180`): **ngày áp dụng chuyển từ HỒ SƠ xuống TỪNG DÒNG sản phẩm**, ba trạng
+Chặng gần nhất **P209** (`0181`): khối tệp trên trang hồ sơ đổi nhãn ***Bản cứng*** → ***File SCAN
+bản cứng***. Một chuỗi, và cả chặng nằm ở câu hỏi **đổi ở đâu**: phần mềm gọi *bản cứng* theo HAI
+nghĩa — **vật** (bước *KT duyệt bản cứng*, việc *Sale Admin bàn giao bản cứng*, khối *Bản cứng* của
+màn hình Thống kê đếm lượt bàn giao) và **file** (khối tệp). Nhãn mới chỉ đúng ở nghĩa thứ hai, nên
+phép đổi dừng ở đúng một hằng cộng câu "khối rỗng" của chính khối ấy. **Lỗi có sẵn tìm ra vì đi ngang
+qua**: dòng nhắc của `0160` bảo *"tải bản scan lên ở khối **Tệp đính kèm**"* — một cái tên đã đổi từ
+`0054`, tức câu chỉ đường sai suốt hai mươi ba chặng, và ca `0160` xanh vì nó chỉ đòi có chữ *"chưa
+có bản scan"*. Ca mới canh **phép đối chiếu**, không canh chuỗi: mọi tên khối câu nhắc nhắc tới phải
+là tên một khối thật sự dựng ra trên trang. **2024/2024 xanh.**
+
+Trước đó **P208** (`0180`): **ngày áp dụng chuyển từ HỒ SƠ xuống TỪNG DÒNG sản phẩm**, ba trạng
 thái cho mỗi dòng, cột *Tỷ lệ CK cũ*, cột QĐCK bày ngưỡng %, và hai nút *Bổ sung*/*Chỉnh sửa* gộp làm
 một. Sáu câu khách hàng gửi cùng lúc, và **bốn chỗ phải hỏi lại trước khi gõ**: `applied_date` không
 phải một ô trên màn hình — nó quyết định bảng giá được chụp (`0029`), chặn gửi duyệt (`0171`), in ra

@@ -204,6 +204,15 @@ describe('`0051` xem tệp đính kèm không cần tải về', () => {
  * gỡ theo LOẠI chứ không theo một cờ chung — vẫn là luật, chỉ là bây giờ nó nói
  * về cặp *Bản mềm* / *Bản cứng*.
  */
+/**
+ * Tiêu đề khối tệp SCAN, khai MỘT chỗ (`0181`).
+ *
+ * `0181` đổi nó từ *Bản cứng* sang *File SCAN bản cứng*, và tệp này gọi tên ấy ở
+ * tám chỗ. Một hằng chứ không tám chuỗi: lượt đổi nhãn sau — cái tên này đã đổi
+ * hai lần rồi (`0054`, `0181`) — chỉ phải sửa đúng một dòng.
+ */
+const SCAN_TIEU_DE = 'File SCAN bản cứng';
+
 const BAN_MEM = {
   id: 'dk-2',
   kind: 'BAN_MEM',
@@ -244,7 +253,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
     chan();
     bayVoi([], ['HO_SO']);
     expect(khoi('Bản mềm').querySelector('.vung-tai-len')).toBeNull();
-    expect(khoi('Bản cứng').querySelector('.vung-tai-len')).toBeNull();
+    expect(khoi(SCAN_TIEU_DE).querySelector('.vung-tai-len')).toBeNull();
   });
 
   it('bước Sale Admin xử lý: vùng tải lên chỉ ở *Bản cứng*', () => {
@@ -254,7 +263,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
      */
     chan();
     bayVoi([BAN_MEM], ['SCAN', 'BAN_MEM']);
-    expect(khoi('Bản cứng').querySelector('.vung-tai-len')).not.toBeNull();
+    expect(khoi(SCAN_TIEU_DE).querySelector('.vung-tai-len')).not.toBeNull();
     expect(khoi('Bản mềm').querySelector('.vung-tai-len')).toBeNull();
   });
 
@@ -262,8 +271,8 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
     chan();
     bayVoi([BAN_MEM, ...TEP], []);
     expect(within(khoi('Bản mềm')).getByText(BAN_MEM.fileName)).toBeDefined();
-    expect(within(khoi('Bản cứng')).getByText('ban-cung-da-ky.pdf')).toBeDefined();
-    expect(within(khoi('Bản cứng')).queryByText(BAN_MEM.fileName)).toBeNull();
+    expect(within(khoi(SCAN_TIEU_DE)).getByText('ban-cung-da-ky.pdf')).toBeDefined();
+    expect(within(khoi(SCAN_TIEU_DE)).queryByText(BAN_MEM.fileName)).toBeNull();
   });
 
   it('nút GỠ theo loại tệp, không theo một cờ chung', () => {
@@ -275,7 +284,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
      */
     chan();
     bayVoi([BAN_MEM, ...TEP], ['SCAN']);
-    expect(khoi('Bản cứng').querySelector('.the-tep-go')).not.toBeNull();
+    expect(khoi(SCAN_TIEU_DE).querySelector('.the-tep-go')).not.toBeNull();
     expect(
       khoi('Bản mềm').querySelector('.the-tep-go'),
       'ghi được bản cứng KHÔNG có nghĩa là gỡ được bản mềm',
@@ -287,7 +296,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
     // chỗ nào trả lời.
     chan();
     bayVoi([], []);
-    const trong = khoi('Bản cứng').querySelector('.trong')!.textContent ?? '';
+    const trong = khoi(SCAN_TIEU_DE).querySelector('.trong')!.textContent ?? '';
     expect(trong).toContain('Sale Admin');
     expect(trong).toContain('Sale Admin đang xử lý');
   });
@@ -295,7 +304,7 @@ describe('`0097` hai khối tệp, mỗi khối một loại', () => {
   it('thẻ tệp KHÔNG lặp lại tên loại — tiêu đề khối đã nói rồi', () => {
     chan();
     bayVoi([...TEP], ['SCAN']);
-    const the = khoi('Bản cứng').querySelector('.the-tep')!;
+    const the = khoi(SCAN_TIEU_DE).querySelector('.the-tep')!;
     expect(the.textContent).not.toContain('Bản scan');
   });
 });
