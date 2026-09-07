@@ -67,6 +67,19 @@ const dayDu = [
    * KHỐI BÊN MUA — một dòng nhận diện, rồi MỘT dòng gộp ba mục (`0135`, chốt
    * 27/08): người đại diện · địa chỉ · mã số thuế, ngăn bằng dấu gạch.
    *
+   * `0182` — NĂM PHẦN, khách hàng đọc ra thành một chuỗi: *Tên người đại diện –
+   * Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã – Tỉnh thành phố – Mã số
+   * thuế*. Hai phần thêm vào, và mỗi phần là một quyết định đã có sẵn ở chỗ khác
+   * của phần mềm:
+   *
+   *   - `ten_khach_hang` QUAY LẠI tờ giấy. `0171` bỏ nó vì khi ấy dòng này in
+   *     tên người đại diện *thay cho* tên pháp nhân — hai cái tên tranh một chỗ.
+   *     Giờ chuỗi có chỗ cho cả hai, nên câu ấy hết mâu thuẫn: bản CSBH lại mang
+   *     tên pháp nhân của khách hàng.
+   *   - địa chỉ tách HAI, dùng `so_nha_phuong_xa` và `tinh_thanh_pho` chứ không
+   *     `dia_chi_dang_ky`. Cột gộp do trigger dựng bằng `', '` (`0175`), nên
+   *     tách ngược nó ở dấu phẩy là cắt sai chỗ ở mọi địa chỉ vốn đã có dấu phẩy.
+   *
    * Đây là cách khối bên mua được viết trên hợp đồng giấy, và nó đọc nhanh hơn
    * ba dòng có nhãn: mắt bắt cả ba mục trong một lượt thay vì dò xuống ba dòng.
    *
@@ -81,7 +94,10 @@ const dayDu = [
    * khách hàng.
    */
   para('BÊN MUA: {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
-  para('{{ho_so.nguoi_dai_dien}} - {{ho_so.dia_chi_dang_ky}} - {{ho_so.ma_so_thue}}'),
+  para(
+    '{{ho_so.nguoi_dai_dien}} – {{ho_so.ten_khach_hang}} – ' +
+      '{{ho_so.so_nha_phuong_xa}} – {{ho_so.tinh_thanh_pho}} – {{ho_so.ma_so_thue}}',
+  ),
   para('Chức danh người đại diện: {{ho_so.chuc_danh_dai_dien}}'),
   // `0134` — số điện thoại chặn lượt gửi duyệt, nên nó phải in ra được.
   para('Điện thoại: {{ho_so.dien_thoai}}'),
@@ -154,7 +170,10 @@ const hopDong = [
   para(''),
   para('BÊN MUA (Bên B): {{ho_so.ten_khach_hang}} — mã {{ho_so.ma_khach_hang}}'),
   // Cùng dòng gộp với hai mẫu hồ sơ (`0135`) — xem chú thích ở `dayDu`.
-  para('{{ho_so.nguoi_dai_dien}} - {{ho_so.dia_chi_dang_ky}} - {{ho_so.ma_so_thue}}'),
+  para(
+    '{{ho_so.nguoi_dai_dien}} – {{ho_so.ten_khach_hang}} – ' +
+      '{{ho_so.so_nha_phuong_xa}} – {{ho_so.tinh_thanh_pho}} – {{ho_so.ma_so_thue}}',
+  ),
   para('Chức danh người đại diện: {{ho_so.chuc_danh_dai_dien}}'),
   para('Điện thoại: {{ho_so.dien_thoai}}'),
   para('Nơi nhận hàng: {{ho_so.noi_nhan_hang}}'),

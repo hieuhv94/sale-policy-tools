@@ -240,6 +240,10 @@ export const NHAN_KHOA: Record<string, string> = {
   'ho_so.ten_khach_hang': 'Tên khách hàng',
   'ho_so.ma_so_thue': 'Mã số thuế',
   'ho_so.dia_chi_dang_ky': 'Địa chỉ đăng ký',
+  // `0182` — hai ô nguồn của địa chỉ đăng ký, để mẫu nối được chuỗi *Tên khách
+  // hàng* năm phần. Cột gộp ngay trên VẪN CÒN: mẫu nào cần một ô đầy đủ thì dùng.
+  'ho_so.so_nha_phuong_xa': 'Số nhà, Phường xã',
+  'ho_so.tinh_thanh_pho': 'Tỉnh/Thành phố',
   'ho_so.noi_nhan_hang': 'Nơi nhận hàng',
   'ho_so.nguoi_dai_dien': 'Người đại diện',
   'ho_so.chuc_danh_dai_dien': 'Chức danh người đại diện',

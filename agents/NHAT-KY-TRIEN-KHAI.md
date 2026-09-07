@@ -15925,3 +15925,89 @@ lại đỏ ở đây trong khi lỗi thật — hai chỗ trôi khỏi nhau —
 Lượt phá thứ hai là lượt đáng giá: nó dựng lại **chính lỗi cũ**, và ca mới bắt được.
 
 **2024/2024 xanh.**
+
+## P210 — `0182` dòng *Tên khách hàng* trên văn bản mẫu nối năm phần
+
+Khách hàng gửi thẳng chuỗi họ muốn:
+
+> *Tên người đại diện – Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã – Tỉnh thành phố – Mã số thuế*
+
+Tờ giấy đang in **ba** phần: *tên người đại diện – địa chỉ đăng ký – MST*. Hai phần thêm vào, và mỗi
+phần **đảo lại một quyết định cũ** ở đúng chỗ nó không còn đúng nữa.
+
+### `ten_khach_hang` quay lại tờ giấy — `0171` đảo một nửa
+
+`0171` bỏ khoá ấy khỏi hai mẫu mặc định, và lý do khi ấy đúng: dòng *Tên khách hàng* in tên NGƯỜI ĐẠI
+DIỆN **thay cho** tên pháp nhân, nên hai cái tên tranh MỘT chỗ trên cùng một dòng. Chặng ấy còn ghi
+hẳn cái giá: *"bản CSBH thôi mang tên pháp nhân khách hàng ở bất kỳ đâu"*.
+
+Chuỗi năm phần cho cả hai một chỗ riêng, nên mâu thuẫn ấy hết — không phải khách hàng đổi ý, mà là
+một ràng buộc biến mất. Cái giá `0171` ghi ra cũng biến mất theo, và tài liệu phải nói điều đó ở
+**chính chỗ** đã ghi nó (`0178` sinh ra để chống đúng kiểu bỏ sót này).
+
+### Địa chỉ tách HAI, và cột gộp không tách ngược được
+
+Phần địa chỉ phải in *Số nhà/Phường xã* rồi *Tỉnh thành phố* — hai phần, hai dấu ngăn. Có sẵn một
+khoá `ho_so.dia_chi_dang_ky`, nhưng nó mang **cột gộp** do trigger dựng bằng `', '` (`0175`), và tách
+ngược ở dấu phẩy là cắt sai chỗ ở mọi địa chỉ vốn đã có dấu phẩy giữa lòng nó.
+
+Nên `SCALAR` có **hai khoá mới**, và cột gộp GIỮ LẠI — mẫu người dùng tự soạn vẫn đặt được một ô địa
+chỉ đầy đủ.
+
+**Ba mắt xích phải nối, và hai trong ba đã có sẵn từ `0177` mà chưa ai đọc tới:**
+
+| Mắt xích | Trạng thái trước `0182` |
+|---|---|
+| `pol.policy.kh_so_nha_snap` · `kh_tinh_thanh_snap` | ĐÃ đóng băng từ `0177` |
+| `customer/internal.controller` trả `province`/`streetWard` | ĐÃ có từ `0177` |
+| `policy/internal.controller` trả hai ảnh chụp | **thiếu** — câu `SELECT` liệt kê từng cột |
+| `document`: `PolicyFull`, `CustomerFull`, `khachHangCua` | **thiếu cả ba** |
+
+Cái bẫy `0128`/`0144` lại đúng chỗ cũ: `SELECT` liệt kê từng cột nên cột mới không tự đi theo, bên
+nhận đọc ra `undefined`, TypeScript im vì trường khai `?`, và triệu chứng là **hai ô trống giữa dòng
+Tên khách hàng** trên bản đem ký.
+
+`khachHangCua` map hai ô **KHÔNG rơi về đọc sống**, khác `registeredAddress` ngay cạnh nó — và khác
+biệt ấy là cả điểm: hồ sơ gửi duyệt trước `0177` chỉ chụp cột gộp, nên đọc sống thay vào là trộn địa
+chỉ HÔM NAY vào một khối đã đóng băng (`0101`). Tờ giấy khi ấy in hai chỗ trống, và đó là câu đúng.
+Hình dạng ấy tự hết ở lượt gửi lại tiếp theo.
+
+### Hai khoá mới xếp nhóm `de-trong`, không `luon-co`
+
+Hai cột nguồn là `NOT NULL` ở `cus.customer`, nên phản xạ đầu là `luon-co`. Sai: hồ sơ gửi trước
+`0177` có ảnh chụp RỖNG THẬT ở hai ô ấy — và không bước nào sau này điền chúng, nên `dien-sau` cũng
+sai. `de-trong` là nhóm `0171` đã dựng cho đúng trạng thái này.
+
+### Ca kiểm ghim THỨ TỰ, vì tập khoá không thấy được thứ tự
+
+Ca `0171` ghim TẬP ô trống của hai mẫu bằng `toEqual` — mạnh, nhưng nó xanh y nguyên khi năm khoá ấy
+nằm rải ở năm dòng khác nhau hay xếp ngược. Mà thứ tự chính là thứ khách hàng viết ra.
+
+Ca mới đọc **CHỮ của đoạn văn**: đòi đúng MỘT đoạn chứa `{{ho_so.nguoi_dai_dien}}`, rồi so vị trí năm
+ô trống trong đoạn ấy phải tăng dần. Phá lại xác nhận cả hai vế — đảo chỗ *Số nhà* với *Tỉnh thành*
+cho một đỏ nêu đúng cặp sai chỗ; bỏ `ten_khach_hang` khỏi chuỗi cho hai đỏ (tập khoá và thứ tự).
+
+`ho_so.dia_chi_dang_ky` **rời khỏi tập ô trống** của hai mẫu mặc định — địa chỉ không mất, nó in
+thành hai phần. Tập ghim của `0171` phải sửa theo, và chỗ sửa ấy là nơi ghi lại vì sao.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Đảo chỗ *Số nhà/Phường xã* ↔ *Tỉnh thành phố* | 1 đỏ, nêu đúng cặp |
+| Bỏ `{{ho_so.ten_khach_hang}}` khỏi chuỗi | 2 đỏ — tập ô trống, và thứ tự |
+
+### Nghiệm thu trên chồng demo thật
+
+`make demo` (dựng lại ảnh, ba mẫu mặc định nạp từ file mới) → `make demo-mau` → in bằng **cả hai**
+mẫu hồ sơ qua gateway: HTTP 200, 34.642 và 33.670 byte. Dòng trên tờ giấy:
+
+```
+Tên khách hàng: Lê Thị Kim Chi – Khoa Dinh dưỡng — Bệnh viện Việt Đức –
+                Số 40 Tràng Thi, Hoàn Kiếm – Hà Nội – MST 3000003014
+```
+
+Đủ năm phần, đúng thứ tự khách hàng viết: người đại diện · tên pháp nhân · số nhà/phường xã · tỉnh
+thành phố · mã số thuế.
+
+**2025/2025 xanh.**

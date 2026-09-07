@@ -87,7 +87,19 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P209** (`0181`): khối tệp trên trang hồ sơ đổi nhãn ***Bản cứng*** → ***File SCAN
+Chặng gần nhất **P210** (`0182`): dòng *Tên khách hàng* trên văn bản mẫu nối **năm phần** — *người
+đại diện – tên pháp nhân – số nhà/phường xã – tỉnh thành phố – MST*. Hai phần thêm vào, và mỗi phần
+**đảo lại một quyết định cũ ở đúng chỗ nó hết đúng**: `ten_khach_hang` quay lại tờ giấy (`0171` bỏ nó
+vì khi ấy hai cái tên tranh MỘT chỗ; chuỗi năm phần cho cả hai một chỗ riêng, nên cái giá `0171` ghi
+ra — *"bản CSBH thôi mang tên pháp nhân"* — biến mất theo), và địa chỉ tách HAI vì cột gộp do trigger
+dựng bằng `', '` (`0175`) nên **tách ngược ở dấu phẩy là cắt sai chỗ**. Hai ảnh chụp `kh_so_nha_snap`/
+`kh_tinh_thanh_snap` đã có từ `0177` mà **chưa ai đọc tới**; nối chúng ra tới tờ giấy phải qua bốn
+mắt xích, và mắt thiếu đúng là `SELECT` liệt kê từng cột của `policy/internal.controller` — bẫy
+`0128`/`0144` lần thứ ba. `khachHangCua` map hai ô mà **KHÔNG rơi về đọc sống** (hồ sơ gửi trước
+`0177` in ra hai chỗ trống, và đó là câu đúng). Ca `0171` ghim TẬP ô trống nên **không thấy được thứ
+tự**; ca mới đọc CHỮ của đoạn văn và đòi vị trí năm ô trống tăng dần. **2025/2025 xanh.**
+
+Trước đó **P209** (`0181`): khối tệp trên trang hồ sơ đổi nhãn ***Bản cứng*** → ***File SCAN
 bản cứng***. Một chuỗi, và cả chặng nằm ở câu hỏi **đổi ở đâu**: phần mềm gọi *bản cứng* theo HAI
 nghĩa — **vật** (bước *KT duyệt bản cứng*, việc *Sale Admin bàn giao bản cứng*, khối *Bản cứng* của
 màn hình Thống kê đếm lượt bàn giao) và **file** (khối tệp). Nhãn mới chỉ đúng ở nghĩa thứ hai, nên

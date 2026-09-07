@@ -1910,8 +1910,21 @@ luôn ở trong tầm mắt.
   khỏi danh sách cùng lúc với khoá của nó, và giờ do người soạn tự chịu trách nhiệm.)
   > **Ba mục nữa rời danh sách** `mới 01/09`: *Số hồ sơ*, *Tên khách hàng* và *File đính kèm* — khách
   > hàng đã bỏ cả ba khỏi tờ mẫu của họ. Bạn **vẫn đặt ô được** nếu muốn in chúng; hệ thống chỉ thôi
-  > đòi. Cái mất phải biết: bản A4 dựng từ hai mẫu mặc định **không còn tên pháp nhân khách hàng** —
-  > dòng *Tên khách hàng* trên tờ giấy nay in **tên người đại diện**, kèm địa chỉ và mã số thuế.
+  > đòi.
+  >
+  > **Dòng *Tên khách hàng* trên tờ giấy nối NĂM PHẦN** `sửa 07/09`:
+  >
+  > > *Tên người đại diện* – *Tên Hộ kinh doanh/Tên Công ty* – *Số nhà/Phường xã* –
+  > > *Tỉnh thành phố* – *Mã số thuế*
+  >
+  > Từ `01/09` tới `07/09` dòng ấy chỉ có ba phần và **không mang tên pháp nhân** — hai cái tên khi
+  > ấy tranh một chỗ. Giờ chuỗi có chỗ cho cả hai. Địa chỉ in thành **hai phần** chứ không một ô gộp,
+  > nên bảng nguồn có thêm hai mục *Số nhà, Phường xã* và *Tỉnh/Thành phố*; mục *Địa chỉ đăng ký* gộp
+  > **vẫn còn** cho mẫu nào muốn một ô đầy đủ.
+  >
+  > **Hồ sơ gửi duyệt trước `06/09` in ra hai chỗ trống** ở phần địa chỉ — lượt gửi của chúng chỉ giữ
+  > địa chỉ ở dạng một dòng. Phần mềm không lấy địa chỉ hôm nay điền vào, vì đó là sửa nội dung một tờ
+  > đã ký.
   > **Bỏ ép *Trạng thái* và *Thời gian duyệt*** `mới 24/08`. Hai mục ấy **còn đổi** trong lúc hồ sơ
   > đi qua luồng duyệt: bản mềm xem ở bước Trưởng bộ phận ký sẽ in ra *Chờ kế toán duyệt lần 1* và
   > một ô *Thời gian duyệt* trống — ép mẫu phải có chúng là ép in ra một câu sai. Bạn **vẫn đặt ô

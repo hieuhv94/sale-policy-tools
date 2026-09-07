@@ -75,6 +75,17 @@ export type PolicyFull = {
   kh_ten_snap: string | null;
   kh_ma_so_thue_snap: string | null;
   kh_dia_chi_dang_ky_snap: string | null;
+  /**
+   * HAI Ô của địa chỉ đăng ký, đóng băng từ `0177` (`0182` mới đọc tới).
+   *
+   * `null` với hồ sơ gửi duyệt TRƯỚC `0177`: lượt gửi của chúng chỉ chụp cột
+   * gộp. Khi ấy `khachHangCua` để hai ô rỗng chứ KHÔNG tách ngược cột gộp ở dấu
+   * phẩy — phép tách ấy chạy được hôm nay và hỏng ngầm ngày trigger đổi dấu
+   * ngăn (`0177`), và cũng KHÔNG rơi về đọc sống, vì địa chỉ hôm nay không phải
+   * địa chỉ lúc gửi.
+   */
+  kh_so_nha_snap: string | null;
+  kh_tinh_thanh_snap: string | null;
   kh_noi_nhan_hang_snap: string | null;
   kh_nguoi_dai_dien_snap: string | null;
   kh_chuc_danh_dai_dien_snap: string | null;
@@ -94,6 +105,9 @@ export type CustomerFull = {
   tdvUserId: string;
   idNumber: string | null;
   registeredAddress: string;
+  /** `0175` — hai ô nguồn của địa chỉ đăng ký; `registeredAddress` là cột gộp. */
+  province: string | null;
+  streetWard: string | null;
   deliveryAddress: string | null;
   ownerName: string;
   ownerTitle: string | null;

@@ -67,6 +67,9 @@ const NHOM_HUONG_DAN: { nhan: string; khoa: string[] }[] = [
       'ho_so.ten_khach_hang',
       'ho_so.ma_so_thue',
       'ho_so.dia_chi_dang_ky',
+      // `0182` — hai ô của địa chỉ đăng ký, đứng ngay sau cột gộp.
+      'ho_so.so_nha_phuong_xa',
+      'ho_so.tinh_thanh_pho',
       'ho_so.noi_nhan_hang',
       'ho_so.nguoi_dai_dien',
       'ho_so.chuc_danh_dai_dien',

@@ -113,24 +113,79 @@ describe('`0165` ba mẫu mặc định', () => {
     const MONG = [
       'bang_san_pham',
       'ho_so.cong_no',
-      'ho_so.dia_chi_dang_ky',
+      // `ho_so.dia_chi_dang_ky` RỜI KHỎI hai mẫu ở `0182`, và địa chỉ KHÔNG mất:
+      // chuỗi *Tên khách hàng* in nó thành HAI phần (`so_nha_phuong_xa` và
+      // `tinh_thanh_pho`), vì cột gộp do trigger dựng bằng `', '` nên tách ngược
+      // là cắt sai chỗ ở mọi địa chỉ vốn đã có dấu phẩy. Khoá vẫn ở lại `SCALAR`
+      // cho mẫu người dùng tự soạn.
       'ho_so.ke_toan',
       'ho_so.ma_khach_hang',
       'ho_so.ma_so_thue',
+      // `0182` — dòng *Tên khách hàng* nối NĂM phần, nên hai ô địa chỉ và tên
+      // pháp nhân vào tập này. `ho_so.ten_khach_hang` QUAY LẠI sau `0171`: khi
+      // ấy nó bị bỏ vì tranh chỗ với tên người đại diện trên cùng một dòng, giờ
+      // chuỗi có chỗ cho cả hai.
       // `ho_so.ngay_ap_dung` RA KHỎI TẬP ở `0180`: ngày áp dụng chuyển xuống
       // từng dòng sản phẩm, và nó in ra ở CỘT ĐẦU của `{{bang_san_pham}}` chứ
       // không còn là một ô ở đầu trang. Khoá ấy cũng đã gỡ khỏi `SCALAR`, nên
       // để lại đây thì hai mẫu mặc định không lưu nổi (`400 SOURCE_UNKNOWN`).
       'ho_so.ngay_kt_nhan_l1',
       'ho_so.ngay_tbp_ky',
-      // Dòng *Tên khách hàng* in TÊN NGƯỜI ĐẠI DIỆN, không phải tên khách hàng.
+      // Dòng *Tên khách hàng* MỞ ĐẦU bằng tên người đại diện (`0171`), rồi mới
+      // tới tên pháp nhân — xem chuỗi năm phần của `0182`.
       'ho_so.nguoi_dai_dien',
       'ho_so.nguoi_de_nghi',
+      'ho_so.so_nha_phuong_xa',
+      'ho_so.ten_khach_hang',
+      'ho_so.tinh_thanh_pho',
       'ho_so.truong_bo_phan',
     ];
     for (const m of MAU_MAC_DINH.filter((x) => x.kind !== 'HOP_DONG')) {
       const o = placeholdersOf(readFileSync(`${GOC}/${m.tep}`)).map((x) => x.slice(2, -2));
       expect([...o].sort(), m.tep).toEqual(MONG);
+    }
+  });
+
+  it('`0182` dòng *Tên khách hàng* nối ĐÚNG NĂM PHẦN, đúng thứ tự', () => {
+    /*
+     * Khách hàng chốt 07/09, và họ viết ra cả chuỗi:
+     *
+     *   Tên người đại diện – Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã –
+     *   Tỉnh thành phố – Mã số thuế
+     *
+     * Ca `0171` ngay trên ghim TẬP ô trống của cả tệp, và nó KHÔNG thấy được thứ
+     * tự: năm khoá ấy vẫn đủ khi chúng nằm rải ở năm dòng khác nhau, hay xếp
+     * ngược. Mà thứ tự chính là thứ khách hàng viết ra — nên nó cần một ca riêng.
+     *
+     * Đọc CHỮ của đoạn văn chứ không đọc tập khoá: thứ phải đúng là một dòng
+     * người ta sẽ đọc trên giấy, kể cả dấu ngăn giữa các phần.
+     */
+    const PHAN = [
+      'ho_so.nguoi_dai_dien',
+      'ho_so.ten_khach_hang',
+      'ho_so.so_nha_phuong_xa',
+      'ho_so.tinh_thanh_pho',
+      'ho_so.ma_so_thue',
+    ];
+    for (const m of MAU_MAC_DINH.filter((x) => x.kind !== 'HOP_DONG')) {
+      const x = documentXml(readFileSync(`${GOC}/${m.tep}`));
+      const doan = (x.match(/<w:p[ >](?:(?!<\/w:p>).)*<\/w:p>/gs) ?? [])
+        .map((p2) => p2.replace(/<[^>]+>/g, ''))
+        .filter((t) => t.includes('{{ho_so.nguoi_dai_dien}}'));
+      expect(doan.length, `${m.tep}: chờ ĐÚNG MỘT đoạn có tên người đại diện`).toBe(1);
+
+      const viTri = PHAN.map((k) => doan[0]!.indexOf(`{{${k}}}`));
+      for (const [i, v] of viTri.entries()) {
+        expect(v, `${m.tep}: thiếu {{${PHAN[i]}}} trên dòng Tên khách hàng`).toBeGreaterThan(-1);
+      }
+      // Tăng dần = đúng thứ tự khách hàng viết. So từng cặp lân cận là đủ ở đây
+      // vì cả năm phần cùng nằm trên MỘT đoạn.
+      for (let i = 1; i < viTri.length; i += 1) {
+        expect(
+          viTri[i]!,
+          `${m.tep}: {{${PHAN[i]}}} phải đứng sau {{${PHAN[i - 1]}}}`,
+        ).toBeGreaterThan(viTri[i - 1]!);
+      }
     }
   });
 

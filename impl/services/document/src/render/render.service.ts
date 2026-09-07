@@ -58,6 +58,8 @@ export const khachHangCua = (
     | 'kh_ten_snap'
     | 'kh_ma_so_thue_snap'
     | 'kh_dia_chi_dang_ky_snap'
+    | 'kh_so_nha_snap'
+    | 'kh_tinh_thanh_snap'
     | 'kh_noi_nhan_hang_snap'
     | 'kh_nguoi_dai_dien_snap'
     | 'kh_chuc_danh_dai_dien_snap'
@@ -74,6 +76,21 @@ export const khachHangCua = (
         name: p.kh_ten_snap,
         idNumber: p.kh_ma_so_thue_snap,
         registeredAddress: p.kh_dia_chi_dang_ky_snap ?? song.registeredAddress,
+        /*
+         * HAI Ô địa chỉ đăng ký (`0182`, đóng băng từ `0177`).
+         *
+         * KHÔNG rơi về `song` như `registeredAddress` ngay trên, và khác biệt ấy
+         * là cả điểm: hồ sơ gửi duyệt TRƯỚC `0177` chỉ chụp cột GỘP, nên hai ô
+         * này rỗng — đọc sống thay vào đó là trộn địa chỉ HÔM NAY vào một khối
+         * đã đóng băng, đúng thứ `0101` sinh ra để chống.
+         *
+         * Tờ giấy khi ấy in ra hai chỗ trống giữa dòng *Tên khách hàng*, và đó
+         * là câu đúng: hồ sơ ấy không giữ lại địa chỉ ở dạng hai ô. Hình dạng
+         * này TỰ HẾT — `0101` chụp lại cả khối ở mỗi lượt gửi, nên hồ sơ còn đi
+         * trong luồng có đủ hai ô ngay lượt gửi lại tiếp theo.
+         */
+        province: p.kh_tinh_thanh_snap,
+        streetWard: p.kh_so_nha_snap,
         deliveryAddress: p.kh_noi_nhan_hang_snap,
         ownerName: p.kh_nguoi_dai_dien_snap ?? song.ownerName,
         ownerTitle: p.kh_chuc_danh_dai_dien_snap,

@@ -51,6 +51,20 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'ho_so.ten_khach_hang': (c) => c.customer.name,
   'ho_so.ma_so_thue': (c) => c.customer.idNumber,
   'ho_so.dia_chi_dang_ky': (c) => c.customer.registeredAddress,
+  /*
+   * HAI Ô của địa chỉ đăng ký (`0182`) — bên cạnh cột gộp ngay trên, không thay
+   * nó.
+   *
+   * Khách hàng chốt 07/09 rằng dòng *Tên khách hàng* nối năm phần, trong đó địa
+   * chỉ là HAI: *Số nhà/Phường xã* rồi *Tỉnh thành phố*. Cột gộp không tách
+   * ngược ra được — nó do trigger dựng bằng `', '` (`0175`), và một địa chỉ có
+   * dấu phẩy giữa lòng nó thì phép tách cắt sai chỗ mà không ai biết.
+   *
+   * Cột gộp GIỮ LẠI: mẫu do người dùng soạn vẫn đặt được một ô địa chỉ đầy đủ,
+   * và ba mẫu bàn giao trước `0182` vẫn in đúng.
+   */
+  'ho_so.so_nha_phuong_xa': (c) => c.customer.streetWard,
+  'ho_so.tinh_thanh_pho': (c) => c.customer.province,
   'ho_so.noi_nhan_hang': (c) => c.customer.deliveryAddress ?? c.customer.registeredAddress,
   'ho_so.nguoi_dai_dien': (c) => c.customer.ownerName,
   // `0128` — số điện thoại khách hàng. Đóng băng vào hồ sơ lúc gửi duyệt, nên
@@ -176,6 +190,13 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
 
   // --- Chặn lúc gửi duyệt --------------------------------------------------
   'ho_so.ma_so_thue': 'chan-moi', //        cus.customer.id_number NULL được
+
+  // `0182` — HAI Ô địa chỉ. `de-trong` chứ không `luon-co`: hai cột nguồn là
+  // NOT NULL ở `cus.customer`, nhưng hồ sơ gửi duyệt TRƯỚC `0177` chỉ có ảnh
+  // chụp cột gộp, nên chúng RỖNG THẬT ở đó — và không ai chặn, vì không bước
+  // nào điền chúng và cũng không có gì để điền.
+  'ho_so.so_nha_phuong_xa': 'de-trong',
+  'ho_so.tinh_thanh_pho': 'de-trong',
 
   // --- Để trống được ------------------------------------------------------
   //

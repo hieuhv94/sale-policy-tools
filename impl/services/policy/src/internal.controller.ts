@@ -73,6 +73,13 @@ export class PolicyInternalController {
               -- Rỗng nghĩa là chưa gửi duyệt hoặc lập trước 0101 — khi ấy
               -- document đọc sống, xem khachHangCua.
               kh_ma_snap, kh_ten_snap, kh_ma_so_thue_snap, kh_dia_chi_dang_ky_snap,
+              -- 0182: HAI Ô địa chỉ đăng ký. Chúng đã đóng băng từ 0177 nhưng
+              -- chưa ai đọc tới: tờ giấy in cột GỘP. Từ 0182 dòng Tên khách
+              -- hàng in "số nhà/phường xã – tỉnh thành phố" thành hai phần, nên
+              -- document cần đúng hai cột này. Câu SELECT liệt kê từng cột, nên
+              -- thiếu tên ở đây là document nhận undefined và in ra hai ô trống
+              -- — bẫy 0128 và 0144 đã ghi hai lần.
+              kh_so_nha_snap, kh_tinh_thanh_snap,
               kh_noi_nhan_hang_snap, kh_nguoi_dai_dien_snap, kh_chuc_danh_dai_dien_snap,
               kh_dien_thoai_snap,
               -- bigint qua JSON mất chữ số, nên trả về dạng CHUOI (0061).

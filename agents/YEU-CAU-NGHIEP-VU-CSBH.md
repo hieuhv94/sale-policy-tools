@@ -1698,6 +1698,11 @@ hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên kh
 > **Cái mất, đã cân nhắc và khách hàng chốt**: bản CSBH in ra **không còn tên pháp nhân của khách
 > hàng** ở bất kỳ đâu — chỉ còn tên người đại diện, địa chỉ và mã số thuế. Mã khách hàng vẫn còn, và
 > mã số thuế mới là thứ định danh pháp lý.
+>
+> **ĐẢO LẠI Ở `07/09`**: dòng ấy nay nối **năm phần** và tên pháp nhân quay về, đứng ngay sau tên
+> người đại diện. Câu bỏ nó ở `31/08` đúng trong hoàn cảnh khi ấy — hai cái tên tranh MỘT chỗ trên
+> cùng một dòng; chuỗi năm phần cho cả hai một chỗ riêng nên mâu thuẫn ấy hết. Xem mục *Dòng «Tên
+> khách hàng» nối năm phần* dưới đây.
 
 **BA loại văn bản mẫu, và ba mẫu MẶC ĐỊNH đi cùng hệ thống** `sửa 30/08` — bốn câu chốt cùng lúc:
 
@@ -2043,6 +2048,25 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > **Hai cột này CÓ trong danh mục cột của văn bản mẫu nhưng KHÔNG tích sẵn cho hai mẫu mặc định**
 > (khách hàng chốt riêng khi được hỏi): chúng trả lời câu *"bản này khác bản trước ở đâu"* — việc của
 > người đang duyệt, không phải nội dung của một chính sách đem ký. Mẫu nào cần thì tự tích.
+
+**Dòng *Tên khách hàng* trên văn bản mẫu nối NĂM PHẦN** `sửa 07/09` — *"Nối mã: Tên người đại diện –
+Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã – Tỉnh thành phố – Mã số thuế"*.
+
+> Trước lượt này dòng ấy có **ba** phần: *tên người đại diện – địa chỉ đăng ký – MST*. Hai phần thêm
+> vào, và mỗi phần đảo lại một quyết định cũ ở đúng chỗ nó không còn đúng nữa:
+>
+> - ***Tên Hộ kinh doanh/Tên Công ty* quay lại tờ giấy.** `31/08` bỏ nó vì khi ấy dòng này in tên
+>   người đại diện **thay cho** tên pháp nhân — hai cái tên tranh một chỗ. Chuỗi năm phần cho cả hai
+>   một chỗ riêng, nên mâu thuẫn ấy hết và bản CSBH lại mang tên pháp nhân của khách hàng.
+> - **Địa chỉ tách làm HAI** — *Số nhà/Phường xã* rồi *Tỉnh thành phố* — thay cho một ô địa chỉ đăng
+>   ký gộp. Cột gộp do phần mềm tự dựng từ hai ô ấy (`05/09`), và tách ngược nó ở dấu phẩy là cắt sai
+>   chỗ ở mọi địa chỉ vốn đã có dấu phẩy. Nên bảng trường nguồn có **thêm hai khoá**; khoá địa chỉ
+>   gộp GIỮ NGUYÊN cho mẫu nào muốn một ô đầy đủ.
+>
+> **Hồ sơ gửi duyệt TRƯỚC `06/09` in ra hai chỗ trống** ở phần địa chỉ: lượt gửi của chúng chỉ đóng
+> băng địa chỉ ở dạng một chuỗi. Phần mềm **không** đọc địa chỉ hôm nay thay vào — đó là trộn hai
+> thời điểm vào một tờ giấy đã ký. Hình dạng ấy tự hết: hồ sơ còn đi trong luồng chụp lại cả khối ở
+> lượt gửi tiếp theo.
 
 **Khối *Bản cứng* đổi tên thành *File SCAN bản cứng*** `sửa 07/09` — *"Sửa chữ «Bản cứng» thành
 «File SCAN bản cứng»"*.
