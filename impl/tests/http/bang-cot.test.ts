@@ -31,6 +31,7 @@ import { describe, expect, it } from 'vitest';
 import {
   COT_BANG,
   COT_MAC_DINH,
+  COT_MAU_MAC_DINH,
   RONG_TOI_THIEU_PCT,
   bangSanPhamXml,
   makeDocx,
@@ -68,6 +69,20 @@ const tyLe = (xs: number[]): number[] => {
   return xs.map((x) => (x / tong) * 100);
 };
 
+/**
+ * Vị trí của một cột trong bảng ĐANG ĐO — tra từ `COT_MAC_DINH`, không đếm tay.
+ *
+ * `0180` thêm ba cột, và mọi chỉ số viết cứng ở tệp này lệch đi một chỗ: ca
+ * *"tên dài thì cột rộng ra"* quay sang đo cột *Mã sản phẩm* và đỏ với một câu
+ * nghe rất hợp lý (`tên dài 10.4% ≤ tên ngắn 12.3%`). Một chỉ số gõ tay là một
+ * lời hứa rằng danh mục cột sẽ không bao giờ đổi nữa.
+ */
+const viTri = (khoa: string): number => {
+  const i = COT_MAC_DINH.indexOf(khoa as (typeof COT_MAC_DINH)[number]);
+  expect(i, `không có cột ${khoa} trong COT_MAC_DINH`).toBeGreaterThanOrEqual(0);
+  return i;
+};
+
 describe('`0135` lưới cột và ô nói CÙNG một điều', () => {
   it('`tblGrid` mang đúng tỷ lệ mà `w:tcW` khai — đây là chỗ đã hỏng', () => {
     /*
@@ -102,36 +117,70 @@ describe('`0172` bề rộng cột ĐO TỪ NỘI DUNG', () => {
    */
   it('tên DÀI thì cột tên rộng ra; tên NGẮN thì nó nhường chỗ', () => {
     const cot = (xml: string, i: number) => tyLe(oHangDau(xml))[i]!;
-    // Chỉ số 2 = `ten_san_pham` ở tập cột mặc định (STT · Mã · Tên · …).
-    const dai = cot(bangSanPhamXml(hoSo()), 2);
+    const dai = cot(bangSanPhamXml(hoSo()), viTri('ten_san_pham'));
     const ngan = cot(
       bangSanPhamXml({
         lines: [{ ...dong(0), product_name_snap: 'Sữa A' }],
       } as never),
-      2,
+      viTri('ten_san_pham'),
     );
     expect(dai, `tên dài ${dai.toFixed(1)}% ≤ tên ngắn ${ngan.toFixed(1)}%`).toBeGreaterThan(ngan);
   });
 
-  it('cột SỐ được đủ chỗ cho con số dài nhất của nó', () => {
+  it('cột SỐ được đủ chỗ cho con số dài nhất CỦA CHÍNH NÓ', () => {
     /*
-     * Đây là lời hứa của cả lượt sửa: *"cố gắng không phải xuống dòng"*. Đo bằng
-     * cách so bề rộng cột với bề rộng ước lượng của chuỗi dài nhất trong cột —
-     * cùng thước đo mà `trongSoCot` dùng, nên nó kiểm phép CHIA chứ không kiểm
-     * lại chính công thức đo chữ.
+     * Đây là lời hứa của cả lượt sửa `0172`: *"cố gắng không phải xuống dòng"*.
+     * Đo bằng cách so bề rộng cột với bề rộng ước lượng của chuỗi dài nhất
+     * trong CỘT ẤY — cùng thước đo mà `trongSoCot` dùng, nên nó kiểm phép CHIA
+     * chứ không kiểm lại chính công thức đo chữ.
+     *
+     * `0180` SỬA HAI CHỖ, và chỗ thứ hai là một phép đo sai có sẵn:
+     *
+     *   1. đo tập cột của HAI MẪU MẶC ĐỊNH (`COT_MAU_MAC_DINH`), không phải cả
+     *      danh mục — *Trạng thái* và *Tỷ lệ CK cũ* không được tích cho ba mẫu
+     *      phần mềm tự nạp, nên đo chúng là đo một tờ giấy không ai in;
+     *   2. mỗi cột đo theo chuỗi dài nhất CỦA NÓ. Bản cũ áp `615.000` — chuỗi
+     *      dài nhất của CẢ BẢNG — lên mọi cột tiền, kể cả cột *CPBH* mà ô dài
+     *      nhất chỉ là `45.000`. Phép đo ấy xanh chừng nào bảng còn thừa chỗ, và
+     *      đỏ ngay lượt thêm cột đầu tiên với một câu nghe như một hồi quy thật.
      *
      * Khổ A4 NGANG (hai mẫu mặc định đều ngang): bề ngang chữ 14570 twip.
      */
     const RONG_NGANG = 14570;
     const EM = 220; // 11pt, tính bằng twip
-    const xml = bangSanPhamXml(hoSo());
+    const LE_O = 114 / 220; // lề trong ô, hai bên
+
+    /** Bề rộng một chuỗi TIỀN đã phân nhóm, tính bằng em — chữ số 0,5; dấu chấm 0,25. */
+    const emCuaTien = (s: string) =>
+      [...s].reduce((a, c) => a + (c === '.' ? 0.25 : 0.5), 0) + LE_O;
+
+    const xml = bangSanPhamXml(hoSo(), COT_MAU_MAC_DINH);
     const o = tyLe(oHangDau(xml));
-    // `615.000` — chuỗi dài nhất của mọi cột tiền trong fixture.
-    const canEm = 6 * 0.5 + 0.25 + 114 / 220;
-    for (const i of [3, 4, 5, 8, 9]) {
+
+    /*
+     * Vị trí trong bảng ĐÃ DỰNG: khoá `cpbh` nở ra thành N cột, nên chỉ số của
+     * mọi cột sau nó lệch đi. Dựng lại đúng dãy khoá của hàng tiêu đề.
+     */
+    const day = COT_MAU_MAC_DINH.flatMap((k) => (k === 'cpbh' ? ['cpbh', 'cpbh'] : [k]));
+
+    // Chuỗi dài nhất của TỪNG cột, đọc từ chính fixture.
+    const daiNhat: Record<string, string> = {
+      gia_cong_ty: '615.000',
+      gia_ban_buon: '540.000',
+      cpbh_tong: '45.000',
+      cpbh: '20.000',
+      gia_thu_ve: '495.000',
+    };
+
+    for (const [i, khoa] of day.entries()) {
+      const can = daiNhat[khoa];
+      if (can === undefined) continue;
       const co = (o[i]! / 100) * RONG_NGANG;
-      expect(co, `cột ${i} chỉ được ${Math.round(co)} twip, cần ${Math.round(canEm * EM)}`)
-        .toBeGreaterThanOrEqual(canEm * EM);
+      const canTwip = emCuaTien(can) * EM;
+      expect(
+        co,
+        `cột ${i} (${khoa}) chỉ được ${Math.round(co)} twip, cần ${Math.round(canTwip)} cho "${can}"`,
+      ).toBeGreaterThanOrEqual(canTwip);
     }
   });
 
@@ -153,7 +202,8 @@ describe('`0172` bề rộng cột ĐO TỪ NỘI DUNG', () => {
         } as never),
       ),
     );
-    expect(o[2], `cột tên chiếm ${o[2]!.toFixed(1)}% bề ngang bảng`).toBeLessThan(35);
+    const iTen = viTri('ten_san_pham');
+    expect(o[iTen], `cột tên chiếm ${o[iTen]!.toFixed(1)}% bề ngang bảng`).toBeLessThan(35);
   });
 
   it('cột STT vẫn CÓ MẶT, và đứng đầu tiên', () => {
@@ -178,13 +228,26 @@ describe('`0135` không cột nào bị bóp tới mức vỡ chữ', () => {
      * không đọc được trên A4 dù chia kiểu gì; đó là giới hạn đã biết của bố cục
      * này, không phải thứ ca kiểm này canh.
      */
+    /*
+     * ĐO BẰNG ĐƠN VỊ ĐÃ KHAI, không chuẩn hoá lại theo tổng (`0180`).
+     *
+     * `w:tcW` là số NGUYÊN đơn vị 1/50 phần trăm, nên tổng của một bảng nhiều
+     * cột lệch khỏi 5000 vài đơn vị vì làm tròn. Chia lại theo tổng thật cho ra
+     * `2,9994%` cho một cột đã được đặt đúng ở sàn 150/5000 — và con số ấy đọc
+     * y như một sàn bị vỡ.
+     *
+     * Đã suýt viết lại `apDungSan` vì cái 2,9994 ấy. Đo lại thì tổng là **5001**;
+     * thuật toán không sai chỗ nào. Ghi ra ở đây vì phép chuẩn hoá kia nằm trong
+     * chính tệp này và trông hoàn toàn vô hại.
+     */
+    const SAN_RAW = RONG_TOI_THIEU_PCT * 50;
     for (const soKhoan of [0, 1, 2, 3]) {
-      const o = tyLe(oHangDau(bangSanPhamXml(hoSo(soKhoan))));
+      const o = oHangDau(bangSanPhamXml(hoSo(soKhoan)));
       const hep = Math.min(...o);
       expect(
         hep,
-        `${soKhoan} khoản CPBH: cột hẹp nhất còn ${hep.toFixed(2)}%`,
-      ).toBeGreaterThanOrEqual(RONG_TOI_THIEU_PCT);
+        `${soKhoan} khoản CPBH: cột hẹp nhất còn ${(hep / 50).toFixed(2)}%`,
+      ).toBeGreaterThanOrEqual(SAN_RAW);
     }
   });
 

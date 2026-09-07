@@ -10,23 +10,32 @@
  * `@csbh/domain-policy`. Chép tay một công thức có luật làm tròn là cách chắc
  * chắn để hai bên lệch nhau vào ngày ai đó sửa một bên.
  *
- * Khách hàng đã có CSBH đang hiệu lực thì phải chọn **Bổ sung** hay **Chỉnh
- * sửa** ngay tại đây. Máy chủ cũng hỏi câu đó (`SUPPLEMENT_REQUIRED` /
- * `AMEND_REQUIRED`), nhưng nó suy ra câu hỏi từ danh sách dòng gửi lên — mà lúc
- * này hồ sơ chưa có dòng nào, nên câu nó chọn sẽ luôn là "chỉnh sửa" và đọc ra
- * sai. Hỏi thẳng người dùng thì đúng cả hai tình huống.
+ * Khách hàng đã có CSBH đang hiệu lực thì đây là chỗ xác nhận **lập phiên bản
+ * mới** — MỘT nút, không phải hai (`0180`, chốt 07/09).
+ *
+ * Hai nút cũ — *Bổ sung* và *Chỉnh sửa* — dẫn tới **cùng một việc**: máy chủ
+ * chép lại toàn bộ dòng cũ rồi để TDV thêm bớt. Chúng chỉ khác nhau ở chữ trên
+ * mặt nút, nên chúng bắt người lập trả lời trước một câu hỏi mà họ chỉ biết câu
+ * trả lời sau khi mở hồ sơ ra: *"tôi sắp thêm mặt hàng mới, hay sửa mặt hàng
+ * đã có?"* — và rất thường là cả hai.
+ *
+ * Việc phân loại ấy KHÔNG mất đi, nó chuyển xuống đúng chỗ có dữ liệu để trả
+ * lời: mỗi dòng sản phẩm tự mang trạng thái *Bổ sung* · *Chỉnh sửa* · *Đang áp
+ * dụng*, tính từ chính bản bị thay thế (`0180`).
+ *
+ * NGÀY ÁP DỤNG cũng rời khỏi màn hình này cùng lượt — nó là thuộc tính của từng
+ * dòng sản phẩm, khai trong hộp thoại *Thêm sản phẩm*.
  */
 import { useEffect, useState } from 'react';
 import { dang, layJson } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
-import { ngay } from '../lib/format.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
-import { BaoLoi, ChuThichBatBuoc, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
+import { BaoLoi, DangTai, OTimKiem, Trong } from '../components/Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { la404 } from '../lib/loi.js';
 
 type KhachHang = { id: string; code: string; name: string };
-type HoSoHienHanh = { id: string; code: string; appliedDate: string | null };
+type HoSoHienHanh = { id: string; code: string };
 
 export function LapHoSo() {
   const { di, truyVan } = useDuong();
@@ -125,7 +134,6 @@ function ChonCachLap({
   const [hienHanh, datHienHanh] = useState<HoSoHienHanh | null | 'khong-co'>(null);
   /** Lỗi TRA bản đang hiệu lực — khác hẳn với "khách chưa có bản nào". */
   const [loiTra, datLoiTra] = useState<unknown>(null);
-  const [ngayApDung, datNgayApDung] = useState(() => new Date().toISOString().slice(0, 10));
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
@@ -147,13 +155,12 @@ function ChonCachLap({
     return () => huy.abort();
   }, [khachHang.id]);
 
-  const lap = async (mode?: 'SUPPLEMENT' | 'AMEND') => {
+  const lap = async (mode?: 'NEW_VERSION') => {
     datLoi(null);
     datDangGui(true);
     try {
       const hs = await dang<{ id: string }>('/policies', {
         customerId: khachHang.id,
-        appliedDate: ngayApDung,
         lines: [],
         ...(mode ? { mode } : {}),
       });
@@ -168,10 +175,7 @@ function ChonCachLap({
   if (loiTra !== null) return <BaoLoi loi={loiTra} />;
   if (hienHanh === null) return <DangTai />;
 
-  // Ô ngày có sẵn giá trị hôm nay nên nhìn như đã điền, mà xoá trắng đi thì
-  // `<input type="date">` trả chuỗi rỗng và không có gì trên màn hình đổi khác.
-  // Máy chủ nhận hồ sơ không có ngày áp dụng — xem `CHAT_HON` ở `bat-buoc.ts`.
-  const thieu = thieuTruong('ho-so', { customerId: khachHang.id, appliedDate: ngayApDung });
+  const thieu = thieuTruong('ho-so', { customerId: khachHang.id });
 
   return (
     <>
@@ -184,19 +188,6 @@ function ChonCachLap({
           Chọn khách khác
         </button>
       </div>
-
-      <ChuThichBatBuoc />
-      <Truong id="lhs-ngay" nhan="Ngày áp dụng" bắtBuộc>
-        {(p) => (
-          <input
-            {...p}
-            className="o-nhap"
-            type="date"
-            value={ngayApDung}
-            onChange={(e) => datNgayApDung(e.target.value)}
-          />
-        )}
-      </Truong>
 
       {loi !== null && <BaoLoi loi={loi} />}
 
@@ -212,27 +203,22 @@ function ChonCachLap({
       ) : (
         <>
           <p className="giai-thich">
-            Khách hàng đang có CSBH <strong>{hienHanh.code}</strong> (áp dụng{' '}
-            {ngay(hienHanh.appliedDate)}). Phiên bản mới <strong>chứa lại toàn bộ sản phẩm cũ</strong>{' '}
-            — bạn không phải nhập lại. CSBH cũ chỉ hết hiệu lực khi bản mới được duyệt xong.
+            Khách hàng đang có CSBH <strong>{hienHanh.code}</strong>. Phiên bản mới{' '}
+            <strong>chứa lại toàn bộ sản phẩm cũ</strong> — bạn không phải nhập lại, và mỗi dòng sẽ
+            tự mang trạng thái <strong>Bổ sung</strong>, <strong>Chỉnh sửa</strong> hay{' '}
+            <strong>Đang áp dụng</strong> theo đúng thứ bạn thay đổi. CSBH cũ chỉ hết hiệu lực khi
+            bản mới được duyệt xong.
           </p>
-          <p className="tieu-de-phu">Bạn muốn làm gì?</p>
           <div className="nhom-nut">
+            {/* MỘT nút (`0180`). Hai nút cũ dẫn tới cùng một việc — xem chú
+                thích đầu tệp. */}
             <button
               type="button"
               className="nut nut-chinh"
               disabled={dangGui || thieu.length > 0}
-              onClick={() => lap('SUPPLEMENT')}
+              onClick={() => lap('NEW_VERSION')}
             >
-              Bổ sung — thêm sản phẩm chưa có
-            </button>
-            <button
-              type="button"
-              className="nut"
-              disabled={dangGui || thieu.length > 0}
-              onClick={() => lap('AMEND')}
-            >
-              Chỉnh sửa — đổi sản phẩm đã có
+              {dangGui ? 'Đang lập…' : 'Lập phiên bản mới'}
             </button>
           </div>
         </>

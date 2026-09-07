@@ -259,7 +259,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 
 | Bước | Người thực hiện | Trạng thái sau bước | Email tới | Nội dung |
 |---|---|---|---|---|
-| B1 | TDV | Nháp | — | Tạo hồ sơ: khách hàng, sản phẩm, CPBH, ngày áp dụng, file đính kèm |
+| B1 | TDV | Nháp | — | Tạo hồ sơ: khách hàng, sản phẩm, CPBH, **ngày áp dụng của từng sản phẩm** `sửa 07/09`, file đính kèm |
 | B2 | Hệ thống | Nháp | — | Tự tính, đối chiếu danh mục, kiểm tra trùng sản phẩm và CSBH hiện có, cảnh báo lỗi |
 | B3 | TDV | Chờ TBP duyệt | TBP | Chọn Trưởng bộ phận và Kế toán, chốt và gửi duyệt. Hồ sơ khóa sửa; giá và ngưỡng đóng băng. **Không chọn văn bản mẫu** `sửa 29/08` — xem mục 6.4 |
 | B4 | TBP — duyệt | **KT duyệt bản mềm** `sửa 19/08` | KT, TDV | Duyệt và ký số; file hiện người ký và ngày giờ ký. Hồ sơ sang thẳng bàn kế toán |
@@ -405,8 +405,8 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
   ý nghĩa nghiệp vụ khác nhau và để lại vết khác nhau trong nhật ký.
 - Giá bán Công ty và ngưỡng chiết khấu **chụp lại theo danh mục tại thời điểm sửa**, đúng như lúc
   thêm dòng. Hồ sơ chưa gửi duyệt thì con số của nó phải là con số hiện hành.
-- **Chỉ TDV đang phụ trách hồ sơ** thêm, sửa, xoá được một dòng sản phẩm, và đổi được ngày áp dụng
-  `nói rõ 23/08`. Luật này không mới — nó là mặt còn lại của quy tắc xoá hồ sơ ở mục 4 — nhưng
+- **Chỉ TDV đang phụ trách hồ sơ** thêm, sửa, xoá được một dòng sản phẩm — kể cả ngày áp dụng của
+  dòng ấy `nói rõ 23/08`, `sửa 07/09`. Luật này không mới — nó là mặt còn lại của quy tắc xoá hồ sơ ở mục 4 — nhưng
   trước đây chỉ ghi ngầm bằng chữ *"người lập"*, và phần mềm đã hiểu ngầm sai một chỗ (xem Phụ lục B,
   `0099`). Nói rõ vì ba vai trò khác **có tên trên hồ sơ**: hồ sơ bị trả lại vẫn mang tên Trưởng bộ
   phận và Kế toán đã xử lý nó, mà "có tên trên hồ sơ" chỉ cho quyền **xem lại việc mình đã làm** —
@@ -815,14 +815,23 @@ và con số dùng để so ngưỡng phải là một: so sánh **sau khi** đ�
 **Vượt ngưỡng** — cột tỷ lệ hiện đỏ ngay khi nhập. Khi bấm duyệt và gửi, hiện hộp thoại cảnh báo
 vượt chiết khấu; người dùng đồng ý thì **vẫn cho gửi**. Đây là cảnh báo mềm, không chặn.
 
-### 7.1. Ảnh chụp lấy theo NGÀY ÁP DỤNG `mới 16/08`
+### 7.1. Ảnh chụp lấy theo NGÀY ÁP DỤNG `mới 16/08` `sửa 07/09`
 
 Giá bán Công ty và ngưỡng chiết khấu đều có ngày hiệu lực. Con số chụp vào một dòng hồ sơ là con số
-có hiệu lực **tại Thời gian áp dụng của hồ sơ ấy**, không phải tại ngày lập.
+có hiệu lực **tại ngày áp dụng của chính dòng ấy**, không phải tại ngày lập.
 
-Hồ sơ áp dụng từ 01/09 thì mang bảng giá của 01/09, kể cả khi được lập từ tháng 8. Đổi *Thời gian áp
-dụng* thì mọi dòng **chụp lại** theo bảng giá của ngày mới. Bỏ trống Thời gian áp dụng thì lấy giá
-hôm nay.
+**NGÀY ÁP DỤNG THUỘC VỀ TỪNG SẢN PHẨM** `sửa 07/09`. Hồ sơ CSBH không còn một ngày áp dụng chung:
+mỗi dòng sản phẩm mang ngày của riêng nó, khai ngay ở hộp thoại *Thêm sản phẩm* — ô đầu tiên, trước
+cả ô chọn sản phẩm. Một hồ sơ hoàn toàn có thể gồm ba mặt hàng cũ áp dụng từ 01/09 cộng một mặt hàng
+mới áp dụng từ 01/10, và khi ấy hai nhóm dòng chụp hai bảng giá khác nhau.
+
+Dòng áp dụng từ 01/09 mang bảng giá của 01/09, kể cả khi được lập từ tháng 8. Sửa ngày áp dụng của
+một dòng thì **chính dòng ấy chụp lại** theo bảng giá của ngày mới; các dòng khác không đổi. Không
+khai ngày thì máy chủ điền **hôm nay** (giờ Việt Nam) — cột này không rỗng được.
+
+Bản CSBH in ra vì thế **không còn ô *Thời gian áp dụng*** ở đầu trang: ngày là **cột đầu tiên của
+bảng sản phẩm**, ngay bên trái *Mã sản phẩm*. In một ngày duy nhất ở đầu trang là nói sai về mọi
+dòng có ngày khác.
 
 ### 7.2. Đóng băng: đúng một lần, ở đúng lúc gửi duyệt `sửa 16/08`
 
@@ -1672,7 +1681,7 @@ mặc định cả đầy đủ và rút gọn trong default: bỏ số hồ sơ
 hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên khách hàng}} - …`; bỏ dòng File đính kèm"*.
 
 > Khối thông tin của cả hai mẫu còn đúng **bốn dòng**: *Mã khách hàng* · *Tên khách hàng* ·
-> *Công nợ* · *Thời gian áp dụng*. Dòng *Tên khách hàng* in **tên người đại diện — địa chỉ đăng ký —
+> *Công nợ* · *Thời gian áp dụng* — và **ba** từ `07/09`, khi dòng cuối rời xuống bảng sản phẩm. Dòng *Tên khách hàng* in **tên người đại diện — địa chỉ đăng ký —
 > MST**; ba dòng *Số hồ sơ*, *Người đại diện* (dòng riêng, có kèm chức danh và số điện thoại) và
 > *File đính kèm* biến mất.
 >
@@ -1683,7 +1692,8 @@ hàng là `{{tên người đại diện}} - …` chứ không phải `{{tên kh
 > **Hai chốt chặn lúc gửi duyệt gỡ theo**: *chức danh người đại diện* (chốt `24/08`) và *số điện
 > thoại* (chốt `27/08`). Một trường chỉ đáng chặn khi nó để lại một ô trắng trên bản đem đi ký — bỏ
 > khỏi tờ giấy rồi mà vẫn chặn thì phần mềm bắt điền một thứ không ai đọc. Còn lại **hai** trường
-> chặn: *Mã số thuế* và *Thời gian áp dụng*.
+> chặn: *Mã số thuế* và *Thời gian áp dụng* — và từ `07/09` còn **một**, khi *Thời gian áp dụng*
+> chuyển xuống từng dòng sản phẩm.
 >
 > **Cái mất, đã cân nhắc và khách hàng chốt**: bản CSBH in ra **không còn tên pháp nhân của khách
 > hàng** ở bất kỳ đâu — chỉ còn tên người đại diện, địa chỉ và mã số thuế. Mã khách hàng vẫn còn, và
@@ -1966,6 +1976,74 @@ kinh doanh/Tên Công ty* · *Số nhà, Phường xã* · *Tỉnh/Thành phố*
 > chỗ thì không ai biết. Hồ sơ còn trong luồng có hai ô ngay lượt gửi lại tiếp theo; hồ sơ đã có hiệu
 > lực giữ nguyên một ô, đúng như một tờ giấy đã ký.
 
+**NGÀY ÁP DỤNG THEO TỪNG SẢN PHẨM, và bốn thay đổi đi kèm ở bảng sản phẩm** `mới 07/09` — *"Bỏ
+phần ngày áp dụng cho CSBH, thay vào đó gán ngày áp dụng vào cho từng sản phẩm cụ thể. Khai báo
+thông tin ngày áp dụng khi thêm sản phẩm, cột ngày áp dụng để bên trái mã sản phẩm."*
+
+> **Hồ sơ CSBH KHÔNG còn ngày áp dụng nào.** Cột ấy gỡ hẳn, không giữ lại làm cột dẫn xuất — đã cân
+> nhắc giữ một ngày bằng *ngày sớm nhất của các dòng*, và bỏ ý ấy vì một hồ sơ bốn dòng bốn ngày thì
+> "ngày áp dụng của hồ sơ" là câu **không có câu trả lời đúng**: in ngày sớm nhất ra tờ giấy đem ký
+> là nói sai về ba dòng còn lại.
+>
+> Kéo theo, và đều là quyết định:
+>
+> - ô ***Thời gian áp dụng*** rời khỏi hai mẫu hồ sơ mặc định và khỏi bảng trường nguồn — ngày in ra
+>   ở **cột đầu của bảng sản phẩm**. Mục *thời gian áp dụng* của muc 11.1 vẫn có mặt trên tờ giấy,
+>   chỉ khác chỗ đứng; phép kiểm tự động lúc lưu mẫu còn **6/13** (trước là 7);
+> - **phép chặn gửi duyệt** cho trường ấy biến mất — không phải nới, mà vì cột mới `NOT NULL` và máy
+>   chủ điền mặc định, tức không có trạng thái "thiếu" nào. Còn **một** trường chặn: *Mã số thuế*;
+> - **bộ lọc *"CSBH áp dụng từ … đến …"*** ở màn hình Thống kê đổi nghĩa sang **ngày sớm nhất của
+>   các dòng**, và cột trên bảng danh sách hồ sơ đổi nhãn thành ***Áp dụng từ***;
+> - **màn hình *Lập hồ sơ* thôi hỏi ngày**; ô ngày chuyển sang hộp thoại *Thêm sản phẩm*, đứng
+>   **trước** ô chọn sản phẩm vì giá bán Công ty và ngưỡng xem trước đều tra theo chính ngày ấy.
+>
+> **Nâng cấp một hệ đang chạy:** ba mẫu mặc định bị xoá trong migration để bộ nạp tạo lại từ ba tệp
+> mới — mẫu do người dùng tự tải lên **không bị chạm**, nhưng mẫu nào còn dùng ô `{{ho_so.ngay_ap_dung}}`
+> sẽ in ra **ô rỗng** cho tới khi được thay. Xem `docs/04-TRIEN-KHAI.md`.
+
+**Cột QĐCK hiện NGƯỠNG, tên quy định lui vào dấu `?`** `sửa 07/09` — *"nội dung của cột QĐCK hiển thị
+số phần trăm chứ không hiển thị tên QĐCK, để dấu «?» nhỏ bên cạnh để khi người dùng di chuột vào sẽ
+hiện tên QĐCK"*.
+
+> Con số phần trăm đọc được ngay cạnh *Tỷ lệ CK* ở cùng hàng; mã quy định thì phải mở màn hình khác
+> mới biết nó nghĩa là bao nhiêu. Mã KHÔNG mất — nó nằm trong câu của dấu `?`, và vẫn dán được vào ô
+> tìm kiếm ở màn hình Chiết khấu. Cột này **chỉ có trên màn hình**, không in ra giấy (chốt `19/08`).
+
+**MỘT nút thay cho *Bổ sung* và *Chỉnh sửa*** `sửa 07/09` — *"Gộp hai nút bổ sung và chỉnh sửa CSBH
+vào thành 1"*.
+
+> Hai nút cũ dẫn tới **cùng một việc**: phiên bản mới chứa lại toàn bộ sản phẩm cũ, rồi TDV thêm bớt.
+> Chúng chỉ bắt người lập trả lời trước một câu hỏi mà họ chỉ biết câu trả lời sau khi mở hồ sơ ra —
+> và rất thường là **cả hai**. Nút còn lại: ***Lập phiên bản mới***.
+>
+> Sự phân biệt ấy không mất, nó chuyển xuống đúng chỗ có dữ liệu để trả lời — **trạng thái của từng
+> dòng**, ngay dưới đây.
+
+**BA TRẠNG THÁI cho từng sản phẩm trong CSBH, và cột *Tỷ lệ CK cũ*** `mới 07/09` — *"Mỗi sản phẩm
+trong CSBH sẽ có 3 trạng thái: «Bổ sung» cho sản phẩm thêm mới so với CSBH đang có, «Chỉnh sửa» cho
+sản phẩm đã có sẵn và bị sửa, «Đang áp dụng» cho sản phẩm đã có. Thêm một cột trạng thái cho từng sản
+phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản phẩm. Thêm 1 cột «Tỷ lệ CK cũ» bên cạnh
+«Tỉ lệ CK» để hiển thị tỷ lệ CK cũ trong phiên bản trước cho các sản phẩm đã bị TDV chỉnh sửa."*
+
+> **So với CSBH BỊ THAY THẾ**, không phải với một mốc nào khác. Phiên bản đầu tiên của một khách hàng
+> không có bản trước, nên **mọi dòng của nó là *Bổ sung*** — chúng đều là mặt hàng vừa được đưa vào.
+>
+> ***"Bị sửa"* là đổi BẤT KỲ dữ liệu nào người lập nhập**: giá bán buôn · các khoản CPBH · ngày áp
+> dụng · ghi chú. Giá bán Công ty và ngưỡng **không** tính — chúng đến từ danh mục và được chụp lại ở
+> mỗi lượt mở hồ sơ còn sửa được, nên đưa vào phép so là để danh mục đổi giá một mình cũng làm mọi
+> dòng nhảy sang *Chỉnh sửa* trong khi TDV chưa đụng vào gì.
+>
+> Hệ quả có thật của việc **tính ra chứ không lưu một cờ**: sửa nhầm rồi sửa trả lại đúng giá trị cũ
+> thì dòng **quay về *Đang áp dụng*** — hồ sơ khi ấy không khác bản đang hiệu lực ở dòng ấy, và một
+> nhãn *Chỉnh sửa* dính lại sẽ bắt người duyệt đi tìm một khác biệt không tồn tại.
+>
+> ***Tỷ lệ CK cũ* chỉ hiện ở dòng *Chỉnh sửa***. Dòng *Đang áp dụng* có tỷ lệ cũ bằng đúng tỷ lệ mới —
+> in ra là một cột lặp lại cột bên cạnh; dòng *Bổ sung* thì không có tỷ lệ cũ nào.
+>
+> **Hai cột này CÓ trong danh mục cột của văn bản mẫu nhưng KHÔNG tích sẵn cho hai mẫu mặc định**
+> (khách hàng chốt riêng khi được hỏi): chúng trả lời câu *"bản này khác bản trước ở đâu"* — việc của
+> người đang duyệt, không phải nội dung của một chính sách đem ký. Mẫu nào cần thì tự tích.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,
@@ -2135,10 +2213,11 @@ chủ mới cũng từ chối theo cùng luật ấy.
 **Đủ trường mới gửi duyệt được** `mới 24/08` — trước khi hồ sơ rời trạng thái *Nháp*, phần mềm kiểm
 các trường sẽ in ra bản CSBH. Thiếu thì **chặn gửi**, và báo rõ thiếu mục nào cùng chỗ phải đi sửa.
 Ba trường bị chặn: **Mã số thuế** · **Chức danh người đại diện** (cả hai ở hồ sơ khách hàng) và
-**Thời gian áp dụng** (ở hồ sơ) — `sửa 01/09`: **còn hai**, xem mục ngay dưới. Kèm theo, *Thời gian
-áp dụng* nay **mặc định là hôm nay** ngay ở máy
-chủ — trước đó chỉ màn hình *Lập hồ sơ* điền sẵn, nên hồ sơ tạo qua đường khác chạy hết vòng duyệt
-với ô ấy để trống trên bản A4.
+**Thời gian áp dụng** (ở hồ sơ) — `sửa 01/09`: **còn hai**, xem mục ngay dưới; `sửa 07/09`: **còn
+một**, vì *Thời gian áp dụng* thôi tồn tại ở cấp hồ sơ. Kèm theo, *Thời gian áp dụng* nay **mặc định
+là hôm nay** ngay ở máy chủ — trước đó chỉ màn hình *Lập hồ sơ* điền sẵn, nên hồ sơ tạo qua đường
+khác chạy hết vòng duyệt với ô ấy để trống trên bản A4. Luật mặc-định-ở-máy-chủ **đi theo** khi ngày
+chuyển xuống dòng sản phẩm `07/09`.
 
 > **Bảy trường KHÔNG bị chặn**, vì chúng chưa tồn tại lúc gửi: *Ngày TBP ký* · *Khối chữ ký số* (B3),
 > *Kế toán* · *Ngày KT nhận lần 1* (B4), *Sale Admin* (B6), *Ngày KT nhận lần 2* · *Ngày hiệu lực*

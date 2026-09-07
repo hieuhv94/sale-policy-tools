@@ -443,6 +443,33 @@ Với hệ **đang chạy** thì có một việc tay, và bỏ qua nó là bả
 
 ---
 
+### Nâng cấp lên bản có NGÀY ÁP DỤNG THEO TỪNG SẢN PHẨM `mới 07/09`
+
+Ngày áp dụng chuyển từ **hồ sơ** xuống **từng dòng sản phẩm**. Migration
+`0116` làm phần lớn việc, và nó **an toàn với dữ liệu đang có**: mọi dòng của
+mọi hồ sơ nhận đúng ngày áp dụng mà hồ sơ ấy đang mang — trước lượt này ngày của
+hồ sơ ĐÃ LÀ ngày dùng để chụp giá cho mọi dòng, nên đây là chép xuống chứ không
+phải đoán.
+
+Ba việc còn lại phải biết:
+
+| | |
+| --- | --- |
+| **Ba mẫu mặc định tự nạp lại** | Migration **xoá ba dòng mẫu mặc định** (`Hồ sơ mẫu đầy đủ (bản mặc định)`, `… rút gọn …`, `Hợp đồng (bản mặc định)`) để bộ nạp dựng lại từ ba tệp mới lúc `document` khởi động. Không phải làm gì bằng tay — nhưng **phải để `document` khởi động xong** trước khi ai đó in bản mềm |
+| **Mẫu do người dùng tải lên KHÔNG tự đổi** | Mẫu nào còn ô `{{ho_so.ngay_ap_dung}}` sẽ in ra **ô rỗng** — nguồn ấy đã gỡ. Bản in không hỏng, không lộ `{{...}}`, chỉ là dòng *Thời gian áp dụng* trống. Chữa bằng cách tải lên một bản mẫu đã bỏ dòng ấy, rồi vô hiệu bản cũ (cùng cách làm với lượt đổi tên Công ty ở trên, kể cả bẫy trùng tên) |
+| **Bộ lọc báo cáo đổi nghĩa** | *"CSBH áp dụng từ … đến …"* ở màn hình Thống kê giờ so với **ngày áp dụng sớm nhất trong các dòng** của hồ sơ. Cột cùng nghĩa trên bảng danh sách hồ sơ đổi nhãn thành *Áp dụng từ* |
+
+> **Đường `PATCH /policies/:id` đã gỡ.** Nó chỉ đổi được ngày áp dụng của hồ sơ,
+> và trường ấy không còn. Tích hợp nào đang gọi nó sẽ nhận `404`; đường thay thế
+> là `PATCH /policies/:id/lines/:lineId` với trường `ngayApDung`.
+
+> **`mode` khi lập phiên bản mới đổi giá trị.** `SUPPLEMENT` và `AMEND` gộp
+> thành **`NEW_VERSION`**, và hai mã lỗi `SUPPLEMENT_REQUIRED`/`AMEND_REQUIRED`
+> gộp thành `NEW_VERSION_REQUIRED`. Cả hai giá trị cũ chưa bao giờ dẫn tới hai
+> hành vi khác nhau ở máy chủ.
+
+---
+
 ## 6. Nghiệm thu trước khi giao cho người dùng
 
 ```sh

@@ -24,7 +24,7 @@ import {
   SUA_DUOC,
   type Status,
 } from '@csbh/domain-policy';
-import { PG, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
+import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { emit } from '../infra/emit.js';
 import { Clients } from '../infra/clients.js';
@@ -37,14 +37,35 @@ export type LineInput = {
   cpbh?: readonly bigint[] | undefined;
   /** Ghi chú tự do cho riêng dòng này (`0027`). Thiếu = xoá ghi chú đang có. */
   note?: string | undefined;
+  /**
+   * NGÀY ÁP DỤNG của riêng dòng này (`0180`).
+   *
+   * Thiếu là **hôm nay theo giờ Việt Nam**, quyết định ở MÁY CHỦ — cùng luật mà
+   * `0104` đã đặt cho ngày áp dụng của hồ sơ, và vì cùng một lý do: chỗ duy nhất
+   * biết "hôm nay" là hôm nay của người dùng chứ không của tiến trình nào.
+   *
+   * Ngày này QUYẾT ĐỊNH bảng giá và ngưỡng chiết khấu được chụp cho chính dòng
+   * ấy, nên hai dòng cùng hồ sơ mà khác ngày thì có thể chụp hai bảng giá khác
+   * nhau — đúng điều khách hàng chốt 07/09.
+   */
+  ngayApDung?: string | undefined;
 };
 
 export type CreateInput = {
   customerId: string;
-  appliedDate?: string | undefined;
   lines: LineInput[];
-  /** Bỏ trống thì hệ thống tự phát hiện và HỎI LẠI thay vì đoán (POL-04, POL-06). */
-  mode?: 'SUPPLEMENT' | 'AMEND' | undefined;
+  /**
+   * Xác nhận LẬP PHIÊN BẢN MỚI cho khách đã có CSBH đang hiệu lực.
+   *
+   * `0180` gộp `SUPPLEMENT`/`AMEND` làm một: hai giá trị ấy **chưa bao giờ dẫn
+   * tới hai hành vi khác nhau** ở máy chủ — cả hai đều chép lại toàn bộ dòng cũ
+   * rồi áp dòng mới lên. Chúng chỉ chọn CÂU HỎI hiện ra trên màn hình, và khách
+   * hàng chốt 07/09 rằng một câu là đủ.
+   *
+   * Bỏ trống thì hệ thống KHÔNG đoán mà hỏi lại (POL-04, POL-06) — chốt ấy giữ
+   * nguyên, chỉ còn một câu hỏi thay vì hai.
+   */
+  mode?: 'NEW_VERSION' | undefined;
 };
 
 type PolicyRow = {
@@ -57,7 +78,6 @@ type PolicyRow = {
   da_qua_tbp: boolean;
   supersedes_id: string | null;
   superseded_by_id: string | null;
-  applied_date: Date | null;
   effective_from: Date | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). NULL tới lúc tới lượt họ. */
@@ -79,9 +99,20 @@ type PolicyRow = {
   created_at: Date;
 };
 
-export const SUPPLEMENT_MESSAGE =
-  'CSBH cho sản phẩm này chưa có. Bạn có muốn BỔ SUNG không?';
-export const AMEND_MESSAGE = 'CSBH cho sản phẩm này đã có. Bạn có muốn CHỈNH SỬA không?';
+/**
+ * MỘT câu hỏi cho cả hai tình huống (`0180`, gộp `SUPPLEMENT`/`AMEND`).
+ *
+ * Hai câu cũ hỏi *"bổ sung không?"* và *"chỉnh sửa không?"* theo việc lô sản
+ * phẩm gửi lên có mặt hàng mới hay không — một phép đoán về ý định, dựa trên
+ * `lines` mà giao diện luôn gửi RỖNG (dòng sản phẩm thêm ở màn hình sau). Nên
+ * trên thực tế câu hỏi ấy luôn là *"chỉnh sửa"*, kể cả với người đang định thêm
+ * mặt hàng mới.
+ *
+ * Câu duy nhất còn lại nói đúng thứ sắp xảy ra, và nó đúng cho cả hai đường:
+ * một phiên bản mới, chứa lại toàn bộ sản phẩm cũ.
+ */
+export const NEW_VERSION_MESSAGE =
+  'Khách hàng đã có CSBH đang hiệu lực. Bạn có muốn lập phiên bản mới không?';
 
 /**
  * Chỉ hồ sơ đang ở hai trạng thái này mới sửa được nội dung (POL-11).
@@ -339,6 +370,89 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
 };
 
 /**
+ * TRẠNG THÁI của một dòng sản phẩm và TỶ LỆ CK CŨ — **dẫn xuất, không lưu**.
+ *
+ * Khách hàng chốt 07/09: mỗi dòng mang một trong ba trạng thái — *Bổ sung* cho
+ * mặt hàng mới so với CSBH đang có, *Chỉnh sửa* cho mặt hàng có sẵn mà TDV vừa
+ * sửa, *Đang áp dụng* cho mặt hàng có sẵn và để nguyên — cộng một cột *Tỷ lệ CK
+ * cũ* cho những dòng đã bị sửa.
+ *
+ * ---------------------------------------------------------------------------
+ * VÌ SAO KHÔNG THÊM CỘT, DÙ CẢ REPO ĐI THEO LỐI ĐÓNG BĂNG
+ * ---------------------------------------------------------------------------
+ *
+ * Câu hỏi *"dòng này khác gì bản trước"* đã có sẵn CẢ HAI VẾ trong CSDL: bản
+ * trước là `pol.policy.supersedes_id`, và dòng của nó tìm bằng `product_id`
+ * (`uq_policy_line_product` bảo đảm mỗi hồ sơ mỗi sản phẩm đúng một dòng).
+ *
+ * Vế bản trước là **bất biến**: một hồ sơ đã ra khỏi nhóm sửa được thì không
+ * đường ghi nào chạm vào dòng của nó nữa, và `supersedes_id` đặt một lần lúc
+ * lập rồi thôi. Nên phép so này cho **cùng một câu trả lời mãi mãi** — đúng thứ
+ * mà đóng băng sinh ra để bảo đảm, chỉ là không phải trả giá bằng một bản sao.
+ *
+ * Thêm cột `trang_thai` + `ty_le_ck_truoc` là dựng ra bản sao thứ hai của một
+ * dữ liệu đã có, và bản sao ấy phải được cập nhật ở BỐN đường ghi (chép dòng
+ * thừa kế, thêm dòng, sửa dòng, làm mới giá) — bỏ sót một đường là một dòng
+ * mang nhãn sai trên tờ giấy đem ký, và không có gì đỏ.
+ *
+ * ---------------------------------------------------------------------------
+ * "BỊ SỬA" LÀ SỬA THỨ GÌ
+ * ---------------------------------------------------------------------------
+ *
+ * Bốn trường TDV nhập: giá bán buôn · các khoản CPBH · ngày áp dụng · ghi chú.
+ * Khách hàng chốt *"đổi bất kỳ dữ liệu nào"*, nên danh sách này là đủ bốn.
+ *
+ * KHÔNG so `company_price_snap`, `threshold_snap`, `discount_rate`: chúng đến từ
+ * DANH MỤC, và `lamMoiDong` chụp lại chúng ở mỗi lượt đọc hồ sơ còn sửa được
+ * (`0029`). Đưa chúng vào phép so là để danh mục đổi giá một mình cũng làm mọi
+ * dòng của mọi bản nháp nhảy sang *Chỉnh sửa* — một câu sai, vì TDV chưa đụng
+ * vào gì cả.
+ *
+ * `IS DISTINCT FROM` chứ không `<>`: `note` NULL được, và `NULL <> 'x'` trả NULL
+ * chứ không trả `true` — dòng vừa được gõ thêm ghi chú sẽ lọt qua thành *Đang áp
+ * dụng*.
+ *
+ * ---------------------------------------------------------------------------
+ * TỶ LỆ CK CŨ CHỈ TRẢ VỀ CHO DÒNG *CHỈNH SỬA*
+ * ---------------------------------------------------------------------------
+ *
+ * Yêu cầu nói rõ: cột ấy để đối chiếu *"cho các sản phẩm đã bị TDV chỉnh sửa"*.
+ * Với dòng *Đang áp dụng* thì tỷ lệ cũ bằng đúng tỷ lệ mới — in nó ra là một cột
+ * lặp lại cột bên cạnh; với dòng *Bổ sung* thì không có tỷ lệ cũ nào.
+ *
+ * Luật ấy đặt ở ĐÂY chứ không ở giao diện, vì bảng trên màn hình và bảng trên
+ * tờ giấy là hai chỗ dựng khác nhau — để mỗi bên tự quyết định "khi nào thì
+ * hiện" là dựng ra hai câu trả lời sẽ lệch nhau.
+ */
+export const SQL_DONG_KHAC_BAN_TRUOC = `
+  truoc.id IS NOT NULL AND (
+       l.wholesale_price IS DISTINCT FROM truoc.wholesale_price
+    OR l.cpbh            IS DISTINCT FROM truoc.cpbh
+    OR l.ngay_ap_dung    IS DISTINCT FROM truoc.ngay_ap_dung
+    OR l.note            IS DISTINCT FROM truoc.note
+  )`;
+
+export const SQL_TRANG_THAI_DONG = `
+  CASE
+    WHEN truoc.id IS NULL THEN 'BO_SUNG'
+    WHEN ${SQL_DONG_KHAC_BAN_TRUOC} THEN 'CHINH_SUA'
+    ELSE 'DANG_AP_DUNG'
+  END`;
+
+/**
+ * Nối sang dòng CÙNG SẢN PHẨM của bản bị thay thế.
+ *
+ * `LEFT JOIN` hai tầng: hồ sơ đầu tiên của một khách không có `supersedes_id`
+ * nên `truoc` rỗng ở mọi dòng, và mọi dòng thành *Bổ sung* — đúng điều khách
+ * hàng chốt cho phiên bản đầu.
+ */
+export const SQL_NOI_BAN_TRUOC = `
+  LEFT JOIN pol.policy cha ON cha.id = $1
+  LEFT JOIN pol.policy_line truoc
+         ON truoc.policy_id = cha.supersedes_id
+        AND truoc.product_id = l.product_id`;
+
+/**
  * Cột gộp địa chỉ giao hàng → DANH SÁCH (`0177`).
  *
  * `cus.customer.delivery_address` là cột dẫn xuất do trigger `tr_gop_dia_chi`
@@ -433,17 +547,12 @@ export class PoliciesService {
     );
 
     if (active && !input.mode) {
-      // Khách đã có CSBH thì KHÔNG tự quyết định thay người dùng. Hai tình huống
-      // dẫn tới hai câu hỏi khác nhau, và câu hỏi phải đúng từng chữ (POL-04, POL-06).
-      const existing = await this.db.q<{ product_id: string }>(
-        `SELECT product_id FROM pol.policy_line WHERE policy_id = $1`,
-        [active.id],
-      );
-      const known = new Set(existing.map((r) => r.product_id));
-      const hasNew = input.lines.some((l) => !known.has(l.productId));
+      // Khách đã có CSBH thì KHÔNG tự quyết định thay người dùng (POL-04, POL-06).
+      // `0180`: MỘT câu hỏi, không còn dò `lines` để chọn giữa hai câu — xem
+      // `NEW_VERSION_MESSAGE`.
       throw new ConflictException({
-        code: hasNew ? 'SUPPLEMENT_REQUIRED' : 'AMEND_REQUIRED',
-        message: hasNew ? SUPPLEMENT_MESSAGE : AMEND_MESSAGE,
+        code: 'NEW_VERSION_REQUIRED',
+        message: NEW_VERSION_MESSAGE,
         activePolicyId: active.id,
       });
     }
@@ -451,29 +560,24 @@ export class PoliciesService {
     if (!active && input.mode) {
       throw new BadRequestException({
         code: 'NO_ACTIVE_POLICY',
-        message: 'Khách hàng chưa có CSBH nào để bổ sung hoặc chỉnh sửa',
+        message: 'Khách hàng chưa có CSBH nào để lập phiên bản mới',
       });
     }
 
     /*
-     * NGÀY ÁP DỤNG mặc định HÔM NAY, đặt ở MÁY CHỦ (`0104`).
+     * NGÀY ÁP DỤNG mặc định HÔM NAY, đặt ở MÁY CHỦ (`0104`, chuyển xuống DÒNG ở
+     * `0180`).
      *
-     * Trước đây cột này để NULL khi người gọi không khai, và màn hình *Lập hồ sơ*
-     * tự điền sẵn ngày hôm nay. Hai chỗ trả lời khác nhau cho cùng một câu hỏi
-     * *"hồ sơ không khai ngày thì áp dụng từ bao giờ?"* — và chỗ trả lời "không
-     * biết" là chỗ có thẩm quyền. Hệ quả đo được: một hồ sơ tạo qua API chạy hết
-     * bốn bước duyệt với ô *Thời gian áp dụng* để TRỐNG trên bản CSBH A4.
+     * Luật không đổi, chỉ đổi chỗ nó áp vào: người gọi không khai ngày cho một
+     * dòng thì máy chủ điền hôm nay. Hai chỗ trả lời khác nhau cho cùng một câu
+     * hỏi *"không khai thì áp dụng từ bao giờ?"* là thứ `0104` đã dọn — chỗ trả
+     * lời "không biết" là chỗ có thẩm quyền.
      *
-     * Ngày hôm nay theo GIỜ VIỆT NAM, không theo giờ máy chủ: `applied_date` là
-     * một cột `date`, và một hồ sơ lập lúc 8 giờ sáng thứ Hai ở Hà Nội mà mang
-     * ngày Chủ nhật là sai theo cách không ai đi tìm.
-     *
-     * Chốt chặn lúc GỬI DUYỆT vẫn giữ (`thieuTruongLucGui`): mặc định này bịt
-     * đường tạo mới, còn `PATCH` vẫn xoá trắng ngày được.
+     * Ngày hôm nay theo GIỜ VIỆT NAM, không theo giờ máy chủ: đây là một cột
+     * `date`, và một dòng thêm lúc 8 giờ sáng thứ Hai ở Hà Nội mà mang ngày Chủ
+     * nhật là sai theo cách không ai đi tìm.
      */
-    const homNay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(
-      new Date(),
-    );
+    const homNay = ngayVN();
 
     /*
      * ID SINH Ở NODE, không để Postgres tự đặt — và đó là điều kiện để nhân bản
@@ -528,14 +632,13 @@ export class PoliciesService {
     return this.db.tx(async (c) => {
       const created = await c.query<PolicyRow>(
         `INSERT INTO pol.policy
-           (id, code, customer_id, version_no, status, applied_date, supersedes_id,
+           (id, code, customer_id, version_no, status, supersedes_id,
             created_by, tdv_user_id, app_version)
-         VALUES ($8, pol.next_policy_code(), $1, $2, 'NHAP', $3, $4, $5, $6, $7)
+         VALUES ($7, pol.next_policy_code(), $1, $2, 'NHAP', $3, $4, $5, $6)
          RETURNING *`,
         [
           input.customerId,
           active ? active.version_no + 1 : 1,
-          input.appliedDate ?? homNay,
           active?.id ?? null,
           me.id,
           customer.tdvUserId,
@@ -587,30 +690,53 @@ export class PoliciesService {
           // NGUYÊN ngưỡng của bản cũ, nên nó cũng phải giữ nguyên câu trả lời
           // "ngưỡng ấy từ đâu ra". Bỏ hai cột này lại thì dòng thừa kế mang
           // ngưỡng cũ mà nguồn rỗng, và giao diện đọc ra là "không rõ".
+          // `ngay_ap_dung` chép theo (`0180`): ngày áp dụng thuộc về DÒNG, và
+          // dòng thừa kế là chính dòng cũ — nó giữ nguyên ngày của nó cho tới
+          // khi TDV sửa. Đặt lại thành hôm nay ở đây là âm thầm dời ngày áp dụng
+          // của mọi mặt hàng cũ mỗi lần lập một phiên bản mới.
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
               company_price_snap, wholesale_price, cpbh,
-              discount_rate, threshold_snap, rule_code_snap, threshold_source, note)
+              discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
+              ngay_ap_dung)
            SELECT $1, product_id, product_code_snap, product_name_snap,
                   company_price_snap, wholesale_price, cpbh,
-                  discount_rate, threshold_snap, rule_code_snap, threshold_source, note
+                  discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
+                  ngay_ap_dung
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
         );
       }
 
-      // Tra ảnh chụp cả lô TRƯỚC vòng lặp: gọi từng dòng thì hồ sơ 30 sản phẩm
-      // là 30 vòng mạng nối tiếp sang catalog.
-      // NGÀY ÁP DỤNG quyết định giá và ngưỡng nào được chụp (`0029`), không phải
-      // ngày lập. Hồ sơ áp dụng từ tháng sau phải mang bảng giá của tháng sau.
-      const on = ngayISO(input.appliedDate);
-      const snaps = await this.clients.productSnapshots(
-        input.lines.map((l) => l.productId),
-        customer.customerType,
-        on,
-      );
+      /*
+       * Tra ảnh chụp CẢ LÔ trước vòng lặp: gọi từng dòng thì hồ sơ 30 sản phẩm
+       * là 30 vòng mạng nối tiếp sang catalog.
+       *
+       * `0180` — NGÀY ÁP DỤNG là của TỪNG DÒNG, nên một lô không đủ: hai dòng
+       * khác ngày phải tra hai bảng giá. Gom theo NGÀY, một vòng mạng cho mỗi
+       * ngày khác nhau — thường là một, và tệ nhất cũng chỉ bằng số ngày người
+       * lập thật sự khai chứ không bằng số dòng.
+       */
+      const theoNgay = new Map<string, LineInput[]>();
       for (const line of input.lines) {
-        await this.upsertLine(c, policy.id, line, { ...customer, on }, snaps.get(line.productId));
+        const on = line.ngayApDung ?? homNay;
+        (theoNgay.get(on) ?? theoNgay.set(on, []).get(on)!).push(line);
+      }
+      for (const [on, nhom] of theoNgay) {
+        const snaps = await this.clients.productSnapshots(
+          nhom.map((l) => l.productId),
+          customer.customerType,
+          on,
+        );
+        for (const line of nhom) {
+          await this.upsertLine(
+            c,
+            policy.id,
+            { ...line, ngayApDung: on },
+            { ...customer, on },
+            snaps.get(line.productId),
+          );
+        }
       }
 
       await this.recordEvent(c, policy.id, null, 'NHAP', 'CREATE', me, undefined);
@@ -669,8 +795,9 @@ export class PoliciesService {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
-            discount_rate, threshold_snap, rule_code_snap, threshold_source, note)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12)
+            discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
+            ngay_ap_dung)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12,$13)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
             cpbh = EXCLUDED.cpbh,
@@ -679,6 +806,7 @@ export class PoliciesService {
             threshold_snap = EXCLUDED.threshold_snap,
             rule_code_snap = EXCLUDED.rule_code_snap,
             threshold_source = EXCLUDED.threshold_source,
+            ngay_ap_dung = EXCLUDED.ngay_ap_dung,
             -- Thiếu note trong thân request là XOÁ ghi chú, không phải "giữ
             -- nguyên". Biểu mẫu sửa dòng gửi lên toàn bộ nội dung dòng, nên
             -- không có ô ghi chú nghĩa là người dùng vừa xoá nó đi.
@@ -699,6 +827,11 @@ export class PoliciesService {
           snap.ruleCode ?? null,
           snap.thresholdSource,
           line.note?.trim() || null,
+          // `0180` — ngày áp dụng của dòng. `customer.on` là CHÍNH ngày ấy: nó
+          // vừa được dùng để tra bảng giá vài dòng trên, nên hai con số không
+          // thể lệch nhau. Rơi về hôm nay chỉ xảy ra ở đường gọi không khai
+          // ngày, và `create` đã điền sẵn trước khi tới đây.
+          customer.on ?? ngayVN(),
         ],
       )
       .catch((e: unknown) => {
@@ -727,7 +860,9 @@ export class PoliciesService {
           message: 'Sản phẩm này đã có trong hồ sơ',
         });
       }
-      await this.upsertLine(c, policyId, line, { ...customer, on: ngayISO(p.applied_date) });
+      // `0180` — ngày của CHÍNH DÒNG NÀY quyết định bảng giá được chụp, không
+      // phải một ngày của hồ sơ. Thiếu thì hôm nay (`ngayVN`).
+      await this.upsertLine(c, policyId, line, { ...customer, on: line.ngayApDung ?? ngayVN() });
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p, customer),
@@ -760,23 +895,38 @@ export class PoliciesService {
   async updateLine(
     policyId: string,
     lineId: string,
-    input: { wholesalePrice: bigint; cpbh?: readonly bigint[] | undefined; note?: string | undefined },
+    input: {
+      wholesalePrice: bigint;
+      cpbh?: readonly bigint[] | undefined;
+      note?: string | undefined;
+      ngayApDung?: string | undefined;
+    },
     me: AuthUser,
   ) {
     const p = await this.mustEdit(policyId, me);
     const customer = await this.clients.customer(p.customer_id);
     return this.db.tx(async (c) => {
-      const cu = await c.query<{ product_id: string }>(
-        `SELECT product_id FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
+      const cu = await c.query<{ product_id: string; ngay_ap_dung: Date }>(
+        `SELECT product_id, ngay_ap_dung FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
         [lineId, policyId],
       );
       if (cu.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
 
+      /*
+       * THIẾU NGÀY LÀ GIỮ NGUYÊN, không phải xoá (`0180`).
+       *
+       * Ngược với `note` ngay bên cạnh, và có lý do: `note` rỗng là một trạng
+       * thái hợp lệ nên "vắng mặt = xoá" nói được điều gì đó, còn `ngay_ap_dung`
+       * là `NOT NULL` — không có "dòng không có ngày áp dụng" để mà xoá về. Rơi
+       * về hôm nay thì tệ hơn nữa: sửa một khoản chi phí của dòng áp dụng từ
+       * tháng sau sẽ âm thầm kéo nó về hôm nay.
+       */
+      const on = input.ngayApDung ?? ngayISO(cu.rows[0]!.ngay_ap_dung)!;
       await this.upsertLine(
         c,
         policyId,
-        { productId: cu.rows[0]!.product_id, ...input },
-        { ...customer, on: ngayISO(p.applied_date) },
+        { productId: cu.rows[0]!.product_id, ...input, ngayApDung: on },
+        { ...customer, on },
       );
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
@@ -810,30 +960,17 @@ export class PoliciesService {
     });
   }
 
-  async updateAppliedDate(policyId: string, appliedDate: string, me: AuthUser) {
-    const p = await this.mustEdit(policyId, me);
-    // Ngày áp dụng trong quá khứ vẫn chấp nhận: đây chỉ là thông tin hiển thị,
-    // không chi phối trạng thái. Hiệu lực tính từ lúc tiếp nhận L2 (POL-09, EFF-07).
-    return this.db.tx(async (c) => {
-      await c.query(`UPDATE pol.policy SET applied_date = $2 WHERE id = $1`, [
-        policyId,
-        appliedDate,
-      ]);
-      // Đổi ngày áp dụng là đổi BẢNG GIÁ dùng để chụp (`0029`). Làm mới ngay
-      // trong cùng transaction chứ không chờ lần mở sau: người dùng vừa đổi ngày
-      // và đang nhìn thẳng vào bảng số, để nguyên số cũ là nói dối họ một lượt.
-      await this.lamMoiDong(c, policyId);
-      await this.bumpVersion(c, policyId);
-      await emit(c, 'policy.updated', {
-        ...evtCtx(p),
-        change: 'APPLIED_DATE',
-        appliedDate,
-        actorId: me.id,
-        at: new Date().toISOString(),
-      });
-      return this.load(policyId, c);
-    });
-  }
+  /*
+   * `updateAppliedDate` GỠ HẲN ở `0180`, cùng với `PATCH /policies/:id`.
+   *
+   * Đó là đường duy nhất của cả API để đổi một trường của hồ sơ, và trường duy
+   * nhất nó đổi được là ngày áp dụng — thứ vừa chuyển xuống dòng sản phẩm. Đổi
+   * ngày giờ là `PATCH /policies/:id/lines/:lineId`, đi chung đường với giá bán
+   * buôn và các khoản CPBH của chính dòng ấy.
+   *
+   * Nhánh `change: 'APPLIED_DATE'` của `policy.updated` mất theo. Nhật ký cũ
+   * GIỮ NGUYÊN — nó kể chuyện đã xảy ra (`0155`).
+   */
 
   /**
    * Chụp lại giá và ngưỡng cho MỌI dòng của một hồ sơ CÒN SỬA ĐƯỢC (`0029`).
@@ -852,28 +989,46 @@ export class PoliciesService {
    * là lúc GỬI DUYỆT, xem `workflow.service.ts`.
    */
   async lamMoiDong(c: PoolClient, policyId: string): Promise<string[]> {
-    const p = await c.query<{ customer_id: string; status: string; applied_date: Date | null }>(
-      `SELECT customer_id, status::text AS status, applied_date FROM pol.policy WHERE id = $1`,
+    const p = await c.query<{ customer_id: string; status: string }>(
+      `SELECT customer_id, status::text AS status FROM pol.policy WHERE id = $1`,
       [policyId],
     );
     const ho = p.rows[0];
     if (!ho || !EDITABLE.includes(ho.status)) return [];
 
-    const dong = await c.query<{ product_id: string; product_code_snap: string }>(
-      `SELECT product_id, product_code_snap FROM pol.policy_line WHERE policy_id = $1`,
+    const dong = await c.query<{
+      product_id: string;
+      product_code_snap: string;
+      ngay_ap_dung: Date;
+    }>(
+      `SELECT product_id, product_code_snap, ngay_ap_dung
+         FROM pol.policy_line WHERE policy_id = $1`,
       [policyId],
     );
     if (dong.rowCount === 0) return [];
 
     const customer = await this.clients.customer(ho.customer_id);
-    const on = ngayISO(ho.applied_date);
-    // Một vòng mạng cho cả hồ sơ, không phải một vòng cho mỗi dòng — hàm này
-    // chạy ở đường ĐỌC, nên chi phí của nó là thứ người dùng ngồi chờ.
-    const snaps = await this.clients.productSnapshots(
-      dong.rows.map((d) => d.product_id),
-      customer.customerType,
-      on,
-    );
+    /*
+     * MỘT VÒNG MẠNG CHO MỖI NGÀY, không phải cho mỗi dòng (`0180`).
+     *
+     * Hàm này chạy ở đường ĐỌC nên chi phí của nó là thứ người dùng ngồi chờ.
+     * Trước `0180` cả hồ sơ dùng chung một ngày nên một vòng là đủ; giờ mỗi dòng
+     * có ngày riêng, và gom theo ngày giữ được đúng tính chất ấy ở trường hợp
+     * thường gặp — mọi dòng cùng ngày thì vẫn đúng một vòng.
+     */
+    const snaps = new Map<string, import('../infra/clients.js').ProductSnapshot>();
+    const theoNgay = new Map<string, string[]>();
+    for (const d of dong.rows) {
+      const on = ngayISO(d.ngay_ap_dung)!;
+      (theoNgay.get(on) ?? theoNgay.set(on, []).get(on)!).push(d.product_id);
+    }
+    for (const [on, ids] of theoNgay) {
+      const lo = await this.clients.productSnapshots(ids, customer.customerType, on);
+      for (const id of ids) {
+        const s = lo.get(id);
+        if (s) snaps.set(id, s);
+      }
+    }
 
     const hong: string[] = [];
     for (const d of dong.rows) {
@@ -1402,7 +1557,6 @@ export class PoliciesService {
 
     const rows = await this.db.q<Record<string, unknown> & { total_count: string }>(
       `SELECT p.id, p.code, p.status::text AS status, p.version_no AS "versionNo",
-              p.applied_date AS "appliedDate",
               jsonb_agg(jsonb_build_object(
                 'kind', i.kind, 'productCode', i.product_code,
                 'snapValue', i.snap_value, 'newValue', i.new_value
@@ -1434,7 +1588,12 @@ export class PoliciesService {
    * cầm mã hồ sơ. Bắt nó tự đi lấy khách hàng rồi tự ghép tham số là chép luật
    * tra ngưỡng sang giao diện — đúng thứ mà việc đóng băng ở máy chủ tránh.
    */
-  async thresholdPreview(policyId: string, productId: string, me: AuthUser) {
+  async thresholdPreview(
+    policyId: string,
+    productId: string,
+    me: AuthUser,
+    ngayApDung?: string | undefined,
+  ) {
     const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.assertPolicyInScope(p, me);
@@ -1443,7 +1602,7 @@ export class PoliciesService {
     const snap = await this.clients.productSnapshot(
       productId,
       customer.customerType,
-      ngayISO(p.applied_date),
+      ngayApDung ?? ngayVN(),
     );
     return {
       productId: snap.productId,
@@ -1476,7 +1635,7 @@ export class PoliciesService {
        * endpoint thứ hai trả gần hệt endpoint này là hai chỗ phải giữ đồng bộ.
        */
       `SELECT id, code, customer_id AS "customerId", version_no AS "versionNo",
-              status::text AS status, applied_date AS "appliedDate",
+              status::text AS status,
               effective_from AS "effectiveFrom", row_version AS "rowVersion",
               deactivated_at AS "deactivatedAt",
               supersedes_id AS "supersedesId", superseded_by_id AS "supersededById",
@@ -1639,23 +1798,32 @@ export class PoliciesService {
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
 
     const lines = (await q(
-      `SELECT id, product_id AS "productId", product_code_snap AS "productCode",
-              product_name_snap AS "productName",
-              company_price_snap::text AS "companyPrice",
-              wholesale_price::text AS "wholesalePrice",
-              cpbh::text[] AS cpbh,
-              cpbh_total::text AS "cpbhTotal", net_price::text AS "netPrice",
-              discount_rate::text AS "discountRate", threshold_snap::text AS "threshold",
-              over_threshold AS "overThreshold",
+      `SELECT l.id, l.product_id AS "productId", l.product_code_snap AS "productCode",
+              l.product_name_snap AS "productName",
+              l.company_price_snap::text AS "companyPrice",
+              l.wholesale_price::text AS "wholesalePrice",
+              l.cpbh::text[] AS cpbh,
+              l.cpbh_total::text AS "cpbhTotal", l.net_price::text AS "netPrice",
+              l.discount_rate::text AS "discountRate", l.threshold_snap::text AS "threshold",
+              l.over_threshold AS "overThreshold",
               -- Giao diện tô vàng dòng nào KHÔNG có quy định nào phủ (0022).
-              threshold_source AS "thresholdSource",
+              l.threshold_source AS "thresholdSource",
               -- Cột "QĐCK" trên bảng dòng sản phẩm: mã của chính quy định đã
-              -- cho ra ngưỡng, để đối chiếu thẳng sang màn hình Chiết khấu
-              -- (0023, 0024).
-              rule_code_snap AS "ruleCode",
+              -- cho ra ngưỡng. Từ 0180 cột ấy BÀY RA NGƯỠNG (threshold), còn mã
+              -- này lui vào câu giải thích của dấu "?" (0023, 0024).
+              l.rule_code_snap AS "ruleCode",
               -- Ghi chú tự do của người lập cho riêng dòng này (0027).
-              note
-         FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
+              l.note,
+              -- 0180 — ngày áp dụng của RIÊNG dòng này.
+              l.ngay_ap_dung AS "ngayApDung",
+              ${SQL_TRANG_THAI_DONG} AS "trangThai",
+              -- Tỷ lệ CK ở bản trước, CHỈ cho dòng đã bị sửa — xem
+              -- SQL_TRANG_THAI_DONG về việc vì sao luật này nằm ở máy chủ.
+              CASE WHEN ${SQL_DONG_KHAC_BAN_TRUOC}
+                   THEN truoc.discount_rate::text END AS "discountRateTruoc"
+         FROM pol.policy_line l
+         ${SQL_NOI_BAN_TRUOC}
+        WHERE l.policy_id = $1 ORDER BY l.product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];
 
@@ -1679,7 +1847,6 @@ export class PoliciesService {
       status: p.status,
       supersedesId: p.supersedes_id,
       supersededById: p.superseded_by_id,
-      appliedDate: p.applied_date,
       effectiveFrom: p.effective_from,
       // NGÀY SOẠN THẢO (`0061`) — lúc bản nháp ra đời, không phải lúc gửi duyệt.
       // Hai mốc ấy cách nhau hàng tuần ở những hồ sơ soạn dần, và câu hỏi "hồ sơ

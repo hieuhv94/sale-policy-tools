@@ -12,7 +12,7 @@ import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
-import { tien } from '../lib/format.js';
+import { homNayVN, tien } from '../lib/format.js';
 import type { DongSanPham } from './BangSanPham.js';
 
 export { suaDuoc } from '../lib/sua-ho-so.js';
@@ -61,21 +61,26 @@ type XemTruocNguong = {
  * người dùng tưởng mình vừa làm hỏng thứ gì. Máy chủ vẫn tra lại lúc lưu, và từ
  * `0023` thì thiếu ngưỡng KHÔNG còn là lý do từ chối.
  */
-function useXemTruocNguong(hoSoId: string, productId: string) {
+function useXemTruocNguong(hoSoId: string, productId: string, ngayApDung: string) {
   const [xem, datXem] = useState<XemTruocNguong | null>(null);
 
   useEffect(() => {
     datXem(null);
     if (productId === '') return undefined;
     const huy = new AbortController();
+    // `0180` — NGÀY ÁP DỤNG đi cùng: giá và ngưỡng phụ thuộc ngày (`0029`), nên
+    // xem trước bằng hôm nay rồi ghi bằng ngày người dùng vừa gõ là bày ra một
+    // con số và lưu một con số khác. Ô ngày nằm ngay trên ô sản phẩm nên người
+    // dùng thấy hai thứ ấy đi cùng nhau.
     layJson<XemTruocNguong>(
-      `/policies/${hoSoId}/threshold-preview?productId=${encodeURIComponent(productId)}`,
+      `/policies/${hoSoId}/threshold-preview?productId=${encodeURIComponent(productId)}` +
+        (ngayApDung ? `&ngayApDung=${encodeURIComponent(ngayApDung)}` : ''),
       huy.signal,
     )
       .then(datXem)
       .catch(() => undefined);
     return () => huy.abort();
-  }, [hoSoId, productId]);
+  }, [hoSoId, productId, ngayApDung]);
 
   return xem;
 }
@@ -115,12 +120,23 @@ export function ThemDongSanPham({
     dongCu && dongCu.cpbh.length > 0 ? [...dongCu.cpbh] : [''],
   );
   const [ghiChu, datGhiChu] = useState(dongCu?.note ?? '');
+  /*
+   * NGÀY ÁP DỤNG của riêng dòng này (`0180`).
+   *
+   * Thêm mới thì mặc định HÔM NAY — cùng con số máy chủ sẽ điền nếu ô này trống,
+   * nên màn hình và máy chủ không nói hai ngày khác nhau. Sửa thì nạp đúng ngày
+   * dòng đang mang: rơi về hôm nay là âm thầm kéo một dòng áp dụng từ tháng sau
+   * về hôm nay chỉ vì người dùng mở hộp thoại ra sửa một khoản chi phí.
+   */
+  const [ngayApDung, datNgayApDung] = useState(
+    dongCu?.ngayApDung?.slice(0, 10) ?? homNayVN(),
+  );
   const { bao } = useBaoLoi();
   // `loi` chỉ còn giữ lỗi TẢI danh mục sản phẩm — hộp thoại này không dựng nổi
   // nếu thiếu nó, nên đó là dạng `trang` chứ không phải lỗi của một lần bấm.
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
-  const xem = useXemTruocNguong(hoSoId, sanPham);
+  const xem = useXemTruocNguong(hoSoId, sanPham, ngayApDung);
 
   /** Giá bán Công ty của sản phẩm đang chọn. `null` = chưa chọn, hoặc không tra được. */
   const giaCongTy =
@@ -159,6 +175,7 @@ export function ThemDongSanPham({
         // rỗng cũng cho cùng kết quả, nhưng viết thẳng thế này thì đọc mã là
         // thấy ngay "xoá ô rồi lưu = xoá ghi chú".
         note: ghiChu.trim(),
+        ngayApDung,
       };
       if (sua) await va(`/policies/${hoSoId}/lines/${dongCu.id}`, than);
       else await dang(`/policies/${hoSoId}/lines`, { productId: sanPham, ...than });
@@ -177,6 +194,28 @@ export function ThemDongSanPham({
     >
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
+
+        {/*
+          NGÀY ÁP DỤNG ĐỨNG ĐẦU, trước cả ô chọn sản phẩm (`0180`).
+
+          Khách hàng chốt *"cột ngày áp dụng để bên trái mã sản phẩm"* cho BẢNG;
+          biểu mẫu đi theo cùng thứ tự vì hai thứ ấy đọc cùng nhau — người lập gõ
+          xong biểu mẫu rồi nhìn lại hàng vừa thêm trong bảng.
+
+          Nó cũng là ô phải gõ TRƯỚC theo nghĩa cơ học: giá bán Công ty và ngưỡng
+          xem trước ngay dưới đây tra theo chính ngày này.
+        */}
+        <Truong id="dsp-ngay" nhan="Ngày áp dụng" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              type="date"
+              value={ngayApDung}
+              onChange={(e) => datNgayApDung(e.target.value)}
+            />
+          )}
+        </Truong>
 
         <Truong id="dsp-sp" nhan="Sản phẩm" bắtBuộc>
           {(p) => (
@@ -298,7 +337,14 @@ export function ThemDongSanPham({
           <button
             type="submit"
             className="nut nut-chinh"
-            disabled={dangGui || sanPham === '' || giaBanBuon === ''}
+            disabled={
+              dangGui ||
+              thieuTruong('dong-san-pham', {
+                productId: sanPham,
+                wholesalePrice: giaBanBuon,
+                ngayApDung,
+              }).length > 0
+            }
           >
             {dangGui ? 'Đang lưu…' : sua ? 'Lưu dòng' : 'Thêm dòng'}
           </button>
@@ -311,66 +357,14 @@ export function ThemDongSanPham({
   );
 }
 
-export function SuaNgayApDung({
-  hoSoId,
-  ngayHienTai,
-  dong,
-  xong,
-}: {
-  hoSoId: string;
-  ngayHienTai: string | null;
-  dong: () => void;
-  xong: () => void;
-}) {
-  const { bao } = useBaoLoi();
-  const [ngayMoi, datNgayMoi] = useState(ngayHienTai ?? new Date().toISOString().slice(0, 10));
-  const [dangGui, datDangGui] = useState(false);
-
-  const gui = async (e: React.FormEvent) => {
-    e.preventDefault();
-    datDangGui(true);
-    try {
-      await va(`/policies/${hoSoId}`, { appliedDate: ngayMoi });
-      xong();
-    } catch (err) {
-      bao(err);
-    } finally {
-      datDangGui(false);
-    }
-  };
-
-  return (
-    <HopThoai tieuDe="Sửa ngày áp dụng" dong={dong}>
-      <form onSubmit={gui}>
-        <ChuThichBatBuoc />
-
-        <Truong id="nad-ngay" nhan="Ngày áp dụng" bắtBuộc>
-          {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              type="date"
-              value={ngayMoi}
-              onChange={(e) => datNgayMoi(e.target.value)}
-            />
-          )}
-        </Truong>
-        <div className="nhom-nut">
-          <button
-            type="submit"
-            className="nut nut-chinh"
-            disabled={dangGui || thieuTruong('ngay-ap-dung', { appliedDate: ngayMoi }).length > 0}
-          >
-            {dangGui ? 'Đang lưu…' : 'Lưu'}
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={dong}>
-            Huỷ
-          </button>
-        </div>
-      </form>
-    </HopThoai>
-  );
-}
+/*
+ * `SuaNgayApDung` GỠ HẲN ở `0180`.
+ *
+ * Hộp thoại này sửa ngày áp dụng CỦA HỒ SƠ, và trường ấy không còn tồn tại —
+ * ngày là của từng dòng sản phẩm, sửa ngay trong `ThemDongSanPham` cùng với giá
+ * bán buôn và các khoản CPBH của chính dòng đó. Đường máy chủ nó gọi
+ * (`PATCH /policies/:id`) cũng đã gỡ.
+ */
 
 /**
  * Xoá hồ sơ. Hỏi lại BẰNG CÁCH BẮT GÕ MÃ HỒ SƠ, không phải một nút "Chắc chưa?".

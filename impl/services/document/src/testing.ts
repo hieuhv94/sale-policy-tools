@@ -42,11 +42,20 @@ export {
   COT_BANG,
   COT_BAT_BUOC,
   COT_MAC_DINH,
+  // `0180` — hai hằng mới: tập cột của ba mẫu phần mềm tự nạp, và hai cột của
+  // người duyệt mà tập ấy cố ý bỏ ra.
+  COT_MAU_MAC_DINH,
+  COT_NGUOI_DUYET,
   COT_RUT_GON,
+  NHAN_TRANG_THAI_DONG,
   RONG_TOI_THIEU_PCT,
   chuanHoaCot,
 } from './contracts/bang-san-pham.js';
 
 // `0165` — ba mẫu mặc định đi cùng hệ thống; ca kiểm đọc danh sách từ đây
 // chứ không chép tên file sang.
-export { MAU_MAC_DINH, MauMacDinhBootstrap } from './contracts/bootstrap-mau.js';
+export {
+  cotBangMauMacDinh,
+  MAU_MAC_DINH,
+  MauMacDinhBootstrap,
+} from './contracts/bootstrap-mau.js';

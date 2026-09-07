@@ -36,6 +36,14 @@ type Dong = {
   status: string;
   customerCode: string;
   customerName: string;
+  /**
+   * Ngày áp dụng SỚM NHẤT trong các dòng của hồ sơ (`0180`).
+   *
+   * Từ `0180` không còn "ngày áp dụng của hồ sơ": mỗi dòng sản phẩm có ngày
+   * riêng. Read-model báo cáo giữ con số nhỏ nhất để lọc theo khoảng ngày, và
+   * cột dưới đây gọi đúng tên nó — *Áp dụng từ* — chứ không giả vờ rằng cả hồ
+   * sơ có một ngày.
+   */
   appliedDate: string | null;
   approvedAt: string | null;
   tdvName: string | null;
@@ -554,7 +562,7 @@ export function DanhSachHoSo() {
                   <th>Mã hồ sơ</th>
                   <th>Khách hàng</th>
                   <th>Trạng thái</th>
-                  <th>Ngày áp dụng</th>
+                  <th>Áp dụng từ</th>
                   <th>TDV phụ trách</th>
                   {/*
                     Thay cho cột *Số dòng* (`0053`).

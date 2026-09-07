@@ -29,6 +29,15 @@
  * bảng — `tests/http/tieu-de-cot.test.ts`.
  */
 export const COT_TRUOC = [
+  /*
+   * NGÀY ÁP DỤNG — cột ĐẦU TIÊN, bên trái *Mã sản phẩm* (`0180`).
+   *
+   * Khách hàng chốt 07/09 từng chữ: *"cột ngày áp dụng để bên trái mã sản
+   * phẩm"*. Từ lượt này ngày áp dụng là thuộc tính của DÒNG chứ không của hồ sơ
+   * — ô *Ngày áp dụng* ở khối thông tin đầu trang biến mất cùng lúc — nên nó
+   * phải đứng ở chỗ mắt đọc trước khi đọc tới mặt hàng.
+   */
+  { khoa: 'ngayApDung', nhan: 'Ngày áp dụng' },
   { khoa: 'productCode', nhan: 'Mã sản phẩm' },
   { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
@@ -53,20 +62,51 @@ export const COT_SAU = [
   { khoa: 'netPrice', nhan: 'Giá thu về' },
   { khoa: 'discountRate', nhan: 'Tỷ lệ CK' },
   /*
-   * Mã quy định chiết khấu đã cho ra ngưỡng của dòng này (`0023`).
+   * `0180` — *Tỷ lệ CK cũ*, NGAY SAU *Tỷ lệ CK*.
    *
-   * Đứng NGAY SAU Tỷ lệ CK vì nó trả lời chính câu hỏi mà con số ấy gợi ra —
-   * "ngưỡng đem so là ngưỡng nào, ai khai". Dán mã này vào ô tìm kiếm ở màn hình
-   * Chiết khấu là ra đúng dòng quy định.
+   * Chỉ có chữ ở dòng *Chỉnh sửa*; máy chủ quyết định điều đó và trả `null` cho
+   * mọi dòng khác (xem `SQL_TRANG_THAI_DONG` bên `policy`). Giao diện KHÔNG suy
+   * lại theo trạng thái — hai chỗ cùng trả lời một câu hỏi là hai câu sẽ lệch.
+   *
+   * Đứng cạnh cột tỷ lệ mới vì nó chỉ có nghĩa khi đọc kèm: hai ô cách nhau một
+   * cột là mắt phải nhớ số để so.
+   */
+  { khoa: 'discountRateTruoc', nhan: 'Tỷ lệ CK cũ' },
+  /*
+   * Quy định chiết khấu đã cho ra ngưỡng của dòng này (`0023`).
+   *
+   * Đứng NGAY SAU hai cột tỷ lệ vì nó trả lời chính câu hỏi mà chúng gợi ra —
+   * "ngưỡng đem so là ngưỡng nào, ai khai".
+   *
+   * `0180` — Ô NÀY BÀY RA **NGƯỠNG PHẦN TRĂM**, không phải mã quy định. Khách
+   * hàng chốt 07/09: *"nội dung của cột QĐCK hiển thị số phần trăm chứ không
+   * hiển thị tên QĐCK, để dấu ? nhỏ bên cạnh để khi người dùng di chuột vào sẽ
+   * hiện tên QĐCK"*. Con số mới là thứ đọc được cùng hàng với *Tỷ lệ CK* ngay
+   * bên trái — mã quy định thì phải mở màn hình khác mới biết nó nghĩa là bao
+   * nhiêu. Mã KHÔNG mất: nó nằm trong câu của dấu `?` cạnh con số, và dán vào ô
+   * tìm kiếm ở màn hình Chiết khấu vẫn ra đúng dòng quy định.
+   *
+   * Khoá vẫn là `ruleCode` chứ không đổi thành `threshold`: cột này trả lời
+   * *"quy định chiết khấu nào"*, và cả hai thứ hiện ra đều thuộc về quy định ấy.
    *
    * CHỈ CÓ TRÊN MÀN HÌNH: bản in không có cột này, và đó là chủ ý — nó là đường
    * tra ngược của người duyệt, không phải thông tin của tờ giấy đem ký.
    *
-   * Ô TRỐNG khi không có: dòng rơi về mặc định của sản phẩm, hoặc không có ngưỡng
-   * nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn thêm — con số Tỷ lệ
-   * CK ngay bên trái đã đổi màu và mang dấu `?` nói đúng điều đó rồi.
+   * Ô TRỐNG khi không có quy định nào: dòng rơi về mặc định của sản phẩm, hoặc
+   * không có ngưỡng nào. Ba dấu chấm hay chữ "không có" ở đây chỉ làm bảng ồn
+   * thêm — con số Tỷ lệ CK ngay bên trái đã đổi màu và mang dấu `?` nói đúng
+   * điều đó rồi.
    */
   { khoa: 'ruleCode', nhan: 'QĐCK' },
+  /*
+   * `0180` — TRẠNG THÁI của dòng so với CSBH đang có: *Bổ sung* · *Chỉnh sửa* ·
+   * *Đang áp dụng*.
+   *
+   * Đứng SAU các con số và TRƯỚC *Ghi chú*: nó là kết luận về cả dòng, đọc sau
+   * khi đã đọc số. Đặt nó lên đầu thì mắt phải mang một cái nhãn đi suốt dải
+   * tiền mà chưa biết nhãn ấy nói về cái gì.
+   */
+  { khoa: 'trangThai', nhan: 'Trạng thái' },
   /*
    * Ghi chú của người lập cho riêng dòng này (`0027`).
    *
@@ -86,3 +126,16 @@ export const COT_SAU = [
  * viết DÍNH LIỀN — `CPBH1`. Ba bản sao, hai cách viết; khách hàng nhìn ra.
  */
 export const nhanCpbh = (i: number): string => `CPBH ${i + 1}`;
+
+/**
+ * Nhãn ba trạng thái dòng (`0180`).
+ *
+ * PHẢI KHỚP TỪNG CHỮ với `NHAN_TRANG_THAI_DONG` của `document` — cùng lý do đã
+ * viết cho tên cột ở đầu tệp này: người đọc bảng trên màn hình rồi đọc bảng
+ * trên tờ giấy vừa in, và ba nhãn này là NỘI DUNG ô chứ không phải tiêu đề. Có ca đối chiếu hai chiều ở `tests/http/tieu-de-cot.test.ts`.
+ */
+export const NHAN_TRANG_THAI: Record<string, string> = {
+  BO_SUNG: 'Bổ sung',
+  CHINH_SUA: 'Chỉnh sửa',
+  DANG_AP_DUNG: 'Đang áp dụng',
+};

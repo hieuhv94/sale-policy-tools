@@ -15622,3 +15622,194 @@ Tài liệu **không đổi**: bề rộng một cột không phải luật nghi
 Công ty* đã có ở `YEU-CAU-NGHIEP-VU-CSBH.md` (Phụ lục B, `0175`) lẫn `03-HUONG-DAN-SU-DUNG.md`.
 
 **2002/2002 xanh.**
+
+## P208 — `0180` ngày áp dụng theo TỪNG SẢN PHẨM, ba trạng thái dòng, và hai nút thành một
+
+Sáu câu khách hàng gửi cùng lúc 07/09, và chúng **không rời nhau**: bốn câu đầu đổi hình dạng của một
+dòng sản phẩm, hai câu cuối đổi thứ người duyệt đọc được từ chính hình dạng ấy.
+
+### Bốn quyết định phải hỏi trước, vì đoán sai là làm ra một sản phẩm khác
+
+`applied_date` không phải một ô trên màn hình. Nó **quyết định bảng giá và ngưỡng nào được chụp**
+(`0029`), **chặn gửi duyệt** (một trong hai trường còn lại của `0171`), **in ra cả năm mẫu `.docx`**
+dưới ô *Thời gian áp dụng*, và là **bộ lọc của báo cáo**. Bốn câu hỏi, bốn câu trả lời của khách hàng:
+
+| Hỏi | Chốt |
+|---|---|
+| Ô *Thời gian áp dụng* trên tờ giấy, phép chặn, bộ lọc | **Gỡ hẳn**, không giữ cột dẫn xuất |
+| Ngày của dòng có quyết định giá/ngưỡng chụp không | **Có** — mỗi dòng chụp theo ngày của nó |
+| Ba cột mới có in ra bản mềm không | **Ngày áp dụng** vào hai mẫu mặc định; *Trạng thái* và *Tỷ lệ CK cũ* **có trong danh mục cột nhưng không tích sẵn** |
+| "Bị sửa" tính theo gì; bản đầu tiên thì sao | **Đổi bất kỳ dữ liệu nào**; bản đầu mọi dòng là *Bổ sung* |
+
+Câu thứ nhất là câu tôi đã đề xuất ngược lại (giữ một cột dẫn xuất bằng ngày sớm nhất, để tờ giấy và
+bộ lọc không phải đụng tới). Khách hàng chọn gỡ hẳn, và **lựa chọn của họ đúng ở một điểm phương án
+tôi đề xuất không có**: một hồ sơ bốn dòng bốn ngày thì *"ngày áp dụng của hồ sơ"* là câu **không có
+câu trả lời đúng** — in ngày sớm nhất ra tờ giấy đem ký là nói sai về ba dòng còn lại.
+
+### Trạng thái dòng và tỷ lệ CK cũ: DẪN XUẤT, không thêm cột
+
+Đây là chỗ tôi đã định làm ngược lại. Cả repo đi theo lối đóng băng (`0022`, `0101`, `0167`), nên
+phản xạ đầu tiên là thêm `trang_thai` + `ty_le_ck_truoc` vào `pol.policy_line` và cập nhật chúng ở
+mỗi đường ghi.
+
+Không cần, và cái không cần ấy đắt: câu hỏi *"dòng này khác gì bản trước"* **đã có sẵn cả hai vế
+trong CSDL** — bản trước là `supersedes_id`, dòng của nó tìm bằng `product_id` (`uq_policy_line_product`
+bảo đảm mỗi hồ sơ mỗi sản phẩm đúng một dòng). Và vế bản trước là **bất biến**: hồ sơ đã ra khỏi
+nhóm sửa được thì không đường ghi nào chạm vào dòng của nó nữa. Nên phép so cho **cùng một câu trả
+lời mãi mãi** — đúng thứ đóng băng sinh ra để bảo đảm, chỉ là không phải trả giá bằng một bản sao
+phải giữ đồng bộ ở **bốn** đường ghi (chép dòng thừa kế, thêm, sửa, làm mới giá).
+
+Cái được, và nó không phải chi tiết kỹ thuật: **sửa nhầm rồi sửa trả lại giá trị cũ thì dòng quay về
+*Đang áp dụng***. Một cờ đóng vào rồi ở lại sẽ bắt người duyệt đi tìm một khác biệt không tồn tại.
+
+Hai chi tiết của phép so, cả hai đều là quyết định:
+
+- **KHÔNG so `company_price_snap`, `threshold_snap`, `discount_rate`.** Chúng đến từ danh mục và được
+  `lamMoiDong` chụp lại ở mỗi lượt đọc hồ sơ còn sửa được (`0029`) — đưa vào phép so là để danh mục
+  đổi giá một mình cũng làm mọi dòng của mọi bản nháp nhảy sang *Chỉnh sửa*, trong khi TDV chưa đụng
+  vào gì.
+- **`IS DISTINCT FROM` chứ không `<>`**: `note` NULL được, và `NULL <> 'x'` trả NULL chứ không trả
+  `true` — dòng vừa được gõ thêm ghi chú sẽ lọt qua thành *Đang áp dụng*.
+
+`ty_le_ck_truoc` **chỉ trả về cho dòng *Chỉnh sửa***, và luật ấy nằm ở MÁY CHỦ chứ không ở hai bảng:
+màn hình và tờ giấy là hai chỗ dựng khác nhau, để mỗi bên tự quyết định "khi nào thì hiện" là dựng ra
+hai câu trả lời sẽ lệch nhau. Cùng lý do, `internal.controller` dùng **chính biểu thức SQL** của
+đường đọc giao diện (`SQL_TRANG_THAI_DONG`) thay vì một bản chép.
+
+### Hai nút gộp một: chúng chưa bao giờ làm hai việc
+
+Đọc mã trước khi sửa, và phát hiện quyết định cả yêu cầu: `mode` **chỉ chọn CÂU HỎI hiện ra**, không
+đổi một dòng hành vi nào — cả `SUPPLEMENT` lẫn `AMEND` đều chép lại toàn bộ dòng cũ rồi áp dòng mới
+lên. Tệ hơn: máy chủ chọn giữa hai câu bằng cách dò `input.lines` xem có mặt hàng mới không, mà giao
+diện **luôn gửi `lines: []`** (dòng thêm ở màn hình sau) — nên câu hỏi ấy trên thực tế **luôn là
+"chỉnh sửa"**, kể cả với người đang định thêm mặt hàng mới.
+
+Nên gộp là bỏ một phép đoán, không phải bỏ một tính năng. Việc phân loại chuyển xuống đúng chỗ có dữ
+liệu để trả lời: **trạng thái của từng dòng**. `SUPPLEMENT_REQUIRED`/`AMEND_REQUIRED` →
+`NEW_VERSION_REQUIRED`, và POL-04 với POL-06 gộp thành một ca canh **chiều ngược**: cùng một câu hỏi
+cho cả lô-có-mặt-hàng-mới lẫn lô-chỉ-sửa.
+
+> **Hai mã lỗi cũ CHƯA BAO GIỜ có trong `loi.ts`**, và không phải vì ai đó quên. Chúng viết bằng
+> `code: hasNew ? 'A' : 'B'`, mà phép quét mã nguồn của `loi.test.tsx` khớp `code: '…'` — một biểu
+> thức điều kiện lọt qua. Mã mới viết thẳng nên nó bị soi ngay. Một khoảng hở của chốt chặn `0088`,
+> bịt được nhờ đi ngang qua.
+
+### Ba lớp cùng chặn, nên phép chặn thứ tư biến mất
+
+`ho_so.ngay_ap_dung` rời `TRUONG_CHAN_LUC_GUI` theo một đường **khác hẳn** hai trường của `0171`:
+không phải vì ai đó bỏ nó khỏi tờ giấy, mà vì **trường ấy thôi tồn tại** — cột mới `NOT NULL`, máy
+chủ điền mặc định, tức không có trạng thái "thiếu" nào để mà chặn. Còn **một** trường chặn.
+
+Ca kiểm cũ xoá trắng `applied_date` bằng SQL thô rồi đòi 422; ca mới hỏi câu đúng cho hình dạng mới —
+*"có dựng được một dòng thiếu ngày không?"* — và đi qua lớp cuối cùng mà một lượt sửa vội không nhìn
+thấy: ràng buộc `NOT NULL` ở CSDL (`23502`).
+
+### Bốn cái bẫy đã dính, ghi để lần sau khỏi mất thời gian
+
+**Backtick trong chú thích giữa template literal — lần thứ BA** (`0154`, `0155`, giờ `0180`).
+`CLAUDE.md` ghi rồi, vẫn dính: một chú thích SQL viết `` `rpt` `` cắt đứt chuỗi, và `tsc` báo
+`TS1005: ',' expected` ở một dòng chẳng liên quan.
+
+**Migration KHÔNG chạy lại được sau `DROP COLUMN`.** Lượt backfill đọc `p.applied_date` rồi câu dưới
+xoá chính cột ấy — chạy lại (hỏng giữa chừng, hoặc xoá dòng trong `sys.schema_migration` để thử lại)
+là chết ở câu đầu. Đã bọc bằng `DO $$ … information_schema …` với nhánh lùi lấy ngày soạn thảo. Cả
+repo viết `IF NOT EXISTS` khắp nơi vì lý do này; một câu `UPDATE … FROM` thì không có dạng ấy.
+
+**Ba mẫu mặc định KHÔNG tự nạp lại**, và đó là hệ quả trực tiếp của `0165`: bộ nạp idempotent theo
+`(kind, name)` **tính cả dòng đã vô hiệu hoá** — cố ý, để mẫu người ta đã tắt không mọc lại. Nên đổi
+nội dung ba tệp `.docx` là chưa đủ; migration phải **xoá ba dòng** để bộ nạp làm lại. Ca kiểm bắt
+được đúng chuyện này (`cot_bang` của mẫu rút gọn còn 6 cột cũ), và trên hệ thật thì triệu chứng là
+bản mềm in ra một ô *Thời gian áp dụng* rỗng.
+
+**`COT_MAC_DINH` là *đủ mọi cột*, nên thêm một cột vào danh mục là âm thầm thêm nó vào ba tờ giấy.**
+Khách hàng muốn hai cột mới có trong danh mục mà không tích sẵn — nên có `COT_MAU_MAC_DINH` riêng cho
+ba mẫu phần mềm tự nạp, và `COT_MAC_DINH` giữ nguyên nghĩa cũ. Ca kiểm canh **cả hai vế**: mẫu mặc
+định bằng tập mới, VÀ hai cột kia vẫn nằm trong danh mục.
+
+### Một ca kiểm đỏ vì lý do chẳng liên quan tới nó
+
+DOC-19 (ngắt trang, tiêu đề bảng lặp lại) đếm chuỗi `'Giá bán Công ty'` trong chữ trích từ PDF và trả
+về **0**. Bảng vừa thêm ba cột, tiêu đề cột được phép xuống dòng giữa hai từ (`rongTuDaiNhat`,
+`0172`), nên chuỗi liền không còn tồn tại. Phép đếm giờ chạy trên chữ đã bỏ khoảng trắng — cùng hàm
+`lien()` mà chính tệp ấy dùng ở ca khác.
+
+### Một chẩn đoán SAI của tôi, ghi lại vì bản sửa suýt đi vào
+
+Ca `0135` *"cột hẹp nhất vẫn trên ngưỡng"* đỏ với **2,9994%** thay vì 3%. Đọc ra ngay: `apDungSan`
+nong từng cột một rồi kiểm lại, tối đa `n × 2` lượt — thêm ba cột là hết lượt trước khi hội tụ, và
+nó **trả về kết quả gần đúng mà không nói gì**. Tôi đã viết lại hàm ấy thành phép giải thẳng (ghim
+cột dưới sàn, chia phần còn lại theo tỷ lệ).
+
+Rồi mới đo: `w:tcW` là **số nguyên** đơn vị 1/50 phần trăm, và tổng của bảng ấy ra **5001** chứ không
+5000. Cột đã được đặt đúng ở sàn `150/5000 = 3,00%`; chính phép chuẩn hoá lại theo tổng thật trong ca
+kiểm sinh ra con số 2,9994. Thuật toán không sai chỗ nào.
+
+**Đã hoàn tác bản viết lại.** Sửa ở ca kiểm: đo bằng ĐƠN VỊ ĐÃ KHAI (`RONG_TOI_THIEU_PCT * 50`), không
+chuẩn hoá lại. Ghi ra vì phép chuẩn hoá kia nằm ngay trong tệp ca kiểm và trông hoàn toàn vô hại —
+và vì một bản viết lại "cho chắc" dựa trên chẩn đoán sai là một lượt sửa không ai kiểm được sau này.
+
+Cùng tệp ấy còn một phép đo sai có sẵn: ca *"cột số đủ chỗ"* áp chuỗi dài nhất của CẢ BẢNG (`615.000`)
+lên mọi cột tiền, kể cả cột *CPBH* mà ô dài nhất chỉ là `45.000`. Nó xanh chừng nào bảng còn thừa chỗ,
+và đỏ ở lượt thêm cột đầu tiên với một câu nghe như hồi quy thật. Giờ mỗi cột đo theo chuỗi dài nhất
+CỦA NÓ, và đo trên `COT_MAU_MAC_DINH` — tập cột của tờ giấy người ta thật sự in.
+
+### Bộ kiểm
+
+Vá bằng lượt chèn có kịch bản ở chỗ cơ học (`mode`, `appliedDate` → `ngayApDung`), sửa tay ở chỗ nói
+về NGHĨA: POL-04/POL-06, POL-09, POL-11, DOC-03, `0029`. **26 đỏ ở `policy.test.ts` xuống 3**, và cả
+ba là ca nói về luật vừa đổi.
+
+Ca kiểm MỚI, theo đúng thứ khách hàng chốt:
+
+| Canh gì | Ở đâu |
+|---|---|
+| Hai dòng hai ngày chụp hai bảng giá | `policy.test.ts` `0029` |
+| Sửa dòng không khai ngày thì GIỮ ngày cũ | `policy.test.ts` `0029` |
+| Tám ca trạng thái dòng và tỷ lệ CK cũ, gồm *sửa rồi trả lại* và *xoá rồi thêm lại* | `policy.test.ts` `0180` |
+| Thứ tự cột hai bảng: ngày **trước** mã, tỷ lệ cũ **sau** tỷ lệ | `tieu-de-cot.test.ts` |
+| Ba nhãn trạng thái khớp từng chữ giữa hai thế giới, và bảng Word in nhãn tiếng Việt chứ không mã trần | `tieu-de-cot.test.ts` |
+| Cột QĐCK hiện ngưỡng %, mã nằm trong `title` **và** `aria-label` của dấu `?` | `bang-san-pham.test.tsx` |
+| MỘT nút, gửi đúng một `mode`, và KHÔNG kèm `appliedDate` | `lap-ho-so-tu-khach-hang.test.tsx` |
+| Khối *Hồ sơ* thôi có ô *Ngày áp dụng* (đọc CẢ DÃY nhãn, không tìm một ô) | `chi-tiet-ho-so.test.tsx` |
+
+`NHAN_TRANG_THAI` phải sang `lib/bang-cot.ts` chứ không ở `BangSanPham.tsx` — đúng lý do `0172` đã
+dựng tệp ấy: ca đối chiếu hai bảng sống ở `tests/http/`, nơi `tsconfig` không bật `jsx`.
+
+`ngayVN()` lên `@csbh/http-kit`: từ lượt này câu *"hôm nay là ngày nào"* được hỏi ở ba đường ghi cộng
+bộ kiểm, và `0128` đã đo được giá của hai bản chép — `current_date` theo giờ Việt Nam, `toISOString()`
+theo UTC, ca kiểm xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại.
+
+### Phá lại: chín lượt, và lượt XANH là lượt đáng giá nhất
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ nhánh `DANG_AP_DUNG` (mọi dòng thừa kế thành *Chỉnh sửa*) | 3 đỏ |
+| Bỏ `note` khỏi phép so "đã sửa" | 1 đỏ — ca *"đổi chỉ ghi chú"* |
+| Trả *Tỷ lệ CK cũ* cho mọi dòng có bản trước | 2 đỏ |
+| Lập hồ sơ chụp giá theo hôm nay thay vì ngày của dòng | 5 đỏ, gồm ca *hai dòng hai ngày* |
+| Sửa dòng thiếu ngày thì kéo về hôm nay | 1 đỏ |
+| Đổi chỗ *Ngày áp dụng* ↔ *Mã sản phẩm* trên MÀN HÌNH | 2 đỏ — cả vế vị trí lẫn vế thứ tự chung |
+| **Gỡ dòng khai tập cột của ba mẫu mặc định** | **XANH — lỗ hổng thật, xem dưới** |
+| Thêm lại nút thứ hai ở *Lập hồ sơ* | 1 đỏ |
+| Bảng Word in mã trần `CHINH_SUA` | 1 đỏ |
+
+> **LƯỢT BẢY XANH, và nó là đúng cái bẫy chặng này vừa viết migration để chữa.**
+>
+> Ca kiểm tập cột đọc `cot_bang` của ba dòng mẫu **đã nạp trong CSDL**. Bộ nạp
+> idempotent theo `(kind, name)` (`0165`), nên nó chỉ ghi ở lượt chạy ĐẦU TIÊN —
+> gỡ hẳn dòng khai tập cột đi thì ba mẫu sẽ nhận **đủ mọi cột**, kể cả hai cột
+> khách hàng chốt là không tích, mà **không ca nào đỏ**: chúng đọc ba dòng cũ.
+>
+> Tôi đã viết ca ấy **canh cả hai vế** (bằng `COT_MAU_MAC_DINH`, và hai cột kia
+> vắng mặt) và vẫn không đủ — vì cả hai vế đều đo **hậu quả đã đông cứng trong
+> CSDL**, không đo chỗ quyết định.
+>
+> Chữa bằng cách **tách quyết định ra thành một hàm thuần** `cotBangMauMacDinh(kind)`
+> thay vì để nó nằm trong vòng lặp nạp. Đó là chỗ duy nhất gọi được mà không cần
+> một CSDL nào — `0143` đã viết ra luật này bằng chữ khác: *một ca kiểm quét mã
+> nguồn không bao giờ mạnh bằng một thứ gọi thẳng được*. Ca cũ GIỮ LẠI: nó nối
+> hàm ấy với thứ thật sự nằm trong CSDL, và hai ca cùng nhau mới phủ hết.
+
+**2020/2020 xanh** ở lượt chạy sạch trước khi phá lại.
+
+**2021/2021 xanh.**

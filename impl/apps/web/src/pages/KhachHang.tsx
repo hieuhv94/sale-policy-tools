@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
-import { ngay, tien } from '../lib/format.js';
+import { tien } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
@@ -136,7 +136,6 @@ type HoSoHienHanh = {
   id: string;
   code: string;
   status: string;
-  appliedDate: string | null;
   lines: { id: string; productName: string; netPrice: string; discountRate: string }[];
 };
 
@@ -369,7 +368,6 @@ export function ChiTietKhachHang({ id }: { id: string }) {
             </Lien>
             <Nhan trangThai={hoSo.status} />
           </div>
-          <p className="phu">Ngày áp dụng {ngay(hoSo.appliedDate)}</p>
           <p className="phu">{hoSo.lines.length} sản phẩm</p>
         </div>
       )}

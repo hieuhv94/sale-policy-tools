@@ -79,6 +79,15 @@ const lineShape = {
    * thẳng vào bản CSBH A4 và một đoạn văn ở đó sẽ đẩy vỡ bảng mười cột.
    */
   note: opt(str(1, 500)),
+  /**
+   * NGÀY ÁP DỤNG của riêng dòng này (`0180`).
+   *
+   * `opt` dù biểu mẫu bắt buộc gõ: chỗ quyết định "không khai thì là ngày nào"
+   * là MÁY CHỦ (`0104`), và nó điền hôm nay theo giờ Việt Nam. Bắt buộc ở DTO
+   * thì mọi bộ nạp dữ liệu và mọi lượt gọi API đều phải tự tính "hôm nay" —
+   * tức chép công thức múi giờ ra khắp nơi, đúng thứ `0128` đã trả giá.
+   */
+  ngayApDung: opt(ngayIso()),
 };
 
 const WRITERS = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'];
@@ -160,9 +169,21 @@ export class PoliciesController {
     @CurrentUser() me: AuthUser,
     @Param('id') id: string,
     @Query('productId') productId: string,
+    /**
+     * NGÀY ÁP DỤNG người lập vừa gõ trong hộp thoại thêm dòng (`0180`).
+     *
+     * Bắt buộc phải nhận từ ngoài chứ không tự lấy hôm nay: ngưỡng và giá phụ
+     * thuộc ngày (`0029`), nên xem trước bằng ngày khác ngày sắp ghi là bày ra
+     * một con số rồi ghi một con số khác. Thiếu thì hôm nay — đúng mặc định mà
+     * `upsertLine` sẽ dùng.
+     */
+    @Query('ngayApDung') ngayApDung?: string,
   ) {
-    const q = validate({ productId }, { productId: str(1, 60) });
-    return this.policies.thresholdPreview(id, q.productId, me);
+    const q = validate(
+      { productId, ...(ngayApDung ? { ngayApDung } : {}) },
+      { productId: str(1, 60), ngayApDung: opt(ngayIso()) },
+    );
+    return this.policies.thresholdPreview(id, q.productId, me, q.ngayApDung);
   }
 
   @Get(':id/allowed-actions')
@@ -180,8 +201,10 @@ export class PoliciesController {
 
     const head = validate(body, {
       customerId: str(1, 60),
-      appliedDate: opt(ngayIso()),
-      mode: opt(oneOf('SUPPLEMENT', 'AMEND')),
+      // `0180` — MỘT giá trị thay cho `SUPPLEMENT`/`AMEND`; xem
+      // `NEW_VERSION_MESSAGE`. `oneOf` giữ nguyên chứ không đổi sang cờ boolean:
+      // một tên gọi được nói ra là thứ đọc được trong log và trong thân lỗi.
+      mode: opt(oneOf('NEW_VERSION')),
     });
     const lines = (Array.isArray(b.lines) ? b.lines : []).map(
       (l) => validate(l, lineShape) as LineInput,
@@ -216,6 +239,9 @@ export class PoliciesController {
       // Vắng mặt là XOÁ ghi chú, không phải "giữ nguyên": biểu mẫu sửa dòng gửi
       // lên toàn bộ nội dung dòng, cùng luật với `cpbh` ngay trên.
       note: opt(str(1, 500)),
+      // NGÀY ÁP DỤNG thì NGƯỢC LẠI — vắng mặt là GIỮ NGUYÊN. Cột `NOT NULL`,
+      // không có trạng thái rỗng để xoá về; xem `PoliciesService.updateLine`.
+      ngayApDung: opt(ngayIso()),
     });
     return this.policies.updateLine(id, lineId, b, me);
   }
@@ -240,13 +266,14 @@ export class PoliciesController {
     return this.policies.removeLine(id, lineId, me);
   }
 
-  @Roles('TDV')
-  @Patch(':id')
-  update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
-    rejectForbidden(body);
-    const b = validate(body, { appliedDate: ngayIso() });
-    return this.policies.updateAppliedDate(id, b.appliedDate, me);
-  }
+  /*
+   * `PATCH /policies/:id` GỠ HẲN ở `0180`.
+   *
+   * Nó chỉ đổi được đúng một trường — ngày áp dụng của hồ sơ — và trường ấy vừa
+   * chuyển xuống dòng sản phẩm. Giữ lại một đường `PATCH` không sửa được gì là
+   * để lại một cánh cửa mà lần sau ai đó sẽ nhét vào một trường bất kỳ, ngoài
+   * mọi phép kiểm của luồng duyệt.
+   */
 
   /**
    * Xoá hồ sơ — CHỈ TDV đang phụ trách, và chỉ khi hồ sơ còn sửa được (`0035`).

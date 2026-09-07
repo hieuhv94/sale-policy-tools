@@ -207,14 +207,22 @@ async function draft(o: PolicyOpts = {}): Promise<{ id: string; customerCode: st
   const them = o.themSanPham
     ? [await makeProduct(o.themSanPham, o.groupCode ?? groupA)]
     : [];
+  const ngay = o.appliedDate ? { ngayApDung: o.appliedDate } : {};
   const r = await ppost(
     '/policies',
     {
       customerId: cus.id,
-      ...(o.appliedDate ? { appliedDate: o.appliedDate } : {}),
+      // `0180` — ngày áp dụng đi vào TỪNG DÒNG. `rpt.policy_row.applied_date`
+      // giờ là ngày SỚM NHẤT của các dòng, dựng ở `internal.controller` của
+      // `policy`; mọi dòng ở đây cùng ngày nên hai cách nói trùng nhau.
       lines: [
-        { productId, wholesalePrice: '90000', cpbh: ['3000'] },
-        ...them.map((id) => ({ productId: id, wholesalePrice: '80000', cpbh: ['2000'] })),
+        { productId, wholesalePrice: '90000', cpbh: ['3000'], ...ngay },
+        ...them.map((id) => ({
+          productId: id,
+          wholesalePrice: '80000',
+          cpbh: ['2000'],
+          ...ngay,
+        })),
       ],
     },
     o.who ?? 'tdv01',

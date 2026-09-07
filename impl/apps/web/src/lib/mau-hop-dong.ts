@@ -229,7 +229,10 @@ export const NHAN_KHOA: Record<string, string> = {
   'ho_so.ma_ho_so': 'Mã hồ sơ',
   'ho_so.phien_ban': 'Phiên bản',
   'ho_so.trang_thai': 'Trạng thái',
-  'ho_so.ngay_ap_dung': 'Ngày áp dụng',
+  // `ho_so.ngay_ap_dung` GỠ ở `0180` — nguồn ấy không còn tồn tại ở máy chủ.
+  // Ngày áp dụng là của TỪNG DÒNG và in ra ở cột đầu của bảng sản phẩm; một
+  // khoá ở đây mà máy chủ không nhận là một mục người soạn mẫu chọn được rồi
+  // nhận `400 SOURCE_UNKNOWN` lúc lưu (có ca kiểm hai chiều ở `them-mau.test`).
   'ho_so.ngay_hieu_luc': 'Ngày hiệu lực',
   'ho_so.tep_dinh_kem': 'Tệp đính kèm',
 

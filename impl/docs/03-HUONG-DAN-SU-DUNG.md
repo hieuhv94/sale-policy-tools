@@ -524,7 +524,7 @@ khách cần tìm; muốn xem đủ thì mở khách ra rồi bấm *Sửa*.
 không riêng Trình dược viên.
 
 **Lập hồ sơ ngay từ đây** `mới 21/08` — nút **Lập hồ sơ CSBH** ở góc trên bên phải màn hình chi tiết
-khách hàng. Bấm vào là sang thẳng bước chọn *Bổ sung / Chỉnh sửa* với khách hàng ấy **đã chọn sẵn**,
+khách hàng. Bấm vào là sang thẳng bước xác nhận **lập phiên bản mới** với khách hàng ấy **đã chọn sẵn**,
 không phải sang mục Hồ sơ CSBH rồi gõ lại tên khách.
 
 > Nút chỉ hiện với **Trình dược viên đang phụ trách** khách hàng đó, và chỉ khi khách **chưa bị xoá**
@@ -538,7 +538,6 @@ Dưới khối *CSBH đang áp dụng* là bảng **mọi phiên bản CSBH** kh
 | Cột | Nội dung |
 |---|---|
 | Mã hồ sơ · Phiên bản · Trạng thái | Bấm mã để mở chính hồ sơ đó |
-| Ngày áp dụng | Ngày ghi trên văn bản |
 | Có hiệu lực từ | Lúc kế toán tiếp nhận lần 2 — thời điểm CSBH bắt đầu có giá trị |
 | Hết hiệu lực lúc · Bị thay bởi | **Thời điểm bản mới thay bản này**, và mã của bản mới ấy |
 
@@ -686,16 +685,18 @@ việc khác nhau.
 > giá và ngưỡng được lấy lại từ danh mục; lúc bấm *Gửi duyệt* lấy lại lần cuối rồi mới đóng băng. Nhờ
 > vậy con số bạn vừa đọc đúng là con số sẽ được đóng băng.
 >
-> **Giá lấy theo *Thời gian áp dụng*, không phải ngày hôm nay.** Hồ sơ áp dụng từ 01/09 thì mang bảng
-> giá của 01/09, kể cả khi bạn lập nó từ tháng 8. Đổi *Thời gian áp dụng* thì mọi dòng tính lại theo
-> bảng giá của ngày mới.
+> **Giá lấy theo *Ngày áp dụng của chính dòng ấy*, không phải ngày hôm nay** `sửa 07/09`. Dòng áp
+> dụng từ 01/09 mang bảng giá của 01/09, kể cả khi bạn lập nó từ tháng 8. Sửa ngày áp dụng của một
+> dòng thì **chính dòng ấy** tính lại theo bảng giá của ngày mới; các dòng khác không đổi — nên một
+> hồ sơ hoàn toàn có thể gồm ba mặt hàng theo bảng giá tháng 9 cộng một mặt hàng theo bảng giá
+> tháng 10.
 >
 > **Giá bán buôn và các khoản CPBH không bao giờ bị thay.** Đó là con số bạn nhập; chỉ Giá bán Công
 > ty và ngưỡng — hai thứ lấy từ danh mục — mới được làm mới.
 >
 > **Gửi duyệt bị chặn nếu có dòng không lấy được giá.** Sản phẩm đã vô hiệu hoá, hoặc chưa khai giá
-> tại ngày áp dụng. Hệ thống nói rõ sản phẩm nào; xoá dòng đó hoặc đổi *Thời gian áp dụng* rồi gửi
-> lại. Mở hồ sơ ra xem thì vẫn xem được bình thường.
+> tại ngày áp dụng của dòng. Hệ thống nói rõ sản phẩm nào; xoá dòng đó hoặc sửa **ngày áp dụng của
+> chính dòng ấy** rồi gửi lại. Mở hồ sơ ra xem thì vẫn xem được bình thường.
 
 Hồ sơ **đã gửi duyệt** thì không bao giờ tự đổi số — xem *Yêu cầu cập nhật* ở mục 4.
 
@@ -725,6 +726,47 @@ nhập lại từ đầu.
 Sản phẩm **không có cả quy định lẫn mặc định** thì vẫn thêm dòng được. Dòng ấy đơn giản là không có
 ngưỡng nào để đối chiếu: cột *Tỷ lệ CK* vẫn tính đủ, chỉ là không bao giờ bị đánh dấu vượt ngưỡng.
 
+### Cột Ngày áp dụng `mới 07/09`
+
+**Mỗi sản phẩm có ngày áp dụng của riêng nó.** Ô đầu tiên trong hộp thoại *Thêm sản phẩm* — trước cả
+ô chọn sản phẩm — và cột đầu tiên của bảng, ngay bên trái *Mã sản phẩm*.
+
+Ô ấy đứng trước ô chọn sản phẩm vì **giá bán Công ty và ngưỡng chiết khấu tra theo chính ngày này**:
+gõ ngày rồi mới chọn sản phẩm thì con số hiện ra bên dưới đúng là con số sẽ được lưu.
+
+- Điền sẵn **hôm nay**; đổi được, kể cả sang một ngày trong quá khứ.
+- **Sửa ngày của một dòng** thì bấm *Sửa* ở chính dòng ấy — dòng đó tính lại giá và ngưỡng theo bảng
+  giá của ngày mới, các dòng khác không đổi.
+- Một hồ sơ **được phép có nhiều ngày khác nhau**: ba mặt hàng cũ áp dụng từ 01/09 cộng một mặt hàng
+  mới áp dụng từ 01/10 là chuyện bình thường.
+
+> **Hồ sơ CSBH không còn ngày áp dụng chung** `sửa 07/09`. Trước lượt này có một ô *Thời gian áp
+> dụng* ở đầu màn hình hồ sơ và một dòng cùng tên trên bản in; cả hai biến mất, và ngày đi vào bảng
+> sản phẩm. Bản CSBH in ra vẫn nói đủ — nó nói theo từng dòng.
+
+### Cột Trạng thái và cột Tỷ lệ CK cũ `mới 07/09`
+
+Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang hiệu lực ở chỗ nào.**
+
+| Trạng thái | Nghĩa |
+|---|---|
+| **Bổ sung** | Mặt hàng **mới**, chưa có trong CSBH đang hiệu lực |
+| **Chỉnh sửa** | Mặt hàng đã có, và bạn **vừa sửa** một dữ liệu nào đó của nó |
+| **Đang áp dụng** | Mặt hàng đã có, **để nguyên** như bản đang hiệu lực |
+
+- Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
+  buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
+- **Sửa nhầm rồi sửa trả lại đúng như cũ thì dòng quay về *Đang áp dụng*** — nó được tính ra từ hai
+  bản, không phải một dấu đóng vào rồi ở lại.
+- Ở **phiên bản đầu tiên** của một khách hàng, mọi dòng là *Bổ sung*: chưa có bản nào trước để so.
+- **Tỷ lệ CK cũ** chỉ hiện ở dòng *Chỉnh sửa* — đó là tỷ lệ chiết khấu của chính mặt hàng ấy trong
+  phiên bản trước, để đặt cạnh con số mới mà so. Dòng *Đang áp dụng* có tỷ lệ cũ bằng đúng tỷ lệ mới,
+  và dòng *Bổ sung* thì không có tỷ lệ cũ nào.
+
+> **Hai cột này không in ra hai mẫu hồ sơ mặc định.** Chúng phục vụ người **đang duyệt**, không phải
+> tờ giấy đem ký. Muốn in thì Quản trị hệ thống tích chúng trong tập cột của một mẫu riêng — chúng có
+> sẵn trong danh mục cột.
+
 ### Cột Ghi chú
 
 Ô chữ tự do cho **riêng một dòng sản phẩm** — "giá theo thoả thuận tháng 8", "khách yêu cầu đóng
@@ -736,18 +778,25 @@ thùng 12". Nhập trong hộp thoại thêm hoặc sửa dòng, tối đa 500 k
   trống ô nghĩa là bạn vừa bỏ ghi chú đi.
 - Ghi chú **đi theo dòng sang phiên bản mới** của hồ sơ, trừ khi chính dòng ấy được nhập lại.
 
-### Cột QĐCK
+### Cột QĐCK `sửa 07/09`
 
-Mã của **đúng quy định chiết khấu** đã cho ra ngưỡng của dòng đó. Ô trống nghĩa là không có quy định
-nào — đúng những dòng có Tỷ lệ CK màu vàng.
+Ô này hiện **ngưỡng phần trăm** của đúng quy định chiết khấu đã chi phối dòng đó — con số đọc được
+ngay cạnh *Tỷ lệ CK* ở cùng hàng. Ô trống nghĩa là không có quy định nào — đúng những dòng có Tỷ lệ
+CK màu vàng.
 
-Dùng để làm gì: chép mã, sang mục **Chiết khấu**, lọc theo đúng **nhóm sản phẩm** và **loại khách
-hàng** của dòng ấy. Danh sách còn lại rất ngắn, và dòng mang mã bạn vừa chép chính là quy định đang
+**Mã quy định nằm trong dấu `?`** ngay cạnh con số: rê chuột, hoặc bấm trên điện thoại.
+
+Dùng để làm gì: đọc mã trong dấu `?`, sang mục **Chiết khấu**, lọc theo đúng **nhóm sản phẩm** và
+**loại khách hàng** của dòng ấy. Danh sách còn lại rất ngắn, và dòng mang mã bạn vừa chép chính là quy định đang
 chi phối con số ngưỡng. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia 30%"*.
 
-Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi bạn muốn **Bổ sung** (thêm sản phẩm mới)
-hay **Chỉnh sửa** (đổi sản phẩm đã có). Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn
-không cần nhập lại.
+Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi lại một câu và bạn bấm **Lập phiên bản
+mới** `sửa 07/09`. Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn không cần nhập lại.
+
+> **Trước 07/09 ở đây có hai nút** — *Bổ sung* và *Chỉnh sửa*. Chúng dẫn tới cùng một việc, nên
+> chúng chỉ bắt bạn trả lời trước một câu mà bạn chỉ biết câu trả lời sau khi mở hồ sơ ra, và rất
+> thường là cả hai. Việc phân loại ấy giờ nằm ở **cột *Trạng thái* của từng dòng sản phẩm** — xem
+> ngay dưới.
 
 ### Gửi duyệt `sửa 29/08`
 
@@ -787,11 +836,12 @@ khách hàng** đóng băng ngay lúc ấy, và mọi chỉnh sửa sau đó đ�
 > | Mục còn thiếu | Sửa ở đâu |
 > |---|---|
 > | **Mã số thuế** | Màn hình *Khách hàng* → mở khách hàng của hồ sơ → Sửa |
-> | **Thời gian áp dụng** | ngay trên màn hình hồ sơ |
 >
-> **Chỉ còn hai mục** `sửa 01/09`. *Chức danh người đại diện* và *Số điện thoại* thôi bị chặn: hai
-> mẫu hồ sơ mặc định không in chúng nữa, nên chặn là bắt điền một thứ không xuất hiện trên tờ giấy
-> nào. Hai trường vẫn ở hồ sơ khách hàng và vẫn nên điền.
+> **Chỉ còn MỘT mục** `sửa 07/09`. *Chức danh người đại diện* và *Số điện thoại* thôi bị chặn từ
+> `01/09`: hai mẫu hồ sơ mặc định không in chúng nữa, nên chặn là bắt điền một thứ không xuất hiện
+> trên tờ giấy nào — hai trường vẫn ở hồ sơ khách hàng và vẫn nên điền. *Thời gian áp dụng* rời khỏi
+> danh sách ở `07/09` vì lý do khác hẳn: nó **không còn là một trường của hồ sơ**, mà là ngày của
+> từng dòng sản phẩm — không bao giờ trống được.
 >
 > Chặn ở đây chứ không ở lúc xem, vì đây là lúc bạn còn sửa được: hồ sơ vẫn là bản nháp và bản CSBH
 > chưa đi đâu cả. Sửa xong quay lại bấm *Gửi duyệt* là đi tiếp — không phải lập hồ sơ khác.
@@ -800,8 +850,8 @@ khách hàng** đóng băng ngay lúc ấy, và mọi chỉnh sửa sau đó đ�
 > *Ngày KT nhận lần 1* và *lần 2*, *Ngày hiệu lực*, *Khối chữ ký số*. Chúng còn trống trên bản A4
 > lúc bạn gửi là **đúng** — chưa tới lượt ai điền chúng.
 >
-> *Thời gian áp dụng* nay **điền sẵn hôm nay** ngay từ lúc lập hồ sơ, nên mục này chỉ thiếu khi bạn
-> chủ động xoá nó đi.
+> **Ngày áp dụng của một dòng** thì luôn có: hộp thoại *Thêm sản phẩm* điền sẵn hôm nay, và bỏ trống
+> ô ấy cũng vẫn ra hôm nay — máy chủ điền.
 
 Hồ sơ bị trả lại rồi gửi lại thì **không phải chọn lại gì** — người duyệt giữ nguyên, và không có
 văn bản mẫu nào để chọn.
@@ -822,8 +872,11 @@ văn bản mẫu nào để chọn.
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
 
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
-có thêm nút *Xoá* ở từng dòng, và có nút *Sửa ngày áp dụng*. Hồ sơ đã gửi đi thì không sửa được nữa —
-muốn sửa phải chờ người duyệt trả lại.
+có thêm nút *Sửa* và *Xoá* ở từng dòng. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
+người duyệt trả lại.
+
+> **Không còn nút *Sửa ngày áp dụng*** `sửa 07/09`: ngày áp dụng thuộc về **từng sản phẩm**, và sửa
+> nó đi chung đường với giá bán buôn — bấm *Sửa* ở chính dòng ấy.
 
 **Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:
 **Nháp**, **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế toán không
@@ -929,7 +982,6 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 | Trạng thái | Hồ sơ đang ở bước nào |
 | Phiên bản | Bản CSBH thứ mấy **của khách hàng này** — không phải phiên bản phần mềm |
 | Ngày soạn thảo | Lúc bản nháp ra đời |
-| Ngày áp dụng | Ngày người lập khai, và là ngày dùng để tra giá với ngưỡng |
 | Có hiệu lực | Chỉ hiện khi CSBH **đã** có hiệu lực |
 | Người đề nghị | TDV đã **gửi** hồ sơ đi duyệt — không đổi khi khách hàng được bàn giao cho TDV khác |
 

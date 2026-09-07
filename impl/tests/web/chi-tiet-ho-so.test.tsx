@@ -60,7 +60,6 @@ const HO_SO = {
   versionNo: 2,
   status: 'CHO_TBP_DUYET',
   createdAt: '2026-07-28T02:15:00.000Z',
-  appliedDate: '2026-08-01',
   effectiveFrom: null,
   lastReason: null,
   nguoiDeNghi: { ten: 'Nguyen Van Tdv' },
@@ -203,7 +202,7 @@ afterEach(() => {
 });
 
 describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () => {
-  it('sáu thứ đều có nhãn riêng, không dồn lên một dòng chữ xám', async () => {
+  it('mỗi thứ một nhãn riêng, không dồn lên một dòng chữ xám', async () => {
     /*
      * Tới `0060` cả khối này là MỘT dòng: "Phiên bản 2 · Ngày áp dụng … · Có
      * hiệu lực …". Ba con số ngày tháng nối nhau bằng dấu chấm giữa dòng thì mắt
@@ -213,15 +212,28 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Phiên bản')).toBe('2');
     expect(oCua('Trạng thái')).toBe('Chờ TBP duyệt');
     expect(oCua('Ngày soạn thảo')).toBe('28/07/2026');
-    expect(oCua('Ngày áp dụng')).toBe('01/08/2026');
     expect(oCua('Người đề nghị')).toBe('Nguyen Van Tdv');
   });
 
-  it('ngày soạn thảo KHÁC ngày áp dụng — hai mốc, hai ô', async () => {
-    // Dễ lẫn nhất trong cả khối: hồ sơ soạn dần thì hai mốc cách nhau hàng tuần,
-    // và lấy nhầm mốc nào cũng ra một ngày trông có vẻ hợp lý.
+  it('`0180` khối hồ sơ KHÔNG còn ô *Ngày áp dụng* — ngày là của từng dòng', async () => {
+    /*
+     * Ca này canh một thứ ĐÃ BỎ, và nó đáng có mặt vì cái bỏ đi rất dễ quay lại:
+     * một ô tên *Ngày áp dụng* ở khối đầu trang trông hoàn toàn hợp lý, và người
+     * sửa sau sẽ điền vào đó ngày sớm nhất của các dòng. Đúng lúc ấy tờ giấy nói
+     * một câu sai về mọi dòng có ngày khác — chính điều khách hàng chốt 07/09 là
+     * không được nói.
+     *
+     * Đọc CẢ DÃY nhãn của khối chứ không tìm một ô: `oCua` trả `undefined` cho ô
+     * không có, và một ca `toBeUndefined()` cũng xanh khi cả khối hỏng.
+     */
     await mo();
-    expect(oCua('Ngày soạn thảo')).not.toBe(oCua('Ngày áp dụng'));
+    const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
+      (e) => e.querySelector('h2')?.textContent === 'Hồ sơ',
+    );
+    expect(nhom, 'không có nhóm Hồ sơ').toBeDefined();
+    const nhan = [...nhom!.querySelectorAll('dt')].map((e) => e.textContent);
+    expect(nhan).toContain('Ngày soạn thảo');
+    expect(nhan).not.toContain('Ngày áp dụng');
   });
 
   it('khách hàng là NHÓM RIÊNG, và ĐỦ DÃY Ô theo ĐÚNG THỨ TỰ (`0177`)', async () => {

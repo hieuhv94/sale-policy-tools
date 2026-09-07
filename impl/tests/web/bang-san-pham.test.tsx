@@ -326,14 +326,36 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
     expect(dauTrongDuLieu('.ty-le.vuot')).toHaveLength(0);
   });
 
-  it('cột QĐCK hiện mã quy định', () => {
-    const ds = [dong({ thresholdSource: 'RULE', ruleCode: 'CK-SUA-L1' })];
+  it('`0180` cột QĐCK hiện NGƯỠNG PHẦN TRĂM, mã nằm trong dấu ?', () => {
+    /*
+     * Khách hàng chốt 07/09: *"nội dung của cột QĐCK hiển thị số phần trăm chứ
+     * không hiển thị tên QĐCK, để dấu ? nhỏ bên cạnh để khi người dùng di chuột
+     * vào sẽ hiện tên QĐCK"*.
+     *
+     * Ca canh CẢ HAI vế. Chỉ canh vế đầu thì một bản sửa bỏ luôn mã đi vẫn xanh,
+     * mà mã là đường tra ngược sang màn hình Chiết khấu — bỏ nó là bỏ công dụng
+     * còn lại của cột.
+     */
+    const ds = [dong({ thresholdSource: 'RULE', ruleCode: 'CK-SUA-L1', threshold: '12.00' })];
     render(<BangSanPham dong={ds} />);
     const bang = screen.getByRole('table');
     expect(within(bang).getByText('QĐCK')).toBeDefined();
-    // Mã hiện NGUYÊN VẸN: nó dùng để chép sang ô tìm ở màn hình Chiết khấu, cắt
-    // bớt là cắt luôn công dụng của cột.
-    expect(within(bang).getByText('CK-SUA-L1')).toBeDefined();
+
+    const cot = cotCho(ds).findIndex((c) => c.khoa === 'ruleCode');
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-01') !== null) as HTMLElement;
+    const o = within(hang).getAllByRole('cell')[cot - 1] as HTMLElement;
+    // Ngưỡng, đúng cách viết phần trăm của cả bảng.
+    expect(o.textContent).toContain('12,00%');
+    // Mã KHÔNG còn là chữ nhìn thấy được...
+    expect(o.textContent).not.toContain('CK-SUA-L1');
+    // ...nhưng đọc được từ dấu `?`, và bằng CẢ HAI đường (chuột và trình đọc
+    // màn hình) — `title` một mình không tới được người dùng bàn phím (`0027`).
+    const nut = o.querySelector('.dau-hoi') as HTMLElement;
+    expect(nut, 'ô QĐCK không có dấu ?').not.toBeNull();
+    expect(nut.getAttribute('title')).toContain('CK-SUA-L1');
+    expect(nut.getAttribute('aria-label')).toContain('CK-SUA-L1');
   });
 
   it('không có quy định thì ô QĐCK để TRỐNG', () => {
@@ -366,10 +388,16 @@ describe('0023 nguồn ngưỡng thứ ba và cột QĐCK', () => {
     expect(within(the).queryByText('QĐCK')).toBeNull();
 
     cleanup();
-    render(<BangSanPham dong={[dong({ ruleCode: 'q-123' })]} />);
+    render(<BangSanPham dong={[dong({ ruleCode: 'q-123', threshold: '9.50' })]} />);
     const the2 = document.querySelector('.the-san-pham .the') as HTMLElement;
     expect(within(the2).getByText('QĐCK')).toBeDefined();
-    expect(within(the2).getByText('q-123')).toBeDefined();
+    // `0180` — trên thẻ cũng là NGƯỠNG, mã đi vào dấu `?`. Bố cục điện thoại
+    // dùng chung `OQuyDinh` với bảng, và ca này canh cho nó không tách đôi.
+    const o = within(the2).getByText('QĐCK').parentElement as HTMLElement;
+    expect(o.textContent).toContain('9,50%');
+    expect(
+      (o.querySelector('.dau-hoi') as HTMLElement | null)?.getAttribute('title'),
+    ).toContain('q-123');
   });
 });
 

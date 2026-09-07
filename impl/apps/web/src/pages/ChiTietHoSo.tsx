@@ -19,7 +19,6 @@ import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
 import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
 import {
-  SuaNgayApDung,
   ThemDongSanPham,
   XoaHoSo,
   suaDuoc,
@@ -48,7 +47,6 @@ type HoSo = {
   status: string;
   /** Lúc bản nháp ra đời — "ngày soạn thảo" (`0061`). */
   createdAt?: string | null;
-  appliedDate: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
   /* `mauHoSoId` ĐÃ GỠ (`0163`) — mẫu thôi đóng băng theo hồ sơ. */
@@ -156,7 +154,7 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [xoaDongId, datXoaDongId] = useState<string | null>(null);
   /** Dòng đang mở để sửa. Cùng biểu mẫu với thêm dòng — xem `ThemDongSanPham`. */
   const [suaDongCu, datSuaDongCu] = useState<DongSanPham | null>(null);
-  const [moSua, datMoSua] = useState<'dong' | 'ngay' | 'xoa' | null>(null);
+  const [moSua, datMoSua] = useState<'dong' | 'xoa' | null>(null);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   const { di } = useDuong();
 
@@ -427,11 +425,12 @@ export function ChiTietHoSo({ id }: { id: string }) {
       <h2>Sản phẩm</h2>
       {dangSua && (
         <div className="nhom-nut">
+          {/* `0180` — nút *Sửa ngày áp dụng* GỠ HẲN: ngày áp dụng thuộc về từng
+              dòng, và sửa nó đi cùng đường với giá bán buôn của chính dòng ấy
+              (nút *Sửa* trên mỗi hàng của bảng). Một nút ở cấp hồ sơ sẽ phải hỏi
+              "đổi ngày của dòng nào". */}
           <button type="button" className="nut nut-chinh" onClick={() => datMoSua('dong')}>
             Thêm sản phẩm
-          </button>
-          <button type="button" className="nut nut-nhe" onClick={() => datMoSua('ngay')}>
-            Sửa ngày áp dụng
           </button>
         </div>
       )}
@@ -649,17 +648,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
       {moSua === 'dong' && (
         <ThemDongSanPham
           hoSoId={hoSo.id}
-          dong={() => datMoSua(null)}
-          xong={() => {
-            datMoSua(null);
-            taiLai();
-          }}
-        />
-      )}
-      {moSua === 'ngay' && (
-        <SuaNgayApDung
-          hoSoId={hoSo.id}
-          ngayHienTai={hoSo.appliedDate}
           dong={() => datMoSua(null)}
           xong={() => {
             datMoSua(null);
@@ -950,7 +938,6 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
           </O>
           <O nhan="Phiên bản">{hoSo.versionNo}</O>
           <O nhan="Ngày soạn thảo">{ngay(hoSo.createdAt)}</O>
-          <O nhan="Ngày áp dụng">{ngay(hoSo.appliedDate)}</O>
           {/* Chỉ hiện khi ĐÃ có hiệu lực. Một ô "Có hiệu lực —" trên mọi hồ sơ
               còn đang đi trong luồng là một dòng không nói gì, mà nó lại nằm
               ngay cạnh hai ô ngày tháng có thật. */}

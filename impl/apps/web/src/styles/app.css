@@ -1015,6 +1015,14 @@ tbody tr:hover { background: var(--mau-nen-hover); }
 /* Mã quy định chiết khấu. Chữ đơn cách và nhỏ hơn: bề ngang là thứ đắt nhất
    trong bảng này, và mã được đọc theo từng ký tự để chép sang màn hình Chiết
    khấu nên chữ đơn cách dễ dò hơn hẳn. */
+/* Cột NGÀY ÁP DỤNG của bảng sản phẩm (`0180`) — không xuống dòng.
+
+   `dd/mm/yyyy` bị bẻ giữa hai dấu gạch là ba dòng, mỗi dòng hai chữ số, và
+   trong một bảng mười ba cột thì đó là dòng cao gấp ba mà không thêm thông tin
+   nào. Cột hẹp thì thà đẩy bảng cuộn ngang — bảng này vốn đã cuộn ngang từ
+   `FE-04`. */
+.bang-san-pham .ngay-ap-dung { white-space: nowrap; }
+
 .ma-quy-dinh {
   font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
   font-size: var(--chu-rat-nho);

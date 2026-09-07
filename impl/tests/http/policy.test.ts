@@ -18,6 +18,9 @@ import {
   TRUONG_CHAN_LUC_GUI,
 } from '@csbh/policy/testing';
 import { NHOM_TRUONG } from '@csbh/document/testing';
+// `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
+// Bản chép sẽ xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại (`0128`).
+import { ngayVN } from '@csbh/http-kit';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -111,11 +114,21 @@ const line = (productId: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-/** Hồ sơ Nháp có một dòng sản phẩm, sẵn sàng gửi duyệt. */
-const draft = async (opts: { customerId?: string; productId?: string } = {}) => {
+/**
+ * Hồ sơ Nháp có một dòng sản phẩm, sẵn sàng gửi duyệt.
+ *
+ * `ngayApDung` (`0180`) đi vào DÒNG chứ không vào hồ sơ — không còn ngày nào ở
+ * cấp hồ sơ để mà khai.
+ */
+const draft = async (
+  opts: { customerId?: string; productId?: string; ngayApDung?: string } = {},
+) => {
   const customerId = opts.customerId ?? (await makeCustomer());
   const productId = opts.productId ?? (await makeProduct());
-  const r = await post('/policies', { customerId, lines: [line(productId)] });
+  const r = await post('/policies', {
+    customerId,
+    lines: [line(productId, opts.ngayApDung ? { ngayApDung: opts.ngayApDung } : {})],
+  });
   if (r.status !== 201) throw new Error(`tạo hồ sơ hỏng: ${JSON.stringify(r.body)}`);
   return { id: r.body.id as string, customerId, productId, body: r.body };
 };
@@ -272,27 +285,51 @@ describe('POL-02 không trùng sản phẩm trong một hồ sơ', () => {
 });
 
 describe('POL-04 … POL-07 bổ sung và chỉnh sửa', () => {
-  it('POL-04 sản phẩm chưa có chính sách thì hỏi BỔ SUNG, đúng từng chữ', async () => {
+  /*
+   * `0180` — POL-04 và POL-06 GỘP LÀM MỘT, chốt 07/09.
+   *
+   * Hai ca cũ khẳng định hệ thống hỏi HAI câu khác nhau tuỳ lô sản phẩm gửi lên
+   * có mặt hàng mới hay không. Khách hàng bỏ sự phân biệt ấy: hai nút *Bổ sung*
+   * và *Chỉnh sửa* dẫn tới cùng một việc, nên chỉ còn MỘT câu hỏi.
+   *
+   * Ca dưới đây giữ nguyên phần đáng giá của POL-04/POL-06 — **hệ thống không tự
+   * quyết định thay người dùng** — và ghim câu hỏi đúng từng chữ. Vế "hai câu
+   * khác nhau" thì kiểm chiều NGƯỢC LẠI: cùng một câu cho cả hai lô.
+   */
+  it('POL-04 · POL-06 khách đã có CSBH thì HỎI LẠI — MỘT câu, đúng từng chữ', async () => {
     const d = await draft();
     await runToActive(d);
 
-    const r = await post('/policies', {
+    const CAU = 'Khách hàng đã có CSBH đang hiệu lực. Bạn có muốn lập phiên bản mới không?';
+
+    // Lô có mặt hàng MỚI…
+    const moi = await post('/policies', {
       customerId: d.customerId,
       lines: [line(await makeProduct())],
     });
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('SUPPLEMENT_REQUIRED');
-    expect(r.body.message).toBe('CSBH cho sản phẩm này chưa có. Bạn có muốn BỔ SUNG không?');
+    expect(moi.status).toBe(409);
+    expect(moi.body.code).toBe('NEW_VERSION_REQUIRED');
+    expect(moi.body.message).toBe(CAU);
+    expect(moi.body.activePolicyId).toBe(d.id);
+
+    // …và lô chỉ SỬA mặt hàng đã có: cùng mã, cùng câu.
+    const sua = await post('/policies', {
+      customerId: d.customerId,
+      lines: [line(d.productId, { wholesalePrice: '80000' })],
+    });
+    expect(sua.status).toBe(409);
+    expect(sua.body.code).toBe('NEW_VERSION_REQUIRED');
+    expect(sua.body.message).toBe(CAU);
   });
 
-  it('POL-05 xác nhận BỔ SUNG thì hồ sơ mới chứa TOÀN BỘ sản phẩm cũ cộng sản phẩm mới', async () => {
+  it('POL-05 xác nhận rồi thì hồ sơ mới chứa TOÀN BỘ sản phẩm cũ cộng sản phẩm mới', async () => {
     const d = await draft();
     await runToActive(d);
     const moi = await makeProduct();
 
     const r = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(moi)],
     });
     expect(r.status).toBe(201);
@@ -303,26 +340,13 @@ describe('POL-04 … POL-07 bổ sung và chỉnh sửa', () => {
     expect(ids).toEqual([d.productId, moi].sort());
   });
 
-  it('POL-06 sản phẩm đã có chính sách thì hỏi CHỈNH SỬA, đúng từng chữ', async () => {
+  it('POL-07 sửa một mặt hàng đã có: hồ sơ mới đầy đủ, giữ liên kết tới bản gốc', async () => {
     const d = await draft();
     await runToActive(d);
 
     const r = await post('/policies', {
       customerId: d.customerId,
-      lines: [line(d.productId, { wholesalePrice: '80000' })],
-    });
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('AMEND_REQUIRED');
-    expect(r.body.message).toBe('CSBH cho sản phẩm này đã có. Bạn có muốn CHỈNH SỬA không?');
-  });
-
-  it('POL-07 xác nhận CHỈNH SỬA thì hồ sơ mới đầy đủ, giữ liên kết tới bản gốc', async () => {
-    const d = await draft();
-    await runToActive(d);
-
-    const r = await post('/policies', {
-      customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { wholesalePrice: '80000', cpbh: ['1000'] })],
     });
     expect(r.status).toBe(201);
@@ -334,7 +358,7 @@ describe('POL-04 … POL-07 bổ sung và chỉnh sửa', () => {
   it('không có CSBH hiệu lực mà gửi mode thì 400', async () => {
     const r = await post('/policies', {
       customerId: await makeCustomer(),
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(await makeProduct())],
     });
     expect(r.status).toBe(400);
@@ -350,7 +374,7 @@ describe('POL-08 phiên bản mới phải chứa lại toàn bộ sản phẩm 
 
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(moi)],
     });
     // Xoá dòng thừa kế đi — lúc còn Nháp thì cho phép.
@@ -668,12 +692,23 @@ describe('`0052` hộp việc của TDV gồm cả hồ sơ Nháp', () => {
 });
 
 describe('POL-09 ngày áp dụng trong quá khứ', () => {
-  it('chấp nhận — chỉ là thông tin hiển thị, không chi phối trạng thái', async () => {
+  it('chấp nhận — và từ `0180` nó nằm trên DÒNG, không trên hồ sơ', async () => {
+    // Hiệu lực vẫn tính từ lúc tiếp nhận L2 (EFF-07); ngày áp dụng của một dòng
+    // không chi phối trạng thái hồ sơ.
+    const d = await draft({ ngayApDung: '2020-01-01' });
+    expect(d.body.status).toBe('NHAP');
+    expect(String(d.body.lines[0].ngayApDung)).toContain('2020-01-01');
+  });
+
+  it('`0180` KHÔNG còn đường nào đổi ngày ở CẤP HỒ SƠ', async () => {
+    /*
+     * `PATCH /policies/:id` gỡ hẳn cùng cột `applied_date`. Ca này canh cho nó
+     * không mọc lại: một đường `PATCH` cấp hồ sơ là chỗ để lần sau ai đó nhét
+     * vào một trường bất kỳ, ngoài mọi phép kiểm của luồng duyệt.
+     */
     const d = await draft();
     const r = await patch(`/policies/${d.id}`, { appliedDate: '2020-01-01' });
-    expect(r.status).toBe(200);
-    expect(r.body.status).toBe('NHAP');
-    expect(String(r.body.appliedDate)).toContain('2020-01-01');
+    expect(r.status, JSON.stringify(r.body)).toBe(404);
   });
 });
 
@@ -703,9 +738,12 @@ describe('POL-10 mọi CSBH đều vô thời hạn', () => {
 
 describe('POL-11 hồ sơ đã gửi duyệt thì khoá sửa', () => {
   it('sửa sau khi gửi duyệt thì 409 POLICY_LOCKED', async () => {
+    // `0180` — phép sửa duy nhất còn lại là sửa DÒNG; đường `PATCH` cấp hồ sơ
+    // đã gỡ cùng với ngày áp dụng của hồ sơ.
     const d = await draft();
+    const lineId = d.body.lines[0].id as string;
     await act(d.id, 'SUBMIT', 'tdv01');
-    const r = await patch(`/policies/${d.id}`, { appliedDate: '2026-01-01' });
+    const r = await patch(`/policies/${d.id}/lines/${lineId}`, { wholesalePrice: '80000' });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('POLICY_LOCKED');
   });
@@ -1225,13 +1263,20 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       expect(lai.body.code).toBe('ONLY_EDITABLE_DELETABLE');
     });
 
-    it('nội dung khoá lại — không thêm dòng, không đổi ngày áp dụng', async () => {
+    it('nội dung khoá lại — không thêm dòng, không sửa dòng', async () => {
       const d = await biTraLai('TBP_RETURN');
+      const lineId = d.body.lines[0].id as string;
       await del(`/policies/${d.id}`);
 
       const them = await post(`/policies/${d.id}/lines`, line(await makeProduct()));
       expect(them.status).toBe(409);
-      expect((await patch(`/policies/${d.id}`, { appliedDate: '2030-01-01' })).status).toBe(409);
+      // `0180` — vế thứ hai đổi từ "không đổi ngày áp dụng của hồ sơ" sang
+      // "không sửa được dòng", vì ngày đã chuyển xuống dòng.
+      const sua = await patch(`/policies/${d.id}/lines/${lineId}`, {
+        wholesalePrice: '80000',
+        ngayApDung: '2030-01-01',
+      });
+      expect(sua.status).toBe(409);
     });
 
     it('SQL thô cũng không xoá nổi — trigger ở CSDL chặn (`0035`)', async () => {
@@ -1306,7 +1351,7 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
         await runToActive(d);
         const v2 = await post('/policies', {
           customerId: d.customerId,
-          mode: 'AMEND',
+          mode: 'NEW_VERSION',
           lines: [line(d.productId, { wholesalePrice: '80000', cpbh: ['1000'] })],
         });
         await runToActive({ id: v2.body.id as string });
@@ -1871,14 +1916,14 @@ describe('POL-16 số phiên bản', () => {
 
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
 
     const v3 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['7000'] })],
     });
     expect(v3.body.versionNo).toBe(3);
@@ -2087,8 +2132,11 @@ describe('WF-06 · WF-07 · WF-27 TBP không duyệt', () => {
     expect(r.status).toBe(200);
     expect(r.body.status).toBe('YEU_CAU_CHINH_SUA');
 
-    // Mở khoá: sửa lại được.
-    expect((await patch(`/policies/${d.id}`, { appliedDate: '2026-09-01' })).status).toBe(200);
+    // Mở khoá: sửa lại được. `0180` — phép sửa là sửa DÒNG.
+    const lineId = d.body.lines[0].id as string;
+    expect(
+      (await patch(`/policies/${d.id}/lines/${lineId}`, { wholesalePrice: '80000' })).status,
+    ).toBe(200);
   });
 
   it('WF-27 lý do lưu vào hồ sơ, vào lịch sử và vào sự kiện email', async () => {
@@ -2552,7 +2600,7 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
 
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
@@ -2585,7 +2633,7 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
     await runToActive(d);
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['7000'] })],
     });
     await runToActive({ id: v2.body.id });
@@ -2620,13 +2668,13 @@ describe('EFF-01 · EFF-05 · EFF-09 thay thế phiên bản', () => {
     await runToActive(d);
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await runToActive({ id: v2.body.id });
     const v3 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['7000'] })],
     });
     await runToActive({ id: v3.body.id });
@@ -2654,7 +2702,7 @@ describe('EFF-03 · EFF-04 bản cũ giữ nguyên hiệu lực trong lúc bản
     await runToActive(d);
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await act(v2.body.id, 'SUBMIT', 'tdv01');
@@ -2670,7 +2718,7 @@ describe('EFF-03 · EFF-04 bản cũ giữ nguyên hiệu lực trong lúc bản
     await runToActive(d);
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'AMEND',
+      mode: 'NEW_VERSION',
       lines: [line(d.productId, { cpbh: ['6000'] })],
     });
     await act(v2.body.id, 'SUBMIT', 'tdv01');
@@ -2699,8 +2747,7 @@ describe('EFF-06 mọi CSBH đều vô thời hạn', () => {
 
 describe('EFF-07 ngày áp dụng trước ngày duyệt xong', () => {
   it('hiệu lực vẫn tính từ lúc tiếp nhận L2, không lùi theo ngày áp dụng', async () => {
-    const d = await draft();
-    await patch(`/policies/${d.id}`, { appliedDate: '2020-03-01' });
+    const d = await draft({ ngayApDung: '2020-03-01' });
     const r = await runToActive(d);
     expect(new Date(r.body.effectiveFrom).getFullYear()).toBe(new Date().getFullYear());
   });
@@ -2713,7 +2760,7 @@ describe('EFF-08 CSBH hiện hành của một khách hàng', () => {
     for (const cpbh of ['6000', '7000']) {
       const v = await post('/policies', {
         customerId: d.customerId,
-        mode: 'AMEND',
+        mode: 'NEW_VERSION',
         lines: [line(d.productId, { cpbh: [cpbh] })],
       });
       await runToActive({ id: v.body.id });
@@ -2734,7 +2781,7 @@ describe('EFF-10 tập sản phẩm giữa hai phiên bản liên tiếp', () =>
     const moi = await makeProduct();
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(moi)],
     });
 
@@ -2905,7 +2952,7 @@ describe('CPBH không cố định bốn khoản', () => {
     // chi phí là đổi giá thu về của một dòng mà không ai bấm gì.
     const d = await draft();
     await runToActive(d);
-    const v2 = await post('/policies', { customerId: d.customerId, mode: 'AMEND', lines: [] });
+    const v2 = await post('/policies', { customerId: d.customerId, mode: 'NEW_VERSION', lines: [] });
     expect(v2.status, JSON.stringify(v2.body)).toBe(201);
     const cu = (await get(`/policies/${d.id}`)).body.lines[0];
     const moi = v2.body.lines.find((l: { productId: string }) => l.productId === d.productId);
@@ -3078,7 +3125,7 @@ describe('0022 nguồn ngưỡng chiết khấu đóng băng vào dòng hồ sơ
     const spMoi = await makeProduct();
     const moi = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(spMoi)],
     });
     expect(moi.status, JSON.stringify(moi.body)).toBe(201);
@@ -3505,7 +3552,7 @@ describe('0027 ghi chú của dòng sản phẩm', () => {
     const spMoi = await makeProduct();
     const v2 = await post('/policies', {
       customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(spMoi)],
     });
     expect(v2.status, JSON.stringify(v2.body)).toBe(201);
@@ -3572,7 +3619,174 @@ const sanPhamNhomRieng = async (gia: string, tuNgay = '2020-01-01') => {
   return { productId: r.body.id as string, groupCode: nhom };
 };
 
-describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG, không phải hôm nay', () => {
+/*
+ * `0180` — LUẬT `0029` GIỮ NGUYÊN, CHỈ ĐỔI MỨC: ngày áp dụng của TỪNG DÒNG
+ * quyết định bảng giá và ngưỡng được chụp cho chính dòng ấy.
+ */
+/**
+ * `0180` — TRẠNG THÁI của từng dòng, và TỶ LỆ CK CŨ.
+ *
+ * Khách hàng chốt 07/09: mỗi sản phẩm trong CSBH mang một trong ba trạng thái —
+ * *Bổ sung* cho mặt hàng mới so với CSBH đang có, *Chỉnh sửa* cho mặt hàng có
+ * sẵn mà TDV vừa sửa, *Đang áp dụng* cho mặt hàng có sẵn và để nguyên — cộng
+ * một cột *Tỷ lệ CK cũ* cho những dòng đã bị sửa.
+ *
+ * Cả hai đều DẪN XUẤT, không lưu thành cột: phép so chạy giữa dòng của hồ sơ
+ * này và dòng cùng sản phẩm của bản bị thay thế (`supersedes_id`). Vì thế nhóm
+ * ca này canh cả những tính chất mà một CỜ lưu sẵn sẽ không có — sửa rồi trả
+ * lại giá trị cũ thì dòng quay về *Đang áp dụng*.
+ */
+describe('`0180` trạng thái dòng và tỷ lệ CK cũ', () => {
+  /** Dòng theo mã sản phẩm, cho gọn phần khẳng định. */
+  const dongCua = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    body.lines.find((l) => l['productId'] === productId)!;
+
+  it('PHIÊN BẢN ĐẦU TIÊN: mọi dòng là *Bổ sung*, không có tỷ lệ cũ', async () => {
+    // Khách chưa có CSBH nào thì `supersedes_id` rỗng, và mọi mặt hàng đều là
+    // thứ vừa được đưa vào — khách hàng chốt đọc chúng là *Bổ sung*.
+    const d = await draft();
+    const l = dongCua(d.body, d.productId);
+    expect(l['trangThai']).toBe('BO_SUNG');
+    expect(l['discountRateTruoc']).toBeNull();
+  });
+
+  it('phiên bản mới KHÔNG SỬA GÌ: dòng thừa kế là *Đang áp dụng*', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    const l = dongCua(v2.body, d.productId);
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
+    // Không sửa thì không có gì để đối chiếu: tỷ lệ cũ BẰNG tỷ lệ mới, và in nó
+    // ra là một cột lặp lại cột bên cạnh.
+    expect(l['discountRateTruoc']).toBeNull();
+  });
+
+  it('SỬA GIÁ BÁN BUÔN: dòng thành *Chỉnh sửa*, và mang tỷ lệ CK của bản trước', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const tyLeCu = (d.body.lines as Record<string, unknown>[])[0]!['discountRate'];
+
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [line(d.productId, { wholesalePrice: '80000' })],
+    });
+    const l = dongCua(v2.body, d.productId);
+    expect(l['trangThai']).toBe('CHINH_SUA');
+    expect(l['discountRateTruoc']).toBe(tyLeCu);
+    // …và tỷ lệ MỚI phải khác, nếu không thì ca này không chứng minh gì.
+    expect(l['discountRate']).not.toBe(tyLeCu);
+  });
+
+  it('THÊM MẶT HÀNG MỚI vào phiên bản mới: dòng ấy là *Bổ sung*, dòng cũ vẫn nguyên', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const moi = await makeProduct();
+
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [line(moi)],
+    });
+    expect(dongCua(v2.body, moi)['trangThai']).toBe('BO_SUNG');
+    expect(dongCua(v2.body, moi)['discountRateTruoc']).toBeNull();
+    // Vế đối chiếu: thêm một mặt hàng KHÔNG được làm dòng cũ đổi trạng thái.
+    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('DANG_AP_DUNG');
+  });
+
+  it('đổi CHỈ GHI CHÚ cũng là *Chỉnh sửa* — "bất kỳ dữ liệu nào"', async () => {
+    /*
+     * Khách hàng chốt *"đổi bất kỳ dữ liệu nào"*, nên phép so phải phủ cả bốn
+     * trường TDV nhập chứ không riêng thứ làm đổi tỷ lệ CK. Ghi chú là trường
+     * dễ bị bỏ sót nhất: nó không vào một phép tính nào.
+     *
+     * Cũng là chỗ `IS DISTINCT FROM` cần thật — `note` NULL được, và
+     * `NULL <> 'x'` trả NULL chứ không trả `true`.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [line(d.productId, { note: 'Khach yeu cau giao thang' })],
+    });
+    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+  });
+
+  it('đổi CHỈ NGÀY ÁP DỤNG cũng là *Chỉnh sửa*', async () => {
+    const d = await draft({ ngayApDung: '2026-01-01' });
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [line(d.productId, { ngayApDung: '2026-02-01' })],
+    });
+    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+  });
+
+  it('SỬA RỒI TRẢ LẠI giá trị cũ thì dòng quay về *Đang áp dụng*', async () => {
+    /*
+     * Tính chất này là chỗ phân biệt DẪN XUẤT với một CỜ lưu sẵn, và nó không
+     * phải một chi tiết kỹ thuật: TDV sửa nhầm rồi sửa lại thì hồ sơ của họ
+     * KHÔNG khác bản đang hiệu lực ở dòng ấy, và một nhãn *Chỉnh sửa* dính lại
+     * sẽ bắt người duyệt đi tìm một khác biệt không tồn tại.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const cu = (d.body.lines as Record<string, unknown>[])[0]!;
+
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [line(d.productId, { wholesalePrice: '80000' })],
+    });
+    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+
+    const lineId = dongCua(v2.body, d.productId)['id'] as string;
+    const lai = await patch(`/policies/${v2.body.id}/lines/${lineId}`, {
+      wholesalePrice: cu['wholesalePrice'],
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+    });
+    expect(lai.status, JSON.stringify(lai.body)).toBe(200);
+    expect(dongCua(lai.body, d.productId)['trangThai']).toBe('DANG_AP_DUNG');
+    expect(dongCua(lai.body, d.productId)['discountRateTruoc']).toBeNull();
+  });
+
+  it('XOÁ rồi THÊM LẠI cùng sản phẩm: vẫn nhận ra là *Chỉnh sửa*, không phải *Bổ sung*', async () => {
+    /*
+     * Phép so đi theo `product_id`, không theo id của dòng — nên một mặt hàng
+     * bị xoá rồi thêm lại vẫn nối được về bản trước.
+     *
+     * Nếu đi theo id dòng thì đường xoá-rồi-thêm biến một mặt hàng đã có thành
+     * *Bổ sung*, và người duyệt đọc ra rằng CSBH này thêm một sản phẩm mới —
+     * một câu sai về chính thứ họ sắp ký.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    const lineId = dongCua(v2.body, d.productId)['id'] as string;
+    expect((await del(`/policies/${v2.body.id}/lines/${lineId}`)).status).toBe(200);
+
+    const them = await post(
+      `/policies/${v2.body.id}/lines`,
+      line(d.productId, { wholesalePrice: '70000' }),
+    );
+    expect(them.status, JSON.stringify(them.body)).toBe(201);
+    expect(dongCua(them.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+  });
+});
+
+describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG của DÒNG, không phải hôm nay', () => {
   it('giá của ngày áp dụng thắng giá của hôm nay', async () => {
     // Hai mốc giá: 100.000 từ 2020, 300.000 từ 2020-06. Hồ sơ áp dụng 2020-03
     // phải chụp 100.000 — dù hôm nay giá đã là 300.000.
@@ -3582,14 +3796,49 @@ describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG, không phải hôm nay'
     const customerId = await makeCustomer();
     const r = await post('/policies', {
       customerId,
-      appliedDate: '2020-03-15',
-      lines: [line(productId)],
+      lines: [line(productId, { ngayApDung: '2020-03-15' })],
     });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     expect(r.body.lines[0].companyPrice).toBe('100000');
   });
 
-  it('không khai ngày áp dụng thì lấy giá hôm nay', async () => {
+  it('`0180` HAI DÒNG HAI NGÀY thì chụp HAI bảng giá khác nhau', async () => {
+    /*
+     * Đây là điều mà bản trước `0180` KHÔNG làm được, và là lý do cả chặng tồn
+     * tại: một hồ sơ gồm ba mặt hàng cũ áp dụng từ tháng trước cộng một mặt
+     * hàng mới áp dụng từ tháng sau.
+     *
+     * Ca này cũng canh chỗ dễ hỏng nhất của bản sửa: `create` gom các dòng theo
+     * NGÀY rồi tra ảnh chụp một lô cho mỗi ngày. Gom sai — hoặc trả về lô đầu
+     * cho mọi dòng — thì hai dòng cùng mang một giá, và đó là một con số trông
+     * hoàn toàn hợp lý.
+     */
+    const { productId: a } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(a, '300000', '2020-06-01');
+    const { productId: b } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(b, '300000', '2020-06-01');
+
+    const customerId = await makeCustomer();
+    const r = await post('/policies', {
+      customerId,
+      lines: [
+        line(a, { ngayApDung: '2020-03-15' }),
+        line(b, { ngayApDung: '2020-09-15' }),
+      ],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    const theoSp = new Map(
+      (r.body.lines as { productId: string; companyPrice: string; ngayApDung: string }[]).map(
+        (l) => [l.productId, l],
+      ),
+    );
+    expect(theoSp.get(a)!.companyPrice).toBe('100000');
+    expect(theoSp.get(b)!.companyPrice).toBe('300000');
+    expect(String(theoSp.get(a)!.ngayApDung)).toContain('2020-03-15');
+    expect(String(theoSp.get(b)!.ngayApDung)).toContain('2020-09-15');
+  });
+
+  it('không khai ngày áp dụng thì lấy giá hôm nay — và DÒNG mang ngày hôm nay', async () => {
     const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
     await datGia(productId, '300000', '2020-06-01');
 
@@ -3597,6 +3846,9 @@ describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG, không phải hôm nay'
     const r = await post('/policies', { customerId, lines: [line(productId)] });
     expect(r.status).toBe(201);
     expect(r.body.lines[0].companyPrice).toBe('300000');
+    // Mặc định đặt ở MÁY CHỦ (`0104`, `0180`): cột `NOT NULL`, không có dòng
+    // nào không có ngày áp dụng.
+    expect(String(r.body.lines[0].ngayApDung).slice(0, 10)).toBe(ngayVN());
   });
 
   it('NGƯỠNG cũng theo ngày áp dụng, không chỉ giá', async () => {
@@ -3613,28 +3865,57 @@ describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG, không phải hôm nay'
     const customerId = await makeCustomer();
     const r = await post('/policies', {
       customerId,
-      appliedDate: '2019-03-01',
-      lines: [line(productId)],
+      lines: [line(productId, { ngayApDung: '2019-03-01' })],
     });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     expect(r.body.lines[0].threshold).toBe('10.00');
   });
 
-  it('đổi NGÀY ÁP DỤNG thì chụp lại theo bảng giá của ngày mới', async () => {
-    // Đây là chỗ dễ quên nhất: đổi ngày mà không chụp lại thì hồ sơ mang ngày
-    // của tháng sau và giá của tháng trước.
+  it('đổi NGÀY ÁP DỤNG của một dòng thì chụp lại theo bảng giá của ngày mới', async () => {
+    // Đây là chỗ dễ quên nhất: đổi ngày mà không chụp lại thì dòng mang ngày
+    // của tháng sau và giá của tháng trước. `0180` chuyển phép sửa ấy từ
+    // `PATCH /policies/:id` sang `PATCH /policies/:id/lines/:lineId`.
     const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
     await datGia(productId, '300000', '2020-06-01');
 
     const customerId = await makeCustomer();
     const d = await post('/policies', {
-      customerId, appliedDate: '2020-03-15', lines: [line(productId)],
+      customerId,
+      lines: [line(productId, { ngayApDung: '2020-03-15' })],
     });
     expect(d.body.lines[0].companyPrice).toBe('100000');
 
-    const sua = await patch(`/policies/${d.body.id}`, { appliedDate: '2020-09-01' });
+    const lineId = d.body.lines[0].id as string;
+    const sua = await patch(`/policies/${d.body.id}/lines/${lineId}`, {
+      wholesalePrice: '90000',
+      cpbh: ['5000'],
+      ngayApDung: '2020-09-01',
+    });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
     expect(sua.body.lines[0].companyPrice).toBe('300000');
+    expect(String(sua.body.lines[0].ngayApDung)).toContain('2020-09-01');
+  });
+
+  it('`0180` sửa dòng mà KHÔNG khai ngày thì GIỮ NGUYÊN ngày cũ', async () => {
+    /*
+     * Ngược với `note` ngay cạnh trong cùng DTO, nơi vắng mặt là XOÁ. Cột
+     * `ngay_ap_dung` là `NOT NULL` nên không có trạng thái rỗng để xoá về, và
+     * rơi về hôm nay thì sửa một khoản chi phí sẽ âm thầm kéo một dòng áp dụng
+     * từ tháng sau về hôm nay — kèm theo là chụp lại một bảng giá khác.
+     */
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', {
+      customerId,
+      lines: [line(productId, { ngayApDung: '2020-03-15' })],
+    });
+    const lineId = d.body.lines[0].id as string;
+
+    const sua = await patch(`/policies/${d.body.id}/lines/${lineId}`, {
+      wholesalePrice: '80000',
+    });
+    expect(sua.status, JSON.stringify(sua.body)).toBe(200);
+    expect(String(sua.body.lines[0].ngayApDung)).toContain('2020-03-15');
   });
 });
 
@@ -4443,8 +4724,17 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       expect(TRUONG_CHAN_LUC_GUI as readonly string[], truong).not.toContain(truong);
       expect(NHOM_TRUONG[truong], `${truong} phải sang nhóm de-trong`).toBe('de-trong');
     }
-    // Và hai trường CÒN LẠI thì vẫn chặn — không nới quá tay.
-    expect([...TRUONG_CHAN_LUC_GUI].sort()).toEqual(['ho_so.ma_so_thue', 'ho_so.ngay_ap_dung']);
+    /*
+     * Và trường CÒN LẠI thì vẫn chặn — không nới quá tay.
+     *
+     * `0180` — còn ĐÚNG MỘT. `ho_so.ngay_ap_dung` rời danh sách theo một đường
+     * KHÁC hẳn hai trường trên: nó không bị bỏ khỏi tờ giấy vì ai đó không muốn
+     * in, mà vì **trường ấy không còn tồn tại ở cấp hồ sơ** — ngày áp dụng
+     * chuyển xuống từng dòng, nơi cột `NOT NULL` và máy chủ điền mặc định, tức
+     * không có trạng thái "thiếu" nào để mà chặn.
+     */
+    expect([...TRUONG_CHAN_LUC_GUI].sort()).toEqual(['ho_so.ma_so_thue']);
+    expect(NHOM_TRUONG['ho_so.ngay_ap_dung'], 'khoá này phải biến mất khỏi bảng').toBeUndefined();
   });
 
   it('`0128` số điện thoại ĐÓNG BĂNG vào hồ sơ lúc gửi duyệt', async () => {
@@ -4626,33 +4916,42 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     expect(r.body.khachHang.noiNhanHang).toEqual([]);
   }, 60_000);
 
-  it('thiếu THỜI GIAN ÁP DỤNG thì không gửi duyệt được, và câu nói đúng chỗ khác', async () => {
+  it('`0180` ngày áp dụng KHÔNG còn chặn được lượt gửi — nó là cột NOT NULL của DÒNG', async () => {
     /*
-     * Xoá trắng ngày TRỰC TIẾP trên CSDL, không qua API: từ `0104` lệnh tạo hồ
-     * sơ mặc định hôm nay, nên đường tạo không còn dựng được tình huống này.
-     * Đường còn lại là `PATCH` — nhưng ca này muốn kiểm CHỐT CHẶN, không kiểm
-     * `PATCH`, nên nó dựng thẳng trạng thái cần kiểm.
+     * Ca cũ xoá trắng `pol.policy.applied_date` bằng SQL thô rồi đòi 422. Cột ấy
+     * không còn tồn tại, và ca này thay nó bằng câu hỏi ĐÚNG cho hình dạng mới:
+     * **có dựng được một hồ sơ thiếu ngày áp dụng không?**
+     *
+     * Câu trả lời là KHÔNG, và đó là lý do phép chặn biến mất chứ không phải bị
+     * nới. Ba lớp cùng chặn, và ca kiểm đi qua lớp cuối cùng — lớp mà một lượt
+     * sửa vội không nhìn thấy: ràng buộc `NOT NULL` ở CSDL.
      */
     const d = await draft();
-    await withAdminDb((c) => c.query(`UPDATE pol.policy SET applied_date = NULL WHERE id = $1`, [d.id]));
+    const hong = await withAdminDb(async (c) => {
+      try {
+        await c.query(`UPDATE pol.policy_line SET ngay_ap_dung = NULL WHERE policy_id = $1`, [d.id]);
+        return null;
+      } catch (e) {
+        return (e as { code?: string }).code ?? 'khong-ro';
+      }
+    });
+    expect(hong, 'phải là 23502 not_null_violation').toBe('23502');
+
+    // Và hồ sơ vẫn gửi duyệt được bình thường.
+    const r = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+  }, 60_000);
+
+  it('thiếu MÃ SỐ THUẾ thì không gửi duyệt được, và câu chỉ đúng chỗ phải sửa', async () => {
+    // `0180` — chỉ còn MỘT trường chặn, nên ca "kể hết nhiều trường" không còn
+    // dựng được. Cái đáng giữ là vế thứ hai: câu báo lỗi phải nói người ta đi
+    // đâu mà sửa (`0088` cấm lộ tên trường trong mã).
+    const d = await draft({ customerId: await khachThieu('idNumber') });
 
     const r = await act(d.id, 'SUBMIT', 'tdv01');
     expect(r.status).toBe(422);
-    expect(r.body.thieu).toEqual(['Thời gian áp dụng']);
-    // Trường này của HỒ SƠ, nên câu không được bảo người ta sang màn hình khách hàng.
-    expect(r.body.message).toContain('Thời gian áp dụng của hồ sơ');
-    expect(r.body.message).not.toContain('hồ sơ khách hàng');
-  }, 60_000);
-
-  it('thiếu NHIỀU trường thì kể hết, không dừng ở cái đầu tiên', async () => {
-    // Báo từng cái một là bắt người dùng đi ba vòng cho một lần sửa.
-    const d = await draft({ customerId: await khachThieu('idNumber') });
-    await withAdminDb((c) => c.query(`UPDATE pol.policy SET applied_date = NULL WHERE id = $1`, [d.id]));
-
-    const r = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(r.body.thieu).toEqual(['Mã số thuế', 'Thời gian áp dụng']);
+    expect(r.body.thieu).toEqual(['Mã số thuế']);
     expect(r.body.message).toContain('hồ sơ khách hàng');
-    expect(r.body.message).toContain('Thời gian áp dụng của hồ sơ');
   }, 60_000);
 
   it('BỔ SUNG rồi gửi lại thì đi tiếp — chốt chặn không phải ngõ cụt', async () => {

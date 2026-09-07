@@ -40,7 +40,6 @@ const SCALAR: Record<string, (c: Ctx) => string | null> = {
   'ho_so.ma_ho_so': (c) => c.policy.code,
   'ho_so.phien_ban': (c) => String(c.policy.version_no),
   'ho_so.trang_thai': (c) => STATUS_LABEL[c.policy.status] ?? c.policy.status,
-  'ho_so.ngay_ap_dung': (c) => c.policy.applied_date ?? c.policy.effective_from,
   'ho_so.ngay_hieu_luc': (c) => c.policy.effective_from,
   'ho_so.tep_dinh_kem': (c) =>
     c.policy.attachments.length === 0
@@ -177,7 +176,6 @@ export const NHOM_TRUONG: Record<string, NhomTruong> = {
 
   // --- Chặn lúc gửi duyệt --------------------------------------------------
   'ho_so.ma_so_thue': 'chan-moi', //        cus.customer.id_number NULL được
-  'ho_so.ngay_ap_dung': 'chan-moi', //      applied_date NULL được ở máy chủ
 
   // --- Để trống được ------------------------------------------------------
   //
@@ -216,7 +214,6 @@ export const DINH_DANG_NGUON: Record<string, Format> = {
   // `0138` — công nợ là một ĐIỀU KHOẢN, không phải số tiền. Để `money_vnd`
   // thì `applyFormat` cố phân nhóm hàng nghìn một câu chữ.
   'ho_so.cong_no': 'text',
-  'ho_so.ngay_ap_dung': 'date_dmy',
   'ho_so.ngay_hieu_luc': 'date_dmy',
   'ho_so.ngay_tbp_ky': 'date_dmy',
   'ho_so.ngay_kt_nhan_l1': 'date_dmy',
@@ -275,7 +272,6 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
   'ho_so.ma_khach_hang',
   'ho_so.cong_no',
-  'ho_so.ngay_ap_dung',
   'ho_so.nguoi_de_nghi',
   'ho_so.truong_bo_phan',
   'ho_so.ke_toan',
@@ -294,8 +290,9 @@ export const NGUON_BAT_BUOC_HO_SO: string[] = [
  * và tôi chèn vào đúng vì danh sách này đòi. Nên lượt này là họ đòi lại bản vẽ
  * của mình, và danh sách mới là thứ phải nhường.
  *
- * PHÉP KIỂM CÒN 7/13 MỤC của muc 11.1, không còn 10. Nói ra con số ấy vì một bảo
- * đảm 7/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 7/13 đã biết — và cái
+ * PHÉP KIỂM CÒN 6/13 MỤC của muc 11.1 (7/13 ở `0171`, rồi `0180` gỡ nốt *thời
+ * gian áp dụng* — xem khối cuối chú thích này). Nói ra con số ấy vì một bảo
+ * đảm 6/13 mà tưởng là 13/13 thì tệ hơn hẳn một bảo đảm 6/13 đã biết — và cái
  * tưởng ấy chỉ vỡ ra trên một bản đã đem đi ký. Ba mục vừa rời khỏi đây **vẫn ở
  * lại `SCALAR`**: mẫu nào muốn in vẫn đặt ô trống được, hệ thống chỉ thôi ÉP.
  *
@@ -303,6 +300,29 @@ export const NGUON_BAT_BUOC_HO_SO: string[] = [
  * ra KHÔNG còn tên pháp nhân của khách hàng ở đâu, chỉ còn tên người đại diện,
  * địa chỉ và mã số thuế. Mã khách hàng thì vẫn còn, và mã số thuế là thứ định
  * danh pháp lý; khách hàng đã chốt như vậy.
+ *
+ * ---------------------------------------------------------------------------
+ * `ho_so.ngay_ap_dung` GỠ KHỎI CẢ `SCALAR` (`0180`, chốt 07/09) — 6/13
+ * ---------------------------------------------------------------------------
+ *
+ * Đây là mục đầu tiên rời khỏi đây theo một đường KHÁC hẳn ba mục trên: nó
+ * không bị bỏ khỏi tờ giấy vì ai đó không muốn in, mà vì **dữ liệu ấy không còn
+ * tồn tại ở cấp hồ sơ**. Ngày áp dụng chuyển xuống TỪNG DÒNG sản phẩm, và một
+ * hồ sơ bốn dòng bốn ngày thì "ngày áp dụng của hồ sơ" là câu không có câu trả
+ * lời đúng — in ngày sớm nhất ra tờ giấy đem ký là nói sai về ba dòng còn lại.
+ *
+ * Nên khoá này KHÔNG ở lại `SCALAR`, khác ba mục của `0171`: giữ một nguồn
+ * không có gì để đọc là hứa một ô sẽ có chữ rồi in ra ô rỗng.
+ *
+ * Ngày KHÔNG mất khỏi bản in — nó thành CỘT ĐẦU của bảng sản phẩm
+ * (`bang-san-pham.ts`), ngay bên trái *Mã sản phẩm*, và hai mẫu hồ sơ mặc định
+ * đều chọn cột ấy.
+ *
+ * MẪU CŨ ĐANG DÙNG Ô NÀY KHÔNG HỎNG: `scalarValue` trả `null` cho nguồn lạ và
+ * `applyFormat` biến nó thành chuỗi rỗng, nên ô in ra trống chứ không lộ
+ * `{{...}}` ra tờ giấy. Nhưng nó cũng không tự khỏi — hệ đang chạy phải tải
+ * mẫu mới lên, đúng như `0151` đã ghi cho lượt đổi tên công ty.
+ * `docs/04-TRIEN-KHAI.md` có mục riêng.
  */
 
 export const isKnownSource = (s: string): boolean => KNOWN_SOURCES.includes(s);

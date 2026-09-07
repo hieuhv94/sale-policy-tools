@@ -9,6 +9,11 @@
 import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/common';
 import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
+import {
+  SQL_DONG_KHAC_BAN_TRUOC,
+  SQL_NOI_BAN_TRUOC,
+  SQL_TRANG_THAI_DONG,
+} from './policies/policies.service.js';
 
 /**
  * Loại văn bản vừa sinh ra → tên hành động trong *Lịch sử* (`0052`, `0053`).
@@ -41,7 +46,13 @@ export class PolicyInternalController {
     const p = await this.db.one<Record<string, unknown>>(
       // Nhóm cột thứ hai (từ `pending_step` trở đi) thêm ở P7b cho read-model
       // báo cáo: nó dựng lại toàn bộ dòng từ đây chứ không đọc schema pol.
-      `SELECT id, code, customer_id, version_no, status::text AS status, applied_date,
+      `SELECT id, code, customer_id, version_no, status::text AS status,
+              -- 0180 — NGÀY ÁP DỤNG SỚM NHẤT của các dòng, dựng tại chỗ chứ
+              -- không còn là một cột. Chỉ read-model báo cáo đọc nó, cho bộ lọc
+              -- "CSBH áp dụng từ … đến …"; tờ giấy thì in ngày của TỪNG DÒNG.
+              -- Hồ sơ chưa có dòng nào trả NULL, và rpt vốn đã nhận NULL được.
+              (SELECT min(ngay_ap_dung) FROM pol.policy_line
+                WHERE policy_id = pol.policy.id) AS applied_date,
               effective_from, tdv_user_id,
               tbp_user_id, ke_toan_user_id, sale_admin_user_id,
               created_at, submitted_at, tbp_signed_at,
@@ -104,14 +115,36 @@ export class PolicyInternalController {
       [id],
     );
 
+    /*
+     * BA TRƯỜNG MỚI CỦA DÒNG (`0180`) — và câu SELECT này liệt kê TỪNG CỘT.
+     *
+     * Đúng cái bẫy `0128` và `0144` đã ghi hai lần: một cột mới không tự đi
+     * theo, bên nhận đọc ra `undefined`, TypeScript im vì trường khai `?`, và
+     * triệu chứng lộ ra ở chỗ khác hẳn — ở đây là cột *Ngày áp dụng* trống rỗng
+     * trên bản CSBH đem ký.
+     *
+     * `trang_thai` và `ty_le_ck_truoc` dựng bằng cùng một biểu thức với đường
+     * đọc của giao diện (`SQL_TRANG_THAI_DONG`), nhập từ `policies.service`.
+     * Hai bảng — trên màn hình và trên tờ giấy — phải nói cùng một câu về cùng
+     * một dòng, và cách rẻ nhất để bảo đảm điều đó là chúng dùng chung một
+     * biểu thức chứ không phải hai bản chép.
+     */
     const lines = await this.db.q<Record<string, unknown>>(
-      `SELECT product_id, product_code_snap, product_name_snap,
-              company_price_snap::text AS company_price, wholesale_price::text AS wholesale_price,
-              cpbh::text[] AS cpbh,
-              cpbh_total::text AS cpbh_total, net_price::text AS net_price,
-              discount_rate::text AS discount_rate, threshold_snap::text AS threshold_snap,
-              over_threshold, note
-         FROM pol.policy_line WHERE policy_id = $1 ORDER BY product_code_snap`,
+      `SELECT l.product_id, l.product_code_snap, l.product_name_snap,
+              l.company_price_snap::text AS company_price,
+              l.wholesale_price::text AS wholesale_price,
+              l.cpbh::text[] AS cpbh,
+              l.cpbh_total::text AS cpbh_total, l.net_price::text AS net_price,
+              l.discount_rate::text AS discount_rate,
+              l.threshold_snap::text AS threshold_snap,
+              l.over_threshold, l.note,
+              l.ngay_ap_dung,
+              ${SQL_TRANG_THAI_DONG} AS trang_thai,
+              CASE WHEN ${SQL_DONG_KHAC_BAN_TRUOC}
+                   THEN truoc.discount_rate::text END AS ty_le_ck_truoc
+         FROM pol.policy_line l
+         ${SQL_NOI_BAN_TRUOC}
+        WHERE l.policy_id = $1 ORDER BY l.product_code_snap`,
       [id],
     );
 

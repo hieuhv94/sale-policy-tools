@@ -379,8 +379,20 @@ export const BANG_LOI: Record<string, Muc> = {
   POLICY_FIELDS_MISSING: { dang: 'hop-thoai', tuMayChu: true },
   NO_ACTIVE_POLICY: {
     dang: 'hop-thoai',
-    cau: 'Khách hàng chưa có CSBH nào để bổ sung. Lập hồ sơ mới thay vì bổ sung.',
+    cau: 'Khách hàng chưa có CSBH nào để lập phiên bản mới. Lập hồ sơ đầu tiên cho khách này.',
   },
+  /*
+   * `0180` — MỘT câu hỏi thay cho `SUPPLEMENT_REQUIRED`/`AMEND_REQUIRED`.
+   *
+   * Hai mã cũ CHƯA BAO GIỜ có mặt trong bảng này, và không phải vì ai đó quên:
+   * chúng viết bằng `code: hasNew ? 'A' : 'B'`, mà phép quét mã nguồn của ca
+   * kiểm dưới đây khớp `code: '…'` — một biểu thức điều kiện lọt qua. Nên đây
+   * cũng là một khoảng hở vừa được bịt: mã mới viết thẳng nên nó bị soi.
+   *
+   * `tuMayChu` — câu hỏi do máy chủ đặt (`NEW_VERSION_MESSAGE`), và nó phải khớp
+   * từng chữ với việc sắp xảy ra; chép lại ở đây là hai câu sẽ lệch.
+   */
+  NEW_VERSION_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   MISSING_INHERITED_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },

@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 66 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 67 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -87,7 +87,25 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P207** (`0179`): **cột nhãn khối *Khách hàng* trên trang hồ sơ đo TỪ NỘI DUNG**, để
+Chặng gần nhất **P208** (`0180`): **ngày áp dụng chuyển từ HỒ SƠ xuống TỪNG DÒNG sản phẩm**, ba trạng
+thái cho mỗi dòng, cột *Tỷ lệ CK cũ*, cột QĐCK bày ngưỡng %, và hai nút *Bổ sung*/*Chỉnh sửa* gộp làm
+một. Sáu câu khách hàng gửi cùng lúc, và **bốn chỗ phải hỏi lại trước khi gõ**: `applied_date` không
+phải một ô trên màn hình — nó quyết định bảng giá được chụp (`0029`), chặn gửi duyệt (`0171`), in ra
+cả năm mẫu `.docx`, và là bộ lọc báo cáo. Khách hàng chốt **gỡ hẳn**, ngược với đề xuất của tôi (giữ
+một cột dẫn xuất bằng ngày sớm nhất) — và họ đúng ở điểm phương án kia không có: hồ sơ bốn dòng bốn
+ngày thì *"ngày áp dụng của hồ sơ"* là câu **không có câu trả lời đúng**. **Trạng thái dòng và tỷ lệ
+CK cũ là DẪN XUẤT, không thêm cột**: cả hai vế đã có sẵn trong CSDL (`supersedes_id` + `product_id`),
+và vế bản trước là bất biến — nên phép so cho cùng câu trả lời mãi mãi, mà không phải giữ đồng bộ một
+bản sao ở **bốn** đường ghi. Cái được: **sửa nhầm rồi sửa trả lại thì dòng quay về *Đang áp dụng***.
+**Hai nút chưa bao giờ làm hai việc** — `mode` chỉ chọn CÂU HỎI, và máy chủ chọn câu ấy bằng cách dò
+`input.lines` mà giao diện **luôn gửi rỗng**, nên câu hỏi trên thực tế luôn là *"chỉnh sửa"*. **Ba mẫu
+mặc định KHÔNG tự nạp lại** (bộ nạp idempotent tính cả dòng đã vô hiệu — `0165`), nên migration phải
+XOÁ ba dòng ấy. **Phá lại chín lượt, lượt XANH là lượt đáng giá nhất**: ca kiểm tập cột đọc `cot_bang`
+đã nạp trong CSDL nên nó chỉ đo được ở lượt chạy đầu tiên — chữa bằng cách tách quyết định thành hàm
+thuần `cotBangMauMacDinh(kind)`. **Một chẩn đoán sai đã hoàn tác**: `2,9994%` là làm tròn số nguyên
+của `w:tcW` (tổng ra 5001), không phải `apDungSan` không hội tụ. **2021/2021 xanh.**
+
+Trước đó **P207** (`0179`): **cột nhãn khối *Khách hàng* trên trang hồ sơ đo TỪ NỘI DUNG**, để
 *Tên Hộ kinh doanh/Tên Công ty* thôi xuống dòng. Đo trước khi sửa, trên Chromium thật (Gotenberg dựng
 riêng **không** có `--chromium-disable-javascript`, nạp CHÍNH `tokens.css` + `app.css` của repo): nhãn
 cần **191,6px**, `0177` đặt **11rem = 176px** — nên nó xuống hai dòng ở **MỌI** bề rộng thẻ (640 · 520
@@ -864,6 +882,29 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   trường ngày hết hiệu lực. Chỉ hết hiệu lực khi CSBH mới của cùng khách hàng được duyệt.
 - **Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.** Hiệu lực quản lý ở cấp hồ sơ, không phải cấp
   dòng khách hàng × sản phẩm.
+- **NGÀY ÁP DỤNG THUỘC VỀ TỪNG DÒNG SẢN PHẨM** (`0180`, gỡ `pol.policy.applied_date`). Cột
+  `pol.policy_line.ngay_ap_dung` `NOT NULL`, mặc định *hôm nay theo giờ Việt Nam* đặt ở MÁY CHỦ
+  (`ngayVN()` của `@csbh/http-kit` — một hàm, ba đường ghi cộng bộ kiểm). Nó **quyết định bảng giá và
+  ngưỡng chụp cho chính dòng ấy**, nên `create` gom dòng theo NGÀY và tra một lô cho mỗi ngày; `PATCH
+  .../lines/:lineId` thiếu `ngayApDung` là **GIỮ NGUYÊN** (ngược với `note`, nơi vắng mặt là xoá — cột
+  này `NOT NULL`, không có trạng thái rỗng để xoá về). Kéo theo: `PATCH /policies/:id` **gỡ hẳn**, ô
+  *Thời gian áp dụng* rời khỏi năm mẫu `.docx` và khỏi `SCALAR` (mục bắt buộc còn **6/13**), phép chặn
+  gửi duyệt còn **một** trường, `rpt.policy_row.applied_date` = **MIN của các dòng** dựng ở
+  `internal.controller` chứ không lưu thành cột.
+- **TRẠNG THÁI DÒNG và TỶ LỆ CK CŨ là DẪN XUẤT** (`0180`) — `SQL_TRANG_THAI_DONG` +
+  `SQL_NOI_BAN_TRUOC` ở `policies.service.ts`, dùng CHUNG cho đường đọc giao diện và
+  `internal.controller`. So với bản bị thay thế (`supersedes_id` + `product_id`) trên **bốn trường
+  TDV nhập**: giá bán buôn · CPBH · ngày áp dụng · ghi chú. **KHÔNG so** `company_price_snap`,
+  `threshold_snap`, `discount_rate` — chúng đến từ danh mục và `lamMoiDong` chụp lại ở mỗi lượt đọc,
+  nên đưa vào là để danh mục đổi giá một mình cũng làm mọi dòng nhảy sang *Chỉnh sửa*. `IS DISTINCT
+  FROM` chứ không `<>` (`note` NULL được). `discountRateTruoc` **chỉ trả về cho dòng *Chỉnh sửa***, và
+  luật ấy nằm ở MÁY CHỦ — hai bảng (màn hình, tờ giấy) không được tự suy lại. Phiên bản đầu tiên:
+  không có `supersedes_id` nên **mọi dòng là *Bổ sung***.
+- **`COT_MAC_DINH` là *đủ mọi cột*, `COT_MAU_MAC_DINH` là tập của BA MẪU phần mềm tự nạp** (`0180`).
+  Thêm một cột vào `COT_BANG` là âm thầm thêm nó vào ba tờ giấy ấy, trừ khi nó nằm trong
+  `COT_NGUOI_DUYET`. Quyết định ở hàm thuần `cotBangMauMacDinh(kind)` — **không** ở trong vòng lặp
+  nạp, vì ở đó chỉ bảng mẫu trong CSDL kiểm được nó, mà bộ nạp idempotent nên bảng ấy chỉ ghi ở lượt
+  chạy đầu tiên.
 - **Giá và ngưỡng đóng băng vào dòng hồ sơ lúc gửi duyệt**, không bao giờ ghi đè. Danh mục đổi về
   sau thì báo qua khối *Yêu cầu cập nhật* và email, chứ không sửa hồ sơ đang chờ chữ ký.
 - **Sáu vai trò**: Kế toán L1 và L2 là một người (hai màn hình); TDV và QL là một vai trò.

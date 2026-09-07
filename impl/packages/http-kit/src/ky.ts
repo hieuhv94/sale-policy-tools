@@ -18,6 +18,27 @@
  */
 import { BadRequestException } from '@nestjs/common';
 
+/**
+ * HÔM NAY theo giờ Việt Nam, dạng `yyyy-mm-dd` (`0180`).
+ *
+ * Ở ĐÂY chứ không ở service nào, và cũng vì lý do đã viết cho phép cắt kỳ ngay
+ * trên: câu hỏi *"hôm nay là ngày nào"* được hỏi ở nhiều chỗ, và hai bản chép
+ * sẽ lệch nhau vào đúng cái khe mà `0128` đã đo được — `current_date` của
+ * Postgres theo giờ Việt Nam, `new Date().toISOString()` theo UTC, và từ 00:00
+ * tới 07:00 giờ Việt Nam hai bên nói hai ngày khác nhau. Ca kiểm viết bằng bản
+ * sai sẽ XANH mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại.
+ *
+ * `0180` đưa nó lên đây khi ngày áp dụng chuyển xuống từng dòng sản phẩm: từ đó
+ * `policy` hỏi câu này ở ba đường ghi, và bộ kiểm hỏi lại để đối chiếu.
+ */
+export const ngayVN = (): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+
 export type Ky = 'tuan' | 'thang' | 'quy' | 'nam';
 
 export const MOI_KY: Ky[] = ['tuan', 'thang', 'quy', 'nam'];

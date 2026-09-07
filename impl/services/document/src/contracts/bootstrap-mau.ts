@@ -56,6 +56,7 @@ import type { AuthUser } from '@csbh/http-kit';
 import { Db } from '../infra/db.js';
 import { TemplatesService, type Loai } from './templates.service.js';
 import { SYSTEM_USER_ID } from './bootstrap.js';
+import { COT_MAU_MAC_DINH, type KhoaCot } from './bang-san-pham.js';
 
 /**
  * Thư mục chứa ba file bàn giao, ĐI CÙNG ẢNH.
@@ -85,6 +86,25 @@ export const MAU_MAC_DINH: { tep: string; ten: string; kind: Loai }[] = [
   { tep: 'ho-so-rut-gon.docx', ten: 'Hồ sơ mẫu rút gọn (bản mặc định)', kind: 'HO_SO_RUT_GON' },
   { tep: 'hop-dong.docx', ten: 'Hợp đồng (bản mặc định)', kind: 'HOP_DONG' },
 ];
+
+/**
+ * TẬP CỘT mà ba mẫu phần mềm tự nạp được tích sẵn (`0180`).
+ *
+ * HÀM THUẦN, tách khỏi vòng lặp nạp — và đó không phải chuyện gọn gàng. Khi
+ * quyết định này nằm ngay trong `nap()`, thứ duy nhất kiểm được nó là **bảng mẫu
+ * trong CSDL**, mà bộ nạp idempotent theo `(kind, name)` nên nó chỉ ghi ở lượt
+ * chạy ĐẦU TIÊN. Đo được lúc phá lại: gỡ hẳn dòng khai tập cột đi thì ba mẫu
+ * nhận đủ mọi cột, và **không ca kiểm nào đỏ** — chúng đọc dòng cũ đã nạp từ
+ * trước. Một ca kiểm xanh vì lý do sai, đúng loại `0165` đã ghi.
+ *
+ * Tách ra thì có một thứ gọi được mà không cần CSDL nào, và ca kiểm hỏi thẳng
+ * *"mẫu loại này tích sẵn cột nào"*.
+ *
+ * `undefined` cho mẫu RÚT GỌN là CÓ NGHĨA, không phải bỏ sót: `templates.service`
+ * suy `COT_RUT_GON` từ chính loại mẫu, và tập ấy vốn đã liệt kê từng cột một.
+ */
+export const cotBangMauMacDinh = (kind: Loai): KhoaCot[] | undefined =>
+  kind === 'HO_SO_RUT_GON' ? undefined : COT_MAU_MAC_DINH;
 
 /** Người tải lên của ba mẫu này — hệ thống, không phải một tài khoản thật. */
 const HE_THONG: AuthUser = {
@@ -148,8 +168,17 @@ export class MauMacDinhBootstrap implements OnApplicationBootstrap {
      */
     const { goiY } = await this.templates.doOTrong(buffer);
 
+    /*
+     * TẬP CỘT khai TƯỜNG MINH (`0180`) — xem `cotBangMauMacDinh`.
+     *
+     * Không khai thì `chuanHoaCot(undefined)` rơi về `COT_MAC_DINH` — *đủ mọi
+     * cột* — và từ `0180` "mọi cột" gồm cả *Trạng thái* với *Tỷ lệ CK cũ*, hai
+     * cột khách hàng chốt là KHÔNG tích cho mẫu mặc định. Nói cách khác: thêm
+     * một cột vào danh mục là âm thầm thêm nó vào ba tờ giấy này.
+     */
+    const cotBang = cotBangMauMacDinh(m.kind);
     await this.templates.luu(
-      { name: m.ten, buffer, kind: m.kind, mapping: goiY },
+      { name: m.ten, buffer, kind: m.kind, mapping: goiY, ...(cotBang ? { cotBang } : {}) },
       HE_THONG,
     );
     this.log.log(`đã nạp mẫu mặc định: ${m.ten}`);

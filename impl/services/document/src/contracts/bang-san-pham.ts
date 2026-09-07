@@ -28,7 +28,7 @@
  */
 import type { PolicyFull, PolicyLine } from '../infra/clients.js';
 import { table, tableRow, type KieuO } from './docx.js';
-import { money, pct, soCotCpbh } from './dinh-dang.js';
+import { dmy, money, pct, soCotCpbh } from './dinh-dang.js';
 
 /**
  * Danh mục CỘT của bảng sản phẩm — mẫu nào chọn cột nấy (`0067`).
@@ -81,6 +81,18 @@ import { money, pct, soCotCpbh } from './dinh-dang.js';
  */
 export const COT_BANG = [
   { khoa: 'stt', nhan: 'STT' },
+  /*
+   * NGÀY ÁP DỤNG — cột đầu của phần dữ liệu, BÊN TRÁI *Mã sản phẩm* (`0180`).
+   *
+   * Vị trí do khách hàng chốt từng chữ (*"cột ngày áp dụng để bên trái mã sản
+   * phẩm"*), và nó hợp lý theo cách bảng được đọc: từ `0180` ngày áp dụng là
+   * thuộc tính của DÒNG chứ không của hồ sơ, nên nó phải đứng ở chỗ mắt đọc
+   * trước khi đọc tới mặt hàng, không phải lẫn vào giữa dải số tiền.
+   *
+   * Đây cũng là chỗ ô *Thời gian áp dụng* của tờ giấy chuyển tới: nó rời khỏi
+   * khối thông tin đầu trang cùng lúc (`sources.ts`).
+   */
+  { khoa: 'ngay_ap_dung', nhan: 'Ngày áp dụng' },
   { khoa: 'ma_san_pham', nhan: 'Mã sản phẩm' },
   /*
    * `tran` — TRẦN bề rộng, tính bằng `em` của cỡ chữ thân bảng (11pt).
@@ -101,6 +113,20 @@ export const COT_BANG = [
   { khoa: 'cpbh', nhan: 'Từng khoản CPBH (CPBH 1…CPBH n)' },
   { khoa: 'gia_thu_ve', nhan: 'Giá thu về' },
   { khoa: 'ty_le_ck', nhan: 'Tỷ lệ CK' },
+  /*
+   * HAI CỘT CỦA NGƯỜI DUYỆT (`0180`) — có trong danh mục, **không** nằm trong
+   * tập cột của hai mẫu mặc định.
+   *
+   * Khách hàng chốt 07/09: *"vẫn để Trạng thái và Tỷ lệ CK cũ trong list các
+   * cột của bảng sản phẩm nhưng không tích chọn cho 2 văn bản mẫu"*. Nên chúng
+   * đi đúng con đường mà `0067` mở ra cho tập-cột-theo-mẫu: có mặt để ai cần
+   * thì bật, tắt sẵn ở tờ giấy đem ký.
+   *
+   * *Tỷ lệ CK cũ* đứng NGAY SAU *Tỷ lệ CK* vì nó chỉ có nghĩa khi đọc cạnh con
+   * số mới — hai ô cách nhau một cột là mắt phải nhớ số để so.
+   */
+  { khoa: 'ty_le_ck_cu', nhan: 'Tỷ lệ CK cũ' },
+  { khoa: 'trang_thai', nhan: 'Trạng thái' },
   { khoa: 'ghi_chu', nhan: 'Ghi chú', tran: 9 },
 ] as const;
 
@@ -122,6 +148,9 @@ export const COT_BANG = [
  */
 const NEN_TIEU_DE: Record<KhoaCot, string> = {
   stt: 'EFEFEF',
+  // Ngày áp dụng là số CỦA RIÊNG HỒ SƠ NÀY — người lập gõ nó, không đọc từ danh
+  // mục — nên nó lấy màu cam của nhóm ấy chứ không màu xanh của nhóm danh mục.
+  ngay_ap_dung: 'FFE6D0',
   ma_san_pham: 'FFFF00',
   ten_san_pham: 'CBD8F1',
   gia_cong_ty: 'CBD8F1',
@@ -130,6 +159,8 @@ const NEN_TIEU_DE: Record<KhoaCot, string> = {
   cpbh: 'FFE6D0',
   gia_thu_ve: 'FFE6D0',
   ty_le_ck: 'FFE6D0',
+  ty_le_ck_cu: 'FFE6D0',
+  trang_thai: 'FFE6D0',
   ghi_chu: 'FFE6D0',
 };
 
@@ -155,6 +186,7 @@ const NEN_TIEU_DE: Record<KhoaCot, string> = {
  */
 const KIEU_O: Record<KhoaCot, KieuO> = {
   stt: { canh: 'center' },
+  ngay_ap_dung: { canh: 'center' },
   ma_san_pham: { dam: true },
   ten_san_pham: {},
   gia_cong_ty: { canh: 'right' },
@@ -163,6 +195,10 @@ const KIEU_O: Record<KhoaCot, KieuO> = {
   cpbh: { canh: 'right' },
   gia_thu_ve: { canh: 'right', dam: true },
   ty_le_ck: { canh: 'right', dam: true },
+  // KHÔNG in đậm: nó là con số để đối chiếu với ô bên trái, không phải kết quả
+  // của tờ giấy. Hai ô đậm cạnh nhau thì mắt không biết ô nào là số đang đề nghị.
+  ty_le_ck_cu: { canh: 'right' },
+  trang_thai: { canh: 'center' },
   ghi_chu: {},
 };
 
@@ -180,8 +216,33 @@ export const RONG_TOI_THIEU_PCT = 3;
 
 export type KhoaCot = (typeof COT_BANG)[number]['khoa'];
 
-/** Tập cột mặc định: đủ cả mười — đúng hành vi trước `0067`. */
+/** Tập cột mặc định: ĐỦ MỌI CỘT — đúng hành vi trước `0067`. */
 export const COT_MAC_DINH: KhoaCot[] = COT_BANG.map((c) => c.khoa);
+
+/**
+ * Hai cột của NGƯỜI DUYỆT, không tự đi vào tờ giấy nào (`0180`).
+ *
+ * *Trạng thái* và *Tỷ lệ CK cũ* trả lời câu hỏi *"bản này khác bản trước ở
+ * đâu"* — việc của người đang duyệt, không phải nội dung của một chính sách đem
+ * ký. Khách hàng chốt 07/09 để chúng trong danh mục cột nhưng KHÔNG tích cho
+ * hai mẫu mặc định.
+ *
+ * Danh sách này KHÔNG phải một phép cấm: mẫu nào khai chúng thì vẫn in ra. Nó
+ * chỉ nói *"không tự động có"*.
+ */
+export const COT_NGUOI_DUYET: KhoaCot[] = ['ty_le_ck_cu', 'trang_thai'];
+
+/**
+ * Tập cột của BA MẪU MẶC ĐỊNH — mọi cột trừ hai cột của người duyệt.
+ *
+ * Tách khỏi `COT_MAC_DINH` chứ không sửa hằng ấy: `COT_MAC_DINH` trả lời câu
+ * *"mẫu không khai gì thì in cột nào"* và câu trả lời đúng cho nó vẫn là *"đủ
+ * mọi cột"* — người soạn mẫu chưa khai gì thì chưa ai bỏ cột nào đi cả. Câu này
+ * là câu khác: *"ba tệp phần mềm tự nạp thì tích sẵn cột nào"*.
+ */
+export const COT_MAU_MAC_DINH: KhoaCot[] = COT_MAC_DINH.filter(
+  (k) => !COT_NGUOI_DUYET.includes(k),
+);
 
 export const COT_BAT_BUOC: KhoaCot[] = COT_BANG.filter((c) => 'batBuoc' in c).map((c) => c.khoa);
 
@@ -202,6 +263,10 @@ export const COT_BAT_BUOC: KhoaCot[] = COT_BANG.filter((c) => 'batBuoc' in c).ma
  */
 export const COT_RUT_GON: KhoaCot[] = [
   'stt',
+  // `0180` — khách hàng chốt đưa *Ngày áp dụng* vào CẢ HAI mẫu mặc định. Bản
+  // rút gọn là tờ đưa cho bên mua, và ngày mỗi mặt hàng bắt đầu áp dụng đúng là
+  // thứ bên mua cần biết nhất.
+  'ngay_ap_dung',
   'ma_san_pham',
   'ten_san_pham',
   'gia_cong_ty',
@@ -240,8 +305,25 @@ const tieuDe = (soCot: number, cot: KhoaCot[]): string[] =>
       : [COT_BANG.find((c) => c.khoa === k)!.nhan],
   );
 
+/**
+ * Nhãn ba trạng thái dòng — CÙNG CHỮ với bảng trên màn hình (`0180`).
+ *
+ * `tests/http/tieu-de-cot.test.ts` canh tên CỘT giữa hai bảng; ba nhãn này là
+ * NỘI DUNG ô, nên chúng có một ca đối chiếu riêng. Cùng một lý do: người đọc tờ
+ * giấy vừa in phải thấy đúng chữ họ vừa đọc trên màn hình.
+ */
+export const NHAN_TRANG_THAI_DONG: Record<string, string> = {
+  BO_SUNG: 'Bổ sung',
+  CHINH_SUA: 'Chỉnh sửa',
+  DANG_AP_DUNG: 'Đang áp dụng',
+};
+
 const O: Record<Exclude<KhoaCot, 'cpbh'>, (l: PolicyLine, i: number) => string> = {
   stt: (_l, i) => String(i + 1),
+  // Ô TRỐNG chứ không phải hôm nay khi thiếu: cột `NOT NULL` nên chuyện này chỉ
+  // xảy ra với dữ liệu hỏng, và bịa một ngày vào tờ giấy đem ký là tệ hơn hẳn
+  // một ô trống nhìn thấy được.
+  ngay_ap_dung: (l) => (l.ngay_ap_dung ? dmy(l.ngay_ap_dung) : ''),
   ma_san_pham: (l) => l.product_code_snap,
   ten_san_pham: (l) => l.product_name_snap,
   gia_cong_ty: (l) => money(l.company_price),
@@ -249,6 +331,10 @@ const O: Record<Exclude<KhoaCot, 'cpbh'>, (l: PolicyLine, i: number) => string> 
   cpbh_tong: (l) => money(l.cpbh_total),
   gia_thu_ve: (l) => money(l.net_price),
   ty_le_ck: (l) => pct(l.discount_rate),
+  // `policy` đã quyết định dòng nào CÓ tỷ lệ cũ (chỉ dòng *Chỉnh sửa*), nên ở
+  // đây không suy lại theo `trang_thai` — xem `SQL_TRANG_THAI_DONG`.
+  ty_le_ck_cu: (l) => (l.ty_le_ck_truoc ? pct(l.ty_le_ck_truoc) : ''),
+  trang_thai: (l) => (l.trang_thai ? (NHAN_TRANG_THAI_DONG[l.trang_thai] ?? l.trang_thai) : ''),
   ghi_chu: (l) => l.note ?? '',
 };
 

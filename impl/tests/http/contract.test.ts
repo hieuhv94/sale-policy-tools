@@ -24,6 +24,9 @@ import {
   documentXml,
   KNOWN_SOURCES,
   COT_MAC_DINH,
+  COT_MAU_MAC_DINH,
+  COT_NGUOI_DUYET,
+  cotBangMauMacDinh,
   COT_RUT_GON,
   MAU_MAC_DINH,
   MauMacDinhBootstrap,
@@ -264,7 +267,7 @@ async function draft(lineCount = 1, customerId?: string) {
   for (let i = 0; i < lineCount; i++) lines.push(line(await makeProduct(i)));
   const r = await ppost(
     '/policies',
-    { customerId: cus.id, lines, ...(customerId ? { mode: 'AMEND' } : {}) },
+    { customerId: cus.id, lines, ...(customerId ? { mode: 'NEW_VERSION' } : {}) },
     'tdv01',
   );
   if (r.status !== 201) throw new Error(`lập hồ sơ hỏng: ${r.status} ${JSON.stringify(r.body)}`);
@@ -431,7 +434,15 @@ afterAll(async () => {
  * Tên và địa chỉ Công ty gõ THẲNG, đúng như người soạn mẫu thật sẽ làm: chúng
  * cố định ở mọi hồ sơ nên không có ô trống nào cho chúng nữa.
  */
-const twelveSlotTemplate = () =>
+/**
+ * Mẫu hợp đồng nhiều ô trống — fixture chung của DOC-25 và DOC-30.
+ *
+ * Tên cũ là `twelveSlotTemplate`, và `0180` đổi nó: con số 12 gắn cứng vào tên
+ * một fixture là một lời hứa mà mọi lượt thêm/bớt trường nguồn đều phá — lượt
+ * này bỏ `{{ho_so.ngay_ap_dung}}` và còn 11. Hai ca đọc số ô trống giờ đếm từ
+ * chính danh sách này.
+ */
+const mauNhieuOTrong = () =>
   makeDocx(
     [
       para(COMPANY.name),
@@ -439,7 +450,9 @@ const twelveSlotTemplate = () =>
       para('Địa chỉ: {{ho_so.dia_chi_dang_ky}} — nhận hàng {{ho_so.noi_nhan_hang}}'),
       para('Đại diện: {{ho_so.nguoi_dai_dien}} — {{ho_so.chuc_danh_dai_dien}}'),
       para('Công nợ: {{ho_so.cong_no}}'),
-      para('Hồ sơ {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}, áp dụng {{ho_so.ngay_ap_dung}}'),
+      // `0180` — bỏ vế *áp dụng …*: nguồn `ho_so.ngay_ap_dung` không còn tồn
+      // tại, ngày nằm ở cột đầu của bảng sản phẩm do hệ thống dựng.
+      para('Hồ sơ {{ho_so.ma_ho_so}} · phiên bản {{ho_so.phien_ban}}'),
       para('Người lập: {{ho_so.nguoi_de_nghi}}'),
       para('Ngày ký: {{ngay_in}}'),
     ].join(''),
@@ -500,9 +513,9 @@ describe('DOC-25 đọc ô trống của một file .docx', () => {
      */
     const truoc = ((await dget('/contract-templates', 'admin01')).body as unknown[]).length;
 
-    const r = await docOTrong('admin01', twelveSlotTemplate());
+    const r = await docOTrong('admin01', mauNhieuOTrong());
     expect(r.status).toBe(200);
-    expect(r.body.placeholders).toHaveLength(12);
+    expect(r.body.placeholders).toHaveLength(11);
     expect(r.body.placeholders).toContain('{{ho_so.ten_khach_hang}}');
     // Gợi ý suy từ chính tên ô trống — khoá tiếng Việt trùng tên trường nguồn.
     expect(r.body.goiY).toContainEqual({
@@ -588,7 +601,7 @@ describe('DOC-33 file mẫu hỏng hoặc không phải .docx', () => {
 
 describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
   it('400 ngay lúc LƯU, không đợi tới lúc xuất', async () => {
-    const buf = twelveSlotTemplate();
+    const buf = mauNhieuOTrong();
     const r = await luuMau('admin01', buf, {
       mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'customer.ten_khong_co' }],
     });
@@ -598,7 +611,7 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
   }, 60_000);
 
   it('ánh xạ tới ô trống không có trong mẫu cũng bị chặn', async () => {
-    const r = await luuMau('admin01', twelveSlotTemplate(), {
+    const r = await luuMau('admin01', mauNhieuOTrong(), {
       mapping: [{ placeholder: '{{khong.co.trong.mau}}', source: 'ho_so.ten_khach_hang' }],
     });
     expect(r.status).toBe(400);
@@ -613,7 +626,7 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
      * được, và người dùng không biết mình đang đứng ở đâu.
      */
     const truoc = ((await dget('/contract-templates', 'admin01')).body as unknown[]).length;
-    const r = await luuMau('admin01', twelveSlotTemplate(), {
+    const r = await luuMau('admin01', mauNhieuOTrong(), {
       name: 'Mau hong khong duoc luu',
       mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'khong.co.truong.nay' }],
     });
@@ -626,12 +639,13 @@ describe('DOC-29 ánh xạ tới trường nguồn không tồn tại', () => {
 
 describe('DOC-30 lưu mẫu còn ô trống chưa ánh xạ', () => {
   it('chặn và chỉ rõ ô nào chưa ánh xạ', async () => {
-    const r = await luuMau('admin01', twelveSlotTemplate(), {
+    const r = await luuMau('admin01', mauNhieuOTrong(), {
       mapping: [{ placeholder: '{{ho_so.ten_khach_hang}}', source: 'ho_so.ten_khach_hang' }],
     });
     expect(r.status).toBe(409);
     expect(r.body.code).toBe('TEMPLATE_INCOMPLETE');
-    expect(r.body.missing).toHaveLength(11);
+    // Đã ánh xạ MỘT ô, nên còn thiếu tất cả trừ nó.
+    expect(r.body.missing).toHaveLength(10);
     expect(r.body.missing).toContain('{{ho_so.ma_ho_so}}');
   }, 60_000);
 });
@@ -649,7 +663,7 @@ describe('`0060` DOC-26 ĐẢO CHIỀU — mẫu hợp đồng về tay Quản t
    */
   it('Quản trị quản lý được mẫu hợp đồng', async () => {
     expect((await dget('/contract-templates', 'admin01')).status).toBe(200);
-    const t = await uploadTemplate('admin01', twelveSlotTemplate());
+    const t = await uploadTemplate('admin01', mauNhieuOTrong());
     expect(t.status, JSON.stringify(t.body)).toBe(201);
     // Dọn ngay: từ `0067` mẫu mới nhất là mẫu mặc định của mọi lời gọi không kèm
     // `mauId`, nên một mẫu bỏ quên ở đây làm đổi nghĩa mọi ca nói về NỘI DUNG
@@ -659,7 +673,7 @@ describe('`0060` DOC-26 ĐẢO CHIỀU — mẫu hợp đồng về tay Quản t
 
   it('Sale Admin KHÔNG còn quản lý được — mọi đường quản lý đều 403', async () => {
     expect((await dget('/contract-templates', 'sa01')).status).toBe(403);
-    expect((await uploadTemplate('sa01', twelveSlotTemplate())).status).toBe(403);
+    expect((await uploadTemplate('sa01', mauNhieuOTrong())).status).toBe(403);
     expect((await dget('/contract-templates/sources', 'sa01')).status).toBe(403);
   }, 60_000);
 
@@ -2018,8 +2032,10 @@ describe('`0057` bộ file mẫu trong templates/', () => {
      *   10  `0102` — *trạng thái* và *thời gian duyệt* còn ĐANG ĐỔI lúc dựng
      *    7  `0171` — *số hồ sơ*, *tên khách hàng*, *file đính kèm* rời khỏi hai
      *       mẫu mặc định theo yêu cầu 31/08
+     *    6  `0180` — *thời gian áp dụng* rời theo một đường KHÁC: trường ấy
+     *       không còn tồn tại ở cấp hồ sơ, nó là cột đầu của bảng sản phẩm
      */
-    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 7 mục').toBe(7);
+    expect(NGUON_BAT_BUOC_HO_SO.length, 'phải có đúng 6 mục').toBe(6);
     for (const n of NGUON_BAT_BUOC_HO_SO) {
       expect(o.has(`{{${n}}}`), `mẫu rút gọn thiếu {{${n}}}`).toBe(true);
     }
@@ -2259,14 +2275,56 @@ describe('`0165` ba mẫu mặc định nạp lúc khởi động', () => {
     expect(ds.map((r) => r.kind).sort()).toEqual(['HOP_DONG', 'HO_SO', 'HO_SO_RUT_GON']);
   });
 
-  it('mẫu RÚT GỌN mang đúng SÁU cột, mẫu đầy đủ mang cả mười', async () => {
+  it('`0180` TẬP CỘT TÍCH SẴN của ba mẫu, hỏi thẳng chỗ quyết định', () => {
+    /*
+     * CA NÀY RA ĐỜI TỪ MỘT LƯỢT PHÁ LẠI XANH.
+     *
+     * Ca ngay dưới đọc `cot_bang` của ba dòng mẫu **đã nạp trong CSDL**, và nó
+     * đúng — nhưng bộ nạp idempotent theo `(kind, name)` nên nó chỉ ghi ở lượt
+     * chạy ĐẦU TIÊN. Gỡ hẳn dòng khai tập cột trong `bootstrap-mau.ts` thì ba
+     * mẫu sẽ nhận ĐỦ MỌI cột — kể cả *Trạng thái* và *Tỷ lệ CK cũ*, hai cột
+     * khách hàng chốt là không tích — mà **không ca kiểm nào đỏ**: chúng đọc ba
+     * dòng cũ nạp từ trước.
+     *
+     * Nên phải có một ca hỏi CHỖ QUYẾT ĐỊNH thay vì hỏi hậu quả đã đông cứng
+     * trong CSDL. `cotBangMauMacDinh` tách ra khỏi vòng lặp nạp đúng để câu hỏi
+     * ấy trả lời được mà không cần một CSDL nào.
+     */
+    expect(cotBangMauMacDinh('HO_SO')).toEqual(COT_MAU_MAC_DINH);
+    expect(cotBangMauMacDinh('HOP_DONG')).toEqual(COT_MAU_MAC_DINH);
+    // `undefined` CÓ NGHĨA: `templates.service` suy `COT_RUT_GON` từ loại mẫu.
+    expect(cotBangMauMacDinh('HO_SO_RUT_GON')).toBeUndefined();
+
+    // Và vế thật sự đáng canh: hai cột của người duyệt KHÔNG lọt vào, nhưng vẫn
+    // nằm trong danh mục để mẫu nào cần thì tích.
+    for (const k of COT_NGUOI_DUYET) {
+      expect(COT_MAU_MAC_DINH, `${k} không được tự vào mẫu mặc định`).not.toContain(k);
+      expect(COT_MAC_DINH, `${k} vẫn phải nằm trong danh mục cột`).toContain(k);
+    }
+  });
+
+  it('mẫu RÚT GỌN mang tập cột rút gọn, mẫu đầy đủ mang tập của mẫu mặc định', async () => {
     // Vế *"tự động chọn cột"* của yêu cầu, đo ở chỗ nó đọng lại: cột `cot_bang`
     // trên chính dòng mẫu. Không ai khai nó — nó suy từ loại (`0165`).
     const ds = await dsMacDinh();
     const gon = ds.find((r) => r.kind === 'HO_SO_RUT_GON')!;
     const du = ds.find((r) => r.kind === 'HO_SO')!;
     expect(gon.cot_bang).toEqual(COT_RUT_GON);
-    expect(du.cot_bang).toEqual(COT_MAC_DINH);
+    /*
+     * `0180` — mẫu đầy đủ mang `COT_MAU_MAC_DINH`, KHÔNG phải `COT_MAC_DINH`.
+     *
+     * Hai hằng ấy khác nhau đúng hai cột — *Trạng thái* và *Tỷ lệ CK cũ* —
+     * và khoảng cách ấy là chỗ khách hàng chốt: hai cột có mặt trong danh mục
+     * để ai cần thì tích, nhưng không tự đi vào ba tờ giấy phần mềm tự nạp.
+     *
+     * Canh CẢ HAI vế: bằng tập của mẫu mặc định, VÀ hai cột kia thật sự vắng.
+     * Thiếu vế sau thì đổi `COT_MAU_MAC_DINH` thành `COT_MAC_DINH` vẫn xanh.
+     */
+    expect(du.cot_bang).toEqual(COT_MAU_MAC_DINH);
+    for (const k of COT_NGUOI_DUYET) {
+      expect(du.cot_bang, `mẫu mặc định không được tự tích ${k}`).not.toContain(k);
+      expect(COT_MAC_DINH, `${k} vẫn phải nằm trong danh mục cột`).toContain(k);
+    }
     expect(gon.cot_bang!.length).toBeLessThan(du.cot_bang!.length);
   });
 
@@ -3015,7 +3073,7 @@ const thanMauHopDong = (): Buffer =>
       para('Trụ sở Công ty — MST 0100000000'),
       para(''),
       para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
-      para('Số hồ sơ CSBH: {{ho_so.ma_ho_so}} — ngày áp dụng {{ho_so.ngay_ap_dung}}'),
+      para('Số hồ sơ CSBH: {{ho_so.ma_ho_so}}'),
       para(''),
       para('BÊN MUA: {{ho_so.ten_khach_hang}} (mã {{ho_so.ma_khach_hang}})'),
       para('Địa chỉ: {{ho_so.dia_chi_dang_ky}}'),
@@ -3101,10 +3159,15 @@ describe('`0150` chi tiết văn bản mẫu', () => {
 
   it('KHÔNG khai tập cột thì mẫu nhận ĐỦ mọi cột, không phải rỗng', async () => {
     /*
-     * `chuanHoaCot(undefined)` trả về cả mười cột, nên mẫu nào không khai gì
-     * cũng được ghi một tập ĐẦY ĐỦ chứ không để trống. Đó là hành vi đúng — bảng
-     * sản phẩm phải in được ngay — nhưng nó có nghĩa là màn hình chi tiết gần
-     * như không bao giờ gặp `null`.
+     * `chuanHoaCot(undefined)` trả về ĐỦ MỌI CỘT, nên mẫu nào không khai gì cũng
+     * được ghi một tập đầy đủ chứ không để trống. Đó là hành vi đúng — bảng sản
+     * phẩm phải in được ngay — nhưng nó có nghĩa là màn hình chi tiết gần như
+     * không bao giờ gặp `null`.
+     *
+     * `0180` — số cột đọc từ chính `COT_MAC_DINH` chứ không ghim một con số:
+     * ca này nói về *"không khai thì đủ"*, không nói về *"đủ là mấy"*, và ghim
+     * số làm nó đỏ ở mọi lượt thêm cột dù chẳng có gì sai. Con số bị ghim nằm ở
+     * ca của tập cột mẫu mặc định, nơi nó thật sự là một quyết định.
      *
      * Ghi ra ở đây vì suy ngược lại rất dễ: đọc `cot_bang` là `NOT NULL` trên
      * mọi dòng mới rồi kết luận rằng tính năng chọn tập cột đã bị bỏ.
@@ -3114,7 +3177,7 @@ describe('`0150` chi tiết văn bản mẫu', () => {
     try {
       const ct = await cget(`/contract-templates/${up.body.id}/chi-tiet`, 'admin01');
       const cot = ct.body.nhanCot as string[];
-      expect(cot, 'không khai thì phải nhận đủ cột').toHaveLength(10);
+      expect(cot, 'không khai thì phải nhận đủ cột').toHaveLength(COT_MAC_DINH.length);
       expect(cot[0]).toBe('STT');
       expect(cot).toContain('Tên sản phẩm');
     } finally {

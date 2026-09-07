@@ -54,7 +54,8 @@ const NHOM_HUONG_DAN: { nhan: string; khoa: string[] }[] = [
       'ho_so.ma_ho_so',
       'ho_so.phien_ban',
       'ho_so.trang_thai',
-      'ho_so.ngay_ap_dung',
+      // `ho_so.ngay_ap_dung` GỠ ở `0180`: ngày áp dụng là của TỪNG DÒNG sản
+      // phẩm và in ra ở cột đầu của bảng, không còn là một ô của hồ sơ.
       'ho_so.ngay_hieu_luc',
       'ho_so.tep_dinh_kem',
     ],

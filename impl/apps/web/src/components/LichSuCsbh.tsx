@@ -24,7 +24,7 @@
  */
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
-import { ngay, ngayGio } from '../lib/format.js';
+import { ngayGio } from '../lib/format.js';
 import { Lien } from '../lib/router.js';
 import { BaoLoi, DangTai, Nhan, Trong } from './Chung.js';
 
@@ -33,7 +33,6 @@ export type HoSoLichSu = {
   code: string;
   versionNo: number;
   status: string;
-  appliedDate: string | null;
   effectiveFrom: string | null;
   deactivatedAt: string | null;
   supersedesId: string | null;
@@ -84,7 +83,6 @@ export function LichSuCsbh({ khachHangId }: { khachHangId: string }) {
               <th>Mã hồ sơ</th>
               <th className="so">Phiên bản</th>
               <th>Trạng thái</th>
-              <th>Ngày áp dụng</th>
               <th>Có hiệu lực từ</th>
               <th>Hết hiệu lực lúc</th>
               <th>Bị thay bởi</th>
@@ -102,7 +100,6 @@ export function LichSuCsbh({ khachHangId }: { khachHangId: string }) {
                   <td>
                     <Nhan trangThai={h.status} />
                   </td>
-                  <td>{ngay(h.appliedDate)}</td>
                   {/*
                     GIỜ chứ không chỉ ngày ở hai cột mốc.
 

@@ -12,6 +12,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ChiTietKhachHang } from '@csbh/web/khach-hang-ui';
 import { LapHoSo } from '@csbh/web/lap-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
@@ -234,5 +235,93 @@ describe('`0133` màn hình khách hàng với Quản trị hệ thống', () =>
       expect(f.mock.calls.some((c) => String(c[0]).includes('/policies/current'))).toBe(true),
     );
     expect(screen.queryByText(/Không khả dụng với vai trò của bạn/)).toBeNull();
+  });
+});
+
+// =============================================================================
+// `0180` — MỘT nút thay cho *Bổ sung* và *Chỉnh sửa*
+// =============================================================================
+
+describe('`0180` khách đã có CSBH: MỘT nút lập phiên bản mới', () => {
+  /** Khách đã có một CSBH đang hiệu lực — nhánh còn lại của `/policies/current`. */
+  const chanMangCoCsbh = () => {
+    const f = vi.fn((duong: unknown) => {
+      const d = String(duong);
+      if (d.includes('/auth/me')) {
+        return Promise.resolve(json(JSON.parse(localStorage.getItem('csbh:phien')!).user));
+      }
+      if (d.includes('/documents')) return Promise.resolve(json([]));
+      if (d.includes('/policies/current')) {
+        return Promise.resolve(json({ id: 'hs-1', code: 'CSBH-2026-000001' }));
+      }
+      if (/\/customers\/[^/?]+($|\?)/.test(d)) return Promise.resolve(json(KHACH));
+      if (d.includes('/customers')) return Promise.resolve(json({ items: [KHACH], total: 1 }));
+      return Promise.resolve(json({ items: [], total: 0 }));
+    });
+    vi.stubGlobal('fetch', f);
+    return f;
+  };
+
+  it('CHỈ MỘT nút, và hai nhãn cũ biến mất', async () => {
+    /*
+     * Khách hàng chốt 07/09: gộp *Bổ sung* và *Chỉnh sửa* làm một.
+     *
+     * Hai nút cũ dẫn tới CÙNG một việc ở máy chủ — cả hai đều chép lại toàn bộ
+     * dòng cũ — nên chúng chỉ bắt người lập trả lời trước một câu hỏi mà họ chỉ
+     * biết câu trả lời sau khi mở hồ sơ ra, và rất thường là cả hai.
+     *
+     * Ca đếm nút TRONG khối thao tác chứ không tìm theo tên: tìm theo tên thì
+     * một bản sửa đổi nhãn thành *"Bổ sung / Chỉnh sửa"* vẫn xanh với hai nút.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMangCoCsbh();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() => expect(screen.getByText(/CSBH-2026-000001/)).toBeDefined());
+    const nhom = document.querySelector('.nhom-nut') as HTMLElement;
+    expect(nhom, 'không có khối nút nào').not.toBeNull();
+    const nut = [...nhom.querySelectorAll('button')].map((b) => b.textContent);
+    expect(nut).toEqual(['Lập phiên bản mới']);
+    expect(document.body.textContent).not.toContain('Bổ sung — thêm sản phẩm chưa có');
+    expect(document.body.textContent).not.toContain('Chỉnh sửa — đổi sản phẩm đã có');
+  });
+
+  it('bấm nút thì gửi ĐÚNG MỘT `mode`, và không kèm ngày áp dụng nào', async () => {
+    /*
+     * Hai vế, và vế sau là vế dễ sót: `0180` bỏ ô *Ngày áp dụng* khỏi màn hình
+     * này (ngày là của từng dòng sản phẩm). Gửi kèm một trường máy chủ không
+     * nhận nữa thì `validate` trả 400 ở đúng thao tác đầu tiên của người dùng.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMangCoCsbh();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+    await waitFor(() => expect(screen.getByText(/CSBH-2026-000001/)).toBeDefined());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Lập phiên bản mới' }));
+
+    const goi = f.mock.calls.find(
+      (c) => String(c[0]).endsWith('/policies') && (c[1] as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(goi, 'không thấy lượt POST /policies').toBeDefined();
+    const than = JSON.parse(String((goi![1] as RequestInit).body));
+    expect(than.mode).toBe('NEW_VERSION');
+    expect(than.appliedDate, 'màn hình này thôi hỏi ngày áp dụng').toBeUndefined();
+  });
+
+  it('KHÔNG có CSBH nào thì vẫn là nút *Lập hồ sơ*, không gửi `mode`', async () => {
+    // Chiều đối chiếu: gộp hai nút không được kéo theo nhánh "bản đầu tiên" —
+    // gửi `mode` khi khách chưa có CSBH nào thì máy chủ trả `NO_ACTIVE_POLICY`.
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMang(KHACH);
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    const goi = f.mock.calls.find(
+      (c) => String(c[0]).endsWith('/policies') && (c[1] as RequestInit | undefined)?.method === 'POST',
+    );
+    const than = JSON.parse(String((goi![1] as RequestInit).body));
+    expect(than.mode).toBeUndefined();
   });
 });

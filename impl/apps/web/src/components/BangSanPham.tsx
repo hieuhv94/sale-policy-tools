@@ -26,8 +26,8 @@
  * lại ô nhập — mất nội dung và mất tiêu điểm (`FE-06`).
  */
 import { useState } from 'react';
-import { tien, tyLe } from '../lib/format.js';
-import { COT_TRUOC, COT_SAU, nhanCpbh } from '../lib/bang-cot.js';
+import { ngay, tien, tyLe } from '../lib/format.js';
+import { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
 
 export type DongSanPham = {
   id: string;
@@ -62,7 +62,31 @@ export type DongSanPham = {
   ruleCode?: string | null | undefined;
   /** Ghi chú tự do của người lập cho riêng dòng này (`0027`). */
   note?: string | null | undefined;
+  /** NGÀY ÁP DỤNG của riêng dòng này (`0180`) — cột đầu tiên của bảng. */
+  ngayApDung?: string | null | undefined;
+  /**
+   * *Bổ sung* · *Chỉnh sửa* · *Đang áp dụng* so với CSBH bị thay thế (`0180`).
+   *
+   * MÁY CHỦ tính, giao diện chỉ vẽ: phép so nằm ở `SQL_TRANG_THAI_DONG` bên
+   * `policy`, nơi có cả hai bản để đối chiếu. Suy lại ở đây thì phải kéo cả dòng
+   * của bản trước về trình duyệt.
+   */
+  trangThai?: 'BO_SUNG' | 'CHINH_SUA' | 'DANG_AP_DUNG' | null | undefined;
+  /** Tỷ lệ CK ở bản trước — CHỈ dòng *Chỉnh sửa* mới có (`0180`). */
+  discountRateTruoc?: string | null | undefined;
 };
+
+/**
+ * Lớp CSS của nhãn trạng thái — dùng lại ba khoá nhãn có sẵn (`0123`).
+ *
+ * *Bổ sung* và *Chỉnh sửa* là hai thứ người duyệt phải NHÌN vào; *Đang áp dụng*
+ * là phần không đổi, nên nó lấy nhãn xám và lùi lại phía sau. Không đặt màu
+ * riêng: bảng này đã có hai màu cảnh báo ở cột Tỷ lệ CK, và màu thứ ba cạnh
+ * chúng sẽ tranh chỗ với đúng thứ cần nhìn nhất.
+ */
+export const lopTrangThai = (t: string): string =>
+  t === 'BO_SUNG' ? 'nhan nhan-tot' : t === 'CHINH_SUA' ? 'nhan nhan-canh-bao' : 'nhan nhan-thuong';
+
 
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
 export const thieuQuyDinh = (d: DongSanPham): boolean =>
@@ -113,7 +137,9 @@ export const lyDoTyLe = (d: DongSanPham): string | undefined => {
 };
 
 // `COT_TRUOC` · `COT_SAU` dời sang `lib/bang-cot.ts` (`0172`) — xem lý do ở đó.
-export { COT_TRUOC, COT_SAU, nhanCpbh } from '../lib/bang-cot.js';
+// `NHAN_TRANG_THAI` đi cùng đường ở `0180`, và vì đúng lý do ấy: ca đối chiếu
+// hai bảng sống ở `tests/http/`, nơi `tsconfig` không bật `jsx`.
+export { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
 
 /**
  * Số cột CPBH của cả bảng = dòng NHIỀU KHOẢN NHẤT.
@@ -211,6 +237,43 @@ function OTyLe({ d }: { d: DongSanPham }) {
  * năng đọc trước khi gặp; đổi lại là không phải đọc gì khi không cần.
  */
 
+/**
+ * Ô QĐCK — NGƯỠNG phần trăm, cộng dấu `?` mang MÃ quy định (`0180`).
+ *
+ * Khách hàng chốt 07/09: cột này bày *"số phần trăm chứ không hiển thị tên
+ * QĐCK"*, và mã lui vào câu hiện khi rê chuột.
+ *
+ * Dấu `?` dựng y hệt dấu `?` của ô Tỷ lệ CK — `<button>` chứ không `<span
+ * title>`, vì `title` chỉ hiện khi có CHUỘT và trên điện thoại nó là một dấu hỏi
+ * không bao giờ trả lời được (`0027`). Bố cục thẻ ở cuối tệp cũng bày cả hai.
+ *
+ * BA TÌNH HUỐNG, ba kết quả khác nhau — và đó là lý do hàm này không phải một
+ * biểu thức một dòng:
+ *
+ *   - có quy định, có ngưỡng → `12,00%` + dấu `?` mang mã;
+ *   - có quy định mà KHÔNG có ngưỡng → không xảy ra (`threshold_source = 'RULE'`
+ *     luôn kèm ngưỡng), nhưng nếu dữ liệu cũ rơi vào thì bày mã như trước còn
+ *     hơn bày ô trống;
+ *   - không quy định nào phủ → Ô TRỐNG, đúng như trước `0180`: ô Tỷ lệ CK bên
+ *     trái đã đổi màu và mang dấu `?` nói đúng điều ấy rồi.
+ */
+export function OQuyDinh({ d }: { d: DongSanPham }) {
+  if (!d.ruleCode) return null;
+  const cau = `Quy định chiết khấu ${d.ruleCode}`;
+  return (
+    <>
+      {d.threshold === null || d.threshold === undefined ? (
+        <span className="ma-quy-dinh">{d.ruleCode}</span>
+      ) : (
+        tyLe(d.threshold)
+      )}
+      <button type="button" className="dau-hoi" title={cau} aria-label={cau}>
+        ?
+      </button>
+    </>
+  );
+}
+
 function CpbhGop({ d }: { d: DongSanPham }) {
   const [mo, datMo] = useState(false);
   const co = d.cpbh ?? [];
@@ -300,6 +363,7 @@ export function BangSanPham({
           <tbody>
             {dong.map((d) => (
               <tr key={d.id}>
+                <td className="ngay-ap-dung">{ngay(d.ngayApDung)}</td>
                 <td>{d.productCode}</td>
                 <th scope="row" className="cot-khoa">
                   {d.productName}
@@ -318,7 +382,22 @@ export function BangSanPham({
                 <td className="so">
                   <OTyLe d={d} />
                 </td>
-                <td className="ma-quy-dinh">{d.ruleCode ?? ''}</td>
+                {/* Ô TRỐNG cho dòng không phải *Chỉnh sửa* — máy chủ đã quyết
+                    định điều đó, xem `discountRateTruoc`. */}
+                <td className="so">{d.discountRateTruoc ? tyLe(d.discountRateTruoc) : ''}</td>
+                {/* `.so` chứ không `.ma-quy-dinh`: ô này giờ mang một con số
+                    phần trăm (`0180`), và nó phải thẳng cột với hai cột tỷ lệ
+                    bên trái. Kiểu chữ mã chỉ còn dùng cho nhánh lùi bên trong. */}
+                <td className="so">
+                  <OQuyDinh d={d} />
+                </td>
+                <td>
+                  {d.trangThai && (
+                    <span className={lopTrangThai(d.trangThai)}>
+                      {NHAN_TRANG_THAI[d.trangThai] ?? d.trangThai}
+                    </span>
+                  )}
+                </td>
                 <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   /*
@@ -366,8 +445,19 @@ export function BangSanPham({
             <div className="the-dau">
               <span className="ma">{d.productCode}</span>
               <h3>{d.productName}</h3>
+              {/* Trạng thái ở NGAY ĐẦU THẺ, không lẫn vào dải số: trên điện
+                  thoại đây là thứ đọc lướt để biết dòng nào vừa đổi. */}
+              {d.trangThai && (
+                <span className={lopTrangThai(d.trangThai)}>
+                  {NHAN_TRANG_THAI[d.trangThai] ?? d.trangThai}
+                </span>
+              )}
             </div>
             <dl className="the-so">
+              <div>
+                <dt>Ngày áp dụng</dt>
+                <dd>{ngay(d.ngayApDung)}</dd>
+              </div>
               <div>
                 <dt>Giá bán Công ty</dt>
                 <dd className="so">{tien(d.companyPrice)}</dd>
@@ -388,10 +478,20 @@ export function BangSanPham({
               </div>
               {/* Chỉ hiện khi CÓ. Bố trí thẻ dành cho màn hình hẹp nhất; một ô
                   rỗng mang nhãn "QĐCK" ở đó là một dòng chữ không nói gì. */}
+              {/* Chỉ hiện khi dòng ĐÃ BỊ SỬA — với dòng khác thì tỷ lệ cũ bằng
+                  đúng tỷ lệ mới ngay trên, hoặc không tồn tại. */}
+              {d.discountRateTruoc && (
+                <div>
+                  <dt>Tỷ lệ CK cũ</dt>
+                  <dd className="so">{tyLe(d.discountRateTruoc)}</dd>
+                </div>
+              )}
               {d.ruleCode && (
                 <div>
                   <dt>QĐCK</dt>
-                  <dd className="ma-quy-dinh">{d.ruleCode}</dd>
+                  <dd className="so">
+                    <OQuyDinh d={d} />
+                  </dd>
                 </div>
               )}
               {/* Ghi chú chiếm CẢ BỀ NGANG của thẻ (`o-rong`): nó là câu chữ,

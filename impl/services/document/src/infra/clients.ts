@@ -30,6 +30,20 @@ export type PolicyLine = {
   over_threshold: boolean;
   /** Ghi chú tự do của người lập cho riêng dòng này (`0027`). */
   note: string | null;
+  /** NGÀY ÁP DỤNG của riêng dòng này (`0180`) — cột đầu của bảng sản phẩm. */
+  ngay_ap_dung: string | null;
+  /**
+   * *Bổ sung* · *Chỉnh sửa* · *Đang áp dụng* — so với bản CSBH bị thay thế
+   * (`0180`). DẪN XUẤT ở `policy`, không phải một cột; xem `SQL_TRANG_THAI_DONG`.
+   */
+  trang_thai: string | null;
+  /**
+   * Tỷ lệ CK ở bản trước — CHỈ dòng *Chỉnh sửa* mới có (`0180`).
+   *
+   * `policy` đã quyết định "khi nào thì có", nên ở đây KHÔNG được suy lại theo
+   * `trang_thai`: hai chỗ cùng trả lời một câu hỏi là hai câu sẽ lệch nhau.
+   */
+  ty_le_ck_truoc: string | null;
 };
 
 export type PolicyFull = {
@@ -38,7 +52,6 @@ export type PolicyFull = {
   customer_id: string;
   version_no: number;
   status: string;
-  applied_date: string | null;
   effective_from: string | null;
   tdv_user_id: string | null;
   /** Ba người được phân công theo luồng (`0031`). */

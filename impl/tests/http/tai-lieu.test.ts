@@ -111,6 +111,11 @@ describe('`0178` tài liệu hiện hành khớp với thứ đang chạy', () =
       'nhật ký chặng P171 — kích thước một bảng đối chiếu, không phải tổng số trạng thái',
     '146, trải khắp 9 trạng thái':
       'dữ liệu của `make demo-mau` — bộ nạp không dựng hồ sơ ở đủ mười trạng thái',
+    // `0180` — ba trạng thái của một DÒNG SẢN PHẨM (*Bổ sung* · *Chỉnh sửa* ·
+    // *Đang áp dụng*), không phải trạng thái của hồ sơ. Câu này là lời khách
+    // hàng trích nguyên văn ở Phụ lục B, nên nó không sửa được để né phép quét.
+    'sẽ có 3 trạng thái':
+      'ba trạng thái của một DÒNG sản phẩm (`0180`), không phải của hồ sơ',
   };
 
   it('mọi con số "N trạng thái" khớp `STATUSES`, hoặc được miễn trừ có lý do', () => {

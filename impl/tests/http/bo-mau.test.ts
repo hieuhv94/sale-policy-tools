@@ -117,7 +117,10 @@ describe('`0165` ba mẫu mặc định', () => {
       'ho_so.ke_toan',
       'ho_so.ma_khach_hang',
       'ho_so.ma_so_thue',
-      'ho_so.ngay_ap_dung',
+      // `ho_so.ngay_ap_dung` RA KHỎI TẬP ở `0180`: ngày áp dụng chuyển xuống
+      // từng dòng sản phẩm, và nó in ra ở CỘT ĐẦU của `{{bang_san_pham}}` chứ
+      // không còn là một ô ở đầu trang. Khoá ấy cũng đã gỡ khỏi `SCALAR`, nên
+      // để lại đây thì hai mẫu mặc định không lưu nổi (`400 SOURCE_UNKNOWN`).
       'ho_so.ngay_kt_nhan_l1',
       'ho_so.ngay_tbp_ky',
       // Dòng *Tên khách hàng* in TÊN NGƯỜI ĐẠI DIỆN, không phải tên khách hàng.

@@ -175,21 +175,28 @@ export const TRUONG_CHAN_LUC_GUI = [
    *
    * Hai trường VẪN CÒN trong hồ sơ khách hàng và vẫn khai được; chúng chỉ thôi
    * CHẶN lượt gửi duyệt.
+   *
+   * `ngay_ap_dung` RA KHỎI DANH SÁCH ở `0180`, và lần này vì trường ấy **không
+   * còn tồn tại ở cấp hồ sơ**: ngày áp dụng chuyển xuống từng dòng sản phẩm, nơi
+   * nó `NOT NULL` và có mặc định ở máy chủ — tức không có trạng thái "thiếu" để
+   * mà chặn. Ô *Thời gian áp dụng* cũng rời khỏi hai mẫu hồ sơ mặc định, nên
+   * luật `0134` vẫn được giữ ở cả hai vế.
+   *
+   * Còn ĐÚNG MỘT trường chặn. Danh sách một phần tử trông như thừa, nhưng nó là
+   * chỗ `NHOM_TRUONG` của `document` đối chiếu sang — và ca kiểm hai chiều ở
+   * `policy.test.ts` đọc chính nó.
    */
-  'ho_so.ngay_ap_dung',
 ] as const;
 
 /** Nhãn người dùng đọc. Câu báo lỗi KHÔNG được lộ tên trường trong mã (`0088`). */
 const NHAN_CHAN: Record<(typeof TRUONG_CHAN_LUC_GUI)[number], string> = {
   'ho_so.ma_so_thue': 'Mã số thuế',
-  'ho_so.ngay_ap_dung': 'Thời gian áp dụng',
 };
 
 const rong = (v: unknown): boolean =>
   v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
 
 export function thieuTruongLucGui(
-  ho: { applied_date: unknown },
   kh: { idNumber?: string | null; ownerTitle?: string | null; phone?: string | null },
 ): void {
   const thieu: string[] = [];
@@ -199,22 +206,22 @@ export function thieuTruongLucGui(
    * Tham số `kh` giữ nguyên hình dạng: `attach`/`detach` và hai chỗ khác đọc
    * cùng kiểu ấy, và thu hẹp nó đi chỉ để bớt hai trường không ai đọc là một
    * lượt sửa lan ra bốn tệp cho không thêm gì.
+   *
+   * Tham số `ho` thì NGƯỢC LẠI — nó biến mất ở `0180`, vì trường duy nhất nó
+   * mang tới đây (`applied_date`) không còn tồn tại. Giữ một tham số rỗng là
+   * mời người sau tưởng rằng hàm này còn kiểm gì đó của hồ sơ.
    */
-  if (rong(ho.applied_date)) thieu.push('ho_so.ngay_ap_dung');
   if (thieu.length === 0) return;
 
   const nhan = thieu.map((t) => NHAN_CHAN[t as (typeof TRUONG_CHAN_LUC_GUI)[number]]);
-  // Nói RÕ phải đi đâu mà sửa: hai nguồn khác nhau, và người đọc đang đứng ở
-  // màn hình hồ sơ chứ không phải màn hình khách hàng.
-  const cuaKhach = thieu.filter((t) => t !== 'ho_so.ngay_ap_dung').length > 0;
-  const cuaHoSo = thieu.includes('ho_so.ngay_ap_dung');
+  // Nói RÕ phải đi đâu mà sửa: người đọc đang đứng ở màn hình hồ sơ chứ không
+  // phải màn hình khách hàng.
   throw new UnprocessableEntityException({
     code: 'POLICY_FIELDS_MISSING',
     thieu: nhan,
     message:
-      `Chưa gửi duyệt được: bản CSBH sẽ in ra ô trống ở ${nhan.join(', ')}.` +
-      (cuaKhach ? ' Bổ sung ở hồ sơ khách hàng rồi gửi lại.' : '') +
-      (cuaHoSo ? ' Điền Thời gian áp dụng của hồ sơ rồi gửi lại.' : ''),
+      `Chưa gửi duyệt được: bản CSBH sẽ in ra ô trống ở ${nhan.join(', ')}. ` +
+      'Bổ sung ở hồ sơ khách hàng rồi gửi lại.',
   });
 }
 
@@ -251,8 +258,6 @@ export class WorkflowService {
       sale_admin_user_id: string | null;
       customer_id: string;
       supersedes_id: string | null;
-      /** `0104` — chốt chặn "đủ trường lúc gửi duyệt" đọc cột này. `SELECT *` vốn đã lấy. */
-      applied_date: Date | null;
       /** `0142` — luật riêng của Kế toán ở `assertPolicyInScope`. `SELECT *` vốn đã lấy. */
       da_qua_tbp: boolean;
       tbp_signed_at: Date | null;
@@ -350,7 +355,7 @@ export class WorkflowService {
        * ngược lại, và câu ấy đúng cho tới hôm nay. Thiếu mẫu giờ chỉ chặn đúng
        * thao tác in của Sale Admin.
        */
-      thieuTruongLucGui(before, cus);
+      thieuTruongLucGui(cus);
 
       /*
        * `policy` KHÔNG gọi sang `document` để hỏi mẫu này có thật không.

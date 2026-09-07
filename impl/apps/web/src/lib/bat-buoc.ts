@@ -27,8 +27,7 @@ export type TenBieuMau =
   | 'nhom-san-pham'
   | 'chiet-khau'
   | 'ho-so'
-  | 'dong-san-pham'
-  | 'ngay-ap-dung';
+  | 'dong-san-pham';
 
 export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   'nguoi-dung': ['email', 'username', 'fullName', 'role'],
@@ -46,9 +45,10 @@ export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
   gia: ['amount'],
   'nhom-san-pham': ['code', 'name'],
   'chiet-khau': ['code', 'effectiveFrom', 'thresholdRate2'],
-  'ho-so': ['customerId', 'appliedDate'],
-  'dong-san-pham': ['productId', 'wholesalePrice'],
-  'ngay-ap-dung': ['appliedDate'],
+  // `0180` — màn hình *Lập hồ sơ* thôi hỏi ngày áp dụng; nó chỉ còn chọn khách
+  // hàng. Ngày chuyển xuống biểu mẫu dòng sản phẩm ngay dưới.
+  'ho-so': ['customerId'],
+  'dong-san-pham': ['productId', 'wholesalePrice', 'ngayApDung'],
 };
 
 /**
@@ -58,17 +58,16 @@ export const BAT_BUOC: Record<TenBieuMau, readonly string[]> = {
  * sao, và cách duy nhất đi tiếp là điền bừa. Nên `bat-buoc.test.ts` bắt mọi
  * khác biệt, và chỉ những mục khai ở đây mới được đi qua.
  *
- * `ho-so.appliedDate` — `POST /policies` vẫn NHẬN hồ sơ không khai ngày áp dụng
- * (`0001_init.sql:53` cho phép NULL), vì nó dựng để tạo bản nháp rồi điền dần.
- * Màn hình Lập hồ sơ thì đòi, và tạo hồ sơ ngay tại chỗ.
+ * `dong-san-pham.ngayApDung` (`0180`) — `POST/PATCH .../lines` vẫn NHẬN dòng
+ * không khai ngày: máy chủ điền HÔM NAY theo giờ Việt Nam, vì nó là chỗ duy
+ * nhất biết "hôm nay" của người dùng (`0104`, `0128`). Biểu mẫu thì đòi, và nó
+ * đúng ở chỗ của nó: người lập đang nhìn thẳng vào ô ấy, còn một ô ngày im lặng
+ * tự điền là một ngày không ai đọc trước khi ký.
  *
- * `0104` bịt hậu quả cũ ở hai chỗ khác, nên dòng này không còn là lưới duy nhất:
- * máy chủ MẶC ĐỊNH hôm nay lúc tạo, và CHẶN lúc gửi duyệt nếu ô ấy trống. Trước
- * đó nó là lưới duy nhất — và hồ sơ tạo qua đường khác chạy hết vòng duyệt với ô
- * ngày áp dụng để trống trên bản CSBH A4.
+ * Mục cũ `ho-so.appliedDate` biến mất cùng trường của nó.
  */
 export const CHAT_HON: Partial<Record<TenBieuMau, readonly string[]>> = {
-  'ho-so': ['appliedDate'],
+  'dong-san-pham': ['ngayApDung'],
 };
 
 /** Ô này có gắn dấu sao không. */

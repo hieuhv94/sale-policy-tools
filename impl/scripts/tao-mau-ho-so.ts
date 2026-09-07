@@ -90,7 +90,10 @@ const dayDu = [
   para('Công nợ: {{ho_so.cong_no}}'),
   para(''),
   para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
-  para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
+  // `0180` — dòng *Thời gian áp dụng* GỠ HẲN: ngày áp dụng là của TỪNG DÒNG sản
+  // phẩm, và nó in ra ở cột đầu của `{{bang_san_pham}}` ngay dưới đây. Một ô ở
+  // đầu trang nói "hồ sơ này áp dụng từ ngày X" là nói sai về mọi dòng có ngày
+  // khác X.
   para(''),
   para('DANH SÁCH SẢN PHẨM VÀ CHÍNH SÁCH GIÁ'),
   para('{{bang_san_pham}}'),
@@ -116,7 +119,8 @@ const rutGon = [
   para(''),
   para('Khách hàng: {{ho_so.ten_khach_hang}} ({{ho_so.ma_khach_hang}})'),
   para('Công nợ: {{ho_so.cong_no}}'),
-  para('Người đề nghị: {{ho_so.nguoi_de_nghi}} — áp dụng từ {{ho_so.ngay_ap_dung}}'),
+  // `0180` — bỏ vế *áp dụng từ*; ngày nằm ở cột đầu của bảng sản phẩm.
+  para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
   para(''),
   para('{{bang_san_pham}}'),
   para(''),
@@ -142,7 +146,9 @@ const hopDong = [
   para(COMPANY_ADDRESS_LINE),
   para(''),
   para('HỢP ĐỒNG NGUYÊN TẮC BÁN HÀNG'),
-  para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}, áp dụng từ {{ho_so.ngay_ap_dung}}.'),
+  // `0180` — bỏ vế *áp dụng từ* (xem `dayDu`); bảng sản phẩm dưới đây mang ngày
+  // của từng mặt hàng.
+  para('Căn cứ hồ sơ CSBH số {{ho_so.ma_ho_so}}.'),
   para(''),
   para(`BÊN BÁN (Bên A): ${COMPANY.name}`),
   para(''),

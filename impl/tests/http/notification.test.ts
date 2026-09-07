@@ -606,7 +606,7 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
      */
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(await makeProduct())],
     });
     expect(v2.status, JSON.stringify(v2.body)).toBe(201);
@@ -659,7 +659,7 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     await runToActive(d.id);
     const v2 = await post('/policies', {
       customerId: d.customerId,
-      mode: 'SUPPLEMENT',
+      mode: 'NEW_VERSION',
       lines: [line(await makeProduct())],
     });
     const id2 = v2.body.id as string;

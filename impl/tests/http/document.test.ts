@@ -13,6 +13,7 @@ import { PDFDocument } from 'pdf-lib';
 import {
   bangSanPhamXml,
   COMPANY,
+  COT_BANG,
   createTestApp as createDocumentApp,
   makeDocx,
   NGUON_BAT_BUOC_HO_SO,
@@ -297,7 +298,6 @@ beforeAll(async () => {
       para('Người đại diện: {{ho_so.nguoi_dai_dien}}'),
       para('Công nợ: {{ho_so.cong_no}}'),
       para('Người đề nghị: {{ho_so.nguoi_de_nghi}}'),
-      para('Thời gian áp dụng: {{ho_so.ngay_ap_dung}}'),
       para(''),
       para(O_BANG_SAN_PHAM),
       para(''),
@@ -551,7 +551,12 @@ describe('DOC-03 bản CSBH xem có đủ 13 mục tối thiểu', () => {
     const required = [
       COMPANY.name, //   1. thông tin công ty
       'Người đề nghị', //                      2. người đề nghị
-      'Thời gian áp dụng', //                  3. thời gian áp dụng
+      // 3. thời gian áp dụng — `0180` ĐỔI CHỖ, không mất.
+      //
+      // Nó thôi là một ô ở đầu trang và thành CỘT ĐẦU của bảng sản phẩm, vì mỗi
+      // mặt hàng có ngày áp dụng riêng. Mục của muc 11.1 vẫn có mặt trên tờ
+      // giấy, chỉ khác chỗ đứng — nên ca này đi tìm tiêu đề cột.
+      'Ngày áp dụng', //                       3. thời gian áp dụng
       'Công nợ', //                            4. công nợ
       d.code, //                               5. mã khách hàng
       CUSTOMER_NAME, //                        6. tên khách hàng
@@ -592,8 +597,17 @@ describe('DOC-19 hồ sơ nhiều dòng sản phẩm', () => {
      * duyệt, chỗ ký, file đính kèm), nên trang cuối có thể không còn hàng bảng
      * nào. Điều cần chứng minh là tiêu đề lặp lại, không phải lặp đúng mấy lần.
      */
-    // Nhãn cột đổi ở `0172` — xem `tests/http/tieu-de-cot.test.ts`.
-    const headers = t.split('Giá bán Công ty').length - 1;
+    /*
+     * Đếm trên chữ ĐÃ BỎ KHOẢNG TRẮNG (`lien`), không trên chữ thô — `0180`.
+     *
+     * Tiêu đề cột được phép xuống dòng GIỮA HAI TỪ (`rongTuDaiNhat`), và bảng
+     * vừa thêm ba cột nên *Giá bán Công ty* rơi xuống hai dòng ở khổ A4 dọc.
+     * Phép đếm cũ tìm chuỗi liền và trả về 0 — đỏ ở một ca nói về NGẮT TRANG,
+     * vì một lý do chẳng liên quan tới ngắt trang.
+     *
+     * Nhãn cột đổi ở `0172` — xem `tests/http/tieu-de-cot.test.ts`.
+     */
+    const headers = lien(t).split(lien('Giá bán Công ty')).length - 1;
     expect(headers, 'tiêu đề bảng phải lặp lại qua các trang').toBeGreaterThan(1);
     expect(headers).toBeLessThanOrEqual(sizes.length);
     // Dòng cuối cùng phải còn: số thứ tự 60 xuất hiện.
@@ -1038,8 +1052,17 @@ describe('0027 ghi chú dòng sản phẩm trên bản CSBH A4', () => {
     expect(hang.length, 'một hàng tiêu đề cộng ba dòng').toBe(4);
     const soO = hang.map((h) => (h.match(/<w:tc>/g) ?? []).length);
     expect(new Set(soO).size, `số ô lệch nhau: ${JSON.stringify(soO)}`).toBe(1);
-    // Số cột CPBH bằng dòng NHIỀU KHOẢN NHẤT (muc 7.1): 9 cột cố định + 3.
-    expect(soO[0]).toBe(12);
+    /*
+     * Số cột CPBH bằng dòng NHIỀU KHOẢN NHẤT (muc 7.1): số cột cố định + 3.
+     *
+     * `0180` — đếm từ chính `COT_BANG` thay vì ghim con số 12. Ba cột mới
+     * (*Ngày áp dụng*, *Tỷ lệ CK cũ*, *Trạng thái*) làm con số ấy thành 15, và
+     * một hằng gõ tay ở đây chỉ nói lên rằng danh mục cột vừa đổi — không nói
+     * lên điều ca này sinh ra để nói, là **mọi hàng bằng nhau**.
+     *
+     * `- 1` vì khoá `cpbh` trong danh mục là MỘT mục nở ra thành N cột.
+     */
+    expect(soO[0]).toBe(COT_BANG.length - 1 + 3);
   });
 });
 
@@ -1390,7 +1413,7 @@ describe('`0148` phiên bản mới thừa kế GIẤY TỜ, không thừa kế 
 
     const v2 = await ppost(
       '/policies',
-      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(9))] },
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [line(await makeProduct(9))] },
       'tdv01',
     );
     expect(v2.status, JSON.stringify(v2.body)).toBe(201);
@@ -1423,7 +1446,7 @@ describe('`0148` phiên bản mới thừa kế GIẤY TỜ, không thừa kế 
 
     const v2 = await ppost(
       '/policies',
-      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(8))] },
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [line(await makeProduct(8))] },
       'tdv01',
     );
     const tep = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {
@@ -1449,7 +1472,7 @@ describe('`0148` phiên bản mới thừa kế GIẤY TỜ, không thừa kế 
 
     const v2 = await ppost(
       '/policies',
-      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(7))] },
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [line(await makeProduct(7))] },
       'tdv01',
     );
     expect((await act(v2.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
@@ -1687,7 +1710,7 @@ describe('`0149` lượt chép sang bản mới đọc bảng CON TRỎ', () => 
     await chayHetLuong(d.id);
     const v2 = await ppost(
       '/policies',
-      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(6))] },
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [line(await makeProduct(6))] },
       'tdv01',
     );
     expect(v2.status, JSON.stringify(v2.body)).toBe(201);
@@ -1723,7 +1746,7 @@ describe('`0149` lượt chép sang bản mới đọc bảng CON TRỎ', () => 
     await chayHetLuong(d.id);
     const v2 = await ppost(
       '/policies',
-      { customerId: d.customerId, mode: 'AMEND', lines: [line(await makeProduct(5))] },
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [line(await makeProduct(5))] },
       'tdv01',
     );
     const moi = (await pget(`/policies/${v2.body.id}`, 'tdv01')).body.attachments as {

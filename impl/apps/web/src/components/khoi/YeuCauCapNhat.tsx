@@ -43,7 +43,6 @@ export type HoSoLech = {
   code: string;
   status: string;
   versionNo: number;
-  appliedDate: string | null;
   lech: LechMuc[];
   detectedAt: string;
 };

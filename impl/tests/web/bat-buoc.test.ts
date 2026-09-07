@@ -34,7 +34,6 @@ const NGUON: Record<TenBieuMau, { tep: string; neo: string; boQua?: string[] }> 
   'chiet-khau': { tep: 'services/catalog/src/catalog.controller.ts', neo: "@Post('discount-rules')" },
   'ho-so': { tep: 'services/policy/src/policies/policies.controller.ts', neo: '@Post()' },
   'dong-san-pham': { tep: 'services/policy/src/policies/policies.controller.ts', neo: 'const lineShape =' },
-  'ngay-ap-dung': { tep: 'services/policy/src/policies/policies.controller.ts', neo: "@Patch(':id')" },
 };
 
 /**
