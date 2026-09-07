@@ -361,32 +361,53 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
   });
 
   /*
-   * `0177` — CỘT NHÃN RIÊNG cho khối khách hàng, canh CẢ BA vế.
+   * `0179` — CỘT NHÃN của khối khách hàng ĐO TỪ NỘI DUNG, canh cả BỐN vế.
    *
-   * jsdom không tính bố cục, nên thứ đo được là ba mảnh phải khớp nhau: luật
-   * chung đọc biến, khối khách hàng khai biến, và class thật sự có mặt trên
-   * `<section>`. Thiếu mảnh thứ ba thì hai mảnh kia thành mã chết mà không gì
-   * đỏ — đúng kiểu hỏng `0176` đã ghi.
+   * `0177` đặt 11rem và con số ấy thiếu 15,6px so với *Tên Hộ kinh doanh/Tên
+   * Công ty* (đo trên Chromium: 191,6px), nên nhãn xuống hai dòng ở mọi bề rộng
+   * thẻ. Bản sửa thôi ghi con số: `auto` để trình duyệt tự đo bằng phông nó thật
+   * sự vẽ — mà `auto` chỉ nói được điều đó khi CẢ DANH SÁCH dùng chung một lưới.
+   *
+   * jsdom không tính bố cục, nên thứ đo được là bốn mảnh phải khớp nhau. Ba mảnh
+   * đầu là một cơ chế chứ không phải ba lựa chọn rời: bỏ mảnh nào thì hai mảnh
+   * kia thành vô nghĩa mà trang vẫn dựng được — lưới trở về từng hàng thì mỗi
+   * hàng tự đo cột của nó và nhãn thôi thẳng cột, còn thiếu mảnh thứ tư thì cả
+   * ba thành mã chết, đúng kiểu hỏng `0176` đã ghi.
    */
-  it('khối khách hàng có cột nhãn RỘNG HƠN, và class thật sự nằm trên khối', async () => {
+  it('cột nhãn khối khách hàng đo từ NỘI DUNG, và class thật sự nằm trên khối', async () => {
     const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
-    const khoi = (re: RegExp): string[] =>
-      [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter((m) => re.test(m[1]!)).map((m) => m[2]!);
+    /** Cắt thô thành từng luật; bỏ chú thích khỏi phần chọn để so tên cho khớp. */
+    const luat = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
+      chon: m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
+      than: m[2]!,
+    }));
+    const than = (ten: string): string[] =>
+      luat.filter((x) => x.chon === ten).map((x) => x.than);
 
-    // Vế 1: luật chung ĐỌC biến, không ghi cứng con số trở lại.
-    const chung = khoi(/\.tom-tat-nhom dl > div/);
-    expect(chung.length, 'không tìm thấy luật cho `.tom-tat-nhom dl > div`').toBeGreaterThan(0);
-    expect(chung.some((x) => /grid-template-columns:\s*var\(--cot-nhan/.test(x))).toBe(true);
+    // Vế 1: LƯỚI Ở `dl` — một vệt cột cho cả danh sách — và nó ĐỌC biến.
+    const dl = than('.tom-tat-nhom dl');
+    expect(dl.length, 'không tìm thấy luật cho `.tom-tat-nhom dl`').toBeGreaterThan(0);
+    expect(
+      dl.some((x) => /grid-template-columns:\s*var\(--cot-nhan/.test(x)),
+      '`.tom-tat-nhom dl` phải khai lưới hai cột và ĐỌC `--cot-nhan`',
+    ).toBe(true);
 
-    // Vế 2: khối khách hàng khai biến ấy, và khai RỘNG HƠN mức chung 7.5rem.
-    const rieng = khoi(/\.tom-tat-khach/)
-      .map((x) => x.match(/--cot-nhan:\s*([\d.]+)rem/)?.[1])
-      .filter((x): x is string => x !== undefined)
-      .map(Number);
-    expect(rieng.length, '`.tom-tat-khach` không khai `--cot-nhan`').toBeGreaterThan(0);
-    expect(Math.max(...rieng)).toBeGreaterThan(7.5);
+    // Vế 2: hàng `<div>` TRONG SUỐT, nếu không thì `dt`/`dd` không phải ô của
+    // lưới ấy và cả hàng dồn vào cột nhãn.
+    const hang = than('.tom-tat-nhom dl > div');
+    expect(hang.length, 'không tìm thấy luật cho `.tom-tat-nhom dl > div`').toBeGreaterThan(0);
+    expect(
+      hang.some((x) => /display:\s*contents/.test(x)),
+      'hàng `<div>` phải `display: contents` để `dt`/`dd` là ô của lưới ở `dl`',
+    ).toBe(true);
 
-    // Vế 3: class nằm trên đúng khối Khách hàng, không phải khối Hồ sơ.
+    // Vế 3: khối khách hàng khai `auto` — KHÔNG một con số nào — và chỉ khổ điện
+    // thoại mới đặt trần cố định, vì ở đó câu trả lời ngược lại.
+    const khach = than('.tom-tat-khach').map((x) => x.match(/--cot-nhan:\s*([^;]+);/)?.[1]?.trim());
+    expect(khach[0], '`.tom-tat-khach` phải đo cột nhãn từ nội dung').toBe('auto');
+    expect(khach.slice(1).every((x) => x !== undefined && /^[\d.]+rem$/.test(x))).toBe(true);
+
+    // Vế 4: class nằm trên đúng khối Khách hàng, không phải khối Hồ sơ.
     await mo();
     const nhom = document.querySelector('.tom-tat-khach');
     expect(nhom, 'không khối nào mang class `tom-tat-khach`').not.toBeNull();

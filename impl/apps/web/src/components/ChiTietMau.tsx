@@ -45,10 +45,14 @@ const nhanNguon = (khoa: string): string => NHAN_KHOA[khoa] ?? khoa;
 /**
  * Một ô nhãn–giá trị trong khối tóm tắt.
  *
- * Bản sao của `O` trong `ChiTietHoSo` — hàm ấy là hàm cục bộ, không xuất ra. Ba
- * dòng, và `<div>` bọc là bắt buộc chứ không phải thói quen: lưới CSS của
- * `.tom-tat-nhom dl` xếp theo phần tử con, nên `<dt>` với `<dd>` trần thành hai
- * ô rời nhau ở hai hàng khác nhau.
+ * Bản sao của `O` trong `ChiTietHoSo` — hàm ấy là hàm cục bộ, không xuất ra.
+ *
+ * `<div>` bọc KHÔNG còn là thứ dựng nên hàng (`0179`): lưới nằm ở `.tom-tat-nhom
+ * dl` và hàng `<div>` mang `display: contents`, nên `<dt>` với `<dd>` là ô của
+ * chính lưới ấy dù có bọc hay không. Giữ nó vì hai lý do: nó gom một cặp
+ * nhãn–giá trị lại thành một đơn vị cho phép quét DOM của bộ kiểm
+ * (`dt.parentElement.querySelector('dd')`), và bỏ đi thì mỗi chỗ dùng phải nhớ
+ * rằng thứ tự nguồn LÀ thứ tự ô.
  */
 function O({ nhan, children }: { nhan: string; children: ReactNode }) {
   return (

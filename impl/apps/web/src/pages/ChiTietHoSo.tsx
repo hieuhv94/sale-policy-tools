@@ -884,8 +884,9 @@ function HopThoaiHanhDong({
  * Một ô "nhãn — giá trị" trong lưới thông tin.
  *
  * `<div>` bọc quanh cặp `<dt>/<dd>`: đó là cách hợp lệ duy nhất để gom một cặp
- * trong `<dl>`, và không có nó thì lưới CSS xếp nhãn với giá trị thành hai ô rời
- * nhau — nhãn của ô này nằm cạnh giá trị của ô kia.
+ * trong `<dl>`. Từ `0179` nó KHÔNG còn dựng nên hàng — lưới nằm ở `dl` và hàng
+ * mang `display: contents`, vì chỉ một lưới dùng chung mới đo được cột nhãn
+ * theo nội dung; hàng vẫn đúng vì mỗi cặp góp đúng hai ô theo thứ tự nguồn.
  */
 function O({ nhan, children }: { nhan: string; children: ReactNode }) {
   return (

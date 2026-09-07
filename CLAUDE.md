@@ -85,9 +85,27 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (06/09/2026)
+## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P206** (`0178`): **rà soát tài liệu theo triển khai thật**, và ba tệp trôi ba mức
+Chặng gần nhất **P207** (`0179`): **cột nhãn khối *Khách hàng* trên trang hồ sơ đo TỪ NỘI DUNG**, để
+*Tên Hộ kinh doanh/Tên Công ty* thôi xuống dòng. Đo trước khi sửa, trên Chromium thật (Gotenberg dựng
+riêng **không** có `--chromium-disable-javascript`, nạp CHÍNH `tokens.css` + `app.css` của repo): nhãn
+cần **191,6px**, `0177` đặt **11rem = 176px** — nên nó xuống hai dòng ở **MỌI** bề rộng thẻ (640 · 520
+· 420 · 320px đều 2 dòng), không riêng màn hình hẹp; `0177` ghi nhầm nguyên nhân là *"khối này cần cột
+rộng hơn"*. **Không nới thành 12rem**: `system-ui` là phông của MÁY người dùng (Segoe UI · Roboto ·
+DejaVu), nên mọi con số ở đây là một phép **đo hộ trình duyệt**, đúng cho đúng một phông — `auto` để
+nó tự đo, cùng lối `0172` bỏ hằng số bề rộng cột bảng sản phẩm. Chỗ tốn công: **`auto` chỉ nói được
+*"rộng bằng nhãn dài nhất"* khi CẢ DANH SÁCH dùng chung MỘT lưới** — lưới cũ đặt ở TỪNG HÀNG nên mỗi
+hàng tự đo cột của nó và khối thành hình răng cưa; lưới dời lên `dl`, hàng `<div>` mang
+`display: contents`. **Ba mảnh ấy là một cơ chế, không phải ba lựa chọn rời**: bỏ mảnh nào thì hai
+mảnh kia thành vô nghĩa mà trang vẫn dựng ra được. Kéo theo chú thích của `O` ở **cả hai** chỗ dùng —
+chúng khẳng định `<div>` bọc dựng nên hàng, từ nay sai (giữ `<div>` vì bộ kiểm quét
+`dt.parentElement`). Khổ điện thoại **giữ 7.5rem và đó là luật NGƯỢC LẠI**: `auto` không bao giờ chịu
+xuống dòng nên trên thẻ rộng bằng màn hình nó lấy 192px; ở khổ ấy nhãn hai dòng dễ đọc hơn địa chỉ bị
+bẻ vụn. Ca `0177` phải **THAY chứ không sửa số** — nó khẳng định *"lớn hơn 7.5rem"*, một câu về CON
+SỐ, mà lượt này bỏ hẳn con số. **2002/2002 xanh.**
+
+Trước đó **P206** (`0178`): **rà soát tài liệu theo triển khai thật**, và ba tệp trôi ba mức
 khác hẳn nhau. `impl/docs/` **khớp** (theo kịp `0177` — vì mỗi chặng bắt sửa chúng), lệch đúng một CON
 SỐ. `YEU-CAU-NGHIEP-VU-CSBH.md` có **một lệch nặng và nó TỰ MÂU THUẪN**: mục 4 vẫn liệt kê `Từ chối`
 là trạng thái hiện hành trong khi Phụ lục B của chính nó viết *"BỎ HẲN"* — `0155` sửa Phụ lục B mà bỏ

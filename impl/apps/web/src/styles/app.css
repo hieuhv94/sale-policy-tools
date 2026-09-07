@@ -1559,23 +1559,37 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   font-size: var(--chu-thuong);
   margin: 0 0 var(--k3);
 }
-.tom-tat-nhom dl { margin: 0; display: grid; gap: var(--k2); }
-/* Nhãn và giá trị trên MỘT dòng, nhãn cột trái rộng cố định. Xếp dọc thì sáu ô
-   thành mười hai dòng và thẻ cao gấp đôi thứ nó nói. */
-.tom-tat-nhom dl > div {
+/* Nhãn và giá trị trên MỘT dòng, nhãn cột trái. Xếp dọc thì sáu ô thành mười hai
+   dòng và thẻ cao gấp đôi thứ nó nói.
+
+   LƯỚI ĐẶT Ở `dl`, KHÔNG Ở TỪNG HÀNG (`0179`). Lưới riêng cho mỗi hàng thì mỗi
+   hàng tự đo cột nhãn của nó, nên cột chỉ thẳng hàng chừng nào bề rộng là một
+   CON SỐ ghi cứng — tức chừng nào không ai được đo cột theo nội dung. Một lưới
+   cho cả danh sách thì mọi hàng dùng chung một vệt cột, và `auto` mới nói được
+   *"rộng bằng nhãn dài nhất"*. Hàng `<div>` phải trong suốt để `<dt>`/`<dd>`
+   thành ô của chính lưới ấy. */
+.tom-tat-nhom dl {
+  margin: 0;
   display: grid;
   grid-template-columns: var(--cot-nhan, 7.5rem) minmax(0, 1fr);
-  gap: var(--k3);
+  row-gap: var(--k2);
+  column-gap: var(--k3);
   align-items: baseline;
 }
-/* Khối KHÁCH HÀNG cần cột nhãn rộng hơn (`0177`): *Tên Hộ kinh doanh/Tên Công
-   ty* dài gấp đôi nhãn dài nhất của khối Hồ sơ, và ở 7.5rem nó xuống ba dòng
-   cạnh một giá trị một dòng.
+.tom-tat-nhom dl > div { display: contents; }
+/* Khối KHÁCH HÀNG đo cột nhãn TỪ NỘI DUNG (`0179`), các khối khác giữ 7.5rem.
 
-   Biến đặt trên KHỐI chứ không nới con số chung: nới chung là đẩy giá trị ra xa
-   nhãn ở cả khối Hồ sơ, nơi mọi nhãn đều ngắn. Cùng lẽ với `0176` — chữa ở chỗ
-   hỏng, không ở luật dùng chung. */
-.tom-tat-khach { --cot-nhan: 11rem; }
+   `0177` đặt 11rem cho khối này và con số ấy THIẾU: đo trên Chromium thật, *Tên
+   Hộ kinh doanh/Tên Công ty* ở `--chu-nho` chiếm 191,6px, còn 11rem là 176px —
+   nên nhãn xuống hai dòng ở MỌI bề rộng thẻ, không riêng màn hình hẹp. Nới con
+   số lên 12rem là chữa cho đúng một phông: `system-ui` là phông của MÁY người
+   dùng (Segoe UI trên Windows, Roboto trên Android, DejaVu trên Linux), mỗi
+   phông một bề rộng, nên bất kỳ con số nào cũng là một phép đo hộ trình duyệt.
+   `auto` để chính trình duyệt đo, và nó đo bằng phông đang thật sự vẽ.
+
+   Giá: cột giá trị hẹp đi đúng 15,6px trên thẻ hẹp nhất (đo được: 132 → 116px ở
+   thẻ 320px). Chấp nhận — giá trị vẫn xuống dòng được, nhãn thì không. */
+.tom-tat-khach { --cot-nhan: auto; }
 .tom-tat-nhom dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
 .tom-tat-nhom dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
@@ -1972,9 +1986,12 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   .luoi-loc { grid-template-columns: 1fr; }
 
   .the-so { grid-template-columns: 1fr; }
-  /* Điện thoại: trả cột nhãn của khối khách hàng về mức chung (`0177`). 11rem
-     trên một thẻ rộng bằng màn hình chỉ còn chừa hơn trăm pixel cho giá trị —
-     nhãn xuống hai dòng còn dễ đọc hơn một địa chỉ bị bẻ vụn. */
+  /* Điện thoại: trả cột nhãn của khối khách hàng về mức chung (`0177`, giữ ở
+     `0179`). Đây là chỗ DUY NHẤT còn ghi một con số, và cố ý: `auto` không bao
+     giờ chịu xuống dòng, nên trên một thẻ rộng bằng màn hình nó lấy 192px và
+     chừa hơn trăm pixel cho giá trị. Nhãn xuống hai dòng còn dễ đọc hơn một địa
+     chỉ bị bẻ vụn — tức ở khổ này câu trả lời NGƯỢC với khổ máy tính, nên phải
+     là hai luật chứ không một. */
   .tom-tat-khach { --cot-nhan: 7.5rem; }
   .viec-han { margin-left: 0; width: 100%; }
   .thanh-nhan { flex-basis: 6rem; }

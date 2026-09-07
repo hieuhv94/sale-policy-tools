@@ -15538,3 +15538,87 @@ thẳng số dòng.
 > xanh 2002/2002, nhưng con số ấy không đáng tin — nên đã chạy lại MỘT lượt sạch, không đụng gì.
 > `CLAUDE.md` viết cảnh báo này cho cặp demo/test và cho hai lượt test với nhau; lần này là lượt test
 > nền với lượt test tay, cùng một cái bẫy.
+
+## P207 — `0179` cột nhãn khối *Khách hàng* đo từ nội dung, nhãn dài thôi xuống dòng
+
+Khách hàng: *"phần thông tin của khách trong trang CSBH, căn lại độ rộng cột để «Tên Hộ kinh
+doanh/Tên Công ty» không phải xuống dòng"*. Một dòng CSS đổi chỗ, và một con số bị bỏ đi.
+
+### `0177` đặt 11rem, và con số ấy thiếu 15,6px
+
+Đo trước khi sửa, trên Chromium thật (Gotenberg dựng riêng một container **không** có
+`--chromium-disable-javascript`, nạp **chính `tokens.css` + `app.css` của repo** rồi dựng đúng khối
+`section.tom-tat-nhom.tom-tat-khach > dl`, đếm dòng bằng `Range.getClientRects().length`):
+
+| | cột nhãn | số dòng của *Tên Hộ kinh doanh/Tên Công ty* |
+|---|---|---|
+| `0177` (11rem) | 176,0px | **2** ở cả bốn bề rộng thẻ 640 · 520 · 420 · 320px |
+| `0179` (`auto`) | 191,6px | **1** ở cả bốn |
+
+Nhãn cần **191,6px**. Nên đây không phải chuyện màn hình hẹp — nó xuống dòng ở **mọi** bề rộng thẻ,
+kể cả màn hình rộng nhất, và `0177` đã ghi nhầm nguyên nhân là "khối này cần cột rộng hơn" trong khi
+việc phải làm là thôi đoán bề rộng.
+
+### Vì sao không nới thành 12rem
+
+`system-ui` là phông của **máy người dùng** — Segoe UI trên Windows, Roboto trên Android, DejaVu trên
+Linux. 191,6px là số đo của phông trong ảnh Gotenberg; máy khách hàng cho một số khác. Mọi con số ghi
+vào CSS ở đây đều là một phép **đo hộ trình duyệt**, và nó đúng cho đúng một phông. `auto` để chính
+trình duyệt đo, bằng phông nó đang thật sự vẽ — cùng lối `0172` đã chọn cho bề rộng cột bảng sản
+phẩm: đo từ nội dung, bỏ hằng số.
+
+### `auto` chỉ nói được điều đó khi CẢ DANH SÁCH dùng chung MỘT lưới
+
+Chỗ tốn công nằm ở đây, và nó là lý do bản sửa không phải một dòng. Lưới cũ đặt ở **từng hàng**
+(`.tom-tat-nhom dl > div`), nên mỗi hàng tự đo cột nhãn của nó. Với một con số ghi cứng thì tám lưới
+rời nhau vẫn thẳng cột — tình cờ đúng, vì tám lưới cùng đọc một hằng. Đặt `auto` vào đó thì mỗi hàng
+rộng bằng nhãn **của chính nó**: *Mã* một cột hẹp, *Tên Hộ kinh doanh/Tên Công ty* một cột rộng, và
+khối thông tin thành hình răng cưa.
+
+Nên lưới dời lên `dl` — một vệt cột cho cả danh sách — và hàng `<div>` mang `display: contents` để
+`<dt>`/`<dd>` thành ô của chính lưới ấy. **Ba mảnh này là một cơ chế, không phải ba lựa chọn rời**:
+bỏ mảnh nào thì hai mảnh kia thành vô nghĩa mà trang vẫn dựng ra được, không có gì hỏng để mà nhìn
+thấy.
+
+Kéo theo: chú thích của `O` ở **cả hai** chỗ dùng (`ChiTietHoSo`, `ChiTietMau`) đang khẳng định
+`<div>` bọc là thứ dựng nên hàng — từ lượt này thì không còn đúng. `<div>` vẫn giữ (nó gom một cặp
+cho phép quét DOM `dt.parentElement.querySelector('dd')` của bộ kiểm), nhưng lý do đã khác và chú
+thích phải nói ra, không thì người sau đọc một câu sai ở đúng chỗ họ tra.
+
+### Khổ điện thoại giữ con số, và đó là một luật NGƯỢC LẠI
+
+`@media (max-width: 639px)` vẫn đặt `--cot-nhan: 7.5rem`. Không phải sót: `auto` **không bao giờ chịu
+xuống dòng**, nên trên thẻ rộng bằng màn hình nó lấy 192px và chừa hơn trăm pixel cho giá trị. Ở khổ
+ấy câu trả lời đúng ngược lại — nhãn xuống hai dòng còn dễ đọc hơn một địa chỉ bị bẻ vụn. Hai khổ,
+hai luật; gộp làm một là phải hy sinh một trong hai.
+
+Giá phải trả ở khổ máy tính bảng, đã đo: cột giá trị hẹp đi **15,6px** (132 → 116px trên thẻ 320px).
+Chấp nhận — giá trị xuống dòng được, nhãn thì không, và đó chính là câu khách hàng vừa nói.
+
+### Ca kiểm: bốn vế, vì jsdom không tính bố cục
+
+Ca `0177` phải **thay chứ không sửa số** — nó khẳng định *"khối khách hàng khai `--cot-nhan` LỚN HƠN
+7.5rem"*, một câu nói về con số, mà lượt này bỏ hẳn con số. Ca mới canh bốn mảnh: lưới nằm ở `dl` và
+**đọc** biến · hàng `display: contents` · khối khách hàng khai `auto` (không một con số nào) · class
+thật sự có mặt trên `<section>` của khối *Khách hàng*. Vế thứ tư giữ nguyên tinh thần `0176`: thiếu
+nó thì ba vế kia thành mã chết.
+
+Phép đo thật thì nằm ngoài bộ kiểm — bảng số ở đầu mục này, dựng bằng chính CSS trong repo, trước và
+sau.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `.tom-tat-khach` quay về `11rem` | 1 đỏ, vế 3, nêu đúng `expected '11rem' to be 'auto'` |
+| Hàng `display: block` thay vì `contents` | 1 đỏ, vế 2 |
+| Lưới ghi cứng `7.5rem`, thôi đọc biến | 1 đỏ, vế 1 |
+| Gỡ class `tom-tat-khach` khỏi `<section>` | 1 đỏ, vế 4 |
+
+Hai vế giữa lúc đầu cùng in ra `expected false to be true` — không phân biệt được vế nào — nên đã
+thêm câu cho từng `expect`.
+
+Tài liệu **không đổi**: bề rộng một cột không phải luật nghiệp vụ, và nhãn *Tên Hộ kinh doanh/Tên
+Công ty* đã có ở `YEU-CAU-NGHIEP-VU-CSBH.md` (Phụ lục B, `0175`) lẫn `03-HUONG-DAN-SU-DUNG.md`.
+
+**2002/2002 xanh.**
