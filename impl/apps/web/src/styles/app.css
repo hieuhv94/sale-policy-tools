@@ -2475,6 +2475,19 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    tiêu đề khối thứ hai trông như một dòng chú thích của lưới phía trên. */
 .khoi-tep + .khoi-tep { margin-top: var(--k5); }
 
+/* Khối tệp của PHIÊN BẢN TRƯỚC (`0183`) — một vạch dọc để mắt biết nó thuộc về
+   một hồ sơ KHÁC.
+
+   Khoảng cách một mình không đủ: ba khối tệp liền nhau, cùng cỡ tiêu đề, đọc ra
+   như ba nhóm tệp của cùng một hồ sơ — và người duyệt mở khối này ra chính là để
+   đối chiếu hai hồ sơ, nên nhầm chúng là hỏng đúng việc họ đang làm. Vạch chứ
+   không nền: nền thứ hai trên một trang đã có thẻ và hộp cảnh báo là một tầng
+   màu nữa phải nhớ trong giao diện tối. */
+.khoi-ban-truoc {
+  border-left: 3px solid var(--mau-vien);
+  padding-left: var(--k3);
+}
+
 /* Lưới thẻ: tệp đã có, rồi tới vùng tải lên ở cuối cùng hàng.
 
    `auto-fill` với bề rộng tối thiểu chứ không phải số cột cố định: danh sách này

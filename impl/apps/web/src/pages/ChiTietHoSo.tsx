@@ -14,6 +14,7 @@ import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
+import { TepBanTruoc, type BanTruocDto } from '../components/TepBanTruoc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
@@ -139,6 +140,16 @@ type HoSo = {
   rowVersion: number;
   lines: DongSanPham[];
   attachments: TepDto[];
+  /**
+   * Bản mềm và file scan của phiên bản LIỀN TRƯỚC (`0183`).
+   *
+   * `null` khi hồ sơ chưa đi trong luồng duyệt, hoặc không có phiên bản trước —
+   * máy chủ quyết định cả hai, giao diện không suy lại từ `status`.
+   *
+   * Tuỳ chọn vì máy chủ cũ hơn giao diện không gửi trường này; giá trị lùi
+   * `undefined` là KHÔNG hiện khối, tức không hứa một thứ chưa có.
+   */
+  banTruoc?: BanTruocDto | null;
 };
 
 export function ChiTietHoSo({ id }: { id: string }) {
@@ -643,6 +654,19 @@ export function ChiTietHoSo({ id }: { id: string }) {
         taoBanMem={() => datMoTaoBanMem('tep')}
         taiLai={taiLai}
       />
+
+      {/*
+        BẢN MỀM VÀ BẢN CỨNG CỦA PHIÊN BẢN TRƯỚC (`0183`) — ngay dưới hai khối
+        của chính hồ sơ này, và ngay trên *Lịch sử*.
+
+        Chỗ đứng theo đúng chiều đọc: người duyệt xem thứ họ đang phải duyệt
+        trước, rồi mới tới thứ để đối chiếu. Đặt lên trên là bắt họ đọc tờ giấy
+        cũ trước tờ giấy mới.
+
+        `banTruoc` là `null` ở mọi hồ sơ không có gì để so — MÁY CHỦ quyết định,
+        xem `TepBanTruoc`.
+      */}
+      {hoSo.banTruoc && <TepBanTruoc banTruoc={hoSo.banTruoc} />}
 
       <LichSuGap hoSoId={hoSo.id} />
 

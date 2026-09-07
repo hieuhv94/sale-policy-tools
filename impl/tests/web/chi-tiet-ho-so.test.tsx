@@ -1012,6 +1012,86 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     ]);
   });
 
+  it('`0183` khối TỆP CỦA PHIÊN BẢN TRƯỚC: chỉ đọc, và nằm ngay trên Lịch sử', async () => {
+    /*
+     * Khách hàng chốt 07/09: hồ sơ sửa đổi/bổ sung đang đi trong luồng thì bày
+     * bản mềm và bản cứng của phiên bản trước để TBP và Kế toán đối chiếu.
+     *
+     * Ca này canh BA vế, và vế thứ ba là vế dễ mất nhất:
+     *
+     *   1. khối có mặt, đúng chỗ — sau hai khối của chính hồ sơ, trước *Lịch sử*;
+     *   2. nó nói rõ mình thuộc hồ sơ NÀO, và bấm sang được;
+     *   3. nó KHÔNG ghi được: không ô chọn file, không dấu ✕.
+     *
+     * Thiếu vế ba thì một bản sửa dùng lại `TepDinhKem` cho khối này vẫn xanh —
+     * và khi ấy người duyệt gỡ được tệp của một hồ sơ đã ký.
+     */
+    await moSa({
+      banTruoc: {
+        id: 'hs-cu',
+        code: 'CSBH-2026-000001',
+        versionNo: 1,
+        attachments: [
+          {
+            id: 'bt-1',
+            kind: 'BAN_MEM',
+            fileName: 'ban-mem-v1.pdf',
+            objectKey: 'banmem/hs-cu.pdf',
+            uploadedAt: '2026-08-01T03:00:00.000Z',
+          },
+          {
+            id: 'bt-2',
+            kind: 'SCAN',
+            fileName: 'ban-cung-v1.pdf',
+            objectKey: 'scan/hs-cu.pdf',
+            uploadedAt: '2026-08-02T03:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    const muc = [...document.querySelectorAll('h2')].map((e) => e.textContent);
+    expect(muc).toEqual([
+      'Hồ sơ',
+      'Khách hàng',
+      'Sản phẩm',
+      'Hồ sơ pháp lý của khách hàng',
+      'Bản mềm',
+      'File SCAN bản cứng',
+      'Bản mềm và bản cứng của phiên bản trước',
+      'Lịch sử',
+    ]);
+
+    const khoi = document.querySelector('.khoi-ban-truoc') as HTMLElement;
+    expect(khoi, 'không có khối tệp bản trước').not.toBeNull();
+
+    // Vế 2: nói rõ hồ sơ nào, và bấm sang được.
+    const lien = within(khoi).getByRole('link', { name: 'CSBH-2026-000001' });
+    expect(lien.getAttribute('href')).toBe('/ho-so/hs-cu');
+
+    // Cả hai tệp có mặt, và mỗi thẻ nói mình là loại gì — khối này trộn hai loại
+    // nên tiêu đề khối không nói hộ được (khác `0097`).
+    expect(within(khoi).getByText('ban-mem-v1.pdf')).toBeDefined();
+    expect(within(khoi).getByText('ban-cung-v1.pdf')).toBeDefined();
+    expect(khoi.textContent).toContain('Bản mềm ·');
+    expect(khoi.textContent).toContain('File SCAN bản cứng ·');
+
+    // Vế 3: CHỈ ĐỌC.
+    expect(khoi.querySelector('input[type="file"]'), 'khối chỉ đọc mà nhận file').toBeNull();
+    expect(khoi.querySelector('.the-tep-go'), 'khối chỉ đọc mà có dấu ✕').toBeNull();
+  });
+
+  it('`0183` KHÔNG có bản trước thì không có khối nào — máy chủ quyết định', async () => {
+    /*
+     * Chiều đối chiếu. Giao diện KHÔNG tự suy từ `status`: `banTruoc` rỗng là
+     * câu trả lời đầy đủ, và nó cũng chính là điều kiện mà phép nới quyền bên
+     * `document` dùng. Hai chỗ tự suy là hai chỗ sẽ lệch — khối hiện ra rồi mỗi
+     * tệp trong nó trả 403.
+     */
+    await moSa();
+    expect(document.querySelector('.khoi-ban-truoc')).toBeNull();
+  });
+
   it('nút TẠO BẢN MỀM chỉ hiện cho người ghi được, và nó KHÔNG phải ô chọn file', async () => {
     /*
      * Bản mềm không nằm sẵn trên máy ai để mà chọn — nó dựng ra từ dữ liệu hồ sơ

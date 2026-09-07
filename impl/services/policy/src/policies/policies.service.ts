@@ -356,6 +356,20 @@ export const DA_DONG_BANG = [
 ];
 
 /**
+ * ĐANG ĐI TRONG LUỒNG DUYỆT — bốn bàn làm việc, không hơn (`0183`).
+ *
+ * Tập này khác `DA_DONG_BANG` đúng hai trạng thái, và cả hai đều bị loại có lý
+ * do: `DANG_CO_HIEU_LUC` là hồ sơ đã duyệt xong, `QUA_HAN_DUYET` là trạng thái
+ * KẾT THÚC (`18/08`) — không ai thao tác nữa.
+ *
+ * `YEU_CAU_CHINH_SUA` cũng KHÔNG nằm đây, và đó là chỗ đáng nói: hồ sơ ấy đã
+ * quay về bàn TDV. Khách hàng chốt 07/09 rằng khối so sánh chỉ hiện *"khi đang
+ * trong luồng duyệt"*, nên nó tắt trong lúc TDV sửa và bật lại ngay lượt gửi
+ * tiếp theo.
+ */
+export const DANG_TRONG_LUONG = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'];
+
+/**
  * `date` của Postgres về tới đây thành `Date`; catalog nhận chuỗi `yyyy-mm-dd`.
  *
  * `toISOString()` đổi sang UTC trước khi cắt, và với một `Date` dựng từ cột
@@ -1839,6 +1853,47 @@ export class PoliciesService {
       [policyId],
     )) as Record<string, unknown>[];
 
+    /*
+     * TỆP CỦA PHIÊN BẢN LIỀN TRƯỚC (`0183`, chốt 07/09).
+     *
+     * Khách hàng: *"khi một CSBH sửa đổi/bổ sung được gửi vào luồng duyệt thì
+     * vẫn cần hiển thị bản mềm và bản cứng đã lưu ở phiên bản ngay trước đó cho
+     * TBP và Kế toán xem và so sánh"*.
+     *
+     * HAI ĐIỀU KIỆN, và cả hai đều ở đây chứ không ở giao diện:
+     *
+     *   - hồ sơ ĐANG ĐI TRONG LUỒNG (`DANG_TRONG_LUONG`) — khách hàng chốt thế,
+     *     nên khối tắt lúc còn *Nháp*, lúc bị trả lại, và sau khi duyệt xong;
+     *   - có `supersedes_id` — hồ sơ đầu tiên của một khách không có gì để so.
+     *
+     * CHỈ HAI LOẠI: `BAN_MEM` và `SCAN`. Giấy tờ `HO_SO` của bản cũ đã được CHÉP
+     * sang bản mới lúc lập (`0148`), nên bày lại là bày hai lần cùng một tệp.
+     *
+     * Trả `null` chứ không mảng rỗng khi không có bản trước: giao diện phân biệt
+     * được *"không có phiên bản trước"* với *"có, nhưng bản ấy chưa lưu tệp
+     * nào"* — hai câu khác nhau, và câu thứ hai đáng nói ra.
+     */
+    const banTruoc =
+      p.supersedes_id !== null && DANG_TRONG_LUONG.includes(p.status)
+        ? (
+            (await q(
+              `SELECT c.id, c.code, c.version_no AS "versionNo",
+                      coalesce(
+                        (SELECT jsonb_agg(jsonb_build_object(
+                                  'id', a.id, 'kind', a.kind::text,
+                                  'fileName', a.file_name, 'objectKey', a.object_key,
+                                  'uploadedAt', a.uploaded_at
+                                ) ORDER BY a.uploaded_at)
+                           FROM pol.policy_attachment a
+                          WHERE a.policy_id = c.id AND a.kind IN ('BAN_MEM','SCAN')),
+                        '[]'::jsonb
+                      ) AS attachments
+                 FROM pol.policy c WHERE c.id = $1`,
+              [p.supersedes_id],
+            )) as Record<string, unknown>[]
+          )[0] ?? null
+        : null;
+
     return {
       id: p.id,
       code: p.code,
@@ -1902,6 +1957,8 @@ export class PoliciesService {
       nguoiDeNghiSnap: (p as unknown as { nguoi_de_nghi_snap: string | null }).nguoi_de_nghi_snap,
       lines,
       attachments,
+      /** `0183` — bản mềm và file scan của phiên bản liền trước, để đối chiếu. */
+      banTruoc,
     };
   }
 

@@ -87,7 +87,21 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (07/09/2026)
 
-Chặng gần nhất **P210** (`0182`): dòng *Tên khách hàng* trên văn bản mẫu nối **năm phần** — *người
+Chặng gần nhất **P211** (`0183`): **bản mềm và bản cứng của PHIÊN BẢN TRƯỚC** hiện trên hồ sơ đang
+duyệt, chỉ đọc. Chốt chặn có thật làm chặng này không phải một lượt sửa giao diện: quyền đọc tệp tính
+theo **bốn cột người của chính hồ sơ chủ tệp** (`0031`), mà `0141` cho mỗi phiên bản chọn người duyệt
+riêng — nên đúng những lượt đổi người giữa hai bản, tức đúng lúc cần đối chiếu nhất, khối sẽ đầy thẻ
+tệp mà bấm vào cái nào cũng 403. `assertCanRead` giờ có hai mức (`DAY_DU` · `BAN_TRUOC`) lấy trong
+**một** lời gọi `policy` vốn đã có; khe siết bằng ba vế: chỉ ĐỌC (`assertCanWrite` đi đường riêng),
+chỉ hai loại (`BAN_CSBH`/`SCAN`), và `listFor` **lọc danh sách** chứ không để giao diện tự giấu.
+`purpose` phải đi cùng ở **ba** đường đọc — `meta`, `link`, **và `read`**. Component RIÊNG chứ không
+thêm khối vào `TepDinhKem`: nó đóng đinh vào `hoSoId` ở sáu chỗ, và gọi nhầm id ở đường `go` là gỡ
+mất tệp của bản đã ký. **Phá lại lộ một ca xanh vì lý do sai**: ca *"không gỡ được"* gọi `DELETE
+/files/:id` bằng TBP, mà đường ấy chặn ở tầng VAI TRÒ trước khi tới phạm vi — bộ tài khoản mẫu không
+dựng nổi người vừa ở mức `BAN_TRUOC` vừa có vai trò ghi, nên ca viết lại hỏi **thẳng hai hàm** qua
+container Nest. **2034/2034 xanh.**
+
+Trước đó **P210** (`0182`): dòng *Tên khách hàng* trên văn bản mẫu nối **năm phần** — *người
 đại diện – tên pháp nhân – số nhà/phường xã – tỉnh thành phố – MST*. Hai phần thêm vào, và mỗi phần
 **đảo lại một quyết định cũ ở đúng chỗ nó hết đúng**: `ten_khach_hang` quay lại tờ giấy (`0171` bỏ nó
 vì khi ấy hai cái tên tranh MỘT chỗ; chuỗi năm phần cho cả hai một chỗ riêng, nên cái giá `0171` ghi

@@ -84,6 +84,15 @@ export type PolicyFull = {
    * ngăn (`0177`), và cũng KHÔNG rơi về đọc sống, vì địa chỉ hôm nay không phải
    * địa chỉ lúc gửi.
    */
+  /**
+   * Người được đọc tệp hồ sơ này với tư cách "bản trước" (`0183`).
+   *
+   * Bốn cột người của mọi hồ sơ KẾ NHIỆM đang đi trong luồng duyệt. Tuỳ chọn vì
+   * `policy` cũ hơn `document` không gửi nó — giá trị lùi là mảng rỗng, tức
+   * KHÔNG nới quyền cho ai. Đoán sai theo hướng này thì một người nhận 403 và
+   * biết mình thiếu quyền; đoán sai hướng kia thì tệp lộ ra ngoài phạm vi.
+   */
+  nguoi_xem_ban_truoc?: string[];
   kh_so_nha_snap: string | null;
   kh_tinh_thanh_snap: string | null;
   kh_noi_nhan_hang_snap: string | null;

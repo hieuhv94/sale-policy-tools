@@ -102,7 +102,9 @@ export class FilesController {
   @Get(':id')
   async meta(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
-    await this.files.assertCanRead(row.owner_kind, row.owner_id, me);
+    // `0183` — `purpose` đi cùng: người ở mức *bản trước* chỉ đọc được bản mềm
+    // và file scan, và chỗ duy nhất biết tệp này thuộc loại nào là chính `row`.
+    await this.files.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
     return view(row);
   }
 
@@ -111,7 +113,7 @@ export class FilesController {
   async link(@CurrentUser() me: AuthUser, @Param('id') id: string) {
     const row = await this.files.row(id);
     // ĐỌC: đây là bước một của lượt tải xuống (`DOC-09`), không phải lượt ghi nào.
-    await this.files.assertCanRead(row.owner_kind, row.owner_id, me);
+    await this.files.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
     return {
       url: `/files/${id}/content?t=${encodeURIComponent(mintFileToken(id, me.id))}`,
       expiresInSec: FILE_LINK_TTL_SEC,

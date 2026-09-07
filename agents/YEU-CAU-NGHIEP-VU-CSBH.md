@@ -2049,6 +2049,33 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > (khách hàng chốt riêng khi được hỏi): chúng trả lời câu *"bản này khác bản trước ở đâu"* — việc của
 > người đang duyệt, không phải nội dung của một chính sách đem ký. Mẫu nào cần thì tự tích.
 
+**Bản mềm và bản cứng của PHIÊN BẢN TRƯỚC hiện trên hồ sơ đang duyệt** `mới 07/09` — *"Khi một chính
+sách bán hàng được sửa đổi/bổ sung được TDV gửi vào luồng duyệt, khi đó vẫn cần phải hiển thị CSBH
+bản mềm và bản cứng đã được lưu ở phiên bản ngay trước đó cho TBP và Kế toán có thể xem và so sánh"*.
+
+> Một khối **CHỈ ĐỌC** trên trang hồ sơ, ngay dưới *Bản mềm* và *File SCAN bản cứng* của chính hồ sơ
+> ấy, và ngay trên *Lịch sử*. Nó nói rõ mình thuộc hồ sơ nào và bấm sang được.
+>
+> **Ba điều kiện, và cả ba do MÁY CHỦ quyết định:**
+>
+> - hồ sơ **đang đi trong luồng duyệt** — bốn bàn: chờ TBP · chờ KT L1 · Sale Admin xử lý · chờ KT
+>   L2. Khối tắt lúc còn *Nháp*, lúc bị trả lại, và sau khi duyệt xong;
+> - hồ sơ có **phiên bản trước** (bản mà nó thay thế);
+> - chỉ **hai loại tệp**: bản mềm và file scan. Giấy tờ hồ sơ của bản cũ đã được chép sang bản mới
+>   lúc lập (`28/08`), nên bày lại là bày hai lần cùng một tệp.
+>
+> **AI XEM ĐƯỢC:** ai đọc được hồ sơ MỚI. Không giới hạn đúng hai vai trò khách hàng nêu — Sale Admin
+> và Ban lãnh đạo cũng đọc chính hồ sơ ấy và cùng có nhu cầu đối chiếu.
+>
+> **Đây là một lượt NỚI QUYỀN, và nó cần thiết**: quyền đọc tệp vốn tính theo bốn cột người của chính
+> hồ sơ chủ tệp, mà mỗi phiên bản chọn người duyệt riêng (`27/08`). Không nới thì đúng những lượt đổi
+> người duyệt giữa hai phiên bản sẽ cho ra một khối đầy thẻ tệp mà bấm vào cái nào cũng báo *"ngoài
+> phạm vi"*.
+>
+> Khe mở ra **hẹp đúng một mức**: chỉ ĐỌC (xem, tải), chỉ hai loại tệp trên, và chỉ cho người của một
+> hồ sơ kế nhiệm **đang đi trong luồng**. Quyền GHI không đổi một chút nào — người duyệt bản mới
+> không gỡ được tệp của bản đã ký.
+
 **Dòng *Tên khách hàng* trên văn bản mẫu nối NĂM PHẦN** `sửa 07/09` — *"Nối mã: Tên người đại diện –
 Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã – Tỉnh thành phố – Mã số thuế"*.
 

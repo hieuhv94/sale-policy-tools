@@ -16011,3 +16011,86 @@ Tên khách hàng: Lê Thị Kim Chi – Khoa Dinh dưỡng — Bệnh viện Vi
 thành phố · mã số thuế.
 
 **2025/2025 xanh.**
+
+## P211 — `0183` bản mềm và bản cứng của phiên bản trước, cho người đang duyệt bản mới
+
+Khách hàng: *"Khi một CSBH được sửa đổi/bổ sung được TDV gửi vào luồng duyệt, khi đó vẫn cần phải
+hiển thị CSBH bản mềm và bản cứng đã được lưu ở phiên bản ngay trước đó cho TBP và Kế toán có thể xem
+và so sánh"*.
+
+### Chốt chặn có thật, và nó là cả lý do chặng này không phải một lượt sửa giao diện
+
+Quyền đọc tệp của một hồ sơ = id người gọi nằm trong **bốn cột người của chính hồ sơ ấy** (`0031`,
+`assertCanAccess`). Mà `0141` cho **mỗi phiên bản chọn người duyệt riêng**: bản cũ do `tbp01` ký, bản
+mới giao `tbp02`.
+
+Nên nếu chỉ bày thêm một khối, đúng những lượt đổi người duyệt giữa hai phiên bản — tức đúng lúc
+người ta cần đối chiếu nhất — sẽ cho ra một khối đầy thẻ tệp mà bấm vào cái nào cũng `403`. Đó là
+hình dạng mà `assertNguoiGhiTep` đã ghi ra để chống: **nút hiện rồi trả lỗi**.
+
+Bốn câu hỏi đã hỏi lại trước khi gõ; khách hàng chốt: mở cho **ai xem được hồ sơ mới** (không giới
+hạn hai vai trò — Sale Admin và Ban lãnh đạo cũng đọc chính hồ sơ ấy), **một khối riêng chỉ đọc**, và
+**chỉ khi đang trong luồng duyệt**.
+
+### Khe quyền mở ra hẹp đúng một mức
+
+`assertCanRead` cho POLICY giờ có hai mức, và `mucDocHoSo` trả về mức ấy trong **một** lời gọi
+`policy` — chính lời gọi mà phép kiểm cũ vốn đã thực hiện, nên không thêm vòng mạng nào:
+
+| Mức | Điều kiện |
+|---|---|
+| `DAY_DU` | id ở bốn cột người của chính hồ sơ |
+| `BAN_TRUOC` | id ở bốn cột người của một hồ sơ **kế nhiệm đang đi trong luồng** |
+| `null` | ngoài phạm vi |
+
+Ba vế siết cho khe không rộng hơn ý định: chỉ **ĐỌC** (`assertCanWrite` đi đường riêng, không đụng
+tới), chỉ **hai loại** (`BAN_CSBH`, `SCAN` — giấy tờ `HO_SO` đã được chép sang bản mới ở `0148` nên
+bày lại là bày hai lần), và `listFor` **lọc danh sách** chứ không để giao diện tự giấu: một danh sách
+trả ra rồi mới bỏ bớt là một danh sách đã lộ, và tên tệp cũng là dữ liệu.
+
+`purpose` phải đi cùng ở **ba** đường đọc — `meta`, `link`, và `read`. Bỏ sót `read` là khe rộng hơn
+hai loại đã chốt ở đúng đường trả nội dung thật.
+
+`nguoi_xem_ban_truoc` dựng ở `policy/internal.controller`: bốn cột người của **mọi** hồ sơ kế nhiệm
+đang trong luồng (`supersedes_id` đặt lúc lập, nên hai bản nháp cùng trỏ về một bản đang hiệu lực là
+chuyện thường). `document` không tự tra — `superseded_by_id` là cột của `pol`.
+
+### `DANG_TRONG_LUONG`: một hằng mới, khác `DA_DONG_BANG` đúng hai trạng thái
+
+`DANG_CO_HIEU_LUC` là hồ sơ đã duyệt xong; `QUA_HAN_DUYET` là trạng thái KẾT THÚC (`18/08`).
+`YEU_CAU_CHINH_SUA` cũng không nằm trong — hồ sơ ấy đã quay về bàn TDV, và khách hàng chốt *"khi đang
+trong luồng duyệt"*. Hệ quả đã ghi: khối tắt trong lúc TDV sửa, bật lại ngay lượt gửi tiếp theo.
+
+### Component RIÊNG, không thêm một khối vào `TepDinhKem`
+
+`TepDinhKem` đóng đinh vào `hoSoId` ở sáu chỗ — `layFileId`, `themTep`, `go`… Tệp ở khối mới thuộc
+một hồ sơ KHÁC, nên dùng lại là luồn một id thứ hai qua sáu chỗ, và gọi nhầm ở đường `go` thì **gỡ
+mất tệp của bản đã ký**. `TepBanTruoc` không có đường ghi nào, và hình dạng ấy tự nói ra điều đó —
+cùng lối `0162` chọn khi mang khối *Hồ sơ pháp lý* sang trang hồ sơ.
+
+Giao diện KHÔNG suy từ `status`: `banTruoc === null` là câu trả lời đầy đủ, và nó **cũng chính là**
+điều kiện mà phép nới quyền bên `document` dùng. Hai chỗ tự suy là hai chỗ sẽ lệch, và lệch theo
+hướng tệ nhất — khối hiện ra rồi mỗi tệp trả 403.
+
+### Phá lại: bốn lượt, và lượt XANH lộ ra một ca kiểm xanh vì lý do sai
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ điều kiện `DANG_TRONG_LUONG` | 2 đỏ — hồ sơ Nháp, và hồ sơ đã duyệt xong |
+| Thôi lọc loại tệp trong truy vấn | 1 đỏ — giấy tờ `HO_SO` lọt vào khối |
+| **Nới quyền lan sang đường GHI** | **XANH — ca kiểm hỏng, xem dưới** |
+| Gỡ khối khỏi trang | 1 đỏ ở dãy `<h2>` |
+
+> **Ca *"không gỡ được tệp của bản cũ"* xanh vì lý do sai.** Nó gọi `DELETE /files/:id` bằng `tbp02`
+> và đòi 403 — nhưng đường ấy khai `@Roles('SALE_ADMIN','TDV')`, nên một Trưởng bộ phận bị chặn ở
+> tầng **vai trò** trước khi tới phép kiểm phạm vi. Phá lại cho quyền ghi nới theo mà ca vẫn xanh.
+>
+> Và bộ tài khoản mẫu **không dựng được** người vừa ở mức `BAN_TRUOC` vừa có vai trò ghi:
+> `tdv_user_id` của hai phiên bản luôn là TDV phụ trách khách hàng (nên trùng), và chỉ có MỘT Sale
+> Admin. Tức đường HTTP không với tới chỗ cần đo.
+>
+> Ca viết lại hỏi **thẳng hai hàm** qua container của Nest — cùng một người, cùng một tệp, hai câu
+> trả lời phải khác nhau: `assertCanRead(…, 'SCAN')` qua, `assertCanWrite(…)` ném, và
+> `assertCanRead(…, 'HO_SO')` cũng ném. Phá lại lần nữa: giờ nó đỏ.
+
+**2034/2034 xanh.**

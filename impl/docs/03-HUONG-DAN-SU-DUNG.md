@@ -1348,6 +1348,28 @@ nhau. Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 | **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* |
 | **File SCAN bản cứng** `đổi tên 07/09` | File scan của bản giấy đã ký | Sale Admin | Bước *Sale Admin đang xử lý* |
 
+### Bản mềm và bản cứng của phiên bản trước `mới 07/09`
+
+Khi bạn mở một hồ sơ **sửa đổi/bổ sung đang đi trong luồng duyệt**, dưới hai khối trên có thêm một
+khối **chỉ để đối chiếu**: bản mềm và file scan đã lưu ở **phiên bản ngay trước đó** — bản mà hồ sơ
+này thay thế.
+
+- Khối nói rõ nó thuộc hồ sơ nào; **bấm vào mã hồ sơ** là sang xem bản cũ.
+- **Xem và tải được, không sửa được**: không có vùng kéo thả, không có dấu ✕. Đó là tờ giấy của một
+  phiên bản đã ký.
+- Chỉ hiện **khi hồ sơ đang được duyệt** — từ lúc gửi duyệt tới khi duyệt xong. Lúc còn *Nháp*, lúc
+  bị trả lại, và sau khi đã có hiệu lực thì không có khối này.
+- Phiên bản **đầu tiên** của một khách hàng không có gì để so, nên cũng không có khối.
+- Phiên bản trước **chưa từng tới bước Sale Admin** thì khối vẫn hiện và nói rõ là chưa có tệp nào —
+  chứ không biến mất, vì biến mất đọc ra như phần mềm không có tính năng này.
+
+> **Ai xem được:** ai mở được hồ sơ mới thì xem được khối này — kể cả khi họ **không** có tên trên hồ
+> sơ cũ. Đó là lý do khối tồn tại: người duyệt phiên bản mới rất có thể không phải người đã duyệt
+> phiên bản cũ.
+>
+> Quyền mở ra **đúng một mức**: xem và tải, chỉ hai loại tệp ấy. Không ai gỡ được tệp của một hồ sơ
+> đã ký qua khối này.
+
 > **Khối *Giấy tờ hồ sơ* đã bỏ** `sửa 01/09`. Trước đó Trình dược viên đính được giấy tờ kèm theo
 > vào hồ sơ CSBH lúc còn *Nháp*; khách hàng chốt bỏ mục ấy, và cùng lượt ấy dòng *File đính kèm*
 > cũng ra khỏi hai mẫu hồ sơ mặc định.

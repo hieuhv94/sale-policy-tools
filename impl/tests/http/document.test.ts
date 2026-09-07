@@ -15,6 +15,7 @@ import {
   COMPANY,
   COT_BANG,
   createTestApp as createDocumentApp,
+  FilesService,
   makeDocx,
   NGUON_BAT_BUOC_HO_SO,
   placeholdersOf,
@@ -35,6 +36,7 @@ import {
   maDuyNhat,
   http,
   withAdminDb,
+  idNguoiDung,
   phanCongMacDinh,
   mstDuyNhat,
 } from './app.js';
@@ -242,7 +244,9 @@ beforeAll(async () => {
   restores.push(i.restore);
   await clearAccountCache();
   await clearScopeCache();
-  for (const u of ['tdv01', 'tdv03', 'tbp01', 'kt01', 'sa01', 'admin01', 'bld01']) {
+  // `tbp02` và `tdv02` thêm ở `0183`: nhóm ca *tệp của phiên bản trước* cần một
+  // người duyệt KHÔNG có tên trên hồ sơ cũ, và một người ngoài cuộc hẳn.
+  for (const u of ['tdv01', 'tdv02', 'tdv03', 'tbp01', 'tbp02', 'kt01', 'sa01', 'admin01', 'bld01']) {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
 
@@ -1394,6 +1398,189 @@ async function chayHetLuong(id: string): Promise<void> {
   expect((await act(id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
   expect((await act(id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
 }
+
+/**
+ * `0183` — BẢN MỀM VÀ BẢN CỨNG CỦA PHIÊN BẢN TRƯỚC, cho người đang duyệt bản mới.
+ *
+ * Khách hàng chốt 07/09. Nhóm này canh CẢ HAI vế, và vế thứ hai mới là vế khó:
+ * dữ liệu có tới được màn hình không (`policy` trả `banTruoc`), và người đang
+ * duyệt có MỞ ĐƯỢC tệp ấy không (`document` nới quyền đọc).
+ *
+ * Vế thứ hai cần thật, vì quyền đọc tệp tính theo bốn cột người của CHÍNH hồ sơ
+ * (`0031`) — mà `0141` cho mỗi phiên bản chọn người riêng. Không nới thì đúng
+ * những lượt đổi người duyệt giữa hai phiên bản sẽ cho ra một khối đầy thẻ tệp
+ * mà bấm vào cái nào cũng 403.
+ */
+describe('`0183` tệp của phiên bản trước, cho người duyệt bản mới', () => {
+  /** Lập bản v2 cho khách của `d`, sau khi `d` đã chạy hết luồng. */
+  const lapV2 = async (d: { id: string; customerId: string }) => {
+    const v2 = await ppost(
+      '/policies',
+      { customerId: d.customerId, mode: 'NEW_VERSION', lines: [] },
+      'tdv01',
+    );
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    return v2.body.id as string;
+  };
+
+  it('hồ sơ ĐANG TRONG LUỒNG trả về bản mềm + file scan của bản liền trước', async () => {
+    const d = await draft();
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+
+    // Còn NHÁP thì chưa có gì: khách hàng chốt khối chỉ hiện khi đang duyệt.
+    expect((await pget(`/policies/${v2}`, 'tdv01')).body.banTruoc, 'hồ sơ Nháp').toBeNull();
+
+    expect((await act(v2, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const bt = (await pget(`/policies/${v2}`, 'tbp01')).body.banTruoc;
+    expect(bt, 'gửi duyệt rồi thì phải có').not.toBeNull();
+    expect(bt.id).toBe(d.id);
+    expect(bt.versionNo).toBe(1);
+
+    const loai = (bt.attachments as { kind: string }[]).map((t) => t.kind).sort();
+    expect(loai, 'đúng hai loại, không kèm giấy tờ HO_SO').toEqual(['BAN_MEM', 'SCAN']);
+  }, 240_000);
+
+  it('GIẤY TỜ `HO_SO` của bản cũ KHÔNG lọt vào khối này', async () => {
+    /*
+     * Chúng đã được CHÉP sang bản mới lúc lập (`0148`), nên bày lại ở đây là
+     * bày hai lần cùng một tệp — và người duyệt đối chiếu hai danh sách giống
+     * hệt nhau rồi tự hỏi mình bỏ sót gì.
+     */
+    const d = await draft();
+    await dinhGiayTo(d.id, 'giay-phep.pdf');
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    expect((await act(v2, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const bt = (await pget(`/policies/${v2}`, 'tbp01')).body.banTruoc;
+    expect((bt.attachments as { kind: string }[]).some((t) => t.kind === 'HO_SO')).toBe(false);
+  }, 240_000);
+
+  it('phiên bản ĐẦU TIÊN không có gì để so — `banTruoc` là null', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await pget(`/policies/${d.id}`, 'tbp01')).body.banTruoc).toBeNull();
+  }, 120_000);
+
+  it('DUYỆT XONG thì khối tắt — nó là công cụ của lượt duyệt, không phải của hồ sơ', async () => {
+    /*
+     * Khách hàng chốt *"chỉ khi đang trong luồng duyệt"*. Ca này canh vế TẮT,
+     * và nó cần thật: một điều kiện chỉ có vế bật thì bản sửa nào bỏ quên vế kia
+     * vẫn xanh.
+     */
+    const d = await draft();
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    await chayHetLuong(v2);
+
+    const sau = (await pget(`/policies/${v2}`, 'tbp01')).body;
+    expect(sau.status).toBe('DANG_CO_HIEU_LUC');
+    expect(sau.banTruoc).toBeNull();
+  }, 300_000);
+
+  it('người duyệt bản MỚI mở được tệp của bản cũ, dù không có tên trên hồ sơ cũ', async () => {
+    /*
+     * ĐÂY LÀ CA CỦA CẢ CHẶNG.
+     *
+     * `assertCanAccess` so id người gọi với bốn cột người của CHÍNH hồ sơ chủ
+     * tệp. Bản cũ do `tbp01` duyệt; bản mới giao cho `tbp02`. Không có phép nới
+     * thì `tbp02` thấy khối, bấm xem, và nhận 403 — một nút bày ra chỉ để trả
+     * lỗi, đúng thứ `assertNguoiGhiTep` sinh ra để chặn.
+     */
+    const d = await draft();
+    // Bản cũ có CẢ giấy tờ hồ sơ lẫn file scan — hai loại, hai số phận: một cái
+    // `tbp02` được đọc, một cái không.
+    await dinhGiayTo(d.id, 'giay-phep.pdf');
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    expect(
+      (await act(v2, 'SUBMIT', 'tdv01', { tbpUserId: (await idNguoiDung())['tbp02'] })).status,
+      'gửi duyệt cho TBP KHÁC',
+    ).toBe(200);
+
+    const bt = (await pget(`/policies/${v2}`, 'tbp02')).body.banTruoc;
+    expect(bt.id).toBe(d.id);
+
+    // `tbp02` KHÔNG có tên trên hồ sơ cũ…
+    expect((await pget(`/policies/${d.id}`, 'tbp02')).status, 'hồ sơ cũ vẫn ngoài phạm vi').toBe(403);
+
+    /*
+     * …nhưng đọc được tệp của nó, và danh sách ĐÃ LỌC.
+     *
+     * Chỉ `SCAN`: giấy tờ `HO_SO` (`purpose = 'HO_SO'`) nằm ngoài hai loại được
+     * mở. Bản mềm không có mặt trong danh sách này vì `chayHetLuong` chèn CON
+     * TRỎ `BAN_MEM` ở `pol` mà không tải file lên `doc` — đúng như bộ kiểm vẫn
+     * làm từ `0167`, và không ảnh hưởng tới điều ca này đo.
+     */
+    const ds = await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'tbp02');
+    expect(ds.status, JSON.stringify(ds.body)).toBe(200);
+    const purpose = (ds.body as { purpose: string }[]).map((f) => f.purpose).sort();
+    expect(purpose, 'giấy tờ HO_SO phải bị lọc khỏi danh sách').toEqual(['SCAN']);
+
+    const fileId = (ds.body as { id: string; purpose: string }[]).find(
+      (f) => f.purpose === 'SCAN',
+    )!.id;
+    const link = await dget(`/files/${fileId}/link`, 'tbp02');
+    expect(link.status, JSON.stringify(link.body)).toBe(200);
+
+    // Và chiều đối chiếu: người ĐẦY ĐỦ quyền vẫn thấy CẢ giấy tờ.
+    const cua01 = await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'tdv01');
+    expect((cua01.body as { purpose: string }[]).map((f) => f.purpose).sort()).toEqual([
+      'HO_SO',
+      'SCAN',
+    ]);
+  }, 300_000);
+
+  it('nới quyền ĐỌC, KHÔNG nới quyền ghi — hỏi thẳng hai phép kiểm', async () => {
+    /*
+     * CA NÀY VIẾT LẠI SAU MỘT LƯỢT PHÁ LẠI XANH.
+     *
+     * Bản đầu gọi `DELETE /files/:id` bằng `tbp02` và đòi 403. Nó xanh — nhưng
+     * **vì lý do sai**: đường ấy khai `@Roles('SALE_ADMIN','TDV')`, nên một
+     * Trưởng bộ phận bị chặn ở tầng VAI TRÒ trước khi tới phép kiểm phạm vi.
+     * Đo được: nới quyền lan sang cả đường ghi mà ca vẫn xanh.
+     *
+     * Bộ tài khoản mẫu KHÔNG dựng được người vừa ở mức *bản trước* vừa có vai
+     * trò ghi: `tdv_user_id` của hai phiên bản luôn là TDV phụ trách khách hàng
+     * (nên trùng), và chỉ có MỘT Sale Admin. Nên đường HTTP không với tới được
+     * chỗ cần đo, và ca này hỏi thẳng hai hàm — cùng một người, cùng một tệp,
+     * hai câu trả lời phải khác nhau.
+     */
+    const d = await draft();
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    expect((await act(v2, 'SUBMIT', 'tdv01', { tbpUserId: (await idNguoiDung())['tbp02'] })).status).toBe(200);
+
+    const files = doc.get(FilesService);
+    const me = {
+      id: (await idNguoiDung())['tbp02']!,
+      role: 'TBP',
+      name: 'Truong bo phan 02',
+      mustChangePassword: false,
+    };
+
+    // ĐỌC: qua, vì họ đang duyệt bản thay thế hồ sơ này.
+    await expect(files.assertCanRead('POLICY', d.id, me, 'SCAN')).resolves.toBeUndefined();
+    // GHI: KHÔNG. Phép nới nằm ở `assertCanRead`, và `assertCanWrite` đi đường
+    // riêng — đó là cả cấu trúc giữ cho lượt nới này không lan.
+    await expect(files.assertCanWrite('POLICY', d.id, me)).rejects.toThrow();
+    // Và ĐỌC một loại NGOÀI hai loại đã chốt cũng không.
+    await expect(files.assertCanRead('POLICY', d.id, me, 'HO_SO')).rejects.toThrow();
+  }, 300_000);
+
+  it('người NGOÀI cuộc vẫn 403 — phép nới đi theo hồ sơ kế nhiệm, không mở cho ai khác', async () => {
+    // `0183` nới đúng một khe. Thiếu ca này thì một bản sửa trả về `true` ở mọi
+    // trường hợp cũng xanh hết.
+    const d = await draft();
+    await chayHetLuong(d.id);
+    const v2 = await lapV2(d);
+    expect((await act(v2, 'SUBMIT', 'tdv01', { tbpUserId: (await idNguoiDung())['tbp02'] })).status).toBe(200);
+
+    // `tdv02` không dính tới hồ sơ nào trong hai bản.
+    expect((await dget(`/files?ownerKind=POLICY&ownerId=${d.id}`, 'tdv02')).status).toBe(403);
+  }, 300_000);
+});
 
 describe('`0148` phiên bản mới thừa kế GIẤY TỜ, không thừa kế bản cứng', () => {
   it('chép tệp `HO_SO` sang bản mới, và bản mới có tệp RIÊNG chứ không dùng chung', async () => {

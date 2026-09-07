@@ -10,6 +10,7 @@ import { Controller, Get, NotFoundException, Param, Post, Body } from '@nestjs/c
 import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import {
+  DANG_TRONG_LUONG,
   SQL_DONG_KHAC_BAN_TRUOC,
   SQL_NOI_BAN_TRUOC,
   SQL_TRANG_THAI_DONG,
@@ -161,8 +162,33 @@ export class PolicyInternalController {
       [id],
     );
 
+    /*
+     * NGƯỜI ĐƯỢC XEM TỆP CỦA HỒ SƠ NÀY VỚI TƯ CÁCH "BẢN TRƯỚC" (`0183`).
+     *
+     * Bốn cột người của mọi hồ sơ KẾ NHIỆM đang đi trong luồng duyệt — tức
+     * những người đang phải duyệt một phiên bản thay thế chính hồ sơ này, và vì
+     * thế cần đọc được bản mềm với file scan của nó để so.
+     *
+     * Trả về từ ĐÂY chứ không để `document` tự tra: `superseded_by_id` là cột
+     * của `pol`, và `document` chỉ được hỏi qua đúng một cửa. Nó cũng đi CÙNG
+     * lượt gọi mà `assertCanRead` vốn đã thực hiện, nên phép nới quyền không
+     * thêm một vòng mạng nào.
+     *
+     * NHIỀU hồ sơ có thể cùng trỏ về một bản: `supersedes_id` đặt lúc lập, và
+     * hai bản nháp lập cùng lúc cho một khách đều trỏ về bản đang hiệu lực.
+     */
+    const keNhiem = await this.db.q<{ nguoi: string | null }>(
+      `SELECT unnest(ARRAY[tdv_user_id, tbp_user_id, ke_toan_user_id, sale_admin_user_id])
+                AS nguoi
+         FROM pol.policy
+        WHERE supersedes_id = $1
+          AND status::text = ANY($2::text[])`,
+      [id, DANG_TRONG_LUONG],
+    );
+
     return {
       ...p,
+      nguoi_xem_ban_truoc: [...new Set(keNhiem.map((x) => x.nguoi).filter(Boolean))],
       so_lan_tbp_tra_lai: Number(cl?.so_lan ?? 0),
       sua_lai_ngay: cl?.sua_lai_ngay ?? null,
       lines,

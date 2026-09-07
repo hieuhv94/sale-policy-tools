@@ -121,7 +121,65 @@ export class FilesService {
    * Nhánh HỒ SƠ không đổi, và cũng không nên đổi: bốn cột người trên hồ sơ vốn
    * đã là "ai đang cầm hồ sơ này", tức đã trả lời đúng cả hai câu.
    */
-  async assertCanRead(ownerKind: OwnerKind, ownerId: string | null, me: AuthUser): Promise<void> {
+  /**
+   * HAI LOẠI TỆP mà người của bản KẾ NHIỆM đọc được (`0183`).
+   *
+   * Đúng thứ khách hàng nêu — *"bản mềm và bản cứng"* — không hơn. Giấy tờ
+   * `HO_SO` của bản cũ đã được chép sang bản mới lúc lập (`0148`), nên người
+   * duyệt vốn đã đọc được chúng ở chính hồ sơ họ đang cầm; mở thêm ở đây là nới
+   * một phạm vi không ai cần.
+   */
+  private static readonly LOAI_BAN_TRUOC = ['BAN_CSBH', 'SCAN'];
+
+  /**
+   * Người này đọc được tệp của hồ sơ ấy KHÔNG, và ở mức nào (`0183`).
+   *
+   *   `DAY_DU`     id nằm trong bốn cột người của CHÍNH hồ sơ (luật từ `0031`).
+   *   `BAN_TRUOC`  id nằm trong bốn cột người của một hồ sơ KẾ NHIỆM đang đi
+   *                trong luồng duyệt — họ đang duyệt bản thay thế hồ sơ này.
+   *   `null`       ngoài phạm vi.
+   *
+   * MỘT lời gọi `policy` cho cả hai mức: `nguoi_xem_ban_truoc` đi kèm chính lượt
+   * gọi mà phép kiểm cũ vốn đã thực hiện.
+   */
+  private async mucDocHoSo(
+    policyId: string,
+    me: AuthUser,
+  ): Promise<'DAY_DU' | 'BAN_TRUOC' | null> {
+    const p = await this.clients.policy(policyId);
+    const scope = await this.clients.scopeUserIds(me);
+    const cua = [p.tdv_user_id, p.tbp_user_id, p.ke_toan_user_id, p.sale_admin_user_id];
+    if (cua.some((x) => x && scope.includes(x))) return 'DAY_DU';
+    if ((p.nguoi_xem_ban_truoc ?? []).some((x) => x && scope.includes(x))) return 'BAN_TRUOC';
+    return null;
+  }
+
+  /**
+   * QUYỀN ĐỌC — và từ `0183` nó RỘNG HƠN quyền ghi ở đúng một chỗ.
+   *
+   * `purpose` là tuỳ chọn vì `list` gọi hàm này trước khi biết mình sắp trả tệp
+   * nào; ở đó phép nới vẫn áp, nhưng `list` LỌC lại kết quả xuống hai loại —
+   * xem `forOwner`. Người gọi ở mức `BAN_TRUOC` mà xin một tệp ngoài hai loại
+   * thì nhận 403 y như trước.
+   */
+  async assertCanRead(
+    ownerKind: OwnerKind,
+    ownerId: string | null,
+    me: AuthUser,
+    purpose?: string,
+  ): Promise<void> {
+    if (ownerKind === 'POLICY') {
+      if (!ownerId) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
+      const muc = await this.mucDocHoSo(ownerId, me);
+      if (muc === 'DAY_DU') return;
+      if (muc === 'BAN_TRUOC' && (purpose === undefined || FilesService.LOAI_BAN_TRUOC.includes(purpose))) {
+        return;
+      }
+      throw new ForbiddenException({
+        code: 'OUT_OF_SCOPE',
+        message: 'Hồ sơ này nằm ngoài phạm vi dữ liệu của bạn',
+      });
+    }
     if (ownerKind === 'CUSTOMER') {
       if (!ownerId) throw new ForbiddenException({ code: 'OUT_OF_SCOPE' });
       /*
@@ -318,14 +376,29 @@ export class FilesService {
     return r;
   }
 
+  /**
+   * Liệt kê tệp của một chủ thể — và LỌC theo mức quyền của người gọi (`0183`).
+   *
+   * Người ở mức `BAN_TRUOC` chỉ thấy hai loại họ được xem. Lọc ở ĐÂY chứ không
+   * để giao diện tự bỏ bớt: một danh sách trả ra rồi mới giấu đi là một danh
+   * sách đã lộ — tên tệp cũng là dữ liệu.
+   *
+   * Đây cũng là đường mà màn hình dùng để đổi `objectKey` sang `fileId` trước
+   * khi xin liên kết tải, nên nó phải trả ĐỦ hai loại ấy, không ít hơn.
+   */
   async listFor(ownerKind: OwnerKind, ownerId: string, me: AuthUser): Promise<FileRow[]> {
     await this.assertCanRead(ownerKind, ownerId, me);
-    return this.db.q<FileRow>(
+    const rows = await this.db.q<FileRow>(
       `SELECT * FROM doc.stored_file
         WHERE owner_kind = $1::doc.owner_kind AND owner_id = $2 AND deleted_at IS NULL
         ORDER BY uploaded_at`,
       [ownerKind, ownerId],
     );
+    if (ownerKind !== 'POLICY') return rows;
+    const muc = await this.mucDocHoSo(ownerId, me);
+    return muc === 'BAN_TRUOC'
+      ? rows.filter((r) => FilesService.LOAI_BAN_TRUOC.includes(r.purpose))
+      : rows;
   }
 
   /**
@@ -337,7 +410,9 @@ export class FilesService {
    */
   async read(id: string, me: AuthUser): Promise<{ row: FileRow; body: Buffer }> {
     const row = await this.row(id);
-    await this.assertCanRead(row.owner_kind, row.owner_id, me);
+    // `0183` — `purpose` PHẢI đi cùng ở đây: đây là đường trả nội dung thật, và
+    // bỏ sót nó là khe *bản trước* rộng hơn hai loại đã chốt.
+    await this.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
     const body = await this.storage.get(row.object_key);
     if (sha256(body) !== row.sha256) {
       throw new ConflictException({
@@ -368,7 +443,7 @@ export class FilesService {
   async verify(id: string, me: AuthUser): Promise<{ ok: boolean; expected: string; actual: string }> {
     const row = await this.row(id);
     // Đối chiếu băm là một phép ĐỌC — nó không đổi gì trên kho.
-    await this.assertCanRead(row.owner_kind, row.owner_id, me);
+    await this.assertCanRead(row.owner_kind, row.owner_id, me, row.purpose);
     const actual = sha256(await this.storage.get(row.object_key));
     return { ok: actual === row.sha256, expected: row.sha256, actual };
   }

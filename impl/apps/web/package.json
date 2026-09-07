@@ -55,6 +55,7 @@
     "./mau-van-ban": "./src/pages/MauHopDong.tsx",
     "./them-mau": "./src/pages/ThemMau.tsx",
     "./tep-dinh-kem": "./src/components/TepDinhKem.tsx",
+    "./tep-ban-truoc": "./src/components/TepBanTruoc.tsx",
     "./nguoi-dung-ui": "./src/pages/NguoiDung.tsx",
     "./thong-bao": "./src/lib/thong-bao.ts",
     "./chuong": "./src/components/ChuongThongBao.tsx",
