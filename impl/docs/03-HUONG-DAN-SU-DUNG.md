@@ -755,6 +755,10 @@ Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang
 | **Đang áp dụng** | Mặt hàng đã có, **để nguyên** như bản đang hiệu lực |
 | **Đã xoá** `mới 08/09` | Mặt hàng đã có, và bạn **vừa rút** nó khỏi phiên bản này |
 
+Màu nhãn nói **tình trạng của mặt hàng** `sửa 08/09` — chàm là *Bổ sung*, hổ phách là *Chỉnh sửa*,
+**xanh** là *Đang áp dụng*, **xám** là *Đã xoá*. Cùng quy ước với nhãn trạng thái ở màn hình **Danh
+mục sản phẩm**.
+
 - Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
   buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
 - **Sửa nhầm rồi sửa trả lại đúng như cũ thì dòng quay về *Đang áp dụng*** — nó được tính ra từ hai

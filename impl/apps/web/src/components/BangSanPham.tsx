@@ -77,21 +77,40 @@ export type DongSanPham = {
 };
 
 /**
- * Lớp CSS của nhãn trạng thái — dùng lại ba khoá nhãn có sẵn (`0123`).
+ * Lớp CSS của nhãn trạng thái — dùng lại bốn khoá nhãn có sẵn (`0123`, `0188`).
  *
- * *Bổ sung* và *Chỉnh sửa* là hai thứ người duyệt phải NHÌN vào; *Đang áp dụng*
- * là phần không đổi, nên nó lấy nhãn xám và lùi lại phía sau. Không đặt màu
- * riêng: bảng này đã có hai màu cảnh báo ở cột Tỷ lệ CK, và màu thứ ba cạnh
- * chúng sẽ tranh chỗ với đúng thứ cần nhìn nhất.
+ * `0188` — khách hàng chốt 08/09: ***Đang áp dụng* XANH**, ***Đã xoá* XÁM**.
+ *
+ * `0180` đặt ngược lại, và lập luận của nó vẫn đọc được ở đây vì nó KHÔNG sai:
+ * *"Bổ sung và Chỉnh sửa là hai thứ người duyệt phải NHÌN vào; Đang áp dụng là
+ * phần không đổi nên lùi lại phía sau"*. Màu ở đó trả lời câu *"chỗ nào đáng
+ * soi"*.
+ *
+ * Khách hàng đảo TRỤC ấy: màu nói **tình trạng của mặt hàng** — xanh là đang bán
+ * bình thường, xám là sắp không còn. Đó cũng là quy ước mà nhãn trạng thái SẢN
+ * PHẨM trong danh mục đã dùng từ `0123` (xanh = *Đang áp dụng*, đỏ = *Đã vô hiệu
+ * hoá*), nên hai bảng thôi nói hai thứ tiếng về cùng một chữ.
+ *
+ * BỐN TRẠNG THÁI, BỐN MÀU — và vế này là HỆ QUẢ, khách hàng không nêu. *Đang áp
+ * dụng* lấy xanh thì *Bổ sung* buộc phải rời khỏi xanh, nếu không hai trạng thái
+ * khác hẳn nhau trông giống hệt nhau. Nó là chỗ duy nhất còn tự do, và chọn
+ * `nhan-cho` (chàm) vì đó là khoá nhãn thứ tư đã có sẵn trong `app.css` và vì nó
+ * KHÔNG phải một màu cảnh báo — *Bổ sung* không đáng lo, nó chỉ là điều mới.
+ * *Chỉnh sửa* giữ hổ phách.
+ *
+ * `0180` lo rằng thêm màu sẽ tranh chỗ với hai màu cảnh báo ở cột Tỷ lệ CK. Nỗi
+ * lo ấy có thật và không mất; cái đổi là ai được ưu tiên: khách hàng chọn cho
+ * cột trạng thái nói đủ bốn trạng thái, và hai màu kia vẫn giữ nguyên chỗ của
+ * chúng ở một cột khác.
  */
 export const lopTrangThai = (t: string): string =>
   t === 'BO_SUNG'
-    ? 'nhan nhan-tot'
+    ? 'nhan nhan-cho'
     : t === 'CHINH_SUA'
       ? 'nhan nhan-canh-bao'
       : t === 'DA_XOA'
-        ? 'nhan nhan-loi'
-        : 'nhan nhan-thuong';
+        ? 'nhan nhan-thuong'
+        : 'nhan nhan-tot';
 
 /**
  * Dòng TDV đã rút khỏi phiên bản này (`0186`).

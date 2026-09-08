@@ -2199,6 +2199,25 @@ phẩm đã xóa · Ở trạng thái «Nháp» hoặc «Yêu cầu chỉnh sử
 > **CAT-07 KHÔNG đổi.** Giữ lại một mặt hàng đã vô hiệu hoá vẫn chặn gửi duyệt — phần mềm vẫn không
 > cho cam kết bán thứ đã ngừng bán. Cái đổi là giờ **có lối ra**: rút nó.
 
+**MÀU BỐN NHÃN TRẠNG THÁI DÒNG** `sửa 08/09` — *"đổi màu tag đang áp dụng của sản phẩm sang màu
+xanh, tag «Đã xóa» màu ghi xám"*.
+
+> **XANH** *Đang áp dụng* · **XÁM** *Đã xoá* · **hổ phách** *Chỉnh sửa* · **chàm** *Bổ sung*.
+>
+> `07/09` đặt ngược lại, và lập luận của nó không sai: màu ở đó trả lời câu *"chỗ nào đáng soi"* —
+> *Bổ sung* và *Chỉnh sửa* là hai thứ người duyệt phải nhìn vào, *Đang áp dụng* là phần không đổi nên
+> lùi lại sau bằng màu xám. Khách hàng **đảo trục ấy**: màu nói **tình trạng của mặt hàng** — xanh là
+> đang bán bình thường, xám là sắp không còn. Đó cũng là quy ước mà nhãn trạng thái **sản phẩm trong
+> danh mục** đã dùng từ `26/08`, nên hai bảng thôi nói hai thứ tiếng về cùng một chữ.
+>
+> ***Bổ sung* phải rời khỏi màu xanh** — hệ quả, khách hàng không nêu. *Đang áp dụng* lấy xanh mà
+> *Bổ sung* giữ nguyên thì hai trạng thái khác hẳn nhau trông giống hệt nhau. Chọn **chàm** vì nó
+> không phải một màu cảnh báo: *Bổ sung* không đáng lo, nó chỉ là điều mới.
+>
+> ***Đã xoá* thôi mang màu đỏ** (`08/09` đặt nó đỏ lúc trạng thái ấy vừa ra đời). Rút một mặt hàng là
+> một quyết định bình thường của người lập, không phải sự cố — và màu đỏ ở đó tranh chỗ với hai cảnh
+> báo THẬT của cột *Tỷ lệ CK*.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

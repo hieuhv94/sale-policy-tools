@@ -16365,3 +16365,59 @@ NC-CAN-400 lại đo một hồ sơ mà mặt hàng chưa hề bị tắt.
 | Dựng lại POL-08 **viết đúng cho `0186`** | **3 đỏ**, đúng ba ca của yêu cầu |
 
 **2078/2078 xanh.**
+
+---
+
+## P216 — `0188` Màu bốn nhãn trạng thái dòng
+
+Khách hàng gửi ba yêu cầu cùng lúc 08/09; **P215 (`0187`) làm cả ba rồi bị revert theo yêu cầu**, và
+chặng này lấy lại đúng một vế: *"đổi màu tag đang áp dụng của sản phẩm sang màu xanh, tag «Đã xóa»
+màu ghi xám"*.
+
+Một hàm ba dòng. Thứ đáng ghi không nằm ở bản sửa.
+
+### `0180` không sai — khách hàng đảo TRỤC, không sửa lỗi
+
+Bảng màu cũ có lý lẽ riêng, và nó vẫn đọc được: *"Bổ sung và Chỉnh sửa là hai thứ người duyệt phải
+NHÌN vào; Đang áp dụng là phần không đổi nên lấy nhãn xám và lùi lại phía sau"*. Màu ở đó trả lời
+câu **"chỗ nào đáng soi"**.
+
+Khách hàng muốn nó trả lời câu khác: **"mặt hàng này đang thế nào"** — xanh là đang bán bình thường,
+xám là sắp không còn. Và họ đúng ở một điểm mà cả `0180` lẫn `0186` bỏ qua: nhãn trạng thái **sản
+phẩm trong danh mục** đã dùng đúng quy ước ấy từ `0123` (xanh = *Đang áp dụng*, đỏ = *Đã vô hiệu
+hoá*). Hai bảng dùng chung một chữ *Đang áp dụng* mà tô hai màu ngược nhau.
+
+Nên chú thích tại chỗ **giữ lại lập luận cũ** thay vì xoá: bỏ nó đi là mời người sau đề xuất lại
+bảng màu cũ với đúng lý lẽ ấy, không ai trả lời được.
+
+### Vế khách hàng KHÔNG nêu, và nó bắt buộc
+
+*Đang áp dụng* lấy xanh thì ***Bổ sung* phải rời khỏi xanh** — nếu không, hai trạng thái khác hẳn
+nhau trông giống hệt nhau. Đó là chỗ tự do duy nhất còn lại, và chọn `nhan-cho` (chàm) vì hai lý do:
+nó là khoá nhãn thứ tư đã có sẵn trong `app.css`, và nó **không phải một màu cảnh báo** — *Bổ sung*
+không đáng lo, nó chỉ là điều mới.
+
+***Đã xoá* cũng thôi mang màu lỗi.** `0186` cho nó màu đỏ lúc trạng thái ấy vừa ra đời, hợp lý khi nó
+là thứ mới cần bắt mắt. Nhưng rút một mặt hàng là một quyết định bình thường của người lập, không
+phải sự cố — và màu đỏ ở đó tranh chỗ với hai cảnh báo THẬT của cột *Tỷ lệ CK*, đúng nỗi lo mà `0180`
+đã ghi ra.
+
+### Bốn ca kiểm, và chúng có mặt vì một lượt PHÁ LẠI XANH
+
+Làm việc này lần đầu ở `0187`, phá lại bằng cách hoàn tác bảng màu về đúng như `0180` cho **cả bộ
+kiểm vẫn xanh**: màu của bốn nhãn chưa từng có ai canh, dù chúng là thứ người duyệt đọc lướt để biết
+bản mới khác bản cũ ở đâu. Chặng này lấy lại cả bốn ca ấy.
+
+Ca đáng giá nhất là ca *không hai trạng thái nào dùng chung một màu*. Nó canh đúng cái **hệ quả**
+khách hàng không nêu — nên nó là chỗ dễ mất nhất trong một lượt sửa màu về sau, và mất nó thì không
+gì đỏ. Ca cuối đọc DOM thật: hàm đúng mà chỗ dựng không gọi tới nó thì màn hình vẫn sai.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Đảo cả bảng màu về như `0180`/`0186` | **3 đỏ** |
+| Chỉ đảo *Đang áp dụng*, để *Bổ sung* giữ màu xanh | **1 đỏ** — đúng ca đối chiếu bốn màu, và chỉ ca ấy |
+| *Đã xoá* quay lại màu lỗi | **3 đỏ** |
+
+**2082/2082 xanh.**

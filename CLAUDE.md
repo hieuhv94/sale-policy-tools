@@ -87,7 +87,28 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P214** (`0186`): **rút một mặt hàng khỏi phiên bản mới** — trạng thái dòng thứ TƯ
+Chặng gần nhất **P216** (`0188`): **màu bốn nhãn trạng thái dòng** — *Đang áp dụng* **XANH**, *Đã
+xoá* **XÁM**, *Chỉnh sửa* hổ phách, *Bổ sung* **chàm**. Một hàm ba dòng, và thứ đáng nhớ nằm ngoài
+bản sửa. **`0180` KHÔNG SAI — khách hàng đảo TRỤC**: màu ở `0180` trả lời *"chỗ nào đáng soi"*, giờ
+nó trả lời *"mặt hàng này đang thế nào"*; và họ đúng ở điểm cả `0180` lẫn `0186` bỏ qua — nhãn trạng
+thái SẢN PHẨM trong danh mục đã dùng đúng quy ước ấy từ `0123`, nên hai bảng dùng chung chữ *Đang áp
+dụng* mà tô hai màu ngược nhau. Chú thích tại chỗ **giữ lại lập luận cũ**, không xoá: bỏ đi là mời
+người sau đề xuất lại bảng màu cũ với đúng lý lẽ ấy. **Vế khách hàng KHÔNG nêu và nó bắt buộc**:
+*Đang áp dụng* lấy xanh thì *Bổ sung* phải rời khỏi xanh, nếu không hai trạng thái khác hẳn nhau
+trông giống hệt nhau. *Đã xoá* cũng thôi mang màu LỖI — rút một mặt hàng là quyết định bình thường,
+không phải sự cố, và đỏ ở đó tranh chỗ với hai cảnh báo thật của cột *Tỷ lệ CK*. **Bốn ca kiểm có
+mặt vì một lượt PHÁ LẠI XANH ở `0187`**: hoàn tác cả bảng màu mà cả bộ vẫn xanh — màu bốn nhãn chưa
+từng có ai canh. Ca đáng giá nhất canh đúng cái HỆ QUẢ khách hàng không nêu. **2082/2082 xanh.**
+
+> **`0187` ĐÃ REVERT.** P215 làm cả ba yêu cầu của 08/09 — màu nhãn · bảng soạn thẳng · dấu cộng chèn
+> dòng — rồi khách hàng cho lùi lại và chỉ giữ vế màu. Commit `2fa0b37` cùng commit revert `3aef6f5`
+> **còn trong lịch sử**; muốn lấy lại phần bảng soạn thẳng thì `git revert 3aef6f5` cho phần mã, **và
+> phải chạy lại `make migrate`** vì `0118` đã bị gỡ khỏi CSDL bằng tay (phần nghịch chạy trực tiếp,
+> không qua migration — 720/720 dòng còn nguyên). Nhật ký P215 giữ lại: nó ghi bốn thứ vẫn đúng dù mã
+> đã lùi — vì sao ô trống phải LƯU ĐƯỢC thì câu *"không cho gửi duyệt"* mới có nghĩa, vì sao dấu cộng
+> đòi cột `thu_tu`, bẫy `viTri` đếm từ 0 còn `thu_tu` từ 1, và hai lượt phá lại xanh.
+
+Trước đó **P214** (`0186`): **rút một mặt hàng khỏi phiên bản mới** — trạng thái dòng thứ TƯ
 *Đã xoá*, và POL-08 bị **đảo hẳn**. Chặng bắt đầu từ một **bế tắc có thật**: mặt hàng bị vô hiệu hoá
 trong danh mục làm dòng thừa kế thành `STALE_LINE`, mà câu lỗi của chính nó bảo *"xoá sản phẩm đó rồi
 gửi lại"* — và `MISSING_INHERITED_PRODUCT` chặn đúng lượt xoá ấy. Hai chốt cách nhau **53 dòng trong

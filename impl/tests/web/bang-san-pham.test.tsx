@@ -11,7 +11,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BangSanPham, cotCho, soCotCpbh, type DongSanPham } from '@csbh/web/bang-san-pham';
+import {
+  BangSanPham,
+  cotCho,
+  lopTrangThai,
+  soCotCpbh,
+  type DongSanPham,
+} from '@csbh/web/bang-san-pham';
 
 /**
  * Dọn DOM sau mỗi test.
@@ -614,5 +620,53 @@ describe('`0124` lớp cấm xuống dòng chỉ ở dải nút trong ô bảng'
     const the = document.querySelector('.the-san-pham .nhom-nut') as HTMLElement;
     expect(the, 'không dựng ra dải nút nào trong thẻ').not.toBeNull();
     expect(the.classList.contains('nhom-nut-hang')).toBe(false);
+  });
+});
+
+/**
+ * `0188` — BỐN NHÃN TRẠNG THÁI, BỐN MÀU.
+ *
+ * Khách hàng chốt 08/09: *Đang áp dụng* xanh, *Đã xoá* xám — đảo lại `0180`.
+ *
+ * KHỐI NÀY CÓ MẶT VÌ MỘT LƯỢT PHÁ LẠI XANH. Lần đầu làm việc này (trong chặng
+ * đã revert), hoàn tác bảng màu về đúng như `0180` mà **cả bộ kiểm vẫn xanh** —
+ * màu của bốn nhãn chưa từng có ai canh, dù chúng là thứ người duyệt đọc lướt
+ * để biết bản mới khác bản cũ ở đâu.
+ *
+ * Ca thứ hai là ca đáng giá nhất, và nó canh thứ khách hàng KHÔNG nêu: *Đang áp
+ * dụng* lấy xanh thì *Bổ sung* buộc phải rời khỏi xanh. Đó là hệ quả, nên nó là
+ * chỗ dễ mất nhất trong một lượt sửa màu về sau — và mất nó thì hai trạng thái
+ * khác hẳn nhau trông giống hệt nhau, không gì đỏ.
+ */
+describe('`0188` bốn nhãn trạng thái dòng, bốn màu', () => {
+  it('*Đang áp dụng* XANH, *Đã xoá* XÁM', () => {
+    expect(lopTrangThai('DANG_AP_DUNG')).toContain('nhan-tot');
+    expect(lopTrangThai('DA_XOA')).toContain('nhan-thuong');
+  });
+
+  it('không hai trạng thái nào dùng chung một màu', () => {
+    const lop = ['BO_SUNG', 'CHINH_SUA', 'DANG_AP_DUNG', 'DA_XOA'].map(lopTrangThai);
+    expect(new Set(lop).size, `hai nhãn trùng màu: ${lop.join(' · ')}`).toBe(4);
+  });
+
+  it('*Đã xoá* thôi mang màu LỖI — nó không phải một lỗi', () => {
+    // `0186` cho nó màu đỏ vì lúc ấy nó là thứ mới và cần bắt mắt. Rút một mặt
+    // hàng là một quyết định bình thường của người lập, không phải sự cố; màu đỏ
+    // ở đó tranh chỗ với hai cảnh báo THẬT của cột Tỷ lệ CK.
+    expect(lopTrangThai('DA_XOA')).not.toContain('nhan-loi');
+  });
+
+  it('màu ấy đến được tận DOM, không chỉ đúng trong hàm', () => {
+    render(
+      <BangSanPham
+        dong={[
+          dong({ id: 'd1', trangThai: 'DANG_AP_DUNG' }),
+          dong({ id: 'd2', productCode: 'SP-02', trangThai: 'DA_XOA' }),
+        ]}
+      />,
+    );
+    const bang = screen.getByRole('table');
+    expect(within(bang).getAllByText('Đang áp dụng')[0]!.className).toContain('nhan-tot');
+    expect(within(bang).getAllByText('Đã xoá')[0]!.className).toContain('nhan-thuong');
   });
 });
