@@ -5423,3 +5423,61 @@ describe('`0189` lý do trả về kèm người và bước', () => {
     expect(b.lyDoTraLai).toBeNull();
   });
 });
+
+/**
+ * `0190` — SỰ KIỆN MANG `versionNo`, để lá thư nói ra loại thay đổi.
+ *
+ * Ca này có mặt vì một lượt PHÁ LẠI XANH: gỡ `versionNo` khỏi `ctx` bên
+ * `workflow` mà cả khối `0190` của `thong-bao.test.ts` vẫn xanh — những ca ấy
+ * dựng thân sự kiện BẰNG TAY (`suKien({ versionNo: 3 })`), nên chúng canh phần
+ * `notification` đọc và in, không canh phần `policy` GỬI.
+ *
+ * Hai nửa của cùng một đường, và mỗi nửa cần người canh riêng: thiếu ca này thì
+ * `policy` thôi gửi là mọi lá thư lặng lẽ mất một dòng, không gì đỏ.
+ */
+describe('`0190` sự kiện luồng duyệt mang số phiên bản', () => {
+  const versionCuaSuKien = async (policyId: string) => {
+    const ds = await outboxFor(policyId);
+    const gui = ds.filter((e) => e.payload['action'] === 'SUBMIT');
+    expect(gui.length, 'không có sự kiện SUBMIT nào').toBeGreaterThan(0);
+    return gui.at(-1)!.payload['versionNo'];
+  };
+
+  it('CSBH đầu tiên của khách hàng → `versionNo` bằng 1', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(await versionCuaSuKien(d.id)).toBe(1);
+  });
+
+  it('phiên bản thay thế → `versionNo` lớn hơn 1', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status).toBe(201);
+    expect((await act(v2.body.id as string, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(await versionCuaSuKien(v2.body.id as string)).toBe(2);
+  });
+
+  it('MỌI sự kiện của luồng đều mang nó, không riêng lượt gửi duyệt', async () => {
+    /*
+     * `versionNo` đặt ở `ctx`, tức đi kèm mọi sự kiện của mọi bước — đúng lối
+     * `0031` đã chọn cho bốn khoá người, và vì cùng một lý do: thiếu ở MỘT sự
+     * kiện là một lá thư lặng lẽ thiếu một dòng, ở đúng bước nào không ai đoán
+     * trước được.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' })).status).toBe(200);
+
+    const thieu = (await outboxFor(d.id))
+      .filter((e) => typeof e.payload['action'] === 'string' && e.payload['recipients'])
+      .filter((e) => e.payload['versionNo'] === undefined)
+      .map((e) => e.payload['action']);
+    expect(thieu, `sự kiện thiếu versionNo: ${thieu.join(', ')}`).toEqual([]);
+  });
+});

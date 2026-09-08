@@ -122,6 +122,15 @@ export type MailEvent = {
   pendingStep?: string | undefined;
   reason?: string | null | undefined;
   at?: string | undefined;
+  /**
+   * `0190` — số phiên bản của hồ sơ, nguồn của dòng *Loại thay đổi*.
+   *
+   * Tuỳ chọn vì hai lá thư KHÔNG nói về một hồ sơ đang đi trong luồng cũng dùng
+   * chung khung này: `policy.superseded` nói về bản CŨ vừa hết hiệu lực, và thư
+   * bàn giao khách hàng thì không đi qua `bodyFor`. Thiếu nó thì dòng ấy vắng
+   * mặt, không phải in ra một câu đoán bừa.
+   */
+  versionNo?: number | undefined;
   extra?: Record<string, string> | undefined;
   /**
    * Thư "để biết" — người nhận KHÔNG phải xử lý gì ở bước này (`0036`).
@@ -262,9 +271,37 @@ export function duongDan(e: MailEvent): string {
  * Khách hàng đứng TRƯỚC vì đó là thứ người nhận nhận ra — cùng lý do khiến tên
  * khách hàng nằm trong tiêu đề thư. Mã hồ sơ đứng sau, cho người cần đối chiếu.
  */
+/**
+ * LOẠI THAY ĐỔI — CSBH mới, hay bản thay thế một CSBH đang hiệu lực (`0190`).
+ *
+ * Khách hàng chốt 08/09. Phân biệt bằng `version_no`: `create` đặt nó bằng 1 khi
+ * khách hàng chưa có CSBH nào, và bằng `bản đang hiệu lực + 1` khi có — cùng câu
+ * lệnh đặt luôn `supersedes_id`, nên hỏi một trong hai là đủ.
+ *
+ * NÓI RA CẢ HỆ QUẢ, không chỉ gọi tên: người duyệt đọc thư để biết mình sắp phải
+ * làm gì, và hai loại này đòi hai việc khác nhau — bản đầu không có gì để đối
+ * chiếu, bản thay thế thì phải soi xem nó đổi gì so với thứ khách hàng đang
+ * được hưởng.
+ *
+ * `undefined` trả `null` chứ không đoán: xem `MailEvent.versionNo`.
+ */
+export function loaiThayDoi(e: MailEvent): string | null {
+  if (e.versionNo === undefined) return null;
+  return e.versionNo <= 1
+    ? 'CSBH mới — khách hàng chưa có CSBH nào trước đó'
+    : `Phiên bản ${e.versionNo} — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực`;
+}
+
+/** Dạng NGẮN của cùng câu ấy, cho dòng thông báo trên chuông (`0190`). */
+export const loaiThayDoiNgan = (e: MailEvent): string | null =>
+  e.versionNo === undefined ? null : e.versionNo <= 1 ? 'CSBH mới' : `Phiên bản ${e.versionNo}`;
+
 export function moTaNgan(e: MailEvent): string | null {
   const khach = [e.customerCode, e.customerName].filter(Boolean).join(' — ');
-  return [khach, e.policyCode].filter(Boolean).join(' · ') || null;
+  // `0190` — loại thay đổi đứng CUỐI: hai vế đầu là thứ người dùng dò để tìm
+  // đúng hồ sơ trong danh sách chuông, còn vế này là thứ họ đọc sau khi đã tìm
+  // thấy. Đảo lên trước thì mọi dòng thông báo mở đầu giống hệt nhau.
+  return [khach, e.policyCode, loaiThayDoiNgan(e)].filter(Boolean).join(' · ') || null;
 }
 
 export function bodyFor(e: MailEvent, webBaseUrl: string): string {
@@ -292,6 +329,20 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
     ['Bước đang duyệt', step],
     ['Thời điểm', formatIct(e.at)],
   ];
+
+  /*
+   * `0190` — LOẠI THAY ĐỔI, chèn ngay SAU mã hồ sơ.
+   *
+   * Chỗ đứng là một phần của yêu cầu: nó trả lời câu *"hồ sơ này là gì"*, nên nó
+   * thuộc cụm định danh ở đầu thư, không phải cụm trạng thái. Đẩy xuống cuối thì
+   * người đọc đã quyết định xong mình phải làm gì trước khi đọc tới nó.
+   *
+   * `splice` thay vì viết thẳng vào mảng khai ở trên: dòng này CÓ THỂ VẮNG MẶT
+   * (xem `MailEvent.versionNo`), và một phần tử `null` lọt vào mảng cặp sẽ in ra
+   * `Loại thay đổi: —` ở đúng những lá thư không nói về một hồ sơ nào.
+   */
+  const loai = loaiThayDoi(e);
+  if (loai) truong.splice(3, 0, ['Loại thay đổi', loai]);
 
   // Lý do chỉ có mặt khi thật sự có — dòng "Lý do: —" trong thư báo ký số thành
   // công làm người đọc tưởng có chuyện.

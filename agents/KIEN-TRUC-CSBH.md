@@ -1315,7 +1315,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | Mã | Kịch bản | Kết quả mong đợi | YCNV | Mức |
 |---|---|---|---|---|
 | NTF-01 | Chạy hết 10 bước, so người nhận email với bảng §3 | Từng bước gửi đúng tập người nhận, không thừa không thiếu | §3 §9.1 | `P0` |
-| NTF-02 | Kiểm nội dung một email bất kỳ | Có đủ: mã KH, tên KH, trạng thái, tên bước đang duyệt, thời điểm, lý do trả lại nếu có, và liên kết mở hồ sơ | §9.1 | `P0` |
+| NTF-02 | Kiểm nội dung một email bất kỳ | Có đủ: mã KH, tên KH, **loại thay đổi** (`0190`), trạng thái, tên bước đang duyệt, thời điểm, lý do trả lại nếu có, và liên kết mở hồ sơ | §9.1 | `P0` |
+| NTF-09 | Thư và dòng chuông của một hồ sơ phiên bản 1 vs phiên bản > 1 | *CSBH mới — khách hàng chưa có CSBH nào trước đó* vs *Phiên bản n — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực*; suy từ `versionNo` mà `policy` gửi kèm MỌI sự kiện của luồng. Thiếu `versionNo` thì dòng ấy VẮNG MẶT, không đoán | §9.1 | `P1` |
 | NTF-03 | Bấm liên kết trong email khi chưa đăng nhập | Yêu cầu đăng nhập rồi mở đúng hồ sơ đó | §9.1 | `P1` |
 | NTF-04 | Một khách hàng đi qua nhiều bước | Mọi email nằm trong **một luồng duy nhất** theo khách hàng (cùng `References`) | §9.1 | `P1` |
 | NTF-05 | SMTP lỗi | Retry 3 lần có backoff, sau đó vào DLQ; có API xem hàng đợi lỗi | §9.1 | `P1` |

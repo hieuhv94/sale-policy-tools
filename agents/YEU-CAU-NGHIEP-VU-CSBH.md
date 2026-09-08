@@ -2241,6 +2241,28 @@ cần rõ ràng hơn, như ai đã trả về và trả về từ bước nào"*
 > **Vai trò KHÔNG in riêng**: nhãn hành động đã nói ra nó (*"Kế toán không tiếp nhận lần 1"*), nên in
 > thêm là lặp. Nhờ vậy hồ sơ không tra được tên người vẫn trả lời được câu *"bàn nào trả về"*.
 
+**THÔNG BÁO NÓI RÕ LOẠI THAY ĐỔI** `sửa 08/09` — *"thêm vào phần nội dung thông báo để biết thay đổi
+trên CSBH là tạo mới CSBH đối với khách hàng mới, hay đó là chỉnh sửa bổ sung trên một CSBH của một
+khách hàng đã có"*.
+
+> Thư và dòng thông báo trên chuông đều mang thêm **Loại thay đổi**, hai giá trị:
+>
+> - **CSBH mới — khách hàng chưa có CSBH nào trước đó** (phiên bản 1)
+> - **Phiên bản *n* — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực** (phiên bản > 1)
+>
+> **Vì sao cần**: hai loại này đòi hai việc khác nhau ở người duyệt. Bản đầu không có gì để đối
+> chiếu; bản thay thế thì phải soi xem nó đổi gì so với thứ khách hàng ĐANG được hưởng — và nếu duyệt
+> xong thì bản cũ **vô hiệu toàn bộ** (muc 5.4).
+>
+> **Phân biệt bằng SỐ PHIÊN BẢN**, thứ hệ thống đã có: bằng 1 nghĩa là khách hàng chưa có CSBH nào
+> khi hồ sơ này được lập. Không thêm trường nào vào hồ sơ.
+>
+> **Con số chứ không phải một cờ có/không**: *"Phiên bản 4"* cho người đọc biết hồ sơ đã qua ba lần
+> thay thế trước đó.
+>
+> Dòng này đứng **ngay sau mã hồ sơ**, trong cụm định danh ở đầu thư — nó trả lời *"hồ sơ này là
+> gì"*, không phải *"đang chờ ai"*. Trên chuông thì rút gọn còn *CSBH mới* / *Phiên bản n*.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

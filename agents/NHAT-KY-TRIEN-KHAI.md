@@ -16487,3 +16487,88 @@ nhất** — *"bàn nào trả về"* nằm ở nhãn hành động, không ở 
 | Giao diện in lại vai trò (lặp với nhãn hành động) | **1 đỏ** |
 
 **2090/2090 xanh.**
+
+---
+
+## P218 — `0190` Thông báo nói rõ CSBH mới hay bản thay thế
+
+Khách hàng 08/09: *"thêm vào phần nội dung thông báo để biết thay đổi trên CSBH là tạo mới CSBH đối
+với khách hàng mới, hay đó là chỉnh sửa bổ sung trên một CSBH của một khách hàng đã có"*.
+
+### Đọc yêu cầu: "khách hàng mới" là khách CHƯA CÓ CSBH NÀO
+
+Chữ *"khách hàng mới"* đọc nghĩa đen là một khách vừa được lập trong danh mục, nhưng đó không phải
+thứ phân biệt được ở một hồ sơ CSBH — và cũng không phải thứ đổi việc của người duyệt. Cái đổi việc
+của họ là: **hồ sơ này có thay thế một CSBH đang hiệu lực không**. Một khách hàng lập từ năm ngoái mà
+hôm nay mới có CSBH đầu tiên thì vẫn là *CSBH mới* theo đúng nghĩa người đọc thư cần.
+
+Phép phân biệt vì thế là `version_no`: bằng 1 nghĩa là lúc lập, khách hàng chưa có CSBH nào. Đã nêu
+giả định này ra tài liệu.
+
+### Không thêm trường nào, và con số nói nhiều hơn một cờ
+
+`create` đặt `version_no` và `supersedes_id` trong **cùng một câu lệnh** (`active ? active.version_no
++ 1 : 1`), nên hai vế không thể lệch nhau và hỏi một trong hai là đủ.
+
+Gửi **con số** chứ không gửi câu chữ hay `laBanDau: boolean`. Câu chữ dựng ở `notification`, nơi đã
+giữ mọi bảng nhãn của thư — dựng ở `policy` là bản dịch thứ hai. Còn con số nói được thứ một cờ không
+nói: *"Phiên bản 4"* cho người đọc biết hồ sơ đã qua ba lần thay thế trước đó.
+
+Đặt ở `ctx` của `workflow`, không ở riêng từng sự kiện: mọi lá thư của luồng đều cần nó, và thiếu ở
+một sự kiện là một lá thư lặng lẽ thiếu một dòng ở đúng bước nào không đoán trước được. Cùng lý do
+`0031` đã ghi ngay trên đó cho bốn khoá người.
+
+### BẪY `0128` Ở TẦNG JAVASCRIPT — lần đầu ở `notification`
+
+`notify.service` dựng `MailEvent` bằng cách **liệt kê từng trường** từ thân sự kiện, y hệt một câu
+`SELECT` liệt kê từng cột. Thêm khoá vào sự kiện mà quên ở đó thì `versionNo` về `undefined`,
+TypeScript im vì trường khai `?`, và triệu chứng là **một dòng lặng lẽ vắng mặt** trong thư.
+
+Đã dính ba lần bên `policy`/`customer` (`0128`, `0144`, `0182`) — đây là lần đầu ở `notification`, và
+cùng một hình dạng. Ca kiểm bắt được nó là ca đi HẾT ĐƯỜNG: đẩy sự kiện qua `handle()` thật rồi đọc
+lá thư trong Mailpit. Ba ca gọi thẳng `bodyFor` đều XANH với đúng cái hỏng ấy.
+
+### PHÁ LẠI XANH: hai nửa của một đường, mỗi nửa cần người canh riêng
+
+Gỡ `versionNo: before.version_no` khỏi `workflow` mà **cả khối `0190` của `thong-bao.test.ts` vẫn
+xanh**. Lý do: những ca ấy dựng thân sự kiện BẰNG TAY (`suKien({ versionNo: 3 })`), nên chúng canh
+phần `notification` ĐỌC VÀ IN, không canh phần `policy` GỬI.
+
+Bịt bằng ba ca ở `policy.test.ts` đọc thẳng outbox. Ca thứ ba là ca rộng nhất và đáng giá nhất: quét
+MỌI sự kiện có `recipients` của một hồ sơ đã đi ba bước, đòi không sự kiện nào thiếu `versionNo` —
+nó canh đúng quyết định "đặt ở `ctx`", chứ không chỉ canh lượt gửi duyệt.
+
+Phá lại lần hai cho 3 đỏ. Kèm một lượt phá khác: đặt cứng `versionNo: 1` → 1 đỏ, đúng ca phiên bản
+thay thế.
+
+### Chỗ đứng của dòng ấy là một phần của yêu cầu
+
+Chèn ngay **sau mã hồ sơ**, trong cụm định danh đầu thư: nó trả lời *"hồ sơ này là gì"*, không phải
+*"đang chờ ai"*. Đẩy xuống dưới *Trạng thái* và *Bước đang duyệt* thì người đọc đã quyết định xong
+mình phải làm gì trước khi đọc tới nó. Có ca kiểm đo VỊ TRÍ dòng, không chỉ đo sự có mặt.
+
+`splice` chứ không viết thẳng vào mảng khai sẵn: dòng này CÓ THỂ vắng mặt — `policy.superseded` nói
+về bản CŨ vừa hết hiệu lực và dùng chung khung thư, nên in một câu đoán ra ở đó là khẳng định sai về
+chính hồ sơ người đọc đang cầm.
+
+### Chuông cũng nói, ở dạng NGẮN
+
+Khách hàng nói *"phần nội dung thông báo"*, và từ `0096` thư với chuông là hai mặt của cùng một thông
+báo — bỏ sót một bên là làm đúng nửa việc. Dòng chuông là MỘT DÒNG nên nó lấy dạng rút gọn (*CSBH
+mới* / *Phiên bản 4*), và loại thay đổi đứng **cuối**: hai vế đầu là thứ người dùng dò để tìm đúng hồ
+sơ trong danh sách, còn vế này là thứ họ đọc sau khi đã tìm thấy.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| `policy` thôi gửi `versionNo` | **XANH** → đã thêm ba ca ở `policy.test.ts`, giờ **3 đỏ** |
+| `versionNo` đặt cứng bằng 1 | **1 đỏ** — đúng ca phiên bản thay thế |
+| `notify.service` quên `versionNo` trong danh sách trường | **1 đỏ**, và CHỈ ca đi-hết-đường bắt được |
+| Bỏ dòng *Loại thay đổi* khỏi thân thư | **3 đỏ** |
+| Đặt dòng ấy xuống cuối thư | **1 đỏ** — ca đo vị trí |
+| Thiếu `versionNo` vẫn in ra một câu đoán bừa | **1 đỏ** |
+| Dòng chuông thôi nói loại thay đổi | **2 đỏ** |
+| Dòng chuông dùng câu DÀI thay vì câu ngắn | **1 đỏ** |
+
+**2100/2100 xanh.**

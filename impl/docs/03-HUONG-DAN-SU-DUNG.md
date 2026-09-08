@@ -1155,6 +1155,22 @@ màn hình), tài khoản **đã bị vô hiệu hoá**, và **Sale Admin** `m�
 > đầu), *Kế toán yêu cầu in lại* (việc quay lại), *Kế toán tiếp nhận lần 2* (kết quả việc vừa làm) —
 > cộng thư **nhắc sắp quá hạn** và **quá hạn** khi hồ sơ đang nằm ở bước của họ.
 
+### Đọc thư và thông báo `sửa 08/09`
+
+Mỗi lần hồ sơ chuyển bước, phần mềm gửi một lá thư và ghi một dòng vào **chuông thông báo**. Thân thư
+liệt kê: mã và tên khách hàng · mã hồ sơ · **Loại thay đổi** · trạng thái · bước đang duyệt · thời
+điểm · lý do (khi có) · liên kết mở hồ sơ.
+
+**Loại thay đổi** `mới 08/09` cho biết ngay hồ sơ này là gì:
+
+| Dòng trong thư | Nghĩa | Việc của người duyệt |
+|---|---|---|
+| **CSBH mới** — khách hàng chưa có CSBH nào trước đó | Đây là CSBH **đầu tiên** của khách hàng | Không có bản nào để đối chiếu |
+| **Phiên bản n** — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực | Bản này sẽ **thay thế** CSBH khách hàng đang được hưởng | Soi xem nó đổi gì so với bản cũ — cột *Trạng thái* của từng dòng sản phẩm nói ra điều đó |
+
+Con số *n* là số lần CSBH của khách hàng ấy được lập lại: *Phiên bản 4* nghĩa là đã có ba lần thay
+thế trước đó. Dòng thông báo trên chuông cũng nói, ở dạng ngắn — *CSBH mới* hoặc *Phiên bản 4*.
+
 ### Thư báo CSBH hết hiệu lực
 
 Một CSBH đang hiệu lực mất hiệu lực theo **hai đường**, và cả hai giờ đều có thư báo.

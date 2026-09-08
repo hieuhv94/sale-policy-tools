@@ -87,7 +87,23 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P217** (`0189`): **lý do trả về nói rõ AI và TỪ BƯỚC NÀO**. `last_reason` chỉ giữ
+Chặng gần nhất **P218** (`0190`): **thông báo nói rõ CSBH MỚI hay BẢN THAY THẾ**. Đọc *"khách hàng
+mới"* là **khách chưa có CSBH nào** (đã nêu giả định): thứ đổi việc của người duyệt là *hồ sơ này có
+thay thế một CSBH đang hiệu lực không* — bản đầu không có gì để đối chiếu, bản thay thế thì duyệt
+xong là bản cũ vô hiệu TOÀN BỘ. Phân biệt bằng `version_no`, **không thêm trường nào** (`create` đặt
+nó cùng câu lệnh với `supersedes_id` nên hai vế không lệch được). Gửi **CON SỐ**, không phải cờ: *"Phiên
+bản 4"* nói hồ sơ đã qua ba lần thay thế. Đặt ở `ctx` của `workflow` nên đi kèm MỌI sự kiện của luồng.
+**BẪY `0128` LẦN ĐẦU Ở `notification`**: `notify.service` dựng `MailEvent` bằng cách LIỆT KÊ TỪNG
+TRƯỜNG — quên một khoá thì dòng lặng lẽ vắng mặt trong thư, `tsc` im vì trường khai `?`; ba ca gọi
+thẳng `bodyFor` đều XANH với đúng cái hỏng ấy, ca bắt được là ca đi HẾT ĐƯỜNG qua Mailpit thật.
+**PHÁ LẠI XANH — hai nửa của một đường**: gỡ `versionNo` khỏi `policy` mà cả khối ca kiểm
+`notification` vẫn xanh, vì chúng dựng payload BẰNG TAY nên chỉ canh phần ĐỌC VÀ IN. Bịt bằng ba ca
+đọc thẳng outbox, ca rộng nhất quét MỌI sự kiện có `recipients` và đòi không cái nào thiếu trường ấy.
+Dòng ấy chèn **ngay sau mã hồ sơ** (cụm định danh, không phải cụm trạng thái) và có ca đo VỊ TRÍ;
+`splice` chứ không viết cứng, vì `policy.superseded` dùng chung khung thư mà nói về bản CŨ. Chuông
+cũng nói, ở dạng NGẮN (`0096` — thư và chuông là hai mặt của một thông báo). **2100/2100 xanh.**
+
+Trước đó **P217** (`0189`): **lý do trả về nói rõ AI và TỪ BƯỚC NÀO**. `last_reason` chỉ giữ
 CÂU CHỮ, trong khi hồ sơ đi qua mười bước và có **bốn** hành động kèm lý do (`TBP_RETURN` ·
 `TBP_RECALL` · `KT_RETURN_L1` · `KT_RETURN_L2`) ở ba bàn — cùng câu *"thiếu chứng từ"* từ hai bàn là
 hai việc phải làm khác nhau, mà người đọc chỉ phân biệt được bằng cách tự mở Nhật ký ra dò.

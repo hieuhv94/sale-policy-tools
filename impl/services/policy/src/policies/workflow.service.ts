@@ -271,6 +271,15 @@ export class WorkflowService {
       sale_admin_user_id: string | null;
       customer_id: string;
       supersedes_id: string | null;
+      /**
+       * `0190` — số phiên bản, để lá thư nói ra ĐÂY LÀ LOẠI THAY ĐỔI GÌ.
+       *
+       * `SELECT *` vốn đã lấy cột này; khai ra đây là để `tsc` biết nó có. Bằng
+       * 1 nghĩa là CSBH đầu tiên của khách hàng, lớn hơn 1 là bản thay thế —
+       * `create` đặt `version_no` và `supersedes_id` trong cùng một câu lệnh nên
+       * hai vế ấy không thể lệch nhau.
+       */
+      version_no: number;
       /** `0142` — luật riêng của Kế toán ở `assertPolicyInScope`. `SELECT *` vốn đã lấy. */
       da_qua_tbp: boolean;
       tbp_signed_at: Date | null;
@@ -480,6 +489,25 @@ export class WorkflowService {
       customerCode: cus.code,
       customerName: cus.name,
       tdvUserId: before.tdv_user_id,
+      /*
+       * `0190` — LOẠI THAY ĐỔI, trong MỌI sự kiện của luồng duyệt.
+       *
+       * Khách hàng chốt 08/09: thông báo phải cho biết đây là *lập CSBH mới cho
+       * khách chưa có CSBH nào* hay *chỉnh sửa/bổ sung trên CSBH đang hiệu lực*.
+       * Hai việc ấy khác nhau ở thứ người duyệt phải làm: bản đầu thì không có
+       * gì để đối chiếu, bản thay thế thì phải soi xem nó đổi gì so với bản
+       * khách hàng đang được hưởng.
+       *
+       * Gửi CON SỐ chứ không gửi câu chữ hay một cờ boolean. Câu chữ dựng ở
+       * `notification`, nơi đã giữ mọi bảng nhãn của thư; còn con số nói được
+       * nhiều hơn một cờ — *"Phiên bản 4"* cho người đọc biết hồ sơ này đã qua
+       * ba lần thay thế, thứ một `laBanDau: false` không nói được.
+       *
+       * Đặt ở `ctx` chứ không ở riêng từng sự kiện: mọi lá thư của luồng duyệt
+       * đều cần nó, và thiếu ở một sự kiện là một lá thư im lặng thiếu một dòng
+       * — đúng cái bẫy `0031` đã ghi ngay trên cho bốn khoá người.
+       */
+      versionNo: before.version_no,
       // Bốn người của hồ sơ SAU bước này, trong MỌI sự kiện (`0031`).
       //
       // Đặt ở `ctx` chứ không ở riêng từng sự kiện: thiếu ba khoá này thì

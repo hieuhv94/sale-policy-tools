@@ -21,6 +21,8 @@ import {
   createTestApp as createNotificationApp,
   duongDan,
   DUONG_BAN_GIAO,
+  loaiThayDoi,
+  moTaNgan,
   NotifyService,
   TITLE,
   type MailEvent,
@@ -32,6 +34,7 @@ import {
   clearScopeCache,
   http,
   mailpitClear,
+  mailpitLatestTo,
   withAdminDb,
 } from './app.js';
 
@@ -51,6 +54,9 @@ const post = async (path: string, who: string, body: object = {}) =>
   (await http(ntf)).post(path).set('Authorization', `Bearer ${tok[who]}`).send(body);
 
 /** Đọc thẳng bảng — cột `duong_dan` là thứ ca kiểm phải nhìn thấy nguyên văn. */
+/** Địa chỉ thư của tài khoản mẫu — nạp cùng `uid` (`0190`). */
+const EMAIL: Record<string, string> = {};
+
 const dong = async (eventId: string) =>
   withAdminDb(async (c) => {
     const r = await c.query<{
@@ -107,11 +113,16 @@ beforeAll(async () => {
     tok[u] = await accessTokenFor(identity, u, SEED_PW);
   }
   await withAdminDb(async (c) => {
-    const r = await c.query<{ id: string; username: string }>(
-      `SELECT id, username FROM idn.app_user WHERE username = ANY($1)`,
+    const r = await c.query<{ id: string; username: string; email: string }>(
+      // `0190` — địa chỉ thư đi cùng lượt hỏi: ca đi-hết-đường đọc lá thư THẬT
+      // trong Mailpit, và nó cần biết thư ấy gửi tới đâu.
+      `SELECT id, username, email FROM idn.app_user WHERE username = ANY($1)`,
       [Object.keys(tok)],
     );
-    for (const row of r.rows) uid[row.username] = row.id;
+    for (const row of r.rows) {
+      uid[row.username] = row.id;
+      EMAIL[row.username] = row.email;
+    }
   });
 
   ntf = await createNotificationApp();
@@ -429,5 +440,119 @@ describe('`0096` đánh dấu đã đọc', () => {
     await notify.handle(suKien({ at: '2026-08-20T00:00:00.000Z', policyCode: 'MOI' }));
     const ds = (await get('/notifications/cua-toi', 'tdv01')).body.items;
     expect(ds.map((d: { moTa: string }) => d.moTa.split(' · ')[1])).toEqual(['MOI', 'CU']);
+  });
+});
+
+/**
+ * `0190` — THÔNG BÁO NÓI RÕ ĐÂY LÀ CSBH MỚI HAY BẢN THAY THẾ.
+ *
+ * Khách hàng chốt 08/09: *"thêm vào phần nội dung thông báo để biết thay đổi
+ * trên CSBH là tạo mới CSBH đối với khách hàng mới, hay đó là chỉnh sửa bổ sung
+ * trên một CSBH của một khách hàng đã có"*.
+ *
+ * Hai loại ấy đòi hai việc khác nhau ở người duyệt: bản đầu không có gì để đối
+ * chiếu, bản thay thế thì phải soi xem nó đổi gì so với thứ khách hàng ĐANG được
+ * hưởng — mà tới `0189` lá thư không phân biệt được hai trường hợp.
+ */
+describe('`0190` loại thay đổi trong nội dung thông báo', () => {
+  const GOC_TEST = 'https://csbh.example.com';
+  const su = (versionNo?: number): MailEvent => ({
+    eventId: randomUUID(),
+    routingKey: 'policy.status_changed',
+    action: 'SUBMIT',
+    policyId: '11111111-2222-3333-4444-555555555555',
+    policyCode: 'CSBH-2026-000031',
+    customerCode: 'KH0007',
+    customerName: 'Nhà thuốc Minh Châu',
+    toStatus: 'CHO_TBP_DUYET',
+    at: '2026-09-08T03:00:00.000Z',
+    ...(versionNo === undefined ? {} : { versionNo }),
+  });
+
+  it('phiên bản 1 → CSBH MỚI, và nói ra hệ quả', () => {
+    const cau = loaiThayDoi(su(1));
+    expect(cau).toContain('CSBH mới');
+    // Nói ra HỆ QUẢ, không chỉ gọi tên: người duyệt đọc thư để biết mình sắp
+    // phải làm gì.
+    expect(cau).toContain('chưa có CSBH nào');
+    expect(bodyFor(su(1), GOC_TEST)).toContain('Loại thay đổi');
+  });
+
+  it('phiên bản > 1 → BẢN THAY THẾ, kèm số phiên bản', () => {
+    const cau = loaiThayDoi(su(4))!;
+    expect(cau).toContain('Phiên bản 4');
+    expect(cau).toContain('chỉnh sửa/bổ sung');
+    expect(cau).toContain('thay thế');
+    // Con số nói được thứ một cờ boolean không nói: hồ sơ này đã qua ba lần thay
+    // thế trước đó.
+    expect(cau).not.toContain('CSBH mới');
+  });
+
+  it('THIẾU `versionNo` thì dòng ấy VẮNG MẶT, không đoán bừa', () => {
+    /*
+     * Hai lá thư dùng chung khung này mà KHÔNG nói về một hồ sơ đang đi trong
+     * luồng: `policy.superseded` nói về bản CŨ vừa hết hiệu lực. In một câu đoán
+     * ra ở đó là khẳng định sai về chính hồ sơ người đọc đang cầm.
+     */
+    expect(loaiThayDoi(su())).toBeNull();
+    const than = bodyFor(su(), GOC_TEST);
+    expect(than).not.toContain('Loại thay đổi');
+    expect(than).not.toContain('undefined');
+    expect(than).not.toContain('NaN');
+  });
+
+  it('đứng ngay SAU mã hồ sơ, không bị đẩy xuống cuối thư', () => {
+    /*
+     * Chỗ đứng là một phần của yêu cầu: dòng này trả lời *"hồ sơ này là gì"*,
+     * nên nó thuộc cụm định danh ở đầu thư. Đẩy xuống dưới *Trạng thái* và
+     * *Bước đang duyệt* thì người đọc đã quyết định xong mình phải làm gì trước
+     * khi đọc tới nó.
+     */
+    const dong = bodyFor(su(2), GOC_TEST).split('\n');
+    const viTri = (k: string) => dong.findIndex((d) => d.startsWith(k));
+    expect(viTri('Loại thay đổi')).toBeGreaterThan(viTri('Mã hồ sơ CSBH'));
+    expect(viTri('Loại thay đổi')).toBeLessThan(viTri('Trạng thái'));
+  });
+
+  it('DÒNG CHUÔNG cũng nói, ở dạng ngắn', () => {
+    // Khách hàng nói *"phần nội dung thông báo"* — thư và chuông là hai mặt của
+    // cùng một thông báo (`0096`), nên bỏ sót một bên là làm đúng nửa việc.
+    expect(moTaNgan(su(1))).toContain('CSBH mới');
+    expect(moTaNgan(su(4))).toContain('Phiên bản 4');
+    // Dạng NGẮN: dòng chuông là một dòng, không phải một đoạn văn.
+    expect(moTaNgan(su(4))).not.toContain('chỉnh sửa/bổ sung');
+    // Loại thay đổi đứng CUỐI — hai vế đầu là thứ người dùng dò để tìm hồ sơ.
+    expect(moTaNgan(su(4))!.indexOf('Phiên bản 4')).toBeGreaterThan(
+      moTaNgan(su(4))!.indexOf('CSBH-2026-000031'),
+    );
+  });
+
+  it('thiếu `versionNo` thì dòng chuông giữ nguyên như trước', () => {
+    expect(moTaNgan(su())).toBe('KH0007 — Nhà thuốc Minh Châu · CSBH-2026-000031');
+  });
+
+  it('ĐI HẾT ĐƯỜNG: `versionNo` từ sự kiện tới THƯ THẬT và tới dòng chuông', async () => {
+    /*
+     * CA QUAN TRỌNG NHẤT của `0190`, và nó canh một bẫy đã cắn ba lần.
+     *
+     * `notify.service` dựng `MailEvent` bằng cách LIỆT KÊ TỪNG TRƯỜNG — y hệt
+     * một câu `SELECT` liệt kê từng cột. Thêm một khoá vào thân sự kiện mà quên
+     * ở đó thì `versionNo` về `undefined`, TypeScript im vì trường khai `?`, và
+     * triệu chứng là một dòng **lặng lẽ vắng mặt** trong thư. Ba ca ở trên đều
+     * gọi thẳng `bodyFor` nên chúng XANH với đúng cái hỏng ấy.
+     *
+     * Nên ca này đẩy sự kiện qua `handle()` thật rồi đọc lá thư trong Mailpit.
+     */
+    const ev = suKien({ action: 'SUBMIT', recipients: ['TDV'], versionNo: 3 });
+    expect(await notify.handle(ev)).toBe('sent');
+
+    const thu = await mailpitLatestTo(EMAIL['tdv01']!);
+    expect(thu, 'không gửi được thư nào').toBeDefined();
+    expect(thu!.text).toContain('Loại thay đổi');
+    expect(thu!.text).toContain('Phiên bản 3');
+
+    const ds = await dong(ev.eventId);
+    expect(ds).toHaveLength(1);
+    expect(ds[0]!.mo_ta, 'dòng chuông không nói loại thay đổi').toContain('Phiên bản 3');
   });
 });

@@ -43,6 +43,16 @@ export type Outcome = 'sent' | 'duplicate' | 'ignored' | 'dead';
 
 const s = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
+/**
+ * Số nguyên dương trong thân sự kiện, hoặc `undefined` (`0190`).
+ *
+ * JSON qua RabbitMQ giữ nguyên kiểu số, nên `typeof v === 'number'` là đủ —
+ * nhưng vẫn chặn `NaN` và số âm: một `versionNo` hỏng sẽ in ra *"Phiên bản NaN"*
+ * giữa lá thư, và đó là loại lỗi không ai báo cáo vì trông như lỗi hiển thị.
+ */
+const n = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : undefined;
+
 @Injectable()
 export class NotifyService {
   private readonly log = new Logger(NotifyService.name);
@@ -100,6 +110,18 @@ export class NotifyService {
         pendingStep: s(p['pendingStep']),
         at: s(p['at']),
         reason: s(p['reason']) ?? null,
+        /*
+         * `0190` — BẪY `0128` Ở TẦNG JAVASCRIPT.
+         *
+         * Danh sách này liệt kê từng trường, y như một câu `SELECT` liệt kê từng
+         * cột: thêm một khoá vào thân sự kiện mà quên ở đây thì `MailEvent` nhận
+         * `undefined`, TypeScript im vì trường khai `?`, và triệu chứng là một
+         * dòng LẶNG LẼ VẮNG MẶT trong thư — không lỗi nào nổi lên.
+         *
+         * Đã dính hai lần ở `policy`/`customer` (`0128`, `0144`, `0182`); đây là
+         * lần đầu ở `notification`, và cùng một hình dạng.
+         */
+        versionNo: n(p['versionNo']),
         extra: isRecord(p['extra']) ? (p['extra'] as Record<string, string>) : {},
       };
 
