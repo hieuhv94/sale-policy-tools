@@ -1541,6 +1541,40 @@ export class PoliciesService {
       [policyId],
     );
 
+    /*
+     * PHIÊN BẢN SAU ĐANG DỞ DANG (`0191`).
+     *
+     * `0191` thêm nút *Lập phiên bản mới* ngay trên trang một CSBH đang hiệu
+     * lực, để TDV khỏi phải vòng qua trang khách hàng. Lối tắt ấy làm một cạnh
+     * sắc CÓ SẴN dễ vấp hơn hẳn: `create` KHÔNG chặn việc lập bản thứ hai khi
+     * một bản mới đã đang soạn hoặc đang duyệt. Đi từ trang khách hàng thì bản
+     * dở nằm ngay trong danh sách hồ sơ của khách; đi từ đây thì không thấy gì.
+     *
+     * KHÔNG chặn — đó sẽ là một luật nghiệp vụ mới, và khách hàng chưa chốt.
+     * Chỉ NÓI RA, để hộp xác nhận hỏi đúng câu người dùng cần trả lời.
+     *
+     * Chỉ hỏi khi hồ sơ ĐANG HIỆU LỰC: đó là trạng thái duy nhất bày nút ấy, và
+     * một câu `SELECT` cho mọi lượt mở mọi hồ sơ là cái giá không mua gì.
+     */
+    const phienBanSau =
+      p.status === 'DANG_CO_HIEU_LUC'
+        ? await this.db.one<{ id: string; code: string; status: string }>(
+            `SELECT id, code, status::text AS status
+               FROM pol.policy
+              WHERE supersedes_id = $1 AND status::text = ANY($2::text[])
+              ORDER BY created_at DESC LIMIT 1`,
+            [policyId, CHUA_DUYET_XONG],
+          )
+        : null;
+    /*
+     * `?? null` — `db.one` trả `undefined` khi không có dòng nào, và
+     * `JSON.stringify` XOÁ HẲN khoá mang `undefined`. Trường sẽ vắng mặt thay vì
+     * bằng rỗng, nên giao diện không phân biệt được *"chưa có bản dở nào"* với
+     * *"máy chủ cũ hơn, không biết trường này"* — hai thứ trông giống hệt nhau ở
+     * phía đọc, và chỉ một trong hai đáng để giấu cảnh báo đi.
+     */
+    const phienBanSauHoacRong = phienBanSau ?? null;
+
     const [tenDuyet, khach] = await Promise.all([
       this.clients.userNames(
         // `createdBy` vào cùng lượt hỏi: người đề nghị là một cái tên nữa trên
@@ -1604,6 +1638,11 @@ export class PoliciesService {
        * chủ ý, nên mất tên chứ không mất cả màn hình. Giao diện vẫn còn ba vế
        * kia để nói ra một câu có nghĩa.
        */
+      /*
+       * `0191` — bản kế nhiệm đang dở, để hộp xác nhận nói ra. `null` là không
+       * có, và cũng là giá trị cho mọi hồ sơ không ở trạng thái đang hiệu lực.
+       */
+      phienBanSau: phienBanSauHoacRong,
       lyDoTraLai: lyDoSu
         ? {
             lyDo: lyDoSu.reason,

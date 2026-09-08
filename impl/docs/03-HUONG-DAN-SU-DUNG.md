@@ -906,6 +906,23 @@ người duyệt trả lại.
 > **Không còn nút *Sửa ngày áp dụng*** `sửa 07/09`: ngày áp dụng thuộc về **từng sản phẩm**, và sửa
 > nó đi chung đường với giá bán buôn — bấm *Sửa* ở chính dòng ấy.
 
+### Lập phiên bản mới ngay từ trang hồ sơ `mới 08/09`
+
+Mở một CSBH **đang có hiệu lực** của khách hàng bạn phụ trách, bấm **Lập phiên bản mới** ở dải nút
+trên cùng — không cần vào trang khách hàng nữa.
+
+- Nút chỉ hiện ở hồ sơ **Đang có hiệu lực**, và chỉ với **Trình dược viên**.
+- Bản mới **chép sẵn toàn bộ sản phẩm** của bản hiện tại; bạn chỉ sửa phần cần đổi.
+- **CSBH hiện tại vẫn có hiệu lực** cho tới khi bản mới được duyệt xong.
+- Bấm xong là màn hình chuyển thẳng sang hồ sơ nháp vừa lập.
+
+> **Nếu khách hàng đã có một bản mới đang dở dang** — đang soạn hoặc đang đi trong luồng duyệt — hộp
+> xác nhận nói ra mã bản đó kèm liên kết mở nó. Hệ thống **không chặn**, nhưng lập tiếp sẽ tạo **bản
+> thứ hai** và cả hai cùng chờ duyệt. Gần như lúc nào bạn cũng muốn mở bản đang dở ra sửa tiếp thay
+> vì lập thêm.
+
+Cách cũ vẫn dùng được: **Hồ sơ CSBH → Lập hồ sơ → chọn khách hàng**.
+
 ### Đọc lý do hồ sơ bị trả về `sửa 08/09`
 
 Hồ sơ bị trả về mang một khối **Lý do gần nhất** ngay dưới khối thông tin. Từ `08/09` khối ấy nói đủ

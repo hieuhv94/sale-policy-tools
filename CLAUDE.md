@@ -87,7 +87,23 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P218** (`0190`): **thông báo nói rõ CSBH MỚI hay BẢN THAY THẾ**. Đọc *"khách hàng
+Chặng gần nhất **P219** (`0191`): **lập phiên bản mới ngay từ trang hồ sơ**, khỏi vòng qua trang khách
+hàng. **KHÔNG có đường máy chủ mới** — gọi đúng `POST /policies` với `mode: NEW_VERSION` mà trang *Lập
+hồ sơ* vẫn gọi, nên mọi chốt của `create` (phạm vi TDV · khách ngừng hợp tác · `NO_ACTIVE_POLICY`) giữ
+nguyên; một đường thứ hai là một bản sao sẽ trôi. **Nút này KHÔNG thuộc máy trạng thái**:
+`allowed-actions` liệt kê bước của MÁY TRẠNG THÁI trên chính hồ sơ này, còn đây là lượt LẬP MỘT HỒ SƠ
+KHÁC — `DANG_CO_HIEU_LUC` không đi đâu tới khi bản mới duyệt xong, khai nó thành `Action` là dựng một
+bước chuyển không có thật và bắt `RULES` ↔ `ACTION_OF` (`0185`) mang một dòng nói dối. Điều kiện bày
+nút có HAI VẾ, cả hai đều cần (hồ sơ đang hiệu lực cũng mở ra với TBP · KT · SA vì họ ở trong bốn cột
+người), mỗi vế có ca phá riêng. **THỨ THÊM NGOÀI YÊU CẦU, đã nêu**: `create` không chặn bản thứ hai
+khi một bản mới đang dở — hành vi có sẵn, nhưng lối tắt làm nó dễ vấp hơn hẳn vì trang hồ sơ không bày
+danh sách hồ sơ của khách. Không chặn (đó là luật nghiệp vụ mới), chỉ NÓI RA: `phienBanSau` +
+cảnh báo kèm liên kết trong hộp xác nhận; câu `SELECT` ấy chỉ chạy ở `DANG_CO_HIEU_LUC`. **Bẫy đã
+dính**: `db.one` trả `undefined` và `JSON.stringify` XOÁ HẲN khoá ấy — trường biến mất thay vì bằng
+rỗng, nên giao diện không phân biệt được *"chưa có bản dở"* với *"máy chủ cũ không biết trường này"*;
+chuẩn hoá `?? null` tại chỗ trả về. Bảy lượt phá lại, bảy đỏ đúng chỗ. **2112/2112 xanh.**
+
+Trước đó **P218** (`0190`): **thông báo nói rõ CSBH MỚI hay BẢN THAY THẾ**. Đọc *"khách hàng
 mới"* là **khách chưa có CSBH nào** (đã nêu giả định): thứ đổi việc của người duyệt là *hồ sơ này có
 thay thế một CSBH đang hiệu lực không* — bản đầu không có gì để đối chiếu, bản thay thế thì duyệt
 xong là bản cũ vô hiệu TOÀN BỘ. Phân biệt bằng `version_no`, **không thêm trường nào** (`create` đặt

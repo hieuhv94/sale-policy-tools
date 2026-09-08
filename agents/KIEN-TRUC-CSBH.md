@@ -1198,6 +1198,8 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | POL-05 | Xác nhận BỔ SUNG | Dựng hồ sơ mới chứa **toàn bộ** sản phẩm hiện hành của khách hàng cộng sản phẩm mới, giữ `supersedes_id`, quay lại Bước 3 | §5.1 §5.4 | `P0` |
 | POL-06 | Khách hàng đã có chính sách cho sản phẩm đó | `AMEND_REQUIRED` kèm đúng thông điệp “…đã có. Bạn có muốn CHỈNH SỬA không?” | §5.1 | `P0` |
 | POL-07 | Xác nhận CHỈNH SỬA | Hồ sơ mới đầy đủ, sao chép giá trị dòng cũ để sửa, giữ liên kết tới CSBH gốc | §5.1 | `P0` |
+| POL-26 | Mở một CSBH `DANG_CO_HIEU_LUC` bằng tài khoản TDV | Có nút *Lập phiên bản mới*; nó gọi `POST /policies` với `mode: NEW_VERSION`, KHÔNG có đường máy chủ riêng. Vai trò khác hoặc trạng thái khác thì không có nút | §7 | `P1` |
+| POL-27 | Hồ sơ đang hiệu lực đã có bản kế nhiệm CHƯA duyệt xong | `phienBanSau` trả `{id, code, status}`; hộp xác nhận cảnh báo kèm liên kết. Bản đã duyệt xong, hoặc hồ sơ không ở `DANG_CO_HIEU_LUC` → `null` | §7 | `P2` |
 | POL-25 | Mở một hồ sơ đã bị trả về | `lyDoTraLai` dựng từ `pol.policy_event` — dòng CUỐI CÙNG có `reason`, kèm `action`, `from_status`, tên người, mốc thời gian. `null` khi hồ sơ chưa từng bị trả về | §7 | `P1` |
 | ~~POL-08~~ | ~~Gửi duyệt hồ sơ thiếu một sản phẩm có trong bản đang hiệu lực~~ | **BỎ HẲN `08/09`** (`0186`) — khách hàng đảo luật: rút một mặt hàng khỏi phiên bản mới là một nghiệp vụ có thật. Thay bằng POL-08a…POL-08d | §5.4 | — |
 | POL-08a | Rút một dòng **thừa kế** khỏi phiên bản đang soạn | Dòng NẰM LẠI, `da_xoa = true`, trạng thái `DA_XOA`; dòng *Bổ sung* thì `DELETE` hẳn | §5.4 | `P0` |

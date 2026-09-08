@@ -51,6 +51,15 @@ type HoSo = {
   effectiveFrom: string | null;
   lastReason: string | null;
   /**
+   * `0191` — phiên bản kế nhiệm đang SOẠN hoặc đang DUYỆT, nếu có.
+   *
+   * Chỉ có nghĩa khi hồ sơ này đang hiệu lực; máy chủ trả `null` ở mọi trạng
+   * thái khác. Hộp xác nhận *Lập phiên bản mới* đọc nó để hỏi đúng câu — `create`
+   * KHÔNG chặn bản thứ hai, nên im lặng ở đây là để người dùng lập chồng lên
+   * chính bản họ đang soạn dở.
+   */
+  phienBanSau?: { id: string; code: string; status: string } | null;
+  /**
    * `0189` — lý do gần nhất KÈM NGỮ CẢNH, máy chủ dựng từ nhật ký hồ sơ.
    *
    * Tuỳ chọn vì máy chủ cũ hơn giao diện không gửi nó; giá trị lùi là khối cũ
@@ -179,6 +188,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
   /** Dòng đang mở để sửa. Cùng biểu mẫu với thêm dòng — xem `ThemDongSanPham`. */
   const [suaDongCu, datSuaDongCu] = useState<DongSanPham | null>(null);
   const [moSua, datMoSua] = useState<'dong' | 'xoa' | null>(null);
+  /** `0191` — hộp xác nhận *Lập phiên bản mới* đang mở hay không. */
+  const [moBanMoi, datMoBanMoi] = useState(false);
+  const [dangLapBanMoi, datDangLapBanMoi] = useState(false);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   const { di } = useDuong();
 
@@ -241,6 +253,43 @@ export function ChiTietHoSo({ id }: { id: string }) {
       bao(e);
     } finally {
       datDangXoaDong(null);
+    }
+  };
+
+  /**
+   * LẬP PHIÊN BẢN MỚI ngay từ trang hồ sơ (`0191`).
+   *
+   * Khách hàng chốt 08/09: TDV xem một CSBH đang hiệu lực thì lập được bản mới
+   * tại chỗ, không phải vòng qua trang khách hàng.
+   *
+   * Gọi ĐÚNG đường mà trang *Lập hồ sơ* vẫn gọi — `POST /policies` với `mode:
+   * 'NEW_VERSION'` — chứ không thêm một đường máy chủ riêng. Hai lối vào cùng
+   * một việc thì phải đi chung một chốt chặn: `assertInScope`, khách đã ngừng
+   * hợp tác, và luật *"chưa có CSBH nào thì không lập bản mới được"* đều nằm ở
+   * đó. Một đường thứ hai là một bản sao sẽ trôi.
+   *
+   * `lines: []` — bản mới CHÉP SẴN toàn bộ dòng của bản đang hiệu lực; đây là
+   * phần TDV thêm vào, và ở lối tắt này họ chưa thêm gì.
+   *
+   * Đi thẳng sang hồ sơ vừa lập: người bấm nút này đang muốn SOẠN, và để họ ở
+   * lại trang cũ thì việc kế tiếp của họ là tự đi tìm bản nháp vừa tạo.
+   */
+  const lapPhienBanMoi = async () => {
+    if (!hoSo) return;
+    datLoi(null);
+    datDangLapBanMoi(true);
+    try {
+      const moi = await dang<{ id: string }>('/policies', {
+        customerId: hoSo.customerId,
+        mode: 'NEW_VERSION',
+        lines: [],
+      });
+      datMoBanMoi(false);
+      di(`/ho-so/${moi.id}`);
+    } catch (e) {
+      bao(e);
+    } finally {
+      datDangLapBanMoi(false);
     }
   };
 
@@ -337,6 +386,26 @@ export function ChiTietHoSo({ id }: { id: string }) {
             bản mềm* thì ở trên cùng. Người dùng phải cuộn để tìm một nút mà họ
             biết chắc là có.
           */}
+          {/*
+            *Lập phiên bản mới* (`0191`) — CHỈ ở hồ sơ ĐANG CÓ HIỆU LỰC.
+
+            Trạng thái là một nửa điều kiện, vai trò là nửa kia, và cả hai đều
+            cần: hồ sơ đang hiệu lực cũng hiện ra với TBP, Kế toán và Sale Admin
+            (họ nằm trong bốn cột người), mà lập hồ sơ là việc của TDV.
+
+            KHÔNG đọc `allowed-actions`: danh sách ấy là các bước của MÁY TRẠNG
+            THÁI trên chính hồ sơ này, còn đây là lượt LẬP MỘT HỒ SƠ KHÁC. Nhét
+            nó vào máy trạng thái là khai một bước chuyển không có thật —
+            `DANG_CO_HIEU_LUC` không đi đâu cả cho tới khi bản mới được duyệt.
+
+            Máy chủ vẫn là chốt thật (`assertInScope` ở `create`); ẩn nút chỉ để
+            đừng bày ra thứ bấm vào sẽ nhận 403.
+          */}
+          {hoSo.status === 'DANG_CO_HIEU_LUC' && can(nguoiDung?.role, 'lapHoSo') && (
+            <button type="button" className="nut nut-nhe" onClick={() => datMoBanMoi(true)}>
+              Lập phiên bản mới
+            </button>
+          )}
           {can(nguoiDung?.role, 'xuatHopDong') && hoSo.xuatHopDongDuoc === true && (
             <button type="button" className="nut nut-nhe" onClick={() => datMoHopDong(true)}>
               Xuất hợp đồng
@@ -774,6 +843,50 @@ export function ChiTietHoSo({ id }: { id: string }) {
           }}
         />
       )}
+      {moBanMoi && (
+        <HopThoaiXacNhan
+          tieuDe="Lập phiên bản mới"
+          nhanNut={dangLapBanMoi ? 'Đang lập…' : 'Lập phiên bản mới'}
+          // KHÔNG phải thao tác nguy hiểm: nó tạo một bản NHÁP, không đụng gì
+          // tới CSBH đang hiệu lực. Bản cũ chỉ hết hiệu lực khi bản mới duyệt
+          // xong, và bản nháp thì TDV tự xoá được.
+          nguyHiem={false}
+          dangChay={dangLapBanMoi}
+          dong={() => datMoBanMoi(false)}
+          xacNhan={() => void lapPhienBanMoi()}
+          hauQua={
+            <>
+              <p>
+                Phiên bản mới <strong>chép sẵn toàn bộ sản phẩm</strong> của {hoSo.code} — bạn không
+                phải nhập lại. Mỗi dòng tự mang trạng thái <strong>Bổ sung</strong>,{' '}
+                <strong>Chỉnh sửa</strong> hay <strong>Đang áp dụng</strong> theo đúng thứ bạn thay
+                đổi.
+              </p>
+              <p>
+                CSBH hiện tại <strong>vẫn có hiệu lực</strong> cho tới khi bản mới được duyệt xong.
+              </p>
+              {/*
+                CẢNH BÁO, KHÔNG PHẢI CHẶN (`0191`).
+
+                `create` không cấm lập bản thứ hai khi một bản mới đang dở dang —
+                đó là hành vi có sẵn, và cấm nó là một luật nghiệp vụ mới chưa ai
+                chốt. Nhưng lối tắt này làm nó dễ vấp hơn hẳn: đi từ trang khách
+                hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách; đi từ
+                đây thì không thấy gì cả.
+              */}
+              {hoSo.phienBanSau && (
+                <p className="hop-canh-bao">
+                  Khách hàng này <strong>đã có một phiên bản mới đang dở dang</strong> —{' '}
+                  <Lien den={`/ho-so/${hoSo.phienBanSau.id}`}>{hoSo.phienBanSau.code}</Lien> (
+                  {nhanTrangThai(hoSo.phienBanSau.status)}). Lập tiếp sẽ tạo <strong>bản thứ hai</strong>,
+                  và cả hai cùng chờ duyệt.
+                </p>
+              )}
+            </>
+          }
+        />
+      )}
+
       {moSua === 'xoa' && (
         <XoaHoSo
           hoSoId={hoSo.id}

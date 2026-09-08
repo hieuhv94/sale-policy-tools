@@ -16572,3 +16572,70 @@ sơ trong danh sách, còn vế này là thứ họ đọc sau khi đã tìm th�
 | Dòng chuông dùng câu DÀI thay vì câu ngắn | **1 đỏ** |
 
 **2100/2100 xanh.**
+
+---
+
+## P219 — `0191` Lập phiên bản mới ngay từ trang hồ sơ
+
+Khách hàng 08/09: *"khi TDV xem một hồ sơ CSBH đang có hiệu lực, thêm 1 thao tác cho phép tạo một
+phiên bản mới ngay từ trang xem hồ sơ mà không cần phải vào trang khách hàng"*.
+
+### Không có đường máy chủ mới, và đó là quyết định
+
+Lối tắt gọi **đúng** `POST /policies` với `mode: 'NEW_VERSION'` mà trang *Lập hồ sơ* vẫn gọi. Mọi
+chốt chặn của việc lập hồ sơ nằm ở `create` — `assertInScope` theo TDV phụ trách khách hàng, khách đã
+ngừng hợp tác, `NO_ACTIVE_POLICY` khi chưa có gì để thay thế — và một đường thứ hai là một bản sao sẽ
+trôi khỏi bản gốc ở đúng lượt ai đó thêm chốt mới vào một trong hai.
+
+### Nút này KHÔNG thuộc máy trạng thái
+
+Cám dỗ đầu tiên là khai nó thành một `Action` rồi để `allowed-actions` bày ra. Sai: `allowed-actions`
+liệt kê các bước của máy trạng thái **trên chính hồ sơ này**, còn đây là lượt **lập một hồ sơ khác**.
+`DANG_CO_HIEU_LUC` không đi đâu cả cho tới khi bản mới được duyệt xong — khai nó là dựng ra một bước
+chuyển không có thật, và `RULES` ↔ `ACTION_OF` (`0185`) sẽ phải mang một dòng nói dối.
+
+Nên điều kiện bày nút viết thẳng: `status === 'DANG_CO_HIEU_LUC' && can(role, 'lapHoSo')`. **Hai vế,
+cả hai đều cần** — hồ sơ đang hiệu lực cũng mở ra với TBP, Kế toán và Sale Admin vì họ nằm trong bốn
+cột người, mà lập hồ sơ là việc của TDV. Có ca kiểm cho từng vế phá riêng.
+
+### Thứ tôi thêm ngoài yêu cầu, và vì sao
+
+`create` **không chặn** việc lập bản thứ hai khi một bản mới đã đang soạn hoặc đang duyệt. Đó là hành
+vi có sẵn từ lâu, không phải thứ chặng này sinh ra — nhưng lối tắt làm nó **dễ vấp hơn hẳn**: đi từ
+trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, đi từ trang hồ sơ thì không
+thấy gì cả.
+
+Không chặn — đó sẽ là một luật nghiệp vụ mới và khách hàng chưa chốt. Chỉ **nói ra**: `byId` trả thêm
+`phienBanSau` (bản kế nhiệm còn trong `CHUA_DUYET_XONG`), và hộp xác nhận bày mã kèm liên kết mở
+thẳng nó. Người dùng gần như lúc nào cũng muốn mở bản đang dở ra sửa tiếp thay vì lập thêm.
+
+Câu `SELECT` ấy **chỉ chạy khi hồ sơ ở `DANG_CO_HIEU_LUC`** — trạng thái duy nhất bày nút. Một câu
+truy vấn cho mọi lượt mở mọi hồ sơ là cái giá không mua gì.
+
+### `db.one` trả `undefined`, và `JSON.stringify` xoá hẳn khoá ấy
+
+Ca kiểm đầu tiên đỏ với *"expected undefined to be null"*. `phienBanSau` không có dòng nào thì trường
+**biến mất khỏi thân JSON**, chứ không bằng rỗng — nên giao diện không phân biệt được *"chưa có bản dở
+nào"* với *"máy chủ cũ hơn, không biết trường này"*. Hai thứ trông giống hệt nhau ở phía đọc, và chỉ
+một trong hai đáng để giấu cảnh báo đi. Chuẩn hoá `?? null` ngay tại chỗ trả về.
+
+### Hộp xác nhận, không phải bấm là chạy
+
+`nguyHiem={false}`: nó tạo một bản **nháp**, không đụng gì tới CSBH đang hiệu lực, và TDV tự xoá được.
+Nhưng vẫn hỏi lại, vì hộp ấy là chỗ duy nhất nói ra hai điều người lập cần biết trước khi bấm — bản
+mới chép sẵn sản phẩm (họ không phải nhập lại), và bản cũ **vẫn có hiệu lực** cho tới khi bản mới
+duyệt xong. Không có hộp thì hai câu ấy không có chỗ nào để đứng.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ nút *Lập phiên bản mới* | **5 đỏ** |
+| Bỏ điều kiện TRẠNG THÁI | **1 đỏ** — nút hiện trên hồ sơ chưa hiệu lực |
+| Bỏ điều kiện VAI TRÒ | **1 đỏ** — bốn vai trò khác cùng thấy nút |
+| Quên `mode: 'NEW_VERSION'` khi gọi máy chủ | **1 đỏ** |
+| Bỏ cảnh báo bản dở dang khỏi hộp xác nhận | **1 đỏ** |
+| Máy chủ thôi trả `phienBanSau` | **2 đỏ** |
+| Điều kiện lấy cả bản ĐÃ duyệt xong | **3 đỏ** |
+
+**2112/2112 xanh.**

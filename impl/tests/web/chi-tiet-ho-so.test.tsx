@@ -1445,3 +1445,116 @@ describe('`0189` lý do trả về nói rõ ai và từ bước nào', () => {
     expect(khoi()).toBeNull();
   });
 });
+
+/**
+ * `0191` — LẬP PHIÊN BẢN MỚI ngay từ trang hồ sơ.
+ *
+ * Khách hàng chốt 08/09: TDV xem một CSBH đang hiệu lực thì lập được bản mới tại
+ * chỗ, không phải vòng qua trang khách hàng.
+ */
+describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
+  const TDV = {
+    ...TBP,
+    user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
+  };
+  const laTdv = () => localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+  const HIEU_LUC = { ...HO_SO, status: 'DANG_CO_HIEU_LUC', effectiveFrom: '2026-08-01' };
+  const nutMoi = () => screen.queryByRole('button', { name: 'Lập phiên bản mới' });
+
+  const moHop = async (hoSo: unknown = HIEU_LUC) => {
+    laTdv();
+    const f = await mo(hoSo, []);
+    fireEvent.click(nutMoi()!);
+    await screen.findByRole('dialog');
+    return f;
+  };
+
+  it('TDV xem hồ sơ ĐANG HIỆU LỰC thì có nút', async () => {
+    laTdv();
+    await mo(HIEU_LUC, []);
+    expect(nutMoi()).not.toBeNull();
+  });
+
+  it('hồ sơ CHƯA hiệu lực thì KHÔNG có nút, dù vẫn là TDV', async () => {
+    /*
+     * Trạng thái là một nửa điều kiện. Bày nút trên hồ sơ đang chờ duyệt là mời
+     * người lập tạo bản thứ hai của một thứ chưa ai duyệt xong — và máy chủ trả
+     * `NO_ACTIVE_POLICY`, một câu không nói được vì sao nút lại có mặt.
+     */
+    laTdv();
+    await mo({ ...HO_SO, status: 'CHO_TBP_DUYET' }, []);
+    expect(nutMoi()).toBeNull();
+  });
+
+  it('vai trò KHÁC TDV thì KHÔNG có nút, dù hồ sơ đang hiệu lực', async () => {
+    /*
+     * Nửa còn lại của điều kiện. Hồ sơ đang hiệu lực vẫn mở ra với TBP, Kế toán
+     * và Sale Admin — họ nằm trong bốn cột người — mà lập hồ sơ là việc của TDV.
+     */
+    for (const v of ['TBP', 'KE_TOAN', 'SALE_ADMIN', 'BAN_LANH_DAO']) {
+      cleanup();
+      localStorage.setItem(
+        'csbh:phien',
+        JSON.stringify({ ...TBP, user: { ...TBP.user, role: v, username: 'x01' } }),
+      );
+      await mo(HIEU_LUC, []);
+      expect(nutMoi(), `${v} không được thấy nút lập phiên bản mới`).toBeNull();
+    }
+  });
+
+  it('hộp xác nhận nói ra HAI điều người lập cần biết trước khi bấm', async () => {
+    await moHop();
+    const hop = screen.getByRole('dialog');
+    // Bản mới chép sẵn — họ không phải nhập lại.
+    expect(hop.textContent).toContain('chép sẵn toàn bộ sản phẩm');
+    // Và bản đang hiệu lực KHÔNG mất hiệu lực ngay lúc này.
+    expect(hop.textContent).toContain('vẫn có hiệu lực');
+  });
+
+  it('CẢNH BÁO khi khách đã có một bản mới đang dở dang', async () => {
+    /*
+     * `create` KHÔNG chặn bản thứ hai — đó là hành vi có sẵn. Lối tắt này làm nó
+     * dễ vấp hơn hẳn: đi từ trang khách hàng thì bản dở nằm ngay trong danh sách
+     * hồ sơ của khách; đi từ đây thì không thấy gì cả.
+     */
+    await moHop({
+      ...HIEU_LUC,
+      phienBanSau: { id: 'hs-9', code: 'CSBH-2026-000999', status: 'CHO_TBP_DUYET' },
+    });
+    const hop = screen.getByRole('dialog');
+    expect(hop.textContent).toContain('CSBH-2026-000999');
+    expect(hop.textContent).toContain('Chờ TBP duyệt');
+    // Liên kết mở thẳng bản dở ấy — người dùng cần XEM nó rồi mới quyết định.
+    expect(within(hop).getByRole('link', { name: 'CSBH-2026-000999' })).toBeDefined();
+  });
+
+  it('KHÔNG cảnh báo khi chưa có bản nào dở dang', async () => {
+    await moHop();
+    expect(screen.getByRole('dialog').textContent).not.toContain('dở dang');
+  });
+
+  it('bấm xác nhận thì gọi ĐÚNG đường của trang Lập hồ sơ', async () => {
+    /*
+     * Cùng một đường máy chủ với trang *Lập hồ sơ* (`POST /policies`, `mode:
+     * NEW_VERSION`), không phải một đường riêng: mọi chốt chặn của việc lập hồ sơ
+     * — phạm vi TDV, khách đã ngừng hợp tác, "chưa có CSBH nào thì không lập bản
+     * mới được" — đều nằm ở đó, và một đường thứ hai là một bản sao sẽ trôi.
+     */
+    const f = await moHop();
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Lập phiên bản mới' }),
+    );
+
+    await waitFor(() => {
+      const goi = f.mock.calls
+        .map((c) => [String(c[0]), c[1] as RequestInit | undefined] as const)
+        .find(([d, o]) => d.endsWith('/policies') && o?.method === 'POST');
+      expect(goi, 'không gọi POST /policies').toBeDefined();
+      const than = JSON.parse(String(goi![1]!.body)) as Record<string, unknown>;
+      expect(than['mode']).toBe('NEW_VERSION');
+      expect(than['customerId']).toBe(HO_SO.customerId);
+      // Bản mới chép sẵn dòng cũ ở MÁY CHỦ; lối tắt này không thêm dòng nào.
+      expect(than['lines']).toEqual([]);
+    });
+  });
+});

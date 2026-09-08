@@ -2263,6 +2263,30 @@ khách hàng đã có"*.
 > Dòng này đứng **ngay sau mã hồ sơ**, trong cụm định danh ở đầu thư — nó trả lời *"hồ sơ này là
 > gì"*, không phải *"đang chờ ai"*. Trên chuông thì rút gọn còn *CSBH mới* / *Phiên bản n*.
 
+**LẬP PHIÊN BẢN MỚI NGAY TỪ TRANG HỒ SƠ** `mới 08/09` — *"khi TDV xem một hồ sơ CSBH đang có hiệu
+lực, thêm 1 thao tác cho phép tạo một phiên bản mới ngay từ trang xem hồ sơ mà không cần phải vào
+trang khách hàng"*.
+
+> Nút ***Lập phiên bản mới*** trên trang hồ sơ, cạnh các nút thao tác. **Hai điều kiện**: hồ sơ ở
+> ***Đang có hiệu lực***, và người xem là **Trình dược viên**. Hồ sơ đang hiệu lực cũng mở ra với TBP,
+> Kế toán và Sale Admin — họ nằm trong bốn cột người — mà lập hồ sơ là việc của TDV.
+>
+> **Không phải một nghiệp vụ mới.** Nó gọi đúng đường mà trang *Lập hồ sơ* vẫn gọi, nên mọi chốt chặn
+> giữ nguyên: phạm vi TDV phụ trách khách hàng, khách đã ngừng hợp tác thì không lập được, và bản mới
+> vẫn **chép sẵn toàn bộ sản phẩm** của bản đang hiệu lực.
+>
+> **Không phải một bước của luồng duyệt.** `DANG_CO_HIEU_LUC` không đi đâu cả cho tới khi bản mới được
+> duyệt xong; đây là lượt LẬP MỘT HỒ SƠ KHÁC, nên nó không nằm trong danh sách hành động của máy trạng
+> thái.
+>
+> **Hộp xác nhận nói ra hai điều**: bản mới chép sẵn sản phẩm, và **CSBH hiện tại vẫn có hiệu lực**
+> cho tới khi bản mới duyệt xong.
+>
+> **CẢNH BÁO khi khách đã có một bản mới đang dở dang** (đang soạn hoặc đang trong luồng duyệt), kèm
+> liên kết mở thẳng bản ấy. Hệ thống **KHÔNG chặn** — lập hai bản cùng lúc vốn đã làm được từ trước —
+> nhưng đi từ trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, còn đi từ đây thì
+> không thấy gì cả.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

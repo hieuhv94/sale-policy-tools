@@ -5481,3 +5481,81 @@ describe('`0190` sự kiện luồng duyệt mang số phiên bản', () => {
     expect(thieu, `sự kiện thiếu versionNo: ${thieu.join(', ')}`).toEqual([]);
   });
 });
+
+/**
+ * `0191` — LẬP PHIÊN BẢN MỚI từ trang hồ sơ, và cảnh báo bản dở dang.
+ *
+ * Lối tắt này KHÔNG có đường máy chủ riêng: nó gọi đúng `POST /policies` với
+ * `mode: 'NEW_VERSION'` mà trang *Lập hồ sơ* vẫn gọi. Nên phần máy chủ của chặng
+ * chỉ có một thứ mới — `phienBanSau`, dữ liệu để hộp xác nhận hỏi đúng câu.
+ */
+describe('`0191` phiên bản kế nhiệm đang dở dang', () => {
+  const doc = async (policyId: string, who = 'tdv01') =>
+    (await get(`/policies/${policyId}`, who)).body;
+
+  it('CSBH đang hiệu lực, chưa ai lập bản mới → `null`', async () => {
+    const d = await draft();
+    await runToActive(d);
+    expect((await doc(d.id)).phienBanSau).toBeNull();
+  });
+
+  it('đã có bản mới đang SOẠN → trả về mã và trạng thái của nó', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status).toBe(201);
+
+    const sau = (await doc(d.id)).phienBanSau;
+    expect(sau, 'bản đang soạn không hiện ra ở hồ sơ đang hiệu lực').toBeTruthy();
+    expect(sau.id).toBe(v2.body.id);
+    expect(sau.status).toBe('NHAP');
+    expect(sau.code).toBe(v2.body.code);
+  });
+
+  it('bản mới đang ĐI TRONG LUỒNG cũng tính', async () => {
+    // `CHUA_DUYET_XONG` gồm cả bốn bàn duyệt, không riêng Nháp: một bản đang chờ
+    // Trưởng bộ phận ký vẫn là một bản dở dang với người sắp lập bản thứ hai.
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect((await act(v2.body.id as string, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    expect((await doc(d.id)).phienBanSau.status).toBe('CHO_TBP_DUYET');
+  });
+
+  it('hồ sơ KHÔNG ở trạng thái đang hiệu lực thì luôn `null`', async () => {
+    // Nút chỉ hiện ở `DANG_CO_HIEU_LUC`, nên câu hỏi này chỉ có nghĩa ở đó — và
+    // một câu `SELECT` cho mọi lượt mở mọi hồ sơ là cái giá không mua gì.
+    const d = await draft();
+    expect((await doc(d.id)).phienBanSau).toBeNull();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await doc(d.id)).phienBanSau).toBeNull();
+  });
+
+  it('bản mới đã DUYỆT XONG thì thôi tính là dở dang', async () => {
+    /*
+     * Lúc bản mới có hiệu lực thì bản cũ sang `HET_HIEU_LUC` — và nó thôi bày
+     * nút, nên `phienBanSau` của nó về `null` theo. Ca này canh đúng vế ấy: điều
+     * kiện là `CHUA_DUYET_XONG`, không phải "có bản kế nhiệm nào không".
+     */
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    await runToActive({ id: v2.body.id as string });
+
+    expect((await doc(d.id)).status).toBe('HET_HIEU_LUC');
+    expect((await doc(d.id)).phienBanSau).toBeNull();
+  });
+});
