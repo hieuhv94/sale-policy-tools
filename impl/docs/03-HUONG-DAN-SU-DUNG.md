@@ -755,9 +755,6 @@ Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang
 | **Đang áp dụng** | Mặt hàng đã có, **để nguyên** như bản đang hiệu lực |
 | **Đã xoá** `mới 08/09` | Mặt hàng đã có, và bạn **vừa rút** nó khỏi phiên bản này |
 
-Màu nhãn nói **tình trạng của mặt hàng** `sửa 08/09`: chàm là *Bổ sung*, hổ phách là *Chỉnh sửa*,
-**xanh** là *Đang áp dụng*, **xám** là *Đã xoá*.
-
 - Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
   buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
 - **Sửa nhầm rồi sửa trả lại đúng như cũ thì dòng quay về *Đang áp dụng*** — nó được tính ra từ hai
@@ -770,32 +767,6 @@ Màu nhãn nói **tình trạng của mặt hàng** `sửa 08/09`: chàm là *B�
 > **Hai cột này không in ra hai mẫu hồ sơ mặc định.** Chúng phục vụ người **đang duyệt**, không phải
 > tờ giấy đem ký. Muốn in thì Quản trị hệ thống tích chúng trong tập cột của một mẫu riêng — chúng có
 > sẵn trong danh mục cột.
-
-### Soạn thẳng trên bảng sản phẩm `mới 08/09`
-
-Khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**, bạn gõ **thẳng vào ô trong bảng** — không còn hộp
-thoại *Thêm sản phẩm* nữa. Năm ô sửa được: **Ngày áp dụng · Sản phẩm · Giá bán buôn · CPBH · Ghi chú**.
-
-- **Ô ghi lại khi bạn rời khỏi nó** (bấm sang ô khác hoặc nhấn Tab), không ghi theo từng phím.
-- **Giá bán Công ty · Giá thu về · Tỷ lệ CK** không gõ được: chúng lấy từ danh mục và từ phép tính.
-  Chọn xong sản phẩm là Giá bán Công ty hiện ra ngay, kèm ngưỡng và cảnh báo của dòng đó.
-- **Ô bắt buộc còn trống thì nền đỏ**: Sản phẩm · Ngày áp dụng · Giá bán buôn · CPBH. Bấm *Gửi duyệt*
-  khi còn ô đỏ thì hệ thống báo **dòng số mấy thiếu trường gì**. Ghi chú không bắt buộc.
-- **CPBH**: mỗi dòng có số khoản riêng. Ô CPBH cuối để trống là *dòng này không có khoản đó* — không
-  phải lỗi. Chỉ khi dòng **không có khoản nào** thì mới tính là còn thiếu.
-- **Dòng đến từ CSBH đang hiệu lực thì không đổi được sản phẩm** (ô chọn xám). Muốn thay mặt hàng:
-  **Xoá** dòng đó rồi **chèn** một dòng mới — xem mục ngay dưới.
-
-### Thêm dòng vào giữa bảng `mới 08/09`
-
-Giữa hai dòng bất kỳ có một **dấu cộng** — rê chuột vào khe là nó hiện ra. Bấm vào đó thì một **dòng
-trống** chèn đúng vào chỗ ấy, rồi bạn điền từ trái sang phải.
-
-- Có dấu cộng **trên dòng đầu** và **dưới dòng cuối**, nên thêm vào đâu cũng được.
-- **Thứ tự dòng là thứ tự bạn đặt** — bảng không tự sắp lại theo mã sản phẩm, và **bản mềm in ra đúng
-  thứ tự ấy**.
-- Phiên bản mới **giữ nguyên thứ tự** của bản trước.
-- Hồ sơ chưa có dòng nào thì vẫn có một dấu cộng để bắt đầu.
 
 ### Rút một mặt hàng khỏi phiên bản mới `mới 08/09`
 

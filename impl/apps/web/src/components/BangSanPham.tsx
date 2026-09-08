@@ -25,32 +25,23 @@
  * `window.innerWidth` thì xoay ngang điện thoại giữa lúc đang gõ sẽ tháo và dựng
  * lại ô nhập — mất nội dung và mất tiêu điểm (`FE-06`).
  */
-import { Fragment, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ngay, tien, tyLe } from '../lib/format.js';
 import { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
 
-/*
- * SÁU TRƯỜNG NHẬN `null` TỪ `0187`.
- *
- * Bảng thôi là kết quả của một biểu mẫu đã điền xong; nó là **mặt bàn đang
- * soạn**, và một dòng vừa chèn chưa có sản phẩm, chưa có giá, nên chưa có gì để
- * chụp từ danh mục. Khai chúng nullable là bắt mọi chỗ đọc phải nói ra mình định
- * làm gì với ô trống — `tien(null)` và `tyLe(null)` đã trả chuỗi rỗng từ trước,
- * nên phần lớn chỗ dùng không đổi một chữ; chỗ nào đổi thì `tsc` chỉ ra.
- */
 export type DongSanPham = {
   id: string;
   /** Cần cho việc SỬA dòng: máy chủ nhận diện dòng theo sản phẩm, không theo id. */
-  productId: string | null;
-  productCode: string | null;
-  productName: string | null;
-  companyPrice: string | null;
-  wholesalePrice: string | null;
+  productId: string;
+  productCode: string;
+  productName: string;
+  companyPrice: string;
+  wholesalePrice: string;
   /** Các khoản chi phí bán hàng, số lượng tuỳ dòng. */
   cpbh: string[];
-  cpbhTotal: string | null;
-  netPrice: string | null;
-  discountRate: string | null;
+  cpbhTotal: string;
+  netPrice: string;
+  discountRate: string;
   threshold: string | null;
   overThreshold: boolean;
   /**
@@ -86,32 +77,21 @@ export type DongSanPham = {
 };
 
 /**
- * Lớp CSS của nhãn trạng thái — dùng lại bốn khoá nhãn có sẵn (`0123`, `0187`).
+ * Lớp CSS của nhãn trạng thái — dùng lại ba khoá nhãn có sẵn (`0123`).
  *
- * `0187` — khách hàng chốt 08/09: ***Đang áp dụng* XANH**, ***Đã xoá* XÁM**.
- *
- * `0180` đặt ngược lại, với lập luận *"Bổ sung và Chỉnh sửa là hai thứ người
- * duyệt phải NHÌN vào; Đang áp dụng là phần không đổi nên lùi lại phía sau"*.
- * Khách hàng đảo trục ấy: màu nói **tình trạng của mặt hàng**, không nói *"chỗ
- * nào đáng soi"* — xanh là đang bán bình thường, xám là sắp không còn. Cùng
- * quy ước với nhãn trạng thái SẢN PHẨM trong danh mục (`0123`), nên hai bảng
- * thôi nói hai thứ tiếng.
- *
- * BỐN TRẠNG THÁI, BỐN MÀU. *Đang áp dụng* lấy xanh thì *Bổ sung* phải rời khỏi
- * xanh, nếu không hai trạng thái khác hẳn nhau trông giống hệt nhau — khách
- * hàng không nêu màu cho nó, và đây là chỗ duy nhất còn tự do. Chọn `nhan-cho`
- * (chàm): nó là khoá nhãn thứ tư đã có sẵn trong `app.css`, và nó KHÔNG phải
- * một màu cảnh báo — *Bổ sung* không phải một điều đáng lo, nó chỉ là điều mới.
- * *Chỉnh sửa* giữ hổ phách.
+ * *Bổ sung* và *Chỉnh sửa* là hai thứ người duyệt phải NHÌN vào; *Đang áp dụng*
+ * là phần không đổi, nên nó lấy nhãn xám và lùi lại phía sau. Không đặt màu
+ * riêng: bảng này đã có hai màu cảnh báo ở cột Tỷ lệ CK, và màu thứ ba cạnh
+ * chúng sẽ tranh chỗ với đúng thứ cần nhìn nhất.
  */
 export const lopTrangThai = (t: string): string =>
   t === 'BO_SUNG'
-    ? 'nhan nhan-cho'
+    ? 'nhan nhan-tot'
     : t === 'CHINH_SUA'
       ? 'nhan nhan-canh-bao'
       : t === 'DA_XOA'
-        ? 'nhan nhan-thuong'
-        : 'nhan nhan-tot';
+        ? 'nhan nhan-loi'
+        : 'nhan nhan-thuong';
 
 /**
  * Dòng TDV đã rút khỏi phiên bản này (`0186`).
@@ -182,21 +162,13 @@ export { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.j
  * Cùng luật với bản in A4 (`sheet.ts:soCotCpbh`) — hai chỗ phải ra cùng một con
  * số, nếu không thì bản trên màn hình và bản ký tên khác nhau.
  */
-/**
- * Số cột CPBH của bảng = dòng NHIỀU KHOẢN NHẤT.
- *
- * `toiThieu` (`0187`) — lúc SOẠN THẲNG thì luôn ít nhất một cột. Không có nó thì
- * một hồ sơ mà mọi dòng đều chưa có khoản nào dựng ra **không cột CPBH nào**, và
- * ô bắt buộc *CPBH* không có chỗ nào để gõ lẫn chỗ nào để tô đỏ — người lập nhìn
- * thấy câu "còn thiếu CPBH" lúc gửi duyệt mà trên bảng không có ô ấy.
- */
-export const soCotCpbh = (dong: readonly DongSanPham[], toiThieu = 0): number =>
-  dong.reduce((max, d) => Math.max(max, d.cpbh?.length ?? 0), toiThieu);
+export const soCotCpbh = (dong: readonly DongSanPham[]): number =>
+  dong.reduce((max, d) => Math.max(max, d.cpbh?.length ?? 0), 0);
 
 /** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
-export const cotCho = (dong: readonly DongSanPham[], toiThieuCpbh = 0) => [
+export const cotCho = (dong: readonly DongSanPham[]) => [
   ...COT_TRUOC,
-  ...Array.from({ length: soCotCpbh(dong, toiThieuCpbh) }, (_, i) => ({
+  ...Array.from({ length: soCotCpbh(dong) }, (_, i) => ({
     khoa: `cpbh${i + 1}`,
     nhan: nhanCpbh(i),
   })),
@@ -350,185 +322,6 @@ function CpbhGop({ d }: { d: DongSanPham }) {
   );
 }
 
-/** Một mục trong ô chọn sản phẩm của bảng soạn thẳng (`0187`). */
-export type SanPhamChon = { id: string; code: string; name: string };
-
-/**
- * BẢNG SOẠN THẲNG (`0187`) — truyền khi TDV đang sửa hồ sơ.
- *
- * Có prop này thì năm ô người dùng nhập biến thành ô nhập ngay trong bảng, và
- * hộp thoại *Thêm sản phẩm* biến mất — đó là cả yêu cầu khách hàng chốt 08/09.
- */
-export type SoanDong = {
-  sanPham: SanPhamChon[];
-  /** Ghi MỘT ô. Khoá vắng mặt là giữ nguyên, `null` là xoá trống — xem `DongPatch`. */
-  luuO: (lineId: string, o: Record<string, unknown>) => void;
-  /** Chèn một dòng trống vào đúng vị trí này (đếm từ 0). */
-  chenDong: (viTri: number) => void;
-};
-
-/**
- * BỐN Ô BẮT BUỘC, đúng bốn ô khách hàng kể tên (`0187`).
- *
- * XUẤT RA vì ba chỗ hỏi cùng câu hỏi này — ô nào tô đỏ, câu nhắc trên đầu bảng,
- * và ca kiểm — và vì nó phải khớp từng trường với chốt `LINE_INCOMPLETE` bên máy
- * chủ. Hai bên lệch nhau thì màn hình xanh mà nút Gửi duyệt trả 422, hoặc ngược
- * lại: ô đỏ mà hồ sơ vẫn đi được.
- *
- * `cpbh` tính là trống khi dòng KHÔNG CÓ KHOẢN NÀO — không phải khi một ô CPBH
- * lẻ nào đó rỗng. Số cột CPBH của bảng bằng dòng nhiều khoản nhất, nên dòng ít
- * khoản hơn luôn có mấy ô cuối để trống, và `0055` đã chốt rằng chúng là ô TRỐNG
- * chứ không phải số 0.
- */
-export const oThieu = (d: DongSanPham): string[] =>
-  [
-    d.ngayApDung ? '' : 'ngayApDung',
-    d.productId ? '' : 'productId',
-    d.wholesalePrice ? '' : 'wholesalePrice',
-    (d.cpbh?.length ?? 0) > 0 ? '' : 'cpbh',
-  ].filter(Boolean);
-
-/**
- * Ô NHẬP TRONG BẢNG — ghi khi RỜI Ô, không ghi theo từng phím.
- *
- * Gõ tới đâu gửi tới đó là mỗi con số một lượt gọi mạng, và một lượt gõ "90000"
- * thành năm lượt ghi trong đó bốn lượt ghi những con số người dùng chưa có ý
- * định lưu — `9`, `90`, `900`… mỗi lượt kéo theo một vòng sang danh mục để chụp
- * lại giá. Rời ô là ranh giới mà người dùng hiểu sẵn từ mọi bảng tính.
- *
- * Giữ trạng thái CỤC BỘ trong lúc gõ rồi đồng bộ lại khi giá trị từ máy chủ đổi:
- * đọc thẳng prop thì mỗi lượt tải lại hồ sơ sẽ giật con trỏ về cuối ô.
- */
-function ONhap({
-  giaTri,
-  kieu,
-  thieu,
-  nhan,
-  luu,
-}: {
-  giaTri: string;
-  kieu: 'text' | 'date' | 'number';
-  thieu?: boolean | undefined;
-  nhan: string;
-  luu: (v: string) => void;
-}) {
-  const [v, datV] = useState(giaTri);
-  useEffect(() => datV(giaTri), [giaTri]);
-  return (
-    <input
-      className={`o-bang${thieu ? ' o-thieu' : ''}`}
-      type={kieu}
-      inputMode={kieu === 'number' ? 'numeric' : undefined}
-      value={v}
-      aria-label={nhan}
-      aria-invalid={thieu ? true : undefined}
-      onChange={(e) => datV(e.target.value)}
-      onBlur={() => {
-        if (v !== giaTri) luu(v);
-      }}
-    />
-  );
-}
-
-/**
- * Ô CHỌN SẢN PHẨM trong bảng, và luật khoá của nó (`0187`).
- *
- * KHOÁ Ở DÒNG THỪA KẾ (*Đang áp dụng* · *Chỉnh sửa*). Đổi sản phẩm của một dòng
- * đến từ CSBH đang hiệu lực là rút một mặt hàng của khách rồi thay bằng mặt hàng
- * khác **không để lại dấu vết nào** — đúng thứ `0186` dựng cả trạng thái *Đã
- * xoá* để chống. Đường đúng là rút dòng ấy (nó ở lại, làm mờ) rồi chèn dòng mới.
- *
- * Máy chủ chặn lại một lần nữa bằng `INHERITED_PRODUCT_LOCKED`: ô xám là để
- * người dùng khỏi thử, không phải để thay cho chốt chặn.
- */
-function OSanPham({
-  d,
-  soan,
-  thieu,
-}: {
-  d: DongSanPham;
-  soan: SoanDong;
-  thieu: boolean;
-}) {
-  const khoa = d.trangThai === 'DANG_AP_DUNG' || d.trangThai === 'CHINH_SUA';
-  if (khoa) return <>{d.productName}</>;
-  return (
-    <select
-      className={`o-bang${thieu ? ' o-thieu' : ''}`}
-      value={d.productId ?? ''}
-      aria-label="Sản phẩm"
-      aria-invalid={thieu ? true : undefined}
-      onChange={(e) => soan.luuO(d.id, { productId: e.target.value })}
-    >
-      <option value="">— chọn sản phẩm —</option>
-      {soan.sanPham.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.code} — {s.name}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-/**
- * Mảng CPBH sau khi sửa ô thứ `k`.
- *
- * XOÁ TRỐNG Ô CUỐI LÀ BỎ KHOẢN ẤY, không phải "khoản bằng rỗng": mảng này là
- * *các khoản chi phí của dòng*, và số cột của bảng suy từ dòng dài nhất. Nếu ô
- * cuối bị xoá mà mảng vẫn giữ độ dài thì bảng mọc thêm một cột trống vĩnh viễn.
- *
- * Xoá một ô Ở GIỮA thì ngược lại — nó thành `0`, vì bỏ hẳn sẽ dồn mọi khoản phía
- * sau lên một bậc và đổi ý nghĩa của chúng.
- */
-export const cpbhMoi = (cu: string[], k: number, v: string): string[] => {
-  const ra = Array.from({ length: Math.max(cu.length, k + 1) }, (_, i) => cu[i] ?? '0');
-  ra[k] = v.trim();
-  while (ra.length > 0 && ra[ra.length - 1] === '') ra.pop();
-  return ra.map((x) => x || '0');
-};
-
-/**
- * DẤU CỘNG GIỮA HAI DÒNG (`0187`).
- *
- * Khách hàng chốt 08/09: *"nút thêm dòng có thể để dưới dạng dấu cộng ở giữa 2
- * dòng để có thể thêm vào bất kỳ dòng nào"*. Nên đây là một hàng THẬT của bảng
- * chứ không phải một nút trôi nổi — nó phải nằm đúng khe giữa hai dòng, và phải
- * đi theo khi bảng cuộn ngang.
- *
- * Tên có nghĩa cho trình đọc màn hình: mười cái nút cùng mang chữ *"+"* thì
- * người dùng bàn phím nghe được mười lần cùng một từ và không biết mình đang ở
- * khe nào. `aria-label` nói ra vị trí.
- *
- * `soCot` bỏ trống là dựng ngoài bảng (lúc hồ sơ chưa có dòng nào) — một `<tr>`
- * lạc ngoài `<table>` thì trình duyệt gỡ bỏ, và cái nút biến mất cùng nó.
- */
-function HangChen({
-  viTri,
-  chen,
-  soCot,
-}: {
-  viTri: number;
-  chen: (v: number) => void;
-  soCot?: number | undefined;
-}) {
-  const nut = (
-    <button
-      type="button"
-      className="nut-chen"
-      onClick={() => chen(viTri)}
-      aria-label={`Chèn dòng sản phẩm vào vị trí ${viTri + 1}`}
-    >
-      <span aria-hidden="true">+</span>
-    </button>
-  );
-  if (soCot === undefined) return <div className="hang-chen">{nut}</div>;
-  return (
-    <tr className="hang-chen">
-      <td colSpan={soCot}>{nut}</td>
-    </tr>
-  );
-}
-
 type ThaoTacDong = {
   xoaDong?: ((id: string) => void) | undefined;
   suaDong?: ((d: DongSanPham) => void) | undefined;
@@ -609,7 +402,6 @@ export function BangSanPham({
   suaDong,
   themLaiDong,
   dangXoa,
-  soan,
 }: {
   dong: DongSanPham[];
   xoaDong?: ((id: string) => void) | undefined;
@@ -627,36 +419,17 @@ export function BangSanPham({
    */
   suaDong?: ((d: DongSanPham) => void) | undefined;
   dangXoa?: string | null | undefined;
-  /**
-   * BẢNG SOẠN THẲNG (`0187`) — có prop này thì năm ô người dùng nhập thành ô
-   * nhập ngay trong bảng, và giữa hai dòng mọc ra một dấu cộng.
-   */
-  soan?: SoanDong | undefined;
 }) {
   // `themLaiDong` tính vào đây (`0186`): một hồ sơ mà mọi dòng đều đã rút thì
   // hai prop kia vẫn được truyền, nhưng nếu ngày nào đó chỉ còn nút Thêm lại thì
   // thiếu vế này là cột thao tác biến mất cùng với lối thoát duy nhất của dòng.
   const coThaoTac =
     xoaDong !== undefined || suaDong !== undefined || themLaiDong !== undefined;
-  // Hàng dấu cộng trải HẾT bề ngang bảng. Đếm từ chính danh sách cột đang dựng
-  // chứ không ghim một con số: `cotCho` nở ra theo số khoản CPBH của hồ sơ, nên
-  // một hằng gõ tay ở đây sẽ lệch đúng ở những hồ sơ nhiều khoản nhất.
-  // MỘT con số cho cả tiêu đề lẫn ô, nếu không thì hàng lệch cột đúng ở chế độ
-  // soạn — và bảng lệch cột là thứ người ký đối chiếu nhầm.
-  const soCpbh = soCotCpbh(dong, soan ? 1 : 0);
-  const cot = cotCho(dong, soan ? 1 : 0);
-  const soCot = cot.length + (coThaoTac ? 1 : 0);
   if (dong.length === 0) {
     return (
-      <>
-        <p className="trong">
-          Hồ sơ chưa có dòng sản phẩm nào. Thêm sản phẩm để tính được tỷ lệ chiết khấu.
-        </p>
-        {/* Bảng rỗng vẫn phải có ĐÚNG MỘT dấu cộng (`0187`): không có nó thì
-            người lập không có đường nào thêm dòng đầu tiên — hộp thoại *Thêm
-            sản phẩm* đã bỏ. */}
-        {soan && <HangChen viTri={0} chen={soan.chenDong} />}
-      </>
+      <p className="trong">
+        Hồ sơ chưa có dòng sản phẩm nào. Thêm sản phẩm để tính được tỷ lệ chiết khấu.
+      </p>
     );
   }
 
@@ -667,7 +440,7 @@ export function BangSanPham({
         <table className="bang-san-pham">
           <thead>
             <tr>
-              {cot.map((c) => (
+              {cotCho(dong).map((c) => (
                 <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
                   {c.nhan}
                 </th>
@@ -681,91 +454,29 @@ export function BangSanPham({
             </tr>
           </thead>
           <tbody>
-            {dong.map((d, i) => {
-              // Dòng đã rút KHÔNG soạn được — xem chú thích ở khối ô bên dưới.
-              const soanDuoc = soan !== undefined && !daXoa(d);
-              const thieu = soanDuoc ? oThieu(d) : [];
-              return (
-            <Fragment key={d.id}>
-              {/* Dấu cộng TRƯỚC mỗi dòng: khe thứ i chèn vào đúng vị trí i. */}
-              {soan && <HangChen viTri={i} chen={soan.chenDong} soCot={soCot} />}
-              {/*
+            {dong.map((d) => (
+              /*
                 Dòng đã rút LÀM MỜ chứ không ẩn (`0186`) — cả điểm của việc giữ
                 nó lại là người duyệt NHÌN THẤY mặt hàng đang bị lấy đi. Lớp
                 nằm trên `<tr>`, không trên từng ô: mờ nửa hàng thì trông như
                 một lỗi dựng trang chứ không như một trạng thái.
-              */}
-              <tr className={daXoa(d) ? 'dong-da-xoa' : undefined}>
-                {/*
-                  SOẠN THẲNG (`0187`) — năm ô người dùng nhập thành ô nhập ngay
-                  tại chỗ. Dòng ĐÃ RÚT thì không: mọi con số của nó sắp biến mất
-                  khỏi hồ sơ, nên sửa chúng là ghi những thứ không đi tới đâu.
-
-                  Ba cột `companyPrice` · `netPrice` · `discountRate` KHÔNG bao
-                  giờ thành ô nhập: chúng đến từ danh mục hoặc từ phép tính, và
-                  cho gõ vào đó là mời người dùng ghi đè một con số mà cả hệ
-                  thống đang dựa vào (`0029`).
-                */}
-                {soanDuoc ? (
-                  <>
-                    <td className="ngay-ap-dung">
-                      <ONhap
-                        giaTri={d.ngayApDung?.slice(0, 10) ?? ''}
-                        kieu="date"
-                        nhan="Ngày áp dụng"
-                        thieu={thieu.includes('ngayApDung')}
-                        luu={(v) => soan.luuO(d.id, { ngayApDung: v })}
-                      />
-                    </td>
-                    <td>{d.productCode}</td>
-                    <th scope="row" className="cot-khoa">
-                      <OSanPham d={d} soan={soan} thieu={thieu.includes('productId')} />
-                    </th>
-                    <td className="so">{tien(d.companyPrice)}</td>
-                    <td className="so">
-                      <ONhap
-                        giaTri={d.wholesalePrice ?? ''}
-                        kieu="number"
-                        nhan="Giá bán buôn"
-                        thieu={thieu.includes('wholesalePrice')}
-                        luu={(v) => soan.luuO(d.id, { wholesalePrice: v })}
-                      />
-                    </td>
-                    <td className="so">{tien(d.cpbhTotal)}</td>
-                    {Array.from({ length: soCpbh }, (_, k) => (
-                      <td key={k} className="so">
-                        <ONhap
-                          giaTri={d.cpbh?.[k] ?? ''}
-                          kieu="number"
-                          nhan={nhanCpbh(k)}
-                          // CHỈ Ô ĐẦU tô đỏ khi trống — xem `oThieu`. Ô thứ hai
-                          // trở đi của một dòng ít khoản hơn là ô KHÔNG THUỘC
-                          // dòng ấy, không phải một ô bỏ quên.
-                          thieu={k === 0 && thieu.includes('cpbh')}
-                          luu={(v) => soan.luuO(d.id, { cpbh: cpbhMoi(d.cpbh, k, v) })}
-                        />
-                      </td>
-                    ))}
-                  </>
-                ) : (
-                  <>
-                    <td className="ngay-ap-dung">{ngay(d.ngayApDung)}</td>
-                    <td>{d.productCode}</td>
-                    <th scope="row" className="cot-khoa">
-                      {d.productName}
-                    </th>
-                    <td className="so">{tien(d.companyPrice)}</td>
-                    <td className="so">{tien(d.wholesalePrice)}</td>
-                    <td className="so">{tien(d.cpbhTotal)}</td>
-                    {/* Ô TRỐNG cho dòng ít khoản hơn, không phải số 0 — xem chú
-                        thích đầu tệp. */}
-                    {Array.from({ length: soCpbh }, (_, k) => (
-                      <td key={k} className="so">
-                        {d.cpbh?.[k] === undefined ? '' : tien(d.cpbh[k])}
-                      </td>
-                    ))}
-                  </>
-                )}
+              */
+              <tr key={d.id} className={daXoa(d) ? 'dong-da-xoa' : undefined}>
+                <td className="ngay-ap-dung">{ngay(d.ngayApDung)}</td>
+                <td>{d.productCode}</td>
+                <th scope="row" className="cot-khoa">
+                  {d.productName}
+                </th>
+                <td className="so">{tien(d.companyPrice)}</td>
+                <td className="so">{tien(d.wholesalePrice)}</td>
+                <td className="so">{tien(d.cpbhTotal)}</td>
+                {/* Ô TRỐNG cho dòng ít khoản hơn, không phải số 0 — xem chú
+                    thích đầu tệp. */}
+                {Array.from({ length: soCotCpbh(dong) }, (_, k) => (
+                  <td key={k} className="so">
+                    {d.cpbh?.[k] === undefined ? '' : tien(d.cpbh[k])}
+                  </td>
+                ))}
                 <td className="so">{tien(d.netPrice)}</td>
                 <td className="so">
                   <OTyLe d={d} />
@@ -786,21 +497,7 @@ export function BangSanPham({
                     </span>
                   )}
                 </td>
-                <td className="ghi-chu-dong">
-                  {/* Ghi chú soạn thẳng như bốn ô kia, nhưng KHÔNG bắt buộc:
-                      khách hàng kể tên bốn trường, và ghi chú không nằm trong
-                      đó — nó vốn là ô tự do (`0027`). */}
-                  {soanDuoc ? (
-                    <ONhap
-                      giaTri={d.note ?? ''}
-                      kieu="text"
-                      nhan="Ghi chú"
-                      luu={(v) => soan.luuO(d.id, { note: v })}
-                    />
-                  ) : (
-                    (d.note ?? '')
-                  )}
-                </td>
+                <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   /*
                     Rê chuột mới hiện (`0132`) — CHỈ ở vế BẢNG.
@@ -823,12 +520,7 @@ export function BangSanPham({
                   </td>
                 )}
               </tr>
-            </Fragment>
-              );
-            })}
-            {/* Khe CUỐI BẢNG — nếu không có nó thì mọi dấu cộng đều chèn TRƯỚC
-                một dòng đã có, và không có đường nào nối thêm vào cuối. */}
-            {soan && <HangChen viTri={dong.length} chen={soan.chenDong} soCot={soCot} />}
+            ))}
           </tbody>
         </table>
       </div>

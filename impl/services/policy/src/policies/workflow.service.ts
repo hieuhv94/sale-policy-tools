@@ -368,52 +368,6 @@ export class WorkflowService {
        */
 
       /*
-       * DÒNG SOẠN DỞ CHẶN GỬI DUYỆT (`0187`).
-       *
-       * Đây là nửa sau của câu khách hàng chốt 08/09 — *"nếu trường nào trong
-       * số các trường này trống cũng đều báo đỏ và không cho gửi duyệt"* — và là
-       * lý do `0118` cho bảy cột nhận `NULL`. Ô trống sống được tới tận đây thì
-       * mới có cái để chặn; nếu dòng dở chỉ nằm trên trình duyệt thì câu ấy nói
-       * về một thứ máy chủ chưa bao giờ thấy.
-       *
-       * BỐN TRƯỜNG, đúng bốn trường khách hàng kể tên. Trả về **số thứ tự dòng**
-       * chứ không phải id: người dùng đang nhìn một cái bảng, và "dòng 3" là thứ
-       * họ tìm được bằng mắt trong một giây, còn một uuid thì không.
-       *
-       * `cardinality(cpbh) = 0` là phép đo *"ô CPBH trống"*. KHÔNG đòi mọi ô CPBH
-       * của mọi dòng đều có số: số cột CPBH của bảng bằng dòng nhiều khoản nhất,
-       * nên một dòng ít khoản hơn luôn để trống mấy ô cuối — `0055` đã chốt rằng
-       * những ô ấy là ô TRỐNG chứ không phải số 0, và chúng không thuộc về dòng
-       * đó. Đòi lấp chúng là bắt gõ số 0 vào những khoản chi phí không tồn tại.
-       *
-       * `da_xoa` đứng ngoài: một dòng sắp bị rút khỏi hồ sơ thì không có ô nào
-       * của nó cần đúng.
-       */
-      const dangDo = await this.db.q<{ stt: string; thieu: string[] }>(
-        `SELECT row_number() OVER (ORDER BY thu_tu, id)::text AS stt,
-                array_remove(ARRAY[
-                  CASE WHEN product_id      IS NULL THEN 'Sản phẩm' END,
-                  CASE WHEN ngay_ap_dung    IS NULL THEN 'Ngày áp dụng' END,
-                  CASE WHEN wholesale_price IS NULL THEN 'Giá bán buôn' END,
-                  CASE WHEN cardinality(cpbh) = 0   THEN 'CPBH' END
-                ], NULL) AS thieu
-           FROM pol.policy_line
-          WHERE policy_id = $1 AND NOT da_xoa`,
-        [policyId],
-      );
-      const thieuDong = dangDo.filter((d) => d.thieu.length > 0);
-      if (thieuDong.length > 0) {
-        throw new UnprocessableEntityException({
-          code: 'LINE_INCOMPLETE',
-          lines: thieuDong.map((d) => ({ stt: Number(d.stt), thieu: d.thieu })),
-          message:
-            'Còn dòng chưa điền đủ: ' +
-            thieuDong.map((d) => `dòng ${d.stt} thiếu ${d.thieu.join(', ')}`).join('; ') +
-            '.',
-        });
-      }
-
-      /*
        * PHÉP KIỂM "PHẢI CHỌN VĂN BẢN MẪU" ĐÃ GỠ (`0163`).
        *
        * `0098` bắt mọi lượt `SUBMIT` và `RESUBMIT_AFTER_EDIT` kèm `mauHoSoId`,

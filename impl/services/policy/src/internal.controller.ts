@@ -167,20 +167,7 @@ export class PolicyInternalController {
          * Lọc ở document thay vì ở đây thì reporting vẫn đếm mặt hàng đã rút vào
          * doanh số của bản mới, và không có gì đỏ.
          */
-        /*
-         * DÒNG CHƯA CHỌN SẢN PHẨM CŨNG KHÔNG RA KHỎI CỬA NÀY (0187).
-         *
-         * Cùng lý do với da_xoa ngay trên, chỉ khác chỗ nó KHÔNG THỂ in ra được:
-         * mã và tên sản phẩm đều NULL, nên một dòng như thế đi tới bộ dựng bảng
-         * là một hàng trống giữa tờ CSBH. Chốt gửi duyệt đã chặn hồ sơ còn dòng
-         * dở, nên tới đây thì hồ sơ đóng băng không còn dòng nào như vậy — phép
-         * lọc này là cho những đường đọc SỚM HƠN, và cho ngày ai đó nới chốt kia.
-         *
-         * THỨ TỰ theo (thu_tu, id): tờ giấy phải xếp dòng đúng như màn hình người
-         * lập vừa xếp, nếu không thì hai bảng của cùng một hồ sơ đọc ra hai thứ tự.
-         */
-        WHERE l.policy_id = $1 AND NOT l.da_xoa AND l.product_id IS NOT NULL
-        ORDER BY l.thu_tu, l.id`,
+        WHERE l.policy_id = $1 AND NOT l.da_xoa ORDER BY l.product_code_snap`,
       [id],
     );
 

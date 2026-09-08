@@ -6,24 +6,24 @@
  * khi hỏi; hai bên lệch nhau thì máy chủ thắng.
  */
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-import { dang, layJson, taiVe, va, xemTruoc, xoa } from '../lib/api.js';
+import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong, xemBanMemDuoc } from '../lib/can.js';
 import { ngay, ngayGio, tien } from '../lib/format.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
-import {
-  BangSanPham,
-  type DongSanPham,
-  type SanPhamChon,
-} from '../components/BangSanPham.js';
+import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
 import { TepDinhKem, type TepDto } from '../components/TepDinhKem.js';
 import { TepBanTruoc, type BanTruocDto } from '../components/TepBanTruoc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
 import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
-import { XoaHoSo, suaDuoc } from '../components/SuaHoSo.js';
+import {
+  ThemDongSanPham,
+  XoaHoSo,
+  suaDuoc,
+} from '../components/SuaHoSo.js';
 import { Lien, useDuong } from '../lib/router.js';
 import {
   oChonCua,
@@ -163,24 +163,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
   /** Dòng sản phẩm đang chờ xác nhận xoá. Nút Xoá nằm ngay trong bảng dữ liệu
       đọc hàng ngày, nên không cho nó xoá thẳng. */
   const [xoaDongId, datXoaDongId] = useState<string | null>(null);
-  const [moSua, datMoSua] = useState<'xoa' | null>(null);
-  /**
-   * Danh mục sản phẩm cho ô chọn TRONG BẢNG (`0187`).
-   *
-   * `forNewPolicy=true` lọc bỏ mặt hàng đã vô hiệu hoá — bày ra rồi để máy chủ
-   * từ chối là bắt người dùng đoán vì sao (cùng lý do hộp thoại cũ đã dùng).
-   *
-   * Tải MỘT LẦN cho cả bảng, không phải một lần cho mỗi dòng: hồ sơ ba mươi
-   * dòng thì ba mươi ô chọn, và mỗi ô tự gọi là ba mươi lượt tải cùng một danh
-   * mục.
-   *
-   * HỎNG THÌ KHÔNG BÁO LỖI, để mảng rỗng (`0089`): người duyệt vào màn hình này
-   * để ĐỌC hồ sơ, và ô chọn sản phẩm chỉ hiện với người đang sửa. Chặn cả trang
-   * vì một ô chọn là đổi một việc không làm được lấy một màn hình không mở được.
-   * Cái mất khi nó im lặng hỏng: ô chọn rỗng, tức không thêm được mặt hàng — và
-   * người dùng thấy ngay điều đó ở chính ô ấy.
-   */
-  const [dsSanPham, datDsSanPham] = useState<SanPhamChon[]>([]);
+  /** Dòng đang mở để sửa. Cùng biểu mẫu với thêm dòng — xem `ThemDongSanPham`. */
+  const [suaDongCu, datSuaDongCu] = useState<DongSanPham | null>(null);
+  const [moSua, datMoSua] = useState<'dong' | 'xoa' | null>(null);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   const { di } = useDuong();
 
@@ -218,60 +203,6 @@ export function ChiTietHoSo({ id }: { id: string }) {
       bao(e);
     } finally {
       datDangXoaDong(null);
-    }
-  };
-
-  /*
-   * TẢI DANH MỤC một lần, chỉ khi hồ sơ đang sửa được (`0187`).
-   *
-   * Gác bằng `dangSua` chứ không tải vô điều kiện: bốn bàn duyệt mở hồ sơ để
-   * ĐỌC, và ô chọn sản phẩm không bao giờ hiện với họ — tải danh mục ở đó là
-   * một vòng mạng cho một thứ không dựng ra.
-   */
-  useEffect(() => {
-    if (!suaDuoc(choPhep)) return undefined;
-    const huy = new AbortController();
-    layJson<{ items: SanPhamChon[] }>(
-      '/catalog/products?limit=200&forNewPolicy=true',
-      huy.signal,
-    )
-      .then((r) => datDsSanPham(r.items))
-      .catch(() => undefined);
-    return () => huy.abort();
-  }, [choPhep]);
-
-  /**
-   * GHI MỘT Ô của bảng soạn thẳng (`0187`).
-   *
-   * Gửi ĐÚNG ô vừa đổi, không gửi cả dòng: máy chủ hiểu khoá vắng mặt là "giữ
-   * nguyên" (xem `DongPatch`), nên một lượt gõ vào ô giá không đụng tới ngày hay
-   * ghi chú của cùng dòng — kể cả khi một tab khác vừa sửa chúng.
-   *
-   * Chuỗi rỗng gửi NGUYÊN chứ không bỏ khoá đi: đó là lệnh xoá trống, và bỏ khoá
-   * đi thì máy chủ đọc thành "không đụng tới" — ô sẽ nhảy về giá trị cũ ngay lượt
-   * tải lại, không lời giải thích nào.
-   */
-  const luuO = async (lineId: string, o: Record<string, unknown>) => {
-    datLoi(null);
-    try {
-      await va(`/policies/${id}/lines/${lineId}`, o);
-      taiLai();
-    } catch (e) {
-      bao(e);
-      // Tải lại KỂ CẢ khi hỏng: ô nhập đang giữ con số vừa gõ, mà máy chủ đã từ
-      // chối nó — để nguyên là bày ra một giá trị không có trong CSDL.
-      taiLai();
-    }
-  };
-
-  /** Chèn một dòng trống vào đúng khe người lập bấm (`0187`). */
-  const chenDong = async (viTri: number) => {
-    datLoi(null);
-    try {
-      await dang(`/policies/${id}/lines/chen`, { viTri });
-      taiLai();
-    } catch (e) {
-      bao(e);
     }
   };
 
@@ -541,32 +472,29 @@ export function ChiTietHoSo({ id }: { id: string }) {
       )}
 
       <h2>Sản phẩm</h2>
-      {/*
-        NÚT *Thêm sản phẩm* GỠ HẲN ở `0187`, cùng với hộp thoại của nó.
-
-        Chỗ thêm dòng giờ là DẤU CỘNG giữa hai dòng ngay trong bảng — khách hàng
-        chốt 08/09. Giữ lại nút này bên cạnh là để hai đường thêm dòng cùng tồn
-        tại, mà đường ở đây không nói được nó chèn vào chỗ nào.
-
-        (`0180` đã gỡ nút *Sửa ngày áp dụng* khỏi đúng chỗ này, vì ngày chuyển
-        xuống từng dòng. Lượt này gỡ nốt cái còn lại.)
-      */}
+      {dangSua && (
+        <div className="nhom-nut">
+          {/* `0180` — nút *Sửa ngày áp dụng* GỠ HẲN: ngày áp dụng thuộc về từng
+              dòng, và sửa nó đi cùng đường với giá bán buôn của chính dòng ấy
+              (nút *Sửa* trên mỗi hàng của bảng). Một nút ở cấp hồ sơ sẽ phải hỏi
+              "đổi ngày của dòng nào". */}
+          <button type="button" className="nut nut-chinh" onClick={() => datMoSua('dong')}>
+            Thêm sản phẩm
+          </button>
+        </div>
+      )}
       <BangSanPham
         dong={hoSo.lines}
         {...(dangSua
           ? {
               xoaDong: datXoaDongId,
+              suaDong: datSuaDongCu,
               // `0186` — đi CÙNG BỘ với hai prop trên, không gác thêm điều kiện
               // nào: `dangSua` đã đúng bằng hai trạng thái khách hàng chốt cho
               // phép thêm lại (Nháp · Yêu cầu chỉnh sửa), và `mustEdit` bên máy
               // chủ canh lại chính hai trạng thái ấy.
               themLaiDong: (lineId: string) => void themLaiDong(lineId),
               dangXoa: dangXoaDong,
-              soan: {
-                sanPham: dsSanPham,
-                luuO: (lineId: string, o: Record<string, unknown>) => void luuO(lineId, o),
-                chenDong: (viTri: number) => void chenDong(viTri),
-              },
             }
           : {})}
       />
@@ -776,6 +704,28 @@ export function ChiTietHoSo({ id }: { id: string }) {
 
       <LichSuGap hoSoId={hoSo.id} />
 
+      {suaDongCu && (
+        <ThemDongSanPham
+          hoSoId={hoSo.id}
+          dongCu={suaDongCu}
+          dong={() => datSuaDongCu(null)}
+          xong={() => {
+            datSuaDongCu(null);
+            taiLai();
+          }}
+        />
+      )}
+
+      {moSua === 'dong' && (
+        <ThemDongSanPham
+          hoSoId={hoSo.id}
+          dong={() => datMoSua(null)}
+          xong={() => {
+            datMoSua(null);
+            taiLai();
+          }}
+        />
+      )}
       {moSua === 'xoa' && (
         <XoaHoSo
           hoSoId={hoSo.id}

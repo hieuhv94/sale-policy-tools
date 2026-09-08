@@ -18,7 +18,7 @@ cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên 
 | | | | |
 |---|---|---|---|
 | **10** service ứng dụng | **1998** ca kiểm đang chạy | **10** trạng thái hồ sơ | **6** vai trò |
-| **10** tài khoản mẫu | **69** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
+| **10** tài khoản mẫu | **68** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
@@ -64,7 +64,7 @@ Mười điều khoản dưới đây không phải “yêu cầu chung chung”
 |---|---|---|
 | §5.1 | Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực | `CREATE UNIQUE INDEX … ON policy(customer_id) WHERE status='DANG_CO_HIEU_LUC'`. Vô hiệu bản cũ và kích hoạt bản mới nằm trong *một* transaction. |
 | §5.2 | Mọi CSBH vô thời hạn | Không có cột `expired_at`, không có job cảnh báo hết hạn. Trạng thái `HET_HIEU_LUC` chỉ do bản mới được duyệt gây ra. |
-| §5.4 | Phiên bản mới thừa kế toàn bộ sản phẩm cũ, **rút bớt được**, và **soạn thẳng trên bảng** `sửa 08/09` | Hiệu lực quản lý ở *cấp hồ sơ*. Phép kiểm `tập SP(v_n) ⊇ tập SP(v_{n-1})` **đã gỡ** (`0186`). Dòng bị rút mang cột `da_xoa` — nằm lại bảng dưới nhãn *Đã xoá* suốt luồng duyệt, xoá hẳn khi hồ sơ sang `DANG_CO_HIEU_LUC`. Đây là cột trạng thái DUY NHẤT của bảng dòng sản phẩm; ba trạng thái kia vẫn là dẫn xuất. `0187` thêm `thu_tu` (thứ tự người lập đặt) và cho bảy cột nhận `NULL` để dòng đang soạn dở lưu được. |
+| §5.4 | Phiên bản mới thừa kế toàn bộ sản phẩm cũ, và **rút bớt được** `sửa 08/09` | Hiệu lực quản lý ở *cấp hồ sơ*. Phép kiểm `tập SP(v_n) ⊇ tập SP(v_{n-1})` **đã gỡ** (`0186`). Dòng bị rút mang cột `da_xoa` — nằm lại bảng dưới nhãn *Đã xoá* suốt luồng duyệt, xoá hẳn khi hồ sơ sang `DANG_CO_HIEU_LUC`. Đây là cột trạng thái DUY NHẤT của bảng dòng sản phẩm; ba trạng thái kia vẫn là dẫn xuất. |
 | §5.3 | Có hiệu lực ngay khi kế toán tiếp nhận lần 2 | `effective_from` = đúng timestamp của hành động L2, ghi trong cùng transaction chuyển trạng thái. Không có job nền “kích hoạt theo ngày”. |
 | §7 | Tỷ lệ CK làm tròn 2 số, so ngưỡng *sau khi* làm tròn | Kiểu `numeric(5,2)`, làm tròn một lần duy nhất tại tầng domain; UI, file in và bộ so sánh cùng đọc một giá trị đã lưu. |
 | §7 | Đóng băng giá khi gửi duyệt | Snapshot giá bán Công ty và ngưỡng CK vào từng dòng hồ sơ tại thời điểm gửi duyệt. Không join sang catalog khi hiển thị hồ sơ đã gửi. |
@@ -166,7 +166,7 @@ Nguyên tắc chọn: ưu tiên thứ đội 3–5 người vận hành được
 | Ngôn ngữ & runtime | **TypeScript · Node 22 LTS** | Một ngôn ngữ cho backend, worker và SPA. Kiểu dữ liệu của response dùng chung, đổi hợp đồng API là compile lỗi ngay ở frontend. Ảnh Docker ~180MB, khởi động <2s. | *Java/Spring Boot*: mỗi container 400–600MB RAM × 10 = quá nặng cho VM 8GB. *Go*: nhanh nhưng phần lớn công việc ở đây là CRUD + form + báo cáo, boilerplate không đáng. *Python/FastAPI*: tốt, nhưng không chia sẻ được kiểu với frontend. |
 | Framework backend | **NestJS 10** | Module hóa sẵn theo đúng biên giới service; guard/interceptor là chỗ tự nhiên để cắm kiểm quyền theo vai trò + phạm vi + trạng thái hồ sơ (§10). Sinh OpenAPI tự động để dùng cho contract test. | *Express thuần*: 10 service sẽ thành 10 kiểu cấu trúc khác nhau. *Fastify thuần*: nhanh hơn nhưng ở 50 user thì tốc độ framework không phải nút cổ chai. |
 | CSDL | **PostgreSQL 16** | Ba thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực” và cho “mã số thuế duy nhất giữa khách đang hợp tác” (`0175`), `numeric` chính xác cho tiền và tỷ lệ, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. (*Recursive CTE cho cây phân quyền* — lý do thứ tư của bản thiết kế — mất theo cây tổ chức `16/08`.) | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
-| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 69 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
+| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 68 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
 | Bus sự kiện | **RabbitMQ 3.13**, topic exchange `csbh.events` | Có sẵn DLQ, retry theo TTL, giao diện quản trị để kế toán vận hành nhìn được hàng đợi email lỗi. Chiếm ~120MB RAM. | *Kafka*: thừa mấy bậc cho vài nghìn sự kiện/tháng, tốn ~1GB RAM. *Redis Streams*: đã có Redis nhưng thiếu routing theo topic và DLQ, phải tự viết. *NATS*: nhẹ hơn nhưng đội ít quen, công cụ vận hành mỏng hơn. |
 | Hàng đợi việc & cache | **Redis 7** (`ioredis`) | Cache ảnh chụp danh tính cho token (`0090`), khoá phân tán cho cron SLA. **BullMQ đã bỏ khỏi lựa chọn**: xuất Excel và sinh PDF chạy đồng bộ trong lời gọi, còn thư retry đi qua RabbitMQ với DLQ — không còn loại job nào cần lịch trình riêng. | *Dùng RabbitMQ cho cả cache*: sai công cụ. |
 | Lưu file | **MinIO** (S3 API) | File ký, bản scan, hợp đồng phải xóa được *thật* khi kế toán yêu cầu in lại (§10) — S3 API cho xóa theo object và bật versioning chọn lọc. Sau này chuyển lên S3/Cloud không đổi code. | *Lưu vào thư mục ổ đĩa*: khó sao lưu nhất quán, khó cấp link có hạn. *BLOB trong Postgres*: phình DB, sao lưu chậm. |
@@ -1203,11 +1203,6 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | POL-08b | Hồ sơ mang dòng đã rút sang `DANG_CO_HIEU_LUC` | Dòng xoá hẳn trong CÙNG transaction; phiên bản kế tiếp KHÔNG chép lại nó | §5.4 | `P0` |
 | POL-08c | `document` · `reporting` đọc hồ sơ có dòng đã rút | `internal.controller` lọc `NOT da_xoa` — bản mềm, hợp đồng, read-model đều không thấy; màn hình hồ sơ thì CÓ | §5.4 | `P1` |
 | POL-08d | Thêm lại một dòng đã rút, ở `NHAP` · `YEU_CAU_CHINH_SUA` | `POST .../lines/:lineId/khoi-phuc` → nguyên số cũ, không hỏi lại danh mục; `POST .../lines` cùng sản phẩm trả 409 `PRODUCT_LINE_DELETED` | §5.4 | `P1` |
-| POL-20 | Chèn một dòng TRỐNG bằng dấu cộng giữa hai dòng | `POST .../lines/chen` với `viTri`; dòng nằm đúng chỗ ấy, mọi cột người dùng nhập đều rỗng, `ngay_ap_dung` mặc định hôm nay | §5.4 | `P1` |
-| POL-21 | Gửi duyệt hồ sơ còn dòng chưa điền đủ | 422 `LINE_INCOMPLETE`, kèm **số thứ tự dòng** và tên trường còn thiếu (sản phẩm · ngày áp dụng · giá bán buôn · CPBH) | §5.4 | `P0` |
-| POL-22 | Sửa MỘT ô của một dòng | `PATCH .../lines/:lineId` — khoá vắng mặt là GIỮ NGUYÊN, khoá rỗng là XOÁ TRỐNG; cột dẫn xuất về rỗng theo khi bỏ sản phẩm | §5.4 | `P0` |
-| POL-23 | Đổi sản phẩm của một dòng THỪA KẾ | 409 `INHERITED_PRODUCT_LOCKED` — rút dòng rồi chèn dòng mới | §5.4 | `P1` |
-| POL-24 | Thứ tự dòng | `pol.policy_line.thu_tu` do người lập đặt; mọi đường đọc sắp `(thu_tu, id)`, phiên bản mới chép nguyên thứ tự | §5.4 | `P1` |
 | POL-09 | Đặt ngày áp dụng trong quá khứ | Chấp nhận — chỉ là thông tin hiển thị, không chi phối trạng thái | §5.3 | `P0` |
 | POL-10 | Quét toàn bộ schema và OpenAPI tìm trường ngày hết hiệu lực | Không tồn tại — mọi CSBH đều vô thời hạn | §5.2 | `P0` |
 | POL-11 | Sửa hồ sơ sau khi đã gửi duyệt | 409 `POLICY_LOCKED` | §3 B3 | `P0` |

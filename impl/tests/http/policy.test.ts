@@ -3338,28 +3338,14 @@ describe('sửa một dòng sản phẩm đã có', () => {
     expect(sau.productId).toBe(l.productId);
   });
 
-  it('`0187` ĐỔI ĐƯỢC sản phẩm của một dòng KHÔNG thừa kế', async () => {
-    /*
-     * THAY ca *"KHÔNG đổi được sản phẩm qua đường sửa"* (`0187`).
-     *
-     * Ca cũ khẳng định `productId` không có trong DTO nên bị bỏ qua, với lý do
-     * *"đổi sản phẩm là xoá dòng này và thêm dòng khác"*. Lý do ấy mất hiệu lực
-     * khi bảng thành mặt bàn soạn: dòng vừa chèn CHƯA CÓ sản phẩm nào, nên ô ấy
-     * phải chọn được, và một lượt chọn nhầm phải sửa lại được ngay tại ô.
-     *
-     * Sửa con số trong ca cũ thì nó thành một ca nói rằng "đổi được" — mất hẳn
-     * phần đáng canh. Phần đáng canh chuyển sang dòng THỪA KẾ, nơi lý do cũ vẫn
-     * đúng nguyên vẹn: xem ca `INHERITED_PRODUCT_LOCKED` ở khối `0187`.
-     */
+  it('KHÔNG đổi được sản phẩm qua đường sửa', async () => {
+    // `productId` không có trong DTO nên bị bỏ qua. Đổi sản phẩm của một dòng là
+    // xoá dòng này và thêm dòng khác — hai việc có ý nghĩa nghiệp vụ khác nhau.
     const d = await draft();
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
     const spKhac = await makeProduct();
-    expect((await patch(`/policies/${d.id}/lines/${l.id}`, { productId: spKhac })).status).toBe(200);
-
-    const sau = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(sau.productId).toBe(spKhac);
-    // Ảnh chụp danh mục phải đi theo sản phẩm mới, không giữ của mặt hàng cũ.
-    expect(sau.productCode).not.toBe(l.productCode);
+    await suaDong(d.id, l.id, { wholesalePrice: '85000', productId: spKhac });
+    expect((await get(`/policies/${d.id}`)).body.lines[0].productId).toBe(l.productId);
   });
 
   it('KHÔNG gửi kèm được giá bán Công ty hay ngưỡng', async () => {
@@ -3862,36 +3848,26 @@ describe('0027 ghi chú của dòng sản phẩm', () => {
     expect(r.body.field).toBe('note');
   });
 
-  it('`0187` sửa dòng đổi được ghi chú; VẮNG MẶT là giữ nguyên, RỖNG mới là xoá', async () => {
-    /*
-     * THAY ca *"BỎ trường đi là XOÁ ghi chú"* (`0187`).
-     *
-     * Luật cũ đúng khi biểu mẫu luôn gửi CẢ DÒNG: vắng mặt ô ghi chú nghĩa là
-     * người dùng vừa xoá nó. Bảng soạn thẳng gửi MỘT Ô mỗi lượt, nên quy ước ấy
-     * sẽ xoá sạch ghi chú mỗi lần ai đó gõ vào ô giá — xem `DongPatch`.
-     *
-     * Cách xoá KHÔNG mất, nó chỉ phải nói ra: gửi khoá với giá trị rỗng.
-     */
+  it('sửa dòng đổi được ghi chú, và BỎ trường đi là XOÁ ghi chú', async () => {
+    // Biểu mẫu sửa dòng gửi lên toàn bộ nội dung dòng, nên vắng mặt ô ghi chú
+    // nghĩa là người dùng vừa xoá nó — không phải "giữ nguyên giá trị cũ".
     const d = await draft();
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    const doc = async () => (await get(`/policies/${d.id}`)).body.lines[0].note;
 
     expect(
-      (await patch(`/policies/${d.id}/lines/${l.id}`, { note: 'Khách yêu cầu đóng thùng 12' }))
-        .status,
+      (await patch(`/policies/${d.id}/lines/${l.id}`, {
+        wholesalePrice: '90000',
+        note: 'Khách yêu cầu đóng thùng 12',
+      })).status,
     ).toBe(200);
-    expect(await doc()).toBe('Khách yêu cầu đóng thùng 12');
-
-    // Sửa một ô KHÁC, không nhắc tới ghi chú → ghi chú còn nguyên.
-    expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '90000' })).status)
-      .toBe(200);
-    expect(await doc(), 'một lượt gõ vào ô GIÁ vừa xoá mất ghi chú').toBe(
+    expect((await get(`/policies/${d.id}`)).body.lines[0].note).toBe(
       'Khách yêu cầu đóng thùng 12',
     );
 
-    // Khoá CÓ MẶT với giá trị rỗng → xoá.
-    expect((await patch(`/policies/${d.id}/lines/${l.id}`, { note: '' })).status).toBe(200);
-    expect(await doc()).toBeNull();
+    expect(
+      (await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '90000' })).status,
+    ).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lines[0].note).toBeNull();
   });
 
   it('phiên bản mới CHÉP LẠI ghi chú của dòng thừa kế', async () => {
@@ -5286,28 +5262,30 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     expect(r.body.khachHang.noiNhanHang).toEqual([]);
   }, 60_000);
 
-  it('`0187` ngày áp dụng CHẶN LẠI được lượt gửi — giờ nó là cột nhận NULL', async () => {
+  it('`0180` ngày áp dụng KHÔNG còn chặn được lượt gửi — nó là cột NOT NULL của DÒNG', async () => {
     /*
-     * THAY ca `0180` *"ngày áp dụng KHÔNG còn chặn được lượt gửi"* (`0187`).
+     * Ca cũ xoá trắng `pol.policy.applied_date` bằng SQL thô rồi đòi 422. Cột ấy
+     * không còn tồn tại, và ca này thay nó bằng câu hỏi ĐÚNG cho hình dạng mới:
+     * **có dựng được một hồ sơ thiếu ngày áp dụng không?**
      *
-     * Ca ấy chứng minh phép chặn biến mất **vì cột là `NOT NULL`** — không dựng
-     * nổi một hồ sơ thiếu ngày, nên không có gì để chặn. `0118` cho cột nhận
-     * `NULL` để ô trống sống được tới lúc bấm Gửi duyệt, nên tiền đề của ca cũ
-     * mất, và ĐÚNG NGAY LÚC ẤY câu trả lời đảo chiều: thiếu ngày lại chặn được,
-     * và lần này chặn ở `LINE_INCOMPLETE`.
-     *
-     * Đây là chỗ hai chặng nối vào nhau, nên ca này giữ nguyên đường đi của ca
-     * cũ — xoá trắng cột bằng SQL thô — và chỉ đổi câu trả lời nó đòi.
+     * Câu trả lời là KHÔNG, và đó là lý do phép chặn biến mất chứ không phải bị
+     * nới. Ba lớp cùng chặn, và ca kiểm đi qua lớp cuối cùng — lớp mà một lượt
+     * sửa vội không nhìn thấy: ràng buộc `NOT NULL` ở CSDL.
      */
     const d = await draft();
-    await withAdminDb((c) =>
-      c.query(`UPDATE pol.policy_line SET ngay_ap_dung = NULL WHERE policy_id = $1`, [d.id]),
-    );
+    const hong = await withAdminDb(async (c) => {
+      try {
+        await c.query(`UPDATE pol.policy_line SET ngay_ap_dung = NULL WHERE policy_id = $1`, [d.id]);
+        return null;
+      } catch (e) {
+        return (e as { code?: string }).code ?? 'khong-ro';
+      }
+    });
+    expect(hong, 'phải là 23502 not_null_violation').toBe('23502');
 
+    // Và hồ sơ vẫn gửi duyệt được bình thường.
     const r = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(r.status).toBe(422);
-    expect(r.body.code).toBe('LINE_INCOMPLETE');
-    expect((r.body.lines as { thieu: string[] }[])[0]!.thieu).toEqual(['Ngày áp dụng']);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
   }, 60_000);
 
   it('thiếu MÃ SỐ THUẾ thì không gửi duyệt được, và câu chỉ đúng chỗ phải sửa', async () => {
@@ -5362,230 +5340,4 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
 
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
   }, 60_000);
-});
-
-/**
- * `0187` — BẢNG SOẠN THẲNG: dòng dở lưu được, chặn ở gửi duyệt, thứ tự do TDV đặt.
- *
- * Ba yêu cầu khách hàng chốt 08/09, và chúng khoá vào nhau: dấu cộng *"chèn vào
- * bất kỳ dòng nào"* chỉ có nghĩa khi thứ tự do người lập giữ, còn *"ô trống báo
- * đỏ và không cho gửi duyệt"* chỉ có nghĩa khi ô trống SỐNG ĐƯỢC tới lúc bấm Gửi
- * duyệt — tức là dòng dở phải nằm trong CSDL.
- */
-describe('`0187` soạn thẳng trên bảng sản phẩm', () => {
-  const dongCua = async (policyId: string) =>
-    (await get(`/policies/${policyId}`)).body.lines as {
-      id: string;
-      productId: string | null;
-      productCode: string | null;
-      wholesalePrice: string | null;
-      companyPrice: string | null;
-      ngayApDung: string | null;
-      cpbh: string[];
-      note: string | null;
-    }[];
-
-  const chen = (policyId: string, viTri: number) =>
-    post(`/policies/${policyId}/lines/chen`, { viTri });
-
-  it('chèn được một dòng TRỐNG, và nó nằm lại sau khi tải lại', async () => {
-    const d = await draft();
-    const r = await chen(d.id, 1);
-    expect(r.status, JSON.stringify(r.body)).toBe(201);
-
-    const ds = await dongCua(d.id);
-    expect(ds).toHaveLength(2);
-    const moi = ds[1]!;
-    expect(moi.productId, 'dòng vừa chèn phải TRỐNG sản phẩm').toBeNull();
-    expect(moi.wholesalePrice).toBeNull();
-    // Ngày thì KHÔNG trống: `0180` đặt mặc định hôm nay ở máy chủ và `0187`
-    // không đảo nó — xem `themDongTrong`.
-    expect(moi.ngayApDung).not.toBeNull();
-  });
-
-  it('dấu cộng chèn vào ĐÚNG VỊ TRÍ, không nối vào cuối', async () => {
-    const d = await draft();
-    const b = await makeProduct();
-    expect((await post(`/policies/${d.id}/lines`, line(b))).status).toBe(201);
-    // Hai dòng: [A, B]. Chèn vào khe 0 thì dòng trống phải đứng ĐẦU.
-    expect((await chen(d.id, 0)).status).toBe(201);
-
-    const ds = await dongCua(d.id);
-    expect(ds).toHaveLength(3);
-    expect(ds[0]!.productId, 'dòng trống phải đứng đầu').toBeNull();
-    expect(ds.slice(1).map((l) => l.productId)).toEqual([d.productId, b]);
-  });
-
-  it('thứ tự KHÔNG phải thứ tự mã sản phẩm', async () => {
-    /*
-     * Ca này là chỗ luật mới khác luật cũ, và nó cần dữ liệu cố tình ngược: mã
-     * sản phẩm sinh tăng dần theo lượt tạo, nên thêm B sau A rồi chèn C vào
-     * GIỮA sẽ cho thứ tự [A, C, B] — trong khi sắp theo mã cho [A, B, C].
-     */
-    const d = await draft();
-    const b = await makeProduct();
-    const c = await makeProduct();
-    expect((await post(`/policies/${d.id}/lines`, line(b))).status).toBe(201);
-    expect((await chen(d.id, 1)).status).toBe(201);
-    const giua = (await dongCua(d.id))[1]!;
-    expect((await patch(`/policies/${d.id}/lines/${giua.id}`, { productId: c })).status).toBe(200);
-
-    expect((await dongCua(d.id)).map((l) => l.productId)).toEqual([d.productId, c, b]);
-  });
-
-  it('sửa MỘT ô không đụng tới ô khác của cùng dòng', async () => {
-    /*
-     * Đây là tính chất mà `DongPatch` sinh ra để có, và là chỗ luật cũ sai: tới
-     * `0180` thì thiếu `note` trong thân request nghĩa là XOÁ ghi chú, nên một
-     * lượt gõ vào ô giá sẽ xoá sạch ghi chú của cùng dòng.
-     */
-    const d = await draft();
-    const l0 = (await dongCua(d.id))[0]!;
-    expect(
-      (await patch(`/policies/${d.id}/lines/${l0.id}`, { note: 'Đóng thùng 12' })).status,
-    ).toBe(200);
-    expect((await patch(`/policies/${d.id}/lines/${l0.id}`, { wholesalePrice: '70000' })).status)
-      .toBe(200);
-
-    const sau = (await dongCua(d.id))[0]!;
-    expect(sau.wholesalePrice).toBe('70000');
-    expect(sau.note, 'ghi chú bị xoá bởi một lượt sửa GIÁ').toBe('Đóng thùng 12');
-  });
-
-  it('xoá trống một ô thì cột về rỗng, và cột DẪN XUẤT rỗng theo', async () => {
-    const d = await draft();
-    const l0 = (await dongCua(d.id))[0]!;
-    expect(l0.companyPrice).not.toBeNull();
-
-    // Khoá CÓ MẶT với giá trị rỗng = lệnh xoá trống. Khoá vắng mặt là giữ nguyên.
-    expect((await patch(`/policies/${d.id}/lines/${l0.id}`, { productId: '' })).status).toBe(200);
-    const sau = (await dongCua(d.id))[0]!;
-    expect(sau.productId).toBeNull();
-    // Giá bán Công ty là ảnh chụp CỦA MẶT HÀNG vừa bỏ — giữ lại là bày một con
-    // số không còn thuộc về dòng nào.
-    expect(sau.companyPrice, 'cột dẫn xuất còn giữ giá của mặt hàng đã bỏ').toBeNull();
-  });
-
-  it('CHẶN GỬI DUYỆT khi còn dòng dở, và nói ra dòng nào thiếu gì', async () => {
-    const d = await draft();
-    expect((await chen(d.id, 1)).status).toBe(201);
-
-    const sub = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(sub.status).toBe(422);
-    expect(sub.body.code).toBe('LINE_INCOMPLETE');
-    const ds = sub.body.lines as { stt: number; thieu: string[] }[];
-    expect(ds).toHaveLength(1);
-    expect(ds[0]!.stt, 'phải nêu SỐ THỨ TỰ dòng, thứ người dùng tìm được bằng mắt').toBe(2);
-    expect(ds[0]!.thieu.sort()).toEqual(['CPBH', 'Giá bán buôn', 'Sản phẩm'].sort());
-  });
-
-  it('điền đủ dòng dở thì gửi duyệt được', async () => {
-    const d = await draft();
-    const moi = await makeProduct();
-    expect((await chen(d.id, 1)).status).toBe(201);
-    const l1 = (await dongCua(d.id))[1]!;
-    expect(
-      (
-        await patch(`/policies/${d.id}/lines/${l1.id}`, {
-          productId: moi,
-          wholesalePrice: '80000',
-          cpbh: ['2000'],
-        })
-      ).status,
-    ).toBe(200);
-
-    const sub = await act(d.id, 'SUBMIT', 'tdv01');
-    expect(sub.status, JSON.stringify(sub.body)).toBe(200);
-  });
-
-  it('CPBH rỗng là dòng dở, nhưng ô CPBH lẻ để trống thì KHÔNG', async () => {
-    /*
-     * Số cột CPBH của bảng bằng dòng nhiều khoản nhất, nên một dòng ít khoản hơn
-     * luôn để trống mấy ô cuối — `0055` chốt rằng đó là ô TRỐNG chứ không phải
-     * số 0. Đòi lấp chúng là bắt gõ 0 vào những khoản chi phí không tồn tại.
-     */
-    const d = await draft();
-    const b = await makeProduct();
-    expect((await post(`/policies/${d.id}/lines`, line(b, { cpbh: ['1000', '2000', '3000'] }))).status)
-      .toBe(201);
-    // Dòng đầu có ĐÚNG MỘT khoản, dòng sau có ba — bảng sẽ có ba cột CPBH.
-    expect((await act(d.id, 'SUBMIT', 'tdv01')).status, 'dòng ít khoản hơn không phải dòng dở')
-      .toBe(200);
-  });
-
-  it('DÒNG DỞ không ra khỏi cửa `internal` — bản mềm không in một hàng trống', async () => {
-    /*
-     * Phá lại đã đo: gỡ vế `product_id IS NOT NULL` khỏi `internal.controller`
-     * mà **cả bộ vẫn xanh**. Lý do không phải phép lọc ấy thừa — mà vì chốt gửi
-     * duyệt chặn hồ sơ còn dòng dở, nên không hồ sơ ĐÓNG BĂNG nào có dòng như
-     * thế, và mọi ca cũ chỉ đọc cửa này trên hồ sơ đã đóng băng.
-     *
-     * Nhưng cửa ấy gọi được trên hồ sơ NHÁP, và `document` gọi nó thật ở đường
-     * xem trước. Một dòng chưa chọn sản phẩm có mã và tên đều rỗng, nên nó in ra
-     * một HÀNG TRỐNG giữa tờ CSBH — không lỗi nào nổi lên, chỉ một hàng trắng
-     * trên tờ giấy đem ký.
-     */
-    const d = await draft();
-    expect((await chen(d.id, 1)).status).toBe(201);
-    expect(await dongCua(d.id)).toHaveLength(2);
-
-    const noiBo = await (await http(app))
-      .get(`/internal/policies/${d.id}`)
-      .set('X-Service-Token', mintServiceToken('document'));
-    expect(noiBo.status, JSON.stringify(noiBo.body)).toBe(200);
-    const ds = noiBo.body.lines as { product_id: string | null }[];
-    expect(ds, 'dòng chưa chọn sản phẩm lọt ra tới bộ dựng bảng').toHaveLength(1);
-    expect(ds[0]!.product_id).toBe(d.productId);
-
-    // Ngày áp dụng của hồ sơ (MIN các dòng) cũng phải bỏ qua dòng dở.
-    expect(noiBo.body.applied_date).not.toBeNull();
-  });
-
-  it('dòng THỪA KẾ không đổi được sản phẩm', async () => {
-    /*
-     * Đổi sản phẩm của một dòng đến từ bản đang hiệu lực là rút một mặt hàng của
-     * khách rồi thay bằng mặt hàng khác, KHÔNG để lại dấu vết — đúng thứ `0186`
-     * dựng cả trạng thái *Đã xoá* để chống.
-     */
-    const d = await draft();
-    await runToActive(d);
-    const moi = await makeProduct();
-    const v2 = await post('/policies', {
-      customerId: d.customerId,
-      mode: 'NEW_VERSION',
-      lines: [],
-    });
-    const thuaKe = (await dongCua(v2.body.id as string))[0]!;
-
-    const r = await patch(`/policies/${v2.body.id}/lines/${thuaKe.id}`, { productId: moi });
-    expect(r.status).toBe(409);
-    expect(r.body.code).toBe('INHERITED_PRODUCT_LOCKED');
-  });
-
-  it('phiên bản mới GIỮ NGUYÊN thứ tự dòng của bản trước', async () => {
-    const d = await draft();
-    const b = await makeProduct();
-    expect((await post(`/policies/${d.id}/lines`, line(b))).status).toBe(201);
-    expect((await chen(d.id, 0)).status).toBe(201);
-    const l0 = (await dongCua(d.id))[0]!;
-    const c = await makeProduct();
-    expect(
-      (
-        await patch(`/policies/${d.id}/lines/${l0.id}`, {
-          productId: c,
-          wholesalePrice: '85000',
-          cpbh: ['1000'],
-        })
-      ).status,
-    ).toBe(200);
-    const truoc = (await dongCua(d.id)).map((l) => l.productId);
-    await runToActive(d);
-
-    const v2 = await post('/policies', {
-      customerId: d.customerId,
-      mode: 'NEW_VERSION',
-      lines: [],
-    });
-    expect((await dongCua(v2.body.id as string)).map((l) => l.productId)).toEqual(truoc);
-  });
 });

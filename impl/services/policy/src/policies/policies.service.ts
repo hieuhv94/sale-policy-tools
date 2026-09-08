@@ -53,31 +53,6 @@ export type LineInput = {
   ngayApDung?: string | undefined;
 };
 
-/**
- * MỘT LƯỢT SỬA TỪNG Ô trên bảng sản phẩm (`0187`).
- *
- * Khác `LineInput` ở một điểm quyết định toàn bộ hình dạng của nó: `LineInput`
- * mô tả **một dòng đã điền xong**, còn kiểu này mô tả **một lượt gõ vào một ô**.
- * Nên mọi trường đều tuỳ chọn, và cả ba trạng thái của một trường đều có nghĩa
- * riêng:
- *
- *   * **vắng mặt** — người dùng không đụng tới ô đó, GIỮ NGUYÊN.
- *   * **`null`** — người dùng vừa XOÁ TRỐNG ô đó. Cột nhận `NULL` từ `0187`.
- *   * **có giá trị** — ghi đè.
- *
- * `LineInput` không diễn đạt được vế thứ hai (`0180` chọn *"vắng mặt = giữ
- * nguyên"* cho ngày và *"vắng mặt = xoá"* cho ghi chú — hai luật ngược nhau
- * trong cùng một kiểu, đúng vì lúc ấy biểu mẫu luôn gửi CẢ DÒNG). Bảng soạn
- * thẳng gửi MỘT ô mỗi lượt, nên quy ước ấy sẽ xoá sạch mọi ô không được gửi.
- */
-export type DongPatch = {
-  productId?: string | null | undefined;
-  wholesalePrice?: bigint | null | undefined;
-  cpbh?: readonly bigint[] | undefined;
-  note?: string | null | undefined;
-  ngayApDung?: string | null | undefined;
-};
-
 export type CreateInput = {
   customerId: string;
   lines: LineInput[];
@@ -802,15 +777,11 @@ export class PoliciesService {
              (policy_id, product_id, product_code_snap, product_name_snap,
               company_price_snap, wholesale_price, cpbh,
               discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
-              ngay_ap_dung, thu_tu)
+              ngay_ap_dung)
            SELECT $1, product_id, product_code_snap, product_name_snap,
                   company_price_snap, wholesale_price, cpbh,
                   discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
-                  -- 0187 — THỨ TỰ chép theo, cùng lý do với ngày áp dụng ngay
-                  -- trên: dòng thừa kế LÀ chính dòng cũ, nên nó giữ nguyên chỗ
-                  -- đứng của nó. Sắp lại theo mã ở đây là đổi hình dạng tờ giấy
-                  -- giữa hai phiên bản mà không ai yêu cầu.
-                  ngay_ap_dung, thu_tu
+                  ngay_ap_dung
              FROM pol.policy_line WHERE policy_id = $2`,
           [policy.id, active.id],
         );
@@ -904,13 +875,8 @@ export class PoliciesService {
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
             discount_rate, threshold_snap, rule_code_snap, threshold_source, note,
-            ngay_ap_dung, thu_tu)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12,$13,
-                 -- 0187 — thu_tu là NOT NULL và KHÔNG có mặc định, cố ý: chỗ
-                 -- duy nhất biết một dòng mới đứng ở đâu là chỗ chèn nó. Đường
-                 -- này nối vào CUỐI bảng; đường chèn giữa bảng là
-                 -- themDongTrong, nơi người lập chỉ ra vị trí.
-                 (SELECT coalesce(max(thu_tu), 0) + 1 FROM pol.policy_line WHERE policy_id = $1))
+            ngay_ap_dung)
+         VALUES ($1,$2,$3,$4,$5,$6,$7::bigint[],$8,$9,$10,$11,$12,$13)
          ON CONFLICT (policy_id, product_id) DO UPDATE SET
             wholesale_price = EXCLUDED.wholesale_price,
             cpbh = EXCLUDED.cpbh,
@@ -956,167 +922,6 @@ export class PoliciesService {
         }
         throw e;
       });
-  }
-
-  /**
-   * Ghi một dòng ĐANG SOẠN, điền được tới đâu thì tới đó (`0187`).
-   *
-   * Ba mức, xem `updateLine`. Điểm dễ sai nhất nằm ở nhánh THIẾU: cột dẫn xuất
-   * phải về `NULL` chứ không được giữ giá trị cũ — xoá ô sản phẩm mà để lại Giá
-   * bán Công ty của mặt hàng vừa bỏ là bày ra một con số không còn thuộc về dòng
-   * nào, và nó sẽ đi thẳng vào phép so *Chỉnh sửa / Đang áp dụng*.
-   *
-   * `computeLine` chỉ chạy khi có ĐỦ hai giá. Nó ném `InvalidLineError` cho
-   * những tổ hợp vô lý (giá thu về âm), và đó vẫn là lỗi thật đáng báo — nhưng
-   * chỉ khi người dùng đã gõ đủ để nó có nghĩa.
-   */
-  private async ghiDong(
-    c: PoolClient,
-    d: {
-      policyId: string;
-      lineId: string;
-      productId: string | null;
-      giaBanBuon: string | null;
-      cpbh: string[];
-      note: string | null;
-      on: string | null;
-    },
-    customer: { customerType: number },
-  ): Promise<void> {
-    const snap = d.productId
-      ? await this.clients.productSnapshot(d.productId, customer.customerType, d.on ?? undefined)
-      : null;
-    if (snap && snap.status !== 'DANG_AP_DUNG') {
-      throw new BadRequestException({
-        code: 'PRODUCT_DISABLED',
-        message: `Sản phẩm ${snap.productCode} đã vô hiệu hoá, không đưa vào hồ sơ mới được`,
-      });
-    }
-
-    let rate: string | null = null;
-    if (snap && d.giaBanBuon !== null) {
-      try {
-        const calc = computeLine({
-          companyPrice: BigInt(snap.companyPrice),
-          wholesalePrice: BigInt(d.giaBanBuon),
-          cpbh: d.cpbh.map((v) => BigInt(v)),
-          ...(snap.thresholdRate2 === null ? {} : { threshold: snap.thresholdRate2 }),
-        });
-        rate = (calc.discountRate / 100).toFixed(2);
-      } catch (e) {
-        if (e instanceof InvalidLineError) {
-          throw new BadRequestException({ code: e.code, message: e.message });
-        }
-        throw e;
-      }
-    }
-
-    await c
-      .query(
-        `UPDATE pol.policy_line
-            SET product_id         = $3,
-                product_code_snap  = $4,
-                product_name_snap  = $5,
-                company_price_snap = $6,
-                wholesale_price    = $7,
-                cpbh               = $8::bigint[],
-                discount_rate      = $9,
-                threshold_snap     = $10,
-                rule_code_snap     = $11,
-                threshold_source   = $12,
-                note               = $13,
-                ngay_ap_dung       = $14
-          WHERE id = $2 AND policy_id = $1`,
-        [
-          d.policyId,
-          d.lineId,
-          d.productId,
-          snap?.productCode ?? null,
-          snap?.productName ?? null,
-          snap?.companyPrice ?? null,
-          d.giaBanBuon,
-          d.cpbh,
-          rate,
-          snap && snap.thresholdRate2 !== null ? (snap.thresholdRate2 / 100).toFixed(2) : null,
-          snap?.ruleCode ?? null,
-          snap?.thresholdSource ?? null,
-          d.note,
-          d.on,
-        ],
-      )
-      .catch((e: unknown) => {
-        if (pgCode(e) === PG.uniqueViolation) {
-          throw new ConflictException({
-            code: 'DUPLICATE_PRODUCT',
-            message: `Sản phẩm ${snap?.productCode ?? ''} đã có trong hồ sơ này`.replace('  ', ' '),
-          });
-        }
-        throw e;
-      });
-  }
-
-  /**
-   * CHÈN MỘT DÒNG TRỐNG vào đúng vị trí người lập chỉ (`0187`).
-   *
-   * `viTri` là chỗ dòng mới sẽ đứng, đếm từ 0 — đúng cái dấu cộng nằm giữa hai
-   * dòng trên màn hình. Mọi dòng từ đó trở xuống lùi một bậc.
-   *
-   * ĐẨY TRƯỚC, CHÈN SAU, trong cùng một transaction: làm ngược lại thì dòng mới
-   * bị chính lượt đẩy của nó dịch đi. Không có unique `(policy_id, thu_tu)` nên
-   * lượt đẩy không tự va vào chính nó giữa chừng — xem `0118_dong_soan_truc_tiep.sql`.
-   */
-  async themDongTrong(policyId: string, viTri: number, me: AuthUser) {
-    const p = await this.mustEdit(policyId, me);
-    return this.db.tx(async (c) => {
-      /*
-       * TRA `thu_tu` CỦA DÒNG ĐANG ĐỨNG Ở CHỖ ẤY, không tính số học từ `viTri`.
-       *
-       * `viTri` là chỉ số trong DÃY NGƯỜI DÙNG NHÌN THẤY, đếm từ 0; `thu_tu` là
-       * một con số của CSDL, và lượt nạp lại của `0118` cho nó bắt đầu từ 1.
-       * Bản đầu tôi dùng thẳng `viTri` làm `thu_tu` và nó lệch đúng một bậc —
-       * chèn vào khe 1 thì dòng mới nhảy lên đầu bảng.
-       *
-       * Tra rồi chèn thì phép này đúng với MỌI cách đánh số: dãy không liền
-       * nhau, đánh từ 0, hay còn sót số cũ sau một lượt xoá — nó chỉ hỏi "dòng
-       * đang đứng ở chỗ này mang số mấy" và chen vào ngay trước nó.
-       *
-       * Đếm cả dòng ĐÃ RÚT: chúng vẫn hiện trên bảng (`0186`), nên chỉ số người
-       * dùng bấm có tính chúng. Bỏ qua chúng ở đây là lệch một bậc ở đúng những
-       * hồ sơ vừa rút một mặt hàng.
-       */
-      const dsThuTu = await c.query<{ thu_tu: number }>(
-        `SELECT thu_tu FROM pol.policy_line WHERE policy_id = $1 ORDER BY thu_tu, id`,
-        [policyId],
-      );
-      const cho =
-        viTri < dsThuTu.rowCount!
-          ? dsThuTu.rows[viTri]!.thu_tu
-          : (dsThuTu.rows.at(-1)?.thu_tu ?? 0) + 1;
-
-      await c.query(
-        `UPDATE pol.policy_line SET thu_tu = thu_tu + 1
-          WHERE policy_id = $1 AND thu_tu >= $2`,
-        [policyId, cho],
-      );
-      const r = await c.query<{ id: string }>(
-        `INSERT INTO pol.policy_line (policy_id, cpbh, thu_tu, ngay_ap_dung)
-         VALUES ($1, '{}'::bigint[], $2, $3) RETURNING id`,
-        // NGÀY MẶC ĐỊNH LÀ HÔM NAY, không phải rỗng: `0180` đặt luật ấy ở máy
-        // chủ và `0187` không đảo nó. Dòng vừa chèn đã thiếu sẵn hai ô bắt buộc;
-        // bắt người lập gõ thêm một cái ngày mà mười lần thì chín lần là hôm nay
-        // chỉ làm dài thêm việc.
-        [policyId, cho, ngayVN()],
-      );
-      await this.bumpVersion(c, policyId);
-      await emit(c, 'policy.updated', {
-        ...evtCtx(p),
-        change: 'LINE_ADDED',
-        lineId: r.rows[0]!.id,
-        actorId: me.id,
-        at: new Date().toISOString(),
-      });
-      return this.load(policyId, c);
-    });
   }
 
   /** Thêm một dòng vào hồ sơ đang sửa được (POL-02). */
@@ -1171,98 +976,58 @@ export class PoliciesService {
   }
 
   /**
-   * Sửa MỘT Ô của một dòng, trên bảng soạn thẳng (`0187`).
+   * Sửa một dòng đã có: giá bán buôn và các khoản chi phí.
    *
-   * ---------------------------------------------------------------------------
-   * VÌ SAO KHÔNG DÙNG LẠI `upsertLine`
-   * ---------------------------------------------------------------------------
+   * Đường RIÊNG chứ không cho `addLine` ghi đè khi trùng sản phẩm. Trùng sản
+   * phẩm lúc THÊM là một nhầm lẫn — người dùng tưởng mình đang thêm mặt hàng
+   * mới — và `POL-02` chặn nó có chủ ý. Biến nó thành ghi đè im lặng là đánh
+   * mất một cái chặn đúng để đổi lấy một chức năng khác hẳn.
    *
-   * `upsertLine` viết cho một dòng ĐÃ ĐỦ: nó gọi danh mục, tính chiết khấu, rồi
-   * ghi cả mười ba cột trong một câu. Mọi bước ấy đòi có sản phẩm và có giá bán
-   * buôn — thứ mà một dòng đang soạn dở chưa chắc có. Ép nó chạy với dữ liệu
-   * thiếu là hoặc ném lỗi vào mặt người đang gõ, hoặc điền số 0 vào những cột
-   * mà mọi phép tính về sau đọc.
+   * SẢN PHẨM KHÔNG ĐỔI ĐƯỢC. Đổi sản phẩm của một dòng là xoá dòng này và thêm
+   * dòng khác; hai việc ấy có ý nghĩa nghiệp vụ khác nhau và để lại vết khác
+   * nhau trong nhật ký.
    *
-   * Nên đường này TỰ ghi, theo ba mức, và mức nào có đủ dữ liệu tới đâu thì
-   * điền tới đó:
-   *
-   *   1. luôn ghi bốn ô NGƯỜI DÙNG gõ: sản phẩm · giá bán buôn · CPBH · ghi chú
-   *      · ngày áp dụng;
-   *   2. có SẢN PHẨM và NGÀY → chụp mã, tên, Giá bán Công ty, ngưỡng, quy định;
-   *   3. có thêm GIÁ BÁN BUÔN → tính được tỷ lệ chiết khấu.
-   *
-   * Thiếu mức nào thì các cột của mức ấy về `NULL`, **không giữ lại giá trị
-   * cũ**: xoá trống ô sản phẩm mà vẫn để lại Giá bán Công ty của mặt hàng vừa
-   * bỏ là bày một con số không còn thuộc về dòng nào.
-   *
-   * ---------------------------------------------------------------------------
-   * Ô SẢN PHẨM: ĐỔI ĐƯỢC, TRỪ DÒNG THỪA KẾ
-   * ---------------------------------------------------------------------------
-   *
-   * `0027` khoá hẳn ô sản phẩm với lý do *"đổi sản phẩm là xoá dòng này và thêm
-   * dòng khác"*. Lý do ấy mất hiệu lực khi bảng thành mặt bàn soạn: dòng vừa
-   * chèn CHƯA CÓ sản phẩm nào, nên phải chọn được, và một lượt chọn nhầm phải
-   * sửa lại được ngay tại ô.
-   *
-   * Nhưng nó vẫn đúng nguyên vẹn cho **dòng thừa kế**. Đổi sản phẩm của một dòng
-   * đến từ bản đang hiệu lực là **rút một mặt hàng của khách hàng và thay bằng
-   * mặt hàng khác, không để lại dấu vết nào** — đúng thứ `0186` vừa dựng cả một
-   * trạng thái *Đã xoá* để chống. Đường đúng là: rút dòng ấy (nó ở lại, làm mờ),
-   * rồi chèn một dòng mới. Nên ô sản phẩm khoá lại ở dòng thừa kế, và mã lỗi nói
-   * ra đúng việc phải làm.
+   * Giá bán Công ty và ngưỡng chiết khấu CHỤP LẠI theo danh mục tại thời điểm
+   * sửa, đúng như lúc thêm dòng — hồ sơ chưa gửi duyệt thì con số của nó phải
+   * là con số hiện hành, nếu không thì sửa một khoản chi phí lại vô tình giữ
+   * nguyên một mức giá đã cũ.
    */
-  async updateLine(policyId: string, lineId: string, patch: DongPatch, me: AuthUser) {
+  async updateLine(
+    policyId: string,
+    lineId: string,
+    input: {
+      wholesalePrice: bigint;
+      cpbh?: readonly bigint[] | undefined;
+      note?: string | undefined;
+      ngayApDung?: string | undefined;
+    },
+    me: AuthUser,
+  ) {
     const p = await this.mustEdit(policyId, me);
     const customer = await this.clients.customer(p.customer_id);
     return this.db.tx(async (c) => {
-      const cu = await c.query<{
-        product_id: string | null;
-        wholesale_price: string | null;
-        cpbh: string[];
-        note: string | null;
-        ngay_ap_dung: Date | null;
-        thua_ke: boolean;
-      }>(
-        `SELECT l.product_id, l.wholesale_price::text, l.cpbh::text[] AS cpbh, l.note,
-                l.ngay_ap_dung, ${SQL_DONG_THUA_KE} AS thua_ke
-           FROM pol.policy_line l
-           ${SQL_NOI_BAN_TRUOC}
-          WHERE l.id = $2 AND l.policy_id = $1 AND NOT l.da_xoa`,
-        [policyId, lineId],
+      const cu = await c.query<{ product_id: string; ngay_ap_dung: Date }>(
+        `SELECT product_id, ngay_ap_dung FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
+        [lineId, policyId],
       );
       if (cu.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
-      const truoc = cu.rows[0]!;
 
-      // Ba trạng thái của một trường — xem `DongPatch`. `undefined` là "không
-      // đụng tới", nên phép hợp nhất phải hỏi `=== undefined`, KHÔNG dùng `??`:
-      // `null` là một lệnh thật (xoá trống) và `??` sẽ nuốt mất nó.
-      const lay = <T>(moi: T | null | undefined, cu2: T | null): T | null =>
-        moi === undefined ? cu2 : moi;
-
-      const productId = lay(patch.productId, truoc.product_id);
-      if (truoc.thua_ke && productId !== truoc.product_id) {
-        throw new ConflictException({
-          code: 'INHERITED_PRODUCT_LOCKED',
-          message:
-            'Dòng này đến từ CSBH đang hiệu lực nên không đổi được sản phẩm. ' +
-            'Xoá dòng đó rồi chèn một dòng mới cho mặt hàng thay thế.',
-        });
-      }
-
-      const giaBanBuon = lay(
-        patch.wholesalePrice === undefined || patch.wholesalePrice === null
-          ? patch.wholesalePrice
-          : patch.wholesalePrice.toString(),
-        truoc.wholesale_price,
+      /*
+       * THIẾU NGÀY LÀ GIỮ NGUYÊN, không phải xoá (`0180`).
+       *
+       * Ngược với `note` ngay bên cạnh, và có lý do: `note` rỗng là một trạng
+       * thái hợp lệ nên "vắng mặt = xoá" nói được điều gì đó, còn `ngay_ap_dung`
+       * là `NOT NULL` — không có "dòng không có ngày áp dụng" để mà xoá về. Rơi
+       * về hôm nay thì tệ hơn nữa: sửa một khoản chi phí của dòng áp dụng từ
+       * tháng sau sẽ âm thầm kéo nó về hôm nay.
+       */
+      const on = input.ngayApDung ?? ngayISO(cu.rows[0]!.ngay_ap_dung)!;
+      await this.upsertLine(
+        c,
+        policyId,
+        { productId: cu.rows[0]!.product_id, ...input, ngayApDung: on },
+        { ...customer, on },
       );
-      const cpbh = patch.cpbh === undefined ? truoc.cpbh : patch.cpbh.map((v) => v.toString());
-      // Ghi chú viết thẳng chứ không qua `lay`: nó có thêm một nước — chuỗi chỉ
-      // gồm khoảng trắng cũng là ô trống, và ràng buộc `ghi_chu_khong_rong` của
-      // CSDL từ chối một chuỗi rỗng nhưng nhận `NULL`.
-      const note = patch.note === undefined ? truoc.note : patch.note?.trim() || null;
-      const on = lay(patch.ngayApDung, ngayISO(truoc.ngay_ap_dung) ?? null);
-
-      await this.ghiDong(c, { policyId, lineId, productId, giaBanBuon, cpbh, note, on }, customer);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p, customer),
@@ -1427,21 +1192,8 @@ export class PoliciesService {
        * hỏi danh mục về nó là hỏi một câu không dùng để làm gì, rồi chặn người
        * lập bằng chính câu trả lời.
        */
-      /*
-       * 0187 — DÒNG SOẠN DỞ CŨNG ĐỨNG NGOÀI, cùng lý do với dòng đã rút.
-       *
-       * Làm mới nghĩa là "chụp lại giá và ngưỡng hiện hành cho dòng này". Dòng
-       * chưa chọn sản phẩm không có gì để chụp; dòng chưa có ngày không tra được
-       * bảng giá nào; dòng chưa có giá bán buôn thì không tính nổi tỷ lệ chiết
-       * khấu. Cả ba đã bị chốt gửi duyệt chặn rồi, nên đưa chúng vào đây chỉ để
-       * nhận về một danh sách `hong` nói lại đúng điều ấy bằng một câu khó hiểu
-       * hơn — và chặn người lập mở chính hồ sơ họ đang soạn.
-       */
       `SELECT product_id, product_code_snap, ngay_ap_dung
-         FROM pol.policy_line
-        WHERE policy_id = $1 AND NOT da_xoa
-          AND product_id IS NOT NULL AND ngay_ap_dung IS NOT NULL
-          AND wholesale_price IS NOT NULL`,
+         FROM pol.policy_line WHERE policy_id = $1 AND NOT da_xoa`,
       [policyId],
     );
     if (dong.rowCount === 0) return [];
@@ -2265,12 +2017,7 @@ export class PoliciesService {
         -- Màn hình hồ sơ là chỗ duy nhất phải bày chúng ra (làm mờ, nhãn *Đã
         -- xoá*), vì nó là chỗ người duyệt nhìn thấy mặt hàng đang bị rút. Mọi
         -- đường đọc khác lọc chúng đi — xem internal.controller.
-        -- 0187 — THỨ TỰ NGƯỜI LẬP ĐẶT, không phải thứ tự mã sản phẩm. Dấu cộng
-        -- chèn dòng vào giữa bảng chỉ có nghĩa nếu chỗ ấy được giữ lại; sắp theo
-        -- mã thì dòng vừa chèn nhảy đi ngay dưới tay người đang gõ, và với dòng
-        -- chưa chọn sản phẩm thì mã còn chưa có. Phân xử bằng id để hai lượt
-        -- đọc cho cùng một dãy khi hai dòng cùng số.
-        WHERE l.policy_id = $1 ORDER BY l.thu_tu, l.id`,
+        WHERE l.policy_id = $1 ORDER BY l.product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];
 
