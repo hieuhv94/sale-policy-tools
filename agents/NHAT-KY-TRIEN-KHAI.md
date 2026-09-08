@@ -16365,3 +16365,144 @@ NC-CAN-400 lại đo một hồ sơ mà mặt hàng chưa hề bị tắt.
 | Dựng lại POL-08 **viết đúng cho `0186`** | **3 đỏ**, đúng ba ca của yêu cầu |
 
 **2078/2078 xanh.**
+
+---
+
+## P215 — `0187` Bảng sản phẩm soạn thẳng: ô trống lưu được, thứ tự do TDV đặt
+
+Ba yêu cầu khách hàng gửi cùng lúc 08/09, và chúng không rời nhau như vẻ ngoài: màu nhãn · soạn
+thẳng trên dòng · dấu cộng chèn giữa hai dòng.
+
+### Hai chỗ phải hỏi lại trước khi gõ, và cả hai đổi hẳn khối lượng việc
+
+**(1) Dòng chưa đủ trường có LƯU được không.** Câu *"ô trống báo đỏ và không cho gửi duyệt"* đọc
+được theo hai cách, và hai cách cho ra hai công trình khác nhau: một bên là migration cho bảy cột
+nhận `NULL` cộng phép lọc ở mọi đường đọc ra giấy; bên kia là một dòng nháp trên trình duyệt, không
+đụng lược đồ. Khách hàng chốt **lưu được**, và họ đúng ở chỗ câu ấy tự nói ra: nếu dòng dở chỉ nằm
+trên trình duyệt thì *"không cho gửi duyệt"* nói về một thứ máy chủ chưa bao giờ nhìn thấy.
+
+**(2) Dấu cộng có nghĩa là thứ tự do người lập giữ không.** Tới `0186` mọi đường đọc sắp bằng
+`ORDER BY product_code_snap`. Trên một thứ tự tính ra từ dữ liệu thì *"chèn vào giữa hai dòng bất
+kỳ"* **không diễn đạt được**: chèn xong dòng mới nhảy về chỗ mã của nó, và dòng vừa chèn thì mã còn
+chưa có — nó rơi lên đầu hay xuống cuối tuỳ collation. Khách hàng chốt **người lập giữ thứ tự**.
+
+### Bảng thôi là kết quả của một biểu mẫu; nó là mặt bàn
+
+Đây là lằn ranh của cả chặng, và mọi thứ khác suy ra từ nó. `pol.policy_line` tới `0186` luôn là một
+dòng ĐÃ ĐIỀN XONG — `upsertLine` gọi danh mục, tính chiết khấu, ghi mười ba cột trong một câu, và
+mọi bước ấy đòi có sản phẩm và có giá. Từ `0187` nó là một hàng đang được gõ dở.
+
+Nên đường ghi tách làm hai, không nới đường cũ: `upsertLine` giữ nguyên cho dòng đã đủ (`create` vẫn
+đi qua nó), còn `ghiDong` ghi **theo ba mức** — bốn ô người dùng nhập luôn ghi; có sản phẩm và ngày
+thì chụp mã, tên, giá, ngưỡng; có thêm giá bán buôn thì mới tính được tỷ lệ. Ép `upsertLine` chạy
+với dữ liệu thiếu là hoặc ném lỗi vào mặt người đang gõ, hoặc điền số 0 vào những cột mà mọi phép
+tính về sau đọc.
+
+**Nhánh THIẾU là nhánh dễ viết sai**: cột dẫn xuất phải về `NULL`, **không giữ giá trị cũ**. Xoá ô
+sản phẩm mà để lại Giá bán Công ty của mặt hàng vừa bỏ là bày một con số không còn thuộc về dòng
+nào — và nó đi thẳng vào phép so *Chỉnh sửa / Đang áp dụng*.
+
+### `DongPatch`: ba trạng thái của một trường, và vì sao `opt()` không đủ
+
+`LineInput` mô tả một DÒNG; `DongPatch` mô tả một LƯỢT GÕ VÀO MỘT Ô. Vắng mặt là giữ nguyên, `null`
+là xoá trống, có giá trị là ghi đè.
+
+`0180` chọn *"vắng mặt = giữ nguyên"* cho ngày và *"vắng mặt = xoá"* cho ghi chú — hai luật ngược
+nhau trong cùng một kiểu, và **đúng** khi biểu mẫu luôn gửi cả dòng. Bảng soạn thẳng gửi một ô mỗi
+lượt, nên quy ước ấy xoá sạch ghi chú mỗi lần ai đó gõ vào ô giá.
+
+`opt()` không diễn đạt được ba trạng thái: nó gộp `undefined`, `null` và chuỗi rỗng về cùng một
+`undefined`. Sửa `opt()` cho nhận `null` là đổi hành vi của hàng trăm chỗ dùng khác để phục vụ đúng
+một đường — nên phép kiểm sự CÓ MẶT của khoá đọc thẳng từ thân yêu cầu (`Object.hasOwn`), còn `opt()`
+chỉ lo phần giá trị.
+
+### Ô sản phẩm: `0027` mất hiệu lực một nửa, và nửa còn lại thì nguyên vẹn
+
+`0027` khoá hẳn ô sản phẩm với lý do *"đổi sản phẩm là xoá dòng này và thêm dòng khác"*. Lý do ấy
+mất hiệu lực khi bảng thành mặt bàn: dòng vừa chèn CHƯA CÓ sản phẩm nào.
+
+Nhưng nó đúng nguyên vẹn cho **dòng thừa kế** — đổi sản phẩm ở đó là rút một mặt hàng của khách rồi
+thay bằng mặt hàng khác **không để lại dấu vết nào**, đúng thứ `0186` vừa dựng cả trạng thái *Đã
+xoá* để chống. Nên ô khoá ở dòng thừa kế (`INHERITED_PRODUCT_LOCKED`), mở ở dòng *Bổ sung*.
+
+### `thu_tu`: tra chỗ đứng, đừng tính số học
+
+Bản đầu dùng thẳng `viTri` làm `thu_tu` và nó **lệch đúng một bậc**: `viTri` đếm từ 0 (chỉ số trong
+dãy người dùng nhìn thấy), còn lượt nạp lại của `0118` cho `thu_tu` bắt đầu từ 1. Chèn vào khe 1 thì
+dòng mới nhảy lên đầu bảng.
+
+Chữa bằng cách **thôi tính**: hỏi *"dòng đang đứng ở chỗ này mang số mấy"* rồi chen vào ngay trước
+nó. Phép ấy đúng với mọi cách đánh số — dãy không liền nhau, đánh từ 0, hay còn sót số cũ sau một
+lượt xoá. Và nó phải đếm **cả dòng đã rút**, vì chúng vẫn hiện trên bảng (`0186`).
+
+Không có unique `(policy_id, thu_tu)`, có chủ ý: lượt chèn giữa bảng phải ĐẨY mọi dòng phía sau lên
+một bậc, và Postgres kiểm ràng buộc sau TỪNG DÒNG chứ không hoãn tới `COMMIT` — nên `UPDATE … SET
+thu_tu = thu_tu + 1` tự va vào chính nó ở dòng thứ hai.
+
+### `thu_tu` NOT NULL không mặc định — và cái giá của nó, đo được
+
+Chỗ duy nhất biết một dòng mới đứng ở đâu là chỗ chèn nó, nên cột không có mặc định. Cái giá hiện ra
+ngay: **12 ca của `constraints.test.ts` đỏ cùng lúc**, vì chín fixture viết SQL thô không khai cột
+ấy. Giữ nguyên quyết định — đó chính là cơ chế làm việc, và nó vừa bắt tôi rà đủ chín chỗ chèn thô.
+
+### Ba ca kiểm phải THAY chứ không sửa số, và ca thứ ba là ca ngược chiều nhất
+
+* `0027` *"KHÔNG đổi được sản phẩm qua đường sửa"* → `0187` mở đường ấy cho dòng không thừa kế. Sửa
+  con số thì nó thành một ca nói "đổi được" — mất hẳn phần đáng canh, và phần ấy chuyển sang dòng
+  thừa kế.
+* `0027` *"BỎ trường đi là XOÁ ghi chú"* → giờ vắng mặt là giữ nguyên; cách xoá không mất, nó chỉ
+  phải nói ra.
+* `0180` *"ngày áp dụng KHÔNG còn chặn được lượt gửi — nó là cột `NOT NULL` của DÒNG"*. Ca ấy chứng
+  minh phép chặn biến mất **vì không dựng nổi một hồ sơ thiếu ngày**. `0118` cho cột nhận `NULL`, và
+  **đúng ngay lúc ấy câu trả lời đảo chiều**: thiếu ngày lại chặn được, lần này ở `LINE_INCOMPLETE`.
+  Ca mới giữ nguyên đường đi cũ (xoá trắng cột bằng SQL thô) và chỉ đổi câu trả lời nó đòi.
+
+### PHÁ LẠI: chín đỏ, HAI XANH, và cả hai lượt xanh là lỗ hổng thật
+
+**Gỡ vế `product_id IS NOT NULL` khỏi `internal.controller` → cả bộ vẫn xanh.** Không phải vì phép
+lọc thừa: chốt gửi duyệt chặn hồ sơ còn dòng dở, nên không hồ sơ ĐÓNG BĂNG nào mang dòng như thế, và
+mọi ca cũ chỉ đọc cửa ấy trên hồ sơ đã đóng băng. Nhưng cửa gọi được trên hồ sơ NHÁP, và một dòng
+chưa chọn sản phẩm có mã lẫn tên đều rỗng — nó in ra một **hàng trống giữa tờ CSBH**, không lỗi nào
+nổi lên. Đã thêm ca đọc cửa ấy trên bản nháp.
+
+**Đảo màu nhãn về như `0180` → cả bộ vẫn xanh.** Yêu cầu thứ nhất của khách hàng **không có một ca
+kiểm nào** canh. Đã thêm ba ca, và ca đáng giá nhất là ca thứ hai: *không hai trạng thái nào dùng
+chung một màu*. Nó canh cái hệ quả khách hàng KHÔNG nêu — *Đang áp dụng* lấy xanh thì *Bổ sung* phải
+rời khỏi xanh — và phá lại riêng vế ấy cho một đỏ.
+
+### Hai chỗ khác đáng ghi
+
+**Cột CPBH có thể bằng KHÔNG.** `soCotCpbh` lấy theo dòng nhiều khoản nhất, nên một hồ sơ mà mọi dòng
+đều chưa có khoản nào dựng ra **không cột CPBH nào** — ô bắt buộc *CPBH* không có chỗ để gõ lẫn chỗ
+để tô đỏ, trong khi lúc gửi duyệt vẫn báo "còn thiếu CPBH". Ca kiểm tìm ra chỗ này chứ không phải mắt
+đọc mã. Chữa bằng `toiThieu` = 1 khi đang soạn, và **cùng một con số cho cả tiêu đề lẫn ô** — hai con
+số là bảng lệch cột, thứ khiến người ký đối chiếu nhầm.
+
+**Backtick trong template literal, lần thứ TƯ trong hai chặng.** Ba chú thích SQL, chín lỗi cú pháp ở
+những dòng chẳng liên quan, kèm một `TS1489 Decimals with leading zeros` cho chính con số `0187`.
+
+### Cái mất, đã cân
+
+`GET .../threshold-preview` thôi có người gọi từ giao diện (đường máy chủ giữ). Luật `0022` — *cảnh
+báo "chưa có quy định chiết khấu" LÚC ĐANG LẬP* — **không mất**: bảng ghi ngay lúc chọn sản phẩm nên
+dòng hiện ra kèm ngưỡng thật và dấu cảnh báo của chính nó, sớm hơn hộp thoại cũ một bước. Tệp
+`canh-bao-chiet-khau.test.ts` viết lại để đọc bảo đảm ấy ở chỗ mới của nó.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Chèn dòng tính số học từ `viTri` | **3 đỏ** — lệch một bậc, đúng lỗi bản đầu |
+| Bỏ chốt `LINE_INCOMPLETE` | **2 đỏ**, gồm ca `0180` vừa đảo chiều |
+| `PATCH` quay về *"vắng mặt = xoá"* | **2 đỏ** — ghi chú bị một lượt sửa GIÁ xoá mất |
+| `ghiDong` giữ cột dẫn xuất khi bỏ sản phẩm | **1 đỏ** |
+| Dòng thừa kế đổi được sản phẩm | **1 đỏ** |
+| Sắp lại bảng theo mã sản phẩm | **3 đỏ** |
+| Ô trống thôi tô đỏ | **1 đỏ** |
+| Dấu cộng chỉ còn ở cuối bảng | **1 đỏ** |
+| Ô nhập ghi theo từng phím | **1 đỏ** |
+| `internal.controller` thôi lọc dòng dở | **XANH** → đã thêm ca, giờ **1 đỏ** |
+| Đảo màu nhãn về `0180` | **XANH** → đã thêm ca, giờ **2 đỏ** |
+| *Bổ sung* trở lại màu xanh (hai nhãn trùng màu) | **1 đỏ** ở ca đối chiếu bốn màu |
+
+**2099/2099 xanh.**

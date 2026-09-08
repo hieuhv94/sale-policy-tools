@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 68 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 69 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -87,7 +87,29 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P214** (`0186`): **rút một mặt hàng khỏi phiên bản mới** — trạng thái dòng thứ TƯ
+Chặng gần nhất **P215** (`0187`): **bảng sản phẩm soạn thẳng** — hộp thoại *Thêm sản phẩm* bỏ hẳn,
+năm ô chuyển vào chính bảng, dấu cộng giữa hai dòng, và **thứ tự dòng do TDV đặt**. Hai chỗ phải hỏi
+lại trước khi gõ, cả hai đổi hẳn khối lượng việc: dòng dở có LƯU được không (chốt: **có** — nếu không
+thì vế *"không cho gửi duyệt"* nói về một thứ máy chủ chưa bao giờ thấy), và dấu cộng có nghĩa là
+người lập giữ thứ tự không (chốt: **có** — trên thứ tự tính từ dữ liệu thì *"chèn vào giữa hai dòng
+bất kỳ"* không diễn đạt được). **Lằn ranh của cả chặng: bảng thôi là KẾT QUẢ của một biểu mẫu, nó là
+MẶT BÀN đang soạn** — nên `0118` cho bảy cột nhận `NULL`, và đường ghi tách làm hai (`upsertLine` giữ
+cho dòng đã đủ; `ghiDong` ghi **theo ba mức**, điền tới đâu thì tới đó). **Nhánh THIẾU dễ viết sai
+nhất**: cột dẫn xuất phải về `NULL`, giữ giá trị cũ là bày một con số không còn thuộc về dòng nào.
+**`DongPatch` ba trạng thái** (vắng mặt = giữ · `null` = xoá trống · có giá trị = ghi đè) vì bảng gửi
+MỘT Ô mỗi lượt; `opt()` gộp cả ba nên phép kiểm CÓ MẶT đọc thẳng bằng `Object.hasOwn`. **`0027` mất
+hiệu lực một nửa**: ô sản phẩm mở ở dòng *Bổ sung*, khoá ở dòng THỪA KẾ — đổi ở đó là rút một mặt
+hàng không dấu vết, đúng thứ `0186` vừa dựng ra để chống. **`thu_tu`: tra chỗ đứng, đừng tính số
+học** — bản đầu lệch đúng một bậc vì `viTri` đếm từ 0 còn `thu_tu` từ 1; không unique `(policy_id,
+thu_tu)` vì lượt đẩy sẽ tự va vào chính nó. **`NOT NULL` không mặc định** làm **12 ca `constraints`
+đỏ cùng lúc** — giữ nguyên, đó chính là cơ chế. **PHÁ LẠI: chín đỏ, HAI XANH, cả hai là lỗ hổng
+thật** — phép lọc dòng dở ở `internal.controller` (không ca nào đọc cửa ấy trên bản NHÁP, mà dòng dở
+in ra một hàng trống giữa tờ CSBH) và **màu nhãn — yêu cầu thứ nhất của khách hàng không có ca kiểm
+nào**; ca đáng giá nhất là ca *không hai trạng thái nào trùng màu*, canh cái hệ quả họ KHÔNG nêu. Ba
+ca phải THAY, trong đó ca `0180` *"ngày áp dụng không chặn được vì cột NOT NULL"* **đảo chiều** ngay
+lúc cột nhận `NULL`. Bẫy **backtick trong template literal lần thứ TƯ**. **2099/2099 xanh.**
+
+Trước đó **P214** (`0186`): **rút một mặt hàng khỏi phiên bản mới** — trạng thái dòng thứ TƯ
 *Đã xoá*, và POL-08 bị **đảo hẳn**. Chặng bắt đầu từ một **bế tắc có thật**: mặt hàng bị vô hiệu hoá
 trong danh mục làm dòng thừa kế thành `STALE_LINE`, mà câu lỗi của chính nó bảo *"xoá sản phẩm đó rồi
 gửi lại"* — và `MISSING_INHERITED_PRODUCT` chặn đúng lượt xoá ấy. Hai chốt cách nhau **53 dòng trong

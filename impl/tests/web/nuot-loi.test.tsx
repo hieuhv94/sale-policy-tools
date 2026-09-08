@@ -180,16 +180,23 @@ function moiTep(thuMuc: string): string[] {
 }
 
 /**
- * Bốn chỗ CỐ Ý nuốt lỗi, và lý do của từng chỗ nằm ngay trên nó trong mã.
+ * Những chỗ CỐ Ý nuốt lỗi, và lý do của từng chỗ nằm ngay trên nó trong mã.
  *
  * Danh sách này là bản duyệt: thêm một chỗ nuốt lỗi mới thì phải thêm vào đây,
  * và lượt thêm ấy buộc người viết trả lời câu "người dùng mất gì khi việc này
- * hỏng mà không ai nói". Ba trong bốn chỗ dưới đây trả lời được; chỗ thứ tư
- * (`SuaHoSo`) trả lời được vì máy chủ tra lại ngưỡng lúc lưu.
+ * hỏng mà không ai nói".
+ *
+ * `SuaHoSo.tsx` RỜI KHỎI danh sách ở `0187`: chỗ nuốt lỗi của nó là lượt xem
+ * trước ngưỡng trong hộp thoại thêm dòng, và cả hộp thoại đã gỡ — bảng soạn
+ * thẳng ghi ngay lúc chọn sản phẩm nên ngưỡng THẬT hiện ra luôn, không còn bước
+ * xem trước nào để mà hỏng.
  */
 const NUOT_CO_LY_DO = [
   'apps/web/src/components/TheTep.tsx', // ảnh thu nhỏ — thẻ tệp vẫn dùng được
-  'apps/web/src/components/SuaHoSo.tsx', // xem trước ngưỡng — máy chủ tra lại lúc lưu
+  // `0187` — tải danh mục cho ô chọn sản phẩm trong bảng. Hỏng thì ô chọn rỗng,
+  // và người duyệt vẫn ĐỌC được cả hồ sơ; chặn cả trang vì một ô chọn là đổi một
+  // việc không làm được lấy một màn hình không mở được.
+  'apps/web/src/pages/ChiTietHoSo.tsx',
   'apps/web/src/lib/auth.tsx', // gọi logout — trình duyệt đã đăng xuất xong
   'apps/web/src/pages/LapHoSo.tsx', // tra khách theo id trên địa chỉ — rơi về bước tìm
   'apps/web/src/lib/thong-bao.ts', // đếm chưa đọc mỗi 60 giây — lượt sau tự chữa (`0096`)

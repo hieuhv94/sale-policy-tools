@@ -414,6 +414,22 @@ export const BANG_LOI: Record<string, Muc> = {
    * ngay trên màn hình — nên đây là chốt cho lượt gọi tay và cho màn hình cũ.
    */
   PRODUCT_LINE_DELETED: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `0187` — còn dòng chưa điền đủ thì chưa gửi duyệt được.
+   *
+   * `tuMayChu`: câu của máy chủ kể ra ĐÚNG SỐ THỨ TỰ DÒNG và đúng những trường
+   * còn thiếu ở từng dòng — thứ không viết sẵn được ở đây. Ô trống trên bảng đã
+   * tô đỏ sẵn, nên mã này là câu trả lời cho người bấm Gửi duyệt mà không nhìn
+   * lên bảng, và cho lượt gọi tay.
+   */
+  LINE_INCOMPLETE: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `0187` — dòng thừa kế không đổi được sản phẩm.
+   *
+   * `tuMayChu` vì câu của máy chủ chỉ ra đường vòng phải đi (rút dòng rồi chèn
+   * dòng mới). Ô chọn đã xám sẵn ở dòng ấy, nên mã này chặn lượt gọi tay.
+   */
+  INHERITED_PRODUCT_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
   REASON_REQUIRED: {
     dang: 'o-nhap',
     truong: 'lyDo',

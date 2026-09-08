@@ -11,7 +11,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BangSanPham, cotCho, soCotCpbh, type DongSanPham } from '@csbh/web/bang-san-pham';
+import {
+  BangSanPham,
+  cotCho,
+  lopTrangThai,
+  oThieu,
+  soCotCpbh,
+  type DongSanPham,
+} from '@csbh/web/bang-san-pham';
 
 /**
  * Dọn DOM sau mỗi test.
@@ -614,5 +621,194 @@ describe('`0124` lớp cấm xuống dòng chỉ ở dải nút trong ô bảng'
     const the = document.querySelector('.the-san-pham .nhom-nut') as HTMLElement;
     expect(the, 'không dựng ra dải nút nào trong thẻ').not.toBeNull();
     expect(the.classList.contains('nhom-nut-hang')).toBe(false);
+  });
+});
+
+/**
+ * `0187` — BẢNG SOẠN THẲNG: ô nhập tại chỗ, ô trống báo đỏ, dấu cộng giữa hai dòng.
+ *
+ * Ba yêu cầu khách hàng chốt 08/09. Ca kiểm đọc DOM thật vì cả ba đều là câu
+ * hỏi về thứ người dùng nhìn thấy và bấm được — *"ô nào gõ được"*, *"ô nào đỏ"*,
+ * *"cái dấu cộng ấy chèn vào chỗ nào"* — và không câu nào trả lời được bằng một
+ * phép quét mã nguồn.
+ */
+/**
+ * `0187` — MÀU CỦA BỐN NHÃN TRẠNG THÁI, và không hai nhãn nào cùng màu.
+ *
+ * Khách hàng chốt 08/09: *Đang áp dụng* xanh, *Đã xoá* xám. Hai câu ấy đảo lại
+ * `0180`, và tới lượt phá lại của `0187` thì **hoàn tác chúng vẫn xanh cả bộ** —
+ * không ca kiểm nào canh màu của bốn nhãn này. Đây là ca bịt chỗ đó.
+ *
+ * Vế thứ hai KHÔNG phải trang trí: *Đang áp dụng* lấy xanh thì *Bổ sung* phải
+ * rời khỏi xanh, nếu không hai trạng thái khác hẳn nhau trông giống hệt nhau.
+ * Đó là hệ quả mà khách hàng không nêu, và là thứ dễ mất nhất trong một lượt
+ * sửa màu về sau.
+ */
+describe('`0187` bốn nhãn trạng thái dòng, bốn màu', () => {
+  it('*Đang áp dụng* XANH, *Đã xoá* XÁM', () => {
+    expect(lopTrangThai('DANG_AP_DUNG')).toContain('nhan-tot');
+    expect(lopTrangThai('DA_XOA')).toContain('nhan-thuong');
+  });
+
+  it('không hai trạng thái nào dùng chung một màu', () => {
+    const lop = ['BO_SUNG', 'CHINH_SUA', 'DANG_AP_DUNG', 'DA_XOA'].map(lopTrangThai);
+    expect(new Set(lop).size, `hai nhãn trùng màu: ${lop.join(' · ')}`).toBe(4);
+  });
+
+  it('màu ấy đến được tận DOM, không chỉ đúng trong hàm', () => {
+    render(
+      <BangSanPham
+        dong={[
+          dong({ id: 'd1', trangThai: 'DANG_AP_DUNG' }),
+          dong({ id: 'd2', productCode: 'SP-02', trangThai: 'DA_XOA' }),
+        ]}
+      />,
+    );
+    const bang = screen.getByRole('table');
+    expect(within(bang).getAllByText('Đang áp dụng')[0]!.className).toContain('nhan-tot');
+    expect(within(bang).getAllByText('Đã xoá')[0]!.className).toContain('nhan-thuong');
+  });
+});
+
+describe('`0187` bảng soạn thẳng', () => {
+  const SP = [
+    { id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold' },
+    { id: 'sp-2', code: 'SP-02', name: 'Nutricare Bone' },
+  ];
+  const soan = (over: Partial<Parameters<typeof BangSanPham>[0]['soan'] & object> = {}) => ({
+    sanPham: SP,
+    luuO: vi.fn(),
+    chenDong: vi.fn(),
+    ...over,
+  });
+
+  it('KHÔNG có prop `soan` thì bảng chỉ để đọc — không một ô nhập nào', () => {
+    render(<BangSanPham dong={[dong()]} />);
+    expect(document.querySelectorAll('.bang-san-pham input')).toHaveLength(0);
+    expect(document.querySelectorAll('.bang-san-pham select')).toHaveLength(0);
+  });
+
+  it('có `soan` thì bốn ô người dùng nhập thành ô nhập tại chỗ', () => {
+    render(<BangSanPham dong={[dong()]} soan={soan()} />);
+    const bang = screen.getByRole('table');
+    for (const nhan of ['Ngày áp dụng', 'Giá bán buôn', 'CPBH 1', 'Ghi chú']) {
+      expect(within(bang).getByLabelText(nhan), `thiếu ô nhập ${nhan}`).toBeDefined();
+    }
+    expect(within(bang).getByLabelText('Sản phẩm')).toBeDefined();
+  });
+
+  it('ba cột DẪN XUẤT không bao giờ gõ được', () => {
+    /*
+     * Giá bán Công ty đến từ danh mục, Giá thu về và Tỷ lệ CK là phép tính. Cho
+     * gõ vào đó là mời người dùng ghi đè một con số mà cả hệ thống đang dựa vào
+     * (`0029`) — và đây là loại lỗi chỉ lộ ra trên tờ giấy đã ký.
+     */
+    render(<BangSanPham dong={[dong()]} soan={soan()} />);
+    const bang = screen.getByRole('table');
+    for (const nhan of ['Giá bán Công ty', 'Giá thu về', 'Tỷ lệ CK']) {
+      expect(within(bang).queryByLabelText(nhan), `${nhan} không được là ô nhập`).toBeNull();
+    }
+  });
+
+  it('Ô TRỐNG BẮT BUỘC tô đỏ, ô không bắt buộc thì không', () => {
+    const troi = dong({
+      productId: null,
+      productCode: null,
+      productName: null,
+      companyPrice: null,
+      wholesalePrice: null,
+      cpbh: [],
+      cpbhTotal: null,
+      netPrice: null,
+      discountRate: null,
+      note: null,
+    });
+    render(<BangSanPham dong={[troi]} soan={soan()} />);
+    const bang = screen.getByRole('table');
+
+    // Bốn ô khách hàng kể tên — ngày có mặc định nên nó KHÔNG đỏ ở đây.
+    expect(within(bang).getByLabelText('Sản phẩm').className).toContain('o-thieu');
+    expect(within(bang).getByLabelText('Giá bán buôn').className).toContain('o-thieu');
+    expect(within(bang).getByLabelText('CPBH 1').className).toContain('o-thieu');
+    // Ghi chú KHÔNG nằm trong bốn trường ấy — nó vốn là ô tự do (`0027`).
+    expect(within(bang).getByLabelText('Ghi chú').className).not.toContain('o-thieu');
+  });
+
+  it('`oThieu` khớp đúng bốn trường máy chủ chặn', () => {
+    /*
+     * Hai bên lệch nhau thì màn hình xanh mà nút Gửi duyệt trả 422, hoặc ngược
+     * lại: ô đỏ mà hồ sơ vẫn đi được.
+     *
+     * Fixture `dong()` của tệp này KHÔNG khai `ngayApDung` — nó có từ trước
+     * `0180`. Nên ca này dựng một dòng ĐỦ trước đã, nếu không thì vế đầu đo phải
+     * một thứ khác và ba vế sau đều thừa ra một phần tử.
+     */
+    const du = dong({ ngayApDung: '2026-09-08' });
+    expect(oThieu(du)).toEqual([]);
+    expect(oThieu({ ...du, productId: null })).toEqual(['productId']);
+    expect(oThieu({ ...du, wholesalePrice: null })).toEqual(['wholesalePrice']);
+    expect(oThieu({ ...du, cpbh: [] })).toEqual(['cpbh']);
+    expect(oThieu({ ...du, ngayApDung: null })).toEqual(['ngayApDung']);
+  });
+
+  it('ô nhập ghi khi RỜI Ô, không ghi theo từng phím', async () => {
+    const s = soan();
+    render(<BangSanPham dong={[dong()]} soan={s} />);
+    const o = within(screen.getByRole('table')).getByLabelText('Giá bán buôn');
+
+    await userEvent.clear(o);
+    await userEvent.type(o, '70000');
+    expect(s.luuO, 'gõ tới đâu ghi tới đó là mỗi con số một vòng mạng').not.toHaveBeenCalled();
+
+    await userEvent.tab();
+    expect(s.luuO).toHaveBeenCalledTimes(1);
+    expect(s.luuO).toHaveBeenCalledWith('d1', { wholesalePrice: '70000' });
+  });
+
+  it('dấu cộng nằm giữa MỌI cặp dòng, cộng một khe ở cuối', async () => {
+    const s = soan();
+    const ds = [dong(), dong({ id: 'd2', productId: 'sp-2', productCode: 'SP-02' })];
+    render(<BangSanPham dong={ds} soan={s} />);
+
+    const khe = screen.getAllByRole('button', { name: /Chèn dòng sản phẩm/ });
+    expect(khe, 'hai dòng thì phải có ba khe: trên, giữa, dưới').toHaveLength(3);
+
+    // Khe GIỮA chèn vào vị trí 1 — đó là cả điểm của yêu cầu.
+    await userEvent.click(khe[1] as HTMLElement);
+    expect(s.chenDong).toHaveBeenCalledWith(1);
+  });
+
+  it('hồ sơ CHƯA CÓ DÒNG NÀO vẫn có đúng một dấu cộng', async () => {
+    // Không có nó thì người lập không còn đường nào thêm dòng đầu tiên: nút
+    // *Thêm sản phẩm* và hộp thoại của nó đã gỡ.
+    const s = soan();
+    render(<BangSanPham dong={[]} soan={s} />);
+    const nut = screen.getAllByRole('button', { name: /Chèn dòng sản phẩm/ });
+    expect(nut).toHaveLength(1);
+    await userEvent.click(nut[0] as HTMLElement);
+    expect(s.chenDong).toHaveBeenCalledWith(0);
+  });
+
+  it('dòng THỪA KẾ khoá ô sản phẩm, dòng *Bổ sung* thì không', () => {
+    render(
+      <BangSanPham
+        dong={[
+          dong({ id: 'd1', trangThai: 'DANG_AP_DUNG' }),
+          dong({ id: 'd2', productId: 'sp-2', productCode: 'SP-02', trangThai: 'BO_SUNG' }),
+        ]}
+        soan={soan()}
+      />,
+    );
+    const hang = screen.getAllByRole('row').filter((r) => within(r).queryByText('SP-01') || within(r).queryByText('SP-02'));
+    // Chỉ MỘT ô chọn sản phẩm trên cả bảng — của dòng *Bổ sung*.
+    expect(document.querySelectorAll('.bang-san-pham select')).toHaveLength(1);
+    expect(hang.length).toBeGreaterThan(0);
+  });
+
+  it('dòng ĐÃ RÚT không soạn được', () => {
+    // Mọi con số của nó sắp biến mất khỏi hồ sơ, nên sửa chúng là ghi những thứ
+    // không đi tới đâu.
+    render(<BangSanPham dong={[dong({ trangThai: 'DA_XOA' })]} soan={soan()} />);
+    expect(document.querySelectorAll('.bang-san-pham input')).toHaveLength(0);
   });
 });

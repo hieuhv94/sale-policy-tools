@@ -221,8 +221,34 @@ export class PoliciesController {
   }
 
   /**
-   * Sửa một dòng đã có. Sản phẩm KHÔNG nằm trong DTO — đổi sản phẩm là xoá dòng
-   * rồi thêm dòng khác, xem chú thích ở `PoliciesService.updateLine`.
+   * CHÈN MỘT DÒNG TRỐNG ở vị trí `viTri` (`0187`).
+   *
+   * Đường riêng, không gộp vào `POST :id/lines`: đường kia nhận một dòng ĐÃ ĐỦ
+   * và nối vào cuối bảng, còn đường này nhận đúng một con số và không nhận gì
+   * khác. Gộp lại thì thân yêu cầu có mọi trường tuỳ chọn, và *"thêm dòng trống"*
+   * với *"thêm dòng đã điền"* thành cùng một lượt gọi mà chỉ hình dạng thân mới
+   * phân biệt được — chỗ mà một trường gõ sai tên biến thành lượt chèn dòng trắng.
+   */
+  @Roles('TDV')
+  @Post(':id/lines/chen')
+  @HttpCode(201)
+  chenDong(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    rejectForbidden(body);
+    const b = validate(body, { viTri: int(0, 500) });
+    return this.policies.themDongTrong(id, b.viTri, me);
+  }
+
+  /**
+   * Sửa MỘT Ô của một dòng, trên bảng soạn thẳng (`0187`).
+   *
+   * BA TRẠNG THÁI của mỗi trường, và `opt()` một mình KHÔNG diễn đạt được: nó
+   * gộp `undefined`, `null` và chuỗi rỗng về cùng một `undefined`. Bảng soạn
+   * thẳng cần phân biệt *"không đụng tới ô này"* với *"vừa xoá trống ô này"* —
+   * hai lượt gọi khác hẳn nhau, và lượt sau là lượt phải ghi `NULL` xuống cột.
+   *
+   * Nên phép kiểm sự CÓ MẶT của khoá đọc thẳng từ thân yêu cầu (`Object.hasOwn`),
+   * còn `opt()` chỉ lo phần giá trị. Sửa `opt()` cho nhận `null` là đổi hành vi
+   * của hàng trăm chỗ dùng khác để phục vụ đúng một đường.
    */
   @Roles('TDV')
   @Patch(':id/lines/:lineId')
@@ -234,16 +260,31 @@ export class PoliciesController {
   ) {
     rejectForbidden(body);
     const b = validate(body, {
-      wholesalePrice: money(),
+      productId: opt(str(1, 60)),
+      wholesalePrice: opt(moneyKhongAm()),
       cpbh: opt(danhSach(moneyKhongAm())),
-      // Vắng mặt là XOÁ ghi chú, không phải "giữ nguyên": biểu mẫu sửa dòng gửi
-      // lên toàn bộ nội dung dòng, cùng luật với `cpbh` ngay trên.
       note: opt(str(1, 500)),
-      // NGÀY ÁP DỤNG thì NGƯỢC LẠI — vắng mặt là GIỮ NGUYÊN. Cột `NOT NULL`,
-      // không có trạng thái rỗng để xoá về; xem `PoliciesService.updateLine`.
       ngayApDung: opt(ngayIso()),
     });
-    return this.policies.updateLine(id, lineId, b, me);
+    const than = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+    const co = (k: string) => Object.hasOwn(than, k);
+    return this.policies.updateLine(
+      id,
+      lineId,
+      {
+        // `co(k)` mà `b[k]` là `undefined` nghĩa là khoá có mặt với giá trị rỗng
+        // — đó là lệnh XOÁ TRỐNG, nên nó thành `null`. Khoá vắng mặt thì để
+        // `undefined`, và `updateLine` hiểu là giữ nguyên.
+        ...(co('productId') ? { productId: b.productId ?? null } : {}),
+        ...(co('wholesalePrice') ? { wholesalePrice: b.wholesalePrice ?? null } : {}),
+        // `cpbh` KHÔNG có trạng thái `null`: mảng rỗng đã là "không khoản nào",
+        // và `danhSach()` vốn trả mảng rỗng cho cả hai cách viết.
+        ...(co('cpbh') ? { cpbh: b.cpbh ?? [] } : {}),
+        ...(co('note') ? { note: b.note ?? null } : {}),
+        ...(co('ngayApDung') ? { ngayApDung: b.ngayApDung ?? null } : {}),
+      },
+      me,
+    );
   }
 
   /**

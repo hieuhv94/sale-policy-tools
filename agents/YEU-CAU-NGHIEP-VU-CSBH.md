@@ -2199,6 +2199,42 @@ phẩm đã xóa · Ở trạng thái «Nháp» hoặc «Yêu cầu chỉnh sử
 > **CAT-07 KHÔNG đổi.** Giữ lại một mặt hàng đã vô hiệu hoá vẫn chặn gửi duyệt — phần mềm vẫn không
 > cho cam kết bán thứ đã ngừng bán. Cái đổi là giờ **có lối ra**: rút nó.
 
+**BẢNG SẢN PHẨM SOẠN THẲNG, và dấu cộng giữa hai dòng** `mới 08/09` — *"Đổi màu tag đang áp dụng
+của sản phẩm sang màu xanh, tag «Đã xóa» màu ghi xám · Thiết kế lại phần bảng sản phẩm để TDV có thể
+sửa trực tiếp trên dòng của bảng mà không cần mở một hộp thoại với ngày áp dụng, sản phẩm, giá bán
+buôn, CPBH. Nếu trường nào trong số các trường này trống cũng đều báo đỏ và không cho gửi duyệt ·
+Nút thêm dòng có thể để dưới dạng dấu cộng ở giữa 2 dòng để có thể thêm vào bất kỳ dòng nào"*.
+
+> **HỘP THOẠI *Thêm sản phẩm* BỎ HẲN.** Năm ô của nó — ngày áp dụng · sản phẩm · giá bán buôn ·
+> CPBH · ghi chú — chuyển vào chính bảng. Ba cột **Giá bán Công ty**, **Giá thu về** và **Tỷ lệ CK**
+> không bao giờ gõ được: chúng đến từ danh mục hoặc từ phép tính.
+>
+> **Ô TRỐNG SỐNG ĐƯỢC TỚI LÚC GỬI DUYỆT, và đó là điều kiện để câu chốt có nghĩa.** Bảng thôi là kết
+> quả của một biểu mẫu đã điền xong; nó là **mặt bàn đang soạn**, nên dòng dở nằm trong CSDL —
+> `0118` cho bảy cột nhận rỗng. Dòng chỉ nằm trên trình duyệt thì tải lại trang là mất, và vế *"không
+> cho gửi duyệt"* nói về một thứ máy chủ chưa bao giờ nhìn thấy.
+>
+> **BỐN TRƯỜNG bắt buộc**, đúng bốn trường khách hàng kể tên. *CPBH trống* nghĩa là dòng **không có
+> khoản nào** — không phải một ô CPBH lẻ nào đó rỗng: số cột CPBH của bảng bằng dòng nhiều khoản
+> nhất, nên dòng ít khoản hơn luôn để trống mấy ô cuối, và `19/08` đã chốt rằng chúng là ô TRỐNG chứ
+> không phải số 0. **Ghi chú không bắt buộc** — nó vốn là ô tự do.
+>
+> **THỨ TỰ DÒNG DO NGƯỜI LẬP QUYẾT.** Dấu cộng *"chèn vào bất kỳ dòng nào"* không diễn đạt được trên
+> một thứ tự tính ra từ dữ liệu: chèn xong, dòng mới nhảy về chỗ mã của nó — và dòng vừa chèn thì mã
+> còn chưa có. Bảng sắp theo thứ tự người lập đặt, **cả trên màn hình lẫn trên bản mềm**. Hồ sơ đã ký
+> giữ nguyên thứ tự cũ (mã sản phẩm) sau khi nâng cấp, và phiên bản mới chép nguyên thứ tự của bản
+> trước.
+>
+> **DÒNG THỪA KẾ KHÔNG ĐỔI ĐƯỢC SẢN PHẨM.** Ô chọn xám ở những dòng đến từ CSBH đang hiệu lực: đổi
+> sản phẩm ở đó là rút một mặt hàng của khách rồi thay bằng mặt hàng khác **không để lại dấu vết** —
+> đúng thứ trạng thái *Đã xoá* (`08/09`, mục trên) vừa dựng ra để chống. Đường đúng là rút dòng ấy
+> rồi chèn một dòng mới.
+>
+> **BỐN NHÃN, BỐN MÀU.** *Đang áp dụng* xanh và *Đã xoá* xám là hai câu khách hàng chốt; kéo theo
+> *Bổ sung* phải rời khỏi màu xanh (chọn **chàm**), nếu không hai trạng thái khác hẳn nhau trông
+> giống hệt nhau. *Chỉnh sửa* giữ hổ phách. Màu ở đây nói **tình trạng của mặt hàng**, không nói
+> *"chỗ nào đáng soi"* như bản `07/09` — cùng quy ước với nhãn trạng thái sản phẩm trong danh mục.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

@@ -2726,6 +2726,97 @@ tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
 .dong-da-xoa > .cot-khoa,
 .dong-da-xoa .the-dau h3 { text-decoration: line-through; }
 
+/* --- BẢNG SOẠN THẲNG (`0187`) --------------------------------------------- */
+
+/* Ô nhập nằm TRONG một ô bảng: không viền, không nền, để hàng vẫn đọc như một
+   hàng dữ liệu chứ không như một biểu mẫu mười lăm ô. Viền chỉ hiện khi ô được
+   trỏ tới hoặc đang nhận tiêu điểm — đủ để biết chỗ nào gõ được, mà không biến
+   bảng thành một lưới hộp.
+
+   `width: 100%` để ô nhập chiếm trọn bề ngang cột: hẹp hơn thì con số bị cắt và
+   người dùng phải cuộn trong một ô. `min-width: 0` cho nó co lại được bên trong
+   ô bảng — thiếu dòng này, ô nhập lấy bề rộng mặc định của trình duyệt và nong
+   cả cột ra. */
+.o-bang {
+  width: 100%;
+  min-width: 0;
+  padding: var(--k1) var(--k2);
+  border: 1px solid transparent;
+  border-radius: var(--bo-goc-nho);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  /* Thừa hưởng căn lề của ô chứa: cột số căn phải, cột chữ căn trái — nếu không
+     thì mọi ô nhập căn trái và cột số thôi thẳng hàng với nhau. */
+  text-align: inherit;
+}
+
+.o-bang:hover { border-color: var(--mau-vien); }
+
+.o-bang:focus {
+  border-color: var(--mau-thuong-hieu);
+  background: var(--mau-nen);
+  outline: none;
+}
+
+/* Ô BẮT BUỘC CÒN TRỐNG — khách hàng chốt "báo đỏ".
+
+   Tô cả NỀN chứ không chỉ viền: một hàng mười lăm cột thì cái viền đỏ của một ô
+   lọt thỏm, và người lập phải dò từng cột để tìm chỗ thiếu. Nền nhạt bắt mắt ở
+   tầm nhìn bao quát, đúng lúc họ đang tìm "còn thiếu chỗ nào".
+
+   Giữ viền đỏ luôn hiện, không đợi rê chuột: đây là ô người dùng PHẢI tới. */
+.o-thieu {
+  border-color: var(--mau-loi);
+  background: var(--mau-loi-nen);
+}
+
+/* DẤU CỘNG GIỮA HAI DÒNG.
+
+   Hàng này cao gần bằng không khi không ai chạm tới, và nở ra khi rê chuột vào —
+   nếu không thì mỗi khe chiếm một hàng thật và bảng dài gấp đôi, đọc rất mệt cho
+   bốn bàn duyệt vốn chỉ ĐỌC.
+
+   Ba điều kiện chứ không một, cùng bài học `0132`: rê chuột · nhận tiêu điểm ·
+   và màn hình cảm ứng thì hiện luôn. Thiếu vế hai thì người dùng bàn phím không
+   bao giờ tới được nút; thiếu vế ba thì điện thoại mất hẳn đường thêm dòng. */
+.hang-chen > td { padding: 0; border: none; }
+
+.nut-chen {
+  display: block;
+  width: 100%;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: var(--bo-goc-nho);
+  background: transparent;
+  color: var(--mau-thuong-hieu);
+  font-size: 0;
+  line-height: 1;
+  cursor: pointer;
+  transition: height 120ms ease-in-out, background 120ms ease-in-out;
+}
+
+tr.hang-chen:hover .nut-chen,
+.nut-chen:focus-visible,
+.hang-chen:hover .nut-chen {
+  height: 20px;
+  background: var(--mau-nen-hover);
+  font-size: var(--chu-nho);
+}
+
+@media (hover: none) {
+  .nut-chen { height: 20px; font-size: var(--chu-nho); background: var(--mau-nen-hover); }
+}
+
+/* Khe duy nhất của một hồ sơ CHƯA CÓ DÒNG NÀO — dựng ngoài bảng, nên nó không
+   có `<td>` để nhờ, và nó phải hiện sẵn: không có dòng nào để rê chuột vào. */
+.hang-chen:not(tr) .nut-chen {
+  height: 20px;
+  font-size: var(--chu-nho);
+  background: var(--mau-nen-hover);
+}
+
 /* --- Ô CÂU CHỮ trong bảng (`0070`) ---------------------------------------- */
 
 /* `th, td` đặt `white-space: nowrap` cho MỌI ô — đúng với mã, ngày và tiền, sai

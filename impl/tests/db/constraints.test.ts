@@ -49,6 +49,16 @@ describe('EFF-02 · mỗi khách hàng đúng một CSBH còn hiệu lực', () 
   });
 });
 
+/*
+ * `thu_tu` CÓ MẶT Ở MỌI LƯỢT CHÈN THÔ (`0187`).
+ *
+ * Cột này là `NOT NULL` và **không có mặc định**, có chủ ý: chỗ duy nhất biết
+ * một dòng mới đứng ở đâu là chỗ chèn nó (xem `0118_dong_soan_truc_tiep.sql`).
+ * Cái giá là mọi fixture viết SQL thô phải nói ra vị trí — chín chỗ trong tệp
+ * này, và lượt thêm cột đã làm cả chín đỏ cùng lúc, đúng như thiết kế.
+ *
+ * Con số `1` không mang ý nghĩa gì ở đây: không ca nào trong tệp này đo thứ tự.
+ */
 describe('POL-02 · không trùng sản phẩm trong cùng một hồ sơ', () => {
   it('thêm cùng product_id lần hai vào một hồ sơ thì CSDL từ chối', async () => {
     await inRollback(db, async () => {
@@ -57,8 +67,8 @@ describe('POL-02 · không trùng sản phẩm trong cùng một hồ sơ', () =
       const line = (p: string) => db.query(
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
-            company_price_snap, wholesale_price, discount_rate, ngay_ap_dung)
-         VALUES ($1,$2,'VT-01','San pham',100000,90000,15.00, current_date)`, [id, p]);
+            company_price_snap, wholesale_price, discount_rate, ngay_ap_dung, thu_tu)
+         VALUES ($1,$2,'VT-01','San pham',100000,90000,15.00, current_date, 1)`, [id, p]);
       await line(prod);
       const err = await expectSqlErrorInTx(db, () => line(prod));
       expect(err.code).toBe('23505');
@@ -154,9 +164,9 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, cpbh,
-            discount_rate, threshold_snap, ngay_ap_dung)
+            discount_rate, threshold_snap, ngay_ap_dung, thu_tu)
          VALUES ($1,$2,'VT-02','Nutricare Gold',100000,90000,
-                 ARRAY[2000,1500,1000,500]::bigint[],15.00,12.34, current_date)`,
+                 ARRAY[2000,1500,1000,500]::bigint[],15.00,12.34, current_date, 1)`,
         [id, crypto.randomUUID()]);
       const r = await db.query(
         'SELECT cpbh_total, net_price, over_threshold FROM pol.policy_line WHERE policy_id=$1', [id]);
@@ -175,8 +185,8 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
       await db.query(
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
-            company_price_snap, wholesale_price, discount_rate, threshold_snap, ngay_ap_dung)
-         VALUES ($1,$2,'VT-03','Khong co CPBH',100000,90000,10.00,12.34, current_date)`,
+            company_price_snap, wholesale_price, discount_rate, threshold_snap, ngay_ap_dung, thu_tu)
+         VALUES ($1,$2,'VT-03','Khong co CPBH',100000,90000,10.00,12.34, current_date, 1)`,
         [id, crypto.randomUUID()]);
       const r = await db.query(
         'SELECT cpbh, cpbh_total, net_price FROM pol.policy_line WHERE policy_id=$1', [id]);
@@ -193,8 +203,8 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
         db.query(
           `INSERT INTO pol.policy_line
              (policy_id, product_id, product_code_snap, product_name_snap,
-              company_price_snap, wholesale_price, cpbh, discount_rate, ngay_ap_dung)
-           VALUES ($1,$2,'VT-04','Am',100000,90000,ARRAY[1000,-5]::bigint[],10.00, current_date)`,
+              company_price_snap, wholesale_price, cpbh, discount_rate, ngay_ap_dung, thu_tu)
+           VALUES ($1,$2,'VT-04','Am',100000,90000,ARRAY[1000,-5]::bigint[],10.00, current_date, 1)`,
           [id, crypto.randomUUID()]));
       expect(e.code).toBe('23514'); // check_violation
     });
@@ -206,8 +216,8 @@ describe('CALC · cột sinh tính đúng ngay ở tầng CSDL', () => {
       const err = await expectSqlErrorInTx(db, () => db.query(
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
-            company_price_snap, wholesale_price, discount_rate, ngay_ap_dung)
-         VALUES ($1,$2,'VT-03','X',0,90000,15.00, current_date)`, [id, crypto.randomUUID()]));
+            company_price_snap, wholesale_price, discount_rate, ngay_ap_dung, thu_tu)
+         VALUES ($1,$2,'VT-03','X',0,90000,15.00, current_date, 1)`, [id, crypto.randomUUID()]));
       expect(err.code).toBe('23514');                       // check_violation
     });
   });
@@ -400,8 +410,8 @@ describe('0022 · nguon_nguong_hop_le — nguồn ngưỡng và mã quy định 
       `INSERT INTO pol.policy_line
          (policy_id, product_id, product_code_snap, product_name_snap,
           company_price_snap, wholesale_price, discount_rate,
-          threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung)
-       VALUES ($1, $2, 'SP-01', 'San pham test', 100000, 90000, 10.00, 30.00, $3, $4, current_date)`,
+          threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung, thu_tu)
+       VALUES ($1, $2, 'SP-01', 'San pham test', 100000, 90000, 10.00, 30.00, $3, $4, current_date, 1)`,
       [policyId, crypto.randomUUID(), v.source, v.ruleCode],
     );
 
@@ -507,9 +517,9 @@ describe('0025 · sản phẩm không còn ngưỡng mặc định', () => {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, discount_rate,
-            threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung)
+            threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung, thu_tu)
          VALUES ($1, $2, 'SP-01', 'San pham cu', 100000, 90000, 10.00,
-                 15.00, 'PRODUCT_DEFAULT', NULL, current_date)`,
+                 15.00, 'PRODUCT_DEFAULT', NULL, current_date, 1)`,
         [pol, crypto.randomUUID()],
       );
       const r = await db.query(
@@ -525,9 +535,9 @@ describe('0025 · sản phẩm không còn ngưỡng mặc định', () => {
         `INSERT INTO pol.policy_line
            (policy_id, product_id, product_code_snap, product_name_snap,
             company_price_snap, wholesale_price, discount_rate,
-            threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung)
+            threshold_snap, threshold_source, rule_code_snap, ngay_ap_dung, thu_tu)
          VALUES ($1, $2, 'SP-01', 'San pham', 100000, 10000, 90.00,
-                 NULL, 'KHONG_CO', NULL, current_date)`,
+                 NULL, 'KHONG_CO', NULL, current_date, 1)`,
         [pol, crypto.randomUUID()],
       );
       const r = await db.query(
@@ -627,8 +637,8 @@ describe('0027 · ghi_chu_khong_rong — ghi chú rỗng thì không phải ghi 
     c.query(
       `INSERT INTO pol.policy_line
          (policy_id, product_id, product_code_snap, product_name_snap,
-          company_price_snap, wholesale_price, discount_rate, note, ngay_ap_dung)
-       VALUES ($1, $2, 'SP-01', 'San pham', 100000, 90000, 10.00, $3, current_date)`,
+          company_price_snap, wholesale_price, discount_rate, note, ngay_ap_dung, thu_tu)
+       VALUES ($1, $2, 'SP-01', 'San pham', 100000, 90000, 10.00, $3, current_date, 1)`,
       [policyId, crypto.randomUUID(), note],
     );
 

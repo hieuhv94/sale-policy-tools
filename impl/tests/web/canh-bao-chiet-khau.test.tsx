@@ -1,201 +1,86 @@
 /**
  * @vitest-environment jsdom
  *
- * 0022 — cảnh báo "chưa có quy định chiết khấu" LÚC ĐANG LẬP, không phải sau khi lưu.
+ * `0022` · `0124` — HAI BẢO ĐẢM CŨ, ĐỌC Ở CHỖ MỚI (`0187`).
  *
- * Ngưỡng đóng băng vào dòng hồ sơ ngay khi bấm Lưu. Biết sau thì phải xoá dòng,
- * đi nhờ Quản trị khai quy định, rồi nhập lại từ đầu; biết trước thì người lập
- * chọn được — vẫn lập với ngưỡng mặc định, hay dừng lại hỏi.
+ * Tệp này trước đây dựng hộp thoại *Thêm sản phẩm* và chặn `fetch` để chứng minh
+ * chuỗi: chọn sản phẩm → gọi `threshold-preview` → đọc đúng trường → hiện đúng
+ * khối cảnh báo. `0187` gỡ hẳn hộp thoại ấy, nên **cả chuỗi không còn tồn tại**.
  *
- * Test dựng đúng cây DOM thật của hộp thoại và chặn ở tầng `fetch`, vì thứ cần
- * chứng minh nằm ở chỗ nối: chọn sản phẩm → gọi đúng đường xem trước → đọc đúng
- * trường trong câu trả lời → hiện đúng khối cảnh báo.
+ * Sửa vài dòng cho ca cũ chạy lại là không làm được, và cũng không nên: thứ phải
+ * canh bây giờ khác hẳn. Nhưng HAI LUẬT thì còn nguyên, và chúng phải có người
+ * canh ở chỗ mới của chúng:
+ *
+ *   * `0022` — *người lập biết TRƯỚC KHI LƯU rằng dòng này không có quy định
+ *     chiết khấu nào phủ*. Trên bảng soạn thẳng, ô chọn sản phẩm ghi ngay lúc
+ *     chọn, nên dòng hiện ra kèm ngưỡng thật và kèm dấu cảnh báo của chính nó —
+ *     sớm hơn hộp thoại cũ một bước, chứ không muộn hơn. Việc còn phải chứng
+ *     minh là **bảng có bày dấu ấy ra**.
+ *   * `0124` — *Giá bán Công ty đọc được TRƯỚC ô Giá bán buôn*. Trong hộp thoại
+ *     nó là thứ tự hai khối; trên bảng nó là thứ tự hai CỘT.
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { ThemDongSanPham } from '@csbh/web/sua-ho-so-ui';
+import { afterEach, describe, expect, it } from 'vitest';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { BangSanPham, cotCho, type DongSanPham } from '@csbh/web/bang-san-pham';
 
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
+afterEach(cleanup);
+
+const dong = (p: Partial<DongSanPham> = {}): DongSanPham => ({
+  id: 'd1',
+  productId: 'sp-1',
+  productCode: 'SP-01',
+  productName: 'Nutricare Gold',
+  companyPrice: '125000',
+  wholesalePrice: '90000',
+  cpbh: ['3000'],
+  cpbhTotal: '3000',
+  netPrice: '87000',
+  discountRate: '30.40',
+  threshold: '30.00',
+  overThreshold: false,
+  ngayApDung: '2026-09-08',
+  ...p,
 });
 
-const phanHoi = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
+describe('`0022` dòng không có quy định chiết khấu nào phủ thì BẢNG NÓI RA', () => {
+  it('`KHONG_CO` → ô Tỷ lệ CK mang dấu cảnh báo', () => {
+    render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
+    // Lớp `.thieu` là dấu của *"không có ngưỡng nào để đối chiếu"* — khác hẳn
+    // `.vuot` (vượt ngưỡng), và ca này phải phân biệt được hai thứ ấy.
+    expect(document.querySelectorAll('.bang-san-pham .ty-le.thieu').length).toBeGreaterThan(0);
   });
 
-const SAN_PHAM = {
-  items: [{ id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold', price: '125000' }],
-};
-
-/**
- * Chặn `fetch` và định tuyến theo đường dẫn.
- *
- * Trả về chính hàm giả để test khẳng định được ĐƯỜNG NÀO đã bị gọi — "hiện đúng
- * chữ" mà gọi nhầm đường thì trên máy thật sẽ hiện cảnh báo của một hồ sơ khác.
- */
-const chanFetch = (xemTruoc: () => Response) => {
-  const f = vi.fn((duong: unknown) => {
-    const d = String(duong);
-    if (d.includes('/threshold-preview')) return Promise.resolve(xemTruoc());
-    if (d.includes('/catalog/products')) return Promise.resolve(phanHoi(200, SAN_PHAM));
-    return Promise.resolve(phanHoi(200, {}));
-  });
-  vi.stubGlobal('fetch', f);
-  return f;
-};
-
-const moHopThoai = () =>
-  render(<ThemDongSanPham hoSoId="hs-9" dong={() => undefined} xong={() => undefined} />);
-
-const chonSanPham = async () => {
-  const nguoi = userEvent.setup();
-  await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
-  await nguoi.selectOptions(screen.getByRole('combobox'), 'sp-1');
-};
-
-describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
-  it('có quy định khớp → KHÔNG cảnh báo gì', async () => {
-    chanFetch(() =>
-      phanHoi(200, {
-        productId: 'sp-1',
-        productCode: 'SP-01',
-        productName: 'Nutricare Gold',
-        companyPrice: '100000',
-        threshold: '25.00',
-        thresholdSource: 'RULE',
-      }),
-    );
-    moHopThoai();
-    await chonSanPham();
-
-    // Chờ lời gọi xem trước xong hẳn rồi mới khẳng định "không có gì" — khẳng
-    // định ngay lập tức thì test xanh cả khi cảnh báo hiện ra một nhịp sau đó.
-    await waitFor(() => expect(screen.getByRole('combobox')).toHaveProperty('value', 'sp-1'));
-    await new Promise((r) => setTimeout(r, 0));
-    expect(document.querySelector('.hop-canh-bao')).toBeNull();
+  it('có quy định khớp → KHÔNG dấu nào', () => {
+    render(<BangSanPham dong={[dong({ thresholdSource: 'RULE', ruleCode: 'QD-01' })]} />);
+    expect(document.querySelectorAll('.bang-san-pham .ty-le.thieu')).toHaveLength(0);
+    expect(document.querySelectorAll('.bang-san-pham .ty-le.vuot')).toHaveLength(0);
   });
 
-  it('sản phẩm không có ngưỡng nào → vẫn cảnh báo VÀNG, vì vẫn thêm được', async () => {
-    // Trước `0023` chỗ này là khối ĐỎ và máy chủ từ chối thêm dòng. Ngưỡng chỉ
-    // để cảnh báo — vượt ngưỡng còn không chặn gửi duyệt — nên thiếu ngưỡng
-    // không thể là lý do chặn, nhất là khi người lập không có quyền tự khai.
-    chanFetch(() =>
-      phanHoi(200, {
-        productId: 'sp-1',
-        productCode: 'SP-01',
-        productName: 'Nutricare Gold',
-        companyPrice: '100000',
-        threshold: null,
-        thresholdSource: 'KHONG_CO',
-      }),
-    );
-    moHopThoai();
-    await chonSanPham();
-
-    const canhBao = await waitFor(() => {
-      const el = document.querySelector('.hop-canh-bao');
-      expect(el).not.toBeNull();
-      return el as HTMLElement;
-    });
-    expect(canhBao.textContent).toContain('không có ngưỡng nào để đối chiếu');
-    expect(canhBao.textContent).toContain('Vẫn lập hồ sơ được');
-    // Không phải khối lỗi, và nút Thêm dòng không bị khoá vì chuyện này.
-    expect(document.querySelectorAll('.bao-loi')).toHaveLength(0);
-  });
-
-  it('KHONG_CO không hiện con số ngưỡng — không có con số nào để hiện', async () => {
-    chanFetch(() =>
-      phanHoi(200, { productId: 'sp-1', threshold: null, thresholdSource: 'KHONG_CO' }),
-    );
-    moHopThoai();
-    await chonSanPham();
-
-    const canhBao = await waitFor(() => {
-      const el = document.querySelector('.hop-canh-bao');
-      expect(el).not.toBeNull();
-      return el as HTMLElement;
-    });
-    expect(canhBao.textContent).not.toContain('null');
-    expect(canhBao.textContent).not.toContain('%');
-  });
-
-  it('lỗi lúc xem trước KHÔNG hiện gì', async () => {
-    // Đây là thông tin thêm, không phải điều kiện để lưu. Một khối đỏ cạnh biểu
-    // mẫu đang gõ dở chỉ làm người dùng tưởng mình vừa làm hỏng thứ gì, trong
-    // khi máy chủ vẫn tra lại ngưỡng lúc lưu.
-    const f = vi.fn((duong: unknown) => {
-      const d = String(duong);
-      if (d.includes('/threshold-preview')) return Promise.reject(new TypeError('Failed to fetch'));
-      return Promise.resolve(phanHoi(200, SAN_PHAM));
-    });
-    vi.stubGlobal('fetch', f);
-    moHopThoai();
-    await chonSanPham();
-    await new Promise((r) => setTimeout(r, 0));
-
-    expect(document.querySelector('.hop-canh-bao')).toBeNull();
-    expect(document.querySelector('.bao-loi')).toBeNull();
-  });
-
-  it('gọi đúng hồ sơ và đúng sản phẩm', async () => {
-    const f = chanFetch(() => phanHoi(200, { threshold: null, thresholdSource: 'KHONG_CO' }));
-    moHopThoai();
-    await chonSanPham();
-
-    await waitFor(() => {
-      const duong = f.mock.calls.map((c) => String(c[0]));
-      expect(duong.some((d) => d.includes('/policies/hs-9/threshold-preview?productId=sp-1')))
-        .toBe(true);
-    });
+  it('`KHONG_CO` KHÔNG hiện con số ngưỡng — không có con số nào để hiện', () => {
+    render(<BangSanPham dong={[dong({ thresholdSource: 'KHONG_CO', threshold: null })]} />);
+    const bang = screen.getByRole('table');
+    expect(within(bang).queryByText('30,00%')).toBeNull();
   });
 });
 
-
-/**
- * `0124` — GIÁ BÁN CÔNG TY hiện ngay trên ô Giá bán buôn.
- *
- * Tỷ lệ chiết khấu tính ngược từ con số ấy (`1 − giá thu về / giá bán Công ty`),
- * nên gõ giá bán buôn mà không thấy nó là gõ một nửa của một phép tính. Tới
- * `0123` người lập phải mở màn hình Danh mục ở một tab khác để tra.
- */
-describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
-  it('chưa chọn sản phẩm thì KHÔNG hiện con số nào', async () => {
-    chanFetch(() => phanHoi(200, {}));
-    moHopThoai();
-    await waitFor(() => expect(screen.getByRole('option', { name: /Nutricare Gold/ })).toBeDefined());
-    expect(screen.queryByText(/Giá bán Công ty của sản phẩm này/)).toBeNull();
-  });
-
-  it('chọn sản phẩm thì hiện đúng giá của DANH MỤC', async () => {
-    chanFetch(() =>
-      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
-    );
-    moHopThoai();
-    await chonSanPham();
-    await waitFor(() =>
-      expect(screen.getByText(/Giá bán Công ty của sản phẩm này/)).toBeDefined(),
-    );
-    // Định dạng tiền của sản phẩm, không phải chuỗi thô `125000`.
-    expect(screen.getByText(/125[.,]000/)).toBeDefined();
-  });
-
-  it('đứng TRƯỚC ô Giá bán buôn, không nằm dưới đáy biểu mẫu', async () => {
+describe('`0124` Giá bán Công ty đọc được TRƯỚC Giá bán buôn', () => {
+  it('cột Giá bán Công ty đứng bên trái cột Giá bán buôn', () => {
     /*
-     * Vị trí là một phần của yêu cầu: đọc con số ấy SAU khi đã gõ xong giá bán
-     * buôn thì quá muộn để nó có ích. `compareDocumentPosition` là cách duy nhất
-     * đo được thứ tự trong jsdom — nó không tính bố cục.
+     * Đo bằng THỨ TỰ CỘT THẬT của bảng đang dựng, không đọc mảng hằng: hai cột
+     * có thể đúng thứ tự trong `COT_TRUOC` mà vẫn dựng ra sai nếu chỗ dựng hàng
+     * tự sắp lại — và chính chỗ dựng hàng là thứ `0187` vừa viết lại.
      */
-    chanFetch(() =>
-      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
-    );
-    moHopThoai();
-    await chonSanPham();
-    const cau = await screen.findByText(/Giá bán Công ty của sản phẩm này/);
-    const o = screen.getByLabelText(/Giá bán buôn/);
-    expect(cau.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const ds = [dong()];
+    render(<BangSanPham dong={ds} />);
+    const nhan = within(screen.getByRole('table'))
+      .getAllByRole('columnheader')
+      .map((t) => t.textContent);
+    expect(nhan).toEqual(cotCho(ds).map((c) => c.nhan));
+    expect(nhan.indexOf('Giá bán Công ty')).toBeLessThan(nhan.indexOf('Giá bán buôn'));
+  });
+
+  it('con số Giá bán Công ty lấy từ chính dòng, không phải một ô trống', () => {
+    render(<BangSanPham dong={[dong({ companyPrice: '125000' })]} />);
+    expect(within(screen.getByRole('table')).getByText('125.000')).toBeDefined();
   });
 });
