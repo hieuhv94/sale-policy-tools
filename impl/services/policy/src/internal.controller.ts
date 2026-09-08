@@ -11,9 +11,9 @@ import { oneOf, ServiceOnly, str, validate } from '@csbh/http-kit';
 import { Db } from './infra/db.js';
 import {
   CHUA_DUYET_XONG,
-  SQL_DONG_KHAC_BAN_TRUOC,
   SQL_NOI_BAN_TRUOC,
   SQL_TRANG_THAI_DONG,
+  SQL_TY_LE_CK_TRUOC,
 } from './policies/policies.service.js';
 
 /**
@@ -52,8 +52,12 @@ export class PolicyInternalController {
               -- không còn là một cột. Chỉ read-model báo cáo đọc nó, cho bộ lọc
               -- "CSBH áp dụng từ … đến …"; tờ giấy thì in ngày của TỪNG DÒNG.
               -- Hồ sơ chưa có dòng nào trả NULL, và rpt vốn đã nhận NULL được.
+              -- 0186 — NOT da_xoa: dòng đã rút không được quyết định ngày áp
+              -- dụng của hồ sơ trên báo cáo. Rút đúng mặt hàng có ngày sớm nhất
+              -- mà bộ lọc "CSBH áp dụng từ … đến …" vẫn xếp hồ sơ theo ngày ấy
+              -- là một câu sai, và là loại sai không ai đi tìm.
               (SELECT min(ngay_ap_dung) FROM pol.policy_line
-                WHERE policy_id = pol.policy.id) AS applied_date,
+                WHERE policy_id = pol.policy.id AND NOT da_xoa) AS applied_date,
               effective_from, tdv_user_id,
               tbp_user_id, ke_toan_user_id, sale_admin_user_id,
               created_at, submitted_at, tbp_signed_at,
@@ -148,11 +152,22 @@ export class PolicyInternalController {
               l.over_threshold, l.note,
               l.ngay_ap_dung,
               ${SQL_TRANG_THAI_DONG} AS trang_thai,
-              CASE WHEN ${SQL_DONG_KHAC_BAN_TRUOC}
-                   THEN truoc.discount_rate::text END AS ty_le_ck_truoc
+              ${SQL_TY_LE_CK_TRUOC} AS ty_le_ck_truoc
          FROM pol.policy_line l
          ${SQL_NOI_BAN_TRUOC}
-        WHERE l.policy_id = $1 ORDER BY l.product_code_snap`,
+        /*
+         * DÒNG ĐÃ XOÁ KHÔNG RA KHỎI CỬA NÀY (0186).
+         *
+         * Khách hàng chốt "bản mềm cũng không hiện sản phẩm đã xoá", và chốt ấy
+         * được thi hành ĐÚNG MỘT CHỖ: đây. Cửa này là đường duy nhất document
+         * và reporting đọc được hồ sơ (AD-02), nên lọc tại nguồn thì bản mềm,
+         * hợp đồng, read-model báo cáo và mọi biểu đồ dựng trên nó đều thôi thấy
+         * dòng đã rút — mà không service nào phải biết cột da_xoa có tồn tại.
+         *
+         * Lọc ở document thay vì ở đây thì reporting vẫn đếm mặt hàng đã rút vào
+         * doanh số của bản mới, và không có gì đỏ.
+         */
+        WHERE l.policy_id = $1 AND NOT l.da_xoa ORDER BY l.product_code_snap`,
       [id],
     );
 

@@ -2701,6 +2701,31 @@ tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
   .o-thao-tac-re-chuot { opacity: 1; }
 }
 
+/* --- DÒNG SẢN PHẨM ĐÃ RÚT (`0186`) ---------------------------------------- */
+
+/* Khách hàng chốt 08/09: dòng bị xoá "chỉ bị làm mờ", nằm lại bảng cho tới khi
+   hồ sơ có hiệu lực.
+
+   `opacity` chứ không `color`: cả hàng phải lùi lại CÙNG MỘT MỨC, mà các ô trong
+   đó mang sẵn ba màu riêng — nhãn trạng thái, ô Tỷ lệ CK tô vàng/đỏ (`0027`), và
+   chữ mã quy định. Đặt lại màu chữ thì ba thứ ấy giữ nguyên độ đậm và dòng mờ
+   nham nhở đúng ở những ô bắt mắt nhất.
+
+   KHÔNG mờ tới mức không đọc được: 0.55 là chỗ chữ còn đọc thoải mái trên nền
+   trắng — dòng này là thứ người duyệt PHẢI đọc trước khi ký, chỉ là nó nói "sắp
+   không còn nữa". Làm mờ hơn thì nó thành thứ mắt bỏ qua, tức là gần bằng ẩn đi.
+
+   Dải nút KHÔNG mờ theo: `Thêm lại` là lối thoát của chính dòng này, và một nút
+   mờ đọc như một nút đã tắt. */
+.dong-da-xoa > * { opacity: 0.55; }
+.dong-da-xoa .nhom-nut { opacity: 1; }
+
+/* Gạch ngang tên sản phẩm — dấu hiệu thứ hai, cho người không phân biệt được
+   sắc độ. Chỉ tên, không cả hàng: gạch ngang chồng lên một cột số làm con số
+   khó đọc, mà chúng vẫn là con số thật của dòng. */
+.dong-da-xoa > .cot-khoa,
+.dong-da-xoa .the-dau h3 { text-decoration: line-through; }
+
 /* --- Ô CÂU CHỮ trong bảng (`0070`) ---------------------------------------- */
 
 /* `th, td` đặt `white-space: nowrap` cho MỌI ô — đúng với mã, ngày và tiền, sai

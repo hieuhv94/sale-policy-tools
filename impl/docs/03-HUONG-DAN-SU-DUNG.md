@@ -753,6 +753,7 @@ Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang
 | **Bổ sung** | Mặt hàng **mới**, chưa có trong CSBH đang hiệu lực |
 | **Chỉnh sửa** | Mặt hàng đã có, và bạn **vừa sửa** một dữ liệu nào đó của nó |
 | **Đang áp dụng** | Mặt hàng đã có, **để nguyên** như bản đang hiệu lực |
+| **Đã xoá** `mới 08/09` | Mặt hàng đã có, và bạn **vừa rút** nó khỏi phiên bản này |
 
 - Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
   buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
@@ -766,6 +767,28 @@ Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang
 > **Hai cột này không in ra hai mẫu hồ sơ mặc định.** Chúng phục vụ người **đang duyệt**, không phải
 > tờ giấy đem ký. Muốn in thì Quản trị hệ thống tích chúng trong tập cột của một mẫu riêng — chúng có
 > sẵn trong danh mục cột.
+
+### Rút một mặt hàng khỏi phiên bản mới `mới 08/09`
+
+Phiên bản mới chép sẵn mọi mặt hàng của bản đang hiệu lực. Nếu có mặt hàng **không tiếp tục** cho
+khách hàng này nữa, bấm **Xoá** trên dòng đó.
+
+**Dòng KHÔNG biến mất ngay.** Nó mờ đi, gạch ngang tên sản phẩm và chuyển sang trạng thái **Đã xoá**,
+rồi **đi cùng hồ sơ suốt luồng duyệt** — để Trưởng bộ phận, Kế toán và Sale Admin nhìn thấy khách
+hàng đang mất mặt hàng nào trước khi ký. Dòng chỉ **mất hẳn khi hồ sơ sang *Đang có hiệu lực***.
+
+**Bấm nhầm thì thêm lại được.** Trên dòng mờ có nút **Thêm lại**, thay chỗ hai nút *Sửa* và *Xoá*.
+Dòng quay về **nguyên số cũ** — thêm lại là hoàn tác lượt xoá, không phải hoàn tác những lần bạn đã
+sửa dòng đó. Chỉ làm được khi hồ sơ còn ở **Nháp** hoặc **Yêu cầu chỉnh sửa**.
+
+- **Mặt hàng vừa thêm trong chính phiên bản này** (*Bổ sung*) thì xoá là **mất hẳn ngay** — nó chưa
+  bao giờ nằm trong CSBH của khách, nên không có gì để ai xem.
+- **Bản mềm, hợp đồng và báo cáo không hiện dòng đã xoá.** Chỉ màn hình hồ sơ bày nó ra.
+- **Rút hết mọi dòng thì không gửi duyệt được** — hồ sơ phải còn ít nhất một mặt hàng.
+- **Mặt hàng đã bị Quản trị vô hiệu hoá trong danh mục**: hồ sơ sẽ **không gửi duyệt được** chừng nào
+  còn giữ nó (phần mềm không cho cam kết bán thứ đã ngừng bán). Cách xử lý là **rút nó ra**. Nếu bạn
+  đã rút rồi lại cần đưa về, phải dùng nút **Thêm lại** — đường *Thêm sản phẩm* không chọn được mặt
+  hàng đã vô hiệu hoá.
 
 ### Cột Ghi chú
 
@@ -791,7 +814,8 @@ Dùng để làm gì: đọc mã trong dấu `?`, sang mục **Chiết khấu**,
 chi phối con số ngưỡng. Đó là câu trả lời cho *"vì sao dòng này ngưỡng 25% mà dòng kia 30%"*.
 
 Nếu khách hàng **đã có CSBH đang hiệu lực**, hệ thống hỏi lại một câu và bạn bấm **Lập phiên bản
-mới** `sửa 07/09`. Phiên bản mới **luôn chứa lại toàn bộ sản phẩm cũ** — bạn không cần nhập lại.
+mới** `sửa 07/09`. Phiên bản mới **chép sẵn toàn bộ sản phẩm cũ** — bạn không cần nhập lại — và từ
+`08/09` bạn **rút bớt được** một mặt hàng, xem *Rút một mặt hàng khỏi phiên bản mới* ngay dưới.
 
 > **Trước 07/09 ở đây có hai nút** — *Bổ sung* và *Chỉnh sửa*. Chúng dẫn tới cùng một việc, nên
 > chúng chỉ bắt bạn trả lời trước một câu mà bạn chỉ biết câu trả lời sau khi mở hồ sơ ra, và rất

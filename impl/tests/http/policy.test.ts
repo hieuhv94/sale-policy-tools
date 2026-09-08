@@ -20,7 +20,7 @@ import {
 import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
 // Bản chép sẽ xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại (`0128`).
-import { ngayVN } from '@csbh/http-kit';
+import { mintServiceToken, ngayVN } from '@csbh/http-kit';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -366,27 +366,212 @@ describe('POL-04 … POL-07 bổ sung và chỉnh sửa', () => {
   });
 });
 
-describe('POL-08 phiên bản mới phải chứa lại toàn bộ sản phẩm cũ', () => {
-  it('gửi duyệt khi thiếu một sản phẩm thừa kế thì 422', async () => {
+/**
+ * `0186` — RÚT MỘT MẶT HÀNG KHỎI PHIÊN BẢN MỚI (POL-08 đảo, chốt 08/09).
+ *
+ * Khối này THAY khối `POL-08` cũ chứ không nới nó. Ca cũ khẳng định *"gửi duyệt
+ * khi thiếu một sản phẩm thừa kế thì 422"* — một câu về LUẬT, và luật ấy vừa bị
+ * khách hàng đảo. Sửa con số 422 thành 200 là giữ lại một ca kiểm không còn
+ * canh gì; thứ phải canh bây giờ khác hẳn: dòng bị rút PHẢI NẰM LẠI cho người
+ * duyệt thấy, và phải biến mất đúng một lần, đúng lúc.
+ */
+describe('`0186` rút một mặt hàng khỏi phiên bản mới', () => {
+  /** Bản v2 của một khách đã có CSBH hiệu lực, kèm id dòng thừa kế. */
+  const v2Voi = async (them?: string) => {
     const d = await draft();
     await runToActive(d);
-    const moi = await makeProduct();
-
-    const v2 = await post('/policies', {
+    const r = await post('/policies', {
       customerId: d.customerId,
       mode: 'NEW_VERSION',
-      lines: [line(moi)],
+      lines: them ? [line(them)] : [],
     });
-    // Xoá dòng thừa kế đi — lúc còn Nháp thì cho phép.
-    const old = (v2.body.lines as { id: string; productId: string }[]).find(
+    expect(r.status).toBe(201);
+    const dongCu = (r.body.lines as { id: string; productId: string }[]).find(
       (l) => l.productId === d.productId,
-    );
-    expect((await del(`/policies/${v2.body.id}/lines/${old!.id}`)).status).toBe(200);
+    )!;
+    return { d, v2: r.body.id as string, dongCu };
+  };
 
-    const sub = await act(v2.body.id, 'SUBMIT', 'tdv01');
+  const dongCua = async (policyId: string, who = 'tdv01') =>
+    (await get(`/policies/${policyId}`, who)).body.lines as {
+      id: string;
+      productId: string;
+      trangThai: string;
+      wholesalePrice: string;
+    }[];
+
+  it('xoá dòng thừa kế: dòng NẰM LẠI, mang trạng thái Đã xoá', async () => {
+    const { v2, dongCu } = await v2Voi(await makeProduct());
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const ds = await dongCua(v2);
+    const con = ds.find((l) => l.id === dongCu.id);
+    expect(con, 'dòng thừa kế bị xoá hẳn thay vì làm mờ').toBeDefined();
+    expect(con!.trangThai).toBe('DA_XOA');
+  });
+
+  it('xoá dòng *Bổ sung*: biến mất hẳn, không để lại dòng mờ', async () => {
+    const moi = await makeProduct();
+    const { v2 } = await v2Voi(moi);
+    const dongMoi = (await dongCua(v2)).find((l) => l.productId === moi)!;
+    expect(dongMoi.trangThai).toBe('BO_SUNG');
+
+    expect((await del(`/policies/${v2}/lines/${dongMoi.id}`)).status).toBe(200);
+    expect((await dongCua(v2)).some((l) => l.id === dongMoi.id)).toBe(false);
+  });
+
+  it('gửi duyệt được dù thiếu một sản phẩm thừa kế — POL-08 đã gỡ', async () => {
+    const { v2, dongCu } = await v2Voi(await makeProduct());
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const sub = await act(v2, 'SUBMIT', 'tdv01');
+    expect(sub.status, JSON.stringify(sub.body)).toBe(200);
+  });
+
+  it('rút HẾT mọi dòng thì vẫn không gửi duyệt được (NO_LINES)', async () => {
+    /*
+     * Dòng đã rút không tính là "hồ sơ có sản phẩm".
+     *
+     * Không có vế `NOT da_xoa` ở chốt `NO_LINES` thì ca này XANH nhầm: bảng vẫn
+     * còn một hàng, hồ sơ đi tới bàn Trưởng bộ phận, và tờ giấy in ra là một
+     * bảng sản phẩm rỗng.
+     */
+    const { v2, dongCu } = await v2Voi();
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const sub = await act(v2, 'SUBMIT', 'tdv01');
     expect(sub.status).toBe(422);
-    expect(sub.body.code).toBe('MISSING_INHERITED_PRODUCT');
-    expect(sub.body.missing).toHaveLength(1);
+    expect(sub.body.code).toBe('NO_LINES');
+  });
+
+  it('thêm lại: dòng quay về đúng trạng thái cũ và NGUYÊN SỐ CŨ', async () => {
+    const { v2, dongCu } = await v2Voi(await makeProduct());
+    // Sửa trước rồi mới rút: khôi phục là hoàn tác lượt XOÁ, không phải hoàn tác
+    // lượt sửa — nếu nó trả dòng về số của bản trước thì nút này làm hai việc.
+    expect(
+      (await patch(`/policies/${v2}/lines/${dongCu.id}`, { wholesalePrice: '77000' })).status,
+    ).toBe(200);
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const r = await post(`/policies/${v2}/lines/${dongCu.id}/khoi-phuc`, {});
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const con = (await dongCua(v2)).find((l) => l.id === dongCu.id)!;
+    expect(con.trangThai).toBe('CHINH_SUA');
+    expect(con.wholesalePrice).toBe('77000');
+  });
+
+  it('xoá một dòng ĐÃ xoá thì 404, không phải 200 im lặng', async () => {
+    const { v2, dongCu } = await v2Voi(await makeProduct());
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const lai = await del(`/policies/${v2}/lines/${dongCu.id}`);
+    expect(lai.status).toBe(404);
+    expect(lai.body.code).toBe('LINE_NOT_FOUND');
+  });
+
+  it('thêm lại bằng đường THÊM DÒNG thì báo đúng việc phải làm', async () => {
+    const { d, v2, dongCu } = await v2Voi(await makeProduct());
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const r = await post(`/policies/${v2}/lines`, line(d.productId));
+    expect(r.status).toBe(409);
+    // KHÔNG phải `DUPLICATE_PRODUCT`: câu của mã ấy — "đã có trong hồ sơ" — đọc
+    // như một lời nói dối khi người dùng vừa nhìn thấy dòng đó bị gạch đi.
+    expect(r.body.code).toBe('PRODUCT_LINE_DELETED');
+  });
+
+  it('dòng đã rút XOÁ HẲN khi hồ sơ sang Đang có hiệu lực, và KHÔNG mọc lại ở bản sau', async () => {
+    const moi = await makeProduct();
+    const { d, v2, dongCu } = await v2Voi(moi);
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+    await runToActive({ id: v2 });
+
+    // Xoá hẳn: bảng của chính hồ sơ vừa có hiệu lực không còn dòng mờ nào.
+    expect((await dongCua(v2)).some((l) => l.id === dongCu.id)).toBe(false);
+
+    /*
+     * VẾ THỨ HAI LÀ VẾ ĐẮT: `create` chép nguyên dòng của bản đang hiệu lực sang
+     * phiên bản kế tiếp. Không xoá hẳn ở bước có hiệu lực thì mặt hàng vừa rút
+     * quay lại ở v3 dưới dạng một dòng thừa kế bình thường, và TDV phải rút lại
+     * nó ở mọi phiên bản, mãi mãi.
+     */
+    const v3 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v3.status).toBe(201);
+    const ids = (v3.body.lines as { productId: string }[]).map((l) => l.productId);
+    expect(ids).toEqual([moi]);
+    expect(ids).not.toContain(d.productId);
+  });
+
+  it('BẢN MỀM VÀ BÁO CÁO KHÔNG THẤY dòng đã rút, màn hình thì có', async () => {
+    /*
+     * Hỏi ĐÚNG CÁI CỬA mà `document` và `reporting` hỏi.
+     *
+     * Khách hàng chốt *"bản mềm cũng không hiện sản phẩm đã xoá"*, và chốt ấy
+     * thi hành ở `internal.controller` — cửa duy nhất hai service kia đọc được
+     * hồ sơ (AD-02). Đo ở đây thay vì đọc chữ trong một file PDF vì đây là chỗ
+     * quyết định: dựng bảng chỉ in ra thứ nó được đưa, nên một ca đọc PDF sẽ
+     * xanh cả khi phép lọc chuyển sang `document` và `reporting` âm thầm đếm
+     * tiếp mặt hàng đã rút.
+     *
+     * Vế NGƯỢC LẠI đi kèm và nó là nửa quan trọng của ca này: cùng một hồ sơ,
+     * đường đọc của giao diện PHẢI còn thấy dòng ấy. Lọc nhầm ở cả hai đường là
+     * dòng mờ biến mất khỏi màn hình người duyệt — tức là mất đúng thứ `0186`
+     * dựng ra.
+     */
+    const moi = await makeProduct();
+    const { d, v2, dongCu } = await v2Voi(moi);
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+
+    const noiBo = await (await http(app))
+      .get(`/internal/policies/${v2}`)
+      .set('X-Service-Token', mintServiceToken('document'));
+    expect(noiBo.status, JSON.stringify(noiBo.body)).toBe(200);
+    const maNoiBo = (noiBo.body.lines as { product_id: string }[]).map((l) => l.product_id);
+    expect(maNoiBo).toEqual([moi]);
+    expect(maNoiBo).not.toContain(d.productId);
+
+    const manHinh = (await dongCua(v2)).map((l) => l.productId).sort();
+    expect(manHinh).toEqual([moi, d.productId].sort());
+  });
+
+  it('BẾ TẮC NC-CAN-400: mặt hàng bị vô hiệu hoá thì rút ra rồi gửi duyệt được', async () => {
+    /*
+     * KỊCH BẢN THẬT khách hàng báo, chạy đầu-cuối.
+     *
+     * Trước `0186` hai chốt chặn cấm nhau: giữ dòng thì `STALE_LINE` (mặt hàng
+     * đã vô hiệu hoá, không tra được giá hiện hành), xoá dòng thì
+     * `MISSING_INHERITED_PRODUCT`. Hồ sơ chết hẳn ở Nháp, không lối ra nào — kể
+     * cả thêm lại, vì `PRODUCT_DISABLED` chặn mặt hàng đã vô hiệu hoá.
+     *
+     * Ca này khẳng định CẢ HAI VẾ: giữ thì vẫn chặn (CAT-07 còn nguyên — không
+     * cam kết bán thứ đã ngừng bán), và rút ra thì đi được.
+     */
+    const { d, v2, dongCu } = await v2Voi(await makeProduct());
+    // Vô hiệu hoá đòi GÕ LẠI MÃ (`0036`, `0123`) — `confirm` là mã sản phẩm.
+    const c = await http(catalog);
+    const ma = (
+      await c
+        .get(`/catalog/products/${d.productId}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`)
+    ).body.code as string;
+    const tat = await c
+      .patch(`/catalog/products/${d.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DA_VO_HIEU_HOA', confirm: ma });
+    expect(tat.status, JSON.stringify(tat.body)).toBe(200);
+
+    const giu = await act(v2, 'SUBMIT', 'tdv01');
+    expect(giu.status).toBe(422);
+    expect(giu.body.code).toBe('STALE_LINE');
+
+    expect((await del(`/policies/${v2}/lines/${dongCu.id}`)).status).toBe(200);
+    const sau = await act(v2, 'SUBMIT', 'tdv01');
+    expect(sau.status, JSON.stringify(sau.body)).toBe(200);
   });
 });
 
@@ -3909,31 +4094,41 @@ describe('`0180` trạng thái dòng và tỷ lệ CK cũ', () => {
     expect(dongCua(lai.body, d.productId)['discountRateTruoc']).toBeNull();
   });
 
-  it('XOÁ rồi THÊM LẠI cùng sản phẩm: vẫn nhận ra là *Chỉnh sửa*, không phải *Bổ sung*', async () => {
+  it('phép so đi theo SẢN PHẨM, không theo id dòng', async () => {
     /*
-     * Phép so đi theo `product_id`, không theo id của dòng — nên một mặt hàng
-     * bị xoá rồi thêm lại vẫn nối được về bản trước.
+     * Dòng thừa kế là một HÀNG MỚI trong một hồ sơ mới, nên id của nó khác id
+     * của dòng cùng sản phẩm ở bản trước. Phép so vẫn phải nối được hai bên —
+     * nếu `SQL_NOI_BAN_TRUOC` nối theo `l.id` thì mọi dòng thừa kế của mọi phiên
+     * bản thành *Bổ sung*, và người duyệt đọc ra rằng CSBH này thêm mới toàn bộ
+     * danh mục — một câu sai về chính thứ họ sắp ký.
      *
-     * Nếu đi theo id dòng thì đường xoá-rồi-thêm biến một mặt hàng đã có thành
-     * *Bổ sung*, và người duyệt đọc ra rằng CSBH này thêm một sản phẩm mới —
-     * một câu sai về chính thứ họ sắp ký.
+     * ------------------------------------------------------------------------
+     * CA NÀY THAY ca *"XOÁ rồi THÊM LẠI cùng sản phẩm"* của `0180` (`0186`).
+     * ------------------------------------------------------------------------
+     *
+     * Ca cũ chứng minh cùng tính chất bằng đường xoá-rồi-thêm-lại, và `0186`
+     * ĐÓNG đường ấy: xoá một dòng thừa kế giờ là xoá MỀM, nên `POST .../lines`
+     * cho cùng sản phẩm trả `PRODUCT_LINE_DELETED` chứ không tạo hàng mới. Sửa
+     * con số 201 thành 409 sẽ giữ lại một ca không còn nói gì về phép so nữa —
+     * nó sẽ chỉ nói lại điều mà ca `PRODUCT_LINE_DELETED` bên `0186` đã nói.
+     *
+     * Nên ca này hỏi thẳng tính chất ấy, ở chỗ nó luôn đúng: hai id khác nhau,
+     * một câu trả lời nối theo sản phẩm. Vế *"thêm lại vẫn là Chỉnh sửa"* không
+     * mất — nó chuyển sang đường mới, xem ca *"thêm lại: dòng quay về đúng
+     * trạng thái cũ"* của `0186`.
      */
     const d = await draft();
     await runToActive(d);
+    const idCu = dongCua(d.body, d.productId)['id'] as string;
+
     const v2 = await post('/policies', {
       customerId: d.customerId,
       mode: 'NEW_VERSION',
       lines: [],
     });
-    const lineId = dongCua(v2.body, d.productId)['id'] as string;
-    expect((await del(`/policies/${v2.body.id}/lines/${lineId}`)).status).toBe(200);
-
-    const them = await post(
-      `/policies/${v2.body.id}/lines`,
-      line(d.productId, { wholesalePrice: '70000' }),
-    );
-    expect(them.status, JSON.stringify(them.body)).toBe(201);
-    expect(dongCua(them.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+    const dongMoi = dongCua(v2.body, d.productId);
+    expect(dongMoi['id'], 'dòng thừa kế phải là một hàng MỚI').not.toBe(idCu);
+    expect(dongMoi['trangThai']).toBe('DANG_AP_DUNG');
   });
 });
 

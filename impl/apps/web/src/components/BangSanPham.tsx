@@ -71,7 +71,7 @@ export type DongSanPham = {
    * `policy`, nơi có cả hai bản để đối chiếu. Suy lại ở đây thì phải kéo cả dòng
    * của bản trước về trình duyệt.
    */
-  trangThai?: 'BO_SUNG' | 'CHINH_SUA' | 'DANG_AP_DUNG' | null | undefined;
+  trangThai?: 'BO_SUNG' | 'CHINH_SUA' | 'DANG_AP_DUNG' | 'DA_XOA' | null | undefined;
   /** Tỷ lệ CK ở bản trước — CHỈ dòng *Chỉnh sửa* mới có (`0180`). */
   discountRateTruoc?: string | null | undefined;
 };
@@ -85,7 +85,21 @@ export type DongSanPham = {
  * chúng sẽ tranh chỗ với đúng thứ cần nhìn nhất.
  */
 export const lopTrangThai = (t: string): string =>
-  t === 'BO_SUNG' ? 'nhan nhan-tot' : t === 'CHINH_SUA' ? 'nhan nhan-canh-bao' : 'nhan nhan-thuong';
+  t === 'BO_SUNG'
+    ? 'nhan nhan-tot'
+    : t === 'CHINH_SUA'
+      ? 'nhan nhan-canh-bao'
+      : t === 'DA_XOA'
+        ? 'nhan nhan-loi'
+        : 'nhan nhan-thuong';
+
+/**
+ * Dòng TDV đã rút khỏi phiên bản này (`0186`).
+ *
+ * XUẤT RA vì ba chỗ hỏi cùng câu này — lớp làm mờ của hàng, dải nút, và ca kiểm
+ * — và một phép so chuỗi lặp ba lần là ba chỗ sẽ lệch ngày trạng thái đổi tên.
+ */
+export const daXoa = (d: DongSanPham): boolean => d.trangThai === 'DA_XOA';
 
 
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
@@ -308,6 +322,75 @@ function CpbhGop({ d }: { d: DongSanPham }) {
   );
 }
 
+type ThaoTacDong = {
+  xoaDong?: ((id: string) => void) | undefined;
+  suaDong?: ((d: DongSanPham) => void) | undefined;
+  themLaiDong?: ((id: string) => void) | undefined;
+  dangXoa?: string | null | undefined;
+};
+
+/**
+ * Dải nút của MỘT dòng — một bản dựng cho cả bảng lẫn thẻ điện thoại (`0186`).
+ *
+ * Trước lượt này hai chỗ chép nhau nguyên khối bốn dòng JSX. Chấp nhận được khi
+ * dải nút chỉ có hai nút luôn hiện; lượt này nó mọc một nhánh điều kiện — dòng
+ * đã rút bày *Thêm lại* thay cho *Sửa* và *Xoá* — và một nhánh điều kiện chép
+ * hai chỗ là chỗ mà bản điện thoại sẽ tụt lại, không ai thấy, vì hai bố cục
+ * không bao giờ hiện cùng lúc trên một màn hình.
+ *
+ * `hang` chỉ khác một lớp CSS: trong ô bảng hẹp thì `.nhom-nut-gon` cho hai nút
+ * xếp chồng lên nhau, đọc như hai thao tác của hai dòng khác nhau (`0124`).
+ *
+ * DÒNG ĐÃ RÚT KHÔNG CÒN *Sửa* lẫn *Xoá*: sửa một dòng sắp biến mất là ghi những
+ * con số không đi tới đâu, còn *Xoá* thì máy chủ đã trả `LINE_NOT_FOUND` —
+ * bày một cái nút chỉ để nhận về lỗi là bày một cái bẫy.
+ */
+function NutDong({
+  d,
+  hang,
+  xoaDong,
+  suaDong,
+  themLaiDong,
+  dangXoa,
+}: { d: DongSanPham; hang?: boolean } & ThaoTacDong) {
+  const lop = `nhom-nut nhom-nut-gon${hang ? ' nhom-nut-hang' : ''}`;
+  if (daXoa(d)) {
+    return (
+      <div className={lop}>
+        {themLaiDong && (
+          <button
+            type="button"
+            className="nut nut-nhe"
+            disabled={dangXoa === d.id}
+            onClick={() => themLaiDong(d.id)}
+          >
+            Thêm lại
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className={lop}>
+      {suaDong && (
+        <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
+          Sửa
+        </button>
+      )}
+      {xoaDong && (
+        <button
+          type="button"
+          className="nut nut-canh-bao"
+          disabled={dangXoa === d.id}
+          onClick={() => xoaDong(d.id)}
+        >
+          Xoá
+        </button>
+      )}
+    </div>
+  );
+}
+
 /**
  * `xoaDong` và `suaDong` chỉ truyền khi hồ sơ đang sửa được. Cột thao tác là cột THÊM VÀO,
  * không thay chỗ cột nào — chú thích đầu tệp cấm ẩn bớt cột, và bốn ô CPBH vẫn
@@ -317,10 +400,16 @@ export function BangSanPham({
   dong,
   xoaDong,
   suaDong,
+  themLaiDong,
   dangXoa,
 }: {
   dong: DongSanPham[];
   xoaDong?: ((id: string) => void) | undefined;
+  /**
+   * THÊM LẠI một dòng đã rút (`0186`) — truyền cùng lúc với `xoaDong`, tức chỉ
+   * khi hồ sơ đang sửa được, đúng hai trạng thái khách hàng chốt.
+   */
+  themLaiDong?: ((id: string) => void) | undefined;
   /**
    * Sửa một dòng đã có.
    *
@@ -331,7 +420,11 @@ export function BangSanPham({
   suaDong?: ((d: DongSanPham) => void) | undefined;
   dangXoa?: string | null | undefined;
 }) {
-  const coThaoTac = xoaDong !== undefined || suaDong !== undefined;
+  // `themLaiDong` tính vào đây (`0186`): một hồ sơ mà mọi dòng đều đã rút thì
+  // hai prop kia vẫn được truyền, nhưng nếu ngày nào đó chỉ còn nút Thêm lại thì
+  // thiếu vế này là cột thao tác biến mất cùng với lối thoát duy nhất của dòng.
+  const coThaoTac =
+    xoaDong !== undefined || suaDong !== undefined || themLaiDong !== undefined;
   if (dong.length === 0) {
     return (
       <p className="trong">
@@ -362,7 +455,13 @@ export function BangSanPham({
           </thead>
           <tbody>
             {dong.map((d) => (
-              <tr key={d.id}>
+              /*
+                Dòng đã rút LÀM MỜ chứ không ẩn (`0186`) — cả điểm của việc giữ
+                nó lại là người duyệt NHÌN THẤY mặt hàng đang bị lấy đi. Lớp
+                nằm trên `<tr>`, không trên từng ô: mờ nửa hàng thì trông như
+                một lỗi dựng trang chứ không như một trạng thái.
+              */
+              <tr key={d.id} className={daXoa(d) ? 'dong-da-xoa' : undefined}>
                 <td className="ngay-ap-dung">{ngay(d.ngayApDung)}</td>
                 <td>{d.productCode}</td>
                 <th scope="row" className="cot-khoa">
@@ -413,23 +512,11 @@ export function BangSanPham({
                         `.nhom-nut-gon` cho phép xuống dòng, và trong một ô bảng
                         hẹp thì Sửa với Xoá xếp chồng lên nhau — đọc như hai
                         thao tác thuộc hai dòng khác nhau. */}
-                    <div className="nhom-nut nhom-nut-gon nhom-nut-hang">
-                      {suaDong && (
-                        <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
-                          Sửa
-                        </button>
-                      )}
-                      {xoaDong && (
-                        <button
-                          type="button"
-                          className="nut nut-canh-bao"
-                          disabled={dangXoa === d.id}
-                          onClick={() => xoaDong(d.id)}
-                        >
-                          Xoá
-                        </button>
-                      )}
-                    </div>
+                    <NutDong
+                      d={d}
+                      hang
+                      {...{ xoaDong, suaDong, themLaiDong, dangXoa }}
+                    />
                   </td>
                 )}
               </tr>
@@ -441,7 +528,7 @@ export function BangSanPham({
       {/* <640px: thẻ. Đủ MỌI cột, bốn ô CPBH gấp lại. */}
       <ul className="the-san-pham">
         {dong.map((d) => (
-          <li key={d.id} className="the">
+          <li key={d.id} className={daXoa(d) ? 'the dong-da-xoa' : 'the'}>
             <div className="the-dau">
               <span className="ma">{d.productCode}</span>
               <h3>{d.productName}</h3>
@@ -505,23 +592,7 @@ export function BangSanPham({
             </dl>
             <CpbhGop d={d} />
             {coThaoTac && (
-              <div className="nhom-nut nhom-nut-gon">
-                {suaDong && (
-                  <button type="button" className="nut nut-nhe" onClick={() => suaDong(d)}>
-                    Sửa
-                  </button>
-                )}
-                {xoaDong && (
-                  <button
-                    type="button"
-                    className="nut nut-canh-bao"
-                    disabled={dangXoa === d.id}
-                    onClick={() => xoaDong(d.id)}
-                  >
-                    Xoá
-                  </button>
-                )}
-              </div>
+              <NutDong d={d} {...{ xoaDong, suaDong, themLaiDong, dangXoa }} />
             )}
           </li>
         ))}

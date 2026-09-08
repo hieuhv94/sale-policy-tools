@@ -128,14 +128,18 @@ export const COT_SAU = [
 export const nhanCpbh = (i: number): string => `CPBH ${i + 1}`;
 
 /**
- * Nhãn ba trạng thái dòng (`0180`).
+ * Nhãn bốn trạng thái dòng (`0180`, `0186`).
  *
  * PHẢI KHỚP TỪNG CHỮ với `NHAN_TRANG_THAI_DONG` của `document` — cùng lý do đã
  * viết cho tên cột ở đầu tệp này: người đọc bảng trên màn hình rồi đọc bảng
- * trên tờ giấy vừa in, và ba nhãn này là NỘI DUNG ô chứ không phải tiêu đề. Có ca đối chiếu hai chiều ở `tests/http/tieu-de-cot.test.ts`.
+ * trên tờ giấy vừa in, và bốn nhãn này là NỘI DUNG ô chứ không phải tiêu đề. Có ca đối chiếu hai chiều ở `tests/http/tieu-de-cot.test.ts`.
+ *
+ * `DA_XOA` (`0186`) chỉ hiện trên MÀN HÌNH: bản mềm không nhận dòng đã rút. Nó
+ * vẫn có mặt ở cả hai bảng, xem lý do ở `NHAN_TRANG_THAI_DONG` bên `document`.
  */
 export const NHAN_TRANG_THAI: Record<string, string> = {
   BO_SUNG: 'Bổ sung',
   CHINH_SUA: 'Chỉnh sửa',
   DANG_AP_DUNG: 'Đang áp dụng',
+  DA_XOA: 'Đã xoá',
 };

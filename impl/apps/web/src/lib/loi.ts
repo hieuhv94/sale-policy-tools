@@ -393,7 +393,6 @@ export const BANG_LOI: Record<string, Muc> = {
    * từng chữ với việc sắp xảy ra; chép lại ở đây là hai câu sẽ lệch.
    */
   NEW_VERSION_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
-  MISSING_INHERITED_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*
@@ -406,6 +405,15 @@ export const BANG_LOI: Record<string, Muc> = {
   BAN_MEM_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   DUPLICATE_PRODUCT: { dang: 'hop-thoai', tuMayChu: true },
   PRODUCT_DISABLED: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `0186` — sản phẩm đang nằm trong hồ sơ ở trạng thái *Đã xoá*.
+   *
+   * `tuMayChu`: câu của máy chủ chỉ ra đúng cái nút phải bấm (*Thêm lại*, ngay
+   * trên chính dòng ấy), và một câu viết lại ở đây sẽ là câu thứ hai phải nhớ
+   * sửa ngày nút đổi tên. Người dùng gần như không tới được đây — dòng mờ nằm
+   * ngay trên màn hình — nên đây là chốt cho lượt gọi tay và cho màn hình cũ.
+   */
+  PRODUCT_LINE_DELETED: { dang: 'hop-thoai', tuMayChu: true },
   REASON_REQUIRED: {
     dang: 'o-nhap',
     truong: 'lyDo',

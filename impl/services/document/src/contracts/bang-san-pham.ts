@@ -306,16 +306,28 @@ const tieuDe = (soCot: number, cot: KhoaCot[]): string[] =>
   );
 
 /**
- * Nhãn ba trạng thái dòng — CÙNG CHỮ với bảng trên màn hình (`0180`).
+ * Nhãn bốn trạng thái dòng — CÙNG CHỮ với bảng trên màn hình (`0180`, `0186`).
  *
- * `tests/http/tieu-de-cot.test.ts` canh tên CỘT giữa hai bảng; ba nhãn này là
+ * `tests/http/tieu-de-cot.test.ts` canh tên CỘT giữa hai bảng; bốn nhãn này là
  * NỘI DUNG ô, nên chúng có một ca đối chiếu riêng. Cùng một lý do: người đọc tờ
  * giấy vừa in phải thấy đúng chữ họ vừa đọc trên màn hình.
+ *
+ * `DA_XOA` KHÔNG BAO GIỜ TỚI ĐƯỢC ĐÂY, và vẫn khai (`0186`). Khách hàng chốt
+ * *"bản mềm cũng không hiện sản phẩm đã xoá"*, và phép lọc ấy đặt ở
+ * `policy/internal.controller` — cửa duy nhất `document` đọc hồ sơ — nên bộ dựng
+ * bảng không nhận dòng nào mang trạng thái này.
+ *
+ * Giữ khoá ở đây là chủ ý, không phải sót: bảng này là TỪ VỰNG của bốn trạng
+ * thái dòng, dùng chung giữa hai bề mặt, và ca đối chiếu canh đúng chuyện hai
+ * bảng phải cùng tập khoá. Nếu ngày nào đó phép lọc kia bị nới, tờ giấy in ra
+ * chữ *Đã xoá* thay vì mã trần `DA_XOA` — hỏng nhìn thấy được thay vì hỏng câm.
+ * Phép lọc thì có ca kiểm riêng của nó.
  */
 export const NHAN_TRANG_THAI_DONG: Record<string, string> = {
   BO_SUNG: 'Bổ sung',
   CHINH_SUA: 'Chỉnh sửa',
   DANG_AP_DUNG: 'Đang áp dụng',
+  DA_XOA: 'Đã xoá',
 };
 
 const O: Record<Exclude<KhoaCot, 'cpbh'>, (l: PolicyLine, i: number) => string> = {

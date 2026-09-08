@@ -143,6 +143,11 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
          FROM pol.policy p
          JOIN pol.policy_line l ON l.policy_id = p.id
         WHERE p.status::text = ANY($1::text[])
+          -- 0186 — dòng đã rút không sinh *Yêu cầu cập nhật*. Hồ sơ đã đóng
+          -- băng vẫn mang chúng cho tới lúc có hiệu lực, và báo *"giá mặt hàng
+          -- này vừa đổi"* về một mặt hàng đang bị rút khỏi chính hồ sơ ấy là
+          -- gọi người duyệt tới xử lý một việc không tồn tại.
+          AND NOT l.da_xoa
           AND ($2::uuid IS NULL OR l.product_id = $2::uuid)`,
       [DA_DONG_BANG, loc.productId || null],
     );

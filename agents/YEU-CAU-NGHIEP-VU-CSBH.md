@@ -360,9 +360,24 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
    *Ngày áp dụng* ghi trên CSBH chỉ là thông tin hiển thị, không chi phối trạng thái. Nếu ngày áp
    dụng rơi vào trước lúc duyệt xong thì không cần xử lý gì, vì CSBH cũ vẫn còn hiệu lực tới đúng
    thời điểm bản mới được duyệt.
-4. **Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.** Bổ sung hay chỉnh sửa đều tạo một CSBH mới
-   đầy đủ và ký duyệt lại từ đầu; khi bản mới được duyệt thì bản cũ vô hiệu lực toàn bộ. Hiệu lực
-   quản lý ở **cấp hồ sơ**, không cần mô hình cấp dòng.
+4. **Phiên bản mới thừa kế toàn bộ sản phẩm cũ, và RÚT BỚT ĐƯỢC** `sửa 08/09`. Bổ sung hay chỉnh
+   sửa đều tạo một CSBH mới đầy đủ và ký duyệt lại từ đầu; khi bản mới được duyệt thì bản cũ vô hiệu
+   lực toàn bộ. Hiệu lực quản lý ở **cấp hồ sơ**, không cần mô hình cấp dòng.
+
+   Phiên bản mới **chép sẵn** mọi mặt hàng của bản đang hiệu lực, nên người lập không phải nhập lại.
+   Trình dược viên **rút bớt được** một mặt hàng khỏi bản mới — trước `08/09` việc này bị chặn hẳn
+   (`MISSING_INHERITED_PRODUCT`), xem Phụ lục B.
+
+   Rút một mặt hàng **KHÔNG làm dòng biến mất ngay**: nó chuyển sang trạng thái ***Đã xoá***, nằm lại
+   bảng dưới dạng **làm mờ**, và đi cùng hồ sơ suốt luồng duyệt — vì bản cũ vô hiệu lực *toàn bộ*, nên
+   một mặt hàng vắng mặt ở bản mới là một quyền lợi bị **thu hồi**, và bốn bàn duyệt phải nhìn thấy
+   điều đó trước khi ký. Dòng chỉ **xoá hẳn khi hồ sơ sang *Đang có hiệu lực***.
+
+   Ở **Nháp** và **Yêu cầu chỉnh sửa**, dòng đã rút **thêm lại được**, quay về nguyên số cũ. Đây là
+   đường duy nhất đưa lại một mặt hàng đã **vô hiệu hoá trong danh mục**, vì đường thêm mới chặn nó
+   (mục 8, `PRODUCT_DISABLED`).
+
+   Bản mềm, hợp đồng và mọi báo cáo **không hiện** dòng đã rút.
 5. **CSBH cũ vẫn giữ hiệu lực trong lúc bản mới chờ duyệt.** Hệ thống lưu quan hệ bản cũ – bản thay
    thế, thời điểm và người thao tác.
 6. Mã phiên bản tự sinh theo số lần cập nhật CSBH của khách hàng đó và hiển thị trên bản in.
@@ -2142,6 +2157,48 @@ Tên Hộ kinh doanh/Tên Công ty – Số nhà/Phường xã – Tỉnh thành
 >
 > Đây là lần đổi tên **thứ hai** của khối ấy: `19/08` đổi từ *Tệp đính kèm* sang *Bản cứng*.
 
+**RÚT MỘT MẶT HÀNG khỏi phiên bản mới** `mới 08/09` — *"Cho phép xóa một sản phẩm ra khỏi CSBH của
+phiên bản trước đó, không cần phải có đầy đủ các sản phẩm của phiên bản trước · Khi xóa một sản phẩm
+có trạng thái đang áp dụng, dòng đó chưa bị xóa khỏi bảng ngay, mà chỉ bị làm mờ và chuyển sang trạng
+thái đã xóa, chỉ xóa hẳn khi hồ sơ sang trạng thái «đang có hiệu lực» · Bản mềm cũng không hiện sản
+phẩm đã xóa · Ở trạng thái «Nháp» hoặc «Yêu cầu chỉnh sửa» cho phép thêm lại dòng sản phẩm đã xóa"*.
+
+> **ĐẢO HẲN muc 5.4.** Tới hôm nay, một mặt hàng đã vào CSBH của một khách thì **không bao giờ ra
+> được nữa**: gửi duyệt một phiên bản thiếu dòng thừa kế bị chặn (`MISSING_INHERITED_PRODUCT`), và
+> không nghiệp vụ nào khác rút nó ra. Đó là một lỗ hổng chưa ai nói thành lời, và nó lộ ra qua một
+> **bế tắc có thật**: mặt hàng bị **vô hiệu hoá trong danh mục** làm dòng thừa kế của nó không tra
+> được giá hiện hành → chặn gửi duyệt kèm câu *"xoá sản phẩm đó rồi gửi lại"*; mà xoá thì chốt trên
+> chặn. **Hai phép canh cấm nhau, hồ sơ chết hẳn ở Nháp**, không lối ra nào kể cả cho Quản trị.
+>
+> **Bỏ phép chặn KHÔNG phải là toàn bộ bản sửa, và một mình nó thì sai.** Luật cũ không tuỳ tiện — nó
+> là hệ quả của ba câu ở ngay trên nó: mỗi khách **một** CSBH hiệu lực, bản mới duyệt xong thì bản cũ
+> vô hiệu **toàn bộ**, hiệu lực quản lý ở **cấp hồ sơ**. Cộng lại: một mặt hàng vắng mặt ở bản mới
+> **không rơi về bản cũ**, nó rơi ra khỏi mọi CSBH — tức là một quyền lợi bị **thu hồi**, thi hành
+> lặng lẽ. Nên thứ thay cho phép chặn là làm cho việc rút **nhìn thấy được**: dòng nằm lại dưới nhãn
+> ***Đã xoá***, làm mờ, đi cùng hồ sơ suốt luồng duyệt, để bốn bàn duyệt ký vào một tờ có nói ra mặt
+> hàng nào đang mất.
+>
+> **Trạng thái dòng thứ TƯ**, cạnh ba trạng thái của `07/09`, và nó thắng cả ba khi cùng đúng.
+>
+> **Rút một dòng *Bổ sung* thì xoá HẲN ngay.** Mặt hàng ấy chưa bao giờ thuộc về khách hàng này, nên
+> không có gì để cho ai xem; để lại một dòng mờ *"đã rút thứ chưa từng có"* chỉ làm bảng dài thêm.
+>
+> **Áp cho mọi dòng THỪA KẾ, không riêng dòng *Đang áp dụng*** (đọc theo mục đích, đã nêu giả định):
+> dòng *Chỉnh sửa* cũng đến từ bản trước, nên rút nó cũng lấy đi một mặt hàng của khách. Đọc nghĩa
+> đen thì nó xoá sạch không dấu vết — và tệ hơn, *sửa một dòng rồi mới xoá* trở thành đường vòng qua
+> chính phép canh này.
+>
+> **Xoá hẳn ở bước có hiệu lực là bắt buộc, không phải dọn dẹp cho gọn**: phiên bản sau chép nguyên
+> dòng của bản đang hiệu lực, nên giữ lại là mặt hàng vừa rút **mọc lại** ở bản sau, và người lập
+> phải rút lại nó ở mọi phiên bản, mãi mãi.
+>
+> **Thêm lại là đường DUY NHẤT** đưa về một mặt hàng đã vô hiệu hoá trong danh mục — đường thêm mới
+> chặn nó (`PRODUCT_DISABLED`). Nó khôi phục đúng dòng cũ với **nguyên số cũ**: khôi phục là hoàn tác
+> lượt XOÁ, không phải hoàn tác những lượt sửa trước đó.
+>
+> **CAT-07 KHÔNG đổi.** Giữ lại một mặt hàng đã vô hiệu hoá vẫn chặn gửi duyệt — phần mềm vẫn không
+> cho cam kết bán thứ đã ngừng bán. Cái đổi là giờ **có lối ra**: rút nó.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,
@@ -2439,7 +2496,8 @@ chối~~ (`bỏ 29/08` — xem mục *"BỎ HẲN trạng thái Từ chối"*) �
 đổi tên “Đang áp dụng” thành “Đang có hiệu lực”.
 
 **Hiệu lực** — có hiệu lực ngay khi kế toán duyệt lần 2 · mọi CSBH vô thời hạn · không có nghiệp vụ
-thu hồi · phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.
+thu hồi · ~~phiên bản mới phải chứa lại toàn bộ sản phẩm cũ~~ (`sửa 08/09` — xem mục *"RÚT MỘT MẶT
+HÀNG khỏi phiên bản mới"*).
 
 **Tính toán** — sửa công thức tỷ lệ chiết khấu · giá bán lẻ niêm yết chính là Giá bán Công ty ·
 CPBH là số tiền VNĐ · tỷ lệ theo phần trăm làm tròn hai chữ số · ngưỡng lấy từ bảng Chiết khấu quy

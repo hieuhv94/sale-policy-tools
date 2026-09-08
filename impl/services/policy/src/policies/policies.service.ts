@@ -4,7 +4,9 @@
  * Ba luật khó nhất nằm ở đây và đều dễ làm sai:
  *   1. Mỗi khách hàng đúng MỘT CSBH hiệu lực, và hiệu lực chỉ chuyển ngay lúc
  *      tiếp nhận L2 — trong CÙNG một transaction với việc vô hiệu bản cũ.
- *   2. Phiên bản mới phải chứa lại TOÀN BỘ sản phẩm của bản đang hiệu lực.
+ *   2. Rút một mặt hàng khỏi phiên bản mới là XOÁ MỀM: dòng nằm lại dưới nhãn
+ *      *Đã xoá* cho người duyệt thấy, chỉ xoá hẳn lúc hồ sơ có hiệu lực (`0186`,
+ *      đảo POL-08 vốn cấm hẳn).
  *   3. Giá và ngưỡng ĐÓNG BĂNG vào dòng hồ sơ lúc lập, không tra lại về sau.
  */
 import {
@@ -463,12 +465,58 @@ export const SQL_DONG_KHAC_BAN_TRUOC = `
     OR l.note            IS DISTINCT FROM truoc.note
   )`;
 
+/**
+ * *Đã xoá* THẮNG cả ba trạng thái kia (`0186`).
+ *
+ * Một dòng đã rút vẫn là dòng *Đang áp dụng* hay *Chỉnh sửa* xét theo phép so
+ * với bản trước — cả hai câu đều đúng, nhưng chỉ một câu đáng nói với người
+ * đang duyệt: mặt hàng này SẮP BIẾN MẤT khỏi chính sách của khách hàng. Nên
+ * nhánh này đứng trước, và ba nhánh của `0180` chỉ trả lời cho dòng còn sống.
+ *
+ * Đây cũng là lý do nhánh ấy đọc `l.da_xoa` chứ không đọc một phép so nào: xem
+ * `0117_dong_da_xoa.sql` về việc vì sao *Đã xoá* là một cột trong khi ba trạng
+ * thái kia là dẫn xuất.
+ */
 export const SQL_TRANG_THAI_DONG = `
   CASE
+    WHEN l.da_xoa THEN 'DA_XOA'
     WHEN truoc.id IS NULL THEN 'BO_SUNG'
     WHEN ${SQL_DONG_KHAC_BAN_TRUOC} THEN 'CHINH_SUA'
     ELSE 'DANG_AP_DUNG'
   END`;
+
+/**
+ * Dòng THỪA KẾ — có mặt ở bản bị thay thế, bất kể TDV đã sửa nó hay chưa.
+ *
+ * Đây là điều kiện quyết định xoá MỀM hay xoá HẲN, và nó KHÔNG phải
+ * `trang_thai = 'DANG_AP_DUNG'` dù khách hàng viết đúng chữ ấy. Lý do ở mục
+ * đích của luật: dòng nằm lại bảng là để người duyệt thấy khách hàng đang mất
+ * mặt hàng nào. Một dòng *Chỉnh sửa* cũng đến từ bản trước, nên rút nó cũng lấy
+ * đi một mặt hàng của khách — đọc theo nghĩa đen thì nó xoá sạch không dấu vết,
+ * và tệ hơn: sửa một dòng rồi mới xoá trở thành đường vòng qua chính phép canh
+ * này. Dòng *Bổ sung* thì ngược lại — nó chưa bao giờ thuộc về khách hàng, nên
+ * xoá hẳn là đúng và để lại một dòng mờ *"đã rút thứ chưa từng có"* chỉ làm
+ * bảng dài thêm.
+ */
+export const SQL_DONG_THUA_KE = `truoc.id IS NOT NULL`;
+
+/**
+ * Cột *Tỷ lệ CK cũ* — MỘT biểu thức cho cả hai bảng (`0186`).
+ *
+ * `0180` viết nó hai lần, một bản ở đường đọc của giao diện và một bản ở
+ * `internal.controller`, ngay dưới hai chú thích cùng nói rằng hai bảng phải
+ * nói cùng một câu. Lượt này thêm một vế vào luật ấy — dòng đã rút thì không
+ * mang tỷ lệ cũ — nên hai bản chép sẽ phải sửa hai chỗ giống hệt nhau, đúng
+ * hình dạng lỗi mà `SQL_TRANG_THAI_DONG` sinh ra để tránh. Gom lại.
+ *
+ * `NOT l.da_xoa`: luật đã ghi là *"chỉ dòng **Chỉnh sửa** mới có tỷ lệ cũ"*, mà
+ * dòng đã rút mang trạng thái *Đã xoá* chứ không phải *Chỉnh sửa*. Bỏ vế này
+ * thì một dòng vừa bị sửa vừa bị rút hiện ra với nhãn *Đã xoá* kèm một cột đối
+ * chiếu chỉ có nghĩa cho dòng còn sống.
+ */
+export const SQL_TY_LE_CK_TRUOC = `
+  CASE WHEN NOT l.da_xoa AND ${SQL_DONG_KHAC_BAN_TRUOC}
+       THEN truoc.discount_rate::text END`;
 
 /**
  * Nối sang dòng CÙNG SẢN PHẨM của bản bị thay thế.
@@ -881,10 +929,31 @@ export class PoliciesService {
     const p = await this.mustEdit(policyId, me);
     const customer = await this.clients.customer(p.customer_id);
     return this.db.tx(async (c) => {
-      const dup = await c.query(
-        `SELECT 1 FROM pol.policy_line WHERE policy_id = $1 AND product_id = $2`,
+      const dup = await c.query<{ da_xoa: boolean }>(
+        `SELECT da_xoa FROM pol.policy_line WHERE policy_id = $1 AND product_id = $2`,
         [policyId, line.productId],
       );
+      /*
+       * HAI MÃ LỖI, vì hai tình huống và hai việc phải làm (`0186`).
+       *
+       * Dòng đã rút vẫn CHIẾM chỗ sản phẩm của nó (`uq_policy_line_product` giữ
+       * nguyên), nên thêm lại bằng đường này va vào đúng phép canh trùng — và
+       * câu *"sản phẩm này đã có trong hồ sơ"* lúc ấy đọc như một lời nói dối:
+       * người dùng vừa nhìn thấy nó nằm đó, mờ đi, dưới nhãn *Đã xoá*.
+       *
+       * Không biến lượt này thành khôi phục ngầm: `addLine` mang theo giá bán
+       * buôn và CPBH mới gõ, nên "ghi đè cho tiện" sẽ âm thầm bỏ đúng những con
+       * số của dòng cũ mà nút *Thêm lại* sinh ra để giữ. Chỉ đường sang nút ấy —
+       * cùng lý do `0027` tách `updateLine` khỏi `addLine`.
+       */
+      if (dup.rows[0]?.da_xoa === true) {
+        throw new ConflictException({
+          code: 'PRODUCT_LINE_DELETED',
+          message:
+            'Sản phẩm này đang nằm trong hồ sơ ở trạng thái Đã xoá. ' +
+            'Bấm Thêm lại ngay trên dòng đó để đưa nó trở lại.',
+        });
+      }
       if ((dup.rowCount ?? 0) > 0) {
         throw new ConflictException({
           code: 'DUPLICATE_PRODUCT',
@@ -972,17 +1041,93 @@ export class PoliciesService {
     });
   }
 
+  /**
+   * Rút một mặt hàng khỏi phiên bản đang soạn (`0186`).
+   *
+   * HAI KẾT CỤC, hệ thống chọn theo dòng chứ không hỏi người dùng — cùng lối
+   * với `remove()` ở ngay dưới:
+   *
+   *   * **Dòng thừa kế** (có ở bản bị thay thế) → `da_xoa = true`. Dòng nằm lại
+   *     bảng, làm mờ, mang nhãn *Đã xoá*, và đi cùng hồ sơ suốt luồng duyệt để
+   *     người duyệt thấy khách hàng đang mất mặt hàng nào. Xoá hẳn ở bước cuối,
+   *     khi hồ sơ sang *Đang có hiệu lực* — xem `workflow.service.ts`.
+   *   * **Dòng *Bổ sung*** → `DELETE`. Mặt hàng chưa bao giờ thuộc về khách
+   *     hàng này, nên không có gì để cho ai xem; để lại một dòng mờ chỉ làm
+   *     bảng dài thêm bằng một thông tin không ai dùng.
+   *
+   * Điều kiện là `SQL_DONG_THUA_KE`, KHÔNG phải *"trạng thái đang áp dụng"* —
+   * xem chú thích của hằng ấy về việc vì sao chỗ này đọc khác chữ khách hàng
+   * viết.
+   *
+   * Xoá một dòng đã xoá là `LINE_NOT_FOUND`: nút Xoá không hiện trên dòng mờ,
+   * nên lượt gọi ấy chỉ đến từ một màn hình cũ hoặc một lượt gọi tay, và trả
+   * `200` cho nó là nói rằng vừa có việc gì đó xảy ra.
+   */
   async removeLine(policyId: string, lineId: string, me: AuthUser) {
     const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {
-      await c.query(`DELETE FROM pol.policy_line WHERE id = $1 AND policy_id = $2`, [
-        lineId,
-        policyId,
-      ]);
+      const dong = await c.query<{ thua_ke: boolean }>(
+        `SELECT ${SQL_DONG_THUA_KE} AS thua_ke
+           FROM pol.policy_line l
+           ${SQL_NOI_BAN_TRUOC}
+          WHERE l.id = $2 AND l.policy_id = $1 AND NOT l.da_xoa`,
+        [policyId, lineId],
+      );
+      if (dong.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
+
+      await c.query(
+        dong.rows[0]!.thua_ke
+          ? `UPDATE pol.policy_line SET da_xoa = true WHERE id = $1 AND policy_id = $2`
+          : `DELETE FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
+        [lineId, policyId],
+      );
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p),
         change: 'LINE_REMOVED',
+        lineId,
+        actorId: me.id,
+        at: new Date().toISOString(),
+      });
+      return this.load(policyId, c);
+    });
+  }
+
+  /**
+   * THÊM LẠI một dòng đã rút (`0186`).
+   *
+   * Khách hàng chốt: *"ở trạng thái Nháp hoặc Yêu cầu chỉnh sửa cho phép thêm
+   * lại dòng sản phẩm đã xoá"*. Hai trạng thái ấy đúng bằng `SUA_DUOC`, nên
+   * `mustEdit` đã là phép canh — không khai lại một danh sách trạng thái thứ
+   * hai ở đây, vì hai danh sách là hai danh sách sẽ lệch.
+   *
+   * KHÔNG hỏi lại danh mục, và đó là cả điểm của việc khôi phục đúng DÒNG CŨ
+   * thay vì thêm một dòng mới: mặt hàng có thể đã vô hiệu hoá trong danh mục —
+   * thường thì đó chính là lý do TDV vừa rút nó — và đường thêm mới chặn ở
+   * `PRODUCT_DISABLED`. Không có đường này thì một lượt bấm nhầm Xoá là không
+   * lùi lại được, kể cả khi hồ sơ còn nguyên trong tay người lập.
+   *
+   * Dòng quay lại NGUYÊN SỐ CŨ. Khôi phục là hoàn tác lượt XOÁ, không phải hoàn
+   * tác những lượt sửa trước đó: một dòng đã sửa rồi bị rút thì thêm lại phải
+   * mang đúng con số TDV đã gõ, nếu không thì nút này âm thầm làm hai việc.
+   * `lamMoiDong` chụp lại giá và ngưỡng ở lượt đọc kế tiếp như mọi dòng khác —
+   * hoặc báo `STALE_LINE` lúc gửi duyệt nếu mặt hàng đã vô hiệu hoá, đúng câu
+   * trả lời cho *"tôi vừa thêm lại một thứ không còn bán"*.
+   */
+  async khoiPhucDong(policyId: string, lineId: string, me: AuthUser) {
+    const p = await this.mustEdit(policyId, me);
+    return this.db.tx(async (c) => {
+      const r = await c.query(
+        `UPDATE pol.policy_line SET da_xoa = false
+          WHERE id = $1 AND policy_id = $2 AND da_xoa`,
+        [lineId, policyId],
+      );
+      if (r.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
+
+      await this.bumpVersion(c, policyId);
+      await emit(c, 'policy.updated', {
+        ...evtCtx(p),
+        change: 'LINE_RESTORED',
         lineId,
         actorId: me.id,
         at: new Date().toISOString(),
@@ -1032,8 +1177,23 @@ export class PoliciesService {
       product_code_snap: string;
       ngay_ap_dung: Date;
     }>(
+      /*
+       * DÒNG ĐÃ RÚT KHÔNG LÀM MỚI VÀ KHÔNG CHẶN GỬI DUYỆT (`0186`).
+       *
+       * Đây là chỗ bế tắc của khách hàng tan ra. Mặt hàng bị vô hiệu hoá trong
+       * danh mục làm dòng thừa kế của nó thành `hong`, `hong` thành `STALE_LINE`
+       * lúc gửi duyệt, và câu lỗi bảo *"xoá sản phẩm đó rồi gửi lại"* — trong
+       * khi `POL-08` lại chặn đúng lượt xoá ấy. Hai chốt chặn cấm nhau, hồ sơ
+       * chết hẳn ở Nháp.
+       *
+       * `0186` gỡ `POL-08`, nên xoá là làm được. Nhưng chỉ thế thì vẫn kẹt: dòng
+       * đã rút VẪN NẰM LẠI bảng, nên nó vẫn đi qua đây và vẫn thành `hong`. Một
+       * dòng sắp biến mất khỏi hồ sơ thì không có con số nào của nó cần đúng —
+       * hỏi danh mục về nó là hỏi một câu không dùng để làm gì, rồi chặn người
+       * lập bằng chính câu trả lời.
+       */
       `SELECT product_id, product_code_snap, ngay_ap_dung
-         FROM pol.policy_line WHERE policy_id = $1`,
+         FROM pol.policy_line WHERE policy_id = $1 AND NOT da_xoa`,
       [policyId],
     );
     if (dong.rowCount === 0) return [];
@@ -1850,10 +2010,13 @@ export class PoliciesService {
               ${SQL_TRANG_THAI_DONG} AS "trangThai",
               -- Tỷ lệ CK ở bản trước, CHỈ cho dòng đã bị sửa — xem
               -- SQL_TRANG_THAI_DONG về việc vì sao luật này nằm ở máy chủ.
-              CASE WHEN ${SQL_DONG_KHAC_BAN_TRUOC}
-                   THEN truoc.discount_rate::text END AS "discountRateTruoc"
+              ${SQL_TY_LE_CK_TRUOC} AS "discountRateTruoc"
          FROM pol.policy_line l
          ${SQL_NOI_BAN_TRUOC}
+        -- 0186 — dòng ĐÃ XOÁ VẪN TRẢ VỀ ở đường này, và chỉ ở đường này.
+        -- Màn hình hồ sơ là chỗ duy nhất phải bày chúng ra (làm mờ, nhãn *Đã
+        -- xoá*), vì nó là chỗ người duyệt nhìn thấy mặt hàng đang bị rút. Mọi
+        -- đường đọc khác lọc chúng đi — xem internal.controller.
         WHERE l.policy_id = $1 ORDER BY l.product_code_snap`,
       [policyId],
     )) as Record<string, unknown>[];
@@ -2113,32 +2276,23 @@ export class PoliciesService {
     }
   }
 
-  /**
-   * Phiên bản mới phải chứa lại TOÀN BỘ sản phẩm của bản đang hiệu lực (POL-08).
+  /*
+   * `assertNoMissingInheritedProduct` GỠ HẲN ở `0186` (POL-08 đảo, chốt 08/09).
    *
-   * Kiểm lúc GỬI DUYỆT chứ không lúc lập: người dùng cần được phép xoá nhầm rồi
-   * thêm lại trong lúc còn nháp.
+   * Nó đòi tập sản phẩm của phiên bản mới CHỨA tập của bản đang hiệu lực, và
+   * chặn lúc gửi duyệt. Khách hàng bỏ luật ấy: rút một mặt hàng khỏi CSBH của
+   * một khách là một nghiệp vụ có thật, và tới `0186` nó mới có đường đi.
+   *
+   * Không xoá lặng lẽ mà ghi lại, vì luật này KHÔNG tuỳ tiện — nó là hệ quả của
+   * ba câu ở `muc 5`: mỗi khách một CSBH hiệu lực, bản mới duyệt xong thì bản cũ
+   * vô hiệu TOÀN BỘ, hiệu lực quản lý ở cấp hồ sơ chứ không cấp dòng. Cộng lại:
+   * một mặt hàng vắng mặt ở bản mới không rơi về bản cũ, nó rơi ra khỏi mọi
+   * CSBH. Nên phép chặn tồn tại để chuyện ấy không xảy ra do SƠ Ý.
+   *
+   * Thứ thay thế nó không phải "bỏ chặn" mà là **làm cho việc rút nhìn thấy
+   * được**: dòng bị rút nằm lại bảng dưới nhãn *Đã xoá* suốt luồng duyệt, nên
+   * bốn bàn duyệt ký vào một tờ có nói ra mặt hàng nào đang mất. Bỏ chốt mà
+   * không có dòng mờ ấy thì đúng là dựng lại cái hỏng mà `POL-08` sinh ra để
+   * chống — xem `0117_dong_da_xoa.sql`.
    */
-  async assertNoMissingInheritedProduct(policyId: string): Promise<void> {
-    const p = await this.db.one<PolicyRow>(`SELECT * FROM pol.policy WHERE id = $1`, [policyId]);
-    if (!p?.supersedes_id) return;
-
-    const missing = await this.db.q<{ product_code_snap: string }>(
-      `SELECT old.product_code_snap
-         FROM pol.policy_line old
-        WHERE old.policy_id = $1
-          AND NOT EXISTS (SELECT 1 FROM pol.policy_line cur
-                           WHERE cur.policy_id = $2 AND cur.product_id = old.product_id)`,
-      [p.supersedes_id, policyId],
-    );
-    if (missing.length > 0) {
-      throw new UnprocessableEntityException({
-        code: 'MISSING_INHERITED_PRODUCT',
-        missing: missing.map((m) => m.product_code_snap),
-        message:
-          'Phiên bản mới phải chứa lại toàn bộ sản phẩm của CSBH đang hiệu lực. ' +
-          `Còn thiếu: ${missing.map((m) => m.product_code_snap).join(', ')}`,
-      });
-    }
-  }
 }

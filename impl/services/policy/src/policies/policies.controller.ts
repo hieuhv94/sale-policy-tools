@@ -266,6 +266,31 @@ export class PoliciesController {
     return this.policies.removeLine(id, lineId, me);
   }
 
+  /**
+   * THÊM LẠI một dòng đã rút (`0186`).
+   *
+   * `POST` chứ không `PATCH .../lines/:lineId`: đường `PATCH` nhận nguyên nội
+   * dung một dòng và vắng mặt một trường ở đó CÓ NGHĨA (`cpbh`, `note` là xoá).
+   * Nhét thêm một cờ `daXoa` vào đấy là để cùng một lượt gọi vừa khôi phục vừa
+   * ghi đè bốn con số — đúng thứ `khoiPhucDong` phải không làm.
+   *
+   * Không có thân yêu cầu, nên không có gì để `validate`: khôi phục là một
+   * ĐỘNG TÁC, mọi dữ liệu của dòng đã nằm sẵn trong CSDL.
+   *
+   * `@Roles('TDV')` đứng ngay trên phương thức của nó — xem bẫy decorator ghi ở
+   * `removeLine` ngay trên, và SEC-13 canh chuyện ấy cho cả mười service.
+   */
+  @Roles('TDV')
+  @Post(':id/lines/:lineId/khoi-phuc')
+  @HttpCode(200)
+  khoiPhucDong(
+    @CurrentUser() me: AuthUser,
+    @Param('id') id: string,
+    @Param('lineId') lineId: string,
+  ) {
+    return this.policies.khoiPhucDong(id, lineId, me);
+  }
+
   /*
    * `PATCH /policies/:id` GỠ HẲN ở `0180`.
    *

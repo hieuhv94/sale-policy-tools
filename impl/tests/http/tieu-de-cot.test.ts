@@ -182,13 +182,22 @@ describe('`0180` nhãn trạng thái dòng khớp giữa màn hình và bản m�
     }
   });
 
-  it('ba trạng thái, đúng ba — không nhiều hơn, không ít hơn', () => {
-    // Khách hàng chốt BA: *Bổ sung* · *Chỉnh sửa* · *Đang áp dụng*. Thêm một
-    // trạng thái thứ tư là một quyết định nghiệp vụ, không phải một lượt sửa mã.
+  it('bốn trạng thái, đúng bốn — không nhiều hơn, không ít hơn', () => {
+    /*
+     * `0180` chốt BA (*Bổ sung* · *Chỉnh sửa* · *Đang áp dụng*) và ca này ghi
+     * rằng thêm một trạng thái thứ tư là một quyết định NGHIỆP VỤ, không phải
+     * một lượt sửa mã. Quyết định ấy đã được đưa ra: khách hàng chốt 08/09 rằng
+     * mặt hàng bị rút khỏi phiên bản mới nằm lại bảng dưới nhãn *Đã xoá*
+     * (`0186`).
+     *
+     * Nên con số đổi từ ba thành bốn, và câu chuyện ca này kể vẫn nguyên: danh
+     * sách được ghim, và lượt thêm thứ năm cũng sẽ phải đi qua đây.
+     */
     expect(Object.keys(NHAN_TRANG_THAI_DONG).sort()).toEqual([
       'BO_SUNG',
       'CHINH_SUA',
       'DANG_AP_DUNG',
+      'DA_XOA',
     ]);
   });
 

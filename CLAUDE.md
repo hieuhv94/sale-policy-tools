@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 67 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 68 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -87,7 +87,30 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P213** (`0185`): **Hoàn duyệt — Trưởng bộ phận rút lại chữ ký của chính mình**, đưa
+Chặng gần nhất **P214** (`0186`): **rút một mặt hàng khỏi phiên bản mới** — trạng thái dòng thứ TƯ
+*Đã xoá*, và POL-08 bị **đảo hẳn**. Chặng bắt đầu từ một **bế tắc có thật**: mặt hàng bị vô hiệu hoá
+trong danh mục làm dòng thừa kế thành `STALE_LINE`, mà câu lỗi của chính nó bảo *"xoá sản phẩm đó rồi
+gửi lại"* — và `MISSING_INHERITED_PRODUCT` chặn đúng lượt xoá ấy. Hai chốt cách nhau **53 dòng trong
+cùng một hàm**, cấm nhau tuyệt đối, hồ sơ chết hẳn ở *Nháp*. **Bỏ POL-08 một mình là sai**: nó là hệ
+quả của ba câu ở `muc 5` (một CSBH hiệu lực · bản mới vô hiệu bản cũ TOÀN BỘ · hiệu lực ở cấp hồ sơ),
+nên mặt hàng vắng mặt ở bản mới **không rơi về bản cũ** mà rơi khỏi mọi CSBH — một quyền lợi bị thu
+hồi lặng lẽ. Thứ thay nó là **làm cho việc rút nhìn thấy được**: dòng nằm lại, làm mờ, đi hết luồng
+duyệt, xoá hẳn ở `DANG_CO_HIEU_LUC`. **`da_xoa` là CỘT trong khi ba trạng thái kia là dẫn xuất** —
+nó là một Ý ĐỊNH, không phải một phép so, và không vế thứ hai nào trong CSDL trả lời được nó.
+`uq_policy_line_product` **giữ**, nên *thêm lại* khôi phục đúng dòng cũ — đường DUY NHẤT đưa về một
+mặt hàng đã vô hiệu hoá. Đọc theo MỤC ĐÍCH một chỗ (đã nêu giả định): điều kiện là **dòng THỪA KẾ**,
+không phải chữ *"đang áp dụng"* khách hàng viết — dòng *Chỉnh sửa* cũng đến từ bản trước, và đọc
+nghĩa đen biến *sửa rồi mới xoá* thành đường vòng qua chính phép canh này. **Xoá hẳn ở bước có hiệu
+lực là bắt buộc**: `create` chép dòng của bản đang hiệu lực, giữ lại là mặt hàng **mọc lại** ở bản
+sau mãi mãi. Lọc ở **đúng một cửa** (`internal.controller`) nên bản mềm · hợp đồng · read-model đều
+thôi thấy mà không service nào biết cột ấy tồn tại; đường đọc giao diện thì NGƯỢC LẠI. **PHÁ LẠI XANH
+là phát hiện của cả chặng**: dựng lại POL-08 **y như cũ** → 10 xanh, vì `NOT EXISTS` vẫn khớp dòng
+xoá mềm — **nó đã thành câu lệnh rỗng ngay khi xoá mềm ra đời**; viết đúng cho `0186` (`AND NOT
+cur.da_xoa`) thì 3 đỏ. Hai câu đầu của khách hàng **không độc lập**. Ba ca phải THAY chứ không sửa
+số, trong đó `0124` quét mã nguồn đỏ **mà không có gì hỏng** → chuyển sang đọc DOM. Bẫy **backtick
+trong template literal lần thứ BA**. **2078/2078 xanh.**
+
+Trước đó **P213** (`0185`): **Hoàn duyệt — Trưởng bộ phận rút lại chữ ký của chính mình**, đưa
 hồ sơ về *Yêu cầu chỉnh sửa*. Danh sách trừ của khách hàng bỏ sót ba trạng thái, và **mệnh đề mở đầu
 trả lời hộ**: *"những CSBH đang trong luồng duyệt"* cắt nốt `HET_HIEU_LUC`, `QUA_HAN_DUYET`, `DA_XOA`
 — hai câu ghép lại ra **đúng ba** trạng thái (`CHO_KT_L1` · `SA_DANG_XU_LY` · `CHO_KT_L2`). Chỗ nặng

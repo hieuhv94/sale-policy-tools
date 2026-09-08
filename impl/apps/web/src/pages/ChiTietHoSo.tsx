@@ -206,6 +206,31 @@ export function ChiTietHoSo({ id }: { id: string }) {
     }
   };
 
+  /**
+   * THÊM LẠI một dòng đã rút (`0186`).
+   *
+   * KHÔNG hỏi xác nhận, ngược với `xoaDong`: hộp xác nhận có mặt vì xoá là thứ
+   * người dùng không lùi lại được dễ dàng, còn đây CHÍNH LÀ nút lùi lại. Bắt xác
+   * nhận một thao tác hoàn tác là bắt trả lời hai lần cho một lần bấm nhầm.
+   *
+   * Dùng lại `dangXoaDong` làm cờ "dòng này đang có việc chạy": hai thao tác
+   * không bao giờ cùng chạy trên một dòng — dòng đã rút không có nút Xoá, dòng
+   * còn sống không có nút Thêm lại — nên một cờ là đủ, và hai cờ là hai chỗ phải
+   * nhớ dọn.
+   */
+  const themLaiDong = async (lineId: string) => {
+    datLoi(null);
+    datDangXoaDong(lineId);
+    try {
+      await dang(`/policies/${id}/lines/${lineId}/khoi-phuc`);
+      taiLai();
+    } catch (e) {
+      bao(e);
+    } finally {
+      datDangXoaDong(null);
+    }
+  };
+
   /** Hộp *Xem bản mềm* đang mở hay không (`0054`). */
   const [moBanMem, datMoBanMem] = useState(false);
   /**
@@ -461,7 +486,16 @@ export function ChiTietHoSo({ id }: { id: string }) {
       <BangSanPham
         dong={hoSo.lines}
         {...(dangSua
-          ? { xoaDong: datXoaDongId, suaDong: datSuaDongCu, dangXoa: dangXoaDong }
+          ? {
+              xoaDong: datXoaDongId,
+              suaDong: datSuaDongCu,
+              // `0186` — đi CÙNG BỘ với hai prop trên, không gác thêm điều kiện
+              // nào: `dangSua` đã đúng bằng hai trạng thái khách hàng chốt cho
+              // phép thêm lại (Nháp · Yêu cầu chỉnh sửa), và `mustEdit` bên máy
+              // chủ canh lại chính hai trạng thái ấy.
+              themLaiDong: (lineId: string) => void themLaiDong(lineId),
+              dangXoa: dangXoaDong,
+            }
           : {})}
       />
 

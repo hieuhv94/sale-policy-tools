@@ -519,3 +519,100 @@ describe('0027 cột Ghi chú của dòng sản phẩm', () => {
     expect(within(the2).getByText('Đóng thùng 12')).toBeDefined();
   });
 });
+
+/**
+ * `0186` — DÒNG ĐÃ RÚT: làm mờ, còn đọc được, và chỉ còn một nút.
+ *
+ * Khách hàng chốt 08/09: xoá một mặt hàng thừa kế thì dòng *"chưa bị xoá khỏi
+ * bảng ngay, mà chỉ bị làm mờ và chuyển sang trạng thái đã xoá"*.
+ *
+ * Ba ca dưới đây canh ba vế KHÁC NHAU của cùng một yêu cầu, và bỏ vế nào thì
+ * hai vế kia vẫn xanh với đúng thứ đang hỏng: dòng phải CÒN ĐÓ, phải MANG DẤU
+ * nhìn thấy được, và phải đổi hẳn dải nút — bày *Xoá* trên một dòng đã xoá là
+ * bày một cái nút chỉ để nhận về `LINE_NOT_FOUND`.
+ */
+describe('`0186` dòng sản phẩm đã rút khỏi phiên bản mới', () => {
+  const daXoa = dong({ id: 'd2', productId: 'sp-2', productCode: 'SP-02', trangThai: 'DA_XOA' });
+  const conSong = dong({ trangThai: 'DANG_AP_DUNG' });
+
+  it('vẫn nằm trong bảng và vẫn đọc được mọi con số của nó', () => {
+    render(<BangSanPham dong={[conSong, daXoa]} />);
+    const bang = screen.getByRole('table');
+    // Không phải "có mặt trong DOM" — phải là một HÀNG của bảng, cạnh dòng kia.
+    expect(within(bang).getByText('SP-02')).toBeDefined();
+    expect(within(bang).getAllByText('Đã xoá').length).toBeGreaterThan(0);
+  });
+
+  it('mang lớp làm mờ, và CHỈ dòng ấy', () => {
+    render(<BangSanPham dong={[conSong, daXoa]} />);
+    const hang = screen
+      .getAllByRole('row')
+      .filter((r) => r.classList.contains('dong-da-xoa'));
+    expect(hang).toHaveLength(1);
+    expect(within(hang[0] as HTMLElement).getByText('SP-02')).toBeDefined();
+  });
+
+  it('bày *Thêm lại* thay cho *Sửa* và *Xoá*', async () => {
+    const themLai = vi.fn();
+    const xoa = vi.fn();
+    render(
+      <BangSanPham
+        dong={[conSong, daXoa]}
+        xoaDong={xoa}
+        suaDong={vi.fn()}
+        themLaiDong={themLai}
+      />,
+    );
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => r.classList.contains('dong-da-xoa')) as HTMLElement;
+
+    expect(within(hang).queryByRole('button', { name: 'Xoá' })).toBeNull();
+    expect(within(hang).queryByRole('button', { name: 'Sửa' })).toBeNull();
+    await userEvent.click(within(hang).getByRole('button', { name: 'Thêm lại' }));
+    expect(themLai).toHaveBeenCalledWith('d2');
+    expect(xoa).not.toHaveBeenCalled();
+  });
+
+  it('dòng CÒN SỐNG không đổi gì — vẫn Sửa và Xoá', () => {
+    render(
+      <BangSanPham
+        dong={[conSong, daXoa]}
+        xoaDong={vi.fn()}
+        suaDong={vi.fn()}
+        themLaiDong={vi.fn()}
+      />,
+    );
+    const hang = screen
+      .getAllByRole('row')
+      .find((r) => within(r).queryByText('SP-01') !== null && r.tagName === 'TR') as HTMLElement;
+    expect(within(hang).getByRole('button', { name: 'Xoá' })).toBeDefined();
+    expect(within(hang).queryByRole('button', { name: 'Thêm lại' })).toBeNull();
+  });
+});
+
+/**
+ * `0124` — dải nút trong Ô BẢNG mang `.nhom-nut-hang`, ngoài bảng thì không.
+ *
+ * Ca này THAY phép quét mã nguồn ở `tests/web/nguon-giao-dien.test.ts` (`0186`):
+ * lớp giờ do một biểu thức chọn ra nên không còn thuộc tính `className="…"` nào
+ * để tìm, và quan trọng hơn — đọc DOM trả lời đúng câu hỏi ấy dù lớp được ghép
+ * bằng cách nào.
+ *
+ * Vế NGƯỢC LẠI đi kèm và nó chính là điều `0124` chốt: `.nhom-nut-gon` dùng
+ * chung với danh sách thẻ trên điện thoại, nơi xuống dòng là hành vi ĐÚNG, nên
+ * lớp cấm-xuống-dòng chỉ được có mặt ở vế bảng.
+ */
+describe('`0124` lớp cấm xuống dòng chỉ ở dải nút trong ô bảng', () => {
+  it('ô bảng có, thẻ điện thoại không', () => {
+    render(<BangSanPham dong={[dong()]} xoaDong={vi.fn()} suaDong={vi.fn()} />);
+
+    const oBang = document.querySelector('.bang-san-pham .nhom-nut') as HTMLElement;
+    expect(oBang, 'không dựng ra dải nút nào trong bảng').not.toBeNull();
+    expect(oBang.classList.contains('nhom-nut-hang')).toBe(true);
+
+    const the = document.querySelector('.the-san-pham .nhom-nut') as HTMLElement;
+    expect(the, 'không dựng ra dải nút nào trong thẻ').not.toBeNull();
+    expect(the.classList.contains('nhom-nut-hang')).toBe(false);
+  });
+});

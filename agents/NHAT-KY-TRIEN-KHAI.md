@@ -16223,3 +16223,145 @@ không gì đỏ.
 | Bỏ dòng `TBP_RECALL` khỏi `RECIPIENTS` | **1 đỏ** ở ca thư mới — và không ca nào khác |
 
 **2063/2063 xanh.**
+
+---
+
+## P214 — `0186` Rút một mặt hàng khỏi phiên bản mới: trạng thái dòng *Đã xoá*
+
+Khách hàng gửi bốn câu, thực hiện lần lượt: cho xoá một sản phẩm ra khỏi CSBH của phiên bản trước
+mà không cần đủ mọi sản phẩm cũ · xoá một dòng *đang áp dụng* thì dòng chưa mất ngay mà **làm mờ** và
+chuyển sang trạng thái *đã xoá*, chỉ xoá hẳn khi hồ sơ sang *Đang có hiệu lực* · bản mềm không hiện
+dòng đã xoá · ở *Nháp* và *Yêu cầu chỉnh sửa* thì **thêm lại được**.
+
+### Chặng này bắt đầu từ một bế tắc, không từ một tính năng
+
+Người dùng báo `MISSING_INHERITED_PRODUCT` — *"Còn thiếu: NC-CAN-400"* — kèm câu quan trọng nhất:
+*"nếu không xoá thì hệ thống lại báo lỗi không thấy giá của sản phẩm này"*. Dựng lại trong mã thì hai
+chốt chặn nằm cách nhau **53 dòng trong cùng một hàm** và cấm nhau tuyệt đối:
+
+| Người dùng làm | Chốt nổ |
+|---|---|
+| **Giữ** dòng NC-CAN-400 | `STALE_LINE` — `lamMoiDong` không tra được giá hiện hành của mặt hàng đã vô hiệu hoá |
+| **Xoá** dòng NC-CAN-400 | `MISSING_INHERITED_PRODUCT` — POL-08 |
+
+Và câu lỗi của `STALE_LINE` **chỉ thẳng vào cái bẫy**: *"Xoá sản phẩm đó hoặc đổi ngày áp dụng rồi
+gửi lại."* Làm theo đúng câu ấy là rơi vào chốt kia. Bốn đường thoát đều bịt kín: thêm lại thì
+`PRODUCT_DISABLED`; ô chọn đã lọc sẵn `forNewPolicy`; đổi ngày không đụng tới phép kiểm trạng thái;
+và dòng ấy **do chính `create` chép vào**, không phải người lập đưa vào. Hồ sơ chết hẳn ở *Nháp* —
+Quản trị cũng chỉ chữa được bằng cách *bán lại* mặt hàng, tức huỷ một quyết định kinh doanh để phần
+mềm chịu chạy.
+
+### Vì sao bỏ POL-08 một mình là sai, và đó là toàn bộ hình dạng của bản sửa
+
+POL-08 không tuỳ tiện. Nó là **hệ quả bắt buộc** của ba câu ở `muc 5`: mỗi khách **một** CSBH hiệu
+lực · bản mới duyệt xong thì bản cũ vô hiệu **toàn bộ** · hiệu lực quản lý ở **cấp hồ sơ**. Cộng lại:
+một mặt hàng vắng mặt ở bản mới **không rơi về bản cũ**, nó rơi ra khỏi mọi CSBH. Xoá một dòng không
+phải *không nhắc tới nó* — đó là một lệnh **thu hồi quyền lợi, thi hành lặng lẽ**. Lược đồ nói cùng
+một điều: `pol.policy_line` có mười bảy cột và **không cột trạng thái/hiệu lực nào**; câu *"mặt hàng
+này vẫn hưởng theo bản trước"* không có ô nào để viết vào.
+
+Nên thứ thay cho phép chặn không phải là bỏ chặn, mà là **làm cho việc rút nhìn thấy được**. Đó là
+điều khách hàng chốt ở câu thứ hai, và hai câu ấy phải đi cùng nhau.
+
+### Cột `da_xoa` — vì sao đây là cột, trong khi `0180` từ chối thêm cột
+
+`0180` dựng ba trạng thái dòng bằng phép so với bản bị thay thế và ghi rõ lý do không lưu: cả hai vế
+đã có sẵn trong CSDL. **`DA_XOA` không cùng loại.** Nó không phải một phép so — nó là một **ý định**
+người lập vừa phát biểu, và không vế thứ hai nào trong CSDL trả lời được câu *"người lập có chủ động
+rút mặt hàng này không"*. Một dòng vắng mặt và một dòng bị rút giống hệt nhau ở mọi phép so.
+
+`uq_policy_line_product` **giữ nguyên, và đó là một quyết định**: dòng đã xoá vẫn CHIẾM chỗ sản phẩm
+của nó, nhờ vậy *thêm lại* là khôi phục đúng dòng cũ với đúng số cũ. Với mặt hàng đã vô hiệu hoá —
+tức đúng ca sinh ra chặng này — đó là đường DUY NHẤT đưa nó về.
+
+### Đọc theo MỤC ĐÍCH ở một chỗ, và đã nêu giả định
+
+Khách hàng viết *"khi xóa một sản phẩm có trạng thái **đang áp dụng**"*. Đọc nghĩa đen thì dòng
+*Chỉnh sửa* — cũng đến từ bản trước — sẽ xoá sạch không dấu vết. Hai hệ quả: người duyệt không thấy
+mặt hàng bị lấy đi, và **sửa một dòng rồi mới xoá trở thành đường vòng qua chính phép canh này**. Nên
+điều kiện là `SQL_DONG_THUA_KE` (`truoc.id IS NOT NULL`), không phải `trang_thai = 'DANG_AP_DUNG'`.
+Dòng *Bổ sung* thì ngược lại — xoá hẳn, vì nó chưa bao giờ thuộc về khách hàng này.
+
+### Xoá hẳn ở bước có hiệu lực KHÔNG phải dọn dẹp cho gọn
+
+`create` chép nguyên dòng của bản đang hiệu lực sang phiên bản kế tiếp. Không xoá ở đó thì mặt hàng
+vừa rút **mọc lại** ở bản sau dưới dạng một dòng thừa kế bình thường, và người lập phải rút lại nó ở
+mọi phiên bản, mãi mãi. Gác bằng `setsEffectiveFrom` **một mình**, không kèm `before.supersedes_id`
+như khối vô hiệu bản cũ ngay trên: hồ sơ đầu tiên không thể có dòng đã rút, nên câu lệnh chỉ là một
+lượt xoá rỗng — buộc thêm điều kiện là gắn phép dọn vào một bất biến ở chỗ khác.
+
+### Một phép lọc, ở đúng một cửa
+
+*"Bản mềm cũng không hiện sản phẩm đã xoá"* thi hành ở `internal.controller` — cửa duy nhất
+`document` và `reporting` đọc được hồ sơ (AD-02). Lọc tại nguồn thì bản mềm, hợp đồng, read-model báo
+cáo và mọi biểu đồ dựng trên nó đều thôi thấy, **mà không service nào phải biết cột `da_xoa` tồn
+tại**. Lọc ở `document` thì `reporting` vẫn đếm mặt hàng đã rút vào bản mới, và không gì đỏ. Kéo theo
+`applied_date` (`min(ngay_ap_dung)`) cũng phải trừ dòng đã rút, và consumer rà danh mục cũng vậy —
+báo *"giá mặt hàng này vừa đổi"* về một mặt hàng đang bị rút là gọi người duyệt tới xử lý một việc
+không tồn tại.
+
+Đường đọc của **giao diện** thì NGƯỢC LẠI: nó là chỗ duy nhất phải bày chúng ra. Ca kiểm khẳng định
+cả hai vế trong một lượt — lọc nhầm ở cả hai đường là mất đúng thứ chặng này dựng ra.
+
+### PHÁ LẠI: một lượt xanh, và nó là phát hiện của cả chặng
+
+Dựng lại POL-08 **đúng như nó đã được viết** rồi chạy lại: **10 xanh, không một ca đỏ**. Lý do không
+phải ca kiểm yếu — mà là **POL-08 đã thành câu lệnh rỗng ngay khi xoá mềm ra đời**: `NOT EXISTS (…
+cur.product_id = old.product_id)` vẫn khớp dòng đã xoá mềm, vì dòng ấy còn nguyên trong bảng. Nó
+không thể nổ được nữa với bất kỳ dữ liệu nào.
+
+Viết lại POL-08 cho đúng thời `0186` (thêm `AND NOT cur.da_xoa`) thì **3 đỏ**, đúng ba ca của yêu cầu.
+
+Điều này nói ra một chuyện mà đọc mã sẽ không tự suy được: **hai câu đầu của khách hàng không độc
+lập.** Gỡ POL-08 một mình thì việc rút mặt hàng thành vô hình; làm xoá mềm một mình thì POL-08 **âm
+thầm thôi canh gì cả** trong khi vẫn nằm đó trông như một chốt chặn. Ai đó sau này "khôi phục
+POL-08 cho an toàn" sẽ thêm lại đúng một đoạn mã chết.
+
+### Ba ca kiểm phải THAY chứ không sửa số
+
+* `0180` *"XOÁ rồi THÊM LẠI cùng sản phẩm: vẫn nhận ra là Chỉnh sửa"* — `0186` **đóng đường đi** của
+  nó: `POST .../lines` cho cùng sản phẩm giờ trả `PRODUCT_LINE_DELETED`. Đổi 201 thành 409 sẽ giữ lại
+  một ca không còn nói gì về phép so nữa. Thay bằng ca hỏi thẳng tính chất ấy ở chỗ nó luôn đúng:
+  dòng thừa kế là một hàng MỚI (id khác), vẫn phải nối được về bản trước.
+* `0180` *"ba trạng thái, đúng ba — không nhiều hơn"* — ca ấy tự ghi rằng trạng thái thứ tư là một
+  **quyết định nghiệp vụ**. Quyết định đã được đưa ra; con số thành bốn và câu chuyện giữ nguyên.
+* `0124` *"vẫn còn chỗ dùng lớp `nhom-nut-hang`"* quét mã nguồn tìm `className="…"`, và đỏ **mà không
+  có gì hỏng**: dải nút tách thành `NutDong` vì nó mọc thêm nhánh *Thêm lại*, nên lớp do một biểu
+  thức chọn ra. Đường đúng không phải nới regex — ca ấy quét mã nguồn vì lúc `0124` chưa có chỗ nào
+  dựng DOM thật của bảng này. Giờ có, nên nó chuyển sang đọc DOM, kèm **vế ngược**: thẻ điện thoại
+  KHÔNG được mang lớp ấy (`.nhom-nut-gon` dùng chung, nơi xuống dòng là đúng).
+
+### Bẫy đã dính
+
+**Backtick trong template literal, lần thứ ba** — `CLAUDE.md` ghi hai lần rồi. Chú thích SQL nằm
+trong template literal mà viết `` `0186` `` là cắt đứt chuỗi: **9 lỗi cú pháp** ở những dòng chẳng
+liên quan, kèm một `TS1489 Decimals with leading zeros` cho chính con số `0186`.
+
+**Ca kiểm CSS thiếu, suýt lọt.** Ca DOM khẳng định hàng mang lớp `.dong-da-xoa` — nó xanh y hệt khi
+lớp ấy không được khai ở đâu cả, tức dòng bị rút trông giống hệt dòng thường trên màn hình người
+duyệt. Thêm ca đọc `app.css` canh **hai vế**: có luật làm mờ, **và** dải nút không mờ theo — nút
+*Thêm lại* là lối thoát của chính dòng ấy, một nút mờ đọc như một nút đã tắt.
+
+**`X-Service-Token`, không phải `Authorization: Bearer`** cho đường `internal`. Và vô hiệu hoá một
+sản phẩm đòi `confirm` = mã sản phẩm (`0036`, `0123`) — không có nó thì `400`, và ca kiểm dựng bế tắc
+NC-CAN-400 lại đo một hồ sơ mà mặt hàng chưa hề bị tắt.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ nhánh `WHEN l.da_xoa THEN 'DA_XOA'` | **1 đỏ** — *"dòng NẰM LẠI, mang trạng thái Đã xoá"* |
+| `removeLine` luôn `DELETE` | **4 đỏ** — dòng không nằm lại, không thêm lại được, `PRODUCT_LINE_DELETED` không nổ, bản mềm/màn hình không còn phân biệt |
+| `internal.controller` thôi lọc | **1 đỏ** — *"BẢN MỀM VÀ BÁO CÁO KHÔNG THẤY…"*, và chỉ ca ấy |
+| `lamMoiDong` thôi bỏ qua dòng đã xoá | **1 đỏ** — bế tắc NC-CAN-400 quay lại nguyên trạng |
+| Thôi xoá hẳn lúc hồ sơ có hiệu lực | **1 đỏ** — mặt hàng mọc lại ở phiên bản sau |
+| `NO_LINES` đếm cả dòng đã xoá | **1 đỏ** — rút hết vẫn gửi duyệt được |
+| `addLine` thôi phân biệt dòng đã xoá | **1 đỏ** — câu lỗi chỉ sai việc phải làm |
+| Gỡ luật CSS làm mờ | **1 đỏ** |
+| `<tr>` thôi mang lớp làm mờ | **2 đỏ** |
+| Dòng đã xoá vẫn bày *Sửa* · *Xoá* | **1 đỏ** |
+| `document` thôi khai nhãn *Đã xoá* | **2 đỏ** ở ca đối chiếu hai bảng nhãn |
+| Dựng lại POL-08 **y như cũ** | **XANH** — xem mục phá lại ở trên: nó đã thành câu lệnh rỗng |
+| Dựng lại POL-08 **viết đúng cho `0186`** | **3 đỏ**, đúng ba ca của yêu cầu |
+
+**2078/2078 xanh.**

@@ -345,16 +345,27 @@ export class WorkflowService {
 
     // Điều kiện riêng của từng hành động, không thuộc máy trạng thái thuần.
     if (action === 'SUBMIT' || action === 'RESUBMIT_AFTER_EDIT') {
-      const lines = await this.db.q(`SELECT 1 FROM pol.policy_line WHERE policy_id = $1`, [
-        policyId,
-      ]);
+      // `NOT da_xoa` (`0186`): dòng đã rút không tính là "hồ sơ có sản phẩm".
+      // Thiếu vế này thì một hồ sơ mà TDV vừa rút hết mặt hàng vẫn gửi duyệt
+      // được, và đi tới bàn duyệt dưới dạng một bảng sản phẩm rỗng.
+      const lines = await this.db.q(
+        `SELECT 1 FROM pol.policy_line WHERE policy_id = $1 AND NOT da_xoa`,
+        [policyId],
+      );
       if (lines.length === 0) {
         throw new UnprocessableEntityException({
           code: 'NO_LINES',
           message: 'Hồ sơ chưa có sản phẩm nào',
         });
       }
-      await this.policies.assertNoMissingInheritedProduct(policyId);
+
+      /*
+       * `assertNoMissingInheritedProduct` GỠ Ở ĐÂY (`0186`).
+       *
+       * `POL-08` đứng đúng chỗ này và cấm gửi duyệt một phiên bản thiếu mặt hàng
+       * của bản đang hiệu lực. Khách hàng đảo luật ấy 08/09; lý do và thứ thay
+       * thế nó ghi ở `policies.service.ts`, chỗ hàm cũ từng nằm.
+       */
 
       /*
        * PHÉP KIỂM "PHẢI CHỌN VĂN BẢN MẪU" ĐÃ GỠ (`0163`).
@@ -552,6 +563,36 @@ export class WorkflowService {
               }
             : {}),
         });
+      }
+
+      /*
+       * DÒNG ĐÃ RÚT XOÁ HẲN Ở ĐÂY, và chỉ ở đây (`0186`).
+       *
+       * Khách hàng chốt *"chỉ xoá hẳn khi hồ sơ sang trạng thái Đang có hiệu
+       * lực"*. Lằn ranh ấy đúng chỗ: tới giây này tờ giấy đã ký xong và bản cũ
+       * vừa hết hiệu lực ở mấy dòng trên, nên dòng mờ đã làm xong đúng việc của
+       * nó — nói cho bốn bàn duyệt biết mặt hàng nào đang bị rút. Giữ nó lại
+       * thêm là để một CSBH ĐANG hiệu lực mang những dòng không thuộc về nó, và
+       * mọi đường đọc về sau sẽ phải nhớ lọc.
+       *
+       * Quan trọng hơn: `create` chép nguyên dòng của bản đang hiệu lực sang
+       * phiên bản kế tiếp. Không xoá ở đây thì mặt hàng vừa rút **mọc lại** ở
+       * bản sau dưới dạng một dòng thừa kế bình thường, và người lập phải rút
+       * lại nó mỗi phiên bản, mãi mãi.
+       *
+       * Cùng transaction với bước chuyển trạng thái: tách ra là có một khoảnh
+       * khắc hồ sơ đã hiệu lực mà vẫn còn dòng đã rút, và một lượt đọc rơi vào
+       * đó sẽ dựng bản mềm sai.
+       *
+       * Gác bằng `setsEffectiveFrom` MỘT MÌNH, không kèm `before.supersedes_id`
+       * như khối trên: hồ sơ đầu tiên của một khách không có dòng thừa kế nào
+       * nên không thể có dòng đã rút, và câu lệnh này chỉ là một lượt xoá rỗng.
+       * Buộc thêm điều kiện ấy là gắn phép dọn vào một bất biến ở chỗ khác —
+       * đúng loại phụ thuộc ngầm sẽ hỏng lặng lẽ ngày ai đó cho rút một dòng
+       * *Bổ sung*.
+       */
+      if (step.setsEffectiveFrom) {
+        await c.query(`DELETE FROM pol.policy_line WHERE policy_id = $1 AND da_xoa`, [policyId]);
       }
 
       // KHOÁ LẠC QUAN. Hai người bấm duyệt cùng lúc thì một thành công, một nhận

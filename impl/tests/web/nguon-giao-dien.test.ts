@@ -515,15 +515,22 @@ describe('`0124` hai nút thao tác của một dòng bảng không xuống dòn
     expect(css).toMatch(/\.nhom-nut-gon\s*\{[^}]*flex-wrap:\s*wrap/);
   });
 
-  it('vẫn còn chỗ dùng lớp ấy — nếu không nó là mã chết', () => {
-    /*
-     * Tìm trong THUỘC TÍNH `className`, không tìm chuỗi trần: bản đầu của ca này
-     * dùng `toContain('nhom-nut-hang')` và nó vẫn xanh sau khi gỡ lớp khỏi JSX,
-     * vì chính dòng chú thích ngay trên đó nhắc tên lớp.
-     */
-    const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
-    expect(nguon).toMatch(/className="[^"]*\bnhom-nut-hang\b[^"]*"/);
-  });
+  /*
+   * VẾ *"lớp ấy còn được dùng"* DỜI SANG `tests/web/bang-san-pham.test.tsx` (`0186`).
+   *
+   * Ca cũ ở đây quét mã nguồn tìm `className="… nhom-nut-hang …"`, và `0186` làm
+   * nó đỏ mà không có gì hỏng: dải nút của một dòng tách thành component riêng
+   * (`NutDong`) vì nó mọc thêm một nhánh — dòng đã rút bày *Thêm lại* — nên lớp
+   * giờ do một biểu thức chọn ra, không còn là một thuộc tính viết sẵn.
+   *
+   * Đường đúng không phải nới cái regex. Ca ấy quét mã nguồn vì lúc viết nó
+   * (`0124`) chưa có chỗ nào dựng DOM thật của bảng này; giờ thì có, và một ca
+   * ĐỌC DOM trả lời đúng câu hỏi ấy mà không phụ thuộc vào cách lớp được ghép —
+   * đúng bài học `0143`: một ca quét mã nguồn bị một cách viết mới lách qua.
+   *
+   * Ca CSS ở trên GIỮ NGUYÊN: nó đọc `app.css`, không đọc JSX, nên `0186` không
+   * chạm tới nó — và hai vế vẫn phải đi cùng nhau (luật có mặt, và có chỗ dùng).
+   */
 });
 
 describe('`0123` nhãn trạng thái sản phẩm có màu', () => {
@@ -647,5 +654,37 @@ describe('`0116` hai nút rộng xếp chồng thì không được chạm nhau'
      */
     const cap = capNutRong();
     expect(cap.length, 'không còn cặp nút rộng nào — luật CSS kia đã thành mã chết').toBeGreaterThan(0);
+  });
+});
+
+/**
+ * `0186` — LUẬT LÀM MỜ có thật trong `app.css`.
+ *
+ * Ca DOM ở `bang-san-pham.test.tsx` khẳng định hàng mang lớp `.dong-da-xoa`;
+ * nó xanh y hệt khi lớp ấy không được khai ở đâu cả, tức là dòng bị rút trông
+ * giống hệt dòng bình thường trên màn hình người duyệt — đúng thứ khách hàng
+ * yêu cầu ("chỉ bị làm mờ") không còn nữa, mà không có gì đỏ.
+ *
+ * Hai vế, và vế thứ hai là vế dễ mất: dải nút PHẢI ở lại độ đậm đầy đủ. Nút
+ * *Thêm lại* là lối thoát duy nhất của chính dòng ấy, và một nút mờ đọc như một
+ * nút đã tắt.
+ */
+describe('`0186` dòng sản phẩm đã rút được làm mờ', () => {
+  const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+
+  it('có luật làm mờ, và nó KHÔNG mờ tới mức khó đọc', () => {
+    const m = css.match(/\.dong-da-xoa\s*>\s*\*\s*\{[^}]*opacity:\s*([\d.]+)/);
+    expect(m, 'không có luật làm mờ nào cho `.dong-da-xoa`').not.toBeNull();
+    /*
+     * Dòng này là thứ người duyệt PHẢI đọc trước khi ký — nó chỉ nói "sắp không
+     * còn nữa". Mờ quá thì mắt bỏ qua, tức gần bằng ẩn đi, mà ẩn đi chính là
+     * điều khách hàng vừa bác.
+     */
+    expect(Number(m![1])).toBeGreaterThanOrEqual(0.4);
+    expect(Number(m![1])).toBeLessThan(1);
+  });
+
+  it('dải nút KHÔNG mờ theo', () => {
+    expect(css).toMatch(/\.dong-da-xoa\s+\.nhom-nut\s*\{[^}]*opacity:\s*1/);
   });
 });
