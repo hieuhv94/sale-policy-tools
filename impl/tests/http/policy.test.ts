@@ -5341,3 +5341,85 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
   }, 60_000);
 });
+
+/**
+ * `0189` — LÝ DO TRẢ VỀ nói đủ AI và TỪ BƯỚC NÀO.
+ *
+ * Khách hàng chốt 08/09: *"phần lý do CSBH bị trả về yêu cầu cần rõ ràng hơn,
+ * như ai đã trả về và trả về từ bước nào"*.
+ *
+ * Tới `0188` hồ sơ chỉ mang `lastReason` — một chuỗi trần. Hồ sơ đi qua mười
+ * bước và có BỐN hành động kèm lý do (TBP trả lại · TBP hoàn duyệt · Kế toán
+ * không tiếp nhận L1 · và L2), nên cùng một câu *"thiếu chứng từ"* đến từ hai
+ * bàn khác nhau là hai việc phải làm khác nhau — mà người đọc không phân biệt
+ * được nếu không tự mở Nhật ký ra dò.
+ */
+describe('`0189` lý do trả về kèm người và bước', () => {
+  it('TBP trả lại: đủ bốn vế — lý do, hành động, vai trò/người, bước xuất phát', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const r = await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chu ky chu ho' });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const ly = (await get(`/policies/${d.id}`)).body.lyDoTraLai;
+    expect(ly, 'không dựng ra khối lý do nào').toBeTruthy();
+    expect(ly.lyDo).toBe('Thieu chu ky chu ho');
+    // HÀNH ĐỘNG mang cả vai trò: nhãn của nó là *"Trưởng bộ phận trả lại để
+    // chỉnh sửa"*, và từ `0185` mỗi hành động thuộc đúng một vai trò.
+    expect(ly.hanhDong).toBe('TBP_RETURN');
+    expect(ly.ten, 'tên người trả lại phải tra được từ identity').toBeTruthy();
+    // BƯỚC XUẤT PHÁT, không phải bước hiện tại: hồ sơ giờ ở YEU_CAU_CHINH_SUA,
+    // còn câu hỏi của người đọc là "nó bị trả về TỪ đâu".
+    expect(ly.tuTrangThai).toBe('CHO_TBP_DUYET');
+    expect(ly.luc).toBeTruthy();
+  });
+
+  it('phân biệt được HAI bàn cùng một câu lý do', async () => {
+    /*
+     * Đây là lý do cả chặng tồn tại. Cùng chuỗi *"Thieu chung tu"*, một lần từ
+     * bàn Trưởng bộ phận và một lần từ bàn Kế toán — `lastReason` cho hai hồ sơ
+     * ấy giống hệt nhau, không gì phân biệt được.
+     */
+    const a = await draft();
+    expect((await act(a.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(a.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' })).status).toBe(200);
+
+    const b = await draft();
+    expect((await act(b.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(b.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(b.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' })).status).toBe(200);
+
+    const lyA = (await get(`/policies/${a.id}`)).body;
+    const lyB = (await get(`/policies/${b.id}`)).body;
+    expect(lyA.lastReason, 'tiền đề của ca này: hai chuỗi giống hệt nhau').toBe(lyB.lastReason);
+    expect(lyA.lyDoTraLai.hanhDong).toBe('TBP_RETURN');
+    expect(lyB.lyDoTraLai.hanhDong).toBe('KT_RETURN_L1');
+    expect(lyA.lyDoTraLai.tuTrangThai).not.toBe(lyB.lyDoTraLai.tuTrangThai);
+  });
+
+  it('GỬI LẠI sau khi sửa vẫn giữ lý do CŨ, không rơi về rỗng', async () => {
+    /*
+     * Dòng nhật ký cuối cùng lúc này là `RESUBMIT_AFTER_EDIT`, và nó KHÔNG có lý
+     * do. Lấy dòng cuối thay vì dòng cuối CÓ LÝ DO là bày ra một khối rỗng đúng
+     * lúc người đọc cần nhớ mình vừa bị trả về vì cái gì — và `lastReason` bên
+     * cạnh thì vẫn còn chữ, nên hai chỗ sẽ nói hai điều khác nhau.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sai gia ban buon' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+
+    const b = (await get(`/policies/${d.id}`)).body;
+    expect(b.lyDoTraLai, 'khối lý do biến mất sau khi gửi lại').toBeTruthy();
+    expect(b.lyDoTraLai.lyDo).toBe('Sai gia ban buon');
+    expect(b.lyDoTraLai.lyDo).toBe(b.lastReason);
+    expect(b.lyDoTraLai.hanhDong).toBe('TBP_RETURN');
+  });
+
+  it('hồ sơ CHƯA từng bị trả về thì không có khối lý do', async () => {
+    const d = await draft();
+    const b = (await get(`/policies/${d.id}`)).body;
+    expect(b.lastReason).toBeNull();
+    expect(b.lyDoTraLai).toBeNull();
+  });
+});

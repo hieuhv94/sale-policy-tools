@@ -906,6 +906,26 @@ người duyệt trả lại.
 > **Không còn nút *Sửa ngày áp dụng*** `sửa 07/09`: ngày áp dụng thuộc về **từng sản phẩm**, và sửa
 > nó đi chung đường với giá bán buôn — bấm *Sửa* ở chính dòng ấy.
 
+### Đọc lý do hồ sơ bị trả về `sửa 08/09`
+
+Hồ sơ bị trả về mang một khối **Lý do gần nhất** ngay dưới khối thông tin. Từ `08/09` khối ấy nói đủ
+**bốn vế**, dòng nhỏ phía trên câu lý do:
+
+> **Trưởng bộ phận trả lại để chỉnh sửa** — Trần Thị B · từ bước Chờ TBP duyệt · 08/09/2026 10:20
+>
+> Thiếu chữ ký chủ hộ ở trang 2.
+
+- **Việc gì** — bốn hành động khác nhau đều kèm lý do: TBP *trả lại*, TBP *hoàn duyệt*, Kế toán
+  *không tiếp nhận lần 1*, Kế toán *không tiếp nhận lần 2*. Cùng một câu *"thiếu chứng từ"* từ hai
+  bàn khác nhau là hai việc phải làm khác nhau.
+- **Ai** — tên người đã bấm. Vai trò không ghi riêng vì tên hành động đã nói (*"Kế toán không tiếp
+  nhận lần 1"*).
+- **Từ bước nào** — bước hồ sơ đang đứng **lúc bị trả về**, không phải bước hiện tại.
+- **Lúc nào**.
+
+Khối này **giữ nguyên sau khi bạn sửa và gửi lại** — nó chỉ đổi khi có một lý do mới. Muốn xem đủ mọi
+lần trả về thì mở **Lịch sử** ở cuối trang.
+
 **Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:
 **Nháp**, **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế toán không
 tiếp nhận L1, Kế toán không tiếp nhận L2). Phải **gõ lại mã hồ sơ** để xác nhận, vì

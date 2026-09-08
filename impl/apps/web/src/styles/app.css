@@ -803,6 +803,19 @@ textarea.o-nhap { min-height: 6rem; }
    khối kia thay vì dựng kiểu thứ ba: ba khối nói cùng một loại việc (một câu
    phải đọc trước khi bấm tiếp) mà trông khác nhau là ba thứ phải học riêng. */
 .canh-bao-scan,
+/* Dòng LAI LỊCH của khối lý do (`0189`): ai trả về, từ bước nào, lúc nào.
+
+   Nhỏ và nhạt hơn chính câu lý do, có chủ ý: câu lý do là thứ người đọc phải
+   ĐỌC, còn dòng này là thứ họ LIẾC để biết câu ấy đến từ bàn nào. Đảo hai mức
+   ấy thì siêu dữ liệu tranh chỗ với nội dung.
+
+   `margin-top: 0` vì `.hop-tieu-de` ngay trên đã chừa khoảng hở của nó. */
+.lai-lich-ly-do {
+  margin: 0 0 var(--k2);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+}
+
 .ghi-chu-tra-lai,
 .hop-canh-bao {
   margin: var(--k4) 0;

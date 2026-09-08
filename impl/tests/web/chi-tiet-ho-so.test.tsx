@@ -1381,3 +1381,67 @@ describe('`0162` hồ sơ pháp lý của khách hàng hiện ngay trên trang h
     expect(screen.queryByText(/Thêm giấy tờ/)).toBeNull();
   });
 });
+
+/**
+ * `0189` — KHỐI LÝ DO nói đủ AI và TỪ BƯỚC NÀO.
+ *
+ * Khách hàng chốt 08/09. Tới `0188` khối này chỉ có mỗi câu chữ, và người đọc
+ * phải mở màn hình Nhật ký rồi tự dò xem dòng nào ứng với nó — trong khi bốn
+ * hành động khác nhau đều kèm lý do, ở bốn bàn khác nhau.
+ */
+describe('`0189` lý do trả về nói rõ ai và từ bước nào', () => {
+  const LY_DO = {
+    lyDo: 'Thieu chu ky chu ho',
+    hanhDong: 'TBP_RETURN',
+    tuTrangThai: 'CHO_TBP_DUYET',
+    ten: 'Tran Thi Truong Bo Phan',
+    luc: '2026-09-08T03:20:00.000Z',
+  };
+  const khoi = () => document.querySelector('.ghi-chu-tra-lai') as HTMLElement | null;
+
+  it('hiện đủ bốn vế: lý do · hành động · người · bước xuất phát', async () => {
+    await mo({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA', lastReason: LY_DO.lyDo, lyDoTraLai: LY_DO });
+    const k = khoi();
+    expect(k, 'không dựng ra khối lý do').not.toBeNull();
+    const chu = k!.textContent ?? '';
+    expect(chu).toContain('Thieu chu ky chu ho');
+    // Nhãn TIẾNG VIỆT, không phải mã trần — giao diện tra bảng nhãn của nó.
+    // Nhãn hành động đã nói ra VAI TRÒ, nên câu không lặp lại vai trò lần nữa.
+    expect(chu).toContain('Trưởng bộ phận trả lại để chỉnh sửa');
+    expect(chu).toContain('Tran Thi Truong Bo Phan');
+    expect(
+      chu.match(/Trưởng bộ phận/g)?.length,
+      'vai trò bị in hai lần — nhãn hành động đã chứa nó',
+    ).toBe(1);
+    expect(chu).toContain('Chờ TBP duyệt');
+    expect(chu, 'mã trần lọt ra màn hình').not.toContain('TBP_RETURN');
+    expect(chu).not.toContain('CHO_TBP_DUYET');
+  });
+
+  it('MẤT TÊN vẫn còn câu có nghĩa — identity chết không làm hỏng khối', async () => {
+    // `userNames` nuốt lỗi và trả rỗng có chủ ý, nên `ten` là `null` được. Câu
+    // trả lời cho *"bàn nào trả về"* nằm ở NHÃN HÀNH ĐỘNG, không ở cái tên — nên
+    // mất tên không mất vế quan trọng nhất.
+    await mo({
+      ...HO_SO,
+      status: 'YEU_CAU_CHINH_SUA',
+      lastReason: LY_DO.lyDo,
+      lyDoTraLai: { ...LY_DO, ten: null },
+    });
+    const chu = khoi()!.textContent ?? '';
+    expect(chu).toContain('Trưởng bộ phận trả lại để chỉnh sửa');
+    expect(chu).toContain('Chờ TBP duyệt');
+    expect(chu).toContain('Thieu chu ky chu ho');
+  });
+
+  it('MÁY CHỦ CŨ chỉ gửi `lastReason` thì vẫn hiện câu lý do', async () => {
+    // Đường lùi: mất ngữ cảnh chứ không mất lý do.
+    await mo({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA', lastReason: 'Chi co chuoi' });
+    expect(khoi()!.textContent).toContain('Chi co chuoi');
+  });
+
+  it('hồ sơ chưa từng bị trả về thì KHÔNG có khối nào', async () => {
+    await mo();
+    expect(khoi()).toBeNull();
+  });
+});

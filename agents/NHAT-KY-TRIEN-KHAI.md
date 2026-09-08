@@ -16421,3 +16421,69 @@ gì đỏ. Ca cuối đọc DOM thật: hàm đúng mà chỗ dựng không gọ
 | *Đã xoá* quay lại màu lỗi | **3 đỏ** |
 
 **2082/2082 xanh.**
+
+---
+
+## P217 — `0189` Lý do trả về nói rõ ai và từ bước nào
+
+Khách hàng 08/09: *"phần lý do CSBH bị trả về yêu cầu cần rõ ràng hơn, như ai đã trả về và trả về từ
+bước nào"*.
+
+### Vì sao một chuỗi trần là không đủ
+
+`pol.policy.last_reason` giữ đúng CÂU CHỮ, không giữ gì khác. Hồ sơ đi qua mười bước và có **bốn**
+hành động kèm lý do — `TBP_RETURN` · `TBP_RECALL` · `KT_RETURN_L1` · `KT_RETURN_L2` — ở ba bàn khác
+nhau. Nên cùng một câu *"thiếu chứng từ"* có thể đến từ Trưởng bộ phận ở bước `CHO_TBP_DUYET` hoặc từ
+Kế toán ở bước `CHO_KT_L1`, và đó là **hai việc phải làm khác nhau**. Người đọc phân biệt được chỉ
+bằng cách mở màn hình Nhật ký rồi tự dò xem dòng nào ứng với câu đang hiện.
+
+### Dẫn xuất, không thêm cột — và ba vế cần đều đã nằm sẵn
+
+Ba thứ còn thiếu (`ai`, `bước nào`, `lúc nào`) nằm trên **chính dòng nhật ký đã ghi ra câu ấy**:
+`pol.policy_event` có `actor_id`, `actor_role`, `from_status`, `at`. Thêm ba cột
+`last_reason_by`/`_role`/`_from` vào `pol.policy` là dựng bản sao thứ hai của dữ liệu đã có, phải giữ
+đồng bộ ở mọi đường ghi có lý do — mà chính `last_reason = coalesce($n, last_reason)` bên `workflow`
+là ví dụ cho thấy đường ghi ấy dễ quên đến mức nào. Cùng lối `0180` đã chọn cho trạng thái dòng.
+
+### Hai chi tiết nhỏ quyết định câu trả lời đúng hay sai
+
+**`reason IS NOT NULL`, không phải dòng nhật ký cuối cùng.** Hồ sơ bị trả về rồi TDV sửa và gửi lại
+thì dòng cuối là `RESUBMIT_AFTER_EDIT` — **không có lý do**. Lấy nó là bày ra một khối rỗng đúng lúc
+người đọc cần nhớ mình bị trả về vì cái gì, và tệ hơn: `lastReason` bên cạnh thì vẫn còn chữ, nên
+hai chỗ trên cùng màn hình nói hai điều khác nhau. Có ca kiểm riêng đi hết đường
+`SUBMIT → TBP_RETURN → RESUBMIT_AFTER_EDIT`.
+
+**`ORDER BY seq`, không `at`.** Hai dòng ghi trong cùng một transaction mang `at` giống hệt nhau —
+`now()` là thời điểm MỞ transaction — nên thứ tự theo thời gian là tuỳ ý. Đúng bẫy `outboxFor` bên bộ
+kiểm đã ghi từ lâu.
+
+**Bước XUẤT PHÁT, không phải bước hiện tại.** Hồ sơ bị trả về thì nó đang ở `YEU_CAU_CHINH_SUA`, mà
+câu người đọc cần là *"nó bị trả về TỪ đâu"* — `from_status` của chính dòng nhật ký ấy.
+
+### CA KIỂM ĐẦU TIÊN TÌM RA MỘT CHỖ LẶP, và bản sửa nhỏ đi vì nó
+
+Bản đầu trả kèm `vaiTro` và giao diện in *vai trò + tên*. Ca kiểm đòi chữ *"Trả lại"* thì đỏ, và câu
+thật dựng ra là:
+
+> **Trưởng bộ phận trả lại để chỉnh sửa** — Trưởng bộ phận Trần Thị B
+
+**Nhãn hành động đã nói ra vai trò rồi** — cả bốn hành động kèm lý do đều thế (*"Kế toán không tiếp
+nhận lần 1"*). Và từ `0185` mỗi hành động thuộc đúng MỘT vai trò (`Rule.by`), nên vai trò là thứ suy
+được từ hành động. Nên `actor_role` **rời khỏi cả câu `SELECT`** lẫn DTO lẫn màn hình.
+
+Cái được ngoài việc bớt lặp: hồ sơ mà `identity` không tra được tên **vẫn trả lời được câu quan trọng
+nhất** — *"bàn nào trả về"* nằm ở nhãn hành động, không ở cái tên. Có ca kiểm cho đúng ca ấy.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Bỏ hẳn khối `lyDoTraLai` | **3 đỏ** |
+| Lấy dòng nhật ký CUỐI thay vì dòng cuối CÓ LÝ DO | **2 đỏ** — gồm ca *"gửi lại vẫn giữ lý do cũ"* |
+| Trả về trạng thái HIỆN TẠI thay vì bước xuất phát | **2 đỏ** |
+| Thôi trả tên người trả lại | **1 đỏ** |
+| Giao diện quay về chỉ hiện chuỗi trần | **3 đỏ** |
+| Giao diện in MÃ TRẦN thay vì nhãn tiếng Việt | **2 đỏ** |
+| Giao diện in lại vai trò (lặp với nhãn hành động) | **1 đỏ** |
+
+**2090/2090 xanh.**

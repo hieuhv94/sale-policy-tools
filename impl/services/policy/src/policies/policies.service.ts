@@ -1499,13 +1499,60 @@ export class PoliciesService {
      * còn mất cả màn hình hồ sơ vì `customer` đang khởi động lại thì người đang
      * chờ ký không làm được gì. Cùng lẽ với `userNames` ngay dưới.
      */
+    /*
+     * LÝ DO GẦN NHẤT, kèm AI và TỪ BƯỚC NÀO (`0189`).
+     *
+     * Khách hàng chốt 08/09: *"phần lý do CSBH bị trả về yêu cầu cần rõ ràng
+     * hơn, như ai đã trả về và trả về từ bước nào"*.
+     *
+     * DẪN XUẤT, KHÔNG THÊM CỘT — cùng lối `0180` đã chọn cho trạng thái dòng.
+     * `pol.policy.last_reason` chỉ giữ CHUỖI, và ba thứ còn thiếu đều đã nằm sẵn
+     * trên chính dòng nhật ký đã ghi ra chuỗi ấy: `actor_id` · `actor_role` ·
+     * `from_status` · `at`. Thêm ba cột `last_reason_by`/`_role`/`_from` là dựng
+     * bản sao thứ hai của dữ liệu đã có, và bản sao ấy phải giữ đồng bộ ở mọi
+     * đường ghi có lý do — mà `coalesce($n, last_reason)` bên `workflow` đã cho
+     * thấy đường ghi ấy dễ quên đến mức nào.
+     *
+     * `reason IS NOT NULL` chứ không lấy dòng nhật ký cuối cùng: hồ sơ bị trả về
+     * rồi TDV sửa và gửi lại thì dòng cuối là `RESUBMIT_AFTER_EDIT` không có lý
+     * do — lấy nó là bày ra một khối lý do rỗng đúng lúc người đọc cần nhớ mình
+     * bị trả về vì cái gì. Cùng quy ước với `last_reason`, vốn giữ lý do gần
+     * nhất qua mọi bước sau đó.
+     *
+     * `ORDER BY seq` chứ không `at`: hai dòng ghi trong cùng một transaction có
+     * `at` giống hệt nhau (`now()` là thời điểm MỞ transaction), nên thứ tự theo
+     * thời gian là tuỳ ý — đúng bẫy đã ghi ở `outboxFor` bên bộ kiểm.
+     */
+    const lyDoSu = await this.db.one<{
+      from_status: string | null;
+      action: string;
+      actor_id: string | null;
+      reason: string;
+      at: Date;
+    }>(
+      // `actor_role` KHÔNG lấy, dù cột có sẵn: từ `0185` mỗi hành động thuộc về
+      // đúng MỘT vai trò (`Rule.by`), và nhãn của hành động đã nói ra vai trò ấy
+      // — *"Kế toán không tiếp nhận lần 1"*. Trả kèm vai trò là để giao diện in
+      // ra *"Kế toán không tiếp nhận lần 1 — Kế toán Nguyễn Văn A"*.
+      `SELECT from_status::text AS from_status, action, actor_id, reason, at
+         FROM pol.policy_event
+        WHERE policy_id = $1 AND reason IS NOT NULL
+        ORDER BY seq DESC LIMIT 1`,
+      [policyId],
+    );
+
     const [tenDuyet, khach] = await Promise.all([
       this.clients.userNames(
         // `createdBy` vào cùng lượt hỏi: người đề nghị là một cái tên nữa trên
         // cùng màn hình, và hỏi riêng là thêm một vòng mạng cho một chuỗi.
-        [p.createdBy, so.tbp_signed_by, so.ke_toan_user_id, so.sale_admin_user_id].filter(
-          (x): x is string => !!x,
-        ),
+        // `0189` — người trả lại cũng vào cùng lượt, cùng lý do.
+        [
+          p.createdBy,
+          so.tbp_signed_by,
+          so.ke_toan_user_id,
+          so.sale_admin_user_id,
+          lyDoSu?.actor_id ?? null,
+        ].filter((x): x is string => !!x),
       ),
       this.clients.customer(p.customerId).catch(() => null),
     ]);
@@ -1544,6 +1591,28 @@ export class PoliciesService {
       ...p,
       lech,
       nguoiDuyet,
+      /*
+       * `0189` — khối lý do, đủ bốn vế: NÓI GÌ · AI · TỪ BƯỚC NÀO · LÚC NÀO.
+       *
+       * Trả về MÃ chứ không câu tiếng Việt cho `hanhDong` và `tuTrangThai`: hai
+       * bảng nhãn ấy đã nằm ở `apps/web/src/lib/format.ts` và cả
+       * ứng dụng đọc chúng. Dựng câu ở đây là bản dịch thứ hai, và nó sẽ lệch
+       * đúng vào ngày một trạng thái được đổi tên (`0158` đổi *KT duyệt bản mềm*
+       * → *Chờ KT duyệt L1*, và chỉ phải sửa MỘT bảng vì luật này).
+       *
+       * `ten` là `null` khi `identity` không tra được — `userNames` nuốt lỗi có
+       * chủ ý, nên mất tên chứ không mất cả màn hình. Giao diện vẫn còn ba vế
+       * kia để nói ra một câu có nghĩa.
+       */
+      lyDoTraLai: lyDoSu
+        ? {
+            lyDo: lyDoSu.reason,
+            hanhDong: lyDoSu.action,
+            tuTrangThai: lyDoSu.from_status,
+            ten: (lyDoSu.actor_id && tenDuyet[lyDoSu.actor_id]) ?? null,
+            luc: lyDoSu.at,
+          }
+        : null,
       /*
        * NGƯỜI ĐỀ NGHỊ (`0061`) — người LẬP hồ sơ, đọc từ `created_by`.
        *

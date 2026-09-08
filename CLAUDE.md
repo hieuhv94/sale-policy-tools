@@ -87,7 +87,21 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (08/09/2026)
 
-Chặng gần nhất **P216** (`0188`): **màu bốn nhãn trạng thái dòng** — *Đang áp dụng* **XANH**, *Đã
+Chặng gần nhất **P217** (`0189`): **lý do trả về nói rõ AI và TỪ BƯỚC NÀO**. `last_reason` chỉ giữ
+CÂU CHỮ, trong khi hồ sơ đi qua mười bước và có **bốn** hành động kèm lý do (`TBP_RETURN` ·
+`TBP_RECALL` · `KT_RETURN_L1` · `KT_RETURN_L2`) ở ba bàn — cùng câu *"thiếu chứng từ"* từ hai bàn là
+hai việc phải làm khác nhau, mà người đọc chỉ phân biệt được bằng cách tự mở Nhật ký ra dò.
+**DẪN XUẤT, KHÔNG THÊM CỘT** (lối `0180`): ba vế còn thiếu đã nằm trên chính dòng `pol.policy_event`
+đã ghi ra câu ấy. **Hai chi tiết quyết định đúng/sai**: lấy dòng cuối **CÓ LÝ DO** chứ không dòng cuối
+— sau `RESUBMIT_AFTER_EDIT` (không mang lý do) thì khối rỗng trong khi `lastReason` bên cạnh vẫn còn
+chữ, hai chỗ nói hai điều; và `ORDER BY seq` chứ không `at` (cùng transaction thì `at` giống hệt
+nhau). Trả về **bước XUẤT PHÁT**, không phải bước hiện tại. **CA KIỂM ĐẦU TIÊN TÌM RA MỘT CHỖ LẶP và
+bản sửa NHỎ ĐI vì nó**: nhãn hành động đã nói ra vai trò (*"Kế toán không tiếp nhận lần 1"*), và từ
+`0185` mỗi hành động thuộc đúng MỘT vai trò — nên `actor_role` rời khỏi cả `SELECT`, DTO lẫn màn
+hình. Cái được: hồ sơ không tra được tên **vẫn trả lời được** câu *"bàn nào trả về"*. Bảy lượt phá
+lại, bảy đỏ đúng chỗ. **2090/2090 xanh.**
+
+Trước đó **P216** (`0188`): **màu bốn nhãn trạng thái dòng** — *Đang áp dụng* **XANH**, *Đã
 xoá* **XÁM**, *Chỉnh sửa* hổ phách, *Bổ sung* **chàm**. Một hàm ba dòng, và thứ đáng nhớ nằm ngoài
 bản sửa. **`0180` KHÔNG SAI — khách hàng đảo TRỤC**: màu ở `0180` trả lời *"chỗ nào đáng soi"*, giờ
 nó trả lời *"mặt hàng này đang thế nào"*; và họ đúng ở điểm cả `0180` lẫn `0186` bỏ qua — nhãn trạng

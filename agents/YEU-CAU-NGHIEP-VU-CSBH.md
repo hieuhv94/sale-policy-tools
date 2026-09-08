@@ -2218,6 +2218,29 @@ xanh, tag «Đã xóa» màu ghi xám"*.
 > một quyết định bình thường của người lập, không phải sự cố — và màu đỏ ở đó tranh chỗ với hai cảnh
 > báo THẬT của cột *Tỷ lệ CK*.
 
+**KHỐI LÝ DO nói rõ AI trả về và TỪ BƯỚC NÀO** `sửa 08/09` — *"phần lý do CSBH bị trả về yêu cầu
+cần rõ ràng hơn, như ai đã trả về và trả về từ bước nào"*.
+
+> Khối *Lý do gần nhất* trên trang hồ sơ nói đủ **bốn vế**: hành động · người thực hiện · **bước xuất
+> phát** · thời điểm — rồi mới tới câu lý do.
+>
+> **Vì sao cần**: hồ sơ đi qua mười bước và có **bốn** hành động kèm lý do (Trưởng bộ phận *trả lại*,
+> Trưởng bộ phận *hoàn duyệt*, Kế toán *không tiếp nhận lần 1*, và *lần 2*). Cùng một câu *"thiếu
+> chứng từ"* đến từ bàn Trưởng bộ phận hay bàn Kế toán là **hai việc phải làm khác nhau**, mà tới
+> `08/09` người đọc không phân biệt được nếu không tự mở Nhật ký hồ sơ ra dò.
+>
+> **Bước XUẤT PHÁT, không phải bước hiện tại**: hồ sơ bị trả về thì nó đang ở *Yêu cầu chỉnh sửa* —
+> câu người đọc cần là *"nó bị trả về TỪ đâu"*.
+>
+> **Không thêm trường nào vào hồ sơ.** Ba vế mới đều đã nằm sẵn trên chính dòng nhật ký đã ghi ra câu
+> lý do ấy.
+>
+> **Gửi lại sau khi sửa vẫn giữ lý do cũ** — cùng quy ước với `Lý do gần nhất` từ trước: lý do chỉ bị
+> thay khi có một lý do mới.
+>
+> **Vai trò KHÔNG in riêng**: nhãn hành động đã nói ra nó (*"Kế toán không tiếp nhận lần 1"*), nên in
+> thêm là lặp. Nhờ vậy hồ sơ không tra được tên người vẫn trả lời được câu *"bàn nào trả về"*.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } 
 import { dang, layJson, taiVe, xemTruoc, xoa } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
 import { CAN_LY_DO, HANH_DONG_NHAN, can, canHanhDong, xemBanMemDuoc } from '../lib/can.js';
-import { ngay, ngayGio, tien } from '../lib/format.js';
+import { ngay, ngayGio, nhanHanhDong, nhanTrangThai, tien } from '../lib/format.js';
 import { nhanLoaiKhach } from '../lib/danh-muc.js';
 import { LichSuGap } from '../components/LichSu.js';
 import { BangSanPham, type DongSanPham } from '../components/BangSanPham.js';
@@ -50,6 +50,19 @@ type HoSo = {
   createdAt?: string | null;
   effectiveFrom: string | null;
   lastReason: string | null;
+  /**
+   * `0189` — lý do gần nhất KÈM NGỮ CẢNH, máy chủ dựng từ nhật ký hồ sơ.
+   *
+   * Tuỳ chọn vì máy chủ cũ hơn giao diện không gửi nó; giá trị lùi là khối cũ
+   * chỉ có câu chữ, tức mất ngữ cảnh chứ không mất lý do.
+   */
+  lyDoTraLai?: {
+    lyDo: string;
+    hanhDong: string;
+    tuTrangThai: string | null;
+    ten: string | null;
+    luc: string | null;
+  } | null;
   /* `mauHoSoId` ĐÃ GỠ (`0163`) — mẫu thôi đóng băng theo hồ sơ. */
   /**
    * Đã có Sale Admin chưa (`0141`) — một cờ, không phải id.
@@ -440,10 +453,45 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       <DaDuyet nguoiDuyet={hoSo.nguoiDuyet} />
 
-      {hoSo.lastReason && (
+      {/*
+        KHỐI LÝ DO nói đủ BỐN VẾ (`0189`): nói gì · ai · từ bước nào · lúc nào.
+
+        Tới `0188` nó chỉ có mỗi câu chữ, và người đọc phải mở màn hình Nhật ký
+        rồi tự dò xem dòng nào ứng với câu ấy — trong khi hồ sơ đi qua mười bước
+        và có tới bốn hành động khác nhau kèm lý do (Trưởng bộ phận trả lại,
+        Hoàn duyệt, Kế toán không tiếp nhận L1, và L2). Cùng một câu *"thiếu
+        chứng từ"* đến từ hai bàn khác nhau là hai việc phải làm khác nhau.
+
+        `lyDoTraLai` do MÁY CHỦ dựng từ nhật ký; `lastReason` giữ lại làm đường
+        lùi cho hồ sơ mà dòng nhật ký mang lý do đã bị dọn (cửa sổ audit sáu
+        tháng của `0087` không đụng `pol.policy_event`, nhưng đường lùi này rẻ và
+        nó giữ cho khối không biến mất nếu điều đó đổi).
+      */}
+      {(hoSo.lyDoTraLai ?? hoSo.lastReason) && (
         <div className="ghi-chu-tra-lai" role="note">
           <span className="hop-tieu-de">Lý do gần nhất</span>
-          {hoSo.lastReason}
+          {hoSo.lyDoTraLai ? (
+            <>
+              <p className="lai-lich-ly-do">
+                <strong>{nhanHanhDong(hoSo.lyDoTraLai.hanhDong)}</strong>
+                {/* NHÃN HÀNH ĐỘNG đã nói ra VAI TRÒ — *"Kế toán không tiếp nhận
+                    lần 1"* — nên không in vai trò lần nữa. Ca kiểm đầu tiên của
+                    `0189` tìm ra chỗ lặp này: câu dựng ra là *"Trưởng bộ phận
+                    trả lại để chỉnh sửa — Trưởng bộ phận Trần Thị B"*.
+
+                    Nhờ vậy `ten` rỗng cũng không mất câu trả lời cho *"bàn nào
+                    trả về"* — vế ấy nằm ở nhãn hành động, không ở cái tên. */}
+                {hoSo.lyDoTraLai.ten && <>{' — '}{hoSo.lyDoTraLai.ten}</>}
+                {hoSo.lyDoTraLai.tuTrangThai && (
+                  <> · từ bước {nhanTrangThai(hoSo.lyDoTraLai.tuTrangThai)}</>
+                )}
+                {hoSo.lyDoTraLai.luc && <> · {ngayGio(hoSo.lyDoTraLai.luc)}</>}
+              </p>
+              {hoSo.lyDoTraLai.lyDo}
+            </>
+          ) : (
+            hoSo.lastReason
+          )}
         </div>
       )}
 
