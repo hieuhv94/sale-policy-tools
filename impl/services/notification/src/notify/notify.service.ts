@@ -15,9 +15,10 @@
  * Gửi hỏng thì chỗ đã giữ được TRẢ LẠI và sự kiện vào DLQ, nên gửi lại được.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import { CHU_BUOC, type Status } from '@csbh/domain-policy';
 import { Db } from '../infra/db.js';
 import { Mailer } from '../infra/mailer.js';
-import { RecipientsClient } from './recipients.js';
+import { RecipientsClient, type Target } from './recipients.js';
 import {
   bodyBanGiao,
   bodyFor,
@@ -29,6 +30,7 @@ import {
   titleBanGiao,
   titleFor,
   subjectFor,
+  type Bac,
   type BanGiaoMail,
   type MailEvent,
 } from './templates.js';
@@ -77,11 +79,8 @@ export class NotifyService {
     // trong im lặng chứ không coi là lỗi — hàng đợi này nghe cả `policy.#`.
     if (roles.length === 0 || !tdvUserId) return 'ignored';
 
-    const claimed = await this.claim(ev, s(p['policyId']), s(p['customerId']));
-    if (!claimed) return 'duplicate';
-
-    /** Lá thư chính đã bay đi chưa — quyết định nhánh dọn dẹp ở `catch`. */
-    let daGuiChinh = false;
+    /** Lá thư VIỆC đã bay đi chưa — quyết định nhánh dọn dẹp ở `catch`. */
+    let daGuiViec = false;
     try {
       // Bốn người của hồ sơ đi kèm sự kiện (`0031`). Sự kiện cũ trong hàng đợi
       // hoặc trong bảng thư hỏng không có ba khoá này — chúng rơi về `undefined`
@@ -125,59 +124,61 @@ export class NotifyService {
         extra: isRecord(p['extra']) ? (p['extra'] as Record<string, string>) : {},
       };
 
-      // GHI THÔNG BÁO TRƯỚC KHI GỬI THƯ (`0096`).
-      //
-      // Thứ tự này là một quyết định, không phải tình cờ. SMTP chết thì sự kiện
-      // vào DLQ và không ai nhận được thư — nhưng hành động thì ĐÃ xảy ra, hồ sơ
-      // đã chuyển bước thật. Đúng lúc email hỏng là lúc cái chuông thành đường
-      // duy nhất còn lại để người ta thấy việc, nên buộc nó vào kết quả của
-      // SMTP là làm hỏng nó ở đúng lúc cần nhất.
-      //
-      // Chạy lại từ DLQ thì `uq_thong_bao_event_kind_user` chặn bản sao.
-      await this.ghiThongBao(ev, targets, {
-        kind: 'CHINH',
-        action: mail.action ?? null,
-        tieuDe: titleFor(mail),
-        moTa: moTaNgan(mail),
-        duongDan: duongDan(mail),
-        policyId: mail.policyId ?? null,
-        customerId: mail.customerId ?? null,
-        xayRaLuc: mail.at ?? null,
-      });
+      /*
+       * CHIA HAI BẬC (`0192`) — trục là *"người đọc có việc không"*.
+       *
+       * `CHU_BUOC[toStatus]` trả về vai trò phải làm bước kế tiếp. Ai giữ đúng
+       * vai trò ấy trên hồ sơ này thì nhận lá thư VIỆC; mọi người còn lại trong
+       * `recipients` nhận lá thư TIN, chung với những người đọc ra từ nhật ký.
+       *
+       * KHÔNG CÓ NHÁNH RIÊNG cho trạng thái kết thúc: `DANG_CO_HIEU_LUC`,
+       * `HET_HIEU_LUC`, `DA_XOA`, `QUA_HAN_DUYET` đều không có chủ bước, nên
+       * `chuBuoc` là `undefined`, `undefined` không bằng vai trò nào, và cả sáu
+       * hành động ấy tự rơi hết về TIN. Viết thêm một nhánh `TERMINAL` ở đây là
+       * dựng lại bằng tay đúng kết quả mà phép so đã cho sẵn.
+       */
+      const chuBuoc = CHU_BUOC[(mail.toStatus ?? '') as Status];
+      const nhomViec = chuBuoc ? targets.filter((t) => t.role === chuBuoc) : [];
+      const nhomTin = targets.filter((t) => !nhomViec.includes(t));
 
       const threadKey = s(p['customerCode']) ?? s(p['customerId']) ?? ev.eventId;
-      const subject = subjectFor(mail);
-      const sent = await this.withRetry(ev, () =>
-        this.mailer.send({
-          eventId: ev.eventId,
-          to: targets.map((t) => t.email),
-          subject,
-          text: bodyFor(mail, this.mailer.cfg.webBaseUrl),
-          threadKey,
-        }),
-      );
 
-      await this.db.q(
-        `UPDATE ntf.sent_mail
-            SET message_id = $2, to_addresses = $3, subject = $4, thread_key = $5, attempts = $6
-          WHERE event_id = $1 AND kind = 'CHINH'`,
-        [ev.eventId, sent.messageId, sent.to, subject, threadKey, sent.attempts],
-      );
-      daGuiChinh = true;
+      /*
+       * NHÓM VIỆC RỖNG LÀ MỘT KẾT QUẢ HỢP LỆ, không phải lỗi.
+       *
+       * Tới `0191` mọi sự kiện đều có lá thư `CHINH`, nên `claim` chạy vô điều
+       * kiện và `targets.length === 0` ở trên là dấu hiệu identity tra hỏng. Sáu
+       * hành động dẫn tới trạng thái không có chủ bước giờ hợp lệ mà không có ai
+       * ở bậc VIỆC — giữ nguyên phép kiểm cũ là đẩy cả sáu vào DLQ.
+       *
+       * Nên chốt chặn tách làm hai: `targets` rỗng vẫn là LỖI (không ai trong
+       * `recipients` tra ra được người), còn `nhomViec` rỗng thì chỉ là không có
+       * lá thư nào để gửi ở bậc ấy — và cũng không có gì để giữ chỗ dưới `CHINH`.
+       */
+      if (nhomViec.length > 0) {
+        if (!(await this.claim(ev, s(p['policyId']), s(p['customerId'])))) return 'duplicate';
+        await this.guiThu(ev, mail, 'VIEC', 'CHINH', nhomViec, threadKey);
+        daGuiViec = true;
+      }
 
-      await this.baoNguoiDaTacDong(ev, mail, targets, threadKey);
+      const daGuiTin = await this.baoTin(ev, mail, nhomViec, nhomTin, threadKey, daGuiViec);
+      // Không lá nào đi và cũng không lá nào hỏng: cả hai chỗ giữ đều đã có từ
+      // lượt trước. Trả `duplicate` chứ không `sent` — `dead-letters/:id/retry`
+      // đọc kết quả này để đánh dấu đã xử lý, và hai giá trị ấy đều hợp lệ ở đó,
+      // nhưng nhật ký của consumer thì phải nói đúng chuyện vừa xảy ra.
+      if (!daGuiViec && !daGuiTin) return 'duplicate';
       return 'sent';
     } catch (e) {
       /*
        * Trả lại chỗ đã giữ. Không làm bước này thì sự kiện vĩnh viễn bị coi là
        * "đã gửi" và lần gửi lại từ DLQ nào cũng bị chặn vì trùng khoá.
        *
-       * NHƯNG CHỈ KHI LÁ THƯ CHÍNH CHƯA ĐI (`0037`). Nếu nó đã gửi rồi thì hỏng
+       * NHƯNG CHỈ KHI LÁ THƯ VIỆC CHƯA ĐI (`0037`). Nếu nó đã gửi rồi thì hỏng
        * ở đây là hỏng của thứ khác, và trả lại chỗ là biến một lỗi phụ thành
        * một lá thư trùng ở lần gửi lại. Đã dính đúng lỗi này: lá thư "để biết"
        * ném lỗi kiểu dữ liệu và kéo theo cả sự kiện đã gửi xong vào DLQ.
        */
-      if (!daGuiChinh) {
+      if (!daGuiViec) {
         await this.db.q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'CHINH'`, [
           ev.eventId,
         ]);
@@ -353,7 +354,66 @@ export class NotifyService {
   }
 
   /**
-   * Thư THỨ HAI: "để biết", gửi cho mọi người đã từng thao tác lên hồ sơ (`0036`).
+   * Dựng chữ, ghi thông báo, gửi thư, ghi lại — một lá, một bậc (`0192`).
+   *
+   * Tách ra vì từ `0192` có HAI lá đi qua đúng bốn bước này, và cho tới `0191`
+   * chúng là hai đoạn mã chép tay đứng cách nhau hai trăm dòng. Chúng đã kịp
+   * lệch: lá "để biết" không đi qua `withRetry`, và không có lý do nào cho việc
+   * ấy ngoài chuyện người viết đoạn thứ hai không chép nốt.
+   *
+   * GHI THÔNG BÁO TRƯỚC KHI GỬI THƯ (`0096`). Thứ tự này là một quyết định: SMTP
+   * chết thì sự kiện vào DLQ và không ai nhận được thư — nhưng hành động thì ĐÃ
+   * xảy ra, hồ sơ đã chuyển bước thật. Đúng lúc email hỏng là lúc cái chuông
+   * thành đường duy nhất còn lại để người ta thấy việc, nên buộc nó vào kết quả
+   * của SMTP là làm hỏng nó ở đúng lúc cần nhất. Chạy lại từ DLQ thì
+   * `uq_thong_bao_event_kind_user` chặn bản sao.
+   *
+   * `eventId` của LÁ THƯ mang hậu tố ở bậc TIN — nó thành `Message-ID`, và trùng
+   * với lá kia thì trình khách gộp hai thư làm một. Cột `event_id` trong CSDL
+   * thì KHÔNG mang hậu tố: nó kiểu `uuid`, và cặp phân biệt hai lá đã là
+   * `(event_id, kind)` (`0037`).
+   */
+  private async guiThu(
+    ev: Incoming,
+    mail: MailEvent,
+    bac: Bac,
+    kind: 'CHINH' | 'THEO_DOI',
+    targets: Target[],
+    threadKey: string,
+  ): Promise<void> {
+    // `duongDan(mail, bac)` — cùng một hàm cho cả thư lẫn chuông, nên hai bên
+    // không thể dẫn đi hai chỗ khác nhau (`0096`).
+    await this.ghiThongBao(ev, targets, {
+      kind,
+      action: mail.action ?? null,
+      tieuDe: titleFor(mail, bac),
+      moTa: moTaNgan(mail),
+      duongDan: duongDan(mail, bac),
+      policyId: mail.policyId ?? null,
+      customerId: mail.customerId ?? null,
+      xayRaLuc: mail.at ?? null,
+    });
+
+    const subject = subjectFor(mail, bac);
+    const sent = await this.withRetry(ev, () =>
+      this.mailer.send({
+        eventId: kind === 'THEO_DOI' ? `${ev.eventId}:theo-doi` : ev.eventId,
+        to: targets.map((t) => t.email),
+        subject,
+        text: bodyFor(mail, bac, this.mailer.cfg.webBaseUrl),
+        threadKey,
+      }),
+    );
+    await this.db.q(
+      `UPDATE ntf.sent_mail
+          SET message_id = $2, to_addresses = $3, subject = $4, thread_key = $5, attempts = $6
+        WHERE event_id = $1 AND kind = $7`,
+      [ev.eventId, sent.messageId, sent.to, subject, threadKey, sent.attempts, kind],
+    );
+  }
+
+  /**
+   * Lá thư bậc TIN — "để bạn biết", cho người KHÔNG phải làm gì ở bước này.
    *
    * Vì sao là hai lá thư chứ không phải một lá gửi cho nhiều người hơn: HAI
    * NHÓM CẦN HAI ĐƯỜNG DẪN KHÁC NHAU. Người phải xử lý cần mở thẳng hồ sơ để
@@ -361,38 +421,66 @@ export class NotifyService {
    * của họ trỏ vào NHẬT KÝ — nơi trả lời đúng câu họ đang hỏi: "từ lúc tôi rời
    * tay, hồ sơ này đã đi qua những đâu". Một lá thư chỉ mang được một liên kết.
    *
-   * TRỪ BA NHÓM khỏi danh sách:
-   *   * Người đã nhận lá thư thứ nhất — nhận hai thư cho một sự kiện là cách
-   *     nhanh nhất khiến người ta ngừng đọc cả hai.
+   * HAI NGUỒN NGƯỜI NHẬN, và `0192` mới nối nguồn thứ hai vào (`0036` chỉ có
+   * nguồn đầu):
+   *
+   *   `quanSat`  — đọc ra từ nhật ký hồ sơ: *ai đã từng thao tác*;
+   *   `nhomTin`  — có TÊN trong `recipients` nhưng không phải chủ bước.
+   *
+   * Tới `0191` nhóm thứ hai nhận lá thư VIỆC cùng với người thật sự có việc, nên
+   * TBP và TDV đọc *"Kế toán đã tiếp nhận lần 1"* dưới cùng một tiêu đề mà Sale
+   * Admin đọc nó như một mệnh lệnh.
+   *
+   * TRỪ khỏi nhóm `quanSat` — và CHỈ nhóm ấy:
+   *   * Người đã nhận lá thư VIỆC — hai thư cho một sự kiện là cách nhanh nhất
+   *     khiến người ta ngừng đọc cả hai.
    *   * Người vừa bấm nút — họ vừa nhìn thấy kết quả trên màn hình.
+   *   * **Sale Admin** (`0147`, siết lại ở `0192`) — xem khối ngay dưới.
    *   * Tài khoản đã vô hiệu hoá — lọc ở identity (`users/mail-targets`).
    *
-   * HỎNG THÌ NUỐT. Đây là thư phụ; để nó kéo cả sự kiện vào DLQ là biến một
-   * tiện ích thành một điểm hỏng cho lá thư chính — mà lá thư chính đã gửi
-   * xong rồi, gửi lại từ DLQ sẽ thành thư trùng.
+   * `nhomTin` KHÔNG bị lọc theo người bấm nút: `RECIPIENTS` gọi tên vai trò của
+   * chính người vừa thao tác ở vài bước (`KT_RECEIVE_L2` là ca thật), và `0096`
+   * đã chốt rằng cái chuông không dựng luật riêng cho mình — thấy nhiễu thì sửa
+   * `RECIPIENTS` bên policy, thư cũng bớt nhiễu theo.
    */
-  private async baoNguoiDaTacDong(
+  private async baoTin(
     ev: Incoming,
     mail: MailEvent,
-    daNhan: { userId: string }[],
+    daNhanViec: Target[],
+    nhomTin: Target[],
     threadKey: string,
-  ): Promise<void> {
+    /**
+     * Lá thư VIỆC đã bay đi chưa — quyết định hỏng thì NUỐT hay NÉM (`0192`).
+     *
+     * `0037` chốt *"hỏng thì nuốt"* khi lá này là thư phụ: để nó kéo cả sự kiện
+     * vào DLQ là biến một tiện ích thành điểm hỏng cho lá thư chính, mà lá chính
+     * đã gửi xong nên gửi lại từ DLQ sẽ thành thư trùng.
+     *
+     * Lập luận ấy đứng trên một tiền đề mà `0192` vừa bỏ: rằng luôn có một lá
+     * chính đã đi trước. Sáu hành động dẫn tới trạng thái không có chủ bước
+     * (`KT_RECEIVE_L2`, `DELETE`, `SUPERSEDE`, `CUSTOMER_RETIRED`, `SLA_OVERDUE`,
+     * `SLA_DISCARDED`) giờ chỉ có LÁ NÀY. Nuốt lỗi ở đó là mất hẳn thông báo
+     * *"CSBH bắt đầu có hiệu lực"* mà không để lại một dòng DLQ nào.
+     */
+    daGuiViec: boolean,
+  ): Promise<boolean> {
     const p = ev.payload;
     const ids = Array.isArray(p['observers']) ? (p['observers'] as string[]) : [];
-    if (ids.length === 0) return;
 
     /*
-     * SALE ADMIN KHÔNG BAO GIỜ nhận lá thư này (`0147`).
+     * SALE ADMIN không nhận lá này VÌ ĐÃ TỪNG THAO TÁC — nhưng vẫn nhận nếu
+     * `RECIPIENTS` gọi tên họ (`0147`, siết lại ở `0192`).
      *
-     * Khách hàng chốt 27/08: *"chỉ gửi cho SA khi đó là việc SA phải làm"*. Lá
-     * thư "để biết" thì theo định nghĩa của chính nó là lá thư KHÔNG có việc —
-     * thân thư viết đúng câu ấy: *"bạn KHÔNG phải xử lý gì ở bước này"*.
+     * Khách hàng chốt 27/08: *"chỉ gửi cho SA khi đó là việc SA phải làm"*. Tới
+     * `0191` phép loại trừ áp cho CẢ lá thư, và điều đó đúng chừng nào lá này
+     * chỉ gồm người đọc ra từ nhật ký. Từ `0192` nó còn gồm người có tên trong
+     * `RECIPIENTS`, và ở `KT_RECEIVE_L2` với `TBP_RECALL` thì `RECIPIENTS` gọi
+     * tên Sale Admin **có chủ ý** — hồ sơ vừa có hiệu lực, hoặc vừa bị rút khỏi
+     * bàn họ. Áp phép loại trừ cho cả nhóm là lặng lẽ nuốt đúng hai thông báo ấy.
      *
-     * Chặn ở đây, một chỗ, thay vì lọc `observers` ở ba nơi phát sự kiện
-     * (`workflow`, `policies.discarded`, `sla-worker`): ba nơi ấy chỉ biết *"ai
-     * đã chạm vào hồ sơ"*, còn câu *"ai đáng nhận thư không-việc"* thì thuộc về
-     * đây. Lọc ở nơi phát là dựng ra đúng cái bẫy `0128` — một luật phải nhớ
-     * khai lại mỗi lần thêm một nguồn sự kiện.
+     * Nên nó ở lại đây, trong khối `quanSat`, chứ không nhích lên trên: nó trả
+     * lời câu *"ai đáng nhận thư vì đã chạm vào hồ sơ"*, không phải câu *"ai
+     * đáng nhận thư"*.
      *
      * Trừ theo ID chứ không theo vai trò: `observers` là danh sách người đã
      * thao tác, không mang vai trò nào. Một người giữ hai vai trò trên cùng một
@@ -400,70 +488,32 @@ export class NotifyService {
      * Admin trong danh sách ấy chỉ có thể là chính họ.
      */
     const bo = new Set([
-      ...daNhan.map((t) => t.userId),
+      ...daNhanViec.map((t) => t.userId),
+      ...nhomTin.map((t) => t.userId),
       s(p['actorId']) ?? '',
       s(p['saleAdminUserId']) ?? '',
     ]);
     const conLai = [...new Set(ids)].filter((id) => typeof id === 'string' && !bo.has(id));
-    if (conLai.length === 0) return;
 
-    /*
-     * CÙNG `event_id`, khác `kind` (`0037`).
-     *
-     * Bản đầu tôi nhét hậu tố vào chính `event_id` (`<uuid>:theo-doi`) và cột
-     * kiểu `uuid` từ chối — ở đúng chỗ tệ nhất, SAU khi lá thư chính đã gửi.
-     * Khoá chống trùng giờ là cặp `(event_id, kind)`.
-     */
     try {
-      const targets = await this.recipients.byIds(conLai);
-      if (targets.length === 0) return;
-      if (
-        !(await this.claim(ev, s(p['policyId']), s(p['customerId']), 'THEO_DOI'))
-      ) {
-        return;
-      }
+      const quanSat = conLai.length > 0 ? await this.recipients.byIds(conLai) : [];
+      const targets = [...nhomTin, ...quanSat];
+      if (targets.length === 0) return false;
 
-      // `eventId` của LÁ THƯ, dùng làm `Message-ID` — phải khác lá thư chính,
-      // nếu không trình khách gộp hai thư thành một.
-      const eventId = `${ev.eventId}:theo-doi`;
-      const theoDoi: MailEvent = { ...mail, eventId, chiDeBiet: true };
+      // CÙNG `event_id`, khác `kind` (`0037`). Bản đầu nhét hậu tố vào chính
+      // `event_id` (`<uuid>:theo-doi`) và cột kiểu `uuid` từ chối — ở đúng chỗ
+      // tệ nhất, SAU khi lá thư chính đã gửi.
+      if (!(await this.claim(ev, s(p['policyId']), s(p['customerId']), 'THEO_DOI'))) return false;
 
-      // `ev.eventId` chứ không phải `eventId` có hậu tố: cột là kiểu `uuid`, và
-      // cặp phân biệt hai loại đã là `(event_id, kind)` — đúng khoá mà
-      // `sent_mail` dùng ngay dưới đây. Hậu tố kia chỉ dành cho `Message-ID`.
-      //
-      // `duongDan(theoDoi)` trả `/ho-so/:id/nhat-ky` vì `chiDeBiet` — cùng một
-      // hàm, nên thông báo và thư không thể dẫn đi hai chỗ khác nhau.
-      await this.ghiThongBao(ev, targets, {
-        kind: 'THEO_DOI',
-        action: theoDoi.action ?? null,
-        tieuDe: titleFor(theoDoi),
-        moTa: moTaNgan(theoDoi),
-        duongDan: duongDan(theoDoi),
-        policyId: theoDoi.policyId ?? null,
-        customerId: theoDoi.customerId ?? null,
-        xayRaLuc: theoDoi.at ?? null,
-      });
-
-      const subject = subjectFor(theoDoi);
-      const sent = await this.mailer.send({
-        eventId,
-        to: targets.map((t) => t.email),
-        subject,
-        text: bodyFor(theoDoi, this.mailer.cfg.webBaseUrl),
-        threadKey,
-      });
-      await this.db.q(
-        `UPDATE ntf.sent_mail
-            SET message_id = $2, to_addresses = $3, subject = $4, thread_key = $5, attempts = 1
-          WHERE event_id = $1 AND kind = 'THEO_DOI'`,
-        [ev.eventId, sent.messageId, sent.to, subject, threadKey],
-      );
+      await this.guiThu(ev, mail, 'TIN', 'THEO_DOI', targets, threadKey);
+      return true;
     } catch (e) {
       await this.db
         .q(`DELETE FROM ntf.sent_mail WHERE event_id = $1 AND kind = 'THEO_DOI'`, [ev.eventId])
         .catch(() => undefined);
-      this.log.warn(`không gửi được thư "để biết" cho ${ev.eventId}: ${String(e)}`);
+      if (!daGuiViec) throw e;
+      this.log.warn(`không gửi được thư "để bạn biết" cho ${ev.eventId}: ${String(e)}`);
+      return false;
     }
   }
 

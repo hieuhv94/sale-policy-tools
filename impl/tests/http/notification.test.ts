@@ -337,7 +337,19 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await mailpitClear();
+  /*
+   * DỌN CHO TỚI KHI HỘP THƯ ĐỨNG YÊN, không dọn một lượt (`0192`).
+   *
+   * `mailpitClear()` xoá những lá ĐÃ tới; lá đang trên đường qua RabbitMQ thì
+   * đáp xuống sau đó, và ca kiểm kế tiếp đọc nhầm nó thành thư của mình. Triệu
+   * chứng là một danh sách người nhận chẳng liên quan gì tới kịch bản đang chạy.
+   *
+   * Khoảng hở này CÓ SẴN, chỉ chưa cắn: tới `0191` mỗi bước sinh một lá, và
+   * `flush(n)` đợi đúng n lá nên hiếm khi còn gì trên đường. Từ `0192` một bước
+   * sinh hai lá, nên mọi phép đếm thiếu đều để lại một lá lơ lửng — bốn ca đỏ ở
+   * bốn chỗ không ca nào có lỗi thật.
+   */
+  await donHopThuVaCho();
 });
 
 // =============================================================================
@@ -356,24 +368,54 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
   //
   // Sáu xuống năm ở `0064`: lá thư "B5 phát hành" đi cùng `PUBLISH_SIGNED`, mà
   // Kế toán đã có tên trong lá B4 ngay trước nó. Hai thư về cùng một giây.
-  it('năm bước sinh năm thư, mỗi thư đúng tập người nhận', async () => {
+  /*
+   * `0192` ĐỔI PHÉP ĐẾM, KHÔNG ĐỔI NGƯỜI NHẬN.
+   *
+   * Một bước không còn gửi MỘT lá cho cả nhóm: người phải xử lý và người chỉ cần
+   * biết nhận hai tiêu đề khác nhau, mà một lá thư chỉ mang được một tiêu đề.
+   * Năm bước vì thế sinh TÁM lá thay vì năm.
+   *
+   * Nhưng SỐ THƯ MỖI NGƯỜI NHẬN KHÔNG ĐỔI — vẫn đúng 13 lượt, đúng những người
+   * cũ. Đó mới là bất biến khách hàng quan tâm, và ca cũ chỉ nói được nó một cách
+   * gián tiếp (qua tập người nhận của từng lá). Ca này nói thẳng cả hai vế.
+   */
+  it('năm bước: mỗi người nhận đúng số lá như trước, và đúng bậc', async () => {
     const d = await draft();
     await runToActive(d.id);
 
-    const mails = await flush(5);
-    expect(mails.length).toBe(5);
+    const mails = await flush(8);
+    expect(mails.length, 'năm bước sinh tám lá — xem khối chú thích trên').toBe(8);
 
-    // Mailpit trả thư mới nhất trước; đảo lại để so theo thứ tự nghiệp vụ.
-    const byOrder = [...mails].reverse();
-    const to = byOrder.map((m) => m.To.map((t) => t.Address).sort());
+    const lan = (addr: string) => mails.filter((m) => m.To.some((t) => t.Address === addr)).length;
+    // 4 + 3 + 4 + 2 = 13 lượt, đúng bằng tổng của năm tập người nhận cũ.
+    expect(lan('tbp01@csbh.test')).toBe(4);
+    expect(lan('kt01@csbh.test')).toBe(3);
+    expect(lan('tdv01@csbh.test')).toBe(4);
+    expect(lan('sa01@csbh.test')).toBe(2);
 
-    expect(to).toEqual([
-      ['tbp01@csbh.test'], //                                     B3 gửi duyệt   -> TBP
-      ['kt01@csbh.test', 'tdv01@csbh.test'], //                    B4 ký số       -> KT, TDV
-      ['sa01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], //  B6 tiếp nhận 1 -> SA, TBP, TDV
-      ['kt01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], //  B8 bàn giao    -> KT, TBP, TDV
-      ['kt01@csbh.test', 'sa01@csbh.test', 'tbp01@csbh.test', 'tdv01@csbh.test'], // B10 -> đủ 4
+    /*
+     * Người ở bậc VIỆC của mỗi bước là CHỦ BƯỚC của trạng thái đích, và chỉ họ
+     * đọc thấy *Cần bạn xử lý*.
+     *
+     * `KT_RECEIVE_L2` không có mặt ở đây, và đó là điểm: nó dẫn tới
+     * `DANG_CO_HIEU_LUC`, một trạng thái không còn ai phải làm gì — cả bốn người
+     * đều nhận *Để bạn biết*.
+     */
+    const viec = mails
+      .filter((m) => m.Subject.includes('Cần bạn xử lý'))
+      .flatMap((m) => m.To.map((t) => t.Address))
+      .sort();
+    expect(viec).toEqual([
+      'kt01@csbh.test', //  B4 ký số     -> Kế toán duyệt bản mềm
+      'kt01@csbh.test', //  B8 bàn giao  -> Kế toán duyệt bản cứng
+      'sa01@csbh.test', //  B6 tiếp nhận -> Sale Admin bàn giao
+      'tbp01@csbh.test', // B3 gửi duyệt -> TBP ký
     ]);
+
+    // Và không lá nào mang cả hai nhãn — một lá, một bậc.
+    for (const m of mails) {
+      expect(m.Subject.includes('Cần bạn xử lý') && m.Subject.includes('Để bạn biết')).toBe(false);
+    }
   });
 
   it('không gửi cho TDV ngoài phạm vi — tdv03 và tbp02 không nhận thư nào', async () => {
@@ -406,24 +448,40 @@ describe('`0185` Hoàn duyệt báo cho cả ba, không riêng người lập', 
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
     await act(d.id, 'KT_RECEIVE_L1', 'kt01');
-    await flush(3);
-    await mailpitClear();
+    // NĂM lá (`0192`): 1 + 2 + 2. Đếm thiếu ở đây thì lá còn trên đường đáp
+    // xuống SAU lượt dọn và ca này đọc nhầm nó thành thư hoàn duyệt.
+    await flush(5);
+    await donHopThuVaCho();
 
     await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Ky nham ho so cua khach khac' });
 
-    const mails = await flush(1);
-    const thu = mails.find((m) => m.To.length === 3);
-    expect(thu, 'thư hoàn duyệt phải có ba người nhận').toBeDefined();
-    expect(thu!.To.map((t) => t.Address).sort()).toEqual([
-      'kt01@csbh.test',
-      'sa01@csbh.test',
-      'tdv01@csbh.test',
-    ]);
+    /*
+     * `0192` — cùng ba người, HAI lá thư, và đó là cả điểm của chặng ấy.
+     *
+     * Ba người này đang ở hai hoàn cảnh khác hẳn nhau: TDV phải sửa hồ sơ rồi
+     * gửi lại, còn Kế toán và Sale Admin thì phải DỪNG việc đang làm dở. Một lá
+     * thư chung mang đúng một tiêu đề, và tiêu đề ấy sai với một trong hai nhóm.
+     */
+    const mails = await flush(2);
 
-    const full = await fullMail(thu!.ID);
-    // Lý do đi kèm: người đang cầm hồ sơ cần biết vì sao việc của mình dừng.
-    expect(full.Text).toContain('Ky nham ho so cua khach khac');
-    expect(full.Text).toContain('Yêu cầu chỉnh sửa');
+    const viec = mails.find((m) => m.Subject.includes('Cần bạn xử lý'));
+    expect(viec, 'TDV phải nhận lá VIỆC').toBeDefined();
+    expect(viec!.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
+    expect(viec!.Subject).toContain('Chỉnh sửa và gửi lại');
+
+    // Nhãn RIÊNG, không phải *Để bạn biết*: hồ sơ đang nằm trên bàn họ và vừa bị
+    // rút đi — đọc lướt qua một nhãn nhẹ là làm tiếp một hồ sơ không còn ở đó.
+    const dung = mails.find((m) => m.Subject.includes('Dừng xử lý'));
+    expect(dung, 'Kế toán và Sale Admin phải nhận lá DỪNG XỬ LÝ').toBeDefined();
+    expect(dung!.To.map((t) => t.Address).sort()).toEqual(['kt01@csbh.test', 'sa01@csbh.test']);
+
+    for (const m of [viec!, dung!]) {
+      const full = await fullMail(m.ID);
+      // Lý do đi kèm CẢ HAI lá: người đang cầm hồ sơ cần biết vì sao việc của
+      // mình dừng, và người sắp sửa cần biết phải sửa gì.
+      expect(full.Text).toContain('Ky nham ho so cua khach khac');
+      expect(full.Text).toContain('Yêu cầu chỉnh sửa');
+    }
   });
 });
 
@@ -448,11 +506,23 @@ describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nh�
 
     // Ba thư: gửi duyệt → TBP, trả lại → TDV, xoá → TBP và Kế toán.
     const mails = await flush(3);
-    const m = await fullMail(mails[0]!.ID);
+    /*
+     * Tìm theo TIÊU ĐỀ, không lấy `mails[0]` (`0192`).
+     *
+     * Mailpit dùng chung cho cả tệp, và một lá của ca kiểm trước còn trên đường
+     * vẫn đáp xuống sau `mailpitClear()` — lấy "lá mới nhất" là đọc nhầm lá của
+     * người khác, và triệu chứng là một danh sách người nhận chẳng liên quan gì
+     * tới kịch bản đang chạy. Đã dính đúng thế một lần ở chính ca này.
+     */
+    const xoaThu = mails.find((x) => x.Subject.includes('đã xoá hồ sơ'));
+    expect(xoaThu, 'không có thư báo xoá hồ sơ').toBeDefined();
+    const m = await fullMail(xoaThu!.ID);
     expect(m.To.map((t) => t.Address).sort()).toEqual(['kt01@csbh.test', 'tbp01@csbh.test']);
     // Tiêu đề KHÔNG nói "bị trả lại" nữa (`0039`): hồ sơ *Từ chối* cũng xoá được,
     // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai.
     expect(m.Subject).toContain('Trình dược viên đã xoá hồ sơ');
+    // `DA_XOA` không có chủ bước, nên đây là lá TIN với cả hai người nhận.
+    expect(m.Subject).toContain('Để bạn biết');
     // Trạng thái trong thân thư phải là nhãn tiếng Việt, không phải mã enum —
     // thiếu một dòng trong `STATUS_LABEL` là người nhận đọc thấy "DA_XOA".
     expect(m.Text).toContain('Đã xoá');
@@ -493,20 +563,29 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
     await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Thieu chung tu' });
     await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
 
+    /*
+     * LỌC THEO BƯỚC, không đếm mọi lá "để biết" trong hộp (`0192`).
+     *
+     * Tới `0191` chỉ người đọc ra từ nhật ký mới nhận lá ấy, nên "đúng một lá để
+     * biết" là một phép đếm chặt. Từ `0192` mọi người có tên trên hồ sơ mà không
+     * phải chủ bước cũng nhận nó, nên bốn bước của kịch bản này sinh ra ba lá —
+     * và con số 3 không nói gì về cái luật ca này gác.
+     *
+     * Luật vẫn y nguyên: người vừa TRẢ hồ sơ về được báo khi nó đã sửa xong và
+     * đang quay lại. Nên lọc theo đúng lá thư của bước `RESUBMIT_AFTER_EDIT`.
+     */
     await outbox.pumpOnce();
-    const theoDoi: Awaited<ReturnType<typeof fullMail>>[] = [];
+    let t!: Awaited<ReturnType<typeof fullMail>>;
     await waitFor(async () => {
-      theoDoi.length = 0;
       for (const m of await listMail()) {
-        const full = await fullMail(m.ID);
-        if (full.Text.includes('chỉ để bạn biết')) theoDoi.push(full);
+        if (!m.Subject.includes('sửa xong và gửi duyệt lại')) continue;
+        t = await fullMail(m.ID);
+        return true;
       }
-      return theoDoi.length >= 1;
+      return false;
     }, 'thư "để biết" gửi cho Kế toán đã trả hồ sơ về');
 
-    expect(theoDoi, 'phải có đúng một thư "để biết"').toHaveLength(1);
-
-    const t = theoDoi[0]!;
+    expect(t.Text).toContain('chỉ để bạn biết');
     expect(t.To.map((x) => x.Address)).toEqual(['kt01@csbh.test']);
     // Liên kết trỏ vào NHẬT KÝ: mở hồ sơ ra họ chẳng có nút nào bấm được, còn
     // thứ họ muốn biết là hồ sơ đã đi qua đâu từ lúc mình rời tay.
@@ -516,16 +595,33 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
 
   it('người ĐANG phải xử lý chỉ nhận MỘT thư, không nhận thêm bản "để biết"', async () => {
     // Hai thư cho một sự kiện là cách nhanh nhất khiến người ta ngừng đọc cả
-    // hai. Người nhận thư chính bị trừ khỏi danh sách "để biết".
+    // hai. Người nhận lá VIỆC bị trừ khỏi mọi danh sách của lá TIN.
     const d = await draft();
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
 
-    // HAI thư: gửi duyệt và ký số. Bước tự động sau ký đã gỡ ở `0064`.
-    const mails = await flush(2);
-    expect(mails).toHaveLength(2);
+    /*
+     * BA thư, không hai (`0192`): gửi duyệt → một lá VIỆC cho TBP; ký số → một lá
+     * VIỆC cho Kế toán và một lá TIN cho TDV. Bước tự động sau ký đã gỡ ở `0064`.
+     *
+     * Phép đếm đổi, LUẬT thì không — nên ca này khẳng định luật, không khẳng
+     * định con số: mỗi người nhận ĐÚNG MỘT lá cho mỗi bước, và người có việc
+     * không bao giờ nhận kèm bản "để biết".
+     */
+    const mails = await flush(3);
+    expect(mails).toHaveLength(3);
+
+    const lan = (a: string) => mails.filter((m) => m.To.some((t) => t.Address === a)).length;
+    expect(lan('tbp01@csbh.test')).toBe(1); // chỉ lá VIỆC của bước gửi duyệt
+    expect(lan('kt01@csbh.test')).toBe(1); //  chỉ lá VIỆC của bước ký số
+    expect(lan('tdv01@csbh.test')).toBe(1); // chỉ lá TIN của bước ký số
+
     for (const m of mails) {
-      expect((await fullMail(m.ID)).Text).not.toContain('chỉ để bạn biết');
+      const full = await fullMail(m.ID);
+      const coViec = m.Subject.includes('Cần bạn xử lý');
+      // Hai vế của cùng một chuyện: lá VIỆC không mang câu "để bạn biết", và lá
+      // TIN thì phải mang. Chỉ kiểm vế đầu thì gỡ hẳn câu ấy đi vẫn xanh.
+      expect(full.Text.includes('chỉ để bạn biết')).toBe(!coViec);
     }
   });
 
@@ -555,8 +651,11 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
     });
     await act(d.id, 'SUBMIT', 'tdv01');
 
+    // Tìm theo TIÊU ĐỀ chứ không lấy lá mới nhất — xem chú thích ở ca `0035`.
     const mails = await flush(1);
-    const m = await fullMail(mails[0]!.ID);
+    const thu = mails.find((x) => x.Subject.includes('Duyệt và ký số'));
+    expect(thu, 'không có thư gửi duyệt').toBeDefined();
+    const m = await fullMail(thu!.ID);
 
     expect(m.Text).toContain(cus.code);
     expect(m.Text).toContain(CUSTOMER_NAME);
@@ -582,13 +681,18 @@ describe('NTF-02 nội dung một thư có đủ bảy trường bắt buộc', 
 
     await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thiếu chữ ký người đề nghị' });
     const back = await flush(1);
-    expect((await fullMail(back[0]!.ID)).Text).toContain('Thiếu chữ ký người đề nghị');
+    const traLai = back.find((x) => x.Subject.includes('Chỉnh sửa và gửi lại'));
+    expect(traLai, 'không có thư trả lại').toBeDefined();
+    expect((await fullMail(traLai!.ID)).Text).toContain('Thiếu chữ ký người đề nghị');
 
     await mailpitClear();
     await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
-    const signed = await flush(2);
-    const sign = signed.find((x) => x.Subject.includes('đã ký số'))!;
+    // BA lá (`0192`): gửi lại → VIỆC cho TBP; ký số → VIỆC cho Kế toán, TIN cho TDV.
+    const signed = await flush(3);
+    // Lá VIỆC của bước ký số — gửi cho Kế toán, người phải duyệt bản mềm.
+    const sign = signed.find((x) => x.Subject.includes('Duyệt bản mềm'))!;
+    expect(sign, 'không có thư báo TBP đã ký').toBeDefined();
     expect((await fullMail(sign.ID)).Text).not.toContain('Lý do:');
   });
 });
@@ -621,13 +725,23 @@ async function donSachSau(): Promise<void> {
  * trôi ở đây là phép ĐỢI — thứ hỏng thành ca kiểm chập chờn, không thành ca kiểm
  * đỏ.
  */
-async function doiThu(khoa: string) {
+async function doiThu(khoa: string, guiToi?: string) {
+  /*
+   * `0192` — thêm bộ lọc NGƯỜI NHẬN, và nó không phải một tiện nghi.
+   *
+   * Một bước giờ sinh HAI lá mang hai tiêu đề khác nhau, mà cả hai đều nhắc tới
+   * cùng một việc (*"Kế toán đã tiếp nhận L1"* xuất hiện ở cả lá VIỆC lẫn lá
+   * TIN). Tìm theo mỗi tiêu đề thì lấy được lá nào là chuyện của thứ tự tới —
+   * và ca kiểm khẳng định về người nhận sẽ đỏ theo xác suất.
+   */
+  const khop = (m: Summary) =>
+    m.Subject.includes(khoa) && (!guiToi || m.To.some((x) => x.Address === guiToi));
   await outbox.pumpOnce();
   await waitFor(
-    async () => (await listMail()).some((m) => m.Subject.includes(khoa)),
-    `thư có tiêu đề chứa "${khoa}"`,
+    async () => (await listMail()).some(khop),
+    `thư có tiêu đề chứa "${khoa}"${guiToi ? ` gửi tới ${guiToi}` : ''}`,
   );
-  return (await listMail()).find((m) => m.Subject.includes(khoa))!;
+  return (await listMail()).find(khop)!;
 }
 
 describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
@@ -667,7 +781,7 @@ describe('`0066` M-08 hết hiệu lực vì có phiên bản mới', () => {
     await act(id2, 'SA_HANDOVER', 'sa01');
     await act(id2, 'KT_RECEIVE_L2', 'kt01');
 
-    const thu = await doiThu('phiên bản mới');
+    const thu = await doiThu('phiên bản sau');
     // ĐÚNG tbp01. Ba người còn lại của bản cũ đều đang giữ bản mới, và họ vừa
     // nhận lá "CSBH bắt đầu có hiệu lực" trong cùng một giây.
     expect(thu.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
@@ -818,11 +932,17 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
     await donHopThuVaCho();
 
     await act(d.id, 'KT_RETURN_L2', 'kt01', { reason: 'Ban cung mo chu ky' });
-    const chinh = await doiThu('không tiếp nhận lần 2');
-    expect(chinh.To.map((x) => x.Address).sort()).toEqual([
-      'tbp01@csbh.test',
-      'tdv01@csbh.test',
-    ]);
+    /*
+     * HAI lá cho hai người (`0192`): hồ sơ về `YEU_CAU_CHINH_SUA`, chủ bước là
+     * TDV — họ phải sửa; TBP chỉ cần biết. Tới `0191` cả hai chung một lá.
+     */
+    const chinh = await doiThu('không tiếp nhận L2', 'tdv01@csbh.test');
+    expect(chinh.Subject).toContain('Cần bạn xử lý');
+    expect(chinh.To.map((x) => x.Address)).toEqual(['tdv01@csbh.test']);
+
+    const bao = await doiThu('không tiếp nhận L2', 'tbp01@csbh.test');
+    expect(bao.Subject).toContain('Để bạn biết');
+    expect(bao.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
 
     /*
      * MỐC ĐỒNG BỘ, và đây là chỗ bản đầu của ca kiểm này SAI.
@@ -841,7 +961,7 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
      * lá của lượt trả về đã được thử gửi xong.
      */
     await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01');
-    await doiThu('chờ duyệt lại');
+    await doiThu('gửi duyệt lại');
 
     /*
      * CHIỀU NGƯỢC, và nó kiêm luôn mốc đồng bộ: cơ chế "để biết" vẫn sống, chỉ
@@ -856,18 +976,21 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
      * Thiếu khẳng định này thì một bản sửa gỡ hẳn `baoNguoiDaTacDong` cũng làm
      * xanh cả ca kiểm.
      */
-    const deBiet: Awaited<ReturnType<typeof fullMail>>[] = [];
-    await waitFor(async () => {
-      deBiet.length = 0;
-      for (const m of await listMail()) {
-        const full = await fullMail(m.ID);
-        if (full.Text.includes('chỉ để bạn biết')) deBiet.push(full);
-      }
-      return deBiet.length > 0;
-    }, 'thư "để biết" của lượt gửi lại');
-
-    expect(deBiet, 'cơ chế "để biết" phải còn nguyên cho ba vai trò kia').toHaveLength(1);
-    expect(deBiet[0]!.To.map((x) => x.Address)).toEqual(['kt01@csbh.test']);
+    /*
+     * LỌC THEO BƯỚC (`0192`). Đếm mọi lá "để biết" trong hộp không còn nói lên
+     * điều gì: từ `0192` mọi người có tên trên hồ sơ mà không phải chủ bước cũng
+     * nhận lá ấy, nên lượt trả về ở trên đã sinh ra một lá cho TBP.
+     *
+     * Cái ca này gác vẫn y nguyên: người vừa TRẢ hồ sơ về — Kế toán, không còn
+     * tên trong `RECIPIENTS` của lượt gửi lại — vẫn được báo.
+     */
+    const deBiet = await fullMail(
+      (await doiThu('gửi duyệt lại', 'kt01@csbh.test')).ID,
+    );
+    expect(deBiet.Text, 'cơ chế "để biết" phải còn nguyên cho ba vai trò kia').toContain(
+      'chỉ để bạn biết',
+    );
+    expect(deBiet.To.map((x) => x.Address)).toEqual(['kt01@csbh.test']);
 
     for (const m of await listMail()) {
       expect(
@@ -896,7 +1019,7 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
 
     await act(d.id, 'KT_RECEIVE_L1', 'kt01', { saleAdminUserId: await idCua('sa01') });
     expect(
-      (await doiThu('tiếp nhận lần 1')).To.map((x) => x.Address),
+      (await doiThu('tiếp nhận L1', 'sa01@csbh.test')).To.map((x) => x.Address),
       'B6 giao việc cho Sale Admin mà không báo họ',
     ).toContain('sa01@csbh.test');
 
@@ -917,7 +1040,7 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
 
     await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban cung bi nhoe' });
     expect(
-      (await doiThu('in lại')).To.map((x) => x.Address),
+      (await doiThu('in lại', 'sa01@csbh.test')).To.map((x) => x.Address),
       'bắt in lại là việc của Sale Admin',
     ).toContain('sa01@csbh.test');
 
@@ -933,7 +1056,9 @@ describe('NTF-04 mọi thư của một khách hàng nằm chung một luồng',
   it('cùng References, khác Message-ID', async () => {
     const d = await draft();
     await runToActive(d.id);
-    const mails = await flush(5);
+    // TÁM lá từ `0192` — hai bậc, hai tiêu đề. Chúng vẫn nằm CHUNG một luồng:
+    // `threadKey` lấy theo khách hàng, không theo bậc.
+    const mails = await flush(8);
 
     const raws = await Promise.all(mails.map((m) => rawMail(m.ID)));
     const refs = raws.map((r) => /^References:\s*(.+)$/im.exec(r)?.[1]?.trim());
@@ -941,8 +1066,10 @@ describe('NTF-04 mọi thư của một khách hàng nằm chung một luồng',
 
     expect(new Set(refs).size).toBe(1);
     expect(refs[0]).toMatch(/^<csbh\.thread\..+@nutricare\.test>$/);
-    // Năm thư khác nhau: gộp luồng KHÔNG được làm chúng thành một thư.
-    expect(new Set(ids).size).toBe(5);
+    // Tám thư khác nhau: gộp luồng KHÔNG được làm chúng thành một thư. Hai lá
+    // của CÙNG một sự kiện cũng phải khác `Message-ID`, nếu không trình khách
+    // gộp chúng lại và người đọc mất một trong hai.
+    expect(new Set(ids).size).toBe(8);
   });
 
   it('hai khách hàng khác nhau thì hai luồng khác nhau', async () => {
@@ -1246,8 +1373,15 @@ describe('NTF-13 đổi giá sản phẩm nằm trong CSBH đang hiệu lực', 
   it('thư tới đúng TDV phụ trách, và hồ sơ đã ký KHÔNG bị ghi đè', async () => {
     const d = await draft();
     await runToActive(d.id);
-    await flush(5);
-    await mailpitClear();
+    /*
+     * TÁM lá (`0192`), rồi dọn CHO TỚI KHI ĐỨNG YÊN.
+     *
+     * `flush(5)` trả về ngay khi có 5 lá, còn ba lá nữa đang trên đường; chúng
+     * đáp xuống sau `mailpitClear()` và ca này — vốn khẳng định *"không lá nào
+     * đi ra"* — đếm nhầm chúng thành thư báo lệch danh mục.
+     */
+    await flush(8);
+    await donHopThuVaCho();
 
     const before = await withAdminDb(async (c) => {
       const q = await c.query<{ company_price_snap: string; row_version: number }>(
@@ -1344,8 +1478,15 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
     });
     expect(hs.status, JSON.stringify(hs.body)).toBe(201);
     await runToActive(hs.body.id as string);
-    await flush(5);
-    await mailpitClear();
+    /*
+     * TÁM lá (`0192`), rồi dọn CHO TỚI KHI ĐỨNG YÊN.
+     *
+     * `flush(5)` trả về ngay khi có 5 lá, còn ba lá nữa đang trên đường; chúng
+     * đáp xuống sau `mailpitClear()` và ca này — vốn khẳng định *"không lá nào
+     * đi ra"* — đếm nhầm chúng thành thư báo lệch danh mục.
+     */
+    await flush(8);
+    await donHopThuVaCho();
 
     await withAdminDb(async (cc) => {
       await cc.query(`UPDATE cat.outbox SET published_at = now() WHERE published_at IS NULL`);

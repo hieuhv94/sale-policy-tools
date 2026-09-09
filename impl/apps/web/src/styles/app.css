@@ -363,6 +363,32 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * DẤU CHẤM trên chuông (`0192`) — còn TIN chưa đọc, nhưng không còn VIỆC nào.
+ *
+ * Chỉ hiện khi huy hiệu vắng mặt; luật loại trừ ấy nằm trong `dauChuong()`, ở
+ * kiểu dữ liệu chứ không ở CSS.
+ *
+ * XANH THƯƠNG HIỆU, không đỏ: đỏ là màu của huy hiệu đếm việc, và cùng màu là
+ * cùng mức độ khẩn — nó sẽ đọc ra như *"con số nhưng đếm không được"*. Xanh thì
+ * đúng bằng màu `.tb-cham` của từng dòng, nên dấu này tự giải nghĩa: *bên trong
+ * có những dòng mang chấm xanh*. Một bản thu nhỏ của thứ đã có, không phải một
+ * ký hiệu mới phải học.
+ *
+ * 8px cho khớp `.tb-cham`, và giữ nguyên vòng ngăn `--mau-nen` của huy hiệu —
+ * bỏ nó thì chấm dính vào nét vẽ cái chuông thành một vệt.
+ */
+.tb-cham-chuong {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--mau-nen);
+  background: var(--mau-thuong-hieu);
+}
+
 /* Bảng sổ xuống mượn `.menu-so` (nền, viền, bóng, vị trí) rồi chỉ nới bề ngang.
    Dựng lại từ đầu là có hai khối cạnh nhau trên cùng một thanh mà lệch nhau vài
    pixel. */
@@ -417,10 +443,40 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   color: var(--mau-chu);
   text-decoration: none;
   border-bottom: 1px solid var(--mau-vien);
+  /* Chừa sẵn chỗ cho dải bậc để dòng TIN và dòng VIỆC thẳng cột chữ với nhau.
+     Đặt dải bằng `border-left` thì dòng không có dải sẽ thụt 3px, và cả danh
+     sách trông như bị so le — cùng lý do `.tb-cham` giữ ô trống. */
+  border-left: 3px solid transparent;
 }
 .tb-danh-sach > li:last-child .tb-dong { border-bottom: 0; }
 .tb-dong:hover { background: var(--mau-nen-hover); }
 .tb-dong:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
+
+/*
+ * DÒNG BẬC VIỆC (`0192`) — dải hổ phách + nền nhạt.
+ *
+ * Đánh dấu cái QUAN TRỌNG, không đánh dấu cái còn lại. Chip *để biết* của `0036`
+ * làm ngược: trong mười dòng mà tám là tin, mắt phải đi tìm hai dòng KHÔNG có
+ * chip. Tìm một thứ vắng mặt thì phải quét từng dòng; tìm một thứ có mặt thì nó
+ * tự nhảy ra.
+ *
+ * HỔ PHÁCH, không phải xanh thương hiệu: xanh đã là màu của *chưa đọc* ở cả
+ * `.tb-cham` lẫn dấu chấm trên chuông, và một màu mang hai nghĩa trên cùng một
+ * dòng thì thôi nói được nghĩa nào. Không phải `--mau-loi` (`0188`): một việc
+ * phải làm là chuyện bình thường, không phải sự cố, và đỏ ở đây tranh chỗ với
+ * huy hiệu đếm việc ngay phía trên.
+ *
+ * HAI TRỤC ĐỘC LẬP, bốn tổ hợp đều đọc ra được: dải nói *việc / tin*, chấm và
+ * chữ đậm nói *chưa đọc / đã đọc*. Một dòng VIỆC đã đọc vẫn còn dải — đọc không
+ * phải là làm.
+ */
+.tb-viec {
+  border-left-color: var(--mau-canh-bao);
+  background: var(--mau-canh-bao-nen);
+}
+/* Giữ nền hover đè lên nền bậc, nếu không thì dòng VIỆC không phản hồi khi rê
+   chuột trong khi mọi dòng khác đều có. */
+.tb-viec:hover { background: var(--mau-nen-hover); }
 
 /* Chấm chỉ đánh dấu DÒNG chưa đọc. Giữ ô trống khi đã đọc thay vì bỏ hẳn phần
    tử: bỏ đi thì cả cột chữ của dòng đã đọc thụt sang trái và danh sách trông
@@ -447,17 +503,13 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 }
 .tb-luc { color: var(--mau-chu-nhat); font-size: var(--chu-rat-nho); }
 
-/* Nhãn *để biết* (`0036`) — người nhận KHÔNG phải xử lý gì ở bước này. Màu
-   trung tính, không mượn màu cảnh báo: nó phân loại, không báo động. */
-.tb-de-biet {
-  padding: 1px var(--k2);
-  border-radius: 999px;
-  background: var(--mau-nen-hover);
-  color: var(--mau-chu-phu);
-  font-size: var(--chu-rat-nho);
-  font-weight: 600;
-  white-space: nowrap;
-}
+/*
+ * `.tb-de-biet` ĐÃ GỠ ở `0192` — xem `.tb-viec` phía trên và `lopDong()`.
+ *
+ * Ghi lại thay vì xoá lặng lẽ: chip ấy trông rất hợp lý và người đọc mã sau này
+ * dễ dựng lại nó. Dựng lại là quay về đánh dấu cái không quan trọng, VÀ nói hai
+ * lần cùng một chuyện — từ `0192` chính tiêu đề đã mở đầu bằng *Để bạn biết*.
+ */
 
 .tb-chan {
   padding: var(--k2) var(--k3);

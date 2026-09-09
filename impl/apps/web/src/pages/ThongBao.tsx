@@ -18,15 +18,19 @@ import { Lien } from '../lib/router.js';
 import {
   danhDauDaDoc,
   danhDauDaDocHet,
+  lopDong,
   MOI_TRANG_THONG_BAO,
   thoiGianTuongDoi,
-  useSoChuaDoc,
+  useChuaDoc,
   type ThongBao as Dong,
 } from '../lib/thong-bao.js';
 
 export function ThongBao() {
   const [chiChuaDoc, datChiChuaDoc] = useState(false);
-  const soChuaDoc = useSoChuaDoc();
+  const chuaDoc = useChuaDoc();
+  // Nút và số đếm nói về CẢ HỘP, không riêng bậc nào — trang này không lọc theo
+  // bậc, chỉ theo *đã đọc / chưa đọc* (`0192`).
+  const soChuaDoc = chuaDoc.viec + chuaDoc.tin;
   const { muc, tong, loi, trang, soTrang, doiTrang, taiLai } = useTrangMay<Dong>(
     `/notifications/cua-toi${chiChuaDoc ? '?chuaDoc=true' : ''}`,
     MOI_TRANG_THONG_BAO,
@@ -98,17 +102,11 @@ export function ThongBao() {
         <ul className="tb-danh-sach tb-danh-sach-trang">
           {muc.map((tb) => (
             <li key={tb.id}>
-              <Lien
-                den={tb.duongDan}
-                className={tb.daDocLuc ? 'tb-dong' : 'tb-dong tb-chua-doc'}
-                truocKhiDi={() => doc(tb)}
-              >
+              <Lien den={tb.duongDan} className={lopDong(tb)} truocKhiDi={() => doc(tb)}>
                 <span className="tb-cham" aria-hidden="true" />
                 <span className="tb-than">
-                  <span className="tb-tieu-de">
-                    {tb.tieuDe}
-                    {tb.kind === 'THEO_DOI' && <span className="tb-de-biet">để biết</span>}
-                  </span>
+                  {/* Bậc ở LỚP của cả dòng (`0192`) — xem `lopDong`. */}
+                  <span className="tb-tieu-de">{tb.tieuDe}</span>
                   {tb.moTa && <span className="tb-mo-ta">{tb.moTa}</span>}
                   <span className="tb-luc" title={ngayGio(tb.xayRaLuc)}>
                     {thoiGianTuongDoi(tb.xayRaLuc)}

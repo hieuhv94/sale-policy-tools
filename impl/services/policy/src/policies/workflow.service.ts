@@ -42,7 +42,16 @@ import {
 } from './policies.service.js';
 
 /** Ai nhận email sau mỗi bước (muc 3). */
-const RECIPIENTS: Partial<Record<Action, string[]>> = {
+/**
+ * XUẤT RA từ `0192` — để một ca kiểm đối chiếu được nó với `CHU_BUOC`.
+ *
+ * Cùng lý do `0185` xuất `RULES`: bảng này và bảng chủ bước cùng nói về một máy
+ * trạng thái, và ca kiểm phải LẶP trên chính nó chứ không chép lại danh sách —
+ * bản chép sẽ trôi, và lượt trôi đầu tiên là một người mất thông báo.
+ *
+ * Không đường chạy nào ngoài tệp này đọc nó.
+ */
+export const RECIPIENTS: Partial<Record<Action, string[]>> = {
   SUBMIT: ['TBP'],
   TBP_SIGN: ['KE_TOAN', 'TDV'],
   TBP_RETURN: ['TDV'],

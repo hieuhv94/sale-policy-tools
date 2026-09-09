@@ -85,9 +85,34 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (08/09/2026)
+## Trạng thái hiện tại (09/09/2026)
 
-Chặng gần nhất **P219** (`0191`): **lập phiên bản mới ngay từ trang hồ sơ**, khỏi vòng qua trang khách
+Chặng gần nhất **P220** (`0192`): **tiêu đề thông báo nói rõ VIỆC CỦA AI**. Mười bảy tiêu đề cũ đều kể
+*ai vừa làm gì*, trong khi cùng một tiêu đề đi tới 2–4 vai trò có việc khác hẳn nhau — *"Kế toán đã
+tiếp nhận lần 1"* với Sale Admin là MỆNH LỆNH, với TBP và TDV là một mẩu tin. **BẬC là DẪN XUẤT**:
+`vaiTroNguoiDoc === CHU_BUOC[toStatus]` → *Cần bạn xử lý*, còn lại → *Để bạn biết*. Bản đầu có BA bậc
+và người dùng chỉ ra bậc ba cũng là tin; họ đúng, và lý do mạnh hơn "gộp cho gọn" — **bốn trạng thái
+không có chủ bước trả `undefined`, mà `undefined` không bằng vai trò nào, nên sáu hành động ấy TỰ rơi
+về TIN**; bậc ba là một nhánh viết tay dựng lại kết quả phép so đã cho sẵn. Gộp còn làm lằn ranh SLA
+SẮC HƠN: *nhắc* là VIỆC, *quá hạn* là TIN — đúng thứ vừa xảy ra (`QUA_HAN_DUYET` là trạng thái kết
+thúc từ `0047`, nên tiêu đề cũ đọc như lời giục suốt từ đó). `OWNER_ROLE` của `sla-worker` dời sang
+`domain-policy` thành **`CHU_BUOC`**, thêm `YEU_CAU_CHINH_SUA: 'TDV'` — dòng khiến bảng này KHÔNG suy
+ra được từ `WAITING` (`0155`: trạng thái ấy có việc mà không có hạn). Chỗ nặng nhất: **`CHINH` co về
+đúng chủ bước**, người có tên mà không phải chủ bước chuyển sang lá "để biết" — **không `kind` mới,
+không migration**. Ba bẫy: `nhomViec` rỗng là HỢP LỆ (giữ phép kiểm cũ là đẩy sáu hành động vào DLQ);
+`0147` siết lại đúng NỬA của nó (Sale Admin vẫn nhận khi `RECIPIENTS` gọi tên — `KT_RECEIVE_L2` và
+`TBP_RECALL`); lá TIN **ném thay vì nuốt** khi chưa có lá nào đi (`0037` đứng trên tiền đề vừa mất).
+**Cái giá đã đo: 5 lá → 8 lá một vòng duyệt, số thư MỖI NGƯỜI không đổi** (13 lượt). Chuông: **con số
+đếm VIỆC, dấu chấm cho tin** — không đảo quyết định 23/08 (*chấm THAY CHO số*) mà trả con số về đúng
+câu khách hàng đặt cho nó (*"còn 12 VIỆC chưa xem"*); luật loại trừ nằm trong KIỂU DỮ LIỆU
+(`dauChuong` trả `'so'|'cham'|'khong'`), máy chủ trả HAI con số vì nhãn trình đọc màn hình là đường
+duy nhất dấu chấm tới được họ. Chip *để biết* **nghỉ** (đánh dấu cái không quan trọng, và tiêu đề đã
+tự nói ra bậc), thay bằng dải hổ phách trên cả dòng. **26 đỏ ở lượt chạy đầu, chạy riêng thì xanh
+hết**: `flush(n)` trả về sớm nên lá còn trên đường đáp xuống sau lượt dọn của ca kế — khoảng hở CÓ
+SẴN, chỉ chưa cắn vì tới `0191` mỗi bước sinh một lá. Sáu lượt phá lại, sáu đỏ đúng chỗ.
+**2140/2140 xanh.**
+
+Trước đó **P219** (`0191`): **lập phiên bản mới ngay từ trang hồ sơ**, khỏi vòng qua trang khách
 hàng. **KHÔNG có đường máy chủ mới** — gọi đúng `POST /policies` với `mode: NEW_VERSION` mà trang *Lập
 hồ sơ* vẫn gọi, nên mọi chốt của `create` (phạm vi TDV · khách ngừng hợp tác · `NO_ACTIVE_POLICY`) giữ
 nguyên; một đường thứ hai là một bản sao sẽ trôi. **Nút này KHÔNG thuộc máy trạng thái**:
@@ -1094,6 +1119,22 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `templates.duongDan()`, một hàm cho cả thư lẫn chuông. Hai lá thư của `identity` (kích hoạt, đặt
   lại mật khẩu) **không** sinh thông báo: chúng mang token thô, mà `ONB-15` cấm token thô nằm trong
   CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
+- **BẬC của một thông báo là DẪN XUẤT, với TỪNG người đọc** (`0192`) —
+  `vaiTroNguoiDoc === CHU_BUOC[toStatus]` là VIỆC, còn lại là TIN. **MỘT boolean cấp cho BA chỗ**:
+  nhãn tiêu đề (*Cần bạn xử lý* / *Để bạn biết*), `duongDan` (`/ho-so/:id` hay `.../nhat-ky`), và dải
+  màu trên dòng chuông — không chỗ nào tự suy lại được. `MailEvent.chiDeBiet` **gỡ hẳn**: nó mang đúng
+  nghĩa ấy nhưng là trường tuỳ chọn, nên quên đặt là lặng lẽ nói với người không có việc rằng họ có
+  việc; bậc giờ là tham số BẮT BUỘC của cả ba hàm dựng chữ (`0143`). **`CHINH` = bậc VIỆC** — nghĩa
+  của `kind` không đổi, chỉ tập người đủ tư cách đổi, nên không cần cột mới và dòng lịch sử vẫn đọc
+  được. Bốn trạng thái không có chủ bước (`DANG_CO_HIEU_LUC`, `HET_HIEU_LUC`, `DA_XOA`,
+  `QUA_HAN_DUYET`) làm sáu hành động **tự rơi về TIN** — đừng viết một nhánh `TERMINAL`, phép so đã
+  cho sẵn kết quả ấy. Cái giá: **một bước sinh HAI lá thư** khi người nhận trải trên hai bậc (5→8 lá
+  một vòng duyệt), nhưng số thư MỖI NGƯỜI không đổi — mọi ca kiểm đếm LÁ phải đếm lại, ca kiểm đếm
+  NGƯỜI thì không.
+- **`CHU_BUOC` là bảng chung, KHÁC `WAITING` đúng một dòng** (`0192`, ở `domain-policy`) —
+  `YEU_CAU_CHINH_SUA → TDV` có việc mà **không có SLA** (`0155`). *Có việc* và *có hạn* là hai câu hỏi
+  khác nhau, nên hai bảng khác nhau; `sla-worker` tra bảng này bằng `status` của hàng lấy từ `WAITING`
+  nên khoá mới không bao giờ bị tra tới — và có ca kiểm nói thẳng ra điều đó thay vì tin là đúng.
 - **Khách hàng và hai cái tên đóng băng lúc gửi duyệt** (`0101`, `0177`) — mười cột `kh_*_snap` cộng
   `nguoi_de_nghi_snap` trên `pol.policy`; `tbp_ky_ten_snap` chụp lúc KÝ. `0177` thêm
   `kh_so_nha_snap`/`kh_tinh_thanh_snap` **bên cạnh** `kh_dia_chi_dang_ky_snap` chứ không thay nó:

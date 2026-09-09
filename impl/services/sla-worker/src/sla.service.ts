@@ -27,7 +27,14 @@ import Redis from 'ioredis';
 import { randomUUID } from 'node:crypto';
 import { REDIS_URL } from '@csbh/http-kit';
 import { Db, Clients } from '@csbh/policy/infra';
-import { STATUS_OF_STEP, STEP_OF_STATUS, WAITING, type Status, type Step } from '@csbh/domain-policy';
+import {
+  CHU_BUOC,
+  STATUS_OF_STEP,
+  STEP_OF_STATUS,
+  WAITING,
+  type Status,
+  type Step,
+} from '@csbh/domain-policy';
 import { Clock } from './clock.js';
 
 const LOCK_KEY = 'csbh:sla:scan';
@@ -42,13 +49,18 @@ const LOCK_TTL_MS = 60_000;
  */
 const DISCARD_DAYS = Number(process.env.SLA_DISCARD_DAYS ?? 3);
 
-/** Ai phải xử lý ở mỗi bước chờ — cũng chính là người nhận thư nhắc và thư quá hạn. */
-const OWNER_ROLE: Record<string, string> = {
-  CHO_TBP_DUYET: 'TBP',
-  CHO_KT_L1: 'KE_TOAN',
-  SA_DANG_XU_LY: 'SALE_ADMIN',
-  CHO_KT_L2: 'KE_TOAN',
-};
+/*
+ * `OWNER_ROLE` ĐÃ DỜI sang `@csbh/domain-policy` với tên `CHU_BUOC` (`0192`).
+ *
+ * Bảng ở đó dày hơn đúng một dòng — `YEU_CAU_CHINH_SUA: 'TDV'` — và dòng ấy
+ * KHÔNG chạm tới đường SLA: ba nơi dùng dưới đây đều tra bằng `status` của một
+ * hàng lấy từ tập `WAITING`, mà `YEU_CAU_CHINH_SUA` không thuộc tập ấy
+ * (`0155` — trạng thái này không có SLA). Nên khoá mới không bao giờ bị tra tới.
+ *
+ * Đó là một suy luận, không phải một quan sát, nên `sla.test.ts` có một ca kiểm
+ * nói thẳng ra nó: mọi khoá của `CHU_BUOC` bị đường SLA tra tới đều phải nằm
+ * trong `WAITING`.
+ */
 
 type WaitingRow = {
   id: string;
@@ -233,7 +245,7 @@ export class SlaService {
           // Bước đang chờ đi kèm THÔNG BÁO chứ không chỉ nằm trong CSDL: người
           // nhận thư cần biết ngay việc đang tắc ở đâu.
           pendingStep: p.status,
-          recipients: [OWNER_ROLE[p.status] ?? 'TDV', 'TDV'],
+          recipients: [CHU_BUOC[p.status] ?? 'TDV', 'TDV'],
           observers: daDong.rows.map((x) => x.actor_id),
           at: now.toISOString(),
           extra: { 'Hạn xử lý': p.sla_due_at.toISOString() },
@@ -276,7 +288,7 @@ export class SlaService {
          * Thư QUÁ HẠN thì ngược lại, vẫn gửi rộng: lúc ấy là tin phải báo, không
          * còn là việc phải làm.
          */
-        recipients: [OWNER_ROLE[p.status] ?? 'TDV'],
+        recipients: [CHU_BUOC[p.status] ?? 'TDV'],
         at: this.clock.now().toISOString(),
         extra,
       }),
@@ -354,7 +366,7 @@ export class SlaService {
       // `pending_step` chứ không từ `status` — status giờ là `QUA_HAN_DUYET`,
       // nó không nói được ai đã để hồ sơ này chết.
       const bucKet = p.pending_step ? STATUS_OF_STEP[p.pending_step as Step] : undefined;
-      const chuBuoc = bucKet ? OWNER_ROLE[bucKet] : undefined;
+      const chuBuoc = bucKet ? CHU_BUOC[bucKet] : undefined;
 
       await c.query(`INSERT INTO pol.outbox (routing_key, payload) VALUES ($1, $2::jsonb)`, [
         'policy.sla_discarded',

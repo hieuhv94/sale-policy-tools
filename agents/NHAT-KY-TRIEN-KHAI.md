@@ -16639,3 +16639,214 @@ duyệt xong. Không có hộp thì hai câu ấy không có chỗ nào để đ
 | Điều kiện lấy cả bản ĐÃ duyệt xong | **3 đỏ** |
 
 **2112/2112 xanh.**
+
+---
+
+## P220 — `0192` Tiêu đề thông báo nói rõ VIỆC CỦA AI
+
+Yêu cầu: *"thử đề xuất nội dung tiêu đề của thông báo để người dùng không bị rối khi nhận quá nhiều
+thông báo"*.
+
+### Chẩn đoán: tiêu đề trả lời sai câu hỏi
+
+Mười bảy tiêu đề của `TITLE` đều kể **ai vừa làm gì**. Nhưng cùng một tiêu đề đi tới hai đến bốn vai
+trò có việc khác hẳn nhau: *"Kế toán đã tiếp nhận lần 1"* với Sale Admin là **một mệnh lệnh** (hồ sơ
+đang nằm trên bàn họ, phải bàn giao bản cứng), với TBP và TDV là **một mẩu tin**. Mỗi dòng bắt người
+đọc tự dịch sang vai trò mình — với một hồ sơ thì không sao, với hai mươi thì đó chính là cái rối.
+
+**Cái chuông đã có một nửa lời giải và nó đấu vào sai vế.** Chip *để biết* (`0036`) phân biệt đúng
+hai loại ấy, nhưng nó đọc `kind` — tức *"bạn nhận thư này bằng đường nào"* (có tên trên hồ sơ, hay đã
+từng thao tác). Câu người dùng cần là *"tôi có việc không"*. Hai câu lệch nhau ở đúng chỗ đông người
+nhất: TBP và TDV nhận `KT_RECEIVE_L1` dưới `kind = CHINH`, **không có chip**, dù chẳng phải làm gì.
+
+### Bậc là DẪN XUẤT, và nhánh thứ ba tôi thêm vào đã bị gỡ
+
+Bậc của một thông báo với một người đọc là **một phép so**:
+
+```
+laViecCuaToi = (vaiTroNguoiDoc === CHU_BUOC[trangThaiDich])
+```
+
+Bản đề xuất đầu có **ba** bậc — *việc* · *tin* · *kết thúc* — và người dùng chỉ ra rằng bậc ba cũng
+là *tin*. Họ đúng, và lý do mạnh hơn "gộp cho gọn": **bậc ba là một nhánh tôi tự thêm vào, còn phép
+suy đã tự xử đúng nó rồi.** `DANG_CO_HIEU_LUC`, `HET_HIEU_LUC`, `DA_XOA`, `QUA_HAN_DUYET` đều không
+có chủ bước, nên `CHU_BUOC[...]` trả `undefined`, mà `undefined` không bằng vai trò nào — cả sáu hành
+động dẫn tới chúng **tự rơi về TIN**. Ba bậc bắt viết thêm một nhánh chỉ để dựng lại kết quả mà một
+phép so đã cho sẵn. Có ca kiểm nói thẳng ra điều này (*"sáu hành động tới trạng thái không có chủ
+bước thì KHÔNG ai ở bậc VIỆC"*), vì nếu không thì người sau rất dễ viết lại cái nhánh ấy.
+
+**Và phép gộp làm lằn ranh SLA sắc hơn, không cùn đi.** Ba bậc diễn ranh giới *nhắc* ↔ *quá hạn* bằng
+một từ mới (*Kết thúc*); hai bậc diễn nó bằng **chính cái trục đang dùng để phân loại** — thông báo
+nhảy từ *có việc* sang *hết việc*, đúng thứ vừa xảy ra với hồ sơ. `QUA_HAN_DUYET` là trạng thái KẾT
+THÚC từ `0047`: không ai thao tác được nữa, nên lá thư ấy **không phải lời giục**, và tiêu đề cũ (*"Hồ
+sơ đã quá hạn duyệt"*) đọc như một lời giục suốt từ đó tới nay.
+
+### `CHU_BUOC` — bảng đã có sẵn, chỉ thiếu một dòng
+
+Nó là `OWNER_ROLE` của `sla-worker`, dời sang `@csbh/domain-policy` và thêm `YEU_CAU_CHINH_SUA: 'TDV'`.
+**Dòng ấy là lý do bảng này không suy ra được từ `WAITING`**: hồ sơ về tay TDV thì có người phải làm,
+nhưng `0155` bỏ `TU_CHOI` và ghi ra cái giá — trạng thái này **không có SLA**, nằm đó vô thời hạn. *Có
+việc* và *có hạn* là hai câu hỏi khác nhau.
+
+Dòng mới không chạm đường SLA vì ba nơi dùng đều tra bằng `status` của một hàng lấy từ tập `WAITING`.
+Đó là một **suy luận, không phải quan sát**, nên `sla.test.ts` có ca nói thẳng ra nó — kể cả một ca
+quét mã nguồn cấm nới `[...WAITING]` thành `Object.keys(CHU_BUOC)`.
+
+### Chỗ nặng nhất: `CHINH` thu về đúng chủ bước
+
+Tới `0191` mọi người nhận của một bước chung MỘT lá thư. Từ `0192` họ cần hai tiêu đề, mà một lá thư
+chỉ mang được một. Nên `CHINH` co lại còn **đúng người chủ bước**, và những người có tên trong
+`RECIPIENTS` mà không phải chủ bước **chuyển sang lá "để biết"**, chung với `observers`.
+
+**Không thêm `kind` mới, không migration.** `CHINH` = *"thư của người phải xử lý"* (`0037`) chính là
+bậc VIỆC; nghĩa của nhãn không đổi, chỉ tập người đủ tư cách đổi. `ntf.sent_mail.kind` có
+`CHECK (kind IN ('CHINH','THEO_DOI'))` — thêm giá trị là một migration, và giữ hai giá trị ấy giữ luôn
+cho dòng lịch sử đọc được.
+
+Ba bẫy phải xử trước khi chạy:
+
+**1. `nhomViec` RỖNG là kết quả hợp lệ, không phải lỗi.** Sáu hành động (`KT_RECEIVE_L2`, `DELETE`,
+`SUPERSEDE`, `CUSTOMER_RETIRED`, `SLA_OVERDUE`, `SLA_DISCARDED`) không có ai ở bậc VIỆC. `claim` cũ
+chạy vô điều kiện và `targets.length === 0` là dấu hiệu identity tra hỏng — giữ nguyên phép kiểm ấy là
+đẩy cả sáu vào DLQ. Chốt chặn tách làm hai: `targets` rỗng vẫn LỖI, `nhomViec` rỗng thì chỉ là không
+có lá nào ở bậc ấy, và cũng không có gì để giữ chỗ dưới `CHINH`.
+
+**2. `0147` phải siết lại đúng nửa của nó.** Luật *"chỉ gửi cho SA khi đó là việc SA phải làm"* áp cho
+CẢ lá thư "để biết", và điều đó đúng chừng nào lá ấy chỉ gồm người đọc ra từ nhật ký. Sau bước trên nó
+còn gồm người có TÊN trong `RECIPIENTS`, mà `KT_RECEIVE_L2` và `TBP_RECALL` gọi tên Sale Admin **có
+chủ ý** — hồ sơ vừa có hiệu lực, hoặc vừa bị rút khỏi bàn họ. Nên phép loại trừ ở lại trong khối
+`observers`, không nhích lên trên. Phá lại bằng cách trả nó về mức cả lá thư cho **2 đỏ**, đúng hai
+chỗ ấy.
+
+**3. Lá TIN đổi nhánh xử lỗi.** `0037` chốt *"hỏng thì nuốt"* vì nó là thư phụ và lá chính đã bay đi.
+Tiền đề ấy vừa mất: sáu hành động trên chỉ có LÁ NÀY. Nên `baoTin` nhận `daGuiViec` và **ném khi chưa
+có lá nào đi** — nuốt ở đó là mất hẳn thông báo *"CSBH bắt đầu có hiệu lực"* mà không để lại một dòng
+DLQ nào.
+
+Kèm theo, `guiThu` gom bốn bước (ghi thông báo → dựng chủ đề → gửi → ghi lại) mà tới `0191` là hai
+đoạn chép tay cách nhau hai trăm dòng. **Chúng đã kịp lệch**: lá "để biết" không đi qua `withRetry`,
+không vì lý do nào ngoài việc người viết đoạn thứ hai không chép nốt.
+
+### Cái giá, đã đo: 5 lá → 8 lá cho một vòng duyệt
+
+Một lá mang một tiêu đề, nên một bước sinh hai lá khi nhóm người nhận trải trên hai bậc. **Số thư MỖI
+NGƯỜI nhận không đổi** — vẫn 13 lượt, vẫn đúng những người cũ. Ca `NTF-01` phải THAY chứ không sửa số:
+bản cũ khẳng định *"năm bước sinh năm thư, mỗi thư đúng tập người nhận"*, một câu về CÁCH GOM; ca mới
+khẳng định cái bất biến thật — mỗi người nhận đúng số lá như trước, và đúng bậc.
+
+Một chỗ **gộp ngược lại**: ở `SLA_OVERDUE`, người có tên trong `RECIPIENTS` và người đọc ra từ nhật ký
+đều ở bậc TIN, cùng tiêu đề, cùng thân thư, cùng liên kết. Tới `0191` đó là hai lá vì chúng dẫn đi hai
+chỗ khác nhau; giờ liên kết đi theo BẬC nên hai lá giống hệt nhau và gộp làm một. Ai được báo thì
+không đổi.
+
+### Bốn ca đỏ ở bốn chỗ không ca nào có lỗi thật
+
+Lượt chạy đầy đủ đầu tiên: **26 đỏ trên ba tệp**. Phần lớn là luật vừa đổi, nhưng một nhóm thì không —
+`NTF-13` và `0029` khẳng định *"không lá thư nào đi ra"* và đếm được **3**; `NTF-06` đếm 2 thư cho một
+sự kiện; `NTF-04` thấy hai khách hàng chung một luồng. Chạy riêng từng ca thì **xanh hết**.
+
+Nguyên nhân: `flush(n)` trả về ngay khi hộp thư có `n` lá, và mọi phép đếm giờ thiếu — ba lá còn trên
+đường qua RabbitMQ đáp xuống **sau** `mailpitClear()` của ca kế tiếp, và ca ấy đọc nhầm chúng thành
+thư của mình. **Khoảng hở này có sẵn từ lâu, chỉ chưa cắn**: tới `0191` mỗi bước sinh một lá nên phép
+đếm tình cờ khớp. Chữa ở hai chỗ: `beforeEach` dọn **cho tới khi hộp thư đứng yên** thay vì dọn một
+lượt, và mọi ca khẳng định về người nhận **tìm theo TIÊU ĐỀ** thay vì lấy `mails[0]`.
+
+**Một fixture tự mâu thuẫn lộ ra vì cùng lý do.** `suKien({ action: 'KT_RECEIVE_L1' })` để nguyên
+`toStatus: 'YEU_CAU_CHINH_SUA'` của mặc định — một sự kiện không tồn tại ngoài đời. Tới `0191` không ai
+thấy vì `toStatus` chỉ đi vào phần chữ; từ `0192` nó quyết định bậc. Cùng bài học `0157`: fixture vặn
+thẳng dữ liệu phải tự dựng ra một trạng thái ĐẾN ĐƯỢC.
+
+### Chuông: CON SỐ cho việc, DẤU CHẤM cho tin
+
+Màu chỉ chữa phần *rối*; phần *nhiều* nằm ở cái huy hiệu, vốn đếm **mọi** thông báo chưa đọc. Với một
+TDV nó leo lên hai chục rồi đứng đó — và một con số không bao giờ về 0 thì thôi được ai phản ứng.
+
+Người dùng đề xuất: hết việc mà còn tin thì hiện một dấu chấm. **Phải đối chiếu với quyết định 23/08**
+— khách hàng đã chốt *"con số thật, KHÔNG phải một dấu chấm"*, nguyên văn còn trong `lib/thong-bao.ts`.
+Nó **không bị đảo**: 23/08 chốt *chấm THAY CHO số* cho cùng một nội dung, còn đây là *chấm khi KHÔNG
+CÓ số*, cho đúng loại thông báo không có gì để đếm. Và lời họ mô tả con số — *"còn 12 VIỆC chưa xem"* —
+mới chính là thứ lọc theo bậc trả lại được; tới `0191` nó trộn cả tin nên chưa bao giờ nói đúng câu ấy.
+
+Ba chỗ làm cho đúng:
+
+- **Luật loại trừ nằm trong KIỂU DỮ LIỆU.** `dauChuong()` trả `'so' | 'cham' | 'khong'`, không phải
+  hai điều kiện rời nhau trong JSX — hai điều kiện rời sẽ có ngày cùng đúng, cho số và chấm chồng lên
+  nhau ở một góc 18px mà không có gì đỏ.
+- **Máy chủ trả HAI CON SỐ, không một cờ.** Dấu chấm vô hình với trình đọc màn hình, nên nhãn
+  `nhanChuong` là đường duy nhất họ biết có gì — và nó nói *"12 tin mới"*, không nói *"có tin"*.
+- **Chấm lấy màu XANH THƯƠNG HIỆU, không đỏ.** Đỏ là màu của huy hiệu đếm việc; cùng màu là cùng mức
+  khẩn, và nó sẽ đọc ra như *"con số nhưng đếm không được"*. Xanh thì đúng bằng màu `.tb-cham` của
+  từng dòng, nên dấu này tự giải nghĩa: *bên trong có những dòng mang chấm xanh*.
+
+### Chip *để biết* nghỉ, dải hổ phách thay chỗ
+
+Chip đánh dấu **cái không quan trọng**: trong mười dòng mà tám là tin, mắt phải đi tìm hai dòng KHÔNG
+có chip, mà tìm một thứ vắng mặt thì phải quét từng dòng. Và lý do nó ra đời — *"mất đoạn đó thì hai
+loại thông báo trông giống hệt nhau"* — **đã được hút vào chính tiêu đề**: một dòng mở đầu bằng *Cần
+bạn xử lý*, dòng kia bằng *Để bạn biết*. Giữ nó lại là nói cùng một chuyện hai lần trên một dòng.
+
+Thay bằng dải 3px hổ phách + nền nhạt trên **cả dòng** ở bậc VIỆC. Hai chi tiết:
+
+- **`--mau-canh-bao`, không phải xanh thương hiệu** (đã là màu *chưa đọc* ở cả chấm dòng lẫn chấm
+  chuông — một màu hai nghĩa trên cùng một dòng) và không phải `--mau-loi` (bài học `0188`: một việc
+  phải làm là chuyện bình thường, không phải sự cố).
+- **`.tb-dong` mang `border-left: 3px solid transparent`** để dòng TIN thẳng cột với dòng VIỆC — cùng
+  lý do `.tb-cham` giữ ô trống khi đã đọc.
+
+**Hai trục ĐỘC LẬP, bốn tổ hợp đều đọc ra được**: dải nói *việc / tin*, chấm và chữ đậm nói *chưa đọc
+/ đã đọc*. Một dòng VIỆC đã đọc **vẫn còn dải** — đọc không phải là làm.
+
+### Chữ *"mới"* mang hai nghĩa, và bản nháp của chính chặng này làm nó tệ hơn
+
+Bản tiêu đề đầu có `SUBMIT → "Duyệt và ký số — hồ sơ mới"`, trong đó *mới* nói về LƯỢT GỬI (chưa từng
+bị trả về), đứng ngay cạnh `loaiThayDoi` cũng dùng chữ *mới* để nói về CSBH (khách chưa có CSBH nào).
+Hai nghĩa, một chữ, một dòng — đúng cái nhập nhằng chặng này sinh ra để gỡ. Chữa bằng cách **để lượt
+gửi đầu không đánh dấu** (nó là ca thường) và chỉ đánh dấu lượt quay lại. `SUPERSEDE` cũng đổi *"phiên
+bản mới"* → *"phiên bản sau"*, nghĩa thứ ba của cùng chữ ấy trong cùng hộp thư.
+
+### Loại thay đổi lên TIÊU ĐỀ, và `0190` không sai
+
+`0190` đặt nó ở cuối dòng phụ của chuông, với lý do *"hai vế đầu là thứ người dùng dò để tìm đúng hồ
+sơ"*. Lập luận ấy **mạnh lên** dưới bộ tiêu đề mới: giờ mọi dòng bậc VIỆC của một vai trò mở đầu giống
+hệt nhau, nên mắt rơi thẳng xuống dòng phụ — và đó là chỗ phân biệt HỒ SƠ, không phải chỗ nói loại
+thay đổi. Nên nó rời khỏi `moTaNgan` và lên tiêu đề, **ngay sau nhãn bậc**: trong hàng đợi của Trưởng
+bộ phận mọi hồ sơ đều là *"Duyệt và ký số"* nên mảnh ấy gần như không phân biệt được gì, còn *CSBH
+mới* / *Phiên bản 4* thì có; chủ đề thư bị điện thoại cắt ở chừng 35 ký tự.
+
+Chỉ ở bậc VIỆC — dòng `Loại thay đổi` trong **thân thư** giữ nguyên cho mọi bậc. Ca `0190` phải THAY
+chứ không sửa số: nó khẳng định một CHỖ ĐỨNG mà `0192` dời hẳn đi.
+
+### Ba thứ hưởng theo, từ MỘT boolean
+
+Nhãn tiêu đề, `duongDan` (`/ho-so/:id` hay `/ho-so/:id/nhat-ky`), và dải màu trên dòng — cả ba đọc
+cùng một phép so, nên không chỗ nào tự suy lại được. `MailEvent.chiDeBiet` **gỡ hẳn**: nó mang đúng
+nghĩa ấy nhưng là một trường TUỲ CHỌN, nên quên đặt là lặng lẽ rơi về `false`, tức lặng lẽ nói với
+người không có việc rằng họ có việc — hướng nguy hiểm của hai hướng. Bậc giờ là **tham số bắt buộc**
+của cả ba hàm dựng chữ (bài học `0143`).
+
+### Ngoài phạm vi, đã nêu
+
+Cái chuông vẫn là **sổ sự kiện**, không phải danh sách việc tồn đọng — mở một thông báo *Cần bạn xử lý*
+rồi không làm thì dòng ấy im lặng vĩnh viễn. Danh sách việc còn phải làm đã có và đúng chỗ của nó là
+hộp việc ở *Tổng quan* (`NTF-07`); dựng bản thứ hai trong chuông là dựng hai danh sách sẽ lệch nhau.
+
+Tiền tố `[CSBH]` của chủ đề thư **giữ nguyên** dù nó không mang thông tin nào (mọi thư đều là CSBH).
+Nó là thứ người dùng có thể đã đặt luật lọc hộp thư theo, và bỏ nó là làm chết những luật ấy ở đúng
+lượt nâng cấp — một quyết định của khách hàng, không phải khoản dọn dẹp kèm theo.
+
+**Dòng lịch sử**: những dòng `CHINH` cũ vẫn chứa người bậc TIN, nên chúng hiện dải hổ phách dù không
+phải việc của ai. Không backfill được (`ntf.thong_bao` không lưu `toStatus`) và cũng không đáng —
+chúng đã đọc rồi và trôi khỏi mười dòng đầu trong vài ngày.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Đảo phép so bậc (`!==` thay `===`) | **15 đỏ** |
+| Gỡ dòng `YEU_CAU_CHINH_SUA` khỏi `CHU_BUOC` | **11 đỏ** (kể cả ca gác đường SLA) |
+| Bỏ ngoặc loại thay đổi khỏi tiêu đề | **3 đỏ** |
+| Trả phép loại trừ Sale Admin về mức cả lá thư | **2 đỏ**, đúng `KT_RECEIVE_L2` và `TBP_RECALL` |
+| Gỡ `tb-viec` khỏi `lopDong` | **2 đỏ** |
+| Đảo thứ tự trong `dauChuong` — chấm thắng số | **2 đỏ** |
+
+**2140/2140 xanh.**

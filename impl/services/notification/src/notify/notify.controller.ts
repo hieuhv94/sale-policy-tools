@@ -33,9 +33,9 @@ export class NotifyController {
    * `id DESC` đi kèm để một hành động sinh thư cho bốn người — bốn dòng cùng
    * `xay_ra_luc` — có thứ tự ổn định giữa các trang.
    *
-   * `soChuaDoc` trả về CẢ HỘP, không phải số chưa đọc trong trang này. Cái
-   * chuông cần con số thật; một huy hiệu đếm theo trang thì mở sang trang hai là
-   * nó đổi số mà chẳng có gì xảy ra.
+   * Hai con số chưa đọc trả về CẢ HỘP, không phải phần chưa đọc trong trang này.
+   * Cái chuông cần con số thật; một huy hiệu đếm theo trang thì mở sang trang hai
+   * là nó đổi số mà chẳng có gì xảy ra.
    */
   @Get('cua-toi')
   async cuaToi(
@@ -54,7 +54,8 @@ export class NotifyController {
         ORDER BY xay_ra_luc DESC, id DESC ${pageSql(3)}`,
       [me.id, q.chuaDoc === 'true', p.limit, p.offset],
     );
-    return { ...paged(rows, p), soChuaDoc: await this.demChuaDocCua(me.id) };
+    const dem = await this.demChuaDocCua(me.id);
+    return { ...paged(rows, p), soViecChuaDoc: dem.viec, soTinChuaDoc: dem.tin };
   }
 
   /**
@@ -71,7 +72,8 @@ export class NotifyController {
    */
   @Get('cua-toi/dem')
   async demCuaToi(@CurrentUser() me: AuthUser) {
-    return { soChuaDoc: await this.demChuaDocCua(me.id) };
+    const dem = await this.demChuaDocCua(me.id);
+    return { soViecChuaDoc: dem.viec, soTinChuaDoc: dem.tin };
   }
 
   /**
@@ -93,7 +95,8 @@ export class NotifyController {
       [id, me.id],
     );
     if (!row) throw new NotFoundException({ code: 'THONG_BAO_NOT_FOUND' });
-    return { soChuaDoc: await this.demChuaDocCua(me.id) };
+    const dem = await this.demChuaDocCua(me.id);
+    return { soViecChuaDoc: dem.viec, soTinChuaDoc: dem.tin };
   }
 
   /** Đánh dấu đã đọc CẢ HỘP, không riêng phần đang hiện trên màn hình. */
@@ -105,15 +108,35 @@ export class NotifyController {
         RETURNING id`,
       [me.id],
     );
-    return { soDaDanhDau: rows.length, soChuaDoc: 0 };
+    return { soDaDanhDau: rows.length, soViecChuaDoc: 0, soTinChuaDoc: 0 };
   }
 
-  private async demChuaDocCua(userId: string): Promise<number> {
-    const r = await this.db.one<{ so: string }>(
-      `SELECT count(*) AS so FROM ntf.thong_bao WHERE user_id = $1 AND da_doc_luc IS NULL`,
+  /**
+   * HAI con số, không một (`0192`).
+   *
+   * Huy hiệu trên chuông đếm VIỆC; tin thì chỉ làm hiện một dấu chấm. Tách ở đây
+   * chứ không để giao diện tự lọc: giao diện chỉ có mười dòng của trang đầu, mà
+   * hai con số này nói về CẢ HỘP.
+   *
+   * VÌ SAO ĐẾM CẢ HAI thay vì trả một cờ `coTin`: nhãn cho trình đọc màn hình
+   * nói con số thật (*"12 tin mới"*), và dấu chấm hoàn toàn vô hình với họ — nhãn
+   * ấy là đường DUY NHẤT họ biết có gì. Đúng lối `nhanChuong()` đang làm với
+   * `99+`: huy hiệu cắt số, câu đọc lên thì không.
+   *
+   * `kind` là chỗ lưu BẬC (`0192`): `CHINH` là lá thư của người phải xử lý —
+   * đúng nghĩa bậc VIỆC — nên không cần cột mới, và dòng lịch sử vẫn đọc được.
+   * Chỉ mục một phần `ix_thong_bao_chua_doc` vẫn gánh mệnh đề `da_doc_luc IS
+   * NULL`; `FILTER` chỉ chạy trên số dòng đã lọc ra.
+   */
+  private async demChuaDocCua(userId: string): Promise<{ viec: number; tin: number }> {
+    const r = await this.db.one<{ viec: string; tin: string }>(
+      `SELECT count(*) FILTER (WHERE kind = 'CHINH')  AS viec,
+              count(*) FILTER (WHERE kind <> 'CHINH') AS tin
+         FROM ntf.thong_bao
+        WHERE user_id = $1 AND da_doc_luc IS NULL`,
       [userId],
     );
-    return Number(r?.so ?? 0);
+    return { viec: Number(r?.viec ?? 0), tin: Number(r?.tin ?? 0) };
   }
 
   @Roles('QUAN_TRI')

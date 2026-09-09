@@ -17,14 +17,16 @@ import { Lien, useDuong } from '../lib/router.js';
 import {
   danhDauDaDoc,
   danhDauDaDocHet,
-  datSoChuaDoc,
+  datChuaDoc,
+  dauChuong,
   duongHop,
+  lopDong,
   MOI_TRANG_CHUONG,
   nhanChuong,
-  nhanHuyHieu,
   thoiGianTuongDoi,
+  truMot,
+  useChuaDoc,
   useDemThongBao,
-  useSoChuaDoc,
   type HopThongBao,
   type ThongBao,
 } from '../lib/thong-bao.js';
@@ -40,29 +42,14 @@ import { BieuTuongChuong } from './BieuTuong.js';
 function Dong({ tb, chon }: { tb: ThongBao; chon: (tb: ThongBao) => void }) {
   return (
     <li>
-      <Lien
-        den={tb.duongDan}
-        className={tb.daDocLuc ? 'tb-dong' : 'tb-dong tb-chua-doc'}
-        truocKhiDi={() => chon(tb)}
-      >
+      <Lien den={tb.duongDan} className={lopDong(tb)} truocKhiDi={() => chon(tb)}>
         {/* Chấm chỉ đánh dấu DÒNG chưa đọc — khác hẳn con số trên chuông, thứ
             khách hàng đã chốt là phải có số. Ở đây không có gì để đếm. */}
         <span className="tb-cham" aria-hidden="true" />
         <span className="tb-than">
-          <span className="tb-tieu-de">
-            {tb.tieuDe}
-            {tb.kind === 'THEO_DOI' && (
-              /*
-                Nhãn *để biết* (`0036`).
-
-                Lá thư tương ứng có hẳn một đoạn nói "bạn KHÔNG phải xử lý gì ở
-                bước này". Mất đoạn đó thì hai loại thông báo trông giống hệt
-                nhau, và người dùng mất khả năng phân biệt VIỆC CỦA TÔI với
-                CHUYỆN TÔI NÊN BIẾT — đúng thứ phân biệt mà `0036` dựng ra.
-              */
-              <span className="tb-de-biet">để biết</span>
-            )}
-          </span>
+          {/* Bậc nằm ở LỚP của cả dòng (`0192`), không ở một chip cạnh tiêu đề —
+              xem `lopDong`. Tiêu đề đã tự nói ra bậc bằng chữ. */}
+          <span className="tb-tieu-de">{tb.tieuDe}</span>
           {tb.moTa && <span className="tb-mo-ta">{tb.moTa}</span>}
           {/* Giờ tuyệt đối trong `title`: câu tương đối dễ đọc nhưng không đối
               chiếu được với nhật ký hồ sơ. */}
@@ -82,7 +69,7 @@ export function ChuongThongBao() {
   const khung = useRef<HTMLDivElement>(null);
   const nut = useRef<HTMLButtonElement>(null);
   const { duong } = useDuong();
-  const soChuaDoc = useSoChuaDoc();
+  const chuaDoc = useChuaDoc();
 
   useDemThongBao(true);
 
@@ -122,7 +109,7 @@ export function ChuongThongBao() {
         datHop(r);
         // Con số đi kèm danh sách là con số MỚI NHẤT — dùng luôn, khỏi chờ lượt
         // đếm định kỳ kế tiếp.
-        datSoChuaDoc(r.soChuaDoc);
+        datChuaDoc({ viec: r.soViecChuaDoc, tin: r.soTinChuaDoc });
       })
       .catch((e: unknown) => {
         // KHÔNG báo lỗi ra hộp thoại: bảng này là thứ phụ, và một hộp thoại ở
@@ -139,18 +126,19 @@ export function ChuongThongBao() {
     if (tb.daDocLuc) return;
     // Tô lại NGAY tại chỗ, không chờ máy chủ: màn hình đang chuyển đi nơi khác,
     // và một dòng còn đậm trong nửa giây cuối là thứ người dùng vẫn kịp thấy.
-    datHop((h) =>
-      h === null
-        ? h
-        : {
-            ...h,
-            items: h.items.map((x) =>
-              x.id === tb.id ? { ...x, daDocLuc: new Date().toISOString() } : x,
-            ),
-            soChuaDoc: Math.max(0, h.soChuaDoc - 1),
-          },
-    );
-    datSoChuaDoc(Math.max(0, soChuaDoc - 1));
+    datHop((h) => {
+      if (h === null) return h;
+      const con = truMot({ viec: h.soViecChuaDoc, tin: h.soTinChuaDoc }, tb);
+      return {
+        ...h,
+        items: h.items.map((x) =>
+          x.id === tb.id ? { ...x, daDocLuc: new Date().toISOString() } : x,
+        ),
+        soViecChuaDoc: con.viec,
+        soTinChuaDoc: con.tin,
+      };
+    });
+    datChuaDoc(truMot(chuaDoc, tb));
     // Cùng lý do với lượt đếm định kỳ: hỏng thì lượt hỏi sau chữa lại con số,
     // và người dùng lúc ấy đã sang màn hình khác (`0089`).
     void danhDauDaDoc(tb.id).catch(() => undefined);
@@ -168,14 +156,16 @@ export function ChuongThongBao() {
                   ...x,
                   daDocLuc: x.daDocLuc ?? new Date().toISOString(),
                 })),
-                soChuaDoc: 0,
+                soViecChuaDoc: 0,
+                soTinChuaDoc: 0,
               },
         );
       })
       .catch(() => datLoi(true));
   };
 
-  const huyHieu = nhanHuyHieu(soChuaDoc);
+  const dau = dauChuong(chuaDoc);
+  const nhan = nhanChuong(chuaDoc);
 
   return (
     <div className="chuong" ref={khung}>
@@ -184,27 +174,33 @@ export function ChuongThongBao() {
         ref={nut}
         className="nut-bieu-tuong nut-chuong"
         aria-expanded={mo}
-        title={nhanChuong(soChuaDoc)}
+        title={nhan}
         onClick={() => datMo((x) => !x)}
       >
-        <span className="chi-doc-man-hinh">{nhanChuong(soChuaDoc)}</span>
+        <span className="chi-doc-man-hinh">{nhan}</span>
         <BieuTuongChuong />
         {/*
-          `aria-hidden` vì câu đọc lên đã có ở nhãn ẩn phía trên, và nó nói con
-          số THẬT chứ không nói `99+`.
+          `aria-hidden` cho CẢ HAI dạng: câu đọc lên đã có ở nhãn ẩn phía trên,
+          và nó nói con số THẬT chứ không nói `99+`. Dấu chấm thì không có chữ
+          nào để đọc, nên nhãn ấy là đường duy nhất nó tới được người dùng trình
+          đọc màn hình (`0192`).
+
+          Hai nhánh loại trừ nhau vì `dauChuong` trả một kiểu phân biệt — không
+          có tổ hợp nào vẽ ra cả số lẫn chấm.
         */}
-        {huyHieu !== '' && (
+        {dau.dang === 'so' && (
           <span className="tb-huy-hieu" aria-hidden="true">
-            {huyHieu}
+            {dau.nhan}
           </span>
         )}
+        {dau.dang === 'cham' && <span className="tb-cham-chuong" aria-hidden="true" />}
       </button>
 
       {mo && (
         <div className="menu-so tb-bang">
           <div className="tb-dau">
             <strong>Thông báo</strong>
-            {soChuaDoc > 0 && (
+            {dau.dang !== 'khong' && (
               <button type="button" className="tb-doc-het" onClick={docHet}>
                 Đánh dấu đã đọc hết
               </button>

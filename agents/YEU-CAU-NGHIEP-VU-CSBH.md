@@ -968,11 +968,19 @@ phải một cách in khác của hồ sơ.
   dưới 24 giờ là tới hạn, ở **bất kỳ bước nào** trong phạm vi người đang xem — không riêng bước của
   chính họ. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày qua.
 
-### 9.1b. Thông báo trên web `mới 23/08`
+### 9.1b. Thông báo trên web `mới 23/08` `sửa 09/09`
 
-Một **biểu tượng chuông** ở thanh trên cùng, sát trái thẻ tài khoản, mang **con số** thông báo chưa
-đọc — không phải một dấu chấm. Quá 99 thì ghi `99+`.
+Một **biểu tượng chuông** ở thanh trên cùng, sát trái thẻ tài khoản, mang **con số** việc chưa đọc —
+không phải một dấu chấm. Quá 99 thì ghi `99+`.
 
+- **BẬC của một thông báo** `mới 09/09` — với mỗi người đọc, một thông báo hoặc là **việc của họ**
+  hoặc chỉ là **tin**. Người đọc là *chủ bước* của trạng thái đích thì đó là việc; còn lại là tin.
+  Bậc quyết định **tiêu đề** (*Cần bạn xử lý* / *Để bạn biết*), **liên kết** (hồ sơ / lịch sử hồ sơ),
+  và **dải màu** trên dòng. Cùng một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ đó
+  là hai chuyện khác nhau.
+- **Con số trên chuông đếm VIỆC, không đếm tin** `mới 09/09`. Hết việc mà còn tin chưa đọc thì chuông
+  mang một **dấu chấm**. Quyết định 23/08 — *con số thật, không phải dấu chấm* — giữ nguyên và mạnh
+  hơn: nó nói *"còn n việc chưa xem"*, đúng câu khách hàng đặt ra cho nó.
 - **Mọi hành động dẫn tới gửi email cho một người đều là một thông báo của người ấy, và ngoài ra
   không có thông báo nào khác.** Danh sách người nhận thông báo là chính danh sách người nhận thư,
   lấy ở cùng một chỗ.
@@ -1420,11 +1428,15 @@ dạng hình. Ban lãnh đạo và Trưởng bộ phận theo dõi được hi�
 chỉ gồm những gì phần mềm đang có, và màn hình nói rõ **đây không phải doanh số**. Bấm một người thì
 lọc tại chỗ; không có chức năng so hai người cạnh nhau. Chi tiết ở muc 9.2c.
 
-**Thông báo trên web soi gương hộp thư** `mới 23/08` — một cái chuông ở thanh trên cùng, mang **con
-số** chưa đọc (`99+` khi vượt trần), sát trái thẻ tài khoản. Quy tắc phạm vi chốt gọn một câu: *mọi
-hành động dẫn tới gửi email cho một người đều là một thông báo của người ấy, ngoài ra không có gì
-khác* — nên danh sách người nhận thông báo **là chính** danh sách người nhận thư, đọc ở cùng một
-chỗ, không có bảng tra thứ hai. Bấm vào một thông báo thì tới **đúng địa chỉ mà thư dẫn tới**.
+**Thông báo trên web soi gương hộp thư** `mới 23/08` `sửa 09/09` — một cái chuông ở thanh trên cùng,
+mang **con số VIỆC** chưa đọc (`99+` khi vượt trần) hoặc một **dấu chấm** khi chỉ còn tin, sát trái
+thẻ tài khoản. Quy tắc phạm vi chốt gọn một câu: *mọi hành động dẫn tới gửi email cho một người đều
+là một thông báo của người ấy, ngoài ra không có gì khác* — nên danh sách người nhận thông báo **là
+chính** danh sách người nhận thư, đọc ở cùng một chỗ, không có bảng tra thứ hai. Bấm vào một thông
+báo thì tới **đúng địa chỉ mà thư dẫn tới**.
+
+> **Tiêu đề trả lời câu hỏi của NGƯỜI ĐỌC** `mới 09/09` — *"tôi có phải làm gì không"*, chứ không
+> *"ai vừa làm gì"*. Xem *"Tiêu đề thông báo nói rõ VIỆC CỦA AI"* ở cuối Phụ lục B.
 
 > **Hai lá thư tài khoản đứng ngoài, và không phải vì thẩm mỹ.** Thư kích hoạt và thư đặt lại mật
 > khẩu mang **token thô** trong thân — thứ `ONB-15` chỉ cho phép tồn tại trong bộ nhớ tiến trình và
@@ -2286,6 +2298,54 @@ trang khách hàng"*.
 > liên kết mở thẳng bản ấy. Hệ thống **KHÔNG chặn** — lập hai bản cùng lúc vốn đã làm được từ trước —
 > nhưng đi từ trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, còn đi từ đây thì
 > không thấy gì cả.
+
+**TIÊU ĐỀ THÔNG BÁO NÓI RÕ VIỆC CỦA AI** `mới 09/09` — *"thử đề xuất nội dung tiêu đề của thông báo
+để người dùng không bị rối khi nhận quá nhiều thông báo"*.
+
+> **Chẩn đoán**: mười bảy tiêu đề cũ đều kể *ai vừa làm gì*, trong khi người đọc cần biết *tôi có
+> phải làm gì không*. Cùng một tiêu đề đi tới hai đến bốn vai trò có việc khác hẳn nhau — *"Kế toán
+> đã tiếp nhận lần 1"* với Sale Admin là **một mệnh lệnh**, với TBP và TDV là **một mẩu tin**. Mỗi
+> dòng bắt người đọc tự dịch sang vai trò mình; với một hồ sơ thì không sao, với hai mươi thì đó
+> chính là cái rối.
+>
+> **HAI BẬC, suy ra chứ không khai thêm bảng.** Người đọc là *chủ bước* của trạng thái đích thì thông
+> báo ấy là **việc**; còn lại là **tin**. Bảng chủ bước đã có sẵn (nó vốn quyết định thư nhắc SLA gửi
+> cho ai), chỉ thiếu một dòng *Yêu cầu chỉnh sửa → TDV*.
+>
+> | Bậc | Tiêu đề | Liên kết | Dòng trên chuông |
+> |---|---|---|---|
+> | **Việc** | *Cần bạn xử lý (Phiên bản 4): Duyệt bản mềm — Trưởng bộ phận đã ký* | Hồ sơ | Dải hổ phách |
+> | **Tin** | *Để bạn biết: Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm* | Lịch sử hồ sơ | Không dải |
+>
+> **Bốn trạng thái không có chủ bước** (*Đang có hiệu lực*, *Hết hiệu lực*, *Đã xoá*, *Quá hạn
+> duyệt*), nên sáu hành động dẫn tới chúng **không có ai ở bậc việc** — mọi người nhận đều đọc *Để bạn
+> biết*. Không phải một luật riêng: phép tra chủ bước trả về rỗng, và rỗng thì không bằng vai trò nào.
+>
+> **Hai ngoại lệ có nhãn riêng**, và cả hai đều đáng:
+>
+> - ***Sắp quá hạn — cần bạn xử lý***: đây là lá thư CUỐI CÙNG còn cứu được hồ sơ. Lá sau nó (*đã quá
+>   hạn duyệt*) chỉ báo tin, vì quá hạn là trạng thái kết thúc — giữa hai lá là một lằn ranh cứng,
+>   không phải một thang độ gấp.
+> - ***Dừng xử lý***: khi Trưởng bộ phận hoàn duyệt, Kế toán hoặc Sale Admin đang CẦM hồ sơ và vừa bị
+>   rút mất. *"Để bạn biết"* ở đó dẫn tới việc họ đọc lướt rồi làm tiếp một hồ sơ không còn trên bàn.
+>
+> **Loại thay đổi lên tiêu đề, chỉ ở bậc việc** — trong hàng đợi của một vai trò, phần *việc phải làm*
+> giống nhau ở mọi hồ sơ nên nó không phân biệt được gì, còn *CSBH mới* / *Phiên bản 4* thì có. Chủ đề
+> thư bị điện thoại cắt ở chừng 35 ký tự, và cách xếp này giữ được nó. Dòng *Loại thay đổi* trong
+> **thân thư** vẫn có ở mọi bậc (`0190` không đổi).
+>
+> **Chuông: CON SỐ cho việc, DẤU CHẤM cho tin.** Quyết định 23/08 — *con số thật, không phải một dấu
+> chấm* — **không bị đảo**: khách hàng mô tả con số là *"còn 12 việc chưa xem"*, mà tới 08/09 nó trộn
+> cả tin lẫn việc nên chưa bao giờ nói đúng câu ấy. Lọc về bậc việc là trả nó về đúng nghĩa. Dấu chấm
+> là chuyện khác: 23/08 chốt *chấm THAY CHO số*, còn đây là *chấm khi KHÔNG CÓ số*, cho đúng loại
+> thông báo mà không có gì để đếm. Chấm chỉ hiện khi huy hiệu vắng mặt.
+>
+> **Cái giá, đã đo**: một vòng duyệt sinh **tám lá thư thay vì năm** — một lá mang được một tiêu đề.
+> Số thư **mỗi người** nhận không đổi (vẫn 13 lượt, vẫn đúng những người ấy).
+>
+> **Đã nêu và KHÔNG làm**: cái chuông vẫn là **sổ sự kiện**, không phải danh sách việc tồn đọng — đọc
+> một thông báo không có nghĩa là đã làm. Danh sách việc còn phải làm nằm ở *Tổng quan* (`NTF-07`), và
+> dựng bản thứ hai của nó trong chuông là dựng hai danh sách sẽ lệch nhau.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

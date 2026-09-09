@@ -6,6 +6,7 @@
  * sơ — cộng lý do khi bước đó là trả lại hay từ chối. Dựng khung chung thay vì
  * viết tay từng mẫu là để không có mẫu nào lỡ thiếu một trường.
  */
+import type { Status } from '@csbh/domain-policy';
 
 /** Nhãn trạng thái đúng như YCNV muc 4 — người nhận thư đọc thấy chữ giống trên màn hình. */
 export const STATUS_LABEL: Record<string, string> = {
@@ -52,24 +53,113 @@ export const STEP_LABEL: Record<string, string> = {
 };
 
 /**
+ * BẬC của một thông báo — với MỘT người đọc cụ thể (`0192`).
+ *
+ * Đây là trục mà cả bộ tiêu đề đứng lên, và nó là câu hỏi của NGƯỜI ĐỌC (*"tôi
+ * có phải làm gì không"*), không phải câu hỏi của người phát (*"ai vừa làm
+ * gì"*). Cùng một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ nó
+ * là hai chuyện khác nhau.
+ *
+ * Tới `0191` tiêu đề chỉ có một bảng tra theo hành động, nên `KT_RECEIVE_L1` gửi
+ * cho Sale Admin (*phải bàn giao bản cứng ngay bây giờ*) và cho TBP với TDV
+ * (*không phải việc của tôi*) đúng một câu chữ. Người có việc phải đọc hết tiêu
+ * đề rồi tự dịch sang vai trò mình mới biết có phải làm gì không — với một hồ sơ
+ * thì không sao, với hai mươi thì đó chính là cái "rối" khách hàng nói tới.
+ */
+export type Bac = 'VIEC' | 'TIN';
+
+/** Nhãn mở đầu tiêu đề. Chữ đầu khác nhau để mắt bám được mép trái danh sách. */
+export const NHAN_BAC: Record<Bac, string> = {
+  VIEC: 'Cần bạn xử lý',
+  TIN: 'Để bạn biết',
+};
+
+/**
+ * Hai chỗ nhãn bậc phải nhường cho một câu riêng.
+ *
+ * `SLA_REMINDER` vẫn là VIỆC, nhưng là việc còn **một ngày** — và đó là lá thư
+ * cuối cùng còn cứu được hồ sơ, vì lượt sau nó đã sang `QUA_HAN_DUYET`, một
+ * trạng thái KẾT THÚC (`0047`). Nhãn thường làm nó trông ngang hàng với mọi việc
+ * khác trong hộp.
+ *
+ * `TBP_RECALL` ở bậc TIN thì không phải *"để bạn biết"*: Kế toán hoặc Sale Admin
+ * đang CẦM hồ sơ và vừa bị rút mất. Câu đúng là bảo họ dừng lại. Đây là ngoại lệ
+ * duy nhất của hai bậc, và nó đáng có: nhãn thường ở đây dẫn tới việc người ta
+ * đọc lướt rồi làm tiếp một hồ sơ không còn trên bàn mình.
+ */
+const NHAN_VIEC_RIENG: Record<string, string> = {
+  SLA_REMINDER: 'Sắp quá hạn — cần bạn xử lý',
+};
+const NHAN_TIN_RIENG: Record<string, string> = {
+  TBP_RECALL: 'Dừng xử lý',
+};
+
+/**
+ * VIỆC phải làm khi hồ sơ dừng lại ở trạng thái này — viết ở ngôi thứ hai.
+ *
+ * Khoá là TRẠNG THÁI ĐÍCH chứ không phải hành động, và đó là cả điểm: việc của
+ * Kế toán ở `CHO_KT_L1` là một, dù hồ sơ tới đó bằng `TBP_SIGN` hay bằng đường
+ * nào khác về sau. Năm mục cho năm trạng thái có chủ — đúng tập khoá của
+ * `CHU_BUOC`, và có ca kiểm đối chiếu hai bảng.
+ */
+export const VIEC_CUA_BUOC: Partial<Record<Status, string>> = {
+  CHO_TBP_DUYET: 'Duyệt và ký số',
+  CHO_KT_L1: 'Duyệt bản mềm',
+  SA_DANG_XU_LY: 'Bàn giao bản cứng',
+  CHO_KT_L2: 'Duyệt bản cứng',
+  YEU_CAU_CHINH_SUA: 'Chỉnh sửa và gửi lại',
+};
+
+/**
+ * Vì sao hồ sơ tới bàn bạn — mệnh đề đuôi của tiêu đề bậc VIỆC.
+ *
+ * VẮNG MẶT LÀ MỘT CÂU TRẢ LỜI, không phải một chỗ thiếu: `SUBMIT` là lượt gửi
+ * đầu, ca thường, không có gì để giải thích. Chỉ đánh dấu lượt QUAY LẠI và lượt
+ * chuyển tay — thứ nói cho người duyệt biết họ đang cầm cái gì.
+ *
+ * `SUBMIT` TỪNG mang chữ *"hồ sơ mới"* trong bản nháp của `0192`, và chữ ấy phải
+ * đi: nó nói về LƯỢT GỬI (chưa từng bị trả về), trong khi `loaiThayDoi` ngay
+ * cạnh đó cũng dùng chữ *mới* để nói về CSBH (khách chưa có CSBH nào). Hai nghĩa,
+ * một chữ, cùng một dòng — đúng cái nhập nhằng chặng này sinh ra để gỡ.
+ */
+const NGUYEN_NHAN: Record<string, string> = {
+  RESUBMIT_AFTER_EDIT: 'hồ sơ đã sửa, gửi lại',
+  TBP_SIGN: 'Trưởng bộ phận đã ký',
+  KT_RECEIVE_L1: 'Kế toán đã tiếp nhận L1',
+  KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại',
+  SA_HANDOVER: 'Sale Admin đã bàn giao',
+  TBP_RETURN: 'Trưởng bộ phận trả lại',
+  TBP_RECALL: 'Trưởng bộ phận hoàn duyệt',
+  KT_RETURN_L1: 'Kế toán không tiếp nhận L1',
+  KT_RETURN_L2: 'Kế toán không tiếp nhận L2',
+};
+
+/**
+ * Câu của bậc TIN — kể chuyện đã xảy ra, và nói hồ sơ đi đâu tiếp.
+ *
  * Xuất ra để ca kiểm DUYỆT HẾT (`0096`): mọi hành động sinh thư phải có một
  * thông báo trỏ đúng chỗ. Ca kiểm lặp trên chính bảng này chứ không chép lại
  * danh sách — chép lại là dựng một bảng thứ hai để hai bên trôi khỏi nhau, đúng
  * bệnh mà cả `0096` sinh ra để tránh.
+ *
+ * Đây cũng là bảng liệt kê ĐỦ mọi hành động sinh thư, kể cả những hành động
+ * không bao giờ có người đọc ở bậc TIN (`SLA_REMINDER` chỉ gửi chủ bước). Giữ
+ * đủ vì phép tra rơi về đây khi bậc VIỆC không dựng được câu, và một lá thư
+ * không tra được tiêu đề thì in ra câu chung chung ở cuối hàm.
  */
-export const TITLE: Record<string, string> = {
-  SUBMIT: 'Hồ sơ CSBH mới chờ duyệt',
-  RESUBMIT_AFTER_EDIT: 'Hồ sơ đã chỉnh sửa, chờ duyệt lại',
-  TBP_SIGN: 'Trưởng bộ phận đã ký số, chuyển sang Kế toán tiếp nhận',
-  TBP_RETURN: 'Hồ sơ bị trả lại để chỉnh sửa',
+export const TIN_CUA_HANH_DONG: Record<string, string> = {
+  SUBMIT: 'Hồ sơ đã gửi duyệt, chờ Trưởng bộ phận ký',
+  RESUBMIT_AFTER_EDIT: 'Hồ sơ đã sửa xong và gửi duyệt lại',
+  TBP_SIGN: 'Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm',
+  TBP_RETURN: 'Trưởng bộ phận trả lại, hồ sơ về Trình dược viên chỉnh sửa',
   // `0185` — nói rõ hồ sơ ĐÃ ĐI QUA chữ ký rồi bị rút: người nhận có thể đang
-  // cầm nó trên bàn mình.
-  TBP_RECALL: 'Trưởng bộ phận hoàn duyệt — hồ sơ quay lại để chỉnh sửa',
-  KT_RECEIVE_L1: 'Kế toán đã tiếp nhận lần 1',
-  KT_RETURN_L1: 'Kế toán không tiếp nhận lần 1',
-  SA_HANDOVER: 'Sale Admin đã bàn giao bản cứng',
-  KT_RECEIVE_L2: 'Kế toán đã tiếp nhận lần 2 — CSBH bắt đầu có hiệu lực',
-  KT_RETURN_L2: 'Kế toán không tiếp nhận lần 2',
+  // cầm nó trên bàn mình. Đi cùng nhãn riêng `Dừng xử lý`.
+  TBP_RECALL: 'Trưởng bộ phận hoàn duyệt — hồ sơ đã rời bàn bạn',
+  KT_RECEIVE_L1: 'Kế toán đã tiếp nhận L1, hồ sơ sang Sale Admin',
+  KT_RETURN_L1: 'Kế toán không tiếp nhận L1, hồ sơ về Trình dược viên chỉnh sửa',
+  SA_HANDOVER: 'Sale Admin đã bàn giao, chờ Kế toán duyệt bản cứng',
+  KT_RECEIVE_L2: 'CSBH bắt đầu có hiệu lực',
+  KT_RETURN_L2: 'Kế toán không tiếp nhận L2, hồ sơ về Trình dược viên chỉnh sửa',
   KT_REQUEST_REPRINT: 'Kế toán yêu cầu in lại bản cứng',
   // Người lập bỏ hẳn một hồ sơ đã vào luồng (`0035`, `0039`). Thư đi tới người
   // đã trả lại nó.
@@ -85,11 +175,15 @@ export const TITLE: Record<string, string> = {
    * đều diễn ra trong im lặng — không ai được báo.
    *
    * Tiêu đề nói luôn NGUYÊN NHÂN, không chỉ "đã hết hiệu lực": người nhận cần
-   * biết ngay có phải đi làm lại hồ sơ hay không. Có bản mới thay thế thì không;
+   * biết ngay có phải đi làm lại hồ sơ hay không. Có bản thay thế thì không;
    * khách ngừng hợp tác thì cũng không, nhưng vì lý do ngược hẳn.
+   *
+   * `SUPERSEDE` nói *"phiên bản SAU"* chứ không *"phiên bản MỚI"* (`0192`): chữ
+   * *mới* trong hộp thư này đã thuộc về `loaiThayDoi` — *CSBH mới* nghĩa là khách
+   * chưa từng có CSBH nào. Một chữ ba nghĩa là một chữ không còn nghĩa nào.
    */
-  SUPERSEDE: 'CSBH đã hết hiệu lực do có phiên bản mới thay thế',
-  CUSTOMER_RETIRED: 'CSBH đã hết hiệu lực do khách hàng ngừng hợp tác',
+  SUPERSEDE: 'CSBH hết hiệu lực — đã bị phiên bản sau thay thế',
+  CUSTOMER_RETIRED: 'CSBH hết hiệu lực — khách hàng ngừng hợp tác',
   /*
    * BỐN nhãn `*_IMPACT` đã bị gỡ ở `0055` cùng với chính lá thư ấy.
    *
@@ -101,9 +195,18 @@ export const TITLE: Record<string, string> = {
    * Ghi lại thay vì xoá lặng lẽ: bốn nhãn ấy là thứ duy nhất còn sót lại để tra
    * ngược ra rằng thư này từng tồn tại.
    */
-  SLA_REMINDER: 'Nhắc: hồ sơ sắp quá hạn duyệt',
-  SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt',
-  SLA_DISCARDED: 'Hồ sơ quá hạn đã bị hệ thống xoá',
+  SLA_REMINDER: 'Hồ sơ sắp quá hạn duyệt',
+  /*
+   * `SLA_OVERDUE` là bậc TIN với MỌI người nhận, và câu chữ phải nói ra vì sao
+   * (`0192`).
+   *
+   * `QUA_HAN_DUYET` là trạng thái KẾT THÚC từ `0047` — không ai thao tác được
+   * nữa — nên nó không có chủ bước, nên không ai ở bậc VIỆC. Tiêu đề cũ (*"Hồ sơ
+   * đã quá hạn duyệt"*) đọc như một lời giục, và nằm ngay cạnh thư nhắc nên
+   * trông như cùng một thang độ gấp. Thật ra giữa hai lá là một lằn ranh cứng.
+   */
+  SLA_OVERDUE: 'Hồ sơ đã quá hạn duyệt — không thao tác được nữa',
+  SLA_DISCARDED: 'Hệ thống đã xoá hồ sơ quá hạn',
 };
 
 // `| undefined` viết ra tường minh: tsconfig bật exactOptionalPropertyTypes nên
@@ -132,16 +235,20 @@ export type MailEvent = {
    */
   versionNo?: number | undefined;
   extra?: Record<string, string> | undefined;
-  /**
-   * Thư "để biết" — người nhận KHÔNG phải xử lý gì ở bước này (`0036`).
-   *
-   * Đổi hai thứ trong thân thư: một dòng nói thẳng họ không phải làm gì, và
-   * liên kết trỏ vào NHẬT KÝ thay vì vào hồ sơ. Người không có việc mà mở hồ sơ
-   * ra sẽ thấy một màn hình không nút nào bấm được, còn thứ họ thật sự muốn
-   * biết — hồ sơ đã đi qua những đâu từ lúc mình rời tay — thì nằm ở nhật ký.
-   */
-  chiDeBiet?: boolean | undefined;
 };
+
+/*
+ * `MailEvent.chiDeBiet` ĐÃ GỠ ở `0192`, và chỗ trống này để lại có chủ ý.
+ *
+ * Nó mang đúng nghĩa mà `Bac` mang bây giờ — *người nhận KHÔNG phải xử lý gì ở
+ * bước này* (`0036`) — nhưng nó là một TRƯỜNG TUỲ CHỌN trên thân sự kiện, nên
+ * quên đặt là lặng lẽ rơi về `false`, tức lặng lẽ nói với người không có việc
+ * rằng họ có việc. Đúng hướng nguy hiểm của hai hướng.
+ *
+ * Giờ bậc là THAM SỐ BẮT BUỘC của cả ba hàm dựng chữ (`titleFor`, `duongDan`,
+ * `bodyFor`), nên `tsc` chỉ ra mọi nơi gọi. Bài học `0143`: một kiểu dữ liệu bắt
+ * buộc mạnh hơn mọi ca kiểm quét mã nguồn.
+ */
 
 /**
  * Thư BÀN GIAO KHÁCH HÀNG (`0085`) — lá thư duy nhất không nói về một hồ sơ.
@@ -218,12 +325,56 @@ export function formatIct(iso: string | undefined): string {
   return `${g('day')}/${g('month')}/${g('year')} ${g('hour')}:${g('minute')}`;
 }
 
-export const titleFor = (e: MailEvent): string =>
-  TITLE[e.action ?? ''] ?? 'Cập nhật hồ sơ Chính sách bán hàng';
+/**
+ * Tiêu đề của MỘT người đọc ở MỘT bậc (`0192`).
+ *
+ * Hình dạng bậc VIỆC: `Cần bạn xử lý (Phiên bản 4): Duyệt và ký số — Trưởng bộ
+ * phận đã ký`. Ba mảnh, và thứ tự của chúng là một phép đo chứ không phải một sở
+ * thích:
+ *
+ *   1. **nhãn bậc** — trục phân loại chung của cả hộp thông báo;
+ *   2. **loại thay đổi** — phần BIẾN THIÊN giữa các hồ sơ của cùng một người;
+ *   3. **việc phải làm** — phần KHÔNG ĐỔI trong hàng đợi của một vai trò.
+ *
+ * Trong hàng đợi của Trưởng bộ phận, mọi hồ sơ đều là *"Duyệt và ký số"*, nên
+ * mảnh 3 gần như không mang thông tin phân biệt nào; mảnh 2 thì mang. Chủ đề thư
+ * bị điện thoại cắt ở chừng 35 ký tự, và cách xếp này giữ được mảnh 2 trong phần
+ * còn lại.
+ *
+ * LOẠI THAY ĐỔI CHỈ Ở BẬC VIỆC. Dòng `Loại thay đổi` trong thân thư vẫn có ở mọi
+ * bậc (xem `bodyFor`) — chỗ đứng nổi bật thì dành cho người đang phải quyết định
+ * dựa vào nó.
+ *
+ * Tra không ra VIỆC thì **giữ nhãn bậc, mượn câu của bậc TIN**. Sai ở phần chữ
+ * còn đọc ra được; sai ở nhãn là nói với người có việc rằng họ không có việc.
+ */
+export function titleFor(e: MailEvent, bac: Bac): string {
+  const act = e.action ?? '';
+  const tin = TIN_CUA_HANH_DONG[act] ?? 'Cập nhật hồ sơ Chính sách bán hàng';
 
-/** Tiêu đề mang tên khách hàng để người nhận nhận ra hồ sơ ngay ở danh sách thư. */
-export const subjectFor = (e: MailEvent): string =>
-  `[CSBH] ${titleFor(e)} — ${e.customerName ?? 'Khách hàng'}`;
+  if (bac === 'TIN') return `${NHAN_TIN_RIENG[act] ?? NHAN_BAC.TIN}: ${tin}`;
+
+  const loai = loaiThayDoiNgan(e);
+  const nhan = NHAN_VIEC_RIENG[act] ?? NHAN_BAC.VIEC;
+  const dau = loai ? `${nhan} (${loai})` : nhan;
+
+  const viec = VIEC_CUA_BUOC[(e.toStatus ?? '') as Status];
+  if (!viec) return `${dau}: ${tin}`;
+
+  const viSao = NGUYEN_NHAN[act];
+  return viSao ? `${dau}: ${viec} — ${viSao}` : `${dau}: ${viec}`;
+}
+
+/**
+ * Tiêu đề mang tên khách hàng để người nhận nhận ra hồ sơ ngay ở danh sách thư.
+ *
+ * Tiền tố `[CSBH]` GIỮ LẠI ở `0192` dù nó không mang thông tin nào — mọi thư của
+ * phần mềm đều là CSBH. Nó là thứ người dùng có thể đã đặt luật lọc hộp thư
+ * theo, và bỏ nó là làm chết những luật ấy ở đúng lượt nâng cấp. Bỏ hay giữ là
+ * quyết định của khách hàng, không phải một khoản dọn dẹp kèm theo.
+ */
+export const subjectFor = (e: MailEvent, bac: Bac): string =>
+  `[CSBH] ${titleFor(e, bac)} — ${e.customerName ?? 'Khách hàng'}`;
 
 /**
  * Một chuỗi có phải MỐC THỜI GIAN dạng ISO-8601 không (`0066`, M-01).
@@ -258,11 +409,16 @@ const LA_MOC_THOI_GIAN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{
  * Trả `/` khi thiếu `policyId` — sự kiện cũ trong DLQ có thể thiếu, và một liên
  * kết về trang chủ vẫn dùng được, khác hẳn một liên kết `/ho-so/undefined`.
  */
-export function duongDan(e: MailEvent): string {
+export function duongDan(e: MailEvent, bac: Bac): string {
   if (!e.policyId) return '/';
   // Người chỉ cần BIẾT thì mở hồ sơ ra chẳng có nút nào bấm được; thứ họ muốn
   // là "từ lúc tôi rời tay, hồ sơ đã đi qua những đâu" — và đó là nhật ký (`0036`).
-  return e.chiDeBiet ? `/ho-so/${e.policyId}/nhat-ky` : `/ho-so/${e.policyId}`;
+  //
+  // `0192` đổi ĐIỀU KIỆN chứ không đổi luật: trước đây câu hỏi là *"đây có phải
+  // lá thư thứ hai không"*, giờ là *"người đọc có việc không"*. Lập luận trên
+  // vốn viết cho vế sau — nó chỉ tình cờ đúng với vế trước, và thôi đúng ở đúng
+  // những người có tên trên hồ sơ mà không phải chủ bước.
+  return bac === 'TIN' ? `/ho-so/${e.policyId}/nhat-ky` : `/ho-so/${e.policyId}`;
 }
 
 /**
@@ -292,20 +448,31 @@ export function loaiThayDoi(e: MailEvent): string | null {
     : `Phiên bản ${e.versionNo} — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực`;
 }
 
-/** Dạng NGẮN của cùng câu ấy, cho dòng thông báo trên chuông (`0190`). */
+/**
+ * Dạng NGẮN của cùng câu ấy (`0190`) — từ `0192` là mảnh thứ hai của TIÊU ĐỀ
+ * bậc VIỆC, không còn là vế đuôi của dòng phụ.
+ */
 export const loaiThayDoiNgan = (e: MailEvent): string | null =>
   e.versionNo === undefined ? null : e.versionNo <= 1 ? 'CSBH mới' : `Phiên bản ${e.versionNo}`;
 
 export function moTaNgan(e: MailEvent): string | null {
   const khach = [e.customerCode, e.customerName].filter(Boolean).join(' — ');
-  // `0190` — loại thay đổi đứng CUỐI: hai vế đầu là thứ người dùng dò để tìm
-  // đúng hồ sơ trong danh sách chuông, còn vế này là thứ họ đọc sau khi đã tìm
-  // thấy. Đảo lên trước thì mọi dòng thông báo mở đầu giống hệt nhau.
-  return [khach, e.policyCode, loaiThayDoiNgan(e)].filter(Boolean).join(' · ') || null;
+  /*
+   * HAI VẾ, không ba (`0192` — `0190` để loại thay đổi ở cuối dòng này).
+   *
+   * Lập luận của `0190` — *"hai vế đầu là thứ người dùng dò để tìm đúng hồ sơ,
+   * còn vế này là thứ họ đọc sau khi đã tìm thấy"* — không sai, nó MẠNH LÊN dưới
+   * bộ tiêu đề mới: giờ mọi dòng bậc VIỆC của một vai trò mở đầu giống hệt nhau,
+   * nên mắt rơi thẳng xuống dòng phụ và đó là chỗ phân biệt hồ sơ. Vế thứ ba
+   * đứng đúng ở chỗ ấy mà không giúp phân biệt gì.
+   *
+   * Nó không mất đi — nó lên tiêu đề, nơi chủ đề thư nhìn thấy được.
+   */
+  return [khach, e.policyCode].filter(Boolean).join(' · ') || null;
 }
 
-export function bodyFor(e: MailEvent, webBaseUrl: string): string {
-  const link = `${webBaseUrl}${duongDan(e)}`;
+export function bodyFor(e: MailEvent, bac: Bac, webBaseUrl: string): string {
+  const link = `${webBaseUrl}${duongDan(e, bac)}`;
   const status = STATUS_LABEL[e.toStatus ?? ''] ?? e.toStatus ?? '—';
   const step = STEP_LABEL[e.pendingStep ?? e.toStatus ?? ''] ?? 'Không còn bước nào phải xử lý';
 
@@ -352,13 +519,17 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
   }
 
   const cot = Math.max(...truong.map(([k]) => k.length)) + 2;
-  const lines = [titleFor(e), '', ...truong.map(([k, v]) => `${`${k}:`.padEnd(cot)}${v}`)];
+  const lines = [titleFor(e, bac), '', ...truong.map(([k, v]) => `${`${k}:`.padEnd(cot)}${v}`)];
 
-  if (e.chiDeBiet) {
+  if (bac === 'TIN') {
     lines.push(
       '',
+      // `0192` bỏ vế *"vì đã từng thao tác trên hồ sơ"*: câu ấy đúng khi bậc TIN
+      // chỉ gồm người đọc ra từ nhật ký, và thành SAI ngay khi nhóm này nhận
+      // thêm những người CÓ TÊN trên hồ sơ mà không phải chủ bước — TBP và TDV ở
+      // `KT_RECEIVE_L1` chưa từng phải thao tác gì để có mặt ở đây.
       'Thư này chỉ để bạn biết — bạn KHÔNG phải xử lý gì ở bước này. Bạn nhận nó',
-      'vì đã từng thao tác trên hồ sơ.',
+      'vì có liên quan tới hồ sơ.',
     );
   }
 
@@ -367,7 +538,7 @@ export function bodyFor(e: MailEvent, webBaseUrl: string): string {
     // "Lịch sử" chứ không "nhật ký" (`0061`): phần mềm còn một *Nhật ký* nữa —
     // nhật ký kiểm toán toàn hệ thống — và thư này gửi cho người không có việc,
     // đúng nhóm dễ hiểu nhầm là mình được mời đi xem sổ kiểm toán nhất.
-    e.chiDeBiet ? `Xem lịch sử hồ sơ: ${link}` : `Mở hồ sơ: ${link}`,
+    bac === 'TIN' ? `Xem lịch sử hồ sơ: ${link}` : `Mở hồ sơ: ${link}`,
     '',
     'Thư tự động từ phần mềm Chính sách bán hàng Nutricare.',
   );

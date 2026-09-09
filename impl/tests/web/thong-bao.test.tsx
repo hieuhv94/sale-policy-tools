@@ -20,11 +20,15 @@ import { PhienProvider, usePhien } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
 import { ChuongThongBao } from '@csbh/web/chuong';
 import {
-  datLaiSoChuaDoc,
+  datLaiChuaDoc,
+  dauChuong,
+  lopDong,
   nhanChuong,
   nhanHuyHieu,
   thoiGianTuongDoi,
   TRAN_HUY_HIEU,
+  truMot,
+  type ThongBao as DongTb,
 } from '@csbh/web/thong-bao';
 
 const doc = (p: string) => readFileSync(`apps/web/src/${p}`, 'utf8');
@@ -53,9 +57,106 @@ describe('`0096` huy hiệu hiện CON SỐ, không phải một dấu chấm', 
 
   it('câu đọc lên nói con số THẬT, không nói `99+`', () => {
     // Trần kia sinh ra vì chỗ hẹp trên màn hình; một câu đọc lên thì không hẹp.
-    expect(nhanChuong(250)).toContain('250');
-    expect(nhanChuong(250)).not.toContain('99+');
-    expect(nhanChuong(0)).toBe('Thông báo — đã đọc hết');
+    expect(nhanChuong({ viec: 250, tin: 0 })).toContain('250');
+    expect(nhanChuong({ viec: 250, tin: 0 })).not.toContain('99+');
+    expect(nhanChuong({ viec: 0, tin: 0 })).toBe('Thông báo — đã đọc hết');
+  });
+});
+
+describe('`0192` chuông: SỐ cho việc, CHẤM cho tin', () => {
+  it('còn việc thì vẽ con số — đếm VIỆC, không đếm cả hộp', () => {
+    // Khách hàng chốt 23/08 rằng huy hiệu nói *"còn 12 VIỆC chưa xem"*. Trộn cả
+    // tin vào là con số ấy leo lên rồi đứng đó, và thôi được ai phản ứng.
+    expect(dauChuong({ viec: 3, tin: 40 })).toEqual({ dang: 'so', nhan: '3' });
+  });
+
+  it('hết việc mà còn tin thì vẽ DẤU CHẤM, không phải số 0', () => {
+    expect(dauChuong({ viec: 0, tin: 12 })).toEqual({ dang: 'cham' });
+  });
+
+  it('đọc hết cả hai vế thì không vẽ gì', () => {
+    expect(dauChuong({ viec: 0, tin: 0 })).toEqual({ dang: 'khong' });
+  });
+
+  it('SỐ và CHẤM loại trừ nhau ở MỌI tổ hợp', () => {
+    /*
+     * Luật loại trừ nằm trong kiểu dữ liệu chứ không ở hai điều kiện rời nhau
+     * trong JSX — hai điều kiện rời sẽ có ngày cùng đúng, cho ra số và chấm
+     * chồng lên nhau ở một góc 18px mà không có gì đỏ.
+     *
+     * Quét cả lưới thay vì kiểm vài điểm: `dang` là một chuỗi, và một bản sửa
+     * dựng ra giá trị thứ tư sẽ lọt qua ba ca trên.
+     */
+    for (const viec of [0, 1, 5, 250]) {
+      for (const tin of [0, 1, 5, 250]) {
+        const d = dauChuong({ viec, tin });
+        expect(['so', 'cham', 'khong']).toContain(d.dang);
+        expect(d.dang === 'so').toBe(viec > 0);
+        expect(d.dang === 'cham').toBe(viec === 0 && tin > 0);
+      }
+    }
+  });
+
+  it('rác từ mạng không vẽ ra huy hiệu rỗng', () => {
+    // `viec` > 0 nhưng `nhanHuyHieu` trả rỗng là tổ hợp duy nhất vẽ ra một huy
+    // hiệu không có chữ. Phép chuẩn hoá TRƯỚC phép so là thứ chặn nó.
+    for (const xau of [Number.NaN, -3, Number.POSITIVE_INFINITY]) {
+      const d = dauChuong({ viec: xau, tin: 0 });
+      expect(d.dang === 'so' && d.nhan === '').toBe(false);
+    }
+  });
+
+  it('nhãn đọc lên nói CẢ HAI vế — dấu chấm vô hình với trình đọc màn hình', () => {
+    expect(nhanChuong({ viec: 0, tin: 12 })).toBe('Thông báo — 12 tin mới');
+    expect(nhanChuong({ viec: 3, tin: 12 })).toBe('Thông báo — 3 việc chưa xem, 12 tin mới');
+  });
+});
+
+describe('`0192` bậc nằm ở LỚP của cả dòng', () => {
+  const tb = (o: Partial<DongTb>): DongTb => ({ kind: 'CHINH', daDocLuc: null, ...o }) as DongTb;
+
+  it('bốn tổ hợp đã-đọc × bậc đều phân biệt được', () => {
+    // Hai trục ĐỘC LẬP: một dòng VIỆC đã đọc vẫn là việc chưa làm xong.
+    expect(lopDong(tb({ kind: 'CHINH', daDocLuc: null }))).toBe('tb-dong tb-chua-doc tb-viec');
+    expect(lopDong(tb({ kind: 'CHINH', daDocLuc: 'x' }))).toBe('tb-dong tb-viec');
+    expect(lopDong(tb({ kind: 'THEO_DOI', daDocLuc: null }))).toBe('tb-dong tb-chua-doc');
+    expect(lopDong(tb({ kind: 'THEO_DOI', daDocLuc: 'x' }))).toBe('tb-dong');
+  });
+
+  it('CSS tô dòng VIỆC bằng hổ phách, KHÔNG bằng màu của chấm chưa đọc', () => {
+    /*
+     * Canh cả hai vế. Xanh thương hiệu đã là màu của *chưa đọc* ở `.tb-cham` và
+     * ở dấu chấm trên chuông — mượn lại nó ở đây là một màu mang hai nghĩa trên
+     * cùng một dòng. Đỏ thì tranh chỗ với huy hiệu đếm việc (`0188`).
+     */
+    const css = doc('styles/app.css');
+    const khoi = css.slice(css.indexOf('.tb-viec {'), css.indexOf('.tb-viec:hover'));
+    expect(khoi).toContain('--mau-canh-bao');
+    expect(khoi).not.toContain('--mau-thuong-hieu');
+    expect(khoi).not.toContain('--mau-loi');
+  });
+
+  it('dòng không có dải vẫn thẳng cột với dòng có dải', () => {
+    // `border-left` trong suốt trên `.tb-dong` chừa sẵn chỗ; bỏ nó thì dòng TIN
+    // thụt 3px và cả danh sách trông so le.
+    const css = doc('styles/app.css');
+    const khoi = css.slice(css.indexOf('.tb-dong {'), css.indexOf('.tb-danh-sach > li:last-child'));
+    expect(khoi).toContain('border-left: 3px solid transparent');
+  });
+
+  it('chip `để biết` KHÔNG mọc lại ở bất kỳ màn hình nào', () => {
+    // Nó đánh dấu cái không quan trọng, và từ `0192` tiêu đề đã tự nói ra bậc.
+    for (const f of ['components/ChuongThongBao.tsx', 'pages/ThongBao.tsx', 'styles/app.css']) {
+      expect(doc(f)).not.toContain('className="tb-de-biet"');
+    }
+    expect(doc('styles/app.css')).not.toContain('.tb-de-biet {');
+  });
+
+  it('trừ đúng VẾ của dòng vừa đọc', () => {
+    expect(truMot({ viec: 3, tin: 5 }, tb({ kind: 'CHINH' }))).toEqual({ viec: 2, tin: 5 });
+    expect(truMot({ viec: 3, tin: 5 }, tb({ kind: 'THEO_DOI' }))).toEqual({ viec: 3, tin: 4 });
+    // Không tụt xuống âm — máy chủ và giao diện có thể lệch nhau một nhịp.
+    expect(truMot({ viec: 0, tin: 0 }, tb({ kind: 'CHINH' }))).toEqual({ viec: 0, tin: 0 });
   });
 });
 
@@ -117,8 +218,8 @@ const TB = (o: Partial<Record<string, unknown>> = {}) => ({
 });
 
 let daGoi: string[] = [];
-let hop = { items: [TB()], total: 1, limit: 10, offset: 0, soChuaDoc: 1 };
-let soChuaDoc = 1;
+let hop = { items: [TB()], total: 1, limit: 10, offset: 0, soViecChuaDoc: 1, soTinChuaDoc: 0 };
+let dem = { soViecChuaDoc: 1, soTinChuaDoc: 0 };
 
 const chan = () =>
   vi.stubGlobal(
@@ -128,9 +229,9 @@ const chan = () =>
       const than = duong.includes('/auth/me')
         ? phien().user
         : duong.includes('/cua-toi/dem')
-          ? { soChuaDoc }
+          ? dem
           : duong.includes('/da-doc')
-            ? { soChuaDoc: 0, soDaDanhDau: 1 }
+            ? { soViecChuaDoc: 0, soTinChuaDoc: 0, soDaDanhDau: 1 }
             : hop;
       return Promise.resolve(
         new Response(JSON.stringify(than), {
@@ -163,9 +264,9 @@ const chuong = () => screen.getByRole('button', { name: /Thông báo/ });
 
 beforeEach(() => {
   daGoi = [];
-  soChuaDoc = 1;
-  hop = { items: [TB()], total: 1, limit: 10, offset: 0, soChuaDoc: 1 };
-  datLaiSoChuaDoc();
+  dem = { soViecChuaDoc: 1, soTinChuaDoc: 0 };
+  hop = { items: [TB()], total: 1, limit: 10, offset: 0, soViecChuaDoc: 1, soTinChuaDoc: 0 };
+  datLaiChuaDoc();
   chan();
 });
 
@@ -177,7 +278,7 @@ afterEach(() => {
 
 describe('`0096` cái chuông trên thanh tiêu đề', () => {
   it('hỏi số chưa đọc ngay lúc dựng và vẽ huy hiệu', async () => {
-    soChuaDoc = 7;
+    dem = { soViecChuaDoc: 7, soTinChuaDoc: 0 };
     mo();
     await waitFor(() => expect(screen.getByText('7')).toBeTruthy());
     expect(daGoi.some((d) => d.includes('/notifications/cua-toi/dem'))).toBe(true);
@@ -187,17 +288,18 @@ describe('`0096` cái chuông trên thanh tiêu đề', () => {
   });
 
   it('hộp rỗng thì KHÔNG có huy hiệu nào', async () => {
-    soChuaDoc = 0;
+    dem = { soViecChuaDoc: 0, soTinChuaDoc: 0 };
     mo();
     await waitFor(() => expect(chuong()).toBeTruthy());
     expect(screen.queryByText('0')).toBeNull();
+    expect(document.querySelector('.tb-cham-chuong')).toBeNull();
   });
 
   it('quá 99 thì huy hiệu ghi `99+` còn nhãn đọc lên nói số thật', async () => {
-    soChuaDoc = 250;
+    dem = { soViecChuaDoc: 250, soTinChuaDoc: 0 };
     mo();
     await waitFor(() => expect(screen.getByText('99+')).toBeTruthy());
-    expect(screen.getByRole('button', { name: 'Thông báo — 250 chưa đọc' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thông báo — 250 việc chưa xem' })).toBeTruthy();
   });
 
   it('bấm mới tải danh sách, và mỗi dòng là một LIÊN KẾT tới đường máy chủ gửi', async () => {
@@ -218,7 +320,7 @@ describe('`0096` cái chuông trên thanh tiêu đề', () => {
     expect(screen.getByText('3 giờ trước')).toBeTruthy();
   });
 
-  it('dòng "để biết" mang nhãn riêng và trỏ vào lịch sử hồ sơ', async () => {
+  it('dòng "để biết" KHÔNG mang dải bậc, và trỏ vào lịch sử hồ sơ', async () => {
     hop = {
       ...hop,
       items: [TB({ kind: 'THEO_DOI', duongDan: '/ho-so/abc-123/nhat-ky' })],
@@ -227,10 +329,31 @@ describe('`0096` cái chuông trên thanh tiêu đề', () => {
     await waitFor(() => expect(chuong()).toBeTruthy());
     fireEvent.click(chuong());
 
-    await waitFor(() => expect(screen.getByText('để biết')).toBeTruthy());
-    expect(
-      screen.getByRole('link', { name: /Hồ sơ bị trả lại/ }).getAttribute('href'),
-    ).toBe('/ho-so/abc-123/nhat-ky');
+    const lien = await screen.findByRole('link', { name: /Hồ sơ bị trả lại/ });
+    expect(lien.getAttribute('href')).toBe('/ho-so/abc-123/nhat-ky');
+    expect(lien.className).not.toContain('tb-viec');
+  });
+
+  it('dòng VIỆC mang dải bậc và trỏ thẳng vào hồ sơ', async () => {
+    // Ca đối chiếu của ca ngay trên. Thiếu nó thì gỡ hẳn `tb-viec` khỏi
+    // `lopDong` vẫn xanh — ca kia chỉ đòi lớp ấy VẮNG MẶT.
+    mo();
+    await waitFor(() => expect(chuong()).toBeTruthy());
+    fireEvent.click(chuong());
+
+    const lien = await screen.findByRole('link', { name: /Hồ sơ bị trả lại/ });
+    expect(lien.getAttribute('href')).toBe('/ho-so/abc-123');
+    expect(lien.className).toContain('tb-viec');
+  });
+
+  it('hết việc mà còn tin thì chuông mang dấu chấm, không mang số', async () => {
+    dem = { soViecChuaDoc: 0, soTinChuaDoc: 12 };
+    mo();
+    await waitFor(() => expect(document.querySelector('.tb-cham-chuong')).toBeTruthy());
+    expect(document.querySelector('.tb-huy-hieu')).toBeNull();
+    // Dấu chấm không có chữ nào, nên nhãn đọc lên là đường duy nhất nó tới được
+    // người dùng trình đọc màn hình.
+    expect(screen.getByRole('button', { name: 'Thông báo — 12 tin mới' })).toBeTruthy();
   });
 
   it('bấm một dòng thì báo đã đọc và huy hiệu tắt ngay', async () => {
@@ -247,8 +370,8 @@ describe('`0096` cái chuông trên thanh tiêu đề', () => {
   });
 
   it('hộp trống nói ra bằng chữ, không để một khối rỗng', async () => {
-    soChuaDoc = 0;
-    hop = { items: [], total: 0, limit: 10, offset: 0, soChuaDoc: 0 };
+    dem = { soViecChuaDoc: 0, soTinChuaDoc: 0 };
+    hop = { items: [], total: 0, limit: 10, offset: 0, soViecChuaDoc: 0, soTinChuaDoc: 0 };
     mo();
     await waitFor(() => expect(chuong()).toBeTruthy());
     fireEvent.click(chuong());

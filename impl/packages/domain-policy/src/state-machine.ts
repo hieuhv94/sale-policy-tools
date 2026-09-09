@@ -176,6 +176,34 @@ export const WAITING: readonly Status[] = [
 ];
 
 /**
+ * Hồ sơ đang ở trạng thái này thì việc thuộc về AI (`0192`).
+ *
+ * Từng là `OWNER_ROLE`, một hằng cục bộ của `sla-worker` trả lời đúng một câu
+ * hỏi: *"gửi thư nhắc cho ai"*. `0192` cần đúng bảng ấy để quyết định một thông
+ * báo là VIỆC của người đọc hay chỉ là TIN, nên nó lên đây — hai bản của cùng
+ * một luật là hai bản sẽ trôi khỏi nhau, và lượt trôi ấy sẽ nhắc sai người.
+ *
+ * KHÁC `WAITING` ở đúng một dòng, và dòng ấy là lý do bảng này không suy ra được
+ * từ `WAITING`: `YEU_CAU_CHINH_SUA` có chủ (TDV phải sửa rồi gửi lại) nhưng
+ * KHÔNG có SLA — `0155` bỏ hẳn `TU_CHOI` và ghi ra cái giá của nó, rằng hồ sơ ở
+ * trạng thái này nằm đó vô thời hạn. Có việc mà không có hạn là một tổ hợp hợp
+ * lệ; hai câu hỏi khác nhau nên hai bảng khác nhau.
+ *
+ * VẮNG MẶT nghĩa là **không còn ai phải làm gì**: `NHAP` (chưa vào luồng — chủ
+ * của nó là người đang gõ, không phải người đang chờ), `DANG_CO_HIEU_LUC`,
+ * `HET_HIEU_LUC`, và hai trạng thái `TERMINAL`. Phép tra trả `undefined`, và
+ * `undefined` không bao giờ bằng một vai trò — nên mọi thông báo dẫn tới những
+ * trạng thái ấy tự rơi về TIN mà không cần một nhánh riêng nào.
+ */
+export const CHU_BUOC: Partial<Record<Status, Role>> = {
+  CHO_TBP_DUYET: 'TBP',
+  CHO_KT_L1: 'KE_TOAN',
+  SA_DANG_XU_LY: 'SALE_ADMIN',
+  CHO_KT_L2: 'KE_TOAN',
+  YEU_CAU_CHINH_SUA: 'TDV',
+};
+
+/**
  * Hồ sơ còn SỬA ĐƯỢC — hai trạng thái, và đó là cùng một quãng thời gian mà
  * TDV còn chọn được văn bản mẫu (`0098`).
  *

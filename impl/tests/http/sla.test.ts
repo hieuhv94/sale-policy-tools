@@ -12,6 +12,8 @@ import { createTestApp as createPolicyApp, PolicyOutbox } from '@csbh/policy/tes
 import { createTestApp as createNotificationApp } from '@csbh/notification/testing';
 import { createTestWorker, SlaService, Clock } from '@csbh/sla-worker/testing';
 import { Bus, BUS } from '@csbh/bus';
+import { CHU_BUOC, WAITING } from '@csbh/domain-policy';
+import { readFileSync } from 'node:fs';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -280,6 +282,31 @@ const flush = async (want: number) => {
   return waitMail(want);
 };
 
+/**
+ * Chờ tới khi hộp thư có một lá mang tiêu đề chứa `khoa` (`0192`).
+ *
+ * `waitMail(1)` trả về ngay khi hộp thư có MỘT lá bất kỳ — và hộp thư ở đây gần
+ * như không bao giờ trống, vì các bước dựng hồ sơ (gửi duyệt, ký số) đã sinh thư
+ * trước đó. Nên nó không chứng minh được rằng lá thư SLA đã tới; đọc `mails[0]`
+ * sau đó là đọc lá của bước khác.
+ *
+ * Khoảng hở này có sẵn, chỉ chưa cắn: tới `0191` mỗi bước sinh một lá và phép
+ * đếm tình cờ khớp. Từ `0192` một bước sinh hai lá, và nó cắn.
+ */
+async function doiThuSla(khoa: string, timeoutMs = 15_000) {
+  // BƠM TRƯỚC: `OUTBOX_AUTO_PUMP=0` trong bộ test, nên sự kiện còn nằm nguyên
+  // trong outbox chứ chưa tới hộp thư.
+  await outbox.pumpOnce();
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const thu = (await listMail()).find((m) => m.Subject.includes(khoa));
+    if (thu) return thu;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error(`không có thư nào mang tiêu đề chứa "${khoa}" sau ${timeoutMs}ms`);
+}
+
+
 // =============================================================================
 // SLA đặt hạn: 14 ngày, tính cả cuối tuần
 // =============================================================================
@@ -318,7 +345,7 @@ describe('NTF-09 đẩy đồng hồ tới ngày thứ 13', () => {
     const mails = await flush(1);
     expect(mails.length).toBe(1);
     const m = await fullMail(mails[0]!.ID);
-    expect(m.Subject).toContain('sắp quá hạn');
+    expect(m.Subject).toContain('Sắp quá hạn');
     /*
      * CHỈ người phải thao tác (`0047`), không kèm TDV lập hồ sơ.
      *
@@ -402,7 +429,7 @@ describe('NTF-09 đẩy đồng hồ tới ngày thứ 13', () => {
 
     // Và chốt ở chỗ người dùng thật sự nhìn: hộp thư có đúng một lá.
     const mails = await flush(1);
-    expect(mails.filter((m) => m.Subject.includes('sắp quá hạn')).length).toBe(1);
+    expect(mails.filter((m) => m.Subject.includes('Sắp quá hạn')).length).toBe(1);
   }, 120_000);
 
   it('`0046` gửi lại trong cùng NGÀY thì lần chờ mới vẫn có thư nhắc riêng', async () => {
@@ -530,10 +557,18 @@ describe('NTF-08 · NTF-10 đẩy đồng hồ tới ngày thứ 14', () => {
     // Không có cột này thì sau khi quá hạn không ai biết hồ sơ đang chờ ai.
     expect(row.pending_step).toBe('B4_TBP_DUYET');
 
-    const mails = await flush(1);
-    const m = await fullMail(mails[0]!.ID);
-    expect(m.Subject).toContain('quá hạn');
-    expect(mails[0]!.To.map((t) => t.Address).sort()).toEqual([
+    /*
+     * Tìm theo TIÊU ĐỀ, không lấy lá mới nhất (`0192`): hộp thư còn lá của lượt
+     * gửi duyệt, và từ `0192` một bước có thể để lại hai lá — "lá mới nhất" thôi
+     * là một cách chỉ đúng lá thư mình đang nói tới.
+     */
+    const qh = await doiThuSla('đã quá hạn duyệt');
+    const m = await fullMail(qh.ID);
+    // `QUA_HAN_DUYET` là trạng thái KẾT THÚC nên không còn chủ bước: cả hai
+    // người nhận cùng một lá TIN, và tiêu đề nói thẳng là không thao tác được nữa.
+    expect(m.Subject).toContain('Để bạn biết');
+    expect(m.Subject).toContain('không thao tác được nữa');
+    expect(qh.To.map((t) => t.Address).sort()).toEqual([
       'tbp01@csbh.test',
       'tdv01@csbh.test',
     ]);
@@ -552,9 +587,24 @@ describe('NTF-08 · NTF-10 đẩy đồng hồ tới ngày thứ 14', () => {
     expect(row.status).toBe('QUA_HAN_DUYET');
     expect(row.pending_step).toBe('B6_KT_L1');
 
-    const mails = await flush(1);
-    expect(mails[0]!.To.map((t) => t.Address).sort()).toEqual([
+    /*
+     * BA người, MỘT lá (`0192`).
+     *
+     * `RECIPIENTS` của `SLA_OVERDUE` gọi tên Kế toán (chủ bước hồ sơ chết ở đó)
+     * và TDV; `observers` thêm Trưởng bộ phận, người đã ký rồi chuyển đi.
+     *
+     * Tới `0191` đó là HAI lá — lá chính cho hai người có tên, lá "để biết" cho
+     * người đã tác động — vì chúng dẫn đi hai chỗ khác nhau. Từ `0192` liên kết
+     * đi theo BẬC chứ không theo đường mà người ta lọt vào danh sách, mà
+     * `QUA_HAN_DUYET` không có chủ bước nên cả ba đều ở bậc TIN: cùng tiêu đề,
+     * cùng thân thư, cùng liên kết. Hai lá giống hệt nhau thì gộp làm một.
+     *
+     * Ai được báo thì KHÔNG đổi — vẫn đúng ba người ấy.
+     */
+    const qh = await doiThuSla('đã quá hạn duyệt');
+    expect(qh.To.map((t) => t.Address).sort()).toEqual([
       'kt01@csbh.test',
+      'tbp01@csbh.test',
       'tdv01@csbh.test',
     ]);
   }, 90_000);
@@ -696,7 +746,7 @@ describe('`0047` tự xoá sau 3 ngày quá hạn', () => {
     expect((await sla.scan()).discarded).toBe(1);
 
     const mails = await flush(1);
-    const m = mails.find((x) => x.Subject.includes('đã bị hệ thống xoá'));
+    const m = mails.find((x) => x.Subject.includes('đã xoá hồ sơ quá hạn'));
     expect(m, 'không có thư báo hồ sơ bị xoá').toBeDefined();
     // TDV lập hồ sơ — công sức của họ vừa mất, và việc phải làm là lập lại.
     // TBP — người đã để nó chết.
@@ -864,4 +914,39 @@ describe('OPS-04 sla-worker gọi được sys.run_retention()', () => {
     expect(r).toBeTypeOf('object');
     expect(Object.keys(r).length).toBeGreaterThan(0);
   }, 60_000);
+});
+
+/**
+ * `0192` — `OWNER_ROLE` dời sang `@csbh/domain-policy` thành `CHU_BUOC`.
+ *
+ * Bảng chung dày hơn bản cũ của sla-worker đúng một dòng: `YEU_CAU_CHINH_SUA →
+ * TDV`. Chú thích ở `sla.service.ts` khẳng định dòng ấy không chạm tới đường SLA
+ * vì ba nơi dùng đều tra bằng `status` của một hàng lấy từ tập `WAITING`.
+ *
+ * Đó là một SUY LUẬN, không phải một quan sát — nên nó phải có ca kiểm. Suy sai
+ * ở đây thì hồ sơ *Yêu cầu chỉnh sửa* mọc ra hạn SLA và tự chuyển *Quá hạn duyệt*
+ * sau 14 ngày, một hành vi `0155` đã cân nhắc và cố ý không làm.
+ */
+describe('`0192` bảng chủ bước dùng chung không đổi hành vi SLA', () => {
+  it('`YEU_CAU_CHINH_SUA` có chủ bước nhưng KHÔNG có SLA', () => {
+    expect(CHU_BUOC['YEU_CAU_CHINH_SUA']).toBe('TDV');
+    expect(WAITING).not.toContain('YEU_CAU_CHINH_SUA');
+  });
+
+  it('vòng quét chỉ đọc trạng thái thuộc `WAITING`', () => {
+    // Câu lệnh lọc `status = ANY($2)` với `$2 = WAITING`. Nới nó ra thành mọi
+    // khoá của `CHU_BUOC` là kéo `YEU_CAU_CHINH_SUA` vào vòng quét.
+    const ma = readFileSync('services/sla-worker/src/sla.service.ts', 'utf8');
+    expect(ma).toContain('[...WAITING]');
+    expect(ma).not.toContain('Object.keys(CHU_BUOC)');
+  });
+
+  it('bốn bước chờ vẫn tra ra đúng người phụ trách như trước khi dời bảng', () => {
+    expect(WAITING.map((tt) => CHU_BUOC[tt])).toEqual([
+      'TBP',
+      'KE_TOAN',
+      'SALE_ADMIN',
+      'KE_TOAN',
+    ]);
+  });
 });
