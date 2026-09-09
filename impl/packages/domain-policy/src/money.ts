@@ -29,6 +29,25 @@ export const formatRate2 = (r: Rate2): string =>
   `${Math.trunc(r / 100)},${String(Math.abs(r % 100)).padStart(2, '0')}`;
 
 /**
+ * Rate2 (1235) sang chuỗi của cột `numeric(5,2)` — `"12.35"` (`0193`).
+ *
+ * Dấu CHẤM chứ không phẩy: đây là dạng đi vào CSDL và đi ra API, còn dạng người
+ * đọc thì `formatRate2` lo (và giao diện có `tyLe()` đổi dấu). Hai hàm, hai
+ * thế giới, đừng lẫn.
+ *
+ * GOM TỪ SÁU BẢN CHÉP TAY (`0193`): `(x / 100).toFixed(2)` nằm rải ở
+ * `policies.service.ts` (bốn chỗ), `catalog-impact.consumer.ts`, và
+ * `thresholdPreview`. Sáu bản của một phép làm tròn là sáu chỗ để chúng lệch
+ * nhau, mà lệch ở đây nghĩa là con số hiển thị khác con số đem so ngưỡng — đúng
+ * thứ `Rate2` sinh ra để chống.
+ *
+ * Lượt gọi thứ bảy là ở GIAO DIỆN: hộp thoại thêm dòng tính trước tỷ lệ chiết
+ * khấu để người lập thấy ngay, và nó phải cho ra ĐÚNG chuỗi mà máy chủ sắp ghi.
+ * `FE-27` cấm giao diện tính lại — nó không cấm giao diện gọi chính hàm ấy.
+ */
+export const rate2ToNumeric = (r: Rate2): string => (r / 100).toFixed(2);
+
+/**
  * Chia hai số nguyên rồi làm tròn NỬA LÊN, hiểu theo nghĩa nửa đi xa khỏi số 0.
  * Đây là quy tắc làm tròn tiền quen thuộc: 12,345 → 12,35 và −12,345 → −12,35.
  */

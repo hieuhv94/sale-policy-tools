@@ -27,8 +27,30 @@ const phanHoi = (status: number, body: unknown) =>
     headers: { 'content-type': 'application/json' },
   });
 
+/*
+ * KHÔNG còn trường `price` (`0193`).
+ *
+ * `0124` lấy giá bán Công ty từ danh sách này. Từ `0180` ngày áp dụng là thuộc
+ * tính của DÒNG và giá thì phụ thuộc ngày, nên con số ở đây là giá HÔM NAY —
+ * câu trả lời sai cho mọi dòng hẹn ngày khác. Nguồn đúng là `threshold-preview`.
+ *
+ * Bỏ hẳn khỏi fixture chứ không để nguyên: còn nó thì một bản sửa lỡ đọc lại
+ * danh mục vẫn xanh, và ca kiểm thôi chứng minh được điều nó nói.
+ */
 const SAN_PHAM = {
-  items: [{ id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold', price: '125000' }],
+  items: [{ id: 'sp-1', code: 'SP-01', name: 'Nutricare Gold' }],
+};
+
+/** Câu trả lời đầy đủ của `threshold-preview`, cho ca nào cần đủ trường. */
+const XEM_TRUOC = {
+  productId: 'sp-1',
+  productCode: 'SP-01',
+  productName: 'Nutricare Gold',
+  companyPrice: '125000',
+  threshold: '25.00',
+  thresholdRate2: 2500,
+  thresholdSource: 'RULE',
+  ruleCode: 'QD-01',
 };
 
 /**
@@ -60,14 +82,7 @@ const chonSanPham = async () => {
 describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
   it('có quy định khớp → KHÔNG cảnh báo gì', async () => {
     chanFetch(() =>
-      phanHoi(200, {
-        productId: 'sp-1',
-        productCode: 'SP-01',
-        productName: 'Nutricare Gold',
-        companyPrice: '100000',
-        threshold: '25.00',
-        thresholdSource: 'RULE',
-      }),
+      phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000' }),
     );
     moHopThoai();
     await chonSanPham();
@@ -170,17 +185,73 @@ describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
     expect(screen.queryByText(/Giá bán Công ty của sản phẩm này/)).toBeNull();
   });
 
-  it('chọn sản phẩm thì hiện đúng giá của DANH MỤC', async () => {
-    chanFetch(() =>
-      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
-    );
+  /*
+   * CA NÀY THAY BẢN CŨ, không sửa số (`0193`).
+   *
+   * Bản cũ tên là *"hiện đúng giá của DANH MỤC"* — một câu về NGUỒN, và `0193`
+   * đổi đúng cái nguồn ấy. Nới nó thành `toContain` là giữ lại một câu đã hết
+   * đúng và làm ca kiểm thôi gác được gì.
+   */
+  it('giá lấy từ XEM TRƯỚC, tức theo ngày áp dụng — không lấy giá hôm nay của danh mục', async () => {
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
     moHopThoai();
     await chonSanPham();
     await waitFor(() =>
       expect(screen.getByText(/Giá bán Công ty của sản phẩm này/)).toBeDefined(),
     );
-    // Định dạng tiền của sản phẩm, không phải chuỗi thô `125000`.
+    // Định dạng tiền, không phải chuỗi thô `125000`.
     expect(screen.getByText(/125[.,]000/)).toBeDefined();
+  });
+
+  it('ĐỔI NGÀY ÁP DỤNG thì con số đổi theo', async () => {
+    /*
+     * Vế chứng minh rằng giá thật sự đến từ ngày, không phải tình cờ trùng.
+     *
+     * Đây là LỖI CÓ SẴN mà `0193` sửa: hộp thoại bày giá hôm nay trong khi máy
+     * chủ sắp chụp giá của ngày áp dụng. Chú thích của chính
+     * `threshold-preview` đã viết ra điều phải tránh — *"xem trước bằng ngày
+     * khác ngày sắp ghi là bày ra một con số rồi ghi một con số khác"* — nhưng
+     * `0180` chỉ nối được vế NGƯỠNG và bỏ sót vế GIÁ.
+     */
+    const f = vi.fn((duong: unknown) => {
+      const d = String(duong);
+      if (d.includes('/threshold-preview')) {
+        const mai = d.includes('2030-01-01');
+        return Promise.resolve(
+          phanHoi(200, { ...XEM_TRUOC, companyPrice: mai ? '200000' : '125000' }),
+        );
+      }
+      if (d.includes('/catalog/products')) return Promise.resolve(phanHoi(200, SAN_PHAM));
+      return Promise.resolve(phanHoi(200, {}));
+    });
+    vi.stubGlobal('fetch', f);
+    moHopThoai();
+    await chonSanPham();
+    await waitFor(() => expect(screen.getByText(/125[.,]000/)).toBeDefined());
+
+    const nguoi = userEvent.setup();
+    const oNgay = screen.getByLabelText(/Ngày áp dụng/) as HTMLInputElement;
+    await nguoi.clear(oNgay);
+    await nguoi.type(oNgay, '2030-01-01');
+
+    await waitFor(() => expect(screen.getByText(/200[.,]000/)).toBeDefined());
+    expect(screen.queryByText(/125[.,]000/)).toBeNull();
+  });
+
+  it('xem trước HỎNG thì thôi bày giá, không rơi về một con số khác', async () => {
+    // Nhánh rơi về `dongCu.companyPrice` của `0124` che đúng ca này: nó bày con
+    // số ĐÃ ĐÓNG BĂNG của dòng cũ trong khi máy chủ sắp ghi con số của ngày mới.
+    // Không biết thì thôi bày.
+    const f = vi.fn((duong: unknown) => {
+      const d = String(duong);
+      if (d.includes('/threshold-preview')) return Promise.reject(new TypeError('Failed to fetch'));
+      return Promise.resolve(phanHoi(200, SAN_PHAM));
+    });
+    vi.stubGlobal('fetch', f);
+    moHopThoai();
+    await chonSanPham();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/Giá bán Công ty của sản phẩm này/)).toBeNull();
   });
 
   it('đứng TRƯỚC ô Giá bán buôn, không nằm dưới đáy biểu mẫu', async () => {
@@ -189,13 +260,181 @@ describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
      * buôn thì quá muộn để nó có ích. `compareDocumentPosition` là cách duy nhất
      * đo được thứ tự trong jsdom — nó không tính bố cục.
      */
-    chanFetch(() =>
-      phanHoi(200, { productCode: 'SP-01', threshold: '1500', thresholdSource: 'RULE' }),
-    );
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
     moHopThoai();
     await chonSanPham();
     const cau = await screen.findByText(/Giá bán Công ty của sản phẩm này/);
     const o = screen.getByLabelText(/Giá bán buôn/);
     expect(cau.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/**
+ * `0193` — KHỐI XEM TRƯỚC bốn con số trong hộp thoại thêm dòng.
+ *
+ * Khách hàng chốt 09/09: *"hiển thị thêm các thông tin về CPBH, tỷ lệ CK và QĐCK
+ * luôn trong hộp thoại để người dùng có thể thấy ngay mà chưa cần phải ra phần
+ * bảng để nhìn"*.
+ *
+ * Thứ đáng gác nhất KHÔNG phải bốn con số có hiện ra hay không, mà là **tỷ lệ CK
+ * ở đây có bằng đúng tỷ lệ máy chủ sắp ghi hay không**. `format.ts` cấm giao
+ * diện tính toán (`FE-27`) vì sợ một bản cài đặt thứ hai của phép làm tròn; hộp
+ * thoại này gọi chính `computeLine`, và ca *"nửa lên"* dưới đây là chỗ duy nhất
+ * phân biệt được hai chuyện ấy.
+ */
+describe('`0193` khối xem trước trong hộp thoại thêm dòng', () => {
+  const goGia = async (gia: string, cpbh?: string) => {
+    const nguoi = userEvent.setup();
+    await nguoi.type(screen.getByLabelText(/Giá bán buôn/), gia);
+    if (cpbh !== undefined) await nguoi.type(screen.getByLabelText(/CPBH 1/), cpbh);
+  };
+
+  /** Ô của khối, tra theo nhãn — nhãn phải khớp tên cột bảng. */
+  const o = (nhan: string) => {
+    const khoi = document.querySelector('.xem-truoc-dong');
+    expect(khoi, 'không có khối xem trước').not.toBeNull();
+    const dt = [...khoi!.querySelectorAll('dt')].find((x) => x.textContent === nhan);
+    expect(dt, `không có ô "${nhan}"`).toBeDefined();
+    return dt!.nextElementSibling as HTMLElement;
+  };
+
+  it('chưa gõ giá bán buôn thì KHÔNG có khối nào', async () => {
+    // Giá trống cho ra tỷ lệ 100% — một con số không có nghĩa, và bày nó ra là
+    // dạy người dùng bỏ qua cả khối.
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.querySelector('.xem-truoc-dong')).toBeNull();
+  });
+
+  it('bốn ô mang đúng TÊN CỘT của bảng', async () => {
+    // Cả điểm của yêu cầu là thôi phải ra bảng đối chiếu; hai cách gọi khác nhau
+    // cho cùng một con số thì người dùng vẫn phải dịch.
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    await goGia('100000');
+    await waitFor(() => expect(document.querySelector('.xem-truoc-dong')).not.toBeNull());
+    const nhan = [...document.querySelectorAll('.xem-truoc-dong dt')].map((x) => x.textContent);
+    expect(nhan).toEqual(['CPBH', 'Giá thu về', 'Tỷ lệ CK', 'QĐCK']);
+  });
+
+  it('CPBH cộng lại, giá thu về trừ ra, tỷ lệ tính từ giá bán Công ty', async () => {
+    chanFetch(() =>
+      phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000', threshold: '20.00', thresholdRate2: 2000 }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await goGia('90000', '5000');
+
+    await waitFor(() => expect(o('CPBH').textContent).toMatch(/5[.,]000/));
+    expect(o('Giá thu về').textContent).toMatch(/85[.,]000/);
+    // (100000 − 85000) / 100000 = 15%
+    expect(o('Tỷ lệ CK').textContent).toBe('15,00%');
+    expect(o('QĐCK').textContent).toBe('20,00%');
+  });
+
+  it('LÀM TRÒN NỬA LÊN, đúng như máy chủ — không phải `toFixed` trên số thực', async () => {
+    /*
+     * CA ĐÁNG GIÁ NHẤT của chặng, và là ca duy nhất phân biệt được *gọi
+     * `computeLine`* với *viết lại công thức*.
+     *
+     * Giá bán Công ty 20.000, giá thu về 17.531 → chênh 2.469, tỷ lệ đúng bằng
+     * 12,345%. `computeLine` làm tròn NỬA ĐI XA KHỎI 0 trên số nguyên → 12,35%.
+     * Một bản viết tay `((1 - 17531/20000) * 100).toFixed(2)` cho **12,34%**, vì
+     * 12,345 không biểu diễn được chính xác bằng số thực nhị phân.
+     *
+     * Đây cũng đúng con số máy chủ sẽ ghi vào `discount_rate`, nên hai chỗ lệch
+     * nhau ở đây nghĩa là hộp thoại nói một đằng và bảng hiện một nẻo.
+     */
+    chanFetch(() =>
+      phanHoi(200, { ...XEM_TRUOC, companyPrice: '20000', threshold: null, thresholdRate2: null }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await goGia('17531');
+
+    await waitFor(() => expect(document.querySelector('.xem-truoc-dong')).not.toBeNull());
+    expect(o('Tỷ lệ CK').textContent).toBe('12,35%');
+    expect(o('Tỷ lệ CK').textContent).not.toBe('12,34%');
+  });
+
+  it('vượt ngưỡng tô ĐÚNG lớp mà bảng dùng', async () => {
+    // Cùng lớp thì cùng màu. Một lớp riêng ở đây là để hai chỗ tô hai màu cho
+    // cùng một chuyện, và bảng dùng `--mau-loi` chứ không phải màu cảnh báo.
+    chanFetch(() =>
+      phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000', threshold: '12.00', thresholdRate2: 1200 }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await goGia('85000');
+
+    await waitFor(() => expect(o('Tỷ lệ CK').textContent).toBe('15,00%'));
+    expect(o('Tỷ lệ CK').className).toContain('ty-le');
+    expect(o('Tỷ lệ CK').className).toContain('vuot');
+  });
+
+  it('DƯỚI ngưỡng thì KHÔNG tô', async () => {
+    // Chiều đối chiếu: thiếu nó thì tô cứng lớp `vuot` cho mọi dòng vẫn xanh.
+    chanFetch(() =>
+      phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000', threshold: '30.00', thresholdRate2: 3000 }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await goGia('85000');
+
+    await waitFor(() => expect(o('Tỷ lệ CK').textContent).toBe('15,00%'));
+    expect(o('Tỷ lệ CK').className).not.toContain('vuot');
+  });
+
+  it('QĐCK bày NGƯỠNG, mã quy định lui vào `title` — đúng quy ước cột QĐCK', async () => {
+    chanFetch(() => phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000' }));
+    moHopThoai();
+    await chonSanPham();
+    await goGia('90000');
+
+    await waitFor(() => expect(o('QĐCK').textContent).toBe('25,00%'));
+    expect(o('QĐCK').getAttribute('title')).toBe('QD-01');
+  });
+
+  it('không quy định nào phủ thì ô QĐCK để TRỐNG, và tỷ lệ vẫn tính', async () => {
+    // `computeLine` phải nhận ngưỡng VẮNG MẶT chứ không phải 0 — gửi 0 là mọi
+    // dòng bị đánh dấu vượt ngưỡng.
+    chanFetch(() =>
+      phanHoi(200, {
+        ...XEM_TRUOC,
+        companyPrice: '100000',
+        threshold: null,
+        thresholdRate2: null,
+        thresholdSource: 'KHONG_CO',
+        ruleCode: null,
+      }),
+    );
+    moHopThoai();
+    await chonSanPham();
+    await goGia('85000');
+
+    await waitFor(() => expect(o('Tỷ lệ CK').textContent).toBe('15,00%'));
+    expect(o('QĐCK').textContent).toBe('—');
+    expect(o('Tỷ lệ CK').className).not.toContain('vuot');
+  });
+
+  it('đứng SAU các ô CPBH và TRƯỚC ô Ghi chú', async () => {
+    // Nó là KẾT QUẢ của mọi ô phía trên, và ghi chú thì nói về kết quả ấy.
+    chanFetch(() => phanHoi(200, { ...XEM_TRUOC, companyPrice: '100000' }));
+    moHopThoai();
+    await chonSanPham();
+    await goGia('90000');
+
+    const khoi = await waitFor(() => {
+      const el = document.querySelector('.xem-truoc-dong');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    const oCpbh = screen.getByLabelText(/CPBH 1/);
+    const oGhiChu = screen.getByLabelText(/Ghi chú/);
+    expect(oCpbh.compareDocumentPosition(khoi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(khoi.compareDocumentPosition(oGhiChu) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

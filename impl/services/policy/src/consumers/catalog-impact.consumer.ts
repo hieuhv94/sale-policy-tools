@@ -29,6 +29,7 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { Bus, BUS } from '@csbh/bus';
+import { rate2ToNumeric } from '@csbh/domain-policy';
 import { Db } from '../infra/db.js';
 import { Clients, type ProductSnapshot } from '../infra/clients.js';
 import { DA_DONG_BANG } from '../policies/policies.service.js';
@@ -313,7 +314,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
             moi: String(s.companyPrice),
           });
         }
-        const nguongMoi = s.thresholdRate2 === null ? null : (s.thresholdRate2 / 100).toFixed(2);
+        const nguongMoi = s.thresholdRate2 === null ? null : rate2ToNumeric(s.thresholdRate2);
         if (nguongMoi !== (d.threshold_snap === null ? null : String(d.threshold_snap))) {
           lech.push({
             kind: 'RULE',

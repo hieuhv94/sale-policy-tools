@@ -21,6 +21,7 @@ import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
 // Bản chép sẽ xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại (`0128`).
 import { mintServiceToken, ngayVN } from '@csbh/http-kit';
+import { rate2ToNumeric } from '@csbh/domain-policy';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -3513,6 +3514,66 @@ describe('0022 GET /policies/:id/threshold-preview', () => {
     const d = await draft();
     const r = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`, 'tdv02');
     expect(r.status).toBe(403);
+  });
+
+  /**
+   * `0193` — đường này phải đủ để hộp thoại DỰNG LẠI đúng con số máy chủ sắp ghi.
+   *
+   * Khối xem trước trong hộp thoại thêm dòng gọi `computeLine` ngay trong trình
+   * duyệt để bày tỷ lệ CK trước khi lưu. Nó chỉ đúng khi nhận được **cùng bộ đầu
+   * vào** mà `upsertLine` sẽ dùng: giá bán Công ty và ngưỡng, cả hai theo NGÀY ÁP
+   * DỤNG.
+   */
+  it('trả đủ bộ đầu vào của `computeLine`: giá, ngưỡng thô, mã quy định', async () => {
+    const d = await draft();
+    const r = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    // Giá bán Công ty — thiếu nó thì không có mẫu số cho phép chia.
+    expect(BigInt(r.body.companyPrice as string)).toBeGreaterThan(0n);
+
+    /*
+     * NGƯỠNG DẠNG THÔ, cạnh dạng chuỗi. Trùng nội dung và chủ ý: `threshold` để
+     * BÀY RA, `thresholdRate2` để TÍNH. Gửi mỗi chuỗi thì trình duyệt phải đổi
+     * ngược `Number('15.00') * 100` — một phép suy lại mà `Rate2` sinh ra để
+     * khỏi phải làm.
+     */
+    expect(r.body.thresholdRate2).toBe(1500);
+    expect(r.body.threshold).toBe(rate2ToNumeric(r.body.thresholdRate2 as number));
+    // Mã quy định — vào `title` cạnh con số ngưỡng, đúng quy ước cột QĐCK (`0180`).
+    expect(typeof r.body.ruleCode).toBe('string');
+  });
+
+  it('giá và ngưỡng đi theo NGÀY ÁP DỤNG, không phải hôm nay', async () => {
+    /*
+     * Vế mà `0180` bỏ sót và `0193` nối nốt.
+     *
+     * `0180` đưa `ngayApDung` vào đường này cho NGƯỠNG, còn giao diện vẫn đọc giá
+     * HÔM NAY từ danh mục — nên hộp thoại bày một con số rồi máy chủ ghi một con
+     * số khác ở đúng những dòng hẹn ngày tương lai. Chốt chặn là ở đây: cùng sản
+     * phẩm, hai ngày, hai câu trả lời.
+     */
+    const d = await draft();
+    /*
+     * PHẢI DỰNG HAI MỐC GIÁ THẬT.
+     *
+     * Bản đầu của ca này hỏi giá ở `2020-01-01` rồi mong nó khác giá hôm nay, với
+     * lý lẽ *"trước mốc giá đầu tiên thì chưa có giá nào"*. Sai, và ca kiểm đỏ đã
+     * nói ra: phép tra rơi về mốc gần nhất chứ không trả rỗng — nên hai ngày cho
+     * cùng một con số, và ca kiểm chẳng chứng minh được gì.
+     */
+    await (await http(catalog))
+      .post(`/catalog/products/${d.productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: '200000', effectiveFrom: '2030-01-01' });
+
+    const nay = await get(`/policies/${d.id}/threshold-preview?productId=${d.productId}`);
+    const sau = await get(
+      `/policies/${d.id}/threshold-preview?productId=${d.productId}&ngayApDung=2030-06-01`,
+    );
+    expect(sau.status, JSON.stringify(sau.body)).toBe(200);
+    expect(nay.body.companyPrice).toBe('100000');
+    expect(sau.body.companyPrice).toBe('200000');
   });
 });
 

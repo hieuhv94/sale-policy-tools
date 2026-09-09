@@ -7,12 +7,13 @@
  * `SUBMIT` hoặc `RESUBMIT_AFTER_EDIT`. Chép danh sách trạng thái sang giao diện
  * là thêm một bản sao phải giữ đồng bộ với máy trạng thái.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { computeLine, rate2ToNumeric } from '@csbh/domain-policy';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
-import { homNayVN, tien } from '../lib/format.js';
+import { homNayVN, tien, tyLe } from '../lib/format.js';
 import type { DongSanPham } from './BangSanPham.js';
 
 export { suaDuoc } from '../lib/sua-ho-so.js';
@@ -27,14 +28,39 @@ type SanPham = {
   id: string;
   code: string;
   name: string;
-  /** Giá bán Công ty hiện hành (`0123`). `null` ở dữ liệu cũ chưa từng đặt giá. */
-  price: string | null;
+  /*
+   * `price` ĐÃ GỠ KHỎI KIỂU NÀY ở `0193`, và chỗ trống để lại có chủ ý.
+   *
+   * `0124` lấy giá bán Công ty từ đây vì khi ấy ngày áp dụng là thuộc tính của
+   * HỒ SƠ. `0180` đưa ngày xuống từng dòng, và giá thì phụ thuộc ngày — nên
+   * trường này là giá HÔM NAY, tức câu trả lời sai cho mọi dòng hẹn ngày khác.
+   * Nguồn đúng là `threshold-preview`, thứ đã nhận `ngayApDung` từ `0180`.
+   *
+   * Giữ nó lại làm một trường không ai đọc là để sẵn một nguồn thứ hai cho người
+   * sửa vội tìm thấy.
+   */
 };
 
 type XemTruocNguong = {
   productCode: string;
+  /**
+   * Giá bán Công ty **của NGÀY ÁP DỤNG đang gõ** (`0193`).
+   *
+   * Máy chủ vẫn trả trường này từ `0180`, và tới `0192` giao diện VỨT NÓ ĐI —
+   * `giaCongTy` đọc giá HÔM NAY từ danh mục (`0124`, khi ấy ngày áp dụng còn là
+   * thuộc tính của hồ sơ). Từ `0180` mỗi dòng mang ngày riêng và ảnh chụp giá
+   * lấy theo ngày ấy, nên hộp thoại bày một con số rồi lưu một con số khác ở
+   * đúng những dòng hẹn ngày tương lai — chính điều mà chú thích của
+   * `threshold-preview` viết ra để chống, chỉ khác là nó nói về ngưỡng và bỏ sót
+   * giá.
+   */
+  companyPrice: string;
   /** `null` đi kèm `KHONG_CO`: không có ngưỡng nào để đối chiếu. */
   threshold: string | null;
+  /** Cùng ngưỡng ấy, dạng `Rate2` — thứ `computeLine` ăn vào (`0193`). */
+  thresholdRate2: number | null;
+  /** Mã quy định đã thắng (`0193`) — vào dấu `?` cạnh ngưỡng, như cột QĐCK. */
+  ruleCode: string | null;
   /**
    * HAI giá trị, không phải bốn.
    *
@@ -138,9 +164,53 @@ export function ThemDongSanPham({
   const [dangGui, datDangGui] = useState(false);
   const xem = useXemTruocNguong(hoSoId, sanPham, ngayApDung);
 
-  /** Giá bán Công ty của sản phẩm đang chọn. `null` = chưa chọn, hoặc không tra được. */
-  const giaCongTy =
-    (ds ?? []).find((s) => s.id === sanPham)?.price ?? (sua ? dongCu.companyPrice : null) ?? null;
+  /**
+   * Giá bán Công ty của sản phẩm đang chọn, **theo ngày áp dụng đang gõ** (`0193`).
+   *
+   * KHÔNG còn nhánh rơi về `dongCu.companyPrice`. Nhánh ấy có từ `0124` để cứu
+   * ca sản phẩm đã vô hiệu hoá (không nằm trong `ds` vì `forNewPolicy=true` lọc
+   * đi) — nhưng `threshold-preview` tra thẳng ảnh chụp sản phẩm nên nó trả lời
+   * được cả ca ấy. Cái còn lại mà nhánh cũ che đi là lượt tra HỎNG, và ở đó nó
+   * bày ra con số ĐÃ ĐÓNG BĂNG của dòng cũ trong khi máy chủ sắp ghi con số của
+   * ngày mới. Không biết thì **thôi bày**: cả khối tự ẩn.
+   */
+  const giaCongTy = xem?.companyPrice ?? null;
+
+  /**
+   * Tỷ lệ chiết khấu, giá thu về và tổng CPBH — tính NGAY trong lúc gõ (`0193`).
+   *
+   * `format.ts` mở đầu bằng luật *"giao diện KHÔNG TÍNH TOÁN"* (`FE-27`), và luật
+   * ấy sợ một BẢN CÀI ĐẶT THỨ HAI của phép làm tròn — con số hiện ra sẽ lệch con
+   * số đem so ngưỡng. Ở đây không có bản thứ hai nào: `computeLine` và
+   * `rate2ToNumeric` là **đúng hai hàm mà `upsertLine` gọi**, nhập từ cùng một
+   * gói. Viết lại công thức mới là thứ `FE-27` cấm.
+   *
+   * Ba vế phải khớp nhau thì khối này mới đúng, và cả ba đều đến từ máy chủ:
+   * giá bán Công ty và ngưỡng lấy theo NGÀY ÁP DỤNG (`xem`), còn giá bán buôn
+   * với CPBH thì chính người dùng đang gõ.
+   *
+   * `null` khi CHƯA ĐỦ để tính — chưa chọn sản phẩm, chưa gõ giá bán buôn, hoặc
+   * `computeLine` từ chối (giá bán Công ty bằng 0 ở dữ liệu cũ chưa từng đặt
+   * giá). Bày `100%` cho một ô giá còn trống là bày một con số không có nghĩa.
+   */
+  const ketQua = useMemo(() => {
+    if (xem === null || giaBanBuon === '') return null;
+    try {
+      return computeLine({
+        companyPrice: BigInt(xem.companyPrice),
+        wholesalePrice: BigInt(giaBanBuon),
+        cpbh: cpbh.map((v) => BigInt(v || '0')),
+        // Bỏ hẳn trường khi không có ngưỡng, KHÔNG gửi 0 — `computeLine` đọc `0`
+        // là "ngưỡng bằng không" và đánh dấu vượt ngưỡng cho mọi dòng. Cùng phép
+        // đề phòng mà `upsertLine` viết ra ở máy chủ.
+        ...(xem.thresholdRate2 === null ? {} : { threshold: xem.thresholdRate2 }),
+      });
+    } catch {
+      // `InvalidLineError` — máy chủ sẽ nói ra bằng một mã lỗi tử tế lúc lưu.
+      // Ở đây chỉ là khối xem trước, im lặng là câu trả lời đúng (`0089`).
+      return null;
+    }
+  }, [xem, giaBanBuon, cpbh]);
 
   useEffect(() => {
     const huy = new AbortController();
@@ -312,6 +382,70 @@ export function ThemDongSanPham({
             + Thêm khoản chi phí
           </button>
         </div>
+
+        {/*
+          KHỐI XEM TRƯỚC (`0193`) — bốn con số mà tới `0192` chỉ đọc được ở BẢNG,
+          tức sau khi đã bấm *Thêm dòng*.
+
+          Khách hàng chốt 09/09: *"hiển thị thêm các thông tin về CPBH, tỷ lệ CK và
+          QĐCK luôn trong hộp thoại để người dùng có thể thấy ngay mà chưa cần
+          phải ra phần bảng để nhìn"*.
+
+          **GIÁ THU VỀ là thứ THÊM ngoài ba mục ấy, và đã nêu.** Nó là mắt xích
+          giữa CPBH và tỷ lệ chiết khấu — `1 − giá thu về / giá bán Công ty` — và
+          hộp thoại này ĐÃ NHẮC TÊN nó từ `0124` ("tính từ con số đó và giá thu
+          về") mà chưa bao giờ bày ra. Bỏ nó thì khối này hiện một phần trăm
+          không có đường nào lần ngược.
+
+          ĐẶT SAU CPBH, TRƯỚC GHI CHÚ: đây là KẾT QUẢ của mọi ô phía trên, và ghi
+          chú thì nói về kết quả ấy. Cùng lập luận đã viết cho ô ghi chú ngay dưới.
+
+          Nhãn lấy nguyên văn tên cột của bảng (`bang-cot.ts`) — cả điểm của yêu
+          cầu là thôi phải ra bảng đối chiếu, mà hai cách gọi khác nhau cho cùng
+          một con số thì vẫn phải dịch.
+        */}
+        {ketQua !== null && xem !== null && (
+          <dl className="xem-truoc-dong">
+            <div>
+              <dt>CPBH</dt>
+              <dd className="so">{tien(ketQua.cpbhTotal.toString())}</dd>
+            </div>
+            <div>
+              <dt>Giá thu về</dt>
+              <dd className="so">{tien(ketQua.netPrice.toString())}</dd>
+            </div>
+            <div>
+              <dt>Tỷ lệ CK</dt>
+              {/*
+                HAI thứ mượn nguyên của bảng, và cả hai đều cố ý.
+
+                `tyLe(rate2ToNumeric(...))` là ĐÚNG đường con số này đi ở bảng:
+                máy chủ ghi `rate2ToNumeric(calc.discountRate)` vào CSDL, DTO trả
+                nguyên chuỗi ấy, `tyLe()` in ra. Tự dựng chuỗi ở đây là dựng một
+                đường thứ hai để hai chỗ lệch nhau ở chữ số thập phân.
+
+                Lớp `ty-le vuot` cũng vậy — cùng lớp thì cùng MÀU, và màu vượt
+                ngưỡng của bảng là `--mau-loi` chứ không phải màu cảnh báo. Đặt
+                một lớp riêng ở đây là để hai chỗ tô hai màu cho cùng một chuyện.
+              */}
+              <dd className={`so ty-le${ketQua.overThreshold ? ' vuot' : ''}`}>
+                {tyLe(rate2ToNumeric(ketQua.discountRate))}
+              </dd>
+            </div>
+            <div>
+              <dt>QĐCK</dt>
+              {/*
+                Bày NGƯỠNG phần trăm, mã quy định lui vào `title` — đúng quy ước
+                cột QĐCK của bảng (`0180`). Không quy định nào phủ thì để TRỐNG,
+                cũng như bảng: câu giải thích đã nằm ở khối cảnh báo phía trên,
+                nhắc lại ở đây là nói hai lần trong một màn hình.
+              */}
+              <dd className="so" title={xem.ruleCode ?? undefined}>
+                {xem.threshold === null ? '—' : tyLe(xem.threshold)}
+              </dd>
+            </div>
+          </dl>
+        )}
 
         {/* Ghi chú ĐỨNG CUỐI, sau mọi con số: nó nói VỀ những con số ấy, nên
             người lập viết nó sau khi đã nhập xong chứ không phải trước. */}

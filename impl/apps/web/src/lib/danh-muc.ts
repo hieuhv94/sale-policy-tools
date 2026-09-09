@@ -19,6 +19,7 @@
  * được dữ liệu cho nó. Khách hàng chốt 16/08 là hợp đồng không cần in tên người
  * ký của Công ty.
  */
+import { rate2ToNumeric } from '@csbh/domain-policy';
 
 /**
  * Hai thẻ của màn hình Sản phẩm — CHỈ Quản trị hệ thống thấy.
@@ -191,8 +192,18 @@ export type QuyDinhChietKhau = {
  *
  * Đổi ở đúng một chỗ. Rải phép chia 100 khắp các màn hình là cách chắc chắn để
  * có ngày một chỗ quên, và một ngưỡng sai 100 lần thì không ai đọc ra ngay.
+ *
+ * `0193` — "MỘT CHỖ" ẤY LÀ `rate2ToNumeric`, không phải dòng này.
+ *
+ * Câu trên đúng trong phạm vi gói giao diện, và đó chính là chỗ hở: `Rate2` là
+ * kiểu của `domain-policy`, phép đổi của nó sống ở đó, mà dòng này chép lại phép
+ * đổi ấy rồi thêm dấu phẩy. Hai bản khởi đầu bằng nhau nên không ai thấy — cho
+ * tới ngày một bên đổi quy tắc làm tròn.
+ *
+ * Hàm KHÔNG bỏ đi: nó còn làm một việc thứ hai mà `rate2ToNumeric` cố ý không
+ * làm — đổi sang dấu phẩy để BÀY RA. Chuỗi dấu chấm là dạng của CSDL và của API.
  */
-export const phanTramTuNguong = (n: number): string => (n / 100).toFixed(2).replace('.', ',');
+export const phanTramTuNguong = (n: number): string => rate2ToNumeric(n).replace('.', ',');
 
 /**
  * Đọc một con số người dùng gõ, chấp nhận CẢ dấu phẩy lẫn dấu chấm thập phân.

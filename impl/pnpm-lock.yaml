@@ -165,6 +165,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@csbh/domain-policy':
+        specifier: workspace:*
+        version: link:../../packages/domain-policy
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -413,6 +416,9 @@ importers:
       '@csbh/bus':
         specifier: workspace:*
         version: link:../../packages/bus
+      '@csbh/domain-policy':
+        specifier: workspace:*
+        version: link:../../packages/domain-policy
       '@csbh/http-kit':
         specifier: workspace:*
         version: link:../../packages/http-kit

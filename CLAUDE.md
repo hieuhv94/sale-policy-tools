@@ -87,7 +87,27 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (09/09/2026)
 
-Chặng gần nhất **P220** (`0192`): **tiêu đề thông báo nói rõ VIỆC CỦA AI**. Mười bảy tiêu đề cũ đều kể
+Chặng gần nhất **P221** (`0193`): **hộp thoại thêm dòng bày luôn bốn con số** — CPBH tổng · Giá thu về
+· Tỷ lệ CK · QĐCK — thay vì phải thêm dòng rồi ra bảng nhìn. Yêu cầu này **đâm thẳng vào `FE-27`**
+(*"giao diện KHÔNG TÍNH TOÁN"*, ghi ở đầu `format.ts`), và cách thoát nằm ở chỗ luật ấy sợ **một bản
+CÀI ĐẶT thứ hai** của phép làm tròn: hộp thoại gọi **chính `computeLine` + `rate2ToNumeric`** mà
+`upsertLine` gọi. Cái giá là `apps/web` có **phụ thuộc workspace đầu tiên** (`@csbh/domain-policy`) —
+đo trước: gói 126,2KB / trần 250KB, và gói ấy không phụ thuộc gì (có ca kiểm giữ cả hai điều kiện).
+**LỖI CÓ SẴN, và là điều kiện tiên quyết**: hộp thoại bày giá bán Công ty **HÔM NAY** lấy từ danh mục
+(`0124`, khi ngày áp dụng còn là thuộc tính của HỒ SƠ), trong khi `0180` đưa ngày xuống TỪNG DÒNG và
+máy chủ chụp giá theo ngày ấy — chú thích của chính `threshold-preview` viết ra điều phải tránh và máy
+chủ **vẫn trả `companyPrice` theo ngày**, giao diện chỉ vứt nó đi; tỷ lệ CK chia cho con số ấy nên
+không sửa thì cả khối mới hiện sai. Nhánh rơi về `dongCu.companyPrice` **gỡ hẳn** — nó che đúng lượt
+tra HỎNG, chỗ bày ra con số đã đóng băng trong khi máy chủ sắp ghi con số của ngày mới. **BẢY bản chép
+của `(x / 100).toFixed(2)`** gom về `rate2ToNumeric` ở `money.ts`; ca kiểm quét mã nguồn tìm ra bản
+thứ bảy ở giao diện (`phanTramTuNguong`), một hàm có docstring *"Đổi ở đúng một chỗ"* — đúng trong
+phạm vi gói giao diện, và đó chính là chỗ hở. **Ca đáng giá nhất**: giá 20.000 / thu về 17.531 →
+`computeLine` cho **12,35%**, bản viết tay bằng số thực cho **12,34%** (12,345 không biểu diễn được
+chính xác); ca quét mã nguồn KHÔNG bắt được lượt phá ấy và đúng ra là không nên — hai chốt, hai lớp
+lỗi. **Giá thu về là thứ thêm ngoài yêu cầu, đã nêu**. **KHÔNG làm**: cảnh báo giá thu về âm — bảng
+không đánh dấu nó ở đâu cả. Sáu lượt phá lại, sáu đỏ đúng chỗ. **2155/2155 xanh.**
+
+Trước đó **P220** (`0192`): **tiêu đề thông báo nói rõ VIỆC CỦA AI**. Mười bảy tiêu đề cũ đều kể
 *ai vừa làm gì*, trong khi cùng một tiêu đề đi tới 2–4 vai trò có việc khác hẳn nhau — *"Kế toán đã
 tiếp nhận lần 1"* với Sale Admin là MỆNH LỆNH, với TBP và TDV là một mẩu tin. **BẬC là DẪN XUẤT**:
 `vaiTroNguoiDoc === CHU_BUOC[toStatus]` → *Cần bạn xử lý*, còn lại → *Để bạn biết*. Bản đầu có BA bậc

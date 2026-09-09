@@ -22,6 +22,7 @@ import type { PoolClient } from 'pg';
 import {
   computeLine,
   InvalidLineError,
+  rate2ToNumeric,
   STEP_OF_STATUS,
   SUA_DUOC,
   type Status,
@@ -866,8 +867,8 @@ export class PoliciesService {
 
     // Rate2 (1235) sang numeric(5,2) (12.35). Chia ở ĐÚNG một chỗ này; con số
     // đem so ngưỡng đã được làm tròn từ trước trong computeLine.
-    const rate = (calc.discountRate / 100).toFixed(2);
-    const threshold = snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2);
+    const rate = rate2ToNumeric(calc.discountRate);
+    const threshold = snap.thresholdRate2 === null ? null : rate2ToNumeric(snap.thresholdRate2);
 
     await c
       .query(
@@ -1268,8 +1269,8 @@ export class PoliciesService {
           snap.productCode,
           snap.productName,
           snap.companyPrice,
-          (calc.discountRate / 100).toFixed(2),
-          snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2),
+          rate2ToNumeric(calc.discountRate),
+          snap.thresholdRate2 === null ? null : rate2ToNumeric(snap.thresholdRate2),
           snap.ruleCode ?? null,
           snap.thresholdSource,
         ],
@@ -1909,8 +1910,28 @@ export class PoliciesService {
       productName: snap.productName,
       companyPrice: snap.companyPrice,
       threshold:
-        snap.thresholdRate2 === null ? null : (snap.thresholdRate2 / 100).toFixed(2),
+        snap.thresholdRate2 === null ? null : rate2ToNumeric(snap.thresholdRate2),
+      /**
+       * NGƯỠNG DẠNG THÔ, đi thẳng vào `computeLine` ở giao diện (`0193`).
+       *
+       * Trùng nội dung với `threshold` ngay trên, và chủ ý: `threshold` là chuỗi
+       * để BÀY RA, `thresholdRate2` là số nguyên để TÍNH. Gửi mỗi chuỗi thì
+       * trình duyệt phải đổi ngược `Number('12.35') * 100` — một phép suy lại,
+       * đúng loại việc mà `Rate2` sinh ra để khỏi phải làm. Hộp thoại phải đưa
+       * cho `computeLine` **đúng cái mà máy chủ sẽ đưa cho nó**, không phải một
+       * giá trị dựng lại từ dạng hiển thị.
+       */
+      thresholdRate2: snap.thresholdRate2,
       thresholdSource: snap.thresholdSource,
+      /**
+       * MÃ quy định đã thắng (`0193`).
+       *
+       * Cột *QĐCK* của bảng bày NGƯỠNG phần trăm và giấu mã vào dấu `?` (`0180`);
+       * khối xem trước trong hộp thoại làm y hệt, nên nó cần cả hai. Trường này
+       * đã có sẵn trong ảnh chụp và đi thẳng vào `rule_code_snap` lúc ghi dòng —
+       * không thêm lượt tra nào.
+       */
+      ruleCode: snap.ruleCode,
     };
   }
 

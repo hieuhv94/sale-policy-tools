@@ -2299,6 +2299,39 @@ trang khách hàng"*.
 > nhưng đi từ trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, còn đi từ đây thì
 > không thấy gì cả.
 
+**HỘP THOẠI THÊM DÒNG BÀY LUÔN BỐN CON SỐ** `mới 09/09` — *"trong hộp thoại để thêm sản phẩm vào CSBH
+hiển thị thêm các thông tin về CPBH, tỷ lệ CK và QĐCK luôn trong hộp thoại để người dùng có thể thấy
+ngay mà chưa cần phải ra phần bảng để nhìn"*.
+
+> Khối nhỏ dưới các ô CPBH, hiện khi đã chọn sản phẩm **và** đã gõ giá bán buôn: **CPBH** (tổng) ·
+> **Giá thu về** · **Tỷ lệ CK** · **QĐCK** (ngưỡng phần trăm, mã quy định trong `title`).
+>
+> **GIÁ THU VỀ là thứ thêm ngoài ba mục khách hàng nêu, đã nêu ra**: nó là mắt xích giữa CPBH và tỷ
+> lệ chiết khấu (`1 − giá thu về / giá bán Công ty`), và hộp thoại vốn đã NHẮC TÊN nó từ `0124` mà
+> chưa bao giờ bày ra. Bỏ nó thì khối hiện một phần trăm không có đường nào lần ngược.
+>
+> Nhãn và màu lấy **nguyên của bảng** (`bang-cot.ts`, lớp `.ty-le.vuot`): cả điểm của yêu cầu là
+> thôi phải ra bảng đối chiếu, mà hai cách gọi hoặc hai màu cho cùng một con số thì vẫn phải dịch.
+>
+> **Giao diện TÍNH ở đây, và đó là ngoại lệ có điều kiện.** `FE-27` cấm giao diện tính lại vì sợ một
+> bản cài đặt thứ hai của phép làm tròn — con số hiện ra sẽ lệch con số đem so ngưỡng. Hộp thoại gọi
+> **chính `computeLine`** mà máy chủ gọi, nhập từ gói `domain-policy`; không có bản thứ hai nào. Điều
+> kiện đi kèm: gói ấy không được có phụ thuộc nào, và phép đổi `Rate2 → numeric` phải ở đúng một chỗ
+> (`rate2ToNumeric`) — cả hai đều có ca kiểm gác.
+
+**LỖI ĐÃ SỬA: giá bán Công ty trong hộp thoại thôi lấy giá HÔM NAY** `sửa 09/09` — nó lấy theo **ngày
+áp dụng** của dòng đang gõ.
+
+> `0124` bày giá bán Công ty ngay trên ô *Giá bán buôn*, đọc từ danh mục. Khi ấy ngày áp dụng là
+> thuộc tính của HỒ SƠ nên "giá hôm nay" là đúng. `0180` đưa ngày xuống TỪNG DÒNG và ảnh chụp giá lấy
+> theo ngày ấy — từ đó hộp thoại bày một con số rồi máy chủ ghi một con số khác, ở đúng những dòng
+> hẹn ngày tương lai.
+>
+> Chú thích của chính đường `threshold-preview` đã viết ra điều phải tránh (*"xem trước bằng ngày khác
+> ngày sắp ghi là bày ra một con số rồi ghi một con số khác"*) và máy chủ vẫn trả `companyPrice` theo
+> ngày từ `0180`; giao diện chỉ **vứt nó đi**. Không có mã lỗi nào, không màn hình nào báo — hai con
+> số chỉ đơn giản khác nhau.
+
 **TIÊU ĐỀ THÔNG BÁO NÓI RÕ VIỆC CỦA AI** `mới 09/09` — *"thử đề xuất nội dung tiêu đề của thông báo
 để người dùng không bị rối khi nhận quá nhiều thông báo"*.
 

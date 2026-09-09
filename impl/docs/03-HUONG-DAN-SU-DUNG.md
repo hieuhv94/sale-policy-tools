@@ -661,9 +661,24 @@ Với mỗi dòng bạn nhập **Giá bán buôn** và các khoản **CPBH**. H�
 > **Giá thu về** = Giá bán buôn − (tổng các khoản CPBH)
 > **Tỷ lệ chiết khấu** = 1 − Giá thu về / Giá bán Công ty
 
-**Giá bán Công ty của sản phẩm hiện ngay trên ô Giá bán buôn** `mới 26/08`, ngay khi bạn chọn sản
-phẩm. Đó là con số mà tỷ lệ chiết khấu tính ngược từ đó — trước đây phải mở màn hình *Danh mục* ở
-một tab khác để tra.
+**Giá bán Công ty của sản phẩm hiện ngay trên ô Giá bán buôn** `mới 26/08` `sửa 09/09`, ngay khi bạn
+chọn sản phẩm. Đó là con số mà tỷ lệ chiết khấu tính ngược từ đó — trước đây phải mở màn hình *Danh
+mục* ở một tab khác để tra. Con số này lấy **theo Ngày áp dụng bạn vừa gõ**, không phải giá hôm nay:
+đổi ngày thì nó đổi theo, đúng bằng con số hệ thống sẽ chụp vào dòng.
+
+**Bốn con số hiện ngay trong hộp thoại, trước khi bạn bấm *Thêm dòng*** `mới 09/09`. Ngay dưới các ô
+CPBH có một khối nhỏ:
+
+| Ô | Là gì |
+|---|---|
+| **CPBH** | Tổng các khoản chi phí bạn vừa gõ |
+| **Giá thu về** | Giá bán buôn − tổng CPBH |
+| **Tỷ lệ CK** | Tỷ lệ chiết khấu của dòng này. **Đỏ** nếu vượt ngưỡng |
+| **QĐCK** | Ngưỡng của quy định chiết khấu đang phủ sản phẩm này. Rê chuột lên để xem mã quy định |
+
+Đây đúng bốn cột bạn sẽ thấy trong bảng sau khi thêm dòng, với **đúng những con số ấy** — khối này
+không ước lượng, nó chạy chính phép tính mà hệ thống sẽ ghi. Khối chỉ hiện khi đã chọn sản phẩm và
+đã gõ giá bán buôn; thiếu một trong hai thì chưa có gì để tính.
 
 **Gõ số tiền thì gõ số trần**, không cần dấu chấm — `1000000`. Trong lúc con trỏ còn ở trong ô, ô
 hiện đúng những chữ số bạn gõ và con số đã phân nhóm hiện ở **dòng nhỏ ngay dưới ô** (`1.000.000`)

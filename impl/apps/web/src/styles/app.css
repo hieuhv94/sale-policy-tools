@@ -2113,6 +2113,36 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 /* Nút "Bớt" canh theo ĐÁY ô nhập, không theo giữa: nhãn nằm trên ô nên canh giữa
    sẽ đẩy nút lên ngang nhãn. */
+/*
+ * KHỐI XEM TRƯỚC trong hộp thoại thêm dòng sản phẩm (`0193`).
+ *
+ * Bốn con số suy ra từ những ô phía trên, xếp thành lưới hai cột để đọc theo
+ * CẶP — CPBH với Giá thu về là một phép trừ, Tỷ lệ CK với QĐCK là một phép so.
+ * Một cột dọc bốn dòng thì hai cặp ấy nằm cách nhau và mắt phải tự ghép.
+ *
+ * Nền phụ + viền trái: nó KHÔNG phải một ô nhập, và người dùng đang lướt qua
+ * một dãy ô nhập. Không mượn `--mau-canh-bao` của khối cảnh báo ngay trên —
+ * đây là số liệu bình thường, không phải một điều đáng lo (`0188`).
+ */
+.xem-truoc-dong {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--k2) var(--k4);
+  margin: 0 0 var(--k4);
+  padding: var(--k3);
+  background: var(--mau-nen-phu);
+  border-left: 3px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+}
+.xem-truoc-dong dt { font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+/* `.so` đã căn phải cho ô BẢNG; ở đây nhãn và số đứng cùng cột nên căn trái,
+   chỉ giữ phần phông đều cột của nó. */
+.xem-truoc-dong dd { margin: 0; text-align: left; font-weight: 600; }
+
+@media (max-width: 30rem) {
+  .xem-truoc-dong { grid-template-columns: 1fr; }
+}
+
 .hang-cpbh { display: flex; align-items: flex-end; gap: var(--k3); }
 .hang-cpbh .truong { flex: 1; }
 .hang-cpbh .nut { margin-bottom: var(--k3); }

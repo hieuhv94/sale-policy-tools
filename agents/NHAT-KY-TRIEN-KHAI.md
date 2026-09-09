@@ -16850,3 +16850,124 @@ chúng đã đọc rồi và trôi khỏi mười dòng đầu trong vài ngày.
 | Đảo thứ tự trong `dauChuong` — chấm thắng số | **2 đỏ** |
 
 **2140/2140 xanh.**
+
+---
+
+## P221 — `0193` Hộp thoại thêm dòng bày luôn bốn con số
+
+Yêu cầu: *"trong hộp thoại để thêm sản phẩm vào CSBH hiển thị thêm các thông tin về CPBH, tỷ lệ CK và
+QĐCK luôn trong hộp thoại để người dùng có thể thấy ngay mà chưa cần phải ra phần bảng để nhìn"*.
+
+### Yêu cầu này đâm thẳng vào một luật đã ghi
+
+`apps/web/src/lib/format.ts` mở đầu bằng: *"Nguyên tắc bao trùm: **giao diện KHÔNG TÍNH TOÁN**. Nó
+nhận số từ API và chỉ thêm dấu phân cách. Tính lại ở đây là tạo ra nguồn sự thật thứ hai, và hai
+nguồn sẽ lệch nhau ở đúng chỗ khó thấy nhất — quy tắc làm tròn (`FE-27`)."*
+
+Bày tỷ lệ CK **trước khi lưu** thì buộc phải tính ở trình duyệt. Không có đường vòng: gọi máy chủ mỗi
+lượt gõ phím là một vòng mạng nằm giữa người dùng và con số họ đang nhìn thay đổi.
+
+Cách thoát nằm ở chỗ đọc kỹ điều `FE-27` sợ: **một bản CÀI ĐẶT thứ hai** của phép làm tròn. Hộp thoại
+gọi **chính `computeLine` và `rate2ToNumeric`** mà `upsertLine` gọi, nhập từ `@csbh/domain-policy`.
+Không có bản thứ hai nào; viết lại công thức mới là thứ bị cấm.
+
+Cái giá là `apps/web` có **phụ thuộc workspace đầu tiên**. Đo trước khi làm: gói hiện 126,2KB nén trên
+trần 250KB (`FE-38`), và `domain-policy` là hằng với hàm thuần, không phụ thuộc gì. Sau khi thêm vẫn
+dưới trần.
+
+> **CA KIỂM ĐÁNG GIÁ NHẤT của chặng, và nó là ca duy nhất phân biệt được hai chuyện ấy.**
+> Giá bán Công ty 20.000, giá thu về 17.531 → chênh 2.469, tỷ lệ đúng bằng **12,345%**.
+> `computeLine` làm tròn nửa đi xa khỏi 0 **trên số nguyên** → `12,35%`. Một bản viết tay
+> `((1 - 17531/20000) * 100).toFixed(2)` cho **`12,34%`**, vì 12,345 không biểu diễn được chính xác
+> bằng số thực nhị phân. Phá lại đúng bằng cách ấy: **1 đỏ**, đúng ca này.
+>
+> Ca QUÉT MÃ NGUỒN **không** bắt được lượt phá ấy, và đúng ra là không nên: nó gác phép đổi
+> `Rate2 → numeric`, một chuyện khác. Hai chốt chặn, hai lớp lỗi.
+
+### Một lỗi có sẵn, và nó là ĐIỀU KIỆN TIÊN QUYẾT của chính yêu cầu
+
+Hộp thoại bày giá bán Công ty từ `0124`, đọc **giá hôm nay** trong danh sách `/catalog/products`. Khi
+ấy ngày áp dụng là thuộc tính của HỒ SƠ nên "hôm nay" là đúng.
+
+`0180` đưa ngày xuống **từng dòng**, và ảnh chụp giá lấy theo ngày ấy. Từ đó hộp thoại **bày một con
+số rồi máy chủ ghi một con số khác**, ở đúng những dòng hẹn ngày tương lai.
+
+Chỗ khó chịu: chú thích của chính đường `threshold-preview` đã viết ra điều phải tránh — *"ngưỡng và
+**giá** phụ thuộc ngày, nên xem trước bằng ngày khác ngày sắp ghi là bày ra một con số rồi ghi một con
+số khác"* — và máy chủ **vẫn trả `companyPrice` theo ngày** từ `0180`. Giao diện chỉ đơn giản **vứt nó
+đi**: `XemTruocNguong` khai ba trường và `companyPrice` không nằm trong đó. `0180` nối được vế NGƯỠNG
+và bỏ sót vế GIÁ, ngay trong lượt viết ra câu cảnh báo ấy.
+
+Không mã lỗi nào, không màn hình nào báo — hai con số chỉ khác nhau. Và nó là tiên quyết ở đây vì tỷ
+lệ CK **chia cho** con số ấy: không sửa thì cả khối mới hiện sai ở đúng những dòng khó kiểm nhất.
+
+Kèm theo, **nhánh rơi về `dongCu.companyPrice` gỡ hẳn**. Nó có từ `0124` để cứu ca sản phẩm đã vô hiệu
+hoá (bị `forNewPolicy=true` lọc khỏi `ds`) — nhưng `threshold-preview` tra thẳng ảnh chụp nên trả lời
+được cả ca ấy. Cái nhánh cũ còn che đi là **lượt tra HỎNG**, và ở đó nó bày con số đã đóng băng của
+dòng cũ trong khi máy chủ sắp ghi con số của ngày mới. Không biết thì thôi bày: cả khối tự ẩn.
+
+`SanPham.price` cũng **gỡ khỏi kiểu** ở tệp ấy. Giữ một trường không ai đọc là để sẵn một nguồn thứ
+hai cho người sửa vội tìm thấy.
+
+### BẢY bản chép của một phép làm tròn, và ca kiểm tìm ra bản thứ bảy
+
+`(x / 100).toFixed(2)` — đổi `Rate2` sang chuỗi `numeric(5,2)` — nằm ở **sáu** chỗ: bốn ở
+`policies.service.ts`, một ở `catalog-impact.consumer.ts`, một ở `thresholdPreview`. Gom thành
+`rate2ToNumeric()` trong `money.ts`, cạnh chính kiểu `Rate2`.
+
+Ca kiểm quét mã nguồn viết sau đó bắt được **bản thứ bảy**, ở giao diện:
+`phanTramTuNguong` trong `lib/danh-muc.ts`. Lượt `grep` đầu của tôi chỉ quét `services/` và
+`packages/` nên không thấy nó.
+
+Điều đáng ghi là **docstring của hàm ấy viết** *"Đổi ở đúng một chỗ. Rải phép chia 100 khắp các màn
+hình là cách chắc chắn để có ngày một chỗ quên"*. Câu ấy đúng — trong phạm vi gói giao diện. Và đó
+chính là chỗ hở: `Rate2` là kiểu của `domain-policy`, phép đổi của nó thuộc về đó, nên hai "đúng một
+chỗ" ở hai phạm vi vẫn là hai bản chép. Hàm không bỏ đi, vì nó còn làm việc thứ hai mà
+`rate2ToNumeric` cố ý không làm — đổi sang dấu phẩy để BÀY RA. Chuỗi dấu chấm là dạng của CSDL và API.
+
+### Khối bốn ô
+
+CPBH (tổng) · **Giá thu về** · Tỷ lệ CK · QĐCK, đặt sau các ô CPBH và trước ô Ghi chú — nó là KẾT QUẢ
+của mọi ô phía trên, và ghi chú thì nói về kết quả ấy.
+
+**Giá thu về là thứ THÊM ngoài ba mục khách hàng nêu, và đã nêu ra.** Nó là mắt xích giữa CPBH và tỷ
+lệ chiết khấu, và hộp thoại **đã nhắc tên nó từ `0124`** (*"tính từ con số đó và giá thu về"*) mà chưa
+bao giờ bày ra. Bỏ nó thì khối hiện một phần trăm không có đường nào lần ngược.
+
+Nhãn lấy **nguyên văn** tên cột của `bang-cot.ts`, và lớp CSS lấy **nguyên** lớp của bảng
+(`.ty-le.vuot`). Cả điểm của yêu cầu là thôi phải ra bảng đối chiếu; hai cách gọi hoặc hai màu cho
+cùng một con số thì người dùng vẫn phải dịch. Đo được lúc đọc bảng: vượt ngưỡng ở đó là `--mau-loi`
+(ĐỎ), không phải màu cảnh báo — đặt một lớp riêng ở hộp thoại là gần như chắc chắn tô nhầm.
+
+**Máy chủ trả thêm `thresholdRate2`**, trùng nội dung với `threshold` và chủ ý: chuỗi để BÀY RA, số
+nguyên để TÍNH. Gửi mỗi chuỗi thì trình duyệt phải đổi ngược `Number('15.00') * 100` — một phép suy
+lại, đúng loại việc mà `Rate2` sinh ra để khỏi phải làm. Hộp thoại phải đưa cho `computeLine` **đúng
+cái mà máy chủ sẽ đưa cho nó**.
+
+**KHÔNG làm, đã cân nhắc**: `computeLine` trả `negativeNetPrice` và YCNV §7 nói *"cảnh báo nhưng vẫn
+cho lưu nháp"* — nhưng **bảng không đánh dấu nó ở đâu cả**, nên thêm cảnh báo riêng trong hộp thoại là
+mở một khoảng lệch mới giữa hai chỗ. Khoảng trống ấy có thật và nằm ngoài yêu cầu này.
+
+### Ca kiểm phải THAY chứ không sửa số
+
+Ca `0124` mang tên *"chọn sản phẩm thì hiện đúng giá của **DANH MỤC**"* — một câu về NGUỒN, và `0193`
+đổi đúng cái nguồn ấy. Nới thành `toContain` là giữ lại một câu đã hết đúng. Fixture cũng phải bỏ hẳn
+trường `price`: còn nó thì một bản sửa lỡ đọc lại danh mục vẫn xanh.
+
+**Một ca kiểm của chính tôi sai ở lượt chạy đầy đủ.** Bản đầu của ca *"giá đi theo ngày áp dụng"* hỏi
+giá ở `2020-01-01` rồi mong nó khác giá hôm nay, với lý lẽ *"trước mốc giá đầu tiên thì chưa có giá
+nào"*. Phép tra **rơi về mốc gần nhất** chứ không trả rỗng, nên hai ngày cho cùng một con số và ca
+kiểm chẳng chứng minh được gì. Chữa bằng cách dựng **hai mốc giá thật** rồi hỏi hai ngày.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Giá đọc lại từ DANH MỤC thay vì từ xem trước | **3 đỏ** |
+| Viết lại công thức bằng số thực thay vì gọi `computeLine` | **1 đỏ** — đúng ca làm tròn |
+| Gửi `threshold: 0` thay vì bỏ hẳn trường | **1 đỏ** |
+| Bỏ lớp `vuot` khỏi ô Tỷ lệ CK | **1 đỏ** |
+| Trả `phanTramTuNguong` về bản chép tay | **1 đỏ** — ca quét mã nguồn |
+| Máy chủ thôi trả `thresholdRate2` | **1 đỏ** |
+
+**2155/2155 xanh.**
