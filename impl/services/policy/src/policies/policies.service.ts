@@ -29,6 +29,7 @@ import {
 } from '@csbh/domain-policy';
 import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
 import { soSanhLech, type MucLech } from './lech.js';
+import { chuanHoaMa, CAU_LOI_MA } from './ma-ho-so.js';
 import type { ProductSnapshot } from '../infra/clients.js';
 
 /**
@@ -87,6 +88,16 @@ export type CreateInput = {
    * nguyên, chỉ còn một câu hỏi thay vì hai.
    */
   mode?: 'NEW_VERSION' | undefined;
+  /**
+   * MÃ HỒ SƠ do TDV đặt (`0198`). Vắng mặt thì máy chủ tự sinh.
+   *
+   * TUỲ CHỌN chứ không bắt buộc, dù màn hình *Lập hồ sơ* luôn gửi: đường
+   * `POST /policies` còn bốn chỗ gọi khác trong bộ nạp demo và bộ kiểm, và ép
+   * mọi chỗ ấy tự nghĩ ra một mã là ép chúng dựng lại đúng cái sequence đang có.
+   * Vắng mặt = *"đặt hộ tôi"*, và đó vẫn là câu trả lời đúng cho phần lớn lượt
+   * gọi máy-với-máy.
+   */
+  code?: string | undefined;
 };
 
 type PolicyRow = {
@@ -129,6 +140,47 @@ type PolicyRow = {
  * không thì người bấm đúp nhận một câu lỗi khác hẳn người bấm một lần — cùng
  * một tình huống, hai màn hình.
  */
+/**
+ * Chuẩn hoá mã hồ sơ, hỏng thì `400` (`0198`).
+ *
+ * Bọc `chuanHoaMa` — hàm thuần trả `{loi}` chứ không ném, để ca kiểm với tới
+ * từng nhánh mà không dựng một hồ sơ thật. Chỗ nối hai thế giới nằm ở đây, đúng
+ * một chỗ, vì cả `create` lẫn `doiMa` đều đi qua nó.
+ */
+function dungMa(raw: string): string {
+  const r = chuanHoaMa(raw);
+  if ('loi' in r) {
+    throw new BadRequestException({
+      code: 'POLICY_CODE_INVALID',
+      message: CAU_LOI_MA[r.loi],
+      field: 'code',
+    });
+  }
+  return r.ma;
+}
+
+/**
+ * Tên ràng buộc duy nhất trên `pol.policy.code`.
+ *
+ * `policy_code_key` — tên Postgres TỰ ĐẶT cho `code text UNIQUE` khai inline ở
+ * `0001_init.sql`. Viết ra thành hằng vì cái tên ấy KHÔNG tra được từ mã nguồn
+ * migration: nó không xuất hiện ở đâu cả, chỉ sinh ra lúc `CREATE TABLE` chạy.
+ *
+ * `0198` SUÝT thêm một chỉ mục `uq_policy_code` thứ hai vì đọc `0007_policy.sql`
+ * không thấy ràng buộc nào — cột `code` khai ở `0001`, không phải `0007`. Đo
+ * bằng `pg_constraint` mới thấy: ràng buộc đã có từ ngày đầu, và tính duy nhất
+ * của mã hồ sơ chưa bao giờ chỉ dựa vào sequence. Có một ca kiểm ghim tên này.
+ */
+const UQ_MA = 'policy_code_key';
+
+/** Mã hồ sơ đã có người giữ (`0198`). Xem `dungMa` về việc KHÔNG nói ra hồ sơ nào. */
+const maDaCo = (): ConflictException =>
+  new ConflictException({
+    code: 'POLICY_CODE_TAKEN',
+    message: 'Mã hồ sơ này đã có hồ sơ khác dùng. Chọn một mã khác.',
+    field: 'code',
+  });
+
 export const daCoNhap = (draftPolicyId: string): ConflictException =>
   new ConflictException({
     code: 'DRAFT_EXISTS',
@@ -678,6 +730,19 @@ export class PoliciesService {
     );
     if (nhap) throw daCoNhap(nhap.id);
 
+    /*
+     * MÃ HỒ SƠ (`0198`) — kiểm hình dạng ở đây, kiểm trùng ở CSDL.
+     *
+     * Hai phép kiểm khác nhau và cả hai đều ở đúng chỗ: hình dạng là một hàm
+     * thuần (`chuanHoaMa`) nên nó trả lời được ngay, còn *"mã này có ai giữ
+     * chưa"* thì chỉ chỉ mục `uq_policy_code` trả lời đúng ở mọi lượt song song.
+     *
+     * Không tra trước bằng một câu `SELECT`: khác `assertMstChuaDung` của
+     * `0175`, ở đây câu lỗi KHÔNG cần nói ra hồ sơ nào đang giữ mã — hồ sơ ấy có
+     * thể nằm ngoài phạm vi người gõ, và nói ra là rò rỉ sự tồn tại của nó.
+     */
+    const maMoi = input.code === undefined ? null : dungMa(input.code);
+
     const active = await this.db.one<PolicyRow>(
       `SELECT * FROM pol.policy WHERE customer_id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
       [input.customerId],
@@ -768,10 +833,14 @@ export class PoliciesService {
 
     return this.db.tx(async (c) => {
       const created = await c.query<PolicyRow>(
+        // `coalesce($8, pol.next_policy_code())` — TDV gõ mã thì dùng mã ấy,
+        // không thì sinh. Để phép chọn ở SQL chứ không ở Node là để lượt sinh
+        // KHÔNG chạy khi không cần: `nextval` đốt một số ở mỗi lượt gọi, kể cả
+        // lượt mà kết quả bị vứt đi (`0198`).
         `INSERT INTO pol.policy
            (id, code, customer_id, version_no, status, supersedes_id,
             created_by, tdv_user_id, app_version)
-         VALUES ($7, pol.next_policy_code(), $1, $2, 'NHAP', $3, $4, $5, $6)
+         VALUES ($7, coalesce($8, pol.next_policy_code()), $1, $2, 'NHAP', $3, $4, $5, $6)
          RETURNING *`,
         [
           input.customerId,
@@ -781,6 +850,7 @@ export class PoliciesService {
           customer.tdvUserId,
           process.env.APP_VERSION ?? '0.0.0-dev',
           policyId,
+          maMoi,
         ],
       );
       const policy = created.rows[0]!;
@@ -911,7 +981,81 @@ export class PoliciesService {
       );
       if (nhap) throw daCoNhap(nhap.id);
     }
+    // `0198` — ràng buộc duy nhất THỨ HAI trên cùng bảng. Đây chính là lý do
+    // nhánh trên đối chiếu TÊN ràng buộc chứ không chỉ mã lỗi `23505`.
+    if (loi?.code === '23505' && loi.constraint === UQ_MA) throw maDaCo();
     throw e;
+  }
+
+  /**
+   * MÃ ĐỀ XUẤT cho một hồ sơ sắp lập (`0198`).
+   *
+   * ĐỐT MỘT SỐ CỦA SEQUENCE ở mỗi lượt gọi, và đó là lựa chọn có chủ ý. Cách kia
+   * — đọc `last_value + 1` mà không lấy — cho hai TDV mở màn hình cùng lúc đúng
+   * MỘT mã đề xuất, tức đẩy một người vào lỗi trùng ở ngay lượt đầu tiên họ bấm,
+   * với một con số họ không tự gõ ra. Lấy hẳn thì mỗi người một mã.
+   *
+   * Cái giá là những khoảng trống trong dãy số khi ai đó mở màn hình rồi bỏ đi.
+   * Dãy này VỐN ĐÃ có trống — sequence không nằm trong transaction nên mọi lượt
+   * lập hỏng giữa chừng đều để lại một lỗ — nên đây không phải tính chất mới bị
+   * mất, và mã hồ sơ chưa bao giờ hứa là một dãy liên tục.
+   */
+  async maDeXuat(): Promise<{ code: string }> {
+    const r = await this.db.one<{ code: string }>(`SELECT pol.next_policy_code() AS code`);
+    return { code: r!.code };
+  }
+
+  /**
+   * ĐỔI MÃ hồ sơ đang ở *Nháp* (`0198`).
+   *
+   * CHỈ `NHAP`, không phải cả `EDITABLE`. `mustEdit` cho cả `YEU_CAU_CHINH_SUA`
+   * và ở đây phải hẹp hơn nó — hồ sơ bị trả về là hồ sơ ĐÃ gửi duyệt một lần,
+   * nên mã của nó đã đi vào thư đã gửi, vào dòng thông báo trên chuông, vào nhật
+   * ký người duyệt đọc, và có thể vào một bản mềm đã lưu mang chính mã ấy làm
+   * tên tệp. Đổi mã lúc ấy là làm mọi tham chiếu kia trỏ vào hư không, lặng lẽ.
+   *
+   * Bản Nháp thì chưa có gì trong số đó: `CREATE` không nằm trong `RECIPIENTS`
+   * nên không lá thư nào mang mã của nó đi.
+   */
+  async doiMa(policyId: string, raw: string, me: AuthUser): Promise<{ code: string }> {
+    const ma = dungMa(raw);
+    const p = await this.mustEdit(policyId, me);
+    if (p.status !== 'NHAP') {
+      throw new ConflictException({
+        code: 'POLICY_CODE_LOCKED',
+        message: 'Chỉ đổi được mã khi hồ sơ còn ở Nháp.',
+        status: p.status,
+      });
+    }
+    // Không đổi gì thì thôi — tránh một lượt ghi và một sự kiện cho lượt bấm
+    // dấu tick mà người dùng chưa sửa chữ nào.
+    if (p.code === ma) return { code: ma };
+
+    return this.db
+      .tx(async (c) => {
+        await c.query(`UPDATE pol.policy SET code = $2 WHERE id = $1`, [policyId, ma]);
+        /*
+         * PHÁT SỰ KIỆN, vì `rpt.policy_row` giữ một bản sao của `code`.
+         *
+         * Read-model đồng bộ theo `policy.#` và đọc lại cả dòng từ nguồn, nên
+         * một sự kiện bất kỳ của hồ sơ này là đủ. Thiếu nó thì màn hình *Hồ sơ
+         * CSBH* và mọi báo cáo vẫn bày mã CŨ cho tới lượt hồ sơ đổi trạng thái —
+         * hai chỗ nói hai mã, và không gì đỏ.
+         */
+        await emit(c, 'policy.updated', {
+          policyId,
+          customerId: p.customer_id,
+          code: ma,
+          actorId: me.id,
+          at: new Date().toISOString(),
+        });
+        return { code: ma };
+      })
+      .catch((e: unknown) => {
+        const loi = e as { code?: string; constraint?: string };
+        if (loi?.code === '23505' && loi.constraint === UQ_MA) throw maDaCo();
+        throw e;
+      });
   }
 
   /** Thêm hoặc sửa một dòng sản phẩm, đóng băng giá và ngưỡng tại thời điểm này. */

@@ -18,6 +18,7 @@ import { TepBanTruoc, type BanTruocDto } from '../components/TepBanTruoc.js';
 import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
+import { SuaMaHoSo } from '../components/SuaMaHoSo.js';
 import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
 import {
   ThemDongSanPham,
@@ -383,7 +384,27 @@ export function ChiTietHoSo({ id }: { id: string }) {
         và tôi làm gì với nó".
       */}
       <div className="dau-trang">
-        <h1>{hoSo.code}</h1>
+        {/*
+          `0198` — mã hồ sơ sửa được tại chỗ khi còn ở *Nháp*.
+
+          Điều kiện dựng ở ĐÂY chứ không trong component: `SuaMaHoSo` chỉ biết
+          "cho sửa hay không", còn *ai* và *lúc nào* là luật của hồ sơ. Máy chủ
+          gác cùng luật ở `doiMa` (`mustEdit` + đúng `NHAP`), nên cờ này chỉ để
+          đừng bày ra một cái bút chì bấm vào sẽ nhận lỗi.
+
+          `taiLai()` chứ không vá `hoSo.code` tại chỗ: mã đi vào nhiều chỗ khác
+          trên trang này về sau (tên tệp bản mềm, hộp xoá hồ sơ đòi gõ lại mã),
+          và một bản sao cập nhật nửa vời khó truy hơn hẳn một lượt tải lại.
+        */}
+        <SuaMaHoSo
+          hoSoId={hoSo.id}
+          ma={hoSo.code}
+          // `dangSua` đã trả lời "TDV này sửa được hồ sơ này không" (suy từ
+          // `allowed-actions`, tức từ chính máy trạng thái). Vế `NHAP` là phần
+          // HẸP HƠN của riêng mã hồ sơ — xem `doiMa`.
+          suaDuoc={dangSua && hoSo.status === 'NHAP'}
+          xong={taiLai}
+        />
         {/*
           *Xem bản mềm* đứng CÙNG HÀNG với các nút thao tác (`0054`), và từ
           `0163` CHỈ SALE ADMIN thấy nó.

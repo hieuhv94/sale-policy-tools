@@ -87,7 +87,33 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (10/09/2026)
 
-Chặng gần nhất **P225** (`0197`): **một khách hàng chỉ giữ MỘT bản Nháp**; chọn khách đã có Nháp thì
+Chặng gần nhất **P226** (`0198`): **mã hồ sơ do TDV đặt** — hệ thống đề xuất lúc lập, sửa được bằng
+bút chì ở tiêu đề khi còn *Nháp*, và không cho trùng. **TIỀN ĐỀ TÔI ĐO SAI, và cách nó lộ ra là bài
+học**: báo cáo *"`pol.policy.code` chưa có ràng buộc duy nhất nào"* rồi viết hẳn migration `0119` —
+sai, cột khai `code text UNIQUE NOT NULL` ở **`0001_init.sql`**, còn tôi `grep` `0007_policy.sql`
+(tệp chứa `next_policy_code()`). Lộ ở lượt CHẠY THẬT: ca trùng mã trả `500`, log nói ràng buộc tên
+**`policy_code_key`** — tên Postgres TỰ ĐẶT cho một `UNIQUE` khai inline. **Một `grep` mã nguồn không
+bao giờ tìm ra cái tên ấy vì nó không tồn tại trong mã nguồn**; chỗ duy nhất trả lời *"cột này có
+ràng buộc gì"* là `pg_constraint`. `0119` xoá hẳn; tên thành hằng `UQ_MA` kèm ca kiểm hỏi thẳng CSDL.
+**LỖ HỔNG CÓ SẴN, và là ĐIỀU KIỆN của chặng**: `render.controller` + `contracts.controller` nhét tên
+tệp thẳng vào `filename="…"` — an toàn suốt từ `0011` nhờ một tiền đề KHÔNG AI VIẾT RA (*chuỗi này là
+máy sinh*), và TDV gõ được mã là một `"` thoát ra khỏi header, `\r\n` chèn được header mới. Ba đường
+tải dựng header theo HAI cách, `files.controller` vốn đã đúng RFC 5987 — bản lệch có sẵn, chưa ai đối
+chiếu; gom về **`tenTepTaiVe`** ở `http-kit`. **HAI NỬA đều cần**: `chuanHoaMa` chặn ở đường VÀO,
+`tenTepTaiVe` đúng dù tên tệp tới từ đâu (mã cũ chưa từng qua nửa đầu). Ba quyết định khách hàng chốt:
+mã **TỰ DO** (ép khuôn thì *"sửa"* thu còn đổi số thứ tự) · **giữ chỗ VĨNH VIỄN** (ngược `0114`: mã số
+thuế định danh PHÁP NHÂN đang sống, mã hồ sơ định danh VĂN BẢN còn trong nhật ký) · **sửa chỉ ở
+`NHAP`**, không phải cả `EDITABLE`. **CÁI GIÁ TÔI NÊU LÚC CHỐT KHÔNG TỒN TẠI**: bản Nháp xoá là xoá
+HẲN dòng (`0035`) nên mã dùng lại được — hai vế, hai ca kiểm. Đề xuất mã **ĐỐT một số** của dãy có chủ
+ý (cách kia cho hai TDV cùng một mã). **HAI LỖI trong mã của chính chặng**: `layJson<{code:string}>`
+là một **LỜI HỨA, không phải phép kiểm** — thân thiếu `code` thì biến khai `string|null` mang
+`undefined`, và `ma.trim()` ném `TypeError` NGAY TRONG tay bấm nên nút không làm gì mà không lỗi nào
+hiện ra; và **`useEffect(…, [])` KHÔNG có nghĩa "một lần mỗi màn hình"** — `ChonCachLap` tháo rồi dựng
+lại mỗi lượt *Chọn khách khác*, mỗi lượt đốt thêm một số. Bẫy **`opt()`: RỖNG không phải VẮNG MẶT**
+(lớp bẫy `0154` ghi cho `trong()`), nên `code` đọc THẲNG từ thân ở cả hai đường. Năm lượt phá lại, năm
+đỏ đúng chỗ.
+
+Trước đó **P225** (`0197`): **một khách hàng chỉ giữ MỘT bản Nháp**; chọn khách đã có Nháp thì
 phần mềm nói ra và cho nút mở thẳng bản ấy. **RANH GIỚI LÀ CẢ CHẶNG**: `NHAP` và `YEU_CAU_CHINH_SUA`
 nằm chung hằng `SUA_DUOC`, nên viết phép kiểm bằng hằng ấy là chuyện tự nhiên nhất — và nó dựng ra
 một luật KHÁC HẲN (cấm lập hồ sơ cho khách đang có hồ sơ **bị trả về**), nên có một ca CHIỀU DƯƠNG
@@ -1178,6 +1204,16 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 
 - **Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực**, và mọi CSBH đều **vô thời hạn** — không có
   trường ngày hết hiệu lực. Chỉ hết hiệu lực khi CSBH mới của cùng khách hàng được duyệt.
+- **MÃ HỒ SƠ do TDV đặt, DUY NHẤT toàn bảng** (`0198`) — `code text UNIQUE` có từ `0001_init.sql`, tên
+  ràng buộc **`policy_code_key`** (Postgres tự đặt; hằng `UQ_MA`, có ca kiểm hỏi `pg_constraint`).
+  `GET /policies/ma-de-xuat` đề xuất và **ĐỐT một số** của `pol.policy_code_seq`; `POST /policies`
+  nhận `code` tuỳ chọn; `PATCH /policies/:id/ma` sửa, **chỉ ở `NHAP`** (`YEU_CAU_CHINH_SUA` sửa được
+  nội dung nhưng KHÔNG sửa mã — mã ấy đã đi vào thư đã gửi và tên tệp bản mềm). Hình dạng kiểm ở hàm
+  thuần `policies/ma-ho-so.ts`: tự do, chỉ chặn rỗng · quá 50 ký tự · ký tự phá tên tệp
+  (`" \ / : * ? < > |`) và ký tự điều khiển — **mã đi thẳng vào tên tệp và vào
+  `Content-Disposition`**, nên đây là phép chặn an toàn chứ không phải thẩm mỹ. Nửa còn lại của cùng
+  bản sửa là **`tenTepTaiVe`** (`http-kit`), dùng chung cho CẢ BA đường tải của `document`. Mã giữ chỗ
+  **vĩnh viễn**, TRỪ bản `NHAP` bị xoá — nó xoá hẳn dòng (`0035`) nên mã dùng lại được.
 - **MỖI KHÁCH HÀNG CHỈ GIỮ MỘT BẢN NHÁP** (`0197`) — chỉ mục phần `uq_policy_nhap_moi_khach`
   (`WHERE status = 'NHAP'`), cộng một phép kiểm ở `create` trả `409 DRAFT_EXISTS` kèm `draftPolicyId`.
   **Chặn ĐÚNG `NHAP`**: `YEU_CAU_CHINH_SUA` nằm chung `SUA_DUOC` nhưng nó là hồ sơ ĐÃ vào luồng rồi bị

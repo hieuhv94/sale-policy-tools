@@ -30,9 +30,9 @@ import { useEffect, useState } from 'react';
 import { dang, layJson } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
-import { BaoLoi, DangTai, OTimKiem, Trong } from '../components/Chung.js';
+import { BaoLoi, DangTai, OTimKiem, Trong, Truong } from '../components/Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
-import { la404 } from '../lib/loi.js';
+import { docLoi, la404 } from '../lib/loi.js';
 
 type KhachHang = { id: string; code: string; name: string };
 type HoSoHienHanh = { id: string; code: string };
@@ -43,6 +43,37 @@ export function LapHoSo() {
   const [ds, datDs] = useState<KhachHang[] | null>(null);
   const [chon, datChon] = useState<KhachHang | null>(null);
   const [loi, datLoi] = useState<unknown>(null);
+  /**
+   * MÃ HỒ SƠ đề xuất (`0198`), hỏi MỘT LẦN cho cả màn hình.
+   *
+   * Ở ĐÂY chứ không trong `ChonCachLap`: mã không phụ thuộc khách nào — nó là số
+   * tiếp theo của một dãy chung (`pol.next_policy_code`) — và mỗi lượt hỏi ĐỐT
+   * một số của dãy ấy. Giữ trong component con thì mỗi lượt *Chọn khách khác*
+   * tháo rồi dựng lại nó, tức hỏi lại và vứt đi số vừa lấy.
+   */
+  const [ma, datMa] = useState<string | null>(null);
+
+  useEffect(() => {
+    const huy = new AbortController();
+    layJson<{ code: string }>('/policies/ma-de-xuat', huy.signal)
+      /*
+       * CHUẨN HOÁ TẠI CỬA, không tin kiểu khai.
+       *
+       * `layJson<{code: string}>` là một lời HỨA của TypeScript về thứ nằm trong
+       * JSON, không phải một phép kiểm. Máy chủ cũ, một lượt proxy trả nhầm hình
+       * dạng, hay một stub trả `{items: []}` — cả ba cho `r.code` bằng
+       * `undefined`, và biến khai `string | null` lặng lẽ mang giá trị thứ ba.
+       * Đo được: `ma.trim()` ném `TypeError` NGAY TRONG tay bấm *Lập hồ sơ*, nên
+       * lượt bấm không làm gì cả và KHÔNG có lỗi nào hiện ra.
+       */
+      .then((r) => datMa(typeof r?.code === 'string' ? r.code : ''))
+      // Hỏng thì để TRỐNG chứ không chặn màn hình: mã là thứ TDV gõ được, và
+      // một lượt hỏng ở đây không được phép cấm họ lập hồ sơ.
+      .catch(() => {
+        if (!huy.signal.aborted) datMa('');
+      });
+    return () => huy.abort();
+  }, []);
 
   /*
    * `?khachHang=<id>` — vào thẳng bước chọn cách lập, bỏ qua bước tìm (`0083`).
@@ -91,7 +122,13 @@ export function LapHoSo() {
       </div>
 
       {chon ? (
-        <ChonCachLap khachHang={chon} doiKhach={() => datChon(null)} xong={(id) => di(`/ho-so/${id}`)} />
+        <ChonCachLap
+          khachHang={chon}
+          doiKhach={() => datChon(null)}
+          xong={(id) => di(`/ho-so/${id}`)}
+          ma={ma}
+          datMa={datMa}
+        />
       ) : (
         <>
           <OTimKiem id="lhs-tim" giaTri={tim} doi={datTim} nhan="Tìm khách hàng" />
@@ -125,10 +162,24 @@ function ChonCachLap({
   khachHang,
   doiKhach,
   xong,
+  ma,
+  datMa,
 }: {
   khachHang: KhachHang;
   doiKhach: () => void;
   xong: (id: string) => void;
+  /**
+   * MÃ HỒ SƠ (`0198`) — giữ ở component CHA, không ở đây.
+   *
+   * Bước chọn khách và bước chọn cách lập là hai nhánh của một câu lệnh `?:`,
+   * nên bấm *Chọn khách khác* **THÁO HẲN** component này rồi dựng lại — và một
+   * `useEffect(…, [])` ở đây chạy lại ở mỗi lượt dựng. Mỗi lượt ấy ĐỐT một số
+   * của dãy mã rồi vứt đi.
+   *
+   * `null` = chưa hỏi xong, khác hẳn chuỗi rỗng (= người dùng vừa xoá sạch ô).
+   */
+  ma: string | null;
+  datMa: (v: string) => void;
 }) {
   const { bao } = useBaoLoi();
   const [hienHanh, datHienHanh] = useState<HoSoHienHanh | null | 'khong-co'>(null);
@@ -144,6 +195,7 @@ function ChonCachLap({
    * thì người dùng đọc một dải đỏ rồi vẫn nhìn thấy đúng cái nút vừa từ chối họ.
    */
   const [daCoNhap, datDaCoNhap] = useState<{ id: string; loiNhan: string } | null>(null);
+  const [loiMa, datLoiMa] = useState<string | null>(null);
 
   useEffect(() => {
     const huy = new AbortController();
@@ -164,6 +216,9 @@ function ChonCachLap({
   }, [khachHang.id]);
 
   const lap = async (mode?: 'NEW_VERSION') => {
+    // Cắt khoảng trắng hai đầu, đúng thứ máy chủ sẽ lưu — nếu không thì người
+    // dùng gõ dư một dấu cách sẽ thấy mã hiện ra khác mã họ vừa nhìn trong ô.
+    const maGui = (ma ?? '').trim();
     datLoi(null);
     datDangGui(true);
     try {
@@ -171,6 +226,10 @@ function ChonCachLap({
         customerId: khachHang.id,
         lines: [],
         ...(mode ? { mode } : {}),
+        // Gửi mã ĐÃ CẮT khoảng trắng hai đầu, đúng thứ máy chủ sẽ lưu — nếu
+        // không thì người dùng gõ dư một dấu cách sẽ thấy mã hiện ra khác mã họ
+        // vừa nhìn trong ô.
+        ...(maGui === '' ? {} : { code: maGui }),
       });
       xong(hs.id);
     } catch (e) {
@@ -181,6 +240,11 @@ function ChonCachLap({
       const id = l?.body?.['draftPolicyId'];
       if (l?.code === 'DRAFT_EXISTS' && typeof id === 'string') {
         datDaCoNhap({ id, loiNhan: l.message ?? '' });
+      } else if (l?.code === 'POLICY_CODE_TAKEN' || l?.code === 'POLICY_CODE_INVALID') {
+        // `0198` — lỗi của Ô MÃ ở lại ngay dưới ô ấy (`0088`, dạng `o-nhap`).
+        // Việc phải làm là sửa chính chuỗi đang hiện, và một hộp thoại che mất
+        // nó thì người dùng đóng hộp xong phải nhớ lại mình vừa gõ gì.
+        datLoiMa(docLoi(e).cau);
       } else bao(e);
     } finally {
       datDangGui(false);
@@ -205,6 +269,38 @@ function ChonCachLap({
       </div>
 
       {loi !== null && <BaoLoi loi={loi} />}
+
+      {/*
+        `0198` — MÃ HỒ SƠ, đề xuất sẵn và sửa được.
+
+        Đứng TRƯỚC nút lập, không phải sau: nó là thứ lượt bấm ấy sẽ gửi đi, và
+        một ô nhập nằm dưới cái nút dùng nó thì người dùng bấm xong mới thấy.
+
+        Khối ẩn hẳn khi màn hình đã chuyển sang ngã rẽ *đã có bản Nháp* — ở đó
+        không còn hồ sơ nào sắp được lập để mà đặt mã.
+      */}
+      {daCoNhap === null && (
+        <>
+          <Truong id="lhs-ma" nhan="Mã hồ sơ" bắtBuộc loi={loiMa ?? undefined}>
+            {(p) => (
+              <input
+                {...p}
+                className="o-nhap"
+                value={ma ?? ''}
+                disabled={ma === null}
+                onChange={(e) => {
+                  datMa(e.target.value);
+                  // Xoá câu lỗi ngay khi người dùng bắt đầu sửa: câu ấy nói về
+                  // chuỗi CŨ, và để nó nằm lại dưới một chuỗi mới là nói sai.
+                  datLoiMa(null);
+                }}
+              />
+            )}
+          </Truong>
+          <p className="ghi-chu">Hệ thống đã đề xuất sẵn một mã. Sửa được nếu bạn muốn đặt mã khác.</p>
+        </>
+      )}
+
 
       {/*
         `0197` — ĐỔI HẲN cụm nút, không chèn thêm một khối.

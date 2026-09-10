@@ -431,3 +431,131 @@ describe('`0197` một bản Nháp mỗi khách hàng — trên màn hình', () 
     expect(screen.queryByRole('button', { name: 'Mở bản Nháp đang có' })).toBeNull();
   });
 });
+
+/**
+ * `0198` — ô MÃ HỒ SƠ ở bước lập: máy chủ đề xuất, TDV sửa được.
+ */
+describe('`0198` mã hồ sơ ở màn hình lập', () => {
+  /** Như `chanMang`, nhưng có thêm đường `/policies/ma-de-xuat`. */
+  const chanMangCoMa = (ma = 'CSBH-2026-000999') => {
+    const f = chanMang(KHACH);
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.includes('/policies/ma-de-xuat')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: ma }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      return truoc(duong, tuyChon);
+    });
+    return f;
+  };
+
+  it('ô mã mang sẵn mã máy chủ đề xuất', async () => {
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMangCoMa();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+    await waitFor(() =>
+      expect((screen.getByLabelText(/Mã hồ sơ/) as HTMLInputElement).value).toBe(
+        'CSBH-2026-000999',
+      ),
+    );
+  });
+
+  it('sửa mã rồi lập thì gửi ĐÚNG mã đã sửa', async () => {
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMangCoMa();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+    await waitFor(() => expect(screen.getByLabelText(/Mã hồ sơ/)).toBeDefined());
+
+    await userEvent.clear(screen.getByLabelText(/Mã hồ sơ/));
+    await userEvent.type(screen.getByLabelText(/Mã hồ sơ/), '  CSBH-TU-GO  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    const goi = f.mock.calls.find(
+      (c) => String(c[0]).endsWith('/policies') && (c[1] as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(goi, 'không thấy lượt POST /policies').toBeDefined();
+    // Cắt khoảng trắng hai đầu ở giao diện, đúng thứ máy chủ sẽ lưu — nếu không
+    // thì mã hiện ra sau đó khác mã người dùng vừa nhìn trong ô.
+    expect(JSON.parse(String((goi![1] as RequestInit).body)).code).toBe('CSBH-TU-GO');
+  });
+
+  it('KHÔNG hỏi lại mã đề xuất mỗi lượt đổi khách hàng', async () => {
+    /*
+     * Mỗi lượt hỏi ĐỐT một số của dãy mã. Buộc lượt hỏi vào `khachHang.id` thì
+     * người dùng bấm *Chọn khách khác* vài lần là thủng dãy vài số, và vứt đi
+     * đúng những mã vừa lấy.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMangCoMa();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+    await waitFor(() => expect(screen.getByLabelText(/Mã hồ sơ/)).toBeDefined());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Chọn khách khác' }));
+    await waitFor(() => expect(screen.getByLabelText('Tìm khách hàng')).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: /Nha thuoc Minh Chau/ }));
+    await waitFor(() => expect(screen.getByLabelText(/Mã hồ sơ/)).toBeDefined());
+
+    const soLuot = f.mock.calls.filter((c) => String(c[0]).includes('/ma-de-xuat')).length;
+    expect(soLuot, 'hỏi lại mã ở mỗi lượt đổi khách là đốt số của dãy').toBe(1);
+  });
+
+  it('máy chủ từ chối MÃ thì câu lỗi ở lại cạnh ô, không thành hộp thoại', async () => {
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMangCoMa();
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.endsWith('/policies') && (tuyChon as RequestInit | undefined)?.method === 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: 'POLICY_CODE_TAKEN',
+              message: 'Mã hồ sơ này đã có hồ sơ khác dùng. Chọn một mã khác.',
+              field: 'code',
+            }),
+            { status: 409, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return truoc(duong, tuyChon);
+    });
+
+    mo(
+      <BaoLoiProvider>
+        <LapHoSo />
+      </BaoLoiProvider>,
+      '/ho-so/moi?khachHang=kh-1',
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    await waitFor(() => expect(screen.getByText(/đã có hồ sơ khác dùng/)).toBeDefined());
+    // Vẫn ở bước lập, ô mã còn nguyên để sửa — việc phải làm là sửa chính nó.
+    expect(screen.getByLabelText(/Mã hồ sơ/)).toBeDefined();
+  });
+
+  it('hỏi mã đề xuất HỎNG thì vẫn lập được, chỉ là ô để trống', async () => {
+    // Mã là thứ TDV gõ được. Một lượt hỏi hụt không được phép cấm họ lập hồ sơ.
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMang(KHACH);
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      if (String(duong).includes('/ma-de-xuat')) {
+        return Promise.resolve(new Response('{"code":"X"}', { status: 500 }));
+      }
+      return truoc(duong, tuyChon);
+    });
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() =>
+      expect((screen.getByLabelText(/Mã hồ sơ/) as HTMLInputElement).value).toBe(''),
+    );
+    expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined();
+  });
+});

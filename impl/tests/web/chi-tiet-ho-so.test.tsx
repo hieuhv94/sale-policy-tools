@@ -1661,3 +1661,132 @@ describe('`0194` khối chênh lệch trên trang hồ sơ', () => {
     expect(than).not.toMatch(/datLech|datHoSo\(/);
   });
 });
+
+/**
+ * `0198` — sửa MÃ HỒ SƠ ngay tại tiêu đề, khi hồ sơ còn ở *Nháp*.
+ *
+ * Khách hàng chốt 10/09: *"để một biểu tượng edit ngay tại tiêu đề Mã hồ sơ,
+ * sửa xong có dấu tick để lưu"*.
+ *
+ * Phiên mặc định của tệp này là TBP, còn bút chì chỉ của TDV — nên mọi ca ở đây
+ * đăng nhập lại bằng TDV, và chính điều đó cho một ca đối chiếu rẻ tiền.
+ */
+describe('`0198` sửa mã hồ sơ tại tiêu đề', () => {
+  const TDV = {
+    ...TBP,
+    user: { ...TBP.user, id: 'tdv-1', username: 'tdv01', role: 'TDV' },
+  };
+  const laTdv = () => localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+
+  /** Hồ sơ Nháp mà TDV này sửa được — `SUBMIT` là dấu hiệu của đúng tổ hợp ấy. */
+  const nhap = { ...HO_SO, status: 'NHAP' };
+  const CHO_PHEP_NHAP = ['SUBMIT'];
+
+  const but = () => screen.queryByRole('button', { name: 'Sửa mã hồ sơ' });
+
+  it('hồ sơ NHÁP của chính TDV thì có bút chì', async () => {
+    laTdv();
+    await mo(nhap, CHO_PHEP_NHAP);
+    expect(but()).not.toBeNull();
+  });
+
+  it('hồ sơ ĐÃ GỬI DUYỆT thì KHÔNG có bút chì', async () => {
+    /*
+     * Vế `NHAP` của điều kiện, tách khỏi vế "TDV sửa được". Máy chủ chặn cùng
+     * luật ở `doiMa`, nên ca này canh cho giao diện đừng bày ra một cái nút bấm
+     * vào sẽ nhận `409`.
+     */
+    laTdv();
+    await mo({ ...HO_SO, status: 'CHO_TBP_DUYET' }, ['TBP_SIGN']);
+    expect(but()).toBeNull();
+  });
+
+  it('hồ sơ ở YÊU CẦU CHỈNH SỬA cũng KHÔNG có bút chì', async () => {
+    // Ranh giới đắt nhất: hồ sơ này SỬA ĐƯỢC (có `RESUBMIT_AFTER_EDIT`), nên một
+    // điều kiện viết bằng "TDV sửa được hồ sơ" sẽ bày bút chì ra ở đây.
+    laTdv();
+    await mo({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA' }, ['RESUBMIT_AFTER_EDIT']);
+    expect(but()).toBeNull();
+  });
+
+  it('vai trò KHÁC không thấy bút chì, dù hồ sơ đang ở Nháp', async () => {
+    // Phiên mặc định của tệp là TBP.
+    await mo(nhap, CHO_PHEP_NHAP);
+    expect(but()).toBeNull();
+  });
+
+  it('bấm bút chì → ô nhập mang sẵn mã cũ; dấu tick gửi PATCH đúng đường', async () => {
+    laTdv();
+    const f = await mo(nhap, CHO_PHEP_NHAP);
+    fireEvent.click(but()!);
+
+    const o = screen.getByLabelText('Mã hồ sơ') as HTMLInputElement;
+    expect(o.value, 'ô phải mang sẵn mã đang có, không phải ô trống').toBe(HO_SO.code);
+
+    fireEvent.change(o, { target: { value: 'CSBH-TU-GO-01' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu mã hồ sơ' }));
+
+    await waitFor(() => {
+      const goi = f.mock.calls.find(
+        (c) =>
+          String(c[0]).endsWith('/policies/hs-1/ma') &&
+          (c[1] as RequestInit | undefined)?.method === 'PATCH',
+      );
+      expect(goi, 'không thấy lượt PATCH .../ma').toBeDefined();
+      expect(JSON.parse(String((goi![1] as RequestInit).body)).code).toBe('CSBH-TU-GO-01');
+    });
+  });
+
+  it('Escape huỷ mà KHÔNG gửi gì', async () => {
+    // Phím này là đường thoát của người dùng bàn phím. Thiếu nó thì họ phải đi
+    // tìm nút *Huỷ* bằng Tab, ở một ô nhập chỉ có ba phần tử.
+    laTdv();
+    const f = await mo(nhap, CHO_PHEP_NHAP);
+    fireEvent.click(but()!);
+    const o = screen.getByLabelText('Mã hồ sơ');
+    fireEvent.change(o, { target: { value: 'CSBH-BO-DI' } });
+    fireEvent.keyDown(o, { key: 'Escape' });
+
+    await waitFor(() => expect(but()).not.toBeNull());
+    expect(
+      f.mock.calls.some((c) => String(c[0]).endsWith('/ma')),
+      'Escape mà vẫn gửi đi thì nó không phải nút huỷ',
+    ).toBe(false);
+  });
+
+  it('máy chủ từ chối thì câu lỗi Ở LẠI cạnh ô, và ô KHÔNG đóng lại', async () => {
+    /*
+     * Hai vế, và vế thứ hai mới là vế dễ mất: đóng ô lại thì người dùng mất luôn
+     * chuỗi vừa gõ, và phải nhớ lại mình đã gõ gì để sửa. Câu lỗi ở đây nói về
+     * chính chuỗi ấy (`0088`, dạng `o-nhap`).
+     */
+    laTdv();
+    const f = await mo(nhap, CHO_PHEP_NHAP);
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.endsWith('/ma') && (tuyChon as RequestInit | undefined)?.method === 'PATCH') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ code: 'POLICY_CODE_TAKEN', message: 'Mã hồ sơ này đã có hồ sơ khác dùng.' }),
+            { status: 409, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      if (d.includes('/auth/me')) return Promise.resolve(toiLaAi());
+      if (d.includes('/allowed-actions')) return Promise.resolve(json({ allowed: CHO_PHEP_NHAP }));
+      if (d.includes('/documents') || d.includes('/files')) return Promise.resolve(json([]));
+      if (d.includes('/events')) return Promise.resolve(json(LICH_SU));
+      return Promise.resolve(json(nhap));
+    });
+
+    fireEvent.click(but()!);
+    fireEvent.change(screen.getByLabelText('Mã hồ sơ'), { target: { value: 'CSBH-TRUNG' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu mã hồ sơ' }));
+
+    await waitFor(() => expect(screen.getByText(/đã có hồ sơ khác dùng/)).toBeDefined());
+    expect(
+      (screen.getByLabelText('Mã hồ sơ') as HTMLInputElement).value,
+      'chuỗi vừa gõ phải còn nguyên',
+    ).toBe('CSBH-TRUNG');
+  });
+});

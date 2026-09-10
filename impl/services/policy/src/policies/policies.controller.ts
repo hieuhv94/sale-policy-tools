@@ -133,6 +133,22 @@ export class PoliciesController {
    * thì `/policies/impacted` rơi vào `:id` và trả 404 cho một chuỗi không phải
    * uuid — lỗi chỉ lộ ra khi mở đúng trang Tổng quan.
    */
+  /**
+   * MÃ ĐỀ XUẤT cho hồ sơ sắp lập (`0198`).
+   *
+   * ĐỨNG TRƯỚC `@Get(':id')` — cùng bẫy đã ghi ngay dưới: đặt sau thì
+   * `/policies/ma-de-xuat` rơi vào `:id` và trả 404.
+   *
+   * `@Roles('TDV')` vì đây là một lượt LẤY SỐ, không phải một lượt đọc: mỗi lời
+   * gọi đốt một số của sequence. Mở cho mọi vai trò là mở một đường cho bất kỳ
+   * ai làm thủng dãy mã.
+   */
+  @Roles('TDV')
+  @Get('ma-de-xuat')
+  maDeXuat() {
+    return this.policies.maDeXuat();
+  }
+
   @Get('impacted')
   impacted(
     @CurrentUser() me: AuthUser,
@@ -206,10 +222,30 @@ export class PoliciesController {
       // một tên gọi được nói ra là thứ đọc được trong log và trong thân lỗi.
       mode: opt(oneOf('NEW_VERSION')),
     });
+
+    /*
+     * `0198` — MÃ đọc THẲNG từ thân, KHÔNG qua `opt(str(...))`.
+     *
+     * `opt` coi chuỗi RỖNG là *"vắng mặt"* (`validate.ts`), và ở đây hai thứ ấy
+     * là hai ý định khác hẳn: vắng mặt = *"đặt hộ tôi"*, còn rỗng = người dùng
+     * vừa xoá sạch ô rồi bấm lập. Đi qua `opt` thì lượt thứ hai lặng lẽ thành
+     * lượt thứ nhất, và người dùng nhận về một mã họ không gõ.
+     *
+     * Cùng lớp bẫy `0154` đã ghi cho `trong()`: một hàm tiện dụng gộp *rỗng* với
+     * *không có* thì mọi trường mà rỗng CÓ NGHĨA đều phải đi đường riêng.
+     */
+    const raw = (body as { code?: unknown }).code;
+    if (raw !== undefined && typeof raw !== 'string') {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'code',
+        message: 'code: phải là chuỗi',
+      });
+    }
     const lines = (Array.isArray(b.lines) ? b.lines : []).map(
       (l) => validate(l, lineShape) as LineInput,
     );
-    return this.policies.create({ ...head, lines }, me);
+    return this.policies.create({ ...head, lines, ...(raw === undefined ? {} : { code: raw }) }, me);
   }
 
   @Roles('TDV')
@@ -244,6 +280,35 @@ export class PoliciesController {
       ngayApDung: opt(ngayIso()),
     });
     return this.policies.updateLine(id, lineId, b, me);
+  }
+
+  /**
+   * ĐỔI MÃ hồ sơ đang ở *Nháp* (`0198`) — biểu tượng bút chì cạnh tiêu đề.
+   *
+   * Đường RIÊNG, không dựng lại `PATCH /policies/:id`: đường ấy đã **gỡ hẳn** ở
+   * `0180` khi ngày áp dụng chuyển xuống dòng, và mở lại một đường sửa-hồ-sơ
+   * chung là mời trường thứ hai, thứ ba đi nhờ nó — mỗi trường lại một luật
+   * trạng thái riêng, gộp vào một chỗ thì luật hẹp nhất thua.
+   *
+   * `@Roles('TDV')` đứng ngay trên phương thức của nó — xem bẫy decorator ghi ở
+   * `removeLine` ngay dưới. Luật thật nằm ở `doiMa`.
+   */
+  @Roles('TDV')
+  @Patch(':id/ma')
+  doiMa(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
+    rejectForbidden(body);
+    // Đọc THẲNG, cùng lẽ với `create` ngay trên: `str(1, …)` từ chối chuỗi rỗng
+    // bằng `VALIDATION_FAILED`, một câu nói về kiểu dữ liệu, trong khi người
+    // dùng vừa xoá sạch một ô và cần đọc *"mã không được để trống"*.
+    const raw = (body as { code?: unknown }).code;
+    if (typeof raw !== 'string') {
+      throw new BadRequestException({
+        code: 'VALIDATION_FAILED',
+        field: 'code',
+        message: 'code: phải là chuỗi',
+      });
+    }
+    return this.policies.doiMa(id, raw, me);
   }
 
   /**

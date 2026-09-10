@@ -2339,6 +2339,249 @@ describe('`0197` một bản Nháp mỗi khách hàng', () => {
   });
 });
 
+/**
+ * `0198` — MÃ HỒ SƠ do TDV đặt, và duy nhất (chốt 10/09).
+ *
+ * Ba yêu cầu khoá vào nhau: đề xuất mã lúc lập · sửa được trong lúc còn *Nháp* ·
+ * không cho trùng. Yêu cầu thứ ba là ĐIỀU KIỆN của hai yêu cầu kia — tới `0197`
+ * cột `code` không có ràng buộc nào, nó duy nhất chỉ vì không ai gõ được nó.
+ */
+describe('`0198` mã hồ sơ do TDV đặt', () => {
+  // `uniq` gắn tiền tố `ZZPOL` — cùng khuôn với mọi thứ bộ kiểm tạo ra, nên
+  // bước dọn đầu lượt chạy nhặt được (`0156`).
+  let dem = 0;
+  const maRieng = () => uniq(`ma${(dem += 1)}`);
+
+  it('đề xuất một mã, và HAI lượt hỏi cho HAI mã khác nhau', async () => {
+    /*
+     * Vế thứ hai là cả lý do lượt đề xuất ĐỐT một số của sequence. Cách kia —
+     * đọc `last_value + 1` mà không lấy — cho hai TDV mở màn hình cùng lúc đúng
+     * một mã, tức đẩy một người vào lỗi trùng với con số họ không tự gõ.
+     */
+    const a = await get('/policies/ma-de-xuat');
+    expect(a.status).toBe(200);
+    expect(a.body.code).toMatch(/^CSBH-\d{4}-\d{6}$/);
+
+    const b = await get('/policies/ma-de-xuat');
+    expect(b.body.code).not.toBe(a.body.code);
+  });
+
+  it('mã đề xuất DÙNG ĐƯỢC ngay — không bị chính phép kiểm của mình từ chối', async () => {
+    // Ca đối chiếu: hai đầu của cùng một đường phải khớp nhau. Siết `chuanHoaMa`
+    // mà quên hình dạng máy chủ đang sinh là mọi lượt lập đều 400.
+    const de = (await get('/policies/ma-de-xuat')).body.code as string;
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      code: de,
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.code).toBe(de);
+  });
+
+  it('lập hồ sơ với mã TỰ GÕ thì lưu đúng mã ấy', async () => {
+    const ma = maRieng();
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      code: `  ${ma}  `,
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(201);
+    // Cắt khoảng trắng hai đầu: người dùng gõ dư một dấu cách thì mã hiện ra
+    // phải là mã họ nhìn thấy, không phải chuỗi thô.
+    expect(r.body.code).toBe(ma);
+  });
+
+  it('KHÔNG gửi mã thì máy chủ tự sinh — bốn chỗ gọi máy-với-máy vẫn chạy', async () => {
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.code).toMatch(/^CSBH-/);
+  });
+
+  it('mã TRÙNG thì không lập được', async () => {
+    const d = await draft();
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      code: d.body.code,
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_CODE_TAKEN');
+  });
+
+  it('mã của hồ sơ ở *Đã xoá* KHÔNG dùng lại được — mã giữ chỗ vĩnh viễn', async () => {
+    /*
+     * Khách hàng chốt 10/09, và đây là chỗ luật này NGƯỢC với `uq_customer_id_number`
+     * (`0114`): mã số thuế định danh một pháp nhân đang tồn tại, còn mã hồ sơ
+     * định danh một VĂN BẢN — hồ sơ *Đã xoá* vẫn nằm trong nhật ký và báo cáo.
+     *
+     * Hồ sơ phải đi qua luồng duyệt rồi mới xoá được thành `DA_XOA`; xem ca
+     * ngay dưới về đường còn lại.
+     */
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' });
+    const maCu = d.body.code as string;
+    expect((await del(`/policies/${d.id}`)).status).toBe(204);
+    expect((await get(`/policies/${d.id}`)).body.status).toBe('DA_XOA');
+
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      code: maCu,
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_CODE_TAKEN');
+  });
+
+  it('mã của bản NHÁP đã xoá thì DÙNG LẠI ĐƯỢC — bản nháp xoá là xoá hẳn', async () => {
+    /*
+     * VẾ NÀY LỘ RA LÚC CHẠY CA TRÊN, và nó KHÔNG mâu thuẫn với quyết định
+     * *"giữ chỗ vĩnh viễn"*: quyết định ấy nói về hồ sơ CÒN NẰM LẠI trong hồ sơ
+     * lưu trữ. Bản Nháp xoá đi thì `0035` **xoá hẳn dòng**, không để lại một vết
+     * nào — không nhật ký, không báo cáo — nên không còn gì để cái mã ấy gây nhập
+     * nhằng với.
+     *
+     * Nó cũng làm biến mất đúng cái giá đã nêu với khách hàng lúc chốt: *lập
+     * nhầm một bản Nháp rồi xoá thì mất luôn mã ấy*. Không mất.
+     */
+    const d = await draft();
+    const maCu = d.body.code as string;
+    expect((await del(`/policies/${d.id}`)).status).toBe(204);
+    expect((await get(`/policies/${d.id}`)).status).toBe(404);
+
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      code: maCu,
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(201);
+    expect(r.body.code).toBe(maCu);
+  });
+
+  it('mã hỏng hình dạng thì 400, kèm tên ô để giao diện dán câu đúng chỗ', async () => {
+    for (const xau of ['', '   ', 'a"b', 'a/b', 'x'.repeat(60)]) {
+      const r = await post('/policies', {
+        customerId: await makeCustomer(),
+        code: xau,
+        lines: [],
+      });
+      expect(r.status, `mã ${JSON.stringify(xau)}`).toBe(400);
+      expect(r.body.code).toBe('POLICY_CODE_INVALID');
+      expect(r.body.field).toBe('code');
+    }
+  });
+
+  it('SỬA mã khi hồ sơ còn Nháp', async () => {
+    const d = await draft();
+    const ma = maRieng();
+    const r = await patch(`/policies/${d.id}/ma`, { code: ma });
+    expect(r.status).toBe(200);
+    expect(r.body.code).toBe(ma);
+    // Đọc lại từ đường chính, không tin thân trả về: hai chỗ đọc khác nhau thì
+    // một trong hai đang nói dối.
+    expect((await get(`/policies/${d.id}`)).body.code).toBe(ma);
+  });
+
+  it('sửa mã thành mã ĐANG CÓ thì 409', async () => {
+    const a = await draft();
+    const b = await draft();
+    const r = await patch(`/policies/${b.id}/ma`, { code: a.body.code });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_CODE_TAKEN');
+    // Không đổi gì — hồ sơ giữ nguyên mã cũ.
+    expect((await get(`/policies/${b.id}`)).body.code).toBe(b.body.code);
+  });
+
+  it('sửa mã thành CHÍNH NÓ thì không sao', async () => {
+    // Người dùng bấm bút chì rồi bấm dấu tick mà chưa sửa chữ nào. Không có
+    // nhánh này thì lượt ấy vấp chính chỉ mục duy nhất và báo *"mã đã có"* —
+    // đúng theo CSDL, vô nghĩa với người đang nhìn.
+    const d = await draft();
+    const r = await patch(`/policies/${d.id}/ma`, { code: d.body.code });
+    expect(r.status).toBe(200);
+  });
+
+  it('hồ sơ ĐÃ GỬI DUYỆT thì KHÔNG đổi mã được', async () => {
+    /*
+     * Ranh giới của chặng: `mustEdit` cho cả `YEU_CAU_CHINH_SUA`, còn đây phải
+     * hẹp hơn nó. Mã của một hồ sơ đã gửi duyệt đã đi vào thư đã gửi, vào dòng
+     * thông báo trên chuông, và có thể vào tên tệp một bản mềm đã lưu — đổi lúc
+     * ấy là làm mọi tham chiếu kia trỏ vào hư không, lặng lẽ.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const r = await patch(`/policies/${d.id}/ma`, { code: maRieng() });
+    expect(r.status).toBe(409);
+    /*
+     * `POLICY_LOCKED`, KHÔNG phải `POLICY_CODE_LOCKED` — và hai mã ấy chia nhau
+     * đúng theo nghĩa của chúng.
+     *
+     * Hồ sơ đã gửi duyệt thì khoá TOÀN BỘ, nên `mustEdit` trả lời trước bằng câu
+     * chung; `POLICY_CODE_LOCKED` dành cho khe còn lại: hồ sơ *Yêu cầu chỉnh
+     * sửa*, nơi hồ sơ SỬA ĐƯỢC mà riêng mã thì không (ca ngay dưới).
+     */
+    expect(r.body.code).toBe('POLICY_LOCKED');
+  });
+
+  it('hồ sơ BỊ TRẢ VỀ cũng KHÔNG đổi mã được', async () => {
+    // Vế thứ hai của cùng ranh giới, và là vế dễ mất: `YEU_CAU_CHINH_SUA` nằm
+    // trong `EDITABLE`, nên viết `mustEdit` một mình là nó lọt.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' })).status).toBe(200);
+    const r = await patch(`/policies/${d.id}/ma`, { code: maRieng() });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_CODE_LOCKED');
+  });
+
+  it('TDV KHÁC không đổi được mã hồ sơ của người khác', async () => {
+    const d = await draft();
+    const r = await patch(`/policies/${d.id}/ma`, { code: maRieng() }, 'tdv02');
+    expect(r.status).toBeGreaterThanOrEqual(400);
+    expect(r.status).toBeLessThan(500);
+  });
+
+  it('vai trò KHÔNG phải TDV thì 403', async () => {
+    const d = await draft();
+    expect((await patch(`/policies/${d.id}/ma`, { code: maRieng() }, 'tbp01')).status).toBe(403);
+  });
+
+  it('tên ràng buộc duy nhất đúng như mã nguồn đang tra', async () => {
+    /*
+     * `policies.service` bắt `23505` rồi ĐỐI CHIẾU TÊN ràng buộc để phân biệt
+     * *trùng mã* với *đã có bản Nháp* — hai ràng buộc trên cùng một bảng.
+     *
+     * Tên ấy là `policy_code_key`, do Postgres TỰ ĐẶT cho `code text UNIQUE`
+     * khai inline ở `0001_init.sql`. Nó KHÔNG xuất hiện trong mã nguồn migration
+     * nào, nên không có cách nào đọc ra nó ngoài việc hỏi CSDL — và một lượt
+     * đổi bảng về sau (`ALTER TABLE … ADD CONSTRAINT` tên khác) sẽ làm nhánh bắt
+     * lỗi kia lặng lẽ hết khớp, trả `500` thay cho `409`.
+     */
+    const ten = await withAdminDb(async (c) => {
+      const r = await c.query<{ conname: string }>(
+        `SELECT conname FROM pg_constraint
+          WHERE conrelid = 'pol.policy'::regclass AND contype = 'u'
+            AND pg_get_constraintdef(oid) = 'UNIQUE (code)'`,
+      );
+      return r.rows.map((x) => x.conname);
+    });
+    expect(ten).toEqual(['policy_code_key']);
+  });
+
+  it('đổi mã thì PHÁT SỰ KIỆN — read-model giữ một bản sao của mã', async () => {
+    // Thiếu sự kiện thì màn hình *Hồ sơ CSBH* và mọi báo cáo vẫn bày mã CŨ cho
+    // tới lượt hồ sơ đổi trạng thái. Hai chỗ nói hai mã, và không gì đỏ.
+    const d = await draft();
+    await patch(`/policies/${d.id}/ma`, { code: maRieng() });
+    const khoa = (await outboxFor(d.id)).map((e) => e.routing_key);
+    expect(khoa.some((k) => k.startsWith('policy.'))).toBe(true);
+  });
+});
+
 describe('POL-18 file đính kèm hồ sơ', () => {
   it('Nháp thì thêm và xoá được', async () => {
     const d = await draft();

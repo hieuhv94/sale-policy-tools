@@ -405,6 +405,21 @@ export const BANG_LOI: Record<string, Muc> = {
    * bỏ sót là đỏ, và `im` là cách nói *"đã có người xử lý mã này"* (`0088`).
    */
   DRAFT_EXISTS: { dang: 'im' },
+  /*
+   * `0198` — hai câu về MÃ HỒ SƠ, cả hai gắn vào ô nhập mã.
+   *
+   * `tuMayChu` vì máy chủ là chỗ biết luật: `POLICY_CODE_INVALID` nói ra ĐÚNG
+   * TẬP ký tự bị cấm, và chép lại tập ấy ở đây là hai danh sách sẽ lệch ngay lượt
+   * ai đó nới một ký tự.
+   *
+   * `truong: 'code'` để biểu mẫu *Lập hồ sơ* dán câu xuống dưới đúng ô; khối sửa
+   * tại chỗ ở tiêu đề thì tự đọc `docLoi().cau` và không dùng tới trường này.
+   */
+  POLICY_CODE_INVALID: { dang: 'o-nhap', truong: 'code', tuMayChu: true },
+  POLICY_CODE_TAKEN: { dang: 'o-nhap', truong: 'code', tuMayChu: true },
+  // Đổi mã khi hồ sơ đã rời Nháp. Người dùng bình thường KHÔNG tới được đây —
+  // giao diện giấu bút chì — nên nó là chốt cho lượt gọi thẳng API.
+  POLICY_CODE_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*

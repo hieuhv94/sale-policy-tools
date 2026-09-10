@@ -590,6 +590,36 @@ main:focus { outline: none; }
   flex-wrap: wrap;
 }
 
+/*
+ * MÃ HỒ SƠ sửa được tại chỗ (`0198`).
+ *
+ * Ô nhập MƯỢN CỠ CHỮ CỦA `h1` chứ không lấy cỡ mặc định của `input`: hai chế độ
+ * của cùng một tiêu đề, và cỡ chữ nhảy giữa chúng thì cả dải thao tác bên phải
+ * xô lên xuống mỗi lượt bấm bút chì. `font: inherit` không đủ — `h1` mới là chỗ
+ * mang cỡ, còn khối bọc thì không.
+ */
+.ma-ho-so { display: flex; flex-direction: column; gap: var(--k1); }
+/* HÀNG riêng bọc tiêu đề cùng các nút, ở CẢ HAI chế độ. Để `.ma-ho-so` vừa làm
+   hàng vừa làm cột thì khối lỗi phía dưới nằm ngang hàng với ô nhập. */
+.ma-ho-so-hang { display: flex; align-items: center; gap: var(--k2); }
+.ma-ho-so-hang h1 { margin: 0; }
+
+.o-ma-ho-so {
+  font: inherit;
+  font-size: var(--chu-to);
+  font-weight: 700;
+  padding: 2px var(--k2);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  color: var(--mau-chu);
+  /* Rộng bằng một mã dài, không bằng cả hàng: nút lưu phải ở ngay cạnh chữ. */
+  width: 18ch;
+  max-width: 100%;
+}
+.o-ma-ho-so:focus-visible { outline: var(--vong-tieu-diem); outline-offset: 1px; }
+.o-ma-ho-so[aria-invalid='true'] { border-color: var(--mau-loi); }
+
 /* --- Nút ------------------------------------------------------------------ */
 
 .nut {

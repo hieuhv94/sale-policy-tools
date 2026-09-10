@@ -19,7 +19,16 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { CurrentUser, oneOf, opt, Roles, str, validate, type AuthUser } from '@csbh/http-kit';
+import {
+  CurrentUser,
+  oneOf,
+  opt,
+  Roles,
+  str,
+  tenTepTaiVe,
+  validate,
+  type AuthUser,
+} from '@csbh/http-kit';
 import { FilesService, MAX_BYTES, type OwnerKind, type Purpose } from './files.service.js';
 import { Clients } from '../infra/clients.js';
 import { checkFileToken, FILE_LINK_TTL_SEC, mintFileToken } from './file-link.js';
@@ -171,11 +180,10 @@ export class FilesController {
     }
 
     res.setHeader('Content-Type', row.content_type);
-    res.setHeader(
-      'Content-Disposition',
-      // RFC 5987: tên tiếng Việt phải đi ở `filename*`, không nhét vào `filename`.
-      `attachment; filename*=UTF-8''${encodeURIComponent(row.file_name)}`,
-    );
+    // RFC 5987: tên tiếng Việt phải đi ở `filename*`, không nhét vào `filename`.
+    // `0198` gom phép dựng header này ra `tenTepTaiVe` — ba đường tải từng dựng
+    // nó theo hai cách khác nhau, và cách kia là một lỗ hổng.
+    res.setHeader('Content-Disposition', tenTepTaiVe(row.file_name));
     res.end(body);
   }
 

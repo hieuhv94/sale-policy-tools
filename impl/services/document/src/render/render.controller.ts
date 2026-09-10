@@ -1,6 +1,6 @@
 import { Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, Roles, uuid, validate, type AuthUser } from '@csbh/http-kit';
+import { CurrentUser, Roles, tenTepTaiVe, uuid, validate, type AuthUser } from '@csbh/http-kit';
 import { RenderService } from './render.service.js';
 
 /**
@@ -80,7 +80,10 @@ export class RenderController {
     res.setHeader('Content-Type', 'application/pdf');
     // `code` đã mang tiền tố `CSBH-` — ghép thêm cho ra `CSBH-CSBH-2026-000020`
     // (`0168`). Lỗi có sẵn từ lâu, chỉ lộ ra khi `0167` bắt đầu LƯU cái tên ấy.
-    res.setHeader('Content-Disposition', `attachment; filename="${code}.pdf"`);
+    //
+    // `0198` — THOÁT KÝ TỰ. Từ chặng ấy `code` là chuỗi TDV gõ, nên nhét thẳng
+    // vào `filename="…"` là để một dấu nháy kép thoát ra khỏi header.
+    res.setHeader('Content-Disposition', tenTepTaiVe(`${code}.pdf`));
     res.end(body);
   }
 

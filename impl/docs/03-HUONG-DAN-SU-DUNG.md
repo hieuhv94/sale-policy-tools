@@ -702,6 +702,22 @@ trong hai đường:
 Hồ sơ đang ở ***Yêu cầu chỉnh sửa*** **không** tính là bản Nháp — nó đã đi qua luồng duyệt rồi bị trả
 về, và nó không chặn bạn lập hồ sơ mới cho khách ấy.
 
+### Mã hồ sơ — hệ thống đề xuất, bạn sửa được `mới 10/09`
+
+Ô **Mã hồ sơ** ở bước lập đã điền sẵn một mã hệ thống đề xuất. Cứ để nguyên là xong; muốn đặt mã
+khác thì gõ đè lên.
+
+Sau khi lập, mã vẫn sửa được **chừng nào hồ sơ còn ở *Nháp***: mở hồ sơ ra, bấm **biểu tượng bút chì
+✎ ngay cạnh mã** ở đầu trang, sửa, rồi bấm **dấu tick ✓** để lưu. Bấm `Esc` hoặc dấu ✕ để bỏ.
+
+| Điều cần biết | |
+|---|---|
+| **Mã không được trùng** | Mã đã có hồ sơ khác dùng thì phần mềm từ chối ngay, cả lúc lập lẫn lúc sửa |
+| **Mã của hồ sơ *Đã xoá* vẫn bị giữ chỗ** | Hồ sơ ấy còn trong nhật ký và báo cáo, nên mã của nó không dùng lại được |
+| **Trừ bản *Nháp* bạn xoá đi** | Bản Nháp xoá là xoá hẳn, không để lại vết — nên lấy lại đúng mã ấy được |
+| **Hồ sơ đã gửi duyệt thì khoá mã** | Kể cả khi bị trả về ở *Yêu cầu chỉnh sửa*: mã ấy đã đi vào thư đã gửi và vào tên tệp bản mềm |
+| **Không gõ được** `" \ / : * ? < > \|` | Mã hồ sơ trở thành tên tệp khi bạn tải bản mềm về, và những ký tự này phá tên tệp |
+
 Với mỗi dòng bạn nhập **Giá bán buôn** và các khoản **CPBH**. Hệ thống tự tính:
 
 > **Giá thu về** = Giá bán buôn − (tổng các khoản CPBH)

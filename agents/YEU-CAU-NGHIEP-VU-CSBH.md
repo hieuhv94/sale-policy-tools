@@ -2520,6 +2520,36 @@ sẽ hiện thông báo đã có một bản nháp và nhấn đồng ý sẽ v�
 > thông báo in ra mã và tên khách kèm mã từng hồ sơ. Hệ thống **không chọn hộ được** bản nào đáng giữ
 > — chỉ chính TDV ấy biết — nên đường sửa là xoá bớt trên màn hình rồi chạy lại.
 
+**MÃ HỒ SƠ DO TDV ĐẶT** `mới 10/09` — *"khi tạo CSBH cần có một bước để TDV điền mã của CSBH, hệ
+thống sẽ tự đề xuất nhưng TDV có thể sửa"* · *"cho phép TDV sửa Mã hồ sơ CSBH trong trạng thái Nháp,
+để một biểu tượng edit ngay tại tiêu đề Mã hồ sơ, sửa xong có dấu tick để lưu"* · *"không cho lưu
+hoặc tạo nếu mã đã tồn tại"*.
+
+> **Đề xuất là một lượt LẤY SỐ, không phải một lượt đọc.** Mở màn hình *Lập hồ sơ* là lấy hẳn số tiếp
+> theo của dãy, nên hai Trình dược viên mở cùng lúc được hai mã khác nhau. Cái giá: những khoảng
+> trống trong dãy khi ai đó mở rồi bỏ đi — dãy này **vốn đã có trống** (một lượt lập hỏng giữa chừng
+> cũng để lại một lỗ), và mã hồ sơ chưa bao giờ hứa là một dãy liên tục.
+>
+> **Mã TỰ DO**, không ép khuôn `CSBH-YYYY-NNNNNN` (khách hàng chốt 10/09). Ép khuôn thì *"TDV có thể
+> sửa"* thu lại còn đổi mỗi số thứ tự. Chỉ chặn: để trống · dài quá 50 ký tự · và những ký tự phá tên
+> tệp (`" \ / : * ? < > |`) hay phá header tải về (xuống dòng, tab, ký tự điều khiển) — mã hồ sơ đi
+> thẳng vào TÊN TỆP của bản mềm đã lưu và của mọi lượt tải về.
+>
+> **Sửa được CHỈ khi hồ sơ còn ở *Nháp***. Hồ sơ đã gửi duyệt một lần thì mã của nó đã đi vào thư đã
+> gửi, vào dòng thông báo trên chuông, vào nhật ký người duyệt đọc, và có thể vào tên một bản mềm đã
+> lưu — đổi lúc ấy là làm mọi tham chiếu kia trỏ vào hư không, lặng lẽ. Hồ sơ ở *Yêu cầu chỉnh sửa*
+> **sửa được nội dung nhưng KHÔNG sửa được mã**, vì nó cũng đã gửi duyệt một lần.
+>
+> **Mã DUY NHẤT toàn hệ thống, giữ chỗ vĩnh viễn** (khách hàng chốt 10/09) — ngược với luật mã số
+> thuế (`29/08`), và vì lý do khác: mã số thuế định danh một **pháp nhân đang tồn tại**, còn mã hồ sơ
+> định danh một **văn bản**. Hồ sơ *Đã xoá* hay *Hết hiệu lực* vẫn nằm trong nhật ký, trong báo cáo,
+> và trên những tờ giấy đã in ra ngoài phần mềm; cho dùng lại mã là để câu *"CSBH-2026-000123 là hồ
+> sơ nào"* thôi có câu trả lời.
+>
+> > **MỘT NGOẠI LỆ, và nó có lợi**: bản ***Nháp*** xoá đi thì **xoá hẳn**, không để lại một vết nào
+> > (quyết định `18/08`) — nên mã của nó **dùng lại được**. Cái giá nêu lúc chốt (*lập nhầm một bản
+> > Nháp rồi xoá thì mất luôn mã ấy*) **không tồn tại**.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,

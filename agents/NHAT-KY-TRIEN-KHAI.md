@@ -17390,3 +17390,107 @@ rồi mong nó qua. Theo khuôn `0114`: **dừng và in danh sách**, vì hệ t
 
 
 **2206/2206 xanh.**
+
+## P226 — `0198` Mã hồ sơ do TDV đặt, sửa được ở Nháp, không trùng
+
+Ba yêu cầu còn lại của lượt 10/09, và chúng là MỘT: đề xuất mã lúc lập · sửa được trong lúc còn
+*Nháp* · không cho trùng.
+
+### Tiền đề tôi đo sai, và cách nó lộ ra
+
+Chặng này bắt đầu bằng một câu tôi báo cáo là đo được: **`pol.policy.code` không có ràng buộc duy
+nhất nào** — nó duy nhất chỉ vì `pol.next_policy_code()` sinh ra nó, tức tính duy nhất là HỆ QUẢ của
+việc không ai gõ được mã. Từ đó viết hẳn một migration `0119` thêm `uq_policy_code`.
+
+**Sai.** Cột khai `code text UNIQUE NOT NULL` ngay ở `0001_init.sql`. Tôi `grep` `0007_policy.sql` —
+tệp chứa `next_policy_code()` và mọi thứ khác về hồ sơ — rồi kết luận; cột lại khai ở `0001`.
+
+Nó lộ ra ở lượt chạy thật, không phải ở lượt đọc lại: ca *"mã trùng thì không lập được"* trả `500`
+thay vì `409`, và log nói tên ràng buộc bị vi phạm là **`policy_code_key`** — tên Postgres TỰ ĐẶT cho
+một `UNIQUE` khai inline, không phải `uq_policy_code` tôi vừa thêm.
+
+> **Bài học không phải "đọc kỹ hơn".** Một `grep` trên mã nguồn migration KHÔNG BAO GIỜ tìm ra được
+> tên `policy_code_key`, vì cái tên ấy không tồn tại trong mã nguồn — nó sinh ra lúc `CREATE TABLE`
+> chạy. Câu hỏi *"cột này có ràng buộc gì"* chỉ có một chỗ trả lời đúng: `pg_constraint`. Migration
+> `0119` **xoá hẳn**; tên ràng buộc thành hằng `UQ_MA` kèm một ca kiểm hỏi thẳng CSDL, vì một lượt
+> `ALTER TABLE` về sau đặt tên khác sẽ làm nhánh bắt lỗi hết khớp và trả `500` thay cho `409` — lặng
+> lẽ.
+
+Cái được: yêu cầu thứ ba **đã đúng sẵn ở tầng CSDL từ ngày đầu**. Việc còn lại chỉ là đổi `500` thành
+một câu tiếng Việt, cộng phép kiểm hình dạng.
+
+### Lỗ hổng có sẵn, và nó là ĐIỀU KIỆN của hai yêu cầu kia
+
+Đo trước khi gõ: `render.controller` đặt
+
+    Content-Disposition: attachment; filename="${code}.pdf"
+
+— mã nhét thẳng vào một chuỗi trong ngoặc kép. An toàn suốt từ `0011` nhờ một tiền đề **không ai viết
+ra**: *chuỗi này là máy sinh*. `0198` cho TDV gõ và tiền đề ấy mất — một dấu `"` thoát ra khỏi chuỗi,
+`\r\n` chèn được cả một header mới. Mã còn đi vào TÊN TỆP thật của bản mềm đã lưu, nơi `/` và `\` cắt
+thành đường dẫn.
+
+Ba đường tải trong `document` dựng header này theo **HAI cách khác nhau**, và `files.controller` đã
+làm đúng (RFC 5987) từ lâu — tức bản lệch đã tồn tại sẵn, chỉ chưa ai đối chiếu. Gom về
+`tenTepTaiVe` ở `http-kit`, ba nơi gọi.
+
+**HAI NỬA, cả hai đều cần**: `chuanHoaMa` chặn mã bẩn ở đường VÀO, `tenTepTaiVe` dựng header đúng dù
+tên tệp tới từ ĐÂU. Nửa thứ hai không thừa — mã lập trước `0198` chưa từng đi qua nửa thứ nhất, và
+tên tệp ở `document` còn dựng từ những trường khác ngoài mã hồ sơ.
+
+### Ba quyết định nghiệp vụ, khách hàng chốt
+
+- **Mã TỰ DO**, không ép khuôn. Ép khuôn thì *"TDV có thể sửa"* thu lại còn đổi mỗi số thứ tự.
+- **Giữ chỗ VĨNH VIỄN** — ngược `uq_customer_id_number` (`0114`), và vì lý do khác: mã số thuế định
+  danh một PHÁP NHÂN đang tồn tại, mã hồ sơ định danh một VĂN BẢN còn nằm trong nhật ký và báo cáo.
+- **Sửa được CHỈ ở `NHAP`**, không phải cả `EDITABLE`. Hồ sơ ở *Yêu cầu chỉnh sửa* đã gửi duyệt một
+  lần, nên mã của nó đã đi vào thư đã gửi, vào dòng thông báo trên chuông, và có thể vào tên một bản
+  mềm đã lưu.
+
+> **CÁI GIÁ TÔI NÊU VỚI KHÁCH HÀNG LÚC CHỐT KHÔNG TỒN TẠI.** Lúc hỏi về *giữ chỗ vĩnh viễn* tôi viết
+> cái giá là *"lập nhầm một bản Nháp rồi xoá thì không lấy lại được đúng mã ấy"*. Ca kiểm cho thấy
+> ngược lại: bản **Nháp** xoá đi là **xoá hẳn dòng** (`0035`), không để lại vết nào, nên mã của nó
+> dùng lại được thật. Quyết định vẫn nguyên giá trị — nó áp cho hồ sơ CÒN NẰM LẠI (*Đã xoá*, *Hết
+> hiệu lực*) — nhưng hai vế giờ có hai ca kiểm riêng, và ca thứ hai chỉ ra đúng chỗ tôi nói quá.
+
+### Đề xuất mã ĐỐT một số của dãy, có chủ ý
+
+Cách kia — đọc `last_value + 1` mà không lấy — cho hai TDV mở màn hình cùng lúc đúng MỘT mã đề xuất,
+tức đẩy một người vào lỗi trùng ở ngay lượt bấm đầu tiên, với một con số họ không tự gõ ra. Cái giá
+là những khoảng trống trong dãy; dãy này **vốn đã có trống** (sequence không nằm trong transaction),
+nên đây không phải một tính chất mới bị mất.
+
+`@Roles('TDV')` trên đường đề xuất vì nó là một lượt **LẤY SỐ**, không phải một lượt đọc.
+
+### Hai lỗi trong mã của chính chặng này, ca kiểm bắt được
+
+> **`layJson<{code: string}>` là một LỜI HỨA, không phải một phép kiểm.** Biến `ma` khai
+> `string | null`, và khi máy chủ (hoặc một stub) trả về thân thiếu `code` thì nó lặng lẽ mang giá
+> trị thứ ba: `undefined`. Đo được: `ma.trim()` ném `TypeError` **ngay trong tay bấm** *Lập hồ sơ*,
+> nên lượt bấm không làm gì cả và **không có lỗi nào hiện ra**. Chuẩn hoá tại CỬA
+> (`typeof r?.code === 'string' ? … : ''`) chứ không tin kiểu khai.
+
+> **`useEffect(…, [])` KHÔNG có nghĩa "một lần mỗi màn hình".** Lượt hỏi mã đề xuất đặt trong
+> `ChonCachLap`, mà bước chọn khách và bước chọn cách lập là hai nhánh của một `?:` — bấm *Chọn khách
+> khác* **THÁO HẲN** component rồi dựng lại, nên mỗi lượt ấy đốt thêm một số của dãy và vứt đi. Dời
+> lượt hỏi lên component cha; ca kiểm đếm số lượt gọi `/ma-de-xuat` sau một vòng đổi khách.
+
+### Bẫy `opt()`: RỖNG không phải VẮNG MẶT
+
+`opt` của `http-kit` biến chuỗi rỗng thành `undefined`, và ở đây hai thứ ấy là hai ý định khác hẳn:
+vắng mặt = *"đặt hộ tôi"*, rỗng = người dùng vừa xoá sạch ô rồi bấm lập. Đi qua `opt` thì lượt thứ
+hai lặng lẽ thành lượt thứ nhất và người dùng nhận về một mã họ không gõ. Cả hai đường (`create`,
+`doiMa`) đọc `code` THẲNG từ thân. Cùng lớp bẫy `0154` đã ghi cho `trong()`.
+
+### Phá lại
+
+| Phá | Kết quả |
+|---|---|
+| Bỏ danh sách ký tự cấm trong `chuanHoaMa` | **2 đỏ** |
+| `tenTepTaiVe` quay về nội suy chuỗi trần | **5 đỏ** |
+| Gỡ chốt `NHAP` ở `doiMa`, để `mustEdit` một mình | **1 đỏ** (hồ sơ bị trả về) |
+| Đổi `UQ_MA` sang `uq_policy_code` — cái tên tôi suýt tự đặt | **3 đỏ** |
+| Coi chuỗi rỗng là vắng mặt, đúng như `opt()` làm | **1 đỏ** |
+
+
+**2250/2250 xanh.**

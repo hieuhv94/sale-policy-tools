@@ -29,6 +29,7 @@ import {
   validate,
   xacNhanGoLai,
   type AuthUser,
+  tenTepTaiVe,
 } from '@csbh/http-kit';
 
 import { MAX_BYTES } from '../files/files.service.js';
@@ -446,7 +447,8 @@ export class ContractsController {
     const b = validate(q, { mauId: uuid() });
     const { pdf, fileName } = await this.contracts.export(id, me, b.mauId);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    // `0198` — `fileName` dựng từ MÃ HỒ SƠ, thứ TDV gõ được từ chặng ấy.
+    res.setHeader('Content-Disposition', tenTepTaiVe(fileName));
     res.end(pdf);
   }
 }
