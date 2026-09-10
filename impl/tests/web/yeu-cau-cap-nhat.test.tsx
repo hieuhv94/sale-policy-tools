@@ -213,11 +213,22 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
     expect(screen.getByText(/không còn quy định nào/)).toBeDefined();
   });
 
-  it('nói rõ hồ sơ KHÔNG tự cập nhật — nếu không người dùng sẽ chờ nó tự sửa', async () => {
+  /*
+   * CA NÀY THAY BẢN CŨ, không sửa chuỗi (`0194`).
+   *
+   * Bản cũ đòi câu *"không tự cập nhật"*, và `0194` vừa thêm đúng một nút làm
+   * việc ấy — giữ lại là ghim một câu đã hết đúng. Cái box này gác vẫn còn:
+   * hồ sơ trong luồng duyệt GIỮ NGUYÊN số, và người đọc phải biết để khỏi ngồi
+   * chờ nó tự sửa.
+   */
+  it('nói rõ hồ sơ trong luồng duyệt GIỮ NGUYÊN số đã đóng băng', async () => {
     chan(HO_SO);
     render(<YeuCauCapNhat />);
     const khoi = await doiKhoi();
-    expect(khoi.textContent).toContain('không tự cập nhật');
+    expect(khoi.textContent).toContain('giữ nguyên số đã đóng băng');
+    // Và KHÔNG hứa hẹn một nút không có ở màn hình này: nút *Tự động cập nhật*
+    // chỉ sống trên trang hồ sơ, và chỉ khi hồ sơ còn sửa được.
+    expect(khoi.textContent).not.toContain('Tự động cập nhật');
   });
 
   it('`0049` mở ra rồi vẫn còn đường sang hồ sơ', async () => {

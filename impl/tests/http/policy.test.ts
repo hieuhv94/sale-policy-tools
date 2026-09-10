@@ -3802,13 +3802,27 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
    * `0029` chọn hướng ngược lại và nói thẳng: hồ sơ Nháp SỐNG THEO danh mục, mọi
    * lúc. Đóng băng chỉ xảy ra một lần, ở đúng lúc gửi duyệt.
    */
-  it('0029 hồ sơ NHÁP nhận ngưỡng MỚI ngay khi mở lại sau khi đổi loại', async () => {
+  /*
+   * `0194` — CA NÀY THAY BẢN CŨ, không sửa số.
+   *
+   * Bản cũ tên *"nhận ngưỡng MỚI ngay khi MỞ LẠI"* — một câu về cơ chế, và `0194`
+   * đảo đúng cơ chế ấy: mở lại chỉ BÀY RA, áp dụng mới ghi. Điều đang gác vẫn
+   * nguyên — đổi LOẠI KHÁCH HÀNG kéo theo ngưỡng của hồ sơ chưa đóng băng.
+   */
+  it('0029 đổi loại khách → hồ sơ NHÁP bày ra chênh lệch, áp dụng thì nhận ngưỡng mới', async () => {
     const productId = await sanPhamBaNguong();
     const customerId = await makeCustomer();
     const d = await draft({ customerId, productId });
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('10.00');
 
     expect((await doiLoai(customerId, 3)).status).toBe(200);
+    const bay = (await get(`/policies/${d.id}`)).body;
+    expect(bay.lines[0].threshold, 'đọc thôi thì chưa đổi').toBe('10.00');
+    expect(bay.lech).toEqual([
+      expect.objectContaining({ kind: 'RULE', snapValue: '10.00', newValue: '30.00' }),
+    ]);
+
+    expect((await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('30.00');
   });
 
@@ -3822,16 +3836,22 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
     expect((await get(`/policies/${hs.body.id}`)).body.lines[0].threshold).toBe('30.00');
   });
 
-  it('sửa một dòng cũng nhận ngưỡng mới — nhưng không còn là đường DUY NHẤT', async () => {
-    // Trước `0029` đây là cách duy nhất làm hồ sơ Nháp nhận ngưỡng mới. Giờ chỉ
-    // cần mở hồ sơ ra; đường sửa dòng vẫn phải đúng, nên vẫn kiểm.
+  it('sửa một dòng cũng nhận ngưỡng mới — một trong BA đường, không phải đường duy nhất', async () => {
+    /*
+     * Ba đường đưa ngưỡng mới vào một hồ sơ chưa đóng băng, và cả ba đều phải
+     * đúng: **sửa chính dòng ấy** (`upsertLine` tra lại danh mục), **bấm Tự động
+     * cập nhật** (`0194`), và **gửi duyệt** (lượt làm mới cuối cùng).
+     *
+     * Bản trước `0194` có đường thứ tư — *mở hồ sơ ra* — và đó là đường vừa bị
+     * gỡ: nó ghi đè trong im lặng.
+     */
     const productId = await sanPhamBaNguong();
     const customerId = await makeCustomer();
     const d = await draft({ customerId, productId });
     expect((await doiLoai(customerId, 2)).status).toBe(200);
 
     const l = (await get(`/policies/${d.id}`)).body.lines[0];
-    expect(l.threshold).toBe('20.00');
+    expect(l.threshold, '`0194` — mở hồ sơ ra KHÔNG còn ghi đè').toBe('10.00');
     expect((await patch(`/policies/${d.id}/lines/${l.id}`, { wholesalePrice: '88000' })).status)
       .toBe(200);
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('20.00');
@@ -4326,8 +4346,27 @@ describe('0029 ảnh chụp lấy theo NGÀY ÁP DỤNG của DÒNG, không ph�
   });
 });
 
-describe('0029 hồ sơ Nháp sống theo danh mục, không đóng băng', () => {
-  it('mở lại hồ sơ Nháp sau khi đổi giá thì thấy giá MỚI', async () => {
+/*
+ * `0194` — BA CA DƯỚI ĐÂY PHẢI THAY, KHÔNG SỬA SỐ.
+ *
+ * Chúng khẳng định *"mở lại hồ sơ Nháp thì thấy số MỚI"* — một câu về CƠ CHẾ, và
+ * khách hàng vừa đảo đúng cơ chế ấy: từ `0194` đường đọc THÔI ghi đè, cái đã đổi
+ * được BÀY RA và TDV bấm *Tự động cập nhật* để áp.
+ *
+ * Bất biến sống sót thì vẫn nguyên, và nó mới là thứ `0029` sinh ra để bảo vệ:
+ * **con số TDV đọc đúng là con số sẽ được đóng băng**. Chỉ khác chỗ nó được bảo
+ * đảm — trước là *"mỗi lượt mở"*, giờ là *"lượt áp dụng, và lượt gửi duyệt"*.
+ * Tên `describe` đổi theo, vì "sống theo danh mục" đã hết đúng.
+ */
+describe('0029 hồ sơ Nháp không đóng băng — số lấy lại được, `0194` bằng một cú bấm', () => {
+  /** Bấm *Tự động cập nhật* rồi đọc lại hồ sơ. */
+  const apDungRoiDoc = async (id: string) => {
+    const r = await post(`/policies/${id}/ap-dung-thay-doi`, {}, 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    return get(`/policies/${id}`);
+  };
+
+  it('đổi giá → chênh lệch BÀY RA, bấm áp dụng thì thấy giá MỚI', async () => {
     const { productId } = await sanPhamNhomRieng('100000');
     const customerId = await makeCustomer();
     const d = await post('/policies', { customerId, lines: [line(productId)] });
@@ -4335,15 +4374,21 @@ describe('0029 hồ sơ Nháp sống theo danh mục, không đóng băng', () =
 
     await datGia(productId, '150000', '2020-02-01');
 
-    const lai = await get(`/policies/${d.body.id}`);
+    // `0194` — lượt ĐỌC chỉ bày ra, không ghi đè.
+    const truoc = await get(`/policies/${d.body.id}`);
+    expect(truoc.body.lines[0].companyPrice).toBe('100000');
+    expect(truoc.body.lech).toHaveLength(1);
+
+    const lai = await apDungRoiDoc(d.body.id as string);
     expect(lai.status).toBe(200);
     expect(lai.body.lines[0].companyPrice).toBe('150000');
+    expect(lai.body.lech).toEqual([]);
     // Giá thu về giữ nguyên (người dùng nhập), tỷ lệ chiết khấu tính LẠI.
     expect(lai.body.lines[0].wholesalePrice).toBe('90000');
     expect(lai.body.lines[0].discountRate).not.toBe(d.body.lines[0].discountRate);
   });
 
-  it('mở lại hồ sơ Nháp sau khi đổi NGƯỠNG thì thấy ngưỡng MỚI', async () => {
+  it('đổi NGƯỠNG → bấm áp dụng thì thấy ngưỡng MỚI', async () => {
     const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000');
     const qd = await khaiQuyDinh({
       code: uniq('CK'), productGroupCode: nhom,
@@ -4362,7 +4407,11 @@ describe('0029 hồ sơ Nháp sống theo danh mục, không đóng băng', () =
         .send({ thresholdRate2: 2500 })).status,
     ).toBe(200);
 
-    const lai = await get(`/policies/${d.body.id}`);
+    const truoc = await get(`/policies/${d.body.id}`);
+    expect(truoc.body.lines[0].threshold, 'đọc thôi thì chưa đổi').toBe('10.00');
+    expect(truoc.body.lech.map((l: { kind: string }) => l.kind)).toEqual(['RULE']);
+
+    const lai = await apDungRoiDoc(d.body.id as string);
     expect(lai.body.lines[0].threshold).toBe('25.00');
     expect(lai.body.lines[0].ruleCode).toBe(qd.body.code);
   });
@@ -4376,7 +4425,7 @@ describe('0029 hồ sơ Nháp sống theo danh mục, không đóng băng', () =
     });
     await datGia(productId, '500000', '2020-02-01');
 
-    const lai = await get(`/policies/${d.body.id}`);
+    const lai = await apDungRoiDoc(d.body.id as string);
     expect(lai.body.lines[0].wholesalePrice).toBe('77000');
     expect(lai.body.lines[0].cpbh).toEqual(['1000', '2000']);
     expect(lai.body.lines[0].companyPrice).toBe('500000');
@@ -5618,5 +5667,331 @@ describe('`0191` phiên bản kế nhiệm đang dở dang', () => {
 
     expect((await doc(d.id)).status).toBe('HET_HIEU_LUC');
     expect((await doc(d.id)).phienBanSau).toBeNull();
+  });
+});
+
+/**
+ * `0194` — YÊU CẦU CẬP NHẬT trên hồ sơ CÒN SỬA ĐƯỢC, và nút *Tự động cập nhật*.
+ *
+ * Khách hàng chốt 10/09, ba câu: khối chênh lệch phải hiện cả khi TDV mở hồ sơ ra
+ * SỬA; có một thao tác áp chênh lệch ấy vào bảng sản phẩm; áp xong thì khối biến
+ * mất. Câu thứ ba đòi *"test case cho tất cả các trường hợp"* — nhánh thuần nằm ở
+ * `tests/http/lech-danh-muc.test.ts`, tệp này đi HẾT ĐƯỜNG.
+ *
+ * NỀN CỦA CẢ KHỐI: tới `0193` đường đọc gọi `lamMoiDong`, tức mở hồ sơ ra là giá
+ * và ngưỡng bị chụp lại TRONG IM LẶNG — nên khối chênh lệch không thể tồn tại
+ * trên hồ sơ sửa được, và một nút *Tự động cập nhật* sẽ không làm gì nhìn thấy
+ * được. `0194` gỡ phép ghi đè ấy khỏi đường đọc; lượt GỬI DUYỆT vẫn làm mới như
+ * cũ, nên bản nháp không bao giờ vào luồng với số cũ.
+ */
+describe('`0194` chênh lệch hiện trên hồ sơ còn sửa được', () => {
+  /** Đổi giá bán Công ty hôm nay — `0123`: không khai ngày thì áp dụng ngay. */
+  const doiGia = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  const doc = async (id: string, who = 'tdv01') => (await get(`/policies/${id}`, who)).body;
+
+  it('hồ sơ NHÁP lệch giá → `byId` trả về chênh lệch', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '120000');
+
+    const hs = await doc(d.id);
+    expect(hs.lech).toHaveLength(1);
+    expect(hs.lech[0]).toMatchObject({ kind: 'PRICE', snapValue: '100000', newValue: '120000' });
+  });
+
+  it('ĐƯỜNG ĐỌC KHÔNG GHI ĐÈ — mở hai lần, số trên dòng vẫn là số cũ', async () => {
+    /*
+     * CA QUAN TRỌNG NHẤT của chặng, và là thứ `0193` làm ngược lại.
+     *
+     * Nếu đường đọc còn gọi `lamMoiDong` thì lượt đọc THỨ NHẤT đã ghi đè, `lech`
+     * rỗng ngay từ đầu, và cái nút ở yêu cầu thứ hai thành một nút không làm gì.
+     */
+    const d = await draft();
+    await doiGia(d.productId, '120000');
+
+    for (const lan of [1, 2]) {
+      const hs = await doc(d.id);
+      expect(hs.lines[0].companyPrice, `lượt đọc ${lan}`).toBe('100000');
+      expect(hs.lech, `lượt đọc ${lan}`).toHaveLength(1);
+    }
+  });
+
+  it('hồ sơ bị TRẢ LẠI cũng thấy chênh lệch — đúng lúc TDV mở ra sửa', async () => {
+    // Đường vào thật của yêu cầu: hồ sơ đi vào luồng, danh mục đổi, TBP trả lại,
+    // TDV mở ra sửa. Tới `0193` khối biến mất đúng ở bước cuối ấy.
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await doiGia(d.productId, '120000');
+    expect(
+      (await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sua lai gia' })).status,
+    ).toBe(200);
+
+    const hs = await doc(d.id);
+    expect(hs.status).toBe('YEU_CAU_CHINH_SUA');
+    expect(hs.lech).toHaveLength(1);
+  });
+
+  it('không lệch gì thì KHÔNG có khối nào', async () => {
+    const d = await draft();
+    expect((await doc(d.id)).lech).toEqual([]);
+  });
+
+  it('dòng ĐÃ RÚT không sinh chênh lệch — nó sắp biến mất khỏi hồ sơ', async () => {
+    /*
+     * `0186`: dòng đã rút không làm mới và không chặn gửi duyệt. Nó cũng không
+     * được BÀY RA như một việc phải làm — bảo người dùng cập nhật một mặt hàng
+     * họ vừa quyết định bỏ đi là một câu hỏi không có câu trả lời đúng.
+     */
+    const d = await draft();
+    const hs0 = await doc(d.id);
+    const lineId = hs0.lines[0].id as string;
+    // `0186` — XOÁ MỀM: dòng nằm lại với cờ `da_xoa`, nên đường này trả 200 kèm
+    // hồ sơ chứ không phải 204.
+    expect((await del(`/policies/${d.id}/lines/${lineId}`)).status).toBe(200);
+    await doiGia(d.productId, '120000');
+
+    expect((await doc(d.id)).lech).toEqual([]);
+  });
+});
+
+describe('`0194` nút Tự động cập nhật', () => {
+  const doiGia = async (productId: string, tien: string) => {
+    await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+  };
+  const apDung = (id: string, who = 'tdv01') =>
+    post(`/policies/${id}/ap-dung-thay-doi`, {}, who);
+  const doc = async (id: string, who = 'tdv01') => (await get(`/policies/${id}`, who)).body;
+
+  it('áp xong thì số ĐỔI và khối chênh lệch BIẾN MẤT', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '120000');
+    expect((await doc(d.id)).lech).toHaveLength(1);
+
+    const r = await apDung(d.id);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.hong).toEqual([]);
+
+    const hs = await doc(d.id);
+    expect(hs.lines[0].companyPrice).toBe('120000');
+    expect(hs.lech).toEqual([]);
+  });
+
+  it('KHÔNG đụng giá bán buôn và CPBH — đó là số NGƯỜI DÙNG nhập', async () => {
+    // Vế này là ranh giới của cả tính năng: nút chỉ lấy lại thứ đến từ DANH MỤC.
+    // Ghi đè con số TDV vừa gõ thì "tự động cập nhật" thành "tự động xoá việc".
+    const d = await draft();
+    const truoc = await doc(d.id);
+    await doiGia(d.productId, '120000');
+    await apDung(d.id);
+
+    const sau = await doc(d.id);
+    expect(sau.lines[0].wholesalePrice).toBe(truoc.lines[0].wholesalePrice);
+    expect(sau.lines[0].cpbh).toEqual(truoc.lines[0].cpbh);
+    // Tỷ lệ CK thì PHẢI đổi: nó tính từ giá bán Công ty vừa đổi.
+    expect(sau.lines[0].discountRate).not.toBe(truoc.lines[0].discountRate);
+  });
+
+  it('bấm lần hai không đổi gì thêm', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '120000');
+    await apDung(d.id);
+    const sau1 = await doc(d.id);
+
+    const r = await apDung(d.id);
+    expect(r.status).toBe(200);
+    expect(r.body.conLai).toBe(0);
+    expect((await doc(d.id)).lines[0]).toEqual(sau1.lines[0]);
+  });
+
+  it('không có gì để áp cũng trả 200, không phải lỗi', async () => {
+    // Bấm một nút không còn việc gì để làm là chuyện thường (hai tab, bấm hai
+    // lần). Trả lỗi ở đó là doạ người dùng vì một thao tác vô hại.
+    const d = await draft();
+    const r = await apDung(d.id);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ hong: [], conLai: 0 });
+  });
+
+  it('SẢN PHẨM VÔ HIỆU HOÁ: báo `hong`, dòng giữ số cũ, khối lệch Ở LẠI', async () => {
+    /*
+     * Khác hẳn lượt gửi duyệt, nơi dòng không làm mới được là lý do CHẶN. Ở đây
+     * người dùng mới đang sửa: áp được dòng nào thì áp, dòng còn lại vẫn nằm
+     * trong khối lệch với đúng lý do của nó.
+     */
+    const d = await draft();
+    const truoc = await doc(d.id);
+    const r = await (await http(catalog))
+      .patch(`/catalog/products/${d.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      // `0123` — mọi lượt sửa sản phẩm đòi GÕ LẠI MÃ, kể cả lượt chỉ đổi trạng
+      // thái: màn hình này đổi được cả giá, nên tiền đề "sửa nhẹ" của `0036` mất.
+      .send({
+        status: 'DA_VO_HIEU_HOA',
+        confirm: truoc.lines[0].productCode,
+      });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const ap = await apDung(d.id);
+    expect(ap.status).toBe(200);
+    expect(ap.body.hong).toHaveLength(1);
+
+    const sau = await doc(d.id);
+    expect(sau.lines[0].companyPrice).toBe(truoc.lines[0].companyPrice);
+    expect(sau.lech.some((l: { kind: string }) => l.kind === 'PRODUCT')).toBe(true);
+  });
+});
+
+describe('`0194` ai bấm được nút Tự động cập nhật', () => {
+  const apDung = (id: string, who: string) => post(`/policies/${id}/ap-dung-thay-doi`, {}, who);
+
+  it('bốn vai trò còn lại đều 403 — đây là đường GHI vào dòng hồ sơ', async () => {
+    const d = await draft();
+    for (const u of ['tbp01', 'kt01', 'sa01', 'bld01']) {
+      expect((await apDung(d.id, u)).status, u).toBe(403);
+    }
+  });
+
+  it('TDV KHÁC cũng 403, dù cùng vai trò', async () => {
+    const d = await draft();
+    const r = await apDung(d.id, 'tdv02');
+    expect(r.status).toBe(403);
+  });
+
+  it('hồ sơ ĐANG TRONG LUỒNG thì 409 — luật đóng băng thắng', async () => {
+    /*
+     * Chốt nặng nhất của chặng. Một hồ sơ đang chờ chữ ký mà bấm được nút này
+     * thì người duyệt đọc một con số rồi ký vào một con số khác.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    const r = await apDung(d.id, 'tdv01');
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_LOCKED');
+  });
+
+  it('hồ sơ ĐANG CÓ HIỆU LỰC cũng 409', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const r = await apDung(d.id, 'tdv01');
+    expect(r.status).toBe(409);
+  });
+
+  it('hồ sơ không có thật thì 404', async () => {
+    expect((await apDung(crypto.randomUUID(), 'tdv01')).status).toBe(404);
+  });
+});
+
+/**
+ * `0194` — DẤU VẾT ĐƯỢC DỌN khi dòng được làm mới. Lỗi CÓ SẴN, đo được.
+ *
+ * `pol.policy_impact` chỉ được dọn bởi consumer, và chỉ cho những `product_id` nó
+ * vừa quét lại ở lượt ấy (`0036`). Không có gì dọn nó khi chính DÒNG được làm
+ * mới — nên hồ sơ đi hết chuỗi *lệch → trả về → làm mới → gửi lại* sẽ quay lại
+ * luồng duyệt kèm một khối cảnh báo nói về chênh lệch ĐÃ ĐƯỢC SỬA XONG.
+ *
+ * Nó nằm đó tới lần đổi danh mục kế tiếp chạm đúng sản phẩm ấy. Không mã lỗi nào,
+ * không màn hình nào báo — chỉ là một khối cảnh báo nói dối, ở đúng chỗ người ta
+ * đọc trước khi đặt bút ký.
+ *
+ * Lỗi có từ `0029`; `0194` chỉ làm nó dễ thấy hơn (nút *Tự động cập nhật* là một
+ * đường thứ hai dẫn tới cùng chuỗi ấy) và sửa nó ở `lamMoiDong`.
+ */
+describe('`0194` dấu vết lệch được dọn sau khi làm mới', () => {
+  const raSoat = async (productId: string) =>
+    app.get(CatalogImpactConsumer).handle({ productId });
+
+  const demDauVet = (policyId: string) =>
+    withAdminDb(async (c) => {
+      const r = await c.query<{ n: string }>(
+        `SELECT count(*)::text AS n FROM pol.policy_impact WHERE policy_id = $1`,
+        [policyId],
+      );
+      return Number(r.rows[0]!.n);
+    });
+
+  const doiGia = async (productId: string, tien: string) => {
+    await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+  };
+
+  it('lệch → trả về → áp dụng → gửi lại: khối cảnh báo KHÔNG mọc lại', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    // Danh mục đổi trong lúc hồ sơ đang chờ TBP → consumer ghi dấu vết.
+    await doiGia(d.productId, '120000');
+    await raSoat(d.productId);
+    expect(await demDauVet(d.id), 'consumer phải ghi dấu vết').toBeGreaterThan(0);
+    expect((await get(`/policies/${d.id}`)).body.lech.length).toBeGreaterThan(0);
+
+    // TBP trả lại → hồ sơ sửa được, TDV bấm *Tự động cập nhật*.
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Gia da doi' })).status).toBe(200);
+    expect((await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
+    expect(await demDauVet(d.id), 'dấu vết phải được dọn ngay lúc áp dụng').toBe(0);
+
+    // Gửi lại → hồ sơ đóng băng trở lại, và `byId` đọc `policy_impact`.
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    const hs = (await get(`/policies/${d.id}`)).body;
+    expect(hs.status).toBe('CHO_TBP_DUYET');
+    expect(hs.lines[0].companyPrice).toBe('120000');
+    expect(hs.lech, 'khối cảnh báo nói về chênh lệch đã sửa xong').toEqual([]);
+  });
+
+  it('GỬI DUYỆT cũng dọn — không cần ai bấm nút', async () => {
+    /*
+     * Đường đi thật của phần lớn hồ sơ: TDV không bấm *Tự động cập nhật*, chỉ
+     * bấm *Gửi lại duyệt*. Lượt gửi duyệt gọi CHÍNH `lamMoiDong`, nên phép dọn
+     * đi kèm miễn phí — và nó phải đi kèm, nếu không thì nhánh phổ biến nhất
+     * vẫn mang lỗi cũ.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    await doiGia(d.productId, '130000');
+    await raSoat(d.productId);
+    expect(await demDauVet(d.id)).toBeGreaterThan(0);
+
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Gia da doi' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+
+    expect(await demDauVet(d.id)).toBe(0);
+    expect((await get(`/policies/${d.id}`)).body.lech).toEqual([]);
+  });
+
+  it('dòng KHÔNG áp được thì dấu vết của nó Ở LẠI', async () => {
+    /*
+     * Phép dọn xoá theo `product_id` ĐÃ ÁP DỤNG, không xoá cả hồ sơ. Sản phẩm bị
+     * vô hiệu hoá không được ghi lại, nên dấu vết của nó vẫn đúng — xoá nó đi là
+     * giấu mất đúng cái dòng người dùng phải tự xử.
+     */
+    const d = await draft();
+    const ma = (await get(`/policies/${d.id}`)).body.lines[0].productCode as string;
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const vh = await (await http(catalog))
+      .patch(`/catalog/products/${d.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DA_VO_HIEU_HOA', confirm: ma });
+    expect(vh.status, JSON.stringify(vh.body)).toBe(200);
+    await raSoat(d.productId);
+    expect(await demDauVet(d.id)).toBeGreaterThan(0);
+
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'San pham da ngung' })).status).toBe(
+      200,
+    );
+    const ap = await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01');
+    expect(ap.status).toBe(200);
+    expect(ap.body.hong).toHaveLength(1);
+    expect(await demDauVet(d.id), 'dấu vết của dòng hỏng phải ở lại').toBeGreaterThan(0);
   });
 });

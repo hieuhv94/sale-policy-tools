@@ -101,9 +101,19 @@ export function YeuCauCapNhat() {
 
   return (
     <Khoi tieuDe="Yêu cầu cập nhật">
+      {/*
+        CÂU NÀY PHẢI ĐỔI Ở `0194`, không nới ra được.
+
+        Bản cũ nói *"số trên hồ sơ không tự cập nhật"*, và nó đúng cho tới khi
+        `0194` thêm nút *Tự động cập nhật*. Box này chỉ liệt kê hồ sơ ĐÃ ĐÓNG
+        BĂNG (`impacted()` lọc theo `DA_DONG_BANG`), nên câu đúng bây giờ nói về
+        chính chỗ ấy: chúng không tự sửa vì **không được phép** sửa, chứ không
+        phải vì phần mềm không biết cách.
+      */}
       <p className="ghi-chu">
-        Danh mục đã đổi sau khi những hồ sơ này đóng băng giá và ngưỡng. Số trên hồ sơ{' '}
-        <strong>không tự cập nhật</strong> — bấm vào một hồ sơ để xem nó lệch những gì.
+        Danh mục đã đổi sau khi những hồ sơ này đóng băng giá và ngưỡng. Hồ sơ đang trong luồng
+        duyệt <strong>giữ nguyên số đã đóng băng</strong> — không ai sửa một văn bản đang chờ chữ
+        ký. Bấm vào một hồ sơ để xem nó lệch những gì.
       </p>
       <ul className="danh-sach-viec">
         {muc.map((h) => (

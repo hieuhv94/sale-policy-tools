@@ -28,6 +28,24 @@ import {
   type Status,
 } from '@csbh/domain-policy';
 import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
+import { soSanhLech, type MucLech } from './lech.js';
+import type { ProductSnapshot } from '../infra/clients.js';
+
+/**
+ * Một dòng còn sống của hồ sơ, đủ cột cho CẢ phép so lẫn phép ghi (`0194`).
+ *
+ * Bốn cột đầu để tra danh mục và để so; hai cột cuối là con số NGƯỜI DÙNG nhập —
+ * `lamMoiDong` đọc chúng để tính lại tỷ lệ, và không bao giờ được ghi đè.
+ */
+type DongLamMoi = {
+  product_id: string;
+  product_code_snap: string;
+  ngay_ap_dung: Date;
+  company_price_snap: string;
+  threshold_snap: string | null;
+  wholesale_price: string;
+  cpbh: string[];
+};
 import { Db } from '../infra/db.js';
 import { emit } from '../infra/emit.js';
 import { Clients } from '../infra/clients.js';
@@ -1115,6 +1133,38 @@ export class PoliciesService {
    * hoặc báo `STALE_LINE` lúc gửi duyệt nếu mặt hàng đã vô hiệu hoá, đúng câu
    * trả lời cho *"tôi vừa thêm lại một thứ không còn bán"*.
    */
+  /**
+   * *Tự động cập nhật* — áp chênh lệch danh mục vào bảng sản phẩm (`0194`).
+   *
+   * Khách hàng chốt 10/09: *"khi nhấn vào thao tác này bảng sản phẩm sẽ tự động
+   * được cập nhật thông tin theo những thay đổi mới đó, sau khi cập nhật xong
+   * phần thông tin yêu cầu thay đổi sẽ biến mất"*.
+   *
+   * KHÔNG có phép tính nào ở đây — nó gọi thẳng `lamMoiDong`, đúng hàm mà lượt
+   * gửi duyệt gọi. Đó là cả điểm: nút này chỉ dời THỜI ĐIỂM của một việc vẫn
+   * luôn xảy ra, chứ không thêm một đường ghi thứ hai vào dòng hồ sơ. Khối lệch
+   * tự biến mất sau đó vì `soSanhDong` tính lại và không còn gì để bày.
+   *
+   * `mustEdit` gác BA vế cùng lúc, và cả ba đều cần:
+   *   * hồ sơ có thật và trong phạm vi người gọi;
+   *   * người gọi là **TDV đang phụ trách** — không phải người lập cũ;
+   *   * hồ sơ **còn sửa được**. Đây là vế nặng nhất: một hồ sơ đang chờ chữ ký
+   *     mà bấm được nút này thì cả luật đóng băng của `0022` sụp — người duyệt
+   *     đọc một con số rồi ký vào một con số khác.
+   *
+   * `hong` KHÔNG ném lỗi, khác hẳn lượt gửi duyệt. Ở đó dòng không làm mới được
+   * là lý do chặn, vì một con số không kiểm được sắp đi vào văn bản ký. Ở đây
+   * người dùng mới chỉ đang sửa: áp được dòng nào thì áp, dòng còn lại vẫn nằm
+   * trong khối lệch với đúng lý do của nó. Chặn cả lượt vì một dòng hỏng là bắt
+   * họ sửa tay cả những dòng máy làm được.
+   */
+  async apDungThayDoi(policyId: string, me: AuthUser) {
+    await this.mustEdit(policyId, me);
+    const hong = await this.db.tx((c) => this.lamMoiDong(c, policyId));
+    const conLai = await this.db.tx((c) => this.soSanhDong(c, policyId));
+    return { hong, conLai: conLai.length };
+  }
+
   async khoiPhucDong(policyId: string, lineId: string, me: AuthUser) {
     const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {
@@ -1156,6 +1206,23 @@ export class PoliciesService {
    * là con số sẽ được đóng băng nếu bấm Gửi duyệt ngay lúc ấy — nếu không thì
    * người lập ký gửi một thứ khác với thứ họ vừa đọc.
    *
+   * ---------------------------------------------------------------------------
+   * `0194` — THÔI CHẠY Ở ĐƯỜNG ĐỌC. Giờ chỉ hai chỗ gọi: nút *Tự động cập nhật*
+   * và lượt gửi duyệt.
+   * ---------------------------------------------------------------------------
+   *
+   * Tới `0193` hàm này chạy ở MỌI lượt mở hồ sơ sửa được, và nó ghi đè trong im
+   * lặng: TDV mở hồ sơ vừa bị trả về ra sửa thì giá với ngưỡng đã đổi dưới tay
+   * họ, không có gì nói đã đổi cái gì. Khách hàng chốt 10/09 rằng cái đã đổi phải
+   * **bày ra**, và việc áp dụng phải là **một cú bấm**.
+   *
+   * Lập luận trên vẫn đúng nguyên — con số trên bản nháp phải là con số sẽ đóng
+   * băng — chỉ là nó được bảo đảm ở CHỖ KHÁC: `workflow` gọi hàm này ngay trước
+   * khi hồ sơ rời `Nháp`, và chặn bằng `STALE_LINE` nếu có dòng không làm mới
+   * được. Nên một bản nháp chưa ai bấm nút vẫn không bao giờ đi vào luồng với số
+   * cũ. Cái mất là *"mở ra là thấy số hôm nay"*; cái được là *"số không tự đổi
+   * sau lưng người đang soạn"*.
+   *
    * KHÔNG chạm tới `row_version`: đó là khoá lạc quan của luồng duyệt, và một
    * lượt ĐỌC làm hỏng thẻ khoá mà người dùng đang cầm là một lỗi 409 không giải
    * thích được. Cũng KHÔNG phát `policy.updated`: không có người nào vừa sửa gì.
@@ -1165,20 +1232,62 @@ export class PoliciesService {
    * chặn người dùng mở chính hồ sơ của họ ra để sửa cái dòng hỏng. Chỗ chặn đúng
    * là lúc GỬI DUYỆT, xem `workflow.service.ts`.
    */
-  async lamMoiDong(c: PoolClient, policyId: string): Promise<string[]> {
+  /**
+   * Chênh lệch của một hồ sơ CÒN SỬA ĐƯỢC, tính tại chỗ — KHÔNG ghi gì (`0194`).
+   *
+   * Vì sao tính chứ không đọc `pol.policy_impact`: bảng ấy chỉ ghi cho hồ sơ đã
+   * đóng băng (consumer lọc theo `DA_DONG_BANG`), và nó chỉ được ghi lại lúc
+   * danh mục đổi. Chênh lệch của một bản nháp thì đổi mỗi lần TDV sửa một dòng —
+   * thêm một mặt hàng, đổi ngày áp dụng — nên một bảng dấu vết ở đây sẽ nói sai
+   * ngay lượt sửa đầu tiên.
+   *
+   * Dùng CHUNG `soSanhLech` với consumer: hai đường tính, một câu hỏi.
+   */
+  async soSanhDong(c: PoolClient, policyId: string): Promise<MucLech[]> {
+    const dat = await this.docDongVaAnh(c, policyId);
+    if (!dat) return [];
+    return dat.dong.flatMap((d) =>
+      soSanhLech(
+        {
+          productCode: d.product_code_snap,
+          companyPrice: String(d.company_price_snap),
+          threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
+        },
+        dat.anh.get(d.product_id),
+      ),
+    );
+  }
+
+  /**
+   * Đọc mọi dòng còn sống của một hồ sơ SỬA ĐƯỢC, kèm ảnh chụp danh mục TƯƠI.
+   *
+   * Đầu vào chung của `soSanhDong` (chỉ đọc) và `lamMoiDong` (ghi). Gom một chỗ
+   * vì hai hàm ấy phải nhìn thấy **đúng cùng một bộ số**: bày ra một chênh lệch
+   * rồi áp dụng một chênh lệch khác là cách hỏng khó truy nhất của cả chặng.
+   *
+   * `null` khi hồ sơ không tồn tại, không sửa được, hoặc không còn dòng nào.
+   */
+  private async docDongVaAnh(
+    c: PoolClient,
+    policyId: string,
+  ): Promise<{ dong: DongLamMoi[]; anh: Map<string, ProductSnapshot> } | null> {
     const p = await c.query<{ customer_id: string; status: string }>(
       `SELECT customer_id, status::text AS status FROM pol.policy WHERE id = $1`,
       [policyId],
     );
     const ho = p.rows[0];
-    if (!ho || !EDITABLE.includes(ho.status)) return [];
+    if (!ho || !EDITABLE.includes(ho.status)) return null;
 
-    const dong = await c.query<{
-      product_id: string;
-      product_code_snap: string;
-      ngay_ap_dung: Date;
-    }>(
+    const dong = await c.query<DongLamMoi>(
       /*
+       * MỌI CỘT CẦN, TRONG MỘT LƯỢT (`0194`).
+       *
+       * Tới `0193` câu này lấy ba cột rồi hỏi lại `wholesale_price`/`cpbh` bằng
+       * một `SELECT` RIÊNG CHO TỪNG DÒNG ở giữa vòng lặp — một N+1 nằm sẵn ở
+       * đường đọc. Từ `0194` cả `soSanhDong` lẫn `lamMoiDong` đều đọc qua đây,
+       * và hai ảnh chụp đã đóng băng (`company_price_snap`, `threshold_snap`)
+       * là thứ phép so cần, nên gom hết vào một lượt.
+       *
        * DÒNG ĐÃ RÚT KHÔNG LÀM MỚI VÀ KHÔNG CHẶN GỬI DUYỆT (`0186`).
        *
        * Đây là chỗ bế tắc của khách hàng tan ra. Mặt hàng bị vô hiệu hoá trong
@@ -1193,11 +1302,15 @@ export class PoliciesService {
        * hỏi danh mục về nó là hỏi một câu không dùng để làm gì, rồi chặn người
        * lập bằng chính câu trả lời.
        */
-      `SELECT product_id, product_code_snap, ngay_ap_dung
+      `SELECT product_id, product_code_snap, ngay_ap_dung,
+              company_price_snap::text AS company_price_snap,
+              threshold_snap::text     AS threshold_snap,
+              wholesale_price::text    AS wholesale_price,
+              cpbh::text[]             AS cpbh
          FROM pol.policy_line WHERE policy_id = $1 AND NOT da_xoa`,
       [policyId],
     );
-    if (dong.rowCount === 0) return [];
+    if (dong.rowCount === 0) return null;
 
     const customer = await this.clients.customer(ho.customer_id);
     /*
@@ -1208,7 +1321,7 @@ export class PoliciesService {
      * có ngày riêng, và gom theo ngày giữ được đúng tính chất ấy ở trường hợp
      * thường gặp — mọi dòng cùng ngày thì vẫn đúng một vòng.
      */
-    const snaps = new Map<string, import('../infra/clients.js').ProductSnapshot>();
+    const snaps = new Map<string, ProductSnapshot>();
     const theoNgay = new Map<string, string[]>();
     for (const d of dong.rows) {
       const on = ngayISO(d.ngay_ap_dung)!;
@@ -1222,28 +1335,32 @@ export class PoliciesService {
       }
     }
 
+    return { dong: dong.rows, anh: snaps };
+  }
+
+  async lamMoiDong(c: PoolClient, policyId: string): Promise<string[]> {
+    const dat = await this.docDongVaAnh(c, policyId);
+    if (!dat) return [];
+    const { dong, anh: snaps } = dat;
+
     const hong: string[] = [];
-    for (const d of dong.rows) {
+    /** Dòng đã ghi lại được — dấu vết lệch của chúng thôi còn đúng. */
+    const daApDung: string[] = [];
+    for (const d of dong) {
       const snap = snaps.get(d.product_id);
       if (!snap || snap.status !== 'DANG_AP_DUNG') {
         hong.push(d.product_code_snap);
         continue;
       }
-      // Đọc lại giá bán buôn và CPBH từ chính dòng đang có: chúng là con số
-      // NGƯỜI DÙNG nhập, không phải ảnh chụp danh mục, nên làm mới không được
-      // đụng tới. Chỉ ba thứ đến từ danh mục mới được tính lại.
-      const cu = await c.query<{ wholesale_price: string; cpbh: string[] }>(
-        `SELECT wholesale_price::text, cpbh::text[] AS cpbh
-           FROM pol.policy_line WHERE policy_id = $1 AND product_id = $2`,
-        [policyId, d.product_id],
-      );
-      const g = cu.rows[0]!;
+      // Giá bán buôn và CPBH lấy từ CHÍNH DÒNG đang có: chúng là con số NGƯỜI
+      // DÙNG nhập, không phải ảnh chụp danh mục, nên làm mới không được đụng
+      // tới. Chỉ ba thứ đến từ danh mục mới được tính lại.
       let calc;
       try {
         calc = computeLine({
           companyPrice: BigInt(snap.companyPrice),
-          wholesalePrice: BigInt(g.wholesale_price),
-          cpbh: (g.cpbh ?? []).map((v) => BigInt(v)),
+          wholesalePrice: BigInt(d.wholesale_price),
+          cpbh: (d.cpbh ?? []).map((v) => BigInt(v)),
           ...(snap.thresholdRate2 === null ? {} : { threshold: snap.thresholdRate2 }),
         });
       } catch {
@@ -1274,6 +1391,37 @@ export class PoliciesService {
           snap.ruleCode ?? null,
           snap.thresholdSource,
         ],
+      );
+      daApDung.push(d.product_id);
+    }
+
+    /*
+     * DỌN DẤU VẾT của những dòng vừa ghi lại (`0194`) — sửa một lỗi CÓ SẴN.
+     *
+     * `pol.policy_impact` chỉ được dọn bởi consumer, và chỉ cho những `product_id`
+     * nó vừa quét lại ở lượt ấy (`0036`). Không có gì dọn nó khi chính DÒNG được
+     * làm mới. Hệ quả, đo được bằng chuỗi bốn bước:
+     *
+     *   1. Hồ sơ ở `CHO_TBP_DUYET`, danh mục đổi giá → consumer ghi dấu vết.
+     *   2. TBP trả lại → `YEU_CAU_CHINH_SUA`. Dấu vết nằm nguyên.
+     *   3. Dòng được làm mới (tới `0193` là tự động lúc mở, từ `0194` là lúc bấm
+     *      *Tự động cập nhật* hoặc lúc gửi duyệt) → hồ sơ hết lệch.
+     *   4. TDV gửi lại → hồ sơ đóng băng trở lại, và `byId` đọc `policy_impact`
+     *      cho hồ sơ đóng băng → **bày ra một chênh lệch đã được sửa xong**.
+     *
+     * Nó nằm đó tới lần đổi danh mục kế tiếp chạm đúng sản phẩm ấy. Không mã lỗi
+     * nào, không màn hình nào báo — chỉ là một khối cảnh báo nói dối, ở đúng chỗ
+     * người ta đọc trước khi đặt bút ký.
+     *
+     * Xoá theo `product_id` ĐÃ ÁP DỤNG chứ không xoá cả hồ sơ: dòng `hong` (sản
+     * phẩm đã vô hiệu hoá) không được ghi lại, nên dấu vết của nó vẫn đúng và
+     * vẫn phải ở lại.
+     */
+    if (daApDung.length > 0) {
+      await c.query(
+        `DELETE FROM pol.policy_impact
+          WHERE policy_id = $1 AND product_id = ANY($2::uuid[])`,
+        [policyId, daApDung],
       );
     }
     return hong;
@@ -1414,9 +1562,22 @@ export class PoliciesService {
     if (!so) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.assertPolicyInScope(so, me);
 
-    if (EDITABLE.includes(so.status)) {
-      await this.db.tx((c) => this.lamMoiDong(c, policyId)).catch(() => undefined);
-    }
+    /*
+     * ĐƯỜNG ĐỌC THÔI GHI ĐÈ (`0194`).
+     *
+     * Tới `0193` chỗ này gọi `lamMoiDong` — mở hồ sơ ra là giá và ngưỡng bị chụp
+     * lại trong im lặng. Khách hàng chốt 10/09: cái đã đổi phải BÀY RA, và việc
+     * áp dụng phải là một cú bấm. Giờ nó chỉ SO, và kết quả đi xuống `lech`.
+     *
+     * `catch` vẫn nuốt: chênh lệch là thông tin THÊM. Danh mục chết thì người
+     * dùng vẫn phải mở được hồ sơ của chính họ — cùng lập luận `0089`, và giờ nó
+     * còn đúng hơn vì lượt gọi này không còn ghi gì để mà hỏng dở dang.
+     */
+    const lechSuaDuoc = EDITABLE.includes(so.status)
+      ? await this.db
+          .tx((c) => this.soSanhDong(c, policyId))
+          .catch((): MucLech[] => [])
+      : [];
     const p = await this.load(policyId);
     /*
      * `xoaDuoc` tính Ở ĐÂY rồi gửi kèm hồ sơ (`0039`).
@@ -1451,10 +1612,23 @@ export class PoliciesService {
      * và ở đó **không có gì nói rằng con số họ đang nhìn đã lỗi thời**. Box kia
      * chỉ cứu được người tình cờ ghé qua trang tổng quan trước.
      *
-     * Đọc theo `DA_DONG_BANG` y như `impacted()`: dấu vết chỉ có nghĩa với hồ sơ
-     * đã đóng băng số. Hồ sơ còn ở Nháp thì `byId` vừa làm mới giá ngay phía
-     * trên, nên không thể lệch; hồ sơ đã từ chối hay đã xoá thì dấu vết cũ còn
-     * sót lại cũng không còn ai cần.
+     * HAI NGUỒN, theo trạng thái (`0194`):
+     *
+     *   * **đã đóng băng** → đọc `pol.policy_impact`. Consumer ghi bảng ấy lúc
+     *     danh mục đổi, và số trên hồ sơ thì không đổi nữa, nên dấu vết còn đúng
+     *     cho tới khi có người sửa được nó.
+     *   * **còn sửa được** → TÍNH tại chỗ (`soSanhDong`). Bảng dấu vết không có
+     *     dòng nào cho hồ sơ ở đây, và cũng không nên có: chênh lệch của một bản
+     *     nháp đổi theo từng lượt TDV sửa dòng, còn consumer chỉ chạy lúc danh
+     *     mục đổi.
+     *
+     * Tới `0193` vế thứ hai là mảng RỖNG, với lý do *"byId vừa làm mới giá ngay
+     * phía trên nên không thể lệch"* — đúng khi ấy, và chính phép làm mới im lặng
+     * đó là thứ `0194` gỡ đi.
+     *
+     * Trạng thái KẾT THÚC (`HET_HIEU_LUC`, `DA_XOA`) không rơi vào nhánh nào có
+     * dữ liệu: chúng không đóng băng theo nghĩa `DA_DONG_BANG`, cũng không sửa
+     * được — nên `soSanhDong` trả rỗng. Lệch hay không cũng không ai làm gì được.
      */
     const lech = DA_DONG_BANG.includes(p.status)
       ? await this.db.q<Record<string, unknown>>(
@@ -1464,7 +1638,12 @@ export class PoliciesService {
             ORDER BY product_code, kind`,
           [policyId],
         )
-      : [];
+      : lechSuaDuoc.map((l) => ({
+          kind: l.kind,
+          productCode: l.productCode,
+          snapValue: l.snap,
+          newValue: l.moi,
+        }));
 
     /*
      * AI ĐÃ DUYỆT, và duyệt lúc nào (`0056`).

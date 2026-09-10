@@ -291,6 +291,27 @@ export class PoliciesController {
     return this.policies.khoiPhucDong(id, lineId, me);
   }
 
+  /**
+   * *Tự động cập nhật* — áp chênh lệch danh mục vào bảng sản phẩm (`0194`).
+   *
+   * Không có thân yêu cầu: đây là một ĐỘNG TÁC, và mọi thứ nó cần đã nằm trong
+   * CSDL cùng danh mục. Không có gì để `validate`, nên cũng không có gì để một
+   * người gọi lén nhét thêm vào.
+   *
+   * `@Roles('TDV')` đứng ngay trên phương thức của nó — xem bẫy decorator ghi ở
+   * `removeLine`, và SEC-13 canh chuyện ấy cho cả mười service.
+   *
+   * Chốt trạng thái nằm ở `mustEdit` bên service chứ không ở đây: đường này ghi
+   * vào dòng hồ sơ, và luật *"hồ sơ đóng băng thì không ai sửa"* phải ở cùng chỗ
+   * với mọi đường ghi khác — không phải một bản chép trong decorator.
+   */
+  @Roles('TDV')
+  @Post(':id/ap-dung-thay-doi')
+  @HttpCode(200)
+  apDungThayDoi(@CurrentUser() me: AuthUser, @Param('id') id: string) {
+    return this.policies.apDungThayDoi(id, me);
+  }
+
   /*
    * `PATCH /policies/:id` GỠ HẲN ở `0180`.
    *

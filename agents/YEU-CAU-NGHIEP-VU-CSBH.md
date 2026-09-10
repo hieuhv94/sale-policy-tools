@@ -2299,6 +2299,43 @@ trang khách hàng"*.
 > nhưng đi từ trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, còn đi từ đây thì
 > không thấy gì cả.
 
+**YÊU CẦU CẬP NHẬT HIỆN CẢ KHI ĐANG SỬA, VÀ CÓ NÚT ÁP DỤNG** `mới 10/09` — *"khi TDV nhấn vào để
+chỉnh sửa một hồ sơ đang bị Yêu cầu cập nhật do thông tin sản phẩm hoặc chiết khấu thay đổi. Vẫn yêu
+cầu hiện các thông tin đã bị thay đổi ở trang thông tin hồ sơ"* · *"có thêm thao tác Tự động cập nhật
+ngay trong phần hiển thị thông tin thay đổi, khi nhấn vào thao tác này bảng sản phẩm sẽ tự động được
+cập nhật thông tin theo những thay đổi mới đó, sau khi cập nhật xong phần thông tin yêu cầu thay đổi
+sẽ biến mất"*.
+
+> **ĐẢO PHÉP LÀM MỚI Ở ĐƯỜNG ĐỌC** của `0029`. Tới `0193` hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*
+> được chụp lại giá và ngưỡng ở MỖI lượt mở, trong im lặng — nên khối chênh lệch không thể tồn tại ở
+> đó, và một nút *Tự động cập nhật* sẽ không làm gì nhìn thấy được. Yêu cầu thứ hai chỉ có nghĩa nếu
+> bỏ phép ghi đè ấy.
+>
+> **An toàn, và đây là dữ kiện quyết định**: lượt **gửi duyệt** vẫn làm mới như cũ, kèm chốt
+> `STALE_LINE`. Bản nháp không bao giờ vào luồng với số cũ, dù TDV có bấm nút hay không. Cái mất là
+> *"mở ra là thấy số hôm nay"*; cái được là *"số không tự đổi sau lưng người đang soạn"*.
+>
+> **Nút CHỈ có ở hồ sơ còn sửa được, và chỉ với TDV đang phụ trách.** Hồ sơ đang trong luồng vẫn hiện
+> khối chênh lệch (`0050`) nhưng KHÔNG có nút — luật đóng băng của `0022` thắng: một hồ sơ đang chờ
+> chữ ký mà bấm được nút này thì người duyệt đọc một con số rồi ký vào một con số khác.
+>
+> **Ranh giới của nút**: đổi *Giá bán Công ty · ngưỡng · Tỷ lệ CK*; **không đụng** *Giá bán buôn* và
+> *CPBH* — đó là con số TDV nhập. Câu chữ trên màn hình nói ra điều này trước khi người dùng bấm.
+>
+> **Dòng không áp được thì Ở LẠI trong khối**, kèm lý do của nó (sản phẩm đã vô hiệu hoá hoặc đã
+> xoá). Không chặn cả lượt vì một dòng hỏng — khác lượt gửi duyệt, nơi một dòng không kiểm được là lý
+> do chặn vì con số ấy sắp đi vào văn bản đem ký.
+
+**LỖI ĐÃ SỬA: dấu vết lệch không ai dọn** `sửa 10/09` — hồ sơ đi hết chuỗi *lệch → trả về → làm mới →
+gửi lại* quay lại luồng duyệt kèm một khối cảnh báo nói về chênh lệch **đã được sửa xong**.
+
+> `pol.policy_impact` chỉ được dọn bởi consumer, và chỉ cho những sản phẩm nó vừa quét lại ở lượt ấy
+> (`0036`). Không có gì dọn nó khi chính DÒNG được làm mới. Khối sai nằm đó tới lần đổi danh mục kế
+> tiếp chạm đúng sản phẩm ấy — không mã lỗi nào, không màn hình nào báo.
+>
+> Lỗi có từ `0029`. Sửa ở chỗ làm mới: áp dụng xong thì xoá dấu vết của **những dòng đã ghi lại
+> được** — dòng hỏng giữ dấu vết, vì nó vẫn đúng.
+
 **HỘP THOẠI THÊM DÒNG BÀY LUÔN BỐN CON SỐ** `mới 09/09` — *"trong hộp thoại để thêm sản phẩm vào CSBH
 hiển thị thêm các thông tin về CPBH, tỷ lệ CK và QĐCK luôn trong hộp thoại để người dùng có thể thấy
 ngay mà chưa cần phải ra phần bảng để nhìn"*.

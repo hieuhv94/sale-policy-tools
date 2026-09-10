@@ -421,6 +421,23 @@ sản phẩm nói ra điều đó.
 nên mở hồ sơ thẳng từ thư báo hay từ hộp việc thì vẫn thấy, không phải ghé qua trang tổng quan trước.
 Khối chỉ hiện khi hồ sơ đó thật sự lệch.
 
+**Khối ấy hiện cả khi bạn mở hồ sơ ra SỬA** `mới 10/09`. Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa* thì
+khối mang thêm nút **Tự động cập nhật**:
+
+| | Hồ sơ đang trong luồng duyệt | Hồ sơ còn sửa được |
+|---|---|---|
+| Khối chênh lệch | Có | Có |
+| Nút *Tự động cập nhật* | **Không** — không ai sửa văn bản đang chờ chữ ký | **Có**, và chỉ TDV đang phụ trách thấy |
+
+Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khối chênh lệch **biến mất**. Cụ thể:
+
+- **Đổi**: Giá bán Công ty · ngưỡng (QĐCK) · Tỷ lệ CK tính lại theo hai số đó.
+- **KHÔNG đổi**: Giá bán buôn và các khoản **CPBH** — đó là con số bạn nhập.
+
+> **Dòng nào không lấy được số mới thì ở lại trong khối**, kèm đúng lý do của nó — thường là sản phẩm
+> đã bị vô hiệu hoá hoặc xoá khỏi danh mục. Những dòng ấy phải tự xử: xoá dòng, hoặc đổi *Ngày áp
+> dụng* của chính dòng ấy. Nút không chặn cả lượt vì một dòng hỏng — dòng nào lấy được thì lấy.
+
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
 > CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
 > sáng và đọc khối vàng trước khi ký.
@@ -711,9 +728,16 @@ việc khác nhau.
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ — nhưng chỉ **từ lúc bấm Gửi duyệt**.
 
-> **Hồ sơ Nháp sống theo danh mục.** Còn ở *Nháp* hay *Yêu cầu chỉnh sửa* thì mỗi lần bạn mở hồ sơ,
-> giá và ngưỡng được lấy lại từ danh mục; lúc bấm *Gửi duyệt* lấy lại lần cuối rồi mới đóng băng. Nhờ
-> vậy con số bạn vừa đọc đúng là con số sẽ được đóng băng.
+> **Hồ sơ Nháp không tự đổi số sau lưng bạn** `sửa 10/09`. Còn ở *Nháp* hay *Yêu cầu chỉnh sửa* thì
+> hồ sơ giữ nguyên con số bạn đã nhập. Danh mục đổi trong lúc ấy thì phần mềm **bày ra** khối *Số
+> trên hồ sơ này đã lệch so với danh mục hiện tại* ở ngay trên bảng sản phẩm, kèm nút **Tự động cập
+> nhật** — bấm là lấy số mới, không bấm thì thôi.
+>
+> Trước 10/09 việc này chạy ngầm: cứ mở hồ sơ ra là giá và ngưỡng bị lấy lại, không có gì nói rằng
+> vừa có thứ gì đổi.
+>
+> **Dù bạn có bấm hay không, lúc *Gửi duyệt* hệ thống vẫn lấy lại lần cuối rồi mới đóng băng.** Nên
+> hồ sơ không bao giờ vào luồng duyệt với số cũ.
 >
 > **Giá lấy theo *Ngày áp dụng của chính dòng ấy*, không phải ngày hôm nay** `sửa 07/09`. Dòng áp
 > dụng từ 01/09 mang bảng giá của 01/09, kể cả khi bạn lập nó từ tháng 8. Sửa ngày áp dụng của một

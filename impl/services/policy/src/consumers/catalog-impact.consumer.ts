@@ -29,7 +29,7 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { Bus, BUS } from '@csbh/bus';
-import { rate2ToNumeric } from '@csbh/domain-policy';
+import { soSanhLech, type MucLech } from '../policies/lech.js';
 import { Db } from '../infra/db.js';
 import { Clients, type ProductSnapshot } from '../infra/clients.js';
 import { DA_DONG_BANG } from '../policies/policies.service.js';
@@ -53,12 +53,8 @@ type DongCanRa = {
  * khỏi danh mục. Nặng hơn hai loại kia — không phải "lệch vài đồng" mà là một
  * điều khoản không thực hiện được — nên nó đứng ĐẦU danh sách trong thư.
  */
-type Lech = {
-  kind: 'PRICE' | 'RULE' | 'PRODUCT';
-  productCode: string;
-  snap: string;
-  moi: string | null;
-};
+/** Khuôn của `MucLech` bên `policies/lech.ts` — giữ tên cũ cho phần dưới đọc quen. */
+type Lech = MucLech;
 
 /**
  * Mã lỗi nghiệp vụ bên trong một `HttpException` của Nest (`0083`).
@@ -77,11 +73,6 @@ const maLoi = (e: unknown): string | undefined => {
   return typeof ma === 'string' ? ma : undefined;
 };
 
-/** Nhãn trạng thái sản phẩm cho câu chữ trong thư và trong box Yêu cầu cập nhật. */
-const NHAN_TRANG_THAI_SP: Record<string, string> = {
-  DANG_AP_DUNG: 'Đang áp dụng',
-  DA_VO_HIEU_HOA: 'Đã vô hiệu hoá',
-};
 
 @Injectable()
 export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
@@ -272,58 +263,24 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
         if (s) snaps.set(x.product_id, s);
       }
 
-      const lech: Lech[] = [];
-      for (const d of cac) {
-        const s = snaps.get(d.product_id);
-        /*
-         * KHÔNG có ảnh chụp = sản phẩm đã bị XOÁ khỏi danh mục (`0036`).
-         *
-         * Trước `0036` nhánh này là `continue` — im lặng bỏ qua dòng. Đó là ca
-         * nặng nhất mà lại bị nuốt gọn nhất: hồ sơ đang có hiệu lực cho một mặt
-         * hàng không còn tồn tại, và không có gì trên màn hình nói ra.
-         *
-         * So sánh giá và ngưỡng thì không làm được nữa — không còn gì để so —
-         * nên dừng ở đây với đúng một dòng lệch. Nói "giá đã đổi" về một sản
-         * phẩm không còn nữa là một câu vô nghĩa.
-         */
-        if (!s) {
-          lech.push({
-            kind: 'PRODUCT',
+      /*
+       * PHÉP SO DỜI SANG `policies/lech.ts` ở `0194`.
+       *
+       * Từ `0194` đường ĐỌC hồ sơ còn sửa được cũng phải trả lời đúng câu này,
+       * mà ở đó không có dấu vết nào để tra — chênh lệch của một bản nháp phải
+       * tính tại chỗ. Hai chỗ tính, MỘT hàm: chép phép so sang đây là dựng ra
+       * hai câu trả lời cho *"dòng này có lệch không"*.
+       */
+      const lech: Lech[] = cac.flatMap((d) =>
+        soSanhLech(
+          {
             productCode: d.product_code_snap,
-            snap: NHAN_TRANG_THAI_SP['DANG_AP_DUNG']!,
-            moi: null,
-          });
-          continue;
-        }
-        // Vô hiệu hoá: sản phẩm còn trong danh mục nhưng không đưa vào hồ sơ mới
-        // được nữa (CAT-07). Vẫn so tiếp giá và ngưỡng ở dưới — chúng vẫn có
-        // nghĩa, và người đọc cần thấy đủ mọi thứ đã lệch trên dòng ấy.
-        if (s.status !== 'DANG_AP_DUNG') {
-          lech.push({
-            kind: 'PRODUCT',
-            productCode: d.product_code_snap,
-            snap: NHAN_TRANG_THAI_SP['DANG_AP_DUNG']!,
-            moi: NHAN_TRANG_THAI_SP[s.status] ?? s.status,
-          });
-        }
-        if (String(s.companyPrice) !== String(d.company_price_snap)) {
-          lech.push({
-            kind: 'PRICE',
-            productCode: d.product_code_snap,
-            snap: String(d.company_price_snap),
-            moi: String(s.companyPrice),
-          });
-        }
-        const nguongMoi = s.thresholdRate2 === null ? null : rate2ToNumeric(s.thresholdRate2);
-        if (nguongMoi !== (d.threshold_snap === null ? null : String(d.threshold_snap))) {
-          lech.push({
-            kind: 'RULE',
-            productCode: d.product_code_snap,
-            snap: d.threshold_snap === null ? '—' : String(d.threshold_snap),
-            moi: nguongMoi,
-          });
-        }
-      }
+            companyPrice: String(d.company_price_snap),
+            threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
+          },
+          snaps.get(d.product_id),
+        ),
+      );
 
       if (lech.length === 0 && !coDauVet.has(policyId)) return;
 

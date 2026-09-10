@@ -192,6 +192,8 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [moBanMoi, datMoBanMoi] = useState(false);
   const [dangLapBanMoi, datDangLapBanMoi] = useState(false);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
+  /** Cờ riêng, không dùng chung `dangXoaDong`: nút này ở cấp HỒ SƠ, không của một dòng. */
+  const [dangCapNhat, datDangCapNhat] = useState(false);
   const { di } = useDuong();
 
   const tai = useCallback(async (signal: AbortSignal) => {
@@ -217,6 +219,31 @@ export function ChiTietHoSo({ id }: { id: string }) {
   }, [tai, lan]);
 
   const taiLai = () => datLan((x) => x + 1);
+
+  /**
+   * *Tự động cập nhật* — áp chênh lệch danh mục vào bảng sản phẩm (`0194`).
+   *
+   * `taiLai()` chứ không sửa tại chỗ: lượt gọi này đổi giá bán Công ty, ngưỡng,
+   * tỷ lệ CK **và** trạng thái dòng của nhiều hàng cùng lúc, mà những con số ấy
+   * do MÁY CHỦ tính (`SQL_TRANG_THAI_DONG`, `computeLine`). Dựng lại chúng ở đây
+   * là chép phép tính sang giao diện — đúng thứ `FE-27` cấm.
+   *
+   * Khối lệch tự biến mất sau lượt tải lại: máy chủ tính lại chênh lệch và không
+   * còn gì để bày. Không có bước ẩn khối nào ở giao diện — một cái ẩn bằng tay
+   * sẽ nói dối đúng ở ca có dòng KHÔNG áp được.
+   */
+  const apDungThayDoi = async () => {
+    datLoi(null);
+    datDangCapNhat(true);
+    try {
+      await dang(`/policies/${id}/ap-dung-thay-doi`);
+      taiLai();
+    } catch (e) {
+      bao(e);
+    } finally {
+      datDangCapNhat(false);
+    }
+  };
 
   const xoaDong = async (lineId: string) => {
     datLoi(null);
@@ -580,11 +607,46 @@ export function ChiTietHoSo({ id }: { id: string }) {
       {(hoSo.lech ?? []).length > 0 && (
         <div className="canh-bao-lech" role="note">
           <span className="hop-tieu-de">Số trên hồ sơ này đã lệch so với danh mục hiện tại</span>
-          <p className="ghi-chu">
-            Hồ sơ đã <strong>đóng băng</strong> giá và ngưỡng lúc gửi duyệt — đó là chủ ý, không ai
-            sửa một văn bản đang chờ chữ ký. Bảng dưới đây vẫn là con số đã đóng băng.
-          </p>
+          {/*
+            HAI CÂU CHO HAI HOÀN CẢNH (`0194`).
+
+            Tới `0193` khối này chỉ hiện trên hồ sơ ĐÃ ĐÓNG BĂNG, nên một câu là
+            đủ. Từ `0194` nó hiện cả lúc TDV đang sửa — và ở đó câu *"không ai
+            sửa một văn bản đang chờ chữ ký"* vừa sai vừa mâu thuẫn với cái nút
+            ngay bên dưới nó.
+          */}
+          {dangSua ? (
+            <p className="ghi-chu">
+              Bảng dưới đây vẫn là con số hồ sơ đang giữ. Bấm <strong>Tự động cập nhật</strong> để
+              lấy số mới của danh mục — <strong>giá bán buôn và các khoản CPBH bạn đã nhập giữ
+              nguyên</strong>, chỉ giá bán Công ty, ngưỡng và tỷ lệ CK tính lại.
+            </p>
+          ) : (
+            <p className="ghi-chu">
+              Hồ sơ đã <strong>đóng băng</strong> giá và ngưỡng lúc gửi duyệt — đó là chủ ý, không ai
+              sửa một văn bản đang chờ chữ ký. Bảng dưới đây vẫn là con số đã đóng băng.
+            </p>
+          )}
           <DanhSachLech lech={hoSo.lech ?? []} />
+          {/*
+            NÚT CHỈ CÓ KHI SỬA ĐƯỢC, và điều kiện ấy là chốt chặn thứ hai chứ
+            không phải chốt duy nhất: `mustEdit` bên máy chủ gác cả ba vế (phạm
+            vi · đúng TDV phụ trách · trạng thái sửa được). Giấu nút ở đây là để
+            người duyệt không nhìn thấy một thao tác họ không được phép làm —
+            không phải để thay cho phép kiểm.
+          */}
+          {dangSua && (
+            <div className="nhom-nut">
+              <button
+                type="button"
+                className="nut nut-chinh"
+                disabled={dangCapNhat}
+                onClick={apDungThayDoi}
+              >
+                {dangCapNhat ? 'Đang cập nhật…' : 'Tự động cập nhật'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

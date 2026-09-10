@@ -1558,3 +1558,106 @@ describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
     });
   });
 });
+
+/**
+ * `0194` — KHỐI CHÊNH LỆCH và nút *Tự động cập nhật* trên trang hồ sơ.
+ *
+ * Khách hàng chốt 10/09. Hai vế phải đúng cùng lúc, và chúng ngược nhau:
+ *
+ *   * hồ sơ CÒN SỬA ĐƯỢC → có nút, và câu chữ nói về việc bấm nó;
+ *   * hồ sơ ĐANG TRONG LUỒNG → KHÔNG có nút, và câu chữ nói về luật đóng băng.
+ *
+ * Chỉ kiểm vế đầu thì bày nút cho cả người duyệt vẫn xanh — mà đó đúng là chỗ
+ * hỏng nặng nhất: một hồ sơ đang chờ chữ ký bị sửa số dưới tay người sắp ký.
+ */
+describe('`0194` khối chênh lệch trên trang hồ sơ', () => {
+  const TDV_MO = {
+    ...TBP,
+    user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
+  };
+
+  const LECH = [
+    { kind: 'PRICE', productCode: 'NC-GOLD-900', snapValue: '100000', newValue: '120000' },
+    { kind: 'RULE', productCode: 'NC-GOLD-900', snapValue: '15.00', newValue: null },
+  ];
+
+  /** Hồ sơ CÒN SỬA ĐƯỢC, mở bằng phiên TDV. */
+  const moSuaDuoc = async (lech: unknown[] = LECH) => {
+    localStorage.setItem('csbh:phien', JSON.stringify(TDV_MO));
+    return mo({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA', lech }, ['RESUBMIT_AFTER_EDIT']);
+  };
+
+  const nutCapNhat = () => screen.queryByRole('button', { name: /Tự động cập nhật/ });
+
+  it('hồ sơ SỬA ĐƯỢC: có khối, có nút, và bảng lệch nói đủ hai chiều', async () => {
+    await moSuaDuoc();
+    const khoi = document.querySelector('.canh-bao-lech') as HTMLElement;
+    expect(khoi, 'không có khối chênh lệch').not.toBeNull();
+    expect(nutCapNhat()).not.toBeNull();
+    // Bảng lệch dựng ra, và nói được cả ca "không còn quy định nào".
+    expect(khoi.textContent).toContain('NC-GOLD-900');
+    expect(khoi.textContent).toContain('không còn quy định nào');
+  });
+
+  it('hồ sơ SỬA ĐƯỢC: câu chữ hứa GIỮ NGUYÊN giá bán buôn và CPBH', async () => {
+    /*
+     * Vế này là ranh giới của cả tính năng. Người dùng sắp bấm một nút tên *Tự
+     * động cập nhật* trên một bảng có mười cột số, mà chỉ ba cột trong đó bị
+     * đụng tới — không nói ra thì họ phải bấm rồi mới biết mình mất gì.
+     */
+    await moSuaDuoc();
+    const khoi = document.querySelector('.canh-bao-lech') as HTMLElement;
+    expect(khoi.textContent).toContain('giá bán buôn và các khoản CPBH bạn đã nhập giữ nguyên');
+    // Và KHÔNG còn câu của hồ sơ đóng băng — nó mâu thuẫn với cái nút bên dưới.
+    expect(khoi.textContent).not.toContain('đang chờ chữ ký');
+  });
+
+  it('hồ sơ ĐANG TRONG LUỒNG: có khối nhưng KHÔNG có nút', async () => {
+    // Chiều đối chiếu, và là chiều quan trọng hơn: `mustEdit` bên máy chủ vẫn
+    // chặn, nhưng bày ra một nút bấm vào là 409 thì người duyệt sẽ thử.
+    await mo({ ...HO_SO, status: 'CHO_TBP_DUYET', lech: LECH }, ['TBP_SIGN']);
+    expect(document.querySelector('.canh-bao-lech')).not.toBeNull();
+    expect(nutCapNhat()).toBeNull();
+    expect(document.querySelector('.canh-bao-lech')!.textContent).toContain('đóng băng');
+  });
+
+  it('không lệch gì thì KHÔNG vẽ khối, kể cả khi sửa được', async () => {
+    await moSuaDuoc([]);
+    expect(document.querySelector('.canh-bao-lech')).toBeNull();
+    expect(nutCapNhat()).toBeNull();
+  });
+
+  it('bấm nút thì gọi ĐÚNG đường máy chủ, rồi TẢI LẠI hồ sơ', async () => {
+    /*
+     * Tải lại chứ không sửa tại chỗ: lượt gọi này đổi giá, ngưỡng, tỷ lệ CK và
+     * trạng thái của nhiều dòng cùng lúc, mà những con số ấy do MÁY CHỦ tính.
+     * Dựng lại chúng ở giao diện là chép phép tính sang đây (`FE-27`).
+     */
+    const f = await moSuaDuoc();
+    const truoc = f.mock.calls.filter((c) => /\/policies\/hs-1$/.test(String(c[0]))).length;
+
+    fireEvent.click(nutCapNhat()!);
+    await waitFor(() =>
+      expect(
+        f.mock.calls.some((c) => String(c[0]).includes('/policies/hs-1/ap-dung-thay-doi')),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(
+        f.mock.calls.filter((c) => /\/policies\/hs-1$/.test(String(c[0]))).length,
+      ).toBeGreaterThan(truoc),
+    );
+  });
+
+  it('KHÔNG tự ẩn khối ở giao diện — máy chủ mới biết còn lệch gì', async () => {
+    /*
+     * Ẩn bằng tay thì nói dối ở đúng ca có dòng KHÔNG áp được (sản phẩm đã vô
+     * hiệu hoá): khối biến mất trong khi chênh lệch vẫn còn nguyên, và người
+     * dùng tưởng đã xong.
+     */
+    const ma = readFileSync('apps/web/src/pages/ChiTietHoSo.tsx', 'utf8');
+    const than = ma.slice(ma.indexOf('const apDungThayDoi'), ma.indexOf('const xoaDong'));
+    expect(than).toContain('taiLai()');
+    expect(than).not.toMatch(/datLech|datHoSo\(/);
+  });
+});

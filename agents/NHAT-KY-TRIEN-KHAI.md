@@ -16971,3 +16971,135 @@ kiểm chẳng chứng minh được gì. Chữa bằng cách dựng **hai mốc
 | Máy chủ thôi trả `thresholdRate2` | **1 đỏ** |
 
 **2155/2155 xanh.**
+
+---
+
+## P222 — `0194` Yêu cầu cập nhật hiện khi đang sửa, và nút Tự động cập nhật
+
+Ba câu của khách hàng: khối chênh lệch phải hiện cả khi TDV mở hồ sơ ra SỬA · có thao tác *Tự động
+cập nhật* áp chênh lệch vào bảng sản phẩm · và *"tạo test case cho tất cả các trường hợp có thể xảy
+ra trong yêu cầu cập nhật"*.
+
+### Ba cổng độc lập cùng giấu khối này khỏi hồ sơ sửa được
+
+Đo trước khi gõ. Hồ sơ ở `NHAP` hoặc `YEU_CAU_CHINH_SUA` **không bao giờ** có khối *Yêu cầu cập
+nhật*, và không phải vì một chỗ quên — vì ba chỗ, mỗi chỗ có lý do riêng:
+
+1. `catalog-impact.consumer` chỉ ghi `pol.policy_impact` cho hồ sơ `DA_DONG_BANG`;
+2. `byId` chỉ trả `lech` cho `DA_DONG_BANG`;
+3. `lamMoiDong` chạy ở **mỗi lượt đọc** hồ sơ sửa được và **ghi đè trong im lặng**.
+
+Cổng thứ ba là cổng thật. Hai cổng đầu chỉ là hệ quả của nó: chú thích ở `byId` viết thẳng ra —
+*"hồ sơ còn ở Nháp thì `byId` vừa làm mới giá ngay phía trên, nên không thể lệch"*.
+
+### Yêu cầu thứ hai chỉ có nghĩa nếu bỏ phép ghi đè ấy
+
+Một nút *Tự động cập nhật* trên một hồ sơ đã được cập nhật sẵn là một nút không làm gì nhìn thấy
+được. Khách hàng nói *"bảng sản phẩm sẽ tự động được cập nhật"* — họ chờ một thay đổi TRÔNG THẤY.
+
+Nên `0194` **đảo phép làm mới ở đường ĐỌC** của `0029`. Đó là một đảo chiều thật, và nó chỉ an toàn
+nhờ một dữ kiện phải kiểm trước khi quyết:
+
+> **`lamMoiDong` vẫn chạy ở lượt GỬI DUYỆT** (`workflow.service.ts`), kèm chốt `STALE_LINE`. Bản
+> nháp không bao giờ vào luồng với số cũ, dù TDV có bấm nút hay không.
+
+Nên bất biến mà `0029` sinh ra để bảo vệ — *con số TDV đọc đúng là con số sẽ được đóng băng* — vẫn
+nguyên; chỉ đổi chỗ nó được bảo đảm. Cái mất: *"mở ra là thấy số hôm nay"*. Cái được: *"số không tự
+đổi sau lưng người đang soạn"*, đúng thứ khách hàng vừa đòi.
+
+### Phép so phải là MỘT bản, và đó là việc đầu tiên
+
+Chênh lệch của hồ sơ sửa được **không đọc được từ `pol.policy_impact`** — bảng ấy không có dòng nào
+cho chúng, và cũng không nên có: chênh lệch của một bản nháp đổi mỗi lần TDV sửa một dòng, còn
+consumer chỉ chạy lúc danh mục đổi. Nên nó phải TÍNH tại chỗ.
+
+Hai đường tính, một câu hỏi. Phép so dời sang `policies/lech.ts` thành hàm **thuần** `soSanhLech`,
+consumer gọi nó, `soSanhDong` cũng gọi nó. Chép sang chỗ thứ hai là dựng hai câu trả lời cho *"dòng
+này có lệch không"*, và chúng sẽ lệch nhau ở đúng chỗ khó thấy nhất — một bên bảo hồ sơ sạch, bên kia
+vẫn bày khối cảnh báo, trên cùng một màn hình người ta đọc trước khi ký.
+
+Hàm thuần cũng là thứ làm yêu cầu thứ ba **rẻ**: mười bốn nhánh — kể cả những tổ hợp phải vặn danh
+mục ba lượt mới dựng nổi trên hạ tầng thật — viết được trong vài dòng.
+
+### Nút gọi chính `lamMoiDong`, không phải một đường ghi thứ hai
+
+`apDungThayDoi` không có phép tính nào của riêng nó. Nó chỉ **dời thời điểm** của một việc vẫn luôn
+xảy ra ở lượt gửi duyệt. Khối lệch tự biến mất sau đó vì `soSanhDong` tính lại và không còn gì để
+bày — **không có bước ẩn khối nào ở giao diện**, và đó là chủ ý: một cái ẩn bằng tay sẽ nói dối đúng
+ở ca có dòng KHÔNG áp được.
+
+Ba ranh giới, mỗi cái có ca phá riêng:
+
+* **`mustEdit` gác cả ba vế** — phạm vi · đúng TDV đang phụ trách · hồ sơ còn sửa được. Vế cuối nặng
+  nhất: một hồ sơ đang chờ chữ ký mà bấm được nút này thì người duyệt đọc một con số rồi ký vào một
+  con số khác. Nút cũng chỉ hiện khi sửa được, nhưng đó là chốt THỨ HAI — để người duyệt không nhìn
+  thấy một thao tác họ không được phép làm, không phải để thay cho phép kiểm.
+* **Không đụng giá bán buôn và CPBH.** Đó là ranh giới của cả tính năng: một nút tên *Tự động cập
+  nhật* trên bảng mười cột số mà chỉ ba cột bị đụng thì câu chữ phải nói ra trước khi người dùng bấm.
+* **`hong` KHÔNG ném lỗi**, khác hẳn lượt gửi duyệt. Ở đó dòng không làm mới được là lý do chặn, vì
+  con số ấy sắp đi vào văn bản đem ký. Ở đây người dùng mới đang sửa: áp được dòng nào thì áp, dòng
+  còn lại ở lại trong khối với đúng lý do của nó.
+
+### LỖI CÓ SẴN, tìm ra vì đi ngang qua
+
+`pol.policy_impact` **không ai dọn** khi chính DÒNG được làm mới. Consumer chỉ dọn những `product_id`
+nó vừa quét lại ở lượt ấy (`0036`). Chuỗi bốn bước, đo được:
+
+1. hồ sơ ở `CHO_TBP_DUYET`, danh mục đổi → consumer ghi dấu vết;
+2. TBP trả lại → `YEU_CAU_CHINH_SUA`, dấu vết nằm nguyên;
+3. dòng được làm mới (tới `0193` là tự động lúc mở, nên chuỗi này chạy hàng ngày);
+4. TDV gửi lại → hồ sơ đóng băng trở lại, `byId` đọc `policy_impact` → **bày ra một chênh lệch đã
+   được sửa xong**.
+
+Nó nằm đó tới lần đổi danh mục kế tiếp chạm đúng sản phẩm ấy. Không mã lỗi nào, không màn hình nào
+báo — chỉ là một khối cảnh báo nói dối. Lỗi có từ `0029`; `0194` chỉ làm nó dễ thấy hơn.
+
+Chữa ở chỗ làm mới: xoá dấu vết của **những dòng đã ghi lại được**. Xoá theo `product_id` chứ không
+xoá cả hồ sơ — dòng `hong` không được ghi lại nên dấu vết của nó vẫn đúng và vẫn phải ở lại.
+
+### Năm ca cũ phải THAY, không sửa số
+
+Lượt chạy đầy đủ đầu tiên: **5 đỏ**, và cả năm khẳng định đúng cơ chế vừa bị đảo — *"mở lại hồ sơ
+Nháp thì thấy số MỚI"*. Đó là câu về CƠ CHẾ; nới nó ra là ghim một câu đã hết đúng. Bất biến sống sót
+thì viết lại được thẳng: **bày ra chênh lệch → bấm áp dụng → thấy số mới**. Tên `describe` đổi theo,
+vì *"Nháp sống theo danh mục"* thôi mô tả đúng thứ đang xảy ra.
+
+Một ca tên *"sửa một dòng cũng nhận ngưỡng mới — nhưng không còn là đường DUY NHẤT"* đọc lại thành
+hay: `0029` thêm đường thứ hai (*mở hồ sơ*), `0194` gỡ đúng đường ấy và thêm hai đường khác. Giờ có
+**ba**: sửa chính dòng · bấm nút · gửi duyệt.
+
+### Dọn kèm một N+1
+
+Câu đọc dòng gộp lại còn một lượt. Tới `0193` nó lấy ba cột rồi hỏi lại `wholesale_price`/`cpbh` bằng
+một `SELECT` **riêng cho từng dòng** ở giữa vòng lặp. Phải gom vì `soSanhDong` cần thêm hai cột ảnh
+chụp; gom xong thì N+1 biến mất theo.
+
+### Ca kiểm
+
+**14 nhánh thuần** (`tests/http/lech-danh-muc.test.ts`): không lệch · `15.00` ≡ `1500` · `null` ≡
+`null` · giá tăng · giá giảm · ngưỡng đổi · quy định biến mất · quy định mới phủ một dòng chưa có
+ngưỡng · sản phẩm đã xoá (dừng ở một mục) · sản phẩm vô hiệu hoá (vẫn so tiếp) · trạng thái lạ · giá
+và ngưỡng cùng đổi · thứ tự `PRODUCT · PRICE · RULE` · mã sản phẩm đi kèm mọi mục.
+
+**21 ca HTTP**: bày ra ở `NHAP` và ở `YEU_CAU_CHINH_SUA` · đường đọc không ghi đè (đọc hai lượt) ·
+dòng đã rút không sinh lệch · áp dụng đổi số và khối biến mất · không đụng giá bán buôn/CPBH · bấm
+hai lần · không có gì để áp vẫn 200 · sản phẩm vô hiệu thì `hong` và khối ở lại · bốn vai trò 403 ·
+TDV khác 403 · hồ sơ trong luồng 409 · hồ sơ hiệu lực 409 · hồ sơ không có thật 404 · ba ca dấu vết
+được dọn.
+
+**6 ca giao diện**: có khối và có nút khi sửa được · câu chữ hứa giữ nguyên giá bán buôn · hồ sơ
+trong luồng có khối mà KHÔNG có nút · không lệch thì không vẽ · bấm gọi đúng đường rồi tải lại ·
+không tự ẩn khối ở giao diện.
+
+### Phá lại
+
+| Hoàn tác | Kết quả |
+|---|---|
+| Thôi dọn dấu vết sau khi làm mới (dựng lại lỗi có sẵn) | **2 đỏ** |
+| Trả phép ghi đè về đường đọc (đúng hành vi `0193`) | **7 đỏ** |
+| Gỡ chốt `mustEdit` khỏi nút áp dụng | **4 đỏ** |
+| Bỏ phép chuẩn hoá ngưỡng (so `15.00` với `1500`) | **6 đỏ** |
+| Bày nút cho cả hồ sơ đang trong luồng | **1 đỏ** |
+| Làm mới ghi đè cả giá bán buôn | **2 đỏ** |
+
+**2193/2193 xanh.**

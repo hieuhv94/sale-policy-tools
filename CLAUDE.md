@@ -85,9 +85,32 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (09/09/2026)
+## Trạng thái hiện tại (10/09/2026)
 
-Chặng gần nhất **P221** (`0193`): **hộp thoại thêm dòng bày luôn bốn con số** — CPBH tổng · Giá thu về
+Chặng gần nhất **P222** (`0194`): **khối *Yêu cầu cập nhật* hiện cả khi TDV đang sửa, kèm nút *Tự
+động cập nhật***. Đo trước khi gõ: **BA cổng độc lập** cùng giấu khối này khỏi hồ sơ sửa được — consumer
+chỉ ghi `policy_impact` cho `DA_DONG_BANG`, `byId` chỉ trả `lech` cho `DA_DONG_BANG`, và `lamMoiDong`
+**ghi đè âm thầm ở MỖI lượt đọc**. Cổng thứ ba là cổng thật; hai cổng đầu là hệ quả của nó. Yêu cầu
+thứ hai chỉ có nghĩa nếu bỏ phép ghi đè ấy (một nút không làm gì nhìn thấy được thì không phải một
+nút), nên `0194` **ĐẢO phép làm mới ở đường ĐỌC** của `0029`. **An toàn nhờ một dữ kiện phải kiểm
+trước khi quyết**: `lamMoiDong` vẫn chạy ở lượt GỬI DUYỆT kèm chốt `STALE_LINE`, nên bản nháp không
+bao giờ vào luồng với số cũ — bất biến của `0029` (*số đọc được = số sẽ đóng băng*) còn nguyên, chỉ
+đổi chỗ được bảo đảm. **Phép so dời sang `policies/lech.ts` thành hàm THUẦN `soSanhLech`**, consumer
+và đường đọc cùng gọi: chênh lệch của bản nháp KHÔNG đọc được từ `policy_impact` (bảng ấy không có
+dòng nào cho hồ sơ sửa được, và cũng không nên có — chênh lệch của nháp đổi theo từng lượt sửa dòng,
+consumer chỉ chạy lúc danh mục đổi). Nút gọi **chính `lamMoiDong`** — chỉ dời THỜI ĐIỂM của một việc
+vẫn luôn xảy ra, không thêm đường ghi thứ hai; khối tự biến mất vì máy chủ tính lại, **không có bước
+ẩn khối nào ở giao diện** (ẩn tay sẽ nói dối ở ca có dòng không áp được). Ba ranh giới: `mustEdit` gác
+cả ba vế (nút chỉ hiện khi sửa được là chốt THỨ HAI, không thay phép kiểm) · **không đụng giá bán buôn
+và CPBH** · `hong` KHÔNG ném lỗi (khác gửi duyệt — ở đó dòng không kiểm được sắp đi vào văn bản ký).
+**LỖI CÓ SẴN từ `0029`, sửa kèm**: `policy_impact` không ai dọn khi DÒNG được làm mới, nên chuỗi
+*lệch → trả về → làm mới → gửi lại* đưa hồ sơ về luồng kèm khối cảnh báo nói về chênh lệch **đã sửa
+xong**; dọn theo `product_id` ĐÃ ÁP DỤNG, dòng `hong` giữ dấu vết vì nó vẫn đúng. **5 ca cũ phải THAY**
+(chúng khẳng định *"mở lại thì thấy số MỚI"* — câu về CƠ CHẾ). Gom kèm một **N+1** ở đường đọc. Ca kiểm
+theo yêu cầu *"tất cả các trường hợp"*: **14 nhánh thuần · 21 ca HTTP · 6 ca giao diện**. Sáu lượt phá
+lại, sáu đỏ đúng chỗ.
+
+Trước đó **P221** (`0193`): **hộp thoại thêm dòng bày luôn bốn con số** — CPBH tổng · Giá thu về
 · Tỷ lệ CK · QĐCK — thay vì phải thêm dòng rồi ra bảng nhìn. Yêu cầu này **đâm thẳng vào `FE-27`**
 (*"giao diện KHÔNG TÍNH TOÁN"*, ghi ở đầu `format.ts`), và cách thoát nằm ở chỗ luật ấy sợ **một bản
 CÀI ĐẶT thứ hai** của phép làm tròn: hộp thoại gọi **chính `computeLine` + `rate2ToNumeric`** mà
@@ -1111,6 +1134,17 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   chạy đầu tiên.
 - **Giá và ngưỡng đóng băng vào dòng hồ sơ lúc gửi duyệt**, không bao giờ ghi đè. Danh mục đổi về
   sau thì báo qua khối *Yêu cầu cập nhật* và email, chứ không sửa hồ sơ đang chờ chữ ký.
+- **HỒ SƠ SỬA ĐƯỢC KHÔNG TỰ ĐỔI SỐ NỮA** (`0194`, đảo phép làm mới ở đường ĐỌC của `0029`).
+  `lamMoiDong` giờ chỉ chạy ở HAI chỗ: nút *Tự động cập nhật* và lượt **gửi duyệt** — nên bản nháp
+  vẫn không bao giờ vào luồng với số cũ (`STALE_LINE` giữ nguyên), và đó là lý do phép đảo này an
+  toàn. Chênh lệch của hồ sơ sửa được **TÍNH tại chỗ** (`soSanhDong`), KHÔNG đọc `policy_impact`:
+  bảng ấy chỉ ghi cho `DA_DONG_BANG`, và chênh lệch của bản nháp đổi theo từng lượt sửa dòng.
+  **`soSanhLech` ở `policies/lech.ts` là bản DUY NHẤT của phép so** — consumer và đường đọc cùng gọi;
+  chép nó sang chỗ thứ hai là dựng hai câu trả lời cho *"dòng này có lệch không"*. Nút chỉ của **TDV
+  đang phụ trách** + hồ sơ **sửa được** (`mustEdit`), **không đụng giá bán buôn và CPBH**, và dòng
+  `hong` thì **không ném lỗi** — khác lượt gửi duyệt, nơi nó là lý do chặn. **Làm mới xong thì XOÁ
+  dấu vết `policy_impact`** của những dòng đã ghi lại được: thiếu bước này thì chuỗi *lệch → trả về →
+  làm mới → gửi lại* bày ra một khối cảnh báo nói về chênh lệch đã sửa xong (lỗi có từ `0029`).
 - **Sáu vai trò**: Kế toán L1 và L2 là một người (hai màn hình); TDV và QL là một vai trò.
 - **Không có cây phân quyền** (bỏ hẳn `16/08`) — người dùng không quản lý lẫn nhau; mỗi bước, người
   đang cầm hồ sơ tự chọn người xử lý bước sau. Đổi *TDV phụ trách* là quyền của Quản trị hệ thống.
