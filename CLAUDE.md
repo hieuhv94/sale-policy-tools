@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 68 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 69 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -87,7 +87,28 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (10/09/2026)
 
-Chặng gần nhất **P224** (`0196`): **dòng VIỆC trong hộp thông báo chỉ còn MỘT KẺ DỌC XANH, bỏ nền**.
+Chặng gần nhất **P225** (`0197`): **một khách hàng chỉ giữ MỘT bản Nháp**; chọn khách đã có Nháp thì
+phần mềm nói ra và cho nút mở thẳng bản ấy. **RANH GIỚI LÀ CẢ CHẶNG**: `NHAP` và `YEU_CAU_CHINH_SUA`
+nằm chung hằng `SUA_DUOC`, nên viết phép kiểm bằng hằng ấy là chuyện tự nhiên nhất — và nó dựng ra
+một luật KHÁC HẲN (cấm lập hồ sơ cho khách đang có hồ sơ **bị trả về**), nên có một ca CHIỀU DƯƠNG
+đứng riêng. **Chốt thật ở CSDL**: kịch bản sinh ra yêu cầu này là người dùng BẤM ĐÚP, tức hai request
+song song cùng đọc thấy *"chưa có Nháp nào"* — chỉ mục phần `uq_policy_nhap_moi_khach` là thứ duy
+nhất đóng được khe ấy. **Phép kiểm ở service vẫn phải có, vì HAI lý do**: thứ tự với
+`NEW_VERSION_REQUIRED` (chỉ nó đưa ra được một việc làm ngay), và **`saoChepGiayTo` chạy TRƯỚC
+transaction** — thiếu phép kiểm sớm thì mỗi lượt bấm trùng vẫn chép giấy tờ lên kho rồi mới lăn
+ngược. Hai đường trả **cùng một câu và cùng `draftPolicyId`** (`daCoNhap()` một chỗ); lượt bắt
+`23505` đối chiếu **TÊN CHỈ MỤC** chứ không chỉ mã lỗi (`pol.policy` sắp có chỉ mục duy nhất thứ hai
+ở `0198`). **MÌN TRONG BỘ KIỂM, gỡ trước khi nổ**: `don-rac-truoc-luot.ts` lật `DA_XOA` → `NHAP` để
+đi vòng trigger cấm xoá, và từ `0197` lượt lật ấy ném `23505` ở `globalSetup` — **giết cả bộ kiểm
+trước khi chạy ca nào**, mà chỉ khi rác xếp đúng hình; đổi đích sang `HET_HIEU_LUC`. Migration **DỪNG**
+nếu còn khách nhiều hơn một Nháp (đo được: 2 khách × 3 bản trên CSDL kiểm), và **bản đầu in
+`customer_id`** — vô dụng với người vận hành, giờ in *mã — tên khách*. Bốn lượt phá lại; **một lượt
+XANH vì CA KIỂM SAI**: `await makeProduct()` nằm ngay trong mảng `Promise.all` nên hai lượt KHÔNG
+chạy song song — *một `Promise.all` không tự làm hai việc chạy song song*. Kèm **bẫy `psql -c "A; B;"`
+lần đầu ghi lại**: cả chuỗi chạy trong MỘT transaction nên `CREATE` hỏng lăn ngược cả `DROP`, và lượt
+phá ấy chưa hề chạy (lớp bẫy của `0171`/`0174`, lần thứ BA).
+
+Trước đó **P224** (`0196`): **dòng VIỆC trong hộp thông báo chỉ còn MỘT KẺ DỌC XANH, bỏ nền**.
 Bước thứ hai của cùng hướng `0195` đi nửa đường — `0195` HẠ CHÓI mảng nền hổ phách, khách hàng xem
 xong bảo **bỏ hẳn** và đổi dải sang xanh. **Bỏ hẳn RẺ HƠN hạ chói**: `0195` đã đo rằng chỗ chói là
 mảng NỀN chứ không phải dải 3px, nên đây là đi tới cùng phép đo ấy — và **`.tb-viec:hover` thành mã
@@ -1157,6 +1178,14 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 
 - **Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực**, và mọi CSBH đều **vô thời hạn** — không có
   trường ngày hết hiệu lực. Chỉ hết hiệu lực khi CSBH mới của cùng khách hàng được duyệt.
+- **MỖI KHÁCH HÀNG CHỈ GIỮ MỘT BẢN NHÁP** (`0197`) — chỉ mục phần `uq_policy_nhap_moi_khach`
+  (`WHERE status = 'NHAP'`), cộng một phép kiểm ở `create` trả `409 DRAFT_EXISTS` kèm `draftPolicyId`.
+  **Chặn ĐÚNG `NHAP`**: `YEU_CAU_CHINH_SUA` nằm chung `SUA_DUOC` nhưng nó là hồ sơ ĐÃ vào luồng rồi bị
+  trả về, và chặn ở đó là cấm lập hồ sơ cho khách đang có hồ sơ bị trả lại — một luật khác hẳn, không
+  ai yêu cầu. Áp cho **cả** đường `NEW_VERSION`, và hỏi **TRƯỚC** `NEW_VERSION_REQUIRED`. Chỉ mục là
+  chốt thật (bấm đúp = hai lượt song song); phép kiểm ở service giữ vì thứ tự câu hỏi **và** vì
+  `saoChepGiayTo` chạy trước transaction. Cảnh báo *"đã có bản mới đang dở"* của `0191` **GIỮ** — nó
+  còn việc với bản đang trong LUỒNG DUYỆT, thứ vẫn không bị chặn.
 - **Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.** Hiệu lực quản lý ở cấp hồ sơ, không phải cấp
   dòng khách hàng × sản phẩm.
 - **NGÀY ÁP DỤNG THUỘC VỀ TỪNG DÒNG SẢN PHẨM** (`0180`, gỡ `pol.policy.applied_date`). Cột

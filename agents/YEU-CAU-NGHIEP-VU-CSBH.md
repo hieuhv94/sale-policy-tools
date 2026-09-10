@@ -2305,6 +2305,11 @@ trang khách hàng"*.
 > liên kết mở thẳng bản ấy. Hệ thống **KHÔNG chặn** — lập hai bản cùng lúc vốn đã làm được từ trước —
 > nhưng đi từ trang khách hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách, còn đi từ đây thì
 > không thấy gì cả.
+>
+> > **NỬA ĐẦU CỦA CÂU TRÊN ĐÃ ĐỔI `10/09`.** Bản dở ở trạng thái ***Nháp*** thì từ nay hệ thống
+> > **CHẶN** — xem *"Một bản Nháp mỗi khách hàng"* ở cuối Phụ lục B. Cảnh báo này còn nguyên việc cho
+> > nửa còn lại: bản mới **đang trong luồng duyệt** vẫn không bị chặn, và đó vẫn là chỗ duy nhất nói
+> > ra điều đó khi đi từ trang hồ sơ.
 
 **YÊU CẦU CẬP NHẬT HIỆN CẢ KHI ĐANG SỬA, VÀ CÓ NÚT ÁP DỤNG** `mới 10/09` — *"khi TDV nhấn vào để
 chỉnh sửa một hồ sơ đang bị Yêu cầu cập nhật do thông tin sản phẩm hoặc chiết khấu thay đổi. Vẫn yêu
@@ -2490,6 +2495,30 @@ một hướng mà quyết định trên đi nửa đường: nó **hạ chói**
 > chứ không phải một mảng, và ở cỡ ấy sắc navy `#034ea2` đọc ra gần như đen — tức mất luôn cái *xanh*
 > vừa được yêu cầu. Ca kiểm canh hai vế (cùng sắc màu, sáng hơn) trên cả ba bảng màu, không ghim mã
 > hex.
+
+**MỘT BẢN NHÁP MỖI KHÁCH HÀNG** `mới 10/09` — *"để tránh spam tạo quá nhiều bản Nháp đối với 1 khách
+hàng, chỉ cho phép có 1 bản Nháp đối với cùng 1 khách hàng, nếu chọn lập CSBH đã có bản Nháp rồi, nó
+sẽ hiện thông báo đã có một bản nháp và nhấn đồng ý sẽ vào bản Nháp đó"*.
+
+> **CHẶN ĐÚNG *Nháp*, không rộng hơn.** *Yêu cầu chỉnh sửa* nằm cùng nhóm "sửa được" với *Nháp* nên
+> rất dễ gộp, và gộp là dựng ra một luật khác hẳn: cấm TDV lập hồ sơ cho một khách đang có hồ sơ **bị
+> trả về**. Không ai yêu cầu điều đó. Hồ sơ rời khỏi *Nháp* bằng bất kỳ đường nào — gửi duyệt, hay
+> xoá — là chỗ trống ra ngay.
+>
+> **Áp cho cả hai đường lập**: bản đầu tiên và *Lập phiên bản mới*. Một bản nháp đang dở là một bản
+> nháp đang dở, không phụ thuộc nó sẽ thành phiên bản thứ mấy.
+>
+> **Câu trả lời kèm một VIỆC ĐỂ LÀM**: thông báo nói ra bản Nháp đang có, và một nút mở thẳng vào đó.
+> Nó được hỏi **trước** câu *"khách đã có CSBH, lập phiên bản mới không?"* — hai câu cùng nói *đừng
+> lập cái mới*, nhưng chỉ câu này đưa ra được việc làm ngay.
+>
+> **Chốt chặn nằm ở CSDL, không chỉ ở phần mềm.** Kịch bản sinh ra chính yêu cầu này là người dùng
+> bấm nút nhiều lần, mà bấm đúp là hai lượt chạy song song cùng đọc thấy *"chưa có Nháp nào"*. Một
+> ràng buộc duy nhất là thứ duy nhất đóng được khe ấy.
+>
+> **Nâng cấp một hệ đang chạy có thể DỪNG** ở migration nếu còn khách đang có nhiều hơn một bản Nháp;
+> thông báo in ra mã và tên khách kèm mã từng hồ sơ. Hệ thống **không chọn hộ được** bản nào đáng giữ
+> — chỉ chính TDV ấy biết — nên đường sửa là xoá bớt trên màn hình rồi chạy lại.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

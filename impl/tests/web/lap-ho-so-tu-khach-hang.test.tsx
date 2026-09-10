@@ -16,6 +16,7 @@ import userEvent from '@testing-library/user-event';
 import { ChiTietKhachHang } from '@csbh/web/khach-hang-ui';
 import { LapHoSo } from '@csbh/web/lap-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
+import { BaoLoiProvider } from '@csbh/web/bao-loi';
 import { BoDinhTuyen } from '@csbh/web/router';
 
 const TDV_ID = '11111111-1111-1111-1111-111111111111';
@@ -323,5 +324,110 @@ describe('`0180` khách đã có CSBH: MỘT nút lập phiên bản mới', () 
     );
     const than = JSON.parse(String((goi![1] as RequestInit).body));
     expect(than.mode).toBeUndefined();
+  });
+});
+
+/**
+ * `0197` — khách đã có bản Nháp thì ĐỔI CÂU HỎI, không bày lỗi.
+ *
+ * Máy chủ trả `409 DRAFT_EXISTS` kèm `draftPolicyId`. Ở đây kiểm phần màn hình
+ * làm với con số ấy: nói ra bằng chính câu của máy chủ, và cho một nút đi thẳng
+ * vào bản Nháp đang có.
+ */
+describe('`0197` một bản Nháp mỗi khách hàng — trên màn hình', () => {
+  const CAU =
+    'Khách hàng này đã có một bản Nháp đang soạn dở. ' +
+    'Mỗi khách hàng chỉ giữ được một bản Nháp — mở bản đang có để soạn tiếp.';
+
+  /** Như `chanMang`, nhưng `POST /policies` trả 409 kèm id bản nháp. */
+  const chanMangCoNhap = () => {
+    const f = chanMang(KHACH);
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.endsWith('/policies') && (tuyChon as RequestInit | undefined)?.method === 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ code: 'DRAFT_EXISTS', message: CAU, draftPolicyId: 'hs-nhap-1' }),
+            { status: 409, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return truoc(duong, tuyChon);
+    });
+    return f;
+  };
+
+  it('nói ra bằng CÂU CỦA MÁY CHỦ, và nút *Lập hồ sơ* biến mất', async () => {
+    /*
+     * Hai vế. Chép lại câu ở giao diện là hai câu sẽ lệch (cùng lẽ với
+     * `tuMayChu` trong `loi.ts`), và để nút cũ nằm lại là mời người dùng bấm
+     * tiếp đúng cái nút vừa từ chối họ.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMangCoNhap();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    await waitFor(() => expect(screen.getByText(CAU)).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Lập hồ sơ' })).toBeNull();
+  });
+
+  it('bấm *Mở bản Nháp đang có* thì tới ĐÚNG hồ sơ máy chủ trỏ tới', async () => {
+    // Id phải đi từ thân lỗi ra tới thanh địa chỉ. Dựng đường bằng bất kỳ cách
+    // nào khác — id khách hàng chẳng hạn — vẫn cho ra một đường trông hợp lệ.
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMangCoNhap();
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Mở bản Nháp đang có' })).toBeDefined(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Mở bản Nháp đang có' }));
+
+    await waitFor(() => expect(window.location.pathname).toBe('/ho-so/hs-nhap-1'));
+  });
+
+  it('lỗi KHÁC vẫn đi đường báo lỗi thường', async () => {
+    /*
+     * Chiều đối chiếu, và là chỗ nhánh mới dễ nuốt mất thứ khác nhất: bắt theo
+     * `code` chứ không bắt mọi 409. `CUSTOMER_RETIRED` cũng là 409 ở đúng đường
+     * này, và nuốt nó thành *"đã có bản Nháp"* là nói sai với một nút bấm vào
+     * sẽ 404.
+     */
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMang(KHACH);
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.endsWith('/policies') && (tuyChon as RequestInit | undefined)?.method === 'POST') {
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: 'CUSTOMER_RETIRED', message: 'Khách đã xoá.' }), {
+            status: 409,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      return truoc(duong, tuyChon);
+    });
+    // `bao(e)` đẩy lỗi lên `BaoLoiProvider` (`0088`) — không bọc thì lỗi đi vào
+    // hư vô và ca này xanh vì lý do sai.
+    mo(
+      <BaoLoiProvider>
+        <LapHoSo />
+      </BaoLoiProvider>,
+      '/ho-so/moi?khachHang=kh-1',
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    await waitFor(() => expect(screen.getByText(/Khách đã xoá/)).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Mở bản Nháp đang có' })).toBeNull();
   });
 });

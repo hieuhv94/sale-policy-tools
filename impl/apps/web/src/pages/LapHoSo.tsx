@@ -136,6 +136,14 @@ function ChonCachLap({
   const [loiTra, datLoiTra] = useState<unknown>(null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
+  /**
+   * Bản Nháp khách này đang có (`0197`) — id cùng câu chữ của máy chủ.
+   *
+   * KHÔNG phải một `loi`: đây không phải sự cố mà là một ngã rẽ, và nó thay hẳn
+   * cụm nút chứ không đứng cạnh chúng. Để nó đi đường `bao(e)` như mọi lỗi khác
+   * thì người dùng đọc một dải đỏ rồi vẫn nhìn thấy đúng cái nút vừa từ chối họ.
+   */
+  const [daCoNhap, datDaCoNhap] = useState<{ id: string; loiNhan: string } | null>(null);
 
   useEffect(() => {
     const huy = new AbortController();
@@ -166,7 +174,14 @@ function ChonCachLap({
       });
       xong(hs.id);
     } catch (e) {
-      bao(e);
+      // `0197` — khách đã có bản Nháp thì đổi CÂU HỎI, không bày lỗi. Id lấy từ
+      // thân lỗi máy chủ; thiếu nó thì rơi về đường lỗi thường, vì một nút *Mở
+      // bản Nháp* không biết mở cái nào thì tệ hơn một dải đỏ.
+      const l = e as { code?: string; message?: string; body?: Record<string, unknown> };
+      const id = l?.body?.['draftPolicyId'];
+      if (l?.code === 'DRAFT_EXISTS' && typeof id === 'string') {
+        datDaCoNhap({ id, loiNhan: l.message ?? '' });
+      } else bao(e);
     } finally {
       datDangGui(false);
     }
@@ -191,7 +206,25 @@ function ChonCachLap({
 
       {loi !== null && <BaoLoi loi={loi} />}
 
-      {hienHanh === 'khong-co' ? (
+      {/*
+        `0197` — ĐỔI HẲN cụm nút, không chèn thêm một khối.
+        Để nút *Lập hồ sơ* nằm lại bên cạnh là mời người dùng bấm tiếp đúng cái
+        nút vừa từ chối họ, và mỗi lượt bấm ấy lại đi hết một vòng mạng để nhận
+        lại đúng câu này.
+      */}
+      {daCoNhap !== null ? (
+        <>
+          <p className="giai-thich">{daCoNhap.loiNhan}</p>
+          <div className="nhom-nut">
+            <button type="button" className="nut nut-chinh" onClick={() => xong(daCoNhap.id)}>
+              Mở bản Nháp đang có
+            </button>
+            <button type="button" className="nut nut-nhe" onClick={doiKhach}>
+              Chọn khách khác
+            </button>
+          </div>
+        </>
+      ) : hienHanh === 'khong-co' ? (
         <>
           <p className="ghi-chu">Khách hàng chưa có CSBH nào — đây sẽ là phiên bản đầu tiên.</p>
           <div className="nhom-nut">

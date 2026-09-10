@@ -389,6 +389,31 @@ hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai d
 phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
 rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 
+### Nâng cấp lên bản MỘT BẢN NHÁP MỖI KHÁCH HÀNG `mới 10/09`
+
+**Bước migration của bản này DỪNG LẠI nếu còn khách hàng đang có nhiều hơn một
+bản Nháp.** Cùng lẽ với mục ngay dưới: hệ thống không chọn được giữ bản nào — chỉ
+Trình dược viên đang soạn mới biết — nên nó in ra danh sách rồi dừng.
+
+```
+ERROR: Còn khách hàng có NHIỀU HƠN MỘT bản Nháp, không tạo được ràng buộc duy nhất.
+Trình dược viên phụ trách phải xoá bớt, giữ lại đúng một bản, rồi chạy lại:
+  KH-0001 — Nhà thuốc Minh Châu: CSBH-2026-000001, CSBH-2026-000075
+```
+
+| | |
+| --- | --- |
+| Vì sao có | Tới `10/09` phần mềm không giới hạn số bản Nháp trên một khách hàng |
+| Phải làm | Với mỗi khách trong danh sách: mở từng hồ sơ, **giữ lại đúng một bản**, xoá những bản còn lại. Bản Nháp xoá đi biến mất hẳn, không để lại vết |
+| Ai làm được | **Trình dược viên phụ trách** khách hàng đó — chỉ họ xoá được hồ sơ của mình |
+| Làm ở đâu | Trên giao diện, trước khi nâng cấp — bản đang chạy vẫn cho xoá bình thường |
+| Chạy lại | `docker compose … up -d` lần nữa |
+
+> Muốn **giữ** cả hai bản thì cách hợp lệ là **gửi duyệt** một bản: hồ sơ rời khỏi
+> *Nháp* là ràng buộc thôi tính tới nó.
+
+---
+
 ### Nâng cấp lên bản CẤM TRÙNG MÃ SỐ THUẾ `mới 05/09`
 
 **Bước migration của bản này DỪNG LẠI nếu dữ liệu đang có còn hai khách hàng

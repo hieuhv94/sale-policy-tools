@@ -17299,3 +17299,94 @@ dải bậc đi theo mà không ai định thế.
 
 
 **2197/2197 xanh.**
+
+## P225 — `0197` Một bản Nháp mỗi khách hàng
+
+Khách hàng gửi bốn yêu cầu một lượt (10/09). Ba yêu cầu sau khoá vào nhau ở **mã hồ sơ** và thành
+`0198`; yêu cầu này độc lập hẳn nên đi riêng.
+
+### Ranh giới là cả chặng
+
+Luật gọn tới mức không có gì để thiết kế: *một khách, một bản Nháp*. Chỗ tốn công nằm ở **chặn tới
+đâu**, và có đúng một cách đọc sai — nhưng nó là cách đọc TỰ NHIÊN NHẤT.
+
+`NHAP` và `YEU_CAU_CHINH_SUA` nằm chung hằng `SUA_DUOC`, và phép kiểm ở service viết bằng hằng ấy là
+chuyện hiển nhiên nhất người ta làm. Nó dựng ra một luật **khác hẳn**: cấm TDV lập hồ sơ cho một
+khách đang có hồ sơ **bị trả về**. Không ai yêu cầu điều đó, và nó chặn đúng lúc người dùng cần lập
+nhất. Nên có một ca kiểm CHIỀU DƯƠNG đứng riêng cho vế ấy — không có nó thì phép siết lọt qua cả bộ.
+
+Ba ranh giới còn lại, mỗi cái một ca: chặn cả đường `NEW_VERSION` (một bản nháp dở là một bản nháp
+dở, không phụ thuộc nó sẽ thành phiên bản thứ mấy) · khách khác không bị chặn theo nhau · và
+`DRAFT_EXISTS` phải hỏi **TRƯỚC** `NEW_VERSION_REQUIRED` — hai chốt cùng nói *đừng lập cái mới*, chỉ
+một chốt đưa ra được một việc làm ngay.
+
+### Chốt thật nằm ở CSDL, và phép kiểm ở service vẫn phải có
+
+Kịch bản sinh ra chính yêu cầu này là **người dùng bấm nút nhiều lần**, mà bấm đúp là hai request
+song song cùng đọc thấy *"chưa có Nháp nào"*. Khe giữa `SELECT` và `INSERT` ở đây không phải chuyện
+lý thuyết — nó là kịch bản chính. Chỉ mục phần `uq_policy_nhap_moi_khach` là thứ duy nhất đóng được.
+
+Vậy phép kiểm ở service để làm gì? Lượt phá lại trả lời: gỡ nó đi thì **chỉ 1 ca đỏ**, vì đường bắt
+`23505` đã đổi lỗi thành đúng câu ấy. Hai lý do giữ, và lý do thứ hai chỉ thấy khi đọc thứ tự trong
+`create`:
+
+1. **Thứ tự với `NEW_VERSION_REQUIRED`** — ca đỏ duy nhất ở lượt phá.
+2. **`saoChepGiayTo` chạy TRƯỚC transaction.** Không có phép kiểm sớm, mỗi lượt bấm trùng vẫn chép
+   toàn bộ giấy tờ của bản cũ lên kho rồi mới lăn ngược — để lại object mồ côi ở đúng thao tác mà
+   người dùng sẽ lặp lại nhiều lần nhất.
+
+Hai đường phải trả **cùng một câu và cùng một `draftPolicyId`** (`daCoNhap()` dựng ở một chỗ): một
+câu lỗi chỉ xuất hiện ở lượt bấm đúp là một câu không ai từng đọc thử. Lượt bắt `23505` đối chiếu
+**TÊN CHỈ MỤC** chứ không chỉ mã lỗi — `pol.policy` sắp có chỉ mục duy nhất thứ hai ở `0198`, và trả
+*"đã có bản Nháp"* cho một lượt trùng MÃ là nói sai ở chỗ khó truy nhất.
+
+### Một quả mìn trong chính bộ kiểm, gỡ trước khi nó nổ
+
+`don-rac-truoc-luot.ts` lật `DA_XOA` → **`NHAP`** để đi vòng qua trigger cấm xoá. Từ `0197` lượt lật
+ấy ném `23505` ngay khi một khách hàng rác có sẵn một bản Nháp — và nó chạy ở `globalSetup`, tức
+**giết cả bộ kiểm trước khi chạy ca nào**. Nó KHÔNG nổ trên CSDL sạch, nên nó sẽ chờ tới một lượt
+chạy nào đó nhiều tháng sau, ở một chỗ không liên quan gì tới hồ sơ. Đích lật đổi sang
+`HET_HIEU_LUC`: trigger chỉ chặn `TU_CHOI` và `DA_XOA`, nên yêu cầu duy nhất của chỗ này vẫn thoả.
+
+### Migration DỪNG, và bản đầu của nó vô dụng
+
+Đo trên CSDL kiểm trước khi viết: **2 khách hàng đang giữ 3 bản Nháp mỗi khách** (rác của các lượt
+dùng demo — sản phẩm là hàng seed, không phải hàng `ZZ` của bộ kiểm). Nên không thể chỉ thêm chỉ mục
+rồi mong nó qua. Theo khuôn `0114`: **dừng và in danh sách**, vì hệ thống KHÔNG chọn hộ được bản nào
+đáng giữ — chỉ chính TDV đang soạn mới biết.
+
+> **Bản đầu in `customer_id`.** Chạy thử ra ba dòng uuid kèm mã hồ sơ, và người vận hành cầm nó không
+> tra được khách nào nếu không tự viết thêm một câu SQL. Đúng cái mà cả khối `DO` này sinh ra để
+> tránh — một thông điệp chặn mà người đọc không hành động được thì bằng chính lỗi `CREATE UNIQUE
+> INDEX` thô nó vừa thay thế. Giờ nó `LEFT JOIN cus.customer` và in **mã — tên khách**.
+
+### Phá lại
+
+| Phá | Kết quả |
+|---|---|
+| Gỡ phép kiểm ở service, giữ chỉ mục | **1 đỏ** (thứ tự với `NEW_VERSION_REQUIRED`) |
+| Gỡ chỉ mục, giữ phép kiểm ở service | **1 đỏ** — nhưng chỉ SAU khi sửa ca kiểm, xem dưới |
+| Nới phép kiểm sang cả `YEU_CAU_CHINH_SUA` | **1 đỏ** (ca chiều dương) |
+| Gỡ lượt đổi `23505` → `DRAFT_EXISTS` | **1 đỏ** — người bấm đúp nhận `500` |
+
+> **PHÁ LẠI XANH, và ca kiểm mới là thứ sai.** Gỡ hẳn chỉ mục mà **312/312 vẫn xanh**, kể cả ca
+> *"hai lượt lập SONG SONG"* vừa viết cho đúng nó. Nguyên nhân nằm trong chính ca ấy: nó gọi
+> `await makeProduct()` **ngay trong mảng của `Promise.all`**, mà phần tử mảng dựng LẦN LƯỢT — nên
+> lượt `post` thứ nhất đã bay đi trong khi `makeProduct` thứ hai còn đang đi một vòng mạng, thừa thời
+> gian để lượt đầu ghi xong. **Một `Promise.all` không tự làm hai việc chạy song song**; thứ làm điều
+> đó là cả hai promise đã được TẠO trước khi cái nào bị chờ. Dựng sản phẩm xong trước rồi mới bắn hai
+> lượt: ca đỏ ngay, và xanh lại khi dựng lại chỉ mục.
+
+> **BẪY `psql -c "A; B;"`, lần đầu ghi lại.** Lượt phá *"bỏ vế `WHERE` của chỉ mục"* in ra `DROP
+> INDEX` rồi một lỗi trùng khoá, và bộ kiểm chạy 312 xanh — trông y hệt một phá lại xanh. Thật ra
+> **nó chưa hề chạy**: `psql` gửi cả chuỗi nhiều lệnh trong MỘT transaction, `CREATE` hỏng nên `DROP`
+> lăn ngược theo, và chỉ mục còn nguyên (kiểm bằng `pg_indexes`). Cùng lớp bẫy với `0171` và `0174` —
+> *một phá lại mà bản sửa không ghi được trông giống hệt một phá lại xanh* — lần thứ BA, và lần này
+> nguyên nhân là transaction chứ không phải quyền tệp.
+>
+> Lượt phá ấy **không dựng lại được** và đó tự nó là câu trả lời: một chỉ mục duy nhất trên
+> `customer_id` KHÔNG TẠO NỔI, vì một khách hàng có nhiều hồ sơ qua các phiên bản. Vế `WHERE status =
+> 'NHAP'` không phải một lựa chọn giữa hai phương án — nó là hình dạng duy nhất tồn tại được.
+
+
+**2206/2206 xanh.**

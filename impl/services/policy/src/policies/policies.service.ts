@@ -121,6 +121,24 @@ type PolicyRow = {
 };
 
 /**
+ * "Khách này đã có một bản Nháp" (`0197`) — dựng ở MỘT chỗ vì có HAI đường tới.
+ *
+ * Đường thứ nhất là phép kiểm ở `create`; đường thứ hai là `23505` từ chỉ mục
+ * `uq_policy_nhap_moi_khach` khi hai request song song cùng lọt qua phép kiểm
+ * ấy. Hai đường phải trả về **cùng một câu và cùng một `draftPolicyId`**, nếu
+ * không thì người bấm đúp nhận một câu lỗi khác hẳn người bấm một lần — cùng
+ * một tình huống, hai màn hình.
+ */
+export const daCoNhap = (draftPolicyId: string): ConflictException =>
+  new ConflictException({
+    code: 'DRAFT_EXISTS',
+    message:
+      'Khách hàng này đã có một bản Nháp đang soạn dở. ' +
+      'Mỗi khách hàng chỉ giữ được một bản Nháp — mở bản đang có để soạn tiếp.',
+    draftPolicyId,
+  });
+
+/**
  * MỘT câu hỏi cho cả hai tình huống (`0180`, gộp `SUPPLEMENT`/`AMEND`).
  *
  * Hai câu cũ hỏi *"bổ sung không?"* và *"chỉnh sửa không?"* theo việc lô sản
@@ -639,6 +657,27 @@ export class PoliciesService {
       });
     }
 
+    /*
+     * MỘT BẢN NHÁP MỖI KHÁCH HÀNG (`0197`).
+     *
+     * Đứng TRƯỚC phép tra bản đang hiệu lực, và thứ tự ấy là một quyết định:
+     * hai chốt cùng nói *"đừng lập cái mới"* nhưng chỉ chốt này đưa ra được một
+     * việc để làm ngay — *mở bản nháp đang có*. `NEW_VERSION_REQUIRED` thì bảo
+     * người dùng bấm lại bằng một cái nút khác. Hỏi câu có câu trả lời trước.
+     *
+     * Áp cho CẢ HAI đường (bản đầu và `NEW_VERSION`): một bản nháp đang dở là
+     * một bản nháp đang dở, không phụ thuộc nó sẽ thành phiên bản thứ mấy.
+     *
+     * KHÔNG lọc theo người lập. Luật là *"một khách một bản Nháp"*, và một khách
+     * chỉ có một TDV phụ trách (`assertInScope` ngay trên đã gác), nên lọc thêm
+     * theo `created_by` chỉ mở lại đúng khe vừa bịt ở lượt đổi TDV phụ trách.
+     */
+    const nhap = await this.db.one<{ id: string }>(
+      `SELECT id FROM pol.policy WHERE customer_id = $1 AND status = 'NHAP'`,
+      [input.customerId],
+    );
+    if (nhap) throw daCoNhap(nhap.id);
+
     const active = await this.db.one<PolicyRow>(
       `SELECT * FROM pol.policy WHERE customer_id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
       [input.customerId],
@@ -844,7 +883,35 @@ export class PoliciesService {
         at: new Date().toISOString(),
       });
       return this.load(policy.id, c);
-    });
+    }).catch((e: unknown) => this.doiTrungNhap(e, input.customerId));
+  }
+
+  /**
+   * `23505` từ `uq_policy_nhap_moi_khach` → cùng câu lỗi mà phép kiểm ở trên trả
+   * về (`0197`).
+   *
+   * Đường này chỉ chạy khi HAI lượt lập song song cùng lọt qua phép kiểm — bấm
+   * đúp nút *Lập hồ sơ*. Nó hiếm, và chính vì hiếm mà nó phải trả đúng câu kia:
+   * một câu lỗi chỉ xuất hiện ở lượt bấm đúp là một câu không ai từng đọc thử.
+   *
+   * Tra LẠI id bản nháp thay vì đọc từ lỗi: `23505` không mang theo khoá của
+   * dòng đang giữ chỗ, và lượt tra này chạy sau khi transaction đã lăn ngược nên
+   * nó thấy đúng dòng thắng cuộc.
+   *
+   * Đối chiếu TÊN CHỈ MỤC chứ không chỉ mã lỗi: `pol.policy` sẽ có chỉ mục duy
+   * nhất thứ hai ở `0198` (mã hồ sơ), và trả *"đã có bản Nháp"* cho một lượt
+   * trùng MÃ là nói sai ở đúng chỗ khó truy nhất.
+   */
+  private async doiTrungNhap(e: unknown, customerId: string): Promise<never> {
+    const loi = e as { code?: string; constraint?: string };
+    if (loi?.code === '23505' && loi.constraint === 'uq_policy_nhap_moi_khach') {
+      const nhap = await this.db.one<{ id: string }>(
+        `SELECT id FROM pol.policy WHERE customer_id = $1 AND status = 'NHAP'`,
+        [customerId],
+      );
+      if (nhap) throw daCoNhap(nhap.id);
+    }
+    throw e;
   }
 
   /** Thêm hoặc sửa một dòng sản phẩm, đóng băng giá và ngưỡng tại thời điểm này. */

@@ -686,6 +686,22 @@ Hồ sơ tạo ra ở trạng thái **Nháp** ngay sau khi chọn khách hàng, 
 màn hình chi tiết. Mỗi lần thêm một dòng, hệ thống tính và hiện ngay **giá thu về** và **tỷ lệ chiết
 khấu** của dòng đó — không phải nhập hết rồi mới biết.
 
+### Mỗi khách hàng chỉ giữ được MỘT bản Nháp `mới 10/09`
+
+Chọn một khách hàng bạn đang có bản Nháp dở dang thì màn hình không lập bản mới. Nó nói ra điều đó và
+đưa cho bạn nút **Mở bản Nháp đang có** — bấm vào là vào thẳng bản ấy soạn tiếp.
+
+Bản Nháp cũ **không cản đường bạn mãi mãi**. Chỗ trống ra ngay khi hồ sơ ấy rời khỏi *Nháp*, bằng một
+trong hai đường:
+
+| Bạn làm gì | Kết quả |
+|---|---|
+| **Gửi duyệt** bản Nháp ấy | Hồ sơ vào luồng duyệt; lập bản mới cho cùng khách được ngay |
+| **Xoá** bản Nháp ấy | Hồ sơ biến mất hẳn, không để lại vết (mục 6.6) |
+
+Hồ sơ đang ở ***Yêu cầu chỉnh sửa*** **không** tính là bản Nháp — nó đã đi qua luồng duyệt rồi bị trả
+về, và nó không chặn bạn lập hồ sơ mới cho khách ấy.
+
 Với mỗi dòng bạn nhập **Giá bán buôn** và các khoản **CPBH**. Hệ thống tự tính:
 
 > **Giá thu về** = Giá bán buôn − (tổng các khoản CPBH)

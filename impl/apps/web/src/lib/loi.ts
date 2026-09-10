@@ -393,6 +393,18 @@ export const BANG_LOI: Record<string, Muc> = {
    * từng chữ với việc sắp xảy ra; chép lại ở đây là hai câu sẽ lệch.
    */
   NEW_VERSION_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
+  /*
+   * `0197` — khách đã có một bản Nháp.
+   *
+   * `im` chứ không `hop-thoai`: màn hình *Lập hồ sơ* KHÔNG bày lỗi này ra dải
+   * đỏ, nó đổi hẳn cách hỏi — *"đã có bản nháp, mở ra soạn tiếp?"* kèm một nút
+   * đưa thẳng vào đó. Một hộp lỗi đứng cạnh câu ấy là nói hai lần, và lần đầu
+   * đọc như một sự cố trong khi đây là chuyện bình thường.
+   *
+   * Khai vào bảng chứ không bỏ trống: `loi.test.tsx` quét mã nguồn máy chủ nên
+   * bỏ sót là đỏ, và `im` là cách nói *"đã có người xử lý mã này"* (`0088`).
+   */
+  DRAFT_EXISTS: { dang: 'im' },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*

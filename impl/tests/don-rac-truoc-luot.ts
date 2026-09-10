@@ -85,11 +85,20 @@ export default async function donRacTruocLuot(): Promise<void> {
      * `DA_XOA` phải gỡ nhãn TRƯỚC: `trg_forbid_delete_rejected` chặn xoá dòng ở
      * trạng thái kết thúc (`0035`). Đây là chỗ DUY NHẤT được phép đi vòng qua
      * chốt ấy, và chỉ vì nó đang dọn dữ liệu của một lượt chạy đã kết thúc.
+     *
+     * LẬT SANG `HET_HIEU_LUC`, KHÔNG SANG `NHAP` (`0197`). Trạng thái đích ở đây
+     * chỉ cần thoả một điều — không nằm trong hai trạng thái trigger chặn — và
+     * `NHAP` từ `0197` còn mang thêm một ràng buộc *một bản Nháp mỗi khách*. Một
+     * khách có sẵn một bản Nháp cộng hai bản `DA_XOA` là lượt lật này ném
+     * `23505` và cả bộ kiểm chết ở `globalSetup`, trước khi chạy ca nào.
+     *
+     * Đây là loại bẫy chỉ nổ khi dữ liệu rác xếp đúng hình: nó KHÔNG nổ trên
+     * CSDL sạch, nên nó sẽ chờ tới lượt chạy nào đó nhiều tháng sau.
      */
     const khachKiem = `EXISTS (SELECT 1 FROM cus.customer k
                                 WHERE k.id = p.customer_id AND k.code LIKE $1)`;
     await c.query(
-      `UPDATE pol.policy p SET status = 'NHAP'
+      `UPDATE pol.policy p SET status = 'HET_HIEU_LUC'
         WHERE p.status::text = 'DA_XOA' AND ${khachKiem}`,
       [`${TIEN_TO_KIEM}%`],
     );

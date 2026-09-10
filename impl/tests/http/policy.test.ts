@@ -1149,6 +1149,9 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
       expect(khoa).not.toContain('policy.discarded');
     });
 
+    // `0197` — ca này gánh thêm một việc: nó là chỗ canh cho
+    // `uq_policy_nhap_moi_khach` là chỉ mục PHẦN (`WHERE status = 'NHAP'`). Một
+    // ràng buộc giữ chỗ vĩnh viễn cũng thoả mọi ca khác của luật một-bản-Nháp.
     it('xoá nháp rồi lập lại cho cùng khách hàng thì được', async () => {
       const d = await draft();
       await del(`/policies/${d.id}`);
@@ -2125,19 +2128,83 @@ describe('POL-16 số phiên bản', () => {
 });
 
 describe('POL-17 hai hồ sơ cho cùng khách hàng gửi đồng thời', () => {
-  it('cả hai ở Nháp được, nhưng chỉ một kích hoạt được', async () => {
+  /*
+   * `0197` — CA NÀY THAY BẢN CŨ, không sửa số.
+   *
+   * Bản cũ mở đầu bằng *"cả hai ở Nháp được"* rồi mới đi tới phần đáng giá. Vế
+   * ấy là chính thứ khách hàng vừa cấm (10/09), nên nó phải đi; bất biến POL-17
+   * bảo vệ — **chỉ một hồ sơ kích hoạt được** — thì còn nguyên và vẫn cần canh.
+   *
+   * Đường tới hai hồ sơ song song giờ đi qua lượt GỬI DUYỆT: hồ sơ rời `NHAP` là
+   * chỗ trống ra, và đó cũng là hình dạng thật của tình huống này — một bản đang
+   * chờ duyệt, một bản mới lập.
+   */
+  it('`0197` hai lượt lập SONG SONG cho cùng khách: một 201, một 409', async () => {
+    /*
+     * Đây là ca canh CHỈ MỤC, không canh phép kiểm ở service.
+     *
+     * `Promise.all` cho hai request cùng đọc thấy *"chưa có Nháp nào"* rồi cùng
+     * ghi — đúng kịch bản bấm đúp nút *Lập hồ sơ*, tức đúng thứ sinh ra cả yêu
+     * cầu này. Gỡ `uq_policy_nhap_moi_khach` thì phép kiểm ở service vẫn xanh ở
+     * mọi ca tuần tự, và chỉ ca này đỏ.
+     */
+    const customerId = await makeCustomer();
+    /*
+     * DỰNG XONG SẢN PHẨM TRƯỚC, rồi mới bắn hai lượt.
+     *
+     * Bản đầu của ca này viết `await makeProduct()` NGAY TRONG mảng của
+     * `Promise.all`, và nó **không hề chạy song song**: phần tử mảng dựng lần
+     * lượt, nên lượt `post` thứ nhất đã bay đi trong khi `makeProduct` thứ hai
+     * còn đang đi một vòng mạng — thừa thời gian để lượt đầu ghi xong. Đo được:
+     * gỡ hẳn chỉ mục mà cả 312 ca vẫn xanh.
+     *
+     * Một `Promise.all` KHÔNG tự làm cho hai việc chạy song song; thứ làm điều
+     * đó là cả hai promise đã được TẠO trước khi cái nào bị chờ.
+     */
+    const sp = [await makeProduct(), await makeProduct()];
+    const [a, b] = await Promise.all([
+      post('/policies', { customerId, lines: [line(sp[0]!)] }),
+      post('/policies', { customerId, lines: [line(sp[1]!)] }),
+    ]);
+
+    const ma = [a.status, b.status].sort();
+    expect(ma, `song song ra ${a.status}/${b.status}`).toEqual([201, 409]);
+
+    const hong = a.status === 409 ? a : b;
+    const duoc = a.status === 201 ? a : b;
+    // Cùng MỘT câu lỗi với đường tuần tự, và trỏ đúng bản vừa thắng — người bấm
+    // đúp không được nhận một màn hình khác người bấm một lần.
+    expect(hong.body.code).toBe('DRAFT_EXISTS');
+    expect(hong.body.draftPolicyId).toBe(duoc.body.id);
+  });
+
+  it('chỉ một hồ sơ của cùng khách kích hoạt được', async () => {
     const customerId = await makeCustomer();
     const p1 = await makeProduct();
     const p2 = await makeProduct();
 
-    const [a, b] = await Promise.all([
-      post('/policies', { customerId, lines: [line(p1)] }),
-      post('/policies', { customerId, lines: [line(p2)] }),
-    ]);
+    const a = await post('/policies', { customerId, lines: [line(p1)] });
     expect(a.status).toBe(201);
-    expect(b.status).toBe(201);
+    // Gửi duyệt là lúc hồ sơ rời `NHAP`, tức lúc chỗ trống ra cho bản thứ hai.
+    expect((await act(a.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
 
-    await runToActive({ id: a.body.id });
+    const b = await post('/policies', { customerId, lines: [line(p2)] });
+    expect(b.status, 'hồ sơ đã gửi duyệt thì KHÔNG chặn lượt lập tiếp').toBe(201);
+
+    expect((await act(a.body.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(a.body.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    await post(
+      `/policies/${a.body.id}/attachments`,
+      { kind: 'SCAN', fileName: 's.pdf', objectKey: `scan/${a.body.id}.pdf` },
+      'sa01',
+    );
+    await post(
+      `/policies/${a.body.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'bm.pdf', objectKey: `bm/${a.body.id}.pdf` },
+      'sa01',
+    );
+    expect((await act(a.body.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    expect((await act(a.body.id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
 
     // Bản thứ hai đi hết luồng thì vấp bất biến một-CSBH-hiệu-lực ở CSDL.
     await act(b.body.id, 'SUBMIT', 'tdv01');
@@ -2167,6 +2234,108 @@ describe('POL-17 hai hồ sơ cho cùng khách hàng gửi đồng thời', () =
       return Number(r.rows[0]!.n);
     });
     expect(actives).toBe(1);
+  });
+});
+
+/**
+ * `0197` — MỘT BẢN NHÁP MỖI KHÁCH HÀNG (chốt 10/09).
+ *
+ * *"Để tránh spam tạo quá nhiều bản Nháp đối với 1 khách hàng."* Luật gọn, và
+ * chỗ dễ làm sai nằm ở RANH GIỚI của nó: chặn đúng `NHAP`, không chặn rộng ra
+ * `YEU_CAU_CHINH_SUA` (cùng nằm trong `SUA_DUOC`, rất dễ gộp nhầm), và không
+ * chặn hồ sơ đã rời khỏi Nháp bằng bất kỳ đường nào.
+ */
+describe('`0197` một bản Nháp mỗi khách hàng', () => {
+  it('lập bản thứ hai thì 409 và trỏ về bản Nháp đang có', async () => {
+    const d = await draft();
+    const lai = await post('/policies', {
+      customerId: d.customerId,
+      lines: [line(await makeProduct())],
+    });
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('DRAFT_EXISTS');
+    // Id là thứ làm nút *Mở bản Nháp đang có* bấm được; thiếu nó thì câu lỗi chỉ
+    // còn là một lời từ chối.
+    expect(lai.body.draftPolicyId).toBe(d.id);
+  });
+
+  /*
+   * Vế *"xoá bản Nháp rồi thì lập lại được"* KHÔNG viết lại ở đây — ca
+   * *"xoá nháp rồi lập lại cho cùng khách hàng thì được"* của POL-13 đã khẳng
+   * định đúng điều ấy từ trước, và từ `0197` nó gánh thêm một việc: canh cho chỉ
+   * mục `uq_policy_nhap_moi_khach` là chỉ mục PHẦN, chứ không phải một ràng buộc
+   * giữ chỗ vĩnh viễn. Viết bản thứ hai là dựng hai ca sẽ trôi khỏi nhau.
+   */
+
+  it('hồ sơ ở YÊU CẦU CHỈNH SỬA KHÔNG chặn lượt lập mới', async () => {
+    /*
+     * Ranh giới đắt nhất của chặng này, và nó là một ca CHIỀU DƯƠNG.
+     *
+     * `NHAP` và `YEU_CAU_CHINH_SUA` cùng nằm trong `SUA_DUOC`, nên viết phép
+     * kiểm bằng hằng ấy là chuyện tự nhiên nhất — và nó cấm TDV lập hồ sơ cho
+     * một khách đang có hồ sơ BỊ TRẢ VỀ, một luật không ai yêu cầu. Không có ca
+     * này thì phép siết ấy lọt qua cả bộ kiểm.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect(
+      (await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' })).status,
+    ).toBe(200);
+
+    const lai = await post('/policies', {
+      customerId: d.customerId,
+      lines: [line(await makeProduct())],
+    });
+    expect(lai.status).toBe(201);
+  });
+
+  it('chặn cả đường LẬP PHIÊN BẢN MỚI, không riêng bản đầu', async () => {
+    // `mode: NEW_VERSION` đi một nhánh khác trong `create`. Một bản nháp đang dở
+    // là một bản nháp đang dở, không phụ thuộc nó sẽ thành phiên bản thứ mấy.
+    const d = await draft();
+    await runToActive(d);
+    const moi = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(moi.status).toBe(201);
+
+    const nua = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(nua.status).toBe(409);
+    expect(nua.body.code).toBe('DRAFT_EXISTS');
+    expect(nua.body.draftPolicyId).toBe(moi.body.id);
+  });
+
+  it('trả DRAFT_EXISTS TRƯỚC NEW_VERSION_REQUIRED — câu nào có việc để làm thì hỏi trước', async () => {
+    /*
+     * Khách có CẢ bản đang hiệu lực LẪN một bản nháp, và người lập bấm nút của
+     * bản đầu (không `mode`). Hai chốt cùng nói *"đừng lập cái mới"*, nhưng chỉ
+     * một chốt đưa ra được việc làm ngay — mở bản nháp đang có.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const nhap = await post('/policies', { customerId: d.customerId, mode: 'NEW_VERSION', lines: [] });
+    expect(nhap.status).toBe(201);
+
+    const r = await post('/policies', { customerId: d.customerId, lines: [] });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('DRAFT_EXISTS');
+  });
+
+  it('khách KHÁC không bị chặn theo nhau', async () => {
+    // Chỉ mục là `(customer_id) WHERE status = 'NHAP'` — ca này canh vế `WHERE`
+    // không nới thành *"một bản Nháp trong cả hệ thống"*.
+    await draft();
+    const r = await post('/policies', {
+      customerId: await makeCustomer(),
+      lines: [line(await makeProduct())],
+    });
+    expect(r.status).toBe(201);
   });
 });
 
