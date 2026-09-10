@@ -190,19 +190,22 @@ Bấm vào chuông thì sổ xuống **10 thông báo gần nhất**. Mỗi dòn
 | Dòng mờ | Mã và tên khách hàng, mã hồ sơ |
 | Dòng nhỏ | *3 giờ trước* — rê chuột lên thì hiện ngày giờ đầy đủ |
 | Chấm xanh bên trái | Dòng này bạn **chưa đọc** |
-| **Dải hổ phách bên trái** `mới 09/09` | Dòng này là **việc của bạn** — hồ sơ đang chờ chính bạn |
+| **Dòng kẻ dọc xanh bên trái** `sửa 10/09` | Dòng này là **việc của bạn** — hồ sơ đang chờ chính bạn |
 
 Hai dấu ấy nói hai chuyện khác nhau và có thể cùng xuất hiện: *chưa đọc* là bạn chưa nhìn thấy nó,
 *việc của bạn* là bạn chưa làm xong. Đọc một thông báo không làm việc ấy biến mất.
 
-> **Dải màu là chỗ DUY NHẤT nói ra việc của bạn** `sửa 10/09`. Trước 10/09 mỗi tiêu đề còn mở đầu
-> bằng chữ *Cần bạn xử lý* hoặc *Để bạn biết*; hai nhãn ấy đã bỏ để tiêu đề ngắn lại và đọc lướt
-> nhanh hơn. Cách đọc thay cho chúng: dòng có dải là **việc**, còn tiêu đề thì tự nói ra — việc của
-> bạn viết như một mệnh lệnh (*"Duyệt bản mềm"*), còn tin thì viết như một lời kể (*"Trưởng bộ phận
-> đã ký, hồ sơ sang Kế toán duyệt bản mềm"*).
+> **Dòng kẻ dọc là chỗ DUY NHẤT nói ra việc của bạn** `sửa 10/09`. Trước 10/09 mỗi tiêu đề còn mở
+> đầu bằng chữ *Cần bạn xử lý* hoặc *Để bạn biết*; hai nhãn ấy đã bỏ để tiêu đề ngắn lại và đọc lướt
+> nhanh hơn. Cách đọc thay cho chúng: dòng có kẻ dọc là **việc**, còn tiêu đề thì tự nói ra — việc
+> của bạn viết như một mệnh lệnh (*"Duyệt bản mềm"*), còn tin thì viết như một lời kể (*"Trưởng bộ
+> phận đã ký, hồ sơ sang Kế toán duyệt bản mềm"*).
+>
+> Dòng việc **không tô nền** `sửa 10/09` — chỉ một đường kẻ mảnh màu xanh ở mép trái. Hộp thông báo
+> vì thế không còn màu cảnh báo nào: không việc nào ở đây là sự cố.
 
 **Bấm vào một dòng thì tới đúng chỗ mà liên kết trong email dẫn tới**, và dòng đó thành đã đọc. Dòng
-**không** có dải hổ phách mở *Lịch sử hồ sơ* thay vì mở hồ sơ — ở đó không có nút nào cho bạn bấm,
+**không** có dòng kẻ dọc mở *Lịch sử hồ sơ* thay vì mở hồ sơ — ở đó không có nút nào cho bạn bấm,
 còn lịch sử thì trả lời đúng câu *"từ lúc tôi rời tay, hồ sơ này đã đi qua những đâu"*. Thông báo bàn
 giao khách hàng mở danh sách khách hàng.
 

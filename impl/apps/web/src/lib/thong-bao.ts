@@ -136,7 +136,7 @@ export function nhanChuong(d: DemChuaDoc): string {
  * Lớp CSS của một dòng trong hộp thông báo (`0192`).
  *
  * HAI TRỤC ĐỘC LẬP, và cả bốn tổ hợp phải phân biệt được: *đã đọc / chưa đọc*
- * (chấm xanh + chữ đậm) và *việc / tin* (dải hổ phách + nền nhạt). Một dòng bậc
+ * (chấm xanh + chữ đậm) và *việc / tin* (dải dọc bên trái — `0196` bỏ nền). Một dòng bậc
  * VIỆC đã đọc vẫn là việc chưa làm xong — đọc không phải làm — nên hai trục
  * không được gộp.
  *

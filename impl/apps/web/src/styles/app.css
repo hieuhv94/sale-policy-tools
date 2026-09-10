@@ -465,35 +465,42 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 .tb-dong:focus-visible { outline: var(--vong-tieu-diem); outline-offset: -2px; }
 
 /*
- * DÒNG BẬC VIỆC (`0192`) — dải hổ phách + nền nhạt.
+ * DÒNG BẬC VIỆC (`0192`) — CHỈ một dải dọc bên trái, không tô nền (`0196`).
  *
  * Đánh dấu cái QUAN TRỌNG, không đánh dấu cái còn lại. Chip *để biết* của `0036`
  * làm ngược: trong mười dòng mà tám là tin, mắt phải đi tìm hai dòng KHÔNG có
  * chip. Tìm một thứ vắng mặt thì phải quét từng dòng; tìm một thứ có mặt thì nó
  * tự nhảy ra.
  *
- * HỔ PHÁCH, không phải xanh thương hiệu: xanh đã là màu của *chưa đọc* ở
- * `.tb-cham`, và một màu mang hai nghĩa trên cùng một dòng thì thôi nói được
- * nghĩa nào. Không phải `--mau-loi` (`0188`): một việc phải làm là chuyện bình
- * thường, không phải sự cố, và đỏ ở đây tranh chỗ với huy hiệu đếm việc ngay
- * phía trên.
- *
  * HAI TRỤC ĐỘC LẬP, bốn tổ hợp đều đọc ra được: dải nói *việc / tin*, chấm và
  * chữ đậm nói *chưa đọc / đã đọc*. Một dòng VIỆC đã đọc vẫn còn dải — đọc không
  * phải là làm.
  *
- * `0195` — CẶP TOKEN RIÊNG, cùng tông, hạ chói (xem `tokens.css`). Và từ chặng
- * ấy dải này gánh NẶNG HƠN: nhãn chữ *Cần bạn xử lý* đã đi, nên trên màn hình
- * đây là thứ DUY NHẤT nói ra bậc. Hạ chói được vì chỗ chói là mảng NỀN; dải thì
- * giữ nguyên độ đậm.
+ * ---------------------------------------------------------------------------
+ * `0196` — BỎ NỀN, VÀ DẢI ĐỔI SANG XANH. Khách hàng chốt 10/09.
+ * ---------------------------------------------------------------------------
+ *
+ * Đây là bước thứ hai của cùng một hướng mà `0195` đi nửa đường: `0195` hạ chói
+ * mảng nền, `0196` bỏ hẳn nó. Và bỏ hẳn RẺ HƠN hạ chói — một dòng không tô nền
+ * thì `.tb-dong:hover` thôi phải tranh chỗ với nó, nên luật hover riêng cho
+ * `.tb-viec` biến mất theo (nó vốn có mặt chỉ để đè lại cái nền vừa bị bỏ).
+ *
+ * XANH THƯƠNG HIỆU — **ĐẢO lập luận `0192`**, giữ lại nguyên văn vì nó không
+ * sai: *"hổ phách, không phải xanh thương hiệu: xanh đã là màu của chưa đọc ở
+ * `.tb-cham`, và một màu mang hai nghĩa trên cùng một dòng thì thôi nói được
+ * nghĩa nào."* Vế thắng: hai thứ ấy KHÁC HÌNH và KHÁC CHỖ — một dải dọc cao hết
+ * dòng ở mép trái, một chấm tròn 8px trong lòng dòng — nên chúng không đọc lẫn
+ * nhau như hai mảng cùng màu sẽ đọc lẫn. Cái được là hộp thông báo thôi có màu
+ * cảnh báo nào: không việc nào ở đây là sự cố.
+ *
+ * `--mau-viec-dai` GIỮ là token riêng chứ không dùng thẳng `--mau-thuong-hieu`,
+ * dù hôm nay hai giá trị cùng cung màu: chúng trả lời hai câu khác nhau (*màu
+ * của phần mềm* / *màu của việc phải làm*), và gộp là lượt sau đổi màu thương
+ * hiệu thì dải bậc đi theo mà không ai định thế.
  */
 .tb-viec {
   border-left-color: var(--mau-viec-dai);
-  background: var(--mau-viec-nen);
 }
-/* Giữ nền hover đè lên nền bậc, nếu không thì dòng VIỆC không phản hồi khi rê
-   chuột trong khi mọi dòng khác đều có. */
-.tb-viec:hover { background: var(--mau-nen-hover); }
 
 /* Chấm chỉ đánh dấu DÒNG chưa đọc. Giữ ô trống khi đã đọc thay vì bỏ hẳn phần
    tử: bỏ đi thì cả cột chữ của dòng đã đọc thụt sang trái và danh sách trông

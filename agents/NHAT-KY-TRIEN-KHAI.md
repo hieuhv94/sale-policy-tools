@@ -17227,3 +17227,75 @@ mất.
 
 
 **2197/2197 xanh.**
+
+## P224 — `0196` Dòng VIỆC chỉ còn một kẻ dọc xanh, bỏ nền
+
+Bước thứ hai của cùng một hướng mà `0195` đi nửa đường. `0195` **hạ chói** mảng nền hổ phách; khách
+hàng xem xong bảo **bỏ hẳn** nó, và đổi dải sang **xanh**.
+
+### Bỏ hẳn RẺ HƠN hạ chói, và chỗ ấy đo được
+
+`0195` đã đo rằng chỗ chói là **mảng nền** trải hết bề ngang dòng, không phải dải 3px. Bỏ nền là đi
+tới cùng phép đo ấy. Cái được ngoài dự đoán: **`.tb-viec:hover` thành mã chết** — luật ấy có mặt chỉ
+để đè lại nền bậc khi rê chuột, và không còn nền thì `.tb-dong:hover` một mình là đủ. Một dòng CSS
+biến mất theo, không phải một dòng thêm vào.
+
+`--mau-viec-nen` **GỠ HẲN** khỏi cả ba bảng màu. Giữ một token không ai đọc thì `tsc` không đỏ, không
+gì đỏ, và người sau mở `tokens.css` sẽ đọc ra rằng chỗ này vốn có nền — rồi tô lại. Ca kiểm quét **cả
+hai tệp** đòi cái tên ấy biến mất, chứ không chỉ đòi `.tb-viec` thôi tô nền.
+
+### Xanh — đảo lập luận `0192`, và vì sao lần này nó thua
+
+Chú thích cũ giữ nguyên văn trong mã vì nó **không sai**: *"hổ phách, không phải xanh thương hiệu:
+xanh đã là màu của **chưa đọc** ở `.tb-cham`, và một màu mang hai nghĩa trên cùng một dòng thì thôi
+nói được nghĩa nào."*
+
+Vế thắng: hai thứ ấy **KHÁC HÌNH và KHÁC CHỖ** — một đường dọc cao hết dòng ở mép trái, một chấm tròn
+8px nằm trong lòng dòng. Lập luận `0192` đúng cho hai **MẢNG** cùng màu; nó không áp được cho một
+đường kẻ và một chấm. Kèm một khoản được mà khách hàng không nêu: hộp thông báo **thôi có màu cảnh
+báo nào** — đúng lập luận `0188` đã viết cho nhãn *Đã xoá*, *một việc phải làm là chuyện bình thường,
+không phải sự cố*.
+
+**SÁNG HƠN màu thương hiệu là một PHÉP ĐO, không phải sở thích.** Đây là đường 3px chứ không phải một
+mảng, và ở cỡ ấy `#034ea2` đọc ra gần như đen — tức mất luôn cái *xanh* vừa được yêu cầu. Ở bảng tối
+thì màu thương hiệu đã sáng sẵn (`#6fb0f5`), nên dải phải sáng hơn nữa (`#8cc2fb`) mới giữ được cùng
+một quan hệ. **Bản đầu tôi đặt dải bằng ĐÚNG màu thương hiệu ở hai bảng tối** và ca kiểm đỏ ngay —
+đúng thứ ca kiểm sinh ra để bắt, chỉ là nó bắt chính người vừa viết ra nó.
+
+`--mau-viec-dai` **GIỮ là token riêng** dù hôm nay cùng cung màu với `--mau-thuong-hieu`: hai câu hỏi
+khác nhau (*màu của phần mềm* / *màu của việc phải làm*), và gộp là lượt sau đổi màu thương hiệu thì
+dải bậc đi theo mà không ai định thế.
+
+### Hai ca kiểm phải THAY, không sửa số
+
+- *"CSS tô dòng VIỆC bằng hổ phách"* khẳng định **có một mảng nền mang màu bậc** — đúng thứ vừa bị
+  bỏ. Ca thay nó hỏi ba vế: dải còn đó · `.tb-viec` không có `background` · tên token nền **biến mất
+  khỏi cả hai tệp**.
+- *"cặp màu CÙNG TÔNG hổ phách mà bớt chói"* hỏi sắc màu so với `--mau-canh-bao`. Ca thay nó hỏi sắc
+  màu so với `--mau-thuong-hieu`, cộng **cung lam** (190°–250°) — hai phép so canh hai chuyện, vì một
+  lượt đổi sang tông khác mà tình cờ lệch dưới 8° sẽ lọt qua phép so thứ nhất.
+
+> **BẪY TRONG CHÍNH CA KIỂM `0195`, lộ ra khi đổi màu.** Hàm `hsl()` của nó rút gọn công thức sắc màu
+> theo giả định *kênh đỏ luôn lớn nhất* — đúng cho ba màu hổ phách, và có một dòng chú thích nói ra
+> giả định ấy. Màu chuyển sang xanh là giả định chết, và nó chết **im lặng**: công thức vẫn trả về
+> một con số, chỉ là một con số vô nghĩa. Ca mới dùng công thức đầy đủ. Bài học không phải *"đừng rút
+> gọn"* — mà là một phép rút gọn dựa trên dữ liệu HÔM NAY thì phải chết ồn ào khi dữ liệu đổi, chứ
+> đừng trả về một con số trông vẫn bình thường.
+
+### Phá lại
+
+| Phá | Kết quả |
+|---|---|
+| Tô lại nền dòng VIỆC (kèm luật hover cũ) | **1 đỏ** |
+| Trả dải về hổ phách `#c4881f` | **1 đỏ** (lệch tông 173,5°) |
+| Dải bằng ĐÚNG `--mau-thuong-hieu` — mất vế *sáng hơn* | **1 đỏ** |
+| Gỡ hẳn dải — bậc thôi đọc được trên màn hình | **1 đỏ** |
+| Đổi dải ở bảng sáng, quên bảng tối `@media` | **1 đỏ** |
+
+> Lượt thứ ba là lượt đáng giá nhất, và nó **bắt chính người vừa viết ra nó**: bản đầu của chặng này
+> đặt dải bằng đúng `--mau-thuong-hieu` ở hai bảng tối, ca kiểm đỏ ngay ở lượt chạy đầu tiên. Vế
+> *sáng hơn* không phải một khoản trang trí thêm vào phép so sắc màu — nó là thứ giữ cho *"cùng tông
+> xanh"* còn nhìn thấy được ở bề rộng 3px.
+
+
+**2197/2197 xanh.**

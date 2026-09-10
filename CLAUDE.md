@@ -87,7 +87,29 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (10/09/2026)
 
-Chặng gần nhất **P223** (`0195`): **bỏ nhãn bậc khỏi tiêu đề thông báo, hạ chói dải VIỆC, chấm chuông
+Chặng gần nhất **P224** (`0196`): **dòng VIỆC trong hộp thông báo chỉ còn MỘT KẺ DỌC XANH, bỏ nền**.
+Bước thứ hai của cùng hướng `0195` đi nửa đường — `0195` HẠ CHÓI mảng nền hổ phách, khách hàng xem
+xong bảo **bỏ hẳn** và đổi dải sang xanh. **Bỏ hẳn RẺ HƠN hạ chói**: `0195` đã đo rằng chỗ chói là
+mảng NỀN chứ không phải dải 3px, nên đây là đi tới cùng phép đo ấy — và **`.tb-viec:hover` thành mã
+chết** (nó có mặt chỉ để đè lại nền bậc), một dòng CSS biến mất chứ không thêm vào. `--mau-viec-nen`
+**GỠ HẲN** khỏi cả ba bảng màu: một token không ai đọc thì không gì đỏ, và người sau mở `tokens.css`
+sẽ đọc ra rằng chỗ này vốn có nền rồi tô lại — ca kiểm quét **CẢ HAI tệp** đòi cái tên ấy biến mất.
+**XANH — ĐẢO lập luận `0192`** (*"xanh đã là màu của chưa đọc ở `.tb-cham`"*), giữ nguyên văn vì nó
+không sai: vế thắng là hai thứ ấy **KHÁC HÌNH và KHÁC CHỖ** — một đường dọc cao hết dòng ở mép trái,
+một chấm tròn 8px trong lòng dòng; lập luận cũ đúng cho hai MẢNG cùng màu, không áp được cho một
+đường kẻ và một chấm. Khoản được không ai nêu: hộp thông báo **thôi có màu cảnh báo nào** — đúng lập
+luận `0188` viết cho nhãn *Đã xoá* (*một việc phải làm là chuyện bình thường, không phải sự cố*).
+**SÁNG HƠN màu thương hiệu là PHÉP ĐO**: ở 3px, `#034ea2` đọc ra gần như đen, tức mất luôn cái *xanh*
+vừa được yêu cầu; bảng tối thì thương hiệu đã sáng sẵn nên dải phải sáng hơn nữa. `--mau-viec-dai`
+GIỮ là token riêng dù cùng cung màu — hai câu hỏi khác nhau (*màu của phần mềm* / *màu của việc phải
+làm*). **HAI ca kiểm phải THAY** (chúng khẳng định có một mảng NỀN mang màu bậc, và hỏi sắc màu so
+với `--mau-canh-bao`); ca mới hỏi sắc màu so với `--mau-thuong-hieu` **cộng cung lam 190°–250°** —
+hai phép so canh hai chuyện. **BẪY TRONG CHÍNH CA KIỂM `0195`**: hàm `hsl()` của nó rút gọn theo giả
+định *kênh đỏ luôn lớn nhất* (có chú thích nói ra), và giả định ấy chết **IM LẶNG** khi màu chuyển
+sang xanh — vẫn trả về một con số, chỉ là con số vô nghĩa. Năm lượt phá lại, năm đỏ đúng chỗ; lượt
+*"dải bằng đúng màu thương hiệu"* **bắt chính bản đầu của chặng này**. **2197/2197 xanh.**
+
+Trước đó **P223** (`0195`): **bỏ nhãn bậc khỏi tiêu đề thông báo, hạ chói dải VIỆC, chấm chuông
 thành ĐỎ**. Ba câu khách hàng gửi cùng lúc và chúng **KHÔNG rời nhau**: câu một làm màu thành thứ DUY
 NHẤT còn nói ra bậc trên màn hình, nên câu hai (*hạ chói*) đụng thẳng vào chính thứ vừa được giao thêm
 việc — đọc ba câu như ba lượt sửa độc lập là làm dòng VIỆC nhạt đi đúng lượt nó phải nói to hơn.
@@ -1204,8 +1226,9 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **BẬC của một thông báo là DẪN XUẤT, với TỪNG người đọc** (`0192`) —
   `vaiTroNguoiDoc === CHU_BUOC[toStatus]` là VIỆC, còn lại là TIN. **MỘT boolean cấp cho BA chỗ**:
   CÂU CHỮ của tiêu đề (`0195` — mệnh lệnh / lời kể; nhãn *Cần bạn xử lý* · *Để bạn biết* đã GỠ),
-  `duongDan` (`/ho-so/:id` hay `.../nhat-ky`), và dải màu trên dòng chuông — không chỗ nào tự suy lại
-  được. **Bậc KHÔNG còn viết ra thành chữ ở tiêu đề** (`0195`): trên màn hình đọc bằng MÀU, trong hộp
+  `duongDan` (`/ho-so/:id` hay `.../nhat-ky`), và **kẻ dọc xanh** ở mép trái dòng chuông (`0196` —
+  KHÔNG tô nền) — không chỗ nào tự suy lại được. **Bậc KHÔNG còn viết ra thành chữ ở tiêu đề**
+  (`0195`): trên màn hình đọc bằng MÀU, trong hộp
   thư đọc bằng ngữ pháp cộng đoạn *"chỉ để bạn biết"* của thân thư bậc TIN — **hộp thư không có dải
   màu nào**, nên đoạn ấy thôi là phần thừa, đừng gỡ kèm một lượt dọn câu chữ. Bất biến thay chỗ cho
   nhãn: **hai bậc phải cho HAI tiêu đề khác nhau** ở mọi hành động CÓ CHỦ BƯỚC (trạng thái không có

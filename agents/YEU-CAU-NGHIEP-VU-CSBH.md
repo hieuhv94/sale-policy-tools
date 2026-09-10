@@ -975,10 +975,12 @@ không phải một dấu chấm. Quá 99 thì ghi `99+`.
 
 - **BẬC của một thông báo** `mới 09/09` — với mỗi người đọc, một thông báo hoặc là **việc của họ**
   hoặc chỉ là **tin**. Người đọc là *chủ bước* của trạng thái đích thì đó là việc; còn lại là tin.
-  Bậc quyết định **tiêu đề**, **liên kết** (hồ sơ / lịch sử hồ sơ), và **dải màu** trên dòng. Cùng
-  một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ đó là hai chuyện khác nhau.
+  Bậc quyết định **tiêu đề**, **liên kết** (hồ sơ / lịch sử hồ sơ), và **dòng kẻ dọc** bên trái
+  dòng. Cùng một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ đó là hai chuyện khác
+  nhau.
 - **Bậc KHÔNG viết thành nhãn chữ** `mới 10/09`. Hai nhãn *Cần bạn xử lý* / *Để bạn biết* mở đầu mọi
-  tiêu đề từ 09/09 đã **bỏ hẳn**: trên màn hình bậc đọc bằng **màu** (dải bên trái dòng), và trong
+  tiêu đề từ 09/09 đã **bỏ hẳn**: trên màn hình bậc đọc bằng **một kẻ dọc xanh ở mép trái dòng**
+  (`sửa 10/09` — không tô nền), và trong
   tiêu đề nó đã nằm sẵn ở **cách viết** — bậc việc là một mệnh lệnh gọi tên việc phải làm (*"Duyệt
   bản mềm — Trưởng bộ phận đã ký"*), bậc tin là một câu kể chuyện đã xảy ra (*"Trưởng bộ phận đã ký,
   hồ sơ sang Kế toán duyệt bản mềm"*). Trong **hộp thư** — nơi không có dải màu nào — thân thư bậc
@@ -2454,6 +2456,9 @@ thôi được viết ra thành chữ ở đầu tiêu đề.
 **MÀU DÒNG VIỆC DỊU XUỐNG, CHẤM TRÊN CHUÔNG THÀNH ĐỎ** `mới 10/09` — *"đổi màu hổ phách bằng màu
 cùng tông để tránh quá chói"* và *"dấu chấm xanh đổi thành chấm đỏ"*.
 
+> **ĐI TIẾP MỘT BƯỚC NGAY SAU ĐÓ `10/09`** — xem *"Dòng việc chỉ còn một kẻ dọc xanh"* ngay dưới.
+> Phần hổ phách của mục này **không còn đúng**; giữ lại vì nó ghi ra phép đo dẫn tới bước sau.
+>
 > **Dịu, nhưng không nhạt**: cùng lượt này nhãn chữ đi mất, nên dải màu thành **thứ duy nhất** nói ra
 > bậc trên màn hình — hạ chói mà mờ luôn cả dải là xoá hẳn một trục thông tin. Chỗ chói thật là mảng
 > **nền** trải hết bề ngang dòng (mười dòng như thế cạnh nhau trong hộp chuông), nên nền nhạt hẳn đi
@@ -2465,6 +2470,26 @@ cùng tông để tránh quá chói"* và *"dấu chấm xanh đổi thành ch�
 > đứng cạnh nhau để so mức khẩn; còn một chấm xanh ở góc một nút xanh thương hiệu thì gần như chìm.
 > **Chấm trên từng DÒNG vẫn xanh**: nó trả lời câu khác (*chưa đọc*, không phải *có việc*), và đổi
 > luôn cả hai là nói *"mọi thứ đều gấp"*.
+
+**DÒNG VIỆC CHỈ CÒN MỘT KẺ DỌC XANH** `mới 10/09` — *"với những thông báo cần xử lý không cần đổi
+màu hổ phách, chỉ cần hiện dòng kẻ dọc bên trái, màu dòng kẻ cùng tông xanh"*. Bước thứ hai của cùng
+một hướng mà quyết định trên đi nửa đường: nó **hạ chói** mảng nền, quyết định này **bỏ hẳn** nền.
+
+> **Bỏ hẳn RẺ HƠN hạ chói.** Không còn nền thì nền hover thôi phải tranh chỗ với nền bậc, nên luật
+> hover riêng của dòng việc biến mất theo — nó vốn có mặt chỉ để đè lại chính cái nền vừa bị bỏ. Và
+> hộp thông báo thôi có màu cảnh báo nào: **không việc nào ở đây là sự cố**, đúng lập luận `0188` đã
+> viết cho nhãn *Đã xoá*.
+>
+> **Xanh — đảo lập luận 09/09**, giữ lại nguyên văn vì nó không sai: *"hổ phách, không phải xanh
+> thương hiệu: xanh đã là màu của chưa đọc ở chấm bên trái mỗi dòng, và một màu mang hai nghĩa trên
+> cùng một dòng thì thôi nói được nghĩa nào."* Vế thắng: hai thứ ấy **khác hình và khác chỗ** — một
+> đường dọc cao hết dòng ở mép trái, một chấm tròn 8px trong lòng dòng — nên chúng không đọc lẫn nhau
+> như hai **mảng** cùng màu sẽ đọc lẫn.
+>
+> **Sáng hơn màu thương hiệu, và đó là một phép đo chứ không phải sở thích**: đây là một đường 3px
+> chứ không phải một mảng, và ở cỡ ấy sắc navy `#034ea2` đọc ra gần như đen — tức mất luôn cái *xanh*
+> vừa được yêu cầu. Ca kiểm canh hai vế (cùng sắc màu, sáng hơn) trên cả ba bảng màu, không ghim mã
+> hex.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
