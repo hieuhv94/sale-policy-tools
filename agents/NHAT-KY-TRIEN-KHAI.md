@@ -17103,3 +17103,127 @@ không tự ẩn khối ở giao diện.
 | Làm mới ghi đè cả giá bán buôn | **2 đỏ** |
 
 **2193/2193 xanh.**
+
+## P223 — `0195` Bỏ nhãn bậc khỏi tiêu đề, hạ chói dải VIỆC, chấm chuông thành đỏ
+
+Ba câu khách hàng gửi cùng lúc, và chúng **không rời nhau** — câu thứ nhất làm màu thành thứ duy
+nhất còn nói ra bậc, nên câu thứ hai (*hạ chói*) đụng thẳng vào chính thứ vừa được giao thêm việc.
+Đọc ba câu như ba lượt sửa độc lập là làm dòng VIỆC nhạt đi đúng lượt nó phải nói to hơn.
+
+### Câu 1 — hai nhãn đi, và vì sao đi được mà không mất gì
+
+`0192` dán *Cần bạn xử lý* / *Để bạn biết* vào đầu mọi tiêu đề. Lý do bỏ được **không phải "cho
+gọn"**, và đó là chỗ đáng ghi: **hai bậc đã nói ra bằng NGỮ PHÁP, ở ngay câu chữ mà chính `0192`
+dựng**.
+
+| Bậc | `0192` | `0195` |
+|---|---|---|
+| VIỆC | *Cần bạn xử lý (Phiên bản 4): **Duyệt bản mềm — Trưởng bộ phận đã ký*** | *Phiên bản 4: **Duyệt bản mềm — Trưởng bộ phận đã ký*** |
+| TIN | *Để bạn biết: **Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm*** | ***Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm*** |
+
+Phần in đậm là phần `0192` đã có sẵn: bậc VIỆC là một **mệnh lệnh** gọi tên việc của người đọc, bậc
+TIN là một **câu kể**. Nhãn chỉ dán tên cho một khác biệt đã nằm trong câu — nó **lặp lại**, và nó ăn
+mất chừng 14 ký tự đầu, đúng phần chủ đề thư mà điện thoại còn hiện được. Khách hàng đúng, và họ đúng
+vì một lý do `0192` không thấy: chặng ấy dựng ra cả hai lớp rồi giữ luôn cả hai.
+
+**Lập luận thứ tự mảnh của `0192` MẠNH LÊN chứ không yếu đi.** Nó xếp *loại thay đổi* trước *việc
+phải làm* vì trong hàng đợi của một vai trò, mọi hồ sơ đều là cùng một việc nên mảnh ấy không phân
+biệt được gì. Bỏ nhãn là phần biến thiên tụt lên **ngay ký tự đầu tiên** — chỗ tốt nhất nó có thể
+đứng.
+
+**BẤT BIẾN THAY CHỖ CHO NHÃN, và nó là cách DUY NHẤT chặng này hỏng**: `titleFor(e,'VIEC') !==
+titleFor(e,'TIN')` ở mọi hành động **có chủ bước**. Nhãn bảo đảm điều đó một cách rẻ tiền — hai chuỗi
+cố định thì không thể trùng nhau; bỏ nhãn là bỏ chỗ dựa ấy và giao lại cho câu chữ, thứ người sau
+sửa được mà không thấy hậu quả. Ca kiểm duyệt hết bảng `RECIPIENTS × ACTION_OF`.
+
+> **CA KIỂM MỚI BẮT ĐÚNG MỘT CHỖ TÔI KHÁI QUÁT QUÁ TAY.** Bản đầu quét **mọi** cặp và đỏ ở
+> `KT_RECEIVE_L2` — *"CSBH bắt đầu có hiệu lực"* ở cả hai bậc. Đỏ đúng phép so, **sai câu hỏi**:
+> `DANG_CO_HIEU_LUC` không có chủ bước nên **không ai ở bậc VIỆC**, và `titleFor(ev,'VIEC')` ở đó là
+> một lời gọi không bao giờ xảy ra thật. Hai bậc trùng chữ chỉ có hại khi hai bậc **cùng tồn tại**.
+> Đây là mặt trái của chính cơ chế `0192`: *bốn trạng thái không có chủ bước làm sáu hành động tự rơi
+> về TIN* — một câu về HÀNH VI, và tôi đọc nó thành một câu về TẬP THAM SỐ HỢP LỆ.
+
+**Ba chỗ giữ lại có chủ ý, cả ba đều đã cân nhắc bỏ:**
+
+- **Hai câu riêng `Sắp quá hạn` và `Dừng xử lý`** — chúng không phải nhãn bậc, chúng là ngoại lệ có
+  lý do riêng (lá thư cuối còn cứu được hồ sơ · hồ sơ vừa bị rút khỏi bàn người đang cầm). Câu SLA
+  chỉ **cắt đuôi** *"— cần bạn xử lý"*, đúng cụm chữ khách hàng vừa bỏ.
+- **Đoạn giải thích trong thân thư bậc TIN.** Đây là chỗ phải nói ra: **hộp thư KHÔNG có dải màu
+  nào**. Sau khi nhãn đi, thứ còn phân biệt hai bậc trong hộp thư là ngữ pháp tiêu đề cộng đúng hai
+  dòng ấy — chúng **thôi là phần thừa** kể từ hôm nay, và có chú thích tại chỗ nói thế để lượt dọn
+  câu chữ sau đừng gỡ chúng.
+- **`duongDan` theo bậc** (hồ sơ / nhật ký) — không đụng tới, và nó thành thứ đo bậc rẻ nhất cho bộ
+  kiểm (xem dưới).
+
+**Nhánh không đến được, và tới `0195` thì thôi được che.** `titleFor` rơi về câu bậc TIN khi
+`VIEC_CUA_BUOC` tra không ra. Tới `0192` nhãn còn giữ tiêu đề "đúng bậc" ở nhánh ấy; giờ thì lá VIỆC
+lặng lẽ mang y hệt câu của lá TIN. Không sửa (nó là lưới đỡ cho sự kiện cũ trong DLQ), nhưng ca đối
+chiếu `CHU_BUOC` ↔ `VIEC_CUA_BUOC` hai chiều — vốn có từ `0192` — giờ đứng canh đúng chỗ ấy, và
+chú thích nói ra điều đó.
+
+### Bộ kiểm mất phép đo bậc, và chỗ tìm lại nó
+
+Năm ca kiểm HTTP nhận diện bậc của một lá thư bằng `Subject.includes('Cần bạn xử lý')` — rẻ, và
+**chết cùng lượt nhãn bị bỏ**. Sửa thành `includes` một chuỗi khác là dựng lại đúng cái mong manh
+ấy; thứ phải hỏi là **nguồn**, và `0192` đã ghi rằng một boolean cấp cho **ba** chỗ. Hai chỗ còn
+sống: `bacCua()` đọc **đường dẫn trong thân thư** (`/nhat-ky` ⇒ TIN). Không phải một phép đoán thay
+thế — nó hỏi chính cái biến mà tiêu đề hỏi.
+
+Ca *"một lá, một bậc"* (`0192` hỏi *tiêu đề có mang cả hai nhãn không*) chuyển thành: **lá VIỆC không
+mang đoạn "chỉ để bạn biết", lá TIN thì phải mang** — hai vế, vì chỉ kiểm vế đầu thì gỡ hẳn đoạn ấy
+vẫn xanh, mà đoạn ấy giờ là chỗ duy nhất lá thư nói ra bậc bằng chữ.
+
+### Câu 2 — hạ chói mà không hạ tín hiệu
+
+Hai câu đầu **đấu nhau**, và phải giải trước khi chọn màu: câu 1 làm dải màu thành **thứ duy nhất**
+nói ra bậc trên màn hình, câu 2 bảo làm nó dịu đi. Chỗ chói thật không phải cái dải 3px — nó là
+**mảng NỀN trải hết bề ngang dòng**, và trong hộp chuông có tới mười dòng như thế cạnh nhau. Nên nền
+nhạt hẳn (`#fdf3e2` → `#fdf8ef`, độ sáng 93,9% → 96,5%) còn **dải giữ nguyên độ đậm**, chỉ dịch khỏi
+sắc nâu (`#a15c00` → `#c4881f`).
+
+**CẶP TOKEN RIÊNG, không sửa `--mau-canh-bao`**: cặp ấy tô nhãn *Sắp quá hạn*, nhãn dòng *Chỉnh sửa*
+(`0188`) và mọi ô cảnh báo khác — chúng là **chữ trên nền**, cần tương phản đọc được; đây là một dải
+và một mảng nền. Sửa token chung là hạ tương phản của mười chỗ để dịu một chỗ.
+
+**Ca kiểm đo trên HSL, không ghim mã hex.** Khách hàng nói *"cùng tông, tránh quá chói"* — hai tính
+chất: **cùng sắc màu** (lệch < 8°) và **thấp hơn về độ bão hoà**. Ghim hex là ghim một lựa chọn thẩm
+mỹ và đỏ ở mọi lượt tinh chỉnh; đo hai tính chất là canh đúng câu khách hàng đặt ra. Ca ấy quét **cả
+ba bảng màu** (sáng · `@media` tối · chọn tay tối) — lỗi im lặng cổ điển của `tokens.css` là sửa một
+bảng quên hai bảng kia, và nó chỉ lộ ra với người đang bật đúng giao diện bị bỏ sót.
+
+### Câu 3 — chấm chuông thành đỏ, đảo lập luận `0192`
+
+Lập luận cũ giữ nguyên văn trong chú thích vì nó **không sai**, chỉ thua một vế mạnh hơn: *"đỏ là màu
+của huy hiệu đếm việc, cùng màu là cùng mức khẩn; xanh thì đúng bằng `.tb-cham` nên dấu này tự giải
+nghĩa."*
+
+Vế thắng: **hai hình LOẠI TRỪ NHAU** (`dauChuong` trả kiểu phân biệt), nên chúng không bao giờ đứng
+cạnh nhau để ai so mức khẩn — người dùng thấy đúng một trong hai. Còn một chấm xanh 8px ở góc một nút
+**xanh thương hiệu** thì gần như chìm mất, đúng lúc nó là thứ duy nhất báo có tin mới.
+
+**Cái mất, đã đo và chấp nhận**: dấu này thôi tự giải nghĩa qua `.tb-cham`. **Chấm trên từng DÒNG vẫn
+XANH** — nó trả lời câu khác (*chưa đọc*, không phải *có việc*), và đổi luôn cả hai là làm mọi dòng
+chưa đọc đỏ lên, tức nói *"mọi thứ đều gấp"*. Ca kiểm canh **cả hai vế**, và vế thứ hai mới là vế dễ
+mất.
+
+### Phá lại
+
+| Phá | Kết quả |
+|---|---|
+| Dựng lại `NHAN_BAC` và dán vào đầu tiêu đề | **3 đỏ** |
+| Gỡ nhãn mà quên nhánh *"không còn mảnh dẫn nào"* | **2 đỏ** (xem dưới) |
+| Bậc VIỆC rơi về câu của bậc TIN (`VIEC_CUA_BUOC` tra không ra) | **5 đỏ** |
+| Gỡ đoạn *"chỉ để bạn biết"* khỏi thân thư bậc TIN | **5 đỏ** |
+| Dải VIỆC quay về cặp `--mau-canh-bao` chung | **1 đỏ** |
+| Chấm chuông quay về `--mau-thuong-hieu` | **1 đỏ** |
+| Đổi token dòng VIỆC ở bảng sáng, quên hai bảng tối | **1 đỏ** |
+
+> **LƯỢT PHÁ THỨ HAI XANH Ở LƯỢT ĐẦU, và ca kiểm phải sửa.** Ca *"không dấu hai chấm mồ côi"* hỏi
+> `t.startsWith(':')` — chỉ 1 đỏ, và cái đỏ ấy là một ca ghim chuỗi ở chỗ khác. Lý do: mảnh dẫn rỗng
+> ở đây là `undefined`, nên chuỗi ra `undefined: Duyệt bản mềm…` chứ không phải `: Duyệt bản mềm…`.
+> **Tôi canh đúng lớp lỗi mà sai đúng một ký tự của nó.** Hỏi *"tiêu đề mở đầu bằng CHỮ HOA"*
+> (`/^\p{Lu}/u`) cộng *"không chứa `undefined`"* thì bắt được cả hai — và cả những cách hỏng khác của
+> cùng phép ghép chuỗi. Sửa xong: **2 đỏ**.
+
+
+**2197/2197 xanh.**

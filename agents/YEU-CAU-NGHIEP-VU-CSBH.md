@@ -968,19 +968,24 @@ phải một cách in khác của hồ sơ.
   dưới 24 giờ là tới hạn, ở **bất kỳ bước nào** trong phạm vi người đang xem — không riêng bước của
   chính họ. Người đang giữ hồ sơ chính là người đã không xử lý suốt 13 ngày qua.
 
-### 9.1b. Thông báo trên web `mới 23/08` `sửa 09/09`
+### 9.1b. Thông báo trên web `mới 23/08` `sửa 10/09`
 
 Một **biểu tượng chuông** ở thanh trên cùng, sát trái thẻ tài khoản, mang **con số** việc chưa đọc —
 không phải một dấu chấm. Quá 99 thì ghi `99+`.
 
 - **BẬC của một thông báo** `mới 09/09` — với mỗi người đọc, một thông báo hoặc là **việc của họ**
   hoặc chỉ là **tin**. Người đọc là *chủ bước* của trạng thái đích thì đó là việc; còn lại là tin.
-  Bậc quyết định **tiêu đề** (*Cần bạn xử lý* / *Để bạn biết*), **liên kết** (hồ sơ / lịch sử hồ sơ),
-  và **dải màu** trên dòng. Cùng một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ đó
-  là hai chuyện khác nhau.
+  Bậc quyết định **tiêu đề**, **liên kết** (hồ sơ / lịch sử hồ sơ), và **dải màu** trên dòng. Cùng
+  một sự kiện cho ra hai tiêu đề khác nhau ở hai người, vì với họ đó là hai chuyện khác nhau.
+- **Bậc KHÔNG viết thành nhãn chữ** `mới 10/09`. Hai nhãn *Cần bạn xử lý* / *Để bạn biết* mở đầu mọi
+  tiêu đề từ 09/09 đã **bỏ hẳn**: trên màn hình bậc đọc bằng **màu** (dải bên trái dòng), và trong
+  tiêu đề nó đã nằm sẵn ở **cách viết** — bậc việc là một mệnh lệnh gọi tên việc phải làm (*"Duyệt
+  bản mềm — Trưởng bộ phận đã ký"*), bậc tin là một câu kể chuyện đã xảy ra (*"Trưởng bộ phận đã ký,
+  hồ sơ sang Kế toán duyệt bản mềm"*). Trong **hộp thư** — nơi không có dải màu nào — thân thư bậc
+  tin vẫn giữ đoạn nói rõ *bạn không phải xử lý gì ở bước này*.
 - **Con số trên chuông đếm VIỆC, không đếm tin** `mới 09/09`. Hết việc mà còn tin chưa đọc thì chuông
-  mang một **dấu chấm**. Quyết định 23/08 — *con số thật, không phải dấu chấm* — giữ nguyên và mạnh
-  hơn: nó nói *"còn n việc chưa xem"*, đúng câu khách hàng đặt ra cho nó.
+  mang một **dấu chấm đỏ** `sửa 10/09`. Quyết định 23/08 — *con số thật, không phải dấu chấm* — giữ
+  nguyên và mạnh hơn: nó nói *"còn n việc chưa xem"*, đúng câu khách hàng đặt ra cho nó.
 - **Mọi hành động dẫn tới gửi email cho một người đều là một thông báo của người ấy, và ngoài ra
   không có thông báo nào khác.** Danh sách người nhận thông báo là chính danh sách người nhận thư,
   lấy ở cùng một chỗ.
@@ -2382,6 +2387,10 @@ ngay mà chưa cần phải ra phần bảng để nhìn"*.
 > báo ấy là **việc**; còn lại là **tin**. Bảng chủ bước đã có sẵn (nó vốn quyết định thư nhắc SLA gửi
 > cho ai), chỉ thiếu một dòng *Yêu cầu chỉnh sửa → TDV*.
 >
+> **NHÃN CHỮ Ở CỘT *Tiêu đề* ĐÃ BỎ `10/09`** — xem *"Bậc đọc bằng MÀU, không bằng nhãn chữ"* ngay
+> dưới mục này. Bảng giữ nguyên câu chữ của 09/09 vì nó là tiền đề của quyết định ấy: hai nhãn bị bỏ
+> **chính vì** hai câu bên cạnh chúng đã tự nói ra bậc rồi.
+>
 > | Bậc | Tiêu đề | Liên kết | Dòng trên chuông |
 > |---|---|---|---|
 > | **Việc** | *Cần bạn xử lý (Phiên bản 4): Duyệt bản mềm — Trưởng bộ phận đã ký* | Hồ sơ | Dải hổ phách |
@@ -2416,6 +2425,46 @@ ngay mà chưa cần phải ra phần bảng để nhìn"*.
 > **Đã nêu và KHÔNG làm**: cái chuông vẫn là **sổ sự kiện**, không phải danh sách việc tồn đọng — đọc
 > một thông báo không có nghĩa là đã làm. Danh sách việc còn phải làm nằm ở *Tổng quan* (`NTF-07`), và
 > dựng bản thứ hai của nó trong chuông là dựng hai danh sách sẽ lệch nhau.
+
+**BẬC ĐỌC BẰNG MÀU, KHÔNG BẰNG NHÃN CHỮ** `mới 10/09` — *"bỏ phần text 'Bạn cần xử lý' và 'Để bạn
+biết' đi, chỉ cần phân biệt bằng màu"*. Đảo một nửa quyết định 09/09: **hai bậc giữ nguyên**, chỉ
+thôi được viết ra thành chữ ở đầu tiêu đề.
+
+> **Vì sao bỏ được mà không mất gì** — và lý do này mạnh hơn *"cho gọn"*: hai bậc **đã nói ra bằng
+> ngữ pháp**, ở ngay câu chữ mà chính 09/09 dựng. Bậc việc là một **mệnh lệnh** gọi tên việc của
+> người đọc (*"Duyệt bản mềm — Trưởng bộ phận đã ký"*), bậc tin là một **câu kể** chuyện đã xảy ra
+> (*"Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm"*). Nhãn chỉ dán tên cho một khác biệt
+> đã có sẵn; nó lặp lại, và nó ăn mất chừng 14 ký tự đầu — đúng phần chủ đề thư mà điện thoại còn
+> hiện được. Lập luận xếp *loại thay đổi* ra trước vì thế **mạnh lên**: phần biến thiên giữa các hồ
+> sơ giờ đứng ngay ký tự đầu tiên — *"Phiên bản 4: Duyệt bản mềm — Trưởng bộ phận đã ký"*.
+>
+> **Trong HỘP THƯ không có màu nào**, và đó là vế phải nói ra. Thứ còn phân biệt hai bậc ở đó là ngữ
+> pháp của tiêu đề, cộng **đoạn giải thích trong thân thư bậc tin** (*"Thư này chỉ để bạn biết — bạn
+> KHÔNG phải xử lý gì ở bước này"*) và **liên kết** (hồ sơ / lịch sử hồ sơ). Hai thứ ấy **giữ lại có
+> chủ ý**: chúng thôi là phần thừa từ hôm nay.
+>
+> **Hai câu riêng KHÔNG phải nhãn bậc nên ở lại**: *Sắp quá hạn* (lá thư cuối còn cứu được hồ sơ) và
+> *Dừng xử lý* (hồ sơ vừa bị rút khỏi bàn người đang cầm). Câu SLA chỉ cắt đuôi *"— cần bạn xử lý"*,
+> đúng cụm chữ khách hàng vừa bỏ.
+>
+> **Bất biến thay chỗ cho nhãn**, và nó là cách duy nhất quyết định này hỏng: **hai bậc phải cho hai
+> tiêu đề khác nhau** ở mọi hành động có chủ bước. Nhãn đảm bảo điều đó một cách rẻ tiền; bỏ nhãn là
+> bỏ chỗ dựa ấy, nên có ca kiểm duyệt hết bảng hành động.
+
+**MÀU DÒNG VIỆC DỊU XUỐNG, CHẤM TRÊN CHUÔNG THÀNH ĐỎ** `mới 10/09` — *"đổi màu hổ phách bằng màu
+cùng tông để tránh quá chói"* và *"dấu chấm xanh đổi thành chấm đỏ"*.
+
+> **Dịu, nhưng không nhạt**: cùng lượt này nhãn chữ đi mất, nên dải màu thành **thứ duy nhất** nói ra
+> bậc trên màn hình — hạ chói mà mờ luôn cả dải là xoá hẳn một trục thông tin. Chỗ chói thật là mảng
+> **nền** trải hết bề ngang dòng (mười dòng như thế cạnh nhau trong hộp chuông), nên nền nhạt hẳn đi
+> còn **dải giữ nguyên độ đậm**. Cặp màu riêng, không sửa màu cảnh báo chung — cặp ấy còn tô nhãn
+> *Sắp quá hạn* và nhãn dòng *Chỉnh sửa*, là chữ trên nền và cần tương phản đọc được.
+>
+> **Chấm đỏ đảo lập luận 09/09** (*"xanh, vì nó là bản thu nhỏ của chấm chưa đọc trên từng dòng"*).
+> Vế thắng: hai hình **loại trừ nhau** — người dùng thấy đúng một trong hai — nên chúng không bao giờ
+> đứng cạnh nhau để so mức khẩn; còn một chấm xanh ở góc một nút xanh thương hiệu thì gần như chìm.
+> **Chấm trên từng DÒNG vẫn xanh**: nó trả lời câu khác (*chưa đọc*, không phải *có việc*), và đổi
+> luôn cả hai là nói *"mọi thứ đều gấp"*.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

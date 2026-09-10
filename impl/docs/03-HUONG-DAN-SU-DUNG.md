@@ -157,15 +157,19 @@ thích của cái tên.
 > Dưới 640px viên vai trò ẩn đi cho vừa thanh — nhãn như *"Quản trị hệ thống"* quá dài cho màn hình
 > điện thoại. Tên đăng nhập thì vẫn hiện.
 
-### Chuông thông báo `mới 23/08` `sửa 09/09`
+### Chuông thông báo `mới 23/08` `sửa 10/09`
 
 Cái chuông đứng sát trái thẻ tài khoản, và nó có **ba dạng**:
 
 | Chuông | Nghĩa |
 |---|---|
 | **Con số đỏ** | Còn chừng ấy **việc** bạn chưa xem. Quá 99 thì ghi `99+` |
-| **Chấm xanh** `mới 09/09` | Hết việc, nhưng còn **tin** chưa đọc |
+| **Chấm đỏ** `sửa 10/09` | Hết việc, nhưng còn **tin** chưa đọc |
 | Không gì | Bạn đã đọc hết |
+
+Hai dạng đầu **không bao giờ cùng xuất hiện**: còn việc thì bạn thấy con số, hết việc mới thấy chấm.
+Chấm ở đây khác **chấm xanh** bên trái từng dòng trong bảng sổ xuống — chấm ấy nói *dòng này chưa
+đọc*, không nói *có việc*.
 
 Con số **chỉ đếm việc của bạn**. Tin — những chuyện xảy ra trên hồ sơ mà bạn không phải làm gì — thì
 chỉ làm hiện dấu chấm. Trước 09/09 nó đếm cả hai, và với một Trình dược viên nhiều hồ sơ thì con số
@@ -182,7 +186,7 @@ Bấm vào chuông thì sổ xuống **10 thông báo gần nhất**. Mỗi dòn
 
 | Phần | Là gì |
 |---|---|
-| Dòng đậm | Bạn phải làm gì — *"Cần bạn xử lý: Chỉnh sửa và gửi lại — Trưởng bộ phận trả lại"* |
+| Dòng đậm | Bạn phải làm gì — *"Chỉnh sửa và gửi lại — Trưởng bộ phận trả lại"* |
 | Dòng mờ | Mã và tên khách hàng, mã hồ sơ |
 | Dòng nhỏ | *3 giờ trước* — rê chuột lên thì hiện ngày giờ đầy đủ |
 | Chấm xanh bên trái | Dòng này bạn **chưa đọc** |
@@ -190,6 +194,12 @@ Bấm vào chuông thì sổ xuống **10 thông báo gần nhất**. Mỗi dòn
 
 Hai dấu ấy nói hai chuyện khác nhau và có thể cùng xuất hiện: *chưa đọc* là bạn chưa nhìn thấy nó,
 *việc của bạn* là bạn chưa làm xong. Đọc một thông báo không làm việc ấy biến mất.
+
+> **Dải màu là chỗ DUY NHẤT nói ra việc của bạn** `sửa 10/09`. Trước 10/09 mỗi tiêu đề còn mở đầu
+> bằng chữ *Cần bạn xử lý* hoặc *Để bạn biết*; hai nhãn ấy đã bỏ để tiêu đề ngắn lại và đọc lướt
+> nhanh hơn. Cách đọc thay cho chúng: dòng có dải là **việc**, còn tiêu đề thì tự nói ra — việc của
+> bạn viết như một mệnh lệnh (*"Duyệt bản mềm"*), còn tin thì viết như một lời kể (*"Trưởng bộ phận
+> đã ký, hồ sơ sang Kế toán duyệt bản mềm"*).
 
 **Bấm vào một dòng thì tới đúng chỗ mà liên kết trong email dẫn tới**, và dòng đó thành đã đọc. Dòng
 **không** có dải hổ phách mở *Lịch sử hồ sơ* thay vì mở hồ sơ — ở đó không có nút nào cho bạn bấm,
@@ -1226,7 +1236,7 @@ màn hình), tài khoản **đã bị vô hiệu hoá**, và **Sale Admin** `m�
 > đầu), *Kế toán yêu cầu in lại* (việc quay lại), *Kế toán tiếp nhận lần 2* (kết quả việc vừa làm) —
 > cộng thư **nhắc sắp quá hạn** và **quá hạn** khi hồ sơ đang nằm ở bước của họ.
 
-### Đọc thư và thông báo `sửa 09/09`
+### Đọc thư và thông báo `sửa 10/09`
 
 Mỗi lần hồ sơ chuyển bước, phần mềm gửi thư và ghi một dòng vào **chuông thông báo**. Thân thư liệt
 kê: mã và tên khách hàng · mã hồ sơ · **Loại thay đổi** · trạng thái · bước đang duyệt · thời điểm ·
@@ -1237,14 +1247,18 @@ cho đồng nghiệp hai tiêu đề khác nhau, vì với hai người đó là
 
 | Bạn đọc thấy | Nghĩa |
 |---|---|
-| **Cần bạn xử lý:** *Duyệt bản mềm — Trưởng bộ phận đã ký* | Hồ sơ đang chờ **chính bạn**. Liên kết mở thẳng hồ sơ, nơi có nút để bấm |
-| **Để bạn biết:** *Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm* | Bạn **không phải làm gì**. Liên kết mở *Lịch sử hồ sơ* |
+| *Duyệt bản mềm — Trưởng bộ phận đã ký* | Một **mệnh lệnh**: hồ sơ đang chờ **chính bạn**. Liên kết mở thẳng hồ sơ, nơi có nút để bấm |
+| *Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản mềm* | Một **lời kể**: bạn **không phải làm gì**. Liên kết mở *Lịch sử hồ sơ*, và thân thư nói rõ điều đó |
 | **Dừng xử lý:** *Trưởng bộ phận hoàn duyệt — hồ sơ đã rời bàn bạn* | Bạn **đang làm dở** và việc ấy vừa bị rút đi |
-| **Sắp quá hạn — cần bạn xử lý:** *…* | Còn **một ngày**. Lá sau đó (*đã quá hạn duyệt*) chỉ để báo tin: hồ sơ đã chết, không thao tác được nữa |
+| **Sắp quá hạn:** *…* | Còn **một ngày**. Lá sau đó (*đã quá hạn duyệt*) chỉ để báo tin: hồ sơ đã chết, không thao tác được nữa |
 
-Tiêu đề bậc *Cần bạn xử lý* mang thêm **loại thay đổi** trong ngoặc — *Cần bạn xử lý (Phiên bản 4):
-Duyệt và ký số*. Nó đứng sớm vì trong hàng đợi của bạn mọi hồ sơ đều là cùng một việc, còn *CSBH mới*
-hay *Phiên bản 4* thì khác nhau ở từng hồ sơ.
+> **Hai nhãn *Cần bạn xử lý* và *Để bạn biết* đã bỏ** `sửa 10/09`. Cách phân biệt bây giờ là **cách
+> viết**: việc của bạn gọi thẳng tên việc phải làm, tin thì kể lại chuyện vừa xảy ra. Trong hộp thư,
+> thư bậc tin còn một dòng nói rõ *"Thư này chỉ để bạn biết — bạn KHÔNG phải xử lý gì ở bước này"*.
+
+Tiêu đề của **việc** mang thêm **loại thay đổi** ở đầu — *Phiên bản 4: Duyệt và ký số*. Nó đứng đầu
+vì trong hàng đợi của bạn mọi hồ sơ đều là cùng một việc, còn *CSBH mới* hay *Phiên bản 4* thì khác
+nhau ở từng hồ sơ — và đó cũng là phần còn đọc được khi điện thoại cắt bớt chủ đề thư.
 
 > **Sale Admin** chỉ nhận thư khi đó là việc của họ hoặc khi hồ sơ vừa rời bàn họ `sửa 27/08`.
 
@@ -1256,8 +1270,8 @@ hay *Phiên bản 4* thì khác nhau ở từng hồ sơ.
 | **Phiên bản n** — chỉnh sửa/bổ sung, thay thế CSBH đang hiệu lực | Bản này sẽ **thay thế** CSBH khách hàng đang được hưởng | Soi xem nó đổi gì so với bản cũ — cột *Trạng thái* của từng dòng sản phẩm nói ra điều đó |
 
 Con số *n* là số lần CSBH của khách hàng ấy được lập lại: *Phiên bản 4* nghĩa là đã có ba lần thay
-thế trước đó. Từ 09/09 nó lên **tiêu đề** ở dạng ngắn — *Cần bạn xử lý (Phiên bản 4): …* — nên nhìn
-thấy ngay trong danh sách chủ đề thư và trên chuông, không phải mở ra mới biết.
+thế trước đó. Từ 09/09 nó lên **tiêu đề** ở dạng ngắn — *Phiên bản 4: …* — nên nhìn thấy ngay trong
+danh sách chủ đề thư và trên chuông, không phải mở ra mới biết.
 
 ### Thư báo CSBH hết hiệu lực
 

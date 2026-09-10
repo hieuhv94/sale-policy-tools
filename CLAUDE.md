@@ -87,7 +87,35 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (10/09/2026)
 
-Chặng gần nhất **P222** (`0194`): **khối *Yêu cầu cập nhật* hiện cả khi TDV đang sửa, kèm nút *Tự
+Chặng gần nhất **P223** (`0195`): **bỏ nhãn bậc khỏi tiêu đề thông báo, hạ chói dải VIỆC, chấm chuông
+thành ĐỎ**. Ba câu khách hàng gửi cùng lúc và chúng **KHÔNG rời nhau**: câu một làm màu thành thứ DUY
+NHẤT còn nói ra bậc trên màn hình, nên câu hai (*hạ chói*) đụng thẳng vào chính thứ vừa được giao thêm
+việc — đọc ba câu như ba lượt sửa độc lập là làm dòng VIỆC nhạt đi đúng lượt nó phải nói to hơn.
+**VÌ SAO BỎ NHÃN ĐƯỢC MÀ KHÔNG MẤT GÌ** — lý do mạnh hơn *"cho gọn"*: hai bậc ĐÃ nói ra bằng **NGỮ
+PHÁP**, ở ngay câu chữ `0192` dựng — bậc VIỆC là MỆNH LỆNH gọi tên việc của người đọc (*"Duyệt bản
+mềm — Trưởng bộ phận đã ký"*), bậc TIN là CÂU KỂ (*"Trưởng bộ phận đã ký, hồ sơ sang Kế toán duyệt bản
+mềm"*); nhãn chỉ dán tên cho một khác biệt đã có sẵn, và nó ăn mất ~14 ký tự đầu — đúng phần chủ đề
+thư điện thoại còn hiện được. Lập luận thứ tự mảnh của `0192` **MẠNH LÊN**: phần biến thiên
+(*Phiên bản 4*) tụt lên ký tự đầu tiên. **BẤT BIẾN THAY CHỖ CHO NHÃN, và là cách DUY NHẤT chặng này
+hỏng**: `titleFor(e,'VIEC') !== titleFor(e,'TIN')` ở mọi hành động **có chủ bước** — nhãn bảo đảm điều
+ấy rẻ tiền, bỏ nhãn là giao lại cho câu chữ. **Ca kiểm mới bắt đúng một chỗ tôi khái quát quá tay**:
+bản đầu quét MỌI cặp và đỏ ở `KT_RECEIVE_L2` — đỏ đúng phép so, sai câu hỏi, vì `DANG_CO_HIEU_LUC`
+không có chủ bước nên KHÔNG AI ở bậc VIỆC (mặt trái của chính cơ chế `0192`, một câu về HÀNH VI mà tôi
+đọc thành câu về TẬP THAM SỐ HỢP LỆ). **BA CHỖ GIỮ LẠI CÓ CHỦ Ý**: hai câu riêng `Sắp quá hạn` (cắt
+đuôi *"— cần bạn xử lý"*) và `Dừng xử lý` — chúng không phải nhãn bậc; **đoạn *"chỉ để bạn biết"*
+trong thân thư** — **HỘP THƯ KHÔNG CÓ DẢI MÀU NÀO**, nên nó thôi là phần thừa kể từ đây; và `duongDan`
+theo bậc. **Bộ kiểm mất phép đo bậc** (5 ca dò `Subject.includes('Cần bạn xử lý')`), tìm lại ở NGUỒN:
+`bacCua()` đọc đường dẫn trong thân thư — chính cái boolean tiêu đề đọc. Màu: **CẶP TOKEN RIÊNG**
+(`--mau-viec-dai`/`--mau-viec-nen`), không sửa `--mau-canh-bao` (cặp ấy còn tô CHỮ trên nền, cần tương
+phản); chỗ chói là **mảng NỀN** trải hết bề ngang dòng nên nền nhạt hẳn còn **dải giữ nguyên độ đậm**.
+Ca kiểm **đo trên HSL** (cùng sắc màu < 8°, độ bão hoà thấp hơn) chứ không ghim hex, ở **CẢ BA bảng
+màu**. Chấm chuông ĐỎ **đảo lập luận `0192`** — vế thắng: hai hình LOẠI TRỪ NHAU nên không bao giờ
+đứng cạnh nhau để so mức khẩn, còn chấm xanh trên nút xanh thương hiệu thì chìm; **chấm từng DÒNG vẫn
+XANH** (câu khác: *chưa đọc*, không phải *có việc*). Bảy lượt phá lại, bảy đỏ đúng chỗ — **lượt hai
+XANH ở lần đầu**: ca hỏi `startsWith(':')` trong khi mảnh rỗng ra `undefined:`, canh đúng lớp lỗi mà
+sai đúng một ký tự của nó; đổi sang `/^\p{Lu}/u` + không chứa `undefined`. **2197/2197 xanh.**
+
+Trước đó **P222** (`0194`): **khối *Yêu cầu cập nhật* hiện cả khi TDV đang sửa, kèm nút *Tự
 động cập nhật***. Đo trước khi gõ: **BA cổng độc lập** cùng giấu khối này khỏi hồ sơ sửa được — consumer
 chỉ ghi `policy_impact` cho `DA_DONG_BANG`, `byId` chỉ trả `lech` cho `DA_DONG_BANG`, và `lamMoiDong`
 **ghi đè âm thầm ở MỖI lượt đọc**. Cổng thứ ba là cổng thật; hai cổng đầu là hệ quả của nó. Yêu cầu
@@ -1175,8 +1203,13 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   CSDL. Ghi thông báo **trước** khi gửi thư — SMTP chết là lúc cái chuông thành đường duy nhất.
 - **BẬC của một thông báo là DẪN XUẤT, với TỪNG người đọc** (`0192`) —
   `vaiTroNguoiDoc === CHU_BUOC[toStatus]` là VIỆC, còn lại là TIN. **MỘT boolean cấp cho BA chỗ**:
-  nhãn tiêu đề (*Cần bạn xử lý* / *Để bạn biết*), `duongDan` (`/ho-so/:id` hay `.../nhat-ky`), và dải
-  màu trên dòng chuông — không chỗ nào tự suy lại được. `MailEvent.chiDeBiet` **gỡ hẳn**: nó mang đúng
+  CÂU CHỮ của tiêu đề (`0195` — mệnh lệnh / lời kể; nhãn *Cần bạn xử lý* · *Để bạn biết* đã GỠ),
+  `duongDan` (`/ho-so/:id` hay `.../nhat-ky`), và dải màu trên dòng chuông — không chỗ nào tự suy lại
+  được. **Bậc KHÔNG còn viết ra thành chữ ở tiêu đề** (`0195`): trên màn hình đọc bằng MÀU, trong hộp
+  thư đọc bằng ngữ pháp cộng đoạn *"chỉ để bạn biết"* của thân thư bậc TIN — **hộp thư không có dải
+  màu nào**, nên đoạn ấy thôi là phần thừa, đừng gỡ kèm một lượt dọn câu chữ. Bất biến thay chỗ cho
+  nhãn: **hai bậc phải cho HAI tiêu đề khác nhau** ở mọi hành động CÓ CHỦ BƯỚC (trạng thái không có
+  chủ bước thì không ai ở bậc VIỆC, nên ở đó câu hỏi không có nghĩa). `MailEvent.chiDeBiet` **gỡ hẳn**: nó mang đúng
   nghĩa ấy nhưng là trường tuỳ chọn, nên quên đặt là lặng lẽ nói với người không có việc rằng họ có
   việc; bậc giờ là tham số BẮT BUỘC của cả ba hàm dựng chữ (`0143`). **`CHINH` = bậc VIỆC** — nghĩa
   của `kind` không đổi, chỉ tập người đủ tư cách đổi, nên không cần cột mới và dòng lịch sử vẫn đọc

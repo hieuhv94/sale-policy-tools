@@ -29,7 +29,6 @@ export {
   loaiThayDoi,
   loaiThayDoiNgan,
   moTaNgan,
-  NHAN_BAC,
   subjectBanGiao,
   subjectFor,
   TIN_CUA_HANH_DONG,

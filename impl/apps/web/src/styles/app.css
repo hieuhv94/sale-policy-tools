@@ -369,11 +369,23 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
  * Chỉ hiện khi huy hiệu vắng mặt; luật loại trừ ấy nằm trong `dauChuong()`, ở
  * kiểu dữ liệu chứ không ở CSS.
  *
- * XANH THƯƠNG HIỆU, không đỏ: đỏ là màu của huy hiệu đếm việc, và cùng màu là
- * cùng mức độ khẩn — nó sẽ đọc ra như *"con số nhưng đếm không được"*. Xanh thì
- * đúng bằng màu `.tb-cham` của từng dòng, nên dấu này tự giải nghĩa: *bên trong
- * có những dòng mang chấm xanh*. Một bản thu nhỏ của thứ đã có, không phải một
- * ký hiệu mới phải học.
+ * ĐỎ, cùng màu huy hiệu đếm việc — khách hàng chốt 10/09, ĐẢO lập luận `0192`.
+ *
+ * Lập luận cũ giữ lại nguyên văn vì nó không sai, chỉ thua một vế mạnh hơn:
+ * *"đỏ là màu của huy hiệu đếm việc, và cùng màu là cùng mức độ khẩn — nó sẽ đọc
+ * ra như con số nhưng đếm không được; xanh thì đúng bằng màu `.tb-cham` của từng
+ * dòng, nên dấu này tự giải nghĩa."*
+ *
+ * Vế thắng: hai hình này LOẠI TRỪ NHAU (xem `dauChuong()`), nên chúng không bao
+ * giờ đứng cạnh nhau để so mức khẩn — người dùng thấy đúng một trong hai. Cái họ
+ * cần đọc được là *"cái chuông có gì mới"*, và một chấm xanh ở góc trên bên phải
+ * của một nút xanh thương hiệu thì gần như chìm mất. Đỏ nói được điều đó ở mọi
+ * nền.
+ *
+ * Cái mất, đã đo và chấp nhận: dấu này thôi tự giải nghĩa qua `.tb-cham` — chấm
+ * trên từng dòng vẫn XANH, vì nó trả lời câu khác (*chưa đọc*, không phải *có
+ * việc*). Đổi luôn cả hai là làm mọi dòng chưa đọc đỏ lên, tức nói *"mọi thứ đều
+ * gấp"*.
  *
  * 8px cho khớp `.tb-cham`, và giữ nguyên vòng ngăn `--mau-nen` của huy hiệu —
  * bỏ nó thì chấm dính vào nét vẽ cái chuông thành một vệt.
@@ -386,7 +398,7 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   height: 8px;
   border-radius: 50%;
   border: 2px solid var(--mau-nen);
-  background: var(--mau-thuong-hieu);
+  background: var(--mau-loi);
 }
 
 /* Bảng sổ xuống mượn `.menu-so` (nền, viền, bóng, vị trí) rồi chỉ nới bề ngang.
@@ -460,19 +472,24 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
  * chip. Tìm một thứ vắng mặt thì phải quét từng dòng; tìm một thứ có mặt thì nó
  * tự nhảy ra.
  *
- * HỔ PHÁCH, không phải xanh thương hiệu: xanh đã là màu của *chưa đọc* ở cả
- * `.tb-cham` lẫn dấu chấm trên chuông, và một màu mang hai nghĩa trên cùng một
- * dòng thì thôi nói được nghĩa nào. Không phải `--mau-loi` (`0188`): một việc
- * phải làm là chuyện bình thường, không phải sự cố, và đỏ ở đây tranh chỗ với
- * huy hiệu đếm việc ngay phía trên.
+ * HỔ PHÁCH, không phải xanh thương hiệu: xanh đã là màu của *chưa đọc* ở
+ * `.tb-cham`, và một màu mang hai nghĩa trên cùng một dòng thì thôi nói được
+ * nghĩa nào. Không phải `--mau-loi` (`0188`): một việc phải làm là chuyện bình
+ * thường, không phải sự cố, và đỏ ở đây tranh chỗ với huy hiệu đếm việc ngay
+ * phía trên.
  *
  * HAI TRỤC ĐỘC LẬP, bốn tổ hợp đều đọc ra được: dải nói *việc / tin*, chấm và
  * chữ đậm nói *chưa đọc / đã đọc*. Một dòng VIỆC đã đọc vẫn còn dải — đọc không
  * phải là làm.
+ *
+ * `0195` — CẶP TOKEN RIÊNG, cùng tông, hạ chói (xem `tokens.css`). Và từ chặng
+ * ấy dải này gánh NẶNG HƠN: nhãn chữ *Cần bạn xử lý* đã đi, nên trên màn hình
+ * đây là thứ DUY NHẤT nói ra bậc. Hạ chói được vì chỗ chói là mảng NỀN; dải thì
+ * giữ nguyên độ đậm.
  */
 .tb-viec {
-  border-left-color: var(--mau-canh-bao);
-  background: var(--mau-canh-bao-nen);
+  border-left-color: var(--mau-viec-dai);
+  background: var(--mau-viec-nen);
 }
 /* Giữ nền hover đè lên nền bậc, nếu không thì dòng VIỆC không phản hồi khi rê
    chuột trong khi mọi dòng khác đều có. */
@@ -507,8 +524,12 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
  * `.tb-de-biet` ĐÃ GỠ ở `0192` — xem `.tb-viec` phía trên và `lopDong()`.
  *
  * Ghi lại thay vì xoá lặng lẽ: chip ấy trông rất hợp lý và người đọc mã sau này
- * dễ dựng lại nó. Dựng lại là quay về đánh dấu cái không quan trọng, VÀ nói hai
- * lần cùng một chuyện — từ `0192` chính tiêu đề đã mở đầu bằng *Để bạn biết*.
+ * dễ dựng lại nó. Dựng lại là quay về đánh dấu cái không quan trọng.
+ *
+ * `0195` gỡ nốt nhãn chữ khỏi tiêu đề, nên lý do thứ hai của `0192` (*"tiêu đề
+ * đã mở đầu bằng Để bạn biết"*) thôi đứng — lý do thứ nhất thì còn nguyên, và
+ * nó đủ. Bậc giờ đọc bằng MÀU, đúng như khách hàng chốt 10/09: một dải, không
+ * phải một chip chữ.
  */
 
 .tb-chan {

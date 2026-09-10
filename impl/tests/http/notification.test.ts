@@ -122,6 +122,19 @@ const fullMail = async (id: string) => {
   };
 };
 
+/**
+ * BẬC của một lá thư, đọc từ ĐƯỜNG DẪN trong thân thư (`0195`).
+ *
+ * Tới `0192` phép này là `Subject.includes('Cần bạn xử lý')` — rẻ, và nó chết
+ * cùng lượt khách hàng bỏ hai nhãn ấy khỏi tiêu đề.
+ *
+ * Đường dẫn KHÔNG phải một phép đoán thay thế: `duongDan()` đọc CHÍNH cái
+ * boolean mà tiêu đề đọc (`0192` — một bậc cấp cho ba chỗ), nên hỏi nó là hỏi
+ * đúng nguồn. Bậc VIỆC mở thẳng hồ sơ, bậc TIN vào nhật ký.
+ */
+const bacCua = async (id: string): Promise<'VIEC' | 'TIN'> =>
+  (await fullMail(id)).Text.includes('/nhat-ky') ? 'TIN' : 'VIEC';
+
 const rawMail = async (id: string): Promise<string> => {
   const r = await fetch(`${MAILPIT}/api/v1/message/${id}/raw`);
   return r.text();
@@ -394,27 +407,35 @@ describe('NTF-01 · WF-01 · WF-04 · WF-28 người nhận từng bước khớ
     expect(lan('sa01@csbh.test')).toBe(2);
 
     /*
-     * Người ở bậc VIỆC của mỗi bước là CHỦ BƯỚC của trạng thái đích, và chỉ họ
-     * đọc thấy *Cần bạn xử lý*.
+     * Người ở bậc VIỆC của mỗi bước là CHỦ BƯỚC của trạng thái đích.
      *
      * `KT_RECEIVE_L2` không có mặt ở đây, và đó là điểm: nó dẫn tới
      * `DANG_CO_HIEU_LUC`, một trạng thái không còn ai phải làm gì — cả bốn người
-     * đều nhận *Để bạn biết*.
+     * đều nhận lá TIN.
      */
-    const viec = mails
-      .filter((m) => m.Subject.includes('Cần bạn xử lý'))
-      .flatMap((m) => m.To.map((t) => t.Address))
-      .sort();
-    expect(viec).toEqual([
+    const viec: string[] = [];
+    for (const m of mails) {
+      if ((await bacCua(m.ID)) === 'VIEC') viec.push(...m.To.map((t) => t.Address));
+    }
+    expect(viec.sort()).toEqual([
       'kt01@csbh.test', //  B4 ký số     -> Kế toán duyệt bản mềm
       'kt01@csbh.test', //  B8 bàn giao  -> Kế toán duyệt bản cứng
       'sa01@csbh.test', //  B6 tiếp nhận -> Sale Admin bàn giao
       'tbp01@csbh.test', // B3 gửi duyệt -> TBP ký
     ]);
 
-    // Và không lá nào mang cả hai nhãn — một lá, một bậc.
+    /*
+     * MỘT LÁ, MỘT BẬC — và từ `0195` phép kiểm này phải hỏi ở chỗ khác.
+     *
+     * Bản `0192` hỏi *"tiêu đề có mang cả hai nhãn không"*. Nhãn đi rồi thì câu
+     * tương đương là: lá VIỆC không mang đoạn *"chỉ để bạn biết"* của thân thư,
+     * và lá TIN thì phải mang. Hai vế, vì chỉ kiểm vế đầu thì gỡ hẳn đoạn ấy vẫn
+     * xanh — và đoạn ấy là chỗ DUY NHẤT lá thư nói ra bậc bằng chữ.
+     */
     for (const m of mails) {
-      expect(m.Subject.includes('Cần bạn xử lý') && m.Subject.includes('Để bạn biết')).toBe(false);
+      const full = await fullMail(m.ID);
+      const laTin = (await bacCua(m.ID)) === 'TIN';
+      expect(full.Text.includes('chỉ để bạn biết'), m.Subject).toBe(laTin);
     }
   });
 
@@ -464,13 +485,14 @@ describe('`0185` Hoàn duyệt báo cho cả ba, không riêng người lập', 
      */
     const mails = await flush(2);
 
-    const viec = mails.find((m) => m.Subject.includes('Cần bạn xử lý'));
+    const viec = mails.find((m) => m.Subject.includes('Chỉnh sửa và gửi lại'));
     expect(viec, 'TDV phải nhận lá VIỆC').toBeDefined();
     expect(viec!.To.map((t) => t.Address)).toEqual(['tdv01@csbh.test']);
-    expect(viec!.Subject).toContain('Chỉnh sửa và gửi lại');
+    expect(await bacCua(viec!.ID)).toBe('VIEC');
 
-    // Nhãn RIÊNG, không phải *Để bạn biết*: hồ sơ đang nằm trên bàn họ và vừa bị
-    // rút đi — đọc lướt qua một nhãn nhẹ là làm tiếp một hồ sơ không còn ở đó.
+    // Câu RIÊNG, không phải một lời kể: hồ sơ đang nằm trên bàn họ và vừa bị
+    // rút đi — đọc lướt qua một câu nhẹ là làm tiếp một hồ sơ không còn ở đó.
+    // `0195` bỏ nhãn bậc nhưng GIỮ câu này, vì nó không phải nhãn.
     const dung = mails.find((m) => m.Subject.includes('Dừng xử lý'));
     expect(dung, 'Kế toán và Sale Admin phải nhận lá DỪNG XỬ LÝ').toBeDefined();
     expect(dung!.To.map((t) => t.Address).sort()).toEqual(['kt01@csbh.test', 'sa01@csbh.test']);
@@ -522,7 +544,7 @@ describe('`0035` TDV xoá hồ sơ bị trả lại thì người đã trả nh�
     // và một tiêu đề đúng cho nửa số trường hợp là tiêu đề sai.
     expect(m.Subject).toContain('Trình dược viên đã xoá hồ sơ');
     // `DA_XOA` không có chủ bước, nên đây là lá TIN với cả hai người nhận.
-    expect(m.Subject).toContain('Để bạn biết');
+    expect(await bacCua(xoaThu!.ID)).toBe('TIN');
     // Trạng thái trong thân thư phải là nhãn tiếng Việt, không phải mã enum —
     // thiếu một dòng trong `STATUS_LABEL` là người nhận đọc thấy "DA_XOA".
     expect(m.Text).toContain('Đã xoá');
@@ -618,7 +640,7 @@ describe('`0036` thư "để biết" cho mọi người đã tác động lên h
 
     for (const m of mails) {
       const full = await fullMail(m.ID);
-      const coViec = m.Subject.includes('Cần bạn xử lý');
+      const coViec = (await bacCua(m.ID)) === 'VIEC';
       // Hai vế của cùng một chuyện: lá VIỆC không mang câu "để bạn biết", và lá
       // TIN thì phải mang. Chỉ kiểm vế đầu thì gỡ hẳn câu ấy đi vẫn xanh.
       expect(full.Text.includes('chỉ để bạn biết')).toBe(!coViec);
@@ -937,11 +959,12 @@ describe('`0147` Sale Admin thôi nhận thư "vì có tên trên hồ sơ"', ()
      * TDV — họ phải sửa; TBP chỉ cần biết. Tới `0191` cả hai chung một lá.
      */
     const chinh = await doiThu('không tiếp nhận L2', 'tdv01@csbh.test');
-    expect(chinh.Subject).toContain('Cần bạn xử lý');
+    expect(await bacCua(chinh.ID)).toBe('VIEC');
+    expect(chinh.Subject).toContain('Chỉnh sửa và gửi lại');
     expect(chinh.To.map((x) => x.Address)).toEqual(['tdv01@csbh.test']);
 
     const bao = await doiThu('không tiếp nhận L2', 'tbp01@csbh.test');
-    expect(bao.Subject).toContain('Để bạn biết');
+    expect(await bacCua(bao.ID)).toBe('TIN');
     expect(bao.To.map((x) => x.Address)).toEqual(['tbp01@csbh.test']);
 
     /*

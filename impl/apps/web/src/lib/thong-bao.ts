@@ -142,9 +142,13 @@ export function nhanChuong(d: DemChuaDoc): string {
  *
  * `tb-de-biet` ĐÃ GỠ. Chip ấy (`0036`) đánh dấu cái KHÔNG quan trọng: trong mười
  * dòng mà tám là tin, mắt phải đi tìm hai dòng KHÔNG có chip, và tìm một thứ
- * vắng mặt thì phải quét từng dòng. Lý do nó ra đời — *"mất đoạn đó thì hai loại
- * thông báo trông giống hệt nhau"* — đã được hút vào chính tiêu đề từ `0192`:
- * một dòng mở đầu bằng *Cần bạn xử lý*, dòng kia bằng *Để bạn biết*.
+ * vắng mặt thì phải quét từng dòng.
+ *
+ * `0195` — TỪ ĐÂY BẬC ĐỌC BẰNG MÀU, không còn chữ nào nói ra nó. Khách hàng chốt
+ * 10/09 bỏ hai nhãn *Cần bạn xử lý* / *Để bạn biết* khỏi tiêu đề, nên `tb-viec`
+ * là thứ duy nhất còn phân biệt hai bậc trên màn hình. Trước `0195` gỡ nhầm lớp
+ * ấy chỉ làm màn hình nghèo đi; từ `0195` nó XOÁ HẲN một trục thông tin — có ca
+ * kiểm đứng canh cả hai chiều.
  *
  * Ở ĐÂY chứ không viết thẳng trong JSX, vì hai màn hình dựng cùng danh sách này
  * (cái chuông và `/thong-bao`) và một bản chép tay sẽ trôi.

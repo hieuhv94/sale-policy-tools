@@ -104,6 +104,24 @@
   --mau-cho: #43539b;
   --mau-cho-nen: #eceffa;
 
+  /* --- Dòng VIỆC trong hộp thông báo (`0195`) -------------------------------
+   *
+   * CÙNG TÔNG hổ phách với `--mau-canh-bao`, hạ độ chói — khách hàng chốt 10/09.
+   * Cặp cảnh báo chung quá gắt cho một mảng nền trải hết bề ngang một dòng danh
+   * sách, và trong hộp thông báo có tới mười dòng như thế cạnh nhau.
+   *
+   * TOKEN RIÊNG chứ không sửa `--mau-canh-bao`: cặp ấy tô nhãn *Sắp quá hạn*,
+   * nhãn dòng *Chỉnh sửa* (`0188`) và mọi ô cảnh báo khác — chúng là chữ trên
+   * nền, cần tương phản đọc được, còn đây là một dải 3px và một mảng nền.
+   *
+   * `0195` cũng làm dải này thành thứ DUY NHẤT nói ra bậc trên màn hình (nhãn
+   * chữ đã đi), nên phép hạ chói đánh vào NỀN — chỗ chói thật — và giữ dải đủ
+   * đậm để còn thấy. Ca kiểm canh đúng hai vế ấy: cùng sắc màu, độ bão hoà thấp
+   * hơn.
+   */
+  --mau-viec-dai: #c4881f;
+  --mau-viec-nen: #fdf8ef;
+
   /* --- Màu riêng cho từng trạng thái hồ sơ (`0064`) -------------------------
    *
    * Tới `0063` mười hai trạng thái dùng chung năm nhóm trên, nên bốn bước chờ
@@ -361,6 +379,11 @@
     --mau-cho: #a5b4fc;
     --mau-cho-nen: #1e2542;
 
+    /* Dòng VIỆC (`0195`) — cùng tông hổ phách, hạ chói. Ở bảng tối phép hạ chói
+       đi theo chiều NGƯỢC LẠI với bảng sáng: nền tối thêm thay vì nhạt đi. */
+    --mau-viec-dai: #d8a763;
+    --mau-viec-nen: #2a2114;
+
     /* Mười màu trạng thái ở bảng tối (`0064`), cùng một lẽ với khối trên: chữ
        sáng lên, nền tối xuống. Chuỗi bốn bước chờ vẫn giữ nguyên thứ tự chàm →
        lam → ngọc → mòng két, chỉ đổi độ sáng. */
@@ -437,6 +460,10 @@
   --mau-loi-nen: #3b1b1a;
   --mau-cho: #a5b4fc;
   --mau-cho-nen: #1e2542;
+
+  /* Dòng VIỆC (`0195`) — xem khối `@media` phía trên. */
+  --mau-viec-dai: #d8a763;
+  --mau-viec-nen: #2a2114;
 
   /* Mười màu trạng thái ở bảng tối (`0064`) — bản sao của khối trong media
      query, để lựa chọn tay của người dùng thắng cả cài đặt hệ điều hành. */

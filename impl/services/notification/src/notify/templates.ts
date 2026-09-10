@@ -68,27 +68,41 @@ export const STEP_LABEL: Record<string, string> = {
  */
 export type Bac = 'VIEC' | 'TIN';
 
-/** Nhãn mở đầu tiêu đề. Chữ đầu khác nhau để mắt bám được mép trái danh sách. */
-export const NHAN_BAC: Record<Bac, string> = {
-  VIEC: 'Cần bạn xử lý',
-  TIN: 'Để bạn biết',
-};
+/*
+ * `NHAN_BAC` ĐÃ GỠ ở `0195` — hai chuỗi *Cần bạn xử lý* và *Để bạn biết* mở đầu
+ * mọi tiêu đề từ `0192`, khách hàng chốt bỏ ngày 10/09. Bậc còn nguyên, chỉ thôi
+ * được VIẾT RA THÀNH CHỮ; trên màn hình nó đọc bằng MÀU (dải bên trái mỗi dòng).
+ *
+ * VÌ SAO BỎ ĐƯỢC MÀ KHÔNG MẤT GÌ — và đây là lý do mạnh hơn *"cho gọn"*: hai bậc
+ * đã nói ra bằng NGỮ PHÁP, ở ngay câu chữ mà `0192` dựng. Bậc VIỆC là một mệnh
+ * lệnh gọi tên việc của người đọc (*"Duyệt bản mềm — Trưởng bộ phận đã ký"*), bậc
+ * TIN là một câu kể chuyện đã xảy ra (*"Trưởng bộ phận đã ký, hồ sơ sang Kế toán
+ * duyệt bản mềm"*). Nhãn chỉ dán tên cho một khác biệt đã có sẵn trong câu — nó
+ * lặp lại, và nó ăn mất chừng 14 ký tự đầu, đúng phần chủ đề thư mà điện thoại
+ * còn hiện được.
+ *
+ * Bất biến thay cho nhãn: `titleFor(e,'VIEC') !== titleFor(e,'TIN')` với MỌI
+ * hành động — có ca kiểm duyệt hết bảng. Mất nhãn mà hai câu trùng nhau thì
+ * `0192` mất trắng, và đó là cách duy nhất chặng này hỏng.
+ */
 
 /**
- * Hai chỗ nhãn bậc phải nhường cho một câu riêng.
+ * Hai chỗ tiêu đề mở đầu bằng một câu riêng — chúng KHÔNG phải nhãn bậc.
  *
  * `SLA_REMINDER` vẫn là VIỆC, nhưng là việc còn **một ngày** — và đó là lá thư
  * cuối cùng còn cứu được hồ sơ, vì lượt sau nó đã sang `QUA_HAN_DUYET`, một
- * trạng thái KẾT THÚC (`0047`). Nhãn thường làm nó trông ngang hàng với mọi việc
- * khác trong hộp.
+ * trạng thái KẾT THÚC (`0047`). Không có câu này thì nó trông ngang hàng với mọi
+ * việc khác trong hộp.
  *
- * `TBP_RECALL` ở bậc TIN thì không phải *"để bạn biết"*: Kế toán hoặc Sale Admin
- * đang CẦM hồ sơ và vừa bị rút mất. Câu đúng là bảo họ dừng lại. Đây là ngoại lệ
- * duy nhất của hai bậc, và nó đáng có: nhãn thường ở đây dẫn tới việc người ta
- * đọc lướt rồi làm tiếp một hồ sơ không còn trên bàn mình.
+ * `TBP_RECALL` ở bậc TIN cần một câu MẠNH HƠN một lời kể: Kế toán hoặc Sale Admin
+ * đang CẦM hồ sơ và vừa bị rút mất. Câu đúng là bảo họ dừng lại — không có nó thì
+ * người ta đọc lướt rồi làm tiếp một hồ sơ không còn trên bàn mình.
+ *
+ * `0195` cắt đuôi *"— cần bạn xử lý"* khỏi câu SLA: nó là chính cụm chữ khách
+ * hàng vừa bỏ, và *"Sắp quá hạn"* một mình đã mang đủ mức khẩn.
  */
 const NHAN_VIEC_RIENG: Record<string, string> = {
-  SLA_REMINDER: 'Sắp quá hạn — cần bạn xử lý',
+  SLA_REMINDER: 'Sắp quá hạn',
 };
 const NHAN_TIN_RIENG: Record<string, string> = {
   TBP_RECALL: 'Dừng xử lý',
@@ -326,43 +340,51 @@ export function formatIct(iso: string | undefined): string {
 }
 
 /**
- * Tiêu đề của MỘT người đọc ở MỘT bậc (`0192`).
+ * Tiêu đề của MỘT người đọc ở MỘT bậc (`0192`, câu chữ rút gọn ở `0195`).
  *
- * Hình dạng bậc VIỆC: `Cần bạn xử lý (Phiên bản 4): Duyệt và ký số — Trưởng bộ
- * phận đã ký`. Ba mảnh, và thứ tự của chúng là một phép đo chứ không phải một sở
- * thích:
+ * Hình dạng bậc VIỆC: `Phiên bản 4: Duyệt và ký số — Trưởng bộ phận đã ký`. Hai
+ * mảnh, và thứ tự của chúng là một phép đo chứ không phải một sở thích:
  *
- *   1. **nhãn bậc** — trục phân loại chung của cả hộp thông báo;
- *   2. **loại thay đổi** — phần BIẾN THIÊN giữa các hồ sơ của cùng một người;
- *   3. **việc phải làm** — phần KHÔNG ĐỔI trong hàng đợi của một vai trò.
+ *   1. **loại thay đổi** — phần BIẾN THIÊN giữa các hồ sơ của cùng một người;
+ *   2. **việc phải làm** — phần KHÔNG ĐỔI trong hàng đợi của một vai trò.
  *
  * Trong hàng đợi của Trưởng bộ phận, mọi hồ sơ đều là *"Duyệt và ký số"*, nên
- * mảnh 3 gần như không mang thông tin phân biệt nào; mảnh 2 thì mang. Chủ đề thư
- * bị điện thoại cắt ở chừng 35 ký tự, và cách xếp này giữ được mảnh 2 trong phần
- * còn lại.
+ * mảnh 2 gần như không mang thông tin phân biệt nào; mảnh 1 thì mang. Chủ đề thư
+ * bị điện thoại cắt ở chừng 35 ký tự, và cách xếp này giữ được mảnh 1 trong phần
+ * còn lại. `0195` gỡ nhãn bậc khỏi đầu chuỗi nên lập luận ấy MẠNH LÊN: mảnh biến
+ * thiên giờ đứng ngay ký tự đầu tiên.
  *
  * LOẠI THAY ĐỔI CHỈ Ở BẬC VIỆC. Dòng `Loại thay đổi` trong thân thư vẫn có ở mọi
  * bậc (xem `bodyFor`) — chỗ đứng nổi bật thì dành cho người đang phải quyết định
  * dựa vào nó.
  *
- * Tra không ra VIỆC thì **giữ nhãn bậc, mượn câu của bậc TIN**. Sai ở phần chữ
- * còn đọc ra được; sai ở nhãn là nói với người có việc rằng họ không có việc.
+ * Tra không ra VIỆC thì mượn câu của bậc TIN. Nhánh ấy KHÔNG ĐẾN ĐƯỢC trong thực
+ * tế — `VIEC_CUA_BUOC` khớp đúng tập khoá của `CHU_BUOC`, mà `bac === 'VIEC'`
+ * nghĩa là người đọc là chủ bước của `toStatus` — nên nó là lưới đỡ cho sự kiện
+ * cũ trong DLQ, không phải một ca thường. Tới `0192` nhãn bậc còn che được nó;
+ * từ `0195` thì không, nên có ca kiểm đối chiếu hai bảng đứng canh đúng chỗ ấy.
  */
 export function titleFor(e: MailEvent, bac: Bac): string {
   const act = e.action ?? '';
   const tin = TIN_CUA_HANH_DONG[act] ?? 'Cập nhật hồ sơ Chính sách bán hàng';
 
-  if (bac === 'TIN') return `${NHAN_TIN_RIENG[act] ?? NHAN_BAC.TIN}: ${tin}`;
+  if (bac === 'TIN') {
+    const rieng = NHAN_TIN_RIENG[act];
+    return rieng ? `${rieng}: ${tin}` : tin;
+  }
 
   const loai = loaiThayDoiNgan(e);
-  const nhan = NHAN_VIEC_RIENG[act] ?? NHAN_BAC.VIEC;
-  const dau = loai ? `${nhan} (${loai})` : nhan;
+  const rieng = NHAN_VIEC_RIENG[act];
+  // Cả hai cùng có thì loại thay đổi vào ngoặc, giữ đúng hình dạng `0192` đã đo.
+  // Không có mảnh nào thì tiêu đề bắt đầu thẳng bằng việc phải làm — không có
+  // dấu hai chấm mồ côi ở đầu chuỗi.
+  const dau = rieng && loai ? `${rieng} (${loai})` : (rieng ?? loai);
 
   const viec = VIEC_CUA_BUOC[(e.toStatus ?? '') as Status];
-  if (!viec) return `${dau}: ${tin}`;
+  const viSao = viec ? NGUYEN_NHAN[act] : undefined;
+  const than = viec ? (viSao ? `${viec} — ${viSao}` : viec) : tin;
 
-  const viSao = NGUYEN_NHAN[act];
-  return viSao ? `${dau}: ${viec} — ${viSao}` : `${dau}: ${viec}`;
+  return dau ? `${dau}: ${than}` : than;
 }
 
 /**
@@ -461,10 +483,10 @@ export function moTaNgan(e: MailEvent): string | null {
    * HAI VẾ, không ba (`0192` — `0190` để loại thay đổi ở cuối dòng này).
    *
    * Lập luận của `0190` — *"hai vế đầu là thứ người dùng dò để tìm đúng hồ sơ,
-   * còn vế này là thứ họ đọc sau khi đã tìm thấy"* — không sai, nó MẠNH LÊN dưới
-   * bộ tiêu đề mới: giờ mọi dòng bậc VIỆC của một vai trò mở đầu giống hệt nhau,
-   * nên mắt rơi thẳng xuống dòng phụ và đó là chỗ phân biệt hồ sơ. Vế thứ ba
-   * đứng đúng ở chỗ ấy mà không giúp phân biệt gì.
+   * còn vế này là thứ họ đọc sau khi đã tìm thấy"* — không sai, và nó vẫn đứng
+   * sau `0195`: dòng phụ là chỗ phân biệt HỒ SƠ (khách nào, mã nào), còn loại
+   * thay đổi phân biệt PHIÊN BẢN. Vế thứ ba đứng ở chỗ ấy mà không giúp phân biệt
+   * gì, và nó không mất đi — nó lên tiêu đề, giờ ở ngay ký tự đầu.
    *
    * Nó không mất đi — nó lên tiêu đề, nơi chủ đề thư nhìn thấy được.
    */
@@ -524,6 +546,14 @@ export function bodyFor(e: MailEvent, bac: Bac, webBaseUrl: string): string {
   if (bac === 'TIN') {
     lines.push(
       '',
+      /*
+       * `0195` — đoạn này thành CHỖ DUY NHẤT lá thư nói thẳng ra bậc.
+       *
+       * Trên màn hình bậc đọc bằng màu, nhưng hộp thư không có dải màu nào; sau
+       * khi nhãn tiêu đề đi, cái còn phân biệt hai bậc trong hộp thư là ngữ pháp
+       * của tiêu đề (mệnh lệnh / lời kể) cộng đúng hai dòng này. Đừng gỡ chúng
+       * kèm một lượt dọn câu chữ: chúng không còn là phần thừa nữa.
+       */
       // `0192` bỏ vế *"vì đã từng thao tác trên hồ sơ"*: câu ấy đúng khi bậc TIN
       // chỉ gồm người đọc ra từ nhật ký, và thành SAI ngay khi nhóm này nhận
       // thêm những người CÓ TÊN trên hồ sơ mà không phải chủ bước — TBP và TDV ở

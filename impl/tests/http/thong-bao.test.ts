@@ -24,7 +24,6 @@ import {
   loaiThayDoi,
   moTaNgan,
   NotifyService,
-  NHAN_BAC,
   TIN_CUA_HANH_DONG,
   titleFor,
   VIEC_CUA_BUOC,
@@ -190,16 +189,20 @@ describe('`0096` thư nào cũng thành thông báo, và chỉ thư mới thành
      * HAI `kind`, không một (`0192`) — và đó chính là bậc.
      *
      * `KT_RECEIVE_L1` đưa hồ sơ về `SA_DANG_XU_LY`, nên Sale Admin là chủ bước:
-     * họ nhận dòng `CHINH` (*Cần bạn xử lý*). TBP và TDV có tên trên hồ sơ nhưng
-     * không có việc gì ở bước này, nên nhận dòng `THEO_DOI` (*Để bạn biết*).
-     * Tới `0191` cả ba nhận chung một `kind` và một tiêu đề.
+     * họ nhận dòng `CHINH` — trên màn hình là dòng có dải màu, và tiêu đề gọi
+     * tên việc của họ. TBP và TDV có tên trên hồ sơ nhưng không có việc gì ở
+     * bước này, nên nhận dòng `THEO_DOI` với một câu kể. Tới `0191` cả ba nhận
+     * chung một `kind` và một tiêu đề.
+     *
+     * `0195` bỏ hai nhãn chữ, nên ca này đọc CÂU CHỮ THẬT thay vì đọc nhãn: bậc
+     * VIỆC nói *"Bàn giao bản cứng"*, bậc TIN nói hồ sơ vừa đi đâu.
      */
     const theoNguoi = Object.fromEntries(ds.map((d) => [d.user_id, d]));
     expect(theoNguoi[uid['sa01']!]!.kind).toBe('CHINH');
-    expect(theoNguoi[uid['sa01']!]!.tieu_de).toContain('Cần bạn xử lý');
+    expect(theoNguoi[uid['sa01']!]!.tieu_de).toContain(VIEC_CUA_BUOC['SA_DANG_XU_LY']!);
     for (const u of ['tbp01', 'tdv01']) {
       expect(theoNguoi[uid[u]!]!.kind, u).toBe('THEO_DOI');
-      expect(theoNguoi[uid[u]!]!.tieu_de, u).toContain('Để bạn biết');
+      expect(theoNguoi[uid[u]!]!.tieu_de, u).toBe(TIN_CUA_HANH_DONG['KT_RECEIVE_L1']!);
     }
     // Liên kết đi theo BẬC: người có việc mở thẳng hồ sơ, người chỉ cần biết thì
     // vào nhật ký — nơi trả lời đúng câu họ đang hỏi.
@@ -326,7 +329,8 @@ describe('`0096` nội dung ngắn gọn', () => {
     const d = (await dong(ev.eventId))[0]!;
     // `0192` — tiêu đề nói VIỆC của người đọc. `suKien()` mặc định là `TBP_RETURN`
     // đưa hồ sơ về `YEU_CAU_CHINH_SUA`, mà chủ bước ở đó là TDV.
-    expect(d.tieu_de).toBe('Cần bạn xử lý: Chỉnh sửa và gửi lại — Trưởng bộ phận trả lại');
+    // `0195` — nhãn bậc đi, câu còn lại là một mệnh lệnh trần.
+    expect(d.tieu_de).toBe('Chỉnh sửa và gửi lại — Trưởng bộ phận trả lại');
     expect(d.tieu_de).not.toContain('[CSBH]');
     expect(d.mo_ta).toBe('KHTB01 — Nhà thuốc Thử Nghiệm · CS-TB-0001');
     // Lý do trả lại KHÔNG vào thông báo: nó dài, và nó là thứ phải đọc kỹ ở
@@ -703,7 +707,7 @@ describe('`0192` mỗi (hành động × vai trò) ra đúng một bậc', () =>
 
   it('đúng MỘT vai trò của mỗi hành động ở bậc VIỆC — không hai, không ba', () => {
     // Chủ bước là một vai trò, và một vai trò là một người trên một hồ sơ. Hai
-    // người cùng nhận lá thư *Cần bạn xử lý* nghĩa là hai người cùng tưởng hồ sơ
+    // người cùng nhận một lá thư bậc VIỆC nghĩa là hai người cùng tưởng hồ sơ
     // đang chờ mình.
     for (const [action, vaiTro] of Object.entries(RECIPIENTS)) {
       const den = ACTION_OF[action as Action].to;
@@ -712,15 +716,72 @@ describe('`0192` mỗi (hành động × vai trò) ra đúng một bậc', () =>
     }
   });
 
-  it('tiêu đề bậc VIỆC mở đầu bằng nhãn VIỆC, bậc TIN bằng nhãn TIN', () => {
+  /*
+   * BA CA DƯỚI ĐÂY THAY cho ca *"tiêu đề mở đầu bằng nhãn bậc"* của `0192`.
+   *
+   * Ca cũ khẳng định một CƠ CHẾ — *có hai chuỗi cố định dán ở đầu tiêu đề* — và
+   * khách hàng vừa bỏ đúng cơ chế ấy (`0195`). Sửa nó thành `toContain` chuỗi
+   * khác là giữ lại một ca không còn canh gì; thứ phải giữ là ĐIỀU nhãn ấy bảo
+   * đảm, và đó là ba câu tách bạch: hai bậc cho hai tiêu đề khác nhau · không
+   * tiêu đề nào còn mang nhãn cũ · bậc VIỆC gọi tên việc của người đọc.
+   */
+
+  it('`0195` hai bậc cho HAI tiêu đề khác nhau — nhãn đi rồi thì đây là chốt thật', () => {
+    /*
+     * Bất biến gốc của `0192`: cùng một sự kiện, hai người, hai câu chữ. Tới
+     * `0192` nó được bảo đảm bằng hai chuỗi dán ở đầu, nên nó ĐÚNG MÀ RẺ TIỀN.
+     * Bỏ nhãn là bỏ chỗ dựa ấy, và cái đỡ lấy nó là NGỮ PHÁP: bậc VIỆC gọi tên
+     * việc phải làm, bậc TIN kể chuyện đã xảy ra.
+     *
+     * Đây là cách duy nhất `0195` hỏng — hai lá thư của một bước trùng tiêu đề
+     * thì `0192` mất trắng, và không có gì khác trong bộ kiểm nói ra điều đó.
+     *
+     * CHỈ HỎI Ở BƯỚC CÓ CHỦ. Trạng thái không có chủ bước thì KHÔNG AI ở bậc
+     * VIỆC (`0192` — bốn trạng thái ấy làm sáu hành động tự rơi về TIN), nên
+     * `titleFor(ev,'VIEC')` ở đó là một lời gọi không bao giờ xảy ra thật. Bản
+     * đầu của ca này quét cả chúng và đỏ ở `KT_RECEIVE_L2` — đỏ đúng phép so,
+     * sai câu hỏi: hai bậc trùng chữ chỉ có hại khi hai bậc cùng tồn tại.
+     */
+    for (const { action, den } of cap) {
+      if (!CHU_BUOC[den]) continue;
+      const ev = su(action, den);
+      expect(titleFor(ev, 'VIEC'), `${action}: hai bậc cùng một tiêu đề`).not.toBe(
+        titleFor(ev, 'TIN'),
+      );
+    }
+  });
+
+  it('`0195` KHÔNG tiêu đề nào còn mang nhãn bậc cũ', () => {
     for (const { action, vaiTro, den } of cap) {
       const bac: Bac = vaiTro === CHU_BUOC[den] ? 'VIEC' : 'TIN';
-      const tieuDe = titleFor(su(action, den), bac);
-      const nhan = bac === 'VIEC' ? NHAN_BAC.VIEC : NHAN_BAC.TIN;
-      // Hai ngoại lệ có nhãn riêng (`SLA_REMINDER`, `TBP_RECALL`), nên phép kiểm
-      // là *"nói đúng bậc"*, không phải *"khớp đúng chuỗi"*.
-      const dungBac = tieuDe.startsWith(nhan) || tieuDe.startsWith('Dừng xử lý');
-      expect(dungBac, `${action} × ${vaiTro} → ${tieuDe}`).toBe(true);
+      const t = titleFor(su(action, den), bac);
+      for (const cu of ['Cần bạn xử lý', 'Để bạn biết']) {
+        expect(t, `${action} × ${vaiTro} → ${t}`).not.toContain(cu);
+      }
+      /*
+       * Tiêu đề mở đầu bằng CHỮ, không bằng rác.
+       *
+       * Gỡ nhãn mà quên nhánh *"không còn mảnh dẫn nào"* thì mảnh đầu rỗng, và
+       * nó vẫn gửi đi được như thường. Bản đầu của ca này hỏi `startsWith(':')`
+       * và **XANH lúc phá lại**: mảnh rỗng ở đây là `undefined`, nên chuỗi ra
+       * `undefined: Duyệt bản mềm…` chứ không phải `: Duyệt bản mềm…`. Hỏi
+       * *"mở đầu bằng chữ hoa"* thì bắt được cả hai, và cả những cách hỏng khác
+       * của cùng phép ghép chuỗi.
+       */
+      expect(t, `${action} × ${vaiTro} → ${t}`).toMatch(/^\p{Lu}/u);
+      expect(t, `${action} × ${vaiTro} → ${t}`).not.toContain('undefined');
+    }
+  });
+
+  it('`0195` tiêu đề bậc VIỆC gọi tên VIỆC của chính người đọc', () => {
+    // Thứ thay cho nhãn. Nó dựa vào ca *"`CHU_BUOC` khớp `VIEC_CUA_BUOC` hai
+    // chiều"* ở khối trên: thiếu một mục bên ấy thì tiêu đề bậc VIỆC lặng lẽ
+    // mượn câu kể của bậc TIN, và từ `0195` không còn nhãn nào che chỗ đó nữa.
+    for (const { action, vaiTro, den } of cap) {
+      if (vaiTro !== CHU_BUOC[den]) continue;
+      const viec = VIEC_CUA_BUOC[den];
+      expect(viec, `${den} không có câu việc`).toBeTruthy();
+      expect(titleFor(su(action, den), 'VIEC'), `${action} × ${vaiTro}`).toContain(viec!);
     }
   });
 

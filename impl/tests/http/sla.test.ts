@@ -566,8 +566,13 @@ describe('NTF-08 · NTF-10 đẩy đồng hồ tới ngày thứ 14', () => {
     const m = await fullMail(qh.ID);
     // `QUA_HAN_DUYET` là trạng thái KẾT THÚC nên không còn chủ bước: cả hai
     // người nhận cùng một lá TIN, và tiêu đề nói thẳng là không thao tác được nữa.
-    expect(m.Subject).toContain('Để bạn biết');
+    //
+    // `0195` gỡ nhãn *Để bạn biết* khỏi tiêu đề, nên bậc đọc ở hai chỗ còn nói
+    // ra nó: đoạn giải thích trong thân thư, và liên kết trỏ vào nhật ký.
     expect(m.Subject).toContain('không thao tác được nữa');
+    expect(m.Subject).not.toContain('Để bạn biết');
+    expect(m.Text).toContain('chỉ để bạn biết');
+    expect(m.Text).toContain('/nhat-ky');
     expect(qh.To.map((t) => t.Address).sort()).toEqual([
       'tbp01@csbh.test',
       'tdv01@csbh.test',

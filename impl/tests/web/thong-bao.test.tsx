@@ -110,6 +110,24 @@ describe('`0192` chuông: SỐ cho việc, CHẤM cho tin', () => {
     expect(nhanChuong({ viec: 0, tin: 12 })).toBe('Thông báo — 12 tin mới');
     expect(nhanChuong({ viec: 3, tin: 12 })).toBe('Thông báo — 3 việc chưa xem, 12 tin mới');
   });
+
+  it('`0195` dấu chấm trên chuông màu ĐỎ, và chấm của TỪNG DÒNG vẫn xanh', () => {
+    /*
+     * Khách hàng chốt 10/09, ĐẢO lập luận `0192` (*"xanh vì nó là bản thu nhỏ
+     * của `.tb-cham`"*). Ca này canh CẢ HAI vế, và vế thứ hai mới là vế dễ mất:
+     * đổi màu cho "dấu chấm" mà không phân biệt hai chỗ dùng thì mọi dòng CHƯA
+     * ĐỌC cũng đỏ lên — tức nói *"mọi thứ đều gấp"*, đúng thứ chặng này gỡ.
+     *
+     * Hai chấm trả lời hai câu khác nhau: trên chuông là *có tin mới*, trên dòng
+     * là *dòng này chưa đọc*.
+     */
+    const css = doc('styles/app.css');
+    const chuong = css.slice(css.indexOf('.tb-cham-chuong {'), css.indexOf('.tb-bang {'));
+    expect(chuong).toContain('background: var(--mau-loi)');
+    expect(chuong).not.toContain('--mau-thuong-hieu');
+
+    expect(css).toContain('.tb-chua-doc .tb-cham { background: var(--mau-thuong-hieu); }');
+  });
 });
 
 describe('`0192` bậc nằm ở LỚP của cả dòng', () => {
@@ -125,15 +143,70 @@ describe('`0192` bậc nằm ở LỚP của cả dòng', () => {
 
   it('CSS tô dòng VIỆC bằng hổ phách, KHÔNG bằng màu của chấm chưa đọc', () => {
     /*
-     * Canh cả hai vế. Xanh thương hiệu đã là màu của *chưa đọc* ở `.tb-cham` và
-     * ở dấu chấm trên chuông — mượn lại nó ở đây là một màu mang hai nghĩa trên
-     * cùng một dòng. Đỏ thì tranh chỗ với huy hiệu đếm việc (`0188`).
+     * Canh cả hai vế. Xanh thương hiệu là màu của *chưa đọc* ở `.tb-cham` —
+     * mượn lại nó ở đây là một màu mang hai nghĩa trên cùng một dòng. Đỏ thì
+     * tranh chỗ với huy hiệu đếm việc (`0188`), và từ `0195` cả với dấu chấm
+     * trên chuông.
      */
     const css = doc('styles/app.css');
     const khoi = css.slice(css.indexOf('.tb-viec {'), css.indexOf('.tb-viec:hover'));
-    expect(khoi).toContain('--mau-canh-bao');
+    expect(khoi).toContain('--mau-viec-dai');
+    expect(khoi).toContain('--mau-viec-nen');
     expect(khoi).not.toContain('--mau-thuong-hieu');
     expect(khoi).not.toContain('--mau-loi');
+  });
+
+  it('`0195` cặp màu dòng VIỆC CÙNG TÔNG hổ phách mà bớt chói, ở CẢ BA bảng màu', () => {
+    /*
+     * Đo trên HSL chứ không ghim mã hex: khách hàng yêu cầu *"cùng tông, tránh
+     * quá chói"*, và đó là hai tính chất — cùng SẮC MÀU, thấp hơn về ĐỘ BÃO HOÀ.
+     * Ghim hex là ghim một lựa chọn thẩm mỹ; đo hai tính chất là canh đúng câu
+     * khách hàng đặt ra, và vẫn cho người sau tinh chỉnh sắc độ.
+     *
+     * BA bảng màu vì `tokens.css` khai màu ba lần (sáng · `@media` tối · chọn
+     * tay tối). Sửa một bảng mà quên hai bảng kia là lỗi im lặng cổ điển ở tệp
+     * này — nó chỉ lộ ra với người dùng đang bật đúng giao diện bị bỏ sót.
+     */
+    const css = readFileSync('apps/web/src/styles/tokens.css', 'utf8');
+    const hex = (bien: string): string[] =>
+      [...css.matchAll(new RegExp(`${bien}:\\s*(#[0-9a-f]{6})`, 'gi'))].map((m) => m[1]!);
+
+    const hsl = (h: string): { h: number; s: number; l: number } => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [
+        number,
+        number,
+        number,
+      ];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const d = max - min;
+      const l = (max + min) / 2;
+      const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+      // Ba màu ở đây đều thuộc cung hổ phách nên `max` luôn là kênh đỏ; công
+      // thức rút gọn theo đúng giả định ấy, và ca kiểm khẳng định nó ngay dưới.
+      const goc = d === 0 ? 0 : (60 * (g - b)) / d;
+      return { h: goc, s, l };
+    };
+
+    const canhBao = hex('--mau-canh-bao');
+    const dai = hex('--mau-viec-dai');
+    const nen = hex('--mau-viec-nen');
+    const canhBaoNen = hex('--mau-canh-bao-nen');
+    for (const [ten, ds] of Object.entries({ canhBao, dai, nen, canhBaoNen })) {
+      expect(ds.length, `${ten} phải khai đủ ba bảng màu`).toBe(3);
+    }
+
+    for (let i = 0; i < 3; i += 1) {
+      for (const [moi, cu] of [
+        [dai[i]!, canhBao[i]!],
+        [nen[i]!, canhBaoNen[i]!],
+      ]) {
+        const a = hsl(moi);
+        const b = hsl(cu);
+        expect(Math.abs(a.h - b.h), `${moi} lệch tông so với ${cu}`).toBeLessThan(8);
+        expect(a.s, `${moi} không dịu hơn ${cu}`).toBeLessThan(b.s);
+      }
+    }
   });
 
   it('dòng không có dải vẫn thẳng cột với dòng có dải', () => {
