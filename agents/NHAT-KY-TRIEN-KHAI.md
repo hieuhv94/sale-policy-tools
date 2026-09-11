@@ -17611,3 +17611,74 @@ Tài liệu: `03-HUONG-DAN-SU-DUNG.md` sửa khối *Yêu cầu cập nhật* �
 nằm sẵn ở đó (*"hồ sơ Nháp tự cập nhật mỗi lần mở nên không có gì để nhắc"*), đúng cái `0194` gỡ đi.
 
 **2265/2265 xanh.**
+
+### Hậu P227 — `make demo-mau` chết vì `0197`, và bản demo thiếu nửa tính năng
+
+Người dùng gõ `make demo-mau` và nó chết ở hồ sơ viết tay số 5:
+`409 DRAFT_EXISTS`. **Lần thứ BA bộ nạp demo bị bỏ quên trong một lượt đổi
+luật** — `0168` (chốt `BAN_MEM_REQUIRED`), `0180` (gỡ `applied_date`), giờ là
+`0197` (`uq_policy_nhap_moi_khach`). Xoá CSDL rồi nạp lại **không chữa được**:
+bộ nạp tự vi phạm luật mới, nên nó sẽ chết lại ở đúng chỗ ấy.
+
+**VẾ ÍT AI NGHĨ TỚI, và nó mới là thứ làm hỏng bộ nạp.** Luật đọc như *"một
+khách một bản Nháp"*, nhưng hệ quả thật rộng hơn hẳn: **khách đang giữ Nháp thì
+không lập thêm được hồ sơ NÀO nữa** — mọi lượt `POST /policies` đều dựng ra một
+bản Nháp trước, kể cả lượt lập phiên bản mới. Bộ nạp lập hồ sơ #1 (*Nháp*,
+`KH-0001`) ở dòng đầu rồi lập tiếp #5 cho chính khách ấy.
+
+**Sửa một chỗ ấy là chưa đủ, và đó là phần đáng ghi.** Nhóm `NHAP` của
+`KE_HOACH` đứng ĐẦU bảng, sinh 21 bản Nháp trên 21 khách xoay vòng; mọi vòng lặp
+sau đó — SLA, ba năm lịch sử, bảy nhóm trạng thái còn lại — đều xoay qua cùng
+danh sách khách ấy. Tức bản sửa chỉ đổi **chỗ chết**, từ hồ sơ số 5 sang một chỗ
+tuỳ số khách và số hồ sơ. Ba quyết định mới là thứ đóng được cả lớp:
+
+* **`NHAP` xuống CUỐI `KE_HOACH`** — nhóm ấy phải là thứ cuối cùng chạm vào
+  những khách nó dùng. Không cấm nhau với ràng buộc cũ (*`DANG_CO_HIEU_LUC`
+  đứng cuối*) nhờ `cheDo()`: khách vừa lên hiệu lực nhận `mode: NEW_VERSION`,
+  nên bản Nháp lập ở vòng cuối là **bản thay thế đang soạn dở** — một trạng thái
+  có thật, và cũng là chỗ duy nhất bản demo bày ra cảnh báo của `0191`.
+* **`KH-0001` ra khỏi `cuaTdv01`** — nó giữ bản Nháp viết tay, nên phải đứng
+  ngoài mọi vòng xoay. Còn 22 khách, vẫn ≥ `QUA_MOT_TRANG`.
+* **Hồ sơ #5 lập TRƯỚC #1** — hai hồ sơ cùng `KH-0001` là CÓ CHỦ Ý và nên giữ:
+  nó bày ra đúng cặp trạng thái mà `0197` phân biệt (một bản *bị trả lại* và một
+  bản *Nháp* nằm cạnh nhau, hợp lệ, vì luật ấy cố tình chỉ chặn `NHAP`).
+
+**LỖI THỨ HAI, tìm ra vì đi nghiệm thu chứ không vì ai báo.** Nạp xong, bấm thử
+nút *Tự động cập nhật* của P227 trên chồng demo thật: `hong: ["NC-CAN-400"]`,
+`conLai: 1` — đúng, nhưng **không hồ sơ còn sửa được nào có chênh lệch áp
+được**. Nguyên nhân là một bất đối xứng CÓ CHỦ Ý mà bộ nạp không biết: hồ sơ đã
+đóng băng so với bảng giá **hôm nay**, còn hồ sơ còn sửa được so ở **ngày áp
+dụng của từng dòng** (`0180`). Lượt đổi giá cuối bộ nạp hiệu lực từ *hôm nay*,
+trong khi mọi dòng demo đề ngày 01/08 — nên 75 hồ sơ đóng băng hiện lệch đúng
+như mong đợi, và nút mới của P227 **không có gì để áp**. Bản demo chỉ bày được
+nửa *"không áp được"*.
+
+> Triệu chứng của lớp lỗi này là **một khối cảnh báo trống, không phải một lỗi**
+> — không ai phát hiện ra bằng cách chạy bộ nạp và đọc dòng kết quả.
+
+Lùi ngày hiệu lực về `NGAY_AP_DUNG_MAC_DINH` thì **cả hai đường cùng thấy**:
+dòng giá mới vẫn là dòng mới nhất nên lượt tra theo *hôm nay* không đổi kết quả,
+mà lượt tra theo 01/08 giờ cũng chạm tới nó. Đo lại: **22/22 hồ sơ Nháp và 22/22
+hồ sơ Yêu cầu chỉnh sửa** có chênh lệch; bấm nút trên một hồ sơ sạch cho
+`{hong: [], conLai: 0}` và giá nhảy 615.000 → 648.000, trên hồ sơ còn
+`NC-CAN-400` cho `{hong: ["NC-CAN-400"], conLai: 1}` — hai nửa của tính năng đều
+bày ra được. `policy.updated · LINES_REFRESHED · soDong 1` có trong outbox.
+
+**Bốn chốt chặn mới ở `tests/db/bo-nap-demo.test.ts`** — đúng tệp `0180` dựng ra
+cho lớp lỗi này, với bài học *"bộ nạp demo là một người dùng của lược đồ, và nó
+cần một chốt chặn như mọi người dùng khác"*. Chỉ quét được hai quyết định chứ
+không dựng lại được va chạm (nó phụ thuộc khách nào ở lượt thứ mấy), và ca kiểm
+nói ra giới hạn ấy.
+
+> **PHÁ LẠI BẮT ĐƯỢC MỘT CA KIỂM YẾU CỦA CHÍNH TÔI.** Ca *"đổi giá với tới được
+> hồ sơ sửa được"* bản đầu hỏi *"có còn MỘT chỗ dùng hằng không"*; khối ấy có
+> HAI lượt ghi (giá sản phẩm và ngưỡng quy định), nên lượt phá vá một chỗ vẫn
+> xanh. Đổi sang quét MỌI `effectiveFrom` trong khối và đòi từng cái bằng hằng.
+> Bốn lượt phá, bốn đỏ đúng chỗ.
+
+**BẪY MÔI TRƯỜNG, ghi lại vì nó tốn mười phút:** `make demo-mau` gọi
+`compose run gateway`, và lượt ấy **dựng lại container `caddy`** — dependency do
+`compose run` khởi động thì KHÔNG publish cổng, nên `localhost:8080` chết trong
+khi `docker compose ps` báo `caddy Up (healthy)`. Chữa bằng
+`compose up -d --force-recreate caddy`. Cùng họ với bẫy `compose run` mà `0135`
+đã ghi, chỉ khác là lần này nó không hạ service nào — nó chỉ lặng lẽ tháo cổng.

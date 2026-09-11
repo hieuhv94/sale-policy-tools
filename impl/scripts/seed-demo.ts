@@ -52,6 +52,17 @@ const MAT_KHAU = 'Test@1234';
  */
 const QUA_MOT_TRANG = 21;
 
+/**
+ * Ngày áp dụng của mọi dòng sản phẩm không khai ngày riêng (`0199`).
+ *
+ * Hằng chứ không phải một chuỗi gõ tay, vì nó có **người đọc thứ hai**: lượt đổi
+ * giá ở cuối bộ nạp phải hiệu lực từ đúng ngày này thì chênh lệch mới với tới
+ * được những hồ sơ CÒN SỬA ĐƯỢC. Xem khối *Yêu cầu cập nhật* ở cuối `main()` —
+ * hai con số ấy lệch nhau thì nút *Tự động cập nhật* trên bản demo không có gì
+ * để áp, và triệu chứng là một khối cảnh báo trống chứ không phải một lỗi.
+ */
+const NGAY_AP_DUNG_MAC_DINH = '2026-08-01';
+
 const tok: Record<string, string> = {};
 
 async function dangNhap(u: string): Promise<void> {
@@ -1035,10 +1046,19 @@ async function main(): Promise<void> {
     khach[k.code] = r.id;
   }
 
-  /** Khách của tdv01 — nguồn để sinh hồ sơ hàng loạt. 23 mã, đủ vượt một trang. */
-  const cuaTdv01 = KHACH.filter((k) => !cuaTdv02.has(k.code) && !cuaTdv03.has(k.code)).map(
-    (k) => k.code,
-  );
+  /**
+   * Khách của tdv01 — nguồn để sinh hồ sơ hàng loạt. 22 mã, đủ vượt một trang.
+   *
+   * `KH-0001` ĐỨNG NGOÀI danh sách này (`0199`). Nó giữ bản Nháp viết tay của
+   * phần trên, và một khách đang giữ Nháp thì **không lập thêm được hồ sơ nào**
+   * — `POST /policies` bao giờ cũng dựng ra một bản Nháp trước (`0197`). Để nó
+   * trong vòng xoay là cả lượt nạp chết giữa chừng bằng `409 DRAFT_EXISTS`, ở
+   * một chỗ ngẫu nhiên tuỳ số khách và số hồ sơ — tức mỗi lần sửa bộ nạp lại
+   * chết ở một chỗ khác.
+   */
+  const cuaTdv01 = KHACH.filter(
+    (k) => k.code !== 'KH-0001' && !cuaTdv02.has(k.code) && !cuaTdv03.has(k.code),
+  ).map((k) => k.code);
 
   /*
    * MẪU HỒ SƠ ĐẦY ĐỦ để dựng bản mềm (`0168`).
@@ -1122,7 +1142,7 @@ async function main(): Promise<void> {
     (
       await goi<CoId>('/policies', ai, {
         customerId: khach[khachHang]!,
-        lines: lines.map((l) => ({ ...l, ngayApDung: them.ngayApDung ?? '2026-08-01' })),
+        lines: lines.map((l) => ({ ...l, ngayApDung: them.ngayApDung ?? NGAY_AP_DUNG_MAC_DINH })),
         ...(them.mode ? { mode: them.mode } : {}),
       })
     ).id;
@@ -1135,6 +1155,33 @@ async function main(): Promise<void> {
   // mẫu nữa.
 
   // === PHẦN VIẾT TAY: năm hồ sơ được chọn, đứng đầu danh sách =================
+
+  /*
+   * THỨ TỰ 5 TRƯỚC 1, và đó là luật của `0197` chứ không phải sở thích.
+   *
+   * Một khách giữ được **đúng một bản Nháp**, và hệ quả ít ai nghĩ tới là vế
+   * mạnh hơn: khách đang giữ Nháp thì **không lập thêm được hồ sơ nào nữa** —
+   * `POST /policies` bao giờ cũng dựng ra một bản Nháp trước, kể cả lượt lập
+   * phiên bản mới. Nên hồ sơ số 1 (bản Nháp của `KH-0001`) phải là thứ CUỐI CÙNG
+   * lập cho khách ấy; đặt nó lên đầu như trước `0199` thì hồ sơ số 5 chết bằng
+   * `409 DRAFT_EXISTS` ngay lượt `make demo-mau` kế tiếp.
+   *
+   * Hai hồ sơ này cùng khách là CÓ CHỦ Ý và nên giữ: `KH-0001` bày ra đúng cặp
+   * trạng thái mà luật ấy phân biệt — một bản *bị trả lại* và một bản *Nháp* nằm
+   * cạnh nhau, hợp lệ. (`0197` cố tình chỉ chặn `NHAP`, không chặn
+   * `YEU_CAU_CHINH_SUA`.)
+   */
+
+  // 5. YÊU CẦU CHỈNH SỬA — hồ sơ bị Trưởng bộ phận trả lại kèm lý do.
+  //
+  // Không có nó thì tdv01 mở phần mềm ra thấy trang chủ TRỐNG: hộp thư đến của
+  // TDV chỉ hiện hồ sơ bị trả lại. Đúng về hành vi, nhưng là một bản demo tệ —
+  // và đây cũng là chỗ duy nhất nhìn thấy dải "lý do trả lại" trên màn hình.
+  const hs5 = await lapHoSo('KH-0001', [
+    dong('NC-BONE-900', 470_000, 15_000), // 22,22% — vượt ngưỡng 15%
+  ]);
+  await act(hs5, 'SUBMIT', 'tdv01');
+  await act(hs5, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
 
   // 1. NHÁP — tdv01 mở phần mềm là có ngay việc dở dang để xem và sửa.
   await lapHoSo('KH-0001', [
@@ -1176,17 +1223,6 @@ async function main(): Promise<void> {
   });
   await act(hs4, 'SA_HANDOVER', 'sa01');
   await act(hs4, 'KT_RECEIVE_L2', 'kt01');
-
-  // 5. YÊU CẦU CHỈNH SỬA — hồ sơ bị Trưởng bộ phận trả lại kèm lý do.
-  //
-  // Không có nó thì tdv01 mở phần mềm ra thấy trang chủ TRỐNG: hộp thư đến của
-  // TDV chỉ hiện hồ sơ bị trả lại. Đúng về hành vi, nhưng là một bản demo tệ —
-  // và đây cũng là chỗ duy nhất nhìn thấy dải "lý do trả lại" trên màn hình.
-  const hs5 = await lapHoSo('KH-0001', [
-    dong('NC-BONE-900', 470_000, 15_000), // 22,22% — vượt ngưỡng 15%
-  ]);
-  await act(hs5, 'SUBMIT', 'tdv01');
-  await act(hs5, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
 
   // === PHẦN SINH RA: khối lượng để thử phân trang =============================
 
@@ -1279,12 +1315,27 @@ async function main(): Promise<void> {
     spDangHieuLuc.has(kh) ? { mode: 'NEW_VERSION' } : {};
 
   /**
-   * THỨ TỰ TRONG BẢNG NÀY LÀ BẮT BUỘC: `DANG_CO_HIEU_LUC` phải đứng CUỐI.
+   * THỨ TỰ TRONG BẢNG NÀY LÀ BẮT BUỘC, và từ `0199` có HAI ràng buộc chứ không
+   * một — chúng kéo về hai đầu đối nhau.
    *
-   * `uq_policy_active_per_customer` cho mỗi khách đúng một CSBH hiệu lực, và
-   * `POST /policies` từ chối lập hồ sơ mới cho khách đã có CSBH hiệu lực trừ khi
-   * khai rõ là bổ sung hay chỉnh sửa. Đẩy một khách lên hiệu lực trước rồi mới
-   * lập tiếp cho họ là tự dựng ra lỗi 409 giữa chừng.
+   * `DANG_CO_HIEU_LUC` phải đứng **gần cuối**: `uq_policy_active_per_customer`
+   * cho mỗi khách đúng một CSBH hiệu lực, và `POST /policies` từ chối lập hồ sơ
+   * mới cho khách đã có CSBH hiệu lực trừ khi khai rõ là lập phiên bản mới.
+   *
+   * `NHAP` phải đứng **cuối hẳn**, sau cả nó (`0197`): khách đang giữ một bản
+   * Nháp thì KHÔNG lập thêm được hồ sơ nào — mọi lượt `POST /policies` đều dựng
+   * ra một bản Nháp trước. Nhóm này vì thế phải là thứ cuối cùng chạm vào những
+   * khách nó dùng; đặt lên đầu như trước `0199` thì đúng 22 hồ sơ sau đó chết
+   * bằng `409 DRAFT_EXISTS`.
+   *
+   * Hai ràng buộc KHÔNG cấm nhau, nhờ `cheDo()`: những khách vừa lên hiệu lực
+   * nhận `mode: NEW_VERSION`, nên bản Nháp lập ra ở vòng cuối là **bản thay thế
+   * đang soạn dở** — một trạng thái có thật, và cũng là chỗ duy nhất bản demo
+   * bày ra cảnh báo *"khách này đã có bản mới đang dở"* của `0191`.
+   *
+   * Mỗi nhóm dùng `stt % cuaTdv01.length` nên `QUA_MOT_TRANG` (21) lượt liên
+   * tiếp rơi vào 21 khách KHÁC NHAU trong 22 — điều kiện để `uq_policy_nhap_moi_khach`
+   * không nổ. Rút bớt khách của tdv01 xuống dưới 22 là phá chính điều kiện ấy.
    */
   let stt = 0;
   let daLap = 5;
@@ -1318,7 +1369,6 @@ async function main(): Promise<void> {
   await vanDongHoSla(idSapQuaHan, idDaQuaHan);
 
   const KE_HOACH: [string, number][] = [
-    ['NHAP', QUA_MOT_TRANG],
     ['YEU_CAU_CHINH_SUA', QUA_MOT_TRANG],
     ['CHO_TBP_DUYET', QUA_MOT_TRANG],
     ['CHO_KT_L1', 11],
@@ -1326,12 +1376,16 @@ async function main(): Promise<void> {
     ['SA_DANG_XU_LY', QUA_MOT_TRANG],
     ['DA_XOA', 5],
     ['DANG_CO_HIEU_LUC', QUA_MOT_TRANG],
+    // `NHAP` ĐỨNG CUỐI (`0199`) — xem chú thích thứ tự ngay dưới.
+    ['NHAP', QUA_MOT_TRANG],
   ];
 
   if (cuaTdv01.length < QUA_MOT_TRANG) {
     throw new Error(
-      `tdv01 chỉ có ${cuaTdv01.length} khách, không đủ ${QUA_MOT_TRANG} hồ sơ hiệu lực — ` +
-        'mỗi khách chỉ được một CSBH hiệu lực (uq_policy_active_per_customer)',
+      `tdv01 chỉ có ${cuaTdv01.length} khách, không đủ ${QUA_MOT_TRANG} hồ sơ — ` +
+        'mỗi khách chỉ được một CSBH hiệu lực (uq_policy_active_per_customer) ' +
+        'và một bản Nháp (uq_policy_nhap_moi_khach). Thêm khách vào KHACH_THEM, ' +
+        'hoặc hạ QUA_MOT_TRANG — đừng cho hai nhóm dùng chung một khách.',
     );
   }
 
@@ -1446,7 +1500,26 @@ async function main(): Promise<void> {
   //
   // ĐỔI GIÁ CUỐI CÙNG, sau khi mọi hồ sơ đã đóng băng. Đổi trước thì hồ sơ lập
   // sau đó chụp luôn giá mới và không có gì lệch để mà hiện.
-  const homNay = new Date().toISOString().slice(0, 10);
+  /*
+   * HIỆU LỰC TỪ `NGAY_AP_DUNG_MAC_DINH`, KHÔNG phải từ hôm nay (`0199`).
+   *
+   * Hai đường đọc chênh lệch hỏi danh mục ở HAI THỜI ĐIỂM khác nhau, và đó là
+   * chủ ý: hồ sơ đã đóng băng so với bảng giá **hôm nay** (câu hỏi của người
+   * duyệt: *"hồ sơ này còn khớp với giá đang bán không"*), còn hồ sơ còn sửa
+   * được so ở **ngày áp dụng của từng dòng** (`0180`) — vì đó mới là con số sẽ
+   * được chụp nếu bấm Gửi duyệt.
+   *
+   * Đo được trên bản demo trước lượt sửa này: giá mới hiệu lực **hôm nay** nên
+   * 75 hồ sơ đóng băng hiện lệch đúng như mong đợi, nhưng **không một hồ sơ còn
+   * sửa được nào** nhìn thấy gì — dòng của chúng đề ngày 01/08, và ở ngày ấy giá
+   * vẫn là giá cũ. Nút *Tự động cập nhật* của `0194` vì thế chỉ demo được đúng
+   * nửa *"không áp được"* (mặt hàng đã vô hiệu hoá), còn nửa chính — bấm một cái
+   * là số nhảy sang giá mới — không có dữ liệu nào bày ra nó.
+   *
+   * Lùi ngày hiệu lực về đúng ngày ấy thì **cả hai đường cùng thấy**: dòng mới
+   * vẫn là dòng giá mới nhất nên lượt tra theo *hôm nay* không đổi kết quả, mà
+   * lượt tra theo 01/08 giờ cũng chạm tới nó.
+   */
   const doiGia: [string, number][] = [
     ['NC-GOLD-900', 648_000],
     ['NC-GOLD-400', 332_000],
@@ -1455,14 +1528,14 @@ async function main(): Promise<void> {
     await goi(`/catalog/products/${sanPham[ma]!}/prices`, 'admin01', {
       priceType: 'GIA_BAN_CONG_TY',
       amount: String(giaMoi),
-      effectiveFrom: homNay,
+      effectiveFrom: NGAY_AP_DUNG_MAC_DINH,
     });
   }
   // Và một ngưỡng đổi, để box hiện được cả loại lệch thứ hai chứ không chỉ giá.
   await goi(
     '/catalog/discount-rules/CK-SUA-L1',
     'admin01',
-    { thresholdRate2: 1650, effectiveFrom: homNay },
+    { thresholdRate2: 1650, effectiveFrom: NGAY_AP_DUNG_MAC_DINH },
     'PATCH',
   );
 

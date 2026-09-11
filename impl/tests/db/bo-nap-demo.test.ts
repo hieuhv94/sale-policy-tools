@@ -124,3 +124,91 @@ describe('`0180` bộ nạp demo và lược đồ nói cùng một thứ tiến
     }
   });
 });
+
+/**
+ * `0199` — BỘ NẠP DEMO PHẢI THEO KỊP LUẬT MỘT-BẢN-NHÁP-MỖI-KHÁCH (`0197`).
+ *
+ * **Lần thứ BA** bộ nạp demo bị bỏ quên trong một lượt đổi luật: `0168` (chốt
+ * `BAN_MEM_REQUIRED`), `0180` (gỡ `applied_date`), và giờ là `0197` — chỉ mục
+ * `uq_policy_nhap_moi_khach` cộng chốt `DRAFT_EXISTS`. Triệu chứng:
+ * `make demo-mau` chết giữa chừng bằng `409 DRAFT_EXISTS`, ở một chỗ tuỳ số
+ * khách và số hồ sơ — tức mỗi lần sửa bộ nạp lại chết ở một chỗ khác.
+ *
+ * VẾ ÍT AI NGHĨ TỚI, và nó mới là thứ làm hỏng bộ nạp: luật đọc như *"một khách
+ * một bản Nháp"*, nhưng hệ quả thật là **khách đang giữ Nháp thì không lập thêm
+ * được hồ sơ NÀO nữa** — mọi lượt `POST /policies` đều dựng ra một bản Nháp
+ * trước, kể cả lượt lập phiên bản mới.
+ *
+ * CHỈ QUÉT ĐƯỢC HAI QUYẾT ĐỊNH, và nói ra điều đó: va chạm thật phụ thuộc dữ
+ * liệu (khách nào ở lượt thứ mấy), không quét bằng chuỗi được. Hai quyết định
+ * dưới đây là thứ giữ cho nó không xảy ra, và cả hai đều trông vô hại với người
+ * đọc lướt — đúng loại dòng bị sửa "cho gọn" rồi vỡ ở buổi trình bày kế tiếp.
+ */
+describe('`0199` bộ nạp demo và luật một bản Nháp mỗi khách', () => {
+  const nguon = () => readFileSync('scripts/seed-demo.ts', 'utf8');
+
+  it('`NHAP` là nhóm CUỐI CÙNG của `KE_HOACH`', () => {
+    const m = nguon().match(/const KE_HOACH:[^=]*=\s*\[([\s\S]*?)\n\s*\];/);
+    expect(m, 'không tìm thấy bảng KE_HOACH').not.toBeNull();
+    const nhom = [...m![1]!.matchAll(/\[\s*'([A-Z_]+)'/g)].map((x) => x[1]!);
+    expect(nhom.length).toBeGreaterThan(1);
+    expect(
+      nhom[nhom.length - 1],
+      `KE_HOACH đang kết thúc bằng ${nhom[nhom.length - 1]}; ` +
+        'nhóm NHAP phải đứng cuối, vì khách giữ Nháp thì không lập thêm hồ sơ nào được',
+    ).toBe('NHAP');
+  });
+
+  it('khách giữ bản Nháp viết tay ĐỨNG NGOÀI vòng sinh hàng loạt', () => {
+    /*
+     * `KH-0001` giữ bản Nháp của phần viết tay. Để nó trong `cuaTdv01` là mọi
+     * vòng lặp sau đó có thể rơi trúng nó — và lượt nạp chết ở đó.
+     */
+    const s = nguon().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const m = s.match(/const cuaTdv01 = KHACH\.filter\(([\s\S]*?)\)\.map\(/);
+    expect(m, 'không tìm thấy phép dựng cuaTdv01').not.toBeNull();
+    expect(
+      m![1]!.includes("'KH-0001'"),
+      'cuaTdv01 phải loại trừ KH-0001 — khách ấy giữ bản Nháp viết tay',
+    ).toBe(true);
+  });
+
+  it('bản Nháp viết tay lập SAU hồ sơ bị trả lại của cùng khách', () => {
+    /*
+     * Hai hồ sơ viết tay cùng dùng `KH-0001`, và thứ tự giữa chúng là luật chứ
+     * không phải sở thích: bản Nháp phải là thứ CUỐI CÙNG lập cho khách ấy.
+     */
+    const s = nguon();
+    const nhap = s.indexOf('// 1. NHÁP');
+    const traLai = s.indexOf('// 5. YÊU CẦU CHỈNH SỬA');
+    expect(nhap, 'không tìm thấy hồ sơ viết tay số 1').toBeGreaterThan(0);
+    expect(traLai, 'không tìm thấy hồ sơ viết tay số 5').toBeGreaterThan(0);
+    expect(traLai, 'hồ sơ 5 phải lập TRƯỚC hồ sơ 1 — cả hai cùng KH-0001').toBeLessThan(nhap);
+  });
+
+  it('lượt đổi giá cuối bộ nạp với tới được hồ sơ CÒN SỬA ĐƯỢC', () => {
+    /*
+     * Hai đường đọc chênh lệch hỏi danh mục ở HAI thời điểm: hồ sơ đã đóng băng
+     * so với bảng giá HÔM NAY, hồ sơ còn sửa được so ở NGÀY ÁP DỤNG của từng
+     * dòng (`0180`). Đổi giá hiệu lực từ hôm nay thì chỉ nhóm đầu thấy, và nút
+     * *Tự động cập nhật* của `0194` trên bản demo không có gì để áp — một khối
+     * cảnh báo trống, không phải một lỗi, nên không ai phát hiện ra.
+     */
+    const s = nguon().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    const khoi = s.slice(s.indexOf('const doiGia:'));
+    /*
+     * Quét MỌI `effectiveFrom` trong khối, không chỉ hỏi "có còn một chỗ dùng
+     * hằng không" — bản đầu của ca này hỏi đúng câu sau, và lượt phá lại vá một
+     * trong hai chỗ thì nó vẫn xanh. Khối có hai lượt ghi (giá sản phẩm và
+     * ngưỡng quy định), và một nửa lệch cũng đủ làm mất đúng loại lệch ấy khỏi
+     * bản demo.
+     */
+    const ngay = [...khoi.matchAll(/effectiveFrom:\s*([A-Za-z_][\w.]*)/g)].map((m) => m[1]!);
+    expect(ngay.length, 'khối đổi giá phải có ít nhất hai lượt ghi').toBeGreaterThanOrEqual(2);
+    for (const v of ngay) {
+      expect(v, `đổi giá theo \`${v}\` thì hồ sơ còn sửa được không thấy gì`).toBe(
+        'NGAY_AP_DUNG_MAC_DINH',
+      );
+    }
+  });
+});
