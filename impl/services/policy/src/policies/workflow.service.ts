@@ -446,6 +446,16 @@ export class WorkflowService {
        * đúng, nêu đích danh mã sản phẩm, và không bao giờ chạy tới; người lập
        * nhận một câu không nói dòng nào hỏng. Nay cả ba đều rơi vào `hong`.
        */
+      /*
+       * KHÔNG truyền `rutHangVoHieu` (`0200`), và đó là một quyết định.
+       *
+       * Nút *Tự động cập nhật* rút mặt hàng đã vô hiệu hoá ra khỏi hồ sơ; ở đây
+       * thì không. Lượt gửi duyệt là lúc hồ sơ RỜI TAY người lập, và một mặt
+       * hàng biến mất khỏi văn bản ở đúng khoảnh khắc ấy — không ai bấm gì,
+       * không màn hình nào nói gì — là thứ chỉ phát hiện ra khi người duyệt đọc
+       * một bảng thiếu dòng. `STALE_LINE` nêu tên mặt hàng và để chính người lập
+       * quyết định, đúng như trước.
+       */
       const { hong } = await this.db.tx((c) => this.policies.lamMoiDong(c, policyId));
       if (hong.length > 0) {
         throw new UnprocessableEntityException({

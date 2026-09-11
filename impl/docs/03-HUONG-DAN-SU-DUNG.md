@@ -404,8 +404,10 @@ Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, 
 Mỗi trang **tối đa 5 hồ sơ**, như *Việc của tôi*: trên trang Tổng quan chúng chỉ là hai trong nhiều
 khối, và hai mươi dòng mỗi khối đẩy mọi thứ còn lại xuống dưới tầm mắt.
 
-Nó liệt kê những hồ sơ **đã gửi duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) mà nội dung trên hồ sơ
-**đã khác với danh mục hiện tại**.
+Nó liệt kê những hồ sơ mà nội dung trên hồ sơ **đã khác với danh mục hiện tại** — cả hồ sơ **đã gửi
+duyệt** (cho tới cả hồ sơ *đang có hiệu lực*) lẫn hồ sơ **còn sửa được** (*Nháp*, *Yêu cầu chỉnh
+sửa*) `mới 11/09`. Việc phải làm của hai loại ngược nhau, và khối nói ra cả hai: hồ sơ trong luồng
+duyệt thì **giữ nguyên số đã đóng băng**, hồ sơ còn sửa được thì mở ra bấm **Tự động cập nhật**.
 
 **Mỗi hồ sơ một dòng.** Dòng ấy cho biết mã hồ sơ, trạng thái, **lệch loại gì** và bao nhiêu điểm
 lệch — đủ để quét cả danh sách mà không phải đọc số. **Bấm vào một dòng** thì nó mở ra: lệch ở sản
@@ -447,12 +449,19 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 - **Đổi**: Giá bán Công ty · ngưỡng (QĐCK) · Tỷ lệ CK tính lại theo hai số đó.
 - **KHÔNG đổi**: Giá bán buôn và các khoản **CPBH** — đó là con số bạn nhập.
 
-> **Dòng nào không lấy được số mới thì ở lại trong khối**, kèm đúng lý do của nó — sản phẩm đã bị vô
-> hiệu hoá, đã bị xoá khỏi danh mục, hoặc chưa khai giá tại *Ngày áp dụng* của dòng. Bấm xong, phần
-> mềm **nói ra tên những mặt hàng ấy** ngay dưới bảng chênh lệch `mới 11/09` — nút không chặn cả lượt
-> vì một dòng hỏng, dòng nào lấy được thì lấy. Những dòng còn lại phải tự xử: rút dòng khỏi hồ sơ,
-> hoặc đổi *Ngày áp dụng* của chính dòng ấy. Để nguyên thì lượt **Gửi duyệt** sẽ dừng lại và nêu đích
-> danh chúng.
+> **Mặt hàng đã bị vô hiệu hoá thì nút RÚT LUÔN nó khỏi hồ sơ** `mới 11/09`. Một mặt hàng không còn
+> bán thì việc phải làm chỉ có một, nên phần mềm làm luôn và **nói ra tên** những dòng vừa rút. Dòng
+> thừa kế từ bản CSBH trước vẫn nằm lại trong bảng với nhãn *Đã xoá* để người duyệt thấy được, và chỉ
+> biến mất hẳn khi hồ sơ có hiệu lực — bấm *Thêm lại* nếu bạn muốn giữ.
+>
+> **Lượt Gửi duyệt thì KHÔNG tự rút.** Đó là lúc hồ sơ rời tay bạn, và một mặt hàng biến mất khỏi văn
+> bản ở đúng khoảnh khắc ấy thì không ai kịp thấy. Ở đó phần mềm dừng lại và nêu đích danh mặt hàng.
+
+> **Dòng nào không lấy được số mới thì ở lại trong khối**, kèm đúng lý do của nó — sản phẩm đã bị xoá
+> khỏi danh mục, hoặc chưa khai giá tại *Ngày áp dụng* của dòng. Bấm xong, phần mềm **nói ra tên
+> những mặt hàng ấy** ngay dưới bảng chênh lệch `mới 11/09` — nút không chặn cả lượt vì một dòng
+> hỏng, dòng nào lấy được thì lấy. Những dòng còn lại phải tự xử: rút dòng khỏi hồ sơ, hoặc đổi *Ngày
+> áp dụng* của chính dòng ấy. Để nguyên thì lượt **Gửi duyệt** sẽ dừng lại và nêu đích danh chúng.
 
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
 > CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
@@ -461,10 +470,8 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 **Khối không có nút nào**, và đó là chủ ý. Việc phải làm tuỳ tình huống: trả lại để người lập sửa,
 cứ duyệt tiếp vì chênh lệch không đáng kể, hay lập một CSBH mới. Phần mềm không đoán hộ.
 
-Hồ sơ còn ở *Nháp* hoặc *Yêu cầu chỉnh sửa* **không xuất hiện ở khối trên trang Tổng quan** — chênh
-lệch của chúng đọc ngay trên màn hình hồ sơ, ở khối vàng có nút *Tự động cập nhật*. (Câu cũ ở đây nói
-chúng *"tự cập nhật mỗi lần mở"*; đúng cho tới 09/09, và chính phép tự cập nhật im lặng ấy là thứ
-`10/09` gỡ đi để việc áp dụng thành một cú bấm nhìn thấy được.)
+Ba trạng thái **kết thúc** — *Hết hiệu lực*, *Đã xoá* — không xuất hiện ở đây: không ai làm gì được
+với chênh lệch của chúng nữa.
 
 ### Việc của tôi
 

@@ -32,7 +32,8 @@ import { Bus, BUS } from '@csbh/bus';
 import { soSanhLech, type MucLech } from '../policies/lech.js';
 import { Db } from '../infra/db.js';
 import { Clients, type ProductSnapshot } from '../infra/clients.js';
-import { DA_DONG_BANG } from '../policies/policies.service.js';
+import { DA_DONG_BANG, PoliciesService } from '../policies/policies.service.js';
+import { SUA_DUOC } from '@csbh/domain-policy';
 
 type DongCanRa = {
   policy_id: string;
@@ -65,6 +66,15 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly db: Db,
     private readonly clients: Clients,
+    /*
+     * `0200` — dùng CHUNG `soSanhDong` cho hồ sơ còn sửa được, xem `raMotHoSo`.
+     *
+     * Phụ thuộc một chiều: `PoliciesService` không biết consumer này tồn tại,
+     * nên không có vòng tiêm nào. Tiêm cả service thay vì chép mấy chục dòng
+     * gom-theo-ngày sang đây — hai bản của cùng một phép so là hai câu trả lời
+     * sẽ lệch, và `lech.ts` viết ra đúng để chống chuyện ấy.
+     */
+    private readonly policies: PoliciesService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -117,13 +127,16 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
          FROM pol.policy p
          JOIN pol.policy_line l ON l.policy_id = p.id
         WHERE p.status::text = ANY($1::text[])
+          -- 0200 — hồ sơ CÒN SỬA ĐƯỢC cũng để lại dấu vết; xem raMotHoSo.
+          -- (Không backtick trong chú thích SQL: cả khối nằm trong một template
+          -- literal, và một backtick cắt đứt chuỗi — bẫy CLAUDE.md đã ghi.)
           -- 0186 — dòng đã rút không sinh *Yêu cầu cập nhật*. Hồ sơ đã đóng
           -- băng vẫn mang chúng cho tới lúc có hiệu lực, và báo *"giá mặt hàng
           -- này vừa đổi"* về một mặt hàng đang bị rút khỏi chính hồ sơ ấy là
           -- gọi người duyệt tới xử lý một việc không tồn tại.
           AND NOT l.da_xoa
           AND ($2::uuid IS NULL OR l.product_id = $2::uuid)`,
-      [DA_DONG_BANG, loc.productId || null],
+      [[...DA_DONG_BANG, ...SUA_DUOC], loc.productId || null],
     );
     if (dong.length === 0) return 0;
 
@@ -214,6 +227,35 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       }
       const customer = nhoKhach.get(dau.customer_id);
       if (!customer) return;
+
+      /*
+       * HỒ SƠ CÒN SỬA ĐƯỢC: hỏi thẳng `soSanhDong`, KHÔNG so ở đây (`0200`).
+       *
+       * Hai loại hồ sơ hỏi danh mục ở HAI thời điểm, và đó là chủ ý có từ
+       * `0180`: hồ sơ đã đóng băng so với bảng giá **hôm nay** (*"còn khớp với
+       * giá đang bán không"*), hồ sơ còn sửa được so ở **ngày áp dụng của từng
+       * dòng** (*"số nào sẽ được chụp nếu bấm Gửi duyệt ngay bây giờ"*). Dựng
+       * lại phép gom-theo-ngày ở đây là chép `docDongVaAnh` sang chỗ thứ hai, và
+       * bản chép ấy sẽ trôi đúng vào ngày ai đó đổi luật chọn ngày.
+       *
+       * Cái giá, đã cân: `soSanhDong` không dùng được bộ nhớ tạm liên-hồ-sơ ở
+       * trên, nên mỗi hồ sơ sửa được tốn một vòng hỏi khách hàng và một vòng hỏi
+       * danh mục cho mỗi ngày áp dụng. Chấp nhận được vì đây là việc NỀN chạy
+       * lúc danh mục đổi, không phải đường người dùng ngồi chờ — và vì số hồ sơ
+       * còn sửa được luôn nhỏ: mỗi khách chỉ giữ được một bản Nháp (`0197`).
+       */
+      if ((SUA_DUOC as readonly string[]).includes(dau.status)) {
+        const lechSua = await this.db
+          .tx((c) => this.policies.soSanhDong(c, policyId))
+          .catch(() => null);
+        // `null` = không tra được danh mục. Giữ nguyên dấu vết đang có, đúng
+        // cùng lập luận với nhánh `hong` bên dưới: không biết thì đừng đoán.
+        if (lechSua === null) return;
+        if (lechSua.length === 0 && !coDauVet.has(policyId)) return;
+        await this.db.tx((c) => this.dongBoDauVet(c, policyId, cac, lechSua));
+        if (lechSua.length > 0) soLech += 1;
+        return;
+      }
 
       const loai = customer.customerType;
       const chuaCo = cac.map((x) => x.product_id).filter((id) => !nhoAnh.has(`${loai}:${id}`));

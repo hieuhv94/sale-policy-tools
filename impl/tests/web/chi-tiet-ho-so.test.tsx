@@ -1557,6 +1557,95 @@ describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
       expect(than['lines']).toEqual([]);
     });
   });
+
+  /**
+   * `0200` — KHÁCH ĐÃ CÓ BẢN NHÁP thì hộp thoại đổi hẳn câu hỏi.
+   *
+   * `0197` cấm lập hồ sơ thứ hai cho khách đang giữ Nháp, và `DRAFT_EXISTS` khai
+   * `dang: 'im'` (`0088`) vì màn hình *Lập hồ sơ* tự xử mã ấy. Lối tắt `0191`
+   * không có nhánh ấy, nên nó nuốt lỗi rồi đứng yên — **bấm nút và không có gì
+   * xảy ra**, kể cả một câu báo. Đây là loại hỏng không lỗi nào đỏ và không log
+   * nào ghi.
+   */
+  const NHAP_SAU = { id: 'hs-nhap', code: 'CSBH-2026-000777', status: 'NHAP' };
+
+  it('`0200` bản kế nhiệm ở NHÁP: đổi tiêu đề, đổi nút, KHÔNG còn nút lập', async () => {
+    await moHop({ ...HIEU_LUC, phienBanSau: NHAP_SAU });
+    const hop = screen.getByRole('dialog');
+    expect(hop.textContent).toContain('đã có một bản Nháp đang soạn dở');
+    expect(hop.textContent).toContain('CSBH-2026-000777');
+    expect(within(hop).getByRole('button', { name: 'Mở bản Nháp đang có' })).toBeDefined();
+    // Vế ĐỐI CHIẾU, và là vế chính của yêu cầu: thao tác chết phải BIẾN MẤT, chứ
+    // không phải nằm cạnh một câu giải thích vì sao nó không chạy.
+    expect(within(hop).queryByRole('button', { name: 'Lập phiên bản mới' })).toBeNull();
+  });
+
+  it('`0200` bấm *Mở bản Nháp* thì SANG hồ sơ ấy, không gọi POST nào', async () => {
+    const f = await moHop({ ...HIEU_LUC, phienBanSau: NHAP_SAU });
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Mở bản Nháp đang có' }),
+    );
+    await waitFor(() => expect(location.pathname).toBe('/ho-so/hs-nhap'));
+    expect(
+      f.mock.calls.some(
+        (c) => String(c[0]).endsWith('/policies') && (c[1] as RequestInit | undefined)?.method === 'POST',
+      ),
+      'không được lập hồ sơ nào — khách đang có Nháp',
+    ).toBe(false);
+  });
+
+  it('`0200` bản kế nhiệm ĐANG DUYỆT thì vẫn lập được — chỉ `NHAP` mới chặn', async () => {
+    /*
+     * Ranh giới, và nó dễ nới quá tay: `create` KHÔNG cấm bản thứ hai khi bản
+     * trước đang trong luồng duyệt (`0191`). Chặn ở đây là dựng ra một luật
+     * nghiệp vụ mới chưa ai chốt, và người lập sẽ không hiểu vì sao.
+     */
+    await moHop({
+      ...HIEU_LUC,
+      phienBanSau: { id: 'hs-9', code: 'CSBH-2026-000999', status: 'CHO_TBP_DUYET' },
+    });
+    const hop = screen.getByRole('dialog');
+    expect(within(hop).getByRole('button', { name: 'Lập phiên bản mới' })).toBeDefined();
+    expect(within(hop).queryByRole('button', { name: 'Mở bản Nháp đang có' })).toBeNull();
+  });
+
+  it('`0200` máy chủ trả `DRAFT_EXISTS` giữa chừng thì hộp thoại ĐỔI, không im', async () => {
+    /*
+     * Khe thời gian có thật: một bản Nháp ra đời giữa lúc mở trang và lúc bấm.
+     * `phienBanSau` khi ấy đã cũ, nên nhánh bắt lỗi vẫn phải còn — nó là thứ
+     * duy nhất nói đúng về HIỆN TẠI.
+     */
+    const f = await moHop();
+    (f as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
+      (duong: unknown, o?: RequestInit) => {
+        const d = String(duong);
+        if (d.endsWith('/policies') && o?.method === 'POST') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ code: 'DRAFT_EXISTS', draftPolicyId: 'hs-nhap', message: 'x' }),
+              { status: 409, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(HIEU_LUC), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      },
+    );
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Lập phiên bản mới' }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('dialog').textContent).toContain('đã có một bản Nháp đang soạn dở'),
+    );
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Mở bản Nháp đang có' }),
+    ).toBeDefined();
+  });
 });
 
 /**
@@ -1693,6 +1782,44 @@ describe('`0194` khối chênh lệch trên trang hồ sơ', () => {
     // dòng, và "1 mặt hàng" không nói được là dòng nào.
     expect(khoi.textContent).toContain('NC-GOLD-900');
     expect(khoi.textContent).toContain('1 mặt hàng');
+  });
+
+  it('`0200` mặt hàng bị RÚT thì nói ra, và câu ấy sống NGOÀI khối lệch', async () => {
+    /*
+     * Ngược với câu *"chưa cập nhật được"* của `0199`, thứ sống được bên trong
+     * khối nhờ một bất biến. Ở đây thì rút xong là mục `PRODUCT` của chính mặt
+     * hàng ấy biến mất — nếu nó là mục lệch duy nhất thì CẢ KHỐI biến mất, và
+     * một câu nằm trong khối sẽ biến mất theo đúng lượt nó cần nói nhất.
+     *
+     * Ca này dựng đúng tình huống ấy: máy chủ trả `daRut` rồi lượt tải lại trả
+     * về một hồ sơ KHÔNG còn chênh lệch nào.
+     */
+    await moSuaDuoc();
+    const goc = globalThis.fetch as (d: unknown, o?: unknown) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((d: unknown, o?: RequestInit) => {
+        const duong = String(d);
+        if (duong.includes('/ap-dung-thay-doi')) {
+          return Promise.resolve(json({ hong: [], daRut: ['NC-GOLD-900'], conLai: 0 }));
+        }
+        // Hồ sơ sau khi áp: SẠCH, nên khối chênh lệch không còn được vẽ.
+        if (/\/policies\/hs-1$/.test(duong)) {
+          return Promise.resolve(json({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA', lech: [] }));
+        }
+        return goc(d, o);
+      }),
+    );
+
+    fireEvent.click(nutCapNhat()!);
+    // ĐỢI CẢ HAI trong một `waitFor`: câu *Đã rút* đặt ngay lúc phản hồi về, còn
+    // khối lệch chỉ biến mất sau lượt TẢI LẠI — hai mốc khác nhau, và khẳng định
+    // mốc sau ngay sau khi mốc trước tới là bắt được trạng thái giữa chừng.
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Đã rút');
+      expect(document.querySelector('.canh-bao-lech'), 'khối lệch phải biến mất').toBeNull();
+    });
+    expect(document.body.textContent).toContain('NC-GOLD-900');
   });
 
   it('`0199` áp được HẾT thì KHÔNG thêm câu nào', async () => {

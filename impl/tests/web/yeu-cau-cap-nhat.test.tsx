@@ -214,21 +214,22 @@ describe('0029 box hiện đúng thứ người đọc cần', () => {
   });
 
   /*
-   * CA NÀY THAY BẢN CŨ, không sửa chuỗi (`0194`).
+   * CA NÀY THAY BẢN CŨ LẦN THỨ HAI, và cả hai lần đều vì TẬP HỒ SƠ đổi.
    *
-   * Bản cũ đòi câu *"không tự cập nhật"*, và `0194` vừa thêm đúng một nút làm
-   * việc ấy — giữ lại là ghim một câu đã hết đúng. Cái box này gác vẫn còn:
-   * hồ sơ trong luồng duyệt GIỮ NGUYÊN số, và người đọc phải biết để khỏi ngồi
-   * chờ nó tự sửa.
+   * Bản đầu đòi câu *"không tự cập nhật"*; `0194` thêm đúng một nút làm việc ấy
+   * nên nó hết đúng. Bản thay nó nói về hồ sơ ĐÃ ĐÓNG BĂNG và đòi box **không**
+   * nhắc tới nút — đúng khi box chỉ có hồ sơ đóng băng. `0200` cho box liệt kê
+   * cả hồ sơ CÒN SỬA ĐƯỢC, nên vế cấm ấy đảo hẳn: giấu cái nút đi là để người
+   * đọc nhìn một bản Nháp đang lệch mà không biết mình làm gì được.
    */
-  it('nói rõ hồ sơ trong luồng duyệt GIỮ NGUYÊN số đã đóng băng', async () => {
+  it('`0200` nói ra VIỆC PHẢI LÀM của CẢ HAI loại hồ sơ trong box', async () => {
     chan(HO_SO);
     render(<YeuCauCapNhat />);
     const khoi = await doiKhoi();
+    // Hồ sơ trong luồng: không ai sửa được, đừng ngồi chờ nó tự sửa.
     expect(khoi.textContent).toContain('giữ nguyên số đã đóng băng');
-    // Và KHÔNG hứa hẹn một nút không có ở màn hình này: nút *Tự động cập nhật*
-    // chỉ sống trên trang hồ sơ, và chỉ khi hồ sơ còn sửa được.
-    expect(khoi.textContent).not.toContain('Tự động cập nhật');
+    // Hồ sơ còn sửa được: có một cú bấm giải quyết xong.
+    expect(khoi.textContent).toContain('Tự động cập nhật');
   });
 
   it('`0049` mở ra rồi vẫn còn đường sang hồ sơ', async () => {

@@ -191,6 +191,14 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [moSua, datMoSua] = useState<'dong' | 'xoa' | null>(null);
   /** `0191` — hộp xác nhận *Lập phiên bản mới* đang mở hay không. */
   const [moBanMoi, datMoBanMoi] = useState(false);
+  /**
+   * Bản Nháp đang chặn lượt lập phiên bản mới (`0200`).
+   *
+   * Chỉ mang thứ đọc được TỪ LỖI máy chủ — thân `DRAFT_EXISTS` có `draftPolicyId`
+   * chứ không có mã hồ sơ, nên `code` là `null` ở đường ấy. Đường thường thì đọc
+   * thẳng `phienBanSau`, ở đó có cả mã.
+   */
+  const [nhapChan, datNhapChan] = useState<{ id: string; code: string | null } | null>(null);
   const [dangLapBanMoi, datDangLapBanMoi] = useState(false);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   /** Cờ riêng, không dùng chung `dangXoaDong`: nút này ở cấp HỒ SƠ, không của một dòng. */
@@ -205,6 +213,15 @@ export function ChiTietHoSo({ id }: { id: string }) {
    * mất được thì phần mềm phải nói ra.
    */
   const [khongApDuoc, datKhongApDuoc] = useState<string[]>([]);
+  /**
+   * Mặt hàng lượt bấm vừa rồi ĐÃ RÚT khỏi hồ sơ (`0200`).
+   *
+   * Tách khỏi `khongApDuoc` chứ không gộp một danh sách: hai bên nói hai chuyện
+   * ngược nhau — một bên là *phần mềm đã tự làm, bạn xem lại*, bên kia là *phần
+   * mềm không làm được, bạn phải làm*. Trộn chúng vào một câu là để người dùng
+   * tự đoán mặt hàng nào rơi vào vế nào.
+   */
+  const [daRut, datDaRut] = useState<string[]>([]);
   const { di } = useDuong();
 
   const tai = useCallback(async (signal: AbortSignal) => {
@@ -250,10 +267,14 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const apDungThayDoi = async () => {
     datLoi(null);
     datKhongApDuoc([]);
+    datDaRut([]);
     datDangCapNhat(true);
     try {
-      const r = await dang<{ hong?: string[] }>(`/policies/${id}/ap-dung-thay-doi`);
+      const r = await dang<{ hong?: string[]; daRut?: string[] }>(
+        `/policies/${id}/ap-dung-thay-doi`,
+      );
       datKhongApDuoc(Array.isArray(r?.hong) ? r.hong : []);
+      datDaRut(Array.isArray(r?.daRut) ? r.daRut : []);
       taiLai();
     } catch (e) {
       bao(e);
@@ -317,6 +338,27 @@ export function ChiTietHoSo({ id }: { id: string }) {
    *
    * Đi thẳng sang hồ sơ vừa lập: người bấm nút này đang muốn SOẠN, và để họ ở
    * lại trang cũ thì việc kế tiếp của họ là tự đi tìm bản nháp vừa tạo.
+   *
+   * ---------------------------------------------------------------------------
+   * `0200` — KHÁCH ĐÃ CÓ BẢN NHÁP thì KHÔNG còn thao tác này nữa.
+   * ---------------------------------------------------------------------------
+   *
+   * `0197` cấm lập hồ sơ thứ hai cho khách đang giữ một bản Nháp, và `0088` khai
+   * `DRAFT_EXISTS` là `dang: 'im'` — đúng cho màn hình *Lập hồ sơ*, nơi mã ấy
+   * đổi hẳn cách hỏi thay vì bày một dải đỏ. Lối tắt `0191` thì không có nhánh
+   * ấy, nên nó nuốt lỗi rồi đứng yên: **người dùng bấm một cái nút và không có
+   * gì xảy ra**, kể cả một câu báo.
+   *
+   * Chữa bằng cách để hộp thoại BIẾT TRƯỚC, không phải bắt lỗi cho đẹp hơn:
+   * `phienBanSau` (`0191`) đã trả về bản kế nhiệm đang dở kèm trạng thái, nên
+   * bản ở `NHAP` là thứ đọc ra được ngay lúc dựng trang. Bấm rồi mới biết là
+   * một vòng mạng để nhận về một câu lẽ ra đã hiện sẵn.
+   *
+   * Vẫn GIỮ nhánh bắt `DRAFT_EXISTS` ở đây, và nó không thừa: `phienBanSau` chỉ
+   * thấy bản kế nhiệm của CHÍNH hồ sơ này (`supersedes_id`), còn chốt chặn hỏi
+   * theo KHÁCH HÀNG — hai câu hỏi trùng nhau ở mọi dữ liệu hôm nay, nhưng trùng
+   * nhau không phải là một. Cộng thêm khe thời gian: một bản Nháp có thể ra đời
+   * giữa lúc mở trang và lúc bấm.
    */
   const lapPhienBanMoi = async () => {
     if (!hoSo) return;
@@ -331,7 +373,13 @@ export function ChiTietHoSo({ id }: { id: string }) {
       datMoBanMoi(false);
       di(`/ho-so/${moi.id}`);
     } catch (e) {
-      bao(e);
+      const l = e as { code?: string; body?: Record<string, unknown> };
+      const nhapId = l?.body?.['draftPolicyId'];
+      // Thiếu id thì rơi về đường lỗi thường: một nút *Mở bản Nháp* không biết
+      // mở cái nào thì tệ hơn một dải đỏ (cùng lập luận `0197` ở `LapHoSo`).
+      if (l?.code === 'DRAFT_EXISTS' && typeof nhapId === 'string') {
+        datNhapChan({ id: nhapId, code: null });
+      } else bao(e);
     } finally {
       datDangLapBanMoi(false);
     }
@@ -375,6 +423,23 @@ export function ChiTietHoSo({ id }: { id: string }) {
   // TDV thì `allowed-actions` rỗng, nhưng nếu không kiểm quyền thì một hồ sơ bị
   // trả lại vẫn bày nút sửa cho họ.
   const dangSua = suaDuoc(choPhep) && can(nguoiDung?.role, 'suaHoSo');
+
+  /**
+   * Bản Nháp đang chặn lượt lập phiên bản mới, đọc được TRƯỚC khi bấm (`0200`).
+   *
+   * `phienBanSau` đứng trước trong phép chọn? KHÔNG — `nhapChan` đứng trước, vì
+   * nó đến từ chính lượt gọi vừa bị từ chối, tức nó nói về hiện tại còn
+   * `phienBanSau` nói về lúc trang được tải.
+   *
+   * Chỉ nhận trạng thái `NHAP`. Bản kế nhiệm ở `CHO_TBP_DUYET` hay bất kỳ bước
+   * duyệt nào khác thì **không chặn gì cả** — `create` vẫn cho lập bản thứ hai,
+   * và ở đó cảnh báo của `0191` mới là câu đúng.
+   */
+  const nhapDangChan =
+    nhapChan ??
+    (hoSo?.phienBanSau && hoSo.phienBanSau.status === 'NHAP'
+      ? { id: hoSo.phienBanSau.id, code: hoSo.phienBanSau.code }
+      : null);
 
   /*
     Lọc LẦN NỮA theo vai trò (`0038`), dù máy chủ đã lọc.
@@ -641,6 +706,24 @@ export function ChiTietHoSo({ id }: { id: string }) {
         Đặt TRÊN bảng sản phẩm, không phải dưới: đọc sau khi đã quét hết mười cột
         số thì đã muộn — người ta đã tin vào những con số ấy rồi.
       */}
+      {/*
+        MẶT HÀNG VỪA BỊ RÚT — đứng NGOÀI khối chênh lệch (`0200`).
+
+        Khác hẳn câu *"chưa cập nhật được"*, thứ sống được bên trong khối nhờ một
+        bất biến (`hong` không rỗng thì luôn còn ít nhất một mục lệch). Ở đây thì
+        ngược: rút xong là mục `PRODUCT` của chính mặt hàng ấy biến mất, nên nếu
+        nó là mục lệch duy nhất thì **cả khối biến mất** — và một câu nằm trong
+        khối sẽ biến mất theo, đúng lượt nó cần nói nhất.
+      */}
+      {daRut.length > 0 && (
+        <p className="ghi-chu" role="status">
+          Đã rút <strong>{daRut.length} mặt hàng</strong> đã vô hiệu hoá khỏi hồ sơ:{' '}
+          <strong>{daRut.join(', ')}</strong>. Dòng thừa kế từ bản CSBH trước vẫn nằm lại trong
+          bảng dưới đây với nhãn <em>Đã xoá</em> để người duyệt thấy được, và chỉ biến mất hẳn khi
+          hồ sơ có hiệu lực. Bấm <em>Thêm lại</em> nếu bạn muốn giữ.
+        </p>
+      )}
+
       {(hoSo.lech ?? []).length > 0 && (
         <div className="canh-bao-lech" role="note">
           <span className="hop-tieu-de">Số trên hồ sơ này đã lệch so với danh mục hiện tại</span>
@@ -963,7 +1046,42 @@ export function ChiTietHoSo({ id }: { id: string }) {
           }}
         />
       )}
-      {moBanMoi && (
+      {/*
+        `0200` — HAI HỘP THOẠI, chọn bằng "khách đã có bản Nháp chưa".
+
+        Không phải hai nhánh trong một hộp: hai bên khác nhau ở CẢ BỐN thứ —
+        tiêu đề, câu giải thích, nhãn nút, và việc cái nút làm. Nhồi chúng vào
+        một khối có điều kiện thì mỗi prop mang một phép ba ngôi, và cái quan
+        trọng nhất (`xacNhan` gọi hàm nào) là cái dễ đọc lướt qua nhất — mà đấu
+        nhầm nó ở đây nghĩa là người dùng bấm *Mở bản Nháp* rồi hệ thống đi lập
+        một hồ sơ.
+      */}
+      {moBanMoi && nhapDangChan !== null && (
+        <HopThoaiXacNhan
+          tieuDe="Khách hàng đã có bản Nháp"
+          nhanNut="Mở bản Nháp đang có"
+          nguyHiem={false}
+          dong={() => datMoBanMoi(false)}
+          xacNhan={() => di(`/ho-so/${nhapDangChan.id}`)}
+          hauQua={
+            <>
+              <p>
+                Khách hàng này <strong>đã có một bản Nháp đang soạn dở</strong>
+                {nhapDangChan.code ? (
+                  <>
+                    {' '}
+                    — <strong>{nhapDangChan.code}</strong>
+                  </>
+                ) : null}
+                . Mỗi khách hàng chỉ giữ được một bản Nháp, nên chưa lập thêm bản mới được.
+              </p>
+              <p>Mở bản ấy ra soạn tiếp?</p>
+            </>
+          }
+        />
+      )}
+
+      {moBanMoi && nhapDangChan === null && (
         <HopThoaiXacNhan
           tieuDe="Lập phiên bản mới"
           nhanNut={dangLapBanMoi ? 'Đang lập…' : 'Lập phiên bản mới'}

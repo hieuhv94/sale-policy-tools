@@ -1520,9 +1520,33 @@ async function main(): Promise<void> {
    * vẫn là dòng giá mới nhất nên lượt tra theo *hôm nay* không đổi kết quả, mà
    * lượt tra theo 01/08 giờ cũng chạm tới nó.
    */
+  /*
+   * ===========================================================================
+   * `0200` — CHỌN MẶT HÀNG HẸP, không phải mặt hàng ai cũng có.
+   * ===========================================================================
+   *
+   * Khách hàng chốt 11/09: *"giảm số lượng các hồ sơ yêu cầu cập nhật, nhưng vẫn
+   * giữ đủ 3 loại thay đổi"*. Đo được trước lượt sửa: **95 hồ sơ**, và gần như
+   * toàn bộ đến từ đúng hai dòng — đổi giá `NC-GOLD-900` và đổi ngưỡng
+   * `CK-SUA-L1`. Cả hai đều là lựa chọn CỐ Ý của `0095`, với lý do ghi ở
+   * `dongCuaHoSo`: *mọi* hồ sơ sinh ra đều chứa `NC-GOLD-900` để box vượt được
+   * một trang. Nó vượt quá tay — một danh sách mà hồ sơ nào cũng có tên thì
+   * người xem thôi đọc nó.
+   *
+   * CƠ CHẾ ĐỂ THU HẸP nằm sẵn trong `dongCuaHoSo`: mỗi hồ sơ có một mặt hàng PHỤ
+   * xoay vòng qua `SAN_PHAM` từ chỉ số 6, nên một mặt hàng phụ chỉ nằm trong
+   * khoảng 1/29 số hồ sơ. Đổi giá một mặt hàng phụ là chạm đúng vài hồ sơ, và
+   * **ba loại thay đổi rơi vào ba TẬP RỜI NHAU** — mỗi hồ sơ chỉ có một mặt hàng
+   * phụ — nên cả ba nhãn cùng đọc được, không cái nào che cái nào.
+   *
+   * `NC-GOLD-400` GIỮ LẠI dù nó không thuộc dãy phụ, và đó là chỗ có chủ ý nhất:
+   * nó nằm trong hồ sơ **Nháp viết tay số 1** — bản nháp mà người xem demo mở ra
+   * đầu tiên. Thiếu nó thì nút *Tự động cập nhật* (`0194`) không có gì để áp ở
+   * đúng màn hình người ta nhìn trước nhất, và phải đi tìm.
+   */
   const doiGia: [string, number][] = [
-    ['NC-GOLD-900', 648_000],
     ['NC-GOLD-400', 332_000],
+    ['NC-NUOC-180', 36_000],
   ];
   for (const [ma, giaMoi] of doiGia) {
     await goi(`/catalog/products/${sanPham[ma]!}/prices`, 'admin01', {
@@ -1531,9 +1555,17 @@ async function main(): Promise<void> {
       effectiveFrom: NGAY_AP_DUNG_MAC_DINH,
     });
   }
-  // Và một ngưỡng đổi, để box hiện được cả loại lệch thứ hai chứ không chỉ giá.
+  /*
+   * Loại lệch thứ HAI, và nó cũng phải HẸP.
+   *
+   * `CK-SUA-L1` phủ nhóm `SUA-BOT` cho khách loại 1 — mà `NC-GOLD-900` thuộc
+   * nhóm ấy và nằm trong MỌI hồ sơ, nên đổi nó là gắn nhãn *QĐ chiết khấu* lên
+   * gần như cả danh sách. `CK-NGU-COC` phủ một nhóm chỉ có đúng một mặt hàng
+   * PHỤ (`NC-COC-500`), nên nó chạm đúng những hồ sơ xoay vòng trúng mặt hàng ấy
+   * — và không hồ sơ nào trong số đó trùng với tập đổi giá ở trên.
+   */
   await goi(
-    '/catalog/discount-rules/CK-SUA-L1',
+    '/catalog/discount-rules/CK-NGU-COC',
     'admin01',
     { thresholdRate2: 1650, effectiveFrom: NGAY_AP_DUNG_MAC_DINH },
     'PATCH',

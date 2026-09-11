@@ -17682,3 +17682,136 @@ nói ra giới hạn ấy.
 khi `docker compose ps` báo `caddy Up (healthy)`. Chữa bằng
 `compose up -d --force-recreate caddy`. Cùng họ với bẫy `compose run` mà `0135`
 đã ghi, chỉ khác là lần này nó không hạ service nào — nó chỉ lặng lẽ tháo cổng.
+
+---
+
+## P228 — `0200` Năm việc của lượt phản hồi 11/09
+
+Năm yêu cầu rời nhau, người dùng bảo *"sửa lần lượt"*. Ba việc đầu chạm cùng một
+vùng (*Yêu cầu cập nhật*), hai việc sau đứng riêng.
+
+### 1 · Nút *Lập phiên bản mới* bấm vào không có gì xảy ra
+
+Triệu chứng đúng như báo, và **nguyên nhân không nằm ở đường lập hồ sơ**: `0197`
+chặn khách đang giữ Nháp bằng `DRAFT_EXISTS`, mà `0088` khai mã ấy là
+`dang: 'im'` — **có chủ ý**, vì màn hình *Lập hồ sơ* đổi hẳn cách hỏi thay vì bày
+một dải đỏ. Lối tắt `0191` không có nhánh ấy, nên nó nuốt lỗi rồi đứng yên. Loại
+hỏng không lỗi nào đỏ và không log nào ghi.
+
+Chữa bằng cách để hộp thoại **BIẾT TRƯỚC**, không phải bắt lỗi cho đẹp hơn:
+`phienBanSau` (`0191`) đã trả về bản kế nhiệm đang dở kèm trạng thái, nên bản ở
+`NHAP` đọc ra được ngay lúc dựng trang — bấm rồi mới biết là một vòng mạng để
+nhận về một câu lẽ ra đã hiện sẵn. **Vẫn giữ nhánh bắt `DRAFT_EXISTS`**, và nó
+không thừa: `phienBanSau` hỏi theo `supersedes_id` còn chốt chặn hỏi theo KHÁCH
+HÀNG — hai câu trùng nhau ở mọi dữ liệu hôm nay, nhưng trùng nhau không phải là
+một; cộng thêm khe thời gian giữa lúc mở trang và lúc bấm.
+
+**HAI hộp thoại, không phải hai nhánh trong một hộp.** Hai bên khác nhau ở cả
+bốn thứ — tiêu đề, câu giải thích, nhãn nút, và việc cái nút làm. Nhồi vào một
+khối có điều kiện thì mỗi prop mang một phép ba ngôi, và cái quan trọng nhất
+(`xacNhan` gọi hàm nào) là cái dễ đọc lướt qua nhất — đấu nhầm nó nghĩa là người
+dùng bấm *Mở bản Nháp* rồi hệ thống đi lập một hồ sơ.
+
+### 2 · Box *Yêu cầu cập nhật* kể cả hồ sơ *Nháp*
+
+Đây đúng là điểm thứ năm của bản rà P227 mà người dùng khi ấy bảo *"không phải
+lỗi"* — giờ họ yêu cầu làm. Ghi lại để lần sau đọc nhật ký không tưởng là tôi tự
+ý mở rộng.
+
+**Chỗ khó không phải phép lọc trạng thái.** `pol.policy_impact` chỉ có dòng cho
+hồ sơ đã đóng băng, và `0194` đã từ chối ghi cho hồ sơ sửa được với lý do còn
+nguyên giá trị: *chênh lệch của bản nháp đổi theo từng lượt TDV sửa dòng, còn
+consumer chỉ chạy lúc danh mục đổi*. Thứ hoà giải được hai vế là nhận ra bảng ấy
+giờ có **HAI vai trò**: ở box nó là một **CHỈ MỤC** (*"hồ sơ nào đáng mở ra
+xem"*), còn màn hình hồ sơ vẫn TÍNH TẠI CHỖ và đó mới là câu trả lời có thẩm
+quyền. Chỉ mục đi sau một nhịp thì chấp nhận được; một con số sai trên tờ giấy
+sắp ký thì không.
+
+**Consumer gọi thẳng `soSanhDong` cho hồ sơ sửa được**, không dựng phép so thứ
+hai. Lý do cụ thể chứ không phải thẩm mỹ: hai loại hồ sơ hỏi danh mục ở **hai
+thời điểm** — đóng băng so với giá HÔM NAY, sửa được so ở NGÀY ÁP DỤNG của từng
+dòng (`0180`). Chép phép gom-theo-ngày sang consumer là dựng một bản sẽ trôi
+đúng vào ngày ai đó đổi luật chọn ngày. Cái giá đã cân: mỗi hồ sơ sửa được tốn
+một vòng hỏi khách hàng và một vòng hỏi danh mục cho mỗi ngày — chấp nhận được vì
+đây là việc NỀN, và vì số hồ sơ sửa được luôn nhỏ (mỗi khách một bản Nháp,
+`0197`).
+
+**Nửa còn lại, và thiếu nó thì chỉ mục nói dối ngay lượt sửa đầu tiên**: dấu vết
+phải bị QUÊN khi chính dòng được ghi lại tay — `addLine`, `updateLine`,
+`removeLine`. Sau `upsertLine` dòng ấy vừa chụp lại giá và ngưỡng ở đúng ngày của
+nó, tức nó khớp danh mục **theo cấu trúc**; không có gì để ghi, chỉ có thứ phải
+xoá. Chỗ còn hở đã ghi ra: nút *Thêm lại* dựng lại một dòng mang số CŨ nên nó có
+thể lệch mà không có dấu vết tới lần đổi danh mục kế tiếp — sai theo hướng BÁO
+THIẾU, và màn hình hồ sơ vẫn tính tại chỗ nên con số ở đó vẫn đúng.
+
+### 3 · Mặt hàng vô hiệu hoá thì nút rút luôn khỏi CSBH
+
+`rutDongTheoSanPham` gọi lại đúng hai câu lệnh của `removeLine`: dòng THỪA KẾ xoá
+mềm (nằm lại, mờ, nhãn *Đã xoá*, để người duyệt THẤY mặt hàng vừa bị rút —
+`0186`), dòng mới xoá hẳn.
+
+**CỜ, không phải hành vi mặc định, và đây là chỗ nguy hiểm nhất của cả lượt
+sửa.** Lượt GỬI DUYỆT cũng gọi `lamMoiDong`; bật mặc định là hồ sơ **âm thầm mất
+một mặt hàng** ngay lúc rời tay người lập — không ai bấm gì, không màn hình nào
+nói gì, và chỉ lộ ra khi người duyệt đọc một bảng thiếu dòng. Ở đó `STALE_LINE`
+vẫn phải chặn và nói ra.
+
+**CHỈ mặt hàng vô hiệu hoá**, không phải mọi thứ rơi vào `hong`. Sản phẩm biến
+mất khỏi danh mục và sản phẩm chưa khai giá tại ngày áp dụng cũng không làm mới
+được, nhưng việc phải làm khác hẳn: cái sau sửa được bằng cách đổi *Ngày áp
+dụng*, và rút dòng là phá dữ liệu để chữa một thứ không hỏng.
+
+**Câu *"đã rút"* ở giao diện phải đứng NGOÀI khối chênh lệch**, ngược với câu
+*"chưa cập nhật được"* của `0199`. Cái kia sống được bên trong nhờ bất biến
+*`hong` không rỗng thì còn ít nhất một mục lệch*; cái này thì ngược — rút xong là
+mục `PRODUCT` của chính mặt hàng ấy biến mất, nên nếu nó là mục lệch duy nhất thì
+cả khối biến mất, và một câu nằm trong khối sẽ biến mất theo đúng lượt nó cần nói
+nhất.
+
+### 4 · CSBH có hiệu lực thì mọi dòng là *Đang áp dụng*
+
+Một nhánh `CASE`, và lý do rộng hơn câu chữ: *Bổ sung* và *Chỉnh sửa* trả lời câu
+hỏi **của người đang soạn** — *"so với bản đang chạy, tôi vừa đổi gì?"*. Hồ sơ
+duyệt xong thì bản trước đã vô hiệu TOÀN BỘ (`muc 5`) và không còn gì để so; giữ
+nhãn cũ là bày ra một phép so với một văn bản đã chết.
+
+**Trạng thái có sẵn, không thêm join nào**: `SQL_NOI_BAN_TRUOC` đã
+`LEFT JOIN pol.policy cha ON cha.id = $1` để tìm bản bị thay thế.
+
+**Vế khách hàng KHÔNG nêu và nó bắt buộc**: cột *Tỷ lệ CK cũ* phải tắt theo. Để
+nó còn số là đánh dấu ĐÚNG những dòng vốn là *Chỉnh sửa* — tức dựng lại bằng một
+cột số cái phân biệt vừa được yêu cầu bỏ đi, và bảng tự nói hai câu ngược nhau
+trên cùng một hàng. (Cùng hình dạng với vế *Bổ sung phải rời khỏi xanh* của
+`0188`.)
+
+**CHƯA làm, đã nêu**: `HET_HIEU_LUC` giữ nguyên ba nhãn cũ. Khách hàng chốt đúng
+một trạng thái, và mở rộng hộ là quyết định thay họ — nhưng hệ quả là cùng một hồ
+sơ đổi nhãn lúc bị thay thế, nên đây là câu đáng hỏi lại.
+
+### 5 · Giảm số hồ sơ *Yêu cầu cập nhật* của `make demo-mau`
+
+Đo trước: **95 hồ sơ**, gần như toàn bộ từ đúng hai dòng — đổi giá `NC-GOLD-900`
+và đổi ngưỡng `CK-SUA-L1`. Cả hai là lựa chọn CỐ Ý của `0095` (*mọi hồ sơ sinh ra
+đều chứa `NC-GOLD-900` để box vượt được một trang*); nó vượt quá tay — một danh
+sách mà hồ sơ nào cũng có tên thì người xem thôi đọc nó.
+
+**Cơ chế thu hẹp nằm sẵn trong `dongCuaHoSo`**: mỗi hồ sơ có một mặt hàng PHỤ
+xoay vòng qua `SAN_PHAM` từ chỉ số 6, nên một mặt hàng phụ chỉ nằm trong khoảng
+1/29 số hồ sơ — và **ba loại thay đổi rơi vào ba TẬP RỜI NHAU**, vì mỗi hồ sơ chỉ
+có một mặt hàng phụ. `NC-GOLD-400` giữ lại dù không thuộc dãy phụ: nó nằm trong
+hồ sơ **Nháp viết tay số 1**, bản mà người xem demo mở ra đầu tiên — thiếu nó thì
+nút *Tự động cập nhật* không có gì để áp ở đúng màn hình người ta nhìn trước nhất.
+
+### Tám ca kiểm cũ phải THAY
+
+Không ca nào sai; cả tám khẳng định đúng luật vừa đổi. Đáng ghi là **lý do của
+hai ca dài nhất đã chết từ lâu mà không ai gỡ**: `CHO_VAO_BOX`/`KHONG_VAO_BOX`
+giải thích rằng `NHAP` vắng mặt *"vì chúng tự tra lại mỗi lần mở, nên nhắc là
+thừa"* — câu ấy đúng tới `0193` và sai từ `0194`, tức nó đã nói dối suốt sáu
+chặng trong khi ca kiểm vẫn xanh. Ba ca dựng `hong` bằng sản phẩm vô hiệu hoá
+phải đổi CÁCH DỰNG (sang sản phẩm biến mất khỏi danh mục) chứ không đổi mệnh đề —
+mệnh đề của chúng vẫn đúng, chỉ là ví dụ cũ thôi còn là ví dụ.
+
+**Bẫy lần thứ TƯ:** backtick trong chú thích SQL **giữa một template literal** —
+`CLAUDE.md` đã ghi, `0154` và `0155` đã dính, và lần này nó cắt đứt chuỗi ở dòng
+`-- 0200 …` của consumer.

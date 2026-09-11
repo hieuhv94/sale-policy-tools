@@ -591,9 +591,34 @@ export const SQL_DONG_KHAC_BAN_TRUOC = `
  * `0117_dong_da_xoa.sql` về việc vì sao *Đã xoá* là một cột trong khi ba trạng
  * thái kia là dẫn xuất.
  */
+/**
+ * HỒ SƠ ĐÃ ĐI TỚI ĐÍCH — ba nhãn kia thôi có nghĩa (`0200`).
+ *
+ * Khách hàng chốt 11/09: *"khi một CSBH đang ở trạng thái đang có hiệu lực thì
+ * tất cả sản phẩm trong đó phải có trạng thái Đang áp dụng"*.
+ *
+ * Lý do rộng hơn câu chữ, và nó là thứ giữ cho luật này khỏi bị đọc thành một
+ * lượt sửa nhãn: *Bổ sung* và *Chỉnh sửa* trả lời câu hỏi **của người đang
+ * soạn** — *"so với bản đang chạy, tôi vừa đổi gì?"*. Câu ấy có nghĩa suốt lúc
+ * hồ sơ còn đi trong luồng, vì người duyệt cần biết đúng phần khác đi. Hồ sơ
+ * duyệt xong thì bản trước đã **vô hiệu toàn bộ** (`muc 5`) và không còn gì để
+ * so nữa: mọi mặt hàng trên tờ giấy đang có hiệu lực đều đang áp dụng như nhau.
+ * Giữ nhãn cũ là bày ra một phép so với một văn bản đã chết.
+ *
+ * `cha` đến từ `SQL_NOI_BAN_TRUOC` — nó đã LEFT JOIN chính hồ sơ này để tìm bản
+ * bị thay thế, nên trạng thái có sẵn, không thêm một lượt đọc bảng nào.
+ *
+ * ĐỨNG SAU `l.da_xoa`, có chủ ý: `0186` xoá hẳn dòng đã rút ở đúng bước có hiệu
+ * lực, nên ở đây hai nhánh không bao giờ gặp nhau. Nếu có gặp thì đó là dữ liệu
+ * hỏng, và lúc ấy *Đã xoá* là câu đáng nói — che nó bằng *Đang áp dụng* là giấu
+ * mất đúng thứ bất thường.
+ */
+const SQL_HO_SO_DA_HIEU_LUC = `cha.status = 'DANG_CO_HIEU_LUC'`;
+
 export const SQL_TRANG_THAI_DONG = `
   CASE
     WHEN l.da_xoa THEN 'DA_XOA'
+    WHEN ${SQL_HO_SO_DA_HIEU_LUC} THEN 'DANG_AP_DUNG'
     WHEN truoc.id IS NULL THEN 'BO_SUNG'
     WHEN ${SQL_DONG_KHAC_BAN_TRUOC} THEN 'CHINH_SUA'
     ELSE 'DANG_AP_DUNG'
@@ -627,9 +652,15 @@ export const SQL_DONG_THUA_KE = `truoc.id IS NOT NULL`;
  * dòng đã rút mang trạng thái *Đã xoá* chứ không phải *Chỉnh sửa*. Bỏ vế này
  * thì một dòng vừa bị sửa vừa bị rút hiện ra với nhãn *Đã xoá* kèm một cột đối
  * chiếu chỉ có nghĩa cho dòng còn sống.
+ *
+ * `NOT ${SQL_HO_SO_DA_HIEU_LUC}` (`0200`) là **cùng một vế ấy, lần thứ hai** —
+ * và nó phải đi kèm chứ không phải một lượt dọn cho gọn. Hồ sơ có hiệu lực thì
+ * mọi dòng mang nhãn *Đang áp dụng*; để cột *Tỷ lệ CK cũ* còn số thì nó đánh dấu
+ * ĐÚNG những dòng vốn là *Chỉnh sửa* — tức dựng lại bằng một cột số cái phân
+ * biệt vừa được yêu cầu bỏ đi, và bảng tự nói hai câu ngược nhau trên cùng hàng.
  */
 export const SQL_TY_LE_CK_TRUOC = `
-  CASE WHEN NOT l.da_xoa AND ${SQL_DONG_KHAC_BAN_TRUOC}
+  CASE WHEN NOT l.da_xoa AND NOT ${SQL_HO_SO_DA_HIEU_LUC} AND ${SQL_DONG_KHAC_BAN_TRUOC}
        THEN truoc.discount_rate::text END`;
 
 /**
@@ -1218,6 +1249,7 @@ export class PoliciesService {
       // `0180` — ngày của CHÍNH DÒNG NÀY quyết định bảng giá được chụp, không
       // phải một ngày của hồ sơ. Thiếu thì hôm nay (`ngayVN`).
       await this.upsertLine(c, policyId, line, { ...customer, on: line.ngayApDung ?? ngayVN() });
+      await this.quenDauVetDong(c, policyId, line.productId);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p, customer),
@@ -1283,6 +1315,7 @@ export class PoliciesService {
         { productId: cu.rows[0]!.product_id, ...input, ngayApDung: on },
         { ...customer, on },
       );
+      await this.quenDauVetDong(c, policyId, cu.rows[0]!.product_id);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p, customer),
@@ -1330,12 +1363,17 @@ export class PoliciesService {
       );
       if (dong.rowCount === 0) throw new NotFoundException({ code: 'LINE_NOT_FOUND' });
 
-      await c.query(
+      const bo = await c.query<{ product_id: string }>(
         dong.rows[0]!.thua_ke
-          ? `UPDATE pol.policy_line SET da_xoa = true WHERE id = $1 AND policy_id = $2`
-          : `DELETE FROM pol.policy_line WHERE id = $1 AND policy_id = $2`,
+          ? `UPDATE pol.policy_line SET da_xoa = true WHERE id = $1 AND policy_id = $2
+             RETURNING product_id`
+          : `DELETE FROM pol.policy_line WHERE id = $1 AND policy_id = $2
+             RETURNING product_id`,
         [lineId, policyId],
       );
+      // `0186` — dòng đã rút không sinh *Yêu cầu cập nhật*; từ `0200` luật ấy
+      // phải nói cả với dấu vết ĐÃ GHI, không riêng lượt rà kế tiếp.
+      if (bo.rows[0]) await this.quenDauVetDong(c, policyId, bo.rows[0].product_id);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
         ...evtCtx(p),
@@ -1416,18 +1454,21 @@ export class PoliciesService {
   async apDungThayDoi(policyId: string, me: AuthUser) {
     const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {
-      const { hong, daDoi, conLai } = await this.lamMoiDong(c, policyId);
-      if (daDoi.length > 0) {
+      const { hong, daDoi, daRut, conLai } = await this.lamMoiDong(c, policyId, {
+        rutHangVoHieu: true,
+      });
+      if (daDoi.length > 0 || daRut.length > 0) {
         await this.bumpVersion(c, policyId);
         await emit(c, 'policy.updated', {
           ...evtCtx(p),
           change: 'LINES_REFRESHED',
           soDong: daDoi.length,
+          soDongRut: daRut.length,
           actorId: me.id,
           at: new Date().toISOString(),
         });
       }
-      return { hong, conLai: conLai.length };
+      return { hong, daRut, conLai: conLai.length };
     });
   }
 
@@ -1509,6 +1550,71 @@ export class PoliciesService {
    *
    * Dùng CHUNG `soSanhLech` với consumer: hai đường tính, một câu hỏi.
    */
+  /**
+   * QUÊN DẤU VẾT LỆCH của một mặt hàng vừa được TDV ghi lại tay (`0200`).
+   *
+   * Từ `0200` `pol.policy_impact` mang cả hồ sơ CÒN SỬA ĐƯỢC, để box *Yêu cầu
+   * cập nhật* chỉ đường cho TDV. Nhưng dấu vết ấy do consumer ghi lúc DANH MỤC
+   * đổi, còn dòng hồ sơ thì TDV sửa bất cứ lúc nào — nên thiếu bước quên này,
+   * box nói về một chênh lệch đã tự tay người dùng xử xong.
+   *
+   * XOÁ chứ không ghi lại: sau `upsertLine` dòng ấy vừa chụp lại giá và ngưỡng ở
+   * đúng ngày áp dụng của nó, tức nó khớp danh mục **theo cấu trúc** — không có
+   * gì để ghi. Sau lượt rút dòng thì `0186` đã nói: dòng sắp biến mất không sinh
+   * yêu cầu cập nhật.
+   *
+   * CHỖ CÒN HỞ, nói ra thay vì để người sau tự phát hiện: nút *Thêm lại* dựng
+   * lại một dòng mang số CŨ (`0186` — khôi phục là hoàn tác lượt xoá, không hoàn
+   * tác những lượt sửa trước đó), nên nó có thể lệch mà không có dấu vết nào tới
+   * lần đổi danh mục kế tiếp. Sai theo hướng BÁO THIẾU, và màn hình hồ sơ vẫn
+   * tính tại chỗ nên con số ở đó vẫn đúng.
+   */
+  /**
+   * RÚT một mặt hàng khỏi hồ sơ theo `product_id` (`0200`).
+   *
+   * Cùng luật với `removeLine` và cố ý gọi lại đúng hai câu lệnh ấy: dòng THỪA
+   * KẾ thì xoá mềm — nó nằm lại, mờ đi, mang nhãn *Đã xoá*, đi hết luồng duyệt
+   * để người duyệt THẤY được mặt hàng vừa bị rút (`0186`); dòng mới thêm trong
+   * chính phiên bản này thì xoá hẳn, vì không có bản trước nào để đối chiếu và
+   * một dòng mờ không đến từ đâu cả chỉ làm bảng dài thêm.
+   *
+   * Khác `removeLine` đúng một chỗ: tra theo `product_id` chứ không theo
+   * `lineId`, vì người gọi là `lamMoiDong` — nó làm việc theo mặt hàng.
+   * `uq_policy_line_product` bảo đảm hai khoá ấy chỉ ra cùng một dòng.
+   */
+  private async rutDongTheoSanPham(
+    c: PoolClient,
+    policyId: string,
+    productId: string,
+  ): Promise<void> {
+    const dong = await c.query<{ thua_ke: boolean }>(
+      `SELECT ${SQL_DONG_THUA_KE} AS thua_ke
+         FROM pol.policy_line l
+         ${SQL_NOI_BAN_TRUOC}
+        WHERE l.product_id = $2 AND l.policy_id = $1 AND NOT l.da_xoa`,
+      [policyId, productId],
+    );
+    if (dong.rowCount === 0) return;
+    await c.query(
+      dong.rows[0]!.thua_ke
+        ? `UPDATE pol.policy_line SET da_xoa = true WHERE policy_id = $1 AND product_id = $2`
+        : `DELETE FROM pol.policy_line WHERE policy_id = $1 AND product_id = $2`,
+      [policyId, productId],
+    );
+    await this.quenDauVetDong(c, policyId, productId);
+  }
+
+  private async quenDauVetDong(
+    c: PoolClient,
+    policyId: string,
+    productId: string,
+  ): Promise<void> {
+    await c.query(`DELETE FROM pol.policy_impact WHERE policy_id = $1 AND product_id = $2`, [
+      policyId,
+      productId,
+    ]);
+  }
+
   async soSanhDong(c: PoolClient, policyId: string): Promise<MucLech[]> {
     const dat = await this.docDongVaAnh(c, policyId);
     if (!dat) return [];
@@ -1651,19 +1757,47 @@ export class PoliciesService {
   async lamMoiDong(
     c: PoolClient,
     policyId: string,
-  ): Promise<{ hong: string[]; daDoi: string[]; conLai: MucLech[] }> {
+    tuyChon: { rutHangVoHieu?: boolean } = {},
+  ): Promise<{ hong: string[]; daDoi: string[]; daRut: string[]; conLai: MucLech[] }> {
     const dat = await this.docDongVaAnh(c, policyId);
-    if (!dat) return { hong: [], daDoi: [], conLai: [] };
+    if (!dat) return { hong: [], daDoi: [], daRut: [], conLai: [] };
     const { dong, anh: snaps } = dat;
 
     const hong: string[] = [];
     /** Dòng đã ghi lại được — dấu vết lệch của chúng thôi còn đúng. */
     const daApDung: string[] = [];
     const daDoi: string[] = [];
+    const daRut: string[] = [];
     const conLai: MucLech[] = [];
     for (const d of dong) {
       const lechDong = soSanhMotDong(d, dat);
       const snap = snaps.get(d.product_id);
+      /*
+       * MẶT HÀNG ĐÃ VÔ HIỆU HOÁ: RÚT khỏi hồ sơ (`0200`), chỉ khi được bảo.
+       *
+       * Khách hàng chốt 11/09. Trước đó dòng ấy nằm lại trong `hong` mãi mãi —
+       * nút không áp được nó, và người dùng phải tự đi tìm nút *Xoá* trên đúng
+       * hàng ấy sau khi đọc một câu giải thích. Một mặt hàng không còn bán thì
+       * việc phải làm chỉ có MỘT, nên bắt họ làm tay là bắt gõ lại một quyết
+       * định đã rõ.
+       *
+       * CỜ, không phải hành vi mặc định — và đây là chỗ nguy hiểm nhất của cả
+       * lượt sửa. Lượt GỬI DUYỆT cũng gọi hàm này (`workflow.service`); bật
+       * mặc định là hồ sơ **âm thầm mất một mặt hàng** ngay lúc rời tay người
+       * lập, không ai bấm gì, không ai đọc gì. Ở đó `STALE_LINE` vẫn phải chặn
+       * và nói ra, để chính người lập quyết định.
+       *
+       * CHỈ mặt hàng vô hiệu hoá, KHÔNG gồm mọi thứ rơi vào `hong`. Sản phẩm
+       * biến mất khỏi danh mục và sản phẩm chưa khai giá tại ngày áp dụng cũng
+       * không làm mới được, nhưng việc phải làm của chúng khác hẳn: cái sau sửa
+       * được bằng cách đổi *Ngày áp dụng*, và rút dòng là phá dữ liệu để chữa
+       * một thứ không hỏng.
+       */
+      if (tuyChon.rutHangVoHieu === true && snap && snap.status !== 'DANG_AP_DUNG') {
+        await this.rutDongTheoSanPham(c, policyId, d.product_id);
+        daRut.push(d.product_code_snap);
+        continue;
+      }
       if (!snap || snap.status !== 'DANG_AP_DUNG') {
         hong.push(d.product_code_snap);
         conLai.push(...lechDong);
@@ -1743,7 +1877,7 @@ export class PoliciesService {
         [policyId, daApDung],
       );
     }
-    return { hong, daDoi, conLai };
+    return { hong, daDoi, daRut, conLai };
   }
 
   /**
@@ -2348,6 +2482,21 @@ export class PoliciesService {
    * chuyển: một hồ sơ bị từ chối hay hết hiệu lực vẫn còn dòng dấu vết, nhưng nó
    * không lọt qua mệnh đề này. Dọn theo trạng thái là thêm một chỗ nữa phải nhớ
    * cập nhật mỗi lần luồng đổi, mà quên thì lỗi im lặng.
+   *
+   * ---------------------------------------------------------------------------
+   * `0200` — KỂ CẢ HỒ SƠ CÒN SỬA ĐƯỢC (*Nháp*, *Yêu cầu chỉnh sửa*).
+   * ---------------------------------------------------------------------------
+   *
+   * Tới `0199` box chỉ liệt kê hồ sơ đã đóng băng, nên TDV **không có đường nào
+   * để BIẾT** bản nháp của mình đã lệch — họ phải mở từng hồ sơ ra xem. Đúng lúc
+   * `0194` vừa cho họ một cái nút để sửa chuyện ấy.
+   *
+   * Bảng dấu vết giờ có dòng cho cả hai loại (consumer ghi), nên chỗ này chỉ
+   * phải nới danh sách trạng thái. **Hai vai trò của bảng, đừng lẫn**: ở đây nó
+   * là một CHỈ MỤC — *"những hồ sơ đáng mở ra xem"*; còn màn hình hồ sơ vẫn TÍNH
+   * TẠI CHỖ (`soSanhDong`, `0194`) và đó mới là câu trả lời có thẩm quyền.
+   * Chỉ mục đi sau một nhịp là chấp nhận được; một con số sai trên tờ giấy sắp
+   * ký thì không.
    */
   async impacted(me: AuthUser, page: Page) {
     const ids = await this.scope.userIdsFor(me);
@@ -2368,7 +2517,7 @@ export class PoliciesService {
         GROUP BY p.id
         ORDER BY max(i.detected_at) DESC, p.code
         LIMIT $3 OFFSET $4`,
-      [ids, DA_DONG_BANG, page.limit, page.offset],
+      [ids, [...DA_DONG_BANG, ...EDITABLE], page.limit, page.offset],
     );
     return paged(rows, page);
   }

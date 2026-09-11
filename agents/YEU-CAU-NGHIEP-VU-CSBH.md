@@ -2588,6 +2588,39 @@ không áp được.
 > sau khi `10/09` biến nó thành một lượt GHI do người dùng bấm. Bấm lúc không có gì để đổi thì vẫn
 > không ghi gì.
 
+**NĂM VIỆC CỦA LƯỢT 11/09** `mới 11/09` — bốn câu về *Yêu cầu cập nhật* và một câu về bộ dữ liệu mẫu.
+
+> **1 · Lối tắt *Lập phiên bản mới* khi khách đã có bản Nháp.** *"Hộp thoại vẫn hiện ra nút Lập phiên
+> bản mới nhưng click vào không có action"* — `0197` chặn, mà mã lỗi ấy khai `im` cho màn hình *Lập
+> hồ sơ* tự xử, nên lối tắt `0191` nuốt lỗi rồi đứng yên. Từ nay hộp thoại **biết trước** và đổi hẳn
+> câu hỏi: *"khách hàng này đã có một bản Nháp đang soạn dở — mở ra soạn tiếp?"*, nút đưa thẳng vào
+> bản ấy. Thao tác lập **biến mất**, không nằm cạnh một lời giải thích vì sao nó không chạy.
+>
+> **2 · Box *Yêu cầu cập nhật* liệt kê cả hồ sơ CÒN SỬA ĐƯỢC** (*Nháp*, *Yêu cầu chỉnh sửa*). Trước
+> đó chỉ có hồ sơ đã đóng băng, nên TDV không có đường nào để BIẾT bản nháp của mình đã lệch — đúng
+> lúc `10/09` vừa cho họ một cái nút để sửa chuyện ấy. Ba trạng thái kết thúc vẫn đứng ngoài: không
+> ai làm gì được nữa.
+>
+> **3 · Mặt hàng đã VÔ HIỆU HOÁ thì nút *Tự động cập nhật* rút luôn nó khỏi CSBH.** Trước đó nó nằm
+> lại mãi trong nhóm *"chưa cập nhật được"*, và người dùng phải tự đi tìm nút *Xoá* trên đúng hàng ấy.
+> Dòng thừa kế vẫn **nằm lại với nhãn *Đã xoá*** (`04/09`) để người duyệt thấy được.
+>
+> > **LƯỢT GỬI DUYỆT KHÔNG tự rút**, và đó là ranh giới: ở đó hồ sơ rời tay người lập, nên một mặt
+> > hàng biến mất khỏi văn bản ở đúng khoảnh khắc ấy thì không ai kịp thấy. Phần mềm vẫn dừng lại và
+> > nêu đích danh. **Cũng CHỈ mặt hàng vô hiệu hoá** — sản phẩm biến mất khỏi danh mục và sản phẩm
+> > chưa khai giá tại ngày áp dụng có việc phải làm khác hẳn.
+>
+> **4 · CSBH ĐANG CÓ HIỆU LỰC thì mọi dòng mang trạng thái *Đang áp dụng*.** *Bổ sung* và *Chỉnh sửa*
+> trả lời câu hỏi của người ĐANG SOẠN — *"so với bản đang chạy, tôi vừa đổi gì?"*; hồ sơ duyệt xong
+> thì bản trước đã vô hiệu toàn bộ và không còn gì để so. Cột *Tỷ lệ CK cũ* tắt theo: để nó còn số là
+> đánh dấu đúng những dòng vốn là *Chỉnh sửa*, tức dựng lại bằng một cột số cái phân biệt vừa bỏ đi.
+>
+> > **CHƯA ÁP CHO *Hết hiệu lực***, đã nêu để hỏi lại: hệ quả là cùng một hồ sơ đổi nhãn vào lúc nó
+> > bị một phiên bản mới thay thế.
+>
+> **5 · Bộ dữ liệu mẫu bớt hồ sơ cần cập nhật**, vẫn giữ đủ ba loại thay đổi. Đo được: **95 → 37 hồ
+> sơ**, với cả ba nhãn *Giá* · *QĐ chiết khấu* · *Sản phẩm* đều còn.
+
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 
 > **Năm vai trò trong luồng** (TDV · Trưởng bộ phận · Kế toán · Sale Admin · Ban lãnh đạo) — sáu mục,
