@@ -195,6 +195,16 @@ export function ChiTietHoSo({ id }: { id: string }) {
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   /** Cờ riêng, không dùng chung `dangXoaDong`: nút này ở cấp HỒ SƠ, không của một dòng. */
   const [dangCapNhat, datDangCapNhat] = useState(false);
+  /**
+   * Mặt hàng lượt bấm vừa rồi KHÔNG áp được (`0199`).
+   *
+   * Máy chủ đã trả sẵn `hong` từ `0194` và giao diện vứt nó đi, nên người dùng
+   * bấm nút, chờ, trang tải lại — và khối chênh lệch nằm y nguyên mà không một
+   * chữ nào nói vì sao. Đúng chỗ ấy khách hàng đã chốt điều ngược lại: *"sau khi
+   * cập nhật xong phần thông tin yêu cầu thay đổi sẽ biến mất"*; nó không biến
+   * mất được thì phần mềm phải nói ra.
+   */
+  const [khongApDuoc, datKhongApDuoc] = useState<string[]>([]);
   const { di } = useDuong();
 
   const tai = useCallback(async (signal: AbortSignal) => {
@@ -232,12 +242,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
    * Khối lệch tự biến mất sau lượt tải lại: máy chủ tính lại chênh lệch và không
    * còn gì để bày. Không có bước ẩn khối nào ở giao diện — một cái ẩn bằng tay
    * sẽ nói dối đúng ở ca có dòng KHÔNG áp được.
+   *
+   * `hong` ĐỌC TỪ THÂN PHẢN HỒI (`0199`), không dựng lại ở đây. Chỉ máy chủ biết
+   * mặt hàng nào vừa từ chối — nó vừa hỏi danh mục xong — và câu trả lời ấy đã
+   * nằm sẵn trong thân từ `0194`; bản trước chỉ quên đọc.
    */
   const apDungThayDoi = async () => {
     datLoi(null);
+    datKhongApDuoc([]);
     datDangCapNhat(true);
     try {
-      await dang(`/policies/${id}/ap-dung-thay-doi`);
+      const r = await dang<{ hong?: string[] }>(`/policies/${id}/ap-dung-thay-doi`);
+      datKhongApDuoc(Array.isArray(r?.hong) ? r.hong : []);
       taiLai();
     } catch (e) {
       bao(e);
@@ -649,6 +665,27 @@ export function ChiTietHoSo({ id }: { id: string }) {
             </p>
           )}
           <DanhSachLech lech={hoSo.lech ?? []} />
+          {/*
+            LƯỢT BẤM VỪA RỒI BỎ LẠI NHỮNG GÌ (`0199`).
+
+            Chỗ này sống được bên TRONG khối là nhờ một bất biến của máy chủ:
+            **một mặt hàng vào `hong` thì luôn để lại ít nhất một mục lệch**, nên
+            khối không bao giờ biến mất trong khi câu này còn cần nói. Ba nguyên
+            nhân của `hong` đều tự sinh ra một mục: vô hiệu hoá và biến mất khỏi
+            danh mục ra mục `PRODUCT`, còn `computeLine` ném thì giá bán Công ty
+            đã đổi, tức đã có mục `PRICE`. Bất biến ấy có ca kiểm riêng bên
+            `policy.test.ts` — nó là điều kiện để chỗ này đúng, không phải một
+            nhận xét bên lề.
+          */}
+          {khongApDuoc.length > 0 && (
+            <p className="ghi-chu" role="status">
+              Đã cập nhật những dòng lấy được số mới. <strong>{khongApDuoc.length} mặt hàng</strong>{' '}
+              chưa cập nhật được vì danh mục không còn số hiện hành để lấy:{' '}
+              <strong>{khongApDuoc.join(', ')}</strong>. Kiểm lại trong <em>Danh mục sản phẩm</em>,
+              hoặc rút mặt hàng đó khỏi hồ sơ — để nguyên thì lượt gửi duyệt sẽ dừng ở đúng những
+              dòng này.
+            </p>
+          )}
           {/*
             NÚT CHỈ CÓ KHI SỬA ĐƯỢC, và điều kiện ấy là chốt chặn thứ hai chứ
             không phải chốt duy nhất: `mustEdit` bên máy chủ gác cả ba vế (phạm

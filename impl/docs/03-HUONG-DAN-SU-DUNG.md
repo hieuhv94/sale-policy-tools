@@ -447,9 +447,12 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 - **Đổi**: Giá bán Công ty · ngưỡng (QĐCK) · Tỷ lệ CK tính lại theo hai số đó.
 - **KHÔNG đổi**: Giá bán buôn và các khoản **CPBH** — đó là con số bạn nhập.
 
-> **Dòng nào không lấy được số mới thì ở lại trong khối**, kèm đúng lý do của nó — thường là sản phẩm
-> đã bị vô hiệu hoá hoặc xoá khỏi danh mục. Những dòng ấy phải tự xử: xoá dòng, hoặc đổi *Ngày áp
-> dụng* của chính dòng ấy. Nút không chặn cả lượt vì một dòng hỏng — dòng nào lấy được thì lấy.
+> **Dòng nào không lấy được số mới thì ở lại trong khối**, kèm đúng lý do của nó — sản phẩm đã bị vô
+> hiệu hoá, đã bị xoá khỏi danh mục, hoặc chưa khai giá tại *Ngày áp dụng* của dòng. Bấm xong, phần
+> mềm **nói ra tên những mặt hàng ấy** ngay dưới bảng chênh lệch `mới 11/09` — nút không chặn cả lượt
+> vì một dòng hỏng, dòng nào lấy được thì lấy. Những dòng còn lại phải tự xử: rút dòng khỏi hồ sơ,
+> hoặc đổi *Ngày áp dụng* của chính dòng ấy. Để nguyên thì lượt **Gửi duyệt** sẽ dừng lại và nêu đích
+> danh chúng.
 
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
 > CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
@@ -458,8 +461,10 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 **Khối không có nút nào**, và đó là chủ ý. Việc phải làm tuỳ tình huống: trả lại để người lập sửa,
 cứ duyệt tiếp vì chênh lệch không đáng kể, hay lập một CSBH mới. Phần mềm không đoán hộ.
 
-Hồ sơ còn ở *Nháp* hoặc *Yêu cầu chỉnh sửa* **không xuất hiện ở đây** — chúng tự cập nhật mỗi lần mở
-nên không có gì để nhắc.
+Hồ sơ còn ở *Nháp* hoặc *Yêu cầu chỉnh sửa* **không xuất hiện ở khối trên trang Tổng quan** — chênh
+lệch của chúng đọc ngay trên màn hình hồ sơ, ở khối vàng có nút *Tự động cập nhật*. (Câu cũ ở đây nói
+chúng *"tự cập nhật mỗi lần mở"*; đúng cho tới 09/09, và chính phép tự cập nhật im lặng ấy là thứ
+`10/09` gỡ đi để việc áp dụng thành một cú bấm nhìn thấy được.)
 
 ### Việc của tôi
 

@@ -6407,3 +6407,285 @@ describe('`0194` dấu vết lệch được dọn sau khi làm mới', () => {
     expect(await demDauVet(d.id), 'dấu vết của dòng hỏng phải ở lại').toBeGreaterThan(0);
   });
 });
+
+/**
+ * `0199` — SẢN PHẨM BIẾN MẤT khỏi danh mục: hồ sơ còn sửa được vẫn phải nói ra.
+ *
+ * Lỗi `0194` để lại, đo được trên chồng thật: `docDongVaAnh` gọi lời gọi CẢ LÔ
+ * `product-snapshots`, vốn trả 404 cho TOÀN BỘ khi chỉ một id không còn. Hậu
+ * quả xếp thành ba tầng, và tầng nào cũng im lặng theo một kiểu riêng:
+ *
+ *   * `byId` nuốt lỗi (`.catch(() => [])`) nên khối cảnh báo TẮT HẲN — kể cả
+ *     chênh lệch của những dòng chẳng liên quan gì tới sản phẩm đã mất;
+ *   * nút *Tự động cập nhật* trả `404 PRODUCT_NOT_FOUND`;
+ *   * lượt GỬI DUYỆT cũng `404`, nên `STALE_LINE` — chốt chặn nêu đích danh mã
+ *     sản phẩm và chỉ ra ba lối gỡ — không bao giờ chạy tới.
+ *
+ * Consumer thì KHÔNG dính, vì `0083` đã dựng cho nó một nhánh lùi. Nên cùng một
+ * trạng thái danh mục cho ra HAI câu trả lời khác hẳn nhau tuỳ trạng thái hồ sơ
+ * — đúng thứ `lech.ts` viết ra để chống, chỉ khác là chỗ bị chép làm hai bản
+ * không phải phép so mà là bước đi lấy ảnh chụp trước khi so.
+ */
+describe('`0199` sản phẩm biến mất khỏi danh mục', () => {
+  /** Không có đường API nào xoá sản phẩm (`0121`) — `0036` viết cho đúng ca này. */
+  const xoaKhoiDanhMuc = (productId: string) =>
+    withAdminDb((c) => c.query(`DELETE FROM cat.product WHERE id = $1`, [productId]));
+
+  const doiGia = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  /** Hồ sơ hai dòng: một dòng sẽ lệch giá, một dòng sẽ biến mất. */
+  const haiDong = async () => {
+    const con = await makeProduct();
+    const mat = await makeProduct();
+    const d = await draft({ productId: con });
+    expect((await post(`/policies/${d.id}/lines`, line(mat))).status).toBe(201);
+    const hs = (await get(`/policies/${d.id}`)).body;
+    const maCua = (pid: string) =>
+      hs.lines.find((l: { productId: string }) => l.productId === pid).productCode as string;
+    return { ...d, con, mat, maCon: maCua(con), maMat: maCua(mat) };
+  };
+
+  it('khối lệch VẪN HIỆN, và nói cả dòng mất lẫn dòng còn', async () => {
+    const d = await haiDong();
+    await doiGia(d.con, '130000');
+    await xoaKhoiDanhMuc(d.mat);
+
+    const lech = (await get(`/policies/${d.id}`)).body.lech as {
+      kind: string;
+      productCode: string;
+      newValue: string | null;
+    }[];
+    // Chênh lệch của dòng CÒN LẠI là vế dễ mất nhất: nó chẳng liên quan gì tới
+    // sản phẩm đã biến mất, mà bản `0194` cuốn nó đi theo.
+    expect(lech).toContainEqual(
+      expect.objectContaining({ kind: 'PRICE', productCode: d.maCon, newValue: '130000' }),
+    );
+    // `newValue: null` = "đã xoá khỏi danh mục" — xem `doc()` bên `Lech.tsx`.
+    expect(lech).toContainEqual(
+      expect.objectContaining({ kind: 'PRODUCT', productCode: d.maMat, newValue: null }),
+    );
+  });
+
+  it('HỒ SƠ ĐÓNG BĂNG VÀ HỒ SƠ SỬA ĐƯỢC TRẢ CÙNG MỘT CÂU', async () => {
+    /*
+     * CA ĐÁNG GIÁ NHẤT của lượt sửa, vì nó canh đúng cái bất biến đã trôi: hai
+     * đường tính, một câu trả lời. Dựng hai hồ sơ giống hệt nhau — cùng hai mặt
+     * hàng, cùng một trạng thái danh mục — rồi đẩy một cái vào luồng. Bản `0194`
+     * cho `[PRICE, PRODUCT]` ở cái đóng băng và `[]` ở cái còn Nháp.
+     */
+    const a = await haiDong();
+    const b = await haiDong();
+    expect((await act(b.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    await doiGia(a.con, '140000');
+    await doiGia(b.con, '140000');
+    await xoaKhoiDanhMuc(a.mat);
+    await xoaKhoiDanhMuc(b.mat);
+    await app.get(CatalogImpactConsumer).handle({});
+
+    const goi = (l: { kind: string; newValue: string | null }[]) =>
+      l.map((x) => `${x.kind}:${x.newValue}`).sort();
+    const suaDuoc = goi((await get(`/policies/${a.id}`)).body.lech);
+    const dongBang = goi((await get(`/policies/${b.id}`)).body.lech);
+    expect(suaDuoc).toEqual(dongBang);
+    expect(suaDuoc).toEqual(['PRICE:140000', 'PRODUCT:null']);
+  });
+
+  it('nút *Tự động cập nhật* trả 200 và áp được dòng CÒN LẠI', async () => {
+    // Bản `0194` trả `404 PRODUCT_NOT_FOUND`, tức một dòng hoàn toàn lành cũng
+    // không cập nhật được chỉ vì một dòng khác đã mất sản phẩm.
+    const d = await haiDong();
+    await doiGia(d.con, '150000');
+    await xoaKhoiDanhMuc(d.mat);
+
+    const r = await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.hong).toEqual([d.maMat]);
+
+    const hs = (await get(`/policies/${d.id}`)).body;
+    const dongCon = hs.lines.find((l: { productId: string }) => l.productId === d.con);
+    expect(dongCon.companyPrice).toBe('150000');
+  });
+
+  it('GỬI DUYỆT trả `STALE_LINE` nêu đích danh mặt hàng, KHÔNG phải 404', async () => {
+    /*
+     * Chốt chặn có sẵn, viết đúng, và tới `0198` không bao giờ chạy tới. Khác
+     * biệt với người dùng không nằm ở mã HTTP mà ở CÂU CHỮ: `404` nói *"không
+     * tìm thấy sản phẩm này trong danh mục, tải lại rồi chọn lại"* cho một người
+     * đang bấm Gửi duyệt và không chọn sản phẩm nào.
+     */
+    const d = await haiDong();
+    await xoaKhoiDanhMuc(d.mat);
+
+    const g = await act(d.id, 'SUBMIT', 'tdv01');
+    expect(g.status, JSON.stringify(g.body)).toBe(422);
+    expect(g.body.code).toBe('STALE_LINE');
+    expect(g.body.products).toEqual([d.maMat]);
+  });
+
+  it('rút dòng hỏng rồi gửi lại thì ĐI TIẾP — lối gỡ mà câu lỗi chỉ ra', async () => {
+    // Câu `STALE_LINE` bảo *"rút mặt hàng đó khỏi hồ sơ"*; nếu lối ấy không thật
+    // thì nó chỉ là một câu an ủi, và hồ sơ chết hẳn ở Nháp như bế tắc `0186`.
+    const d = await haiDong();
+    await xoaKhoiDanhMuc(d.mat);
+    const hs = (await get(`/policies/${d.id}`)).body;
+    const dongXau = hs.lines.find((l: { productCode: string }) => l.productCode === d.maMat);
+
+    expect((await del(`/policies/${d.id}/lines/${dongXau.id}`)).status).toBe(200);
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+  });
+
+  it('CATALOG KHÔNG TRA ĐƯỢC thì KHÔNG đoán bừa — không rơi vào `hong`', async () => {
+    /*
+     * Ranh giới của cả lượt sửa. Chịu được sản phẩm VẮNG MẶT là đúng; chịu được
+     * TRA HỤT thì sai, và sai theo hướng phá dữ liệu: mọi mặt hàng rơi vào
+     * `hong`, rồi `STALE_LINE` khuyên người dùng rút hết chúng khỏi hồ sơ trong
+     * khi danh mục chỉ đang khởi động lại.
+     */
+    const d = await draft();
+    // Cả hai đường — lời gọi lô hỏng thì nhánh lùi hỏi từng cái cũng phải hỏng.
+    const clients = app.get(Clients);
+    const loi = new Error('catalog đang khởi động lại');
+    const g1 = vi.spyOn(clients, 'productSnapshots').mockRejectedValue(loi);
+    const g2 = vi.spyOn(clients, 'productSnapshot').mockRejectedValue(loi);
+    try {
+      const g = await act(d.id, 'SUBMIT', 'tdv01');
+      expect(g.status, 'không được là 422 STALE_LINE').not.toBe(422);
+      expect((await get(`/policies/${d.id}`)).body.status).toBe('NHAP');
+    } finally {
+      g1.mockRestore();
+      g2.mockRestore();
+    }
+  });
+});
+
+/**
+ * `0199` — ba vế còn lại của nút *Tự động cập nhật*.
+ */
+describe('`0199` nút Tự động cập nhật: dấu vết, `conLai`, và bất biến của `hong`', () => {
+  const doiGia = async (productId: string, tien: string) => {
+    await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+  };
+  const apDung = (id: string) => post(`/policies/${id}/ap-dung-thay-doi`, {}, 'tdv01');
+  const suKien = async (policyId: string) =>
+    (await outboxFor(policyId)).map((r) => r.routing_key);
+
+  it('bấm nút để lại MỘT dòng nhật ký — đo được ở outbox', async () => {
+    /*
+     * `lamMoiDong` cố ý không phát sự kiện nào, đúng khi nó còn chạy ở đường ĐỌC
+     * (`0029`: *"không có người nào vừa sửa gì"*). Từ `0194` tiền đề ấy mất: đây
+     * là một lượt GHI do người dùng bấm, đổi giá bán Công ty · ngưỡng · tỷ lệ CK
+     * của nhiều dòng. `audit` nghe `#`, nên không sự kiện = không dấu vết nào.
+     */
+    const d = await draft();
+    await doiGia(d.productId, '160000');
+    await withAdminDb((c) => c.query(`DELETE FROM pol.outbox WHERE payload->>'policyId' = $1`, [d.id]));
+
+    expect((await apDung(d.id)).status).toBe(200);
+    expect(await suKien(d.id)).toEqual(['policy.updated']);
+    const ev = (await outboxFor(d.id))[0]!;
+    expect(ev.payload['change']).toBe('LINES_REFRESHED');
+    expect(ev.payload['soDong']).toBe(1);
+  });
+
+  it('bấm khi KHÔNG có gì để áp thì KHÔNG ghi gì', async () => {
+    // Bấm một nút không còn việc gì để làm là chuyện thường (hai tab, bấm hai
+    // lần). Ghi nhật ký cho nó là dựng ra tiếng ồn đúng ở chỗ người ta vào để
+    // tìm dấu vết.
+    const d = await draft();
+    await withAdminDb((c) => c.query(`DELETE FROM pol.outbox WHERE payload->>'policyId' = $1`, [d.id]));
+    expect((await apDung(d.id)).status).toBe(200);
+    expect(await suKien(d.id)).toEqual([]);
+  });
+
+  it('`conLai` KHỚP đúng số mục lệch mà lượt đọc kế tiếp bày ra', async () => {
+    /*
+     * `conLai` giờ tính ngay trong lượt ghi, từ chính bộ số vừa đọc, chứ không
+     * mở một transaction thứ hai hỏi lại danh mục sau khi đã commit. Ca này canh
+     * cho phép tính tại chỗ ấy đừng trôi khỏi thứ màn hình thật sự hiện ra.
+     */
+    const d = await draft();
+    const ma = (await get(`/policies/${d.id}`)).body.lines[0].productCode as string;
+    await doiGia(d.productId, '170000');
+    const vh = await (await http(catalog))
+      .patch(`/catalog/products/${d.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DA_VO_HIEU_HOA', confirm: ma });
+    expect(vh.status).toBe(200);
+
+    const r = await apDung(d.id);
+    expect(r.status).toBe(200);
+    expect(r.body.conLai).toBe((await get(`/policies/${d.id}`)).body.lech.length);
+    expect(r.body.conLai).toBeGreaterThan(0);
+  });
+
+  it('KHÔNG có lượt hỏi danh mục THỨ HAI sau khi đã ghi', async () => {
+    /*
+     * Bản `0194` mở hai transaction: một để ghi, một để gọi `soSanhDong` đếm lại
+     * phần còn lệch — tức hỏi danh mục thêm một vòng SAU KHI đã commit, và vòng
+     * ấy không có `catch` (khác `byId`). Một cú chớp mạng đúng khoảng đó trả lỗi
+     * cho người dùng về một việc ĐÃ LÀM XONG: giao diện bắt lỗi nên không tải
+     * lại, và màn hình bày số cũ cho một dòng đã đổi dưới CSDL.
+     *
+     * Thứ ca này KHẲNG ĐỊNH là **số lượt hỏi danh mục cho một cú bấm**, không
+     * phải mã HTTP — và đó là lựa chọn có lý do, đo được lúc phá lại: dựng lại
+     * lượt hỏi thứ hai thì request vẫn trả 200, vì `productSnapshotsChiuLoi` bắt
+     * lượt gọi lô hỏng rồi lùi về hỏi từng cái (đường ấy không bị giả lập). Nói
+     * cách khác nhánh lùi của `0199` che mất chính triệu chứng, nên canh theo
+     * triệu chứng là dựng một ca xanh với đúng cái hỏng. Con số lượt gọi thì
+     * không che được: một cú bấm, một vòng mạng, không có vòng nào sau phép ghi.
+     */
+    const d = await draft();
+    await doiGia(d.productId, '180000');
+
+    const clients = app.get(Clients);
+    const that = clients.productSnapshots.bind(clients);
+    let lan = 0;
+    const gian = vi
+      .spyOn(clients, 'productSnapshots')
+      .mockImplementation(async (ids, loai, on) => {
+        lan += 1;
+        if (lan > 1) throw new Error('catalog chớp ngay sau lượt ghi');
+        return that(ids, loai, on);
+      });
+    try {
+      const r = await apDung(d.id);
+      expect(r.status, JSON.stringify(r.body)).toBe(200);
+      expect(lan, 'một cú bấm chỉ được hỏi danh mục một lượt').toBe(1);
+    } finally {
+      gian.mockRestore();
+    }
+    // Và phép ghi đi trọn vẹn, không dở dang.
+    expect((await get(`/policies/${d.id}`)).body.lines[0].companyPrice).toBe('180000');
+  });
+
+  it('BẤT BIẾN: `hong` không rỗng thì `conLai` cũng không rỗng', async () => {
+    /*
+     * Đây là điều kiện để câu *"N mặt hàng chưa cập nhật được"* ở giao diện có
+     * chỗ đứng: nó nằm BÊN TRONG khối chênh lệch, nên khối biến mất là câu ấy
+     * biến mất theo. Ba nguyên nhân của `hong` đều tự sinh ra ít nhất một mục
+     * lệch — ca này giữ cho tính chất đó khỏi trôi.
+     */
+    const d = await draft();
+    const ma = (await get(`/policies/${d.id}`)).body.lines[0].productCode as string;
+    const vh = await (await http(catalog))
+      .patch(`/catalog/products/${d.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ status: 'DA_VO_HIEU_HOA', confirm: ma });
+    expect(vh.status).toBe(200);
+
+    // Vô hiệu hoá KHÔNG đổi giá, nên đây là ca mỏng nhất của bất biến.
+    const r = await apDung(d.id);
+    expect(r.body.hong).toHaveLength(1);
+    expect(r.body.conLai).toBeGreaterThan(0);
+  });
+});

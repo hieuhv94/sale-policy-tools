@@ -2337,6 +2337,11 @@ sẽ biến mất"*.
 > **Dòng không áp được thì Ở LẠI trong khối**, kèm lý do của nó (sản phẩm đã vô hiệu hoá hoặc đã
 > xoá). Không chặn cả lượt vì một dòng hỏng — khác lượt gửi duyệt, nơi một dòng không kiểm được là lý
 > do chặn vì con số ấy sắp đi vào văn bản đem ký.
+>
+> > **BA CHỖ CỦA CÂU TRÊN CHƯA CHẠY ĐÚNG CHO TỚI `11/09`** — xem *"Sản phẩm biến mất khỏi danh mục"*
+> > ở cuối Phụ lục B. Mặt hàng **đã bị xoá** khỏi danh mục thì khối chênh lệch **tắt hẳn** thay vì ở
+> > lại (kể cả chênh lệch của những dòng khác), nút trả lỗi, và lượt gửi duyệt cũng thế — nên
+> > `STALE_LINE` không bao giờ chạy tới. Lý do của mỗi dòng cũng chưa nói ra ở giao diện.
 
 **LỖI ĐÃ SỬA: dấu vết lệch không ai dọn** `sửa 10/09` — hồ sơ đi hết chuỗi *lệch → trả về → làm mới →
 gửi lại* quay lại luồng duyệt kèm một khối cảnh báo nói về chênh lệch **đã được sửa xong**.
@@ -2549,6 +2554,39 @@ hoặc tạo nếu mã đã tồn tại"*.
 > > **MỘT NGOẠI LỆ, và nó có lợi**: bản ***Nháp*** xoá đi thì **xoá hẳn**, không để lại một vết nào
 > > (quyết định `18/08`) — nên mã của nó **dùng lại được**. Cái giá nêu lúc chốt (*lập nhầm một bản
 > > Nháp rồi xoá thì mất luôn mã ấy*) **không tồn tại**.
+
+**SẢN PHẨM BIẾN MẤT KHỎI DANH MỤC** `sửa 11/09` — ba chốt của *Tự động cập nhật* (`10/09`) chạy đúng
+cả khi một mặt hàng của hồ sơ **không còn trong danh mục**, và phần mềm **nói ra tên** những dòng nó
+không áp được.
+
+> **Đo được trên chồng thật, và triệu chứng ngược hẳn với điều đã chốt**: hồ sơ còn sửa được có một
+> mặt hàng đã bị xoá thì khối chênh lệch **tắt HẲN** — kể cả chênh lệch của những dòng chẳng liên
+> quan — còn nút và lượt **Gửi duyệt** đều trả *"không tìm thấy sản phẩm này trong danh mục, tải lại
+> rồi chọn lại"*, một câu không nêu dòng nào và không chữa được gì. Cùng lúc ấy một hồ sơ **đã đóng
+> băng** của cùng khách, cùng hai dòng, cùng trạng thái danh mục, lại bày ra đủ hai chênh lệch.
+>
+> **Hồ sơ không chết, nhưng bị bịt mắt.** Rút dòng hỏng rồi gửi lại thì đi tiếp bình thường — chỉ là
+> người dùng phải tự đoán ra rằng có một dòng hỏng, đoán ra là dòng nào, và đoán ra rằng rút nó là
+> cách chữa.
+>
+> **Lối gỡ vốn đã có sẵn và chưa bao giờ chạy tới**: chốt `STALE_LINE` lúc gửi duyệt nêu đích danh mã
+> mặt hàng và chỉ ra ba lối (kiểm lại danh mục · rút dòng · đổi *Ngày áp dụng* của dòng). Từ `11/09`
+> nó nhận cả ba nguyên nhân: mặt hàng đã vô hiệu hoá · đã bị xoá khỏi danh mục · chưa khai giá tại
+> ngày áp dụng của dòng.
+>
+> **Bấm nút xong thì phần mềm nói ra những mặt hàng chưa cập nhật được**, ngay dưới bảng chênh lệch.
+> Câu chốt `10/09` — *"sau khi cập nhật xong phần thông tin yêu cầu thay đổi sẽ biến mất"* — không
+> đúng được cho những dòng ấy, nên chỗ nó không biến mất phải có một lý do đọc được; nếu không người
+> dùng chỉ biết là nút không làm gì.
+>
+> **Ranh giới giữ nguyên: danh mục TẠM THỜI không tra được thì KHÔNG đoán bừa.** Mặt hàng *vắng mặt*
+> và lượt tra *hụt* là hai chuyện; gộp chúng là để `STALE_LINE` khuyên người dùng rút hết mặt hàng
+> khỏi hồ sơ trong khi danh mục chỉ đang khởi động lại.
+>
+> **Bấm *Tự động cập nhật* giờ để lại một dòng trong nhật ký hệ thống.** Trước đó nó đổi giá bán Công
+> ty, ngưỡng và tỷ lệ CK của nhiều dòng mà không ghi dấu vết nào — quy ước của một lượt ĐỌC, giữ lại
+> sau khi `10/09` biến nó thành một lượt GHI do người dùng bấm. Bấm lúc không có gì để đổi thì vẫn
+> không ghi gì.
 
 **Thứ tự mục trên thanh bên** `sửa 31/08` — **hai thứ tự, tuỳ vai trò**.
 

@@ -47,6 +47,31 @@ type DongLamMoi = {
   wholesale_price: string;
   cpbh: string[];
 };
+
+/**
+ * Một dòng lệch những gì, theo đúng bộ số `docDongVaAnh` vừa đọc được (`0199`).
+ *
+ * Hàm THUẦN, và tách ra vì nó có HAI chỗ gọi phải cho cùng kết quả: đường đọc
+ * (`soSanhDong`) và lượt tính phần CÒN LẠI ngay sau khi ghi (`lamMoiDong`). Tới
+ * `0198` chỗ thứ hai không tồn tại — `apDungThayDoi` mở một transaction THỨ HAI
+ * rồi gọi `soSanhDong` để đếm lại, tức hỏi danh mục thêm một lượt nữa sau khi đã
+ * ghi xong. Lượt hỏi ấy hỏng thì cả request hỏng **trong khi phép ghi đã
+ * commit**: người dùng nhận lỗi, giao diện không tải lại, và màn hình bày số cũ
+ * cho một dòng đã đổi dưới CSDL.
+ */
+const soSanhMotDong = (
+  d: DongLamMoi,
+  dat: { anh: Map<string, ProductSnapshot>; loi: Map<string, string> },
+): MucLech[] =>
+  soSanhLech(
+    {
+      productCode: d.product_code_snap,
+      companyPrice: String(d.company_price_snap),
+      threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
+    },
+    dat.anh.get(d.product_id),
+    dat.loi.get(d.product_id),
+  );
 import { Db } from '../infra/db.js';
 import { emit } from '../infra/emit.js';
 import { Clients } from '../infra/clients.js';
@@ -1368,12 +1393,42 @@ export class PoliciesService {
    * người dùng mới chỉ đang sửa: áp được dòng nào thì áp, dòng còn lại vẫn nằm
    * trong khối lệch với đúng lý do của nó. Chặn cả lượt vì một dòng hỏng là bắt
    * họ sửa tay cả những dòng máy làm được.
+   *
+   * ---------------------------------------------------------------------------
+   * `0199` — MỘT transaction, và một dòng nhật ký.
+   * ---------------------------------------------------------------------------
+   *
+   * Bản `0194` mở HAI transaction: một để ghi, một để gọi `soSanhDong` đếm lại
+   * phần còn lệch. Lượt thứ hai hỏi danh mục thêm một vòng nữa **sau khi phép
+   * ghi đã commit**, và nó không có `catch` (khác `byId`) — nên một cú chớp mạng
+   * ở đúng khoảng ấy trả lỗi cho người dùng về một việc ĐÃ LÀM XONG, giao diện
+   * không tải lại, và màn hình bày số cũ cho dòng vừa đổi dưới CSDL. `lamMoiDong`
+   * giờ trả luôn `conLai` tính từ chính bộ số nó vừa đọc, nên khe ấy không còn.
+   *
+   * PHÁT `policy.updated`, chỉ khi có dòng thật sự ghi lại được. `lamMoiDong`
+   * cố ý không phát sự kiện nào — đúng khi nó còn chạy ở đường ĐỌC (`0029`:
+   * *"không có người nào vừa sửa gì"*). Tiền đề ấy mất từ `0194`: đây là một
+   * lượt GHI do người dùng bấm, đổi giá bán Công ty · ngưỡng · tỷ lệ CK của
+   * nhiều dòng cùng lúc. `audit` nghe `#`, nên không sự kiện = **không một dòng
+   * dấu vết nào** cho một thao tác đổi số trên văn bản sắp ký. `bumpVersion` đi
+   * kèm vì dữ liệu đã đổi thật, đúng nếp `suaDong`/`xoaDong`/`khoiPhucDong`.
    */
   async apDungThayDoi(policyId: string, me: AuthUser) {
-    await this.mustEdit(policyId, me);
-    const hong = await this.db.tx((c) => this.lamMoiDong(c, policyId));
-    const conLai = await this.db.tx((c) => this.soSanhDong(c, policyId));
-    return { hong, conLai: conLai.length };
+    const p = await this.mustEdit(policyId, me);
+    return this.db.tx(async (c) => {
+      const { hong, daDoi, conLai } = await this.lamMoiDong(c, policyId);
+      if (daDoi.length > 0) {
+        await this.bumpVersion(c, policyId);
+        await emit(c, 'policy.updated', {
+          ...evtCtx(p),
+          change: 'LINES_REFRESHED',
+          soDong: daDoi.length,
+          actorId: me.id,
+          at: new Date().toISOString(),
+        });
+      }
+      return { hong, conLai: conLai.length };
+    });
   }
 
   async khoiPhucDong(policyId: string, lineId: string, me: AuthUser) {
@@ -1457,16 +1512,7 @@ export class PoliciesService {
   async soSanhDong(c: PoolClient, policyId: string): Promise<MucLech[]> {
     const dat = await this.docDongVaAnh(c, policyId);
     if (!dat) return [];
-    return dat.dong.flatMap((d) =>
-      soSanhLech(
-        {
-          productCode: d.product_code_snap,
-          companyPrice: String(d.company_price_snap),
-          threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
-        },
-        dat.anh.get(d.product_id),
-      ),
-    );
+    return dat.dong.flatMap((d) => soSanhMotDong(d, dat));
   }
 
   /**
@@ -1477,11 +1523,38 @@ export class PoliciesService {
    * rồi áp dụng một chênh lệch khác là cách hỏng khó truy nhất của cả chặng.
    *
    * `null` khi hồ sơ không tồn tại, không sửa được, hoặc không còn dòng nào.
+   *
+   * ---------------------------------------------------------------------------
+   * `0199` — CHỊU ĐƯỢC SẢN PHẨM VẮNG MẶT, nhưng KHÔNG chịu được tra hụt.
+   * ---------------------------------------------------------------------------
+   *
+   * Tới `0198` chỗ này gọi `productSnapshots` trần, tức lời gọi CẢ LÔ vốn trả
+   * 404 cho toàn bộ khi chỉ một id không còn. Hậu quả đo được: hồ sơ Nháp có một
+   * mặt hàng đã biến mất khỏi danh mục thì `byId` nuốt lỗi và trả `lech: []` —
+   * khối cảnh báo tắt HẲN, kể cả chênh lệch của những dòng chẳng liên quan; nút
+   * *Tự động cập nhật* và cả lượt GỬI DUYỆT thì nhận `404 PRODUCT_NOT_FOUND`,
+   * một câu không nêu tên dòng nào. Cùng lúc ấy hồ sơ ĐÃ ĐÓNG BĂNG của cùng
+   * khách, cùng hai dòng, trả về đủ hai chênh lệch — vì consumer có nhánh lùi.
+   *
+   * HAI NHÓM, xử KHÁC NHAU, và ranh giới ấy là cả điểm của lượt sửa:
+   *
+   *   * **kết luận được** (`PRODUCT_NOT_FOUND`, `PRICE_NOT_SET`) → đi tiếp, id ấy
+   *     vắng mặt trong `anh` và `loi` nói vì sao. Đây là THÔNG TIN CẦN BÁO.
+   *   * **không kết luận được** (mạng chớp, catalog 500) → NÉM, đúng như trước.
+   *     Nuốt nó là mời `lamMoiDong` xếp mọi mặt hàng vào `hong`, rồi `STALE_LINE`
+   *     bảo người dùng *"rút mặt hàng đó khỏi hồ sơ"* trong khi danh mục chỉ
+   *     đang khởi động lại — một lời khuyên phá dữ liệu. `byId` vẫn nuốt ở lớp
+   *     ngoài nên người dùng vẫn mở được hồ sơ, đúng lập luận `0089`.
    */
   private async docDongVaAnh(
     c: PoolClient,
     policyId: string,
-  ): Promise<{ dong: DongLamMoi[]; anh: Map<string, ProductSnapshot> } | null> {
+  ): Promise<{
+    dong: DongLamMoi[];
+    anh: Map<string, ProductSnapshot>;
+    /** id → vì sao không có ảnh chụp. Chỉ chứa mã KẾT LUẬN ĐƯỢC — xem trên. */
+    loi: Map<string, string>;
+  } | null> {
     const p = await c.query<{ customer_id: string; status: string }>(
       `SELECT customer_id, status::text AS status FROM pol.policy WHERE id = $1`,
       [policyId],
@@ -1538,29 +1611,62 @@ export class PoliciesService {
       const on = ngayISO(d.ngay_ap_dung)!;
       (theoNgay.get(on) ?? theoNgay.set(on, []).get(on)!).push(d.product_id);
     }
+    const loi = new Map<string, string>();
+    const khongKetLuanDuoc: string[] = [];
     for (const [on, ids] of theoNgay) {
-      const lo = await this.clients.productSnapshots(ids, customer.customerType, on);
-      for (const id of ids) {
-        const s = lo.get(id);
-        if (s) snaps.set(id, s);
+      const lo = await this.clients.productSnapshotsChiuLoi(ids, customer.customerType, on);
+      for (const [id, s] of lo.anh) snaps.set(id, s);
+      for (const [id, ma] of lo.loi) {
+        if (ma === undefined) khongKetLuanDuoc.push(id);
+        else loi.set(id, ma);
       }
     }
+    if (khongKetLuanDuoc.length > 0) {
+      throw new Error(
+        `catalog không tra được ${khongKetLuanDuoc.length} sản phẩm của hồ sơ ${policyId}`,
+      );
+    }
 
-    return { dong: dong.rows, anh: snaps };
+    return { dong: dong.rows, anh: snaps, loi };
   }
 
-  async lamMoiDong(c: PoolClient, policyId: string): Promise<string[]> {
+  /**
+   * TRẢ VỀ BA THỨ từ `0199`, không phải một mảng `hong` (`0194`).
+   *
+   *   * `hong` — mã những dòng KHÔNG làm mới được. Không đổi nghĩa.
+   *   * `daDoi` — dòng mà lượt ghi thật sự ĐỔI SỐ. **Không phải** dòng đã ghi:
+   *     hàm này `UPDATE` lại mọi dòng lành, kể cả dòng đang khớp danh mục từng
+   *     con số, nên "đã ghi" luôn khác rỗng ở mọi hồ sơ còn sống. `apDungThayDoi`
+   *     đọc `daDoi` để quyết định có ghi một dòng nhật ký hay không — bấm một nút
+   *     không còn việc gì để làm là chuyện thường (hai tab, bấm hai lần), và ghi
+   *     nhật ký cho nó là dựng ra tiếng ồn đúng ở chỗ người ta vào tìm dấu vết.
+   *     (Ca kiểm bắt được đúng chỗ này lúc `0199` còn đọc "đã ghi".)
+   *   * `conLai` — phần CÒN LỆCH sau lượt ghi, tính ngay tại đây từ chính bộ số
+   *     vừa đọc. Nó đúng bằng chênh lệch của những dòng KHÔNG áp được: dòng đã
+   *     ghi lại thì `company_price_snap` và `threshold_snap` vừa được đặt bằng
+   *     đúng ảnh chụp, nên phép so cho mảng rỗng **theo cấu trúc**, không phải
+   *     theo may mắn. Nhờ thế `apDungThayDoi` thôi phải mở transaction thứ hai
+   *     và hỏi danh mục thêm một lượt sau khi đã ghi.
+   */
+  async lamMoiDong(
+    c: PoolClient,
+    policyId: string,
+  ): Promise<{ hong: string[]; daDoi: string[]; conLai: MucLech[] }> {
     const dat = await this.docDongVaAnh(c, policyId);
-    if (!dat) return [];
+    if (!dat) return { hong: [], daDoi: [], conLai: [] };
     const { dong, anh: snaps } = dat;
 
     const hong: string[] = [];
     /** Dòng đã ghi lại được — dấu vết lệch của chúng thôi còn đúng. */
     const daApDung: string[] = [];
+    const daDoi: string[] = [];
+    const conLai: MucLech[] = [];
     for (const d of dong) {
+      const lechDong = soSanhMotDong(d, dat);
       const snap = snaps.get(d.product_id);
       if (!snap || snap.status !== 'DANG_AP_DUNG') {
         hong.push(d.product_code_snap);
+        conLai.push(...lechDong);
         continue;
       }
       // Giá bán buôn và CPBH lấy từ CHÍNH DÒNG đang có: chúng là con số NGƯỜI
@@ -1578,6 +1684,7 @@ export class PoliciesService {
         // Giá bán Công ty mới có thể làm dòng cũ thành vô lý (giá thu về âm chẳng
         // hạn). Không ghi đè bằng một con số sai — để nguyên và báo ở lúc gửi.
         hong.push(d.product_code_snap);
+        conLai.push(...lechDong);
         continue;
       }
 
@@ -1604,6 +1711,7 @@ export class PoliciesService {
         ],
       );
       daApDung.push(d.product_id);
+      if (lechDong.length > 0) daDoi.push(d.product_id);
     }
 
     /*
@@ -1635,7 +1743,7 @@ export class PoliciesService {
         [policyId, daApDung],
       );
     }
-    return hong;
+    return { hong, daDoi, conLai };
   }
 
   /**

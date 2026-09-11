@@ -63,6 +63,23 @@ export type ProductSnapshot = {
 
 const svc = () => ({ 'X-Service-Token': mintServiceToken('policy') });
 
+/**
+ * Mã lỗi nghiệp vụ bên trong một `HttpException` của Nest (`0083`).
+ *
+ * Hàm này ném `NotFoundException({ code })`, và mã ấy nằm trong phần THÂN phản
+ * hồi chứ không phải trên `Error.message`. Đọc bằng `instanceof
+ * NotFoundException` thì KHÔNG đủ: catalog trả 404 cho cả sản phẩm đã xoá lẫn
+ * sản phẩm chưa khai giá, và hai chuyện ấy phải xử khác nhau.
+ *
+ * Đọc mềm, không ép kiểu: một lỗi mạng (`TypeError`) rơi vào đây thì trả về
+ * `undefined`, và người gọi hiểu là *"không kết luận được"*.
+ */
+export const maLoiNghiepVu = (e: unknown): string | undefined => {
+  const than = (e as { response?: unknown })?.response;
+  const ma = (than as { code?: unknown })?.code;
+  return typeof ma === 'string' ? ma : undefined;
+};
+
 @Injectable()
 export class Clients {
   private readonly log = new Logger(Clients.name);
@@ -234,10 +251,80 @@ export class Clients {
       headers: { 'content-type': 'application/json', ...svc() },
       body: JSON.stringify({ productIds, customerType, ...(on ? { on } : {}) }),
     });
-    if (res.status === 404) throw new NotFoundException({ code: 'PRODUCT_NOT_FOUND' });
+    if (res.status === 404) {
+      /*
+       * ĐỌC MÃ TRONG THÂN, đừng gắn nhãn hộ catalog (`0199`).
+       *
+       * Bản trước ném thẳng `PRODUCT_NOT_FOUND` mà không mở thân phản hồi ra
+       * xem, trong khi `snapshot()` bên catalog có HAI nguồn 404 khác hẳn nhau:
+       * sản phẩm không còn trong danh mục, và sản phẩm còn nguyên đó mà chưa
+       * khai giá tại ngày ấy (`PRICE_NOT_SET`). Gộp hai thứ vào một mã là nói
+       * với người lập hồ sơ rằng *"không tìm thấy sản phẩm này"* về một mặt hàng
+       * họ vừa chọn trong chính danh mục, rồi bảo họ chọn lại.
+       *
+       * Bản một sản phẩm ngay dưới đây vốn đã đọc đúng; hai hàm anh em trả lời
+       * cùng một câu hỏi thì không được lệch nhau ở chỗ này.
+       */
+      const body = (await res.json().catch(() => ({}))) as { code?: string };
+      throw new NotFoundException({ code: body.code ?? 'PRODUCT_NOT_FOUND' });
+    }
     if (!res.ok) throw new Error(`catalog trả ${res.status}`);
     const list = (await res.json()) as ProductSnapshot[];
     return new Map(list.map((s) => [s.productId, s]));
+  }
+
+  /**
+   * Cùng lượt tra ấy, nhưng CHỊU ĐƯỢC sản phẩm vắng mặt (`0199`).
+   *
+   * ---------------------------------------------------------------------------
+   * VÌ SAO PHẢI CÓ HÀM THỨ HAI, thay vì nới `productSnapshots`
+   * ---------------------------------------------------------------------------
+   *
+   * `POST /internal/catalog/product-snapshots` là một vòng lặp `await` không bọc
+   * `try`, nên **một id hỏng là cả lô 404** — không có kết quả từng phần. Đó là
+   * hợp đồng CÓ CHỦ Ý, và nó đúng cho đường LẬP hồ sơ: thiếu một sản phẩm thì cả
+   * hồ sơ sai, đi tiếp với một dòng khuyết là tệ hơn hẳn dừng lại.
+   *
+   * Đường ĐỐI CHIẾU thì ngược hẳn: ở đó một sản phẩm biến mất chính là THÔNG TIN
+   * CẦN BÁO, không phải lý do bỏ cuộc. Nên hai bài toán, hai hàm — và bài toán
+   * thứ hai phải nói được ba chuyện khác nhau chứ không phải hai.
+   *
+   * TRẢ VỀ HAI THỨ:
+   *
+   *   * `anh` — tra được.
+   *   * `loi` — id KHÔNG tra được, kèm mã lỗi nếu **kết luận được**
+   *     (`PRODUCT_NOT_FOUND` = không còn trong danh mục · `PRICE_NOT_SET` = còn
+   *     đó mà chưa khai giá tại ngày ấy), hoặc `undefined` khi KHÔNG kết luận
+   *     được — catalog đang khởi động lại, mạng chớp, 500.
+   *
+   * Ranh giới ấy là cả điểm của hàm này, và `0083` đã trả giá một lần cho nó:
+   * coi mọi id vắng mặt là *"đã xoá khỏi danh mục"* thì một lượt catalog khởi
+   * động lại ghi đè dấu vết của mọi hồ sơ đã đóng băng bằng một câu bịa. Người
+   * gọi phải tự quyết mỗi nhóm nghĩa là gì — hàm này không đoán hộ.
+   *
+   * Đường nhanh vẫn là MỘT lời gọi cả lô; chỉ khi nó hỏng mới lùi về hỏi từng
+   * cái, tức đường chậm chỉ chạy đúng lúc thật sự có sản phẩm vắng mặt.
+   */
+  async productSnapshotsChiuLoi(
+    productIds: string[],
+    customerType: number,
+    on?: string | undefined,
+  ): Promise<{ anh: Map<string, ProductSnapshot>; loi: Map<string, string | undefined> }> {
+    if (productIds.length === 0) return { anh: new Map(), loi: new Map() };
+    try {
+      return { anh: await this.productSnapshots(productIds, customerType, on), loi: new Map() };
+    } catch {
+      const anh = new Map<string, ProductSnapshot>();
+      const loi = new Map<string, string | undefined>();
+      for (const id of productIds) {
+        try {
+          anh.set(id, await this.productSnapshot(id, customerType, on));
+        } catch (e) {
+          loi.set(id, maLoiNghiepVu(e));
+        }
+      }
+      return { anh, loi };
+    }
   }
 
   /** `on` — xem chú thích ở `productSnapshots`. */

@@ -436,15 +436,26 @@ export class WorkflowService {
        * chúng chỉ giữ số cũ. Ở đó chặn là nhốt người dùng ngoài hồ sơ của chính
        * họ; ở đây cho qua là để một con số không kiểm được đi vào văn bản sắp ký.
        */
-      const hong = await this.db.tx((c) => this.policies.lamMoiDong(c, policyId));
+      /*
+       * `0199` — CÂU NÀY GIỜ MỚI TỚI ĐƯỢC ba nguyên nhân nó kể ra.
+       *
+       * Tới `0198` `lamMoiDong` gọi lời gọi CẢ LÔ vốn 404 toàn bộ khi một id
+       * vắng mặt, nên hai trong ba nguyên nhân — mặt hàng đã bị xoá khỏi danh
+       * mục, và mặt hàng chưa khai giá tại ngày áp dụng — ném `404
+       * PRODUCT_NOT_FOUND` TRƯỚC khi `hong` kịp có phần tử nào. Chốt chặn viết
+       * đúng, nêu đích danh mã sản phẩm, và không bao giờ chạy tới; người lập
+       * nhận một câu không nói dòng nào hỏng. Nay cả ba đều rơi vào `hong`.
+       */
+      const { hong } = await this.db.tx((c) => this.policies.lamMoiDong(c, policyId));
       if (hong.length > 0) {
         throw new UnprocessableEntityException({
           code: 'STALE_LINE',
           products: hong,
           message:
             `Không lấy được giá hoặc ngưỡng hiện hành cho: ${hong.join(', ')}. ` +
-            'Sản phẩm có thể đã vô hiệu hoá, hoặc chưa khai giá tại ngày áp dụng. ' +
-            'Xoá sản phẩm đó hoặc đổi ngày áp dụng rồi gửi lại.',
+            'Mặt hàng có thể đã vô hiệu hoá, đã bị xoá khỏi danh mục, ' +
+            'hoặc chưa khai giá tại ngày áp dụng của dòng. ' +
+            'Rút mặt hàng đó khỏi hồ sơ hoặc đổi ngày áp dụng rồi gửi lại.',
         });
       }
     }

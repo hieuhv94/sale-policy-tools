@@ -1660,6 +1660,57 @@ describe('`0194` khối chênh lệch trên trang hồ sơ', () => {
     expect(than).toContain('taiLai()');
     expect(than).not.toMatch(/datLech|datHoSo\(/);
   });
+
+  /**
+   * `0199` — LƯỢT BẤM BỎ LẠI GÌ THÌ PHẢI NÓI RA.
+   *
+   * Máy chủ trả `hong` từ `0194` và giao diện vứt nó đi, nên người dùng bấm nút,
+   * chờ, trang tải lại — khối nằm y nguyên và không một chữ nào nói vì sao. Đúng
+   * chỗ ấy khách hàng đã chốt điều ngược lại: *"sau khi cập nhật xong phần thông
+   * tin yêu cầu thay đổi sẽ biến mất"*. Nó không biến mất được thì phải có lý do
+   * đọc được, nếu không người dùng chỉ biết là nút hỏng.
+   */
+  const bamVoiKetQua = async (than: unknown) => {
+    await moSuaDuoc();
+    const goc = globalThis.fetch as (d: unknown, o?: unknown) => Promise<Response>;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((d: unknown, o?: unknown) =>
+        String(d).includes('/ap-dung-thay-doi') ? Promise.resolve(json(than)) : goc(d, o),
+      ),
+    );
+    fireEvent.click(nutCapNhat()!);
+  };
+
+  it('`0199` dòng KHÔNG áp được thì nói ra TÊN mặt hàng', async () => {
+    await bamVoiKetQua({ hong: ['NC-GOLD-900'], conLai: 2 });
+    const khoi = await waitFor(() => {
+      const k = document.querySelector('.canh-bao-lech') as HTMLElement;
+      expect(k.textContent).toContain('chưa cập nhật được');
+      return k;
+    });
+    // Tên mặt hàng chứ không phải một con số trần: khối bên dưới có thể nhiều
+    // dòng, và "1 mặt hàng" không nói được là dòng nào.
+    expect(khoi.textContent).toContain('NC-GOLD-900');
+    expect(khoi.textContent).toContain('1 mặt hàng');
+  });
+
+  it('`0199` áp được HẾT thì KHÔNG thêm câu nào', async () => {
+    /*
+     * Chiều đối chiếu, và nó là chiều dễ mất: khối biến mất ĐÃ LÀ câu trả lời
+     * (`0194`). Thêm một dòng chữ vào lượt trơn tru là doạ người dùng về một việc
+     * vừa xong xuôi.
+     */
+    await bamVoiKetQua({ hong: [], conLai: 0 });
+    await waitFor(() =>
+      expect(
+        (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.some((c) =>
+          String(c[0]).includes('/ap-dung-thay-doi'),
+        ),
+      ).toBe(true),
+    );
+    expect(document.body.textContent).not.toContain('chưa cập nhật được');
+  });
 });
 
 /**

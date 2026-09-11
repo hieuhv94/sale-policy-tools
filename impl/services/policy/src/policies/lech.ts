@@ -49,13 +49,32 @@ export const NHAN_TRANG_THAI_SP: Record<string, string> = {
 };
 
 /**
+ * VÌ SAO không có ảnh chụp, khi biết được (`0199`).
+ *
+ * Vắng mặt có HAI nghĩa, và catalog phân biệt được chúng: sản phẩm không còn
+ * trong danh mục, hay sản phẩm còn nguyên đó mà chưa khai giá tại ngày áp dụng
+ * của dòng. Trả lời chuyện thứ hai bằng câu *"đã xoá khỏi danh mục"* là nói một
+ * chuyện không xảy ra, ngay chỗ người ta đọc để quyết định rút mặt hàng.
+ *
+ * Bỏ trống = không nói được vì sao, và khi ấy câu mặc định là *"đã xoá"* — đúng
+ * cho người gọi duy nhất chỉ nhận vắng mặt loại ấy (consumer, xem `traAnhChup`).
+ */
+export const NHAN_VANG_MAT: Record<string, string> = {
+  PRICE_NOT_SET: 'Chưa khai giá tại ngày áp dụng',
+};
+
+/**
  * Một dòng lệch những gì. Mảng rỗng nghĩa là dòng ấy khớp danh mục.
  *
  * THỨ TỰ trong mảng là thứ tự NẶNG DẦN NGƯỢC — `PRODUCT` trước, rồi `PRICE`, rồi
  * `RULE`. Cùng thứ tự với `THU_TU` bên giao diện và với thư báo: một dòng vừa mất
  * sản phẩm vừa lệch giá thì thứ đáng nói trước là mất sản phẩm, ở mọi chỗ.
  */
-export function soSanhLech(d: DongDaChup, s: ProductSnapshot | undefined): MucLech[] {
+export function soSanhLech(
+  d: DongDaChup,
+  s: ProductSnapshot | undefined,
+  lyDoVangMat?: string | undefined,
+): MucLech[] {
   const ra: MucLech[] = [];
 
   /*
@@ -68,6 +87,8 @@ export function soSanhLech(d: DongDaChup, s: ProductSnapshot | undefined): MucLe
    * So sánh giá và ngưỡng thì không làm được nữa — không còn gì để so — nên dừng
    * ở đây với đúng một dòng lệch. Nói "giá đã đổi" về một sản phẩm không còn nữa
    * là một câu vô nghĩa.
+   *
+   * `lyDoVangMat` thêm ở `0199` — xem `NHAN_VANG_MAT`.
    */
   if (!s) {
     return [
@@ -75,7 +96,7 @@ export function soSanhLech(d: DongDaChup, s: ProductSnapshot | undefined): MucLe
         kind: 'PRODUCT',
         productCode: d.productCode,
         snap: NHAN_TRANG_THAI_SP['DANG_AP_DUNG']!,
-        moi: null,
+        moi: (lyDoVangMat === undefined ? undefined : NHAN_VANG_MAT[lyDoVangMat]) ?? null,
       },
     ];
   }

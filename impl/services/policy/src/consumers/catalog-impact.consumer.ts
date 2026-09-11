@@ -56,24 +56,6 @@ type DongCanRa = {
 /** Khuôn của `MucLech` bên `policies/lech.ts` — giữ tên cũ cho phần dưới đọc quen. */
 type Lech = MucLech;
 
-/**
- * Mã lỗi nghiệp vụ bên trong một `HttpException` của Nest (`0083`).
- *
- * `clients.ts` ném `NotFoundException({ code })`, và mã ấy nằm trong phần thân
- * phản hồi chứ không phải trên `Error.message`. Đọc bằng `instanceof
- * NotFoundException` thì KHÔNG đủ: `product-snapshot` trả 404 cho cả sản phẩm
- * đã xoá lẫn sản phẩm chưa khai giá, và hai chuyện ấy phải xử khác nhau.
- *
- * Đọc mềm, không ép kiểu: một lỗi mạng (`TypeError`) rơi vào đây thì trả về
- * `undefined`, và người gọi hiểu là "không kết luận được".
- */
-const maLoi = (e: unknown): string | undefined => {
-  const than = (e as { response?: unknown })?.response;
-  const ma = (than as { code?: unknown })?.code;
-  return typeof ma === 'string' ? ma : undefined;
-};
-
-
 @Injectable()
 export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(CatalogImpactConsumer.name);
@@ -297,51 +279,39 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
   /**
    * Ảnh chụp danh mục HÔM NAY cho một loạt sản phẩm, chịu được sản phẩm đã xoá.
    *
-   * Lời gọi cả lô trả 404 cho TOÀN BỘ khi chỉ một id không còn — đó là hợp đồng
-   * của `/internal/catalog/product-snapshots`, và nó đúng cho đường lập hồ sơ
-   * (thiếu một sản phẩm thì cả hồ sơ sai). Ở đây thì ngược lại: một sản phẩm
-   * biến mất là THÔNG TIN CẦN BÁO, không phải lý do bỏ qua cả hồ sơ.
+   * ---------------------------------------------------------------------------
+   * PHẦN THÂN DỜI SANG `clients.productSnapshotsChiuLoi` ở `0199`.
+   * ---------------------------------------------------------------------------
    *
-   * Nên: đường nhanh vẫn là một lời gọi cả lô, và chỉ khi nó hỏng mới lùi về
-   * hỏi từng cái. Đường chậm chỉ chạy đúng lúc có sản phẩm bị xoá — chuyện hiếm.
+   * Tới `0198` cơ chế lùi-về-hỏi-từng-cái nằm gọn ở đây, và chú thích của nó nói
+   * đúng cái bẫy mà `0194` sau đó dính: lời gọi cả lô trả 404 cho TOÀN BỘ khi
+   * chỉ một id không còn. `0194` mở khối *Yêu cầu cập nhật* cho hồ sơ còn sửa
+   * được, tức thêm một người gọi thứ hai cần đúng cơ chế ấy — và người gọi thứ
+   * hai không thừa kế được gì, vì thứ được dùng chung khi ấy là `soSanhLech`
+   * chứ không phải bước đi lấy ảnh chụp. Đo được hậu quả: cùng một trạng thái
+   * danh mục, hồ sơ đóng băng trả về hai chênh lệch còn hồ sơ Nháp trả về rỗng.
    *
-   * TRẢ VỀ HAI THỨ, không phải một (`0083`). Bản trước chỉ trả map, và mọi id
-   * vắng mặt đều bị hiểu là "đã xoá khỏi danh mục" — kể cả id mà lời gọi vừa
-   * hỏng vì lý do chớp nhoáng. Một lần catalog khởi động lại là mọi hồ sơ đã
-   * đóng băng bị ghi đè dấu vết thành *"sản phẩm đã bị xoá"*, và dấu vết lệch
-   * giá thật bị xoá theo — vì nhánh "đã xoá" `continue`, không so giá nữa.
+   * **Một chú thích cảnh báo không đi theo được người gọi mới; chỉ có hàm mới
+   * đi theo.** Nên phần thân nằm ở `clients.ts`, cạnh chính hợp đồng đã gây ra
+   * chuyện này.
    *
-   * `hong` là những id KHÔNG kết luận được. Người gọi phải bỏ qua cả hồ sơ ấy
-   * lượt này chứ không được ghi gì: không biết thì im lặng, đừng đoán.
+   * Còn lại ở đây đúng một quyết định, và nó là quyết định RIÊNG của consumer:
+   * chỉ `PRODUCT_NOT_FOUND` mới là "sản phẩm không còn trong danh mục"; mọi mã
+   * khác — kể cả `PRICE_NOT_SET`, sản phẩm còn đó mà chưa khai giá — đều là
+   * *"lúc này không tra được"*, và hồ sơ ấy bị bỏ qua nguyên lượt. Đường của hồ
+   * sơ còn sửa được chọn KHÁC ở đúng chỗ này (xem `docDongVaAnh`): ở đó
+   * `PRICE_NOT_SET` là một việc phải làm ngay, có người đang ngồi trước màn hình
+   * để làm nó.
    */
   private async traAnhChup(
     productIds: string[],
     customerType: number,
   ): Promise<{ anh: Map<string, ProductSnapshot>; hong: Set<string> }> {
-    try {
-      // KHÔNG truyền `on`: so với danh mục HÔM NAY — xem chú thích đầu tệp.
-      return { anh: await this.clients.productSnapshots(productIds, customerType), hong: new Set() };
-    } catch {
-      const anh = new Map<string, ProductSnapshot>();
-      const hong = new Set<string>();
-      for (const id of productIds) {
-        try {
-          anh.set(id, await this.clients.productSnapshot(id, customerType));
-        } catch (e) {
-          /*
-           * PHÂN BIỆT "đã xoá" với "tra hụt" (`0083`).
-           *
-           * Chỉ `PRODUCT_NOT_FOUND` mới là sản phẩm không còn trong danh mục.
-           * Mọi lỗi khác — catalog đang khởi động lại, mạng chớp, 500, hay sản
-           * phẩm còn đó mà chưa khai giá — đều là "lúc này không tra được", một
-           * chuyện hoàn toàn khác.
-           */
-          if (maLoi(e) === 'PRODUCT_NOT_FOUND') continue;
-          hong.add(id);
-        }
-      }
-      return { anh, hong };
-    }
+    // KHÔNG truyền `on`: so với danh mục HÔM NAY — xem chú thích đầu tệp.
+    const { anh, loi } = await this.clients.productSnapshotsChiuLoi(productIds, customerType);
+    const hong = new Set<string>();
+    for (const [id, ma] of loi) if (ma !== 'PRODUCT_NOT_FOUND') hong.add(id);
+    return { anh, hong };
   }
 
   /**

@@ -135,6 +135,25 @@ describe('`0194` lệch SẢN PHẨM', () => {
     const ra = soSanhLech(DONG, anh({ status: 'MOT_TRANG_THAI_MOI' }));
     expect(ra[0]!.moi).toBe('MOT_TRANG_THAI_MOI');
   });
+
+  it('`0199` CHƯA KHAI GIÁ tại ngày áp dụng KHÔNG được đọc thành "đã xoá"', () => {
+    /*
+     * Vắng mặt có HAI nghĩa và catalog phân biệt được chúng. Sản phẩm còn nguyên
+     * trong danh mục mà chưa khai giá tại ngày của dòng thì câu *"đã xoá khỏi
+     * danh mục"* là một chuyện không xảy ra — nói ra ngay chỗ người ta đọc để
+     * quyết định có rút mặt hàng hay không.
+     */
+    const ra = soSanhLech(DONG, undefined, 'PRICE_NOT_SET');
+    expect(ra).toHaveLength(1);
+    expect(ra[0]!.moi).toBe('Chưa khai giá tại ngày áp dụng');
+  });
+
+  it('`0199` lý do KHÔNG biết thì vẫn là "đã xoá" — hành vi cũ giữ nguyên', () => {
+    // Consumer chỉ đưa vào đây loại vắng mặt `PRODUCT_NOT_FOUND` và không truyền
+    // lý do, nên nhánh mặc định phải đúng y như trước `0199`.
+    expect(soSanhLech(DONG, undefined, undefined)[0]!.moi).toBeNull();
+    expect(soSanhLech(DONG, undefined, 'MOT_MA_LOI_LA')[0]!.moi).toBeNull();
+  });
 });
 
 describe('`0194` nhiều thứ lệch cùng lúc', () => {

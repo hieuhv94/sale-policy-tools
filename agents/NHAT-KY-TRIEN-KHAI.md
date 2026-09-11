@@ -17494,3 +17494,120 @@ hai lặng lẽ thành lượt thứ nhất và người dùng nhận về một
 
 
 **2250/2250 xanh.**
+
+---
+
+## P227 — `0199` Tự động cập nhật: chịu được sản phẩm vắng mặt, nói ra dòng bỏ lại, ghi dấu vết
+
+Người dùng bảo *rà lại chức năng tự động cập nhật, chỉ ra lỗi trước khi sửa*. Rà ra năm điểm; họ chốt
+sửa bốn, điểm thứ năm (*TDV không có đường nào BIẾT bản Nháp đã lệch, vì box Tổng quan lọc
+`DA_DONG_BANG`*) **không phải lỗi** — ghi lại ở đây để lần sau khỏi rà lại.
+
+### Điều tra: hai hồ sơ giống hệt nhau, hai câu trả lời ngược nhau
+
+Phép đo quyết định cả chặng, dựng trên chồng kiểm thật — hai hồ sơ **cùng hai dòng sản phẩm, cùng một
+trạng thái danh mục**, khác đúng một chuyện là trạng thái. Đổi giá sản phẩm A (100.000 → 130.000) rồi
+xoá sản phẩm B khỏi `cat.product`:
+
+```
+ĐÓNG BĂNG · lech: [ PRICE   A  100000 → 130000 · PRODUCT B 'Đang áp dụng' → null ]
+SỬA ĐƯỢC  · lech: []
+```
+
+Hồ sơ Nháp — đúng cái hồ sơ `0194` sinh ra để phục vụ, và là cái **duy nhất người dùng còn sửa
+được** — nói rằng không có gì lệch, trong khi dòng A lệch 30.000 đồng. Đây chính là thứ `lech.ts` viết
+ra để chống (*"chép phép so sang chỗ thứ hai là dựng ra hai câu trả lời"*). Phép so **đúng là một
+bản** — `soSanhLech` dùng chung thật. Thứ bị chép làm hai bản là **bước đi lấy ảnh chụp TRƯỚC khi
+so**, và chỉ một trong hai bản chịu được sản phẩm vắng mặt.
+
+### Một mắt xích, bốn chỗ đau
+
+`docDongVaAnh` gọi `productSnapshots` trần. Lời gọi lô của catalog là một vòng lặp `await` không bọc
+`try`, nên **một id hỏng là cả lô 404** — không có kết quả từng phần. Đó là hợp đồng **CÓ CHỦ Ý**, và
+nó đúng cho đường LẬP hồ sơ: thiếu một sản phẩm thì cả hồ sơ sai. `docDongVaAnh` thì **không phải
+đường lập hồ sơ** — nó là đường ĐỐI CHIẾU, nơi một sản phẩm biến mất là **thông tin cần báo**. Nó
+đang dùng hợp đồng của một bài toán khác. Bốn hệ quả, mỗi cái im lặng một kiểu:
+
+1. `byId` nuốt lỗi (`.catch(() => [])`) → khối cảnh báo **tắt hẳn**, kể cả chênh lệch của dòng khác;
+2. nút *Tự động cập nhật* → `404 PRODUCT_NOT_FOUND`;
+3. **gửi duyệt** → `404` luôn, nên `STALE_LINE` — chốt chặn nêu đích danh mã sản phẩm và chỉ ba lối
+   gỡ — **không bao giờ chạy tới**;
+4. `productSnapshots` ném `PRODUCT_NOT_FOUND` **mà không mở thân phản hồi ra đọc**, trong khi bản một
+   sản phẩm ngay dưới nó thì đọc — nên `PRICE_NOT_SET` **bị đổi tên**, và người dùng nhận *"không tìm
+   thấy sản phẩm này trong danh mục, tải lại rồi chọn lại"* về một mặt hàng đang nằm nguyên ở đó.
+
+> **VÌ SAO CONSUMER KHÔNG DÍNH, và đó mới là điểm đáng nhớ.** `traAnhChup` có nhánh lùi từ `0083`, và
+> chú thích của nó **nói đúng cái bẫy này**, kèm câu *"nó đúng cho đường lập hồ sơ… Ở đây thì ngược
+> lại"*. Hiểu biết ấy CÓ trong repo, viết rõ, đúng một chỗ. `0194` thêm người gọi thứ hai cần chính
+> nó, và người gọi thứ hai không thừa kế được gì — vì thứ được dùng chung khi ấy là `soSanhLech` chứ
+> không phải bước lấy ảnh chụp. **Một chú thích cảnh báo không đi theo được người gọi mới; chỉ có hàm
+> mới đi theo.** Nên phần thân dời sang `clients.productSnapshotsChiuLoi`, cạnh chính hợp đồng đã gây
+> ra chuyện này; consumer giữ lại đúng **một quyết định riêng của nó** — chỉ `PRODUCT_NOT_FOUND` mới
+> là vắng mặt, `PRICE_NOT_SET` vẫn là *"lúc này không tra được"* (với hồ sơ đã đóng băng thì không có
+> ai ngồi trước màn hình để xử nó; với hồ sơ sửa được thì có).
+
+Hệ quả kèm theo: nhánh `!s` của `soSanhLech` — *"sản phẩm đã bị xoá"*, viết ở `0036` với chú thích dài
+giải thích vì sao nó không được im lặng — **chưa bao giờ tới được** trên hồ sơ sửa được. Muốn tới đó
+thì `anh` phải thiếu một id, mà thiếu một id thì hàm đã ném từ trước.
+
+### `.catch(() => [])` biến một lỗi thành một lời nói dối
+
+Lập luận của khối `catch` ở `byId` vẫn đúng nguyên (danh mục chết thì người dùng phải mở được hồ sơ
+của mình — `0089`). Thứ đã đổi là **giá trị trả về mang bao nhiêu thông tin**: tới `0193` vế này là
+mảng rỗng THEO THIẾT KẾ, nên nuốt lỗi không giấu gì; `0194` biến chính nó thành **toàn bộ tính năng**
+mà khối `catch` giữ nguyên. Từ đó `[]` mang hai nghĩa loại trừ nhau — *"đã so, không lệch gì"* và
+*"không so được"* — và màn hình đọc cả hai thành nghĩa thứ nhất. Cùng lớp bẫy `0198` ghi cho `opt()`
+và `0154` ghi cho `trong()`, lần này ở tầng LỖI thay vì tầng dữ liệu.
+
+**Ranh giới của bản sửa, và nó là nửa quan trọng hơn**: chịu được *vắng mặt* thì đúng, chịu được *tra
+hụt* thì sai — và sai theo hướng **phá dữ liệu**. Nuốt nốt nhóm sau là mọi mặt hàng rơi vào `hong`,
+rồi `STALE_LINE` khuyên người dùng rút hết chúng khỏi hồ sơ trong khi catalog chỉ đang khởi động lại.
+Nên `docDongVaAnh` **ném** khi còn id không kết luận được, đúng như trước; `byId` vẫn nuốt ở lớp
+ngoài. Có một ca kiểm giả lập cả hai đường tra cùng hỏng và đòi `SUBMIT` **không** ra 422.
+
+### Ba chỗ còn lại
+
+**`conLai` tính trong CHÍNH lượt ghi.** `0194` mở transaction thứ hai gọi `soSanhDong` để đếm lại —
+tức hỏi danh mục thêm một vòng **sau khi đã commit**, và vòng ấy không có `catch`. Một cú chớp mạng
+đúng khoảng đó trả lỗi cho người dùng về một việc ĐÃ XONG: giao diện bắt lỗi nên không `taiLai()`, và
+màn hình bày số cũ cho dòng đã đổi dưới CSDL. `lamMoiDong` giờ trả luôn `conLai`, và nó **đúng theo
+cấu trúc**: dòng đã ghi lại có `company_price_snap`/`threshold_snap` bằng đúng ảnh chụp nên phép so
+cho rỗng, phần còn lệch đúng bằng chênh lệch của những dòng không áp được.
+
+> **Ca kiểm canh SỐ LƯỢT GỌI, không canh mã HTTP — và lý do chỉ lộ ra lúc phá lại.** Dựng lại lượt
+> hỏi thứ hai thì request **vẫn 200**, vì nhánh lùi mới của `0199` bắt lời gọi lô hỏng rồi đi hỏi
+> từng cái (đường ấy không bị giả lập). Tức bản sửa **che mất chính triệu chứng**, và một ca canh
+> theo triệu chứng sẽ xanh với đúng cái hỏng. Con số lượt gọi thì không che được.
+
+**Giao diện nói ra `hong`.** Máy chủ trả sẵn nó từ `0194`; giao diện `await` rồi vứt đi. Chỗ câu chữ
+sống được **bên trong** khối là nhờ một bất biến: *một mặt hàng vào `hong` thì luôn để lại ít nhất
+một mục lệch* — vô hiệu hoá và biến mất ra mục `PRODUCT`, còn `computeLine` ném thì giá đã đổi nên đã
+có mục `PRICE`. Bất biến ấy có ca kiểm riêng, vì nó là **điều kiện** để chỗ ấy đúng chứ không phải
+một nhận xét bên lề. Đọc `hong` bằng `Array.isArray` chứ không tin khai báo kiểu (bẫy `0198`).
+
+**Một dòng nhật ký.** `lamMoiDong` cố ý không phát sự kiện nào — đúng khi nó còn chạy ở đường ĐỌC
+(`0029`: *"không có người nào vừa sửa gì"*). Tiền đề ấy mất từ `0194`. `audit` nghe `#`, nên không sự
+kiện = **không một dấu vết nào** cho một thao tác đổi số trên văn bản sắp ký.
+
+> **CA KIỂM BẮT ĐÚNG MỘT CHỖ TÔI GHÉP SAI.** Bản đầu gác bằng `daApDung.length > 0` — *"đã ghi dòng
+> nào chưa"*. Nhưng `lamMoiDong` `UPDATE` lại **mọi dòng lành**, kể cả dòng đang khớp danh mục từng
+> con số, nên "đã ghi" khác rỗng ở mọi hồ sơ còn sống: bấm nút lúc không có gì để đổi vẫn ghi một
+> dòng nhật ký. Câu hỏi đúng là *"đã ĐỔI gì chưa"* → `daDoi`, lọc bằng chính `soSanhMotDong` đã tính
+> sẵn trong vòng lặp.
+
+### Đo lại và phá lại
+
+Nghiệm thu trên chồng kiểm thật, sáu kịch bản: vô hiệu hoá · hồ sơ hai dòng một áp được một không ·
+đổi QĐCK · sản phẩm biến mất · gửi duyệt · outbox. Chuỗi gỡ kẹt đo được đầy đủ: `SUBMIT` 422
+`STALE_LINE` nêu tên → rút dòng → `SUBMIT` 200.
+
+Năm lượt phá lại, năm đỏ đúng chỗ và đúng tầng: gọi lại `productSnapshots` trần → **4 đỏ** (đủ bốn
+triệu chứng, gồm cả ca hai-hồ-sơ-cùng-một-câu) · gỡ câu chữ ở giao diện → 1 đỏ ở `tests/web` · gỡ
+`emit` → 1 đỏ ở outbox · dựng lại lượt hỏi danh mục thứ hai → 1 đỏ ở số lượt gọi · gỡ lằn ranh *tra
+hụt* → 1 đỏ ở `SUBMIT` ra 422. Hai ca **xanh có lý do, đã kiểm**: *"rút dòng hỏng rồi gửi lại"* (nó
+canh lối gỡ, không canh bản sửa) và *"catalog không tra được"* ở lượt phá thứ nhất (mã cũ cũng ném).
+
+Tài liệu: `03-HUONG-DAN-SU-DUNG.md` sửa khối *Yêu cầu cập nhật* — và **một câu đã sai từ `0194`**
+nằm sẵn ở đó (*"hồ sơ Nháp tự cập nhật mỗi lần mở nên không có gì để nhắc"*), đúng cái `0194` gỡ đi.
+
+**2265/2265 xanh.**
