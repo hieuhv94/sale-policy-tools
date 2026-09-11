@@ -18005,3 +18005,82 @@ NGƯỢC (chưa bấm gì thì chưa đổi nhãn · hồ sơ hiệu lực kéo 
 không đổi nhãn), nên mã cũ cũng thoả — đó là việc của chúng.
 
 **2302/2302 xanh.**
+
+---
+
+## P231 — `0203` Sửa một dòng thì Giá bán Công ty là giá hiện hành
+
+Cùng gốc với `0201`, ở **nửa còn lại** — và cái nửa ấy tôi đã cầm trên tay hai chặng trước rồi đặt
+xuống với một lý do nghe hợp lý.
+
+`0201` quy đổi ngày tra danh mục cho đường ĐỐI CHIẾU và đường LÀM MỚI, rồi viết thẳng ra: *"Đường LẬP
+hồ sơ giữ nguyên `0029` — ở đó ngày áp dụng vẫn thắng, kể cả ngày quá khứ TDV cố ý đề"*. Câu ấy đúng
+cho `create`, và **sai cho `addLine`/`updateLine`** — hai đường tôi gộp chung vào cụm "đường lập hồ
+sơ" mà không tách ra xem. Chúng không phải lượt LẬP; chúng là TDV đang ngồi sửa một dòng, hôm nay.
+
+### Đo trước, và nó nặng hơn báo cáo
+
+```
+A  hộp thoại Sửa bày   100.000     (danh mục đang 130.000)
+B  bấm Tự động cập nhật → 130.000
+C  sửa GHI CHÚ          → 100.000   ← lượt cập nhật biến mất, khối cảnh báo mọc lại
+```
+
+Vế A là thứ người dùng báo: hộp thoại tra theo `ngay_ap_dung` của dòng, mà dòng thừa kế mang ngày của
+bản CSBH trước — tức một ngày đã qua, tức **đúng con số đang nằm sẵn trên dòng**. Hộp thoại bày lại
+chính nó, và người lập không có cách nào biết giá đã đổi trừ khi mở khối *Yêu cầu cập nhật* ra đọc.
+
+Vế C là thứ không ai báo và không có gì đỏ: `updateLine` chụp lại giá ở mỗi lượt sửa (đúng, và có chủ
+ý từ `0027` — *"sửa một khoản chi phí lại vô tình giữ nguyên một mức giá đã cũ"*), nhưng chụp ở ngày
+của dòng. Nên **sửa một ô chẳng liên quan gì tới giá sẽ ghi đè ngược con số vừa cập nhật**. Không mã
+lỗi, không màn hình nào nói. Từ `0202` nó còn kéo theo nhãn: dòng vừa thành *Chỉnh sửa* rồi lại đúng
+là *Chỉnh sửa*, nên **ngay cả cột trạng thái cũng không lộ ra gì**.
+
+### Chỗ tốn công: `customer.on` làm HAI việc
+
+`upsertLine` dùng `customer.on` vừa để tra bảng giá vừa để ghi `ngay_ap_dung`, và có hẳn một chú thích
+khẳng định điều đó là an toàn: *"nó vừa được dùng để tra bảng giá vài dòng trên, nên hai con số không
+thể lệch nhau"*. Đúng cho tới lượt này, và lượt này cần chúng **lệch nhau**: ngày GHI là ngày TDV
+khai, ngày TRA là ngày đã quy đổi. Quy đổi cả cụm cho gọn thì dời ngày áp dụng của mọi dòng thừa kế về
+hôm nay — mà `ngay_ap_dung` nằm trong phép so trạng thái (`0180`), nên cả bảng nhảy sang *Chỉnh sửa*.
+
+Không đổi chữ ký `upsertLine`: nó **đã có** tham số `preloaded`, dựng cho lượt tra cả lô của `create`.
+`addLine`/`updateLine` tra ảnh chụp ở ngày quy đổi rồi đưa vào đúng chỗ ấy. Cái sẵn có vừa vặn, và
+đường `create` không bị chạm.
+
+### Ranh giới, và tiền đề mà nó đứng lên
+
+`create` khi thân request mang sẵn `lines` **vẫn theo `0029`** — nên hệ thống có hai câu trả lời cho
+*"dòng này lấy bảng giá ngày nào"*, và đó là thứ `CLAUDE.md` gọi tên là cách hỏng khó truy nhất. Nó
+chấp nhận được vì **người dùng không có đường nào đi qua cái thứ hai**: cả *Lập hồ sơ* lẫn *Lập phiên
+bản mới* đều gửi `lines: []` rồi thêm từng dòng bằng `addLine`.
+
+Nhưng đó là một tiền đề về mã GIAO DIỆN đỡ cho một ranh giới ở MÁY CHỦ — **không tệp nào một mình nhìn
+thấy cái lệch ấy**, đúng hình dạng `0134` đã ghi. Nên nó có ca kiểm riêng ở `nguon-giao-dien.test.ts`
+quét hai màn hình và đòi mọi lượt `POST '/policies'` mang `lines: []`. Ngày nào điều đó thôi đúng, ca
+ấy đỏ và người sửa đọc được vì sao chỗ ấy phải theo luật mới.
+
+> **Vì sao KHÔNG nới cho `create` luôn**: `0029` có ba ca kiểm dựng bằng ngày quá khứ, và một trong ba
+> (*"hai dòng hai ngày thì chụp hai bảng giá khác nhau"*) canh chính cơ chế gom-theo-ngày của
+> `create` — quy đổi hết về hôm nay là hai dòng dồn về một lô và ca ấy thôi đo được gì. Nới đúng thì
+> phải viết lại chúng bằng ngày TƯƠNG LAI, và kéo theo bộ nạp demo: mọi dòng demo đề 01/08, nên chúng
+> sẽ chụp giá hôm nay và **34 hồ sơ *Yêu cầu cập nhật* mà `0200` vừa cân về 0**. Đó là một lượt sửa
+> khác, có giá của nó.
+
+`ngayTraDanhMuc` dời khỏi `lech.ts` sang tệp riêng: từ nay nó phục vụ cả đường GHI, mà `lech.ts` mở
+đầu bằng *"phép so, một bản duy nhất"* — để nó ở đó là mời người sau đọc sai phạm vi.
+
+### Phá lại
+
+| Hoàn tác | Đỏ |
+|---|---|
+| `updateLine` thôi quy đổi | 2 |
+| `thresholdPreview` thôi quy đổi | 2 — gồm ca *xem trước và lưu cho cùng một con số* |
+| quy đổi CẢ CỤM (gộp ngày ghi với ngày tra) | **3**, trong đó **2 ca có sẵn của `0029`/`0180`** |
+
+Lượt thứ ba là lượt đáng giá nhất: cách sửa sai hấp dẫn nhất của chặng bị chính hai ca kiểm cũ chặn
+lại, không phải ca mới. Ca kiểm quét mã nguồn giao diện **đỏ ở lượt viết đầu vì lý do sai** — regex
+`lines:` bắt luôn khai báo kiểu `lines: DongSanPham[]` và một dòng chú thích; neo lại vào chuỗi
+`'/policies'` để nó hỏi THÂN của lượt gọi.
+
+**2311/2311 xanh.**

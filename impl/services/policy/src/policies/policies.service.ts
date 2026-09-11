@@ -28,7 +28,8 @@ import {
   type Status,
 } from '@csbh/domain-policy';
 import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
-import { ngayTraDanhMuc, soSanhLech, type MucLech } from './lech.js';
+import { soSanhLech, type MucLech } from './lech.js';
+import { ngayTraDanhMuc } from './ngay-tra-danh-muc.js';
 import { chuanHoaMa, CAU_LOI_MA } from './ma-ho-so.js';
 import type { ProductSnapshot } from '../infra/clients.js';
 
@@ -1233,10 +1234,19 @@ export class PoliciesService {
           snap.ruleCode ?? null,
           snap.thresholdSource,
           line.note?.trim() || null,
-          // `0180` — ngày áp dụng của dòng. `customer.on` là CHÍNH ngày ấy: nó
-          // vừa được dùng để tra bảng giá vài dòng trên, nên hai con số không
-          // thể lệch nhau. Rơi về hôm nay chỉ xảy ra ở đường gọi không khai
-          // ngày, và `create` đã điền sẵn trước khi tới đây.
+          /*
+           * `0180` — ngày áp dụng của dòng, tức con số ĐI RA MÀN HÌNH và ra tờ
+           * giấy. Rơi về hôm nay chỉ xảy ra ở đường gọi không khai ngày, và
+           * `create` đã điền sẵn trước khi tới đây.
+           *
+           * `0203` — NÓ THÔI LÀ CÙNG MỘT CON SỐ VỚI NGÀY TRA BẢNG GIÁ. Tới `0202`
+           * chỗ này còn ghi *"`customer.on` vừa được dùng để tra bảng giá vài
+           * dòng trên, nên hai con số không thể lệch nhau"* — câu ấy hết đúng:
+           * `addLine` và `updateLine` giờ tra ở `ngayTraDanhMuc(on, hôm nay)` rồi
+           * đưa ảnh chụp vào đây qua `preloaded`, đúng để hai con số ĐƯỢC PHÉP
+           * lệch. Dòng đề ngày quá khứ mang giá hiện hành mà vẫn giữ ngày của
+           * nó; gộp lại là dời ngày áp dụng và lật nhãn trạng thái (`0201`).
+           */
           customer.on ?? ngayVN(),
         ],
       )
@@ -1287,9 +1297,23 @@ export class PoliciesService {
           message: 'Sản phẩm này đã có trong hồ sơ',
         });
       }
-      // `0180` — ngày của CHÍNH DÒNG NÀY quyết định bảng giá được chụp, không
-      // phải một ngày của hồ sơ. Thiếu thì hôm nay (`ngayVN`).
-      await this.upsertLine(c, policyId, line, { ...customer, on: line.ngayApDung ?? ngayVN() });
+      /*
+       * `0180` — ngày của CHÍNH DÒNG NÀY quyết định bảng giá được chụp, không
+       * phải một ngày của hồ sơ. Thiếu thì hôm nay (`ngayVN`).
+       *
+       * `0203` — nhưng KHÔNG cũ hơn hôm nay, xem `ngayTraDanhMuc`. Ảnh chụp tra
+       * sẵn ở đây rồi đưa vào `upsertLine` qua `preloaded`, vì hàm ấy dùng
+       * `customer.on` cho CẢ HAI việc — tra danh mục và ghi `ngay_ap_dung` — mà
+       * từ nay hai con số ấy tách nhau: ngày GHI là ngày TDV khai, ngày TRA là
+       * ngày đã quy đổi.
+       */
+      const ngayDong = line.ngayApDung ?? ngayVN();
+      const snap = await this.clients.productSnapshot(
+        line.productId,
+        customer.customerType,
+        ngayTraDanhMuc(ngayDong, ngayVN()),
+      );
+      await this.upsertLine(c, policyId, line, { ...customer, on: ngayDong }, snap);
       await this.quenDauVetDong(c, policyId, line.productId);
       await this.bumpVersion(c, policyId);
       await emit(c, 'policy.updated', {
@@ -1350,11 +1374,33 @@ export class PoliciesService {
        * tháng sau sẽ âm thầm kéo nó về hôm nay.
        */
       const on = input.ngayApDung ?? ngayISO(cu.rows[0]!.ngay_ap_dung)!;
+      /*
+       * `0203` — GIÁ BÁN CÔNG TY LẤY BẢNG GIÁ HIỆN HÀNH, không phải bảng giá của
+       * một ngày đã qua.
+       *
+       * Khách hàng chốt 12/09: mở *Sửa* một dòng thì Giá bán Công ty phải là giá
+       * hiện tại. Trước lượt này nó tra theo `on` — với dòng thừa kế thì `on` là
+       * ngày của bản CSBH trước, tức một ngày quá khứ, tức đúng con số đang nằm
+       * sẵn trên dòng. Hộp thoại vì thế bày lại chính nó.
+       *
+       * Đo được, và nặng hơn hộp thoại: sau khi bấm *Tự động cập nhật* (dòng lên
+       * 130.000), sửa MỘT GHI CHÚ là dòng tụt về 100.000 — lượt cập nhật biến
+       * mất, khối *Yêu cầu cập nhật* mọc lại, không ai đụng vào giá.
+       *
+       * `on` vẫn là ngày GHI vào `ngay_ap_dung` (đổi nó là dời ngày áp dụng và
+       * lật nhãn trạng thái của mọi dòng — `0201`); chỉ ngày TRA đổi.
+       */
+      const snap = await this.clients.productSnapshot(
+        cu.rows[0]!.product_id,
+        customer.customerType,
+        ngayTraDanhMuc(on, ngayVN()),
+      );
       await this.upsertLine(
         c,
         policyId,
         { productId: cu.rows[0]!.product_id, ...input, ngayApDung: on },
         { ...customer, on },
+        snap,
       );
       await this.quenDauVetDong(c, policyId, cu.rows[0]!.product_id);
       await this.bumpVersion(c, policyId);
@@ -2592,10 +2638,13 @@ export class PoliciesService {
     await this.assertPolicyInScope(p, me);
 
     const customer = await this.clients.customer(p.customer_id);
+    // `0203` — CÙNG ngày tra với `addLine`/`updateLine`, và đó là điều kiện chứ
+    // không phải sự trùng hợp: hộp thoại này bày ra con số rồi lượt lưu ngay sau
+    // đó ghi con số. Hai ngày khác nhau là bày một đằng ghi một nẻo (`0193`).
     const snap = await this.clients.productSnapshot(
       productId,
       customer.customerType,
-      ngayApDung ?? ngayVN(),
+      ngayTraDanhMuc(ngayApDung ?? ngayVN(), ngayVN()),
     );
     return {
       productId: snap.productId,

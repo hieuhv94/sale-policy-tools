@@ -7357,3 +7357,192 @@ describe('`0202` giá bán Công ty đổi thì dòng thừa kế thành *Chỉn
     expect(l['trangThai']).toBe('DANG_AP_DUNG');
   });
 });
+
+// =============================================================================
+// `0203` — SỬA MỘT DÒNG THÌ GIÁ BÁN CÔNG TY LẤY BẢNG GIÁ HIỆN HÀNH
+// =============================================================================
+
+/**
+ * Khách hàng chốt 12/09: *"khi hồ sơ ở Nháp hoặc Yêu cầu chỉnh sửa, nhấn sửa một
+ * sản phẩm thì Giá bán Công ty phải tự động cập nhật giá hiện tại, chứ không phải
+ * giá đang hiện trong CSBH"*.
+ *
+ * Cùng gốc với `0201`, ở nửa còn lại: `0201` quy đổi ngày tra cho đường ĐỐI CHIẾU
+ * và đường LÀM MỚI, còn đường GHI của `addLine`/`updateLine` — và hộp thoại xem
+ * trước đi kèm — vẫn tra theo đúng `ngay_ap_dung` của dòng. Với dòng thừa kế thì
+ * ngày ấy là ngày của bản CSBH trước, nên hộp thoại bày lại chính con số đang nằm
+ * trên dòng.
+ *
+ * Đo được trên chồng kiểm, và nặng hơn hộp thoại:
+ *
+ *   bấm *Tự động cập nhật* → 130.000
+ *   sửa MỘT GHI CHÚ        → 100.000   ← lượt cập nhật biến mất, khối cảnh báo mọc lại
+ */
+describe('`0203` sửa dòng thì giá bán Công ty là giá hiện hành', () => {
+  const dongCua = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    body.lines.find((l) => l['productId'] === productId)!;
+
+  const doiGiaHomNay = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  /** Phiên bản mới có một dòng thừa kế đề ngày QUÁ KHỨ, và danh mục vừa đổi giá. */
+  const banMoiDongNgayCu = async () => {
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    const v1 = await post('/policies', {
+      customerId,
+      lines: [line(productId, { ngayApDung: '2020-06-01' })],
+    });
+    expect(v1.status, JSON.stringify(v1.body)).toBe(201);
+    await runToActive({ id: v1.body.id });
+    await doiGiaHomNay(productId, '130000');
+    const v2 = await post('/policies', { customerId, mode: 'NEW_VERSION', lines: [] });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    return { productId, customerId, v2Id: v2.body.id as string, v2: v2.body };
+  };
+
+  it('HỘP THOẠI xem trước bày giá HIỆN HÀNH, không bày lại số trên dòng', async () => {
+    const d = await banMoiDongNgayCu();
+    const dong = dongCua(d.v2, d.productId);
+    expect(dong['companyPrice'], 'dòng vẫn giữ số đã đóng băng').toBe('100000');
+
+    const xem = await get(
+      `/policies/${d.v2Id}/threshold-preview?productId=${d.productId}` +
+        `&ngayApDung=${String(dong['ngayApDung']).slice(0, 10)}`,
+    );
+    expect(xem.status, JSON.stringify(xem.body)).toBe(200);
+    expect(xem.body.companyPrice).toBe('130000');
+  });
+
+  it('SỬA GHI CHÚ cũng chụp lại giá hiện hành — không làm mất lượt *Tự động cập nhật*', async () => {
+    /*
+     * Ca đáng giá nhất của chặng, và nó nói về một chuỗi chứ không một lượt gọi:
+     * bấm nút xong rồi sửa một ô CHẲNG LIÊN QUAN GÌ TỚI GIÁ là con số vừa cập
+     * nhật bị ghi đè ngược. Không mã lỗi, không màn hình nào nói, và khối *Yêu
+     * cầu cập nhật* mọc lại như chưa có chuyện gì.
+     */
+    const d = await banMoiDongNgayCu();
+    expect((await post(`/policies/${d.v2Id}/ap-dung-thay-doi`, {})).status).toBe(200);
+    const sauAp = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(sauAp['companyPrice']).toBe('130000');
+
+    const r = await patch(`/policies/${d.v2Id}/lines/${sauAp['id']}`, {
+      wholesalePrice: sauAp['wholesalePrice'],
+      cpbh: sauAp['cpbh'],
+      note: 'doi moi ghi chu',
+      ngayApDung: String(sauAp['ngayApDung']).slice(0, 10),
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const hs = (await get(`/policies/${d.v2Id}`)).body;
+    expect(dongCua(hs, d.productId)['companyPrice']).toBe('130000');
+    expect(hs.lech, 'hồ sơ vừa cập nhật xong thì không còn gì lệch').toEqual([]);
+  });
+
+  it('NGÀY ÁP DỤNG của dòng KHÔNG bị kéo theo', async () => {
+    /*
+     * Ranh giới của cả bản sửa, và là chỗ nó dễ hỏng nhất: `upsertLine` dùng
+     * `customer.on` cho CẢ HAI việc — tra bảng giá và ghi `ngay_ap_dung`. Quy đổi
+     * cả cụm thay vì chỉ ngày TRA là dời ngày áp dụng của mọi dòng thừa kế về hôm
+     * nay, và `ngay_ap_dung` nằm trong phép so trạng thái (`0180`) nên cả bảng
+     * nhảy sang *Chỉnh sửa* vì một lý do không ai nêu.
+     */
+    const d = await banMoiDongNgayCu();
+    const dong = dongCua(d.v2, d.productId);
+
+    const r = await patch(`/policies/${d.v2Id}/lines/${dong['id']}`, {
+      wholesalePrice: dong['wholesalePrice'],
+      cpbh: dong['cpbh'],
+      ngayApDung: '2020-06-01',
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+
+    const sau = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(String(sau['ngayApDung'])).toContain('2020-06-01');
+    expect(sau['companyPrice']).toBe('130000');
+  });
+
+  it('THÊM một dòng đề ngày quá khứ cũng lấy giá hiện hành', async () => {
+    // `addLine` và `updateLine` đi cùng một hộp thoại, nên chúng phải đi cùng một
+    // luật — để lệch là người dùng thấy hai câu trả lời trong cùng một biểu mẫu.
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [] });
+    expect(d.status, JSON.stringify(d.body)).toBe(201);
+    await doiGiaHomNay(productId, '130000');
+
+    const them = await post(`/policies/${d.body.id}/lines`, {
+      productId,
+      wholesalePrice: '90000',
+      cpbh: ['5000'],
+      ngayApDung: '2020-06-01',
+    });
+    expect(them.status, JSON.stringify(them.body)).toBe(201);
+    const l = dongCua(them.body, productId);
+    expect(l['companyPrice']).toBe('130000');
+    expect(String(l['ngayApDung'])).toContain('2020-06-01');
+  });
+
+  it('XEM TRƯỚC và LƯU cho CÙNG một con số', async () => {
+    /*
+     * Bất biến mà hai ca trên không nói được khi đứng riêng: hộp thoại bày con số
+     * rồi lượt lưu ngay sau đó ghi con số. Lệch nhau là đúng lỗi `0193` sinh ra để
+     * chống — và nó lệch được theo cả hai chiều, nên hỏi thẳng bằng một phép so.
+     */
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [] });
+    await doiGiaHomNay(productId, '170000');
+
+    const xem = await get(
+      `/policies/${d.body.id}/threshold-preview?productId=${productId}&ngayApDung=2020-06-01`,
+    );
+    const them = await post(`/policies/${d.body.id}/lines`, {
+      productId, wholesalePrice: '90000', cpbh: ['5000'], ngayApDung: '2020-06-01',
+    });
+    expect(dongCua(them.body, productId)['companyPrice']).toBe(xem.body.companyPrice);
+  });
+
+  it('RANH GIỚI: dòng đề ngày TƯƠNG LAI vẫn lấy bảng giá của ngày ấy', async () => {
+    // Vế `0201` đã dựng và `0203` không được làm hỏng: `max(ngày dòng, hôm nay)`,
+    // không phải "luôn hôm nay".
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(productId, '500000', '2030-01-01');
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [] });
+    await doiGiaHomNay(productId, '130000');
+
+    const them = await post(`/policies/${d.body.id}/lines`, {
+      productId, wholesalePrice: '90000', cpbh: ['5000'], ngayApDung: '2030-06-01',
+    });
+    expect(them.status, JSON.stringify(them.body)).toBe(201);
+    expect(dongCua(them.body, productId)['companyPrice']).toBe('500000');
+  });
+
+  it('RANH GIỚI: `create` mang sẵn `lines` thì VẪN theo `0029`', async () => {
+    /*
+     * Chỗ duy nhất còn tra theo đúng `ngay_ap_dung`, và nó có chủ ý — ghim lại để
+     * lượt đổi sau (nếu có) là một quyết định chứ không phải một hệ quả kèm theo.
+     *
+     * Người dùng không có đường nào nhìn thấy hai câu trả lời: cả *Lập hồ sơ* lẫn
+     * *Lập phiên bản mới* đều gửi `lines: []` rồi thêm từng dòng bằng `addLine`
+     * (có ca kiểm quét mã nguồn giao diện giữ cho điều đó đúng). Đường này chỉ
+     * còn API và bộ nạp dữ liệu đi qua.
+     */
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    await doiGiaHomNay(productId, '130000');
+
+    const d = await post('/policies', {
+      customerId,
+      lines: [line(productId, { ngayApDung: '2020-06-01' })],
+    });
+    expect(d.status, JSON.stringify(d.body)).toBe(201);
+    expect(dongCua(d.body, productId)['companyPrice']).toBe('100000');
+  });
+});

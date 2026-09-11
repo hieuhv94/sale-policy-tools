@@ -688,3 +688,43 @@ describe('`0186` dòng sản phẩm đã rút được làm mờ', () => {
     expect(css).toMatch(/\.dong-da-xoa\s+\.nhom-nut\s*\{[^}]*opacity:\s*1/);
   });
 });
+
+/**
+ * `0203` — GIAO DIỆN KHÔNG BAO GIỜ GỬI `lines` LÚC LẬP HỒ SƠ.
+ *
+ * Đây là TIỀN ĐỀ của một ranh giới ở máy chủ, không phải một chi tiết phong cách:
+ * `0203` cho `addLine`/`updateLine`/xem-trước tra bảng giá ở `max(ngày dòng, hôm
+ * nay)`, còn `create` khi thân request mang sẵn `lines` thì vẫn tra theo đúng
+ * `ngay_ap_dung` (`0029`). Hai câu trả lời ấy chỉ vô hại chừng nào **người dùng
+ * không có đường nào đi qua cái thứ hai** — cả *Lập hồ sơ* lẫn *Lập phiên bản
+ * mới* đều gửi mảng rỗng rồi thêm từng dòng sau.
+ *
+ * Ca kiểm đứng ở đây vì tiền đề nằm trong mã GIAO DIỆN, còn thứ nó bảo vệ nằm ở
+ * máy chủ — không tệp nào một mình nhìn thấy cái lệch ấy. Ngày nào một màn hình
+ * gửi `lines` có nội dung, ca này đỏ và người sửa đọc được vì sao chỗ ấy phải
+ * theo luật mới.
+ */
+describe('`0203` lượt lập hồ sơ của giao diện luôn gửi `lines` rỗng', () => {
+  for (const tep of ['pages/LapHoSo.tsx', 'pages/ChiTietHoSo.tsx']) {
+    it(`${tep} — mọi lượt POST /policies gửi mảng rỗng`, () => {
+      const s = readFileSync(join(GOC, tep), 'utf8');
+      /*
+       * Hỏi THÂN của lượt gọi, không hỏi mọi chỗ viết chữ `lines:`.
+       *
+       * Bản đầu quét `/lines:\s*(...)/g` trên cả tệp và đỏ ở `ChiTietHoSo.tsx` mà
+       * không có gì hỏng: nó bắt luôn khai báo kiểu `lines: DongSanPham[]` và một
+       * dòng chú thích. Một ca kiểm đỏ vì lý do sai thì lượt sửa kế tiếp sẽ là
+       * nới nó ra, và khi ấy nó thôi canh được gì.
+       *
+       * Neo vào chuỗi `'/policies'` — đúng đường LẬP hồ sơ. Mọi đường khác dưới
+       * `/policies/...` viết bằng template literal nên không khớp.
+       */
+      const goi = [...s.matchAll(/'\/policies'\s*,/g)];
+      expect(goi.length, `${tep} phải có ít nhất một lượt POST /policies`).toBeGreaterThan(0);
+      for (const m of goi) {
+        const than = s.slice(m.index!, m.index! + 400);
+        expect(than, `${tep} — thân lượt lập hồ sơ phải có \`lines: []\``).toContain('lines: []');
+      }
+    });
+  }
+});

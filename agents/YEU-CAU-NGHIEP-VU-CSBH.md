@@ -849,10 +849,23 @@ Bản CSBH in ra vì thế **không còn ô *Thời gian áp dụng*** ở đầ
 bảng sản phẩm**, ngay bên trái *Mã sản phẩm*. In một ngày duy nhất ở đầu trang là nói sai về mọi
 dòng có ngày khác.
 
-**NGÀY ĐÃ QUA THÌ ĐỐI CHIẾU THEO HÔM NAY** `mới 11/09`. Luật trên nói về lượt **chụp** số lúc lập hồ
-sơ, và nó không đổi: khai ngày 01/09 thì dòng ấy chụp bảng giá của 01/09, kể cả ngày trong quá khứ.
-Nhưng khi phần mềm đi **đối chiếu** một hồ sơ còn sửa được với danh mục — khối *Yêu cầu cập nhật* và
-nút *Tự động cập nhật* — thì ngày tra là **ngày áp dụng của dòng, hoặc hôm nay, lấy ngày MUỘN HƠN**.
+**NGÀY ĐÃ QUA THÌ TRA THEO HÔM NAY** `mới 11/09` `sửa 12/09`. Ngày tra bảng giá của một dòng là
+**ngày áp dụng của dòng, hoặc hôm nay, lấy ngày MUỘN HƠN**. Áp cho mọi lượt mà TDV đang soạn một dòng
+của hồ sơ còn sửa được: **thêm** dòng · **sửa** dòng · hộp thoại **xem trước** · khối *Yêu cầu cập
+nhật* và nút *Tự động cập nhật*.
+
+> **Mở *Sửa* một sản phẩm thì Giá bán Công ty là giá HIỆN TẠI** `mới 12/09`, không phải con số đang
+> nằm trên dòng. Trước `12/09` hộp thoại tra theo đúng ngày áp dụng của dòng — mà dòng thừa kế mang
+> ngày của bản CSBH trước, tức một ngày đã qua, tức chính con số đang hiện ra: hộp thoại bày lại
+> chính nó. Nặng hơn thế: bấm *Tự động cập nhật* (giá lên 130.000) rồi **sửa một ghi chú** là dòng
+> tụt về 100.000 — lượt cập nhật biến mất, khối cảnh báo mọc lại, không ai đụng vào giá.
+>
+> **Ngày áp dụng của dòng KHÔNG bị kéo theo.** Ngày GHI là ngày TDV khai; chỉ ngày TRA được quy đổi.
+> Gộp hai thứ ấy là dời ngày áp dụng của mọi dòng thừa kế và lật nhãn trạng thái của cả bảng.
+
+Lượt **lập hồ sơ kèm sẵn danh sách sản phẩm** là chỗ duy nhất vẫn tra theo đúng ngày áp dụng — đường
+ấy chỉ dành cho tích hợp và bộ nạp dữ liệu; hai màn hình lập hồ sơ đều tạo hồ sơ rỗng rồi thêm từng
+dòng.
 
 Vì bảng giá của một ngày đã qua thì không đổi nữa (mọi lượt đổi giá đều hiệu lực từ hôm nay — muc
 6.2), nên đối chiếu một dòng đề ngày quá khứ với chính bảng giá của ngày ấy là một câu hỏi không bao
@@ -2612,6 +2625,30 @@ không áp được.
 > ty, ngưỡng và tỷ lệ CK của nhiều dòng mà không ghi dấu vết nào — quy ước của một lượt ĐỌC, giữ lại
 > sau khi `10/09` biến nó thành một lượt GHI do người dùng bấm. Bấm lúc không có gì để đổi thì vẫn
 > không ghi gì.
+
+**MỞ *SỬA* MỘT SẢN PHẨM THÌ GIÁ BÁN CÔNG TY LÀ GIÁ HIỆN TẠI** `mới 12/09` — *"khi hồ sơ ở trạng thái
+Nháp hoặc Yêu cầu chỉnh sửa, khi nhấn vào sửa 1 sản phẩm, giá bán công ty phải tự động cập nhật giá
+hiện tại chứ không phải giá đang hiện trong CSBH"*.
+
+> Cùng gốc với lỗi `11/09`, ở nửa còn lại. `11/09` quy đổi ngày tra cho khối *Yêu cầu cập nhật* và nút
+> *Tự động cập nhật*; đường **ghi** — thêm dòng, sửa dòng, và hộp thoại xem trước đi kèm — vẫn tra
+> theo đúng ngày áp dụng của dòng. Dòng thừa kế mang ngày của bản CSBH trước, nên hộp thoại **bày lại
+> chính con số đang nằm trên dòng**.
+>
+> **Nặng hơn hộp thoại, và đây mới là chỗ mất tiền**: bấm *Tự động cập nhật* cho dòng lên 130.000, rồi
+> **sửa một ghi chú** — dòng tụt về 100.000. Lượt cập nhật biến mất, khối cảnh báo mọc lại, và không
+> có gì trên màn hình nói rằng vừa có chuyện gì xảy ra. Người lập sửa một ô không liên quan gì tới
+> giá.
+>
+> **Ngày áp dụng của dòng KHÔNG bị kéo theo** — ngày GHI là ngày TDV khai, chỉ ngày TRA được quy đổi.
+> Gộp hai thứ ấy là dời ngày áp dụng của mọi dòng thừa kế, và vì ngày áp dụng nằm trong phép so trạng
+> thái nên cả bảng nhảy sang *Chỉnh sửa* vì một lý do không ai nêu.
+>
+> **Dòng đề ngày TƯƠNG LAI vẫn lấy bảng giá của ngày ấy** — đúng điều `16/08` sinh ra để bảo đảm.
+>
+> **Chỗ duy nhất còn tra theo đúng ngày áp dụng** là lượt lập hồ sơ **kèm sẵn danh sách sản phẩm**.
+> Người dùng không có đường nào đi qua đó: cả *Lập hồ sơ* lẫn *Lập phiên bản mới* đều tạo hồ sơ rỗng
+> rồi thêm từng dòng. Đã ghim bằng ca kiểm để lượt đổi sau — nếu có — là một quyết định.
 
 **GIÁ BÁN CÔNG TY ĐỔI CŨNG LÀ *Chỉnh sửa*** `mới 12/09` — *"thêm các trường Giá bán công ty thay đổi
 so với bản trước cũng tính là Đã chỉnh sửa"*.

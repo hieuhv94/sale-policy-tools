@@ -473,6 +473,16 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 > của dòng **không đổi**; chỉ những con số đến từ danh mục được đối chiếu lại. Dòng
 > đề ngày trong **tương lai** vẫn dùng bảng giá của đúng ngày ấy.
 
+> **Mở *Sửa* một sản phẩm thì Giá bán Công ty là giá HIỆN TẠI** `mới 12/09` — không phải con số đang
+> nằm trên dòng. Cùng luật ngày ở trên, áp cho cả lượt **Thêm sản phẩm**, lượt **Sửa**, và hộp thoại
+> **xem trước** (bốn con số hiện ngay khi bạn chọn sản phẩm).
+>
+> Vì sao đáng để ý: trước `12/09`, bấm *Tự động cập nhật* rồi **sửa một ghi chú** của chính dòng ấy là
+> giá tụt về con số cũ — lượt cập nhật biến mất mà không có gì báo. Giờ mọi lượt sửa một dòng đều lấy
+> lại giá hiện hành, nên hai thao tác ấy không còn giẫm lên nhau.
+>
+> ***Ngày áp dụng* của dòng vẫn giữ nguyên** khi bạn sửa — nó là ngày bạn khai, phần mềm không dời.
+
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
 > CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
 > sáng và đọc khối vàng trước khi ký.
