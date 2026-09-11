@@ -849,6 +849,21 @@ Bản CSBH in ra vì thế **không còn ô *Thời gian áp dụng*** ở đầ
 bảng sản phẩm**, ngay bên trái *Mã sản phẩm*. In một ngày duy nhất ở đầu trang là nói sai về mọi
 dòng có ngày khác.
 
+**NGÀY ĐÃ QUA THÌ ĐỐI CHIẾU THEO HÔM NAY** `mới 11/09`. Luật trên nói về lượt **chụp** số lúc lập hồ
+sơ, và nó không đổi: khai ngày 01/09 thì dòng ấy chụp bảng giá của 01/09, kể cả ngày trong quá khứ.
+Nhưng khi phần mềm đi **đối chiếu** một hồ sơ còn sửa được với danh mục — khối *Yêu cầu cập nhật* và
+nút *Tự động cập nhật* — thì ngày tra là **ngày áp dụng của dòng, hoặc hôm nay, lấy ngày MUỘN HƠN**.
+
+Vì bảng giá của một ngày đã qua thì không đổi nữa (mọi lượt đổi giá đều hiệu lực từ hôm nay — muc
+6.2), nên đối chiếu một dòng đề ngày quá khứ với chính bảng giá của ngày ấy là một câu hỏi không bao
+giờ có câu trả lời. Chỗ nó cắn: **mọi dòng thừa kế của một phiên bản mới đều đề ngày quá khứ** — dòng
+ấy giữ nguyên ngày của bản trước. Hệ quả trước `11/09`, cùng khách và cùng mặt hàng: bản đang hiệu
+lực báo *"giá bán Công ty 100.000 → 130.000"*, còn bản mới đang soạn nói không có gì đổi, nút *Tự
+động cập nhật* không áp được gì, và bản CSBH mới đi hết luồng duyệt rồi **được ký với giá cũ**.
+
+Dòng đề ngày **tương lai** vẫn tra bảng giá của đúng ngày ấy — nó đã chụp đúng bảng giá sẽ có hiệu
+lực, nên đem so với hôm nay là báo lệch ngược.
+
 ### 7.2. Đóng băng: đúng một lần, ở đúng lúc gửi duyệt `sửa 16/08`
 
 | Hồ sơ | Khi danh mục đổi giá hoặc đổi quy định chiết khấu |
@@ -2587,6 +2602,40 @@ không áp được.
 > ty, ngưỡng và tỷ lệ CK của nhiều dòng mà không ghi dấu vết nào — quy ước của một lượt ĐỌC, giữ lại
 > sau khi `10/09` biến nó thành một lượt GHI do người dùng bấm. Bấm lúc không có gì để đổi thì vẫn
 > không ghi gì.
+
+**HAI LỖI CỦA LƯỢT 11/09** `mới 11/09` — một ở hộp thoại, một ở phép đối chiếu.
+
+> **1 · Nhận lời mở bản Nháp đang có thì hộp thoại phải BIẾN MẤT.** Nút đưa đúng sang bản Nháp, nhưng
+> hộp thoại nằm lại đè lên trang vừa mở. Hai hồ sơ khác nhau là **cùng một địa chỉ** với phần mềm, nên
+> không có gì tháo màn hình cũ ra: hộp thoại — và cả những câu *"chưa cập nhật được"*, *"đã rút"* của
+> lượt bấm vừa rồi — đi theo sang hồ sơ mới như thể là của nó. Từ nay mở một hồ sơ khác là **dựng lại
+> màn hình**, không phải đổi một con số trên màn hình cũ.
+>
+> **2 · Lượt đổi giá bán Công ty BIẾN MẤT khỏi khối *Yêu cầu cập nhật* của phiên bản mới.** Đây là lỗi
+> nặng hơn hẳn một câu cảnh báo mất tích, và nó im lặng từ đầu tới cuối. Đo được, cùng khách hàng ·
+> cùng mặt hàng · cùng danh mục:
+>
+> > bản đang hiệu lực → *giá bán Công ty 100.000 → 130.000*
+> > bản mới đang soạn → *không có gì đổi*
+>
+> Dòng thừa kế của phiên bản mới giữ nguyên **ngày áp dụng của bản trước** (cố ý — nếu không thì mọi
+> mặt hàng cũ bị âm thầm dời ngày, và cả bảng nhảy sang nhãn *Chỉnh sửa*), nên nó luôn đề một ngày
+> trong quá khứ. Mà phần mềm đối chiếu hồ sơ còn sửa được theo **đúng ngày của dòng**, trong khi mọi
+> lượt đổi giá đều hiệu lực **từ hôm nay** — hai luật ấy cộng lại làm phép đối chiếu thành một câu hỏi
+> không bao giờ có câu trả lời.
+>
+> > Nó không dừng ở khối cảnh báo: nút *Tự động cập nhật* báo *không còn gì lệch*, lượt gửi duyệt chụp
+> > lại đúng con số cũ, chốt chặn *"dòng đã lỗi thời"* không có gì để chặn — **bản CSBH mới đi hết mười
+> > bước rồi được ký với giá đã lỗi thời**.
+>
+> Từ nay ngày tra danh mục của phép đối chiếu là **ngày áp dụng của dòng hoặc hôm nay, lấy ngày muộn
+> hơn** (muc 7.1). Lượt **chụp** số lúc lập hồ sơ giữ nguyên luật `16/08` — khai ngày quá khứ thì vẫn
+> chụp bảng giá của ngày ấy. Ngày áp dụng và nhãn trạng thái của dòng **không bị đụng tới**.
+>
+> > **Đã cân và chọn phía nói ra**: cách khác là để phiên bản mới tự chụp lại giá hôm nay lúc chép
+> > dòng, và khi ấy không còn gì để cảnh báo. Cái giá của nó là tỷ lệ chiết khấu đổi **âm thầm** —
+> > giá Công ty 100.000 → 130.000 làm tỷ lệ nhảy 15% → 34,6% và có thể vượt ngưỡng — trong khi không
+> > màn hình nào nói ra. Phần mềm nói ra, người lập quyết định.
 
 **NĂM VIỆC CỦA LƯỢT 11/09** `mới 11/09` — bốn câu về *Yêu cầu cập nhật* và một câu về bộ dữ liệu mẫu.
 

@@ -111,7 +111,22 @@ export function noiDung(duong: string, vaiTro: string) {
   if (nk) return <NhatKyHoSo id={nk['id']!} />;
 
   const hs = khop('/ho-so/:id', duong);
-  if (hs) return <ChiTietHoSo id={hs['id']!} />;
+  /*
+    `key` THEO ID HỒ SƠ (`0201`) — đi từ hồ sơ này sang hồ sơ khác là DỰNG LẠI
+    trang, không phải đổi một prop.
+
+    Hai hồ sơ khác nhau vẫn là CÙNG một địa chỉ `/ho-so/:id` với bộ định tuyến,
+    nên không có `key` thì React giữ nguyên component và giữ nguyên cả chục ô
+    state của nó — hộp thoại đang mở, danh sách *chưa cập nhật được* và *đã rút*
+    của lượt bấm vừa rồi, dòng đang chờ xác nhận xoá. Chúng thuộc về MỘT hồ sơ,
+    và trang đích bày lại chúng như thể là của mình.
+
+    Lộ ra ở nút *Mở bản Nháp đang có*: bấm xong sang đúng bản Nháp, nhưng hộp
+    thoại nằm lại đè lên. Đó là triệu chứng được báo; `key` đóng cả lớp, còn
+    chính hộp thoại vẫn tự đóng lấy (xem `ChiTietHoSo`) vì đó là hợp đồng riêng
+    của nó.
+  */
+  if (hs) return <ChiTietHoSo key={hs['id']!} id={hs['id']!} />;
 
   if (duong === '/khach-hang') return <DanhSachKhachHang />;
   const kh = khop('/khach-hang/:id', duong);

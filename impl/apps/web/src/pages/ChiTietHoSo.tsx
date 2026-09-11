@@ -1062,7 +1062,25 @@ export function ChiTietHoSo({ id }: { id: string }) {
           nhanNut="Mở bản Nháp đang có"
           nguyHiem={false}
           dong={() => datMoBanMoi(false)}
-          xacNhan={() => di(`/ho-so/${nhapDangChan.id}`)}
+          /*
+            ĐÓNG RỒI MỚI ĐI (`0201`).
+
+            `HopThoaiXacNhan` không tự đóng — nơi dùng phải đóng, và nhánh *Lập
+            phiên bản mới* ngay dưới đã làm đúng thế (`datMoBanMoi(false)` trong
+            `lapPhienBanMoi`). Nhánh này thì không, và ở đây nó lộ ra thay vì im:
+            `/ho-so/:id` cũ và mới là CÙNG một địa chỉ trong bộ định tuyến, nên
+            React giữ nguyên component và mọi state của nó — hộp thoại nằm lại,
+            đè lên đúng bản Nháp vừa mở ra.
+
+            Nửa còn lại ở `App.noiDung` (`key` theo id hồ sơ): cái này là hợp
+            đồng của CHÍNH hộp thoại — việc của nó xong thì nó đóng, ai mount
+            trang cũng vậy.
+          */
+          xacNhan={() => {
+            datMoBanMoi(false);
+            datNhapChan(null);
+            di(`/ho-so/${nhapDangChan.id}`);
+          }}
           hauQua={
             <>
               <p>

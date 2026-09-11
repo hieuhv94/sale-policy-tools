@@ -6784,24 +6784,36 @@ describe('`0200` yêu cầu cập nhật gồm cả hồ sơ còn sửa được
     expect(await trongBox(d.id)).toBeUndefined();
   });
 
-  it('SO Ở NGÀY ÁP DỤNG của dòng, không phải ở hôm nay', async () => {
+  it('`0201` dòng đề ngày HÔM QUA vẫn thấy giá của hôm nay', async () => {
     /*
-     * Chỗ dễ sai nhất của cả lượt nới, và nó sai IM LẶNG. Hồ sơ đã đóng băng so
-     * với bảng giá HÔM NAY; hồ sơ còn sửa được so ở NGÀY ÁP DỤNG của từng dòng
-     * (`0180`) — vì đó mới là con số sẽ được chụp lúc gửi duyệt.
+     * CA NÀY PHẢI THAY, không phải sửa con số — `0201` đảo đúng mệnh đề của nó.
      *
-     * Dòng đề ngày HÔM QUA, giá mới hiệu lực HÔM NAY: bản Nháp KHÔNG lệch (nó
-     * sẽ chụp giá của hôm qua), còn một phép so theo hôm nay sẽ bảo là lệch —
-     * rồi người dùng mở hồ sơ ra và thấy khối cảnh báo trống.
+     * Bản `0200` khẳng định điều ngược lại (*"giá của hôm nay không chạm tới dòng
+     * đề ngày hôm qua"*) với lý lẽ *"vì đó mới là con số sẽ được chụp lúc gửi
+     * duyệt"* — và chính lý lẽ ấy là tiền đề sai: `lamMoiDong` đọc cùng bộ số với
+     * phép so, nên "con số sẽ được chụp" là thứ do phép so quyết định, không phải
+     * một sự thật độc lập để dựa vào.
+     *
+     * Hệ quả thật của luật cũ đo được ở `0201`: bảng giá của một ngày ĐÃ QUA
+     * không đổi nữa (`0123`), nên một dòng đề ngày quá khứ — mà mọi dòng thừa kế
+     * của một phiên bản mới đều thế — không bao giờ nhìn thấy được lượt đổi giá
+     * nào, và hồ sơ đi hết luồng duyệt rồi được ký với giá lỗi thời.
+     *
+     * Vế còn nguyên giá trị của ca cũ, giữ lại: hai đường (box và màn hình hồ sơ)
+     * phải nói CÙNG một câu.
      */
     const homQua = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const d = await draft({ ngayApDung: homQua });
     await doiGia(d.productId, '230000'); // hiệu lực HÔM NAY
     await raSoat(d.productId);
 
-    expect(await trongBox(d.id), 'giá của hôm nay không chạm tới dòng đề ngày hôm qua').toBeUndefined();
+    const trong = await trongBox(d.id);
+    expect(trong, 'dòng đề ngày quá khứ vẫn phải thấy lượt đổi giá').toBeDefined();
+    expect((trong!.lech as { kind: string }[]).map((l) => l.kind)).toEqual(['PRICE']);
     // Và màn hình hồ sơ nói CÙNG một câu — hai đường, một câu trả lời.
-    expect((await get(`/policies/${d.id}`)).body.lech).toEqual([]);
+    expect(
+      ((await get(`/policies/${d.id}`)).body.lech as { kind: string }[]).map((l) => l.kind),
+    ).toEqual(['PRICE']);
   });
 
   it('TDV SỬA DÒNG thì dấu vết của mặt hàng ấy bị QUÊN ngay', async () => {
@@ -7058,5 +7070,140 @@ describe('`0200` hồ sơ có hiệu lực thì mọi dòng là Đang áp dụng
     for (const l of noiBo.body.lines as { trang_thai: string }[]) {
       expect(l.trang_thai).toBe('DANG_AP_DUNG');
     }
+  });
+});
+
+// =============================================================================
+// `0201` — PHIÊN BẢN MỚI VẪN THẤY LƯỢT ĐỔI GIÁ
+// =============================================================================
+
+/**
+ * Người dùng báo 11/09: *"sản phẩm có giá bán công ty thay đổi biến mất trong lý
+ * do yêu cầu cập nhật sau khi tạo một phiên bản mới cho CSBH đang có hiệu lực"*.
+ *
+ * Đo được trên chồng kiểm, cùng khách · cùng sản phẩm · cùng danh mục:
+ *
+ *   bản đang hiệu lực (đóng băng) → PRICE 100.000 → 130.000
+ *   bản mới           (sửa được)  → không lệch gì
+ *
+ * Đúng hình dạng hỏng mà `0199` vừa chữa một lần — *hai hồ sơ giống hệt nhau,
+ * hai câu trả lời ngược nhau* — lần này ở NGÀY TRA DANH MỤC thay vì ở lời gọi lô.
+ * Dòng thừa kế giữ nguyên ngày áp dụng của bản cũ (cố ý), nên nó luôn đề một ngày
+ * QUÁ KHỨ; mà bảng giá của một ngày đã qua thì không đổi nữa (`0123`), nên phép
+ * so ấy không bao giờ tìm ra được gì. Xem `ngayTraDanhMuc`.
+ *
+ * Và nó không dừng ở một câu cảnh báo mất tích: `lamMoiDong` đọc cùng bộ số, nên
+ * nút không áp được gì, lượt gửi duyệt chụp lại đúng con số cũ, `STALE_LINE`
+ * không có gì để chặn — bản CSBH mới được KÝ với giá đã lỗi thời.
+ */
+describe('`0201` phiên bản mới vẫn thấy lượt đổi giá của danh mục', () => {
+  const doiGiaHomNay = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  /** Bản đang hiệu lực có một dòng đề ngày QUÁ KHỨ — hình dạng của hồ sơ lập từ tháng trước. */
+  const banHieuLucNgayCu = async () => {
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    const customerId = await makeCustomer();
+    const r = await post('/policies', {
+      customerId,
+      lines: [line(productId, { ngayApDung: '2020-06-01' })],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    await runToActive({ id: r.body.id });
+    return { customerId, productId, id: r.body.id as string };
+  };
+
+  it('dòng THỪA KẾ đề ngày quá khứ vẫn báo lệch giá', async () => {
+    const cu = await banHieuLucNgayCu();
+    await doiGiaHomNay(cu.productId, '130000');
+
+    const v2 = await post('/policies', {
+      customerId: cu.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+
+    const hs = (await get(`/policies/${v2.body.id}`)).body;
+    expect(hs.lech).toHaveLength(1);
+    expect(hs.lech[0]).toMatchObject({ kind: 'PRICE', snapValue: '100000', newValue: '130000' });
+  });
+
+  it('hai bản của CÙNG một khách nói CÙNG một câu', async () => {
+    /*
+     * Bất biến thật sự của lượt sửa, và là thứ ca trên một mình không nói được:
+     * hồ sơ đóng băng và hồ sơ còn sửa được hỏi danh mục ở hai thời điểm khác
+     * nhau theo thiết kế (`0180`), nhưng câu trả lời *"mặt hàng này đã lệch giá
+     * chưa"* thì phải giống nhau — người dùng đọc hai màn hình cạnh nhau.
+     */
+    const cu = await banHieuLucNgayCu();
+    await doiGiaHomNay(cu.productId, '130000');
+    const v2 = await post('/policies', {
+      customerId: cu.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    await app.get(CatalogImpactConsumer).handle({ productId: cu.productId });
+
+    const cuLech = (await get(`/policies/${cu.id}`)).body.lech as { kind: string }[];
+    const moiLech = (await get(`/policies/${v2.body.id}`)).body.lech as { kind: string }[];
+    expect(cuLech.map((l) => l.kind)).toEqual(['PRICE']);
+    expect(moiLech.map((l) => l.kind)).toEqual(['PRICE']);
+  });
+
+  it('nút *Tự động cập nhật* áp được, và KHÔNG đụng ngày áp dụng lẫn trạng thái dòng', async () => {
+    /*
+     * Vế thứ hai là vế phải canh: `ngay_ap_dung` là một trong BỐN trường mà
+     * `SQL_TRANG_THAI_DONG` so để suy ra *Đang áp dụng* / *Chỉnh sửa* (`0180`).
+     * Chữa lỗi này bằng cách dời ngày của dòng thừa kế về hôm nay thì mọi dòng
+     * của mọi phiên bản mới nhảy sang *Chỉnh sửa* — đúng, mà sai hẳn chỗ khác.
+     */
+    const cu = await banHieuLucNgayCu();
+    await doiGiaHomNay(cu.productId, '130000');
+    const v2 = await post('/policies', {
+      customerId: cu.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+
+    const ap = await post(`/policies/${v2.body.id}/ap-dung-thay-doi`, {});
+    expect(ap.status, JSON.stringify(ap.body)).toBe(200);
+    // `conLai` ra ngoài là một CON SỐ, không phải mảng — xem `apDungThayDoi`.
+    expect(ap.body).toMatchObject({ hong: [], conLai: 0 });
+
+    const hs = (await get(`/policies/${v2.body.id}`)).body;
+    expect(hs.lech).toEqual([]);
+    expect(hs.lines[0].companyPrice).toBe('130000');
+    expect(String(hs.lines[0].ngayApDung)).toContain('2020-06-01');
+    expect(hs.lines[0].trangThai).toBe('DANG_AP_DUNG');
+  });
+
+  it('dòng đề ngày TƯƠNG LAI vẫn tra bảng giá của NGÀY ẤY', async () => {
+    /*
+     * RANH GIỚI, và là cách chữa sai hấp dẫn nhất: *"đường đối chiếu cứ so với
+     * danh mục hôm nay, giống hệt hồ sơ đã đóng băng"*. Nó chữa được ca trên rồi
+     * làm hỏng ca này theo chiều ngược — dòng đề ngày tháng sau đã chụp đúng bảng
+     * giá của tháng sau, nên so với hôm nay là báo lệch NGƯỢC, và nút *Tự động
+     * cập nhật* ghi đè giá tương lai bằng giá hôm nay.
+     */
+    const { productId } = await sanPhamNhomRieng('100000', '2020-01-01');
+    await datGia(productId, '500000', '2030-01-01');
+    const customerId = await makeCustomer();
+    const r = await post('/policies', {
+      customerId,
+      lines: [line(productId, { ngayApDung: '2030-06-01' })],
+    });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+    expect(r.body.lines[0].companyPrice).toBe('500000');
+
+    await doiGiaHomNay(productId, '130000');
+
+    const hs = (await get(`/policies/${r.body.id}`)).body;
+    expect(hs.lech, 'giá của ngày áp dụng tương lai không đổi thì không có gì lệch').toEqual([]);
   });
 });

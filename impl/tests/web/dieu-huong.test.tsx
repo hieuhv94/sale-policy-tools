@@ -86,6 +86,24 @@ describe('mọi mục điều hướng dẫn tới một màn hình', () => {
     expect(kieu(noiDung('/ho-so/moi', 'TDV'))).not.toBe(kieu(noiDung('/ho-so/abc', 'TDV')));
   });
 
+  it('`0201` trang chi tiết hồ sơ mang `key` là id hồ sơ', () => {
+    /*
+     * Hai hồ sơ khác nhau là CÙNG một địa chỉ `/ho-so/:id` với bộ định tuyến,
+     * nên không có `key` thì React chỉ đổi một prop và giữ nguyên toàn bộ state
+     * của trang — hộp thoại đang mở, danh sách *chưa cập nhật được* và *đã rút*
+     * của lượt bấm vừa rồi, dòng đang chờ xác nhận xoá. Chúng thuộc về hồ sơ
+     * CŨ, và trang đích bày lại chúng như của mình.
+     *
+     * Đo cái `key` chứ không đo một triệu chứng: mỗi ô state là một triệu chứng
+     * riêng, và một ca kiểm đi theo từng ô sẽ luôn thiếu ô vừa được thêm vào.
+     */
+    const a = noiDung('/ho-so/hs-a', 'TDV') as ReactElement;
+    const b = noiDung('/ho-so/hs-b', 'TDV') as ReactElement;
+    expect(kieu(a)).toBe(kieu(b));
+    expect(a.key).toBe('hs-a');
+    expect(b.key).toBe('hs-b');
+  });
+
   it('gõ thẳng địa chỉ ngoài quyền thì bị chặn ở tầng định tuyến, không chỉ ẩn menu', () => {
     // Ẩn mục menu là chưa đủ: gõ địa chỉ vào thanh duyệt là đường đi vòng hiển
     // nhiên nhất. Hai màn hình quản trị phải chặn ở đây.

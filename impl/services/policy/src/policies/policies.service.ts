@@ -28,7 +28,7 @@ import {
   type Status,
 } from '@csbh/domain-policy';
 import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-kit';
-import { soSanhLech, type MucLech } from './lech.js';
+import { ngayTraDanhMuc, soSanhLech, type MucLech } from './lech.js';
 import { chuanHoaMa, CAU_LOI_MA } from './ma-ho-so.js';
 import type { ProductSnapshot } from '../infra/clients.js';
 
@@ -1713,8 +1713,13 @@ export class PoliciesService {
      */
     const snaps = new Map<string, ProductSnapshot>();
     const theoNgay = new Map<string, string[]>();
+    // `0201` — KHÔNG tra bằng chính `ngay_ap_dung`: dòng đề ngày quá khứ thì đó
+    // là một câu hỏi rỗng, và mọi dòng thừa kế của một phiên bản mới đều đề ngày
+    // quá khứ. Xem `ngayTraDanhMuc`. Gom theo ngày ĐÃ quy đổi nên mọi dòng quá
+    // khứ dồn về một lô, tức số vòng mạng chỉ giảm đi.
+    const homNay = ngayVN();
     for (const d of dong.rows) {
-      const on = ngayISO(d.ngay_ap_dung)!;
+      const on = ngayTraDanhMuc(ngayISO(d.ngay_ap_dung)!, homNay);
       (theoNgay.get(on) ?? theoNgay.set(on, []).get(on)!).push(d.product_id);
     }
     const loi = new Map<string, string>();

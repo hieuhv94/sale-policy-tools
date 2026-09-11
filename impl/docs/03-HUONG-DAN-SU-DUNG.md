@@ -463,6 +463,16 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 > hỏng, dòng nào lấy được thì lấy. Những dòng còn lại phải tự xử: rút dòng khỏi hồ sơ, hoặc đổi *Ngày
 > áp dụng* của chính dòng ấy. Để nguyên thì lượt **Gửi duyệt** sẽ dừng lại và nêu đích danh chúng.
 
+> **Phiên bản mới cũng thấy được lượt đổi giá** `mới 11/09`. Dòng thừa kế từ bản CSBH trước giữ
+> nguyên *Ngày áp dụng* của nó — thường là một ngày đã qua — và tới `11/09` phần mềm đối chiếu dòng
+> ấy với bảng giá của đúng ngày ấy, tức không bao giờ tìm ra được lượt đổi giá nào. Hệ quả: bản đang
+> hiệu lực báo *giá đã đổi*, còn bản mới bạn vừa lập thì nói không có gì, nút *Tự động cập nhật*
+> không áp được gì, và bản mới đi hết luồng duyệt với giá cũ.
+>
+> Từ nay phép đối chiếu lấy **ngày muộn hơn giữa *Ngày áp dụng* của dòng và hôm nay**. *Ngày áp dụng*
+> và nhãn trạng thái của dòng **không đổi**; chỉ những con số đến từ danh mục được đối chiếu lại. Dòng
+> đề ngày trong **tương lai** vẫn dùng bảng giá của đúng ngày ấy.
+
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
 > CSBH đang có hiệu lực. Hai chỗ trên đây là nơi duy nhất bạn biết, nên hãy nhìn trang Tổng quan mỗi
 > sáng và đọc khối vàng trước khi ký.

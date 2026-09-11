@@ -17815,3 +17815,119 @@ mệnh đề của chúng vẫn đúng, chỉ là ví dụ cũ thôi còn là v�
 **Bẫy lần thứ TƯ:** backtick trong chú thích SQL **giữa một template literal** —
 `CLAUDE.md` đã ghi, `0154` và `0155` đã dính, và lần này nó cắt đứt chuỗi ở dòng
 `-- 0200 …` của consumer.
+
+**2288/2288 xanh.** (Dòng kết này thiếu ở bản gốc của P228 — con số lấy từ chính thông điệp commit
+`9c75571`, bổ sung ở P229.)
+
+---
+
+## P229 — `0201` Hộp thoại phải đóng, và phiên bản mới phải thấy lượt đổi giá
+
+Hai lỗi người dùng báo cùng lúc. Chúng không liên quan gì nhau, trừ một điểm: **cả hai đều là hệ quả
+của một tiền đề mà không ai viết ra**, và cả hai đều không làm gì đỏ.
+
+### 1 · Nhận lời mở bản Nháp thì hộp thoại nằm lại
+
+`HopThoaiXacNhan` **không tự đóng** — nơi dùng phải đóng, và nhánh *Lập phiên bản mới* ngay cạnh đã
+làm đúng thế từ `0191` (`datMoBanMoi(false)` trong `lapPhienBanMoi`). Nhánh `0200` chỉ gọi `di()`.
+
+Chỗ đáng ghi không phải cái dòng thiếu, mà là **vì sao nó thường không cắn**: gọi `di()` rồi bỏ mặc
+state là mã sai ở khắp nơi, chỉ có điều trang đích thường là một màn hình KHÁC, nên React tháo cả cây
+và state đi theo. Đây là chỗ duy nhất trong phần mềm mà **trang đích là chính màn hình đang đứng, với
+một id khác** — `/ho-so/:id` → `/ho-so/:id`. Bộ định tuyến thấy cùng một mẫu, `noiDung()` trả về cùng
+một kiểu phần tử, nên React coi là **đổi một prop**, không phải đổi màn hình.
+
+**HAI NỬA, hai lý do khác nhau, và cả hai đều cần:**
+
+* `xacNhan` tự đóng — **hợp đồng của chính hộp thoại**: việc của nó xong thì nó đóng, ai mount trang
+  cũng vậy. Ca kiểm dựng `<ChiTietHoSo>` thẳng nên nó hỏi được đúng tầng này.
+* `key={id}` ở `App.noiDung` — **câu trả lời cho *"trang này thuộc về hồ sơ nào"***. Và đây mới là nửa
+  đóng được cả LỚP: `ChiTietHoSo` giữ hơn mười ô state của MỘT hồ sơ, trong đó `khongApDuoc` và
+  `daRut` (`0199`, `0200`) là hai danh sách **tên mặt hàng** — đi từ hồ sơ A sang hồ sơ B qua liên kết
+  *phiên bản sau* thì câu *"chưa cập nhật được NC-GOLD-900"* của A hiện trên trang B, nói về một hồ sơ
+  khác. Không ai báo lỗi ấy, và nó cùng một gốc.
+
+> **Ca kiểm đo cái `key`, không đo triệu chứng.** Mỗi ô state là một triệu chứng riêng, nên một ca đi
+> theo từng ô sẽ luôn thiếu đúng ô vừa được thêm vào. `noiDung()` là hàm thuần và đã được xuất ra từ
+> `0133`, nên hỏi thẳng `element.key` được — không phải dựng cả cây React.
+
+### 2 · Lượt đổi giá biến mất khỏi phiên bản mới
+
+Dựng lại trên chồng kiểm trước khi gõ một dòng nào. Cùng khách · cùng sản phẩm · cùng danh mục, khác
+đúng một chuyện là hồ sơ nào:
+
+```
+box  bản đang hiệu lực (DANG_CO_HIEU_LUC) → PRICE 100.000 → 130.000
+box  bản mới           (NHAP)             → KHÔNG CÓ MẶT
+     v2 lech: []   · dòng: ngayApDung 2020-06-01 · companyPrice 100.000
+     v2 Tự động cập nhật → {hong: [], conLai: 0}
+```
+
+Đúng hình dạng mà `0199` vừa chữa một lần — *hai hồ sơ giống hệt nhau, hai câu trả lời ngược nhau* —
+và lần này ở **ngày tra danh mục** thay vì ở lời gọi lô. Phép so vẫn đúng là một bản (`soSanhLech`);
+thứ lệch là **câu hỏi đặt cho danh mục trước khi so**.
+
+**HAI LUẬT ĐÚNG, CỘNG LẠI THÀNH MỘT CÂU HỎI RỖNG.** Không luật nào sai ở chỗ của nó:
+
+* `0180` — ngày áp dụng của DÒNG quyết định bảng giá được chụp; `docDongVaAnh` tra theo đúng ngày ấy.
+* `0123` — mọi lượt đổi giá hiệu lực **TỪ HÔM NAY**, ô chọn ngày đã gỡ khỏi giao diện.
+
+Cộng lại: bảng giá của một ngày ĐÃ QUA không đổi nữa, nên **so ảnh chụp của ngày X với bảng giá của
+ngày X là một phép so không bao giờ tìm ra được gì**. Nó không phải một nhánh viết sai — nó là một
+câu lệnh rỗng, giống hệt `NOT EXISTS` của `0186` đã thành câu lệnh rỗng ngay khi xoá mềm ra đời.
+
+**VÌ SAO KHÔNG AI THẤY**: dòng đề ngày quá khứ trước giờ hiếm — TDV lập hồ sơ thì để ngày hôm nay
+hoặc ngày tương lai, và ở hai ngày ấy phép so vẫn chạy thật. Nguồn duy nhất sinh ra chúng hàng loạt là
+**lượt chép dòng của `create`**, thứ giữ nguyên `ngay_ap_dung` của bản trước (cố ý, và đúng — đặt lại
+thành hôm nay là âm thầm dời ngày áp dụng của mọi mặt hàng cũ, **và làm cả bảng nhảy sang nhãn *Chỉnh
+sửa*** vì `ngay_ap_dung` là một trong bốn trường `SQL_TRANG_THAI_DONG` so).
+
+**KHÔNG DỪNG Ở MỘT CÂU CẢNH BÁO MẤT TÍCH, và đó là lý do nó là lỗi nặng.** `lamMoiDong` đọc CÙNG bộ
+số với `soSanhDong` (`docDongVaAnh`, `0194`) — một tính chất dựng ra để hai bên không nói hai điều,
+và ở đây nó khuếch đại lỗi thay vì chặn: nút *Tự động cập nhật* trả `conLai: 0`, lượt **gửi duyệt**
+chụp lại đúng con số cũ, `STALE_LINE` không có gì để chặn. **Bản CSBH mới đi hết mười bước rồi được
+ký với giá đã lỗi thời** — không mã lỗi nào, không dòng log nào.
+
+**`max(ngày áp dụng, hôm nay)`, không phải "luôn hôm nay".** Vế thứ hai là cách chữa hấp dẫn hơn
+(*"cứ so với danh mục hôm nay, giống hệt hồ sơ đóng băng"*) và nó hỏng theo chiều ngược: dòng đề ngày
+tháng sau ĐÃ chụp đúng bảng giá của tháng sau, nên so với hôm nay là báo lệch ngược, rồi nút cập nhật
+**ghi đè giá tương lai bằng giá hôm nay**. Có ca kiểm riêng cho vế ấy ở cả hai tầng.
+
+**Đường LẬP hồ sơ giữ nguyên `0029`** — khai ngày quá khứ thì vẫn chụp bảng giá của ngày ấy, và ba ca
+kiểm của `0029` (*"giá của ngày áp dụng thắng giá của hôm nay"*) còn nguyên. Ranh giới đọc được:
+`ngay_ap_dung` trả lời *"chụp bảng giá nào"*, còn đối chiếu trả lời *"con số trên tờ giấy sắp ký có
+còn đúng không"* — và tờ giấy thì sắp ký HÔM NAY.
+
+> **KHÁCH HÀNG CHỐT PHÍA NÓI RA.** Cách kia là để `create` chụp lại giá hôm nay cho dòng thừa kế, và
+> khi ấy không còn gì để cảnh báo vì không còn gì lệch. Cái giá đo được ngay trong lượt nghiệm thu:
+> giá Công ty 100.000 → 130.000 làm tỷ lệ CK nhảy **15% → 34,62%** và `overThreshold` bật — tức phiên
+> bản mới **âm thầm vượt ngưỡng** ở một dòng không ai đụng vào.
+
+### Một ca kiểm cũ phải THAY, và lý lẽ của nó chính là tiền đề sai
+
+`0200` có ca *"SO Ở NGÀY ÁP DỤNG của dòng, không phải ở hôm nay"*, khẳng định đúng cái vừa bị đảo.
+Đáng ghi là **lý do viết trong chính ca ấy**: *"hồ sơ còn sửa được so ở ngày áp dụng của từng dòng —
+vì đó mới là con số sẽ được chụp lúc gửi duyệt"*. Câu ấy **tự vòng lại**: "con số sẽ được chụp" không
+phải một sự thật độc lập để dựa vào, nó do CHÍNH phép so này quyết định (`lamMoiDong` dùng chung
+`docDongVaAnh`). Một lập luận tựa vào hệ quả của chính nó thì đúng với mọi lựa chọn, kể cả lựa chọn
+sai. Vế còn giá trị của ca cũ — *hai đường (box và màn hình hồ sơ) nói cùng một câu* — giữ lại nguyên.
+
+### Đo lại và phá lại
+
+Nghiệm thu bằng chính kịch bản đã dựng lại lỗi: sau bản sửa, box và `lech` của **cả hai** hồ sơ đều
+ra `PRICE 100.000 → 130.000`; bấm nút trên bản mới cho `companyPrice 130.000`, `discountRate 34,62`,
+`overThreshold: true`, mà `ngayApDung` vẫn `2020-06-01` và `trangThai` vẫn *Đang áp dụng*.
+
+Ba lượt phá lại, ba đỏ đúng tầng:
+
+| Hoàn tác | Đỏ |
+|---|---|
+| `xacNhan` thôi đóng hộp thoại | 1 — `tests/web/chi-tiet-ho-so.test.tsx` |
+| gỡ `key={id}` | 1 — `tests/web/dieu-huong.test.tsx` |
+| `ngayTraDanhMuc` thành hàm đồng nhất | 5 — 1 thuần + 4 HTTP, gồm cả ca `0200` vừa thay |
+
+**Hai ca thuần XANH lúc phá lại, và đúng ra là phải thế**: *ngày hôm nay* và *ngày tương lai* đều là
+phép đồng nhất, nên chỉ ca *ngày quá khứ* phân biệt được hai bản. Hai ca kia không thừa — chúng canh
+cách chữa SAI (luôn lấy hôm nay), thứ mà ca quá khứ một mình sẽ xanh với.
+
+**2297/2297 xanh.**

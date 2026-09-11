@@ -15,7 +15,12 @@
  * nói sai, mà chúng lại là hai màn hình người ta đọc TRƯỚC KHI ĐẶT BÚT KÝ.
  */
 import { describe, expect, it } from 'vitest';
-import { soSanhLech, NHAN_TRANG_THAI_SP, type DongDaChup } from '@csbh/policy/testing';
+import {
+  soSanhLech,
+  ngayTraDanhMuc,
+  NHAN_TRANG_THAI_SP,
+  type DongDaChup,
+} from '@csbh/policy/testing';
 
 /** Dòng đã đóng băng: 100.000 đ, ngưỡng 15,00%. */
 const DONG: DongDaChup = {
@@ -182,5 +187,37 @@ describe('`0194` nhiều thứ lệch cùng lúc', () => {
   it('mã sản phẩm đi kèm MỌI mục — bảng lệch dò theo cột ấy', () => {
     const ra = soSanhLech(DONG, anh({ status: 'DA_VO_HIEU_HOA', companyPrice: '2' }));
     expect(ra.every((l) => l.productCode === 'NC-GOLD-900')).toBe(true);
+  });
+});
+
+/**
+ * `0201` — NGÀY TRA DANH MỤC khi đối chiếu, không bao giờ cũ hơn hôm nay.
+ *
+ * Hàm ba dòng, và lý do nó tồn tại thì không hiển nhiên chút nào — xem docstring
+ * của `ngayTraDanhMuc`. Tóm tắt: bảng giá của một ngày ĐÃ QUA không đổi nữa
+ * (`0123` bắt mọi lượt đổi giá hiệu lực từ hôm nay), nên so ảnh chụp của ngày X
+ * với bảng giá của ngày X là một câu hỏi rỗng — và mọi dòng thừa kế của một
+ * phiên bản mới đều đề ngày quá khứ.
+ */
+describe('`0201` ngày tra danh mục của đường đối chiếu', () => {
+  const HOM_NAY = '2026-09-11';
+
+  it('ngày QUÁ KHỨ quy về hôm nay', () => {
+    expect(ngayTraDanhMuc('2020-06-01', HOM_NAY)).toBe(HOM_NAY);
+  });
+
+  it('ngày HÔM NAY giữ nguyên', () => {
+    expect(ngayTraDanhMuc(HOM_NAY, HOM_NAY)).toBe(HOM_NAY);
+  });
+
+  it('ngày TƯƠNG LAI GIỮ NGUYÊN — đây là vế dễ làm hỏng nhất', () => {
+    /*
+     * Cách chữa sai mà hấp dẫn: "đường đối chiếu luôn so với danh mục hôm nay,
+     * giống hệt hồ sơ đã đóng băng". Nó chữa được đúng ca đang báo, rồi làm hỏng
+     * một ca khác theo chiều ngược: dòng đề ngày tháng sau đã chụp bảng giá của
+     * tháng sau, nên so với hôm nay là báo lệch NGƯỢC, và nút *Tự động cập nhật*
+     * ghi đè giá tương lai bằng giá hôm nay.
+     */
+    expect(ngayTraDanhMuc('2027-01-01', HOM_NAY)).toBe('2027-01-01');
   });
 });

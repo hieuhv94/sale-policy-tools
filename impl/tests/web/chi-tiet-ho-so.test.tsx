@@ -1594,6 +1594,29 @@ describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
     ).toBe(false);
   });
 
+  it('`0201` bấm *Mở bản Nháp* thì hộp thoại ĐÓNG LẠI', async () => {
+    /*
+     * Triệu chứng được báo: bấm xong sang đúng bản Nháp, nhưng hộp thoại nằm
+     * nguyên đó đè lên trang vừa mở.
+     *
+     * `HopThoaiXacNhan` KHÔNG tự đóng — nơi dùng phải đóng, và nhánh *Lập phiên
+     * bản mới* ngay cạnh đã làm đúng thế từ `0191`. Nhánh này chỉ gọi `di()`, và
+     * chỗ ấy thường tự khỏi vì trang đích là một màn hình khác; ở đây trang đích
+     * là CHÍNH màn hình này với một id khác, nên không có gì tháo component ra.
+     *
+     * Ca kiểm hỏi ở tầng COMPONENT chứ không tầng định tuyến: `key` ở
+     * `App.noiDung` cũng đóng được hộp thoại, nhưng nó là câu trả lời của một
+     * câu hỏi khác (*"trang này thuộc về hồ sơ nào"*), và một component tự nó
+     * phải đúng dù ai mount nó.
+     */
+    await moHop({ ...HIEU_LUC, phienBanSau: NHAP_SAU });
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Mở bản Nháp đang có' }),
+    );
+    await waitFor(() => expect(location.pathname).toBe('/ho-so/hs-nhap'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('`0200` bản kế nhiệm ĐANG DUYỆT thì vẫn lập được — chỉ `NHAP` mới chặn', async () => {
     /*
      * Ranh giới, và nó dễ nới quá tay: `create` KHÔNG cấm bản thứ hai khi bản

@@ -64,6 +64,46 @@ export const NHAN_VANG_MAT: Record<string, string> = {
 };
 
 /**
+ * NGÀY TRA DANH MỤC của một dòng khi ĐỐI CHIẾU — không bao giờ cũ hơn hôm nay
+ * (`0201`).
+ *
+ * ---------------------------------------------------------------------------
+ * VÌ SAO KHÔNG PHẢI LÀ CHÍNH `ngay_ap_dung`
+ * ---------------------------------------------------------------------------
+ *
+ * `0180` cho mỗi dòng một ngày áp dụng riêng, và ngày ấy quyết định bảng giá
+ * được CHỤP lúc lập hồ sơ (`0029`). Đường đối chiếu của `0194` dùng lại đúng
+ * ngày ấy, và ở đó nó làm phép so thành một câu hỏi rỗng: ảnh chụp lấy ra từ
+ * bảng giá của ngày X, rồi lại đem so với bảng giá của ngày X. Bảng giá của một
+ * ngày ĐÃ QUA thì không đổi nữa — `0123` bắt mọi lượt đổi giá hiệu lực TỪ HÔM
+ * NAY — nên **một dòng đề ngày quá khứ không bao giờ nhìn thấy được lượt đổi giá
+ * nào**.
+ *
+ * Chỗ nó cắn, đo được trên chồng kiểm: lập phiên bản mới cho một CSBH đang hiệu
+ * lực. Dòng thừa kế giữ nguyên ngày của bản cũ (cố ý — xem lượt chép ở `create`),
+ * nên nó luôn mang một ngày quá khứ. Cùng một khách, cùng một sản phẩm, cùng một
+ * danh mục:
+ *
+ *   bản đang hiệu lực (đóng băng, so với HÔM NAY) → PRICE 100.000 → 130.000
+ *   bản mới          (sửa được, so với ngày dòng) → không lệch gì
+ *
+ * Và nó không dừng ở một câu cảnh báo mất tích: `lamMoiDong` đọc cùng bộ số ấy,
+ * nên nút *Tự động cập nhật* trả `conLai: 0`, lượt gửi duyệt chụp lại đúng con số
+ * cũ, `STALE_LINE` không có gì để chặn — **bản CSBH mới được ký với giá đã lỗi
+ * thời**.
+ *
+ * `max(ngày áp dụng, hôm nay)` chứ không phải "luôn hôm nay": dòng đề ngày TƯƠNG
+ * LAI vẫn phải tra bảng giá của ngày ấy, nếu không thì phép so báo lệch ngược và
+ * nút cập nhật ghi đè giá tương lai bằng giá hôm nay.
+ *
+ * Chỉ dùng cho đường ĐỐI CHIẾU và đường LÀM MỚI (chúng chung `docDongVaAnh`, nên
+ * không lệch nhau được). Đường LẬP hồ sơ giữ nguyên `0029` — ở đó ngày áp dụng
+ * vẫn thắng, kể cả ngày quá khứ TDV cố ý đề.
+ */
+export const ngayTraDanhMuc = (ngayApDung: string, homNay: string): string =>
+  ngayApDung > homNay ? ngayApDung : homNay;
+
+/**
  * Một dòng lệch những gì. Mảng rỗng nghĩa là dòng ấy khớp danh mục.
  *
  * THỨ TỰ trong mảng là thứ tự NẶNG DẦN NGƯỢC — `PRODUCT` trước, rồi `PRICE`, rồi
