@@ -17931,3 +17931,77 @@ phép đồng nhất, nên chỉ ca *ngày quá khứ* phân biệt được hai
 cách chữa SAI (luôn lấy hôm nay), thứ mà ca quá khứ một mình sẽ xanh với.
 
 **2297/2297 xanh.**
+
+---
+
+## P230 — `0202` Giá bán Công ty đổi so với bản trước cũng là *Chỉnh sửa*
+
+Một dòng `SQL`, và cả chặng nằm ở chỗ **lý do cũ đã chết từ sáu chặng trước mà không ai gỡ**.
+
+### Lập luận của `0180` đúng, rồi hết đúng, rồi ở lại
+
+`0180` loại `company_price_snap` khỏi `SQL_DONG_KHAC_BAN_TRUOC` với một lý do viết rõ ràng ngay tại
+chỗ:
+
+> *chúng đến từ DANH MỤC, và `lamMoiDong` chụp lại chúng ở mỗi lượt đọc hồ sơ còn sửa được (`0029`).
+> Đưa chúng vào phép so là để danh mục đổi giá một mình cũng làm mọi dòng của mọi bản nháp nhảy sang
+> *Chỉnh sửa* — một câu sai, vì TDV chưa đụng vào gì cả.*
+
+Mệnh đề mà cả lập luận đứng lên là **"chụp lại ở MỖI LƯỢT ĐỌC"**. `0194` gỡ đúng nó — đảo phép làm
+mới ở đường đọc — nên từ đó `lamMoiDong` chỉ chạy ở **nút *Tự động cập nhật*** và ở **lượt gửi
+duyệt**. Hậu quả mà `0180` sợ mất đường xảy ra ngay hôm ấy, và cái chú thích vẫn nằm nguyên qua
+`0194` · `0195` … `0201`.
+
+**Đây là lớp bẫy `0200` vừa ghi cho `CHO_VAO_BOX` (*"lý do đã chết từ lâu mà không ai gỡ"*), lần thứ
+hai trong ba chặng, và lần này nó ngăn được một tính năng.** Một chú thích giải thích *vì sao KHÔNG
+làm X* thì không có gì đỏ khi tiền đề của nó mất; nó chỉ lặng lẽ tiếp tục thuyết phục người đọc sau.
+Nên chỗ sửa **giữ nguyên văn lập luận cũ** rồi viết ra nó chết ở đâu — xoá đi là mời người sau đề
+xuất lại đúng quyết định ấy với đúng lý lẽ ấy (cùng lối `0188` đã chọn cho bảng màu).
+
+### Vì sao khách hàng đúng, ở một điểm không ai nêu lúc chốt
+
+`SQL_TY_LE_CK_TRUOC` chỉ trả *Tỷ lệ CK cũ* cho dòng **Chỉnh sửa**. Mà tỷ lệ CK là hàm của Giá bán
+Công ty: giá đổi thì tỷ lệ đổi theo, và đó đúng là lúc người duyệt cần đặt hai con số cạnh nhau. Nên
+trước `0202` cột ấy **tắt đúng ở những dòng cần nó nhất** — nhãn *Đang áp dụng* và một cột trống, cho
+một dòng vừa nhảy từ 15% lên 34,62%.
+
+### Ba ranh giới
+
+**`discount_rate` KHÔNG thêm, và thêm là thừa**: nó là hàm thuần của `company_price_snap` +
+`wholesale_price` + `cpbh` (`computeLine`), cả ba giờ đều trong phép so. Một dòng đổi tỷ lệ CK mà
+không đổi cái nào trong ba thứ ấy là chuyện không viết ra được.
+
+**`threshold_snap` VẪN đứng ngoài** — khách hàng chốt đúng một trường, và ngưỡng không suy ra được từ
+ba trường trên (nó đổi `over_threshold`, không đổi tỷ lệ CK). Có **ca kiểm ghim** quyết định ấy chứ
+không để nó là một khoảng lặng: lượt nới sau, nếu có, phải là một lượt sửa có chủ ý.
+
+**Thứ tự các nhánh `CASE` là thứ duy nhất giữ `0200` và `0202` khỏi cãi nhau**: hồ sơ
+`DANG_CO_HIEU_LUC` vẫn kéo mọi dòng về *Đang áp dụng*, vì nhánh ấy đứng TRƯỚC. Có ca kiểm riêng.
+
+### Hệ quả đã nêu, và nó là điểm của yêu cầu chứ không phải cái giá của nó
+
+Nhãn *Chỉnh sửa* giờ **mọc ra được mà không ai gõ gì** — bấm *Tự động cập nhật*, và cả lượt **gửi
+duyệt** (ở đó `lamMoiDong` tự chạy, `0029`), nên hồ sơ đóng băng với nhãn ấy trên chính văn bản đem
+ký. Đọc thoáng thì giống một tác dụng phụ; thực ra nó đúng câu khách hàng đặt: câu hỏi của cột này là
+***"dòng này có khác bản trước không"***, không phải *"TDV có gõ gì không"*. Có một ca kiểm đi hết
+đường gửi duyệt để nói ra điều đó thay vì một dòng chú thích.
+
+### Một ca kiểm của CHÍNH TÔI, viết hôm qua, phải THAY
+
+Ca `0201` *"nút Tự động cập nhật … KHÔNG đụng ngày áp dụng lẫn trạng thái dòng"* đỏ ở lượt chạy đầu.
+Không có gì hỏng: `0202` đảo đúng nửa sau của nó. Đáng ghi là **hai nửa ấy không cùng số phận** — vế
+*ngày áp dụng* vẫn là chốt chặn thật (chữa `0201` bằng cách dời ngày dòng thừa kế về hôm nay thì mọi
+dòng của mọi phiên bản mới nhảy sang *Chỉnh sửa*: đúng triệu chứng, sai hẳn chỗ khác), còn vế *nhãn*
+thì từ nay `0202` canh. Nên ca co lại còn hỏi NGÀY, và tên nó đổi theo. Kéo theo hai câu trong tài
+liệu mà chính `0201` vừa viết hôm qua (*"ngày áp dụng và nhãn trạng thái không bị đụng tới"*) — sửa ở
+cả `YEU-CAU-NGHIEP-VU-CSBH.md` lẫn `03-HUONG-DAN-SU-DUNG.md`, và **nói ra rằng câu ấy hết đúng** thay
+vì lặng lẽ đổi chữ.
+
+### Phá lại
+
+Gỡ vế `company_price_snap` khỏi phép so → **2 đỏ**: ca *"bấm nút xong thành Chỉnh sửa"* và ca *"gửi
+duyệt cũng làm nhãn mọc ra"*. Ba ca còn lại của `0202` **xanh có lý do, đã kiểm**: chúng canh chiều
+NGƯỢC (chưa bấm gì thì chưa đổi nhãn · hồ sơ hiệu lực kéo về *Đang áp dụng* · đổi một mình ngưỡng thì
+không đổi nhãn), nên mã cũ cũng thoả — đó là việc của chúng.
+
+**2302/2302 xanh.**

@@ -2084,9 +2084,19 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > không có bản trước, nên **mọi dòng của nó là *Bổ sung*** — chúng đều là mặt hàng vừa được đưa vào.
 >
 > ***"Bị sửa"* là đổi BẤT KỲ dữ liệu nào người lập nhập**: giá bán buôn · các khoản CPBH · ngày áp
-> dụng · ghi chú. Giá bán Công ty và ngưỡng **không** tính — chúng đến từ danh mục và được chụp lại ở
-> mỗi lượt mở hồ sơ còn sửa được, nên đưa vào phép so là để danh mục đổi giá một mình cũng làm mọi
-> dòng nhảy sang *Chỉnh sửa* trong khi TDV chưa đụng vào gì.
+> dụng · ghi chú — **cộng Giá bán Công ty** `sửa 12/09`.
+>
+> > **Giá bán Công ty vào phép so từ `12/09`**, đảo lại chốt `07/09`. Lý do cũ: *"nó đến từ danh mục
+> > và được chụp lại ở MỖI LƯỢT MỞ hồ sơ còn sửa được, nên đưa vào phép so là để danh mục đổi giá một
+> > mình cũng làm mọi dòng nhảy sang Chỉnh sửa trong khi TDV chưa đụng vào gì"*. Mệnh đề ấy **hết đúng
+> > từ `10/09`**, lượt bỏ phép chụp lại ở đường đọc: từ đó giá trên dòng chỉ đổi khi TDV **bấm *Tự
+> > động cập nhật*** hoặc khi **gửi duyệt**. Danh mục đổi giá một mình không còn chạm tới dòng nào.
+> >
+> > **Hệ quả đã nêu**: nhãn *Chỉnh sửa* giờ mọc ra được mà không ai gõ gì — hai lượt trên. Đó đúng là
+> > câu đang hỏi: *"dòng này có khác bản trước không"*, không phải *"TDV có gõ gì không"*.
+> >
+> > **Ngưỡng chiết khấu VẪN đứng ngoài** — một dòng chỉ đổi ngưỡng (đổi *vượt ngưỡng*, không đổi tỷ lệ
+> > CK) vẫn mang nhãn *Đang áp dụng*. Đây là chỗ duy nhất còn lệch, nêu ra để hỏi lại.
 >
 > Hệ quả có thật của việc **tính ra chứ không lưu một cờ**: sửa nhầm rồi sửa trả lại đúng giá trị cũ
 > thì dòng **quay về *Đang áp dụng*** — hồ sơ khi ấy không khác bản đang hiệu lực ở dòng ấy, và một
@@ -2603,6 +2613,28 @@ không áp được.
 > sau khi `10/09` biến nó thành một lượt GHI do người dùng bấm. Bấm lúc không có gì để đổi thì vẫn
 > không ghi gì.
 
+**GIÁ BÁN CÔNG TY ĐỔI CŨNG LÀ *Chỉnh sửa*** `mới 12/09` — *"thêm các trường Giá bán công ty thay đổi
+so với bản trước cũng tính là Đã chỉnh sửa"*.
+
+> Đảo lại chốt `07/09`, vốn loại Giá bán Công ty ra khỏi phép so. **Lý do cũ không sai, nó chỉ hết
+> đúng**: khi ấy phần mềm chụp lại giá ở MỖI LƯỢT MỞ hồ sơ còn sửa được, nên đưa giá vào phép so là
+> để một lượt Quản trị đổi giá làm mọi dòng của mọi bản nháp nhảy sang *Chỉnh sửa* cùng lúc. Chốt
+> `10/09` bỏ hẳn phép chụp lại ở đường đọc — từ đó giá trên dòng chỉ đổi khi TDV **bấm *Tự động cập
+> nhật*** hoặc khi **gửi duyệt** — nên hậu quả ấy đã hết đường xảy ra từ hai ngày trước, và không ai
+> quay lại gỡ câu đã chết.
+>
+> **Cái được, và là lý do thực dụng**: cột *Tỷ lệ CK cũ* chỉ hiện cho dòng *Chỉnh sửa*. Giá bán Công
+> ty đổi thì tỷ lệ chiết khấu đổi theo — đúng lúc người duyệt cần đặt hai con số cạnh nhau — mà trước
+> `12/09` cột ấy **tắt đúng ở những dòng cần nó nhất**.
+>
+> **Hệ quả đã nêu**: nhãn *Chỉnh sửa* mọc ra được mà không ai gõ gì. Đó đúng là câu đang hỏi — *"dòng
+> này có khác bản trước không"*, không phải *"TDV có gõ gì không"*.
+>
+> **Tỷ lệ chiết khấu không cần thêm vào phép so**: nó suy ra từ Giá bán Công ty, giá bán buôn và CPBH,
+> mà cả ba đã có trong đó. **Ngưỡng chiết khấu thì VẪN đứng ngoài** — nó không suy ra được từ ba thứ
+> ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
+> lại.
+
 **HAI LỖI CỦA LƯỢT 11/09** `mới 11/09` — một ở hộp thoại, một ở phép đối chiếu.
 
 > **1 · Nhận lời mở bản Nháp đang có thì hộp thoại phải BIẾN MẤT.** Nút đưa đúng sang bản Nháp, nhưng
@@ -2630,7 +2662,8 @@ không áp được.
 >
 > Từ nay ngày tra danh mục của phép đối chiếu là **ngày áp dụng của dòng hoặc hôm nay, lấy ngày muộn
 > hơn** (muc 7.1). Lượt **chụp** số lúc lập hồ sơ giữ nguyên luật `16/08` — khai ngày quá khứ thì vẫn
-> chụp bảng giá của ngày ấy. Ngày áp dụng và nhãn trạng thái của dòng **không bị đụng tới**.
+> chụp bảng giá của ngày ấy. **Ngày áp dụng** của dòng không bị đụng tới. (Nhãn trạng thái thì CÓ đổi
+> kể từ `12/09` — xem mục kế dưới đây; bản chốt `11/09` nói nó cũng không đổi, và câu ấy hết đúng.)
 >
 > > **Đã cân và chọn phía nói ra**: cách khác là để phiên bản mới tự chụp lại giá hôm nay lúc chép
 > > dòng, và khi ấy không còn gì để cảnh báo. Cái giá của nó là tỷ lệ chiết khấu đổi **âm thầm** —

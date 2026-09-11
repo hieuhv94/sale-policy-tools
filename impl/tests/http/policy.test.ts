@@ -7156,12 +7156,23 @@ describe('`0201` phiên bản mới vẫn thấy lượt đổi giá của danh 
     expect(moiLech.map((l) => l.kind)).toEqual(['PRICE']);
   });
 
-  it('nút *Tự động cập nhật* áp được, và KHÔNG đụng ngày áp dụng lẫn trạng thái dòng', async () => {
+  it('nút *Tự động cập nhật* áp được, và KHÔNG đụng NGÀY ÁP DỤNG', async () => {
     /*
-     * Vế thứ hai là vế phải canh: `ngay_ap_dung` là một trong BỐN trường mà
+     * Vế phải canh: `ngay_ap_dung` là một trong những trường mà
      * `SQL_TRANG_THAI_DONG` so để suy ra *Đang áp dụng* / *Chỉnh sửa* (`0180`).
-     * Chữa lỗi này bằng cách dời ngày của dòng thừa kế về hôm nay thì mọi dòng
+     * Chữa lỗi `0201` bằng cách dời ngày của dòng thừa kế về hôm nay thì mọi dòng
      * của mọi phiên bản mới nhảy sang *Chỉnh sửa* — đúng, mà sai hẳn chỗ khác.
+     *
+     * ------------------------------------------------------------------------
+     * VẾ NHÃN TRẠNG THÁI PHẢI THAY (`0202`).
+     * ------------------------------------------------------------------------
+     *
+     * Bản `0201` của ca này còn đòi `trangThai` giữ nguyên *Đang áp dụng* sau
+     * lượt bấm. Khách hàng chốt 12/09 điều ngược lại: Giá bán Công ty khác bản
+     * trước thì dòng LÀ *Chỉnh sửa*. Mệnh đề đổi, nên phần khẳng định đổi theo —
+     * còn cái nó bảo vệ (đừng dời ngày để chữa `0201`) thì không đổi, nên nó
+     * được hỏi bằng một câu KHÁC: nhãn đúng ra sao thì `0202` canh, ở đây chỉ
+     * hỏi NGÀY.
      */
     const cu = await banHieuLucNgayCu();
     await doiGiaHomNay(cu.productId, '130000');
@@ -7180,7 +7191,6 @@ describe('`0201` phiên bản mới vẫn thấy lượt đổi giá của danh 
     expect(hs.lech).toEqual([]);
     expect(hs.lines[0].companyPrice).toBe('130000');
     expect(String(hs.lines[0].ngayApDung)).toContain('2020-06-01');
-    expect(hs.lines[0].trangThai).toBe('DANG_AP_DUNG');
   });
 
   it('dòng đề ngày TƯƠNG LAI vẫn tra bảng giá của NGÀY ẤY', async () => {
@@ -7205,5 +7215,145 @@ describe('`0201` phiên bản mới vẫn thấy lượt đổi giá của danh 
 
     const hs = (await get(`/policies/${r.body.id}`)).body;
     expect(hs.lech, 'giá của ngày áp dụng tương lai không đổi thì không có gì lệch').toEqual([]);
+  });
+});
+
+// =============================================================================
+// `0202` — GIÁ BÁN CÔNG TY ĐỔI SO VỚI BẢN TRƯỚC CŨNG LÀ *Chỉnh sửa*
+// =============================================================================
+
+/**
+ * Khách hàng chốt 12/09. Đây là lượt ĐẢO một quyết định của `0180`, và điều đáng
+ * ghi là **tiền đề của quyết định cũ đã chết từ `0194`**:
+ *
+ * `0180` loại `company_price_snap` ra khỏi phép so với lý do *"`lamMoiDong` chụp
+ * lại chúng ở MỖI LƯỢT ĐỌC, nên danh mục đổi giá một mình cũng làm mọi dòng của
+ * mọi bản nháp nhảy sang Chỉnh sửa"*. `0194` gỡ đúng phép ghi đè ở đường đọc ấy —
+ * từ đó `lamMoiDong` chỉ chạy khi TDV bấm *Tự động cập nhật* hoặc khi gửi duyệt.
+ * Hậu quả mà `0180` sợ đã hết đường xảy ra, và ca *"chưa bấm gì thì chưa đổi
+ * nhãn"* dưới đây là chốt giữ cho điều đó đúng.
+ */
+describe('`0202` giá bán Công ty đổi thì dòng thừa kế thành *Chỉnh sửa*', () => {
+  const dongCua = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    body.lines.find((l) => l['productId'] === productId)!;
+
+  const doiGia = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  /** Bản đang hiệu lực + một phiên bản mới chưa ai sửa gì. */
+  const banMoiChuaSua = async () => {
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('DANG_AP_DUNG');
+    return { ...d, v2Id: v2.body.id as string };
+  };
+
+  it('bấm *Tự động cập nhật* xong: dòng thành *Chỉnh sửa*, kèm tỷ lệ CK cũ', async () => {
+    const d = await banMoiChuaSua();
+    await doiGia(d.productId, '130000');
+
+    const ap = await post(`/policies/${d.v2Id}/ap-dung-thay-doi`, {});
+    expect(ap.status, JSON.stringify(ap.body)).toBe(200);
+
+    const l = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(l['companyPrice']).toBe('130000');
+    expect(l['trangThai']).toBe('CHINH_SUA');
+    // Vế thứ hai, và là lý do thực dụng của cả lượt sửa: cột *Tỷ lệ CK cũ* chỉ
+    // hiện cho dòng *Chỉnh sửa*, nên trước `0202` nó tắt đúng ở những dòng cần
+    // nó nhất — chỗ tỷ lệ vừa nhảy vì giá Công ty đổi.
+    expect(l['discountRateTruoc']).not.toBeNull();
+  });
+
+  it('CHƯA BẤM GÌ thì dòng vẫn *Đang áp dụng* — phép so đọc ẢNH CHỤP, không đọc danh mục', async () => {
+    /*
+     * Chốt chặn giữ cho lập luận của `0180` khỏi sống lại thành sự thật. Phép so
+     * đứng giữa hai ảnh chụp nằm trên hai DÒNG hồ sơ; danh mục không có mặt trong
+     * đó. Nối thẳng phép so vào danh mục là mọi bản nháp của mọi khách nhảy sang
+     * *Chỉnh sửa* cùng lúc, ngay lượt Quản trị đổi một con số.
+     */
+    const d = await banMoiChuaSua();
+    await doiGia(d.productId, '130000');
+
+    const l = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(l['companyPrice'], 'ảnh chụp chưa đổi thì nhãn cũng chưa').toBe('100000');
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
+    expect(l['discountRateTruoc']).toBeNull();
+  });
+
+  it('GỬI DUYỆT cũng làm nhãn ấy mọc ra — không ai gõ gì', async () => {
+    /*
+     * Hệ quả đã nêu lúc chốt, và nó phải có ca kiểm chứ không chỉ một dòng chú
+     * thích: `lamMoiDong` tự chạy ở lượt gửi duyệt (`0029`), nên hồ sơ đóng băng
+     * với giá mới và dòng mang nhãn *Chỉnh sửa* trên chính văn bản đem ký — dù
+     * TDV không sửa một ô nào. Đúng câu khách hàng đặt: câu hỏi là *"dòng này có
+     * khác bản trước không"*, không phải *"TDV có gõ gì không"*.
+     */
+    const d = await banMoiChuaSua();
+    await doiGia(d.productId, '130000');
+
+    expect((await act(d.v2Id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const hs = (await get(`/policies/${d.v2Id}`)).body;
+    expect(hs.status).toBe('CHO_TBP_DUYET');
+    expect(dongCua(hs, d.productId)['trangThai']).toBe('CHINH_SUA');
+  });
+
+  it('HỒ SƠ CÓ HIỆU LỰC vẫn kéo mọi dòng về *Đang áp dụng* — `0200` đứng trước', async () => {
+    // Thứ tự các nhánh `CASE` là thứ duy nhất giữ hai luật này khỏi cãi nhau.
+    const d = await banMoiChuaSua();
+    await doiGia(d.productId, '130000');
+    await post(`/policies/${d.v2Id}/ap-dung-thay-doi`, {});
+    await runToActive({ id: d.v2Id });
+
+    const l = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
+    expect(l['discountRateTruoc']).toBeNull();
+  });
+
+  it('RANH GIỚI: đổi MỘT MÌNH ngưỡng thì vẫn là *Đang áp dụng*', async () => {
+    /*
+     * `threshold_snap` vẫn đứng ngoài phép so — khách hàng chốt đúng MỘT trường,
+     * và ngưỡng không suy ra được từ ba trường kia (nó đổi `over_threshold` mà
+     * không đổi tỷ lệ CK). Ca này ghim quyết định ấy để lượt nới sau — nếu có —
+     * là một lượt sửa có chủ ý, không phải một hệ quả kèm theo.
+     */
+    const { productId, groupCode: nhom } = await sanPhamNhomRieng('100000', '2020-01-01');
+    expect(
+      (await khaiQuyDinh({
+        code: uniq('CK'), productGroupCode: nhom,
+        effectiveFrom: '2020-01-01', thresholdRate2: 1500,
+      })).status,
+    ).toBe(201);
+
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(productId)] });
+    expect(d.status, JSON.stringify(d.body)).toBe(201);
+    await runToActive({ id: d.body.id });
+    const v2 = await post('/policies', { customerId, mode: 'NEW_VERSION', lines: [] });
+
+    // Chỉ đổi NGƯỠNG, không đụng giá.
+    expect(
+      (await khaiQuyDinh({
+        code: uniq('CK'), productGroupCode: nhom,
+        effectiveFrom: ngayVN(), thresholdRate2: 2500,
+      })).status,
+    ).toBe(201);
+    expect((await post(`/policies/${v2.body.id}/ap-dung-thay-doi`, {})).status).toBe(200);
+
+    const l = dongCua((await get(`/policies/${v2.body.id}`)).body, productId);
+    expect(l['threshold'], 'ngưỡng PHẢI đã đổi — nếu không thì ca này đo nhầm thứ').toBe('25.00');
+    expect(l['companyPrice']).toBe('100000');
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
   });
 });

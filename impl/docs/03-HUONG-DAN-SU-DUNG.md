@@ -470,7 +470,7 @@ Bấm nút thì bảng sản phẩm lấy số mới của danh mục, và khố
 > không áp được gì, và bản mới đi hết luồng duyệt với giá cũ.
 >
 > Từ nay phép đối chiếu lấy **ngày muộn hơn giữa *Ngày áp dụng* của dòng và hôm nay**. *Ngày áp dụng*
-> và nhãn trạng thái của dòng **không đổi**; chỉ những con số đến từ danh mục được đối chiếu lại. Dòng
+> của dòng **không đổi**; chỉ những con số đến từ danh mục được đối chiếu lại. Dòng
 > đề ngày trong **tương lai** vẫn dùng bảng giá của đúng ngày ấy.
 
 > **Không có thư báo cho việc này.** Danh mục đổi thì phần mềm **không** gửi email cho ai — kể cả với
@@ -872,7 +872,7 @@ Hai cột trả lời một câu duy nhất: **bản CSBH này khác bản đang
 | Trạng thái | Nghĩa |
 |---|---|
 | **Bổ sung** | Mặt hàng **mới**, chưa có trong CSBH đang hiệu lực |
-| **Chỉnh sửa** | Mặt hàng đã có, và bạn **vừa sửa** một dữ liệu nào đó của nó |
+| **Chỉnh sửa** | Mặt hàng đã có, và **một dữ liệu nào đó của nó đã khác** bản đang hiệu lực |
 | **Đang áp dụng** | Mặt hàng đã có, **để nguyên** như bản đang hiệu lực |
 | **Đã xoá** `mới 08/09` | Mặt hàng đã có, và bạn **vừa rút** nó khỏi phiên bản này |
 
@@ -882,6 +882,11 @@ mục sản phẩm**.
 
 - Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
   buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
+- ***Giá bán Công ty* khác bản trước cũng là *Chỉnh sửa*** `mới 12/09`, kể cả khi bạn không gõ gì.
+  Nó đổi ở hai lượt: bạn bấm **Tự động cập nhật**, hoặc bạn **Gửi duyệt** (lúc ấy phần mềm chụp lại
+  lần cuối). Giá đổi thì tỷ lệ chiết khấu đổi theo, nên cột **Tỷ lệ CK cũ** hiện ra để bạn và người
+  duyệt đặt hai con số cạnh nhau mà so. Chỉ **ngưỡng chiết khấu** đổi một mình thì dòng vẫn là *Đang
+  áp dụng*.
 - **Sửa nhầm rồi sửa trả lại đúng như cũ thì dòng quay về *Đang áp dụng*** — nó được tính ra từ hai
   bản, không phải một dấu đóng vào rồi ở lại.
 - Ở **phiên bản đầu tiên** của một khách hàng, mọi dòng là *Bổ sung*: chưa có bản nào trước để so.

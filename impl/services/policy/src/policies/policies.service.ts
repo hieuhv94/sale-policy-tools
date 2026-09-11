@@ -546,14 +546,51 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  * "BỊ SỬA" LÀ SỬA THỨ GÌ
  * ---------------------------------------------------------------------------
  *
- * Bốn trường TDV nhập: giá bán buôn · các khoản CPBH · ngày áp dụng · ghi chú.
- * Khách hàng chốt *"đổi bất kỳ dữ liệu nào"*, nên danh sách này là đủ bốn.
+ * NĂM trường: giá bán buôn · các khoản CPBH · ngày áp dụng · ghi chú — bốn thứ
+ * TDV nhập — **cộng `company_price_snap`** (`0202`). Khách hàng chốt *"đổi bất
+ * kỳ dữ liệu nào"* cho bốn trường đầu, và chốt riêng cho Giá bán Công ty ở
+ * `12/09`.
  *
- * KHÔNG so `company_price_snap`, `threshold_snap`, `discount_rate`: chúng đến từ
- * DANH MỤC, và `lamMoiDong` chụp lại chúng ở mỗi lượt đọc hồ sơ còn sửa được
- * (`0029`). Đưa chúng vào phép so là để danh mục đổi giá một mình cũng làm mọi
- * dòng của mọi bản nháp nhảy sang *Chỉnh sửa* — một câu sai, vì TDV chưa đụng
- * vào gì cả.
+ * ---------------------------------------------------------------------------
+ * VÌ SAO `0180` LOẠI GIÁ BÁN CÔNG TY RA, VÀ VÌ SAO LÝ DO ẤY ĐÃ CHẾT (`0202`)
+ * ---------------------------------------------------------------------------
+ *
+ * Lập luận của `0180` — giữ nguyên văn ở đây vì nó **không sai**, chỉ hết đúng:
+ *
+ * > *chúng đến từ DANH MỤC, và `lamMoiDong` chụp lại chúng ở mỗi lượt đọc hồ sơ
+ * > còn sửa được (`0029`). Đưa chúng vào phép so là để danh mục đổi giá một mình
+ * > cũng làm mọi dòng của mọi bản nháp nhảy sang *Chỉnh sửa* — một câu sai, vì
+ * > TDV chưa đụng vào gì cả.*
+ *
+ * Mệnh đề mà cả lập luận ấy đứng lên là **"chụp lại ở MỖI LƯỢT ĐỌC"**, và
+ * `0194` đã gỡ đúng nó: từ đó đường đọc không ghi đè gì nữa, `lamMoiDong` chỉ
+ * chạy khi TDV **bấm *Tự động cập nhật*** hoặc khi **gửi duyệt**. Nên danh mục
+ * đổi giá một mình KHÔNG còn chạm tới `company_price_snap` của bất kỳ dòng nào —
+ * cái hậu quả mà `0180` sợ đã hết đường xảy ra từ sáu chặng trước, và không ai
+ * quay lại gỡ mệnh đề đã chết.
+ *
+ * Cái vào phép so vì thế mang đúng nghĩa của cả bảng: **dòng này đã khác bản CSBH
+ * trước ở một con số sẽ đi vào văn bản ký hay chưa**. Giá bán Công ty đổi thì tỷ
+ * lệ chiết khấu đổi theo, và cột *Tỷ lệ CK cũ* — vốn chỉ hiện cho dòng *Chỉnh
+ * sửa* — là chỗ người duyệt đối chiếu con số ấy; trước `0202` nó tắt đúng ở
+ * những dòng cần nó nhất.
+ *
+ * `discount_rate` KHÔNG cần thêm và thêm là thừa: nó là hàm thuần của
+ * `company_price_snap` + `wholesale_price` + `cpbh` (`computeLine`), mà cả ba
+ * giờ đều nằm trong phép so — một dòng đổi tỷ lệ CK mà không đổi cái nào trong
+ * ba thứ ấy là chuyện không viết ra được.
+ *
+ * `threshold_snap` VẪN đứng ngoài, và đó là chỗ duy nhất còn lệch — đã nêu để hỏi
+ * lại. Nó đến từ quy định chiết khấu chứ không suy ra được từ ba trường trên, nên
+ * một dòng chỉ đổi ngưỡng (đổi `over_threshold`, không đổi tỷ lệ CK) vẫn mang
+ * nhãn *Đang áp dụng*. Khách hàng chốt đúng một trường.
+ *
+ * ---------------------------------------------------------------------------
+ *
+ * HỆ QUẢ ĐÃ NÊU: nhãn *Chỉnh sửa* giờ **mọc ra được mà không ai gõ gì** — bấm
+ * *Tự động cập nhật*, và cả lượt **gửi duyệt** (ở đó `lamMoiDong` tự chạy). Đó
+ * đúng là câu khách hàng đặt: câu hỏi là *"dòng này có khác bản trước không"*,
+ * không phải *"TDV có gõ gì không"*.
  *
  * `IS DISTINCT FROM` chứ không `<>`: `note` NULL được, và `NULL <> 'x'` trả NULL
  * chứ không trả `true` — dòng vừa được gõ thêm ghi chú sẽ lọt qua thành *Đang áp
@@ -573,10 +610,14 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  */
 export const SQL_DONG_KHAC_BAN_TRUOC = `
   truoc.id IS NOT NULL AND (
-       l.wholesale_price IS DISTINCT FROM truoc.wholesale_price
-    OR l.cpbh            IS DISTINCT FROM truoc.cpbh
-    OR l.ngay_ap_dung    IS DISTINCT FROM truoc.ngay_ap_dung
-    OR l.note            IS DISTINCT FROM truoc.note
+       l.wholesale_price    IS DISTINCT FROM truoc.wholesale_price
+    OR l.cpbh               IS DISTINCT FROM truoc.cpbh
+    OR l.ngay_ap_dung       IS DISTINCT FROM truoc.ngay_ap_dung
+    OR l.note               IS DISTINCT FROM truoc.note
+    -- 0202 — Giá bán Công ty: so trên NUMERIC chứ không trên chuỗi, nên
+    -- 100000 và 100000.00 là một. Xem docstring về vì sao lý lẽ loại nó ra
+    -- của 0180 đã hết đúng từ 0194.
+    OR l.company_price_snap IS DISTINCT FROM truoc.company_price_snap
   )`;
 
 /**
