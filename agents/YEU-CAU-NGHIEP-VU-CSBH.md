@@ -2077,6 +2077,34 @@ hiện tên QĐCK"*.
 > mới biết nó nghĩa là bao nhiêu. Mã KHÔNG mất — nó nằm trong câu của dấu `?`, và vẫn dán được vào ô
 > tìm kiếm ở màn hình Chiết khấu. Cột này **chỉ có trên màn hình**, không in ra giấy (chốt `19/08`).
 
+**BẤM NHÃN *Chỉnh sửa* THÌ THẤY DÒNG ẤY ĐỔI NHỮNG GÌ** `mới 12/09` — *"đề xuất cách hiển thị để
+người dùng thấy luôn được thông tin nào của sản phẩm bị thay đổi"*.
+
+> Nhãn trạng thái **giữ nguyên chữ**, không mang thêm thông tin nào — khách hàng chốt từng chữ. Thứ
+> thêm vào là một thao tác: bấm vào nhãn thì ngay dưới hàng ấy mở ra một bảng ba cột — **Thay đổi ở ·
+> Bản trước · Bản này** — liệt kê đúng những trường đã khác bản CSBH trước. Bấm lần nữa thì đóng; mở
+> nhiều dòng cùng lúc được.
+>
+> Cùng hình dạng với khối *Yêu cầu cập nhật* trên cùng trang (dòng gấp lại, bấm mới mở chi tiết), nên
+> không có cách đọc thứ hai phải học.
+>
+> **Đã cân và loại bỏ**: đánh dấu ngay trong ô kèm số cũ ở dòng dưới — mọi hàng *Chỉnh sửa* cao gấp
+> đôi giữa một bảng tiền vốn đọc theo cột dọc; và thêm một cột *giá trị cũ* cho từng trường — bảng đã
+> 13–15 cột.
+>
+> **Bản in KHÔNG đổi gì** (chốt `12/09`). Bảng này là đường tra ngược của người duyệt trên màn hình,
+> cùng loại với cột *QĐCK* vốn đã chỉ có trên màn hình từ `19/08`.
+>
+> **Tên trường trong bảng chi tiết LÀ tiêu đề cột của chính bảng sản phẩm** — không phải một danh
+> sách chữ thứ hai. Người ta bấm rồi đọc, trong khi mắt đang ở ngay cạnh hàng tiêu đề.
+>
+> **CPBH liệt kê từng khoản, không cộng lại**: hai cách chia vẫn có thể cùng tổng (`5.000` →
+> `3.000 + 2.000`), và khi ấy một dòng *"CPBH 5.000 → 5.000"* là một thay đổi tự nói rằng nó không có
+> thay đổi nào.
+>
+> ***Tỷ lệ CK cũ* giữ nguyên cột riêng.** Năm trường trong bảng chi tiết là **nguyên nhân**, tỷ lệ CK
+> là **hệ quả** — chúng không phải hai bản sao của một thứ.
+
 **MỘT nút thay cho *Bổ sung* và *Chỉnh sửa*** `sửa 07/09` — *"Gộp hai nút bổ sung và chỉnh sửa CSBH
 vào thành 1"*.
 

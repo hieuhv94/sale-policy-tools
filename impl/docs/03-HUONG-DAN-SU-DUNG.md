@@ -904,6 +904,20 @@ mục sản phẩm**.
   phiên bản trước, để đặt cạnh con số mới mà so. Dòng *Đang áp dụng* có tỷ lệ cũ bằng đúng tỷ lệ mới,
   và dòng *Bổ sung* thì không có tỷ lệ cũ nào.
 
+> **Bấm vào nhãn *Chỉnh sửa* thì thấy dòng ấy đổi những gì** `mới 12/09`. Ngay dưới hàng mở ra một
+> bảng ba cột — **Thay đổi ở · Bản trước · Bản này** — liệt kê đúng những trường đã khác bản CSBH
+> trước: *Giá bán Công ty*, *Giá bán buôn*, *CPBH*, *Ngày áp dụng*, *Ghi chú*. Bấm lần nữa thì đóng,
+> và mở nhiều dòng cùng lúc được để so.
+>
+> Nhãn **không đổi chữ** — vẫn chỉ đề *Chỉnh sửa*; mũi tên nhỏ bên cạnh là dấu cho biết bấm được.
+> Dòng *Bổ sung*, *Đang áp dụng*, *Đã xoá* thì nhãn không bấm được, vì không có gì để so.
+>
+> **CPBH liệt kê từng khoản** chứ không cộng lại: đổi từ `5.000` sang `3.000 + 2.000` là một thay đổi
+> thật, mà tổng thì vẫn thế.
+>
+> **Bản in không có bảng này** — nó là đường tra ngược của người duyệt trên màn hình, cùng loại với
+> cột *QĐCK*.
+
 > **Hai cột này không in ra hai mẫu hồ sơ mặc định.** Chúng phục vụ người **đang duyệt**, không phải
 > tờ giấy đem ký. Muốn in thì Quản trị hệ thống tích chúng trong tập cột của một mẫu riêng — chúng có
 > sẵn trong danh mục cột.

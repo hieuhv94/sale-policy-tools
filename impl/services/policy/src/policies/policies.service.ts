@@ -609,17 +609,88 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  * tờ giấy là hai chỗ dựng khác nhau — để mỗi bên tự quyết định "khi nào thì
  * hiện" là dựng ra hai câu trả lời sẽ lệch nhau.
  */
+/**
+ * NĂM TRƯỜNG ĐƯỢC SO, khai MỘT LẦN (`0204`).
+ *
+ * Tới `0203` danh sách này nằm thẳng trong `SQL_DONG_KHAC_BAN_TRUOC` dưới dạng
+ * một chuỗi `OR`. `0204` cần thêm một câu trả lời thứ hai từ đúng năm trường ấy
+ * — *"đổi những gì, từ đâu sang đâu"* — và hai biểu thức SQL gõ tay cho cùng một
+ * danh sách là hai thứ sẽ trôi khỏi nhau: thêm một trường vào phép so mà quên
+ * bảng chi tiết thì dòng mang nhãn *Chỉnh sửa* trong khi bảng mở ra nói *không
+ * có gì đổi*, và không có gì đỏ.
+ *
+ * Nên danh sách là DỮ LIỆU, và cả hai biểu thức SINH RA từ nó. Không phải một
+ * lượt dọn cho gọn: nó là chốt chặn duy nhất giữ hai câu trả lời khỏi cãi nhau.
+ *
+ * `dang` quyết định cách đọc giá trị ra chuỗi, KHÔNG quyết định cách bày:
+ *
+ *   * `so`   — `numeric`/`bigint` đọc ra text, giữ nguyên văn con số CSDL giữ;
+ *   * `mang` — `bigint[]` (CPBH) ra một MẢNG chuỗi. Không gộp thành tổng: hai
+ *              mảng khác nhau vẫn có thể cùng tổng (`[5000]` → `[3000,2000]`),
+ *              và khi ấy một dòng *"CPBH 5.000 → 5.000"* là một thay đổi tự nói
+ *              rằng nó không có thay đổi nào;
+ *   * `ngay` — `date` ra `YYYY-MM-DD`, để giao diện tự định dạng theo quy ước
+ *              tiếng Việt như mọi chỗ khác;
+ *   * `chu`  — text, `null` được (ghi chú trống là một giá trị thật).
+ *
+ * Cách ĐỌC là việc của màn hình, đúng lối `Lech.doc()` đã chọn: máy chủ giữ
+ * nguyên văn con số nó vừa so.
+ */
+const TRUONG_SO_VOI_BAN_TRUOC = [
+  // Thứ tự này là thứ tự ĐỌC trong bảng chi tiết, xếp theo mức đáng chú ý: hai
+  // con số quyết định tỷ lệ chiết khấu trước, rồi tới thứ chỉ đổi cách ghi.
+  { khoa: 'companyPrice', cot: 'company_price_snap', dang: 'so' },
+  { khoa: 'wholesalePrice', cot: 'wholesale_price', dang: 'so' },
+  { khoa: 'cpbh', cot: 'cpbh', dang: 'mang' },
+  { khoa: 'ngayApDung', cot: 'ngay_ap_dung', dang: 'ngay' },
+  { khoa: 'note', cot: 'note', dang: 'chu' },
+] as const;
+
+/** Đọc một cột ra dạng chuỗi/mảng mà bảng chi tiết mang đi. */
+const docCot = (bang: 'l' | 'truoc', t: (typeof TRUONG_SO_VOI_BAN_TRUOC)[number]): string =>
+  t.dang === 'mang'
+    ? `to_jsonb(${bang}.${t.cot}::text[])`
+    : t.dang === 'ngay'
+      ? `to_jsonb(to_char(${bang}.${t.cot}, 'YYYY-MM-DD'))`
+      : `to_jsonb(${bang}.${t.cot}::text)`;
+
+/**
+ * `0202` — Giá bán Công ty: so trên NUMERIC chứ không trên chuỗi, nên `100000`
+ * và `100000.00` là một. Xem docstring trên về vì sao lý lẽ loại nó ra của
+ * `0180` đã hết đúng từ `0194`.
+ */
 export const SQL_DONG_KHAC_BAN_TRUOC = `
   truoc.id IS NOT NULL AND (
-       l.wholesale_price    IS DISTINCT FROM truoc.wholesale_price
-    OR l.cpbh               IS DISTINCT FROM truoc.cpbh
-    OR l.ngay_ap_dung       IS DISTINCT FROM truoc.ngay_ap_dung
-    OR l.note               IS DISTINCT FROM truoc.note
-    -- 0202 — Giá bán Công ty: so trên NUMERIC chứ không trên chuỗi, nên
-    -- 100000 và 100000.00 là một. Xem docstring về vì sao lý lẽ loại nó ra
-    -- của 0180 đã hết đúng từ 0194.
-    OR l.company_price_snap IS DISTINCT FROM truoc.company_price_snap
+    ${TRUONG_SO_VOI_BAN_TRUOC.map((t) => `l.${t.cot} IS DISTINCT FROM truoc.${t.cot}`).join(
+      '\n    OR ',
+    )}
   )`;
+
+/**
+ * DÒNG NÀY ĐỔI NHỮNG GÌ, TỪ ĐÂU SANG ĐÂU (`0204`).
+ *
+ * Mảng `{ truong, truoc, sau }`, chỉ chứa trường THẬT SỰ đổi, theo thứ tự khai ở
+ * `TRUONG_SO_VOI_BAN_TRUOC`. Rỗng khi dòng không có bản trước để so.
+ *
+ * `jsonb_build_array` để chỗ của trường không đổi bằng `NULL`, rồi lượt `WHERE`
+ * loại chúng ra — viết thẳng một `jsonb_agg` có điều kiện thì mỗi trường cần một
+ * nhánh riêng, đúng thứ mà `TRUONG_SO_VOI_BAN_TRUOC` sinh ra để khỏi phải gõ.
+ * `WITH ORDINALITY` giữ thứ tự khai; `jsonb_agg` trên một tập không có `ORDER BY`
+ * là một thứ tự tình cờ đúng.
+ */
+export const SQL_THAY_DOI_DONG = `
+  CASE WHEN truoc.id IS NULL THEN '[]'::jsonb ELSE (
+    SELECT coalesce(jsonb_agg(e ORDER BY i), '[]'::jsonb)
+      FROM jsonb_array_elements(jsonb_build_array(
+        ${TRUONG_SO_VOI_BAN_TRUOC.map(
+          (t) => `CASE WHEN l.${t.cot} IS DISTINCT FROM truoc.${t.cot}
+             THEN jsonb_build_object('truong', '${t.khoa}',
+                                     'truoc', ${docCot('truoc', t)},
+                                     'sau',   ${docCot('l', t)}) END`,
+        ).join(',\n        ')}
+      )) WITH ORDINALITY AS t(e, i)
+     WHERE e <> 'null'::jsonb
+  ) END`;
 
 /**
  * *Đã xoá* THẮNG cả ba trạng thái kia (`0186`).
@@ -704,6 +775,27 @@ export const SQL_DONG_THUA_KE = `truoc.id IS NOT NULL`;
 export const SQL_TY_LE_CK_TRUOC = `
   CASE WHEN NOT l.da_xoa AND NOT ${SQL_HO_SO_DA_HIEU_LUC} AND ${SQL_DONG_KHAC_BAN_TRUOC}
        THEN truoc.discount_rate::text END`;
+
+/**
+ * Bảng chi tiết *"dòng này đổi những gì"* — CHỈ cho dòng *Chỉnh sửa* (`0204`).
+ *
+ * Ba vế gác **giống hệt** `SQL_TY_LE_CK_TRUOC` ngay trên, và giống hệt là điều
+ * kiện chứ không phải sự trùng lặp: chúng phải xuất hiện CÙNG NHAU với đúng một
+ * tập dòng. Một cột nói *"tỷ lệ CK cũ là 15%"* trong khi bảng chi tiết trống
+ * rỗng — hoặc ngược lại — là hai câu về cùng một dòng, đọc cách nhau hai giây.
+ *
+ * `[]` chứ không `null` khi không đủ điều kiện: giao diện hỏi *"có gì để mở
+ * không"* bằng độ dài mảng, nên một giá trị vắng mặt và một mảng rỗng phải ra
+ * cùng một câu trả lời (bẫy `opt()` của `0198`).
+ *
+ * VÌ SAO Ở ĐÂY CHỨ KHÔNG Ở GIAO DIỆN: cùng lý do đã viết cho `SQL_TY_LE_CK_TRUOC`
+ * — và lần này còn chặt hơn, vì nhãn *Chỉnh sửa* và bảng chi tiết PHẢI cùng ra từ
+ * `SQL_DONG_KHAC_BAN_TRUOC`. Để giao diện tự suy *"dòng này là Chỉnh sửa nên chắc
+ * có thay đổi"* là dựng lại phép so ở chỗ thứ hai.
+ */
+export const SQL_THAY_DOI_TRA_VE = `
+  CASE WHEN NOT l.da_xoa AND NOT ${SQL_HO_SO_DA_HIEU_LUC} AND ${SQL_DONG_KHAC_BAN_TRUOC}
+       THEN ${SQL_THAY_DOI_DONG} ELSE '[]'::jsonb END`;
 
 /**
  * Nối sang dòng CÙNG SẢN PHẨM của bản bị thay thế.
@@ -2881,7 +2973,11 @@ export class PoliciesService {
               ${SQL_TRANG_THAI_DONG} AS "trangThai",
               -- Tỷ lệ CK ở bản trước, CHỈ cho dòng đã bị sửa — xem
               -- SQL_TRANG_THAI_DONG về việc vì sao luật này nằm ở máy chủ.
-              ${SQL_TY_LE_CK_TRUOC} AS "discountRateTruoc"
+              ${SQL_TY_LE_CK_TRUOC} AS "discountRateTruoc",
+              -- 0204 — dòng này đổi những gì, từ đâu sang đâu. CHỈ đường đọc của
+              -- màn hình; internal.controller (bản mềm, hợp đồng, read-model)
+              -- KHÔNG lấy trường này — khách hàng chốt bản in không đổi gì.
+              ${SQL_THAY_DOI_TRA_VE} AS "thayDoi"
          FROM pol.policy_line l
          ${SQL_NOI_BAN_TRUOC}
         -- 0186 — dòng ĐÃ XOÁ VẪN TRẢ VỀ ở đường này, và chỉ ở đường này.

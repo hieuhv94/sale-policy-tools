@@ -18084,3 +18084,87 @@ lại, không phải ca mới. Ca kiểm quét mã nguồn giao diện **đỏ �
 `'/policies'` để nó hỏi THÂN của lượt gọi.
 
 **2311/2311 xanh.**
+
+---
+
+## P232 — `0204` Dòng *Chỉnh sửa* nói ra nó đổi những gì
+
+Người dùng hỏi **đề xuất cách hiển thị** trước, rồi chốt hẹp: **chỉ** phương án hàng mở rộng, nhãn
+**giữ nguyên chữ**, **bản in không đổi gì**. Nên phần thiết kế nằm ở lượt trao đổi; nhật ký này ghi
+thứ mã nguồn không tự nói ra.
+
+### Bốn dữ kiện đọc được trước khi đề xuất, và chúng quyết định cả hình dạng
+
+**Năm trường được so ĐỀU ĐÃ CÓ cột riêng** trên chính bảng ấy (*Giá bán Công ty · Giá bán buôn · CPBH
+· Ngày áp dụng · Ghi chú*). Nên câu hỏi *"đổi thông tin nào"* không cần chỗ mới để CHỈ RA, chỉ cần chỗ
+để bày **giá trị cũ** — và đó là thứ thu hẹp phương án xuống còn ba.
+
+**Tiền lệ có sẵn KHÔNG nhân rộng được**: *Tỷ lệ CK cũ* là hẳn một cột chỉ để chở một giá trị cũ. Làm
+thế cho năm trường là thêm năm cột vào một bảng đã 13–15 cột. Phải nói ra thành lời khi đề xuất, không
+bỏ qua im lặng — nếu không nó sẽ được đề xuất lại.
+
+**Vốn từ vựng có sẵn ngay trên cùng trang**: khối *Yêu cầu cập nhật* đã là *dòng gấp lại → bấm mở chi
+tiết* (`0049`). Chọn cùng hình dạng là không bắt người dùng học cách đọc thứ hai.
+
+**Dữ liệu gần như miễn phí**: `SQL_NOI_BAN_TRUOC` đã `LEFT JOIN` dòng của bản trước từ `0180` — không
+join mới, không cột mới, không migration.
+
+### Chỗ duy nhất có thể hỏng thầm lặng, và nó quyết định cách viết SQL
+
+Nhãn *Chỉnh sửa* và bảng chi tiết là **hai câu trả lời cho cùng một câu hỏi**. Gõ tay hai biểu thức
+SQL cho cùng năm trường thì lượt thêm trường thứ sáu sẽ sửa một chỗ và quên chỗ kia — dòng mang nhãn
+*Chỉnh sửa* mà bấm vào thấy bảng rỗng, hoặc ngược lại. Không mã lỗi, không gì đỏ.
+
+Nên năm trường thành **DỮ LIỆU** (`TRUONG_SO_VOI_BAN_TRUOC`), và **cả hai biểu thức SINH RA từ nó** —
+`SQL_DONG_KHAC_BAN_TRUOC` là một chuỗi `OR` dựng bằng `.map()`, `SQL_THAY_DOI_DONG` là một mảng
+`jsonb` dựng bằng chính vòng lặp ấy. Không phải một lượt dọn cho gọn: đó là chốt chặn duy nhất giữ hai
+câu trả lời khỏi trôi khỏi nhau, và `tsc` không canh được gì ở đây vì cả hai đều chỉ là chuỗi.
+
+`SQL_THAY_DOI_TRA_VE` mang **đúng ba vế gác của `SQL_TY_LE_CK_TRUOC`**, chép từng chữ. Giống hệt là
+ĐIỀU KIỆN chứ không phải trùng lặp: lệch một vế là cùng một hàng vừa nói *"tỷ lệ CK cũ 15%"* vừa nói
+*"không có thay đổi nào"*, đọc cách nhau hai giây.
+
+### Ba quyết định nhỏ, mỗi cái chặn một kiểu nói dối
+
+**CPBH trả về MẢNG, không trả tổng.** `[5000]` → `[3000, 2000]` là một thay đổi thật mà tổng không
+đổi; gộp ở máy chủ là bày ra *"CPBH 5.000 → 5.000"* — một thay đổi tự nói rằng nó không có thay đổi
+nào, ở đúng chỗ người ta mở ra để hiểu vì sao dòng bị đánh dấu.
+
+**`[]` chứ không `null`** cho dòng không đủ điều kiện: giao diện hỏi *"có gì để mở không"* bằng độ dài
+mảng, nên vắng mặt và rỗng phải cho cùng câu trả lời (lớp bẫy `opt()` của `0198`).
+
+**Tên trường trong bảng chi tiết LÀ tiêu đề cột của chính bảng sản phẩm**, tra qua `COT_TRUOC`/
+`COT_SAU` chứ không phải một danh sách chữ thứ hai. Người ta bấm rồi đọc trong khi mắt đang ở ngay
+cạnh hàng tiêu đề; hai chữ khác nhau cho cùng một ô là bắt họ tự ghép — đúng thứ `0172` đã phải đi sửa
+một lượt cho hai bảng.
+
+### Bản in: chốt chặn nằm ở `internal.controller`
+
+Khách hàng chốt *"bản in docx không cần sửa gì cả"*. Cách canh câu ấy không phải là không đụng vào mã
+`document` — mà là **không thêm trường vào `internal.controller`**, cửa duy nhất `document` và
+`reporting` đọc hồ sơ (AD-02). Có ca kiểm gọi thẳng đường nội bộ và đòi khoá ấy vắng mặt: thêm nó vào
+đây là mở đường cho một cột mới lặng lẽ đi ra tờ giấy ở lượt sửa mẫu tiếp theo.
+
+### Phá lại — và lượt đầu bắt được một ca kiểm YẾU CỦA CHÍNH TÔI
+
+| Hoàn tác | Đỏ |
+|---|---|
+| bỏ ba vế gác của `SQL_THAY_DOI_TRA_VE` | 2 |
+| bỏ `cpbh` khỏi `TRUONG_SO_VOI_BAN_TRUOC` | 2 |
+| giao diện suy từ `trangThai` thay vì đọc `thayDoi` | 1 |
+| bảng chi tiết dùng nhãn gõ tay thay vì tiêu đề cột | 1 |
+
+> **CA BẤT BIẾN BẢN ĐẦU KHÔNG BẮT ĐƯỢC LƯỢT PHÁ THỨ NHẤT**, và lý do đáng ghi: nó quét mọi dòng của
+> một hồ sơ gồm một dòng *Chỉnh sửa* và một dòng *Bổ sung* — mà ở cả hai, nhãn ĐẾN TỪ chính phép so,
+> nên bỏ vế gác không làm lệch được gì. Hai câu trả lời chỉ tách khỏi nhau ở chỗ nhãn **không** đến từ
+> phép so: `DA_XOA` và hồ sơ đã có hiệu lực.
+>
+> **Lượt vá thứ nhất cũng sai, và cũng chỉ lộ ra khi phá lại lần nữa**: tôi rút một dòng vừa THÊM, mà
+> `0186` xoá HẲN dòng *Bổ sung* — không có hàng `da_xoa` nào để mà đo, ca vẫn xanh. Phải là một dòng
+> **thừa kế** (xoá mềm), nên `banMoi()` dựng hai dòng.
+
+Kèm **bẫy backtick trong template literal, lần thứ NĂM** — lần này ở chú thích SQL tôi vừa gõ trong
+chính chặng này (`-- internal.controller (bản mềm…)`), và nó báo `TS1005` ở một dòng cách đó vài chục
+dòng.
+
+**2326/2326 xanh.**

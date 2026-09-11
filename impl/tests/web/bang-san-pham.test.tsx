@@ -670,3 +670,113 @@ describe('`0188` bốn nhãn trạng thái dòng, bốn màu', () => {
     expect(within(bang).getAllByText('Đã xoá')[0]!.className).toContain('nhan-thuong');
   });
 });
+
+/**
+ * `0204` — BẤM NHÃN *Chỉnh sửa* THÌ MỞ RA "dòng này đổi những gì".
+ *
+ * Khách hàng chốt 12/09, và chốt kèm hai ràng buộc hẹp: **chỉ** cách này (không
+ * đánh dấu trong ô, không thêm chip liệt kê tên trường), và **nhãn giữ nguyên
+ * chữ** — không mang thêm thông tin nào.
+ *
+ * Dữ liệu đến từ máy chủ (`SQL_THAY_DOI_TRA_VE`); giao diện KHÔNG suy từ
+ * `trangThai === 'CHINH_SUA'`. Mấy ca dưới đây vì thế dựng thẳng trường `thayDoi`
+ * chứ không dựng một dòng "đã sửa" rồi mong nó tự có.
+ */
+describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', () => {
+  const dongSua = (): DongSanPham =>
+    dong({
+      trangThai: 'CHINH_SUA',
+      discountRateTruoc: '15.00',
+      thayDoi: [
+        { truong: 'companyPrice', truoc: '100000', sau: '130000' },
+        { truong: 'cpbh', truoc: ['5000'], sau: ['3000', '2000'] },
+        { truong: 'note', truoc: null, sau: 'ghi chu moi' },
+      ],
+    });
+
+  const nut = () => screen.getAllByRole('button', { name: /Chỉnh sửa/ })[0]!;
+
+  it('nhãn thành NÚT, và chữ trên nhãn KHÔNG đổi', () => {
+    render(<BangSanPham dong={[dongSua()]} />);
+    const b = nut();
+    expect(b.getAttribute('aria-expanded')).toBe('false');
+    // Vế khách hàng chốt từng chữ: nhãn vẫn chỉ đề *Chỉnh sửa*. Chữ thêm vào duy
+    // nhất là câu cho trình đọc màn hình — nó KHÔNG hiện ra mắt.
+    expect(b.querySelector('.nhan')!.textContent).toBe('Chỉnh sửa');
+  });
+
+  it('chưa bấm thì KHÔNG có bảng nào', () => {
+    render(<BangSanPham dong={[dongSua()]} />);
+    expect(document.querySelector('.bang-thay-doi')).toBeNull();
+  });
+
+  it('bấm thì mở ra đủ ba dòng, ĐỌC ĐƯỢC cả bên trước lẫn bên sau', async () => {
+    render(<BangSanPham dong={[dongSua()]} />);
+    await userEvent.click(nut());
+
+    const bang = document.querySelectorAll('.bang-thay-doi');
+    // Hai bố cục (bảng ≥640px và thẻ <640px) cùng nằm trong một cây DOM, nên cả
+    // hai cùng mở — đó là chủ ý, xem `dangMo`.
+    expect(bang.length).toBe(2);
+
+    const chu = bang[0]!.textContent ?? '';
+    // Tên trường lấy TỪ tiêu đề cột của chính bảng sản phẩm.
+    expect(chu).toContain('Giá bán Công ty');
+    expect(chu).toContain('100.000');
+    expect(chu).toContain('130.000');
+    // CPBH đọc theo từng khoản, không cộng lại: `[5000]` và `[3000,2000]` cùng
+    // tổng, gộp là bày ra một thay đổi tự nói rằng nó không đổi gì.
+    expect(chu).toContain('3.000 + 2.000');
+    // Ghi chú trống ở bản trước phải là một dấu đọc được, không phải ô bỏ trắng.
+    expect(chu).toContain('—');
+  });
+
+  it('bấm lần nữa thì đóng', async () => {
+    render(<BangSanPham dong={[dongSua()]} />);
+    await userEvent.click(nut());
+    expect(document.querySelector('.bang-thay-doi')).not.toBeNull();
+    await userEvent.click(nut());
+    expect(document.querySelector('.bang-thay-doi')).toBeNull();
+  });
+
+  it('HAI dòng mở ĐỘC LẬP — mở dòng này không đóng dòng kia', async () => {
+    // Người duyệt mở cả hai ra để so. Một id thay vì một tập là bắt họ bấm đi
+    // bấm lại giữa hai hàng cách nhau nửa màn hình.
+    render(
+      <BangSanPham
+        dong={[
+          { ...dongSua(), id: 'd1', productId: 'sp-1', productCode: 'SP-01' },
+          { ...dongSua(), id: 'd2', productId: 'sp-2', productCode: 'SP-02' },
+        ]}
+      />,
+    );
+    const cacNut = screen.getAllByRole('button', { name: /Chỉnh sửa/ });
+    await userEvent.click(cacNut[0]!);
+    await userEvent.click(cacNut[1]!);
+    // Hai dòng × hai bố cục.
+    expect(document.querySelectorAll('.bang-thay-doi').length).toBe(4);
+  });
+
+  it('dòng KHÔNG có thay đổi thì nhãn KHÔNG phải nút', () => {
+    /*
+     * Không phải một nút bị vô hiệu hoá: một nút bấm không làm gì là lời mời bấm
+     * rồi tự hỏi mình vừa làm sai ở đâu. Và đây cũng là vế canh việc giao diện
+     * đọc `thayDoi` chứ không đọc `trangThai` — dòng dưới đây MANG nhãn *Chỉnh
+     * sửa* mà máy chủ không gửi thay đổi nào.
+     */
+    render(<BangSanPham dong={[dong({ trangThai: 'CHINH_SUA' })]} />);
+    expect(screen.queryByRole('button', { name: /Chỉnh sửa/ })).toBeNull();
+    expect(screen.getAllByText('Chỉnh sửa').length).toBeGreaterThan(0);
+  });
+
+  it('máy chủ cũ KHÔNG gửi trường này thì bảng vẫn dựng được', () => {
+    /*
+     * `thayDoi` đến từ thân phản hồi, và một khai báo TypeScript là LỜI HỨA chứ
+     * không phải phép kiểm (bẫy `0198`). Ném ở đây là React tháo cả cây và trang
+     * hồ sơ trắng — vì phần trang trí của một ô.
+     */
+    const xau = { ...dong({ trangThai: 'CHINH_SUA' }), thayDoi: 'khong-phai-mang' };
+    render(<BangSanPham dong={[xau as unknown as DongSanPham]} />);
+    expect(screen.getAllByText('Chỉnh sửa').length).toBeGreaterThan(0);
+  });
+});

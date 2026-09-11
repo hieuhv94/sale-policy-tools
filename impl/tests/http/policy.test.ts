@@ -7546,3 +7546,227 @@ describe('`0203` sửa dòng thì giá bán Công ty là giá hiện hành', () 
     expect(dongCua(d.body, productId)['companyPrice']).toBe('100000');
   });
 });
+
+// =============================================================================
+// `0204` — DÒNG *Chỉnh sửa* NÓI RA NÓ ĐỔI NHỮNG GÌ
+// =============================================================================
+
+/**
+ * Khách hàng chốt 12/09: bấm vào nhãn *Chỉnh sửa* thì mở ra một bảng *trường ·
+ * bản trước · bản này*. Nhãn giữ nguyên chữ, không mang thêm thông tin.
+ *
+ * Phần máy chủ là `SQL_THAY_DOI_DONG`, và điều đáng canh nhất KHÔNG phải nội
+ * dung từng dòng mà là **nó với nhãn *Chỉnh sửa* phải luôn đi cùng nhau**: cả
+ * hai sinh ra từ `TRUONG_SO_VOI_BAN_TRUOC`, nên một dòng mang nhãn mà bảng rỗng
+ * (hoặc ngược lại) là dấu hiệu hai biểu thức đã trôi khỏi nhau.
+ */
+describe('`0204` bảng chi tiết thay đổi của dòng', () => {
+  const dongCua = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    body.lines.find((l) => l['productId'] === productId)!;
+  const thayDoi = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    (dongCua(body, productId)['thayDoi'] ?? []) as {
+      truong: string;
+      truoc: unknown;
+      sau: unknown;
+    }[];
+
+  /** Bản đang hiệu lực + phiên bản mới chưa sửa gì. */
+  const banMoi = async () => {
+    const d = await draft();
+    // Dòng THỨ HAI, để ca bất biến có một dòng thừa kế đem rút (xoá MỀM).
+    const spPhu = await makeProduct();
+    expect((await post(`/policies/${d.id}/lines`, line(spPhu))).status).toBe(201);
+    await runToActive(d);
+    const v2 = await post('/policies', {
+      customerId: d.customerId,
+      mode: 'NEW_VERSION',
+      lines: [],
+    });
+    expect(v2.status, JSON.stringify(v2.body)).toBe(201);
+    return { ...d, spPhu, v2Id: v2.body.id as string, v2: v2.body };
+  };
+
+  const suaDong = async (hoSoId: string, lineId: string, than: object) => {
+    const r = await patch(`/policies/${hoSoId}/lines/${lineId}`, than);
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    return r.body;
+  };
+
+  it('SỬA GIÁ BÁN BUÔN: đúng một mục, kèm cả hai giá trị', async () => {
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: '80000',
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+    });
+
+    expect(thayDoi(sau, d.productId)).toEqual([
+      { truong: 'wholesalePrice', truoc: '90000', sau: '80000' },
+    ]);
+  });
+
+  it('CPBH trả về MẢNG, không phải tổng', async () => {
+    /*
+     * Hai mảng khác nhau vẫn có thể cùng tổng — `[5000]` → `[3000, 2000]`. Gộp
+     * thành một con số ở máy chủ là bày ra *"CPBH 5.000 → 5.000"*: một thay đổi
+     * tự nói rằng nó không có thay đổi nào, ở đúng chỗ người ta mở ra để hiểu vì
+     * sao dòng bị đánh dấu.
+     */
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: cu['wholesalePrice'],
+      cpbh: ['3000', '2000'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+    });
+
+    expect(thayDoi(sau, d.productId)).toEqual([
+      { truong: 'cpbh', truoc: ['5000'], sau: ['3000', '2000'] },
+    ]);
+  });
+
+  it('NHIỀU trường cùng đổi thì đủ cả, theo thứ tự khai', async () => {
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: '80000',
+      cpbh: ['7000'],
+      note: 'ghi chu moi',
+      ngayApDung: '2030-01-01',
+    });
+
+    expect(thayDoi(sau, d.productId).map((t) => t.truong)).toEqual([
+      'wholesalePrice',
+      'cpbh',
+      'ngayApDung',
+      'note',
+    ]);
+  });
+
+  it('NGÀY trả về dạng `YYYY-MM-DD`, GHI CHÚ trống là `null`', async () => {
+    // Giao diện đọc hai thứ này bằng hai cách khác hẳn nhau, nên hình dạng của
+    // chúng là một phần của hợp đồng chứ không phải chi tiết dựng câu SQL.
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: cu['wholesalePrice'],
+      cpbh: cu['cpbh'],
+      note: 'co ghi chu',
+      ngayApDung: '2030-01-01',
+    });
+
+    const ds = thayDoi(sau, d.productId);
+    expect(ds.find((t) => t.truong === 'ngayApDung')!.sau).toBe('2030-01-01');
+    expect(ds.find((t) => t.truong === 'note')).toMatchObject({
+      truoc: null,
+      sau: 'co ghi chu',
+    });
+  });
+
+  it('BẤT BIẾN: nhãn *Chỉnh sửa* và bảng chi tiết luôn đi CÙNG NHAU', async () => {
+    /*
+     * CA ĐÁNG GIÁ NHẤT của chặng, và là lý do `TRUONG_SO_VOI_BAN_TRUOC` tồn tại.
+     *
+     * Nhãn trạng thái và danh sách thay đổi là hai câu trả lời cho cùng một câu
+     * hỏi. Gõ tay hai biểu thức SQL cho cùng năm trường thì thêm một trường vào
+     * phép so mà quên bảng chi tiết là một dòng mang nhãn *Chỉnh sửa* với một
+     * bảng rỗng — người dùng bấm vào và không thấy gì, không mã lỗi nào.
+     *
+     * Quét MỌI dòng của hồ sơ chứ không kiểm một dòng dựng sẵn: chỗ hỏng sẽ là
+     * một trường cụ thể nào đó, và một ca dựng sẵn chỉ đi qua trường nó chọn.
+     */
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: '80000',
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+    });
+    // Thêm một dòng *Bổ sung* để lượt quét đi qua nhánh ấy.
+    const spMoi = await makeProduct();
+    await post(`/policies/${d.v2Id}/lines`, line(spMoi));
+
+    /*
+     * VÀ MỘT DÒNG THỪA KẾ VỪA SỬA VỪA RÚT — nhánh này ca kiểm bản đầu KHÔNG đi
+     * qua, và lượt phá lại chỉ ra điều đó: bỏ cả ba vế gác của
+     * `SQL_THAY_DOI_TRA_VE` mà ca vẫn xanh, vì mọi dòng nó dựng đều có nhãn khớp
+     * sẵn với phép so. Hai câu trả lời chỉ tách khỏi nhau ở chỗ nhãn KHÔNG đến từ
+     * phép so — `DA_XOA`, và hồ sơ đã có hiệu lực (ca riêng bên dưới).
+     *
+     * PHẢI LÀ DÒNG THỪA KẾ. Lượt phá lại thứ hai bắt được chính chỗ này: bản đầu
+     * rút một dòng vừa THÊM, mà `0186` xoá HẲN dòng *Bổ sung* — không có hàng
+     * `da_xoa` nào để mà đo, và ca lại xanh.
+     */
+    const cuRut = dongCua(d.v2, d.spPhu);
+    await suaDong(d.v2Id, cuRut['id'] as string, {
+      wholesalePrice: '70000',
+      cpbh: cuRut['cpbh'],
+      ngayApDung: String(cuRut['ngayApDung']).slice(0, 10),
+    });
+    expect((await del(`/policies/${d.v2Id}/lines/${cuRut['id']}`)).status).toBe(200);
+
+    const hs = (await get(`/policies/${d.v2Id}`)).body as {
+      lines: Record<string, unknown>[];
+    };
+    expect(hs.lines.length).toBeGreaterThanOrEqual(2);
+    for (const l of hs.lines) {
+      const coBang = ((l['thayDoi'] ?? []) as unknown[]).length > 0;
+      expect(
+        coBang,
+        `dòng ${l['productCode']} mang nhãn ${l['trangThai']} mà bảng chi tiết ` +
+          `${coBang ? 'CÓ' : 'RỖNG'} — hai câu trả lời đã trôi khỏi nhau`,
+      ).toBe(l['trangThai'] === 'CHINH_SUA');
+    }
+  });
+
+  it('dòng *Bổ sung* và *Đang áp dụng* trả MẢNG RỖNG, không phải `null`', async () => {
+    // Giao diện hỏi "có gì để mở không" bằng độ dài mảng, nên vắng mặt và rỗng
+    // phải cho cùng một câu trả lời (bẫy `opt()` của `0198`).
+    const d = await banMoi();
+    expect(dongCua(d.v2, d.productId)['thayDoi']).toEqual([]);
+
+    const dauTien = await draft();
+    expect(dongCua(dauTien.body, dauTien.productId)['trangThai']).toBe('BO_SUNG');
+    expect(dongCua(dauTien.body, dauTien.productId)['thayDoi']).toEqual([]);
+  });
+
+  it('HỒ SƠ CÓ HIỆU LỰC: bảng chi tiết tắt cùng lúc với *Tỷ lệ CK cũ*', async () => {
+    /*
+     * Ba vế gác của `SQL_THAY_DOI_TRA_VE` phải khớp từng chữ với
+     * `SQL_TY_LE_CK_TRUOC`. Lệch một vế là cùng một hàng vừa nói *"tỷ lệ CK cũ
+     * 15%"* vừa nói *"không có thay đổi nào"*.
+     */
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: '80000',
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+    });
+    await runToActive({ id: d.v2Id });
+
+    const l = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
+    expect(l['discountRateTruoc']).toBeNull();
+    expect(l['thayDoi']).toEqual([]);
+  });
+
+  it('BẢN IN KHÔNG ĐỔI GÌ: `internal.controller` không mang trường này', async () => {
+    /*
+     * Khách hàng chốt 12/09 từng chữ — *"bản in docx không cần sửa gì cả"*. Cửa
+     * duy nhất `document` và `reporting` đọc hồ sơ là đường nội bộ này (AD-02),
+     * nên đây là chỗ canh được câu ấy: thêm trường vào đây là mở đường cho một
+     * cột mới lặng lẽ đi ra tờ giấy ở lượt sửa mẫu tiếp theo.
+     */
+    const d = await banMoi();
+    const noiBo = await (await http(app))
+      .get(`/internal/policies/${d.v2Id}`)
+      .set('X-Service-Token', mintServiceToken('document'));
+    expect(noiBo.status, JSON.stringify(noiBo.body)).toBe(200);
+    for (const l of noiBo.body.lines as Record<string, unknown>[]) {
+      expect(Object.keys(l)).not.toContain('thayDoi');
+      expect(Object.keys(l)).not.toContain('thay_doi');
+    }
+  });
+});

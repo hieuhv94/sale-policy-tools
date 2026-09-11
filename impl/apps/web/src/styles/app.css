@@ -3378,3 +3378,48 @@ svg.bd-nho { width: 62px; margin: 0; }
 .dong-dia-chi {
   display: block;
 }
+
+/* --- `0204` Bảng "dòng này đổi những gì", mở từ nhãn Chỉnh sửa ---------------
+
+   Khách hàng chốt 12/09: nhãn trạng thái KHÔNG mang thêm chữ nào, chỉ thêm
+   thao tác bấm. Nên phần nhìn ở đây chỉ có hai việc — làm cho nhãn trông bấm
+   được, và cho bảng chi tiết đọc được khi mở ra. */
+
+/* Nút bọc quanh nhãn: tự nó KHÔNG có hình dạng nút nào (nền, viền, đệm đều bỏ)
+   — cái người dùng thấy vẫn đúng là con chip trạng thái như mọi dòng khác, cộng
+   một mũi tên. Cho nó viền hay nền là dựng ra một nút thứ hai trong ô, và cột
+   Trạng thái thôi đọc được theo chiều dọc. */
+.nhan-mo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--k1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+/* Tiêu điểm bàn phím phải thấy được: nhãn không có viền riêng nên vòng focus
+   mặc định của trình duyệt bám sát con chip, hơi chật — nới ra một chút. */
+.nhan-mo:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
+
+/* Hàng chi tiết nằm GIỮA hai hàng dữ liệu, nên nó phải đọc ra là "phần phụ của
+   hàng ngay trên" chứ không phải một hàng sản phẩm nữa. Nền chìm một bậc và một
+   vạch màu bên trái — cùng quy ước `.dong-lech` đã dùng, không dựng màu mới. */
+.hang-thay-doi > td {
+  padding: var(--k2) var(--k4);
+  background: var(--mau-nen-phu);
+  box-shadow: inset 3px 0 0 var(--mau-canh-bao);
+}
+
+/* Cùng cỡ chữ và cùng cách đọc số với `.bang-lech` — hai bảng trả lời gần như
+   cùng một câu hỏi ("đổi gì, từ đâu sang đâu"), và người dùng gặp cả hai trên
+   cùng một trang. Khác nhau về hình dạng là bắt họ học hai lần. */
+.bang-thay-doi { font-size: var(--chu-nho); }
+.bang-thay-doi th, .bang-thay-doi td { padding: var(--k1) var(--k3); text-align: left; }
+.bang-thay-doi thead th { color: var(--mau-chu-phu); font-weight: 600; }
+.bang-thay-doi .so { font-family: var(--so-deu-cot); text-align: right; }
+/* Trong thẻ (bố cục <640px) bảng nằm thẳng trong `<li>`, không có ô nào bọc nên
+   nó cần khoảng thở của riêng mình. */
+.the > .bang-thay-doi { margin-top: var(--k2); }
