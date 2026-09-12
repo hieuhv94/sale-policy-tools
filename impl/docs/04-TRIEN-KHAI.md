@@ -543,7 +543,7 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 ## 8. Nâng cấp
 
 ```sh
-./csbh nang-cap 1.0.1
+./csbh nang-cap 1.0.2
 ```
 
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh

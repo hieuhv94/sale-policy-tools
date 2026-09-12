@@ -18168,3 +18168,30 @@ chính chặng này (`-- internal.controller (bản mềm…)`), và nó báo `T
 dòng.
 
 **2326/2326 xanh.**
+
+---
+
+## P233 — Nâng phiên bản lên `1.0.2`
+
+`1.0.1` cắt ở **P199**; `1.0.2` gói **P200 → P232**, tức mã thay đổi `0172`–`0204`, 36 chặng của vòng
+sửa theo phản hồi khách hàng.
+
+Một dòng trong `VERSION`, và ba điều đáng ghi vì chúng nằm ngoài mã nguồn.
+
+**`VERSION` là nguồn DUY NHẤT, và điều đó được canh bằng ca kiểm.** `VER-04` quét mọi `package.json`
+của workspace và đòi tất cả để `0.0.0` — một số phiên bản thứ hai ở đó là một nguồn sự thật thứ hai,
+và nó sẽ lệch ở đúng lượt ai đó chạy `pnpm version`. Ba chỗ đọc `VERSION`: `Makefile` (`APP_VERSION`
+vào container), `apps/web/vite.config.ts` (nhúng vào gói lúc build), `scripts/dong-goi.sh` (thẻ ảnh).
+
+**CÁI GIÁ NẰM NGOÀI MÃ, `0118` đã ghi và vẫn đúng**: mỗi lần giao phải là một số MỚI. Dựng lại cùng
+một thẻ với nội dung đã khác là ghi đè thẻ trên registry, và không có gì trên máy chủ khách hàng phát
+hiện được — `docker compose pull` thấy cùng một thẻ thì không kéo gì cả.
+
+**Hai ví dụ `./csbh nang-cap 1.0.1` trong tài liệu bàn giao ĐI THEO, mấy ví dụ khác thì không** — và
+ranh giới ấy có lý do, không phải một lượt sửa dở dang. Hai dòng ấy nêu một **phiên bản ĐÍCH**, nên để
+nguyên là chỉ người vận hành nâng cấp về đúng bản họ đang chạy — hoặc lùi bản mà không biết. Còn
+`csbh-1.0.0.tar.gz`, `:service-1.0.0`, *"ví dụ Phiên bản 1.0.0"* là ví dụ về HÌNH DẠNG, và cả repo đã
+giữ chúng ở `1.0.0` suốt hai lần nâng bản. **Không chốt chặn nào canh mấy ví dụ này** — ghi ra đây để
+lần sau khỏi phải đọc lại cả bốn tệp mới quyết định được.
+
+**2326/2326 xanh.**

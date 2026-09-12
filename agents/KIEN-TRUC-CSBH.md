@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Đơn vị yêu cầu** | Công ty TNHH Dược phẩm Nutricare |
-| **Phiên bản phần mềm** | **1.0.1** — bản giao thứ hai, sau vòng sửa theo phản hồi khách hàng; xem mục 16 |
+| **Phiên bản phần mềm** | **1.0.2** — bản giao thứ ba, sau vòng sửa theo phản hồi khách hàng; xem mục 16 |
 | **Phiên bản tài liệu** | **1.2 · 06/09/2026** — rà soát toàn văn theo triển khai thật (`0178`) |
 | **Nguồn nghiệp vụ** | `YEU-CAU-NGHIEP-VU-CSBH.md` v4.1 — khi mâu thuẫn, **tài liệu nghiệp vụ có hiệu lực cao hơn** |
 | **Bản web** | `../artifacts/kien-truc-csbh.html` · https://claude.ai/code/artifact/d9e72525-6df5-475d-8b76-52f8a3202aea |
