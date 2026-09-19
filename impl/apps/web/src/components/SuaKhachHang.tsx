@@ -12,12 +12,13 @@
  *     bấm Lưu: người ta gõ xong mã số thuế rồi mới điền nốt mười ô còn lại, và
  *     báo ở cuối là bắt họ làm lại cả biểu mẫu.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import {
   DIEU_KHOAN_NO,
   LOAI_KHACH_HANG,
   NHAN_DIEU_KHOAN_NO,
+  TINH_THANH,
   nhanLoaiKhach,
 } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
@@ -259,6 +260,27 @@ export function BieuMauKhachHang({
   /** Đang sửa một khách đã có, VÀ ô loại khách hàng thật sự đổi giá trị. */
   const doiLoai = khach !== undefined && Number(g.customerType) !== khach.customerType;
 
+  /**
+   * GIÁ TRỊ CŨ NGOÀI DANH SÁCH VẪN PHẢI HIỆN RA (`0205`).
+   *
+   * Khách hàng lập trước `0205` mang tỉnh/thành gõ tay, và chuỗi ấy có thể không
+   * trùng tên nào trong 63. Không bày nó ra thì ô chọn hiện một dòng trống, và
+   * lượt Lưu tiếp theo — dù người dùng chỉ sửa số điện thoại — **âm thầm ghi đè
+   * địa chỉ pháp nhân** bằng cái tên đầu danh sách hoặc bằng rỗng. Cùng lối
+   * `nhanLoaiKhach` đã chọn cho một loại khách hàng lạ: dữ liệu cũ không bao giờ
+   * nên hiện thành ô trống.
+   *
+   * `disabled` chứ không phải một mục chọn được: nó là thứ ĐANG LƯU, không phải
+   * một câu trả lời hợp lệ — máy chủ sẽ trả `CUSTOMER_PROVINCE_UNKNOWN` nếu nó
+   * được gửi lên. Bày ra để người dùng đọc được mình đang đổi cái gì, rồi chọn
+   * lại; chọn lại xong thì không quay về nó được nữa.
+   */
+  const dsTinhThanh = useMemo(() => {
+    const ds = [...TINH_THANH] as readonly string[];
+    const cu = (khach?.province ?? '').trim();
+    return cu !== '' && !ds.includes(cu) ? { ds, cu } : { ds, cu: null };
+  }, [khach?.province]);
+
   // Trường tuỳ chọn để trống thì BỎ HẲN khỏi thân request, không gửi chuỗi rỗng:
   // `str(1, …)` của máy chủ từ chối chuỗi rỗng, nên gửi đi là 400 ở một trường
   // mà người dùng cố ý bỏ trống.
@@ -413,14 +435,36 @@ export function BieuMauKhachHang({
           biết chắc và gõ xong trong hai giây, còn số nhà thì phải nhìn vào giấy
           tờ. Biểu mẫu xếp theo thứ tự người ta điền được, không theo thứ tự in.
         */}
+        {/*
+          Ô CHỌN, không phải ô gõ (`0205`, khách hàng chốt 19/09) — 63 tỉnh,
+          thành phố theo danh sách CŨ, vì phần mềm ghi địa chỉ theo giấy đăng ký
+          kinh doanh và tờ giấy trong tay khách hàng vẫn mang tên cũ.
+
+          Mục trống đứng đầu là BẮT BUỘC chứ không phải cho đẹp: `rong.province`
+          là `''`, và một `<select>` không có mục nào mang `value=""` thì trình
+          duyệt tự chọn mục đầu tiên — biểu mẫu lập mới sẽ mở ra với *An Giang*
+          đã điền sẵn, và người dùng không đọc kỹ sẽ lưu đúng cái tên ấy.
+        */}
         <Truong id="kh-tinh" nhan="Tỉnh/Thành phố (theo đăng ký kinh doanh)" bắtBuộc>
           {(p) => (
-            <input
+            <select
               {...p}
               className="o-nhap"
               value={g.province}
               onChange={(e) => sua({ province: e.target.value })}
-            />
+            >
+              <option value="">— Chọn tỉnh/thành phố —</option>
+              {dsTinhThanh.cu !== null && (
+                <option value={dsTinhThanh.cu} disabled>
+                  {dsTinhThanh.cu} — giá trị cũ, phải chọn lại
+                </option>
+              )}
+              {dsTinhThanh.ds.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           )}
         </Truong>
         <Truong id="kh-so-nha" nhan="Số nhà, Phường xã (theo đăng ký kinh doanh)" bắtBuộc>

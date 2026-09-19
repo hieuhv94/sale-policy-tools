@@ -69,6 +69,14 @@ const HO_SO = {
     // `0177` — năm trường của khối *Khách hàng* trên trang hồ sơ.
     nguoiDaiDien: 'Nguyen Thi Dai Dien',
     soNha: 'Số 12 ngõ 5, Phường Láng Hạ',
+    /*
+     * GIỮ NGUYÊN lối viết CŨ, có chủ ý (`0205`).
+     *
+     * `0205` thu ô nhập về 63 tên ngắn, nên khách hàng lập từ nay không mang
+     * chuỗi này. Nhưng đây là ẢNH CHỤP của một hồ sơ đã gửi (`0177`) — nó giữ
+     * câu chữ lúc gửi và không ai viết lại nó — nên trang hồ sơ phải bày ra
+     * được. Đừng "dọn cho đồng bộ": đổi nó là mất chỗ duy nhất canh chuyện ấy.
+     */
     tinhThanh: 'Thành phố Hà Nội',
     diaChiDangKy: 'Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội',
     noiNhanHang: ['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng'],

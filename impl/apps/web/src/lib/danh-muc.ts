@@ -149,6 +149,83 @@ export const NHAN_DIEU_KHOAN_NO: Record<DieuKhoanNo, string> = {
   KHAC: 'Khác (tự nhập)',
 };
 
+/**
+ * SÁU MƯƠI BA TỈNH, THÀNH PHỐ (`0205`) — bản sao phía giao diện.
+ *
+ * Máy chủ giữ bản gốc kèm toàn bộ lập luận ở
+ * `services/customer/src/customers/tinh-thanh.ts`; giao diện cần bảng này vì nó
+ * phải VẼ Ô CHỌN, tức phải biết 63 tên trước khi người dùng chọn cái nào. Hai
+ * bản sao là chuyện chấp nhận có ý thức, cùng lối với `DIEU_KHOAN_NO` ngay trên:
+ * có một ca kiểm đối chiếu chúng, nên lệch là đỏ chứ không lặng lẽ.
+ *
+ * Thứ tự A–Z bỏ dấu — đúng thứ tự phím tắt gõ-để-nhảy của `<select>` đi theo.
+ */
+export const TINH_THANH = [
+  'An Giang',
+  'Bà Rịa - Vũng Tàu',
+  'Bắc Giang',
+  'Bắc Kạn',
+  'Bạc Liêu',
+  'Bắc Ninh',
+  'Bến Tre',
+  'Bình Định',
+  'Bình Dương',
+  'Bình Phước',
+  'Bình Thuận',
+  'Cà Mau',
+  'Cần Thơ',
+  'Cao Bằng',
+  'Đà Nẵng',
+  'Đắk Lắk',
+  'Đắk Nông',
+  'Điện Biên',
+  'Đồng Nai',
+  'Đồng Tháp',
+  'Gia Lai',
+  'Hà Giang',
+  'Hà Nam',
+  'Hà Nội',
+  'Hà Tĩnh',
+  'Hải Dương',
+  'Hải Phòng',
+  'Hậu Giang',
+  'Hồ Chí Minh',
+  'Hòa Bình',
+  'Hưng Yên',
+  'Khánh Hòa',
+  'Kiên Giang',
+  'Kon Tum',
+  'Lai Châu',
+  'Lâm Đồng',
+  'Lạng Sơn',
+  'Lào Cai',
+  'Long An',
+  'Nam Định',
+  'Nghệ An',
+  'Ninh Bình',
+  'Ninh Thuận',
+  'Phú Thọ',
+  'Phú Yên',
+  'Quảng Bình',
+  'Quảng Nam',
+  'Quảng Ngãi',
+  'Quảng Ninh',
+  'Quảng Trị',
+  'Sóc Trăng',
+  'Sơn La',
+  'Tây Ninh',
+  'Thái Bình',
+  'Thái Nguyên',
+  'Thanh Hóa',
+  'Thừa Thiên Huế',
+  'Tiền Giang',
+  'Trà Vinh',
+  'Tuyên Quang',
+  'Vĩnh Long',
+  'Vĩnh Phúc',
+  'Yên Bái',
+] as const;
+
 export type SanPham = {
   id: string;
   code: string;

@@ -555,6 +555,18 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
   lập trước ngày ấy có thể thấy **ô Tỉnh/Thành phố trống**: phần mềm chỉ tách được địa chỉ cũ khi
   đoạn cuối của nó mở đầu bằng *Thành phố*, *Tỉnh* hay *TP*. Điền nốt ở lượt sửa tiếp theo — ô ấy
   bắt buộc nên không lưu được khi còn trống.
+- **Tỉnh/Thành phố là ô CHỌN, không gõ tay** `sửa 19/09` — bấm vào ô là sổ xuống **63 tỉnh, thành
+  phố theo danh sách CŨ**, xếp A–Z. Ô đang mở thì gõ vài chữ cái đầu là nhảy thẳng tới tên cần chọn.
+  > Danh sách cũ chứ không phải 34 đơn vị sau sáp nhập: ô này khai địa chỉ **theo giấy đăng ký kinh
+  > doanh**, mà giấy tờ của khách hàng vẫn mang tên cũ.
+  >
+  > Tên viết **ngắn** — *Hà Nội*, *Hồ Chí Minh*, *Bắc Ninh* — vì chuỗi này nối với *Số nhà, Phường
+  > xã* thành dòng địa chỉ in trên bản CSBH.
+  >
+  > **Khách hàng cũ có tên tỉnh không nằm trong danh sách** (ví dụ *TP Hồ Chí Minh*) thì ô chọn vẫn
+  > bày giá trị ấy ra, kèm chữ *giá trị cũ, phải chọn lại*, và **không lưu được cho tới khi chọn
+  > lại** — kể cả khi bạn chỉ định sửa số điện thoại. Chọn đúng tên trong danh sách rồi bấm *Lưu*.
+  > Hồ sơ CSBH đã gửi duyệt của khách hàng ấy **không đổi theo**: chúng giữ nguyên địa chỉ lúc gửi.
 - **Loại khách hàng thì sửa được** — xem ngay dưới đây.
 
 Loại khách hàng hiện ở **cả hai chỗ**: cạnh mã trên từng thẻ ở danh sách, và trong khối thông tin ở

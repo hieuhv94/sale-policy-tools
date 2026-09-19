@@ -1680,7 +1680,7 @@ describe('`0085` thư bàn giao khách hàng', () => {
         await c.query(
           `INSERT INTO cus.customer (code, name, customer_type, registered_address,
                                      owner_name, tdv_user_id, created_by)
-           VALUES ($1, $2, 1, 'Ha Noi', 'Chu ho', $3, $3)`,
+           VALUES ($1, $2, 1, 'Hà Nội', 'Chu ho', $3, $3)`,
           [code, `Nha thuoc ${code}`, nghi],
         );
       }

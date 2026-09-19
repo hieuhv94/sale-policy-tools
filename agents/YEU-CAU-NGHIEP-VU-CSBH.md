@@ -1982,6 +1982,8 @@ trong một lượt phản hồi, và chúng chạm cùng một màn hình:
 > 1. Mục *Tên khách hàng* đổi nhãn thành ***Tên Hộ kinh doanh/Tên Công ty***.
 > 2. Biểu mẫu bỏ ô *Địa chỉ đăng ký*, thay bằng **hai ô bắt buộc**: *Tỉnh/Thành phố (theo đăng ký
 >    kinh doanh)* và *Số nhà, Phường xã (theo đăng ký kinh doanh)* — và **chỉ có một** địa chỉ.
+>    (`sửa 19/09` — *Tỉnh/Thành phố* thôi là ô gõ tự do: nó là **ô chọn trong 63 tỉnh, thành phố
+>    theo danh sách CŨ**, viết tên ngắn, và máy chủ từ chối mọi giá trị ngoài danh sách ấy.)
 > 3. Hai ô ấy **hiện ra ở trang thông tin khách hàng**.
 > 4. Nút *Thêm địa chỉ giao hàng* căn lại cho gọn; **địa chỉ giao hàng hiện ở trang thông tin khách
 >    hàng nếu có**.
@@ -2006,7 +2008,9 @@ trong một lượt phản hồi, và chúng chạm cùng một màn hình:
 >   *TP* thì thành ô tỉnh/thành; không khớp thì cả chuỗi vào ô số nhà và **ô tỉnh/thành để trống**.
 >   Để trống chứ không đoán bừa: ô trống thì người dùng thấy ngay lúc mở ra sửa, còn một tỉnh/thành
 >   đoán sai thì đi thẳng lên tờ CSBH mà không ai biết. Ô ấy bắt buộc nên lượt sửa tiếp theo của
->   khách hàng đó là lượt lấp chỗ trống.
+>   khách hàng đó là lượt lấp chỗ trống. (`sửa 19/09` — từ khi *Tỉnh/Thành phố* thành ô chọn, một
+>   giá trị tách ra được nhưng **không trùng tên nào trong 63** cũng rơi vào cùng tình thế: ô chọn
+>   bày nó kèm chữ *giá trị cũ, phải chọn lại*, và lượt sửa tiếp theo bị chặn tới khi chọn lại.)
 >
 > **Khách hàng cũ chưa khai mã số thuế thì cột vẫn trống** — chốt bắt buộc chỉ áp cho lượt LẬP MỚI.
 > Biểu mẫu khai ô ấy bắt buộc, nên bất kỳ lượt sửa nào cũng lấp nốt.
@@ -2699,6 +2703,32 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > mà cả ba đã có trong đó. **Ngưỡng chiết khấu thì VẪN đứng ngoài** — nó không suy ra được từ ba thứ
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
+
+**TỈNH/THÀNH PHỐ LÀ Ô CHỌN, 63 ĐƠN VỊ CŨ** `mới 19/09` — *"thay đổi về lúc nhập Tỉnh/Thành phố thành
+dạng sổ list với danh sách 63 tỉnh thành phố cũ ở Việt Nam"*.
+
+> **DANH SÁCH CŨ, KHÔNG PHẢI 34 ĐƠN VỊ SAU SÁP NHẬP.** Ô này khai địa chỉ **theo giấy đăng ký kinh
+> doanh**, và tờ giấy trong tay khách hàng hôm nay vẫn mang tên cũ. Đây là một bảng từ vựng đọc theo
+> GIẤY TỜ chứ không theo địa giới hành chính đang hiệu lực — ngày nào khách hàng đổi giấy thì đổi
+> bảng, và đó là một quyết định nghiệp vụ chứ không phải một lượt cập nhật dữ liệu.
+>
+> **TÊN NGẮN** — *Hà Nội*, không phải *Thành phố Hà Nội*; *Bắc Ninh*, không phải *Tỉnh Bắc Ninh*.
+> Chuỗi này nối với *Số nhà, Phường xã* thành dòng địa chỉ in trên bản CSBH hai bên ký
+> (*"Số 8 Tôn Thất Thuyết, Cầu Giấy, Hà Nội"*), nên đổi lối viết về sau là đổi câu chữ trên giấy tờ
+> đã ký. Chốt một lần.
+>
+> **MÁY CHỦ CŨNG CHẶN, không chỉ ô chọn** — chọn trong danh sách là chốt của trình duyệt, còn đường
+> API thì bộ nạp dữ liệu mẫu và mọi phép kiểm đều đi thẳng vào. Giới hạn đúng một nửa là lặp lại
+> chuyện `01/09` (nút *Bàn giao* có chốt chặn mà chưa xám), chỉ ngược chiều.
+>
+> **Cái giá, đã nêu và khách hàng chấp nhận**: hệ thống dựng từ **dữ liệu sạch** — nạp lại bộ dữ liệu
+> mẫu — nên không có lượt quy đổi nào. Với một hệ đã chạy thật thì giá trị cũ **không tự hỏng**: nó
+> nằm nguyên trong cơ sở dữ liệu, và ô chọn vẫn bày nó ra kèm chữ *giá trị cũ, phải chọn lại*. Nhưng
+> **lượt SỬA tiếp theo của chính khách hàng ấy bị chặn** cho tới khi người dùng chọn lại một tỉnh
+> trong danh sách. Cố ý: một câu lỗi đọc được thì hơn một lượt lặng lẽ đổi địa chỉ pháp nhân.
+>
+> **Hồ sơ đã gửi duyệt KHÔNG đổi theo** — ảnh chụp tỉnh/thành đóng băng từ `06/09` giữ nguyên câu chữ
+> lúc gửi, kể cả lối viết cũ. Viết lại nó là sửa một tờ giấy đã ký.
 
 **HAI LỖI CỦA LƯỢT 11/09** `mới 11/09` — một ở hộp thoại, một ở phép đối chiếu.
 

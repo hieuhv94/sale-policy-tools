@@ -50,7 +50,7 @@ const KHACH: KhachHangDayDu = {
   registeredAddress: 'So 1 Lang Ha',
   deliveryAddress: null,
   registeredAddresses: ['So 1 Lang Ha'],
-  province: 'Ha Noi',
+  province: 'Hà Nội',
   streetWard: 'So 1 Lang Ha',
   deliveryAddresses: [],
   ownerName: 'Nguyen Van A',
@@ -158,6 +158,73 @@ describe('0023 chỉ gửi customerType khi thật sự đổi', () => {
 
     await waitFor(() => expect(thanDaGui(f)).toBeDefined());
     expect(thanDaGui(f).customerType).toBe(2);
+  });
+});
+
+/**
+ * `0205` — TỈNH/THÀNH PHỐ là Ô CHỌN, khách hàng chốt 19/09.
+ *
+ * Bảng 63 tên và hàm chuẩn hoá có ca kiểm riêng (`tests/http/tinh-thanh.test.ts`);
+ * khối này dựng DOM thật để hỏi ba chuyện chỉ màn hình trả lời được — ô ấy là gì,
+ * nó mở ra với giá trị nào, và một giá trị CŨ ngoài danh sách thì ra sao.
+ */
+describe('`0205` ô Tỉnh/Thành phố', () => {
+  const oTinh = () => screen.getByLabelText(/Tỉnh\/Thành phố/) as HTMLSelectElement;
+
+  it('là ô CHỌN, đủ 63 tên cộng một mục rỗng, đặt sẵn giá trị của khách', () => {
+    chanFetch();
+    moSua();
+    expect(oTinh().tagName).toBe('SELECT');
+    // 63 + mục trống. Đếm chứ không `toContain` một cái tên: thiếu vài tỉnh thì
+    // ô chọn vẫn trông đầy đủ với người đang thử bằng mắt.
+    expect(oTinh().options).toHaveLength(64);
+    expect(oTinh().value).toBe('Hà Nội');
+  });
+
+  it('biểu mẫu LẬP MỚI mở ra với ô TRỐNG, không tự chọn tỉnh đầu danh sách', async () => {
+    /*
+     * Không có mục `value=""` thì trình duyệt tự chọn mục đầu tiên, và biểu mẫu
+     * mở ra với *An Giang* điền sẵn. Người dùng không đọc kỹ sẽ lưu đúng cái tên
+     * ấy — không lỗi nào hiện ra, và dữ liệu sai theo kiểu không ai kiểm lại.
+     */
+    chanFetch();
+    render(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
+    expect(oTinh().value).toBe('');
+  });
+
+  it('giá trị CŨ ngoài danh sách vẫn hiện ra, và KHÔNG chọn lại được', async () => {
+    /*
+     * Khách hàng lập trước `0205` mang tỉnh/thành gõ tay. Không bày nó ra thì ô
+     * chọn hiện một dòng trống, và lượt Lưu tiếp theo — dù người dùng chỉ sửa số
+     * điện thoại — **âm thầm ghi đè địa chỉ pháp nhân**.
+     *
+     * `disabled` là nửa thứ hai: nó là thứ ĐANG LƯU, không phải một câu trả lời
+     * hợp lệ. Bày ra để đọc được mình đang đổi cái gì; chọn lại xong thì không
+     * quay về nó được nữa.
+     */
+    chanFetch();
+    render(
+      <BieuMauKhachHang
+        khach={{ ...KHACH, province: 'TP Hồ Chí Minh' }}
+        dong={() => undefined}
+        xong={() => undefined}
+      />,
+    );
+    expect(oTinh().value).toBe('TP Hồ Chí Minh');
+    expect(oTinh().options).toHaveLength(65);
+    const cu = [...oTinh().options].find((o) => o.value === 'TP Hồ Chí Minh');
+    expect(cu?.disabled).toBe(true);
+  });
+
+  it('chọn một tỉnh rồi Lưu thì thân request mang đúng tên trong bảng', async () => {
+    const nguoi = userEvent.setup();
+    const f = chanFetch();
+    moSua();
+    await nguoi.selectOptions(oTinh(), 'Thừa Thiên Huế');
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(thanDaGui(f)).toBeDefined());
+    expect(thanDaGui(f).province).toBe('Thừa Thiên Huế');
   });
 });
 

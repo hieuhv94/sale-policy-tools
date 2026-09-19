@@ -18195,3 +18195,127 @@ giữ chúng ở `1.0.0` suốt hai lần nâng bản. **Không chốt chặn n�
 lần sau khỏi phải đọc lại cả bốn tệp mới quyết định được.
 
 **2326/2326 xanh.**
+
+---
+
+## P234 — `0205` Tỉnh/Thành phố là ô chọn, 63 đơn vị cũ
+
+Một câu yêu cầu, và phần đáng ghi không nằm ở cái `<select>`.
+
+### Đo trước khi hỏi, và con số quyết định hình dạng cả chặng
+
+Ô ấy là `str(1, 200)` từ `0175` — chữ tự do. Đo trên chính bộ nạp demo: cùng **một** thành phố nằm
+trong dữ liệu dưới **ba** lối viết — `Hà Nội` · `TP Hồ Chí Minh` · `Thành phố Hà Nội` — và bộ kiểm
+còn một lối thứ tư, `Ha Noi` không dấu, ở mười hai tệp. Không phép so nào, không bộ lọc nào, không
+báo cáo nào gom chúng lại được; mà chuỗi ấy thì đi thẳng ra dòng địa chỉ trên bản CSBH hai bên ký.
+
+Ba chỗ phải hỏi lại trước khi gõ, vì mỗi lựa chọn ra một lượng việc khác hẳn:
+
+| Câu hỏi | Khách hàng chốt | Cái giá |
+|---|---|---|
+| Lối viết 63 tên | **NGẮN** (`Hà Nội`) | đổi về sau là đổi câu chữ trên giấy tờ đã ký |
+| Máy chủ có chốt không | **CÓ** | khách cũ có tên lạ thì lượt sửa tiếp theo bị chặn |
+| Dữ liệu cũ | **dựng lại từ dữ liệu sạch** | không có migration quy đổi nào |
+
+Vế thứ ba là thứ làm chặng này gọn hẳn: không migration, không `CHECK` ở CSDL, cột `province` vẫn là
+`text` trơn. `0114` đã viết ra lý do cho vế *bắt buộc* và nó đúng y nguyên cho vế *chọn trong danh
+sách* — tầng ứng dụng là chỗ DUY NHẤT trả được câu lỗi tiếng Việt nói rõ phải làm gì với ô nào, còn
+một `CHECK` 63 vế thì mỗi lượt sửa danh sách thành một migration và câu lỗi nó ném ra là một tên ràng
+buộc.
+
+### `chuanTinhThanh` TRẢ VỀ một giá trị, không gật đầu
+
+Chỗ duy nhất của chặng có thể hỏng thầm lặng, và bản viết đầu tiên của tôi là một hàm boolean
+`laTinhThanh`. Tiếng Việt có dấu viết được bằng **hai cách Unicode**: `Hà` là một ký tự dựng sẵn
+(NFC), hoặc `H` + `a` + dấu huyền tổ hợp (NFD). Hai chuỗi ấy hiện ra **giống hệt nhau** trên mọi màn
+hình trong khi `===` nói chúng khác, và bàn phím tiếng Việt, macOS, một lượt chép dán từ PDF đều sinh
+ra được dạng sau.
+
+Một hàm boolean chuẩn hoá NFC rồi so sẽ **xanh** với chuỗi NFD — rồi service ghi nguyên chuỗi gửi lên
+xuống CSDL. Tức bảng khách hàng có hai dòng `Hà Nội` khác byte: đúng cái lộn xộn mà cả chặng này dựng
+ra để dẹp, chỉ tinh vi hơn. Nên hàm trả về **bản của BẢNG** (`Map` khoá NFC → phần tử gốc), và hai
+chỗ ghi dùng đúng giá trị trả về. Bẫy NFC/NFD là bẫy `0151` đã ghi cho tên tệp rồi ghi lại cho nội
+dung `.docx`; đây là lần đầu nó tới một ô nhập.
+
+> **Điều kiện của cơ chế ấy có ca kiểm riêng**: mọi tên trong CẢ HAI bản phải sẵn ở dạng NFC. Bảng mà
+> lưu NFD thì hàm trả về NFD, CSDL nhận NFD, còn ô chọn gửi lên bản NFC của chính nó — và hai chuỗi
+> trông y hệt nhau không bao giờ khớp. Không ai gõ NFD có chủ ý; nó lọt vào qua một lượt chép dán, và
+> không công cụ nào trong repo đọc ra được.
+
+### Chốt ở SERVICE, không phải `oneOf(...)` ở controller
+
+`debtTerm` của `0138` đi đường `oneOf` và đó là lối tự nhiên nhất ở đây. Nó sai vì một dòng `0175` đã
+viết ra có chủ ý: `PATCH` khai `province: str(0, 200)` — **chuỗi rỗng phải đi qua được** tới service,
+nơi nó thành `CUSTOMER_PROVINCE_REQUIRED`, một câu nói đúng việc phải làm. Đổi sang `oneOf` là lấy
+lại đúng câu lỗi ấy và thay bằng một danh sách 63 chuỗi. Hai mã, hai việc phải làm khác nhau, và thứ
+tự hai phép kiểm là thứ duy nhất giữ chúng khỏi trộn vào nhau: ô trống thì người dùng **chưa chọn
+gì**, tên lạ thì họ **đang giữ một giá trị cũ phải chọn lại**.
+
+Hàm có **hai chữ ký** để đường `create` khỏi phải `!` hay `?? ''` một giá trị mà chính bộ kiểm của
+controller đã bảo đảm là có.
+
+### Giá trị cũ ngoài danh sách: bày ra, và `disabled`
+
+Vế khách hàng không nêu, và thiếu nó thì tính năng này **phá dữ liệu**: khách hàng lập trước `0205`
+mang tỉnh/thành gõ tay, và ô chọn không bày giá trị ấy ra thì nó hiện một dòng trống — lượt Lưu tiếp
+theo, dù người dùng chỉ sửa số điện thoại, **âm thầm ghi đè địa chỉ pháp nhân**. Cùng lối
+`nhanLoaiKhach` đã chọn cho một loại khách hàng lạ: dữ liệu cũ không bao giờ nên hiện thành ô trống.
+
+`disabled` chứ không phải một mục chọn được — nó là thứ ĐANG LƯU, không phải một câu trả lời hợp lệ.
+Hệ quả đã nêu với khách hàng và họ nhận: **lượt sửa tiếp theo của khách hàng ấy bị chặn** tới khi
+người dùng chọn lại. Một câu lỗi đọc được thì hơn một lượt lặng lẽ đổi địa chỉ pháp nhân.
+
+Mục RỖNG đứng đầu cũng không phải để cho đẹp: `rong.province` là `''`, và một `<select>` không có mục
+nào mang `value=""` thì trình duyệt **tự chọn mục đầu tiên** — biểu mẫu lập khách hàng mới mở ra với
+*An Giang* điền sẵn. Không lỗi nào hiện ra, và dữ liệu sai theo kiểu không ai kiểm lại.
+
+### Phá lại — và lượt thứ sáu bắt được một ca kiểm YẾU CỦA CHÍNH TÔI
+
+| Hoàn tác | Đỏ |
+|---|---|
+| gỡ chốt danh sách ở service | 2 — HTTP |
+| giữ chốt, nhưng ghi lại chuỗi GỬI LÊN | **1** — đúng ca NFD, và chỉ nó |
+| ô chọn trở lại ô gõ | 5 — 3 DOM + 2 quét mã nguồn |
+| bỏ mục rỗng đầu ô chọn | 4 |
+| gỡ một tỉnh khỏi bản giao diện | 3 — gồm ca đối chiếu hai bảng |
+| thêm tiền tố vào một tên (CẢ HAI bản) | 1 → **2 sau khi chữa ca kiểm** |
+| trả `TP Hồ Chí Minh` về bộ nạp demo | 1 |
+| bỏ mục *giá trị cũ* | 1 |
+
+Lượt thứ hai là lượt đáng giá nhất về mặt thiết kế: nó tách hẳn *"có chặn không"* khỏi *"ghi xuống
+chuỗi nào"*, và chỉ một ca đỏ — đúng ca đi HẾT ĐƯỜNG rồi đọc thẳng cột trong CSDL. Không ca thuần nào
+phân biệt được hai chuyện ấy, vì chúng cách nhau một dòng ở service.
+
+> **LƯỢT THỨ SÁU LÀ BÀI HỌC THẬT.** Ca *"không mục nào mang tiền tố"* viết `/^(Tỉnh|Thành phố|TP)\b/u`
+> và nó **xanh** với `Thành phố Cần Thơ`. `\b` của JavaScript định nghĩa theo `\w`, tức
+> `[A-Za-z0-9_]`, **kể cả dưới cờ `u`** — chữ `ố` không nằm trong tập ấy, nên giữa `ố` và dấu cách
+> không có ranh giới từ nào. **Một phép kiểm tiếng Việt viết bằng `\b` là một phép kiểm luôn xanh**,
+> và nó trông đúng hơn bản đúng. Đổi sang `[\s.]`. Chỉ lượt phá lại tìm ra được: cả bảng 63 tên đều
+> không có tiền tố, nên ca ấy xanh ở mọi lượt chạy bình thường dù nó chẳng đo gì.
+
+Ca *"năm thành phố trực thuộc trung ương"* đỏ ở lượt ấy và **đó là việc của nó** — nó hỏi một câu
+khác (`Cần Thơ` còn trong bảng không), nên hai ca không thay nhau được.
+
+### Vết lan trong bộ kiểm, và một bẫy của phép thay hàng loạt
+
+Mười lăm tệp kiểm khai tỉnh/thành bằng chữ tự do. Phép thay `'Ha Noi'` → `'Hà Nội'` theo **chuỗi có
+dấu nháy** chạy sạch ở mọi chỗ khai trường, và **không với tới hai chỗ** nơi tên tỉnh nằm GIỮA một
+chuỗi dài hơn — hai câu khẳng định về cột GỘP (`'So 1 Lang Ha, Ha Noi'`), thứ do trigger nối lại. Một
+lượt thay theo dấu nháy không bao giờ chạm tới chúng; tìm ra bằng cách quét lại tên tỉnh **không kèm
+dấu nháy**, trước khi chạy bộ kiểm.
+
+`tests/web/chi-tiet-ho-so.test.tsx` **giữ nguyên `Thành phố Hà Nội`, có chủ ý và có chú thích tại
+chỗ**: đó là ảnh chụp của một hồ sơ đã gửi (`0177`), thứ giữ câu chữ lúc gửi và không ai viết lại.
+Đổi nó cho đồng bộ là mất chỗ duy nhất canh chuyện trang hồ sơ vẫn bày ra được lối viết cũ.
+
+Bộ nạp demo có chốt chặn riêng ở `tests/db/bo-nap-demo.test.ts` — đúng tệp `0180` dựng cho lớp lỗi
+này. Đây là lần thứ TƯ bộ nạp phải theo kịp một lượt đổi luật (`0168` · `0180` · `0199`), và lần đầu
+nó được canh **trước** thay vì lộ ra lúc ai đó gõ `make demo-mau`. Ca kiểm đếm số địa chỉ đọc được
+trước khi so: một regex hụt trả về mảng rỗng, và một vòng lặp trên mảng rỗng thì xanh.
+
+**Bẫy `*/` trong khối chú thích, lần thứ HAI ở cùng một chỗ**: gõ `*Tỉnh*/*Thành phố*` trong docstring
+thì dấu sao đứng trước dấu gạch chéo **đóng luôn khối chú thích**, và `tsc` báo mười lăm lỗi cú pháp ở
+những dòng chẳng liên quan. `SuaKhachHang.tsx` đã có một chú thích cảnh báo đúng chuyện này từ `0177`
+— nó nằm cách chỗ tôi gõ chừng ba trăm dòng, trong cùng một tệp tôi đang sửa.
+
+**2346/2346 xanh.**

@@ -54,7 +54,7 @@ const base = (over: Record<string, unknown> = {}) => ({
   // `0175` — địa chỉ đăng ký HAI Ô, và mã số thuế BẮT BUỘC + DUY NHẤT. Mỗi lượt
   // gọi `base()` phải mang một mã riêng, nếu không thì ca thứ hai của mọi khối
   // đỏ với `CUSTOMER_ID_NUMBER_DUPLICATE`.
-  province: 'Ha Noi',
+  province: 'Hà Nội',
   streetWard: 'So 1 Lang Ha',
   idNumber: mstDuyNhat(),
   ownerName: 'Nguyen Van A',
@@ -268,13 +268,13 @@ describe('CUST-07 địa chỉ đăng ký khác nơi nhận hàng', () => {
     const r = await post(
       '/customers',
       base({
-        province: 'Ha Noi',
+        province: 'Hà Nội',
         streetWard: 'So 1 Lang Ha',
         deliveryAddresses: ['Kho so 5, Bac Ninh'],
       }),
     );
     expect(r.status).toBe(201);
-    expect(r.body.registeredAddress).toBe('So 1 Lang Ha, Ha Noi');
+    expect(r.body.registeredAddress).toBe('So 1 Lang Ha, Hà Nội');
     expect(r.body.deliveryAddress).toBe('Kho so 5, Bac Ninh');
 
     const back = await get(`/customers/${r.body.id}`);
@@ -998,13 +998,13 @@ describe('`0175` địa chỉ đăng ký hai ô, nơi nhận hàng nhiều dòng
      */
     const c = await post(
       '/customers',
-      base({ province: 'Hai Phong', streetWard: 'So 9 Le Loi, Ngo Quyen' }),
+      base({ province: 'Hải Phòng', streetWard: 'So 9 Le Loi, Ngo Quyen' }),
     );
     expect(c.status).toBe(201);
     const r = await get(`/customers/${c.body.id}`);
-    expect(r.body.province).toBe('Hai Phong');
+    expect(r.body.province).toBe('Hải Phòng');
     expect(r.body.streetWard).toBe('So 9 Le Loi, Ngo Quyen');
-    expect(r.body.registeredAddress).toBe('So 9 Le Loi, Ngo Quyen, Hai Phong');
+    expect(r.body.registeredAddress).toBe('So 9 Le Loi, Ngo Quyen, Hải Phòng');
   });
 
   it('thiếu một trong hai ô thì TỪ CHỐI, mỗi ô một mã lỗi riêng', async () => {
@@ -1034,7 +1034,7 @@ describe('`0175` địa chỉ đăng ký hai ô, nơi nhận hàng nhiều dòng
 
     const giu = await patch(`/customers/${c.body.id}`, { phone: '0911111111' });
     expect(giu.status).toBe(200);
-    expect(giu.body.province).toBe('Ha Noi');
+    expect(giu.body.province).toBe('Hà Nội');
   });
 
   it('KHÔNG còn đường nào ghi địa chỉ ĐĂNG KÝ vào bảng địa chỉ', async () => {
@@ -1103,6 +1103,68 @@ describe('`0175` địa chỉ đăng ký hai ô, nơi nhận hàng nhiều dòng
       ]),
     );
     expect((con.rows[0] as { n: number }).n).toBe(0);
+  });
+});
+
+/**
+ * `0205` — TỈNH/THÀNH PHẢI NẰM TRONG 63 TÊN (khách hàng chốt 19/09).
+ *
+ * Bảng từ vựng và hàm chuẩn hoá có ca kiểm riêng ở `tinh-thanh.test.ts`; khối
+ * này hỏi vế còn lại — **máy chủ có thật sự chốt không**, và nó ghi xuống chuỗi
+ * nào. Ô chọn của giao diện là chốt chặn của TRÌNH DUYỆT; `POST /customers` vẫn
+ * là một đường HTTP mà bộ nạp demo và mọi ca kiểm ở đây đi thẳng vào.
+ */
+describe('`0205` tỉnh/thành chọn trong 63 tên', () => {
+  it('tên ngoài danh sách thì TỪ CHỐI, cả lượt lập lẫn lượt sửa', async () => {
+    const a = await post('/customers', base({ province: 'TP Hồ Chí Minh' }));
+    expect(a.status).toBe(400);
+    expect(a.body.code).toBe('CUSTOMER_PROVINCE_UNKNOWN');
+    // `field` phải có: giao diện đưa câu lỗi xuống ngay dưới ô chọn (`loi.ts`).
+    expect(a.body.field).toBe('province');
+
+    const c = await post('/customers', base());
+    expect(c.status).toBe(201);
+    const b = await patch(`/customers/${c.body.id}`, { province: 'Thành phố Hà Nội' });
+    expect(b.status).toBe(400);
+    expect(b.body.code).toBe('CUSTOMER_PROVINCE_UNKNOWN');
+  });
+
+  it('CHUỖI RỖNG vẫn ra câu *phải điền*, không ra câu *không có trong danh sách*', async () => {
+    /*
+     * Hai mã, hai việc phải làm khác nhau, và thứ tự hai phép kiểm là thứ duy
+     * nhất giữ chúng khỏi trộn vào nhau: ô trống thì người dùng chưa chọn gì,
+     * còn tên lạ thì họ đang giữ một giá trị cũ phải chọn lại. Gộp một mã là
+     * `0175` mất đúng câu lỗi nó vừa dựng ra.
+     */
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { province: '  ' });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('CUSTOMER_PROVINCE_REQUIRED');
+  });
+
+  it('dạng TỔ HỢP (NFD) lưu xuống thành bản NFC của bảng', async () => {
+    /*
+     * Đi HẾT ĐƯỜNG, không hỏi hàm thuần: `chuanTinhThanh` trả về bản của bảng,
+     * nhưng câu trả lời ấy chỉ có nghĩa nếu service ghi **giá trị trả về** chứ
+     * không ghi lại chuỗi gửi lên. Hai chuyện ấy cách nhau một dòng, và không
+     * ca thuần nào phân biệt được.
+     *
+     * Đọc thẳng CSDL chứ không đọc DTO: chỗ phải đúng là cột, vì cột gộp
+     * `registered_address` do trigger dựng từ chính nó rồi đi ra tờ giấy.
+     */
+    const nfd = 'Đà Nẵng'.normalize('NFD');
+    expect(nfd).not.toBe('Đà Nẵng');
+    const c = await post('/customers', base({ province: nfd }));
+    expect(c.status).toBe(201);
+
+    const r = await withAdminDb((db) =>
+      db.query<{ province: string; registered_address: string }>(
+        `SELECT province, registered_address FROM cus.customer WHERE id = $1`,
+        [c.body.id],
+      ),
+    );
+    expect(r.rows[0]!.province).toBe('Đà Nẵng');
+    expect(r.rows[0]!.registered_address.endsWith('Đà Nẵng')).toBe(true);
   });
 });
 

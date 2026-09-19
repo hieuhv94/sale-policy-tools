@@ -11,6 +11,7 @@ import { ScopeClient } from '../infra/scope.client.js';
 import { PolicyClient } from '../infra/policy.client.js';
 import { DocumentClient } from '../infra/document.client.js';
 import { cauNo, loiDieuKhoan, type DieuKhoanNo } from './dieu-khoan.js';
+import { chuanTinhThanh } from './tinh-thanh.js';
 
 /**
  * Ngăn cách giữa các địa chỉ trong hai cột GỘP (`0154`).
@@ -123,7 +124,20 @@ export class CustomersService {
    * tới chúng, và bắt mọi lượt sửa số điện thoại phải gửi kèm địa chỉ là biến
    * một trường tuỳ chọn thành bắt buộc.
    */
-  private assertDiaChiDangKy(province: string | undefined, streetWard: string | undefined): void {
+  /*
+   * HAI CHỮ KÝ, để đường `create` khỏi phải `!` hay `?? ''` một giá trị mà chính
+   * bộ kiểm của controller đã bảo đảm là có: `POST` khai `province: str(1, …)`
+   * nên nó không bao giờ `undefined`, còn `PATCH` thì có.
+   */
+  private chotDiaChiDangKy(province: string, streetWard: string | undefined): string;
+  private chotDiaChiDangKy(
+    province: string | undefined,
+    streetWard: string | undefined,
+  ): string | undefined;
+  private chotDiaChiDangKy(
+    province: string | undefined,
+    streetWard: string | undefined,
+  ): string | undefined {
     /*
      * `undefined` thì bỏ qua — lượt `PATCH` không nói tới địa chỉ thì không đụng
      * tới nó. Nhưng CHUỖI RỖNG thì không: gửi `''` là cố ý xoá, và ô này bắt
@@ -144,6 +158,30 @@ export class CustomersService {
         field: 'streetWard',
       });
     }
+    /*
+     * TỈNH/THÀNH PHẢI NẰM TRONG 63 TÊN (`0205`).
+     *
+     * Hàm này TRẢ VỀ tên chuẩn chứ không chỉ gật đầu, và hai chỗ ghi ở dưới dùng
+     * đúng giá trị trả về: `chuanTinhThanh` chuẩn hoá NFC, nên chỉ kiểm rồi ghi
+     * nguyên chuỗi gửi lên là CSDL giữ hai dòng `Hà Nội` khác byte — thứ mà cả
+     * chặng này dựng ra để dẹp. Lý do đầy đủ nằm ở `tinh-thanh.ts`.
+     *
+     * Chốt ở SERVICE chứ không phải `oneOf(...)` ở controller, dù `debtTerm`
+     * (`0138`) đi đường ấy: `PATCH` khai `province` là `str(0, …)` có chủ ý — để
+     * chuỗi rỗng đi qua được tới đây và thành một câu tiếng Việt nói rõ phải
+     * điền ô nào. Đổi sang `oneOf` là lấy lại đúng câu lỗi mà `0175` vừa dựng
+     * ra, và bày cho người dùng một danh sách 63 chuỗi thay cho nó.
+     */
+    if (province === undefined) return undefined;
+    const chuan = chuanTinhThanh(province);
+    if (chuan === null) {
+      throw new BadRequestException({
+        code: 'CUSTOMER_PROVINCE_UNKNOWN',
+        message: 'Tỉnh/Thành phố phải chọn trong danh sách 63 tỉnh, thành phố.',
+        field: 'province',
+      });
+    }
+    return chuan;
   }
 
   /**
@@ -222,7 +260,7 @@ export class CustomersService {
 
   async create(input: CustomerInput, me: AuthUser) {
     this.assertDieuKhoan(input.debtTerm, input.debtNote);
-    this.assertDiaChiDangKy(input.province, input.streetWard);
+    const tinhThanh = this.chotDiaChiDangKy(input.province, input.streetWard);
     /*
      * TRÙNG MÃ SỐ THUẾ THÌ KHÔNG LẬP ĐƯỢC (`0175`) — đảo hẳn `CUST-05`.
      *
@@ -266,7 +304,8 @@ export class CustomersService {
             input.phone ?? null,
             input.debtTerm ?? 'SAU_NHAN_HANG',
             input.debtNote ?? null,
-            input.province.trim(),
+            // Tên của BẢNG, không phải chuỗi gửi lên (`0205` — chuẩn hoá NFC).
+            tinhThanh,
             input.streetWard.trim(),
             // TDV phụ trách mặc định là người tạo (CUST-01).
             me.id,
@@ -375,7 +414,7 @@ export class CustomersService {
     me: AuthUser,
   ) {
     this.assertDieuKhoan(patch.debtTerm, patch.debtNote);
-    this.assertDiaChiDangKy(patch.province, patch.streetWard);
+    const tinhThanh = this.chotDiaChiDangKy(patch.province, patch.streetWard);
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
     await this.assertInScope(cur.tdv_user_id, me, id);
@@ -462,7 +501,8 @@ export class CustomersService {
           patch.phone ?? null,
           // '' = không đụng tới · '-' = xoá · còn lại = nội dung mới.
           patch.debtTerm === undefined ? '' : (patch.debtNote ?? '-'),
-          patch.province?.trim() ?? null,
+          // Tên của BẢNG, không phải chuỗi gửi lên (`0205` — chuẩn hoá NFC).
+          tinhThanh ?? null,
           patch.streetWard?.trim() ?? null,
         ],
       );

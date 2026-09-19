@@ -94,7 +94,7 @@ export async function mkCustomer(c: Client, tag = 'T'): Promise<string> {
   const r = await c.query<{ id: string }>(
     `INSERT INTO cus.customer
        (code, name, customer_type, registered_address, owner_name, tdv_user_id, created_by)
-     VALUES ($1, 'Khach hang test', 1, 'Ha Noi', 'Chu ho',
+     VALUES ($1, 'Khach hang test', 1, 'Hà Nội', 'Chu ho',
              (SELECT id FROM idn.app_user WHERE username = 'tdv01'),
              (SELECT id FROM idn.app_user WHERE username = 'tdv01'))
      RETURNING id`,

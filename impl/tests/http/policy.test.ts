@@ -97,8 +97,8 @@ const makeCustomer = async (who = 'tdv01'): Promise<string> => {
       code: uniq('KH'),
       name: 'Nha thuoc thu nghiem',
       customerType: 1,
-      province: 'Ha Noi',
-      streetWard: 'Ha Noi',
+      province: 'Hà Nội',
+      streetWard: 'Hà Nội',
       ownerName: 'Chu ho',
       // `0104` — gửi duyệt đòi đủ MST và chức danh, nên khách hàng
       // của bộ test phải giống khách hàng thật.
@@ -5525,8 +5525,8 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       code: uniq('KHT'),
       name: 'Nha thuoc thieu truong',
       customerType: 1,
-      province: 'Ha Noi',
-      streetWard: 'Ha Noi',
+      province: 'Hà Nội',
+      streetWard: 'Hà Nội',
       ownerName: 'Chu ho',
       ownerTitle: 'Chu nha thuoc',
       idNumber: mstDuyNhat(), phone: '0900000000' };
@@ -5671,7 +5671,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
         code: uniq('KH'),
         name: 'Ho kinh doanh Minh Anh',
         customerType: 1,
-        province: 'Thành phố Hà Nội',
+        province: 'Hà Nội',
         streetWard: 'Số 12 ngõ 5, Phường Láng Hạ',
         deliveryAddresses: ['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng'],
         ownerName: 'Nguyen Thi Dai Dien',
@@ -5700,7 +5700,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     const r = await get(`/policies/${d.id}`, 'tdv01');
     expect(r.status).toBe(200);
     expect(r.body.khachHang.soNha).toBe('Số 12 ngõ 5, Phường Láng Hạ');
-    expect(r.body.khachHang.tinhThanh).toBe('Thành phố Hà Nội');
+    expect(r.body.khachHang.tinhThanh).toBe('Hà Nội');
     expect(r.body.khachHang.nguoiDaiDien).toBe('Nguyen Thi Dai Dien');
     expect(r.body.khachHang.noiNhanHang).toEqual([
       'Kho 1, KCN Bắc Thăng Long',
@@ -5711,11 +5711,11 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     const sua = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ province: 'Tỉnh Bắc Ninh' });
+      .send({ province: 'Bắc Ninh' });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
 
     const r2 = await get(`/policies/${d.id}`, 'tdv01');
-    expect(r2.body.khachHang.tinhThanh).toBe('Tỉnh Bắc Ninh');
+    expect(r2.body.khachHang.tinhThanh).toBe('Bắc Ninh');
   }, 60_000);
 
   it('`0177` GỬI DUYỆT đóng băng hai ô địa chỉ và danh sách giao hàng', async () => {
@@ -5727,7 +5727,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .send({
-        province: 'Tỉnh Bắc Ninh',
+        province: 'Bắc Ninh',
         streetWard: 'Số 99 Đường Mới',
         deliveryAddresses: ['Kho 2, Quế Võ'],
       });
@@ -5736,7 +5736,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     // Hồ sơ giữ ĐỊA CHỈ CŨ, cả hai ô lẫn danh sách giao hàng.
     const r = await get(`/policies/${d.id}`, 'tdv01');
     expect(r.body.khachHang.soNha).toBe('Số 12 ngõ 5, Phường Láng Hạ');
-    expect(r.body.khachHang.tinhThanh).toBe('Thành phố Hà Nội');
+    expect(r.body.khachHang.tinhThanh).toBe('Hà Nội');
     expect(r.body.khachHang.noiNhanHang).toEqual([
       'Kho 1, KCN Bắc Thăng Long',
       'Số 8 Trần Duy Hưng',
@@ -5754,7 +5754,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       ),
     );
     expect(snap.rows[0]!.kh_so_nha_snap).toBe('Số 12 ngõ 5, Phường Láng Hạ');
-    expect(snap.rows[0]!.kh_tinh_thanh_snap).toBe('Thành phố Hà Nội');
+    expect(snap.rows[0]!.kh_tinh_thanh_snap).toBe('Hà Nội');
   }, 60_000);
 
   it('`0177` hồ sơ gửi TRƯỚC migration: hai ô rỗng, KHÔNG rơi về đọc sống', async () => {
@@ -5780,14 +5780,14 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
     const sua = await (await http(customer))
       .patch(`/customers/${customerId}`)
       .set('Authorization', `Bearer ${tok['tdv01']}`)
-      .send({ province: 'Tỉnh Bắc Ninh', streetWard: 'Số 99 Đường Mới' });
+      .send({ province: 'Bắc Ninh', streetWard: 'Số 99 Đường Mới' });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
 
     const r = await get(`/policies/${d.id}`, 'tdv01');
     expect(r.body.khachHang.soNha).toBeNull();
     expect(r.body.khachHang.tinhThanh).toBeNull();
     // Cột gộp đã đóng băng vẫn còn, và nó là thứ màn hình bày thay.
-    expect(r.body.khachHang.diaChiDangKy).toBe('Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội');
+    expect(r.body.khachHang.diaChiDangKy).toBe('Số 12 ngõ 5, Phường Láng Hạ, Hà Nội');
   }, 60_000);
 
   it('`0177` khách KHÔNG có địa chỉ giao hàng thì danh sách RỖNG, không phải một dòng trắng', async () => {

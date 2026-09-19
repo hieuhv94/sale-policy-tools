@@ -488,6 +488,16 @@ export const BANG_LOI: Record<string, Muc> = {
   CUSTOMER_PROVINCE_REQUIRED: { dang: 'o-nhap', truong: 'province', tuMayChu: true },
   CUSTOMER_STREET_REQUIRED: { dang: 'o-nhap', truong: 'streetWard', tuMayChu: true },
   /*
+   * `0205` — dưới ĐÚNG ô chọn tỉnh/thành.
+   *
+   * Người dùng của biểu mẫu không tới được đây: ô ấy là `<select>`, nên nó chỉ
+   * gửi lên được một trong 63 tên. Mã này canh hai đường còn lại — một lượt gọi
+   * API thẳng, và một khách hàng lập TRƯỚC `0205` mà giá trị cũ không nằm trong
+   * danh sách. Ở ca thứ hai câu lỗi phải rơi đúng vào ô, vì việc phải làm là mở
+   * ô chọn ra chọn lại một cái tên.
+   */
+  CUSTOMER_PROVINCE_UNKNOWN: { dang: 'o-nhap', truong: 'province', tuMayChu: true },
+  /*
    * `0175` — dưới Ô mã số thuế, không phải hộp thoại.
    *
    * Người dùng gần như không bao giờ tới được đây: biểu mẫu hỏi máy chủ ngay lúc

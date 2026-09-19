@@ -145,7 +145,7 @@ describe('thiếu trường bắt buộc thì không gửi được', () => {
     code: 'KH001',
     name: 'Nha thuoc A',
     customerType: 1,
-    province: 'Ha Noi',
+    province: 'Hà Nội',
     streetWard: '12 Ly Thuong Kiet',
     idNumber: '0101234567',
     ownerName: 'Nguyen Van A',

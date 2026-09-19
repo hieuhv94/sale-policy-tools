@@ -37,6 +37,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { Client } from 'pg';
 import { admin } from './helpers';
+import { chuanTinhThanh } from '../../services/customer/src/customers/tinh-thanh.js';
 
 let db: Client;
 
@@ -209,6 +210,43 @@ describe('`0199` bộ nạp demo và luật một bản Nháp mỗi khách', () 
       expect(v, `đổi giá theo \`${v}\` thì hồ sơ còn sửa được không thấy gì`).toBe(
         'NGAY_AP_DUNG_MAC_DINH',
       );
+    }
+  });
+});
+
+/**
+ * `0205` — MỌI TỈNH/THÀNH BỘ NẠP KHAI PHẢI NẰM TRONG 63 TÊN.
+ *
+ * `0205` chốt danh sách ở máy chủ, nên một địa chỉ đăng ký của bộ nạp mà kết
+ * thúc bằng `TP Hồ Chí Minh` làm `POST /customers` trả `400` và **cả lượt
+ * `make demo-mau` chết ở khách hàng đầu tiên trúng dòng ấy**. Đây là lần thứ TƯ
+ * bộ nạp demo phải theo kịp một lượt đổi luật (`0168` · `0180` · `0199`), và
+ * lần này nó được canh trước thay vì lộ ra lúc ai đó gõ lệnh.
+ *
+ * Phép tách phải giống hệt `thanKhach`: tỉnh/thành là đoạn sau dấu phẩy CUỐI
+ * CÙNG của địa chỉ đăng ký ĐẦU TIÊN.
+ */
+describe('`0205` bộ nạp demo chỉ dùng tên tỉnh/thành hợp lệ', () => {
+  it('mọi địa chỉ đăng ký kết thúc bằng một tên trong bảng', () => {
+    const s = readFileSync('scripts/seed-demo.ts', 'utf8');
+
+    // `KHACH_TAY`: địa chỉ ĐẦU TIÊN của mỗi mảng `registeredAddresses`.
+    const tay = [...s.matchAll(/registeredAddresses:\s*\[\s*'([^'\n]+)'/g)].map((m) => m[1]!);
+    // `KHACH_THEM`: `[tên, loại, địa chỉ, người đại diện, chức danh]`.
+    const themKhoi = s.slice(s.indexOf('const KHACH_THEM'));
+    const them = [...themKhoi.matchAll(/^\s*\['[^']*',\s*\d+,\s*'([^'\n]+)'/gm)].map((m) => m[1]!);
+
+    /*
+     * Đếm trước khi so: một regex hụt vẫn trả về mảng rỗng, và một vòng lặp trên
+     * mảng rỗng thì XANH — ca kiểm thành câu lệnh rỗng đúng lúc bộ nạp đổi cách
+     * viết fixture. Lớp bẫy `0186` đã ghi cho `NOT EXISTS`.
+     */
+    expect(tay.length, 'không đọc được địa chỉ nào của KHACH_TAY').toBeGreaterThanOrEqual(3);
+    expect(them.length, 'không đọc được địa chỉ nào của KHACH_THEM').toBeGreaterThanOrEqual(20);
+
+    for (const dc of [...tay, ...them]) {
+      const tinh = dc.split(',').at(-1)!.trim();
+      expect(chuanTinhThanh(tinh), `${dc} → "${tinh}" không có trong bảng 63 tên`).not.toBeNull();
     }
   });
 });

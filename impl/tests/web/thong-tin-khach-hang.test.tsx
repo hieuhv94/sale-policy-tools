@@ -39,7 +39,7 @@ const KHACH = {
   registeredAddress: 'So 1 Lang Ha, Ba Dinh, Ha Noi',
   deliveryAddress: null,
   registeredAddresses: ['So 1 Lang Ha, Ba Dinh, Ha Noi'],
-  province: 'Ha Noi',
+  province: 'Hà Nội',
   streetWard: 'So 1 Lang Ha, Ba Dinh',
   deliveryAddresses: [],
   ownerName: 'Tran Thi B',
