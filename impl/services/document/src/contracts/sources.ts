@@ -290,6 +290,40 @@ export const dinhDangCua = (source: string): Format => DINH_DANG_NGUON[source] ?
  * `{{bang_san_pham}}` vẫn gánh mục *tên sản phẩm*, kiểm qua tập cột bắt buộc của
  * bảng chứ không qua danh sách này.
  */
+/**
+ * Mục bắt buộc mà mẫu RÚT GỌN được MIỄN (`0209`, khách hàng chốt 20/09).
+ *
+ * Khách hàng bỏ hai dòng ngày duyệt màu xanh khỏi tờ rút gọn — *"bản đầy đủ thì
+ * vẫn giữ nguyên"*. Dòng dưới Kế toán (`ngay_kt_nhan_l1`) bỏ tự do vì nó chưa
+ * bao giờ nằm trong danh sách này; dòng dưới TBP thì có, nên bỏ nó là đụng vào
+ * muc 11.1.
+ *
+ * ---------------------------------------------------------------------------
+ * MIỄN TRỪ CHỨ KHÔNG PHẢI HAI DANH SÁCH
+ * ---------------------------------------------------------------------------
+ *
+ * Cách viết tự nhiên hơn là dựng hẳn `NGUON_BAT_BUOC_RUT_GON` liệt kê năm mục.
+ * Nó sai theo kiểu chỉ lộ ra về sau: **mục bắt buộc thứ bảy** mà ai đó thêm vào
+ * muc 11.1 sẽ chỉ áp cho mẫu đầy đủ, vì không ai nhớ có một danh sách thứ hai ở
+ * ngay dưới. Khai phần LỆCH thì cái chung tự lan sang cả hai loại, và tờ rút
+ * gọn chỉ khác ở đúng thứ khách hàng đã chốt.
+ *
+ * Đây cũng là lối `0169` đã chọn cho menu theo vai trò: MỘT mảng cho ra hai thứ
+ * tự, thay vì hai bảng phải giữ đồng bộ.
+ */
+export const MIEN_O_RUT_GON: string[] = ['ho_so.ngay_tbp_ky'];
+
+/**
+ * Mục bắt buộc của MỘT loại mẫu hồ sơ.
+ *
+ * `HOP_DONG` không đi qua đây — phép kiểm ở `templates.service` chỉ chạy cho hai
+ * loại hồ sơ, và hợp đồng không có mục bắt buộc nào.
+ */
+export const nguonBatBuocCua = (kind: string): string[] =>
+  kind === 'HO_SO_RUT_GON'
+    ? NGUON_BAT_BUOC_HO_SO.filter((n) => !MIEN_O_RUT_GON.includes(n))
+    : NGUON_BAT_BUOC_HO_SO;
+
 export const NGUON_BAT_BUOC_HO_SO: string[] = [
   'ho_so.ma_khach_hang',
   'ho_so.cong_no',

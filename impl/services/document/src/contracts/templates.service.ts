@@ -21,7 +21,7 @@ import {
   para,
   placeholdersOf,
 } from './docx.js';
-import { isKnownSource, KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
+import { isKnownSource, KNOWN_SOURCES, nguonBatBuocCua } from './sources.js';
 import { chuanHoaCot, COT_BANG, COT_RUT_GON } from './bang-san-pham.js';
 /*
  * `COMPANY` ĐÃ GỠ KHỎI TỆP NÀY (`0151`).
@@ -206,7 +206,8 @@ export class TemplatesService {
       // phép kiểm này nằm ở bước ban hành; bỏ ban hành thì nó về đúng chỗ duy
       // nhất còn lại, và cũng là chỗ người sửa được đang đứng.
       const daCo = new Set(input.mapping.map((m) => m.source));
-      const thieu = NGUON_BAT_BUOC_HO_SO.filter((n) => !daCo.has(n));
+      // `0209` — tập bắt buộc THEO LOẠI: mẫu rút gọn được miễn `ngay_tbp_ky`.
+      const thieu = nguonBatBuocCua(input.kind).filter((n) => !daCo.has(n));
       const thieuBang = !declared.has(O_BANG_SAN_PHAM);
       if (thieu.length > 0 || thieuBang) {
         throw new ConflictException({

@@ -140,10 +140,31 @@ describe('`0165` ba mẫu mặc định', () => {
       'ho_so.tinh_thanh_pho',
       'ho_so.truong_bo_phan',
     ];
-    for (const m of MAU_MAC_DINH.filter((x) => x.kind !== 'HOP_DONG')) {
+    /*
+     * HAI MẪU, HAI TẬP KHÁC NHAU từ `0209` — trước đó chúng giống hệt.
+     *
+     * Khách hàng chốt 20/09 bỏ hai dòng ngày duyệt màu xanh khỏi tờ RÚT GỌN,
+     * *"bản đầy đủ thì vẫn giữ nguyên"*. Nên phép so thôi dùng chung một mảng:
+     * tập của rút gọn = tập đầy đủ TRỪ hai khoá ấy, và viết bằng phép trừ chứ
+     * không chép mảng thứ hai — chép thì lượt sửa tập kế tiếp phải nhớ sửa hai
+     * chỗ, và chỗ bị quên sẽ là chỗ không ai mở ra đọc.
+     */
+    const BO_O_RUT_GON = ['ho_so.ngay_kt_nhan_l1', 'ho_so.ngay_tbp_ky'];
+    const mong = (kind: string): string[] =>
+      kind === 'HO_SO_RUT_GON' ? MONG.filter((x) => !BO_O_RUT_GON.includes(x)) : MONG;
+
+    const day = MAU_MAC_DINH.filter((x) => x.kind !== 'HOP_DONG');
+    expect(day.length, 'phải có hai mẫu hồ sơ').toBe(2);
+    for (const m of day) {
       const o = placeholdersOf(readFileSync(`${GOC}/${m.tep}`)).map((x) => x.slice(2, -2));
-      expect([...o].sort(), m.tep).toEqual(MONG);
+      expect([...o].sort(), m.tep).toEqual(mong(m.kind));
     }
+
+    // Và HAI TẬP ẤY PHẢI KHÁC NHAU: nếu một lượt dựng lại mẫu chép nguyên tờ
+    // đầy đủ sang tờ rút gọn thì mọi phép so ở trên vẫn xanh với `mong()` —
+    // không, chúng đỏ — nhưng một bản `mong()` viết sai (trả cùng một mảng cho
+    // cả hai loại) thì xanh hết. Câu này canh chính hàm ấy.
+    expect(mong('HO_SO_RUT_GON')).not.toEqual(mong('HO_SO'));
   });
 
   it('`0182` dòng *Tên khách hàng* nối ĐÚNG NĂM PHẦN, đúng thứ tự', () => {

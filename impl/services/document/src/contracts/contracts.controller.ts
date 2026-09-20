@@ -35,7 +35,7 @@ import {
 import { MAX_BYTES } from '../files/files.service.js';
 import { LOAI_HO_SO, TemplatesService, type Loai, type MappingInput } from './templates.service.js';
 import { ContractsService } from './contracts.service.js';
-import { KNOWN_SOURCES, NGUON_BAT_BUOC_HO_SO } from './sources.js';
+import { KNOWN_SOURCES, nguonBatBuocCua } from './sources.js';
 import { O_BANG_SAN_PHAM } from './docx.js';
 import { COT_BANG, COT_BAT_BUOC, COT_MAC_DINH, COT_RUT_GON } from './bang-san-pham.js';
 
@@ -322,7 +322,13 @@ export class PolicyTemplatesController {
     // thêm mẫu cần cả hai để dựng hướng dẫn và ô chọn cột.
     return {
       knownSources: KNOWN_SOURCES,
-      batBuoc: NGUON_BAT_BUOC_HO_SO,
+      /*
+       * `0209` — tập bắt buộc THEO LOẠI, cùng tham số `loai` mà `cotMacDinh`
+       * ngay dưới đã đọc. Trả bảng đầy đủ cho mọi loại thì màn hình *Thêm mẫu*
+       * dạy người soạn rằng tờ rút gọn cần một ô mà máy chủ không đòi — và họ
+       * chèn nó vào, đúng cái khách hàng vừa bảo bỏ.
+       */
+      batBuoc: nguonBatBuocCua(loaiHoSo(loai)),
       oBangSanPham: O_BANG_SAN_PHAM,
       cotBang: COT_BANG,
       cotBatBuoc: COT_BAT_BUOC,

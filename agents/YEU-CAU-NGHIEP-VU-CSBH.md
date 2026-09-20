@@ -2704,6 +2704,26 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**MẪU RÚT GỌN BỎ HAI DÒNG NGÀY DUYỆT** `sửa 20/09` — *"trong bản mềm rút gọn có thể bỏ dòng chữ màu
+xanh bên dưới TBP và kế toán ghi ngày duyệt đi được không, bản đầy đủ thì vẫn giữ nguyên"*.
+
+> Hai dòng ấy là `Tiếp nhận L1: {{ho_so.ngay_kt_nhan_l1}}` dưới ô Kế toán và `Ký ngày:
+> {{ho_so.ngay_tbp_ky}}` dưới ô Trưởng bộ phận, in màu xanh trong khối chữ ký.
+>
+> **HAI DÒNG KHÔNG CÙNG GIÁ, và đó là chỗ phải hỏi lại trước khi làm.** Dòng dưới Kế toán bỏ tự do —
+> `ngay_kt_nhan_l1` rời khỏi danh sách mục bắt buộc từ `24/08`. Dòng dưới TBP thì **vẫn là một trong
+> sáu mục bắt buộc của muc 11.1**, nên bỏ nó là mẫu rút gọn không lưu được nữa.
+>
+> **Khách hàng chốt phương án A**: danh sách bắt buộc thành **theo LOẠI mẫu** — rút gọn năm mục, đầy
+> đủ sáu. Phương án B (bỏ hẳn `ngay_tbp_ky` khỏi danh sách) ít việc hơn nhưng nới luôn cả mẫu đầy đủ,
+> đúng thứ câu yêu cầu bảo giữ nguyên.
+>
+> **Cái giá đã nêu**: bản mềm rút gọn thôi cho biết ngày TBP ký và ngày Kế toán tiếp nhận. Hai mốc ấy
+> vẫn còn ở bản đầy đủ, ở màn hình hồ sơ và trong Nhật ký.
+>
+> **Hệ đang chạy không tự đổi theo**: mẫu nạp vào cơ sở dữ liệu một lần theo `(loại, tên)`, nên sửa
+> tệp không đụng tới dòng đã nạp — phải dựng lại dữ liệu, hoặc thay dòng ấy bằng tay.
+
 **Ô NHẬP NGÀY VÀ MỌI CHỖ HIỂN THỊ NGÀY ĐỀU `DD/MM/YYYY`** `sửa 20/09` — *"các ô nhập ngày tháng năm
 sửa lại về định dạng DD/MM/YYYY"*, rồi *"rà soát lại để đảm bảo mọi hiển thị ngày tháng năm ở nội
 dung của tất cả các trang, bản mềm, mail, thông báo đều là DD/MM/YYYY"*.

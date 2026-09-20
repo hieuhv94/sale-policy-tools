@@ -18565,3 +18565,75 @@ cho chính chỗ này: *bộ nạp demo là một người dùng của lược �
 dùng khác*. Lần này là người dùng của một QUY ƯỚC thay vì của lược đồ.
 
 **2368/2368 xanh.**
+
+---
+
+## P238 — `0209` Mẫu rút gọn bỏ hai dòng ngày duyệt, và tập bắt buộc thành theo LOẠI
+
+Người dùng hỏi *"bỏ đi được không"*. Câu trả lời là **được, nhưng hai dòng không cùng giá** — và đo
+ra điều đó trước khi gõ là cả phần đáng nhớ của chặng.
+
+### Hai dòng, hai câu chuyện khác hẳn
+
+```
+Tiếp nhận L1: {{ho_so.ngay_kt_nhan_l1}}   màu 00B0F0, dưới ô Kế toán
+Ký ngày: {{ho_so.ngay_tbp_ky}}            màu 00B0F0, dưới ô Trưởng bộ phận
+```
+
+Dòng dưới Kế toán bỏ **tự do**: `ngay_kt_nhan_l1` rời khỏi `NGUON_BAT_BUOC_HO_SO` từ `0102`. Dòng
+dưới TBP thì **vẫn nằm trong sáu mục bắt buộc**, và phép kiểm ở `templates.service` áp cho CẢ HAI
+loại hồ sơ — nên bỏ nó là mẫu rút gọn trả `TEMPLATE_MISSING_REQUIRED` lúc lưu, và bộ nạp lúc khởi
+động cũng không nạp được.
+
+Nếu đọc yêu cầu rồi gõ luôn, chỗ hỏng lộ ra ở **lượt khởi động service** chứ không ở lượt sửa tệp —
+xa nhất có thể khỏi chỗ gây ra nó.
+
+### MIỄN TRỪ, không phải hai danh sách
+
+Cách viết tự nhiên hơn là dựng `NGUON_BAT_BUOC_RUT_GON` liệt kê năm mục. Nó sai theo kiểu chỉ lộ ra
+về sau: **mục bắt buộc thứ bảy** mà ai đó thêm vào muc 11.1 sẽ chỉ áp cho mẫu đầy đủ, vì không ai
+nhớ có một danh sách thứ hai ở ngay dưới. Khai phần LỆCH (`MIEN_O_RUT_GON`) thì cái chung tự lan
+sang cả hai loại, và tờ rút gọn chỉ khác ở đúng thứ khách hàng đã chốt.
+
+Cùng lối `0169` đã chọn cho menu theo vai trò: **một mảng cho ra hai thứ tự**, thay vì hai bảng phải
+giữ đồng bộ. Cái được kèm theo: `NGUON_BAT_BUOC_HO_SO` giữ nguyên tên và nguyên nội dung, nên **26
+chỗ trong bộ kiểm đang đọc nó không phải sửa một dòng nào**.
+
+### `/sources` cũng phải biết loại — và tham số đã có sẵn
+
+Đường `/policy-templates/sources` trả `batBuoc` cho màn hình *Thêm mẫu* dựng hướng dẫn. Trả bảng đầy
+đủ cho mọi loại thì nó **dạy người soạn rằng tờ rút gọn cần một ô mà máy chủ không đòi** — và họ chèn
+vào, đúng cái vừa bảo bỏ. Tham số `loai` đã có ở đường này từ `0165` (nó chọn `cotMacDinh`), nên đây
+là lượt cho nó thêm một việc chứ không phải một đường mới. Không khai loại thì rơi về mẫu ĐẦY ĐỦ —
+phía siết, không phía nới.
+
+### Vá tệp `.docx`: ba phép kiểm trong chính script vá
+
+`templates/default/` là `root:root` (bẫy `0134`/`0171`), nên lượt vá chạy trong một container `-u 0`.
+Script tự kiểm ba chuyện thay vì tin vào regex:
+
+* mỗi ô trống khớp **đúng MỘT** `<w:p>` — khớp hai là gỡ nhầm một đoạn khác;
+* số đoạn phải giảm **đúng hai**;
+* **không `<w:tc>` nào còn rỗng** — một ô bảng không có `<w:p>` làm Word không mở được file, mà
+  LibreOffice vẫn mở, nên bản PDF máy chủ dựng ra sẽ không lộ gì (bẫy `0165`).
+
+Và giữ NGUYÊN THỨ TỰ mục trong zip lúc ghi lại: `.docx` là một gói OOXML, không phải một thư mục.
+
+### Phá lại
+
+| Hoàn tác | Đỏ |
+|---|---|
+| `nguonBatBuocCua` trả bảng đầy đủ cho mọi loại | 2 |
+| miễn trừ áp cho CẢ HAI loại | 2 — gồm vế *"mẫu đầy đủ thì không"* |
+| dựng lại hai đoạn trong tệp `.docx` | 1 — ca ghim tập ô trống |
+
+Lượt thứ hai là lượt đáng giá: nó canh đúng **phương án B** mà khách hàng đã loại. Một bản sửa gỡ
+`ngay_tbp_ky` khỏi danh sách chung cũng làm vế đầu xanh, và khi ấy mẫu đầy đủ thôi được bảo đảm —
+nên hai vế phải nằm trong CÙNG một ca, trên CÙNG một thân tệp, khác nhau đúng trường `loai`.
+
+Ca ghim tập ô trống của `0171` **phải THAY chứ không sửa số**: nó khẳng định hai mẫu có cùng một tập,
+một tính chất đúng cho tới hôm nay. Bản mới viết tập rút gọn bằng **phép trừ** trên tập đầy đủ, kèm
+một dòng đòi hai tập ấy khác nhau — thiếu dòng đó thì một hàm `mong()` trả cùng một mảng cho cả hai
+loại vẫn xanh.
+
+**2370/2370 xanh.**

@@ -2113,8 +2113,16 @@ hiệu hoá bản mặc định. Vô hiệu hoá xong nó **nằm im**, không t
 Bản mềm CSBH **sinh từ một mẫu Word do Quản trị hệ thống tải lên**, không dựng cứng trong phần mềm.
 Hai thẻ này là chỗ quản mẫu ấy.
 
-**Đầy đủ và rút gọn khác nhau đúng MỘT chuyện: số cột của bảng sản phẩm.** Mọi luật khác giống hệt —
-cùng mục bắt buộc, cùng ô `{{bang_san_pham}}`, cùng người quản lý.
+**Đầy đủ và rút gọn khác nhau HAI chuyện** `sửa 20/09` — trước ngày ấy chỉ khác một: số cột của bảng
+sản phẩm, và **mục bắt buộc**. Mọi luật còn lại giống hệt: cùng ô `{{bang_san_pham}}`, cùng người
+quản lý.
+
+> **Mẫu rút gọn được miễn mục *Ngày TBP ký*** `mới 20/09`. Khách hàng bỏ hai dòng ngày duyệt màu xanh
+> khỏi tờ rút gọn — dòng *Ký ngày* dưới Trưởng bộ phận và dòng *Tiếp nhận L1* dưới Kế toán — nên mẫu
+> rút gọn còn **năm** mục bắt buộc thay vì sáu. Bản đầy đủ giữ nguyên cả sáu, và hai dòng ấy vẫn in
+> trên tờ đầy đủ.
+>
+> Màn hình *Thêm mẫu* mở từ thẻ nào thì bày đúng danh sách bắt buộc của thẻ ấy.
 
 | | Cột của bảng sản phẩm | Dùng khi nào |
 | --- | --- | --- |

@@ -1782,6 +1782,78 @@ describe('`0055` mẫu hồ sơ CSBH', () => {
     await donMau('/policy-templates', r.body.id, 'admin01');
   }, 120_000);
 
+  it('`0209` mẫu RÚT GỌN được miễn `ngay_tbp_ky`, mẫu ĐẦY ĐỦ thì không', async () => {
+    /*
+     * Khách hàng chốt 20/09: bỏ hai dòng ngày duyệt màu xanh khỏi tờ rút gọn,
+     * *"bản đầy đủ thì vẫn giữ nguyên"*.
+     *
+     * Dòng dưới Kế toán bỏ tự do — `ngay_kt_nhan_l1` chưa bao giờ nằm trong danh
+     * sách ép (`0102`). Dòng dưới TBP thì có, nên lượt này là một luật MỚI: tập
+     * bắt buộc phụ thuộc LOẠI mẫu.
+     *
+     * HAI CHIỀU trong một ca, và chiều thứ hai mới là chiều dễ mất: một bản sửa
+     * gỡ `ngay_tbp_ky` khỏi danh sách chung cũng làm vế đầu xanh, và khi ấy mẫu
+     * ĐẦY ĐỦ cũng thôi được bảo đảm — đúng thứ khách hàng bảo giữ nguyên.
+     */
+    const than = makeDocx(
+      [
+        ...NGUON_BAT_BUOC_HO_SO.filter((n) => n !== 'ho_so.ngay_tbp_ky').map((n) =>
+          para(`{{${n}}}`),
+        ),
+        para('{{bang_san_pham}}'),
+      ].join(''),
+    );
+    expect(placeholdersOf(than)).not.toContain('{{ho_so.ngay_tbp_ky}}');
+
+    const gon = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', 'Mau rut gon khong co ngay TBP ky')
+      .field('loai', 'HO_SO_RUT_GON')
+      .field('mapping', JSON.stringify(anhXaTu(than)))
+      .attach('file', than, { filename: 'ho-so.docx', contentType: DOCX });
+    expect(gon.status, JSON.stringify(gon.body)).toBe(201);
+    await donMau('/policy-templates', gon.body.id, 'admin01');
+
+    // Cùng THÂN ẤY, chỉ khác loại → 409. Cùng một tệp cho hai câu trả lời là
+    // cách duy nhất chứng minh luật đi theo LOẠI chứ không theo nội dung tệp.
+    const day = await (await http(doc))
+      .post('/policy-templates')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .field('name', 'Mau day du thieu ngay TBP ky')
+      .field('mapping', JSON.stringify(anhXaTu(than)))
+      .attach('file', than, { filename: 'ho-so.docx', contentType: DOCX });
+    expect(day.status, JSON.stringify(day.body)).toBe(409);
+    expect(day.body.code).toBe('TEMPLATE_MISSING_REQUIRED');
+    expect(day.body.thieuTruong).toContain('ho_so.ngay_tbp_ky');
+  }, 120_000);
+
+  it('`0209` màn hình soạn mẫu được nghe ĐÚNG tập bắt buộc của loại nó', async () => {
+    /*
+     * `/sources` trả danh sách mục bắt buộc để màn hình *Thêm mẫu* dựng hướng
+     * dẫn. Trả bảng đầy đủ cho mọi loại thì nó dạy người soạn rằng tờ rút gọn
+     * cần một ô mà máy chủ không đòi — và họ chèn vào, đúng cái vừa bảo bỏ.
+     *
+     * Tham số `loai` đã có sẵn ở đường này từ `0165` (nó chọn `cotMacDinh`), nên
+     * đây là lượt cho nó thêm một việc chứ không phải một đường mới.
+     */
+    const lay = async (loai?: string) =>
+      (await http(doc))
+        .get(`/policy-templates/sources${loai ? `?loai=${loai}` : ''}`)
+        .set('Authorization', `Bearer ${tok['admin01']}`);
+
+    const gon = await lay('HO_SO_RUT_GON');
+    expect(gon.status).toBe(200);
+    expect(gon.body.batBuoc).not.toContain('ho_so.ngay_tbp_ky');
+    expect(gon.body.batBuoc).toHaveLength(NGUON_BAT_BUOC_HO_SO.length - 1);
+
+    // KHÔNG khai loại thì rơi về mẫu ĐẦY ĐỦ — phía siết, không phía nới.
+    for (const l of [undefined, 'HO_SO']) {
+      const r = await lay(l);
+      expect(r.body.batBuoc, `loai=${l}`).toContain('ho_so.ngay_tbp_ky');
+    }
+  }, 60_000);
+
   it('ô bảng sản phẩm KHÔNG cần ánh xạ — nó không trỏ tới trường nào', async () => {
     // Mẫu hồ sơ đầy đủ lưu được dù `{{bang_san_pham}}` không có dòng ánh xạ nào:
     // nó không trỏ tới trường dữ liệu, hệ thống thay nó bằng cả một bảng.
