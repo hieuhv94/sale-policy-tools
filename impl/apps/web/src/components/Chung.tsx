@@ -617,6 +617,7 @@ export function HopThoai({
   tyLe = null,
   caoNoiDung = null,
   giay = false,
+  toanManHinh = false,
   children,
 }: {
   tieuDe: string;
@@ -676,6 +677,20 @@ export function HopThoai({
    * chiều cao khung xem.
    */
   giay?: boolean;
+  /**
+   * TOÀN MÀN HÌNH — bỏ hẳn khung hộp quanh tài liệu (`0210`, chốt 20/09).
+   *
+   * Khách hàng xem bản `0164` rồi bảo *"vẫn hơi bé… không cần bọc tài liệu hoặc
+   * ảnh trong hộp thoại"*. `0164` đã cắt khoảng hở mà `0130` cố ý chừa ra; thứ
+   * còn lại sau đó là **chính cái khung** — viền, bo góc, lề lớp phủ, và cả phép
+   * suy bề rộng từ `cao × tỷ lệ` (`0073`) vốn để tờ giấy nằm gọn giữa màn hình.
+   * Lượt này bỏ nốt: hộp phủ kín khung nhìn, tài liệu lấy hết phần còn lại.
+   *
+   * `--ty-le` VẪN được đặt vào, dù nó thôi quyết định bề rộng: `.khung-xem` ở
+   * chế độ thường vẫn đọc nó, và hai chế độ dùng chung một component. `--cao-anh`
+   * thì đổi việc chứ không mất — xem `.hop-thoai-toan-man .khung-anh img`.
+   */
+  toanManHinh?: boolean;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -717,11 +732,16 @@ export function HopThoai({
   }, [dong]);
 
   return (
-    <div className="lop-phu" onMouseDown={(e) => e.target === e.currentTarget && dong()}>
+    <div
+      className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}`}
+      onMouseDown={(e) => e.target === e.currentTarget && dong()}
+    >
       <div
         className={
           tyLe !== null
-            ? `hop-thoai hop-thoai-xem${giay ? ' hop-thoai-giay' : ''}`
+            ? `hop-thoai hop-thoai-xem${giay ? ' hop-thoai-giay' : ''}${
+                toanManHinh ? ' hop-thoai-toan-man' : ''
+              }`
             : co === 'thuong'
               ? 'hop-thoai'
               : `hop-thoai hop-thoai-${co}`

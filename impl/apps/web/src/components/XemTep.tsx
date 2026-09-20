@@ -229,6 +229,16 @@ export function XemTep({
       */
       caoNoiDung={anh?.cao ?? null}
       giay={cach === 'pdf'}
+      /*
+        TOÀN MÀN HÌNH cho tài liệu NHÚNG ĐƯỢC, và chỉ cho chúng (`0210`).
+
+        Tệp Word hay Excel rơi vào `'khong'`: ở đó không có tài liệu nào để bày,
+        chỉ một câu nhắn tải về cộng hai cái nút. Phủ kín màn hình cho ba dòng
+        chữ là bắt người dùng thoát khỏi một trang trống để quay lại chỗ họ đang
+        đứng — nên ca ấy giữ nguyên hộp thoại thường, cùng ranh giới `tyLeKhung`
+        đã vạch ngay trên.
+      */
+      toanManHinh={cach !== 'khong'}
     >
       {truoc}
 

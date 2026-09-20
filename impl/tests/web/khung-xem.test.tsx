@@ -241,7 +241,25 @@ describe('`0073` khung xem trong CSS', () => {
      */
     const k = khoi(/\.khung-xem/);
     expect(k.length, 'không tìm thấy luật nào cho `.khung-xem`').toBeGreaterThan(0);
-    expect(k.some((x) => /(^|[;{\s])height:/.test(x)), 'height cố định đã quay lại').toBe(false);
+    /*
+     * `0210` NỚI phép so, và nới đúng một chữ: `height: auto`.
+     *
+     * Chế độ toàn màn hình phải GỠ chiều cao suy từ tỷ lệ để khung lấy hết phần
+     * còn lại của màn hình — mà cách gỡ một thuộc tính trong CSS chính là khai
+     * nó bằng `auto`. Câu ca này giữ vẫn nguyên: **một con số** quay lại đây là
+     * đủ vô hiệu hoá `aspect-ratio`, vì trình duyệt có cả rộng lẫn cao thì nó bỏ
+     * qua tỷ lệ. `auto` không phải một con số.
+     */
+    expect(
+      /*
+       * Khoảng trắng nằm TRONG lookahead, không đứng trước nó: `height:\s*(?!auto)`
+       * trông đúng mà luôn khớp, vì `\s*` lùi về rỗng rồi lookahead xét ngay sau
+       * dấu hai chấm — chỗ ấy là một dấu cách, không phải `auto`. Bản đầu của
+       * dòng này viết đúng như vậy và đỏ với chính luật hợp lệ của `0210`.
+       */
+      k.some((x) => /(^|[;{\s])height:(?!\s*auto\b)/.test(x)),
+      'height cố định đã quay lại',
+    ).toBe(false);
     expect(k.some((x) => /aspect-ratio:\s*var\(--ty-le\)/.test(x))).toBe(true);
   });
 
@@ -689,5 +707,110 @@ describe('`0129` hộp thoại đủ rộng', () => {
     expect(k).toMatch(/width:\s*min\(\s*100%\s*,\s*calc\(var\(--cao-pdf\)\s*\*\s*var\(--ty-le\)/);
     expect(k, 'chiều cao vẫn phải là thứ cầm lái').toMatch(/height:\s*var\(--cao-pdf\)/);
     expect(k, 'thiếu đường lùi A4 dọc cho `--ty-le`').toMatch(/--ty-le:\s*0?\.\d+/);
+  });
+});
+
+// =============================================================================
+// Toàn màn hình (`0210`)
+// =============================================================================
+
+/**
+ * `0210` — HỘP XEM PHỦ KÍN MÀN HÌNH, bỏ khung bọc quanh tài liệu.
+ *
+ * Khách hàng xem bản `0164` rồi bảo *"vẫn hơi bé… không cần bọc tài liệu hoặc
+ * ảnh trong hộp thoại"*. Đây là lượt thứ NĂM của cùng một dòng, và là lượt bỏ
+ * chính cái khung — nên phần lớn cơ chế cũ (`--ty-le`, `--cao-anh`) vẫn còn và
+ * vẫn phải đúng; thứ đổi là ai đọc chúng.
+ */
+describe('`0210` hộp xem toàn màn hình', () => {
+  const hop = () => document.querySelector<HTMLElement>('[role="dialog"]');
+
+  /** Thân của luật CSS mang ĐÚNG bộ chọn này; rỗng nếu không có luật nào. */
+  const luat = (chon: string): string =>
+    [...readFileSync('apps/web/src/styles/app.css', 'utf8').matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim() === chon)
+      .map((m) => m[2]!)
+      .join('\n');
+
+  it('PDF và ẢNH đều phủ kín, và LỚP PHỦ bỏ luôn lề', async () => {
+    /*
+     * Hai lớp, hai việc khác nhau, và thiếu lớp nào thì vẫn còn một viền trắng:
+     * `hop-thoai-toan-man` bỏ khung hộp, `lop-phu-toan-man` bỏ lề của lớp phủ.
+     */
+    for (const kieu of ['application/pdf', 'image/png']) {
+      chanFetch(kieu);
+      bay();
+      await waitFor(() => expect(hop()?.classList.contains('hop-thoai-toan-man')).toBe(true));
+      expect(document.querySelector('.lop-phu-toan-man'), kieu).not.toBeNull();
+      cleanup();
+    }
+  });
+
+  it('tệp KHÔNG nhúng được thì GIỮ hộp thoại thường', async () => {
+    /*
+     * RANH GIỚI, và nó không suy ra được từ câu yêu cầu. Word/Excel không có tài
+     * liệu nào để bày — chỉ một câu nhắn tải về cộng hai cái nút. Phủ kín màn
+     * hình cho ba dòng chữ là bắt người dùng thoát khỏi một trang trống để quay
+     * lại chỗ họ đang đứng.
+     */
+    chanFetch('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    bay();
+    await waitFor(() => expect(document.body.textContent).toContain('không xem trực tiếp được'));
+    expect(hop()?.classList.contains('hop-thoai-toan-man')).toBe(false);
+    expect(document.querySelector('.lop-phu-toan-man')).toBeNull();
+  });
+
+  it('nút Đóng VẪN hiện — không còn mép lớp phủ nào để bấm ra ngoài', async () => {
+    /*
+     * Muc 11.1: *"nút Đóng luôn hiển thị ở màn hình xem"*. Ở chế độ thường người
+     * dùng còn bấm được ra ngoài hộp; phủ kín màn hình thì đường ấy biến mất, nên
+     * cái nút thôi là tiện lợi và thành đường thoát DUY NHẤT nhìn thấy được.
+     */
+    chanFetch('application/pdf');
+    bay();
+    await waitFor(() => expect(hop()?.classList.contains('hop-thoai-toan-man')).toBe(true));
+    expect(screen.getByRole('button', { name: 'Đóng' })).toBeDefined();
+  });
+
+  it('CSS: hộp bỏ KHUNG và lấy hết khung nhìn', () => {
+    /*
+     * Bốn vế, và chúng là MỘT cơ chế chứ không phải bốn lựa chọn rời: còn bề
+     * rộng suy từ tỷ lệ (`0073`) thì tài liệu vẫn nằm giữa hai vệt trống; còn
+     * `max-width` thì `width: 100%` không với tới; còn bo góc và viền thì vẫn
+     * là một cái hộp. `100dvh` chứ không `100vh` là đơn vị đúng trên di động,
+     * và dòng `vh` đứng trước làm nền cho trình duyệt không hiểu `dvh`.
+     */
+    const than = luat('.hop-thoai.hop-thoai-toan-man');
+    expect(than, 'không tìm thấy luật toàn màn hình').not.toBe('');
+    expect(than).toMatch(/width:\s*100%/);
+    expect(than).toMatch(/max-width:\s*none/);
+    expect(than).toMatch(/height:\s*100dvh/);
+    expect(than).toMatch(/border-radius:\s*0/);
+    expect(luat('.lop-phu-toan-man')).toMatch(/padding:\s*0/);
+  });
+
+  it('CSS: khung xem lấy HẾT phần còn lại, và hàng nút không trôi đi', () => {
+    // `min-height: 0` là vế dễ quên nhất: thiếu nó thì một phần tử flex không co
+    // nhỏ hơn nội dung, khung đẩy cả khối dài ra và hàng nút rơi khỏi màn hình.
+    const khung = luat('.hop-thoai-toan-man .khung-xem');
+    expect(khung).toMatch(/flex:\s*1/);
+    expect(khung).toMatch(/min-height:\s*0/);
+    expect(khung, 'phải bỏ phép khoá theo tỷ lệ của `0073`').toMatch(/aspect-ratio:\s*auto/);
+
+    const than = luat('.hop-thoai-toan-man .hop-thoai-than');
+    expect(than).toMatch(/min-height:\s*0/);
+    expect(luat('.hop-thoai-toan-man .nhom-nut')).toMatch(/flex:\s*none/);
+  });
+
+  it('`0164` ẢNH vẫn chặn ở CỠ THẬT — luật chỉ ĐỔI CHỖ, không mất', () => {
+    /*
+     * Trước `0210` trần ấy là `--cao-khung` của cả hộp; giờ hộp phủ kín màn hình
+     * nên trần phải nằm trên chính thẻ `<img>`. Mất vế này thì một tấm ảnh
+     * 400×300 kéo lên full màn hình — mờ, và mờ theo kiểu người dùng tưởng bản
+     * scan bị hỏng, đúng câu `0164` đã ghi.
+     */
+    const img = luat('.hop-thoai-toan-man .khung-anh img');
+    expect(img, 'không tìm thấy luật chặn cỡ ảnh').not.toBe('');
+    expect(img).toMatch(/max-height:\s*min\(100%,\s*var\(--cao-anh/);
   });
 });

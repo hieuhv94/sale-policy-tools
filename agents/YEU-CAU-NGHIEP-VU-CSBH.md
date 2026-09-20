@@ -2704,6 +2704,23 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**BẢN XEM PDF VÀ ẢNH PHỦ KÍN MÀN HÌNH** `sửa 20/09` — *"phần xem pdf hoặc ảnh hiển thị trong hộp
+thoại vẫn hơi bé, đề xuất hiển thị ở dạng fullscreen, không cần bọc tài liệu hoặc ảnh trong hộp
+thoại"*.
+
+> **LƯỢT THỨ NĂM của cùng một dòng**, và là lượt bỏ chính cái khung: `20/08` dựng bề rộng suy từ khổ
+> giấy · `28/08` nới trần chiều cao · `29/08` kéo lại vì *"hộp không còn thấy trang phía sau thì thôi
+> trông như hộp thoại"* · `30/08` đảo đúng câu ấy và bỏ hẳn trần.
+>
+> **Vì sao nới thêm không chữa được, phải bỏ khung**: bề rộng khoá theo CHIỀU CAO nhân tỷ lệ tờ giấy,
+> nên một tờ A4 dọc trên màn hình 16:9 chỉ dùng được khoảng hai phần ba bề ngang — phần còn lại là hai
+> vệt trống. Nới `width` chỉ kéo dài hai vệt ấy, không làm chữ to thêm một pixel.
+>
+> **BA THỨ GIỮ LẠI, có chủ ý**: dải tiêu đề mỏng và hàng nút (muc 11.1 đòi *nút Đóng luôn hiển thị*,
+> mà chế độ này không còn mép lớp phủ nào để bấm ra ngoài) · **ảnh vẫn chặn ở cỡ thật** của tệp, luật
+> `30/08` chỉ đổi chỗ chứ không mất · **tệp Word, Excel giữ hộp thoại thường** — ở đó không có tài
+> liệu nào để bày, chỉ một câu nhắn tải về.
+
 **MẪU RÚT GỌN BỎ HAI DÒNG NGÀY DUYỆT** `sửa 20/09` — *"trong bản mềm rút gọn có thể bỏ dòng chữ màu
 xanh bên dưới TBP và kế toán ghi ngày duyệt đi được không, bản đầy đủ thì vẫn giữ nguyên"*.
 

@@ -18637,3 +18637,72 @@ một dòng đòi hai tập ấy khác nhau — thiếu dòng đó thì một h�
 loại vẫn xanh.
 
 **2370/2370 xanh.**
+
+---
+
+## P239 — `0210` Bản xem PDF và ảnh phủ kín màn hình, bỏ khung bọc
+
+Lượt thứ **năm** của cùng một dòng CSS, và là lượt bỏ chính cái khung. Đọc cả năm mới thấy nó đi tới
+đâu — và vì sao bốn lượt trước không thể đi tới đây.
+
+### Vì sao nới thêm KHÔNG chữa được
+
+| | |
+|---|---|
+| `0073` | bề rộng **suy từ** `cao × tỷ lệ tờ giấy`, để tờ giấy nằm gọn giữa màn hình |
+| `0129` | nới trần chiều cao 900 → 1600px |
+| `0130` | kéo lại: *"hộp không còn thấy trang phía sau thì thôi trông như hộp thoại"* |
+| `0164` | đảo đúng câu ấy theo yêu cầu khách hàng, **bỏ hẳn trần** |
+| `0210` | bỏ **cái khung** |
+
+Chú thích của `0129` đã viết ra điều quyết định lượt này, và viết từ mười bốn chặng trước: *"nong
+`width` ở đây chỉ dựng ra hai vệt xám rộng hơn hai bên tờ giấy, không làm chữ to thêm một pixel
+nào"*. Bề rộng khoá theo CHIỀU CAO, nên trên màn hình 16:9 một tờ A4 dọc chỉ dùng được ~2/3 bề ngang
+dù hộp đã cao hết cỡ. Sau `0164`, thứ còn ăn chỗ thôi là khoảng hở — nó là **lề lớp phủ, viền, bo
+góc, và chính phép suy bề rộng của `0073`**.
+
+Nên đây không phải một lượt nới nữa. Nó là lượt gỡ cơ chế.
+
+### Ba thứ giữ lại, và mỗi thứ chặn một kiểu hỏng
+
+**Dải tiêu đề và hàng nút.** Muc 11.1 đòi *"nút Đóng luôn hiển thị ở màn hình xem"*, và chế độ này
+còn làm câu ấy nặng hơn: phủ kín màn hình thì **không còn mép lớp phủ nào để bấm ra ngoài**, nên nút
+thôi là tiện lợi và thành đường thoát duy nhất nhìn thấy được (Escape thì không ai nhìn thấy).
+
+**Ảnh vẫn chặn ở CỠ THẬT — luật `0164` ĐỔI CHỖ chứ không mất.** Trước là trần của `--cao-khung` cho
+cả hộp; giờ hộp phủ kín màn hình nên trần phải nằm trên chính thẻ `<img>`. Mất vế này thì một tấm
+400×300 kéo lên full màn hình, mờ theo kiểu người dùng tưởng bản scan hỏng — đúng câu `0164` ghi.
+
+**Word và Excel GIỮ hộp thoại thường.** Ranh giới không suy ra được từ câu yêu cầu: ở đó không có tài
+liệu nào để bày, chỉ một câu nhắn tải về cộng hai cái nút. Phủ kín màn hình cho ba dòng chữ là bắt
+người dùng thoát khỏi một trang trống để quay lại chỗ họ đang đứng. Cùng ranh giới mà `tyLeKhung` đã
+vạch sẵn (`cach === 'khong'` → `null`), nên nó là một dòng chứ không phải một khái niệm mới.
+
+### Hai chi tiết CSS mà thiếu là hỏng lặng
+
+**`min-height: 0`** trên khung xem và trên thân hộp. Một phần tử flex mặc định không co nhỏ hơn nội
+dung của nó, nên thiếu dòng này thì khung đẩy cả khối dài ra và **hàng nút trôi khỏi màn hình** —
+tức mất đúng cái nút vừa nói ở trên.
+
+**Hai lớp trong bộ chọn** (`.hop-thoai.hop-thoai-toan-man`). `.hop-thoai-xem` và `.hop-thoai-giay`
+đều là một lớp; ngang điểm thì thứ tự dòng trong tệp quyết định, và một lượt dọn CSS sắp xếp lại khối
+sẽ lặng lẽ trả bề rộng về phép suy của `0073`.
+
+### Phá lại
+
+| Hoàn tác | Đỏ |
+|---|---|
+| toàn màn hình cho CẢ tệp không nhúng được | 1 — ca ranh giới |
+| bỏ chặn cỡ thật của ảnh | 1 — ca `0164` chuyển chỗ |
+| bỏ `max-width: none` | 1 |
+| bỏ `min-height: 0` của khung | 1 |
+
+> **CA KIỂM CỦA `0073` PHẢI NỚI, và bản nới đầu tiên SAI.** Ca ấy cấm mọi `height:` trên
+> `.khung-xem` — đúng, vì một con số ở đó vô hiệu hoá `aspect-ratio`. Chế độ mới phải GỠ chiều cao
+> ấy, mà cách gỡ một thuộc tính CSS chính là khai nó bằng `auto`. Bản nới đầu viết
+> `height:\s*(?!auto)` và nó **luôn khớp**: `\s*` lùi về rỗng, nên lookahead xét ngay sau dấu hai
+> chấm — chỗ ấy là một dấu cách, không phải `auto`. Khoảng trắng phải nằm TRONG lookahead:
+> `height:(?!\s*auto\b)`. Lỗi này đỏ ngay, nhưng nó đỏ với **luật hợp lệ của `0210`**, nên đọc vội sẽ
+> tưởng bản sửa sai chứ không phải phép kiểm sai.
+
+**2376/2376 xanh.**

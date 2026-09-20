@@ -1501,26 +1501,25 @@ Sau khi đã xem, trên bản đang xem có ô **Mẫu** để đổi sang mẫu
 lại — ô này chỉ hiện khi có từ hai mẫu trở lên. Đổi bao nhiêu lần cũng được và không lần nào bị tính
 là một lượt tải.
 
-**Hộp xem phóng to gần hết màn hình** `sửa 30/08` — hộp xem bản mềm và hợp đồng cao bằng màn hình
-trừ đúng chỗ ngồi của tiêu đề và hàng nút, và nó **nằm đè lên thanh bên trái**. Màn hình càng lớn thì
-hộp càng lớn: không còn mức dừng nào.
+**Bản xem PHỦ KÍN MÀN HÌNH** `sửa 20/09` — bấm vào một tệp PDF hoặc ảnh là nó mở ra chiếm trọn khung
+nhìn: **không còn khung hộp nào bọc quanh tài liệu**, không viền, không lề. Chỉ còn một dải mỏng trên
+cùng ghi tên tệp, và hàng nút *Đóng · Tải xuống* ở dưới.
 
-Bề rộng đi theo **khổ giấy của mẫu bạn đang xem**, nhưng không bao giờ hẹp hơn 900px của bản trước:
+> **Vì sao bỏ hẳn cái khung.** Bản `30/08` đã cao gần bằng màn hình, nhưng bề rộng của nó suy ra từ
+> **khổ giấy** — nên một tờ A4 dọc trên màn hình 16:9 chỉ dùng được khoảng hai phần ba bề ngang, phần
+> còn lại là hai vệt trống hai bên. Nới bề rộng ở kiểu cũ không chữa được điều đó: nó chỉ kéo dài hai
+> vệt trống ấy ra. Chỗ duy nhất còn lại là bỏ khung.
+>
+> Thoát bằng nút **Đóng**, hoặc phím **Esc**. Không còn mép nào để bấm ra ngoài — đó là lý do nút
+> *Đóng* vẫn ở đó.
 
-| Màn hình | Mẫu khổ NGANG | Mẫu khổ DỌC |
-|---|---|---|
-| 1366×768 | 900px | 900px |
-| 1920×1080 | 1210px | 900px |
-| 2560×1440 | 1720px | 900px |
+> **Ảnh vẫn không bị kéo giãn** `giữ từ 30/08` — khung nền phủ kín màn hình, nhưng tấm ảnh chỉ lớn
+> tới **cỡ thật** của tệp. Một bản scan nhỏ mở ra vẫn nhỏ, nằm giữa màn hình: kéo giãn nó ra cho đầy
+> chỗ chỉ làm ảnh mờ đi chứ không cho bạn thêm chi tiết nào. PDF thì khác — nó phóng bao nhiêu cũng
+> nét, nên nó lấy hết chỗ.
 
-> Với mẫu **khổ ngang** thì cả tờ giấy lọt trong khung, không phải cuộn. Với mẫu **khổ dọc** thì tờ
-> giấy vẫn cao hơn khung, và bạn **cuộn trong chính bản xem** để đọc tiếp — đó là cái giá của việc
-> chữ to hơn. Muốn xem cả trang một lượt thì dùng nút thu nhỏ của trình xem PDF, hoặc *Tải xuống*.
-
-> **Hộp xem ẢNH thì vừa đúng tấm ảnh** `sửa 30/08` — nó co theo cả hình lẫn **cỡ thật** của tệp, và
-> không phóng ảnh to hơn cỡ ấy. Một tấm scan nhỏ mở ra vẫn nhỏ, và đó là chủ ý: kéo giãn nó ra cho
-> đầy màn hình chỉ làm ảnh mờ đi, chứ không cho bạn thêm chi tiết nào. PDF thì khác — nó phóng bao
-> nhiêu cũng nét, nên nó lấy hết chỗ.
+> **Tệp Word, Excel giữ hộp thoại nhỏ như cũ** — ở đó không có tài liệu nào để bày, chỉ một câu nhắn
+> tải về. Phủ kín màn hình cho ba dòng chữ là bắt bạn thoát khỏi một trang trống.
 
 #### Phóng to trong hộp xem `mới 01/09`
 

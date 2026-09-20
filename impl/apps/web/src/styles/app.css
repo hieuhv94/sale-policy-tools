@@ -1985,6 +1985,87 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   );
 }
 
+/* ===== HỘP XEM TOÀN MÀN HÌNH (`0210`, khách hàng chốt 20/09) ==============
+
+   *"Phần xem pdf hoặc ảnh vẫn hơi bé, đề xuất hiển thị ở dạng fullscreen, không
+   cần bọc tài liệu hoặc ảnh trong hộp thoại"*.
+
+   LƯỢT THỨ NĂM CỦA CÙNG MỘT DÒNG, và là lượt bỏ chính cái khung. Đọc cả năm mới
+   thấy nó đi tới đâu: `0073` dựng bề rộng SUY TỪ `cao × tỷ lệ` để tờ giấy nằm
+   gọn giữa màn hình · `0129` nới trần chiều cao · `0130` kéo lại vì *"hộp không
+   còn thấy trang phía sau thì thôi trông như hộp thoại"* · `0164` đảo đúng câu
+   ấy và bỏ hẳn trần. Sau `0164` thứ còn ăn chỗ không phải khoảng hở nữa — nó là
+   **cái khung**: lề lớp phủ, viền, bo góc, và phép suy bề rộng của `0073`.
+
+   VÌ SAO PHÉP SUY BỀ RỘNG PHẢI ĐI, chứ không chỉ nới thêm: nó khoá bề rộng theo
+   CHIỀU CAO, nên trên màn hình 16:9 một tờ A4 dọc chỉ được dùng ~70% chiều cao
+   × 0.7071 bề rộng — phần còn lại là hai vệt trống hai bên. Nới `width` ở chế
+   độ cũ không chữa được (chú thích của `0129` đã ghi rõ): nó chỉ kéo dài hai vệt
+   ấy. Chỗ duy nhất còn lại là bỏ khung.
+
+   CÁI GIỮ LẠI, và giữ có chủ ý:
+
+     - **Tiêu đề và hàng nút** ở lại, mỏng đi. Muc 11.1 đòi *"nút Đóng luôn hiển
+       thị ở màn hình xem"*, mà chế độ này không còn mép lớp phủ nào để bấm ra
+       ngoài — bỏ nút là người dùng chỉ còn phím Escape, thứ không ai nhìn thấy.
+     - **Chặn ảnh ở CỠ THẬT** (`0164`). Nó chuyển chỗ chứ không mất: trước là
+       trần của `--cao-khung`, giờ là `max-height` của chính thẻ `<img>`. Khung
+       nền phủ kín màn hình, còn tấm ảnh 400×300 vẫn chỉ cao 300px — phóng to
+       gấp ba lần cỡ thật thì mờ, và mờ theo kiểu người dùng tưởng bản scan hỏng.
+
+   `.hop-thoai.hop-thoai-toan-man` — HAI lớp, để thắng `.hop-thoai-xem` và
+   `.hop-thoai-giay` ngay trên mà không phụ thuộc thứ tự dòng trong tệp. */
+.lop-phu-toan-man { padding: 0; }
+
+.hop-thoai.hop-thoai-toan-man {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tiêu đề thành một DẢI MỎNG: nó vẫn phải nói đang mở tệp nào, nhưng mỗi pixel
+   nó lấy là một pixel tài liệu mất. */
+.hop-thoai-toan-man > h2 {
+  padding: var(--k3) var(--k4);
+  font-size: var(--chu-thuong);
+}
+
+/* `min-height: 0` là thứ BẮT BUỘC, không phải trang trí: một phần tử flex mặc
+   định không co nhỏ hơn nội dung của nó, nên thiếu dòng này thì khung xem đẩy cả
+   khối dài ra và hàng nút trôi khỏi màn hình. */
+.hop-thoai-toan-man .hop-thoai-than {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--k4) var(--k3);
+}
+
+/* Khung xem lấy HẾT phần còn lại — thôi suy từ `--cao-khung` lẫn `--ty-le`. */
+.hop-thoai-toan-man .khung-xem {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: auto;
+  aspect-ratio: auto;
+  margin-bottom: var(--k3);
+}
+
+/* Ảnh: khung phủ kín, nhưng TẤM ẢNH vẫn chặn ở cỡ thật (`0164` chuyển chỗ).
+   `100%` là giá trị lùi cho ca không có `--cao-anh` — ảnh chưa giải mã xong. */
+.hop-thoai-toan-man .khung-anh img {
+  max-height: min(100%, var(--cao-anh, 100%));
+}
+
+.hop-thoai-toan-man .nhom-nut { flex: none; margin-bottom: 0; }
+
 /* Hộp RỘNG cho nội dung hai cột — bảng ánh xạ trường (`0068`).
 
    `min()` với `100%` chứ không đặt bề rộng cứng: lớp phủ đã có lề hai bên, nên
