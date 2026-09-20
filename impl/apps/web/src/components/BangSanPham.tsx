@@ -95,6 +95,7 @@ export const O_BAN_TRUOC = [
   'companyPrice',
   'wholesalePrice',
   'cpbh',
+  'cpbhTotal',
   'netPrice',
   'discountRate',
   'threshold',
@@ -150,6 +151,7 @@ const COT_CUA_O: Record<OBanTruoc, string> = {
   companyPrice: 'companyPrice',
   wholesalePrice: 'wholesalePrice',
   cpbh: 'cpbhTotal',
+  cpbhTotal: 'cpbhTotal',
   netPrice: 'netPrice',
   discountRate: 'discountRate',
   threshold: 'ruleCode',
@@ -259,6 +261,78 @@ function NhanTrangThai({ d, mo, bat }: { d: DongSanPham; mo: boolean; bat: () =>
         {mo ? '▲' : '▼'}
       </span>
     </button>
+  );
+}
+
+/**
+ * HÀNG *bản trước*, khớp TỪNG CỘT với hàng ngay trên nó (`0214`, chốt 20/09).
+ *
+ * `0213` bày bản trước thành một bảng dọc *nhãn — giá trị*. Khách hàng xem xong
+ * bảo *"hiển thị theo hàng ngang, đúng theo từng cột như dòng ở trên"* — và họ
+ * đúng ở một điểm bảng dọc không làm được: **so hai con số cùng cột thì mắt chỉ
+ * cần đi thẳng xuống**, còn bảng dọc bắt người đọc tìm lại tên trường rồi mới
+ * bắc ngang sang hàng trên.
+ *
+ * VÌ SAO PHẢI KỂ ĐỦ MỌI Ô, kể cả ô để trống: hàng này là một `<tr>` thật trong
+ * cùng một `<table>`, nên số ô của nó phải bằng số cột — thiếu một ô là mọi ô
+ * sau đó lệch sang trái một cột, và người đọc so nhầm hai con số nằm cạnh nhau.
+ * Thứ tự dưới đây chép đúng thứ tự hàng chính; hai chỗ phải sửa cùng nhau, và
+ * `tests/web/bang-san-pham.test.tsx` canh chuyện đó bằng cách đếm ô.
+ *
+ * BA Ô CỐ Ý ĐỂ TRỐNG:
+ *
+ *   * *Tên sản phẩm* — cùng một mặt hàng, lặp lại tên là một dòng nhiễu;
+ *   * *Tỷ lệ CK cũ* — bản trước không có "bản trước của chính nó" trong khung
+ *     nhìn này, và điền gì vào đó cũng là bịa;
+ *   * *Trạng thái* — nhãn của hàng này là chữ *Bản trước* ở ô mã, không phải một
+ *     trạng thái của máy trạng thái.
+ *
+ * TỶ LỆ CK vẽ TRƠN, không mượn `OTyLe`: màu đỏ vượt ngưỡng và dấu `?` của `0027`
+ * nói *"dòng này cần bạn xử lý"* — một câu về HIỆN TẠI. Tô nó trên một con số
+ * lịch sử là gọi người duyệt đi xử lý một việc đã xong.
+ */
+function HangBanTruoc({
+  b,
+  soCpbh,
+  coThaoTac,
+}: {
+  b: BanTruocDong;
+  soCpbh: number;
+  coThaoTac: boolean;
+}) {
+  const doi = oDaDoi(b);
+  /** Một ô mang giá trị của bản trước, bôi vàng khi máy chủ báo ô ấy đã đổi. */
+  const o = (khoa: OBanTruoc, lop = 'so') => (
+    <td className={lop} {...(doi.includes(khoa) ? { 'data-doi': '1' } : {})}>
+      {docOBanTruoc(khoa, b[khoa])}
+    </td>
+  );
+  return (
+    <tr className="hang-ban-truoc">
+      {o('ngayApDung', 'ngay-ap-dung')}
+      <th scope="row" className="cot-khoa nhan-ban-truoc">
+        Bản trước
+      </th>
+      <td />
+      {o('companyPrice')}
+      {o('wholesalePrice')}
+      {o('cpbhTotal')}
+      {Array.from({ length: soCpbh }, (_, k) => {
+        const ds = Array.isArray(b.cpbh) ? b.cpbh : [];
+        return (
+          <td key={k} className="so" {...(doi.includes('cpbh') ? { 'data-doi': '1' } : {})}>
+            {ds[k] === undefined ? '' : tien(ds[k])}
+          </td>
+        );
+      })}
+      {o('netPrice')}
+      {o('discountRate')}
+      <td />
+      {o('threshold')}
+      <td />
+      {o('note', 'ghi-chu-dong')}
+      {coThaoTac && <td />}
+    </tr>
   );
 }
 
@@ -737,12 +811,24 @@ export function BangSanPham({
                 CÙNG bảng trong khung `.khung-cuon`, và phải nằm đúng giữa hai
                 hàng để không ai đọc nhầm nó là chi tiết của dòng kế tiếp.
               */}
+              {/*
+                HÀNG *bản trước*, chèn NGAY DƯỚI hàng của chính nó (`0204`,
+                đổi hình ở `0214`).
+
+                `0213` để nó là một ô `colSpan` phủ cả bảng, bên trong là một
+                bảng dọc. `0214` đổi thành một HÀNG THẬT: cùng số ô, cùng thứ tự
+                cột, nên hai con số của cùng một cột nằm thẳng dưới nhau.
+
+                Nó vẫn phải cuộn ngang CÙNG bảng trong khung `.khung-cuon`, và
+                phải nằm đúng giữa hai hàng để không ai đọc nhầm nó là bản trước
+                của dòng kế tiếp.
+              */}
               {dangMo.includes(d.id) && banTruocCua(d) !== null && (
-                <tr className="hang-thay-doi">
-                  <td colSpan={cotCho(dong).length + (coThaoTac ? 1 : 0)}>
-                    <BangBanTruoc b={banTruocCua(d)!} />
-                  </td>
-                </tr>
+                <HangBanTruoc
+                  b={banTruocCua(d)!}
+                  soCpbh={soCotCpbh(dong)}
+                  coThaoTac={coThaoTac}
+                />
               )}
               </Fragment>
             ))}

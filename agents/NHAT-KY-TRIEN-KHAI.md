@@ -18873,3 +18873,84 @@ Ba lượt phá lại, ba đỏ đúng chỗ: bỏ ba con số dẫn xuất → 
 · thôi bôi vàng → 2 đỏ.
 
 **2383/2383 xanh.**
+
+---
+
+## P243 — `0214` Hàng *bản trước* khớp từng cột với dòng ở trên
+
+Bước thứ hai của cùng hướng `0213` đi nửa đường. `0213` bày bản trước thành một **bảng dọc** *tên —
+giá trị* nằm trong một ô `colSpan` phủ cả bảng. Khách hàng xem xong: *"hiển thị theo hàng ngang,
+đúng theo từng cột như dòng ở trên chứ"*.
+
+Họ đúng ở một điểm bảng dọc không làm được, và nó không phải chuyện thẩm mỹ: **so hai con số cùng một
+cột thì mắt chỉ cần đi thẳng xuống**. Bảng dọc bắt người đọc tìm lại tên trường rồi bắc ngang lên
+hàng trên — mà hàng trên có mười mấy cột số trông giống hệt nhau.
+
+`colSpan` chính là thứ làm các con số không thẳng cột: một ô phủ cả bảng thì thứ nằm trong nó không
+còn dính gì tới lưới cột nữa. Nên đây là đổi HÌNH, không phải đổi nội dung.
+
+### Một ô phải thêm ở máy chủ, chứ không cộng ở trình duyệt
+
+Bảng có cột *CPBH* mang TỔNG, đứng trước dải cột từng khoản. `0213` chỉ gửi mảng `cpbh`, nên hàng
+ngang thiếu đúng ô ấy. Cộng mảng lại ở trình duyệt là dựng một phép tính thứ hai cho một con số CSDL
+đã có sẵn (`cpbh_total` là cột SINH) — nên `cpbhTotal` vào thẳng danh sách.
+
+Hai khoá cùng nói về CPBH mà **không thừa nhau**: `[5000]` → `[3000, 2000]` đổi mảng và giữ nguyên
+tổng, nên đúng một trong hai ô được bôi vàng. Đó là thứ `0204` đã đo và ghi lại, giờ nhìn thấy được
+ngay trên hàng.
+
+### Ba ô để trống, và mỗi ô có lý do riêng
+
+*Tên sản phẩm* — cùng mặt hàng, lặp lại là nhiễu. *Tỷ lệ CK cũ* — bản trước không có "bản trước của
+chính nó" trong khung nhìn này, điền gì vào cũng là bịa. *Trạng thái* — nhãn của hàng này là chữ *Bản
+trước* ở ô mã, không phải một trạng thái của máy trạng thái.
+
+**Tỷ lệ CK vẽ TRƠN, không mượn `OTyLe`**: màu đỏ vượt ngưỡng và dấu `?` của `0027` nói *"dòng này cần
+bạn xử lý"* — một câu về HIỆN TẠI. Tô nó trên một con số lịch sử là gọi người duyệt đi xử lý một việc
+đã xong.
+
+**Nền mờ cho cả hàng** để nó đọc ra là hàng PHỤ: thiếu vế ấy thì bảng trông như có hai dòng sản phẩm,
+và người duyệt đếm nhầm số mặt hàng của hồ sơ. Đủ nhạt để ô vàng vẫn nổi lên trên.
+
+### Vế THẺ giữ bảng dọc
+
+Dưới 640px bảng đã thành thẻ, **không còn cột nào để mà khớp**. Nên hai bố cục từ nay có hai hình
+khác nhau — và ba ca kiểm đếm `.bang-ban-truoc` phải đổi từ *"hai lần cùng một lớp"* sang *"hai thứ
+khác nhau, đếm riêng"*.
+
+### Phá lại — và lượt thứ hai là lượt ca đếm KHÔNG bắt được
+
+| Hoàn tác | Đỏ |
+|---|---|
+| bớt một ô (cả hàng lệch một cột) | 2 |
+| **đảo thứ tự hai ô** | 2 |
+| thôi bôi vàng từng ô | 1 |
+
+Lượt thứ hai là lý do ca *"mỗi giá trị nằm đúng cột của nó"* phải tồn tại bên cạnh ca đếm ô: một hàng
+**đủ ô mà xếp sai thứ tự** vẫn qua phép đếm, và trên màn hình nó là hai con số nằm sai cột — kiểu
+hỏng không có gì đỏ và trông vẫn như một bảng bình thường.
+
+Cả hai ca neo vào `<thead>` chứ không vào một con số viết cứng: số cột CPBH co giãn theo dữ liệu, nên
+một con số ở đây chỉ đúng cho đúng một bộ fixture.
+
+### LỖI CỦA CHÍNH LƯỢT SỬA: chèn `cpbhTotal` vào NHẦM DANH SÁCH
+
+Hai danh sách trường có chung một dòng `{ khoa: 'cpbh', cot: 'cpbh', dang: 'mang' }`, và lượt thay
+chuỗi dừng ở lần khớp đầu — nên `cpbhTotal` rơi vào `TRUONG_SO_VOI_BAN_TRUOC`, tập **quyết định nhãn
+*Chỉnh sửa***, thay vì `TRUONG_BAY_BAN_TRUOC`.
+
+**KHÔNG CA KIỂM NHÃN NÀO ĐỎ**, và đó mới là phần đáng ghi: tổng CPBH đổi thì mảng cũng đổi, nên tập
+dòng mang nhãn *Chỉnh sửa* không đổi một dòng nào. Mọi ca giao diện cũng xanh — fixture của chúng tự
+khai `cpbhTotal`. Thứ bắt được là ca ghim TẬP KHOÁ của `banTruoc`, ở tận lượt chạy cả bộ, sau khi
+typecheck sạch và 67 ca giao diện đã xanh.
+
+Chốt chặn cho đúng lớp lỗi ấy: xuất cả hai danh sách và **ghim tập khoá của từng cái** bằng `toEqual`,
+cộng một ca đòi tập quyết định nhãn **nằm trọn** trong tập bày ra — thiếu một trường ở đó là có dòng
+mang nhãn *Chỉnh sửa* mà mở ra không ô nào vàng. Từ nay lượt thêm trường buộc phải nói rõ nó thuộc
+danh sách nào.
+
+> Cùng họ với bẫy `CLAUDE.md` đã ghi cho `sed` file-wide (P182/P183): **một phép thay chuỗi trúng chỗ
+> đầu tiên khớp, không trúng chỗ mình đang nghĩ tới**. Ở đây nó còn im lặng hơn, vì chỗ sai vẫn là
+> một chỗ hợp lệ về kiểu dữ liệu và về ngữ nghĩa SQL.
+
+**2392/2392 xanh.**

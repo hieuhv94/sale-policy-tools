@@ -636,7 +636,7 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  * Cách ĐỌC là việc của màn hình, đúng lối `Lech.doc()` đã chọn: máy chủ giữ
  * nguyên văn con số nó vừa so.
  */
-const TRUONG_SO_VOI_BAN_TRUOC = [
+export const TRUONG_SO_VOI_BAN_TRUOC = [
   // Thứ tự này là thứ tự ĐỌC trong bảng chi tiết, xếp theo mức đáng chú ý: hai
   // con số quyết định tỷ lệ chiết khấu trước, rồi tới thứ chỉ đổi cách ghi.
   { khoa: 'companyPrice', cot: 'company_price_snap', dang: 'so' },
@@ -788,13 +788,32 @@ export const SQL_TY_LE_CK_TRUOC = `
  * kiểm đòi năm trường kia là TẬP CON của tập này — thiếu một cái là có dòng mang
  * nhãn *Chỉnh sửa* mà mở ra không ô nào vàng.
  */
-const TRUONG_BAY_BAN_TRUOC = [
+export const TRUONG_BAY_BAN_TRUOC = [
   // Thứ tự này là thứ tự ĐỌC trong bảng chi tiết, xếp theo thứ tự cột của chính
   // bảng sản phẩm — mắt người đọc vừa rời khỏi hàng ngay trên.
   { khoa: 'ngayApDung', cot: 'ngay_ap_dung', dang: 'ngay' },
   { khoa: 'companyPrice', cot: 'company_price_snap', dang: 'so' },
   { khoa: 'wholesalePrice', cot: 'wholesale_price', dang: 'so' },
   { khoa: 'cpbh', cot: 'cpbh', dang: 'mang' },
+  /*
+   * TỔNG CPBH đi CÙNG mảng, và CHỈ ở danh sách này (`0214`).
+   *
+   * Bảng sản phẩm có cột *CPBH* mang tổng, rồi mới tới dải cột từng khoản — mà
+   * hàng *bản trước* phải khớp từng cột với hàng ngay trên nó. Cộng mảng lại ở
+   * trình duyệt là dựng một phép tính thứ hai cho một con số CSDL đã có sẵn
+   * (`cpbh_total` là cột SINH).
+   *
+   * KHÔNG ĐƯA VÀO `TRUONG_SO_VOI_BAN_TRUOC` — lượt sửa đầu của `0214` chèn nhầm
+   * vào đó, vì hai danh sách có chung một dòng `{ khoa: 'cpbh', … }` và phép
+   * thay chuỗi trúng danh sách đứng trước. Nó không đổi nhãn nào (tổng đổi thì
+   * mảng cũng đổi) nên không ca kiểm nhãn nào đỏ; thứ bắt được là ca ghim TẬP
+   * KHOÁ của `banTruoc`, ở tận lượt chạy cả bộ.
+   *
+   * Hai khoá cùng nói về CPBH nhưng KHÔNG thừa nhau: `[5000]` → `[3000, 2000]`
+   * đổi mảng mà giữ nguyên tổng, nên đúng một trong hai ô được bôi vàng — và đó
+   * là thứ `0204` đã đo và ghi lại.
+   */
+  { khoa: 'cpbhTotal', cot: 'cpbh_total', dang: 'so' },
   { khoa: 'netPrice', cot: 'net_price', dang: 'so' },
   { khoa: 'discountRate', cot: 'discount_rate', dang: 'so' },
   { khoa: 'threshold', cot: 'threshold_snap', dang: 'so' },

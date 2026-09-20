@@ -3555,6 +3555,24 @@ svg.bd-nho { width: 62px; margin: 0; }
   color: var(--mau-chu-phu);
 }
 
+/* HÀNG *bản trước* trong chính bảng sản phẩm (`0214`).
+
+   Nó là một `<tr>` thật, cùng số ô với hàng trên, nên hai con số của cùng một
+   cột nằm thẳng dưới nhau — đó là cả điểm của lượt sửa này.
+
+   NỀN MỜ và chữ nhạt để nó đọc ra là hàng PHỤ: thiếu vế ấy thì bảng trông như
+   có hai dòng sản phẩm, và người duyệt đếm nhầm số mặt hàng của hồ sơ. Đủ nhạt
+   để ô bôi vàng vẫn nổi lên trên nó. */
+.hang-ban-truoc > td,
+.hang-ban-truoc > th {
+  background: var(--mau-nen-phu);
+  color: var(--mau-chu-phu);
+}
+
+/* Chữ *Bản trước* đứng ở ô MÃ SẢN PHẨM — chỗ mắt dò để biết mình đang ở hàng
+   nào. Không in đậm: nó là một cái nhãn, không phải một mặt hàng. */
+.nhan-ban-truoc { font-weight: 400; font-style: italic; }
+
 /* Ô ĐÃ ĐỔI bôi vàng (`0213`, khách hàng chốt 20/09).
 
    DÙNG LẠI `--mau-canh-bao-nen` thay vì dựng token thứ hai: nó đã có ở cả ba
@@ -3569,7 +3587,11 @@ svg.bd-nho { width: 62px; margin: 0; }
    KHÔNG đổi màu CHỮ: nền nhạt đã đủ để mắt bắt được, còn đổi cả chữ thì con số
    trong ô vàng trông như một cảnh báo phải xử lý — mà nó chỉ là một con số cũ. */
 .bang-ban-truoc tr[data-doi] th,
-.bang-ban-truoc tr[data-doi] td {
+.bang-ban-truoc tr[data-doi] td,
+/* Ở vế BẢNG (`0214`) dấu nằm trên TỪNG Ô, không trên cả hàng: cả hàng là bản
+   trước, còn vàng chỉ đánh dấu ô đã đổi. Luật này đứng SAU luật nền mờ của
+   `.hang-ban-truoc` nên nó thắng — hai luật cùng điểm đặc hiệu. */
+.hang-ban-truoc > [data-doi] {
   background: var(--mau-canh-bao-nen);
 }
 

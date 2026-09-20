@@ -16,6 +16,8 @@ import {
   CatalogImpactConsumer,
   Clients,
   TRUONG_CHAN_LUC_GUI,
+  TRUONG_SO_VOI_BAN_TRUOC,
+  TRUONG_BAY_BAN_TRUOC,
 } from '@csbh/policy/testing';
 import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
@@ -7661,6 +7663,9 @@ describe('`0204` bảng bản trước của dòng', () => {
       'ngayApDung',
       'wholesalePrice',
       'cpbh',
+      // `0214` — `[5000]` → `[7000]` đổi CẢ mảng lẫn tổng, nên hai ô cùng vàng.
+      // Khác hẳn ca ngay trên, nơi mảng đổi mà tổng giữ nguyên.
+      'cpbhTotal',
       'netPrice',
       'discountRate',
       'note',
@@ -7708,6 +7713,9 @@ describe('`0204` bảng bản trước của dòng', () => {
     expect(Object.keys(b).sort()).toEqual(
       [
         'cpbh',
+        // `0214` — tổng đi cùng mảng: hàng *bản trước* phải khớp CỘT với hàng
+        // trên, và bảng có cột *CPBH* mang tổng trước dải cột từng khoản.
+        'cpbhTotal',
         'companyPrice',
         'discountRate',
         'doi',
@@ -7833,5 +7841,70 @@ describe('`0204` bảng bản trước của dòng', () => {
       expect(Object.keys(l)).not.toContain('banTruoc');
       expect(Object.keys(l)).not.toContain('ban_truoc');
     }
+  });
+});
+
+/**
+ * `0214` — HAI DANH SÁCH TRƯỜNG, và chúng KHÔNG được lẫn vào nhau.
+ *
+ * `TRUONG_SO_VOI_BAN_TRUOC` quyết định NHÃN *Chỉnh sửa* — đúng những trường TDV
+ * gõ. `TRUONG_BAY_BAN_TRUOC` là thứ bày ra hàng *bản trước*, rộng hơn vì nó thêm
+ * bốn con số dẫn xuất.
+ *
+ * CHỐT CHẶN NÀY CÓ VÌ TÔI ĐÃ CHÈN NHẦM. Lượt thêm `cpbhTotal` của `0214` trúng
+ * danh sách ĐẦU TIÊN, vì hai danh sách có chung một dòng `{ khoa: 'cpbh', … }`
+ * và phép thay chuỗi dừng ở lần khớp đầu. Nó **không làm ca kiểm nhãn nào đỏ** —
+ * tổng đổi thì mảng cũng đổi, nên tập dòng mang nhãn *Chỉnh sửa* không đổi một
+ * dòng nào. Thứ bắt được là ca ghim tập khoá của `banTruoc`, ở tận lượt chạy cả
+ * bộ, sau khi mọi ca giao diện đã xanh.
+ *
+ * Ghim CẢ HAI tập bằng `toEqual` nên lượt thêm trường sau này buộc phải nói rõ
+ * nó thuộc danh sách nào.
+ */
+describe('`0214` hai danh sách trường của dòng sản phẩm', () => {
+  it('tập quyết định NHÃN là đúng năm trường TDV gõ', () => {
+    /*
+     * Con số này CHỈ ĐỔI khi khách hàng chốt: `0180` dựng bốn trường, `0202`
+     * thêm *Giá bán Công ty* và ghi rõ **ngưỡng vẫn đứng ngoài**. Thêm một
+     * trường dẫn xuất vào đây là đổi ý nghĩa của nhãn *Chỉnh sửa* mà không ai
+     * yêu cầu.
+     */
+    expect(TRUONG_SO_VOI_BAN_TRUOC.map((t) => t.khoa)).toEqual([
+      'companyPrice',
+      'wholesalePrice',
+      'cpbh',
+      'ngayApDung',
+      'note',
+    ]);
+  });
+
+  it('tập BÀY RA rộng hơn, và CHỨA TRỌN tập kia', () => {
+    /*
+     * Vế thứ hai là bất biến thật: thiếu một trường của tập nhãn thì có dòng
+     * mang nhãn *Chỉnh sửa* mà mở ra không ô nào vàng — người dùng bấm vào và
+     * không hiểu vì sao hệ thống bảo dòng ấy đã đổi.
+     */
+    const bay = TRUONG_BAY_BAN_TRUOC.map((t) => t.khoa);
+    expect(bay).toEqual([
+      'ngayApDung',
+      'companyPrice',
+      'wholesalePrice',
+      'cpbh',
+      'cpbhTotal',
+      'netPrice',
+      'discountRate',
+      'threshold',
+      'note',
+    ]);
+    for (const t of TRUONG_SO_VOI_BAN_TRUOC) {
+      expect(bay, `${t.khoa} quyết định nhãn mà không bày ra`).toContain(t.khoa);
+    }
+  });
+
+  it('mỗi khoá trỏ tới ĐÚNG MỘT cột, và không cột nào bị trỏ hai lần', () => {
+    // Hai khoá cùng trỏ một cột thì hàng *bản trước* bày một con số hai lần và
+    // hai ô ấy luôn cùng vàng hoặc cùng không — một ô thừa, không ai phát hiện.
+    const cot = TRUONG_BAY_BAN_TRUOC.map((t) => t.cot);
+    expect(new Set(cot).size, `cột trùng: ${cot.join(', ')}`).toBe(cot.length);
   });
 });

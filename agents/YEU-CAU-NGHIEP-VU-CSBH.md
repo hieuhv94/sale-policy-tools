@@ -2709,7 +2709,12 @@ trạng thái chỉnh sửa, hãy hiện thông tin của sản phẩm đó ở 
 tin nào bị đổi hãy đánh dấu bằng cách bôi vàng"*.
 
 > Đảo NỘI DUNG của bảng `12/09`: từ *"đổi những gì"* (chỉ liệt kê trường đã khác) sang *"trước đó
-> dòng này trông thế nào"* (cả tám ô, ô đã đổi bôi vàng). Cơ chế mở ra giữ nguyên.
+> dòng này trông thế nào"* (cả dòng, ô đã đổi bôi vàng). Cơ chế mở ra giữ nguyên.
+>
+> **HÌNH DẠNG chốt ở lượt thứ hai** — *"hiển thị theo hàng ngang, đúng theo từng cột như dòng ở
+> trên"*. Bản đầu bày thành bảng dọc *tên — giá trị*; khách hàng xem xong yêu cầu khớp cột, và họ
+> đúng ở điểm bảng dọc không làm được: **so hai con số cùng cột thì mắt chỉ cần đi thẳng xuống**.
+> Trên điện thoại thì vẫn là danh sách dọc, vì ở khổ ấy bảng đã thành thẻ và không còn cột nào.
 >
 > **BÀY CẢ NHỮNG Ô KHÔNG ĐỔI, và đó là điểm của yêu cầu**: một mình dòng *"Giá bán buôn 520.000"*
 > không nói được tỷ lệ chiết khấu khi ấy là bao nhiêu. Giá trị MỚI thì nằm ngay trên, ở chính hàng

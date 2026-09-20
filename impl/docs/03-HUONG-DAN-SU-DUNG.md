@@ -931,12 +931,18 @@ mục sản phẩm**.
   và dòng *Bổ sung* thì không có tỷ lệ cũ nào.
 
 > **Bấm vào nhãn *Chỉnh sửa* thì thấy dòng ấy ở PHIÊN BẢN TRƯỚC** `mới 12/09` `sửa 20/09`. Ngay dưới
-> hàng mở ra một bảng ghi **toàn bộ thông tin của dòng ấy trước khi bị sửa** — *Ngày áp dụng · Giá bán
-> Công ty · Giá bán buôn · CPBH · Giá thu về · Tỷ lệ CK · QĐCK · Ghi chú* — và **ô nào đã đổi thì bôi
-> vàng**. Bấm lần nữa thì đóng, và mở nhiều dòng cùng lúc được để so.
+> hàng mở ra **một hàng nữa, khớp đúng từng cột** — ô mã ghi *Bản trước*, còn mỗi ô mang giá trị cũ
+> của đúng cột ấy. **Ô nào đã đổi thì bôi vàng.** Bấm lần nữa thì đóng, và mở nhiều dòng cùng lúc
+> được để so.
 >
-> Giá trị mới nằm ngay trên, ở chính hàng của dòng đó; bảng này là vế còn lại để bạn đặt hai bên cạnh
-> nhau.
+> Nhờ khớp cột, hai con số của cùng một cột nằm thẳng dưới nhau: mắt chỉ cần đi thẳng xuống, không
+> phải dò lại tên trường rồi bắc ngang.
+>
+> Ba ô để trống có chủ ý: *Tên sản phẩm* (vẫn là mặt hàng ấy), *Tỷ lệ CK cũ* (bản trước không có bản
+> trước của chính nó), và *Trạng thái* (nhãn của hàng này là chữ *Bản trước* ở ô mã).
+>
+> **Trên điện thoại** (màn hình hẹp, bảng chuyển thành thẻ) thì nó vẫn là một danh sách dọc *tên —
+> giá trị*: ở khổ ấy không có cột nào để mà khớp.
 >
 > **Tỷ lệ CK và Giá thu về cũng bôi vàng theo** khi bạn đổi giá bán buôn hoặc CPBH — chúng tính ra từ
 > hai con số ấy, nên đổi một cái là đổi cả ba. Đó thường là con số bạn cần nhất: tỷ lệ chiết khấu
