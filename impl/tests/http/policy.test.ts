@@ -7548,27 +7548,26 @@ describe('`0203` sửa dòng thì giá bán Công ty là giá hiện hành', () 
 });
 
 // =============================================================================
-// `0204` — DÒNG *Chỉnh sửa* NÓI RA NÓ ĐỔI NHỮNG GÌ
+// `0204`/`0213` — DÒNG *Chỉnh sửa* NÓI RA BẢN TRƯỚC CỦA NÓ
 // =============================================================================
 
 /**
- * Khách hàng chốt 12/09: bấm vào nhãn *Chỉnh sửa* thì mở ra một bảng *trường ·
- * bản trước · bản này*. Nhãn giữ nguyên chữ, không mang thêm thông tin.
+ * `0204`, khách hàng chốt 12/09: bấm vào nhãn *Chỉnh sửa* thì mở ra một bảng.
+ * `0213`, chốt 20/09: bảng ấy bày **cả dòng ở bản trước**, ô đã đổi bôi vàng —
+ * thay cho danh sách *"đổi những gì"*.
  *
- * Phần máy chủ là `SQL_THAY_DOI_DONG`, và điều đáng canh nhất KHÔNG phải nội
- * dung từng dòng mà là **nó với nhãn *Chỉnh sửa* phải luôn đi cùng nhau**: cả
- * hai sinh ra từ `TRUONG_SO_VOI_BAN_TRUOC`, nên một dòng mang nhãn mà bảng rỗng
- * (hoặc ngược lại) là dấu hiệu hai biểu thức đã trôi khỏi nhau.
+ * Phần máy chủ là `SQL_BAN_TRUOC_TRA_VE`, và điều đáng canh nhất KHÔNG phải nội
+ * dung từng ô mà là **nó với nhãn *Chỉnh sửa* phải luôn đi cùng nhau**: một dòng
+ * mang nhãn mà bảng vắng mặt (hoặc ngược lại) là dấu hiệu hai câu trả lời đã trôi
+ * khỏi nhau.
  */
-describe('`0204` bảng chi tiết thay đổi của dòng', () => {
+describe('`0204` bảng bản trước của dòng', () => {
   const dongCua = (body: { lines: Record<string, unknown>[] }, productId: string) =>
     body.lines.find((l) => l['productId'] === productId)!;
-  const thayDoi = (body: { lines: Record<string, unknown>[] }, productId: string) =>
-    (dongCua(body, productId)['thayDoi'] ?? []) as {
-      truong: string;
-      truoc: unknown;
-      sau: unknown;
-    }[];
+  const banTruoc = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    dongCua(body, productId)['banTruoc'] as Record<string, unknown> | null;
+  const oDoi = (body: { lines: Record<string, unknown>[] }, productId: string) =>
+    (banTruoc(body, productId)?.['doi'] ?? []) as string[];
 
   /** Bản đang hiệu lực + phiên bản mới chưa sửa gì. */
   const banMoi = async () => {
@@ -7592,7 +7591,7 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
     return r.body;
   };
 
-  it('SỬA GIÁ BÁN BUÔN: đúng một mục, kèm cả hai giá trị', async () => {
+  it('SỬA GIÁ BÁN BUÔN: ba ô đổi theo, vì hai con số DẪN XUẤT từ nó', async () => {
     const d = await banMoi();
     const cu = dongCua(d.v2, d.productId);
     const sau = await suaDong(d.v2Id, cu['id'] as string, {
@@ -7601,9 +7600,19 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
       ngayApDung: String(cu['ngayApDung']).slice(0, 10),
     });
 
-    expect(thayDoi(sau, d.productId)).toEqual([
-      { truong: 'wholesalePrice', truoc: '90000', sau: '80000' },
-    ]);
+    /*
+     * BA Ô, không một — và đó là điều `0213` phải nói ra.
+     *
+     * Giá thu về = giá bán buôn − CPBH, còn tỷ lệ CK tính ngược từ giá thu về.
+     * Đổi một con số TDV gõ thì hai con số dẫn xuất đổi theo, và cả ba đều là
+     * *"thông tin bị đổi"* theo đúng câu khách hàng viết — nên cả ba bôi vàng.
+     *
+     * Nhãn *Chỉnh sửa* thì vẫn chỉ xét năm trường TDV gõ (`0180`, `0202`): hai
+     * tập khác nhau, hai câu hỏi khác nhau, và ca BẤT BIẾN bên dưới canh chỗ
+     * chúng gặp nhau.
+     */
+    expect(oDoi(sau, d.productId)).toEqual(['wholesalePrice', 'netPrice', 'discountRate']);
+    expect(banTruoc(sau, d.productId)!['wholesalePrice']).toBe('90000');
   });
 
   it('CPBH trả về MẢNG, không phải tổng', async () => {
@@ -7621,9 +7630,17 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
       ngayApDung: String(cu['ngayApDung']).slice(0, 10),
     });
 
-    expect(thayDoi(sau, d.productId)).toEqual([
-      { truong: 'cpbh', truoc: ['5000'], sau: ['3000', '2000'] },
-    ]);
+    /*
+     * ĐÚNG MỘT Ô, và đây là ca phân biệt sắc nhất của cả khối: hai mảng CÙNG
+     * TỔNG, nên giá thu về và tỷ lệ CK **không đổi** — khác hẳn ca sửa giá bán
+     * buôn ngay trên, nơi hai con số dẫn xuất đổi theo.
+     *
+     * Tức phép so chạy trên CHÍNH cột `cpbh` (`text[]`), không chạy trên tổng
+     * của nó. Một bản so bằng `cpbh_total` sẽ cho mảng rỗng ở đây, và dòng mang
+     * nhãn *Chỉnh sửa* mà mở ra không ô nào vàng.
+     */
+    expect(oDoi(sau, d.productId)).toEqual(['cpbh']);
+    expect(banTruoc(sau, d.productId)!['cpbh']).toEqual(['5000']);
   });
 
   it('NHIỀU trường cùng đổi thì đủ cả, theo thứ tự khai', async () => {
@@ -7636,10 +7653,16 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
       ngayApDung: '2030-01-01',
     });
 
-    expect(thayDoi(sau, d.productId).map((t) => t.truong)).toEqual([
+    /*
+     * Thứ tự là thứ tự KHAI ở `TRUONG_BAY_BAN_TRUOC`, tức thứ tự cột của bảng
+     * sản phẩm — `0213` xếp lại so với `0204` cho khớp mắt người đọc.
+     */
+    expect(oDoi(sau, d.productId)).toEqual([
+      'ngayApDung',
       'wholesalePrice',
       'cpbh',
-      'ngayApDung',
+      'netPrice',
+      'discountRate',
       'note',
     ]);
   });
@@ -7656,12 +7679,50 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
       ngayApDung: '2030-01-01',
     });
 
-    const ds = thayDoi(sau, d.productId);
-    expect(ds.find((t) => t.truong === 'ngayApDung')!.sau).toBe('2030-01-01');
-    expect(ds.find((t) => t.truong === 'note')).toMatchObject({
-      truoc: null,
-      sau: 'co ghi chu',
+    const b = banTruoc(sau, d.productId)!;
+    expect(String(b['ngayApDung'])).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(b['note'], 'ghi chú trống ở bản trước phải là null').toBeNull();
+  });
+
+  it('`0213` bày CẢ những ô KHÔNG đổi, gồm ba con số DẪN XUẤT', async () => {
+    /*
+     * Khác biệt của `0213` với `0204`, và là cả điểm của yêu cầu: câu hỏi đổi từ
+     * *"đổi những gì"* sang *"trước đó dòng này thế nào"*, và câu sau chỉ đọc
+     * được khi có đủ ngữ cảnh.
+     *
+     * BA CON SỐ DẪN XUẤT là vế đáng canh nhất: `net_price` với `over_threshold`
+     * là cột SINH, `discount_rate` với `threshold_snap` là cột LƯU — nên bản
+     * trước đã có sẵn chúng trong CSDL, và giao diện KHÔNG phải tính lại. Thiếu
+     * chúng thì người duyệt đọc được giá bán buôn cũ mà không biết tỷ lệ chiết
+     * khấu khi ấy là bao nhiêu — đúng con số cả tờ giấy nói về.
+     */
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: '80000',
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
     });
+
+    const b = banTruoc(sau, d.productId)!;
+    expect(Object.keys(b).sort()).toEqual(
+      [
+        'cpbh',
+        'companyPrice',
+        'discountRate',
+        'doi',
+        'netPrice',
+        'ngayApDung',
+        'note',
+        'threshold',
+        'wholesalePrice',
+      ].sort(),
+    );
+    // Giá trị của bản TRƯỚC, không phải của dòng hiện tại.
+    expect(b['wholesalePrice']).toBe('90000');
+    expect(b['netPrice'], 'giá thu về của bản trước').not.toBe(
+      dongCua(sau, d.productId)['netPrice'],
+    );
   });
 
   it('BẤT BIẾN: nhãn *Chỉnh sửa* và bảng chi tiết luôn đi CÙNG NHAU', async () => {
@@ -7711,7 +7772,7 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
     };
     expect(hs.lines.length).toBeGreaterThanOrEqual(2);
     for (const l of hs.lines) {
-      const coBang = ((l['thayDoi'] ?? []) as unknown[]).length > 0;
+      const coBang = l['banTruoc'] !== null && l['banTruoc'] !== undefined;
       expect(
         coBang,
         `dòng ${l['productCode']} mang nhãn ${l['trangThai']} mà bảng chi tiết ` +
@@ -7720,15 +7781,19 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
     }
   });
 
-  it('dòng *Bổ sung* và *Đang áp dụng* trả MẢNG RỖNG, không phải `null`', async () => {
-    // Giao diện hỏi "có gì để mở không" bằng độ dài mảng, nên vắng mặt và rỗng
-    // phải cho cùng một câu trả lời (bẫy `opt()` của `0198`).
+  it('dòng *Bổ sung* và *Đang áp dụng* trả `null`, không phải một đối tượng rỗng', async () => {
+    /*
+     * Giao diện hỏi *"có gì để mở không"* bằng chính sự vắng mặt của đối tượng
+     * này. Một `{}` ở đây thì `banTruocCua()` trả về nó, nhãn thành nút bấm
+     * được, và bảng mở ra tám ô dấu gạch — một câu trả lời trống cho một câu hỏi
+     * không có nghĩa với dòng ấy.
+     */
     const d = await banMoi();
-    expect(dongCua(d.v2, d.productId)['thayDoi']).toEqual([]);
+    expect(dongCua(d.v2, d.productId)['banTruoc']).toBeNull();
 
     const dauTien = await draft();
     expect(dongCua(dauTien.body, dauTien.productId)['trangThai']).toBe('BO_SUNG');
-    expect(dongCua(dauTien.body, dauTien.productId)['thayDoi']).toEqual([]);
+    expect(dongCua(dauTien.body, dauTien.productId)['banTruoc']).toBeNull();
   });
 
   it('HỒ SƠ CÓ HIỆU LỰC: bảng chi tiết tắt cùng lúc với *Tỷ lệ CK cũ*', async () => {
@@ -7749,7 +7814,7 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
     const l = dongCua((await get(`/policies/${d.v2Id}`)).body, d.productId);
     expect(l['trangThai']).toBe('DANG_AP_DUNG');
     expect(l['discountRateTruoc']).toBeNull();
-    expect(l['thayDoi']).toEqual([]);
+    expect(l['banTruoc']).toBeNull();
   });
 
   it('BẢN IN KHÔNG ĐỔI GÌ: `internal.controller` không mang trường này', async () => {
@@ -7765,8 +7830,8 @@ describe('`0204` bảng chi tiết thay đổi của dòng', () => {
       .set('X-Service-Token', mintServiceToken('document'));
     expect(noiBo.status, JSON.stringify(noiBo.body)).toBe(200);
     for (const l of noiBo.body.lines as Record<string, unknown>[]) {
-      expect(Object.keys(l)).not.toContain('thayDoi');
-      expect(Object.keys(l)).not.toContain('thay_doi');
+      expect(Object.keys(l)).not.toContain('banTruoc');
+      expect(Object.keys(l)).not.toContain('ban_truoc');
     }
   });
 });

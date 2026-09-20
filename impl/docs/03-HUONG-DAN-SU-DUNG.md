@@ -930,16 +930,24 @@ mục sản phẩm**.
   phiên bản trước, để đặt cạnh con số mới mà so. Dòng *Đang áp dụng* có tỷ lệ cũ bằng đúng tỷ lệ mới,
   và dòng *Bổ sung* thì không có tỷ lệ cũ nào.
 
-> **Bấm vào nhãn *Chỉnh sửa* thì thấy dòng ấy đổi những gì** `mới 12/09`. Ngay dưới hàng mở ra một
-> bảng ba cột — **Thay đổi ở · Bản trước · Bản này** — liệt kê đúng những trường đã khác bản CSBH
-> trước: *Giá bán Công ty*, *Giá bán buôn*, *CPBH*, *Ngày áp dụng*, *Ghi chú*. Bấm lần nữa thì đóng,
-> và mở nhiều dòng cùng lúc được để so.
+> **Bấm vào nhãn *Chỉnh sửa* thì thấy dòng ấy ở PHIÊN BẢN TRƯỚC** `mới 12/09` `sửa 20/09`. Ngay dưới
+> hàng mở ra một bảng ghi **toàn bộ thông tin của dòng ấy trước khi bị sửa** — *Ngày áp dụng · Giá bán
+> Công ty · Giá bán buôn · CPBH · Giá thu về · Tỷ lệ CK · QĐCK · Ghi chú* — và **ô nào đã đổi thì bôi
+> vàng**. Bấm lần nữa thì đóng, và mở nhiều dòng cùng lúc được để so.
+>
+> Giá trị mới nằm ngay trên, ở chính hàng của dòng đó; bảng này là vế còn lại để bạn đặt hai bên cạnh
+> nhau.
+>
+> **Tỷ lệ CK và Giá thu về cũng bôi vàng theo** khi bạn đổi giá bán buôn hoặc CPBH — chúng tính ra từ
+> hai con số ấy, nên đổi một cái là đổi cả ba. Đó thường là con số bạn cần nhất: tỷ lệ chiết khấu
+> trước và sau lần sửa này.
 >
 > Nhãn **không đổi chữ** — vẫn chỉ đề *Chỉnh sửa*; mũi tên nhỏ bên cạnh là dấu cho biết bấm được.
-> Dòng *Bổ sung*, *Đang áp dụng*, *Đã xoá* thì nhãn không bấm được, vì không có gì để so.
+> Dòng *Bổ sung*, *Đang áp dụng*, *Đã xoá* thì nhãn không bấm được, vì không có bản trước để so.
 >
 > **CPBH liệt kê từng khoản** chứ không cộng lại: đổi từ `5.000` sang `3.000 + 2.000` là một thay đổi
-> thật, mà tổng thì vẫn thế.
+> thật, mà tổng thì vẫn thế — và khi ấy chỉ ô *CPBH* vàng, còn *Giá thu về* với *Tỷ lệ CK* thì không,
+> vì chúng đúng là không đổi.
 >
 > **Bản in không có bảng này** — nó là đường tra ngược của người duyệt trên màn hình, cùng loại với
 > cột *QĐCK*.

@@ -18804,3 +18804,72 @@ Hai lượt phá lại, hai đỏ đúng chỗ, và chúng canh đúng hai tính
 `datLech` khi chạm mức 1 → 1 đỏ · bỏ chặn dưới cỡ vừa khung → 1 đỏ.
 
 **2377/2377 xanh.**
+
+---
+
+## P242 — `0213` Bảng chi tiết bày cả dòng ở bản trước, ô đổi bôi vàng
+
+Đảo **nội dung** bảng của `0204`, giữ nguyên cơ chế mở. Câu hỏi đổi từ *"đổi những gì"* sang *"trước
+đó dòng này trông thế nào"* — và câu thứ hai cần cả những ô KHÔNG đổi để đọc được.
+
+### Dữ kiện quyết định cách làm, kiểm trước khi gõ
+
+Khách hàng chốt bày **cả dòng như trên bảng**, gồm Giá thu về · Tỷ lệ CK · QĐCK. Lúc hỏi tôi nêu cái
+giá là *"giao diện phải tính lại hai con số dẫn xuất bằng `computeLine`"*. **Đo lại thì cái giá ấy
+không tồn tại**: `cpbh_total`, `net_price`, `over_threshold` là **cột SINH** của `pol.policy_line`
+(`0001`, `0021`), còn `discount_rate` và `threshold_snap` là cột LƯU. Bản trước đã có đủ mọi con số
+ngay trong CSDL.
+
+Nên giao diện **không tính gì**. Tính lại ở trình duyệt còn là đi ngược `0022`: những con số ấy đã
+được ĐÓNG BĂNG, và dựng lại chúng bằng một phép tính hôm nay là mở đường cho hai câu trả lời khác
+nhau về cùng một dòng đã ký.
+
+### `doi` đến từ MÁY CHỦ, không do giao diện so hai bên
+
+Cách viết tự nhiên hơn là để giao diện so `banTruoc[k]` với giá trị hiện tại. Nó hỏng ở chỗ kiểu dữ
+liệu: máy chủ trả số dưới dạng chuỗi, nên `615000` và `615000.00` là hai chuỗi khác nhau trong khi
+`IS DISTINCT FROM` trên `numeric` nói chúng là một. Ô vàng sẽ nói dối ở đúng chỗ không ai kiểm lại
+được — và `0202` đã ghi đúng bẫy ấy khi đưa `company_price_snap` vào phép so.
+
+Nên phép so ở lại SQL, và **một danh sách sinh ra cả hai biểu thức**: giá trị của từng ô, và danh
+sách khoá đã đổi. Đó là chốt chặn `0204` dựng ra, giữ nguyên hình dạng — gõ tay hai lần thì lượt thêm
+ô thứ chín sửa một chỗ rồi quên chỗ kia, và `tsc` không canh được gì vì cả hai đều là chuỗi.
+
+### HAI TẬP TRƯỜNG, hai câu hỏi
+
+| | |
+|---|---|
+| `TRUONG_SO_VOI_BAN_TRUOC` (5) | quyết định NHÃN *Chỉnh sửa* — thứ TDV gõ |
+| `TRUONG_BAY_BAN_TRUOC` (8) | bày ra bảng — thêm ba con số dẫn xuất |
+
+Tập thứ hai rộng hơn, và phải thế: đổi giá bán buôn thì **tỷ lệ chiết khấu đổi theo**, mà đó là con
+số cả tờ giấy nói về. Ngược lại, đổi CPBH mà giữ nguyên tổng (`[5000]` → `[3000, 2000]`) thì chỉ ô
+*CPBH* vàng — hai ca ấy nằm cạnh nhau trong bộ kiểm và chúng phân biệt đúng chỗ phép so chạy trên cột
+nào.
+
+> **MỘT KỲ VỌNG TÔI SỬA SAI RỒI PHẢI TRẢ LẠI.** Thấy ca *sửa giá bán buôn* đỏ vì `doi` có thêm
+> `netPrice`/`discountRate`, tôi sửa luôn cả ca *CPBH cùng tổng* theo cùng khuôn — và nó đỏ, đúng
+> ra phải thế. Hai ca trông giống nhau mà trả lời hai chuyện khác hẳn: một cái đo *"dẫn xuất đổi
+> theo"*, một cái đo *"phép so chạy trên cột `cpbh` chứ không trên tổng của nó"*.
+
+### Ba vế gác chép từng chữ, lần thứ hai
+
+`SQL_BAN_TRUOC_TRA_VE` mang đúng ba vế gác của `SQL_TY_LE_CK_TRUOC`, y như `0204`. Chúng còn thêm một
+việc ở lượt này: giữ cho bảng **chỉ mở ở dòng *Chỉnh sửa***. Một dòng chỉ đổi NGƯỠNG — thứ đứng ngoài
+phép so nhãn từ `0202` — mà mở ra được bảng có ô vàng thì bảng ấy nói ngược cái nhãn ngay cạnh nó.
+
+### Bẫy của chính lượt sửa: cắt nhầm hai hàm khi thay khối
+
+Lượt thay `BangThayDoi` bằng `BangBanTruoc` cắt theo hai mốc văn bản, và khoảng giữa hai mốc ấy còn
+chứa **`NhanTrangThai`, `daXoa` và `lopTrangThai`** — ba thứ chẳng liên quan gì tới bảng chi tiết.
+`tsc` bắt được cả ba, nhưng chỉ sau khi tôi đã sửa xong CSS và tưởng mình xong việc.
+
+Cách tìm ra đủ trong một lượt, thay vì sửa lắt nhắt theo từng lỗi `tsc`: **so danh sách tên khai báo
+của tệp với bản trong git** (`git show HEAD:… | grep -o '^(export )?(const|function|type) \w+'`). Nó
+in ra ngay cả ba cái mất và sáu cái thêm, và phân biệt được *"mất vì cố ý thay"* với *"mất vì cắt
+nhầm"*.
+
+Ba lượt phá lại, ba đỏ đúng chỗ: bỏ ba con số dẫn xuất → 3 đỏ · bỏ ba vế gác → 3 đỏ (gồm ca BẤT BIẾN)
+· thôi bôi vàng → 2 đỏ.
+
+**2383/2383 xanh.**

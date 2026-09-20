@@ -2704,6 +2704,24 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**BẢNG CHI TIẾT BÀY CẢ DÒNG Ở BẢN TRƯỚC, Ô ĐỔI BÔI VÀNG** `sửa 20/09` — *"khi kích vào sản phẩm có
+trạng thái chỉnh sửa, hãy hiện thông tin của sản phẩm đó ở phiên bản trước khi bị chỉnh sửa, thông
+tin nào bị đổi hãy đánh dấu bằng cách bôi vàng"*.
+
+> Đảo NỘI DUNG của bảng `12/09`: từ *"đổi những gì"* (chỉ liệt kê trường đã khác) sang *"trước đó
+> dòng này trông thế nào"* (cả tám ô, ô đã đổi bôi vàng). Cơ chế mở ra giữ nguyên.
+>
+> **BÀY CẢ NHỮNG Ô KHÔNG ĐỔI, và đó là điểm của yêu cầu**: một mình dòng *"Giá bán buôn 520.000"*
+> không nói được tỷ lệ chiết khấu khi ấy là bao nhiêu. Giá trị MỚI thì nằm ngay trên, ở chính hàng
+> của dòng đó.
+>
+> **Tám ô gồm ba con số DẪN XUẤT** — Giá thu về · Tỷ lệ CK · QĐCK. Chúng có sẵn trong cơ sở dữ liệu
+> ở bản trước, nên không ai phải tính lại; và chúng cũng bôi vàng khi đổi, vì đổi giá bán buôn là đổi
+> cả ba. Ngược lại, đổi CPBH mà giữ nguyên tổng thì chỉ ô *CPBH* vàng.
+>
+> **Nhãn *Chỉnh sửa* vẫn chỉ xét năm trường TDV gõ** (`07/09`, `12/09`) — hai tập khác nhau cho hai
+> câu hỏi khác nhau, và tập quyết định nhãn là tập con của tập bày ra.
+
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,
 người dùng chỉ cần lăn chuột"*.

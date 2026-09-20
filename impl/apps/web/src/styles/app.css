@@ -3541,13 +3541,41 @@ svg.bd-nho { width: 62px; margin: 0; }
 /* Cùng cỡ chữ và cùng cách đọc số với `.bang-lech` — hai bảng trả lời gần như
    cùng một câu hỏi ("đổi gì, từ đâu sang đâu"), và người dùng gặp cả hai trên
    cùng một trang. Khác nhau về hình dạng là bắt họ học hai lần. */
-.bang-thay-doi { font-size: var(--chu-nho); }
-.bang-thay-doi th, .bang-thay-doi td { padding: var(--k1) var(--k3); text-align: left; }
-.bang-thay-doi thead th { color: var(--mau-chu-phu); font-weight: 600; }
-.bang-thay-doi .so { font-family: var(--so-deu-cot); text-align: right; }
+.bang-ban-truoc { font-size: var(--chu-nho); }
+.bang-ban-truoc th, .bang-ban-truoc td { padding: var(--k1) var(--k3); text-align: left; }
+.bang-ban-truoc th[scope='row'] { color: var(--mau-chu-phu); font-weight: 600; }
+.bang-ban-truoc .so { font-family: var(--so-deu-cot); text-align: right; }
+
+/* Dòng tiêu đề của bảng nói NGAY cái quy ước màu, chứ không để người đọc tự đoán
+   vì sao vài ô có nền vàng (`0213`). `<caption>` chứ không một `<p>` đứng trên:
+   trình đọc màn hình đọc nó như tên của chính bảng này. */
+.bang-ban-truoc caption {
+  text-align: left;
+  padding: 0 var(--k3) var(--k2);
+  color: var(--mau-chu-phu);
+}
+
+/* Ô ĐÃ ĐỔI bôi vàng (`0213`, khách hàng chốt 20/09).
+
+   DÙNG LẠI `--mau-canh-bao-nen` thay vì dựng token thứ hai: nó đã có ở cả ba
+   bảng màu, và sắc vàng nhạt ấy đúng nghĩa cần ở đây — *"chỗ này khác, ngó
+   kỹ"*. Một cặp token riêng là hai chỗ phải giữ đồng bộ mãi mãi để trông giống
+   hệt nhau, đúng lý lẽ `0123` đã dùng khi cho nhãn danh mục mượn màu nhãn hồ sơ.
+
+   Tô CẢ HÀNG chứ không riêng ô giá trị: hàng có hai ô — tên trường và giá trị —
+   và tô mỗi ô giá trị thì cái tên nằm ngoài vùng vàng, đọc như thể nó không
+   thuộc về chỗ vừa được đánh dấu.
+
+   KHÔNG đổi màu CHỮ: nền nhạt đã đủ để mắt bắt được, còn đổi cả chữ thì con số
+   trong ô vàng trông như một cảnh báo phải xử lý — mà nó chỉ là một con số cũ. */
+.bang-ban-truoc tr[data-doi] th,
+.bang-ban-truoc tr[data-doi] td {
+  background: var(--mau-canh-bao-nen);
+}
+
 /* Trong thẻ (bố cục <640px) bảng nằm thẳng trong `<li>`, không có ô nào bọc nên
    nó cần khoảng thở của riêng mình. */
-.the > .bang-thay-doi { margin-top: var(--k2); }
+.the > .bang-ban-truoc { margin-top: var(--k2); }
 
 /* --- Ô NHẬP NGÀY (`0208`) ------------------------------------------------- */
 

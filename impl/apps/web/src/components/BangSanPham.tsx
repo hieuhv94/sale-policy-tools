@@ -75,33 +75,119 @@ export type DongSanPham = {
   /** Tỷ lệ CK ở bản trước — CHỈ dòng *Chỉnh sửa* mới có (`0180`). */
   discountRateTruoc?: string | null | undefined;
   /**
-   * Dòng này đổi những gì so với bản trước — CHỈ dòng *Chỉnh sửa* (`0204`).
+   * Dòng này TRƯỚC KHI bị sửa — CHỈ dòng *Chỉnh sửa* (`0213`, thay `0204`).
    *
    * MÁY CHỦ quyết định có trả hay không, cùng ba vế gác với `discountRateTruoc`
-   * (`SQL_THAY_DOI_TRA_VE`). Giao diện KHÔNG suy từ `trangThai === 'CHINH_SUA'`:
+   * (`SQL_BAN_TRUOC_TRA_VE`). Giao diện KHÔNG suy từ `trangThai === 'CHINH_SUA'`:
    * làm thế là dựng lại phép so ở chỗ thứ hai, và hai chỗ sẽ có ngày nói khác
    * nhau về cùng một dòng.
    *
-   * Mảng rỗng với mọi dòng khác. Máy chủ cũ hơn giao diện thì trường vắng mặt —
-   * `dsThayDoi()` đọc bằng `Array.isArray` chứ không tin khai báo kiểu, đúng bẫy
-   * `0198`.
+   * `null` với mọi dòng khác. Máy chủ cũ hơn giao diện thì trường vắng mặt —
+   * `banTruocCua()` đọc bằng phép kiểm HÌNH DẠNG chứ không tin khai báo kiểu,
+   * đúng bẫy `0198` (`layJson<T>` là một LỜI HỨA, không phải phép kiểm).
    */
-  thayDoi?: ThayDoiDong[] | null | undefined;
+  banTruoc?: BanTruocDong | null | undefined;
 };
 
-/** Một trường đã đổi so với bản trước (`0204`). */
-export type ThayDoiDong = {
-  truong: 'companyPrice' | 'wholesalePrice' | 'cpbh' | 'ngayApDung' | 'note';
-  /**
-   * Giá trị NGUYÊN VĂN máy chủ vừa so — chuỗi, hoặc MẢNG chuỗi với `cpbh`.
-   *
-   * Cách ĐỌC là việc của màn hình (`docThayDoi`), đúng lối `Lech.doc()`: máy chủ
-   * giữ nguyên con số nó đã đem so, giao diện quyết định đọc nó ra tiền, ra ngày
-   * hay ra chữ.
-   */
-  truoc: string | string[] | null;
-  sau: string | string[] | null;
+/** Khoá của những ô bảng chi tiết bày ra, đúng thứ tự đọc (`0213`). */
+export const O_BAN_TRUOC = [
+  'ngayApDung',
+  'companyPrice',
+  'wholesalePrice',
+  'cpbh',
+  'netPrice',
+  'discountRate',
+  'threshold',
+  'note',
+] as const;
+
+export type OBanTruoc = (typeof O_BAN_TRUOC)[number];
+
+/**
+ * Dòng ở bản trước, kèm danh sách ô đã đổi (`0213`).
+ *
+ * `doi` đến TỪ MÁY CHỦ chứ không do giao diện so hai bên: phép so chạy trên kiểu
+ * dữ liệu thật của Postgres (`IS DISTINCT FROM` trên `numeric`, `date`, `text[]`),
+ * nên `615000` và `615000.00` là MỘT. So bằng chuỗi ở trình duyệt thì hai giá
+ * trị ấy khác nhau, và ô bôi vàng nói dối ở đúng chỗ không ai kiểm lại được.
+ */
+export type BanTruocDong = {
+  [K in OBanTruoc]?: string | string[] | null;
+} & { doi?: string[] | null };
+
+/**
+ * Bản trước của một dòng, đọc AN TOÀN từ thân phản hồi (`0213`).
+ *
+ * Kiểm HÌNH DẠNG chứ không tin khai báo kiểu: `banTruoc` đến từ thân phản hồi,
+ * và một khai báo TypeScript là LỜI HỨA chứ không phải phép kiểm (bẫy `0198`).
+ * Máy chủ cũ hơn giao diện thì trường vắng mặt, và lúc ấy một lượt đọc `.doi`
+ * ném ngay trong lượt dựng bảng — React tháo cả cây và trang hồ sơ trắng, vì
+ * một thứ chỉ là phần trang trí của một ô.
+ */
+export const banTruocCua = (d: DongSanPham): BanTruocDong | null =>
+  d.banTruoc !== null && typeof d.banTruoc === 'object' && !Array.isArray(d.banTruoc)
+    ? d.banTruoc
+    : null;
+
+/** Những ô máy chủ báo là ĐÃ ĐỔI — rỗng nếu thân phản hồi không mang danh sách. */
+export const oDaDoi = (b: BanTruocDong): string[] => (Array.isArray(b.doi) ? b.doi : []);
+
+/**
+ * TÊN Ô trong bảng chi tiết = TIÊU ĐỀ CỘT của chính bảng sản phẩm (`0204`).
+ *
+ * Không phải một danh sách nhãn thứ hai gõ tay: người dùng bấm vào nhãn *Chỉnh
+ * sửa* rồi đọc một dòng tên trường, và mắt họ đang ở ngay cạnh hàng tiêu đề của
+ * bảng. Hai chữ khác nhau cho cùng một ô — *"Giá bán Công ty"* ở trên và *"Giá
+ * CT"* ở dưới — bắt người đọc tự ghép, đúng thứ `0172` đã đi sửa một lượt cho
+ * hai bảng.
+ *
+ * Hai khoá lệch tên và cả hai đều có lý do: ô `cpbh` bày CẢ MẢNG còn cột bày
+ * tổng của nó tên `cpbhTotal`; ô `threshold` là con số cột `ruleCode` bày ra từ
+ * `0180` (mã quy định lui vào `title`).
+ */
+const COT_CUA_O: Record<OBanTruoc, string> = {
+  ngayApDung: 'ngayApDung',
+  companyPrice: 'companyPrice',
+  wholesalePrice: 'wholesalePrice',
+  cpbh: 'cpbhTotal',
+  netPrice: 'netPrice',
+  discountRate: 'discountRate',
+  threshold: 'ruleCode',
+  note: 'note',
 };
+
+export const nhanOBanTruoc = (o: OBanTruoc): string =>
+  [...COT_TRUOC, ...COT_SAU].find((c) => c.khoa === COT_CUA_O[o])?.nhan ?? o;
+
+/**
+ * Đọc một giá trị của bảng chi tiết ra chữ.
+ *
+ * Máy chủ giữ nguyên văn con số nó đã đem so; cách đọc là việc của màn hình —
+ * cùng phân công với `Lech.doc()` (`0050`).
+ *
+ * CPBH nối bằng dấu cộng chứ không cộng lại thành một số: hai mảng khác nhau vẫn
+ * có thể cùng tổng (`[5000]` → `[3000, 2000]`), và khi ấy một ô *"CPBH 5.000"*
+ * giấu mất đúng thứ vừa đổi.
+ *
+ * `—` cho giá trị trống, KHÔNG bỏ trống ô: một ô rỗng thì người đọc không phân
+ * biệt được *"ghi chú vừa bị xoá"* với *"chỗ này chưa dựng xong"*.
+ */
+export const docOBanTruoc = (o: OBanTruoc, v: string | string[] | null | undefined): string => {
+  if (Array.isArray(v)) return v.length === 0 ? '—' : v.map((x) => tien(x)).join(' + ');
+  if (v === null || v === undefined || v === '') return '—';
+  if (o === 'ngayApDung') return ngay(v);
+  if (o === 'note') return v;
+  if (o === 'discountRate' || o === 'threshold') return tyLe(v);
+  return tien(v);
+};
+
+/**
+ * Dòng TDV đã rút khỏi phiên bản này (`0186`).
+ *
+ * XUẤT RA vì ba chỗ hỏi cùng câu này — lớp làm mờ của hàng, dải nút, và ca kiểm
+ * — và một phép so chuỗi lặp ba lần là ba chỗ sẽ lệch ngày trạng thái đổi tên.
+ */
+export const daXoa = (d: DongSanPham): boolean => d.trangThai === 'DA_XOA';
 
 /**
  * Lớp CSS của nhãn trạng thái — dùng lại bốn khoá nhãn có sẵn (`0123`, `0188`).
@@ -140,78 +226,7 @@ export const lopTrangThai = (t: string): string =>
         : 'nhan nhan-tot';
 
 /**
- * Dòng TDV đã rút khỏi phiên bản này (`0186`).
- *
- * XUẤT RA vì ba chỗ hỏi cùng câu này — lớp làm mờ của hàng, dải nút, và ca kiểm
- * — và một phép so chuỗi lặp ba lần là ba chỗ sẽ lệch ngày trạng thái đổi tên.
- */
-export const daXoa = (d: DongSanPham): boolean => d.trangThai === 'DA_XOA';
-
-/**
- * Danh sách thay đổi của một dòng, đọc AN TOÀN (`0204`).
- *
- * `Array.isArray` chứ không tin khai báo kiểu: trường này đến từ thân phản hồi,
- * và một khai báo TypeScript là một LỜI HỨA về hình dạng, không phải một phép
- * kiểm (bẫy `0198`). Máy chủ cũ hơn giao diện thì nó vắng mặt, và lúc ấy
- * `.map()` ném ngay trong lượt dựng bảng — React tháo cả cây và trang hồ sơ
- * trắng, vì một thứ chỉ là phần trang trí của một ô.
- */
-export const dsThayDoi = (d: DongSanPham): ThayDoiDong[] =>
-  Array.isArray(d.thayDoi) ? d.thayDoi : [];
-
-/**
- * TÊN TRƯỜNG trong bảng chi tiết = TIÊU ĐỀ CỘT của chính bảng sản phẩm (`0204`).
- *
- * Không phải một danh sách nhãn thứ hai gõ tay: người dùng bấm vào nhãn *Chỉnh
- * sửa* rồi đọc một dòng tên trường, và mắt họ đang ở ngay cạnh hàng tiêu đề của
- * bảng. Hai chữ khác nhau cho cùng một ô — *"Giá bán Công ty"* ở trên và *"Giá
- * CT"* ở dưới — bắt người đọc tự ghép, đúng thứ `0172` đã đi sửa một lượt cho
- * hai bảng.
- *
- * Chỉ ánh xạ KHOÁ, vì một khoá lệch tên: trường so là `cpbh` (cả mảng), còn cột
- * bày tổng của nó tên `cpbhTotal`.
- */
-const COT_CUA_TRUONG: Record<ThayDoiDong['truong'], string> = {
-  companyPrice: 'companyPrice',
-  wholesalePrice: 'wholesalePrice',
-  cpbh: 'cpbhTotal',
-  ngayApDung: 'ngayApDung',
-  note: 'note',
-};
-
-export const nhanThayDoi = (truong: ThayDoiDong['truong']): string =>
-  [...COT_TRUOC, ...COT_SAU].find((c) => c.khoa === COT_CUA_TRUONG[truong])?.nhan ?? truong;
-
-/**
- * Đọc một giá trị của bảng chi tiết ra chữ.
- *
- * Máy chủ giữ nguyên văn con số nó đã đem so; cách đọc là việc của màn hình —
- * cùng phân công với `Lech.doc()` (`0050`).
- *
- * CPBH nối bằng dấu cộng chứ không cộng lại thành một số: hai mảng khác nhau vẫn
- * có thể cùng tổng (`[5000]` → `[3000, 2000]`), và khi ấy một dòng *"CPBH 5.000
- * → 5.000"* là một thay đổi tự nói rằng nó không có thay đổi nào.
- *
- * `—` cho giá trị trống, KHÔNG bỏ trống ô: hai ô cạnh nhau mà một ô rỗng thì
- * người đọc không phân biệt được *"ghi chú vừa bị xoá"* với *"chỗ này chưa dựng
- * xong"*.
- */
-export const docThayDoi = (truong: ThayDoiDong['truong'], v: string | string[] | null): string => {
-  if (Array.isArray(v)) return v.length === 0 ? '—' : v.map((x) => tien(x)).join(' + ');
-  if (v === null || v === '') return '—';
-  if (truong === 'ngayApDung') return ngay(v);
-  if (truong === 'note') return v;
-  return tien(v);
-};
-
-/**
- * Bảng *"dòng này đổi những gì"* — một bản, hai bố cục dùng chung (`0204`).
- *
- * Ba cột chứ không hai: tên trường · bản trước · bản này. Bỏ cột tên đi rồi dựa
- * vào thứ tự dòng là bắt người đọc nhớ thứ tự năm trường.
- */
-/**
- * Nhãn trạng thái — và là NÚT khi dòng có thay đổi để mở ra (`0204`).
+ * Nhãn trạng thái — và là NÚT khi dòng có bản trước để mở ra (`0204`, `0213`).
  *
  * Khách hàng chốt 12/09: nhãn **không mang thêm chữ nào**, chỉ thêm thao tác bấm.
  * Nên chữ giữ nguyên đúng `NHAN_TRANG_THAI` (cũng là bảng chữ dùng chung với bản
@@ -219,13 +234,14 @@ export const docThayDoi = (truong: ThayDoiDong['truong'], v: string | string[] |
  * tin. Thiếu nó thì không ai biết nhãn ấy bấm được, và cả tính năng thành vô
  * hình.
  *
- * Dòng KHÔNG có thay đổi thì nhãn là một `<span>` như cũ, không phải một nút bị
+ * Dòng KHÔNG có bản trước thì nhãn là một `<span>` như cũ, không phải một nút bị
  * vô hiệu hoá: một nút bấm không làm gì là lời mời bấm rồi tự hỏi mình vừa làm
  * sai ở đâu.
  *
  * Câu cho trình đọc màn hình là BẮT BUỘC, không phải phần thêm: tên khả truy cập
  * của nút mà chỉ có chữ *Chỉnh sửa* thì người dùng bàn phím nghe được một nhãn
- * trạng thái và không biết bấm vào sẽ ra gì.
+ * trạng thái và không biết bấm vào sẽ ra gì. `0213` đổi câu ấy theo nội dung mới
+ * — bảng giờ bày cả dòng ở bản trước, không chỉ những chỗ đã đổi.
  */
 function NhanTrangThai({ d, mo, bat }: { d: DongSanPham; mo: boolean; bat: () => void }) {
   if (!d.trangThai) return null;
@@ -234,11 +250,11 @@ function NhanTrangThai({ d, mo, bat }: { d: DongSanPham; mo: boolean; bat: () =>
       {NHAN_TRANG_THAI[d.trangThai] ?? d.trangThai}
     </span>
   );
-  if (dsThayDoi(d).length === 0) return nhan;
+  if (banTruocCua(d) === null) return nhan;
   return (
     <button type="button" className="nhan-mo" aria-expanded={mo} onClick={bat}>
       {nhan}
-      <span className="chi-doc-man-hinh"> — xem chi tiết thay đổi</span>
+      <span className="chi-doc-man-hinh"> — xem thông tin ở phiên bản trước</span>
       <span className="mui-ten" aria-hidden="true">
         {mo ? '▲' : '▼'}
       </span>
@@ -246,26 +262,27 @@ function NhanTrangThai({ d, mo, bat }: { d: DongSanPham; mo: boolean; bat: () =>
   );
 }
 
-function BangThayDoi({ ds }: { ds: ThayDoiDong[] }) {
+/**
+ * Bảng *"trước khi sửa, dòng này trông thế nào"* (`0213`).
+ *
+ * BÀY CẢ TÁM Ô, kể cả ô không đổi — đó là khác biệt với `0204`, vốn chỉ liệt kê
+ * trường đã đổi. Câu hỏi đổi từ *"đổi những gì"* sang *"trước đó thế nào"*, và
+ * câu sau chỉ đọc được khi có đủ ngữ cảnh: một mình dòng *"Giá bán buôn
+ * 520.000"* không nói được tỷ lệ chiết khấu khi ấy là bao nhiêu.
+ *
+ * Ô ĐÃ ĐỔI bôi vàng, và danh sách ấy đến TỪ MÁY CHỦ (`oDaDoi`) chứ không do đây
+ * so hai bên — xem `BanTruocDong`.
+ */
+function BangBanTruoc({ b }: { b: BanTruocDong }) {
+  const doi = oDaDoi(b);
   return (
-    <table className="bang-thay-doi">
-      <thead>
-        <tr>
-          <th>Thay đổi ở</th>
-          <th>Bản trước</th>
-          <th>Bản này</th>
-        </tr>
-      </thead>
+    <table className="bang-ban-truoc">
+      <caption>Thông tin ở phiên bản trước — ô bôi vàng là ô đã đổi</caption>
       <tbody>
-        {ds.map((t) => (
-          <tr key={t.truong}>
-            <th scope="row">{nhanThayDoi(t.truong)}</th>
-            <td className={t.truong === 'note' ? undefined : 'so'}>
-              {docThayDoi(t.truong, t.truoc)}
-            </td>
-            <td className={t.truong === 'note' ? undefined : 'so'}>
-              {docThayDoi(t.truong, t.sau)}
-            </td>
+        {O_BAN_TRUOC.map((o) => (
+          <tr key={o} {...(doi.includes(o) ? { 'data-doi': '1' } : {})}>
+            <th scope="row">{nhanOBanTruoc(o)}</th>
+            <td className={o === 'note' ? undefined : 'so'}>{docOBanTruoc(o, b[o])}</td>
           </tr>
         ))}
       </tbody>
@@ -720,10 +737,10 @@ export function BangSanPham({
                 CÙNG bảng trong khung `.khung-cuon`, và phải nằm đúng giữa hai
                 hàng để không ai đọc nhầm nó là chi tiết của dòng kế tiếp.
               */}
-              {dangMo.includes(d.id) && dsThayDoi(d).length > 0 && (
+              {dangMo.includes(d.id) && banTruocCua(d) !== null && (
                 <tr className="hang-thay-doi">
                   <td colSpan={cotCho(dong).length + (coThaoTac ? 1 : 0)}>
-                    <BangThayDoi ds={dsThayDoi(d)} />
+                    <BangBanTruoc b={banTruocCua(d)!} />
                   </td>
                 </tr>
               )}
@@ -749,8 +766,8 @@ export function BangSanPham({
                   trên điện thoại để xem trước khi ký. */}
               <NhanTrangThai d={d} mo={dangMo.includes(d.id)} bat={() => batMo(d.id)} />
             </div>
-            {dangMo.includes(d.id) && dsThayDoi(d).length > 0 && (
-              <BangThayDoi ds={dsThayDoi(d)} />
+            {dangMo.includes(d.id) && banTruocCua(d) !== null && (
+              <BangBanTruoc b={banTruocCua(d)!} />
             )}
             <dl className="the-so">
               <div>

@@ -678,20 +678,29 @@ describe('`0188` bốn nhãn trạng thái dòng, bốn màu', () => {
  * đánh dấu trong ô, không thêm chip liệt kê tên trường), và **nhãn giữ nguyên
  * chữ** — không mang thêm thông tin nào.
  *
- * Dữ liệu đến từ máy chủ (`SQL_THAY_DOI_TRA_VE`); giao diện KHÔNG suy từ
- * `trangThai === 'CHINH_SUA'`. Mấy ca dưới đây vì thế dựng thẳng trường `thayDoi`
+ * Dữ liệu đến từ máy chủ (`SQL_BAN_TRUOC_TRA_VE`); giao diện KHÔNG suy từ
+ * `trangThai === 'CHINH_SUA'`. Mấy ca dưới đây vì thế dựng thẳng trường `banTruoc`
  * chứ không dựng một dòng "đã sửa" rồi mong nó tự có.
+ *
+ * `0213` đổi NỘI DUNG bảng: từ *"đổi những gì"* sang *"trước đó dòng này trông
+ * thế nào"*, cả tám ô, ô đã đổi bôi vàng. Cơ chế mở ra thì giữ nguyên.
  */
-describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', () => {
+describe('`0204` bảng chi tiết mở từ nhãn Chỉnh sửa', () => {
   const dongSua = (): DongSanPham =>
     dong({
       trangThai: 'CHINH_SUA',
       discountRateTruoc: '15.00',
-      thayDoi: [
-        { truong: 'companyPrice', truoc: '100000', sau: '130000' },
-        { truong: 'cpbh', truoc: ['5000'], sau: ['3000', '2000'] },
-        { truong: 'note', truoc: null, sau: 'ghi chu moi' },
-      ],
+      banTruoc: {
+        ngayApDung: '2026-08-01',
+        companyPrice: '100000',
+        wholesalePrice: '85000',
+        cpbh: ['5000'],
+        netPrice: '80000',
+        discountRate: '20.00',
+        threshold: '18.00',
+        note: null,
+        doi: ['companyPrice', 'cpbh', 'note'],
+      },
     });
 
   const nut = () => screen.getAllByRole('button', { name: /Chỉnh sửa/ })[0]!;
@@ -707,26 +716,34 @@ describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', (
 
   it('chưa bấm thì KHÔNG có bảng nào', () => {
     render(<BangSanPham dong={[dongSua()]} />);
-    expect(document.querySelector('.bang-thay-doi')).toBeNull();
+    expect(document.querySelector('.bang-ban-truoc')).toBeNull();
   });
 
   it('bấm thì mở ra đủ ba dòng, ĐỌC ĐƯỢC cả bên trước lẫn bên sau', async () => {
     render(<BangSanPham dong={[dongSua()]} />);
     await userEvent.click(nut());
 
-    const bang = document.querySelectorAll('.bang-thay-doi');
+    const bang = document.querySelectorAll('.bang-ban-truoc');
     // Hai bố cục (bảng ≥640px và thẻ <640px) cùng nằm trong một cây DOM, nên cả
     // hai cùng mở — đó là chủ ý, xem `dangMo`.
     expect(bang.length).toBe(2);
 
     const chu = bang[0]!.textContent ?? '';
-    // Tên trường lấy TỪ tiêu đề cột của chính bảng sản phẩm.
+    // Tên ô lấy TỪ tiêu đề cột của chính bảng sản phẩm.
     expect(chu).toContain('Giá bán Công ty');
     expect(chu).toContain('100.000');
-    expect(chu).toContain('130.000');
+    /*
+     * `0213` — BÀY CẢ NHỮNG Ô KHÔNG ĐỔI. Đây là khác biệt với `0204`, và là cả
+     * điểm của yêu cầu: một mình *"Giá bán Công ty 100.000"* không nói được tỷ
+     * lệ chiết khấu khi ấy là bao nhiêu.
+     */
+    expect(chu, 'thiếu ô không đổi').toContain('Giá bán buôn');
+    expect(chu).toContain('85.000');
+    expect(chu, 'thiếu tỷ lệ CK của bản trước').toContain('20,00%');
+    expect(chu).toContain('01/08/2026');
     // CPBH đọc theo từng khoản, không cộng lại: `[5000]` và `[3000,2000]` cùng
-    // tổng, gộp là bày ra một thay đổi tự nói rằng nó không đổi gì.
-    expect(chu).toContain('3.000 + 2.000');
+    // tổng, gộp là giấu mất đúng thứ vừa đổi.
+    expect(chu).toContain('5.000');
     // Ghi chú trống ở bản trước phải là một dấu đọc được, không phải ô bỏ trắng.
     expect(chu).toContain('—');
   });
@@ -734,9 +751,9 @@ describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', (
   it('bấm lần nữa thì đóng', async () => {
     render(<BangSanPham dong={[dongSua()]} />);
     await userEvent.click(nut());
-    expect(document.querySelector('.bang-thay-doi')).not.toBeNull();
+    expect(document.querySelector('.bang-ban-truoc')).not.toBeNull();
     await userEvent.click(nut());
-    expect(document.querySelector('.bang-thay-doi')).toBeNull();
+    expect(document.querySelector('.bang-ban-truoc')).toBeNull();
   });
 
   it('HAI dòng mở ĐỘC LẬP — mở dòng này không đóng dòng kia', async () => {
@@ -754,15 +771,15 @@ describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', (
     await userEvent.click(cacNut[0]!);
     await userEvent.click(cacNut[1]!);
     // Hai dòng × hai bố cục.
-    expect(document.querySelectorAll('.bang-thay-doi').length).toBe(4);
+    expect(document.querySelectorAll('.bang-ban-truoc').length).toBe(4);
   });
 
   it('dòng KHÔNG có thay đổi thì nhãn KHÔNG phải nút', () => {
     /*
      * Không phải một nút bị vô hiệu hoá: một nút bấm không làm gì là lời mời bấm
      * rồi tự hỏi mình vừa làm sai ở đâu. Và đây cũng là vế canh việc giao diện
-     * đọc `thayDoi` chứ không đọc `trangThai` — dòng dưới đây MANG nhãn *Chỉnh
-     * sửa* mà máy chủ không gửi thay đổi nào.
+     * đọc `banTruoc` chứ không đọc `trangThai` — dòng dưới đây MANG nhãn *Chỉnh
+     * sửa* mà máy chủ không gửi bản trước nào.
      */
     render(<BangSanPham dong={[dong({ trangThai: 'CHINH_SUA' })]} />);
     expect(screen.queryByRole('button', { name: /Chỉnh sửa/ })).toBeNull();
@@ -771,12 +788,95 @@ describe('`0204` bảng chi tiết thay đổi mở từ nhãn Chỉnh sửa', (
 
   it('máy chủ cũ KHÔNG gửi trường này thì bảng vẫn dựng được', () => {
     /*
-     * `thayDoi` đến từ thân phản hồi, và một khai báo TypeScript là LỜI HỨA chứ
+     * `banTruoc` đến từ thân phản hồi, và một khai báo TypeScript là LỜI HỨA chứ
      * không phải phép kiểm (bẫy `0198`). Ném ở đây là React tháo cả cây và trang
      * hồ sơ trắng — vì phần trang trí của một ô.
      */
-    const xau = { ...dong({ trangThai: 'CHINH_SUA' }), thayDoi: 'khong-phai-mang' };
+    const xau = { ...dong({ trangThai: 'CHINH_SUA' }), banTruoc: 'khong-phai-doi-tuong' };
     render(<BangSanPham dong={[xau as unknown as DongSanPham]} />);
     expect(screen.getAllByText('Chỉnh sửa').length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * `0213` — BÔI VÀNG ô đã đổi, và bày cả dòng ở bản trước (khách hàng chốt 20/09).
+ *
+ * *"Khi kích vào sản phẩm có trạng thái chỉnh sửa, hãy hiện thông tin của sản
+ * phẩm đó ở phiên bản trước khi bị chỉnh sửa, thông tin nào bị đổi hãy đánh dấu
+ * bằng cách bôi vàng"*.
+ */
+describe('`0213` bảng bản trước bôi vàng ô đã đổi', () => {
+  const banTruoc = {
+    ngayApDung: '2026-08-01',
+    companyPrice: '100000',
+    wholesalePrice: '85000',
+    cpbh: ['5000'],
+    netPrice: '80000',
+    discountRate: '20.00',
+    threshold: '18.00',
+    note: null,
+    doi: ['companyPrice', 'cpbh'],
+  };
+  const mo = async (b: unknown = banTruoc) => {
+    render(
+      <BangSanPham
+        dong={[dong({ trangThai: 'CHINH_SUA', banTruoc: b } as Partial<DongSanPham>)]}
+      />,
+    );
+    await userEvent.click(screen.getAllByRole('button', { name: /Chỉnh sửa/ })[0]!);
+    return document.querySelector('.bang-ban-truoc') as HTMLElement;
+  };
+
+  it('bày ĐỦ TÁM ô, kể cả ô không đổi', async () => {
+    /*
+     * Đếm cả dãy chứ không tìm từng ô: thiếu một ô thì bảng vẫn dựng ra và vẫn
+     * đọc được, chỉ là nó thôi trả lời được câu *"trước đó dòng này thế nào"* —
+     * đúng thứ `0204` không làm được và lượt này sinh ra để làm.
+     */
+    const bang = await mo();
+    expect(bang.querySelectorAll('tbody tr')).toHaveLength(8);
+  });
+
+  it('CHỈ ô máy chủ báo đã đổi mới mang dấu bôi vàng', async () => {
+    /*
+     * Danh sách `doi` đến TỪ MÁY CHỦ, nơi phép so chạy trên kiểu dữ liệu thật
+     * của Postgres. Giao diện tự so hai bên bằng chuỗi thì `615000` và
+     * `615000.00` thành "đã đổi", và ô vàng nói dối ở đúng chỗ không ai kiểm lại.
+     *
+     * Ca này canh cả hai chiều: đúng hai ô vàng, và đúng HAI Ô ẤY.
+     */
+    const bang = await mo();
+    const vang = [...bang.querySelectorAll('tr[data-doi]')].map(
+      (tr) => tr.querySelector('th')!.textContent,
+    );
+    expect(vang).toEqual(['Giá bán Công ty', 'CPBH']);
+  });
+
+  it('ô KHÔNG đổi thì KHÔNG mang dấu — kể cả khi giá trị trông giống ô đổi', async () => {
+    // Chiều ngược của ca trên, tách riêng vì nó hỏng theo kiểu khác: một bản sửa
+    // tô cả bảng vẫn làm ca trên xanh nếu nó chỉ đếm số ô vàng.
+    const bang = await mo();
+    const hang = [...bang.querySelectorAll('tbody tr')];
+    const khongDoi = hang.filter((tr) => !tr.hasAttribute('data-doi'));
+    expect(khongDoi).toHaveLength(6);
+    for (const tr of khongDoi) {
+      expect(tr.querySelector('th')!.textContent).not.toBe('Giá bán Công ty');
+    }
+  });
+
+  it('máy chủ KHÔNG gửi danh sách `doi` thì không ô nào vàng, bảng vẫn dựng', async () => {
+    // Máy chủ cũ hơn giao diện. `oDaDoi` đọc bằng `Array.isArray` chứ không tin
+    // khai báo kiểu (bẫy `0198`) — thiếu nó thì `.includes` ném ngay lúc dựng.
+    const { doi: _bo, ...khongDoi } = banTruoc;
+    const bang = await mo(khongDoi);
+    expect(bang.querySelectorAll('tbody tr')).toHaveLength(8);
+    expect(bang.querySelectorAll('tr[data-doi]')).toHaveLength(0);
+  });
+
+  it('bảng NÓI RA quy ước màu, không để người đọc tự đoán', async () => {
+    // Một nền vàng không chú thích là một câu đố. `<caption>` chứ không một đoạn
+    // văn đứng trên: trình đọc màn hình đọc nó như tên của chính bảng này.
+    const bang = await mo();
+    expect(bang.querySelector('caption')!.textContent).toContain('bôi vàng');
   });
 });
