@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { computeLine, rate2ToNumeric } from '@csbh/domain-policy';
 import { dang, layJson, va, xoa } from '../lib/api.js';
-import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapTien, Truong } from './Chung.js';
+import { BaoLoi, ChuThichBatBuoc, HopThoai, ONhapNgay, ONhapTien, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { thieuTruong } from '../lib/bat-buoc.js';
 import { homNayVN, tien, tyLe } from '../lib/format.js';
@@ -277,13 +277,7 @@ export function ThemDongSanPham({
         */}
         <Truong id="dsp-ngay" nhan="Ngày áp dụng" bắtBuộc>
           {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              type="date"
-              value={ngayApDung}
-              onChange={(e) => datNgayApDung(e.target.value)}
-            />
+            <ONhapNgay {...p} giaTri={ngayApDung} doi={datNgayApDung} />
           )}
         </Truong>
 

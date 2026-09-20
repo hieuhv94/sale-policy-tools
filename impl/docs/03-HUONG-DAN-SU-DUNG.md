@@ -787,6 +787,19 @@ hai hàng hai cột. Màn hình hẹp thì khối tự về hai hàng, điện t
 không ước lượng, nó chạy chính phép tính mà hệ thống sẽ ghi. Khối chỉ hiện khi đã chọn sản phẩm và
 đã gõ giá bán buôn; thiếu một trong hai thì chưa có gì để tính.
 
+**Ô ngày gõ theo `dd/mm/yyyy`** `sửa 20/09` — gõ tám chữ số, phần mềm tự chèn dấu gạch: `20092026`
+thành `20/09/2026`. Bên phải ô có nút lịch mở bộ chọn ngày của trình duyệt cho ai quen bấm.
+
+> **Vì sao đổi.** Trước `20/09` đây là ô ngày sẵn có của trình duyệt, và **lối viết của nó do ngôn
+> ngữ trình duyệt quyết định** — máy để tiếng Anh thì nó hiện `09/20/2026`, tức tháng đứng trước.
+> Không thiết lập nào trong phần mềm đổi được điều đó, nên ô ngày giờ do phần mềm tự vẽ.
+>
+> Gõ một ngày không có thật — `31/02/2026` chẳng hạn — thì chữ vẫn nằm trong ô để bạn thấy mình gõ
+> gì, nhưng nút *Lưu* (hoặc *Thêm dòng*) xám cho tới khi sửa lại.
+>
+> Nút lịch **vắng mặt trên trình duyệt quá cũ** (Safari dưới 16, Firefox dưới 101). Ô gõ vẫn dùng
+> bình thường.
+
 **Gõ số tiền thì gõ số trần**, không cần dấu chấm — `1000000`. Trong lúc con trỏ còn ở trong ô, ô
 hiện đúng những chữ số bạn gõ và con số đã phân nhóm hiện ở **dòng nhỏ ngay dưới ô** (`1.000.000`)
 để bạn soát nhanh mình đang gõ mấy số 0; rời ô là chính ô hiện số đã phân nhóm. `sửa 22/08`

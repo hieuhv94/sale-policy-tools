@@ -3469,3 +3469,43 @@ svg.bd-nho { width: 62px; margin: 0; }
 /* Trong thẻ (bố cục <640px) bảng nằm thẳng trong `<li>`, không có ô nào bọc nên
    nó cần khoảng thở của riêng mình. */
 .the > .bang-thay-doi { margin-top: var(--k2); }
+
+/* --- Ô NHẬP NGÀY (`0208`) ------------------------------------------------- */
+
+/* Ô chữ và nút lịch trên một hàng; ô chữ ăn hết phần còn lại.
+
+   `display: flex` trên một `<span>` chứ không `<div>`: nơi dùng đặt nó vào chỗ
+   của một `<input>` trong `Truong`, và vài chỗ ấy nằm trong dòng chữ. */
+.hang-o-ngay {
+  display: flex;
+  align-items: stretch;
+  gap: var(--k2);
+}
+.hang-o-ngay .o-nhap { flex: 1; min-width: 0; }
+
+/* Ô `type="date"` mượn bộ chọn lịch: ẩn nhưng VẪN ĐƯỢC DỰNG.
+
+   `display: none` hay `visibility: hidden` thì `showPicker()` ném lỗi vì phần
+   tử không còn được dựng — và cái nút thành nút chết, im lặng. Nên nó ẩn bằng
+   kích thước 0 và `opacity`, vẫn nằm trong luồng dựng của trình duyệt. */
+.o-ngay-lich {
+  position: absolute;
+  width: 0;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Nút lịch cao bằng ô nhập, không cao bằng chữ trong nó. */
+.nut-lich {
+  flex: 0 0 auto;
+  align-self: stretch;
+  padding: 0 var(--k3);
+  border: 1px solid var(--mau-vien);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  cursor: pointer;
+}
+.nut-lich:hover { background: var(--mau-nen-phu); }

@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { layJson } from '../lib/api.js';
 import { ngayGio } from '../lib/format.js';
-import { BaoLoi, DangTai, Trong, Truong } from '../components/Chung.js';
+import { BaoLoi, DangTai, ONhapNgay, Trong, Truong } from '../components/Chung.js';
 import { PhanTrang } from '../components/PhanTrang.js';
 import { useTrangMay } from '../lib/phan-trang.js';
 
@@ -54,7 +54,23 @@ type BoLoc = {
 /** Cửa sổ audit đã chốt 22/08 — màn hình không cho chọn xa hơn máy chủ nhận. */
 const CUA_SO_THANG = 6;
 
-const ngayISO = (d: Date): string => d.toISOString().slice(0, 10);
+/*
+ * HÔM NAY theo giờ VIỆT NAM, không theo UTC (`0208`).
+ *
+ * Bản cũ là `d.toISOString().slice(0, 10)`, và nó dựng ra một chặn trên SAI đúng
+ * bảy tiếng mỗi ngày: từ 00:00 tới 07:00 giờ Việt Nam, `max` của hai ô lọc là
+ * NGÀY HÔM QUA, nên người dùng không chọn được hôm nay trên lịch — đúng lúc họ
+ * đang tìm việc vừa xảy ra. Lớp lỗi `0128`.
+ *
+ * Tham số `d` giữ lại: `somNhat()` gọi hàm này với một ngày khác hôm nay.
+ */
+const ngayISO = (d: Date): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 
 /** Mốc sớm nhất chọn được. Cộng một ngày để không chạm đúng mép máy chủ từ chối. */
 function somNhat(): string {
@@ -134,27 +150,23 @@ export function NhatKy() {
       <div className="bo-loc-nhat-ky">
         <Truong id="nk-tu" nhan="Từ ngày">
           {(p) => (
-            <input
+            <ONhapNgay
               {...p}
-              type="date"
-              className="o-nhap"
               min={somNhat()}
               max={ngayISO(new Date())}
-              value={boLoc.from}
-              onChange={(e) => dat('from', e.target.value)}
+              giaTri={boLoc.from}
+              doi={(v) => dat('from', v)}
             />
           )}
         </Truong>
         <Truong id="nk-den" nhan="Đến ngày">
           {(p) => (
-            <input
+            <ONhapNgay
               {...p}
-              type="date"
-              className="o-nhap"
               min={boLoc.from || somNhat()}
               max={ngayISO(new Date())}
-              value={boLoc.to}
-              onChange={(e) => dat('to', e.target.value)}
+              giaTri={boLoc.to}
+              doi={(v) => dat('to', v)}
             />
           )}
         </Truong>

@@ -18442,3 +18442,112 @@ một câu hỏi. Lượt phá lại chèn một ô thứ năm cho **2 đỏ** �
 Ba lượt phá lại, ba đỏ đúng chỗ.
 
 **2352/2352 xanh.**
+
+---
+
+## P237 — `0208` Ô nhập ngày `dd/mm/yyyy`, và lượt rà mọi chỗ hiển thị ngày
+
+Hai yêu cầu nối nhau: đổi sáu ô nhập, rồi rà soát mọi đường hiển thị. Phần đáng nhớ nằm ở **phép đo
+mở đầu** — nó quyết định cả chặng — và ở **ba chỗ hỏng mà lượt rà tìm ra, không chỗ nào liên quan
+tới lối viết**.
+
+### Phép đo: `lang` không có tác dụng nào
+
+Dựng bốn ô `<input type="date" value="2026-09-20">` trên Chromium thật (qua Gotenberg, cùng lối
+`0179`), một không khai `lang` và ba khai `vi` · `vi-VN` · `en-GB`:
+
+```
+A khong lang: 09/20/2026
+B lang=vi:    09/20/2026
+C lang=vi-VN: 09/20/2026
+D lang=en-GB: 09/20/2026
+```
+
+**Cả bốn ra MM/DD/YYYY.** Chromium định dạng ô ngày theo **ngôn ngữ giao diện của trình duyệt**,
+không theo tài liệu, không theo thuộc tính. Nên không tồn tại bản sửa kiểu *"thêm một thuộc tính vào
+sáu ô"*, và câu hỏi đặt cho khách hàng là một câu có giá thật: tự vẽ ô thì chắc chắn `dd/mm/yyyy`
+nhưng mất bộ chọn lịch. Chốt: **ô chữ + nút lịch mượn `showPicker()`**.
+
+Nếu không đo mà đoán, cách sửa hấp dẫn nhất là thêm `lang="vi"` — nó *trông* đúng, chạy không lỗi,
+và trên máy người sửa (nếu trình duyệt để tiếng Việt) còn hiện ra đúng `dd/mm/yyyy`.
+
+### Ba chỗ dễ hỏng của ô tự vẽ
+
+**Chèn dấu gạch chỉ khi con trỏ ở CUỐI ô.** Sửa một chữ số ở giữa mà vẫn dựng lại cả chuỗi thì con
+trỏ nhảy về cuối sau mỗi phím — lỗi kinh điển của ô có mặt nạ. Đây cũng là hình dạng an toàn của bài
+học `0087`: ô tiền từng chèn dấu phân nhóm giữa lúc gõ và làm lệch bộ đệm của bộ gõ tiếng Việt. Dấu
+gạch của ngày an toàn hơn vì nó chỉ mọc ở cuối và không bao giờ dịch chỗ — **nhưng chỉ đúng chừng
+nào phép chèn không chạm tới phần nằm trước con trỏ**.
+
+**Ô `type="date"` ẩn KHÔNG được `display: none`.** `showPicker()` đòi phần tử đang được dựng; ẩn hẳn
+thì trình duyệt ném lỗi và cái nút thành nút chết, im lặng. Nó ẩn bằng kích thước 0 và `opacity`.
+
+**Nút lịch VẮNG MẶT khi trình duyệt không có `showPicker`** thay vì bày ra một nút bấm vào không xảy
+ra gì. jsdom không có hàm ấy, nên trạng thái mặc định của bộ kiểm chính là *"trình duyệt cũ"* — ca
+kiểm dựng cả hai nhánh bằng cách gắn rồi gỡ hàm trên `HTMLInputElement.prototype`.
+
+### Lượt rà: bốn đường hiển thị đã đúng, ba chỗ khác thì không
+
+Rà bốn đường khách hàng nêu và **cả bốn đã đúng `dd/mm/yyyy` từ trước**: `ngay()`/`ngayGio()` ở giao
+diện · `dmy()` ở bản mềm · `formatIct()` ở thư · chuông thì không chứa ngày nào trong thân. Kèm một
+chỗ ngoài danh sách: ô ngày của file Excel xuất báo cáo dùng **kiểu ngày thật của Excel**
+(`dd/mm/yyyy`), không phải chuỗi.
+
+> **Vế đáng ghi ở bản mềm**: định dạng đi theo **NGUỒN** chứ không theo mẫu (`dinhDangCua`), nên
+> người soạn mẫu không thể lỡ bỏ sót `date_dmy` cho một ô ngày. Quyết định ấy có từ trước và nó là
+> lý do lượt rà này không tìm thấy gì ở `document`.
+
+Thứ tìm ra là **một lớp lỗi khác hẳn**: ba chỗ dựng một NGÀY TRÊN LỊCH từ `toISOString()`, tức theo
+giờ UTC — ngày mặc định của hộp thoại thêm quy định chiết khấu, chặn trên của bộ lọc Nhật ký, và mốc
+thời gian trong tên tệp bản mềm. **Cả ba sai đúng bảy tiếng mỗi ngày**: từ 00:00 tới 07:00 giờ Việt
+Nam chúng trả về HÔM QUA, và không cái nào làm gì đỏ vì hôm qua cũng là một ngày hợp lệ. Bẫy `0128`,
+lần thứ tư.
+
+**Ranh giới của phép sửa, và nó là nửa quan trọng**: `toISOString()` dùng để gửi một MỐC THỜI GIAN
+lên máy chủ thì ĐÚNG — chuỗi ISO đầy đủ là thứ dây truyền cần, và `ChuongThongBao` với `audit` đang
+dùng nó đúng như thế. Chỉ phép lấy một NGÀY (`.slice(0, 10)`) mới sai. Chốt chặn viết theo đúng ranh
+giới ấy.
+
+**Tên tệp không mang được `/`** — ký tự ngăn thư mục, đúng thứ `chuanHoaMa` của `0198` chặn ở mã hồ
+sơ — nên mốc trong tên tệp bản mềm là `dd-mm-yyyy HHhMM`. Tên tệp Excel **GIỮ `YYYYMMDD`** có chủ ý:
+nó nằm trong thư mục Tải về, chỗ thứ tự tên chính là thứ tự thời gian; lý do ấy đã viết sẵn ở
+`tenTepXuat` và lượt rà này không đụng vào.
+
+### Phá lại — và lượt đầu tiên XANH
+
+| Hoàn tác | Đỏ |
+|---|---|
+| ô chữ trở lại `<input type="date">` | (ca quét mã nguồn + 4 ca DOM) |
+| mốc tên tệp về `toISOString()` | **0 → 2 sau khi siết ca kiểm** |
+| ngày mặc định hộp thoại chiết khấu về UTC | 2 |
+| `ngayISO` của Nhật ký về UTC | 1 |
+
+> **LƯỢT THỨ HAI XANH, VÀ LÝ DO LÀ MỘT CA KIỂM YẾU CỦA CHÍNH TÔI.** Tôi viết ca kiểm cho `dmyHm` —
+> múi giờ, thứ tự, không có dấu `/` — rồi hoàn tác **chỗ gọi** và cả bộ vẫn xanh. Ca ấy hỏi HÀM,
+> không hỏi CHỖ GỌI, mà chỗ gọi mới là thứ người dùng đọc trên thẻ tệp. Ca đi hết đường thì có sẵn
+> từ `0167`, nhưng nó khớp `\(.+\)` — một mẫu xanh với mọi lối viết. Siết nó thành
+> `\(\d{2}-\d{2}-\d{4} \d{2}h\d{2}\)` thì lượt phá lại đỏ.
+>
+> Cùng hình dạng với bài học `0190` (*ba ca gọi thẳng `bodyFor` đều xanh với đúng cái hỏng; ca bắt
+> được là ca đi HẾT ĐƯỜNG*).
+
+**Chốt chặn của lượt rà là một ca QUÉT MÃ NGUỒN, không phải ba bản sửa**: sửa ba chỗ thì hết ba chỗ,
+thứ không có gì canh là chỗ thứ tư. Ca ấy cấm `toISOString().slice(0, 10)` trong toàn bộ `apps/web`,
+`services` và `packages`.
+
+**Vế yếu, nói ra**: bản sửa ở `NhatKy` chỉ có ca quét mã nguồn canh, không có ca dựng DOM — trang ấy
+chưa có tệp kiểm giao diện nào, và lượt này không dựng một tệp mới chỉ cho một thuộc tính `max`.
+
+### Hai bẫy của chính lượt này
+
+**Phép quét mã nguồn phải BỎ CHÚ THÍCH trước.** Bản đầu đỏ ở hai tệp không có ô ngày nào —
+`bat-buoc.ts` và chính `ngay-nhap.ts` — cả hai chỉ NHẮC TÊN `<input type="date">` trong docstring để
+giải thích vì sao nó đã đi. Đây là **mặt trái** của bẫy `0124`: ở đó chú thích làm phép quét nói CÓ
+khi thật ra không, ở đây nó làm phép quét nói KHÔNG ĐƯỢC với một tệp hoàn toàn đúng luật.
+
+**`vitest -t "…"` cắt mất phần dựng dữ liệu của những ca bị bỏ qua.** Chạy `contract.test.ts` với bộ
+lọc cho một ca đỏ ở `0101`; chạy cả tệp thì 105/105 xanh. Một ca đỏ dưới bộ lọc chưa chắc là một ca
+hỏng — cùng họ với bài học *"ca kiểm bất đồng bộ xanh ở lượt đầu chưa nói lên gì"* của `CLAUDE.md`,
+chỉ ngược chiều.
+
+**2368/2368 xanh.**

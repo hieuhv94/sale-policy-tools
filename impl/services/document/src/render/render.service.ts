@@ -25,6 +25,7 @@ import { FilesService } from '../files/files.service.js';
 import { LOAI_HO_SO, TemplatesService } from '../contracts/templates.service.js';
 import { bangSanPhamXml } from '../contracts/bang-san-pham.js';
 import { mergeDocx } from '../contracts/docx.js';
+import { dmyHm } from '../contracts/dinh-dang.js';
 import { tron } from '../contracts/tron.js';
 
 export type Size = 'a4p' | 'a4l';
@@ -243,8 +244,26 @@ export class RenderService {
      * dựng bản mới, và bản cũ ở lại làm vết. Ba tệp cùng tên `CSBH-xxx.pdf` nằm
      * cạnh nhau trong một khối thì không ai biết cái nào mới; mốc thời gian trong
      * chính cái tên trả lời câu ấy ngay trên thẻ tệp.
+     *
+     * ---------------------------------------------------------------------
+     * HAI CHỖ SAI CỦA BẢN CŨ, SỬA Ở `0208`
+     * ---------------------------------------------------------------------
+     *
+     * Bản cũ là `new Date().toISOString().slice(0, 16)`, và nó sai hai lần:
+     *
+     *   1. **GIỜ UTC**, nên thẻ tệp hiện lệch bảy tiếng — bản mềm dựng lúc 9 giờ
+     *      sáng ghi `02h00`. Đúng lớp lỗi `0128` đã đo cho `current_date`.
+     *   2. **`yyyy-mm-dd`**, trong khi mọi chỗ khác của phần mềm đọc `dd/mm/yyyy`.
+     *
+     * Dấu ngăn là `-` chứ KHÔNG phải `/`: chuỗi này đi thẳng vào tên tệp và vào
+     * `Content-Disposition`, mà `/` là ký tự ngăn thư mục — đúng thứ `chuanHoaMa`
+     * của `0198` chặn ở mã hồ sơ, vì cùng một lý do.
+     *
+     * Khác `tenTepXuat` của `reporting`, nơi `YYYYMMDD` được GIỮ có chủ ý: tệp
+     * Excel nằm trong thư mục Tải về, chỗ thứ tự tên CHÍNH LÀ thứ tự thời gian.
+     * Bản mềm thì nằm trong một khối trên màn hình, xếp theo lúc tải lên.
      */
-    const luc = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', 'h');
+    const luc = dmyHm(new Date());
     const file = await this.files.upload(
       {
         ownerKind: 'POLICY',

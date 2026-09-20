@@ -73,6 +73,32 @@ export const dmy = (v: string | null | undefined): string => {
   return `${g('day')}/${g('month')}/${g('year')}`;
 };
 
+/**
+ * MỐC THỜI GIAN cho TÊN TỆP — `dd-mm-yyyy HHhMM`, giờ Việt Nam (`0208`).
+ *
+ * Dấu ngăn ngày là `-` chứ không `/`: chuỗi này đi vào tên tệp và vào
+ * `Content-Disposition`, mà `/` là ký tự ngăn thư mục — cùng lý do `chuanHoaMa`
+ * của `0198` chặn nó ở mã hồ sơ. Ngày vẫn đứng trước tháng, đúng lối đọc của
+ * mọi chỗ khác trong phần mềm.
+ *
+ * Nằm cạnh `dmy` chứ không ở `render.service`: hai hàm trả lời cùng một câu
+ * (*"đọc mốc thời gian này theo lối Việt Nam"*), và tách chúng ra hai tệp là
+ * dựng hai bản sẽ trôi khỏi nhau ở lượt sửa múi giờ kế tiếp.
+ */
+export const dmyHm = (d: Date): string => {
+  const p = new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? '';
+  return `${g('day')}-${g('month')}-${g('year')} ${g('hour')}h${g('minute')}`;
+};
+
 /** Tỷ lệ: đúng HAI chữ số thập phân, khớp từng ký tự con số trên màn hình (CALC-09). */
 export const pct = (v: string | null | undefined): string =>
   v === null || v === undefined ? '—' : `${Number(v).toFixed(2)}%`;

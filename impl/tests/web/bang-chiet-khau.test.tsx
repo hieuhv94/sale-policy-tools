@@ -243,15 +243,17 @@ describe('0028 sửa được ngày hiệu lực', () => {
   it('hộp thoại sửa có ô Hiệu lực từ, đặt sẵn ngày hiện tại của dòng', async () => {
     await moSua();
     const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
-    expect(o.type).toBe('date');
-    expect(o.value).toBe('2026-01-01');
+    // `0208` — ô CHỮ `dd/mm/yyyy`, không phải ô ngày của trình duyệt. Giá trị
+    // vào ra vẫn là chuỗi ISO; thứ đổi là lối viết trên màn hình.
+    expect(o.type).toBe('text');
+    expect(o.value).toBe('01/01/2026');
   });
 
   it('gửi lên CẢ ngưỡng lẫn ngày, không chỉ ngưỡng', async () => {
     const nguoi = await moSua();
     const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
     await nguoi.clear(o);
-    await nguoi.type(o, '2027-06-01');
+    await nguoi.type(o, '01062027');
     await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => {
@@ -272,5 +274,33 @@ describe('0028 sửa được ngày hiệu lực', () => {
     await waitFor(() =>
       expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true),
     );
+  });
+});
+
+/**
+ * `0208` — NGÀY MẶC ĐỊNH của hộp thoại *Thêm quy định* theo giờ VIỆT NAM.
+ *
+ * Bản cũ lấy `new Date().toISOString().slice(0, 10)`, tức ngày theo giờ UTC —
+ * nên **từ 00:00 tới 07:00 giờ Việt Nam nó điền sẵn NGÀY HÔM QUA**, và không có
+ * gì đỏ vì hôm qua cũng là một ngày hợp lệ.
+ */
+describe('`0208` ngày mặc định khi thêm quy định', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('điền HÔM NAY theo giờ Việt Nam, kể cả lúc UTC còn là hôm qua', async () => {
+    /*
+     * 18:00 UTC ngày 19/09 = 01:00 sáng ngày 20/09 giờ Việt Nam. Đây đúng là
+     * khung giờ hai lịch lệch nhau, và là khung giờ duy nhất phân biệt được bản
+     * đúng với bản cũ — mọi mốc khác cho cùng một kết quả ở cả hai bản.
+     */
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-09-19T18:00:00.000Z'));
+
+    const nguoi = userEvent.setup();
+    await bay();
+    await nguoi.click(screen.getByRole('button', { name: 'Thêm quy định' }));
+
+    const o = (await waitFor(() => screen.getByLabelText(/Hiệu lực từ/))) as HTMLInputElement;
+    expect(o.value).toBe('20/09/2026');
   });
 });

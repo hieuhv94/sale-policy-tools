@@ -2464,8 +2464,16 @@ describe('`0167` bản mềm ĐÃ LƯU là một tệp của hồ sơ', () => {
     // mềm (hồ sơ bị yêu cầu in lại thì họ dựng bản mới), và ba tệp cùng tên nằm
     // cạnh nhau thì không ai biết cái nào mới.
     const ma = (await pget(`/policies/${d.id}`, 'sa01')).body.code as string;
+    /*
+     * `0208` — MỐC THỜI GIAN ghim theo hình dạng, không để `.+`.
+     *
+     * Bản trước của ca này khớp `\\(.+\\)`, nên nó xanh với mọi lối viết: lượt
+     * phá lại hoàn tác `dmyHm` về `toISOString()` (giờ UTC, `yyyy-mm-dd`) vẫn đi
+     * qua. Ca kiểm của riêng `dmyHm` cũng không bắt được — nó hỏi HÀM, không hỏi
+     * CHỖ GỌI, và chỗ gọi mới là thứ người dùng đọc trên thẻ tệp.
+     */
     expect(r.tep!.fileName, 'tên tệp phải bắt đầu bằng chính mã hồ sơ').toMatch(
-      new RegExp(`^${ma} \\(.+\\)\\.pdf$`),
+      new RegExp(`^${ma} \\(\\d{2}-\\d{2}-\\d{4} \\d{2}h\\d{2}\\)\\.pdf$`),
     );
     // Và KHÔNG lặp tiền tố: `code` vốn đã là `CSBH-…`, ghép thêm một lần nữa cho
     // ra `CSBH-CSBH-2026-000020` — đo được trên chồng demo ở `0168`.

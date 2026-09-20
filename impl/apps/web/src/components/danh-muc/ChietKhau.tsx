@@ -17,7 +17,7 @@
  */
 import { useState } from 'react';
 import { dang, va, xoa } from '../../lib/api.js';
-import { ngay } from '../../lib/format.js';
+import { homNayVN, ngay } from '../../lib/format.js';
 import {
   LOAI_KHACH_HANG,
   doiSoThapPhan,
@@ -33,6 +33,7 @@ import {
   DangTai,
   HopThoai,
   HopThoaiXacNhan,
+  ONhapNgay,
   ONhapPhanTram,
   Trong,
   Truong,
@@ -309,9 +310,12 @@ function HopThoaiSuaQuyDinh({
 }) {
   const { bao } = useBaoLoi();
   const [nguong, datNguong] = useState(phanTramTuNguong(q.thresholdRate2));
-  // `<input type="date">` chỉ nhận `yyyy-mm-dd`. Máy chủ trả về `date` của
-  // Postgres, mà `pg` dựng nó thành chuỗi ISO có cả phần giờ — cắt lấy mười ký
-  // tự đầu, nếu không ô ngày mở ra RỖNG và người dùng tưởng dữ liệu hỏng.
+  // Ô ngày chỉ nhận `yyyy-mm-dd`. Máy chủ trả về `date` của Postgres, mà `pg`
+  // dựng nó thành chuỗi ISO có cả phần giờ — cắt lấy mười ký tự đầu, nếu không
+  // ô ngày mở ra RỖNG và người dùng tưởng dữ liệu hỏng.
+  //
+  // `0208` — `ngayTuIso` cũng cắt được phần giờ, nhưng lượt cắt ở đây vẫn cần:
+  // `tuNgay` là thứ gửi lên máy chủ, không chỉ là thứ bày ra màn hình.
   const [tuNgay, datTuNgay] = useState(String(q.effectiveFrom).slice(0, 10));
   const [dangGui, datDangGui] = useState(false);
 
@@ -356,13 +360,7 @@ function HopThoaiSuaQuyDinh({
 
         <Truong id="ck-sua-tu" nhan="Hiệu lực từ" bắtBuộc>
           {(p) => (
-            <input
-              {...p}
-              className="o-nhap"
-              type="date"
-              value={tuNgay}
-              onChange={(e) => datTuNgay(e.target.value)}
-            />
+            <ONhapNgay {...p} giaTri={tuNgay} doi={datTuNgay} />
           )}
         </Truong>
         <p className="ghi-chu">
@@ -398,7 +396,15 @@ function HopThoaiTaoQuyDinh({
   const [ma, datMa] = useState('');
   const [maNhom, datMaNhom] = useState('');
   const [loaiKhach, datLoaiKhach] = useState('');
-  const [tuNgay, datTuNgay] = useState(() => new Date().toISOString().slice(0, 10));
+  /*
+   * `homNayVN()` chứ KHÔNG `new Date().toISOString().slice(0, 10)` (`0208`).
+   *
+   * Bản cũ lấy ngày theo giờ UTC, nên **từ 00:00 tới 07:00 giờ Việt Nam nó điền
+   * sẵn NGÀY HÔM QUA** — và không có gì đỏ, vì ngày hôm qua cũng là một ngày
+   * hợp lệ. Đúng lớp lỗi `0128` đã đo: `current_date` của Postgres theo giờ Việt
+   * Nam, `toISOString()` theo UTC, hai bên lệch nhau đúng khung giờ ấy.
+   */
+  const [tuNgay, datTuNgay] = useState(() => homNayVN());
   const [nguong, datNguong] = useState('');
   const [dangGui, datDangGui] = useState(false);
 
@@ -498,7 +504,7 @@ function HopThoaiTaoQuyDinh({
 
         <Truong id="ck-tu" nhan="Hiệu lực từ" bắtBuộc>
           {(p) => (
-            <input {...p} className="o-nhap" type="date" value={tuNgay} onChange={(e) => datTuNgay(e.target.value)} />
+            <ONhapNgay {...p} giaTri={tuNgay} doi={datTuNgay} />
           )}
         </Truong>
         <p className="ghi-chu">

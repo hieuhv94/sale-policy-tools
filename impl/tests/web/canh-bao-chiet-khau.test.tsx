@@ -233,7 +233,9 @@ describe('`0124` giá bán Công ty trong hộp thoại thêm dòng', () => {
     const nguoi = userEvent.setup();
     const oNgay = screen.getByLabelText(/Ngày áp dụng/) as HTMLInputElement;
     await nguoi.clear(oNgay);
-    await nguoi.type(oNgay, '2030-01-01');
+    // `0208` — ô ngày là ô CHỮ `dd/mm/yyyy`; gõ tám chữ số, phần mềm tự chèn
+    // dấu gạch. Trước đó ca này gõ `2030-01-01`, lối viết của `<input type=date>`.
+    await nguoi.type(oNgay, '01012030');
 
     await waitFor(() => expect(screen.getByText(/200[.,]000/)).toBeDefined());
     expect(screen.queryByText(/125[.,]000/)).toBeNull();
@@ -476,5 +478,91 @@ describe('`0193` khối xem trước trong hộp thoại thêm dòng', () => {
     const oGhiChu = screen.getByLabelText(/Ghi chú/);
     expect(oCpbh.compareDocumentPosition(khoi) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(khoi.compareDocumentPosition(oGhiChu) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+/**
+ * `0208` — Ô NHẬP NGÀY dạng `dd/mm/yyyy` (khách hàng chốt 20/09).
+ *
+ * Hộp thoại thêm dòng mang ô *Ngày áp dụng*, nên nó là chỗ dựng DOM thật rẻ
+ * nhất để hỏi ba chuyện: ô là gì, gõ vào ra sao, và cái nút lịch.
+ *
+ * Ba hàm dịch lối viết có ca kiểm riêng ở `tests/http/ngay-nhap.test.ts`, kèm
+ * phép đối chiếu với bộ kiểm của máy chủ.
+ */
+describe('`0208` ô nhập ngày trong hộp thoại thêm dòng', () => {
+  const oNgay = () => screen.getByLabelText(/Ngày áp dụng/) as HTMLInputElement;
+
+  it('là ô CHỮ, không phải ô ngày của trình duyệt, và mở ra đã đúng lối viết', async () => {
+    /*
+     * Đo trên Chromium thật: `<input type="date">` in ra `09/20/2026` kể cả khi
+     * khai `lang="vi"`, vì nó đọc ngôn ngữ GIAO DIỆN của trình duyệt. Nên vế
+     * `type` không phải chuyện phong cách — nó là cả bản sửa.
+     */
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    expect(oNgay().type).toBe('text');
+    expect(oNgay().placeholder).toBe('dd/mm/yyyy');
+    // Mặc định là HÔM NAY (`0180`), và nó phải hiện ra đã ở lối viết Việt Nam.
+    expect(oNgay().value).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+  });
+
+  it('gõ tám chữ số thì dấu gạch tự mọc ra', async () => {
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    const nguoi = userEvent.setup();
+    await nguoi.clear(oNgay());
+    await nguoi.type(oNgay(), '20092026');
+    expect(oNgay().value).toBe('20/09/2026');
+  });
+
+  it('ngày KHÔNG CÓ THẬT thì chữ ở lại trong ô, nhưng nút Thêm dòng xám', async () => {
+    /*
+     * Hai vế, và vế đầu là vế dễ làm sai: xoá chữ người dùng vừa gõ là họ không
+     * biết mình gõ sai ở đâu. Chữ ở lại, còn giá trị gửi đi thì rỗng — nên phép
+     * kiểm *bắt buộc* sẵn có (`thieuTruong`) làm nút xám mà không cần một câu
+     * báo lỗi mới.
+     *
+     * `31/02` chứ không `99/99`: `new Date('2026-02-31')` KHÔNG ném lỗi, nó trôi
+     * sang 03/03 (bẫy `0136`), nên đây là ngày mà một phép kiểm hời hợt nhận.
+     */
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    const nguoi = userEvent.setup();
+    await nguoi.clear(oNgay());
+    await nguoi.type(oNgay(), '31022026');
+    expect(oNgay().value).toBe('31/02/2026');
+    expect((screen.getByRole('button', { name: /Thêm dòng/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it('nút lịch mở bộ chọn của trình duyệt — và VẮNG MẶT khi trình duyệt không có', async () => {
+    /*
+     * `showPicker` là thứ jsdom không có, nên trạng thái mặc định của bộ kiểm
+     * chính là *"trình duyệt cũ"*: không có nút. Bày ra một cái nút bấm vào
+     * không xảy ra gì thì tệ hơn hẳn là không có nút.
+     */
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    expect(screen.queryByRole('button', { name: /Chọn ngày trên lịch/ })).toBeNull();
+    cleanup();
+
+    const mo = vi.fn();
+    (HTMLInputElement.prototype as unknown as { showPicker: () => void }).showPicker = mo;
+    try {
+      chanFetch(() => phanHoi(200, XEM_TRUOC));
+      moHopThoai();
+      await chonSanPham();
+      const nut = screen.getByRole('button', { name: /Chọn ngày trên lịch/ });
+      await userEvent.setup().click(nut);
+      expect(mo).toHaveBeenCalled();
+    } finally {
+      delete (HTMLInputElement.prototype as unknown as { showPicker?: () => void }).showPicker;
+    }
   });
 });

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { docLoi } from '../lib/loi.js';
 import { nhanTrangThai, nhomTrangThai, tien } from '../lib/format.js';
+import { isoTuNgay, matNaNgay, ngayTuIso } from '../lib/ngay-nhap.js';
 import {
   MAU_TRANG_THAI_SAN_PHAM,
   NHAN_TRANG_THAI_SAN_PHAM,
@@ -366,6 +367,134 @@ export function ONhapTien({
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * Ô NHẬP NGÀY — luôn `dd/mm/yyyy`, trên mọi máy (`0208`, khách hàng chốt 20/09).
+ *
+ * Thay cho `<input type="date">`. Đo trên Chromium thật: ô sẵn có của trình
+ * duyệt in ra `09/20/2026` **kể cả khi khai `lang="vi"`**, vì nó đọc ngôn ngữ
+ * GIAO DIỆN của trình duyệt chứ không đọc tài liệu. Lý lẽ đầy đủ ở `ngay-nhap.ts`.
+ *
+ * ---------------------------------------------------------------------------
+ * VÀO RA VẪN LÀ CHUỖI ISO
+ * ---------------------------------------------------------------------------
+ *
+ * `giaTri` và `doi()` nói `yyyy-mm-dd`, đúng như ô cũ. Sáu chỗ dùng không đổi
+ * một dòng state nào, và máy chủ cũng vậy — thứ đổi chỉ là hình dạng trên màn
+ * hình. Gõ dở hoặc gõ một ngày không có thật (31/02) thì `doi('')`: *"chưa gõ"*
+ * và *"gõ sai"* cùng nghĩa **chưa có ngày nào để gửi đi**, và mọi phép kiểm bắt
+ * buộc sẵn có đọc đúng chuỗi rỗng ấy.
+ *
+ * ---------------------------------------------------------------------------
+ * HAI CHỖ DỄ HỎNG, VÀ CÁCH ĐÓNG
+ * ---------------------------------------------------------------------------
+ *
+ * **Chèn dấu gạch chỉ khi con trỏ ở CUỐI ô.** Sửa một chữ số ở giữa mà vẫn dựng
+ * lại cả chuỗi thì con trỏ nhảy về cuối sau mỗi phím — lỗi kinh điển của ô có
+ * mặt nạ. Ở giữa thì để nguyên chữ người dùng gõ, rời ô mới nắn lại. Đây cũng
+ * là hình dạng an toàn của bài học `0087` (ô tiền thôi chèn dấu giữa lúc gõ).
+ *
+ * **Ô `type="date"` ẩn KHÔNG được `display: none`.** `showPicker()` đòi phần tử
+ * đang được dựng; ẩn hẳn thì trình duyệt ném lỗi và cái nút thành nút chết. Nó
+ * ẩn bằng kích thước và `opacity` (`.o-ngay-lich`), đứng ngoài luồng `Tab`.
+ *
+ * Nút lịch chỉ hiện khi trình duyệt CÓ `showPicker` (Safari 16+, Firefox 101+).
+ * Thiếu thì không bày ra một cái nút bấm vào không xảy ra gì — ô chữ vẫn gõ
+ * được, và đó là đường chính chứ không phải đường lùi.
+ */
+export function ONhapNgay({
+  id,
+  giaTri,
+  doi,
+  min,
+  max,
+  ...rest
+}: {
+  id: string;
+  /** `yyyy-mm-dd`, hoặc rỗng. */
+  giaTri: string;
+  doi: (iso: string) => void;
+  min?: string | undefined;
+  max?: string | undefined;
+} & Record<string, unknown>) {
+  const [chu, datChu] = useState(() => ngayTuIso(giaTri));
+  /** Chuỗi ISO mà chính ô này vừa báo ra — để không tự nắn lại chữ đang gõ. */
+  const vuaPhat = useRef(giaTri);
+  const oLich = useRef<HTMLInputElement>(null);
+  const [coLich] = useState(
+    () => typeof HTMLInputElement !== 'undefined' && 'showPicker' in HTMLInputElement.prototype,
+  );
+
+  /*
+   * Đồng bộ TỪ NGOÀI VÀO, và chỉ khi giá trị ấy không phải thứ mình vừa báo ra.
+   * Thiếu vế sau thì mỗi phím gõ dở (`20/0` → `doi('')`) làm nơi dùng đặt lại
+   * `''`, và ô tự xoá sạch chữ ngay giữa lúc người ta đang gõ.
+   */
+  useEffect(() => {
+    if (giaTri === vuaPhat.current) return;
+    vuaPhat.current = giaTri;
+    datChu(ngayTuIso(giaTri));
+  }, [giaTri]);
+
+  const bao = (s: string) => {
+    datChu(s);
+    const iso = isoTuNgay(s);
+    vuaPhat.current = iso;
+    doi(iso);
+  };
+
+  return (
+    <span className="hang-o-ngay">
+      <input
+        {...rest}
+        id={id}
+        className="o-nhap"
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="dd/mm/yyyy"
+        maxLength={10}
+        value={chu}
+        onChange={(e) => {
+          const o = e.target;
+          const cuoi = o.selectionStart === o.value.length;
+          bao(cuoi ? matNaNgay(o.value) : o.value);
+        }}
+        onBlur={() => bao(matNaNgay(chu))}
+      />
+      {/*
+        Ô ẩn CHỈ để mượn bộ chọn lịch của trình duyệt. Nó không nhận `Tab` và
+        không có nhãn: người dùng bàn phím đã có ô chữ ngay bên cạnh, còn trình
+        đọc màn hình gặp hai ô cho một trường thì đọc thành hai trường.
+      */}
+      <input
+        ref={oLich}
+        className="o-ngay-lich"
+        type="date"
+        tabIndex={-1}
+        aria-hidden="true"
+        value={giaTri}
+        {...(min !== undefined ? { min } : {})}
+        {...(max !== undefined ? { max } : {})}
+        onChange={(e) => {
+          vuaPhat.current = e.target.value;
+          datChu(ngayTuIso(e.target.value));
+          doi(e.target.value);
+        }}
+      />
+      {coLich && (
+        <button
+          type="button"
+          className="nut-bieu-tuong nut-lich"
+          onClick={() => oLich.current?.showPicker?.()}
+        >
+          <span aria-hidden="true">🗓</span>
+          <span className="chi-doc-man-hinh">Chọn ngày trên lịch</span>
+        </button>
+      )}
+    </span>
   );
 }
 

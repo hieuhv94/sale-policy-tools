@@ -2704,6 +2704,29 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**Ô NHẬP NGÀY VÀ MỌI CHỖ HIỂN THỊ NGÀY ĐỀU `DD/MM/YYYY`** `sửa 20/09` — *"các ô nhập ngày tháng năm
+sửa lại về định dạng DD/MM/YYYY"*, rồi *"rà soát lại để đảm bảo mọi hiển thị ngày tháng năm ở nội
+dung của tất cả các trang, bản mềm, mail, thông báo đều là DD/MM/YYYY"*.
+
+> **Ô NGÀY SẴN CÓ CỦA TRÌNH DUYỆT KHÔNG ÉP ĐƯỢC LỐI VIẾT — đo chứ không suy.** Dựng bốn ô trên
+> Chromium thật, một không khai `lang` và ba khai `vi` · `vi-VN` · `en-GB`: **cả bốn ra
+> `09/20/2026`**. Trình duyệt đọc ngôn ngữ GIAO DIỆN của chính nó, không đọc tài liệu. Nên sáu ô
+> ngày của phần mềm thôi dùng ô sẵn có; phần mềm tự vẽ ô chữ, và mượn lại bộ chọn lịch bằng một nút
+> bên cạnh.
+>
+> **Cái giá đã nêu và khách hàng nhận**: nút lịch vắng mặt trên trình duyệt quá cũ (Safari dưới 16,
+> Firefox dưới 101) — ô gõ vẫn dùng bình thường.
+>
+> **Lượt rà soát kèm theo**: bốn đường hiển thị — mọi trang, bản mềm, thư điện tử, chuông thông báo
+> — đã đúng `dd/mm/yyyy` từ trước. Thứ tìm ra là **ba chỗ dựng "hôm nay" theo giờ UTC**: ngày mặc
+> định của hộp thoại thêm quy định chiết khấu, chặn trên của bộ lọc Nhật ký, và mốc thời gian trong
+> tên tệp bản mềm. Cả ba sai đúng bảy tiếng mỗi ngày — từ 00:00 tới 07:00 giờ Việt Nam chúng trả về
+> HÔM QUA — và không cái nào làm gì đỏ, vì hôm qua cũng là một ngày hợp lệ.
+>
+> **Tên tệp là ngoại lệ có lý do**: nó không mang được dấu `/` (ký tự ngăn thư mục), nên mốc trong
+> tên tệp bản mềm là `dd-mm-yyyy HHhMM`. Tên tệp Excel xuất báo cáo GIỮ `YYYYMMDD`, cũng có lý do:
+> nó nằm trong thư mục Tải về, chỗ thứ tự tên chính là thứ tự thời gian.
+
 **BỐN CON SỐ CỦA HỘP THOẠI THÊM DÒNG TRÊN MỘT HÀNG** `sửa 20/09` — *"trong hộp thoại thêm sản phẩm,
 thông tin về CPBH, Giá thu về, tỷ lệ CK, QĐCK để chung một dòng, tự chỉnh bố cục, khoảng cách, độ
 rộng cột cho cân đối"*.

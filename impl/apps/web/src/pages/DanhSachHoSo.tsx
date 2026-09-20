@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { dang, dat, layJson } from '../lib/api.js';
 import { ngay, nhanTrangThai } from '../lib/format.js';
 import { Lien, useDuong } from '../lib/router.js';
-import { BaoLoi, DangTai, Nhan, OTimKiem, Trong } from '../components/Chung.js';
+import { BaoLoi, DangTai, Nhan, ONhapNgay, OTimKiem, Trong } from '../components/Chung.js';
 import { ChonNhieu, type NguonChon, type TuyChon } from '../components/ChonNhieu.js';
 import { NutXuatExcel } from '../components/NutXuatExcel.js';
 import { PhanTrang } from '../components/PhanTrang.js';
@@ -497,12 +497,10 @@ export function DanhSachHoSo() {
                   <div className="truong" key={t.khoa}>
                     <label htmlFor={`loc-${t.khoa}`}>{t.nhan}</label>
                     {t.kieu === 'date' ? (
-                      <input
+                      <ONhapNgay
                         id={`loc-${t.khoa}`}
-                        className="o-nhap"
-                        type="date"
-                        value={boLoc[t.khoa] ?? ''}
-                        onChange={(e) => datMot(t.khoa, e.target.value)}
+                        giaTri={boLoc[t.khoa] ?? ''}
+                        doi={(v) => datMot(t.khoa, v)}
                       />
                     ) : (
                       <select
