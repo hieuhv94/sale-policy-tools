@@ -277,33 +277,43 @@ export function XemTep({
           đường thoát cho người vừa lăn chuột quá tay.
         */
         <div className="thanh-phong">
-          <button
-            type="button"
-            className="nut nut-nhe nut-phong"
-            aria-label="Thu nhỏ"
-            disabled={phong <= 1}
-            onClick={() => dungPhong(phong / 1.25)}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className="nut nut-nhe"
-            aria-label="Về cỡ vừa khung"
-            disabled={phong === 1}
-            onClick={() => dungPhong(1)}
-          >
-            {Math.round(phong * 100)}%
-          </button>
-          <button
-            type="button"
-            className="nut nut-nhe nut-phong"
-            aria-label="Phóng to"
-            disabled={phong >= 6}
-            onClick={() => dungPhong(phong * 1.25)}
-          >
-            +
-          </button>
+          {/*
+            CHỈ CÒN CÂU HƯỚNG DẪN (`0211`, khách hàng chốt 20/09) — *"phần xem
+            ảnh chỉ cần câu hướng dẫn, không cần hai nút +/- bên cạnh"*.
+
+            `0172` dựng ba cái nút cạnh câu ấy, và ở cỡ vừa khung thì HAI trong
+            ba đang xám: *Thu nhỏ* khoá ở 100%, và con số phần trăm cũng khoá vì
+            nó đã ở đúng chỗ nó đưa về. Tức trạng thái thường gặp nhất của hộp
+            bày ra ba nút mà chỉ một bấm được — đúng thứ khách hàng đọc thành
+            *"không cần"*.
+
+            LỐI VÀO KHÔNG MẤT: lăn chuột vẫn phóng to, và câu hướng dẫn ngay đây
+            nói ra điều đó. Hai cái nút là một đường THỨ HAI tới cùng một việc,
+            không phải đường duy nhất.
+          */}
+          {phong > 1 && (
+            /*
+              ĐƯỜNG THOÁT thì GIỮ, và chỉ hiện khi có gì để thoát.
+
+              `0172` gọi nó đúng tên: *"đường thoát cho người vừa lăn chuột quá
+              tay"*. Ở cỡ vừa khung nó không có việc gì, nên ẩn đi là hàng này
+              còn đúng một câu chữ — thứ khách hàng yêu cầu. Vừa phóng lên là nó
+              xuất hiện, ở đúng chỗ mắt vừa rời khỏi.
+
+              Câu chữ nói CẢ HAI: mức đang phóng, và việc bấm vào sẽ làm. Đứng
+              một mình thì một con số trần đọc ra là một ô hiển thị, không phải
+              một cái nút — hồi `0172` nó nằm giữa hai dấu cộng trừ nên không ai
+              đọc nhầm.
+            */
+            <button
+              type="button"
+              className="nut nut-nhe"
+              aria-label="Về cỡ vừa khung"
+              onClick={() => dungPhong(1)}
+            >
+              {Math.round(phong * 100)}% · Về cỡ vừa khung
+            </button>
+          )}
           <span className="ghi-chu">Lăn chuột để phóng to, kéo để di chuyển ảnh.</span>
         </div>
       )}

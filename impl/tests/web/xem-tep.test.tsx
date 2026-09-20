@@ -177,42 +177,74 @@ describe('`0172` phóng to ảnh', () => {
     return await waitFor(() => screen.getByAltText('Bản scan hợp đồng'));
   };
 
-  it('mở ra ở cỡ VỪA KHUNG — 100%, không phóng sẵn', async () => {
+  /**
+   * Phóng to bằng LĂN CHUỘT — `0211` gỡ hai cái nút dấu cộng trừ.
+   *
+   * Các ca dưới đây trước kia bấm nút *Phóng to* để dựng trạng thái *đã phóng*;
+   * nút ấy không còn, và đường duy nhất người dùng có giờ cũng là đường duy nhất
+   * bộ kiểm có. Một mức 1.15 thay cho 1.25 — con số khác, cùng trạng thái.
+   */
+  const lanChuot = async (anh: HTMLElement, lan = 1) => {
+    for (let i = 0; i < lan; i += 1) {
+      anh.parentElement!.dispatchEvent(
+        new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true }),
+      );
+    }
+    await waitFor(() => expect(anh.getAttribute('style')).not.toContain('scale(1)'));
+  };
+
+  it('mở ra ở cỡ VỪA KHUNG, và hàng trên khung CHỈ CÓ câu hướng dẫn (`0211`)', async () => {
     const anh = await moAnh();
-    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toBe('100%');
+    /*
+     * `0211` — *"chỉ cần câu hướng dẫn, không cần hai nút +/- bên cạnh"*.
+     *
+     * Đọc CẢ HÀNG chứ không hỏi từng cái nút: `queryByRole(...)` trả `null` cho
+     * một nút đã gỡ, nhưng nó cũng trả `null` khi cả hàng biến mất — và một ca
+     * hỏi ba lần "nút này không còn chứ" sẽ xanh với cả trạng thái ấy.
+     */
+    const hang = document.querySelector('.thanh-phong');
+    expect(hang, 'mất luôn hàng hướng dẫn').not.toBeNull();
+    expect(hang!.textContent).toContain('Lăn chuột để phóng to');
+    expect(hang!.querySelectorAll('button')).toHaveLength(0);
     // `scale(1)` chứ không phải "không có transform": một mức phóng khai tường
     // minh là thứ giữ cho lượt kéo và lượt phóng dùng chung một công thức.
     expect(anh.getAttribute('style')).toContain('scale(1)');
   });
 
-  it('bấm + thì ảnh to ra thật, và con số nói đúng mức đang phóng', async () => {
-    const nguoi = userEvent.setup();
+  it('phóng lên thì ảnh to ra thật, và con số nói đúng mức đang phóng', async () => {
     const anh = await moAnh();
-    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    await lanChuot(anh);
     /*
      * Đo trên `transform` của chính thẻ ảnh, không đo state.
      *
      * Một ca chỉ đọc con số phần trăm sẽ XANH ngay cả khi quên nối mức phóng vào
      * `style` — tức là xanh với một cái nút không làm gì cả.
      */
-    expect(anh.getAttribute('style')).toContain('scale(1.25)');
-    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toBe('125%');
+    expect(anh.getAttribute('style')).toContain('scale(1.15)');
+    // Nút đường thoát MỌC RA khi có gì để thoát, và nó nói cả mức đang phóng.
+    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toContain('115%');
   });
 
   it('không thu nhỏ được xuống dưới cỡ vừa khung', async () => {
-    // Dưới 100% thì ảnh nhỏ hơn khung và chỉ còn viền trống — không ai cần, và
-    // nó dựng ra một trạng thái mà nút *Về cỡ vừa khung* phải chữa.
-    await moAnh();
-    expect(
-      screen.getByRole('button', { name: 'Thu nhỏ' }).hasAttribute('disabled'),
-      'ở 100% mà vẫn bấm thu nhỏ được',
-    ).toBe(true);
+    /*
+     * Dưới 100% thì ảnh nhỏ hơn khung và chỉ còn viền trống — không ai cần.
+     *
+     * `0211` gỡ nút *Thu nhỏ*, nên luật này thôi đo được bằng một thuộc tính
+     * `disabled`; nó chuyển xuống chính cái chặn trong `dungPhong`. Lăn chuột
+     * xuống ở cỡ vừa khung là đường DUY NHẤT còn lại để chạm tới nó.
+     */
+    const anh = await moAnh();
+    anh.parentElement!.dispatchEvent(
+      new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(anh.getAttribute('style'), 'lăn xuống mà tụt dưới cỡ vừa khung').toContain('scale(1)');
   });
 
   it('nút phần trăm đưa ảnh VỀ cỡ vừa khung, và về giữa', async () => {
     const nguoi = userEvent.setup();
     const anh = await moAnh();
-    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    await lanChuot(anh);
     await nguoi.click(screen.getByRole('button', { name: 'Về cỡ vừa khung' }));
     expect(anh.getAttribute('style')).toContain('scale(1)');
     // Về cỡ cũ mà giữ độ lệch là để lại một ảnh vừa khung nằm lệch hẳn sang một
@@ -256,9 +288,27 @@ describe('`0172` phóng to ảnh', () => {
       'translate(0px, 0px)',
     );
 
-    await nguoi.click(screen.getByRole('button', { name: 'Phóng to' }));
+    await lanChuot(anh);
     keo();
     await waitFor(() => expect(anh.getAttribute('style')).toContain('translate(30px, 20px)'));
+  });
+
+  it('`0211` KHÔNG còn nút phóng to / thu nhỏ ở BẤT KỲ mức phóng nào', async () => {
+    /*
+     * Hai vế, và vế thứ hai là vế dễ sót: gỡ hai cái nút ở trạng thái mở ra thì
+     * dễ, nhưng chúng cũng không được mọc lại sau khi người dùng đã phóng — chỗ
+     * ấy là một nhánh JSX khác, và nó chỉ dựng ra khi có người lăn chuột.
+     */
+    const anh = await moAnh();
+    for (const ten of ['Phóng to', 'Thu nhỏ']) {
+      expect(screen.queryByRole('button', { name: ten }), `${ten} ở cỡ vừa khung`).toBeNull();
+    }
+    await lanChuot(anh, 2);
+    for (const ten of ['Phóng to', 'Thu nhỏ']) {
+      expect(screen.queryByRole('button', { name: ten }), `${ten} sau khi phóng`).toBeNull();
+    }
+    // Và hàng ấy đúng MỘT nút: đường thoát, không hơn.
+    expect(document.querySelector('.thanh-phong')!.querySelectorAll('button')).toHaveLength(1);
   });
 
   it('hộp PDF KHÔNG có thanh phóng — trình xem của trình duyệt đã có sẵn', async () => {
@@ -271,6 +321,19 @@ describe('`0172` phóng to ảnh', () => {
     chanFetch(() => tep('application/pdf'));
     bay();
     await waitFor(() => screen.getByTitle('Bản scan hợp đồng'));
-    expect(screen.queryByRole('button', { name: 'Phóng to' })).toBeNull();
+    /*
+     * HỎI CẢ HÀNG, không hỏi một cái nút (`0211`).
+     *
+     * Bản trước hỏi `queryByRole('button', { name: 'Phóng to' })` — và `0211`
+     * gỡ chính cái nút ấy khỏi CẢ phần mềm, nên câu hỏi kia từ nay đúng ở mọi
+     * hộp, kể cả hộp ảnh. Một ca kiểm thành câu lệnh rỗng mà vẫn xanh là đúng
+     * lớp bẫy `0186` đã ghi cho `NOT EXISTS`.
+     *
+     * Thứ phải vắng mặt ở hộp PDF là CẢ hàng phóng to, gồm cả câu hướng dẫn:
+     * *"lăn chuột để phóng to"* nói sai với một khung mà lăn chuột chỉ cuộn tài
+     * liệu bên trong trình xem PDF.
+     */
+    expect(document.querySelector('.thanh-phong')).toBeNull();
+    expect(document.body.textContent).not.toContain('Lăn chuột để phóng to');
   });
 });

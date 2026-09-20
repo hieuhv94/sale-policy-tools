@@ -2601,7 +2601,13 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   cursor: grabbing;
 }
 
-/* `0172` — thanh phóng to của hộp xem ảnh, ngay trên khung. */
+/* `0172` — hàng ngay trên khung xem ảnh. `0211` rút nó về một câu hướng dẫn,
+   cộng một nút *về cỡ vừa khung* chỉ hiện khi ảnh đang phóng.
+
+   `.nut-phong` ĐÃ GỠ cùng lượt ấy: nó đặt bề rộng tối thiểu và cỡ chữ cho hai
+   cái nút dấu cộng trừ, mà hai nút ấy không còn. Một lớp CSS không ai đọc thì
+   không gì đỏ, và người sau mở tệp này sẽ đọc ra rằng hàng này vốn có hai nút
+   vuông rồi tô lại cho giống — nên gỡ, chứ không để lại. */
 .thanh-phong {
   display: flex;
   align-items: center;
@@ -2609,14 +2615,6 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   gap: var(--k2);
   flex-wrap: wrap;
   margin-bottom: var(--k3);
-}
-
-/* Hai nút dấu — và + là hình VUÔNG: chúng đứng cạnh một nút chữ (`120%`), và
-   một dấu cộng trong một nút rộng bằng nút chữ trông như nút hỏng. */
-.nut-phong {
-  min-width: 2.5rem;
-  font-size: 1.1rem;
-  line-height: 1;
 }
 
 /* Ghi chú cảnh báo dưới một ô chọn rỗng — vàng, KÈM chữ (FE-28). */

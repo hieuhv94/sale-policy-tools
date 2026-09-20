@@ -2704,6 +2704,20 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — *"phần xem ảnh chỉ cần câu hướng dẫn, không cần
+hai nút +/- bên cạnh"*.
+
+> `01/09` dựng ba nút cạnh câu hướng dẫn. Ở cỡ vừa khung — trạng thái mọi tấm ảnh mở ra — **hai trong
+> ba đang xám**: nút *thu nhỏ* khoá vì không xuống dưới cỡ vừa khung được, và nút phần trăm cũng khoá
+> vì ảnh đã ở đúng chỗ nó đưa về. Tức trạng thái thường gặp nhất bày ra ba nút mà chỉ một bấm được.
+>
+> **Lối vào không mất**: lăn chuột vẫn phóng to, kéo vẫn di chuyển, và câu hướng dẫn nói ra cả hai.
+> Hai cái nút là một đường THỨ HAI tới cùng một việc.
+>
+> **ĐƯỜNG THOÁT GIỮ LẠI, và chỉ hiện khi có gì để thoát**: phóng lên rồi thì cạnh câu hướng dẫn mọc
+> ra một nút `150% · Về cỡ vừa khung`. Bỏ nốt nó thì người lăn quá tay không có đường về — đúng lý do
+> `01/09` đã dựng nó.
+
 **BẢN XEM PDF VÀ ẢNH PHỦ KÍN MÀN HÌNH** `sửa 20/09` — *"phần xem pdf hoặc ảnh hiển thị trong hộp
 thoại vẫn hơi bé, đề xuất hiển thị ở dạng fullscreen, không cần bọc tài liệu hoặc ảnh trong hộp
 thoại"*.

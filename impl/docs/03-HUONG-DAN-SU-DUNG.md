@@ -1523,15 +1523,21 @@ cùng ghi tên tệp, và hàng nút *Đóng · Tải xuống* ở dưới.
 
 #### Phóng to trong hộp xem `mới 01/09`
 
-**Xem ẢNH** — ngay trên khung có ba nút: **−**, một nút ghi mức phóng hiện tại (**100%**), và **+**.
+**Xem ẢNH** `sửa 20/09` — ngay trên khung chỉ có một dòng hướng dẫn: *"Lăn chuột để phóng to, kéo để
+di chuyển ảnh."*
 
-- Bấm **+** hoặc **−** để đổi từng nấc, tối đa **6 lần** cỡ vừa khung.
-- **Lăn chuột** trên tấm ảnh cũng phóng to thu nhỏ.
+- **Lăn chuột** trên tấm ảnh để phóng to, tối đa **6 lần** cỡ vừa khung.
 - Ảnh đã phóng to thì **kéo bằng chuột** để di chuyển tới chỗ muốn xem. Trên điện thoại thì kéo bằng
   ngón tay.
-- Bấm **nút phần trăm** để về đúng cỡ vừa khung — ảnh cũng về giữa.
+- Khi ảnh **đang phóng**, cạnh dòng hướng dẫn hiện thêm một nút ghi mức phóng — ví dụ
+  **`150% · Về cỡ vừa khung`**. Bấm vào là ảnh về đúng cỡ vừa khung và về giữa.
 
 Không thu nhỏ xuống dưới cỡ vừa khung được: dưới mức ấy ảnh nhỏ hơn khung và chỉ còn viền trống.
+
+> **Hai nút `+` và `−` đã bỏ** `sửa 20/09`. Ở cỡ vừa khung — trạng thái mọi tấm ảnh mở ra — thì hai
+> trong ba nút cũ đang xám: **−** khoá vì không thu nhỏ thêm được, và nút phần trăm cũng khoá vì ảnh
+> đã ở đúng chỗ nó đưa về. Lăn chuột vẫn làm được mọi việc hai nút ấy làm, và dòng hướng dẫn nói ra
+> điều đó.
 
 **Xem PDF** — dùng **thanh công cụ của chính trình xem PDF** trong trình duyệt (hiện ở mép khung khi
 bạn rê chuột vào), hoặc **`Ctrl` + lăn chuột**. Phần mềm cố ý không thêm nút riêng: điều khiển trình

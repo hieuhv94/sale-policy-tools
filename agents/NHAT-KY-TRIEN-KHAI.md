@@ -18706,3 +18706,61 @@ sẽ lặng lẽ trả bề rộng về phép suy của `0073`.
 > tưởng bản sửa sai chứ không phải phép kiểm sai.
 
 **2376/2376 xanh.**
+
+---
+
+## P240 — `0211` Hộp xem ảnh chỉ còn câu hướng dẫn
+
+Một yêu cầu ngắn, và cái đáng ghi là **phép đếm giải thích vì sao nó tới**.
+
+### Ở trạng thái thường gặp nhất, hai trong ba nút đang xám
+
+`0172` dựng ba nút cạnh câu hướng dẫn: `−` · `100%` · `+`. Đếm ra ở cỡ vừa khung — tức **trạng thái
+mọi tấm ảnh mở ra**: `−` khoá (`disabled={phong <= 1}`), nút phần trăm cũng khoá
+(`disabled={phong === 1}`), chỉ `+` bấm được. Một hàng ba nút mà hai cái xám, ngay lượt mở đầu tiên.
+
+Đó là thứ khách hàng đọc thành *"không cần"*, và họ đúng ở một điểm `0172` không nêu: lăn chuột làm
+được mọi việc hai cái nút ấy làm, còn câu hướng dẫn thì đã nói ra điều đó ngay bên cạnh. Hai nút là
+một đường THỨ HAI tới cùng một việc, không phải đường duy nhất.
+
+### Đường thoát giữ lại, và chỉ hiện khi có gì để thoát
+
+`0172` gọi nút phần trăm đúng tên: *"đường thoát cho người vừa lăn chuột quá tay"*. Bỏ nốt nó thì
+người phóng lên 300% không có đường về ngoài việc lăn ngược đúng số nấc. Nên nó ở lại, nhưng **chỉ
+dựng khi `phong > 1`** — ở cỡ vừa khung hàng ấy còn đúng một câu chữ, thứ khách hàng yêu cầu.
+
+Câu chữ trên nút đổi theo: `150% · Về cỡ vừa khung` thay cho `150%` trần. Đứng giữa hai dấu cộng trừ
+thì một con số đọc ra là một nút; đứng một mình cạnh một dòng chữ xám thì nó đọc ra là một ô hiển
+thị.
+
+### `.nut-phong` GỠ HẲN
+
+Lớp ấy đặt bề rộng tối thiểu và cỡ chữ cho hai nút vuông, mà hai nút không còn. Một lớp CSS không ai
+đọc thì không gì đỏ, và người sau mở `app.css` sẽ đọc ra rằng hàng này vốn có hai nút vuông rồi tô
+lại cho giống — cùng lối `0196` đã chọn khi gỡ `--mau-viec-nen`.
+
+### Bốn ca cũ phải THAY, và một ca suýt thành câu lệnh rỗng
+
+Bốn ca của `0172` dựng trạng thái *đã phóng* bằng cách **bấm nút `+`**. Nút ấy không còn, nên chúng
+chuyển sang lăn chuột — đường duy nhất người dùng có giờ cũng là đường duy nhất bộ kiểm có. Mức phóng
+đổi từ 1.25 sang 1.15; con số khác, cùng trạng thái.
+
+Ca *"không thu nhỏ được xuống dưới cỡ vừa khung"* đổi **TẦNG** chứ không đổi số: nó đo bằng thuộc
+tính `disabled` của nút `−`, mà luật ấy thật ra nằm ở phép kẹp trong `dungPhong`. Giờ nó lăn chuột
+xuống ở cỡ vừa khung và đòi `scale(1)` — hỏi đúng chỗ đặt luật.
+
+> **CA KIỂM SUÝT THÀNH CÂU LỆNH RỖNG.** Ca ranh giới *"hộp PDF KHÔNG có thanh phóng"* hỏi
+> `queryByRole('button', { name: 'Phóng to' })` là `null`. Lượt này gỡ chính cái nút ấy khỏi CẢ phần
+> mềm — nên từ nay câu hỏi kia đúng ở mọi hộp, kể cả hộp ảnh, và ca ấy xanh mãi mãi mà không đo gì.
+> Đúng lớp bẫy `0186` ghi cho `NOT EXISTS`. Nó chuyển sang hỏi CẢ hàng (`.thanh-phong`) cộng câu chữ:
+> *"lăn chuột để phóng to"* nói sai với một khung mà lăn chuột chỉ cuộn tài liệu bên trong trình xem
+> PDF của trình duyệt.
+
+Ca *"chỉ có câu hướng dẫn"* cũng đọc CẢ HÀNG chứ không hỏi từng nút: `queryByRole` trả `null` cho một
+nút đã gỡ, nhưng nó cũng trả `null` khi cả hàng biến mất — và một ca hỏi ba lần *"nút này không còn
+chứ"* sẽ xanh với cả trạng thái ấy.
+
+Ba lượt phá lại, ba đỏ đúng chỗ: dựng lại hai nút → 2 đỏ · cho đường thoát hiện luôn → 1 đỏ · bỏ câu
+hướng dẫn → 1 đỏ.
+
+**2377/2377 xanh.**
