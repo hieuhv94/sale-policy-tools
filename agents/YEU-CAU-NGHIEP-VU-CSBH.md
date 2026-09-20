@@ -2704,6 +2704,28 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**MỘT KHỐI THÔNG TIN Ở ĐẦU TRANG HỒ SƠ** `mới 19/09` — *"trong trang thông tin hồ sơ, hãy gộp thông
+tin của hồ sơ và khách hàng vào 1 mục, phần trạng thái của hồ sơ có thể để luôn bên cạnh mã hồ sơ ở
+trên, bố cục dòng và cột sao cho cân đối"*.
+
+> **VÌ SAO HAI THẺ CŨ KHÔNG CÂN ĐỐI, và nó không phải chuyện thẩm mỹ**: thẻ *Hồ sơ* có bốn ô, thẻ
+> *Khách hàng* có tới tám — hai thẻ cạnh nhau thì một cái cao gấp đôi cái kia, và khoảng trống nằm
+> đúng nửa trên bên trái, chỗ mắt đọc trước. Gộp làm một lưới thì mười một ô chia đều được thành hai
+> cặp cột.
+>
+> **BA NHÃN PHẢI ĐỔI TÊN, và khách hàng không nêu vế này**: *Mã* · *Loại* · *Trạng thái* trước đây chỉ
+> đọc ra được nghĩa nhờ đứng dưới tiêu đề *Khách hàng*. Bỏ tiêu đề ấy mà giữ nguyên nhãn thì **Mã đứng
+> cạnh Phiên bản** trong khi mã hồ sơ là tiêu đề của chính trang — hai cái mã, một cái nhãn. Ba ô giờ
+> là *Mã khách hàng* · *Loại khách hàng* · *Trạng thái khách hàng*.
+>
+> **Trạng thái hồ sơ lên cạnh mã — KHÔNG đảo lượt đưa nút thao tác lên đầu trang.** Lượt ấy đẩy nhãn
+> trạng thái ra khỏi GÓC PHẢI để nhường chỗ cho dải nút; chỗ mới nằm ở mép TRÁI, cạnh mã, nên hai
+> việc không tranh nhau chỗ nào. Khoản được không ai nêu: ô *Trạng thái* rời khỏi lưới đúng lúc lưới sắp có một ô
+> *Trạng thái* thứ hai — của khách hàng.
+>
+> **Thứ tự các ô GIỮ NGUYÊN**: bốn ô của hồ sơ trước, rồi nguyên dãy của khách hàng theo đúng thứ tự
+> chốt `06/09`. Lượt gộp không phải dịp sắp xếp lại.
+
 **TỈNH/THÀNH PHỐ LÀ Ô CHỌN, 63 ĐƠN VỊ CŨ** `mới 19/09` — *"thay đổi về lúc nhập Tỉnh/Thành phố thành
 dạng sổ list với danh sách 63 tỉnh thành phố cũ ở Việt Nam"*.
 

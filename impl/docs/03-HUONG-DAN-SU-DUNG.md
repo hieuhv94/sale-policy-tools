@@ -1212,26 +1212,30 @@ Thẻ *Đang chờ* **không có màu**: theo đúng định nghĩa nó là ph�
 
 ### Đầu màn hình hồ sơ
 
-Mã hồ sơ ở góc trên bên trái, **các nút thao tác ở góc trên bên phải ngang hàng với nó**. Dưới đó là
-hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
+Mã hồ sơ ở góc trên bên trái, **nhãn trạng thái ngay cạnh nó** `sửa 19/09`, và **các nút thao tác ở
+góc trên bên phải ngang hàng với cả hai**. Dưới đó là **một thẻ *Thông tin chung*** `gộp 19/09` —
+trước ngày ấy là hai thẻ *Hồ sơ* và *Khách hàng* nằm cạnh nhau — mỗi thứ một dòng có nhãn riêng, xếp
+thành hai cặp cột trên màn hình rộng và một cặp trên điện thoại.
 
-| Thẻ **Hồ sơ** | Nghĩa |
+| Ô | Nghĩa |
 |---|---|
-| Trạng thái | Hồ sơ đang ở bước nào |
 | Phiên bản | Bản CSBH thứ mấy **của khách hàng này** — không phải phiên bản phần mềm |
 | Ngày soạn thảo | Lúc bản nháp ra đời |
 | Có hiệu lực | Chỉ hiện khi CSBH **đã** có hiệu lực |
 | Người đề nghị | TDV đã **gửi** hồ sơ đi duyệt — không đổi khi khách hàng được bàn giao cho TDV khác |
-
-| Thẻ **Khách hàng** | Nghĩa |
-|---|---|
-| Mã | Bấm vào mở màn hình khách hàng đó |
+| Mã khách hàng | `đổi tên 19/09` — trước là *Mã*. Bấm vào mở màn hình khách hàng đó |
 | Người đại diện | `mới 06/09` |
 | Tên Hộ kinh doanh/Tên Công ty | `đổi tên 06/09` — trước là *Tên*, cùng một thông tin |
 | Số nhà, Phường xã · Tỉnh/Thành phố | Địa chỉ theo giấy đăng ký kinh doanh `mới 06/09` |
 | Địa chỉ giao hàng | **Chỉ hiện khi có** — mỗi địa chỉ một dòng. Không có dòng nào nghĩa là giao tới địa chỉ đăng ký `mới 06/09` |
-| Loại · Công nợ | Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
-| Trạng thái | **Chỉ hiện khi khách đã ngừng hợp tác** — hồ sơ cũ của họ vẫn mở được |
+| Loại khách hàng · Công nợ | `đổi tên 19/09` — trước là *Loại*. Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
+| Trạng thái khách hàng | `đổi tên 19/09` — **chỉ hiện khi khách đã ngừng hợp tác**, hồ sơ cũ của họ vẫn mở được |
+
+> **Ba nhãn đổi tên vì thẻ đã gộp** `19/09`. *Mã* · *Loại* · *Trạng thái* trước đây đọc ra được nghĩa
+> nhờ đứng dưới chữ *Khách hàng*; gộp một thẻ thì chỗ dựa ấy không còn, và *Mã* đứng cạnh *Phiên bản*
+> trong khi mã hồ sơ nằm ngay phía trên. Giờ mỗi nhãn tự nói ra nó thuộc về ai.
+>
+> **Trạng thái của HỒ SƠ không còn trong thẻ** — nó lên cạnh mã hồ sơ, cùng một nhãn màu như trước.
 
 > **Hồ sơ lập trước 06/09 hiện MỘT ô *Địa chỉ đăng ký* thay cho hai ô.** Lượt gửi duyệt của chúng chỉ
 > giữ lại địa chỉ ở dạng một dòng, và phần mềm bày đúng thứ đã được giữ chứ không tự cắt ra hai ô.
@@ -1251,8 +1255,11 @@ hai thẻ thông tin, mỗi thứ một dòng có nhãn riêng.
 > `bổ sung 06/09`: **người đại diện, hai ô địa chỉ đăng ký và địa chỉ giao hàng cũng theo luật này** —
 > giữ nguyên như lúc gửi duyệt. Đổi địa chỉ khách hàng không làm đổi một hồ sơ đã đưa đi ký.
 
-Ba mốc ngày tháng nằm ở ba ô riêng chứ không nối nhau trên một dòng: *ngày soạn thảo* và *ngày áp
-dụng* cách nhau hàng tuần ở hồ sơ soạn dần, và đọc nhầm mốc nào cũng ra một ngày trông hợp lý.
+Các mốc ngày tháng nằm ở những ô riêng chứ không nối nhau trên một dòng: chúng cách nhau hàng tuần ở
+hồ sơ soạn dần, và đọc nhầm mốc nào cũng ra một ngày trông hợp lý.
+
+> Câu trên nói *"ba mốc"* và kể tên *ngày áp dụng* cho tới `19/09`. Ô ấy rời khỏi đây từ `07/09`, khi
+> ngày áp dụng chuyển xuống **từng dòng sản phẩm** — xem mục *Cột Ngày áp dụng*.
 
 ### Ai đã duyệt
 

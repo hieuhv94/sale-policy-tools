@@ -590,6 +590,22 @@ main:focus { outline: none; }
   flex-wrap: wrap;
 }
 
+/* MÃ HỒ SƠ và NHÃN TRẠNG THÁI đứng cùng hàng (`0206`).
+
+   `align-items: baseline` chứ không `center`: ở chế độ sửa mã, khối bên trái cao
+   thêm một dòng lỗi, và căn giữa sẽ kéo cái nhãn tụt xuống ngang dòng lỗi ấy.
+   Baseline neo nó vào dòng chữ của chính cái mã, ở cả hai chế độ.
+
+   `flex-wrap` để mã dài không đẩy nhãn ra khỏi khối: xuống dòng thì nhãn nằm
+   ngay dưới mã, vẫn là chỗ người đọc tìm nó. */
+.dau-trang-ten {
+  display: flex;
+  align-items: baseline;
+  gap: var(--k2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 /*
  * MÃ HỒ SƠ sửa được tại chỗ (`0198`).
  *
@@ -1666,15 +1682,13 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .da-duyet dd { margin: 0; display: flex; flex-direction: column; line-height: 1.35; }
 .da-duyet .phu { font-family: var(--so-deu-cot); }
 
-/* Hai nhóm thông tin ở đầu màn hình hồ sơ (`0061`): hồ sơ, và khách hàng.
+/* MỘT khối thông tin ở đầu màn hình hồ sơ (`0206`) — hồ sơ và khách hàng gộp.
 
-   `auto-fit` với đáy 260px chứ không hai cột cứng: dưới 640px hai nhóm phải nằm
-   trên nhau, và một `@media` riêng cho việc ấy là một quy tắc nữa phải nhớ sửa
-   mỗi lần đổi bố cục. */
+   `0061` để đây là lưới `auto-fit` chứa HAI thẻ; từ `0206` chỉ còn một, nên lưới
+   ấy thành một hộp một ô. Giữ `display: grid` là giữ một cơ chế không còn việc,
+   và người sau đọc `auto-fit` sẽ tưởng trang này vẫn có thể có nhiều thẻ. Việc
+   chia cột chuyển hẳn xuống `dl` ngay dưới, nơi nó thật sự xảy ra. */
 .tom-tat {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--k3);
   margin-bottom: var(--k4);
 }
 .tom-tat-nhom {
@@ -1699,10 +1713,22 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    cho cả danh sách thì mọi hàng dùng chung một vệt cột, và `auto` mới nói được
    *"rộng bằng nhãn dài nhất"*. Hàng `<div>` phải trong suốt để `<dt>`/`<dd>`
    thành ô của chính lưới ấy. */
+/* HAI CẶP CỘT trên màn hình rộng (`0206`).
+
+   Khối gộp có mười hai ô; một cặp cột duy nhất thì thẻ cao mười hai dòng trong
+   khi nửa phải bỏ trống — đúng thứ khách hàng gọi là không cân đối. `repeat(2,
+   …)` nhân đôi chính cặp cột cũ, nên `display: contents` ở hàng vẫn là thứ làm
+   cho nó chạy: mỗi cặp `dt`/`dd` góp hai ô theo thứ tự nguồn, lưới tự rải sang
+   phải rồi xuống dòng.
+
+   HAI CỘT NHÃN ĐO RIÊNG NHAU, và đó là cái giá đã cân: `auto` sizing tính theo
+   từng track, nên nửa chứa *Tên Hộ kinh doanh/Tên Công ty* có cột nhãn rộng hơn
+   nửa kia. Cách duy nhất để hai nửa bằng nhau là ghim một CON SỐ — đúng thứ
+   `0179` vừa gỡ đi, và nó hỏng với mọi phông không phải phông người đo. */
 .tom-tat-nhom dl {
   margin: 0;
   display: grid;
-  grid-template-columns: var(--cot-nhan, 7.5rem) minmax(0, 1fr);
+  grid-template-columns: repeat(2, var(--cot-nhan, 7.5rem) minmax(0, 1fr));
   row-gap: var(--k2);
   column-gap: var(--k3);
   align-items: baseline;
@@ -1720,7 +1746,7 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
    Giá: cột giá trị hẹp đi đúng 15,6px trên thẻ hẹp nhất (đo được: 132 → 116px ở
    thẻ 320px). Chấp nhận — giá trị vẫn xuống dòng được, nhãn thì không. */
-.tom-tat-khach { --cot-nhan: auto; }
+.tom-tat-chung { --cot-nhan: auto; }
 .tom-tat-nhom dt { color: var(--mau-chu-phu); font-size: var(--chu-nho); }
 .tom-tat-nhom dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 
@@ -2117,13 +2143,16 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   .luoi-loc { grid-template-columns: 1fr; }
 
   .the-so { grid-template-columns: 1fr; }
-  /* Điện thoại: trả cột nhãn của khối khách hàng về mức chung (`0177`, giữ ở
-     `0179`). Đây là chỗ DUY NHẤT còn ghi một con số, và cố ý: `auto` không bao
-     giờ chịu xuống dòng, nên trên một thẻ rộng bằng màn hình nó lấy 192px và
-     chừa hơn trăm pixel cho giá trị. Nhãn xuống hai dòng còn dễ đọc hơn một địa
-     chỉ bị bẻ vụn — tức ở khổ này câu trả lời NGƯỢC với khổ máy tính, nên phải
-     là hai luật chứ không một. */
-  .tom-tat-khach { --cot-nhan: 7.5rem; }
+  /* Điện thoại: trả cột nhãn của khối thông tin về mức chung (`0177`, giữ ở
+     `0179`, đổi tên khối ở `0206`). Đây là chỗ DUY NHẤT còn ghi một con số, và
+     cố ý: `auto` không bao giờ chịu xuống dòng, nên trên một thẻ rộng bằng màn
+     hình nó lấy 192px và chừa hơn trăm pixel cho giá trị. Nhãn xuống hai dòng
+     còn dễ đọc hơn một địa chỉ bị bẻ vụn — tức ở khổ này câu trả lời NGƯỢC với
+     khổ máy tính, nên phải là hai luật chứ không một. */
+  .tom-tat-chung { --cot-nhan: 7.5rem; }
+  /* MỘT cặp cột ở khổ điện thoại (`0206`) — hai cặp trên màn hình 360px thì cột
+     giá trị còn chừng 60px, và mọi ô đều bị bẻ vụn. */
+  .tom-tat-nhom dl { grid-template-columns: var(--cot-nhan, 7.5rem) minmax(0, 1fr); }
   .viec-han { margin-left: 0; width: 100%; }
   .thanh-nhan { flex-basis: 6rem; }
 }

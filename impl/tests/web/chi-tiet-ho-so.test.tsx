@@ -194,6 +194,19 @@ const mo = async (hoSo: unknown = HO_SO, choPhep?: string[], giayToKhach?: unkno
   return f;
 };
 
+/**
+ * Khối thông tin ở đầu trang — MỘT khối kể từ `0206`.
+ *
+ * Đòi đúng MỘT: trước `0206` có hai thẻ, nên một phép `querySelector` lấy cái
+ * đầu tiên sẽ xanh cả khi lượt gộp mới làm được nửa việc.
+ */
+const khoiChung = (): HTMLElement => {
+  const ds = [...document.querySelectorAll('.tom-tat-nhom')];
+  expect(ds.length, 'đầu trang phải có đúng MỘT khối thông tin').toBe(1);
+  expect(ds[0]!.querySelector('h2')?.textContent).toBe('Thông tin chung');
+  return ds[0] as HTMLElement;
+};
+
 /** Ô giá trị đứng cạnh nhãn này trong lưới thông tin. */
 const oCua = (nhan: string): string => {
   const dt = [...document.querySelectorAll('.tom-tat-nhom dt')].find((e) => e.textContent === nhan);
@@ -218,7 +231,6 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
      */
     await mo();
     expect(oCua('Phiên bản')).toBe('2');
-    expect(oCua('Trạng thái')).toBe('Chờ TBP duyệt');
     expect(oCua('Ngày soạn thảo')).toBe('28/07/2026');
     expect(oCua('Người đề nghị')).toBe('Nguyen Van Tdv');
   });
@@ -235,21 +247,15 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
      * không có, và một ca `toBeUndefined()` cũng xanh khi cả khối hỏng.
      */
     await mo();
-    const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
-      (e) => e.querySelector('h2')?.textContent === 'Hồ sơ',
-    );
-    expect(nhom, 'không có nhóm Hồ sơ').toBeDefined();
-    const nhan = [...nhom!.querySelectorAll('dt')].map((e) => e.textContent);
+    const nhom = khoiChung();
+    const nhan = [...nhom.querySelectorAll('dt')].map((e) => e.textContent);
     expect(nhan).toContain('Ngày soạn thảo');
     expect(nhan).not.toContain('Ngày áp dụng');
   });
 
-  it('khách hàng là NHÓM RIÊNG, và ĐỦ DÃY Ô theo ĐÚNG THỨ TỰ (`0177`)', async () => {
+  it('`0206` MỘT khối duy nhất, và ĐỦ DÃY Ô theo ĐÚNG THỨ TỰ (`0177`)', async () => {
     await mo();
-    const nhom = [...document.querySelectorAll('.tom-tat-nhom')].find(
-      (e) => e.querySelector('h2')?.textContent === 'Khách hàng',
-    );
-    expect(nhom, 'không có nhóm Khách hàng').toBeDefined();
+    const nhom = khoiChung();
 
     /*
      * CẢ DÃY bằng `toEqual`, không phải từng ô bằng `toContain`.
@@ -258,25 +264,33 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
      * mà thứ tự chính là thứ khách hàng viết ra trong yêu cầu này. Khẳng định cả
      * dãy còn bắt được luôn chiều ngược — chèn thêm một ô không ai yêu cầu, hoặc
      * để sót ô *Tên* cũ nằm lại.
+     *
+     * `0206` gộp hai khối làm một, và dãy này là chỗ duy nhất nói ra rằng lượt
+     * gộp KHÔNG xáo thứ tự: bốn ô của hồ sơ trước, rồi nguyên dãy của khách hàng
+     * theo đúng thứ tự `0177` chốt. Ô *Trạng thái* của hồ sơ thì rời hẳn khỏi
+     * đây — nó lên cạnh mã ở đầu trang.
      */
-    expect([...(nhom as HTMLElement).querySelectorAll('dt')].map((e) => e.textContent)).toEqual([
-      'Mã',
+    expect([...nhom.querySelectorAll('dt')].map((e) => e.textContent)).toEqual([
+      'Phiên bản',
+      'Ngày soạn thảo',
+      'Người đề nghị',
+      'Mã khách hàng',
       'Người đại diện',
       'Tên Hộ kinh doanh/Tên Công ty',
       'Số nhà, Phường xã',
       'Tỉnh/Thành phố',
       'Địa chỉ giao hàng',
-      'Loại',
+      'Loại khách hàng',
       'Công nợ',
     ]);
 
-    expect(within(nhom as HTMLElement).getByText('KH-000123')).toBeDefined();
+    expect(within(nhom).getByText('KH-000123')).toBeDefined();
     expect(oCua('Người đại diện')).toBe('Nguyen Thi Dai Dien');
     expect(oCua('Tên Hộ kinh doanh/Tên Công ty')).toBe('Cong ty TNHH Duoc pham ABC');
     expect(oCua('Số nhà, Phường xã')).toBe('Số 12 ngõ 5, Phường Láng Hạ');
     expect(oCua('Tỉnh/Thành phố')).toBe('Thành phố Hà Nội');
     // `0139` — nhãn mang cả SỐ lẫn TÊN THẬT của loại khách hàng.
-    expect(oCua('Loại')).toBe('Loại 2 - Hộ kinh doanh cộng tác');
+    expect(oCua('Loại khách hàng')).toBe('Loại 2 - Hộ kinh doanh cộng tác');
     /*
      * `0138` — công nợ thôi là số tiền, nó là ĐIỀU KHOẢN thanh toán, và máy chủ
      * gửi xuống câu chữ đã dựng xong. Ô này in nguyên câu ấy: không `tien()`,
@@ -405,11 +419,15 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
       luat.filter((x) => x.chon === ten).map((x) => x.than);
 
     // Vế 1: LƯỚI Ở `dl` — một vệt cột cho cả danh sách — và nó ĐỌC biến.
+    //
+    // `0206` nhân đôi cặp cột (`repeat(2, …)`), nên phép so thôi ghim chữ ngay
+    // sau dấu hai chấm: thứ phải đúng là lưới nằm ở `dl` và nó đọc `--cot-nhan`,
+    // không phải số cặp cột — số ấy có ca riêng ngay dưới.
     const dl = than('.tom-tat-nhom dl');
     expect(dl.length, 'không tìm thấy luật cho `.tom-tat-nhom dl`').toBeGreaterThan(0);
     expect(
-      dl.some((x) => /grid-template-columns:\s*var\(--cot-nhan/.test(x)),
-      '`.tom-tat-nhom dl` phải khai lưới hai cột và ĐỌC `--cot-nhan`',
+      dl.some((x) => /grid-template-columns:[^;]*var\(--cot-nhan/.test(x)),
+      '`.tom-tat-nhom dl` phải khai lưới và ĐỌC `--cot-nhan`',
     ).toBe(true);
 
     // Vế 2: hàng `<div>` TRONG SUỐT, nếu không thì `dt`/`dd` không phải ô của
@@ -423,15 +441,15 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
 
     // Vế 3: khối khách hàng khai `auto` — KHÔNG một con số nào — và chỉ khổ điện
     // thoại mới đặt trần cố định, vì ở đó câu trả lời ngược lại.
-    const khach = than('.tom-tat-khach').map((x) => x.match(/--cot-nhan:\s*([^;]+);/)?.[1]?.trim());
-    expect(khach[0], '`.tom-tat-khach` phải đo cột nhãn từ nội dung').toBe('auto');
+    const khach = than('.tom-tat-chung').map((x) => x.match(/--cot-nhan:\s*([^;]+);/)?.[1]?.trim());
+    expect(khach[0], '`.tom-tat-chung` phải đo cột nhãn từ nội dung').toBe('auto');
     expect(khach.slice(1).every((x) => x !== undefined && /^[\d.]+rem$/.test(x))).toBe(true);
 
-    // Vế 4: class nằm trên đúng khối Khách hàng, không phải khối Hồ sơ.
+    // Vế 4: class nằm trên đúng khối thông tin (`0206` — chỉ còn MỘT khối).
     await mo();
-    const nhom = document.querySelector('.tom-tat-khach');
-    expect(nhom, 'không khối nào mang class `tom-tat-khach`').not.toBeNull();
-    expect(nhom!.querySelector('h2')?.textContent).toBe('Khách hàng');
+    const nhom = document.querySelector('.tom-tat-chung');
+    expect(nhom, 'không khối nào mang class `tom-tat-chung`').not.toBeNull();
+    expect(nhom!.querySelector('h2')?.textContent).toBe('Thông tin chung');
   });
 
   it('khách đã ngừng hợp tác thì nói ra ở ngay khối này', async () => {
@@ -439,6 +457,98 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     // gì bất thường ở một chính sách dành cho khách không còn giao dịch.
     await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
     expect(document.body.textContent).toContain('Đã ngừng hợp tác');
+    // `0206` — nhãn phải nói rõ *khách hàng*: trạng thái HỒ SƠ đã lên đầu trang,
+    // nên một ô tên trần *Trạng thái* trong lưới đọc ra là trạng thái của hồ sơ.
+    expect(oCua('Trạng thái khách hàng')).toBe('Đã ngừng hợp tác');
+  });
+});
+
+/**
+ * `0206` — GỘP hai khối đầu trang, TRẠNG THÁI lên cạnh mã (khách hàng chốt 19/09).
+ *
+ * Ba vế, và vế thứ ba là vế không đọc ra được từ câu yêu cầu: tiêu đề nhóm
+ * *Khách hàng* đang GÁNH NGHĨA cho ba cái nhãn, nên bỏ nó đi mà giữ nguyên nhãn
+ * thì `Mã` đứng cạnh `Phiên bản` trong khi mã hồ sơ là `<h1>` của chính trang.
+ */
+describe('`0206` một khối thông tin, trạng thái ở đầu trang', () => {
+  it('nhãn trạng thái HỒ SƠ nằm trong khối tiêu đề, cạnh mã', async () => {
+    await mo();
+    const dau = document.querySelector('.dau-trang-ten') as HTMLElement;
+    expect(dau, 'không có khối nào gom mã với nhãn trạng thái').not.toBeNull();
+
+    // Cùng MỘT khối với `<h1>`, không phải một chỗ nào đó trên trang: yêu cầu
+    // là *"để luôn bên cạnh mã hồ sơ ở trên"*.
+    expect(within(dau).getByRole('heading', { level: 1 }).textContent).toBe('CSBH-2026-000123');
+    const nhan = dau.querySelector('.nhan');
+    expect(nhan?.textContent).toBe('Chờ TBP duyệt');
+
+    // Và THỨ TỰ: mã trước, nhãn sau.
+    expect(
+      dau.querySelector('h1')!.compareDocumentPosition(nhan!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('lưới KHÔNG còn ô *Trạng thái* nào của hồ sơ', async () => {
+    /*
+     * Đọc CẢ DÃY nhãn chứ không tìm một ô: sót lại ô cũ thì trang có HAI chỗ nói
+     * trạng thái hồ sơ, và chúng sẽ lệch nhau ở lượt sửa đầu tiên.
+     *
+     * Hồ sơ này có khách đang hợp tác nên không có ô *Trạng thái khách hàng* —
+     * dãy phải sạch cả hai chữ.
+     */
+    await mo();
+    const nhan = [...khoiChung().querySelectorAll('dt')].map((e) => e.textContent);
+    expect(nhan).not.toContain('Trạng thái');
+  });
+
+  it('ba nhãn của khách hàng TỰ NÓI RA chúng thuộc về ai', async () => {
+    /*
+     * `Mã` · `Loại` · `Trạng thái` chỉ đọc ra được nghĩa nhờ đứng dưới tiêu đề
+     * *Khách hàng*. Gộp khối là lấy mất chỗ dựa ấy, nên ba nhãn phải tự mang nó.
+     * `Mã` là ca nặng nhất: trang này đã có một cái mã khác, ở ngay `<h1>`.
+     */
+    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
+    const nhan = [...khoiChung().querySelectorAll('dt')].map((e) => e.textContent);
+    for (const n of ['Mã khách hàng', 'Loại khách hàng', 'Trạng thái khách hàng']) {
+      expect(nhan, n).toContain(n);
+    }
+    for (const n of ['Mã', 'Loại', 'Trạng thái']) {
+      expect(nhan, `nhãn trần "${n}" còn nằm lại`).not.toContain(n);
+    }
+  });
+
+  it('`customer` chết thì bốn ô của HỒ SƠ vẫn đọc được', async () => {
+    /*
+     * Trước `0206` hai nhóm ở hai thẻ, nên chuyện này là hiển nhiên. Gộp vào một
+     * `<dl>` thì cách viết tự nhiên nhất — cả lưới nằm trong nhánh `kh ?` — làm
+     * mất luôn *Phiên bản* và *Người đề nghị* ở đúng lượt người dùng cần biết họ
+     * đang mở hồ sơ nào.
+     */
+    await mo({ ...HO_SO, khachHang: null });
+    expect(oCua('Phiên bản')).toBe('2');
+    expect(oCua('Người đề nghị')).toBe('Nguyen Van Tdv');
+    expect(document.body.textContent).toContain('Chưa tải được thông tin khách hàng');
+  });
+
+  it('lưới bày HAI cặp cột ở màn hình rộng, MỘT cặp ở khổ điện thoại', () => {
+    /*
+     * jsdom không tính bố cục, nên thứ đo được là hai luật CSS phải cùng có mặt.
+     * Vế thứ hai không thừa: hai cặp cột trên màn 360px thì cột giá trị còn chừng
+     * 60px và mọi ô bị bẻ vụn — tức bản sửa cho màn hình rộng làm hỏng khổ hẹp,
+     * và đó đúng là lớp lỗi `0179` đã ghi cho cột nhãn.
+     */
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
+    const luat = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
+      chon: m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
+      than: m[2]!,
+    }));
+    const cot = luat
+      .filter((x) => x.chon === '.tom-tat-nhom dl')
+      .map((x) => x.than.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim());
+
+    expect(cot.length, 'phải có HAI luật cột: màn rộng và khổ điện thoại').toBe(2);
+    expect(cot[0], 'màn hình rộng: hai cặp cột').toMatch(/^repeat\(\s*2\s*,/);
+    expect(cot[1], 'khổ điện thoại: một cặp cột').not.toMatch(/repeat\(/);
   });
 });
 
@@ -1001,9 +1111,8 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
     await moSa();
     const muc = [...document.querySelectorAll('h2')].map((e) => e.textContent);
     expect(muc).toEqual([
-      // Hai khối tóm tắt ở đầu trang — `0061`.
-      'Hồ sơ',
-      'Khách hàng',
+      // MỘT khối tóm tắt ở đầu trang — `0061` dựng hai, `0206` gộp lại.
+      'Thông tin chung',
       'Sản phẩm',
       /*
         *Giấy tờ hồ sơ* đứng ở ĐÂY tới `0170`, và `0172` bỏ hẳn khối ấy — khách
@@ -1060,8 +1169,7 @@ describe('`0167` khối Bản mềm, và lượt bàn giao chen bước tạo', 
 
     const muc = [...document.querySelectorAll('h2')].map((e) => e.textContent);
     expect(muc).toEqual([
-      'Hồ sơ',
-      'Khách hàng',
+      'Thông tin chung',
       'Sản phẩm',
       'Hồ sơ pháp lý của khách hàng',
       'Bản mềm',

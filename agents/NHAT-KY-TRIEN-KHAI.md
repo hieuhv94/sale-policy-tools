@@ -18319,3 +18319,88 @@ những dòng chẳng liên quan. `SuaKhachHang.tsx` đã có một chú thích 
 — nó nằm cách chỗ tôi gõ chừng ba trăm dòng, trong cùng một tệp tôi đang sửa.
 
 **2346/2346 xanh.**
+
+---
+
+## P235 — `0206` Một khối thông tin ở đầu trang hồ sơ, trạng thái cạnh mã
+
+Một yêu cầu về TRÌNH BÀY, và phần thật của nó nằm ở chỗ không ai nhìn thấy: **tiêu đề nhóm đang gánh
+nghĩa cho ba cái nhãn**.
+
+### Vì sao hai thẻ cũ không cân đối
+
+`0061` dựng hai thẻ nằm cạnh nhau trong một lưới `auto-fit`. Đếm ra: thẻ *Hồ sơ* bốn ô, thẻ *Khách
+hàng* tám — nên thẻ trái cao đúng một nửa thẻ phải, và khoảng trống rơi vào **nửa trên bên trái**,
+chỗ mắt đọc trước tiên. Gộp làm một lưới thì mười một ô chia đều được.
+
+Lưới mới là **`repeat(2, …)` của chính cặp cột cũ**, không phải một cơ chế thứ hai: `display: contents`
+ở hàng (`0179`) vẫn là thứ làm nó chạy — mỗi cặp `dt`/`dd` góp hai ô theo thứ tự nguồn, lưới tự rải
+sang phải rồi xuống dòng. Nhờ vậy lượt gộp **không đụng** tới quyết định đo cột nhãn từ nội dung.
+
+> **CÁI GIÁ ĐÃ CÂN, không phải một chỗ bỏ sót**: `auto` sizing tính theo TỪNG track, nên nửa chứa
+> *Tên Hộ kinh doanh/Tên Công ty* có cột nhãn rộng hơn nửa kia. Cách duy nhất để hai nửa bằng nhau là
+> ghim một CON SỐ — đúng thứ `0179` vừa gỡ đi vì nó chỉ đúng với đúng một phông.
+
+### Ba nhãn phải đổi tên, và khách hàng không nêu vế này
+
+*Mã* · *Loại* · *Trạng thái* chỉ đọc ra được nghĩa nhờ đứng dưới chữ *Khách hàng*. Bỏ tiêu đề ấy mà
+giữ nguyên nhãn thì **`Mã` đứng cạnh `Phiên bản`** trong khi mã hồ sơ là `<h1>` của chính trang —
+hai cái mã, một cái nhãn. Đây là thứ duy nhất của chặng có thể hỏng mà trang vẫn dựng ra bình thường.
+
+Ô *Trạng thái* của khách hàng là ca nặng nhất và nó **chỉ hiện khi khách đã ngừng hợp tác**: một
+nhãn trần *Trạng thái* trong lưới, sau khi trạng thái hồ sơ vừa rời đi, đọc ra là trạng thái của hồ
+sơ — tức nói ngược hẳn thứ nó đang mang, và chỉ với những khách hàng hiếm nhất.
+
+### Trạng thái lên đầu trang — không đảo `0061`
+
+`0061` đẩy nhãn trạng thái ra khỏi GÓC PHẢI để nhường chỗ cho dải nút, và chú thích của nó nói đúng
+thế. Chỗ mới nằm ở mép TRÁI, cạnh `<h1>`, nên hai việc không tranh nhau chỗ nào — đây là một lượt
+**thêm vào chỗ trống**, không phải một lượt đảo. Khoản được không ai nêu: ô *Trạng thái* rời khỏi
+lưới đúng lúc lưới sắp có một ô *Trạng thái* thứ hai.
+
+Bọc `.dau-trang-ten` chứ không thả `<Nhan>` thẳng vào `.dau-trang`: khối ấy là `space-between`, nên
+một phần tử thứ ba sẽ trôi ra giữa trang. Và **không** đưa nhãn vào trong `SuaMaHoSo` — component ấy
+đổi hẳn hình dạng khi bấm bút chì (ô nhập + hai nút + một dòng lỗi), nhét nhãn vào giữa là nó phải
+biết mình mang thêm cái gì ở cả hai chế độ. `align-items: baseline` chứ không `center`, vì ở chế độ
+sửa mã khối bên trái cao thêm một dòng lỗi và căn giữa sẽ kéo nhãn tụt xuống ngang dòng ấy.
+
+### Một bất biến trở nên KHÔNG hiển nhiên sau khi gộp
+
+Câu *"`customer` chết thì mất khối khách hàng, không mất cả màn hình"* (`0089`) đúng hiển nhiên khi
+hai nhóm ở hai thẻ. Gộp vào một `<dl>` thì cách viết tự nhiên nhất — cả lưới nằm trong nhánh `kh ?` —
+làm mất luôn *Phiên bản* và *Người đề nghị*, đúng lúc người dùng cần biết mình đang mở hồ sơ nào. Nên
+câu nhắc nằm **ngoài** `<dl>`, và có ca kiểm hỏi thẳng hai ô ấy.
+
+### Phá lại
+
+| Hoàn tác | Đỏ |
+|---|---|
+| tách lại thành hai khối | 6 — gồm 2 ca dãy `<h2>` có sẵn từ `0170`/`0183` |
+| bỏ nhãn trạng thái khỏi đầu trang | 1 |
+| trả ba nhãn về tên trần | 3 |
+| cả lưới nằm trong nhánh `kh ?` | 1 |
+| bỏ `repeat(2, …)` | 1 |
+| bỏ luật một cặp cột của khổ điện thoại | 1 |
+
+Hai lượt cuối đỏ ở **cùng một ca**, và đó là chủ ý: ca ấy hỏi hai luật CSS phải cùng có mặt, vì bản
+sửa cho màn hình rộng làm hỏng khổ hẹp là đúng lớp lỗi `0179` đã ghi cho cột nhãn.
+
+Ca `0180` (*khối hồ sơ không còn ô Ngày áp dụng*) đỏ ở lượt phá thứ nhất **mà không phải vì nó canh
+chuyện này**: nó gọi hàm tìm khối, và hàm ấy từ nay đòi đúng MỘT khối. Đúng tầng, đúng lý do.
+
+### Tài liệu: một câu sai từ `0180`, tìm ra vì đi ngang qua
+
+`03-HUONG-DAN-SU-DUNG.md` viết *"ba mốc ngày tháng… ngày soạn thảo và **ngày áp dụng** cách nhau hàng
+tuần"* — mà ô *Ngày áp dụng* rời khỏi khối này từ `0180`, khi ngày chuyển xuống từng dòng sản phẩm.
+Câu ấy sai suốt hai mươi sáu chặng, ở ngay dưới chính cái bảng `0180` đã phải sửa.
+
+> **SỰ CỐ CỦA CHÍNH TÔI, lần thứ TƯ trong repo**: chồng demo đang bật thì tôi gõ `make typecheck`.
+> Lệnh ấy dùng `compose.test.yml` với **cùng tên project `csbh`**, nên compose đưa project về tập
+> service của bản kiểm — **hạ mười service ứng dụng của demo** và chạy `pg-init` + `migrate` trên
+> chính CSDL ấy. `CLAUDE.md` ghi cảnh báo này cho `vitest` và nói rõ *"không riêng `vitest`"*; tôi đọc
+> nó trong cùng phiên làm việc rồi vẫn dính. Dữ liệu demo sống sót (28 khách · 199 hồ sơ · 26 tài
+> khoản — `migrate` idempotent, `pg-init` không xoá), chỉ mất mười service; `localhost:8080` chết
+> trong khi `docker ps` vẫn đầy container hạ tầng "healthy". **Cách duy nhất an toàn: `make demo-down`
+> TRƯỚC, rồi mới gõ bất kỳ lệnh nào của bộ kiểm.**
+
+**2351/2351 xanh.**
