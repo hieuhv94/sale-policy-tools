@@ -221,8 +221,13 @@ describe('`0172` phóng to ảnh', () => {
      * `style` — tức là xanh với một cái nút không làm gì cả.
      */
     expect(anh.getAttribute('style')).toContain('scale(1.15)');
-    // Nút đường thoát MỌC RA khi có gì để thoát, và nó nói cả mức đang phóng.
-    expect(screen.getByRole('button', { name: 'Về cỡ vừa khung' }).textContent).toContain('115%');
+    /*
+     * `0212` — KHÔNG còn chỗ nào bày mức phóng ra thành chữ, và đó là điều khách
+     * hàng chốt. Nên phép đo duy nhất còn lại là `transform` của chính thẻ ảnh —
+     * cũng là phép đo đúng tầng: một con số phần trăm trên màn hình có thể đúng
+     * trong khi ảnh không nhúc nhích.
+     */
+    expect(document.querySelector('.thanh-phong')!.querySelectorAll('button')).toHaveLength(0);
   });
 
   it('không thu nhỏ được xuống dưới cỡ vừa khung', async () => {
@@ -241,14 +246,34 @@ describe('`0172` phóng to ảnh', () => {
     expect(anh.getAttribute('style'), 'lăn xuống mà tụt dưới cỡ vừa khung').toContain('scale(1)');
   });
 
-  it('nút phần trăm đưa ảnh VỀ cỡ vừa khung, và về giữa', async () => {
-    const nguoi = userEvent.setup();
+  it('`0212` LĂN NGƯỢC hết cỡ đưa ảnh về vừa khung, VÀ về giữa', async () => {
+    /*
+     * ĐIỀU KIỆN để `0212` gỡ được nút *Về cỡ vừa khung*, nên nó là ca phải có
+     * chứ không phải một ca chép lại.
+     *
+     * Cái nút ấy làm hai việc: đưa mức phóng về 1, và đưa ảnh về giữa. Vế thứ
+     * hai mới là vế dễ mất — kéo ảnh đi rồi lăn ngược mà giữ nguyên độ lệch thì
+     * người dùng còn một tấm ảnh vừa khung nằm lệch hẳn sang một bên, và từ
+     * `0212` **không còn cái nút nào chỉnh lại được**.
+     *
+     * Nó đúng nhờ `dungPhong` kẹp ở `PHONG_MIN` rồi đặt lại độ lệch khi chạm mức
+     * ấy — và đường lăn chuột đi qua chính hàm đó.
+     */
     const anh = await moAnh();
-    await lanChuot(anh);
-    await nguoi.click(screen.getByRole('button', { name: 'Về cỡ vừa khung' }));
-    expect(anh.getAttribute('style')).toContain('scale(1)');
-    // Về cỡ cũ mà giữ độ lệch là để lại một ảnh vừa khung nằm lệch hẳn sang một
-    // bên, và không nút nào chỉnh lại được.
+    const khung = anh.parentElement as HTMLElement;
+    khung.setPointerCapture = () => undefined;
+
+    await lanChuot(anh, 3);
+    khung.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, clientX: 100, clientY: 100 }));
+    khung.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 160, clientY: 150 }));
+    khung.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    await waitFor(() => expect(anh.getAttribute('style')).toContain('translate(60px, 50px)'));
+
+    // Lăn ngược thừa số nấc: phép kẹp phải giữ ở đúng cỡ vừa khung, không âm.
+    for (let i = 0; i < 8; i += 1) {
+      khung.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+    }
+    await waitFor(() => expect(anh.getAttribute('style')).toContain('scale(1)'));
     expect(anh.getAttribute('style')).toContain('translate(0px, 0px)');
   });
 
@@ -307,8 +332,9 @@ describe('`0172` phóng to ảnh', () => {
     for (const ten of ['Phóng to', 'Thu nhỏ']) {
       expect(screen.queryByRole('button', { name: ten }), `${ten} sau khi phóng`).toBeNull();
     }
-    // Và hàng ấy đúng MỘT nút: đường thoát, không hơn.
-    expect(document.querySelector('.thanh-phong')!.querySelectorAll('button')).toHaveLength(1);
+    // `0212` — và hàng ấy KHÔNG còn nút nào, ở mọi mức phóng.
+    expect(document.querySelector('.thanh-phong')!.querySelectorAll('button')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Về cỡ vừa khung' })).toBeNull();
   });
 
   it('hộp PDF KHÔNG có thanh phóng — trình xem của trình duyệt đã có sẵn', async () => {

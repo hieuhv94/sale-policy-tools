@@ -18764,3 +18764,43 @@ Ba lượt phá lại, ba đỏ đúng chỗ: dựng lại hai nút → 2 đỏ 
 hướng dẫn → 1 đỏ.
 
 **2377/2377 xanh.**
+
+---
+
+## P241 — `0212` Bỏ nốt ô phần trăm và nút về cỡ vừa khung
+
+Bước thứ hai của cùng hướng `0211` đi nửa đường. `0211` đọc câu *"không cần hai nút +/-"* theo đúng
+chữ — khách hàng nêu đích danh hai nút, nên nút thứ ba ở lại làm đường thoát. Họ xem xong bảo bỏ hẳn:
+*"người dùng chỉ cần lăn chuột"*.
+
+### Bỏ được vì một dữ kiện phải KIỂM, không phải vì gọn hơn
+
+Cái nút ấy làm HAI việc, và `0172` chỉ nói ra một: đưa mức phóng về 1, **và đưa ảnh về giữa**. Vế thứ
+hai mới là vế nguy hiểm khi gỡ — kéo ảnh lệch rồi thu nhỏ mà giữ nguyên độ lệch thì người dùng còn
+một tấm ảnh vừa khung nằm lệch hẳn sang một bên, và từ nay **không còn cái nút nào chỉnh lại được**.
+
+Đo trước khi gỡ: lượt lăn chuột đi qua `dungPhong`, và chính hàm ấy kẹp ở `PHONG_MIN = 1` rồi
+`datLech({x: 0, y: 0})` khi chạm mức ấy. Nên **lăn ngược hết cỡ cho ra đúng trạng thái cái nút vừa
+gỡ từng dựng lại** — cùng mức phóng, cùng độ lệch. Cái nút là một đường THỨ HAI tới đó.
+
+Nếu vế ấy không có sẵn thì lượt này phải thêm nó vào trước khi gỡ nút, chứ không phải gỡ rồi mới biết.
+
+### Ca kiểm ĐỔI TẦNG chứ không đổi số
+
+Ca *"nút phần trăm đưa ảnh VỀ cỡ vừa khung, và về giữa"* mất chủ ngữ của nó. Nhưng mệnh đề thì
+không mất — nó chuyển từ MỘT CÁI NÚT sang MỘT TÍNH CHẤT của phép kẹp, và đó đúng là chỗ luật nằm từ
+đầu. Ca mới kéo ảnh lệch 60×50px, lăn ngược **thừa số nấc**, rồi đòi cả `scale(1)` lẫn
+`translate(0px, 0px)`.
+
+Vế *"thừa số nấc"* là vế thêm vào có chủ ý: cái nút cũ đặt thẳng mức 1, còn lăn chuột thì đi qua phép
+kẹp — hai đường khác nhau, và chỉ đường thứ hai mới có chuyện lăn quá.
+
+Ca *"phóng lên thì con số nói đúng mức đang phóng"* mất vế con số: từ `0212` **không chỗ nào bày mức
+phóng ra thành chữ**. Phép đo còn lại là `transform` của chính thẻ ảnh — cũng là phép đo đúng tầng,
+vì một con số phần trăm trên màn hình có thể đúng trong khi ảnh không nhúc nhích (chính `0172` đã ghi
+ra điều đó khi viết ca ấy).
+
+Hai lượt phá lại, hai đỏ đúng chỗ, và chúng canh đúng hai tính chất vừa thay chỗ cho cái nút: bỏ
+`datLech` khi chạm mức 1 → 1 đỏ · bỏ chặn dưới cỡ vừa khung → 1 đỏ.
+
+**2377/2377 xanh.**

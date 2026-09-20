@@ -278,43 +278,27 @@ export function XemTep({
         */
         <div className="thanh-phong">
           {/*
-            CHỈ CÒN CÂU HƯỚNG DẪN (`0211`, khách hàng chốt 20/09) — *"phần xem
-            ảnh chỉ cần câu hướng dẫn, không cần hai nút +/- bên cạnh"*.
+            CHỈ CÒN CÂU HƯỚNG DẪN (`0212`, khách hàng chốt 20/09) — *"không cần
+            cả ô phần trăm và nút về cỡ vừa khung, người dùng chỉ cần lăn
+            chuột"*.
 
-            `0172` dựng ba cái nút cạnh câu ấy, và ở cỡ vừa khung thì HAI trong
-            ba đang xám: *Thu nhỏ* khoá ở 100%, và con số phần trăm cũng khoá vì
-            nó đã ở đúng chỗ nó đưa về. Tức trạng thái thường gặp nhất của hộp
-            bày ra ba nút mà chỉ một bấm được — đúng thứ khách hàng đọc thành
-            *"không cần"*.
+            `0172` dựng ba nút cạnh câu này; `0211` gỡ hai cái dấu cộng trừ vì ở
+            cỡ vừa khung — trạng thái MỌI tấm ảnh mở ra — hai trong ba đang xám.
+            Lượt này gỡ nốt cái thứ ba.
 
-            LỐI VÀO KHÔNG MẤT: lăn chuột vẫn phóng to, và câu hướng dẫn ngay đây
-            nói ra điều đó. Hai cái nút là một đường THỨ HAI tới cùng một việc,
-            không phải đường duy nhất.
+            ĐƯỜNG VỀ KHÔNG MẤT, và đó là dữ kiện phải kiểm trước khi gỡ chứ
+            không phải một hy vọng: lượt lăn chuột đi qua `dungPhong`, mà hàm ấy
+            kẹp mức phóng ở `PHONG_MIN = 1` **và đưa ảnh về giữa khi chạm mức
+            ấy**. Nên lăn ngược hết cỡ cho ra đúng trạng thái mà cái nút vừa gỡ
+            từng dựng lại — cùng mức phóng, cùng độ lệch. Cái nút là một đường
+            THỨ HAI tới đó, không phải đường duy nhất.
+
+            Cái mất, đã nêu: màn hình thôi cho biết đang phóng bao nhiêu phần
+            trăm, và người lăn quá tay phải lăn ngược thay vì bấm một lần.
           */}
-          {phong > 1 && (
-            /*
-              ĐƯỜNG THOÁT thì GIỮ, và chỉ hiện khi có gì để thoát.
-
-              `0172` gọi nó đúng tên: *"đường thoát cho người vừa lăn chuột quá
-              tay"*. Ở cỡ vừa khung nó không có việc gì, nên ẩn đi là hàng này
-              còn đúng một câu chữ — thứ khách hàng yêu cầu. Vừa phóng lên là nó
-              xuất hiện, ở đúng chỗ mắt vừa rời khỏi.
-
-              Câu chữ nói CẢ HAI: mức đang phóng, và việc bấm vào sẽ làm. Đứng
-              một mình thì một con số trần đọc ra là một ô hiển thị, không phải
-              một cái nút — hồi `0172` nó nằm giữa hai dấu cộng trừ nên không ai
-              đọc nhầm.
-            */
-            <button
-              type="button"
-              className="nut nut-nhe"
-              aria-label="Về cỡ vừa khung"
-              onClick={() => dungPhong(1)}
-            >
-              {Math.round(phong * 100)}% · Về cỡ vừa khung
-            </button>
-          )}
-          <span className="ghi-chu">Lăn chuột để phóng to, kéo để di chuyển ảnh.</span>
+          <span className="ghi-chu">
+            Lăn chuột để phóng to hoặc thu nhỏ, kéo để di chuyển ảnh.
+          </span>
         </div>
       )}
 

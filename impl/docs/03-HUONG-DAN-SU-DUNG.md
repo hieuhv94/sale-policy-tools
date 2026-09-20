@@ -1523,21 +1523,22 @@ cùng ghi tên tệp, và hàng nút *Đóng · Tải xuống* ở dưới.
 
 #### Phóng to trong hộp xem `mới 01/09`
 
-**Xem ẢNH** `sửa 20/09` — ngay trên khung chỉ có một dòng hướng dẫn: *"Lăn chuột để phóng to, kéo để
-di chuyển ảnh."*
+**Xem ẢNH** `sửa 20/09` — ngay trên khung chỉ có một dòng hướng dẫn: *"Lăn chuột để phóng to hoặc
+thu nhỏ, kéo để di chuyển ảnh."* **Không còn nút nào.**
 
-- **Lăn chuột** trên tấm ảnh để phóng to, tối đa **6 lần** cỡ vừa khung.
+- **Lăn chuột** trên tấm ảnh để phóng to, tối đa **6 lần** cỡ vừa khung; lăn ngược để thu nhỏ.
 - Ảnh đã phóng to thì **kéo bằng chuột** để di chuyển tới chỗ muốn xem. Trên điện thoại thì kéo bằng
   ngón tay.
-- Khi ảnh **đang phóng**, cạnh dòng hướng dẫn hiện thêm một nút ghi mức phóng — ví dụ
-  **`150% · Về cỡ vừa khung`**. Bấm vào là ảnh về đúng cỡ vừa khung và về giữa.
+- **Lăn ngược hết cỡ** là ảnh về đúng cỡ vừa khung **và về giữa** — kể cả khi bạn đã kéo nó lệch đi.
 
 Không thu nhỏ xuống dưới cỡ vừa khung được: dưới mức ấy ảnh nhỏ hơn khung và chỉ còn viền trống.
 
-> **Hai nút `+` và `−` đã bỏ** `sửa 20/09`. Ở cỡ vừa khung — trạng thái mọi tấm ảnh mở ra — thì hai
-> trong ba nút cũ đang xám: **−** khoá vì không thu nhỏ thêm được, và nút phần trăm cũng khoá vì ảnh
-> đã ở đúng chỗ nó đưa về. Lăn chuột vẫn làm được mọi việc hai nút ấy làm, và dòng hướng dẫn nói ra
-> điều đó.
+> **Ba nút cũ đã bỏ hết** `sửa 20/09` — `+`, `−`, và ô phần trăm kiêm nút *về cỡ vừa khung*. Ở cỡ vừa
+> khung, tức trạng thái mọi tấm ảnh mở ra, hai trong ba nút ấy vốn đã xám. Lăn chuột làm được mọi việc
+> chúng làm, kể cả việc đưa ảnh về giữa.
+>
+> Cái mất, nói thẳng: màn hình **thôi cho biết đang phóng bao nhiêu phần trăm**, và lăn quá tay thì
+> phải lăn ngược chứ không bấm một lần được nữa.
 
 **Xem PDF** — dùng **thanh công cụ của chính trình xem PDF** trong trình duyệt (hiện ở mép khung khi
 bạn rê chuột vào), hoặc **`Ctrl` + lăn chuột**. Phần mềm cố ý không thêm nút riêng: điều khiển trình
