@@ -773,7 +773,8 @@ mục* ở một tab khác để tra. Con số này lấy **theo Ngày áp dụn
 đổi ngày thì nó đổi theo, đúng bằng con số hệ thống sẽ chụp vào dòng.
 
 **Bốn con số hiện ngay trong hộp thoại, trước khi bạn bấm *Thêm dòng*** `mới 09/09`. Ngay dưới các ô
-CPBH có một khối nhỏ:
+CPBH có một khối nhỏ, **bốn ô nằm trên cùng một hàng** `sửa 20/09` — trước ngày ấy chúng xếp thành
+hai hàng hai cột. Màn hình hẹp thì khối tự về hai hàng, điện thoại thì mỗi ô một dòng:
 
 | Ô | Là gì |
 |---|---|

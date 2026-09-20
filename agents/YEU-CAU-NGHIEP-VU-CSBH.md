@@ -2704,6 +2704,19 @@ so với bản trước cũng tính là Đã chỉnh sửa"*.
 > ấy, nên một dòng chỉ đổi ngưỡng vẫn mang nhãn *Đang áp dụng*. Chốt đúng một trường; nêu ra để hỏi
 > lại.
 
+**BỐN CON SỐ CỦA HỘP THOẠI THÊM DÒNG TRÊN MỘT HÀNG** `sửa 20/09` — *"trong hộp thoại thêm sản phẩm,
+thông tin về CPBH, Giá thu về, tỷ lệ CK, QĐCK để chung một dòng, tự chỉnh bố cục, khoảng cách, độ
+rộng cột cho cân đối"*.
+
+> Khối xem trước của `09/09` xếp bốn ô thành 2×2; giờ là một hàng bốn ô.
+>
+> **CỘT BẰNG NHAU, không đo theo nội dung** — và đây là chỗ luật ngược với bảng sản phẩm và khối
+> thông tin khách hàng, hai nơi bề rộng cột đo từ nội dung. Bốn con số này **đổi theo từng phím**
+> người dùng gõ, nên cột đo theo nội dung sẽ làm cả hàng co giãn và ba ô không liên quan nhảy chỗ mỗi
+> lượt gõ thêm một chữ số.
+>
+> **Màn hình hẹp về 2×2, điện thoại về một cột.** Bỏ bậc giữa là nhảy thẳng từ bốn cột sang một.
+
 **MỘT KHỐI THÔNG TIN Ở ĐẦU TRANG HỒ SƠ** `mới 19/09` — *"trong trang thông tin hồ sơ, hãy gộp thông
 tin của hồ sơ và khách hàng vào 1 mục, phần trạng thái của hồ sơ có thể để luôn bên cạnh mã hồ sơ ở
 trên, bố cục dòng và cột sao cho cân đối"*.

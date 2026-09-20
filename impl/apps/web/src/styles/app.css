@@ -2211,12 +2211,25 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
  * một dãy ô nhập. Không mượn `--mau-canh-bao` của khối cảnh báo ngay trên —
  * đây là số liệu bình thường, không phải một điều đáng lo (`0188`).
  */
+/* BỐN CON SỐ TRÊN MỘT HÀNG (`0207`, khách hàng chốt 20/09) — `0193` xếp 2×2.
+
+   CỘT BẰNG NHAU, không đo theo nội dung, và đây là chỗ luật NGƯỢC với `0172` và
+   `0179`: bốn con số này ĐỔI THEO TỪNG PHÍM người dùng gõ. Cột đo theo nội dung
+   thì mỗi lượt gõ một chữ số làm cả hàng co giãn, và ba ô không liên quan nhảy
+   chỗ — thứ `auto` giải được ở một cái nhãn đứng yên thì ở đây chính nó là lỗi.
+   `minmax(0, 1fr)` cũng là thứ giữ cho một giá trị dài tràn xuống dòng thay vì
+   đẩy ba ô kia hẹp lại.
+
+   BA BẬC chứ không hai: hộp thoại rộng 700px (`0130`) nên bốn cột ra ~130px mỗi
+   cột, vừa cho một số tiền hàng triệu; dưới 48rem thì hộp co theo màn hình và
+   bốn cột bắt đầu bẻ đôi số tiền, nên về 2×2 — đúng bố cục `0193` — rồi về một
+   cột ở khổ điện thoại. Bỏ bậc giữa là nhảy thẳng từ bốn cột sang một. */
 .xem-truoc-dong {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--k2) var(--k4);
   margin: 0 0 var(--k4);
-  padding: var(--k3);
+  padding: var(--k3) var(--k4);
   background: var(--mau-nen-phu);
   border-left: 3px solid var(--mau-vien-dam);
   border-radius: var(--bo-goc);
@@ -2225,6 +2238,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 /* `.so` đã căn phải cho ô BẢNG; ở đây nhãn và số đứng cùng cột nên căn trái,
    chỉ giữ phần phông đều cột của nó. */
 .xem-truoc-dong dd { margin: 0; text-align: left; font-weight: 600; }
+
+@media (max-width: 48rem) {
+  .xem-truoc-dong { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 30rem) {
   .xem-truoc-dong { grid-template-columns: 1fr; }

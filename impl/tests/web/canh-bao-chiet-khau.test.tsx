@@ -11,6 +11,7 @@
  * chứng minh nằm ở chỗ nối: chọn sản phẩm → gọi đúng đường xem trước → đọc đúng
  * trường trong câu trả lời → hiện đúng khối cảnh báo.
  */
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -333,6 +334,45 @@ describe('`0193` khối xem trước trong hộp thoại thêm dòng', () => {
     // (100000 − 85000) / 100000 = 15%
     expect(o('Tỷ lệ CK').textContent).toBe('15,00%');
     expect(o('QĐCK').textContent).toBe('20,00%');
+  });
+
+  it('`0207` bốn ô trên MỘT HÀNG, và số cột khớp số ô', async () => {
+    /*
+     * Khách hàng chốt 20/09: *"CPBH, Giá thu về, tỷ lệ CK, QĐCK để chung một
+     * dòng"*. `0193` xếp chúng 2×2.
+     *
+     * jsdom không tính bố cục, nên thứ đo được là luật CSS. Nhưng một ca chỉ đọc
+     * CSS sẽ xanh mãi mãi kể cả khi ai đó thêm một ô thứ năm vào khối — và khi
+     * ấy "một hàng" lặng lẽ thành hai. Nên ca này nối HAI thế giới: số cột khai
+     * ở `app.css` phải bằng số ô dựng ra trong DOM.
+     */
+    chanFetch(() => phanHoi(200, XEM_TRUOC));
+    moHopThoai();
+    await chonSanPham();
+    await goGia('100000');
+    await waitFor(() => expect(document.querySelector('.xem-truoc-dong')).not.toBeNull());
+    const soO = document.querySelectorAll('.xem-truoc-dong > div').length;
+    expect(soO, 'khối phải có bốn ô').toBe(4);
+
+    /*
+     * Đọc TỪNG luật khai cho đúng selector ấy, theo thứ tự nguồn — không phân
+     * tích cây `@media`. Ba luật, ba bậc: màn hình rộng · bậc giữa · điện thoại.
+     */
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
+    const cot = [...css.matchAll(/\.xem-truoc-dong\s*\{([^}]*)\}/g)]
+      .map((m) => m[1]!.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim())
+      .filter((x): x is string => x !== undefined);
+
+    expect(cot.length, 'phải có BA bậc: màn rộng, bậc giữa, điện thoại').toBe(3);
+
+    // Bậc rộng nhất: đúng một hàng, tức số cột bằng số ô.
+    const n = Number(cot[0]!.match(/^repeat\(\s*(\d+)\s*,/)?.[1]);
+    expect(n, `bậc màn rộng phải là repeat(n, …), đang là "${cot[0]}"`).toBe(soO);
+
+    // Bậc giữa KHÔNG thừa: bỏ nó là nhảy thẳng từ bốn cột sang một.
+    expect(cot[1], 'bậc giữa phải là hai cột').toMatch(/^repeat\(\s*2\s*,/);
+    expect(cot[2], 'khổ điện thoại phải là một cột').not.toMatch(/repeat\(/);
+    expect(css).toContain('@media (max-width: 48rem)');
   });
 
   it('LÀM TRÒN NỬA LÊN, đúng như máy chủ — không phải `toFixed` trên số thực', async () => {

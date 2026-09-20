@@ -18404,3 +18404,41 @@ Câu ấy sai suốt hai mươi sáu chặng, ở ngay dưới chính cái bản
 > TRƯỚC, rồi mới gõ bất kỳ lệnh nào của bộ kiểm.**
 
 **2351/2351 xanh.**
+
+---
+
+## P236 — `0207` Bốn con số của hộp thoại thêm dòng trên một hàng
+
+Một dòng CSS đổi từ `repeat(2, …)` sang `repeat(4, …)`, và lý do đáng nhớ nằm ở chỗ nó **ngược với
+hai chặng trước đó**.
+
+### Vì sao cột ở đây KHÔNG đo theo nội dung
+
+`0172` bỏ hằng số bề rộng cột của bảng sản phẩm, `0179` bỏ nốt con số cuối ở cột nhãn khối khách
+hàng, `0206` nhắc lại lập luận ấy. Ba lần cùng một câu: *để trình duyệt tự đo bằng phông nó thật sự
+vẽ*. Ở đây câu ấy **sai**, và lý do là một dữ kiện về hành vi chứ không phải thẩm mỹ:
+
+> **Bốn con số này đổi theo TỪNG PHÍM người dùng gõ.** Cột đo theo nội dung thì mỗi lượt gõ thêm một
+> chữ số vào ô CPBH làm cả hàng co giãn, và ba ô không liên quan nhảy chỗ. Thứ `auto` giải được cho
+> một cái nhãn ĐỨNG YÊN thì ở một giá trị đang chạy chính nó là lỗi.
+
+`minmax(0, 1fr)` chứ không `1fr` trần: vế `minmax(0, …)` là thứ giữ cho một số tiền dài tràn xuống
+dòng thay vì đẩy ba ô kia hẹp lại — cùng lý do `0206` đã dùng nó cho cột giá trị.
+
+### Ba bậc, và bậc giữa không phải chỗ thừa
+
+Hộp thoại rộng 700px (`0130`) nên bốn cột ra ~130px mỗi cột, vừa cho một số tiền hàng triệu. Dưới
+48rem hộp co theo màn hình và bốn cột bắt đầu bẻ đôi số tiền, nên về **2×2** — đúng bố cục `0193` —
+rồi về một cột ở khổ điện thoại. Bỏ bậc giữa là nhảy thẳng từ bốn cột sang một, và có một lượt phá
+lại canh đúng chuyện đó.
+
+### Ca kiểm nối HAI thế giới, và nó là phần đáng giữ
+
+jsdom không tính bố cục, nên thứ đo được chỉ là luật CSS. Một ca chỉ đọc CSS sẽ **xanh mãi mãi** kể
+cả khi ai đó thêm một ô thứ năm vào khối — và khi ấy *"một hàng"* lặng lẽ thành hai, không gì đỏ.
+Nên ca kiểm đòi **số cột khai ở `app.css` bằng số ô dựng ra trong DOM**: hai vế ở hai thế giới, cùng
+một câu hỏi. Lượt phá lại chèn một ô thứ năm cho **2 đỏ** — ca này và ca ghim tên cột của `0193`.
+
+Ba lượt phá lại, ba đỏ đúng chỗ.
+
+**2352/2352 xanh.**
