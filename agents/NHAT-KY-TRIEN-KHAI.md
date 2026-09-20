@@ -18551,3 +18551,17 @@ hỏng — cùng họ với bài học *"ca kiểm bất đồng bộ xanh ở l
 chỉ ngược chiều.
 
 **2368/2368 xanh.**
+
+### Hậu P237 — `0208b` phép quét bỏ sót `scripts/`
+
+Chốt chặn của `0208` quét `apps/web`, `services` và `packages`, **không quét `scripts/`** — và đó là
+một chỗ hở có thật, không phải một góc khuất vô hại: `nap-danh-muc` và `seed-demo` đều GHI ngày hiệu
+lực của quy định chiết khấu qua API. Một `toISOString()` ở đó nạp vào **bản chạy thử của khách hàng**
+một ngày lệch, chứ không phải bày một con số lệch lên màn hình cho ai đó đọc thấy.
+
+Đo ra: cả hai script **đang viết đúng** (`Intl.DateTimeFormat` với `Asia/Ho_Chi_Minh`). Nên đây là
+một lượt mở rộng phạm vi chốt chặn, không phải một lượt sửa lỗi — nhưng `0180` đã ghi đúng bài học
+cho chính chỗ này: *bộ nạp demo là một người dùng của lược đồ, và nó cần một chốt chặn như mọi người
+dùng khác*. Lần này là người dùng của một QUY ƯỚC thay vì của lược đồ.
+
+**2368/2368 xanh.**

@@ -159,6 +159,14 @@ async function main(): Promise<void> {
   }
   console.log(`  nhóm sản phẩm: ${NHOM.length}`);
 
+  /*
+   * HÔM NAY theo giờ VIỆT NAM, không theo UTC.
+   *
+   * `new Date().toISOString().slice(0, 10)` ở đây sẽ nạp vào bản chạy thử của
+   * khách hàng một ngày hiệu lực LỆCH MỘT NGÀY mỗi lần chạy trong khoảng 00:00
+   * tới 07:00 giờ Việt Nam — và không ai đọc lại con số ấy để mà phát hiện.
+   * `0208b` thêm một ca quét cấm lối viết kia trong cả `scripts/`.
+   */
   const homNay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(
     new Date(),
   );

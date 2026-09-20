@@ -209,7 +209,16 @@ describe('`0208` không còn ô ngày nào của trình duyệt', () => {
      * đủ là đúng thứ dây truyền cần, và `ChuongThongBao` với `audit` đang dùng
      * nó đúng như thế.
      */
-    const goc = ['apps/web/src', 'services', 'packages'].flatMap((d) => quetThuMuc(d));
+    /*
+     * `scripts/` NẰM TRONG phạm vi quét (`0208b`). Bản đầu bỏ sót nó, và đó là
+     * một chỗ hở có thật: `nap-danh-muc` và `seed-demo` đều GHI ngày hiệu lực
+     * của quy định chiết khấu qua API, nên một `toISOString()` ở đó nạp vào CSDL
+     * một ngày lệch — trên bản chạy thử của khách hàng, không phải trên màn hình
+     * ai đó. Cả hai đang viết đúng; phép quét là thứ giữ cho chúng viết đúng.
+     */
+    const goc = ['apps/web/src', 'services', 'packages', 'scripts'].flatMap((d) =>
+      quetThuMuc(d),
+    );
     expect(goc.length, 'không quét được tệp nào').toBeGreaterThan(100);
     const xau = goc.filter((p) =>
       /toISOString\(\)\s*\.\s*slice\(\s*0\s*,\s*10\s*\)/.test(boChuThich(readFileSync(p, 'utf8'))),
