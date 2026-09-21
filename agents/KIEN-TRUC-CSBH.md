@@ -195,14 +195,20 @@ Chỉ trình bày phần chi phối tính đúng đắn. Toàn bộ số tiền 
 ```
 -- mốc thời gian là CỘT RIÊNG (§10), không suy ra từ nhật ký
 id                uuid pk
-code              text unique          -- CSBH-2026-000123
+code              text unique          -- 0198: MÃ DO TDV ĐẶT, hệ thống chỉ ĐỀ XUẤT. Ràng buộc
+                                       --   khai inline từ `0001_init.sql`, nên Postgres tự đặt
+                                       --   tên `policy_code_key` — cái tên ấy KHÔNG có trong mã
+                                       --   nguồn, chỗ duy nhất trả lời được là `pg_constraint`
 customer_id       uuid                 -- tham chiếu logic sang cus.customer
 version_no        int                  -- tự tăng theo số lần cập nhật của KH đó (§5.6)
 status            pol_status           -- enum 10 giá trị, danh sách đóng (§4) `sửa 0155`
 pending_step      pol_step null        -- bước đang chờ, dùng khi rơi vào QUA_HAN_DUYET
 supersedes_id     uuid null            -- bản bị thay thế
 superseded_by_id  uuid null
-applied_date      date                 -- NGÀY ÁP DỤNG: chỉ để hiển thị (§5.3)
+-- applied_date ĐÃ GỠ HẲN (0180, migration 0116) — ngày áp dụng thuộc về TỪNG DÒNG
+--   sản phẩm, xem `pol.policy_line.ngay_ap_dung`. Hồ sơ bốn dòng bốn ngày thì
+--   "ngày áp dụng của hồ sơ" là câu KHÔNG có câu trả lời đúng; `rpt.policy_row`
+--   dựng một giá trị hiển thị bằng MIN của các dòng, không lưu thành cột.
 effective_from    timestamptz null     -- = thời điểm kế toán tiếp nhận L2
 deactivated_at    timestamptz null
 sla_due_at        timestamptz null
@@ -254,11 +260,36 @@ CREATE TRIGGER trg_audit_immutable BEFORE UPDATE OR DELETE ON aud.audit_log
 CREATE UNIQUE INDEX uq_customer_id_number ON cus.customer (id_number)
   WHERE id_number IS NOT NULL AND status <> 'NGUNG_HOP_TAC';
 
+-- 5b) TỈNH/THÀNH là danh sách ĐÓNG 63 đơn vị (0205) — và chốt nằm ở TẦNG ỨNG DỤNG,
+--     KHÔNG ở CSDL. `province` vẫn là `text` trơn, không `CHECK`, không migration
+--     quy đổi: một `CHECK` 63 vế thì mỗi lượt sửa danh sách thành một migration, và
+--     câu lỗi nó ném ra là một tên ràng buộc chứ không phải một câu tiếng Việt nói
+--     rõ phải chọn lại ô nào (cùng lý lẽ `0114` đã dùng).
+--     `chuanTinhThanh` TRẢ VỀ bản của BẢNG chứ không gật đầu: tiếng Việt viết được
+--     bằng HAI dạng Unicode (NFC / NFD) trông giống hệt nhau, nên một hàm boolean
+--     sẽ xanh rồi service ghi nguyên chuỗi NFD xuống CSDL — đúng cái lộn xộn mà
+--     lượt này dựng ra để dẹp.
+
 -- 6) Địa chỉ NHẬN HÀNG là dòng duy nhất còn được phép trong bảng địa chỉ (0175)
 ALTER TABLE cus.customer_address ADD CONSTRAINT chi_noi_nhan_hang
   CHECK (kind = 'NHAN_HANG');
+
+-- 7) MỖI KHÁCH HÀNG CHỈ GIỮ MỘT BẢN NHÁP (0197)
+--    Kịch bản sinh ra luật này là người dùng BẤM ĐÚP — hai request song song cùng
+--    đọc thấy "chưa có Nháp nào" — nên chỉ mục phần là chốt THẬT; phép kiểm ở
+--    service vẫn giữ, vì thứ tự câu hỏi với NEW_VERSION_REQUIRED và vì
+--    `saoChepGiayTo` chạy TRƯỚC transaction.
+--    CHẶN ĐÚNG `NHAP`: `YEU_CAU_CHINH_SUA` nằm chung hằng `SUA_DUOC` nhưng nó là
+--    hồ sơ ĐÃ vào luồng rồi bị trả về — chặn ở đó là cấm lập hồ sơ cho khách đang
+--    có hồ sơ bị trả lại, một luật khác hẳn mà không ai yêu cầu.
+CREATE UNIQUE INDEX uq_policy_nhap_moi_khach
+  ON pol.policy (customer_id) WHERE status = 'NHAP';
 ```
 
+> **HỆ QUẢ RỘNG HƠN CÂU CHỮ, và bộ nạp demo đã chết vì nó** (`0199`): mọi lượt `POST /policies` đều
+> dựng ra một bản Nháp trước, **kể cả lượt lập phiên bản mới** — nên khách đang giữ Nháp thì không
+> lập thêm được hồ sơ NÀO nữa, không riêng một bản Nháp thứ hai.
+>
 > **Hai cột địa chỉ là DẪN XUẤT, không ghi thẳng** (`0154`, `0175`).
 > `cus.customer.registered_address` do trigger `tr_dung_dia_chi_dang_ky` dựng (`BEFORE INSERT/UPDATE`,
 > gán vào `NEW`) từ `street_ward || ', ' || province`; `delivery_address` do `tr_gop_dia_chi` gộp từ
@@ -314,6 +345,14 @@ pol.policy_line
   threshold_source    text                -- RULE | KHONG_CO | (PRODUCT_DEFAULT, NULL: lịch sử)
   rule_code_snap      text                -- MÃ quy định đã cho ra threshold_snap (0022, 0024)
   note                text                -- ghi chú tự do của người lập cho RIÊNG dòng này (0027)
+  ngay_ap_dung        date not null       -- 0180: NGÀY ÁP DỤNG của riêng dòng này, thay cho
+                                          --   pol.policy.applied_date. Mặc định *hôm nay theo giờ
+                                          --   Việt Nam* đặt ở MÁY CHỦ (`ngayVN()`). Nó quyết định
+                                          --   bảng giá và ngưỡng được chụp cho chính dòng ấy, nên
+                                          --   `create` gom dòng theo NGÀY và tra một lô mỗi ngày
+  da_xoa              bool default false  -- 0186: TDV đã rút mặt hàng khỏi phiên bản này. Cột
+                                          --   trạng thái DUY NHẤT của bảng — nó là một Ý ĐỊNH,
+                                          --   không phải một phép so; ba trạng thái kia là DẪN XUẤT
   over_threshold      boolean GENERATED ALWAYS AS
                         (threshold_snap IS NOT NULL AND discount_rate > threshold_snap) STORED
 
@@ -325,6 +364,23 @@ pol.policy_line
 
   CONSTRAINT ghi_chu_khong_rong CHECK (note IS NULL OR btrim(note) <> '')
 ```
+
+> **BA TRẠNG THÁI DÒNG là DẪN XUẤT, cột thứ tư thì không** `0180`, `0186`, `0200`, `0202`, `0215`
+>
+> *Bổ sung* · *Chỉnh sửa* · *Đang áp dụng* tính tại chỗ bằng `SQL_TRANG_THAI_DONG`, so với dòng CÙNG
+> SẢN PHẨM của bản bị thay thế (`supersedes_id` + `product_id`). Không cột nào lưu chúng, và đó là
+> quyết định: cả hai vế đã có sẵn trong CSDL, vế bản trước là bất biến, nên phép so cho cùng câu trả
+> lời mãi mãi mà không phải giữ đồng bộ một bản sao ở bốn đường ghi. Cái được: **sửa nhầm rồi sửa trả
+> lại thì dòng quay về *Đang áp dụng***.
+>
+> **BỐN TRƯỜNG ĐƯỢC SO**, và tập ấy chỉ đổi khi khách hàng chốt: `company_price_snap` (`0202`) ·
+> `wholesale_price` · `cpbh` · `ngay_ap_dung`. **`note` đã RA KHỎI phép so ở `0215`** — sửa mỗi ghi
+> chú thì dòng giữ nguyên trạng thái; ranh giới là *bốn trường kia đều đi ra tờ giấy khách hàng ký*.
+> `discount_rate` KHÔNG thêm vì nó là hàm thuần của ba trường đầu; `threshold_snap` VẪN đứng ngoài.
+>
+> **Thứ tự nhánh `CASE` là thứ duy nhất giữ hai luật khỏi cãi nhau**: `da_xoa` thắng tất cả, rồi hồ sơ
+> `DANG_CO_HIEU_LUC` kéo MỌI dòng về *Đang áp dụng* (`0200` — bản trước đã vô hiệu toàn bộ, giữ nhãn
+> cũ là bày ra một phép so với một văn bản đã chết), rồi mới tới ba nhánh của `0180`.
 
 > **`note` là cột DUY NHẤT trên dòng không phải ảnh chụp** `0027`
 >
@@ -1262,7 +1318,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | EFF-04 | Bản mới bị từ chối hoặc bị trả lại | Bản cũ vẫn nguyên hiệu lực, không có khoảng trống chính sách | §5.5 | `P0` |
 | EFF-05 | Sau khi thay thế | Lưu `supersedes_id`, `superseded_by_id`, thời điểm và người thao tác | §5.5 | `P0` |
 | EFF-06 | Chờ qua nhiều ngày với hồ sơ đang hiệu lực | Không có job nào tự làm hết hiệu lực, không có email cảnh báo sắp hết hạn | §5.2 | `P0` |
-| EFF-07 | Ngày áp dụng ghi trên CSBH rơi vào trước ngày duyệt xong | Không xử lý gì; hiệu lực vẫn tính từ lúc tiếp nhận L2; CSBH cũ có hiệu lực tới đúng thời điểm đó | §5.3 | `P0` |
+| EFF-07 | Ngày áp dụng ghi trên một DÒNG rơi vào trước ngày duyệt xong | Không xử lý gì; hiệu lực vẫn tính từ lúc tiếp nhận L2; CSBH cũ có hiệu lực tới đúng thời điểm đó. *(Tới `0180` câu này phát biểu trên `applied_date` của hồ sơ — cột ấy đã gỡ, luật thì không đổi.)* | §5.3 | `P0` |
 | EFF-08 | Truy vấn “CSBH hiện hành của khách hàng X” | Trả đúng một bản ghi, kể cả khi khách hàng có 5 phiên bản trong lịch sử | §5.1 | `P0` |
 | EFF-09 | Chuỗi ba phiên bản, v3 được duyệt | v1 và v2 đều *Hết hiệu lực*; tra ngược được toàn bộ chuỗi | §5.5 | `P0` |
 | EFF-10 | So tập sản phẩm giữa hai phiên bản liên tiếp | Tập sản phẩm của v(n) chứa toàn bộ tập của v(n−1) | §5.4 | `P0` |
@@ -1334,8 +1390,9 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | NTF-13 | Đổi giá sản phẩm nằm trong CSBH đang hiệu lực | Ghi dấu vết vào `pol.policy_impact`; **không gửi email** `0055`; hồ sơ đã ký **không** bị ghi đè | §7 | `P0` |
 | NTF-13b | Đổi **quy định chiết khấu** áp cho CSBH đang hiệu lực | Dấu vết mang `kind = RULE` và ngưỡng mới; **không gửi email** `0055`; hồ sơ đã ký không bị ghi đè (`0029`) | §7.2 | `P0` |
 | NTF-13c | ~~Đổi giá hai lần liên tiếp cùng một hướng~~ | **Bỏ ở `0055`** cùng với lá thư mà nó canh: không còn thư thì không còn chuyện gửi trùng. Dấu vết vốn đã idempotent theo `(hồ sơ, sản phẩm, loại)` | §7.2 | — |
-| POL-20 | Lập hồ sơ có *Thời gian áp dụng* trong tương lai, danh mục có giá hiệu lực từ ngày đó | Chụp giá của NGÀY ÁP DỤNG, không phải giá hôm nay (`0029`) | §7.1 | `P0` |
-| POL-21 | Đổi *Thời gian áp dụng* của hồ sơ Nháp | Mọi dòng chụp lại theo bảng giá của ngày mới (`0029`) | §7.1 | `P0` |
+| POL-20 | Lập hồ sơ có DÒNG đề ngày áp dụng trong tương lai, danh mục có giá hiệu lực từ ngày đó | Chụp giá của NGÀY ÁP DỤNG, không phải giá hôm nay (`0029`). Chỉ còn đúng cho đường `create` — xem POL-20b | §7.1 | `P0` |
+| POL-20b | **Sửa** một dòng, hoặc đối chiếu/làm mới nó, khi ngày áp dụng đã QUA | Tra danh mục ở `max(ngày áp dụng, hôm nay)` (`0201`, `0203`). So ảnh chụp của ngày X với bảng giá của ngày X là một phép so KHÔNG BAO GIỜ tìm ra gì, vì bảng giá của một ngày đã qua không đổi nữa — và hậu quả là hồ sơ đi hết mười bước rồi được ký với giá lỗi thời, không mã lỗi nào | §7.1 | `P0` |
+| POL-21 | ~~Đổi *Thời gian áp dụng* của hồ sơ Nháp~~ **BỎ `0180`** — ngày áp dụng xuống TỪNG DÒNG, `PATCH /policies/:id` gỡ hẳn. Việc tương đương là sửa ngày của một dòng: `PATCH .../lines/:lineId` với `ngayApDung`, và **thiếu trường ấy là GIỮ NGUYÊN** (ngược với `note`, nơi vắng mặt là xoá — cột này `NOT NULL`, không có trạng thái rỗng để xoá về) | §7.1 | `P0` |
 | POL-22 | Mở lại hồ sơ Nháp sau khi danh mục đổi | Giá và ngưỡng là số MỚI; giá bán buôn và CPBH **không đổi**; `row_version` **không đổi** (`0029`) | §7.2 | `P0` |
 | POL-23 | Gửi duyệt hồ sơ có dòng không làm mới được | 422 `STALE_LINE` kèm danh sách mã sản phẩm. Mở hồ sơ thì vẫn xem được (`0029`) | §7.2 | `P0` |
 | POL-24 | `GET /policies/impacted` | Hồ sơ đã đóng băng trong phạm vi người gọi đang lệch, kèm con số cũ và mới. Hồ sơ Nháp KHÔNG có mặt (`0029`) | §9.3 | `P0` |

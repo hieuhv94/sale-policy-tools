@@ -389,6 +389,26 @@ hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai d
 phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
 rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 
+### Nâng cấp lên bản CHỌN TỈNH/THÀNH TỪ DANH SÁCH `mới 13/09`
+
+**Không chặn nâng cấp, không có migration nào.** Ô *Tỉnh/Thành phố* của khách hàng
+đổi từ ô gõ tự do thành **ô chọn 63 đơn vị**; cột trong CSDL vẫn là chữ, và không
+có bước quy đổi dữ liệu cũ nào.
+
+Việc tay phát sinh, và nó lộ ra dần chứ không lộ ra một lượt:
+
+| | |
+| --- | --- |
+| Vì sao có | Tới `13/09` ô ấy là chữ tự do, nên cùng một thành phố nằm trong dữ liệu dưới nhiều lối viết — `Hà Nội` · `TP Hồ Chí Minh` · `Thành phố Hà Nội`. Không bộ lọc nào, không báo cáo nào gom chúng lại được, mà chuỗi ấy đi thẳng ra dòng địa chỉ trên bản CSBH hai bên ký |
+| Phần mềm làm gì | Khách hàng đang giữ một tên ngoài danh sách thì ô chọn **vẫn bày tên ấy ra**, ở dạng không chọn lại được — dữ liệu cũ không bao giờ hiện thành ô trống |
+| Phải làm | **Lượt sửa tiếp theo của khách hàng đó bị chặn** tới khi người dùng chọn lại một tên trong danh sách. Câu lỗi nói rõ ô nào |
+| Vì sao chấp nhận cái giá ấy | Cho qua thì một lượt Lưu bất kỳ — kể cả lượt chỉ sửa số điện thoại — sẽ **âm thầm ghi đè địa chỉ pháp nhân**. Một câu lỗi đọc được thì hơn |
+
+Lối viết chốt là lối **NGẮN**: `Hà Nội`, `Hồ Chí Minh`, `Cần Thơ` — không tiền tố
+*Tỉnh* hay *Thành phố*.
+
+---
+
 ### Nâng cấp lên bản MỘT BẢN NHÁP MỖI KHÁCH HÀNG `mới 10/09`
 
 **Bước migration của bản này DỪNG LẠI nếu còn khách hàng đang có nhiều hơn một

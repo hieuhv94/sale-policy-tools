@@ -936,6 +936,8 @@ mục sản phẩm**.
 > **Ô nào vừa đổi thì có một DẤU TAM GIÁC bên cạnh** `mới 12/09` `sửa 21/09`. Dấu **xanh hướng lên**
 > nghĩa là con số mới **lớn hơn** con số ở phiên bản trước, **đỏ hướng xuống** nghĩa là nhỏ hơn.
 > **Rê chuột vào dấu** — hoặc bấm vào nó, hoặc Tab tới nó — thì hiện ra **giá trị ở phiên bản trước**.
+> Rời chuột, bấm ra chỗ khác, hay bấm sang một dấu khác thì nó đóng lại; **không bao giờ có hai ô
+> chữ cùng mở**.
 >
 > Có dấu ở mọi cột số vừa đổi: Ngày áp dụng · Giá bán Công ty · Giá bán buôn · CPBH (cả tổng lẫn
 > từng khoản) · Giá thu về · Tỷ lệ CK · QĐCK.

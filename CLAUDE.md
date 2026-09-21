@@ -61,6 +61,18 @@ khó đoán nhất (test đỏ ở bốn tệp không tệp nào có lỗi thậ
 bảo chạy `make demo-down`. Chạy demo rồi chạy test cũng xoá sạch 10 tài khoản mẫu, nên `make test`
 luôn kéo theo `migrate` + `seed`.
 
+> **DEMO BẬT THÌ KHÔNG GÕ BẤT KỲ LỆNH NÀO DÙNG `compose.test.yml` — kể cả `make typecheck`.** Hai tệp
+> compose dùng CHUNG tên project `csbh`, nên `compose run` đưa project về tập service của bản kiểm:
+> nó **hạ mười service ứng dụng của demo** rồi chạy `pg-init` + `migrate` trên chính CSDL ấy, và
+> triệu chứng là `localhost:8080` chết trong khi `docker ps` vẫn đầy container hạ tầng "healthy".
+> Đã dính **bốn lần** (`0134`, `0135`, P235 với `make typecheck`, và một lượt `make demo-mau` chỉ
+> lặng lẽ tháo cổng của `caddy`).
+>
+> **Cách an toàn khi demo đang bật**: `make demo-down` TRƯỚC, hoặc `docker run` một ảnh rời
+> (`csbh-test:latest`) gắn repo vào với `--network none` và gắn đúng những volume `csbh_nm_*`. Đường
+> thứ hai chạy được `pnpm typecheck` và cả `tests/web` lẫn các tệp kiểm THUẦN mà không chạm gì tới
+> demo.
+
 Test chạy **tuần tự** (`fileParallelism: false`) vì dùng chung một Postgres thật — chậm hơn, nhưng
 mọi lần đỏ đều là lỗi thật.
 
@@ -85,9 +97,200 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (10/09/2026)
+## Trạng thái hiện tại (21/09/2026)
 
-Chặng gần nhất **P226** (`0198`): **mã hồ sơ do TDV đặt** — hệ thống đề xuất lúc lập, sửa được bằng
+Chặng gần nhất **P245** (`0216`): **bấm ra ngoài thì ô chữ giá trị cũ đóng** — lỗi của chính `0215`,
+người dùng tìm ra. Ô chữ hiện ra từ **BA NGUỒN ĐỘC LẬP** — `:hover`, `:focus`, và lớp `dau-mo` do
+state React — nên bấm ra ngoài tắt hai nguồn đầu mà nguồn thứ ba nằm lại, vì nó chỉ đảo khi bấm lại
+ĐÚNG cái dấu ấy. **Không lộ ra lúc thử bằng chuột** vì hai nguồn kia tự đóng. Hệ quả thứ hai cùng gốc
+và nặng hơn, người dùng chưa nêu: mỗi dấu giữ state RIÊNG (chúng không loại trừ nhau như `dangMo` của
+`0204` vốn là một tập ở cấp bảng), nên bấm năm dấu là năm ô chữ cùng đè lên bảng. **HAI LỚP, và lớp
+thứ hai KHÔNG thừa**: `onBlur` lo chuột · bàn phím · lượt bấm sang dấu khác, nhưng đường bấm sinh ra
+chính là để phục vụ CẢM ỨNG, mà trên iOS Safari một cú chạm không phải lúc nào cũng trao tiêu điểm
+cho `<button>` — nút chưa từng nhận tiêu điểm thì cũng không bao giờ mất. Nên thêm listener
+`pointerdown` cấp tài liệu, **chỉ gắn trong lúc đang mở**; `pointerdown` chứ không `click` (nó nổ
+trước), và vế `contains` giữ cho cú chạm vào chính cái dấu đi đường `onClick` — thiếu nó thì một lượt
+bấm đi hai bước ngược nhau và cái dấu thành nút không bao giờ tắt. **LƯỢT PHÁ LẠI XANH ĐỊNH HÌNH HAI
+CA KIỂM MỚI**: gỡ hẳn listener mà cả 65 ca vẫn xanh — ba ca đầu đều đi qua `onBlur`, vì
+`userEvent.click` LUÔN kéo theo một lượt đổi tiêu điểm. Ca đúng phải **bắn thẳng một `pointerdown`,
+KHÔNG đụng tiêu điểm** (kèm một khẳng định nói ra điều đó, nếu không nó lại lặng lẽ trôi về đường
+`onBlur`), và phải bọc `act()` — sự kiện bắn ngoài hệ sự kiện React thì lượt `setState` không vẽ lại
+ngay, thiếu `act()` là ca kiểm đọc **lần vẽ CŨ** rồi đỏ ở chỗ không có gì sai. Lượt phá `[nut.current]`
+làm phụ thuộc `useEffect` **xanh có lý do**: ở render mà `mo` thành `true` thì `nut.current` đã đổi từ
+`null` sang phần tử thật nên effect vẫn chạy — bẫy `0172` không cắn ở đây; cái sai của nó là listener
+thôi được gỡ ở lượt đóng, một rò rỉ không quan sát được. **845/845 ca ngoại tuyến xanh; `make test`
+đầy đủ chưa chạy ở chặng này.**
+
+Trước đó **P244** (`0215`): **dấu tam giác cạnh giá trị đã đổi**, thay hẳn hàng *bản trước* của
+`0204`/`0213`/`0214`. Xanh hướng lên khi giá trị mới lớn hơn, đỏ hướng xuống khi bé hơn, rê chuột thì
+hiện giá trị cũ. **MÁY CHỦ KHÔNG ĐỔI MỘT CHỮ NÀO CỦA HỢP ĐỒNG** — `SQL_BAN_TRUOC_TRA_VE` vẫn trả cả
+dòng ở bản trước cộng danh sách khoá đã đổi, vì cả hai vẫn cần; thứ giao diện tự làm lấy là **CHIỀU**,
+và đó không phải phép so thứ hai đi ngược `0213`: *"ô này có đổi không"* vẫn của máy chủ (nó so trên
+`numeric` nên `615000` và `615000.00` là một), còn ở đây hai giá trị **đã được khẳng định là khác
+nhau** và việc còn lại là xếp thứ tự hai con số. **CÂU TRẢ LỜI THỨ HAI CỦA KHÁCH HÀNG LÀ MỘT LUẬT
+NGHIỆP VỤ MỚI**: hỏi bày thế nào cho ô *Ghi chú* (thứ không có lớn bé), họ trả lời *"ghi chú không
+phải là trường để đánh giá sản phẩm có bị chỉnh sửa không"* — đảo một phần chốt `07/09`, và ranh giới
+đọc ra được từ bốn trường còn lại: **cả bốn đều đi ra tờ giấy khách hàng ký**. `note` rời khỏi CẢ HAI
+danh sách; cái mất đã nêu: sửa ghi chú thôi thì trên hàng không còn dấu vết nào. **`khac` là câu trả
+lời THẬT, không phải nhánh lỗi** — một khoản CPBH vừa có giá trị từ chỗ trống đã đổi mà không lớn hơn
+cái gì; dấu tròn hổ phách, rê vào vẫn hiện giá trị cũ. Khoản CPBH là chỗ DUY NHẤT giao diện được so
+hai bên (máy chủ chỉ nói được *"mảng đã đổi"*), và phép so ở đó là **so chuỗi thô** — đúng ngữ nghĩa
+`IS DISTINCT FROM` trên `bigint[]`, áp cho từng phần tử. **NGÀY: hai vế tới dưới HAI HÌNH**, và so
+`getTime()` thì lệch bảy tiếng, **nhỏ hơn một ngày nên ra đúng thứ tự — đúng TÌNH CỜ**; thêm
+`ngayISO()` vào `format.ts` quy cả hai về ngày lịch Việt Nam, `ngay()` viết lại trên nó. **LƯỢT PHÁ
+LẠI XANH LÀ PHÁT HIỆN CỦA CẢ CHẶNG**: thêm `'note'` lại vào `O_BAN_TRUOC` mà 62 ca giao diện vẫn xanh
+— **không ô nào gọi `<Dau o="note">`**, nên khoá thừa là mã chết cho tới ngày ai đó đọc danh sách rồi
+tin rằng ghi chú có mang dấu; thứ bắt được phải là một phép ĐỐI CHIẾU với máy chủ, nên phần thuần dời
+sang `apps/web/src/lib/ban-truoc.ts` (`tests/http/` không bật `jsx` — cùng đường `0172`) và có ca đòi
+hai danh sách **bằng nhau kể cả thứ tự**. Một ca `0180` phải **ĐẢO CHIỀU** (*"đổi CHỈ GHI CHÚ cũng là
+Chỉnh sửa"*), và lượt `grep` trước khi gõ **không thấy nó** vì chuỗi `'CHINH_SUA'` nằm cách chữ `note`
+ba dòng — thứ tìm ra là lượt chạy cả bộ, **1 đỏ trên 2389**. **2389/2389 xanh.**
+
+Trước đó **P243** (`0214`): **hàng *bản trước* khớp TỪNG CỘT** với dòng ở trên, thay bảng dọc của
+`0213` — *"so hai con số cùng cột thì mắt chỉ cần đi thẳng xuống"*. `colSpan` chính là thứ làm các con
+số không thẳng cột. Ô *CPBH* tổng phải thêm ở MÁY CHỦ chứ không cộng mảng ở trình duyệt (`cpbh_total`
+là cột SINH). **LỖI CỦA CHÍNH LƯỢT SỬA**: `cpbhTotal` chèn nhầm vào `TRUONG_SO_VOI_BAN_TRUOC` (tập
+quyết định NHÃN) vì hai danh sách có chung dòng `{ khoa: 'cpbh', … }` và phép thay chuỗi dừng ở lần
+khớp đầu — **không ca kiểm nhãn nào đỏ**, vì tổng đổi thì mảng cũng đổi; thứ bắt được là ca ghim TẬP
+KHOÁ, ở tận lượt chạy cả bộ. Chốt chặn: ghim tập khoá của TỪNG danh sách bằng `toEqual`. Vế THẺ giữ
+bảng dọc (dưới 640px không còn cột nào để khớp).
+
+Trước đó **P242** (`0213`): bảng chi tiết bày **cả dòng ở bản trước**, ô đổi bôi vàng — đảo NỘI DUNG
+của `0204`, giữ cơ chế mở. Giao diện **không tính gì**: `cpbh_total`, `net_price`, `over_threshold` là
+cột SINH, `discount_rate` và `threshold_snap` là cột LƯU, nên bản trước đã có đủ mọi con số. **`doi`
+đến TỪ MÁY CHỦ, không do giao diện so hai bên** — máy chủ trả số dưới dạng chuỗi nên `615000` và
+`615000.00` là hai chuỗi khác nhau trong khi `IS DISTINCT FROM` trên `numeric` nói chúng là một; ô
+vàng sẽ nói dối ở đúng chỗ không ai kiểm lại được. **HAI TẬP TRƯỜNG, hai câu hỏi**: tập quyết định
+nhãn (thứ TDV gõ) và tập bày ra (rộng hơn, thêm con số dẫn xuất).
+
+Trước đó **P240–P241** (`0211`, `0212`): **hộp xem ảnh chỉ còn câu hướng dẫn**. `0211` đếm ra rằng ở
+cỡ vừa khung — trạng thái MỌI tấm ảnh mở ra — hai trong ba nút đang xám, nên hai nút `−`/`+` là một
+đường THỨ HAI tới việc lăn chuột đã làm được. `0212` bỏ nốt nút phần trăm, và **bỏ được vì một dữ kiện
+phải KIỂM**: cái nút làm HAI việc (về mức 1 **và** đưa ảnh về giữa), mà `dungPhong` đã kẹp ở
+`PHONG_MIN = 1` rồi `datLech({x:0,y:0})` — nên lăn ngược hết cỡ cho ra đúng trạng thái nó từng dựng
+lại. Ca kiểm **ĐỔI TẦNG chứ không đổi số**: mệnh đề chuyển từ MỘT CÁI NÚT sang MỘT TÍNH CHẤT của phép
+kẹp, đúng chỗ luật nằm từ đầu.
+
+Trước đó **P239** (`0210`): **bản xem PDF và ảnh phủ kín màn hình, bỏ khung bọc** — lượt thứ NĂM của
+cùng một dòng CSS (`0073` → `0129` → `0130` → `0164` → `0210`), và là lượt gỡ chính cái cơ chế: bề
+rộng khoá theo CHIỀU CAO nên trên màn hình 16:9 một tờ A4 dọc chỉ dùng được ~2/3 bề ngang dù hộp đã
+cao hết cỡ. Ba thứ giữ lại, mỗi thứ chặn một kiểu hỏng: **dải nút** (phủ kín màn hình thì không còn
+mép lớp phủ để bấm ra ngoài, nên nút Đóng thành đường thoát DUY NHẤT nhìn thấy được) · **ảnh vẫn chặn
+ở cỡ THẬT** (luật `0164` đổi chỗ chứ không mất) · **Word/Excel giữ hộp thoại thường**. `min-height: 0`
+trên khung và thân hộp là thứ giữ hàng nút khỏi trôi khỏi màn hình.
+
+Trước đó **P238** (`0209`): mẫu rút gọn bỏ hai dòng ngày duyệt — và **hai dòng không cùng giá**: dòng
+dưới Kế toán bỏ tự do, dòng dưới TBP vẫn nằm trong sáu mục bắt buộc nên bỏ nó là mẫu rút gọn trả
+`TEMPLATE_MISSING_REQUIRED` **lúc khởi động service**, xa nhất có thể khỏi chỗ gây ra. Chữa bằng
+**MIỄN TRỪ (`MIEN_O_RUT_GON`), không phải hai danh sách** — khai phần LỆCH thì mục bắt buộc thứ bảy ai
+đó thêm vào sau này tự lan sang cả hai loại (cùng lối `0169`: một mảng cho ra hai thứ tự), và
+`NGUON_BAT_BUOC_HO_SO` giữ nguyên tên nên **26 chỗ trong bộ kiểm không phải sửa dòng nào**.
+
+Trước đó **P237** (`0208`): **ô nhập ngày `dd/mm/yyyy`**, và một lượt rà mọi chỗ hiển thị ngày. **PHÉP
+ĐO MỞ ĐẦU QUYẾT ĐỊNH CẢ CHẶNG**: dựng bốn ô `<input type="date">` trên Chromium thật, một không khai
+`lang` và ba khai `vi` · `vi-VN` · `en-GB` — **cả bốn ra `MM/DD/YYYY`**. Chromium định dạng theo ngôn
+ngữ GIAO DIỆN của trình duyệt, không theo tài liệu; nên không tồn tại bản sửa kiểu *"thêm một thuộc
+tính"*, và cách sửa hấp dẫn nhất (`lang="vi"`) *trông* đúng, chạy không lỗi, còn hiện đúng trên máy
+người sửa. Chốt: ô chữ tự vẽ + nút lịch mượn `showPicker()` (ô `type=date` ẩn **không được**
+`display: none`, và nút VẮNG MẶT khi trình duyệt không có hàm ấy). Lượt rà tìm ra **một lớp lỗi khác
+hẳn**: ba chỗ dựng một NGÀY TRÊN LỊCH từ `toISOString()` — sai đúng bảy tiếng mỗi ngày, và không cái
+nào làm gì đỏ vì hôm qua cũng là một ngày hợp lệ (bẫy `0128`, lần thứ tư). **Ranh giới là nửa quan
+trọng**: `toISOString()` để gửi một MỐC THỜI GIAN thì ĐÚNG; chỉ phép lấy một NGÀY (`.slice(0, 10)`)
+mới sai — chốt chặn là một ca QUÉT MÃ NGUỒN cấm đúng khuôn ấy (`0208b` mở rộng sang `scripts/`).
+
+Trước đó **P236** (`0207`): bốn con số của hộp thoại thêm dòng trên một hàng, **cột BẰNG NHAU** — và
+đó là luật NGƯỢC với `0172`/`0179`/`0206`, vì **bốn con số này đổi theo TỪNG PHÍM người dùng gõ**: cột
+đo theo nội dung thì mỗi chữ số thêm vào làm ba ô không liên quan nhảy chỗ. Ca kiểm nối HAI THẾ GIỚI —
+số cột khai ở `app.css` phải bằng số ô dựng ra trong DOM — vì một ca chỉ đọc CSS sẽ xanh mãi mãi kể
+cả khi ai đó thêm ô thứ năm.
+
+Trước đó **P235** (`0206`): **một khối thông tin ở đầu trang hồ sơ**, trạng thái cạnh mã. Hai thẻ cũ
+không cân đối vì đếm ra bốn ô và tám ô, nên khoảng trống rơi đúng nửa trên bên trái. Phần thật nằm ở
+chỗ không ai nhìn thấy: **tiêu đề nhóm đang gánh nghĩa cho ba cái nhãn** — bỏ chữ *Khách hàng* mà giữ
+nguyên *Mã* · *Loại* · *Trạng thái* thì `Mã` đứng cạnh `Phiên bản` trong khi mã hồ sơ là `<h1>` của
+chính trang, và ô *Trạng thái* của khách (chỉ hiện khi đã ngừng hợp tác) đọc ra là trạng thái hồ sơ.
+
+Trước đó **P234** (`0205`): **Tỉnh/Thành phố là ô chọn, 63 đơn vị**. Đo trước khi hỏi: cùng một thành
+phố nằm trong dữ liệu dưới **ba** lối viết, bộ kiểm còn lối thứ tư — mà chuỗi ấy đi thẳng ra dòng địa
+chỉ trên bản CSBH hai bên ký. Chốt ở **TẦNG ỨNG DỤNG**, không `CHECK` ở CSDL, **không migration quy
+đổi** (khách hàng chọn dựng lại từ dữ liệu sạch). **`chuanTinhThanh` TRẢ VỀ một giá trị, không gật
+đầu**: tiếng Việt viết được bằng HAI dạng Unicode (NFC/NFD) trông giống hệt nhau, nên một hàm boolean
+sẽ xanh rồi service ghi nguyên chuỗi NFD xuống CSDL — đúng cái lộn xộn cả chặng dựng ra để dẹp. Giá
+trị cũ ngoài danh sách **bày ra và `disabled`**: thiếu vế ấy thì lượt Lưu tiếp theo, dù chỉ sửa số
+điện thoại, **âm thầm ghi đè địa chỉ pháp nhân**. Mục RỖNG đứng đầu cũng bắt buộc — `<select>` không
+có mục `value=""` thì trình duyệt tự chọn mục đầu tiên.
+
+Trước đó **P233**: nâng phiên bản lên **`1.0.2`** (`1.0.1` cắt ở P199; `1.0.2` gói `0172`–`0204`).
+`VERSION` là nguồn DUY NHẤT, canh bằng `VER-04`; cái giá nằm ngoài mã — **mỗi lần giao phải là một số
+MỚI**, dựng lại cùng thẻ là ghi đè trên registry và `docker compose pull` không kéo gì cả.
+
+Trước đó **P232** (`0204`): dòng *Chỉnh sửa* nói ra nó đổi những gì — chặng dựng ra
+`TRUONG_SO_VOI_BAN_TRUOC` như **DỮ LIỆU**, và cả hai biểu thức SQL sinh ra từ nó: nhãn và bảng chi
+tiết là hai câu trả lời cho cùng một câu hỏi, gõ tay hai lần là lượt thêm trường thứ sáu sửa một chỗ
+rồi quên chỗ kia, và `tsc` không canh được gì vì cả hai là chuỗi. Bản in canh bằng cách **không thêm
+trường vào `internal.controller`** — cửa duy nhất `document` và `reporting` đọc hồ sơ.
+
+Trước đó **P231** (`0203`): **sửa một dòng thì Giá bán Công ty là giá HIỆN HÀNH**. Cùng gốc với
+`0201`, ở nửa tôi đã cầm trên tay rồi đặt xuống: câu *"đường LẬP hồ sơ giữ nguyên `0029`"* đúng cho
+`create` và **sai cho `addLine`/`updateLine`** — chúng không phải lượt LẬP, chúng là TDV đang ngồi sửa
+một dòng, hôm nay. Vế không ai báo: `updateLine` chụp lại giá ở MỖI lượt sửa, nên **sửa một ô chẳng
+liên quan gì tới giá sẽ ghi đè ngược con số vừa cập nhật** — và từ `0202` ngay cả cột trạng thái cũng
+không lộ ra gì. Chỗ tốn công: `customer.on` làm HAI việc (tra bảng giá **và** ghi `ngay_ap_dung`) với
+một chú thích khẳng định hai con số *"không thể lệch nhau"* — lượt này cần chúng lệch.
+
+Trước đó **P230** (`0202`): **Giá bán Công ty đổi so với bản trước cũng là *Chỉnh sửa***. Một dòng
+SQL, và cả chặng nằm ở chỗ **lý do cũ đã chết từ sáu chặng trước mà không ai gỡ**: `0180` loại cột ấy
+vì *"`lamMoiDong` chụp lại ở mỗi lượt đọc"*, mà `0194` gỡ đúng mệnh đề ấy. **Một chú thích giải thích
+vì sao KHÔNG làm X thì không có gì đỏ khi tiền đề của nó mất** — nó chỉ lặng lẽ tiếp tục thuyết phục
+người đọc sau. Giữ NGUYÊN VĂN lập luận cũ rồi viết ra nó chết ở đâu. Khách hàng đúng ở điểm không ai
+nêu lúc chốt: cột *Tỷ lệ CK cũ* chỉ hiện cho dòng *Chỉnh sửa*, nên trước `0202` nó **tắt đúng ở những
+dòng cần nó nhất**.
+
+Trước đó **P229** (`0201`): hai lỗi người dùng báo cùng lúc, **cả hai là hệ quả của một tiền đề không
+ai viết ra**. (1) Nhận lời mở bản Nháp thì hộp thoại nằm lại: gọi `di()` rồi bỏ mặc state là mã sai ở
+khắp nơi, chỉ có điều trang đích thường là màn hình KHÁC nên React tháo cả cây — đây là chỗ DUY NHẤT
+mà trang đích là chính màn hình đang đứng với một id khác. Hai nửa, hai lý do: `xacNhan` tự đóng (hợp
+đồng của hộp thoại) và **`key={id}`** (câu trả lời cho *"trang này thuộc về hồ sơ nào"*, và là nửa
+đóng được cả LỚP — hơn mười ô state của một hồ sơ, trong đó hai danh sách TÊN MẶT HÀNG). (2) **Lượt
+đổi giá biến mất khỏi phiên bản mới**: hai luật đúng cộng lại thành một **câu lệnh rỗng** — `0180` bảo
+tra danh mục theo ngày áp dụng của DÒNG, `0123` bảo mọi lượt đổi giá hiệu lực TỪ HÔM NAY, nên so ảnh
+chụp của ngày X với bảng giá của ngày X **không bao giờ tìm ra được gì**. Không dừng ở một cảnh báo
+mất tích: `lamMoiDong` đọc cùng bộ số nên nút trả `conLai: 0`, gửi duyệt chụp lại đúng số cũ,
+`STALE_LINE` không có gì để chặn — **bản CSBH mới đi hết mười bước rồi được ký với giá đã lỗi thời**.
+Chữa bằng `ngayTraDanhMuc = max(ngày áp dụng, hôm nay)`, **không phải "luôn hôm nay"** (vế ấy hỏng
+theo chiều ngược: dòng đề ngày tháng sau sẽ bị ghi đè bằng giá hôm nay).
+
+Trước đó **P228** (`0200`), năm việc của một lượt phản hồi: (1) nút *Lập phiên bản mới* bấm không có
+gì xảy ra — `DRAFT_EXISTS` khai `dang: 'im'` có chủ ý, mà lối tắt `0191` không có nhánh ấy nên nó nuốt
+lỗi rồi đứng yên; chữa bằng cách để hộp thoại **BIẾT TRƯỚC**, và **HAI hộp thoại chứ không hai nhánh**
+(đấu nhầm `xacNhan` nghĩa là người dùng bấm *Mở bản Nháp* rồi hệ thống đi lập một hồ sơ). (2) Box *Yêu
+cầu cập nhật* kể cả hồ sơ *Nháp*: `pol.policy_impact` từ nay có **HAI vai trò** — ở box nó là một CHỈ
+MỤC (*"hồ sơ nào đáng mở ra xem"*), còn màn hình hồ sơ vẫn TÍNH TẠI CHỖ và đó mới là câu trả lời có
+thẩm quyền; nửa còn lại là dấu vết phải bị QUÊN khi chính dòng được ghi lại tay. (3) Mặt hàng vô hiệu
+hoá thì nút rút luôn khỏi CSBH — **CỜ, không phải hành vi mặc định**: lượt GỬI DUYỆT cũng gọi
+`lamMoiDong`, bật mặc định là hồ sơ âm thầm mất một mặt hàng ngay lúc rời tay người lập. (4) **CSBH có
+hiệu lực thì MỌI dòng là *Đang áp dụng*** — và vế khách hàng không nêu: cột *Tỷ lệ CK cũ* phải tắt
+theo, để nó còn số là dựng lại bằng một cột số cái phân biệt vừa được yêu cầu bỏ đi. (5) Giảm số hồ sơ
+*Yêu cầu cập nhật* của bộ nạp demo từ 95 xuống.
+
+Trước đó **P227** (`0199`): **tự động cập nhật chịu được sản phẩm vắng mặt**. Phép đo quyết định cả
+chặng: hai hồ sơ **cùng hai dòng, cùng trạng thái danh mục**, khác đúng một chuyện — hồ sơ đóng băng
+báo lệch, hồ sơ Nháp nói *"không có gì lệch"*. Phép so đúng là một bản (`soSanhLech`); thứ bị chép làm
+hai là **bước đi lấy ảnh chụp TRƯỚC khi so**, và chỉ một bản chịu được sản phẩm vắng mặt. `traAnhChup`
+có nhánh lùi từ `0083` kèm chú thích **nói đúng cái bẫy này** — hiểu biết ấy CÓ trong repo, viết rõ,
+đúng một chỗ, và `0194` thêm người gọi thứ hai không thừa kế được gì: **một chú thích cảnh báo không
+đi theo được người gọi mới; chỉ có hàm mới đi theo**. Kèm `.catch(() => [])` biến một lỗi thành một
+lời nói dối: `[]` mang hai nghĩa loại trừ nhau — *"đã so, không lệch gì"* và *"không so được"*.
+**Ranh giới là nửa quan trọng hơn**: chịu được *vắng mặt* thì đúng, chịu được *tra hụt* thì sai theo
+hướng PHÁ DỮ LIỆU. **Hậu P227**: `make demo-mau` chết vì `0197` — **lần thứ BA bộ nạp demo bị bỏ quên
+trong một lượt đổi luật** — và vế ít ai nghĩ tới là **khách đang giữ Nháp thì không lập thêm được hồ
+sơ NÀO nữa**, kể cả lượt lập phiên bản mới.
+
+---
+
+## Trạng thái trước đó (10/09/2026)
+
+Chặng cuối của giai đoạn ấy là **P226** (`0198`): **mã hồ sơ do TDV đặt** — hệ thống đề xuất lúc lập, sửa được bằng
 bút chì ở tiêu đề khi còn *Nháp*, và không cho trùng. **TIỀN ĐỀ TÔI ĐO SAI, và cách nó lộ ra là bài
 học**: báo cáo *"`pol.policy.code` chưa có ràng buộc duy nhất nào"* rồi viết hẳn migration `0119` —
 sai, cột khai `code text UNIQUE NOT NULL` ở **`0001_init.sql`**, còn tôi `grep` `0007_policy.sql`
@@ -912,6 +1115,10 @@ dựng ngày rồi in ngược ra so lại, và phải dùng `Date.UTC` (họ b�
 > **HAI BẪY CỦA CHÍNH LƯỢT NÀY, đọc trước khi phá lại:**
 > **Chú thích trong template literal không được dùng backtick** — cả khối SQL nằm trong một template
 > literal, và một backtick cắt đứt chuỗi (triệu chứng: bảy lỗi cú pháp ở dòng chẳng liên quan).
+> **Đã dính năm lần** (`0154`, `0155`, `0186`, `0200`, `0204`), lần gần nhất ở một chú thích vừa gõ
+> trong chính chặng ấy. Họ hàng của nó: **`*/` trong một khối docstring** — gõ `*Tỉnh*/*Thành phố*`
+> thì dấu sao đứng trước dấu gạch chéo **đóng luôn khối chú thích**, và `tsc` báo mười lăm lỗi ở
+> những dòng chẳng liên quan (`0205`, lần thứ hai ở cùng một tệp).
 > **Phá lại thì sao lưu TỪNG TỆP, không sao lưu cả thư mục** — `impl/services/*/node_modules` là
 > liên kết do root tạo nên `rm -rf` một thư mục service không bao giờ chạy trọn, và `set -e` dừng
 > giữa chừng để lại cây làm việc mất `apps/web/src`.
@@ -1192,11 +1399,21 @@ Chốt 24/08 — **không đụng tới trước khi bản dùng thử tới tay
 
 | Món | Vì sao hoãn được |
 |---|---|
-| **N-09** rà danh mục O(n) — đổi một quy định chiết khấu quét mọi hồ sơ đã đóng băng × mọi dòng, kèm gọi REST sang `customer` và `catalog` | có chia lô `SONG_SONG`; ở quy mô hiện tại chưa cắn |
+| **N-09** rà danh mục O(n) — đổi một quy định chiết khấu quét mọi hồ sơ đã đóng băng × mọi dòng, kèm gọi REST sang `customer` và `catalog` | có chia lô `SONG_SONG`; ở quy mô DỮ LIỆU THẬT chưa cắn |
 | **N-10** không có unique index `(customer_id, version_no)` — số lấy bằng `active.version_no + 1` | chỉ va khi hai lượt lập song song cho CÙNG khách, mà một khách chỉ có một TDV |
 
 Cả hai **có thật và đã đo**, không phải nghi ngờ. Đừng gỡ chúng khỏi danh sách nợ, và đừng lặng lẽ
 sửa nửa vời — N-10 sửa đúng là một migration thêm unique index cộng đường xử lý va chạm.
+
+> **N-09 ĐÃ CẮN MỘT LẦN, trên CSDL của bộ kiểm** (`0159`): 5469 hồ sơ với 1702 bản đóng băng làm một
+> ca kiểm **về THƯ** hết giờ 30 giây — không chữ nào trong câu lỗi nhắc tới danh mục hay hiệu năng.
+> Dọn rác xuống 199 hồ sơ thì xanh trong 44 giây. Nợ để nguyên; thứ đổi là câu *"ở quy mô hiện tại"*
+> — nó đúng với dữ liệu thật và **sai với CSDL của bộ kiểm**, nơi rác tích qua từng lượt chạy.
+
+> **N-10 vẫn mở, nhưng `0197` đã thu hẹp khe**: chỉ mục `uq_policy_nhap_moi_khach` chặn hai bản
+> *Nháp* song song cho cùng một khách, tức bịt đúng đường mà hai lượt lập song song đi qua. Nó
+> **không** thay N-10 — số phiên bản vẫn lấy bằng `active.version_no + 1`, và hai lượt lập cho hai
+> hồ sơ đã rời khỏi `NHAP` vẫn va được.
 
 ## Quyết định nghiệp vụ định hình lược đồ dữ liệu
 
@@ -1221,7 +1438,9 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   ai yêu cầu. Áp cho **cả** đường `NEW_VERSION`, và hỏi **TRƯỚC** `NEW_VERSION_REQUIRED`. Chỉ mục là
   chốt thật (bấm đúp = hai lượt song song); phép kiểm ở service giữ vì thứ tự câu hỏi **và** vì
   `saoChepGiayTo` chạy trước transaction. Cảnh báo *"đã có bản mới đang dở"* của `0191` **GIỮ** — nó
-  còn việc với bản đang trong LUỒNG DUYỆT, thứ vẫn không bị chặn.
+  còn việc với bản đang trong LUỒNG DUYỆT, thứ vẫn không bị chặn. **HỆ QUẢ RỘNG HƠN CÂU CHỮ, và bộ nạp
+  demo đã chết vì nó** (`0199`): mọi lượt `POST /policies` đều dựng ra một bản Nháp trước, **kể cả lượt
+  lập phiên bản mới** — nên khách đang giữ Nháp thì **không lập thêm được hồ sơ NÀO nữa**.
 - **Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.** Hiệu lực quản lý ở cấp hồ sơ, không phải cấp
   dòng khách hàng × sản phẩm.
 - **NGÀY ÁP DỤNG THUỘC VỀ TỪNG DÒNG SẢN PHẨM** (`0180`, gỡ `pol.policy.applied_date`). Cột
@@ -1233,15 +1452,47 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   *Thời gian áp dụng* rời khỏi năm mẫu `.docx` và khỏi `SCALAR` (mục bắt buộc còn **6/13**), phép chặn
   gửi duyệt còn **một** trường, `rpt.policy_row.applied_date` = **MIN của các dòng** dựng ở
   `internal.controller` chứ không lưu thành cột.
+- **ĐỐI CHIẾU và SỬA DÒNG tra danh mục ở `max(ngày áp dụng, hôm nay)`** (`0201`, `0203` —
+  `ngayTraDanhMuc`). `0180` bảo tra theo ngày của DÒNG, `0123` bảo mọi lượt đổi giá hiệu lực TỪ HÔM
+  NAY; **hai luật đúng cộng lại thành một CÂU LỆNH RỖNG** — bảng giá của một ngày đã qua không đổi
+  nữa, nên so ảnh chụp của ngày X với bảng giá của ngày X không bao giờ tìm ra được gì. Nó không dừng
+  ở một cảnh báo mất tích: `lamMoiDong` đọc cùng bộ số, nên nút *Tự động cập nhật* trả `conLai: 0`,
+  gửi duyệt chụp lại đúng số cũ, `STALE_LINE` không có gì để chặn — **hồ sơ đi hết mười bước rồi được
+  ký với giá lỗi thời**. **KHÔNG phải "luôn hôm nay"**: vế ấy hỏng theo chiều ngược, dòng đề ngày
+  tháng sau bị ghi đè bằng giá hôm nay. **Đường `create` giữ nguyên `0029`** (ngày áp dụng thắng, kể
+  cả ngày quá khứ) — nên hệ thống có HAI câu trả lời cho *"dòng này lấy bảng giá ngày nào"*, chấp nhận
+  được vì người dùng không có đường nào đi qua cái thứ hai (cả hai màn hình đều gửi `lines: []` rồi
+  thêm từng dòng), và **điều đó có ca kiểm quét mã nguồn giao diện canh**.
 - **TRẠNG THÁI DÒNG và TỶ LỆ CK CŨ là DẪN XUẤT** (`0180`) — `SQL_TRANG_THAI_DONG` +
   `SQL_NOI_BAN_TRUOC` ở `policies.service.ts`, dùng CHUNG cho đường đọc giao diện và
-  `internal.controller`. So với bản bị thay thế (`supersedes_id` + `product_id`) trên **bốn trường
-  TDV nhập**: giá bán buôn · CPBH · ngày áp dụng · ghi chú. **KHÔNG so** `company_price_snap`,
-  `threshold_snap`, `discount_rate` — chúng đến từ danh mục và `lamMoiDong` chụp lại ở mỗi lượt đọc,
-  nên đưa vào là để danh mục đổi giá một mình cũng làm mọi dòng nhảy sang *Chỉnh sửa*. `IS DISTINCT
-  FROM` chứ không `<>` (`note` NULL được). `discountRateTruoc` **chỉ trả về cho dòng *Chỉnh sửa***, và
-  luật ấy nằm ở MÁY CHỦ — hai bảng (màn hình, tờ giấy) không được tự suy lại. Phiên bản đầu tiên:
-  không có `supersedes_id` nên **mọi dòng là *Bổ sung***.
+  `internal.controller`. So với bản bị thay thế (`supersedes_id` + `product_id`) trên **BỐN TRƯỜNG**:
+  **Giá bán Công ty** (`0202`) · giá bán buôn · CPBH · ngày áp dụng. **`note` ĐÃ RA KHỎI phép so ở
+  `0215`** (khách hàng chốt 21/09: *"ghi chú không phải là trường để đánh giá sản phẩm có bị chỉnh sửa
+  không"*) — ranh giới là *bốn trường kia đều đi ra tờ giấy khách hàng ký*. **`discount_rate` KHÔNG
+  thêm và thêm là thừa** (hàm thuần của ba trường đầu); **`threshold_snap` VẪN đứng ngoài**, có ca
+  kiểm ghim. `IS DISTINCT FROM` chứ không `<>`: `NULL <> 'x'` trả NULL, nên một ô vừa được điền vào
+  chỗ trống sẽ lọt qua thành *Đang áp dụng*.
+  **`0202` đảo lập luận loại `company_price_snap` của `0180`** — lý do cũ (*"`lamMoiDong` chụp lại ở
+  MỖI LƯỢT ĐỌC"*) chết từ `0194` mà chú thích vẫn nằm nguyên sáu chặng; giữ NGUYÊN VĂN nó rồi viết ra
+  nó chết ở đâu. **Hệ quả là điểm của yêu cầu chứ không phải cái giá**: nhãn *Chỉnh sửa* mọc ra được
+  mà không ai gõ gì — câu hỏi là *"dòng này có khác bản trước không"*, không phải *"TDV có gõ gì
+  không"*.
+  **THỨ TỰ NHÁNH `CASE` là thứ duy nhất giữ hai luật khỏi cãi nhau**: `da_xoa` thắng tất cả, rồi hồ sơ
+  `DANG_CO_HIEU_LUC` kéo **MỌI dòng về *Đang áp dụng*** (`0200` — bản trước đã vô hiệu toàn bộ, giữ
+  nhãn cũ là bày ra một phép so với một văn bản đã chết, và cột *Tỷ lệ CK cũ* phải tắt theo), rồi mới
+  tới ba nhánh của `0180`. `discountRateTruoc` **chỉ trả về cho dòng *Chỉnh sửa***, và luật ấy nằm ở
+  MÁY CHỦ — hai bảng (màn hình, tờ giấy) không được tự suy lại. Phiên bản đầu tiên: không có
+  `supersedes_id` nên **mọi dòng là *Bổ sung***.
+- **DẤU TAM GIÁC cạnh giá trị đã đổi** (`0215`, `0216`) — thay hàng *bản trước* của `0204`/`0213`/
+  `0214`. Máy chủ trả **cả dòng ở bản trước cộng danh sách khoá đã đổi** (`SQL_BAN_TRUOC_TRA_VE`,
+  `TRUONG_BAY_BAN_TRUOC` — tám khoá, rộng hơn tập quyết định nhãn vì thêm ba con số dẫn xuất); giao
+  diện chỉ tự quyết **CHIỀU**. Ranh giới ấy là chốt chặn: *"có đổi không"* so trên `numeric` ở máy chủ
+  (`615000` và `615000.00` là MỘT), còn chiều là phép xếp thứ tự hai con số đã biết là khác nhau. Ô
+  không so được lớn bé (khoản CPBH vừa có từ chỗ trống, ngưỡng vừa xuất hiện) mang **dấu tròn hổ
+  phách**, không phải tam giác. Dấu là `<button>` — `title` chỉ hiện khi có chuột (`0027`) — và đóng
+  bằng `onBlur` **cộng** một listener `pointerdown` cấp tài liệu, vì iOS Safari không phải lúc nào
+  cũng trao tiêu điểm cho `<button>` khi chạm. `O_BAN_TRUOC` (giao diện, ở `lib/ban-truoc.ts` để
+  `tests/http/` import được) phải **khớp từng khoá và đúng thứ tự** với `TRUONG_BAY_BAN_TRUOC`.
 - **`COT_MAC_DINH` là *đủ mọi cột*, `COT_MAU_MAC_DINH` là tập của BA MẪU phần mềm tự nạp** (`0180`).
   Thêm một cột vào `COT_BANG` là âm thầm thêm nó vào ba tờ giấy ấy, trừ khi nó nằm trong
   `COT_NGUOI_DUYET`. Quyết định ở hàm thuần `cotBangMauMacDinh(kind)` — **không** ở trong vòng lặp
@@ -1252,12 +1503,22 @@ Trái trực giác, dễ làm sai nếu không nhớ:
 - **HỒ SƠ SỬA ĐƯỢC KHÔNG TỰ ĐỔI SỐ NỮA** (`0194`, đảo phép làm mới ở đường ĐỌC của `0029`).
   `lamMoiDong` giờ chỉ chạy ở HAI chỗ: nút *Tự động cập nhật* và lượt **gửi duyệt** — nên bản nháp
   vẫn không bao giờ vào luồng với số cũ (`STALE_LINE` giữ nguyên), và đó là lý do phép đảo này an
-  toàn. Chênh lệch của hồ sơ sửa được **TÍNH tại chỗ** (`soSanhDong`), KHÔNG đọc `policy_impact`:
-  bảng ấy chỉ ghi cho `DA_DONG_BANG`, và chênh lệch của bản nháp đổi theo từng lượt sửa dòng.
+  toàn. Chênh lệch của hồ sơ sửa được **TÍNH tại chỗ** (`soSanhDong`) — và từ `0200`
+  `pol.policy_impact` có **HAI VAI TRÒ**: ở hộp *Yêu cầu cập nhật* nó là một **CHỈ MỤC** (*"hồ sơ nào
+  đáng mở ra xem"*, đi sau một nhịp thì chấp nhận được), còn màn hình hồ sơ vẫn tính tại chỗ và **đó
+  mới là câu trả lời có thẩm quyền** — một con số sai trên tờ giấy sắp ký thì không chấp nhận được.
+  Nửa còn lại của chỉ mục: dấu vết phải bị **QUÊN** khi chính dòng được ghi lại tay (`addLine`,
+  `updateLine`, `removeLine`), nếu không nó nói dối ngay lượt sửa đầu tiên.
   **`soSanhLech` ở `policies/lech.ts` là bản DUY NHẤT của phép so** — consumer và đường đọc cùng gọi;
   chép nó sang chỗ thứ hai là dựng hai câu trả lời cho *"dòng này có lệch không"*. Nút chỉ của **TDV
   đang phụ trách** + hồ sơ **sửa được** (`mustEdit`), **không đụng giá bán buôn và CPBH**, và dòng
-  `hong` thì **không ném lỗi** — khác lượt gửi duyệt, nơi nó là lý do chặn. **Làm mới xong thì XOÁ
+  `hong` thì **không ném lỗi** — khác lượt gửi duyệt, nơi nó là lý do chặn. **Rút mặt hàng vô hiệu hoá
+  là một CỜ, không phải hành vi mặc định** (`0200`): lượt GỬI DUYỆT cũng gọi `lamMoiDong`, bật mặc
+  định là hồ sơ âm thầm mất một mặt hàng ngay lúc rời tay người lập. **Lấy ảnh chụp thì đi
+  `clients.productSnapshotsChiuLoi`** (`0199`) — lời gọi lô trần là *một id hỏng thì cả lô 404*, hợp
+  đồng ĐÚNG cho đường LẬP hồ sơ và SAI cho đường ĐỐI CHIẾU, nơi một sản phẩm biến mất là thông tin
+  cần báo. Ranh giới: chịu được *vắng mặt* thì đúng, chịu được *tra hụt* thì sai theo hướng PHÁ DỮ
+  LIỆU. **Làm mới xong thì XOÁ
   dấu vết `policy_impact`** của những dòng đã ghi lại được: thiếu bước này thì chuỗi *lệch → trả về →
   làm mới → gửi lại* bày ra một khối cảnh báo nói về chênh lệch đã sửa xong (lỗi có từ `0029`).
 - **Sáu vai trò**: Kế toán L1 và L2 là một người (hai màn hình); TDV và QL là một vai trò.
@@ -1272,6 +1533,13 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   — có ràng buộc `chi_noi_nhan_hang` chặn, và đó là chỗ "nhiều điểm bán" chuyển sang. **Nâng cấp một
   hệ đang chạy có thể DỪNG** ở migration nếu dữ liệu còn trùng MST; `docs/04-TRIEN-KHAI.md` có mục
   riêng. Mọi lượt lập khách hàng trong bộ kiểm phải dùng `mstDuyNhat()` của `tests/http/app.ts`.
+- **TỈNH/THÀNH PHỐ là danh sách ĐÓNG 63 đơn vị** (`0205`), lối viết **NGẮN** (`Hà Nội`). Chốt ở
+  **TẦNG ỨNG DỤNG**, không `CHECK` ở CSDL, không migration quy đổi — cột vẫn là `text` trơn.
+  `chuanTinhThanh` **TRẢ VỀ bản của BẢNG chứ không gật đầu**: tiếng Việt viết được bằng hai dạng
+  Unicode (NFC/NFD) trông giống hệt nhau, nên một hàm boolean sẽ xanh rồi service ghi nguyên chuỗi NFD
+  xuống CSDL. Giá trị cũ ngoài danh sách **bày ra và `disabled`** — không bao giờ để dữ liệu cũ hiện
+  thành ô trống, vì lượt Lưu tiếp theo sẽ âm thầm ghi đè địa chỉ pháp nhân; cái giá đã nêu với khách
+  hàng: **lượt sửa tiếp theo của khách ấy bị chặn** tới khi chọn lại.
 - **Đổi tay khách hàng thì mọi hồ sơ của khách ấy sang tay theo** (`0085`, trừ `DA_XOA`) — cả đường
   bàn giao lúc vô hiệu hoá tài khoản lẫn đường sửa một khách.
 - **Hợp đồng do Kế toán hoặc Sale Admin xuất** (bước B7), không phải Trưởng bộ phận. TBP ký xong là
@@ -1427,6 +1695,38 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   một chỗ nuốt lỗi thì phải khai ở `NUOT_CO_LY_DO` trong `tests/web/nuot-loi.test.tsx`.
 
 ## Bẫy kỹ thuật
+
+**`\b` của JavaScript KHÔNG dùng được cho tiếng Việt — kể cả dưới cờ `u`.** Nó định nghĩa theo `\w`,
+tức `[A-Za-z0-9_]`, nên giữa `ố` và một dấu cách **không có ranh giới từ nào**. `0205` viết
+`/^(Tỉnh|Thành phố|TP)\b/u` để cấm tiền tố và nó **xanh với `Thành phố Cần Thơ`**. Một phép kiểm
+tiếng Việt viết bằng `\b` là một phép kiểm luôn xanh, và nó trông đúng hơn bản đúng (`[\s.]`). Chỉ
+lượt phá lại tìm ra được, vì dữ liệu thật không có ví dụ nào để nó đỏ.
+
+**Tiếng Việt có dấu viết được bằng HAI dạng Unicode.** `Hà` là một ký tự dựng sẵn (NFC) hoặc `H` + `a`
++ dấu huyền tổ hợp (NFD); hai chuỗi hiện ra **giống hệt nhau** trên mọi màn hình trong khi `===` nói
+chúng khác. Bàn phím tiếng Việt, macOS, một lượt chép dán từ PDF đều sinh ra dạng sau. Bẫy này đã cắn
+ở **tên tệp** (`0151`), ở **nội dung `.docx`** (`0151`), và ở một **ô nhập** (`0205`) — nên hàm kiểm
+phải **TRẢ VỀ bản chuẩn của bảng tra**, không trả `true`.
+
+**Một phép so ĐÚNG cộng một phép so ĐÚNG có thể thành một câu lệnh RỖNG.** `0201`: `0180` bảo tra danh
+mục theo ngày áp dụng của DÒNG, `0123` bảo mọi lượt đổi giá hiệu lực TỪ HÔM NAY — cộng lại thì so ảnh
+chụp của ngày X với bảng giá của ngày X **không bao giờ tìm ra được gì**. Cùng hình dạng với `NOT
+EXISTS` của `0186`, thứ đã thành câu lệnh rỗng ngay khi xoá mềm ra đời. Không nhánh nào viết sai, và
+không gì đỏ.
+
+**Một chú thích giải thích *vì sao KHÔNG làm X* không có gì đỏ khi tiền đề của nó mất.** `0180` loại
+`company_price_snap` khỏi phép so với một lý do viết rõ; `0194` gỡ đúng mệnh đề mà lý do ấy đứng lên,
+và cái chú thích nằm nguyên qua sáu chặng, tiếp tục thuyết phục người đọc sau (`0202`). Cùng lớp với
+`CHO_VAO_BOX` của `0200`. Khi tiền đề chết thì **giữ nguyên văn lập luận cũ rồi viết ra nó chết ở
+đâu** — xoá đi là mời người sau đề xuất lại đúng quyết định ấy với đúng lý lẽ ấy.
+
+**Một chú thích cảnh báo không đi theo được người gọi mới; chỉ có HÀM mới đi theo.** `0199`:
+`traAnhChup` có nhánh lùi kèm chú thích nói đúng cái bẫy *"lời gọi lô trần là một id hỏng thì cả lô
+404"* — hiểu biết ấy CÓ trong repo, viết rõ, đúng một chỗ; `0194` thêm người gọi thứ hai cần chính nó
+và không thừa kế được gì. Phần thân phải dời thành một hàm dùng chung.
+
+**`vitest -t "…"` cắt mất phần dựng dữ liệu của những ca bị bỏ qua.** `0208`: chạy một tệp với bộ lọc
+cho một ca đỏ; chạy cả tệp thì 105/105 xanh. **Một ca đỏ dưới bộ lọc chưa chắc là một ca hỏng.**
 
 **`tsc` không bắt được một import bị gỡ, nếu tên ấy trùng một kiểu toàn cục.** `0103` gỡ
 `import { Storage }` khỏi `render.service.ts` nhưng để nguyên `private readonly storage: Storage`

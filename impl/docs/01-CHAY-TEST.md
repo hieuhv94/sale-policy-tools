@@ -19,9 +19,12 @@ Lần chạy đầu mất khoảng 3–5 phút vì phải kéo ảnh Docker và 
 ## Kết quả mong đợi
 
 ```
- Test Files  68 passed (68)
-      Tests  1541 passed (1541)
+ Test Files  90 passed (90)
+      Tests  2389 passed (2389)
 ```
+
+Con số tăng theo từng chặng; hình dạng thì không — **không ca nào được phép bỏ qua**. Một dòng
+`skipped` ở đây là một phép kiểm đã tự tắt, và nó im lặng hệt như một phép kiểm không tồn tại.
 
 Báo cáo JUnit ghi ra `workspace/reports/junit.xml`. Thư mục `workspace/` nằm ngoài mã nguồn và
 **không được commit** — nó là chỗ chạy thử, xoá lúc nào cũng được.
@@ -64,9 +67,15 @@ xoá qua API (`0121`), nên chín trong mười hai tệp kiểm tạo sản ph�
 được: **~690 dòng mỗi lượt chạy**, và tới 5000 dòng thì các ca *nhập Excel* đỏ với
 `IMPORT_TOO_MANY_ROWS` — ở một chỗ chẳng liên quan gì tới nguyên nhân.
 
-Từ `0156`, `withAdminDb` xoá mọi sản phẩm mang tiền tố `ZZ` **ở lượt dùng CSDL đầu tiên** của mỗi
-lượt chạy. Không phải làm gì cả; dòng `bộ kiểm: dọn N sản phẩm còn lại của lượt chạy trước` trong
-log là bình thường.
+Từ `0156`, `tests/don-rac-truoc-luot.ts` xoá mọi sản phẩm mang tiền tố `ZZ` **một lần cho cả lượt
+chạy**, trước khi tệp kiểm đầu tiên bắt đầu. Không phải làm gì cả; dòng `bộ kiểm: dọn N sản phẩm còn
+lại của lượt chạy trước` trong log là bình thường.
+
+> **Nó là `globalSetup` của vitest, KHÔNG phải một cờ trong `withAdminDb`** — và đó là bản sửa thứ
+> hai, sau khi bản đầu đo ra rằng nó chạy TÁM lần, một lần mỗi tệp: vitest cấp lại đồ thị mô-đun cho
+> từng tệp kiểm, nên một cờ cấp mô-đun không phải "một lần mỗi lượt chạy". Tệ hơn, giữa lượt nó xoá
+> sản phẩm của tệp chạy TRƯỚC trong cùng lượt ấy. `fileParallelism: false` nói về THỨ TỰ, không nói
+> về việc dùng chung mô-đun.
 
 > Dọn ở ĐẦU lượt, không phải cuối: một lượt chạy hỏng giữa chừng vẫn để lại dữ liệu cho người gỡ lỗi
 > soi, và lượt sau tự dọn hộ.

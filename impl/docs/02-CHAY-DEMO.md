@@ -61,8 +61,13 @@ khẩu. Chưa đi qua liên kết thì tài khoản không đăng nhập đượ
 
 Sau đó, vẫn bằng `admin01`: *Sản phẩm* → thẻ **Nhóm sản phẩm** tạo nhóm trước, rồi quay lại thẻ
 **Sản phẩm** tạo sản phẩm kèm giá.
-*Chiết khấu* → tạo **quy định chiết khấu**, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái
-này là nguồn của ba ô chọn trên biểu mẫu khách hàng.
+*Chiết khấu* → tạo **quy định chiết khấu**. Ngưỡng chỉ phụ thuộc **nhóm sản phẩm × loại khách
+hàng**, nên không có danh mục tra cứu nào phải khai trước.
+
+> Tới `19/08` màn hình này còn ba danh mục tra cứu — tỉnh · bệnh viện · kênh — làm nguồn cho ba ô
+> chọn trên biểu mẫu khách hàng. **Cả ba đã rời khỏi phần mềm** (`0026`) vì ngưỡng chiết khấu thôi
+> phụ thuộc chúng; ô *Tỉnh/Thành phố* của khách hàng hôm nay lấy từ một **danh sách đóng 63 đơn vị
+> dựng sẵn trong phần mềm** (`0205`), không phải từ một danh mục ai đó khai.
 
 > `Test@1234` là lý do `make demo` chạy với `NODE_ENV=demo` chứ không phải `production`. Cả script
 > tạo tài khoản lẫn script dựng lại CSDL đều **tự từ chối chạy** khi `NODE_ENV=production`

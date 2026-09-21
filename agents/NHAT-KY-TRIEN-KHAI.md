@@ -19145,3 +19145,118 @@ Lượt cuối xanh **có lý do, không phải một lỗ hổng**: ở render 
 **845/845 ca chạy ngoại tuyến xanh** (toàn bộ `tests/web` cộng `tests/http/o-ban-truoc.test.ts`).
 Bản sửa gói gọn trong `apps/web/src/components/BangSanPham.tsx`, không chạm máy chủ, không chạm CSS.
 **`make test` đầy đủ CHƯA chạy — chồng demo đang bật** (cùng khuôn P160/P161).
+
+---
+
+## P246 — `0217` Rà toàn bộ tài liệu theo triển khai thật
+
+Lượt rà thứ hai của loại này (`0178` là lượt đầu), và nó tìm ra một hình dạng lệch mà lượt trước
+không có công cụ để thấy.
+
+### Bốn tệp, bốn mức trôi khác hẳn nhau
+
+| Tệp | Chặng cuối chạm vào | Thực trạng |
+|---|---|---|
+| `YEU-CAU-NGHIEP-VU-CSBH.md` · `03-HUONG-DAN-SU-DUNG.md` | P244 | **khớp** — mỗi chặng bắt sửa chúng |
+| `KIEN-TRUC-CSBH.md` | P233 (chỉ nâng số bản) | trôi từ `0178`, tức **38 mã thay đổi** |
+| `01-CHAY-TEST.md` | P184 | một câu **nói ngược** thiết kế đang chạy |
+| `02-CHAY-DEMO.md` | — | một đoạn dạy người dùng ba danh mục **đã gỡ từ `0026`** |
+| `CLAUDE.md` | P226 | lệch **19 chặng** |
+
+Ranh giới ấy không ngẫu nhiên: luật *"nếu luật nghiệp vụ đổi thì đồng bộ YCNV và HDSD"* nằm trong
+`CLAUDE.md`, nên hai tệp ấy theo kịp. Ba tệp còn lại **không có ai nhắc**, và mỗi tệp trôi theo tốc
+độ của việc nó mô tả.
+
+### Lớp lệch thứ BA, và `0178` không thể thấy nó
+
+`0178` dựng `tests/http/tai-lieu.test.ts` cho hai lớp: **số đếm trôi** và **công cụ không tồn tại**.
+Lượt này tìm ra lớp thứ ba, ngay giữa khối lược đồ:
+
+```
+applied_date      date      -- NGÀY ÁP DỤNG: chỉ để hiển thị (§5.3)
+```
+
+Cột ấy **đã `DROP` ở `0180`**, mười sáu chặng trước — và tài liệu vẫn khai nó như một cột đang sống,
+đúng ở chỗ người đọc tra khi cần biết dữ liệu nằm ở đâu. Kéo theo ba dòng trong danh mục ca kiểm
+(`POL-20`, `POL-21`, `EFF-07`) phát biểu trên một trường không còn tồn tại.
+
+Cách tìm ra không phải đọc: **hỏi thẳng `information_schema` của chồng demo đang chạy** rồi so với
+khối trong tài liệu. Cùng bài học `0198` đã trả giá — một `grep` mã nguồn không thay được một câu hỏi
+đặt cho chính CSDL.
+
+### Chốt chặn mới, và vì sao nó KHÔNG quét migration
+
+Cách rẻ hơn là gom mọi `DROP COLUMN` trong `db/migrations/*.sql` rồi cấm tài liệu nhắc tới chúng —
+tệp thuần, không cần CSDL. **Đo ra thì nó sai**: `cpbh`, `cpbh_total`, `net_price` đều nằm trong danh
+sách ấy, vì có migration xoá rồi dựng lại chúng dưới kiểu khác. Một phép quét như thế đỏ với ba cột
+đang sống và đúng.
+
+Nên `tests/db/tai-lieu-luoc-do.test.ts` đọc `information_schema`, **một chiều**: cột tài liệu khai thì
+phải CÓ THẬT, không đòi chiều ngược — khối ấy mở đầu bằng *"chỉ trình bày phần chi phối tính đúng
+đắn"*, nên bắt nó liệt kê đủ là bắt nó thành một thứ khác. Dòng mang chữ **ĐÃ GỠ** đứng ngoài: tài
+liệu này cố ý giữ dấu vết của thứ đã đảo (`0178`), và một ca kiểm bắt xoá chúng đi là ca kiểm chống
+lại chính quy ước ấy.
+
+> **LƯỢT CHẠY ĐẦU ĐỎ VÌ CA KIỂM SAI, không vì tài liệu sai.** Nó neo khối thứ hai bằng chuỗi
+> `pol.policy_line` — mà chuỗi ấy xuất hiện SỚM HƠN trong khối ràng buộc (`ALTER TABLE …
+> ADD CONSTRAINT uq_line`), nên phép cắt lấy nhầm khối `pol.policy` và đem **bảy cột của hồ sơ** đi
+> hỏi bảng dòng sản phẩm. Triệu chứng đọc ra y hệt một tài liệu sai nặng. Neo lại bằng DÒNG ĐẦU của
+> chính khối.
+
+Hai lượt phá lại: dựng lại `applied_date` → **1 đỏ, nêu đích danh `policy.applied_date`**; gỡ
+`ngay_ap_dung` khỏi tài liệu → **XANH, và đó là việc của nó** — chiều ngược là chỗ tài liệu được phép
+rút gọn.
+
+### `01-CHAY-TEST.md` mô tả đúng cái thiết kế `0156` đã BÁC BỎ
+
+> *"Từ `0156`, `withAdminDb` xoá mọi sản phẩm mang tiền tố `ZZ` ở lượt dùng CSDL đầu tiên của mỗi
+> lượt chạy."*
+
+Đó chính xác là bản đầu của `0156`, thứ **đo ra là chạy TÁM lần** — một lần mỗi tệp, vì vitest cấp
+lại đồ thị mô-đun cho từng tệp kiểm — rồi bị thay bằng `globalSetup`. Nhật ký P184 ghi rõ cả hai, còn
+tài liệu bàn giao giữ lại bản sai. **Một tài liệu mô tả phương án đã bị loại nguy hiểm hơn một tài
+liệu thiếu**: người đọc nó sẽ đi sửa đúng chỗ không có gì.
+
+Kèm con số mẫu `1541 passed` → `2389 passed`, và thêm một câu về hình dạng chứ không chỉ con số:
+**không ca nào được phép `skipped`**.
+
+### `02-CHAY-DEMO.md` dạy người dùng khai ba danh mục không còn tồn tại
+
+*"`Chiết khấu` → tạo quy định chiết khấu, và ba danh mục tra cứu (tỉnh · bệnh viện · kênh) — ba cái
+này là nguồn của ba ô chọn trên biểu mẫu khách hàng."* Cả ba đã rời khỏi phần mềm ở `0026`, khi ngưỡng
+chiết khấu thôi phụ thuộc chúng. Người làm theo sẽ đi tìm ba màn hình không có, ở bước đầu tiên của
+lượt dựng demo.
+
+Viết lại kèm câu **nói ra thứ đã đổi** thay vì xoá lặng lẽ, và nối sang `0205`: ô *Tỉnh/Thành phố* hôm
+nay lấy từ một danh sách đóng 63 đơn vị dựng sẵn trong phần mềm, không phải từ một danh mục ai khai.
+
+### `04-TRIEN-KHAI.md` thiếu một mục nâng cấp
+
+Ba lượt đổi luật có migration DỪNG LẠI đều đã có mục riêng (`0175`, `0180`, `0197`), nhưng `0205`
+thì không — nó **không có migration nào**, nên không ai nghĩ nó là một việc của người vận hành. Thực
+tế nó có: khách hàng cũ giữ tên tỉnh ngoài danh sách thì **lượt sửa tiếp theo của khách ấy bị chặn**
+tới khi chọn lại. Thêm một mục, và nói rõ vì sao cái giá ấy đáng trả (cho qua thì một lượt Lưu bất kỳ
+sẽ âm thầm ghi đè địa chỉ pháp nhân).
+
+### `CLAUDE.md`: 19 chặng, và ba mục phải sửa chứ không chỉ thêm
+
+Phần *Trạng thái* thêm P227–P245 và đẩy khối cũ xuống thành *Trạng thái trước đó (10/09)*. Đáng ghi
+hơn là ba chỗ **nói sai**, không phải thiếu:
+
+* **Trạng thái dòng** vẫn khai *"bốn trường TDV nhập: giá bán buôn · CPBH · ngày áp dụng · ghi chú"*
+  và *"KHÔNG so `company_price_snap`"* — `0202` đưa Giá bán Công ty VÀO, `0215` đưa ghi chú RA. Con số
+  bốn tình cờ vẫn đúng, nên một lượt đọc lướt không thấy gì.
+* **N-09** khai *"ở quy mô hiện tại chưa cắn"* — nó đã cắn ở `0159`, trên CSDL của bộ kiểm, dưới dạng
+  một ca về THƯ hết giờ. Câu ấy đúng với dữ liệu thật và sai với CSDL kiểm; sửa thành đúng phạm vi
+  thay vì gỡ nợ.
+* **Cảnh báo chồng demo** chỉ nói về `vitest` — P235 dính với `make typecheck`, và một lượt
+  `make demo-mau` còn lặng lẽ tháo cổng của `caddy`. Viết lại theo **lệnh nào dùng `compose.test.yml`**
+  thay vì theo tên lệnh, kèm đường vòng an toàn (`docker run` một ảnh rời, `--network none`, gắn các
+  volume `csbh_nm_*`) — đường ấy chạy được `pnpm typecheck` và cả `tests/web` mà không chạm demo.
+
+Thêm sáu bẫy kỹ thuật đo được trong 19 chặng, trong đó hai cái thuộc loại **luôn xanh**: `\b` của
+JavaScript không có ranh giới từ nào cạnh chữ tiếng Việt, và một phép so đúng cộng một phép so đúng
+thành một câu lệnh rỗng (`0201`).
+
+**9/9 ca của ba chốt chặn tài liệu xanh** (`tai-lieu` · `tai-lieu-luoc-do` · `o-ban-truoc`).
+Chặng này **không sửa một dòng mã sản phẩm nào**; `make test` đầy đủ chưa chạy — chồng demo đang bật.
