@@ -265,6 +265,89 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
       expect(ten.filter((x) => x === t).length, `${t} không khai đủ ba khối`).toBe(3);
     }
   });
+
+  /**
+   * Giá trị của một token ở ba khối, theo thứ tự trong tệp: sáng · tối theo máy
+   * · tối chọn tay. Ca ngay trên đã bảo đảm đủ ba.
+   */
+  const baKhoi = (t: string): string[] =>
+    [...token.matchAll(new RegExp(`${t}:\\s*(#[0-9a-fA-F]{6})\\s*;`, 'g'))].map((m) => m[1]!);
+  const kenh = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const doSang = (h: string) => {
+    const [r, g, b] = kenh(h).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+  const tuongPhan = (a: string, b: string) => {
+    const [x, y] = [doSang(a), doSang(b)].sort((m, n) => n - m);
+    return (x! + 0.05) / (y! + 0.05);
+  };
+  /** Sắc (0–360°) và độ bão hoà (0–100) theo HSL — đủ để hỏi "màu này thuộc họ nào". */
+  const sac = (h: string) => {
+    const [r, g, b] = kenh(h) as [number, number, number];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+    if (!d) return { h: 0, s: 0 };
+    let hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+    return { h: hue, s: (d / (1 - Math.abs(2 * l - 1))) * 100 };
+  };
+  const KHOA_TT = [...new Set([...token.matchAll(/--mau-tt-([a-z0-9-]+?)(?:-nen)?:/g)].map((m) => m[1]!))];
+
+  it('`0219` MỌI cặp chữ/nền trạng thái đạt WCAG AA, ở CẢ BA khối', () => {
+    /*
+     * CA NÀY CÓ VÌ MỘT LỜI KHẲNG ĐỊNH KHÔNG AI CANH. Chú thích đầu nhóm màu ở
+     * `tokens.css` viết từ `0064`: *"mọi cặp đạt AA … `nguon-giao-dien.test.ts`
+     * canh chỗ này"*. Không ca nào trong tệp này đo tương phản — câu ấy là một
+     * lời hứa đứng đó suốt từ 19/08, và lượt đổi màu Nháp của `0219` là lượt đầu
+     * tiên nó phải đúng mà không ai kiểm.
+     *
+     * Đo CẢ BA khối chứ không riêng khối sáng: khối tối chọn tay là khối người
+     * ta hay quên, và ca ba-khối ngay trên chỉ đếm, không đo.
+     */
+    expect(KHOA_TT.length, 'không đọc ra khoá màu trạng thái nào').toBeGreaterThanOrEqual(10);
+    const truot: string[] = [];
+    for (const k of KHOA_TT) {
+      const chu = baKhoi(`--mau-tt-${k}`);
+      const nen = baKhoi(`--mau-tt-${k}-nen`);
+      expect(chu.length, `--mau-tt-${k}: không đọc đủ ba khối`).toBe(3);
+      expect(nen.length, `--mau-tt-${k}-nen: không đọc đủ ba khối`).toBe(3);
+      chu.forEach((c, i) => {
+        const v = tuongPhan(c, nen[i]!);
+        if (v < 4.5) truot.push(`${k} khối ${i + 1}: ${c}/${nen[i]} = ${v.toFixed(2)}`);
+      });
+    }
+    expect(truot, truot.join('\n')).toEqual([]);
+  });
+
+  it('`0219` NHÁP là Ô LIU — có sắc thật, và không lẫn vào trạng thái nào', () => {
+    /*
+     * Khách hàng chốt 21/09. Màu cũ `#6b5f56` có sắc 26° nhưng bão hoà 11% —
+     * mắt đọc ra XÁM, và Nháp đứng thành một nhóm với Hết hiệu lực / Đã xoá.
+     * Nên ca này hỏi ba điều, mỗi điều chặn một đường quay về:
+     *
+     *   1. bão hoà >= 40 — không bao giờ lại là một màu xám;
+     *   2. sắc trong dải vàng–lục (55°–95°) — đúng họ khách hàng chọn, ở CẢ BA
+     *      khối (khối tối cũng phải là ô liu, không riêng khối sáng);
+     *   3. cách mọi trạng thái CÓ SẮC khác >= 30° — gần nhất là hổ phách của Yêu
+     *      cầu chỉnh sửa (37°), và đó là cái giá đã nêu; một lượt "chỉnh cho ấm
+     *      hơn" đẩy nó sát thêm là hai trạng thái lẫn vào nhau.
+     */
+    const chu = baKhoi('--mau-tt-nhap');
+    for (const c of chu) {
+      const v = sac(c);
+      expect(v.s, `Nháp ${c} bão hoà ${v.s.toFixed(0)}% — lại thành màu xám`).toBeGreaterThanOrEqual(40);
+      expect(v.h, `Nháp ${c} sắc ${v.h.toFixed(0)}° — ra khỏi dải ô liu`).toBeGreaterThanOrEqual(55);
+      expect(v.h, `Nháp ${c} sắc ${v.h.toFixed(0)}° — ra khỏi dải ô liu`).toBeLessThanOrEqual(95);
+    }
+    const hNhap = sac(chu[0]!).h;
+    for (const k of KHOA_TT) {
+      if (k === 'nhap') continue;
+      const v = sac(baKhoi(`--mau-tt-${k}`)[0]!);
+      if (v.s < 25) continue; // xám đá: không có sắc để mà lẫn
+      const d = Math.min(Math.abs(hNhap - v.h), 360 - Math.abs(hNhap - v.h));
+      expect(d, `Nháp chỉ cách ${k} ${d.toFixed(0)}°`).toBeGreaterThanOrEqual(30);
+    }
+  });
 });
 
 describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {

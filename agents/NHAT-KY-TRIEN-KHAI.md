@@ -19398,3 +19398,62 @@ production (`ops backup`, `ops migrate`, `up -d --wait`, `mo-thu-nghiem`); lư�
 chạy thử là lượt nghiệm thu thật của chúng ghép lại.
 
 **2408/2408 xanh** — lượt chạy này phủ luôn P245 và P246, hai chặng đã commit mà chưa chạy cả bộ.
+
+---
+
+## P248 — `0219` Nhãn *Nháp* đổi sang ô liu — vàng lục
+
+Khách hàng chọn trong ba phương án (tím · hồng mận · ô liu) sau khi xem artifact bảng mười màu trạng
+thái. Sáu dòng trong `tokens.css`; thứ đáng ghi là hai chỗ lệch tìm ra ngay cạnh sáu dòng ấy.
+
+### Vì sao màu cũ hỏng, và nó KHÔNG lộ ra khi đọc mã
+
+`#6b5f56` có sắc **26°** — về lý thuyết là nâu, cùng họ cam và hổ phách. Nhưng độ bão hoà chỉ
+**11%**, nên mắt đọc ra **xám**, và *Nháp* đứng thành một nhóm với *Hết hiệu lực* / *Đã xoá* (xám đá,
+19%). Ba nhãn ấy nói hai điều ngược nhau: hồ sơ đang dở tay, và hồ sơ đã rời khỏi luồng. Đọc mã màu
+thì thấy "một màu nâu"; chỉ đo bão hoà mới thấy nó là xám.
+
+Ô liu `#5a6a10` / `#c5d36a` nằm ở 71°, vùng chưa trạng thái nào dùng. Gần nhất là hổ phách của *Yêu
+cầu chỉnh sửa* (37°) — cái giá đã nêu với khách hàng: hai trạng thái cùng là việc của Trình dược viên
+giờ cùng tông ấm.
+
+### Lời khẳng định không ai canh — lỗ hổng THẬT của chặng
+
+Chú thích nhóm màu ở `tokens.css`, viết từ `0064` (19/08): *"Mọi cặp chữ/nền đều đạt WCAG AA …
+`nguon-giao-dien.test.ts` canh chỗ này."* **Không ca nào trong tệp ấy đo tương phản.** Bốn ca của
+`0064` đếm khoá, đếm cặp trùng, đếm lớp CSS, đếm ba khối — không ca nào hỏi *"chữ có đọc được trên nền
+không"*. Câu ấy là một lời hứa đứng yên suốt hơn một tháng, và lượt đổi màu này là lượt đầu tiên nó
+phải đúng mà không có gì kiểm.
+
+Nên có ca **`0219` MỌI cặp chữ/nền đạt AA ở CẢ BA khối** — mười khoá × ba khối, đọc thẳng từ
+`tokens.css` và tính theo WCAG 2.1. Đo CẢ BA khối vì khối tối chọn tay là khối người ta hay quên, và
+ca ba-khối có sẵn chỉ đếm chứ không đo. Kèm ca **Nháp là ô liu**: bão hoà ≥ 40 (không bao giờ lại là
+xám), sắc 55°–95° ở cả ba khối, và cách mọi trạng thái có sắc khác ≥ 30°.
+
+### Lỗi thứ hai, trong tài liệu, đã sai từ `0155`
+
+Bảng màu ở `03-HUONG-DAN-SU-DUNG.md` in đậm **Đỏ** như một cặp dùng chung màu, và câu bên dưới viết:
+*"Hết hiệu lực với Đã xoá khác nguyên nhân nhưng cùng một kết cục — hồ sơ không đi tiếp được nữa;
+Hết hiệu lực với Đã xoá đều đã rời khỏi luồng…"* — **cùng một cặp, nói hai lần với hai lý do**. Vế
+đầu vốn là *Từ chối + Quá hạn duyệt*; `0155` bỏ trạng thái *Từ chối* và lượt sửa tài liệu thay tên mà
+không đọc lại câu. Đỏ giờ chỉ còn một trạng thái. Chú thích trong `tokens.css` mang đúng lỗi ấy
+(*"HAI cặp dùng chung màu … Từ chối + Quá hạn duyệt"*) — sửa cả hai, và nói ra thứ đã mất.
+
+### Phá lại
+
+| Hoàn tác | Đỏ |
+|---|---|
+| trả Nháp về nâu xám, cả ba khối | 1 |
+| ô liu CHỈ ở khối sáng, khối tối chọn tay vẫn nâu | 1 |
+| "chỉnh cho ấm hơn" — ô liu ngả sát hổ phách | 1 |
+| chữ ô liu nhạt đi, dưới AA ở khối sáng | 1 |
+| nền tối chọn tay sáng lên, chỉ khối thứ ba | 1 |
+| một trạng thái KHÁC dưới AA (ngọc nhạt đi) | 1 |
+
+Lượt cuối là lượt chứng minh ca AA canh cả mười màu chứ không riêng Nháp.
+
+Nghiệm thu: dựng lại riêng gói giao diện của demo; `localhost:8080` phục vụ `--mau-tt-nhap: #5a6a10` /
+`#c5d36a`.
+
+**847/847 ca `tests/web` + chốt chặn tài liệu xanh, typecheck sạch.** Chặng chỉ đổi CSS và tài liệu;
+`make test` đầy đủ chưa chạy — chồng demo đang bật (lượt đầy đủ gần nhất, P247: 2408/2408).

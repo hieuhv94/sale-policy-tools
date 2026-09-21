@@ -2774,6 +2774,22 @@ thái"*.
 > cũ*, và **trên hàng không còn dấu vết nào** của lượt sửa ấy — ghi chú cũ thôi đọc được từ màn hình
 > hồ sơ. Nhật ký hồ sơ thì vẫn giữ.
 
+**NHÃN *Nháp* ĐỔI SANG Ô LIU — VÀNG LỤC** `sửa 21/09` — khách hàng chọn trong ba phương án đưa ra
+(tím · hồng mận · ô liu), sau khi xem bảng mười màu trạng thái ở cả hai giao diện.
+
+> **Vì sao đổi**: màu cũ là nâu xám — về sắc thì là nâu, nhưng nhạt tới mức mắt đọc ra **xám**, nên
+> *Nháp* đứng thành một nhóm với *Hết hiệu lực* và *Đã xoá* (xám đá). Hai điều ngược nhau: *Nháp* là
+> hồ sơ **đang dở tay**, hai nhãn kia là hồ sơ **đã rời khỏi luồng**.
+>
+> **Vì sao ô liu**: vùng vàng–lục chưa trạng thái nào dùng, và nó không mang nghĩa lỗi hay đã xong.
+> **Cái giá đã nêu**: nó gần hổ phách của *Yêu cầu chỉnh sửa* nhất — hai trạng thái cùng là việc của
+> Trình dược viên giờ cùng tông ấm.
+>
+> **Đã cân và không chọn**: tím (nối dài chuỗi màu của bốn bước chờ về phía trước — gần *Chờ TBP
+> duyệt* nhất) và hồng mận (nổi nhất, nhưng có người đọc ra gần đỏ).
+>
+> Mọi cặp chữ/nền trạng thái đạt chuẩn tương phản **WCAG AA** ở cả giao diện sáng lẫn tối.
+
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,
 người dùng chỉ cần lăn chuột"*.

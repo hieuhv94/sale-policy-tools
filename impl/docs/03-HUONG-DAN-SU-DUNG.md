@@ -1223,16 +1223,20 @@ Còn lại:
 
 | Màu | Trạng thái |
 |---|---|
-| Nâu xám | Nháp |
+| Ô liu (vàng lục) `sửa 21/09` | Nháp |
 | Xanh lá | Đang có hiệu lực |
 | Hổ phách | Yêu cầu chỉnh sửa · và thẻ *Lỗi bản cứng* của Sale Admin |
-| **Đỏ** | Quá hạn duyệt |
+| Đỏ | Quá hạn duyệt |
 | **Xám đá** | Hết hiệu lực · Đã xoá |
 | Cam | thẻ *Sắp quá hạn* — không phải trạng thái |
 
-Cặp in đậm **cố ý dùng chung màu**: *Hết hiệu lực* với *Đã xoá* khác nguyên nhân nhưng cùng một
-kết cục — hồ sơ không đi tiếp được nữa; *Hết hiệu lực* với *Đã xoá* đều đã rời khỏi luồng và không
-đòi ai làm gì.
+Hai trạng thái in đậm **cố ý dùng chung màu**: *Hết hiệu lực* và *Đã xoá* đều đã rời khỏi luồng và
+không đòi ai làm gì.
+
+> **Nháp đổi từ nâu xám sang ô liu** `sửa 21/09`. Màu cũ đọc ra xám, nên nó trông cùng nhóm với *Hết
+> hiệu lực* và *Đã xoá* — trong khi Nháp là hồ sơ **còn đang soạn**, việc của bạn chưa xong. Ô liu nằm
+> gần hổ phách của *Yêu cầu chỉnh sửa* nhất, và đó là chủ ý chấp nhận được: cả hai đều là hồ sơ đang
+> chờ chính Trình dược viên.
 
 Thẻ *Đang chờ* **không có màu**: theo đúng định nghĩa nó là phần không cần bạn làm gì.
 

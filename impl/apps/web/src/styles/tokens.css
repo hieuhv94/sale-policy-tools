@@ -128,17 +128,27 @@
    * Bốn bước chờ giờ đi thành một CHUỖI chàm → lam → ngọc → mòng két, đúng thứ
    * tự hồ sơ đi qua: nhìn dải thẻ là đọc được đoạn nào của luồng đang tắc.
    *
-   * HAI cặp dùng chung màu, cả hai do khách hàng chốt ngày 19/08:
-   *   - Từ chối + Quá hạn duyệt  → đỏ. Hai ngõ cụt, khác nguyên nhân nhưng cùng
-   *     một kết cục với người dùng: hồ sơ này không đi tiếp được nữa.
+   * MỘT cặp dùng chung màu, do khách hàng chốt ngày 19/08:
    *   - Hết hiệu lực + Đã xoá    → xám đá. Cả hai đã rời khỏi luồng và không
    *     đòi ai làm gì.
+   * (Cặp thứ hai — Từ chối + Quá hạn duyệt, đỏ — mất một vế khi `0155` bỏ hẳn
+   * trạng thái Từ chối; đỏ giờ chỉ còn Quá hạn duyệt.)
    *
-   * Mọi cặp chữ/nền đều đạt WCAG AA (>= 4,5) ở cả hai giao diện — thấp nhất là
-   * 4,61 ở nhóm ngọc. `nguon-giao-dien.test.ts` canh chỗ này.
+   * NHÁP LÀ Ô LIU — VÀNG LỤC (`0219`, khách hàng chốt 21/09). Tới `0218` nó là
+   * nâu xám `#6b5f56`: sắc 26° nhưng độ bão hoà chỉ 11%, nên mắt đọc ra XÁM và
+   * nó đứng thành một nhóm với Hết hiệu lực / Đã xoá (xám đá) — trong khi Nháp
+   * là hồ sơ ĐANG DỞ TAY, còn hai nhãn kia là hồ sơ đã rời khỏi luồng. Ô liu
+   * nằm ở vùng vàng–lục chưa trạng thái nào dùng (71°), cách hổ phách của Yêu
+   * cầu chỉnh sửa 37° — gần nhất, và là cái giá đã nêu: hai trạng thái cùng là
+   * việc của Trình dược viên giờ cùng tông ấm. Đã cân và KHÔNG chọn: tím (nối
+   * dài chuỗi bốn bước chờ về phía trước) và hồng mận.
+   *
+   * Mọi cặp chữ/nền đều đạt WCAG AA (>= 4,5) ở CẢ BA khối — thấp nhất là 4,61
+   * ở nhóm ngọc. Câu này tới `0218` KHẲNG ĐỊNH có ca kiểm canh mà không ca nào
+   * canh thật; `0219` viết ca ấy ở `nguon-giao-dien.test.ts`.
    */
-  --mau-tt-nhap: #6b5f56;
-  --mau-tt-nhap-nen: #f2eeea;
+  --mau-tt-nhap: #5a6a10;
+  --mau-tt-nhap-nen: #f1f5d8;
   --mau-tt-tbp: #4338ca;
   --mau-tt-tbp-nen: #e9e9fb;
   --mau-tt-kt1: #1d4ed8;
@@ -384,8 +394,8 @@
     /* Mười màu trạng thái ở bảng tối (`0064`), cùng một lẽ với khối trên: chữ
        sáng lên, nền tối xuống. Chuỗi bốn bước chờ vẫn giữ nguyên thứ tự chàm →
        lam → ngọc → mòng két, chỉ đổi độ sáng. */
-    --mau-tt-nhap: #b8a99c;
-    --mau-tt-nhap-nen: #2e2723;
+    --mau-tt-nhap: #c5d36a;
+    --mau-tt-nhap-nen: #252a0d;
     --mau-tt-tbp: #a5b4fc;
     --mau-tt-tbp-nen: #1e2542;
     --mau-tt-kt1: #8ab4f8;
@@ -463,8 +473,8 @@
 
   /* Mười màu trạng thái ở bảng tối (`0064`) — bản sao của khối trong media
      query, để lựa chọn tay của người dùng thắng cả cài đặt hệ điều hành. */
-  --mau-tt-nhap: #b8a99c;
-  --mau-tt-nhap-nen: #2e2723;
+  --mau-tt-nhap: #c5d36a;
+  --mau-tt-nhap-nen: #252a0d;
   --mau-tt-tbp: #a5b4fc;
   --mau-tt-tbp-nen: #1e2542;
   --mau-tt-kt1: #8ab4f8;

@@ -99,7 +99,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (21/09/2026)
 
-Chặng gần nhất **P247** (`0218`): **`./csbh upgrade` — lên bản mới nhất, xoá sạch dữ liệu, giữ địa
+Chặng gần nhất **P248** (`0219`): **nhãn *Nháp* đổi sang ô liu — vàng lục** (`#5a6a10` / `#f1f5d8`,
+tối `#c5d36a` / `#252a0d`), khách hàng chọn trong ba phương án. Màu cũ `#6b5f56` có sắc 26° nhưng
+**bão hoà 11%** — mắt đọc ra XÁM, lẫn với *Hết hiệu lực* / *Đã xoá*; đọc mã màu không thấy, phải đo.
+**LỖ HỔNG THẬT CỦA CHẶNG**: chú thích `tokens.css` khẳng định từ `0064` rằng mọi cặp đạt AA và
+*"`nguon-giao-dien.test.ts` canh chỗ này"* — **không ca nào đo tương phản**. Giờ có ca đo mười khoá ×
+ba khối, cộng ca ghim Nháp ở dải ô liu (bão hoà ≥ 40, sắc 55°–95°, cách mọi trạng thái có sắc ≥ 30°).
+Kèm một câu HDSD sai từ `0155` (cặp xám đá nói hai lần, vế *Từ chối + Quá hạn* bị thay tên mà không
+đọc lại). Sáu lượt phá lại, sáu đỏ.
+
+Trước đó **P247** (`0218`): **`./csbh upgrade` — lên bản mới nhất, xoá sạch dữ liệu, giữ địa
 chỉ đường hầm**, và **`VERSION` lên `1.0.3`**. Câu hỏi đi kèm (*"đóng gói và triển khai có đổi gì
 không"*) trả lời bằng số đo: `deploy/`, `cai-dat.sh`, `csbh`, `dong-goi.sh` không đổi một dòng từ
 `1.0.2`, không migration mới — thứ lệch là `VERSION` đứng yên trong khi P234–P246 chưa đóng gói.
