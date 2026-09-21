@@ -18954,3 +18954,135 @@ danh sách nào.
 > một chỗ hợp lệ về kiểu dữ liệu và về ngữ nghĩa SQL.
 
 **2392/2392 xanh.**
+
+---
+
+## P244 — `0215` Dấu tam giác cạnh giá trị đã đổi; ghi chú ra khỏi phép so
+
+Bước thứ tư của cùng một hướng, và là bước ĐỔI CHIỀU. `0204` mở ra một danh sách trường đã đổi,
+`0213` đổi nó thành cả dòng cũ, `0214` đổi tiếp thành một hàng khớp cột — ba lượt đều là *"mở thêm
+một hàng"*. Lượt này khách hàng bỏ cái hàng ấy: *"giá trị của cột nào bị thay đổi thì đặt bên cạnh
+giá trị đó dấu tam giác màu xanh hướng lên nếu giá trị đó mới lớn hơn giá trị cũ, màu đỏ hướng xuống
+nếu giá trị mới bé hơn; di chuột vào thì hiện giá trị trong phiên bản trước"*.
+
+**MÁY CHỦ KHÔNG ĐỔI MỘT CHỮ NÀO CỦA HỢP ĐỒNG** — `SQL_BAN_TRUOC_TRA_VE` vẫn trả cả dòng ở bản trước
+cộng danh sách khoá đã đổi, vì cả hai vẫn cần: khoá đã đổi nói ô nào có dấu, giá trị cũ là thứ dấu ấy
+bày ra. Thứ giao diện tự làm lấy là **chiều** của dấu, và đó không phải một phép so thứ hai đi ngược
+`0213`: *"ô này có đổi không"* vẫn của máy chủ (nó so trên `numeric`, nên `615000` và `615000.00` là
+một), còn ở đây hai giá trị **đã được khẳng định là khác nhau** và việc còn lại là xếp thứ tự hai con
+số — một phép so trên `number`, không thể lỏng hơn phép so kia.
+
+### Câu trả lời thứ hai của khách hàng là một LUẬT NGHIỆP VỤ MỚI
+
+Tôi hỏi bày thế nào cho ô *Ghi chú*, thứ không có chuyện lớn bé. Họ không chọn phương án nào mà viết
+lại yêu cầu: *"ghi chú không phải là trường để đánh giá sản phẩm có bị chỉnh sửa không, nếu chỉ có
+ghi chú thay đổi, sản phẩm sẽ vẫn giữ nguyên trạng thái"*.
+
+Đó là đảo một phần chốt `07/09` (*"bị sửa là đổi BẤT KỲ dữ liệu nào người lập nhập"*), và ranh giới
+đọc ra được từ bốn trường còn lại: **cả bốn đều đi vào tờ giấy khách hàng ký**, còn ghi chú là lời
+nhắn của người lập cho người duyệt. Nên `note` rời khỏi CẢ HAI danh sách — khỏi
+`TRUONG_SO_VOI_BAN_TRUOC` vì khách hàng nói thế, và khỏi `TRUONG_BAY_BAN_TRUOC` vì một khoá ở đó chỉ
+có nghĩa khi nó mang được một dấu. Cái mất đã nêu: sửa ghi chú thôi thì **trên hàng không còn dấu vết
+nào**, ghi chú cũ chỉ còn đọc được ở Nhật ký.
+
+### Ba đường mở, và `title` không phải một trong ba
+
+Yêu cầu viết *"di chuột"*. Nhưng người duyệt hay mở hồ sơ trên điện thoại trước khi ký, và `title`
+**chỉ hiện khi có chuột** — đúng lý lẽ `0027` đã dùng cho dấu `?` ngay trong những ô này. Nên dấu là
+một `<button>`, và giá trị cũ tới được người đọc bằng `:hover` · `:focus` · một lượt **bấm** đổi
+trạng thái.
+
+Đường thứ ba không thừa: nó không phụ thuộc vào việc trình duyệt cảm ứng có trao tiêu điểm cho
+`<button>` hay không, và nó là đường **duy nhất một ca kiểm chạm tới được** — `:hover` trong jsdom
+không đo được bằng gì cả.
+
+**Ô chữ nằm trong DẢI NGANG của chính hàng**, không nhô lên trên: bảng nằm trong `.khung-cuon`, mà
+`overflow-x: auto` thì trình duyệt cắt **cả hai chiều** — một ô chữ nhô lên ở hàng đầu tiên sẽ bị cắt
+cụt, và không có gì báo.
+
+### `khac` là một câu trả lời, không phải một nhánh lỗi
+
+Một khoản CPBH vừa có giá trị từ chỗ trống đã đổi mà **không lớn hơn hay bé hơn cái gì cả**. Dấu tròn
+hổ phách, rê vào vẫn hiện giá trị cũ. Bịa cho nó một chiều là nói sai ở đúng chỗ người duyệt đang đọc
+để quyết định.
+
+Khoản CPBH cũng là chỗ DUY NHẤT giao diện được phép so hai bên, vì máy chủ chỉ nói được *"mảng `cpbh`
+đã đổi"* — nó so cả cột một lượt. Phép so ở đó là **so chuỗi thô**, cố ý: đó đúng là ngữ nghĩa
+`IS DISTINCT FROM` trên `bigint[]`, áp cho từng phần tử. Dùng `Number()` là dựng một ngữ nghĩa THỨ
+HAI, và hai ngữ nghĩa thì có ngày cho hai câu trả lời khác nhau về cùng một dòng.
+
+### Ngày: hai vế tới dưới HAI HÌNH, và so `getTime()` thì đúng TÌNH CỜ
+
+`banTruoc.ngayApDung` đã `to_char` thành `YYYY-MM-DD`; `ngayApDung` của dòng là cột `date` mà pg đọc
+ra `Date` rồi `JSON.stringify` in ra mốc UTC — ở giờ Việt Nam là **17:00 của hôm trước**. So hai chuỗi
+ấy là so hai thứ khác hệ quy chiếu. So `getTime()` thì lệch bảy tiếng, **nhỏ hơn một ngày nên ra đúng
+thứ tự** — đúng loại lập luận `0128` đã phải đi sửa một lượt. Thêm `ngayISO()` vào `format.ts` quy cả
+hai về ngày lịch Việt Nam, và `ngay()` viết lại trên nó nên không có bản sao thứ hai của khối `Intl`.
+
+### PHÁ LẠI — LƯỢT XANH LÀ LƯỢT ĐÁNG GIÁ NHẤT
+
+| Hoàn tác | Đỏ |
+|---|---|
+| chiều luôn là *tăng* | 2 |
+| đánh dấu mọi ô, không hỏi máy chủ | 8 |
+| bỏ lượt bấm mở ô chữ | 1 |
+| khoản CPBH: đánh dấu cả dải khi mảng đổi | 1 |
+| `aria-label` bỏ tên cột và chiều | 2 |
+| **thêm `'note'` lại vào `O_BAN_TRUOC`** | **0** |
+| ghi chú lại vào tập quyết định nhãn (máy chủ) | 2 |
+| ghi chú lại vào tập bày ra (máy chủ) | 4 |
+
+Lượt thứ sáu xanh, và nó đúng: **không ô nào của bảng gọi `<Dau o="note">`**, nên một khoá thừa trong
+`O_BAN_TRUOC` là mã chết — cho tới ngày ai đó đọc danh sách rồi tin rằng ghi chú có mang dấu. Một ca
+dựng DOM không bao giờ bắt được lớp lỗi ấy; thứ bắt được phải là một phép **đối chiếu với máy chủ**.
+
+Và đối chiếu được thì `O_BAN_TRUOC` phải ra khỏi tệp `.tsx`, vì `tests/http/` không bật `jsx` —
+**cùng đường `0172` đã đi với `bang-cot.ts`, và vì cùng một hình dạng lỗi**: hai danh sách ở hai thế
+giới, mỗi lượt sửa chạm một bên, `tsc` không canh được gì vì cả hai là mảng chuỗi. Nên phần thuần dời
+sang `apps/web/src/lib/ban-truoc.ts`, `BangSanPham.tsx` xuất lại, và ca đối chiếu đòi hai danh sách
+**bằng nhau kể cả thứ tự** (cả hai đều khai mình xếp theo thứ tự cột). Chạy lại lượt phá ấy: **1 đỏ,
+đúng chỗ**.
+
+Bốn ca hằng số của `0214` dời theo sang `tests/http/o-ban-truoc.test.ts` — tệp THUẦN, không chạm CSDL.
+Ở `policy.test.ts` chúng chỉ chạy được cùng cả bộ (chín phút), trong khi thứ chúng canh là một phép so
+hằng số ai cũng nên chạy được trong ba giây. Đó cũng là lý do lượt phá lại vế giao diện làm được ngay
+cả khi chồng demo đang bật.
+
+### Một ca kiểm phải ĐẢO CHIỀU, và nó không lộ ra ở `grep`
+
+`0180` có ca *"đổi CHỈ GHI CHÚ cũng là *Chỉnh sửa* — bất kỳ dữ liệu nào"*. Lượt rà trước khi gõ tìm
+`note` trên cùng dòng với `CHINH_SUA` nên **không thấy nó** — chuỗi `'CHINH_SUA'` nằm cách chữ `note`
+ba dòng. Thứ tìm ra là lượt chạy cả bộ: **1 đỏ trên 2389**. Ca ấy bị THAY chứ không sửa số — nó khẳng
+định đúng cái luật khách hàng vừa đảo — và bản mới hỏi thêm *"ghi chú có ghi được thật không"*, nếu
+không thì nó xanh vì lượt ghi hỏng chứ không vì luật đúng.
+
+### Ba chỗ nhỏ, mỗi chỗ một lý do
+
+**Dấu của tổng CPBH ở thẻ nằm NGOÀI nút gấp** — nút lồng trong nút thì trình duyệt tự gỡ ra, và bấm
+vào dấu sẽ gập luôn cả khối CPBH; jsdom vẫn dựng ra cả hai nên không có gì đỏ. Đó là chỗ duy nhất của
+cả bảng mà dấu không đứng ngay cạnh con số nó nói về.
+
+**Màu mượn `--mau-tot`/`--mau-loi`, không dựng cặp token thứ ba** (lý lẽ `0123`) — kèm chú thích nói
+rõ ở đây **màu là CHIỀU, không phải lời khen chê**: giá bán Công ty tăng không phải một điều tốt.
+Hình ▲ ▼ mới là thứ mang tin (FE-28).
+
+**`.hang-thay-doi` đi theo** — mã chết từ `0213` mà không ai gỡ, vì một luật CSS không ai dùng thì
+không gì đỏ.
+
+### Nghiệm thu trên chồng demo thật
+
+25 hồ sơ có bản trước, đọc qua gateway bằng `tdv01`: **22 dòng *Chỉnh sửa* · 18 *Bổ sung* · 85 *Đang
+áp dụng***. `banTruoc` về đúng **tám khoá cộng `doi`**, và **không có `note`**.
+
+Một dòng thật của `CSBH-2026-000199` (`NC-GOLD-900`) bày ra đủ cả hai chiều trên cùng một hàng:
+
+| Ô | Cũ | Mới | Dấu |
+|---|---|---|---|
+| Giá bán buôn | 539.000 | 545.000 | ▲ xanh |
+| Giá thu về | 523.000 | 529.000 | ▲ xanh |
+| Tỷ lệ CK | 14,96% | 13,98% | ▼ đỏ |
+
+Đúng thứ hàng *bản trước* của `0214` không nói được: giá **lên** mà tỷ lệ chiết khấu **xuống** — hai
+chiều ngược nhau trên một dòng, đọc ra ngay mà không phải so hai con số.
+
+**2389/2389 xanh.**

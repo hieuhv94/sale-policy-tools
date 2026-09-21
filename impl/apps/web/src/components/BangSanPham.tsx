@@ -25,9 +25,20 @@
  * `window.innerWidth` thì xoay ngang điện thoại giữa lúc đang gõ sẽ tháo và dựng
  * lại ô nhập — mất nội dung và mất tiêu điểm (`FE-06`).
  */
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { ngay, tien, tyLe } from '../lib/format.js';
 import { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
+import {
+  banTruocCua,
+  chieuDoi,
+  docOBanTruoc,
+  nhanOBanTruoc,
+  oDaDoi,
+  type BanTruocDong,
+  type Chieu,
+  type OBanTruoc,
+  type OSo,
+} from '../lib/ban-truoc.js';
 
 export type DongSanPham = {
   id: string;
@@ -77,6 +88,10 @@ export type DongSanPham = {
   /**
    * Dòng này TRƯỚC KHI bị sửa — CHỈ dòng *Chỉnh sửa* (`0213`, thay `0204`).
    *
+   * `0215` giữ nguyên hợp đồng này và đổi chỗ bày: giá trị cũ thôi nằm trong một
+   * hàng mở ra, nó nằm trong câu hiện khi rê chuột vào dấu tam giác cạnh giá trị
+   * mới trên chính hàng này.
+   *
    * MÁY CHỦ quyết định có trả hay không, cùng ba vế gác với `discountRateTruoc`
    * (`SQL_BAN_TRUOC_TRA_VE`). Giao diện KHÔNG suy từ `trangThai === 'CHINH_SUA'`:
    * làm thế là dựng lại phép so ở chỗ thứ hai, và hai chỗ sẽ có ngày nói khác
@@ -89,99 +104,27 @@ export type DongSanPham = {
   banTruoc?: BanTruocDong | null | undefined;
 };
 
-/** Khoá của những ô bảng chi tiết bày ra, đúng thứ tự đọc (`0213`). */
-export const O_BAN_TRUOC = [
-  'ngayApDung',
-  'companyPrice',
-  'wholesalePrice',
-  'cpbh',
-  'cpbhTotal',
-  'netPrice',
-  'discountRate',
-  'threshold',
-  'note',
-] as const;
-
-export type OBanTruoc = (typeof O_BAN_TRUOC)[number];
-
-/**
- * Dòng ở bản trước, kèm danh sách ô đã đổi (`0213`).
+/*
+ * Ô "bản trước", `chieuDoi` và bạn bè dời sang `lib/ban-truoc.ts` ở `0215` —
+ * xem lý do ở đầu tệp ấy. Tóm tắt: `O_BAN_TRUOC` phải khớp từng khoá với
+ * `TRUONG_BAY_BAN_TRUOC` bên `policy`, và ca kiểm đối chiếu sống ở `tests/http/`
+ * nơi `jsx` không bật (cùng đường `0172` đã đi với `bang-cot.ts`).
  *
- * `doi` đến TỪ MÁY CHỦ chứ không do giao diện so hai bên: phép so chạy trên kiểu
- * dữ liệu thật của Postgres (`IS DISTINCT FROM` trên `numeric`, `date`, `text[]`),
- * nên `615000` và `615000.00` là MỘT. So bằng chuỗi ở trình duyệt thì hai giá
- * trị ấy khác nhau, và ô bôi vàng nói dối ở đúng chỗ không ai kiểm lại được.
+ * XUẤT LẠI TỪ ĐÂY vì hai tệp kiểm và `ChiTietHoSo` vẫn gọi chúng qua tên cũ, và
+ * vì chỗ đọc tự nhiên của một người đang sửa bảng này vẫn là ở đây.
  */
-export type BanTruocDong = {
-  [K in OBanTruoc]?: string | string[] | null;
-} & { doi?: string[] | null };
-
-/**
- * Bản trước của một dòng, đọc AN TOÀN từ thân phản hồi (`0213`).
- *
- * Kiểm HÌNH DẠNG chứ không tin khai báo kiểu: `banTruoc` đến từ thân phản hồi,
- * và một khai báo TypeScript là LỜI HỨA chứ không phải phép kiểm (bẫy `0198`).
- * Máy chủ cũ hơn giao diện thì trường vắng mặt, và lúc ấy một lượt đọc `.doi`
- * ném ngay trong lượt dựng bảng — React tháo cả cây và trang hồ sơ trắng, vì
- * một thứ chỉ là phần trang trí của một ô.
- */
-export const banTruocCua = (d: DongSanPham): BanTruocDong | null =>
-  d.banTruoc !== null && typeof d.banTruoc === 'object' && !Array.isArray(d.banTruoc)
-    ? d.banTruoc
-    : null;
-
-/** Những ô máy chủ báo là ĐÃ ĐỔI — rỗng nếu thân phản hồi không mang danh sách. */
-export const oDaDoi = (b: BanTruocDong): string[] => (Array.isArray(b.doi) ? b.doi : []);
-
-/**
- * TÊN Ô trong bảng chi tiết = TIÊU ĐỀ CỘT của chính bảng sản phẩm (`0204`).
- *
- * Không phải một danh sách nhãn thứ hai gõ tay: người dùng bấm vào nhãn *Chỉnh
- * sửa* rồi đọc một dòng tên trường, và mắt họ đang ở ngay cạnh hàng tiêu đề của
- * bảng. Hai chữ khác nhau cho cùng một ô — *"Giá bán Công ty"* ở trên và *"Giá
- * CT"* ở dưới — bắt người đọc tự ghép, đúng thứ `0172` đã đi sửa một lượt cho
- * hai bảng.
- *
- * Hai khoá lệch tên và cả hai đều có lý do: ô `cpbh` bày CẢ MẢNG còn cột bày
- * tổng của nó tên `cpbhTotal`; ô `threshold` là con số cột `ruleCode` bày ra từ
- * `0180` (mã quy định lui vào `title`).
- */
-const COT_CUA_O: Record<OBanTruoc, string> = {
-  ngayApDung: 'ngayApDung',
-  companyPrice: 'companyPrice',
-  wholesalePrice: 'wholesalePrice',
-  cpbh: 'cpbhTotal',
-  cpbhTotal: 'cpbhTotal',
-  netPrice: 'netPrice',
-  discountRate: 'discountRate',
-  threshold: 'ruleCode',
-  note: 'note',
-};
-
-export const nhanOBanTruoc = (o: OBanTruoc): string =>
-  [...COT_TRUOC, ...COT_SAU].find((c) => c.khoa === COT_CUA_O[o])?.nhan ?? o;
-
-/**
- * Đọc một giá trị của bảng chi tiết ra chữ.
- *
- * Máy chủ giữ nguyên văn con số nó đã đem so; cách đọc là việc của màn hình —
- * cùng phân công với `Lech.doc()` (`0050`).
- *
- * CPBH nối bằng dấu cộng chứ không cộng lại thành một số: hai mảng khác nhau vẫn
- * có thể cùng tổng (`[5000]` → `[3000, 2000]`), và khi ấy một ô *"CPBH 5.000"*
- * giấu mất đúng thứ vừa đổi.
- *
- * `—` cho giá trị trống, KHÔNG bỏ trống ô: một ô rỗng thì người đọc không phân
- * biệt được *"ghi chú vừa bị xoá"* với *"chỗ này chưa dựng xong"*.
- */
-export const docOBanTruoc = (o: OBanTruoc, v: string | string[] | null | undefined): string => {
-  if (Array.isArray(v)) return v.length === 0 ? '—' : v.map((x) => tien(x)).join(' + ');
-  if (v === null || v === undefined || v === '') return '—';
-  if (o === 'ngayApDung') return ngay(v);
-  if (o === 'note') return v;
-  if (o === 'discountRate' || o === 'threshold') return tyLe(v);
-  return tien(v);
-};
+export {
+  O_BAN_TRUOC,
+  banTruocCua,
+  oDaDoi,
+  nhanOBanTruoc,
+  docOBanTruoc,
+  chieuDoi,
+  type OBanTruoc,
+  type OSo,
+  type BanTruocDong,
+  type Chieu,
+} from '../lib/ban-truoc.js';
 
 /**
  * Dòng TDV đã rút khỏi phiên bản này (`0186`).
@@ -227,143 +170,141 @@ export const lopTrangThai = (t: string): string =>
         ? 'nhan nhan-thuong'
         : 'nhan nhan-tot';
 
+
 /**
- * Nhãn trạng thái — và là NÚT khi dòng có bản trước để mở ra (`0204`, `0213`).
+ * Nhãn trạng thái — một con chip chữ, KHÔNG phải nút (`0215`).
  *
- * Khách hàng chốt 12/09: nhãn **không mang thêm chữ nào**, chỉ thêm thao tác bấm.
- * Nên chữ giữ nguyên đúng `NHAN_TRANG_THAI` (cũng là bảng chữ dùng chung với bản
- * in), và thứ thêm vào là mũi tên — một dấu hiệu bấm được, không phải một mẩu
- * tin. Thiếu nó thì không ai biết nhãn ấy bấm được, và cả tính năng thành vô
- * hình.
+ * `0204` biến nó thành nút để mở ra bảng *bản trước*; `0215` bỏ bảng ấy, nên nút
+ * cũng đi theo. Không để lại một nút mở một thứ không còn tồn tại, và cũng không
+ * giữ nút cho "một việc nào đó sau này": một nút bấm không làm gì là lời mời bấm
+ * rồi tự hỏi mình vừa làm sai ở đâu.
  *
- * Dòng KHÔNG có bản trước thì nhãn là một `<span>` như cũ, không phải một nút bị
- * vô hiệu hoá: một nút bấm không làm gì là lời mời bấm rồi tự hỏi mình vừa làm
- * sai ở đâu.
- *
- * Câu cho trình đọc màn hình là BẮT BUỘC, không phải phần thêm: tên khả truy cập
- * của nút mà chỉ có chữ *Chỉnh sửa* thì người dùng bàn phím nghe được một nhãn
- * trạng thái và không biết bấm vào sẽ ra gì. `0213` đổi câu ấy theo nội dung mới
- * — bảng giờ bày cả dòng ở bản trước, không chỉ những chỗ đã đổi.
+ * Chữ lấy đúng `NHAN_TRANG_THAI` — bảng chữ dùng chung với bản in.
  */
-function NhanTrangThai({ d, mo, bat }: { d: DongSanPham; mo: boolean; bat: () => void }) {
+function NhanTrangThai({ d }: { d: DongSanPham }) {
   if (!d.trangThai) return null;
-  const nhan = (
+  return (
     <span className={lopTrangThai(d.trangThai)}>
       {NHAN_TRANG_THAI[d.trangThai] ?? d.trangThai}
     </span>
   );
-  if (banTruocCua(d) === null) return nhan;
+}
+
+/** Hình của ba chiều. `khac` KHÔNG phải tam giác — xem `chieuDoi`. */
+const HINH_CHIEU: Record<Chieu, string> = { tang: '▲', giam: '▼', khac: '●' };
+
+/** Câu đọc thành lời của ba chiều, cho trình đọc màn hình và cho `aria-label`. */
+const LOI_CHIEU: Record<Chieu, string> = {
+  tang: ' — giá trị mới cao hơn',
+  giam: ' — giá trị mới thấp hơn',
+  khac: '',
+};
+
+/**
+ * DẤU TAM GIÁC cạnh một giá trị đã đổi (`0215`, khách hàng chốt 21/09).
+ *
+ * *"Giá trị của cột nào bị thay đổi thì đặt bên cạnh giá trị đó dấu tam giác màu
+ * xanh hướng lên nếu giá trị đó mới lớn hơn giá trị cũ, màu đỏ hướng xuống nếu
+ * giá trị mới bé hơn. Khi người dùng di chuột vào vị trí dấu tam giác, sẽ hiện ra
+ * giá trị trong phiên bản trước"*.
+ *
+ * ---------------------------------------------------------------------------
+ * `<button>` CHỨ KHÔNG `<span title>`, và đó là chỗ tốn công nhất
+ * ---------------------------------------------------------------------------
+ *
+ * Yêu cầu viết *"di chuột"*, nhưng một nửa người duyệt mở hồ sơ trên điện thoại
+ * trước khi ký, và `title` **chỉ hiện khi có CHUỘT** — trên cảm ứng và với người
+ * dùng bàn phím nó là một dấu hiệu không bao giờ trả lời được. Đúng lý lẽ `0027`
+ * đã dùng cho dấu `?` ngay trong những ô này, nên hai dấu cạnh nhau cũng dùng
+ * chung một cách mở.
+ *
+ * Nên giá trị cũ tới được người đọc bằng **ba đường**, và mỗi đường là một cơ chế
+ * riêng: `:hover` (chuột) · `:focus` (Tab, và cú chạm trên phần lớn trình duyệt
+ * cảm ứng) · một lượt BẤM đổi trạng thái `mo`. Đường thứ ba không thừa: nó là
+ * đường duy nhất không phụ thuộc vào việc trình duyệt cảm ứng có trao tiêu điểm
+ * cho `<button>` hay không, và nó cũng là đường DUY NHẤT một ca kiểm chạm tới
+ * được — `:hover` trong jsdom không đo được bằng gì cả.
+ *
+ * `aria-label` mang CẢ CÂU (tên cột · giá trị cũ · chiều), nên trình đọc màn hình
+ * không cần tới ô chữ lẫn màu sắc; ô chữ vì thế `aria-hidden`, nếu không nó đọc
+ * con số ấy lần thứ hai.
+ *
+ * FE-28 — *"không bao giờ chỉ dùng màu"* — giữ bằng HÌNH: ▲ và ▼ là hai hình
+ * khác nhau trước khi là hai màu, nên người không phân biệt được xanh với đỏ vẫn
+ * đọc được chiều.
+ */
+function DauDoi({
+  o,
+  nhan,
+  cu,
+  moi,
+}: {
+  o: OBanTruoc;
+  nhan: string;
+  cu: string | string[] | null | undefined;
+  moi: string | string[] | null | undefined;
+}) {
+  const [mo, datMo] = useState(false);
+  const chieu = chieuDoi(o, moi, cu);
+  const giaCu = docOBanTruoc(o, cu);
   return (
-    <button type="button" className="nhan-mo" aria-expanded={mo} onClick={bat}>
-      {nhan}
-      <span className="chi-doc-man-hinh"> — xem thông tin ở phiên bản trước</span>
-      <span className="mui-ten" aria-hidden="true">
-        {mo ? '▲' : '▼'}
+    <button
+      type="button"
+      className={`dau-doi dau-${chieu}${mo ? ' dau-mo' : ''}`}
+      aria-label={`${nhan} ở phiên bản trước: ${giaCu}${LOI_CHIEU[chieu]}`}
+      onClick={() => datMo((x) => !x)}
+    >
+      <span aria-hidden="true">{HINH_CHIEU[chieu]}</span>
+      <span className="gia-cu" aria-hidden="true">
+        {giaCu}
       </span>
     </button>
   );
 }
 
 /**
- * HÀNG *bản trước*, khớp TỪNG CỘT với hàng ngay trên nó (`0214`, chốt 20/09).
+ * Dấu cho một ô MỘT CON SỐ — `null` khi ô ấy không đổi (`0215`).
  *
- * `0213` bày bản trước thành một bảng dọc *nhãn — giá trị*. Khách hàng xem xong
- * bảo *"hiển thị theo hàng ngang, đúng theo từng cột như dòng ở trên"* — và họ
- * đúng ở một điểm bảng dọc không làm được: **so hai con số cùng cột thì mắt chỉ
- * cần đi thẳng xuống**, còn bảng dọc bắt người đọc tìm lại tên trường rồi mới
- * bắc ngang sang hàng trên.
+ * ĐỌC GIÁ TRỊ MỚI TỪ CHÍNH DÒNG (`d[o]`) thay vì nhận qua prop: mọi khoá của
+ * `OSo` trùng tên với một trường của `DongSanPham`, nên phép tra này không sai
+ * được. Truyền tay thì một chỗ gõ nhầm cho ra một dấu chỉ đúng chiều của ô bên
+ * cạnh — dịch được, chạy được, và không có gì đỏ.
  *
- * VÌ SAO PHẢI KỂ ĐỦ MỌI Ô, kể cả ô để trống: hàng này là một `<tr>` thật trong
- * cùng một `<table>`, nên số ô của nó phải bằng số cột — thiếu một ô là mọi ô
- * sau đó lệch sang trái một cột, và người đọc so nhầm hai con số nằm cạnh nhau.
- * Thứ tự dưới đây chép đúng thứ tự hàng chính; hai chỗ phải sửa cùng nhau, và
- * `tests/web/bang-san-pham.test.tsx` canh chuyện đó bằng cách đếm ô.
- *
- * BA Ô CỐ Ý ĐỂ TRỐNG:
- *
- *   * *Tên sản phẩm* — cùng một mặt hàng, lặp lại tên là một dòng nhiễu;
- *   * *Tỷ lệ CK cũ* — bản trước không có "bản trước của chính nó" trong khung
- *     nhìn này, và điền gì vào đó cũng là bịa;
- *   * *Trạng thái* — nhãn của hàng này là chữ *Bản trước* ở ô mã, không phải một
- *     trạng thái của máy trạng thái.
- *
- * TỶ LỆ CK vẽ TRƠN, không mượn `OTyLe`: màu đỏ vượt ngưỡng và dấu `?` của `0027`
- * nói *"dòng này cần bạn xử lý"* — một câu về HIỆN TẠI. Tô nó trên một con số
- * lịch sử là gọi người duyệt đi xử lý một việc đã xong.
+ * *"Có đổi hay không"* đọc từ `oDaDoi`, tức TỪ MÁY CHỦ. Giao diện tự so hai bên
+ * là bẫy `0213` đã ghi: `615000` và `615000.00` là hai chuỗi khác nhau mà cùng
+ * một con số.
  */
-function HangBanTruoc({
-  b,
-  soCpbh,
-  coThaoTac,
-}: {
-  b: BanTruocDong;
-  soCpbh: number;
-  coThaoTac: boolean;
-}) {
-  const doi = oDaDoi(b);
-  /** Một ô mang giá trị của bản trước, bôi vàng khi máy chủ báo ô ấy đã đổi. */
-  const o = (khoa: OBanTruoc, lop = 'so') => (
-    <td className={lop} {...(doi.includes(khoa) ? { 'data-doi': '1' } : {})}>
-      {docOBanTruoc(khoa, b[khoa])}
-    </td>
-  );
-  return (
-    <tr className="hang-ban-truoc">
-      {o('ngayApDung', 'ngay-ap-dung')}
-      <th scope="row" className="cot-khoa nhan-ban-truoc">
-        Bản trước
-      </th>
-      <td />
-      {o('companyPrice')}
-      {o('wholesalePrice')}
-      {o('cpbhTotal')}
-      {Array.from({ length: soCpbh }, (_, k) => {
-        const ds = Array.isArray(b.cpbh) ? b.cpbh : [];
-        return (
-          <td key={k} className="so" {...(doi.includes('cpbh') ? { 'data-doi': '1' } : {})}>
-            {ds[k] === undefined ? '' : tien(ds[k])}
-          </td>
-        );
-      })}
-      {o('netPrice')}
-      {o('discountRate')}
-      <td />
-      {o('threshold')}
-      <td />
-      {o('note', 'ghi-chu-dong')}
-      {coThaoTac && <td />}
-    </tr>
-  );
+function Dau({ d, o }: { d: DongSanPham; o: OSo }) {
+  const b = banTruocCua(d);
+  if (b === null || !oDaDoi(b).includes(o)) return null;
+  return <DauDoi o={o} nhan={nhanOBanTruoc(o)} cu={b[o]} moi={d[o]} />;
 }
 
 /**
- * Bảng *"trước khi sửa, dòng này trông thế nào"* (`0213`).
+ * Dấu cho ô KHOẢN CPBH thứ `k` (`0215`).
  *
- * BÀY CẢ TÁM Ô, kể cả ô không đổi — đó là khác biệt với `0204`, vốn chỉ liệt kê
- * trường đã đổi. Câu hỏi đổi từ *"đổi những gì"* sang *"trước đó thế nào"*, và
- * câu sau chỉ đọc được khi có đủ ngữ cảnh: một mình dòng *"Giá bán buôn
- * 520.000"* không nói được tỷ lệ chiết khấu khi ấy là bao nhiêu.
+ * Máy chủ chỉ nói được *"mảng `cpbh` đã đổi"* — nó so cả cột `bigint[]` một lượt.
+ * Dải cột trên màn hình thì mỗi khoản một ô, nên phải hỏi tiếp khoản NÀO đổi, và
+ * câu hỏi ấy chỉ trả lời được ở đây.
  *
- * Ô ĐÃ ĐỔI bôi vàng, và danh sách ấy đến TỪ MÁY CHỦ (`oDaDoi`) chứ không do đây
- * so hai bên — xem `BanTruocDong`.
+ * PHÉP SO LÀ PHÉP SO CHUỖI THÔ, cố ý: đó đúng là ngữ nghĩa `IS DISTINCT FROM`
+ * trên `bigint[]` của máy chủ, áp cho từng phần tử. Dùng `Number()` ở đây là
+ * dựng một ngữ nghĩa THỨ HAI, và hai ngữ nghĩa thì có ngày cho hai câu trả lời
+ * khác nhau về cùng một dòng (bẫy `0213`). Vế `oDaDoi` vẫn hỏi trước: khoản đổi
+ * mà mảng không đổi là chuyện không viết ra được, nhưng thứ tự ấy giữ cho máy
+ * chủ là chỗ duy nhất nói *"dòng này đã đổi"*.
+ *
+ * Khoản CHỈ CÓ ở một trong hai bản vẫn mang dấu — nó đã đổi thật — và `chieuDoi`
+ * trả `khac` cho nó: không có gì để mà lớn hơn.
  */
-function BangBanTruoc({ b }: { b: BanTruocDong }) {
-  const doi = oDaDoi(b);
-  return (
-    <table className="bang-ban-truoc">
-      <caption>Thông tin ở phiên bản trước — ô bôi vàng là ô đã đổi</caption>
-      <tbody>
-        {O_BAN_TRUOC.map((o) => (
-          <tr key={o} {...(doi.includes(o) ? { 'data-doi': '1' } : {})}>
-            <th scope="row">{nhanOBanTruoc(o)}</th>
-            <td className={o === 'note' ? undefined : 'so'}>{docOBanTruoc(o, b[o])}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+function DauKhoan({ d, k }: { d: DongSanPham; k: number }) {
+  const b = banTruocCua(d);
+  if (b === null || !oDaDoi(b).includes('cpbh')) return null;
+  const cu = Array.isArray(b.cpbh) ? b.cpbh[k] : undefined;
+  const moi = d.cpbh?.[k];
+  if ((cu ?? '') === (moi ?? '')) return null;
+  return <DauDoi o="cpbh" nhan={nhanCpbh(k)} cu={cu ?? null} moi={moi ?? null} />;
 }
-
 
 /** Dòng KHÔNG có quy định chiết khấu nào phủ — dù có rơi về mặc định hay không. */
 export const thieuQuyDinh = (d: DongSanPham): boolean =>
@@ -568,6 +509,12 @@ function CpbhGop({ d }: { d: DongSanPham }) {
           {mo ? '▲' : '▼'}
         </span>
       </button>
+      {/* Dấu của TỔNG nằm NGOÀI nút, không lồng vào trong (`0215`): dấu là một
+          `<button>`, và một nút trong lòng một nút thì trình duyệt tự gỡ ra —
+          bấm vào dấu sẽ gập luôn cả khối CPBH. Đây là chỗ DUY NHẤT của cả bảng
+          mà dấu không đứng ngay cạnh con số nó nói về; đổi lại, nó vẫn nằm trong
+          cùng khối *CPBH* nên không đọc nhầm sang ô khác được. */}
+      <Dau d={d} o="cpbhTotal" />
       {mo &&
         (co.length === 0 ? (
           <p className="ghi-chu">Dòng này không có khoản chi phí bán hàng nào.</p>
@@ -576,7 +523,10 @@ function CpbhGop({ d }: { d: DongSanPham }) {
             {co.map((v, i) => (
               <div key={i}>
                 <dt>{nhanCpbh(i)}</dt>
-                <dd className="so">{tien(v)}</dd>
+                <dd className="so">
+                  {tien(v)}
+                  <DauKhoan d={d} k={i} />
+                </dd>
               </div>
             ))}
           </dl>
@@ -690,19 +640,15 @@ export function BangSanPham({
     xoaDong !== undefined || suaDong !== undefined || themLaiDong !== undefined;
 
   /*
-    Dòng nào đang MỞ bảng chi tiết thay đổi (`0204`).
+    `dangMo` — tập dòng đang mở bảng *bản trước* — ĐÃ GỠ ở `0215`.
 
-    Một tập chứ không một id: hai dòng cùng đổi giá là chuyện thường, và người
-    duyệt mở cả hai ra để so. Đóng dòng này khi mở dòng kia là bắt họ bấm đi bấm
-    lại giữa hai hàng cách nhau nửa màn hình.
-
-    Đặt ở ĐÂY chứ không trong từng hàng: bảng và danh sách thẻ là hai bố cục của
-    CÙNG một dữ liệu, chỉ khác bề rộng màn hình — giữ hai tập trạng thái là để
-    cửa sổ co lại một chút thì thứ đang mở đóng sập lại.
+    Nó sống ở đây chứ không trong từng hàng vì bảng và danh sách thẻ là hai bố
+    cục của CÙNG một dữ liệu, và hai tập trạng thái thì cửa sổ co lại một chút là
+    thứ đang mở đóng sập. Lý lẽ ấy vẫn đúng; thứ mất đi là cái được mở: `0215`
+    đưa giá trị cũ ra thẳng hàng, dưới dạng một dấu cạnh giá trị mới, nên không
+    còn gì để mà mở. Trạng thái *"đang xem giá trị cũ"* giờ là chuyện của riêng
+    từng dấu (`DauDoi`), vì hai dấu trên hai ô khác nhau không loại trừ nhau.
   */
-  const [dangMo, datDangMo] = useState<readonly string[]>([]);
-  const batMo = (id: string) =>
-    datDangMo((cu) => (cu.includes(id) ? cu.filter((x) => x !== id) : [...cu, id]));
   if (dong.length === 0) {
     return (
       <p className="trong">
@@ -739,26 +685,51 @@ export function BangSanPham({
                 nằm trên `<tr>`, không trên từng ô: mờ nửa hàng thì trông như
                 một lỗi dựng trang chứ không như một trạng thái.
               */
-              <Fragment key={d.id}>
-              <tr className={daXoa(d) ? 'dong-da-xoa' : undefined}>
-                <td className="ngay-ap-dung">{ngay(d.ngayApDung)}</td>
+              <tr key={d.id} className={daXoa(d) ? 'dong-da-xoa' : undefined}>
+                {/*
+                  DẤU TAM GIÁC cạnh mọi ô đã đổi (`0215`, chốt 21/09).
+
+                  `<Dau>` tự trả `null` ở dòng không có bản trước và ở ô không
+                  đổi, nên nó đứng được cạnh mọi giá trị mà không cần một nhánh
+                  điều kiện nào ở đây — và đó là chủ ý: một `{dieuKien && …}` gõ
+                  lại ở tám ô là tám chỗ để quên một.
+                */}
+                <td className="ngay-ap-dung">
+                  {ngay(d.ngayApDung)}
+                  <Dau d={d} o="ngayApDung" />
+                </td>
                 <td>{d.productCode}</td>
                 <th scope="row" className="cot-khoa">
                   {d.productName}
                 </th>
-                <td className="so">{tien(d.companyPrice)}</td>
-                <td className="so">{tien(d.wholesalePrice)}</td>
-                <td className="so">{tien(d.cpbhTotal)}</td>
+                <td className="so">
+                  {tien(d.companyPrice)}
+                  <Dau d={d} o="companyPrice" />
+                </td>
+                <td className="so">
+                  {tien(d.wholesalePrice)}
+                  <Dau d={d} o="wholesalePrice" />
+                </td>
+                <td className="so">
+                  {tien(d.cpbhTotal)}
+                  <Dau d={d} o="cpbhTotal" />
+                </td>
                 {/* Ô TRỐNG cho dòng ít khoản hơn, không phải số 0 — xem chú
-                    thích đầu tệp. */}
+                    thích đầu tệp. Dấu thì vẫn có: một khoản vừa được thêm vào
+                    là một thay đổi, dù ô bên cạnh nó trống. */}
                 {Array.from({ length: soCotCpbh(dong) }, (_, k) => (
                   <td key={k} className="so">
                     {d.cpbh?.[k] === undefined ? '' : tien(d.cpbh[k])}
+                    <DauKhoan d={d} k={k} />
                   </td>
                 ))}
-                <td className="so">{tien(d.netPrice)}</td>
+                <td className="so">
+                  {tien(d.netPrice)}
+                  <Dau d={d} o="netPrice" />
+                </td>
                 <td className="so">
                   <OTyLe d={d} />
+                  <Dau d={d} o="discountRate" />
                 </td>
                 {/* Ô TRỐNG cho dòng không phải *Chỉnh sửa* — máy chủ đã quyết
                     định điều đó, xem `discountRateTruoc`. */}
@@ -768,13 +739,10 @@ export function BangSanPham({
                     bên trái. Kiểu chữ mã chỉ còn dùng cho nhánh lùi bên trong. */}
                 <td className="so">
                   <OQuyDinh d={d} />
+                  <Dau d={d} o="threshold" />
                 </td>
                 <td>
-                  <NhanTrangThai
-                    d={d}
-                    mo={dangMo.includes(d.id)}
-                    bat={() => batMo(d.id)}
-                  />
+                  <NhanTrangThai d={d} />
                 </td>
                 <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
@@ -799,38 +767,15 @@ export function BangSanPham({
                   </td>
                 )}
               </tr>
-              {/*
-                HÀNG CHI TIẾT, chèn NGAY DƯỚI hàng của chính nó (`0204`).
+              /*
+                HÀNG *bản trước* (`0204` · `0213` · `0214`) — ĐÃ GỠ ở `0215`.
 
-                `colSpan` phải phủ đủ mọi cột, kể cả dải CPBH co giãn theo dữ
-                liệu và cột thao tác chỉ có ở vài vai trò — thiếu một cột thì
-                hàng chi tiết ngắn hơn bảng và trình duyệt đẻ thêm một ô trống ở
-                mép phải, đúng chỗ mắt đang dò theo cột dọc.
-
-                Một hàng riêng chứ không phải một khối nổi: nó phải cuộn ngang
-                CÙNG bảng trong khung `.khung-cuon`, và phải nằm đúng giữa hai
-                hàng để không ai đọc nhầm nó là chi tiết của dòng kế tiếp.
-              */}
-              {/*
-                HÀNG *bản trước*, chèn NGAY DƯỚI hàng của chính nó (`0204`,
-                đổi hình ở `0214`).
-
-                `0213` để nó là một ô `colSpan` phủ cả bảng, bên trong là một
-                bảng dọc. `0214` đổi thành một HÀNG THẬT: cùng số ô, cùng thứ tự
-                cột, nên hai con số của cùng một cột nằm thẳng dưới nhau.
-
-                Nó vẫn phải cuộn ngang CÙNG bảng trong khung `.khung-cuon`, và
-                phải nằm đúng giữa hai hàng để không ai đọc nhầm nó là bản trước
-                của dòng kế tiếp.
-              */}
-              {dangMo.includes(d.id) && banTruocCua(d) !== null && (
-                <HangBanTruoc
-                  b={banTruocCua(d)!}
-                  soCpbh={soCotCpbh(dong)}
-                  coThaoTac={coThaoTac}
-                />
-              )}
-              </Fragment>
+                Ba chặng liền đi theo hướng "mở ra một hàng nữa", và lượt này
+                khách hàng đổi hướng: giá trị cũ về thẳng ô của nó, dưới dạng một
+                dấu. Cái mất, đã nêu: đọc cả dòng cũ một lượt thì phải rê qua
+                từng dấu. Cái được là bảng không còn cao gấp đôi ở mỗi dòng
+                *Chỉnh sửa*, và không còn hai hàng trông giống hai mặt hàng.
+              */
             ))}
           </tbody>
         </table>
@@ -844,38 +789,52 @@ export function BangSanPham({
               <span className="ma">{d.productCode}</span>
               <h3>{d.productName}</h3>
               {/* Trạng thái ở NGAY ĐẦU THẺ, không lẫn vào dải số: trên điện
-                  thoại đây là thứ đọc lướt để biết dòng nào vừa đổi.
-
-                  `0204` — cùng component với vế bảng, nên nhãn bấm được ở CẢ HAI
-                  bố cục. Bỏ sót vế này là tính năng biến mất dưới 640px mà không
-                  có gì nói ra, và đó đúng là bề rộng người duyệt hay mở hồ sơ
-                  trên điện thoại để xem trước khi ký. */}
-              <NhanTrangThai d={d} mo={dangMo.includes(d.id)} bat={() => batMo(d.id)} />
+                  thoại đây là thứ đọc lướt để biết dòng nào vừa đổi. */}
+              <NhanTrangThai d={d} />
             </div>
-            {dangMo.includes(d.id) && banTruocCua(d) !== null && (
-              <BangBanTruoc b={banTruocCua(d)!} />
-            )}
+            {/*
+              DẤU TAM GIÁC cũng có ở vế THẺ (`0215`) — cùng `<Dau>` với vế bảng.
+
+              `0214` cho hai bố cục hai HÌNH khác nhau, vì hàng *bản trước* cần
+              những cột mà thẻ không có. Lượt này chúng về chung một hình được:
+              dấu bám vào GIÁ TRỊ, và giá trị thì ở đâu cũng có. Bỏ sót vế này là
+              tính năng biến mất dưới 640px mà không có gì nói ra, và đó đúng là
+              bề rộng người duyệt hay mở hồ sơ để xem trước khi ký.
+            */}
             <dl className="the-so">
               <div>
                 <dt>Ngày áp dụng</dt>
-                <dd>{ngay(d.ngayApDung)}</dd>
+                <dd>
+                  {ngay(d.ngayApDung)}
+                  <Dau d={d} o="ngayApDung" />
+                </dd>
               </div>
               <div>
                 <dt>Giá bán Công ty</dt>
-                <dd className="so">{tien(d.companyPrice)}</dd>
+                <dd className="so">
+                  {tien(d.companyPrice)}
+                  <Dau d={d} o="companyPrice" />
+                </dd>
               </div>
               <div>
                 <dt>Giá bán buôn</dt>
-                <dd className="so">{tien(d.wholesalePrice)}</dd>
+                <dd className="so">
+                  {tien(d.wholesalePrice)}
+                  <Dau d={d} o="wholesalePrice" />
+                </dd>
               </div>
               <div>
                 <dt>Giá thu về</dt>
-                <dd className="so">{tien(d.netPrice)}</dd>
+                <dd className="so">
+                  {tien(d.netPrice)}
+                  <Dau d={d} o="netPrice" />
+                </dd>
               </div>
               <div>
                 <dt>Tỷ lệ CK</dt>
                 <dd className="so">
                   <OTyLe d={d} />
+                  <Dau d={d} o="discountRate" />
                 </dd>
               </div>
               {/* Chỉ hiện khi CÓ. Bố trí thẻ dành cho màn hình hẹp nhất; một ô
@@ -893,6 +852,7 @@ export function BangSanPham({
                   <dt>QĐCK</dt>
                   <dd className="so">
                     <OQuyDinh d={d} />
+                    <Dau d={d} o="threshold" />
                   </dd>
                 </div>
               )}

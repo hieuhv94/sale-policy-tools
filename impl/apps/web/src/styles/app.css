@@ -3504,100 +3504,90 @@ svg.bd-nho { width: 62px; margin: 0; }
   display: block;
 }
 
-/* --- `0204` Bảng "dòng này đổi những gì", mở từ nhãn Chỉnh sửa ---------------
 
-   Khách hàng chốt 12/09: nhãn trạng thái KHÔNG mang thêm chữ nào, chỉ thêm
-   thao tác bấm. Nên phần nhìn ở đây chỉ có hai việc — làm cho nhãn trông bấm
-   được, và cho bảng chi tiết đọc được khi mở ra. */
+/* --- `0215` DẤU TAM GIÁC cạnh giá trị đã đổi --------------------------------
 
-/* Nút bọc quanh nhãn: tự nó KHÔNG có hình dạng nút nào (nền, viền, đệm đều bỏ)
-   — cái người dùng thấy vẫn đúng là con chip trạng thái như mọi dòng khác, cộng
-   một mũi tên. Cho nó viền hay nền là dựng ra một nút thứ hai trong ô, và cột
-   Trạng thái thôi đọc được theo chiều dọc. */
-.nhan-mo {
+   Khách hàng chốt 21/09: *"giá trị của cột nào bị thay đổi thì đặt bên cạnh giá
+   trị đó dấu tam giác màu xanh hướng lên nếu giá trị mới lớn hơn giá trị cũ, màu
+   đỏ hướng xuống nếu giá trị mới bé hơn; di chuột vào thì hiện giá trị trong
+   phiên bản trước"*.
+
+   Thay cho cả khối CSS của `0204`/`0213`/`0214` — `.nhan-mo` (nhãn trạng thái
+   bấm được), `.bang-ban-truoc` (bảng dọc trong thẻ) và `.hang-ban-truoc` (hàng
+   khớp cột). Cùng đi theo là `.hang-thay-doi`, thứ đã thành mã chết từ `0213`
+   mà không ai gỡ: một luật CSS không ai dùng thì không gì đỏ. */
+
+/* Dấu bám SÁT con số, đúng lối `.dau-hoi` của `0027` — hai dấu này đứng cạnh
+   nhau trong chính những ô Tỷ lệ CK và QĐCK, nên chúng phải cùng một cỡ và cùng
+   một cách bám. `position: relative` để ô chữ giá trị cũ neo vào nó. */
+.dau-doi {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: var(--k1);
+  margin-left: var(--k1);
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  color: inherit;
-  cursor: pointer;
+  font-size: 0.75em;
+  line-height: 1;
+  cursor: help;
 }
-/* Tiêu điểm bàn phím phải thấy được: nhãn không có viền riêng nên vòng focus
-   mặc định của trình duyệt bám sát con chip, hơi chật — nới ra một chút. */
-.nhan-mo:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
+.dau-doi:focus-visible { outline: 2px solid var(--mau-thuong-hieu); outline-offset: 2px; }
 
-/* Hàng chi tiết nằm GIỮA hai hàng dữ liệu, nên nó phải đọc ra là "phần phụ của
-   hàng ngay trên" chứ không phải một hàng sản phẩm nữa. Nền chìm một bậc và một
-   vạch màu bên trái — cùng quy ước `.dong-lech` đã dùng, không dựng màu mới. */
-.hang-thay-doi > td {
-  padding: var(--k2) var(--k4);
-  background: var(--mau-nen-phu);
-  box-shadow: inset 3px 0 0 var(--mau-canh-bao);
-}
+/* MÀU LÀ CHIỀU, không phải lời khen chê — giá bán Công ty tăng không phải một
+   điều tốt, và giảm không phải một sự cố. Dùng lại đúng cặp `--mau-tot` /
+   `--mau-loi` thay vì dựng cặp token thứ ba: chúng đã có ở cả ba bảng màu và đã
+   là xanh/đỏ của hệ thống, mà `0123` đã ghi rõ vì sao hai chỗ cùng một sắc thì
+   nên dùng chung một khoá — hai khoá là hai chỗ phải giữ đồng bộ mãi mãi.
 
-/* Cùng cỡ chữ và cùng cách đọc số với `.bang-lech` — hai bảng trả lời gần như
-   cùng một câu hỏi ("đổi gì, từ đâu sang đâu"), và người dùng gặp cả hai trên
-   cùng một trang. Khác nhau về hình dạng là bắt họ học hai lần. */
-.bang-ban-truoc { font-size: var(--chu-nho); }
-.bang-ban-truoc th, .bang-ban-truoc td { padding: var(--k1) var(--k3); text-align: left; }
-.bang-ban-truoc th[scope='row'] { color: var(--mau-chu-phu); font-weight: 600; }
-.bang-ban-truoc .so { font-family: var(--so-deu-cot); text-align: right; }
+   Hình ▲ ▼ mới là thứ mang tin (FE-28): ai không phân biệt được xanh với đỏ vẫn
+   đọc được chiều, và `aria-label` nói thành câu. */
+.dau-tang { color: var(--mau-tot); }
+.dau-giam { color: var(--mau-loi); }
 
-/* Dòng tiêu đề của bảng nói NGAY cái quy ước màu, chứ không để người đọc tự đoán
-   vì sao vài ô có nền vàng (`0213`). `<caption>` chứ không một `<p>` đứng trên:
-   trình đọc màn hình đọc nó như tên của chính bảng này. */
-.bang-ban-truoc caption {
-  text-align: left;
-  padding: 0 var(--k3) var(--k2);
-  color: var(--mau-chu-phu);
-}
+/* CHIỀU KHÔNG XÁC ĐỊNH — một ô vừa có giá trị từ chỗ trống. Hổ phách và một hình
+   TRÒN, cố ý không phải tam giác: tam giác nào cũng chỉ một chiều, và bịa ra một
+   chiều ở đây là nói sai. */
+.dau-khac { color: var(--mau-canh-bao); }
 
-/* HÀNG *bản trước* trong chính bảng sản phẩm (`0214`).
+/* Ô chữ mang giá trị cũ.
 
-   Nó là một `<tr>` thật, cùng số ô với hàng trên, nên hai con số của cùng một
-   cột nằm thẳng dưới nhau — đó là cả điểm của lượt sửa này.
+   NẰM TRONG DẢI NGANG CỦA CHÍNH HÀNG, không nhô lên trên hay thụt xuống dưới:
+   bảng sản phẩm nằm trong `.khung-cuon`, mà `overflow-x: auto` thì trình duyệt
+   cắt CẢ HAI chiều — một ô chữ nhô lên ở hàng đầu tiên sẽ bị cắt cụt, và không
+   có gì báo. Neo vào mép phải của dấu, căn giữa theo chiều dọc, nên nó phủ lên
+   ô bên cạnh chứ không bao giờ ra khỏi khung.
 
-   NỀN MỜ và chữ nhạt để nó đọc ra là hàng PHỤ: thiếu vế ấy thì bảng trông như
-   có hai dòng sản phẩm, và người duyệt đếm nhầm số mặt hàng của hồ sơ. Đủ nhạt
-   để ô bôi vàng vẫn nổi lên trên nó. */
-.hang-ban-truoc > td,
-.hang-ban-truoc > th {
-  background: var(--mau-nen-phu);
-  color: var(--mau-chu-phu);
-}
-
-/* Chữ *Bản trước* đứng ở ô MÃ SẢN PHẨM — chỗ mắt dò để biết mình đang ở hàng
-   nào. Không in đậm: nó là một cái nhãn, không phải một mặt hàng. */
-.nhan-ban-truoc { font-weight: 400; font-style: italic; }
-
-/* Ô ĐÃ ĐỔI bôi vàng (`0213`, khách hàng chốt 20/09).
-
-   DÙNG LẠI `--mau-canh-bao-nen` thay vì dựng token thứ hai: nó đã có ở cả ba
-   bảng màu, và sắc vàng nhạt ấy đúng nghĩa cần ở đây — *"chỗ này khác, ngó
-   kỹ"*. Một cặp token riêng là hai chỗ phải giữ đồng bộ mãi mãi để trông giống
-   hệt nhau, đúng lý lẽ `0123` đã dùng khi cho nhãn danh mục mượn màu nhãn hồ sơ.
-
-   Tô CẢ HÀNG chứ không riêng ô giá trị: hàng có hai ô — tên trường và giá trị —
-   và tô mỗi ô giá trị thì cái tên nằm ngoài vùng vàng, đọc như thể nó không
-   thuộc về chỗ vừa được đánh dấu.
-
-   KHÔNG đổi màu CHỮ: nền nhạt đã đủ để mắt bắt được, còn đổi cả chữ thì con số
-   trong ô vàng trông như một cảnh báo phải xử lý — mà nó chỉ là một con số cũ. */
-.bang-ban-truoc tr[data-doi] th,
-.bang-ban-truoc tr[data-doi] td,
-/* Ở vế BẢNG (`0214`) dấu nằm trên TỪNG Ô, không trên cả hàng: cả hàng là bản
-   trước, còn vàng chỉ đánh dấu ô đã đổi. Luật này đứng SAU luật nền mờ của
-   `.hang-ban-truoc` nên nó thắng — hai luật cùng điểm đặc hiệu. */
-.hang-ban-truoc > [data-doi] {
-  background: var(--mau-canh-bao-nen);
+   `pointer-events: none` để con trỏ không "chạm" vào chính ô chữ vừa hiện ra —
+   thiếu nó thì rê chuột qua mép ô sẽ làm nó nhấp nháy. */
+.dau-doi .gia-cu {
+  position: absolute;
+  left: calc(100% + var(--k1));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  visibility: hidden;
+  padding: var(--k1) var(--k2);
+  border: 1px solid var(--mau-vien-dam);
+  border-radius: var(--bo-goc);
+  background: var(--mau-nen);
+  box-shadow: var(--bong);
+  color: var(--mau-chu);
+  font-size: var(--chu-nho);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
-/* Trong thẻ (bố cục <640px) bảng nằm thẳng trong `<li>`, không có ô nào bọc nên
-   nó cần khoảng thở của riêng mình. */
-.the > .bang-ban-truoc { margin-top: var(--k2); }
+/* BA ĐƯỜNG MỞ, ba cơ chế khác nhau — xem docstring của `DauDoi`. `:focus` chứ
+   không `:focus-visible`: cú chạm trên màn hình cảm ứng trao tiêu điểm nhưng
+   KHÔNG tính là "tiêu điểm nhìn thấy được", nên `:focus-visible` một mình sẽ bỏ
+   rơi đúng những người không có chuột. */
+.dau-doi:hover .gia-cu,
+.dau-doi:focus .gia-cu,
+.dau-mo .gia-cu {
+  visibility: visible;
+}
 
 /* --- Ô NHẬP NGÀY (`0208`) ------------------------------------------------- */
 

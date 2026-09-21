@@ -917,7 +917,10 @@ Màu nhãn nói **tình trạng của mặt hàng** `sửa 08/09` — chàm là 
 mục sản phẩm**.
 
 - Trạng thái **tự cập nhật**: bạn không chọn nó ở đâu cả. Thêm một dòng là *Bổ sung*; sửa giá bán
-  buôn, một khoản CPBH, ngày áp dụng hay ghi chú của một dòng thừa kế là *Chỉnh sửa*.
+  buôn, một khoản CPBH hay ngày áp dụng của một dòng thừa kế là *Chỉnh sửa*.
+- **Ghi chú KHÔNG tính vào đó** `sửa 21/09`. Sửa mỗi ghi chú thì dòng vẫn là *Đang áp dụng*: bốn
+  trường kia đi ra bản CSBH đem ký, còn ghi chú là lời nhắn của bạn cho người duyệt. Đổi lại, lượt
+  sửa ghi chú **không để dấu vết nào trên bảng** — ghi chú cũ chỉ còn đọc được ở mục *Lịch sử*.
 - ***Giá bán Công ty* khác bản trước cũng là *Chỉnh sửa*** `mới 12/09`, kể cả khi bạn không gõ gì.
   Nó đổi ở hai lượt: bạn bấm **Tự động cập nhật**, hoặc bạn **Gửi duyệt** (lúc ấy phần mềm chụp lại
   lần cuối). Giá đổi thì tỷ lệ chiết khấu đổi theo, nên cột **Tỷ lệ CK cũ** hiện ra để bạn và người
@@ -930,32 +933,25 @@ mục sản phẩm**.
   phiên bản trước, để đặt cạnh con số mới mà so. Dòng *Đang áp dụng* có tỷ lệ cũ bằng đúng tỷ lệ mới,
   và dòng *Bổ sung* thì không có tỷ lệ cũ nào.
 
-> **Bấm vào nhãn *Chỉnh sửa* thì thấy dòng ấy ở PHIÊN BẢN TRƯỚC** `mới 12/09` `sửa 20/09`. Ngay dưới
-> hàng mở ra **một hàng nữa, khớp đúng từng cột** — ô mã ghi *Bản trước*, còn mỗi ô mang giá trị cũ
-> của đúng cột ấy. **Ô nào đã đổi thì bôi vàng.** Bấm lần nữa thì đóng, và mở nhiều dòng cùng lúc
-> được để so.
+> **Ô nào vừa đổi thì có một DẤU TAM GIÁC bên cạnh** `mới 12/09` `sửa 21/09`. Dấu **xanh hướng lên**
+> nghĩa là con số mới **lớn hơn** con số ở phiên bản trước, **đỏ hướng xuống** nghĩa là nhỏ hơn.
+> **Rê chuột vào dấu** — hoặc bấm vào nó, hoặc Tab tới nó — thì hiện ra **giá trị ở phiên bản trước**.
 >
-> Nhờ khớp cột, hai con số của cùng một cột nằm thẳng dưới nhau: mắt chỉ cần đi thẳng xuống, không
-> phải dò lại tên trường rồi bắc ngang.
+> Có dấu ở mọi cột số vừa đổi: Ngày áp dụng · Giá bán Công ty · Giá bán buôn · CPBH (cả tổng lẫn
+> từng khoản) · Giá thu về · Tỷ lệ CK · QĐCK.
 >
-> Ba ô để trống có chủ ý: *Tên sản phẩm* (vẫn là mặt hàng ấy), *Tỷ lệ CK cũ* (bản trước không có bản
-> trước của chính nó), và *Trạng thái* (nhãn của hàng này là chữ *Bản trước* ở ô mã).
+> **Dấu tròn hổ phách** thay cho tam giác khi không có chuyện lớn hay bé — thường là một khoản CPBH
+> vừa được thêm vào, trước đó không có gì để so. Rê vào vẫn hiện giá trị cũ.
 >
-> **Trên điện thoại** (màn hình hẹp, bảng chuyển thành thẻ) thì nó vẫn là một danh sách dọc *tên —
-> giá trị*: ở khổ ấy không có cột nào để mà khớp.
+> **Tỷ lệ CK và Giá thu về cũng có dấu** khi bạn đổi giá bán buôn hoặc CPBH — chúng tính ra từ hai
+> con số ấy, nên đổi một cái là đổi cả ba. Đó thường là con số bạn cần nhất.
 >
-> **Tỷ lệ CK và Giá thu về cũng bôi vàng theo** khi bạn đổi giá bán buôn hoặc CPBH — chúng tính ra từ
-> hai con số ấy, nên đổi một cái là đổi cả ba. Đó thường là con số bạn cần nhất: tỷ lệ chiết khấu
-> trước và sau lần sửa này.
+> **CPBH tính theo TỪNG KHOẢN**: đổi từ `5.000` sang `3.000 + 2.000` là một thay đổi thật, mà tổng
+> thì vẫn thế — khi ấy hai ô khoản có dấu, còn ô *CPBH* tổng thì không, vì nó đúng là không đổi.
 >
-> Nhãn **không đổi chữ** — vẫn chỉ đề *Chỉnh sửa*; mũi tên nhỏ bên cạnh là dấu cho biết bấm được.
-> Dòng *Bổ sung*, *Đang áp dụng*, *Đã xoá* thì nhãn không bấm được, vì không có bản trước để so.
+> **Trên điện thoại** (màn hình hẹp, bảng chuyển thành thẻ) dấu vẫn đủ như thế, ngay cạnh từng con số.
 >
-> **CPBH liệt kê từng khoản** chứ không cộng lại: đổi từ `5.000` sang `3.000 + 2.000` là một thay đổi
-> thật, mà tổng thì vẫn thế — và khi ấy chỉ ô *CPBH* vàng, còn *Giá thu về* với *Tỷ lệ CK* thì không,
-> vì chúng đúng là không đổi.
->
-> **Bản in không có bảng này** — nó là đường tra ngược của người duyệt trên màn hình, cùng loại với
+> **Bản in không có dấu này** — nó là đường tra ngược của người duyệt trên màn hình, cùng loại với
 > cột *QĐCK*.
 
 > **Hai cột này không in ra hai mẫu hồ sơ mặc định.** Chúng phục vụ người **đang duyệt**, không phải

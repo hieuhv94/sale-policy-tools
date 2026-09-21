@@ -60,20 +60,38 @@ export function homNayVN(): string {
   }).format(new Date());
 }
 
-/** Ngày dd/mm/yyyy theo giờ Việt Nam. */
-export function ngay(v: string | Date | null | undefined): string {
-  if (!v) return '—';
+/**
+ * Ngày `YYYY-MM-DD` theo giờ Việt Nam — dạng SO SÁNH ĐƯỢC (`0215`).
+ *
+ * Hai chỗ cùng nói về một ngày có thể tới dưới hai hình: máy chủ trả
+ * `ngay_ap_dung` dưới dạng `date` (pg đọc ra một `Date`, `JSON.stringify` in ra
+ * mốc UTC — ở giờ Việt Nam là **17:00 của hôm trước**), còn `banTruoc.ngayApDung`
+ * đã được `to_char` sẵn thành `YYYY-MM-DD`. So hai chuỗi ấy trực tiếp là so hai
+ * thứ khác hệ quy chiếu; so `getTime()` thì lệch bảy tiếng, nhỏ hơn một ngày nên
+ * **đúng tình cờ** — đúng loại lập luận `0128` đã phải đi sửa một lượt.
+ *
+ * Nên cả hai quy về đúng một hình: ngày theo lịch Việt Nam. `en-CA` cho ra
+ * `YYYY-MM-DD`, tức so chuỗi là so đúng thứ tự thời gian.
+ *
+ * `null` cho giá trị trống hoặc không đọc được — người gọi quyết định bày gì.
+ */
+export function ngayISO(v: string | Date | null | undefined): string | null {
+  if (!v) return null;
   const d = typeof v === 'string' ? new Date(v) : v;
-  if (Number.isNaN(d.getTime())) return '—';
-  // `en-CA` cho ra YYYY-MM-DD, dễ tách và không phụ thuộc ngôn ngữ trình duyệt.
-  const [y, m, day] = new Intl.DateTimeFormat('en-CA', {
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  })
-    .format(d)
-    .split('-');
+  }).format(d);
+}
+
+/** Ngày dd/mm/yyyy theo giờ Việt Nam. */
+export function ngay(v: string | Date | null | undefined): string {
+  const iso = ngayISO(v);
+  if (iso === null) return '—';
+  const [y, m, day] = iso.split('-');
   return `${day}/${m}/${y}`;
 }
 

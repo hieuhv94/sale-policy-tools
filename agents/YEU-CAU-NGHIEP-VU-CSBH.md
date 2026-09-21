@@ -2081,7 +2081,7 @@ hiện tên QĐCK"*.
 > mới biết nó nghĩa là bao nhiêu. Mã KHÔNG mất — nó nằm trong câu của dấu `?`, và vẫn dán được vào ô
 > tìm kiếm ở màn hình Chiết khấu. Cột này **chỉ có trên màn hình**, không in ra giấy (chốt `19/08`).
 
-**BẤM NHÃN *Chỉnh sửa* THÌ THẤY DÒNG ẤY ĐỔI NHỮNG GÌ** `mới 12/09` — *"đề xuất cách hiển thị để
+**BẤM NHÃN *Chỉnh sửa* THÌ THẤY DÒNG ẤY ĐỔI NHỮNG GÌ** `mới 12/09` `bỏ 21/09` — *"đề xuất cách hiển thị để
 người dùng thấy luôn được thông tin nào của sản phẩm bị thay đổi"*.
 
 > Nhãn trạng thái **giữ nguyên chữ**, không mang thêm thông tin nào — khách hàng chốt từng chữ. Thứ
@@ -2106,8 +2106,12 @@ người dùng thấy luôn được thông tin nào của sản phẩm bị tha
 > `3.000 + 2.000`), và khi ấy một dòng *"CPBH 5.000 → 5.000"* là một thay đổi tự nói rằng nó không có
 > thay đổi nào.
 >
-> ***Tỷ lệ CK cũ* giữ nguyên cột riêng.** Năm trường trong bảng chi tiết là **nguyên nhân**, tỷ lệ CK
-> là **hệ quả** — chúng không phải hai bản sao của một thứ.
+> ***Tỷ lệ CK cũ* giữ nguyên cột riêng.** Những trường được so là **nguyên nhân**, tỷ lệ CK là **hệ
+> quả** — chúng không phải hai bản sao của một thứ.
+>
+> > **THAO TÁC BẤM NÀY ĐÃ BỎ ở `21/09`**: giá trị cũ về thẳng ô của nó dưới dạng một dấu tam giác, nên
+> > nhãn *Chỉnh sửa* trở lại là một con chip chữ. Cột *Tỷ lệ CK cũ* thì GIỮ — lập luận ngay trên vẫn
+> > đúng, và nó là cột duy nhất bày con số cũ mà không phải rê chuột.
 
 **MỘT nút thay cho *Bổ sung* và *Chỉnh sửa*** `sửa 07/09` — *"Gộp hai nút bổ sung và chỉnh sửa CSBH
 vào thành 1"*.
@@ -2128,8 +2132,12 @@ phẩm, trạng thái sẽ được tự cập nhật khi TDV thêm, sửa sản
 > **So với CSBH BỊ THAY THẾ**, không phải với một mốc nào khác. Phiên bản đầu tiên của một khách hàng
 > không có bản trước, nên **mọi dòng của nó là *Bổ sung*** — chúng đều là mặt hàng vừa được đưa vào.
 >
-> ***"Bị sửa"* là đổi BẤT KỲ dữ liệu nào người lập nhập**: giá bán buôn · các khoản CPBH · ngày áp
-> dụng · ghi chú — **cộng Giá bán Công ty** `sửa 12/09`.
+> ***"Bị sửa"* là đổi một dữ liệu SẼ ĐI RA TỜ GIẤY**: giá bán buôn · các khoản CPBH · ngày áp dụng —
+> **cộng Giá bán Công ty** `sửa 12/09`, **trừ ghi chú** `sửa 21/09`.
+>
+> > Bản `07/09` viết *"đổi BẤT KỲ dữ liệu nào người lập nhập"*, tức có cả **ghi chú**. Khách hàng bỏ
+> > vế ấy ở `21/09` — xem mục riêng ở dưới; ghi chú là lời nhắn cho người duyệt, không phải nội dung
+> > chính sách.
 >
 > > **Giá bán Công ty vào phép so từ `12/09`**, đảo lại chốt `07/09`. Lý do cũ: *"nó đến từ danh mục
 > > và được chụp lại ở MỖI LƯỢT MỞ hồ sơ còn sửa được, nên đưa vào phép so là để danh mục đổi giá một
@@ -2724,8 +2732,47 @@ tin nào bị đổi hãy đánh dấu bằng cách bôi vàng"*.
 > ở bản trước, nên không ai phải tính lại; và chúng cũng bôi vàng khi đổi, vì đổi giá bán buôn là đổi
 > cả ba. Ngược lại, đổi CPBH mà giữ nguyên tổng thì chỉ ô *CPBH* vàng.
 >
-> **Nhãn *Chỉnh sửa* vẫn chỉ xét năm trường TDV gõ** (`07/09`, `12/09`) — hai tập khác nhau cho hai
+> **Nhãn *Chỉnh sửa* vẫn chỉ xét những trường TDV gõ** (`07/09`, `12/09`) — hai tập khác nhau cho hai
 > câu hỏi khác nhau, và tập quyết định nhãn là tập con của tập bày ra.
+>
+> > **CƠ CHẾ NÀY ĐÃ THAY ở `21/09`** — xem mục ngay dưới. Hàng mở ra không còn; dữ liệu máy chủ trả
+> > về thì giữ nguyên, chỉ đổi chỗ bày. Mọi lập luận trên vẫn đọc được vì chúng nói về NỘI DUNG chứ
+> > không về cái hàng.
+
+**DẤU TAM GIÁC CẠNH GIÁ TRỊ ĐÃ ĐỔI, VÀ GHI CHÚ RA KHỎI PHÉP SO** `sửa 21/09` — *"giá trị của cột nào
+bị thay đổi thì đặt bên cạnh giá trị đó dấu tam giác màu xanh hướng lên nếu giá trị đó mới lớn hơn
+giá trị cũ, màu đỏ hướng xuống nếu giá trị mới bé hơn. Khi người dùng di chuột vào vị trí dấu tam
+giác, sẽ hiện ra giá trị trong phiên bản trước"*.
+
+> Bước thứ ba của cùng một hướng, và là bước ĐỔI CHIỀU: `12/09` mở ra một danh sách trường đã đổi,
+> `20/09` đổi nó thành cả dòng cũ rồi thành một hàng khớp cột — đều là *"mở thêm một hàng"*. Lượt này
+> đưa giá trị cũ về **thẳng ô của nó**, và hàng mở ra biến mất cùng với thao tác bấm nhãn *Chỉnh sửa*.
+>
+> **Cái được**: bảng thôi cao gấp đôi ở mỗi dòng *Chỉnh sửa*, và dấu nói được thứ hàng cũ không nói —
+> **đổi theo chiều nào**. **Cái mất, đã nêu**: đọc cả dòng cũ một lượt thì phải rê qua từng dấu.
+>
+> **Ô KHÔNG SO ĐƯỢC LỚN BÉ thì dấu KHÔNG phải tam giác** — một hình tròn hổ phách, rê vào vẫn hiện giá
+> trị cũ. Gặp ở một khoản CPBH vừa có từ chỗ trống, hoặc một ngưỡng vừa xuất hiện. Bịa cho nó một
+> chiều là nói sai ở đúng chỗ người duyệt đang đọc để quyết định.
+>
+> **Dấu là một NÚT, không phải một chữ mang `title`** — `title` chỉ hiện khi có chuột, mà người duyệt
+> hay mở hồ sơ trên điện thoại trước khi ký. Rê chuột · Tab tới · chạm vào: cả ba đều hiện ra giá trị
+> cũ. Cùng lối với dấu `?` của cột Tỷ lệ CK (`16/08`).
+
+**GHI CHÚ KHÔNG PHẢI TRƯỜNG XÉT *Chỉnh sửa*** `sửa 21/09` — *"ghi chú không phải là trường để đánh
+giá sản phẩm có bị chỉnh sửa không, nếu chỉ có ghi chú thay đổi, sản phẩm sẽ vẫn giữ nguyên trạng
+thái"*.
+
+> Đảo một phần chốt `07/09` (*"bị sửa là đổi BẤT KỲ dữ liệu nào người lập nhập"*). Phép so còn **bốn
+> trường**: Giá bán Công ty · giá bán buôn · các khoản CPBH · ngày áp dụng.
+>
+> **Ranh giới đọc ra được từ chính bốn trường ấy**: cả bốn đều đi vào **tờ giấy khách hàng ký**, còn
+> ghi chú là lời nhắn của người lập cho người duyệt. Sửa một câu chữ không làm chính sách bán hàng
+> khác đi, nên nó không đáng để người duyệt đi tìm một khác biệt.
+>
+> **Hệ quả, đã nêu**: sửa ghi chú một mình thì dòng giữ nguyên *Đang áp dụng*, không có cột *Tỷ lệ CK
+> cũ*, và **trên hàng không còn dấu vết nào** của lượt sửa ấy — ghi chú cũ thôi đọc được từ màn hình
+> hồ sơ. Nhật ký hồ sơ thì vẫn giữ.
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

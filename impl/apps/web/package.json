@@ -28,6 +28,7 @@
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./bang-cot": "./src/lib/bang-cot.ts",
+    "./ban-truoc": "./src/lib/ban-truoc.ts",
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",

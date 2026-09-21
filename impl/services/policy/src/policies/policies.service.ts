@@ -593,9 +593,12 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  * đúng là câu khách hàng đặt: câu hỏi là *"dòng này có khác bản trước không"*,
  * không phải *"TDV có gõ gì không"*.
  *
- * `IS DISTINCT FROM` chứ không `<>`: `note` NULL được, và `NULL <> 'x'` trả NULL
- * chứ không trả `true` — dòng vừa được gõ thêm ghi chú sẽ lọt qua thành *Đang áp
- * dụng*.
+ * `IS DISTINCT FROM` chứ không `<>`: `NULL <> 'x'` trả NULL chứ không trả `true`,
+ * nên một ô vừa được điền vào chỗ trống sẽ lọt qua thành *Đang áp dụng*. Ví dụ
+ * gốc là `note` — trường ấy rời khỏi phép so ở `0215`, nhưng luật thì không đổi:
+ * `company_price_snap` rỗng ở dòng lập trước `0022`, và cùng biểu thức này còn
+ * sinh ra `doi` của `TRUONG_BAY_BAN_TRUOC`, nơi `threshold_snap` NULL là chuyện
+ * bình thường (dòng không có quy định nào phủ).
  *
  * ---------------------------------------------------------------------------
  * TỶ LỆ CK CŨ CHỈ TRẢ VỀ CHO DÒNG *CHỈNH SỬA*
@@ -610,7 +613,7 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  * hiện" là dựng ra hai câu trả lời sẽ lệch nhau.
  */
 /**
- * NĂM TRƯỜNG ĐƯỢC SO, khai MỘT LẦN (`0204`).
+ * BỐN TRƯỜNG ĐƯỢC SO, khai MỘT LẦN (`0204`; năm trường tới `0214`).
  *
  * Tới `0203` danh sách này nằm thẳng trong `SQL_DONG_KHAC_BAN_TRUOC` dưới dạng
  * một chuỗi `OR`. `0204` cần thêm một câu trả lời thứ hai từ đúng năm trường ấy
@@ -630,8 +633,12 @@ export const ngayISO = (v: Date | string | null | undefined): string | undefined
  *              và khi ấy một dòng *"CPBH 5.000 → 5.000"* là một thay đổi tự nói
  *              rằng nó không có thay đổi nào;
  *   * `ngay` — `date` ra `YYYY-MM-DD`, để giao diện tự định dạng theo quy ước
- *              tiếng Việt như mọi chỗ khác;
- *   * `chu`  — text, `null` được (ghi chú trống là một giá trị thật).
+ *              tiếng Việt như mọi chỗ khác.
+ *
+ * `chu` (text, `null` được) đã có một thời: nó là dạng của `note`, trường duy
+ * nhất không phải số, và `0215` gỡ trường ấy khỏi cả hai danh sách. `docCot` vẫn
+ * đọc được nó — nhánh cuối cùng là nhánh chung cho mọi thứ không phải mảng hay
+ * ngày — nên không có mã chết nào, chỉ không còn ai khai dạng ấy.
  *
  * Cách ĐỌC là việc của màn hình, đúng lối `Lech.doc()` đã chọn: máy chủ giữ
  * nguyên văn con số nó vừa so.
@@ -643,7 +650,21 @@ export const TRUONG_SO_VOI_BAN_TRUOC = [
   { khoa: 'wholesalePrice', cot: 'wholesale_price', dang: 'so' },
   { khoa: 'cpbh', cot: 'cpbh', dang: 'mang' },
   { khoa: 'ngayApDung', cot: 'ngay_ap_dung', dang: 'ngay' },
-  { khoa: 'note', cot: 'note', dang: 'chu' },
+  /*
+   * GHI CHÚ ĐÃ RỜI KHỎI ĐÂY (`0215`, khách hàng chốt 21/09).
+   *
+   * *"Ghi chú không phải là trường để đánh giá sản phẩm có bị chỉnh sửa không,
+   * nếu chỉ có ghi chú thay đổi, sản phẩm sẽ vẫn giữ nguyên trạng thái"*.
+   *
+   * Nó đảo một nửa chốt `07/09` (*"bị sửa là đổi BẤT KỲ dữ liệu nào người lập
+   * nhập"*), và lý do đọc ra được từ chính cột ấy: bốn trường còn lại đều đi vào
+   * TỜ GIẤY khách hàng ký, còn ghi chú là lời nhắn của người lập cho người
+   * duyệt. Sửa một câu chữ không làm chính sách bán hàng khác đi.
+   *
+   * Nó cũng rời khỏi `TRUONG_BAY_BAN_TRUOC` — xem lý do ở đó: `0215` bỏ bảng
+   * bản trước, và dấu tam giác thay thế nó không nói được *"lớn hơn"* hay *"bé
+   * hơn"* của một câu chữ.
+   */
 ] as const;
 
 /** Đọc một cột ra dạng chuỗi/mảng mà bảng chi tiết mang đi. */
@@ -759,15 +780,27 @@ export const SQL_TY_LE_CK_TRUOC = `
  * phẩm đó ở phiên bản trước khi bị chỉnh sửa, thông tin nào bị đổi hãy đánh dấu
  * bằng cách bôi vàng"*.
  *
+ * `0215` (chốt 21/09) đổi CHỖ BÀY mà không đổi một chữ nào của hợp đồng này:
+ * giá trị cũ thôi nằm trong một hàng mở ra, nó nằm trong câu hiện khi rê chuột
+ * vào dấu tam giác cạnh giá trị mới. Máy chủ vẫn trả đúng hai thứ — **cả dòng ở
+ * bản trước** và **danh sách khoá đã đổi** — vì cả hai vẫn cần: khoá đã đổi nói
+ * ô nào có dấu, giá trị cũ là thứ dấu ấy bày ra. Thứ giao diện tự làm lấy là
+ * CHIỀU của dấu, và đó là một phép so trên hai con số nó đã cầm sẵn.
+ *
  * ---------------------------------------------------------------------------
  * CẢ DÒNG, KHÔNG PHẢI DANH SÁCH TRƯỜNG ĐÃ ĐỔI
  * ---------------------------------------------------------------------------
  *
  * `0204` trả về mảng `{truong, truoc, sau}` chỉ chứa trường THẬT SỰ đổi. Lượt
  * này trả về **giá trị của cả dòng ở bản trước**, cộng danh sách khoá đã đổi để
- * màn hình biết ô nào bôi vàng. Khác nhau ở chỗ người đọc: `0204` trả lời *"đổi
- * những gì"*, còn đây trả lời *"trước đó dòng này trông thế nào"* — và câu thứ
- * hai cần cả những ô KHÔNG đổi để đọc được.
+ * màn hình biết ô nào đánh dấu. Khác nhau ở chỗ người đọc: `0204` trả lời *"đổi
+ * những gì"*, còn đây trả lời *"trước đó dòng này trông thế nào"*.
+ *
+ * `0215` KHÔNG thu danh sách này về đúng những ô đã đổi, dù bảng đã biến mất:
+ * giao diện cần giá trị cũ của một ô để dựng câu cho dấu tam giác, và một danh
+ * sách co giãn theo từng dòng là một hình dạng thứ hai để mà đọc sai. Cái giá
+ * là vài ô thừa trong thân phản hồi, đo được: tám khoá cho mỗi dòng *Chỉnh sửa*,
+ * và chỉ dòng *Chỉnh sửa* mới có đối tượng này.
  *
  * **GIAO DIỆN KHÔNG TÍNH GÌ**, kể cả những con số dẫn xuất. `cpbh_total`,
  * `net_price`, `over_threshold` là **cột sinh** của `pol.policy_line`, còn
@@ -778,19 +811,20 @@ export const SQL_TY_LE_CK_TRUOC = `
  *
  * **MỘT DANH SÁCH, HAI BIỂU THỨC SINH RA TỪ NÓ** — giữ nguyên chốt chặn của
  * `0204`: giá trị và phép đánh dấu phải nói cùng một điều, và gõ tay hai lần là
- * lượt thêm trường thứ chín sửa một chỗ rồi quên chỗ kia (ô bôi vàng mà giá trị
+ * lượt thêm trường thứ chín sửa một chỗ rồi quên chỗ kia (ô mang dấu mà giá trị
  * không hiện, hoặc ngược lại). `tsc` không canh được gì ở đây vì cả hai là chuỗi.
  *
- * **TẬP NÀY RỘNG HƠN `TRUONG_SO_VOI_BAN_TRUOC`, và phải thế**: năm trường kia
- * quyết định NHÃN *Chỉnh sửa* (`0180`, `0202`) — chúng là thứ TDV gõ. Bảng này
- * còn bày ba con số dẫn xuất, vì đó là thứ người duyệt đọc: đổi giá bán buôn thì
- * tỷ lệ chiết khấu đổi theo, và **tỷ lệ mới là con số cả tờ giấy nói về**. Có ca
- * kiểm đòi năm trường kia là TẬP CON của tập này — thiếu một cái là có dòng mang
- * nhãn *Chỉnh sửa* mà mở ra không ô nào vàng.
+ * **TẬP NÀY RỘNG HƠN `TRUONG_SO_VOI_BAN_TRUOC`, và phải thế**: bốn trường kia
+ * quyết định NHÃN *Chỉnh sửa* (`0180`, `0202`, `0215`) — chúng là thứ TDV gõ.
+ * Tập này còn bày ba con số dẫn xuất, vì đó là thứ người duyệt đọc: đổi giá bán
+ * buôn thì tỷ lệ chiết khấu đổi theo, và **tỷ lệ mới là con số cả tờ giấy nói
+ * về**. Có ca kiểm đòi bốn trường kia là TẬP CON của tập này — thiếu một cái là
+ * có dòng mang nhãn *Chỉnh sửa* mà trên hàng không ô nào mang dấu.
  */
 export const TRUONG_BAY_BAN_TRUOC = [
-  // Thứ tự này là thứ tự ĐỌC trong bảng chi tiết, xếp theo thứ tự cột của chính
-  // bảng sản phẩm — mắt người đọc vừa rời khỏi hàng ngay trên.
+  // Thứ tự này là thứ tự CỘT của chính bảng sản phẩm. Từ `0215` nó thôi là thứ
+  // tự đọc của một bảng riêng, nhưng vẫn giữ — nó là thứ tự người ta rà mắt
+  // ngang qua hàng, và là thứ tự `doi` trả về.
   { khoa: 'ngayApDung', cot: 'ngay_ap_dung', dang: 'ngay' },
   { khoa: 'companyPrice', cot: 'company_price_snap', dang: 'so' },
   { khoa: 'wholesalePrice', cot: 'wholesale_price', dang: 'so' },
@@ -802,6 +836,10 @@ export const TRUONG_BAY_BAN_TRUOC = [
    * hàng *bản trước* phải khớp từng cột với hàng ngay trên nó. Cộng mảng lại ở
    * trình duyệt là dựng một phép tính thứ hai cho một con số CSDL đã có sẵn
    * (`cpbh_total` là cột SINH).
+   *
+   * `0215` bỏ hàng ấy và khoá này VẪN CẦN, chỉ đổi lý do: cột *CPBH* là một cột
+   * thật trên hàng chính, nên nó mang dấu tam giác của riêng nó — và giá trị cũ
+   * mà dấu ấy bày ra phải là TỔNG cũ, không phải mảng cũ nối lại.
    *
    * KHÔNG ĐƯA VÀO `TRUONG_SO_VOI_BAN_TRUOC` — lượt sửa đầu của `0214` chèn nhầm
    * vào đó, vì hai danh sách có chung một dòng `{ khoa: 'cpbh', … }` và phép
@@ -817,7 +855,20 @@ export const TRUONG_BAY_BAN_TRUOC = [
   { khoa: 'netPrice', cot: 'net_price', dang: 'so' },
   { khoa: 'discountRate', cot: 'discount_rate', dang: 'so' },
   { khoa: 'threshold', cot: 'threshold_snap', dang: 'so' },
-  { khoa: 'note', cot: 'note', dang: 'chu' },
+  /*
+   * GHI CHÚ CŨNG RỜI KHỎI ĐÂY (`0215`, chốt 21/09), và vì một lý do RIÊNG —
+   * không phải hệ quả kéo theo của lượt gỡ nó khỏi phép so nhãn.
+   *
+   * `0213` bày bản trước thành một BẢNG, nơi mọi ô đều đọc được như nhau: một
+   * câu chữ cũ nằm cạnh một con số cũ không có gì khó. `0215` thay bảng ấy bằng
+   * DẤU TAM GIÁC đặt cạnh giá trị mới, và dấu ấy mang đúng một tin — **lớn hơn
+   * hay bé hơn**. Câu hỏi ấy không có nghĩa với một câu chữ.
+   *
+   * Nên giữ `note` ở đây là bắt giao diện dựng một dấu hiệu THỨ HAI cho đúng
+   * một trường, trong khi trường ấy vừa thôi tính vào nhãn *Chỉnh sửa* — tức
+   * không còn dòng nào mở ra được chỉ vì ghi chú. Cái mất, đã nêu với khách
+   * hàng: ghi chú đổi thì trên hàng KHÔNG còn dấu vết nào.
+   */
 ] as const;
 
 /**

@@ -16,8 +16,6 @@ import {
   CatalogImpactConsumer,
   Clients,
   TRUONG_CHAN_LUC_GUI,
-  TRUONG_SO_VOI_BAN_TRUOC,
-  TRUONG_BAY_BAN_TRUOC,
 } from '@csbh/policy/testing';
 import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
@@ -4530,14 +4528,20 @@ describe('`0180` trạng thái dòng và tỷ lệ CK cũ', () => {
     expect(dongCua(v2.body, d.productId)['trangThai']).toBe('DANG_AP_DUNG');
   });
 
-  it('đổi CHỈ GHI CHÚ cũng là *Chỉnh sửa* — "bất kỳ dữ liệu nào"', async () => {
+  it('`0215` đổi CHỈ GHI CHÚ thì KHÔNG phải *Chỉnh sửa*', async () => {
     /*
-     * Khách hàng chốt *"đổi bất kỳ dữ liệu nào"*, nên phép so phải phủ cả bốn
-     * trường TDV nhập chứ không riêng thứ làm đổi tỷ lệ CK. Ghi chú là trường
-     * dễ bị bỏ sót nhất: nó không vào một phép tính nào.
+     * ĐẢO CHIỀU ca kiểm của `0180`, và đây là lý do nó phải được THAY chứ không
+     * sửa số: bản cũ khẳng định *"đổi CHỈ GHI CHÚ cũng là Chỉnh sửa"*, dựa trên
+     * chốt `07/09` — *"bị sửa là đổi bất kỳ dữ liệu nào người lập nhập"*. Khách
+     * hàng đảo đúng vế ấy ngày 21/09: *"ghi chú không phải là trường để đánh giá
+     * sản phẩm có bị chỉnh sửa không, nếu chỉ có ghi chú thay đổi, sản phẩm sẽ
+     * vẫn giữ nguyên trạng thái"*.
      *
-     * Cũng là chỗ `IS DISTINCT FROM` cần thật — `note` NULL được, và
-     * `NULL <> 'x'` trả NULL chứ không trả `true`.
+     * Ranh giới đọc ra được từ bốn trường còn lại: cả bốn đều đi vào TỜ GIẤY
+     * khách hàng ký, còn ghi chú là lời nhắn của người lập cho người duyệt.
+     *
+     * Ghi chú vẫn phải GHI ĐƯỢC — nếu không thì ca này xanh vì lượt ghi hỏng chứ
+     * không vì luật đúng.
      */
     const d = await draft();
     await runToActive(d);
@@ -4546,7 +4550,9 @@ describe('`0180` trạng thái dòng và tỷ lệ CK cũ', () => {
       mode: 'NEW_VERSION',
       lines: [line(d.productId, { note: 'Khach yeu cau giao thang' })],
     });
-    expect(dongCua(v2.body, d.productId)['trangThai']).toBe('CHINH_SUA');
+    const l = dongCua(v2.body, d.productId);
+    expect(l['trangThai']).toBe('DANG_AP_DUNG');
+    expect(l['note'], 'ghi chú phải ghi được thật').toBe('Khach yeu cau giao thang');
   });
 
   it('đổi CHỈ NGÀY ÁP DỤNG cũng là *Chỉnh sửa*', async () => {
@@ -7658,6 +7664,10 @@ describe('`0204` bảng bản trước của dòng', () => {
     /*
      * Thứ tự là thứ tự KHAI ở `TRUONG_BAY_BAN_TRUOC`, tức thứ tự cột của bảng
      * sản phẩm — `0213` xếp lại so với `0204` cho khớp mắt người đọc.
+     *
+     * `note` KHÔNG có mặt dù lượt sửa này có gõ ghi chú mới: `0215` gỡ nó khỏi
+     * cả hai danh sách (khách hàng chốt 21/09). Ca dưới cùng khối này canh vế
+     * mạnh hơn — ghi chú đổi MỘT MÌNH thì dòng không đổi cả trạng thái.
      */
     expect(oDoi(sau, d.productId)).toEqual([
       'ngayApDung',
@@ -7668,25 +7678,55 @@ describe('`0204` bảng bản trước của dòng', () => {
       'cpbhTotal',
       'netPrice',
       'discountRate',
-      'note',
     ]);
   });
 
-  it('NGÀY trả về dạng `YYYY-MM-DD`, GHI CHÚ trống là `null`', async () => {
-    // Giao diện đọc hai thứ này bằng hai cách khác hẳn nhau, nên hình dạng của
-    // chúng là một phần của hợp đồng chứ không phải chi tiết dựng câu SQL.
+  it('NGÀY trả về dạng `YYYY-MM-DD` — giao diện tự định dạng', async () => {
+    // Hình dạng ấy là một phần của hợp đồng chứ không phải chi tiết dựng câu
+    // SQL: `chieuDoi` bên giao diện quy CẢ HAI vế về ngày lịch Việt Nam rồi mới
+    // so, và nó làm được điều đó vì biết vế này luôn là `YYYY-MM-DD`.
     const d = await banMoi();
     const cu = dongCua(d.v2, d.productId);
     const sau = await suaDong(d.v2Id, cu['id'] as string, {
       wholesalePrice: cu['wholesalePrice'],
       cpbh: cu['cpbh'],
-      note: 'co ghi chu',
       ngayApDung: '2030-01-01',
     });
 
-    const b = banTruoc(sau, d.productId)!;
-    expect(String(b['ngayApDung'])).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(b['note'], 'ghi chú trống ở bản trước phải là null').toBeNull();
+    expect(String(banTruoc(sau, d.productId)!['ngayApDung'])).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('`0215` CHỈ ĐỔI GHI CHÚ: dòng GIỮ NGUYÊN trạng thái, không có bản trước', async () => {
+    /*
+     * Khách hàng chốt 21/09, nguyên văn: *"ghi chú không phải là trường để đánh
+     * giá sản phẩm có bị chỉnh sửa không, nếu chỉ có ghi chú thay đổi, sản phẩm
+     * sẽ vẫn giữ nguyên trạng thái"*.
+     *
+     * Đảo một phần chốt `07/09` (*"bị sửa là đổi BẤT KỲ dữ liệu nào người lập
+     * nhập"*). Ca này canh CẢ BA hệ quả của một luật, vì chúng sinh ra từ cùng
+     * một biểu thức `SQL_DONG_KHAC_BAN_TRUOC` và sẽ cùng sai hoặc cùng đúng:
+     * nhãn · *Tỷ lệ CK cũ* · bản trước. Chỉ kiểm nhãn thì một bản sửa gỡ `note`
+     * khỏi đúng một trong ba chỗ vẫn xanh.
+     *
+     * Ghi chú PHẢI ghi được vào thật — nếu không thì ca này xanh vì lượt ghi
+     * hỏng chứ không vì luật đúng, nên có phép kiểm giá trị ở cuối.
+     */
+    const d = await banMoi();
+    const cu = dongCua(d.v2, d.productId);
+    const sau = await suaDong(d.v2Id, cu['id'] as string, {
+      wholesalePrice: cu['wholesalePrice'],
+      cpbh: cu['cpbh'],
+      ngayApDung: String(cu['ngayApDung']).slice(0, 10),
+      note: 'ghi chu chi de nguoi duyet doc',
+    });
+
+    const l = dongCua(sau, d.productId);
+    expect(l['trangThai'], 'ghi chú một mình không làm dòng thành *Chỉnh sửa*').toBe(
+      'DANG_AP_DUNG',
+    );
+    expect(l['discountRateTruoc']).toBeNull();
+    expect(l['banTruoc']).toBeNull();
+    expect(l['note'], 'ghi chú phải ghi được thật').toBe('ghi chu chi de nguoi duyet doc');
   });
 
   it('`0213` bày CẢ những ô KHÔNG đổi, gồm ba con số DẪN XUẤT', async () => {
@@ -7721,7 +7761,8 @@ describe('`0204` bảng bản trước của dòng', () => {
         'doi',
         'netPrice',
         'ngayApDung',
-        'note',
+        // `note` ĐÃ RỜI KHỎI ĐÂY ở `0215`: dấu tam giác mang đúng một tin —
+        // *lớn hơn* hay *bé hơn* — và câu hỏi ấy không có nghĩa với một câu chữ.
         'threshold',
         'wholesalePrice',
       ].sort(),
@@ -7841,70 +7882,5 @@ describe('`0204` bảng bản trước của dòng', () => {
       expect(Object.keys(l)).not.toContain('banTruoc');
       expect(Object.keys(l)).not.toContain('ban_truoc');
     }
-  });
-});
-
-/**
- * `0214` — HAI DANH SÁCH TRƯỜNG, và chúng KHÔNG được lẫn vào nhau.
- *
- * `TRUONG_SO_VOI_BAN_TRUOC` quyết định NHÃN *Chỉnh sửa* — đúng những trường TDV
- * gõ. `TRUONG_BAY_BAN_TRUOC` là thứ bày ra hàng *bản trước*, rộng hơn vì nó thêm
- * bốn con số dẫn xuất.
- *
- * CHỐT CHẶN NÀY CÓ VÌ TÔI ĐÃ CHÈN NHẦM. Lượt thêm `cpbhTotal` của `0214` trúng
- * danh sách ĐẦU TIÊN, vì hai danh sách có chung một dòng `{ khoa: 'cpbh', … }`
- * và phép thay chuỗi dừng ở lần khớp đầu. Nó **không làm ca kiểm nhãn nào đỏ** —
- * tổng đổi thì mảng cũng đổi, nên tập dòng mang nhãn *Chỉnh sửa* không đổi một
- * dòng nào. Thứ bắt được là ca ghim tập khoá của `banTruoc`, ở tận lượt chạy cả
- * bộ, sau khi mọi ca giao diện đã xanh.
- *
- * Ghim CẢ HAI tập bằng `toEqual` nên lượt thêm trường sau này buộc phải nói rõ
- * nó thuộc danh sách nào.
- */
-describe('`0214` hai danh sách trường của dòng sản phẩm', () => {
-  it('tập quyết định NHÃN là đúng năm trường TDV gõ', () => {
-    /*
-     * Con số này CHỈ ĐỔI khi khách hàng chốt: `0180` dựng bốn trường, `0202`
-     * thêm *Giá bán Công ty* và ghi rõ **ngưỡng vẫn đứng ngoài**. Thêm một
-     * trường dẫn xuất vào đây là đổi ý nghĩa của nhãn *Chỉnh sửa* mà không ai
-     * yêu cầu.
-     */
-    expect(TRUONG_SO_VOI_BAN_TRUOC.map((t) => t.khoa)).toEqual([
-      'companyPrice',
-      'wholesalePrice',
-      'cpbh',
-      'ngayApDung',
-      'note',
-    ]);
-  });
-
-  it('tập BÀY RA rộng hơn, và CHỨA TRỌN tập kia', () => {
-    /*
-     * Vế thứ hai là bất biến thật: thiếu một trường của tập nhãn thì có dòng
-     * mang nhãn *Chỉnh sửa* mà mở ra không ô nào vàng — người dùng bấm vào và
-     * không hiểu vì sao hệ thống bảo dòng ấy đã đổi.
-     */
-    const bay = TRUONG_BAY_BAN_TRUOC.map((t) => t.khoa);
-    expect(bay).toEqual([
-      'ngayApDung',
-      'companyPrice',
-      'wholesalePrice',
-      'cpbh',
-      'cpbhTotal',
-      'netPrice',
-      'discountRate',
-      'threshold',
-      'note',
-    ]);
-    for (const t of TRUONG_SO_VOI_BAN_TRUOC) {
-      expect(bay, `${t.khoa} quyết định nhãn mà không bày ra`).toContain(t.khoa);
-    }
-  });
-
-  it('mỗi khoá trỏ tới ĐÚNG MỘT cột, và không cột nào bị trỏ hai lần', () => {
-    // Hai khoá cùng trỏ một cột thì hàng *bản trước* bày một con số hai lần và
-    // hai ô ấy luôn cùng vàng hoặc cùng không — một ô thừa, không ai phát hiện.
-    const cot = TRUONG_BAY_BAN_TRUOC.map((t) => t.cot);
-    expect(new Set(cot).size, `cột trùng: ${cot.join(', ')}`).toBe(cot.length);
   });
 });
