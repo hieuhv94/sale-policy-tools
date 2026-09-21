@@ -9,7 +9,7 @@
  * Kiểm hình học thật cần trình duyệt thật — xem phần "Còn nợ" của P7d.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   BangSanPham,
@@ -777,6 +777,105 @@ describe('`0215` dấu tam giác cạnh giá trị đã đổi', () => {
     expect(dau.className, 'bấm rồi mà ô chữ không mở').toContain('dau-mo');
     await userEvent.click(dau);
     expect(dau.className, 'bấm lần nữa mà không đóng').not.toContain('dau-mo');
+  });
+
+  it('`0216` BẤM RA NGOÀI thì ô chữ đóng', async () => {
+    /*
+     * LỖI CỦA CHÍNH `0215`, người dùng tìm ra. Ô chữ hiện ra từ BA nguồn —
+     * `:hover`, `:focus` và lớp `dau-mo` do state React. Bấm ra ngoài tắt được
+     * hai nguồn đầu, còn `dau-mo` thì chỉ đảo khi bấm lại ĐÚNG cái dấu ấy, nên ô
+     * chữ nằm lại trên bảng.
+     *
+     * Không lộ ra lúc thử bằng chuột vì hai nguồn kia tự đóng: chỉ khi đã BẤM
+     * (đường dành cho cảm ứng) thì cái còn lại mới thấy được.
+     */
+    render(<BangSanPham dong={[dongSua()]} />);
+    const dau = dauTrongBang()[0]!;
+    await userEvent.click(dau);
+    expect(dau.className).toContain('dau-mo');
+
+    await userEvent.click(screen.getByRole('table'));
+    expect(dau.className, 'bấm ra ngoài mà ô chữ còn mở').not.toContain('dau-mo');
+  });
+
+  it('`0216` KHÔNG BAO GIỜ hai ô chữ cùng mở', async () => {
+    /*
+     * Hệ quả thứ hai của cùng một gốc, và nặng hơn: mỗi dấu giữ state RIÊNG —
+     * chúng không loại trừ nhau như `dangMo` của `0204` vốn là một tập ở cấp
+     * bảng. Nên bấm năm dấu là năm ô chữ cùng đè lên bảng.
+     *
+     * Ca *"bấm rồi bấm lại"* ở trên KHÔNG bắt được, vì nó chỉ đụng tới một dấu.
+     */
+    render(<BangSanPham dong={[dongSua()]} />);
+    const dau = dauTrongBang();
+    expect(dau.length).toBeGreaterThan(1);
+
+    await userEvent.click(dau[0]!);
+    await userEvent.click(dau[1]!);
+    expect(dau.filter((x) => x.className.includes('dau-mo'))).toHaveLength(1);
+    expect(dau[1]!.className, 'dấu vừa bấm phải là dấu đang mở').toContain('dau-mo');
+  });
+
+  it('`0216` CHẠM RA NGOÀI mà tiêu điểm KHÔNG đổi thì vẫn đóng', async () => {
+    /*
+     * CA NÀY CÓ VÌ MỘT LƯỢT PHÁ LẠI XANH. Gỡ hẳn listener `pointerdown` mà cả 65
+     * ca vẫn xanh — ba ca `0216` kia đều đi qua `onBlur`, nên lớp thứ hai không
+     * ai canh.
+     *
+     * Lớp ấy tồn tại vì một tình huống `onBlur` KHÔNG với tới: trên iOS Safari
+     * một cú chạm không phải lúc nào cũng trao tiêu điểm cho `<button>`, mà nút
+     * chưa từng nhận tiêu điểm thì nó cũng không bao giờ mất — và đường bấm lại
+     * đúng là đường dành cho cảm ứng.
+     *
+     * Dựng lại đúng hình ấy: bắn thẳng một `pointerdown` ở chỗ khác, KHÔNG đụng
+     * tới tiêu điểm. `userEvent.click` không làm được vì nó luôn kéo theo lượt
+     * đổi tiêu điểm, tức luôn đi qua `onBlur`.
+     */
+    render(<BangSanPham dong={[dongSua()]} />);
+    const dau = dauTrongBang()[0]!;
+    await userEvent.click(dau);
+    expect(dau.className).toContain('dau-mo');
+
+    const truoc = document.activeElement;
+    // `act` vì sự kiện này bắn NGOÀI hệ sự kiện của React: lượt `setState` từ
+    // một listener cấp tài liệu không được vẽ lại ngay, nên đọc `className`
+    // thẳng sau đó là đọc lần vẽ CŨ.
+    act(() => {
+      screen.getByRole('table').dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(document.activeElement, 'ca này phải KHÔNG đổi tiêu điểm').toBe(truoc);
+    expect(dau.className, 'chạm ra ngoài mà ô chữ còn mở').not.toContain('dau-mo');
+  });
+
+  it('`0216` chạm vào CHÍNH cái dấu thì listener đứng ngoài', async () => {
+    /*
+     * Vế `contains`. Thiếu nó thì một lượt bấm đi HAI bước ngược nhau —
+     * `pointerdown` đóng, rồi `click` lật lại thành mở — và cái dấu thành một
+     * nút không bao giờ tắt được, đúng cái lỗi lượt này sinh ra để sửa.
+     *
+     * Đo bằng cách bắn `pointerdown` lên chính cái dấu, không kèm `click`: nó
+     * phải KHÔNG đổi gì cả.
+     */
+    render(<BangSanPham dong={[dongSua()]} />);
+    const dau = dauTrongBang()[0]!;
+    await userEvent.click(dau);
+
+    act(() => {
+      dau.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    });
+    expect(dau.className, 'listener nuốt mất cú chạm của chính cái dấu').toContain('dau-mo');
+  });
+
+  it('`0216` TAB ĐI cũng đóng — không để lại ô chữ sau lưng', async () => {
+    // Cùng một `onBlur` lo cả ba đường; ca này canh riêng đường bàn phím vì nó
+    // là đường DUY NHẤT không đi qua `pointerdown`.
+    render(<BangSanPham dong={[dongSua()]} />);
+    const dau = dauTrongBang()[0]!;
+    await userEvent.click(dau);
+    expect(dau.className).toContain('dau-mo');
+
+    await userEvent.tab();
+    expect(dau.className, 'Tab đi mà ô chữ còn mở').not.toContain('dau-mo');
   });
 
   it('câu cho trình đọc màn hình nói ĐỦ BA VẾ: tên cột, giá trị cũ, chiều', () => {

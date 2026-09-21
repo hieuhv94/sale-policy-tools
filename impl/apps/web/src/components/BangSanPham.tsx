@@ -25,7 +25,7 @@
  * `window.innerWidth` thì xoay ngang điện thoại giữa lúc đang gõ sẽ tháo và dựng
  * lại ô nhập — mất nội dung và mất tiêu điểm (`FE-06`).
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ngay, tien, tyLe } from '../lib/format.js';
 import { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.js';
 import {
@@ -245,14 +245,52 @@ function DauDoi({
   moi: string | string[] | null | undefined;
 }) {
   const [mo, datMo] = useState(false);
+  const nut = useRef<HTMLButtonElement>(null);
   const chieu = chieuDoi(o, moi, cu);
   const giaCu = docOBanTruoc(o, cu);
+
+  /*
+   * BẤM RA NGOÀI THÌ ĐÓNG (`0216`) — và `onBlur` một mình KHÔNG đủ.
+   *
+   * `onBlur` lo được chuột và bàn phím, nhưng lượt bấm sinh ra chính là để phục
+   * vụ CẢM ỨNG (`0215`), mà trên iOS Safari một cú chạm không phải lúc nào cũng
+   * trao tiêu điểm cho `<button>`. Nút không nhận tiêu điểm thì nó cũng không
+   * bao giờ mất tiêu điểm, và ô chữ nằm lại vĩnh viễn — đúng ở nền tảng mà
+   * đường bấm là đường DUY NHẤT.
+   *
+   * Nên có lớp thứ hai: một listener `pointerdown` ở cấp tài liệu, **chỉ gắn
+   * trong lúc đang mở**. `pointerdown` chứ không `click`: nó nổ trước, nên ô chữ
+   * đóng ngay lúc ngón tay chạm xuống chứ không đợi nhấc lên.
+   *
+   * Phụ thuộc là `[mo]`, KHÔNG phải `[nut.current]`: React so phụ thuộc lúc
+   * RENDER còn ref gán lúc COMMIT, nên để ref vào đó là listener không bao giờ
+   * được gắn (bẫy `0172`). Ref chỉ được đọc bên trong handler, lúc sự kiện nổ.
+   *
+   * `contains` để một cú chạm vào CHÍNH cái dấu không đi đường này — `onClick`
+   * ngay dưới đã lo việc đóng, và hai chỗ cùng đóng thì lượt chạm thứ hai mở lại
+   * đúng cái vừa đóng.
+   */
+  useEffect(() => {
+    if (!mo) return;
+    const dong = (e: Event) => {
+      if (!nut.current?.contains(e.target as Node)) datMo(false);
+    };
+    document.addEventListener('pointerdown', dong);
+    return () => document.removeEventListener('pointerdown', dong);
+  }, [mo]);
+
   return (
     <button
+      ref={nut}
       type="button"
       className={`dau-doi dau-${chieu}${mo ? ' dau-mo' : ''}`}
       aria-label={`${nhan} ở phiên bản trước: ${giaCu}${LOI_CHIEU[chieu]}`}
       onClick={() => datMo((x) => !x)}
+      /* Tab đi, hay bấm sang một dấu khác, cũng là "thôi xem ô này" — và vế thứ
+         hai là thứ giữ cho KHÔNG BAO GIỜ có hai ô chữ cùng mở. Mỗi dấu giữ
+         trạng thái riêng (chúng không loại trừ nhau như `dangMo` của `0204`),
+         nên nếu không có dòng này thì bấm năm dấu là năm ô chữ đè lên bảng. */
+      onBlur={() => datMo(false)}
     >
       <span aria-hidden="true">{HINH_CHIEU[chieu]}</span>
       <span className="gia-cu" aria-hidden="true">

@@ -19086,3 +19086,62 @@ Một dòng thật của `CSBH-2026-000199` (`NC-GOLD-900`) bày ra đủ cả h
 chiều ngược nhau trên một dòng, đọc ra ngay mà không phải so hai con số.
 
 **2389/2389 xanh.**
+
+---
+
+## P245 — `0216` Bấm ra ngoài thì ô chữ giá trị cũ đóng
+
+Lỗi của chính `0215`, **người dùng tìm ra**: bấm dấu tam giác xong rồi bấm ra chỗ khác thì ô chữ giá
+trị cũ vẫn nằm đó.
+
+Nguyên nhân đọc ra được từ chỗ tôi đã viết: ô chữ hiện ra từ **ba nguồn độc lập** — `:hover`,
+`:focus`, và lớp `dau-mo` do state React. Bấm ra ngoài tắt hai nguồn đầu (chuột đã rời, nút mất tiêu
+điểm), còn `dau-mo` thì **chỉ đảo khi bấm lại đúng cái dấu ấy**, nên `visibility: visible` vẫn thắng.
+
+**Vì sao không lộ ra lúc tôi thử**: hai nguồn kia tự đóng, nên nó chỉ thấy được sau khi đã BẤM — tức
+đúng cái đường tôi thêm vào cho cảm ứng và không hề khai một cách đóng nào ngoài "bấm lại".
+
+**Hệ quả thứ hai cùng gốc, nặng hơn, và người dùng chưa nêu**: mỗi dấu giữ state RIÊNG — chúng không
+loại trừ nhau như `dangMo` của `0204` vốn là một tập ở cấp bảng — nên bấm năm dấu là năm ô chữ cùng
+đè lên bảng. Ca kiểm *"bấm rồi bấm lại"* của `0215` không bắt được vì nó chỉ đụng tới một dấu.
+
+### HAI LỚP, và lớp thứ hai KHÔNG thừa
+
+`onBlur` lo được chuột, bàn phím, và cả lượt bấm sang một dấu khác — ba trong bốn đường. Nhưng lượt
+bấm sinh ra chính là để phục vụ **cảm ứng**, mà trên iOS Safari một cú chạm không phải lúc nào cũng
+trao tiêu điểm cho `<button>`; nút chưa từng nhận tiêu điểm thì cũng không bao giờ mất, và ô chữ nằm
+lại **vĩnh viễn ở đúng nền tảng mà đường bấm là đường duy nhất**.
+
+Nên có thêm một listener `pointerdown` ở cấp tài liệu, **chỉ gắn trong lúc đang mở**. `pointerdown`
+chứ không `click`: nó nổ trước, nên ô chữ đóng ngay lúc ngón tay chạm xuống. Vế `contains` giữ cho cú
+chạm vào CHÍNH cái dấu đi đường `onClick` — thiếu nó thì một lượt bấm đi hai bước ngược nhau
+(`pointerdown` đóng, `click` lật lại thành mở) và cái dấu thành một nút không bao giờ tắt được.
+
+### PHÁ LẠI — và lượt XANH ĐẦU TIÊN là thứ định hình hai ca kiểm mới
+
+| Hoàn tác | Đỏ |
+|---|---|
+| bỏ `onBlur` | 1 |
+| **bỏ listener `pointerdown`** | **0** → sau khi thêm ca kiểm: 1 |
+| bỏ cả hai | 4 |
+| bỏ vế `contains` | 2 |
+| listener nghe `click` thay `pointerdown` | 1 |
+| phụ thuộc `useEffect` là `[nut.current]` | 0 |
+
+Lượt thứ hai xanh, và nó đúng: **cả ba ca `0216` đầu tiên đều đi qua `onBlur`**, vì
+`userEvent.click` luôn kéo theo một lượt đổi tiêu điểm. Tức lớp thứ hai — lớp tồn tại cho đúng cái
+tình huống `onBlur` không với tới — không có ai canh.
+
+Ca kiểm cho nó phải dựng lại đúng hình ấy: **bắn thẳng một `pointerdown`, KHÔNG đụng tới tiêu điểm**
+(và có một khẳng định nói ra rằng tiêu điểm không đổi, nếu không thì ngày nào đó nó lại lặng lẽ trôi
+về đường `onBlur`). Kèm bẫy phải ghi: sự kiện bắn ngoài hệ sự kiện của React nên lượt `setState`
+không được vẽ lại ngay — thiếu `act()` thì ca kiểm đọc **lần vẽ CŨ** và đỏ ở đúng chỗ không có gì sai.
+
+Lượt cuối xanh **có lý do, không phải một lỗ hổng**: ở render mà `mo` thành `true`, `nut.current` đã
+đổi từ `null` sang phần tử thật, nên effect vẫn chạy — bẫy `0172` không cắn ở đây. Cái sai của
+`[nut.current]` là listener thôi được gỡ ở lượt đóng (deps không đổi nữa), một rò rỉ không quan sát
+được từ bên ngoài. Chọn `[mo]` vì lập luận, không vì một ca kiểm bắt được.
+
+**845/845 ca chạy ngoại tuyến xanh** (toàn bộ `tests/web` cộng `tests/http/o-ban-truoc.test.ts`).
+Bản sửa gói gọn trong `apps/web/src/components/BangSanPham.tsx`, không chạm máy chủ, không chạm CSS.
+**`make test` đầy đủ CHƯA chạy — chồng demo đang bật** (cùng khuôn P160/P161).
