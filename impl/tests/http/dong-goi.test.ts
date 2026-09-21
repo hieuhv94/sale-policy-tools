@@ -243,3 +243,262 @@ describe('`0105` bản đóng gói', () => {
     expect(khoiOps).toContain('MAIL_ALLOWLIST');
   });
 });
+
+
+/**
+ * `0218` — `./csbh upgrade`: lên bản mới nhất, xoá sạch dữ liệu, GIỮ địa chỉ.
+ *
+ * Lệnh này xoá hẳn dữ liệu trên một chồng `production`, nên nó đi vòng qua chốt
+ * `NODE_ENV` mà SEC-14 canh. Đường vòng ấy chỉ chấp nhận được khi nó **khó gõ
+ * nhầm hơn** chính cái chốt nó đi vòng qua — và ba ca đầu dưới đây canh đúng ba
+ * lớp thay chỗ cho chốt ấy. Cùng khuôn `0136` đã dùng cho `nap-danh-muc`, thứ
+ * cũng không có chốt `NODE_ENV` và phải chứng minh nó có đủ hai chốt khác.
+ *
+ * Ba ca sau canh vế thứ hai của yêu cầu: **địa chỉ công khai không được đổi**.
+ * Nó không kiểm được bằng cách dựng thật ở đây, nên chúng canh những cách đã
+ * biết là làm nó đổi.
+ */
+describe('`0218` ./csbh upgrade', () => {
+  const CLI = readFileSync('scripts/csbh', 'utf8');
+  const OPS = readFileSync('docker/ops-entrypoint.sh', 'utf8');
+  /*
+   * MÃ, đã BỎ CHÚ THÍCH — bài học `0208`.
+   *
+   * Ca *"không tự viết lệnh xoá"* dưới đây đỏ ở lượt chạy đầu, và **tệp thì
+   * đúng**: chính dòng chú thích giải thích *vì sao* không được viết
+   * `DROP DATABASE` ở đó lại chứa đúng cụm từ bị cấm. Đây là mặt trái của bẫy
+   * `0124` (ở đó chú thích làm phép quét nói CÓ khi thật ra không).
+   */
+  const OPS_MA = OPS.split('\n')
+    .filter((d) => !/^\s*#/.test(d))
+    .join('\n');
+  /** Thân nhánh `upgrade)` của `case`, cắt tới nhánh kế tiếp. */
+  const nhanh = /\n {2}upgrade\)\n([\s\S]*?)\n {2}sao-luu\)/.exec(CLI)?.[1];
+
+  it('nhánh `upgrade` rút ra được — biểu thức không lạc hậu', () => {
+    // Mọi ca dưới đây đọc `nhanh`; nó rỗng thì chúng xanh mà chẳng đo gì (bẫy
+    // `0205`).
+    expect(nhanh, 'không rút được nhánh upgrade của `case`').toBeDefined();
+    expect(nhanh!.length).toBeGreaterThan(500);
+  });
+
+  it('HỎI LẠI bằng bàn phím, và hỏi TRƯỚC khi xoá', () => {
+    /*
+     * Thứ tự là cả nội dung của ca này. Một lệnh hỏi xác nhận SAU khi đã gọi
+     * `lam-sach` thì câu hỏi ấy chỉ là trang trí.
+     */
+    const iHoi = nhanh!.indexOf('read -r xn');
+    const iXoa = nhanh!.indexOf('lam-sach');
+    expect(iHoi, 'không hỏi lại gì').toBeGreaterThan(-1);
+    expect(iXoa).toBeGreaterThan(-1);
+    expect(iHoi, 'hỏi xác nhận SAU khi đã xoá').toBeLessThan(iXoa);
+    expect(nhanh).toContain('XOA-SACH');
+  });
+
+  it('SAO LƯU trước khi xoá — lối lùi duy nhất của một lượt gõ nhầm', () => {
+    const iLuu = nhanh!.indexOf('ops backup');
+    const iXoa = nhanh!.indexOf('lam-sach');
+    expect(iLuu, 'không sao lưu gì').toBeGreaterThan(-1);
+    expect(iLuu, 'sao lưu SAU khi đã xoá').toBeLessThan(iXoa);
+  });
+
+  it('NÓI RA hai bước cài đặt phải làm lại, và nói SAU KHI dựng xong', () => {
+    /*
+     * Xoá sạch xong mà không nói gì thì người vận hành mở trang web ra, thấy
+     * màn hình đăng nhập, và không có tài khoản nào để vào.
+     *
+     * VẾ *"sau khi dựng xong"* CÓ VÌ MỘT LƯỢT PHÁ LẠI XANH: bản đầu chỉ hỏi hai
+     * cái tên có xuất hiện trong nhánh không, và chúng cũng xuất hiện ở khối
+     * CẢNH BÁO trước lúc hỏi xác nhận — nên gỡ sạch phần hướng dẫn cuối mà ca
+     * vẫn xanh. Câu hỏi đúng là *"người vận hành có đọc được nó SAU khi lệnh
+     * chạy xong không"*, vì lúc ấy khối cảnh báo đã trôi khỏi màn hình.
+     */
+    const iDung = nhanh!.lastIndexOf('$DC up -d --wait');
+    expect(iDung, 'không thấy lượt dựng lại').toBeGreaterThan(-1);
+    const cuoi = nhanh!.slice(iDung);
+    expect(cuoi, 'không nhắc bước tạo tài khoản sau khi dựng xong').toContain('mo-tai-khoan');
+    expect(cuoi, 'không nhắc bước nạp danh mục sau khi dựng xong').toContain('nap-danh-muc');
+  });
+
+  it('KHÔNG kéo ảnh `cloudflared` — thẻ `latest` đổi là địa chỉ đổi', () => {
+    /*
+     * `$DC pull` trần kéo cả `cloudflare/cloudflared:latest`. Cloudflare đẩy
+     * bản mới vài tuần một lần, nên đúng vào một lượt nâng bản nào đó id ảnh
+     * đổi, `up -d` dựng lại container, và địa chỉ quick tunnel chết theo — mọi
+     * liên kết trong thư đã gửi thành vô hiệu, mà không ai nối hai việc lại.
+     *
+     * Ca này canh CÁCH VIẾT chứ không canh hành vi, và nói rõ điều đó: nó là
+     * thứ duy nhất đo được mà không dựng cả chồng production lên.
+     */
+    expect(nhanh, 'nhánh upgrade kéo mọi ảnh, gồm cả cloudflared').not.toMatch(/\$DC pull(\s|$)/);
+    expect(nhanh, 'không thấy lượt kéo ảnh có chọn lọc').toContain('keo_anh_latest');
+    expect(CLI).toContain('keo_anh_latest() {');
+    // Kéo ĐÚNG ba thành phần của phần mềm, bằng thẻ `latest`.
+    const keo = /keo_anh_latest\(\) \{([\s\S]*?)\n\}/.exec(CLI)?.[1] ?? '';
+    expect(keo).toMatch(/for tp in service web ops/);
+    expect(keo).toContain('-latest');
+  });
+
+  it('KHÔNG dựng lại `cloudflared`, và ĐO lại xem nó có bị dựng lại không', () => {
+    /*
+     * Vế thứ hai là thứ đáng giá: `up -d` *lẽ ra* không đụng container có cấu
+     * hình không đổi — nhưng "lẽ ra" đã làm hỏng vài lượt ở repo này. Nên lệnh
+     * ghi id container trước và sau, rồi nói ra nếu nó đổi.
+     */
+    expect(nhanh, 'upgrade ép dựng lại container').not.toContain('--force-recreate');
+    expect(CLI).toContain('id_cloudflared() {');
+    /*
+     * HỎI HAI PHÉP GÁN, KHÔNG ĐẾM MỘT CÁI TÊN — và vế này đi qua HAI lượt phá
+     * lại mới đúng:
+     *
+     *   1. bản đầu chỉ hỏi chuỗi `id_cloudflared` có mặt trong nhánh không, nên
+     *      bỏ lượt đo TRƯỚC mà vẫn xanh nhờ lượt đo SAU còn nguyên;
+     *   2. bản thứ hai đếm số lần xuất hiện và đòi ≥ 2 — vẫn xanh, vì **chú
+     *      thích của chính nhánh ấy nhắc tên hàm**. Đúng bẫy `0124`, lần thứ
+     *      HAI trong cùng chặng này (xem `OPS_MA` ở trên).
+     *
+     * Một phép so cần hai vế; đo một vế rồi so với rỗng là luôn thấy "đổi".
+     */
+    expect(nhanh, 'không đo id cloudflared TRƯỚC khi dựng lại').toMatch(
+      /truoc="\$\(id_cloudflared\)"/,
+    );
+    expect(nhanh, 'không đo lại id cloudflared SAU khi dựng').toMatch(
+      /sau="\$\(id_cloudflared\)"/,
+    );
+    expect(nhanh, 'đo rồi mà không so').toMatch(/"\$truoc" != "\$sau"/);
+    expect(nhanh, 'id đổi mà không nói gì').toMatch(/CẢNH BÁO[\s\S]*cloudflared/);
+  });
+
+  it('`latest` KHÔNG BAO GIỜ vào `.env` — ghim SỐ đọc từ nhãn trong ảnh', () => {
+    /*
+     * CA ĐÁNG GIÁ NHẤT của yêu cầu này. Đầu `compose.prod.yml` ghi hai lý do
+     * chống `latest`: `pull` một tháng sau đổi thứ đang chạy mà không ai chủ ý,
+     * và không có cách nào nói máy chủ đang chạy bản nào. Ảnh `service` và
+     * `ops` KHÔNG tự mang số phiên bản — chúng nhận `APP_VERSION` từ `.env` lúc
+     * chạy — nên ghi `CSBH_TAG=latest` là mười service tự báo phiên bản là
+     * `latest`, đúng cái lý do thứ hai cấm.
+     *
+     * Nên `upgrade` kéo bằng `latest` mà GHIM một con số: ca này canh cả ba vế
+     * — đọc từ nhãn OCI, gán thẻ số lên ảnh vừa kéo, và ghi con số ấy (không
+     * phải chữ `latest`) vào `.env`.
+     */
+    expect(nhanh, 'upgrade ghi latest vào .env').not.toMatch(/CSBH_TAG=latest/);
+    expect(nhanh, 'upgrade không ghim số vào .env').toMatch(/s\|\^CSBH_TAG=\.\*\|CSBH_TAG=\$\{moi\}\|/);
+    expect(CLI, 'không đọc số từ nhãn OCI').toContain('org.opencontainers.image.version');
+    expect(nhanh, 'không gắn thẻ số lên ảnh vừa kéo').toMatch(/docker tag "\$\{kho\}:\$\{tp\}-latest" "\$\{kho\}:\$\{tp\}-\$\{moi\}"/);
+    /*
+     * Nhãn rỗng (ảnh dựng trước `0218`) thì DỪNG, không rơi về `latest`.
+     *
+     * Hỏi CHÍNH KHỐI GÁC, không hỏi "có `exit 1` nào sau đó không": bản đầu hỏi
+     * đúng câu ấy và một lượt phá lại (thay `exit 1` bằng `moi=latest`) vẫn XANH
+     * — vì cách đó vài chục dòng còn `exit 1` của lượt hỏi xác nhận. Đúng lớp
+     * bẫy `indexOf` trúng nhầm chuỗi thứ hai, lần thứ ba trong chặng này.
+     */
+    const gac = /\[ -n "\$moi" \] \|\| \{([\s\S]*?)\n {4}\}/.exec(nhanh!)?.[1];
+    expect(gac, 'không có khối gác cho nhãn rỗng').toBeDefined();
+    expect(gac, 'nhãn rỗng mà vẫn đi tiếp').toContain('exit 1');
+    expect(gac, 'nhãn rỗng thì tự gán một giá trị thay vì dừng').not.toMatch(/moi=/);
+  });
+
+  it('người vận hành thấy bản SẮP LÊN trước khi gõ xác nhận', () => {
+    // Kéo ảnh không đụng container nào đang chạy, nên làm trước được — và gõ
+    // "XOA-SACH" cho một bản chưa biết là gì là xác nhận một thứ mình không đọc.
+    const iSo = nhanh!.indexOf('so_phien_ban');
+    const iHoi = nhanh!.indexOf('read -r xn');
+    expect(iSo, 'đọc số phiên bản SAU khi đã hỏi xác nhận').toBeLessThan(iHoi);
+    expect(nhanh).toContain('Sẽ lên bản:');
+  });
+
+  it('`make day-anh` đẩy CẢ thẻ số lẫn `latest`, thẻ số TRƯỚC', () => {
+    /*
+     * Thứ tự có lý do: đẩy hỏng giữa chừng mà thẻ số đã lên thì vô hại; ngược
+     * lại thì `latest` trỏ tới một bản mà thẻ số của nó không tồn tại, và
+     * `upgrade` sẽ ghim một con số không kéo lại được.
+     */
+    const day = /\nday\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    /*
+     * Đọc THỨ TỰ CÁC LƯỢT `docker push`, không tìm chuỗi thẻ: bản đầu tìm
+     * `-${TAG}"` và một lượt phá lại (đảo hai vòng) vẫn XANH — chuỗi ấy còn nằm
+     * trong lệnh `docker tag …-${TAG} …-latest` của vòng `latest`.
+     */
+    const day_push = [...day.matchAll(/docker push "\$\{IMG\}:\$\{tp\}-([^"]+)"/g)].map(
+      (m) => m[1],
+    );
+    expect(day_push, 'phải đẩy đúng hai loại thẻ').toEqual(['${TAG}', 'latest']);
+    expect(day).toMatch(/docker tag "\$\{IMG\}:\$\{tp\}-\$\{TAG\}" "\$\{IMG\}:\$\{tp\}-latest"/);
+  });
+
+  it('CẢ BA ảnh mang nhãn phiên bản — thiếu một ảnh là upgrade không đọc được số', () => {
+    const anh = /\nanh\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    const soBuild = (anh.match(/docker build/g) ?? []).length;
+    const soNhan = (anh.match(/--label "\$NHAN"/g) ?? []).length;
+    expect(soBuild).toBe(3);
+    expect(soNhan, 'có ảnh dựng ra mà không mang nhãn phiên bản').toBe(soBuild);
+    expect(SH).toMatch(/^NHAN="org\.opencontainers\.image\.version=\$\{TAG\}"$/m);
+  });
+
+  it('danh sách service phải DỪNG tính bằng phép TRỪ, và giữ đúng hạ tầng', () => {
+    /*
+     * Gõ tay mười tên service là một danh sách sẽ trôi: thêm service thứ mười
+     * một mà quên sửa nó thì service ấy giữ một kết nối tới CSDL, và
+     * `DROP DATABASE` hỏng với *"is being accessed by other users"* — một câu
+     * lỗi không nói cho biết ai đang giữ.
+     *
+     * Phép trừ thì tự đúng. Thứ phải giữ đồng bộ chuyển sang danh sách HẠ TẦNG,
+     * và ca này ghim ba cái tên bắt buộc có trong đó, mỗi cái một lý do khác
+     * nhau — `postgres` là thứ đang bị xoá bên trong, `caddy` để trang còn trả
+     * lời, `cloudflared` vì dựng lại nó là đổi địa chỉ công khai.
+     */
+    expect(nhanh, 'gõ tay danh sách service thay vì tính bằng phép trừ').toContain(
+      '$DC config --services',
+    );
+    const giu = /GIU_LAI="([^"]+)"/.exec(nhanh!)?.[1]?.split(/\s+/) ?? [];
+    for (const ten of ['postgres', 'caddy', 'cloudflared', 'ops', 'migrate']) {
+      expect(giu, `${ten} phải nằm trong danh sách GIỮ LẠI`).toContain(ten);
+    }
+    // Và mọi tên trong danh sách ấy phải là service CÓ THẬT — một tên gõ sai
+    // thì service ấy bị dừng trong im lặng.
+    const dsv = readFileSync('deploy/compose.yml', 'utf8') + readFileSync('deploy/compose.prod.yml', 'utf8') + readFileSync('deploy/compose.tunnel.yml', 'utf8');
+    for (const ten of giu) {
+      expect(dsv, `không có service nào tên "${ten}"`).toMatch(
+        new RegExp(`^ {2}${ten}:`, 'm'),
+      );
+    }
+  });
+
+  it('`csbh-ops lam-sach` đòi XAC_NHAN_XOA_SACH, và KHÔNG chép phép xoá', () => {
+    /*
+     * Cùng khuôn `RESTORE_DB=csbh` của lệnh `restore`: một biến không có mặc
+     * định, người gọi phải gõ ra.
+     *
+     * Vế thứ hai quan trọng không kém: `reset-db.sh` phải là bản DUY NHẤT của
+     * phép `DROP DATABASE`. Chép nó sang entrypoint là hai chỗ sẽ lệch, và chỗ
+     * lệch ấy chỉ lộ ra ở đúng lượt người ta cần nó chạy đúng nhất.
+     */
+    expect(OPS).toContain('XAC_NHAN_XOA_SACH');
+    expect(OPS).toContain('/app/scripts/reset-db.sh');
+    expect(OPS_MA, 'entrypoint tự viết lệnh xoá thay vì gọi reset-db.sh').not.toContain(
+      'DROP DATABASE',
+    );
+  });
+
+  it('CHẠY THẬT: thiếu XAC_NHAN_XOA_SACH thì `lam-sach` tự thoát', async () => {
+    /*
+     * Không đọc mã nguồn bằng mắt — chạy chính entrypoint. Chỉ chiều ÂM được
+     * kiểm ở đây: chiều dương sẽ xoá CSDL của bộ kiểm.
+     */
+    let code = 0;
+    let loi = '';
+    try {
+      await chay('sh', ['docker/ops-entrypoint.sh', 'lam-sach']);
+    } catch (e) {
+      const err = e as { code?: number; stderr?: string; stdout?: string };
+      code = err.code ?? 1;
+      loi = `${err.stderr ?? ''}${err.stdout ?? ''}`;
+    }
+    expect(code, 'chạy được mà không cần xác nhận').not.toBe(0);
+    expect(loi).toMatch(/XAC_NHAN_XOA_SACH/);
+    // Và nó chỉ ra lối đi GIỮ dữ liệu, thay vì để người đọc tự đoán.
+    expect(loi).toMatch(/nang-cap/);
+  });
+});

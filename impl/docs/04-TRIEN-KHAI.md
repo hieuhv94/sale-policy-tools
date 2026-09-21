@@ -154,6 +154,13 @@ Ba ảnh nằm chung **một repo**, phân biệt bằng **thẻ** — registry 
 
 Tổng khoảng **590 MB**, không phải tổng ba con số trên.
 
+**Mỗi ảnh có HAI thẻ trên registry** `mới 21/09`: `service-1.0.3` và
+`service-latest` trỏ tới cùng một ảnh. **`.env` luôn ghi CON SỐ** (`CSBH_TAG=1.0.3`)
+— `latest` chỉ để `./csbh upgrade` của bản chạy thử biết bản mới nhất là bản nào,
+và lệnh ấy cũng ghim con số vào `.env` chứ không ghi chữ `latest`. Mỗi ảnh mang
+sẵn số phiên bản của nó trong một nhãn, nên `docker image inspect` trả lời được
+*"ảnh này là bản nào"* mà không cần nhìn thẻ.
+
 ---
 
 ## 2. Cài đặt
@@ -563,7 +570,7 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 ## 8. Nâng cấp
 
 ```sh
-./csbh nang-cap 1.0.2
+./csbh nang-cap 1.0.3
 ```
 
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh

@@ -48,7 +48,7 @@ make demo-mau    # nạp thêm 10 tài khoản mẫu + dữ liệu nghiệp vụ
 make demo-down
 
 make anh          # dựng ba ảnh bản giao
-make day-anh      # đẩy lên registry (cần docker login)
+make day-anh      # đẩy lên registry (cần docker login) — thẻ số VÀ `latest`, thẻ số trước
 make goi          # gói tệp nén -> workspace/dong-goi/
 make dong-goi     # dựng ảnh + gói, một lượt
 ```
@@ -99,7 +99,41 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (21/09/2026)
 
-Chặng gần nhất **P245** (`0216`): **bấm ra ngoài thì ô chữ giá trị cũ đóng** — lỗi của chính `0215`,
+Chặng gần nhất **P247** (`0218`): **`./csbh upgrade` — lên bản mới nhất, xoá sạch dữ liệu, giữ địa
+chỉ đường hầm**, và **`VERSION` lên `1.0.3`**. Câu hỏi đi kèm (*"đóng gói và triển khai có đổi gì
+không"*) trả lời bằng số đo: `deploy/`, `cai-dat.sh`, `csbh`, `dong-goi.sh` không đổi một dòng từ
+`1.0.2`, không migration mới — thứ lệch là `VERSION` đứng yên trong khi P234–P246 chưa đóng gói.
+**THẺ `latest` ĐẢO MỘT QUYẾT ĐỊNH ĐÃ GHI HAI CHỖ** (*"không bao giờ là `latest`"*), và cả hai lý do cũ
+vẫn đúng — ranh giới giữ chúng: **`latest` sống trên registry như CON TRỎ, không bao giờ vào `.env`**.
+Nó đứng được nhờ một dữ kiện phải đo trước: **ảnh `service` và `ops` KHÔNG tự biết mình là bản nào**
+(nhận `APP_VERSION` từ `.env` lúc chạy), nên ghi `CSBH_TAG=latest` là mười service tự báo phiên bản
+là `latest`. Chữa bằng **nhãn OCI trên cả ba ảnh**: `upgrade` kéo `…-latest`, đọc số, gắn thẻ số lên
+ảnh ngay trên máy, ghim CON SỐ vào `.env`; nhãn rỗng thì DỪNG. **XOÁ DỮ LIỆU TRÊN CHỒNG PRODUCTION
+phải đi vòng SEC-14** — chép `-e NODE_ENV=` của `make demo-reset` vào `./csbh` là biến SEC-14 thành
+hình vẽ trên đúng máy nó bảo vệ; nên lệnh con `csbh-ops lam-sach` đòi `XAC_NHAN_XOA_SACH=XOA-SACH`,
+**gọi** `reset-db.sh` chứ không chép `DROP DATABASE`, và chốt `NODE_ENV` của `reset-db.sh` giữ nguyên
+cho mọi người gọi khác. **`cloudflared` được ĐO**: không `$DC pull` trần (nó kéo cả
+`cloudflare/cloudflared:latest`), không `--force-recreate`, và id container ghi trước/sau. **Bốn lượt
+phá lại XANH, ba cái cùng một lớp — phép quét trúng nhầm chuỗi thứ hai** (khối cảnh báo phía trên,
+`exit 1` của lượt hỏi khác, chuỗi thẻ trong lệnh `docker tag`), cái thứ tư vì **chú thích của chính
+nhánh nhắc tên hàm**; chữa chung: hỏi CHÍNH cấu trúc cần có, không hỏi một chuỗi có mặt ở đâu đó.
+**Dựng thật**: nhãn đọc qua `ops-latest` ra `1.0.3`; `lam-sach` trên ảnh `ops` thật với
+`NODE_ENV=production` từ chối/xoá đúng, và `reset-db.sh` gọi thẳng vẫn từ chối; đoạn dọn MinIO chạy
+nguyên văn trong một MinIO cô lập với mật khẩu chỉ nằm ở tệp bí mật. **SỰ CỐ CỦA CHÍNH TÔI, bắt được
+trước khi thành thiệt hại**: lượt thử MinIO đầu chạy trên kho của chồng kiểm — **mà bucket `csbh` ở
+đó là của demo, 93 object**; lượt dọn không chạy chỉ vì biểu thức trích đoạn hỏng. **2408/2408 xanh**,
+phủ luôn P245–P246.
+
+Trước đó **P246** (`0217`): **rà toàn bộ tài liệu theo triển khai thật**. Bốn tệp trôi bốn mức, và
+ranh giới không ngẫu nhiên — hai tệp có luật bắt đồng bộ (YCNV, HDSD) thì khớp, ba tệp không ai nhắc
+thì trôi theo tốc độ của việc chúng mô tả. **Lớp lệch thứ BA mà `0178` không có công cụ để thấy**:
+`KIEN-TRUC` khai `applied_date` như một cột đang sống, mười sáu chặng sau khi `0180` `DROP` nó — tìm
+ra bằng cách **hỏi `information_schema`** chứ không đọc. Chốt chặn mới `tests/db/tai-lieu-luoc-do.test.ts`
+**không quét migration dù rẻ hơn** (`cpbh`, `cpbh_total`, `net_price` nằm trong danh sách `DROP
+COLUMN` vì bị xoá rồi dựng lại dưới kiểu khác). `01-CHAY-TEST` **mô tả đúng thiết kế `0156` đã bác
+bỏ**; `02-CHAY-DEMO` dạy khai ba danh mục đã gỡ từ `0026`.
+
+Trước đó **P245** (`0216`): **bấm ra ngoài thì ô chữ giá trị cũ đóng** — lỗi của chính `0215`,
 người dùng tìm ra. Ô chữ hiện ra từ **BA NGUỒN ĐỘC LẬP** — `:hover`, `:focus`, và lớp `dau-mo` do
 state React — nên bấm ra ngoài tắt hai nguồn đầu mà nguồn thứ ba nằm lại, vì nó chỉ đảo khi bấm lại
 ĐÚNG cái dấu ấy. **Không lộ ra lúc thử bằng chuột** vì hai nguồn kia tự đóng. Hệ quả thứ hai cùng gốc
@@ -1656,6 +1690,14 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   trường mà mẫu vừa chọn có in"* — nên nó không phụ thuộc mẫu. Giữ nguyên quyết định `0098`: buộc
   service nặng nhất vào đường gửi duyệt là nó chết thì không ai gửi được hồ sơ nào, và còn dựng ra
   vòng đồng bộ `policy → document → policy` giữa transaction.
+- **THẺ `latest` CÓ trên registry, KHÔNG BAO GIỜ trong `.env`** (`0218`). `make day-anh` đẩy thẻ
+  số TRƯỚC rồi mới `latest` (ngược lại thì `latest` có thể trỏ tới một bản mà thẻ số của nó không
+  tồn tại). Cả ba ảnh mang nhãn OCI `org.opencontainers.image.version`, và `./csbh upgrade` đọc nhãn
+  ấy để ghim CON SỐ vào `CSBH_TAG` — vì ảnh `service`/`ops` không tự biết mình là bản nào, ghi
+  `latest` vào `.env` là mười service tự báo phiên bản là `latest`. **`upgrade` là lệnh của BẢN CHẠY
+  THỬ**: nó xoá sạch CSDL và kho tệp; hệ thật dùng `nang-cap <thẻ>`. **`csbh-ops lam-sach` là lối có ý
+  thức DUY NHẤT tới `reset-db.sh` trên chồng production** — nó đòi `XAC_NHAN_XOA_SACH=XOA-SACH` và gọi
+  chính `reset-db.sh`; đừng thêm lối thứ hai, và đừng chép `-e NODE_ENV=` sang `./csbh`.
 - **Mười service chạy từ MỘT ảnh** (`0105`). `ARG SERVICE`/`ENV SERVICE` là hai lớp cuối của
   `Dockerfile`, còn `CMD` đọc `${SERVICE}` bằng shell lúc chạy — nên compose chọn service bằng biến
   môi trường. Đo được: `csbh-audit` và `csbh-policy` trùng hoàn toàn từng lớp. `csbh-ops` dựng TỪ

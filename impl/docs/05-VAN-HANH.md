@@ -127,7 +127,7 @@ hình Quản trị). Thư gửi ba lần không được thì vào đó kèm ngu
 ## 5. Nâng cấp và lùi bản
 
 ```sh
-./csbh nang-cap 1.0.2
+./csbh nang-cap 1.0.3
 ```
 
 Sao lưu → đổi thẻ → kéo ảnh → migration → dựng lại. Lệnh in ra thẻ cũ khi xong;
@@ -137,6 +137,48 @@ lùi bản là chạy lại với thẻ ấy.
 mới là một trạng thái không được kiểm thử. Nếu một lượt nâng cấp hỏng ở phần
 CSDL thì đường đúng là **phục hồi từ bản sao lưu ngay trước đó** — chính vì vậy
 `nang-cap` sao lưu trước khi đụng vào bất cứ thứ gì.
+
+### Lên bản mới nhất cho bản chạy thử, và làm sạch dữ liệu `mới 21/09`
+
+```sh
+./csbh upgrade
+```
+
+Không nhận thẻ nào: lệnh kéo **bản mới nhất** bên đóng gói đã đẩy lên (thẻ
+`…-latest`), cho bạn thấy nó là bản số mấy, rồi mới hỏi xác nhận. Giống
+`nang-cap`, **cộng thêm một việc không hoàn tác được**: CSDL bị xoá hẳn rồi dựng
+lại từ trống, và kho tệp dọn sạch. Dùng khi bản chạy thử cần thử lại từ đầu trên
+mã mới — **không dùng cho hệ đã có dữ liệu thật**.
+
+| | |
+| --- | --- |
+| Mất gì | Mọi hồ sơ · khách hàng · danh mục · quy định chiết khấu · **mọi tài khoản, kể cả Quản trị** · mọi tệp đã tải lên · toàn bộ nhật ký kiểm toán |
+| Giữ gì | Tệp `.env` (trừ dòng `CSBH_TAG`), bí mật trong `secrets/`, volume dữ liệu Postgres, và **đường hầm Cloudflare đang mở** |
+| Hỏi lại | Có — in ra *"Bản đang chạy / Sẽ lên bản"*, rồi phải gõ `XOA-SACH`. Và lệnh **sao lưu trước** khi xoá |
+| Sau đó phải làm | `./csbh mo-tai-khoan` → đăng nhập một lần để đổi mật khẩu → `./csbh nap-danh-muc` |
+| Lấy lại dữ liệu vừa xoá | `./csbh phuc-hoi <tệp sao lưu>` — bản sao lưu nằm ngay trước lượt xoá |
+| Về lại bản cũ | `./csbh nang-cap <thẻ cũ>` — lệnh in ra thẻ ấy khi xong |
+
+**`./csbh phien-ban` vẫn in ra một CON SỐ, không phải `latest`.** Lệnh kéo ảnh
+bằng thẻ `latest`, đọc số phiên bản thật ghi trong ảnh, rồi ghim **con số ấy**
+vào `.env`. Nên sau lượt này hệ thống vẫn nói được nó đang chạy bản nào, và một
+lượt `./csbh len` về sau không tự đổi sang bản mới hơn mà không ai chủ ý.
+
+**Địa chỉ công khai KHÔNG đổi**, và đó là điểm khác `xuong` rồi `len`. Địa chỉ
+của một quick tunnel chết theo tiến trình `cloudflared`, nên lệnh này cố ý không
+đụng tới container ấy: nó **không kéo ảnh `cloudflared`** (thẻ `latest` của
+Cloudflare đổi là container bị dựng lại) và **không ép dựng lại** container nào.
+Xong việc nó **đo lại id container** và nói ra nếu id đã đổi — để người vận hành
+biết ngay thay vì biết khi có người báo liên kết chết.
+
+> **Lệnh dừng với *"ops-latest KHÔNG mang nhãn phiên bản"*?** Ảnh trên registry
+> được dựng trước khi phần mềm biết ghi số vào ảnh. Bên đóng gói chạy lại
+> `make dong-goi` rồi `make day-anh`; trong lúc chờ, dùng `./csbh nang-cap <thẻ>`.
+
+> **`nang-cap` hay `upgrade`?** `nang-cap <thẻ>` giữ dữ liệu, nhận một thẻ cụ
+> thể, và là lệnh dùng cho hệ thật. `upgrade` chỉ dành cho bản chạy thử, và câu
+> hỏi để phân biệt là: *"sau lượt này có phải tạo lại tài khoản Quản trị không?"*
+> — `upgrade` thì có.
 
 ---
 

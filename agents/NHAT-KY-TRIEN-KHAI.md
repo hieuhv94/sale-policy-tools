@@ -19260,3 +19260,141 @@ thành một câu lệnh rỗng (`0201`).
 
 **9/9 ca của ba chốt chặn tài liệu xanh** (`tai-lieu` · `tai-lieu-luoc-do` · `o-ban-truoc`).
 Chặng này **không sửa một dòng mã sản phẩm nào**; `make test` đầy đủ chưa chạy — chồng demo đang bật.
+
+---
+
+## P247 — `0218` `./csbh upgrade`: lên bản mới nhất, xoá sạch dữ liệu, giữ địa chỉ đường hầm · `1.0.3`
+
+Hai câu hỏi của người dùng, và câu thứ nhất trả lời được bằng số đo trước khi gõ gì.
+
+### *"Có thay đổi gì ở các bước đóng gói và triển khai không?"* — **không**
+
+Đo bằng `git log` từ lúc cắt `1.0.2` (P233): `deploy/`, `cai-dat.sh`, `csbh`, `dong-goi.sh` **không
+đổi một dòng**, và **không có migration mới nào** — tệp cuối vẫn là `0118_mot_ban_nhap_moi_khach.sql`, có từ trước `1.0.2`. Chỉ hai tệp
+script đổi nội dung: `seed-demo.ts` (chỉ bản demo dùng) và `nap-danh-muc.ts` (+8 dòng, phép lấy ngày
+theo giờ Việt Nam của `0208b`). Cái đáng nói là thứ KHÔNG nằm trong đường triển khai: **`VERSION` vẫn
+là `1.0.2` trong khi P234–P246 chưa đóng gói** — dựng lại cùng thẻ thì registry bị ghi đè và
+`docker compose pull` trên máy chủ không kéo gì cả (`0118`). Lượt này nâng lên **`1.0.3`**.
+
+### Tên lệnh và thẻ `latest` — hai lượt người dùng chỉnh giữa chừng
+
+Bản đầu là `./csbh update <thẻ>`. Người dùng đổi ba thứ: tên thành **`upgrade`**, `make day-anh` đẩy
+thêm thẻ **`latest`**, và `upgrade` **kéo bằng `latest`** thay vì nhận thẻ.
+
+Thẻ `latest` là **đảo một quyết định đã ghi hai chỗ**: đầu `dong-goi.sh` (*"Vẫn không bao giờ là
+`latest`"*) và đầu `compose.prod.yml`, kèm hai lý do — `pull` một tháng sau đổi thứ đang chạy mà
+không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào. **Cả hai lý do vẫn đúng**, và lượt
+này giữ cả hai bằng một ranh giới: **`latest` sống trên registry như một CON TRỎ, không bao giờ vào
+`.env`**.
+
+Chỗ ranh giới ấy đứng được là nhờ một dữ kiện phải đo trước: **hai trong ba ảnh KHÔNG tự biết mình là
+bản nào** — `service` và `ops` nhận `APP_VERSION` từ `.env` lúc chạy, chỉ `web` nướng sẵn số vào gói.
+Ghi `CSBH_TAG=latest` là mười service tự báo phiên bản là `latest` — đúng lý do thứ hai cấm. Nên:
+
+* `dong-goi.sh` gắn **nhãn OCI `org.opencontainers.image.version`** lên CẢ BA ảnh;
+* `upgrade` kéo `…-latest`, **đọc số từ nhãn**, gắn thẻ số lên ảnh vừa kéo ngay trên máy (nên compose
+  tìm thấy `…-1.0.3` mà không hỏi registry thêm lượt nào — kể cả máy cách ly nạp ảnh bằng
+  `docker load`), rồi **ghim CON SỐ vào `.env`**;
+* nhãn rỗng (ảnh dựng trước `0218`) thì **DỪNG** chứ không rơi về ghi `latest` — đó đúng là trạng thái
+  hai lý do kia cấm.
+
+**Thẻ số đẩy TRƯỚC `latest`**, có chủ ý: đẩy hỏng giữa chừng mà thẻ số đã lên thì vô hại; ngược lại
+thì `latest` trỏ tới một bản mà thẻ số của nó không tồn tại, và `upgrade` sẽ ghim một con số không kéo
+lại được.
+
+Kéo và đọc số **TRƯỚC khi hỏi xác nhận**: kéo ảnh không đụng container nào đang chạy, nên người vận
+hành thấy *"Bản đang chạy 1.0.2 / Sẽ lên bản 1.0.3"* ngay lúc gõ `XOA-SACH` — thay vì xác nhận xoá cho
+một thứ chưa biết là gì.
+
+### Xoá dữ liệu trên một chồng `production`: đi vòng SEC-14 thế nào cho đúng
+
+`reset-db.sh` từ chối chạy ở `NODE_ENV=production` và SEC-14 canh đúng điều ấy — *"chạy nhầm nó trên
+máy chủ thật là mất tất cả"*. Chồng production đặt `NODE_ENV: production` cho `ops`. `make demo-reset`
+đi vòng bằng `-e NODE_ENV=`, và chép đúng cách ấy vào `./csbh` là **biến SEC-14 thành hình vẽ** trên
+đúng cái máy nó sinh ra để bảo vệ.
+
+Nên lối đi vòng phải **khó gõ nhầm hơn** cái chốt nó đi vòng qua, và có HAI cổng thay chỗ: lệnh con
+mới `csbh-ops lam-sach` đòi `XAC_NHAN_XOA_SACH=XOA-SACH` (không có mặc định — cùng khuôn
+`RESTORE_DB=csbh`), và `./csbh upgrade` còn hỏi bằng bàn phím **cộng sao lưu trước**. `lam-sach`
+**gọi** `reset-db.sh` chứ không chép phép `DROP DATABASE` — hai bản của một phép xoá là hai chỗ sẽ
+lệch, và chỗ lệch chỉ lộ ra ở lượt người ta cần nó chạy đúng nhất. Chốt `NODE_ENV` của `reset-db.sh`
+**giữ nguyên** cho mọi người gọi khác.
+
+### Ba thứ không được đụng, và thứ thứ nhất phải ĐO chứ không tin
+
+**`cloudflared`** — địa chỉ quick tunnel chết theo tiến trình. Hai cách làm nó bị dựng lại, cả hai đã
+chặn: `$DC pull` trần kéo cả `cloudflare/cloudflared:latest` (Cloudflare đẩy bản mới vài tuần một lần,
+nên đúng vào một lượt nâng bản nào đó id ảnh đổi và `up -d` dựng lại container), và `--force-recreate`.
+Rồi lệnh **ghi id container trước và sau** và nói ra nếu nó đổi — vì *"`up -d` lẽ ra không đụng
+container có cấu hình không đổi"* là loại "lẽ ra" đã làm hỏng vài lượt ở repo này.
+
+**`.env` ngoài dòng `CSBH_TAG`** — `SITE_URL` đang mang địa chỉ đường hầm. **Volume `pgdata`** — xoá
+volume là mất mật khẩu Postgres đã khởi tạo (`0106`); xoá CSDL thì đủ.
+
+**Danh sách service phải dừng tính bằng PHÉP TRỪ** (`config --services` trừ danh sách hạ tầng), không
+gõ tay mười cái tên: service thứ mười một thêm sau này mà quên sửa danh sách thì nó giữ một kết nối,
+và `DROP DATABASE` hỏng với *"is being accessed by other users"* — một câu không nói ai đang giữ.
+
+**Kho tệp dọn cùng lượt** — bài học `demo-reset-files` đã trả giá: xoá CSDL mà giữ MinIO là rác lớn
+dần, và bản demo từng treo với *"Entity expansion limit exceeded"*. Mật khẩu đọc từ **tệp bí mật**,
+vì production đặt `MINIO_ROOT_PASSWORD: ""` có chủ ý (`0108`).
+
+### Phá lại — BỐN lượt xanh, cả bốn là ca kiểm của tôi, và ba cái cùng một lớp
+
+| Hoàn tác | Đỏ |
+|---|---|
+| bỏ lượt hỏi xác nhận | 2 |
+| bỏ lượt sao lưu | 1 |
+| kéo mọi ảnh (gồm `cloudflared`) | 1 |
+| ép dựng lại container | 1 |
+| ghi `latest` vào `.env` | 1 |
+| thôi gắn thẻ số lên ảnh vừa kéo | 1 |
+| hỏi xác nhận TRƯỚC khi biết bản nào | 1 |
+| thôi đẩy `latest` · ảnh `ops` không mang nhãn | 1 · 1 |
+| gõ tay danh sách service · quên giữ `cloudflared` · gõ sai một tên | 1 · 1 · 1 |
+| bỏ chốt `XAC_NHAN_XOA_SACH` | 1 |
+| **thôi đo id `cloudflared` TRƯỚC** | **0 → 0 → 1** |
+| **thôi nói hai bước cài đặt ở cuối** | **0 → 1** |
+| **nhãn rỗng thì rơi về `latest`** | **0 → 1** |
+| **đẩy `latest` TRƯỚC thẻ số** | **0 → 1** |
+
+> **BA TRONG BỐN LƯỢT XANH LÀ MỘT LỚP LỖI: phép quét trúng nhầm chuỗi thứ hai.** *"Thôi nói hai bước
+> cài đặt"* xanh vì hai cái tên còn nằm ở khối CẢNH BÁO phía trên. *"Nhãn rỗng thì rơi về `latest`"*
+> xanh vì `indexOf('exit 1')` tìm thấy `exit 1` của lượt hỏi xác nhận cách đó vài chục dòng. *"Đẩy
+> `latest` trước"* xanh vì chuỗi `-${TAG}"` còn nằm trong lệnh `docker tag` của chính vòng `latest`.
+>
+> **Lượt thứ tư đi qua HAI bản sửa mới đúng**: bản đầu hỏi tên hàm có mặt không; bản thứ hai đếm ≥ 2 lần
+> xuất hiện — vẫn xanh, vì **chú thích của chính nhánh ấy nhắc tên hàm**. Cùng lớp với một ca đỏ ở lượt
+> viết đầu, nơi dòng chú thích giải thích vì sao KHÔNG được viết `DROP DATABASE` lại chứa đúng cụm từ bị
+> cấm (bẫy `0208`: bỏ chú thích trước khi quét).
+>
+> Cách chữa chung cho cả lớp: **hỏi CHÍNH cấu trúc cần có** — khối gác `[ -n "$moi" ] || {…}`, phép gán
+> `truoc="$(id_cloudflared)"`, thứ tự các lượt `docker push` — thay vì hỏi một chuỗi có xuất hiện ở đâu
+> đó không.
+
+### Dựng thật, vì ca kiểm chỉ đọc mã shell
+
+Lệnh này xoá dữ liệu trên máy chủ thật, nên ba mắt xích mới được đo trên ảnh và container thật sau
+`make anh`:
+
+1. **Nhãn**: cả ba ảnh mang `1.0.3`; gắn `-latest` rồi đọc lại qua `ops-latest` ra đúng `1.0.3`.
+2. **`lam-sach` trên ảnh `ops` thật, `NODE_ENV=production`, một CSDL nháp mang dấu vết**: thiếu xác
+   nhận → từ chối, dấu vết còn · gõ sai → từ chối, dấu vết còn · đúng → CSDL dựng lại trống, dấu vết
+   biến mất · và **gọi thẳng `reset-db.sh` trong cùng ảnh vẫn *"TỪ CHỐI chạy ở môi trường
+   production"*** — SEC-14 còn nguyên.
+3. **Dọn MinIO**: chạy **nguyên văn đoạn trích từ `scripts/csbh`** trong một MinIO dựng riêng, cùng ảnh
+   production, biến mật khẩu RỖNG và mật khẩu chỉ nằm trong tệp bí mật: 3 object → 0, bucket còn.
+
+> **SỰ CỐ CỦA CHÍNH TÔI, bắt được trước khi thành thiệt hại.** Lượt thử mắt xích 3 đầu tiên chạy trên
+> MinIO của chồng kiểm — mà **demo và bộ kiểm dùng chung MinIO**, và bucket `csbh` ở đó là **của demo,
+> đang giữ 93 object**. Lượt dọn không chạy chỉ vì biểu thức trích đoạn hỏng; hai object đánh dấu tôi
+> đã ghi vào thì gỡ tay, bucket về đúng 93. Lượt thử đúng là một MinIO **cô lập** (`--network none`).
+> Cùng họ với cảnh báo *"demo và bộ test dùng chung một Postgres/RabbitMQ/MinIO"* đầu `CLAUDE.md` —
+> lần này ở một lượt thử tay, không phải một lượt chạy bộ kiểm.
+
+**KHÔNG dựng thử trọn `./csbh upgrade` trên một chồng production**: nó cần `cai-dat.sh` hỏi SMTP và
+tên miền, registry, và một đường hầm đang mở. Phần còn lại của lệnh tái dùng những mảnh đã chạy thật ở
+production (`ops backup`, `ops migrate`, `up -d --wait`, `mo-thu-nghiem`); lượt chạy đầu trên máy chủ
+chạy thử là lượt nghiệm thu thật của chúng ghép lại.
+
+**2408/2408 xanh** — lượt chạy này phủ luôn P245 và P246, hai chặng đã commit mà chưa chạy cả bộ.

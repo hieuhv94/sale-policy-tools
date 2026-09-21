@@ -24,6 +24,11 @@
 # chạy mà không ai chủ ý, và không có cách nào nói máy chủ đang chạy bản nào —
 # `make version` in ra một con số, còn ảnh thì là một con số khác.
 #
+# Câu trên nói về `.env`, và nó VẪN ĐÚNG từ `0218`. Registry thì có thêm thẻ
+# `…-latest` làm CON TRỎ tới bản mới nhất, cho `./csbh upgrade` của bản chạy thử
+# kéo về; nhưng lệnh ấy đọc số thật từ nhãn trong ảnh rồi ghim CON SỐ vào
+# `CSBH_TAG` — nên `latest` không bao giờ chạm tới dòng này.
+#
 # Từ `0118` thẻ KHÔNG còn phần `-<git sha>`. Điều kiện để nó an toàn: mỗi lần
 # giao là một số phiên bản mới. Dựng lại cùng số với nội dung khác thì thẻ trên
 # registry bị ghi đè, và máy chủ kéo về nội dung khác dưới cùng một cái tên.

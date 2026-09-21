@@ -33,6 +33,8 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
   backup             Sao lưu logic (pg_dump) + bản nền (pg_basebackup).
   restore-drill      DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng CSDL đang chạy.
   restore <file>     Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.
+  lam-sach           XOÁ HẲN CSDL rồi dựng lại TRỐNG. Chỉ cho bản CHẠY THỬ.
+                     Phải đặt XAC_NHAN_XOA_SACH=XOA-SACH.
   retention          Dọn dữ liệu quá hạn lưu trữ và outbox đã gửi.
   luu-audit          Trích nhật ký kiểm toán của một tháng ra kho lưu trữ.
   psql [...]         Mở psql vào CSDL, hoặc chạy câu lệnh truyền vào.
@@ -61,6 +63,38 @@ case "${1:-help}" in
       exit 1
     }
     exec /bin/sh /app/scripts/restore.sh "$@"
+    ;;
+  lam-sach)
+    # ================================================================
+    # XOÁ HẲN CSDL — lối đi CÓ Ý THỨC DUY NHẤT tới `reset-db.sh` (`0218`).
+    # ================================================================
+    #
+    # `reset-db.sh` từ chối chạy ở `NODE_ENV=production`, và SEC-14 canh đúng
+    # điều đó — *"chạy nhầm nó trên máy chủ thật là mất tất cả"*. Chồng
+    # production đặt `NODE_ENV: production` cho `ops`, nên chốt ấy chặn mọi
+    # đường tới nó ở đây.
+    #
+    # Bản chạy thử thì cần đúng việc ấy: nâng bản mới rồi dựng lại từ CSDL
+    # trống, để người dùng thử đi lại từ bước tạo tài khoản Quản trị. Nên có
+    # một lối đi, và nó phải **khó gõ nhầm hơn** cái chốt nó đi vòng qua:
+    #
+    #   * `XAC_NHAN_XOA_SACH=XOA-SACH` không có mặc định, phải do người gọi gõ
+    #     ra — cùng khuôn `RESTORE_DB=csbh` ở lệnh `restore` ngay trên;
+    #   * `./csbh upgrade` còn hỏi lại một lần nữa bằng bàn phím, và **sao lưu
+    #     trước** khi gọi tới đây.
+    #
+    # KHÔNG chép phép xoá sang đây: `reset-db.sh` vẫn là bản DUY NHẤT, vì
+    # `DROP DATABASE` viết hai chỗ là hai chỗ sẽ lệch — và chỗ lệch ấy chỉ lộ
+    # ra ở lượt người ta cần nó chạy đúng nhất. Chốt `NODE_ENV` của nó giữ
+    # nguyên cho mọi người gọi khác; `env NODE_ENV=` ở đây là lời khai rằng
+    # lượt gọi này đã đi qua hai cổng khác.
+    [ "${XAC_NHAN_XOA_SACH:-}" = "XOA-SACH" ] || {
+      echo "csbh-ops lam-sach: phải đặt XAC_NHAN_XOA_SACH=XOA-SACH một cách có ý thức." >&2
+      echo "Việc này XOÁ HẲN mọi dữ liệu. Muốn nâng bản mà GIỮ dữ liệu: ./csbh nang-cap <thẻ>." >&2
+      exit 1
+    }
+    shift
+    exec env NODE_ENV= /bin/sh /app/scripts/reset-db.sh "$@"
     ;;
   retention)
     psql -v ON_ERROR_STOP=1 -q -c "SELECT sys.run_retention()"

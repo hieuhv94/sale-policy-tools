@@ -44,6 +44,11 @@ csbh — vận hành Chính sách bán hàng
 
   Nâng cấp
     nang-cap <thẻ>   Đổi CSBH_TAG trong .env, kéo ảnh, chạy migration, dựng lại.
+                     GIỮ NGUYÊN dữ liệu.
+    upgrade          Lên bản MỚI NHẤT trên registry cho bản CHẠY THỬ, và XOÁ
+                     SẠCH dữ liệu: CSDL dựng lại từ trống, kho tệp dọn sạch.
+                     Sau đó phải làm lại mo-tai-khoan và nap-danh-muc. KHÔNG
+                     đụng đường hầm, nên địa chỉ công khai giữ nguyên.
 
   Dữ liệu
     sao-luu          pg_dump + bản nền. Chạy hằng đêm qua cron.
@@ -67,6 +72,50 @@ HET
 }
 
 ops() { $DC run --rm -T ops "$@"; }
+
+# Id container của `cloudflared`, hoặc rỗng khi đường hầm không chạy (`0218`).
+#
+# `upgrade` dùng nó để ĐO thay vì tin: địa chỉ công khai của một quick tunnel
+# chết theo tiến trình `cloudflared`, nên câu *"không dựng lại nó"* phải kiểm
+# được, không phải một lời hứa trong chú thích.
+id_cloudflared() { $DC ps -q cloudflared 2>/dev/null || true; }
+
+# Kéo BA ảnh `…-latest` của phần mềm, KHÔNG kéo `cloudflared` (`0218`).
+#
+# Kéo có chọn lọc, không gọi `$DC pull` trần: lệnh trần kéo cả
+# `cloudflare/cloudflared:latest`, mà Cloudflare đẩy bản mới vài tuần một lần —
+# đúng vào một lượt nâng bản nào đó id ảnh đổi, `up -d` dựng lại container ấy, và
+# **địa chỉ công khai đổi theo**. Mọi liên kết trong thư đã gửi chết, mà không ai
+# nối được hai việc lại với nhau.
+#
+# Không kéo được thì chưa chắc phải dừng — cùng lý lẽ `len` (`0107`): máy cách
+# ly nạp ảnh bằng `docker load`. Nhưng chỉ đi tiếp khi CẢ BA ảnh có trên máy.
+keo_anh_latest() {
+  kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
+  thieu=""
+  for tp in service web ops; do
+    docker pull "${kho}:${tp}-latest" >/dev/null 2>&1 || {
+      docker image inspect "${kho}:${tp}-latest" >/dev/null 2>&1 || thieu="$thieu ${kho}:${tp}-latest"
+    }
+  done
+  [ -z "$thieu" ] || {
+    echo "  THIẾU ảnh:$thieu" >&2
+    echo "  Đăng nhập registry (docker login), hoặc kiểm bên đóng gói đã chạy make day-anh chưa." >&2
+    exit 1
+  }
+}
+
+# Số phiên bản THẬT của ảnh `…-latest`, đọc từ nhãn OCI (`0218`).
+#
+# Đây là thứ giữ cho hai lý do chống `latest` ở đầu `compose.prod.yml` còn đúng:
+# `latest` là một CON TRỎ trên registry, còn thứ được ghi vào `.env` là CON SỐ nó
+# trỏ tới. Rỗng nghĩa là ảnh dựng trước `0218`, lúc chưa có nhãn — khi ấy KHÔNG
+# rơi về ghi `latest`, mà dừng: đó đúng là trạng thái hai lý do kia cấm.
+so_phien_ban() {
+  kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
+  docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.version"}}' \
+    "${kho}:ops-latest" 2>/dev/null || true
+}
 
 case "${1:-help}" in
   len)
@@ -120,6 +169,171 @@ case "${1:-help}" in
     $DC run --rm -T ops migrate
     $DC up -d --wait
     echo "  Xong. Lùi lại: ./csbh nang-cap ${cu}"
+    ;;
+
+  upgrade)
+    # ==================================================================
+    # LÊN BẢN MỚI NHẤT, XOÁ SẠCH DỮ LIỆU, GIỮ NGUYÊN ĐỊA CHỈ (`0218`).
+    # ==================================================================
+    #
+    # Khác `nang-cap` ở HAI chuyện:
+    #
+    #   1. không nhận thẻ — nó kéo `…-latest`, tức bản mới nhất bên đóng gói đã
+    #      đẩy. Nhưng `.env` KHÔNG BAO GIỜ mang chữ `latest`: số thật đọc từ nhãn
+    #      trong ảnh rồi ghim vào `CSBH_TAG` (xem `so_phien_ban`);
+    #   2. CSDL dựng lại từ TRỐNG và kho tệp dọn sạch — không hoàn tác được, nên
+    #      bản mới bắt đầu lại từ bước tạo tài khoản Quản trị.
+    #
+    # Dùng cho bản chạy thử cần thử lại từ đầu trên mã mới. KHÔNG dùng cho hệ
+    # có dữ liệu thật — ở đó là `nang-cap <thẻ>`.
+    #
+    # BA THỨ KHÔNG ĐƯỢC ĐỤNG TỚI, mỗi thứ một lý do:
+    #
+    #   * `cloudflared` — địa chỉ quick tunnel chết theo tiến trình, nên dựng
+    #     lại nó là đổi địa chỉ công khai và giết mọi liên kết trong những lá
+    #     thư đã gửi. Ở đây nó được ĐO, xem `id_cloudflared`.
+    #   * `.env` ngoài dòng `CSBH_TAG` — `SITE_URL` đang mang địa chỉ đường hầm,
+    #     và mười service đọc nó.
+    #   * volume `pgdata` — xoá volume là mất luôn mật khẩu Postgres đã khởi
+    #     tạo (`0106`), và mọi thứ sau đó hỏng với "password authentication
+    #     failed". Xoá CSDL thì đủ, và `reset-db.sh` làm đúng thế.
+    cu="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+
+    # KÉO VÀ ĐỌC SỐ TRƯỚC KHI HỎI. Kéo ảnh không đụng container nào đang chạy,
+    # nên làm trước được — và nhờ vậy người vận hành thấy mình sắp lên BẢN NÀO
+    # ngay lúc gõ xác nhận, thay vì gõ "XOA-SACH" cho một thứ chưa biết là gì.
+    echo "==> kéo bản mới nhất từ registry"
+    keo_anh_latest
+    moi="$(so_phien_ban)"
+    [ -n "$moi" ] || {
+      echo "  Ảnh ops-latest KHÔNG mang nhãn phiên bản — nó dựng trước 0218." >&2
+      echo "  Bên đóng gói cần dựng lại (make dong-goi) và đẩy lại (make day-anh)," >&2
+      echo "  hoặc dùng: ./csbh nang-cap <thẻ>" >&2
+      exit 1
+    }
+
+    cat <<HET
+
+  Bản đang chạy:   ${cu}
+  Sẽ lên bản:      ${moi}   (mới nhất trên registry)
+
+  CẢNH BÁO — việc này XOÁ SẠCH dữ liệu của bản đang chạy:
+
+    · mọi hồ sơ CSBH, khách hàng, danh mục sản phẩm và quy định chiết khấu
+    · MỌI TÀI KHOẢN, kể cả tài khoản Quản trị
+    · mọi tệp đã tải lên và mọi bản mềm đã lưu
+    · toàn bộ nhật ký kiểm toán
+
+  Xong rồi thì phải làm lại hai bước cài đặt:
+    ./csbh mo-tai-khoan     rồi    ./csbh nap-danh-muc
+
+  Muốn nâng bản mà GIỮ dữ liệu:   ./csbh nang-cap ${moi}
+
+HET
+    [ "$cu" = "$moi" ] && echo "  (Bản mới nhất TRÙNG bản đang chạy — lượt này chỉ còn là làm sạch dữ liệu.)" && echo ""
+    printf '  Gõ "XOA-SACH" để tiếp tục: '
+    read -r xn
+    [ "$xn" = "XOA-SACH" ] || { echo "  Đã huỷ."; exit 1; }
+
+    # Sao lưu TRƯỚC mọi bước phá huỷ, cùng lý lẽ `nang-cap`: một lượt hỏng giữa
+    # chừng mà không có bản sao lưu ngay trước đó là một lượt không lùi lại
+    # được. Ở đây nó còn là thứ duy nhất cứu được một lượt gõ nhầm lệnh. Nó chạy
+    # bằng ảnh ops của bản CŨ — `CSBH_TAG` chưa đổi — tức đúng bản đã ghi dữ liệu.
+    echo "==> sao lưu trước khi xoá"
+    ops backup
+
+    truoc="$(id_cloudflared)"
+    [ -n "$truoc" ] && echo "==> đường hầm đang chạy, sẽ KHÔNG đụng tới"
+
+    # GHIM CON SỐ, không ghim `latest`. Gắn thẻ số lên ảnh vừa kéo NGAY TRÊN MÁY,
+    # nên compose tìm thấy `…-${moi}` mà không phải hỏi registry thêm một lượt
+    # nào — kể cả trên máy cách ly nạp ảnh bằng `docker load`.
+    kho="$(grep -E '^CSBH_IMAGE=' .env | cut -d= -f2-)"
+    for tp in service web ops; do
+      docker tag "${kho}:${tp}-latest" "${kho}:${tp}-${moi}"
+    done
+    sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${moi}|" .env
+    echo "==> ${cu} -> ${moi}"
+
+    # HẠ SERVICE ỨNG DỤNG TRƯỚC KHI XOÁ, không hạ hạ tầng.
+    #
+    # `DROP DATABASE` hỏng với "is being accessed by other users" khi còn một
+    # kết nối mở, và `reset-db.sh` có ngắt kết nối hộ — nhưng một service còn
+    # sống sẽ nối lại ngay, rồi ghi tiếp vào CSDL vừa dựng lại trong lúc
+    # migration đang chạy.
+    #
+    # DANH SÁCH TÍNH BẰNG PHÉP TRỪ, không gõ tay mười cái tên. Thêm một service
+    # ứng dụng thứ mười một mà quên sửa danh sách gõ tay thì nó giữ một kết nối,
+    # và lượt xoá hỏng ở đúng chỗ khó đọc nhất. Phép trừ thì tự đúng; cái phải
+    # giữ đồng bộ chuyển sang danh sách HẠ TẦNG, thứ gần như không đổi.
+    #
+    # `caddy` ở lại để trang web còn trả lời, `postgres` vì nó là thứ đang bị
+    # xoá bên trong, `cloudflared` vì dựng lại nó là đổi địa chỉ công khai.
+    GIU_LAI="pg-init postgres redis rabbitmq minio gotenberg mailpit migrate ops caddy cloudflared"
+    ha=""
+    for sv in $($DC config --services); do
+      con=0
+      for g in $GIU_LAI; do [ "$sv" = "$g" ] && con=1; done
+      [ "$con" = 0 ] && ha="$ha $sv"
+    done
+    echo "==> dừng service ứng dụng:$ha"
+    # shellcheck disable=SC2086
+    $DC stop $ha
+
+    echo "==> xoá và dựng lại CSDL"
+    $DC run --rm -T -e XAC_NHAN_XOA_SACH=XOA-SACH ops lam-sach
+
+    # DỌN KHO TỆP CÙNG LƯỢT VỚI CSDL.
+    #
+    # Xoá CSDL mà giữ MinIO thì mọi object còn lại là RÁC — không dòng nào trỏ
+    # tới chúng, không màn hình nào hiện chúng, và không có gì dọn chúng; chúng
+    # chỉ lớn dần. Bản demo đã hỏng thật vì chuyện này (xem `demo-reset-files`
+    # trong Makefile): thư viện minio ném "Entity expansion limit exceeded" từ
+    # bên trong luồng, không bắt được, và lượt quét kho chỉ treo tới lúc hết giờ.
+    #
+    # Mật khẩu đọc TỪ FILE BÍ MẬT, không từ biến môi trường: chồng production
+    # đặt `MINIO_ROOT_PASSWORD: ""` có chủ ý (`0108`), nên biến ấy rỗng ở đây.
+    echo "==> dọn kho tệp"
+    $DC exec -T minio sh -c '
+      mk="${MINIO_ROOT_PASSWORD:-}"
+      [ -n "$mk" ] || mk="$(cat "${MINIO_ROOT_PASSWORD_FILE:-/run/secrets/minio_password.txt}")"
+      mc alias set l http://localhost:9000 "$MINIO_ROOT_USER" "$mk" > /dev/null &&
+      mc rm --recursive --force l/csbh/ > /dev/null 2>&1
+      mc mb --ignore-existing l/csbh > /dev/null' \
+      && echo "  kho tệp đã sạch" || echo "  BỎ QUA kho tệp — dọn tay nếu cần" >&2
+
+    echo "==> migration trên CSDL trống"
+    $DC run --rm -T ops migrate
+
+    echo "==> dựng lại"
+    $DC up -d --wait
+
+    # ĐO, KHÔNG TIN. `up -d` chỉ dựng lại container có cấu hình đổi, nên
+    # `cloudflared` lẽ ra phải nguyên vẹn — nhưng "lẽ ra" là thứ đã làm hỏng
+    # những lượt trước đó ở repo này. Id đổi nghĩa là địa chỉ công khai đã đổi,
+    # và người vận hành cần biết NGAY thay vì biết khi có người báo liên kết
+    # chết.
+    sau="$(id_cloudflared)"
+    if [ -n "$truoc" ] && [ "$truoc" != "$sau" ]; then
+      echo "" >&2
+      echo "  CẢNH BÁO: cloudflared ĐÃ bị dựng lại — địa chỉ công khai đổi rồi." >&2
+      echo "  Địa chỉ mới:  ./csbh log cloudflared | grep trycloudflare" >&2
+      echo "" >&2
+    fi
+
+    cat <<HET
+
+  Xong. Phần mềm đã lên bản ${moi} với CSDL TRỐNG.
+
+  Các bước còn lại, theo đúng thứ tự:
+    1. ./csbh mo-tai-khoan     tạo tài khoản Quản trị đầu tiên
+    2. đăng nhập một lần để đổi mật khẩu lần đầu
+    3. ./csbh nap-danh-muc     nạp danh mục mẫu
+
+  Về lại bản cũ (dữ liệu vẫn trống):  ./csbh nang-cap ${cu}
+  Lấy lại dữ liệu vừa xoá:             ./csbh phuc-hoi <tệp sao lưu>
+
+HET
     ;;
 
   sao-luu)      ops backup ;;

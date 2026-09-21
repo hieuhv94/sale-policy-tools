@@ -36,7 +36,17 @@
 # nhận nội dung khác mà `./csbh phien-ban` vẫn in ra đúng con số cũ — không có
 # cách nào phát hiện từ máy chủ. Sha trong thẻ trước đây chặn đúng chuyện này.
 #
-# Vẫn không bao giờ là `latest`. Xem chú thích đầu `compose.prod.yml`.
+# `latest` — ĐẢO MỘT NỬA ở `0218`, và nửa còn lại vẫn giữ nguyên.
+#
+# Tới `0217` dòng này viết *"Vẫn không bao giờ là `latest`"*, với hai lý do ở
+# đầu `compose.prod.yml`: `pull` một tháng sau đổi thứ đang chạy mà không ai chủ
+# ý, và không có cách nào nói máy chủ đang chạy bản nào. Cả hai vẫn ĐÚNG.
+#
+# Cái đổi là `latest` giờ CÓ trên registry, như một CON TRỎ tới bản mới nhất,
+# để `./csbh upgrade` của bản chạy thử kéo về mà không phải biết số. Hai lý do
+# kia được giữ bằng cách **`latest` KHÔNG BAO GIỜ vào `.env`**: `upgrade` đọc số
+# phiên bản thật từ nhãn trong ảnh (xem `anh`) rồi ghim con số ấy vào
+# `CSBH_TAG`. Thẻ số vẫn là nguồn sự thật, và vẫn được đẩy lên song song.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -46,18 +56,31 @@ TAG="${CSBH_TAG:-${VERSION}}"
 IMG="${CSBH_IMAGE:-hieuhv94/nutricare-csbh}"
 RA="${CSBH_OUT:-../workspace/dong-goi}"
 
+# NHÃN PHIÊN BẢN trên CẢ BA ảnh (`0218`).
+#
+# Hai trong ba ảnh KHÔNG tự biết mình là bản nào: `service` và `ops` nhận
+# `APP_VERSION` từ `.env` lúc chạy, chỉ `web` nướng sẵn con số vào gói. Tới
+# `0217` điều đó không sao, vì thẻ kéo về luôn là một con số. Từ khi registry có
+# `latest`, một ảnh kéo về bằng `latest` phải TỰ nói được mình là bản nào — nếu
+# không thì `./csbh upgrade` chỉ còn cách ghi `latest` vào `.env`, và mười
+# service sẽ tự báo phiên bản là `latest`.
+#
+# Nhãn OCI chuẩn chứ không một biến `ENV`: đọc nó bằng `docker image inspect` là
+# đủ, không phải chạy container nào, và nó không lọt vào môi trường của tiến trình.
+NHAN="org.opencontainers.image.version=${TAG}"
+
 anh() {
   echo "==> dựng ${IMG}:service-${TAG}"
-  docker build -f docker/Dockerfile -t "${IMG}:service-${TAG}" .
+  docker build -f docker/Dockerfile --label "$NHAN" -t "${IMG}:service-${TAG}" .
 
   echo "==> dựng ${IMG}:web-${TAG}"
-  docker build -f docker/Dockerfile.web \
+  docker build -f docker/Dockerfile.web --label "$NHAN" \
     --build-arg "APP_VERSION=${TAG}" \
     -t "${IMG}:web-${TAG}" .
 
   # SAU ảnh service, và dựng TỪ nó. Thứ tự này là bắt buộc, không phải sở thích.
   echo "==> dựng ${IMG}:ops-${TAG}"
-  docker build -f docker/Dockerfile.ops \
+  docker build -f docker/Dockerfile.ops --label "$NHAN" \
     --build-arg "BASE=${IMG}:service-${TAG}" \
     -t "${IMG}:ops-${TAG}" .
 
@@ -72,10 +95,20 @@ anh() {
 #
 # Tách khỏi `anh` và không nằm trong `tat-ca`, có chủ ý: `make anh` dựng xong thì
 # in ra ba thẻ, còn ai đẩy và đẩy lúc nào là quyết định riêng.
+#
+# ĐẨY CẢ HAI THẺ: số phiên bản, rồi `latest` (`0218`). Thẻ số đẩy TRƯỚC, có chủ ý:
+# lượt đẩy hỏng giữa chừng thì registry có một bản số mà `latest` chưa trỏ tới —
+# vô hại. Ngược lại thì `latest` trỏ tới một bản mà thẻ số của nó không tồn tại,
+# và `./csbh upgrade` sẽ ghim một con số không kéo lại được.
 day() {
   for tp in service web ops; do
     echo "==> đẩy ${IMG}:${tp}-${TAG}"
     docker push "${IMG}:${tp}-${TAG}"
+  done
+  for tp in service web ops; do
+    echo "==> đẩy ${IMG}:${tp}-latest  (trỏ tới ${TAG})"
+    docker tag "${IMG}:${tp}-${TAG}" "${IMG}:${tp}-latest"
+    docker push "${IMG}:${tp}-latest"
   done
 }
 
