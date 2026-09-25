@@ -1244,8 +1244,9 @@ Thẻ *Đang chờ* **không có màu**: theo đúng định nghĩa nó là ph�
 
 Mã hồ sơ ở góc trên bên trái, **nhãn trạng thái ngay cạnh nó** `sửa 19/09`, và **các nút thao tác ở
 góc trên bên phải ngang hàng với cả hai**. Dưới đó là **một thẻ *Thông tin chung*** `gộp 19/09` —
-trước ngày ấy là hai thẻ *Hồ sơ* và *Khách hàng* nằm cạnh nhau — mỗi thứ một dòng có nhãn riêng, xếp
-thành hai cặp cột trên màn hình rộng và một cặp trên điện thoại.
+trước ngày ấy là hai thẻ *Hồ sơ* và *Khách hàng* nằm cạnh nhau — mỗi ô một nhãn riêng, **nhãn ở
+dòng trên, giá trị ở dòng dưới** `sửa 25/09`, đúng như khối thông tin ở trang khách hàng; hai cột
+trên màn hình rộng, một cột trên điện thoại.
 
 | Ô | Nghĩa |
 |---|---|

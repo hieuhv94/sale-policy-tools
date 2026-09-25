@@ -395,61 +395,44 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
   });
 
   /*
-   * `0179` — CỘT NHÃN của khối khách hàng ĐO TỪ NỘI DUNG, canh cả BỐN vế.
+   * `0220` — NHÃN Ở TRÊN, GIÁ TRỊ Ở DƯỚI, cùng bố cục trang khách hàng.
    *
-   * `0177` đặt 11rem và con số ấy thiếu 15,6px so với *Tên Hộ kinh doanh/Tên
-   * Công ty* (đo trên Chromium: 191,6px), nên nhãn xuống hai dòng ở mọi bề rộng
-   * thẻ. Bản sửa thôi ghi con số: `auto` để trình duyệt tự đo bằng phông nó thật
-   * sự vẽ — mà `auto` chỉ nói được điều đó khi CẢ DANH SÁCH dùng chung một lưới.
-   *
-   * jsdom không tính bố cục, nên thứ đo được là bốn mảnh phải khớp nhau. Ba mảnh
-   * đầu là một cơ chế chứ không phải ba lựa chọn rời: bỏ mảnh nào thì hai mảnh
-   * kia thành vô nghĩa mà trang vẫn dựng được — lưới trở về từng hàng thì mỗi
-   * hàng tự đo cột của nó và nhãn thôi thẳng cột, còn thiếu mảnh thứ tư thì cả
-   * ba thành mã chết, đúng kiểu hỏng `0176` đã ghi.
+   * Thay ca `0179` (cột nhãn đo từ nội dung): nhãn đứng riêng một dòng thì
+   * không còn cột nhãn nào để đo. jsdom không tính bố cục, nên thứ đo được là
+   * ba mảnh phải khớp nhau, và mỗi mảnh chặn một cách hỏng khác:
+   *   1. `dl` của khối mang lớp `the-so` — thiếu thì không có bố cục nào của
+   *      trang khách hàng được áp;
+   *   2. trang khách hàng CŨNG dùng lớp ấy — nếu không thì *"giống trang khách
+   *      hàng"* chỉ còn là trùng tên;
+   *   3. luật nhãn-trái của `.tom-tat-nhom dl` ĐỨNG NGOÀI `the-so` — nó đặc hơn
+   *      `.the-so` nên không có `:not` là nó thắng, `display: contents` ở hàng
+   *      xoá hộp của từng ô, và khối quay về nhãn-trái mà trang vẫn dựng được.
    */
-  it('cột nhãn khối khách hàng đo từ NỘI DUNG, và class thật sự nằm trên khối', async () => {
-    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
-    /** Cắt thô thành từng luật; bỏ chú thích khỏi phần chọn để so tên cho khớp. */
-    const luat = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
-      chon: m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
-      than: m[2]!,
-    }));
-    const than = (ten: string): string[] =>
-      luat.filter((x) => x.chon === ten).map((x) => x.than);
-
-    // Vế 1: LƯỚI Ở `dl` — một vệt cột cho cả danh sách — và nó ĐỌC biến.
-    //
-    // `0206` nhân đôi cặp cột (`repeat(2, …)`), nên phép so thôi ghim chữ ngay
-    // sau dấu hai chấm: thứ phải đúng là lưới nằm ở `dl` và nó đọc `--cot-nhan`,
-    // không phải số cặp cột — số ấy có ca riêng ngay dưới.
-    const dl = than('.tom-tat-nhom dl');
-    expect(dl.length, 'không tìm thấy luật cho `.tom-tat-nhom dl`').toBeGreaterThan(0);
-    expect(
-      dl.some((x) => /grid-template-columns:[^;]*var\(--cot-nhan/.test(x)),
-      '`.tom-tat-nhom dl` phải khai lưới và ĐỌC `--cot-nhan`',
-    ).toBe(true);
-
-    // Vế 2: hàng `<div>` TRONG SUỐT, nếu không thì `dt`/`dd` không phải ô của
-    // lưới ấy và cả hàng dồn vào cột nhãn.
-    const hang = than('.tom-tat-nhom dl > div');
-    expect(hang.length, 'không tìm thấy luật cho `.tom-tat-nhom dl > div`').toBeGreaterThan(0);
-    expect(
-      hang.some((x) => /display:\s*contents/.test(x)),
-      'hàng `<div>` phải `display: contents` để `dt`/`dd` là ô của lưới ở `dl`',
-    ).toBe(true);
-
-    // Vế 3: khối khách hàng khai `auto` — KHÔNG một con số nào — và chỉ khổ điện
-    // thoại mới đặt trần cố định, vì ở đó câu trả lời ngược lại.
-    const khach = than('.tom-tat-chung').map((x) => x.match(/--cot-nhan:\s*([^;]+);/)?.[1]?.trim());
-    expect(khach[0], '`.tom-tat-chung` phải đo cột nhãn từ nội dung').toBe('auto');
-    expect(khach.slice(1).every((x) => x !== undefined && /^[\d.]+rem$/.test(x))).toBe(true);
-
-    // Vế 4: class nằm trên đúng khối thông tin (`0206` — chỉ còn MỘT khối).
+  it('`0220` khối thông tin dùng CHÍNH bố cục `the-so` của trang khách hàng', async () => {
     await mo();
-    const nhom = document.querySelector('.tom-tat-chung');
-    expect(nhom, 'không khối nào mang class `tom-tat-chung`').not.toBeNull();
-    expect(nhom!.querySelector('h2')?.textContent).toBe('Thông tin chung');
+    const dl = khoiChung().querySelector('dl');
+    expect(dl?.classList.contains('the-so'), '`dl` của khối phải mang lớp `the-so`').toBe(true);
+
+    // Mỗi ô là MỘT hàng `<div>` bọc đúng một cặp nhãn trên, giá trị dưới.
+    for (const dt of dl!.querySelectorAll('dt')) {
+      expect(dt.parentElement!.parentElement).toBe(dl);
+      expect(dt.nextElementSibling?.tagName).toBe('DD');
+    }
+
+    const kh = readFileSync('apps/web/src/pages/KhachHang.tsx', 'utf8');
+    expect(kh, 'trang khách hàng phải dùng cùng lớp `the-so`').toMatch(/<dl className="the-so">/);
+
+    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
+    const chon = [...css.matchAll(/([^{}]+)\{[^}]*\}/g)].map((m) =>
+      m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
+    );
+    const nhanTrai = chon.filter((c) => /^\.tom-tat-nhom dl\b/.test(c));
+    expect(nhanTrai.length, 'không còn luật nhãn-trái nào của `.tom-tat-nhom dl`').toBeGreaterThan(0);
+    for (const c of nhanTrai) {
+      expect(c, `luật "${c}" phải đứng ngoài \`the-so\``).toContain(':not(.the-so)');
+    }
+    // Cột nhãn `auto` của `0179` gỡ theo — không ai đọc biến ấy nữa.
+    expect(css).not.toMatch(/--cot-nhan/);
   });
 
   it('khách đã ngừng hợp tác thì nói ra ở ngay khối này', async () => {
@@ -528,27 +511,6 @@ describe('`0206` một khối thông tin, trạng thái ở đầu trang', () =>
     expect(oCua('Phiên bản')).toBe('2');
     expect(oCua('Người đề nghị')).toBe('Nguyen Van Tdv');
     expect(document.body.textContent).toContain('Chưa tải được thông tin khách hàng');
-  });
-
-  it('lưới bày HAI cặp cột ở màn hình rộng, MỘT cặp ở khổ điện thoại', () => {
-    /*
-     * jsdom không tính bố cục, nên thứ đo được là hai luật CSS phải cùng có mặt.
-     * Vế thứ hai không thừa: hai cặp cột trên màn 360px thì cột giá trị còn chừng
-     * 60px và mọi ô bị bẻ vụn — tức bản sửa cho màn hình rộng làm hỏng khổ hẹp,
-     * và đó đúng là lớp lỗi `0179` đã ghi cho cột nhãn.
-     */
-    const css = readFileSync('apps/web/src/styles/app.css', 'utf8');
-    const luat = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
-      chon: m[1]!.replace(/\/\*[\s\S]*?\*\//g, '').trim(),
-      than: m[2]!,
-    }));
-    const cot = luat
-      .filter((x) => x.chon === '.tom-tat-nhom dl')
-      .map((x) => x.than.match(/grid-template-columns:\s*([^;]+);/)?.[1]?.trim());
-
-    expect(cot.length, 'phải có HAI luật cột: màn rộng và khổ điện thoại').toBe(2);
-    expect(cot[0], 'màn hình rộng: hai cặp cột').toMatch(/^repeat\(\s*2\s*,/);
-    expect(cot[1], 'khổ điện thoại: một cặp cột').not.toMatch(/repeat\(/);
   });
 });
 

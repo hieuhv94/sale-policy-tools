@@ -1442,15 +1442,29 @@ function DiaChiDangKy({
  * mép TRÁI, cạnh `<h1>` — hai việc không tranh nhau chỗ nào. Cái được là ô
  * *Trạng thái* rời khỏi lưới đúng lúc lưới sắp có một ô *Trạng thái* thứ hai của
  * khách hàng.
+ *
+ * ---------------------------------------------------------------------------
+ * NHÃN Ở TRÊN, GIÁ TRỊ Ở DƯỚI — cùng bố cục trang khách hàng (`0220`)
+ * ---------------------------------------------------------------------------
+ *
+ * Khách hàng chốt 25/09: khối này phải trông như khối thông tin ở trang khách
+ * hàng. Nên `dl` mang CHÍNH lớp `the-so` của trang ấy chứ không một bộ luật chép
+ * lại — hai bộ là hai bố cục sẽ trôi khỏi nhau ở lượt chỉnh đầu tiên.
+ *
+ * Kéo theo: cột nhãn đo từ nội dung của `0179` và hai cặp cột nhãn–giá trị của
+ * `0206` thôi có việc ở đây. Nhãn đứng riêng một dòng thì không còn cột nhãn
+ * nào để đo, và *Tên Hộ kinh doanh/Tên Công ty* dài bao nhiêu cũng không đẩy
+ * giá trị đi đâu. Hàng `<div>` trở lại là hộp thật — mỗi ô một cặp nhãn trên,
+ * giá trị dưới — đúng như `the-so` cần.
  */
 function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
   const kh = hoSo.khachHang;
 
   return (
     <div className="tom-tat">
-      <section className="tom-tat-nhom tom-tat-chung">
+      <section className="tom-tat-nhom">
         <h2>Thông tin chung</h2>
-        <dl>
+        <dl className="the-so">
           <O nhan="Phiên bản">{hoSo.versionNo}</O>
           <O nhan="Ngày soạn thảo">{ngay(hoSo.createdAt)}</O>
           {/* Chỉ hiện khi ĐÃ có hiệu lực. Một ô "Có hiệu lực —" trên mọi hồ sơ

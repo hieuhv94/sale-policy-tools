@@ -97,9 +97,14 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (21/09/2026)
+## Trạng thái hiện tại (25/09/2026)
 
-Chặng gần nhất **P248** (`0219`): **nhãn *Nháp* đổi sang ô liu — vàng lục** (`#5a6a10` / `#f1f5d8`,
+Chặng gần nhất **P249** (`0220`): **khối *Thông tin chung* của hồ sơ — nhãn ở trên, giá trị ở
+dưới**, dùng CHÍNH lớp `the-so` của trang khách hàng. Luật nhãn-trái `.tom-tat-nhom dl` đặc hơn và
+thắng, mà nó vẫn còn chủ (`ChiTietMau`), nên nó đổi thành `:not(.the-so)`; cột nhãn `auto` của `0179`
+gỡ theo. Ba lượt phá lại, ba đỏ.
+
+Trước đó **P248** (`0219`): **nhãn *Nháp* đổi sang ô liu — vàng lục** (`#5a6a10` / `#f1f5d8`,
 tối `#c5d36a` / `#252a0d`), khách hàng chọn trong ba phương án. Màu cũ `#6b5f56` có sắc 26° nhưng
 **bão hoà 11%** — mắt đọc ra XÁM, lẫn với *Hết hiệu lực* / *Đã xoá*; đọc mã màu không thấy, phải đo.
 **LỖ HỔNG THẬT CỦA CHẶNG**: chú thích `tokens.css` khẳng định từ `0064` rằng mọi cặp đạt AA và

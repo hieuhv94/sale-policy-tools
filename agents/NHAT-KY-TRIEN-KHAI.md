@@ -19457,3 +19457,49 @@ Nghiệm thu: dựng lại riêng gói giao diện của demo; `localhost:8080` 
 
 **847/847 ca `tests/web` + chốt chặn tài liệu xanh, typecheck sạch.** Chặng chỉ đổi CSS và tài liệu;
 `make test` đầy đủ chưa chạy — chồng demo đang bật (lượt đầy đủ gần nhất, P247: 2408/2408).
+
+## P249 — `0220` Khối *Thông tin chung* của hồ sơ: nhãn ở trên, giá trị ở dưới
+
+Khách hàng (25/09): *"phần thông tin chung của CSBH chỉnh lại bố cục để giống như phần thông tin của
+khách hàng, tiêu đề ở một dòng bên trên, nội dung ở bên dưới"*.
+
+### Dùng CHÍNH lớp của trang khách hàng, không chép bố cục
+
+`dl` của khối mang `className="the-so"` — đúng lớp mà `KhachHang.tsx` dùng. Chép lại bộ luật dưới tên
+khác là dựng hai bố cục mà yêu cầu nói phải là một, và chúng trôi khỏi nhau ở lượt chỉnh đầu tiên.
+
+### Chỗ vướng: luật nhãn-trái đặc hơn và THẮNG
+
+`.tom-tat-nhom dl` (0,1,1) đặc hơn `.the-so` (0,1,0), nên chỉ thêm lớp thì không đổi gì: lưới hai cặp
+cột nhãn–giá trị vẫn áp, và `display: contents` ở hàng `<div>` xoá mất hộp của từng ô — đúng thứ
+`the-so` cần để xếp nhãn trên giá trị. Luật ấy **vẫn còn chủ**: hộp *Chi tiết văn bản mẫu*
+(`ChiTietMau.tsx`) dùng `.tom-tat-nhom` với nhãn-trái, và yêu cầu không nhắc tới nó. Nên hai luật
+(màn rộng + khổ điện thoại) đổi thành `.tom-tat-nhom dl:not(.the-so)` — **đứng ngoài** chứ không đè
+lên, vì đè thì phải nhớ gỡ từng thuộc tính một.
+
+### Thứ gỡ theo
+
+Cột nhãn `auto` của `0179` (`.tom-tat-chung { --cot-nhan: auto }` cùng bản điện thoại `7.5rem`) và
+lớp `tom-tat-chung` trên khối: nhãn đứng riêng một dòng thì không còn cột nhãn nào để đo.
+`--cot-nhan` không còn ai đặt, nên luật của `ChiTietMau` ghi thẳng `7.5rem` thay vì đọc một biến
+chỉ còn giá trị lùi. Lý do đo của `0179` (*Tên Hộ kinh doanh/Tên Công ty* = 191,6px trên Chromium)
+giữ nguyên văn trong chú thích CSS — nó lại đúng nếu ai đó đưa khối về nhãn-trái.
+
+Cái giá: khối cao hơn — mười hai ô ở hai cột là sáu hàng, mỗi hàng hai dòng chữ, thay vì sáu dòng.
+Đó là bố cục trang khách hàng, và yêu cầu là giống nó.
+
+### Ca kiểm
+
+Hai ca cũ **THAY chứ không sửa**: ca `0179` khẳng định cột nhãn `auto`, ca `0206` khẳng định hai
+cặp cột nhãn–giá trị — cả hai là câu về thứ vừa bỏ. Ca mới `0220` canh ba mảnh: `dl` mang
+`the-so` và mỗi `dt` có `dd` ngay sau trong một hàng riêng · `KhachHang.tsx` dùng cùng lớp · mọi luật
+`.tom-tat-nhom dl…` chứa `:not(.the-so)`, và `--cot-nhan` biến mất khỏi `app.css`.
+
+| Hoàn tác | Đỏ |
+|---|---|
+| bỏ `the-so` khỏi `dl` | 1 |
+| bỏ `:not(.the-so)` khỏi hai luật nhãn-trái | 1 |
+| trả lại `.tom-tat-chung { --cot-nhan: auto }` | 1 |
+
+**842/842 ca `tests/web` xanh, typecheck sạch.** `make test` đầy đủ chưa chạy — chặng chỉ đổi JSX,
+CSS và tài liệu; chưa nhìn trên chồng demo thật.
