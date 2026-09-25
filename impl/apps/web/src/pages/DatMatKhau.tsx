@@ -15,7 +15,7 @@
 import { useState } from 'react';
 import { dang } from '../lib/api.js';
 import { useDuong } from '../lib/router.js';
-import { BaoLoi, Truong } from '../components/Chung.js';
+import { BaoLoi, OMatKhau, Truong } from '../components/Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 type CheDo = {
@@ -114,8 +114,7 @@ function DatMatKhau({ che }: { che: CheDo }) {
 
         <Truong id="mk-moi" nhan="Mật khẩu mới" bắtBuộc>
           {(p) => (
-            <input {...p} className="o-nhap" type="password" autoComplete="new-password"
-              value={moi} onChange={(e) => datMoi(e.target.value)} />
+            <OMatKhau {...p} autoComplete="new-password" giaTri={moi} doi={datMoi} />
           )}
         </Truong>
         <Truong
@@ -125,8 +124,7 @@ function DatMatKhau({ che }: { che: CheDo }) {
           loi={lai.length > 0 && !khopNhau ? 'Hai lần nhập chưa giống nhau.' : undefined}
         >
           {(p) => (
-            <input {...p} className="o-nhap" type="password" autoComplete="new-password"
-              value={lai} onChange={(e) => datLai(e.target.value)} />
+            <OMatKhau {...p} autoComplete="new-password" giaTri={lai} doi={datLai} />
           )}
         </Truong>
 

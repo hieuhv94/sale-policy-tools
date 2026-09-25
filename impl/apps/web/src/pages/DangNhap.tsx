@@ -3,7 +3,7 @@ import { usePhien } from '../lib/auth.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { useDuong } from '../lib/router.js';
 import { duongSauDangNhap } from '../lib/sau-dang-nhap.js';
-import { Truong } from '../components/Chung.js';
+import { OMatKhau, Truong } from '../components/Chung.js';
 import { NutGiaoDien } from '../components/NutGiaoDien.js';
 import logo from '../logo.png';
 
@@ -109,13 +109,11 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
 
         <Truong id="mat-khau" nhan="Mật khẩu" bắtBuộc>
           {(p) => (
-            <input
+            <OMatKhau
               {...p}
-              className="o-nhap"
-              type="password"
               autoComplete="current-password"
-              value={matKhau}
-              onChange={(e) => datMatKhau(e.target.value)}
+              giaTri={matKhau}
+              doi={datMatKhau}
             />
           )}
         </Truong>

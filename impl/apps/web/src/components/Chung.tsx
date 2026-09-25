@@ -16,6 +16,62 @@ import {
   type TrangThaiSanPham,
 } from '../lib/danh-muc.js';
 import { Lien } from '../lib/router.js';
+import { BieuTuongMat, BieuTuongMatGach } from './BieuTuong.js';
+
+/**
+ * Ô MẬT KHẨU có nút con mắt để hiện/ẩn chữ đang gõ (`0222`).
+ *
+ * MỘT component cho mọi ô mật khẩu của ứng dụng — sáu ô ở ba màn hình. Viết
+ * tay nút ở từng chỗ là ô thứ bảy ai đó thêm sau này thiếu nút mà không gì đỏ;
+ * có ca kiểm quét mã nguồn cấm `type="password"` nằm ngoài tệp này.
+ *
+ * Nút là `<button type="button">`: thiếu `type` thì trong `<form>` nó là nút
+ * GỬI, và bấm con mắt ở màn hình đăng nhập là gửi luôn biểu mẫu. `aria-pressed`
+ * cộng nhãn đổi theo trạng thái để trình đọc màn hình biết đang hiện hay ẩn —
+ * hình con mắt là `aria-hidden` như mọi biểu tượng khác.
+ *
+ * Nút VẪN nhận `Tab`: người dùng bàn phím cũng cần kiểm lại chữ mình gõ. Mỗi ô
+ * giữ trạng thái riêng — hiện ô *Mật khẩu mới* không kéo theo ô *Nhập lại*,
+ * vì ô ấy tồn tại chính là để gõ lại mà không nhìn.
+ */
+export function OMatKhau({
+  giaTri,
+  doi,
+  autoComplete,
+  ...rest
+}: {
+  giaTri: string;
+  doi: (s: string) => void;
+  autoComplete: 'current-password' | 'new-password';
+  id: string;
+} & Record<string, unknown>) {
+  const [hien, datHien] = useState(false);
+  return (
+    <span className="hang-o-mat-khau">
+      <input
+        {...rest}
+        className="o-nhap"
+        type={hien ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+        value={giaTri}
+        onChange={(e) => doi(e.target.value)}
+      />
+      <button
+        type="button"
+        className="nut-mat-khau"
+        aria-pressed={hien}
+        aria-label={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        title={hien ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        onClick={() => datHien((h) => !h)}
+      >
+        {hien ? <BieuTuongMatGach /> : <BieuTuongMat />}
+      </button>
+    </span>
+  );
+}
 
 /**
  * Dải thẻ chuyển nhóm nội dung trong một màn hình.

@@ -179,6 +179,27 @@ export function BieuTuongMatTrang() {
   );
 }
 
+/** Con mắt của ô mật khẩu (`0222`): bấm vào thì HIỆN mật khẩu. */
+export function BieuTuongMat() {
+  return (
+    <Hinh>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </Hinh>
+  );
+}
+
+/** Con mắt gạch chéo: mật khẩu đang hiện, bấm vào thì ẨN lại. */
+export function BieuTuongMatGach() {
+  return (
+    <Hinh>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M4 4l16 16" />
+    </Hinh>
+  );
+}
+
 /**
  * Chuông thông báo (`0096`).
  *

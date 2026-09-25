@@ -3580,6 +3580,38 @@ svg.bd-nho { width: 62px; margin: 0; }
   visibility: visible;
 }
 
+/* --- Ô MẬT KHẨU (`0222`) -------------------------------------------------- */
+
+/* Con mắt nằm TRONG ô, sát mép phải; ô chừa lề phải đúng bằng chỗ của nó để
+   chữ dài không chạy xuống dưới nút. Nút cao hết ô và rộng bằng vùng chạm tối
+   thiểu, nên trên điện thoại ngón tay không bấm trượt vào ô nhập. */
+.hang-o-mat-khau {
+  position: relative;
+  display: block;
+}
+.hang-o-mat-khau .o-nhap { padding-right: var(--vung-cham); }
+.nut-mat-khau {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--vung-cham);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 var(--bo-goc-nho) var(--bo-goc-nho) 0;
+  background: transparent;
+  color: var(--mau-chu-phu);
+  cursor: pointer;
+}
+.nut-mat-khau:hover { color: var(--mau-chu); }
+.nut-mat-khau:focus-visible { box-shadow: var(--vong-tieu-diem); }
+/* Edge tự vẽ một con mắt thứ hai vào ô `type="password"` — hai nút cho một
+   việc, và nút của nó biến mất ngay khi ô đổi sang `text`. */
+.hang-o-mat-khau input::-ms-reveal { display: none; }
+
 /* --- Ô NHẬP NGÀY (`0208`) ------------------------------------------------- */
 
 /* Ô chữ và nút lịch trên một hàng; ô chữ ăn hết phần còn lại.

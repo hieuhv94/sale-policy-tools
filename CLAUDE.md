@@ -99,7 +99,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (25/09/2026)
 
-Chặng gần nhất **P251** (`0221`): **khối *Lý do gần nhất* chỉ hiện khi còn việc phải làm** — ở
+Chặng gần nhất **P252** (`0222`): **con mắt hiện/ẩn ở MỌI ô mật khẩu** — sáu ô ở ba màn hình, một
+component `OMatKhau` (`Chung.tsx`). Ca quét mã nguồn cấm `type="password"` ngoài `Chung.tsx`; nút
+phải `type="button"` (trong `<form>` nó mặc định là nút GỬI); nhãn *"Hiện mật khẩu"* làm
+`getByLabelText(/Mật khẩu/i)` khớp hai phần tử — tìm ô bằng `/^Mật khẩu/`. Ba lượt phá lại, ba đỏ.
+
+Trước đó **P251** (`0221`): **khối *Lý do gần nhất* chỉ hiện khi còn việc phải làm** — ở
 *Yêu cầu chỉnh sửa*, hoặc ở `SA_DANG_XU_LY` khi lý do gần nhất là `KT_REQUEST_REPRINT`. Luật ở máy chủ
 (`policies/ly-do.ts`, `lyDoTraLai: null` ngoài hai lúc ấy); đường lùi `lastReason` của giao diện **gỡ**
 vì chuỗi ấy sống qua mọi bước sau. Đảo ca `0189` *"gửi lại vẫn giữ lý do cũ"*. Vế Sale Admin hỏi

@@ -19649,3 +19649,39 @@ không ai canh.
 Hai lượt phá, hai đỏ đúng chỗ.
 
 **2426/2426 xanh**, typecheck sạch.
+
+## P252 — `0222` Con mắt hiện/ẩn ở mọi ô mật khẩu
+
+Khách hàng (25/09): *"thêm chức năng hiển thị mật khẩu lúc nhập, để hình con mắt bên cạnh của mọi
+text box chứa mật khẩu"*. Đếm trước khi gõ: **sáu ô ở ba màn hình** (`DangNhap` 1 — cũng là lớp phủ
+hết phiên, `DoiMatKhau` 3, `DatMatKhau` 2; `QuenMatKhau` chỉ có ô tên đăng nhập). Không màn hình quản
+trị nào có ô mật khẩu — hệ thống không tạo mật khẩu hộ ai (`0114`).
+
+### Một component, và chữ *"mọi"* có người canh
+
+`OMatKhau` ở `Chung.tsx`, cạnh `ONhapNgay`. Chép một nút vào từng chỗ thì ô thứ bảy ai đó thêm sau này
+thiếu nút mà không gì đỏ; nên có ca **quét mã nguồn** cấm `type="password"` (và `type={'password'}`)
+ở mọi tệp `.tsx` ngoài `Chung.tsx`, cộng ca đếm đúng 1 · 3 · 2 lượt dùng. Phép quét đòi dấu nháy
+đứng NGAY trước chữ `password`, để `autoComplete="new-password"` không khớp nhầm.
+
+### Ba chỗ dễ sai
+
+- **`type="button"` bắt buộc**: `<button>` trong `<form>` mặc định là nút GỬI — thiếu nó thì bấm con
+  mắt ở màn hình đăng nhập là gửi luôn mật khẩu gõ dở. Lượt phá bỏ thuộc tính ấy đỏ đúng ca biểu mẫu.
+- **Nhãn nút làm hỏng một ca có sẵn**: `aria-label="Hiện mật khẩu"` khớp `getByLabelText(/Mật khẩu/i)`
+  của `dang-nhap.test.tsx` (cờ `i` + tìm theo `aria-label`) → hai phần tử. Siết ca ấy thành
+  `/^Mật khẩu/` chứ không đổi nhãn nút: *"Hiện mật khẩu"* là câu trình đọc màn hình cần.
+- **Edge tự vẽ con mắt thứ hai** trong ô `type="password"` (`::-ms-reveal`) — tắt, nếu không một ô có
+  hai nút cho một việc.
+
+Mỗi ô giữ trạng thái RIÊNG, có chủ ý: hiện ô *Mật khẩu mới* không kéo theo ô *Nhập lại*.
+
+### Phá lại
+
+1. Bỏ `type="button"` → **1 đỏ** (ca biểu mẫu).
+2. Trả một ô của `DatMatKhau` về `<input type="password">` trần → **2 đỏ** (hai ca quét).
+3. Nút thôi đổi kiểu ô → **3 đỏ** (bật/tắt · mỗi ô riêng · màn hình đăng nhập thật).
+
+Ba lượt phá, ba đỏ đúng chỗ.
+
+**2433/2433 xanh**, typecheck sạch.

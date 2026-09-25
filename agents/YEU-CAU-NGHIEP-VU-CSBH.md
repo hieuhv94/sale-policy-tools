@@ -2856,6 +2856,16 @@ hiện"*.
 > thường ngay sau Kế toán tiếp nhận L1, và lúc ấy lý do gần nhất (nếu có) là một lượt trả về đã sửa
 > xong từ trước — không hiện.
 
+**CON MẮT HIỆN/ẨN MẬT KHẨU** `mới 25/09` — *"thêm chức năng hiển thị mật khẩu lúc nhập, để hình con
+mắt bên cạnh của mọi text box chứa mật khẩu"*.
+
+> **Mọi** ô mật khẩu — sáu ô ở ba màn hình: *Đăng nhập* (kể cả lớp phủ hết phiên), *Đổi mật khẩu*
+> lần đầu, *Đặt mật khẩu* (kích hoạt tài khoản và quên mật khẩu). Mặc định **ẩn**; bấm con mắt thì
+> hiện, bấm lần nữa thì ẩn.
+>
+> **Mỗi ô bật riêng**: hiện ô *Mật khẩu mới* không kéo theo ô *Nhập lại* — ô nhập lại tồn tại để gõ
+> lại mà không nhìn.
+
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,
 người dùng chỉ cần lăn chuột"*.

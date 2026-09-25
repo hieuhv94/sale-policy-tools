@@ -8,6 +8,10 @@ Dành cho người dùng cuối. Viết theo **việc bạn cần làm**, không
 
 Mở địa chỉ phần mềm, nhập tên đăng nhập (hoặc email) và mật khẩu.
 
+Muốn kiểm lại mật khẩu vừa gõ thì bấm **hình con mắt** ở mép phải ô `mới 25/09`: mật khẩu hiện ra,
+bấm lần nữa thì ẩn lại. Mọi ô mật khẩu của phần mềm đều có nút này (đăng nhập, đổi mật khẩu, đặt mật
+khẩu), và mỗi ô bật riêng.
+
 - **Tài khoản mới**: bạn nhận một thư mời kèm liên kết kích hoạt. Bấm vào đó và **tự đặt mật khẩu**.
   Không ai — kể cả Quản trị hệ thống — đưa cho bạn một mật khẩu sẵn, vì hệ thống không tạo ra cái
   nào. Trước khi đi qua liên kết, tài khoản chưa đăng nhập được.

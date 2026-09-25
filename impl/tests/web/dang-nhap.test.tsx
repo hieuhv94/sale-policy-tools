@@ -119,7 +119,7 @@ const chanMang = (role: string) => {
 
 const dangNhap = async () => {
   await userEvent.type(screen.getByLabelText(/Tên đăng nhập|đăng nhập/i), 'nguoidung');
-  await userEvent.type(screen.getByLabelText(/Mật khẩu/i), 'Test@1234');
+  await userEvent.type(screen.getByLabelText(/^Mật khẩu/), 'Test@1234');
   await userEvent.click(screen.getByRole('button', { name: /Đăng nhập/i }));
 };
 

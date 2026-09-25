@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { dang } from '../lib/api.js';
 import { usePhien } from '../lib/auth.js';
-import { BaoLoi, Truong } from '../components/Chung.js';
+import { BaoLoi, OMatKhau, Truong } from '../components/Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 export function DoiMatKhau() {
@@ -43,14 +43,12 @@ export function DoiMatKhau() {
 
         <Truong id="mk-cu" nhan="Mật khẩu hiện tại" bắtBuộc>
           {(p) => (
-            <input {...p} className="o-nhap" type="password" autoComplete="current-password"
-              value={cu} onChange={(e) => datCu(e.target.value)} />
+            <OMatKhau {...p} autoComplete="current-password" giaTri={cu} doi={datCu} />
           )}
         </Truong>
         <Truong id="mk-moi" nhan="Mật khẩu mới" bắtBuộc>
           {(p) => (
-            <input {...p} className="o-nhap" type="password" autoComplete="new-password"
-              value={moi} onChange={(e) => datMoi(e.target.value)} />
+            <OMatKhau {...p} autoComplete="new-password" giaTri={moi} doi={datMoi} />
           )}
         </Truong>
         <Truong
@@ -60,8 +58,7 @@ export function DoiMatKhau() {
           loi={lai.length > 0 && !khopNhau ? 'Hai lần nhập chưa giống nhau.' : undefined}
         >
           {(p) => (
-            <input {...p} className="o-nhap" type="password" autoComplete="new-password"
-              value={lai} onChange={(e) => datLai(e.target.value)} />
+            <OMatKhau {...p} autoComplete="new-password" giaTri={lai} doi={datLai} />
           )}
         </Truong>
 
