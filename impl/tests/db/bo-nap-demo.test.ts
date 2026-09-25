@@ -145,19 +145,21 @@ describe('`0180` bộ nạp demo và lược đồ nói cùng một thứ tiến
  * dưới đây là thứ giữ cho nó không xảy ra, và cả hai đều trông vô hại với người
  * đọc lướt — đúng loại dòng bị sửa "cho gọn" rồi vỡ ở buổi trình bày kế tiếp.
  */
-describe('`0199` bộ nạp demo và luật một bản Nháp mỗi khách', () => {
+describe('`0199`/`0220` bộ nạp demo và luật một hồ sơ đang xử lý mỗi khách', () => {
   const nguon = () => readFileSync('scripts/seed-demo.ts', 'utf8');
 
-  it('`NHAP` là nhóm CUỐI CÙNG của `KE_HOACH`', () => {
-    const m = nguon().match(/const KE_HOACH:[^=]*=\s*\[([\s\S]*?)\n\s*\];/);
-    expect(m, 'không tìm thấy bảng KE_HOACH').not.toBeNull();
-    const nhom = [...m![1]!.matchAll(/\[\s*'([A-Z_]+)'/g)].map((x) => x[1]!);
-    expect(nhom.length).toBeGreaterThan(1);
-    expect(
-      nhom[nhom.length - 1],
-      `KE_HOACH đang kết thúc bằng ${nhom[nhom.length - 1]}; ` +
-        'nhóm NHAP phải đứng cuối, vì khách giữ Nháp thì không lập thêm hồ sơ nào được',
-    ).toBe('NHAP');
+  it('`0220` phần sinh ra KHÔNG chọn khách bằng vòng xoay chỉ số', () => {
+    /*
+     * THAY ca *"`NHAP` là nhóm cuối cùng của `KE_HOACH`"*: thứ tự nhóm chỉ cứu
+     * được vòng xoay chừng nào luật chỉ chặn bản Nháp. Từ `0220` mọi hồ sơ đang
+     * xử lý đều chặn, nên `cuaTdv01[stt % cuaTdv01.length]` đặt tới năm hồ sơ dở
+     * lên một khách — đo được trên CSDL demo cũ: 22 khách, mỗi khách 4–6 hồ sơ.
+     * Chọn khách phải đi qua `khachTrong`/`khachTrongDs`, thứ đọc `dangDo`.
+     */
+    const s = nguon().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    expect(s, 'còn phép chọn khách bằng chỉ số `cuaTdv01[…]`').not.toMatch(/cuaTdv01\[/);
+    expect(s, 'còn vòng xoay `% cuaTdv01.length`').not.toMatch(/%\s*cuaTdv01\.length/);
+    expect(s).toMatch(/const khachTrongDs = /);
   });
 
   it('khách giữ bản Nháp viết tay ĐỨNG NGOÀI vòng sinh hàng loạt', () => {
@@ -174,17 +176,27 @@ describe('`0199` bộ nạp demo và luật một bản Nháp mỗi khách', () 
     ).toBe(true);
   });
 
-  it('bản Nháp viết tay lập SAU hồ sơ bị trả lại của cùng khách', () => {
+  it('`0220` hồ sơ viết tay nằm trên các khách KHÁC NHAU, và khách trong vòng xoay được giữ chỗ', () => {
     /*
-     * Hai hồ sơ viết tay cùng dùng `KH-0001`, và thứ tự giữa chúng là luật chứ
-     * không phải sở thích: bản Nháp phải là thứ CUỐI CÙNG lập cho khách ấy.
+     * THAY ca *"bản Nháp viết tay lập SAU hồ sơ bị trả lại của cùng khách"*:
+     * cặp *trả lại + Nháp* cùng khách thôi hợp lệ, nên hồ sơ 5 sang `KH-0005`.
+     *
+     * Vế thứ hai là chỗ dễ quên: `KH-0003`/`KH-0004`/`KH-0005` còn nằm trong
+     * `cuaTdv01`, nên `dangDo` phải biết chúng đang giữ hồ sơ dở ngay từ đầu —
+     * thiếu là lượt chọn khách đầu tiên rơi trúng một trong ba và `409`.
      */
     const s = nguon();
-    const nhap = s.indexOf('// 1. NHÁP');
-    const traLai = s.indexOf('// 5. YÊU CẦU CHỈNH SỬA');
-    expect(nhap, 'không tìm thấy hồ sơ viết tay số 1').toBeGreaterThan(0);
-    expect(traLai, 'không tìm thấy hồ sơ viết tay số 5').toBeGreaterThan(0);
-    expect(traLai, 'hồ sơ 5 phải lập TRƯỚC hồ sơ 1 — cả hai cùng KH-0001').toBeLessThan(nhap);
+    const tay = s.slice(s.indexOf('PHẦN VIẾT TAY'), s.indexOf('PHẦN SINH RA'));
+    const ma = [...tay.matchAll(/lapHoSo\('(KH-\d{4})'/g)].map((m) => m[1]!);
+    expect(ma.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(ma).size, `hồ sơ viết tay trùng khách: ${ma.join(', ')}`).toBe(ma.length);
+
+    const giu = s.match(/const dangDo = new Set<string>\(\[([^\]]*)\]\)/);
+    expect(giu, 'không tìm thấy phép dựng dangDo').not.toBeNull();
+    // `KH-0001` đứng ngoài vòng xoay, `KH-0002` là của tdv02 và đã lên hiệu lực.
+    for (const k of ma.filter((x) => x !== 'KH-0001' && x !== 'KH-0002')) {
+      expect(giu![1], `dangDo phải giữ sẵn ${k}`).toContain(`'${k}'`);
+    }
   });
 
   it('lượt đổi giá cuối bộ nạp với tới được hồ sơ CÒN SỬA ĐƯỢC', () => {

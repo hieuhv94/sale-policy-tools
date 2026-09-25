@@ -161,7 +161,7 @@ type PolicyRow = {
  * "Khách này đã có một bản Nháp" (`0197`) — dựng ở MỘT chỗ vì có HAI đường tới.
  *
  * Đường thứ nhất là phép kiểm ở `create`; đường thứ hai là `23505` từ chỉ mục
- * `uq_policy_nhap_moi_khach` khi hai request song song cùng lọt qua phép kiểm
+ * `uq_policy_dang_do_moi_khach` (`0220`, trước là chỉ mục Nháp của `0197`) khi hai request song song cùng lọt qua phép kiểm
  * ấy. Hai đường phải trả về **cùng một câu và cùng một `draftPolicyId`**, nếu
  * không thì người bấm đúp nhận một câu lỗi khác hẳn người bấm một lần — cùng
  * một tình huống, hai màn hình.
@@ -215,6 +215,49 @@ export const daCoNhap = (draftPolicyId: string): ConflictException =>
       'Mỗi khách hàng chỉ giữ được một bản Nháp — mở bản đang có để soạn tiếp.',
     draftPolicyId,
   });
+
+/**
+ * "Khách này đang có một hồ sơ trong luồng duyệt" (`0220`) — nửa thứ hai của cùng
+ * luật với `daCoNhap`.
+ *
+ * HAI MÃ chứ không một, vì hai tình huống đưa ra hai việc khác nhau: bản Nháp là
+ * thứ TDV *soạn tiếp* ngay, còn hồ sơ đã gửi đi thì đang nằm trên bàn người
+ * khác — việc của TDV là chờ, hoặc xoá nó nếu nó đang bị trả về. Gộp làm một mã
+ * là giao diện phải đọc lại trạng thái để biết nên nói câu nào, tức suy lại một
+ * thứ máy chủ vừa biết.
+ *
+ * Câu chữ nói MÃ hồ sơ: khác `maDaCo` (`0198`), ở đây không có gì để giấu — hồ
+ * sơ ấy là của chính khách hàng người gọi đang phụ trách (`assertInScope` đã gác
+ * ngay trước), và hồ sơ luôn sang tay theo khách (`0085`).
+ */
+export const dangCoHoSo = (p: { id: string; code: string; status: string }): ConflictException =>
+  new ConflictException({
+    code: 'POLICY_IN_PROGRESS',
+    message:
+      `Khách hàng này đang có hồ sơ ${p.code} chưa duyệt xong. ` +
+      'Mỗi khách hàng chỉ có một hồ sơ CSBH đang xử lý tại một thời điểm — ' +
+      'hồ sơ ấy phải có hiệu lực hoặc bị xoá thì mới lập được hồ sơ mới.',
+    policyId: p.id,
+    policyCode: p.code,
+    status: p.status,
+  });
+
+/** Bản Nháp → `DRAFT_EXISTS`, còn lại → `POLICY_IN_PROGRESS`. Một chỗ cho cả hai đường. */
+const loiDangDo = (p: { id: string; code: string; status: string }): ConflictException =>
+  p.status === 'NHAP' ? daCoNhap(p.id) : dangCoHoSo(p);
+
+/**
+ * Tên chỉ mục "một hồ sơ đang xử lý mỗi khách" (`0220`, thay
+ * `uq_policy_nhap_moi_khach` của `0197`). Hằng vì hai chỗ đọc: `doiTrungNhap`
+ * và ca kiểm đối chiếu vị từ của chỉ mục với `CHUA_DUYET_XONG`.
+ */
+export const UQ_DANG_DO = 'uq_policy_dang_do_moi_khach';
+
+/** Hồ sơ đang xử lý của một khách — câu hỏi DUY NHẤT của cả hai đường. */
+const SQL_HO_SO_DANG_DO = `SELECT id, code, status::text AS status
+     FROM pol.policy
+    WHERE customer_id = $1 AND status::text = ANY($2::text[])
+    ORDER BY created_at DESC LIMIT 1`;
 
 /**
  * MỘT câu hỏi cho cả hai tình huống (`0180`, gộp `SUPPLEMENT`/`AMEND`).
@@ -494,6 +537,13 @@ export const DA_DONG_BANG = [
  * Dựng TỪ hai hằng có sẵn chứ không chép sáu chuỗi: `SUA_DUOC` là nguồn sự thật
  * của *"còn sửa được"*, và một bản chép ở đây sẽ trôi khỏi nó ở đúng lượt ai đó
  * thêm một trạng thái sửa được.
+ *
+ * NGƯỜI ĐỌC THỨ HAI từ `0220`: đây cũng là tập *"hồ sơ đang xử lý"* — mỗi khách
+ * chỉ một hồ sơ ở một trong sáu trạng thái này (`create`, `SQL_HO_SO_DANG_DO`).
+ * Hai câu hỏi trùng tập là tình cờ có lý: *"chưa duyệt xong"* chính là *"đang
+ * xử lý"*. Vị từ của `uq_policy_dang_do_moi_khach` gõ lại sáu chuỗi này trong
+ * migration, và có ca kiểm đối chiếu hai bên qua `pg_indexes` — thêm một trạng
+ * thái vào đây mà quên migration là đỏ.
  */
 export const CHUA_DUYET_XONG = [
   ...SUA_DUOC,
@@ -1011,12 +1061,31 @@ export class PoliciesService {
      * KHÔNG lọc theo người lập. Luật là *"một khách một bản Nháp"*, và một khách
      * chỉ có một TDV phụ trách (`assertInScope` ngay trên đã gác), nên lọc thêm
      * theo `created_by` chỉ mở lại đúng khe vừa bịt ở lượt đổi TDV phụ trách.
+     *
+     * ---------------------------------------------------------------------------
+     * `0220` — MỘT HỒ SƠ ĐANG XỬ LÝ MỖI KHÁCH, không riêng bản Nháp.
+     * ---------------------------------------------------------------------------
+     *
+     * Khách hàng chốt 25/09: *"mỗi khách hàng chỉ được có một CSBH tại một thời
+     * điểm, không tính các CSBH đang có hiệu lực, đã xoá, hết hiệu lực"* — và
+     * `QUA_HAN_DUYET` cũng không tính (chốt khi được hỏi: nó là trạng thái kết
+     * thúc, không ai thao tác được, đếm nó là khoá khách ấy tối đa 3 ngày chờ
+     * `sla-worker` chuyển sang `DA_XOA`). Tập còn lại đúng bằng `CHUA_DUYET_XONG`
+     * — sáu trạng thái, dựng từ `SUA_DUOC` — nên dùng lại hằng ấy chứ không chép.
+     *
+     * Đây là phần mở rộng của `0197`, và nó ĐẢO lập luận ở đó (*"CHỈ `NHAP`,
+     * không tính `YEU_CAU_CHINH_SUA` — cấm ở đó là một luật khác hẳn, không ai
+     * yêu cầu"*): giờ có người yêu cầu đúng luật ấy. Khách có hồ sơ bị trả về thì
+     * TDV sửa rồi gửi lại chính hồ sơ ấy, hoặc xoá nó — không lập thêm bản thứ hai.
+     *
+     * Thứ tự với `NEW_VERSION_REQUIRED` giữ nguyên lý do cũ: câu này đưa ra được
+     * một việc làm ngay (*mở hồ sơ đang có*).
      */
-    const nhap = await this.db.one<{ id: string }>(
-      `SELECT id FROM pol.policy WHERE customer_id = $1 AND status = 'NHAP'`,
-      [input.customerId],
+    const dangDo = await this.db.one<{ id: string; code: string; status: string }>(
+      SQL_HO_SO_DANG_DO,
+      [input.customerId, CHUA_DUYET_XONG],
     );
-    if (nhap) throw daCoNhap(nhap.id);
+    if (dangDo) throw loiDangDo(dangDo);
 
     /*
      * MÃ HỒ SƠ (`0198`) — kiểm hình dạng ở đây, kiểm trùng ở CSDL.
@@ -1245,7 +1314,7 @@ export class PoliciesService {
   }
 
   /**
-   * `23505` từ `uq_policy_nhap_moi_khach` → cùng câu lỗi mà phép kiểm ở trên trả
+   * `23505` từ `UQ_DANG_DO` (`0220`) → cùng câu lỗi mà phép kiểm ở trên trả
    * về (`0197`).
    *
    * Đường này chỉ chạy khi HAI lượt lập song song cùng lọt qua phép kiểm — bấm
@@ -1262,12 +1331,14 @@ export class PoliciesService {
    */
   private async doiTrungNhap(e: unknown, customerId: string): Promise<never> {
     const loi = e as { code?: string; constraint?: string };
-    if (loi?.code === '23505' && loi.constraint === 'uq_policy_nhap_moi_khach') {
-      const nhap = await this.db.one<{ id: string }>(
-        `SELECT id FROM pol.policy WHERE customer_id = $1 AND status = 'NHAP'`,
-        [customerId],
+    // `0220` — chỉ mục đổi tên và nới phạm vi; câu trả lời vẫn đi đúng hàm mà
+    // phép kiểm ở `create` dùng, nên bấm đúp và bấm một lần nhận cùng một câu.
+    if (loi?.code === '23505' && loi.constraint === UQ_DANG_DO) {
+      const dangDo = await this.db.one<{ id: string; code: string; status: string }>(
+        SQL_HO_SO_DANG_DO,
+        [customerId, CHUA_DUYET_XONG],
       );
-      if (nhap) throw daCoNhap(nhap.id);
+      if (dangDo) throw loiDangDo(dangDo);
     }
     // `0198` — ràng buộc duy nhất THỨ HAI trên cùng bảng. Đây chính là lý do
     // nhánh trên đối chiếu TÊN ràng buộc chứ không chỉ mã lỗi `23505`.
@@ -2468,17 +2539,26 @@ export class PoliciesService {
      * KHÔNG chặn — đó sẽ là một luật nghiệp vụ mới, và khách hàng chưa chốt.
      * Chỉ NÓI RA, để hộp xác nhận hỏi đúng câu người dùng cần trả lời.
      *
+     * `0220` — KHÁCH HÀNG ĐÃ CHỐT luật ấy (25/09), nên câu trên hết đúng: giờ
+     * `create` CHẶN, và trường này thôi là một cảnh báo — nó là thứ cho hộp
+     * thoại BIẾT TRƯỚC rằng nút sẽ bị từ chối (lối `0200` làm cho bản Nháp, giờ
+     * áp cho cả sáu trạng thái). Giữ nguyên văn lập luận cũ ở trên vì lý do nó
+     * đứng lên là thật cho tới hôm ấy.
+     *
+     * Hỏi theo KHÁCH HÀNG, không còn theo `supersedes_id`, và dùng CHÍNH câu SQL
+     * của chốt chặn (`SQL_HO_SO_DANG_DO`). `0200` đã ghi rằng hai câu hỏi *"trùng
+     * nhau ở mọi dữ liệu hôm nay, nhưng trùng nhau không phải là một"*; khi thứ
+     * này là lời báo trước cho một lượt chặn thì nó phải hỏi đúng câu lượt chặn
+     * hỏi, nếu không hộp thoại mời bấm một nút mà máy chủ sẽ từ chối.
+     *
      * Chỉ hỏi khi hồ sơ ĐANG HIỆU LỰC: đó là trạng thái duy nhất bày nút ấy, và
      * một câu `SELECT` cho mọi lượt mở mọi hồ sơ là cái giá không mua gì.
      */
     const phienBanSau =
       p.status === 'DANG_CO_HIEU_LUC'
         ? await this.db.one<{ id: string; code: string; status: string }>(
-            `SELECT id, code, status::text AS status
-               FROM pol.policy
-              WHERE supersedes_id = $1 AND status::text = ANY($2::text[])
-              ORDER BY created_at DESC LIMIT 1`,
-            [policyId, CHUA_DUYET_XONG],
+            SQL_HO_SO_DANG_DO,
+            [p.customerId, CHUA_DUYET_XONG],
           )
         : null;
     /*

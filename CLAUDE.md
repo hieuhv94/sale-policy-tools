@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 69 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 70 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -99,7 +99,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (25/09/2026)
 
-Chặng gần nhất **P249** (`0220`): **khối *Thông tin chung* của hồ sơ — nhãn ở trên, giá trị ở
+Chặng gần nhất **P250** (`0220`): **mỗi khách hàng chỉ một hồ sơ CSBH đang xử lý** — sáu trạng
+thái của `CHUA_DUYET_XONG`; không tính *Đang có hiệu lực*, *Hết hiệu lực*, *Đã xoá* và *Quá hạn duyệt*
+(chốt khi được hỏi). Chỉ mục `uq_policy_dang_do_moi_khach` thay chỉ mục Nháp của `0197`, mã lỗi mới
+`POLICY_IN_PROGRESS` cạnh `DRAFT_EXISTS`, `phienBanSau` hỏi theo khách bằng CHÍNH câu SQL của chốt
+chặn, cảnh báo *"bản mới đang dở"* của `0191` gỡ. **Migration DỪNG trên CSDL còn dữ liệu cũ** — CSDL
+demo cũ có 22 khách × 4–6 hồ sơ dở; bộ nạp demo viết lại quanh bộ cấp khách `dangDo` (tdv01 lên 32
+khách). Lượt phá lại định hình khối ca: thu phép kiểm service về `NHAP` mà chỉ mục còn thì chỉ ca THỨ
+TỰ với `NEW_VERSION_REQUIRED` đỏ. Tám lượt phá lại, tám đỏ.
+
+Trước đó **P249** (`0220`): **khối *Thông tin chung* của hồ sơ — nhãn ở trên, giá trị ở
 dưới**, dùng CHÍNH lớp `the-so` của trang khách hàng. Luật nhãn-trái `.tom-tat-nhom dl` đặc hơn và
 thắng, mà nó vẫn còn chủ (`ChiTietMau`), nên nó đổi thành `:not(.the-so)`; cột nhãn `auto` của `0179`
 gỡ theo. Ba lượt phá lại, ba đỏ.
@@ -1479,16 +1488,16 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   `Content-Disposition`**, nên đây là phép chặn an toàn chứ không phải thẩm mỹ. Nửa còn lại của cùng
   bản sửa là **`tenTepTaiVe`** (`http-kit`), dùng chung cho CẢ BA đường tải của `document`. Mã giữ chỗ
   **vĩnh viễn**, TRỪ bản `NHAP` bị xoá — nó xoá hẳn dòng (`0035`) nên mã dùng lại được.
-- **MỖI KHÁCH HÀNG CHỈ GIỮ MỘT BẢN NHÁP** (`0197`) — chỉ mục phần `uq_policy_nhap_moi_khach`
-  (`WHERE status = 'NHAP'`), cộng một phép kiểm ở `create` trả `409 DRAFT_EXISTS` kèm `draftPolicyId`.
-  **Chặn ĐÚNG `NHAP`**: `YEU_CAU_CHINH_SUA` nằm chung `SUA_DUOC` nhưng nó là hồ sơ ĐÃ vào luồng rồi bị
-  trả về, và chặn ở đó là cấm lập hồ sơ cho khách đang có hồ sơ bị trả lại — một luật khác hẳn, không
-  ai yêu cầu. Áp cho **cả** đường `NEW_VERSION`, và hỏi **TRƯỚC** `NEW_VERSION_REQUIRED`. Chỉ mục là
-  chốt thật (bấm đúp = hai lượt song song); phép kiểm ở service giữ vì thứ tự câu hỏi **và** vì
-  `saoChepGiayTo` chạy trước transaction. Cảnh báo *"đã có bản mới đang dở"* của `0191` **GIỮ** — nó
-  còn việc với bản đang trong LUỒNG DUYỆT, thứ vẫn không bị chặn. **HỆ QUẢ RỘNG HƠN CÂU CHỮ, và bộ nạp
-  demo đã chết vì nó** (`0199`): mọi lượt `POST /policies` đều dựng ra một bản Nháp trước, **kể cả lượt
-  lập phiên bản mới** — nên khách đang giữ Nháp thì **không lập thêm được hồ sơ NÀO nữa**.
+- **MỖI KHÁCH HÀNG CHỈ MỘT HỒ SƠ ĐANG XỬ LÝ** (`0220`, nới `0197` từ riêng bản Nháp) — sáu trạng
+  thái của `CHUA_DUYET_XONG` (`SUA_DUOC` + bốn bàn chờ); **không tính** `DANG_CO_HIEU_LUC`,
+  `HET_HIEU_LUC`, `DA_XOA` và `QUA_HAN_DUYET` (chốt khi được hỏi — trạng thái kết thúc). Chỉ mục phần
+  `uq_policy_dang_do_moi_khach` (thay `uq_policy_nhap_moi_khach`; vị từ gõ lại sáu chuỗi, có ca đối
+  chiếu qua `pg_indexes`) cộng phép kiểm ở `create`: bản Nháp → `409 DRAFT_EXISTS` + `draftPolicyId`
+  như cũ, còn lại → `409 POLICY_IN_PROGRESS` + `policyId`/`policyCode`/`status`. **Hai mã vì hai việc
+  làm được**: soạn tiếp, hay mở ra chờ. `phienBanSau` (trang hồ sơ hiệu lực) hỏi **theo khách hàng
+  bằng chính câu SQL của chốt chặn**, nên hộp *Lập phiên bản mới* biết trước; cảnh báo *"bản mới đang
+  dở"* của `0191` đã gỡ. **Bộ nạp demo** chọn khách qua `khachTrong()`/`dangDo` — vòng xoay chỉ số cũ
+  đặt 4–6 hồ sơ dở lên mỗi khách; tdv01 có 32 khách, và số khách là TRẦN của số hồ sơ đang dở.
 - **Phiên bản mới phải chứa lại toàn bộ sản phẩm cũ.** Hiệu lực quản lý ở cấp hồ sơ, không phải cấp
   dòng khách hàng × sản phẩm.
 - **NGÀY ÁP DỤNG THUỘC VỀ TỪNG DÒNG SẢN PHẨM** (`0180`, gỡ `pol.policy.applied_date`). Cột

@@ -406,6 +406,14 @@ export const BANG_LOI: Record<string, Muc> = {
    */
   DRAFT_EXISTS: { dang: 'im' },
   /*
+   * `0220` — khách đang có một hồ sơ CHƯA DUYỆT XONG (không phải bản Nháp).
+   *
+   * `im` cùng lý do với `DRAFT_EXISTS`: cả hai màn hình lập hồ sơ đổi hẳn câu
+   * hỏi thành *"khách đang có hồ sơ X, mở ra xem?"* kèm nút đưa tới đó. Câu chữ
+   * lấy từ máy chủ ngay tại chỗ bày (nó nói MÃ hồ sơ), không khai ở đây.
+   */
+  POLICY_IN_PROGRESS: { dang: 'im' },
+  /*
    * `0198` — hai câu về MÃ HỒ SƠ, cả hai gắn vào ô nhập mã.
    *
    * `tuMayChu` vì máy chủ là chỗ biết luật: `POLICY_CODE_INVALID` nói ra ĐÚNG

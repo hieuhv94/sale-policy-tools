@@ -1589,21 +1589,26 @@ describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
     expect(hop.textContent).toContain('vẫn có hiệu lực');
   });
 
-  it('CẢNH BÁO khi khách đã có một bản mới đang dở dang', async () => {
+  it('`0220` khách có hồ sơ ĐANG DUYỆT thì hộp CHẶN, không còn nút lập — thay cảnh báo `0191`', async () => {
     /*
-     * `create` KHÔNG chặn bản thứ hai — đó là hành vi có sẵn. Lối tắt này làm nó
-     * dễ vấp hơn hẳn: đi từ trang khách hàng thì bản dở nằm ngay trong danh sách
-     * hồ sơ của khách; đi từ đây thì không thấy gì cả.
+     * Ca `0191` ở chỗ này khẳng định một CẢNH BÁO (*"lập tiếp sẽ tạo bản thứ
+     * hai"*) vì khi ấy `create` không chặn. Khách hàng chốt 25/09 rằng mỗi khách
+     * chỉ một hồ sơ đang xử lý, nên câu cảnh báo thành câu sai: nút ngay dưới nó
+     * sẽ bị máy chủ từ chối. Vế còn giữ được của ca cũ là MÃ và TRẠNG THÁI của hồ
+     * sơ đang dở — người dùng vẫn cần biết nó là cái nào.
      */
     await moHop({
       ...HIEU_LUC,
       phienBanSau: { id: 'hs-9', code: 'CSBH-2026-000999', status: 'CHO_TBP_DUYET' },
     });
     const hop = screen.getByRole('dialog');
+    expect(hop.textContent).toContain('đang có một hồ sơ chưa duyệt xong');
     expect(hop.textContent).toContain('CSBH-2026-000999');
     expect(hop.textContent).toContain('Chờ TBP duyệt');
-    // Liên kết mở thẳng bản dở ấy — người dùng cần XEM nó rồi mới quyết định.
-    expect(within(hop).getByRole('link', { name: 'CSBH-2026-000999' })).toBeDefined();
+    expect(within(hop).getByRole('button', { name: 'Mở hồ sơ đang xử lý' })).toBeDefined();
+    expect(within(hop).queryByRole('button', { name: 'Lập phiên bản mới' })).toBeNull();
+    // Không phải câu của bản Nháp: hồ sơ này không còn trong tay TDV để "soạn tiếp".
+    expect(hop.textContent).not.toContain('soạn dở');
   });
 
   it('KHÔNG cảnh báo khi chưa có bản nào dở dang', async () => {
@@ -1695,19 +1700,50 @@ describe('`0191` lập phiên bản mới từ trang hồ sơ', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('`0200` bản kế nhiệm ĐANG DUYỆT thì vẫn lập được — chỉ `NHAP` mới chặn', async () => {
+  it('`0220` máy chủ trả `POLICY_IN_PROGRESS` giữa chừng thì hộp ĐỔI, và nút mở đúng hồ sơ', async () => {
     /*
-     * Ranh giới, và nó dễ nới quá tay: `create` KHÔNG cấm bản thứ hai khi bản
-     * trước đang trong luồng duyệt (`0191`). Chặn ở đây là dựng ra một luật
-     * nghiệp vụ mới chưa ai chốt, và người lập sẽ không hiểu vì sao.
+     * THAY ca `0200` *"bản kế nhiệm đang duyệt thì vẫn lập được"* — ranh giới ấy
+     * vừa bị khách hàng dời đi. Cùng khe thời gian với ca `DRAFT_EXISTS` ngay
+     * dưới: hồ sơ kia có thể được gửi duyệt giữa lúc mở trang và lúc bấm, nên
+     * nhánh bắt mã mới phải có, và nó đọc id TỪ LỖI chứ không từ `phienBanSau`.
      */
-    await moHop({
-      ...HIEU_LUC,
-      phienBanSau: { id: 'hs-9', code: 'CSBH-2026-000999', status: 'CHO_TBP_DUYET' },
-    });
-    const hop = screen.getByRole('dialog');
-    expect(within(hop).getByRole('button', { name: 'Lập phiên bản mới' })).toBeDefined();
-    expect(within(hop).queryByRole('button', { name: 'Mở bản Nháp đang có' })).toBeNull();
+    const f = await moHop();
+    (f as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
+      (duong: unknown, o?: RequestInit) => {
+        const d = String(duong);
+        if (d.endsWith('/policies') && o?.method === 'POST') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                code: 'POLICY_IN_PROGRESS',
+                policyId: 'hs-dang-duyet',
+                policyCode: 'CSBH-2026-000888',
+                status: 'CHO_KT_L1',
+                message: 'x',
+              }),
+              { status: 409, headers: { 'content-type': 'application/json' } },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify(HIEU_LUC), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      },
+    );
+
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Lập phiên bản mới' }),
+    );
+    const nut = await waitFor(() =>
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Mở hồ sơ đang xử lý' }),
+    );
+    expect(screen.getByRole('dialog').textContent).toContain('CSBH-2026-000888');
+    fireEvent.click(nut);
+    await waitFor(() => expect(location.pathname).toBe('/ho-so/hs-dang-duyet'));
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('`0200` máy chủ trả `DRAFT_EXISTS` giữa chừng thì hộp thoại ĐỔI, không im', async () => {

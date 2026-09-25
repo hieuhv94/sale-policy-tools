@@ -194,7 +194,12 @@ function ChonCachLap({
    * cụm nút chứ không đứng cạnh chúng. Để nó đi đường `bao(e)` như mọi lỗi khác
    * thì người dùng đọc một dải đỏ rồi vẫn nhìn thấy đúng cái nút vừa từ chối họ.
    */
-  const [daCoNhap, datDaCoNhap] = useState<{ id: string; loiNhan: string } | null>(null);
+  const [daCoNhap, datDaCoNhap] = useState<{
+    id: string;
+    loiNhan: string;
+    /** `0220` — hồ sơ đang chặn là bản Nháp (soạn tiếp) hay đã vào luồng duyệt (mở ra xem). */
+    laNhap: boolean;
+  } | null>(null);
   const [loiMa, datLoiMa] = useState<string | null>(null);
 
   useEffect(() => {
@@ -236,10 +241,16 @@ function ChonCachLap({
       // `0197` — khách đã có bản Nháp thì đổi CÂU HỎI, không bày lỗi. Id lấy từ
       // thân lỗi máy chủ; thiếu nó thì rơi về đường lỗi thường, vì một nút *Mở
       // bản Nháp* không biết mở cái nào thì tệ hơn một dải đỏ.
+      //
+      // `0220` — cùng ngã rẽ cho hồ sơ đã vào luồng duyệt (`POLICY_IN_PROGRESS`):
+      // mỗi khách chỉ một hồ sơ đang xử lý, nên việc làm được vẫn là MỞ hồ sơ ấy.
       const l = e as { code?: string; message?: string; body?: Record<string, unknown> };
       const id = l?.body?.['draftPolicyId'];
+      const idDangDo = l?.body?.['policyId'];
       if (l?.code === 'DRAFT_EXISTS' && typeof id === 'string') {
-        datDaCoNhap({ id, loiNhan: l.message ?? '' });
+        datDaCoNhap({ id, loiNhan: l.message ?? '', laNhap: true });
+      } else if (l?.code === 'POLICY_IN_PROGRESS' && typeof idDangDo === 'string') {
+        datDaCoNhap({ id: idDangDo, loiNhan: l.message ?? '', laNhap: false });
       } else if (l?.code === 'POLICY_CODE_TAKEN' || l?.code === 'POLICY_CODE_INVALID') {
         // `0198` — lỗi của Ô MÃ ở lại ngay dưới ô ấy (`0088`, dạng `o-nhap`).
         // Việc phải làm là sửa chính chuỗi đang hiện, và một hộp thoại che mất
@@ -313,7 +324,7 @@ function ChonCachLap({
           <p className="giai-thich">{daCoNhap.loiNhan}</p>
           <div className="nhom-nut">
             <button type="button" className="nut nut-chinh" onClick={() => xong(daCoNhap.id)}>
-              Mở bản Nháp đang có
+              {daCoNhap.laNhap ? 'Mở bản Nháp đang có' : 'Mở hồ sơ đang xử lý'}
             </button>
             <button type="button" className="nut nut-nhe" onClick={doiKhach}>
               Chọn khách khác

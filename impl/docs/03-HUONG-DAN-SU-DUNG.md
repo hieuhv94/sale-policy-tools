@@ -730,21 +730,30 @@ Hồ sơ tạo ra ở trạng thái **Nháp** ngay sau khi chọn khách hàng, 
 màn hình chi tiết. Mỗi lần thêm một dòng, hệ thống tính và hiện ngay **giá thu về** và **tỷ lệ chiết
 khấu** của dòng đó — không phải nhập hết rồi mới biết.
 
-### Mỗi khách hàng chỉ giữ được MỘT bản Nháp `mới 10/09`
+### Mỗi khách hàng chỉ có MỘT hồ sơ đang xử lý `sửa 25/09`
 
-Chọn một khách hàng bạn đang có bản Nháp dở dang thì màn hình không lập bản mới. Nó nói ra điều đó và
-đưa cho bạn nút **Mở bản Nháp đang có** — bấm vào là vào thẳng bản ấy soạn tiếp.
+Một khách hàng chỉ có **một** hồ sơ CSBH chưa duyệt xong tại một thời điểm — dù hồ sơ ấy đang là bản
+Nháp, đang bị trả về, hay đang nằm ở bất kỳ bàn duyệt nào. (Trước `25/09` luật này chỉ áp cho bản
+Nháp.)
 
-Bản Nháp cũ **không cản đường bạn mãi mãi**. Chỗ trống ra ngay khi hồ sơ ấy rời khỏi *Nháp*, bằng một
-trong hai đường:
+| Hồ sơ của khách đang ở | Có chặn lập hồ sơ mới không |
+|---|---|
+| *Nháp* | **Chặn** — nút **Mở bản Nháp đang có** đưa bạn vào soạn tiếp |
+| *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *KT duyệt bản cứng* | **Chặn** — màn hình nói mã hồ sơ ấy, nút **Mở hồ sơ đang xử lý** đưa bạn tới đó |
+| *Đang có hiệu lực* · *Hết hiệu lực* · *Đã xoá* · *Quá hạn duyệt* | Không chặn |
+
+Nên một khách có nhiều nhất **hai** hồ sơ còn sống cùng lúc: CSBH đang hiệu lực, và bản thay thế đang
+đi luồng duyệt.
+
+Chỗ trống ra khi hồ sơ đang xử lý **đi hết luồng** (thành *Đang có hiệu lực*) hoặc **bị xoá**:
 
 | Bạn làm gì | Kết quả |
 |---|---|
-| **Gửi duyệt** bản Nháp ấy | Hồ sơ vào luồng duyệt; lập bản mới cho cùng khách được ngay |
-| **Xoá** bản Nháp ấy | Hồ sơ biến mất hẳn, không để lại vết (mục 6.6) |
+| Đợi hồ sơ ấy được duyệt xong | Nó có hiệu lực; lập phiên bản mới cho cùng khách được ngay |
+| **Xoá** hồ sơ ấy (khi nó còn ở *Nháp* hoặc *Yêu cầu chỉnh sửa*) | Lập hồ sơ mới được ngay (mục 6.6) |
 
-Hồ sơ đang ở ***Yêu cầu chỉnh sửa*** **không** tính là bản Nháp — nó đã đi qua luồng duyệt rồi bị trả
-về, và nó không chặn bạn lập hồ sơ mới cho khách ấy.
+Hồ sơ bị **trả về** thì việc của bạn là **sửa rồi gửi lại chính nó** — không lập thêm một bản bên
+cạnh.
 
 ### Mã hồ sơ — hệ thống đề xuất, bạn sửa được `mới 10/09`
 
@@ -1104,10 +1113,10 @@ trên cùng — không cần vào trang khách hàng nữa.
 - **CSBH hiện tại vẫn có hiệu lực** cho tới khi bản mới được duyệt xong.
 - Bấm xong là màn hình chuyển thẳng sang hồ sơ nháp vừa lập.
 
-> **Nếu khách hàng đã có một bản mới đang dở dang** — đang soạn hoặc đang đi trong luồng duyệt — hộp
-> xác nhận nói ra mã bản đó kèm liên kết mở nó. Hệ thống **không chặn**, nhưng lập tiếp sẽ tạo **bản
-> thứ hai** và cả hai cùng chờ duyệt. Gần như lúc nào bạn cũng muốn mở bản đang dở ra sửa tiếp thay
-> vì lập thêm.
+> **Nếu khách hàng đang có một hồ sơ chưa duyệt xong** `sửa 25/09` — bản Nháp, hoặc bản đang đi
+> luồng duyệt — nút ấy **không lập gì cả**: hộp thoại mở ra nói mã và trạng thái hồ sơ đó, kèm nút mở
+> thẳng nó. Mỗi khách chỉ một hồ sơ đang xử lý (mục 6). Trước `25/09` bản đang duyệt chỉ sinh một cảnh
+> báo và vẫn lập được bản thứ hai; giờ thì không.
 
 Cách cũ vẫn dùng được: **Hồ sơ CSBH → Lập hồ sơ → chọn khách hàng**.
 

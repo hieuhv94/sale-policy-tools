@@ -354,6 +354,13 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
 Đây là phần chi phối lược đồ dữ liệu, cần đọc kỹ.
 
 1. **Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực tại một thời điểm.**
+
+   **Và chỉ có MỘT hồ sơ CSBH đang xử lý** `mới 25/09` — tức ở một trong sáu trạng thái *Nháp* ·
+   *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *KT duyệt bản cứng*.
+   Bốn trạng thái **không tính**: *Đang có hiệu lực*, *Hết hiệu lực*, *Đã xoá*, và *Quá hạn duyệt*
+   (trạng thái kết thúc, không ai thao tác được nữa). Nên một khách có tối đa hai hồ sơ "sống" cùng
+   lúc: bản đang hiệu lực và bản thay thế đang đi luồng duyệt. Lập hồ sơ mới khi khách đã có một hồ
+   sơ đang xử lý thì phần mềm từ chối và đưa thẳng tới hồ sơ ấy. Xem Phụ lục B, `25/09`.
 2. **Mọi CSBH đều vô thời hạn.** Không có trường ngày hết hiệu lực, không có cảnh báo sắp hết hạn.
    Một CSBH chỉ hết hiệu lực khi một CSBH mới của cùng khách hàng được duyệt xong.
 3. **CSBH có hiệu lực ngay khi kế toán tiếp nhận lần 2**, thời điểm đó cũng là ngày duyệt.
@@ -2388,6 +2395,10 @@ trang khách hàng"*.
 > > **CHẶN** — xem *"Một bản Nháp mỗi khách hàng"* ở cuối Phụ lục B. Cảnh báo này còn nguyên việc cho
 > > nửa còn lại: bản mới **đang trong luồng duyệt** vẫn không bị chặn, và đó vẫn là chỗ duy nhất nói
 > > ra điều đó khi đi từ trang hồ sơ.
+>
+> > **NỬA CÒN LẠI CŨNG ĐỔI `25/09`** — xem *"Một hồ sơ đang xử lý mỗi khách hàng"* ở cuối Phụ lục B.
+> > Bản mới đang trong luồng duyệt giờ cũng bị chặn, nên cảnh báo này **gỡ hẳn**: hộp thoại đổi
+> > thành hộp chặn, nói mã và trạng thái hồ sơ đang xử lý, và cho một nút mở thẳng nó.
 
 **YÊU CẦU CẬP NHẬT HIỆN CẢ KHI ĐANG SỬA, VÀ CÓ NÚT ÁP DỤNG** `mới 10/09` — *"khi TDV nhấn vào để
 chỉnh sửa một hồ sơ đang bị Yêu cầu cập nhật do thông tin sản phẩm hoặc chiết khấu thay đổi. Vẫn yêu
@@ -2583,6 +2594,10 @@ một hướng mà quyết định trên đi nửa đường: nó **hạ chói**
 hàng, chỉ cho phép có 1 bản Nháp đối với cùng 1 khách hàng, nếu chọn lập CSBH đã có bản Nháp rồi, nó
 sẽ hiện thông báo đã có một bản nháp và nhấn đồng ý sẽ vào bản Nháp đó"*.
 
+> **ĐÃ NỚI RỘNG `25/09`** — xem *"Một hồ sơ đang xử lý mỗi khách hàng"* ở cuối Phụ lục B. Đoạn
+> *"chặn đúng Nháp"* ngay dưới đây giữ nguyên văn: lý do của nó đúng cho tới ngày khách hàng yêu cầu
+> chính luật mà nó nói *"không ai yêu cầu"*.
+>
 > **CHẶN ĐÚNG *Nháp*, không rộng hơn.** *Yêu cầu chỉnh sửa* nằm cùng nhóm "sửa được" với *Nháp* nên
 > rất dễ gộp, và gộp là dựng ra một luật khác hẳn: cấm TDV lập hồ sơ cho một khách đang có hồ sơ **bị
 > trả về**. Không ai yêu cầu điều đó. Hồ sơ rời khỏi *Nháp* bằng bất kỳ đường nào — gửi duyệt, hay
@@ -2789,6 +2804,35 @@ thái"*.
 > duyệt* nhất) và hồng mận (nổi nhất, nhưng có người đọc ra gần đỏ).
 >
 > Mọi cặp chữ/nền trạng thái đạt chuẩn tương phản **WCAG AA** ở cả giao diện sáng lẫn tối.
+
+**MỘT HỒ SƠ ĐANG XỬ LÝ MỖI KHÁCH HÀNG** `mới 25/09` — *"mỗi khách hàng chỉ được có một CSBH tại
+một thời điểm, không tính đến các CSBH đang có hiệu lực, đã xoá, hết hiệu lực"*. Mở rộng luật *"một
+bản Nháp mỗi khách hàng"* (`10/09`) ra mọi hồ sơ chưa duyệt xong.
+
+> **Sáu trạng thái được tính**: *Nháp* · *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* ·
+> *SA đang xử lý* · *KT duyệt bản cứng*. **Bốn không tính**: ba trạng thái khách hàng nêu, cộng
+> ***Quá hạn duyệt*** — chốt khi được hỏi: nó là trạng thái kết thúc, không ai thao tác được, và tính
+> nó là khoá khách ấy tới 3 ngày chờ hệ thống tự chuyển *Đã xoá*.
+>
+> **Đảo một ranh giới của `10/09`**: bản chốt ấy cố tình KHÔNG chặn *Yêu cầu chỉnh sửa* vì *"không
+> ai yêu cầu"*. Giờ có. Khách có hồ sơ bị trả về thì TDV **sửa rồi gửi lại chính hồ sơ ấy**, hoặc xoá
+> nó — không lập bản thứ hai bên cạnh.
+>
+> **Hai câu trả lời, theo việc làm được**: hồ sơ đang chặn là *Nháp* thì nói như cũ (*"mở bản Nháp ra
+> soạn tiếp"*); hồ sơ đã vào luồng thì nói **mã và trạng thái** của nó, và nút mở hồ sơ ấy ra xem —
+> việc của TDV là chờ nó duyệt xong, không phải soạn tiếp. Áp cho **cả hai đường lập** (trang *Lập
+> hồ sơ* và lối tắt *Lập phiên bản mới* ở trang hồ sơ). Lối tắt **biết trước**: hộp thoại mở ra đã là
+> hộp chặn, không bày nút lập rồi mới từ chối.
+>
+> **Cảnh báo *"khách đã có một phiên bản mới đang dở dang"* (`08/09`) GỠ HẲN** — nó sinh ra vì khi
+> ấy lập hai bản cùng lúc là được; giờ không được nữa, nên chỗ của nó là hộp chặn.
+>
+> **Chốt chặn ở CSDL** (thay ràng buộc của `10/09`, cùng lý do: bấm đúp là hai lượt song song).
+>
+> **Nâng cấp một hệ đang chạy có thể DỪNG** ở migration nếu còn khách đang có nhiều hơn một hồ sơ chưa
+> duyệt xong; thông báo in mã và tên khách kèm **mã và trạng thái** từng hồ sơ. Đường sửa như cũ: xoá
+> bớt bản thừa trên màn hình, hoặc duyệt xong một bản, rồi chạy lại. **Đo được trên CSDL demo cũ**:
+> 22 khách, mỗi khách 4–6 hồ sơ đang dở — bản demo phải dựng lại (`make demo-mau` đã đổi theo).
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

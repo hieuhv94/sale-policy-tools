@@ -365,6 +365,25 @@ const KHACH_THEM: [string, number, string, string, string][] = [
   ['Khoa Hồi sức — Bệnh viện Bình Dân', 3, 'Số 371 Điện Biên Phủ, Quận 3, Hồ Chí Minh', 'Vũ Đình Khoa', 'Trưởng khoa'],
   ['Trung tâm Y tế huyện Đông Anh', 3, 'Thị trấn Đông Anh, Đông Anh, Hà Nội', 'Trần Thị Vân', 'Giám đốc trung tâm'],
   ['Trung tâm Dinh dưỡng TP Hồ Chí Minh', 3, 'Số 180 Lê Văn Sỹ, Phú Nhuận, Hồ Chí Minh', 'Lương Minh Khôi', 'Giám đốc'],
+  /*
+   * MƯỜI KHÁCH THÊM CHO tdv01 (`0220`) — ĐỨNG CUỐI để mã `KH-0029`…`KH-0038`
+   * nối tiếp, không đẩy mã của hai mươi tư khách phía trên.
+   *
+   * Luật *một hồ sơ đang xử lý mỗi khách* biến số khách thành TRẦN của số hồ sơ
+   * đang dở trên bản demo. Hai mươi hai khách của tdv01 không chứa nổi cả nhóm
+   * hai mươi mốt hồ sơ *Đang có hiệu lực* (cần 21 khách KHÁC NHAU) lẫn các hồ sơ
+   * viết tay và sắp quá hạn đang giữ chỗ — xem phép tính ở chú thích `KE_HOACH_XONG`.
+   */
+  ['Nhà thuốc Minh Tâm', 1, 'Số 12 Nguyễn Văn Cừ, TP Bắc Ninh, Bắc Ninh', 'Nguyễn Minh Tâm', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Hạ Long Xanh', 1, 'Số 56 Trần Hưng Đạo, TP Hạ Long, Quảng Ninh', 'Phạm Thị Lan', 'Chủ nhà thuốc'],
+  ['Quầy thuốc Phương Đông', 1, 'Số 3 Thống Nhất, TP Hải Dương, Hải Dương', 'Trần Phương', 'Chủ quầy thuốc'],
+  ['Nhà thuốc Thái Hoà', 1, 'Số 88 Lý Bôn, TP Thái Bình, Thái Bình', 'Vũ Văn Hoà', 'Chủ nhà thuốc'],
+  ['Nhà thuốc Tràng An', 1, 'Số 21 Lê Hồng Phong, TP Ninh Bình, Ninh Bình', 'Đinh Thị Hằng', 'Chủ nhà thuốc'],
+  ['Công ty TNHH Dược phẩm Biển Xanh', 2, 'Số 40 Trần Phú, TP Nha Trang, Khánh Hòa', 'Lê Quang Hải', 'Giám đốc'],
+  ['Công ty CP Dược Lâm Viên', 2, 'Số 9 Phan Bội Châu, TP Đà Lạt, Lâm Đồng', 'Ngô Lâm Viên', 'Giám đốc'],
+  ['Công ty TNHH Thương mại Dược Bình An', 2, 'Số 150 Đại lộ Bình Dương, TP Thủ Dầu Một, Bình Dương', 'Hồ Bình An', 'Tổng giám đốc'],
+  ['Khoa Dinh dưỡng — Bệnh viện Đa khoa Bắc Giang', 3, 'Số 72 Lê Lợi, TP Bắc Giang, Bắc Giang', 'Hoàng Thị Mai', 'Trưởng khoa'],
+  ['Trung tâm Y tế TP Hưng Yên', 3, 'Số 5 Điện Biên, TP Hưng Yên, Hưng Yên', 'Đào Văn Hưng', 'Giám đốc trung tâm'],
 ];
 
 /** MST 10 chữ số, sinh theo thứ tự để không trùng và vẫn hợp lệ (CUST-04). */
@@ -1047,7 +1066,7 @@ async function main(): Promise<void> {
   }
 
   /**
-   * Khách của tdv01 — nguồn để sinh hồ sơ hàng loạt. 22 mã, đủ vượt một trang.
+   * Khách của tdv01 — nguồn để sinh hồ sơ hàng loạt. 32 mã từ `0220` (22 trước đó).
    *
    * `KH-0001` ĐỨNG NGOÀI danh sách này (`0199`). Nó giữ bản Nháp viết tay của
    * phần trên, và một khách đang giữ Nháp thì **không lập thêm được hồ sơ nào**
@@ -1157,6 +1176,13 @@ async function main(): Promise<void> {
   // === PHẦN VIẾT TAY: năm hồ sơ được chọn, đứng đầu danh sách =================
 
   /*
+   * `0220` — HỒ SƠ 5 SANG `KH-0005`, không còn chung khách với hồ sơ 1.
+   *
+   * Mỗi khách chỉ một hồ sơ đang xử lý, nên bản *bị trả lại* và bản *Nháp* của
+   * cùng một khách — cặp mà đoạn dưới giữ lại có chủ ý — thôi là một cặp hợp lệ.
+   * Giữ nguyên văn đoạn ấy vì nó giải thích vì sao hai hồ sơ từng cùng khách;
+   * đoạn ấy chết ở đúng câu cuối (*"`0197` cố tình chỉ chặn `NHAP`"*).
+   *
    * THỨ TỰ 5 TRƯỚC 1, và đó là luật của `0197` chứ không phải sở thích.
    *
    * Một khách giữ được **đúng một bản Nháp**, và hệ quả ít ai nghĩ tới là vế
@@ -1177,7 +1203,7 @@ async function main(): Promise<void> {
   // Không có nó thì tdv01 mở phần mềm ra thấy trang chủ TRỐNG: hộp thư đến của
   // TDV chỉ hiện hồ sơ bị trả lại. Đúng về hành vi, nhưng là một bản demo tệ —
   // và đây cũng là chỗ duy nhất nhìn thấy dải "lý do trả lại" trên màn hình.
-  const hs5 = await lapHoSo('KH-0001', [
+  const hs5 = await lapHoSo('KH-0005', [
     dong('NC-BONE-900', 470_000, 15_000), // 22,22% — vượt ngưỡng 15%
   ]);
   await act(hs5, 'SUBMIT', 'tdv01');
@@ -1300,7 +1326,7 @@ async function main(): Promise<void> {
    * Khách nào đang có CSBH hiệu lực (`0095`).
    *
    * Từ khi bộ nạp dựng ba năm lịch sử, phần lớn khách đã có một CSBH hiệu lực
-   * TRƯỚC khi vòng `KE_HOACH` chạy tới. `POST /policies` khi ấy **hỏi lại** thay
+   * TRƯỚC khi vòng `KE_HOACH_XONG` chạy tới. `POST /policies` khi ấy **hỏi lại** thay
    * vì đoán hộ (POL-04, POL-06), nên bộ nạp phải xác nhận.
    *
    * `0180` — MỘT giá trị. Trước lượt này chỗ này chép lại luật của máy chủ để
@@ -1314,85 +1340,52 @@ async function main(): Promise<void> {
   const cheDo = (kh: string): { mode?: string } =>
     spDangHieuLuc.has(kh) ? { mode: 'NEW_VERSION' } : {};
 
-  /**
-   * THỨ TỰ TRONG BẢNG NÀY LÀ BẮT BUỘC, và từ `0199` có HAI ràng buộc chứ không
-   * một — chúng kéo về hai đầu đối nhau.
+  /*
+   * `0199` từng đặt ở đây hai ràng buộc thứ tự cho bảng `KE_HOACH` (*"hiệu lực
+   * gần cuối, Nháp cuối hẳn"*) và một điều kiện *"21 lượt liên tiếp rơi vào 21
+   * khách khác nhau"*. Cả ba thôi đứng được từ `0220`: luật chặn mọi hồ sơ đang
+   * xử lý chứ không riêng bản Nháp, nên thứ tự nhóm không còn cứu được vòng
+   * xoay — xem khối `dangDo` ngay dưới, thứ thay chúng.
    *
-   * `DANG_CO_HIEU_LUC` phải đứng **gần cuối**: `uq_policy_active_per_customer`
-   * cho mỗi khách đúng một CSBH hiệu lực, và `POST /policies` từ chối lập hồ sơ
-   * mới cho khách đã có CSBH hiệu lực trừ khi khai rõ là lập phiên bản mới.
-   *
-   * `NHAP` phải đứng **cuối hẳn**, sau cả nó (`0197`): khách đang giữ một bản
-   * Nháp thì KHÔNG lập thêm được hồ sơ nào — mọi lượt `POST /policies` đều dựng
-   * ra một bản Nháp trước. Nhóm này vì thế phải là thứ cuối cùng chạm vào những
-   * khách nó dùng; đặt lên đầu như trước `0199` thì đúng 22 hồ sơ sau đó chết
-   * bằng `409 DRAFT_EXISTS`.
-   *
-   * Hai ràng buộc KHÔNG cấm nhau, nhờ `cheDo()`: những khách vừa lên hiệu lực
-   * nhận `mode: NEW_VERSION`, nên bản Nháp lập ra ở vòng cuối là **bản thay thế
-   * đang soạn dở** — một trạng thái có thật, và cũng là chỗ duy nhất bản demo
-   * bày ra cảnh báo *"khách này đã có bản mới đang dở"* của `0191`.
-   *
-   * Mỗi nhóm dùng `stt % cuaTdv01.length` nên `QUA_MOT_TRANG` (21) lượt liên
-   * tiếp rơi vào 21 khách KHÁC NHAU trong 22 — điều kiện để `uq_policy_nhap_moi_khach`
-   * không nổ. Rút bớt khách của tdv01 xuống dưới 22 là phá chính điều kiện ấy.
+   * Vế còn đúng: bản Nháp lập cho khách vừa lên hiệu lực là **bản thay thế đang
+   * soạn dở** (`cheDo()` gửi `mode: NEW_VERSION`) — một trạng thái có thật.
    */
   let stt = 0;
   let daLap = 5;
 
-  // === Hồ sơ sắp quá hạn và đã quá hạn (`0051`) ==============================
-  //
-  // Dựng TRƯỚC khối hàng loạt, và lý do rất cụ thể: `DANG_CO_HIEU_LUC` chiếm mỗi
-  // khách một suất (`uq_policy_active_per_customer`), nên lập sau đợt ấy thì hết
-  // khách còn trống. Ở đây khách vẫn xoay vòng thoải mái — chín hồ sơ này đều
-  // dừng ở một bước chờ, không cái nào lên hiệu lực.
-  const idSapQuaHan: string[] = [];
-  for (const h of SAP_QUA_HAN) {
-    stt += 1;
-    const khSap = cuaTdv01[stt % cuaTdv01.length]!;
-    const id = await lapHoSo(khSap, dongCuaHoSo(stt), 'tdv01', cheDo(khSap));
-    await dayToi(id, h.buoc);
-    idSapQuaHan.push(id);
-    daLap += 1;
-  }
-
-  const idDaQuaHan: { id: string; buoc: string; quaHanNgay: number }[] = [];
-  for (const h of DA_QUA_HAN) {
-    stt += 1;
-    const khQua = cuaTdv01[stt % cuaTdv01.length]!;
-    const id = await lapHoSo(khQua, dongCuaHoSo(stt), 'tdv01', cheDo(khQua));
-    await dayToi(id, h.buoc);
-    idDaQuaHan.push({ id, buoc: h.buoc, quaHanNgay: h.quaHanNgay });
-    daLap += 1;
-  }
-
-  await vanDongHoSla(idSapQuaHan, idDaQuaHan);
-
-  const KE_HOACH: [string, number][] = [
-    ['YEU_CAU_CHINH_SUA', QUA_MOT_TRANG],
-    ['CHO_TBP_DUYET', QUA_MOT_TRANG],
-    ['CHO_KT_L1', 11],
-    ['CHO_KT_L2', 11],
-    ['SA_DANG_XU_LY', QUA_MOT_TRANG],
-    ['DA_XOA', 5],
-    ['DANG_CO_HIEU_LUC', QUA_MOT_TRANG],
-    // `NHAP` ĐỨNG CUỐI (`0199`) — xem chú thích thứ tự ngay dưới.
-    ['NHAP', QUA_MOT_TRANG],
-  ];
-
-  if (cuaTdv01.length < QUA_MOT_TRANG) {
-    throw new Error(
-      `tdv01 chỉ có ${cuaTdv01.length} khách, không đủ ${QUA_MOT_TRANG} hồ sơ — ` +
-        'mỗi khách chỉ được một CSBH hiệu lực (uq_policy_active_per_customer) ' +
-        'và một bản Nháp (uq_policy_nhap_moi_khach). Thêm khách vào KHACH_THEM, ' +
-        'hoặc hạ QUA_MOT_TRANG — đừng cho hai nhóm dùng chung một khách.',
-    );
-  }
+  /*
+   * === `0220` — MỖI KHÁCH MỘT HỒ SƠ ĐANG XỬ LÝ =================================
+   *
+   * `dangDo` giữ những khách ĐANG có một hồ sơ ở một trong sáu trạng thái được
+   * tính (`CHUA_DUYET_XONG` của máy chủ). Mọi lượt lập hồ sơ ở phần sinh ra chọn
+   * khách qua `khachTrong`/`khachTrongDs`, không còn xoay vòng `stt % n`: vòng
+   * xoay cũ là thứ đặt tới năm hồ sơ đang dở lên cùng một khách, và nó chỉ chạy
+   * được vì tới `0197` luật chỉ chặn bản Nháp.
+   *
+   * Hồ sơ rời khỏi tập (lên hiệu lực, bị xoá, quá hạn) thì `xong(kh)` trả khách
+   * về. Quên trả là khách bị giữ oan — bộ nạp hết khách sớm và DỪNG bằng câu
+   * lỗi của `khachTrong`, chứ không chết giữa chừng bằng một `409` từ máy chủ.
+   */
+  const dangDo = new Set<string>(['KH-0003', 'KH-0004', 'KH-0005']); // ba hồ sơ viết tay còn dở
+  const khachTrongDs = (n: number): string[] => {
+    const ds = cuaTdv01.filter((k) => !dangDo.has(k)).slice(0, n);
+    if (ds.length < n) {
+      throw new Error(
+        `tdv01 chỉ còn ${ds.length} khách chưa có hồ sơ đang xử lý, cần ${n} — ` +
+          'mỗi khách chỉ được một hồ sơ chưa duyệt xong (uq_policy_dang_do_moi_khach). ' +
+          'Thêm khách vào KHACH_THEM hoặc hạ số hồ sơ trong KE_HOACH_DANG_DO.',
+      );
+    }
+    return ds;
+  };
+  const khachTrong = (): string => khachTrongDs(1)[0]!;
+  const giu = (kh: string) => dangDo.add(kh);
+  const xong = (kh: string) => dangDo.delete(kh);
 
   /*
    * === BA NĂM LỊCH SỬ =======================================================
    *
-   * Dựng TRƯỚC vòng `KE_HOACH`, và thứ tự ấy bắt buộc: chuỗi phiên bản phải đi
+   * Dựng TRƯỚC vòng `KE_HOACH_XONG`, và thứ tự ấy bắt buộc: chuỗi phiên bản phải đi
    * theo thời gian thật — bản 2024 có hiệu lực trước, rồi bản 2025 thay nó, rồi
    * mới tới bản của hôm nay do vòng dưới lập. Lập ngược lại thì hồ sơ của hôm
    * nay bị một bản đề ngày 2024 thay thế, và cả chuỗi đọc ra vô nghĩa.
@@ -1406,7 +1399,9 @@ async function main(): Promise<void> {
     await db.connect();
     try {
       const coLichSu: { kh: string; ai: string; soDoi: number }[] = [
-        ...cuaTdv01.slice(0, 10).map((kh, i) => ({ kh, ai: 'tdv01', soDoi: 5 - (i % 3) })),
+        // `0220` — chỉ khách CHƯA giữ hồ sơ đang xử lý: mỗi đời hồ sơ của chuỗi
+        // đi qua đủ sáu trạng thái được tính trước khi lên hiệu lực.
+        ...khachTrongDs(10).map((kh, i) => ({ kh, ai: 'tdv01', soDoi: 5 - (i % 3) })),
         { kh: 'KH-0025', ai: 'tdv02', soDoi: 4 },
         { kh: 'KH-0026', ai: 'tdv02', soDoi: 3 },
         { kh: 'KH-0027', ai: 'tdv03', soDoi: 3 },
@@ -1449,41 +1444,112 @@ async function main(): Promise<void> {
     }
   }
 
-  for (const [dich, soLuong] of KE_HOACH) {
-    for (let i = 0; i < soLuong; i += 1) {
-      // Hồ sơ hiệu lực lấy khách theo CHỈ SỐ THẲNG, không xoay vòng: xoay vòng
-      // là có ngày hai hồ sơ hiệu lực rơi vào cùng một khách và cả lượt nạp chết
-      // giữa chừng bằng một lỗi 409 chẳng liên quan gì tới phân trang.
-      const kh = dich === 'DANG_CO_HIEU_LUC' ? cuaTdv01[i]! : cuaTdv01[stt % cuaTdv01.length]!;
-      stt += 1;
-      const ma = maCuaHoSo(stt);
-      const id = await lapHoSo(kh, dongCuaHoSo(stt), 'tdv01', cheDo(kh));
-      daLap += 1;
-      if (dich === 'DANG_CO_HIEU_LUC') spDangHieuLuc.set(kh, new Set(ma));
+  /*
+   * THỨ TỰ BA KHỐI DƯỚI ĐÂY LÀ BẮT BUỘC (`0220`), và từ lượt này nó chỉ còn MỘT
+   * ràng buộc thay cho hai của `0199`.
+   *
+   * Nhóm *Đang có hiệu lực* cần 21 khách KHÁC NHAU (mỗi khách một CSBH hiệu lực),
+   * và một khách đang giữ hồ sơ dở thì không lập được phiên bản mới nào. Nên nó
+   * đi TRƯỚC mọi hồ sơ sẽ nằm lại ở trạng thái dở — kể cả khối sắp quá hạn, thứ
+   * trước `0220` đứng đầu vì một lý do đã hết (*"lập sau đợt hiệu lực thì hết
+   * khách còn trống"* — `cheDo()` trả lời chuyện ấy từ `0180`).
+   *
+   * Phép tính sức chứa, với 32 khách của tdv01: ba hồ sơ viết tay + năm sắp quá
+   * hạn + các nhóm dở ở `KE_HOACH_DANG_DO` phải ≤ 32. Bốn hồ sơ quá hạn giữ chỗ
+   * tới lượt vặn đồng hồ rồi trả lại (quá hạn là trạng thái kết thúc).
+   *
+   * CÁI MẤT, đã nêu: các nhóm dở thôi mang `QUA_MOT_TRANG` (21) hồ sơ mỗi nhóm,
+   * nên lọc danh sách theo MỘT trạng thái dở không còn sang trang 2. Danh sách
+   * chung và nhóm *Đang có hiệu lực* vẫn vượt một trang.
+   */
+  const KE_HOACH_XONG: [string, number][] = [
+    ['DA_XOA', 5],
+    ['DANG_CO_HIEU_LUC', QUA_MOT_TRANG],
+  ];
+  const KE_HOACH_DANG_DO: [string, number][] = [
+    ['YEU_CAU_CHINH_SUA', 5],
+    ['CHO_TBP_DUYET', 5],
+    ['CHO_KT_L1', 4],
+    ['CHO_KT_L2', 3],
+    ['SA_DANG_XU_LY', 3],
+    ['NHAP', 3],
+  ];
 
-      if (dich === 'NHAP') continue;
-      if (dich === 'YEU_CAU_CHINH_SUA') {
-        await act(id, 'SUBMIT', 'tdv01');
-        await act(id, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
-        continue;
-      }
-      /*
-       * `DA_XOA` thay cho `TU_CHOI` (`0155`).
-       *
-       * Đường tới nó đổi hẳn: trước là TBP bấm *Từ chối* một nước; giờ là TBP
-       * TRẢ LẠI, rồi chính người lập bấm *Xoá*. Bản demo phải đi đúng đường ấy
-       * — dựng trạng thái bằng cách ghi thẳng CSDL là bày ra một hồ sơ mà phần
-       * mềm không tạo ra được, và nhật ký của nó sẽ trống ở giữa.
-       */
-      if (dich === 'DA_XOA') {
-        await act(id, 'SUBMIT', 'tdv01');
-        await act(id, 'TBP_RETURN', 'tbp01', {
-          reason: 'Khách hàng đang quá hạn công nợ trên 90 ngày, chưa cấp CSBH mới.',
-        });
-        await xoaHoSo(id, 'tdv01');
-        continue;
-      }
-      await dayToi(id, dich);
+  const lapTheoKeHoach = async (dich: string, kh: string): Promise<void> => {
+    stt += 1;
+    const ma = maCuaHoSo(stt);
+    const id = await lapHoSo(kh, dongCuaHoSo(stt), 'tdv01', cheDo(kh));
+    daLap += 1;
+    if (dich === 'DANG_CO_HIEU_LUC') spDangHieuLuc.set(kh, new Set(ma));
+
+    if (dich === 'NHAP') return;
+    if (dich === 'YEU_CAU_CHINH_SUA') {
+      await act(id, 'SUBMIT', 'tdv01');
+      await act(id, 'TBP_RETURN', 'tbp01', { reason: LY_DO_TRA_LAI });
+      return;
+    }
+    /*
+     * `DA_XOA` thay cho `TU_CHOI` (`0155`).
+     *
+     * Đường tới nó đổi hẳn: trước là TBP bấm *Từ chối* một nước; giờ là TBP
+     * TRẢ LẠI, rồi chính người lập bấm *Xoá*. Bản demo phải đi đúng đường ấy
+     * — dựng trạng thái bằng cách ghi thẳng CSDL là bày ra một hồ sơ mà phần
+     * mềm không tạo ra được, và nhật ký của nó sẽ trống ở giữa.
+     */
+    if (dich === 'DA_XOA') {
+      await act(id, 'SUBMIT', 'tdv01');
+      await act(id, 'TBP_RETURN', 'tbp01', {
+        reason: 'Khách hàng đang quá hạn công nợ trên 90 ngày, chưa cấp CSBH mới.',
+      });
+      await xoaHoSo(id, 'tdv01');
+      return;
+    }
+    await dayToi(id, dich);
+  };
+
+  for (const [dich, soLuong] of KE_HOACH_XONG) {
+    // Hồ sơ hiệu lực lấy MỖI HỒ SƠ MỘT KHÁCH: hai hồ sơ hiệu lực cùng khách là
+    // bản sau thay bản trước, và nhóm 21 chỉ còn lại ít hơn 21 CSBH hiệu lực.
+    const ds = dich === 'DANG_CO_HIEU_LUC' ? khachTrongDs(soLuong) : [];
+    for (let i = 0; i < soLuong; i += 1) {
+      await lapTheoKeHoach(dich, ds[i] ?? khachTrong());
+    }
+  }
+
+  // === Hồ sơ sắp quá hạn và đã quá hạn (`0051`) ==============================
+  const idSapQuaHan: string[] = [];
+  for (const h of SAP_QUA_HAN) {
+    stt += 1;
+    const khSap = khachTrong();
+    giu(khSap);
+    const id = await lapHoSo(khSap, dongCuaHoSo(stt), 'tdv01', cheDo(khSap));
+    await dayToi(id, h.buoc);
+    idSapQuaHan.push(id);
+    daLap += 1;
+  }
+
+  const idDaQuaHan: { id: string; buoc: string; quaHanNgay: number }[] = [];
+  const khDaQuaHan: string[] = [];
+  for (const h of DA_QUA_HAN) {
+    stt += 1;
+    const khQua = khachTrong();
+    giu(khQua);
+    khDaQuaHan.push(khQua);
+    const id = await lapHoSo(khQua, dongCuaHoSo(stt), 'tdv01', cheDo(khQua));
+    await dayToi(id, h.buoc);
+    idDaQuaHan.push({ id, buoc: h.buoc, quaHanNgay: h.quaHanNgay });
+    daLap += 1;
+  }
+
+  await vanDongHoSla(idSapQuaHan, idDaQuaHan);
+  // Quá hạn là trạng thái kết thúc — không tính (chốt 25/09), khách trống ra.
+  for (const kh of khDaQuaHan) xong(kh);
+
+  for (const [dich, soLuong] of KE_HOACH_DANG_DO) {
+    for (let i = 0; i < soLuong; i += 1) {
+      const kh = khachTrong();
+      giu(kh);
+      await lapTheoKeHoach(dich, kh);
     }
   }
 
@@ -1677,11 +1743,20 @@ async function donThongBao(): Promise<{ tong: number; chuaDoc: number }> {
  * Nó chạy BẤT ĐỒNG BỘ qua RabbitMQ: `POST .../prices` trả về ngay khi sự kiện
  * nằm trong outbox, còn dấu vết lệch thì xuất hiện vài giây sau. Script kết thúc
  * trước lúc đó sẽ in ra "0 hồ sơ cần cập nhật" và người đọc tưởng chức năng hỏng.
+ *
+ * ĐỢI CON SỐ ĐỨNG YÊN, không đợi nó vượt 20 (`0220`). Ngưỡng `> 20` là của `0095`
+ * (box vượt một trang); `0200` thu hẹp box theo yêu cầu khách hàng, và từ `0220`
+ * bản demo có ít hồ sơ đang dở hơn hẳn — đo được 18. Giữ ngưỡng cũ thì mỗi lượt
+ * nạp ngồi chờ đủ 60 giây rồi in một lời cảnh báo về một thứ không hỏng.
  */
 async function choDauVet(): Promise<number> {
+  let truoc = -1;
+  let dungYen = 0;
   for (let i = 0; i < 40; i += 1) {
     const r = await goi<{ total: number }>('/policies/impacted?limit=1', 'tdv01');
-    if (r.total > 20) return r.total;
+    dungYen = r.total > 0 && r.total === truoc ? dungYen + 1 : 0;
+    if (dungYen >= 3) return r.total;
+    truoc = r.total;
     await new Promise((ok) => setTimeout(ok, 1_500));
   }
   console.warn('seed-demo: chờ 60 giây mà dấu vết lệch vẫn chưa đủ — xem log service policy');

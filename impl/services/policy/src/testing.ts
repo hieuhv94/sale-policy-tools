@@ -24,3 +24,6 @@ export { ngayTraDanhMuc } from './policies/ngay-tra-danh-muc.js';
  */
 export { TRUONG_SO_VOI_BAN_TRUOC, TRUONG_BAY_BAN_TRUOC } from './policies/policies.service.js';
 export { chuanHoaMa, CAU_LOI_MA, DAI_TOI_DA_MA } from './policies/ma-ho-so.js';
+// `0220` — tập "hồ sơ đang xử lý" và tên chỉ mục canh nó, để bộ kiểm đối chiếu
+// được vị từ của chỉ mục (liệt kê thành chữ trong migration) với hằng này.
+export { CHUA_DUYET_XONG, UQ_DANG_DO } from './policies/policies.service.js';

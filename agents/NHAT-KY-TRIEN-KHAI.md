@@ -19503,3 +19503,107 @@ cặp cột nhãn–giá trị — cả hai là câu về thứ vừa bỏ. Ca m
 
 **842/842 ca `tests/web` xanh, typecheck sạch.** `make test` đầy đủ chưa chạy — chặng chỉ đổi JSX,
 CSS và tài liệu; chưa nhìn trên chồng demo thật.
+
+## P250 — `0220` Mỗi khách hàng chỉ một hồ sơ CSBH đang xử lý
+
+Khách hàng (25/09): *"mỗi khách hàng chỉ được có một CSBH tại một thời điểm, không tính đến các CSBH
+đang có hiệu lực, đã xoá, hết hiệu lực"*. **Hỏi lại một chỗ trước khi gõ**: `QUA_HAN_DUYET` không có
+trong câu, và đọc nghĩa đen là TÍNH nó — tức khoá khách ấy tới 3 ngày, trong khi không ai thao tác
+được trên một hồ sơ quá hạn. Khách hàng chốt: **không tính**.
+
+### Sáu trạng thái được tính ĐÃ CÓ TÊN
+
+`CHUA_DUYET_XONG` (`0184`, ở `policies.service.ts`) đúng bằng sáu trạng thái ấy — `SUA_DUOC` cộng bốn
+bàn chờ. Dùng lại chứ không chép. Nó từ đó có hai người đọc: quyền đọc tệp của bản trước, và luật
+này. Hai câu hỏi trùng tập không phải tình cờ vô lý: *"chưa duyệt xong"* chính là *"đang xử lý"*.
+
+### Nới `0197`, và ĐẢO đúng câu nó viết ra
+
+`0197` chặn ĐÚNG `NHAP` với lý do *"chặn `YEU_CAU_CHINH_SUA` là một luật khác hẳn, không ai yêu
+cầu"*. Giờ có người yêu cầu. Chú thích cũ ở migration `0118` và YCNV giữ nguyên văn, kèm một dòng
+nói nó hết đúng từ ngày nào — cùng lối `0202`.
+
+- **Chỉ mục `uq_policy_dang_do_moi_khach` THAY `uq_policy_nhap_moi_khach`**, không đứng cạnh nó.
+  Chỉ mục mới phủ trọn chỉ mục cũ; giữ cả hai là hai tên ràng buộc cho cùng một lượt vi phạm, mà
+  `doiTrungNhap` đối chiếu TÊN — bản nào nổ trước quyết định câu lỗi.
+- **Vị từ gõ sáu chuỗi thành chữ** (không `CREATE INDEX … WHERE` nào đọc được một hằng TypeScript),
+  nên có ca hỏi `pg_indexes` rồi so với `CHUA_DUYET_XONG`.
+
+### HAI mã lỗi, vì hai việc làm được
+
+Bản Nháp → `DRAFT_EXISTS` như cũ (việc: soạn tiếp). Còn lại → **`POLICY_IN_PROGRESS`** kèm
+`policyId`/`policyCode`/`status` (việc: mở ra, chờ nó duyệt xong hoặc xoá nếu bị trả về). Gộp một mã
+là giao diện phải đọc lại trạng thái để chọn câu, tức suy lại thứ máy chủ vừa biết. Hai mã đi qua
+MỘT hàm `loiDangDo` và MỘT câu SQL `SQL_HO_SO_DANG_DO`, dùng chung cho phép kiểm, cho đường `23505`
+của lượt bấm đúp, và cho `phienBanSau`.
+
+### `phienBanSau` đổi CÂU HỎI, không chỉ đổi vai
+
+`0191` dựng nó để CẢNH BÁO (*"lập tiếp sẽ tạo bản thứ hai"*), hỏi theo `supersedes_id`. `0200` đã ghi
+rằng câu ấy và câu của chốt chặn *"trùng nhau ở mọi dữ liệu hôm nay, nhưng trùng nhau không phải là
+một"*. Giờ nó là lời BÁO TRƯỚC cho một lượt chặn, nên phải hỏi đúng câu lượt chặn hỏi — theo KHÁCH
+HÀNG, bằng chính `SQL_HO_SO_DANG_DO`. Tổ hợp làm hai câu lệch nhau **có thật trên dữ liệu cũ**: hai
+hồ sơ song song, bản A lên hiệu lực trong khi bản B (lập lúc chưa có bản hiệu lực nào, nên
+`supersedes_id` rỗng) còn đang duyệt. Migration giữ lại đúng tổ hợp ấy, vì nó chỉ chặn HAI hồ sơ
+đang xử lý. Trên trang hồ sơ, mọi `phienBanSau` giờ mở hộp CHẶN (mã + trạng thái + nút *Mở hồ sơ
+đang xử lý*). Cảnh báo của `0191` gỡ hẳn: nó không bao giờ còn dựng ra được.
+
+### Bộ nạp demo — lần thứ TƯ bị bỏ quên, lần này bắt được TRƯỚC
+
+Migration **dừng đúng như thiết kế** trên CSDL dùng chung, và câu dừng của nó là phép đo: **22 khách
+của tdv01, mỗi khách 4–6 hồ sơ đang dở**. Vòng xoay `cuaTdv01[stt % n]` chỉ sống được vì luật chỉ chặn
+bản Nháp, và `0199` đã phải xếp `NHAP` cuối bảng để lách nó. Thứ tự nhóm không cứu được gì nữa khi mọi
+trạng thái dở đều chặn.
+
+- **Bộ cấp khách `dangDo`/`khachTrong()`**: hồ sơ rời tập thì `xong(kh)` trả khách về. Hết khách thì
+  DỪNG bằng câu nói rõ phải thêm khách hay hạ số, không chết bằng một `409` ở chỗ ngẫu nhiên.
+- **Số khách là TRẦN của số hồ sơ đang dở.** Thêm 10 khách cho tdv01 (22 → 32). Các nhóm dở hạ từ 21
+  xuống 3–5 mỗi nhóm. Nhóm *Đang có hiệu lực* (cần 21 khách KHÁC NHAU) chuyển lên TRƯỚC khối sắp quá
+  hạn. Lý do cũ của thứ tự ấy chết từ `0180` (`cheDo()`).
+- **Cái mất, đã nêu**: lọc danh sách theo MỘT trạng thái dở không còn sang trang 2. Box *Yêu cầu cập
+  nhật* còn 18 hồ sơ. `choDauVet` đợi *"vượt 20"* từ `0095`, nên mỗi lượt nạp ngồi đủ 60 giây rồi cảnh
+  báo về một thứ không hỏng. Đổi sang đợi *"con số đứng yên ba lượt"*.
+- Hai ca `0199` quét mã nguồn (*"`NHAP` cuối `KE_HOACH`"*, *"hồ sơ 5 lập trước hồ sơ 1 cùng khách"*)
+  **thay**, không sửa. Ca mới cấm vòng xoay chỉ số, đòi hồ sơ viết tay trên các khách khác nhau, và
+  đòi `dangDo` giữ sẵn ba khách viết tay còn nằm trong vòng.
+
+**Nghiệm thu trên chồng demo thật** (`make demo` + `make demo-mau` với bộ nạp mới): xong trọn, 38 khách
+· 116 hồ sơ. `max(hồ sơ dở / khách) = 1`, 32 khách đang giữ đúng một. `POST /policies` qua gateway cho
+khách có hồ sơ *Chờ KT duyệt L1* trả `409 POLICY_IN_PROGRESS` kèm `CSBH-2026-000004`. `GET` hồ sơ hiệu
+lực `CSBH-2026-000064` trả `phienBanSau` là `CSBH-2026-000085 (CHO_TBP_DUYET)`.
+
+> **SỰ CỐ ĐÃ LƯỜNG**: lượt `make typecheck` đầu tiên chết ở `migrate` vì CSDL dùng chung còn dữ liệu
+> `demo-mau` cũ vi phạm luật mới. Đã `make demo-reset`: đó là bản nạp mẫu dựng lại được, và bộ kiểm vốn
+> đã xoá nó mỗi lượt. **Hệ nào đã có dữ liệu thật cũng sẽ dừng ở đây** — YCNV Phụ lục B ghi cách xử lý.
+
+### Ca kiểm và phá lại
+
+Năm ca cũ đỏ ở lượt chạy đầu, không ca nào sai: bốn ca khẳng định luật cũ và một chốt tài liệu (số
+migration 69 → 70). **Thay, không sửa số**: POL-17 *"chỉ một hồ sơ kích hoạt được"* (đường tới bản thứ
+hai giờ đóng từ lượt LẬP), `0197` *"Yêu cầu chỉnh sửa KHÔNG chặn"* → đảo chiều, và hai ca giao diện của
+cảnh báo `0191`. Khối `0220`: sáu trạng thái chặn · bốn không chặn (kể cả `QUA_HAN_DUYET` dựng bằng
+CSDL) · ghim tập · vị từ chỉ mục · song song · `phienBanSau` theo khách · thứ tự với
+`NEW_VERSION_REQUIRED`.
+
+**Hai lỗi của chính ca kiểm, tìm ra ở lượt chạy thứ hai**: `/'([A-Z_]+)'/` không khớp chữ số nên bỏ sót
+`CHO_KT_L1`/`CHO_KT_L2` (chỉ mục vẫn đúng); và `**69** migration` nằm trong chữ đậm nên phép `sed` chữ
+trần trượt, trong khi ca tài liệu bỏ định dạng trước khi so.
+
+| Hoàn tác | Đỏ |
+|---|---|
+| phép kiểm service thu về `['NHAP']`, chỉ mục giữ nguyên | 1 |
+| `phienBanSau` về `supersedes_id` | 1 |
+| `doiTrungNhap` đối chiếu tên chỉ mục cũ | 1 |
+| `CHUA_DUYET_XONG` mất `CHO_KT_L2` | 3 |
+| chỉ mục CSDL thiếu `CHO_KT_L2` (dựng lại bằng tay) | 1 |
+| `LapHoSo` bỏ nhánh `POLICY_IN_PROGRESS` | 1 |
+| trang hồ sơ chỉ chặn khi `phienBanSau` là `NHAP` | 1 |
+| bộ nạp quay lại `cuaTdv01[stt % n]` | 1 |
+
+**Lượt đầu là lượt định hình khối ca**: thu phép kiểm service về bản Nháp mà chỉ mục còn thì **mọi ca
+tuần tự vẫn xanh**. Lượt `INSERT` vấp chỉ mục, `doiTrungNhap` trả đúng câu ấy. Thứ duy nhất phân biệt
+hai tầng là THỨ TỰ: khách đã có CSBH hiệu lực, người lập không khai `mode`, thì `NEW_VERSION_REQUIRED`
+nổ trước lượt `INSERT` và mời lập một phiên bản mà máy chủ sẽ từ chối ngay lượt bấm sau. Ca ấy được
+viết TRƯỚC lượt phá — dự đoán từ đọc mã, và lượt phá xác nhận nó là ca duy nhất đỏ.
+
+**2424/2424 xanh**, typecheck sạch. Chồng demo đã hạ sau lượt nghiệm thu; `make demo-mau` dựng lại bản demo theo luật mới.

@@ -393,6 +393,46 @@ describe('`0197` một bản Nháp mỗi khách hàng — trên màn hình', () 
     await waitFor(() => expect(window.location.pathname).toBe('/ho-so/hs-nhap-1'));
   });
 
+  it('`0220` hồ sơ ĐANG DUYỆT: cùng ngã rẽ, nút nói *mở hồ sơ* chứ không *mở bản Nháp*', async () => {
+    /*
+     * `POLICY_IN_PROGRESS` đi đúng ngã rẽ của `DRAFT_EXISTS`, khác đúng hai thứ:
+     * id đọc từ `policyId`, và nhãn nút — hồ sơ ấy đã rời tay TDV, gọi nó là
+     * *bản Nháp* là nói sai với người sắp bấm vào.
+     */
+    const CAU_DANG_DO = 'Khách hàng này đang có hồ sơ CSBH-2026-000888 chưa duyệt xong.';
+    dangNhapLa(TDV_ID, 'TDV');
+    const f = chanMang(KHACH);
+    const truoc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.endsWith('/policies') && (tuyChon as RequestInit | undefined)?.method === 'POST') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: 'POLICY_IN_PROGRESS',
+              message: CAU_DANG_DO,
+              policyId: 'hs-dang-duyet',
+              policyCode: 'CSBH-2026-000888',
+              status: 'CHO_KT_L1',
+            }),
+            { status: 409, headers: { 'content-type': 'application/json' } },
+          ),
+        );
+      }
+      return truoc(duong, tuyChon);
+    });
+    mo(<LapHoSo />, '/ho-so/moi?khachHang=kh-1');
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined());
+    await userEvent.click(screen.getByRole('button', { name: 'Lập hồ sơ' }));
+
+    await waitFor(() => expect(screen.getByText(CAU_DANG_DO)).toBeDefined());
+    expect(screen.queryByRole('button', { name: 'Lập hồ sơ' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở bản Nháp đang có' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Mở hồ sơ đang xử lý' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/ho-so/hs-dang-duyet'));
+  });
+
   it('lỗi KHÁC vẫn đi đường báo lỗi thường', async () => {
     /*
      * Chiều đối chiếu, và là chỗ nhánh mới dễ nuốt mất thứ khác nhất: bắt theo

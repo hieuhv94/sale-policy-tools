@@ -198,7 +198,12 @@ export function ChiTietHoSo({ id }: { id: string }) {
    * chứ không có mã hồ sơ, nên `code` là `null` ở đường ấy. Đường thường thì đọc
    * thẳng `phienBanSau`, ở đó có cả mã.
    */
-  const [nhapChan, datNhapChan] = useState<{ id: string; code: string | null } | null>(null);
+  const [nhapChan, datNhapChan] = useState<{
+    id: string;
+    code: string | null;
+    /** `0220` — `NHAP` hay một trạng thái trong luồng duyệt; chọn câu chữ của hộp. */
+    status: string;
+  } | null>(null);
   const [dangLapBanMoi, datDangLapBanMoi] = useState(false);
   const [dangXoaDong, datDangXoaDong] = useState<string | null>(null);
   /** Cờ riêng, không dùng chung `dangXoaDong`: nút này ở cấp HỒ SƠ, không của một dòng. */
@@ -375,10 +380,20 @@ export function ChiTietHoSo({ id }: { id: string }) {
     } catch (e) {
       const l = e as { code?: string; body?: Record<string, unknown> };
       const nhapId = l?.body?.['draftPolicyId'];
+      const dangDoId = l?.body?.['policyId'];
       // Thiếu id thì rơi về đường lỗi thường: một nút *Mở bản Nháp* không biết
       // mở cái nào thì tệ hơn một dải đỏ (cùng lập luận `0197` ở `LapHoSo`).
       if (l?.code === 'DRAFT_EXISTS' && typeof nhapId === 'string') {
-        datNhapChan({ id: nhapId, code: null });
+        datNhapChan({ id: nhapId, code: null, status: 'NHAP' });
+      } else if (l?.code === 'POLICY_IN_PROGRESS' && typeof dangDoId === 'string') {
+        // `0220` — hồ sơ đã vào luồng duyệt cũng chặn; thân lỗi mang cả mã và trạng thái.
+        const ma = l.body?.['policyCode'];
+        const tt = l.body?.['status'];
+        datNhapChan({
+          id: dangDoId,
+          code: typeof ma === 'string' ? ma : null,
+          status: typeof tt === 'string' ? tt : '',
+        });
       } else bao(e);
     } finally {
       datDangLapBanMoi(false);
@@ -431,15 +446,18 @@ export function ChiTietHoSo({ id }: { id: string }) {
    * nó đến từ chính lượt gọi vừa bị từ chối, tức nó nói về hiện tại còn
    * `phienBanSau` nói về lúc trang được tải.
    *
-   * Chỉ nhận trạng thái `NHAP`. Bản kế nhiệm ở `CHO_TBP_DUYET` hay bất kỳ bước
-   * duyệt nào khác thì **không chặn gì cả** — `create` vẫn cho lập bản thứ hai,
-   * và ở đó cảnh báo của `0191` mới là câu đúng.
+   * `0220` — MỌI trạng thái của `phienBanSau` đều chặn, không riêng `NHAP`.
+   * Trước lượt ấy bản kế nhiệm đang duyệt chỉ sinh một cảnh báo (`0191`) vì
+   * `create` vẫn cho lập bản thứ hai; khách hàng chốt 25/09 rằng không được,
+   * và máy chủ trả `phienBanSau` bằng CHÍNH câu hỏi của chốt chặn — nên có nó
+   * là biết chắc nút sẽ bị từ chối.
    */
   const nhapDangChan =
     nhapChan ??
-    (hoSo?.phienBanSau && hoSo.phienBanSau.status === 'NHAP'
-      ? { id: hoSo.phienBanSau.id, code: hoSo.phienBanSau.code }
+    (hoSo?.phienBanSau
+      ? { id: hoSo.phienBanSau.id, code: hoSo.phienBanSau.code, status: hoSo.phienBanSau.status }
       : null);
+  const chanLaNhap = nhapDangChan?.status === 'NHAP';
 
   /*
     Lọc LẦN NỮA theo vai trò (`0038`), dù máy chủ đã lọc.
@@ -1072,8 +1090,8 @@ export function ChiTietHoSo({ id }: { id: string }) {
       */}
       {moBanMoi && nhapDangChan !== null && (
         <HopThoaiXacNhan
-          tieuDe="Khách hàng đã có bản Nháp"
-          nhanNut="Mở bản Nháp đang có"
+          tieuDe={chanLaNhap ? 'Khách hàng đã có bản Nháp' : 'Khách hàng đang có hồ sơ chưa duyệt xong'}
+          nhanNut={chanLaNhap ? 'Mở bản Nháp đang có' : 'Mở hồ sơ đang xử lý'}
           nguyHiem={false}
           dong={() => datMoBanMoi(false)}
           /*
@@ -1096,19 +1114,39 @@ export function ChiTietHoSo({ id }: { id: string }) {
             di(`/ho-so/${nhapDangChan.id}`);
           }}
           hauQua={
-            <>
-              <p>
-                Khách hàng này <strong>đã có một bản Nháp đang soạn dở</strong>
-                {nhapDangChan.code ? (
-                  <>
-                    {' '}
-                    — <strong>{nhapDangChan.code}</strong>
-                  </>
-                ) : null}
-                . Mỗi khách hàng chỉ giữ được một bản Nháp, nên chưa lập thêm bản mới được.
-              </p>
-              <p>Mở bản ấy ra soạn tiếp?</p>
-            </>
+            chanLaNhap ? (
+              <>
+                <p>
+                  Khách hàng này <strong>đã có một bản Nháp đang soạn dở</strong>
+                  {nhapDangChan.code ? (
+                    <>
+                      {' '}
+                      — <strong>{nhapDangChan.code}</strong>
+                    </>
+                  ) : null}
+                  . Mỗi khách hàng chỉ có một hồ sơ đang xử lý, nên chưa lập thêm bản mới được.
+                </p>
+                <p>Mở bản ấy ra soạn tiếp?</p>
+              </>
+            ) : (
+              <>
+                {/* `0220` — hồ sơ đã rời tay TDV thì việc là CHỜ nó duyệt xong
+                    (hoặc xoá nếu nó bị trả về), không phải soạn tiếp. */}
+                <p>
+                  Khách hàng này <strong>đang có một hồ sơ chưa duyệt xong</strong>
+                  {nhapDangChan.code ? (
+                    <>
+                      {' '}
+                      — <strong>{nhapDangChan.code}</strong>
+                    </>
+                  ) : null}
+                  {nhapDangChan.status ? <> ({nhanTrangThai(nhapDangChan.status)})</> : null}. Mỗi
+                  khách hàng chỉ có một hồ sơ đang xử lý tại một thời điểm — hồ sơ ấy phải có hiệu lực
+                  hoặc bị xoá thì mới lập được phiên bản mới.
+                </p>
+                <p>Mở hồ sơ ấy ra xem?</p>
+              </>
+            )
           }
         />
       )}
@@ -1136,22 +1174,11 @@ export function ChiTietHoSo({ id }: { id: string }) {
                 CSBH hiện tại <strong>vẫn có hiệu lực</strong> cho tới khi bản mới được duyệt xong.
               </p>
               {/*
-                CẢNH BÁO, KHÔNG PHẢI CHẶN (`0191`).
-
-                `create` không cấm lập bản thứ hai khi một bản mới đang dở dang —
-                đó là hành vi có sẵn, và cấm nó là một luật nghiệp vụ mới chưa ai
-                chốt. Nhưng lối tắt này làm nó dễ vấp hơn hẳn: đi từ trang khách
-                hàng thì bản dở nằm ngay trong danh sách hồ sơ của khách; đi từ
-                đây thì không thấy gì cả.
+                `0220` — CẢNH BÁO *"đã có một phiên bản mới đang dở dang"* của
+                `0191` GỠ Ở ĐÂY. Nó đứng trong hộp này vì khi ấy `create` vẫn cho
+                lập bản thứ hai; giờ `phienBanSau` có mặt là hộp CHẶN phía trên
+                mở thay hộp này, nên khối ấy không bao giờ còn dựng ra được.
               */}
-              {hoSo.phienBanSau && (
-                <p className="hop-canh-bao">
-                  Khách hàng này <strong>đã có một phiên bản mới đang dở dang</strong> —{' '}
-                  <Lien den={`/ho-so/${hoSo.phienBanSau.id}`}>{hoSo.phienBanSau.code}</Lien> (
-                  {nhanTrangThai(hoSo.phienBanSau.status)}). Lập tiếp sẽ tạo <strong>bản thứ hai</strong>,
-                  và cả hai cùng chờ duyệt.
-                </p>
-              )}
             </>
           }
         />

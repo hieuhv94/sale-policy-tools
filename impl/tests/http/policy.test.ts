@@ -16,6 +16,8 @@ import {
   CatalogImpactConsumer,
   Clients,
   TRUONG_CHAN_LUC_GUI,
+  CHUA_DUYET_XONG,
+  UQ_DANG_DO,
 } from '@csbh/policy/testing';
 import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
@@ -1150,7 +1152,7 @@ describe('POL-13 · POL-14 · `0035` xoá hồ sơ', () => {
     });
 
     // `0197` — ca này gánh thêm một việc: nó là chỗ canh cho
-    // `uq_policy_nhap_moi_khach` là chỉ mục PHẦN (`WHERE status = 'NHAP'`). Một
+    // `uq_policy_dang_do_moi_khach` (`0220`, trước là `uq_policy_nhap_moi_khach`) là chỉ mục PHẦN. Một
     // ràng buộc giữ chỗ vĩnh viễn cũng thoả mọi ca khác của luật một-bản-Nháp.
     it('xoá nháp rồi lập lại cho cùng khách hàng thì được', async () => {
       const d = await draft();
@@ -2145,7 +2147,7 @@ describe('POL-17 hai hồ sơ cho cùng khách hàng gửi đồng thời', () =
      *
      * `Promise.all` cho hai request cùng đọc thấy *"chưa có Nháp nào"* rồi cùng
      * ghi — đúng kịch bản bấm đúp nút *Lập hồ sơ*, tức đúng thứ sinh ra cả yêu
-     * cầu này. Gỡ `uq_policy_nhap_moi_khach` thì phép kiểm ở service vẫn xanh ở
+     * cầu này. Gỡ `uq_policy_dang_do_moi_khach` (`0220` — thay chỉ mục Nháp của `0197`) thì phép kiểm ở service vẫn xanh ở
      * mọi ca tuần tự, và chỉ ca này đỏ.
      */
     const customerId = await makeCustomer();
@@ -2178,62 +2180,26 @@ describe('POL-17 hai hồ sơ cho cùng khách hàng gửi đồng thời', () =
     expect(hong.body.draftPolicyId).toBe(duoc.body.id);
   });
 
-  it('chỉ một hồ sơ của cùng khách kích hoạt được', async () => {
+  it('`0220` bản đầu còn đang duyệt thì KHÔNG lập được bản thứ hai', async () => {
+    /*
+     * THAY ca *"chỉ một hồ sơ của cùng khách kích hoạt được"*. Ca cũ lập bản
+     * thứ hai ngay sau khi bản đầu gửi duyệt rồi đẩy cả hai tới bước cuối để
+     * thấy `uq_policy_active_per_customer` chặn — đường tới ấy giờ đóng từ lượt
+     * LẬP (khách hàng chốt 25/09), nên bất biến POL-17 được giữ sớm hơn chín
+     * bước. Chỉ mục một-CSBH-hiệu-lực vẫn còn ở CSDL; nó chỉ thôi với tới được
+     * bằng API.
+     */
     const customerId = await makeCustomer();
-    const p1 = await makeProduct();
-    const p2 = await makeProduct();
-
-    const a = await post('/policies', { customerId, lines: [line(p1)] });
+    const a = await post('/policies', { customerId, lines: [line(await makeProduct())] });
     expect(a.status).toBe(201);
-    // Gửi duyệt là lúc hồ sơ rời `NHAP`, tức lúc chỗ trống ra cho bản thứ hai.
     expect((await act(a.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
 
-    const b = await post('/policies', { customerId, lines: [line(p2)] });
-    expect(b.status, 'hồ sơ đã gửi duyệt thì KHÔNG chặn lượt lập tiếp').toBe(201);
-
-    expect((await act(a.body.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
-    expect((await act(a.body.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
-    await post(
-      `/policies/${a.body.id}/attachments`,
-      { kind: 'SCAN', fileName: 's.pdf', objectKey: `scan/${a.body.id}.pdf` },
-      'sa01',
-    );
-    await post(
-      `/policies/${a.body.id}/attachments`,
-      { kind: 'BAN_MEM', fileName: 'bm.pdf', objectKey: `bm/${a.body.id}.pdf` },
-      'sa01',
-    );
-    expect((await act(a.body.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
-    expect((await act(a.body.id, 'KT_RECEIVE_L2', 'kt01')).status).toBe(200);
-
-    // Bản thứ hai đi hết luồng thì vấp bất biến một-CSBH-hiệu-lực ở CSDL.
-    await act(b.body.id, 'SUBMIT', 'tdv01');
-    await act(b.body.id, 'TBP_SIGN', 'tbp01');
-    await act(b.body.id, 'KT_RECEIVE_L1', 'kt01');
-    await post(
-      `/policies/${b.body.id}/attachments`,
-      { kind: 'SCAN', fileName: 's.pdf', objectKey: `scan/${b.body.id}.pdf` },
-      'sa01',
-    );
-    // `0167` — bàn giao đòi CẢ HAI tệp; bản mềm là tệp thứ hai.
-    await post(
-      `/policies/${b.body.id}/attachments`,
-      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${b.body.id}.pdf` },
-      'sa01',
-    );
-    await act(b.body.id, 'SA_HANDOVER', 'sa01');
-    const last = await act(b.body.id, 'KT_RECEIVE_L2', 'kt01');
-    expect(last.status).toBeGreaterThanOrEqual(400);
-
-    const actives = await withAdminDb(async (c) => {
-      const r = await c.query<{ n: string }>(
-        `SELECT count(*)::text AS n FROM pol.policy
-          WHERE customer_id = $1 AND status = 'DANG_CO_HIEU_LUC'`,
-        [customerId],
-      );
-      return Number(r.rows[0]!.n);
-    });
-    expect(actives).toBe(1);
+    const b = await post('/policies', { customerId, lines: [line(await makeProduct())] });
+    expect(b.status).toBe(409);
+    expect(b.body.code).toBe('POLICY_IN_PROGRESS');
+    expect(b.body.policyId).toBe(a.body.id);
+    expect(b.body.policyCode).toBe(a.body.code);
+    expect(b.body.status).toBe('CHO_TBP_DUYET');
   });
 });
 
@@ -2263,18 +2229,19 @@ describe('`0197` một bản Nháp mỗi khách hàng', () => {
    * Vế *"xoá bản Nháp rồi thì lập lại được"* KHÔNG viết lại ở đây — ca
    * *"xoá nháp rồi lập lại cho cùng khách hàng thì được"* của POL-13 đã khẳng
    * định đúng điều ấy từ trước, và từ `0197` nó gánh thêm một việc: canh cho chỉ
-   * mục `uq_policy_nhap_moi_khach` là chỉ mục PHẦN, chứ không phải một ràng buộc
+   * mục `uq_policy_dang_do_moi_khach` (`0220`) là chỉ mục PHẦN, chứ không phải một ràng buộc
    * giữ chỗ vĩnh viễn. Viết bản thứ hai là dựng hai ca sẽ trôi khỏi nhau.
    */
 
-  it('hồ sơ ở YÊU CẦU CHỈNH SỬA KHÔNG chặn lượt lập mới', async () => {
+  it('`0220` hồ sơ ở YÊU CẦU CHỈNH SỬA CŨNG chặn lượt lập mới — ĐẢO ca `0197`', async () => {
     /*
-     * Ranh giới đắt nhất của chặng này, và nó là một ca CHIỀU DƯƠNG.
+     * Ca `0197` ở chỗ này là một ca CHIỀU DƯƠNG: nó khẳng định hồ sơ bị trả về
+     * KHÔNG chặn, vì *"cấm ở đó là một luật không ai yêu cầu"*. Khách hàng yêu
+     * cầu đúng luật ấy ngày 25/09, nên ca đảo chiều chứ không xoá — ranh giới
+     * vẫn cần canh, chỉ là nó dời chỗ.
      *
-     * `NHAP` và `YEU_CAU_CHINH_SUA` cùng nằm trong `SUA_DUOC`, nên viết phép
-     * kiểm bằng hằng ấy là chuyện tự nhiên nhất — và nó cấm TDV lập hồ sơ cho
-     * một khách đang có hồ sơ BỊ TRẢ VỀ, một luật không ai yêu cầu. Không có ca
-     * này thì phép siết ấy lọt qua cả bộ kiểm.
+     * Mã lỗi là `POLICY_IN_PROGRESS`, không phải `DRAFT_EXISTS`: hồ sơ ấy đã
+     * vào luồng, và việc của TDV là sửa rồi gửi lại CHÍNH nó.
      */
     const d = await draft();
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
@@ -2286,7 +2253,9 @@ describe('`0197` một bản Nháp mỗi khách hàng', () => {
       customerId: d.customerId,
       lines: [line(await makeProduct())],
     });
-    expect(lai.status).toBe(201);
+    expect(lai.status).toBe(409);
+    expect(lai.body.code).toBe('POLICY_IN_PROGRESS');
+    expect(lai.body.status).toBe('YEU_CAU_CHINH_SUA');
   });
 
   it('chặn cả đường LẬP PHIÊN BẢN MỚI, không riêng bản đầu', async () => {
@@ -2336,6 +2305,183 @@ describe('`0197` một bản Nháp mỗi khách hàng', () => {
       lines: [line(await makeProduct())],
     });
     expect(r.status).toBe(201);
+  });
+});
+
+/**
+ * `0220` — MỖI KHÁCH CHỈ MỘT HỒ SƠ ĐANG XỬ LÝ (chốt 25/09).
+ *
+ * *"Không tính các CSBH đang có hiệu lực, đã xoá, hết hiệu lực"* — cộng
+ * `QUA_HAN_DUYET`, chốt khi được hỏi. Mười trạng thái chia đôi thành sáu chặn và
+ * bốn không chặn, và ca kiểm đi hết CẢ MƯỜI: thiếu một vế là để trống đúng chỗ
+ * luật dễ lệch nhất — hằng `CHUA_DUYET_XONG` thêm/bớt một trạng thái, hoặc vị từ
+ * của chỉ mục gõ tay trong migration trôi khỏi hằng ấy.
+ */
+describe('`0220` một hồ sơ đang xử lý mỗi khách hàng', () => {
+  /** Đẩy một bản Nháp mới tới đúng trạng thái, bằng chính các hành động của luồng. */
+  const denTrangThai = async (tt: string) => {
+    const d = await draft();
+    if (tt === 'NHAP') return d;
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    if (tt === 'CHO_TBP_DUYET') return d;
+    if (tt === 'YEU_CAU_CHINH_SUA') {
+      expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Thieu chung tu' })).status).toBe(200);
+      return d;
+    }
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    if (tt === 'CHO_KT_L1') return d;
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    if (tt === 'SA_DANG_XU_LY') return d;
+    await post(`/policies/${d.id}/attachments`,
+      { kind: 'SCAN', fileName: 's.pdf', objectKey: `scan/${d.id}.pdf` }, 'sa01');
+    await post(`/policies/${d.id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'bm.pdf', objectKey: `bm/${d.id}.pdf` }, 'sa01');
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    return d;
+  };
+
+  const lapLai = (customerId: string) =>
+    post('/policies', { customerId, mode: 'NEW_VERSION', lines: [] });
+
+  it('sáu trạng thái được tính ĐÚNG BẰNG `CHUA_DUYET_XONG`', () => {
+    // Ghim tập, để ca vòng lặp ngay dưới không lặng lẽ đi theo một hằng đã nới.
+    expect([...CHUA_DUYET_XONG].sort()).toEqual(
+      ['CHO_KT_L1', 'CHO_KT_L2', 'CHO_TBP_DUYET', 'NHAP', 'SA_DANG_XU_LY', 'YEU_CAU_CHINH_SUA'],
+    );
+  });
+
+  for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2']) {
+    it(`hồ sơ ${tt} chặn lượt lập mới, và câu lỗi trỏ đúng hồ sơ ấy`, async () => {
+      const d = await denTrangThai(tt);
+      const r = await post('/policies', { customerId: d.customerId, lines: [line(await makeProduct())] });
+      expect(r.status).toBe(409);
+      if (tt === 'NHAP') {
+        // Bản Nháp giữ mã cũ của `0197`: việc làm được là SOẠN TIẾP, khác hẳn.
+        expect(r.body.code).toBe('DRAFT_EXISTS');
+        expect(r.body.draftPolicyId).toBe(d.id);
+      } else {
+        expect(r.body.code).toBe('POLICY_IN_PROGRESS');
+        expect(r.body.policyId).toBe(d.id);
+        expect(r.body.status).toBe(tt);
+      }
+    });
+  }
+
+  it('DANG_CO_HIEU_LUC và HET_HIEU_LUC KHÔNG chặn', async () => {
+    const d = await draft();
+    await runToActive(d);
+    const v2 = await lapLai(d.customerId);
+    expect(v2.status, 'bản đang hiệu lực không được chặn phiên bản mới').toBe(201);
+    await runToActive({ id: v2.body.id });
+    // Giờ bản đầu là HET_HIEU_LUC và bản hai là DANG_CO_HIEU_LUC — cả hai không tính.
+    const trangThai = await withAdminDb(async (c) =>
+      (await c.query<{ status: string }>(`SELECT status::text AS status FROM pol.policy WHERE id = $1`, [d.id])).rows[0]!.status,
+    );
+    expect(trangThai).toBe('HET_HIEU_LUC');
+    expect((await lapLai(d.customerId)).status).toBe(201);
+  });
+
+  it('DA_XOA KHÔNG chặn', async () => {
+    // Đi đường thật: bị trả về rồi TDV xoá (`0155`) — bản Nháp xoá là xoá hẳn dòng.
+    const d = await denTrangThai('YEU_CAU_CHINH_SUA');
+    expect((await del(`/policies/${d.id}`)).status).toBeLessThan(300);
+    const r = await post('/policies', { customerId: d.customerId, lines: [line(d.productId)] });
+    expect(r.status).toBe(201);
+  });
+
+  it('QUA_HAN_DUYET KHÔNG chặn — trạng thái kết thúc, chốt khi được hỏi', async () => {
+    /*
+     * Dựng bằng CSDL như các ca `0047` — `sla-worker` là đường duy nhất tới đây,
+     * và tổ hợp `CHO_TBP_DUYET` → `QUA_HAN_DUYET` kèm `pending_step` là tổ hợp
+     * nó thật sự sinh ra.
+     */
+    const d = await denTrangThai('CHO_TBP_DUYET');
+    await withAdminDb((c) =>
+      c.query(
+        `UPDATE pol.policy SET status = 'QUA_HAN_DUYET', pending_step = 'B4_TBP_DUYET',
+                overdue_at = now() WHERE id = $1`,
+        [d.id],
+      ),
+    );
+    const r = await post('/policies', { customerId: d.customerId, lines: [line(d.productId)] });
+    expect(r.status).toBe(201);
+  });
+
+  it('vị từ của chỉ mục ở CSDL liệt kê ĐÚNG tập `CHUA_DUYET_XONG`', async () => {
+    /*
+     * Migration phải gõ sáu trạng thái thành chữ — không có cách nào để một
+     * `CREATE INDEX … WHERE` đọc một hằng TypeScript. Hỏi thẳng `pg_indexes`
+     * thay vì đọc tệp `.sql`: thứ chạy là chỉ mục trong CSDL (bài học `0198`).
+     */
+    const def = await withAdminDb(async (c) =>
+      (await c.query<{ indexdef: string }>(
+        `SELECT indexdef FROM pg_indexes WHERE schemaname = 'pol' AND indexname = $1`,
+        [UQ_DANG_DO],
+      )).rows[0]?.indexdef,
+    );
+    expect(def, `không có chỉ mục ${UQ_DANG_DO}`).toBeDefined();
+    const trongChiMuc = [...def!.matchAll(/'([A-Z0-9_]+)'/g)].map((m) => m[1]!).sort();
+    expect(trongChiMuc).toEqual([...CHUA_DUYET_XONG].sort());
+    // Chỉ mục cũ của `0197` phải đi — hai tên cho một lượt vi phạm là câu lỗi
+    // tuỳ bản nào nổ trước.
+    const cu = await withAdminDb(async (c) =>
+      (await c.query(`SELECT 1 FROM pg_indexes WHERE indexname = 'uq_policy_nhap_moi_khach'`)).rowCount,
+    );
+    expect(cu).toBe(0);
+  });
+
+  it('trả POLICY_IN_PROGRESS TRƯỚC NEW_VERSION_REQUIRED — cùng thứ tự `0197` đặt cho bản Nháp', async () => {
+    /*
+     * Ca này là thứ DUY NHẤT phân biệt phép kiểm ở service với chỉ mục ở CSDL.
+     * Thu phép kiểm về lại `status = 'NHAP'` thì mọi ca khác vẫn xanh — lượt
+     * `INSERT` vấp `uq_policy_dang_do_moi_khach` và `doiTrungNhap` trả đúng câu
+     * này. Nhưng khách đã có CSBH hiệu lực mà người lập không khai `mode` thì
+     * `NEW_VERSION_REQUIRED` nổ TRƯỚC lượt `INSERT`, và người dùng được mời lập
+     * một phiên bản mới mà máy chủ sẽ từ chối ở lượt bấm kế tiếp.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const moi = await lapLai(d.customerId);
+    expect(moi.status).toBe(201);
+    expect((await act(moi.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const r = await post('/policies', { customerId: d.customerId, lines: [] });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_IN_PROGRESS');
+    expect(r.body.policyId).toBe(moi.body.id);
+  });
+
+  it('hai lượt lập SONG SONG khi khách đang có hồ sơ chờ duyệt: cả hai 409, không cái nào lọt', async () => {
+    const d = await denTrangThai('CHO_KT_L1');
+    const sp = [await makeProduct(), await makeProduct()];
+    const kq = await Promise.all([
+      post('/policies', { customerId: d.customerId, lines: [line(sp[0]!)] }),
+      post('/policies', { customerId: d.customerId, lines: [line(sp[1]!)] }),
+    ]);
+    expect(kq.map((r) => r.status)).toEqual([409, 409]);
+  });
+
+  it('`phienBanSau` hỏi theo KHÁCH HÀNG — trùng câu hỏi của chốt chặn', async () => {
+    /*
+     * Hộp *Lập phiên bản mới* đọc trường này để BIẾT TRƯỚC nút sẽ bị từ chối.
+     * Hồ sơ đang xử lý trong ca này KHÔNG phải bản kế nhiệm của bản đang hiệu
+     * lực (không có `supersedes_id` trỏ về nó) — câu hỏi cũ theo `supersedes_id`
+     * trả `null` rồi hộp mời bấm một nút mà máy chủ sẽ từ chối.
+     *
+     * Trạng thái vặn bằng CSDL này ĐẾN ĐƯỢC, chỉ không còn đến được từ `0220`:
+     * trước đó khách có hai hồ sơ song song, bản A lên hiệu lực trong khi bản B
+     * (lập lúc chưa có bản nào hiệu lực, nên `supersedes_id` rỗng) còn đang
+     * duyệt. Migration giữ lại đúng tổ hợp ấy — nó chỉ chặn HAI hồ sơ đang xử lý.
+     */
+    const d = await draft();
+    await runToActive(d);
+    const moi = await lapLai(d.customerId);
+    expect(moi.status).toBe(201);
+    await withAdminDb((c) =>
+      c.query(`UPDATE pol.policy SET supersedes_id = NULL WHERE id = $1`, [moi.body.id]),
+    );
+    const doc = (await get(`/policies/${d.id}`)).body;
+    expect(doc.phienBanSau?.id).toBe(moi.body.id);
   });
 });
 
