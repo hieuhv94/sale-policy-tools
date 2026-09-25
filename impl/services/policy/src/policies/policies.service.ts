@@ -31,6 +31,7 @@ import { PG, ngayVN, paged, pgCode, type AuthUser, type Page } from '@csbh/http-
 import { soSanhLech, type MucLech } from './lech.js';
 import { ngayTraDanhMuc } from './ngay-tra-danh-muc.js';
 import { chuanHoaMa, CAU_LOI_MA } from './ma-ho-so.js';
+import { lyDoConCanBay } from './ly-do.js';
 import type { ProductSnapshot } from '../infra/clients.js';
 
 /**
@@ -2638,7 +2639,8 @@ export class PoliciesService {
        * có, và cũng là giá trị cho mọi hồ sơ không ở trạng thái đang hiệu lực.
        */
       phienBanSau: phienBanSauHoacRong,
-      lyDoTraLai: lyDoSu
+      // `0221` — chỉ khi lý do còn là việc phải làm (`lyDoConCanBay`).
+      lyDoTraLai: lyDoSu && lyDoConCanBay(p.status, lyDoSu.action)
         ? {
             lyDo: lyDoSu.reason,
             hanhDong: lyDoSu.action,

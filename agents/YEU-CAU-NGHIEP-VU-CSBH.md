@@ -2342,6 +2342,10 @@ cần rõ ràng hơn, như ai đã trả về và trả về từ bước nào"*
 > **Gửi lại sau khi sửa vẫn giữ lý do cũ** — cùng quy ước với `Lý do gần nhất` từ trước: lý do chỉ bị
 > thay khi có một lý do mới.
 >
+> > **ĐẢO `25/09`** — khối chỉ hiện khi lý do còn là việc phải làm: ở *Yêu cầu chỉnh sửa*, hoặc ở bàn
+> > Sale Admin sau lượt Kế toán *Yêu cầu in lại*. Gửi lại sau khi sửa thì khối **biến mất**. Xem *"Khối
+> > lý do chỉ hiện khi còn việc phải làm"* ở cuối Phụ lục B.
+>
 > **Vai trò KHÔNG in riêng**: nhãn hành động đã nói ra nó (*"Kế toán không tiếp nhận lần 1"*), nên in
 > thêm là lặp. Nhờ vậy hồ sơ không tra được tên người vẫn trả lời được câu *"bàn nào trả về"*.
 
@@ -2833,6 +2837,24 @@ bản Nháp mỗi khách hàng"* (`10/09`) ra mọi hồ sơ chưa duyệt xong.
 > duyệt xong; thông báo in mã và tên khách kèm **mã và trạng thái** từng hồ sơ. Đường sửa như cũ: xoá
 > bớt bản thừa trên màn hình, hoặc duyệt xong một bản, rồi chạy lại. **Đo được trên CSDL demo cũ**:
 > 22 khách, mỗi khách 4–6 hồ sơ đang dở — bản demo phải dựng lại (`make demo-mau` đã đổi theo).
+
+**KHỐI LÝ DO CHỈ HIỆN KHI CÒN VIỆC PHẢI LÀM** `sửa 25/09` — *"phần lý do cuối cùng trong trang CSBH chỉ
+hiện khi ở trạng thái yêu cầu chỉnh sửa, hoặc SA cần up lại bản cứng, các trạng thái khác không cần
+hiện"*.
+
+> Khối *Lý do gần nhất* hiện ở đúng **hai lúc**:
+>
+> - hồ sơ đang **Yêu cầu chỉnh sửa** — TDV phải sửa theo lý do ấy (bốn đường trả về của `08/09`);
+> - hồ sơ đang ở bàn **Sale Admin** và lý do gần nhất là Kế toán **Yêu cầu in lại** — Sale Admin phải
+>   tải lên bản cứng mới theo lý do ấy.
+>
+> Mọi trạng thái khác: **không hiện**, kể cả khi hồ sơ từng bị trả về. **Đảo quy ước `08/09`** *"gửi
+> lại sau khi sửa vẫn giữ lý do cũ"* — gửi lại rồi thì người đang cầm hồ sơ là người duyệt, và lý do
+> ấy đã được xử lý. Lý do không mất: **Lịch sử** của hồ sơ vẫn giữ đủ mọi lượt.
+>
+> **Vế Sale Admin hỏi HÀNH ĐỘNG, không chỉ trạng thái**: *Sale Admin đang xử lý* cũng là bước bình
+> thường ngay sau Kế toán tiếp nhận L1, và lúc ấy lý do gần nhất (nếu có) là một lượt trả về đã sửa
+> xong từ trước — không hiện.
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

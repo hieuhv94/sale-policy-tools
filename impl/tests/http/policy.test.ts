@@ -6091,23 +6091,69 @@ describe('`0189` lý do trả về kèm người và bước', () => {
     expect(lyA.lyDoTraLai.tuTrangThai).not.toBe(lyB.lyDoTraLai.tuTrangThai);
   });
 
-  it('GỬI LẠI sau khi sửa vẫn giữ lý do CŨ, không rơi về rỗng', async () => {
+  it('`0221` GỬI LẠI sau khi sửa thì KHÔNG còn khối lý do — việc đã làm xong', async () => {
     /*
-     * Dòng nhật ký cuối cùng lúc này là `RESUBMIT_AFTER_EDIT`, và nó KHÔNG có lý
-     * do. Lấy dòng cuối thay vì dòng cuối CÓ LÝ DO là bày ra một khối rỗng đúng
-     * lúc người đọc cần nhớ mình vừa bị trả về vì cái gì — và `lastReason` bên
-     * cạnh thì vẫn còn chữ, nên hai chỗ sẽ nói hai điều khác nhau.
+     * ĐẢO ca `0189` (*"gửi lại vẫn giữ lý do CŨ"*). Khách hàng chốt 25/09: khối
+     * lý do chỉ hiện khi nó còn là VIỆC của ai đó — ở `YEU_CAU_CHINH_SUA`, hoặc
+     * ở bàn Sale Admin sau *Yêu cầu in lại*. `lastReason` vẫn còn chữ (nó sống
+     * qua mọi bước sau), và đó chính là lý do giao diện thôi rơi về nó.
      */
     const d = await draft();
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
     expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sai gia ban buon' })).status).toBe(200);
+    const truoc = (await get(`/policies/${d.id}`)).body;
+    expect(truoc.lyDoTraLai?.lyDo, 'đang Yêu cầu chỉnh sửa thì PHẢI có').toBe('Sai gia ban buon');
+
     expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    const b = (await get(`/policies/${d.id}`)).body;
+    expect(b.status).toBe('CHO_TBP_DUYET');
+    expect(b.lastReason, 'tiền đề: chuỗi lý do vẫn nằm trên hồ sơ').toBe('Sai gia ban buon');
+    expect(b.lyDoTraLai).toBeNull();
+  });
+
+  it('`0221` Kế toán YÊU CẦU IN LẠI: bàn Sale Admin thấy lý do, bàn giao xong thì hết', async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    for (const [kind, ten] of [['SCAN', 'ban-cung.pdf'], ['BAN_MEM', 'ban-mem.pdf']] as const) {
+      await post(
+        `/policies/${d.id}/attachments`,
+        { kind, fileName: ten, objectKey: `${kind}/${d.id}.pdf` },
+        'sa01',
+      );
+    }
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    expect((await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban cung mo' })).status).toBe(200);
+
+    const o = (await get(`/policies/${d.id}`)).body;
+    expect(o.status).toBe('SA_DANG_XU_LY');
+    expect(o.lyDoTraLai, 'Sale Admin phải thấy vì sao phải tải lại bản cứng').toBeTruthy();
+    expect(o.lyDoTraLai.hanhDong).toBe('KT_REQUEST_REPRINT');
+    expect(o.lyDoTraLai.lyDo).toBe('Ban cung mo');
+    expect(o.lyDoTraLai.tuTrangThai).toBe('CHO_KT_L2');
+
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    expect((await get(`/policies/${d.id}`)).body.lyDoTraLai).toBeNull();
+  });
+
+  it('`0221` ở bàn Sale Admin LƯỢT ĐẦU thì lý do trả về cũ KHÔNG hiện', async () => {
+    /*
+     * Vế thứ hai của luật hỏi HÀNH ĐỘNG, không chỉ trạng thái: `SA_DANG_XU_LY`
+     * cũng là bước bình thường ngay sau tiếp nhận L1, và lúc ấy lý do gần nhất
+     * là một lượt trả về đã sửa xong. Hỏi mỗi trạng thái là khối hiện lại ở đây.
+     */
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_RETURN', 'tbp01', { reason: 'Sai gia' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
 
     const b = (await get(`/policies/${d.id}`)).body;
-    expect(b.lyDoTraLai, 'khối lý do biến mất sau khi gửi lại').toBeTruthy();
-    expect(b.lyDoTraLai.lyDo).toBe('Sai gia ban buon');
-    expect(b.lyDoTraLai.lyDo).toBe(b.lastReason);
-    expect(b.lyDoTraLai.hanhDong).toBe('TBP_RETURN');
+    expect(b.status).toBe('SA_DANG_XU_LY');
+    expect(b.lastReason).toBe('Sai gia');
+    expect(b.lyDoTraLai).toBeNull();
   });
 
   it('hồ sơ CHƯA từng bị trả về thì không có khối lý do', async () => {

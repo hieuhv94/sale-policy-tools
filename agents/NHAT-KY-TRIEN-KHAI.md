@@ -19607,3 +19607,45 @@ nổ trước lượt `INSERT` và mời lập một phiên bản mà máy chủ
 viết TRƯỚC lượt phá — dự đoán từ đọc mã, và lượt phá xác nhận nó là ca duy nhất đỏ.
 
 **2424/2424 xanh**, typecheck sạch. Chồng demo đã hạ sau lượt nghiệm thu; `make demo-mau` dựng lại bản demo theo luật mới.
+
+## P251 — `0221` Khối lý do chỉ hiện khi còn việc phải làm
+
+Khách hàng (25/09): *"phần lý do cuối cùng trong trang CSBH chỉ hiện khi ở trạng thái yêu cầu chỉnh
+sửa, hoặc SA cần up lại bản cứng, các trạng thái khác không cần hiện"*. *"SA cần up lại bản cứng"*
+đọc là `SA_DANG_XU_LY` **sau** `KT_REQUEST_REPRINT` — hành động duy nhất đưa hồ sơ về bàn Sale Admin
+kèm lý do.
+
+### Đảo một ca `0189`, có chủ ý
+
+`0189` có ca *"gửi lại sau khi sửa vẫn giữ lý do CŨ, không rơi về rỗng"*, lập luận là người đọc cần
+nhớ mình bị trả về vì cái gì. Lập luận ấy đúng cho TDV đang sửa — tức đúng lúc hồ sơ còn ở
+`YEU_CAU_CHINH_SUA`, và luật mới vẫn hiện ở đó. Gửi lại rồi thì người cầm hồ sơ là người duyệt. Ca ấy
+**đảo chiều** chứ không xoá: nó giờ khẳng định khối có mặt TRƯỚC lượt gửi lại và biến mất SAU, và
+`lastReason` vẫn còn chữ (tiền đề của vế giao diện bên dưới).
+
+### Luật ở MÁY CHỦ, và đường lùi `lastReason` của giao diện phải gỡ
+
+`lyDoConCanBay(status, action)` ở `services/policy/src/policies/ly-do.ts`; `byId` trả
+`lyDoTraLai: null` ngoài hai lúc ấy. Giao diện thôi tự suy: nó bày khối **khi và chỉ khi**
+`lyDoTraLai` khác `null`. Đường lùi `hoSo.lyDoTraLai ?? hoSo.lastReason` của `0189` **gỡ** — không
+phải dọn cho gọn mà là bắt buộc: `last_reason` sống qua MỌI bước sau lượt trả về (`coalesce` bên
+`workflow`), nên giữ nó thì máy chủ trả `null` xong giao diện vẫn dựng lại khối bằng chuỗi trần, đúng
+ở những trạng thái vừa được yêu cầu giấu. Lượt phá giao diện (đặt lại đường lùi) đỏ đúng ca mới.
+
+### Vế Sale Admin phải hỏi HÀNH ĐỘNG
+
+`SA_DANG_XU_LY` còn là bước bình thường ngay sau `KT_RECEIVE_L1`. Hồ sơ từng bị TBP trả về rồi đi
+tiếp tới đó thì dòng nhật ký cuối CÓ LÝ DO là lượt trả về cũ — hỏi mỗi trạng thái là khối hiện lại
+với một lý do đã sửa xong. Có ca riêng cho đúng hình ấy; lượt phá *"chỉ hỏi trạng thái"* đỏ đúng ca
+đó và **chỉ** ca đó — hai ca kia không nhìn thấy khác biệt, nên thiếu ca này thì vế hành động là mã
+không ai canh.
+
+### Phá lại
+
+1. `lyDoConCanBay` luôn `true` + đặt lại đường lùi `lastReason` ở giao diện → **4 đỏ** (3 HTTP, 1
+   giao diện), đúng bốn ca `0221`.
+2. Bỏ vế hành động (`status === 'SA_DANG_XU_LY'` trơn) → **1 đỏ**: ca *"bàn Sale Admin lượt đầu"*.
+
+Hai lượt phá, hai đỏ đúng chỗ.
+
+**2426/2426 xanh**, typecheck sạch.

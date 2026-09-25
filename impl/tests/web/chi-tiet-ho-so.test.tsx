@@ -1512,10 +1512,16 @@ describe('`0189` lý do trả về nói rõ ai và từ bước nào', () => {
     expect(chu).toContain('Thieu chu ky chu ho');
   });
 
-  it('MÁY CHỦ CŨ chỉ gửi `lastReason` thì vẫn hiện câu lý do', async () => {
-    // Đường lùi: mất ngữ cảnh chứ không mất lý do.
-    await mo({ ...HO_SO, status: 'YEU_CAU_CHINH_SUA', lastReason: 'Chi co chuoi' });
-    expect(khoi()!.textContent).toContain('Chi co chuoi');
+  it('`0221` chỉ có `lastReason` thì KHÔNG dựng khối — máy chủ quyết định khi nào hiện', async () => {
+    /*
+     * Thay ca *"máy chủ cũ chỉ gửi `lastReason`"* của `0189`. `lastReason` sống
+     * qua mọi bước sau lượt trả về, nên rơi về nó là khối hiện lại ở đúng những
+     * trạng thái khách hàng vừa yêu cầu giấu. Máy chủ trả `lyDoTraLai: null` là
+     * câu trả lời, không phải một chỗ thiếu cần vá.
+     */
+    await mo({ ...HO_SO, status: 'CHO_TBP_DUYET', lastReason: 'Chi co chuoi', lyDoTraLai: null });
+    expect(khoi()).toBeNull();
+    expect(document.body.textContent).not.toContain('Chi co chuoi');
   });
 
   it('hồ sơ chưa từng bị trả về thì KHÔNG có khối nào', async () => {

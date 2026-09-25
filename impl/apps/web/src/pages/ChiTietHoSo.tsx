@@ -692,36 +692,31 @@ export function ChiTietHoSo({ id }: { id: string }) {
         Hoàn duyệt, Kế toán không tiếp nhận L1, và L2). Cùng một câu *"thiếu
         chứng từ"* đến từ hai bàn khác nhau là hai việc phải làm khác nhau.
 
-        `lyDoTraLai` do MÁY CHỦ dựng từ nhật ký; `lastReason` giữ lại làm đường
-        lùi cho hồ sơ mà dòng nhật ký mang lý do đã bị dọn (cửa sổ audit sáu
-        tháng của `0087` không đụng `pol.policy_event`, nhưng đường lùi này rẻ và
-        nó giữ cho khối không biến mất nếu điều đó đổi).
+        `lyDoTraLai` do MÁY CHỦ dựng từ nhật ký, và từ `0221` máy chủ cũng quyết
+        định KHI NÀO có nó: chỉ ở *Yêu cầu chỉnh sửa*, hoặc ở bàn Sale Admin sau
+        lượt Kế toán *Yêu cầu in lại* (`lyDoConCanBay`). Đường lùi về
+        `lastReason` của `0189` GỠ theo — chuỗi ấy sống qua mọi bước sau, nên
+        giữ nó là khối hiện lại đúng ở những trạng thái vừa được yêu cầu giấu.
       */}
-      {(hoSo.lyDoTraLai ?? hoSo.lastReason) && (
+      {hoSo.lyDoTraLai && (
         <div className="ghi-chu-tra-lai" role="note">
           <span className="hop-tieu-de">Lý do gần nhất</span>
-          {hoSo.lyDoTraLai ? (
-            <>
-              <p className="lai-lich-ly-do">
-                <strong>{nhanHanhDong(hoSo.lyDoTraLai.hanhDong)}</strong>
-                {/* NHÃN HÀNH ĐỘNG đã nói ra VAI TRÒ — *"Kế toán không tiếp nhận
-                    lần 1"* — nên không in vai trò lần nữa. Ca kiểm đầu tiên của
-                    `0189` tìm ra chỗ lặp này: câu dựng ra là *"Trưởng bộ phận
-                    trả lại để chỉnh sửa — Trưởng bộ phận Trần Thị B"*.
+          <p className="lai-lich-ly-do">
+            <strong>{nhanHanhDong(hoSo.lyDoTraLai.hanhDong)}</strong>
+            {/* NHÃN HÀNH ĐỘNG đã nói ra VAI TRÒ — *"Kế toán không tiếp nhận
+                lần 1"* — nên không in vai trò lần nữa. Ca kiểm đầu tiên của
+                `0189` tìm ra chỗ lặp này: câu dựng ra là *"Trưởng bộ phận
+                trả lại để chỉnh sửa — Trưởng bộ phận Trần Thị B"*.
 
-                    Nhờ vậy `ten` rỗng cũng không mất câu trả lời cho *"bàn nào
-                    trả về"* — vế ấy nằm ở nhãn hành động, không ở cái tên. */}
-                {hoSo.lyDoTraLai.ten && <>{' — '}{hoSo.lyDoTraLai.ten}</>}
-                {hoSo.lyDoTraLai.tuTrangThai && (
-                  <> · từ bước {nhanTrangThai(hoSo.lyDoTraLai.tuTrangThai)}</>
-                )}
-                {hoSo.lyDoTraLai.luc && <> · {ngayGio(hoSo.lyDoTraLai.luc)}</>}
-              </p>
-              {hoSo.lyDoTraLai.lyDo}
-            </>
-          ) : (
-            hoSo.lastReason
-          )}
+                Nhờ vậy `ten` rỗng cũng không mất câu trả lời cho *"bàn nào
+                trả về"* — vế ấy nằm ở nhãn hành động, không ở cái tên. */}
+            {hoSo.lyDoTraLai.ten && <>{' — '}{hoSo.lyDoTraLai.ten}</>}
+            {hoSo.lyDoTraLai.tuTrangThai && (
+              <> · từ bước {nhanTrangThai(hoSo.lyDoTraLai.tuTrangThai)}</>
+            )}
+            {hoSo.lyDoTraLai.luc && <> · {ngayGio(hoSo.lyDoTraLai.luc)}</>}
+          </p>
+          {hoSo.lyDoTraLai.lyDo}
         </div>
       )}
 

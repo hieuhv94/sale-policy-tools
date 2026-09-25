@@ -1120,7 +1120,7 @@ trên cùng — không cần vào trang khách hàng nữa.
 
 Cách cũ vẫn dùng được: **Hồ sơ CSBH → Lập hồ sơ → chọn khách hàng**.
 
-### Đọc lý do hồ sơ bị trả về `sửa 08/09`
+### Đọc lý do hồ sơ bị trả về `sửa 08/09, 25/09`
 
 Hồ sơ bị trả về mang một khối **Lý do gần nhất** ngay dưới khối thông tin. Từ `08/09` khối ấy nói đủ
 **bốn vế**, dòng nhỏ phía trên câu lý do:
@@ -1137,8 +1137,14 @@ Hồ sơ bị trả về mang một khối **Lý do gần nhất** ngay dưới 
 - **Từ bước nào** — bước hồ sơ đang đứng **lúc bị trả về**, không phải bước hiện tại.
 - **Lúc nào**.
 
-Khối này **giữ nguyên sau khi bạn sửa và gửi lại** — nó chỉ đổi khi có một lý do mới. Muốn xem đủ mọi
-lần trả về thì mở **Lịch sử** ở cuối trang.
+Khối này **chỉ hiện khi lý do còn là việc phải làm** `sửa 25/09`:
+
+- hồ sơ đang **Yêu cầu chỉnh sửa** — Trình dược viên sửa theo lý do;
+- hồ sơ đang ở bàn **Sale Admin** sau khi Kế toán **Yêu cầu in lại** — Sale Admin tải lên bản cứng
+  mới theo lý do (dòng trên cùng ghi *Kế toán yêu cầu in lại bản cứng · từ bước KT duyệt bản cứng*).
+
+Sửa xong và gửi lại, hoặc Sale Admin bàn giao lại, thì khối **biến mất**. Muốn xem đủ mọi lần trả về
+thì mở **Lịch sử** ở cuối trang.
 
 **Xoá hồ sơ** — nút riêng, **chỉ Trình dược viên đang phụ trách hồ sơ**, và chỉ ở **ba trạng thái**:
 **Nháp**, **Yêu cầu chỉnh sửa** (tức là cả ba đường bị trả về — TBP yêu cầu chỉnh sửa, Kế toán không

@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (25/09/2026)
 
-Chặng gần nhất **P250** (`0220`): **mỗi khách hàng chỉ một hồ sơ CSBH đang xử lý** — sáu trạng
+Chặng gần nhất **P251** (`0221`): **khối *Lý do gần nhất* chỉ hiện khi còn việc phải làm** — ở
+*Yêu cầu chỉnh sửa*, hoặc ở `SA_DANG_XU_LY` khi lý do gần nhất là `KT_REQUEST_REPRINT`. Luật ở máy chủ
+(`policies/ly-do.ts`, `lyDoTraLai: null` ngoài hai lúc ấy); đường lùi `lastReason` của giao diện **gỡ**
+vì chuỗi ấy sống qua mọi bước sau. Đảo ca `0189` *"gửi lại vẫn giữ lý do cũ"*. Vế Sale Admin hỏi
+HÀNH ĐỘNG, vì `SA_DANG_XU_LY` cũng là bước thường sau tiếp nhận L1. Hai lượt phá lại, hai đỏ.
+
+Trước đó **P250** (`0220`): **mỗi khách hàng chỉ một hồ sơ CSBH đang xử lý** — sáu trạng
 thái của `CHUA_DUYET_XONG`; không tính *Đang có hiệu lực*, *Hết hiệu lực*, *Đã xoá* và *Quá hạn duyệt*
 (chốt khi được hỏi). Chỉ mục `uq_policy_dang_do_moi_khach` thay chỉ mục Nháp của `0197`, mã lỗi mới
 `POLICY_IN_PROGRESS` cạnh `DRAFT_EXISTS`, `phienBanSau` hỏi theo khách bằng CHÍNH câu SQL của chốt
