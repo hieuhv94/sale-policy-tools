@@ -5795,7 +5795,8 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       .set('Authorization', `Bearer ${tok['tdv01']}`)
       .send({ phone: sdtMoi });
     expect(sua.status, JSON.stringify(sua.body)).toBe(200);
-    expect(sua.body.phone).toBe(sdtMoi);
+    // `0223` — máy chủ lưu bản CHUẨN: mười chữ số liền, bỏ dấu cách.
+    expect(sua.body.phone).toBe('0999111222');
 
     // Hồ sơ giữ số CŨ.
     const snap = await withAdminDb(async (c) =>
@@ -5805,7 +5806,7 @@ describe('`0104` đủ trường mới gửi duyệt được', () => {
       ),
     );
     expect(snap.rows[0]!.kh_dien_thoai_snap).toBe('0900000000');
-    expect(snap.rows[0]!.kh_dien_thoai_snap).not.toBe(sdtMoi);
+    expect(snap.rows[0]!.kh_dien_thoai_snap).not.toBe('0999111222');
   }, 60_000);
 
   /*

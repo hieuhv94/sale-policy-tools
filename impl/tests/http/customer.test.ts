@@ -1168,3 +1168,45 @@ describe('`0205` tỉnh/thành chọn trong 63 tên', () => {
   });
 });
 
+
+/**
+ * `0223` — SỐ ĐIỆN THOẠI ĐÚNG 10 CHỮ SỐ (khách hàng chốt 27/09).
+ *
+ * `base()` luôn đè `phone: '0900000000'` SAU `...over` (dòng cuối của nó), nên
+ * các ca ở đây gửi số điện thoại bằng cách sửa đè lên thân đã dựng, không qua
+ * `over` — qua `over` là ca kiểm lặng lẽ gửi đúng số hợp lệ kia.
+ */
+describe('`0223` số điện thoại đúng 10 chữ số', () => {
+  const voiSdt = (phone: string) => ({ ...base(), phone });
+
+  it('9 và 11 chữ số, hoặc có chữ cái, thì TỪ CHỐI — cả lượt lập lẫn lượt sửa', async () => {
+    for (const sai of ['090123456', '09012345678', '09O1234567']) {
+      const a = await post('/customers', voiSdt(sai));
+      expect(a.status, sai).toBe(400);
+      expect(a.body.code, sai).toBe('CUSTOMER_PHONE_INVALID');
+      // `field` phải có: giao diện đưa câu lỗi xuống ngay dưới ô (`loi.ts`).
+      expect(a.body.field, sai).toBe('phone');
+    }
+    const c = await post('/customers', base());
+    expect(c.status).toBe(201);
+    const b = await patch(`/customers/${c.body.id}`, { phone: '0912 345 67' });
+    expect(b.status).toBe(400);
+    expect(b.body.code).toBe('CUSTOMER_PHONE_INVALID');
+  });
+
+  it('dấu cách, chấm, gạch ngang được bỏ qua — và CSDL giữ bản CHUẨN', async () => {
+    /*
+     * Đọc thẳng CSDL: chỗ phải đúng là cột, vì nó bị đóng băng vào hồ sơ
+     * (`kh_dien_thoai_snap`) và in ra tờ CSBH. Kiểm rồi ghi nguyên chuỗi gửi
+     * lên là giữ ba lối viết cho một số.
+     */
+    const c = await post('/customers', voiSdt('0912.345-678'));
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+    const b = await patch(`/customers/${c.body.id}`, { phone: '0987 654 321' });
+    expect(b.status).toBe(200);
+    const r = await withAdminDb((db) =>
+      db.query<{ phone: string }>(`SELECT phone FROM cus.customer WHERE id = $1`, [c.body.id]),
+    );
+    expect(r.rows[0]!.phone).toBe('0987654321');
+  });
+});

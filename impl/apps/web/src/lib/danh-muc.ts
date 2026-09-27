@@ -150,6 +150,49 @@ export const NHAN_DIEU_KHOAN_NO: Record<DieuKhoanNo, string> = {
 };
 
 /**
+ * SỐ ĐIỆN THOẠI: ĐÚNG 10 CHỮ SỐ (`0223`) — bản sao phía giao diện.
+ *
+ * Bản gốc là `chuanSoDienThoai` ở `services/customer/src/customers/so-dien-thoai.ts`;
+ * giao diện cần nó để báo đỏ NGAY DƯỚI Ô và làm xám nút Lưu trước khi gửi.
+ * Dấu cách, dấu chấm, gạch ngang không tính — máy chủ bỏ chúng đi lúc ghi.
+ * `tests/http/so-dien-thoai.test.ts` chạy một bảng ca qua cả hai bản.
+ */
+export const laSoDienThoai = (s: string): boolean => /^\d{10}$/.test(s.replace(/[\s.-]/g, ''));
+
+/**
+ * CHỨC DANH NGƯỜI ĐẠI DIỆN (`0223`, khách hàng chốt 27/09) — ô chọn hai
+ * phương án cộng *Khác*.
+ *
+ * KHÔNG có mã nào: thứ lưu xuống CSDL là CHÍNH câu chữ (`Giám đốc`), vì nó in
+ * thẳng ra tờ CSBH và máy chủ vẫn nhận chữ tự do — *Khác* nghĩa là chữ tự do.
+ * Nên danh sách này chỉ sống ở giao diện: nó quyết định ô chọn vẽ gì, không
+ * quyết định cái gì hợp lệ.
+ */
+export const CHUC_DANH_DAI_DIEN = ['Giám đốc', 'Chủ hộ kinh doanh'] as const;
+
+/** Giá trị của mục *Khác* trên ô chọn — không bao giờ đi xuống máy chủ. */
+export const CHUC_DANH_KHAC = '__khac__';
+
+/**
+ * Chia một chức danh ĐÃ LƯU thành (mục chọn, chữ tự gõ).
+ *
+ * Chức danh cũ ngoài danh sách (`Chủ nhà thuốc`, `Trưởng khoa`…) hiện thành
+ * *Khác* kèm đúng chữ ấy trong ô gõ — không bao giờ thành ô trống, vì lượt Lưu
+ * tiếp theo sẽ lặng lẽ xoá mất nó (bài học `0205`).
+ */
+export const tachChucDanh = (luu: string): { chon: string; khac: string } => {
+  const s = luu.trim();
+  if (s === '') return { chon: '', khac: '' };
+  return (CHUC_DANH_DAI_DIEN as readonly string[]).includes(s)
+    ? { chon: s, khac: '' }
+    : { chon: CHUC_DANH_KHAC, khac: s };
+};
+
+/** Ngược lại: (mục chọn, chữ tự gõ) → chuỗi gửi lên máy chủ. */
+export const gopChucDanh = (chon: string, khac: string): string =>
+  chon === CHUC_DANH_KHAC ? khac.trim() : chon;
+
+/**
  * SÁU MƯƠI BA TỈNH, THÀNH PHỐ (`0205`) — bản sao phía giao diện.
  *
  * Máy chủ giữ bản gốc kèm toàn bộ lập luận ở

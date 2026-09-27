@@ -547,6 +547,12 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 - **Số điện thoại** `sửa 01/09` — không bắt buộc, và **không còn chặn lượt gửi duyệt**: hai mẫu hồ
   sơ mặc định thôi in số điện thoại nên không có ô trắng nào để lo. Trường vẫn ở đó, vẫn nên điền,
   và mẫu nào muốn in vẫn đặt ô trống được.
+  **Điền thì phải đúng 10 chữ số** `sửa 27/09` — thiếu hay thừa một số là một dòng chữ đỏ hiện ngay
+  dưới ô và nút *Lưu* không bấm được. Gõ `0912 345 678` hay `0912.345.678` đều được; phần mềm lưu
+  thành `0912345678`.
+- **Chức danh người đại diện** `sửa 27/09` — chọn *Giám đốc* hoặc *Chủ hộ kinh doanh*; chức danh
+  khác thì chọn **Khác (tự nhập)** rồi gõ vào ô hiện ra ngay dưới (ô ấy bắt buộc khi đã chọn
+  *Khác*). Khách hàng cũ mang chức danh ngoài danh sách sẽ mở ra ở *Khác* với đúng chữ cũ.
 - **Mã số thuế bắt buộc, và KHÔNG hai khách hàng nào được trùng** `sửa 05/09`. Gõ xong là phần mềm
   hỏi ngay: trùng thì một dòng chữ đỏ hiện **ngay dưới ô**, nói rõ mã và tên khách hàng đang giữ mã
   số thuế ấy, và nút *Lưu* không bấm được.
@@ -785,7 +791,7 @@ chọn sản phẩm. Đó là con số mà tỷ lệ chiết khấu tính ngư�
 mục* ở một tab khác để tra. Con số này lấy **theo Ngày áp dụng bạn vừa gõ**, không phải giá hôm nay:
 đổi ngày thì nó đổi theo, đúng bằng con số hệ thống sẽ chụp vào dòng.
 
-**Bốn con số hiện ngay trong hộp thoại, trước khi bạn bấm *Thêm dòng*** `mới 09/09`. Ngay dưới các ô
+**Bốn con số hiện ngay trong hộp thoại, trước khi bạn bấm *Xác nhận*** `mới 09/09`. Ngay dưới các ô
 CPBH có một khối nhỏ, **bốn ô nằm trên cùng một hàng** `sửa 20/09` — trước ngày ấy chúng xếp thành
 hai hàng hai cột. Màn hình hẹp thì khối tự về hai hàng, điện thoại thì mỗi ô một dòng:
 
@@ -808,7 +814,7 @@ thành `20/09/2026`. Bên phải ô có nút lịch mở bộ chọn ngày của
 > Không thiết lập nào trong phần mềm đổi được điều đó, nên ô ngày giờ do phần mềm tự vẽ.
 >
 > Gõ một ngày không có thật — `31/02/2026` chẳng hạn — thì chữ vẫn nằm trong ô để bạn thấy mình gõ
-> gì, nhưng nút *Lưu* (hoặc *Thêm dòng*) xám cho tới khi sửa lại.
+> gì, nhưng nút *Lưu dòng* (hoặc *Xác nhận*) xám cho tới khi sửa lại.
 >
 > Nút lịch **vắng mặt trên trình duyệt quá cũ** (Safari dưới 16, Firefox dưới 101). Ô gõ vẫn dùng
 > bình thường.

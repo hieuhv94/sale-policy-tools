@@ -461,7 +461,8 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 | CCCD / Mã số thuế | Kiểm tra định dạng, cảnh báo trùng, dùng lọc |
 | Loại khách hàng | Loại 1: HKD của KH · Loại 2: HKD cộng tác · Loại 3: HKD/công ty là điểm bán hoặc cơ sở y tế. **Sửa được sau khi lưu** `sửa 15/08` — xem dưới bảng |
 | Địa chỉ đăng ký / Nơi nhận hàng | Cho phép khác nhau; hiển thị đúng trên hợp đồng; dùng lọc |
-| Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh |
+| Chủ hộ / Người đại diện | Họ tên, chức vụ, thông tin định danh. **Chức danh là ô chọn** `mới 27/09`: *Giám đốc* · *Chủ hộ kinh doanh* · *Khác* (tự nhập) |
+| Số điện thoại | Không bắt buộc; điền thì phải **đúng 10 chữ số** `mới 27/09` — sai thì báo đỏ dưới ô và không lưu được. Dấu cách, chấm, gạch ngang được bỏ qua và **lưu thành mười chữ số liền** |
 | Công nợ | **ĐIỀU KHOẢN thanh toán, không phải số tiền** `sửa 27/08` — chọn một trong ba, phương án *Khác* thì tự nhập nội dung. **Không tích hợp** với hệ thống kế toán |
 | **TDV phụ trách** | Liên kết tới tài khoản TDV |
 | **Trạng thái** `16/08` | Bình thường · **Đã xoá**. Khách đã xoá biến khỏi ô chọn lúc lập hồ sơ và **không lập CSBH mới được**, nhưng vẫn tra cứu được hồ sơ cũ |
@@ -2865,6 +2866,24 @@ mắt bên cạnh của mọi text box chứa mật khẩu"*.
 >
 > **Mỗi ô bật riêng**: hiện ô *Mật khẩu mới* không kéo theo ô *Nhập lại* — ô nhập lại tồn tại để gõ
 > lại mà không nhìn.
+
+**SỐ ĐIỆN THOẠI · CHỨC DANH · TÊN NÚT THÊM SẢN PHẨM** `sửa 27/09` — *"kiểm tra khi nhập số điện
+thoại, yêu cầu nhập đúng 10 số, nếu không đúng, báo lỗi đỏ bên dưới và không cho sang bước tiếp
+theo"*; *"chức danh người đại diện đổi thành list sổ xuống gồm Giám đốc, Chủ hộ kinh doanh, Khác (cho
+tự nhập)"*; và nút *Thêm dòng* trong hộp thoại *Thêm sản phẩm* đổi thành ***Xác nhận***.
+
+> **Số điện thoại vẫn KHÔNG bắt buộc** — để trống thì lưu được như cũ (khách hàng lập trước `27/08`
+> chưa ai khai). Chỉ một số **đã gõ** mà không đủ đúng mười chữ số mới bị chặn — 9 hay 11 đều sai.
+> Máy chủ chốt cùng luật, và lưu **bản chuẩn**: `0912 345 678`, `0912.345.678` và `0912345678` là một
+> số, lưu thành `0912345678` — số này đóng băng vào hồ sơ và in ra tờ CSBH, nên một số không được có
+> ba lối viết. **Không đòi đầu `0`** — yêu cầu nói *"đúng 10 số"*, luật đầu số chưa ai đặt.
+>
+> **Chức danh lưu CÂU CHỮ, không lưu mã**: nó in thẳng ra tờ CSBH, và *Khác* nghĩa là chữ tự do. Chức
+> danh cũ ngoài danh sách (*Chủ nhà thuốc*, *Trưởng khoa*…) mở ra thành *Khác* kèm đúng chữ ấy —
+> không bao giờ thành ô trống, vì lượt Lưu tiếp theo sẽ lặng lẽ xoá nó. Chọn *Khác* thì ô tự nhập
+> **bắt buộc**.
+>
+> Nút trên bảng sản phẩm **đã là *Thêm sản phẩm*** từ `22/08`; lượt này chỉ đổi nút trong hộp thoại.
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

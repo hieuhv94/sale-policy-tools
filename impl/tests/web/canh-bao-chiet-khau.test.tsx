@@ -119,7 +119,7 @@ describe('0022 hộp thoại thêm dòng cảnh báo trước khi lưu', () => {
     });
     expect(canhBao.textContent).toContain('không có ngưỡng nào để đối chiếu');
     expect(canhBao.textContent).toContain('Vẫn lập hồ sơ được');
-    // Không phải khối lỗi, và nút Thêm dòng không bị khoá vì chuyện này.
+    // Không phải khối lỗi, và nút Xác nhận không bị khoá vì chuyện này.
     expect(document.querySelectorAll('.bao-loi')).toHaveLength(0);
   });
 
@@ -518,7 +518,7 @@ describe('`0208` ô nhập ngày trong hộp thoại thêm dòng', () => {
     expect(oNgay().value).toBe('20/09/2026');
   });
 
-  it('ngày KHÔNG CÓ THẬT thì chữ ở lại trong ô, nhưng nút Thêm dòng xám', async () => {
+  it('ngày KHÔNG CÓ THẬT thì chữ ở lại trong ô, nhưng nút Xác nhận xám', async () => {
     /*
      * Hai vế, và vế đầu là vế dễ làm sai: xoá chữ người dùng vừa gõ là họ không
      * biết mình gõ sai ở đâu. Chữ ở lại, còn giá trị gửi đi thì rỗng — nên phép
@@ -535,7 +535,7 @@ describe('`0208` ô nhập ngày trong hộp thoại thêm dòng', () => {
     await nguoi.clear(oNgay());
     await nguoi.type(oNgay(), '31022026');
     expect(oNgay().value).toBe('31/02/2026');
-    expect((screen.getByRole('button', { name: /Thêm dòng/ }) as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByRole('button', { name: /Xác nhận/ }) as HTMLButtonElement).disabled).toBe(
       true,
     );
   });

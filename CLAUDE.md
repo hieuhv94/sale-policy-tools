@@ -99,7 +99,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (25/09/2026)
 
-Chặng gần nhất **P252** (`0222`): **con mắt hiện/ẩn ở MỌI ô mật khẩu** — sáu ô ở ba màn hình, một
+Chặng gần nhất **P253** (`0223`): **số điện thoại khách hàng đúng 10 chữ số** — ô vẫn tuỳ chọn,
+gõ sai thì đỏ dưới ô và nút Lưu xám; máy chủ chốt `CUSTOMER_PHONE_INVALID` và **lưu bản chuẩn**
+(`chuanSoDienThoai` bỏ cách/chấm/gạch, trả về giá trị — lối `0205`), bản chép `laSoDienThoai` ở giao
+diện, một bảng ca đối chiếu hai bản. **Chức danh người đại diện là ô chọn** *Giám đốc* · *Chủ hộ kinh
+doanh* · *Khác* — lưu CÂU CHỮ, chữ cũ ngoài danh sách mở thành *Khác*. Nút chốt hộp thoại thêm sản
+phẩm *Thêm dòng* → **Xác nhận** (nút ở bảng đã là *Thêm sản phẩm* từ P119). Bẫy: `base()` của
+`customer.test.ts` đè `phone` SAU `...over`. Năm lượt phá lại, năm đỏ; demo dựng lại, 38/38 số chuẩn.
+
+Trước đó **P252** (`0222`): **con mắt hiện/ẩn ở MỌI ô mật khẩu** — sáu ô ở ba màn hình, một
 component `OMatKhau` (`Chung.tsx`). Ca quét mã nguồn cấm `type="password"` ngoài `Chung.tsx`; nút
 phải `type="button"` (trong `<form>` nó mặc định là nút GỬI); nhãn *"Hiện mật khẩu"* làm
 `getByLabelText(/Mật khẩu/i)` khớp hai phần tử — tìm ô bằng `/^Mật khẩu/`. Ba lượt phá lại, ba đỏ.

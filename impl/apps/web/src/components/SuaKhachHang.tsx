@@ -15,11 +15,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { dang, layJson, va, xoa } from '../lib/api.js';
 import {
+  CHUC_DANH_DAI_DIEN,
+  CHUC_DANH_KHAC,
   DIEU_KHOAN_NO,
   LOAI_KHACH_HANG,
   NHAN_DIEU_KHOAN_NO,
   TINH_THANH,
+  gopChucDanh,
+  laSoDienThoai,
   nhanLoaiKhach,
+  tachChucDanh,
 } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
@@ -65,7 +70,10 @@ type Gia = {
    */
   deliveryAddresses: string[];
   ownerName: string;
-  ownerTitle: string;
+  /** Mục đang chọn của ô chức danh: một mục của danh sách, `CHUC_DANH_KHAC`, hoặc rỗng (`0223`). */
+  ownerTitleChon: string;
+  /** Chữ tự gõ khi chọn *Khác*. */
+  ownerTitleKhac: string;
   phone: string;
   idNumber: string;
   debtTerm: string;
@@ -80,7 +88,8 @@ const rong: Gia = {
   streetWard: '',
   deliveryAddresses: [],
   ownerName: '',
-  ownerTitle: '',
+  ownerTitleChon: '',
+  ownerTitleKhac: '',
   phone: '',
   idNumber: '',
   debtTerm: 'SAU_NHAN_HANG',
@@ -104,7 +113,10 @@ const tuDto = (k: KhachHangDayDu): Gia => ({
   streetWard: k.streetWard,
   deliveryAddresses: k.deliveryAddresses,
   ownerName: k.ownerName,
-  ownerTitle: k.ownerTitle ?? '',
+  ...(() => {
+    const { chon, khac } = tachChucDanh(k.ownerTitle ?? '');
+    return { ownerTitleChon: chon, ownerTitleKhac: khac };
+  })(),
   phone: k.phone ?? '',
   idNumber: k.idNumber ?? '',
   debtTerm: k.debtTerm,
@@ -301,7 +313,7 @@ export function BieuMauKhachHang({
         // `sach()` bỏ ô trống và cắt khoảng trắng — đúng một chỗ, ở lượt gửi.
         deliveryAddresses: sach(g.deliveryAddresses),
         ownerName: g.ownerName.trim(),
-        ...opt('ownerTitle', coGiaTri(g.ownerTitle)),
+        ...opt('ownerTitle', coGiaTri(gopChucDanh(g.ownerTitleChon, g.ownerTitleKhac))),
         ...opt('phone', coGiaTri(g.phone)),
         // MÃ SỐ THUẾ gửi ở MỌI lượt từ `0175` — nó thôi là ô tuỳ chọn.
         idNumber: g.idNumber.trim(),
@@ -340,7 +352,19 @@ export function BieuMauKhachHang({
     }
   };
 
+  /*
+   * SỐ ĐIỆN THOẠI SAI thì báo đỏ dưới ô và nút Lưu xám (`0223`). Ô vẫn TUỲ CHỌN
+   * — để trống là hợp lệ (xem chú thích ở ô); chỉ một số ĐÃ GÕ mà không đủ
+   * mười chữ số mới bị chặn. Máy chủ chốt cùng luật (`CUSTOMER_PHONE_INVALID`).
+   */
+  const sdtSai = g.phone.trim() !== '' && !laSoDienThoai(g.phone);
+  /** Chọn *Khác* mà chưa gõ chức danh — cùng lối ô công nợ *Khác* (`0138`). */
+  const thieuChucDanhKhac =
+    g.ownerTitleChon === CHUC_DANH_KHAC && g.ownerTitleKhac.trim() === '';
+
   const duGiaTri =
+    !sdtSai &&
+    !thieuChucDanhKhac &&
     g.name.trim() !== '' &&
     g.province.trim() !== '' &&
     g.streetWard.trim() !== '' &&
@@ -495,16 +519,43 @@ export function BieuMauKhachHang({
             />
           )}
         </Truong>
+        {/*
+          CHỨC DANH là ô chọn cộng *Khác* tự gõ (`0223`, chốt 27/09). Thứ lưu là
+          câu chữ, không phải mã — xem `CHUC_DANH_DAI_DIEN`. Mục trống đứng đầu
+          vì ô này KHÔNG bắt buộc, và `<select>` thiếu mục `value=""` thì tự chọn
+          mục đầu tiên (bài học `0205`).
+        */}
         <Truong id="kh-chuc" nhan="Chức danh người đại diện">
           {(p) => (
-            <input
+            <select
               {...p}
               className="o-nhap"
-              value={g.ownerTitle}
-              onChange={(e) => sua({ ownerTitle: e.target.value })}
-            />
+              value={g.ownerTitleChon}
+              onChange={(e) => sua({ ownerTitleChon: e.target.value })}
+            >
+              <option value="">— Chọn chức danh —</option>
+              {CHUC_DANH_DAI_DIEN.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value={CHUC_DANH_KHAC}>Khác (tự nhập)</option>
+            </select>
           )}
         </Truong>
+        {g.ownerTitleChon === CHUC_DANH_KHAC && (
+          <Truong id="kh-chuc-khac" nhan="Ghi rõ chức danh" bắtBuộc>
+            {(p) => (
+              <input
+                {...p}
+                className="o-nhap"
+                maxLength={120}
+                value={g.ownerTitleKhac}
+                onChange={(e) => sua({ ownerTitleKhac: e.target.value })}
+              />
+            )}
+          </Truong>
+        )}
         {/*
           SỐ ĐIỆN THOẠI (`0128`) — đứng cạnh người đại diện, vì nó là cách liên
           hệ CHÍNH của khách hàng và người nhập điền hai ô ấy cùng một lúc.
@@ -514,7 +565,11 @@ export function BieuMauKhachHang({
           quan. Chốt nằm ở lượt GỬI DUYỆT — số này in ra bản CSBH, nên hồ sơ
           không rời trạng thái Nháp khi nó còn trống.
         */}
-        <Truong id="kh-dien-thoai" nhan="Số điện thoại">
+        <Truong
+          id="kh-dien-thoai"
+          nhan="Số điện thoại"
+          {...(sdtSai ? { loi: 'Số điện thoại phải gồm đúng 10 chữ số.' } : {})}
+        >
           {(p) => (
             <input
               {...p}

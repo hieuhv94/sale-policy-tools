@@ -19685,3 +19685,76 @@ Mỗi ô giữ trạng thái RIÊNG, có chủ ý: hiện ô *Mật khẩu mới
 Ba lượt phá, ba đỏ đúng chỗ.
 
 **2433/2433 xanh**, typecheck sạch.
+
+## P253 — `0223` Số điện thoại đúng 10 chữ số · chức danh là ô chọn · nút *Xác nhận*
+
+Khách hàng (27/09), bốn câu: số điện thoại đúng 10 số, báo đỏ dưới ô và *"không cho sang bước tiếp
+theo"*; nút *Thêm dòng* ở bảng sản phẩm → *Thêm sản phẩm*, nút *Thêm dòng* trong hộp thoại →
+*Xác nhận*; chức danh người đại diện thành ô chọn *Giám đốc* · *Chủ hộ kinh doanh* · *Khác* (tự
+nhập); dựng lại CSDL demo nếu cần.
+
+### Một trong bốn câu đã xong từ P119
+
+Nút trên bảng mang chữ *Thêm sản phẩm* từ `61f7715` (22/08). Chuỗi *Thêm dòng* chỉ còn ở nút chốt
+của hộp thoại — có lẽ khách hàng gọi theo cái nút họ bấm cuối. Không đổi gì ở bảng; thêm một ca dựng
+trang thật ghim CẢ HAI tên, vì trước đó không ca nào canh nút ở bảng (ca `bang-san-pham` chỉ đọc câu
+*"Hồ sơ chưa có dòng sản phẩm nào. Thêm sản phẩm để…"*).
+
+### Số điện thoại: luật ở MÁY CHỦ, bản chép ở giao diện, một bảng ca đối chiếu hai bản
+
+*"Không cho sang bước tiếp theo"* đọc là **nút Lưu xám** — biểu mẫu khách hàng là một hộp thoại một
+bước. Ô **vẫn tuỳ chọn** (`0128` cố ý không bắt buộc, `0171` gỡ cả chốt gửi duyệt); chỉ số đã gõ mà
+sai mới bị chặn.
+
+- `chuanSoDienThoai` (`services/customer/src/customers/so-dien-thoai.ts`) **trả về bản chuẩn** chứ
+  không gật đầu — lối `chuanTinhThanh` (`0205`): bỏ dấu cách, chấm, gạch ngang rồi đòi đúng
+  `/^\d{10}$/`, và controller ghi GIÁ TRỊ TRẢ VỀ. Chỉ kiểm rồi ghi nguyên chuỗi là CSDL giữ
+  `0912 345 678` cạnh `0912345678` cho cùng một số, mà số ấy đóng băng vào `kh_dien_thoai_snap` và
+  in ra tờ ký. Lượt phá *"kiểm đúng, ghi chuỗi thô"* đỏ đúng ca đọc thẳng cột.
+- Mã lỗi riêng `CUSTOMER_PHONE_INVALID` (`dang: 'o-nhap'`, `truong: 'phone'`) thay vì
+  `VALIDATION_FAILED` của `taxId`: câu chung *"trường không hợp lệ"* không nói phải gõ lại thế nào.
+- Giao diện là gói riêng nên chép `laSoDienThoai` sang `danh-muc.ts` — cùng lối `TINH_THANH` và
+  `DIEU_KHOAN_NO`. `tests/http/so-dien-thoai.test.ts` chạy **một bảng ca qua cả hai hàm**; lượt phá
+  *"giao diện thôi kiểm"* đỏ cả ba ca DOM lẫn ca đối chiếu.
+- **Không đòi đầu `0`**: câu khách hàng là *"đúng 10 số"*. `+84…` bị chặn (dấu `+` không nằm trong
+  tập ký tự bỏ qua) — số quốc tế chưa ai yêu cầu.
+
+**Cái giá trên dữ liệu đang chạy, cùng hình `0205`**: khách đã lưu một số không đủ mười chữ số thì
+lượt sửa TIẾP THEO của khách ấy — dù chỉ đổi tên — bị chặn tới khi sửa lại số. Không migration quy
+đổi: số sai không có bản đúng nào để đoán. Số cũ có dấu cách thì đi qua (giao diện bỏ qua dấu cách
+lúc kiểm, máy chủ chuẩn hoá lúc ghi). **Ô số điện thoại rỗng trong lượt `PATCH` vẫn KHÔNG xoá được số
+cũ** (`coalesce` từ trước, giao diện bỏ trường rỗng khỏi thân) — hành vi có sẵn, chặng này không đổi.
+
+**Bẫy trong bộ kiểm đã tránh**: `base()` của `customer.test.ts` đè `phone: '0900000000'` SAU
+`...over`, nên ca gửi số sai qua `base({ phone })` sẽ lặng lẽ gửi số đúng rồi xanh. Ca mới dựng
+`{ ...base(), phone }`.
+
+### Chức danh: câu chữ, không mã
+
+Lưu **chính câu chữ** (`Giám đốc`), không mã: nó in thẳng ra tờ CSBH và *Khác* nghĩa là chữ tự do,
+nên máy chủ không đổi dòng nào — danh sách chỉ quyết định ô chọn vẽ gì. `tachChucDanh` chia chữ đã
+lưu thành (mục, chữ tự gõ): chữ ngoài danh sách mở ra thành *Khác* kèm đúng chữ ấy, **không bao giờ
+thành ô trống** (bài học `0205` — lượt Lưu tiếp theo sẽ xoá nó). Giá trị nội bộ của mục *Khác*
+(`__khac__`) có ca đòi nó không bao giờ lọt vào thân request. *Khác* mà chưa gõ → nút Lưu xám, cùng
+lối ô công nợ *Khác* (`0138`).
+
+Bộ nạp demo: *Chủ nhà thuốc* và *Chủ quầy thuốc* → *Chủ hộ kinh doanh* (nhà thuốc, quầy thuốc là hộ
+kinh doanh); giữ *Tổng giám đốc*, *Trưởng khoa*, *Giám đốc trung tâm*… để bản demo có ca *Khác*.
+
+### Phá lại
+
+1. Controller về `str(1, 30)` → **2 đỏ** (từ chối · chuẩn hoá).
+2. Kiểm đúng nhưng ghi chuỗi thô → **1 đỏ** (ca đọc thẳng cột).
+3. `laSoDienThoai` luôn đúng → **4 đỏ** (ba ca DOM + ca đối chiếu hai bản).
+4. Chức danh cũ ngoài danh sách thành ô trống → **1 đỏ**.
+5. Trả nút về *Thêm dòng* → **2 đỏ** (ca trang thật + ca ngày không có thật của `0208`).
+
+Năm lượt phá, năm đỏ đúng chỗ.
+
+**Dựng lại chồng demo** (`make demo` + `make demo-mau`, cả hai thoát 0): 38 khách hàng · 116 hồ sơ.
+Đo thẳng `cus.customer`: **38/38 số điện thoại đúng mười chữ số liền** — bốn khách gõ tay của bộ nạp
+gửi `0912 345 678` và máy chủ lưu `0912345678`, tức đường chuẩn hoá chạy thật qua API. Chức danh:
+*Chủ hộ kinh doanh* 15 · *Giám đốc* 9 · 14 khách mang chức danh ngoài danh sách (sáu lối viết) để
+màn hình demo có ca *Khác*. `localhost:8080` trả 200.
+
+**2457/2457 xanh.**

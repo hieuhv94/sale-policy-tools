@@ -514,6 +514,11 @@ export const BANG_LOI: Record<string, Muc> = {
    * phải rơi đúng vào ô ấy.
    */
   CUSTOMER_ID_NUMBER_DUPLICATE: { dang: 'o-nhap', truong: 'idNumber', tuMayChu: true },
+  /*
+   * `0223` — dưới ô số điện thoại. Biểu mẫu tự báo đỏ và làm xám nút Lưu trước
+   * khi gửi, nên mã này canh lượt gọi API thẳng.
+   */
+  CUSTOMER_PHONE_INVALID: { dang: 'o-nhap', truong: 'phone', tuMayChu: true },
   CUSTOMER_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_ALREADY_RETIRED: { dang: 'hop-thoai', tuMayChu: true },
   CUSTOMER_HAS_POLICY: { dang: 'hop-thoai', tuMayChu: true },

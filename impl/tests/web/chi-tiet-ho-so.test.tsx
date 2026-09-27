@@ -2111,3 +2111,30 @@ describe('`0198` sửa mã hồ sơ tại tiêu đề', () => {
     ).toBe('CSBH-TRUNG');
   });
 });
+
+/**
+ * `0223` — TÊN HAI NÚT của việc thêm sản phẩm (khách hàng chốt 27/09).
+ *
+ * Nút trên bảng là *Thêm sản phẩm* (đã vậy từ P119 — ca này ghim nó, vì chưa ca
+ * nào canh); nút chốt trong hộp thoại đổi *Thêm dòng* → *Xác nhận*. Dựng TRANG
+ * THẬT chứ không dựng riêng hộp thoại: câu hỏi là người dùng đi từ nút nào tới
+ * nút nào.
+ */
+describe('`0223` nút thêm sản phẩm', () => {
+  it('bảng có nút Thêm sản phẩm, hộp thoại chốt bằng Xác nhận — không còn chữ Thêm dòng', async () => {
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({
+        ...TBP,
+        user: { ...TBP.user, id: '11111111-1111-1111-1111-111111111111', username: 'tdv01', role: 'TDV' },
+      }),
+    );
+    await mo({ ...HO_SO, status: 'NHAP' }, ['SUBMIT']);
+    expect(screen.queryByRole('button', { name: /Thêm dòng/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm sản phẩm' }));
+    const hop = await screen.findByRole('dialog');
+    expect(within(hop).getByRole('button', { name: 'Xác nhận' })).toBeDefined();
+    expect(within(hop).queryByRole('button', { name: /Thêm dòng/ })).toBeNull();
+  });
+});

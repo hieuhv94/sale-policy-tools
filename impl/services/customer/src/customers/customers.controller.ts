@@ -14,6 +14,7 @@ import {
 } from '@csbh/http-kit';
 import { CustomersService } from './customers.service.js';
 import { taxId } from './tax-id.js';
+import { soDienThoai } from './so-dien-thoai.js';
 import { DIEU_KHOAN_NO } from './dieu-khoan.js';
 
 /** Ban lãnh đạo chỉ đọc; mọi endpoint ghi ở đây đều loại vai trò đó ra (AUTH-13). */
@@ -129,7 +130,8 @@ export class CustomersController {
       idNumber: taxId(),
       deliveryAddresses: opt(danhSach(str(0, 500))),
       ownerTitle: opt(str(1, 120)),
-      phone: opt(str(1, 30)),
+      // `0223` — đúng 10 chữ số; trả về bản chuẩn (bỏ dấu cách, chấm, gạch).
+      phone: opt(soDienThoai()),
       ownerIdNumber: opt(str(1, 60)),
       /*
        * ĐIỀU KHOẢN thanh toán (`0138`) — thay cho `debt: opt(moneyKhongAm())`.
@@ -182,7 +184,8 @@ export class CustomersController {
       streetWard: opt(str(0, 500)),
       ownerName: opt(str(1, 200)),
       ownerTitle: opt(str(1, 120)),
-      phone: opt(str(1, 30)),
+      // `0223` — đúng 10 chữ số; trả về bản chuẩn (bỏ dấu cách, chấm, gạch).
+      phone: opt(soDienThoai()),
       ownerIdNumber: opt(str(1, 60)),
       idNumber: opt(taxId()),
       /*

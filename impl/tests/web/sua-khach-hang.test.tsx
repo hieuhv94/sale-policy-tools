@@ -271,3 +271,147 @@ describe('`0176` nút Xoá của hàng địa chỉ thẳng hàng với ô nhậ
     expect(khoi(/^\s*\.nhom-dia-chi\s*$/m)).toMatch(/gap:/);
   });
 });
+
+/**
+ * `0223` — SỐ ĐIỆN THOẠI ĐÚNG 10 CHỮ SỐ, báo đỏ dưới ô và chặn nút Lưu.
+ *
+ * Luật và bảng ca nằm ở `tests/http/so-dien-thoai.test.ts` (đối chiếu hai bản);
+ * khối này hỏi ba chuyện chỉ màn hình trả lời được: câu lỗi nằm ĐÚNG dưới ô
+ * (gắn `aria-describedby`), nút Lưu xám, và ô TRỐNG vẫn lưu được.
+ */
+describe('`0223` ô số điện thoại', () => {
+  const oSdt = () => screen.getByLabelText(/Số điện thoại/) as HTMLInputElement;
+  const nutLuu = () => screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+
+  it('gõ 9 chữ số thì báo đỏ NGAY DƯỚI Ô và nút Lưu xám', async () => {
+    const nguoi = userEvent.setup();
+    chanFetch();
+    moSua();
+    await nguoi.type(oSdt(), '091234567');
+
+    const idLoi = oSdt().getAttribute('aria-describedby');
+    expect(idLoi, 'câu lỗi không gắn vào ô').toBeTruthy();
+    const loi = document.getElementById(idLoi!)!;
+    expect(loi.className).toContain('truong-loi');
+    expect(loi.textContent).toContain('đúng 10 chữ số');
+    expect(oSdt().getAttribute('aria-invalid')).toBe('true');
+    expect(nutLuu().disabled).toBe(true);
+  });
+
+  it('gõ thêm chữ số thứ mười thì lỗi biến mất và lưu được', async () => {
+    const nguoi = userEvent.setup();
+    const f = chanFetch();
+    moSua();
+    await nguoi.type(oSdt(), '0912 345 67');
+    expect(nutLuu().disabled).toBe(true);
+    await nguoi.type(oSdt(), '8');
+    expect(document.querySelector('.truong-loi')).toBeNull();
+    expect(nutLuu().disabled).toBe(false);
+
+    await nguoi.click(nutLuu());
+    await waitFor(() => expect(thanDaGui(f)).toBeDefined());
+    // Giao diện gửi đúng chữ đã gõ; bỏ dấu cách là việc của máy chủ (một chỗ).
+    expect(thanDaGui(f).phone).toBe('0912 345 678');
+  });
+
+  it('11 chữ số cũng bị chặn — "đúng 10", không phải "ít nhất 10"', async () => {
+    const nguoi = userEvent.setup();
+    chanFetch();
+    moSua();
+    await nguoi.type(oSdt(), '09123456789');
+    expect(nutLuu().disabled).toBe(true);
+  });
+
+  it('ô TRỐNG không báo lỗi — số điện thoại vẫn là ô tuỳ chọn', async () => {
+    const nguoi = userEvent.setup();
+    chanFetch();
+    moSua();
+    await nguoi.type(screen.getByLabelText(/Tên Hộ kinh doanh/), ' B');
+    expect(oSdt().value).toBe('');
+    expect(document.querySelector('.truong-loi')).toBeNull();
+    expect(nutLuu().disabled).toBe(false);
+  });
+});
+
+/**
+ * `0223` — CHỨC DANH NGƯỜI ĐẠI DIỆN là ô chọn: *Giám đốc* · *Chủ hộ kinh doanh*
+ * · *Khác* (tự nhập).
+ */
+describe('`0223` ô chức danh người đại diện', () => {
+  const oChuc = () => screen.getByLabelText(/Chức danh người đại diện/) as HTMLSelectElement;
+  const nutLuu = () => screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+
+  it('là ô CHỌN: mục trống, hai chức danh, và Khác — đúng thứ tự', () => {
+    chanFetch();
+    moSua();
+    expect(oChuc().tagName).toBe('SELECT');
+    expect([...oChuc().options].map((o) => o.textContent)).toEqual([
+      '— Chọn chức danh —',
+      'Giám đốc',
+      'Chủ hộ kinh doanh',
+      'Khác (tự nhập)',
+    ]);
+    // Khách chưa có chức danh thì mở ra ở mục trống, KHÔNG tự chọn mục đầu.
+    expect(oChuc().value).toBe('');
+  });
+
+  it('chọn một chức danh trong danh sách thì gửi đúng CÂU CHỮ ấy', async () => {
+    const nguoi = userEvent.setup();
+    const f = chanFetch();
+    moSua();
+    await nguoi.selectOptions(oChuc(), 'Chủ hộ kinh doanh');
+    expect(screen.queryByLabelText(/Ghi rõ chức danh/)).toBeNull();
+    await nguoi.click(nutLuu());
+    await waitFor(() => expect(thanDaGui(f)).toBeDefined());
+    expect(thanDaGui(f).ownerTitle).toBe('Chủ hộ kinh doanh');
+  });
+
+  it('chọn Khác thì hiện ô tự gõ, BẮT BUỘC, và gửi chữ đã gõ', async () => {
+    const nguoi = userEvent.setup();
+    const f = chanFetch();
+    moSua();
+    await nguoi.selectOptions(oChuc(), 'Khác (tự nhập)');
+    const oKhac = screen.getByLabelText(/Ghi rõ chức danh/) as HTMLInputElement;
+    // Chưa gõ gì thì nút Lưu xám — cùng lối ô công nợ Khác (`0138`).
+    expect(nutLuu().disabled).toBe(true);
+    await nguoi.type(oKhac, 'Trưởng khoa');
+    expect(nutLuu().disabled).toBe(false);
+    await nguoi.click(nutLuu());
+    await waitFor(() => expect(thanDaGui(f)).toBeDefined());
+    expect(thanDaGui(f).ownerTitle).toBe('Trưởng khoa');
+    // Giá trị nội bộ của mục Khác không bao giờ đi xuống máy chủ.
+    expect(JSON.stringify(thanDaGui(f))).not.toContain('__khac__');
+  });
+
+  it('chức danh CŨ ngoài danh sách mở ra thành Khác, chữ cũ nằm sẵn trong ô gõ', () => {
+    /*
+     * Không bao giờ để dữ liệu cũ hiện thành ô trống (bài học `0205`): lượt Lưu
+     * tiếp theo — dù chỉ sửa số điện thoại — sẽ lặng lẽ xoá mất chức danh.
+     */
+    chanFetch();
+    render(
+      <BieuMauKhachHang
+        khach={{ ...KHACH, ownerTitle: 'Chủ nhà thuốc' }}
+        dong={() => undefined}
+        xong={() => undefined}
+      />,
+    );
+    expect(oChuc().selectedOptions[0]!.textContent).toBe('Khác (tự nhập)');
+    expect((screen.getByLabelText(/Ghi rõ chức danh/) as HTMLInputElement).value).toBe(
+      'Chủ nhà thuốc',
+    );
+  });
+
+  it('chức danh cũ TRÙNG một mục thì mở ra đúng mục ấy', () => {
+    chanFetch();
+    render(
+      <BieuMauKhachHang
+        khach={{ ...KHACH, ownerTitle: 'Giám đốc' }}
+        dong={() => undefined}
+        xong={() => undefined}
+      />,
+    );
+    expect(oChuc().value).toBe('Giám đốc');
+    expect(screen.queryByLabelText(/Ghi rõ chức danh/)).toBeNull();
+  });
+});

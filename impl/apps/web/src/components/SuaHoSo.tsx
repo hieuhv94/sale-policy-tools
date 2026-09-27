@@ -379,7 +379,7 @@ export function ThemDongSanPham({
 
         {/*
           KHỐI XEM TRƯỚC (`0193`) — bốn con số mà tới `0192` chỉ đọc được ở BẢNG,
-          tức sau khi đã bấm *Thêm dòng*.
+          tức sau khi đã bấm *Thêm dòng* (từ `0223` là *Xác nhận*).
 
           Khách hàng chốt 09/09: *"hiển thị thêm các thông tin về CPBH, tỷ lệ CK và
           QĐCK luôn trong hộp thoại để người dùng có thể thấy ngay mà chưa cần
@@ -474,7 +474,9 @@ export function ThemDongSanPham({
               }).length > 0
             }
           >
-            {dangGui ? 'Đang lưu…' : sua ? 'Lưu dòng' : 'Thêm dòng'}
+            {/* `0223` — *Thêm dòng* → *Xác nhận*: hộp thoại đã mang tên *Thêm sản
+                phẩm*, nên nút chỉ cần nói "chốt những gì vừa điền". */}
+            {dangGui ? 'Đang lưu…' : sua ? 'Lưu dòng' : 'Xác nhận'}
           </button>
           <button type="button" className="nut nut-nhe" onClick={dong}>
             Huỷ
