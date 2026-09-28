@@ -586,9 +586,9 @@ Loại khách hàng hiện ở **cả hai chỗ**: cạnh mã trên từng thẻ
 màn hình chi tiết. Nó quyết định ngưỡng chiết khấu, nên người lập hồ sơ cần thấy nó trước khi mở
 khách hàng ra — và thẻ ở danh sách là chỗ họ đọc nó.
 
-Khối thông tin trên màn hình chi tiết bày **bảy ô, theo thứ tự** `sửa 05/09`: *Mã số thuế* ·
-*Tỉnh/Thành phố* · *Số nhà, Phường xã* · *Người đại diện* · *Số điện thoại* · *Công nợ* ·
-*Loại khách hàng*. Sáu ô đầu là thứ đi thẳng vào hợp đồng; *Loại khách hàng* xuống cuối vì nó là một
+Khối thông tin trên màn hình chi tiết bày **tám ô, theo thứ tự** `sửa 29/09`: *Mã số thuế* ·
+*Tỉnh/Thành phố* · *Số nhà, Phường xã* · *Người đại diện* · ***Chức danh người đại diện*** `mới
+29/09` · *Số điện thoại* · *Công nợ* · *Loại khách hàng*. Bảy ô đầu là thứ đi thẳng vào hợp đồng; *Loại khách hàng* xuống cuối vì nó là một
 phân loại chứ không phải thông tin liên hệ.
 
 **Địa chỉ giao hàng hiện thêm một ô — chỉ khi có** `mới 05/09`, mỗi địa chỉ một dòng. Không khai thì
@@ -1299,9 +1299,10 @@ trước ngày ấy là hai thẻ *Hồ sơ* và *Khách hàng* nằm cạnh nha
 dòng trên, giá trị ở dòng dưới** `sửa 25/09`, đúng như khối thông tin ở trang khách hàng; hai cột
 trên màn hình rộng, một cột trên điện thoại.
 
-**Mười bốn ô, luôn đủ và luôn đúng chỗ** `sửa 29/09` — trước ngày ấy vài ô chỉ hiện khi có dữ liệu,
+**Mười ba ô, luôn đủ và luôn đúng chỗ** `sửa 29/09` — trước ngày ấy vài ô chỉ hiện khi có dữ liệu,
 nên các ô phía sau xô lệch và *Mã khách hàng* lúc bên trái lúc bên phải giữa các CSBH. Giờ ô nào
-thiếu dữ liệu thì ghi rõ, không biến mất. Bảy hàng, đọc theo cặp:
+thiếu dữ liệu thì ghi rõ, không biến mất. Bảy hàng, đọc theo cặp — riêng tên pháp nhân chiếm trọn
+một hàng:
 
 | Bên trái | Bên phải |
 |---|---|
@@ -1309,9 +1310,12 @@ thiếu dữ liệu thì ghi rõ, không biến mất. Bảy hàng, đọc theo 
 | **Người đề nghị** — TDV đã **gửi** hồ sơ đi duyệt | **Có hiệu lực** — ngày giờ có hiệu lực, hoặc *Chưa có hiệu lực* |
 | **Mã khách hàng** — bấm vào mở màn hình khách hàng | **Loại khách hàng** — quyết định ngưỡng chiết khấu |
 | **Người đại diện** | **Chức danh người đại diện** `mới 29/09` |
-| **Tên Hộ kinh doanh/Tên Công ty** | **Trạng thái khách hàng** — *Đang hợp tác* hoặc nhãn *Đã ngừng hợp tác* |
+| **Tên Hộ kinh doanh/Tên Công ty** — trọn hàng | |
 | **Số nhà, Phường xã** | **Tỉnh/Thành phố** |
 | **Địa chỉ giao hàng** — mỗi địa chỉ một dòng, hoặc *Giao tới địa chỉ đăng ký* | **Công nợ** |
+
+> **Không còn ô *Trạng thái khách hàng*** `bỏ 29/09`. Khách đã ngừng hợp tác thì trang hồ sơ không nói
+> điều ấy nữa — bấm vào *Mã khách hàng* để xem ở trang khách hàng.
 
 > **Ba nhãn đổi tên vì thẻ đã gộp** `19/09`. *Mã* · *Loại* · *Trạng thái* trước đây đọc ra được nghĩa
 > nhờ đứng dưới chữ *Khách hàng*; gộp một thẻ thì chỗ dựa ấy không còn, và *Mã* đứng cạnh *Phiên bản*

@@ -1437,9 +1437,10 @@ function HopThoaiHanhDong({
  * mang `display: contents`, vì chỉ một lưới dùng chung mới đo được cột nhãn
  * theo nội dung; hàng vẫn đúng vì mỗi cặp góp đúng hai ô theo thứ tự nguồn.
  */
-function O({ nhan, children }: { nhan: string; children: ReactNode }) {
+function O({ nhan, children, rong }: { nhan: string; children: ReactNode; rong?: boolean }) {
   return (
-    <div>
+    // `rong` — ô chiếm TRỌN một hàng của lưới hai cột (`0229`, lớp `.o-rong` của `the-so`).
+    <div className={rong ? 'o-rong' : undefined}>
       <dt>{nhan}</dt>
       <dd>{children}</dd>
     </div>
@@ -1496,7 +1497,7 @@ function ThongTinHoSo({
   const chua = '—';
 
   /*
-   * MƯỜI BỐN Ô, VỊ TRÍ CỐ ĐỊNH (`0228`, khách hàng 29/09: *"các mục trong phần
+   * MƯỜI BA Ô (mười bốn tới `0228`), VỊ TRÍ CỐ ĐỊNH (`0228`, khách hàng 29/09: *"các mục trong phần
    * thông tin chung cần phải có vị trí cố định, hiện tại đang lộn xộn giữa các
    * CSBH khác nhau, ví dụ mã KH lúc bên trái lúc bên phải"*).
    *
@@ -1509,11 +1510,17 @@ function ThongTinHoSo({
    * — và câu ấy chọn để nói đúng sự thật (`Giao tới địa chỉ đăng ký`, không
    * phải dấu gạch — lý do `0175` sợ dấu gạch vẫn còn nguyên).
    *
-   * BẢY HÀNG ĐÔI, mỗi hàng một cặp đọc cùng nhau. Thứ tự giữ tinh thần `0177`
-   * (người đại diện trước tên pháp nhân, số nhà trước tỉnh). Ca kiểm ghim cả
-   * DÃY NHÃN, nên thêm một ô thứ mười lăm là phải chọn chỗ cho nó.
+   * BẢY HÀNG, sáu hàng đôi và MỘT hàng trọn: `0229` bỏ ô *Trạng thái khách
+   * hàng* (khách hàng 29/09), nên *Tên Hộ kinh doanh/Tên Công ty* — ô từng đi
+   * cặp với nó — chiếm trọn hàng thay vì để một ô trống bên phải. Tên pháp nhân
+   * vốn dài nhất khối, nên đó cũng là ô đáng có cả bề ngang nhất. Thứ tự giữ
+   * tinh thần `0177`. Ca kiểm ghim cả DÃY NHÃN, nên thêm một ô nữa là phải chọn
+   * chỗ cho nó.
+   *
+   * CÁI MẤT của `0229`, đã nêu: hồ sơ của khách ĐÃ NGỪNG HỢP TÁC thôi nói điều
+   * ấy trên trang hồ sơ (`0206` giữ ô này vì *"hồ sơ cũ của họ vẫn mở được"*).
+   * Trang khách hàng vẫn nói — bấm vào *Mã khách hàng*.
    */
-  const coNgung = kh?.trangThai === 'NGUNG_HOP_TAC';
   // Hồ sơ gửi trước `0177` chỉ có chuỗi gộp: nó vào ô số nhà, tỉnh để gạch —
   // tách ngược chuỗi gộp là suy ngược lên một cột dẫn xuất (`0177`).
   const soNha = kh ? (kh.soNha || (!kh.tinhThanh ? kh.diaChiDangKy : null) || '—') : chua;
@@ -1562,19 +1569,11 @@ function ThongTinHoSo({
           <O nhan="Người đại diện">{kh ? kh.nguoiDaiDien || '—' : chua}</O>
           <O nhan="Chức danh người đại diện">{kh ? kh.chucDanh || '—' : chua}</O>
 
-          <O nhan="Tên Hộ kinh doanh/Tên Công ty">{kh ? kh.ten : chua}</O>
-          {/* Khách đã ngừng hợp tác thì PHẢI nói ra — hồ sơ cũ của họ vẫn mở
-              được. Nhãn nói rõ *khách hàng* (`0206`): trạng thái HỒ SƠ nằm cạnh
-              mã ở đầu trang. */}
-          <O nhan="Trạng thái khách hàng">
-            {!kh || !kh.trangThai ? (
-              chua
-            ) : coNgung ? (
-              <span className="nhan nhan-canh-bao">Đã ngừng hợp tác</span>
-            ) : (
-              'Đang hợp tác'
-            )}
+          <O nhan="Tên Hộ kinh doanh/Tên Công ty" rong>
+            {kh ? kh.ten : chua}
           </O>
+          {/* Ô *Trạng thái khách hàng* (`0206`, `0228`) ĐÃ GỠ ở `0229` — khách
+              hàng 29/09. Xem chú thích đầu hàm về cái mất. */}
 
           <O nhan="Số nhà, Phường xã">{soNha}</O>
           <O nhan="Tỉnh/Thành phố">{tinhThanh}</O>
@@ -1596,7 +1595,7 @@ function ThongTinHoSo({
           {/* `0138` — điều khoản thanh toán, đóng băng lúc gửi duyệt (`0101`). */}
           <O nhan="Công nợ">{kh ? kh.congNo || '—' : chua}</O>
         </dl>
-        {/* Nói THÀNH LỜI. Mười bốn ô vẫn đứng đúng chỗ khi `customer` chết, và
+        {/* Nói THÀNH LỜI. Mười ba ô vẫn đứng đúng chỗ khi `customer` chết, và
             câu này nói vì sao nửa dưới chỉ toàn dấu gạch. */}
         {(kh === null || kh === undefined) && (
           <p className="ghi-chu">Chưa tải được thông tin khách hàng. Tải lại trang để thử lại.</p>

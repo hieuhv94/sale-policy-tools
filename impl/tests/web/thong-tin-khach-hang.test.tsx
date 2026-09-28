@@ -104,6 +104,13 @@ const nhanTrongKhoi = (): string[] => {
   return [...dl.querySelectorAll('dt')].map((o) => o.textContent ?? '');
 };
 
+/** Giá trị của ô mang nhãn `nhan` trong khối (`0229`). */
+const giaTri = (nhan: string): string => {
+  const dt = [...document.querySelectorAll('dl.the-so dt')].find((o) => o.textContent === nhan);
+  if (!dt) throw new Error(`không có ô "${nhan}"`);
+  return dt.parentElement!.querySelector('dd')!.textContent ?? '';
+};
+
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   cleanup();
@@ -132,10 +139,27 @@ describe('`0153` khối thông tin khách hàng', () => {
       'Tỉnh/Thành phố',
       'Số nhà, Phường xã',
       'Người đại diện',
+      // `0229` — chức danh ngay sau người đại diện.
+      'Chức danh người đại diện',
       'Số điện thoại',
       'Công nợ',
       'Loại khách hàng',
     ]);
+  });
+
+  it('`0229` chức danh người đại diện hiện đúng câu chữ đã lưu; chưa khai thì dấu gạch', async () => {
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMang({ ...KHACH, ownerTitle: 'Chủ hộ kinh doanh' } as unknown as typeof KHACH);
+    mo();
+    await waitFor(() => expect(document.querySelector('dl.the-so')).not.toBeNull());
+    expect(giaTri('Chức danh người đại diện')).toBe('Chủ hộ kinh doanh');
+
+    cleanup();
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMang();
+    mo();
+    await waitFor(() => expect(document.querySelector('dl.the-so')).not.toBeNull());
+    expect(giaTri('Chức danh người đại diện')).toBe('—');
   });
 
   it('`0175` ĐỊA CHỈ GIAO HÀNG chỉ hiện KHI CÓ', async () => {

@@ -2916,6 +2916,14 @@ liên quan đến khách hàng"*.
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
 
+**CHỨC DANH Ở TRANG KHÁCH HÀNG · BỎ Ô TRẠNG THÁI KHÁCH HÀNG** `sửa 29/09` — chức danh người đại diện
+hiện cả ở trang thông tin khách hàng (ngay sau người đại diện); ô *Trạng thái khách hàng* rời khỏi
+khối *Thông tin chung* của trang hồ sơ, và *Tên Hộ kinh doanh/Tên Công ty* — ô từng đi cặp với nó —
+chiếm trọn một hàng để mười ba ô còn lại vẫn đứng cố định theo cặp.
+
+> **Cái mất, đã nêu**: hồ sơ của khách **đã ngừng hợp tác** thôi nói điều ấy trên trang hồ sơ (ô được
+> thêm năm 19/09 đúng vì *"hồ sơ cũ của họ vẫn mở được"*). Trang khách hàng vẫn nói.
+
 **BỐ CỤC TRANG HỒ SƠ CSBH** `sửa 29/09` — năm câu một lượt: nút *"Sửa thông tin khách hàng"* rút gọn
 thành **Sửa** và dời lên ngang tiêu đề *Thông tin chung*; **các ô của *Thông tin chung* có vị trí cố
 định** (*"mã KH lúc bên trái lúc bên phải"*); thêm **Chức danh người đại diện**; bảng sản phẩm **khoá

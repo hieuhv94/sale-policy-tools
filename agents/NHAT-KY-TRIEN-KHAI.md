@@ -20134,3 +20134,32 @@ Sáu lượt, sáu đỏ: ô *Có hiệu lực* về lối "chỉ khi có" (3 đ
 nút ra khỏi hàng tiêu đề (1) · lệch `left` cột 2 (1) · gắn lại lớp rê chuột (1) · bỏ `sticky` (1).
 
 **2546/2546 xanh.** Số ca từng tệp so với lượt trước: chỉ ba tệp đổi, đúng số ca thêm (+2 · +4 · +4).
+
+## P259 — `0229` Chức danh ở trang khách hàng · bỏ ô *Trạng thái khách hàng*
+
+Hai câu khách hàng 29/09, ngay sau khi xem `0228`: chức danh người đại diện hiện **cả ở trang thông tin
+khách hàng**; và **bỏ** ô *Trạng thái khách hàng (Đang hợp tác / Đã ngừng hợp tác)* khỏi trang hồ sơ.
+
+**Trang khách hàng**: ô *Chức danh người đại diện* ngay sau *Người đại diện* — `ownerTitle` đã có trong
+DTO, lưu CÂU CHỮ (`0223`), không đụng máy chủ. Khối thành tám ô.
+
+**Trang hồ sơ — bỏ một ô mà vẫn giữ "vị trí cố định" của `0228`**. Mười bốn ô thành mười ba, lẻ một: xoá
+trần ô ấy thì mọi ô sau nó dịch một nấc — đúng lỗi `0228` vừa chữa, chỉ là lần này MỌI hồ sơ cùng
+dịch nên không ai thấy "lộn xộn giữa các CSBH", mà cặp đọc cùng nhau (*Người đại diện* | *Chức danh*…)
+thì bị đảo chéo. Ô từng đi cặp với nó — *Tên Hộ kinh doanh/Tên Công ty* — nhận cờ `rong` (lớp `.o-rong`
+có sẵn của `the-so`, `grid-column: 1 / -1`) và chiếm trọn hàng; tên pháp nhân vốn dài nhất khối. Ca kiểm
+đòi ĐÚNG MỘT ô trọn hàng: thêm ô thứ hai là đổi cặp của mọi ô sau nó.
+
+**Cái mất, đã nêu**: hồ sơ của khách đã ngừng hợp tác thôi nói điều ấy trên trang hồ sơ — `0206` thêm ô
+này đúng vì *"hồ sơ cũ của họ vẫn mở được"*. Trang khách hàng vẫn nói. Hai ca cũ phải GỠ/ĐẢO (`0061`
+*"khách đã ngừng hợp tác thì nói ra ở ngay khối này"*, và vế *Trạng thái khách hàng* của ca `0206` *"ba
+nhãn tự nói ra chúng thuộc về ai"* — còn hai nhãn). Ca mới đi qua đúng biến thể từng làm ô hiện
+(`NGUNG_HOP_TAC`), vì đó là chỗ một nhánh điều kiện dễ mọc lại nhất.
+
+### Phá lại
+
+Ba lượt, ba đỏ: gỡ ô chức danh ở trang khách hàng (2) · dựng lại ô trạng thái cho khách ngừng hợp tác (2,
+gồm ca *"cùng một dãy ô ở mọi hình dạng dữ liệu"* của `0228`) · bỏ cờ trọn hàng của ô *Tên* (1).
+
+**894/894 ca giao diện xanh; typecheck xanh.** `make test` đầy đủ KHÔNG chạy ở chặng này: chặng không
+đụng một dòng máy chủ, và chồng demo đang bật theo yêu cầu người dùng.

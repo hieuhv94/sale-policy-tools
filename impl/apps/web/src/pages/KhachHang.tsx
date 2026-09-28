@@ -297,6 +297,12 @@ export function ChiTietKhachHang({ id }: { id: string }) {
           <dt>Người đại diện</dt>
           <dd>{kh.ownerName}</dd>
         </div>
+        {/* `0229` — chức danh ngay sau người đại diện (khách hàng 29/09), cùng ô
+            trang hồ sơ đã có từ `0228`. Lưu CÂU CHỮ (`0223`), nên bày thẳng. */}
+        <div>
+          <dt>Chức danh người đại diện</dt>
+          <dd>{kh.ownerTitle || '—'}</dd>
+        </div>
         <div>
           <dt>Số điện thoại</dt>
           {/* Dấu gạch chứ không ô trống: khách hàng lập trước `0128` chưa ai

@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P258** (`0228`): **bố cục trang hồ sơ**. *Thông tin chung* thành **mười bốn ô luôn có
+Chặng gần nhất **P259** (`0229`): **chức danh người đại diện ở trang khách hàng**, và **bỏ ô *Trạng thái
+khách hàng*** khỏi trang hồ sơ. Mười ba ô lẻ một, nên *Tên Hộ kinh doanh/Tên Công ty* (ô từng đi cặp với
+nó) chiếm trọn hàng (`O rong` → `.o-rong`) để các cặp không đảo chéo — ca đòi đúng MỘT ô trọn hàng. Cái
+mất: hồ sơ của khách ngừng hợp tác thôi nói điều ấy trên trang hồ sơ. Chỉ giao diện: **894/894 ca giao
+diện xanh**, `make test` đầy đủ không chạy (demo bật, không đụng máy chủ).
+
+Trước đó **P258** (`0228`): **bố cục trang hồ sơ**. *Thông tin chung* thành **mười bốn ô luôn có
 mặt**, bảy hàng đôi — bốn ô "chỉ hiện khi có" (mỗi ô một lý do đúng) cộng lại làm *Mã KH* đổi cột giữa
 các CSBH; thiếu dữ liệu thì nói thành lời. Nút **Sửa** lên hàng tiêu đề (`aria-label` giữ đủ nghĩa).
 **Chức danh người đại diện** lên màn hình (ảnh chụp có từ `0101`). Bảng sản phẩm **khoá 3 cột đầu** ở

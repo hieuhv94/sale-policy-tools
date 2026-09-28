@@ -239,8 +239,8 @@ const DAY_NHAN = [
   'Loại khách hàng',
   'Người đại diện',
   'Chức danh người đại diện',
+  // `0229` — chiếm TRỌN một hàng; ô *Trạng thái khách hàng* đi cặp với nó đã gỡ.
   'Tên Hộ kinh doanh/Tên Công ty',
-  'Trạng thái khách hàng',
   'Số nhà, Phường xã',
   'Tỉnh/Thành phố',
   'Địa chỉ giao hàng',
@@ -366,12 +366,25 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Chức danh người đại diện')).toBe('Giám đốc');
   });
 
-  it('`0228` trạng thái khách hàng: đang hợp tác thì nói thành lời, ngừng thì nhãn cảnh báo', async () => {
+  it('`0229` KHÔNG còn ô *Trạng thái khách hàng* — kể cả khách đã ngừng hợp tác', async () => {
+    // Khách hàng 29/09 bỏ ô này. Ca đi qua đúng biến thể từng làm nó hiện
+    // (ngừng hợp tác), vì đó là chỗ một nhánh điều kiện dễ mọc lại nhất.
+    for (const tt of ['DANG_HOP_TAC', 'NGUNG_HOP_TAC']) {
+      await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: tt } });
+      expect(khoiChung().textContent, tt).not.toContain('Trạng thái khách hàng');
+      expect(khoiChung().textContent, tt).not.toContain('Đã ngừng hợp tác');
+      cleanup();
+    }
+  });
+
+  it('`0229` *Tên Hộ kinh doanh/Tên Công ty* chiếm TRỌN một hàng — mười ba ô vẫn thẳng cặp', async () => {
     await mo();
-    expect(oCua('Trạng thái khách hàng')).toBe('Đang hợp tác');
-    cleanup();
-    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
-    expect(oCua('Trạng thái khách hàng')).toBe('Đã ngừng hợp tác');
+    const dt = [...khoiChung().querySelectorAll('dt')].find(
+      (e) => e.textContent === 'Tên Hộ kinh doanh/Tên Công ty',
+    )!;
+    expect(dt.parentElement!.classList.contains('o-rong')).toBe(true);
+    // Chỉ ô ấy — thêm ô trọn hàng thứ hai là đổi cặp của mọi ô sau nó.
+    expect(khoiChung().querySelectorAll('dl > .o-rong')).toHaveLength(1);
   });
 
   it('`customer` chết thì mất KHỐI khách hàng, không mất cả màn hình', async () => {
@@ -482,15 +495,11 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(css).not.toMatch(/--cot-nhan/);
   });
 
-  it('khách đã ngừng hợp tác thì nói ra ở ngay khối này', async () => {
-    // Hồ sơ cũ của họ vẫn mở được, và không có dòng này thì người đọc không thấy
-    // gì bất thường ở một chính sách dành cho khách không còn giao dịch.
-    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
-    expect(document.body.textContent).toContain('Đã ngừng hợp tác');
-    // `0206` — nhãn phải nói rõ *khách hàng*: trạng thái HỒ SƠ đã lên đầu trang,
-    // nên một ô tên trần *Trạng thái* trong lưới đọc ra là trạng thái của hồ sơ.
-    expect(oCua('Trạng thái khách hàng')).toBe('Đã ngừng hợp tác');
-  });
+  /*
+   * Ca *"khách đã ngừng hợp tác thì nói ra ở ngay khối này"* ĐÃ GỠ ở `0229` —
+   * khách hàng 29/09 bỏ ô *Trạng thái khách hàng*; ca `0229` bên trên canh
+   * chiều ngược. Cái mất đã nêu ở chú thích `ThongTinHoSo`.
+   */
 });
 
 /**
@@ -537,9 +546,10 @@ describe('`0206` một khối thông tin, trạng thái ở đầu trang', () =>
      * *Khách hàng*. Gộp khối là lấy mất chỗ dựa ấy, nên ba nhãn phải tự mang nó.
      * `Mã` là ca nặng nhất: trang này đã có một cái mã khác, ở ngay `<h1>`.
      */
-    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
+    // `0229` — còn HAI nhãn: ô *Trạng thái khách hàng* đã gỡ.
+    await mo();
     const nhan = [...khoiChung().querySelectorAll('dt')].map((e) => e.textContent);
-    for (const n of ['Mã khách hàng', 'Loại khách hàng', 'Trạng thái khách hàng']) {
+    for (const n of ['Mã khách hàng', 'Loại khách hàng']) {
       expect(nhan, n).toContain(n);
     }
     for (const n of ['Mã', 'Loại', 'Trạng thái']) {
