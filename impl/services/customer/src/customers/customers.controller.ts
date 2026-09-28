@@ -150,6 +150,20 @@ export class CustomersController {
   @Patch(':id')
   update(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() body: unknown) {
     const b = validate(body, {
+      /*
+       * MÃ KHÁCH HÀNG SỬA ĐƯỢC (`0226`, khách hàng chốt 28/09) — tới `0225` trường
+       * này không có ở đây và trigger `0006` chặn ở CSDL (CUST-15). Ai được sửa
+       * là luật của SERVICE (`assertChinhTdv`, chỉ TDV phụ trách), không phải
+       * của `@Roles` ở cửa: Kế toán, Sale Admin, Quản trị vẫn gửi lại ĐÚNG mã
+       * đang có được — chỉ ĐỔI mới bị chặn.
+       *
+       * `str(0, …)` chứ không `str(1, …)`, cùng lẽ với `province` bên dưới:
+       * `str()` tự cắt khoảng trắng, nên với `str(1, …)` mã toàn dấu cách bị chặn
+       * NGAY Ở ĐÂY bằng câu *"phải có tối thiểu 1 ký tự"*, và nhánh
+       * `CUSTOMER_CODE_REQUIRED` ở service thành mã chết — lượt chạy đầu của
+       * `0226` bắt đúng chỗ ấy.
+       */
+      code: opt(str(0, 60)),
       name: opt(str(1, 300)),
       /*
        * Loại khách hàng SỬA ĐƯỢC (`0023`).

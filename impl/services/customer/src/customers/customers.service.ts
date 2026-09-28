@@ -104,6 +104,15 @@ type Row = {
  */
 const CAN_REASSIGN = ['QUAN_TRI'];
 
+/**
+ * Tên chỉ mục duy nhất của mã khách hàng (`0006`), so sau `upper(btrim())`.
+ *
+ * Hằng vì lượt `UPDATE` bắt `23505` theo TÊN (`0226`), và có ca kiểm hỏi thẳng
+ * `pg_indexes` rằng cái tên này còn tồn tại — đổi tên chỉ mục mà quên hằng là
+ * lượt trùng mã lọt thành 500.
+ */
+export const UQ_MA_KHACH = 'uq_customer_code_norm';
+
 @Injectable()
 export class CustomersService {
   constructor(
@@ -422,6 +431,57 @@ export class CustomersService {
     // ra thì không khách hàng nào sửa được gì nữa.
     await this.assertMstChuaDung(patch.idNumber, id);
 
+    /*
+     * ĐỔI MÃ KHÁCH HÀNG (`0226`) — chỉ TDV phụ trách, kể cả Quản trị cũng không
+     * (khách hàng chốt 28/09). Cùng chốt `assertChinhTdv` với *Ngừng hợp tác*:
+     * mã do kế toán cấp NGOÀI phần mềm và TDV mang về, nên người biết mã đúng là
+     * người phụ trách khách.
+     *
+     * "Đổi" so trên chuỗi đã cắt khoảng trắng, KHÔNG so sau `upper()`: `kh-01` →
+     * `KH-01` là một lượt đổi thật với người đọc tờ giấy, dù chỉ mục duy nhất
+     * coi hai chuỗi là một. Gửi lại ĐÚNG mã đang có thì không phải đổi, và ai
+     * sửa được khách cũng gửi được.
+     */
+    const maMoi = patch.code?.trim();
+    if (maMoi !== undefined && maMoi === '') {
+      throw new BadRequestException({
+        code: 'CUSTOMER_CODE_REQUIRED',
+        message: 'Mã khách hàng không được để trống.',
+        field: 'customerCode',
+      });
+    }
+    const doiMa = maMoi !== undefined && maMoi !== cur.code;
+    if (doiMa) {
+      this.assertChinhTdv(cur, me);
+      /*
+       * CHỈ KHÁCH CHƯA CÓ CSBH ĐANG HIỆU LỰC (`0226`, khách hàng bổ sung 28/09).
+       *
+       * CSBH đang hiệu lực là văn bản hai bên đã ký và ĐANG ÁP DỤNG — nó mang mã
+       * cũ (ảnh chụp lúc gửi). Đổi mã lúc ấy là để khách hàng đang giao dịch
+       * dưới một mã mà tờ giấy đang dùng không có. Hồ sơ đang duyệt thì KHÔNG
+       * chặn: yêu cầu chỉ nói *"đang có hiệu lực"*.
+       *
+       * Hỏi `policy` (customer không đọc được `pol`), và FAIL CLOSED như
+       * *Ngừng hợp tác*: không hỏi được thì không biết, và lượt ghi hỏng theo.
+       */
+      const hs = await this.policies.hoSoCua(id);
+      if (hs.dangHieuLuc.length > 0) {
+        throw new ConflictException({
+          code: 'CUSTOMER_CODE_LOCKED',
+          message: 'Khách hàng đang có CSBH hiệu lực, không sửa được mã khách hàng.',
+          field: 'customerCode',
+          policies: hs.dangHieuLuc.map((x) => x.code),
+        });
+      }
+      // Hỏi trước để trả đúng câu; chỉ mục `uq_customer_code_norm` vẫn là chốt
+      // thật (hai lượt song song), và lượt `UPDATE` dưới bắt nó theo TÊN.
+      const trung = await this.db.one<{ id: string }>(
+        `SELECT id FROM cus.customer WHERE upper(btrim(code)) = upper($1) AND id <> $2`,
+        [maMoi, id],
+      );
+      if (trung) throw new ConflictException({ code: 'CUSTOMER_CODE_DUPLICATE' });
+    }
+
     if (patch.tdvUserId !== undefined && !CAN_REASSIGN.includes(me.role)) {
       throw new ForbiddenException({
         code: 'REASSIGN_FORBIDDEN',
@@ -474,6 +534,8 @@ export class CustomersService {
             phone              = coalesce($10, phone),
             province           = coalesce($12, province),
             street_ward        = coalesce($13, street_ward),
+            -- 0226: ma khach hang sua duoc (chi TDV phu trach, kiem o tren).
+            code               = coalesce($14, code),
             -- debt_note KHONG dung coalesce (0138). Doi tu *Khac* sang phuong an
             -- 1 hay 2 thi phan go tay phai BIEN MAT; coalesce giu no lai, va no
             -- nam im trong CSDL cho toi ngay ai do doi nguoc ve *Khac* va thay
@@ -504,8 +566,17 @@ export class CustomersService {
           // Tên của BẢNG, không phải chuỗi gửi lên (`0205` — chuẩn hoá NFC).
           tinhThanh ?? null,
           patch.streetWard?.trim() ?? null,
+          doiMa ? maMoi : null,
         ],
-      );
+      ).catch((e: unknown) => {
+        // Đối chiếu TÊN chỉ mục, không chỉ mã lỗi: dòng khách hàng còn chỉ mục
+        // duy nhất thứ hai (`uq_customer_id_number`, `0175`).
+        const loi = e as { code?: string; constraint?: string } | null;
+        if (loi?.code === PG.uniqueViolation && loi.constraint === UQ_MA_KHACH) {
+          throw new ConflictException({ code: 'CUSTOMER_CODE_DUPLICATE' });
+        }
+        throw e;
+      });
       /*
        * Địa chỉ ghi RIÊNG, và chỉ khi lượt sửa có nói tới chúng (`0154`).
        *

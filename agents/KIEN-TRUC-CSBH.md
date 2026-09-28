@@ -18,7 +18,7 @@ cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên 
 | | | | |
 |---|---|---|---|
 | **10** service ứng dụng | **1998** ca kiểm đang chạy | **11** trạng thái hồ sơ | **6** vai trò |
-| **10** tài khoản mẫu | **73** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
+| **10** tài khoản mẫu | **74** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
@@ -166,7 +166,7 @@ Nguyên tắc chọn: ưu tiên thứ đội 3–5 người vận hành được
 | Ngôn ngữ & runtime | **TypeScript · Node 22 LTS** | Một ngôn ngữ cho backend, worker và SPA. Kiểu dữ liệu của response dùng chung, đổi hợp đồng API là compile lỗi ngay ở frontend. Ảnh Docker ~180MB, khởi động <2s. | *Java/Spring Boot*: mỗi container 400–600MB RAM × 10 = quá nặng cho VM 8GB. *Go*: nhanh nhưng phần lớn công việc ở đây là CRUD + form + báo cáo, boilerplate không đáng. *Python/FastAPI*: tốt, nhưng không chia sẻ được kiểu với frontend. |
 | Framework backend | **NestJS 10** | Module hóa sẵn theo đúng biên giới service; guard/interceptor là chỗ tự nhiên để cắm kiểm quyền theo vai trò + phạm vi + trạng thái hồ sơ (§10). Sinh OpenAPI tự động để dùng cho contract test. | *Express thuần*: 10 service sẽ thành 10 kiểu cấu trúc khác nhau. *Fastify thuần*: nhanh hơn nhưng ở 50 user thì tốc độ framework không phải nút cổ chai. |
 | CSDL | **PostgreSQL 16** | Ba thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực” và cho “mã số thuế duy nhất giữa khách đang hợp tác” (`0175`), `numeric` chính xác cho tiền và tỷ lệ, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. (*Recursive CTE cho cây phân quyền* — lý do thứ tư của bản thiết kế — mất theo cây tổ chức `16/08`.) | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
-| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 73 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
+| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 74 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
 | Bus sự kiện | **RabbitMQ 3.13**, topic exchange `csbh.events` | Có sẵn DLQ, retry theo TTL, giao diện quản trị để kế toán vận hành nhìn được hàng đợi email lỗi. Chiếm ~120MB RAM. | *Kafka*: thừa mấy bậc cho vài nghìn sự kiện/tháng, tốn ~1GB RAM. *Redis Streams*: đã có Redis nhưng thiếu routing theo topic và DLQ, phải tự viết. *NATS*: nhẹ hơn nhưng đội ít quen, công cụ vận hành mỏng hơn. |
 | Hàng đợi việc & cache | **Redis 7** (`ioredis`) | Cache ảnh chụp danh tính cho token (`0090`), khoá phân tán cho cron SLA. **BullMQ đã bỏ khỏi lựa chọn**: xuất Excel và sinh PDF chạy đồng bộ trong lời gọi, còn thư retry đi qua RabbitMQ với DLQ — không còn loại job nào cần lịch trình riêng. | *Dùng RabbitMQ cho cả cache*: sai công cụ. |
 | Lưu file | **MinIO** (S3 API) | File ký, bản scan, hợp đồng phải xóa được *thật* khi kế toán yêu cầu in lại (§10) — S3 API cho xóa theo object và bật versioning chọn lọc. Sau này chuyển lên S3/Cloud không đổi code. | *Lưu vào thư mục ổ đĩa*: khó sao lưu nhất quán, khó cấp link có hạn. *BLOB trong Postgres*: phình DB, sao lưu chậm. |
@@ -1167,7 +1167,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | CUST-12 | Tải file sai định dạng hoặc vượt 20MB | 400 và **không** để lại object rác trên MinIO | §6.1 | `P1` |
 | CUST-13 | Tạo khách hàng không đính kèm giấy tờ nào | Thành công — hệ thống không cấu hình giấy tờ bắt buộc, không cảnh báo hết hạn giấy phép | §6.1 | `P0` |
 | CUST-14 | tdv02 đọc khách hàng của tdv01 | 403 | §2.2 | `P0` |
-| CUST-15 | Sửa thông tin khách hàng đang có CSBH hiệu lực | Sửa được thông tin liên hệ, nhật ký ghi giá trị trước/sau; **không** đổi được mã KH | §6.1 §10 | `P0` |
+| CUST-15 | Sửa thông tin khách hàng đang có CSBH hiệu lực | Sửa được thông tin liên hệ, nhật ký ghi giá trị trước/sau; **không** đổi được mã KH khi đang có CSBH hiệu lực (`409 CUSTOMER_CODE_LOCKED`). `sửa 28/09`: trigger CSDL cấm đổi mã đã gỡ (`0226`); mã sửa được — chỉ TDV phụ trách, chỉ khi chưa có CSBH hiệu lực | §6.1 §10 | `P0` |
 | CUST-16 | Xóa khách hàng đã có hồ sơ CSBH | 409 | §6.1 | `P1` |
 | CUST-17 | Tìm khách hàng theo tên, địa chỉ đăng ký, mã số thuế | Trả đúng; **không** tồn tại trường “Tên mã khách” ở bất kỳ đâu | §6.1 | `P1` |
 | CUST-18 | Gửi duyệt hồ sơ của khách hàng chưa khai số điện thoại | `POLICY_FIELDS_MISSING`, nêu *Số điện thoại* và chỉ sang hồ sơ khách hàng — cùng nhóm `chan-moi` với mã số thuế và chức danh (`0128`) | §6.1 §7 | `P0` |

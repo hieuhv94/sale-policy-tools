@@ -19961,3 +19961,70 @@ ngoại tuyến trước đó cũng xanh; chập chờn dưới tải cả bộ 
 Chạy lại `make test` đầy đủ ngay sau commit: ca ấy xanh, không ca nào đỏ.
 
 **2500/2500 xanh.**
+
+## P256 — `0226` Mã khách hàng sửa được — chỉ TDV phụ trách, chỉ khi chưa có CSBH hiệu lực
+
+Khách hàng 28/09: *"cho phép sửa đổi mã khách hàng"*. Chốt khi được hỏi: **chỉ TDV phụ trách** sửa
+(Quản trị hệ thống cũng không) · **mã cũ dùng lại được**. Giữa chặng họ bổ sung: *"chỉ có khách hàng
+chưa có CSBH đang có hiệu lực mới được sửa mã KH"*.
+
+### Luật cũ đứng trên một tiền đề sai
+
+Mã khách hàng bị khoá bằng trigger `trg_customer_code_immutable` từ `0006` (CUST-15), với lý do viết
+ngay tại chỗ: *"sửa được mã là mọi hồ sơ CSBH cũ trỏ vào một khách hàng khác trong im lặng"*. Kiểm lược
+đồ: `pol.policy`, `cus.customer_document`, `cus.customer_address` đều nối bằng `customer_id` (uuid,
+khoá ngoại) — **không bảng nào nối bằng mã**. Thứ mang MÃ trên hồ sơ đã gửi là ảnh chụp `kh_ma_snap`
+(`0101`), và nó đứng yên. Nên gỡ trigger (`0123`) không phá gì; ca `0226` bên `contract.test.ts` là câu
+trả lời đo được: Nháp hiện mã mới, hồ sơ đã gửi giữ mã cũ ở màn hình lẫn bản mềm. Read-model báo cáo
+đã tự làm mới theo `customer.changed` (cùng đường với đổi địa chỉ), có ca canh cột `customer_code`.
+
+### Ba chốt, ba chỗ
+
+- **Ai**: `assertChinhTdv` — chốt có sẵn của *Ngừng hợp tác*, cùng mã `NOT_OWNING_TDV`. Kiểm ở SERVICE,
+  không ở `@Roles`: người khác vẫn gửi lại ĐÚNG mã đang có được (biểu mẫu có thể gửi kèm), chỉ ĐỔI mới
+  bị chặn. "Đổi" so trên chuỗi đã cắt khoảng trắng, **không** so sau `upper()` — `kh-01` → `KH-01` là
+  một lượt đổi thật với người đọc tờ giấy dù chỉ mục duy nhất coi là một.
+- **Khi nào**: hỏi `policy` qua `hoSoCua` (chiều `customer → policy` của `0034`, dành cho thao tác ghi
+  hiếm), có CSBH `DANG_CO_HIEU_LUC` → `409 CUSTOMER_CODE_LOCKED` kèm mã hồ sơ. **FAIL CLOSED** như
+  *Ngừng hợp tác*. Hồ sơ đang duyệt **không** chặn — yêu cầu chỉ nói *"đang có hiệu lực"*, và lượt phá
+  số 3 (chặn cả `dangCho`) đỏ đúng ca ấy.
+- **Trùng**: hỏi trước để trả đúng câu, chỉ mục `uq_customer_code_norm` vẫn là chốt thật; lượt `UPDATE`
+  bắt `23505` **theo TÊN** (`UQ_MA_KHACH`, có ca hỏi `pg_indexes`) vì dòng khách còn chỉ mục duy nhất
+  thứ hai (`uq_customer_id_number`). Mã cũ được giải phóng ngay — không bảng mã đã dùng.
+
+**`str()` TỰ CẮT KHOẢNG TRẮNG** — lượt chạy đầu đỏ ở ca *"mã toàn khoảng trắng → CUSTOMER_CODE_REQUIRED"*:
+controller khai `str(1, 60)` nên chuỗi `'   '` bị chặn NGAY ở cửa bằng câu chung *"phải có tối thiểu 1
+ký tự"*, và nhánh ở service là mã chết. Đúng cái bẫy ô Tỉnh/Thành phố đã gặp ở `0175`, chữa cùng lối:
+`str(0, …)` để chuỗi rỗng tới được service. **Không ca nào khác bắt được**, vì giao diện xám nút Lưu
+khi ô rỗng.
+
+### Giao diện
+
+Ô mã có mặt ở cả biểu mẫu SỬA. Biểu mẫu tự hỏi `/policies/current?customerId=` (đường trang Khách hàng
+đang dùng) **chỉ khi người mở là TDV phụ trách** — người khác không sửa được bất kể câu trả lời. Bốn
+trạng thái: đang hỏi (xám) · 404 → mở · có → khoá kèm mã CSBH · hỏi hỏng → khoá (không nuốt lỗi thành
+"chưa có", `0089`; máy chủ cũng fail closed). `code` chỉ đi lên khi ĐỔI, cùng lối `customerType`
+(`0023`). Biểu mẫu giờ gọi `usePhien()`, mà hook ấy ném lỗi ngoài `PhienProvider` — sáu lượt dựng trong
+`sua-khach-hang.test.tsx` được bọc provider bằng hàm `dung()`. Một dòng khẳng định cũ phải ĐẢO (*"mã
+khách hàng vẫn không sửa được — câu ấy phải còn"*).
+
+### Ca Thống kê chập chờn — tìm ra nguyên nhân
+
+`thong-ke.test.tsx` *"Quản trị KHÔNG gọi `/reports`, chỉ gọi nhật ký"* đỏ lần thứ HAI trong ba lượt
+`make test` đầy đủ (P255 đã ghi *"lặp lại thì xử"*). Ca đợi ô `note` rồi đọc ngay `daGoi` — nhưng ô ấy
+dựng ở lượt vẽ đầu còn lượt gọi mạng nằm trong effect, nên dưới tải `waitFor` qua trước khi lời gọi đi.
+Vế *"không gọi `/reports/`"* yếu theo cùng lẽ (đọc sớm thì xanh vì chưa gọi gì). Giờ đợi đúng lượt gọi
+`/audit/thong-ke` rồi mới khẳng định. Không phá lại được một ca chập chờn cho có kết quả chắc chắn — ghi
+ra vậy, và lượt `make test` cuối là phép thử của nó.
+
+### Phá lại
+
+Tám lượt, tám đỏ đúng ca: bỏ `assertChinhTdv` · bỏ khoá hiệu lực · khoá cả hồ sơ đang duyệt · bỏ CẢ
+phép kiểm trước LẪN phép bắt theo tên (gỡ riêng một trong hai thì lớp kia đỡ — hai lớp cho hai kiểu
+hỏng: câu đúng, và hai lượt song song) · `str(1, …)` ở controller · giao diện bỏ qua câu trả lời hiệu lực
+(2 đỏ) · nuốt lỗi hỏi thành "chưa có" · luôn gửi `code`. **Không phá lại migration** (dựng lại trigger
+cần dựng lại CSDL); ca `pg_trigger` canh việc nó vắng mặt.
+
+Không dựng lại chồng demo ở chặng này — người dùng vừa cho tắt; migration `0123` chỉ `DROP`.
+
+**2523/2523 xanh.**

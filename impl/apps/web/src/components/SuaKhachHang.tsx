@@ -4,9 +4,11 @@
  * Hai ràng buộc nghiệp vụ được nói thẳng trên biểu mẫu, không giấu trong thông
  * báo lỗi sau khi bấm:
  *
- *   - **Mã khách hàng không sửa được sau khi lưu** (`CUST-04`). Sửa được nó là
- *     mọi hồ sơ CSBH cũ lặng lẽ trỏ sang một khách hàng khác. Nên ô mã chỉ có ở
- *     biểu mẫu lập mới.
+ *   - **Mã khách hàng CHỈ TDV phụ trách sửa được** (`0226`, chốt 28/09). Tới
+ *     `0225` mã không sửa được với lý do *"hồ sơ CSBH cũ lặng lẽ trỏ sang khách
+ *     khác"* — tiền đề ấy sai: hồ sơ nối với khách bằng `id`, và tờ giấy đã ký
+ *     giữ ảnh chụp mã lúc gửi. Người khác thấy ô mã nhưng không gõ được, kèm
+ *     một câu nói vì sao — chứ không để họ gõ rồi nhận 403.
  *   - **Trùng mã số thuế thì KHÔNG lập được** (`0175`, chốt 05/09) — đảo hẳn
  *     `CUST-07`. Hỏi máy chủ NGAY LÚC GÕ và báo ngay dưới ô, chứ không đợi lượt
  *     bấm Lưu: người ta gõ xong mã số thuế rồi mới điền nốt mười ô còn lại, và
@@ -28,6 +30,8 @@ import {
 } from '../lib/danh-muc.js';
 import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
+import { usePhien } from '../lib/auth.js';
+import { la404 } from '../lib/loi.js';
 
 export type KhachHangDayDu = {
   id: string;
@@ -215,7 +219,47 @@ export function BieuMauKhachHang({
   xong: (id: string) => void;
 }) {
   const { bao } = useBaoLoi();
+  const { nguoiDung } = usePhien();
   const [g, datG] = useState<Gia>(khach ? tuDto(khach) : rong);
+  /**
+   * Người đang mở biểu mẫu có sửa được MÃ không (`0226`) — lập mới thì luôn có;
+   * sửa thì chỉ TDV phụ trách. Máy chủ chốt cùng luật (`assertChinhTdv`).
+   */
+  const laTdvPhuTrach = khach !== undefined && nguoiDung?.id === khach.tdvUserId;
+
+  /**
+   * CSBH đang hiệu lực của khách (`0226`, bổ sung 28/09) — có thì mã KHOÁ.
+   *
+   *   `'dang-hoi'` — chưa biết; ô mã xám trong lúc hỏi, không mở rồi đóng lại.
+   *   `null`       — hỏi rồi, không có (404): mở ô mã.
+   *   `{ code }`   — có: khoá, và nói ra mã hồ sơ.
+   *   `'khong-ro'` — hỏi hỏng: khoá. Máy chủ cũng từ chối khi không hỏi được
+   *                  `policy` (fail closed), nên mở ô ở đây là hứa một lượt Lưu
+   *                  chắc chắn hỏng.
+   *
+   * Chỉ hỏi khi người mở LÀ TDV phụ trách — người khác không sửa được mã bất kể
+   * câu trả lời, nên hỏi là một vòng mạng thừa.
+   */
+  const [hieuLuc, datHieuLuc] = useState<'dang-hoi' | null | { code: string } | 'khong-ro'>(
+    'dang-hoi',
+  );
+  useEffect(() => {
+    if (!khach || !laTdvPhuTrach) return;
+    const huy = new AbortController();
+    layJson<{ code: string }>(
+      `/policies/current?customerId=${encodeURIComponent(khach.id)}`,
+      huy.signal,
+    )
+      .then((h) => datHieuLuc({ code: h.code }))
+      .catch((e: unknown) => {
+        if (huy.signal.aborted) return;
+        // 404 là câu trả lời "chưa có CSBH nào đang hiệu lực" (`0089`).
+        datHieuLuc(la404(e) ? null : 'khong-ro');
+      });
+    return () => huy.abort();
+  }, [khach, laTdvPhuTrach]);
+
+  const suaDuocMa = khach === undefined || (laTdvPhuTrach && hieuLuc === null);
   const [loi, datLoi] = useState<unknown>(null);
   const [dangGui, datDangGui] = useState(false);
 
@@ -271,6 +315,8 @@ export function BieuMauKhachHang({
 
   /** Đang sửa một khách đã có, VÀ ô loại khách hàng thật sự đổi giá trị. */
   const doiLoai = khach !== undefined && Number(g.customerType) !== khach.customerType;
+  // `0226` — gửi `code` chỉ khi ĐỔI, cùng lý do với `customerType` ngay trên.
+  const doiMa = khach !== undefined && g.code.trim() !== khach.code;
 
   /**
    * GIÁ TRỊ CŨ NGOÀI DANH SÁCH VẪN PHẢI HIỆN RA (`0205`).
@@ -335,6 +381,7 @@ export function BieuMauKhachHang({
         await va(`/customers/${khach.id}`, {
           ...than,
           ...(doiLoai ? { customerType: Number(g.customerType) } : {}),
+          ...(doiMa ? { code: g.code.trim() } : {}),
         });
         xong(khach.id);
       } else {
@@ -376,29 +423,46 @@ export function BieuMauKhachHang({
     // Chọn *Khác* mà chưa gõ gì thì nút Lưu xám (`0138`) — máy chủ cũng chặn,
     // nhưng bắt người dùng bấm Lưu mới biết là bắt họ đi một vòng thừa.
     (g.debtTerm !== 'KHAC' || g.debtNote.trim() !== '') &&
-    (khach !== undefined || g.code.trim() !== '');
+    g.code.trim() !== '';
 
   return (
     <HopThoai tieuDe={khach ? `Sửa ${khach.code}` : 'Lập khách hàng'} dong={dong}>
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
 
-        {khach ? (
+        <Truong id="kh-ma" nhan="Mã khách hàng" bắtBuộc>
+          {(p) => (
+            <input
+              {...p}
+              className="o-nhap"
+              value={g.code}
+              disabled={!suaDuocMa}
+              onChange={(e) => sua({ code: e.target.value })}
+            />
+          )}
+        </Truong>
+        {/* `0226` — hai câu cho hai người. Câu của TDV phụ trách nói ra HỆ QUẢ
+            (hồ sơ đã gửi giữ mã cũ); câu của người khác nói VÌ SAO ô bị khoá —
+            ô xám không kèm lời là bắt người dùng đoán. */}
+        {khach && !laTdvPhuTrach && (
+          <p className="ghi-chu">Chỉ Trình dược viên phụ trách khách hàng này sửa được mã.</p>
+        )}
+        {khach && laTdvPhuTrach && hieuLuc !== null && typeof hieuLuc === 'object' && (
           <p className="ghi-chu">
-            Mã khách hàng <strong>{khach.code}</strong> không sửa được. Hồ sơ CSBH đã lập trỏ tới mã
-            này.
+            Khách hàng đang có CSBH hiệu lực (<strong>{hieuLuc.code}</strong>) nên không sửa được mã.
           </p>
-        ) : (
-          <>
-            <Truong id="kh-ma" nhan="Mã khách hàng" bắtBuộc>
-              {(p) => (
-                <input {...p} className="o-nhap" value={g.code} onChange={(e) => sua({ code: e.target.value })} />
-              )}
-            </Truong>
-            <p className="ghi-chu">
-              <strong>Mã không sửa được sau khi lưu.</strong> Nhập nhầm thì phải lập khách hàng mới.
-            </p>
-          </>
+        )}
+        {khach && laTdvPhuTrach && hieuLuc === 'khong-ro' && (
+          <p className="ghi-chu">
+            Chưa kiểm được khách hàng có CSBH đang hiệu lực không, nên tạm chưa sửa được mã. Mở lại
+            biểu mẫu để thử lại.
+          </p>
+        )}
+        {khach && suaDuocMa && (
+          <p className="ghi-chu">
+            Đổi mã thì hồ sơ CSBH <strong>đã gửi duyệt</strong> vẫn giữ mã cũ — đó là mã in trên tờ
+            giấy đã ký. Mã cũ được giải phóng, khách hàng khác dùng lại được.
+          </p>
         )}
 
         {/* LOẠI KHÁCH HÀNG sửa được, cả khi lập lẫn khi sửa. Trước đây khoá lại

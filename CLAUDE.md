@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 73 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 74 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -99,7 +99,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (28/09/2026)
 
-Chặng gần nhất **P255** (`0225`): **trạng thái thứ mười một *Sale Admin sửa bản cứng***
+Chặng gần nhất **P256** (`0226`): **mã khách hàng sửa được — chỉ TDV phụ trách, chỉ khi khách chưa
+có CSBH đang hiệu lực**; mã cũ dùng lại được. Trigger `trg_customer_code_immutable` (`0006`, CUST-15)
+**gỡ** (`0123`): lý do của nó — *"hồ sơ cũ trỏ sang khách khác"* — sai, vì mọi bảng nối bằng
+`customer_id`, và hồ sơ đã gửi giữ ảnh chụp `kh_ma_snap`. Chốt ở service: `assertChinhTdv`
+(`NOT_OWNING_TDV`, người khác gửi lại đúng mã cũ vẫn được) · `hoSoCua` hỏi `policy`, có
+`DANG_CO_HIEU_LUC` → `409 CUSTOMER_CODE_LOCKED`, fail closed · trùng → hỏi trước + bắt `23505` theo tên
+`UQ_MA_KHACH`. **Bẫy: `str()` tự cắt khoảng trắng** — `str(1, …)` biến nhánh `CUSTOMER_CODE_REQUIRED`
+thành mã chết, phải `str(0, …)` (lối `0175`). Biểu mẫu tự hỏi `/policies/current` khi người mở là TDV
+phụ trách; giờ gọi `usePhien()` nên tệp kiểm bọc `PhienProvider`. Kèm: tìm ra nguyên nhân ca Thống kê
+chập chờn (đọc `daGoi` trước khi effect kịp gọi). Tám lượt phá, tám đỏ. **2523/2523 xanh.**
+
+Trước đó **P255** (`0225`): **trạng thái thứ mười một *Sale Admin sửa bản cứng***
 (`SA_SUA_BAN_CUNG`) — đích của `KT_REQUEST_REPRINT`, tách khỏi *Sale Admin đang xử lý*. Hai lối ra:
 *Bàn giao* (lại) và *Hoàn duyệt* của TBP (khách hàng chốt giữ). Có SLA, có chủ Sale Admin, cùng bước
 B8 (`pending_step`). **Mốc `reprint_requested_at` của `0045` GỠ HẲN** ở cả `pol` lẫn `rpt` — nó từng

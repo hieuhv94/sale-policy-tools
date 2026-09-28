@@ -13,7 +13,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { INestApplication } from '@nestjs/common';
-import { createTestApp as createCustomerApp } from '@csbh/customer/testing';
+import { createTestApp as createCustomerApp, UQ_MA_KHACH } from '@csbh/customer/testing';
 import {
   accessTokenFor,
   bootIdentityListening,
@@ -455,18 +455,141 @@ describe('CUST-15 sửa khách hàng đang có CSBH hiệu lực', () => {
     expect(ev.after.name).toBe('Ten moi');
   });
 
-  it('KHÔNG đổi được mã khách hàng — chặn ở tầng CSDL', async () => {
+  /*
+   * Ca *"KHÔNG đổi được mã khách hàng — chặn ở tầng CSDL"* ĐÃ GỠ ở `0226`:
+   * khách hàng chốt 28/09 cho TDV phụ trách sửa mã, và migration `0123` bỏ
+   * trigger `trg_customer_code_immutable`. Khối `0226` ngay dưới thay nó.
+   */
+});
+
+describe('`0226` sửa mã khách hàng — chỉ TDV phụ trách', () => {
+  /** Mã mới giữ tiền tố của tệp, để `cleanup()` còn dọn được. */
+  const maMoi = () => `${code()}-MOI`;
+
+  it('TDV phụ trách đổi được mã; nhật ký ghi mã trước và sau', async () => {
     const c = await post('/customers', base());
-    // API không nhận trường code, nên thử đi đường vòng bằng SQL thô.
-    const err = await withAdminDb(async (x) => {
-      try {
-        await x.query(`UPDATE cus.customer SET code = 'MA-MOI' WHERE id = $1`, [c.body.id]);
-        return undefined;
-      } catch (e) {
-        return e as { message: string };
-      }
+    const moi = maMoi();
+    const r = await patch(`/customers/${c.body.id}`, { code: moi });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.code).toBe(moi);
+
+    const ev = await withAdminDb(async (x) => {
+      const q = await x.query<{ payload: { before: { code: string }; after: { code: string } } }>(
+        `SELECT payload FROM cus.outbox WHERE routing_key = 'customer.changed'
+          ORDER BY created_at DESC LIMIT 1`,
+      );
+      return q.rows[0]!.payload;
     });
-    expect(err?.message).toContain('Khong duoc doi ma khach hang');
+    expect(ev.before.code).toBe(c.body.code);
+    expect(ev.after.code).toBe(moi);
+  });
+
+  it('mã lưu ĐÃ CẮT khoảng trắng hai đầu', async () => {
+    const c = await post('/customers', base());
+    const moi = maMoi();
+    const r = await patch(`/customers/${c.body.id}`, { code: `  ${moi}  ` });
+    expect(r.status).toBe(200);
+    expect(r.body.code).toBe(moi);
+  });
+
+  it('Quản trị hệ thống KHÔNG đổi được mã — 403 NOT_OWNING_TDV (chốt 28/09)', async () => {
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { code: maMoi() }, 'admin01');
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('NOT_OWNING_TDV');
+    expect((await get(`/customers/${c.body.id}`)).body.code, 'mã phải còn nguyên').toBe(c.body.code);
+  });
+
+  it('TDV KHÁC (không phụ trách) cũng không đổi được mã', async () => {
+    // tdv02 không có trong phạm vi khách của tdv01 → chốt phạm vi trả lời trước.
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { code: maMoi() }, 'tdv02');
+    expect([403, 404]).toContain(r.status);
+    expect((await get(`/customers/${c.body.id}`)).body.code).toBe(c.body.code);
+  });
+
+  it('gửi lại ĐÚNG mã đang có thì không phải đổi — Quản trị vẫn sửa được ô khác', async () => {
+    // Biểu mẫu có thể gửi kèm mã hiện tại; chặn ở đây là khoá Quản trị khỏi cả
+    // lượt sửa tên chỉ vì một trường họ không đụng tới.
+    const c = await post('/customers', base());
+    const r = await patch(
+      `/customers/${c.body.id}`,
+      { code: c.body.code, name: 'Ten do Quan tri sua' },
+      'admin01',
+    );
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.name).toBe('Ten do Quan tri sua');
+  });
+
+  it('trùng mã khách khác — kể cả khác hoa thường và khoảng trắng — 409', async () => {
+    const a = await post('/customers', base());
+    const b = await post('/customers', base());
+    const r = await patch(`/customers/${b.body.id}`, { code: ` ${String(a.body.code).toLowerCase()} ` });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('CUSTOMER_CODE_DUPLICATE');
+  });
+
+  it('mã toàn khoảng trắng — 400 CUSTOMER_CODE_REQUIRED', async () => {
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { code: '   ' });
+    expect(r.status).toBe(400);
+    expect(r.body.code).toBe('CUSTOMER_CODE_REQUIRED');
+  });
+
+  it('mã cũ được GIẢI PHÓNG — khách hàng khác lập bằng đúng mã ấy được (chốt 28/09)', async () => {
+    const c = await post('/customers', base());
+    const cu = c.body.code as string;
+    expect((await patch(`/customers/${c.body.id}`, { code: maMoi() })).status).toBe(200);
+    const khac = await post('/customers', base({ code: cu }));
+    expect(khac.status, JSON.stringify(khac.body)).toBe(201);
+  });
+
+  /** Gắn một hồ sơ ở `status` cho khách — mã mang tiền tố tệp để `cleanup()` dọn. */
+  const coHoSo = (customerId: string, status: string) =>
+    withAdminDb((x) =>
+      x.query(
+        `INSERT INTO pol.policy (code, customer_id, status) VALUES ($1, $2, $3::pol.policy_status)`,
+        [`${P}-POL-${++n}-${Date.now()}`, customerId, status],
+      ),
+    );
+
+  it('khách ĐANG CÓ CSBH hiệu lực — 409 CUSTOMER_CODE_LOCKED, mã giữ nguyên (bổ sung 28/09)', async () => {
+    const c = await post('/customers', base());
+    await coHoSo(c.body.id, 'DANG_CO_HIEU_LUC');
+    const r = await patch(`/customers/${c.body.id}`, { code: maMoi() });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('CUSTOMER_CODE_LOCKED');
+    expect(r.body.policies).toHaveLength(1);
+    expect((await get(`/customers/${c.body.id}`)).body.code).toBe(c.body.code);
+  });
+
+  it('khóa MÃ, không khoá cả khách — các ô khác vẫn sửa được khi có CSBH hiệu lực', async () => {
+    const c = await post('/customers', base());
+    await coHoSo(c.body.id, 'DANG_CO_HIEU_LUC');
+    const r = await patch(`/customers/${c.body.id}`, { code: c.body.code, name: 'Ten moi khi dang hieu luc' });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+  });
+
+  it('chỉ có hồ sơ ĐANG DUYỆT (chưa hiệu lực) — đổi được', async () => {
+    // Yêu cầu nói *"đang có hiệu lực"*; hồ sơ đang duyệt giữ ảnh chụp mã lúc gửi.
+    const c = await post('/customers', base());
+    await coHoSo(c.body.id, 'CHO_TBP_DUYET');
+    expect((await patch(`/customers/${c.body.id}`, { code: maMoi() })).status).toBe(200);
+  });
+
+  it('CSBH cũ đã HẾT hiệu lực — đổi được', async () => {
+    const c = await post('/customers', base());
+    await coHoSo(c.body.id, 'HET_HIEU_LUC');
+    expect((await patch(`/customers/${c.body.id}`, { code: maMoi() })).status).toBe(200);
+  });
+
+  it('CSDL không còn trigger chặn đổi mã, và chỉ mục duy nhất còn đúng tên', async () => {
+    const r = await withAdminDb(async (x) => ({
+      trg: (await x.query(`SELECT 1 FROM pg_trigger WHERE tgname = 'trg_customer_code_immutable'`)).rowCount,
+      idx: (await x.query(`SELECT 1 FROM pg_indexes WHERE schemaname = 'cus' AND indexname = $1`, [UQ_MA_KHACH])).rowCount,
+    }));
+    expect(r.trg).toBe(0);
+    expect(r.idx, 'lượt UPDATE bắt 23505 theo TÊN này').toBe(1);
   });
 });
 

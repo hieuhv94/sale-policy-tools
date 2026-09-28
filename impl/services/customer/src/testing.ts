@@ -10,3 +10,4 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 export { CustomerOutbox } from './infra/outbox.relay.js';
+export { UQ_MA_KHACH } from './customers/customers.service.js';

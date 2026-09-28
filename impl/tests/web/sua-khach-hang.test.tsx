@@ -10,14 +10,24 @@
  */
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactElement } from 'react';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BieuMauKhachHang, type KhachHangDayDu } from '@csbh/web/sua-khach-hang';
+import { PhienProvider } from '@csbh/web/auth';
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.unstubAllGlobals();
 });
+
+/**
+ * Dựng trong `PhienProvider` (`0226`): biểu mẫu đọc người đang đăng nhập để
+ * quyết định ô MÃ có sửa được không. Trong ứng dụng nó luôn nằm dưới provider ở
+ * gốc; không có phiên lưu thì provider không gọi máy chủ và `nguoiDung` rỗng.
+ */
+const dung = (ui: ReactElement) => render(<PhienProvider>{ui}</PhienProvider>);
 
 const phanHoi = (body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -63,7 +73,7 @@ const KHACH: KhachHangDayDu = {
 };
 
 const moSua = () =>
-  render(<BieuMauKhachHang khach={KHACH} dong={() => undefined} xong={() => undefined} />);
+  dung(<BieuMauKhachHang khach={KHACH} dong={() => undefined} xong={() => undefined} />);
 
 const oLoai = () => screen.getByLabelText(/Loại khách hàng/) as HTMLSelectElement;
 
@@ -80,13 +90,14 @@ describe('0023 ô loại khách hàng có mặt khi SỬA', () => {
     chanFetch();
     moSua();
     expect(screen.queryByText(/loại khách hàng không sửa được/)).toBeNull();
-    // Mã khách hàng thì VẪN không sửa được — câu ấy phải còn.
-    expect(screen.getByText(/không sửa được/)).toBeDefined();
+    // `0226` ĐẢO dòng này: tới `0225` nó đòi câu *"Mã khách hàng … không sửa
+    // được"* phải còn. Giờ mã sửa được (TDV phụ trách), và câu ấy đã gỡ.
+    expect(screen.queryByText(/không sửa được/)).toBeNull();
   });
 
   it('biểu mẫu LẬP MỚI vẫn có ô loại', async () => {
     chanFetch();
-    render(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
+    dung(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
     expect(oLoai()).toBeDefined();
   });
 });
@@ -188,7 +199,7 @@ describe('`0205` ô Tỉnh/Thành phố', () => {
      * ấy — không lỗi nào hiện ra, và dữ liệu sai theo kiểu không ai kiểm lại.
      */
     chanFetch();
-    render(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
+    dung(<BieuMauKhachHang dong={() => undefined} xong={() => undefined} />);
     expect(oTinh().value).toBe('');
   });
 
@@ -203,7 +214,7 @@ describe('`0205` ô Tỉnh/Thành phố', () => {
      * quay về nó được nữa.
      */
     chanFetch();
-    render(
+    dung(
       <BieuMauKhachHang
         khach={{ ...KHACH, province: 'TP Hồ Chí Minh' }}
         dong={() => undefined}
@@ -389,7 +400,7 @@ describe('`0223` ô chức danh người đại diện', () => {
      * tiếp theo — dù chỉ sửa số điện thoại — sẽ lặng lẽ xoá mất chức danh.
      */
     chanFetch();
-    render(
+    dung(
       <BieuMauKhachHang
         khach={{ ...KHACH, ownerTitle: 'Chủ nhà thuốc' }}
         dong={() => undefined}
@@ -404,7 +415,7 @@ describe('`0223` ô chức danh người đại diện', () => {
 
   it('chức danh cũ TRÙNG một mục thì mở ra đúng mục ấy', () => {
     chanFetch();
-    render(
+    dung(
       <BieuMauKhachHang
         khach={{ ...KHACH, ownerTitle: 'Giám đốc' }}
         dong={() => undefined}
@@ -413,5 +424,126 @@ describe('`0223` ô chức danh người đại diện', () => {
     );
     expect(oChuc().value).toBe('Giám đốc');
     expect(screen.queryByLabelText(/Ghi rõ chức danh/)).toBeNull();
+  });
+});
+
+/**
+ * `0226` — MÃ KHÁCH HÀNG SỬA ĐƯỢC, CHỈ TDV PHỤ TRÁCH (khách hàng chốt 28/09).
+ *
+ * Ô mã có mặt ở cả biểu mẫu SỬA. Người phụ trách gõ được; người khác thấy ô
+ * xám kèm một câu nói vì sao. `code` chỉ đi lên khi thật sự đổi — cùng lối với
+ * `customerType` (`0023`), để nhật ký không đầy những lượt "đổi mã" không có thật.
+ */
+describe('`0226` ô mã khách hàng khi SỬA', () => {
+  const dangNhap = (id: string, role: string) =>
+    localStorage.setItem(
+      'csbh:phien',
+      JSON.stringify({
+        accessToken: 'a',
+        refreshToken: 'r',
+        user: { id, username: 'x', fullName: 'X', email: 'x@example.com', role, mustChangePassword: false },
+      }),
+    );
+  /**
+   * `/auth/me` trả đúng người trong phiên; `/policies/current` trả theo `hieuLuc`
+   * — mặc định 404 (chưa có CSBH đang hiệu lực); mọi đường khác trả rỗng.
+   */
+  const chanCoPhien = (hieuLuc: 404 | 500 | { code: string } = 404) => {
+    const f = vi.fn((duong: unknown) => {
+      const d = String(duong);
+      if (d.includes('/auth/me')) {
+        return Promise.resolve(phanHoi(JSON.parse(localStorage.getItem('csbh:phien') ?? '{}').user));
+      }
+      if (d.includes('/policies/current')) {
+        if (typeof hieuLuc === 'object') return Promise.resolve(phanHoi(hieuLuc));
+        return Promise.resolve(
+          new Response(JSON.stringify({ code: hieuLuc === 404 ? 'NO_ACTIVE_POLICY' : 'LOI' }), {
+            status: hieuLuc,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
+      }
+      return Promise.resolve(phanHoi({}));
+    });
+    vi.stubGlobal('fetch', f);
+    return f;
+  };
+  const oMa = () => screen.getByLabelText(/Mã khách hàng/) as HTMLInputElement;
+
+  it('TDV PHỤ TRÁCH: ô mã gõ được, mang sẵn mã hiện tại, kèm câu hệ quả', async () => {
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    chanCoPhien();
+    moSua();
+    await waitFor(() => expect(oMa().disabled).toBe(false));
+    expect(oMa().value).toBe(KHACH.code);
+    expect(screen.getByText(/đã gửi duyệt/)).toBeDefined();
+  });
+
+  it('đổi mã → PATCH mang `code` đã cắt khoảng trắng', async () => {
+    const nguoi = userEvent.setup();
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    const f = chanCoPhien();
+    moSua();
+    await waitFor(() => expect(oMa().disabled).toBe(false));
+    await nguoi.clear(oMa());
+    await nguoi.type(oMa(), '  KH-0099  ');
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(thanDaGui(f).code).toBe('KH-0099'));
+  });
+
+  it('KHÔNG đổi mã → PATCH không mang `code`', async () => {
+    const nguoi = userEvent.setup();
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    const f = chanCoPhien();
+    moSua();
+    await waitFor(() => expect(oMa().disabled).toBe(false));
+    await nguoi.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(thanDaGui(f)).not.toHaveProperty('code'));
+  });
+
+  it('người KHÁC (Quản trị) thấy ô mã nhưng xám, kèm câu nói vì sao', async () => {
+    dangNhap('quan-tri-1', 'QUAN_TRI');
+    chanCoPhien();
+    moSua();
+    await waitFor(() => expect(screen.getByText(/Chỉ Trình dược viên phụ trách/)).toBeDefined());
+    expect(oMa().disabled).toBe(true);
+    expect(oMa().value).toBe(KHACH.code);
+  });
+
+  it('xoá trắng ô mã thì nút Lưu xám', async () => {
+    const nguoi = userEvent.setup();
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    chanCoPhien();
+    moSua();
+    await waitFor(() => expect(oMa().disabled).toBe(false));
+    await nguoi.clear(oMa());
+    expect((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('`0226` khách ĐANG CÓ CSBH hiệu lực → ô mã khoá, nói ra mã hồ sơ (bổ sung 28/09)', async () => {
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    chanCoPhien({ code: 'CSBH-2026-000123' });
+    moSua();
+    await waitFor(() => expect(screen.getByText(/đang có CSBH hiệu lực/)).toBeDefined());
+    expect(screen.getByText('CSBH-2026-000123')).toBeDefined();
+    expect(oMa().disabled).toBe(true);
+  });
+
+  it('`0226` hỏi CSBH hiệu lực HỎNG → ô mã khoá, không đoán là chưa có', async () => {
+    // Nuốt lỗi thành "chưa có" (`0089`) là mở ô cho một lượt Lưu mà máy chủ
+    // chắc chắn từ chối (fail closed).
+    dangNhap(KHACH.tdvUserId!, 'TDV');
+    chanCoPhien(500);
+    moSua();
+    await waitFor(() => expect(screen.getByText(/Chưa kiểm được/)).toBeDefined());
+    expect(oMa().disabled).toBe(true);
+  });
+
+  it('`0226` người KHÔNG phụ trách thì không hỏi `/policies/current` — hỏi cũng vô ích', async () => {
+    dangNhap('quan-tri-1', 'QUAN_TRI');
+    const f = chanCoPhien();
+    moSua();
+    await waitFor(() => expect(screen.getByText(/Chỉ Trình dược viên phụ trách/)).toBeDefined());
+    expect(f.mock.calls.some((c) => String(c[0]).includes('/policies/current'))).toBe(false);
   });
 });

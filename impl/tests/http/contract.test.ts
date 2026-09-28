@@ -3228,6 +3228,42 @@ describe('`0224` trả về TDV thì bỏ đóng băng khách hàng', () => {
 });
 
 // =============================================================================
+// `0226` — đổi mã khách hàng: hồ sơ đã gửi giữ mã cũ
+// =============================================================================
+
+describe('`0226` đổi mã khách hàng và hồ sơ CSBH', () => {
+  /*
+   * Luật cũ (CUST-15, trigger `0006`) cấm đổi mã vì sợ *"hồ sơ cũ trỏ sang
+   * khách khác"*. Hai ca dưới là câu trả lời đo được cho nỗi sợ ấy: hồ sơ nối
+   * bằng `customer_id` nên vẫn đúng khách, và thứ MANG MÃ trên hồ sơ đã gửi là
+   * ảnh chụp lúc gửi — không đổi theo.
+   */
+  it('hồ sơ Nháp hiện mã MỚI — chưa đóng băng thì đọc sống', async () => {
+    const d = await draft();
+    const moi = `${d.code}-MOI`;
+    await suaKhach(d.customerId, { code: moi });
+    const r = await pget(`/policies/${d.id}`, 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.khachHang.ma).toBe(moi);
+  }, 90_000);
+
+  it('hồ sơ ĐÃ GỬI DUYỆT giữ mã CŨ — ở màn hình lẫn bản mềm', async () => {
+    const d = await draft();
+    const cu = d.code;
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    const moi = `${cu}-MOI`;
+    await suaKhach(d.customerId, { code: moi });
+
+    expect((await anhChupKhach(d.id)).kh_ma_snap).toBe(cu);
+    expect((await pget(`/policies/${d.id}`, 'kt01')).body.khachHang.ma).toBe(cu);
+    const chu = await banMem(d.id, await mauHoSo());
+    expect(chu).toContain(cu);
+    expect(chu, 'tờ giấy đã gửi không được mang mã mới').not.toContain(moi);
+  }, 150_000);
+});
+
+// =============================================================================
 // `0104` — bảng phân loại trường phải phủ hết danh mục
 // =============================================================================
 

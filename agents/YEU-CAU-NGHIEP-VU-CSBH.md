@@ -463,7 +463,7 @@ hành của khách hàng, giữ liên kết với CSBH gốc và quay lại quy 
 
 | Trường | Quy tắc |
 |---|---|
-| Mã khách hàng | **Khóa định danh.** Kế toán cấp bên ngoài phần mềm; hệ thống chặn trùng khi tạo mới |
+| Mã khách hàng | **Khóa định danh.** Kế toán cấp bên ngoài phần mềm; hệ thống chặn trùng (không phân biệt hoa thường, bỏ khoảng trắng hai đầu). **Sửa được** `sửa 28/09`: chỉ TDV phụ trách, chỉ khi khách **chưa có CSBH đang có hiệu lực**; mã cũ dùng lại được |
 | Tên khách hàng / hộ kinh doanh / công ty | Nhập tay, dùng tra cứu và lọc |
 | CCCD / Mã số thuế | Kiểm tra định dạng, cảnh báo trùng, dùng lọc |
 | Loại khách hàng | Loại 1: HKD của KH · Loại 2: HKD cộng tác · Loại 3: HKD/công ty là điểm bán hoặc cơ sở y tế. **Sửa được sau khi lưu** `sửa 15/08` — xem dưới bảng |
@@ -2911,6 +2911,22 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**MÃ KHÁCH HÀNG SỬA ĐƯỢC** `sửa 28/09` — *"cho phép sửa đổi mã khách hàng"*, rồi bổ sung *"chỉ có
+khách hàng chưa có CSBH đang có hiệu lực mới được sửa mã KH"*. Chốt khi được hỏi: **chỉ TDV phụ
+trách** sửa (Quản trị hệ thống cũng không) · **mã cũ dùng lại được**.
+
+> **Luật cũ cấm vì một lo ngại không có thật.** Từ bản thiết kế, mã khách hàng bị khoá cứng ở cơ sở
+> dữ liệu với lý do *"đổi mã thì hồ sơ CSBH cũ lặng lẽ trỏ sang khách khác"*. Hồ sơ nối với khách
+> bằng mã nội bộ, không bằng mã khách hàng — đổi mã không làm hồ sơ nào đổi khách. Tờ CSBH đã gửi
+> duyệt mang ảnh chụp mã lúc gửi (`24/08`), nên nó giữ mã cũ.
+>
+> **Vì sao khoá khi đang có CSBH hiệu lực**: đó là văn bản hai bên đã ký và đang áp dụng, và nó mang
+> mã cũ. Đổi mã lúc ấy là để khách giao dịch dưới một mã mà tờ giấy đang dùng không có. Hồ sơ đang
+> duyệt thì **không** chặn — yêu cầu chỉ nói *"đang có hiệu lực"*.
+>
+> **Cái giá của "mã cũ dùng lại được"**: tra một mã in trên tờ CSBH cũ có thể ra khách khác, nếu mã
+> ấy đã được cấp lại. Khách hàng chấp nhận khi được nêu.
 
 **TRẠNG THÁI MỚI *SALE ADMIN SỬA BẢN CỨNG*** `mới 28/09` — *"thêm một trạng thái cho CSBH trong luồng
 duyệt gọi là SA sửa bản cứng, xảy ra khi Kế Toán trả lại CSBH về cho SA, khi đó cần trạng thái này để

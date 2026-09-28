@@ -542,8 +542,11 @@ trễ vài giây so với thực tế; riêng danh sách *Việc của tôi* th�
 *Khách hàng* → điền mã, **tên Hộ kinh doanh/tên Công ty**, loại khách hàng, **Tỉnh/Thành phố** và
 **Số nhà, Phường xã** theo đăng ký kinh doanh, người đại diện, **mã số thuế**, số điện thoại.
 
-- **Mã khách hàng không sửa được sau khi lưu.** Sửa được nó là mọi hồ sơ CSBH cũ lặng lẽ trỏ sang
-  một khách hàng khác. Nhập nhầm thì lập khách hàng mới.
+- **Mã khách hàng sửa được** `sửa 28/09` — **chỉ Trình dược viên phụ trách** khách hàng ấy, và **chỉ
+  khi khách chưa có CSBH đang có hiệu lực**. Người khác mở *Sửa* thấy ô mã xám kèm một câu nói vì
+  sao; khách đang có CSBH hiệu lực thì ô mã cũng xám và ghi rõ mã CSBH ấy. Hồ sơ CSBH **đã gửi
+  duyệt** vẫn giữ mã cũ — đó là mã in trên tờ giấy đã gửi. Mã cũ được giải phóng: khách hàng khác
+  lập bằng đúng mã ấy được.
 - **Số điện thoại** `sửa 01/09` — không bắt buộc, và **không còn chặn lượt gửi duyệt**: hai mẫu hồ
   sơ mặc định thôi in số điện thoại nên không có ô trắng nào để lo. Trường vẫn ở đó, vẫn nên điền,
   và mẫu nào muốn in vẫn đặt ô trống được.

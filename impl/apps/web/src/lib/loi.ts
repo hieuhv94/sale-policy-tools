@@ -470,6 +470,18 @@ export const BANG_LOI: Record<string, Muc> = {
     truong: 'customerCode',
     cau: 'Mã khách hàng này đã có trong hệ thống. Dùng mã khác.',
   },
+  // `0226` — khách đang có CSBH hiệu lực thì mã khoá (khách hàng bổ sung 28/09).
+  CUSTOMER_CODE_LOCKED: {
+    dang: 'o-nhap',
+    truong: 'customerCode',
+    cau: 'Khách hàng đang có CSBH hiệu lực nên không sửa được mã khách hàng.',
+  },
+  // `0226` — lượt sửa gửi lên một mã toàn khoảng trắng.
+  CUSTOMER_CODE_REQUIRED: {
+    dang: 'o-nhap',
+    truong: 'customerCode',
+    cau: 'Mã khách hàng không được để trống.',
+  },
   DOCUMENT_NOT_FOUND: {
     dang: 'hop-thoai',
     cau: 'Giấy tờ này không còn trong hồ sơ khách hàng. Tải lại rồi thử lại.',

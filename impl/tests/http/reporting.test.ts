@@ -1449,6 +1449,39 @@ describe('Read-model đồng bộ đúng khi sự kiện giao lại hoặc hồ 
     expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
   });
 
+  it('`0226` đổi MÃ khách hàng thì read-model và bộ lọc theo mã mới', async () => {
+    /*
+     * Tới `0225` mã không đổi được nên chưa ai kiểm đường này. Nó đi chung
+     * đường với đổi địa chỉ (`customer.changed` → `refreshCustomer`), và ca này
+     * canh cho cột `customer_code` không bị bỏ sót trong lượt làm mới ấy — nếu
+     * sót thì danh sách hồ sơ và ô lọc *Mã khách hàng* nói mã cũ mãi.
+     */
+    const d = await draft();
+    const row = await rptRow(d.id);
+    const customerId = row!['customer_id'] as string;
+    // Giữ tiền tố của mã cũ để bước dọn của tệp còn quét được.
+    const moi = `${String(row!['customer_code'])}-MOI`;
+
+    const r0 = await (await http(customer))
+      .patch(`/customers/${customerId}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
+      .send({ code: moi });
+    expect(r0.status, JSON.stringify(r0.body)).toBe(200);
+
+    await cusOutbox.pumpOnce();
+    const until = Date.now() + 10_000;
+    let ma = '';
+    while (Date.now() < until) {
+      ma = String((await rptRow(d.id))?.['customer_code'] ?? '');
+      if (ma === moi) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(ma).toBe(moi);
+
+    const r = await rget(`/reports/policies?customerCode=${encodeURIComponent(moi)}&limit=200`);
+    expect(r.body.items.map((x: { policyId: string }) => x.policyId)).toContain(d.id);
+  });
+
   it('chuẩn hoá bỏ dấu xử lý đúng chữ đ — chỗ unaccent của Postgres làm sai', () => {
     expect(norm('Đà Nẵng')).toBe('da nang');
     expect(norm('đường Điện Biên Phủ')).toBe('duong dien bien phu');

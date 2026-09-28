@@ -406,8 +406,17 @@ describe('`0094` màn hình dựng theo bảng tra', () => {
   it('Quản trị hệ thống KHÔNG gọi `/reports`, chỉ gọi nhật ký', async () => {
     mo('QUAN_TRI');
     await waitFor(() => expect(screen.getByRole('note')).toBeTruthy());
+    /*
+     * ĐỢI lượt gọi nhật ký, rồi mới khẳng định không có `/reports/` (`0226`).
+     *
+     * Ô `note` dựng ngay ở lượt vẽ đầu, còn lượt gọi mạng nằm trong effect chạy
+     * sau — nên tới `0225` ca này đọc `daGoi` ngay khi ô hiện ra và đỏ chập
+     * chờn dưới tải của cả bộ (hai lần trong ba lượt `make test` đầy đủ, chạy
+     * riêng thì 5/5 xanh). Vế "không gọi `/reports/`" cũng mạnh lên theo: đọc
+     * quá sớm thì nó xanh chỉ vì CHƯA có lượt gọi nào.
+     */
+    await waitFor(() => expect(daGoi.some((d) => d.includes('/audit/thong-ke'))).toBe(true));
     expect(daGoi.some((d) => d.includes('/reports/'))).toBe(false);
-    expect(daGoi.some((d) => d.includes('/audit/thong-ke'))).toBe(true);
   });
 
   it('mở ra là đúng NHỊP của vai trò, đổi nhịp thì gọi lại', async () => {
