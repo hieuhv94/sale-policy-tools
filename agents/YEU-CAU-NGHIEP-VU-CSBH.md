@@ -416,6 +416,11 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
    hàng rồi gửi lại, bản CSBH mang số mới. Cùng lúc ấy **chữ ký của Trưởng bộ phận bị huỷ** và hồ
    sơ phải ký lại từ đầu, đúng như quy trình đã quy định.
 
+   **Trả về là bỏ đóng băng khách hàng** `mới 28/09`. Hồ sơ về *Yêu cầu chỉnh sửa* thì ảnh chụp khách
+   hàng **xoá cùng lúc với chữ ký**, nên trang hồ sơ — với mọi người mở nó — bày thông tin **sống**
+   tới lượt gửi lại. TDV phụ trách sửa ngay trên trang hồ sơ bằng nút **Sửa thông tin khách hàng** ở
+   khối *Thông tin chung* (có cả ở *Nháp*). Mã hồ sơ không nằm trong nút ấy.
+
    **Hai trường KHÔNG đóng băng, có chủ ý**: họ tên *Kế toán* và *Sale Admin* vẫn đọc theo người
    đang phụ trách, vì câu chúng trả lời là *"ai đang giữ hồ sơ"*. *Loại khách hàng* và nhãn *đã
    ngừng hợp tác* cũng đọc theo hiện tại — nhãn ấy là tin của hôm nay, và nó có mặt để người mở một
@@ -2884,6 +2889,26 @@ tự nhập)"*; và nút *Thêm dòng* trong hộp thoại *Thêm sản phẩm* 
 > **bắt buộc**.
 >
 > Nút trên bảng sản phẩm **đã là *Thêm sản phẩm*** từ `22/08`; lượt này chỉ đổi nút trong hộp thoại.
+
+**TRẢ VỀ THÌ BỎ ĐÓNG BĂNG KHÁCH HÀNG, SỬA NGAY TẠI TRANG HỒ SƠ** `mới 28/09` — *"khi TBP hoặc kế
+toán trả về CSBH cho TDV, TDV chưa thể sửa được các thông tin chung của CSBH đó, ví dụ các thông tin
+liên quan đến khách hàng"*.
+
+> **Thật ra sửa được — chỉ là không thấy.** Sửa ở trang Khách hàng vẫn ăn, nhưng trang hồ sơ bày
+> **ảnh chụp** chụp lúc gửi duyệt (`24/08`), và ảnh chụp ấy nằm lại qua lượt trả về; tới lượt gửi lại
+> mới chụp lại. Nên TDV sửa xong mở hồ sơ vẫn thấy số cũ, và trang hồ sơ không có lối nào sang chỗ sửa.
+>
+> Chốt ba điều: (1) hồ sơ về *Yêu cầu chỉnh sửa* — qua bất kỳ đường trả về nào — thì **ảnh chụp khách
+> hàng bị xoá**, trang hồ sơ đọc thông tin **sống**, gửi lại thì đóng băng lại như mọi lượt gửi;
+> (2) TBP, Kế toán mở hồ sơ trong quãng ấy cũng thấy **dữ liệu sống** — đó là thứ sắp được gửi lại;
+> (3) khối *Thông tin chung* có nút **Sửa thông tin khách hàng** cho TDV phụ trách khi hồ sơ ở *Nháp*
+> hoặc *Yêu cầu chỉnh sửa*, mở chính biểu mẫu của trang Khách hàng. **Mã hồ sơ không thuộc "thông tin
+> chung"** — vẫn chỉ sửa được ở *Nháp* (`10/09`).
+>
+> **Cái mất:** người duyệt mở lại hồ sơ mình vừa trả về thấy số đang sửa dở, không còn đúng bản họ đã
+> trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
+> thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
+> lực có ảnh chụp riêng nên không đổi theo.
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

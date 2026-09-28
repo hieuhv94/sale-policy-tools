@@ -19,6 +19,7 @@ import { HoSoPhapLy } from '../components/HoSoPhapLy.js';
 import { XemTep } from '../components/XemTep.js';
 import { XemBanMem } from '../components/XemBanMem.js';
 import { SuaMaHoSo } from '../components/SuaMaHoSo.js';
+import { BieuMauKhachHang, type KhachHangDayDu } from '../components/SuaKhachHang.js';
 import { NHAN_KHO, TY_LE_KHO, TY_LE_MAC_DINH, type MauChon } from '../lib/mau-hop-dong.js';
 import {
   ThemDongSanPham,
@@ -400,6 +401,23 @@ export function ChiTietHoSo({ id }: { id: string }) {
     }
   };
 
+  /**
+   * Khách hàng đang sửa ngay trên trang hồ sơ (`0224`) — bản ĐẦY ĐỦ, tải lúc
+   * bấm nút.
+   *
+   * Không dựng biểu mẫu từ `hoSo.khachHang`: khối ấy chỉ mang những ô trang này
+   * BÀY (không có mã số thuế, chức danh, số điện thoại, điều khoản công nợ), mà
+   * `BieuMauKhachHang` gửi lại CẢ biểu mẫu — dựng từ khối thiếu là lượt Lưu xoá
+   * trắng mọi ô trang này không bày.
+   */
+  const [khachDangSua, datKhachDangSua] = useState<KhachHangDayDu | null>(null);
+  const moSuaKhach = () => {
+    if (!hoSo) return;
+    layJson<KhachHangDayDu>(`/customers/${hoSo.customerId}`)
+      .then(datKhachDangSua)
+      .catch(bao);
+  };
+
   /** Hộp *Xem bản mềm* đang mở hay không (`0054`). */
   const [moBanMem, datMoBanMem] = useState(false);
   /**
@@ -668,7 +686,24 @@ export function ChiTietHoSo({ id }: { id: string }) {
         khác, có màn hình riêng, và trộn chung thì "Loại" đứng cạnh "Phiên bản"
         đọc ra như hai thuộc tính của cùng một thứ.
       */}
-      <ThongTinHoSo hoSo={hoSo} />
+      {/*
+        SỬA KHÁCH HÀNG NGAY TẠI ĐÂY (`0224`) — cùng điều kiện `dangSua` với mọi
+        nút sửa khác của trang: máy chủ cho sửa (hồ sơ `NHAP` hoặc
+        `YEU_CAU_CHINH_SUA`, và người xem là TDV phụ trách — `allowed-actions`
+        rỗng với mọi ai khác) VÀ vai trò có quyền. Khách hàng của hồ sơ là khách
+        của chính TDV ấy (`0085`), nên `PATCH /customers/:id` không chặn gì thêm.
+      */}
+      <ThongTinHoSo hoSo={hoSo} suaKhach={dangSua ? moSuaKhach : undefined} />
+      {khachDangSua && (
+        <BieuMauKhachHang
+          khach={khachDangSua}
+          dong={() => datKhachDangSua(null)}
+          xong={() => {
+            datKhachDangSua(null);
+            taiLai();
+          }}
+        />
+      )}
 
       {/*
         AI ĐÃ DUYỆT (`0056`).
@@ -1479,7 +1514,14 @@ function DiaChiDangKy({
  * giá trị đi đâu. Hàng `<div>` trở lại là hộp thật — mỗi ô một cặp nhãn trên,
  * giá trị dưới — đúng như `the-so` cần.
  */
-function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
+function ThongTinHoSo({
+  hoSo,
+  suaKhach,
+}: {
+  hoSo: HoSo;
+  /** Có thì bày nút *Sửa thông tin khách hàng* (`0224`). */
+  suaKhach?: (() => void) | undefined;
+}) {
   const kh = hoSo.khachHang;
 
   return (
@@ -1570,6 +1612,17 @@ function ThongTinHoSo({ hoSo }: { hoSo: HoSo }) {
             khác nên chuyện ấy là hiển nhiên, giờ thì phải viết ra. */}
         {(kh === null || kh === undefined) && (
           <p className="ghi-chu">Chưa tải được thông tin khách hàng. Tải lại trang để thử lại.</p>
+        )}
+        {/* `0224` — sửa xong là thấy ngay: hồ sơ sửa được thì khối này đọc
+            SỐNG, vì lượt trả về đã xoá ảnh chụp khách hàng. Mã hồ sơ KHÔNG nằm
+            trong nút này (khách hàng chốt 28/09) — nó có bút chì riêng ở tiêu
+            đề, và chỉ ở `NHAP` (`0198`). */}
+        {suaKhach && kh && (
+          <div className="nut-cuoi-khoi">
+            <button type="button" className="nut nut-nhe" onClick={suaKhach}>
+              Sửa thông tin khách hàng
+            </button>
+          </div>
         )}
       </section>
     </div>

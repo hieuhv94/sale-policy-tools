@@ -1704,6 +1704,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   font-size: var(--chu-thuong);
   margin: 0 0 var(--k3);
 }
+/* Nút sửa khách hàng dưới lưới ô (`0224`). */
+.nut-cuoi-khoi {
+  margin-top: var(--k3);
+}
 /* Nhãn và giá trị trên MỘT dòng, nhãn cột trái. Xếp dọc thì sáu ô thành mười hai
    dòng và thẻ cao gấp đôi thứ nó nói.
 

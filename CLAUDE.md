@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 70 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 71 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -97,9 +97,20 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (25/09/2026)
+## Trạng thái hiện tại (28/09/2026)
 
-Chặng gần nhất **P253** (`0223`): **số điện thoại khách hàng đúng 10 chữ số** — ô vẫn tuỳ chọn,
+Chặng gần nhất **P254** (`0224`): **hồ sơ trả về TDV thì bỏ đóng băng khách hàng**, và TDV **sửa
+khách hàng ngay trên trang hồ sơ**. Không phải "không sửa được" mà là "sửa rồi không thấy": `byId`
+đọc ảnh chụp hễ có, và lượt trả về chỉ xoá chữ ký. Giờ đích `YEU_CAU_CHINH_SUA` xoá mười một cột
+`kh_*_snap` (theo TRẠNG THÁI ĐÍCH, cùng lẽ ba cột chữ ký), đường đọc rơi về nhánh đọc sống có sẵn từ
+`0101`; ai mở hồ sơ trong quãng ấy cũng thấy dữ liệu sống. Danh sách cột là CẶP `[cột, lấy giá trị]`
+(`ANH_CHUP_KHACH`) dùng chung cho lượt chụp và lượt xoá, đối chiếu với `information_schema`. Nút *Sửa
+thông tin khách hàng* ở khối *Thông tin chung* (điều kiện `dangSua`) mở CHÍNH `BieuMauKhachHang` từ
+`GET /customers/:id` — **không** từ `hoSo.khachHang` (thiếu mã số thuế → lượt Lưu xoá trắng). Mã hồ sơ
+ngoài phạm vi. Migration `0120` dọn hồ sơ đang bị trả về. **Bẫy `-t` lần hai**: năm ca `0101` đỏ dưới
+bộ lọc cả trên mã nguyên vẹn — phá lại phải so với MỐC ĐỐI CHỨNG. Sáu lượt phá, sáu đỏ.
+
+Trước đó **P253** (`0223`): **số điện thoại khách hàng đúng 10 chữ số** — ô vẫn tuỳ chọn,
 gõ sai thì đỏ dưới ô và nút Lưu xám; máy chủ chốt `CUSTOMER_PHONE_INVALID` và **lưu bản chuẩn**
 (`chuanSoDienThoai` bỏ cách/chấm/gạch, trả về giá trị — lối `0205`), bản chép `laSoDienThoai` ở giao
 diện, một bảng ca đối chiếu hai bản. **Chức danh người đại diện là ô chọn** *Giám đốc* · *Chủ hộ kinh
@@ -1668,7 +1679,9 @@ Trái trực giác, dễ làm sai nếu không nhớ:
   thêm một trường về sau **buộc** phải viết migration, tức buộc phải trả lời "đóng băng hay đọc
   sống?". Vế đọc ở `khachHangCua`/`nguoiCua` (`render.service.ts`), quyết định theo **ảnh chụp có
   mặt hay không**, không theo trạng thái. *Kế toán* và *Sale Admin* KHÔNG đóng băng — câu chúng trả
-  lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả ba cột chữ ký** — sửa luôn
+  lời là "ai đang giữ hồ sơ". **Quay về `YEU_CAU_CHINH_SUA` thì xoá cả mười một cột `kh_*_snap`**
+  (`0224`, danh sách `ANH_CHUP_KHACH`) — hồ sơ ở tay TDV đọc SỐNG, gửi lại thì chụp lại; `nguoi_de_nghi_snap`
+  giữ. **Và xoá cả ba cột chữ ký** — sửa luôn
   một lỗ hổng `P0` mở từ P5: `tbp_signed_at` không bao giờ được xoá nên hồ sơ bị trả về sau khi ký
   thì `ALREADY_SIGNED` chặn lượt ký lại, và hồ sơ chết ở *Chờ TBP duyệt*.
 - **HAI khối tệp trên trang hồ sơ, và BỀ RỘNG CỘT đo từ nội dung** (`0172`). Khối *Giấy tờ hồ sơ*

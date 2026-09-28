@@ -37,7 +37,7 @@ import {
   table,
   tableRow,
 } from '@csbh/document/testing';
-import { TRUONG_CHAN_LUC_GUI } from '@csbh/policy/testing';
+import { COT_ANH_CHUP_KHACH, TRUONG_CHAN_LUC_GUI } from '@csbh/policy/testing';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -2932,7 +2932,10 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
     await act(d.id, 'SUBMIT', 'tdv01');
     await act(d.id, 'TBP_SIGN', 'tbp01');
     await act(d.id, 'KT_RETURN_L1', 'kt01', { reason: 'Sai tên khách hàng' });
-    expect((await anhChup(d.id)).kh_ten_snap).toBe('Tên SAI lúc gửi lần đầu');
+    // `0224` ĐẢO dòng này: tới `0223` nó khẳng định ảnh chụp CŨ còn nguyên sau
+    // lượt trả về. Từ `0224` trả về là bỏ đóng băng — khối `0224` bên dưới
+    // canh đủ bốn đường trả về và mười một cột.
+    expect((await anhChup(d.id)).kh_ten_snap).toBeNull();
 
     // Đây là cả nội dung của yêu cầu: đóng băng KHÔNG được khoá chết việc sửa.
     await suaKhach(d.customerId, {
@@ -3061,6 +3064,167 @@ describe('`0101` khách hàng và hai cái tên đóng băng vào hồ sơ', () 
       });
     }
   }, 120_000);
+});
+
+// =============================================================================
+// `0224` — trả về TDV thì bỏ đóng băng khách hàng
+// =============================================================================
+
+/** Đọc cả mười một cột ảnh chụp khách hàng, theo đúng danh sách của máy chủ. */
+const anhChupKhach = (id: string): Promise<Record<string, string | null>> =>
+  withAdminDb(async (c) => {
+    const r = await c.query<Record<string, string | null>>(
+      `SELECT ${COT_ANH_CHUP_KHACH.map((cot) => `${cot}::text AS ${cot}`).join(', ')}
+         FROM pol.policy WHERE id = $1`,
+      [id],
+    );
+    return r.rows[0]!;
+  });
+
+/**
+ * Đẩy hồ sơ tới bước có hành động trả về `qua`, rồi trả về.
+ *
+ * Đủ BỐN hành động đưa hồ sơ về `YEU_CAU_CHINH_SUA` (`0185`, `0189`). Luật xoá
+ * đặt theo TRẠNG THÁI ĐÍCH, và ca kiểm lặp trên cả bốn để một nhánh viết theo
+ * TÊN HÀNH ĐỘNG — cách viết tự nhiên của người sửa sau — không lọt.
+ */
+const TRA_VE = ['TBP_RETURN', 'TBP_RECALL', 'KT_RETURN_L1', 'KT_RETURN_L2'] as const;
+const diToiRoiTraVe = async (
+  id: string,
+  qua: (typeof TRA_VE)[number],
+  truocKhiTra: () => Promise<void> = async () => {},
+) => {
+  await act(id, 'SUBMIT', 'tdv01');
+  if (qua !== 'TBP_RETURN') await act(id, 'TBP_SIGN', 'tbp01');
+  if (qua === 'KT_RETURN_L2') {
+    await act(id, 'KT_RECEIVE_L1', 'kt01');
+    await ppost(
+      `/policies/${id}/attachments`,
+      { kind: 'SCAN', fileName: 'ban-cung.pdf', objectKey: `scan/${id}.pdf` },
+      'sa01',
+    );
+    await ppost(
+      `/policies/${id}/attachments`,
+      { kind: 'BAN_MEM', fileName: 'ban-mem.pdf', objectKey: `ban-mem/${id}.pdf` },
+      'sa01',
+    );
+    await act(id, 'SA_HANDOVER', 'sa01');
+  }
+  await truocKhiTra();
+  const ai = qua.startsWith('TBP') ? 'tbp01' : 'kt01';
+  const r = await act(id, qua, ai, { reason: `Trả về qua ${qua}` });
+  if (r.status !== 200) throw new Error(`${qua} hỏng: ${JSON.stringify(r.body)}`);
+};
+
+/** Một bộ thông tin khách hàng khác hẳn bộ lúc gửi — mọi ô màn hình bày. */
+const KHACH_SUA_LAI = {
+  name: 'Nhà thuốc Sửa Sau Trả Về',
+  ownerName: 'Trần Thị Sửa Lại',
+  ownerTitle: 'Chủ hộ kinh doanh',
+  phone: '0912345678',
+  province: 'Đà Nẵng',
+  streetWard: '12 Lê Lợi, Phường Hải Châu',
+  debtTerm: 'KHAC',
+  debtNote: 'Trả sau 20 ngày kể từ ngày nhận hàng',
+};
+
+describe('`0224` trả về TDV thì bỏ đóng băng khách hàng', () => {
+  it('danh sách cột của máy chủ phủ ĐỦ mọi cột kh_*_snap của pol.policy', async () => {
+    // Cột thứ mười hai thêm về sau mà không vào danh sách thì nó sống sót qua
+    // lượt trả về, và khối khách hàng trộn một ô cũ với mười một ô sống.
+    const trongCsdl = await withAdminDb(async (c) =>
+      (
+        await c.query<{ column_name: string }>(
+          `SELECT column_name FROM information_schema.columns
+            WHERE table_schema = 'pol' AND table_name = 'policy'
+              AND column_name LIKE 'kh\\_%\\_snap'`,
+        )
+      ).rows.map((r) => r.column_name),
+    );
+    expect([...COT_ANH_CHUP_KHACH].sort()).toEqual(trongCsdl.sort());
+  });
+
+  it('migration dọn dữ liệu cũ xoá ĐÚNG tập cột ấy', () => {
+    const sql = readFileSync('db/migrations/0120_tra_ve_bo_dong_bang_khach.sql', 'utf8')
+      .split('\n')
+      .filter((d) => !d.startsWith('--'))
+      .join('\n');
+    const cot = [...new Set(sql.match(/kh_[a-z_]+_snap/g) ?? [])].sort();
+    expect(cot).toEqual([...COT_ANH_CHUP_KHACH].sort());
+    expect(sql, 'người đề nghị không phải thông tin khách hàng').not.toContain('nguoi_de_nghi_snap');
+    expect(sql).toMatch(/WHERE status = 'YEU_CAU_CHINH_SUA'/);
+  });
+
+  for (const qua of TRA_VE) {
+    it(`${qua}: xoá cả mười một cột ảnh chụp, GIỮ người đề nghị`, async () => {
+      const d = await draft();
+      await diToiRoiTraVe(d.id, qua, async () => {
+        // Phép kiểm tiền đề, NGAY trước lượt trả về: không có nó thì "trả về
+        // xong là NULL" xanh với cả một lượt gửi quên chụp.
+        expect((await anhChupKhach(d.id)).kh_ten_snap).not.toBeNull();
+      });
+
+      const a = await anhChupKhach(d.id);
+      for (const cot of COT_ANH_CHUP_KHACH) expect(a[cot], cot).toBeNull();
+      expect((await anhChup(d.id)).nguoi_de_nghi_snap).toBeTruthy();
+    }, 150_000);
+  }
+
+  it('TDV sửa khách hàng thì trang hồ sơ thấy NGAY, không đợi gửi lại', async () => {
+    const d = await draft();
+    await diToiRoiTraVe(d.id, 'KT_RETURN_L1');
+    await suaKhach(d.customerId, KHACH_SUA_LAI);
+
+    const r = await pget(`/policies/${d.id}`, 'tdv01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    const kh = r.body.khachHang;
+    expect(kh.ten).toBe(KHACH_SUA_LAI.name);
+    expect(kh.nguoiDaiDien).toBe(KHACH_SUA_LAI.ownerName);
+    expect(kh.soNha).toBe(KHACH_SUA_LAI.streetWard);
+    expect(kh.tinhThanh).toBe(KHACH_SUA_LAI.province);
+    expect(kh.congNo).toBe(KHACH_SUA_LAI.debtNote);
+  }, 150_000);
+
+  it('Kế toán mở hồ sơ đang ở tay TDV cũng thấy dữ liệu SỐNG (chốt 28/09)', async () => {
+    const d = await draft();
+    await diToiRoiTraVe(d.id, 'KT_RETURN_L1');
+    await suaKhach(d.customerId, KHACH_SUA_LAI);
+
+    const r = await pget(`/policies/${d.id}`, 'kt01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.khachHang.ten).toBe(KHACH_SUA_LAI.name);
+  }, 150_000);
+
+  it('GỬI LẠI thì đóng băng lại: sửa khách sau đó không đổi hồ sơ nữa', async () => {
+    const d = await draft();
+    await diToiRoiTraVe(d.id, 'TBP_RETURN');
+    await suaKhach(d.customerId, KHACH_SUA_LAI);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+
+    const a = await anhChupKhach(d.id);
+    expect(a.kh_ten_snap).toBe(KHACH_SUA_LAI.name);
+    expect(a.kh_nguoi_dai_dien_snap).toBe(KHACH_SUA_LAI.ownerName);
+    expect(a.kh_chuc_danh_dai_dien_snap).toBe(KHACH_SUA_LAI.ownerTitle);
+    expect(a.kh_dien_thoai_snap).toBe(KHACH_SUA_LAI.phone);
+    expect(a.kh_so_nha_snap).toBe(KHACH_SUA_LAI.streetWard);
+    expect(a.kh_tinh_thanh_snap).toBe(KHACH_SUA_LAI.province);
+    expect(a.kh_cong_no_snap).toBe(KHACH_SUA_LAI.debtNote);
+
+    await suaKhach(d.customerId, { name: 'Tên đổi sau khi gửi lại' });
+    const r = await pget(`/policies/${d.id}`, 'tbp01');
+    expect(r.body.khachHang.ten).toBe(KHACH_SUA_LAI.name);
+  }, 150_000);
+
+  it('KÝ không xoá ảnh chụp — chỉ đích YEU_CAU_CHINH_SUA mới xoá', async () => {
+    // Chiều ngược: một nhánh xoá viết rộng tay (mọi lượt chuyển không phải gửi)
+    // sẽ bỏ đóng băng đúng lúc hồ sơ đang nằm trên bàn người duyệt.
+    const d = await draft();
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await act(d.id, 'TBP_SIGN', 'tbp01');
+    await act(d.id, 'KT_RECEIVE_L1', 'kt01');
+    const a = await anhChupKhach(d.id);
+    for (const cot of ['kh_ma_snap', 'kh_ten_snap']) expect(a[cot], cot).not.toBeNull();
+  }, 150_000);
 });
 
 // =============================================================================

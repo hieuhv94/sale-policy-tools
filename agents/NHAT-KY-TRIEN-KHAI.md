@@ -19758,3 +19758,89 @@ gửi `0912 345 678` và máy chủ lưu `0912345678`, tức đường chuẩn h
 màn hình demo có ca *Khác*. `localhost:8080` trả 200.
 
 **2457/2457 xanh.**
+
+## P254 — `0224` Trả về TDV thì bỏ đóng băng khách hàng · sửa khách ngay trên trang hồ sơ
+
+Khách hàng báo 28/09: *"khi TBP hoặc kế toán trả về CSBH cho TDV, TDV chưa thể sửa được các thông tin
+chung của CSBH đó, ví dụ các thông tin liên quan đến khách hàng"*. Chốt khi được hỏi: thông tin chung
+**không gồm mã hồ sơ** · người duyệt mở hồ sơ trong lúc ấy thấy **dữ liệu sống** · sửa **ngay tại
+trang hồ sơ**.
+
+### Không phải "không sửa được" — là "sửa rồi không thấy"
+
+`PATCH /customers/:id` chưa bao giờ chặn TDV ở quãng này. Thứ chặn là ĐƯỜNG ĐỌC: `byId` trả ảnh chụp
+hễ `kh_ten_snap` có mặt (`0101`), và lượt trả về chỉ xoá ba cột CHỮ KÝ chứ không đụng mười một cột
+khách hàng. Nên TDV sửa ở trang Khách hàng, quay lại hồ sơ vẫn thấy số lúc gửi, và chỉ biết mình sửa
+có ăn không SAU khi đã gửi đi — nơi ảnh chụp làm mới. Trang hồ sơ còn không có lối nào sang chỗ sửa
+ngoài liên kết ở ô Mã.
+
+### Sửa ở nguồn: xoá ảnh chụp theo TRẠNG THÁI ĐÍCH
+
+Nhánh `step.next === 'YEU_CAU_CHINH_SUA'` giờ xoá mười một cột `kh_*_snap`, cạnh ba cột chữ ký và vì
+cùng lý do: viết theo đích thì bốn hành động trả về (`TBP_RETURN`, `TBP_RECALL`, `KT_RETURN_L1`,
+`KT_RETURN_L2`) và cái thứ năm về sau đều đi qua. Đường đọc **không đổi dòng nào** — cả `byId` lẫn
+`khachHangCua` của `document` đã có nhánh *"chưa đóng băng → đọc sống"* từ `0101`, và nhánh ấy vốn là
+câu trả lời đúng cho hồ sơ đang nằm ở tay TDV. `nguoi_de_nghi_snap` **giữ**: không phải thông tin khách
+hàng. An toàn vì `0220` (một hồ sơ đang xử lý mỗi khách) và vì CSBH đang hiệu lực có ảnh chụp của
+riêng nó.
+
+**Danh sách cột thành CẶP `[cột, lấy giá trị]`** (`ANH_CHUP_KHACH`): trước đó lượt chụp là một chuỗi
+SQL gõ tay cạnh một `params.push` mười hai giá trị, thứ tự khớp nhau bằng mắt, và số tham số tính bằng
+phép trừ ngược `params.length - 11`. Giờ lượt chụp và lượt xoá đọc cùng MỘT danh sách, số tham số lấy
+ngay lúc `push`. Xuất `COT_ANH_CHUP_KHACH` để ca kiểm đối chiếu với `information_schema`: cột
+`kh_*_snap` thứ mười hai mà quên thêm vào đây thì nó sống sót qua lượt trả về, và khối khách hàng trộn
+một ô cũ với mười một ô sống.
+
+Migration `0120` dọn hồ sơ ĐANG ở `YEU_CAU_CHINH_SUA` về cùng hình dạng; có ca đòi nó liệt kê đúng tập
+cột của máy chủ và không đụng `nguoi_de_nghi_snap`.
+
+### Giao diện: dùng lại biểu mẫu, tải bản ĐẦY ĐỦ
+
+Nút *Sửa thông tin khách hàng* nằm cuối khối *Thông tin chung*, điều kiện là `dangSua` của trang (máy
+chủ cho sửa VÀ vai trò có quyền) — nên có cả ở *Nháp*. Nó mở **chính** `BieuMauKhachHang` của trang
+Khách hàng, lưu xong `taiLai()`.
+
+**Không dựng biểu mẫu từ `hoSo.khachHang`** dù dữ liệu đã nằm sẵn trong tay: khối ấy chỉ mang những ô
+trang hồ sơ BÀY (không có mã số thuế, chức danh, số điện thoại, mã điều khoản công nợ), mà biểu mẫu
+gửi lại CẢ thân — dựng từ khối thiếu là lượt Lưu đầu tiên xoá trắng mã số thuế của khách. Nên bấm nút
+là một lượt `GET /customers/:id`.
+
+### Ca kiểm
+
+Máy chủ (`contract.test.ts`): bốn đường trả về × mười một cột (kèm phép kiểm tiền đề NGAY trước lượt
+trả — thiếu nó thì "sau trả về là NULL" xanh với cả một lượt gửi quên chụp) · màn hình TDV thấy số mới
+ngay · Kế toán cũng thấy số sống · gửi lại thì đóng băng lại · KÝ không xoá · danh sách cột ↔
+`information_schema` · danh sách cột ↔ migration. Một ca `0101` phải **ĐẢO** (*"trả về xong ảnh chụp
+cũ còn nguyên"* → `null`) — nó khẳng định đúng hành vi vừa bị đảo.
+
+Giao diện (`chi-tiet-ho-so.test.tsx`): có nút ở trả về · ở Nháp · không có ở hồ sơ đang duyệt · không
+có với TBP · bấm thì tải `/customers/kh-1` và biểu mẫu mang mã số thuế · Lưu thì `PATCH` đúng khách,
+đóng hộp và đọc lại hồ sơ · không có đường sửa mã hồ sơ.
+
+### Phá lại
+
+**BẪY `-t` LẦN HAI**: chạy `contract.test.ts -t '0224|0101'` thì năm ca `0101` đỏ ở MỌI lượt, kể cả
+lượt đối chứng trên mã nguyên vẹn — chúng đọc chữ từ bản mềm, và mẫu dựng bản mềm do một ca khác (bị
+lọc bỏ) sắp đặt. Chạy cả tệp thì xanh. Mọi con số dưới đây là **phần đỏ THÊM so với mốc đối chứng**.
+
+1. Bỏ lượt xoá → **6 đỏ** (bốn đường trả về · màn hình TDV · màn hình Kế toán).
+2. Xoá theo TÊN HÀNH ĐỘNG (`KT_RETURN_L1` thôi) → **3 đỏ** (ba đường còn lại) — đúng cách viết tự
+   nhiên của người sửa sau, và là lý do ca lặp trên cả bốn.
+3. Xoá ở MỌI lượt không phải gửi → **4 đỏ** (ba đường đi qua `TBP_SIGN` hỏng ở phép kiểm tiền đề · ca
+   *KÝ không xoá*). `TBP_RETURN` xanh, có lý do: đường ấy không qua bước trung gian nào.
+4. Rút `kh_cong_no_snap` khỏi danh sách → **4 đỏ** (đối chiếu lược đồ · đối chiếu migration · đóng băng
+   lại · và ca `0101` *"gửi duyệt chụp đủ"*).
+5. Bày nút không cần `dangSua` → **2 đỏ** (đang duyệt · TBP).
+6. Lưu xong không `taiLai()` → **1 đỏ**.
+
+Sáu lượt phá, sáu đỏ đúng chỗ.
+
+**Dựng lại chồng demo** (`make demo` + `make demo-mau`, thoát 0 — 38 khách, 116 hồ sơ): **6/6 hồ sơ
+*Yêu cầu chỉnh sửa* không còn ảnh chụp**, còn *Chờ TBP duyệt* 8/8 · *Chờ KT L1* 6/6 · *Đang có hiệu
+lực* 26/26 vẫn giữ. Qua gateway: `tdv01` sửa tên khách của một hồ sơ bị trả về → `GET /policies/:id`
+trả tên mới ngay; trả tên cũ → về ngay.
+
+Kèm: `70 migration` → **71** ở ba tài liệu (`tai-lieu.test.ts` đỏ ở lượt chạy đầu — đúng việc của nó;
+một chỗ ở `KIEN-TRUC` viết `**70** migration` nên lượt `grep` đầu bỏ sót).
+
+**2474/2474 xanh.**

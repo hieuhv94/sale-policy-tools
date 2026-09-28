@@ -31,7 +31,7 @@ import { PG, pgCode, type AuthUser } from '@csbh/http-kit';
 import { emit } from '../infra/emit.js';
 import { vaiTroConLai, type BonNguoi } from '../infra/nguoi-nhan.js';
 import { Db } from '../infra/db.js';
-import { Clients } from '../infra/clients.js';
+import { Clients, type CustomerInfo } from '../infra/clients.js';
 import {
   daTacDong,
   NGUOI_GHI_TEP,
@@ -40,6 +40,34 @@ import {
   SQL_CO_BAN_SCAN,
   type LoaiTep,
 } from './policies.service.js';
+
+/**
+ * ẢNH CHỤP KHÁCH HÀNG trên `pol.policy` (`0101`, `0177`) — một danh sách cho
+ * HAI việc (`0224`): chụp lúc gửi duyệt, xoá lúc trả về *Yêu cầu chỉnh sửa*.
+ *
+ * Mỗi cột đi CẶP với chỗ lấy giá trị của nó, chứ không phải một dãy tên cột
+ * cạnh một dãy `params.push` như trước: hai dãy song song là thêm một cột ở dãy
+ * này mà quên dãy kia thì mọi tham số sau lệch một nấc, và cột nào cũng nhận
+ * giá trị của cột bên cạnh.
+ *
+ * XUẤT RA để một ca kiểm đối chiếu với `information_schema`: cột `kh_*_snap`
+ * thứ mười hai thêm về sau mà không vào đây thì nó sống sót qua lượt trả về, và
+ * màn hình trộn một ô cũ với mười một ô sống.
+ */
+export const ANH_CHUP_KHACH: ReadonlyArray<readonly [string, (c: CustomerInfo) => unknown]> = [
+  ['kh_ma_snap', (c) => c.code],
+  ['kh_ten_snap', (c) => c.name],
+  ['kh_ma_so_thue_snap', (c) => c.idNumber ?? null],
+  ['kh_dia_chi_dang_ky_snap', (c) => c.registeredAddress ?? null],
+  ['kh_so_nha_snap', (c) => c.streetWard ?? null],
+  ['kh_tinh_thanh_snap', (c) => c.province ?? null],
+  ['kh_noi_nhan_hang_snap', (c) => c.deliveryAddress ?? null],
+  ['kh_nguoi_dai_dien_snap', (c) => c.ownerName ?? null],
+  ['kh_chuc_danh_dai_dien_snap', (c) => c.ownerTitle ?? null],
+  ['kh_dien_thoai_snap', (c) => c.phone ?? null],
+  ['kh_cong_no_snap', (c) => c.debt ?? null],
+];
+export const COT_ANH_CHUP_KHACH = ANH_CHUP_KHACH.map(([cot]) => cot);
 
 /** Ai nhận email sau mỗi bước (muc 3). */
 /**
@@ -726,36 +754,41 @@ export class WorkflowService {
          * nói cùng một địa chỉ, nên chụp lệch nhịp là dựng ra một hồ sơ mà màn
          * hình và tờ giấy nói hai địa chỉ khác nhau.
          */
-        params.push(
-          cus.code,
-          cus.name,
-          cus.idNumber ?? null,
-          cus.registeredAddress ?? null,
-          cus.streetWard ?? null,
-          cus.province ?? null,
-          cus.deliveryAddress ?? null,
-          cus.ownerName ?? null,
-          cus.ownerTitle ?? null,
-          cus.phone ?? null,
-          cus.debt ?? null,
-          me.name ?? null,
-        );
         /*
          * ĐÁNH SỐ LẠI ĐỦ, không bỏ trống chỗ nào để khỏi sửa các số sau.
          *
          * `0154` đã trả giá cho lối tắt ấy: Postgres đếm tham số theo SỐ CAO
          * NHẤT xuất hiện trong câu lệnh, nên một khoảng trống ở giữa làm lệch cả
-         * dãy và mọi lượt ghi trả 500.
+         * dãy và mọi lượt ghi trả 500. Từ `0224` số lấy ngay lúc `push`, nên
+         * không còn phép trừ ngược nào để đếm sai.
          */
-        const i = params.length - 11;
-        khSql =
-          `kh_ma_snap = $${i}, kh_ten_snap = $${i + 1}, kh_ma_so_thue_snap = $${i + 2}, ` +
-          `kh_dia_chi_dang_ky_snap = $${i + 3}, ` +
-          `kh_so_nha_snap = $${i + 4}, kh_tinh_thanh_snap = $${i + 5}, ` +
-          `kh_noi_nhan_hang_snap = $${i + 6}, ` +
-          `kh_nguoi_dai_dien_snap = $${i + 7}, kh_chuc_danh_dai_dien_snap = $${i + 8}, ` +
-          `kh_dien_thoai_snap = $${i + 9}, ` +
-          `kh_cong_no_snap = $${i + 10}, nguoi_de_nghi_snap = $${i + 11},`;
+        khSql = ANH_CHUP_KHACH.map(([cot, lay]) => {
+          params.push(lay(cus));
+          return `${cot} = $${params.length}, `;
+        }).join('');
+        params.push(me.name ?? null);
+        khSql += `nguoi_de_nghi_snap = $${params.length},`;
+      } else if (step.next === 'YEU_CAU_CHINH_SUA') {
+        /*
+         * TRẢ VỀ THÌ BỎ ĐÓNG BĂNG KHÁCH HÀNG (`0224`).
+         *
+         * Hồ sơ về tay TDV để sửa, và thông tin khách hàng là một phần của thứ
+         * được sửa. Để ảnh chụp cũ nằm lại thì TDV sửa khách hàng xong mở hồ sơ
+         * vẫn thấy số cũ — màn hình đọc ảnh chụp hễ nó có mặt — và chỉ biết mình
+         * sửa có ăn không sau khi đã gửi đi. Xoá thì đường đọc tự rơi về nhánh
+         * *"chưa đóng băng, đọc sống"* của `byId` và `khachHangCua`, không phải
+         * sửa dòng nào ở đó; lượt gửi lại chụp lại như mọi lượt gửi (`0101`).
+         *
+         * Xoá theo TRẠNG THÁI ĐÍCH, cùng lẽ với ba cột chữ ký ngay dưới: cả bốn
+         * hành động trả về (`TBP_RETURN`, `TBP_RECALL`, `KT_RETURN_L1`,
+         * `KT_RETURN_L2`) đều tới đây, và cái thứ năm thêm về sau cũng thế.
+         *
+         * `nguoi_de_nghi_snap` KHÔNG xoá: nó không phải thông tin khách hàng, và
+         * người đề nghị không đổi được bằng một lượt sửa khách. Người xem hồ sơ
+         * trong lúc TDV sửa (TBP, Kế toán) thấy dữ liệu SỐNG — khách hàng chốt
+         * 28/09, đó là thứ sắp được gửi lại.
+         */
+        khSql = COT_ANH_CHUP_KHACH.map((cot) => `${cot} = NULL, `).join('');
       }
 
       /*

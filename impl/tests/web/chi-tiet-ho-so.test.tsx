@@ -2138,3 +2138,158 @@ describe('`0223` nút thêm sản phẩm', () => {
     expect(within(hop).queryByRole('button', { name: /Thêm dòng/ })).toBeNull();
   });
 });
+
+/**
+ * `0224` — SỬA THÔNG TIN KHÁCH HÀNG NGAY TRÊN TRANG HỒ SƠ.
+ *
+ * Khách hàng báo 28/09: hồ sơ bị trả về thì TDV *"chưa sửa được thông tin
+ * chung"*. Máy chủ bỏ đóng băng lúc trả về (ca ở `contract.test.ts`); ở đây là
+ * nửa giao diện — nút mở CHÍNH biểu mẫu của trang Khách hàng, lưu xong tải lại
+ * hồ sơ. Điều kiện bày nút là `dangSua` của trang: máy chủ cho sửa VÀ vai trò có
+ * quyền — nên mỗi vế có một ca phá riêng.
+ */
+describe('`0224` sửa thông tin khách hàng tại trang hồ sơ', () => {
+  const TDV = {
+    ...TBP,
+    user: { ...TBP.user, id: 'tdv-1', username: 'tdv01', role: 'TDV' },
+  };
+  const laTdv = () => localStorage.setItem('csbh:phien', JSON.stringify(TDV));
+  const traVe = { ...HO_SO, status: 'YEU_CAU_CHINH_SUA' };
+
+  /** Bản ĐẦY ĐỦ của khách hàng — đủ để nút Lưu của biểu mẫu sáng. */
+  const KHACH = {
+    id: 'kh-1',
+    code: 'KH-000123',
+    name: 'Cong ty TNHH Duoc pham ABC',
+    customerType: 2,
+    registeredAddress: 'Số 12 ngõ 5, Phường Láng Hạ, Hà Nội',
+    deliveryAddress: null,
+    province: 'Hà Nội',
+    streetWard: 'Số 12 ngõ 5, Phường Láng Hạ',
+    registeredAddresses: [],
+    deliveryAddresses: [],
+    ownerName: 'Nguyen Thi Dai Dien',
+    ownerTitle: 'Giám đốc',
+    phone: '0912345678',
+    idNumber: '0101234567',
+    debt: 'Thanh toán gối đơn, công nợ không quá 90 ngày',
+    debtTerm: 'GOI_DON_90',
+    debtNote: null,
+    tdvUserId: 'tdv-1',
+    status: 'DANG_HOP_TAC',
+  };
+
+  const nut = () => screen.queryByRole('button', { name: 'Sửa thông tin khách hàng' });
+
+  /** `chan()` của tệp trả HỒ SƠ cho mọi đường lạ — kể cả `/customers/kh-1`. */
+  const chanCoKhach = (hoSo: unknown, choPhep: string[]) => {
+    const f = chan(hoSo, choPhep);
+    const goc = f.getMockImplementation()!;
+    f.mockImplementation((duong: unknown, tuyChon?: unknown) => {
+      const d = String(duong);
+      if (d.includes('/customers/kiem-tra-mst')) return Promise.resolve(json({ trung: false }));
+      if (d.endsWith('/customers/kh-1')) return Promise.resolve(json(KHACH));
+      return goc(duong, tuyChon as never);
+    });
+    return f;
+  };
+  const moVoi = async (hoSo: unknown, choPhep: string[]) => {
+    const f = chanCoKhach(hoSo, choPhep);
+    render(
+      <PhienProvider>
+        <BoDinhTuyen>
+          <ChiTietHoSo id="hs-1" />
+        </BoDinhTuyen>
+      </PhienProvider>,
+    );
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeDefined());
+    return f;
+  };
+
+  it('hồ sơ BỊ TRẢ VỀ của chính TDV thì có nút, nằm trong khối Thông tin chung', async () => {
+    laTdv();
+    await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+    expect(khoiChung().contains(nut()), 'nút phải nằm trong khối Thông tin chung').toBe(true);
+  });
+
+  it('hồ sơ NHÁP cũng có nút — cùng một luật "sửa được"', async () => {
+    laTdv();
+    await moVoi({ ...HO_SO, status: 'NHAP' }, ['SUBMIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+  });
+
+  it('hồ sơ ĐANG DUYỆT thì KHÔNG có nút, dù người xem là TDV', async () => {
+    // Vế "máy chủ cho sửa": `allowed-actions` của TDV ở bàn TBP là rỗng.
+    laTdv();
+    await moVoi(HO_SO, []);
+    expect(nut()).toBeNull();
+  });
+
+  it('TBP mở hồ sơ bị trả về thì KHÔNG có nút', async () => {
+    // Vế "vai trò": người duyệt thấy dữ liệu SỐNG (chốt 28/09) nhưng không sửa.
+    await moVoi(traVe, []);
+    expect(nut()).toBeNull();
+  });
+
+  it('bấm nút → tải khách hàng ĐẦY ĐỦ, mở biểu mẫu mang sẵn số cũ', async () => {
+    laTdv();
+    const f = await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+    fireEvent.click(nut()!);
+
+    const hop = await screen.findByRole('dialog');
+    expect(within(hop).getByRole('heading').textContent).toBe(`Sửa ${KHACH.code}`);
+    // Dựng từ `/customers/:id` chứ không từ `hoSo.khachHang`: khối ấy không
+    // mang mã số thuế, nên dựng từ nó là lượt Lưu xoá trắng mã số thuế.
+    expect(f.mock.calls.some((c) => String(c[0]).endsWith('/customers/kh-1'))).toBe(true);
+    expect((within(hop).getByDisplayValue(KHACH.idNumber) as HTMLInputElement).value).toBe(
+      KHACH.idNumber,
+    );
+  });
+
+  it('Lưu → PATCH đúng khách hàng, đóng hộp và TẢI LẠI hồ sơ', async () => {
+    laTdv();
+    const f = await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+    fireEvent.click(nut()!);
+    const hop = await screen.findByRole('dialog');
+
+    const lanDocHoSo = () =>
+      f.mock.calls.filter(
+        (c) =>
+          String(c[0]).endsWith('/policies/hs-1') &&
+          ((c[1] as RequestInit | undefined)?.method ?? 'GET') === 'GET',
+      ).length;
+    const truoc = lanDocHoSo();
+
+    fireEvent.change(within(hop).getByDisplayValue(KHACH.name), {
+      target: { value: 'Nhà thuốc Tên Mới' },
+    });
+    fireEvent.click(within(hop).getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const goi = f.mock.calls.find(
+      (c) =>
+        String(c[0]).endsWith('/customers/kh-1') &&
+        (c[1] as RequestInit | undefined)?.method === 'PATCH',
+    );
+    expect(goi, 'không thấy lượt PATCH /customers/kh-1').toBeDefined();
+    expect(JSON.parse(String((goi![1] as RequestInit).body)).name).toBe('Nhà thuốc Tên Mới');
+    await waitFor(() =>
+      expect(lanDocHoSo(), 'lưu xong phải đọc lại hồ sơ để khối hiện số mới').toBeGreaterThan(truoc),
+    );
+  });
+
+  it('nút KHÔNG mở đường sửa mã hồ sơ (chốt 28/09)', async () => {
+    // Mã hồ sơ đứng ngoài "thông tin chung": ở `YEU_CAU_CHINH_SUA` bút chì của
+    // `0198` vẫn vắng mặt, và biểu mẫu khách hàng không có ô nào mang mã hồ sơ.
+    laTdv();
+    await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+    expect(screen.queryByRole('button', { name: 'Sửa mã hồ sơ' })).toBeNull();
+    fireEvent.click(nut()!);
+    const hop = await screen.findByRole('dialog');
+    expect(within(hop).queryByDisplayValue(HO_SO.code)).toBeNull();
+  });
+});

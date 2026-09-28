@@ -1055,7 +1055,8 @@ Nút *Xác nhận* khoá tới khi đã chọn cả hai ô người. Ô chọn r
 đó nào đang hoạt động — màn hình nói thẳng điều đó thay vì để bạn bấm vào một ô câm.
 
 Bấm **Xác nhận** là hồ sơ đi. Đây là **lần cuối nội dung còn sửa được**: giá, ngưỡng **và thông tin
-khách hàng** đóng băng ngay lúc ấy, và mọi chỉnh sửa sau đó đều phải đi một vòng trả lại.
+khách hàng** đóng băng ngay lúc ấy, và mọi chỉnh sửa sau đó đều phải đi một vòng trả lại. Hồ sơ bị
+trả về thì thông tin khách hàng thôi đóng băng cho tới lượt gửi lại `mới 28/09` — xem *Sửa hồ sơ*.
 
 > **Gửi LẠI sau khi bị trả về thì KHÔNG chọn lại người** `mới 27/08`. Trưởng bộ phận và Kế toán đã
 > chọn từ lượt gửi đầu và giữ nguyên qua mọi vòng trả lại — hộp gửi lại không còn ô nào. Muốn đổi
@@ -1109,6 +1110,16 @@ văn bản mẫu nào để chọn.
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
 có thêm nút *Sửa* và *Xoá* ở từng dòng. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
 người duyệt trả lại.
+
+> **Sửa thông tin khách hàng ngay trên trang hồ sơ** `mới 28/09`. Cũng ở hai trạng thái ấy, khối
+> *Thông tin chung* có nút **Sửa thông tin khách hàng** — mở đúng biểu mẫu của trang Khách hàng (tên,
+> người đại diện, chức danh, địa chỉ, số điện thoại, mã số thuế, công nợ…). Bấm *Lưu* là khối cập nhật
+> ngay. Mã hồ sơ **không** sửa ở đây — nó chỉ sửa được ở *Nháp*, bằng bút chì cạnh tiêu đề.
+>
+> **Hồ sơ bị trả về thì thông tin khách hàng thôi đóng băng.** Lúc gửi duyệt, thông tin khách hàng
+> được chụp vào hồ sơ; khi Trưởng bộ phận hoặc Kế toán trả hồ sơ về, ảnh chụp ấy bị bỏ, và trang hồ sơ
+> hiện thông tin **hiện tại** của khách hàng — với bạn và với cả người duyệt mở hồ sơ trong lúc bạn
+> sửa. Bấm *Gửi lại* là thông tin được chụp lại lần nữa.
 
 > **Không còn nút *Sửa ngày áp dụng*** `sửa 07/09`: ngày áp dụng thuộc về **từng sản phẩm**, và sửa
 > nó đi chung đường với giá bán buôn — bấm *Sửa* ở chính dòng ấy.
