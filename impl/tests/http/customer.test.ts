@@ -508,17 +508,18 @@ describe('`0226` sửa mã khách hàng — chỉ TDV phụ trách', () => {
     expect((await get(`/customers/${c.body.id}`)).body.code).toBe(c.body.code);
   });
 
-  it('gửi lại ĐÚNG mã đang có thì không phải đổi — Quản trị vẫn sửa được ô khác', async () => {
-    // Biểu mẫu có thể gửi kèm mã hiện tại; chặn ở đây là khoá Quản trị khỏi cả
-    // lượt sửa tên chỉ vì một trường họ không đụng tới.
+  it('gửi lại ĐÚNG mã đang có thì không phải đổi — không vướng khoá CSBH hiệu lực', async () => {
+    // `0227` thay vế *"Quản trị vẫn sửa được ô khác"* của ca này: từ đó chỉ TDV
+    // phụ trách sửa thông tin khách (khối `0227` bên dưới).
     const c = await post('/customers', base());
-    const r = await patch(
-      `/customers/${c.body.id}`,
-      { code: c.body.code, name: 'Ten do Quan tri sua' },
-      'admin01',
+    await withAdminDb((x) =>
+      x.query(`INSERT INTO pol.policy (code, customer_id, status) VALUES ($1, $2, 'DANG_CO_HIEU_LUC')`, [
+        `${P}-POL-${++n}-${Date.now()}`,
+        c.body.id,
+      ]),
     );
+    const r = await patch(`/customers/${c.body.id}`, { code: c.body.code, name: 'Ten sua kem ma cu' });
     expect(r.status, JSON.stringify(r.body)).toBe(200);
-    expect(r.body.name).toBe('Ten do Quan tri sua');
   });
 
   it('trùng mã khách khác — kể cả khác hoa thường và khoảng trắng — 409', async () => {
@@ -590,6 +591,77 @@ describe('`0226` sửa mã khách hàng — chỉ TDV phụ trách', () => {
     }));
     expect(r.trg).toBe(0);
     expect(r.idx, 'lượt UPDATE bắt 23505 theo TÊN này').toBe(1);
+  });
+});
+
+describe('`0227` chỉ TDV phụ trách sửa thông tin khách hàng', () => {
+  /*
+   * Tới `0226` Kế toán, Sale Admin, TBP và Quản trị sửa được khách trong phạm
+   * vi của mình — một danh sách từ bản đầu, không yêu cầu nghiệp vụ nào cấp
+   * (YCNV 2.4 · 2.5 · 2.7). Khách hàng chốt 28/09: chỉ TDV phụ trách.
+   *
+   * Người thử phải THẤY được khách (cấp `cus.customer_access` như bước tiếp nhận
+   * hồ sơ vẫn làm) — không thì họ bị chặn ở tầng PHẠM VI, và ca xanh vì một lý
+   * do khác hẳn thứ nó muốn kiểm.
+   */
+  const choThay = async (customerId: string, username: string) => {
+    await withAdminDb((x) =>
+      x.query(
+        `INSERT INTO cus.customer_access (customer_id, user_id)
+         SELECT $1, id FROM idn.app_user WHERE username = $2 ON CONFLICT DO NOTHING`,
+        [customerId, username],
+      ),
+    );
+    await clearScopeCache();
+  };
+
+  for (const ai of ['kt01', 'sa01'] as const) {
+    it(`${ai} THẤY khách nhưng KHÔNG sửa được — 403 NOT_OWNING_TDV`, async () => {
+      const c = await post('/customers', base({ name: 'Ten goc' }));
+      await choThay(c.body.id, ai);
+      expect((await get(`/customers/${c.body.id}`, ai)).status, 'tiền đề: phải thấy được').toBe(200);
+
+      const r = await patch(`/customers/${c.body.id}`, { name: `Ten do ${ai} sua` }, ai);
+      expect(r.status).toBe(403);
+      expect(r.body.code).toBe('NOT_OWNING_TDV');
+      expect((await get(`/customers/${c.body.id}`)).body.name).toBe('Ten goc');
+    });
+  }
+
+  it('Quản trị hệ thống thấy mọi khách nhưng KHÔNG sửa được thông tin', async () => {
+    const c = await post('/customers', base({ name: 'Ten goc' }));
+    const r = await patch(`/customers/${c.body.id}`, { name: 'Ten do Quan tri sua' }, 'admin01');
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('NOT_OWNING_TDV');
+  });
+
+  it('Quản trị VẪN đổi được TDV phụ trách — lượt chỉ mang tdvUserId', async () => {
+    const c = await post('/customers', base());
+    const tdv02 = await withAdminDb(
+      async (x) => (await x.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = 'tdv02'`)).rows[0]!.id,
+    );
+    const r = await patch(`/customers/${c.body.id}`, { tdvUserId: tdv02 }, 'admin01');
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    expect(r.body.tdvUserId).toBe(tdv02);
+  });
+
+  it('Quản trị đổi TDV KÈM một ô khác — bị chặn cả lượt, không ghi nửa chừng', async () => {
+    const c = await post('/customers', base({ name: 'Ten goc' }));
+    const tdv02 = await withAdminDb(
+      async (x) => (await x.query<{ id: string }>(`SELECT id FROM idn.app_user WHERE username = 'tdv02'`)).rows[0]!.id,
+    );
+    const r = await patch(`/customers/${c.body.id}`, { tdvUserId: tdv02, name: 'Len theo' }, 'admin01');
+    expect(r.status).toBe(403);
+    const sau = (await get(`/customers/${c.body.id}`)).body;
+    expect(sau.tdvUserId, 'TDV không được đổi khi cả lượt bị chặn').toBe(c.body.tdvUserId);
+    expect(sau.name).toBe('Ten goc');
+  });
+
+  it('TDV phụ trách sửa được, như cũ', async () => {
+    const c = await post('/customers', base());
+    const r = await patch(`/customers/${c.body.id}`, { name: 'Ten moi cua TDV' });
+    expect(r.status).toBe(200);
+    expect(r.body.name).toBe('Ten moi cua TDV');
   });
 });
 

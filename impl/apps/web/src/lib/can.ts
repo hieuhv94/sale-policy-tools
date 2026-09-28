@@ -71,7 +71,12 @@ export const QUYEN_GHI = {
   /** Kế toán là người xuất hợp đồng, không phải Trưởng bộ phận (muc 8.3, FE-24). */
   xuatHopDong: ['KE_TOAN', 'SALE_ADMIN'],
   lapKhachHang: ['TDV'],
-  suaKhachHang: ['TDV', 'KE_TOAN', 'SALE_ADMIN', 'QUAN_TRI'],
+  /**
+   * CHỈ TDV (`0227`, chốt 28/09) — và chỉ TDV PHỤ TRÁCH khách ấy, vế nằm ở chỗ
+   * dùng vì bảng này chỉ biết vai trò. Tới `0226` là `TDV · KE_TOAN ·
+   * SALE_ADMIN · QUAN_TRI`, một danh sách không yêu cầu nghiệp vụ nào cấp.
+   */
+  suaKhachHang: ['TDV'],
   /**
    * CHỈ Quản trị hệ thống (`0031`).
    *

@@ -20028,3 +20028,54 @@ cần dựng lại CSDL); ca `pg_trigger` canh việc nó vắng mặt.
 Không dựng lại chồng demo ở chặng này — người dùng vừa cho tắt; migration `0123` chỉ `DROP`.
 
 **2523/2523 xanh.**
+
+## P257 — `0227` Chỉ TDV phụ trách sửa thông tin khách hàng
+
+Người dùng hỏi, sau khi đọc bản tóm tắt quyền: *"tại sao Kế toán, SA và Quản trị lại được sửa khách
+hàng"*. Tra lại thì **không có câu trả lời**: YCNV 2.4 cho Kế toán *"mở thông tin khách hàng để đối
+chiếu"*, 2.5 viết Sale Admin *"không sửa nội dung CSBH"*, 2.7 cho Quản trị đúng một việc với khách hàng
+là đổi TDV phụ trách. Quyền sửa của ba vai trò ấy đến từ `WRITERS` — danh sách "vai trò được ghi" dựng
+ở bản đầu cho MỌI đường ghi khách hàng — và `QUYEN_GHI.suaKhachHang` của giao diện; nhật ký không có
+chặng nào quyết định nó. **HDSD mô tả đúng hành vi của mã** (*"Kế toán, Sale Admin và Quản trị cũng sửa
+được"*), tức là tài liệu hướng dẫn đã chép lại một quyết định không ai ra. Dấu vết duy nhất gần một lý
+do là DOC-27 (*xuất hợp đồng, đổi địa chỉ, xuất lại*) dùng `sa01` để đổi địa chỉ — một ca kiểm, không
+phải một yêu cầu. Còn một lệch nữa: máy chủ cho cả TBP, giao diện giấu nút với TBP. Khách hàng chốt:
+**chỉ TDV phụ trách**.
+
+### Luật tách theo TRƯỜNG, không theo đường
+
+Cùng `PATCH /customers/:id` gánh lượt ĐỔI TDV của Quản trị (`DoiTdvPhuTrach` gửi đúng `{ tdvUserId }`),
+nên không siết được ở `@Roles`. Service hỏi *"lượt này có mang trường nào khác `tdvUserId` không"* —
+có thì `assertChinhTdv` (`NOT_OWNING_TDV`, chốt có sẵn của *Ngừng hợp tác* và `0226`). **Đếm trường CÓ
+GIÁ TRỊ, không đếm khoá**: bộ kiểm dữ liệu vào trả khoá vắng mặt dưới dạng `undefined`, và lượt phá số
+2 (đếm khoá) chặn nhầm chính lượt đổi TDV của Quản trị — đỏ cả ca CUST-10 có từ `0031`. Chốt đứng TRƯỚC
+lượt `theoKhachHang` (chuyển hồ sơ sang TDV mới), nên Quản trị gửi `tdvUserId` kèm một ô khác bị chặn cả
+lượt, không ghi nửa chừng — có ca đòi TDV lẫn tên còn nguyên.
+
+Giao diện: `suaKhachHang: ['TDV']` cộng vế **đúng người** ở chỗ dùng (`nguoiDung.id === kh.tdvUserId`,
+cùng hai vế với nút *Lập hồ sơ CSBH* ngay cạnh). Hai vế có hai ca phá riêng; ca *"Kế toán TRÙNG id với
+TDV phụ trách"* là ca giữ vế vai trò khỏi dựa vào chuyện id tình cờ khác nhau. `0226` gỡ luôn một chốt
+thừa: `assertChinhTdv` trong nhánh đổi mã giờ đã nằm ở chốt chung.
+
+**KHÔNG làm, đã nêu**: đường LẬP khách hàng cùng lệch kiểu ấy — giao diện `lapKhachHang: ['TDV']`, máy
+chủ `WRITERS`, và YCNV Phụ lục B viết *"khách hàng do TDV tự tạo"*. Yêu cầu lần này là quyền SỬA.
+
+### Sự cố của chính tôi, bắt được trước khi commit
+
+Lượt `make test` đầu báo **2483/2483 xanh** — ít hơn lượt trước 40 ca dù chặng này THÊM ca. Đối chiếu
+số ca từng tệp giữa hai lượt: `customer.test.ts` **95 → 48**. Script chèn khối `0227` viết
+`s = s[:k] + khối` và quên `+ s[k:]`, nên mọi khối sau chỗ chèn (`0034` ngừng hợp tác, CUST-16, …, 13 khối)
+biến mất. **Không gì đỏ**: `tsc` xanh, vitest chạy đủ những gì còn lại. Thứ duy nhất lộ ra là CON SỐ
+TỔNG giảm. Khôi phục bằng cách nối lại phần đuôi của bản đã commit; diff còn đúng hai chỗ định sửa.
+Bài học: **đọc số ca, không chỉ đọc chữ "xanh"** — một lượt chạy toàn xanh với ít ca hơn lượt trước là
+một lượt phải giải thích được.
+
+### Phá lại
+
+Bốn lượt, bốn đỏ: bỏ chốt (5 đỏ, gồm ca `0226` *Quản trị không đổi được mã*) · đếm khoá thay vì giá trị
+(2 đỏ) · bảng quyền giao diện về bốn vai trò (1 đỏ — đúng ca "trùng id") · bỏ vế đúng người (1 đỏ).
+
+Lượt `make test` sau khôi phục: số ca từng tệp so với lượt tốt trước chỉ lệch đúng hai tệp, đúng số ca
+thêm vào (`customer.test.ts` 95 → 101, `lap-ho-so-tu-khach-hang.test.tsx` 21 → 28).
+
+**2536/2536 xanh.**

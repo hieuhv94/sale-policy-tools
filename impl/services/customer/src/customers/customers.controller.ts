@@ -153,9 +153,9 @@ export class CustomersController {
       /*
        * MÃ KHÁCH HÀNG SỬA ĐƯỢC (`0226`, khách hàng chốt 28/09) — tới `0225` trường
        * này không có ở đây và trigger `0006` chặn ở CSDL (CUST-15). Ai được sửa
-       * là luật của SERVICE (`assertChinhTdv`, chỉ TDV phụ trách), không phải
-       * của `@Roles` ở cửa: Kế toán, Sale Admin, Quản trị vẫn gửi lại ĐÚNG mã
-       * đang có được — chỉ ĐỔI mới bị chặn.
+       * là luật của SERVICE (`assertChinhTdv`), không phải của `@Roles` ở cửa:
+       * `WRITERS` vẫn mở cửa cho Quản trị vì lượt ĐỔI TDV đi chung đường này,
+       * và từ `0227` service tách hai việc ấy theo trường.
        *
        * `str(0, …)` chứ không `str(1, …)`, cùng lẽ với `province` bên dưới:
        * `str()` tự cắt khoảng trắng, nên với `str(1, …)` mã toàn dấu cách bị chặn

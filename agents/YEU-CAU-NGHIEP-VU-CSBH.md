@@ -71,7 +71,8 @@ thường chưa có hồ sơ nào nên không đường nào khác với tới.
 **Được làm**
 
 - Tạo khách hàng, nhập thông tin và tải hồ sơ pháp lý — **chỉ TDV phụ trách khách hàng ấy mới thêm
-  và gỡ được giấy tờ** `sửa 20/08`; vai trò khác xem và tải. Mã khách hàng do kế toán cấp bên ngoài
+  và gỡ được giấy tờ** `sửa 20/08`, **và mới sửa được thông tin khách hàng** `sửa 28/09`; vai trò
+  khác xem và tải. Mã khách hàng do kế toán cấp bên ngoài
   phần mềm; hệ thống chỉ chặn tạo mới trùng mã đã có.
 - Lập CSBH: chọn khách hàng, chọn sản phẩm từ danh mục, nhập giá bán buôn và các khoản chi phí bán
   hàng. **Số khoản CPBH tuỳ từng dòng sản phẩm**, không cố định bốn `sửa 15/08`.
@@ -109,7 +110,8 @@ CSBH mình phụ trách.
 |---|---|
 | **Phạm vi** | Hồ sơ của các TDV mình phụ trách |
 
-**Tiếp nhận lần 1 (L1)** — xem CSBH đã ký số, mở thông tin khách hàng của hồ sơ để đối chiếu.
+**Tiếp nhận lần 1 (L1)** — xem CSBH đã ký số, mở thông tin khách hàng của hồ sơ để đối chiếu
+(**chỉ xem, không sửa** khách hàng `sửa 28/09`).
 Công nợ tự kiểm tra bên ngoài phần mềm. Tiếp nhận thì hồ sơ sang Sale Admin; không tiếp nhận thì
 bắt buộc nhập lý do và hồ sơ về Bước 3.
 
@@ -141,7 +143,8 @@ trong hai:
 - Bấm bàn giao bản cứng để chuyển sang kế toán lần 2.
 - Khi kế toán yêu cầu in lại: nhận lại hồ sơ, in lại bản cứng, rồi **gỡ bản scan cũ và tải bản
   scan mới lên** `sửa 19/08`. Hệ thống giữ bản cũ lại để đối chiếu chứ không tự xóa.
-- Không sửa nội dung CSBH, không bỏ qua bước tiếp nhận lần 1.
+- Không sửa nội dung CSBH, không bỏ qua bước tiếp nhận lần 1. **Không sửa thông tin khách hàng**
+  `sửa 28/09` — chỉ xem.
 
 ### 2.6. Ban lãnh đạo
 
@@ -168,6 +171,7 @@ Một người. Toàn quyền đọc **dữ liệu nghiệp vụ** `sửa 21/08`
 - Cấu hình SLA, mẫu email; xem nhật ký hệ thống.
 - Giai đoạn 2: nhập dữ liệu CSBH cũ từ Excel — chỉ vai trò này được thực hiện.
 - Không tham gia luồng duyệt. Mọi thay đổi danh mục vào nhật ký kèm giá trị trước và sau.
+- Với khách hàng: **chỉ đổi TDV phụ trách**, không sửa thông tin khách hàng `sửa 28/09`.
 
 ### 2.8. Tạo tài khoản và kích hoạt `mới 07/08`
 
@@ -2911,6 +2915,18 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**CHỈ TDV PHỤ TRÁCH SỬA THÔNG TIN KHÁCH HÀNG** `sửa 28/09` — hỏi *"tại sao Kế toán, SA và Quản trị
+lại được sửa khách hàng"*, rồi chốt: chỉ TDV phụ trách.
+
+> **Quyền cũ không có căn cứ nghiệp vụ.** Mục 2.4 cho Kế toán *mở thông tin khách hàng để đối
+> chiếu*, mục 2.5 viết Sale Admin *không sửa nội dung CSBH*, mục 2.7 cho Quản trị đúng một việc với
+> khách hàng là đổi TDV phụ trách. Quyền sửa của ba vai trò ấy đến từ một danh sách "vai trò được
+> ghi" dựng ở bản đầu và chưa từng được rà — hướng dẫn sử dụng chép lại hành vi ấy mà không có quyết
+> định nào đứng sau. Máy chủ còn cho cả Trưởng bộ phận, trong khi màn hình giấu nút với họ.
+>
+> **Cái giá**: Kế toán hay Sale Admin thấy địa chỉ sai lúc xuất hợp đồng thì phải nhờ TDV sửa, không
+> tự sửa ngay được. **Quản trị vẫn đổi được TDV phụ trách** — lượt đổi ấy không mang theo ô nào khác.
 
 **MÃ KHÁCH HÀNG SỬA ĐƯỢC** `sửa 28/09` — *"cho phép sửa đổi mã khách hàng"*, rồi bổ sung *"chỉ có
 khách hàng chưa có CSBH đang có hiệu lực mới được sửa mã KH"*. Chốt khi được hỏi: **chỉ TDV phụ

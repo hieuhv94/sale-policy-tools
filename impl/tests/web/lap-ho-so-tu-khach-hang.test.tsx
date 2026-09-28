@@ -599,3 +599,46 @@ describe('`0198` mã hồ sơ ở màn hình lập', () => {
     expect(screen.getByRole('button', { name: 'Lập hồ sơ' })).toBeDefined();
   });
 });
+
+/**
+ * `0227` — nút *Sửa* khách hàng CHỈ cho TDV phụ trách (khách hàng chốt 28/09).
+ *
+ * Tới `0226` nút hiện theo VAI TRÒ (`TDV · KE_TOAN · SALE_ADMIN · QUAN_TRI`), nên
+ * một TDV khác mở được biểu mẫu rồi nhận 403, còn Kế toán, Sale Admin, Quản trị
+ * sửa được thật. Giờ hai vế như nút lập hồ sơ ngay cạnh: vai trò VÀ đúng người.
+ */
+describe('`0227` nút Sửa khách hàng', () => {
+  const nutSua = () => screen.queryByRole('button', { name: 'Sửa' });
+
+  it('TDV PHỤ TRÁCH thấy nút Sửa', async () => {
+    dangNhapLa(TDV_ID, 'TDV');
+    chanMang(KHACH);
+    mo(<ChiTietKhachHang id="kh-1" />);
+    await waitFor(() => expect(nutSua()).not.toBeNull());
+  });
+
+  for (const [ten, id, role] of [
+    ['TDV KHÁC', KHAC_ID, 'TDV'],
+    ['Kế toán', KHAC_ID, 'KE_TOAN'],
+    ['Sale Admin', KHAC_ID, 'SALE_ADMIN'],
+    ['Quản trị hệ thống', KHAC_ID, 'QUAN_TRI'],
+    // Vai trò khác mà TRÙNG id với TDV phụ trách: vế vai trò phải tự đứng được,
+    // không dựa vào chuyện id tình cờ khác nhau.
+    ['Kế toán trùng id', TDV_ID, 'KE_TOAN'],
+  ] as const) {
+    it(`${ten} KHÔNG thấy nút Sửa`, async () => {
+      dangNhapLa(id, role);
+      chanMang(KHACH);
+      mo(<ChiTietKhachHang id="kh-1" />);
+      await waitFor(() => expect(screen.getByText(/Minh Chau/)).toBeDefined());
+      expect(nutSua()).toBeNull();
+    });
+  }
+
+  it('Quản trị vẫn thấy nút Đổi TDV phụ trách — việc hành chính của họ', async () => {
+    dangNhapLa(KHAC_ID, 'QUAN_TRI');
+    chanMang(KHACH);
+    mo(<ChiTietKhachHang id="kh-1" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Đổi TDV phụ trách' })).toBeDefined());
+  });
+});

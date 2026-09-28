@@ -97,9 +97,18 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (28/09/2026)
+## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P256** (`0226`): **mã khách hàng sửa được — chỉ TDV phụ trách, chỉ khi khách chưa
+Chặng gần nhất **P257** (`0227`): **chỉ TDV phụ trách sửa thông tin khách hàng**. Quyền sửa của Kế
+toán · Sale Admin · Quản trị (· TBP ở máy chủ) đến từ danh sách `WRITERS` của bản đầu, không yêu cầu
+nào cấp (YCNV 2.4 · 2.5 · 2.7) — HDSD chỉ chép lại hành vi của mã. Luật tách theo TRƯỜNG vì cùng
+`PATCH` gánh lượt đổi TDV của Quản trị: có trường nào CÓ GIÁ TRỊ ngoài `tdvUserId` thì `assertChinhTdv`
+(đếm KHOÁ là chặn nhầm Quản trị — bộ kiểm dữ liệu vào trả khoá vắng dưới dạng `undefined`). Giao diện:
+`suaKhachHang: ['TDV']` + vế đúng người. **Chưa làm, đã nêu**: đường LẬP khách lệch cùng kiểu (UI `TDV`,
+máy chủ `WRITERS`). **SỰ CỐ CỦA CHÍNH TÔI**: script chèn quên `+ s[k:]`, `customer.test.ts` mất 47 ca mà
+mọi thứ vẫn xanh — lộ ra chỉ vì tổng số ca GIẢM; đọc số ca, không chỉ chữ "xanh". **2536/2536 xanh.**
+
+Trước đó **P256** (`0226`): **mã khách hàng sửa được — chỉ TDV phụ trách, chỉ khi khách chưa
 có CSBH đang hiệu lực**; mã cũ dùng lại được. Trigger `trg_customer_code_immutable` (`0006`, CUST-15)
 **gỡ** (`0123`): lý do của nó — *"hồ sơ cũ trỏ sang khách khác"* — sai, vì mọi bảng nối bằng
 `customer_id`, và hồ sơ đã gửi giữ ảnh chụp `kh_ma_snap`. Chốt ở service: `assertChinhTdv`

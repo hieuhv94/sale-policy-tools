@@ -427,20 +427,37 @@ export class CustomersService {
     const cur = await this.db.one<Row>(`SELECT * FROM cus.customer WHERE id = $1`, [id]);
     if (!cur) throw new NotFoundException({ code: 'CUSTOMER_NOT_FOUND' });
     await this.assertInScope(cur.tdv_user_id, me, id);
+    /*
+     * CHỈ TDV PHỤ TRÁCH SỬA THÔNG TIN KHÁCH HÀNG (`0227`, khách hàng chốt 28/09).
+     *
+     * Tới `0226` mọi vai trò trong `WRITERS` sửa được khách hàng trong phạm vi
+     * của mình — một danh sách dựng từ bản đầu, KHÔNG có quyết định nghiệp vụ
+     * nào đứng sau: YCNV 2.4 cho Kế toán *"mở thông tin khách hàng để đối
+     * chiếu"*, 2.5 viết Sale Admin *"không sửa nội dung CSBH"*, 2.7 cho Quản trị
+     * đúng một việc với khách hàng là đổi TDV phụ trách. Giao diện còn lệch với
+     * chính nó: máy chủ cho cả TBP, màn hình giấu nút với TBP.
+     *
+     * Cùng một đường `PATCH` còn gánh lượt ĐỔI TDV của Quản trị, nên luật tách
+     * theo TRƯỜNG: lượt chỉ mang `tdvUserId` là việc hành chính (chốt
+     * `CAN_REASSIGN` ngay dưới); lượt mang bất kỳ trường nào khác là sửa thông
+     * tin khách — của TDV phụ trách. Đếm trường CÓ GIÁ TRỊ, không đếm khoá: bộ
+     * kiểm dữ liệu vào trả khoá vắng mặt dưới dạng `undefined`.
+     */
+    const suaThongTin = Object.entries(patch).some(([k, v]) => k !== 'tdvUserId' && v !== undefined);
+    if (suaThongTin) this.assertChinhTdv(cur, me);
+
     // TRỪ CHÍNH MÌNH: lượt sửa nào cũng gửi lại mã số thuế đang có, và không trừ
     // ra thì không khách hàng nào sửa được gì nữa.
     await this.assertMstChuaDung(patch.idNumber, id);
 
     /*
-     * ĐỔI MÃ KHÁCH HÀNG (`0226`) — chỉ TDV phụ trách, kể cả Quản trị cũng không
-     * (khách hàng chốt 28/09). Cùng chốt `assertChinhTdv` với *Ngừng hợp tác*:
-     * mã do kế toán cấp NGOÀI phần mềm và TDV mang về, nên người biết mã đúng là
-     * người phụ trách khách.
+     * ĐỔI MÃ KHÁCH HÀNG (`0226`). Ai đổi được đã chốt ngay trên (`0227`: mọi
+     * lượt sửa thông tin là của TDV phụ trách); ở đây còn hai luật riêng của MÃ.
      *
      * "Đổi" so trên chuỗi đã cắt khoảng trắng, KHÔNG so sau `upper()`: `kh-01` →
      * `KH-01` là một lượt đổi thật với người đọc tờ giấy, dù chỉ mục duy nhất
-     * coi hai chuỗi là một. Gửi lại ĐÚNG mã đang có thì không phải đổi, và ai
-     * sửa được khách cũng gửi được.
+     * coi hai chuỗi là một. Gửi lại ĐÚNG mã đang có thì không phải đổi, nên
+     * không vướng khoá CSBH hiệu lực bên dưới.
      */
     const maMoi = patch.code?.trim();
     if (maMoi !== undefined && maMoi === '') {
@@ -452,7 +469,6 @@ export class CustomersService {
     }
     const doiMa = maMoi !== undefined && maMoi !== cur.code;
     if (doiMa) {
-      this.assertChinhTdv(cur, me);
       /*
        * CHỈ KHÁCH CHƯA CÓ CSBH ĐANG HIỆU LỰC (`0226`, khách hàng bổ sung 28/09).
        *

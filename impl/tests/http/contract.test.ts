@@ -1057,9 +1057,12 @@ describe('DOC-27 xuất, đổi địa chỉ khách hàng, xuất lại', () => 
     const first = await pdfText((await pdfOf(`/policies/${d.id}/contract.pdf?mauId=${await mauHD()}`, 'kt01')).body as Buffer);
     expect(first).toContain(ADDRESS_1);
 
+    // `0227` — người đổi địa chỉ là TDV PHỤ TRÁCH; tới `0226` ca này dùng `sa01`,
+    // quyền mà không yêu cầu nghiệp vụ nào cấp. Điều ca kiểm (bản xuất sau mang
+    // địa chỉ mới) không đổi.
     const upd = await (await http(customer))
       .patch(`/customers/${d.customerId}`)
-      .set('Authorization', `Bearer ${tok['sa01']}`)
+      .set('Authorization', `Bearer ${tok['tdv01']}`)
       .send({ province: TINH_2, streetWard: SO_NHA_2 });
     expect(upd.status).toBe(200);
 

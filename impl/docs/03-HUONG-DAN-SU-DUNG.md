@@ -622,8 +622,10 @@ khách cần tìm; muốn xem đủ thì mở khách ra rồi bấm *Sửa*.
 > vẫn hiện ngay dưới tên khách trên **từng thẻ ở danh sách** — chỗ ấy giữ, vì hai khách trùng tên chỉ
 > phân biệt được bằng địa chỉ. Ô tìm kiếm vẫn tìm theo địa chỉ.
 
-**Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết. Kế toán, Sale Admin và Quản trị cũng sửa được,
-không riêng Trình dược viên.
+**Sửa khách hàng** — nút *Sửa* ở màn hình chi tiết, **chỉ Trình dược viên đang phụ trách** khách
+hàng ấy thấy và dùng được `sửa 28/09`. Kế toán, Sale Admin, Trưởng bộ phận và Ban lãnh đạo **chỉ
+xem**; thấy thông tin sai thì báo Trình dược viên phụ trách. Quản trị hệ thống cũng không sửa thông
+tin khách hàng — việc duy nhất của họ ở đây là **Đổi TDV phụ trách**.
 
 **Lập hồ sơ ngay từ đây** `mới 21/08` — nút **Lập hồ sơ CSBH** ở góc trên bên phải màn hình chi tiết
 khách hàng. Bấm vào là sang thẳng bước xác nhận **lập phiên bản mới** với khách hàng ấy **đã chọn sẵn**,

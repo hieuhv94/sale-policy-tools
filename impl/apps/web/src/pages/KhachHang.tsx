@@ -230,7 +230,8 @@ export function ChiTietKhachHang({ id }: { id: string }) {
                 Lập hồ sơ CSBH
               </Lien>
             )}
-          {can(nguoiDung?.role, 'suaKhachHang') && (
+          {/* `0227` — TDV PHỤ TRÁCH khách này, cùng hai vế với nút lập hồ sơ ngay trên. */}
+          {can(nguoiDung?.role, 'suaKhachHang') && nguoiDung?.id === kh.tdvUserId && (
             <button type="button" className="nut nut-nhe" onClick={() => datMo('sua')}>
               Sửa
             </button>
