@@ -19957,3 +19957,7 @@ VIỆC), `tbp01`/`tdv01` nhận *"Kế toán yêu cầu in lại bản cứng"* 
 nhật ký"* — màn hình và tệp kiểm ấy không nằm trong diff, chạy riêng 5/5 xanh, và hai lượt `tests/web`
 ngoại tuyến trước đó cũng xanh; chập chờn dưới tải cả bộ (ô ghi chú hiện ra trước khi lượt gọi
 `/audit/thong-ke` được ghi nhận). **Chưa sửa**, ghi ở đây để lượt sau thấy nó lặp lại thì xử.
+
+Chạy lại `make test` đầy đủ ngay sau commit: ca ấy xanh, không ca nào đỏ.
+
+**2500/2500 xanh.**

@@ -108,7 +108,7 @@ Mọi câu *"Sale Admin đang cầm hồ sơ"* đọc hằng **`BAN_SALE_ADMIN`*
 `workflow.service` đã gỡ. Bộ lọc `reprint` gỡ; thẻ *Lỗi bản cứng* (giữ tên) đếm và lọc theo `status`.
 Màu tím mận. Migration hai tệp (`0121` chỉ `ADD VALUE` — giá trị enum mới không dùng được trong cùng
 transaction); `0122` chạy lại được. Ca tài liệu số viết bằng chữ giờ so với `STATUSES`. Mười một lượt
-phá, mười một đỏ. **2499/2500** — một ca Thống kê chập chờn, ngoài diff.
+phá, mười một đỏ. **2500/2500** ở lượt chạy lại (lượt đầu 2499 — một ca Thống kê chập chờn, ngoài diff).
 
 Trước đó **P254** (`0224`): **hồ sơ trả về TDV thì bỏ đóng băng khách hàng**, và TDV **sửa
 khách hàng ngay trên trang hồ sơ**. Không phải "không sửa được" mà là "sửa rồi không thấy": `byId`
