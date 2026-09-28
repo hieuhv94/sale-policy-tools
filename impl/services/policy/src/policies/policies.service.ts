@@ -2701,6 +2701,7 @@ export class PoliciesService {
           khMaSnap: string | null;
           khTenSnap: string | null;
           khNguoiDaiDienSnap: string | null;
+          khChucDanhDaiDienSnap: string | null;
           khDiaChiDangKySnap: string | null;
           khSoNhaSnap: string | null;
           khTinhThanhSnap: string | null;
@@ -2729,6 +2730,15 @@ export class PoliciesService {
           ma: anh.khMaSnap ?? khach?.code ?? '',
           ten: anh.khTenSnap ?? khach?.name ?? '',
           nguoiDaiDien: anh.khNguoiDaiDienSnap ?? (daDongBang ? null : (khach?.ownerName ?? null)),
+          /*
+           * `0228` — chức danh người đại diện lên màn hình (khách hàng 29/09).
+           * `0177` để nó lại bên `document` vì *"màn hình này không bày"*; giờ bày.
+           * Cùng luật ba nhánh với người đại diện ngay trên: đã đóng băng thì đọc
+           * ảnh chụp (cột có từ `0101`), chưa thì đọc sống — không trộn hai thời
+           * điểm trong một khối.
+           */
+          chucDanh:
+            anh.khChucDanhDaiDienSnap ?? (daDongBang ? null : (khach?.ownerTitle ?? null)),
           soNha: anh.khSoNhaSnap ?? (daDongBang ? null : (khach?.streetWard ?? null)),
           tinhThanh: anh.khTinhThanhSnap ?? (daDongBang ? null : (khach?.province ?? null)),
           /*
@@ -3283,11 +3293,17 @@ export class PoliciesService {
        * trị lùi cho hồ sơ gửi trước `0177`) và địa chỉ giao hàng. Ranh giới thì
        * KHÔNG đổi — chức danh người đại diện và mã số thuế vẫn ở lại bên
        * `document`, vì màn hình này không bày chúng.
+       *
+       * `0228` đổi ranh giới ấy cho CHỨC DANH (khách hàng 29/09: *"thiếu hiển
+       * thị chức danh người đại diện"*); mã số thuế vẫn ở lại.
        */
       khMaSnap: (p as unknown as { kh_ma_snap: string | null }).kh_ma_snap,
       khTenSnap: (p as unknown as { kh_ten_snap: string | null }).kh_ten_snap,
       khNguoiDaiDienSnap: (p as unknown as { kh_nguoi_dai_dien_snap: string | null })
         .kh_nguoi_dai_dien_snap,
+      // `0228` — màn hình bày chức danh người đại diện.
+      khChucDanhDaiDienSnap: (p as unknown as { kh_chuc_danh_dai_dien_snap: string | null })
+        .kh_chuc_danh_dai_dien_snap,
       khDiaChiDangKySnap: (p as unknown as { kh_dia_chi_dang_ky_snap: string | null })
         .kh_dia_chi_dang_ky_snap,
       khSoNhaSnap: (p as unknown as { kh_so_nha_snap: string | null }).kh_so_nha_snap,

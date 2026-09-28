@@ -99,7 +99,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P257** (`0227`): **chỉ TDV phụ trách sửa thông tin khách hàng**. Quyền sửa của Kế
+Chặng gần nhất **P258** (`0228`): **bố cục trang hồ sơ**. *Thông tin chung* thành **mười bốn ô luôn có
+mặt**, bảy hàng đôi — bốn ô "chỉ hiện khi có" (mỗi ô một lý do đúng) cộng lại làm *Mã KH* đổi cột giữa
+các CSBH; thiếu dữ liệu thì nói thành lời. Nút **Sửa** lên hàng tiêu đề (`aria-label` giữ đủ nghĩa).
+**Chức danh người đại diện** lên màn hình (ảnh chụp có từ `0101`). Bảng sản phẩm **khoá 3 cột đầu** ở
+mọi khổ — bề rộng cố định, `left` = tổng bề rộng cột trước, có ca canh phép cộng; nút **Sửa/Xoá luôn
+hiện**, cột ghim phải — CHỈ bảng này, sáu bảng khác giữ rê chuột `0132`. Lỗi có sẵn từ `0186`: nút
+*Thêm lại* mờ suốt vì `opacity` của ô cha nhân lên con. **2546/2546 xanh.**
+
+Trước đó **P257** (`0227`): **chỉ TDV phụ trách sửa thông tin khách hàng**. Quyền sửa của Kế
 toán · Sale Admin · Quản trị (· TBP ở máy chủ) đến từ danh sách `WRITERS` của bản đầu, không yêu cầu
 nào cấp (YCNV 2.4 · 2.5 · 2.7) — HDSD chỉ chép lại hành vi của mã. Luật tách theo TRƯỜNG vì cùng
 `PATCH` gánh lượt đổi TDV của Quản trị: có trường nào CÓ GIÁ TRỊ ngoài `tdvUserId` thì `assertChinhTdv`

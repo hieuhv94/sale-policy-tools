@@ -1706,10 +1706,20 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   font-size: var(--chu-thuong);
   margin: 0 0 var(--k3);
 }
-/* Nút sửa khách hàng dưới lưới ô (`0224`). */
-.nut-cuoi-khoi {
-  margin-top: var(--k3);
+/* Hàng tiêu đề của khối *Thông tin chung* (`0228`): tiêu đề bên trái, nút
+   *Sửa* bên phải. Tới `0227` nút nằm ở ĐUÔI khối (`.nut-cuoi-khoi`, đã gỡ), tức
+   phải lướt qua mười bốn ô mới thấy. `min-height` giữ hàng cao bằng nhau dù nút
+   có hay không — nút chỉ hiện khi hồ sơ sửa được, và lưới bên dưới không được
+   nhảy lên xuống giữa hai trạng thái ấy. */
+.dau-tom-tat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--k3);
+  min-height: var(--vung-cham);
+  margin-bottom: var(--k3);
 }
+.dau-tom-tat h2 { margin: 0; }
 /* Nhãn và giá trị trên MỘT dòng, nhãn cột trái. Xếp dọc thì sáu ô thành mười hai
    dòng và thẻ cao gấp đôi thứ nó nói.
 
@@ -2238,19 +2248,70 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 /* =========================================================================
    640–1023px — máy tính bảng: bảng cuộn ngang, KHOÁ cột tên sản phẩm
    ========================================================================= */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .bang-san-pham .cot-khoa {
-    position: sticky;
-    left: 0;
-    z-index: 1;
-    background: var(--mau-nen);
-    /* Viền phải để mắt thấy rõ ranh giới giữa phần khoá và phần đang cuộn. */
-    box-shadow: 1px 0 0 var(--mau-vien);
-  }
-  .bang-san-pham thead .cot-khoa { background: var(--mau-nen-phu); z-index: 2; }
-  /* Trước 0027 cột khoá phải khai lại nền cảnh báo của dòng vì nó có nền riêng
-     để che phần đang cuộn. Không còn nền dòng nào để khai lại. */
+/* Luật khoá riêng CỘT TÊN ở khổ này (`FE-04`) ĐÃ THAY bằng khoá BA CỘT ĐẦU ở
+   mọi khổ có bảng (`0228`) — xem `.cot-dinh-*` ngay dưới. */
+
+/* =========================================================================
+   BA CỘT ĐẦU KHOÁ, CỘT THAO TÁC GHIM PHẢI — bảng sản phẩm (`0228`)
+   =========================================================================
+
+   Khách hàng 29/09: *"bảng sản phẩm cần cố định 3 cột đầu khi lăn chuột ngang"*.
+   Tới `0227` chỉ cột TÊN khoá, và chỉ ở 640–1023px; ở màn máy tính bảng không
+   khoá gì dù mười mấy cột vẫn tràn khung.
+
+   BỀ RỘNG CỐ ĐỊNH, không đo từ nội dung. Cột khoá thứ n dừng ở mép trái bằng
+   TỔNG bề rộng các cột khoá trước nó; bề rộng mà đo từ nội dung thì mép ấy đổi
+   theo từng hồ sơ và phải đo bằng JavaScript. Ba con số dưới cộng dồn thành ba
+   giá trị `left` — sửa một số là sửa cả `left` của cột sau (ca kiểm canh phép
+   cộng ấy). `min-width` + `max-width` vì ở `table-layout: auto` một `width` đơn
+   độc chỉ là gợi ý.
+
+   NỀN ĐẶC là bắt buộc: ô khoá trong suốt thì phần đang cuộn lộ qua nó. */
+.bang-san-pham .cot-dinh-1,
+.bang-san-pham .cot-dinh-2,
+.bang-san-pham .cot-dinh-3 {
+  position: sticky;
+  z-index: 1;
+  background: var(--mau-nen);
 }
+.bang-san-pham thead .cot-dinh-1,
+.bang-san-pham thead .cot-dinh-2,
+.bang-san-pham thead .cot-dinh-3 { background: var(--mau-nen-phu); z-index: 2; }
+.bang-san-pham .cot-dinh-1 { left: 0; width: 8rem; min-width: 8rem; max-width: 8rem; }
+.bang-san-pham .cot-dinh-2 {
+  left: 8rem;
+  width: 7.5rem;
+  min-width: 7.5rem;
+  max-width: 7.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.bang-san-pham .cot-dinh-3 {
+  left: 15.5rem;
+  width: 14rem;
+  min-width: 14rem;
+  max-width: 14rem;
+  white-space: normal;
+  /* Viền phải để mắt thấy rõ ranh giới giữa phần khoá và phần đang cuộn. */
+  box-shadow: 1px 0 0 var(--mau-vien);
+}
+
+/* CỘT THAO TÁC — luôn hiện, ghim mép phải (`0228`, *"bỏ cơ chế hover, thiết kế
+   lại bố cục để nhìn không bị quá chật chội"*). Hai nút một hàng, cách nhau một
+   khoảng rõ (`--k2`) và đệm ngang rộng hơn ô số: tới `0227` hai nút dính sát
+   mép ô và sát nhau, trong khi chúng là hai thao tác trái ngược. Ghim phải vì
+   bảng cuộn ngang: nút sửa một dòng không được nằm cuối dải mười mấy cột. */
+.bang-san-pham .o-thao-tac-dong {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--mau-nen);
+  box-shadow: -1px 0 0 var(--mau-vien);
+  padding-left: var(--k4);
+  padding-right: var(--k4);
+}
+.bang-san-pham thead .o-thao-tac-dong { background: var(--mau-nen-phu); z-index: 2; }
+.bang-san-pham .o-thao-tac-dong .nhom-nut { gap: var(--k2); }
 
 /* =========================================================================
    Từ 1024px — máy tính: đủ 10 cột
@@ -2994,6 +3055,15 @@ tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
    mờ đọc như một nút đã tắt. */
 .dong-da-xoa > * { opacity: 0.55; }
 .dong-da-xoa .nhom-nut { opacity: 1; }
+/* `0228` — ô KHOÁ và ô THAO TÁC không mờ bằng `opacity`: ô khoá có nền đặc để
+   che phần đang cuộn, mờ đi thì phần ấy lộ qua. Ô khoá lùi lại bằng MÀU CHỮ.
+   Ô thao tác thì trả `opacity` về 1 — luật `.nhom-nut` ngay trên KHÔNG làm được
+   việc ấy một mình (tới `0227` nút *Thêm lại* vẫn mờ): `opacity` của ô cha nhân
+   lên mọi thứ bên trong, con không tự sáng hơn cha được. */
+.dong-da-xoa > .cot-dinh-1,
+.dong-da-xoa > .cot-dinh-2,
+.dong-da-xoa > .cot-dinh-3 { opacity: 1; color: var(--mau-chu-phu); }
+.dong-da-xoa > .o-thao-tac-dong { opacity: 1; }
 
 /* Gạch ngang tên sản phẩm — dấu hiệu thứ hai, cho người không phân biệt được
    sắc độ. Chỉ tên, không cả hàng: gạch ngang chồng lên một cột số làm con số

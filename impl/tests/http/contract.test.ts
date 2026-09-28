@@ -3267,6 +3267,30 @@ describe('`0226` đổi mã khách hàng và hồ sơ CSBH', () => {
 });
 
 // =============================================================================
+// `0228` — chức danh người đại diện lên màn hình hồ sơ
+// =============================================================================
+
+describe('`0228` chức danh người đại diện trong khối khách hàng', () => {
+  it('hồ sơ Nháp đọc SỐNG chức danh của khách', async () => {
+    const d = await draft();
+    await suaKhach(d.customerId, { ownerTitle: 'Chủ hộ kinh doanh' });
+    const r = await pget(`/policies/${d.id}`, 'tdv01');
+    expect(r.body.khachHang.chucDanh).toBe('Chủ hộ kinh doanh');
+  }, 90_000);
+
+  it('hồ sơ ĐÃ GỬI giữ chức danh lúc gửi — cùng luật với người đại diện', async () => {
+    // Cột `kh_chuc_danh_dai_dien_snap` có từ `0101`; tới `0227` chỉ `document`
+    // đọc nó. Ca này canh cho màn hình đọc CÙNG cột ấy, không đọc sống.
+    const d = await draft();
+    await suaKhach(d.customerId, { ownerTitle: 'Giám đốc' });
+    await act(d.id, 'SUBMIT', 'tdv01');
+    await suaKhach(d.customerId, { ownerTitle: 'Chủ hộ kinh doanh' });
+    const r = await pget(`/policies/${d.id}`, 'tdv01');
+    expect(r.body.khachHang.chucDanh).toBe('Giám đốc');
+  }, 90_000);
+});
+
+// =============================================================================
 // `0104` — bảng phân loại trường phải phủ hết danh mục
 // =============================================================================
 

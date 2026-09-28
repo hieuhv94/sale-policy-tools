@@ -408,6 +408,14 @@ export const soCotCpbh = (dong: readonly DongSanPham[]): number =>
   dong.reduce((max, d) => Math.max(max, d.cpbh?.length ?? 0), 0);
 
 /** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
+/**
+ * Lớp của BA CỘT ĐẦU — khoá khi bảng cuộn ngang (`0228`).
+ *
+ * Mỗi cột một lớp riêng vì mỗi cột dừng ở một mép trái KHÁC nhau, và mép ấy là
+ * tổng bề rộng các cột khoá trước nó — xem `.cot-dinh-*` trong `app.css`.
+ */
+export const COT_DINH = ['cot-dinh-1', 'cot-dinh-2', 'cot-dinh-3'] as const;
+
 export const cotCho = (dong: readonly DongSanPham[]) => [
   ...COT_TRUOC,
   ...Array.from({ length: soCotCpbh(dong) }, (_, i) => ({
@@ -702,17 +710,25 @@ export function BangSanPham({
         <table className="bang-san-pham">
           <thead>
             <tr>
-              {cotCho(dong).map((c) => (
-                <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
+              {/*
+                BA CỘT ĐẦU KHOÁ khi cuộn ngang (`0228`, khách hàng 29/09) — ngày
+                áp dụng · mã · tên: ba thứ nói *"dòng này là mặt hàng nào"*, nên
+                chúng phải còn trong tầm mắt khi mắt đã trôi sang cột CPBH thứ tư.
+                Lớp đặt theo VỊ TRÍ (`COT_DINH`), không theo khoá cột: luật là
+                "ba cột đầu", và ca kiểm canh chính ba khoá đứng đầu `COT_TRUOC`.
+              */}
+              {cotCho(dong).map((c, i) => (
+                <th
+                  key={c.khoa}
+                  className={[COT_DINH[i], c.khoa === 'productName' ? 'cot-khoa' : '']
+                    .filter(Boolean)
+                    .join(' ') || undefined}
+                >
                   {c.nhan}
                 </th>
               ))}
-              {/* Tên cột ẩn khỏi mắt, giữ cho trình đọc màn hình (`0132`). */}
-              {coThaoTac && (
-                <th>
-                  <span className="chi-doc-man-hinh">Thao tác</span>
-                </th>
-              )}
+              {/* `0228` — tiêu đề HIỆN: nút luôn hiện thì cột có tên như mọi cột. */}
+              {coThaoTac && <th className="o-thao-tac-dong">Thao tác</th>}
             </tr>
           </thead>
           <tbody>
@@ -732,12 +748,12 @@ export function BangSanPham({
                   điều kiện nào ở đây — và đó là chủ ý: một `{dieuKien && …}` gõ
                   lại ở tám ô là tám chỗ để quên một.
                 */}
-                <td className="ngay-ap-dung">
+                <td className={`ngay-ap-dung ${COT_DINH[0]}`}>
                   {ngay(d.ngayApDung)}
                   <Dau d={d} o="ngayApDung" />
                 </td>
-                <td>{d.productCode}</td>
-                <th scope="row" className="cot-khoa">
+                <td className={COT_DINH[1]}>{d.productCode}</td>
+                <th scope="row" className={`cot-khoa ${COT_DINH[2]}`}>
                   {d.productName}
                 </th>
                 <td className="so">
@@ -785,18 +801,16 @@ export function BangSanPham({
                 <td className="ghi-chu-dong">{d.note ?? ''}</td>
                 {coThaoTac && (
                   /*
-                    Rê chuột mới hiện (`0132`) — CHỈ ở vế BẢNG.
+                    LUÔN HIỆN (`0228`, khách hàng 29/09: *"bỏ cơ chế hover"*) —
+                    tới `0227` ô này mang `o-thao-tac-re-chuot` của `0132`, lớp
+                    VẪN còn ở sáu bảng danh mục/quản trị; khách hàng chỉ bỏ nó
+                    ở bảng sản phẩm của hồ sơ. Ô ghim MÉP PHẢI (`.o-thao-tac-dong`):
+                    bảng này cuộn ngang, và nút sửa một dòng không được nằm ở
+                    cuối một dải mười mấy cột.
 
-                    Danh sách thẻ ở cuối tệp này (bố cục điện thoại) không mang
-                    lớp ấy: nút ở đó không nằm trong ô bảng nào nên luật
-                    `tr:hover` không với tới, và điện thoại là màn hình cảm ứng —
-                    `@media (hover: none)` vốn đã cho hiện luôn.
+                    `nhom-nut-hang` giữ hai nút trên CÙNG MỘT HÀNG (`0124`).
                   */
-                  <td className="o-thao-tac-re-chuot">
-                    {/* `nhom-nut-hang` giữ hai nút trên CÙNG MỘT HÀNG (`0124`).
-                        `.nhom-nut-gon` cho phép xuống dòng, và trong một ô bảng
-                        hẹp thì Sửa với Xoá xếp chồng lên nhau — đọc như hai
-                        thao tác thuộc hai dòng khác nhau. */}
+                  <td className="o-thao-tac-dong">
                     <NutDong
                       d={d}
                       hang

@@ -2916,6 +2916,20 @@ liên quan đến khách hàng"*.
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
 
+**BỐ CỤC TRANG HỒ SƠ CSBH** `sửa 29/09` — năm câu một lượt: nút *"Sửa thông tin khách hàng"* rút gọn
+thành **Sửa** và dời lên ngang tiêu đề *Thông tin chung*; **các ô của *Thông tin chung* có vị trí cố
+định** (*"mã KH lúc bên trái lúc bên phải"*); thêm **Chức danh người đại diện**; bảng sản phẩm **khoá
+3 cột đầu** khi cuộn ngang; nút **Sửa/Xoá luôn hiện**, bỏ rê chuột.
+
+> **Vì sao các ô xô lệch.** Lưới hai cột xếp ô theo thứ tự, và bốn ô chỉ hiện khi có dữ liệu (*Có hiệu
+> lực*, địa chỉ đăng ký một hoặc hai ô, *Địa chỉ giao hàng*, *Trạng thái khách hàng*) — mỗi ô vắng
+> mặt đẩy mọi ô sau một nấc. Mỗi ô có lý do riêng lúc thêm vào; cộng lại thì ra đúng điều khách hàng
+> thấy. Giờ **mười bốn ô luôn đủ**, thiếu dữ liệu thì nói thành lời (*Chưa có hiệu lực*, *Giao tới địa
+> chỉ đăng ký*, *Đang hợp tác*).
+>
+> **Rê chuột chỉ bỏ ở bảng sản phẩm của hồ sơ.** Sáu bảng danh mục và quản trị vẫn giữ luật `27/08`
+> (nút hiện khi rê chuột). Cột thao tác của bảng hồ sơ ghim mép phải, vì bảng cuộn ngang.
+
 **CHỈ TDV PHỤ TRÁCH SỬA THÔNG TIN KHÁCH HÀNG** `sửa 28/09` — hỏi *"tại sao Kế toán, SA và Quản trị
 lại được sửa khách hàng"*, rồi chốt: chỉ TDV phụ trách.
 

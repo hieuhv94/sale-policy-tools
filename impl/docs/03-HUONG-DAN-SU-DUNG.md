@@ -849,8 +849,9 @@ việc khác nhau.
 > liệu bạn đang đọc. Đi bằng bàn phím thì nút hiện ra khi tiêu điểm vào dòng; trên máy tính bảng và
 > điện thoại thì nút hiện sẵn, vì ở đó không có thao tác rê chuột nào.
 >
-> Luật này áp cho mọi bảng có cột thao tác: sản phẩm, nhóm sản phẩm, chiết khấu, văn bản mẫu, người
-> dùng, thư hỏng, và bảng sản phẩm trong hồ sơ.
+> Luật này áp cho các bảng có cột thao tác: sản phẩm, nhóm sản phẩm, chiết khấu, văn bản mẫu, người
+> dùng, thư hỏng. **Riêng bảng sản phẩm trong hồ sơ CSBH thì nút luôn hiện** `sửa 29/09` — xem *Sửa
+> hồ sơ*.
 
 **Giá bán Công ty** và **ngưỡng chiết khấu** lấy từ danh mục, bạn không nhập được — và chúng được
 **đóng băng** vào hồ sơ — nhưng chỉ **từ lúc bấm Gửi duyệt**.
@@ -1113,11 +1114,16 @@ văn bản mẫu nào để chọn.
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
 
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
-có thêm nút *Sửa* và *Xoá* ở từng dòng. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
+có thêm cột **Thao tác** với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần rê chuột, và
+cột ấy **ghim ở mép phải** bảng `sửa 29/09`.
+
+> **Ba cột đầu đứng yên khi cuộn ngang** `mới 29/09` — *Ngày áp dụng*, *Mã sản phẩm*, *Tên sản
+> phẩm*. Bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang phải xem số, ba cột ấy vẫn nằm
+> bên trái để biết đang đọc dòng của mặt hàng nào. Tên sản phẩm dài thì xuống dòng trong ô. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
 người duyệt trả lại.
 
 > **Sửa thông tin khách hàng ngay trên trang hồ sơ** `mới 28/09`. Cũng ở hai trạng thái ấy, khối
-> *Thông tin chung* có nút **Sửa thông tin khách hàng** — mở đúng biểu mẫu của trang Khách hàng (tên,
+> *Thông tin chung* có nút **Sửa** ở **ngang hàng tiêu đề, bên phải** `sửa 29/09` — mở đúng biểu mẫu của trang Khách hàng (tên,
 > người đại diện, chức danh, địa chỉ, số điện thoại, mã số thuế, công nợ…). Bấm *Lưu* là khối cập nhật
 > ngay. Mã hồ sơ **không** sửa ở đây — nó chỉ sửa được ở *Nháp*, bằng bút chì cạnh tiêu đề.
 >
@@ -1293,19 +1299,19 @@ trước ngày ấy là hai thẻ *Hồ sơ* và *Khách hàng* nằm cạnh nha
 dòng trên, giá trị ở dòng dưới** `sửa 25/09`, đúng như khối thông tin ở trang khách hàng; hai cột
 trên màn hình rộng, một cột trên điện thoại.
 
-| Ô | Nghĩa |
+**Mười bốn ô, luôn đủ và luôn đúng chỗ** `sửa 29/09` — trước ngày ấy vài ô chỉ hiện khi có dữ liệu,
+nên các ô phía sau xô lệch và *Mã khách hàng* lúc bên trái lúc bên phải giữa các CSBH. Giờ ô nào
+thiếu dữ liệu thì ghi rõ, không biến mất. Bảy hàng, đọc theo cặp:
+
+| Bên trái | Bên phải |
 |---|---|
-| Phiên bản | Bản CSBH thứ mấy **của khách hàng này** — không phải phiên bản phần mềm |
-| Ngày soạn thảo | Lúc bản nháp ra đời |
-| Có hiệu lực | Chỉ hiện khi CSBH **đã** có hiệu lực |
-| Người đề nghị | TDV đã **gửi** hồ sơ đi duyệt — không đổi khi khách hàng được bàn giao cho TDV khác |
-| Mã khách hàng | `đổi tên 19/09` — trước là *Mã*. Bấm vào mở màn hình khách hàng đó |
-| Người đại diện | `mới 06/09` |
-| Tên Hộ kinh doanh/Tên Công ty | `đổi tên 06/09` — trước là *Tên*, cùng một thông tin |
-| Số nhà, Phường xã · Tỉnh/Thành phố | Địa chỉ theo giấy đăng ký kinh doanh `mới 06/09` |
-| Địa chỉ giao hàng | **Chỉ hiện khi có** — mỗi địa chỉ một dòng. Không có dòng nào nghĩa là giao tới địa chỉ đăng ký `mới 06/09` |
-| Loại khách hàng · Công nợ | `đổi tên 19/09` — trước là *Loại*. Loại khách hàng quyết định ngưỡng chiết khấu `sửa 27/08` |
-| Trạng thái khách hàng | `đổi tên 19/09` — **chỉ hiện khi khách đã ngừng hợp tác**, hồ sơ cũ của họ vẫn mở được |
+| **Phiên bản** — bản CSBH thứ mấy của khách hàng này | **Ngày soạn thảo** — lúc bản nháp ra đời |
+| **Người đề nghị** — TDV đã **gửi** hồ sơ đi duyệt | **Có hiệu lực** — ngày giờ có hiệu lực, hoặc *Chưa có hiệu lực* |
+| **Mã khách hàng** — bấm vào mở màn hình khách hàng | **Loại khách hàng** — quyết định ngưỡng chiết khấu |
+| **Người đại diện** | **Chức danh người đại diện** `mới 29/09` |
+| **Tên Hộ kinh doanh/Tên Công ty** | **Trạng thái khách hàng** — *Đang hợp tác* hoặc nhãn *Đã ngừng hợp tác* |
+| **Số nhà, Phường xã** | **Tỉnh/Thành phố** |
+| **Địa chỉ giao hàng** — mỗi địa chỉ một dòng, hoặc *Giao tới địa chỉ đăng ký* | **Công nợ** |
 
 > **Ba nhãn đổi tên vì thẻ đã gộp** `19/09`. *Mã* · *Loại* · *Trạng thái* trước đây đọc ra được nghĩa
 > nhờ đứng dưới chữ *Khách hàng*; gộp một thẻ thì chỗ dựa ấy không còn, và *Mã* đứng cạnh *Phiên bản*
@@ -1313,8 +1319,9 @@ trên màn hình rộng, một cột trên điện thoại.
 >
 > **Trạng thái của HỒ SƠ không còn trong thẻ** — nó lên cạnh mã hồ sơ, cùng một nhãn màu như trước.
 
-> **Hồ sơ lập trước 06/09 hiện MỘT ô *Địa chỉ đăng ký* thay cho hai ô.** Lượt gửi duyệt của chúng chỉ
-> giữ lại địa chỉ ở dạng một dòng, và phần mềm bày đúng thứ đã được giữ chứ không tự cắt ra hai ô.
+> **Hồ sơ gửi trước 06/09 hiện cả địa chỉ ở ô *Số nhà, Phường xã*, ô *Tỉnh/Thành phố* để gạch**
+> `sửa 29/09`. Lượt gửi duyệt của chúng chỉ giữ địa chỉ ở dạng một dòng, và phần mềm bày đúng thứ đã
+> được giữ chứ không tự cắt ra hai ô.
 > Hồ sơ còn đang đi trong luồng sẽ có hai ô ngay ở lượt gửi lại tiếp theo; hồ sơ đã có hiệu lực thì
 > giữ nguyên một ô — đó là thông tin đã đóng băng trên một tờ giấy đã ký.
 

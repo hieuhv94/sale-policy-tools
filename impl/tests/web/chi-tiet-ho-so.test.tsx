@@ -68,6 +68,8 @@ const HO_SO = {
     ten: 'Cong ty TNHH Duoc pham ABC',
     // `0177` — năm trường của khối *Khách hàng* trên trang hồ sơ.
     nguoiDaiDien: 'Nguyen Thi Dai Dien',
+    // `0228` — chức danh người đại diện; rỗng ở fixture mặc định để ô ghi dấu gạch.
+    chucDanh: null,
     soNha: 'Số 12 ngõ 5, Phường Láng Hạ',
     /*
      * GIỮ NGUYÊN lối viết CŨ, có chủ ý (`0205`).
@@ -222,6 +224,29 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * `0228` — MƯỜI BỐN Ô, VỊ TRÍ CỐ ĐỊNH, bảy hàng đôi (khách hàng 29/09: *"mã KH lúc
+ * bên trái lúc bên phải"*). Tới `0227` dãy này có 11 ô ở fixture mặc định và
+ * DÀI NGẮN theo từng hồ sơ; từ `0228` nó là MỘT dãy cho mọi hồ sơ — ca ngay dưới
+ * đòi đúng điều ấy qua các hình dạng dữ liệu khác nhau.
+ */
+const DAY_NHAN = [
+  'Phiên bản',
+  'Ngày soạn thảo',
+  'Người đề nghị',
+  'Có hiệu lực',
+  'Mã khách hàng',
+  'Loại khách hàng',
+  'Người đại diện',
+  'Chức danh người đại diện',
+  'Tên Hộ kinh doanh/Tên Công ty',
+  'Trạng thái khách hàng',
+  'Số nhà, Phường xã',
+  'Tỉnh/Thành phố',
+  'Địa chỉ giao hàng',
+  'Công nợ',
+];
+
 describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () => {
   it('mỗi thứ một nhãn riêng, không dồn lên một dòng chữ xám', async () => {
     /*
@@ -270,19 +295,7 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
      * theo đúng thứ tự `0177` chốt. Ô *Trạng thái* của hồ sơ thì rời hẳn khỏi
      * đây — nó lên cạnh mã ở đầu trang.
      */
-    expect([...nhom.querySelectorAll('dt')].map((e) => e.textContent)).toEqual([
-      'Phiên bản',
-      'Ngày soạn thảo',
-      'Người đề nghị',
-      'Mã khách hàng',
-      'Người đại diện',
-      'Tên Hộ kinh doanh/Tên Công ty',
-      'Số nhà, Phường xã',
-      'Tỉnh/Thành phố',
-      'Địa chỉ giao hàng',
-      'Loại khách hàng',
-      'Công nợ',
-    ]);
+    expect([...nhom.querySelectorAll('dt')].map((e) => e.textContent)).toEqual(DAY_NHAN);
 
     expect(within(nhom).getByText('KH-000123')).toBeDefined();
     expect(oCua('Người đại diện')).toBe('Nguyen Thi Dai Dien');
@@ -310,15 +323,55 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(a.getAttribute('href')).toBe('/khach-hang/kh-1');
   });
 
-  it('"Có hiệu lực" chỉ hiện khi ĐÃ có hiệu lực', async () => {
-    // Một ô "Có hiệu lực —" trên mọi hồ sơ đang đi trong luồng là một dòng không
-    // nói gì, nằm ngay cạnh hai ô ngày tháng có thật.
+  it('`0228` ô "Có hiệu lực" LUÔN có mặt — chưa hiệu lực thì nói thành lời', async () => {
+    // Tới `0227` ô này chỉ hiện khi đã hiệu lực (`0061`), và chính nó làm mọi ô
+    // sau dịch một nấc — *Mã khách hàng* đổi cột giữa hai loại hồ sơ.
     await mo();
-    expect(document.body.textContent).not.toContain('Có hiệu lực');
+    expect(oCua('Có hiệu lực')).toBe('Chưa có hiệu lực');
 
     cleanup();
     await mo({ ...HO_SO, effectiveFrom: '2026-08-05T03:12:00.000Z' });
     expect(oCua('Có hiệu lực')).toContain('05/08/2026');
+  });
+
+  it('`0228` CÙNG MỘT DÃY Ô ở mọi hình dạng dữ liệu — vị trí không đổi giữa các CSBH', async () => {
+    /*
+     * Đúng triệu chứng người dùng báo. Mỗi biến thể dưới đây, tới `0227`, làm
+     * dãy dài/ngắn đi một hai ô: hồ sơ đã hiệu lực, khách không có địa chỉ giao
+     * hàng, khách đã ngừng hợp tác, hồ sơ gửi trước `0177` (chỉ có chuỗi địa chỉ
+     * gộp), khách chưa khai địa chỉ nào, và `customer` không tra được.
+     */
+    const bienThe = [
+      HO_SO,
+      { ...HO_SO, effectiveFrom: '2026-08-05T03:12:00.000Z' },
+      { ...HO_SO, khachHang: { ...HO_SO.khachHang, noiNhanHang: [] } },
+      { ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } },
+      { ...HO_SO, khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null } },
+      {
+        ...HO_SO,
+        khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null, diaChiDangKy: null },
+      },
+      { ...HO_SO, khachHang: null },
+    ];
+    for (const [i, h] of bienThe.entries()) {
+      await mo(h);
+      const nhan = [...khoiChung().querySelectorAll('dt')].map((e) => e.textContent);
+      expect(nhan, `biến thể ${i}`).toEqual(DAY_NHAN);
+      cleanup();
+    }
+  });
+
+  it('`0228` chức danh người đại diện hiện ngay cạnh người đại diện', async () => {
+    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, chucDanh: 'Giám đốc' } });
+    expect(oCua('Chức danh người đại diện')).toBe('Giám đốc');
+  });
+
+  it('`0228` trạng thái khách hàng: đang hợp tác thì nói thành lời, ngừng thì nhãn cảnh báo', async () => {
+    await mo();
+    expect(oCua('Trạng thái khách hàng')).toBe('Đang hợp tác');
+    cleanup();
+    await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, trangThai: 'NGUNG_HOP_TAC' } });
+    expect(oCua('Trạng thái khách hàng')).toBe('Đã ngừng hợp tác');
   });
 
   it('`customer` chết thì mất KHỐI khách hàng, không mất cả màn hình', async () => {
@@ -343,32 +396,27 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(oCua('Tên Hộ kinh doanh/Tên Công ty')).toBe('Cong ty TNHH Duoc pham ABC');
   });
 
-  it('hồ sơ gửi TRƯỚC `0177`: một ô *Địa chỉ đăng ký*, không phải hai ô rỗng', async () => {
+  it('hồ sơ gửi TRƯỚC `0177`: chuỗi địa chỉ gộp vào ô số nhà, KHÔNG tách ngược', async () => {
     /*
-     * Hai cột ảnh chụp mới là NULL trên mọi hồ sơ đã gửi trước migration `0115`,
-     * và cột gộp thì có. Bày hai ô dấu gạch ở đây nói rằng hồ sơ thiếu địa chỉ —
-     * nó không thiếu, chỉ là lượt gửi ấy chụp một chuỗi thay vì hai ô.
+     * `0228` thay ca *"một ô Địa chỉ đăng ký, không phải hai ô rỗng"*: ô ấy là một
+     * trong bốn nguồn xô lệch vị trí. Hai ô cố định, chuỗi gộp nằm trọn ở ô đầu
+     * — tách nó ở dấu phẩy là suy ngược lên một cột dẫn xuất (`0177`).
      */
     await mo({
       ...HO_SO,
       khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null },
     });
-    expect(oCua('Địa chỉ đăng ký')).toBe('Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội');
-    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
-    expect(nhan).not.toContain('Số nhà, Phường xã');
-    expect(nhan).not.toContain('Tỉnh/Thành phố');
+    expect(oCua('Số nhà, Phường xã')).toBe('Số 12 ngõ 5, Phường Láng Hạ, Thành phố Hà Nội');
+    expect(oCua('Tỉnh/Thành phố')).toBe('—');
   });
 
-  it('không có địa chỉ nào thì KHÔNG có ô địa chỉ đăng ký, kể cả ô dấu gạch', async () => {
-    // Hồ sơ Nháp của một khách chưa khai địa chỉ. Ô sẽ hiện ra ngay khi họ khai;
-    // một ô dấu gạch ở đây chỉ nói rằng màn hình biết mình đang thiếu gì.
+  it('không có địa chỉ nào thì hai ô ghi dấu gạch, không biến mất', async () => {
     await mo({
       ...HO_SO,
       khachHang: { ...HO_SO.khachHang, soNha: null, tinhThanh: null, diaChiDangKy: null },
     });
-    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
-    expect(nhan).not.toContain('Địa chỉ đăng ký');
-    expect(nhan).not.toContain('Số nhà, Phường xã');
+    expect(oCua('Số nhà, Phường xã')).toBe('—');
+    expect(oCua('Tỉnh/Thành phố')).toBe('—');
   });
 
   it('nhiều địa chỉ giao hàng thì MỖI CÁI MỘT DÒNG', async () => {
@@ -383,15 +431,14 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     expect(dong).toEqual(['Kho 1, KCN Bắc Thăng Long', 'Số 8 Trần Duy Hưng']);
   });
 
-  it('KHÔNG có địa chỉ giao hàng thì bỏ hẳn ô, không ghi dấu gạch', async () => {
+  it('KHÔNG có địa chỉ giao hàng thì ô nói *Giao tới địa chỉ đăng ký*, không dấu gạch', async () => {
     /*
-     * `0006` — mảng rỗng nghĩa là *"giao tới địa chỉ đăng ký"*, một câu trả lời
-     * đầy đủ chứ không phải một ô còn trống. Dấu gạch ở đây nói rằng khách hàng
-     * thiếu một thông tin mà họ không hề thiếu. Cùng luật với trang khách hàng.
+     * `0006` — mảng rỗng nghĩa là *"giao tới địa chỉ đăng ký"*. Tới `0227` ô bỏ
+     * hẳn (dấu gạch nói khách thiếu một thông tin họ không thiếu); `0228` giữ lý
+     * do ấy mà cho ô đứng yên chỗ: nói đúng câu trả lời thay vì biến mất.
      */
     await mo({ ...HO_SO, khachHang: { ...HO_SO.khachHang, noiNhanHang: [] } });
-    const nhan = [...document.querySelectorAll('.tom-tat-nhom dt')].map((e) => e.textContent);
-    expect(nhan).not.toContain('Địa chỉ giao hàng');
+    expect(oCua('Địa chỉ giao hàng')).toBe('Giao tới địa chỉ đăng ký');
   });
 
   /*
@@ -2211,6 +2258,18 @@ describe('`0224` sửa thông tin khách hàng tại trang hồ sơ', () => {
     await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
     await waitFor(() => expect(nut()).not.toBeNull());
     expect(khoiChung().contains(nut()), 'nút phải nằm trong khối Thông tin chung').toBe(true);
+  });
+
+  it('`0228` nút ghi *Sửa*, đứng NGANG TIÊU ĐỀ khối — không còn ở đuôi khối', async () => {
+    // Chữ hiện rút gọn; tên cho trình đọc màn hình giữ đủ nghĩa vì trang còn
+    // hai nút *Sửa* ở mỗi dòng sản phẩm (WCAG: nhãn chứa chữ hiện).
+    laTdv();
+    await moVoi(traVe, ['RESUBMIT_AFTER_EDIT']);
+    await waitFor(() => expect(nut()).not.toBeNull());
+    expect(nut()!.textContent).toBe('Sửa');
+    const dau = khoiChung().querySelector('.dau-tom-tat')!;
+    expect(dau.querySelector('h2')?.textContent).toBe('Thông tin chung');
+    expect(dau.contains(nut())).toBe(true);
   });
 
   it('hồ sơ NHÁP cũng có nút — cùng một luật "sửa được"', async () => {

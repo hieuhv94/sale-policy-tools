@@ -20079,3 +20079,58 @@ Lượt `make test` sau khôi phục: số ca từng tệp so với lượt tố
 thêm vào (`customer.test.ts` 95 → 101, `lap-ho-so-tu-khach-hang.test.tsx` 21 → 28).
 
 **2536/2536 xanh.**
+
+## P258 — `0228` Bố cục trang hồ sơ: ô cố định · chức danh · khoá 3 cột · nút luôn hiện
+
+Năm câu khách hàng gửi cùng lúc (29/09), đều ở trang chi tiết hồ sơ CSBH.
+
+### Ô "lúc trái lúc phải" — bốn quyết định đúng cộng lại thành một lỗi
+
+Lưới `the-so` hai cột xếp ô theo THỨ TỰ, nên mỗi ô "chỉ hiện khi có" dịch mọi ô sau nó một nấc. Tới
+`0227` có BỐN ô như thế, mỗi ô một lý do viết rõ tại chỗ: *Có hiệu lực* (`0061` — *"một ô Có hiệu lực —
+là một dòng không nói gì"*), địa chỉ đăng ký 0/1/2 ô (`0177`), *Địa chỉ giao hàng* (`0175` — dấu gạch
+nói khách thiếu thứ họ không thiếu), *Trạng thái khách hàng* (`0206`). Không lý do nào sai; cộng lại thì
+*Mã khách hàng* đổi cột giữa hồ sơ đã hiệu lực và hồ sơ chưa. Chữa bằng **mười bốn ô luôn có mặt**, bảy
+hàng đôi, và giữ lý do cũ bằng cách **nói thành lời thay vì biến mất**: *Chưa có hiệu lực*, *Giao tới
+địa chỉ đăng ký* (đúng câu `0006`), *Đang hợp tác*. Hồ sơ gửi trước `0177` (chỉ có chuỗi gộp) đặt cả
+chuỗi vào ô số nhà, tỉnh để gạch — không tách ngược. `customer` chết thì mười bốn ô vẫn đúng chỗ, nửa
+dưới ghi gạch kèm câu giải thích. `DiaChiDangKy` gỡ. Ca mới đi qua **bảy hình dạng dữ liệu** và đòi
+CÙNG MỘT dãy nhãn — đúng triệu chứng người dùng báo, chứ không một dãy cho một fixture.
+
+### Nút *Sửa* và chức danh
+
+Nút lên hàng tiêu đề (`.dau-tom-tat`, cao tối thiểu bằng vùng chạm để lưới không nhảy khi nút có/không),
+chữ hiện *Sửa*, `aria-label` giữ *Sửa thông tin khách hàng* — trang còn hai nút *Sửa* mỗi dòng sản phẩm,
+và nhãn chứa chữ hiện (WCAG). Không thu nhỏ nút: `--vung-cham` là chủ ý.
+
+Chức danh: `0177` cố ý để nó bên `document` (*"màn hình này không bày"*); giờ bày. Cột ảnh chụp
+`kh_chuc_danh_dai_dien_snap` có từ `0101`, nên chỉ thêm đường đọc, cùng luật ba nhánh với người đại diện.
+Lượt phá *đọc sống bất kể ảnh chụp* chỉ đỏ ca hồ sơ ĐÃ GỬI — ca Nháp xanh là đúng (Nháp vốn đọc sống).
+
+### Bảng sản phẩm
+
+**Ba cột đầu khoá** (*Ngày áp dụng* · *Mã SP* · *Tên SP*) ở MỌI khổ có bảng — tới `0227` chỉ cột tên khoá,
+và chỉ ở 640–1023px. **Bề rộng cố định** (8 · 7.5 · 14rem), không đo từ nội dung: cột khoá thứ n dừng ở
+mép trái bằng TỔNG bề rộng các cột trước, đo từ nội dung thì phải đo bằng JavaScript. Ca kiểm canh
+phép cộng ấy (lượt phá lệch `left` một cột → đỏ), và phải lấy khối CSS CUỐI CÙNG khớp bộ chọn — bản đầu
+của ca đọc nhầm khối gộp ba cột (cũng kết thúc bằng `.cot-dinh-3 {`), lớp bẫy *"quét trúng chuỗi thứ
+hai"* của `0218`.
+
+**Dòng đã rút mờ bằng `opacity` trên từng ô** (`0186`), mà ô khoá cần nền đặc — mờ đi thì phần đang cuộn
+lộ qua. Ô khoá lùi bằng màu chữ. **LỖI CÓ SẴN tìm ra vì đi ngang qua**: `.dong-da-xoa .nhom-nut
+{ opacity: 1 }` của `0186` chưa bao giờ làm được việc của nó — `opacity` của ô cha nhân lên mọi thứ bên
+trong, con không sáng hơn cha được, nên nút *Thêm lại* mờ suốt từ `0186`. Chữa bằng trả `opacity` của
+CHÍNH Ô thao tác về 1.
+
+**Nút *Sửa/Xoá* luôn hiện**, cột có tiêu đề thật, ghim mép phải, đệm rộng hơn và hai nút cách nhau.
+**Chỉ bảng này**: sáu bảng danh mục/quản trị giữ luật rê chuột của `0132` — `BangSanPham.tsx` ra khỏi
+danh sách của ca `0132` KÈM LÝ DO, và ca quét toàn bộ *"không tiêu đề Thao tác nào nhìn thấy được"* miễn
+đúng tệp ấy. Ca `0132` đầu tiên vốn đã xanh với bảng này vì một lý do SAI (ô thao tác dựng nút qua
+`NutDong`, regex tìm `<button` không thấy) — giờ ra khỏi danh sách tường minh.
+
+### Phá lại
+
+Sáu lượt, sáu đỏ: ô *Có hiệu lực* về lối "chỉ khi có" (3 đỏ) · chức danh đọc sống bất kể ảnh chụp (1) ·
+nút ra khỏi hàng tiêu đề (1) · lệch `left` cột 2 (1) · gắn lại lớp rê chuột (1) · bỏ `sticky` (1).
+
+**2546/2546 xanh.** Số ca từng tệp so với lượt trước: chỉ ba tệp đổi, đúng số ca thêm (+2 · +4 · +4).
