@@ -23,6 +23,7 @@ export type TrangThai =
   | 'CHO_TBP_DUYET'
   | 'CHO_KT_L1'
   | 'SA_DANG_XU_LY'
+  | 'SA_SUA_BAN_CUNG'
   | 'CHO_KT_L2'
   | 'DANG_CO_HIEU_LUC'
   | 'HET_HIEU_LUC'
@@ -35,6 +36,7 @@ export const MOI_TRANG_THAI: TrangThai[] = [
   'CHO_TBP_DUYET',
   'CHO_KT_L1',
   'SA_DANG_XU_LY',
+  'SA_SUA_BAN_CUNG',
   'CHO_KT_L2',
   'DANG_CO_HIEU_LUC',
   'HET_HIEU_LUC',
@@ -62,6 +64,7 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
   CHO_KT_L1: 'KE_TOAN',
   CHO_KT_L2: 'KE_TOAN',
   SA_DANG_XU_LY: 'SALE_ADMIN',
+  SA_SUA_BAN_CUNG: 'SALE_ADMIN',
   DANG_CO_HIEU_LUC: null,
   HET_HIEU_LUC: null,
   QUA_HAN_DUYET: null,
@@ -72,11 +75,15 @@ export const BAN_CUA: Record<TrangThai, VaiTro | null> = {
  * Ô ĐẾM theo bước đang chờ — khoá của `byStepDetail` bên reporting (`0045`).
  *
  * Bốn bước chờ của muc 3, riêng B8 tách làm hai vì Sale Admin có HAI việc khác
- * hẳn nhau dưới cùng một trạng thái `SA_DANG_XU_LY`:
+ * hẳn nhau ở cùng một bước:
  *
  *   - `B8_TRINH_KY` — kế toán vừa nhận bản mềm; in, trình BLĐ ký, scan.
- *   - `B8_LOI_BAN_CUNG` — kế toán nhận bản cứng rồi bắt in lại (B10C). Bản scan
- *     cũ đã bị xoá khỏi hệ thống, phải làm lại một việc tưởng đã xong.
+ *     Trạng thái `SA_DANG_XU_LY`.
+ *   - `B8_LOI_BAN_CUNG` — kế toán nhận bản cứng rồi bắt in lại (B10C), phải làm
+ *     lại một việc tưởng đã xong. Trạng thái `SA_SUA_BAN_CUNG` từ `0225` — tới
+ *     `0224` nó chung trạng thái với ô trên, tách bằng mốc `reprint_requested_at`.
+ *     Tên thẻ GIỮ *Lỗi bản cứng* (khách hàng chốt 28/09), dù nhãn trạng thái là
+ *     *Sale Admin sửa bản cứng*.
  *
  * `TBP_DA_KY_SO` không có ô nào ở đây, và từ `0064` nó không còn tồn tại: hệ
  * thống vốn đã chuyển nó sang `CHO_KT_L1` ngay trong CÙNG transaction với lần
@@ -99,6 +106,15 @@ export const BUOC_THAT: Record<OBuoc, string> = {
   B8_TRINH_KY: 'B8_SA_XU_LY',
   B8_LOI_BAN_CUNG: 'B8_SA_XU_LY',
   B10_KT_L2: 'B10_KT_L2',
+};
+
+/**
+ * Hai nửa của B8 là HAI TRẠNG THÁI (`0225`) — thẻ của chúng lọc danh sách theo
+ * trạng thái, không theo bước, và lấy màu của chính trạng thái ấy.
+ */
+export const TRANG_THAI_NUA_B8: Partial<Record<OBuoc, TrangThai>> = {
+  B8_TRINH_KY: 'SA_DANG_XU_LY',
+  B8_LOI_BAN_CUNG: 'SA_SUA_BAN_CUNG',
 };
 
 /** Ô đếm này là việc của vai trò nào — dùng để suy ra thẻ "Đang chờ". */
@@ -289,16 +305,16 @@ export const nhanThe = (the: The): string =>
  * người dùng bấm thẻ rồi rơi vào một danh sách toàn nhãn màu khác thì phải học
  * lại bảng màu lần thứ hai.
  *
- * `B8_LOI_BAN_CUNG` là ngoại lệ duy nhất, và nó KHÔNG có trạng thái riêng để
- * mượn màu: cả nó lẫn `B8_TRINH_KY` đều là `SA_DANG_XU_LY`. Nó mượn màu của
- * *Yêu cầu chỉnh sửa* vì hai thứ nói cùng một chuyện — có người trả việc về cho
- * bạn — và chúng không bao giờ đứng chung một dải thẻ.
+ * `B8_LOI_BAN_CUNG` TỪNG là ngoại lệ: tới `0224` nó không có trạng thái riêng
+ * để mượn màu (cả nó lẫn `B8_TRINH_KY` đều là `SA_DANG_XU_LY`), nên mượn hổ
+ * phách của *Yêu cầu chỉnh sửa*. Từ `0225` nó có — `SA_SUA_BAN_CUNG` — và theo
+ * đúng luật trên: thẻ và nhãn trong danh sách bấm ra phải là một màu.
  */
 const MAU_O_BUOC: Record<OBuoc, string> = {
   B4_TBP_DUYET: 'tbp',
   B6_KT_L1: 'kt1',
   B8_TRINH_KY: 'sa',
-  B8_LOI_BAN_CUNG: 'sua',
+  B8_LOI_BAN_CUNG: 'sa-sua',
   B10_KT_L2: 'kt2',
 };
 
@@ -331,16 +347,18 @@ export function duongThe(the: The): string {
   if (the.dem.tu === 'trangThai') return `/ho-so?status=${the.dem.trangThai}`;
   if (the.dem.tu === 'sapQuaHan') return '/ho-so?han=SAP_QUA_HAN';
 
-  const buoc = [...new Set(the.dem.o.map((o) => BUOC_THAT[o]))];
-  const q = `pendingStep=${buoc.join(',')}`;
-
-  // Hai nửa của B8 chỉ tách được bằng mốc `reprint_requested_at`. Thẻ nào lấy
-  // trọn cả hai nửa thì KHÔNG kèm tiêu chí này — kèm vào là lọc mất một nửa.
-  const nuaB8 = the.dem.o.filter((o) => BUOC_THAT[o] === 'B8_SA_XU_LY');
-  if (nuaB8.length === 1) {
-    return `/ho-so?${q}&reprint=${nuaB8[0] === 'B8_LOI_BAN_CUNG' ? '1' : '0'}`;
+  /*
+   * Thẻ của ĐÚNG MỘT nửa B8 lọc theo TRẠNG THÁI (`0225`). Tới `0224` là
+   * `pendingStep=B8_SA_XU_LY&reprint=0|1`, vì hai nửa chỉ tách được bằng mốc
+   * `reprint_requested_at`; giờ mỗi nửa là một trạng thái. Hồ sơ quá hạn không
+   * lọt khỏi phép lọc này: quá hạn là chết (`0047`), không nằm ở bước nào.
+   */
+  if (the.dem.o.length === 1) {
+    const tt = TRANG_THAI_NUA_B8[the.dem.o[0]!];
+    if (tt) return `/ho-so?status=${tt}`;
   }
-  return `/ho-so?${q}`;
+  const buoc = [...new Set(the.dem.o.map((o) => BUOC_THAT[o]))];
+  return `/ho-so?pendingStep=${buoc.join(',')}`;
 }
 
 /** Các khối ngoài dải thẻ. Thứ tự trong mảng là thứ tự hiện trên màn hình. */

@@ -155,6 +155,10 @@
   --mau-tt-kt1-nen: #e4ecfd;
   --mau-tt-sa: #0e7490;
   --mau-tt-sa-nen: #dff1f7;
+  /* `0225` — Sale Admin SỬA bản cứng: tím mận (295°), vùng sắc duy nhất còn
+     trống. Cách chàm của *Chờ TBP duyệt* 50°, đỏ của *Quá hạn* 68°. */
+  --mau-tt-sa-sua: #86198f;
+  --mau-tt-sa-sua-nen: #f9e8fb;
   --mau-tt-kt2: #0f766e;
   --mau-tt-kt2-nen: #dcf2ef;
   --mau-tt-hieu-luc: #136c33;
@@ -402,6 +406,8 @@
     --mau-tt-kt1-nen: #16294a;
     --mau-tt-sa: #67c6e3;
     --mau-tt-sa-nen: #0e2f3b;
+    --mau-tt-sa-sua: #e8a6f0;
+    --mau-tt-sa-sua-nen: #33123a;
     --mau-tt-kt2: #5ecfc0;
     --mau-tt-kt2-nen: #0d3330;
     --mau-tt-hieu-luc: #58d68d;
@@ -481,6 +487,8 @@
   --mau-tt-kt1-nen: #16294a;
   --mau-tt-sa: #67c6e3;
   --mau-tt-sa-nen: #0e2f3b;
+  --mau-tt-sa-sua: #e8a6f0;
+  --mau-tt-sa-sua-nen: #33123a;
   --mau-tt-kt2: #5ecfc0;
   --mau-tt-kt2-nen: #0d3330;
   --mau-tt-hieu-luc: #58d68d;

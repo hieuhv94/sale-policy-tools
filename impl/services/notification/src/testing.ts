@@ -22,6 +22,8 @@ export {
   UnsafeMailConfigError,
 } from './infra/config.js';
 export {
+  STATUS_LABEL,
+  STEP_LABEL,
   bodyBanGiao,
   bodyFor,
   duongDan,

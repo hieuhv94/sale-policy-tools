@@ -342,7 +342,7 @@ lọc sẵn đúng bằng con số vừa bấm.
 | **Trưởng bộ phận** | Chờ TBP duyệt · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Kế toán** | Chờ KT duyệt L1 · KT duyệt bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
 | **Sale Admin** | Trình ký · Lỗi bản cứng · **Sắp quá hạn · Quá hạn** · Đang chờ · Đang có hiệu lực |
-| **Ban lãnh đạo** | **Cả 10 trạng thái** |
+| **Ban lãnh đạo** | **Cả 11 trạng thái** |
 | **Quản trị hệ thống** | Không có — xem giải thích bên dưới |
 
 Cố ý **không** bày cho bạn bước của người khác thành thẻ riêng: một Trình dược viên nhìn ô "KT duyệt
@@ -361,7 +361,7 @@ nghĩa của nó, đây là phần không cần bạn làm gì. Bấm vào thì 
 | Thẻ | Nghĩa |
 |---|---|
 | **Trình ký** | Kế toán vừa nhận bản mềm. In, trình Ban lãnh đạo ký, nhận lại, scan, tải lên (bước B8). |
-| **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C). Bản scan cũ **vẫn còn** để bạn đối chiếu xem bản giấy hỏng ở đâu — in xong thì **gỡ nó và tải bản mới lên**. Thẻ này tô vàng vì đó là việc lẽ ra không phải làm. |
+| **Lỗi bản cứng** | Kế toán nhận bản cứng rồi **bắt in lại** (B10C) — hồ sơ mang trạng thái **Sale Admin sửa bản cứng** `mới 28/09`. Bản scan cũ **vẫn còn** để bạn đối chiếu xem bản giấy hỏng ở đâu — in xong thì **gỡ nó và tải bản mới lên**. Thẻ mang màu **tím mận** của trạng thái ấy; bấm vào là danh sách lọc đúng trạng thái đó. |
 
 > **Nút *Bàn giao* xám cho tới khi có bản scan** `mới 29/08`. Chưa tải bản scan lên thì nút không bấm
 > được, và màn hình ghi rõ *"Chưa bàn giao được: hồ sơ chưa có bản scan"*. Tải tệp lên ở khối *Tệp
@@ -749,7 +749,7 @@ Nháp.)
 | Hồ sơ của khách đang ở | Có chặn lập hồ sơ mới không |
 |---|---|
 | *Nháp* | **Chặn** — nút **Mở bản Nháp đang có** đưa bạn vào soạn tiếp |
-| *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *KT duyệt bản cứng* | **Chặn** — màn hình nói mã hồ sơ ấy, nút **Mở hồ sơ đang xử lý** đưa bạn tới đó |
+| *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *SA sửa bản cứng* · *KT duyệt bản cứng* | **Chặn** — màn hình nói mã hồ sơ ấy, nút **Mở hồ sơ đang xử lý** đưa bạn tới đó |
 | *Đang có hiệu lực* · *Hết hiệu lực* · *Đã xoá* · *Quá hạn duyệt* | Không chặn |
 
 Nên một khách có nhiều nhất **hai** hồ sơ còn sống cùng lúc: CSBH đang hiệu lực, và bản thay thế đang
@@ -1161,8 +1161,8 @@ Hồ sơ bị trả về mang một khối **Lý do gần nhất** ngay dưới 
 Khối này **chỉ hiện khi lý do còn là việc phải làm** `sửa 25/09`:
 
 - hồ sơ đang **Yêu cầu chỉnh sửa** — Trình dược viên sửa theo lý do;
-- hồ sơ đang ở bàn **Sale Admin** sau khi Kế toán **Yêu cầu in lại** — Sale Admin tải lên bản cứng
-  mới theo lý do (dòng trên cùng ghi *Kế toán yêu cầu in lại bản cứng · từ bước KT duyệt bản cứng*).
+- hồ sơ đang **Sale Admin sửa bản cứng** `sửa 28/09`, tức Kế toán vừa **Yêu cầu in lại** — Sale Admin
+  tải lên bản cứng mới theo lý do (dòng trên cùng ghi *Kế toán yêu cầu in lại bản cứng · từ bước KT duyệt bản cứng*).
 
 Sửa xong và gửi lại, hoặc Sale Admin bàn giao lại, thì khối **biến mất**. Muốn xem đủ mọi lần trả về
 thì mở **Lịch sử** ở cuối trang.
@@ -1228,8 +1228,8 @@ cùng vai trò không thấy, không mở.
 - **Trả lại chỉnh sửa** (TBP hoặc Kế toán): hồ sơ về tay TDV, **bắt buộc nhập lý do**. Sửa xong đi
   lại từ đầu vòng duyệt.
 - **Hoàn duyệt** (chỉ Trưởng bộ phận) `mới 07/09`: **rút lại chữ ký của chính mình** sau khi đã ký.
-  Làm được ở **ba bước sau chữ ký** — *Chờ KT duyệt L1*, *Sale Admin đang xử lý*, *Chờ KT duyệt bản
-  cứng* — và **bắt buộc nhập lý do**. Hồ sơ về *Yêu cầu chỉnh sửa* cho Trình dược viên, chữ ký bị
+  Làm được ở **các bước sau chữ ký** — *Chờ KT duyệt L1*, *Sale Admin đang xử lý*, *Sale Admin sửa
+  bản cứng* `thêm 28/09`, *Chờ KT duyệt bản cứng* — và **bắt buộc nhập lý do**. Hồ sơ về *Yêu cầu chỉnh sửa* cho Trình dược viên, chữ ký bị
   xoá, và vòng duyệt đi lại từ đầu.
 
   > **Ở bước *Chờ TBP duyệt* thì không có nút này** — ở đó bạn đã có *Trả lại chỉnh sửa*, làm đúng
@@ -1255,13 +1255,17 @@ Bốn bước chờ đi thành một **chuỗi** theo đúng thứ tự hồ sơ
 |---|---|---|---|
 | chàm | lam | xanh ngọc | mòng két |
 
+**Sale Admin sửa bản cứng** `mới 28/09` mang màu **tím mận** — ngoài chuỗi ấy, vì nó là vòng QUAY
+LẠI từ *KT duyệt bản cứng*, không phải một bước tiếp theo.
+
 Còn lại:
 
 | Màu | Trạng thái |
 |---|---|
 | Ô liu (vàng lục) `sửa 21/09` | Nháp |
 | Xanh lá | Đang có hiệu lực |
-| Hổ phách | Yêu cầu chỉnh sửa · và thẻ *Lỗi bản cứng* của Sale Admin |
+| Hổ phách | Yêu cầu chỉnh sửa |
+| Tím mận `mới 28/09` | Sale Admin sửa bản cứng · và thẻ *Lỗi bản cứng* của Sale Admin (trước `28/09` thẻ này tô hổ phách) |
 | Đỏ | Quá hạn duyệt |
 | **Xám đá** | Hết hiệu lực · Đã xoá |
 | Cam | thẻ *Sắp quá hạn* — không phải trạng thái |
@@ -1370,7 +1374,7 @@ không ai bấm nhầm nó khi đang định ký.
 | *Sửa hồ sơ* | Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*, và bạn là TDV phụ trách |
 | *Xoá hồ sơ* | Hồ sơ ở *Nháp* hoặc *Yêu cầu chỉnh sửa*, và bạn là TDV phụ trách |
 | *Tải tệp lên* | Hồ sơ đang nhận được đúng loại tệp ấy — *Hồ sơ* ở bước nháp, *Bản scan* ở bước Sale Admin |
-| *Gỡ* tệp | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa* hoặc *Sale Admin đang xử lý* |
+| *Gỡ* tệp | Hồ sơ ở *Nháp*, *Yêu cầu chỉnh sửa*, *Sale Admin đang xử lý* hoặc *Sale Admin sửa bản cứng* |
 | *Xuất hợp đồng (PDF)* | Kế toán đã tiếp nhận lần 1 |
 
 Hộp thoại *Tải tệp lên* cũng không hỏi loại tệp khi chỉ có một loại hợp lệ — một ô chọn với đúng một
@@ -1700,8 +1704,8 @@ nhau. Thứ tự giữa chúng đúng bằng thứ tự chúng xuất hiện:
 
 | Khối | Là gì | Ai đưa vào | Lúc nào |
 |---|---|---|---|
-| **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* |
-| **File SCAN bản cứng** `đổi tên 07/09` | File scan của bản giấy đã ký | Sale Admin | Bước *Sale Admin đang xử lý* |
+| **Bản mềm** `mới 31/08` | Bản CSBH A4 hệ thống dựng từ một mẫu | Sale Admin | Bước *Sale Admin đang xử lý* hoặc *Sale Admin sửa bản cứng* |
+| **File SCAN bản cứng** `đổi tên 07/09` | File scan của bản giấy đã ký | Sale Admin | Bước *Sale Admin đang xử lý* hoặc *Sale Admin sửa bản cứng* |
 
 ### Bản mềm và bản cứng của phiên bản trước `mới 07/09`
 

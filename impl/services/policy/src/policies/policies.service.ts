@@ -20,6 +20,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import {
+  BAN_SALE_ADMIN,
   computeLine,
   InvalidLineError,
   rate2ToNumeric,
@@ -356,7 +357,9 @@ export const loaiTepGhiDuoc = (status: string, role?: string): string[] => {
    * hệ quả: giao diện từng đọc `loaiGhiDuoc[0]` để biết đang tải loại gì, và với
    * hai phần tử thì nó tải bản mềm lên dưới nhãn bản scan. Xem `TepDinhKem`.
    */
-  if (status === 'SA_DANG_XU_LY') {
+  // `0225` — cả hai trạng thái của bàn Sale Admin: sửa bản cứng là đúng lúc họ
+  // phải gỡ bản scan bị chê và tải bản mới lên.
+  if (BAN_SALE_ADMIN.includes(status as Status)) {
     return NGUOI_GHI_TEP.SCAN === role ? ['SCAN', 'BAN_MEM'] : [];
   }
   return [];
@@ -510,7 +513,7 @@ export const COT_CUA_VAI_TRO: Record<string, string> = {
 export const DA_DONG_BANG = [
   'CHO_TBP_DUYET',
   'CHO_KT_L1',
-  'SA_DANG_XU_LY',
+  ...BAN_SALE_ADMIN,
   'CHO_KT_L2',
   'QUA_HAN_DUYET',
   'DANG_CO_HIEU_LUC',
@@ -550,7 +553,8 @@ export const CHUA_DUYET_XONG = [
   ...SUA_DUOC,
   'CHO_TBP_DUYET',
   'CHO_KT_L1',
-  'SA_DANG_XU_LY',
+  // `0225` — hai trạng thái của bàn Sale Admin; `0122` dựng lại chỉ mục theo.
+  ...BAN_SALE_ADMIN,
   'CHO_KT_L2',
 ];
 
@@ -2640,7 +2644,7 @@ export class PoliciesService {
        */
       phienBanSau: phienBanSauHoacRong,
       // `0221` — chỉ khi lý do còn là việc phải làm (`lyDoConCanBay`).
-      lyDoTraLai: lyDoSu && lyDoConCanBay(p.status, lyDoSu.action)
+      lyDoTraLai: lyDoSu && lyDoConCanBay(p.status)
         ? {
             lyDo: lyDoSu.reason,
             hanhDong: lyDoSu.action,
@@ -2791,7 +2795,7 @@ export class PoliciesService {
    * Dùng chung `SQL_CO_BAN_SCAN` với chốt chặn ấy, nên hai bên không lệch được.
    *
    * KHÔNG xét trạng thái. Nút chỉ hiện khi `allowed-actions` có `SA_HANDOVER`,
-   * tức khi hồ sơ đang ở `SA_DANG_XU_LY` — máy trạng thái đã trả lời câu ấy rồi,
+   * tức khi hồ sơ đang ở bàn Sale Admin (`BAN_SALE_ADMIN`) — máy trạng thái đã trả lời câu ấy rồi,
    * và hỏi lại ở đây là dựng bản sao thứ hai của máy trạng thái trong một hàm
    * chẳng liên quan gì tới nó.
    */
@@ -2821,7 +2825,12 @@ export class PoliciesService {
   }
 
   private async banScanCu(policyId: string, status: string): Promise<boolean> {
-    if (status !== 'SA_DANG_XU_LY') return false;
+    // `0225` — chỉ khi đang SỬA bản cứng: bản scan "cũ" là bản Kế toán vừa chê,
+    // và câu ấy chỉ có nghĩa trong đúng trạng thái sinh ra từ lượt chê ấy. Tới
+    // `0224` điều kiện là `SA_DANG_XU_LY`, nên sau một vòng *Hoàn duyệt → gửi
+    // lại → tiếp nhận L1* bản scan từ vòng trước vẫn bị gọi là "cũ" ở lượt làm
+    // bản cứng lần đầu mới.
+    if (status !== 'SA_SUA_BAN_CUNG') return false;
     const r = await this.db.one<{ cu: boolean }>(
       `SELECT EXISTS (
                 SELECT 1 FROM pol.policy_attachment a
@@ -3028,7 +3037,7 @@ export class PoliciesService {
       TDV: ['NHAP', 'YEU_CAU_CHINH_SUA'],
       TBP: ['CHO_TBP_DUYET'],
       KE_TOAN: ['CHO_KT_L1', 'CHO_KT_L2'],
-      SALE_ADMIN: ['SA_DANG_XU_LY'],
+      SALE_ADMIN: [...BAN_SALE_ADMIN],
     };
     const mine = waitingFor[me.role] ?? [];
     if (mine.length === 0) return paged([], page);

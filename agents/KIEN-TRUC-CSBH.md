@@ -17,8 +17,8 @@ cho backend lẫn frontend, và quy trình kiểm thử local trước khi lên 
 
 | | | | |
 |---|---|---|---|
-| **10** service ứng dụng | **1998** ca kiểm đang chạy | **10** trạng thái hồ sơ | **6** vai trò |
-| **10** tài khoản mẫu | **71** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
+| **10** service ứng dụng | **1998** ca kiểm đang chạy | **11** trạng thái hồ sơ | **6** vai trò |
+| **10** tài khoản mẫu | **73** migration | **8 GB** RAM một VM là đủ | **~50** người dùng |
 
 ## Mục lục
 
@@ -136,7 +136,7 @@ Mười service. Cột “sở hữu dữ liệu” là ranh giới cứng: khô
 | identity | Tài khoản, 6 vai trò, phát và thu hồi token, giải phạm vi dữ liệu | `idn.*` | Phạm vi dữ liệu được mọi service dùng; tách ra để chỉ có một nơi định nghĩa “ai thấy được gì”. **Cây tổ chức đã bỏ hẳn `16/08`** — phạm vi suy từ bốn cột người trên chính hồ sơ, xem §06. |
 | catalog | Sản phẩm, giá bán Công ty, lịch sử giá, chiết khấu quy định, nhóm SP, mẫu bản CSBH, người ký *(không gồm mẫu hợp đồng)* | `cat.*` | Do Quản trị hệ thống nhập, nhịp thay đổi rất chậm và độc lập hoàn toàn với luồng duyệt. Chỉ nó được phát `catalog.price_changed`. |
 | customer | Khách hàng, chống trùng mã KH, hồ sơ pháp lý đính kèm, gán TDV phụ trách | `cus.*` | Vòng đời khách hàng dài hơn vòng đời một CSBH; nhiều CSBH tham chiếu tới cùng một khách hàng. |
-| policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái **10 trạng thái** (`sửa 29/08`), phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
+| policy | Hồ sơ CSBH, dòng sản phẩm, công thức chiết khấu, đóng băng giá, máy trạng thái **11 trạng thái** (`sửa 28/09`), phiên bản, hiệu lực | `pol.*` | Trái tim hệ thống, cũng là nơi thay đổi nhiều nhất. Tách để triển khai lại được mà không đụng danh mục. |
 | document | Dựng bản CSBH và hợp đồng từ mẫu `.docx`, băm và lưu file. **Sở hữu nghiệp vụ văn bản mẫu**: ba loại mẫu (`0165`) do Quản trị tải lên, bảng ánh xạ trường, trộn dữ liệu và sinh PDF | `doc.*` — mẫu, ánh xạ và **file**, gồm bản mềm đã lưu (`0167`); **không lưu hợp đồng** | Gọi Gotenberg — ngốn RAM và CPU theo đợt. Tách để giới hạn tài nguyên riêng, không làm chậm API nghiệp vụ. **Ký số nội bộ đã gỡ `0103`**; **xoá scan khi in lại đã bỏ `0050`** — Sale Admin chủ động gỡ và thay. Mẫu nằm ở đây chứ không ở `catalog` vì mẫu và bảng ánh xạ chỉ có nghĩa với đúng cái máy sinh file này. |
 | notification | Email theo bảng bước §3, gộp một luồng cho mỗi khách hàng, nhắc SLA, DLQ | `ntf.*` | Phụ thuộc SMTP bên ngoài, hay lỗi và cần retry lâu. Không được để việc gửi thư làm hỏng transaction duyệt hồ sơ. |
 | reporting | Read-model phẳng phục vụ **9 tiêu chí lọc** (`sửa 21/08`), báo cáo tiến độ, thống kê (`0094`), xuất Excel chạy nền | `rpt.*` | Bộ lọc trải trên dữ liệu của 3 service. Nếu join chéo thì phá ranh giới; nếu gọi vòng thì chậm. Read-model dựng từ sự kiện là lối thoát đúng. |
@@ -166,7 +166,7 @@ Nguyên tắc chọn: ưu tiên thứ đội 3–5 người vận hành được
 | Ngôn ngữ & runtime | **TypeScript · Node 22 LTS** | Một ngôn ngữ cho backend, worker và SPA. Kiểu dữ liệu của response dùng chung, đổi hợp đồng API là compile lỗi ngay ở frontend. Ảnh Docker ~180MB, khởi động <2s. | *Java/Spring Boot*: mỗi container 400–600MB RAM × 10 = quá nặng cho VM 8GB. *Go*: nhanh nhưng phần lớn công việc ở đây là CRUD + form + báo cáo, boilerplate không đáng. *Python/FastAPI*: tốt, nhưng không chia sẻ được kiểu với frontend. |
 | Framework backend | **NestJS 10** | Module hóa sẵn theo đúng biên giới service; guard/interceptor là chỗ tự nhiên để cắm kiểm quyền theo vai trò + phạm vi + trạng thái hồ sơ (§10). Sinh OpenAPI tự động để dùng cho contract test. | *Express thuần*: 10 service sẽ thành 10 kiểu cấu trúc khác nhau. *Fastify thuần*: nhanh hơn nhưng ở 50 user thì tốc độ framework không phải nút cổ chai. |
 | CSDL | **PostgreSQL 16** | Ba thứ nghiệp vụ này gần như đòi Postgres: partial unique index cho “một CSBH hiệu lực” và cho “mã số thuế duy nhất giữa khách đang hợp tác” (`0175`), `numeric` chính xác cho tiền và tỷ lệ, và phân quyền cấp schema + trigger để cưỡng chế nhật ký chỉ ghi thêm. (*Recursive CTE cho cây phân quyền* — lý do thứ tư của bản thiết kế — mất theo cây tổ chức `16/08`.) | *MySQL*: không có partial index (phải mô phỏng bằng cột sinh, dễ sai). *MongoDB*: mất transaction đa bảng — mà vô hiệu bản cũ + kích hoạt bản mới bắt buộc phải nguyên tử. |
-| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 71 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
+| Truy cập dữ liệu | **`pg` thuần + SQL viết tay**, 73 migration `.sql` đánh số | **Đảo lựa chọn `Prisma 5` của bản thiết kế.** Phần lớn thứ khó ở đây — partial index, trigger, `REVOKE`, cột sinh, kiểu enum dựng lại — đều nằm ngoài thứ ORM diễn đạt được, nên Prisma sẽ chỉ là một lớp phủ mà mọi chỗ khó đều phải chọc thủng. Migration là **nguồn sự thật của lược đồ**, tên file mang chính mã thay đổi. | *Prisma*: hai nguồn sự thật về lược đồ. *TypeORM*: migration hay lệch với thực tế. |
 | Bus sự kiện | **RabbitMQ 3.13**, topic exchange `csbh.events` | Có sẵn DLQ, retry theo TTL, giao diện quản trị để kế toán vận hành nhìn được hàng đợi email lỗi. Chiếm ~120MB RAM. | *Kafka*: thừa mấy bậc cho vài nghìn sự kiện/tháng, tốn ~1GB RAM. *Redis Streams*: đã có Redis nhưng thiếu routing theo topic và DLQ, phải tự viết. *NATS*: nhẹ hơn nhưng đội ít quen, công cụ vận hành mỏng hơn. |
 | Hàng đợi việc & cache | **Redis 7** (`ioredis`) | Cache ảnh chụp danh tính cho token (`0090`), khoá phân tán cho cron SLA. **BullMQ đã bỏ khỏi lựa chọn**: xuất Excel và sinh PDF chạy đồng bộ trong lời gọi, còn thư retry đi qua RabbitMQ với DLQ — không còn loại job nào cần lịch trình riêng. | *Dùng RabbitMQ cho cả cache*: sai công cụ. |
 | Lưu file | **MinIO** (S3 API) | File ký, bản scan, hợp đồng phải xóa được *thật* khi kế toán yêu cầu in lại (§10) — S3 API cho xóa theo object và bật versioning chọn lọc. Sau này chuyển lên S3/Cloud không đổi code. | *Lưu vào thư mục ổ đĩa*: khó sao lưu nhất quán, khó cấp link có hạn. *BLOB trong Postgres*: phình DB, sao lưu chậm. |
@@ -554,7 +554,7 @@ Ba hệ quả phải nhớ khi đọc mã:
 
 ## 07. Máy trạng thái hồ sơ
 
-**Mười trạng thái** `sửa 29/08`, danh sách đóng — nguồn sự thật là `STATUSES` trong
+**Mười một trạng thái** `sửa 28/09` (thêm *Sale Admin sửa bản cứng*, `0225`), danh sách đóng — nguồn sự thật là `STATUSES` trong
 `packages/domain-policy/src/state-machine.ts`. Mọi chuyển trạng thái không có trong sơ đồ đều trả
 `409 INVALID_TRANSITION` kèm trạng thái hiện tại và danh sách hành động được phép.
 
@@ -564,7 +564,8 @@ stateDiagram-v2
   Nhap: Nháp — sửa tự do
   ChoTBP: Chờ TBP duyệt — khóa sửa
   ChoL1: KT duyệt bản mềm
-  SAXuLy: Sale Admin đang xử lý
+  SAXuLy: Sale Admin đang xử lý — bản cứng lần đầu
+  SASua: Sale Admin sửa bản cứng — Kế toán bắt in lại (0225)
   ChoL2: KT duyệt bản cứng
   HieuLuc: Đang có hiệu lực — vô thời hạn
   HetHieuLuc: Hết hiệu lực
@@ -580,13 +581,15 @@ stateDiagram-v2
   ChoTBP --> YeuCauSua: TBP trả lại (B4B)
   ChoL1 --> YeuCauSua: KT không nhận L1 (B6B)
   ChoL2 --> YeuCauSua: KT không nhận L2 (B10B)
-  ChoL2 --> SAXuLy: yêu cầu in lại (B10C)
+  ChoL2 --> SASua: yêu cầu in lại (B10C)
+  SASua --> ChoL2: SA bàn giao lại (B9)
   YeuCauSua --> ChoTBP: TDV sửa và gửi lại, TẠO PHIÊN BẢN MỚI
   Nhap --> [*]: TDV xoá — XOÁ HẲN DÒNG, không ghi lịch sử
   YeuCauSua --> DaXoa: TDV xoá — giữ dòng và nhật ký
   ChoTBP --> QuaHan: quá 14 ngày
   ChoL1 --> QuaHan: quá 14 ngày
   SAXuLy --> QuaHan: quá 14 ngày
+  SASua --> QuaHan: quá 14 ngày
   ChoL2 --> QuaHan: quá 14 ngày
   QuaHan --> DaXoa: sla-worker, sau 3 ngày
   DaXoa --> [*]
@@ -595,7 +598,10 @@ stateDiagram-v2
 **Hình 2 — Toàn bộ đường đi hợp lệ của một hồ sơ.** Ba nhánh trả lại đều đổ về *Yêu cầu chỉnh sửa*
 và đều tạo phiên bản mới, nghĩa là phải ký lại từ đầu. Vòng in lại là ngoại lệ duy nhất: hồ sơ quay
 về Sale Admin mà *không* phải ký lại. *Quá hạn duyệt* không phải một bước trong luồng mà là lớp phủ
-lên bốn trạng thái chờ, nên bản ghi phải nhớ nó đang chờ ở bước nào.
+lên năm trạng thái chờ, nên bản ghi phải nhớ nó đang chờ ở bước nào. *Sale Admin sửa bản cứng*
+(`0225`) là trạng thái riêng của vòng in lại — tới `0224` vòng ấy quay về chính *Sale Admin đang xử
+lý* và chỉ phân biệt được bằng mốc `reprint_requested_at`, nay đã gỡ. Hai trạng thái chung **bước
+B8** (`pending_step`), và cả hai là hằng `BAN_SALE_ADMIN`.
 
 > **Ba chỗ sơ đồ này đã đổi so với bản thiết kế**, và cả ba đều là quyết định của khách hàng:
 >

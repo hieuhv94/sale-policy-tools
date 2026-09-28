@@ -17,11 +17,13 @@ import type { PoolClient } from 'pg';
 import {
   allowedActions,
   allowedActionsFor,
+  BAN_SALE_ADMIN,
   ForbiddenRoleError,
   InvalidTransitionError,
   ReasonRequiredError,
   SUA_DUOC,
   transition,
+  WAITING,
   type Action,
   type Role,
   type Status,
@@ -702,22 +704,15 @@ export class WorkflowService {
       const slaIdx = params.length;
 
       /*
-       * Mốc phân biệt "Trình ký" với "Lỗi bản cứng" (`0045`).
+       * KHỐI MỐC `reprint_requested_at` ĐÃ GỠ (`0225`).
        *
-       * Cả hai cùng là `SA_DANG_XU_LY`, nên trạng thái không nói được Sale Admin
-       * đang làm bản cứng LẦN ĐẦU hay đang làm LẠI sau khi kế toán bắt in lại.
-       *
-       * Bất biến: mốc chỉ tồn tại trong lúc hồ sơ đang nằm ở Sale Admin. Đặt khi
-       * vào bằng cửa B10C, xoá khi ra bằng B9. Đó là hai lối duy nhất — không có
-       * hành động nào khác đi ra khỏi `SA_DANG_XU_LY`, nên không cần dọn ở đâu
-       * nữa; thêm chỗ dọn thứ ba chỉ làm bất biến này khó đọc hơn.
+       * Nó phân biệt "Trình ký" với "Lỗi bản cứng" khi cả hai còn chung trạng
+       * thái `SA_DANG_XU_LY` (`0045`), với bất biến *"đặt khi vào bằng B10C, xoá
+       * khi ra bằng B9 — không hành động nào khác đi ra khỏi trạng thái ấy"*.
+       * `0185` thêm *Hoàn duyệt* từ đúng trạng thái ấy và bất biến lặng lẽ gãy:
+       * mốc sống sót qua lượt hoàn duyệt. Từ `0225` ca in lại là trạng thái
+       * `SA_SUA_BAN_CUNG`, nên không còn mốc nào để đặt hay quên dọn.
        */
-      const reprintSql =
-        action === 'KT_REQUEST_REPRINT'
-          ? 'reprint_requested_at = now(),'
-          : action === 'SA_HANDOVER'
-            ? 'reprint_requested_at = NULL,'
-            : '';
 
       /*
        * KHỐI GHI `mau_ho_so_id` ĐÃ GỠ (`0163`) — cột ấy không còn trong lược đồ.
@@ -830,7 +825,7 @@ export class WorkflowService {
       const upd = await c.query<{ id: string }>(
         `UPDATE pol.policy SET
             status = $2::pol.policy_status,
-            ${stampSql}${reprintSql}${khSql}${kySql}
+            ${stampSql}${khSql}${kySql}
             last_reason = coalesce($${reasonIdx}, last_reason),
             effective_from = CASE WHEN $${effIdx} THEN now() ELSE effective_from END,
             sla_due_at = CASE WHEN $${slaIdx}
@@ -884,7 +879,7 @@ export class WorkflowService {
        * khi so với bản scan đang có. Xoá ngay là lấy mất vật đối chiếu của đúng
        * người sắp phải sửa.
        *
-       * Đổi lại có một khe: hồ sơ quay về `SA_DANG_XU_LY` mà vẫn đủ điều kiện
+       * Đổi lại có một khe: hồ sơ quay về bàn Sale Admin mà vẫn đủ điều kiện
        * bàn giao (WF-14 chỉ đòi CÓ bản scan), nên bấm bàn giao ngay là gửi lại
        * đúng bản Kế toán vừa chê. `banScanCu` bên dưới đóng khe ấy bằng một lời
        * cảnh báo trên màn hình — không chặn, vì "chủ động" là điều khách hàng
@@ -1117,7 +1112,7 @@ export class WorkflowService {
         message: 'Hồ sơ đã gửi duyệt, file đính kèm chỉ đọc',
       });
     }
-    if (input.kind === 'SCAN' && p.status !== 'SA_DANG_XU_LY') {
+    if (input.kind === 'SCAN' && !BAN_SALE_ADMIN.includes(p.status as Status)) {
       throw new ConflictException({
         code: 'INVALID_TRANSITION',
         message: 'Chỉ tải bản scan khi hồ sơ đang ở bước Sale Admin xử lý',
@@ -1153,7 +1148,7 @@ export class WorkflowService {
     );
     if (!p) throw new NotFoundException({ code: 'POLICY_NOT_FOUND' });
     await this.policies.assertPolicyInScope(p, me);
-    if (!['NHAP', 'YEU_CAU_CHINH_SUA', 'SA_DANG_XU_LY'].includes(p.status)) {
+    if (![...SUA_DUOC, ...BAN_SALE_ADMIN].includes(p.status)) {
       throw new ConflictException({ code: 'POLICY_LOCKED' });
     }
 
@@ -1223,8 +1218,13 @@ export class WorkflowService {
   }
 }
 
-const WAITING_STATES = ['CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'];
-const isWaiting = (s: string) => WAITING_STATES.includes(s);
+/*
+ * Đọc `WAITING` của `domain-policy`, không giữ bản chép (`0225`). Tới `0224` ở
+ * đây có `WAITING_STATES` gõ lại bốn chuỗi — và thêm `SA_SUA_BAN_CUNG` vào bảng
+ * gốc mà quên bản này là hồ sơ vào trạng thái ấy KHÔNG có hạn, trong khi
+ * `sla-worker` vẫn đi tìm nó theo bảng gốc.
+ */
+const isWaiting = (s: string) => WAITING.includes(s as Status);
 
 
 /** Lỗi của máy trạng thái sang mã HTTP. Giữ nguyên thông điệp và danh sách gợi ý. */

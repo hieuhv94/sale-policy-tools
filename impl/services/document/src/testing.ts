@@ -13,7 +13,7 @@ export async function createTestApp(): Promise<INestApplication> {
 export { Storage, sha256, BUCKET } from './infra/storage.js';
 export { FilesService, sniff, MAX_BYTES } from './files/files.service.js';
 export { mintFileToken, FILE_LINK_TTL_SEC } from './files/file-link.js';
-export { money, pct, dmy } from './contracts/dinh-dang.js';
+export { money, pct, dmy, STATUS_LABEL } from './contracts/dinh-dang.js';
 /*
  * `COMPANY` mở ra cho bộ kiểm (`0151`).
  *

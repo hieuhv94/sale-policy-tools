@@ -19,6 +19,7 @@ import { BoDinhTuyen } from '@csbh/web/router';
 import { KHOA_NHAN_TU_LIEN_KET } from '@csbh/web/ho-so-ui';
 import { VAI_TRO, xem, type VaiTro } from '@csbh/web/can';
 import { NHAN_TRANG_THAI, nhomTrangThai } from '@csbh/web/format';
+import { STATUSES } from '@csbh/domain-policy';
 import {
   BAN_CUA,
   BUOC_CUA,
@@ -33,6 +34,7 @@ import {
   mauThe,
   nhanThe,
   THE_THEO_VAI_TRO,
+  TRANG_THAI_NUA_B8,
   type OBuoc,
   type The,
 } from '@csbh/web/tong-quan';
@@ -128,6 +130,14 @@ describe('mã trạng thái và mã bước phải có thật', () => {
      */
     expect([...MOI_TRANG_THAI].sort()).toEqual(Object.keys(NHAN_TRANG_THAI).sort());
     expect(MOI_TRANG_THAI).not.toContain('TBP_DA_KY_SO');
+  });
+
+  it('`0225` `MOI_TRANG_THAI` khớp ĐÚNG `STATUSES` của máy trạng thái', () => {
+    // Ca trên chỉ so hai bảng CỦA GIAO DIỆN với nhau — thêm một trạng thái ở
+    // `domain-policy` mà quên cả hai bảng thì hai bảng vẫn bằng nhau, và ô chọn
+    // trạng thái của danh sách hồ sơ thiếu đúng trạng thái mới.
+    expect([...MOI_TRANG_THAI].sort()).toEqual([...STATUSES].sort());
+    expect(BAN_CUA.SA_SUA_BAN_CUNG).toBe('SALE_ADMIN');
   });
 
   it('mọi thẻ đều trỏ tới một trạng thái hoặc một ô bước có thật', () => {
@@ -327,27 +337,41 @@ describe('mọi thẻ đều bấm được, và bấm ra đúng thứ nó đế
      * sách NGẮN HƠN con số vừa bấm vào — người dùng đếm được, và không có phép
      * kiểm nào tự bắt lỗi ấy.
      */
+    /*
+     * NGOẠI LỆ TỪ `0225`: thẻ của ĐÚNG MỘT nửa B8 lọc theo `status`, vì mỗi nửa
+     * giờ là một trạng thái và tiêu chí `reprint` đã gỡ. Lý do ở đầu ca này
+     * KHÔNG áp cho chúng: từ `0047` hồ sơ quá hạn không còn nằm ở bước nào
+     * (`BUOC_DANG_CHO` trả NULL cho `QUA_HAN_DUYET`), nên với MỘT trạng thái chờ
+     * thì `pendingStep` và `status` cho ra cùng một tập. Thẻ ôm trọn cả bước
+     * (hai nửa, hoặc bước khác) vẫn lọc theo bước như cũ.
+     */
     for (const v of VAI_TRO) {
       for (const t of THE_THEO_VAI_TRO[v]) {
         if (t.dem.tu !== 'buoc') continue;
+        const motNuaB8 = t.dem.o.length === 1 && TRANG_THAI_NUA_B8[t.dem.o[0]!] !== undefined;
+        if (motNuaB8) continue;
         expect(duongThe(t), `${v}/${t.ma}`).toContain('pendingStep=');
         expect(duongThe(t), `${v}/${t.ma} lọc theo trạng thái`).not.toContain('status=');
       }
     }
   });
 
-  it('chỉ thẻ lấy ĐÚNG MỘT nửa của B8 mới kèm tiêu chí `reprint`', () => {
-    // Thẻ "Đang chờ" của TDV/TBP/Kế toán ôm trọn cả hai nửa; kèm `reprint` vào
-    // là lọc mất một nửa số hồ sơ nó vừa đếm.
+  it('`0225` hai thẻ của Sale Admin lọc theo TRẠNG THÁI của đúng nửa B8 mình đếm', () => {
+    // Thay ca `0045` *"chỉ thẻ lấy đúng một nửa B8 mới kèm `reprint`"*: hai nửa
+    // B8 giờ là hai trạng thái, và thẻ đếm bằng `status` (khoá thẻ ở reporting)
+    // nên danh sách bấm ra phải lọc bằng chính cột ấy.
+    expect(duongThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!)).toBe('/ho-so?status=SA_DANG_XU_LY');
+    expect(duongThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe('/ho-so?status=SA_SUA_BAN_CUNG');
+    // Tên thẻ GIỮ *Lỗi bản cứng* — khách hàng chốt 28/09.
+    expect(nhanThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe('Lỗi bản cứng');
     for (const v of VAI_TRO) {
       for (const t of THE_THEO_VAI_TRO[v]) {
-        if (t.dem.tu !== 'buoc') continue;
-        const nua = t.dem.o.filter((o) => BUOC_THAT[o] === 'B8_SA_XU_LY').length;
-        expect(duongThe(t).includes('reprint='), `${v}/${t.ma} có ${nua} nửa B8`).toBe(nua === 1);
+        expect(duongThe(t), `${v}/${t.ma} còn tiêu chí đã gỡ`).not.toContain('reprint=');
+        // Thẻ ôm trọn bước B8 lọc theo BƯỚC — lọc theo một trạng thái là mất nửa kia.
+        const nua = t.dem.tu === 'buoc' ? t.dem.o.filter((o) => BUOC_THAT[o] === 'B8_SA_XU_LY').length : 0;
+        if (nua === 2) expect(duongThe(t), `${v}/${t.ma}`).toContain('B8_SA_XU_LY');
       }
     }
-    expect(duongThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!)).toContain('reprint=0');
-    expect(duongThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toContain('reprint=1');
   });
 });
 
@@ -448,12 +472,12 @@ describe('thẻ chỉ nói việc của CHÍNH vai trò đó', () => {
     expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!)).toBe(nhomTrangThai('SA_DANG_XU_LY'));
 
     /*
-     * `B8_LOI_BAN_CUNG` là ngoại lệ DUY NHẤT, và nó không có trạng thái riêng
-     * để mượn: cả nó lẫn *Trình ký* đều là `SA_DANG_XU_LY`. Nó mượn màu của
-     * *Yêu cầu chỉnh sửa* — cùng một chuyện "có người trả việc về cho bạn" — và
-     * hai thẻ ấy không bao giờ đứng chung một dải.
+     * `B8_LOI_BAN_CUNG` TỪNG là ngoại lệ (mượn hổ phách của *Yêu cầu chỉnh sửa*,
+     * vì tới `0224` nó không có trạng thái riêng). Từ `0225` nó có, và theo đúng
+     * luật chung của ca này.
      */
-    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe(nhomTrangThai('YEU_CAU_CHINH_SUA'));
+    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).toBe(nhomTrangThai('SA_SUA_BAN_CUNG'));
+    expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).not.toBe(nhomTrangThai('YEU_CAU_CHINH_SUA'));
     expect(mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[1]!)).not.toBe(
       mauThe(THE_THEO_VAI_TRO.SALE_ADMIN[0]!),
     );

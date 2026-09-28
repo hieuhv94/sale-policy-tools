@@ -1582,10 +1582,11 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     await flushSync([id]);
   }
 
-  const moc = (id: string) =>
+  /** Trạng thái ở NGUỒN và ở READ-MODEL — hai nơi thẻ và danh sách đọc. */
+  const haiNoi = (id: string) =>
     withAdminDb(async (c) => {
-      const r = await c.query<{ a: string | null; b: string | null }>(
-        `SELECT p.reprint_requested_at AS a, r.reprint_requested_at AS b
+      const r = await c.query<{ a: string; b: string | null }>(
+        `SELECT p.status::text AS a, r.status AS b
            FROM pol.policy p LEFT JOIN rpt.policy_row r ON r.policy_id = p.id
           WHERE p.id = $1`,
         [id],
@@ -1593,25 +1594,61 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
       return r.rows[0]!;
     });
 
-  it('yêu cầu in lại đặt mốc, bàn giao lại xoá mốc', async () => {
+  /*
+   * `0225` THAY ca *"yêu cầu in lại đặt mốc, bàn giao lại xoá mốc"*: mốc
+   * `reprint_requested_at` đã gỡ, và hai nửa của B8 giờ là HAI TRẠNG THÁI.
+   */
+  it('`0225` yêu cầu in lại → SA sửa bản cứng ở CẢ nguồn lẫn read-model; bàn giao lại thì rời đi', async () => {
     const id = await toiSaleAdmin();
-    expect((await moc(id)).a, 'chưa ai bắt in lại mà đã có mốc').toBeNull();
+    expect((await haiNoi(id)).a).toBe('SA_DANG_XU_LY');
 
     await toiKeToanL2(id);
     expect((await act(id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Bản in mờ' })).status).toBe(200);
     await flushSync([id]);
+    expect(await haiNoi(id)).toEqual({ a: 'SA_SUA_BAN_CUNG', b: 'SA_SUA_BAN_CUNG' });
 
-    const sau = await moc(id);
-    expect(sau.a, 'nguồn chưa ghi mốc in lại').not.toBeNull();
-    expect(sau.b, 'read-model chưa chép mốc sang').not.toBeNull();
-
-    // Bàn giao lại: hồ sơ rời bàn Sale Admin, mốc phải mất theo. Còn lại thì lần
-    // sau hồ sơ quay về B8 vì lý do khác vẫn bị gắn nhãn đỏ "Lỗi bản cứng".
     await toiKeToanL2(id);
-    expect((await moc(id)).a, 'bàn giao rồi mà mốc còn').toBeNull();
+    expect((await haiNoi(id)).a).toBe('CHO_KT_L2');
   });
 
-  it('hai nửa của B8 tách ra hai ô đếm riêng', async () => {
+  it('`0225` mốc `reprint_requested_at` đã gỡ khỏi CẢ HAI bảng', async () => {
+    // Để lại cột ở một bên là để lại một câu trả lời thứ hai không ai ghi nữa.
+    const cot = await withAdminDb(async (c) =>
+      (
+        await c.query<{ t: string }>(
+          `SELECT table_schema || '.' || table_name AS t FROM information_schema.columns
+            WHERE column_name = 'reprint_requested_at'`,
+        )
+      ).rows.map((x) => x.t),
+    );
+    expect(cot).toEqual([]);
+  });
+
+  it('`0225` Hoàn duyệt giữa lúc sửa bản cứng: vòng sau là TRÌNH KÝ, không còn là lỗi bản cứng', async () => {
+    /*
+     * Lỗ của mốc cũ: bất biến `0045` là *"không hành động nào khác đi ra khỏi
+     * SA_DANG_XU_LY"*, `0185` thêm Hoàn duyệt mà không dọn mốc. Hồ sơ bị hoàn
+     * duyệt lúc đang sửa bản cứng, gửi lại, tới B8 lần sau vẫn bị đếm vào *Lỗi
+     * bản cứng*. Ca này đi hết vòng ấy và đòi nó rơi vào ô *Trình ký*.
+     */
+    const id = await toiSaleAdmin();
+    await toiKeToanL2(id);
+    expect((await act(id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Sai dấu' })).status).toBe(200);
+    expect((await act(id, 'TBP_RECALL', 'tbp01', { reason: 'Ký nhầm' })).status).toBe(200);
+    expect((await act(id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    expect((await act(id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    await flushSync([id]);
+
+    const ma = async (q: string) =>
+      (await rget(`/reports/policies?${q}&limit=200`, 'sa01')).body.items.map(
+        (x: { policyId: string }) => x.policyId,
+      );
+    expect(await ma('status=SA_DANG_XU_LY')).toContain(id);
+    expect(await ma('status=SA_SUA_BAN_CUNG')).not.toContain(id);
+  });
+
+  it('hai nửa của B8 tách ra hai ô đếm riêng, và mỗi thẻ mở đúng hồ sơ của nó', async () => {
     const thuong = await toiSaleAdmin();
     const inLai = await toiSaleAdmin();
     await toiKeToanL2(inLai);
@@ -1624,20 +1661,24 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(o.B8_TRINH_KY?.total ?? 0).toBeGreaterThan(0);
     expect(o.B8_LOI_BAN_CUNG?.total ?? 0).toBeGreaterThan(0);
 
-    // Và cái quan trọng: bấm vào thẻ nào mở ra đúng hồ sơ của thẻ ấy.
+    // `0225` — thẻ dẫn sang `?status=…` (xem `duongThe`), không còn `reprint`.
     const ma = async (q: string) =>
       (await rget(`/reports/policies?${q}&limit=200`, 'sa01')).body.items.map(
         (x: { policyId: string }) => x.policyId,
       );
-    const trinhKy = await ma('pendingStep=B8_SA_XU_LY&reprint=0');
-    const loi = await ma('pendingStep=B8_SA_XU_LY&reprint=1');
+    const trinhKy = await ma('status=SA_DANG_XU_LY');
+    const loi = await ma('status=SA_SUA_BAN_CUNG');
     expect(trinhKy).toContain(thuong);
     expect(trinhKy).not.toContain(inLai);
     expect(loi).toContain(inLai);
     expect(loi).not.toContain(thuong);
+
+    // Con số trên thẻ BẰNG số dòng của danh sách thẻ ấy mở ra — cả hai đếm theo
+    // `status`, và đó là cả lý do khoá thẻ phải đọc cùng cột với bộ lọc.
+    expect(o.B8_LOI_BAN_CUNG!.total).toBe(loi.length);
   });
 
-  it('bỏ `reprint` thì lấy trọn cả hai nửa — đúng cho thẻ "Đang chờ"', async () => {
+  it('`pendingStep=B8_SA_XU_LY` lấy trọn cả hai trạng thái — đúng cho thẻ "Đang chờ"', async () => {
     const thuong = await toiSaleAdmin();
     const inLai = await toiSaleAdmin();
     await toiKeToanL2(inLai);
@@ -1650,13 +1691,15 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
     expect(ids).toContain(inLai);
   });
 
-  it('`reprint` nhận giá trị lạ thì 400, không im lặng bỏ qua', async () => {
-    // Bỏ qua một tiêu chí không hiểu ở đây nghĩa là MỞ RỘNG kết quả ra cả hai
-    // nhóm — sai theo hướng trả về nhiều hơn, tức là kiểu sai phải báo.
+  it('`0225` tiêu chí `reprint` đã gỡ — liên kết cũ bị BỎ QUA như mọi khoá lạ', async () => {
+    /*
+     * Tới `0224` giá trị lạ của `reprint` trả 400. Giờ cả khoá thôi tồn tại, và
+     * `cleanFilter` bỏ khoá lạ (RPT-03) — nên liên kết cũ `?reprint=1` còn lưu
+     * đâu đó mở ra RỘNG hơn (cả hai nửa B8) chứ không lỗi. Đã nêu trong nhật ký;
+     * ca này ghim hành vi ấy để không ai tưởng nó còn lọc.
+     */
     const r = await rget('/reports/policies?pendingStep=B8_SA_XU_LY&reprint=2', 'sa01');
-    expect(r.status).toBe(400);
-    expect(r.body.code).toBe('VALIDATION_FAILED');
-    expect(r.body.field).toBe('reprint');
+    expect(r.status).toBe(200);
   });
 
   it('`0053` danh sách hồ sơ mang cờ `sapQuaHan` cho từng dòng', async () => {
@@ -1919,7 +1962,7 @@ describe('`0045` thẻ đếm theo bước, và hai việc của Sale Admin', ()
       { total: number }
     >;
     const dem = o.B8_TRINH_KY?.total ?? 0;
-    const ds = await rget('/reports/policies?pendingStep=B8_SA_XU_LY&reprint=0&limit=200', 'sa01');
+    const ds = await rget('/reports/policies?status=SA_DANG_XU_LY&limit=200', 'sa01');
     expect(ds.body.items.length).toBe(dem);
     expect(dem).toBeGreaterThan(0);
   });

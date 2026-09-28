@@ -15,13 +15,14 @@ import { build, BUOC_DANG_CHO, SAP_QUA_HAN, type Filter, type PhamVi } from './f
 /**
  * Khoá thẻ trên trang tổng quan — bốn bước chờ, riêng B8 tách làm hai (`0045`).
  *
- * `SA_DANG_XU_LY` gộp hai việc khác hẳn nhau: in và trình ký lần đầu (B8), hay
- * làm lại bản cứng vì kế toán bắt in lại (B10C). Sale Admin cần hai con số, và
- * chỉ mốc `reprint_requested_at` phân biệt được.
+ * B8 gộp hai việc khác hẳn nhau: in và trình ký lần đầu, hay làm lại bản cứng vì
+ * kế toán bắt in lại (B10C). Sale Admin cần hai con số. Tới `0224` chỉ mốc
+ * `reprint_requested_at` phân biệt được; từ `0225` đó là hai TRẠNG THÁI, nên
+ * khoá đọc thẳng `status` — cùng cột mà danh sách bấm từ thẻ ra lọc theo.
  */
 const KHOA_THE = `CASE
     WHEN ${BUOC_DANG_CHO} <> 'B8_SA_XU_LY' THEN ${BUOC_DANG_CHO}
-    WHEN reprint_requested_at IS NOT NULL  THEN 'B8_LOI_BAN_CUNG'
+    WHEN status = 'SA_SUA_BAN_CUNG'        THEN 'B8_LOI_BAN_CUNG'
     ELSE 'B8_TRINH_KY'
   END`;
 

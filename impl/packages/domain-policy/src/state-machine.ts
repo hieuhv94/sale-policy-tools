@@ -34,8 +34,16 @@
  * bên `format.ts` và `templates.ts` cũng đã gỡ theo — không còn dòng dữ liệu nào
  * mang giá trị ấy để mà cần đọc.
  */
+/*
+ * `SA_SUA_BAN_CUNG` THÊM Ở `0225` (khách hàng chốt 28/09) — hồ sơ Kế toán trả
+ * về Sale Admin để làm LẠI bản cứng (B10C, `KT_REQUEST_REPRINT`). Tới `0224` ca
+ * này mang chung trạng thái `SA_DANG_XU_LY` với lượt làm bản cứng LẦN ĐẦU, và chỉ
+ * phân biệt được bằng mốc `reprint_requested_at` (`0045`) — một mốc mà nhãn trạng
+ * thái ở mọi màn hình, thư báo và bộ lọc không đọc tới. Mốc ấy đã GỠ: một câu
+ * hỏi, một chỗ trả lời, và chỗ ấy là trạng thái.
+ */
 export const STATUSES = [
-  'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
+  'NHAP', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG',
   'CHO_KT_L2', 'DANG_CO_HIEU_LUC', 'HET_HIEU_LUC', 'YEU_CAU_CHINH_SUA',
   'QUA_HAN_DUYET', 'DA_XOA',
 ] as const;
@@ -96,11 +104,14 @@ export const RULES: readonly Rule[] = [
   { action: 'KT_RETURN_L1', from: 'CHO_KT_L1',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
   { action: 'SA_HANDOVER', from: 'SA_DANG_XU_LY',    to: 'CHO_KT_L2',        by: 'SALE_ADMIN', stamp: 'sa_handover' },
+  // `0225` — bàn giao LẠI sau khi sửa bản cứng: cùng hành động, cùng đích.
+  { action: 'SA_HANDOVER', from: 'SA_SUA_BAN_CUNG',  to: 'CHO_KT_L2',        by: 'SALE_ADMIN', stamp: 'sa_handover' },
   { action: 'KT_RECEIVE_L2', from: 'CHO_KT_L2',        to: 'DANG_CO_HIEU_LUC', by: 'KE_TOAN',    stamp: 'kt_l2_received' },
   { action: 'KT_RETURN_L2', from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'KE_TOAN',   stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
-  // Ngoại lệ duy nhất: quay về Sale Admin mà KHÔNG phải ký lại (§3 B10C).
-  { action: 'KT_REQUEST_REPRINT', from: 'CHO_KT_L2',        to: 'SA_DANG_XU_LY',    by: 'KE_TOAN',    requiresReason: true },
+  // Ngoại lệ duy nhất: quay về Sale Admin mà KHÔNG phải ký lại (§3 B10C). Từ
+  // `0225` đích là trạng thái RIÊNG, không còn là `SA_DANG_XU_LY`.
+  { action: 'KT_REQUEST_REPRINT', from: 'CHO_KT_L2',        to: 'SA_SUA_BAN_CUNG',  by: 'KE_TOAN',    requiresReason: true },
   /*
    * HOÀN DUYỆT — Trưởng bộ phận rút lại chữ ký của chính mình (`0185`, 07/09).
    *
@@ -130,6 +141,10 @@ export const RULES: readonly Rule[] = [
     requiresReason: true, createsNewVersion: true },
   { action: 'TBP_RECALL', from: 'CHO_KT_L2',        to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
     requiresReason: true, createsNewVersion: true },
+  // `0225` — hôm nay TBP hoàn duyệt được ca này (nó từng là `SA_DANG_XU_LY`);
+  // khách hàng chốt 28/09 là GIỮ quyền ấy khi tách trạng thái.
+  { action: 'TBP_RECALL', from: 'SA_SUA_BAN_CUNG',  to: 'YEU_CAU_CHINH_SUA', by: 'TBP',       stamp: 'returned',
+    requiresReason: true, createsNewVersion: true },
   { action: 'SUPERSEDE', from: 'DANG_CO_HIEU_LUC', to: 'HET_HIEU_LUC',     by: 'SYSTEM' },
 ];
 
@@ -140,14 +155,14 @@ export const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
   TBP_SIGN:            { from: ['CHO_TBP_DUYET'],     to: 'CHO_KT_L1' },
   TBP_RETURN:          { from: ['CHO_TBP_DUYET'],     to: 'YEU_CAU_CHINH_SUA' },
   // `0185` — HOÀN DUYỆT: TBP rút lại chữ ký ở ba bước SAU chữ ký của họ.
-  TBP_RECALL:          { from: ['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'],
+  TBP_RECALL:          { from: ['CHO_KT_L1', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG', 'CHO_KT_L2'],
                          to: 'YEU_CAU_CHINH_SUA' },
   KT_RECEIVE_L1:       { from: ['CHO_KT_L1'],         to: 'SA_DANG_XU_LY' },
   KT_RETURN_L1:        { from: ['CHO_KT_L1'],         to: 'YEU_CAU_CHINH_SUA' },
-  SA_HANDOVER:         { from: ['SA_DANG_XU_LY'],     to: 'CHO_KT_L2' },
+  SA_HANDOVER:         { from: ['SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG'], to: 'CHO_KT_L2' },
   KT_RECEIVE_L2:       { from: ['CHO_KT_L2'],         to: 'DANG_CO_HIEU_LUC' },
   KT_RETURN_L2:        { from: ['CHO_KT_L2'],         to: 'YEU_CAU_CHINH_SUA' },
-  KT_REQUEST_REPRINT:  { from: ['CHO_KT_L2'],         to: 'SA_DANG_XU_LY' },
+  KT_REQUEST_REPRINT:  { from: ['CHO_KT_L2'],         to: 'SA_SUA_BAN_CUNG' },
   SUPERSEDE:           { from: ['DANG_CO_HIEU_LUC'],  to: 'HET_HIEU_LUC' },
 };
 
@@ -170,10 +185,26 @@ export const ACTION_OF: Record<Action, { from: Status[]; to: Status }> = {
  */
 export const TERMINAL: readonly Status[] = ['DA_XOA', 'QUA_HAN_DUYET'];
 
-/** Bốn trạng thái chờ có SLA 14 ngày (§9.1). */
+/**
+ * Các trạng thái chờ có SLA 14 ngày (§9.1) — năm từ `0225`.
+ *
+ * `SA_SUA_BAN_CUNG` vào đây vì nó ĐÃ có SLA trước khi có tên: tới `0224` ca này
+ * là `SA_DANG_XU_LY`, và lượt `KT_REQUEST_REPRINT` khởi động lại đồng hồ 14 ngày.
+ * Tách trạng thái không được lặng lẽ tắt hạn của nó.
+ */
 export const WAITING: readonly Status[] = [
-  'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2',
+  'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG', 'CHO_KT_L2',
 ];
+
+/**
+ * Hồ sơ đang nằm trên BÀN SALE ADMIN — hai trạng thái từ `0225`.
+ *
+ * Mọi câu hỏi *"Sale Admin đang cầm hồ sơ này không"* (tải/gỡ bản scan và bản
+ * mềm, hộp việc, nút bàn giao) hỏi tập này, KHÔNG hỏi `=== 'SA_DANG_XU_LY'`:
+ * viết bằng một trạng thái là lặng lẽ khoá Sale Admin khỏi đúng ca họ phải sửa
+ * bản cứng. Chỉ những chỗ phân biệt LẦN ĐẦU với LÀM LẠI mới hỏi từng trạng thái.
+ */
+export const BAN_SALE_ADMIN: readonly Status[] = ['SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG'];
 
 /**
  * Hồ sơ đang ở trạng thái này thì việc thuộc về AI (`0192`).
@@ -199,6 +230,7 @@ export const CHU_BUOC: Partial<Record<Status, Role>> = {
   CHO_TBP_DUYET: 'TBP',
   CHO_KT_L1: 'KE_TOAN',
   SA_DANG_XU_LY: 'SALE_ADMIN',
+  SA_SUA_BAN_CUNG: 'SALE_ADMIN',
   CHO_KT_L2: 'KE_TOAN',
   YEU_CAU_CHINH_SUA: 'TDV',
 };
@@ -224,6 +256,10 @@ export const STEP_OF_STATUS: Partial<Record<Status, Step>> = {
   CHO_TBP_DUYET: 'B4_TBP_DUYET',
   CHO_KT_L1:     'B6_KT_L1',
   SA_DANG_XU_LY: 'B8_SA_XU_LY',
+  // `0225` — cùng BƯỚC với lượt làm bản cứng lần đầu: `pending_step` là kiểu
+  // `policy_step` của CSDL, và bước B8 là việc của Sale Admin dù lần đầu hay lần
+  // làm lại. `STATUS_OF_STEP` bên dưới vì thế không phải phép đảo ngược đủ.
+  SA_SUA_BAN_CUNG: 'B8_SA_XU_LY',
   CHO_KT_L2:     'B10_KT_L2',
 };
 

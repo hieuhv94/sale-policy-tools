@@ -14,6 +14,7 @@ export const STATUS_LABEL: Record<string, string> = {
   CHO_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
   CHO_KT_L1: 'Chờ KT duyệt L1',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
+  SA_SUA_BAN_CUNG: 'Sale Admin sửa bản cứng',
   CHO_KT_L2: 'KT duyệt bản cứng',
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',
@@ -44,6 +45,7 @@ export const STEP_LABEL: Record<string, string> = {
   CHO_TBP_DUYET: 'Trưởng bộ phận duyệt và ký số',
   CHO_KT_L1: 'Kế toán duyệt bản mềm',
   SA_DANG_XU_LY: 'Sale Admin xử lý và bàn giao bản cứng',
+  SA_SUA_BAN_CUNG: 'Sale Admin in lại và bàn giao lại bản cứng',
   CHO_KT_L2: 'Kế toán duyệt bản cứng',
   YEU_CAU_CHINH_SUA: 'Trình dược viên chỉnh sửa và gửi lại',
   DANG_CO_HIEU_LUC: 'Đã hoàn tất — không còn bước nào phải xử lý',
@@ -113,13 +115,16 @@ const NHAN_TIN_RIENG: Record<string, string> = {
  *
  * Khoá là TRẠNG THÁI ĐÍCH chứ không phải hành động, và đó là cả điểm: việc của
  * Kế toán ở `CHO_KT_L1` là một, dù hồ sơ tới đó bằng `TBP_SIGN` hay bằng đường
- * nào khác về sau. Năm mục cho năm trạng thái có chủ — đúng tập khoá của
+ * nào khác về sau. Sáu mục cho sáu trạng thái có chủ (`0225` thêm `SA_SUA_BAN_CUNG`) — đúng tập khoá của
  * `CHU_BUOC`, và có ca kiểm đối chiếu hai bảng.
  */
 export const VIEC_CUA_BUOC: Partial<Record<Status, string>> = {
   CHO_TBP_DUYET: 'Duyệt và ký số',
   CHO_KT_L1: 'Duyệt bản mềm',
   SA_DANG_XU_LY: 'Bàn giao bản cứng',
+  // `0225` — việc LÀM LẠI, và câu nói ra điều ấy: "bàn giao" trần đọc như
+  // lượt đầu, trong khi bản cứng đang trên bàn là bản Kế toán vừa chê.
+  SA_SUA_BAN_CUNG: 'Sửa và bàn giao lại bản cứng',
   CHO_KT_L2: 'Duyệt bản cứng',
   YEU_CAU_CHINH_SUA: 'Chỉnh sửa và gửi lại',
 };

@@ -141,7 +141,8 @@ const TIEU_CHI: TieuChi[] = [
  */
 const TIEU_CHI_AN: Record<string, string> = {
   pendingStep: 'Bước đang chờ',
-  reprint: 'Việc của Sale Admin',
+  // `reprint` (`0045`) ĐÃ GỠ ở `0225`: hai nửa bước B8 là hai trạng thái, thẻ
+  // Tổng quan lọc chúng bằng `status` — một ô chọn thật, không phải chip ẩn.
 };
 
 /**

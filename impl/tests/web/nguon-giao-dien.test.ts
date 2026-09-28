@@ -350,6 +350,52 @@ describe('`0064` màu trạng thái và màu thẻ', () => {
   });
 });
 
+describe('`0225` màu của *Sale Admin sửa bản cứng*', () => {
+  const token = readFileSync(join(GOC, 'styles/tokens.css'), 'utf8');
+  const hex = (t: string) =>
+    [...token.matchAll(new RegExp(`${t}:\\s*(#[0-9a-fA-F]{6})\\s*;`, 'g'))].map((m) => m[1]!);
+  const sac = (h: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255) as [number, number, number];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
+    if (!d) return { h: 0, s: 0 };
+    let hue = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+    return { h: hue, s: (d / (1 - Math.abs(2 * l - 1))) * 100 };
+  };
+
+  it('trạng thái mới mang lớp màu RIÊNG, có thật trong CSS', () => {
+    // Chung lớp `sa` thì lướt danh sách không tách được lần đầu với lần làm lại
+    // — đúng thứ trạng thái này sinh ra để tách. Chung `sua` (hổ phách, màu cũ
+    // của thẻ *Lỗi bản cứng*) thì lẫn với *Yêu cầu chỉnh sửa*.
+    const k = nhomTrangThai('SA_SUA_BAN_CUNG');
+    expect(k).not.toBe(nhomTrangThai('SA_DANG_XU_LY'));
+    expect(k).not.toBe(nhomTrangThai('YEU_CAU_CHINH_SUA'));
+    expect(k).not.toBe('ket-thuc'); // giá trị lùi của trạng thái lạ
+    const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
+    expect(css).toContain(`.nhan-${k} {`);
+    expect(css).toContain(`.chi-so-${k}::before`);
+    expect(NHAN_TRANG_THAI.SA_SUA_BAN_CUNG).toBe('Sale Admin sửa bản cứng');
+  });
+
+  it('sắc màu cách MỌI trạng thái có sắc khác >= 30°, ở cả ba khối', () => {
+    const k = nhomTrangThai('SA_SUA_BAN_CUNG');
+    const khoa = [...new Set([...token.matchAll(/--mau-tt-([a-z0-9-]+?)(?:-nen)?:/g)].map((m) => m[1]!))];
+    const cua = hex(`--mau-tt-${k}`);
+    expect(cua.length).toBe(3);
+    cua.forEach((c, i) => {
+      const v = sac(c);
+      for (const kh of khoa) {
+        if (kh === k) continue;
+        const o = sac(hex(`--mau-tt-${kh}`)[i]!);
+        if (o.s < 25) continue; // xám đá: không có sắc để mà lẫn
+        const d = Math.min(Math.abs(v.h - o.h), 360 - Math.abs(v.h - o.h));
+        expect(d, `khối ${i + 1}: ${k} chỉ cách ${kh} ${d.toFixed(0)}°`).toBeGreaterThanOrEqual(30);
+      }
+    });
+  });
+});
+
 describe('`0125` lịch sử giá nói rõ dòng nào đang áp dụng', () => {
   const nguon = readFileSync(join(GOC, 'components/danh-muc/SanPham.tsx'), 'utf8');
 

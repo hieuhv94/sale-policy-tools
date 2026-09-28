@@ -19844,3 +19844,116 @@ Kèm: `70 migration` → **71** ở ba tài liệu (`tai-lieu.test.ts` đỏ ở
 một chỗ ở `KIEN-TRUC` viết `**70** migration` nên lượt `grep` đầu bỏ sót).
 
 **2474/2474 xanh.**
+
+## P255 — `0225` Trạng thái mới *Sale Admin sửa bản cứng*
+
+Khách hàng 28/09: *"thêm một trạng thái cho CSBH trong luồng duyệt gọi là SA sửa bản cứng, xảy ra khi
+Kế Toán trả lại CSBH về cho SA, khi đó cần trạng thái này để phân biệt với SA đang xử lý"*. Chốt khi
+được hỏi: **TBP vẫn hoàn duyệt được** ở trạng thái mới · thẻ Tổng quan **giữ tên *Lỗi bản cứng*** ·
+nhãn mang **màu mới**. Mã `SA_SUA_BAN_CUNG`, nhãn *Sale Admin sửa bản cứng* (cùng lối *Sale Admin
+đang xử lý*).
+
+### Không phải phân biệt mới — là dời một phân biệt đã có ra chỗ nhìn thấy
+
+`0045` đã tách hai việc này để đếm thẻ *Lỗi bản cứng*, bằng mốc `reprint_requested_at` trên hồ sơ vẫn
+mang `SA_DANG_XU_LY`, và ghi rõ vì sao không dùng trạng thái (*trạng thái nói hồ sơ ĐANG Ở ĐÂU, còn
+khác biệt này là TỚI ĐÓ BẰNG ĐƯỜNG NÀO*). Lập luận ấy đúng cho câu hỏi của thẻ đếm; nó hết đúng khi
+khách hàng muốn khác biệt hiện ở MỌI chỗ nhãn trạng thái hiện — danh sách, trang hồ sơ, thư báo, bộ lọc
+— vì những chỗ ấy chỉ đọc trạng thái. Nên trạng thái gánh nó, và **mốc gỡ hẳn** ở cả `pol.policy` lẫn
+`rpt.policy_row`: để nó sống song song là hai câu trả lời cho một câu hỏi. Kéo theo: bộ lọc `reprint`
+của reporting gỡ; khoá thẻ `KHOA_THE` đọc `status`; thẻ *Trình ký* / *Lỗi bản cứng* dẫn sang
+`?status=SA_DANG_XU_LY` / `?status=SA_SUA_BAN_CUNG`; `lyDoConCanBay` bỏ tham số hành động (vế
+*"SA_DANG_XU_LY và lý do gần nhất là in lại"* của `0221` giờ chính là một trạng thái).
+
+**MỐC CŨ CÓ MỘT LỖ, đo được trên chồng demo trước khi sửa**: bất biến `0045` là *"đặt khi vào bằng
+B10C, xoá khi ra bằng B9 — không hành động nào khác đi ra khỏi SA_DANG_XU_LY"*, và chú thích tại chỗ
+nói đúng câu ấy. `0185` thêm *Hoàn duyệt* từ đúng trạng thái ấy mà không dọn mốc. Dựng trên demo mã
+cũ: in lại rồi hoàn duyệt → hồ sơ `YEU_CAU_CHINH_SUA` với `reprint_requested_at` VẪN CÓ — vòng sau tới
+B8 là bị đếm vào *Lỗi bản cứng* dù đang làm bản cứng lần đầu. Một trạng thái thì không có gì để quên
+dọn. Cùng lớp: `banScanCu` gác ở `SA_DANG_XU_LY` nên cảnh báo "bản scan cũ" cũng hiện ở lượt đầu của
+vòng mới; giờ gác ở `SA_SUA_BAN_CUNG`, có ca đi hết vòng ấy.
+
+### `BAN_SALE_ADMIN` — tập, không phải một chuỗi
+
+Mọi chỗ hỏi *"Sale Admin đang cầm hồ sơ không"* (tải/gỡ scan và bản mềm, `loaiTepGhiDuoc`, hộp việc,
+`DA_DONG_BANG`, `CHUA_DUYET_XONG`) đọc hằng `BAN_SALE_ADMIN` của `domain-policy`. Viết bằng
+`=== 'SA_DANG_XU_LY'` là lặng lẽ khoá Sale Admin khỏi đúng ca họ phải thay bản scan — lượt phá lại số 2
+cho thấy nó chỉ lộ ở ca đi đường tải lên thật. Có ca đòi tập này bằng đúng tập `CHU_BUOC` giao cho Sale
+Admin. `workflow.service` có **bản chép `WAITING_STATES`** bốn chuỗi — thêm trạng thái vào `WAITING`
+mà quên bản ấy là hồ sơ vào trạng thái mới KHÔNG CÓ HẠN; gỡ bản chép, đọc `WAITING`.
+
+`STEP_OF_STATUS[SA_SUA_BAN_CUNG] = 'B8_SA_XU_LY'`: `pending_step` là kiểu `policy_step` của CSDL, không
+cần bước mới; `STATUS_OF_STEP` vì thế thôi là phép đảo ngược đủ (thư báo quá hạn tra B8 → `SA_DANG_XU_LY`
+→ Sale Admin — cùng người, nên đúng).
+
+### Migration: hai tệp, và tệp hai phải chạy lại được
+
+`migrate.sh` chạy mỗi tệp trong MỘT transaction, và Postgres không cho dùng giá trị enum mới trước
+khi transaction thêm nó commit — nên `0121` chỉ `ADD VALUE … BEFORE 'CHO_KT_L2'` (thứ tự enum khớp
+`STATUSES`), `0122` dời dữ liệu, viết lại nhật ký (`to_status` của lượt in lại, `from_status` của lượt
+ngay sau nó, bằng `lag()`), dựng lại `uq_policy_dang_do_moi_khach` với bảy trạng thái, gỡ cột.
+
+**Thử trên CSDL demo trước**: tạo hai ca bằng API mã cũ (A: in lại, nằm ở Sale Admin; B: in lại rồi
+hoàn duyệt), chạy hai tệp bằng tay → A thành `SA_SUA_BAN_CUNG`, B giữ `YEU_CAU_CHINH_SUA`, dòng
+`TBP_RECALL` của B đọc *từ SA_SUA_BAN_CUNG*, cột mất ở cả hai bảng. **Cái giá của lượt thử tay**: nó
+không ghi `sys.schema_migration`, nên `make test` kế tiếp chạy lại `0122` và dừng ở *"column
+reprint_requested_at does not exist"*. Sửa bằng cách cho bước dời chạy trong `DO … IF EXISTS …
+EXECUTE` — `EXECUTE` vì câu viết thẳng bị Postgres phân tích (và báo lỗi cột) cả khi nhánh `IF` không
+chạy.
+
+### Màu
+
+Tím mận `#86198f`/`#f9e8fb` (tương phản 7,05), khối tối `#e8a6f0`/`#33123a` (8,65) — vùng sắc duy nhất
+còn trống (295°), cách chàm của *Chờ TBP duyệt* 50°, đỏ *Quá hạn* 68°. Thẻ *Lỗi bản cứng* thôi mượn hổ
+phách của *Yêu cầu chỉnh sửa* (ngoại lệ duy nhất của `0064`, có mặt chỉ vì chưa có trạng thái riêng).
+Ca mới đo sắc cách ≥ 30° với mọi trạng thái có sắc ở cả ba khối; ca tương phản `0219` tự phủ khoá mới.
+
+### Ca kiểm
+
+Máy trạng thái: đích in lại · bàn giao lại · đúng hai lối ra (liệt kê ĐỦ) · đường vào duy nhất · có
+chủ, có hạn, cùng bước B8 · hoàn duyệt + thiếu lý do. HTTP (`policy`): trạng thái · nhật ký · SLA · gỡ
+scan cũ / tải mới / bàn giao lại · `loaiTepGhiDuoc` · `SCAN_REQUIRED` · TBP hoàn duyệt · Kế toán không
+nút nào · khối lý do · cảnh báo scan cũ chỉ ở trạng thái mới · hộp việc · một hồ sơ đang xử lý; bảng
+`MONG_DOI` thêm một dòng. `reporting`: nguồn = read-model · cột đã gỡ ở cả hai bảng · vòng hoàn duyệt
+rơi vào *Trình ký* · hai thẻ mở đúng hồ sơ, số trên thẻ = số dòng · `pendingStep` lấy trọn hai trạng
+thái · `?reprint=` cũ BỊ BỎ QUA (liên kết cũ còn lưu mở ra RỘNG hơn, không lỗi — `cleanFilter` bỏ khoá
+lạ). Nhãn: mọi `STATUSES` có nhãn ở thư, văn bản, và câu "bước đang chờ" — ba bảng không phải
+`Record<Status, …>` nên `tsc` không đòi khoá mới. Giao diện: `MOI_TRANG_THAI` = `STATUSES` · lớp màu
+riêng có thật · cách sắc.
+
+**Bảy ca cũ phải ĐẢO/THAY** vì chúng khẳng định luật cũ: 10 trạng thái, in lại về `SA_DANG_XU_LY` (hai
+chỗ), bốn trạng thái chờ (hai chỗ), sáu trạng thái đang xử lý, khối `0045` của reporting (mốc + bộ lọc
+`reprint`), thẻ lọc `reprint`, thẻ mượn hổ phách. Ca enum `0048` ở `tests/db` thôi gõ tay dãy — đối
+chiếu `STATUSES` kể cả thứ tự. Ca tài liệu *"KHÔNG còn cách viết bằng chữ của con số cũ"* cấm cứng cụm
+*"mười một trạng thái"* — đúng tới hôm qua, sai từ hôm nay, và nó MÙ với *"Mười trạng thái"* ở KIEN-TRUC
+§07; viết lại thành đổi chữ ra số rồi so `STATUSES`.
+
+### Phá lại
+
+Mười một lượt, chạy NGUYÊN tệp (không `-t`), mười một đỏ đúng chỗ: (1) in lại về `SA_DANG_XU_LY` → 10
+đỏ · (2) chốt tải scan `=== 'SA_DANG_XU_LY'` → 2 · (3) bản chép `WAITING_STATES` bốn chuỗi → 1 (ca SLA)
+· (4) `CHUA_DUYET_XONG` thiếu trạng thái mới → 4 (kể cả ca `pg_indexes`) · (5) `KHOA_THE` không có
+nhánh mới → 2 · (6) `banScanCu` gác lại ở `SA_DANG_XU_LY` → 2 · (7) màu chung `sa` → 5 · (8) nhãn thư
+thiếu → 1 · (9) bỏ hoàn duyệt → 6 · (10) lý do chỉ ở `YEU_CAU_CHINH_SUA` → 2 · (11) KIEN-TRUC về
+*"Mười trạng thái"* → 1.
+
+**Lượt 8 lần đầu đỏ THÊM bốn ca `0096` (hộp thông báo)** không đọc tới nhãn trạng thái. Mốc đối chứng
+trên mã nguyên vẹn 58/58 xanh, lặp lại lượt 8 thì chỉ đỏ đúng ca nhãn — chập chờn, ghi lại chứ không
+lờ đi. Chạy riêng bốn tệp thì ca `0059` *"nhật ký tải BẢN CỨNG vẫn ghi"* đỏ: nó CỐ Ý đếm lượt tải do
+các tệp chạy trước để lại (chú thích tại chỗ nói vậy), không liên quan.
+
+Kèm: `71 migration` → **73**, *10 trạng thái* → **11** ở mọi tài liệu; bộ nạp demo thêm nhóm
+`SA_SUA_BAN_CUNG` × 2 (đi đường thật: tới *KT duyệt bản cứng* rồi yêu cầu in lại), *SA đang xử lý*
+3 → 2 để giữ trần 32 khách — tới `0224` bản demo không có hồ sơ in lại nào, thẻ *Lỗi bản cứng* luôn 0.
+
+**Dựng lại chồng demo** (`make demo` + `make demo-mau`, thoát 0 — 38 khách, 117 hồ sơ): 2 hồ sơ *Sale
+Admin sửa bản cứng* (0 thiếu hạn) · 3 *Sale Admin đang xử lý*. Qua gateway bằng `sa01`: thẻ *Lỗi bản
+cứng* 2 / *Trình ký* 3, bấm ra đúng 2 / 3 dòng; trang hồ sơ trả khối lý do, `banScanCu: true`,
+`loaiTepGhiDuoc: [SCAN, BAN_MEM]`; nút `sa01` = *Bàn giao* · `tbp01` = *Hoàn duyệt* · `kt01` = không
+gì. Chuông: `sa01` nhận *"CSBH mới: Sửa và bàn giao lại bản cứng — Kế toán yêu cầu in lại"* (bậc
+VIỆC), `tbp01`/`tdv01` nhận *"Kế toán yêu cầu in lại bản cứng"* (bậc TIN).
+
+**2499/2500.** Ca đỏ duy nhất là `thong-ke.test.tsx` *"Quản trị hệ thống KHÔNG gọi `/reports`, chỉ gọi
+nhật ký"* — màn hình và tệp kiểm ấy không nằm trong diff, chạy riêng 5/5 xanh, và hai lượt `tests/web`
+ngoại tuyến trước đó cũng xanh; chập chờn dưới tải cả bộ (ô ghi chú hiện ra trước khi lượt gọi
+`/audit/thong-ke` được ghi nhận). **Chưa sửa**, ghi ở đây để lượt sau thấy nó lặp lại thì xử.

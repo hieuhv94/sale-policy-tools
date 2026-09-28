@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from 'pg';
 import { admin, expectSqlErrorInTx, inRollback, mkCustomer } from './helpers';
 import { norm } from '@csbh/http-kit';
+import { STATUSES } from '@csbh/domain-policy';
 
 let db: Client;
 
@@ -223,7 +224,7 @@ describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
     });
   });
 
-  it('`0048` đủ đúng 11 trạng thái, không thừa không thiếu', async () => {
+  it('`0048` enum trong CSDL khớp ĐÚNG `STATUSES`, kể cả thứ tự', async () => {
     const r = await db.query(
       `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
        WHERE t.typname='policy_status' ORDER BY e.enumsortorder`);
@@ -236,10 +237,14 @@ describe('WF-02 · danh sách trạng thái là danh sách đóng', () => {
      * cũ. Ca này là chốt chặn: một migration sau vô tình `ADD VALUE` nó lại thì
      * đỏ ngay.
      */
-    expect(r.rows.map((x) => x.enumlabel)).toEqual([
-      'NHAP','CHO_TBP_DUYET','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2',
-      'DANG_CO_HIEU_LUC','HET_HIEU_LUC','YEU_CAU_CHINH_SUA','QUA_HAN_DUYET',
-      'DA_XOA']);
+    /*
+     * `0225` — đối chiếu với `STATUSES` chứ không gõ lại dãy: trạng thái thứ
+     * mười một (`SA_SUA_BAN_CUNG`) thêm bằng `ADD VALUE … BEFORE 'CHO_KT_L2'`,
+     * nên thứ tự enum vẫn đi theo thứ tự các bước, đúng như `STATUSES`. Một dãy
+     * gõ tay ở đây là bản chép thứ ba của cùng một danh sách.
+     */
+    expect(r.rows.map((x) => x.enumlabel)).toEqual([...STATUSES]);
+    expect(STATUSES).not.toContain('TBP_DA_KY_SO');
   });
 
   it('`0048` không cột nào còn dùng kiểu cũ, và kiểu cũ đã biến mất', async () => {

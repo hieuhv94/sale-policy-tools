@@ -66,7 +66,6 @@ export type Filter = {
   status?: string | undefined;
   han?: string | undefined;
   pendingStep?: string | undefined;
-  reprint?: string | undefined;
 };
 
 /** Hai giá trị của tiêu chí *Hạn xử lý* (`0060`). */
@@ -83,6 +82,7 @@ export const STEP_FROM_STATUS = `CASE status
     WHEN 'CHO_TBP_DUYET' THEN 'B4_TBP_DUYET'
     WHEN 'CHO_KT_L1'     THEN 'B6_KT_L1'
     WHEN 'SA_DANG_XU_LY' THEN 'B8_SA_XU_LY'
+    WHEN 'SA_SUA_BAN_CUNG' THEN 'B8_SA_XU_LY'
     WHEN 'CHO_KT_L2'     THEN 'B10_KT_L2'
   END`;
 
@@ -159,12 +159,13 @@ export const SO_TIEU_CHI = FILTER_KEYS.filter((k) => !k.endsWith('To')).length;
  * của muc 9.2 và `GET /reports/filter-keys` công bố đúng con số ấy. Trộn vào là
  * làm một tài liệu nghiệp vụ nói sai về chính nó.
  *
- * Cả hai đều không phải thứ người ta gõ ra được: "bước đang chờ" là mã viết hoa,
- * `reprint` nhận 0 hoặc 1. `han` từng đứng ở đây (`0060`) và **đã chuyển vào**
+ * Không phải thứ người ta gõ ra được: "bước đang chờ" là mã viết hoa. `reprint`
+ * từng đứng cạnh nó (`0045`) và **đã gỡ** ở `0225` — hai nửa của bước B8 giờ là
+ * hai trạng thái, nên tiêu chí `status` lọc được chúng. `han` từng đứng ở đây (`0060`) và **đã chuyển vào**
  * `FILTER_KEYS` ở `0077` — khách hàng kể nó trong danh sách trường của bộ lọc,
  * nên nó là một tiêu chí nghiệp vụ chứ không còn là phụ lục kỹ thuật.
  */
-export const KHOA_NGOAI_MUC_92 = ['pendingStep', 'reprint'] as const;
+export const KHOA_NGOAI_MUC_92 = ['pendingStep'] as const;
 
 /**
  * Tiêu chí nhận NHIỀU giá trị, nối bằng dấu phẩy (`0077`).
@@ -273,13 +274,6 @@ export function cleanFilter(q: Record<string, unknown>): Filter {
     for (const x of tach(out['tdvUserId'])) {
       if (!UUID.test(x)) throw bad('tdvUserId', `"${x}" không phải uuid`);
     }
-  }
-  // `reprint` KHÔNG được im lặng bỏ qua khi sai. Nó chỉ nhận hai giá trị, và
-  // "bỏ qua tiêu chí không hiểu" ở đây nghĩa là mở rộng kết quả ra cả hai nhóm —
-  // một tiêu chí hỏng lại trả về NHIỀU hơn là thứ phải báo, không phải thứ nên
-  // lặng lẽ chịu đựng.
-  if (out['reprint'] && out['reprint'] !== '0' && out['reprint'] !== '1') {
-    throw bad('reprint', 'chỉ nhận 0 hoặc 1');
   }
   if (out['han'] && !(HAN_XU_LY as readonly string[]).includes(out['han'])) {
     throw bad('han', `chỉ nhận ${HAN_XU_LY.join(' hoặc ')}`);
@@ -417,10 +411,7 @@ export function build(f: Filter, pv: PhamVi): Built {
     );
   }
 
-  // 10. Lý do hồ sơ nằm ở Sale Admin (`0045`): `1` = đang phải in lại bản cứng,
-  //     `0` = trình ký lần đầu. Chỉ có nghĩa khi đi kèm tiêu chí 9.
-  if (f.reprint === '1') cond.push('reprint_requested_at IS NOT NULL');
-  if (f.reprint === '0') cond.push('reprint_requested_at IS NULL');
+  // 10. `reprint` (`0045`) ĐÃ GỠ ở `0225` — xem `KHOA_NGOAI_MUC_92`.
 
   /*
    * 11. Hạn xử lý (`0060`) — một ô chọn gom hai câu hỏi về hạn vào một chỗ.

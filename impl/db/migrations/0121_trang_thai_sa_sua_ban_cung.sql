@@ -1,0 +1,15 @@
+-- `0225` — TRẠNG THÁI MỚI *SA sửa bản cứng* (`SA_SUA_BAN_CUNG`), phần 1/2.
+--
+-- Khách hàng chốt 28/09: hồ sơ Kế toán trả về Sale Admin để làm lại bản cứng
+-- (B10C, `KT_REQUEST_REPRINT`) mang trạng thái RIÊNG, phân biệt với *SA đang xử
+-- lý* (bản cứng làm LẦN ĐẦU).
+--
+-- TỆP NÀY CHỈ THÊM GIÁ TRỊ ENUM, không làm gì khác. `migrate.sh` chạy mỗi tệp
+-- trong MỘT transaction (`--single-transaction`), và Postgres cho
+-- `ALTER TYPE … ADD VALUE` chạy trong transaction nhưng KHÔNG cho dùng giá trị
+-- mới trước khi transaction ấy commit ("unsafe use of new value"). Dời dữ liệu,
+-- dựng lại chỉ mục và gỡ mốc cũ nằm ở `0122`.
+--
+-- Thêm chứ không dựng lại kiểu (công thức `0048`/`0110` là để BỎ một giá trị).
+-- `BEFORE 'CHO_KT_L2'` để thứ tự khai báo của enum đi theo thứ tự các bước.
+ALTER TYPE pol.policy_status ADD VALUE IF NOT EXISTS 'SA_SUA_BAN_CUNG' BEFORE 'CHO_KT_L2';

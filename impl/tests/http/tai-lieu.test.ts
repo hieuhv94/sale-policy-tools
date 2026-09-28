@@ -136,15 +136,29 @@ describe('`0178` tài liệu hiện hành khớp với thứ đang chạy', () =
     expect(sai, `\n${sai.join('\n')}\n`).toEqual([]);
   });
 
-  it('KHÔNG còn cách viết bằng CHỮ của con số cũ', () => {
-    // `toEqual([])` ở ca trên chỉ bắt được CHỮ SỐ. Bản thiết kế viết "Mười một
-    // trạng thái" bằng chữ, và nó đã sống sót đúng vì thế.
+  it('con số viết bằng CHỮ cũng khớp `STATUSES`', () => {
+    /*
+     * `toEqual([])` ở ca trên chỉ bắt được CHỮ SỐ. Bản thiết kế viết "Mười một
+     * trạng thái" bằng chữ, và nó đã sống sót đúng vì thế.
+     *
+     * Tới `0224` ca này CẤM cứng cụm *"mười một trạng thái"* — đúng lúc ấy, vì
+     * con số thật là mười. `0225` thêm trạng thái thứ mười một và cụm ấy thành
+     * câu ĐÚNG, còn *"Mười trạng thái"* ở KIEN-TRUC §07 thành câu sai mà lệnh cấm
+     * cũ không bao giờ thấy. Nên giờ đổi chữ ra số rồi so với `STATUSES`, như ca
+     * trên — một lệnh cấm một con số cụ thể là một bản chép khác của con số ấy.
+     * Chỉ đọc từ mười trở lên: *"sáu trạng thái"* hay *"ba trạng thái"* là một
+     * TẬP CON được kể ra (hồ sơ đang xử lý, dòng sản phẩm), không phải tổng số.
+     */
+    const SO: Record<string, number> = { 'mười': 10, 'mười một': 11, 'mười hai': 12, 'mười ba': 13 };
+    const dung = STATUSES.length;
     const sai: string[] = [];
     for (const f of TAI_LIEU) {
       const s = tron(doc(f)).toLowerCase();
-      if (s.includes('mười một trạng thái')) sai.push(f);
+      for (const m of s.matchAll(/(mười(?: một| hai| ba)?)\s+trạng thái/g)) {
+        if (SO[m[1]!] !== dung) sai.push(`${f}: "${m[0]}" (đúng: ${dung})`);
+      }
     }
-    expect(sai).toEqual([]);
+    expect(sai, `\n${sai.join('\n')}\n`).toEqual([]);
   });
 
   it('số migration khai trong tài liệu khớp số file `.sql` thật', () => {

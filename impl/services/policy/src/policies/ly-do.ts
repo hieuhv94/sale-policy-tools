@@ -13,13 +13,15 @@
  * lại rồi thì người đang cầm hồ sơ là TBP, và câu hỏi của họ không phải câu ấy.
  * Nhật ký vẫn giữ nguyên mọi lý do.
  *
- * Vế thứ hai hỏi HÀNH ĐỘNG chứ không chỉ trạng thái: `SA_DANG_XU_LY` còn là
- * bước bình thường ngay sau Kế toán tiếp nhận L1, và lúc ấy lý do gần nhất (nếu
- * có) là một lượt trả về đã sửa xong từ trước.
+ * Tới `0224` vế thứ hai phải hỏi cả HÀNH ĐỘNG: *"`SA_DANG_XU_LY` và lý do gần
+ * nhất là `KT_REQUEST_REPRINT`"*, vì `SA_DANG_XU_LY` còn là bước bình thường
+ * ngay sau Kế toán tiếp nhận L1. Từ `0225` ca in lại có trạng thái RIÊNG
+ * (`SA_SUA_BAN_CUNG`), và mọi lượt vào trạng thái ấy đều mang lý do của chính
+ * lượt yêu cầu in lại — nên câu này chỉ còn hỏi TRẠNG THÁI. Cặp điều kiện cũ
+ * là một phép suy ngược lên đường đi của hồ sơ; giờ trạng thái nói thẳng.
  *
  * Luật đặt ở MÁY CHỦ, không ở giao diện: giao diện chỉ bày `lyDoTraLai` khi nó
  * khác `null`, nên không có chỗ thứ hai tự suy lại câu này.
  */
-export const lyDoConCanBay = (status: string, action: string): boolean =>
-  status === 'YEU_CAU_CHINH_SUA' ||
-  (status === 'SA_DANG_XU_LY' && action === 'KT_REQUEST_REPRINT');
+export const lyDoConCanBay = (status: string): boolean =>
+  status === 'YEU_CAU_CHINH_SUA' || status === 'SA_SUA_BAN_CUNG';

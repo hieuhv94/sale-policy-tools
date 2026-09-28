@@ -946,10 +946,13 @@ describe('`0192` bảng chủ bước dùng chung không đổi hành vi SLA', (
     expect(ma).not.toContain('Object.keys(CHU_BUOC)');
   });
 
-  it('bốn bước chờ vẫn tra ra đúng người phụ trách như trước khi dời bảng', () => {
+  it('mọi trạng thái chờ tra ra đúng người phụ trách', () => {
+    // `0225` thêm trạng thái chờ thứ năm, `SA_SUA_BAN_CUNG` — thư nhắc hạn của
+    // nó đi tới Sale Admin, như lượt làm bản cứng lần đầu.
     expect(WAITING.map((tt) => CHU_BUOC[tt])).toEqual([
       'TBP',
       'KE_TOAN',
+      'SALE_ADMIN',
       'SALE_ADMIN',
       'KE_TOAN',
     ]);

@@ -1,7 +1,8 @@
 /** WF — luồng duyệt và chuyển trạng thái (YCNV §3, §4). */
 import { describe, expect, it } from 'vitest';
 import {
-  ACTION_OF, ACTIONS, allowedActions, allowedActionsFor, ForbiddenRoleError, InvalidTransitionError,
+  ACTION_OF, ACTIONS, allowedActions, allowedActionsFor, BAN_SALE_ADMIN, CHU_BUOC, ForbiddenRoleError,
+  InvalidTransitionError, STEP_OF_STATUS,
   markOverdue, ReasonRequiredError, RULES, STATUSES, TERMINAL, transition, WAITING,
   type Action, type Status,
 } from './state-machine.js';
@@ -10,10 +11,10 @@ const go = (current: Status, action: Action, role: Parameters<typeof transition>
             reason?: string) => transition({ current, action, role, reason });
 
 describe('WF-02/03 · bộ trạng thái là danh sách đóng', () => {
-  it('đúng 10 trạng thái ĐẾN ĐƯỢC', () => {
+  it('đúng 11 trạng thái ĐẾN ĐƯỢC', () => {
     // 11 của muc 4, cộng `DA_XOA` từ `0035`, trừ `TBP_DA_KY_SO` gỡ ở `0064`,
-    // trừ `TU_CHOI` bỏ ở `0155`.
-    expect(STATUSES).toHaveLength(10);
+    // trừ `TU_CHOI` bỏ ở `0155`, cộng `SA_SUA_BAN_CUNG` ở `0225`.
+    expect(STATUSES).toHaveLength(11);
     expect(STATUSES as readonly string[]).not.toContain('TBP_DA_KY_SO');
   });
   it('không còn nhãn cũ nào', () => {
@@ -145,14 +146,41 @@ describe('`0035` · Đã xoá cũng là trạng thái kết thúc', () => {
 });
 
 describe('WF-18/19 · yêu cầu in lại là ngoại lệ duy nhất không phải ký lại', () => {
-  it('từ Chờ KT L2 quay về Sale Admin, không về Bước 3', () => {
+  it('từ Chờ KT L2 quay về Sale Admin — trạng thái RIÊNG *SA sửa bản cứng* (`0225`)', () => {
+    // Tới `0224` đích là `SA_DANG_XU_LY`, chung với lượt làm bản cứng lần đầu.
     const r = go('CHO_KT_L2', 'KT_REQUEST_REPRINT', 'KE_TOAN', 'ban cung mo chu');
-    expect(r.next).toBe('SA_DANG_XU_LY');
+    expect(r.next).toBe('SA_SUA_BAN_CUNG');
     expect(r.createsNewVersion).toBe(false);   // KHÔNG tạo phiên bản mới
+    expect(r.stamp, 'không mốc nào — trạng thái đã là câu trả lời').toBeUndefined();
   });
   it('sau khi làm lại bản cứng thì quay lại Chờ KT L2 mà không cần ký số', () => {
-    const r = go('SA_DANG_XU_LY', 'SA_HANDOVER', 'SALE_ADMIN');
+    const r = go('SA_SUA_BAN_CUNG', 'SA_HANDOVER', 'SALE_ADMIN');
     expect(r.next).toBe('CHO_KT_L2');
+    expect(r.stamp).toBe('sa_handover');
+  });
+  it('lượt bàn giao LẦN ĐẦU vẫn đi từ SA đang xử lý', () => {
+    expect(go('SA_DANG_XU_LY', 'SA_HANDOVER', 'SALE_ADMIN').next).toBe('CHO_KT_L2');
+  });
+  it('`0225` SA sửa bản cứng: đúng hai lối ra — bàn giao lại, hoặc TBP hoàn duyệt', () => {
+    // Liệt kê ĐỦ chứ không `toContain`: một hành động thứ ba mọc ra ở đây (ví
+    // dụ Kế toán trả thẳng về TDV từ bàn Sale Admin) là một luật mới phải hỏi.
+    expect(allowedActions('SA_SUA_BAN_CUNG').sort()).toEqual(['SA_HANDOVER', 'TBP_RECALL']);
+    expect(allowedActionsFor('SA_SUA_BAN_CUNG', 'SALE_ADMIN')).toEqual(['SA_HANDOVER']);
+    expect(allowedActionsFor('SA_SUA_BAN_CUNG', 'TBP')).toEqual(['TBP_RECALL']);
+    expect(allowedActionsFor('SA_SUA_BAN_CUNG', 'KE_TOAN')).toEqual([]);
+  });
+  it('`0225` không đường nào khác vào SA sửa bản cứng ngoài yêu cầu in lại', () => {
+    const vao = RULES.filter((x) => x.to === 'SA_SUA_BAN_CUNG').map((x) => `${x.from}:${x.action}`);
+    expect(vao).toEqual(['CHO_KT_L2:KT_REQUEST_REPRINT']);
+  });
+  it('`0225` trạng thái mới là bàn Sale Admin: có chủ, có hạn, cùng bước B8', () => {
+    expect(CHU_BUOC.SA_SUA_BAN_CUNG).toBe('SALE_ADMIN');
+    expect(WAITING).toContain('SA_SUA_BAN_CUNG');
+    expect(STEP_OF_STATUS.SA_SUA_BAN_CUNG).toBe('B8_SA_XU_LY');
+    expect([...BAN_SALE_ADMIN].sort()).toEqual(['SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG']);
+    // Bàn Sale Admin = đúng những trạng thái mà `CHU_BUOC` giao cho Sale Admin.
+    const theoChuBuoc = (Object.keys(CHU_BUOC) as Status[]).filter((k) => CHU_BUOC[k] === 'SALE_ADMIN');
+    expect(theoChuBuoc.sort()).toEqual([...BAN_SALE_ADMIN].sort());
   });
   it('yêu cầu in lại vẫn bắt buộc nhập lý do', () => {
     expect(() => go('CHO_KT_L2', 'KT_REQUEST_REPRINT', 'KE_TOAN')).toThrow(ReasonRequiredError);
@@ -167,7 +195,9 @@ describe('WF-18/19 · yêu cầu in lại là ngoại lệ duy nhất không ph�
  * *"CSBH đang trong luồng duyệt"*. Hai câu ghép lại ra đúng ba trạng thái.
  */
 describe('`0185` · Hoàn duyệt của Trưởng bộ phận', () => {
-  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'] as const)(
+  // `0225` thêm `SA_SUA_BAN_CUNG` — khách hàng chốt 28/09 GIỮ quyền hoàn duyệt
+  // ở ca này (hôm trước nó còn là `SA_DANG_XU_LY`).
+  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG', 'CHO_KT_L2'] as const)(
     'từ %s về Yêu cầu chỉnh sửa, tạo phiên bản mới',
     (from) => {
       const r = go(from, 'TBP_RECALL', 'TBP', 'ky nham ho so');
@@ -177,7 +207,7 @@ describe('`0185` · Hoàn duyệt của Trưởng bộ phận', () => {
     },
   );
 
-  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2'] as const)(
+  it.each(['CHO_KT_L1', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG', 'CHO_KT_L2'] as const)(
     '%s · thiếu lý do thì bị chặn',
     (from) => {
       expect(() => go(from, 'TBP_RECALL', 'TBP')).toThrow(ReasonRequiredError);
@@ -306,8 +336,9 @@ describe('WF-26 · luồng tuần tự, không có bước nào song song', () =
 });
 
 describe('NTF-10 · `0047` Quá hạn duyệt là trạng thái KẾT THÚC, vẫn nhớ bước chết', () => {
-  it('bốn trạng thái chờ đều quá hạn được và lưu lại bước cũ', () => {
-    expect(WAITING).toHaveLength(4);
+  it('năm trạng thái chờ đều quá hạn được và lưu lại bước cũ', () => {
+    // `0225` — năm: `SA_SUA_BAN_CUNG` có hạn như lượt làm bản cứng lần đầu.
+    expect(WAITING).toHaveLength(5);
     for (const s of WAITING) {
       const r = markOverdue(s);
       expect(r.next).toBe('QUA_HAN_DUYET');

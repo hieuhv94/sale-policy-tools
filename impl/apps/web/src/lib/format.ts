@@ -125,6 +125,7 @@ export const NHAN_TRANG_THAI: Record<string, string> = {
   CHO_TBP_DUYET: 'Chờ TBP duyệt',
   CHO_KT_L1: 'Chờ KT duyệt L1',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
+  SA_SUA_BAN_CUNG: 'Sale Admin sửa bản cứng',
   CHO_KT_L2: 'KT duyệt bản cứng',
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',
@@ -160,6 +161,10 @@ const NHOM_MAU: Record<string, string> = {
   CHO_TBP_DUYET: 'tbp',
   CHO_KT_L1: 'kt1',
   SA_DANG_XU_LY: 'sa',
+  // `0225` — màu RIÊNG (tím mận, khách hàng chốt 28/09 "một màu mới cho hợp
+  // lý"): cùng màu `sa` thì lướt danh sách không tách được lần đầu với lần làm
+  // lại, đúng thứ trạng thái này sinh ra để tách.
+  SA_SUA_BAN_CUNG: 'sa-sua',
   CHO_KT_L2: 'kt2',
   DANG_CO_HIEU_LUC: 'hieu-luc',
   HET_HIEU_LUC: 'ket-thuc',

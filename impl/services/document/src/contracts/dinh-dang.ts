@@ -20,6 +20,7 @@ export const STATUS_LABEL: Record<string, string> = {
   CHO_TBP_DUYET: 'Chờ Trưởng bộ phận duyệt',
   CHO_KT_L1: 'Chờ KT duyệt L1',
   SA_DANG_XU_LY: 'Sale Admin đang xử lý',
+  SA_SUA_BAN_CUNG: 'Sale Admin sửa bản cứng',
   CHO_KT_L2: 'KT duyệt bản cứng',
   DANG_CO_HIEU_LUC: 'Đang có hiệu lực',
   HET_HIEU_LUC: 'Hết hiệu lực',

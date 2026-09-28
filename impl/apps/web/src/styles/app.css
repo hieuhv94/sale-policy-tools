@@ -1081,11 +1081,12 @@ textarea.o-nhap { min-height: 6rem; }
 .nhan-canh-bao { background: var(--mau-canh-bao-nen); color: var(--mau-canh-bao); }
 .nhan-thuong { background: var(--mau-nen-hover); color: var(--mau-chu-phu); }
 
-/* Mười màu trạng thái (`0064`) — khoá lấy từ `nhomTrangThai()` ở `format.ts`. */
+/* Màu trạng thái (`0064`; `0225` thêm `sa-sua`) — khoá lấy từ `nhomTrangThai()` ở `format.ts`. */
 .nhan-nhap { background: var(--mau-tt-nhap-nen); color: var(--mau-tt-nhap); }
 .nhan-tbp { background: var(--mau-tt-tbp-nen); color: var(--mau-tt-tbp); }
 .nhan-kt1 { background: var(--mau-tt-kt1-nen); color: var(--mau-tt-kt1); }
 .nhan-sa { background: var(--mau-tt-sa-nen); color: var(--mau-tt-sa); }
+.nhan-sa-sua { background: var(--mau-tt-sa-sua-nen); color: var(--mau-tt-sa-sua); }
 .nhan-kt2 { background: var(--mau-tt-kt2-nen); color: var(--mau-tt-kt2); }
 .nhan-hieu-luc { background: var(--mau-tt-hieu-luc-nen); color: var(--mau-tt-hieu-luc); }
 .nhan-ket-thuc { background: var(--mau-tt-ket-thuc-nen); color: var(--mau-tt-ket-thuc); }
@@ -1315,6 +1316,7 @@ button.the-lien {
 .chi-so-tbp::before { background: var(--mau-tt-tbp); }
 .chi-so-kt1::before { background: var(--mau-tt-kt1); }
 .chi-so-sa::before { background: var(--mau-tt-sa); }
+.chi-so-sa-sua::before { background: var(--mau-tt-sa-sua); }
 .chi-so-kt2::before { background: var(--mau-tt-kt2); }
 .chi-so-hieu-luc::before { background: var(--mau-tt-hieu-luc); }
 .chi-so-ket-thuc::before { background: var(--mau-tt-ket-thuc); }

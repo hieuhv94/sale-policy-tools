@@ -24,6 +24,8 @@ import {
   loaiThayDoi,
   moTaNgan,
   NotifyService,
+  STATUS_LABEL,
+  STEP_LABEL,
   TIN_CUA_HANH_DONG,
   titleFor,
   VIEC_CUA_BUOC,
@@ -31,6 +33,7 @@ import {
   type MailEvent,
 } from '@csbh/notification/testing';
 import { RECIPIENTS } from '@csbh/policy/testing';
+import { STATUS_LABEL as NHAN_VAN_BAN } from '@csbh/document/testing';
 import {
   ACTION_OF,
   CHU_BUOC,
@@ -679,6 +682,22 @@ describe('`0192` bảng chủ bước khớp máy trạng thái', () => {
 
   it('mọi khoá của `CHU_BUOC` là một trạng thái có thật', () => {
     for (const k of Object.keys(CHU_BUOC)) expect(STATUSES).toContain(k);
+  });
+
+  it('`0225` MỌI trạng thái có nhãn ở thư, ở văn bản, và có câu "bước đang chờ"', () => {
+    /*
+     * Ba bảng nhãn ở hai gói, không bảng nào là `Record<Status, …>` (chúng còn
+     * đọc dòng lịch sử cũ), nên `tsc` không đòi khoá mới. Thiếu thì thư in thẳng
+     * mã `SA_SUA_BAN_CUNG` ra dòng *Trạng thái*, và tờ giấy cũng thế.
+     */
+    for (const s of STATUSES) {
+      expect(STATUS_LABEL[s], `thư: thiếu nhãn ${s}`).toBeTruthy();
+      expect(NHAN_VAN_BAN[s], `văn bản: thiếu nhãn ${s}`).toBeTruthy();
+      if (s !== 'NHAP') expect(STEP_LABEL[s], `thư: thiếu bước ${s}`).toBeTruthy();
+    }
+    // Hai nhãn của bàn Sale Admin phải KHÁC nhau — cả chặng `0225` là để tách chúng.
+    expect(STATUS_LABEL.SA_SUA_BAN_CUNG).not.toBe(STATUS_LABEL.SA_DANG_XU_LY);
+    expect(VIEC_CUA_BUOC.SA_SUA_BAN_CUNG).not.toBe(VIEC_CUA_BUOC.SA_DANG_XU_LY);
   });
 });
 

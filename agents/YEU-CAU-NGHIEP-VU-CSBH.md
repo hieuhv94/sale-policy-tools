@@ -272,7 +272,7 @@ Luồng **tuần tự**, không có bước nào chạy song song.
 | B9 | Sale Admin | KT duyệt bản cứng | KT, TBP, TDV | Bàn giao bản cứng |
 | B10A | Kế toán — nhận L2 | **Đang có hiệu lực** | KT, TBP, SA, TDV | Đối chiếu bản cứng với lần 1; CSBH có hiệu lực ngay lúc này |
 | B10B | Kế toán — không nhận L2 | Yêu cầu chỉnh sửa → B3 | KT, TBP, SA, TDV | Bắt buộc nhập lý do |
-| B10C | Kế toán — yêu cầu in lại | Sale Admin đang xử lý → B8 | SA, TBP, TDV | Bản scan cũ **giữ nguyên**; Sale Admin chủ động gỡ và thay `sửa 19/08` |
+| B10C | Kế toán — yêu cầu in lại | **Sale Admin sửa bản cứng** `sửa 28/09` → B8 | SA, TBP, TDV | Bản scan cũ **giữ nguyên**; Sale Admin chủ động gỡ và thay `sửa 19/08`. Từ `28/09` là trạng thái **riêng**, không còn chung *Sale Admin đang xử lý* |
 | B4C | TBP — **hoàn duyệt** `mới 07/09` | Yêu cầu chỉnh sửa → B3 | TDV, KT, SA | Rút lại chữ ký của chính mình ở **ba bước SAU B4**: B6 · B8 · B9/B10. Bắt buộc nhập lý do; chữ ký bị xoá và hồ sơ đi lại toàn bộ vòng duyệt |
 
 **Bước B5 và trạng thái `TBP đã ký số` đã bỏ** `19/08`. Chúng chưa bao giờ hiện ra với người dùng:
@@ -293,7 +293,8 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
 | `Nháp` | Trạng thái đầu tiên, sửa tự do | — |
 | `Chờ TBP duyệt` | Đã gửi duyệt, hồ sơ khóa sửa | 14 ngày |
 | `KT duyệt bản mềm` | Chờ tiếp nhận file mềm — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L1* | 14 ngày |
-| `Sale Admin đang xử lý` | In, trình ký, scan | 14 ngày |
+| `Sale Admin đang xử lý` | In, trình ký, scan — bản cứng **lần đầu** | 14 ngày |
+| `Sale Admin sửa bản cứng` `mới 28/09` | Kế toán **yêu cầu in lại** (B10C); Sale Admin làm lại bản cứng rồi bàn giao lại. TBP vẫn hoàn duyệt được | 14 ngày |
 | `KT duyệt bản cứng` | Chờ tiếp nhận bản cứng — tên hiển thị đổi `18/08`, trước là *Chờ Kế toán L2* | 14 ngày |
 | `Đang có hiệu lực` | CSBH đang áp dụng, vô thời hạn | — |
 | `Hết hiệu lực` | Bị thay bởi một CSBH mới của cùng khách hàng | — |
@@ -305,7 +306,7 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
 **Quy tắc**
 
 - Mỗi trạng thái có một mã kỹ thuật và một nhãn hiển thị; danh sách trên là danh sách đóng — **mười
-  trạng thái** `sửa 29/08`.
+  một trạng thái** `sửa 28/09` (thêm *Sale Admin sửa bản cứng*; trước đó mười, từ `29/08`).
 - Không dùng các tên cũ: “Bản Demo”, “Đang duyệt”, “Đã chuyển bước sau”, “Đang áp dụng”.
 - ~~Hồ sơ ở `Từ chối` **không ai xóa được DÒNG**~~ `bỏ 29/08` — không còn trạng thái ấy. Hai cột
   `rejected_at` / `rejected_by` **VẪN CÒN** trong lược đồ và báo cáo vẫn đếm theo mốc ấy: nhật ký kể
@@ -355,8 +356,9 @@ kể cả bước ký số của Trưởng bộ phận. Phiên bản cũ giữ n
 
 1. **Mỗi khách hàng chỉ có đúng một CSBH còn hiệu lực tại một thời điểm.**
 
-   **Và chỉ có MỘT hồ sơ CSBH đang xử lý** `mới 25/09` — tức ở một trong sáu trạng thái *Nháp* ·
-   *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *KT duyệt bản cứng*.
+   **Và chỉ có MỘT hồ sơ CSBH đang xử lý** `mới 25/09` — tức ở một trong bảy trạng thái *Nháp* ·
+   *Yêu cầu chỉnh sửa* · *Chờ TBP duyệt* · *Chờ KT duyệt L1* · *SA đang xử lý* · *SA sửa bản cứng*
+   `thêm 28/09` · *KT duyệt bản cứng*.
    Bốn trạng thái **không tính**: *Đang có hiệu lực*, *Hết hiệu lực*, *Đã xoá*, và *Quá hạn duyệt*
    (trạng thái kết thúc, không ai thao tác được nữa). Nên một khách có tối đa hai hồ sơ "sống" cùng
    lúc: bản đang hiệu lực và bản thay thế đang đi luồng duyệt. Lập hồ sơ mới khi khách đã có một hồ
@@ -944,7 +946,7 @@ bản người dùng xem khác bản đem ký.
 | Bố cục | Bảng sản phẩm, CPBH, tỷ lệ chiết khấu | Điều khoản hợp đồng, do Sale Admin soạn |
 | Sinh ra khi nào | TDV lập ở Bước 1 | Xuất ở Bước 7, sau khi kế toán tiếp nhận lần 1 |
 | Vòng đời | Lưu vĩnh viễn, có phiên bản, có lịch sử | **Sinh ra rồi trả về ngay, không lưu trong hệ thống** |
-| Trạng thái | 10 trạng thái ở mục 4 `sửa 29/08` | Không có trạng thái — chỉ là một file PDF |
+| Trạng thái | 11 trạng thái ở mục 4 `sửa 28/09` | Không có trạng thái — chỉ là một file PDF |
 
 Hợp đồng **lấy dữ liệu từ** hồ sơ CSBH và hồ sơ khách hàng để điền vào ô trống trên mẫu. Nó không
 phải một cách in khác của hồ sơ.
@@ -2909,6 +2911,25 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**TRẠNG THÁI MỚI *SALE ADMIN SỬA BẢN CỨNG*** `mới 28/09` — *"thêm một trạng thái cho CSBH trong luồng
+duyệt gọi là SA sửa bản cứng, xảy ra khi Kế Toán trả lại CSBH về cho SA, khi đó cần trạng thái này để
+phân biệt với SA đang xử lý"*.
+
+> **Không phải một phân biệt mới — là đưa một phân biệt đã có ra chỗ nhìn thấy được.** Từ `19/08` hệ
+> thống đã tách hai việc này để đếm thẻ *Lỗi bản cứng* của Sale Admin, nhưng bằng một **mốc thời gian
+> ẩn** trên hồ sơ vẫn mang nhãn *Sale Admin đang xử lý*. Danh sách, trang hồ sơ, thư báo, bộ lọc và
+> thống kê chỉ đọc nhãn trạng thái — nên ở mọi chỗ ấy hai việc trông như một. Nay đó là trạng thái
+> thật, và mốc ẩn **bỏ hẳn**: hai chỗ trả lời cùng một câu hỏi là hai chỗ sẽ có ngày nói khác nhau.
+>
+> Chốt khi được hỏi: (1) **Trưởng bộ phận vẫn hoàn duyệt được** ở trạng thái mới — như hôm trước, khi
+> nó còn là *Sale Admin đang xử lý*; (2) thẻ Tổng quan **giữ tên *Lỗi bản cứng*** và đếm đúng trạng
+> thái này; (3) nhãn mang **một màu riêng** — tím mận, vùng màu duy nhất chưa trạng thái nào dùng.
+>
+> Đi kèm, không ai phải chốt: SLA 14 ngày như mọi bước chờ (ca này vốn đã có hạn); hồ sơ ở trạng thái
+> này tính vào *"một hồ sơ đang xử lý mỗi khách"* (`25/09`); khối *Lý do gần nhất* hiện ở đây
+> (`25/09` đã quy định đúng ca này). **Mốc cũ có một lỗ, đóng theo**: hồ sơ bị hoàn duyệt giữa lúc
+> sửa bản cứng giữ lại mốc, nên vòng sau nó lại bị đếm vào *Lỗi bản cứng* dù đang làm bản cứng lần đầu.
 
 **HỘP XEM ẢNH CHỈ CÒN CÂU HƯỚNG DẪN** `sửa 20/09` — hai câu, hai lượt: *"phần xem ảnh chỉ cần câu
 hướng dẫn, không cần hai nút +/- bên cạnh"*, rồi *"không cần cả ô phần trăm và nút về cỡ vừa khung,

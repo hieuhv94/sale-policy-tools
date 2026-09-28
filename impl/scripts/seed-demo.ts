@@ -1471,7 +1471,11 @@ async function main(): Promise<void> {
     ['CHO_TBP_DUYET', 5],
     ['CHO_KT_L1', 4],
     ['CHO_KT_L2', 3],
-    ['SA_DANG_XU_LY', 3],
+    // `0225` — hai nửa của bước Sale Admin. Tổng nhóm dở GIỮ NGUYÊN (sức chứa
+    // 32 khách ở trên): *SA đang xử lý* nhường một chỗ cho trạng thái mới, và
+    // tới `0224` bản demo không có hồ sơ in lại nào — thẻ *Lỗi bản cứng* luôn 0.
+    ['SA_DANG_XU_LY', 2],
+    ['SA_SUA_BAN_CUNG', 2],
     ['NHAP', 3],
   ];
 
@@ -1502,6 +1506,18 @@ async function main(): Promise<void> {
         reason: 'Khách hàng đang quá hạn công nợ trên 90 ngày, chưa cấp CSBH mới.',
       });
       await xoaHoSo(id, 'tdv01');
+      return;
+    }
+    /*
+     * `SA_SUA_BAN_CUNG` (`0225`) — đi đúng đường thật: bàn giao lần đầu rồi Kế
+     * toán yêu cầu in lại. Không nằm trong `CHUOI` vì nó không phải một nấc trên
+     * đường thẳng tới hiệu lực, mà là một vòng QUAY LẠI từ `CHO_KT_L2`.
+     */
+    if (dich === 'SA_SUA_BAN_CUNG') {
+      await dayToi(id, 'CHO_KT_L2');
+      await act(id, 'KT_REQUEST_REPRINT', 'kt01', {
+        reason: 'Bản cứng thiếu dấu giáp lai trang 2, đề nghị in lại và trình ký.',
+      });
       return;
     }
     await dayToi(id, dich);

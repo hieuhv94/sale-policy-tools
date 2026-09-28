@@ -1935,6 +1935,9 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
      */
     CHO_KT_L1: { kt01: ['KT_RECEIVE_L1', 'KT_RETURN_L1'], tbp01: ['TBP_RECALL'] },
     SA_DANG_XU_LY: { sa01: ['SA_HANDOVER'], tbp01: ['TBP_RECALL'] },
+    // `0225` — cùng hai nút với lượt làm bản cứng lần đầu: bàn giao LẠI, và
+    // hoàn duyệt (khách hàng chốt 28/09 giữ quyền ấy). Kế toán không có nút nào.
+    SA_SUA_BAN_CUNG: { sa01: ['SA_HANDOVER'], tbp01: ['TBP_RECALL'] },
     CHO_KT_L2: {
       kt01: ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT'],
       tbp01: ['TBP_RECALL'],
@@ -1980,6 +1983,7 @@ describe('`0038` chỉ trả về hành động vai trò ấy làm được', ()
   const SAU_CHU_KY_TBP = new Set([
     'CHO_KT_L1',
     'SA_DANG_XU_LY',
+    'SA_SUA_BAN_CUNG',
     'CHO_KT_L2',
     'DANG_CO_HIEU_LUC',
     'HET_HIEU_LUC',
@@ -2337,20 +2341,26 @@ describe('`0220` một hồ sơ đang xử lý mỗi khách hàng', () => {
     await post(`/policies/${d.id}/attachments`,
       { kind: 'BAN_MEM', fileName: 'bm.pdf', objectKey: `bm/${d.id}.pdf` }, 'sa01');
     expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    if (tt === 'CHO_KT_L2') return d;
+    // `0225` — đi đường thật tới trạng thái mới: Kế toán yêu cầu in lại.
+    expect((await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'In lai' })).status).toBe(200);
     return d;
   };
 
   const lapLai = (customerId: string) =>
     post('/policies', { customerId, mode: 'NEW_VERSION', lines: [] });
 
-  it('sáu trạng thái được tính ĐÚNG BẰNG `CHUA_DUYET_XONG`', () => {
+  it('bảy trạng thái được tính ĐÚNG BẰNG `CHUA_DUYET_XONG`', () => {
     // Ghim tập, để ca vòng lặp ngay dưới không lặng lẽ đi theo một hằng đã nới.
+    // `0225` thêm `SA_SUA_BAN_CUNG` — sáu thành bảy.
     expect([...CHUA_DUYET_XONG].sort()).toEqual(
-      ['CHO_KT_L1', 'CHO_KT_L2', 'CHO_TBP_DUYET', 'NHAP', 'SA_DANG_XU_LY', 'YEU_CAU_CHINH_SUA'],
+      ['CHO_KT_L1', 'CHO_KT_L2', 'CHO_TBP_DUYET', 'NHAP', 'SA_DANG_XU_LY', 'SA_SUA_BAN_CUNG',
+       'YEU_CAU_CHINH_SUA'],
     );
   });
 
-  for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY', 'CHO_KT_L2']) {
+  for (const tt of ['NHAP', 'YEU_CAU_CHINH_SUA', 'CHO_TBP_DUYET', 'CHO_KT_L1', 'SA_DANG_XU_LY',
+                    'SA_SUA_BAN_CUNG', 'CHO_KT_L2']) {
     it(`hồ sơ ${tt} chặn lượt lập mới, và câu lỗi trỏ đúng hồ sơ ấy`, async () => {
       const d = await denTrangThai(tt);
       const r = await post('/policies', { customerId: d.customerId, lines: [line(await makeProduct())] });
@@ -3284,7 +3294,7 @@ describe('WF-17 · WF-18 · WF-19 kế toán không tiếp nhận L2', () => {
     const d = await toL2();
     const r = await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban in mo' });
     expect(r.status).toBe(200);
-    expect(r.body.status).toBe('SA_DANG_XU_LY');
+    expect(r.body.status).toBe('SA_SUA_BAN_CUNG'); // `0225` — trạng thái riêng, không còn chung lượt đầu
     // HAI tệp từ `0167`: bản scan và bản mềm — `toL2()` gắn cả hai vì bàn giao
     // đòi cả hai. Lọc theo LOẠI chứ không đếm tổng: câu ca này khẳng định là về
     // BẢN SCAN, và một con số tổng sẽ đổi mỗi lần thêm một loại tệp.
@@ -6128,7 +6138,7 @@ describe('`0189` lý do trả về kèm người và bước', () => {
     expect((await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Ban cung mo' })).status).toBe(200);
 
     const o = (await get(`/policies/${d.id}`)).body;
-    expect(o.status).toBe('SA_DANG_XU_LY');
+    expect(o.status).toBe('SA_SUA_BAN_CUNG'); // `0225`
     expect(o.lyDoTraLai, 'Sale Admin phải thấy vì sao phải tải lại bản cứng').toBeTruthy();
     expect(o.lyDoTraLai.hanhDong).toBe('KT_REQUEST_REPRINT');
     expect(o.lyDoTraLai.lyDo).toBe('Ban cung mo');
@@ -6140,9 +6150,10 @@ describe('`0189` lý do trả về kèm người và bước', () => {
 
   it('`0221` ở bàn Sale Admin LƯỢT ĐẦU thì lý do trả về cũ KHÔNG hiện', async () => {
     /*
-     * Vế thứ hai của luật hỏi HÀNH ĐỘNG, không chỉ trạng thái: `SA_DANG_XU_LY`
-     * cũng là bước bình thường ngay sau tiếp nhận L1, và lúc ấy lý do gần nhất
-     * là một lượt trả về đã sửa xong. Hỏi mỗi trạng thái là khối hiện lại ở đây.
+     * `SA_DANG_XU_LY` là bước bình thường ngay sau tiếp nhận L1, và lúc ấy lý do
+     * gần nhất là một lượt trả về đã sửa xong. Tới `0224` luật phải hỏi cả HÀNH
+     * ĐỘNG để tách ca này khỏi ca in lại; từ `0225` ca in lại là trạng thái
+     * riêng và luật chỉ còn hỏi trạng thái — ca này giữ nguyên, canh vế ấy.
      */
     const d = await draft();
     expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
@@ -8075,5 +8086,138 @@ describe('`0204` bảng bản trước của dòng', () => {
       expect(Object.keys(l)).not.toContain('banTruoc');
       expect(Object.keys(l)).not.toContain('ban_truoc');
     }
+  });
+});
+
+// =============================================================================
+// `0225` — trạng thái *Sale Admin sửa bản cứng*
+// =============================================================================
+
+/**
+ * Khách hàng chốt 28/09: Kế toán trả hồ sơ về Sale Admin (*Yêu cầu in lại*) thì
+ * hồ sơ mang trạng thái RIÊNG, phân biệt với *Sale Admin đang xử lý*. Mọi ca đi
+ * đường HTTP thật tới `CHO_KT_L2` rồi bấm in lại — không vặn `status` bằng SQL,
+ * vì thứ phải kiểm là chính lượt chuyển trạng thái ấy.
+ */
+describe('`0225` Sale Admin sửa bản cứng', () => {
+  const tepSa = (id: string, kind: 'SCAN' | 'BAN_MEM', key = `${kind}/${id}-${uniq('t')}.pdf`) =>
+    post(`/policies/${id}/attachments`, { kind, fileName: `${kind}.pdf`, objectKey: key }, 'sa01');
+
+  /** Đi thật tới `CHO_KT_L2` rồi Kế toán yêu cầu in lại. */
+  const inLai = async () => {
+    const d = await draft();
+    expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    expect((await tepSa(d.id, 'SCAN')).status).toBe(201);
+    expect((await tepSa(d.id, 'BAN_MEM')).status).toBe(201);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    const r = await act(d.id, 'KT_REQUEST_REPRINT', 'kt01', { reason: 'Thiếu dấu giáp lai' });
+    expect(r.status, JSON.stringify(r.body)).toBe(200);
+    return d;
+  };
+
+  const trangThai = async (id: string) => (await get(`/policies/${id}`, 'sa01')).body.status as string;
+
+  it('yêu cầu in lại → SA sửa bản cứng, KHÔNG còn là SA đang xử lý', async () => {
+    const d = await inLai();
+    expect(await trangThai(d.id)).toBe('SA_SUA_BAN_CUNG');
+  });
+
+  it('nhật ký ghi đúng đích của lượt in lại', async () => {
+    const d = await inLai();
+    const ev = (await get(`/policies/${d.id}/events`, 'sa01')).body as {
+      action: string; fromStatus: string; toStatus: string;
+    }[];
+    const cuoi = ev[ev.length - 1]!;
+    expect(cuoi).toMatchObject({
+      action: 'KT_REQUEST_REPRINT', fromStatus: 'CHO_KT_L2', toStatus: 'SA_SUA_BAN_CUNG',
+    });
+  });
+
+  it('có HẠN 14 ngày — tách trạng thái không được tắt SLA của ca này', async () => {
+    const d = await inLai();
+    const r = await withAdminDb((c) =>
+      c.query<{ han: string | null }>(`SELECT sla_due_at AS han FROM pol.policy WHERE id = $1`, [d.id]),
+    );
+    expect(r.rows[0]!.han, 'không có hạn — `isWaiting` không biết trạng thái mới').not.toBeNull();
+  });
+
+  it('Sale Admin gỡ bản scan bị chê, tải bản mới, rồi BÀN GIAO LẠI → KT duyệt bản cứng', async () => {
+    const d = await inLai();
+    const tep = (await get(`/policies/${d.id}`, 'sa01')).body.attachments as { id: string; kind: string }[];
+    const scanCu = tep.find((t) => t.kind === 'SCAN')!;
+    // Gỡ và tải lên ĐƯỢC ở trạng thái mới — viết chốt tệp bằng `=== 'SA_DANG_XU_LY'`
+    // là khoá Sale Admin khỏi đúng ca họ phải thay bản scan.
+    expect((await del(`/policies/${d.id}/attachments/${scanCu.id}`, 'sa01')).status).toBe(200);
+    expect((await tepSa(d.id, 'SCAN')).status).toBe(201);
+    expect((await tepSa(d.id, 'BAN_MEM')).status).toBe(201);
+    expect((await act(d.id, 'SA_HANDOVER', 'sa01')).status).toBe(200);
+    expect(await trangThai(d.id)).toBe('CHO_KT_L2');
+  });
+
+  it('màn hình cho Sale Admin ghi CẢ HAI loại tệp ở trạng thái mới', async () => {
+    const d = await inLai();
+    const b = (await get(`/policies/${d.id}`, 'sa01')).body;
+    expect(b.loaiTepGhiDuoc).toEqual(['SCAN', 'BAN_MEM']);
+  });
+
+  it('bàn giao lại vẫn đòi bản scan — gỡ hết thì 409 SCAN_REQUIRED', async () => {
+    const d = await inLai();
+    const tep = (await get(`/policies/${d.id}`, 'sa01')).body.attachments as { id: string; kind: string }[];
+    for (const t of tep.filter((x) => x.kind === 'SCAN')) {
+      expect((await del(`/policies/${d.id}/attachments/${t.id}`, 'sa01')).status).toBe(200);
+    }
+    const r = await act(d.id, 'SA_HANDOVER', 'sa01');
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('SCAN_REQUIRED');
+  });
+
+  it('TBP hoàn duyệt được ở trạng thái mới (chốt 28/09)', async () => {
+    const d = await inLai();
+    expect((await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Ký nhầm' })).status).toBe(200);
+    expect(await trangThai(d.id)).toBe('YEU_CAU_CHINH_SUA');
+  });
+
+  it('Kế toán KHÔNG làm được gì ở trạng thái mới — việc đang ở bàn Sale Admin', async () => {
+    const d = await inLai();
+    for (const a of ['KT_RECEIVE_L2', 'KT_RETURN_L2', 'KT_REQUEST_REPRINT']) {
+      const r = await act(d.id, a, 'kt01', { reason: 'x' });
+      expect(r.status, a).toBe(409);
+    }
+  });
+
+  it('khối lý do HIỆN ở trạng thái mới — đó là việc Sale Admin phải làm', async () => {
+    const d = await inLai();
+    const ly = (await get(`/policies/${d.id}`, 'sa01')).body.lyDoTraLai;
+    expect(ly?.lyDo).toBe('Thiếu dấu giáp lai');
+    expect(ly?.hanhDong).toBe('KT_REQUEST_REPRINT');
+  });
+
+  it('cảnh báo "bản scan cũ" CHỈ ở trạng thái mới, không ở lượt làm bản cứng lần đầu', async () => {
+    const d = await inLai();
+    expect((await get(`/policies/${d.id}`, 'sa01')).body.banScanCu).toBe(true);
+
+    // Hoàn duyệt → gửi lại → tới bàn Sale Admin LẦN ĐẦU của vòng mới: bản scan
+    // từ vòng trước còn đó, nhưng không còn là bản "Kế toán vừa chê".
+    expect((await act(d.id, 'TBP_RECALL', 'tbp01', { reason: 'Ký nhầm' })).status).toBe(200);
+    expect((await act(d.id, 'RESUBMIT_AFTER_EDIT', 'tdv01')).status).toBe(200);
+    expect((await act(d.id, 'TBP_SIGN', 'tbp01')).status).toBe(200);
+    expect((await act(d.id, 'KT_RECEIVE_L1', 'kt01')).status).toBe(200);
+    const b = (await get(`/policies/${d.id}`, 'sa01')).body;
+    expect(b.status).toBe('SA_DANG_XU_LY');
+    expect(b.banScanCu).toBe(false);
+  });
+
+  it('hộp việc của Sale Admin có hồ sơ ở trạng thái mới', async () => {
+    const d = await inLai();
+    expect(await hetHopViec('sa01')).toContain(d.id);
+  });
+
+  it('khách đang có hồ sơ ở trạng thái mới thì KHÔNG lập thêm được (một hồ sơ đang xử lý)', async () => {
+    const d = await inLai();
+    const r = await post('/policies', { customerId: d.customerId, lines: [line(await makeProduct())] });
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe('POLICY_IN_PROGRESS');
   });
 });

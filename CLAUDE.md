@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 71 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 73 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -99,7 +99,18 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (28/09/2026)
 
-Chặng gần nhất **P254** (`0224`): **hồ sơ trả về TDV thì bỏ đóng băng khách hàng**, và TDV **sửa
+Chặng gần nhất **P255** (`0225`): **trạng thái thứ mười một *Sale Admin sửa bản cứng***
+(`SA_SUA_BAN_CUNG`) — đích của `KT_REQUEST_REPRINT`, tách khỏi *Sale Admin đang xử lý*. Hai lối ra:
+*Bàn giao* (lại) và *Hoàn duyệt* của TBP (khách hàng chốt giữ). Có SLA, có chủ Sale Admin, cùng bước
+B8 (`pending_step`). **Mốc `reprint_requested_at` của `0045` GỠ HẲN** ở cả `pol` lẫn `rpt` — nó từng
+gánh đúng phân biệt này, và nó có lỗ: `0185` thêm Hoàn duyệt mà không dọn mốc (đo được trên demo).
+Mọi câu *"Sale Admin đang cầm hồ sơ"* đọc hằng **`BAN_SALE_ADMIN`**; bản chép `WAITING_STATES` ở
+`workflow.service` đã gỡ. Bộ lọc `reprint` gỡ; thẻ *Lỗi bản cứng* (giữ tên) đếm và lọc theo `status`.
+Màu tím mận. Migration hai tệp (`0121` chỉ `ADD VALUE` — giá trị enum mới không dùng được trong cùng
+transaction); `0122` chạy lại được. Ca tài liệu số viết bằng chữ giờ so với `STATUSES`. Mười một lượt
+phá, mười một đỏ. **2499/2500** — một ca Thống kê chập chờn, ngoài diff.
+
+Trước đó **P254** (`0224`): **hồ sơ trả về TDV thì bỏ đóng băng khách hàng**, và TDV **sửa
 khách hàng ngay trên trang hồ sơ**. Không phải "không sửa được" mà là "sửa rồi không thấy": `byId`
 đọc ảnh chụp hễ có, và lượt trả về chỉ xoá chữ ký. Giờ đích `YEU_CAU_CHINH_SUA` xoá mười một cột
 `kh_*_snap` (theo TRẠNG THÁI ĐÍCH, cùng lẽ ba cột chữ ký), đường đọc rơi về nhánh đọc sống có sẵn từ
