@@ -1117,8 +1117,8 @@ văn bản mẫu nào để chọn.
 có thêm cột **Thao tác** ở cuối bảng, với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần
 rê chuột `sửa 29/09`. Cột này đứng cuối như mọi cột, không ghim: bảng rộng thì kéo sang phải tới nó.
 
-> **Thứ tự cột: *Ngày áp dụng* · *Mã sản phẩm* · *Tên sản phẩm* · …**, giống hệt bản in. Cột *Tên sản
-> phẩm* tô **nền xanh nhạt, chữ đậm** cho dễ dò dòng; tên dài thì xuống dòng trong ô. **Không cột nào
+> **Thứ tự cột: *Ngày áp dụng* · *Mã sản phẩm* · *Tên sản phẩm* · …**, giống hệt bản in. Tên dài thì
+> xuống dòng trong ô. **Không cột nào
 > đứng yên khi cuộn ngang** `sửa 29/09` — bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang
 > phải xem số, cả bảng trôi theo. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
 người duyệt trả lại.

@@ -2252,26 +2252,23 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    khổ (`0228`), rồi khoá MỘT cột tên (`0230`), rồi BỎ HẲN (`0231`) — ngay dưới. */
 
 /* =========================================================================
-   CỘT TÊN NỔI, KHÔNG CỘT NÀO GHIM — bảng sản phẩm (`0230` → `0231`)
+   CỘT TÊN — KHÔNG GHIM, KHÔNG MÀU RIÊNG — bảng sản phẩm (`0230` → `0233`)
    =========================================================================
 
    `0230` (khách hàng 29/09) đưa *Tên sản phẩm* lên đầu, ghim khi cuộn ngang và
-   làm nổi. Cùng ngày khách hàng xem trên demo rồi chốt `0231`: bỏ ghim, thứ tự
-   về *Ngày áp dụng · Mã · Tên* như `0180`. Phần NỔI giữ — nền nhạt màu thương
-   hiệu và chữ đậm; bóng mép phải thì gỡ, nó chỉ có nghĩa khi cột đứng yên trên
-   phần đang trôi.
+   làm nổi (nền nhạt màu thương hiệu, chữ đậm, bóng mép phải). Cùng ngày khách
+   hàng xem trên demo và lùi cả ba vế: `0231` bỏ ghim và trả thứ tự về *Ngày áp
+   dụng · Mã · Tên*, `0233` trả MÀU về như cũ — nền như mọi ô (dòng rê chuột tô
+   được cả ô này), tiêu đề xám như mọi tiêu đề, độ đậm là mặc định của `<th>`.
 
-   Sàn và trần bề rộng giữ: tên ngắn vẫn đủ chỗ, tên dài xuống dòng chứ không
-   nong bảng. */
+   Còn lại đúng phần BỀ RỘNG: sàn và trần — tên ngắn vẫn đủ chỗ, tên dài xuống
+   dòng chứ không nong bảng. */
 .bang-san-pham .cot-khoa {
   min-width: 12rem;
   max-width: 18rem;
   white-space: normal;
   overflow-wrap: break-word;
-  background: var(--mau-thuong-hieu-nhat);
-  font-weight: 600;
 }
-.bang-san-pham thead .cot-khoa { color: var(--mau-thuong-hieu-dam); }
 
 /* CỘT THAO TÁC — luôn hiện (`0228`), THÔI GHIM mép phải (`0230`, *"không cần
    cố định cột thao tác này"*): nó đứng cuối bảng như mọi cột.

@@ -99,7 +99,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P261–P262** (`0231`, `0232`), cùng ngày: khách hàng xem `0230` trên demo rồi **lùi thứ
+Chặng gần nhất **P263** (`0233`): **cột tên sản phẩm về màu như cũ** — gỡ nền xanh nhạt, màu chữ tiêu đề
+và chữ đậm tự khai của `0230`; ca quét mọi khối `.cot-khoa` cấm ba thuộc tính ấy. Của `0230` giờ chỉ còn bề
+rộng sàn/trần cột tên và nút Sửa/Xoá cỡ thường. **904/904 ca giao diện xanh**; `make test` đầy đủ chưa chạy
+từ P260 (demo bật).
+
+Trước đó **P261–P262** (`0231`, `0232`), cùng ngày: khách hàng xem `0230` trên demo rồi **lùi thứ
 tự cột về *Ngày · Mã · Tên* và bỏ ghim hẳn** — không cột nào của bảng sản phẩm đứng yên khi cuộn (ca quét
 MỌI khối `.bang-san-pham` cấm `sticky`); màn hình và bản in lại khớp thứ tự không ngoại lệ. Giữ nền nhạt +
 chữ đậm cột tên và nút cỡ thường. **`0232`**: khối *Thông tin chung* hết khoảng trống giữa khối — *Tên*

@@ -2931,8 +2931,9 @@ cuối khối (chốt khi được hỏi) — cùng chỗ nó đứng ở trang 
 
 **BẢNG SẢN PHẨM: BỎ GHIM, THỨ TỰ CỘT NHƯ CŨ** `sửa 29/09` — sau khi xem mục ngay dưới trên bản demo:
 *"bỏ fix cứng cột tên sản phẩm, đổi thứ tự cột về như cũ"*. Thứ tự lại là *Ngày áp dụng · Mã · Tên*,
-**khớp bản in không ngoại lệ**; **không cột nào ghim** khi cuộn ngang (kể cả ba cột của `0228`). Giữ
-lại: cột tên **nền nhạt, chữ đậm**; nút Sửa/Xoá cỡ thường, cột thao tác không ghim.
+**khớp bản in không ngoại lệ**; **không cột nào ghim** khi cuộn ngang (kể cả ba cột của `0228`). Sau
+đó cùng ngày: *"đổi lại màu của cột tên sản phẩm về như cũ"* — cột tên thôi tô nền xanh nhạt, màu như
+mọi cột. Còn lại từ mục ngay dưới: nút Sửa/Xoá cỡ thường, cột thao tác không ghim.
 
 **BẢNG SẢN PHẨM: TÊN ĐỨNG ĐẦU, KHOÁ VÀ NỔI** `sửa 29/09, đã lùi phần thứ tự và ghim` — *"đẩy tên sản phẩm lên cột đầu tiên và
 fix cứng cột đó khi người dùng lăn chuột, cần làm nổi cột này lên"*; nút Sửa/Xoá *"nhìn không bị quá

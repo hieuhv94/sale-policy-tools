@@ -20233,3 +20233,19 @@ cạnh Mã (3 đỏ, gồm hai ca dãy nhãn của `0228`).
 **904/904 ca giao diện xanh; typecheck xanh** — chạy bằng `docker run csbh-test:latest --network none`
 vì chồng demo đang bật theo yêu cầu người dùng. `make test` đầy đủ KHÔNG chạy ở P261–P262; cả hai chặng
 chỉ đụng giao diện và tài liệu, và ca `tieu-de-cot` (tầng `tests/http`, thuần) đã chạy trong lượt ấy.
+
+## P263 — `0233` Cột tên sản phẩm: màu như cũ
+
+*"Đổi lại màu của cột tên sản phẩm về như cũ"* — vế cuối của `0230` bị lùi. "Như cũ" đọc là trước
+`0230`: nền như mọi ô thân bảng (giờ dòng rê chuột tô được cả ô này — tới `0229` nó mang nền đặc
+`--mau-nen` vì ghim), tiêu đề xám như mọi tiêu đề, độ đậm là mặc định của `<th>`. Gỡ nền
+`--mau-thuong-hieu-nhat`, màu chữ tiêu đề, và `font-weight: 600` tự khai (không phải màu, nhưng là nửa
+thứ hai của cùng một lần *"làm nổi"*, và `<th>` vốn đậm). Còn lại của `0230`: bề rộng sàn/trần của cột
+tên, và nút Sửa/Xoá cỡ thường.
+
+Ca *"cột tên vẫn NỔI"* của `0231` ĐẢO: quét MỌI khối CSS có `.bang-san-pham … .cot-khoa` và cấm
+`background`/`color`/`font-weight` — `0230` tô bằng hai khối (thân và tiêu đề), sót khối nào là cột ấy
+vẫn khác màu. Phá lại: trả màu chữ tiêu đề (chỉ khối `thead`) → 1 đỏ.
+
+**904/904 ca giao diện xanh; typecheck xanh** (`docker run` rời, demo bật). `make test` đầy đủ chưa chạy
+từ P260.

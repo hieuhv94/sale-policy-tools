@@ -712,10 +712,10 @@ export function BangSanPham({
           <thead>
             <tr>
               {/*
-                CỘT TÊN NỔI hơn mọi cột — nền nhạt, chữ đậm (`0230`). `0230`
-                còn đưa nó lên đầu và ghim khi cuộn ngang; `0231` (khách hàng
-                29/09) trả thứ tự về *Ngày · Mã · Tên* và bỏ ghim — KHÔNG cột nào
-                đứng yên khi cuộn nữa, kể cả ba cột của `0228`.
+                `0230` đưa cột tên lên đầu, ghim khi cuộn ngang và tô nổi; khách
+                hàng 29/09 lùi cả ba — `0231` trả thứ tự về *Ngày · Mã · Tên* và
+                bỏ ghim (KHÔNG cột nào đứng yên khi cuộn, kể cả ba cột của
+                `0228`), `0233` trả màu về như mọi cột.
                 Lớp `cot-khoa` giữ tên cũ: nó vẫn là cột KHOÁ theo nghĩa *"cột
                 nói dòng này là mặt hàng nào"* (`th scope="row"`).
               */}

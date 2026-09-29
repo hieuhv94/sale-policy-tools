@@ -638,13 +638,13 @@ describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () =>
 
 /**
  * `0228` → `0230` → `0231` — bảng sản phẩm của hồ sơ: KHÔNG CỘT NÀO GHIM khi
- * cuộn ngang (ba cột của `0228`, rồi cột tên của `0230`, đều gỡ); cột tên vẫn
- * NỔI; nút Sửa/Xoá LUÔN HIỆN, cột thao tác không ghim.
+ * cuộn ngang (ba cột của `0228`, rồi cột tên của `0230`, đều gỡ); cột tên KHÔNG
+ * còn màu riêng (`0233`); nút Sửa/Xoá LUÔN HIỆN, cột thao tác không ghim.
  *
  * jsdom không tính bố cục, nên thứ đo được là luật CSS: không `sticky` trên bất
- * kỳ bộ chọn nào của `.bang-san-pham`, và nền nhạt + chữ đậm của cột tên.
+ * kỳ bộ chọn nào của `.bang-san-pham`, và không nền/màu/độ đậm trên cột tên.
  */
-describe('`0231` bảng sản phẩm: không cột nào ghim, cột tên nổi', () => {
+describe('`0231` · `0233` bảng sản phẩm: không cột nào ghim, cột tên không màu riêng', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
   const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
   /**
@@ -668,10 +668,14 @@ describe('`0231` bảng sản phẩm: không cột nào ghim, cột tên nổi',
     expect(ghim).toEqual([]);
   });
 
-  it('cột tên vẫn NỔI: nền nhạt màu thương hiệu, chữ đậm', () => {
-    const o = luat('.cot-khoa');
-    expect(o).toMatch(/background:\s*var\(--mau-thuong-hieu-nhat\)/);
-    expect(o).toMatch(/font-weight:\s*[67]00/);
+  it('`0233` cột tên KHÔNG mang màu riêng — nền, màu chữ, độ đậm như mọi ô', () => {
+    // Quét MỌI khối có `.cot-khoa` của bảng sản phẩm (tiêu đề lẫn thân): `0230`
+    // tô bằng hai khối, và sót khối nào là cột ấy vẫn khác màu.
+    const khoi = [...css.matchAll(/([^{}]*\.bang-san-pham[^{}]*\.cot-khoa[^{}]*)\{([^}]*)\}/g)];
+    expect(khoi.length).toBeGreaterThan(0);
+    for (const [, sel, than] of khoi) {
+      expect(than, sel!.trim()).not.toMatch(/(?:^|[;\s])(?:background|color|font-weight):/);
+    }
   });
 
   it('lớp `cot-khoa` nằm trên CỘT TÊN, ở cả tiêu đề lẫn thân bảng; ba lớp của `0228` không sót', () => {
