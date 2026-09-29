@@ -31,6 +31,7 @@
     "./ban-truoc": "./src/lib/ban-truoc.ts",
     "./sua-ho-so-ui": "./src/components/SuaHoSo.tsx",
     "./chiet-khau-ui": "./src/components/danh-muc/ChietKhau.tsx",
+    "./san-pham-ui": "./src/components/danh-muc/SanPham.tsx",
     "./sua-khach-hang": "./src/components/SuaKhachHang.tsx",
     "./khach-hang-ui": "./src/pages/KhachHang.tsx",
     "./lap-ho-so": "./src/pages/LapHoSo.tsx",

@@ -35,12 +35,30 @@ export type MucLech = {
   moi: string | null;
 };
 
-/** Ba trường đã đóng băng trên một dòng hồ sơ — đủ để so, không hơn. */
+/** Bốn trường đã đóng băng trên một dòng hồ sơ — đủ để so, không hơn. */
 export type DongDaChup = {
   productCode: string;
   companyPrice: string;
   threshold: string | null;
+  /**
+   * `0238` — MÃ quy định đã chụp (`rule_code_snap`). BẮT BUỘC chứ không tuỳ chọn:
+   * một người gọi quên truyền là mọi dòng lệch mã, hoặc không dòng nào — lối
+   * `0143`, để `tsc` chỉ ra đủ mọi chỗ dựng kiểu này.
+   */
+  ruleCode: string | null;
 };
+
+/**
+ * Giá trị RULE khi MÃ quy định đã đổi (`0238`): `<ngưỡng>|<mã>` ở CẢ HAI vế.
+ *
+ * Chỉ khi mã đổi — lệch chỉ ở ngưỡng giữ nguyên dạng số trần như từ `0029`, nên
+ * dấu vết cũ trong `pol.policy_impact` và mọi chỗ đọc chúng không đổi gì. `|` vì
+ * nó không thể nằm trong một con số, và mã quy định do người dùng gõ nhưng ký tự
+ * này không có lý do gì xuất hiện ở đó; màn hình tách ở dấu `|` ĐẦU TIÊN
+ * (`Lech.tsx`, `doc`).
+ */
+export const giaTriQuyDinh = (nguong: string | null, ma: string | null): string =>
+  `${nguong ?? '—'}|${ma ?? '—'}`;
 
 /** Nhãn trạng thái sản phẩm cho câu chữ trong thư và trong box Yêu cầu cập nhật. */
 export const NHAN_TRANG_THAI_SP: Record<string, string> = {
@@ -133,7 +151,29 @@ export function soSanhLech(
    */
   const nguongMoi = s.thresholdRate2 === null ? null : rate2ToNumeric(s.thresholdRate2);
   const nguongCu = d.threshold === null ? null : String(d.threshold);
-  if (nguongMoi !== nguongCu) {
+  /*
+   * `0238` — MÃ quy định đổi cũng là lệch, kể cả khi ngưỡng bằng nhau (khách hàng
+   * chốt 29/09). Đường sinh ra nó: ĐỔI NHÓM một sản phẩm, rơi sang quy định của
+   * nhóm mới có cùng ngưỡng — trước lượt này cột QĐCK của hồ sơ lặng lẽ mang mã
+   * của một quy định không còn phủ dòng ấy.
+   *
+   * `0029` viết *"KHÔNG KHỚP THEO MÃ QUY ĐỊNH"* — câu ấy nói về việc LỌC dòng cần
+   * rà (một quy định mới, cụ thể hơn, thắng quy định đã chụp mà hồ sơ không nhắc
+   * tới mã của nó), không phải về phép SO. Vẫn tra lại toàn bộ; chỉ so thêm mã.
+   *
+   * Cả hai vế rỗng (không quy định nào phủ) là khớp. Đổi tên một quy định cũng
+   * sinh lệch — đã nêu lúc chốt, và đúng: mã in trên dấu `?` của cột QĐCK.
+   */
+  const maMoi = s.ruleCode ?? null;
+  const maCu = d.ruleCode ?? null;
+  if (maMoi !== maCu && nguongMoi !== null) {
+    ra.push({
+      kind: 'RULE',
+      productCode: d.productCode,
+      snap: giaTriQuyDinh(nguongCu, maCu),
+      moi: giaTriQuyDinh(nguongMoi, maMoi),
+    });
+  } else if (nguongMoi !== nguongCu) {
     ra.push({
       kind: 'RULE',
       productCode: d.productCode,

@@ -431,7 +431,7 @@ Ba loại lệch, phân biệt bằng nhãn màu — nhãn hiện ngay trên dò
 | Nhãn | Nghĩa |
 |---|---|
 | **Giá** | Giá bán Công ty của sản phẩm đã đổi |
-| **QĐ chiết khấu** | Quy định chiết khấu áp cho dòng đó đã đổi, hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
+| **QĐ chiết khấu** | Quy định chiết khấu áp cho dòng đó đã đổi — **ngưỡng khác**, hoặc **quy định khác dù ngưỡng bằng nhau** `sửa 29/09` (hai cột hiện ngưỡng kèm mã, ví dụ *15,00% (CK-A) → 15,00% (CK-B)*) — hoặc **đã bị xoá** (khi đó ngưỡng về rỗng) |
 | **Sản phẩm** | Sản phẩm **đã bị vô hiệu hoá**, hoặc **đã bị xoá** khỏi danh mục |
 
 Chi tiết dựng thành **bảng bốn cột** — *Lệch ở · Sản phẩm · Trên hồ sơ · Đã cập nhật* — để con
@@ -2411,7 +2411,12 @@ Phía trên bảng có **ô tìm** và **ô chọn nhóm sản phẩm**, dùng c
 > đầu rồi lọc tại chỗ, nên vượt con số ấy là gõ đúng tên một mặt hàng có thật vẫn ra "không tìm
 > thấy" — mà không gì báo cho bạn biết mình chỉ đang tìm trong một phần.
 
-**Thẻ Sản phẩm** — thêm, sửa tên và trạng thái, đặt giá, nhập hàng loạt từ Excel.
+**Thẻ Sản phẩm** — thêm, sửa tên, **nhóm** và trạng thái, đặt giá, nhập hàng loạt từ Excel.
+
+- **Đổi nhóm sản phẩm** `mới 29/09` ở hộp thoại *Sửa*. Nhóm là thứ quy định chiết khấu khai theo,
+  nên đổi nhóm là đổi quy định áp cho sản phẩm: mọi hồ sơ CSBH chứa sản phẩm mà **ngưỡng hoặc quy
+  định** khác đi sẽ hiện trong khối *Yêu cầu cập nhật* của người phụ trách. Hồ sơ đã gửi duyệt giữ
+  nguyên ngưỡng đã đóng băng; hồ sơ còn sửa được thì bấm **Tự động cập nhật** để lấy quy định mới.
 
 - **Mã vật tư không sửa được** sau khi tạo. Hồ sơ CSBH đã lập đóng băng mã này.
 - **Vô hiệu hoá** chỉ chặn hồ sơ **lập mới**. Hồ sơ cũ giữ nguyên sản phẩm và giá đã đóng băng.

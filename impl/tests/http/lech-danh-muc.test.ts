@@ -22,11 +22,12 @@ import {
   type DongDaChup,
 } from '@csbh/policy/testing';
 
-/** Dòng đã đóng băng: 100.000 đ, ngưỡng 15,00%. */
+/** Dòng đã đóng băng: 100.000 đ, ngưỡng 15,00% của quy định QD-01. */
 const DONG: DongDaChup = {
   productCode: 'NC-GOLD-900',
   companyPrice: '100000',
   threshold: '15.00',
+  ruleCode: 'QD-01',
 };
 
 /**
@@ -103,6 +104,55 @@ describe('`0194` lệch QUY ĐỊNH CHIẾT KHẤU', () => {
     expect(soSanhLech({ ...DONG, threshold: null }, anh({ thresholdRate2: 1500 }))).toEqual([
       { kind: 'RULE', productCode: 'NC-GOLD-900', snap: '—', moi: '15.00' },
     ]);
+  });
+});
+
+/**
+ * `0238` — MÃ quy định đổi cũng là lệch, kể cả khi ngưỡng bằng nhau (khách hàng
+ * chốt 29/09). Đường sinh ra nó là ĐỔI NHÓM một sản phẩm; ca đi hết đường ở
+ * `tests/http/doi-nhom-san-pham.test.ts`.
+ */
+describe('`0238` lệch MÃ QUY ĐỊNH', () => {
+  it('mã khác, ngưỡng BẰNG NHAU → một mục RULE, hai vế mang cả ngưỡng lẫn mã', () => {
+    expect(soSanhLech(DONG, anh({ ruleCode: 'QD-02' }))).toEqual([
+      { kind: 'RULE', productCode: 'NC-GOLD-900', snap: '15.00|QD-01', moi: '15.00|QD-02' },
+    ]);
+  });
+
+  it('mã khác VÀ ngưỡng khác → vẫn ĐÚNG MỘT mục RULE, không phải hai', () => {
+    // Một dòng một quy định; hai mục cho cùng một thay đổi là đếm đôi trong box.
+    expect(soSanhLech(DONG, anh({ ruleCode: 'QD-02', thresholdRate2: 1750 }))).toEqual([
+      { kind: 'RULE', productCode: 'NC-GOLD-900', snap: '15.00|QD-01', moi: '17.50|QD-02' },
+    ]);
+  });
+
+  it('mã GIỐNG, ngưỡng khác → dạng số trần như từ `0029` (dấu vết cũ không đổi hình)', () => {
+    expect(soSanhLech(DONG, anh({ thresholdRate2: 1750 }))).toEqual([
+      { kind: 'RULE', productCode: 'NC-GOLD-900', snap: '15.00', moi: '17.50' },
+    ]);
+  });
+
+  it('dòng chưa có quy định nào, nay có → vế cũ là `—|—`', () => {
+    expect(
+      soSanhLech({ ...DONG, threshold: null, ruleCode: null }, anh({ ruleCode: 'QD-02' })),
+    ).toEqual([{ kind: 'RULE', productCode: 'NC-GOLD-900', snap: '—|—', moi: '15.00|QD-02' }]);
+  });
+
+  it('quy định biến mất (không còn quy định nào phủ) → vế mới `null`, như cũ', () => {
+    // Mã đổi (QD-01 → không có) nhưng câu đúng là *"không còn quy định nào"*,
+    // không phải một cặp mã — nhánh ngưỡng nói được điều ấy, nhánh mã thì không.
+    expect(
+      soSanhLech(DONG, anh({ ruleCode: null, thresholdRate2: null, thresholdSource: 'KHONG_CO' })),
+    ).toEqual([{ kind: 'RULE', productCode: 'NC-GOLD-900', snap: '15.00', moi: null }]);
+  });
+
+  it('cả hai vế đều không có quy định → khớp', () => {
+    expect(
+      soSanhLech(
+        { ...DONG, threshold: null, ruleCode: null },
+        anh({ ruleCode: null, thresholdRate2: null, thresholdSource: 'KHONG_CO' }),
+      ),
+    ).toEqual([]);
   });
 });
 

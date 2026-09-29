@@ -47,6 +47,7 @@ type DongLamMoi = {
   ngay_ap_dung: Date;
   company_price_snap: string;
   threshold_snap: string | null;
+  rule_code_snap: string | null;
   wholesale_price: string;
   cpbh: string[];
 };
@@ -71,6 +72,7 @@ const soSanhMotDong = (
       productCode: d.product_code_snap,
       companyPrice: String(d.company_price_snap),
       threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
+      ruleCode: d.rule_code_snap,
     },
     dat.anh.get(d.product_id),
     dat.loi.get(d.product_id),
@@ -2048,6 +2050,7 @@ export class PoliciesService {
       `SELECT product_id, product_code_snap, ngay_ap_dung,
               company_price_snap::text AS company_price_snap,
               threshold_snap::text     AS threshold_snap,
+              rule_code_snap,
               wholesale_price::text    AS wholesale_price,
               cpbh::text[]             AS cpbh
          FROM pol.policy_line WHERE policy_id = $1 AND NOT da_xoa`,

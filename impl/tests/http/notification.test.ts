@@ -1519,11 +1519,12 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
     // Hồ sơ chụp lúc CHƯA có quy định nào — ngưỡng rỗng. Khai một quy định giờ
     // là đúng cái tình huống khó thấy nhất: hồ sơ không mang mã quy định nào,
     // nên lọc theo `rule_code_snap` sẽ bỏ sót nó hoàn toàn.
+    const maQd = uniq('CK29');
     await c
       .post('/catalog/discount-rules')
       .set('Authorization', `Bearer ${tok['admin01']}`)
       .send({
-        code: uniq('CK29'),
+        code: maQd,
         productGroupCode: nhom,
         effectiveFrom: '2020-01-01',
         thresholdRate2: 1750,
@@ -1566,9 +1567,10 @@ describe('0029 đổi quy định chiết khấu áp cho CSBH đang hiệu lực
       return true;
     }, 'policy chưa tiêu thụ xong catalog.changed', 120_000);
 
-    // Dấu vết nói về NGƯỠNG chứ không nói về giá, và mang đúng con số mới.
+    // Dấu vết nói về NGƯỠNG chứ không nói về giá, và mang đúng con số mới. Từ
+    // `0238` kèm cả MÃ quy định: dòng chưa có quy định nào nay có một — mã đổi.
     expect(dauVet.kind).toBe('RULE');
-    expect(dauVet.new_value).toBe('17.50');
+    expect(dauVet.new_value).toBe(`17.50|${maQd}`);
 
     /*
      * Và KHÔNG lá thư nào đi ra (`0055`).

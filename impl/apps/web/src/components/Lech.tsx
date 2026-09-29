@@ -67,8 +67,22 @@ export const doc = (l: LechMuc, v: string | null): string => {
   // Trạng thái sản phẩm về tới đây đã là chữ ("Đang áp dụng" / "Đã vô hiệu
   // hoá"), không phải số — không ép kiểu tiền hay phần trăm lên nó.
   if (l.kind === 'PRODUCT') return v;
-  return l.kind === 'PRICE' ? `${tien(v)} đ` : `${v.replace('.', ',')}%`;
+  if (l.kind === 'PRICE') return `${tien(v)} đ`;
+  /*
+   * `0238` — RULE mang `<ngưỡng>|<mã>` khi MÃ quy định đổi (máy chủ:
+   * `giaTriQuyDinh` ở `policies/lech.ts`). Tách ở `|` ĐẦU TIÊN; mã tự nó có thể
+   * chứa gì cũng được, còn ngưỡng thì không bao giờ chứa `|`. Không có `|` là dạng
+   * số trần của `0029` — lệch chỉ ở ngưỡng.
+   */
+  const i = v.indexOf('|');
+  if (i < 0) return phanTram(v);
+  const nguong = v.slice(0, i);
+  const ma = v.slice(i + 1);
+  if (nguong === '—') return 'không có quy định nào';
+  return `${phanTram(nguong)} (${ma})`;
 };
+
+const phanTram = (v: string) => `${v.replace('.', ',')}%`;
 
 /** Nhãn loại, gọn trong một hàng — dùng cho dòng gấp lại ở box Yêu cầu cập nhật. */
 export function TomTatLech({ lech }: { lech: LechMuc[] }) {

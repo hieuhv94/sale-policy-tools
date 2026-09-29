@@ -198,7 +198,7 @@ export function TheSanPham({ nhom }: { nhom: NhomSanPham[] }) {
       <PhanTrang trang={trang} soTrang={soTrang} tong={tong} doiTrang={doiTrang} nhan="sản phẩm" />
 
       {mo?.kieu === 'tao' && <HopThoaiTao nhom={nhom} dong={dong} xong={xong} />}
-      {mo?.kieu === 'sua' && <HopThoaiSua sp={mo.sp} dong={dong} xong={xong} />}
+      {mo?.kieu === 'sua' && <HopThoaiSua sp={mo.sp} nhom={nhom} dong={dong} xong={xong} />}
       {mo?.kieu === 'excel' && <HopThoaiExcel dong={dong} xong={xong} />}
     </>
   );
@@ -299,9 +299,23 @@ function HopThoaiTao({
 
 // --- Sửa ---------------------------------------------------------------------
 
-function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: () => void }) {
+function HopThoaiSua({
+  sp,
+  nhom,
+  dong,
+  xong,
+}: {
+  sp: SanPham;
+  nhom: NhomSanPham[];
+  dong: () => void;
+  xong: () => void;
+}) {
   const { bao } = useBaoLoi();
   const [ten, datTen] = useState(sp.name);
+  // `0238` — nhóm sửa được. Giá trị đầu là nhóm ĐANG có, kể cả khi danh sách
+  // nhóm chưa tải xong: ô chọn thiếu mục ấy thì trình duyệt tự chọn mục đầu tiên
+  // và một lượt Lưu chỉ để sửa tên sẽ lặng lẽ đổi nhóm (lối `0205`).
+  const [maNhom, datMaNhom] = useState(sp.groupCode);
   const [trangThai, datTrangThai] = useState<TrangThaiSanPham>(sp.status);
   const [gia, datGia] = useState(sp.price ?? '');
   const [go, datGo] = useState('');
@@ -321,6 +335,7 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
    */
   const dangVoHieu = trangThai === 'DA_VO_HIEU_HOA' && sp.status !== 'DA_VO_HIEU_HOA';
   const doiGia = gia.trim() !== '' && gia.trim() !== (sp.price ?? '');
+  const doiNhom = maNhom !== sp.groupCode;
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -333,6 +348,9 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
         // Chỉ gửi khi ĐỔI: gửi lại đúng giá đang có thì máy chủ bỏ qua, nhưng
         // để giao diện quyết chuyện ấy là dựng chỗ thứ hai cho cùng một luật.
         ...(doiGia ? { price: gia.trim() } : {}),
+        // Cùng lẽ với giá: chỉ gửi khi ĐỔI, để một lượt sửa tên không kéo theo một
+        // dòng *"đổi nhóm"* rỗng trong nhật ký.
+        ...(doiNhom ? { groupCode: maNhom } : {}),
         confirm: go.trim(),
       });
       xong();
@@ -372,6 +390,32 @@ function HopThoaiSua({ sp, dong, xong }: { sp: SanPham; dong: () => void; xong: 
           <p className="ghi-chu">
             Giá mới áp dụng <strong>từ hôm nay</strong>. Hồ sơ CSBH đã gửi duyệt giữ nguyên giá đã
             đóng băng; hồ sơ <strong>đang có hiệu lực</strong> chứa sản phẩm này sẽ hiện trong khối{' '}
+            <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+          </p>
+        )}
+        {/*
+          NHÓM SỬA ĐƯỢC (`0238`, khách hàng 29/09). Tới `0237` nhóm cố định từ
+          lúc tạo. Nhóm là thứ quy định chiết khấu khai theo, nên câu hậu quả nói
+          đúng điều ấy — cùng chỗ đứng với câu của ô giá ngay trên.
+        */}
+        <Truong id="sp-sua-nhom" nhan="Nhóm" bắtBuộc>
+          {(p) => (
+            <select {...p} className="o-nhap" value={maNhom} onChange={(e) => datMaNhom(e.target.value)}>
+              {!nhom.some((n) => n.code === sp.groupCode) && (
+                <option value={sp.groupCode}>{sp.groupCode}</option>
+              )}
+              {nhom.map((n) => (
+                <option key={n.id} value={n.code}>
+                  {n.name} ({n.code})
+                </option>
+              ))}
+            </select>
+          )}
+        </Truong>
+        {doiNhom && (
+          <p className="ghi-chu">
+            Đổi nhóm là đổi <strong>quy định chiết khấu</strong> áp cho sản phẩm này. Hồ sơ CSBH chứa
+            sản phẩm mà ngưỡng hoặc quy định khác đi sẽ hiện trong khối{' '}
             <strong>Yêu cầu cập nhật</strong> của người phụ trách.
           </p>
         )}

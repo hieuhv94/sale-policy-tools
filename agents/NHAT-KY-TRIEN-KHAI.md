@@ -20347,3 +20347,47 @@ cắt thẻ `<button` ở `>` đầu tiên — giữa `=>` — và báo nhầm h
 trả `onMouseDown` (1 đỏ) · gỡ *Huỷ* vừa thêm (1 đỏ) · nút *Xong* thôi gọi đúng biểu thức (1 đỏ).
 
 **899/899 ca giao diện xanh; typecheck xanh** (`docker run` rời).
+
+## P268 — `0238` Đổi nhóm sản phẩm · đổi MÃ quy định cũng là lệch
+
+Hai câu 29/09: sửa sản phẩm được đổi cả NHÓM; và khi nhóm đổi kéo quy định chiết khấu đổi theo, hồ sơ
+CSBH chứa sản phẩm ấy phải vào danh sách *Yêu cầu cập nhật*, kèm ca kiểm.
+
+**Đo trước khi gõ — đường báo ĐÃ CÓ, thiếu đúng hai mảnh.** `PATCH /catalog/products/:id` phát
+`catalog.changed` (entity `product`), consumer của `policy` rà mọi hồ sơ chứa sản phẩm ấy, và
+`rules.resolve` khớp quy định theo `group_id` HIỆN TẠI. Nên đổi nhóm → ngưỡng khác → box, không cần đường
+nào mới. Hai mảnh thiếu: (1) `catalog` không nhận nhóm ở lượt sửa; (2) `soSanhLech` chỉ so NGƯỠNG — nhóm
+mới có quy định KHÁC mà CÙNG ngưỡng thì im lặng, cột QĐCK mang mã của quy định không còn phủ dòng. Hỏi;
+khách hàng chốt **đổi mã cũng báo**, kèm hệ quả đã nêu: sửa mã một quy định mà ngưỡng giữ nguyên cũng
+sinh yêu cầu cho mọi hồ sơ dùng nó.
+
+**`catalog`**: `groupCode` tuỳ chọn ở `PATCH`, tra theo MÃ như lượt tạo, sai là `404 GROUP_NOT_FOUND`
+(không lặng lẽ giữ nhóm cũ), vẫn đòi gõ lại mã (`0123`). `toDto` thêm `groupId` — không thì `before`/
+`after` của sự kiện (tức nhật ký, CAT-13) ghi lượt đổi nhóm thành một lượt sửa không đổi gì.
+
+**`policy`**: `DongDaChup.ruleCode` BẮT BUỘC (lối `0143` — `tsc` chỉ ra đủ hai người gọi, cả hai phải thêm
+`rule_code_snap` vào `SELECT`). Mã khác (và vế mới CÓ ngưỡng) → MỘT mục RULE mang `<ngưỡng>|<mã>` ở CẢ
+HAI vế; chỉ ngưỡng khác → số trần như `0029`, nên dấu vết cũ trong `pol.policy_impact` không đổi hình.
+Quy định biến mất vẫn đi nhánh ngưỡng (`moi: null` — câu *"không còn quy định nào"* đúng hơn một cặp
+mã). `0029` viết *"KHÔNG KHỚP THEO MÃ QUY ĐỊNH"* — câu ấy nói về việc LỌC dòng cần rà, không về phép SO;
+ghi rõ tại chỗ. `lamMoiDong` vốn ghi lại `rule_code_snap`, nên *Tự động cập nhật* và lượt gửi duyệt tự
+khớp. Giao diện: `Lech.tsx` tách ở `|` ĐẦU TIÊN → *15,00% (CK-A)*. Không còn thư báo lệch nào (`0055`),
+nên màn hình là chỗ đọc duy nhất.
+
+**Giao diện**: ô *Nhóm* ở hộp *Sửa*, mở ra ở nhóm ĐANG có (kể cả khi nhóm ấy ngoài danh sách — thiếu mục
+thì trình duyệt tự chọn mục đầu, lối `0205`), `groupCode` chỉ gửi khi đổi, câu hậu quả khi đổi.
+`SanPham.tsx` vào `exports` (`./san-pham-ui`) — màn hình danh mục sản phẩm lần đầu có ca DOM (`0131` ghi là
+chỗ trống).
+
+**Ca kiểm**: 6 ca thuần (`lech-danh-muc`), 9 ca đi hết đường (`policy.test.ts`, khối `0238`: PATCH + sự
+kiện mang nhóm trước/sau · 404 · gõ sai mã · hồ sơ hiệu lực ngưỡng khác · CÙNG ngưỡng khác mã · nhóm
+không quy định · đổi rồi đổi lại · Nháp + *Tự động cập nhật* chụp mã mới · sửa tên không sinh lệch), 4 ca
+giao diện. **Ba ca cũ phải sửa** — cả ba dựng tình huống quy định đổi sang quy định KHÁC (đổi loại khách,
+quy định mới cụ thể hơn, dòng chưa có quy định nay có), nên vế giá trị giờ mang mã; đỏ đúng hành vi mới.
+
+**Phá lại**: không ghi nhóm (6 đỏ, ba ca không liên quan xanh) · bỏ vế so mã (6 đỏ) · luôn gửi `groupCode`
+(2 đỏ). **Lượt phá đầu SAI**: thay `coalesce($4, group_id)` bằng `group_id` bỏ `$4` không dùng → Postgres
+không suy được kiểu → MỌI `PATCH` hỏng, kể cả ca chỉ sửa tên (bẫy `0154`). Mốc đối chứng cùng bộ lọc `-t`
+xanh 9/9 chỉ ra điều ấy; phá lại bằng `CASE WHEN $4::uuid IS NULL …` giữ tham số.
+
+**2576/2576 xanh** (`make test` đầy đủ, demo hạ trong lúc chạy).

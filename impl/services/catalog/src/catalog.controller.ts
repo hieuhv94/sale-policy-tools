@@ -152,6 +152,9 @@ export class CatalogController {
       // Trạng thái ngoài tập hai giá trị bị chặn ngay ở đây, trước khi tới CSDL (CAT-06).
       status: opt(oneOf(...PRODUCT_STATUSES)),
       price: opt(money()),
+      // `0238` — ĐỔI NHÓM, cùng khuôn với `groupCode` của lượt tạo. Tới `0237`
+      // nhóm cố định từ lúc tạo, và sửa nhầm nhóm chỉ còn cách tạo mã mới.
+      groupCode: opt(str(1, 40)),
       confirm: opt(str(1, 60)),
     });
     return this.products.update(id, b, me.id);

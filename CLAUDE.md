@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P267** (`0237`): **hộp thoại không đóng khi bấm ra ngoài** — gỡ `onMouseDown` lớp phủ
+Chặng gần nhất **P268** (`0238`): **đổi nhóm sản phẩm** ở hộp *Sửa* (`PATCH` nhận `groupCode`), và
+**đổi MÃ quy định cũng là lệch** dù ngưỡng bằng nhau (chốt khi hỏi) — `DongDaChup.ruleCode` bắt buộc, mục
+RULE mang `<ngưỡng>|<mã>` hai vế khi mã đổi, số trần khi chỉ ngưỡng đổi. Đường báo đổi nhóm → box ĐÃ CÓ
+sẵn (`catalog.changed` + `rules.resolve` theo nhóm hiện tại). Ba ca cũ sửa theo hành vi mới. **Lượt phá
+đầu sai** — bỏ `$4` khỏi SQL làm mọi `PATCH` hỏng (bẫy `0154`); mốc đối chứng bắt được. **2576/2576 xanh.**
+
+Trước đó **P267** (`0237`): **hộp thoại không đóng khi bấm ra ngoài** — gỡ `onMouseDown` lớp phủ
 của `HopThoai`; Escape giữ; menu thả xuống không đụng. Rà 21 `<HopThoai>` + 13 `HopThoaiXacNhan`: chỉ
 *Xem trước thay đổi danh mục* thiếu nút đóng → thêm *Huỷ*. Ca quét đòi mỗi khối `<HopThoai>` có nút gọi
 chính biểu thức `dong` của nó. **899/899 ca giao diện xanh.**

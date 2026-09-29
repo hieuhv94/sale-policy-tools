@@ -4386,9 +4386,18 @@ describe('0023 đổi loại khách hàng và ngưỡng đã đóng băng', () =
     expect((await doiLoai(customerId, 3)).status).toBe(200);
     const bay = (await get(`/policies/${d.id}`)).body;
     expect(bay.lines[0].threshold, 'đọc thôi thì chưa đổi').toBe('10.00');
+    // `0238` — đổi loại khách là rơi sang một quy định KHÁC, nên hai vế mang cả
+    // mã (`<ngưỡng>|<mã>`); mã do `sanPhamBaNguong` sinh nên so theo khuôn.
     expect(bay.lech).toEqual([
-      expect.objectContaining({ kind: 'RULE', snapValue: '10.00', newValue: '30.00' }),
+      expect.objectContaining({
+        kind: 'RULE',
+        snapValue: expect.stringMatching(/^10\.00\|.+/),
+        newValue: expect.stringMatching(/^30\.00\|.+/),
+      }),
     ]);
+    const [, maCu] = String(bay.lech[0].snapValue).split('|');
+    const [, maMoi] = String(bay.lech[0].newValue).split('|');
+    expect(maCu).not.toBe(maMoi);
 
     expect((await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
     expect((await get(`/policies/${d.id}`)).body.lines[0].threshold).toBe('30.00');
@@ -5212,15 +5221,17 @@ describe('0029 box Yêu cầu cập nhật', () => {
     expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
 
     // Khách hàng test là loại 1 (`makeCustomer`).
+    const maMoi = uniq('CK');
     expect((await khaiQuyDinh({
-      code: uniq('CK'), productGroupCode: nhom, customerType: 1,
+      code: maMoi, productGroupCode: nhom, customerType: 1,
       effectiveFrom: '2020-01-01', thresholdRate2: 3300,
     })).status).toBe(201);
     await raSoat();
 
     const h = (await lech()).find((x) => x.id === d.body.id);
     expect(h, 'quy định mới cụ thể hơn phải bị bắt').toBeDefined();
-    expect(h!.lech.find((l) => l.kind === 'RULE')!.newValue).toBe('33.00');
+    // `0238` — quy định khác nên vế mới mang cả mã của nó.
+    expect(h!.lech.find((l) => l.kind === 'RULE')!.newValue).toBe(`33.00|${maMoi}`);
   });
 
   it('phạm vi dữ liệu: TDV khác KHÔNG thấy hồ sơ này', async () => {
@@ -5551,6 +5562,231 @@ describe('0029 box Yêu cầu cập nhật', () => {
       );
     });
   }
+});
+
+// =============================================================================
+// 0238 — ĐỔI NHÓM một sản phẩm → quy định chiết khấu đổi → *Yêu cầu cập nhật*
+//
+// Khách hàng 29/09: *"khi sửa thông tin sản phẩm cho phép thay đổi cả nhóm… khi
+// nhóm thay đổi, quy định chiết khấu đối với sản phẩm đó cũng thay đổi, yêu cầu
+// hệ thống cập nhật thông tin này vào danh sách CSBH cần yêu cầu cập nhật"*.
+//
+// Không có đường báo riêng cho lượt đổi nhóm: `PATCH /catalog/products/:id` phát
+// `catalog.changed` (entity `product`), consumer rà mọi hồ sơ chứa sản phẩm ấy,
+// và ngưỡng tra theo nhóm HIỆN TẠI. Khối này canh cả chuỗi ấy, và vế mới của phép
+// so — MÃ quy định (cùng ngưỡng, khác mã vẫn là lệch; chốt khi được hỏi).
+// =============================================================================
+
+describe('0238 đổi nhóm sản phẩm → Yêu cầu cập nhật', () => {
+  const raSoat = async (productId: string) => app.get(CatalogImpactConsumer).handle({ productId });
+  const lech = async (who = 'tdv01') =>
+    (await get('/policies/impacted?limit=200', who)).body.items as {
+      id: string;
+      lech: { kind: string; productCode: string; snapValue: string; newValue: string | null }[];
+    }[];
+
+  /** Nhóm mới, trống, kèm (tuỳ) MỘT quy định cho nó. Trả mã nhóm và mã quy định. */
+  const nhomMoi = async (nguong: number | null) => {
+    const g = uniq('NHOM');
+    await (await cat())
+      .post('/catalog/product-groups')
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ code: g, name: 'Nhom moi 0238' });
+    if (nguong === null) return { g, qd: null };
+    const qd = uniq('CK');
+    const r = await khaiQuyDinh({
+      code: qd, productGroupCode: g, effectiveFrom: '2020-01-01', thresholdRate2: nguong,
+    });
+    expect(r.status).toBe(201);
+    return { g, qd };
+  };
+
+  /** Sản phẩm trong nhóm riêng CÓ một quy định (ngưỡng `nguong`). */
+  const sanPhamCoQuyDinh = async (nguong: number) => {
+    const sp = await sanPhamNhomRieng('100000');
+    const qd = uniq('CK');
+    expect(
+      (await khaiQuyDinh({
+        code: qd, productGroupCode: sp.groupCode, effectiveFrom: '2020-01-01', thresholdRate2: nguong,
+      })).status,
+    ).toBe(201);
+    return { ...sp, qd };
+  };
+
+  const maCua = async (productId: string) =>
+    withAdminDb(async (c) =>
+      (await c.query<{ code: string }>(`SELECT code FROM cat.product WHERE id = $1`, [productId]))
+        .rows[0]!.code,
+    );
+
+  const doiNhom = async (productId: string, groupCode: string, confirm?: string) =>
+    (await cat())
+      .patch(`/catalog/products/${productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ groupCode, confirm: confirm ?? (await maCua(productId)) });
+
+  it('PATCH đổi được nhóm, và sự kiện `catalog.changed` mang nhóm TRƯỚC và SAU', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const { g } = await nhomMoi(2200);
+    const r = await doiNhom(sp.productId, g);
+    expect(r.status).toBe(200);
+
+    const nhom = await withAdminDb(async (c) =>
+      (
+        await c.query<{ code: string }>(
+          `SELECT g.code FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
+            WHERE p.id = $1`,
+          [sp.productId],
+        )
+      ).rows[0]!.code,
+    );
+    expect(nhom).toBe(g);
+
+    // Consumer của `policy` nghe đúng sự kiện này (entity `product`) — và nhật ký
+    // (CAT-13) cần thấy nhóm đổi, không phải một lượt sửa rỗng.
+    const ev = await withAdminDb(async (c) =>
+      (
+        await c.query<{ payload: { entity: string; before: { groupId: string }; after: { groupId: string } } }>(
+          `SELECT payload FROM cat.outbox
+            WHERE routing_key = 'catalog.changed' AND payload->>'id' = $1
+            ORDER BY created_at DESC LIMIT 1`,
+          [sp.productId],
+        )
+      ).rows[0]!.payload,
+    );
+    expect(ev.entity).toBe('product');
+    expect(ev.before.groupId).not.toBe(ev.after.groupId);
+  });
+
+  it('nhóm KHÔNG có thật → 404 GROUP_NOT_FOUND, nhóm cũ giữ nguyên', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const r = await doiNhom(sp.productId, uniq('KHONGCO'));
+    expect(r.status).toBe(404);
+    expect(r.body.code).toBe('GROUP_NOT_FOUND');
+    const nhom = await withAdminDb(async (c) =>
+      (
+        await c.query<{ code: string }>(
+          `SELECT g.code FROM cat.product p JOIN cat.product_group g ON g.id = p.group_id
+            WHERE p.id = $1`,
+          [sp.productId],
+        )
+      ).rows[0]!.code,
+    );
+    expect(nhom).toBe(sp.groupCode);
+  });
+
+  it('đổi nhóm vẫn đòi GÕ LẠI MÃ như mọi lượt sửa (`0123`)', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const { g } = await nhomMoi(2200);
+    const r = await doiNhom(sp.productId, g, 'SAI-MA');
+    expect(r.status).toBeGreaterThanOrEqual(400);
+    expect(r.status).toBeLessThan(500);
+  });
+
+  it('nhóm mới NGƯỠNG KHÁC → hồ sơ ĐANG CÓ HIỆU LỰC vào box, RULE mang ngưỡng và mã hai vế', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const customerId = await makeCustomer();
+    const d = await draft({ customerId, productId: sp.productId });
+    await runToActive(d);
+
+    const { g, qd } = await nhomMoi(2200);
+    expect((await doiNhom(sp.productId, g)).status).toBe(200);
+    await raSoat(sp.productId);
+
+    const h = (await lech()).find((x) => x.id === d.id);
+    expect(h, 'hồ sơ hiệu lực phải nằm trong box').toBeDefined();
+    const r = h!.lech.find((l) => l.kind === 'RULE')!;
+    expect(r.snapValue).toBe(`10.00|${sp.qd}`);
+    expect(r.newValue).toBe(`22.00|${qd}`);
+  });
+
+  it('nhóm mới CÙNG NGƯỠNG, KHÁC quy định → VẪN vào box (chốt 29/09)', async () => {
+    /*
+     * Ca khách hàng chốt khi được hỏi. Trước `0238` phép so chỉ nhìn con số, nên
+     * hồ sơ nằm yên với cột QĐCK mang mã của một quy định không còn phủ dòng ấy.
+     */
+    const sp = await sanPhamCoQuyDinh(1500);
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(sp.productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const { g, qd } = await nhomMoi(1500);
+    expect((await doiNhom(sp.productId, g)).status).toBe(200);
+    await raSoat(sp.productId);
+
+    const h = (await lech()).find((x) => x.id === d.body.id);
+    expect(h).toBeDefined();
+    expect(h!.lech).toEqual([
+      expect.objectContaining({ kind: 'RULE', snapValue: `15.00|${sp.qd}`, newValue: `15.00|${qd}` }),
+    ]);
+  });
+
+  it('nhóm mới KHÔNG có quy định nào → vào box, vế mới là *"không còn quy định nào"*', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(sp.productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const { g } = await nhomMoi(null);
+    expect((await doiNhom(sp.productId, g)).status).toBe(200);
+    await raSoat(sp.productId);
+
+    const r = (await lech()).find((x) => x.id === d.body.id)!.lech.find((l) => l.kind === 'RULE')!;
+    expect(r.snapValue).toBe('10.00');
+    expect(r.newValue).toBeNull();
+  });
+
+  it('đổi nhóm rồi ĐỔI LẠI → dấu vết biến mất', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(sp.productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const { g } = await nhomMoi(2200);
+    await doiNhom(sp.productId, g);
+    await raSoat(sp.productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(true);
+
+    expect((await doiNhom(sp.productId, sp.groupCode)).status).toBe(200);
+    await raSoat(sp.productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
+
+  it('hồ sơ NHÁP: vào box, *Tự động cập nhật* chụp quy định MỚI rồi rời box', async () => {
+    const sp = await sanPhamCoQuyDinh(1500);
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(sp.productId)] });
+
+    const { g, qd } = await nhomMoi(1500);
+    expect((await doiNhom(sp.productId, g)).status).toBe(200);
+    await raSoat(sp.productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(true);
+    // Màn hình hồ sơ TÍNH TẠI CHỖ (`0194`) — cũng phải thấy cùng mục lệch.
+    expect((await get(`/policies/${d.body.id}`)).body.lech).toEqual([
+      expect.objectContaining({ kind: 'RULE', snapValue: `15.00|${sp.qd}`, newValue: `15.00|${qd}` }),
+    ]);
+
+    expect((await post(`/policies/${d.body.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
+    const l = (await get(`/policies/${d.body.id}`)).body.lines[0];
+    expect(l.ruleCode).toBe(qd);
+    expect(l.threshold).toBe('15.00');
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
+
+  it('sửa TÊN mà không gửi nhóm → nhóm và quy định giữ nguyên, không sinh lệch', async () => {
+    const sp = await sanPhamCoQuyDinh(1000);
+    const customerId = await makeCustomer();
+    const d = await post('/policies', { customerId, lines: [line(sp.productId)] });
+    expect((await act(d.body.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+
+    const r = await (await cat())
+      .patch(`/catalog/products/${sp.productId}`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ name: 'Ten moi 0238', confirm: await maCua(sp.productId) });
+    expect(r.status).toBe(200);
+    await raSoat(sp.productId);
+    expect((await lech()).some((x) => x.id === d.body.id)).toBe(false);
+  });
 });
 
 // =============================================================================

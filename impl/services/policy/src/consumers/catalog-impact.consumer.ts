@@ -45,6 +45,7 @@ type DongCanRa = {
   product_code_snap: string;
   company_price_snap: string;
   threshold_snap: string | null;
+  rule_code_snap: string | null;
 };
 
 /**
@@ -123,7 +124,9 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
       `SELECT p.id AS policy_id, p.code, p.status::text AS status, p.customer_id,
               p.tdv_user_id, l.product_id, l.product_code_snap,
               l.company_price_snap::text AS company_price_snap,
-              l.threshold_snap::text AS threshold_snap
+              l.threshold_snap::text AS threshold_snap,
+              -- 0238 — mã quy định đã chụp cũng đem so, xem lech.ts.
+              l.rule_code_snap
          FROM pol.policy p
          JOIN pol.policy_line l ON l.policy_id = p.id
         WHERE p.status::text = ANY($1::text[])
@@ -301,6 +304,7 @@ export class CatalogImpactConsumer implements OnModuleInit, OnModuleDestroy {
             productCode: d.product_code_snap,
             companyPrice: String(d.company_price_snap),
             threshold: d.threshold_snap === null ? null : String(d.threshold_snap),
+            ruleCode: d.rule_code_snap,
           },
           snaps.get(d.product_id),
         ),

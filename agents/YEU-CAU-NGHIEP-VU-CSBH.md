@@ -1216,7 +1216,7 @@ kèm con số thì người đọc phải mở hồ sơ ra, mở danh mục ra r
 | Loại | Sinh ra khi |
 |---|---|
 | `Giá` | Giá bán Công ty của sản phẩm đổi |
-| `Ngưỡng` | Quy định chiết khấu áp cho dòng đó đổi, **hoặc bị xoá** — khi đó ngưỡng mới là rỗng |
+| `Ngưỡng` | Quy định chiết khấu áp cho dòng đó đổi — **ngưỡng khác, hoặc quy định khác dù cùng ngưỡng** `sửa 29/09` (ví dụ sau khi **đổi nhóm sản phẩm**) — **hoặc bị xoá**, khi đó ngưỡng mới là rỗng |
 | `Sản phẩm` | Sản phẩm **bị vô hiệu hoá**, hoặc **bị xoá** khỏi danh mục |
 
 Loại thứ ba là bổ sung của `17/08`. Trước đó vô hiệu hoá một sản phẩm lọt qua sạch — nó không đổi giá
@@ -2923,6 +2923,15 @@ chiếm trọn một hàng để mười ba ô còn lại vẫn đứng cố đ�
 
 > **Cái mất, đã nêu**: hồ sơ của khách **đã ngừng hợp tác** thôi nói điều ấy trên trang hồ sơ (ô được
 > thêm năm 19/09 đúng vì *"hồ sơ cũ của họ vẫn mở được"*). Trang khách hàng vẫn nói.
+
+**ĐỔI NHÓM SẢN PHẨM · ĐỔI MÃ QUY ĐỊNH CŨNG LÀ LỆCH** `sửa 29/09` — *"khi sửa thông tin của sản
+phẩm cho phép thay đổi cả nhóm sản phẩm… khi nhóm thay đổi, quy định chiết khấu đối với sản phẩm đó
+cũng thay đổi, yêu cầu hệ thống cập nhật thông tin này vào danh sách CSBH cần yêu cầu cập nhật"*. Quản
+trị đổi nhóm ở hộp *Sửa* (vẫn gõ lại mã); ngưỡng tra theo nhóm HIỆN TẠI nên hồ sơ lệch tự vào box.
+
+> **Cùng ngưỡng, khác quy định vẫn là lệch** (chốt khi được hỏi). Tới đây box *Yêu cầu cập nhật* chỉ
+> so NGƯỠNG (`17/08`); giờ so cả MÃ quy định. Kéo theo: sửa mã một quy định mà ngưỡng không đổi cũng
+> sinh yêu cầu cập nhật cho mọi hồ sơ dùng nó — đã nêu khi chốt.
 
 **THÔNG TIN CHUNG: KHÔNG KHOẢNG TRỐNG GIỮA KHỐI** `sửa 29/09` — *"không để khoảng trống giữa Chức danh
 người đại diện và Tỉnh/Thành phố"*. Khoảng trống ấy là nửa phải của hàng *Tên Hộ kinh doanh/Tên Công

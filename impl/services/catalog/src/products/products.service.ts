@@ -194,6 +194,8 @@ export class ProductsService {
       name?: string | undefined;
       status?: ProductStatus | undefined;
       price?: bigint | undefined;
+      /** `0238` — mã nhóm MỚI. Vắng mặt là giữ nhóm cũ. */
+      groupCode?: string | undefined;
       confirm?: string | undefined;
     },
     actorId: string,
@@ -227,13 +229,38 @@ export class ProductsService {
        */
       xacNhanGoLai(patch.confirm, before.code, { viec: 'sửa sản phẩm này' });
 
+      /*
+       * ĐỔI NHÓM (`0238`, khách hàng 29/09).
+       *
+       * Nhóm là thứ quy định chiết khấu khai theo (`rules.resolve` khớp
+       * `product_group_id`), nên đổi nhóm là đổi NGƯỠNG — và có khi đổi QUY ĐỊNH mà
+       * ngưỡng giữ nguyên. Không cần đường báo riêng: sự kiện `catalog.changed`
+       * dưới đây (entity `product`) đã kéo consumer của `policy` rà lại MỌI hồ sơ
+       * chứa sản phẩm này, và phép so tra ngưỡng theo nhóm HIỆN TẠI — nên hồ sơ
+       * lệch tự vào box *Yêu cầu cập nhật*. Thứ lượt này thêm ở phía `policy` là
+       * vế MÃ quy định của phép so (`lech.ts`).
+       *
+       * Tra theo MÃ nhóm như lượt tạo, không theo id: giao diện và tệp Excel đều
+       * nói bằng mã. Nhóm không có thật là 404, không phải lặng lẽ giữ nhóm cũ.
+       */
+      let nhomMoi: string | null = null;
+      if (patch.groupCode !== undefined) {
+        const g = await c.query<{ id: string }>(
+          `SELECT id FROM cat.product_group WHERE code = $1`,
+          [patch.groupCode],
+        );
+        if (g.rowCount === 0) throw new NotFoundException({ code: 'GROUP_NOT_FOUND' });
+        nhomMoi = g.rows[0]!.id;
+      }
+
       const r = await c.query<ProductRow>(
         `UPDATE cat.product
             SET name = coalesce($2, name),
                 status = coalesce($3, status),
+                group_id = coalesce($4, group_id),
                 updated_at = now()
           WHERE id = $1 RETURNING *`,
-        [id, patch.name ?? null, patch.status ?? null],
+        [id, patch.name ?? null, patch.status ?? null, nhomMoi],
       );
       const after = r.rows[0]!;
       // Nhật ký phải có giá trị TRƯỚC và SAU, không chỉ giá trị mới (CAT-13).
@@ -677,6 +704,12 @@ const toDto = (r: ProductRow) => ({
   code: r.code,
   name: r.name,
   status: r.status,
+  /*
+   * `0238` — nhóm có mặt ở `before`/`after` của `catalog.changed`, tức ở nhật
+   * ký (CAT-13 đòi giá trị TRƯỚC và SAU). Thiếu nó thì lượt đổi nhóm ghi vào
+   * nhật ký thành một lượt sửa không đổi gì.
+   */
+  groupId: r.group_id,
 });
 
 /** Dịch mã lỗi Postgres sang mã nghiệp vụ, giữ nguyên mọi lỗi khác. */
