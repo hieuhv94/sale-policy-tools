@@ -84,11 +84,22 @@ describe('`0070` cột thao tác thẳng hàng', () => {
       );
 
     expect(cot(0).every((t) => t === 'Xem')).toBe(true);
-    // Ô TRỐNG vẫn giữ chỗ — đó là cả điểm của việc tách cột.
-    expect(cot(1).every((t) => t === '' || t === 'Gửi lại thư mời')).toBe(true);
-    expect(cot(2).every((t) => t === 'Vô hiệu hoá' || t === 'Kích hoạt lại')).toBe(true);
-    // Và phải CÓ một ô trống ở cột giữa, nếu không ca này chẳng kiểm gì cả.
-    expect(cot(1).some((t) => t === '')).toBe(true);
+    // `0236` — *Vô hiệu hoá* NGAY SAU *Xem*, không ô nào chen giữa.
+    expect(cot(1).every((t) => t === 'Vô hiệu hoá' || t === 'Kích hoạt lại')).toBe(true);
+    // Ô TRỐNG vẫn giữ chỗ — đó là cả điểm của việc tách cột — và nó đứng CUỐI.
+    expect(cot(2).every((t) => t === '' || t === 'Gửi lại thư mời')).toBe(true);
+    // Và phải CÓ một ô trống ở cột ấy, nếu không ca này chẳng kiểm gì cả.
+    expect(cot(2).some((t) => t === '')).toBe(true);
+  });
+
+  it('`0236` ở MỌI dòng, ô *Xem* và ô *Vô hiệu hoá* là hai ô LIỀN NHAU của hàng', async () => {
+    // Đọc anh em DOM chứ không đọc chỉ số cột: một ô thứ tư chen vào giữa (kể cả
+    // ô không mang lớp `o-thao-tac`) là đúng cái khách hàng vừa bảo bỏ.
+    await bay();
+    for (const tr of document.querySelectorAll('tbody tr')) {
+      const xem = [...tr.querySelectorAll('td')].find((td) => td.textContent?.trim() === 'Xem')!;
+      expect(xem.nextElementSibling?.textContent?.trim()).toMatch(/^(Vô hiệu hoá|Kích hoạt lại)$/);
+    }
   });
 
   it('tiêu đề "Thao tác" trải đủ ba cột', async () => {

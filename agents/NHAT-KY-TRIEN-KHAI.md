@@ -20305,3 +20305,20 @@ registry của ta rồi ghim `compose.yml` vào đó; cần người dùng đồ
 nằm trong **tệp nén** chứ không trong ảnh, nên bản sửa tới máy chủ bằng cách chép tệp.
 
 **30/30 xanh ở ba tệp đóng gói; typecheck xanh** (`docker run` rời, demo bật).
+
+## P266 — `0236` Trang người dùng: *Xem* và *Vô hiệu hoá* cạnh nhau
+
+*"Nút sửa và vô hiệu hoá phải cạnh nhau"* (trang Người dùng của Quản trị). Ba cột thao tác của `0070` xếp
+*Xem · Gửi lại thư mời · Vô hiệu hoá*; cột giữa chỉ có nút ở tài khoản CHƯA kích hoạt, nên ở gần như cả
+danh sách một ô trống chen giữa hai nút dùng nhiều nhất. Đổi chỗ: *Xem · Vô hiệu hoá · Gửi lại thư mời* —
+giữ nguyên luật `0070` (ba cột thẳng hàng, ô trống vẫn giữ chỗ), chỉ đẩy cột có thể trống xuống CUỐI.
+
+Ca `0070` đổi chỉ số cột; ca mới đọc ANH EM DOM (`nextElementSibling` của ô *Xem*) ở mọi dòng — một ô chen
+giữa, kể cả ô không mang lớp `o-thao-tac`, là đỏ. Phá lại (chạy bộ kiểm mới trên trang cũ): 2 đỏ.
+
+**Chỗ lệch tìm ra, CHƯA sửa, đã nêu**: trang KHÔNG có nút *Sửa* — nút khách hàng gọi là *sửa* là *Xem*, mà
+hộp thoại ấy CHỈ ĐỌC từ `0031`. HDSD mục *"Sửa, vô hiệu hoá, gửi lại thư mời"* viết *"Sửa đổi được họ
+tên"*, máy chủ có `PATCH /admin/users/:id`, và trong `NguoiDung.tsx` còn một khối chú thích mồ côi
+*"Hộp thoại sửa: CHỈ vai trò"* không đứng trên hàm nào (hộp thoại ấy gỡ ở P41, chú thích ở lại).
+
+**896/896 ca giao diện xanh; typecheck xanh** (`docker run` rời, demo bật).

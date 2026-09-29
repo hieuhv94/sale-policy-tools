@@ -192,6 +192,9 @@ function TheNguoiDung() {
                 ba vào một ô thì dòng nào thiếu nút ấy sẽ đẩy *Vô hiệu hoá* sang
                 trái, và cột thao tác thành một hàng răng cưa — mắt phải đọc chữ
                 trên từng nút mới biết mình sắp bấm cái gì.
+                Thứ tự `0236` (khách hàng 29/09: *"nút sửa và vô hiệu hoá phải cạnh
+                nhau"*): *Xem* · *Vô hiệu hoá* · *Gửi lại thư mời* — cột có thể
+                trống đứng CUỐI, nên nó không bao giờ chen giữa hai nút kia.
                 Cột bảng thì thẳng hàng theo định nghĩa; một `<div>` bên trong ô
                 thì không, vì mỗi ô tự căn theo nội dung của chính nó.
               */}
@@ -217,22 +220,6 @@ function TheNguoiDung() {
                   >
                     Xem
                   </button>
-                </td>
-                <td className="o-thao-tac o-thao-tac-re-chuot">
-                  {/*
-                    Ô TRỐNG khi tài khoản đã kích hoạt, chứ không bỏ ô đi: cột
-                    vẫn còn thì hai nút hai bên không bị xô chỗ.
-                  */}
-                  {u.activatedAt === null && (
-                    <button
-                      type="button"
-                      className="nut nut-nhe"
-                      disabled={dangChay === u.id}
-                      onClick={() => datHoi({ u, viec: 'moi' })}
-                    >
-                      Gửi lại thư mời
-                    </button>
-                  )}
                 </td>
                 <td className="o-thao-tac o-thao-tac-re-chuot">
                     <button
@@ -262,6 +249,25 @@ function TheNguoiDung() {
                     >
                       {u.isActive ? 'Vô hiệu hoá' : 'Kích hoạt lại'}
                     </button>
+                </td>
+                <td className="o-thao-tac o-thao-tac-re-chuot">
+                  {/*
+                    Ô TRỐNG khi tài khoản đã kích hoạt, chứ không bỏ ô đi: cột
+                    vẫn còn thì nút các dòng không bị xô chỗ. Ô này đứng CUỐI
+                    (`0236`): tới `0235` nó đứng giữa, nên ở mọi tài khoản đã
+                    kích hoạt — gần như cả danh sách — một ô trống chen giữa
+                    *Xem* và *Vô hiệu hoá*, hai nút người quản trị dùng nhiều nhất.
+                  */}
+                  {u.activatedAt === null && (
+                    <button
+                      type="button"
+                      className="nut nut-nhe"
+                      disabled={dangChay === u.id}
+                      onClick={() => datHoi({ u, viec: 'moi' })}
+                    >
+                      Gửi lại thư mời
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -99,7 +99,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P265** (`0235`): **`nang-cap` chịu được ảnh bên thứ ba không kéo được** — kho
+Chặng gần nhất **P266** (`0236`): trang Người dùng — cột thao tác thành *Xem · Vô hiệu hoá · Gửi lại thư
+mời* (cột có thể trống xuống cuối). **Lệch đã nêu, chưa sửa**: trang không có nút *Sửa* (*Xem* chỉ đọc từ
+`0031`) trong khi HDSD viết *"Sửa đổi được họ tên"* và máy chủ có `PATCH /admin/users/:id`.
+
+Trước đó **P265** (`0235`): **`nang-cap` chịu được ảnh bên thứ ba không kéo được** — kho
 `minio/minio` đã biến khỏi Docker Hub (đo 29/09, cả thẻ ghim). Đường vòng của `len` (`0107`) gom thành
 `keo_anh`, `nang-cap` gọi chung; thiếu ảnh thật thì trả `CSBH_TAG` về thẻ cũ. Ca chạy chính `scripts/csbh`
 với `docker` giả. **Chưa có đường cho cài MỚI** (máy chưa từng có ảnh MinIO) — đề xuất nhân bản ảnh sang
