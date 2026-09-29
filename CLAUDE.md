@@ -99,7 +99,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P266** (`0236`): trang Người dùng — cột thao tác thành *Xem · Vô hiệu hoá · Gửi lại thư
+Chặng gần nhất **P267** (`0237`): **hộp thoại không đóng khi bấm ra ngoài** — gỡ `onMouseDown` lớp phủ
+của `HopThoai`; Escape giữ; menu thả xuống không đụng. Rà 21 `<HopThoai>` + 13 `HopThoaiXacNhan`: chỉ
+*Xem trước thay đổi danh mục* thiếu nút đóng → thêm *Huỷ*. Ca quét đòi mỗi khối `<HopThoai>` có nút gọi
+chính biểu thức `dong` của nó. **899/899 ca giao diện xanh.**
+
+Trước đó **P266** (`0236`): trang Người dùng — cột thao tác thành *Xem · Vô hiệu hoá · Gửi lại thư
 mời* (cột có thể trống xuống cuối). **Lệch đã nêu, chưa sửa**: trang không có nút *Sửa* (*Xem* chỉ đọc từ
 `0031`) trong khi HDSD viết *"Sửa đổi được họ tên"* và máy chủ có `PATCH /admin/users/:id`.
 

@@ -665,6 +665,13 @@ export function OTimKiem({
 
 /**
  * Hộp thoại. Bẫy tiêu điểm bên trong khi mở, trả lại chỗ cũ khi đóng (`FE-35`).
+ *
+ * BẤM RA NGOÀI KHÔNG ĐÓNG (`0237`, khách hàng 29/09: *"hộp thư không bị đóng khi
+ * nhấn ra bên ngoài"*). Tới `0236` lớp phủ đóng hộp ở `mousedown` ngoài khung —
+ * một cú bấm lệch khỏi mép hộp là mất trắng một biểu mẫu đang gõ dở, không hỏi
+ * gì. Đóng giờ chỉ bằng NÚT nhìn thấy được trong hộp (mỗi hộp phải có một — ca
+ * quét ở `tests/web/hop-thoai.test.tsx`) hoặc phím Escape (một phím chủ ý, cùng
+ * vai với nút, và là đường của người dùng bàn phím).
  */
 export function HopThoai({
   tieuDe,
@@ -788,10 +795,7 @@ export function HopThoai({
   }, [dong]);
 
   return (
-    <div
-      className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}`}
-      onMouseDown={(e) => e.target === e.currentTarget && dong()}
-    >
+    <div className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}`}>
       <div
         className={
           tyLe !== null

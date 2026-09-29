@@ -20322,3 +20322,28 @@ tên"*, máy chủ có `PATCH /admin/users/:id`, và trong `NguoiDung.tsx` còn 
 *"Hộp thoại sửa: CHỈ vai trò"* không đứng trên hàm nào (hộp thoại ấy gỡ ở P41, chú thích ở lại).
 
 **896/896 ca giao diện xanh; typecheck xanh** (`docker run` rời, demo bật).
+
+## P267 — `0237` Hộp thoại không đóng khi bấm ra ngoài · mọi hộp có nút đóng
+
+Hai câu 29/09: *"hộp thư"* (đọc là HỘP THOẠI — đã nêu) không đóng khi nhấn ra ngoài; và kiểm mọi hộp đều
+có nút đóng, liệt kê tên nút.
+
+**Một dòng, một chỗ**: `onMouseDown` của lớp phủ trong `HopThoai` (`Chung.tsx`) — mọi hộp thoại đi qua
+component ấy, kể cả `HopThoaiXacNhan`. Escape GIỮ (phím chủ ý, đường của bàn phím). Hộp báo lỗi
+(`bao-loi.tsx`) vốn không đóng khi bấm ra ngoài; lý do nó tách khỏi `HopThoai` ghi trong chú thích giờ
+hết, chú thích sửa theo. Menu thả xuống (chuông, menu tài khoản) KHÔNG đụng — chúng không phải hộp thoại;
+HDSD nói rõ.
+
+**Lượt rà**: 21 chỗ `<HopThoai>` + 13 chỗ `HopThoaiXacNhan` (nút *Huỷ* nằm trong component). Đúng MỘT hộp
+thiếu nút đóng: **Xem trước thay đổi danh mục** (nhập Excel) — chỉ có *Ghi đè danh mục* và *Chọn tệp khác*
+(lùi về bước chọn tệp); thoát hẳn phải bấm ra ngoài, tức đúng đường vừa bỏ. Thêm *Huỷ*. Một lối không nút
+có chủ ý: lớp phủ đăng nhập lại khi hết phiên (`App.tsx`, FE-33 — đóng là đăng nhập) — không phải
+`HopThoai`, ngoài phép quét.
+
+Ca `tests/web/hop-thoai.test.tsx`: bắn `mousedown`/`click`/`pointerdown` lên lớp phủ → `dong` không gọi,
+Escape gọi; và QUÉT mọi khối `<HopThoai>…</HopThoai>` đòi một `<button>` có `onClick` bằng CHÍNH biểu thức
+`dong` của khối (hộp *Ánh xạ* đóng bằng `() => datMoAnhXa(false)` ở cả hai chỗ). Bản đầu của phép quét
+cắt thẻ `<button` ở `>` đầu tiên — giữa `=>` — và báo nhầm hộp *Ánh xạ*; sửa thành bỏ qua `=>`. Phá lại:
+trả `onMouseDown` (1 đỏ) · gỡ *Huỷ* vừa thêm (1 đỏ) · nút *Xong* thôi gọi đúng biểu thức (1 đỏ).
+
+**899/899 ca giao diện xanh; typecheck xanh** (`docker run` rời).

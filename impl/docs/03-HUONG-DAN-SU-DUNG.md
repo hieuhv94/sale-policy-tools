@@ -243,6 +243,15 @@ Bấm vào **thẻ tài khoản** ở thanh trên cùng thì sổ xuống ba dò
 > Dòng email ở trên cùng trả lời câu hỏi hay gặp nhất trên máy dùng chung ở quầy: *"máy này đang đăng
 > nhập bằng tài khoản nào?"*
 
+### Hộp thoại `sửa 29/09`
+
+Hộp thoại (khung bật lên giữa màn hình — thêm sản phẩm, sửa khách hàng, xác nhận xoá…) **không đóng
+khi bấm ra ngoài**: một cú bấm lệch khỏi mép hộp không làm mất những gì đang gõ dở. Đóng bằng **nút
+trong hộp** — *Huỷ*, *Đóng* hoặc *Xong* tuỳ hộp; hộp nào cũng có một nút như thế — hoặc phím **Esc**.
+
+Chuông thông báo và menu tài khoản là **menu thả xuống**, không phải hộp thoại: chúng vẫn đóng khi bấm
+ra ngoài.
+
 ### Ô bắt buộc và ô tuỳ chọn
 
 Mọi biểu mẫu nhập liệu đều đánh dấu ô phải điền bằng **dấu sao đỏ** ngay sau nhãn, và có một dòng

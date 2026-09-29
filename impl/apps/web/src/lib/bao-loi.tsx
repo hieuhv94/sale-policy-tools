@@ -98,9 +98,11 @@ export function useBaoLoi(): Cua {
 /**
  * Hộp thoại lỗi.
  *
- * KHÔNG dùng `HopThoai` chung: hộp ấy đóng được bằng cách bấm ra ngoài, mà một
- * câu lỗi đóng bằng cú bấm vô ý là một câu chưa ai đọc. Ở đây chỉ Escape và nút
- * *Đóng* đóng được (`0136` — trước là *Đã hiểu*).
+ * KHÔNG dùng `HopThoai` chung — lý do gốc là hộp ấy đóng được bằng cách bấm ra
+ * ngoài, mà một câu lỗi đóng bằng cú bấm vô ý là một câu chưa ai đọc. `0237` bỏ
+ * cơ chế ấy ở MỌI hộp thoại nên lý do ấy hết; hộp này vẫn riêng vì nó là
+ * `alertdialog` với bố cục riêng. Chỉ Escape và nút *Đóng* đóng được (`0136` —
+ * trước là *Đã hiểu*).
  */
 function HopThoaiLoi({ loi, dong }: { loi: DangHien; dong: () => void }) {
   useEffect(() => {

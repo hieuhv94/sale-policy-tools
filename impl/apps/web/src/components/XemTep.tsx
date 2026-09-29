@@ -357,8 +357,9 @@ export function XemTep({
       {/*
         Hai nút LUÔN hiện, kể cả lúc đang tải và lúc lỗi.
 
-        Muc 11.1 đòi *"nút Đóng luôn hiển thị ở màn hình xem"* — `HopThoai` chỉ
-        đóng bằng phím Escape và bấm ra ngoài, hai đường không ai nhìn thấy. Một
+        Muc 11.1 đòi *"nút Đóng luôn hiển thị ở màn hình xem"* — ngoài nút,
+        `HopThoai` chỉ đóng bằng phím Escape (bấm ra ngoài thôi đóng từ `0237`),
+        một đường không ai nhìn thấy. Một
         hộp thoại chiếm gần hết màn hình mà không có nút thoát nhìn thấy được là
         hộp thoại người dùng tưởng mình bị kẹt.
       */}

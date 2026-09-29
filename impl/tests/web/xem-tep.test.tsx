@@ -116,8 +116,8 @@ describe('`0051` hộp xem tệp', () => {
   });
 
   it('nút Đóng hiện NGAY, không phải chờ tải xong', async () => {
-    // Muc 11.1: "nút Đóng luôn hiển thị ở màn hình xem". `HopThoai` chỉ đóng
-    // bằng Escape và bấm ra ngoài — hai đường không ai nhìn thấy.
+    // Muc 11.1: "nút Đóng luôn hiển thị ở màn hình xem". Ngoài nút, `HopThoai`
+    // chỉ đóng bằng Escape — đường không ai nhìn thấy (bấm ra ngoài bỏ ở `0237`).
     let mo: (r: Response) => void = () => undefined;
     chanFetch(() => new Promise<Response>((r) => (mo = r)));
     bay();

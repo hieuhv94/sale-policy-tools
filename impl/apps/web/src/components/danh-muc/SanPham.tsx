@@ -752,6 +752,12 @@ function HopThoaiExcel({ dong, xong }: { dong: () => void; xong: () => void }) {
             <button type="button" className="nut nut-nhe" onClick={lamLai}>
               Chọn tệp khác
             </button>
+            {/* `0237` — hộp DUY NHẤT tới lúc ấy không có nút đóng: *Chọn tệp khác*
+                chỉ lùi về bước chọn tệp, và thoát hẳn phải nhờ bấm ra ngoài — đường
+                vừa bị bỏ. */}
+            <button type="button" className="nut nut-nhe" onClick={dong}>
+              Huỷ
+            </button>
           </div>
         </form>
       </HopThoai>
