@@ -396,6 +396,31 @@ hiện đúng một cột — cái tên — nên hai mẫu trùng tên là hai d
 phân biệt được. Hệ quả khi sửa một mẫu: tải bản mới lên phải đặt **tên khác**,
 rồi vô hiệu hoá bản cũ; tên cũ không dùng lại được.
 
+### Nâng cấp lên bản MỘT HỒ SƠ ĐANG XỬ LÝ MỖI KHÁCH HÀNG `mới 26/09`
+
+**Bước migration `0119` DỪNG LẠI nếu còn khách hàng đang có nhiều hơn một hồ sơ
+chưa duyệt xong** — ở một trong sáu trạng thái *Nháp*, *Yêu cầu chỉnh sửa*, *Chờ
+TBP duyệt*, *Chờ KT duyệt L1*, *Sale Admin đang xử lý*, *Chờ KT duyệt L2*. Mở rộng
+luật của mục *Một bản Nháp mỗi khách hàng* bên dưới, và dừng theo cùng một kiểu:
+in danh sách, không tự chọn hộ.
+
+Kiểm TRƯỚC khi nâng cấp, trên bản đang chạy:
+
+```sh
+./csbh psql -c "SELECT c.code, c.name, string_agg(p.code || ' (' || p.status || ')', ', ')
+  FROM pol.policy p JOIN cus.customer c ON c.id = p.customer_id
+  WHERE p.status::text IN ('NHAP','YEU_CAU_CHINH_SUA','CHO_TBP_DUYET','CHO_KT_L1','SA_DANG_XU_LY','CHO_KT_L2')
+  GROUP BY c.code, c.name HAVING count(*) > 1;"
+```
+
+| | |
+| --- | --- |
+| Rỗng | Nâng cấp được |
+| Có dòng | Mỗi khách giữ đúng một hồ sơ đang xử lý: TDV phụ trách xoá bản Nháp/bản bị trả về thừa, hoặc cho một bản đi hết luồng duyệt |
+| Lỡ chạy rồi | Không mất gì — migration chạy trong một transaction. Dọn xong thì chạy lại `./csbh nang-cap <thẻ>` |
+
+---
+
 ### Nâng cấp lên bản CHỌN TỈNH/THÀNH TỪ DANH SÁCH `mới 13/09`
 
 **Không chặn nâng cấp, không có migration nào.** Ô *Tỉnh/Thành phố* của khách hàng
@@ -575,6 +600,26 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
 in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
+
+> **Từ `1.0.3` hoặc `1.0.4` lên bản mới: đổi thẻ TRƯỚC, rồi mới `nang-cap`** `mới 29/09`.
+> Bước sao lưu chạy bằng ảnh `ops` của thẻ đang ghi trong `.env`, và ảnh `ops` tới
+> `1.0.4` thiếu `pg_archivecleanup` — lượt sao lưu chết ở dòng
+> `pg_archivecleanup: not found` và `nang-cap` dừng ngay đó (hệ chưa bị đụng gì).
+> Đi vòng bằng cách để chính ảnh MỚI làm lượt sao lưu:
+>
+> ```sh
+> ./csbh phien-ban                                  # ghi lại thẻ cũ để lùi nếu cần
+> sed -i 's/^CSBH_TAG=.*/CSBH_TAG=1.0.5/' .env
+> ./csbh nang-cap 1.0.5
+> ```
+>
+> Dòng *"Lùi lại: …"* in ra lúc xong sẽ ghi `1.0.5` — thẻ cũ là thẻ bạn vừa ghi lại.
+>
+> **Hệ đã chạy cron sao lưu hằng đêm cũng dính cùng lỗi**: mỗi đêm `pg_dump` và bản
+> nền vẫn ghi xong, nhưng hai bước sau không bao giờ chạy — **WAL lưu trữ không
+> được dọn** (thư mục ấy lớn dần), và **bản sao ra `BACKUP_MIRROR_DIR` không bao giờ
+> được chép**. Xem `/var/log/csbh-sao-luu.log`. Lên `1.0.5` là đêm sau hai bước ấy
+> chạy lại; kiểm `BACKUP_MIRROR_DIR` có bản sao lưu mới.
 
 > **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
 > tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ

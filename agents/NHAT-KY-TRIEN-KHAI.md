@@ -20249,3 +20249,34 @@ vẫn khác màu. Phá lại: trả màu chữ tiêu đề (chỉ khối `thead`
 
 **904/904 ca giao diện xanh; typecheck xanh** (`docker run` rời, demo bật). `make test` đầy đủ chưa chạy
 từ P260.
+
+## P264 — `0234` Ảnh `ops` thiếu `pg_archivecleanup` · `VERSION` lên `1.0.5`
+
+Người dùng chạy `./csbh nang-cap` trên hệ thật: `basebackup.sh: line 46: pg_archivecleanup: not found`.
+
+**Hồi quy từ `0105`**: trước đó sao lưu chạy trên ảnh `postgres:16-alpine` (đủ mọi lệnh); `0105` chuyển
+sang ảnh `ops` dựng từ ảnh service và chỉ cài `postgresql16-client`, mà Alpine xếp `pg_archivecleanup`
+vào gói MÁY CHỦ `postgresql16` (đo bằng `apk search -x cmd:pg_archivecleanup`). Đo trên ảnh `ops-1.0.4`
+thật: trong mười ba lệnh các script gọi, thiếu đúng lệnh này. Sửa: thêm `postgresql16` vào `apk add`
+(+24MB, 544 → 568MB). Dựng thử và chạy lệnh trên đúng tên tệp trong log người dùng: xoá hai đoạn WAL
+cũ hơn nhãn `.backup`, giữ phần còn lại.
+
+**Hậu quả rộng hơn lượt nâng cấp.** Lệnh chết SAU khi `pg_dump` và bản nền ghi xong, và `set -e` cắt
+hai bước sau nó: dọn WAL và chép sang `BACKUP_MIRROR_DIR`. Nên trên mọi hệ có cron từ `1.0.1`: WAL lưu trữ
+chưa bao giờ được dọn, và **bản sao ngoài ổ chưa bao giờ được chép** — đúng thứ bảo vệ khỏi hỏng phần
+cứng. `nang-cap` dừng ở bước sao lưu TRƯỚC khi đổi `.env`, nên hệ không bị đụng gì.
+
+**Vì sao không gì đỏ**: bộ kiểm chỉ chạy `backup.sh` (gắn bằng bind mount vào ảnh kiểm, không phải ảnh
+`ops`); `basebackup.sh` chưa từng chạy trong bộ kiểm, và ảnh `ops` chỉ dựng lúc đóng gói. Ca mới
+`tests/http/anh-ops.test.ts` nối hai thế giới bằng BẢNG TRA lệnh → gói Alpine, đọc lệnh `pg_*` từ mọi
+`scripts/*.sh` (bỏ dòng chú thích) và gói từ `apk add` của `Dockerfile.ops`; ca thứ hai đòi phép quét
+thật sự tìm thấy năm lệnh (biểu thức lạc hậu thì tập rỗng và ca đầu xanh vô nghĩa). Nó không thay được
+một lượt chạy thật trên ảnh — lệnh ngoài bảng tra thì không được đối chiếu.
+
+**`1.0.5`, không dựng lại `1.0.4`**: `ops-1.0.4` và `ops-latest` đã trên registry (cùng digest). Máy chủ
+đang ở `1.0.3`/`1.0.4` thì `nang-cap` sao lưu bằng ảnh `ops` CŨ và chết lần nữa — đường vòng: đổi
+`CSBH_TAG` trong `.env` TRƯỚC, để ảnh mới làm lượt sao lưu (`04-TRIEN-KHAI` §8). Kèm mục còn thiếu ở
+`04-TRIEN-KHAI`: migration `0119` DỪNG khi khách còn nhiều hồ sơ đang xử lý, với câu `psql` kiểm trước.
+
+Phá lại: gỡ `postgresql16` khỏi `apk add` → 1 đỏ, nêu đúng `pg_archivecleanup (postgresql16)`.
+**27/27 xanh ở hai tệp đóng gói; typecheck xanh** (`docker run` rời, demo bật).

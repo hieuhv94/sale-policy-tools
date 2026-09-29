@@ -18,8 +18,17 @@ FROM ${BASE}
 
 # `postgresql16-client` cho psql · pg_dump · pg_restore · pg_isready ·
 # pg_basebackup. `openssl` cho `gen-secrets.sh`.
+#
+# `postgresql16` (gói MÁY CHỦ) cho đúng MỘT lệnh: `pg_archivecleanup`, lượt dọn
+# WAL cuối `basebackup.sh` (`0234`). Alpine xếp nó vào gói máy chủ chứ không vào
+# gói client. Tới `0104` sao lưu chạy trên ảnh `postgres:16-alpine` nên có sẵn;
+# `0105` chuyển sang ảnh này và chỉ cài client — từ đó MỌI lượt sao lưu chết ở
+# dòng dọn WAL, SAU khi bản nền đã ghi xong, nên: WAL không bao giờ được dọn, bản
+# sao ra `BACKUP_MIRROR_DIR` (bước kế tiếp) không bao giờ chạy, và `./csbh
+# nang-cap` dừng ngay bước sao lưu. `tests/http/anh-ops.test.ts` đối chiếu mọi
+# lệnh `pg_*` mà các script gọi với gói cài ở đây.
 USER root
-RUN apk add --no-cache postgresql16-client openssl
+RUN apk add --no-cache postgresql16-client postgresql16 openssl
 
 # Vá lỗi cùng lớp với `NODE_ENV`: các script vận hành gọi `tsx`, mà `tsx` là
 # devDependency — ảnh service cài đầy đủ nên nó có sẵn.

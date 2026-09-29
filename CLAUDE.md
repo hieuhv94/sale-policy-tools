@@ -99,7 +99,14 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P263** (`0233`): **cột tên sản phẩm về màu như cũ** — gỡ nền xanh nhạt, màu chữ tiêu đề
+Chặng gần nhất **P264** (`0234`): **ảnh `ops` thiếu `pg_archivecleanup`** — hồi quy từ `0105` (chỉ cài
+`postgresql16-client`; lệnh này ở gói máy chủ `postgresql16`). Lộ ra ở `./csbh nang-cap` thật; hệ quả rộng
+hơn: MỌI lượt sao lưu từ `1.0.1` chết sau khi ghi bản nền, nên WAL chưa từng được dọn và **bản sao
+`BACKUP_MIRROR_DIR` chưa từng được chép**. `VERSION` → **`1.0.5`** (`1.0.4` đã trên registry với lỗi);
+nâng từ bản cũ phải đổi `CSBH_TAG` TRƯỚC rồi mới `nang-cap` (`04-TRIEN-KHAI` §8). Ca bảng tra lệnh → gói
+ở `tests/http/anh-ops.test.ts`. `04-TRIEN-KHAI` thêm mục migration `0119` dừng.
+
+Trước đó **P263** (`0233`): **cột tên sản phẩm về màu như cũ** — gỡ nền xanh nhạt, màu chữ tiêu đề
 và chữ đậm tự khai của `0230`; ca quét mọi khối `.cot-khoa` cấm ba thuộc tính ấy. Của `0230` giờ chỉ còn bề
 rộng sàn/trần cột tên và nút Sửa/Xoá cỡ thường. **904/904 ca giao diện xanh**; `make test` đầy đủ chưa chạy
 từ P260 (demo bật).
