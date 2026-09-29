@@ -2924,7 +2924,17 @@ chiếm trọn một hàng để mười ba ô còn lại vẫn đứng cố đ�
 > **Cái mất, đã nêu**: hồ sơ của khách **đã ngừng hợp tác** thôi nói điều ấy trên trang hồ sơ (ô được
 > thêm năm 19/09 đúng vì *"hồ sơ cũ của họ vẫn mở được"*). Trang khách hàng vẫn nói.
 
-**BẢNG SẢN PHẨM: TÊN ĐỨNG ĐẦU, KHOÁ VÀ NỔI** `sửa 29/09` — *"đẩy tên sản phẩm lên cột đầu tiên và
+**THÔNG TIN CHUNG: KHÔNG KHOẢNG TRỐNG GIỮA KHỐI** `sửa 29/09` — *"không để khoảng trống giữa Chức danh
+người đại diện và Tỉnh/Thành phố"*. Khoảng trống ấy là nửa phải của hàng *Tên Hộ kinh doanh/Tên Công
+ty* trọn hàng (mục ngay dưới). Giờ tên đi cặp với **Mã khách hàng**; ô lẻ **Loại khách hàng** xuống
+cuối khối (chốt khi được hỏi) — cùng chỗ nó đứng ở trang khách hàng từ `29/08`.
+
+**BẢNG SẢN PHẨM: BỎ GHIM, THỨ TỰ CỘT NHƯ CŨ** `sửa 29/09` — sau khi xem mục ngay dưới trên bản demo:
+*"bỏ fix cứng cột tên sản phẩm, đổi thứ tự cột về như cũ"*. Thứ tự lại là *Ngày áp dụng · Mã · Tên*,
+**khớp bản in không ngoại lệ**; **không cột nào ghim** khi cuộn ngang (kể cả ba cột của `0228`). Giữ
+lại: cột tên **nền nhạt, chữ đậm**; nút Sửa/Xoá cỡ thường, cột thao tác không ghim.
+
+**BẢNG SẢN PHẨM: TÊN ĐỨNG ĐẦU, KHOÁ VÀ NỔI** `sửa 29/09, đã lùi phần thứ tự và ghim` — *"đẩy tên sản phẩm lên cột đầu tiên và
 fix cứng cột đó khi người dùng lăn chuột, cần làm nổi cột này lên"*; nút Sửa/Xoá *"nhìn không bị quá
 chật, và không cần cố định cột thao tác"*. Thay vế *khoá 3 cột đầu* và *cột thao tác ghim mép phải*
 của mục ngay dưới: chỉ cột **Tên sản phẩm** khoá (nền xanh nhạt, chữ đậm, bóng mép phải), *Ngày áp

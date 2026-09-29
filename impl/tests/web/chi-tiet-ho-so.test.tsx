@@ -236,15 +236,16 @@ const DAY_NHAN = [
   'Người đề nghị',
   'Có hiệu lực',
   'Mã khách hàng',
-  'Loại khách hàng',
+  // `0232` — đi cặp với mã; tới `0231` nó chiếm trọn một hàng và để trống nửa phải.
+  'Tên Hộ kinh doanh/Tên Công ty',
   'Người đại diện',
   'Chức danh người đại diện',
-  // `0229` — chiếm TRỌN một hàng; ô *Trạng thái khách hàng* đi cặp với nó đã gỡ.
-  'Tên Hộ kinh doanh/Tên Công ty',
   'Số nhà, Phường xã',
   'Tỉnh/Thành phố',
   'Địa chỉ giao hàng',
   'Công nợ',
+  // `0232` — ô lẻ ở CUỐI khối: khoảng trống duy nhất nằm ở đáy, không chen giữa.
+  'Loại khách hàng',
 ];
 
 describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () => {
@@ -377,14 +378,26 @@ describe('`0061` thông tin hồ sơ tách dòng, mỗi thứ một nhãn', () =
     }
   });
 
-  it('`0229` *Tên Hộ kinh doanh/Tên Công ty* chiếm TRỌN một hàng — mười ba ô vẫn thẳng cặp', async () => {
+  it('`0232` KHÔNG ô nào chiếm trọn hàng — không khoảng trống nào chen giữa khối', async () => {
+    /*
+     * Khách hàng 29/09: *"không để khoảng trống giữa Chức danh người đại diện và
+     * Tỉnh/Thành phố"* — khoảng trống ấy là nửa phải của hàng *Tên* trọn hàng
+     * (`0229`). Mười ba ô xếp đôi thì ô lẻ rơi về CUỐI; một ô `o-rong` ở bất kỳ
+     * đâu giữa khối là dựng lại đúng khoảng trống ấy, và mọi ô sau nó đổi cặp.
+     */
     await mo();
-    const dt = [...khoiChung().querySelectorAll('dt')].find(
-      (e) => e.textContent === 'Tên Hộ kinh doanh/Tên Công ty',
-    )!;
-    expect(dt.parentElement!.classList.contains('o-rong')).toBe(true);
-    // Chỉ ô ấy — thêm ô trọn hàng thứ hai là đổi cặp của mọi ô sau nó.
-    expect(khoiChung().querySelectorAll('dl > .o-rong')).toHaveLength(1);
+    expect(khoiChung().querySelectorAll('dl > .o-rong')).toHaveLength(0);
+    // Hai cặp khách hàng nêu tên đứng đúng cặp: vị trí CHẴN (0-based) là cột
+    // trái, ô ngay sau là cột phải.
+    const nhan = [...khoiChung().querySelectorAll('dt')].map((e) => e.textContent);
+    const cot = (n: string) => nhan.indexOf(n) % 2;
+    expect(cot('Mã khách hàng')).toBe(0);
+    expect(nhan.indexOf('Tên Hộ kinh doanh/Tên Công ty')).toBe(nhan.indexOf('Mã khách hàng') + 1);
+    expect(cot('Chức danh người đại diện')).toBe(1);
+    expect(cot('Tỉnh/Thành phố')).toBe(1);
+    // Giữa *Chức danh* và *Tỉnh* đúng MỘT hàng đôi (Số nhà | Tỉnh) — không hàng
+    // nào khác chen vào.
+    expect(nhan.indexOf('Tỉnh/Thành phố') - nhan.indexOf('Chức danh người đại diện')).toBe(2);
   });
 
   it('`customer` chết thì mất KHỐI khách hàng, không mất cả màn hình', async () => {

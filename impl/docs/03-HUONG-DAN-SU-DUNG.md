@@ -1117,11 +1117,10 @@ văn bản mẫu nào để chọn.
 có thêm cột **Thao tác** ở cuối bảng, với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần
 rê chuột `sửa 29/09`. Cột này đứng cuối như mọi cột, không ghim: bảng rộng thì kéo sang phải tới nó.
 
-> **Tên sản phẩm là cột đầu tiên và đứng yên khi cuộn ngang** `sửa 29/09` — cột ấy tô nền xanh nhạt,
-> chữ đậm, có bóng ở mép phải. Bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang phải xem
-> số, tên vẫn nằm bên trái để biết đang đọc dòng của mặt hàng nào; *Ngày áp dụng* và *Mã sản phẩm*
-> đứng ngay sau và trôi theo. Tên dài thì xuống dòng trong ô. **Bản in (bản mềm) giữ thứ tự cũ** —
-> tên đứng sau mã. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
+> **Thứ tự cột: *Ngày áp dụng* · *Mã sản phẩm* · *Tên sản phẩm* · …**, giống hệt bản in. Cột *Tên sản
+> phẩm* tô **nền xanh nhạt, chữ đậm** cho dễ dò dòng; tên dài thì xuống dòng trong ô. **Không cột nào
+> đứng yên khi cuộn ngang** `sửa 29/09` — bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang
+> phải xem số, cả bảng trôi theo. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
 người duyệt trả lại.
 
 > **Sửa thông tin khách hàng ngay trên trang hồ sơ** `mới 28/09`. Cũng ở hai trạng thái ấy, khối
@@ -1303,18 +1302,19 @@ trên màn hình rộng, một cột trên điện thoại.
 
 **Mười ba ô, luôn đủ và luôn đúng chỗ** `sửa 29/09` — trước ngày ấy vài ô chỉ hiện khi có dữ liệu,
 nên các ô phía sau xô lệch và *Mã khách hàng* lúc bên trái lúc bên phải giữa các CSBH. Giờ ô nào
-thiếu dữ liệu thì ghi rõ, không biến mất. Bảy hàng, đọc theo cặp — riêng tên pháp nhân chiếm trọn
-một hàng:
+thiếu dữ liệu thì ghi rõ, không biến mất. Đọc theo cặp, **không khoảng trống nào chen giữa khối**
+`sửa 29/09` — tên pháp nhân đi cặp với mã khách hàng, và ô lẻ (*Loại khách hàng*) nằm cuối, giống
+trang khách hàng:
 
 | Bên trái | Bên phải |
 |---|---|
 | **Phiên bản** — bản CSBH thứ mấy của khách hàng này | **Ngày soạn thảo** — lúc bản nháp ra đời |
 | **Người đề nghị** — TDV đã **gửi** hồ sơ đi duyệt | **Có hiệu lực** — ngày giờ có hiệu lực, hoặc *Chưa có hiệu lực* |
-| **Mã khách hàng** — bấm vào mở màn hình khách hàng | **Loại khách hàng** — quyết định ngưỡng chiết khấu |
+| **Mã khách hàng** — bấm vào mở màn hình khách hàng | **Tên Hộ kinh doanh/Tên Công ty** |
 | **Người đại diện** | **Chức danh người đại diện** `mới 29/09` |
-| **Tên Hộ kinh doanh/Tên Công ty** — trọn hàng | |
 | **Số nhà, Phường xã** | **Tỉnh/Thành phố** |
 | **Địa chỉ giao hàng** — mỗi địa chỉ một dòng, hoặc *Giao tới địa chỉ đăng ký* | **Công nợ** |
+| **Loại khách hàng** — quyết định ngưỡng chiết khấu | |
 
 > **Không còn ô *Trạng thái khách hàng*** `bỏ 29/09`. Khách đã ngừng hợp tác thì trang hồ sơ không nói
 > điều ấy nữa — bấm vào *Mã khách hàng* để xem ở trang khách hàng.

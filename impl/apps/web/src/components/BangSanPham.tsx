@@ -413,6 +413,7 @@ export const soCotCpbh = (dong: readonly DongSanPham[]): number =>
  * Khách hàng đưa *Tên sản phẩm* lên đầu và chỉ ghim MỘT cột ấy. Một cột ghim
  * thì mép trái luôn là 0, nên không còn phép cộng bề rộng nào phải giữ khớp —
  * và cột tên thôi phải chịu bề rộng cố định 14rem mà `0228` cần cho phép cộng.
+ * `0231` bỏ nốt cột ghim ấy: bảng cuộn ngang trọn vẹn, không cột nào đứng yên.
  */
 
 /** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
@@ -711,10 +712,12 @@ export function BangSanPham({
           <thead>
             <tr>
               {/*
-                CỘT TÊN KHOÁ khi cuộn ngang, và NỔI hơn mọi cột (`0230`, khách
-                hàng 29/09) — thay ba cột khoá của `0228`. Tên là thứ nói *"dòng
-                này là mặt hàng nào"*; mã và ngày áp dụng trôi theo phần cuộn.
-                Lớp đặt theo KHOÁ cột: luật là "cột tên", không phải "cột đầu".
+                CỘT TÊN NỔI hơn mọi cột — nền nhạt, chữ đậm (`0230`). `0230`
+                còn đưa nó lên đầu và ghim khi cuộn ngang; `0231` (khách hàng
+                29/09) trả thứ tự về *Ngày · Mã · Tên* và bỏ ghim — KHÔNG cột nào
+                đứng yên khi cuộn nữa, kể cả ba cột của `0228`.
+                Lớp `cot-khoa` giữ tên cũ: nó vẫn là cột KHOÁ theo nghĩa *"cột
+                nói dòng này là mặt hàng nào"* (`th scope="row"`).
               */}
               {cotCho(dong).map((c) => (
                 <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
@@ -742,14 +745,14 @@ export function BangSanPham({
                   điều kiện nào ở đây — và đó là chủ ý: một `{dieuKien && …}` gõ
                   lại ở tám ô là tám chỗ để quên một.
                 */}
-                <th scope="row" className="cot-khoa">
-                  {d.productName}
-                </th>
                 <td className="ngay-ap-dung">
                   {ngay(d.ngayApDung)}
                   <Dau d={d} o="ngayApDung" />
                 </td>
                 <td>{d.productCode}</td>
+                <th scope="row" className="cot-khoa">
+                  {d.productName}
+                </th>
                 <td className="so">
                   {tien(d.companyPrice)}
                   <Dau d={d} o="companyPrice" />

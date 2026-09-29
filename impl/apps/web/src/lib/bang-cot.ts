@@ -30,31 +30,21 @@
  */
 export const COT_TRUOC = [
   /*
-   * TÊN SẢN PHẨM — cột ĐẦU TIÊN trên MÀN HÌNH, ghim khi cuộn ngang (`0230`).
-   *
-   * Khách hàng 29/09: *"đẩy tên sản phẩm lên cột đầu tiên và fix cứng cột đó
-   * khi người dùng lăn chuột, cần làm nổi cột này lên"*. Tên là thứ mắt dùng
-   * để biết mình đang đọc dòng nào; ở `0228` nó đứng thứ ba sau hai cột mã và
-   * ngày, cả ba cùng khoá.
-   *
-   * CHỈ MÀN HÌNH — bản in (`COT_BANG` của `document`) giữ tên ngay sau mã. Đây
-   * là chỗ DUY NHẤT hai bảng xếp khác nhau (chốt khi được hỏi), và ca đối chiếu
-   * thứ tự ở `tests/http/tieu-de-cot.test.ts` miễn đúng cột này, không cột nào
-   * khác.
+   * `0230` đưa *Tên sản phẩm* lên ĐẦU bảng màn hình và ghim nó; `0231` (khách
+   * hàng 29/09, cùng ngày) trả về thứ tự cũ và bỏ ghim — hai bảng lại xếp cột
+   * giống hệt nhau, không miễn trừ nào.
    */
-  { khoa: 'productName', nhan: 'Tên sản phẩm' },
   /*
-   * NGÀY ÁP DỤNG — bên trái *Mã sản phẩm* (`0180`).
+   * NGÀY ÁP DỤNG — cột ĐẦU TIÊN, bên trái *Mã sản phẩm* (`0180`).
    *
    * Khách hàng chốt 07/09 từng chữ: *"cột ngày áp dụng để bên trái mã sản
    * phẩm"*. Từ lượt này ngày áp dụng là thuộc tính của DÒNG chứ không của hồ sơ
    * — ô *Ngày áp dụng* ở khối thông tin đầu trang biến mất cùng lúc — nên nó
    * phải đứng ở chỗ mắt đọc trước khi đọc tới mặt hàng.
-   *
-   * `0230` đưa TÊN lên trước nó trên màn hình; vế *"bên trái mã"* giữ nguyên.
    */
   { khoa: 'ngayApDung', nhan: 'Ngày áp dụng' },
   { khoa: 'productCode', nhan: 'Mã sản phẩm' },
+  { khoa: 'productName', nhan: 'Tên sản phẩm' },
   { khoa: 'companyPrice', nhan: 'Giá bán Công ty' },
   { khoa: 'wholesalePrice', nhan: 'Giá bán buôn' },
   /*

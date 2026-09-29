@@ -2249,36 +2249,29 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    640–1023px — máy tính bảng: bảng cuộn ngang, KHOÁ cột tên sản phẩm
    ========================================================================= */
 /* Luật khoá riêng CỘT TÊN ở khổ này (`FE-04`) đã thay bằng khoá ba cột ở mọi
-   khổ (`0228`), rồi bằng khoá MỘT cột tên ở mọi khổ (`0230`) — ngay dưới. */
+   khổ (`0228`), rồi khoá MỘT cột tên (`0230`), rồi BỎ HẲN (`0231`) — ngay dưới. */
 
 /* =========================================================================
-   CỘT TÊN KHOÁ VÀ NỔI, CỘT THAO TÁC THÔI GHIM — bảng sản phẩm (`0230`)
+   CỘT TÊN NỔI, KHÔNG CỘT NÀO GHIM — bảng sản phẩm (`0230` → `0231`)
    =========================================================================
 
-   Khách hàng 29/09: *"đẩy tên sản phẩm lên cột đầu tiên và fix cứng cột đó
-   khi người dùng lăn chuột, cần làm nổi cột này lên"*. Thay luật `0228` (ba
-   cột đầu khoá, bề rộng cố định để cộng ra `left` của cột sau): một cột khoá
-   thì mép trái luôn là 0, nên bề rộng thôi phải cố định — nó có SÀN (tên ngắn
-   vẫn đủ chỗ cho dấu tam giác) và TRẦN (tên dài xuống dòng chứ không nuốt nửa
-   khung cuộn).
+   `0230` (khách hàng 29/09) đưa *Tên sản phẩm* lên đầu, ghim khi cuộn ngang và
+   làm nổi. Cùng ngày khách hàng xem trên demo rồi chốt `0231`: bỏ ghim, thứ tự
+   về *Ngày áp dụng · Mã · Tên* như `0180`. Phần NỔI giữ — nền nhạt màu thương
+   hiệu và chữ đậm; bóng mép phải thì gỡ, nó chỉ có nghĩa khi cột đứng yên trên
+   phần đang trôi.
 
-   NỔI bằng BA thứ, mỗi thứ một việc: nền nhạt màu thương hiệu (cột khác nền
-   trắng), chữ đậm, và bóng đổ mép phải — bóng chỉ cho mắt thấy phần nào đứng
-   yên, phần nào đang trôi. Nền phải ĐẶC: ô khoá trong suốt thì phần đang cuộn
-   lộ qua nó. */
+   Sàn và trần bề rộng giữ: tên ngắn vẫn đủ chỗ, tên dài xuống dòng chứ không
+   nong bảng. */
 .bang-san-pham .cot-khoa {
-  position: sticky;
-  left: 0;
-  z-index: 1;
   min-width: 12rem;
   max-width: 18rem;
   white-space: normal;
   overflow-wrap: break-word;
   background: var(--mau-thuong-hieu-nhat);
   font-weight: 600;
-  box-shadow: var(--bong-cot-khoa), 1px 0 0 var(--mau-vien);
 }
-.bang-san-pham thead .cot-khoa { z-index: 2; color: var(--mau-thuong-hieu-dam); }
+.bang-san-pham thead .cot-khoa { color: var(--mau-thuong-hieu-dam); }
 
 /* CỘT THAO TÁC — luôn hiện (`0228`), THÔI GHIM mép phải (`0230`, *"không cần
    cố định cột thao tác này"*): nó đứng cuối bảng như mọi cột.
@@ -3040,12 +3033,12 @@ tr:focus-within > .o-thao-tac-re-chuot { opacity: 1; }
    mờ đọc như một nút đã tắt. */
 .dong-da-xoa > * { opacity: 0.55; }
 .dong-da-xoa .nhom-nut { opacity: 1; }
-/* `0228` — ô KHOÁ và ô THAO TÁC không mờ bằng `opacity`: ô khoá có nền đặc để
+/* `0231` — ô tên thôi ghim nên mờ theo cả hàng như mọi ô (luật miễn của nó gỡ).
+   `0228` — ô KHOÁ và ô THAO TÁC không mờ bằng `opacity`: ô khoá có nền đặc để
    che phần đang cuộn, mờ đi thì phần ấy lộ qua. Ô khoá lùi lại bằng MÀU CHỮ.
    Ô thao tác thì trả `opacity` về 1 — luật `.nhom-nut` ngay trên KHÔNG làm được
    việc ấy một mình (tới `0227` nút *Thêm lại* vẫn mờ): `opacity` của ô cha nhân
    lên mọi thứ bên trong, con không tự sáng hơn cha được. */
-.dong-da-xoa > .cot-khoa { opacity: 1; color: var(--mau-chu-phu); }
 .dong-da-xoa > .o-thao-tac-dong { opacity: 1; }
 
 /* Gạch ngang tên sản phẩm — dấu hiệu thứ hai, cho người không phân biệt được

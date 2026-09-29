@@ -99,7 +99,14 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P260** (`0230`): **bảng sản phẩm — *Tên sản phẩm* là cột ĐẦU, khoá khi cuộn ngang và
+Chặng gần nhất **P261–P262** (`0231`, `0232`), cùng ngày: khách hàng xem `0230` trên demo rồi **lùi thứ
+tự cột về *Ngày · Mã · Tên* và bỏ ghim hẳn** — không cột nào của bảng sản phẩm đứng yên khi cuộn (ca quét
+MỌI khối `.bang-san-pham` cấm `sticky`); màn hình và bản in lại khớp thứ tự không ngoại lệ. Giữ nền nhạt +
+chữ đậm cột tên và nút cỡ thường. **`0232`**: khối *Thông tin chung* hết khoảng trống giữa khối — *Tên*
+cặp với *Mã KH*, *Loại KH* xuống ô lẻ cuối (như trang khách hàng); cờ `rong` của `O` gỡ. **904/904 ca giao
+diện xanh**, chạy bằng `docker run` rời vì demo bật; `make test` đầy đủ chưa chạy.
+
+Trước đó **P260** (`0230`): **bảng sản phẩm — *Tên sản phẩm* là cột ĐẦU, khoá khi cuộn ngang và
 NỔI** (nền `--mau-thuong-hieu-nhat`, chữ đậm, bóng mép phải — token mới `--bong-cot-khoa`); **cột thao tác
 thôi ghim**, nút Sửa/Xoá cỡ thường. Thay ba cột khoá của `0228` (`COT_DINH` gỡ). **Chỉ màn hình** (chốt khi
 hỏi): bản in giữ tên sau mã — chỗ DUY NHẤT hai bảng xếp khác nhau, ca đối chiếu thứ tự miễn đúng cột này

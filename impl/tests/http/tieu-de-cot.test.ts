@@ -160,21 +160,12 @@ describe('`0180` thứ tự cột khớp giữa hai bảng, và ngày áp dụng
      * `0152`).
      */
     /*
-     * `0230` — MIỄN ĐÚNG MỘT cột: *Tên sản phẩm*. Khách hàng 29/09 đưa nó lên
-     * đầu bảng TRÊN MÀN HÌNH và ghim khi cuộn ngang; bản in giữ thứ tự cũ (chốt
-     * khi được hỏi — chỉ màn hình). Mọi cột còn lại vẫn phải khớp từng vị trí.
+     * `0230` từng miễn *Tên sản phẩm* khỏi phép so này (nó đứng đầu màn hình,
+     * bản in giữ chỗ cũ); `0231` trả nó về chỗ cũ ở màn hình, nên miễn trừ GỠ —
+     * mọi cột chung khớp từng vị trí, không ngoại lệ.
      */
-    const chung = khoaWeb.filter((k) => KHOP[k] !== undefined && k !== 'productName');
-    expect(chung.map((k) => KHOP[k])).toEqual(
-      khoaBang.filter((k) => k !== 'ten_san_pham' && chung.some((w) => KHOP[w] === k)),
-    );
-  });
-
-  it('`0230` *Tên sản phẩm* đứng ĐẦU bảng màn hình, còn bản in giữ chỗ cũ ngay sau mã', () => {
-    // Hai vế cùng lúc: miễn trừ ở ca trên chỉ đúng chừng nào cột ấy thật sự là
-    // cột ĐẦU của màn hình — trôi đi chỗ khác thì nó phải quay lại phép so.
-    expect(khoaWeb[0]).toBe('productName');
-    expect(khoaBang.indexOf('ten_san_pham')).toBe(khoaBang.indexOf('ma_san_pham') + 1);
+    const chung = khoaWeb.filter((k) => KHOP[k] !== undefined);
+    expect(chung.map((k) => KHOP[k])).toEqual(khoaBang.filter((k) => chung.some((w) => KHOP[w] === k)));
   });
 });
 

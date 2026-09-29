@@ -113,24 +113,24 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
 });
 
 /**
- * `0230` — TÊN SẢN PHẨM là ô ĐẦU mỗi hàng và là ô KHOÁ DUY NHẤT.
+ * `0231` — thứ tự về *Ngày áp dụng · Mã · Tên* (`0180`); cột tên vẫn NỔI và là
+ * ô `cot-khoa` DUY NHẤT của mỗi hàng.
  *
- * Đọc DOM chứ không quét mã nguồn: ca quét ở `nguon-giao-dien.test.ts` XANH
- * khi lớp `cot-khoa` bị gắn thêm vào ô mã (lượt phá lại) — hai cột cùng
- * `left: 0` thì chồng lên nhau khi cuộn, và không gì khác đỏ.
+ * Đọc DOM chứ không quét mã nguồn: ở `0230` ca quét XANH khi lớp `cot-khoa` bị
+ * gắn thêm vào ô mã — lượt phá lại tìm ra, và ca này ra đời vì thế.
  */
-describe('`0230` cột tên đứng đầu và là cột khoá duy nhất', () => {
-  it('ở tiêu đề lẫn mỗi hàng: đúng MỘT ô khoá, là ô đầu, mang tên sản phẩm', () => {
+describe('`0231` cột tên đứng thứ ba, và là ô nổi duy nhất của hàng', () => {
+  it('ở tiêu đề lẫn mỗi hàng: đúng MỘT ô `cot-khoa`, ở vị trí thứ ba, mang tên sản phẩm', () => {
     const ds = [dong(), dong({ id: 'd2', productCode: 'SP-02', productName: 'Sữa B' })];
     render(<BangSanPham dong={ds} suaDong={() => undefined} xoaDong={() => undefined} />);
     const bang = screen.getByRole('table');
     for (const hang of bang.querySelectorAll('tr')) {
       const khoa = hang.querySelectorAll('.cot-khoa');
       expect(khoa).toHaveLength(1);
-      expect(hang.firstElementChild).toBe(khoa[0]);
+      expect(hang.children[2]).toBe(khoa[0]);
     }
     const hangThan = [...bang.querySelectorAll('tbody tr')];
-    expect(hangThan.map((h) => h.firstElementChild!.textContent)).toEqual([
+    expect(hangThan.map((h) => h.children[2]!.textContent)).toEqual([
       'Nutricare Gold Đặc Biệt',
       'Sữa B',
     ]);

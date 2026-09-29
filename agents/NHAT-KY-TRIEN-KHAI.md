@@ -20201,3 +20201,35 @@ VẮNG ở cột khác. Thêm ca DOM ở `bang-san-pham.test.tsx`: mỗi hàng �
 
 **2548/2548 xanh** (`make test` đầy đủ, chồng demo đã hạ). Tăng so với 2546 của P258 gồm các ca giao diện của P259
 (chặng ấy không chạy bộ đầy đủ) cộng hai ca mới ở đây, trừ một ca của khối `0228` gộp vào khối `0230`.
+
+## P261 — `0231` Bảng sản phẩm: bỏ ghim, thứ tự cột như cũ
+
+Khách hàng xem `0230` trên demo cùng ngày rồi đảo nửa đầu: *"bỏ fix cứng cột tên sản phẩm, đổi thứ tự
+cột về như cũ"*. Thứ tự về *Ngày · Mã · Tên* (`0180`); **không cột nào ghim** — đọc *"bỏ fix cứng"* là
+bỏ HẲN, không quay về ba cột khoá của `0228`. Giữ hai thứ không bị nhắc: nền nhạt + chữ đậm của cột tên
+(nửa *"làm nổi"*), và nút cỡ thường ở cột thao tác không ghim. **Bóng mép phải gỡ** cùng token
+`--bong-cot-khoa` — nó chỉ nói *"phần này đứng yên"*; và luật miễn `opacity` của ô tên trên dòng đã rút
+gỡ theo (nó tồn tại vì nền đặc che phần cuộn).
+
+**Hệ quả tốt**: miễn trừ *"thứ tự màn hình khác bản in"* của `0230` sống đúng một chặng — ca đối chiếu
+thứ tự lại so mọi cột, không ngoại lệ. Ca `sticky` mới quét **mọi** khối CSS có `.bang-san-pham`, không
+riêng `.cot-khoa`: `0228` ghim bằng ba lớp khác tên, và một lớp mới mang `sticky` là đúng cái lượt này gỡ.
+Ca DOM của `0230` giữ, đổi vị trí từ ô đầu sang ô thứ ba.
+
+Phá lại: gắn lại `sticky` cho cột tên (1 đỏ) · tên về đầu `COT_TRUOC` (2 đỏ, ở cả tầng thứ tự lẫn DOM).
+
+## P262 — `0232` *Thông tin chung*: không khoảng trống giữa khối
+
+*"Không để khoảng trống giữa Chức danh người đại diện và Tỉnh/Thành phố"*. Khoảng trống ấy là nửa phải
+của hàng *Tên Hộ kinh doanh/Tên Công ty* trọn hàng mà `0229` dựng ra để mười ba ô không đảo chéo cặp —
+tránh được đảo cặp nhưng để lại một lỗ giữa khối khi tên ngắn. Hỏi bố cục; chốt **Tên cặp với Mã khách
+hàng**, **Loại khách hàng xuống làm ô lẻ cuối khối** — trùng chỗ nó đứng ở trang khách hàng từ `0153`.
+Cờ `rong` của `O` gỡ (không còn ô nào dùng); lớp `.o-rong` giữ vì thẻ ghi chú của bảng sản phẩm còn dùng.
+
+Ca `0229` *"đúng MỘT ô trọn hàng"* ĐẢO thành *"KHÔNG ô nào trọn hàng"*, kèm phép đo cặp: Tên ngay sau Mã,
+và *Chức danh* cách *Tỉnh* đúng một hàng đôi. Phá lại: dựng lại ô trọn hàng (1 đỏ) · Loại về chỗ cũ
+cạnh Mã (3 đỏ, gồm hai ca dãy nhãn của `0228`).
+
+**904/904 ca giao diện xanh; typecheck xanh** — chạy bằng `docker run csbh-test:latest --network none`
+vì chồng demo đang bật theo yêu cầu người dùng. `make test` đầy đủ KHÔNG chạy ở P261–P262; cả hai chặng
+chỉ đụng giao diện và tài liệu, và ca `tieu-de-cot` (tầng `tests/http`, thuần) đã chạy trong lượt ấy.

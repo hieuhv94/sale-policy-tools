@@ -637,14 +637,14 @@ describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () =>
 });
 
 /**
- * `0228` → `0230` — bảng sản phẩm của hồ sơ: CỘT TÊN đứng đầu, KHOÁ và NỔI; nút
- * Sửa/Xoá LUÔN HIỆN, cột thao tác THÔI GHIM.
+ * `0228` → `0230` → `0231` — bảng sản phẩm của hồ sơ: KHÔNG CỘT NÀO GHIM khi
+ * cuộn ngang (ba cột của `0228`, rồi cột tên của `0230`, đều gỡ); cột tên vẫn
+ * NỔI; nút Sửa/Xoá LUÔN HIỆN, cột thao tác không ghim.
  *
- * jsdom không tính bố cục, nên thứ đo được là các mảnh phải khớp nhau: lớp
- * `cot-khoa` có trên đúng cột tên (ở cả tiêu đề lẫn thân), luật CSS có `sticky`
- * + nền ĐẶC khác nền bảng, và không còn lớp khoá nào của `0228` sót lại.
+ * jsdom không tính bố cục, nên thứ đo được là luật CSS: không `sticky` trên bất
+ * kỳ bộ chọn nào của `.bang-san-pham`, và nền nhạt + chữ đậm của cột tên.
  */
-describe('`0230` bảng sản phẩm: cột tên khoá và nổi, cột thao tác không ghim', () => {
+describe('`0231` bảng sản phẩm: không cột nào ghim, cột tên nổi', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
   const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
   /**
@@ -659,22 +659,24 @@ describe('`0230` bảng sản phẩm: cột tên khoá và nổi, cột thao tá
     return tat[tat.length - 1]![1]!;
   };
 
-  it('cột tên là sticky ở mép trái, NỀN ĐẶC và khác nền bảng — tức là nổi', () => {
-    const o = luat('.cot-khoa');
-    expect(o).toMatch(/position:\s*sticky/);
-    expect(o).toMatch(/left:\s*0\b/);
-    // Nền đặc: phần đang cuộn không lộ qua. Khác `--mau-nen`: đó là nền mọi ô.
-    expect(o).toMatch(/background:\s*var\(--mau-thuong-hieu-nhat\)/);
-    expect(o).toMatch(/font-weight:\s*[67]00/);
-    // Dòng đã rút mờ bằng `opacity` — ô khoá phải được miễn, nếu không nó trong
-    // suốt đúng như nỗi lo ở trên.
-    expect(css).toMatch(/\.dong-da-xoa > \.cot-khoa\s*\{[^}]*opacity:\s*1/);
+  it('KHÔNG luật nào của bảng sản phẩm dùng `sticky` — cột tên cuộn theo như mọi cột', () => {
+    // Quét MỌI khối có bộ chọn bắt đầu bằng `.bang-san-pham`, không riêng
+    // `.cot-khoa`: `0228` ghim bằng ba lớp khác tên, và một lớp mới mang
+    // `sticky` là đúng cái lượt này gỡ.
+    const khoi = [...css.matchAll(/([^{}]*\.bang-san-pham[^{}]*)\{([^}]*)\}/g)];
+    const ghim = khoi.filter((m) => /position:\s*sticky/.test(m[2]!)).map((m) => m[1]!.trim());
+    expect(ghim).toEqual([]);
   });
 
-  it('lớp khoá nằm trên CỘT TÊN, ở cả tiêu đề lẫn thân bảng — và không cột nào khác khoá', () => {
+  it('cột tên vẫn NỔI: nền nhạt màu thương hiệu, chữ đậm', () => {
+    const o = luat('.cot-khoa');
+    expect(o).toMatch(/background:\s*var\(--mau-thuong-hieu-nhat\)/);
+    expect(o).toMatch(/font-weight:\s*[67]00/);
+  });
+
+  it('lớp `cot-khoa` nằm trên CỘT TÊN, ở cả tiêu đề lẫn thân bảng; ba lớp của `0228` không sót', () => {
     expect(nguon).toMatch(/c\.khoa === 'productName' \? 'cot-khoa'/);
     expect(nguon).toContain('<th scope="row" className="cot-khoa">');
-    // Ba lớp khoá của `0228` gỡ hẳn — sót một cái ở CSS là một cột nữa đứng yên.
     expect(css).not.toMatch(/\.cot-dinh-\d/);
     expect(nguon).not.toMatch(/className=\{?[`'"][^`'"]*cot-dinh/);
   });

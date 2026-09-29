@@ -1437,10 +1437,10 @@ function HopThoaiHanhDong({
  * mang `display: contents`, vì chỉ một lưới dùng chung mới đo được cột nhãn
  * theo nội dung; hàng vẫn đúng vì mỗi cặp góp đúng hai ô theo thứ tự nguồn.
  */
-function O({ nhan, children, rong }: { nhan: string; children: ReactNode; rong?: boolean }) {
+function O({ nhan, children }: { nhan: string; children: ReactNode }) {
   return (
-    // `rong` — ô chiếm TRỌN một hàng của lưới hai cột (`0229`, lớp `.o-rong` của `the-so`).
-    <div className={rong ? 'o-rong' : undefined}>
+    // Cờ `rong` (ô trọn hàng, `0229`) GỠ ở `0232` — không ô nào của khối còn dùng.
+    <div>
       <dt>{nhan}</dt>
       <dd>{children}</dd>
     </div>
@@ -1510,12 +1510,15 @@ function ThongTinHoSo({
    * — và câu ấy chọn để nói đúng sự thật (`Giao tới địa chỉ đăng ký`, không
    * phải dấu gạch — lý do `0175` sợ dấu gạch vẫn còn nguyên).
    *
-   * BẢY HÀNG, sáu hàng đôi và MỘT hàng trọn: `0229` bỏ ô *Trạng thái khách
-   * hàng* (khách hàng 29/09), nên *Tên Hộ kinh doanh/Tên Công ty* — ô từng đi
-   * cặp với nó — chiếm trọn hàng thay vì để một ô trống bên phải. Tên pháp nhân
-   * vốn dài nhất khối, nên đó cũng là ô đáng có cả bề ngang nhất. Thứ tự giữ
-   * tinh thần `0177`. Ca kiểm ghim cả DÃY NHÃN, nên thêm một ô nữa là phải chọn
-   * chỗ cho nó.
+   * SÁU HÀNG ĐÔI cộng MỘT Ô LẺ Ở CUỐI (`0232`, khách hàng 29/09: *"không để
+   * khoảng trống giữa Chức danh người đại diện và Tỉnh/Thành phố"*). `0229` bỏ ô
+   * *Trạng thái khách hàng* rồi cho *Tên Hộ kinh doanh/Tên Công ty* chiếm trọn
+   * hàng — lưới không đảo chéo cặp, nhưng tên ngắn thì nửa phải hàng ấy là một
+   * khoảng trống nằm giữa khối, đúng chỗ khách hàng chỉ ra. Giờ *Tên* đi cặp với
+   * *Mã khách hàng* (hai thứ định danh khách, đọc cùng nhau), *Loại khách hàng*
+   * xuống làm ô lẻ CUỐI khối — khoảng trống duy nhất nằm ở đáy, không chen giữa
+   * (chốt khi được hỏi). Ca kiểm ghim cả DÃY NHÃN, nên thêm một ô nữa là phải
+   * chọn chỗ cho nó — và thêm ô thứ mười bốn thì ô lẻ biến mất.
    *
    * CÁI MẤT của `0229`, đã nêu: hồ sơ của khách ĐÃ NGỪNG HỢP TÁC thôi nói điều
    * ấy trên trang hồ sơ (`0206` giữ ô này vì *"hồ sơ cũ của họ vẫn mở được"*).
@@ -1564,14 +1567,11 @@ function ThongTinHoSo({
               chua
             )}
           </O>
-          <O nhan="Loại khách hàng">{kh ? nhanLoaiKhach(kh.loai) : chua}</O>
+          <O nhan="Tên Hộ kinh doanh/Tên Công ty">{kh ? kh.ten : chua}</O>
 
           <O nhan="Người đại diện">{kh ? kh.nguoiDaiDien || '—' : chua}</O>
           <O nhan="Chức danh người đại diện">{kh ? kh.chucDanh || '—' : chua}</O>
 
-          <O nhan="Tên Hộ kinh doanh/Tên Công ty" rong>
-            {kh ? kh.ten : chua}
-          </O>
           {/* Ô *Trạng thái khách hàng* (`0206`, `0228`) ĐÃ GỠ ở `0229` — khách
               hàng 29/09. Xem chú thích đầu hàm về cái mất. */}
 
@@ -1594,6 +1594,9 @@ function ThongTinHoSo({
           </O>
           {/* `0138` — điều khoản thanh toán, đóng băng lúc gửi duyệt (`0101`). */}
           <O nhan="Công nợ">{kh ? kh.congNo || '—' : chua}</O>
+
+          {/* `0232` — ô lẻ, ở CUỐI khối: khoảng trống duy nhất nằm ở đáy. */}
+          <O nhan="Loại khách hàng">{kh ? nhanLoaiKhach(kh.loai) : chua}</O>
         </dl>
         {/* Nói THÀNH LỜI. Mười ba ô vẫn đứng đúng chỗ khi `customer` chết, và
             câu này nói vì sao nửa dưới chỉ toàn dấu gạch. */}
