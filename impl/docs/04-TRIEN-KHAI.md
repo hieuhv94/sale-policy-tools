@@ -662,6 +662,12 @@ mở nằm ở [05-VAN-HANH.md](05-VAN-HANH.md), mục *Chạy thử qua Interne
 [RPO-RTO.md](../deploy/RPO-RTO.md). Máy chết là hệ thống dừng cho tới khi dựng
 lại từ bản sao lưu. Không có máy dự phòng, không có tự chuyển đổi.
 
+**Ảnh MinIO không còn trên Docker Hub** `mới 29/09`. Kho `minio/minio` đã biến, kể
+cả thẻ ghim `RELEASE.2024-09-22T00-33-43Z`. Máy đang chạy vẫn giữ ảnh và vẫn nâng
+cấp được (`./csbh nang-cap` dùng ảnh có sẵn trên máy). **Cài MỚI trên một máy chưa
+từng có ảnh ấy thì hiện chưa có đường** — cần một bản nhân của ảnh trên registry
+khác trước khi dựng máy mới hay dựng lại máy sau sự cố.
+
 **Không có nghiệp vụ thu hồi.** *Từ chối*, *Đã xoá* và *Quá hạn duyệt* là trạng
 thái kết thúc — không ai sửa được, kể cả Quản trị hệ thống. Người dùng thử nên
 biết trước, vì trong lúc thử người ta hay bấm nhầm rồi đi tìm nút hoàn tác.
