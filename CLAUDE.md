@@ -99,7 +99,14 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P259** (`0229`): **chức danh người đại diện ở trang khách hàng**, và **bỏ ô *Trạng thái
+Chặng gần nhất **P260** (`0230`): **bảng sản phẩm — *Tên sản phẩm* là cột ĐẦU, khoá khi cuộn ngang và
+NỔI** (nền `--mau-thuong-hieu-nhat`, chữ đậm, bóng mép phải — token mới `--bong-cot-khoa`); **cột thao tác
+thôi ghim**, nút Sửa/Xoá cỡ thường. Thay ba cột khoá của `0228` (`COT_DINH` gỡ). **Chỉ màn hình** (chốt khi
+hỏi): bản in giữ tên sau mã — chỗ DUY NHẤT hai bảng xếp khác nhau, ca đối chiếu thứ tự miễn đúng cột này
+kèm ca ghim chỗ đứng của nó ở cả hai bên. Lượt phá *"gắn `cot-khoa` vào ô mã"* xanh với ca quét mã nguồn
+→ thêm ca DOM: mỗi hàng đúng một ô khoá, là ô đầu. **2548/2548 xanh.**
+
+Trước đó **P259** (`0229`): **chức danh người đại diện ở trang khách hàng**, và **bỏ ô *Trạng thái
 khách hàng*** khỏi trang hồ sơ. Mười ba ô lẻ một, nên *Tên Hộ kinh doanh/Tên Công ty* (ô từng đi cặp với
 nó) chiếm trọn hàng (`O rong` → `.o-rong`) để các cặp không đảo chéo — ca đòi đúng MỘT ô trọn hàng. Cái
 mất: hồ sơ của khách ngừng hợp tác thôi nói điều ấy trên trang hồ sơ. Chỉ giao diện: **894/894 ca giao

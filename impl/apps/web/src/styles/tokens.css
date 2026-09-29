@@ -179,6 +179,9 @@
   --bong: 0 1px 2px rgb(15 34 58 / 5%), 0 8px 20px rgb(15 34 58 / 6%);
   --bong-noi: 0 24px 60px rgb(15 34 58 / 20%);
   --bong-thanh-ben: 12px 0 32px rgb(15 34 58 / 10%);
+  /* Mép phải cột tên khoá của bảng sản phẩm (`0230`): phần đứng yên nổi trên
+     phần đang cuộn. */
+  --bong-cot-khoa: 4px 0 6px -4px rgb(15 34 58 / 25%);
   /* Vòng sáng quanh ô nhập đang nhận tiêu điểm. */
   --vong-tieu-diem: 0 0 0 3px rgb(3 78 162 / 18%);
 
@@ -426,6 +429,7 @@
     --bong: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 30%);
     --bong-noi: 0 24px 60px rgb(0 0 0 / 55%);
     --bong-thanh-ben: 12px 0 32px rgb(0 0 0 / 35%);
+    --bong-cot-khoa: 4px 0 6px -4px rgb(0 0 0 / 60%);
     --vong-tieu-diem: 0 0 0 3px rgb(111 176 245 / 28%);
   }
 }
@@ -507,6 +511,7 @@
   --bong: 0 1px 2px rgb(0 0 0 / 24%), 0 8px 20px rgb(0 0 0 / 30%);
   --bong-noi: 0 24px 60px rgb(0 0 0 / 55%);
   --bong-thanh-ben: 12px 0 32px rgb(0 0 0 / 35%);
+  --bong-cot-khoa: 4px 0 6px -4px rgb(0 0 0 / 60%);
   --vong-tieu-diem: 0 0 0 3px rgb(111 176 245 / 28%);
 }
 

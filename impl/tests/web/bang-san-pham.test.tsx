@@ -112,6 +112,32 @@ describe('FE-05 hiện đủ mọi cột, không cột nào bị bỏ', () => {
   });
 });
 
+/**
+ * `0230` — TÊN SẢN PHẨM là ô ĐẦU mỗi hàng và là ô KHOÁ DUY NHẤT.
+ *
+ * Đọc DOM chứ không quét mã nguồn: ca quét ở `nguon-giao-dien.test.ts` XANH
+ * khi lớp `cot-khoa` bị gắn thêm vào ô mã (lượt phá lại) — hai cột cùng
+ * `left: 0` thì chồng lên nhau khi cuộn, và không gì khác đỏ.
+ */
+describe('`0230` cột tên đứng đầu và là cột khoá duy nhất', () => {
+  it('ở tiêu đề lẫn mỗi hàng: đúng MỘT ô khoá, là ô đầu, mang tên sản phẩm', () => {
+    const ds = [dong(), dong({ id: 'd2', productCode: 'SP-02', productName: 'Sữa B' })];
+    render(<BangSanPham dong={ds} suaDong={() => undefined} xoaDong={() => undefined} />);
+    const bang = screen.getByRole('table');
+    for (const hang of bang.querySelectorAll('tr')) {
+      const khoa = hang.querySelectorAll('.cot-khoa');
+      expect(khoa).toHaveLength(1);
+      expect(hang.firstElementChild).toBe(khoa[0]);
+    }
+    const hangThan = [...bang.querySelectorAll('tbody tr')];
+    expect(hangThan.map((h) => h.firstElementChild!.textContent)).toEqual([
+      'Nutricare Gold Đặc Biệt',
+      'Sữa B',
+    ]);
+    expect(bang.querySelector('thead .cot-khoa')!.textContent).toBe('Tên sản phẩm');
+  });
+});
+
 describe('FE-03 dưới 640px thành thẻ, KHÔNG cột nào biến mất', () => {
   it('thẻ mang đủ mọi con số của dòng', () => {
     render(<BangSanPham dong={[dong()]} />);

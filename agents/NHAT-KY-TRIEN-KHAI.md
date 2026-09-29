@@ -20163,3 +20163,41 @@ gồm ca *"cùng một dãy ô ở mọi hình dạng dữ liệu"* của `0228`
 
 **894/894 ca giao diện xanh; typecheck xanh.** `make test` đầy đủ KHÔNG chạy ở chặng này: chặng không
 đụng một dòng máy chủ, và chồng demo đang bật theo yêu cầu người dùng.
+
+## P260 — `0230` Bảng sản phẩm: tên đứng đầu, khoá và nổi · cột thao tác thôi ghim
+
+Hai câu khách hàng 29/09, ngay sau `0228`: *"đẩy tên sản phẩm lên cột đầu tiên và fix cứng cột đó khi
+người dùng lăn chuột, cần làm nổi cột này lên"*; nút Sửa/Xoá *"nhìn không bị quá chật, và không cần cố
+định cột thao tác này"*.
+
+### Chỉ màn hình — chỗ đầu tiên hai bảng xếp khác nhau
+
+`0172`/`0180` bắt màn hình và bản in xếp cột **cùng thứ tự**, có ca kiểm. Hỏi trước khi gõ; khách hàng
+chốt **chỉ màn hình**, thứ tự *Tên · Ngày áp dụng · Mã* (giữ vế `0180` *"ngày bên trái mã"*). Ca đối
+chiếu thứ tự miễn **đúng một** cột, và có ca kèm đòi cột ấy thật sự đứng đầu màn hình **và** vẫn đứng
+ngay sau mã ở bản in — miễn trừ mà không ghim chỗ đứng thì cột ấy trôi đi đâu cũng lọt.
+
+### Một cột khoá thay ba
+
+`COT_DINH` và ba lớp `.cot-dinh-*` gỡ. Cái `0228` phải trả cho ba cột khoá — bề rộng CỐ ĐỊNH để
+`left` của cột sau bằng tổng cột trước, và ca canh phép cộng ấy — hết lý do tồn tại: một cột thì
+`left: 0`. Cột tên được **sàn và trần** (12–18rem) thay vì 14rem cứng. Lớp khoá đặt theo KHOÁ cột
+(`productName`), không theo vị trí.
+
+*Nổi* là ba thứ: nền `--mau-thuong-hieu-nhat` (nền đặc — bắt buộc cho ô sticky), chữ đậm, và **bóng mép
+phải** — token mới `--bong-cot-khoa` ở cả ba bảng màu, vì bản đầu viết `rgb()` thẳng trong `app.css` và
+FE-19 đỏ. Dòng đã rút: ô khoá vẫn miễn `opacity` và lùi bằng màu chữ (`0228`).
+
+Cột thao tác bỏ `sticky`; nút cỡ THƯỜNG (`--chu-thuong`, đệm `--k2 --k4`) cách nhau `--k3`. Bộ chọn dài
+hơn `.nhom-nut-gon .nut` nên thắng mà không nới lớp ấy — danh sách thẻ trên điện thoại vẫn dùng nó.
+
+### Phá lại
+
+Sáu lượt: bỏ `sticky` cột tên · nền cột tên về `--mau-nen` · ghim lại cột thao tác · nút về cỡ nhỏ ·
+tên về chỗ cũ trong `COT_TRUOC` — năm đỏ. **Lượt thứ sáu XANH**: gắn thêm `cot-khoa` vào ô mã (hai cột
+cùng `left: 0` chồng lên nhau khi cuộn) — ca quét mã nguồn chỉ hỏi lớp CÓ MẶT ở cột tên, không hỏi nó
+VẮNG ở cột khác. Thêm ca DOM ở `bang-san-pham.test.tsx`: mỗi hàng đúng MỘT ô khoá, là ô đầu, mang tên
+— đỏ ở lượt ấy và ở lượt *tên về chỗ cũ*.
+
+**2548/2548 xanh** (`make test` đầy đủ, chồng demo đã hạ). Tăng so với 2546 của P258 gồm các ca giao diện của P259
+(chặng ấy không chạy bộ đầy đủ) cộng hai ca mới ở đây, trừ một ca của khối `0228` gộp vào khối `0230`.

@@ -637,76 +637,60 @@ describe('`0132` · `0133` thao tác trong bảng hiện khi rê chuột', () =>
 });
 
 /**
- * `0228` — bảng sản phẩm của hồ sơ: BA CỘT ĐẦU KHOÁ, nút Sửa/Xoá LUÔN HIỆN.
+ * `0228` → `0230` — bảng sản phẩm của hồ sơ: CỘT TÊN đứng đầu, KHOÁ và NỔI; nút
+ * Sửa/Xoá LUÔN HIỆN, cột thao tác THÔI GHIM.
  *
- * jsdom không tính bố cục, nên thứ đo được là các mảnh phải khớp nhau: lớp có
- * trên đúng ba cột đầu, luật CSS có `sticky` + nền đặc, và — mảnh dễ trôi nhất —
- * mép trái của mỗi cột khoá bằng TỔNG bề rộng các cột khoá trước nó. Sửa bề rộng
- * một cột mà quên `left` của cột sau là cột sau trượt đè lên cột trước khi cuộn.
+ * jsdom không tính bố cục, nên thứ đo được là các mảnh phải khớp nhau: lớp
+ * `cot-khoa` có trên đúng cột tên (ở cả tiêu đề lẫn thân), luật CSS có `sticky`
+ * + nền ĐẶC khác nền bảng, và không còn lớp khoá nào của `0228` sót lại.
  */
-describe('`0228` bảng sản phẩm: khoá ba cột đầu, nút luôn hiện', () => {
+describe('`0230` bảng sản phẩm: cột tên khoá và nổi, cột thao tác không ghim', () => {
   const css = readFileSync(join(GOC, 'styles/app.css'), 'utf8');
   const nguon = readFileSync(join(GOC, 'components/BangSanPham.tsx'), 'utf8');
   /**
-   * Khối RIÊNG của một bộ chọn — khối CUỐI CÙNG khớp. Khối gộp ba cột ở trên
-   * cũng kết thúc bằng `.bang-san-pham .cot-dinh-3 {`, nên lấy khối đầu là đọc
-   * nhầm khối gộp (không có `left`) — bản đầu của ca này dính đúng chỗ ấy.
+   * Khối RIÊNG của một bộ chọn — khối CUỐI CÙNG khớp (bài học `0228`: khối gộp
+   * nhiều bộ chọn cũng kết thúc bằng cùng chuỗi).
    */
   const luat = (sel: string) => {
     const tat = [
-      ...css.matchAll(new RegExp(`\\.bang-san-pham ${sel.replace('.', '\\.')}\\s*\\{([^}]*)\\}`, 'g')),
+      ...css.matchAll(new RegExp(`\\.bang-san-pham ${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`, 'g')),
     ];
     expect(tat.length, `thiếu luật .bang-san-pham ${sel}`).toBeGreaterThan(0);
     return tat[tat.length - 1]![1]!;
   };
-  const rem = (khoi: string, thuoc: string) => {
-    const m = khoi.match(new RegExp(`(?:^|[;\\s])${thuoc}:\\s*([\\d.]+)rem`));
-    return m ? Number(m[1]) : thuoc === 'left' && /left:\s*0\b/.test(khoi) ? 0 : NaN;
-  };
 
-  it('mép trái của cột khoá n = tổng bề rộng các cột khoá trước nó', () => {
-    const [c1, c2, c3] = ['.cot-dinh-1', '.cot-dinh-2', '.cot-dinh-3'].map(luat) as [string, string, string];
-    expect(rem(c1, 'left')).toBe(0);
-    expect(rem(c2, 'left')).toBe(rem(c1, 'width'));
-    expect(rem(c3, 'left')).toBe(rem(c1, 'width') + rem(c2, 'width'));
-    // `min-width`/`max-width` bằng `width` — ở `table-layout: auto` một `width`
-    // đơn độc chỉ là gợi ý, và cột nở ra là mép trái của cột sau sai.
-    for (const c of [c1, c2, c3]) {
-      expect(rem(c, 'min-width')).toBe(rem(c, 'width'));
-      expect(rem(c, 'max-width')).toBe(rem(c, 'width'));
-    }
-  });
-
-  it('ba cột khoá là sticky và có NỀN ĐẶC — phần đang cuộn không lộ qua', () => {
-    const chung = css.match(
-      /\.bang-san-pham \.cot-dinh-1,\s*\.bang-san-pham \.cot-dinh-2,\s*\.bang-san-pham \.cot-dinh-3\s*\{([^}]*)\}/,
-    );
-    expect(chung).not.toBeNull();
-    expect(chung![1]).toMatch(/position:\s*sticky/);
-    expect(chung![1]).toMatch(/background:\s*var\(--mau-nen\)/);
+  it('cột tên là sticky ở mép trái, NỀN ĐẶC và khác nền bảng — tức là nổi', () => {
+    const o = luat('.cot-khoa');
+    expect(o).toMatch(/position:\s*sticky/);
+    expect(o).toMatch(/left:\s*0\b/);
+    // Nền đặc: phần đang cuộn không lộ qua. Khác `--mau-nen`: đó là nền mọi ô.
+    expect(o).toMatch(/background:\s*var\(--mau-thuong-hieu-nhat\)/);
+    expect(o).toMatch(/font-weight:\s*[67]00/);
     // Dòng đã rút mờ bằng `opacity` — ô khoá phải được miễn, nếu không nó trong
     // suốt đúng như nỗi lo ở trên.
-    expect(css).toMatch(/\.dong-da-xoa > \.cot-dinh-3\s*\{[^}]*opacity:\s*1/);
+    expect(css).toMatch(/\.dong-da-xoa > \.cot-khoa\s*\{[^}]*opacity:\s*1/);
   });
 
-  it('lớp khoá nằm trên đúng BA CỘT ĐẦU, ở cả tiêu đề lẫn thân bảng', () => {
-    expect(nguon).toMatch(/COT_DINH = \['cot-dinh-1', 'cot-dinh-2', 'cot-dinh-3'\]/);
-    expect(nguon).toContain('className={`ngay-ap-dung ${COT_DINH[0]}`}');
-    expect(nguon).toContain('className={COT_DINH[1]}');
-    expect(nguon).toContain('className={`cot-khoa ${COT_DINH[2]}`}');
-    expect(nguon).toMatch(/\[COT_DINH\[i\]/);
+  it('lớp khoá nằm trên CỘT TÊN, ở cả tiêu đề lẫn thân bảng — và không cột nào khác khoá', () => {
+    expect(nguon).toMatch(/c\.khoa === 'productName' \? 'cot-khoa'/);
+    expect(nguon).toContain('<th scope="row" className="cot-khoa">');
+    // Ba lớp khoá của `0228` gỡ hẳn — sót một cái ở CSS là một cột nữa đứng yên.
+    expect(css).not.toMatch(/\.cot-dinh-\d/);
+    expect(nguon).not.toMatch(/className=\{?[`'"][^`'"]*cot-dinh/);
   });
 
-  it('nút Sửa/Xoá LUÔN HIỆN: không lớp rê chuột, tiêu đề cột nhìn thấy được', () => {
-    // Chú thích tại chỗ nhắc tên lớp cũ để giải thích lịch sử — so với MÃ, không
-    // so với chú thích (bài học `0218`: phép quét trúng nhầm chuỗi thứ hai).
+  it('nút Sửa/Xoá LUÔN HIỆN, cột thao tác KHÔNG ghim, nút cỡ thường', () => {
     expect(nguon).not.toMatch(/className="o-thao-tac-re-chuot"/);
     expect(nguon).toMatch(/<th className="o-thao-tac-dong">Thao tác<\/th>/);
     expect(nguon).toMatch(/<td className="o-thao-tac-dong">/);
     const o = luat('.o-thao-tac-dong');
-    expect(o).toMatch(/position:\s*sticky/);
-    expect(o).toMatch(/right:\s*0/);
+    expect(o).not.toMatch(/position:\s*sticky/);
     expect(o).not.toMatch(/opacity:\s*0\b/);
+    expect(css).not.toMatch(/\.o-thao-tac-dong\s*\{[^}]*position:\s*sticky/);
+    // "Không quá chật": nút KHÔNG mang cỡ chữ nhỏ của `.nhom-nut-gon`.
+    const nut = luat('.o-thao-tac-dong .nhom-nut .nut');
+    expect(nut).toMatch(/font-size:\s*var\(--chu-thuong\)/);
+    expect(luat('.o-thao-tac-dong .nhom-nut')).toMatch(/gap:\s*var\(--k3\)/);
   });
 });
 

@@ -2924,6 +2924,16 @@ chiếm trọn một hàng để mười ba ô còn lại vẫn đứng cố đ�
 > **Cái mất, đã nêu**: hồ sơ của khách **đã ngừng hợp tác** thôi nói điều ấy trên trang hồ sơ (ô được
 > thêm năm 19/09 đúng vì *"hồ sơ cũ của họ vẫn mở được"*). Trang khách hàng vẫn nói.
 
+**BẢNG SẢN PHẨM: TÊN ĐỨNG ĐẦU, KHOÁ VÀ NỔI** `sửa 29/09` — *"đẩy tên sản phẩm lên cột đầu tiên và
+fix cứng cột đó khi người dùng lăn chuột, cần làm nổi cột này lên"*; nút Sửa/Xoá *"nhìn không bị quá
+chật, và không cần cố định cột thao tác"*. Thay vế *khoá 3 cột đầu* và *cột thao tác ghim mép phải*
+của mục ngay dưới: chỉ cột **Tên sản phẩm** khoá (nền xanh nhạt, chữ đậm, bóng mép phải), *Ngày áp
+dụng* và *Mã sản phẩm* đứng ngay sau và trôi theo; cột thao tác đứng cuối, nút cỡ thường.
+
+> **Chỉ màn hình** (chốt khi được hỏi). Bản in giữ tên ngay sau mã — đây là chỗ DUY NHẤT thứ tự cột
+> màn hình khác bản in (luật khớp thứ tự của `07/09` miễn đúng cột này). Vế *"Ngày áp dụng bên trái
+> Mã sản phẩm"* giữ nguyên ở cả hai.
+
 **BỐ CỤC TRANG HỒ SƠ CSBH** `sửa 29/09` — năm câu một lượt: nút *"Sửa thông tin khách hàng"* rút gọn
 thành **Sửa** và dời lên ngang tiêu đề *Thông tin chung*; **các ô của *Thông tin chung* có vị trí cố
 định** (*"mã KH lúc bên trái lúc bên phải"*); thêm **Chức danh người đại diện**; bảng sản phẩm **khoá

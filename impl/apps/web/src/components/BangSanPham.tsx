@@ -407,15 +407,15 @@ export { COT_TRUOC, COT_SAU, NHAN_TRANG_THAI, nhanCpbh } from '../lib/bang-cot.j
 export const soCotCpbh = (dong: readonly DongSanPham[]): number =>
   dong.reduce((max, d) => Math.max(max, d.cpbh?.length ?? 0), 0);
 
-/** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
-/**
- * Lớp của BA CỘT ĐẦU — khoá khi bảng cuộn ngang (`0228`).
+/*
+ * `COT_DINH` — lớp của BA CỘT ĐẦU khoá khi cuộn ngang (`0228`) — ĐÃ GỠ ở `0230`.
  *
- * Mỗi cột một lớp riêng vì mỗi cột dừng ở một mép trái KHÁC nhau, và mép ấy là
- * tổng bề rộng các cột khoá trước nó — xem `.cot-dinh-*` trong `app.css`.
+ * Khách hàng đưa *Tên sản phẩm* lên đầu và chỉ ghim MỘT cột ấy. Một cột ghim
+ * thì mép trái luôn là 0, nên không còn phép cộng bề rộng nào phải giữ khớp —
+ * và cột tên thôi phải chịu bề rộng cố định 14rem mà `0228` cần cho phép cộng.
  */
-export const COT_DINH = ['cot-dinh-1', 'cot-dinh-2', 'cot-dinh-3'] as const;
 
+/** Nhãn đủ cho mọi cột, dựng theo số cột CPBH thật. Dùng cho test bố cục. */
 export const cotCho = (dong: readonly DongSanPham[]) => [
   ...COT_TRUOC,
   ...Array.from({ length: soCotCpbh(dong) }, (_, i) => ({
@@ -711,19 +711,13 @@ export function BangSanPham({
           <thead>
             <tr>
               {/*
-                BA CỘT ĐẦU KHOÁ khi cuộn ngang (`0228`, khách hàng 29/09) — ngày
-                áp dụng · mã · tên: ba thứ nói *"dòng này là mặt hàng nào"*, nên
-                chúng phải còn trong tầm mắt khi mắt đã trôi sang cột CPBH thứ tư.
-                Lớp đặt theo VỊ TRÍ (`COT_DINH`), không theo khoá cột: luật là
-                "ba cột đầu", và ca kiểm canh chính ba khoá đứng đầu `COT_TRUOC`.
+                CỘT TÊN KHOÁ khi cuộn ngang, và NỔI hơn mọi cột (`0230`, khách
+                hàng 29/09) — thay ba cột khoá của `0228`. Tên là thứ nói *"dòng
+                này là mặt hàng nào"*; mã và ngày áp dụng trôi theo phần cuộn.
+                Lớp đặt theo KHOÁ cột: luật là "cột tên", không phải "cột đầu".
               */}
-              {cotCho(dong).map((c, i) => (
-                <th
-                  key={c.khoa}
-                  className={[COT_DINH[i], c.khoa === 'productName' ? 'cot-khoa' : '']
-                    .filter(Boolean)
-                    .join(' ') || undefined}
-                >
+              {cotCho(dong).map((c) => (
+                <th key={c.khoa} className={c.khoa === 'productName' ? 'cot-khoa' : undefined}>
                   {c.nhan}
                 </th>
               ))}
@@ -748,14 +742,14 @@ export function BangSanPham({
                   điều kiện nào ở đây — và đó là chủ ý: một `{dieuKien && …}` gõ
                   lại ở tám ô là tám chỗ để quên một.
                 */}
-                <td className={`ngay-ap-dung ${COT_DINH[0]}`}>
+                <th scope="row" className="cot-khoa">
+                  {d.productName}
+                </th>
+                <td className="ngay-ap-dung">
                   {ngay(d.ngayApDung)}
                   <Dau d={d} o="ngayApDung" />
                 </td>
-                <td className={COT_DINH[1]}>{d.productCode}</td>
-                <th scope="row" className={`cot-khoa ${COT_DINH[2]}`}>
-                  {d.productName}
-                </th>
+                <td>{d.productCode}</td>
                 <td className="so">
                   {tien(d.companyPrice)}
                   <Dau d={d} o="companyPrice" />
@@ -804,9 +798,11 @@ export function BangSanPham({
                     LUÔN HIỆN (`0228`, khách hàng 29/09: *"bỏ cơ chế hover"*) —
                     tới `0227` ô này mang `o-thao-tac-re-chuot` của `0132`, lớp
                     VẪN còn ở sáu bảng danh mục/quản trị; khách hàng chỉ bỏ nó
-                    ở bảng sản phẩm của hồ sơ. Ô ghim MÉP PHẢI (`.o-thao-tac-dong`):
-                    bảng này cuộn ngang, và nút sửa một dòng không được nằm ở
-                    cuối một dải mười mấy cột.
+                    ở bảng sản phẩm của hồ sơ.
+
+                    `0230` — ô THÔI GHIM mép phải (khách hàng: *"không cần cố
+                    định cột thao tác này"*), nó đứng cuối bảng như mọi cột. Hai
+                    nút cỡ thường chứ không cỡ gọn, cách nhau rộng hơn.
 
                     `nhom-nut-hang` giữ hai nút trên CÙNG MỘT HÀNG (`0124`).
                   */

@@ -1114,12 +1114,14 @@ văn bản mẫu nào để chọn.
 > hoá tài khoản** (chuyển toàn bộ hồ sơ của người đó).
 
 **Sửa hồ sơ** chỉ làm được khi hồ sơ ở **Nháp** hoặc **Yêu cầu chỉnh sửa**. Lúc đó bảng *Sản phẩm*
-có thêm cột **Thao tác** với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần rê chuột, và
-cột ấy **ghim ở mép phải** bảng `sửa 29/09`.
+có thêm cột **Thao tác** ở cuối bảng, với nút *Sửa* và *Xoá* ở từng dòng — **luôn hiện**, không cần
+rê chuột `sửa 29/09`. Cột này đứng cuối như mọi cột, không ghim: bảng rộng thì kéo sang phải tới nó.
 
-> **Ba cột đầu đứng yên khi cuộn ngang** `mới 29/09` — *Ngày áp dụng*, *Mã sản phẩm*, *Tên sản
-> phẩm*. Bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang phải xem số, ba cột ấy vẫn nằm
-> bên trái để biết đang đọc dòng của mặt hàng nào. Tên sản phẩm dài thì xuống dòng trong ô. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
+> **Tên sản phẩm là cột đầu tiên và đứng yên khi cuộn ngang** `sửa 29/09` — cột ấy tô nền xanh nhạt,
+> chữ đậm, có bóng ở mép phải. Bảng nhiều cột (nhất là khi có nhiều khoản CPBH) thì kéo sang phải xem
+> số, tên vẫn nằm bên trái để biết đang đọc dòng của mặt hàng nào; *Ngày áp dụng* và *Mã sản phẩm*
+> đứng ngay sau và trôi theo. Tên dài thì xuống dòng trong ô. **Bản in (bản mềm) giữ thứ tự cũ** —
+> tên đứng sau mã. Hồ sơ đã gửi đi thì không sửa được nữa — muốn sửa phải chờ
 người duyệt trả lại.
 
 > **Sửa thông tin khách hàng ngay trên trang hồ sơ** `mới 28/09`. Cũng ở hai trạng thái ấy, khối
