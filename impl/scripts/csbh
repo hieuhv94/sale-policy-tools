@@ -73,6 +73,35 @@ HET
 
 ops() { $DC run --rm -T ops "$@"; }
 
+# Kéo ảnh, và CHỈ DỪNG khi thiếu ảnh thật (`0107`, gom thành hàm ở `0235`).
+#
+# Kéo hỏng thì chưa chắc đã phải dừng. Ba tình huống thật: máy chủ không ra được
+# registry (mạng cách ly, ảnh nạp bằng `docker load`); bản chạy thử tại chỗ nơi
+# ảnh vừa dựng còn nằm trên máy; và một ảnh BÊN THỨ BA biến khỏi registry — đo
+# được 29/09: kho `minio/minio` trên Docker Hub trả `pull access denied`, kể cả
+# thẻ ghim ta dùng, trong khi máy chủ vẫn giữ nguyên ảnh ấy và MinIO vẫn chạy.
+# Tới `0234` chỉ `len` có đường vòng này; `nang-cap` gọi `$DC pull` trần dưới
+# `set -e` nên chết ngay sau bước sao lưu.
+#
+# Nhưng chỉ đi tiếp khi ĐỦ ẢNH. Bỏ qua lỗi rồi `up` với một ảnh thiếu thì
+# docker báo "manifest unknown" ở giữa lượt dựng, sau khi vài service đã lên.
+keo_anh() {
+  $DC pull && return 0
+  echo ""
+  echo "  Không kéo được một số ảnh từ registry. Kiểm ảnh có sẵn trên máy chưa..."
+  thieu=""
+  for a in $($DC config --images | sort -u); do
+    docker image inspect "$a" >/dev/null 2>&1 || thieu="$thieu $a"
+  done
+  [ -z "$thieu" ] || {
+    echo "  THIẾU ảnh:$thieu" >&2
+    echo "  Đăng nhập registry (docker login) rồi thử lại." >&2
+    return 1
+  }
+  echo "  Đủ ảnh trên máy, đi tiếp."
+  echo ""
+}
+
 # Id container của `cloudflared`, hoặc rỗng khi đường hầm không chạy (`0218`).
 #
 # `upgrade` dùng nó để ĐO thay vì tin: địa chỉ công khai của một quick tunnel
@@ -119,29 +148,8 @@ so_phien_ban() {
 
 case "${1:-help}" in
   len)
-    # KÉO ẢNH hỏng thì chưa chắc đã phải dừng (`0107`).
-    #
-    # Hai tình huống thật: máy chủ không ra được registry (mạng cách ly, ảnh nạp
-    # bằng `docker load`), và bản chạy thử tại chỗ nơi ảnh vừa dựng xong còn nằm
-    # trên máy. Dừng cứng ở đây là bắt cả hai đi đường vòng.
-    #
-    # Nhưng chỉ đi tiếp khi ĐỦ ẢNH. Bỏ qua lỗi rồi `up` với một ảnh thiếu thì
-    # docker báo "manifest unknown" ở giữa lượt dựng, sau khi vài service đã lên.
-    if ! $DC pull; then
-      echo ""
-      echo "  Không kéo được ảnh từ registry. Kiểm ảnh có sẵn trên máy chưa..."
-      thieu=""
-      for a in $($DC config --images | sort -u); do
-        docker image inspect "$a" >/dev/null 2>&1 || thieu="$thieu $a"
-      done
-      [ -z "$thieu" ] || {
-        echo "  THIẾU ảnh:$thieu" >&2
-        echo "  Đăng nhập registry (docker login) rồi thử lại." >&2
-        exit 1
-      }
-      echo "  Đủ ảnh trên máy, đi tiếp."
-      echo ""
-    fi
+    # Kéo hỏng mà đủ ảnh trên máy thì đi tiếp — xem `keo_anh`.
+    keo_anh || exit 1
     # `migrate` chạy TRƯỚC, và là điều kiện của mọi service — `depends_on` đã khai
     # `service_completed_successfully`, nên `up -d` tự chờ. Gọi riêng ở đây để
     # người vận hành thấy kết quả migration thay vì thấy nó trôi trong log chung.
@@ -165,7 +173,14 @@ case "${1:-help}" in
     cu="$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
     sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${the}|" .env
     echo "==> ${cu} -> ${the}"
-    $DC pull
+    # `keo_anh` chứ không `$DC pull` trần (`0235`): một ảnh bên thứ ba biến khỏi
+    # registry thì lượt nâng cấp vẫn đi được nếu máy đang giữ ảnh ấy. Thiếu ảnh
+    # thật thì DỪNG và TRẢ `.env` về thẻ cũ — hệ đang chạy chưa bị đụng tới.
+    keo_anh || {
+      sed -i "s|^CSBH_TAG=.*|CSBH_TAG=${cu}|" .env
+      echo "  Đã trả CSBH_TAG về ${cu}." >&2
+      exit 1
+    }
     $DC run --rm -T ops migrate
     $DC up -d --wait
     echo "  Xong. Lùi lại: ./csbh nang-cap ${cu}"

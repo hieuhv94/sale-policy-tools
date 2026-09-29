@@ -20280,3 +20280,28 @@ một lượt chạy thật trên ảnh — lệnh ngoài bảng tra thì không
 
 Phá lại: gỡ `postgresql16` khỏi `apk add` → 1 đỏ, nêu đúng `pg_archivecleanup (postgresql16)`.
 **27/27 xanh ở hai tệp đóng gói; typecheck xanh** (`docker run` rời, demo bật).
+
+## P265 — `0235` `nang-cap` chịu được ảnh bên thứ ba không kéo được
+
+Ngay sau P264, trên hệ thật: `pull access denied for minio/minio`. **Đo lại từ máy này**: kho
+`minio/minio` trên Docker Hub trả `insufficient_scope` cho cả thẻ ghim `RELEASE.2024-09-22T00-33-43Z`,
+`quay.io/minio/minio` trả 401, trong khi `postgres:16-alpine` kéo bình thường — kho đã biến, không phải
+lỗi đăng nhập của ta.
+
+`nang-cap` gọi `$DC pull` trần dưới `set -e` → chết sau sao lưu, SAU khi đã đổi `CSBH_TAG`. `len` có
+đường vòng đúng việc này từ `0107` (kéo hỏng thì kiểm `docker image inspect` từng ảnh của `config
+--images`, đủ thì đi tiếp) — chỉ `nang-cap` không dùng. Gom thành hàm `keo_anh`, cả hai gọi. Thêm vế
+riêng cho `nang-cap`: thiếu ảnh thật thì **trả `CSBH_TAG` về thẻ cũ** trước khi thoát — không thì `.env`
+chỉ vào bản mới mà CSDL chưa migrate, và lượt `up` nào về sau cũng dựng ảnh mới lên lược đồ cũ.
+
+Ca `tests/http/csbh-keo-anh.test.ts` chạy CHÍNH `scripts/csbh` với `docker` giả đầu `PATH` (ghi lượt gọi
+ra tệp): đủ ảnh → thứ tự *backup → pull → migrate → up*, thẻ mới; thiếu ảnh → không migrate, không up,
+thẻ cũ; và không lệnh con nào gọi `$DC pull` trần ngoài `keo_anh`. Phá lại: `$DC pull` trần trở lại (3
+đỏ) · bỏ bước trả thẻ (1 đỏ).
+
+**Chưa làm, đã nêu**: cài MỚI trên máy chưa từng có ảnh MinIO thì không có đường — `cai-dat.sh`/`len`
+không có ảnh nào để dùng. Hướng đề xuất: nhân bản ảnh đang có (máy này giữ `RELEASE.2024-09-22…`) sang
+registry của ta rồi ghim `compose.yml` vào đó; cần người dùng đồng ý vì là đẩy ra ngoài. Tệp `csbh`
+nằm trong **tệp nén** chứ không trong ảnh, nên bản sửa tới máy chủ bằng cách chép tệp.
+
+**30/30 xanh ở ba tệp đóng gói; typecheck xanh** (`docker run` rời, demo bật).

@@ -621,6 +621,17 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 > được chép**. Xem `/var/log/csbh-sao-luu.log`. Lên `1.0.5` là đêm sau hai bước ấy
 > chạy lại; kiểm `BACKUP_MIRROR_DIR` có bản sao lưu mới.
 
+> **`pull access denied for minio/minio`** `mới 29/09`. Kho `minio/minio` đã biến khỏi
+> Docker Hub, kể cả thẻ ghim của ta. Máy chủ đang chạy vẫn giữ ảnh ấy, nên:
+>
+> - Đang dở một lượt `nang-cap` chết ở lỗi này (thẻ trong `.env` đã đổi, sao lưu đã
+>   xong, hệ vẫn chạy bản cũ): chạy **`./csbh len`** — kéo hỏng mà đủ ảnh trên máy thì
+>   nó đi tiếp: migration rồi dựng lại.
+> - Tệp `csbh` từ bản đóng gói sau `29/09` thì `nang-cap` tự làm đúng thế; thiếu ảnh
+>   thật thì nó dừng và trả `CSBH_TAG` về thẻ cũ.
+> - **Cài MỚI trên một máy chưa từng có ảnh MinIO thì chưa có đường** — xem mục
+>   giới hạn.
+
 > **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
 > tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ
 > đang chạy bản nào.

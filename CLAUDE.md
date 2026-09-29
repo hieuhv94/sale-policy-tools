@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (29/09/2026)
 
-Chặng gần nhất **P264** (`0234`): **ảnh `ops` thiếu `pg_archivecleanup`** — hồi quy từ `0105` (chỉ cài
+Chặng gần nhất **P265** (`0235`): **`nang-cap` chịu được ảnh bên thứ ba không kéo được** — kho
+`minio/minio` đã biến khỏi Docker Hub (đo 29/09, cả thẻ ghim). Đường vòng của `len` (`0107`) gom thành
+`keo_anh`, `nang-cap` gọi chung; thiếu ảnh thật thì trả `CSBH_TAG` về thẻ cũ. Ca chạy chính `scripts/csbh`
+với `docker` giả. **Chưa có đường cho cài MỚI** (máy chưa từng có ảnh MinIO) — đề xuất nhân bản ảnh sang
+registry của ta.
+
+Trước đó **P264** (`0234`): **ảnh `ops` thiếu `pg_archivecleanup`** — hồi quy từ `0105` (chỉ cài
 `postgresql16-client`; lệnh này ở gói máy chủ `postgresql16`). Lộ ra ở `./csbh nang-cap` thật; hệ quả rộng
 hơn: MỌI lượt sao lưu từ `1.0.1` chết sau khi ghi bản nền, nên WAL chưa từng được dọn và **bản sao
 `BACKUP_MIRROR_DIR` chưa từng được chép**. `VERSION` → **`1.0.5`** (`1.0.4` đã trên registry với lỗi);
