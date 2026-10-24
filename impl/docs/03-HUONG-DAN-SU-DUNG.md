@@ -411,6 +411,11 @@ mọi màn hình.
 
 ### Yêu cầu cập nhật
 
+> **Chưa mở ở phiên bản này** `sửa 24/10`. Khối *Yêu cầu cập nhật*, khối cảnh báo lệch trên trang hồ
+> sơ và nút **Tự động cập nhật** mô tả dưới đây sẽ có ở phiên bản sau. Trong lúc chờ: hồ sơ *Nháp* và
+> *Yêu cầu chỉnh sửa* **nhận giá và ngưỡng mới của danh mục khi bạn bấm Gửi duyệt**; hồ sơ đã gửi
+> duyệt giữ nguyên số đã đóng băng như mọi khi.
+
 Có ở bốn vai trò trong luồng: **TDV, Trưởng bộ phận, Sale Admin, Kế toán**. Khối này đứng **ngay sau
 *Việc của tôi***, và chỉ hiện khi có việc — không có gì lệch thì nó biến mất hẳn khỏi màn hình.
 
@@ -2622,3 +2627,4 @@ Nói trước để khỏi đi tìm:
 - **Không tích hợp hệ thống kế toán.** Công nợ là một **điều khoản thanh toán** chọn trong ba `sửa 27/08`, không phải số dư lấy từ hệ thống kế toán.
 - **Không cảnh báo giấy tờ pháp lý hết hạn.**
 - **Nhập dữ liệu CSBH cũ từ Excel** đang hoãn sang giai đoạn 2.
+- **Báo hồ sơ lệch khi giá hoặc chiết khấu đổi** (*Yêu cầu cập nhật*, mục 4) hoãn sang phiên bản sau `sửa 24/10`.

@@ -35,6 +35,8 @@ export default defineConfig({
      * tạo ra. Đo được, không phải suy đoán.
      */
     globalSetup: ['tests/don-rac-truoc-luot.ts'],
+    // `0239` — tính năng chưa mở vẫn được kiểm; xem tệp ấy.
+    setupFiles: ['tests/bat-tinh-nang.ts'],
     // Test ràng buộc CSDL dùng chung một Postgres thật nên chạy tuần tự,
     // tránh hai test cùng chèn vào một bảng rồi đổ lỗi cho nhau.
     fileParallelism: false,

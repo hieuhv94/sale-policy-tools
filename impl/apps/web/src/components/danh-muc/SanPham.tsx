@@ -30,6 +30,7 @@ import {
   Truong,
 } from '../Chung.js';
 import { thieuTruong } from '../../lib/bat-buoc.js';
+import { batTinhNang } from '@csbh/domain-policy';
 import { PhanTrang } from '../PhanTrang.js';
 import { useTrangMay } from '../../lib/phan-trang.js';
 import { useBaoLoi } from '../../lib/bao-loi.js';
@@ -336,6 +337,9 @@ function HopThoaiSua({
   const dangVoHieu = trangThai === 'DA_VO_HIEU_HOA' && sp.status !== 'DA_VO_HIEU_HOA';
   const doiGia = gia.trim() !== '' && gia.trim() !== (sp.price ?? '');
   const doiNhom = maNhom !== sp.groupCode;
+  // `0239` — ba câu hậu quả dưới đây trỏ tới khối *Yêu cầu cập nhật*; tính năng
+  // chưa mở thì chúng trỏ vào một khối không có trên màn hình nào.
+  const moYeuCauCapNhat = batTinhNang('yeuCauCapNhat');
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,8 +393,15 @@ function HopThoaiSua({
         {doiGia && (
           <p className="ghi-chu">
             Giá mới áp dụng <strong>từ hôm nay</strong>. Hồ sơ CSBH đã gửi duyệt giữ nguyên giá đã
-            đóng băng; hồ sơ <strong>đang có hiệu lực</strong> chứa sản phẩm này sẽ hiện trong khối{' '}
-            <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+            đóng băng
+            {moYeuCauCapNhat ? (
+              <>
+                ; hồ sơ <strong>đang có hiệu lực</strong> chứa sản phẩm này sẽ hiện trong khối{' '}
+                <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+              </>
+            ) : (
+              '.'
+            )}
           </p>
         )}
         {/*
@@ -414,9 +425,15 @@ function HopThoaiSua({
         </Truong>
         {doiNhom && (
           <p className="ghi-chu">
-            Đổi nhóm là đổi <strong>quy định chiết khấu</strong> áp cho sản phẩm này. Hồ sơ CSBH chứa
-            sản phẩm mà ngưỡng hoặc quy định khác đi sẽ hiện trong khối{' '}
-            <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+            Đổi nhóm là đổi <strong>quy định chiết khấu</strong> áp cho sản phẩm này.{' '}
+            {moYeuCauCapNhat ? (
+              <>
+                Hồ sơ CSBH chứa sản phẩm mà ngưỡng hoặc quy định khác đi sẽ hiện trong khối{' '}
+                <strong>Yêu cầu cập nhật</strong> của người phụ trách.
+              </>
+            ) : (
+              'Hồ sơ CSBH đã gửi duyệt giữ nguyên ngưỡng đã đóng băng.'
+            )}
           </p>
         )}
         <Truong id="sp-sua-tt" nhan="Trạng thái">
@@ -445,9 +462,15 @@ function HopThoaiSua({
              phẩm gỡ nó khỏi mọi hồ sơ lập mới, và người bấm nút cần biết điều đó
              TRƯỚC khi bấm. */
           <div className="hop-canh-bao" role="note">
-            Mọi CSBH <strong>đang có hiệu lực</strong> còn chứa sản phẩm này sẽ hiện trong khối{' '}
-            <strong>Yêu cầu cập nhật</strong> của người phụ trách. Sản phẩm cũng biến khỏi ô chọn
-            khi lập hồ sơ mới.
+            {moYeuCauCapNhat ? (
+              <>
+                Mọi CSBH <strong>đang có hiệu lực</strong> còn chứa sản phẩm này sẽ hiện trong khối{' '}
+                <strong>Yêu cầu cập nhật</strong> của người phụ trách. Sản phẩm cũng biến khỏi ô chọn
+                khi lập hồ sơ mới.
+              </>
+            ) : (
+              'Sản phẩm sẽ biến khỏi ô chọn khi lập hồ sơ mới.'
+            )}
           </div>
         )}
 

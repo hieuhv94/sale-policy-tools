@@ -8,6 +8,7 @@
  * Không đặt trong `can.ts`: đó là bảng PHÂN QUYỀN và `FE-23` quét chính nó. Trộn
  * chuyện bố cục vào là mời người sau sửa quyền lúc đang định sửa giao diện.
  */
+import { batTinhNang } from '@csbh/domain-policy';
 import type { VaiTro } from './can.js';
 import { nhanTrangThai, nhomTrangThai } from './format.js';
 
@@ -457,6 +458,18 @@ export const KHOI_THEO_VAI_TRO: Record<VaiTro, TenKhoi[]> = {
     'nhat-ky-gon',
   ],
 };
+
+/**
+ * Bộ khối THẬT SỰ dựng cho một vai trò (`0239`).
+ *
+ * `KHOI_THEO_VAI_TRO` giữ nguyên chỗ đứng của *Yêu cầu cập nhật* — ngày tính
+ * năng mở, nó về đúng vị trí `0052` đã chọn mà không ai phải nhớ lại. Lọc ở
+ * đây thay vì gỡ khỏi bảng, nên màn hình cũng không gọi `/policies/impacted`.
+ */
+export function khoiCua(vaiTro: VaiTro): TenKhoi[] {
+  const ds = KHOI_THEO_VAI_TRO[vaiTro] ?? [];
+  return batTinhNang('yeuCauCapNhat') ? ds : ds.filter((k) => k !== 'yeu-cau-cap-nhat');
+}
 
 /**
  * Mỗi trang bao nhiêu hồ sơ ở *Việc của tôi* và *Yêu cầu cập nhật* (`0052`).

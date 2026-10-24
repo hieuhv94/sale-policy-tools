@@ -32,6 +32,7 @@ import { BaoLoi, ChuThichBatBuoc, DangTai, HopThoai, Truong } from './Chung.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { usePhien } from '../lib/auth.js';
 import { la404 } from '../lib/loi.js';
+import { batTinhNang } from '@csbh/domain-policy';
 
 export type KhachHangDayDu = {
   id: string;
@@ -496,10 +497,25 @@ export function BieuMauKhachHang({
             <strong>
               Đổi từ {nhanLoaiKhach(khach!.customerType)} sang {nhanLoaiKhach(Number(g.customerType))}.
             </strong>{' '}
-            Loại khách hàng quyết định ngưỡng chiết khấu. Hồ sơ <strong>Nháp</strong> và hồ sơ bị
-            trả lại sẽ <strong>tự nhận ngưỡng mới</strong> ngay lần mở tiếp theo. Hồ sơ{' '}
-            <strong>đã gửi duyệt</strong> thì giữ nguyên ngưỡng đã đóng băng — chúng sẽ hiện trong
-            box <em>Yêu cầu cập nhật</em> ở trang Tổng quan để người phụ trách tự quyết định.
+            Loại khách hàng quyết định ngưỡng chiết khấu.{' '}
+            {batTinhNang('yeuCauCapNhat') ? (
+              <>
+                Hồ sơ <strong>Nháp</strong> và hồ sơ bị trả lại sẽ{' '}
+                <strong>tự nhận ngưỡng mới</strong> ngay lần mở tiếp theo. Hồ sơ{' '}
+                <strong>đã gửi duyệt</strong> thì giữ nguyên ngưỡng đã đóng băng — chúng sẽ hiện
+                trong box <em>Yêu cầu cập nhật</em> ở trang Tổng quan để người phụ trách tự quyết
+                định.
+              </>
+            ) : (
+              /* `0239` — tính năng chưa mở: không có box nào để trỏ tới. Hồ sơ còn
+                 sửa được nhận ngưỡng mới ở lượt GỬI DUYỆT (`lamMoiDong`, `0194`),
+                 không phải lúc mở ra. */
+              <>
+                Hồ sơ <strong>Nháp</strong> và hồ sơ bị trả lại nhận ngưỡng mới{' '}
+                <strong>khi gửi duyệt</strong>. Hồ sơ <strong>đã gửi duyệt</strong> giữ nguyên
+                ngưỡng đã đóng băng.
+              </>
+            )}
           </div>
         )}
 

@@ -20391,3 +20391,48 @@ không suy được kiểu → MỌI `PATCH` hỏng, kể cả ca chỉ sửa t�
 xanh 9/9 chỉ ra điều ấy; phá lại bằng `CASE WHEN $4::uuid IS NULL …` giữ tham số.
 
 **2576/2576 xanh** (`make test` đầy đủ, demo hạ trong lúc chạy).
+
+## P269 — `0239` *Yêu cầu cập nhật* hoãn sang phiên bản sau: công tắc tính năng
+
+24/10: *"chức năng yêu cầu cập nhật CSBH khi giá sản phẩm hoặc chiết khấu thay đổi sẽ tạm để sang version
+sau… giữ nguyên toàn bộ những gì đang phát triển nhưng chưa mở ngay để dùng"*, kèm *"các bài test liên
+quan vẫn có thể giữ lại"*.
+
+**Một công tắc, ở `@csbh/domain-policy`** (`tinh-nang.ts`): `TINH_NANG_MAC_DINH.yeuCauCapNhat = false`.
+Đặt ở gói ấy vì đó là chỗ DUY NHẤT `policy` và `apps/web` cùng đọc (`0193`) — hai bản công tắc lệch theo
+chiều nào cũng hỏng (giao diện bật + máy chủ tắt = nút bấm ra 404). Không dùng biến môi trường: giao
+diện là gói tĩnh, không đọc được biến lúc chạy, nên một biến chỉ máy chủ đọc chính là "hai bản công tắc".
+
+**Chặn ĐƯỜNG RA, không chặn đường làm dữ liệu.** Năm chỗ tắt: `impacted` trả trang rỗng (không 404 — tab
+cũ tự giấu box như ngày không lệch) · `byId` trả `lech: []` và **bỏ luôn lượt `soSanhDong`** (đỡ một
+vòng gọi danh mục mỗi lần mở hồ sơ) · `apDungThayDoi` → `404 FEATURE_NOT_ENABLED`, chặn TRƯỚC `mustEdit`
+· Tổng quan lọc box qua `khoiCua()` (bảng `KHOI_THEO_VAI_TRO` GIỮ chỗ đứng `0052` cho ngày bật) · khối
+lệch trang hồ sơ và ba câu hậu quả ở `SanPham.tsx` + một câu ở `SuaKhachHang.tsx`. **Không tắt**:
+consumer vẫn ghi `pol.policy_impact` (bật lên là có dữ liệu, không đợi lượt đổi danh mục kế), và
+`lamMoiDong` lúc GỬI DUYỆT — đó là luật đóng băng `0029`, không phải tính năng này; có ca canh vế ấy.
+
+**Bộ kiểm chạy với công tắc BẬT** — `setupFiles: tests/bat-tinh-nang.ts`. `TINH_NANG` là đối tượng đổi
+được; service dựng trong tiến trình và giao diện jsdom cùng đọc một mô-đun (vite giải symlink về đường
+thật), nên một lượt gán ở `setupFiles` tới được cả hai. Mọi ca cũ của tính năng giữ nguyên, không sửa
+dòng nào. Ca mới tự tắt trong `try/finally`.
+
+**Câu `SuaKhachHang` cũ đã SAI từ `0194`, chưa sửa vế bật**: *"hồ sơ Nháp tự nhận ngưỡng mới ngay lần mở
+tiếp theo"* — từ `0194` đường đọc thôi làm mới. Vế TẮT viết đúng (*"khi gửi duyệt"*); vế BẬT giữ nguyên
+vì `sua-khach-hang.test.tsx` ghim chuỗi ấy — sửa khi bật tính năng.
+
+**Cái mất trong lúc tắt, đã nêu với khách hàng**: hồ sơ còn sửa được thôi tự đổi số khi mở từ `0194`,
+nên TDV có thể nhìn giá cũ mà không gì báo, và số đúng chỉ hiện ra sau khi gửi duyệt. Đảo lại đường đọc
+`0029` là một quyết định riêng, không làm.
+
+**Bật ở phiên bản sau**: đổi `TINH_NANG_MAC_DINH`, đảo ca ghim *"phiên bản này GIAO với công tắc TẮT"*,
+gỡ hai ghi chú `sửa 24/10` ở HDSD (mục 4 + mục 16) và YCNV muc 9.3, sửa câu `SuaKhachHang` vế bật.
+
+**Ca kiểm**: 5 ca HTTP (khối `0239` trong `policy.test.ts`) · 1 ca DOM trang hồ sơ · 4 ca ở
+`yeu-cau-cap-nhat.test.tsx`, trong đó một ca QUÉT mọi tệp có câu chữ của tính năng (`>Yêu cầu cập nhật<`,
+`>Tự động cập nhật<`, `Đang cập nhật…`) — danh sách tệp phải khớp đúng ba tệp, và mỗi tệp phải gọi
+công tắc. **Phá lại** (mốc đối chứng `-t 0239` xanh 5/5): bỏ chốt khối lệch giao diện · `khoiCua` không
+lọc · `SuaKhachHang` bỏ chốt · mặc định `true` · `impacted` không chốt · `byId` không chốt · nút không
+chốt — **bảy đỏ**, mỗi lượt đúng một ca. Lượt `SuaKhachHang` đỏ ở ca QUÉT chứ không ở ca DOM — chưa có ca
+DOM nào dựng hộp sửa khách với công tắc tắt; ca quét giữ được vì nó đòi chuỗi gọi công tắc.
+
+**2586/2586 xanh** (`make test` đầy đủ).

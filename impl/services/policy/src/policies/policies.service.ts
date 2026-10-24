@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 import {
   BAN_SALE_ADMIN,
+  batTinhNang,
   computeLine,
   InvalidLineError,
   rate2ToNumeric,
@@ -1807,6 +1808,13 @@ export class PoliciesService {
    * kèm vì dữ liệu đã đổi thật, đúng nếp `suaDong`/`xoaDong`/`khoiPhucDong`.
    */
   async apDungThayDoi(policyId: string, me: AuthUser) {
+    // `0239` — đường GHI duy nhất của tính năng, nên chặn trước mọi phép kiểm
+    // khác: một lượt gọi thẳng API không được đổi số trên hồ sơ khi tính năng
+    // còn tắt. Lượt gửi duyệt vẫn gọi `lamMoiDong` như cũ — đó là luật đóng
+    // băng (`0029`), không thuộc tính năng này.
+    if (!batTinhNang('yeuCauCapNhat')) {
+      throw new NotFoundException({ code: 'FEATURE_NOT_ENABLED' });
+    }
     const p = await this.mustEdit(policyId, me);
     return this.db.tx(async (c) => {
       const { hong, daDoi, daRut, conLai } = await this.lamMoiDong(c, policyId, {
@@ -2387,7 +2395,13 @@ export class PoliciesService {
      * dùng vẫn phải mở được hồ sơ của chính họ — cùng lập luận `0089`, và giờ nó
      * còn đúng hơn vì lượt gọi này không còn ghi gì để mà hỏng dở dang.
      */
-    const lechSuaDuoc = EDITABLE.includes(so.status)
+    /*
+     * `0239` — tính năng *Yêu cầu cập nhật* chưa mở: không so, không trả. Tắt ở
+     * đây chứ không chỉ giấu ở giao diện, để máy chủ không vừa nói "lệch" vừa
+     * không cho ai làm gì với nó — và đỡ một lượt gọi danh mục mỗi lần mở hồ sơ.
+     */
+    const moLech = batTinhNang('yeuCauCapNhat');
+    const lechSuaDuoc = moLech && EDITABLE.includes(so.status)
       ? await this.db
           .tx((c) => this.soSanhDong(c, policyId))
           .catch((): MucLech[] => [])
@@ -2444,7 +2458,9 @@ export class PoliciesService {
      * dữ liệu: chúng không đóng băng theo nghĩa `DA_DONG_BANG`, cũng không sửa
      * được — nên `soSanhDong` trả rỗng. Lệch hay không cũng không ai làm gì được.
      */
-    const lech = DA_DONG_BANG.includes(p.status)
+    const lech = !moLech
+      ? []
+      : DA_DONG_BANG.includes(p.status)
       ? await this.db.q<Record<string, unknown>>(
           `SELECT kind, product_code AS "productCode",
                   snap_value AS "snapValue", new_value AS "newValue"
@@ -2885,6 +2901,10 @@ export class PoliciesService {
    * ký thì không.
    */
   async impacted(me: AuthUser, page: Page) {
+    // `0239` — chưa mở: trang RỖNG chứ không 404, để một giao diện cũ còn mở
+    // trong tab vẫn tự giấu box như ngày không có gì lệch. Dấu vết vẫn được
+    // consumer ghi tiếp, xem `tinh-nang.ts`.
+    if (!batTinhNang('yeuCauCapNhat')) return paged([], page);
     const ids = await this.scope.userIdsFor(me);
     if (ids.length === 0) return paged([], page);
 

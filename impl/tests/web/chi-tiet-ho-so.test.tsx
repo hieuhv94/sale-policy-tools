@@ -19,6 +19,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { ChiTietHoSo } from '@csbh/web/chi-tiet-ho-so';
 import { PhienProvider } from '@csbh/web/auth';
 import { BoDinhTuyen } from '@csbh/web/router';
+import { TINH_NANG } from '@csbh/domain-policy';
 
 const TBP = {
   accessToken: 'a',
@@ -1921,6 +1922,19 @@ describe('`0194` khối chênh lệch trên trang hồ sơ', () => {
     expect(document.querySelector('.canh-bao-lech')).not.toBeNull();
     expect(nutCapNhat()).toBeNull();
     expect(document.querySelector('.canh-bao-lech')!.textContent).toContain('đóng băng');
+  });
+
+  it('`0239` tính năng TẮT: không khối, không nút — dù máy chủ cũ còn trả `lech`', async () => {
+    // Chốt thứ hai của giao diện. Máy chủ tắt thì đã trả `lech: []`; ca này giả
+    // một máy chủ vẫn trả dữ liệu, để chắc giao diện không dựa hẳn vào nó.
+    TINH_NANG.yeuCauCapNhat = false;
+    try {
+      await moSuaDuoc();
+      expect(document.querySelector('.canh-bao-lech')).toBeNull();
+      expect(nutCapNhat()).toBeNull();
+    } finally {
+      TINH_NANG.yeuCauCapNhat = true;
+    }
   });
 
   it('không lệch gì thì KHÔNG vẽ khối, kể cả khi sửa được', async () => {

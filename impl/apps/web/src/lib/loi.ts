@@ -429,6 +429,12 @@ export const BANG_LOI: Record<string, Muc> = {
   // giao diện giấu bút chì — nên nó là chốt cho lượt gọi thẳng API.
   POLICY_CODE_LOCKED: { dang: 'hop-thoai', tuMayChu: true },
   STALE_LINE: { dang: 'hop-thoai', tuMayChu: true },
+  // `0239` — tính năng đã viết nhưng chưa mở (`tinh-nang.ts`). Giao diện giấu
+  // mọi nút dẫn tới đây, nên người gặp câu này là tab cũ hoặc lượt gọi thẳng API.
+  FEATURE_NOT_ENABLED: {
+    dang: 'hop-thoai',
+    cau: 'Chức năng này chưa mở trong phiên bản hiện tại.',
+  },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*
    * `0167` — chưa tạo bản mềm thì chưa bàn giao được.

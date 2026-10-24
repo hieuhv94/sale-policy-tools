@@ -12,10 +12,12 @@
  * ra trước khi soi con số. Cái không đổi: mở ra rồi thì con số vẫn phải ở đó.
  */
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { YeuCauCapNhat, type HoSoLech } from '@csbh/web/yeu-cau-cap-nhat';
-import { KHOI_THEO_VAI_TRO, MOI_TRANG_TONG_QUAN } from '@csbh/web/tong-quan';
+import { KHOI_THEO_VAI_TRO, MOI_TRANG_TONG_QUAN, khoiCua } from '@csbh/web/tong-quan';
+import { TINH_NANG } from '@csbh/domain-policy';
 
 afterEach(() => {
   cleanup();
@@ -325,6 +327,60 @@ describe('0029 box có mặt ở đúng bốn vai trò', () => {
   it('Ban lãnh đạo và Quản trị KHÔNG có — cả hai nằm ngoài luồng duyệt', () => {
     for (const vt of ['BAN_LANH_DAO', 'QUAN_TRI'] as const) {
       expect(KHOI_THEO_VAI_TRO[vt]).not.toContain('yeu-cau-cap-nhat');
+    }
+  });
+});
+
+/**
+ * `0239` — tính năng chưa mở ở phiên bản này: Tổng quan không dựng box, và mọi
+ * câu chữ trỏ tới box hay tới nút *Tự động cập nhật* phải đi qua công tắc.
+ */
+describe('`0239` công tắc Yêu cầu cập nhật ở giao diện', () => {
+  const VAI = ['TDV', 'TBP', 'KE_TOAN', 'SALE_ADMIN'] as const;
+
+  it('TẮT: không vai trò nào có box; bảng gốc GIỮ chỗ đứng của nó', () => {
+    TINH_NANG.yeuCauCapNhat = false;
+    try {
+      for (const vt of VAI) {
+        expect(khoiCua(vt), vt).not.toContain('yeu-cau-cap-nhat');
+        // Các khối còn lại giữ nguyên thứ tự.
+        expect(khoiCua(vt)).toEqual(KHOI_THEO_VAI_TRO[vt].filter((k) => k !== 'yeu-cau-cap-nhat'));
+        expect(KHOI_THEO_VAI_TRO[vt], 'bảng gốc phải giữ box cho ngày bật').toContain('yeu-cau-cap-nhat');
+      }
+    } finally {
+      TINH_NANG.yeuCauCapNhat = true;
+    }
+  });
+
+  it('BẬT: đúng bảng gốc', () => {
+    for (const vt of VAI) expect(khoiCua(vt)).toEqual(KHOI_THEO_VAI_TRO[vt]);
+  });
+
+  it('Tổng quan đọc bộ khối qua `khoiCua`, không đọc thẳng bảng gốc', () => {
+    const nguon = readFileSync('apps/web/src/pages/TongQuan.tsx', 'utf8');
+    expect(nguon).toMatch(/khoiCua\(vaiTro\)/);
+    expect(nguon).not.toMatch(/KHOI_THEO_VAI_TRO\[/);
+  });
+
+  it('mọi tệp có CÂU CHỮ trỏ tới box hoặc nút đều đi qua công tắc', () => {
+    // Chỉ chữ hiện ra (trong thẻ), không tính chú thích. Chính component box
+    // được gác ở `khoiCua`, nên miễn.
+    const MIEN = new Set(['apps/web/src/components/khoi/YeuCauCapNhat.tsx']);
+    const tep = [
+      'apps/web/src/pages/ChiTietHoSo.tsx',
+      'apps/web/src/components/danh-muc/SanPham.tsx',
+      'apps/web/src/components/SuaKhachHang.tsx',
+    ];
+    const thatSu = execSync(
+      `grep -rlE '>(Yêu cầu cập nhật|Tự động cập nhật)<|Đang cập nhật…' apps/web/src || true`,
+      { encoding: 'utf8' },
+    )
+      .split('\n')
+      .filter((x) => x !== '' && !MIEN.has(x))
+      .sort();
+    expect(thatSu, 'danh sách tệp mang câu chữ của tính năng đã đổi').toEqual([...tep].sort());
+    for (const t of tep) {
+      expect(readFileSync(t, 'utf8'), t).toMatch(/batTinhNang\('yeuCauCapNhat'\)/);
     }
   });
 });

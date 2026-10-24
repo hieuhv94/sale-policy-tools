@@ -23,7 +23,7 @@ import { NHOM_TRUONG } from '@csbh/document/testing';
 // `0180` — CÙNG hàm mà máy chủ dùng để điền mặc định, không phải một bản chép.
 // Bản chép sẽ xanh mười bảy giờ mỗi ngày và đỏ bảy giờ còn lại (`0128`).
 import { mintServiceToken, ngayVN } from '@csbh/http-kit';
-import { rate2ToNumeric } from '@csbh/domain-policy';
+import { rate2ToNumeric, TINH_NANG, TINH_NANG_MAC_DINH } from '@csbh/domain-policy';
 import {
   accessTokenFor,
   bootCatalogListening,
@@ -7310,6 +7310,101 @@ describe('`0200` yêu cầu cập nhật gồm cả hồ sơ còn sửa được
 
     expect((await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
     expect(await trongBox(d.id)).toBeUndefined();
+  });
+});
+
+/**
+ * `0239` — *Yêu cầu cập nhật* CHƯA MỞ ở phiên bản này (khách hàng chốt 24/10).
+ *
+ * Bộ kiểm chạy với công tắc BẬT (`tests/bat-tinh-nang.ts`) để mọi ca ở trên vẫn
+ * canh tính năng; khối này tự TẮT rồi trả lại, và hỏi ba đường ra của máy chủ.
+ * Dữ liệu nền (`pol.policy_impact`) vẫn ghi trong lúc tắt — ca cuối đòi điều ấy,
+ * vì đó là thứ làm cho ngày bật lên không phải đợi một lượt đổi danh mục nữa.
+ */
+describe('`0239` công tắc tính năng Yêu cầu cập nhật', () => {
+  const raSoat = (productId: string) => app.get(CatalogImpactConsumer).handle({ productId });
+
+  const doiGia = async (productId: string, tien: string) => {
+    const r = await (await http(catalog))
+      .post(`/catalog/products/${productId}/prices`)
+      .set('Authorization', `Bearer ${tok['admin01']}`)
+      .send({ priceType: 'GIA_BAN_CONG_TY', amount: tien });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  };
+
+  const trongBox = async (policyId: string) => {
+    const r = await get('/policies/impacted?limit=200');
+    expect(r.status).toBe(200);
+    return (r.body.items as { id: string }[]).find((x) => x.id === policyId);
+  };
+
+  const tat = async <T>(f: () => Promise<T>): Promise<T> => {
+    TINH_NANG.yeuCauCapNhat = false;
+    try {
+      return await f();
+    } finally {
+      TINH_NANG.yeuCauCapNhat = true;
+    }
+  };
+
+  it('phiên bản này GIAO với công tắc TẮT — bật lên là việc của phiên bản sau', () => {
+    // Ca GHIM. Bật tính năng thì sửa ca này cùng lượt, có chủ ý.
+    expect(TINH_NANG_MAC_DINH.yeuCauCapNhat).toBe(false);
+    // Và bộ kiểm thật sự chạy với công tắc bật — thiếu `setupFiles` thì mọi ca
+    // của tính năng ở trên đỏ hàng loạt, nhưng câu này nói thẳng vì sao.
+    expect(TINH_NANG.yeuCauCapNhat).toBe(true);
+  });
+
+  it('TẮT: box rỗng, hồ sơ không trả `lech` — dù dấu vết có thật', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '270000');
+    await raSoat(d.productId);
+    // Mốc đối chứng: cùng hồ sơ, công tắc bật thì CÓ.
+    expect(await trongBox(d.id)).toBeDefined();
+    expect((await get(`/policies/${d.id}`)).body.lech).not.toEqual([]);
+
+    await tat(async () => {
+      expect(await trongBox(d.id)).toBeUndefined();
+      const r = await get('/policies/impacted?limit=200');
+      expect(r.body.total).toBe(0);
+      expect((await get(`/policies/${d.id}`)).body.lech).toEqual([]);
+    });
+  });
+
+  it('TẮT: nút *Tự động cập nhật* gọi thẳng API là 404, và không đổi số nào', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '280000');
+    await raSoat(d.productId);
+    const truoc = (await get(`/policies/${d.id}`)).body.lines[0].companyPrice;
+
+    await tat(async () => {
+      const r = await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01');
+      expect(r.status).toBe(404);
+      expect(r.body.code).toBe('FEATURE_NOT_ENABLED');
+    });
+
+    expect((await get(`/policies/${d.id}`)).body.lines[0].companyPrice).toBe(truoc);
+    // Bật lại: dấu vết ghi trong lúc tắt vẫn còn, nút chạy như cũ.
+    expect(await trongBox(d.id)).toBeDefined();
+    expect((await post(`/policies/${d.id}/ap-dung-thay-doi`, {}, 'tdv01')).status).toBe(200);
+  });
+
+  it('TẮT: consumer VẪN ghi dấu vết — bật lên là có dữ liệu ngay', async () => {
+    const d = await draft();
+    await tat(async () => {
+      await doiGia(d.productId, '290000');
+      await raSoat(d.productId);
+    });
+    expect(await trongBox(d.id)).toBeDefined();
+  });
+
+  it('TẮT: gửi duyệt VẪN chụp số hiện hành — luật đóng băng không thuộc công tắc', async () => {
+    const d = await draft();
+    await doiGia(d.productId, '300000');
+    await tat(async () => {
+      expect((await act(d.id, 'SUBMIT', 'tdv01')).status).toBe(200);
+    });
+    expect(Number((await get(`/policies/${d.id}`)).body.lines[0].companyPrice)).toBe(300000);
   });
 });
 

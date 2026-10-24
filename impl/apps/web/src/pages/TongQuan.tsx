@@ -13,7 +13,7 @@
 import { usePhien } from '../lib/auth.js';
 import { useBaoCao } from '../lib/bao-cao.js';
 import {
-  KHOI_THEO_VAI_TRO,
+  khoiCua,
   LY_DO_KHONG_CO_VIEC,
   MOI_TRANG_TONG_QUAN,
   THE_THEO_VAI_TRO,
@@ -45,7 +45,7 @@ export function TongQuan() {
   const vaiTro = (nguoiDung?.role ?? '') as VaiTro;
 
   const the = THE_THEO_VAI_TRO[vaiTro] ?? [];
-  const khoi = KHOI_THEO_VAI_TRO[vaiTro] ?? [];
+  const khoi = khoiCua(vaiTro);
 
   // Chỉ gọi endpoint mà bộ khối của vai trò này thật sự dùng. Quản trị hệ thống
   // có phạm vi dữ liệu rỗng, nên gọi `/reports/*` cho họ là ba lượt mạng để

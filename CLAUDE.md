@@ -97,9 +97,17 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (29/09/2026)
+## Trạng thái hiện tại (24/10/2026)
 
-Chặng gần nhất **P268** (`0238`): **đổi nhóm sản phẩm** ở hộp *Sửa* (`PATCH` nhận `groupCode`), và
+Chặng gần nhất **P269** (`0239`): **tính năng *Yêu cầu cập nhật* hoãn sang phiên bản sau** — công tắc
+`TINH_NANG.yeuCauCapNhat` ở `@csbh/domain-policy` (`tinh-nang.ts`), **mặc định TẮT**. Tắt: box Tổng quan
+(`khoiCua`), khối lệch + nút *Tự động cập nhật* trang hồ sơ, câu hậu quả ở hộp sửa sản phẩm/khách, và ba
+đường máy chủ (`impacted` rỗng · `byId` `lech: []` · `ap-dung-thay-doi` 404 `FEATURE_NOT_ENABLED`).
+**Không tắt**: consumer vẫn ghi `pol.policy_impact`; gửi duyệt vẫn chụp số hiện hành (luật `0029`). **Bộ
+kiểm chạy với công tắc BẬT** (`setupFiles: tests/bat-tinh-nang.ts`), ca cũ giữ nguyên. Bật = đổi mặc
+định + đảo ca ghim + gỡ ghi chú `sửa 24/10` ở HDSD/YCNV (danh sách đủ ở nhật ký P269). **2586/2586 xanh.**
+
+Trước đó **P268** (`0238`): **đổi nhóm sản phẩm** ở hộp *Sửa* (`PATCH` nhận `groupCode`), và
 **đổi MÃ quy định cũng là lệch** dù ngưỡng bằng nhau (chốt khi hỏi) — `DongDaChup.ruleCode` bắt buộc, mục
 RULE mang `<ngưỡng>|<mã>` hai vế khi mã đổi, số trần khi chỉ ngưỡng đổi. Đường báo đổi nhóm → box ĐÃ CÓ
 sẵn (`catalog.changed` + `rules.resolve` theo nhóm hiện tại). Ba ca cũ sửa theo hành vi mới. **Lượt phá

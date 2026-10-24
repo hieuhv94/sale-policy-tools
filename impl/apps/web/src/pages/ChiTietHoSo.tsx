@@ -40,6 +40,7 @@ import {
   Truong,
 } from '../components/Chung.js';
 import { DanhSachLech, type LechMuc } from '../components/Lech.js';
+import { batTinhNang } from '@csbh/domain-policy';
 import { useBaoLoi } from '../lib/bao-loi.js';
 
 type HoSo = {
@@ -788,7 +789,9 @@ export function ChiTietHoSo({ id }: { id: string }) {
         </p>
       )}
 
-      {(hoSo.lech ?? []).length > 0 && (
+      {/* `0239` — chốt thứ hai: máy chủ tắt thì đã trả `lech` rỗng, nhưng khối
+          này kèm nút ghi, nên nó không được phụ thuộc vào một máy chủ cũ. */}
+      {batTinhNang('yeuCauCapNhat') && (hoSo.lech ?? []).length > 0 && (
         <div className="canh-bao-lech" role="note">
           <span className="hop-tieu-de">Số trên hồ sơ này đã lệch so với danh mục hiện tại</span>
           {/*

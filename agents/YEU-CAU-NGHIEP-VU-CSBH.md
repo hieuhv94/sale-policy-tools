@@ -1203,6 +1203,10 @@ nhau mà không gì phân biệt.
 
 ### 9.3. Box "Yêu cầu cập nhật" trên trang Tổng quan `mới 16/08`
 
+> **CHƯA MỞ ở phiên bản hiện tại** `sửa 24/10` — cả mục này (box, khối cảnh báo lệch trên trang hồ sơ,
+> nút *Tự động cập nhật*) nằm sau một công tắc đang tắt, xem Phụ lục B. Luật đóng băng lúc gửi duyệt
+> (muc 7) không thuộc công tắc.
+
 Có ở **bốn vai trò trong luồng**: TDV, Trưởng bộ phận, Sale Admin, Kế toán. Liệt kê những hồ sơ **đã
 đóng băng** của phạm vi người đó mà giá hoặc ngưỡng đã lệch so với danh mục hôm nay — từ *Chờ TBP
 duyệt* cho tới *Đang có hiệu lực*.
@@ -2915,6 +2919,20 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**YÊU CẦU CẬP NHẬT HOÃN SANG PHIÊN BẢN SAU** `sửa 24/10` — *"chức năng yêu cầu cập nhật CSBH khi giá
+sản phẩm hoặc chiết khấu thay đổi sẽ tạm để sang version sau… giữ nguyên toàn bộ những gì đang phát
+triển nhưng chưa mở ngay để dùng"*. Một **công tắc tính năng**, đang **tắt**: box *Yêu cầu cập nhật*
+(muc 9.3), khối cảnh báo lệch trên trang hồ sơ, nút *Tự động cập nhật*, và các câu nhắc tới box ở hộp
+sửa sản phẩm / khách hàng đều **không hiện**; máy chủ trả box rỗng và từ chối lượt gọi thẳng nút.
+
+> **Không tắt**: (1) **luật đóng băng** — gửi duyệt vẫn chụp giá và ngưỡng hiện hành, dòng không chụp
+> được vẫn chặn gửi (`16/08`); (2) phép **rà nền** khi danh mục đổi vẫn chạy, nên ngày bật lên box có
+> ngay dữ liệu đúng. Mã và ca kiểm của tính năng **giữ nguyên**, bộ kiểm chạy chúng với công tắc bật.
+>
+> **Cái mất trong lúc tắt, đã nêu**: hồ sơ *Nháp* / *Yêu cầu chỉnh sửa* thôi tự đổi số khi mở ra từ
+> `10/09`, nên TDV có thể đang nhìn giá cũ mà không gì báo; số đúng được chụp lúc gửi duyệt. Người duyệt
+> hồ sơ đã đóng băng cũng không còn chỗ nào nói con số đã lỗi thời.
 
 **CHỨC DANH Ở TRANG KHÁCH HÀNG · BỎ Ô TRẠNG THÁI KHÁCH HÀNG** `sửa 29/09` — chức danh người đại diện
 hiện cả ở trang thông tin khách hàng (ngay sau người đại diện); ô *Trạng thái khách hàng* rời khỏi
