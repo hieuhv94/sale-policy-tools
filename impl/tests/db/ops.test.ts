@@ -294,20 +294,187 @@ describe('OPS-06 · sao lưu và phục hồi', () => {
   }, 60_000);
 });
 
-describe('OPS-08 · sao lưu vật lý ghép được với WAL', () => {
-  it('có bản sao lưu VẬT LÝ, không chỉ bản dump logic', async () => {
-    // pg_dump + archive_mode KHÔNG tự ghép thành phục hồi theo thời điểm: PITR
-    // cần một bản sao lưu vật lý làm điểm xuất phát. Thiếu nó thì WAL chất đống
-    // mà không dùng được vào việc gì.
-    const { stdout } = await run('/bin/sh', ['-c', 'ls -1d /backup/base/*/ 2>/dev/null | wc -l']);
-    expect(Number(stdout.trim())).toBeGreaterThan(0);
+/**
+ * `0240` — diễn tập trên chồng cô lập tìm ra BỐN lỗ ở đường sao lưu/phục hồi, và
+ * bộ kiểm cũ không thấy cái nào: OPS-06 chỉ phục hồi vào CSDL NHÁP với một tệp
+ * ĐÚNG, còn OPS-08 *"WAL được dọn"* đọc `du` của một thư mục không gắn vào
+ * container — chuỗi rỗng, `Number('') = 0 < 500`, xanh mãi.
+ *
+ * Mọi ca dưới đây chạy CHÍNH script giao cho khách (`/restore.sh`,
+ * `/basebackup.sh`), trên Postgres thật của bộ kiểm.
+ */
+const pgEnv = () => ({
+  ...process.env,
+  PGHOST: process.env.PGHOST ?? 'postgres',
+  PGUSER: 'postgres',
+  PGPASSWORD: process.env.PG_PASSWORD ?? 'csbh_dev_pw',
+});
+const sh = (cmd: string, env: Record<string, string> = {}) =>
+  run('/bin/sh', ['-c', cmd], { env: { ...pgEnv(), ...env }, maxBuffer: 32 * 1024 * 1024 });
+/** psql vào một CSDL bất kỳ của cụm. */
+const psqlDb = async (db: string, sql: string) =>
+  (await run('psql', ['-U', 'postgres', '-d', db, '-tAc', sql], { env: pgEnv() })).stdout.trim();
+/** Chạy, trả mã thoát thay vì ném. */
+const thu = async (cmd: string, env: Record<string, string> = {}) =>
+  sh(cmd, env).then(
+    (r) => ({ ma: 0, ra: r.stdout + r.stderr }),
+    (e: { code?: number; stdout?: string; stderr?: string }) => ({
+      ma: e.code ?? 1,
+      ra: `${e.stdout ?? ''}${e.stderr ?? ''}`,
+    }),
+  );
+
+describe('OPS-06b · phục hồi KHÔNG BAO GIỜ làm mất CSDL đang chạy (`0240`)', () => {
+  // Một "CSDL đang chạy" RIÊNG cho khối này — `CSDL_SONG` trỏ restore.sh vào nó,
+  // nên nhánh ĐÈ được thử thật mà không đụng `csbh` của chính bộ kiểm.
+  const SONG = 'csbh_ops_song';
+  const dungSong = async () => {
+    await psqlDb('postgres', `DROP DATABASE IF EXISTS ${SONG} WITH (FORCE)`);
+    const thua = await psqlDb('postgres', `SELECT string_agg(datname, ' ') FROM pg_database WHERE datname LIKE '${SONG}\\_%'`);
+    for (const d of thua.split(' ').filter(Boolean)) {
+      await psqlDb('postgres', `ALTER DATABASE "${d}" ALLOW_CONNECTIONS true`);
+      await psqlDb('postgres', `DROP DATABASE "${d}" WITH (FORCE)`);
+    }
+    await psqlDb('postgres', `CREATE DATABASE ${SONG}`);
+    await psqlDb(SONG, `CREATE TABLE dau_vet(x text); INSERT INTO dau_vet VALUES ('du-lieu-dang-chay')`);
+  };
+  const conNguyen = async () => psqlDb(SONG, 'SELECT x FROM dau_vet');
+  const env = { BACKUP_DIR: '/backup', CSDL_SONG: SONG, RESTORE_DB: SONG };
+
+  it('tệp KHÔNG TỒN TẠI: thoát lỗi, CSDL đang chạy nguyên vẹn', async () => {
+    // Đúng lượt diễn tập đã mất dữ liệu: gõ `/b/…` thay vì `/backup/…`. Bản cũ
+    // DROP trước rồi mới mở tệp.
+    await dungSong();
+    const r = await thu('/bin/sh /restore.sh /b/khong-co.dump', env);
+    expect(r.ma).not.toBe(0);
+    expect(r.ra).toContain('chưa đụng tới CSDL nào');
+    expect(await conNguyen()).toBe('du-lieu-dang-chay');
+  }, 60_000);
+
+  it('tệp KHÔNG PHẢI bản dump: thoát lỗi, CSDL đang chạy nguyên vẹn', async () => {
+    await dungSong();
+    await sh('echo rac > /tmp/rac.dump');
+    const r = await thu('/bin/sh /restore.sh /tmp/rac.dump', env);
+    expect(r.ma).not.toBe(0);
+    expect(await conNguyen()).toBe('du-lieu-dang-chay');
+  }, 60_000);
+
+  it('pg_restore CHẾT GIỮA LÚC NẠP: CSDL đang chạy nguyên vẹn, bản nạp dở bị xoá', async () => {
+    // Mục lục đọc được nhưng nạp hỏng — dựng bằng một `pg_restore` giả đứng
+    // trước trong PATH: nạp thật phần lược đồ rồi chết. Bản cũ để lại CSDL có
+    // bảng mà KHÔNG có dòng nào (đo ở diễn tập).
+    await dungSong();
+    await sh(`mkdir -p /tmp/gia && cat > /tmp/gia/pg_restore <<'HET'
+#!/bin/sh
+for a in "$@"; do case "$a" in --dbname=*) db=1 ;; esac; done
+if [ -n "\${db:-}" ]; then /usr/bin/pg_restore "$@" --section=pre-data 2>/dev/null; echo "GIA LAP HONG" >&2; exit 1; fi
+exec /usr/bin/pg_restore "$@"
+HET
+chmod +x /tmp/gia/pg_restore`);
+    const r = await thu('/bin/sh /restore.sh', { ...env, PATH: `/tmp/gia:${process.env.PATH ?? ''}` });
+    expect(r.ma).not.toBe(0);
+    expect(r.ra).toContain('GIỮ NGUYÊN');
+    expect(await conNguyen()).toBe('du-lieu-dang-chay');
+    expect(
+      await psqlDb('postgres', `SELECT count(*) FROM pg_database WHERE datname LIKE '${SONG}_phuc_hoi_%'`),
+    ).toBe('0');
+  }, 180_000);
+
+  it('phục hồi ĐÈ bằng TÊN TRẦN: đổi chỗ, bản cũ GIỮ LẠI và bị chặn kết nối', async () => {
+    await dungSong();
+    const ten = (await sh("ls -1t /backup/csbh-*.dump | head -1 | xargs basename")).stdout.trim();
+    const r = await thu(`/bin/sh /restore.sh ${ten}`, env);
+    expect(r.ma, r.ra).toBe(0);
+    // CSDL đang chạy giờ là bản phục hồi…
+    expect(Number(await psqlDb(SONG, 'SELECT count(*) FROM idn.app_user'))).toBeGreaterThanOrEqual(10);
+    // …còn bản cũ nằm lại nguyên, dưới tên khác, không ai nối vào được.
+    const cu = await psqlDb('postgres', `SELECT datname FROM pg_database WHERE datname LIKE '${SONG}_truoc_phuc_hoi_%'`);
+    expect(cu).not.toBe('');
+    expect(await psqlDb('postgres', `SELECT datallowconn FROM pg_database WHERE datname = '${cu}'`)).toBe('f');
+    await psqlDb('postgres', `ALTER DATABASE "${cu}" ALLOW_CONNECTIONS true`);
+    expect(await psqlDb(cu, 'SELECT x FROM dau_vet')).toBe('du-lieu-dang-chay');
+  }, 300_000);
+
+  it('quyền MỨC DATABASE được dựng lại: PUBLIC không kết nối được, role service thì được', async () => {
+    // `pg_dump` không mang ACL của database (chỉ khi `--create`). Thiếu bước dựng
+    // lại thì CSDL phục hồi về mặc định — lớp chặn `REVOKE … FROM PUBLIC` của
+    // `0002` mất lặng lẽ.
+    const acl = await psqlDb('postgres', `SELECT datacl::text FROM pg_database WHERE datname = '${SONG}'`);
+    expect(acl, 'datacl rỗng = mặc định, PUBLIC kết nối được').not.toBe('');
+    expect(acl).not.toMatch(/[{,]=/); // mục `=…` là PUBLIC
+    for (const r of ['csbh_idn', 'csbh_pol', 'csbh_aud']) expect(acl).toContain(`${r}=c/`);
   });
 
-  it('thư mục lưu trữ WAL được dọn, không phình vô hạn', async () => {
-    const { stdout } = await run('/bin/sh', ['-c', 'du -sm /archive | cut -f1']);
-    // Trước khi có pg_archivecleanup, thư mục này đã 208MB chỉ sau vài giờ chạy
-    // test. Ổ đầy thì Postgres DỪNG GHI — cơ chế bảo vệ dữ liệu tự giết hệ thống.
+  it('dọn: xoá CSDL của khối này', async () => {
+    await dungSong();
+    await psqlDb('postgres', `DROP DATABASE IF EXISTS ${SONG} WITH (FORCE)`);
+  }, 60_000);
+});
+
+describe('OPS-08 · sao lưu vật lý ghép được với WAL', () => {
+  const BB = '/tmp/bb-ops08';
+  const MIR = '/tmp/mirror-ops08';
+  const env = { BACKUP_DIR: BB, ARCHIVE_DIR: '/archive', KEEP_BASE: '1', BACKUP_MIRROR_DIR: MIR };
+  /** Segment WAL mà một bản nền bắt đầu — đọc từ backup_label của chính nó. */
+  const batDau = async (dir: string) =>
+    (
+      await sh(
+        `tar -xzOf ${dir}/base.tar.gz backup_label | sed -n 's/^START WAL LOCATION: .*(file \\([0-9A-F]*\\))$/\\1/p'`,
+      )
+    ).stdout.trim();
+
+  it('chạy basebackup.sh HAI đêm (giữ 1 bản nền): cả hai lượt thoát 0', async () => {
+    await sh(`rm -rf ${BB} ${MIR}`);
+    for (let dem = 0; dem < 2; dem++) {
+      await psql('SELECT pg_switch_wal()');
+      await psql('SELECT pg_switch_wal()');
+      const r = await thu('/bin/sh /basebackup.sh', env);
+      expect(r.ma, r.ra).toBe(0);
+    }
+  }, 600_000);
+
+  it('có bản sao lưu VẬT LÝ, không chỉ bản dump logic', async () => {
+    // pg_dump + archive_mode KHÔNG tự ghép thành phục hồi theo thời điểm: PITR
+    // cần một bản sao lưu vật lý làm điểm xuất phát.
+    const { stdout } = await sh(`ls -1d ${BB}/base/*/ | wc -l`);
+    expect(Number(stdout.trim())).toBe(1);
+  });
+
+  it('WAL cũ hơn bản nền CÒN GIỮ đã bị dọn — kể cả nhãn `.backup`', async () => {
+    /*
+     * Bản trước lấy mốc dọn từ tệp `.backup` CŨ NHẤT trong kho, mà Postgres 16
+     * không xoá tệp ấy — mốc đứng yên ở bản nền đầu tiên mãi mãi (diễn tập: 16MB
+     * → 176MB qua sáu đêm). Kho của bộ kiểm có `.backup` từ những lượt trước,
+     * nên với luật cũ ca này đỏ ngay.
+     */
+    const goc = (await sh(`ls -1d ${BB}/base/*/ | head -1`)).stdout.trim().replace(/\/$/, '');
+    const moc = await batDau(goc);
+    expect(moc).toMatch(/^[0-9A-F]{24}$/);
+    const ds = (await sh('ls -1 /archive')).stdout.trim().split('\n').filter(Boolean);
+    expect(ds.length, 'kho WAL rỗng — /archive có được gắn vào không?').toBeGreaterThan(0);
+    const cu = ds.filter((f) => f.slice(0, 24) < moc);
+    expect(cu, `còn tệp cũ hơn mốc ${moc}`).toEqual([]);
+  });
+
+  it('thư mục lưu trữ WAL không phình vô hạn', async () => {
+    // `du` của một thư mục KHÔNG CÓ trả chuỗi rỗng = 0 và ca này xanh mãi — nên
+    // hỏi sự có mặt trước.
+    const { stdout } = await sh('test -d /archive && du -sm /archive | cut -f1');
+    expect(stdout.trim()).toMatch(/^\d+$/);
     expect(Number(stdout.trim())).toBeLessThan(500);
+  });
+
+  it('bản sao ngoài: dọn theo cùng luật, có WAL, và WAL GIỮ chủ sở hữu Postgres', async () => {
+    // Bản trước chép lại mọi thứ mỗi đêm, không xoá gì, không có WAL. Và chép
+    // bằng root thì tệp WAL thành `root 0600`: Postgres phục hồi không đọc được,
+    // COI NHƯ HẾT WAL và dừng sớm KHÔNG báo lỗi (diễn tập: mất hai đêm dữ liệu).
+    expect(Number((await sh(`ls -1d ${MIR}/base/*/ | wc -l`)).stdout.trim())).toBe(1);
+    expect(Number((await sh(`ls -1 ${MIR}/wal | wc -l`)).stdout.trim())).toBeGreaterThan(0);
+    const chu = (await sh(`stat -c %u ${MIR}/wal/* | sort -u`)).stdout.trim();
+    expect(chu).toBe((await sh('stat -c %u /archive/$(ls -1 /archive | head -1)')).stdout.trim());
+    const moc = await batDau((await sh(`ls -1d ${MIR}/base/*/`)).stdout.trim().replace(/\/$/, ''));
+    const cu = (await sh(`ls -1 ${MIR}/wal`)).stdout.trim().split('\n').filter((f) => f.slice(0, 24) < moc);
+    expect(cu).toEqual([]);
   });
 });
 

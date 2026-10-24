@@ -355,11 +355,20 @@ HET
   dien-tap)     ops restore-drill ;;
   phuc-hoi)
     tep="${2:-}"
-    [ -n "$tep" ] || { echo "dùng: ./csbh phuc-hoi <tệp sao lưu>" >&2; exit 2; }
+    [ -n "$tep" ] || {
+      echo "dùng: ./csbh phuc-hoi <tên tệp sao lưu>" >&2
+      echo "các bản đang có:" >&2
+      $DC run --rm -T --entrypoint sh ops -c 'ls -1t /backup/csbh-*.dump | head -10 | xargs -n1 basename' >&2 || true
+      exit 2
+    }
     cat <<HET
 
-  CẢNH BÁO — việc này GHI ĐÈ toàn bộ dữ liệu đang chạy bằng nội dung của
-  ${tep}. Mọi hồ sơ lập sau thời điểm sao lưu sẽ MẤT.
+  CẢNH BÁO — việc này THAY toàn bộ dữ liệu đang chạy bằng nội dung của
+  ${tep}. Mọi hồ sơ lập sau thời điểm sao lưu sẽ không còn trong CSDL mới.
+
+  CSDL hiện tại KHÔNG bị xoá: nó được giữ lại dưới tên
+  csbh_truoc_phuc_hoi_<giờ>, và lệnh xoá nó in ra ở cuối. Tệp sai hoặc hỏng thì
+  lệnh dừng TRƯỚC khi đụng vào gì.
 
   Muốn kiểm tra bản sao lưu mà không đụng dữ liệu: ./csbh dien-tap
 

@@ -99,7 +99,16 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (24/10/2026)
 
-Chặng gần nhất **P269** (`0239`): **tính năng *Yêu cầu cập nhật* hoãn sang phiên bản sau** — công tắc
+Chặng gần nhất **P270** (`0240`): **sao lưu/phục hồi diễn tập thật** trên chồng cô lập bằng ảnh
+`ops-1.0.5`, bốn lỗ đã sửa: `restore.sh` **xoá CSDL đang chạy trước khi kiểm tệp** (giờ kiểm → nạp CSDL
+tạm → đổi tên, bản cũ GIỮ dưới `csbh_truoc_phuc_hoi_<giờ>`) · mốc dọn WAL **kẹt ở bản nền đầu tiên**
+(PG16 không xoá `.backup`; giờ đọc `backup_label`) · bản sao ngoài không dọn, không WAL, và WAL chép bằng
+root làm PITR **dừng sớm không báo lỗi** (`cp -p`) · phục hồi lên cụm mới **không có role** (tự tạo).
+Quy trình PITR ở `05-VAN-HANH` §3, **đã chạy nguyên văn**. OPS-08 cũ **xanh vô điều kiện** (không gắn
+`/archive`). **Chưa làm**: sao lưu MinIO · lệnh PITR · cảnh báo `pg_stat_archiver`. Cần `1.0.6` để tới
+tay khách. **2595/2595 xanh.**
+
+Trước đó **P269** (`0239`): **tính năng *Yêu cầu cập nhật* hoãn sang phiên bản sau** — công tắc
 `TINH_NANG.yeuCauCapNhat` ở `@csbh/domain-policy` (`tinh-nang.ts`), **mặc định TẮT**. Tắt: box Tổng quan
 (`khoiCua`), khối lệch + nút *Tự động cập nhật* trang hồ sơ, câu hậu quả ở hộp sửa sản phẩm/khách, và ba
 đường máy chủ (`impacted` rỗng · `byId` `lech: []` · `ap-dung-thay-doi` 404 `FEATURE_NOT_ENABLED`).

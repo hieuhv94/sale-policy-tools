@@ -32,7 +32,10 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
                      ADMIN_PASSWORD của một tài khoản Quản trị đã đổi mật khẩu.
   backup             Sao lưu logic (pg_dump) + bản nền (pg_basebackup).
   restore-drill      DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng CSDL đang chạy.
-  restore <file>     Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.
+  restore <tệp>      Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.
+                     <tệp> là TÊN trong /backup (vd csbh-20261024T011500Z.dump).
+                     Kiểm tệp trước, nạp vào CSDL tạm, rồi mới đổi chỗ; bản
+                     cũ giữ lại dưới tên csbh_truoc_phuc_hoi_<giờ>.
   lam-sach           XOÁ HẲN CSDL rồi dựng lại TRỐNG. Chỉ cho bản CHẠY THỬ.
                      Phải đặt XAC_NHAN_XOA_SACH=XOA-SACH.
   retention          Dọn dữ liệu quá hạn lưu trữ và outbox đã gửi.

@@ -48,6 +48,28 @@ Một VM, không có máy dự phòng nóng. 60 phút là tổng của:
 Con số 20 phút cho bước nạp là thứ **phải đo lại** khi dữ liệu lớn lên; `make restore-drill` phục
 hồi vào một CSDL nháp rồi đối chiếu số dòng, và đó là chỗ đọc ra con số thật.
 
+## Đã diễn tập (`0240`, 24/10/2026)
+
+Trên một chồng cô lập dựng từ **chính ảnh `ops-1.0.5` đã giao**, cấu hình Postgres của repo:
+
+| Kịch bản | Kết quả | Thời gian |
+|---|---|---|
+| `restore-drill` (bản dump → CSDL nháp) | đủ dòng | 19 giây |
+| PITR về một mốc giữa hai thao tác (bản nền mới nhất + WAL) | đúng mốc, thao tác sai sau mốc biến mất | 4 giây |
+| PITR từ bản nền **cũ nhất còn giữ**, sau khi đã dọn WAL | đúng mốc | 3 giây |
+| Chỉ dùng **bản sao ngoài** (bản nền + WAL nhân bản) | tới đúng lúc sao lưu đêm gần nhất | 4 giây |
+| Quy trình PITR trong `05-VAN-HANH` §3, chạy nguyên văn tới `phuc-hoi` | đúng mốc | 81 giây |
+| `phuc-hoi` đè lên CSDL có service đang nối | gián đoạn ~3 giây, service tự nối lại | 22 giây |
+| `phuc-hoi` lên cụm Postgres **mới** (mất máy), chưa migrate | 9 role tự dựng, service đăng nhập được | — |
+
+Dữ liệu diễn tập chỉ vài MB: các con số trên là **thời gian của quy trình**, không phải của
+dữ liệu thật — đo lại bằng `./csbh dien-tap` khi CSDL lớn lên.
+
+Bốn lỗi tìm ra và đã sửa ở `0240`: `phuc-hoi` **xoá CSDL đang chạy trước khi kiểm tệp** (tệp
+gõ sai = CSDL trống) · mốc dọn WAL **kẹt ở bản nền đầu tiên** (kho WAL phình mãi) · bản sao
+ngoài **không dọn, không có WAL**, và WAL chép bằng root thì Postgres phục hồi **dừng sớm không
+báo lỗi** · phục hồi lên cụm mới **không dựng lại role**, `migrate` sau đó cũng không cứu được.
+
 ## Cái KHÔNG được bảo vệ
 
 Ghi rõ để không ai nhầm:
@@ -62,7 +84,13 @@ Ghi rõ để không ai nhầm:
 
 ## Việc còn phải làm
 
-- Lịch tự động cho `make backup` và `make retention` (hiện chạy tay). Chuyển sang P8 cùng tài liệu
-  triển khai.
-- Đẩy bản sao lưu ra khỏi VM.
-- Cảnh báo tự động trên `pg_stat_archiver` và trên `/readyz` của gateway.
+- **Sao lưu kho tệp MinIO** (bản scan đã ký, bản mềm, giấy tờ pháp lý). Hiện KHÔNG có gì sao lưu
+  nó — đây là khoảng hở lớn nhất còn lại.
+- **Lệnh `./csbh` cho PITR.** Quy trình đã diễn tập (`05-VAN-HANH` §3) nhưng còn là các lệnh
+  `docker` gõ tay.
+- **Cảnh báo tự động** trên `pg_stat_archiver` (`failed_count`, `last_archived_time`) và trên
+  tuổi của bản sao lưu mới nhất. Cron chỉ ghi log; không ai đọc log thì lượt hỏng nằm im.
+  Diễn tập thấy thêm một đường hỏng im lặng: cụm Postgres dựng lại trên **kho WAL cũ** đánh số
+  segment lại từ đầu, và `archive_command` (`test ! -f …`) sẽ hỏng khi số va vào tệp cũ.
+- **Đẩy bản sao lưu ra khỏi VM** — `CSBH_BACKUP_MIRROR` phải là ổ khác hoặc NAS; WAL trong ngày
+  chỉ nằm ở volume `pgarchive`.

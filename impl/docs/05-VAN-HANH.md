@@ -75,6 +75,95 @@ xanh, chỉ có WAL không được lưu.
 `phuc-hoi` hỏi lại và bắt gõ `PHUC-HOI` để tiếp tục. Mọi hồ sơ lập sau thời điểm
 sao lưu sẽ mất — nên gần như luôn luôn thứ bạn muốn là `dien-tap`.
 
+**`<tệp>` là TÊN tệp trong thư mục sao lưu**, ví dụ `csbh-20261024T011500Z.dump` —
+không phải đường dẫn trên máy chủ. Gõ `./csbh phuc-hoi` không kèm gì để xem danh
+sách. Từ `0240`, `phuc-hoi` an toàn theo ba nghĩa, đều đã diễn tập:
+
+- tệp sai tên, không phải bản dump, hay hỏng giữa lúc nạp → **dừng, CSDL đang chạy
+  không bị đụng tới**;
+- bản sao lưu nạp vào một CSDL tạm, xong mới **đổi chỗ** — phần mềm gián đoạn vài giây,
+  service tự nối lại;
+- CSDL cũ **giữ lại** dưới tên `csbh_truoc_phuc_hoi_<giờ>` (chặn kết nối). Cần chỗ
+  trống cho hai bản CSDL trong lúc phục hồi. Xoá bản cũ khi đã chắc chắn — câu lệnh
+  in ra ở cuối.
+
+Máy chủ MỚI (mất máy): `./csbh len` như cài mới rồi `phuc-hoi` — role của các service
+tự dựng lại nếu thiếu.
+
+### Bản sao lưu nằm ở đâu, giữ bao lâu
+
+| | Chỗ | Giữ |
+|---|---|---|
+| Bản dump (`csbh-*.dump`) | volume `pgbackup` và `CSBH_BACKUP_MIRROR` | 14 ngày |
+| Bản nền (PITR) | `pgbackup/base` và `CSBH_BACKUP_MIRROR/base` | 3 bản gần nhất |
+| WAL | volume `pgarchive` và `CSBH_BACKUP_MIRROR/wal` | từ bản nền cũ nhất còn giữ |
+
+`CSBH_BACKUP_MIRROR` phải nằm trên **ổ khác** (hoặc NAS). Bản sao ngoài được chép mỗi
+đêm, nên chỉ với nó thì phục hồi được về **lúc sao lưu đêm gần nhất**; WAL trong ngày
+chỉ nằm ở volume `pgarchive`.
+
+### Phục hồi về một THỜI ĐIỂM (PITR)
+
+Dùng khi cần lùi về **trước một thao tác sai** (xoá nhầm, sửa nhầm hàng loạt) mà bản
+dump đêm qua thì quá xa. Chưa có lệnh `./csbh` riêng; các bước dưới đây **đã chạy
+nguyên văn trên bản diễn tập** (`0240`). Ý tưởng: dựng một Postgres TẠM từ bản nền +
+WAL, dừng đúng mốc, xuất ra một bản dump, rồi đưa bản dump ấy qua `phuc-hoi` — nên
+mọi chốt an toàn ở trên vẫn áp dụng, và CSDL đang chạy không bị đụng tới cho tới bước
+cuối.
+
+```sh
+P=csbh-prod                         # COMPOSE_PROJECT_NAME trong .env
+MOC='2026-10-24 10:15:00+07'        # thời điểm muốn lùi về — TRƯỚC thao tác sai
+NEN=$(docker run --rm -v ${P}_pgbackup:/b alpine ls -1 /b/base | sort | tail -1)
+#   ^ bản nền phải CŨ HƠN mốc; nếu bản mới nhất mới hơn mốc, chọn bản trước nó.
+
+# 1. Bung bản nền vào một volume tạm. Phải chown về uid 70 (Postgres).
+docker run --rm -v ${P}_pgbackup:/b:ro -v ${P}_pitr:/d postgres:16-alpine sh -ec "
+  mkdir -p /d/pg && cd /d/pg
+  tar -xzf /b/base/$NEN/base.tar.gz && tar -xzf /b/base/$NEN/pg_wal.tar.gz -C pg_wal
+  touch recovery.signal && chown -R 70:70 /d/pg && chmod 700 /d/pg"
+
+# 2. Chạy Postgres TẠM, đọc WAL từ kho, dừng ở mốc. archive_mode=off: không ghi gì
+#    vào kho WAL thật. max_connections KHÔNG được thấp hơn máy chính (200, xem
+#    deploy/postgres/postgresql.conf) — thấp hơn thì Postgres TỪ CHỐI phục hồi.
+docker run -d --name csbh-pitr -e PGDATA=/d/pg -v ${P}_pitr:/d \
+  -v ${P}_pgarchive:/wal:ro -v ${P}_pgbackup:/backup postgres:16-alpine \
+  postgres -c max_connections=200 -c archive_mode=off -c "restore_command=cp /wal/%f %p" \
+  -c "recovery_target_time=$MOC" -c recovery_target_action=promote
+
+# 3. Đợi Postgres tạm đọc xong WAL (vài giây tới vài phút tuỳ lượng WAL), rồi
+#    KIỂM trước khi tin: phải có dòng "recovery stopping before …".
+until docker exec csbh-pitr psql -U postgres -tAc 'select not pg_is_in_recovery()' 2>/dev/null | grep -q t; do
+  docker ps -q -f name=csbh-pitr | grep -q . || { echo "Postgres tạm đã DỪNG — đọc log dưới"; break; }
+  sleep 2
+done
+docker logs csbh-pitr 2>&1 | grep -E 'recovery stopping|recovery aborted|FATAL|DETAIL|Permission denied'
+```
+
+> **Không có dòng `recovery stopping`** nghĩa là Postgres hết WAL TRƯỚC mốc — và nó
+> **không báo lỗi**: một tệp WAL không đọc được (sai quyền, thiếu tệp) bị coi như hết
+> WAL, Postgres mở CSDL ra ở chỗ dừng sớm. Đo được ở diễn tập: WAL chép bằng root
+> (`0600`) làm mất hai đêm dữ liệu mà lượt phục hồi vẫn "xong". Đừng đi tiếp.
+
+```sh
+# 4. Xuất bản dump của thời điểm ấy vào thư mục sao lưu, rồi dọn Postgres tạm.
+docker exec csbh-pitr sh -c 'pg_dump -U postgres -Fc -d csbh -f /backup/csbh-pitr.dump'
+docker rm -f csbh-pitr && docker volume rm ${P}_pitr
+
+# 5. Kiểm bằng diễn tập, rồi mới đè.
+docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml \
+  run --rm ops restore-drill csbh-pitr.dump
+./csbh phuc-hoi csbh-pitr.dump
+```
+
+Lấy WAL từ **bản sao ngoài** (khi volume hỏng): thay `${P}_pgarchive` bằng
+`$CSBH_BACKUP_MIRROR/wal` và `${P}_pgbackup` ở bước 1 bằng `$CSBH_BACKUP_MIRROR`.
+
+### Cái CHƯA được sao lưu
+
+**Kho tệp MinIO** — bản scan đã ký, bản mềm, giấy tờ pháp lý. Phục hồi CSDL xong thì
+hồ sơ còn nguyên nhưng tệp nào mất theo máy thì mất hẳn. Xem `RPO-RTO.md`.
+
 ---
 
 ## 4. Thư không tới — tra theo thứ tự này

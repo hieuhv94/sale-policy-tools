@@ -105,8 +105,15 @@ if [ -n "${ROLE_PASSWORD:-}" ]; then
   # psql chỉ thay biến ở đầu vào dạng tệp/stdin: `-c` gửi thẳng chuỗi xuống máy
   # chủ, còn bên trong chuỗi trích dẫn kiểu dollar thì nó không đụng tới. Cả hai
   # cách kia đều báo `syntax error at or near ":"` — đã dính đủ cả hai.
+  #
+  # `0240` — TẠO role nếu thiếu, không chỉ đổi mật khẩu. Cụm Postgres MỚI nạp
+  # một bản dump có sẵn `sys.schema_migration`, nên `0002` không bao giờ chạy
+  # lại và role không bao giờ có — `ALTER ROLE` hỏng, mười service không đăng
+  # nhập được. Quyền trên bảng đã nằm trong bản dump; thứ thiếu chỉ là role.
   for role in csbh_idn csbh_cat csbh_cus csbh_pol csbh_doc \
               csbh_ntf csbh_rpt csbh_aud csbh_sys; do
+    echo "SELECT format('CREATE ROLE %I LOGIN', '$role')
+          WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$role') \\gexec"
     echo "ALTER ROLE $role PASSWORD :'pwd';"
   done | psql -v ON_ERROR_STOP=1 -q -v pwd="$ROLE_PASSWORD"
   echo "migrate: đã đồng bộ mật khẩu 9 DB role"

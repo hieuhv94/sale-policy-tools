@@ -20436,3 +20436,66 @@ chốt — **bảy đỏ**, mỗi lượt đúng một ca. Lượt `SuaKhachHang
 DOM nào dựng hộp sửa khách với công tắc tắt; ca quét giữ được vì nó đòi chuỗi gọi công tắc.
 
 **2586/2586 xanh** (`make test` đầy đủ).
+
+## P270 — `0240` Sao lưu & phục hồi: diễn tập thật, bốn lỗ, quy trình PITR
+
+24/10: *"kiểm tra lại hệ thống đã có đầy đủ cơ chế backup và restore database chưa, cần test kĩ"*.
+Diễn tập trên một chồng **cô lập** (mạng + volume riêng, không đụng demo hay bộ kiểm) bằng **chính ảnh
+`ops-1.0.5` đã giao**, Postgres với `postgresql.conf` của repo; script đã sửa gắn đè vào ảnh ấy để chạy
+đúng `tar`/busybox thật.
+
+**Đã có và chạy đúng**: `pg_dump` hằng đêm tự kiểm mục lục · `pg_basebackup` + `archive_command` +
+`archive_timeout=5min` · `restore-drill` · cron diễn tập hằng tháng. **PITR làm được** từ những gì hệ
+thống sinh ra (đo: về đúng mốc, 4 giây) — nhưng không có script hay dòng hướng dẫn nào cho nó, trong khi
+`RPO-RTO.md` cam kết RPO 5 phút đúng nhờ nó.
+
+**Bốn lỗ, đều đo được, đều đã sửa:**
+
+1. **`restore.sh` `DROP` CSDL đích TRƯỚC khi mở tệp.** Lộ ra vì chính tôi gõ `/b/…` thay `/backup/…`:
+   CSDL diễn tập trống trơn. `./csbh phuc-hoi <tệp>` nhận đường dẫn TRONG container — người vận hành gõ
+   đường dẫn máy chủ là đúng kịch bản ấy. Bản dump hỏng giữa lúc nạp cũng vậy (đối chứng bằng
+   `pg_restore` giả: bản cũ để lại CSDL **có bảng, không dòng nào**). Giờ: kiểm tệp + mục lục trước →
+   nạp vào CSDL tạm → chỉ khi xong mới **đổi tên** (`csbh` → `csbh_truoc_phuc_hoi_<giờ>`, GIỮ, chặn kết
+   nối). Đổi chỗ: `ALLOW_CONNECTIONS false` TRƯỚC `pg_terminate_backend` — service nối lại ngay, một kết
+   nối chen giữa làm `RENAME` hỏng. Đo: gián đoạn ~3 giây. Tên trần resolve vào `BACKUP_DIR`. Cái giá:
+   cần chỗ cho hai bản CSDL, và bản cũ nằm lại tới khi người vận hành xoá.
+2. **Mốc dọn WAL kẹt ở bản nền ĐẦU TIÊN.** `basebackup.sh` lấy `.backup` cũ nhất trong kho, mà
+   `pg_archivecleanup` của **Postgres 16 không xoá tệp `.backup`** (cờ `-b` có từ 17). Sáu đêm: 16 →
+   176MB, không lần nào giảm — ổ đầy là Postgres dừng ghi. Giờ đọc `backup_label` trong `base.tar.gz`
+   của bản nền cũ nhất CÒN GIỮ, và tự xoá `.backup` cũ hơn mốc. Đo lại: kho đứng ở 80–96MB; PITR từ bản
+   nền cũ nhất SAU khi dọn vẫn về đúng mốc.
+3. **Bản sao ngoài (`BACKUP_MIRROR_DIR`) không dọn, không có WAL** — chép lại mọi thứ mỗi đêm, sáu đêm
+   = sáu bản nền trong khi gốc giữ ba. Giờ chỉ chép thứ chưa có, dọn cùng luật, kèm `wal/`; bố cục cũ
+   (`<giờ>/` ở gốc) tự dọn. **Bẫy lộ ra khi thêm WAL**: chép bằng root ra `root 0600`, Postgres phục
+   hồi không đọc được và **coi như hết WAL — mở CSDL ở chỗ dừng sớm, KHÔNG báo lỗi** (mất hai đêm mà
+   vẫn "xong"). `cp -p`.
+4. **Phục hồi lên cụm MỚI không có role.** Role là đối tượng của cụm, không nằm trong dump; `GRANT` hỏng,
+   và `migrate` sau đó không cứu được — dump mang `sys.schema_migration` nên `0002` bị bỏ qua, `ALTER ROLE`
+   hỏng, cụm kẹt hẳn. `restore.sh` tạo role thiếu (danh sách đọc TỪ BẢN DUMP, mọi `… TO <role>;`, không
+   chép chín tên lần thứ ba) và `migrate.sh` cũng tạo nếu thiếu. Kèm: **ACL mức database** không nằm
+   trong dump (chỉ khi `--create`) → CSDL phục hồi về mặc định, PUBLIC kết nối được; dựng lại.
+
+**Quy trình PITR** viết vào `05-VAN-HANH` §3: Postgres TẠM từ bản nền + WAL → dừng ở mốc → `pg_dump` →
+đưa qua `phuc-hoi` (nên mọi chốt an toàn ở trên áp dụng, CSDL sống không bị đụng tới cho tới bước cuối).
+**Chạy NGUYÊN VĂN các khối lệnh trong tài liệu** (trích bằng script) — và lượt đầu **hỏng ở hai chỗ
+của chính tôi**: Postgres tạm mặc định `max_connections=100` < 200 của máy chính → *"recovery aborted
+because of insufficient parameter settings"*; và vòng `until` chờ mãi một container đã chết. Sửa, chạy
+lại: đúng mốc, 81 giây tới hết `phuc-hoi`.
+
+**Lỗ trong BỘ KIỂM**: container kiểm không gắn `/archive`, nên OPS-08 *"WAL được dọn"* chạy `du` trên
+thư mục không có → chuỗi rỗng → `Number('') = 0 < 500` → **xanh từ ngày viết**. OPS-08 cũ còn đọc
+`/backup/base` do một lượt `make backup` nào đó để lại. Giờ: gắn `pgarchive` + `basebackup.sh`, ảnh kiểm
+thêm `postgresql16` (`pg_archivecleanup` — lỗ `0234` của ảnh `ops`, lần này ở ảnh kiểm), OPS-08 tự chạy
+`basebackup.sh` hai đêm. `restore.sh` nhận `CSDL_SONG` (mặc định `csbh`) để OPS-06b thử nhánh ĐÈ trên một
+CSDL riêng.
+
+**Ca kiểm**: OPS-06b sáu ca (tệp không có · tệp rác · chết giữa lúc nạp · đè bằng tên trần · ACL mức
+database · dọn) + OPS-08 năm ca. **Phá lại**: `restore.sh` cũ → 5 đỏ; `basebackup.sh` cũ → 2 đỏ; bỏ
+`-p` của `cp` → 1 đỏ (đúng ca chủ sở hữu WAL).
+
+**CHƯA làm, đã nêu**: sao lưu **MinIO** (không có gì — khoảng hở lớn nhất) · lệnh `./csbh` cho PITR ·
+cảnh báo `pg_stat_archiver` + tuổi bản sao lưu · cụm dựng lại trên **kho WAL cũ** đánh số segment từ
+đầu, `archive_command` sẽ hỏng khi số va tệp cũ (đo: chưa va ở segment 4, kho cũ bắt đầu từ `0B`). Bản
+sửa **tới tay khách chỉ khi đóng gói bản mới** (`1.0.6`) — `VERSION` chưa đổi.
+
+**2595/2595 xanh** (`make test` đầy đủ).
