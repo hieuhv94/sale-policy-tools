@@ -21,7 +21,7 @@ export { IdentityOutbox } from './infra/outbox.relay.js';
 /** Đăng nhập Google (`0241`): bộ kiểm thay cấu hình và phần gọi ra Google. */
 export { GoogleClient } from './auth/google.client.js';
 export { CAU_HINH_GOOGLE, docCauHinhGoogle, type CauHinhGoogle } from './auth/google.config.js';
-export { kiemClaim, duongNoiBo } from './auth/google.service.js';
+export { kiemClaim, duongNoiBo, maCuaSo } from './auth/google.service.js';
 
 /**
  * Dựng app với vài provider bị thay — đường DUY NHẤT để một tệp kiểm bật đăng

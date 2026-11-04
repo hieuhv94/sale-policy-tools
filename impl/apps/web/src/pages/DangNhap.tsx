@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePhien } from '../lib/auth.js';
 import { goi, GOC_API } from '../lib/api.js';
-import { BANG_LOI } from '../lib/loi.js';
+import { BANG_LOI, docLoi } from '../lib/loi.js';
+import { KENH_GOOGLE, laTinGoogle, sinhMaCuaSo, TEN_CUA_SO_GOOGLE } from '../lib/google-cua-so.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { useDuong } from '../lib/router.js';
 import { duongSauDangNhap } from '../lib/sau-dang-nhap.js';
@@ -10,7 +11,7 @@ import { NutGiaoDien } from '../components/NutGiaoDien.js';
 import logo from '../logo.png';
 
 export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
-  const { dangNhap } = usePhien();
+  const { dangNhap, dangNhapGoogle } = usePhien();
   const { di } = useDuong();
   const { bao } = useBaoLoi();
   const [login, datLogin] = useState('');
@@ -25,6 +26,10 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
   const [loiO, datLoiO] = useState<string | null>(null);
   const [dangGui, datDangGui] = useState(false);
   const [coGoogle, datCoGoogle] = useState(false);
+  const [choGoogle, datChoGoogle] = useState(false);
+  /** Dọn kênh và đồng hồ của lượt cửa sổ bật lên đang chờ. */
+  const donGoogle = useRef<(() => void) | null>(null);
+  useEffect(() => () => donGoogle.current?.(), []);
 
   /*
    * Nút Google chỉ hiện khi máy chủ nói tính năng đang bật (`0241`): bày nút khi
@@ -35,7 +40,6 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
    * lên màn hình đăng nhập là báo hỏng cả phần mềm vì một nút bấm.
    */
   useEffect(() => {
-    if (lopPhu) return;
     let conSong = true;
     void goi<{ google?: unknown }>('/auth/phuong-thuc', { congKhai: true })
       .then((r) => conSong && datCoGoogle(r?.google === true))
@@ -43,7 +47,7 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
     return () => {
       conSong = false;
     };
-  }, [lopPhu]);
+  }, []);
 
   /*
    * Lượt đăng nhập Google hỏng thì máy chủ chuyển hướng về đây kèm `?loi=<mã>`.
@@ -90,10 +94,64 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
       // `vaoO` nhận hai mã của màn hình này — sai mật khẩu và tài khoản bị khoá.
       // Mọi lỗi khác (mất mạng, máy chủ hỏng) không có ô nào để gắn vào, nên
       // bảng tra đưa chúng ra hộp thoại và nhánh này không chạm tới.
-      bao(err, { vaoO: (d) => datLoiO(d.cau) });
+      /*
+       * Ở lớp phủ hết phiên, MỌI lỗi hiện dưới ô (`0242`): hộp thoại lỗi của
+       * `BaoLoiProvider` giờ nằm DƯỚI lớp phủ và bị khoá cùng phần còn lại của
+       * trang, nên đưa lỗi mất mạng ra đó là người dùng bấm Đăng nhập mà không
+       * thấy gì xảy ra.
+       */
+      if (lopPhu) datLoiO(docLoi(err).cau);
+      else bao(err, { vaoO: (d) => datLoiO(d.cau) });
     } finally {
       datDangGui(false);
     }
+  };
+
+  /*
+   * Lớp phủ hết phiên: Google trong CỬA SỔ BẬT LÊN (`0242`) — trang này đứng yên
+   * nên bản nhập dở còn nguyên. Xem `lib/google-cua-so.ts`.
+   */
+  const moGoogle = () => {
+    donGoogle.current?.();
+    datLoiO(null);
+    const cuaSo = sinhMaCuaSo();
+    const w = window.open(
+      `${GOC_API}/auth/google/start?cua_so=${cuaSo}`,
+      TEN_CUA_SO_GOOGLE,
+      'popup,width=520,height=680',
+    );
+    if (!w) {
+      datLoiO(
+        'Trình duyệt đã chặn cửa sổ đăng nhập Google. Cho phép cửa sổ bật lên cho trang này, ' +
+          'hoặc đăng nhập bằng mật khẩu.',
+      );
+      return;
+    }
+    datChoGoogle(true);
+    const kenh = new BroadcastChannel(KENH_GOOGLE);
+    // Người dùng tự đóng cửa sổ con giữa chừng thì thôi chờ — không thì nút kẹt mãi.
+    const dongHo = window.setInterval(() => {
+      if (w.closed) don();
+    }, 500);
+    const don = () => {
+      kenh.close();
+      window.clearInterval(dongHo);
+      donGoogle.current = null;
+      datChoGoogle(false);
+    };
+    donGoogle.current = don;
+    kenh.onmessage = (e: MessageEvent) => {
+      const tin: unknown = e.data;
+      // Chỉ tin mang ĐÚNG mã của lượt này — kênh mọi tab cùng nghe.
+      if (!laTinGoogle(tin) || tin.cuaSo !== cuaSo) return;
+      don();
+      if (tin.loi) {
+        const muc = tin.loi.startsWith('GOOGLE_') ? BANG_LOI[tin.loi] : undefined;
+        datLoiO(muc?.cau ?? BANG_LOI['GOOGLE_LOGIN_FAILED']!.cau!);
+        return;
+      }
+      dangNhapGoogle(tin.ma!).catch((err: unknown) => datLoiO(docLoi(err).cau));
+    };
   };
 
   return (
@@ -103,8 +161,8 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         Người dùng đặt máy ở chế độ tối mà mở ra gặp một tấm trắng chói thì ấn
         tượng đầu tiên đã hỏng, và họ chưa có cách nào sửa.
 
-        Bỏ đi khi đang là lớp phủ hết phiên: lúc đó nút của thanh tiêu đề bên
-        dưới vẫn còn đó, thêm nút thứ hai chỉ làm rối.
+        Bỏ đi khi đang là lớp phủ hết phiên: lớp phủ chỉ làm đúng một việc là
+        đăng nhập lại, và giao diện đang dùng vẫn giữ nguyên phía sau.
       */}
       {!lopPhu && (
         <div className="goc-tren-phai">
@@ -160,24 +218,35 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         </button>
 
         {/*
-          Đăng nhập bằng Google (`0241`) — một LIÊN KẾT, không phải nút gửi biểu
-          mẫu: trình duyệt phải ĐIỀU HƯỚNG sang hộp chọn tài khoản của Google
-          (CSP `form-action 'self'` chặn gửi biểu mẫu ra ngoài, và `fetch` thì
-          không mở được trang của Google). Ẩn ở lớp phủ hết phiên vì cùng lý do
-          với *Quên mật khẩu* ngay dưới: rời trang là mất bản nhập dở (`FE-33`).
+          Đăng nhập bằng Google (`0241`). Màn hình thường: một LIÊN KẾT điều hướng
+          cả trang (CSP `form-action 'self'` chặn gửi biểu mẫu ra ngoài, và
+          `fetch` không mở được trang của Google). Lớp phủ hết phiên: một NÚT mở
+          cửa sổ bật lên (`0242`) — rời trang là mất bản nhập dở (`FE-33`).
         */}
-        {!lopPhu && coGoogle && (
+        {coGoogle && (
           <>
             <div className="dang-nhap-hoac" aria-hidden="true">
               <span>hoặc</span>
             </div>
-            <a
-              className="nut nut-google nut-rong"
-              href={`${GOC_API}/auth/google/start?next=${encodeURIComponent(window.location.pathname)}`}
-            >
-              <BieuTuongGoogle />
-              Đăng nhập bằng Google
-            </a>
+            {lopPhu ? (
+              <button
+                type="button"
+                className="nut nut-google nut-rong"
+                onClick={moGoogle}
+                disabled={choGoogle}
+              >
+                <BieuTuongGoogle />
+                {choGoogle ? 'Đang chờ cửa sổ Google…' : 'Đăng nhập bằng Google'}
+              </button>
+            ) : (
+              <a
+                className="nut nut-google nut-rong"
+                href={`${GOC_API}/auth/google/start?next=${encodeURIComponent(window.location.pathname)}`}
+              >
+                <BieuTuongGoogle />
+                Đăng nhập bằng Google
+              </a>
+            )}
           </>
         )}
 

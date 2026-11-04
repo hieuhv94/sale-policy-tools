@@ -9,9 +9,18 @@
  * ĐÈ LÊN màn hình cũ; đăng nhập xong thì lớp phủ biến mất và mọi thứ bên dưới
  * còn nguyên — kể cả state React đang giữ dở, nên không cần khôi phục gì cả.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dang, dangKyHetPhien, dangKyLuuPhien, datPhien, goi, layPhien, LoiApi } from './api.js';
+import {
+  dang,
+  dangKyDocPhienLuu,
+  dangKyHetPhien,
+  dangKyLuuPhien,
+  datPhien,
+  goi,
+  layPhien,
+  LoiApi,
+} from './api.js';
 import { xoaHetNhap } from './nhap-tam.js';
 
 export type NguoiDung = {
@@ -54,6 +63,14 @@ type Phien = {
 const Ctx = createContext<Phien | null>(null);
 
 const KHOA = 'csbh:phien';
+/**
+ * Dấu ĐĂNG XUẤT CÓ CHỦ Ý (`0242`). Phiên đã lưu bị xoá vì hai lý do khác hẳn
+ * nhau, và các tab khác phải phân biệt được: người dùng bấm *Đăng xuất* (về màn
+ * hình đăng nhập, bỏ bản nháp), hay một tab vừa phát hiện phiên ĐÃ CHẾT rồi dọn
+ * đi (bật lớp phủ, GIỮ bản nháp — FE-33). Thiếu dấu này thì việc mở một tab mới
+ * khi phiên đã chết xoá sạch bản nhập dở ở tab đang làm.
+ */
+const KHOA_DANG_XUAT = 'csbh:dang-xuat';
 
 /**
  * Nơi giữ phiên: `localStorage`, đổi từ `sessionStorage` ở `0042`.
@@ -116,7 +133,14 @@ export function PhienProvider({ children }: { children: ReactNode }) {
       /* phiên hỏng thì coi như chưa đăng nhập */
     }
 
-    if (!luuTru) {
+    /*
+     * Trang nhận kết quả Google KHÔNG khôi phục phiên cũ (`0242`). Nó là một lượt
+     * ĐĂNG NHẬP: phiên đã lưu ở đó nếu có thì thường đã chết, và hỏi `/auth/me`
+     * bằng nó là ăn 401 rồi XOÁ phiên đã lưu — có khi xoá đúng phiên mới mà lượt
+     * đổi mã vừa ghi (cuộc đua có thật), hoặc trong cửa sổ bật lên thì xoá luôn
+     * dưới chân trang mẹ.
+     */
+    if (!luuTru || window.location.pathname === '/dang-nhap/google') {
       datDangTai(false);
       return;
     }
@@ -186,7 +210,113 @@ export function PhienProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /*
+   * Ba đường cho các tab KHÁC của cùng trình duyệt (`0242`). Sự kiện `storage`
+   * chỉ bắn ở những tab KHÔNG ghi, nên mỗi nhánh dưới đây là chuyện tab khác vừa
+   * làm:
+   *
+   *   - XOÁ phiên → tab kia vừa Đăng xuất. Tab này cũng về màn hình đăng nhập
+   *     NGAY: bấm Đăng xuất ở một tab mà tab bên cạnh vẫn bày hồ sơ khách hàng
+   *     là đăng xuất nửa vời.
+   *   - GHI phiên mới khi tab này đang ở lớp phủ hết phiên → tab kia vừa đăng
+   *     nhập lại. Nhận luôn phiên ấy và đóng lớp phủ; người dùng không phải gõ lại
+   *     mật khẩu ở mỗi tab.
+   *   - GHI phiên của NGƯỜI KHÁC → nhận người mới; `App` dỡ màn hình theo `key`.
+   */
+  const nguoiDungRef = useRef<NguoiDung | null>(null);
+  nguoiDungRef.current = nguoiDung;
+  const hetHanRef = useRef(false);
+  hetHanRef.current = hetHan;
+
+  useEffect(() => {
+    dangKyDocPhienLuu(() => {
+      try {
+        const s = KHO().getItem(KHOA);
+        return s ? (JSON.parse(s) as KetQuaDangNhap) : null;
+      } catch {
+        return null;
+      }
+    });
+    const nghe = (e: StorageEvent) => {
+      if (e.key !== KHOA) return;
+      if (!nguoiDungRef.current) return;
+      if (e.newValue === null) {
+        let luc = 0;
+        try {
+          luc = Number(KHO().getItem(KHOA_DANG_XUAT) ?? 0);
+        } catch {
+          /* không đọc được thì coi như không phải đăng xuất */
+        }
+        if (Date.now() - luc < 10_000) {
+          // Đăng xuất CÓ CHỦ Ý ở tab kia: về màn hình đăng nhập, bỏ bản nháp.
+          datPhien(null);
+          datNguoiDung(null);
+          datHetHan(false);
+          xoaHetNhap();
+        } else {
+          // Tab kia vừa dọn một phiên ĐÃ CHẾT: che màn hình ngay, GIỮ bản nháp.
+          datHetHan(true);
+        }
+        return;
+      }
+      let moi: KetQuaDangNhap;
+      try {
+        moi = JSON.parse(e.newValue) as KetQuaDangNhap;
+      } catch {
+        return;
+      }
+      datPhien({ accessToken: moi.accessToken, refreshToken: moi.refreshToken });
+      const khacNguoi = moi.user?.id !== nguoiDungRef.current.id;
+      if (khacNguoi) xoaHetNhap();
+      if (khacNguoi || hetHanRef.current) {
+        datNguoiDung(moi.user);
+        datHetHan(false);
+      }
+    };
+    window.addEventListener('storage', nghe);
+    return () => window.removeEventListener('storage', nghe);
+  }, []);
+
+  /*
+   * Tab để KHÔNG lâu thì không gọi gì, nên không bao giờ biết phiên đã bị thu
+   * hồi ở nơi khác (đổi mật khẩu, vô hiệu hoá, đăng xuất ở máy khác) — và cứ bày
+   * nguyên màn hình cũ (`0242`). Hỏi lại máy chủ lúc người dùng QUAY LẠI tab, và
+   * mỗi 5 phút khi tab đang hiện. `/auth/me` đi qua `goi`, nên phiên chết thật
+   * thì chính đường 401 → làm mới hỏng → `khiHetPhien` bật lớp phủ.
+   *
+   * Lời gọi hỏng thì IM LẶNG, cố ý (`0089`): lỗi mạng ở một lượt hỏi nền không có
+   * việc gì để người dùng làm; còn hết phiên thì đã được báo bằng lớp phủ.
+   */
+  useEffect(() => {
+    if (!nguoiDung || hetHan) return;
+    let lanCuoi = Date.now();
+    const hoi = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lanCuoi < 30_000) return;
+      lanCuoi = Date.now();
+      void goi('/auth/me').catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', hoi);
+    window.addEventListener('focus', hoi);
+    const dinhKy = window.setInterval(() => {
+      lanCuoi = 0;
+      hoi();
+    }, 5 * 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', hoi);
+      window.removeEventListener('focus', hoi);
+      window.clearInterval(dinhKy);
+    };
+  }, [nguoiDung, hetHan]);
+
   const luu = useCallback((kq: KetQuaDangNhap) => {
+    /*
+     * NGƯỜI KHÁC đăng nhập vào lớp phủ hết phiên (`0242`): bản nháp của người
+     * trước KHÔNG được để lại cho người sau. `App` dỡ màn hình theo `key` là
+     * id người dùng; ở đây xoá phần nháp nằm trong `sessionStorage`.
+     */
+    const truoc = nguoiDungRef.current;
+    if (truoc && truoc.id !== kq.user.id) xoaHetNhap();
     datPhien({ accessToken: kq.accessToken, refreshToken: kq.refreshToken });
     datNguoiDung(kq.user);
     datHetHan(false);
@@ -251,6 +381,8 @@ export function PhienProvider({ children }: { children: ReactNode }) {
     datHetHan(false);
     xoaHetNhap();
     try {
+      // Ghi dấu TRƯỚC khi xoá: tab kia đọc nó ngay trong sự kiện `storage`.
+      KHO().setItem(KHOA_DANG_XUAT, String(Date.now()));
       KHO().removeItem(KHOA);
     } catch {
       /* không sao */

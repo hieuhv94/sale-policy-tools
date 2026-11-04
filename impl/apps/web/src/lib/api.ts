@@ -77,6 +77,20 @@ export const dangKyHetPhien = (fn: () => void): void => {
 export const dangKyLuuPhien = (fn: (p: Phien) => void): void => {
   luuPhien = fn;
 };
+/**
+ * Đọc phiên ĐÃ LƯU — tức bản mà tab KHÁC có thể vừa ghi (`0242`).
+ *
+ * Mỗi tab giữ token trong BIẾN của riêng nó. Tab A làm mới thì refresh token cũ
+ * bị tiêu, A ghi bản mới vào `localStorage` — còn tab B vẫn cầm bản cũ trong
+ * biến. Lượt làm mới kế tiếp của B nộp đúng token đã tiêu, máy chủ đọc ra là
+ * BỊ ĐÁNH CẮP (`REFRESH_REUSED`) và thu hồi CẢ HỌ: hai tab mở quá 15 phút là cả
+ * hai bị đá ra, và câu báo nói về một vụ đánh cắp không có thật.
+ */
+let docPhienLuu: (() => Phien | null) | null = null;
+export const dangKyDocPhienLuu = (fn: () => Phien | null): void => {
+  docPhienLuu = fn;
+};
+
 export const dangKyPhienBan = (fn: (v: string) => void): void => {
   phienBanMoi = fn;
 };
@@ -96,6 +110,13 @@ let dangLamMoi: Promise<boolean> | null = null;
 
 async function lamMoiToken(): Promise<boolean> {
   if (!phien?.refreshToken) return false;
+  // Tab khác đã xoay vòng rồi thì DÙNG bản của nó, không nộp lại token đã tiêu.
+  // Coi như đã làm mới: lời gọi đang chờ sẽ chạy lại với access token mới ấy.
+  const luu = docPhienLuu?.();
+  if (luu?.refreshToken && luu.refreshToken !== phien.refreshToken) {
+    phien = { accessToken: luu.accessToken, refreshToken: luu.refreshToken };
+    return true;
+  }
   // Gộp: năm request cùng nhận 401 thì chỉ gọi làm mới MỘT lần. Không gộp thì
   // năm lời gọi xoay vòng token song song, bốn cái sau dùng token đã bị thu hồi
   // và cả phiên bị đá ra — lỗi chỉ xuất hiện khi màn hình tải nhiều thứ cùng lúc.

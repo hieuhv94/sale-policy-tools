@@ -34,8 +34,10 @@ trên máy dùng chung bạn không vào nhầm tài khoản người khác.
   được kích hoạt luôn, và liên kết trong thư mời thôi dùng được. Lúc đó bạn **chưa có mật khẩu**; muốn
   có (để đăng nhập khi không dùng được Google) thì bấm **Quên mật khẩu?**.
 - Tài khoản bị khoá tạm hay bị vô hiệu hoá thì đăng nhập Google cũng bị chặn, như đăng nhập mật khẩu.
-- Ô đăng nhập lại khi **hết phiên** chỉ nhận mật khẩu, không có nút Google: bấm nút ấy là rời trang,
-  và mất mọi thứ bạn đang nhập dở.
+- Ô đăng nhập lại khi **hết phiên** cũng có nút Google `sửa 05/11`. Ở đó Google mở trong một **cửa sổ
+  nhỏ bật lên**, trang của bạn đứng yên nên mọi thứ đang nhập dở còn nguyên; chọn tài khoản xong cửa sổ
+  nhỏ tự đóng. Trình duyệt chặn cửa sổ bật lên thì phần mềm báo ngay dưới ô — cho phép cửa sổ bật lên
+  cho trang này, hoặc đăng nhập bằng mật khẩu.
 - Không thấy nút Google nghĩa là tính năng chưa được bật trên máy chủ của bạn.
 
 ### Bao lâu phải đăng nhập lại
@@ -89,6 +91,21 @@ cái khác nhau.
   Nhận nhiều lần thì báo Quản trị hệ thống.
 - Đang làm dở mà hết phiên: hệ thống hiện ô đăng nhập lại **đè lên màn hình cũ**. Đăng nhập xong,
   mọi thứ bạn đang nhập vẫn còn nguyên — không phải làm lại.
+- Trong lúc ô đăng nhập lại đang hiện, **màn hình cũ bị che kín** `sửa 04/11` — không nhìn xuyên
+  qua được, không bấm hay Tab vào được. Phiên đã hết thì dữ liệu trên đó (giá, công nợ, tên khách
+  hàng) không được bày ra cho người chưa đăng nhập lại; máy để quên ở quầy là ai đi ngang cũng đọc
+  được. Nội dung vẫn được GIỮ phía sau, chỉ là không hiện ra.
+- **Đổi mật khẩu xong cũng gặp ô này**: đổi mật khẩu thu hồi mọi phiên, kể cả phiên của chính bạn.
+  Đăng nhập lại bằng mật khẩu mới là vào tiếp.
+- **Người khác đăng nhập vào ô này** (máy dùng chung): màn hình của người trước bị đóng hẳn, kể cả phần
+  đang nhập dở, và người mới vào trang Tổng quan của mình. Chỉ khi **đúng bạn** đăng nhập lại thì mọi
+  thứ mới còn nguyên.
+- **Nhiều tab cùng mở** `sửa 05/11`:
+  - Bấm *Đăng xuất* ở một tab thì **mọi tab** về màn hình đăng nhập ngay.
+  - Hết phiên rồi đăng nhập lại ở một tab thì ô đăng nhập ở các tab kia **tự đóng** — không phải gõ lại.
+  - Một tab để không lâu: lúc bạn **quay lại** tab ấy (hoặc cứ 5 phút một lần khi nó đang hiện), phần
+    mềm hỏi lại máy chủ. Phiên đã bị thu hồi ở nơi khác (đổi mật khẩu, bị vô hiệu hoá) thì màn hình bị
+    che ngay, không nằm lộ ra chờ bạn bấm gì.
 
 ## 2. Sáu vai trò, ai làm gì
 
@@ -353,8 +370,8 @@ Hai ngoại lệ:
 
 - **Liên kết trong thư báo.** Bấm *Mở hồ sơ* hay *Xem lịch sử hồ sơ* trong email rồi đăng nhập thì bạn vào
   thẳng hồ sơ đó, không bị đưa về đây — bạn bấm vào nó vì cần đúng nó.
-- **Phiên hết hạn giữa chừng.** Ô đăng nhập lại hiện đè lên màn hình cũ, và đăng nhập xong bạn ở
-  nguyên chỗ đang làm với mọi thứ đang gõ dở còn nguyên.
+- **Phiên hết hạn giữa chừng.** Ô đăng nhập lại hiện đè lên — và che kín — màn hình cũ, và đăng nhập
+  xong bạn ở nguyên chỗ đang làm với mọi thứ đang gõ dở còn nguyên.
 
 Màn hình đầu tiên sau khi đăng nhập. **Nội dung khác nhau theo vai trò** — bạn chỉ thấy những con
 số thuộc phần việc của mình.

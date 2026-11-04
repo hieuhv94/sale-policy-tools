@@ -34,6 +34,8 @@ import { CAU_HINH_GOOGLE, type CauHinhGoogle } from './google.config.js';
 import { GoogleClient, type ClaimGoogle } from './google.client.js';
 
 export const COOKIE_STATE = 'csbh_g_state';
+/** Mã nhận diện cửa sổ bật lên (`0242`) — xem `maCuaSo`. */
+export const COOKIE_CUA_SO = 'csbh_g_cua_so';
 export const STATE_TTL_SEC = 600;
 export const MA_TTL_SEC = 60;
 const KHOA_STATE = (s: string) => `idn:google:state:${s}`;
@@ -43,6 +45,21 @@ const KHOA_MA = (m: string) => `idn:google:ma:${m}`;
 const ISSUER = new Set(['https://accounts.google.com', 'accounts.google.com']);
 
 type State = { verifier: string; nonce: string; next: string };
+
+/**
+ * Mã nhận diện của một lượt đăng nhập trong CỬA SỔ BẬT LÊN (`0242`).
+ *
+ * Lớp phủ hết phiên không được rời trang (rời là mất bản nhập dở, FE-33), nên nó
+ * mở Google trong một cửa sổ con. Cửa sổ con quay về thì trao mã một lần cho
+ * trang mẹ qua `BroadcastChannel` — kênh ấy MỌI tab cùng nguồn đều nghe được, nên
+ * trang mẹ tự sinh một mã nhận diện và chỉ nhận tin mang đúng mã của mình.
+ *
+ * Chỉ nhận chuỗi an toàn cho URL: nó được dội lại nguyên văn vào fragment.
+ * Sai hình dạng là coi như KHÔNG phải cửa sổ bật lên — đi đường thường.
+ */
+export function maCuaSo(v: unknown): string | null {
+  return typeof v === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(v) ? v : null;
+}
 
 /** Kết quả của một lượt callback — controller dựng 302 từ đây, không tự suy. */
 export type KetQuaCallback = { ok: true; ma: string; next: string } | { ok: false; code: string };

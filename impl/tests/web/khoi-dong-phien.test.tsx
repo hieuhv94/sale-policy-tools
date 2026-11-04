@@ -179,7 +179,13 @@ describe('`0076` không được sửa hỏng `FE-33`', () => {
     mo();
 
     await waitFor(() => expect(coLopPhu()).not.toBeNull());
-    // Màn hình cũ CÒN NGUYÊN bên dưới — đó là cả điểm của `FE-33`.
-    expect(coTongQuan(), 'lớp phủ đã dỡ mất màn hình bên dưới').not.toBeNull();
+    // Màn hình cũ CÒN NGUYÊN bên dưới — đó là cả điểm của `FE-33`. `hidden: true`
+    // vì từ `0242` nó còn trong DOM nhưng đã bị giấu khỏi cây trợ năng.
+    expect(
+      screen.queryByRole('heading', { name: 'Tổng quan', hidden: true }),
+      'lớp phủ đã dỡ mất màn hình bên dưới',
+    ).not.toBeNull();
   });
 });
+
+// Khối `0242` (che kín lớp phủ, nhiều cửa sổ, đăng nhập lại) ở `het-phien.test.tsx`.

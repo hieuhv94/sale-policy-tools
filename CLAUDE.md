@@ -97,9 +97,22 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (04/11/2026)
+## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P271** (`0241`): **đăng nhập bằng tài khoản Google** — Authorization Code + PKCE chạy ở
+Chặng gần nhất **P272** (`0242`): **hết phiên ở bất kỳ cửa sổ nào — che kín, nhiều tab, Google ở ô đăng
+nhập lại**. Lớp phủ `LopPhuHetPhien` (`App.tsx`) dựng bằng `createPortal` thẳng vào `body`, `z-index` 1000
+(ca kiểm đòi lớn hơn MỌI `z-index`), và khoá MỌI anh em trong `body` bằng `inert` + `aria-hidden` +
+`.an-khi-het-phien` — hộp lỗi của `BaoLoiProvider` là anh em của `App`, không phải con. Màn hình đổi mật
+khẩu nằm trong nhánh có lớp phủ; `<Fragment key={nguoiDung.id}>` dỡ màn hình khi NGƯỜI KHÁC đăng nhập vào
+lớp phủ. **Lỗi có từ `0042`**: hai tab quá 15 phút là cả hai bị đá ra (`REFRESH_REUSED` thu hồi cả họ) —
+`lamMoiToken` giờ đọc bản lưu trước. Sự kiện `storage`: đăng xuất có chủ ý (dấu `csbh:dang-xuat`) ≠ dọn
+phiên chết (lớp phủ, giữ nháp). Tab im lặng hỏi `/auth/me` lúc quay lại · focus · mỗi 5 phút. Google ở lớp
+phủ chạy trong **cửa sổ bật lên** (`lib/google-cua-so.ts`, `BroadcastChannel` + `cua_so` ngẫu nhiên, cookie
+`csbh_g_cua_so`); trang `/dang-nhap/google` không khôi phục phiên (cuộc đua xoá phiên mới). **Giới hạn**:
+`BroadcastChannel` của jsdom không chuyển tin — bộ kiểm dùng bản giả; đường thật chưa kiểm bằng máy.
+**2673/2673 xanh.**
+
+Trước đó **P271** (`0241`): **đăng nhập bằng tài khoản Google** — Authorization Code + PKCE chạy ở
 MÁY CHỦ (`identity/src/auth/google.*.ts`), không thư viện JS nào nên CSP không đổi; trình duyệt chỉ
 điều hướng. `prompt=select_account` là hộp chọn tài khoản. **Chỉ ghép email đã có**, miền Workspace
 `GOOGLE_HOSTED_DOMAIN`, tài khoản chưa kích hoạt **coi như kích hoạt** (thu hồi thư mời, không đụng

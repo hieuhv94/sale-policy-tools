@@ -1838,6 +1838,18 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 }
 .lop-phu > * { margin: auto; }
 
+/* Hết phiên (`0242`): nền ĐẶC — chính mặt nền của trang — chứ không phải lớp mờ
+   `--mau-lop-phu` của hộp thoại, và `z-index` CAO NHẤT của cả tệp: phía sau là
+   dữ liệu của một phiên đã chết, không lớp nào được nổi lên trên nó. Có ca kiểm
+   đòi con số này lớn hơn MỌI `z-index` khác. Xem `LopPhuHetPhien` ở `App.tsx`. */
+.lop-phu.lop-phu-het-phien {
+  z-index: 1000;
+  background: linear-gradient(180deg, var(--mau-nen-tren), var(--mau-nen-duoi)) fixed;
+  background-color: var(--mau-nen-phu);
+}
+/* Mọi anh em của lớp phủ trong `body` lúc hết phiên — lớp hai, sau nền đặc. */
+.an-khi-het-phien { visibility: hidden; }
+
 .hop-thoai {
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);

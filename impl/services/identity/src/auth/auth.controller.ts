@@ -1,7 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { COOKIE_STATE, GoogleService, STATE_TTL_SEC } from './google.service.js';
+import { COOKIE_CUA_SO, COOKIE_STATE, GoogleService, maCuaSo, STATE_TTL_SEC } from './google.service.js';
+
+const DUONG_COOKIE = '/api/auth/google';
 import {
   CurrentUser,
   oneOf,
@@ -40,22 +42,37 @@ export class AuthController {
    */
   @Public()
   @Get('google/start')
-  async googleStart(@Query('next') next: unknown, @Res() res: Response): Promise<void> {
-    if (!this.google.bat) {
-      res.redirect(302, `${this.google.webBaseUrl}/?loi=GOOGLE_LOGIN_DISABLED`);
-      return;
-    }
-    const { state, url } = await this.google.batDau(next);
-    res.cookie(COOKIE_STATE, state, {
+  async googleStart(
+    @Query('next') next: unknown,
+    @Query('cua_so') cuaSoTho: unknown,
+    @Res() res: Response,
+  ): Promise<void> {
+    const cuaSo = maCuaSo(cuaSoTho);
+    const tuyChon = {
       httpOnly: true,
       secure: this.google.cookieSecure,
       // `Lax` chứ không `Strict`: lượt quay về từ Google là một điều hướng
       // XUYÊN TRANG, và `Strict` không gửi cookie ở đúng lượt ấy.
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       // Đường dẫn trình duyệt nhìn thấy, tức có `/api` của Caddy phía trước.
-      path: '/api/auth/google',
+      path: DUONG_COOKIE,
       maxAge: STATE_TTL_SEC * 1000,
-    });
+    };
+    /*
+     * Chế độ cửa sổ bật lên đi trong COOKIE riêng chứ không trong state ở Redis
+     * (`0242`): lượt callback hỏng state vẫn phải biết mình đang ở cửa sổ con để
+     * báo lỗi về trang mẹ, thay vì dựng cả phần mềm bên trong cửa sổ con.
+     * Lượt thường thì XOÁ cookie ấy — để lại là lượt đăng nhập thường kế tiếp
+     * thừa hưởng chế độ cửa sổ con và tự đóng mình.
+     */
+    if (cuaSo) res.cookie(COOKIE_CUA_SO, cuaSo, tuyChon);
+    else res.clearCookie(COOKIE_CUA_SO, { path: DUONG_COOKIE });
+    if (!this.google.bat) {
+      res.redirect(302, this.diVeLoi('GOOGLE_LOGIN_DISABLED', cuaSo));
+      return;
+    }
+    const { state, url } = await this.google.batDau(next);
+    res.cookie(COOKIE_STATE, state, tuyChon);
     res.redirect(302, url);
   }
 
@@ -67,8 +84,11 @@ export class AuthController {
     @Res() res: Response,
   ): Promise<void> {
     const s = (k: string) => (typeof q[k] === 'string' ? (q[k] as string) : undefined);
+    const cuaSo = maCuaSo(docCookie(req.headers.cookie, COOKIE_CUA_SO));
+    res.clearCookie(COOKIE_STATE, { path: DUONG_COOKIE });
+    res.clearCookie(COOKIE_CUA_SO, { path: DUONG_COOKIE });
     if (!this.google.bat) {
-      res.redirect(302, `${this.google.webBaseUrl}/?loi=GOOGLE_LOGIN_DISABLED`);
+      res.redirect(302, this.diVeLoi('GOOGLE_LOGIN_DISABLED', cuaSo));
       return;
     }
     const kq = await this.google.goiVe({
@@ -77,15 +97,24 @@ export class AuthController {
       error: s('error'),
       cookieState: docCookie(req.headers.cookie, COOKIE_STATE),
     });
-    res.clearCookie(COOKIE_STATE, { path: '/api/auth/google' });
-    const base = this.google.webBaseUrl;
     if (!kq.ok) {
-      res.redirect(302, `${base}/?loi=${encodeURIComponent(kq.code)}`);
+      res.redirect(302, this.diVeLoi(kq.code, cuaSo));
       return;
     }
     // FRAGMENT, không phải query: không vào log máy chủ, không đi theo Referer.
     const f = new URLSearchParams({ ma: kq.ma, next: kq.next });
-    res.redirect(302, `${base}/dang-nhap/google#${f.toString()}`);
+    if (cuaSo) f.set('cua_so', cuaSo);
+    res.redirect(302, `${this.google.webBaseUrl}/dang-nhap/google#${f.toString()}`);
+  }
+
+  /**
+   * Chỗ lỗi quay về. Đường thường: màn hình đăng nhập `?loi=`. Cửa sổ bật lên:
+   * trang nhận kết quả, để nó báo lỗi về trang mẹ rồi tự đóng (`0242`).
+   */
+  private diVeLoi(code: string, cuaSo: string | null): string {
+    const base = this.google.webBaseUrl;
+    if (!cuaSo) return `${base}/?loi=${encodeURIComponent(code)}`;
+    return `${base}/dang-nhap/google#${new URLSearchParams({ loi: code, cua_so: cuaSo }).toString()}`;
   }
 
   /** Nộp mã một lần — trả CÙNG hình dạng với `/auth/login`. */

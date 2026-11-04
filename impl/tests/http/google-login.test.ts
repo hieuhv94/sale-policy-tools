@@ -17,6 +17,7 @@ import {
   duongNoiBo,
   GoogleClient,
   kiemClaim,
+  maCuaSo,
   type CauHinhGoogle,
 } from '@csbh/identity/testing';
 import {
@@ -376,6 +377,55 @@ describe('`0241` thành công', () => {
     const kh = await (await http(app)).post('/auth/activate').send({ token: tokenMoi, newPassword: 'Moi@2026xyzab' });
     expect(kh.status).toBe(400);
     expect(kh.body.code).toBe('TOKEN_REVOKED');
+  });
+});
+
+describe('`0242` cửa sổ bật lên của lớp phủ hết phiên', () => {
+  const ID = 'cuaSo_0242-abcdefgh';
+  const cookieCua = (r: { headers: Record<string, unknown> }) =>
+    ([] as string[]).concat((r.headers['set-cookie'] as string[]) ?? []).find((c) => c.startsWith('csbh_g_cua_so='));
+
+  it('start nhận `cua_so` đúng hình dạng → cookie riêng; sai hình dạng → coi như lượt thường', async () => {
+    const r = await (await http(app)).get('/auth/google/start').query({ cua_so: ID });
+    expect(cookieCua(r)).toContain(`csbh_g_cua_so=${ID}`);
+    expect(cookieCua(r)).toMatch(/HttpOnly/i);
+    for (const xau of ['ngan', 'co dau cach 12345', '<script>alert(1)</script>', 'a'.repeat(65)]) {
+      const x = await (await http(app)).get('/auth/google/start').query({ cua_so: xau });
+      // Lượt thường XOÁ cookie cửa sổ — không để lượt sau thừa hưởng.
+      expect(cookieCua(x), xau).toMatch(/^csbh_g_cua_so=;/);
+    }
+    expect(maCuaSo(ID)).toBe(ID);
+  });
+
+  it('thành công → fragment mang `cua_so`, và cả hai cookie bị xoá', async () => {
+    const u = await nguoiDaKichHoat('GoogleCuaSo@2026xyz');
+    claimKeTiep = claimHopLe(u.email);
+    const s = await batDau();
+    const r = await (await http(app))
+      .get('/auth/google/callback')
+      .query({ state: s.state, code: 'x' })
+      .set('Cookie', `csbh_g_state=${s.state}; csbh_g_cua_so=${ID}`);
+    const ve = new URL(r.headers['location'] as string);
+    const f = new URLSearchParams(ve.hash.slice(1));
+    expect(ve.pathname).toBe('/dang-nhap/google');
+    expect(f.get('cua_so')).toBe(ID);
+    expect(f.get('ma')).toBeTruthy();
+    expect(cookieCua(r)).toMatch(/^csbh_g_cua_so=;/);
+  });
+
+  it('HỎNG — kể cả state hỏng — vẫn về trang nhận kết quả của cửa sổ con, không dựng cả phần mềm trong đó', async () => {
+    const r = await (await http(app))
+      .get('/auth/google/callback')
+      .query({ state: 'khong-co', code: 'x' })
+      .set('Cookie', `csbh_g_cua_so=${ID}`);
+    const ve = new URL(r.headers['location'] as string);
+    expect(ve.pathname).toBe('/dang-nhap/google');
+    expect(Object.fromEntries(new URLSearchParams(ve.hash.slice(1)))).toEqual({ loi: 'GOOGLE_STATE_INVALID', cua_so: ID });
+  });
+
+  it('tắt tính năng ở cửa sổ con → lỗi về trang mẹ', async () => {
+    const r = await (await http(tat)).get('/auth/google/start').query({ cua_so: ID });
+    expect(new URL(r.headers['location'] as string).hash).toBe(`#loi=GOOGLE_LOGIN_DISABLED&cua_so=${ID}`);
   });
 });
 

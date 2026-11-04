@@ -1,3 +1,5 @@
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePhien } from './lib/auth.js';
 import { khop, useDuong } from './lib/router.js';
 import { can, xem } from './lib/can.js';
@@ -24,7 +26,19 @@ import { TrangChietKhau, TrangSanPham } from './pages/DanhMuc.js';
 
 export function App() {
   const { nguoiDung, hetHan, dangTai } = usePhien();
-  const { duong } = useDuong();
+  const { duong, di } = useDuong();
+
+  /*
+    NGƯỜI KHÁC vừa vào bằng lớp phủ hết phiên (`0242`): về Tổng quan. Đường dẫn
+    đang đứng là màn hình của người trước — một hồ sơ trong phạm vi của họ, không
+    phải của người này. Màn hình tự dỡ nhờ `key` bên dưới; ở đây chỉ lo đường dẫn.
+  */
+  const nguoiTruoc = useRef<string | null>(null);
+  useEffect(() => {
+    const id = nguoiDung?.id ?? null;
+    if (id && nguoiTruoc.current && nguoiTruoc.current !== id) di('/');
+    nguoiTruoc.current = id;
+  }, [nguoiDung?.id, di]);
 
   /*
     Chưa xác thực xong thì KHÔNG dựng gì của ứng dụng (`0076`).
@@ -56,22 +70,83 @@ export function App() {
   if (duong === '/dang-nhap/google') return <DangNhapGoogle />;
 
   if (!nguoiDung) return <DangNhap />;
-  if (nguoiDung.mustChangePassword) return <DoiMatKhau />;
 
   return (
     <>
-      <BoCuc>{noiDung(duong, nguoiDung.role)}</BoCuc>
       {/*
-        Phiên hết hạn KHÔNG dỡ màn hình bên dưới (FE-33). Lớp phủ đăng nhập lại
-        nằm ĐÈ LÊN, nên state React của biểu mẫu đang dở vẫn còn nguyên và không
-        phải khôi phục gì sau khi đăng nhập xong.
+        `key` là id người dùng: người khác đăng nhập vào lớp phủ thì CẢ màn hình
+        của người trước bị dỡ, kể cả bản nhập dở trong state React (`0242`).
+        Cùng người thì `key` không đổi và mọi thứ còn nguyên (FE-33).
+
+        Màn hình đổi mật khẩu bắt buộc nằm TRONG nhánh này, không trả về sớm như
+        trước: hết phiên ở đó cũng phải có lớp phủ.
       */}
-      {hetHan && (
-        <div className="lop-phu">
-          <DangNhap lopPhu />
-        </div>
-      )}
+      <Fragment key={nguoiDung.id}>
+        {nguoiDung.mustChangePassword ? (
+          <DoiMatKhau />
+        ) : (
+          <BoCuc>{noiDung(duong, nguoiDung.role)}</BoCuc>
+        )}
+      </Fragment>
+      {hetHan && <LopPhuHetPhien />}
     </>
+  );
+}
+
+/**
+ * Lớp phủ đăng nhập lại khi hết phiên (`0242`, chốt 04/11 — *"vẫn hiện phần
+ * đăng nhập nhưng không bao giờ show nội dung đằng sau khi hết hạn phiên"*, rồi
+ * *"ở bất kỳ cửa sổ nào"*).
+ *
+ * Hai vế, và không vế nào thay được vế kia:
+ *   - GIỮ màn hình cũ trong cây React (FE-33): dỡ đi là mất bản nhập dở;
+ *   - KHÔNG LỘ gì: phiên đã chết thì dữ liệu trên màn hình là của một người chưa
+ *     được xác nhận lại — máy để quên ở quầy là ai đi ngang cũng đọc được.
+ *
+ * Dựng RA NGOÀI cây ứng dụng, thẳng vào `body`, rồi khoá MỌI anh em của nó:
+ * `inert` (bàn phím, chuột) + `aria-hidden` (trình đọc màn hình) + ẩn. Phải là
+ * mọi anh em chứ không riêng màn hình chính, vì hộp lỗi và thông báo nổi của
+ * `BaoLoiProvider` nằm NGOÀI `App` — bản đầu của `0242` chỉ giấu màn hình chính
+ * và chúng vẫn nổi lên trên được (`z-index` 60–100 > 50 của lớp phủ cũ).
+ *
+ * Ẩn bằng HAI lớp: NỀN ĐẶC + `z-index` cao nhất của `.lop-phu-het-phien` là
+ * lớp chính; `visibility: hidden` trên anh em là lớp hai. `visibility` một mình
+ * không đủ — con nào tự khai `visibility: visible` thì hiện ra dù cha ẩn (có
+ * thật: ô giá cũ của `.dau-doi`). `display: none` thì không dùng: trang cuộn về
+ * đầu, mất chỗ đang đứng.
+ */
+function LopPhuHetPhien() {
+  const [goc] = useState(() => {
+    const d = document.createElement('div');
+    d.className = 'goc-lop-phu-het-phien';
+    return d;
+  });
+  useLayoutEffect(() => {
+    document.body.appendChild(goc);
+    const daKhoa: Element[] = [];
+    for (const el of Array.from(document.body.children)) {
+      if (el === goc) continue;
+      // Đã bị ai khác khoá thì để nguyên — gỡ lúc đóng là mở nhầm thứ không phải của mình.
+      if (el.hasAttribute('inert') || el.getAttribute('aria-hidden') === 'true') continue;
+      el.setAttribute('inert', '');
+      el.setAttribute('aria-hidden', 'true');
+      el.classList.add('an-khi-het-phien');
+      daKhoa.push(el);
+    }
+    return () => {
+      for (const el of daKhoa) {
+        el.removeAttribute('inert');
+        el.removeAttribute('aria-hidden');
+        el.classList.remove('an-khi-het-phien');
+      }
+      goc.remove();
+    };
+  }, [goc]);
+  return createPortal(
+    <div className="lop-phu lop-phu-het-phien" role="dialog" aria-modal="true" aria-label="Đăng nhập lại">
+      <DangNhap lopPhu />
+    </div>,
+    goc,
   );
 }
 

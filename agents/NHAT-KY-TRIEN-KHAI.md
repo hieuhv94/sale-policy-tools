@@ -20582,3 +20582,74 @@ redirect URI `<SITE_URL>/api/auth/google/callback`, consent screen *Internal*); 
 riêng. Tới tay khách cần đóng gói bản mới — `VERSION` chưa đổi.
 
 **2634/2634 xanh.**
+
+## P272 — `0242` Hết phiên ở bất kỳ cửa sổ nào: che kín, nhiều tab, Google ở ô đăng nhập lại
+
+Lộ ra ở **lượt chạy thử bản production đầu tiên trên localhost** (bản cài `workspace/prod-thu/`, thẻ ảnh
+`1.0.5-thu-0241`, Caddy ở cổng 8090 vì 80/443 của máy đang bị dự án khác giữ): tài khoản mồi đổi mật khẩu
+bắt buộc xong thì trang Tổng quan dựng lên, mọi khối đỏ *"Phiên đăng nhập đã hết hạn"*, và lớp phủ nằm
+trên một lớp MỜ — đọc xuyên qua được. Hai câu của khách hàng, hai ngày: *"không bao giờ show nội dung đằng
+sau khi hết hạn phiên"* (04/11), rồi *"test hết các case … ở bất kỳ cửa sổ nào … hộp thư đăng nhập cũng cần
+tích hợp OAuth 2.0 qua google login"* (05/11).
+
+**Lượt đăng xuất sau khi đổi mật khẩu là luật cố ý, không phải lỗi mới**: `applyNewPassword` thu hồi MỌI
+phiên (ONB-13), kể cả của người vừa đổi, và `DoiMatKhau` dựng trang chính bằng token đã chết. Có từ
+P3b/P7d. Đề xuất cấp phiên mới cho người vừa đổi **chưa làm** — khách hàng chọn giữ ô đăng nhập.
+
+**Năm chỗ hở, đo được chứ không đoán:**
+1. **Có lớp nằm TRÊN lớp phủ**: thanh hoàn tác 60, vùng nổi 65, hộp lỗi `.lop-phu-loi` 70, *Bỏ qua* 100 >
+   lớp phủ 50 — và hộp lỗi của `BaoLoiProvider` là ANH EM của `App`, không phải con. **Bản đầu của chặng
+   này** chỉ giấu màn hình chính (`.nen-ung-dung`) và để hở đúng chỗ ấy. Giờ lớp phủ dựng bằng
+   `createPortal` thẳng vào `body` với `z-index` 1000 (ca kiểm đòi lớn hơn MỌI `z-index` khác), và khoá
+   MỌI anh em trong `body`: `inert` + `aria-hidden` + `.an-khi-het-phien`. Ca kiểm hỏi bằng CẤU TRÚC
+   (`conLo()`: phần tử nào ngoài lớp phủ không có tổ tiên bị khoá), không bằng danh sách lớp CSS.
+2. **Màn hình đổi mật khẩu bắt buộc** trả về sớm trong `App`, trước nhánh lớp phủ — giờ nằm trong nhánh.
+3. **Người KHÁC đăng nhập vào lớp phủ** thì thấy nguyên màn hình và bản nháp của người trước. Giờ
+   `<Fragment key={nguoiDung.id}>` dỡ cả cây, `luu()` xoá nháp `sessionStorage`, `App` về `/`.
+4. **Hai tab mở quá 15 phút là CẢ HAI bị đá ra** — lỗi có từ `0042`, không ai báo vì triệu chứng giống
+   hết phiên bình thường: mỗi tab giữ refresh token trong BIẾN riêng; tab A xoay vòng, tab B nộp lại token
+   đã tiêu, máy chủ đọc ra `REFRESH_REUSED` và thu hồi CẢ HỌ. `lamMoiToken` giờ đọc bản lưu trước
+   (`dangKyDocPhienLuu`); bản lưu mới hơn thì dùng nó, không gọi `/auth/refresh`.
+5. **Tab để không thì không bao giờ biết phiên đã chết** và bày màn hình vô thời hạn. Hỏi `/auth/me` lúc
+   `visibilitychange` · `focus` · mỗi 5 phút, tối đa một lượt mỗi 30 giây.
+
+**Nhiều tab — sự kiện `storage`**: xoá phiên ở tab kia có HAI nghĩa loại trừ nhau, và gộp làm một là hỏng
+một trong hai. *Đăng xuất có chủ ý* → về màn hình đăng nhập, bỏ nháp. *Dọn một phiên đã chết* (tab mới mở
+ra ăn 401 lúc khởi động) → bật lớp phủ, GIỮ nháp. Phân biệt bằng dấu `csbh:dang-xuat` mà `dangXuat` ghi
+TRƯỚC khi xoá. Ghi phiên mới khi tab này đang ở lớp phủ → tab kia vừa đăng nhập lại → nhận phiên, đóng lớp phủ.
+
+**Google ở ô đăng nhập lại = CỬA SỔ BẬT LÊN**, vì rời trang là mất bản nhập dở (lý do `0241` ẩn nút, vẫn
+đúng). Cửa sổ con đi `start?cua_so=<id>` → Google → callback → `/dang-nhap/google#ma=…&cua_so=<id>`, trao
+mã cho trang mẹ qua **`BroadcastChannel`** rồi tự đóng; trang mẹ nộp mã. Không dùng `window.opener`: đi qua
+nguồn của Google là trình duyệt được phép cắt `opener`. Kênh ấy MỌI tab cùng nghe, nên `id` ngẫu nhiên do
+trang mẹ sinh, chỉ nhận tin đúng `id`. Máy chủ giữ `id` trong cookie riêng `csbh_g_cua_so` chứ không trong
+state ở Redis — lượt callback **hỏng state** vẫn phải biết mình ở cửa sổ con để báo lỗi về mẹ thay vì dựng
+cả phần mềm trong cửa sổ nhỏ; lượt `start` thường **xoá** cookie ấy, nếu không lượt sau thừa hưởng chế độ
+cửa sổ con và tự đóng mình. Mọi lỗi ở lớp phủ hiện DƯỚI Ô — hộp lỗi giờ nằm dưới lớp phủ.
+
+**CUỘC ĐUA tự tạo ra rồi chặn**: cửa sổ con mở CHÍNH ứng dụng, nên `PhienProvider` của nó khởi động, đọc
+phiên chết, ăn 401, XOÁ phiên đã lưu — sự kiện `storage` sang mẹ, và có khi xoá đúng phiên MỚI mẹ vừa ghi.
+Có cả ở luồng thường của P271 (trang `/dang-nhap/google` khôi phục phiên cũ song song với lượt đổi mã).
+Trang ấy giờ **không khôi phục phiên**.
+
+**Giới hạn môi trường kiểm, đã ghi trong tệp**: `BroadcastChannel` của jsdom (là lớp của Node) **không
+chuyển được tin** — đo: `onmessage` không chạy, vitest báo lỗi chưa bắt; Node trần thì chuyển bình thường.
+Bộ kiểm dùng bản giả giữ ba tính chất mã dựa vào (bất đồng bộ · không giao cho chính mình · sao chép dữ
+liệu). Đường thật trên trình duyệt **chưa kiểm bằng máy** — nghiệm thu trên bản production chạy thử.
+
+**Ca kiểm**: `tests/web/het-phien.test.tsx` 35 ca — quét **mọi màn hình điều hướng của cả sáu vai trò cộng
+sáu màn hình chi tiết** (có ca đòi tập đã quét bằng `DIEU_HUONG`), phần tử ngoài `App` và gắn thẳng vào
+`body`, màn hình đổi mật khẩu, CSS, năm ca nhiều tab, tranh chấp xoay vòng, ba đường hỏi lại, cùng/khác
+người đăng nhập lại, lỗi mạng dưới ô, sáu ca Google cửa sổ con, hai ca trang cửa sổ con. Máy chủ thêm 4 ca
+(`google-login.test.ts`, 33). Ba ca cũ thay: khối `0242` bản đầu ở `khoi-dong-phien` (đo thiết kế đã bỏ),
+ca `0241` *"lớp phủ không có Google"* đảo chiều, ca FE-33 đổi sang `hidden: true`.
+
+**Phá lại 23 lượt, 23 đỏ — sau khi chữa ba ca kiểm yếu mà chính lượt phá tìm ra**: (a) gỡ `key` vẫn xanh
+vì ca đứng ở `/ho-so` và `di('/')` đã tự tháo màn hình — thêm ca đứng ở `/`; (b) gỡ lượt hỏi khi quay lại
+tab vẫn xanh vì `/ho-so` tự gọi lại báo cáo — ca giờ KHẲNG ĐỊNH tiền đề *"không lời gọi mới, chưa có lớp
+phủ"* trước khi bắn sự kiện; (c) sau (b) vẫn xanh, **có lý do**: chuông (`thong-bao.ts`, `0096`) cũng hỏi
+lại lúc quay lại tab — hai đường độc lập ở mọi màn hình có chuông; ca riêng ở màn hình đổi mật khẩu (không
+có chuông) canh đường của `auth.tsx`. Ca *"mất mạng"* bản đầu đỏ vì hộp lỗi do bản giả mạng của chính nó
+sinh ra ở màn hình phía sau — giờ so SỐ hộp lỗi trước/sau lượt bấm.
+
+**2673/2673 xanh.**

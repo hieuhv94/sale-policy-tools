@@ -79,12 +79,14 @@ describe('`0241` nút Đăng nhập bằng Google', () => {
     expect(nutGoogle()).toBeNull();
   });
 
-  it('KHÔNG hiện ở lớp phủ hết phiên, và lớp phủ không hỏi máy chủ', async () => {
-    const f = chanMang({ google: true });
+  it('`0242` ở lớp phủ hết phiên: là NÚT mở cửa sổ con, KHÔNG phải liên kết rời trang', async () => {
+    // Đảo ca `0241` (*"không hiện ở lớp phủ"*) theo chốt 05/11: lớp phủ cũng phải
+    // đăng nhập Google được. Ranh giới giữ nguyên lý do cũ — rời trang là mất bản
+    // nhập dở (FE-33) — nên không có thẻ `<a>` nào ở đây.
+    chanMang({ google: true });
     mo('/', <DangNhap lopPhu />);
-    await new Promise((r) => setTimeout(r, 20));
+    expect(await screen.findByRole('button', { name: /Đăng nhập bằng Google/ })).toBeTruthy();
     expect(nutGoogle()).toBeNull();
-    expect(f.mock.calls.some((c) => String(c[0]).includes('/auth/phuong-thuc'))).toBe(false);
   });
 });
 

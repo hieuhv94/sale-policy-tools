@@ -209,6 +209,14 @@ tác của Quản trị hệ thống.
   huỷ hiệu lực mọi liên kết cũ của người đó.
 - Mật khẩu mới tối thiểu 10 ký tự, có chữ và số.
 - Đổi mật khẩu thành công thì **thu hồi toàn bộ phiên đăng nhập đang mở** của người đó.
+- **Hết phiên giữa chừng thì che kín màn hình** `sửa 04/11` `sửa 05/11` — ô đăng nhập lại hiện trên một
+  nền đặc, **trên mọi lớp** (kể cả hộp lỗi, thông báo nổi) và ở **mọi màn hình** (kể cả màn hình đổi mật
+  khẩu bắt buộc); màn hình đang làm dở được GIỮ nhưng không nhìn thấy, không bấm, không Tab được.
+  Phiên đã chết thì dữ liệu nghiệp vụ không được bày ra cho người chưa xác nhận lại.
+  - Ô đăng nhập lại có **đăng nhập Google**, chạy trong **cửa sổ bật lên** để không rời trang.
+  - **Người khác** đăng nhập vào ô ấy thì màn hình và bản nháp của người trước bị **bỏ**, về Tổng quan.
+  - **Nhiều tab**: đăng xuất ở một tab là đăng xuất mọi tab; đăng nhập lại ở một tab thì ô ở các tab
+    kia tự đóng; tab để không thì hỏi lại máy chủ khi được mở lại và mỗi 5 phút.
 - Mọi bước ở trên vào nhật ký. Nhật ký ghi ai tạo, tạo lúc nào, gửi lại mấy lần — **không bao giờ ghi
   mật khẩu hay nội dung liên kết kích hoạt**.
 - **Đăng nhập bằng tài khoản Google** `mới 04/11` — màn hình đăng nhập có nút *Đăng nhập bằng
@@ -2934,6 +2942,19 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**HẾT PHIÊN THÌ CHE KÍN MÀN HÌNH** `sửa 04/11` — *"vẫn hiện ra phần đăng nhập nhưng không bao giờ show
+nội dung đằng sau khi hết hạn phiên"*. Lộ ra lúc chạy thử bản production: đổi mật khẩu bắt buộc thu
+hồi mọi phiên (kể cả phiên của chính người đổi), và ô đăng nhập lại nằm trên lớp mờ nên trang Tổng
+quan phía sau vẫn đọc được. Giữ luật *"đăng nhập lại không mất bản nhập dở"*, chỉ thôi bày nó ra.
+Việc đổi mật khẩu đưa thẳng về ô đăng nhập **giữ nguyên** theo câu trả lời ấy; đề xuất cấp phiên mới
+cho chính người vừa đổi (để khỏi đăng nhập lại) **chưa làm**.
+
+**HẾT PHIÊN Ở BẤT KỲ CỬA SỔ NÀO, VÀ GOOGLE Ở Ô ĐĂNG NHẬP LẠI** `sửa 05/11` — *"tạo và test hết các
+case mà người dùng bị hết hạn đăng nhập ở bất kỳ cửa sổ nào, khi hiện hộp thư đăng nhập không có bất
+cứ nội dung nào ở đằng sau, hộp thư đăng nhập cũng cần phải tích hợp OAuth 2.0 qua google login"*.
+Đảo một nửa `04/11` (ô đăng nhập lại không có Google): giữ lý do cũ — rời trang là mất bản nhập dở —
+bằng cách mở Google trong cửa sổ bật lên. Xem muc 2.8.
 
 **ĐĂNG NHẬP BẰNG GOOGLE** `mới 04/11` — *"đăng nhập qua tài khoản google, click vào biểu tượng
 đăng nhập bằng gmail, chọn gmail tương ứng để đăng nhập mà không cần nhập tay"*. Ba câu chốt khi hỏi:
