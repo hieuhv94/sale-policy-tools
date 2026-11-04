@@ -20653,3 +20653,26 @@ có chuông) canh đường của `auth.tsx`. Ca *"mất mạng"* bản đầu �
 sinh ra ở màn hình phía sau — giờ so SỐ hộp lỗi trước/sau lượt bấm.
 
 **2673/2673 xanh.**
+
+## P273 — `0243` Gateway chỉ chuyển cookie CUỐI của mỗi phản hồi
+
+Lộ ra ở lượt **đo lại trên chồng production chạy thử** ngay sau P272, không ở bộ kiểm: lượt `start` của
+Google ở cửa sổ bật lên đặt HAI cookie (`csbh_g_cua_so` + `csbh_g_state`), `identity` gửi đủ hai (đo bằng
+`curl` trong container), trình duyệt qua Caddy + gateway nhận MỘT. Vòng chép header của gateway (`0055`)
+gọi `res.setHeader(k, v)` cho từng dòng của `entries()`, và `entries()` trả mỗi `Set-Cookie` một dòng —
+dòng sau ĐÈ dòng trước. Có từ đầu, chưa cắn vì tới `0242` chưa đường nào đặt hai cookie trong một phản hồi.
+
+Hệ quả nếu để nguyên: cửa sổ con mất mã nhận diện, callback đi đường THƯỜNG, cửa sổ con tự nộp mã rồi dựng
+nguyên phần mềm trong cửa sổ nhỏ; trang mẹ vẫn được cứu NHỜ TÌNH CỜ (sự kiện `storage` của P272 nhận phiên
+mới và đóng lớp phủ). Đúng cái kiểu "vẫn chạy" che lỗi lâu nhất.
+
+Chữa: `Set-Cookie` bỏ khỏi vòng chép, đặt một lần bằng mảng `getSetCookie()`. KHÔNG gộp bằng dấu phẩy —
+`Expires=Wed, 04 Nov …` tự mang dấu phẩy. Ca kiểm `tests/http/gateway-cookie.test.ts` dựng máy phía sau
+giả trả hai cookie ngay sau một gateway THẬT, đòi hai cookie ra nguyên văn từng ký tự. **Phá lại**: vòng
+chép cũ → đỏ (`1` thay vì `2`).
+
+**Bài học lặp lại lần thứ ba** (`0055`, `0168`, giờ): mọi ca kiểm HTTP gọi thẳng service, nên mọi thứ
+gateway làm với PHẢN HỒI nằm ngoài tầm của chúng. Đụng tới header của một đường đi qua gateway thì phải
+đo trên chồng thật hoặc dựng gateway thật trong ca kiểm.
+
+**2674/2674 xanh.**

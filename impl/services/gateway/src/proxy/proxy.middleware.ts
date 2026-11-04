@@ -146,8 +146,19 @@ export class ProxyMiddleware implements NestMiddleware {
       // Không đè hai header gateway vừa đặt: `trace_id` phải là của chặng này,
       // và số phiên bản là của bản đang triển khai, không phải của từng service.
       if (k.toLowerCase() === TRACE_HEADER || k.toLowerCase() === 'x-app-version') continue;
+      if (k.toLowerCase() === 'set-cookie') continue;
       res.setHeader(k, v);
     }
+    /*
+     * `Set-Cookie` đi RIÊNG, cả mảng một lần (`0242`). `entries()` trả mỗi cookie
+     * một dòng, và `setHeader` từng dòng là dòng sau ĐÈ dòng trước — nên một phản
+     * hồi đặt hai cookie tới tay trình duyệt chỉ còn cookie cuối. Lộ ra khi đăng
+     * nhập Google ở cửa sổ bật lên (state + mã cửa sổ): bộ kiểm gọi thẳng
+     * identity nên không thấy, chỉ chồng thật qua gateway mới mất. Cũng không gộp
+     * bằng dấu phẩy: `Expires=Wed, 04 Nov …` tự có dấu phẩy.
+     */
+    const banh = upRes.headers.getSetCookie();
+    if (banh.length > 0) res.setHeader('set-cookie', banh);
     res.statusCode = upRes.status;
     res.end(buf);
   }

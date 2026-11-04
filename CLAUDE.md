@@ -99,7 +99,12 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P272** (`0242`): **hết phiên ở bất kỳ cửa sổ nào — che kín, nhiều tab, Google ở ô đăng
+Chặng gần nhất **P273** (`0243`): **gateway chỉ chuyển cookie CUỐI của mỗi phản hồi** — `setHeader` từng
+dòng `entries()` thì dòng `Set-Cookie` sau đè dòng trước; giờ đặt một lần bằng `getSetCookie()`. Lộ ra
+trên chồng production chạy thử (cửa sổ con Google mất cookie mã cửa sổ), không ở bộ kiểm — mọi ca HTTP gọi
+thẳng service. Ca `tests/http/gateway-cookie.test.ts` dựng gateway THẬT trước một máy giả. **2674/2674 xanh.**
+
+Trước đó **P272** (`0242`): **hết phiên ở bất kỳ cửa sổ nào — che kín, nhiều tab, Google ở ô đăng
 nhập lại**. Lớp phủ `LopPhuHetPhien` (`App.tsx`) dựng bằng `createPortal` thẳng vào `body`, `z-index` 1000
 (ca kiểm đòi lớn hơn MỌI `z-index`), và khoá MỌI anh em trong `body` bằng `inert` + `aria-hidden` +
 `.an-khi-het-phien` — hộp lỗi của `BaoLoiProvider` là anh em của `App`, không phải con. Màn hình đổi mật
