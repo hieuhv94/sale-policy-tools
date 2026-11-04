@@ -18,6 +18,25 @@ export { Mailer } from './infra/mailer.js';
 /** Bơm `idn.outbox` bằng tay trong test — cùng nếp với bốn service kia (`0091`). */
 export { IdentityOutbox } from './infra/outbox.relay.js';
 
+/** Đăng nhập Google (`0241`): bộ kiểm thay cấu hình và phần gọi ra Google. */
+export { GoogleClient } from './auth/google.client.js';
+export { CAU_HINH_GOOGLE, docCauHinhGoogle, type CauHinhGoogle } from './auth/google.config.js';
+export { kiemClaim, duongNoiBo } from './auth/google.service.js';
+
+/**
+ * Dựng app với vài provider bị thay — đường DUY NHẤT để một tệp kiểm bật đăng
+ * nhập Google mà không đụng tới tệp khác.
+ */
+export async function createTestAppWith(
+  thay: { provide: unknown; useValue: unknown }[],
+): Promise<INestApplication> {
+  let b = Test.createTestingModule({ imports: [AppModule] });
+  for (const t of thay) b = b.overrideProvider(t.provide).useValue(t.useValue);
+  const app = (await b.compile()).createNestApplication();
+  await app.init();
+  return app;
+}
+
 export async function createTestApp(): Promise<INestApplication> {
   const mod = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = mod.createNestApplication();

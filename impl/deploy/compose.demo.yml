@@ -89,6 +89,13 @@ services:
     <<: *node
     build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: identity } }
     healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3001/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      # Đăng nhập bằng Google (`0241`) — bỏ trống GOOGLE_CLIENT_ID là TẮT.
+      # Xem `docs/04-TRIEN-KHAI.md` mục *Đăng nhập bằng Google*.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_HOSTED_DOMAIN: ${GOOGLE_HOSTED_DOMAIN:-}
+      GOOGLE_CLIENT_SECRET_FILE: ${GOOGLE_CLIENT_SECRET_FILE:-}
 
   catalog:
     <<: *node

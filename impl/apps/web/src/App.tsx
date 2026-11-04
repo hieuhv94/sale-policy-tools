@@ -6,6 +6,7 @@ import { DangTai, Trong } from './components/Chung.js';
 import { DangNhap } from './pages/DangNhap.js';
 import { DoiMatKhau } from './pages/DoiMatKhau.js';
 import { DatLaiMatKhau, KichHoat } from './pages/DatMatKhau.js';
+import { DangNhapGoogle } from './pages/DangNhapGoogle.js';
 import { QuenMatKhau } from './pages/QuenMatKhau.js';
 import { NguoiDung } from './pages/NguoiDung.js';
 import { ThongBao } from './pages/ThongBao.js';
@@ -41,7 +42,7 @@ export function App() {
   }
 
   /*
-    Ba màn hình công khai phải đứng TRƯỚC lớp kiểm phiên.
+    Bốn màn hình công khai phải đứng TRƯỚC lớp kiểm phiên.
 
     Người nhận thư mời chưa có mật khẩu dùng được, và người quên mật khẩu thì
     theo định nghĩa là không đăng nhập được; đặt chúng xuống dưới
@@ -51,6 +52,8 @@ export function App() {
   if (duong === '/kich-hoat') return <KichHoat />;
   if (duong === '/dat-lai-mat-khau') return <DatLaiMatKhau />;
   if (duong === '/quen-mat-khau') return <QuenMatKhau />;
+  // Lượt quay về từ Google (`0241`) — chưa có phiên, nên cũng đứng trước lớp kiểm.
+  if (duong === '/dang-nhap/google') return <DangNhapGoogle />;
 
   if (!nguoiDung) return <DangNhap />;
   if (nguoiDung.mustChangePassword) return <DoiMatKhau />;

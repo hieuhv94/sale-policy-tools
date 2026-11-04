@@ -178,9 +178,13 @@ const splitOnce = (s: string, sep: string): [string, string | undefined] => {
   return i === -1 ? [s, undefined] : [s.slice(0, i), s.slice(i + 1)];
 };
 
-/** Hai đường tốn kém nhất của hệ, theo đúng chữ của SEC-07. */
+/** Hai đường tốn kém nhất của hệ, theo đúng chữ của SEC-07 — cộng hai cửa Google của đăng nhập. */
 function ruleFor(method: string, path: string): Rule | undefined {
   if (method === 'POST' && path === '/auth/login') return RULES.login;
+  // Đăng nhập Google (`0241`) đếm CHUNG xô với đăng nhập mật khẩu: cùng một câu
+  // hỏi (một IP thử vào bao nhiêu lần), và tách xô là nhân đôi trần cho kẻ dò.
+  if (method === 'POST' && path === '/auth/google/exchange') return RULES.login;
+  if (method === 'GET' && path === '/auth/google/callback') return RULES.login;
   if (method === 'POST' && path === '/reports/exports') return RULES.export;
   return undefined;
 }

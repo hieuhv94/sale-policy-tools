@@ -284,6 +284,39 @@ export const BANG_LOI: Record<string, Muc> = {
       'Phiên của bạn đã bị thu hồi vì lý do an toàn. Đăng nhập lại; ' +
       'nếu bạn không tự đăng xuất, hãy báo Quản trị hệ thống.',
   },
+  /*
+   * Đăng nhập bằng Google (`0241`). Bốn mã đầu tới màn hình đăng nhập qua
+   * `?loi=` của lượt chuyển hướng, nên chúng là lỗi của Ô — câu nằm dưới ô tên
+   * đăng nhập, cùng chỗ với sai mật khẩu. Một mã cho mọi nhánh hỏng của tài
+   * khoản (AUTH-02); nhật ký Quản trị đọc được lý do thật.
+   */
+  GOOGLE_LOGIN_FAILED: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau:
+      'Không đăng nhập được bằng tài khoản Google này. Tài khoản Google phải trùng ' +
+      'email đã được cấp trong phần mềm và đang hoạt động — liên hệ Quản trị hệ thống nếu cần.',
+  },
+  GOOGLE_LOGIN_CANCELLED: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau: 'Bạn đã huỷ đăng nhập bằng Google.',
+  },
+  GOOGLE_STATE_INVALID: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau: 'Phiên đăng nhập bằng Google đã hết hạn. Bấm lại nút Đăng nhập bằng Google.',
+  },
+  GOOGLE_LOGIN_DISABLED: {
+    dang: 'o-nhap',
+    truong: 'login',
+    cau: 'Đăng nhập bằng Google chưa được bật. Đăng nhập bằng tên và mật khẩu.',
+  },
+  // Mã một lần quá 60 giây hoặc đã dùng — trang `/dang-nhap/google` bày câu này.
+  GOOGLE_CODE_INVALID: {
+    dang: 'trang',
+    cau: 'Lượt đăng nhập bằng Google đã hết hạn. Quay lại màn hình đăng nhập và bấm lại.',
+  },
   // Bốn mã của ĐƯỜNG LIÊN KẾT đặt mật khẩu. Chúng là ngõ cụt của cả một trang,
   // không phải lỗi của một lần bấm — nên `trang`, và câu phải nói lối ra.
   TOKEN_INVALID: {

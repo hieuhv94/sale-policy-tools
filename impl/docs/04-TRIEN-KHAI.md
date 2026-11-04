@@ -304,6 +304,45 @@ Không có thư nào tới thì xem [05-VAN-HANH.md](05-VAN-HANH.md), mục *Th�
 
 ---
 
+### Đăng nhập bằng Google — **tuỳ chọn** `mới 04/11`
+
+Bỏ trống `GOOGLE_CLIENT_ID` là **tắt**: màn hình đăng nhập không bày nút Google, mọi
+thứ khác chạy như cũ. Muốn bật, làm ở [Google Cloud Console](https://console.cloud.google.com/)
+bằng tài khoản quản trị Google Workspace của Công ty:
+
+1. *APIs & Services → OAuth consent screen*: loại **Internal** (chỉ người trong
+   Workspace thấy được màn hình xin quyền), phạm vi `openid`, `email`, `profile`.
+2. *Credentials → Create credentials → OAuth client ID*, loại **Web application**.
+   **Authorized redirect URIs** khai **đúng nguyên văn**:
+   ```
+   https://<SITE_URL>/api/auth/google/callback
+   ```
+   Lệch một ký tự (thiếu `/api`, `http` thay `https`, dư dấu `/` cuối) thì Google
+   từ chối với `redirect_uri_mismatch` trước khi người dùng kịp chọn tài khoản.
+3. Chép client secret vào **file**, client id vào `.env`:
+   ```sh
+   printf '%s' '<client secret>' > secrets/google_client_secret.txt && chmod 600 secrets/google_client_secret.txt
+   ```
+   ```
+   GOOGLE_CLIENT_ID=<…>.apps.googleusercontent.com
+   GOOGLE_HOSTED_DOMAIN=nutricare.vn
+   GOOGLE_CLIENT_SECRET_FILE=/run/secrets/google_client_secret.txt
+   ```
+4. `./csbh nang-cap <thẻ hiện tại>` (hoặc khởi động lại `identity`) để nạp biến mới.
+
+| Biến | Nghĩa |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | Bật tính năng. Khai mà thiếu secret thì `identity` **không khởi động** |
+| `GOOGLE_HOSTED_DOMAIN` | Miền Workspace — tài khoản Google ngoài miền này bị **từ chối**. Bỏ trống là nhận mọi tài khoản Google, vẫn phải trùng email đã cấp |
+| `GOOGLE_CLIENT_SECRET_FILE` | File chứa client secret |
+
+- Chỉ tài khoản Google có **email trùng** một tài khoản Quản trị đã cấp mới vào
+  được; phần mềm **không tự tạo tài khoản**.
+- Máy chủ phải **ra được Internet** tới `oauth2.googleapis.com` (cổng 443) — lượt
+  đổi mã chạy từ `identity`, không từ trình duyệt.
+- **Không phải sửa CSP** của Caddy: trình duyệt chỉ *điều hướng* sang Google, không
+  tải script nào của Google.
+
 ## 5. Nạp dữ liệu ban đầu
 
 Hệ mới cài có **CSDL trống**, chỉ một tài khoản quản trị. Có hai đường, chọn theo
@@ -561,6 +600,8 @@ Ba việc còn lại phải biết:
       ngoài luồng duyệt nên không hồ sơ nào thuộc phạm vi của họ. Mục **Khách
       hàng** thì vẫn còn, vì đây là chỗ đổi TDV phụ trách.)*
 - [ ] Tạo một tài khoản thật, **nhận được thư mời**, kích hoạt được
+- [ ] *(Nếu bật Google)* Đăng xuất, bấm **Đăng nhập bằng Google**, chọn tài khoản
+      Workspace trùng email vừa tạo — vào thẳng trang Tổng quan
 - [ ] Lập một khách hàng **có đủ mã số thuế, chức danh người đại diện và số điện
       thoại** — thiếu một trường thì bước dưới dừng ở lượt gửi duyệt `sửa 27/08`
 - [ ] Chạy **hết một vòng mười bước** bằng tài khoản thật: TDV lập hồ sơ → gửi

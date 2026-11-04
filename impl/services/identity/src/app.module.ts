@@ -8,6 +8,9 @@ import { CustomerClient } from './infra/customer.client.js';
 import { CONFIG } from './infra/config.js';
 import { AuthService } from './auth/auth.service.js';
 import { AuthController } from './auth/auth.controller.js';
+import { GoogleService } from './auth/google.service.js';
+import { GoogleClient } from './auth/google.client.js';
+import { CAU_HINH_GOOGLE, docCauHinhGoogle } from './auth/google.config.js';
 import { UsersService } from './admin/users.service.js';
 import { UsersController } from './admin/users.controller.js';
 import { InternalController } from './internal/internal.controller.js';
@@ -57,6 +60,11 @@ class HealthController {
     CustomerClient,
     AuthService,
     UsersService,
+    // Đăng nhập Google (`0241`). Cấu hình là PROVIDER để bộ kiểm bật được tính
+    // năng mà không đặt biến môi trường cho cả lượt chạy.
+    { provide: CAU_HINH_GOOGLE, useFactory: () => docCauHinhGoogle() },
+    GoogleClient,
+    GoogleService,
     // Guard đăng ký ở phạm vi TOÀN CỤC: mặc định là chặn, mở ra phải khai báo
     // @Public() ngay tại route. Ngược lại — mặc định mở, nhớ thì mới chặn — là
     // cách quên một route rồi hở cả hệ thống.

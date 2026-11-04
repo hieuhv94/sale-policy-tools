@@ -1,5 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
+import { COOKIE_STATE, GoogleService, STATE_TTL_SEC } from './google.service.js';
 import {
   CurrentUser,
   oneOf,
@@ -13,7 +15,87 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly google: GoogleService,
+  ) {}
+
+  /**
+   * Những cách đăng nhập đang bật — màn hình đăng nhập hỏi để biết có bày nút
+   * Google hay không (`0241`). Bày nút khi tính năng tắt là một nút bấm vào lần
+   * nào cũng hỏng.
+   */
+  @Public()
+  @Get('phuong-thuc')
+  phuongThuc() {
+    return { google: this.google.bat };
+  }
+
+  /**
+   * Bắt đầu đăng nhập Google: 302 sang hộp chọn tài khoản của Google (`0241`).
+   *
+   * Trình duyệt tới đây bằng một LIÊN KẾT (điều hướng), không bằng `fetch` — nên
+   * trả lời là chuyển hướng chứ không phải JSON, và tính năng tắt cũng trả về
+   * màn hình đăng nhập kèm mã lỗi thay vì một trang 404 trơn.
+   */
+  @Public()
+  @Get('google/start')
+  async googleStart(@Query('next') next: unknown, @Res() res: Response): Promise<void> {
+    if (!this.google.bat) {
+      res.redirect(302, `${this.google.webBaseUrl}/?loi=GOOGLE_LOGIN_DISABLED`);
+      return;
+    }
+    const { state, url } = await this.google.batDau(next);
+    res.cookie(COOKIE_STATE, state, {
+      httpOnly: true,
+      secure: this.google.cookieSecure,
+      // `Lax` chứ không `Strict`: lượt quay về từ Google là một điều hướng
+      // XUYÊN TRANG, và `Strict` không gửi cookie ở đúng lượt ấy.
+      sameSite: 'lax',
+      // Đường dẫn trình duyệt nhìn thấy, tức có `/api` của Caddy phía trước.
+      path: '/api/auth/google',
+      maxAge: STATE_TTL_SEC * 1000,
+    });
+    res.redirect(302, url);
+  }
+
+  @Public()
+  @Get('google/callback')
+  async googleCallback(
+    @Query() q: Record<string, unknown>,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const s = (k: string) => (typeof q[k] === 'string' ? (q[k] as string) : undefined);
+    if (!this.google.bat) {
+      res.redirect(302, `${this.google.webBaseUrl}/?loi=GOOGLE_LOGIN_DISABLED`);
+      return;
+    }
+    const kq = await this.google.goiVe({
+      code: s('code'),
+      state: s('state'),
+      error: s('error'),
+      cookieState: docCookie(req.headers.cookie, COOKIE_STATE),
+    });
+    res.clearCookie(COOKIE_STATE, { path: '/api/auth/google' });
+    const base = this.google.webBaseUrl;
+    if (!kq.ok) {
+      res.redirect(302, `${base}/?loi=${encodeURIComponent(kq.code)}`);
+      return;
+    }
+    // FRAGMENT, không phải query: không vào log máy chủ, không đi theo Referer.
+    const f = new URLSearchParams({ ma: kq.ma, next: kq.next });
+    res.redirect(302, `${base}/dang-nhap/google#${f.toString()}`);
+  }
+
+  /** Nộp mã một lần — trả CÙNG hình dạng với `/auth/login`. */
+  @Public()
+  @Post('google/exchange')
+  @HttpCode(200)
+  googleExchange(@Body() body: unknown) {
+    const b = validate(body, { ma: str(1, 200) });
+    return this.google.doiMaMotLan(b.ma);
+  }
 
   @Public()
   @Post('login')
@@ -121,4 +203,21 @@ export class AuthController {
     const b = validate(body, { currentPassword: secret(1), newPassword: secret(1) });
     return this.auth.changePassword(u.id, b.currentPassword, b.newPassword);
   }
+}
+
+/** Đọc một cookie từ header — identity không cài `cookie-parser` cho đúng một chỗ dùng. */
+export function docCookie(header: string | undefined, ten: string): string | undefined {
+  if (!header) return undefined;
+  for (const phan of header.split(';')) {
+    const i = phan.indexOf('=');
+    if (i < 0) continue;
+    if (phan.slice(0, i).trim() === ten) {
+      try {
+        return decodeURIComponent(phan.slice(i + 1).trim());
+      } catch {
+        return undefined;
+      }
+    }
+  }
+  return undefined;
 }

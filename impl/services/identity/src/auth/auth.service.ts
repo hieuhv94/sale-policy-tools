@@ -114,6 +114,28 @@ export class AuthService {
       throw await hong('Sai mật khẩu');
     }
 
+    return this.hoanTatDangNhap(user);
+  }
+
+  /**
+   * Phát phiên sau đăng nhập Google (`0241`) — tài khoản đã được `GoogleService`
+   * ghép và kiểm. Đọc lại dòng ở đây vì lượt kích hoạt có thể vừa đổi nó.
+   */
+  async hoanTatDangNhapGoogle(userId: string) {
+    const user = await this.db.one<UserRow>(`SELECT * FROM idn.app_user WHERE id = $1`, [userId]);
+    // Giữa callback và exchange có tối đa 60 giây — đủ để Quản trị vô hiệu hoá.
+    if (!user || !user.is_active) {
+      throw new UnauthorizedException({ code: 'GOOGLE_CODE_INVALID' });
+    }
+    return this.hoanTatDangNhap(user, 'Đăng nhập bằng Google');
+  }
+
+  /**
+   * MỘT chỗ phát phiên cho mọi đường đăng nhập (`0241`): mật khẩu và Google trả
+   * về cùng một hình dạng, ghi cùng một sự kiện, xoá cùng bộ đếm sai. Hai bản
+   * chép là hai bản sẽ lệch — và chỗ lệch đầu tiên thường là nhật ký.
+   */
+  private async hoanTatDangNhap(user: UserRow, cach?: string) {
     await this.db.q(
       `UPDATE idn.app_user SET failed_attempts = 0, locked_until = NULL WHERE id = $1`,
       [user.id],
@@ -126,6 +148,7 @@ export class AuthService {
         userId: user.id,
         username: user.username,
         outcome: 'OK',
+        ...(cach ? { reason: cach } : {}),
         // Người thực hiện CHÍNH LÀ người vừa đăng nhập — ngữ cảnh chưa có ai vì
         // guard chưa chạy (đường này `@Public()`), nên phải nói ra ở đây.
         actorId: user.id,

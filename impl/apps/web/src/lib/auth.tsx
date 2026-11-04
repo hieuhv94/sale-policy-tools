@@ -45,6 +45,8 @@ type Phien = {
   hetHan: boolean;
   dangTai: boolean;
   dangNhap: (login: string, matKhau: string) => Promise<void>;
+  /** Nộp mã một lần của lượt đăng nhập Google (`0241`). */
+  dangNhapGoogle: (ma: string) => Promise<void>;
   dangXuat: () => void;
   capNhatNguoiDung: (n: Partial<NguoiDung>) => void;
 };
@@ -195,6 +197,20 @@ export function PhienProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /*
+   * Hai đường đăng nhập, MỘT chỗ lưu phiên: máy chủ trả cùng một hình dạng
+   * (`hoanTatDangNhap`, `0241`), nên ở đây cũng chỉ có một phép gộp.
+   */
+  const luuPhanHoi = useCallback(
+    (r: PhanHoiDangNhap) =>
+      luu({
+        accessToken: r.accessToken,
+        refreshToken: r.refreshToken,
+        user: { ...r.user, mustChangePassword: r.mustChangePassword },
+      }),
+    [luu],
+  );
+
   const dangNhap = useCallback(
     async (login: string, matKhau: string) => {
       const r = await goi<PhanHoiDangNhap>('/auth/login', {
@@ -202,13 +218,21 @@ export function PhienProvider({ children }: { children: ReactNode }) {
         body: { login, password: matKhau },
         congKhai: true,
       });
-      luu({
-        accessToken: r.accessToken,
-        refreshToken: r.refreshToken,
-        user: { ...r.user, mustChangePassword: r.mustChangePassword },
-      });
+      luuPhanHoi(r);
     },
-    [luu],
+    [luuPhanHoi],
+  );
+
+  const dangNhapGoogle = useCallback(
+    async (ma: string) => {
+      const r = await goi<PhanHoiDangNhap>('/auth/google/exchange', {
+        method: 'POST',
+        body: { ma },
+        congKhai: true,
+      });
+      luuPhanHoi(r);
+    },
+    [luuPhanHoi],
   );
 
   const dangXuat = useCallback(() => {
@@ -251,8 +275,8 @@ export function PhienProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const v = useMemo(
-    () => ({ nguoiDung, hetHan, dangTai, dangNhap, dangXuat, capNhatNguoiDung }),
-    [nguoiDung, hetHan, dangTai, dangNhap, dangXuat, capNhatNguoiDung],
+    () => ({ nguoiDung, hetHan, dangTai, dangNhap, dangNhapGoogle, dangXuat, capNhatNguoiDung }),
+    [nguoiDung, hetHan, dangTai, dangNhap, dangNhapGoogle, dangXuat, capNhatNguoiDung],
   );
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>;
 }

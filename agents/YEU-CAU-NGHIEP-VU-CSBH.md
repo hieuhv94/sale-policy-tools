@@ -211,6 +211,21 @@ tác của Quản trị hệ thống.
 - Đổi mật khẩu thành công thì **thu hồi toàn bộ phiên đăng nhập đang mở** của người đó.
 - Mọi bước ở trên vào nhật ký. Nhật ký ghi ai tạo, tạo lúc nào, gửi lại mấy lần — **không bao giờ ghi
   mật khẩu hay nội dung liên kết kích hoạt**.
+- **Đăng nhập bằng tài khoản Google** `mới 04/11` — màn hình đăng nhập có nút *Đăng nhập bằng
+  Google*; bấm vào thì Google hiện hộp **chọn tài khoản**, chọn xong là vào thẳng phần mềm, không gõ
+  tên hay mật khẩu. Ba luật:
+  - **Chỉ ghép với tài khoản đã có**, theo **email** — email của tài khoản Google phải trùng email
+    Quản trị đã cấp (không phân biệt hoa thường), và tài khoản phải đang hoạt động, không bị khoá
+    tạm. **Không tự tạo tài khoản**: luật *không tự đăng ký* ở đầu mục giữ nguyên.
+  - Chỉ nhận tài khoản thuộc **miền Google Workspace của Công ty** (khai lúc cài, `GOOGLE_HOSTED_DOMAIN`)
+    và có email **Google đã xác minh**.
+  - Tài khoản **chưa kích hoạt** đăng nhập Google được và **coi như kích hoạt** — Google vừa chứng minh
+    hộp thư ấy có thật, đúng thứ liên kết trong thư mời chứng minh — nên email cũng được tính là **đã
+    xác nhận**, và **liên kết trong thư mời bị thu hồi**. Người này không có mật khẩu; muốn có thì dùng
+    *Quên mật khẩu*.
+  - Mọi lượt hỏng (email không khớp, tài khoản vô hiệu hoá, ngoài miền…) báo **một câu chung**, cùng
+    lý do với đăng nhập mật khẩu; nhật ký ghi lý do thật. Không khai cấu hình Google lúc cài thì nút
+    **không hiện**.
 
 ### 2.9. Sửa tài khoản đã tạo `mới 12/08`
 
@@ -2919,6 +2934,16 @@ liên quan đến khách hàng"*.
 > trả. Bản ấy vẫn nằm trong lý do trả về và thư báo; *người đề nghị* không bị xoá vì nó không phải
 > thông tin khách hàng. An toàn nhờ `25/09`: mỗi khách chỉ một hồ sơ đang xử lý, còn CSBH đang hiệu
 > lực có ảnh chụp riêng nên không đổi theo.
+
+**ĐĂNG NHẬP BẰNG GOOGLE** `mới 04/11` — *"đăng nhập qua tài khoản google, click vào biểu tượng
+đăng nhập bằng gmail, chọn gmail tương ứng để đăng nhập mà không cần nhập tay"*. Ba câu chốt khi hỏi:
+**chỉ ghép email đã có** (không tự tạo tài khoản) · Công ty dùng **Google Workspace**, nên email trong
+phần mềm chính là tài khoản Google · tài khoản **chưa kích hoạt** vào được và **coi như kích hoạt**.
+Xem muc 2.8.
+
+> **Cái mất, đã nêu**: người chỉ đăng nhập bằng Google không có mật khẩu, nên khi Google hỏng (hoặc máy
+> chủ không ra được Internet) họ phải đi *Quên mật khẩu*. Lớp phủ *phiên đã hết hạn* **không** có nút
+> Google — rời trang là mất bản đang nhập dở — nên ở đó họ cũng cần mật khẩu.
 
 **YÊU CẦU CẬP NHẬT HOÃN SANG PHIÊN BẢN SAU** `sửa 24/10` — *"chức năng yêu cầu cập nhật CSBH khi giá
 sản phẩm hoặc chiết khấu thay đổi sẽ tạm để sang version sau… giữ nguyên toàn bộ những gì đang phát

@@ -29,6 +29,14 @@
  */
 
 :root {
+  /* Chữ "G" của nút Đăng nhập bằng Google (`0241`) — màu THƯƠNG HIỆU của Google,
+     theo hướng dẫn của họ, nên KHÔNG đổi theo giao diện tối: chữ "G" phải trông
+     như chữ "G" ở mọi nơi người dùng từng thấy nó. */
+  --mau-google-lam: #4285f4;
+  --mau-google-do: #ea4335;
+  --mau-google-vang: #fbbc05;
+  --mau-google-luc: #34a853;
+
   color-scheme: light;
 
   /* --- Thương hiệu ------------------------------------------------------- */

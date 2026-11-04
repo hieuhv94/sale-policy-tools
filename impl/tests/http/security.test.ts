@@ -262,6 +262,21 @@ describe('SEC-07 gọi liên tục endpoint đăng nhập và endpoint xuất fi
     expect(last.status).toBe(429);
   }, 60_000);
 
+  it('`0241` hai cửa của đăng nhập Google đếm CHUNG xô với đăng nhập mật khẩu', async () => {
+    // Tách xô là nhân đôi trần cho kẻ dò: đốt hết xô bằng mật khẩu sai, rồi
+    // cửa Google phải bị chặn ngay — không có hạn mức thứ hai nào để tiêu.
+    const ghost = { login: 'zztest-khong-ton-tai', password: 'sai-mat-khau' };
+    let last = await gpost('/auth/login', ghost);
+    for (let i = 0; i < RULES.login.limit + 2 && last.status !== 429; i++) {
+      last = await gpost('/auth/login', ghost);
+    }
+    expect(last.status).toBe(429);
+    const ex = await gpost('/auth/google/exchange', { ma: 'khong-co' });
+    expect(ex.status).toBe(429);
+    const cb = await gget('/auth/google/callback?code=x&state=y');
+    expect(cb.status).toBe(429);
+  }, 60_000);
+
   it('xuất file quá ngưỡng thì 429, và đếm theo NGƯỜI chứ không theo IP', async () => {
     let last = await gpost('/reports/exports', {}, 'tdv01');
     expect([202, 429]).toContain(last.status);
@@ -1176,6 +1191,7 @@ const KHONG_PHAI_GHI_NGHIEP_VU: Record<string, string> = {
   'POST /auth/activate': 'công khai — kích hoạt bằng token trong thư',
   'POST /auth/forgot-password': 'công khai',
   'POST /auth/reset-password': 'công khai — đặt lại bằng token trong thư',
+  'POST /auth/google/exchange': 'công khai — nộp mã một lần của lượt đăng nhập Google (`0241`)',
   'POST /notifications/:id/da-doc': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
   'POST /notifications/da-doc-het': 'đánh dấu đã đọc thông báo CỦA CHÍNH MÌNH',
 

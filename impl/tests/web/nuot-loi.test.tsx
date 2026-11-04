@@ -194,6 +194,7 @@ const NUOT_CO_LY_DO = [
   'apps/web/src/pages/LapHoSo.tsx', // tra khách theo id trên địa chỉ — rơi về bước tìm
   'apps/web/src/lib/thong-bao.ts', // đếm chưa đọc mỗi 60 giây — lượt sau tự chữa (`0096`)
   'apps/web/src/components/ChuongThongBao.tsx', // đánh dấu đã đọc — màn hình đang rời đi (`0096`)
+  'apps/web/src/pages/DangNhap.tsx', // hỏi có bật Google không — mất nút phụ, đường mật khẩu còn nguyên (`0241`)
 ];
 
 describe('`0089` không lọt một chỗ nuốt lỗi nào', () => {

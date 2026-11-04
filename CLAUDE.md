@@ -97,9 +97,19 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (24/10/2026)
+## Trạng thái hiện tại (04/11/2026)
 
-Chặng gần nhất **P270** (`0240`): **sao lưu/phục hồi diễn tập thật** trên chồng cô lập bằng ảnh
+Chặng gần nhất **P271** (`0241`): **đăng nhập bằng tài khoản Google** — Authorization Code + PKCE chạy ở
+MÁY CHỦ (`identity/src/auth/google.*.ts`), không thư viện JS nào nên CSP không đổi; trình duyệt chỉ
+điều hướng. `prompt=select_account` là hộp chọn tài khoản. **Chỉ ghép email đã có**, miền Workspace
+`GOOGLE_HOSTED_DOMAIN`, tài khoản chưa kích hoạt **coi như kích hoạt** (thu hồi thư mời, không đụng
+`password_hash`). State ở Redis + cookie (chống login-CSRF), mã một lần 60s ở FRAGMENT, `exchange` trả
+cùng hình dạng `/auth/login` qua `hoanTatDangNhap` — một chỗ phát phiên. Không khai `GOOGLE_CLIENT_ID` là
+TẮT; cấu hình là provider `CAU_HINH_GOOGLE` để bộ kiểm bật bằng `createTestAppWith`. Lớp phủ hết phiên
+KHÔNG có nút Google. **Chưa nghiệm thu với Google thật** (cần client id của Công ty, `04-TRIEN-KHAI` §4).
+**2634/2634 xanh.**
+
+Trước đó **P270** (`0240`): **sao lưu/phục hồi diễn tập thật** trên chồng cô lập bằng ảnh
 `ops-1.0.5`, bốn lỗ đã sửa: `restore.sh` **xoá CSDL đang chạy trước khi kiểm tệp** (giờ kiểm → nạp CSDL
 tạm → đổi tên, bản cũ GIỮ dưới `csbh_truoc_phuc_hoi_<giờ>`) · mốc dọn WAL **kẹt ở bản nền đầu tiên**
 (PG16 không xoá `.backup`; giờ đọc `backup_label`) · bản sao ngoài không dọn, không WAL, và WAL chép bằng

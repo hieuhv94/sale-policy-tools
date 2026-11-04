@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePhien } from '../lib/auth.js';
+import { goi, GOC_API } from '../lib/api.js';
+import { BANG_LOI } from '../lib/loi.js';
 import { useBaoLoi } from '../lib/bao-loi.js';
 import { useDuong } from '../lib/router.js';
 import { duongSauDangNhap } from '../lib/sau-dang-nhap.js';
@@ -22,6 +24,41 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
    */
   const [loiO, datLoiO] = useState<string | null>(null);
   const [dangGui, datDangGui] = useState(false);
+  const [coGoogle, datCoGoogle] = useState(false);
+
+  /*
+   * Nút Google chỉ hiện khi máy chủ nói tính năng đang bật (`0241`): bày nút khi
+   * chưa khai client id là một nút bấm vào lần nào cũng hỏng.
+   *
+   * Lượt hỏi hỏng thì IM LẶNG, cố ý (`0089`): nút Google là một lối PHỤ — mất nó
+   * thì đường mật khẩu ngay bên trên vẫn nguyên vẹn, còn một hộp thoại lỗi chen
+   * lên màn hình đăng nhập là báo hỏng cả phần mềm vì một nút bấm.
+   */
+  useEffect(() => {
+    if (lopPhu) return;
+    let conSong = true;
+    void goi<{ google?: unknown }>('/auth/phuong-thuc', { congKhai: true })
+      .then((r) => conSong && datCoGoogle(r?.google === true))
+      .catch(() => undefined);
+    return () => {
+      conSong = false;
+    };
+  }, [lopPhu]);
+
+  /*
+   * Lượt đăng nhập Google hỏng thì máy chủ chuyển hướng về đây kèm `?loi=<mã>`.
+   * Chỉ nhận mã `GOOGLE_*` CÓ TRONG BẢNG TRA — chữ trên thanh địa chỉ là thứ ai
+   * cũng gõ được, nên nó chỉ được CHỌN một câu đã viết sẵn, không bao giờ tự
+   * thành câu. Đọc xong thì gỡ khỏi địa chỉ, để tải lại trang không báo lại.
+   */
+  useEffect(() => {
+    if (lopPhu) return;
+    const ma = new URLSearchParams(window.location.search).get('loi');
+    if (!ma) return;
+    const muc = ma.startsWith('GOOGLE_') ? BANG_LOI[ma] : undefined;
+    if (muc?.cau) datLoiO(muc.cau);
+    window.history.replaceState(window.history.state, '', window.location.pathname);
+  }, [lopPhu]);
 
   const gui = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +160,28 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         </button>
 
         {/*
+          Đăng nhập bằng Google (`0241`) — một LIÊN KẾT, không phải nút gửi biểu
+          mẫu: trình duyệt phải ĐIỀU HƯỚNG sang hộp chọn tài khoản của Google
+          (CSP `form-action 'self'` chặn gửi biểu mẫu ra ngoài, và `fetch` thì
+          không mở được trang của Google). Ẩn ở lớp phủ hết phiên vì cùng lý do
+          với *Quên mật khẩu* ngay dưới: rời trang là mất bản nhập dở (`FE-33`).
+        */}
+        {!lopPhu && coGoogle && (
+          <>
+            <div className="dang-nhap-hoac" aria-hidden="true">
+              <span>hoặc</span>
+            </div>
+            <a
+              className="nut nut-google nut-rong"
+              href={`${GOC_API}/auth/google/start?next=${encodeURIComponent(window.location.pathname)}`}
+            >
+              <BieuTuongGoogle />
+              Đăng nhập bằng Google
+            </a>
+          </>
+        )}
+
+        {/*
           Ẩn khi đang là lớp phủ hết phiên: lúc đó người dùng ĐÃ có phiên và chỉ
           cần gõ lại mật khẩu. Đưa họ sang màn hình quên mật khẩu là dỡ mất cái
           màn hình đang giữ nguyên biểu mẫu họ nhập dở (`FE-33`).
@@ -134,5 +193,17 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         )}
       </form>
     </div>
+  );
+}
+
+/** Chữ "G" bốn màu theo hướng dẫn thương hiệu của Google — vẽ tại chỗ, không tải ảnh ngoài (CSP); màu ở `tokens.css` (FE-19). */
+function BieuTuongGoogle() {
+  return (
+    <svg className="bieu-tuong-google" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+      <path className="g-do" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path className="g-lam" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path className="g-vang" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path className="g-luc" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
   );
 }

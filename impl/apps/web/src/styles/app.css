@@ -2167,6 +2167,29 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .lien-phu:hover { text-decoration: underline; }
 .lien-phu:focus-visible { outline: none; box-shadow: var(--vong-tieu-diem); border-radius: var(--bo-goc); }
 
+/* Đăng nhập bằng Google (`0241`). Nút dùng CHÍNH `.nut` — nền thường, viền
+   đậm — đúng hướng dẫn của Google cho nút đăng nhập (nền trắng/tối trung tính,
+   chữ "G" bốn màu), và nó tự đổi theo giao diện tối như mọi nút khác. */
+.dang-nhap-hoac {
+  display: flex;
+  align-items: center;
+  gap: var(--k3);
+  margin: var(--k4) 0 var(--k3);
+  color: var(--mau-chu-phu);
+  font-size: var(--chu-nho);
+}
+.dang-nhap-hoac::before,
+.dang-nhap-hoac::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--mau-vien);
+}
+.bieu-tuong-google { flex: none; }
+.bieu-tuong-google .g-lam { fill: var(--mau-google-lam); }
+.bieu-tuong-google .g-do { fill: var(--mau-google-do); }
+.bieu-tuong-google .g-vang { fill: var(--mau-google-vang); }
+.bieu-tuong-google .g-luc { fill: var(--mau-google-luc); }
+
 .dang-nhap-dau h1 { margin-bottom: var(--k1); }
 .dang-nhap-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
 .logo-lon {

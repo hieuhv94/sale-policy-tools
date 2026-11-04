@@ -19,6 +19,25 @@ khẩu), và mỗi ô bật riêng.
   **liên kết cũ chết ngay** — luôn dùng thư mới nhất.
 - Sai mật khẩu **5 lần** thì tài khoản bị khoá tạm; liên hệ Quản trị hệ thống.
 
+### Đăng nhập bằng Google `mới 04/11`
+
+Dưới nút **Đăng nhập** có nút **Đăng nhập bằng Google** (chữ "G" bốn màu). Bấm vào, Google hiện hộp
+**chọn tài khoản** — chọn đúng tài khoản email công ty của bạn — rồi bạn vào thẳng phần mềm, không gõ
+tên hay mật khẩu. Hộp chọn luôn hiện, kể cả khi trình duyệt chỉ đăng nhập một tài khoản Google, để
+trên máy dùng chung bạn không vào nhầm tài khoản người khác.
+
+- Tài khoản Google phải có **email trùng email Quản trị đã cấp cho bạn** trong phần mềm, và thuộc
+  miền email của Công ty. Gmail cá nhân, hoặc email chưa được cấp tài khoản, **không vào được** — phần
+  mềm không tự tạo tài khoản. Khi đó màn hình báo *"Không đăng nhập được bằng tài khoản Google
+  này…"*; liên hệ Quản trị hệ thống.
+- **Tài khoản mới**: không cần bấm liên kết trong thư mời — đăng nhập bằng Google lần đầu là tài khoản
+  được kích hoạt luôn, và liên kết trong thư mời thôi dùng được. Lúc đó bạn **chưa có mật khẩu**; muốn
+  có (để đăng nhập khi không dùng được Google) thì bấm **Quên mật khẩu?**.
+- Tài khoản bị khoá tạm hay bị vô hiệu hoá thì đăng nhập Google cũng bị chặn, như đăng nhập mật khẩu.
+- Ô đăng nhập lại khi **hết phiên** chỉ nhận mật khẩu, không có nút Google: bấm nút ấy là rời trang,
+  và mất mọi thứ bạn đang nhập dở.
+- Không thấy nút Google nghĩa là tính năng chưa được bật trên máy chủ của bạn.
+
 ### Bao lâu phải đăng nhập lại
 
 **Không phải đăng nhập lại chừng nào không có gì thay đổi.** Phiên được gia hạn mỗi lần bạn dùng phần

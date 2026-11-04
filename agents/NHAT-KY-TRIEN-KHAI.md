@@ -20499,3 +20499,86 @@ cảnh báo `pg_stat_archiver` + tuổi bản sao lưu · cụm dựng lại tr�
 sửa **tới tay khách chỉ khi đóng gói bản mới** (`1.0.6`) — `VERSION` chưa đổi.
 
 **2595/2595 xanh** (`make test` đầy đủ).
+
+## P271 — `0241` Đăng nhập bằng tài khoản Google
+
+Yêu cầu: *"click vào biểu tượng đăng nhập bằng gmail, chọn gmail tương ứng để đăng nhập mà không cần
+nhập tay"*. Chốt khi hỏi (04/11): **chỉ ghép email đã có** (không tự tạo tài khoản — luật `0004`) ·
+Công ty dùng **Google Workspace** · tài khoản **chưa kích hoạt** vào được và **coi như kích hoạt**.
+
+**Không dùng thư viện JS của Google, và đó là ràng buộc chứ không phải sở thích**: CSP của Caddy là
+`script-src 'self'` · `form-action 'self'`. Luồng là Authorization Code + PKCE **chạy ở máy chủ**; trình
+duyệt chỉ ĐIỀU HƯỚNG (một thẻ `<a>`, không phải `<form>`) — điều hướng cấp trên cùng không chịu CSP, nên
+**CSP không đổi một chữ**. Gateway đã proxy `redirect: 'manual'` nên 302 đi qua nguyên vẹn; cookie
+request và `Set-Cookie` cũng đi qua (đã đọc vòng chép header).
+
+`start` → state · nonce · verifier ở Redis 10 phút + cookie `csbh_g_state` (HttpOnly, `SameSite=Lax` —
+`Strict` không gửi cookie ở lượt quay về XUYÊN TRANG từ Google — `Path=/api/auth/google`, đường dẫn trình
+duyệt thấy chứ không phải đường identity thấy) → Google với `prompt=select_account` (đây CHÍNH LÀ "chọn
+gmail tương ứng"; không có nó thì trình duyệt chỉ đăng nhập một tài khoản sẽ vào thẳng, và trên máy dùng
+chung là vào nhầm người). `callback` → cookie phải khớp state (thiếu là **login-CSRF**: kẻ xấu đăng nhập
+Google bằng tài khoản CỦA HỌ rồi lừa nạn nhân mở callback) · `GETDEL` state · đổi mã lấy `id_token` · kiểm
+claim · ghép email · **mã một lần** 60 giây ở FRAGMENT `/dang-nhap/google#ma=…` → `exchange` trả CÙNG hình
+dạng `/auth/login`. **Token không bao giờ nằm trên URL.**
+
+**Không kiểm chữ ký `id_token`, có chủ ý**: token tới thẳng từ endpoint token của Google qua TLS, trong
+lượt gọi do máy chủ mở, kèm client secret — OIDC Core 3.1.3.7 cho phép đúng tình huống này. Kiểm chữ ký là
+tải và giữ JWKS, một phụ thuộc mạng thứ hai không thêm được gì. **Ranh giới**: luồng này không bao giờ
+nhận token từ TRÌNH DUYỆT; ai thêm đường như thế (ví dụ nút One Tap) thì phải kiểm chữ ký. Claim vẫn
+kiểm đủ: `iss` (hai dạng Google công bố) · `aud` (cả dạng mảng) · `exp` · `nonce` · `email_verified ===
+true` (**boolean thật** — chuỗi `"true"` bị từ chối) · `hd`. `hd` trên URL `start` chỉ là GỢI Ý cho hộp
+chọn của Google; phép CHẶN thật là ở `kiemClaim`.
+
+**Một chỗ phát phiên**: đuôi của `login()` (xoá bộ đếm sai, xoá cache, `LOGIN_OK`, `issue`, dựng phản hồi)
+tách thành `hoanTatDangNhap(user, cach)`; Google ghi `reason: 'Đăng nhập bằng Google'`. Ca kiểm đòi khoá
+phản hồi của hai đường **bằng nhau**. `exchange` đọc lại dòng và từ chối nếu vừa bị vô hiệu hoá — khe 60
+giây giữa callback và exchange là có thật.
+
+**Kích hoạt bằng Google KHÔNG đụng `password_hash`** — kế hoạch ban đầu định thay nó bằng băm ngẫu nhiên
+để *"vô hiệu mật khẩu mặc định"*, đọc mã ra thì **không còn mật khẩu mặc định nào từ `sửa 12/08`**
+(`matKhauKhoa`). Chỉ đặt `activated_at` · `email_verified_at` · `must_change_password = false`, và **thu
+hồi** token `ACTIVATE` còn treo (một đường vào nằm lại trong hộp thư). Hệ quả đã ghi ở YCNV: người chỉ
+dùng Google không có mật khẩu, và lớp phủ hết phiên không có nút Google (rời trang là mất bản nhập dở,
+`FE-33`) — họ cần *Quên mật khẩu*.
+
+Mọi nhánh hỏng của tài khoản → **một** mã `GOOGLE_LOGIN_FAILED` (AUTH-02), nhật ký ghi lý do thật (`0091`).
+Lỗi về giao diện qua `/?loi=<mã>`; màn hình đăng nhập **chỉ nhận mã `GOOGLE_*` có trong bảng tra** — chữ
+trên thanh địa chỉ ai cũng gõ được, nên nó chỉ được CHỌN một câu đã viết sẵn. `next` lọc ở máy chủ
+(`duongNoiBo`: `//evil` bắt đầu bằng `/` mà là máy chủ khác). Gateway: `exchange` + `callback` đếm
+**CHUNG xô** với `/auth/login` — tách xô là nhân đôi trần cho kẻ dò.
+
+**Cấu hình là PROVIDER** (`CAU_HINH_GOOGLE`), không phải hằng cấp mô-đun như `CONFIG`: bộ kiểm bật tính
+năng bằng `createTestAppWith([...])` mà không đặt biến môi trường cho cả lượt chạy. Khai client id mà
+thiếu secret → `identity` **không khởi động**. **Bẫy suýt dính**: `env.mau` khai sẵn
+`GOOGLE_CLIENT_SECRET_FILE`, nên đọc tệp vô điều kiện là mọi máy CHƯA bật Google chết ở `ENOENT` lúc khởi
+động — tệp chỉ đọc khi có client id, có ca kiểm. **Bẫy bộ quét `loi.test`**: `code: x ? 'A' : 'B'` không
+khớp `code: '…'`, nên `GOOGLE_LOGIN_CANCELLED` bị báo là *"mã đã biến mất khỏi máy chủ"* — viết tường minh.
+
+**Ca kiểm**: `tests/http/google-login.test.ts` 29 ca — `GoogleClient` thay bằng bản giả, **cộng hai ca
+chạy chính `GoogleClient` vào máy HTTP giả cục bộ** (đúng sáu tham số form, ném khi Google trả lỗi hoặc
+thiếu `id_token`) để bản giả không trôi; `tests/web/dang-nhap-google.test.tsx` 9 ca; SEC-07 thêm ca *chung
+xô*; SEC-13 khai `POST /auth/google/exchange` là đường công khai.
+
+**Phá lại mười lăm lượt**: bỏ đối chiếu cookie · state đọc không xoá · bỏ `prompt` · bỏ `email_verified` (2
+đỏ) · bỏ `hd` (2 đỏ) · bỏ nonce · không kích hoạt · bỏ chặn khoá tạm · mã một lần đọc không xoá · exchange
+bỏ kiểm `is_active` · bỏ chặn `//` · gateway bỏ xô exchange · `?loi=` nhận mọi mã — **đều đỏ đúng ca**.
+**Một lượt XANH có lý do**: gỡ `!lopPhu` khỏi chỗ vẽ nút vẫn xanh, vì `useEffect` của lớp phủ không hỏi
+`/auth/phuong-thuc` nên `coGoogle` không bao giờ bật — hai chốt cho một luật; gỡ CẢ HAI thì đỏ.
+
+**Dựng trên chồng demo thật** (client id giả, secret giả — đo đoạn bộ kiểm không phủ được, vì bộ kiểm gọi
+thẳng identity): `/api/auth/phuong-thuc` → `{"google":true}` · `start` → **302** tới
+`accounts.google.com/o/oauth2/v2/auth` với `redirect_uri=http://localhost:8080/api/auth/google/callback`,
+`prompt=select_account`, `S256`, `hd=nutricare.vn`, và `Set-Cookie: csbh_g_state=…; Max-Age=600;
+Path=/api/auth/google; HttpOnly; SameSite=Lax` **đi qua Caddy + gateway nguyên vẹn** · callback không cookie
+→ `/?loi=GOOGLE_STATE_INVALID` · huỷ → `/?loi=GOOGLE_LOGIN_CANCELLED` kèm lượt xoá cookie · exchange mã lạ →
+`GOOGLE_CODE_INVALID` · `/dang-nhap/google` → 200.
+
+**Lượt `make test` đầu: 2633/2634** — FE-19 đỏ vì bốn màu chữ "G" viết thẳng trong SVG. Màu thương hiệu của
+Google vẫn là MÀU, nên vào `tokens.css` (`--mau-google-*`, không đổi theo giao diện tối, có ghi lý do) và tô
+bằng lớp CSS: thuộc tính `fill="…"` của SVG **không nhận `var()`**, chỉ thuộc tính CSS `fill` mới nhận.
+
+**CHƯA làm, đã nêu**: **nghiệm thu với Google THẬT** — cần client id của Công ty (Google Cloud Console,
+redirect URI `<SITE_URL>/api/auth/google/callback`, consent screen *Internal*); `04-TRIEN-KHAI` có mục
+riêng. Tới tay khách cần đóng gói bản mới — `VERSION` chưa đổi.
+
+**2634/2634 xanh.**

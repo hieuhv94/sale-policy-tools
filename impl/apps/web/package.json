@@ -25,6 +25,7 @@
     "./auth": "./src/lib/auth.tsx",
     "./router": "./src/lib/router.tsx",
     "./sau-dang-nhap": "./src/lib/sau-dang-nhap.ts",
+    "./dang-nhap": "./src/pages/DangNhap.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./bang-cot": "./src/lib/bang-cot.ts",
