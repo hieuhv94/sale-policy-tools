@@ -19,6 +19,20 @@ Mọi lệnh chạy từ thư mục bộ cài (`/opt/csbh` hoặc nơi bạn gi�
 Hệ khoẻ thì `trang-thai` cho mọi service `running (healthy)`, trừ `ops` — nó
 chạy migration rồi thoát, và `Exited (0)` là đúng.
 
+**Tệp log** (`sửa 05/11`). `./csbh log` chỉ thấy phần Docker còn giữ (tối đa
+500MB mỗi container) và **mất khi container bị dựng lại**. Mười service còn ghi
+song song ra tệp, sống qua mọi lần dựng lại:
+
+```sh
+ls logs/dang-ghi/                       # <service>-<YYYY-MM-DD>.log, ngày giờ VN
+grep '"muc":"error"' logs/dang-ghi/policy-2026-11-05.log
+grep 'tra1234cuu' logs/dang-ghi/*.log   # mọi dòng của MỘT request, mọi service
+```
+
+Mỗi dòng là một JSON: `t` (giờ UTC), `muc`, `service`, `traceId`, `nguoiDung`,
+`msg`, và `stack` với lỗi. `traceId` là mã trả về trong header `x-trace-id` của
+phản hồi — có nó thì tra ra đúng vết ngăn xếp của lỗi người dùng vừa gặp.
+
 ---
 
 ## 2. Lịch tự động — bắt buộc cài
@@ -392,6 +406,7 @@ email trỏ đúng địa chỉ ấy. Cấu hình cũ cất trong tệp `.thu-ng
 | Tệp đính kèm, bản mềm, mẫu văn bản | volume `miniodata` | hồ sơ còn, file mở ra báo lỗi có tên — trừ phần đã `sao-luu-tep` |
 | WAL archive | volume `pgarchive` | RPO tụt từ 5 phút về 24 giờ |
 | Bản sao lưu | `backup-mirror/` và volume `pgbackup` | không phục hồi được |
+| Tệp log của mười service | `logs/` (`CSBH_LOG_DIR`) | mất dấu vết tra lỗi; hệ vẫn chạy |
 | Chứng chỉ TLS | volume `caddy_data` | Caddy xin lại; Let's Encrypt có hạn mức theo tuần |
 | Bí mật | `secrets/` | **không dựng lại được** — mất khoá JWT là mọi phiên chết, mất mật khẩu Postgres là không mở được CSDL |
 

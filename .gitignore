@@ -29,6 +29,8 @@ workspace/
 # trong thông báo lỗi, nên nó là dữ liệu cá nhân — không vào git, không rời máy
 # chủ ngoài đường sao lưu đã duyệt.
 logarchive/
+# Thư mục tệp log của mười service (`0249`), cùng lý do.
+logs/
 
 # Phụ thuộc và sản phẩm build
 node_modules/

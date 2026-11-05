@@ -16,3 +16,4 @@ export * from './secrets.js';
 export * from './request-context.js';
 export * from './trace.middleware.js';
 export * from './ten-tep-tai-ve.js';
+export * from './nhat-ky-tep.js';

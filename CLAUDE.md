@@ -97,9 +97,19 @@ Người dùng đưa một phản hồi, thường bằng lời khách hàng. M�
 Nghi ngờ một lỗi thì **dựng lại trên chồng demo thật** và dán con số đo được vào nhật ký, đừng mô tả
 suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
-## Trạng thái hiện tại (05/11/2026)
+## Trạng thái hiện tại (06/11/2026)
 
-Chặng gần nhất **P279** (`0248`): **mọi ảnh bên ngoài ghim `thẻ-phiên-bản@sha256:…`** — Postgres 16.15,
+Đang làm **trang Vận hành** cho Quản trị — kế hoạch + quyết định đã chốt ở `agents/KE-HOACH-VAN-HANH.md`, mockup
+đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
+dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
+
+Chặng gần nhất **P280** (`0249`, chặng A): **mỗi service ghi tệp log riêng** — `LoggerTep` ở `http-kit`,
+`<CSBH_LOG_DIR>/dang-ghi/<service>-<ngày VN>.log`, mỗi dòng JSON mang `traceId`; bind mount từ máy chủ nên sống qua
+mọi lần dựng lại container. Lỗi 500 tự mang `traceId` + stack qua `ExceptionsHandler` của Nest. **2749/2749 xanh.**
+Kế tiếp: chặng B (nén log + giữ N, sao lưu theo lịch cấu hình được — **bỏ bản nền + WAL**, tác tử máy chủ, service
+`van-hanh`), chặng C (giao diện).
+
+Trước đó **P279** (`0248`): **mọi ảnh bên ngoài ghim `thẻ-phiên-bản@sha256:…`** — Postgres 16.15,
 Redis 7.4.10, RabbitMQ 3.13.7, Gotenberg 8.34.0, Mailpit 1.20.7, Caddy 2.8.4, Node 22.9.0, cloudflared
 2026.8.2, MinIO (gốc cho dev, nhân bản cho prod — HAI digest khác nhau, đừng chép lẫn). Ghim ĐÚNG bản đã qua
 bộ kiểm; dựng thật: image id sáu container hạ tầng không đổi. `tests/http/ghim-anh.test.ts` quét mọi compose

@@ -59,8 +59,12 @@ x-node: &node
     # Địa chỉ trong liên kết của email. Trỏ về Caddy, không phải về gateway.
     APP_BASE_URL: ${DEMO_URL:-http://localhost:8080}
     WEB_BASE_URL: ${DEMO_URL:-http://localhost:8080}
+    CSBH_LOG_DIR: /var/log/csbh
   volumes:
     - ./secrets:/run/secrets:ro
+    # Tệp log của từng service (`0249`) — `logs/` ở gốc repo, NGOÀI `workspace/`
+    # cùng lý do với `logarchive/` (`make clean` xoá sạch `workspace/`).
+    - ${CSBH_LOG_DIR:-../../logs}:/var/log/csbh
   networks: [ internal ]
 
 services:

@@ -20894,3 +20894,38 @@ cấu hình container mang tham chiếu ghim, web 200.
 `len` đầu sau khi chép compose mới thay container bằng bản ghim (cùng major, dữ liệu giữ).
 
 **2727/2727 xanh.**
+
+## P280 — `0249` Mỗi service một tệp log, sống qua mọi lần dựng lại container
+
+Chặng A của trang **Vận hành** (kế hoạch ở `agents/KE-HOACH-VAN-HANH.md`, mockup đã duyệt 05/11). Đo trước khi
+làm: mười service chỉ in stdout; Docker giữ cửa sổ 500MB mỗi container và **xoá sạch khi container dựng lại** —
+mỗi lần `nang-cap` là mất log của mọi lỗi trước đó; production không có đường nào lưu lâu (`luu-log` chỉ có ở
+`make`); và stdout **không mang `trace_id`**, nên mã tra cứu người dùng đọc được không nối tới được vết ngăn xếp.
+
+**`LoggerTep`** (`packages/http-kit/src/nhat-ky-tep.ts`) kế thừa `ConsoleLogger` — stdout y như cũ — và ghi thêm
+`<CSBH_LOG_DIR>/dang-ghi/<service>-<YYYY-MM-DD>.log`, mỗi dòng một JSON có `traceId` + `nguoiDung` lấy từ
+`currentContext()`. Ba quyết định:
+
+- **Tên tệp mang NGÀY VN, không xoay vòng bằng đổi tên** — sang ngày thì dòng sau tự rơi vào tệp mới, không có
+  khoảnh khắc hai tiến trình tranh đổi tên. `ngayVN()` nhận thêm tham số ngày (mặc định `new Date()`, người gọi cũ
+  không đổi) thay vì chép một bản `Intl.DateTimeFormat` thứ hai.
+- **`appendFileSync` mỗi dòng, không giữ luồng mở** — lượt nén (chặng B) sẽ dời tệp đi; một luồng đang mở sẽ ghi
+  tiếp vào inode đã dời và log biến mất không dấu vết.
+- **Ghi hỏng không làm sập service**: báo stderr MỘT lần, ghi được lại thì xoá cờ để lần hỏng sau còn được báo.
+
+Lỗi 500 không lường trước **không cần filter riêng**: `ExceptionsHandler` mặc định của Nest gọi
+`logger.error(message, stack)` và chạy BÊN TRONG chuỗi `await` của request, nên dòng ấy mang đúng `traceId` mà
+header phản hồi trả về — ca kiểm dựng một app Nest thật để khẳng định điều này chứ không tin.
+
+Compose (prod + demo): `CSBH_LOG_DIR: /var/log/csbh` **và** bind mount `${CSBH_LOG_DIR:-../logs}` trong `x-node`
+— hai thứ phải đi cùng (có biến mà không gắn thì tệp nằm TRONG container và chết theo nó). Demo ghi vào `logs/` ở
+gốc repo, NGOÀI `workspace/` (lý do của `logarchive/`), thêm vào `.gitignore`. Tệp do root trong container tạo
+(`-rw-r--r-- root`) — người vận hành đọc được, muốn xoá bằng tay phải `sudo`; xoá trên web (chặng B) chạy trong
+container nên không vướng.
+
+**22 ca** `tests/http/nhat-ky-tep.test.ts`. Phá lại năm lượt (bỏ `traceId` · ngày theo UTC · không tự lành · bỏ
+chỗ gắn ở prod · chép nhầm tên service ở `reporting/main.ts`) — **lượt "không tự lành" XANH ở lần đầu**: tên ca
+hứa *"rồi tự lành"* mà thân ca không kiểm vế ấy; thêm hai bước (sửa xong → ghi được; hỏng lại → báo lần hai), phá
+lại thì đỏ. **Dựng thật** `make demo`: mười tệp `*-2026-11-06.log` lúc UTC còn là 17:10 ngày 05 (ngày VN đúng).
+
+**2749/2749 xanh.**

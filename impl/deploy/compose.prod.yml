@@ -86,6 +86,8 @@ x-node: &node
     # đẹp, nhưng liên kết trong đó không dẫn tới đâu.
     APP_BASE_URL: ${SITE_URL:?thiếu SITE_URL}
     WEB_BASE_URL: ${SITE_URL}
+    # Đường dẫn TRONG container; thư mục máy chủ khai ở `volumes` bên dưới.
+    CSBH_LOG_DIR: /var/log/csbh
   volumes:
     # `../secrets`, KHÔNG phải `./secrets`.
     #
@@ -96,6 +98,10 @@ x-node: &node
     # service cùng chết với `ENOENT /run/secrets/role_password.txt`, một câu
     # không nhắc gì tới đường dẫn tương đối. Đã dính đúng lỗi này lúc chạy thử.
     - ../secrets:/run/secrets:ro
+    # Tệp log của từng service (`0249`). Gắn từ MÁY CHỦ chứ không phải volume
+    # Docker: log phải sống qua mọi lần dựng lại container — lý do duy nhất nó tồn
+    # tại — và người vận hành SSH vào phải đọc được bằng `less`.
+    - ${CSBH_LOG_DIR:-../logs}:/var/log/csbh
   networks: [ internal ]
 
 services:

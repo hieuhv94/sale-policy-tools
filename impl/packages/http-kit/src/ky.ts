@@ -31,13 +31,13 @@ import { BadRequestException } from '@nestjs/common';
  * `0180` đưa nó lên đây khi ngày áp dụng chuyển xuống từng dòng sản phẩm: từ đó
  * `policy` hỏi câu này ở ba đường ghi, và bộ kiểm hỏi lại để đối chiếu.
  */
-export const ngayVN = (): string =>
+export const ngayVN = (d: Date = new Date()): string =>
   new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Ho_Chi_Minh',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date());
+  }).format(d);
 
 export type Ky = 'tuan' | 'thang' | 'quy' | 'nam';
 
