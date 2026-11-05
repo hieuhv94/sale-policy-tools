@@ -20748,3 +20748,63 @@ và `csbh-keo-anh.test.ts` (dữ liệu giả) là GHI CHÉP về chính bản �
 Chưa đẩy lên registry: `make day-anh` cần `docker login` và đẩy là việc ra ngoài — chờ lệnh.
 
 **2684/2684 xanh.**
+
+## P277 — `0246` Chuyển máy không mất gì: sao lưu kho tệp, xuất/nhập, tự đối chiếu
+
+Câu hỏi (05/11): *"backup/restore có đảm bảo không mất dữ liệu, migrate sang máy khác thì người dùng và
+hệ thống không có bất kỳ thay đổi nào"*. Đo ra là **chưa**: kho tệp MinIO **không sao lưu** (bản scan đã
+ký, bản mềm, giấy tờ, văn bản mẫu), `secrets/` chép tay, sự kiện còn trong outbox/RabbitMQ mất khi chuyển
+giữa chừng, và **`logarchive`** — nơi `luu-audit` trích nhật ký kiểm toán trước khi dọn khỏi CSDL — là dữ
+liệu sống NGOÀI cả CSDL lẫn kho tệp, không đường nào mang theo. Chốt khi hỏi: bí mật đi **gói riêng, mã
+hoá**; sao lưu kho tệp là **lệnh có sẵn, chưa gắn cron**.
+
+**Lõi của chặng là một BẢNG KÊ dựng được ở cả hai đầu** (`scripts/chuyen-may.sh ban-ke`): mỗi bảng của
+mọi schema → số dòng + md5 nội dung; mỗi sequence → giá trị hiện tại (mã hồ sơ đề xuất đọc từ đó); mỗi
+tệp → sha256; mọi `object_key` trong CSDL mà kho không có. Lệnh nhập dựng lại bảng kê trên máy mới — tệp
+đọc lại bằng cách TẢI XUỐNG từ chính MinIO của máy mới, vì câu hỏi là *"máy mới phục vụ đúng nội dung
+ấy không"* — và **đối chiếu TRƯỚC khi bật phần mềm**: service vừa lên là có việc ghi (`sla-worker`,
+`document` nạp mẫu mặc định), so sau đó thì lệch thật lẫn lệch do lượt bật không tách được.
+
+**Ba lỗi của bản đầu, bắt được nhờ ca kiểm trên Postgres thật:**
+1. Đặt múi giờ bằng `PGOPTIONS='-c TimeZone=UTC'` — **THUA biến `PGTZ`** (libpq gửi nó thành một tham số
+   khởi động riêng, đè lên `options`); `t::text` của `timestamptz` in theo múi giờ phiên nên hai máy hai
+   múi giờ là hai md5 cho cùng dữ liệu. Giờ `SET` tường minh ngay trong phiên (kèm `DateStyle`,
+   `IntervalStyle`, `extra_float_digits`, `bytea_output`).
+2. Khoá tệp ghép theo `MINIO_BUCKET` — service `ops` **không mang biến ấy**, đúng nhờ giá trị mặc định
+   tình cờ trùng `csbh`; chồng kiểm dùng `csbh-test` nên lộ ngay. Giờ so với tệp ở MỌI bucket.
+3. Tên bảng tôi đoán (`doc.file`) — bảng thật là `doc.stored_file`.
+
+**Phá lại XANH ở lượt *"bỏ `ORDER BY` khỏi bảng kê"*** — mọi ca kê hai lần trên CÙNG một CSDL nên thứ tự
+vật lý tình cờ trùng. Trên máy mới, sau nạp lại và vacuum, dòng nằm khác chỗ và bản thiếu `ORDER BY` báo
+LỆCH GIẢ cho dữ liệu y hệt. Thêm ca xếp lại dòng trên đĩa mà giữ nội dung → đỏ đúng chỗ.
+
+**Thiết kế đổi so với kế hoạch, theo hướng nhỏ hơn**: không sửa `compose.prod.yml`. Kho tệp đi bằng
+`$DC run --entrypoint sh minio` + `-v` gắn thư mục tạm (`mc_sh` trong `./csbh`), nên bản cài đang chạy chỉ
+cần tệp `csbh` mới. Ảnh MinIO chỉ có `mc`, `sha256sum`, `sort` (đo — không `tar`/`find`/`awk`), nên `mc` chỉ
+chép; băm, kê, so nằm trong ảnh `ops`. Thư viện `minio` của Node KHÔNG dùng — nó treo khi liệt kê kho lớn.
+
+**Xuất**: chặn lối vào (`caddy`, `gateway`, `sla-worker`) → **chờ xả**, outbox (mọi bảng `*.outbox`, hỏi
+`information_schema`) VÀ hàng đợi RabbitMQ cùng về 0 HAI lần liền, quá giờ thì DỪNG không xuất → dừng
+service → dump · kho tệp · `logarchive` · bảng kê → gói dữ liệu + `.sha256` → gói bí mật (`openssl`
+AES-256-CBC, PBKDF2 600.000 vòng, mật khẩu qua BIẾN MÔI TRƯỜNG không qua dòng lệnh, mở thử ngay sau khi
+ghi). **Nhập** là lệnh DUY NHẤT chạy khi chưa có `.env`; từ chối khi đã có `.env`/`secrets/`/volume CSDL,
+khi khác phiên bản, sai mật khẩu, gói không khớp `.sha256`. Dùng lại `restore.sh` (`0240`), rồi xoá CSDL
+trống mà ảnh Postgres tự tạo (an toàn vì đã từ chối khi có volume).
+
+**Diễn tập thật** (số đo ở `RPO-RTO.md`): xuất từ bản production chạy thử **31 giây** dừng hệ; nhập vào
+bộ cài thứ hai **78 giây**, **KHỚP** 41 bảng + 10 sequence + 3 tệp; bảy tệp bí mật trùng sha256. Chốt
+chặn trên chồng thật: nhập gói gốc (volume `csbh-prod_pgdata` có sẵn) → từ chối; sai mật khẩu → từ chối;
+cả hai không để lại tệp nào. Phá lại trên đích: xoá một tệp → lệch `tep.txt` + `khoa-thieu.txt`; thêm một
+dấu cách vào một họ tên → lệch đúng `idn.app_user` (số dòng không đổi — đếm dòng không bắt được). Diễn tập
+trên CÙNG máy cần hai phụ kiện không thuộc quy trình: đổi tên dự án và `SITE_URL` trong gói bí mật (mở
+bằng chính ảnh `ops`, mã hoá lại), và cổng 8091.
+
+**Ca kiểm**: `tests/db/chuyen-may.test.ts` 14 ca (Postgres + openssl thật — ảnh kiểm thêm `openssl`);
+`tests/http/csbh-chuyen-may.test.ts` 16 ca (`docker` giả ghi tệp vào thư mục gắn `/ra`). **Phá lại mười
+lượt mã, mười đỏ** sau khi thêm ca thứ tự vật lý.
+
+**CHƯA làm, đã nêu**: gắn `sao-luu-tep` vào cron · ảnh MinIO trên máy mới chưa từng có (kho Docker Hub
+mất — hướng dẫn `docker save`/`load` ở `05-VAN-HANH`) · đăng nhập bằng một phiên CŨ trên trình duyệt thật
+ở máy mới (mới đo được hai điều kiện của nó: khoá JWT và bảng phiên trùng).
+
+**2714/2714 xanh.**

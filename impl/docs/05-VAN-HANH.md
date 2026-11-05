@@ -159,10 +159,84 @@ docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml 
 Lấy WAL từ **bản sao ngoài** (khi volume hỏng): thay `${P}_pgarchive` bằng
 `$CSBH_BACKUP_MIRROR/wal` và `${P}_pgbackup` ở bước 1 bằng `$CSBH_BACKUP_MIRROR`.
 
-### Cái CHƯA được sao lưu
+### Kho tệp — có lệnh, CHƯA chạy định kỳ `sửa 05/11`
 
-**Kho tệp MinIO** — bản scan đã ký, bản mềm, giấy tờ pháp lý. Phục hồi CSDL xong thì
-hồ sơ còn nguyên nhưng tệp nào mất theo máy thì mất hẳn. Xem `RPO-RTO.md`.
+**Kho tệp MinIO** (bản scan đã ký, bản mềm, giấy tờ pháp lý, văn bản mẫu) KHÔNG nằm
+trong `sao-luu` hằng đêm. Có lệnh riêng, gõ tay:
+
+```sh
+./csbh sao-luu-tep      # chép phần mới vào /backup/tep và CSBH_BACKUP_MIRROR/tep
+./csbh phuc-hoi-tep     # chép từ bản sao lưu trở lại kho — không xoá gì; hỏi lại trước
+```
+
+`sao-luu-tep` in ra số **khoá tệp CSDL trỏ tới mà bản sao lưu không có** — phải là 0.
+
+> **Cái giá của việc chưa gắn vào cron** (chốt 05/11): mất máy đột ngột thì tệp chỉ
+> phục hồi được tới lần `sao-luu-tep` gần nhất. CSDL thì vẫn về được 5 phút trước —
+> nên có thể có hồ sơ mà bản scan của nó không còn ở đâu. Gắn vào cron là thêm một
+> dòng vào `cron.mau` ngay sau dòng `sao-luu`.
+
+### Chuyển sang máy khác `mới 05/11`
+
+Hai lệnh, một ở mỗi máy. Xong là máy mới có **đúng y** dữ liệu của máy cũ — và lệnh
+nhập **tự đối chiếu** trước khi bật phần mềm: từng bảng (số dòng + md5 nội dung),
+từng sequence, từng tệp trong kho (sha256, đọc lại từ chính MinIO của máy mới), và
+mọi khoá tệp mà CSDL trỏ tới. Lệch một thứ là nó **không bật phần mềm** và in ra chỗ
+lệch.
+
+**Máy cũ:**
+
+```sh
+./csbh xuat-chuyen-may
+```
+
+Hỏi `CHUYEN-MAY` và một mật khẩu cho gói bí mật (tối thiểu 12 ký tự, gõ hai lần). Rồi:
+
+1. chặn lối vào (`caddy`, `gateway`, `sla-worker`) — từ đây không ai ghi được gì;
+2. **chờ xả**: mọi sự kiện còn trong outbox và mọi tin trong hàng đợi RabbitMQ phải
+   về 0 (thư sắp gửi, nhật ký sắp ghi). Quá 3 phút thì DỪNG, chưa xuất gì;
+3. dừng các service còn lại, xuất CSDL, xuất kho tệp, chép nhật ký kiểm toán đã trích
+   (`logarchive`), dựng bảng kê;
+4. ra hai tệp trong `./chuyen-may/<giờ>/`:
+   - `chuyen-may-<giờ>.tar` + `.sha256` — dữ liệu;
+   - `bi-mat-<giờ>.enc` — `.env` + `secrets/`, **mã hoá** (AES-256, PBKDF2 600.000 vòng).
+
+Máy cũ **để tắt** phần mềm sau đó — thứ gì ghi thêm sau mốc xuất sẽ không có trên máy
+mới. Thôi chuyển thì `./csbh len`.
+
+**Chép hai tệp sang máy mới**, theo hai đường khác nhau nếu được. **Mất mật khẩu là
+không mở được gói bí mật**, và không có nó thì máy mới không mở được CSDL — cất mật
+khẩu vào nơi cất mật khẩu của công ty.
+
+**Máy mới** — giải nén bộ cài **CÙNG phiên bản** với máy cũ, **KHÔNG** chạy `cai-dat.sh`:
+
+```sh
+tar -xzf csbh-<bản>.tar.gz && cd csbh-<bản>
+docker login <registry>
+./csbh nhap-chuyen-may <đường-dẫn>/chuyen-may-<giờ>.tar <đường-dẫn>/bi-mat-<giờ>.enc
+```
+
+Lệnh từ chối khi: thư mục đã có `.env` hay `secrets/`; máy đã có CSDL của dự án ấy;
+bộ cài khác phiên bản máy cũ (nâng bản là việc RIÊNG, làm SAU khi chuyển xong); sai
+mật khẩu; gói dữ liệu không khớp `.sha256` (chép hỏng giữa đường).
+
+Đi nguyên qua lượt chuyển: tài khoản và mật khẩu · mã hồ sơ đề xuất tiếp theo
+(sequence) · mọi tệp · nhật ký kiểm toán cả phần đã trích · cấu hình thư và Google ·
+**phiên đăng nhập đang mở** — một phiên chỉ cần khoá JWT và bảng phiên, và diễn tập
+05/11 đo được cả hai trùng nhau (khoá trùng từng byte, bảng `idn.refresh_token` trùng
+md5); chưa thử bằng một phiên thật trên trình duyệt.
+
+Sau khi nhập: trỏ DNS về máy mới; địa chỉ đổi thì sửa `SITE_URL` và redirect URI ở
+Google Console; **cài lại cron** (nó nằm ở `/etc/cron.d` của máy cũ, không đi theo gói);
+**tắt hẳn máy cũ** — hai máy cùng chạy là hai máy cùng gửi thư nhắc hạn.
+
+Không đi theo gói, có chủ ý: bản sao lưu cũ (`pgbackup`, `CSBH_BACKUP_MIRROR`) — máy mới
+bắt đầu chuỗi sao lưu của nó từ đêm đầu tiên; chứng chỉ TLS — Caddy xin lại.
+
+> **Ảnh MinIO**: kho `minio/minio` đã biến khỏi Docker Hub (`0235`). Máy mới chưa từng
+> có ảnh ấy thì `nhap-chuyen-may` dừng ở bước dựng hạ tầng — chép ảnh từ máy cũ bằng
+> `docker save minio/minio:RELEASE.2024-09-22T00-33-43Z | gzip > minio.tar.gz` rồi
+> `docker load` ở máy mới, trước khi nhập.
 
 ---
 
@@ -314,7 +388,7 @@ email trỏ đúng địa chỉ ấy. Cấu hình cũ cất trong tệp `.thu-ng
 | Thứ | Ở đâu | Mất thì sao |
 |---|---|---|
 | CSDL | volume `pgdata` | mất hết. Phục hồi từ sao lưu. |
-| Tệp đính kèm, bản mềm, mẫu văn bản | volume `miniodata` | hồ sơ còn, file mở ra báo lỗi có tên |
+| Tệp đính kèm, bản mềm, mẫu văn bản | volume `miniodata` | hồ sơ còn, file mở ra báo lỗi có tên — trừ phần đã `sao-luu-tep` |
 | WAL archive | volume `pgarchive` | RPO tụt từ 5 phút về 24 giờ |
 | Bản sao lưu | `backup-mirror/` và volume `pgbackup` | không phục hồi được |
 | Chứng chỉ TLS | volume `caddy_data` | Caddy xin lại; Let's Encrypt có hạn mức theo tuần |

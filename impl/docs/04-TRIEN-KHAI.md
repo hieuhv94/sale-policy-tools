@@ -652,7 +652,9 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 >   *Đăng nhập bằng Google* ở §4. `nang-cap` chỉ đổi ảnh, KHÔNG thay tệp compose: tệp cũ
 >   không chuyển biến `GOOGLE_*` vào `identity`, nên khai vào `.env` mà không chép tệp mới
 >   là bật không lên.
-> - Chép luôn **tệp `csbh` mới** — nó có đường vòng khi ảnh MinIO không kéo được (`0235`).
+> - Chép luôn **tệp `csbh` mới** — nó có đường vòng khi ảnh MinIO không kéo được (`0235`),
+>   và các lệnh `sao-luu-tep` · `phuc-hoi-tep` · `xuat-chuyen-may` · `nhap-chuyen-may` (`0246`).
+>   Phần chạy trong ảnh của chúng đi theo ảnh `ops` mới; KHÔNG phải sửa `compose.prod.yml`.
 > - Từ `1.0.3`/`1.0.4` thì vẫn theo đoạn ngay dưới: đổi thẻ TRƯỚC rồi mới `nang-cap`.
 
 > **Từ `1.0.3` hoặc `1.0.4` lên bản mới: đổi thẻ TRƯỚC, rồi mới `nang-cap`** `mới 29/09`.

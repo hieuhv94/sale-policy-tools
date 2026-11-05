@@ -4,6 +4,8 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # `0240` — `postgresql16` (gói MÁY CHỦ) cho `pg_archivecleanup`: bộ kiểm chạy CHÍNH
 # `basebackup.sh` (OPS-08). Thiếu nó thì ca kiểm hỏi một lệnh không có — cùng lỗ
 # `0234` đã để lọt ở ảnh `ops`.
-RUN apk add --no-cache git postgresql16-client postgresql16 curl
+# `0246` — `openssl` cho gói bí mật của chuyển máy: bộ kiểm chạy CHÍNH
+# `scripts/chuyen-may.sh` (mã hoá, giải mã, sai mật khẩu) — cùng gói ảnh `ops` có.
+RUN apk add --no-cache git postgresql16-client postgresql16 curl openssl
 WORKDIR /app
 ENV CI=1

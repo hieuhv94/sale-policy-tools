@@ -11,16 +11,20 @@ set -eu
 
 cd "$(dirname "$0")"
 
-[ -f .env ] || { echo "Không thấy .env. Chạy ./cai-dat.sh trước." >&2; exit 1; }
+# `nhap-chuyen-may` là lệnh DUY NHẤT chạy khi CHƯA có `.env` (`0246`): nó chạy
+# trên một bộ cài vừa giải nén, và chính nó mang `.env` của máy cũ tới.
+if [ "${1:-}" != "nhap-chuyen-may" ]; then
+  [ -f .env ] || { echo "Không thấy .env. Chạy ./cai-dat.sh trước." >&2; exit 1; }
 
-# Tên dự án compose quyết định tên volume dữ liệu. Thiếu nó thì compose lấy tên
-# thư mục, và trên một máy đã từng chạy bản demo thì tên ấy có thể trùng — chung
-# volume `pgdata` nghĩa là mật khẩu Postgres của bản demo thắng, và mọi lệnh
-# chạm CSDL hỏng với "password authentication failed". Xem `.env.mau`.
-grep -qE '^COMPOSE_PROJECT_NAME=.' .env || {
-  echo "Thiếu COMPOSE_PROJECT_NAME trong .env. Thêm dòng: COMPOSE_PROJECT_NAME=csbh-prod" >&2
-  exit 1
-}
+  # Tên dự án compose quyết định tên volume dữ liệu. Thiếu nó thì compose lấy tên
+  # thư mục, và trên một máy đã từng chạy bản demo thì tên ấy có thể trùng — chung
+  # volume `pgdata` nghĩa là mật khẩu Postgres của bản demo thắng, và mọi lệnh
+  # chạm CSDL hỏng với "password authentication failed". Xem `.env.mau`.
+  grep -qE '^COMPOSE_PROJECT_NAME=.' .env || {
+    echo "Thiếu COMPOSE_PROJECT_NAME trong .env. Thêm dòng: COMPOSE_PROJECT_NAME=csbh-prod" >&2
+    exit 1
+  }
+fi
 
 # Lớp phủ đường hầm bật theo MỘT TỆP DẤU, không theo lệnh đang gõ (`0107`).
 #
@@ -56,6 +60,17 @@ csbh — vận hành Chính sách bán hàng
     phuc-hoi <tệp>   Phục hồi ĐÈ lên dữ liệu đang chạy. Hỏi lại trước khi làm.
     don-du-lieu      Dọn dữ liệu quá hạn lưu trữ. Chạy hằng tháng qua cron.
     luu-audit        Trích nhật ký kiểm toán một tháng ra kho lưu trữ.
+    sao-luu-tep      Chép KHO TỆP (bản scan, bản mềm, giấy tờ, mẫu) vào bản sao
+                     lưu và bản sao ngoài. Chỉ chép phần mới. CHƯA chạy qua cron.
+    phuc-hoi-tep     Chép kho tệp từ bản sao lưu trở lại. Hỏi lại trước khi làm.
+
+  Chuyển sang máy khác
+    xuat-chuyen-may  Trên máy CŨ: dừng hệ, xuất CSDL + kho tệp + nhật ký đã trích
+                     thành một gói, và bí mật thành một gói RIÊNG có mật khẩu.
+    nhap-chuyen-may <gói dữ liệu> <gói bí mật>
+                     Trên máy MỚI, trong bộ cài CÙNG phiên bản vừa giải nén (chưa
+                     chạy cai-dat.sh): nạp lại tất cả, ĐỐI CHIẾU với máy cũ, rồi
+                     mới bật phần mềm.
 
   Cài đặt ban đầu
     mo-tai-khoan     Tạo tài khoản Quản trị ĐẦU TIÊN. Chỉ chạy được một lần.
@@ -72,6 +87,43 @@ HET
 }
 
 ops() { $DC run --rm -T ops "$@"; }
+
+# --- Kho tệp và chuyển máy (`0246`) ------------------------------------------
+
+NGUOI="$(id -u):$(id -g)"
+
+# Một đoạn lệnh `mc` trong container MinIO dựng riêng cho lượt này.
+#
+# `mc` chứ không thư viện `minio` của Node: thư viện ấy treo khi liệt kê kho lớn
+# ("Entity expansion limit exceeded", xem đoạn dọn kho của `upgrade`). Container
+# riêng (`run`, không `exec`) để gắn được thư mục tạm bằng `-v` mà KHÔNG phải sửa
+# `compose.prod.yml` — bản cài đang chạy dùng được lệnh này mà không chép tệp
+# compose mới. Ảnh MinIO chỉ có `mc`, `sha256sum`, `sort` (đo 05/11): mọi phép
+# băm và so sánh nằm ở `scripts/chuyen-may.sh`, trong ảnh `ops`.
+#
+# Mật khẩu đọc TỪ FILE BÍ MẬT trước: chồng production đặt `MINIO_ROOT_PASSWORD`
+# rỗng có chủ ý (`0108`).
+mc_sh() {
+  lenh="$1"; shift
+  $DC run --rm -T --no-deps -e MC_CONFIG_DIR=/tmp/.mc "$@" --entrypoint sh minio -c '
+    mk="$(cat "${MINIO_ROOT_PASSWORD_FILE:-/run/secrets/minio_password.txt}" 2>/dev/null || true)"
+    [ -n "$mk" ] || mk="${MINIO_ROOT_PASSWORD:-}"
+    mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$mk" > /dev/null || exit 1
+    '"$lenh"
+}
+
+# Đường dẫn trên máy của một thư mục mà compose khai TƯƠNG ĐỐI theo `deploy/`.
+duong_may() {
+  v="$(grep -E "^$1=" .env 2>/dev/null | cut -d= -f2- || true)"
+  [ -n "$v" ] || v="$2"
+  case "$v" in /*) echo "$v" ;; *) echo "$PWD/deploy/$v" ;; esac
+}
+
+hoi_mat_khau() {
+  stty -echo 2>/dev/null || true
+  printf '%s' "$1" >&2; read -r MK; echo "" >&2
+  stty echo 2>/dev/null || true
+}
 
 # Kéo ảnh, và CHỈ DỪNG khi thiếu ảnh thật (`0107`, gom thành hàm ở `0235`).
 #
@@ -377,6 +429,252 @@ HET
     read -r xn
     [ "$xn" = "PHUC-HOI" ] || { echo "  Đã huỷ."; exit 1; }
     $DC run --rm -T -e RESTORE_DB=csbh ops restore "$tep"
+    ;;
+  sao-luu-tep)
+    luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
+    echo "==> chép kho tệp vào bản sao lưu (chỉ phần mới hoặc đã đổi)"
+    mc_sh 'mc mirror --overwrite --quiet l /backup/tep' -v "${luu}:/backup"
+    guong="$(duong_may CSBH_BACKUP_MIRROR ../backup-mirror)"
+    if [ -d "$guong" ]; then
+      echo "==> chép sang bản sao ngoài: $guong"
+      mc_sh 'mc mirror --overwrite --quiet l /mirror/tep' -v "${guong}:/mirror"
+    else
+      echo "  KHÔNG có thư mục bản sao ngoài ($guong) — kho tệp chỉ nằm trên máy này." >&2
+    fi
+    echo "==> kiểm: mọi tệp CSDL trỏ tới đã có trong bản sao lưu"
+    ops chuyen-may ban-ke /backup
+    ;;
+  phuc-hoi-tep)
+    luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
+    cat <<'HET'
+
+  Chép KHO TỆP từ bản sao lưu (lần ./csbh sao-luu-tep gần nhất) trở lại kho đang
+  chạy. Tệp cùng tên bị ghi đè bằng bản trong sao lưu; tệp KHÔNG có trong sao lưu
+  thì giữ nguyên — lệnh này không xoá gì.
+
+HET
+    printf '  Gõ "PHUC-HOI-TEP" để tiếp tục: '
+    read -r xn
+    [ "$xn" = "PHUC-HOI-TEP" ] || { echo "  Đã huỷ."; exit 1; }
+    mc_sh 'for d in /backup/tep/*/; do
+      [ -d "$d" ] || continue
+      b=${d%/}; b=${b##*/}
+      mc mb --ignore-existing "l/$b" > /dev/null && mc mirror --overwrite --quiet "$d" "l/$b" || exit 1
+    done' -v "${luu}:/backup:ro"
+    echo "  Xong. Tệp mà CSDL trỏ tới nhưng bản sao lưu không có:"
+    ops chuyen-may ban-ke /backup
+    ;;
+
+  xuat-chuyen-may)
+    cat <<'HET'
+
+  XUẤT TOÀN BỘ hệ này để chuyển sang máy khác.
+
+  Hệ sẽ DỪNG từ bây giờ và ĐỂ TẮT sau khi xuất xong: mọi thứ ghi thêm sau mốc
+  xuất sẽ không có trên máy mới. Chỉ bật lại máy này (./csbh len) nếu thôi chuyển.
+
+  Ra hai tệp trong ./chuyen-may/<giờ>/:
+    chuyen-may-<giờ>.tar   CSDL + kho tệp + nhật ký kiểm toán đã trích + bảng kê
+    bi-mat-<giờ>.enc       .env + secrets/, MÃ HOÁ bằng mật khẩu bạn đặt
+
+  Chép CẢ HAI sang máy mới, theo HAI đường khác nhau nếu được. Mất mật khẩu là
+  không mở được gói bí mật — và không có nó thì máy mới không mở được CSDL.
+
+HET
+    printf '  Gõ "CHUYEN-MAY" để tiếp tục: '
+    read -r xn
+    [ "$xn" = "CHUYEN-MAY" ] || { echo "  Đã huỷ."; exit 1; }
+    hoi_mat_khau '  Mật khẩu cho gói bí mật (tối thiểu 12 ký tự): '; mk1="$MK"
+    hoi_mat_khau '  Gõ lại mật khẩu: '; mk2="$MK"
+    [ "$mk1" = "$mk2" ] || { echo "  Hai lần gõ không giống nhau." >&2; exit 1; }
+    [ "${#mk1}" -ge 12 ] || { echo "  Mật khẩu phải có tối thiểu 12 ký tự." >&2; exit 1; }
+
+    luc="$(date -u +%Y%m%dT%H%M%SZ)"
+    ra="$PWD/chuyen-may/$luc"
+    mkdir -p "$ra/goi/tep" "$ra/goi/logarchive"
+
+    # 1. CHẶN LỐI VÀO trước, rồi mới xả: còn người dùng bấm thì outbox không bao
+    #    giờ về 0. `sla-worker` cũng dừng ở bước này — nó tự ghi (chuyển trạng thái
+    #    quá hạn) mà không qua gateway.
+    echo "==> chặn lối vào"
+    $DC stop caddy gateway sla-worker
+    [ -f .thu-nghiem ] && $DC stop cloudflared || true
+
+    # 2. XẢ: mọi sự kiện đã ghi phải tới đích trước khi chụp. Một lá thư nằm trong
+    #    outbox lúc xuất sẽ được máy mới gửi lại (đúng); một tin đã rời outbox mà
+    #    còn nằm trong hàng đợi RabbitMQ thì MẤT — hàng đợi không đi theo gói. Nên
+    #    đợi cả hai về 0, HAI lần liền (một consumer vừa xử xong có thể ghi thêm
+    #    một sự kiện mới vào outbox).
+    echo "==> chờ xả sự kiện đang trên đường (outbox + hàng đợi)"
+    i=0; on=0
+    while :; do
+      n="$(ops chuyen-may cho-xa | tr -cd '0-9')"
+      m="$($DC exec -T rabbitmq rabbitmqctl --silent list_queues messages 2>/dev/null | awk '{s+=$1} END {print s+0}')"
+      if [ "${n:-x}" = 0 ] && [ "${m:-x}" = 0 ]; then
+        on=$((on + 1)); [ "$on" -ge 2 ] && break
+      else
+        on=0
+      fi
+      i=$((i + 1))
+      [ "$i" -lt "${CSBH_CHO_XA_LAN:-60}" ] || {
+        echo "  Hết giờ chờ: vẫn còn ${n:-?} sự kiện trong outbox, ${m:-?} tin trong hàng đợi." >&2
+        echo "  Chưa xuất gì. Hệ đang tắt lối vào — bật lại: ./csbh len" >&2
+        exit 1
+      }
+      sleep "${CSBH_CHO_XA_GIAY:-3}"
+    done
+
+    echo "==> dừng các service ứng dụng"
+    $DC stop identity catalog customer policy document notification audit reporting
+
+    echo "==> xuất CSDL"
+    $DC run --rm -T --user "$NGUOI" -v "$ra/goi:/xuat" ops chuyen-may xuat-csdl /xuat
+    echo "==> xuất kho tệp"
+    mc_sh 'mc mirror --quiet l /xuat/tep' --user "$NGUOI" -v "$ra/goi:/xuat"
+    la="$(duong_may CSBH_LOG_ARCHIVE ../logarchive)"
+    if [ -d "$la" ]; then
+      echo "==> nhật ký kiểm toán đã trích: $la"
+      cp -a "$la/." "$ra/goi/logarchive/"
+    fi
+    {
+      echo "CSBH_TAG=$(grep -E '^CSBH_TAG=' .env | cut -d= -f2-)"
+      echo "SITE_URL=$(grep -E '^SITE_URL=' .env | cut -d= -f2-)"
+      echo "COMPOSE_PROJECT_NAME=$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)"
+      echo "XUAT_LUC=$luc"
+    } > "$ra/goi/thong-tin.txt"
+    echo "==> bảng kê"
+    $DC run --rm -T --user "$NGUOI" -v "$ra/goi:/xuat" ops chuyen-may ban-ke /xuat
+    if [ -s "$ra/goi/khoa-thieu.txt" ]; then
+      echo "  CHÚ Ý: máy NÀY đã thiếu $(wc -l < "$ra/goi/khoa-thieu.txt") tệp mà CSDL trỏ tới —" >&2
+      echo "  máy mới sẽ thiếu đúng chừng ấy, không hơn. Danh sách trong gói: khoa-thieu.txt" >&2
+    fi
+    echo "==> đóng gói"
+    $DC run --rm -T --user "$NGUOI" -v "$ra:/ra" ops chuyen-may dong-goi /ra/goi "/ra/chuyen-may-$luc.tar"
+    rm -rf "$ra/goi"
+    echo "==> gói bí mật"
+    CSBH_MAT_KHAU="$mk1" $DC run --rm -T --user "$NGUOI" -e CSBH_MAT_KHAU \
+      -v "$PWD:/cai:ro" -v "$ra:/ra" ops chuyen-may bi-mat-dong /cai "/ra/bi-mat-$luc.enc"
+    cat <<HET
+
+  Xong. Hai tệp ở $ra:
+$(ls -1 "$ra" | sed 's/^/    /')
+
+  Máy này ĐANG TẮT phần mềm (CSDL và kho tệp vẫn chạy). Trên máy MỚI:
+    1. giải nén bộ cài CÙNG phiên bản $(grep -E '^CSBH_TAG=' .env | cut -d= -f2-) — KHÔNG chạy cai-dat.sh
+    2. ./csbh nhap-chuyen-may <gói dữ liệu> <gói bí mật>
+
+  Thôi chuyển thì bật lại máy này: ./csbh len
+
+HET
+    ;;
+  nhap-chuyen-may)
+    goi="${2:-}"; bm="${3:-}"
+    { [ -f "$goi" ] && [ -f "$bm" ]; } || {
+      echo "dùng: ./csbh nhap-chuyen-may <chuyen-may-….tar> <bi-mat-….enc>" >&2; exit 2; }
+
+    # Chỉ chạy trên một bộ cài VỪA GIẢI NÉN. Đã có `.env`, `secrets/` hay volume
+    # CSDL nghĩa là máy này đang có một hệ — nhập đè lên nó là mất hệ ấy, và chốt
+    # `0113` (bí mật mới + volume cũ) sẽ làm CSDL không mở được.
+    [ ! -f .env ] || { echo "Đã có .env ở đây — máy này đã cài. Giải nén bộ cài vào một thư mục MỚI." >&2; exit 1; }
+    ! ls secrets/*.txt > /dev/null 2>&1 || { echo "Đã có secrets/ ở đây — máy này đã cài." >&2; exit 1; }
+    [ -f .env.mau ] || { echo "Không thấy .env.mau — đây không phải thư mục bộ cài." >&2; exit 1; }
+
+    kho="$(grep -E '^CSBH_IMAGE=' .env.mau | cut -d= -f2-)"
+    the="$(grep -E '^CSBH_TAG=' .env.mau | cut -d= -f2-)"
+    anh="${kho}:ops-${the}"
+    docker image inspect "$anh" > /dev/null 2>&1 || docker pull "$anh" || {
+      echo "Không có ảnh $anh. Đăng nhập registry (docker login) rồi thử lại." >&2; exit 1; }
+
+    goi="$(cd "$(dirname "$goi")" && pwd)/$(basename "$goi")"
+    bm="$(cd "$(dirname "$bm")" && pwd)/$(basename "$bm")"
+    tam="$PWD/.nhap-tam"
+    rm -rf "$tam"; mkdir -p "$tam"
+
+    hoi_mat_khau '  Mật khẩu của gói bí mật: '
+    echo "==> mở gói bí mật"
+    CSBH_MAT_KHAU="$MK" docker run --rm --user "$NGUOI" -e CSBH_MAT_KHAU \
+      -v "$(dirname "$bm"):/vao:ro" -v "$tam:/ra" "$anh" \
+      chuyen-may bi-mat-mo "/vao/$(basename "$bm")" /ra/bi-mat || { rm -rf "$tam"; exit 1; }
+
+    # CÙNG PHIÊN BẢN, không "mới hơn cũng được": nhập xong là đối chiếu từng bảng,
+    # mà một bản mới hơn có migration chạy lúc dựng — đối chiếu sẽ lệch đúng ở chỗ
+    # migration vừa đổi. Nâng bản là việc RIÊNG, sau khi đã chuyển xong.
+    the_cu="$(grep -E '^CSBH_TAG=' "$tam/bi-mat/.env" | cut -d= -f2-)"
+    [ "$the_cu" = "$the" ] || {
+      echo "Máy cũ chạy bản $the_cu, bộ cài này là $the. Giải nén bộ cài bản $the_cu rồi chạy lại." >&2
+      rm -rf "$tam"; exit 1; }
+    du_an="$(grep -E '^COMPOSE_PROJECT_NAME=' "$tam/bi-mat/.env" | cut -d= -f2-)"
+    ! docker volume inspect "${du_an}_pgdata" > /dev/null 2>&1 || {
+      echo "Máy này đã có CSDL của dự án $du_an (volume ${du_an}_pgdata). Không nhập đè." >&2
+      rm -rf "$tam"; exit 1; }
+
+    echo "==> mở gói dữ liệu"
+    docker run --rm --user "$NGUOI" -v "$(dirname "$goi"):/vao:ro" -v "$tam:/ra" "$anh" \
+      chuyen-may mo-goi "/vao/$(basename "$goi")" /ra/goi || { rm -rf "$tam"; exit 1; }
+    grep -qx "CSBH_TAG=$the" "$tam/goi/thong-tin.txt" || {
+      echo "Gói dữ liệu không phải của bản $the (xem thong-tin.txt trong gói)." >&2; rm -rf "$tam"; exit 1; }
+
+    cp "$tam/bi-mat/.env" .env && chmod 600 .env
+    mkdir -p secrets && cp -a "$tam/bi-mat/secrets/." secrets/ && chmod 600 secrets/*
+    echo "==> dựng hạ tầng"
+    $DC up -d --wait postgres minio rabbitmq redis
+
+    echo "==> nạp CSDL"
+    $DC run --rm -T --user "$NGUOI" -e RESTORE_DB=csbh -v "$tam/goi:/xuat:ro" ops restore /xuat/csdl.dump
+    # Cụm vừa dựng có sẵn một CSDL `csbh` TRỐNG do ảnh Postgres tạo; `restore.sh`
+    # giữ nó lại dưới tên `csbh_truoc_phuc_hoi_<giờ>`. Ở đây chắc chắn nó trống
+    # (đã từ chối khi có volume CSDL) nên xoá luôn.
+    for db in $(ops psql -d postgres -Atc "SELECT datname FROM pg_database WHERE datname LIKE 'csbh_truoc_phuc_hoi_%'"); do
+      ops psql -d postgres -qc "DROP DATABASE \"$db\""
+    done
+
+    echo "==> nạp kho tệp"
+    mc_sh 'for d in /vao/tep/*/; do
+      [ -d "$d" ] || continue
+      b=${d%/}; b=${b##*/}
+      mc mb --ignore-existing "l/$b" > /dev/null && mc mirror --overwrite --quiet "$d" "l/$b" || exit 1
+    done' --user "$NGUOI" -v "$tam/goi:/vao:ro"
+    la="$(duong_may CSBH_LOG_ARCHIVE ../logarchive)"
+    if [ -n "$(ls -A "$tam/goi/logarchive" 2>/dev/null)" ]; then
+      echo "==> nhật ký kiểm toán đã trích -> $la"
+      mkdir -p "$la" && cp -a "$tam/goi/logarchive/." "$la/"
+    fi
+
+    # ĐỐI CHIẾU TRƯỚC KHI BẬT PHẦN MỀM: service vừa lên là có việc ghi (`sla-worker`
+    # chuyển trạng thái quá hạn, `document` nạp mẫu mặc định) — so sau đó thì lệch
+    # thật lẫn lệch do chính lượt bật sẽ không tách được. Tệp so bằng cách TẢI LẠI
+    # từ MinIO của máy mới: câu hỏi là "máy mới phục vụ ra đúng nội dung ấy không",
+    # không phải "thư mục tạm có đúng không".
+    echo "==> đối chiếu với máy cũ"
+    mkdir -p "$tam/kiem/tep"
+    mc_sh 'mc mirror --quiet l /kiem/tep' --user "$NGUOI" -v "$tam/kiem:/kiem"
+    $DC run --rm -T --user "$NGUOI" -v "$tam:/t" ops chuyen-may ban-ke /t/kiem
+    if ! $DC run --rm -T --user "$NGUOI" -v "$tam:/t" ops chuyen-may so-sanh /t/goi /t/kiem; then
+      cat >&2 <<HET
+
+  ĐỐI CHIẾU LỆCH — phần mềm CHƯA được bật. CSDL và kho tệp vẫn chạy để tra.
+  Dữ liệu đã giải nén để đối chiếu ở $tam.
+
+HET
+      exit 1
+    fi
+
+    echo "==> migration và bật phần mềm"
+    $DC run --rm -T ops migrate
+    $DC up -d --wait
+    rm -rf "$tam"
+    cat <<HET
+
+  Xong. Máy này giờ chạy đúng dữ liệu của máy cũ: $(grep -E '^SITE_URL=' .env | cut -d= -f2-)
+
+  Còn lại, theo thứ tự:
+    1. Trỏ DNS của tên miền về máy này (nếu đổi máy chủ).
+    2. Địa chỉ phần mềm ĐỔI thì sửa SITE_URL trong .env, sửa redirect URI ở Google
+       Console (nếu bật đăng nhập Google), rồi ./csbh len.
+    3. Cài lịch tự động: cp deploy/cron.mau /etc/cron.d/csbh (xem tai-lieu/04-TRIEN-KHAI.md).
+    4. Tắt hẳn máy cũ — đừng để hai máy cùng chạy và cùng gửi thư.
+
+HET
     ;;
   don-du-lieu)  ops retention ;;
   luu-audit)    shift; ops luu-audit "$@" ;;

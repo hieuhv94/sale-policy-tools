@@ -99,7 +99,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P276**: **`VERSION` → `1.1.0`** (gói `P265`–`P275`). Không migration nào từ `1.0.5`; muốn
+Chặng gần nhất **P277** (`0246`): **chuyển máy không mất gì** — `./csbh xuat-chuyen-may` (chặn lối vào →
+chờ xả outbox + RabbitMQ → dump · kho tệp · `logarchive` → gói dữ liệu + gói bí mật MÃ HOÁ) và
+`nhap-chuyen-may` (lệnh duy nhất chạy khi chưa có `.env`; dựng lại BẢNG KÊ trên máy mới và **đối chiếu
+trước khi bật**). Lõi là `scripts/chuyen-may.sh ban-ke` (ảnh `ops`): mọi bảng → số dòng + md5 nội dung (đặt
+múi giờ bằng `SET`, không `PGOPTIONS` — `PGTZ` thắng nó), mọi sequence, sha256 từng tệp, khoá tệp thiếu.
+Kho tệp đi bằng `mc` trong container MinIO dựng riêng (`mc_sh`), không sửa compose. `sao-luu-tep` /
+`phuc-hoi-tep` có, **chưa vào cron**. Diễn tập thật: xuất 31s, nhập 78s, KHỚP. **2714/2714 xanh.**
+
+Trước đó **P276**: **`VERSION` → `1.1.0`** (gói `P265`–`P275`). Không migration nào từ `1.0.5`; muốn
 bật Google trên máy đang chạy phải chép `compose.prod.yml` + `.env.mau` mới (`nang-cap` chỉ đổi ảnh) —
 `04-TRIEN-KHAI` §8. **Chưa đẩy lên registry.** **2684/2684 xanh.**
 

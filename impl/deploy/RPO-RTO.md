@@ -77,15 +77,17 @@ Ghi rõ để không ai nhầm:
 - **Ổ đĩa hỏng cùng lúc với volume lưu trữ WAL.** Cả hai nằm trên cùng một VM. Muốn chống thì phải
   đẩy WAL và base backup sang một máy khác — chưa làm. Thư mục `workspace/backup-mirror` là bước
   chuẩn bị cho việc đó, hiện chỉ là một bản sao trên cùng máy.
-- **MinIO.** File scan và file hợp đồng không nằm trong PITR của Postgres. Mất MinIO thì siêu dữ
-  liệu còn nguyên nhưng file thì không. Hồ sơ đã ký mất bản scan là mất bằng chứng nghiệp vụ.
+- **MinIO.** File scan và file hợp đồng không nằm trong PITR của Postgres. Từ `0246` có
+  `./csbh sao-luu-tep` (chép phần mới vào bản sao lưu + bản sao ngoài) nhưng **chưa chạy định kỳ**
+  (chốt 05/11) — RPO của tệp là lần chạy tay gần nhất, không phải 5 phút. Hồ sơ đã ký mất bản scan
+  là mất bằng chứng nghiệp vụ.
 - **Sai sót của người dùng trong phạm vi RPO.** PITR phục hồi được về thời điểm trước thao tác sai,
   nhưng đổi lại mất mọi thao tác đúng sau đó. Đây là quyết định của người vận hành, không tự động.
 
 ## Việc còn phải làm
 
-- **Sao lưu kho tệp MinIO** (bản scan đã ký, bản mềm, giấy tờ pháp lý). Hiện KHÔNG có gì sao lưu
-  nó — đây là khoảng hở lớn nhất còn lại.
+- **Gắn `sao-luu-tep` vào cron.** Lệnh có từ `0246` và đã diễn tập; chưa chạy định kỳ theo chốt
+  05/11 — vẫn là khoảng hở lớn nhất còn lại.
 - **Lệnh `./csbh` cho PITR.** Quy trình đã diễn tập (`05-VAN-HANH` §3) nhưng còn là các lệnh
   `docker` gõ tay.
 - **Cảnh báo tự động** trên `pg_stat_archiver` (`failed_count`, `last_archived_time`) và trên
@@ -94,3 +96,18 @@ Ghi rõ để không ai nhầm:
   segment lại từ đầu, và `archive_command` (`test ! -f …`) sẽ hỏng khi số va vào tệp cũ.
 - **Đẩy bản sao lưu ra khỏi VM** — `CSBH_BACKUP_MIRROR` phải là ổ khác hoặc NAS; WAL trong ngày
   chỉ nằm ở volume `pgarchive`.
+
+## Chuyển máy — diễn tập 05/11 (`0246`)
+
+Nguồn: bản production chạy thử, ảnh `1.1.0-thu-0246`. Đích: bộ cài cùng bản giải nén ở thư mục khác,
+dự án và cổng riêng (diễn tập trên cùng máy). Dữ liệu nhỏ (2 tài khoản, 3 tệp, 6 phiên, 12 dòng nhật
+ký) — con số dưới đây là **khung thời gian cố định**, không phải thông lượng.
+
+| Bước | Đo được |
+|---|---|
+| `xuat-chuyen-may` — hệ dừng từ đầu tới cuối lệnh | **31 giây** |
+| `nhap-chuyen-may` — tới lúc phần mềm bật lại | **78 giây** |
+| Bảng kê | 41 bảng + 10 sequence + 3 tệp: **KHỚP** |
+| Bí mật hai máy (sha256 từng tệp, 7 tệp) | trùng hết |
+| Phá lại trên đích: xoá một tệp / thêm một dấu cách vào một họ tên | lệch đúng `tep.txt` / đúng `idn.app_user` |
+

@@ -1369,6 +1369,19 @@ Ban lãnh đạo và Quản trị hệ thống **không có box này**: cả hai
 
 ---
 
+
+### Sao lưu kho tệp và chuyển máy `mới 05/11`
+
+- **Chuyển sang máy khác không được làm thay đổi gì** — tài khoản, phiên đăng nhập, hồ sơ, tệp
+  (bản scan, bản mềm, giấy tờ, văn bản mẫu), nhật ký kiểm toán kể cả phần đã trích, dãy mã hồ sơ.
+  Lệnh nhập **tự đối chiếu** với máy cũ (từng bảng, từng sequence, từng tệp, từng khoá tệp) và
+  **không bật phần mềm** khi lệch. Điều kiện: máy cũ dừng trong lúc xuất (đo 31 giây ở diễn tập),
+  máy mới cài **cùng phiên bản**.
+- **Bí mật đi gói RIÊNG, mã hoá bằng mật khẩu** người vận hành đặt lúc xuất. Mất mật khẩu là
+  không mở được CSDL ở máy mới.
+- **Sao lưu kho tệp là một lệnh có sẵn, CHƯA chạy định kỳ** — mất máy đột ngột thì tệp chỉ về
+  được tới lần chạy tay gần nhất, trong khi CSDL về được 5 phút trước.
+
 ## 11. Yêu cầu hiển thị file
 
 ### 11.1. Bản CSBH
@@ -2954,6 +2967,12 @@ hồi mọi phiên (kể cả phiên của chính người đổi), và ô đăn
 quan phía sau vẫn đọc được. Giữ luật *"đăng nhập lại không mất bản nhập dở"*, chỉ thôi bày nó ra.
 Việc đổi mật khẩu đưa thẳng về ô đăng nhập **giữ nguyên** theo câu trả lời ấy; đề xuất cấp phiên mới
 cho chính người vừa đổi (để khỏi đăng nhập lại) **chưa làm**.
+
+**CHUYỂN MÁY KHÔNG MẤT GÌ, VÀ SAO LƯU KHO TỆP** `mới 05/11` — *"restore và backup có đảm bảo dữ liệu
+người dùng không bị mất không, ví dụ migrate sang máy khác vẫn đảm bảo người dùng và hệ thống không có
+bất kỳ thay đổi nào"*. Đo ra là **chưa**: kho tệp không được sao lưu, bí mật chép tay, sự kiện đang chờ
+mất khi chuyển giữa chừng. Chốt khi hỏi: bí mật đi gói riêng có mã hoá · sao lưu kho tệp là lệnh có sẵn,
+chưa gắn lịch hằng đêm. Xem muc 10, *Sao lưu kho tệp và chuyển máy*.
 
 **CHÂN TRANG, VÀ KHÔNG BÀY MÃ LỖI** `mới 05/11` — chân trang mọi màn hình mang đúng ba mảnh khách
 hàng duyệt: *"© <năm> Công ty TNHH Dược phẩm Nutricare. Bảo lưu mọi quyền."* · *"Phần mềm Chính sách bán
