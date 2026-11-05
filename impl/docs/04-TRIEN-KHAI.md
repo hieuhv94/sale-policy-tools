@@ -607,9 +607,9 @@ Ba việc còn lại phải biết:
 - [ ] Chạy **hết một vòng mười bước** bằng tài khoản thật: TDV lập hồ sơ → gửi
       duyệt → TBP ký → Kế toán nhận L1 → Sale Admin bàn giao → Kế toán nhận L2
 - [ ] Xuất một hợp đồng và mở file ra xem
-- [ ] `archived_count` **phải tăng** — đây là điều kiện để cam kết RPO 5 phút
-      đúng, và nó từng hỏng lặng lẽ một lần: CSDL xanh, healthcheck xanh, chỉ có
-      WAL không được lưu
+- [ ] `./csbh sao-luu` chạy xong và bản mới hiện trong `pgbackup` **và**
+      `CSBH_BACKUP_MIRROR` — cam kết mất tối đa một chu kỳ sao lưu (`0250`) chỉ đúng
+      khi lượt sao lưu thật sự chạy
 - [ ] `dien-tap` chạy xong — đo thời gian thật, đừng ước lượng
 
 ---
@@ -642,6 +642,15 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
 in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 
+> **Bản có `0250` (bỏ bản nền + WAL)** `mới 06/11`. Phải chép **`deploy/compose.yml`,
+> `deploy/compose.prod.yml`, `deploy/postgres/postgresql.conf` và tệp `csbh` mới** —
+> `nang-cap` chỉ đổi ảnh. Tệp compose mới gỡ volume `pgarchive` khỏi Postgres, nên lượt
+> `len`/`nang-cap` kế tiếp **dựng lại container Postgres** và nó đọc `archive_mode = off`
+> (giá trị này chỉ có hiệu lực sau khởi động lại). Kiểm: `./csbh psql -c 'SHOW archive_mode'`
+> phải ra `off`. Sau lượt `sao-luu` mới đầu tiên thành công, xoá tay phần cũ: volume
+> `<dự án>_pgarchive`, `pgbackup/base`, `CSBH_BACKUP_MIRROR/base` và `/wal` — `sao-luu` in ra
+> đúng các đường dẫn còn sót.
+>
 > **Từ `1.0.x` lên `1.1.0`** `mới 05/11`. **Không có migration nào**, nên lượt nâng chỉ là
 > đổi ảnh: `./csbh nang-cap 1.1.0`. Bản này mang đăng nhập bằng Google, chân trang, che kín
 > màn hình khi hết phiên, và các bản sửa sao lưu/phục hồi của `0240` (nằm trong ảnh `ops`).
@@ -727,7 +736,7 @@ mở nằm ở [05-VAN-HANH.md](05-VAN-HANH.md), mục *Chạy thử qua Interne
 
 ## 10. Giới hạn của bản này — nói rõ với khách hàng
 
-**Đây là bản một máy.** RPO ≤ 5 phút, RTO ≤ 60 phút; xem
+**Đây là bản một máy.** RPO ≤ một chu kỳ sao lưu (mặc định 24 giờ), RTO ≤ 60 phút; xem
 [RPO-RTO.md](../deploy/RPO-RTO.md). Máy chết là hệ thống dừng cho tới khi dựng
 lại từ bản sao lưu. Không có máy dự phòng, không có tự chuyển đổi.
 

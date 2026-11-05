@@ -74,11 +74,16 @@ describe('`0234` ảnh ops có đủ lệnh Postgres mà script vận hành gọ
     expect(thieu, `thiếu gói cho: ${thieu.map((l) => `${l} (${GOI_CUA[l]})`).join(', ')}`).toEqual([]);
   });
 
-  it('phép quét THẬT SỰ tìm thấy lệnh — kể cả `pg_archivecleanup` của `basebackup.sh`', () => {
+  it('phép quét THẬT SỰ tìm thấy lệnh mà `backup.sh`/`restore.sh` gọi', () => {
     // Biểu thức lạc hậu thì tập rỗng và ca trên xanh vô nghĩa (bài học `0105`).
     const l = lenhDuocGoi();
-    for (const c of ['psql', 'pg_dump', 'pg_restore', 'pg_basebackup', 'pg_archivecleanup']) {
+    for (const c of ['psql', 'pg_dump', 'pg_restore']) {
       expect(l.has(c), c).toBe(true);
     }
+  });
+
+  it('`0250` bản nền + WAL đã gỡ: không script nào còn gọi `pg_basebackup`/`pg_archivecleanup`', () => {
+    const l = lenhDuocGoi();
+    expect([...l].filter((c) => c === 'pg_basebackup' || c === 'pg_archivecleanup')).toEqual([]);
   });
 });

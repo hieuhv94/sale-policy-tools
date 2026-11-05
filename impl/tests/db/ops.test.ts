@@ -41,17 +41,11 @@ describe('OPS-01 · giới hạn kết nối đủ cho 10 service', () => {
   });
 });
 
-describe('OPS-02 · lưu trữ WAL đang chạy', () => {
-  it('archive_mode bật và không có lần lưu trữ nào hỏng', async () => {
-    expect(await psql('SHOW archive_mode')).toBe('on');
-
-    await psql('SELECT pg_switch_wal()');
-    // archive_command hỏng lặng lẽ là kịch bản tệ nhất: CSDL vẫn chạy,
-    // healthcheck vẫn xanh, chỉ có khả năng phục hồi theo thời điểm là mất.
-    const failed = Number(await psql('SELECT failed_count FROM pg_stat_archiver'));
-    expect(failed).toBe(0);
-    const archived = Number(await psql('SELECT archived_count FROM pg_stat_archiver'));
-    expect(archived).toBeGreaterThan(0);
+describe('OPS-02 · `0250` không còn lưu trữ WAL', () => {
+  it('archive_mode TẮT — bản nền + WAL đã gỡ, phục hồi chỉ từ bản sao lưu hằng ngày', async () => {
+    // Bật mà không ai dọn thì kho WAL phình tới đầy ổ; đổi giá trị cần khởi động
+    // lại Postgres (`04-TRIEN-KHAI` §8), nên ca này cũng là chốt "đã khởi động lại".
+    expect(await psql('SHOW archive_mode')).toBe('off');
   });
 });
 
@@ -411,71 +405,113 @@ chmod +x /tmp/gia/pg_restore`);
   }, 60_000);
 });
 
-describe('OPS-08 · sao lưu vật lý ghép được với WAL', () => {
-  const BB = '/tmp/bb-ops08';
-  const MIR = '/tmp/mirror-ops08';
-  const env = { BACKUP_DIR: BB, ARCHIVE_DIR: '/archive', KEEP_BASE: '1', BACKUP_MIRROR_DIR: MIR };
-  /** Segment WAL mà một bản nền bắt đầu — đọc từ backup_label của chính nó. */
-  const batDau = async (dir: string) =>
-    (
-      await sh(
-        `tar -xzOf ${dir}/base.tar.gz backup_label | sed -n 's/^START WAL LOCATION: .*(file \\([0-9A-F]*\\))$/\\1/p'`,
-      )
-    ).stdout.trim();
+/**
+ * `0250` — giữ tối đa N bản sao lưu, đếm SỐ BẢN chứ không đếm ngày.
+ *
+ * Chạy CHÍNH `/backup.sh` trên Postgres thật, vào thư mục tạm. Bản "cũ" là tệp giả
+ * mang mốc quá khứ — luật dọn chỉ nhìn TÊN (sắp theo chữ = sắp theo thời gian), và
+ * dựng mười bản thật thì mất mười lượt pg_dump. `CSBH_MOC` ghim mốc của bản mới để
+ * hai lượt trong cùng một giây không đè tên nhau.
+ */
+describe('OPS-08 · `0250` giữ tối đa N bản sao lưu', () => {
+  const BD = '/tmp/ops08-backup';
+  const MIR = '/tmp/ops08-mirror';
+  const ds = async (dir: string) =>
+    (await sh(`ls -1 ${dir} 2>/dev/null | grep '^csbh-.*\\.dump$' | sort || true`)).stdout.trim().split('\n').filter(Boolean);
+  const cu = (n: number) =>
+    Array.from({ length: n }, (_, i) => `csbh-2020010${Math.floor(i / 10)}T0${i % 10}0000Z.dump`);
+  const dung = async (dir: string, tep: string[]) => {
+    await sh(`rm -rf ${dir} && mkdir -p ${dir}`);
+    for (const t of tep) await sh(`echo gia > ${dir}/${t}`);
+  };
 
-  it('chạy basebackup.sh HAI đêm (giữ 1 bản nền): cả hai lượt thoát 0', async () => {
-    await sh(`rm -rf ${BB} ${MIR}`);
-    for (let dem = 0; dem < 2; dem++) {
-      await psql('SELECT pg_switch_wal()');
-      await psql('SELECT pg_switch_wal()');
-      const r = await thu('/bin/sh /basebackup.sh', env);
-      expect(r.ma, r.ra).toBe(0);
-    }
-  }, 600_000);
+  it('có 10 bản, hạ giới hạn xuống 5: lượt kế tiếp còn ĐÚNG 5 — bản mới + 4 bản mới nhất', async () => {
+    await dung(BD, cu(10));
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: '5', CSBH_MOC: '20991231T000000Z' });
+    expect(r.ma, r.ra).toBe(0);
+    expect(await ds(BD)).toEqual([...cu(10).slice(-4), 'csbh-20991231T000000Z.dump']);
+    expect(r.ra).toContain('giữ tối đa 5 bản — xoá csbh-20200100T000000Z.dump');
+  }, 120_000);
 
-  it('có bản sao lưu VẬT LÝ, không chỉ bản dump logic', async () => {
-    // pg_dump + archive_mode KHÔNG tự ghép thành phục hồi theo thời điểm: PITR
-    // cần một bản sao lưu vật lý làm điểm xuất phát.
-    const { stdout } = await sh(`ls -1d ${BB}/base/*/ | wc -l`);
+  it('chưa đủ N bản thì KHÔNG xoá gì', async () => {
+    await dung(BD, cu(2));
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: '7', CSBH_MOC: '20991231T000001Z' });
+    expect(r.ma, r.ra).toBe(0);
+    expect(await ds(BD)).toHaveLength(3);
+  }, 120_000);
+
+  it('lượt sao lưu HỎNG thì không xoá bản nào, kể cả khi đang thừa', async () => {
+    await dung(BD, cu(6));
+    const r = await thu('/bin/sh /backup.sh', {
+      BACKUP_DIR: BD,
+      GIU_TOI_DA: '2',
+      CSBH_MOC: '20991231T000002Z',
+      PGDATABASE: 'csdl_khong_ton_tai',
+    });
+    expect(r.ma).not.toBe(0);
+    expect(await ds(BD)).toEqual(cu(6));
+    expect((await sh(`ls -1 ${BD} | grep partial || true`)).stdout.trim()).toBe('');
+  }, 120_000);
+
+  it('bản vừa ghi đọc được bằng pg_restore', async () => {
+    await dung(BD, []);
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: '1', CSBH_MOC: '20991231T000003Z' });
+    expect(r.ma, r.ra).toBe(0);
+    const { stdout } = await sh(`pg_restore --list ${BD}/csbh-20991231T000003Z.dump | grep -c 'TABLE DATA idn app_user'`);
     expect(Number(stdout.trim())).toBe(1);
+  }, 120_000);
+
+  it('bản sao ngoài: nhận bản mới và bị dọn theo CÙNG giới hạn', async () => {
+    await dung(BD, cu(4));
+    await dung(MIR, cu(4));
+    const r = await thu('/bin/sh /backup.sh', {
+      BACKUP_DIR: BD,
+      GIU_TOI_DA: '3',
+      CSBH_MOC: '20991231T000004Z',
+      BACKUP_MIRROR_DIR: MIR,
+    });
+    expect(r.ma, r.ra).toBe(0);
+    const tai = await ds(BD);
+    expect(tai).toHaveLength(3);
+    expect(await ds(MIR)).toEqual(tai);
+    expect((await sh(`ls -A ${MIR} | grep dang-chep || true`)).stdout.trim()).toBe('');
+  }, 120_000);
+
+  it('production thiếu bản sao ngoài: bản tại chỗ VẪN ghi, nhưng thoát lỗi để cron biết', async () => {
+    await dung(BD, []);
+    const r = await thu('/bin/sh /backup.sh', {
+      BACKUP_DIR: BD,
+      GIU_TOI_DA: '3',
+      CSBH_MOC: '20991231T000005Z',
+      NODE_ENV: 'production',
+      BACKUP_MIRROR_DIR: '',
+    });
+    expect(r.ma).toBe(1);
+    expect(await ds(BD)).toEqual(['csbh-20991231T000005Z.dump']);
+  }, 120_000);
+
+  it('GIU_TOI_DA vắng mặt hoặc rỗng → mặc định 7 (cron không truyền gì)', async () => {
+    await dung(BD, cu(9));
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: '', CSBH_MOC: '20991231T000008Z' });
+    expect(r.ma, r.ra).toBe(0);
+    expect(await ds(BD)).toHaveLength(7);
+  }, 120_000);
+
+  it.each(['0', '-1', 'bay', '3.5', '007x'])('GIU_TOI_DA="%s" bị từ chối TRƯỚC khi ghi gì', async (n) => {
+    await dung(BD, cu(3));
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: n, CSBH_MOC: '20991231T000006Z' });
+    expect(r.ma).toBe(2);
+    expect(await ds(BD)).toEqual(cu(3));
   });
 
-  it('WAL cũ hơn bản nền CÒN GIỮ đã bị dọn — kể cả nhãn `.backup`', async () => {
-    /*
-     * Bản trước lấy mốc dọn từ tệp `.backup` CŨ NHẤT trong kho, mà Postgres 16
-     * không xoá tệp ấy — mốc đứng yên ở bản nền đầu tiên mãi mãi (diễn tập: 16MB
-     * → 176MB qua sáu đêm). Kho của bộ kiểm có `.backup` từ những lượt trước,
-     * nên với luật cũ ca này đỏ ngay.
-     */
-    const goc = (await sh(`ls -1d ${BB}/base/*/ | head -1`)).stdout.trim().replace(/\/$/, '');
-    const moc = await batDau(goc);
-    expect(moc).toMatch(/^[0-9A-F]{24}$/);
-    const ds = (await sh('ls -1 /archive')).stdout.trim().split('\n').filter(Boolean);
-    expect(ds.length, 'kho WAL rỗng — /archive có được gắn vào không?').toBeGreaterThan(0);
-    const cu = ds.filter((f) => f.slice(0, 24) < moc);
-    expect(cu, `còn tệp cũ hơn mốc ${moc}`).toEqual([]);
-  });
-
-  it('thư mục lưu trữ WAL không phình vô hạn', async () => {
-    // `du` của một thư mục KHÔNG CÓ trả chuỗi rỗng = 0 và ca này xanh mãi — nên
-    // hỏi sự có mặt trước.
-    const { stdout } = await sh('test -d /archive && du -sm /archive | cut -f1');
-    expect(stdout.trim()).toMatch(/^\d+$/);
-    expect(Number(stdout.trim())).toBeLessThan(500);
-  });
-
-  it('bản sao ngoài: dọn theo cùng luật, có WAL, và WAL GIỮ chủ sở hữu Postgres', async () => {
-    // Bản trước chép lại mọi thứ mỗi đêm, không xoá gì, không có WAL. Và chép
-    // bằng root thì tệp WAL thành `root 0600`: Postgres phục hồi không đọc được,
-    // COI NHƯ HẾT WAL và dừng sớm KHÔNG báo lỗi (diễn tập: mất hai đêm dữ liệu).
-    expect(Number((await sh(`ls -1d ${MIR}/base/*/ | wc -l`)).stdout.trim())).toBe(1);
-    expect(Number((await sh(`ls -1 ${MIR}/wal | wc -l`)).stdout.trim())).toBeGreaterThan(0);
-    const chu = (await sh(`stat -c %u ${MIR}/wal/* | sort -u`)).stdout.trim();
-    expect(chu).toBe((await sh('stat -c %u /archive/$(ls -1 /archive | head -1)')).stdout.trim());
-    const moc = await batDau((await sh(`ls -1d ${MIR}/base/*/`)).stdout.trim().replace(/\/$/, ''));
-    const cu = (await sh(`ls -1 ${MIR}/wal`)).stdout.trim().split('\n').filter((f) => f.slice(0, 24) < moc);
-    expect(cu).toEqual([]);
-  });
+  it('thư mục bản nền cũ (máy nâng cấp từ trước `0250`): nói ra, KHÔNG tự xoá', async () => {
+    await dung(BD, []);
+    await sh(`mkdir -p ${BD}/base/20260101T000000Z && echo x > ${BD}/base/20260101T000000Z/base.tar.gz`);
+    const r = await thu('/bin/sh /backup.sh', { BACKUP_DIR: BD, GIU_TOI_DA: '2', CSBH_MOC: '20991231T000007Z' });
+    expect(r.ma, r.ra).toBe(0);
+    expect(r.ra).toContain(`còn thư mục cũ ${BD}/base`);
+    expect((await sh(`test -f ${BD}/base/20260101T000000Z/base.tar.gz && echo con`)).stdout.trim()).toBe('con');
+  }, 120_000);
 });
 
 describe('OPS-09 · múi giờ nghiệp vụ là giờ Việt Nam', () => {

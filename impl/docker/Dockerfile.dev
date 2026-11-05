@@ -1,9 +1,8 @@
 # Ảnh dùng chung cho mọi việc phát triển và kiểm thử. KHÔNG chạy Node native trên máy.
 FROM node:22.9.0-alpine@sha256:c9bb43423a6229aeddf3d16ae6aaa0ff71a0b2951ce18ec8fedb6f5d766cf286
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
-# `0240` — `postgresql16` (gói MÁY CHỦ) cho `pg_archivecleanup`: bộ kiểm chạy CHÍNH
-# `basebackup.sh` (OPS-08). Thiếu nó thì ca kiểm hỏi một lệnh không có — cùng lỗ
-# `0234` đã để lọt ở ảnh `ops`.
+# `postgresql16` (gói MÁY CHỦ) có từ `0240` cho `pg_archivecleanup` của bản nền; bản
+# nền đã gỡ ở `0250` nhưng gói để lại — gỡ nó là dựng lại ảnh kiểm, không được gì.
 # `0246` — `openssl` cho gói bí mật của chuyển máy: bộ kiểm chạy CHÍNH
 # `scripts/chuyen-may.sh` (mã hoá, giải mã, sai mật khẩu) — cùng gói ảnh `ops` có.
 RUN apk add --no-cache git postgresql16-client postgresql16 curl openssl

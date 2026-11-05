@@ -103,7 +103,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P280** (`0249`, chặng A): **mỗi service ghi tệp log riêng** — `LoggerTep` ở `http-kit`,
+Chặng gần nhất **P281** (`0250`, B1): **bỏ bản nền + WAL** (RPO = một chu kỳ sao lưu, `archive_mode = off`,
+`basebackup.sh` + volume `pgarchive` gỡ); `backup.sh` **giữ tối đa N bản** (`GIU_TOI_DA`, đếm số bản, chỉ dọn sau khi
+bản mới đọc lại được); kho tệp thành **bản chụp liên kết cứng** `pgbackup/kho-tep/<mốc>/tep/<bucket>` (`GIU_TOI_DA_TEP`).
+**Đoạn `CHUP_KHO_TEP` chạy TRONG ảnh MinIO — không có `grep/sed/awk/find`, `mc mirror --remove` từ gốc kho hỏng ở
+lượt hai; mirror theo từng bucket.** Ca kiểm chạy nó với PATH chỉ gồm lệnh ảnh ấy có. **2770/2770 xanh.**
+
+Trước đó **P280** (`0249`, chặng A): **mỗi service ghi tệp log riêng** — `LoggerTep` ở `http-kit`,
 `<CSBH_LOG_DIR>/dang-ghi/<service>-<ngày VN>.log`, mỗi dòng JSON mang `traceId`; bind mount từ máy chủ nên sống qua
 mọi lần dựng lại container. Lỗi 500 tự mang `traceId` + stack qua `ExceptionsHandler` của Nest. **2749/2749 xanh.**
 Kế tiếp: chặng B (nén log + giữ N, sao lưu theo lịch cấu hình được — **bỏ bản nền + WAL**, tác tử máy chủ, service

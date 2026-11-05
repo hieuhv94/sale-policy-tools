@@ -23,17 +23,14 @@ x-logging: &logging
 
 
 services:
-  # Volume của Docker sinh ra thuộc root, mà Postgres chạy dưới uid 70. Không có
-  # bước này thì archive_command lặng lẽ hỏng: CSDL vẫn chạy, healthcheck vẫn
-  # xanh, chỉ có WAL không được lưu — tức là mất khả năng phục hồi theo thời
-  # điểm mà không ai biết cho tới lúc cần dùng. Kiểm bằng pg_stat_archiver.
+  # Volume của Docker sinh ra thuộc root, mà Postgres chạy dưới uid 70. Từ `0250`
+  # chỉ còn thư mục sao lưu cần bước này (kho WAL đã gỡ cùng lưu trữ WAL).
   pg-init:
     image: postgres:16.15-alpine3.24@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
     user: root
     volumes:
-      - pgarchive:/archive
       - pgbackup:/backup
-    entrypoint: ["sh","-c","mkdir -p /archive /backup && chown -R 70:70 /archive /backup"]
+    entrypoint: ["sh","-c","mkdir -p /backup && chown -R 70:70 /backup"]
     restart: "no"
 
   postgres:
@@ -54,7 +51,6 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-      - pgarchive:/archive
       - pgbackup:/backup
     shm_size: 256mb
     deploy:
@@ -182,9 +178,7 @@ services:
       - ../scripts/reset-db.sh:/reset-db.sh:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
-      - ../scripts/basebackup.sh:/basebackup.sh:ro
       - ../scripts/luu-audit-thang.sh:/luu-audit-thang.sh:ro
-      - pgarchive:/archive
       - ../../workspace/backup-mirror:/mirror
       - pgbackup:/backup
       # Kho lưu trữ log NẰM NGOÀI `workspace/` (`0092`): `make clean` xoá sạch
@@ -202,7 +196,6 @@ networks:
 volumes:
   mailpitdata: {}
   pgdata: {}
-  pgarchive: {}
   pgbackup: {}
   redisdata: {}
   mqdata: {}

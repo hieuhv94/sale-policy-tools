@@ -744,8 +744,7 @@ Rà soát ngày 07/08 cho thấy bản thiết kế ban đầu đo *hiệu năng
 | Tìm khách hàng quét toàn bảng | Index GIN trigram trên biểu thức ghép — biểu thức phải khớp **từng ký tự** với truy vấn, lệch là index không bao giờ được chọn | `OPS-05` |
 | 10 service × 8 kết nối vượt trần 100 của Postgres | `max_connections = 200`, kèm tinh chỉnh bộ đệm và `work_mem` cho VM 8GB | `OPS-01` |
 | Một service rò rỉ bộ nhớ kéo sập cả VM | `deploy.resources.limits` cho từng container hạ tầng | — |
-| **WAL chất đống làm đầy ổ** — và ổ đầy thì Postgres dừng ghi | `pg_archivecleanup` chạy sau mỗi bản sao lưu vật lý, cắt WAL cũ hơn bản còn giữ sớm nhất | `OPS-08` |
-| `pg_dump` + WAL **không tự ghép thành PITR** — PITR cần bản sao lưu vật lý làm điểm xuất phát | Chạy cả hai kiểu: `pg_dump` cho phục hồi từng bảng và chuyển máy chủ, `pg_basebackup` cho phục hồi theo thời điểm | `OPS-08` |
+| Bản sao lưu chất đống làm đầy ổ | **Giữ tối đa N bản**, đếm số bản; chỉ dọn sau khi bản mới đọc lại được. Đảo lựa chọn PITR (`pg_basebackup` + lưu trữ WAL) của bản thiết kế ở `0250`: khách hàng chốt RPO = một chu kỳ sao lưu, đổi lấy hệ gọn hơn nhiều GB | `OPS-08` |
 | Bản sao lưu nằm **cùng ổ** với dữ liệu — chỉ chống được lỗi người dùng, không chống được hỏng ổ | `BACKUP_MIRROR_DIR` nhân bản ra ngoài; production thiếu biến này thì job sao lưu **báo lỗi và dừng** | `OPS-08` |
 | Múi giờ máy chủ là GMT, lệch một ngày ở nghiệp vụ | `timezone = 'Asia/Ho_Chi_Minh'`; dấu thời gian vẫn lưu UTC, chỉ cách đọc theo ngày là đổi | `OPS-09` |
 | Log Docker không giới hạn dung lượng | `json-file` với `max-size 10m`, giữ 5 file, áp cho mọi container | — |
@@ -1560,7 +1559,7 @@ Mỗi dòng là một test case tự động, có mã cố định để tham ch
 | OPS-04 | Chạy `sys.run_retention()` | Xoá token hết hạn, giữ token còn hạn; chỉ xoá outbox **đã gửi**; **không đụng** nhật ký; ghi lại đã xoá những gì | §10 | `P0` |
 | OPS-05 | Kiểm index tìm kiếm và index dọn dẹp | Tìm khách hàng có index GIN trigram; có index theo hạn cho token và SLA; nhật ký có index thời gian và đối tượng | §9.2 | `P1` |
 | OPS-06 | Chạy sao lưu rồi phục hồi vào CSDL nháp | File đọc được mục lục; phục hồi ra đúng dữ liệu; **bản phục hồi giữ nguyên cả bốn bất biến** ở tầng CSDL | §11 | `P0` |
-| OPS-08 | Kiểm bản sao lưu vật lý và kích thước thư mục WAL | Có `pg_basebackup`, không chỉ bản dump logic; thư mục lưu trữ được `pg_archivecleanup` dọn — **ổ đầy thì Postgres dừng ghi** | §11 | `P0` |
+| OPS-08 | Giữ tối đa N bản sao lưu (`0250`) | Bản thứ N+1 xoá bản cũ nhất ở cả hai nơi; lượt hỏng không xoá gì; hạ N thì lượt sau cắt về N | §11 | `P0` |
 | OPS-09 | Đọc múi giờ và ép so sánh theo ngày ở ranh giới nửa đêm | `Asia/Ho_Chi_Minh`; 23:00 UTC ngày 7 phải đọc ra ngày **8** — máy chủ GMT làm lệch một ngày ở ngày áp dụng, hiệu lực giá và SLA | §7 §9.1 | `P0` |
 | OPS-10 | Đọc bí mật khi có cả `FOO` lẫn `FOO_FILE` | File thắng biến môi trường; ở production thiếu bí mật thì **dừng** chứ không chạy tiếp với mật khẩu đoán được | §10 | `P0` |
 | OPS-11 | Ký token ở "service A", xác minh ở "service B" cùng file khoá | Xác minh được; không có file khoá thì mỗi lần nạp ra một khoá khác và **không service nào xác minh nổi token của service khác** | §10 | `P0` |

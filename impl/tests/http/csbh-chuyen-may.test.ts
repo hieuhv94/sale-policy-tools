@@ -209,7 +209,9 @@ describe('`0246` sao-luu-tep', () => {
     const guong = mkdtempSync(join(tmpdir(), 'guong-'));
     mkdirSync(guong, { recursive: true });
     const r = await chay(['sao-luu-tep'], '', { env: `${ENV_CU}CSBH_BACKUP_MIRROR=${guong}\n` });
-    thuTu(r.goi, ['mc mirror --overwrite --quiet l /backup/tep', `${guong}:/mirror`, 'chuyen-may ban-ke /backup']);
+    // `0250` — bản chụp theo mốc ở CẢ HAI nơi, rồi kê đúng bản vừa chụp.
+    thuTu(r.goi, ['GOC=/backup/kho-tep', `${guong}:/mirror`, 'GOC=/mirror/kho-tep', 'chuyen-may ban-ke /backup/kho-tep/']);
+    expect(r.goi).not.toContain('mc mirror --overwrite --quiet l /backup');
   });
 
   it('KHÔNG nằm trong lịch cron (chốt 05/11: lệnh có sẵn, chưa chạy định kỳ)', () => {

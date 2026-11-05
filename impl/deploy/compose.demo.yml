@@ -83,9 +83,7 @@ services:
       - ../scripts/migrate.sh:/migrate.sh:ro
       - ../scripts/backup.sh:/backup.sh:ro
       - ../scripts/restore.sh:/restore.sh:ro
-      - ../scripts/basebackup.sh:/basebackup.sh:ro
       - ./secrets:/run/secrets:ro
-      - pgarchive:/archive
       - ../../workspace/backup-mirror:/mirror
       - pgbackup:/backup
 

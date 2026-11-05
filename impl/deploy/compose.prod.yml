@@ -194,7 +194,6 @@ services:
       MAIL_ALLOWLIST: ${MAIL_ALLOWLIST}
     volumes:
       - ../secrets:/run/secrets:ro
-      - pgarchive:/archive
       - pgbackup:/backup
       - ${CSBH_BACKUP_MIRROR:-../backup-mirror}:/mirror
       - ${CSBH_LOG_ARCHIVE:-../logarchive}:/logarchive

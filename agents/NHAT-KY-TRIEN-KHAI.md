@@ -20929,3 +20929,52 @@ hứa *"rồi tự lành"* mà thân ca không kiểm vế ấy; thêm hai bư�
 lại thì đỏ. **Dựng thật** `make demo`: mười tệp `*-2026-11-06.log` lúc UTC còn là 17:10 ngày 05 (ngày VN đúng).
 
 **2749/2749 xanh.**
+
+## P281 — `0250` Bỏ bản nền + WAL; giữ tối đa N bản; kho tệp thành bản chụp liên kết cứng
+
+Chặng B1 của trang Vận hành. Ba quyết định khách hàng chốt 05/11 khi xem mockup: **bỏ bản nền + lưu
+trữ WAL** (*"bỏ, dump hằng ngày"* — sau khi được giải thích bản dump chứa đủ tài khoản, mật khẩu băm,
+phiên, nhật ký, và cái mất là cam kết RPO 5 phút), **giữ tối đa N bản** do Quản trị đặt, **phần thừa
+đi ở lượt chạy kế tiếp** (không xoá lúc Lưu, không có việc dọn riêng).
+
+**Gỡ**: `scripts/basebackup.sh`, `archive_mode` (giờ `off`), volume `pgarchive` khỏi bốn compose +
+`pg-init`, gói máy chủ `postgresql16` khỏi ảnh `ops` (nó có mặt cho đúng `pg_archivecleanup`), quy trình
+PITR ở `05-VAN-HANH` §3. `RPO-RTO.md` viết lại: RPO = một chu kỳ sao lưu. Máy nâng cấp: tệp compose
+mới gỡ mount `/archive` khỏi Postgres nên `up -d` **dựng lại container** và nó đọc `archive_mode = off`
+(giá trị chỉ ăn sau khởi động lại); thư mục bản nền/WAL cũ **không tự xoá** — `backup.sh` in ra.
+
+**`backup.sh`** gánh luôn phần nhân bản trước đây nằm ở `basebackup.sh`. Giữ N **đếm số bản theo
+tên** (`csbh-<UTC>.dump` sắp chữ = sắp thời gian, không dựa mtime vì mtime đổi khi chép sang bản sao
+ngoài), và chỉ dọn **sau khi bản mới đọc lại được**. `GIU_TOI_DA` rỗng = mặc định 7 (cron không truyền gì).
+Lượt chạy đầu của ca kiểm tìm ra một lỗi thật: `pg_dump` hỏng để lại `.partial` — giờ dọn ngay.
+
+**Kho tệp: bản chụp `kho-tep/<mốc>/tep/<bucket>/…`**, khởi đầu bằng `cp -al` bản trước. Hai điều giữ
+cho liên kết cứng an toàn: **không `--overwrite`** (đối tượng khoá theo id, không bao giờ ghi lại — cờ
+ấy sẽ ghi vào inode chung) và **chỉ liên kết `tep/`** (bảng kê `ban-ke` ghi bằng `>`; liên kết cả bản
+chụp là cắt cụt bảng kê của bản trước). Bố cục cũ `pgbackup/tep` làm điểm khởi đầu bằng liên kết.
+
+**DỰNG THẬT TÌM RA BA LỖI MÀ BỘ KIỂM XANH** — đoạn chụp chạy trong container MinIO, thế giới khác container kiểm:
+1. **Ảnh MinIO không có `grep`/`sed`/`awk`/`find`** (đo bằng `command -v`). Bản đầu lọc tên bản chụp bằng
+   `grep` → không thấy bản trước (mỗi lượt chép trọn 21.494 tệp) và **không bao giờ dọn** (giới hạn 2,
+   còn 3). Lọc bằng `case`; ca kiểm giờ chạy đoạn chụp với **PATH chỉ gồm lệnh ảnh MinIO có**
+   (`LENH_ANH_MINIO`) — phá lại bằng `grep` thì đỏ.
+2. **`mc mirror --quiet` vẫn in MỌI tệp** khi không có terminal (12MB một lượt) — vào log cron mỗi đêm.
+3. **`mc mirror --remove` từ GỐC kho sang thư mục hỏng ngay lượt thứ hai** dù không gì đổi (`remove
+   …/tep/csbh: no such file or directory`) — tách ra đo: thư mục rỗng có sẵn là đủ làm nó hỏng. Mirror
+   **theo từng bucket** (`mc ls l`) thì chạy lại bao nhiêu lần cũng được; bucket biến mất thì gỡ thư
+   mục khỏi bản chụp. `mc` giả của ca kiểm học luôn hành vi ấy (từ chối mirror từ gốc) — phá lại về
+   mirror gốc: 11/12 đỏ.
+
+Sau sửa, ba lượt thật trên MinIO demo: 8,7 / 3,4 / 3,7 giây; giới hạn 2 dọn đúng bản cũ nhất; `nlink=2`;
+**hai bản chụp tốn 187,6MB — bằng một kho**. `backup.sh` thật ba lượt với N=2: còn đúng 2 bản ở cả
+`pgbackup` lẫn bản sao ngoài; Postgres demo `SHOW archive_mode` = `off`.
+
+**Bỏ ý định `./csbh phuc-hoi <mốc>`** của kế hoạch: nó chỉ có để trang web cho chép lệnh không lộ chữ
+"dump", mà khối phục hồi đã rời trang. `phuc-hoi-tep [mốc]` thì có — chọn bản chụp, mặc định mới nhất.
+
+Ca: `tests/db/ops.test.ts` OPS-02 (archive tắt) · OPS-08 thay bằng 13 ca giữ N; `tests/http/chup-kho-tep.test.ts`
+12 ca; `anh-ops` + `csbh-chuyen-may` sửa theo. Phá lại 8 lượt ở bản chụp, mọi lượt đỏ — một lượt phá **sai
+cách** lúc đầu (`cp -al` vào thư mục đã có tạo thư mục con, bảng kê không hề bị liên kết), phá lại đúng
+thì đỏ.
+
+**2770/2770 xanh.**

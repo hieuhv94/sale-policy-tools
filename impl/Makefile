@@ -133,7 +133,6 @@ dong-goi:
 backup:
 	@mkdir -p $(WORKSPACE)/backup-mirror
 	$(COMPOSE) run --rm -T --entrypoint /bin/sh migrate /backup.sh
-	$(COMPOSE) run --rm -T --entrypoint /bin/sh migrate /basebackup.sh
 
 # Phục hồi vào CSDL NHÁP rồi đối chiếu — không đụng CSDL đang chạy.
 restore-drill:

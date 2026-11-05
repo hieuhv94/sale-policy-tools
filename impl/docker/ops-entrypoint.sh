@@ -30,7 +30,7 @@ csbh-ops — công cụ vận hành Chính sách bán hàng
                      kèm giá, ba quy định chiết khấu, ba văn bản mẫu. Từ chối
                      khi danh mục đã có sản phẩm. Cần ADMIN_USERNAME và
                      ADMIN_PASSWORD của một tài khoản Quản trị đã đổi mật khẩu.
-  backup             Sao lưu logic (pg_dump) + bản nền (pg_basebackup).
+  backup             Sao lưu CSDL (pg_dump), giữ tối đa GIU_TOI_DA bản.
   restore-drill      DIỄN TẬP phục hồi vào CSDL nháp. KHÔNG đụng CSDL đang chạy.
   restore <tệp>      Phục hồi ĐÈ lên CSDL đang chạy. Phải đặt RESTORE_DB=csbh.
                      <tệp> là TÊN trong /backup (vd csbh-20261024T011500Z.dump).
@@ -55,8 +55,7 @@ case "${1:-help}" in
   bootstrap-admin) shift; exec pnpm --dir /app bootstrap-admin "$@" ;;
   nap-danh-muc)    shift; exec pnpm --dir /app nap-danh-muc "$@" ;;
   backup)
-    /bin/sh /app/scripts/backup.sh
-    exec /bin/sh /app/scripts/basebackup.sh
+    exec /bin/sh /app/scripts/backup.sh
     ;;
   restore-drill)   shift; exec /bin/sh /app/scripts/restore.sh "$@" ;;
   restore)

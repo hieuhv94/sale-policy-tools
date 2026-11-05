@@ -342,5 +342,5 @@ Bản demo **không phải** bản production. Ba khác biệt có chủ ý:
 | Tài khoản | 10 tài khoản mẫu, mật khẩu chung | Không nạp tài khoản mẫu |
 | TLS | Không, HTTP cổng 8080 | Caddy tự xin chứng chỉ Let's Encrypt |
 
-Cam kết phục hồi (RPO 5 phút / RTO 60 phút) và những gì **không** được bảo vệ: xem
+Cam kết phục hồi (RPO một chu kỳ sao lưu / RTO 60 phút) và những gì **không** được bảo vệ: xem
 [`deploy/RPO-RTO.md`](../deploy/RPO-RTO.md).

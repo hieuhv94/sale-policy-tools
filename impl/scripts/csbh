@@ -60,9 +60,12 @@ csbh — vận hành Chính sách bán hàng
     phuc-hoi <tệp>   Phục hồi ĐÈ lên dữ liệu đang chạy. Hỏi lại trước khi làm.
     don-du-lieu      Dọn dữ liệu quá hạn lưu trữ. Chạy hằng tháng qua cron.
     luu-audit        Trích nhật ký kiểm toán một tháng ra kho lưu trữ.
-    sao-luu-tep      Chép KHO TỆP (bản scan, bản mềm, giấy tờ, mẫu) vào bản sao
-                     lưu và bản sao ngoài. Chỉ chép phần mới. CHƯA chạy qua cron.
-    phuc-hoi-tep     Chép kho tệp từ bản sao lưu trở lại. Hỏi lại trước khi làm.
+    sao-luu-tep      Chụp KHO TỆP (bản scan, bản mềm, giấy tờ, mẫu) thành một bản
+                     theo mốc, ở bản sao lưu và bản sao ngoài; giữ tối đa
+                     GIU_TOI_DA_TEP bản (mặc định 7). Tệp không đổi không tốn thêm chỗ.
+    phuc-hoi-tep [mốc]
+                     Chép kho tệp từ một bản chụp (mặc định mới nhất) trở lại.
+                     Hỏi lại trước khi làm.
 
   Chuyển sang máy khác
     xuat-chuyen-may  Trên máy CŨ: dừng hệ, xuất CSDL + kho tệp + nhật ký đã trích
@@ -111,6 +114,76 @@ mc_sh() {
     mc alias set l http://minio:9000 "$MINIO_ROOT_USER" "$mk" > /dev/null || exit 1
     '"$lenh"
 }
+
+# Một BẢN CHỤP kho tệp, chạy TRONG container MinIO (`0250`). Đầu vào là biến shell
+# GOC (thư mục chứa các bản chụp), CU (bố cục trước `0250`), GIU, MOC.
+#
+#   <GOC>/<MOC>/tep/<bucket>/<khoá>   ← nội dung
+#   <GOC>/<MOC>/csdl.txt …            ← bảng kê của CHÍNH bản chụp này (`ban-ke`)
+#
+# Bản mới khởi đầu bằng LIÊN KẾT CỨNG tới bản trước (`cp -al`): tệp không đổi không
+# tốn thêm chỗ, nên giữ 7 bản chụp tốn xấp xỉ một kho cộng phần tệp mới. Rồi `mc
+# mirror --remove` đưa nó về đúng kho hiện tại: tệp mới chép vào, tệp đã xoá khỏi
+# kho được GỠ LIÊN KẾT khỏi bản này (bản cũ vẫn giữ).
+#
+# HAI ĐIỀU giữ cho liên kết cứng an toàn — một lệnh GHI ĐÈ TẠI CHỖ lên tệp dùng
+# chung là sửa luôn mọi bản chụp cũ:
+#   - KHÔNG `--overwrite`: đối tượng trong kho khoá theo id và không bao giờ được
+#     ghi lại, nên không có gì để ghi đè; có cờ ấy thì `mc` sẽ ghi vào inode chung.
+#   - CHỈ liên kết thư mục `tep/`. Bảng kê (`ban-ke` ghi bằng `>`) nằm ngoài nó — liên
+#     kết cả bản chụp thì `>` cắt cụt bảng kê của bản TRƯỚC.
+#
+# Máy nâng cấp từ trước `0250` có kho cũ ở `<CU>/<bucket>`: dùng nó làm điểm khởi
+# đầu (liên kết, không chép) rồi nói ra là xoá tay được.
+CHUP_KHO_TEP='
+set -e
+# Ảnh MinIO KHÔNG có grep/sed/awk/find (đo 06/11) — lọc tên bản chụp bằng `case`.
+cac_ban() {
+  for x in "$GOC"/*; do
+    b=${x##*/}
+    case "$b" in [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) echo "$b" ;; esac
+  done | LC_ALL=C sort
+}
+mkdir -p "$GOC"
+# bản dở dang của lượt hỏng trước (bất kỳ mốc nào) — không bao giờ là bản tốt
+rm -rf "$GOC"/*.partial
+truoc=$(cac_ban | tail -1)
+mkdir -p "$GOC/$MOC.partial"
+if [ -n "$truoc" ]; then
+  cp -al "$GOC/$truoc/tep" "$GOC/$MOC.partial/tep"
+elif [ -d "$CU" ] && [ -n "$(ls -A "$CU" 2>/dev/null)" ]; then
+  cp -al "$CU" "$GOC/$MOC.partial/tep"
+  echo "  GHI CHÚ — kho cũ $CU đã thành điểm khởi đầu; xoá tay được: rm -rf $CU"
+else
+  mkdir -p "$GOC/$MOC.partial/tep"
+fi
+# Mirror TỪNG BUCKET, không mirror từ gốc `l`: `mc` của ảnh ghim, mirror gốc sang
+# thư mục máy với `--remove`, HỎNG ngay lượt thứ hai dù không gì đổi ("remove
+# …/tep/csbh: no such file or directory") — đo 06/11 trên MinIO thật. Theo bucket
+# thì chạy lại bao nhiêu lần cũng được. Bucket đã biến khỏi kho thì gỡ thư mục của
+# nó khỏi bản chụp này.
+# `--quiet` chỉ tắt thanh tiến độ: không có terminal thì `mc` vẫn in MỌI tệp
+# (12MB cho kho demo) — đầu ra ấy vào log cron mỗi đêm.
+mc ls l > "$GOC/.bucket"
+co=" "
+while read -r dong; do
+  bk=${dong##* }; bk=${bk%/}
+  [ -n "$bk" ] || continue
+  co="$co$bk "
+  mc mirror --remove --quiet "l/$bk" "$GOC/$MOC.partial/tep/$bk" > /dev/null
+done < "$GOC/.bucket"
+rm -f "$GOC/.bucket"
+for d in "$GOC/$MOC.partial/tep"/*/; do
+  [ -d "$d" ] || continue
+  bk=${d%/}; bk=${bk##*/}
+  case "$co" in *" $bk "*) ;; *) rm -rf "$d" ;; esac
+done
+mv "$GOC/$MOC.partial" "$GOC/$MOC"
+cac_ban | head -n "-$GIU" | while read -r cu; do
+  echo "  giữ tối đa $GIU bản chụp — xoá $cu"
+  rm -rf "$GOC/$cu"
+done
+'
 
 # Đường dẫn trên máy của một thư mục mà compose khai TƯƠNG ĐỐI theo `deploy/`.
 duong_may() {
@@ -431,38 +504,51 @@ HET
     $DC run --rm -T -e RESTORE_DB=csbh ops restore "$tep"
     ;;
   sao-luu-tep)
+    # `0250` — BẢN CHỤP theo mốc, giữ tối đa N (`GIU_TOI_DA_TEP`, mặc định 7).
     luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
-    echo "==> chép kho tệp vào bản sao lưu (chỉ phần mới hoặc đã đổi)"
-    mc_sh 'mc mirror --overwrite --quiet l /backup/tep' -v "${luu}:/backup"
+    moc="${CSBH_MOC:-$(date -u +%Y%m%dT%H%M%SZ)}"
+    giu="${GIU_TOI_DA_TEP:-7}"
+    case "$giu" in ''|*[!0-9]*|0) echo "  GIU_TOI_DA_TEP phải là số nguyên dương, đang là '$giu'." >&2; exit 2 ;; esac
+    echo "==> chụp kho tệp vào bản sao lưu ($moc, giữ tối đa $giu bản)"
+    mc_sh "GOC=/backup/kho-tep CU=/backup/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${luu}:/backup"
     guong="$(duong_may CSBH_BACKUP_MIRROR ../backup-mirror)"
     if [ -d "$guong" ]; then
-      echo "==> chép sang bản sao ngoài: $guong"
-      mc_sh 'mc mirror --overwrite --quiet l /mirror/tep' -v "${guong}:/mirror"
+      echo "==> chụp sang bản sao ngoài: $guong"
+      mc_sh "GOC=/mirror/kho-tep CU=/mirror/tep GIU=$giu MOC=$moc; $CHUP_KHO_TEP" -v "${guong}:/mirror"
     else
       echo "  KHÔNG có thư mục bản sao ngoài ($guong) — kho tệp chỉ nằm trên máy này." >&2
     fi
-    echo "==> kiểm: mọi tệp CSDL trỏ tới đã có trong bản sao lưu"
-    ops chuyen-may ban-ke /backup
+    echo "==> kiểm: mọi tệp CSDL trỏ tới đã có trong bản chụp vừa tạo"
+    ops chuyen-may ban-ke "/backup/kho-tep/$moc"
     ;;
   phuc-hoi-tep)
+    # `./csbh phuc-hoi-tep [mốc]` — mặc định bản chụp MỚI NHẤT (`0250`).
     luu="$(grep -E '^COMPOSE_PROJECT_NAME=' .env | cut -d= -f2-)_pgbackup"
-    cat <<'HET'
+    ban="${2:-}"
+    case "$ban" in
+      ''|[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z) ;;
+      *) echo "  Mốc '$ban' sai dạng (vd. 20261105T020000Z)." >&2; exit 2 ;;
+    esac
+    cat <<HET
 
-  Chép KHO TỆP từ bản sao lưu (lần ./csbh sao-luu-tep gần nhất) trở lại kho đang
-  chạy. Tệp cùng tên bị ghi đè bằng bản trong sao lưu; tệp KHÔNG có trong sao lưu
-  thì giữ nguyên — lệnh này không xoá gì.
+  Chép KHO TỆP từ bản chụp ${ban:-mới nhất} trở lại kho đang chạy. Tệp cùng tên bị
+  ghi đè bằng bản trong sao lưu; tệp KHÔNG có trong bản chụp thì giữ nguyên — lệnh
+  này không xoá gì.
 
 HET
     printf '  Gõ "PHUC-HOI-TEP" để tiếp tục: '
     read -r xn
     [ "$xn" = "PHUC-HOI-TEP" ] || { echo "  Đã huỷ."; exit 1; }
-    mc_sh 'for d in /backup/tep/*/; do
-      [ -d "$d" ] || continue
-      b=${d%/}; b=${b##*/}
-      mc mb --ignore-existing "l/$b" > /dev/null && mc mirror --overwrite --quiet "$d" "l/$b" || exit 1
-    done' -v "${luu}:/backup:ro"
-    echo "  Xong. Tệp mà CSDL trỏ tới nhưng bản sao lưu không có:"
-    ops chuyen-may ban-ke /backup
+    mc_sh 'ban='"$ban"'
+      [ -n "$ban" ] || ban=$(ls -1 /backup/kho-tep 2>/dev/null | grep -E "^[0-9]{8}T[0-9]{6}Z$" | LC_ALL=C sort | tail -1)
+      [ -n "$ban" ] && [ -d "/backup/kho-tep/$ban/tep" ] || { echo "  Không có bản chụp ${ban:-nào}." >&2; exit 1; }
+      echo "  Phục hồi từ bản chụp $ban"
+      for d in /backup/kho-tep/$ban/tep/*/; do
+        [ -d "$d" ] || continue
+        b=${d%/}; b=${b##*/}
+        mc mb --ignore-existing "l/$b" > /dev/null && mc mirror --overwrite --quiet "$d" "l/$b" || exit 1
+      done' -v "${luu}:/backup:ro"
+    echo "  Xong."
     ;;
 
   xuat-chuyen-may)

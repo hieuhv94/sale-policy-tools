@@ -105,7 +105,7 @@ kho tệp, hàng chục GB.
 Ngoài hai loại bản sao lưu này, các nơi khác lớn lên không giới hạn (ảnh Docker cũ, gói chuyển máy, CSDL cũ sau
 phục hồi, log cron, vài bảng kỹ thuật) **chưa xử lý ở đợt này** (chốt 05/11); thẻ Ổ đĩa vẫn đo và cảnh báo.
 
-## Bỏ bản nền + WAL, chỉ còn bản sao lưu hằng ngày (chốt 05/11 — ĐÈ lên phần bản nền ở mục trên)
+## [ĐÃ LÀM — P281] Bỏ bản nền + WAL, chỉ còn bản sao lưu hằng ngày (chốt 05/11 — ĐÈ lên phần bản nền ở mục trên)
 
 Khách hàng chốt *"Bỏ, dump hằng ngày"* sau khi được giải thích: bản dump chứa đủ dữ liệu nghiệp vụ, tài khoản,
 mật khẩu băm, phiên, nhật ký kiểm toán; thứ mất là **cam kết RPO ≤ 5 phút** (`deploy/RPO-RTO.md`) — giờ mất tối
@@ -127,8 +127,7 @@ máy chủ*, câu lệnh để chép và thao tác bấm dòng để điền l�
 ở `05-VAN-HANH` §3. Phần dưới về mốc của `./csbh phuc-hoi` vẫn làm (cho người vận hành), chỉ không hiện trên web.
 
 **Không dùng chữ "dump" trên giao diện** (chốt 05/11: *"gây khó hiểu cho người dùng"*): trang chỉ nói *bản sao lưu
-lúc …*. Tên tệp không hiện ra; `./csbh phuc-hoi` nhận **mốc** `YYYYMMDD-HHMM` (vd. `./csbh phuc-hoi 20261105-0115`)
-bên cạnh tên tệp cũ, để câu lệnh trang cho chép không lộ chữ ấy. Đầu ra việc định kỳ hiện trên trang cũng viết
+lúc …*. Tên tệp không hiện ra. (Ý định cho `./csbh phuc-hoi` nhận mốc đã BỎ ở P281 — khối phục hồi rời trang.) Đầu ra việc định kỳ hiện trên trang cũng viết
 bằng lời thường. Tệp tải về đặt tên `csbh-sao-luu-<mốc>.backup`.
 
 ## Dọn dữ liệu hết hạn (chốt 05/11: chỉ hiện kết quả)

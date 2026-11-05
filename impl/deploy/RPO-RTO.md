@@ -8,30 +8,23 @@ nhận điều gì.
 
 | | Cam kết | Đo bằng gì |
 |---|---|---|
-| **RPO** — mất tối đa bao nhiêu dữ liệu | **≤ 5 phút** | `archive_timeout = 5min`: WAL được đóng và đẩy sang kho lưu ít nhất mỗi 5 phút, kể cả khi hệ thống rảnh |
-| **RTO** — bao lâu thì chạy lại được | **≤ 60 phút** | Đo thật bằng `make restore-drill`, không phải ước lượng |
+| **RPO** — mất tối đa bao nhiêu dữ liệu | **≤ một chu kỳ sao lưu** (mặc định 24 giờ) | lịch sao lưu cấu hình trên trang Vận hành; tuổi bản sao lưu mới nhất hiện ở thẻ Sức khoẻ |
+| **RTO** — bao lâu thì chạy lại được | **≤ 60 phút** | Đo thật bằng `./csbh dien-tap`, không phải ước lượng |
 
-## RPO đến từ đâu
+## RPO đến từ đâu `sửa 06/11 — 0250`
 
-Không đến từ bản sao lưu hằng đêm. Bản `pg_dump` mỗi đêm chỉ cho RPO 24 giờ — mất tối đa một ngày
-làm việc, tức là toàn bộ hồ sơ CSBH lập trong ngày.
+**Từ bản sao lưu CSDL theo lịch, và chỉ từ đó.** Tới `0249` con số là 5 phút, nhờ bản nền
+vật lý + lưu trữ WAL (`archive_timeout = 5min`). Khách hàng chốt 05/11 **bỏ hẳn** đường ấy sau
+khi được giải thích cái giá: hệ gọn hơn nhiều GB, không còn quy trình phục hồi theo thời điểm,
+không còn sự cố im lặng *"lưu WAL hỏng"* — đổi lại sự cố làm mất **mọi việc từ lượt sao lưu gần
+nhất**: với lịch hằng ngày lúc 01:15, CSDL hỏng lúc 16:00 là mất trọn một ngày làm việc.
 
-Con số 5 phút đến từ **PITR**: `archive_command` đẩy từng segment WAL sang volume `pgarchive`, và
-`archive_timeout = 5min` buộc Postgres đóng segment đang ghi dở sau 5 phút dù nó chưa đầy. Không có
-tham số đó thì một ngày ít giao dịch có thể không sinh segment nào suốt nhiều giờ, và RPO thực tế
-trượt về "từ lần ghi WAL đầy 16MB gần nhất" — một con số không ai kiểm soát được.
+Thu hẹp RPO bằng cách đặt lịch dày hơn (mỗi 6 hoặc 12 giờ) — bản sao lưu CSDL nhỏ, chạy dày
+được. Bản sao lưu chứa toàn bộ CSDL: hồ sơ, khách hàng, danh mục, tài khoản + mật khẩu băm +
+phiên, nhật ký kiểm toán.
 
-**Điều kiện để con số này đúng:** `archive_command` phải thật sự chạy. Nó từng hỏng lặng lẽ một lần
-(volume thuộc root, Postgres chạy uid 70) — CSDL vẫn xanh, healthcheck vẫn xanh, chỉ có WAL không
-được lưu. Vì vậy `pg_stat_archiver` phải được theo dõi, không phải chỉ được kiểm lúc dựng:
-
-```sql
-SELECT archived_count, last_archived_time, failed_count, last_failed_time
-  FROM pg_stat_archiver;
-```
-
-`failed_count > 0` hoặc `last_archived_time` cũ hơn 10 phút = **RPO đã mất, hệ thống vẫn trông bình
-thường**. Đây là sự cố im lặng nguy hiểm nhất của hệ này.
+**Điều kiện để con số này đúng:** lượt sao lưu phải thật sự chạy và thành công. Thẻ Sức khoẻ
+của trang Vận hành báo đỏ khi bản mới nhất cũ hơn một chu kỳ + 2 giờ.
 
 ## RTO đến từ đâu
 
@@ -41,7 +34,7 @@ Một VM, không có máy dự phòng nóng. 60 phút là tổng của:
 |---|---|
 | Nhận ra sự cố và quyết định phục hồi | 10 phút |
 | `docker compose up` hạ tầng trên máy thay thế | 5 phút |
-| Nạp base backup + replay WAL tới thời điểm chọn | 20 phút |
+| Nạp bản sao lưu mới nhất (`phuc-hoi`) | 20 phút |
 | Chạy migration, kiểm số dòng, `make seed` nếu là môi trường nháp | 10 phút |
 | Kiểm thủ công một luồng duyệt và một lần xuất file | 15 phút |
 
@@ -74,28 +67,20 @@ báo lỗi** · phục hồi lên cụm mới **không dựng lại role**, `mig
 
 Ghi rõ để không ai nhầm:
 
-- **Ổ đĩa hỏng cùng lúc với volume lưu trữ WAL.** Cả hai nằm trên cùng một VM. Muốn chống thì phải
-  đẩy WAL và base backup sang một máy khác — chưa làm. Thư mục `workspace/backup-mirror` là bước
-  chuẩn bị cho việc đó, hiện chỉ là một bản sao trên cùng máy.
-- **MinIO.** File scan và file hợp đồng không nằm trong PITR của Postgres. Từ `0246` có
-  `./csbh sao-luu-tep` (chép phần mới vào bản sao lưu + bản sao ngoài) nhưng **chưa chạy định kỳ**
-  (chốt 05/11) — RPO của tệp là lần chạy tay gần nhất, không phải 5 phút. Hồ sơ đã ký mất bản scan
-  là mất bằng chứng nghiệp vụ.
-- **Sai sót của người dùng trong phạm vi RPO.** PITR phục hồi được về thời điểm trước thao tác sai,
-  nhưng đổi lại mất mọi thao tác đúng sau đó. Đây là quyết định của người vận hành, không tự động.
+- **Mọi việc làm sau lượt sao lưu gần nhất** (`0250`). Không còn phục hồi theo thời điểm.
+- **Ổ đĩa hỏng khi `CSBH_BACKUP_MIRROR` cùng ổ với dữ liệu.** Bản sao ngoài phải là ổ khác/NAS;
+  production thiếu nó thì lượt sao lưu thoát lỗi.
+- **Kho tệp giữa hai lượt chụp.** Kho tệp (bản scan, bản mềm) có lịch chụp riêng; tệp tải lên
+  sau lượt chụp gần nhất mà mất máy thì mất theo. Hồ sơ đã ký mất bản scan là mất bằng chứng
+  nghiệp vụ.
 
 ## Việc còn phải làm
 
-- **Gắn `sao-luu-tep` vào cron.** Lệnh có từ `0246` và đã diễn tập; chưa chạy định kỳ theo chốt
-  05/11 — vẫn là khoảng hở lớn nhất còn lại.
-- **Lệnh `./csbh` cho PITR.** Quy trình đã diễn tập (`05-VAN-HANH` §3) nhưng còn là các lệnh
-  `docker` gõ tay.
-- **Cảnh báo tự động** trên `pg_stat_archiver` (`failed_count`, `last_archived_time`) và trên
-  tuổi của bản sao lưu mới nhất. Cron chỉ ghi log; không ai đọc log thì lượt hỏng nằm im.
-  Diễn tập thấy thêm một đường hỏng im lặng: cụm Postgres dựng lại trên **kho WAL cũ** đánh số
-  segment lại từ đầu, và `archive_command` (`test ! -f …`) sẽ hỏng khi số va vào tệp cũ.
-- **Đẩy bản sao lưu ra khỏi VM** — `CSBH_BACKUP_MIRROR` phải là ổ khác hoặc NAS; WAL trong ngày
-  chỉ nằm ở volume `pgarchive`.
+- **Cảnh báo tự động** khi bản sao lưu mới nhất quá tuổi — thẻ Sức khoẻ của trang Vận hành
+  (chặng B/C của kế hoạch `agents/KE-HOACH-VAN-HANH.md`).
+
+> **Lịch sử**: mục *"Đã diễn tập (`0240`)"* ở trên đo cả PITR — đường ấy đã gỡ ở `0250`; các
+> dòng `restore-drill` và `phuc-hoi` vẫn đúng.
 
 ## Chuyển máy — diễn tập 05/11 (`0246`)
 

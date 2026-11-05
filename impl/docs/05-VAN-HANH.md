@@ -45,7 +45,7 @@ sudo sed -i 's|/opt/csbh|<đường dẫn thật>|' /etc/cron.d/csbh
 
 | Việc | Khi nào | Vì sao |
 |---|---|---|
-| `sao-luu` | hằng đêm 01:15 | pg_dump + bản nền |
+| `sao-luu` | hằng đêm 01:15 | bản sao lưu CSDL, giữ tối đa N bản |
 | `don-du-lieu` | ngày 1 hằng tháng | xoá dữ liệu quá hạn lưu trữ, dọn outbox đã gửi |
 | `luu-audit` | ngày 1 hằng tháng | trích nhật ký kiểm toán tháng cũ ra kho |
 | `dien-tap` | ngày 8 hằng tháng | phục hồi thử vào CSDL nháp |
@@ -72,22 +72,16 @@ lúc cần dùng.
 ./csbh phuc-hoi <tệp>        # ĐÈ lên dữ liệu đang chạy — hỏi lại trước khi làm
 ```
 
-**Cam kết**: mất tối đa **5 phút** dữ liệu (RPO), chạy lại trong **60 phút**
-(RTO). Chi tiết ở [RPO-RTO.md](../deploy/RPO-RTO.md).
+**Cam kết** `sửa 06/11`: mất tối đa **một chu kỳ sao lưu** (mặc định 24 giờ), chạy
+lại trong **60 phút**. Chi tiết ở [RPO-RTO.md](../deploy/RPO-RTO.md).
 
-Con số RPO 5 phút đến từ WAL archiving, **không** từ bản sao lưu hằng đêm. Điều
-kiện để nó đúng là `archive_command` thật sự chạy:
+Từ `0250` chỉ còn MỘT loại bản sao lưu: bản dump toàn bộ CSDL (`pg_dump`). Bản nền
+vật lý + lưu trữ WAL (phục hồi về từng giây, cam kết 5 phút cũ) **đã gỡ** theo chốt
+05/11 của khách hàng — đổi lấy một hệ gọn hơn nhiều GB. Bản dump chứa đủ dữ liệu
+nghiệp vụ, tài khoản, mật khẩu băm, phiên đăng nhập và nhật ký kiểm toán.
 
-```sh
-./csbh psql -c "SELECT archived_count, last_archived_time, failed_count, last_failed_time FROM pg_stat_archiver"
-```
-
-`failed_count` khác 0, hoặc `last_archived_time` cũ hơn 10 phút trên một hệ đang
-dùng, là **hỏng**. Nó từng hỏng lặng lẽ một lần: CSDL vẫn xanh, healthcheck vẫn
-xanh, chỉ có WAL không được lưu.
-
-`phuc-hoi` hỏi lại và bắt gõ `PHUC-HOI` để tiếp tục. Mọi hồ sơ lập sau thời điểm
-sao lưu sẽ mất — nên gần như luôn luôn thứ bạn muốn là `dien-tap`.
+`phuc-hoi` hỏi lại và bắt gõ `PHUC-HOI` để tiếp tục. Mọi việc làm sau thời điểm sao
+lưu sẽ mất — nên gần như luôn luôn thứ bạn muốn là `dien-tap`.
 
 **`<tệp>` là TÊN tệp trong thư mục sao lưu**, ví dụ `csbh-20261024T011500Z.dump` —
 không phải đường dẫn trên máy chủ. Gõ `./csbh phuc-hoi` không kèm gì để xem danh
@@ -104,91 +98,40 @@ sách. Từ `0240`, `phuc-hoi` an toàn theo ba nghĩa, đều đã diễn tập
 Máy chủ MỚI (mất máy): `./csbh len` như cài mới rồi `phuc-hoi` — role của các service
 tự dựng lại nếu thiếu.
 
-### Bản sao lưu nằm ở đâu, giữ bao lâu
+### Bản sao lưu nằm ở đâu, giữ bao nhiêu `sửa 06/11`
 
 | | Chỗ | Giữ |
 |---|---|---|
-| Bản dump (`csbh-*.dump`) | volume `pgbackup` và `CSBH_BACKUP_MIRROR` | 14 ngày |
-| Bản nền (PITR) | `pgbackup/base` và `CSBH_BACKUP_MIRROR/base` | 3 bản gần nhất |
-| WAL | volume `pgarchive` và `CSBH_BACKUP_MIRROR/wal` | từ bản nền cũ nhất còn giữ |
+| CSDL (`csbh-*.dump`) | volume `pgbackup` và `CSBH_BACKUP_MIRROR` | **tối đa N bản** (`GIU_TOI_DA`, mặc định 7) |
+| Kho tệp (bản chụp `kho-tep/<mốc>/`) | volume `pgbackup` và `CSBH_BACKUP_MIRROR` | **tối đa N bản chụp** (`GIU_TOI_DA_TEP`, mặc định 7) |
 
-`CSBH_BACKUP_MIRROR` phải nằm trên **ổ khác** (hoặc NAS). Bản sao ngoài được chép mỗi
-đêm, nên chỉ với nó thì phục hồi được về **lúc sao lưu đêm gần nhất**; WAL trong ngày
-chỉ nằm ở volume `pgarchive`.
+Giữ tối đa N đếm **số bản**, không đếm ngày. Bản cũ nhất chỉ bị xoá **sau khi** bản
+mới đã ghi xong và đọc lại được — lượt hỏng không xoá gì. Hạ giới hạn (10 → 5) thì
+phần thừa đi ở lượt chạy kế tiếp.
 
-### Phục hồi về một THỜI ĐIỂM (PITR)
+`CSBH_BACKUP_MIRROR` phải nằm trên **ổ khác** (hoặc NAS) — production thiếu nó thì
+`sao-luu` vẫn ghi bản tại chỗ nhưng thoát lỗi.
 
-Dùng khi cần lùi về **trước một thao tác sai** (xoá nhầm, sửa nhầm hàng loạt) mà bản
-dump đêm qua thì quá xa. Chưa có lệnh `./csbh` riêng; các bước dưới đây **đã chạy
-nguyên văn trên bản diễn tập** (`0240`). Ý tưởng: dựng một Postgres TẠM từ bản nền +
-WAL, dừng đúng mốc, xuất ra một bản dump, rồi đưa bản dump ấy qua `phuc-hoi` — nên
-mọi chốt an toàn ở trên vẫn áp dụng, và CSDL đang chạy không bị đụng tới cho tới bước
-cuối.
+> **Máy nâng cấp từ trước `0250`** còn các thư mục cũ: `pgbackup/base` (bản nền),
+> `CSBH_BACKUP_MIRROR/base` và `/wal`, volume `<dự án>_pgarchive`, và kho tệp bố cục
+> cũ `pgbackup/tep`. Không lệnh nào tự xoá chúng — `sao-luu` in ra đường dẫn. Xoá tay
+> khi đã có ít nhất một bản sao lưu mới tốt.
 
-```sh
-P=csbh-prod                         # COMPOSE_PROJECT_NAME trong .env
-MOC='2026-10-24 10:15:00+07'        # thời điểm muốn lùi về — TRƯỚC thao tác sai
-NEN=$(docker run --rm -v ${P}_pgbackup:/b alpine ls -1 /b/base | sort | tail -1)
-#   ^ bản nền phải CŨ HƠN mốc; nếu bản mới nhất mới hơn mốc, chọn bản trước nó.
+### Kho tệp `sửa 06/11`
 
-# 1. Bung bản nền vào một volume tạm. Phải chown về uid 70 (Postgres).
-docker run --rm -v ${P}_pgbackup:/b:ro -v ${P}_pitr:/d postgres:16-alpine sh -ec "
-  mkdir -p /d/pg && cd /d/pg
-  tar -xzf /b/base/$NEN/base.tar.gz && tar -xzf /b/base/$NEN/pg_wal.tar.gz -C pg_wal
-  touch recovery.signal && chown -R 70:70 /d/pg && chmod 700 /d/pg"
-
-# 2. Chạy Postgres TẠM, đọc WAL từ kho, dừng ở mốc. archive_mode=off: không ghi gì
-#    vào kho WAL thật. max_connections KHÔNG được thấp hơn máy chính (200, xem
-#    deploy/postgres/postgresql.conf) — thấp hơn thì Postgres TỪ CHỐI phục hồi.
-docker run -d --name csbh-pitr -e PGDATA=/d/pg -v ${P}_pitr:/d \
-  -v ${P}_pgarchive:/wal:ro -v ${P}_pgbackup:/backup postgres:16-alpine \
-  postgres -c max_connections=200 -c archive_mode=off -c "restore_command=cp /wal/%f %p" \
-  -c "recovery_target_time=$MOC" -c recovery_target_action=promote
-
-# 3. Đợi Postgres tạm đọc xong WAL (vài giây tới vài phút tuỳ lượng WAL), rồi
-#    KIỂM trước khi tin: phải có dòng "recovery stopping before …".
-until docker exec csbh-pitr psql -U postgres -tAc 'select not pg_is_in_recovery()' 2>/dev/null | grep -q t; do
-  docker ps -q -f name=csbh-pitr | grep -q . || { echo "Postgres tạm đã DỪNG — đọc log dưới"; break; }
-  sleep 2
-done
-docker logs csbh-pitr 2>&1 | grep -E 'recovery stopping|recovery aborted|FATAL|DETAIL|Permission denied'
-```
-
-> **Không có dòng `recovery stopping`** nghĩa là Postgres hết WAL TRƯỚC mốc — và nó
-> **không báo lỗi**: một tệp WAL không đọc được (sai quyền, thiếu tệp) bị coi như hết
-> WAL, Postgres mở CSDL ra ở chỗ dừng sớm. Đo được ở diễn tập: WAL chép bằng root
-> (`0600`) làm mất hai đêm dữ liệu mà lượt phục hồi vẫn "xong". Đừng đi tiếp.
+**Kho tệp MinIO** (bản scan đã ký, bản mềm, giấy tờ pháp lý, văn bản mẫu) có bản sao
+lưu riêng, dạng **bản chụp theo mốc**:
 
 ```sh
-# 4. Xuất bản dump của thời điểm ấy vào thư mục sao lưu, rồi dọn Postgres tạm.
-docker exec csbh-pitr sh -c 'pg_dump -U postgres -Fc -d csbh -f /backup/csbh-pitr.dump'
-docker rm -f csbh-pitr && docker volume rm ${P}_pitr
-
-# 5. Kiểm bằng diễn tập, rồi mới đè.
-docker compose --env-file .env -f deploy/compose.yml -f deploy/compose.prod.yml \
-  run --rm ops restore-drill csbh-pitr.dump
-./csbh phuc-hoi csbh-pitr.dump
+./csbh sao-luu-tep              # một bản chụp mới ở pgbackup/kho-tep/<mốc>/ và bản sao ngoài
+./csbh phuc-hoi-tep [mốc]       # chép một bản chụp (mặc định mới nhất) trở lại kho — không xoá gì
 ```
 
-Lấy WAL từ **bản sao ngoài** (khi volume hỏng): thay `${P}_pgarchive` bằng
-`$CSBH_BACKUP_MIRROR/wal` và `${P}_pgbackup` ở bước 1 bằng `$CSBH_BACKUP_MIRROR`.
-
-### Kho tệp — có lệnh, CHƯA chạy định kỳ `sửa 05/11`
-
-**Kho tệp MinIO** (bản scan đã ký, bản mềm, giấy tờ pháp lý, văn bản mẫu) KHÔNG nằm
-trong `sao-luu` hằng đêm. Có lệnh riêng, gõ tay:
-
-```sh
-./csbh sao-luu-tep      # chép phần mới vào /backup/tep và CSBH_BACKUP_MIRROR/tep
-./csbh phuc-hoi-tep     # chép từ bản sao lưu trở lại kho — không xoá gì; hỏi lại trước
-```
-
-`sao-luu-tep` in ra số **khoá tệp CSDL trỏ tới mà bản sao lưu không có** — phải là 0.
-
-> **Cái giá của việc chưa gắn vào cron** (chốt 05/11): mất máy đột ngột thì tệp chỉ
-> phục hồi được tới lần `sao-luu-tep` gần nhất. CSDL thì vẫn về được 5 phút trước —
-> nên có thể có hồ sơ mà bản scan của nó không còn ở đâu. Gắn vào cron là thêm một
-> dòng vào `cron.mau` ngay sau dòng `sao-luu`.
+Bản chụp mới liên kết cứng tới bản trước: tệp không đổi **không tốn thêm chỗ**, nên
+7 bản chụp tốn xấp xỉ một kho cộng phần tệp mới. Tệp đã xoá khỏi hệ thống vẫn còn ở
+các bản chụp cũ cho tới khi bản cuối cùng chứa nó bị dọn. Mỗi bản chụp mang bảng kê
+của chính nó; `sao-luu-tep` in ra số **khoá tệp CSDL trỏ tới mà bản chụp không có** —
+phải là 0.
 
 ### Chuyển sang máy khác `mới 05/11`
 
@@ -404,8 +347,7 @@ email trỏ đúng địa chỉ ấy. Cấu hình cũ cất trong tệp `.thu-ng
 |---|---|---|
 | CSDL | volume `pgdata` | mất hết. Phục hồi từ sao lưu. |
 | Tệp đính kèm, bản mềm, mẫu văn bản | volume `miniodata` | hồ sơ còn, file mở ra báo lỗi có tên — trừ phần đã `sao-luu-tep` |
-| WAL archive | volume `pgarchive` | RPO tụt từ 5 phút về 24 giờ |
-| Bản sao lưu | `backup-mirror/` và volume `pgbackup` | không phục hồi được |
+| Bản sao lưu CSDL + bản chụp kho tệp | `backup-mirror/` và volume `pgbackup` | không phục hồi được |
 | Tệp log của mười service | `logs/` (`CSBH_LOG_DIR`) | mất dấu vết tra lỗi; hệ vẫn chạy |
 | Chứng chỉ TLS | volume `caddy_data` | Caddy xin lại; Let's Encrypt có hạn mức theo tuần |
 | Bí mật | `secrets/` | **không dựng lại được** — mất khoá JWT là mọi phiên chết, mất mật khẩu Postgres là không mở được CSDL |
@@ -482,10 +424,11 @@ Không nhớ mật khẩu cũ thì đường còn lại là phục hồi từ b�
 mới: `./csbh sao-luu` không chạy được (nó cũng cần mật khẩu), nên phải dùng bản
 sao lưu gần nhất đã có.
 
-**Đĩa đầy.** Ba thứ lớn dần: WAL archive, bản sao lưu, và log container. Log đã
-giới hạn 50 MB × 10 tệp mỗi service. `don-du-lieu` hằng tháng dọn dữ liệu quá hạn
-trong CSDL nhưng **không** dọn bản sao lưu cũ — đó là việc phải quyết theo chính
-sách lưu trữ của công ty.
+**Đĩa đầy.** Thứ lớn dần: kho tệp, CSDL, bản sao lưu, tệp log. Bản sao lưu CSDL và
+bản chụp kho tệp giữ **tối đa N bản** (`0250`) — hạ N thì phần thừa đi ở lượt kế
+tiếp; cần chỗ NGAY thì xoá tay bản cũ trong `pgbackup`. Log container giới hạn
+50 MB × 10 tệp mỗi service. Máy nâng cấp từ trước `0250`: xoá thư mục bản nền/WAL cũ
+(mục 3).
 
 ---
 
