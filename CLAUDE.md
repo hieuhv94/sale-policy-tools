@@ -99,7 +99,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P275** (`0245`): **màn hình đăng nhập có số phiên bản** — dòng phiên bản ra khỏi nhánh
+Chặng gần nhất **P276**: **`VERSION` → `1.1.0`** (gói `P265`–`P275`). Không migration nào từ `1.0.5`; muốn
+bật Google trên máy đang chạy phải chép `compose.prod.yml` + `.env.mau` mới (`nang-cap` chỉ đổi ảnh) —
+`04-TRIEN-KHAI` §8. **Chưa đẩy lên registry.** **2684/2684 xanh.**
+
+Trước đó **P275** (`0245`): **màn hình đăng nhập có số phiên bản** — dòng phiên bản ra khỏi nhánh
 `!rutGon` của `ChanTrang`; câu chữ khác giữ nguyên (chốt *"giữ nội dung hiện tại và thêm phiên bản"*).
 **2684/2684 xanh.**
 

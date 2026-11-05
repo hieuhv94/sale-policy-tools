@@ -20730,3 +20730,21 @@ Dòng phiên bản ra khỏi nhánh `!rutGon` của `ChanTrang`; không gì khá
 **Phá lại**: dòng phiên bản về lại nhánh `!rutGon` → 2 đỏ.
 
 **2684/2684 xanh.**
+
+## P276 — Phiên bản `1.1.0`
+
+`VERSION` `1.0.5` → **`1.1.0`**, theo yêu cầu. Số MINOR chứ không `1.0.6`: bản này gói `P265`–`P275`, trong
+đó có tính năng mới (đăng nhập Google, chân trang, che kín màn hình khi hết phiên) chứ không chỉ sửa lỗi.
+
+Đo trước khi viết hướng dẫn nâng cấp: từ `1.0.5` tới đây **không có migration nào**; phía triển khai đổi
+`compose.prod.yml` (khối `identity` nhận `GOOGLE_*`), `env.mau` (mục Google) và `scripts/csbh` (`keo_anh`,
+`0235`). Hệ quả phải viết ra (`04-TRIEN-KHAI` §8): `nang-cap` chỉ đổi ẢNH, không thay tệp compose trên máy,
+nên **khai `GOOGLE_*` vào `.env` mà không chép `compose.prod.yml` mới là bật không lên** — tệp cũ không
+chuyển biến ấy vào container. Không bật Google thì không phải chép gì.
+
+Các chỗ còn ghi `1.0.5` ở `04-TRIEN-KHAI` (mục lỗi `pg_archivecleanup`), `RPO-RTO.md` (biên bản diễn tập)
+và `csbh-keo-anh.test.ts` (dữ liệu giả) là GHI CHÉP về chính bản ấy — giữ nguyên.
+
+Chưa đẩy lên registry: `make day-anh` cần `docker login` và đẩy là việc ra ngoài — chờ lệnh.
+
+**2684/2684 xanh.**

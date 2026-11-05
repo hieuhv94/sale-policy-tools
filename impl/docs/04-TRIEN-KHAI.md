@@ -642,6 +642,19 @@ Chi tiết ở [05-VAN-HANH.md](05-VAN-HANH.md).
 Sao lưu trước → đổi thẻ trong `.env` → kéo ảnh → chạy migration → dựng lại. Lệnh
 in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 
+> **Từ `1.0.x` lên `1.1.0`** `mới 05/11`. **Không có migration nào**, nên lượt nâng chỉ là
+> đổi ảnh: `./csbh nang-cap 1.1.0`. Bản này mang đăng nhập bằng Google, chân trang, che kín
+> màn hình khi hết phiên, và các bản sửa sao lưu/phục hồi của `0240` (nằm trong ảnh `ops`).
+>
+> - **Đăng nhập Google tắt sẵn** — `.env` cũ không có `GOOGLE_CLIENT_ID` thì nút không hiện,
+>   không gì hỏng. Muốn bật thì **chép `deploy/compose.prod.yml` và `.env.mau` từ bộ cài
+>   `1.1.0`** sang máy (giữ nguyên `.env` và `secrets/` của máy), rồi làm theo mục
+>   *Đăng nhập bằng Google* ở §4. `nang-cap` chỉ đổi ảnh, KHÔNG thay tệp compose: tệp cũ
+>   không chuyển biến `GOOGLE_*` vào `identity`, nên khai vào `.env` mà không chép tệp mới
+>   là bật không lên.
+> - Chép luôn **tệp `csbh` mới** — nó có đường vòng khi ảnh MinIO không kéo được (`0235`).
+> - Từ `1.0.3`/`1.0.4` thì vẫn theo đoạn ngay dưới: đổi thẻ TRƯỚC rồi mới `nang-cap`.
+
 > **Từ `1.0.3` hoặc `1.0.4` lên bản mới: đổi thẻ TRƯỚC, rồi mới `nang-cap`** `mới 29/09`.
 > Bước sao lưu chạy bằng ảnh `ops` của thẻ đang ghi trong `.env`, và ảnh `ops` tới
 > `1.0.4` thiếu `pg_archivecleanup` — lượt sao lưu chết ở dòng
