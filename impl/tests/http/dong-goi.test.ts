@@ -525,12 +525,15 @@ describe('`0247` ảnh MinIO NHÂN BẢN trong kho của ta', () => {
     expect(SH).toMatch(/^MINIO_BAN="\$\{IMG\}:minio-\$\{MINIO_GOC##\*:\}"$/m);
   });
 
+  // Từ `0248` mọi tham chiếu mang thêm `@sha256:…` — so phần thẻ, digest do `ghim-anh.test.ts` canh.
+  const boDigest = (r: string) => r.split('@')[0];
+
   it('`compose.yml` dùng ĐÚNG ảnh gốc ấy (máy dev còn ảnh)', () => {
-    expect(anhCua('deploy/compose.yml')).toBe(GOC);
+    expect(boDigest(anhCua('deploy/compose.yml'))).toBe(GOC);
   });
 
   it('`compose.prod.yml` dùng bản NHÂN BẢN của đúng bản ấy — không bao giờ `minio/minio`', () => {
-    expect(anhCua('deploy/compose.prod.yml')).toBe(`\${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-${BAN}`);
+    expect(boDigest(anhCua('deploy/compose.prod.yml'))).toBe(`\${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-${BAN}`);
   });
 
   it('`anh` gắn thẻ nhân bản TỪ ảnh gốc; `day` đẩy MinIO TRƯỚC ảnh phần mềm', () => {

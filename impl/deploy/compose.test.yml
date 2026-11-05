@@ -4,7 +4,7 @@ services:
   # hình bằng mắt. `SITE_ADDRESS=:80` cho nó phục vụ HTTP thuần trong mạng nội
   # bộ — không có tên miền nào để xin chứng chỉ, và test gọi qua tên container.
   caddy:
-    image: caddy:2.8-alpine
+    image: caddy:2.8.4-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ":80"

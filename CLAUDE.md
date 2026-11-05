@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P278** (`0247`): **ảnh MinIO nhân bản trong kho của ta** — MinIO ngừng phát hành ảnh
+Chặng gần nhất **P279** (`0248`): **mọi ảnh bên ngoài ghim `thẻ-phiên-bản@sha256:…`** — Postgres 16.15,
+Redis 7.4.10, RabbitMQ 3.13.7, Gotenberg 8.34.0, Mailpit 1.20.7, Caddy 2.8.4, Node 22.9.0, cloudflared
+2026.8.2, MinIO (gốc cho dev, nhân bản cho prod — HAI digest khác nhau, đừng chép lẫn). Ghim ĐÚNG bản đã qua
+bộ kiểm; dựng thật: image id sáu container hạ tầng không đổi. `tests/http/ghim-anh.test.ts` quét mọi compose
+và Dockerfile. Nâng một ảnh ngoài = đổi mọi chỗ → `make test` → dựng thật. **2727/2727 xanh.**
+
+Trước đó **P278** (`0247`): **ảnh MinIO nhân bản trong kho của ta** — MinIO ngừng phát hành ảnh
 Community (10/2025) và xoá `minio/minio` khỏi Docker Hub (09/2026). `docker tag` đúng ảnh đang dùng thành
 `<CSBH_IMAGE>:minio-RELEASE.2024-09-22T00-33-43Z` (cùng image id, 9 lớp), **đã đẩy**; `compose.prod.yml` kéo
 từ đó. `MINIO_GOC` ở `dong-goi.sh` là chỗ duy nhất khai bản MinIO; `make day-minio` đẩy riêng nó. Kèm hai lỗi

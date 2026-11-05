@@ -20855,3 +20855,42 @@ THẬT của `ban-ke`:**
 Ảnh `1.1.0` dựng đầu chặng KHÔNG có hai bản sửa này — phải dựng lại sau commit.
 
 **2722/2722 xanh.**
+
+## P279 — `0248` Ghim mọi ảnh bên ngoài: thẻ phiên bản + digest
+
+Sau vụ MinIO, liệt kê ảnh: ngoài bốn ảnh của ta, **bốn ảnh hạ tầng dùng thẻ TRÔI** (`postgres:16-alpine`,
+`redis:7-alpine`, `rabbitmq:3.13-management-alpine`, `gotenberg/gotenberg:8`), cộng `cloudflared:latest`,
+Mailpit, Caddy và Node trong Dockerfile. Thẻ trôi nghĩa là máy cài hôm nay và máy cài ba tháng sau — kể cả
+máy chuyển tới bằng `0246` — chạy hai bản khác nhau mà không ai chủ ý; Gotenberg đổi một dòng là tờ CSBH in
+khác đi. Yêu cầu: *"cần cố định tag cho các docker image bên ngoài hub"*.
+
+**Ghim ĐÚNG bản đã qua bộ kiểm, không một bản mới**: đo từng ảnh trên máy (biến môi trường, nhãn OCI,
+`--version`): Postgres 16.15 / Alpine 3.24.1, Redis 7.4.10, RabbitMQ 3.13.7, Gotenberg 8.34.0, Mailpit
+1.20.7, Caddy 2.8.4, Node 22.9.0, cloudflared 2026.8.2. Dạng `thẻ-phiên-bản@sha256:…` — DIGEST quyết định,
+thẻ để người đọc biết bản nào. Hỏi thẳng registry trước khi ghim: cả tám digest **còn kéo được**; bảy thẻ
+phiên bản trỏ đúng digest ấy, riêng `postgres:16.15-alpine*` đã được DỰNG LẠI trên registry (mọi biến thể
+Alpine đều ra digest khác) — giữ digest đang chạy, thẻ `16.15-alpine3.24` mô tả đúng nó.
+
+**Hai lần suýt ghim SAI, bắt được vì đọc lại cách lấy con số:**
+- MinIO: `RepoDigests[0]` là digest của **kho ta** (`3c770f…`, có từ lượt đẩy `0247`), không phải của
+  `minio/minio` (`7d80fd…`). Ghi nhầm thì chồng dev/kiểm đi kéo một digest không tồn tại ở kho gốc — mà kho
+  gốc đã mất. `compose.yml` dùng digest gốc; `compose.prod.yml` (kéo từ kho ta) dùng digest kho ta.
+- Lượt kiểm lại thứ hai chọn ảnh bằng `docker images -q <tên> | head -1` và ra ba digest KHÁC — đó là ảnh
+  `postgres:16`, `caddy:2`, `node:22-alpine` của dự án khác trên cùng máy. Đo theo THẺ thì khớp.
+
+**Ca kiểm `tests/http/ghim-anh.test.ts`** quét MỌI `image:` của mọi `compose*.yml` và MỌI `FROM` của mọi
+Dockerfile (trừ `${CSBH_IMAGE}`/`${BASE}` của ta): phải `thẻ@sha256:…`; cấm `latest` và thẻ chỉ có số major;
+cùng một kho thì mọi chỗ dùng cùng tham chiếu (Postgres ba chỗ; Caddy, Node ở cả compose lẫn Dockerfile).
+**Bản đầu cấm cả thẻ `MAJOR.MINOR` và bắt nhầm Postgres** — `16.15` LÀ số đầy đủ của nó. Phá lại năm lượt
+(Gotenberg về `:8` · một chỗ Postgres lệch · cloudflared về `latest` · Node trong Dockerfile lệch compose ·
+MinIO nhân bản bỏ digest): năm đỏ.
+
+**Dựng thật** trên bản chạy thử (`localhost:8090`): chép bộ compose mới, `./csbh len` — `pull` kéo được mọi
+tham chiếu ghim từ registry; **image id của cả sáu container hạ tầng KHÔNG ĐỔI** (ghim đúng ảnh đang chạy),
+cấu hình container mang tham chiếu ghim, web 200.
+
+**Cái giá, đã ghi ở `04-TRIEN-KHAI`**: bản vá bảo mật không còn tự tới; nâng một ảnh ngoài là việc có chủ ý
+(đổi mọi chỗ → `make test` → dựng thật → giao). Máy cài từ lâu có thể chạy một Postgres 16.x khác — lượt
+`len` đầu sau khi chép compose mới thay container bằng bản ghim (cùng major, dữ liệu giữ).
+
+**2727/2727 xanh.**

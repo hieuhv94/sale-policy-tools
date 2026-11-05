@@ -18,7 +18,7 @@
 #
 # Món nợ còn lại: bản dựng thật nên biên dịch sẵn ra JavaScript để bỏ hẳn tầng
 # biến đổi lúc chạy. Ghi ở P8.
-FROM node:22.9-alpine
+FROM node:22.9.0-alpine@sha256:c9bb43423a6229aeddf3d16ae6aaa0ff71a0b2951ce18ec8fedb6f5d766cf286
 
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 # `curl` cho healthcheck; `tini` để tín hiệu TERM tới được tiến trình Node thay

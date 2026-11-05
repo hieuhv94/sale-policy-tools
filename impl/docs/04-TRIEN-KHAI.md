@@ -656,6 +656,11 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 >   và các lệnh `sao-luu-tep` · `phuc-hoi-tep` · `xuat-chuyen-may` · `nhap-chuyen-may` (`0246`).
 >   Phần chạy trong ảnh của chúng đi theo ảnh `ops` mới; KHÔNG phải sửa `compose.prod.yml`.
 > - Từ `1.0.3`/`1.0.4` thì vẫn theo đoạn ngay dưới: đổi thẻ TRƯỚC rồi mới `nang-cap`.
+> - **Ảnh bên ngoài đã GHIM** (`0248`): chép cả `deploy/compose.yml` lẫn `deploy/compose.prod.yml` mới
+>   thì Postgres, Redis, RabbitMQ, Gotenberg chạy ĐÚNG bản đã qua bộ kiểm thay vì bản mà thẻ trôi
+>   đang trỏ tới hôm cài. Máy cài từ lâu có thể đang chạy một bản 16.x khác của Postgres — lượt
+>   `len` đầu tiên sau khi chép sẽ thay container Postgres bằng bản ghim (cùng major 16, dữ liệu
+>   giữ nguyên); sao lưu trước như mọi lần nâng.
 
 > **Từ `1.0.3` hoặc `1.0.4` lên bản mới: đổi thẻ TRƯỚC, rồi mới `nang-cap`** `mới 29/09`.
 > Bước sao lưu chạy bằng ảnh `ops` của thẻ đang ghi trong `.env`, và ảnh `ops` tới
@@ -688,6 +693,13 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 > - Từ bộ cài sau `05/11` (`0247`), `compose.prod.yml` kéo MinIO từ **kho của ta**
 >   (`<CSBH_IMAGE>:minio-RELEASE.2024-09-22T00-33-43Z`), nên lỗi này không còn. Máy đang
 >   chạy muốn dùng nó thì chép `deploy/compose.prod.yml` mới sang (giữ `.env`).
+
+> **Ảnh bên ngoài ghim bằng THẺ PHIÊN BẢN + DIGEST** `mới 05/11` (`0248`) — Postgres 16.15, Redis
+> 7.4.10, RabbitMQ 3.13.7, Gotenberg 8.34.0, Caddy 2.8.4, Node 22.9.0, cloudflared 2026.8.2, cộng
+> MinIO nhân bản. Docker kéo theo DIGEST (bỏ qua thẻ), nên mọi máy cài vào bất kỳ ngày nào chạy
+> đúng một bản, từng byte. **Nâng một ảnh ngoài là việc có chủ ý**: đổi thẻ + digest ở MỌI chỗ
+> dùng nó (ca `ghim-anh.test.ts` đòi mọi chỗ trùng nhau), `make test`, dựng thật, rồi giao bản mới.
+> Cái giá: không còn bản vá bảo mật nào tự tới — phải chủ động rà và nâng.
 
 > **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
 > tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ
