@@ -9,8 +9,10 @@ import { PHIEN_BAN } from '../lib/phien-ban.js';
  * trên điện thoại nên con số ấy khuất đúng lúc người dùng cần đọc nó cho Quản trị.
  * Một chỗ duy nhất — hai chỗ là hai chỗ phải giữ khớp.
  *
- * `rutGon`: màn hình đăng nhập chỉ mang dòng bản quyền — chưa đăng nhập thì câu
- * *"chỉ dành cho người được cấp tài khoản"* và số phiên bản không nói gì với ai.
+ * `rutGon`: màn hình đăng nhập — dòng bản quyền, THÊM số phiên bản (`0245`, chốt
+ * 05/11: *"giữ nội dung hiện tại và thêm phiên bản"*). Bản `0244` để số phiên bản
+ * ngoài màn hình này, mà người không đăng nhập được chính là người cần đọc nó
+ * cho Quản trị.
  *
  * Năm lấy theo đồng hồ trình duyệt. `getFullYear()` chứ không `toISOString()`: đêm
  * giao thừa theo giờ Việt Nam, UTC vẫn còn ở năm cũ bảy tiếng (bẫy `0208`).
@@ -23,13 +25,11 @@ export function ChanTrang({ rutGon = false }: { rutGon?: boolean }) {
         © {nam} {TEN_CONG_TY}. Bảo lưu mọi quyền.
       </span>
       {!rutGon && (
-        <>
-          <span>
-            {TEN_PHAN_MEM} — tài sản của {TEN_CONG_TY}, chỉ dành cho người được cấp tài khoản.
-          </span>
-          <span className="chan-trang-phien-ban">Phiên bản {PHIEN_BAN}</span>
-        </>
+        <span>
+          {TEN_PHAN_MEM} — tài sản của {TEN_CONG_TY}, chỉ dành cho người được cấp tài khoản.
+        </span>
       )}
+      <span className="chan-trang-phien-ban">Phiên bản {PHIEN_BAN}</span>
     </footer>
   );
 }

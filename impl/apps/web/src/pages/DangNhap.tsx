@@ -256,7 +256,7 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
           </button>
         )}
       </form>
-      {/* Chỉ dòng bản quyền — chưa đăng nhập thì phần còn lại không nói gì với ai (`0244`). */}
+      {/* Dòng bản quyền + số phiên bản (`0245`) — xem `ChanTrang.tsx`. */}
       {!lopPhu && <ChanTrang rutGon />}
     </div>
   );

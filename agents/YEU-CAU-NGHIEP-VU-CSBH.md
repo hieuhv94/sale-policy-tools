@@ -2958,7 +2958,8 @@ cho chính người vừa đổi (để khỏi đăng nhập lại) **chưa làm
 **CHÂN TRANG, VÀ KHÔNG BÀY MÃ LỖI** `mới 05/11` — chân trang mọi màn hình mang đúng ba mảnh khách
 hàng duyệt: *"© <năm> Công ty TNHH Dược phẩm Nutricare. Bảo lưu mọi quyền."* · *"Phần mềm Chính sách bán
 hàng — tài sản của Công ty TNHH Dược phẩm Nutricare, chỉ dành cho người được cấp tài khoản."* · *"Phiên
-bản <số>"* (số phiên bản dời xuống đây từ đáy thanh bên); màn hình đăng nhập chỉ mang dòng bản quyền. Và
+bản <số>"* (số phiên bản dời xuống đây từ đáy thanh bên); màn hình đăng nhập mang dòng bản quyền và số
+phiên bản (`sửa 05/11` — người không đăng nhập được cần đọc số ấy khi báo lỗi). Và
 *"bỏ toàn bộ việc hiển thị mã lỗi trên giao diện, người dùng không cần quan tâm, hiển thị chỉ gây rối
 mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
 mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**

@@ -20718,3 +20718,15 @@ bỏ *"Bảo lưu mọi quyền"* · gõ tay tên ở đăng nhập · bản ch�
 phiên bản lại ở thanh bên.
 
 **2683/2683 xanh.**
+
+## P275 — `0245` Màn hình đăng nhập có số phiên bản
+
+Khách hàng xem `0244` trên bản production chạy thử: *"chưa thấy thông tin phiên bản ở trang đăng nhập"*,
+và khi tôi đề xuất kèm bỏ câu sở hữu thì chốt lại: *"giữ nội dung hiện tại và thêm phiên bản"*. Bản `0244`
+cho màn hình đăng nhập chỉ dòng bản quyền với lý lẽ *"chưa đăng nhập thì số phiên bản không nói gì với
+ai"* — sai ở đúng người cần nó nhất: người KHÔNG đăng nhập được là người phải đọc số ấy cho Quản trị.
+Dòng phiên bản ra khỏi nhánh `!rutGon` của `ChanTrang`; không gì khác đổi. Ca kiểm dựng CHÍNH
+`DangNhap` chứ không chỉ `ChanTrang rutGon`, để lượt gỡ chân trang khỏi màn hình đăng nhập cũng đỏ.
+**Phá lại**: dòng phiên bản về lại nhánh `!rutGon` → 2 đỏ.
+
+**2684/2684 xanh.**

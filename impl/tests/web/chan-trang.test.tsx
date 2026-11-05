@@ -4,7 +4,7 @@
  * `0244` — chân trang: bản quyền · quyền sở hữu · phiên bản. Câu chữ khách hàng
  * duyệt 05/11, nên ca kiểm ghim NGUYÊN VĂN chứ không ghim từng mảnh.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { ChanTrang } from '@csbh/web/chan-trang';
 import { TEN_CONG_TY } from '@csbh/web/cong-ty';
@@ -31,10 +31,31 @@ describe('`0244` chân trang', () => {
     expect(chu().filter((c) => c!.includes(TEN_CONG_TY))).toHaveLength(2);
   });
 
-  it('rút gọn (màn hình đăng nhập): chỉ dòng bản quyền', () => {
+  it('`0245` rút gọn (màn hình đăng nhập): dòng bản quyền GIỮ NGUYÊN, thêm số phiên bản', () => {
     render(<ChanTrang rutGon />);
-    expect(chu()).toHaveLength(1);
-    expect(chu()[0]).toMatch(/^© \d{4} .*Bảo lưu mọi quyền\.$/);
+    expect(chu()).toEqual([
+      `© ${new Date().getFullYear()} Công ty TNHH Dược phẩm Nutricare. Bảo lưu mọi quyền.`,
+      `Phiên bản ${PHIEN_BAN}`,
+    ]);
+  });
+
+  it('`0245` màn hình đăng nhập THẬT có số phiên bản', async () => {
+    const { DangNhap } = await import('@csbh/web/dang-nhap');
+    const { PhienProvider } = await import('@csbh/web/auth');
+    const { BoDinhTuyen } = await import('@csbh/web/router');
+    const { BaoLoiProvider } = await import('@csbh/web/bao-loi');
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response('{}', { headers: { 'content-type': 'application/json' } }))));
+    render(
+      <BaoLoiProvider>
+        <BoDinhTuyen>
+          <PhienProvider>
+            <DangNhap />
+          </PhienProvider>
+        </BoDinhTuyen>
+      </BaoLoiProvider>,
+    );
+    expect(document.querySelector('.chan-trang-phien-ban')?.textContent).toBe(`Phiên bản ${PHIEN_BAN}`);
+    vi.unstubAllGlobals();
   });
 
   it('là một `<footer>` — trình đọc màn hình gọi đúng tên vùng', () => {

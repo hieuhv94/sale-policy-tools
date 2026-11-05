@@ -283,7 +283,8 @@ Bấm vào **thẻ tài khoản** ở thanh trên cùng thì sổ xuống ba dò
 
 Dưới cùng mọi màn hình là một dòng chữ nhỏ: bản quyền của Công ty, câu nói phần mềm là tài sản của
 Công ty và chỉ dành cho người được cấp tài khoản, và **số phiên bản** đang chạy. Báo lỗi thì đọc kèm
-số phiên bản này. Màn hình đăng nhập chỉ có dòng bản quyền.
+số phiên bản này. Màn hình đăng nhập có dòng bản quyền và số phiên bản `sửa 05/11` — không đăng nhập
+được thì vẫn đọc được số ấy cho Quản trị.
 
 ### Hộp thoại `sửa 29/09`
 

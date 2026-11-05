@@ -99,7 +99,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P274** (`0244`): **chân trang** (`ChanTrang.tsx` — bản quyền · quyền sở hữu · phiên bản,
+Chặng gần nhất **P275** (`0245`): **màn hình đăng nhập có số phiên bản** — dòng phiên bản ra khỏi nhánh
+`!rutGon` của `ChanTrang`; câu chữ khác giữ nguyên (chốt *"giữ nội dung hiện tại và thêm phiên bản"*).
+**2684/2684 xanh.**
+
+Trước đó **P274** (`0244`): **chân trang** (`ChanTrang.tsx` — bản quyền · quyền sở hữu · phiên bản,
 câu chữ khách hàng duyệt; màn hình đăng nhập chỉ dòng bản quyền; số phiên bản DỜI khỏi đáy thanh bên) và
 **không bày mã lỗi**: `traceId` + `chiTiet` gỡ khỏi `LoiDaDoc` (đảo vế bày của `0088`). Màn hình *Nhật ký*
 của Quản trị GIỮ cột mã tra cứu — ca quét cấm chữ ấy ở mọi `.tsx` khác. Tên công ty phía giao diện ở
