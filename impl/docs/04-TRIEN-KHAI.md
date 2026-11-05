@@ -685,8 +685,9 @@ in ra thẻ cũ khi xong; lùi bản là chạy lại với thẻ ấy.
 >   nó đi tiếp: migration rồi dựng lại.
 > - Tệp `csbh` từ bản đóng gói sau `29/09` thì `nang-cap` tự làm đúng thế; thiếu ảnh
 >   thật thì nó dừng và trả `CSBH_TAG` về thẻ cũ.
-> - **Cài MỚI trên một máy chưa từng có ảnh MinIO thì chưa có đường** — xem mục
->   giới hạn.
+> - Từ bộ cài sau `05/11` (`0247`), `compose.prod.yml` kéo MinIO từ **kho của ta**
+>   (`<CSBH_IMAGE>:minio-RELEASE.2024-09-22T00-33-43Z`), nên lỗi này không còn. Máy đang
+>   chạy muốn dùng nó thì chép `deploy/compose.prod.yml` mới sang (giữ `.env`).
 
 > **Thẻ ảnh không bao giờ là `latest`.** Với `latest` thì một lượt kéo ảnh vài
 > tháng sau đổi thứ đang chạy mà không ai chủ ý, và không có cách nào nói máy chủ
@@ -718,11 +719,14 @@ mở nằm ở [05-VAN-HANH.md](05-VAN-HANH.md), mục *Chạy thử qua Interne
 [RPO-RTO.md](../deploy/RPO-RTO.md). Máy chết là hệ thống dừng cho tới khi dựng
 lại từ bản sao lưu. Không có máy dự phòng, không có tự chuyển đổi.
 
-**Ảnh MinIO không còn trên Docker Hub** `mới 29/09`. Kho `minio/minio` đã biến, kể
-cả thẻ ghim `RELEASE.2024-09-22T00-33-43Z`. Máy đang chạy vẫn giữ ảnh và vẫn nâng
-cấp được (`./csbh nang-cap` dùng ảnh có sẵn trên máy). **Cài MỚI trên một máy chưa
-từng có ảnh ấy thì hiện chưa có đường** — cần một bản nhân của ảnh trên registry
-khác trước khi dựng máy mới hay dựng lại máy sau sự cố.
+**MinIO chạy từ ảnh NHÂN BẢN trong kho của ta** `sửa 05/11`. MinIO ngừng phát hành ảnh
+Community từ 10/2025 và xoá hẳn kho `minio/minio` khỏi Docker Hub khoảng 11–14/09/2026,
+kể cả thẻ ghim `RELEASE.2024-09-22T00-33-43Z`. Từ `0247` ta giữ đúng ảnh ấy — chép nguyên
+từng lớp, chỉ đổi tên — ở `<CSBH_IMAGE>:minio-RELEASE.2024-09-22T00-33-43Z`, nên cài mới
+và chuyển máy kéo được như mọi ảnh khác. Cái giá: **bản MinIO đứng yên**, không có bản vá
+bảo mật mới nào tới nữa; về lâu dài phải chọn tự dựng từ mã nguồn hoặc chuyển sang một kho
+tương thích S3 khác. MinIO là AGPLv3 — mã nguồn đúng bản đang phân phối:
+https://github.com/minio/minio/tree/RELEASE.2024-09-22T00-33-43Z
 
 **Không có nghiệp vụ thu hồi.** *Từ chối*, *Đã xoá* và *Quá hạn duyệt* là trạng
 thái kết thúc — không ai sửa được, kể cả Quản trị hệ thống. Người dùng thử nên

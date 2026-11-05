@@ -20804,7 +20804,54 @@ bằng chính ảnh `ops`, mã hoá lại), và cổng 8091.
 lượt mã, mười đỏ** sau khi thêm ca thứ tự vật lý.
 
 **CHƯA làm, đã nêu**: gắn `sao-luu-tep` vào cron · ảnh MinIO trên máy mới chưa từng có (kho Docker Hub
-mất — hướng dẫn `docker save`/`load` ở `05-VAN-HANH`) · đăng nhập bằng một phiên CŨ trên trình duyệt thật
+mất — hướng dẫn `docker save`/`load` ở `05-VAN-HANH`; **làm ở `0247`**) · đăng nhập bằng một phiên CŨ trên trình duyệt thật
 ở máy mới (mới đo được hai điều kiện của nó: khoá JWT và bảng phiên trùng).
 
 **2714/2714 xanh.**
+
+## P278 — `0247` Ảnh MinIO nhân bản trong kho của ta
+
+Hỏi vì sao ảnh MinIO mất (tra nguồn, 05/11): MinIO ngừng phát hành ảnh Community từ **23/10/2025** (chỉ
+còn mã nguồn) và **xoá hẳn** `minio/minio` + `minio/mc` khỏi Docker Hub khoảng **11–14/09/2026**, kể cả
+thẻ cũ — khớp phép đo `0235` (29/09). Ngày tháng lấy từ blog/diễn đàn, không phải thông báo chính thức.
+Khách hàng chọn hướng 1 trong bốn: **nhân bản đúng ảnh đang dùng sang kho của ta**.
+
+**Nhân bản bằng `docker tag`, không dựng lại**: cùng image id `683daefd…`, chín lớp như nhau — không đổi bản
+MinIO, và `mc` mà `sao-luu-tep`/chuyển máy (`0246`) cần vẫn ở trong nó. **Thẻ mang số bản MinIO**
+(`minio-RELEASE.2024-09-22T00-33-43Z`), không mang số phần mềm: MinIO không đổi theo mỗi lần giao. Bản
+MinIO khai ĐÚNG MỘT CHỖ (`MINIO_GOC`, `dong-goi.sh`); ca kiểm đòi `compose.yml` (dev/kiểm/demo — tên gốc,
+máy dev còn ảnh) và `compose.prod.yml` (bản nhân bản) cùng nói bản ấy. Đẩy tách thành `day-minio` /
+`make day-minio` — đẩy được MinIO mà không đẩy ảnh phần mềm; `day` gọi nó TRƯỚC.
+
+**Đo trên registry, không trên máy**: `docker pull` sau khi gỡ thẻ ra đúng image id — nhưng máy còn các lớp
+của ảnh gốc nên lượt kéo có thể chỉ lấy bản kê; `buildx imagetools inspect --raw` hỏi thẳng registry: 9 lớp,
+58,8 MB nén. **Dựng thật**: máy đích diễn tập (`0246`) chép `compose.prod.yml` mới, `./csbh len` → container
+MinIO đổi sang ảnh nhân bản, kho tệp còn nguyên, web 200.
+
+**Cái giá, đã ghi ở `04-TRIEN-KHAI`**: bản MinIO ĐỨNG YÊN, không còn bản vá bảo mật nào tới. AGPLv3: phân
+phối lại bản nhị phân không sửa đổi kèm đường tới mã nguồn đúng bản (ghi ở `dong-goi.sh` và tài liệu).
+
+Đã đẩy: **chỉ** ảnh MinIO nhân bản (theo yêu cầu). Ba ảnh phần mềm `1.1.0` dựng lại (gồm `P277`–`P278`; bản
+`1.1.0` chưa từng giao) nhưng **chưa đẩy**.
+
+**Lượt `make test` đầu của chặng đỏ MỘT ca — ca của `0246`, không phải của chặng này — và nó lộ ra HAI LỖI
+THẬT của `ban-ke`:**
+1. **Bảng kê liệt kê cả BẢNG TẠM của phiên khác.** Ca *"khác thứ tự vật lý"* dùng một bảng tạm; lượt này
+   `pg_class` còn thấy `pg_temp_3.x` lúc dựng danh sách, rồi nó biến mất trước lúc `SELECT` — *"relation does
+   not exist"*. Lượt `make test` trước xanh chỉ vì lệch thời điểm. Trên máy thật, MỘT phiên đang giữ bảng tạm
+   là đủ làm `xuat-chuyen-may` chết giữa chừng. Loại `relpersistence = 't'` và `pg_temp%`; ca TẤT ĐỊNH giữ một
+   phiên mở có bảng tạm suốt lượt kê (phá lại: đỏ).
+2. **Đường ống `psql | psql` hỏng ở câu ĐẦU mà vẫn thoát 0.** Lộ ra vì lỗi gõ của chính tôi khi sửa lỗi 1: dấu
+   nháy kép trong chú thích làm VỠ chuỗi shell (họ bẫy backtick-trong-template), `psql` nhận chữ `does` làm tên
+   người dùng — và `ban-ke` vẫn in *"10 dòng CSDL"*, thoát 0, chỉ còn dòng sequence. Hai đầu hỏng cùng kiểu là
+   hai bảng kê cùng THIẾU SẠCH phần bảng và đối chiếu báo **KHỚP GIẢ** — đúng thứ cả `0246` dựng ra để chống.
+   Hai lớp: `set -o pipefail` (BusyBox `ash` có) + chốt cứng *"không dòng bảng nào là bảng kê hỏng"*. Ca *"sai
+   mật khẩu CSDL"* KHÔNG tái hiện được hình dạng này (phá lại gỡ cả hai lớp vẫn xanh — sai mật khẩu thì `psql`
+   CUỐI cũng hỏng và `set -e` bắt hộ); ca đúng đặt một `psql` GIẢ đầu `PATH` chỉ hỏng ở câu `pg_class`. Phá lại:
+   gỡ từng lớp xanh (lớp kia đủ chặn), gỡ cả hai đỏ.
+   **`pipefail` kéo theo một hồi quy, bắt được ngay**: `… | tar -tf - | grep -qx '.env'` — `-q` thoát sớm, `tar`
+   ăn SIGPIPE, gói bí mật ĐÚNG bị xoá như gói hỏng. Bỏ `-q`.
+
+Ảnh `1.1.0` dựng đầu chặng KHÔNG có hai bản sửa này — phải dựng lại sau commit.
+
+**2722/2722 xanh.**

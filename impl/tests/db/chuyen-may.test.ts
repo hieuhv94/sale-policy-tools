@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { admin } from './helpers';
 
 const run = promisify(execFile);
 
@@ -104,6 +105,45 @@ describe('`0246` bảng kê: cùng dữ liệu thì y hệt', () => {
     const b = await ke();
     const dong = (d: string) => readFileSync(join(d, 'csdl.txt'), 'utf8').split('\n').find((l) => l.startsWith('zz_cm.u|'));
     expect(dong(b)).toBe(dong(a));
+  });
+
+  it('câu DỰNG DANH SÁCH BẢNG hỏng mà câu sau chạy êm → bảng kê THOÁT LỖI, không ra bảng kê thiếu', async () => {
+    /*
+     * Đúng hình dạng lỗi đã gặp: một dấu nháy kép trong chú thích làm vỡ chuỗi
+     * shell, `psql` ĐẦU đường ống hỏng còn `psql` CUỐI chạy êm — và `ban-ke` thoát
+     * 0 với mỗi dòng sequence. Hai đầu hỏng cùng kiểu là đối chiếu báo KHỚP GIẢ.
+     *
+     * Ca *"sai mật khẩu CSDL"* KHÔNG tái hiện được điều này (phá lại: gỡ cả hai chốt
+     * vẫn xanh) — sai mật khẩu thì `psql` cuối cũng hỏng và `set -e` bắt hộ. Nên ở
+     * đây một `psql` GIẢ đứng đầu `PATH`, hỏng ĐÚNG ở câu hỏi `pg_class`, mọi câu
+     * khác chuyển cho `psql` thật.
+     */
+    const bin = thu();
+    writeFileSync(
+      join(bin, 'psql'),
+      '#!/bin/sh\ncase "$*" in *pg_class*) echo "psql giả: hỏng" >&2; exit 2 ;; esac\nexec /usr/bin/psql "$@"\n',
+    );
+    await run('chmod', ['+x', join(bin, 'psql')]);
+    const r = await cm(['ban-ke', thu()], { PATH: `${bin}:${process.env.PATH}` });
+    expect(r.ma, r.ra).not.toBe(0);
+  });
+
+  it('BẢNG TẠM của một phiên khác đang mở KHÔNG lọt vào bảng kê', async () => {
+    /*
+     * Tìm ra vì một ca CHẬP CHỜN: ca thứ tự vật lý dùng một bảng tạm, và ở một
+     * lượt `make test` bảng kê liệt kê trúng nó trong lúc phiên kia đang đóng —
+     * "relation pg_temp_3.x does not exist". Ca này giữ phiên mở suốt lượt kê,
+     * nên nó tất định: thiếu chốt loại bảng tạm là kê vào `pg_temp_*` mỗi lần.
+     */
+    const c = admin();
+    await c.connect();
+    try {
+      await c.query('CREATE TEMP TABLE zz_cm_tam (a int); INSERT INTO zz_cm_tam VALUES (1)');
+      const d = await ke();
+      expect(readFileSync(join(d, 'csdl.txt'), 'utf8')).not.toMatch(/^pg_temp/m);
+    } finally {
+      await c.end();
+    }
   });
 
   it('kê ĐỦ mọi schema của phần mềm, kèm sequence', async () => {

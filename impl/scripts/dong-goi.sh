@@ -56,6 +56,26 @@ TAG="${CSBH_TAG:-${VERSION}}"
 IMG="${CSBH_IMAGE:-hieuhv94/nutricare-csbh}"
 RA="${CSBH_OUT:-../workspace/dong-goi}"
 
+# ẢNH MINIO NHÂN BẢN (`0247`).
+#
+# MinIO ngừng phát hành ảnh Community từ 23/10/2025 và XOÁ HẲN kho `minio/minio`
+# khỏi Docker Hub khoảng 11–14/09/2026, kể cả thẻ ghim của ta (đo 29/09: `pull
+# access denied`). Máy đang chạy vẫn giữ ảnh; máy MỚI thì kẹt ở bước dựng hạ tầng
+# — cài mới lẫn `nhap-chuyen-may` (`0246`). Nên ta giữ một bản NHÂN BẢN trong kho
+# của chính mình: CÙNG ảnh, chép nguyên từng lớp, chỉ đổi tên (`docker tag`) —
+# không dựng lại, không đổi phiên bản MinIO, và `mc` mà sao lưu kho tệp cần vẫn ở
+# trong nó.
+#
+# Thẻ MANG số bản MinIO, KHÔNG mang số phiên bản phần mềm: MinIO không đổi theo
+# mỗi lần giao, và đẩy lại cùng một ảnh dưới mỗi thẻ phần mềm là lãng phí.
+# `MINIO_GOC` là chỗ DUY NHẤT khai bản MinIO; ca kiểm đòi `compose.yml` và
+# `compose.prod.yml` khớp nó.
+#
+# Giấy phép: MinIO là AGPLv3 — phân phối lại bản nhị phân KHÔNG sửa đổi thì kèm
+# đường tới mã nguồn đúng bản ấy: https://github.com/minio/minio/tree/RELEASE.2024-09-22T00-33-43Z
+MINIO_GOC="minio/minio:RELEASE.2024-09-22T00-33-43Z"
+MINIO_BAN="${IMG}:minio-${MINIO_GOC##*:}"
+
 # NHÃN PHIÊN BẢN trên CẢ BA ảnh (`0218`).
 #
 # Hai trong ba ảnh KHÔNG tự biết mình là bản nào: `service` và `ops` nhận
@@ -84,11 +104,22 @@ anh() {
     --build-arg "BASE=${IMG}:service-${TAG}" \
     -t "${IMG}:ops-${TAG}" .
 
+  # Nhân bản MinIO (`0247`): gắn thẻ từ ảnh GỐC trên máy. Máy không còn ảnh gốc mà
+  # đã có bản nhân bản (kéo từ kho ta về) thì thôi — không có gì để làm.
+  if docker image inspect "$MINIO_GOC" > /dev/null 2>&1; then
+    echo "==> gắn thẻ nhân bản ${MINIO_BAN}  (từ ${MINIO_GOC})"
+    docker tag "$MINIO_GOC" "$MINIO_BAN"
+  elif ! docker image inspect "$MINIO_BAN" > /dev/null 2>&1; then
+    echo "THIẾU ảnh MinIO: không có ${MINIO_GOC}, cũng không có ${MINIO_BAN}." >&2
+    echo "Kéo bản nhân bản về: docker pull ${MINIO_BAN}" >&2
+    exit 1
+  fi
+
   echo ""
   # Mọi mẫu phải đi qua `-e`. Trộn một mẫu trần với `-e` thì grep coi mẫu trần là
   # TÊN TỆP, và báo "No such file or directory" — một câu không nhắc gì tới grep.
   docker images --format '  {{.Repository}}:{{.Tag}}  {{.Size}}' \
-    | grep -F -e ":service-${TAG}" -e ":web-${TAG}" -e ":ops-${TAG}" || true
+    | grep -F -e ":service-${TAG}" -e ":web-${TAG}" -e ":ops-${TAG}" -e ":minio-" || true
 }
 
 # ĐẨY LÀ VIỆC CỦA NGƯỜI CÓ QUYỀN PUSH, không phải của lượt dựng.
@@ -100,7 +131,18 @@ anh() {
 # lượt đẩy hỏng giữa chừng thì registry có một bản số mà `latest` chưa trỏ tới —
 # vô hại. Ngược lại thì `latest` trỏ tới một bản mà thẻ số của nó không tồn tại,
 # và `./csbh upgrade` sẽ ghim một con số không kéo lại được.
+# Đẩy RIÊNG ảnh MinIO nhân bản (`0247`). Tách khỏi `day` để đẩy được nó mà không
+# đẩy ảnh phần mềm nào — nó không theo số phiên bản, đẩy lại là không đổi gì.
+day_minio() {
+  docker image inspect "$MINIO_BAN" > /dev/null 2>&1 || {
+    echo "Chưa có ${MINIO_BAN} trên máy — chạy: sh scripts/dong-goi.sh anh" >&2; exit 1; }
+  echo "==> đẩy ${MINIO_BAN}"
+  docker push "$MINIO_BAN"
+}
+
 day() {
+  # MinIO TRƯỚC: bản cài mới kéo nó ngay ở bước dựng hạ tầng.
+  day_minio
   for tp in service web ops; do
     echo "==> đẩy ${IMG}:${tp}-${TAG}"
     docker push "${IMG}:${tp}-${TAG}"
@@ -185,6 +227,7 @@ HET
 case "${1:-tat-ca}" in
   anh) anh ;;
   day) day ;;
+  day-minio) day_minio ;;
   goi) goi ;;
   tat-ca) anh; goi ;;
   *) echo "dùng: $0 [anh|day|goi|tat-ca]" >&2; exit 2 ;;

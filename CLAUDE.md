@@ -99,7 +99,15 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P277** (`0246`): **chuyển máy không mất gì** — `./csbh xuat-chuyen-may` (chặn lối vào →
+Chặng gần nhất **P278** (`0247`): **ảnh MinIO nhân bản trong kho của ta** — MinIO ngừng phát hành ảnh
+Community (10/2025) và xoá `minio/minio` khỏi Docker Hub (09/2026). `docker tag` đúng ảnh đang dùng thành
+`<CSBH_IMAGE>:minio-RELEASE.2024-09-22T00-33-43Z` (cùng image id, 9 lớp), **đã đẩy**; `compose.prod.yml` kéo
+từ đó. `MINIO_GOC` ở `dong-goi.sh` là chỗ duy nhất khai bản MinIO; `make day-minio` đẩy riêng nó. Kèm hai lỗi
+thật của `ban-ke` (`0246`) lộ ra từ một ca chập chờn: kê cả **bảng tạm** của phiên khác, và đường ống `psql |
+psql` hỏng câu đầu mà vẫn thoát 0 → **KHỚP giả** (giờ `pipefail` + chốt *"không dòng bảng nào"*). Cái giá: bản
+MinIO đứng yên, không còn bản vá. **2722/2722 xanh.**
+
+Trước đó **P277** (`0246`): **chuyển máy không mất gì** — `./csbh xuat-chuyen-may` (chặn lối vào →
 chờ xả outbox + RabbitMQ → dump · kho tệp · `logarchive` → gói dữ liệu + gói bí mật MÃ HOÁ) và
 `nhap-chuyen-may` (lệnh duy nhất chạy khi chưa có `.env`; dựng lại BẢNG KÊ trên máy mới và **đối chiếu
 trước khi bật**). Lõi là `scripts/chuyen-may.sh ban-ke` (ảnh `ops`): mọi bảng → số dòng + md5 nội dung (đặt

@@ -130,6 +130,10 @@ services:
       - ../secrets:/run/secrets:ro
 
   minio:
+    # ẢNH NHÂN BẢN trong kho của ta (`0247`), không phải `minio/minio`: MinIO đã
+    # xoá kho ấy khỏi Docker Hub (09/2026), nên một máy MỚI không kéo được ảnh gốc.
+    # Cùng ảnh, chép nguyên từng lớp — xem `MINIO_GOC` ở `scripts/dong-goi.sh`.
+    image: ${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-RELEASE.2024-09-22T00-33-43Z
     environment:
       MINIO_ROOT_USER: csbh
       # Cùng lý do với Postgres ngay trên. MinIO không dừng khi cả hai cùng có —

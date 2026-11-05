@@ -120,6 +120,10 @@ anh:
 day-anh:
 	sh scripts/dong-goi.sh day
 
+# Đẩy RIÊNG ảnh MinIO nhân bản (`0247`) — không đẩy ảnh phần mềm nào.
+day-minio:
+	sh scripts/dong-goi.sh day-minio
+
 goi:
 	sh scripts/dong-goi.sh goi
 

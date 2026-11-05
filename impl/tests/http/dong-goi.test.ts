@@ -502,3 +502,52 @@ describe('`0218` ./csbh upgrade', () => {
     expect(loi).toMatch(/nang-cap/);
   });
 });
+
+describe('`0247` ảnh MinIO NHÂN BẢN trong kho của ta', () => {
+  /*
+   * MinIO xoá kho `minio/minio` khỏi Docker Hub (09/2026), nên máy MỚI không kéo
+   * được ảnh gốc. Ta giữ một bản nhân bản — cùng ảnh, chỉ đổi tên. Ba tệp phải
+   * nói CÙNG một bản MinIO: `dong-goi.sh` (nguồn), `compose.yml` (dev/kiểm/demo
+   * dùng tên gốc), `compose.prod.yml` (máy khách dùng bản nhân bản). Lệch một tệp
+   * là máy dev chạy một bản MinIO, máy khách chạy bản khác, mà không gì đỏ.
+   */
+  const GOC = /^MINIO_GOC="([^"]+)"$/m.exec(SH)?.[1] ?? '';
+  const BAN = GOC.split(':')[1] ?? '';
+  const anhCua = (tep: string) => {
+    const s = readFileSync(tep, 'utf8');
+    const khoi = /\n {2}minio:\n([\s\S]*?)(?=\n {2}[a-z-]+:\n)/.exec(s)?.[1] ?? '';
+    // Cả phần còn lại của dòng: `${CSBH_IMAGE:?thiếu CSBH_IMAGE}` có dấu cách bên trong.
+    return /^\s+image:\s*(.+?)\s*$/m.exec(khoi)?.[1] ?? '';
+  };
+
+  it('`MINIO_GOC` khai đúng một bản có ghim, và thẻ nhân bản mang ĐÚNG bản ấy', () => {
+    expect(GOC).toMatch(/^minio\/minio:RELEASE\.\d{4}-\d{2}-\d{2}T[\d-]+Z$/);
+    expect(SH).toMatch(/^MINIO_BAN="\$\{IMG\}:minio-\$\{MINIO_GOC##\*:\}"$/m);
+  });
+
+  it('`compose.yml` dùng ĐÚNG ảnh gốc ấy (máy dev còn ảnh)', () => {
+    expect(anhCua('deploy/compose.yml')).toBe(GOC);
+  });
+
+  it('`compose.prod.yml` dùng bản NHÂN BẢN của đúng bản ấy — không bao giờ `minio/minio`', () => {
+    expect(anhCua('deploy/compose.prod.yml')).toBe(`\${CSBH_IMAGE:?thiếu CSBH_IMAGE}:minio-${BAN}`);
+  });
+
+  it('`anh` gắn thẻ nhân bản TỪ ảnh gốc; `day` đẩy MinIO TRƯỚC ảnh phần mềm', () => {
+    const anh = /\nanh\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    expect(anh).toContain('docker tag "$MINIO_GOC" "$MINIO_BAN"');
+    const day = /\nday\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1] ?? '';
+    const lenh = day.split('\n').map((d) => d.trim()).filter((d) => d && !d.startsWith('#'));
+    expect(lenh[0]).toBe('day_minio');
+    expect(/\nday_minio\(\) \{([\s\S]*?)\n\}/.exec(SH)?.[1]).toContain('docker push "$MINIO_BAN"');
+  });
+
+  it('`make day-minio` đẩy RIÊNG MinIO — không kéo theo ảnh phần mềm nào', () => {
+    expect(readFileSync('Makefile', 'utf8')).toMatch(/^day-minio:\n\tsh scripts\/dong-goi\.sh day-minio$/m);
+    expect(SH).toMatch(/^ {2}day-minio\) day_minio ;;$/m);
+  });
+
+  it('AGPL: chỉ ra mã nguồn của ĐÚNG bản phân phối lại', () => {
+    expect(SH).toContain(`https://github.com/minio/minio/tree/${BAN}`);
+  });
+});

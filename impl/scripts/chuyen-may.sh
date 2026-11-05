@@ -12,6 +12,11 @@
 # hiện tại — mã hồ sơ đề xuất đọc từ đó), mỗi tệp của kho (sha256), và mọi
 # `object_key` trong CSDL mà kho không có tệp.
 set -eu
+# `pipefail` (`0247`): không có nó thì câu ĐẦU của một đường ống `psql | psql` hỏng
+# mà cả đường ống vẫn thoát 0 — đo được: bảng kê ra mỗi dòng sequence, in
+# "10 dòng CSDL", thoát 0. Hai đầu cùng hỏng một kiểu là hai bảng kê cùng THIẾU
+# SẠCH phần bảng, và đối chiếu báo KHỚP giả. BusyBox `ash` (ảnh `ops`) có nó.
+if (set -o pipefail) 2> /dev/null; then set -o pipefail; fi
 
 q() { psql -X -Atq -v ON_ERROR_STOP=1 "$@"; }
 
@@ -35,8 +40,14 @@ ban_ke() {
       n.nspname || '.' || c.relname, n.nspname, c.relname)
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('r', 'p')
+      -- BẢNG TẠM của phiên khác KHÔNG phải dữ liệu, và nó biến mất giữa lúc dựng
+      -- danh sách và lúc đọc (relation pg_temp_3.x does not exist — đo được
+      -- ở bộ kiểm 05/11, lượt trước xanh chỉ vì lệch thời điểm). Trên máy thật,
+      -- một phiên đang giữ bảng tạm là đủ làm lượt xuất chết giữa chừng.
+      AND c.relpersistence <> 't'
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
       AND n.nspname NOT LIKE 'pg_toast%'
+      AND n.nspname NOT LIKE 'pg_temp%'
     ORDER BY 1"; } | q -F'|' > "$d/csdl.txt"
   # Sequence: `pg_dump` mang giá trị hiện tại theo, và mã hồ sơ đề xuất đọc từ
   # đây — một sequence tụt về 1 là mã TRÙNG ở hồ sơ kế tiếp.
@@ -44,6 +55,10 @@ ban_ke() {
     SELECT format('SELECT %L, last_value, is_called FROM %I.%I;',
                   'seq:' || schemaname || '.' || sequencename, schemaname, sequencename)
     FROM pg_sequences ORDER BY 1" | q -F'|' >> "$d/csdl.txt"
+  # Chốt cứng, độc lập với `pipefail`: một bảng kê không có DÒNG BẢNG nào là một
+  # bảng kê hỏng — CSDL của phần mềm không bao giờ rỗng bảng.
+  grep -qv '^seq:' "$d/csdl.txt" || {
+    echo "ban-ke: KHÔNG kê được bảng nào — bảng kê hỏng, dừng." >&2; exit 1; }
 
   # --- Kho tệp: sha256 từng tệp, đường dẫn tương đối, xếp theo byte ------------
   : > "$d/tep.txt"
@@ -142,7 +157,9 @@ case "${1:-}" in
     tar -C "$cai" -cf - .env secrets | openssl enc $MA_HOA -salt -pass env:CSBH_MAT_KHAU -out "$ra"
     # Mở thử ngay: một gói bí mật không mở được thì chỉ biết lúc đã mất máy cũ.
     # shellcheck disable=SC2086
-    openssl enc -d $MA_HOA -pass env:CSBH_MAT_KHAU -in "$ra" | tar -tf - | grep -qx '\.env' || {
+    # `grep` KHÔNG `-q`: `-q` thoát ngay khi khớp, `tar` phía trước ăn SIGPIPE, và
+    # dưới `pipefail` cả đường ống thành hỏng — gói đúng bị xoá như gói hỏng.
+    openssl enc -d $MA_HOA -pass env:CSBH_MAT_KHAU -in "$ra" | tar -tf - | grep -x '\.env' > /dev/null || {
       rm -f "$ra"; echo "bi-mat-dong: gói vừa ghi không mở lại được — đã xoá." >&2; exit 1; }
     echo "bi-mat-dong: $ra"
     ;;

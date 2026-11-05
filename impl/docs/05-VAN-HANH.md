@@ -233,8 +233,9 @@ Google Console; **cài lại cron** (nó nằm ở `/etc/cron.d` của máy cũ,
 Không đi theo gói, có chủ ý: bản sao lưu cũ (`pgbackup`, `CSBH_BACKUP_MIRROR`) — máy mới
 bắt đầu chuỗi sao lưu của nó từ đêm đầu tiên; chứng chỉ TLS — Caddy xin lại.
 
-> **Ảnh MinIO**: kho `minio/minio` đã biến khỏi Docker Hub (`0235`). Máy mới chưa từng
-> có ảnh ấy thì `nhap-chuyen-may` dừng ở bước dựng hạ tầng — chép ảnh từ máy cũ bằng
+> **Ảnh MinIO**: kho `minio/minio` đã biến khỏi Docker Hub. Bộ cài từ `0247` kéo MinIO từ
+> **kho của ta** nên máy mới không cần gì thêm. Bộ cài CŨ hơn thì máy mới kẹt ở bước dựng
+> hạ tầng — dùng bộ cài mới, hoặc chép ảnh từ máy cũ bằng
 > `docker save minio/minio:RELEASE.2024-09-22T00-33-43Z | gzip > minio.tar.gz` rồi
 > `docker load` ở máy mới, trước khi nhập.
 
