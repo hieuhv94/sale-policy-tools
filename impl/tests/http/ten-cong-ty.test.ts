@@ -18,6 +18,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMPANY, COMPANY_ADDRESS_LINE, documentXml } from '@csbh/document/testing';
+import { TEN_CONG_TY } from '@csbh/web/cong-ty';
 import { BO_MAU, THU_MUC } from '../../scripts/tao-mau-ho-so.js';
 
 /**
@@ -123,18 +124,28 @@ describe('`0151` không mã nguồn nào còn bản chép của tên cũ', () =>
     expect(con, `còn tên cũ ở: ${con.join(', ')}`).toEqual([]);
   });
 
-  it('màn hình đăng nhập mang tên mới, dạng chữ thường', () => {
+  it('bản chép phía giao diện (`lib/cong-ty.ts`) khớp `COMPANY.name` từng chữ', () => {
     /*
-     * Bản chép tay DUY NHẤT còn lại, và nó phải là bản chép: giao diện là gói
-     * riêng: import `COMPANY` từ một service vào đây sẽ kéo cả cây phụ thuộc máy
-     * chủ vào gói trình duyệt, và `FE-38` chặn ngân sách gói ở 250KB.
-     *
-     * Nên chỗ hở này không bịt được bằng kiểu dữ liệu — chỉ bịt được bằng chính
-     * ca kiểm này. Khẳng định CẢ HAI chiều: ca chỉ hỏi "có tên mới không" sẽ
-     * xanh với một màn hình in cả hai cái tên chồng lên nhau.
+     * Bản chép DUY NHẤT phía giao diện, và nó phải là bản chép: import `COMPANY`
+     * từ một service vào gói trình duyệt là kéo cả cây phụ thuộc máy chủ theo
+     * (`FE-38` chặn 250KB). Từ `0244` nó nằm ở `lib/cong-ty.ts` thay vì gõ thẳng
+     * trong `DangNhap.tsx`, vì chân trang là chỗ dùng thứ hai — và so THẲNG với
+     * hằng của máy chủ, khác dạng chữ hoa/thường là được.
      */
-    const ma = readFileSync('apps/web/src/pages/DangNhap.tsx', 'utf8');
-    expect(chuan(ma)).toContain(chuan('Công ty TNHH Dược phẩm Nutricare'));
-    expect(coTenCu(ma)).toBe(false);
+    expect(chuan(TEN_CONG_TY)).toBe(chuan(COMPANY.name));
+    expect(coTenCu(readFileSync('apps/web/src/lib/cong-ty.ts', 'utf8'))).toBe(false);
+  });
+
+  it('không tệp giao diện nào gõ tay cái tên — mọi chỗ đọc từ `lib/cong-ty.ts`', () => {
+    const lo: string[] = [];
+    const quet = (d: string) => {
+      for (const t of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, t.name);
+        if (t.isDirectory()) quet(p);
+        else if (/\.tsx?$/.test(p) && !p.endsWith('cong-ty.ts') && chuan(readFileSync(p, 'utf8')).includes(chuan(TEN_CONG_TY))) lo.push(p);
+      }
+    };
+    quet('apps/web/src');
+    expect(lo).toEqual([]);
   });
 });

@@ -763,9 +763,12 @@ export type LoiDaDoc = {
   dang: Dang;
   /** Ô nhập mà lỗi thuộc về, nếu có. */
   truong?: string;
-  /** Câu gốc của máy chủ, chỉ đặt khi nó KHÁC câu chính — hiện ở dòng phụ. */
-  chiTiet?: string;
-  traceId?: string | null;
+  /*
+   * KHÔNG có `traceId` và `chiTiet` (`0244`). Hai trường ấy chỉ tồn tại để được
+   * bày ra — mã tra cứu, và câu gốc của máy chủ mang TÊN TRƯỜNG TRONG MÃ
+   * (`wholesalePrice: …`). Khách hàng bỏ cả hai khỏi màn hình; gỡ ở đây chứ không
+   * ở chỗ vẽ, để màn hình sau không có gì mà bày lại. Mã vẫn ở `LoiApi.traceId`.
+   */
   /** Lỗi mạng thì dữ liệu đang nhập vẫn đúng, chỉ cần bấm lại (`FE-32`). */
   laLoiMang: boolean;
   ma: string;
@@ -794,16 +797,10 @@ export function docLoi(loi: unknown): LoiDaDoc {
     typeof loi.body['field'] === 'string' ? (loi.body['field'] as string) : muc?.truong;
 
   let cau: string | null = null;
-  let chiTiet: string | undefined;
 
   if (muc?.tuThan) cau = DUNG_CAU[loi.code]?.(loi.body) ?? null;
   if (cau === null && muc?.tuMayChu && cauMayChu) cau = cauMayChu;
   if (cau === null && muc?.cau) cau = muc.cau;
-
-  // Câu gốc của `VALIDATION_FAILED` mang tên trường trong mã — không đưa lên
-  // làm câu chính, nhưng cũng không vứt: Quản trị đọc nó lúc gỡ lỗi qua điện
-  // thoại, và nó là thứ duy nhất nói ra trường ấy sai KIỂU GÌ.
-  if (loi.code === 'VALIDATION_FAILED' && cauMayChu) chiTiet = cauMayChu;
 
   if (cau === null) cau = cauMayChu || CAU_LUI;
 
@@ -811,8 +808,6 @@ export function docLoi(loi: unknown): LoiDaDoc {
     cau,
     dang: muc?.dang ?? 'hop-thoai',
     ...(truong ? { truong } : {}),
-    ...(chiTiet ? { chiTiet } : {}),
-    traceId: loi.traceId,
     laLoiMang: loi.laLoiMang,
     ma: loi.code,
   };

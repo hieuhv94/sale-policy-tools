@@ -99,7 +99,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 
 ## Trạng thái hiện tại (05/11/2026)
 
-Chặng gần nhất **P273** (`0243`): **gateway chỉ chuyển cookie CUỐI của mỗi phản hồi** — `setHeader` từng
+Chặng gần nhất **P274** (`0244`): **chân trang** (`ChanTrang.tsx` — bản quyền · quyền sở hữu · phiên bản,
+câu chữ khách hàng duyệt; màn hình đăng nhập chỉ dòng bản quyền; số phiên bản DỜI khỏi đáy thanh bên) và
+**không bày mã lỗi**: `traceId` + `chiTiet` gỡ khỏi `LoiDaDoc` (đảo vế bày của `0088`). Màn hình *Nhật ký*
+của Quản trị GIỮ cột mã tra cứu — ca quét cấm chữ ấy ở mọi `.tsx` khác. Tên công ty phía giao diện ở
+`lib/cong-ty.ts` (`TEN_CONG_TY`), so thẳng với `COMPANY.name`. **2683/2683 xanh.**
+
+Trước đó **P273** (`0243`): **gateway chỉ chuyển cookie CUỐI của mỗi phản hồi** — `setHeader` từng
 dòng `entries()` thì dòng `Set-Cookie` sau đè dòng trước; giờ đặt một lần bằng `getSetCookie()`. Lộ ra
 trên chồng production chạy thử (cửa sổ con Google mất cookie mã cửa sổ), không ở bộ kiểm — mọi ca HTTP gọi
 thẳng service. Ca `tests/http/gateway-cookie.test.ts` dựng gateway THẬT trước một máy giả. **2674/2674 xanh.**

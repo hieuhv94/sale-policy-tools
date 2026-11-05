@@ -8,6 +8,8 @@ import { useDuong } from '../lib/router.js';
 import { duongSauDangNhap } from '../lib/sau-dang-nhap.js';
 import { OMatKhau, Truong } from '../components/Chung.js';
 import { NutGiaoDien } from '../components/NutGiaoDien.js';
+import { ChanTrang } from '../components/ChanTrang.js';
+import { TEN_CONG_TY } from '../lib/cong-ty.js';
 import logo from '../logo.png';
 
 export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
@@ -174,15 +176,8 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
         <div className="dang-nhap-dau">
           <img src={logo} alt="Nutricare" className="logo-lon" />
           <h1>{lopPhu ? 'Phiên đã hết hạn' : 'Chính sách bán hàng'}</h1>
-          {/*
-            Tên pháp nhân, dạng chữ thường (`0151`, chốt 29/08).
-
-            KHÔNG đọc từ hằng `COMPANY` bên `document`: giao diện là gói riêng,
-            import từ một service vào đây sẽ kéo cả cây phụ thuộc máy chủ vào gói
-            trình duyệt. Nên đây là bản chép tay DUY NHẤT còn lại của cái tên, và
-            `ten-cong-ty.test.ts` canh đúng chỗ hở ấy bằng cách quét cả repo.
-          */}
-          {!lopPhu && <p className="dang-nhap-phu">Công ty TNHH Dược phẩm Nutricare</p>}
+          {/* Tên pháp nhân, dạng chữ thường (`0151`) — từ `lib/cong-ty.ts` (`0244`). */}
+          {!lopPhu && <p className="dang-nhap-phu">{TEN_CONG_TY}</p>}
         </div>
         {lopPhu && (
           <p className="ghi-chu">
@@ -261,6 +256,8 @@ export function DangNhap({ lopPhu = false }: { lopPhu?: boolean }) {
           </button>
         )}
       </form>
+      {/* Chỉ dòng bản quyền — chưa đăng nhập thì phần còn lại không nói gì với ai (`0244`). */}
+      {!lopPhu && <ChanTrang rutGon />}
     </div>
   );
 }

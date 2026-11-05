@@ -20676,3 +20676,45 @@ gateway làm với PHẢN HỒI nằm ngoài tầm của chúng. Đụng tới h
 đo trên chồng thật hoặc dựng gateway thật trong ca kiểm.
 
 **2674/2674 xanh.**
+
+## P274 — `0244` Chân trang, và không bày mã lỗi
+
+Hai yêu cầu một lượt (05/11): chân trang với **câu chữ khách hàng duyệt nguyên văn** (bản quyền ·
+quyền sở hữu · phiên bản), và *"bỏ toàn bộ việc hiển thị mã lỗi trên giao diện … hiển thị chỉ gây rối
+mắt"*.
+
+**Mã lỗi: gỡ ở NGUỒN, không ở chỗ vẽ.** Có hai chỗ bày (`BaoLoiProvider` — hộp thoại; `BaoLoi` của
+`Chung.tsx` — khối trên trang), cả hai đọc `traceId` và `chiTiet` từ `docLoi()`. Gỡ hai trường ấy khỏi
+`LoiDaDoc` chứ không chỉ gỡ hai dòng JSX: hai trường chỉ tồn tại để được bày, và để nguyên là mời màn
+hình sau bày lại. `chiTiet` là **câu gốc của máy chủ**, ở `VALIDATION_FAILED` mang đúng tên trường trong
+mã (`wholesalePrice: phải là số…`) — `0088` cố ý giữ nó ở dòng phụ *"để Quản trị gỡ lỗi"*, lượt này đảo
+vế ấy. Câu chính của `VALIDATION_FAILED` không mất gì: `DUNG_CAU` luôn dựng tiếng Việt từ `NHAN_TRUONG`.
+Mã vẫn ở `LoiApi.traceId` và vẫn trong nhật ký máy chủ. **Ranh giới giữ**: màn hình *Nhật ký* của Quản
+trị giữ cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi; ca
+quét cấm chữ *"Mã tra cứu"* ở mọi `.tsx` trừ đúng tệp ấy. Hệ quả nhỏ: `.hop-loi-day` từ
+`space-between` sang `flex-end`, nếu không nút *Đóng* trôi sang trái khi mất hàng xóm.
+
+**Chân trang**: `ChanTrang.tsx`, gắn cuối `.cot-chinh` (`main` giãn `flex: 1 0 auto` để chân trang sát đáy
+khi trang ít chữ) và — bản `rutGon`, chỉ dòng bản quyền — dưới thẻ đăng nhập (`.dang-nhap` thành cột).
+Số phiên bản **dời** khỏi đáy thanh bên (`0118`): thanh bên là ngăn kéo trên điện thoại nên con số khuất
+đúng lúc cần đọc; ca kiểm đòi đúng MỘT chỗ. Năm bằng `getFullYear()` (giờ trình duyệt), không
+`toISOString()` (bẫy `0208`).
+
+**Tên công ty phía giao diện dời vào `lib/cong-ty.ts`** (`TEN_CONG_TY`). Trước đây là bản chép tay gõ
+thẳng trong `DangNhap.tsx` — *"bản chép DUY NHẤT"* (`0151`); chân trang là chỗ dùng thứ hai, gõ tay lần
+nữa là bản chép thứ hai. Ca `ten-cong-ty` thôi đọc `DangNhap.tsx` mà **so thẳng `TEN_CONG_TY` với
+`COMPANY.name`** của `document` (`tests/http/` import được vì tệp không có JSX), cộng ca quét cấm cái tên
+xuất hiện ở bất kỳ tệp giao diện nào khác.
+
+**Hai lỗi của chính tôi trong ca kiểm, bắt được nhờ phá lại**: lượt chèn ca tên công ty để thừa một
+`});` → tệp không dịch, lượt phá *"gõ tay tên ở đăng nhập"* in **`no tests`** — trông như một lượt phá chưa
+chạy, đúng bẫy `0171`/`0174`; và ca đối chiếu `toLocaleUpperCase` trong khi `chuan()` đã hạ chữ thường →
+đỏ trên mã nguyên vẹn. Sửa cả hai rồi chạy lại cả ba nhánh (nguyên vẹn xanh · gõ tay đỏ · bản chép lệch đỏ).
+
+Kèm sửa HDSD: chữ *"bấm Đã hiểu"* còn sót từ trước `0136`.
+
+**Phá lại tám lượt, tám đỏ**: hộp lỗi bày lại mã · khối lỗi bày lại mã · `docLoi` trả lại `traceId` ·
+bỏ *"Bảo lưu mọi quyền"* · gõ tay tên ở đăng nhập · bản chép lệch máy chủ · khung chính thiếu chân trang ·
+phiên bản lại ở thanh bên.
+
+**2683/2683 xanh.**

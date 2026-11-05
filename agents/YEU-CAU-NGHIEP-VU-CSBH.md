@@ -855,6 +855,11 @@ ai cùng vai trò"* — trong khi việc chọn người nhận là bắt buộc
 nguyên văn *"wholesalePrice: phải là số nguyên không âm"* và *"Khong the thuc hien "TBP_SIGN" khi ho
 so dang o "CHO_KT_L1""* — câu thứ hai là câu dùng cho log, đi thẳng ra màn hình.
 
+**Không bày mã lỗi hay mã tra cứu nào** `sửa 05/11` — kể cả ở dòng phụ, kể cả cỡ chữ nhỏ. Khách hàng:
+*"người dùng không cần quan tâm đến nó, hiển thị chỉ gây rối mắt"*. Mã vẫn sinh và vẫn nằm trong nhật
+ký; báo lỗi thì người dùng nói **đang làm gì, lúc mấy giờ** và **số phiên bản ở chân trang**, Quản trị
+tìm lượt bấm ấy ở màn hình *Nhật ký* (nơi cột mã tra cứu được giữ, vì ở đó nó là khoá để lọc).
+
 ---
 
 ## 7. Quy tắc tính toán
@@ -2949,6 +2954,15 @@ hồi mọi phiên (kể cả phiên của chính người đổi), và ô đăn
 quan phía sau vẫn đọc được. Giữ luật *"đăng nhập lại không mất bản nhập dở"*, chỉ thôi bày nó ra.
 Việc đổi mật khẩu đưa thẳng về ô đăng nhập **giữ nguyên** theo câu trả lời ấy; đề xuất cấp phiên mới
 cho chính người vừa đổi (để khỏi đăng nhập lại) **chưa làm**.
+
+**CHÂN TRANG, VÀ KHÔNG BÀY MÃ LỖI** `mới 05/11` — chân trang mọi màn hình mang đúng ba mảnh khách
+hàng duyệt: *"© <năm> Công ty TNHH Dược phẩm Nutricare. Bảo lưu mọi quyền."* · *"Phần mềm Chính sách bán
+hàng — tài sản của Công ty TNHH Dược phẩm Nutricare, chỉ dành cho người được cấp tài khoản."* · *"Phiên
+bản <số>"* (số phiên bản dời xuống đây từ đáy thanh bên); màn hình đăng nhập chỉ mang dòng bản quyền. Và
+*"bỏ toàn bộ việc hiển thị mã lỗi trên giao diện, người dùng không cần quan tâm, hiển thị chỉ gây rối
+mắt"* — không câu lỗi nào còn kèm **mã tra cứu** hay **câu gốc của máy chủ** (thứ mang tên trường trong
+mã). Đảo vế bày của `0088`; mã vẫn sinh và vẫn nằm trong nhật ký. Màn hình *Nhật ký* của Quản trị **giữ**
+cột mã tra cứu — ở đó nó là khoá để lọc cả chuỗi của một lượt bấm, không phải lời báo lỗi.
 
 **HẾT PHIÊN Ở BẤT KỲ CỬA SỔ NÀO, VÀ GOOGLE Ở Ô ĐĂNG NHẬP LẠI** `sửa 05/11` — *"tạo và test hết các
 case mà người dùng bị hết hạn đăng nhập ở bất kỳ cửa sổ nào, khi hiện hộp thư đăng nhập không có bất

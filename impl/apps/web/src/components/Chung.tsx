@@ -237,8 +237,6 @@ export function BaoLoi({ loi, thuLai }: { loi: unknown; thuLai?: () => void }) {
     <div className={d.laLoiMang ? 'bao-loi mang' : 'bao-loi'} role="alert">
       <p className="bao-loi-chinh">{d.cau}</p>
       {d.laLoiMang && <p className="bao-loi-phu">Dữ liệu bạn đã nhập vẫn được giữ nguyên.</p>}
-      {d.chiTiet && <p className="bao-loi-phu">{d.chiTiet}</p>}
-      {d.traceId && <p className="bao-loi-ma">Mã tra cứu: {d.traceId}</p>}
       {thuLai && (
         <button type="button" className="nut" onClick={thuLai}>
           Thử lại

@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePhien, type NguoiDung } from '../lib/auth.js';
 import { dieuHuongCho } from '../lib/can.js';
 import { NHAN_VAI_TRO } from '../lib/format.js';
-import { PHIEN_BAN } from '../lib/phien-ban.js';
+import { ChanTrang } from './ChanTrang.js';
 import { Lien, useDuong } from '../lib/router.js';
 import logo from '../logo.png';
 import {
@@ -207,16 +207,10 @@ export function BoCuc({ children }: { children: ReactNode }) {
         </nav>
 
         {/*
-          SỐ PHIÊN BẢN THẬT, không phải một dòng chữ viết cứng (`0118`, VER-05).
-
-          Tới `0117` chỗ này ghi "Phiên bản demo" — một chuỗi cố định, và nó hiện
-          y hệt trên chồng production đang chạy thật. Người dùng báo lỗi thì không
-          kèm được bản nào, dù `PHIEN_BAN` đã nằm sẵn trong gói từ P7d.
+          Số phiên bản ĐÃ DỜI xuống chân trang (`0244`) — xem `ChanTrang.tsx`.
+          Trên điện thoại thanh bên là ngăn kéo, nên con số ở đây khuất đúng lúc
+          người dùng cần đọc nó.
         */}
-        <div className="thanh-ben-chan">
-          <span className="cham-sang" aria-hidden="true" />
-          <span>Phiên bản {PHIEN_BAN}</span>
-        </div>
       </aside>
 
       {/*
@@ -275,6 +269,7 @@ export function BoCuc({ children }: { children: ReactNode }) {
         <main id="noi-dung-chinh" tabIndex={-1}>
           {children}
         </main>
+        <ChanTrang />
       </div>
     </div>
   );

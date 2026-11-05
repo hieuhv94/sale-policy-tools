@@ -49,7 +49,7 @@ const mo = () =>
  * văn bản của React, nên cả `<span>` lẫn `<div>` bọc nó cùng khớp một biểu thức,
  * và `getByText` ném "Found multiple elements".
  */
-const chanThanhBen = () => document.querySelector('.thanh-ben-chan')?.textContent ?? '';
+const chanThanhBen = () => document.querySelector('.chan-trang-phien-ban')?.textContent ?? '';
 
 beforeEach(() => {
   localStorage.setItem('csbh:phien', JSON.stringify(TDV));
@@ -64,7 +64,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('VER-05 chân thanh bên hiện số phiên bản', () => {
+describe('VER-05 chân trang hiện số phiên bản (dời từ chân thanh bên ở `0244`)', () => {
+  it('số phiên bản CHỈ nằm ở chân trang — thanh bên không còn bản thứ hai', () => {
+    mo();
+    expect(document.querySelector('.thanh-ben')!.textContent).not.toContain('Phiên bản');
+    expect(document.querySelectorAll('.chan-trang-phien-ban')).toHaveLength(1);
+  });
+
   it('hiện đúng giá trị của `PHIEN_BAN`, không phải một chuỗi viết cứng', () => {
     mo();
     expect(chanThanhBen()).toContain(PHIEN_BAN);

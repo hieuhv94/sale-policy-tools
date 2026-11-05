@@ -27,6 +27,8 @@
     "./sau-dang-nhap": "./src/lib/sau-dang-nhap.ts",
     "./dang-nhap": "./src/pages/DangNhap.tsx",
     "./google-cua-so": "./src/lib/google-cua-so.ts",
+    "./cong-ty": "./src/lib/cong-ty.ts",
+    "./chan-trang": "./src/components/ChanTrang.tsx",
     "./app": "./src/App.tsx",
     "./bang-san-pham": "./src/components/BangSanPham.tsx",
     "./bang-cot": "./src/lib/bang-cot.ts",

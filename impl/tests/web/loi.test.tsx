@@ -17,6 +17,7 @@ import userEvent from '@testing-library/user-event';
 import { LoiApi } from '@csbh/web/api';
 import { BANG_LOI, docLoi, NHAN_TRUONG } from '@csbh/web/loi';
 import { BaoLoiProvider, useBaoLoi } from '@csbh/web/bao-loi';
+import { BaoLoi } from '@csbh/web/chung';
 
 afterEach(cleanup);
 
@@ -178,8 +179,9 @@ describe('`0088` VALIDATION_FAILED không lộ tên trường trong mã', () => 
     );
     expect(d.cau).toBe('Ô Giá bán buôn chưa hợp lệ.');
     expect(d.cau).not.toContain('wholesalePrice');
-    // Câu gốc không bị vứt: nó xuống dòng phụ để Quản trị còn gỡ lỗi.
-    expect(d.chiTiet).toContain('wholesalePrice');
+    // `0244` đảo vế *"câu gốc xuống dòng phụ để Quản trị gỡ lỗi"* của `0088`:
+    // khách hàng bỏ mọi mã khỏi màn hình, và câu gốc mang đúng tên trường trong mã.
+    expect(JSON.stringify(d)).not.toContain(': phải là số');
     expect(d.truong).toBe('wholesalePrice');
   });
 
@@ -230,8 +232,10 @@ describe('`0088` dạng hiển thị', () => {
 
     const hop = screen.getByRole('alertdialog');
     expect(hop.textContent).toContain('Hồ sơ này đã được ký số rồi');
-    // Mã tra cứu có mặt nhưng ở dòng cuối — người dùng đọc nó cho Quản trị.
-    expect(hop.textContent).toContain('tr-9');
+    // `0244`: KHÔNG bày mã tra cứu, KHÔNG bày mã lỗi (đảo vế bày của `0088`).
+    expect(hop.textContent).not.toContain('tr-9');
+    expect(hop.textContent).not.toContain('ALREADY_SIGNED');
+    expect(hop.textContent).not.toMatch(/Mã tra cứu/);
 
     await nguoi.click(screen.getByRole('button', { name: 'Đóng' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
@@ -338,5 +342,36 @@ describe('`0104` TEMPLATE_MISSING_REQUIRED nói RÕ thiếu mục nào', () => {
     // tệ hơn hẳn câu chung chung.
     const d = docLoi(new LoiApi(409, 'TEMPLATE_MISSING_REQUIRED', 'Mẫu còn thiếu mục bắt buộc.', {}));
     expect(d.cau).toBe('Mẫu còn thiếu mục bắt buộc.');
+  });
+});
+
+describe('`0244` không chỗ nào bày mã lỗi hay mã tra cứu', () => {
+  it('`docLoi` không trả về thứ gì để bày: không `traceId`, không câu gốc', () => {
+    // Gỡ ở NGUỒN chứ không ở chỗ vẽ — màn hình sau không có gì mà bày lại.
+    const d = docLoi(new LoiApi(400, 'VALIDATION_FAILED', 'fullName: quá ngắn', { field: 'fullName' }, 'tr-1'));
+    expect(Object.keys(d).sort()).toEqual(['cau', 'dang', 'laLoiMang', 'ma', 'truong']);
+  });
+
+  it('khối báo lỗi trên trang (`BaoLoi`) cũng không bày mã', () => {
+    render(<BaoLoi loi={new LoiApi(500, 'LOI_LA_LAM', 'Máy chủ hỏng', {}, 'tr-77')} />);
+    const k = screen.getByRole('alert');
+    expect(k.textContent).not.toContain('tr-77');
+    expect(k.textContent).not.toContain('LOI_LA_LAM');
+    expect(k.textContent).not.toMatch(/Mã tra cứu/);
+  });
+
+  it('không tệp giao diện nào còn in chữ "Mã tra cứu", trừ màn hình Nhật ký của Quản trị', () => {
+    // Nhật ký là công cụ tra cứu của Quản trị — mã ở đó là CHÌA KHOÁ để lọc cả
+    // chuỗi của một lượt bấm, không phải một lời báo lỗi bày cho người dùng.
+    const lo: string[] = [];
+    const quet = (d: string) => {
+      for (const t of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, t.name);
+        if (t.isDirectory()) quet(p);
+        else if (p.endsWith('.tsx') && !p.endsWith('NhatKy.tsx') && /Mã tra cứu/.test(readFileSync(p, 'utf8'))) lo.push(p);
+      }
+    };
+    quet('apps/web/src');
+    expect(lo).toEqual([]);
   });
 });

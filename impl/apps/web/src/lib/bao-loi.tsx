@@ -122,14 +122,13 @@ function HopThoaiLoi({ loi, dong }: { loi: DangHien; dong: () => void }) {
         {loi.laLoiMang && (
           <p className="hop-loi-phu">Dữ liệu bạn đã nhập vẫn được giữ nguyên.</p>
         )}
-        {loi.chiTiet && <p className="hop-loi-phu">{loi.chiTiet}</p>}
         <div className="hop-loi-day">
           {/*
-            Mã tra cứu ở dòng cuối, cỡ nhỏ (`0088`). Người dùng đọc nó qua điện
-            thoại cho Quản trị, nên nó phải có mặt — nhưng nó không phải thứ đọc
-            trước, và tới `0088` nó đứng ngang hàng với câu lỗi.
+            KHÔNG bày mã tra cứu hay mã lỗi (`0244`, khách hàng chốt 05/11: *"người
+            dùng không cần quan tâm đến nó, hiển thị chỉ gây rối mắt"*). Đảo vế bày
+            của `0088`; mã vẫn sinh ra và vẫn nằm trong nhật ký máy chủ — Quản trị
+            tìm lượt hỏng theo người và giờ ở màn hình Nhật ký.
           */}
-          {loi.traceId && <span className="hop-loi-ma">Mã tra cứu: {loi.traceId}</span>}
           {/*
             *Đóng*, không phải *Đã hiểu* (`0136`, khách hàng chốt 27/08).
 

@@ -279,6 +279,12 @@ Bấm vào **thẻ tài khoản** ở thanh trên cùng thì sổ xuống ba dò
 > Dòng email ở trên cùng trả lời câu hỏi hay gặp nhất trên máy dùng chung ở quầy: *"máy này đang đăng
 > nhập bằng tài khoản nào?"*
 
+### Chân trang `mới 05/11`
+
+Dưới cùng mọi màn hình là một dòng chữ nhỏ: bản quyền của Công ty, câu nói phần mềm là tài sản của
+Công ty và chỉ dành cho người được cấp tài khoản, và **số phiên bản** đang chạy. Báo lỗi thì đọc kèm
+số phiên bản này. Màn hình đăng nhập chỉ có dòng bản quyền.
+
 ### Hộp thoại `sửa 29/09`
 
 Hộp thoại (khung bật lên giữa màn hình — thêm sản phẩm, sửa khách hàng, xác nhận xoá…) **không đóng
@@ -332,14 +338,14 @@ Phần mềm báo lỗi ở **bốn chỗ**, và chỗ nào là theo việc bạ
 
 | Bạn thấy | Nghĩa là | Việc phải làm |
 |---|---|---|
-| **Hộp thoại giữa màn hình** | Thao tác vừa bấm không thành | Đọc câu lỗi, bấm *Đã hiểu*, làm theo câu ấy |
+| **Hộp thoại giữa màn hình** | Thao tác vừa bấm không thành | Đọc câu lỗi, bấm *Đóng*, làm theo câu ấy |
 | **Thanh nhỏ ở góc dưới bên phải** | Một việc phụ hỏng, dữ liệu của bạn không mất gì | Thường chỉ cần bấm lại sau vài giây; thanh tự tắt |
 | **Dòng đỏ ngay dưới một ô** | Đúng ô đó chưa hợp lệ | Sửa ngay ô đang đứng, không cần bấm gì khác |
 | **Khối đỏ ở lại trên trang** | Không tải được dữ liệu để dựng màn hình | Bấm *Thử lại*; nếu vẫn vậy thì báo Quản trị hệ thống |
 
-Mọi câu lỗi đều nói **việc gì vừa hỏng và làm gì tiếp**, không phải mã lỗi. Hộp thoại còn có
-**Mã tra cứu** ở dòng cuối — đọc mã đó cho Quản trị hệ thống thì họ tìm ra đúng lượt bấm của bạn
-trong nhật ký.
+Mọi câu lỗi đều nói **việc gì vừa hỏng và làm gì tiếp** — phần mềm **không bày mã lỗi hay mã tra
+cứu nào** `sửa 05/11`. Cần báo lỗi cho Quản trị hệ thống thì nói **bạn đang làm gì, lúc mấy giờ**:
+Quản trị tìm ra đúng lượt bấm của bạn ở màn hình *Nhật ký* theo tên tài khoản và thời gian.
 
 > **Lỗi mạng khác lỗi dữ liệu.** Mất kết nối thì phần mềm nói rõ *"dữ liệu bạn đã nhập vẫn được giữ
 > nguyên"* — đóng hộp thoại và bấm lại là xong, **không phải nhập lại từ đầu**.
@@ -2650,8 +2656,8 @@ quá dài cho bề ngang ấy. Muốn xem vai trò thì mở **menu tài khoản
 - **"Không kết nối được máy chủ"** — lỗi mạng. **Dữ liệu bạn đã nhập vẫn còn nguyên**, bấm *Thử lại*.
 - **"Dữ liệu vừa được người khác thay đổi"** — hai người thao tác cùng lúc. Tải lại rồi làm lại.
 - **"Bạn thao tác quá nhanh"** — chờ một lát rồi thử lại.
-- Mỗi thông báo lỗi có **Mã tra cứu**. Đọc mã đó cho bộ phận hỗ trợ; nó dựng lại được toàn bộ chuỗi
-  thao tác của bạn.
+- Báo lỗi cho Quản trị hệ thống: nói **bạn đang làm gì và lúc mấy giờ**, kèm **số phiên bản** ở chân
+  trang. Phần mềm không bày mã lỗi `sửa 05/11`; Quản trị tìm lượt bấm của bạn trong *Nhật ký*.
 
 ## 16. Những gì hệ thống **không** làm
 

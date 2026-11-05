@@ -169,22 +169,6 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 .muc-hinh { display: inline-flex; flex: none; }
 .muc-chu { min-width: 0; }
 
-.thanh-ben-chan {
-  display: flex;
-  align-items: center;
-  gap: var(--k2);
-  margin-top: auto;
-  padding: var(--k4);
-  border-top: 1px solid var(--mau-thanh-ben-vien);
-  font-size: var(--chu-nho);
-}
-.cham-sang {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--mau-tot);
-  flex: none;
-}
-
 /* Nền mờ sau ngăn kéo — chỉ có tác dụng dưới 1024px. */
 .man-che {
   display: none;
@@ -570,6 +554,22 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 }
 
 main { padding: var(--k5) var(--k4) var(--k6); }
+/* Nội dung giãn ra để chân trang nằm sát đáy kể cả khi trang ít chữ (`0244`). */
+.cot-chinh > main { flex: 1 0 auto; }
+
+/* Chân trang (`0244`): chữ nhỏ, màu phụ, căn giữa; ba mảnh xuống dòng khi hẹp. */
+.chan-trang {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--k1) var(--k4);
+  padding: var(--k3) var(--k4);
+  border-top: 1px solid var(--mau-vien);
+  font-size: var(--chu-nho);
+  color: var(--mau-chu-phu);
+  text-align: center;
+}
+.dang-nhap .chan-trang { border-top: 0; margin-top: var(--k4); }
 main:focus { outline: none; }
 
 .trang { max-width: 1200px; margin: 0 auto; }
@@ -1663,7 +1663,7 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 }
 .bao-loi.mang { background: var(--mau-canh-bao-nen); border-color: var(--mau-canh-bao); }
 .bao-loi-chinh { font-weight: 700; margin-bottom: var(--k1); }
-.bao-loi-phu, .bao-loi-ma { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
+.bao-loi-phu { margin: 0; font-size: var(--chu-nho); color: var(--mau-chu-phu); }
 
 /* Dải "đã duyệt" ở đầu màn hình hồ sơ (`0056`).
 
@@ -2144,6 +2144,8 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   position: relative;
   min-height: 100vh;
   display: flex;
+  /* Cột, để chân trang (`0244`) đứng DƯỚI thẻ đăng nhập chứ không cạnh nó. */
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: var(--k4);
@@ -2484,16 +2486,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .hop-loi-day {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  /* `flex-end`: mã tra cứu từng đứng bên trái nút Đóng; `0244` gỡ nó. */
+  justify-content: flex-end;
   gap: var(--k3);
   margin-top: var(--k2);
-}
-/* Mã tra cứu nhỏ và nhạt: nó là thứ đọc cho Quản trị qua điện thoại, không phải
-   thứ người dùng đọc trước. Tới `0088` nó đứng ngang hàng với câu lỗi. */
-.hop-loi-ma {
-  font-size: var(--chu-nho);
-  color: var(--mau-chu-nhat);
-  word-break: break-all;
 }
 
 /* Thanh nổi xếp chồng ở góc dưới bên phải — KHÔNG giữa màn hình như thanh hoàn
