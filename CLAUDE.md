@@ -103,7 +103,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P287** (`0256`): thành phần hệ thống trên trang Vận hành gọi **đúng tên tiếng Anh** (`gateway`,
+Đang **thiết kế lại toàn bộ giao diện** (`0257`, CHỈ giao diện — không đụng máy chủ/hạ tầng), mockup đã duyệt
+(https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd), kế hoạch chia P288–P293. Chặng gần nhất **P288**: nền — giữ TÊN
+token, đổi giá trị (11 cặp màu trạng thái không đổi), thanh bên sáng, phông Be Vietnam Pro **tự host** ở `public/fonts/`
+(CSP chặn Google Fonts lặng lẽ), logo mới (`logo.png` đầy đủ, `logo-bieu-tuong.png` cho thanh bên). Chạy kiểm khi demo
+bật: ảnh rời `csbh-test` `--network none`. **`tests/web` 1014/1014 xanh.**
+
+Trước đó **P287** (`0256`): thành phần hệ thống trên trang Vận hành gọi **đúng tên tiếng Anh** (`gateway`,
 `redis`…) ở bảng, câu cảnh báo và ô chọn của thẻ Tệp log — ngoại lệ có chủ ý của luật "không thuật ngữ máy".
 **3042/3042 xanh.**
 

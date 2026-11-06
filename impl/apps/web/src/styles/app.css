@@ -18,44 +18,41 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--phong);
   font-size: var(--chu-thuong);
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--mau-chu);
-  /* Dải chuyển rất nhạt thay cho một mảng phẳng. `background-attachment: fixed`
-     để nó không trôi theo lúc cuộn — trôi thì thành hiệu ứng, mà ở đây chỉ cần
-     một mặt nền. */
-  background: linear-gradient(180deg, var(--mau-nen-tren), var(--mau-nen-duoi)) fixed;
+  /* Nền PHẲNG từ `0257` (trước là dải chuyển hai điểm dừng): khối trên trang
+     phân nhau bằng đường kẻ mảnh, nên mặt nền chỉ cần là một mặt nền. */
   background-color: var(--mau-nen-phu);
   -webkit-font-smoothing: antialiased;
 }
+
+/* Ô nhập và nút KHÔNG thừa kế phông của trang theo mặc định của trình duyệt —
+   thiếu dòng này thì mọi ô nhập vẫn hiện phông hệ thống giữa một trang Be
+   Vietnam Pro. */
+button, input, select, textarea { font-family: inherit; }
 
 /* Cỡ chữ hệ thống 200% không được làm vỡ bố cục (FE-11): mọi kích thước dùng
    đơn vị tương đối, và không chỗ nào đặt chiều cao cố định cho khối có chữ. */
 
 h1 {
   font-size: var(--chu-tieu-de);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0 0 var(--k2);
 }
 
-/* Vạch màu bên trái để mắt bắt được ranh giới giữa các mục khi cuộn nhanh. */
+/* Trước `0257` mỗi `h2` mang một vạch màu thương hiệu bên trái "để mắt bắt được
+   ranh giới giữa các mục khi cuộn nhanh". Gỡ: ranh giới giờ là đường kẻ và mặt
+   khối, và một vạch màu trên MỌI tiêu đề thì không còn đánh dấu được gì. */
 h2 {
   display: flex;
   align-items: center;
   gap: var(--k2);
   font-size: var(--chu-to);
-  font-weight: 700;
+  font-weight: 600;
   margin: var(--k6) 0 var(--k3);
-}
-h2::before {
-  content: '';
-  width: 3px;
-  align-self: stretch;
-  min-height: 1.1em;
-  border-radius: 2px;
-  background: var(--mau-thuong-hieu);
 }
 
 h3 { font-size: var(--chu-thuong); margin: 0; }
@@ -106,7 +103,7 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   overflow-y: auto;
   background: var(--mau-thanh-ben);
   color: var(--mau-thanh-ben-chu);
-  box-shadow: var(--bong-thanh-ben);
+  border-right: 1px solid var(--mau-thanh-ben-vien);
   transition: transform 0.18s ease;
 }
 
@@ -126,19 +123,17 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
   color: var(--mau-thanh-ben-chu-dam);
   text-decoration: none;
 }
-/* Ô trắng đặt logo — xem ghi chú ở `--mau-nen-logo` trong tokens.css. */
+/* Logo BIỂU TƯỢNG (`logo-bieu-tuong.png`, `0257`) — có kênh trong suốt nên không
+   cần ô nền; xem ghi chú ở `--mau-nen-logo` trong tokens.css. */
 .logo {
-  height: 36px;
+  height: 32px;
   width: auto;
   display: block;
   flex: none;
-  padding: 3px;
-  border-radius: var(--bo-goc-nho);
-  background: var(--mau-nen-logo);
 }
 
 .ten-thuong-hieu { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
-.ten-thuong-hieu strong { font-weight: 800; letter-spacing: 0.06em; }
+.ten-thuong-hieu strong { font-weight: 700; letter-spacing: 0.06em; color: var(--mau-thanh-ben-hoat-dong); }
 .ten-thuong-hieu small { font-size: var(--chu-rat-nho); color: var(--mau-thanh-ben-chu); }
 
 .dieu-huong { padding: var(--k3); }
@@ -163,8 +158,11 @@ a { color: var(--mau-thuong-hieu); text-decoration-thickness: 1px; text-underlin
 }
 .dieu-huong .muc:hover { background: var(--mau-thanh-ben-phu); color: var(--mau-thanh-ben-chu-dam); }
 .dieu-huong .dang-o {
-  background: var(--mau-thanh-ben-hoat-dong);
-  color: var(--mau-chu-nguoc);
+  /* Thanh bên sáng (`0257`): mục đang chọn là nền nhạt + chữ thương hiệu, không
+     còn là mảng màu đặc + chữ trắng — ở giao diện tối `-hoat-dong` là xanh NHẠT,
+     chữ trắng trên nó không đọc được. */
+  background: var(--mau-thuong-hieu-nhat);
+  color: var(--mau-thanh-ben-hoat-dong);
 }
 .muc-hinh { display: inline-flex; flex: none; }
 .muc-chu { min-width: 0; }
@@ -1844,7 +1842,6 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
    đòi con số này lớn hơn MỌI `z-index` khác. Xem `LopPhuHetPhien` ở `App.tsx`. */
 .lop-phu.lop-phu-het-phien {
   z-index: 1000;
-  background: linear-gradient(180deg, var(--mau-nen-tren), var(--mau-nen-duoi)) fixed;
   background-color: var(--mau-nen-phu);
 }
 /* Mọi anh em của lớp phủ trong `body` lúc hết phiên — lớp hai, sau nền đặc. */
@@ -2207,12 +2204,12 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 .dang-nhap-dau h1 { margin-bottom: var(--k1); }
 .dang-nhap-phu { color: var(--mau-chu-phu); font-size: var(--chu-nho); margin: 0; }
 .logo-lon {
-  height: 56px;
+  height: 96px;
   width: auto;
   display: block;
   margin: 0 auto var(--k4);
-  padding: var(--k1);
-  border-radius: var(--bo-goc-nho);
+  padding: var(--k2);
+  border-radius: var(--bo-goc);
   background: var(--mau-nen-logo);
 }
 
@@ -3762,7 +3759,7 @@ svg.bd-nho { width: 62px; margin: 0; }
   border: 1px solid var(--mau-vien);
   border-left-width: 4px;
   border-radius: var(--bo-goc-nho);
-  background: var(--mau-nen-tren);
+  background: var(--mau-nen);
 }
 .ds-canh-bao-vh li.muc-do { border-left-color: var(--mau-loi); }
 .ds-canh-bao-vh li.muc-vang { border-left-color: var(--mau-canh-bao); }
@@ -3816,7 +3813,7 @@ svg.bd-nho { width: 62px; margin: 0; }
   padding: var(--k2);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
-  background: var(--mau-nen-duoi);
+  background: var(--mau-nen-phu);
   font-family: var(--so-deu-cot);
   font-size: var(--chu-nho);
 }
@@ -3840,7 +3837,7 @@ svg.bd-nho { width: 62px; margin: 0; }
   margin: 0;
   padding: var(--k3);
   border-radius: var(--bo-goc);
-  background: var(--mau-nen-duoi);
+  background: var(--mau-nen-phu);
   font-family: var(--so-deu-cot);
   font-size: var(--chu-nho);
   white-space: pre-wrap;

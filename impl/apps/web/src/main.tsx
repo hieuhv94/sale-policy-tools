@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import './styles/phong.css';
 import './styles/tokens.css';
 import './styles/app.css';
 import { PhienProvider } from './lib/auth.js';

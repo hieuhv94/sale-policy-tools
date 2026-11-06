@@ -21309,3 +21309,47 @@ Việt trở lại bảng · trở lại câu cảnh báo), cả hai đỏ.
 — Caddy mất cổng 8080. Dữ liệu demo không bị đụng; `demo-down` → chạy kiểm → `make demo`.
 
 **3042/3042 xanh.**
+
+## P288 — `0257` Thiết kế lại giao diện, chặng 1: nền (màu · phông · logo)
+
+Mở đầu lượt **thiết kế lại toàn bộ giao diện** theo `agents/professional-frontend-design-skill.md`. Khách hàng duyệt
+mockup trước khi gõ mã (https://claude.ai/artifact/6iodETdNwHXXsYMj5gohpd — 72 mục, mọi màn hình, hộp thoại, lớp
+phủ, ô nhập); kế hoạch và các quyết định chốt khi duyệt ở `~/.claude/plans/d-a-tr-n-t-i-li-u-foamy-tiger.md`.
+**Ràng buộc cứng của cả lượt: CHỈ giao diện** — không đụng máy chủ, API, migration, compose, Caddy. Chia chặng:
+P288 nền · P289 khung · P290 thành phần dùng chung · P291 trang hồ sơ hai cột · P292 kanban hồ sơ theo vai trò ·
+P293 các trang còn lại + QA.
+
+**Giữ TÊN token, đổi GIÁ TRỊ.** `app.css` 3854 dòng và các ca kiểm (tương phản AA, sắc cách ≥30°, Nháp ô liu,
+`--mau-viec-dai`…) đều đọc theo tên; thiết kế lại bằng tên mới là đổi cả nghìn dòng để được đúng cùng một chỗ.
+Mười một cặp màu trạng thái **không đổi một giá trị nào** (khách hàng đã chốt từng cặp). Đổi: xanh thương hiệu lấy
+từ logo mới `#0b4da3` (sát `#034ea2` cũ); nền trang PHẲNG `#f4f6f9` — gỡ hẳn dải chuyển `--mau-nen-tren`/`-duoi`;
+**thanh bên SÁNG** (lý do cũ *"thanh bên đặt tông cho cả ứng dụng"* giữ nguyên văn trong `tokens.css` — chính vì nó
+mà đổi); bóng chỉ cho lớp nổi (`--bong` gần phẳng, thêm `--bong-menu`), gỡ `--bong-thanh-ben`; bán kính 6/8/12;
+chữ thường 15px → 14px; `h2` thôi mang vạch màu bên trái (một vạch trên MỌI tiêu đề thì không đánh dấu được gì).
+
+**Mục đang chọn ở thanh bên phải đổi cùng lượt, không để chặng sau**: trước nó là nền `-hoat-dong` + chữ trắng; ở
+giao diện tối `-hoat-dong` mới là xanh NHẠT `#8db9f3` — chữ trắng trên đó không đọc được. Giờ nền
+`--mau-thuong-hieu-nhat` + chữ `-hoat-dong`.
+
+**Phông Be Vietnam Pro TỰ HOST** (`public/fonts/`, `styles/phong.css`): 4 độ đậm × {latin, vietnamese}, 135KB,
+kèm `OFL.txt`. Vì sao không Google Fonts: CSP `font-src 'self' data:` chặn LẶNG LẼ — bản mockup đầu tiên dính đúng
+lỗi này, người dùng phải nói *"font chữ hình như không có gì thay đổi"* mới lộ. `public/` nên KHÔNG vào
+`dist/assets` — ngoài trần 250KB (`FE-38` chỉ đếm `.js`/`.css`). **Bẫy thứ hai cùng loại im lặng**: `button, input,
+select, textarea` KHÔNG thừa kế phông của trang theo mặc định trình duyệt — thiếu một dòng là mọi ô nhập vẫn phông
+hệ thống giữa một trang Be Vietnam Pro.
+
+**Logo mới** (khách hàng gửi PNG 2048×2048 có kênh trong suốt): cắt lề, `src/logo.png` = bản đầy đủ 320px (13KB,
+lượng tử 64 màu) cho màn hình đăng nhập; `src/logo-bieu-tuong.png` = riêng hình bầu dục cho thanh bên (chữ
+NUTRICARE ở 32px không đọc được); favicon/apple-touch-icon dựng từ hình bầu dục. Lý do của ô trắng `--mau-nen-logo`
+(logo cũ không có kênh trong suốt) **chết** — ô vẫn giữ vì ở giao diện TỐI chữ xanh đậm trên nền tối thì chìm; ghi
+cả hai trong `tokens.css`.
+
+Ca kiểm `tests/web/phong-chu.test.ts` (3 ca): đủ 8 mặt phông · mọi `src` cùng gốc VÀ tệp có thật · phông được nạp
+và được DÙNG (kể cả dòng `inherit` cho ô nhập). Phá lại: đổi một `src` sang `fonts.gstatic.com` → đỏ; gỡ dòng
+`inherit` → đỏ.
+
+**Đã xem bằng trình duyệt thật**: `pnpm build:web` → Chrome headless trên `dist/` — màn hình đăng nhập sáng và tối,
+phông và logo mới đúng (bố cục đăng nhập hai nửa của mockup là việc P289). Chạy kiểm bằng ảnh rời `csbh-test`
+`--network none` (demo đang bật, không gõ lệnh `compose.test.yml` nào). `make test` đầy đủ chưa chạy.
+
+**`tests/web` 1014/1014 xanh (55 tệp); typecheck xanh.**

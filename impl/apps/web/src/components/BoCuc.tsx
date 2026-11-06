@@ -16,7 +16,7 @@ import { dieuHuongCho } from '../lib/can.js';
 import { NHAN_VAI_TRO } from '../lib/format.js';
 import { ChanTrang } from './ChanTrang.js';
 import { Lien, useDuong } from '../lib/router.js';
-import logo from '../logo.png';
+import logo from '../logo-bieu-tuong.png';
 import {
   BieuTuongDangXuat,
   BieuTuongDong,
@@ -170,10 +170,10 @@ export function BoCuc({ children }: { children: ReactNode }) {
         <div className="thanh-ben-dau">
           <Lien den="/" className="logo-lien">
             {/*
-              `logo.png` KHÔNG có kênh trong suốt — chú thích cũ ở đây ghi ngược
-              lại và chỉ lộ ra khi thanh bên chuyển sang nền navy. Nó được đặt
-              lên một ô trắng có chủ ý; lý do đầy đủ ở `--mau-nen-logo` trong
-              tokens.css (FE-14).
+              Phần BIỂU TƯỢNG của logo (hình bầu dục, `0257`) — logo đầy đủ có
+              chữ NUTRICARE và khẩu hiệu, ở cỡ 32px thì chữ không đọc được. Logo
+              mới có kênh trong suốt nên không cần ô trắng như logo cũ (FE-14,
+              xem `--mau-nen-logo` trong tokens.css).
             */}
             <img src={logo} alt="Nutricare — về trang chủ" className="logo" />
             <span className="ten-thuong-hieu">
