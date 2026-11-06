@@ -668,12 +668,12 @@ main:focus { outline: none; }
   background: var(--mau-nen);
   color: var(--mau-chu);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
-.nut:hover { background: var(--mau-nen-hover); border-color: var(--mau-thuong-hieu); }
+.nut:hover { background: var(--mau-nen-hover); border-color: var(--mau-chu-nhat); }
 .nut:disabled { opacity: 0.55; cursor: not-allowed; }
 .nut:disabled:hover { background: var(--mau-nen); border-color: var(--mau-vien-dam); }
 
@@ -681,7 +681,6 @@ main:focus { outline: none; }
   background: var(--mau-nut-chinh);
   border-color: var(--mau-nut-chinh);
   color: var(--mau-chu-nguoc);
-  box-shadow: var(--bong-nho);
 }
 .nut-chinh:hover { background: var(--mau-nut-chinh-hover); border-color: var(--mau-nut-chinh-hover); }
 .nut-chinh:disabled:hover { background: var(--mau-nut-chinh); border-color: var(--mau-nut-chinh); }
@@ -770,7 +769,7 @@ main:focus { outline: none; }
 /* --- Biểu mẫu ------------------------------------------------------------- */
 
 .truong { display: flex; flex-direction: column; gap: var(--k1); margin-bottom: var(--k3); }
-.truong label { font-size: var(--chu-nho); color: var(--mau-chu-phu); font-weight: 600; }
+.truong label { font-size: var(--chu-nho); color: var(--mau-chu); font-weight: 500; }
 .o-nhap {
   min-height: var(--vung-cham);
   padding: var(--k2) var(--k3);
@@ -783,6 +782,8 @@ main:focus { outline: none; }
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .o-nhap::placeholder { color: var(--mau-chu-nhat); }
+.o-nhap:hover { border-color: var(--mau-chu-nhat); }
+.o-nhap:disabled { background: var(--mau-nen-phu); color: var(--mau-chu-nhat); border-color: var(--mau-vien); }
 .o-nhap:focus-visible {
   border-color: var(--mau-thuong-hieu);
   box-shadow: var(--vong-tieu-diem);
@@ -1093,12 +1094,25 @@ textarea.o-nhap { min-height: 6rem; }
 /* --- Nhãn trạng thái ------------------------------------------------------ */
 
 .nhan {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 2px var(--k2);
-  border-radius: 999px;
-  font-size: var(--chu-nho);
-  font-weight: 600;
+  border-radius: 4px;
+  font-size: var(--chu-rat-nho);
+  font-weight: 500;
   white-space: nowrap;
+}
+/* Chấm màu đầu nhãn (`0257`): nhãn thôi là viên thuốc đặc; chấm lặp lại màu chữ
+   để hai nhãn cạnh nhau phân biệt được cả khi đọc lướt. Sắc màu của 11 trạng
+   thái KHÔNG đổi — chỉ hình nhãn đổi. */
+.nhan::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 /* Bốn nhãn CHUNG — dùng cho những nhãn KHÔNG phải trạng thái hồ sơ: "Sắp quá
    hạn" ở bảng hồ sơ, "Đã xoá" ở danh sách khách hàng, "Đã ngừng hợp tác" ở màn
@@ -1130,7 +1144,6 @@ textarea.o-nhap { min-height: 6rem; }
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
-  box-shadow: var(--bong);
 }
 
 table { border-collapse: collapse; width: 100%; }
@@ -1158,12 +1171,13 @@ th, td {
  */
 th.so,
 td.so { text-align: left; }
+/* Tiêu đề cột CHỮ THƯỜNG từ `0257` (trước: in hoa giãn chữ). Tiêu đề tiếng Việt
+   in hoa cỡ 12px mất dấu thanh trên chữ hoa ở vài phông, và mười ba cột in hoa
+   là một dải chữ hét lên trên đầu bảng số. */
 thead th {
   background: var(--mau-nen-phu);
   font-size: var(--chu-rat-nho);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 500;
   color: var(--mau-chu-phu);
   position: sticky;
   top: 0;
@@ -1218,7 +1232,6 @@ tbody tr:hover { background: var(--mau-nen-hover); }
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
-  box-shadow: var(--bong);
   padding: var(--k4);
   margin-bottom: var(--k3);
 }
@@ -1320,20 +1333,25 @@ button.the-lien {
   flex-direction: column;
   gap: var(--k1);
   padding: var(--k4);
-  padding-left: var(--k5);
+  padding-left: calc(var(--k4) + 14px);
   background: var(--mau-nen);
   border: 1px solid var(--mau-vien);
   border-radius: var(--bo-goc);
-  box-shadow: var(--bong);
   overflow: hidden;
 }
 /* Vạch màu chạy dọc mép trái — cùng bảng màu với nhãn trạng thái, nên đọc quen
    một chỗ là đọc được chỗ kia. */
+/* Từ `0257` là CHẤM VUÔNG cạnh nhãn, không còn vạch dọc mép trái: một vạch màu
+   ở mép mọi thẻ là đúng kiểu trang trí mà hướng thiết kế mới bỏ. Màu theo trạng
+   thái giữ nguyên (`.chi-so-X::before` bên dưới — có ca kiểm đòi đủ lớp). */
 .chi-so::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
+  top: calc(var(--k4) + 0.45em);
+  left: var(--k4);
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
   background: var(--mau-vien-dam);
 }
 /* Mười màu thẻ (`0064`) — CÙNG bảng khoá với nhãn trạng thái ngay trên, nên
@@ -1360,7 +1378,7 @@ button.the-lien {
 }
 .chi-so-lien:hover {
   border-color: var(--mau-thuong-hieu);
-  box-shadow: var(--bong-noi);
+  background: var(--mau-nen-hover);
 }
 /* Mũi tên nhỏ để thấy ô này đi đâu được — hover mới hiện thì người dùng bàn
    phím và người dùng cảm ứng không bao giờ thấy, nên nó hiện sẵn, mờ. */
@@ -1384,8 +1402,10 @@ button.the-lien {
      nằm trong cột nào để mà căn cho thẳng hàng. */
   text-align: left;
   font-size: var(--chu-so-lieu);
-  font-weight: 800;
-  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 /* Con số cũng đổi màu, nhưng CHỈ ở ba ô đòi người ta làm gì đó ngay (`0064`).
    Tô màu cả mười ba con số thì dải thẻ thành một dải cầu vồng và không ô nào
@@ -1891,10 +1911,44 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
   /* Đệm chuyển xuống hai phần con — nếu để ở đây thì vùng cuộn cắt ngang đệm. */
   padding: 0;
 }
-.hop-thoai > h2 {
+/* Đầu hộp: tiêu đề + nút × (`0257`), NGOÀI vùng cuộn. */
+.hop-thoai-dau {
   flex: none;
-  margin: 0;
-  padding: var(--k5) var(--k5) var(--k3);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--k3);
+  padding: var(--k4) var(--k3) var(--k3) var(--k5);
+}
+.hop-thoai-dau h2 { flex: 1; margin: var(--k2) 0 0; font-size: var(--chu-to); line-height: 1.35; }
+.nut-dong-hop { border-color: transparent; background: transparent; }
+
+/* NGĂN TRƯỢT bên phải (`0257`, `HopThoai ngan`) — biểu mẫu dài. Cao hết khung
+   nhìn, bám mép phải; dưới 640px chiếm cả màn hình. */
+.lop-phu.lop-phu-ngan { padding: 0; justify-content: flex-end; align-items: stretch; }
+.lop-phu-ngan > .hop-thoai-ngan { margin: 0; }
+.hop-thoai.hop-thoai-ngan {
+  width: min(36rem, 100%);
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  animation: ngan-vao 0.18s ease-out;
+}
+.hop-thoai-ngan .hop-thoai-dau { border-bottom: 1px solid var(--mau-vien); padding-bottom: var(--k3); }
+.hop-thoai-ngan .hop-thoai-than { flex: 1; padding-top: var(--k4); }
+@keyframes ngan-vao { from { transform: translateX(24px); opacity: 0.6; } }
+/* Hàng nút chốt của biểu mẫu trong ngăn GHIM ở đáy (`0257`): biểu mẫu khách hàng
+   có mười ba ô, và nút *Lưu* chỉ hiện ra khi cuộn hết cỡ là nút người ta không
+   thấy. `bottom` âm đúng bằng đệm dưới của vùng cuộn để hàng nút chạm mép ngăn. */
+.hop-thoai-ngan form > .nhom-nut {
+  position: sticky;
+  bottom: calc(-1 * var(--k5));
+  z-index: 1;
+  margin: var(--k4) calc(-1 * var(--k5)) calc(-1 * var(--k5));
+  padding: var(--k3) var(--k5);
+  border-top: 1px solid var(--mau-vien);
+  background: var(--mau-nen-phu);
 }
 .hop-thoai-than {
   overflow-y: auto;
@@ -2085,10 +2139,10 @@ a.thanh-nhan:hover { color: var(--mau-thuong-hieu); text-decoration: underline; 
 
 /* Tiêu đề thành một DẢI MỎNG: nó vẫn phải nói đang mở tệp nào, nhưng mỗi pixel
    nó lấy là một pixel tài liệu mất. */
-.hop-thoai-toan-man > h2 {
+.hop-thoai-toan-man .hop-thoai-dau {
   padding: var(--k3) var(--k4);
-  font-size: var(--chu-thuong);
 }
+.hop-thoai-toan-man .hop-thoai-dau h2 { margin: 0; font-size: var(--chu-thuong); }
 
 /* `min-height: 0` là thứ BẮT BUỘC, không phải trang trí: một phần tử flex mặc
    định không co nhỏ hơn nội dung của nó, nên thiếu dòng này thì khung xem đẩy cả

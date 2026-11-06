@@ -427,7 +427,7 @@ export function BieuMauKhachHang({
     g.code.trim() !== '';
 
   return (
-    <HopThoai tieuDe={khach ? `Sửa ${khach.code}` : 'Lập khách hàng'} dong={dong}>
+    <HopThoai tieuDe={khach ? `Sửa ${khach.code}` : 'Lập khách hàng'} dong={dong} ngan>
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
 

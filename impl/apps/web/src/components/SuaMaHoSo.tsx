@@ -25,6 +25,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { va } from '../lib/api.js';
 import { docLoi } from '../lib/loi.js';
+import { BieuTuongBut, BieuTuongDauTich, BieuTuongDong } from './BieuTuong.js';
 
 export function SuaMaHoSo({
   hoSoId,
@@ -89,7 +90,7 @@ export function SuaMaHoSo({
           <button type="button" className="nut-bieu-tuong" onClick={moRa} title="Sửa mã hồ sơ">
             {/* `aria-hidden` trên hình vẽ, tên thật ở `.chi-doc-man-hinh`: một
                 nút chỉ có hình thì trình đọc màn hình đọc ra là "nút". */}
-            <span aria-hidden="true">✎</span>
+            <BieuTuongBut />
             <span className="chi-doc-man-hinh">Sửa mã hồ sơ</span>
           </button>
         </div>
@@ -125,7 +126,7 @@ export function SuaMaHoSo({
           disabled={dangLuu}
           title="Lưu mã hồ sơ"
         >
-          <span aria-hidden="true">✓</span>
+          <BieuTuongDauTich />
           <span className="chi-doc-man-hinh">Lưu mã hồ sơ</span>
         </button>
         <button
@@ -135,7 +136,7 @@ export function SuaMaHoSo({
           disabled={dangLuu}
           title="Huỷ"
         >
-          <span aria-hidden="true">✕</span>
+          <BieuTuongDong />
           <span className="chi-doc-man-hinh">Huỷ sửa mã hồ sơ</span>
         </button>
       </div>

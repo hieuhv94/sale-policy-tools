@@ -173,6 +173,34 @@ export function BieuTuongDong() {
   );
 }
 
+/** Thay cho các ký tự 🗓 ✎ ✓ (`0257`): ký tự hiện theo phông của máy — 🗓 là emoji
+    màu trên máy này, ô vuông rỗng trên máy kia — còn SVG đi cùng nét với mọi icon. */
+export function BieuTuongLich() {
+  return (
+    <Hinh>
+      <rect x="3.5" y="5" width="17" height="15.5" rx="1.5" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" />
+    </Hinh>
+  );
+}
+
+export function BieuTuongBut() {
+  return (
+    <Hinh>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </Hinh>
+  );
+}
+
+export function BieuTuongDauTich() {
+  return (
+    <Hinh>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </Hinh>
+  );
+}
+
 /** Nút thu gọn / mở rộng thanh bên (`0257`): khung có cột trái, mũi tên chỉ hướng SẼ đi. */
 export function BieuTuongThanhBen({ gon }: { gon: boolean }) {
   return (

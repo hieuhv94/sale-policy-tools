@@ -160,7 +160,9 @@ describe('FE-35 hộp thoại dùng được bằng bàn phím', () => {
     );
     const hop = container.querySelector('.hop-thoai')!;
     const than = hop.querySelector('.hop-thoai-than')!;
-    expect(hop.querySelector('h2')!.parentElement).toBe(hop);
+    // Từ `0257` tiêu đề nằm trong khối đầu hộp cùng nút ×; khối ấy là con trực
+    // tiếp của hộp, ĐỨNG NGOÀI vùng cuộn — đúng điều ca này canh từ đầu.
+    expect(hop.querySelector('h2')!.closest('.hop-thoai-dau')!.parentElement).toBe(hop);
     expect(than.contains(hop.querySelector('h2'))).toBe(false);
     expect(than.textContent).toBe('Nội dung dài');
   });

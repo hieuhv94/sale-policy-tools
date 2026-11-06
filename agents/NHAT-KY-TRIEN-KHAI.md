@@ -21394,3 +21394,41 @@ bằng một tệp tạm trong `dist/` (đã gỡ). Chụp: khung mở rộng/th
 `dist/` do container dựng thuộc root; phải `chown` lại mới ghi tệp tạm được.
 
 **`tests/web` 1024/1024 xanh (56 tệp); typecheck xanh.**
+
+## P290 — `0257` Thiết kế lại giao diện, chặng 3: thành phần dùng chung
+
+**Vùng chạm theo LOẠI CON TRỎ.** `--vung-cham` 44px là ngưỡng cho ngón tay (`FE-08`) và là chiều cao chung của nút và
+ô nhập. Giờ `@media (pointer: fine) and (min-width: 1024px)` hạ nó về 38px; màn hình cảm ứng — kể cả máy tính bảng
+ngang 1024px, vốn báo `pointer: coarse` — vẫn 44px. Không đổi một dòng ở các lớp: FE-08 đòi `.nut`/`.o-nhap`… mang
+`var(--vung-cham)`, nên đổi GIÁ TRỊ của biến là đổi đúng một chỗ.
+
+**Nhãn**: viên thuốc đặc → góc vuông nhẹ 4px + chấm màu `currentColor`; sắc 11 trạng thái giữ nguyên. **Bảng**: tiêu
+đề cột CHỮ THƯỜNG (in hoa 12px mất dấu thanh trên vài phông, và 13 cột in hoa là một dải chữ hét trên đầu bảng
+số). **Ô chỉ số**: vạch màu dọc mép trái → chấm vuông cạnh nhãn — vẫn qua pseudo `::before`, vì ca `0064` đòi đủ
+lớp `.chi-so-X::before`. Bóng đổ gỡ khỏi thẻ, bảng, chỉ số, nút chính.
+
+**Hộp thoại có nút × ở đầu** (thêm vào, không thay nút đóng ở chân). Nhãn *Đóng hộp thoại* chứ không *Đóng* — nhiều
+hộp đã có nút *Đóng* ở chân, hai nút một tên thì trình đọc màn hình không phân biệt. **`tabIndex={-1}`, và đó là
+quyết định của một ca kiểm cũ**: lượt đầu nút × nằm trong vòng Tab, `nhap-lieu.test.tsx` (*"Tab không thoát ra
+ngoài hộp thoại"*) đỏ — Tab từ nút cuối quay về nút × chứ không về nội dung, và mở một biểu mẫu thì tiêu điểm rơi
+vào nút ĐÓNG thay vì ô nhập đầu. Người dùng bàn phím đã có Escape và nút ở chân; nút × là cho chuột và cảm ứng.
+Trình xem tệp (`tyLe`) không có nút × (có dải nút riêng). Ca `nhap-lieu` *"tiêu đề nằm ngoài vùng cuộn"* ghim
+`h2.parentElement === hộp` — điều nó canh là NGOÀI VÙNG CUỘN, nên sửa để hỏi khối `.hop-thoai-dau`.
+
+**Ngăn trượt** (`HopThoai ngan`) cho ba biểu mẫu dài: lập/sửa khách hàng, thêm/sửa dòng sản phẩm, sửa sản phẩm. Mọi
+luật hộp thoại giữ nguyên (Escape, bẫy Tab, bấm ra ngoài KHÔNG đóng — `0237`). Hàng nút chốt GHIM ở đáy ngăn:
+`bottom` âm đúng bằng đệm dưới của vùng cuộn — thiếu thì biểu mẫu khách hàng mười ba ô có nút *Lưu* chỉ hiện ra khi
+cuộn hết cỡ. **🗓 ✎ ✓ ✕ thay bằng SVG** cùng bộ (`BieuTuongLich`/`But`/`DauTich`): ký tự hiện theo phông của máy —
+🗓 là emoji màu trên máy này, ô vuông rỗng trên máy kia.
+
+Ca kiểm `tests/web/thanh-phan-chung.test.tsx` (6 ca). Phá lại ba lượt (trả 🗓 · bỏ `tabIndex` · bỏ `ngan` ở biểu mẫu
+khách hàng), cả ba đỏ đúng ca.
+
+**QA bằng trình duyệt có THAO TÁC** (không chỉ ảnh tĩnh): Chrome headless trên máy + một kịch bản DevTools Protocol
+chạy bằng Node 22 trong ảnh `csbh-test` rời (`--network host`, WebSocket có sẵn trong Node 22) — đăng nhập qua API,
+bấm nút, chụp. Công cụ ở scratchpad, không vào repo. Demo trống (chỉ `admin01`) nên chạy `make demo-mau` — dùng
+compose DEMO, không đụng `compose.test.yml`; `localhost:8080` vẫn 200 sau đó. Đã xem: ngăn khách hàng (1440 và
+390), ngăn sửa sản phẩm, hộp tạo người dùng. **Còn thô, để P293**: nút *Vô hiệu hoá* đỏ đặc trên MỌI dòng bảng Người
+dùng.
+
+**`tests/web` 1030/1030 xanh (57 tệp); typecheck xanh.**

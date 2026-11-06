@@ -16,7 +16,7 @@ import {
   type TrangThaiSanPham,
 } from '../lib/danh-muc.js';
 import { Lien } from '../lib/router.js';
-import { BieuTuongMat, BieuTuongMatGach } from './BieuTuong.js';
+import { BieuTuongDong, BieuTuongLich, BieuTuongMat, BieuTuongMatGach } from './BieuTuong.js';
 
 /**
  * Ô MẬT KHẨU có nút con mắt để hiện/ẩn chữ đang gõ (`0222`).
@@ -544,7 +544,7 @@ export function ONhapNgay({
           className="nut-bieu-tuong nut-lich"
           onClick={() => oLich.current?.showPicker?.()}
         >
-          <span aria-hidden="true">🗓</span>
+          <BieuTuongLich />
           <span className="chi-doc-man-hinh">Chọn ngày trên lịch</span>
         </button>
       )}
@@ -679,6 +679,7 @@ export function HopThoai({
   caoNoiDung = null,
   giay = false,
   toanManHinh = false,
+  ngan = false,
   children,
 }: {
   tieuDe: string;
@@ -752,6 +753,14 @@ export function HopThoai({
    * thì đổi việc chứ không mất — xem `.hop-thoai-toan-man .khung-anh img`.
    */
   toanManHinh?: boolean;
+  /**
+   * NGĂN TRƯỢT bên phải thay cho hộp giữa màn hình (`0257`) — cho biểu mẫu DÀI
+   * (khách hàng, dòng sản phẩm, sửa sản phẩm). Cao hết khung nhìn, nội dung cuộn
+   * bên trong, nút chốt luôn ở đáy; trang phía sau vẫn thấy được bên trái. Mọi
+   * luật của hộp thoại giữ nguyên: Escape đóng, Tab không thoát ra ngoài, bấm ra
+   * ngoài KHÔNG đóng (`0237`).
+   */
+  ngan?: boolean;
   children: ReactNode;
 }) {
   const khung = useRef<HTMLDivElement>(null);
@@ -760,7 +769,7 @@ export function HopThoai({
   useEffect(() => {
     truoc.current = document.activeElement as HTMLElement | null;
     khung.current?.querySelector<HTMLElement>(
-      'input,select,textarea,button,[href],[tabindex]:not([tabindex="-1"])',
+      'input,select,textarea,button:not([tabindex="-1"]),[href],[tabindex]:not([tabindex="-1"])',
     )?.focus();
     return () => truoc.current?.focus();
   }, []);
@@ -773,7 +782,7 @@ export function HopThoai({
       }
       if (e.key !== 'Tab' || !khung.current) return;
       const co = khung.current.querySelectorAll<HTMLElement>(
-        'input,select,textarea,button,[href],[tabindex]:not([tabindex="-1"])',
+        'input,select,textarea,button:not([tabindex="-1"]),[href],[tabindex]:not([tabindex="-1"])',
       );
       if (co.length === 0) return;
       const dau = co[0]!;
@@ -793,16 +802,18 @@ export function HopThoai({
   }, [dong]);
 
   return (
-    <div className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}`}>
+    <div className={`lop-phu${toanManHinh ? ' lop-phu-toan-man' : ''}${ngan && tyLe === null ? ' lop-phu-ngan' : ''}`}>
       <div
         className={
           tyLe !== null
             ? `hop-thoai hop-thoai-xem${giay ? ' hop-thoai-giay' : ''}${
                 toanManHinh ? ' hop-thoai-toan-man' : ''
               }`
-            : co === 'thuong'
-              ? 'hop-thoai'
-              : `hop-thoai hop-thoai-${co}`
+            : ngan
+              ? 'hop-thoai hop-thoai-ngan'
+              : co === 'thuong'
+                ? 'hop-thoai'
+                : `hop-thoai hop-thoai-${co}`
         }
         role="dialog"
         aria-modal="true"
@@ -829,7 +840,26 @@ export function HopThoai({
           cùng cuộn thì tiêu đề trôi mất và không có cách nào kéo lại — người
           dùng không còn biết mình đang mở hộp thoại nào.
         */}
-        <h2>{tieuDe}</h2>
+        {/*
+          Nút × ở đầu hộp (`0257`) — thêm vào, KHÔNG thay nút đóng ở chân hộp. Nhãn
+          là *Đóng hộp thoại* chứ không *Đóng*: nhiều hộp đã có nút *Đóng* ở chân,
+          và hai nút cùng một tên thì người dùng trình đọc màn hình không biết chọn
+          cái nào. Trình xem tệp (`tyLe`) có dải nút riêng nên không cần.
+
+          `tabIndex={-1}`: nút này cho CHUỘT và CẢM ỨNG. Người dùng bàn phím đã có
+          Escape và nút ở chân hộp; cho nó vào vòng Tab thì mở biểu mẫu là tiêu
+          điểm rơi vào nút ĐÓNG thay vì ô nhập đầu, và Tab từ nút cuối quay về nút
+          đóng chứ không về nội dung (`nhap-lieu.test.tsx` bắt được đúng chuyện ấy).
+        */}
+        <div className="hop-thoai-dau">
+          <h2>{tieuDe}</h2>
+          {tyLe === null && (
+            <button type="button" className="nut-bieu-tuong nut-dong-hop" onClick={dong} tabIndex={-1}>
+              <span className="chi-doc-man-hinh">Đóng hộp thoại</span>
+              <BieuTuongDong />
+            </button>
+          )}
+        </div>
         <div className="hop-thoai-than">{children}</div>
       </div>
     </div>

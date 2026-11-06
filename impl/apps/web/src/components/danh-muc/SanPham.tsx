@@ -366,7 +366,7 @@ function HopThoaiSua({
   };
 
   return (
-    <HopThoai tieuDe={`Sửa ${sp.code}`} dong={dong}>
+    <HopThoai tieuDe={`Sửa ${sp.code}`} dong={dong} ngan>
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
 

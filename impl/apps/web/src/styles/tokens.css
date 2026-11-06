@@ -521,3 +521,16 @@
 
 /* Điểm gãy — khai một chỗ để mọi màn hình gãy ở cùng chỗ (FE-02). */
 /* 0–639: điện thoại · 640–1023: máy tính bảng · ≥1024: máy tính */
+
+/**
+ * VÙNG CHẠM theo LOẠI CON TRỎ (`0257`).
+ *
+ * 44px là ngưỡng cho NGÓN TAY (`FE-08`) và giữ nguyên trên mọi màn hình cảm ứng.
+ * Máy dùng chuột (`pointer: fine`) từ 1024px thì nút và ô nhập hạ về 38px: phần
+ * mềm này mở cả ngày trên laptop, và mỗi hàng biểu mẫu cao 44px là một trang dài
+ * gấp rưỡi mà không thêm thông tin nào. Màn hình cảm ứng LỚN (máy tính bảng ngang
+ * 1024px) báo `pointer: coarse` nên vẫn 44px.
+ */
+@media (pointer: fine) and (min-width: 1024px) {
+  :root { --vung-cham: 2.375rem; }
+}

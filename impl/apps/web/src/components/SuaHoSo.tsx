@@ -261,6 +261,7 @@ export function ThemDongSanPham({
     <HopThoai
       tieuDe={sua ? `Sửa ${dongCu.productCode}` : 'Thêm sản phẩm'}
       dong={dong}
+      ngan
     >
       <form onSubmit={gui}>
         <ChuThichBatBuoc />
