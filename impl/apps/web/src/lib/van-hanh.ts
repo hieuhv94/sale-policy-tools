@@ -164,26 +164,18 @@ export const NHAN_KET_QUA: Record<string, { nhan: string; lop: string }> = {
   CHO: { nhan: 'đang chờ', lop: 'nhan-cho' },
 };
 
-/** Tên thành phần cho người không chuyên IT — tên máy đứng cạnh, nhỏ, để báo lại cho người vận hành. */
-export const NHAN_THANH_PHAN: Record<string, string> = {
-  gateway: 'Cổng vào phần mềm',
-  identity: 'Đăng nhập và tài khoản',
-  catalog: 'Danh mục sản phẩm',
-  customer: 'Khách hàng',
-  policy: 'Hồ sơ CSBH',
-  document: 'Tệp và văn bản',
-  notification: 'Thư và thông báo',
-  audit: 'Nhật ký',
-  reporting: 'Thống kê',
-  'sla-worker': 'Hạn xử lý hồ sơ',
-  'van-hanh': 'Vận hành',
-  postgres: 'Cơ sở dữ liệu',
-  redis: 'Bộ nhớ tạm',
-  rabbitmq: 'Hàng đợi sự kiện',
-  minio: 'Kho tệp',
-  gotenberg: 'Dựng bản PDF',
-  caddy: 'Cổng web',
-};
+/**
+ * Các thành phần của hệ thống, gọi bằng ĐÚNG tên tiếng Anh của nó (chốt 06/11 — khách hàng xem
+ * giao diện rồi yêu cầu bỏ tên tiếng Việt tự đặt). Một tên cho cả bảng thành phần, câu cảnh
+ * báo và ô chọn của thẻ Tệp log: tên người dùng đọc trên màn hình là tên họ đọc lại cho người
+ * vận hành, và là tên tệp log của thành phần ấy. Thứ tự = `THANH_PHAN` của máy chủ (có ca đối
+ * chiếu).
+ */
+export const THANH_PHAN = [
+  'gateway', 'identity', 'catalog', 'customer', 'policy', 'document', 'notification', 'audit',
+  'reporting', 'sla-worker', 'van-hanh',
+  'postgres', 'redis', 'rabbitmq', 'minio', 'gotenberg', 'caddy',
+] as const;
 export const HA_TANG = ['postgres', 'redis', 'rabbitmq', 'minio', 'gotenberg', 'caddy'];
 
 export const NHAN_HANG_DOI: Record<string, string> = {
@@ -244,10 +236,10 @@ export type CanhBao = { muc: 'do' | 'vang'; cau: string; the: The };
  */
 export function canhBao(sk: SucKhoe): CanhBao[] {
   const ds: CanhBao[] = [];
-  const hong = sk.thanhPhan.services.filter((s) => !s.ok).map((s) => NHAN_THANH_PHAN[s.service] ?? s.service);
+  const hong = sk.thanhPhan.services.filter((s) => !s.ok).map((s) => s.service);
   const htHong = sk.container
     .filter((c) => HA_TANG.includes(c.service) && (c.trangThai !== 'running' || c.sucKhoe === 'unhealthy'))
-    .map((c) => NHAN_THANH_PHAN[c.service] ?? c.service);
+    .map((c) => c.service);
   const tatCa = [...new Set([...hong, ...htHong])];
   if (tatCa.length > 0) {
     ds.push({ muc: 'do', cau: `Không trả lời: ${tatCa.join(', ')}. Báo người vận hành máy chủ.`, the: 'suc-khoe' });

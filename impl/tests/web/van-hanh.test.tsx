@@ -211,8 +211,8 @@ describe('`0255` phần thuần', () => {
       ['vang', 'thu-hang-doi'],
       ['vang', 'sao-luu'],
     ]);
-    expect(cb[0]!.cau).toContain('Thư và thông báo');
-    expect(cb[0]!.cau).toContain('Bộ nhớ tạm'); // container hạ tầng không chạy
+    // Tên tiếng Anh đúng của thành phần (chốt 06/11), không tên tiếng Việt tự đặt.
+    expect(cb[0]!.cau).toBe('Không trả lời: notification, redis. Báo người vận hành máy chủ.');
     expect(cb[1]!.cau).toContain('cơ sở dữ liệu chưa chạy đúng lịch');
     expect(cb[2]!.cau).toContain('kho tệp gần nhất bị hỏng');
     expect(cb[3]!.cau).toBe('Ổ dữ liệu đã dùng 84,2% — đầy sau khoảng 41 ngày nếu giữ tốc độ hiện tại.');
@@ -282,9 +282,12 @@ describe('`0255` thẻ và địa chỉ', () => {
     await moTrang();
     const bang = await screen.findByRole('region', { name: 'Thành phần hệ thống' });
     const dong = (ten: string) => within(bang).getByText(ten).closest('tr')!;
-    expect(dong('Thư và thông báo').textContent).toContain('không trả lời');
-    expect(dong('Bộ nhớ tạm').textContent).toContain('không chạy');
-    expect(dong('Cơ sở dữ liệu').textContent).toContain('chưa có số liệu');
+    expect(dong('notification').textContent).toContain('không trả lời');
+    expect(dong('redis').textContent).toContain('không chạy');
+    expect(dong('postgres').textContent).toContain('chưa có số liệu');
+    // Chỉ tên tiếng Anh — không còn tên tiếng Việt tự đặt nào trong cột (chốt 06/11).
+    const ten = within(bang).getAllByRole('row').slice(1).map((r) => (r as HTMLTableRowElement).cells[0]!.textContent);
+    expect(ten).toEqual(['notification', 'postgres', 'redis', 'rabbitmq', 'minio', 'gotenberg', 'caddy']);
   });
 
   it('không tải được Sức khoẻ → khối lỗi có nút thử lại, không trang trắng', async () => {
@@ -598,9 +601,8 @@ describe('`0255` không thuật ngữ máy trên màn hình (Quản trị không
     tacTu = { online: false, viec: [] };
     await moTrang(h);
     await waitFor(() => expect(screen.queryByText('Đang tải…')).toBeNull());
-    // Bảng thành phần có tên máy nhỏ bên cạnh (để đọc lại cho người vận hành) — trừ ra.
     const chu = [...document.body.querySelectorAll('*')]
-      .filter((e) => e.children.length === 0 && !e.classList.contains('ma-phu') && e.tagName !== 'OPTION')
+      .filter((e) => e.children.length === 0 && e.tagName !== 'OPTION')
       .map((e) => e.textContent ?? '')
       .join(' ');
     expect(chu).not.toMatch(/\b(dump|docker|container|cron|outbox|volume|systemd|psql)\b|\.\/csbh|phuc-hoi/i);

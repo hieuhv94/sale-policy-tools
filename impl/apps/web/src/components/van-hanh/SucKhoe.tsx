@@ -6,7 +6,7 @@
  * 05/11) — danh sách cảnh báo rỗng chính là câu "mọi thứ bình thường".
  */
 import { ngayGio } from '../../lib/format.js';
-import { HA_TANG, NHAN_THANH_PHAN, canhBao, type SucKhoe as DuLieu, type The } from '../../lib/van-hanh.js';
+import { HA_TANG, canhBao, type SucKhoe as DuLieu, type The } from '../../lib/van-hanh.js';
 import { ChiSo } from '../Chung.js';
 
 type DongThanhPhan = { service: string; loai: 'Phần mềm' | 'Nền tảng'; tot: boolean | null; nhan: string };
@@ -93,7 +93,7 @@ export function TheSucKhoe({ sk, moThe }: { sk: DuLieu; moThe: (t: The) => void 
               {thanhPhan(sk).map((t) => (
                 <tr key={t.service}>
                   <td>
-                    {NHAN_THANH_PHAN[t.service] ?? t.service} <span className="ma-phu">{t.service}</span>
+                    {t.service}
                   </td>
                   <td>{t.loai}</td>
                   <td>

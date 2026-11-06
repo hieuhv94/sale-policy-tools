@@ -11,7 +11,7 @@ import { layJson, taiVe, xoa } from '../../lib/api.js';
 import { useBaoLoi } from '../../lib/bao-loi.js';
 import { Lien } from '../../lib/router.js';
 import {
-  NHAN_THANH_PHAN,
+  THANH_PHAN,
   coTep,
   docDongLog,
   laMaTraCuu,
@@ -78,9 +78,9 @@ function XemLog() {
           {(p) => (
             <select {...p} className="o-nhap" value={svc} onChange={(e) => datSvc(e.target.value)}>
               <option value={TAT_CA}>Mọi thành phần (theo mã tra cứu)</option>
-              {Object.entries(NHAN_THANH_PHAN).map(([k, v]) => (
+              {THANH_PHAN.map((k) => (
                 <option key={k} value={k}>
-                  {v}
+                  {k}
                 </option>
               ))}
             </select>

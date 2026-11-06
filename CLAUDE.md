@@ -103,7 +103,11 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P286** (`0255`, C): **giao diện trang Vận hành** — `/van-hanh`, mục cuối menu Quản trị, sáu thẻ
+Chặng gần nhất **P287** (`0256`): thành phần hệ thống trên trang Vận hành gọi **đúng tên tiếng Anh** (`gateway`,
+`redis`…) ở bảng, câu cảnh báo và ô chọn của thẻ Tệp log — ngoại lệ có chủ ý của luật "không thuật ngữ máy".
+**3042/3042 xanh.**
+
+Trước đó **P286** (`0255`, C): **giao diện trang Vận hành** — `/van-hanh`, mục cuối menu Quản trị, sáu thẻ
 (Sức khoẻ · Ổ đĩa · Sao lưu · Tệp log · Thư & hàng đợi · Lịch tự động), thẻ đang mở trên `#…`. Phần thuần ở
 `lib/van-hanh.ts` (bản chép giới hạn có ca đối chiếu máy chủ); `KhoiLich` MỘT component cho ba chỗ sửa lịch. Thẻ
 *Hệ thống* dời khỏi trang Người dùng. **Lỗ có sẵn**: `di()` không tách `#` — liên kết `/van-hanh#o-dia` của thư cảnh

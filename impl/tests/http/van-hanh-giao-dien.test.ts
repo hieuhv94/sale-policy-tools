@@ -31,7 +31,7 @@ describe('`0255` giao diện ↔ máy chủ', () => {
   });
 
   it('tên thành phần: đúng tập thành phần có tệp log ở máy chủ, cùng thứ tự', () => {
-    expect(Object.keys(GD.NHAN_THANH_PHAN)).toEqual([...THANH_PHAN]);
+    expect([...GD.THANH_PHAN]).toEqual([...THANH_PHAN]);
   });
 
   it('sáu thành phần nền tảng = danh sách tác tử thu log (`HA_TANG` của ./csbh)', () => {

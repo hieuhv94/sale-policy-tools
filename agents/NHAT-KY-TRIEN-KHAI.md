@@ -21290,3 +21290,22 @@ trần 250KB (`FE-38`). **Chưa xem bằng trình duyệt thật** — mọi tha
 lại.
 
 **3042/3042 xanh.**
+
+## P287 — `0256` Thành phần hệ thống gọi đúng tên tiếng Anh
+
+Khách hàng xem trang Vận hành: *"thành phần hệ thống để đúng tên tiếng anh của nó"*. Bảng thành phần thôi bày tên
+tiếng Việt tự đặt (*Cổng vào phần mềm*, *Bộ nhớ tạm*…) cạnh tên máy nhỏ — giờ CHỈ tên gốc (`gateway`, `redis`…).
+Đổi cùng lượt ở HAI chỗ khách hàng không nêu mà cùng câu hỏi: câu cảnh báo *"Không trả lời: …"* của thẻ Sức khoẻ
+và ô chọn thành phần của thẻ Tệp log. Lý do: tên trên màn hình là tên người dùng đọc lại cho người vận hành, và là
+tên tệp log của thành phần ấy — hai tên cho một thứ trên cùng một trang là hai thứ phải tra chéo. Bảng nhãn
+`NHAN_THANH_PHAN` gỡ hẳn (giữ lại là mời người sau dùng lại), thay bằng danh sách `THANH_PHAN`, ca đối chiếu với
+máy chủ giữ nguyên.
+
+Đây là ngoại lệ có chủ ý của luật *"không thuật ngữ máy"* (chốt 05/11) — tên thành phần, không phải thuật ngữ
+nghiệp vụ; ca quét thuật ngữ vẫn cấm `docker|container|dump|…` và vẫn xanh. Phá lại hai lượt (đưa một tên tiếng
+Việt trở lại bảng · trở lại câu cảnh báo), cả hai đỏ.
+
+**SỰ CỐ CỦA CHÍNH TÔI, lần thứ sáu của cùng luật**: chạy `make typecheck` qua `compose.test.yml` trong lúc demo bật
+— Caddy mất cổng 8080. Dữ liệu demo không bị đụng; `demo-down` → chạy kiểm → `make demo`.
+
+**3042/3042 xanh.**
