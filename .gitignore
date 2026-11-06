@@ -29,8 +29,10 @@ workspace/
 # trong thông báo lỗi, nên nó là dữ liệu cá nhân — không vào git, không rời máy
 # chủ ngoài đường sao lưu đã duyệt.
 logarchive/
-# Thư mục tệp log của mười service (`0249`), cùng lý do.
-logs/
+# Thư mục tệp log của các service (`0249`), cùng lý do. `/logs/` chứ KHÔNG `logs/`: mẫu
+# không có `/` đầu khớp MỌI thư mục tên `logs`, kể cả `services/van-hanh/src/logs` — mã
+# nguồn ở đó đã lặng lẽ rơi khỏi commit đầu của `0252`.
+/logs/
 
 # Phụ thuộc và sản phẩm build
 node_modules/

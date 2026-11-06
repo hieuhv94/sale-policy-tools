@@ -208,7 +208,7 @@ demo: secrets demo-env
 	# caddy chỉ phụ thuộc gateway — tám service còn lại sẽ không chạy, và triệu
 	# chứng là màn hình đăng nhập hiện ra rồi mọi thứ trả 502.
 	$(DEMO) up -d --build --wait \
-	  identity catalog customer policy document notification audit reporting \
+	  identity catalog customer policy document notification audit reporting van-hanh \
 	  sla-worker gateway caddy
 	$(MAKE) demo-admin
 	@echo ""

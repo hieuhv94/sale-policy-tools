@@ -163,9 +163,9 @@ describe('LoggerTep — lỗi 500 thật trong một app Nest', () => {
 describe('mười service đều ghi tệp log', () => {
   const dichVu = readdirSync(join(IMPL, 'services'));
 
-  it('có đủ mười thư mục service', () => {
+  it('có đủ mười một thư mục service (`0252` thêm `van-hanh`)', () => {
     expect(dichVu.sort()).toEqual(
-      ['audit', 'catalog', 'customer', 'document', 'gateway', 'identity', 'notification', 'policy', 'reporting', 'sla-worker'],
+      ['audit', 'catalog', 'customer', 'document', 'gateway', 'identity', 'notification', 'policy', 'reporting', 'sla-worker', 'van-hanh'],
     );
   });
 
@@ -189,9 +189,9 @@ describe('compose gắn thư mục log cho mọi service ứng dụng', () => {
       // nằm TRONG container và chết theo nó; gắn mà không có biến thì không ghi gì.
       expect(xNode).toMatch(/^\s+CSBH_LOG_DIR: \/var\/log\/csbh$/m);
       expect(xNode).toMatch(/^\s+- \$\{CSBH_LOG_DIR:-[^}]+\}:\/var\/log\/csbh$/m);
-      // Mười service đều kế thừa x-node.
+      // Mười một service đều kế thừa x-node.
       const keThua = nguon.match(/^ {4}<<: \*node$/gm) ?? [];
-      expect(keThua.length).toBe(10);
+      expect(keThua.length).toBe(11);
     },
   );
 

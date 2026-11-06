@@ -16,7 +16,7 @@ Repo cũng giữ lại phần tài liệu tiền lập trình (`agents/`, `artif
 
 | Thư mục | Nội dung |
 |---|---|
-| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 75 migration SQL thuần, bộ test |
+| `impl/` | Kho mã sản phẩm: 10 service NestJS, web React + Vite (không dùng thư viện component), 76 migration SQL thuần, bộ test |
 | `agents/` | Tài liệu nguồn: yêu cầu nghiệp vụ · kiến trúc · nhật ký triển khai |
 | `impl/docs/` | Ba tài liệu bàn giao: chạy test · dựng demo · hướng dẫn sử dụng |
 | `workspace/` | Log, dump, báo cáo, file tải về khi chạy thử — trong `.gitignore`, **không bao giờ commit** |
@@ -103,7 +103,13 @@ suông — hai lỗi của `0085` đều tìm ra theo đường này.
 đã duyệt (https://claude.ai/artifact/AWQwN7fnZu7cRAB1w7keat). Quản trị **không có chuyên môn IT**: trang không
 dùng thuật ngữ kỹ thuật, không lộ lệnh máy chủ, không có phục hồi.
 
-Chặng gần nhất **P282** (`0251`, B2): **lịch tự động cấu hình được** — schema `ops` (`cau_hinh_viec` + `lan_chay`), MỘT
+Chặng gần nhất **P283** (`0252`, B3a): **service thứ 11 `van-hanh`** (cổng 3011, gateway `/van-hanh`, role CSDL
+`csbh_ops` chỉ thấy schema `ops`, mọi đường `@Roles('QUAN_TRI')`, ghi nhật ký qua `ops.outbox`): API lịch tự động +
+lượt chạy, tệp log (liệt kê · xem đuôi tệp hôm nay · tra mã mọi tệp · tải · xoá), **nén log hằng ngày** thành một
+`log-<ngày>.tar.gz` giữ tối đa N. **Thêm service mới phải sửa BA danh sách gõ tay** (`make demo`, `xuat-chuyen-may`,
+`luu-log.sh`) — không ca nào canh. **2871/2871 xanh.**
+
+Trước đó **P282** (`0251`, B2): **lịch tự động cấu hình được** — schema `ops` (`cau_hinh_viec` + `lan_chay`), MỘT
 phép tính lịch `ops.den_han`/`moc_truoc`/`moc_ke_tiep` cho cron, `sla-worker` và trang web. Cron hỏi mỗi 15 phút
 `./csbh sao-luu[-tep] --neu-den-han` (khoá `flock` chung; CSDL không trả lời thì vẫn chạy trong 15 phút từ giờ mặc
 định). Dọn dữ liệu rời cron sang `sla-worker` (hỏi ở mỗi nhịp quét), dọn thêm `doc.outbox`. **`luu-audit` gỡ hẳn.**

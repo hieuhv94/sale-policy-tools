@@ -68,7 +68,8 @@
     "@csbh/policy": "workspace:*",
     "@csbh/web": "workspace:*",
     "@csbh/reporting": "workspace:*",
-    "@csbh/sla-worker": "workspace:*"
+    "@csbh/sla-worker": "workspace:*",
+    "@csbh/van-hanh": "workspace:*"
   },
   "pnpm": {
     "neverBuiltDependencies": [

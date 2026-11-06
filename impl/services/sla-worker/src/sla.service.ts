@@ -414,9 +414,9 @@ export class SlaService {
     const r = await this.db.one<{ run_retention: Record<string, unknown> }>(
       `SELECT sys.run_retention()`,
     );
-    const them = await this.db.one<{ idn_outbox: string; thong_bao: string; doc_outbox: string }>(
+    const them = await this.db.one<{ idn_outbox: string; thong_bao: string; doc_outbox: string; ops_outbox: string }>(
       `SELECT sys.don_idn_outbox() AS idn_outbox, sys.don_thong_bao() AS thong_bao,
-              sys.don_doc_outbox() AS doc_outbox`,
+              sys.don_doc_outbox() AS doc_outbox, sys.don_ops_outbox() AS ops_outbox`,
     );
     return {
       ...(r?.run_retention ?? {}),
@@ -424,6 +424,7 @@ export class SlaService {
       thong_bao: Number(them?.thong_bao ?? 0),
       // `0251` — bảng outbox duy nhất chưa từng được dọn.
       doc_outbox: Number(them?.doc_outbox ?? 0),
+      ops_outbox: Number(them?.ops_outbox ?? 0),
     };
   }
 

@@ -21029,3 +21029,50 @@ lượt**. Chưa chạy `./csbh sao-luu --neu-den-han` trên chồng production 
 `0124`; đường shell được phủ bằng `docker` giả (21 ca) cộng ba câu SQL đo ở trên.
 
 **2825/2825 xanh.**
+
+## P283 — `0252` Service `van-hanh` (thứ 11): lịch tự động, tệp log, nén log hằng ngày
+
+Chặng B3a của trang Vận hành. Service mới cùng ảnh `csbh-service` (`SERVICE=van-hanh`, cổng 3011), gateway
+`/van-hanh`, role CSDL riêng **`csbh_ops`** (migration `0125`) chỉ thấy schema `ops` — sửa lịch, ghi lượt chạy
+và `ops.outbox`; không chạm dữ liệu nghiệp vụ. Mọi đường `@Roles('QUAN_TRI')`. `migrate.sh` đồng bộ mật khẩu
+cho role thứ mười (`restore.sh` dựng role từ chính bản dump nên không phải sửa).
+
+**Lịch**: `GET /van-hanh/lich` (mỗi việc kèm lần tới `ops.moc_ke_tiep` và lượt gần nhất), `PUT
+/van-hanh/lich/:viec`, `GET /van-hanh/lan-chay`. Luật hợp lệ ở HAI chỗ có chủ ý — API để nói một câu dưới
+đúng ô (`LICH_KHONG_HOP_LE` + `field`), ràng buộc `0251` để chặn mọi đường khác; bắt `23514` thành 400 thay
+vì 500. Phá lại *"bỏ luật chỉ-hằng-ngày ở API"* vẫn ra 400 — CSDL chặn, chỉ ô báo đổi thành `lich`: chốt thứ
+hai làm đúng việc của nó. Giờ `1:15` ban đầu bị `str(5, 5)` chặn trước với `VALIDATION_FAILED` (câu chung
+chung) — nới độ dài để mọi giờ sai dạng nhận cùng một câu.
+
+**Tệp log** (chốt 05/11: một tệp nén mỗi ngày, giữ 30): `GET /van-hanh/logs` · `GET …/dang-ghi/:service`
+(xem đuôi tệp hôm nay, lọc mức / mã tra cứu; đọc tối đa 4MB cuối) · `GET …/tra?traceId=` (mọi tệp đang ghi) ·
+`GET …/:ten/tai` · `DELETE …/:ten`. Tên tệp chỉ qua mẫu `log-<ngày>(-n).tar.gz` — tệp đang ghi và `.sha256`
+không xoá được bằng bất kỳ đường nào. Tải và xoá ghi nhật ký kiểm toán (log mang email, tên khách — tải ra là
+dữ liệu rời máy chủ). Payload KHÔNG mang `id`: `aud.audit_log.entity_id` là `uuid`, tên tệp đi `targetLabel`.
+
+**Nén**: `nenTheoLich` hỏi `ops.den_han('NEN_LOG')` mỗi 5 phút (khuôn `sla-worker`). Mỗi ngày đã qua → MỘT
+`tar.gz` bằng `tar` của ảnh; kiểm `tar -tzf` đủ mọi tệp rồi MỚI xoá gốc; `.sha256` kèm theo. Chạy lại sau khi
+chết giữa "đổi tên" và "dọn gốc" chỉ kiểm rồi dọn; ngày đã có tệp nén chứa tệp KHÁC thì thêm hậu tố `-2`,
+không bao giờ ghi đè. Giữ N đếm SỐ TỆP theo tên (= theo ngày). `sys.don_ops_outbox()` vào lượt dọn dữ liệu.
+
+**44 ca** `tests/http/van-hanh.test.ts`; ca đếm service của `0249` lên 11. Phá lại bảy lượt (không kiểm trước
+khi xoá gốc · dọn nhầm bản mới · nén cả hôm nay · bỏ kiểm tên tệp · không ghi nhật ký khi xoá · bỏ chốt vai
+trò · bỏ luật API), mỗi lượt đỏ đúng ca, khôi phục kiểm bằng `cmp`.
+
+**Ba ca cũ đỏ ở lượt chạy cả bộ, cả ba đúng**: SEC-01 đòi mọi tiền tố `@Controller` là MỘT tiền tố khai ở gateway
+— controller log đặt `van-hanh/logs` (đường vẫn đi được vì gateway so theo đoạn), gom về `van-hanh` thay vì nới
+ca; AD-02 đếm 9 role → 10, kèm ca mới *csbh_ops không đọc được `pol.policy` · `cus.customer` · `idn.app_user` ·
+`aud.audit_log`*; số migration trong tài liệu 75 → 76.
+
+**DANH SÁCH SERVICE GÕ TAY — ba chỗ, không ca nào canh**: `make demo` nêu TÊN từng service để dựng (thiếu thì
+`van-hanh` không bao giờ lên — lộ ra ở `readyz 503` khi dựng thật), `./csbh xuat-chuyen-may` dừng từng service
+trước khi xuất CSDL (thiếu thì lượt nén log ghi `ops.lan_chay` giữa lúc xuất, bảng kê lệch), và `luu-log.sh`.
+Phần chờ xả outbox thì KHÔNG phải sửa: nó quét mọi bảng `outbox` qua `information_schema`, nên `ops.outbox` tự vào.
+
+**Dựng thật** (`make demo`): `van-hanh` khoẻ; qua Caddy `GET /api/van-hanh/lich` trả bốn việc, *lần tới* của sao
+lưu CSDL `18:15Z` = 01:15 ngày 07/11 giờ VN; không token → 401; `readyz` 200 với 11 service; mười một tệp
+`dang-ghi` (thêm `van-hanh-…`). Đặt hai tệp ngày 05/11 vào `dang-ghi`: nhịp đầu (09:56) ra **một**
+`log-2026-11-05.tar.gz` chứa đúng hai tệp, gốc dọn, `sha256sum -c` của MÁY CHỦ trả `OK`, `lan_chay` một lượt
+`THANH_CONG` — `tar` busybox của ảnh làm được việc.
+
+**2871/2871 xanh.**

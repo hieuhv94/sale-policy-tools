@@ -8,7 +8,7 @@ import { admin, asRole, expectSqlError, mkCustomer, withClient } from './helpers
 
 const SCHEMAS = ['idn', 'cat', 'cus', 'pol', 'doc', 'ntf', 'rpt', 'aud', 'sys'];
 
-describe('AD-02 · 9 schema và 9 DB role', () => {
+describe('AD-02 · 9 schema và 10 DB role (`0252` thêm csbh_ops)', () => {
   it('cả 9 schema đều tồn tại', async () => {
     await withClient(asRole('csbh_sys'), async (c) => {
       const r = await c.query(
@@ -17,11 +17,11 @@ describe('AD-02 · 9 schema và 9 DB role', () => {
     });
   });
 
-  it('cả 9 role đăng nhập đều tồn tại', async () => {
+  it('cả 10 role đăng nhập đều tồn tại', async () => {
     await withClient(asRole('csbh_sys'), async (c) => {
       const r = await c.query(
         `SELECT rolname FROM pg_roles WHERE rolname LIKE 'csbh\\_%' AND rolcanlogin ORDER BY 1`);
-      expect(r.rows).toHaveLength(9);
+      expect(r.rows).toHaveLength(10);
     });
   });
 });
@@ -31,6 +31,15 @@ describe('AD-02 · không đọc chéo được schema của service khác', () 
     await withClient(asRole('csbh_cat'), async (c) => {
       const err = await expectSqlError(() => c.query('SELECT 1 FROM pol.policy LIMIT 1'));
       expect(err.code).toBe('42501');                 // insufficient_privilege
+    });
+  });
+
+  it('`0252` csbh_ops (van-hanh) không đọc được dữ liệu nghiệp vụ nào', async () => {
+    await withClient(asRole('csbh_ops'), async (c) => {
+      for (const bang of ['pol.policy', 'cus.customer', 'idn.app_user', 'aud.audit_log']) {
+        const err = await expectSqlError(() => c.query(`SELECT 1 FROM ${bang} LIMIT 1`));
+        expect(err.code, bang).toBe('42501');
+      }
     });
   });
 

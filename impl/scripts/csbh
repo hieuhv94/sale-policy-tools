@@ -690,7 +690,8 @@ HET
     done
 
     echo "==> dừng các service ứng dụng"
-    $DC stop identity catalog customer policy document notification audit reporting
+    # `van-hanh` (`0252`) cũng ghi CSDL — lượt nén log hằng đêm ghi `ops.lan_chay`.
+    $DC stop identity catalog customer policy document notification audit reporting van-hanh
 
     echo "==> xuất CSDL"
     $DC run --rm -T --user "$NGUOI" -v "$ra/goi:/xuat" ops chuyen-may xuat-csdl /xuat

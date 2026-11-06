@@ -260,6 +260,13 @@ services:
       <<: *node-env
       SERVICE: audit
 
+  van-hanh:
+    <<: *node
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3011/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }
+    environment:
+      <<: *node-env
+      SERVICE: van-hanh
+
   reporting:
     <<: *node
     healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3008/healthz"], interval: 10s, timeout: 3s, retries: 30, start_period: 40s }

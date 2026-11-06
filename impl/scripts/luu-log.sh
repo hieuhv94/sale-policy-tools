@@ -31,7 +31,7 @@ set -eu
 
 KHO="${KHO_LOG:-../logarchive}"
 COMPOSE="${COMPOSE_CMD:-docker compose -f deploy/compose.yml -f deploy/compose.demo.yml}"
-DICH_VU="${DICH_VU:-identity catalog customer policy document notification audit reporting sla-worker gateway caddy postgres rabbitmq redis minio}"
+DICH_VU="${DICH_VU:-identity catalog customer policy document notification audit reporting van-hanh sla-worker gateway caddy postgres rabbitmq redis minio}"
 
 # Tháng theo giờ Việt Nam. `date` của busybox lẫn GNU đều nhận `TZ=`.
 THANG=$(TZ=Asia/Ho_Chi_Minh date +%Y-%m)

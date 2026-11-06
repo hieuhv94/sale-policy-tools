@@ -90,7 +90,7 @@ describe('`0246` xuat-chuyen-may', () => {
       'stop caddy gateway sla-worker',
       'chuyen-may cho-xa',
       'rabbitmqctl --silent list_queues messages',
-      'stop identity catalog customer policy document notification audit reporting',
+      'stop identity catalog customer policy document notification audit reporting van-hanh',
       'chuyen-may xuat-csdl /xuat',
       'mc mirror --quiet l /xuat/tep',
       'chuyen-may ban-ke /xuat',

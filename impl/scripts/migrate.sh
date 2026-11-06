@@ -111,12 +111,12 @@ if [ -n "${ROLE_PASSWORD:-}" ]; then
   # lại và role không bao giờ có — `ALTER ROLE` hỏng, mười service không đăng
   # nhập được. Quyền trên bảng đã nằm trong bản dump; thứ thiếu chỉ là role.
   for role in csbh_idn csbh_cat csbh_cus csbh_pol csbh_doc \
-              csbh_ntf csbh_rpt csbh_aud csbh_sys; do
+              csbh_ntf csbh_rpt csbh_aud csbh_sys csbh_ops; do
     echo "SELECT format('CREATE ROLE %I LOGIN', '$role')
           WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '$role') \\gexec"
     echo "ALTER ROLE $role PASSWORD :'pwd';"
   done | psql -v ON_ERROR_STOP=1 -q -v pwd="$ROLE_PASSWORD"
-  echo "migrate: đã đồng bộ mật khẩu 9 DB role"
+  echo "migrate: đã đồng bộ mật khẩu 10 DB role"
 fi
 
 echo "migrate: xong — áp dụng $applied, bỏ qua $skipped (đã có)"

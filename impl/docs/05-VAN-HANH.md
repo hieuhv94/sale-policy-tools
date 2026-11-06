@@ -33,6 +33,19 @@ Mỗi dòng là một JSON: `t` (giờ UTC), `muc`, `service`, `traceId`, `nguoi
 `msg`, và `stack` với lỗi. `traceId` là mã trả về trong header `x-trace-id` của
 phản hồi — có nó thì tra ra đúng vết ngăn xếp của lỗi người dùng vừa gặp.
 
+**Nén hằng ngày** (`mới 06/11 — 0252`): service `van-hanh` gom mọi tệp của một ngày đã
+qua thành **một** `logs/log-<YYYY-MM-DD>.tar.gz` (kèm `.sha256`), kiểm đọc lại đủ tệp rồi
+mới xoá bản gốc, và giữ tối đa N tệp nén (mặc định 30, cấu hình trên trang Vận hành) —
+tệp cũ nhất bị xoá khi có tệp mới. Giờ nén mặc định 00:15. Đọc một ngày cũ:
+
+```sh
+tar -tzf logs/log-2026-11-04.tar.gz                       # các tệp trong đó
+tar -xzOf logs/log-2026-11-04.tar.gz policy-2026-11-04.log | grep '"muc":"error"'
+```
+
+Quản trị xem, tải, xoá các tệp này trên trang **Vận hành** (thẻ *Tệp log*); mọi lượt
+tải và xoá ghi vào nhật ký kiểm toán.
+
 ---
 
 ## 2. Lịch tự động — bắt buộc cài

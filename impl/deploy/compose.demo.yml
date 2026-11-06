@@ -142,6 +142,13 @@ services:
     build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: audit } }
     healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3007/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
 
+  # `0252` — service thứ 11: API của trang Vận hành. Gắn thư mục log (qua x-node) để
+  # nén/xem/tải/xoá tệp log.
+  van-hanh:
+    <<: *node
+    build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: van-hanh } }
+    healthcheck: { test: ["CMD","curl","-fsS","http://localhost:3011/healthz"], interval: 5s, timeout: 3s, retries: 30, start_period: 40s }
+
   reporting:
     <<: *node
     build: { context: .., dockerfile: docker/Dockerfile, args: { SERVICE: reporting } }

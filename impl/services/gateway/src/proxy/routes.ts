@@ -69,6 +69,8 @@ export const UPSTREAMS: Upstream[] = [
   { prefix: '/notifications', name: 'notification', url: env('NOTIFICATION_URL', 'http://notification:3006') },
   { prefix: '/audit', name: 'audit', url: env('AUDIT_URL', 'http://audit:3007') },
   { prefix: '/reports', name: 'reporting', url: env('REPORTING_URL', 'http://reporting:3008') },
+  // `0252` — trang Vận hành của Quản trị.
+  { prefix: '/van-hanh', name: 'van-hanh', url: env('VAN_HANH_URL', 'http://van-hanh:3011') },
 ];
 
 /**

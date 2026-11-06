@@ -92,6 +92,7 @@ services:
       - nm_sla:/app/services/sla-worker/node_modules
       - nm_audit:/app/services/audit/node_modules
       - nm_reporting:/app/services/reporting/node_modules
+      - nm_van_hanh:/app/services/van-hanh/node_modules
       - nm_gateway:/app/services/gateway/node_modules
       - nm_web:/app/apps/web/node_modules
     working_dir: /app
@@ -117,5 +118,6 @@ volumes:
   nm_sla: {}
   nm_audit: {}
   nm_reporting: {}
+  nm_van_hanh: {}
   nm_gateway: {}
   nm_web: {}

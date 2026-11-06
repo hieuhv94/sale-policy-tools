@@ -468,6 +468,12 @@ export const BANG_LOI: Record<string, Muc> = {
     dang: 'hop-thoai',
     cau: 'Chức năng này chưa mở trong phiên bản hiện tại.',
   },
+  // `0252` — trang Vận hành.
+  LICH_KHONG_CO: { dang: 'hop-thoai', cau: 'Không có việc định kỳ này. Tải lại trang rồi thử lại.' },
+  LICH_KHONG_HOP_LE: { dang: 'o-nhap', tuMayChu: true },
+  TEN_TEP_SAI: { dang: 'thanh-noi', cau: 'Tên tệp không hợp lệ. Tải lại trang rồi thử lại.' },
+  LOG_KHONG_CO: { dang: 'thanh-noi', cau: 'Tệp log này không còn — có thể đã bị xoá. Tải lại danh sách.' },
+  LOG_CHUA_CAU_HINH: { dang: 'hop-thoai', cau: 'Máy chủ chưa được cấu hình thư mục log. Liên hệ người vận hành máy chủ.' },
   SCAN_REQUIRED: { dang: 'hop-thoai', tuMayChu: true },
   /*
    * `0167` — chưa tạo bản mềm thì chưa bàn giao được.
